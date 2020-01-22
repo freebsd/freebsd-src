@@ -563,12 +563,12 @@ AArch64RegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
     return getSameKindOfOperandsMapping(MI);
   }
   case TargetOpcode::COPY: {
-    unsigned DstReg = MI.getOperand(0).getReg();
-    unsigned SrcReg = MI.getOperand(1).getReg();
+    Register DstReg = MI.getOperand(0).getReg();
+    Register SrcReg = MI.getOperand(1).getReg();
     // Check if one of the register is not a generic register.
-    if ((TargetRegisterInfo::isPhysicalRegister(DstReg) ||
+    if ((Register::isPhysicalRegister(DstReg) ||
          !MRI.getType(DstReg).isValid()) ||
-        (TargetRegisterInfo::isPhysicalRegister(SrcReg) ||
+        (Register::isPhysicalRegister(SrcReg) ||
          !MRI.getType(SrcReg).isValid())) {
       const RegisterBank *DstRB = getRegBank(DstReg, MRI, TRI);
       const RegisterBank *SrcRB = getRegBank(SrcReg, MRI, TRI);
@@ -635,6 +635,12 @@ AArch64RegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   // Some of the floating-point instructions have mixed GPR and FPR operands:
   // fine-tune the computed mapping.
   switch (Opc) {
+  case TargetOpcode::G_TRUNC: {
+    LLT SrcTy = MRI.getType(MI.getOperand(1).getReg());
+    if (!SrcTy.isVector() && SrcTy.getSizeInBits() == 128)
+      OpRegBankIdx = {PMI_FirstFPR, PMI_FirstFPR};
+    break;
+  }
   case TargetOpcode::G_SITOFP:
   case TargetOpcode::G_UITOFP:
     if (MRI.getType(MI.getOperand(0).getReg()).isVector())
@@ -687,7 +693,7 @@ AArch64RegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   case TargetOpcode::G_STORE:
     // Check if that store is fed by fp instructions.
     if (OpRegBankIdx[0] == PMI_FirstGPR) {
-      unsigned VReg = MI.getOperand(0).getReg();
+      Register VReg = MI.getOperand(0).getReg();
       if (!VReg)
         break;
       MachineInstr *DefMI = MRI.getVRegDef(VReg);
@@ -702,11 +708,10 @@ AArch64RegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
       break;
 
     // If we're taking in vectors, we have no choice but to put everything on
-    // FPRs.
+    // FPRs, except for the condition. The condition must always be on a GPR.
     LLT SrcTy = MRI.getType(MI.getOperand(2).getReg());
     if (SrcTy.isVector()) {
-      for (unsigned Idx = 0; Idx < 4; ++Idx)
-        OpRegBankIdx[Idx] = PMI_FirstFPR;
+      OpRegBankIdx = {PMI_FirstFPR, PMI_FirstGPR, PMI_FirstFPR, PMI_FirstFPR};
       break;
     }
 
@@ -740,7 +745,7 @@ AArch64RegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
     // This doesn't check the condition, since it's just whatever is in NZCV.
     // This isn't passed explicitly in a register to fcsel/csel.
     for (unsigned Idx = 2; Idx < 4; ++Idx) {
-      unsigned VReg = MI.getOperand(Idx).getReg();
+      Register VReg = MI.getOperand(Idx).getReg();
       MachineInstr *DefMI = MRI.getVRegDef(VReg);
       if (getRegBank(VReg, MRI, TRI) == &AArch64::FPRRegBank ||
           onlyDefinesFP(*DefMI, MRI, TRI))
@@ -750,8 +755,7 @@ AArch64RegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
     // If we have more FP constraints than not, then move everything over to
     // FPR.
     if (NumFP >= 2)
-      for (unsigned Idx = 0; Idx < 4; ++Idx)
-        OpRegBankIdx[Idx] = PMI_FirstFPR;
+      OpRegBankIdx = {PMI_FirstFPR, PMI_FirstGPR, PMI_FirstFPR, PMI_FirstFPR};
 
     break;
   }
@@ -764,7 +768,7 @@ AArch64RegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
     LLT SrcTy = MRI.getType(MI.getOperand(MI.getNumOperands()-1).getReg());
     // UNMERGE into scalars from a vector should always use FPR.
     // Likewise if any of the uses are FP instructions.
-    if (SrcTy.isVector() ||
+    if (SrcTy.isVector() || SrcTy == LLT::scalar(128) ||
         any_of(MRI.use_instructions(MI.getOperand(0).getReg()),
                [&](MachineInstr &MI) { return onlyUsesFP(MI, MRI, TRI); })) {
       // Set the register bank of every operand to FPR.
@@ -795,12 +799,21 @@ AArch64RegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
     // Index needs to be a GPR.
     OpRegBankIdx[3] = PMI_FirstGPR;
     break;
+  case TargetOpcode::G_EXTRACT: {
+    // For s128 sources we have to use fpr.
+    LLT SrcTy = MRI.getType(MI.getOperand(1).getReg());
+    if (SrcTy.getSizeInBits() == 128) {
+      OpRegBankIdx[0] = PMI_FirstFPR;
+      OpRegBankIdx[1] = PMI_FirstFPR;
+    }
+    break;
+  }
   case TargetOpcode::G_BUILD_VECTOR:
     // If the first source operand belongs to a FPR register bank, then make
     // sure that we preserve that.
     if (OpRegBankIdx[1] != PMI_FirstGPR)
       break;
-    unsigned VReg = MI.getOperand(1).getReg();
+    Register VReg = MI.getOperand(1).getReg();
     if (!VReg)
       break;
 

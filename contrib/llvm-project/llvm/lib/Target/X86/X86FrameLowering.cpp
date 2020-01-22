@@ -35,8 +35,8 @@
 using namespace llvm;
 
 X86FrameLowering::X86FrameLowering(const X86Subtarget &STI,
-                                   unsigned StackAlignOverride)
-    : TargetFrameLowering(StackGrowsDown, StackAlignOverride,
+                                   MaybeAlign StackAlignOverride)
+    : TargetFrameLowering(StackGrowsDown, StackAlignOverride.valueOrOne(),
                           STI.is64Bit() ? -8 : -4),
       STI(STI), TII(*STI.getInstrInfo()), TRI(STI.getRegisterInfo()) {
   // Cache a bunch of frame-related predicates for this subtarget.
@@ -176,7 +176,7 @@ static unsigned findDeadCallerSavedReg(MachineBasicBlock &MBB,
       MachineOperand &MO = MBBI->getOperand(i);
       if (!MO.isReg() || MO.isDef())
         continue;
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       if (!Reg)
         continue;
       for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI)
@@ -216,7 +216,7 @@ flagsNeedToBePreservedBeforeTheTerminators(const MachineBasicBlock &MBB) {
     for (const MachineOperand &MO : MI.operands()) {
       if (!MO.isReg())
         continue;
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       if (Reg != X86::EFLAGS)
         continue;
 
@@ -995,11 +995,11 @@ void X86FrameLowering::emitPrologue(MachineFunction &MF,
   bool NeedsWinCFI = NeedsWin64CFI || NeedsWinFPO;
   bool NeedsDwarfCFI =
       !IsWin64Prologue && (MMI.hasDebugInfo() || Fn.needsUnwindTableEntry());
-  unsigned FramePtr = TRI->getFrameRegister(MF);
-  const unsigned MachineFramePtr =
+  Register FramePtr = TRI->getFrameRegister(MF);
+  const Register MachineFramePtr =
       STI.isTarget64BitILP32()
-          ? getX86SubSuperRegister(FramePtr, 64) : FramePtr;
-  unsigned BasePtr = TRI->getBaseRegister();
+          ? Register(getX86SubSuperRegister(FramePtr, 64)) : FramePtr;
+  Register BasePtr = TRI->getBaseRegister();
   bool HasWinCFI = false;
 
   // Debug location must be unknown since the first debug location is used
@@ -1016,14 +1016,7 @@ void X86FrameLowering::emitPrologue(MachineFunction &MF,
       X86FI->getCalleeSavedFrameSize() - TailCallReturnAddrDelta);
 
   bool UseStackProbe = !STI.getTargetLowering()->getStackProbeSymbolName(MF).empty();
-
-  // The default stack probe size is 4096 if the function has no stackprobesize
-  // attribute.
-  unsigned StackProbeSize = 4096;
-  if (Fn.hasFnAttribute("stack-probe-size"))
-    Fn.getFnAttribute("stack-probe-size")
-        .getValueAsString()
-        .getAsInteger(0, StackProbeSize);
+  unsigned StackProbeSize = STI.getTargetLowering()->getStackProbeSize(MF);
 
   // Re-align the stack on 64-bit if the x86-interrupt calling convention is
   // used and an error code was pushed, since the x86-64 ABI requires a 16-byte
@@ -1081,7 +1074,7 @@ void X86FrameLowering::emitPrologue(MachineFunction &MF,
   int stackGrowth = -SlotSize;
 
   // Find the funclet establisher parameter
-  unsigned Establisher = X86::NoRegister;
+  Register Establisher = X86::NoRegister;
   if (IsClrFunclet)
     Establisher = Uses64BitFramePtr ? X86::RCX : X86::ECX;
   else if (IsFunclet)
@@ -1192,7 +1185,7 @@ void X86FrameLowering::emitPrologue(MachineFunction &MF,
          (MBBI->getOpcode() == X86::PUSH32r ||
           MBBI->getOpcode() == X86::PUSH64r)) {
     PushedRegs = true;
-    unsigned Reg = MBBI->getOperand(0).getReg();
+    Register Reg = MBBI->getOperand(0).getReg();
     ++MBBI;
 
     if (!HasFP && NeedsDwarfCFI) {
@@ -1605,9 +1598,9 @@ void X86FrameLowering::emitEpilogue(MachineFunction &MF,
     DL = MBBI->getDebugLoc();
   // standard x86_64 and NaCl use 64-bit frame/stack pointers, x32 - 32-bit.
   const bool Is64BitILP32 = STI.isTarget64BitILP32();
-  unsigned FramePtr = TRI->getFrameRegister(MF);
+  Register FramePtr = TRI->getFrameRegister(MF);
   unsigned MachineFramePtr =
-      Is64BitILP32 ? getX86SubSuperRegister(FramePtr, 64) : FramePtr;
+      Is64BitILP32 ? Register(getX86SubSuperRegister(FramePtr, 64)) : FramePtr;
 
   bool IsWin64Prologue = MF.getTarget().getMCAsmInfo()->usesWindowsCFI();
   bool NeedsWin64CFI =
@@ -1869,7 +1862,7 @@ int X86FrameLowering::getWin64EHFrameIndexRef(const MachineFunction &MF,
     return getFrameIndexReference(MF, FI, FrameReg);
 
   FrameReg = TRI->getStackRegister();
-  return alignDown(MFI.getMaxCallFrameSize(), getStackAlignment()) + it->second;
+  return alignTo(MFI.getMaxCallFrameSize(), getStackAlignment()) + it->second;
 }
 
 int X86FrameLowering::getFrameIndexReferenceSP(const MachineFunction &MF,
@@ -2008,7 +2001,7 @@ bool X86FrameLowering::assignCalleeSavedSpillSlots(
     // Since emitPrologue and emitEpilogue will handle spilling and restoring of
     // the frame register, we can delete it from CSI list and not have to worry
     // about avoiding it later.
-    unsigned FPReg = TRI->getFrameRegister(MF);
+    Register FPReg = TRI->getFrameRegister(MF);
     for (unsigned i = 0; i < CSI.size(); ++i) {
       if (TRI->regsOverlap(CSI[i].getReg(),FPReg)) {
         CSI.erase(CSI.begin() + i);
@@ -2232,7 +2225,7 @@ void X86FrameLowering::determineCalleeSaves(MachineFunction &MF,
 
   // Spill the BasePtr if it's used.
   if (TRI->hasBasePointer(MF)){
-    unsigned BasePtr = TRI->getBaseRegister();
+    Register BasePtr = TRI->getBaseRegister();
     if (STI.isTarget64BitILP32())
       BasePtr = getX86SubSuperRegister(BasePtr, 64);
     SavedRegs.set(BasePtr);
@@ -2244,7 +2237,7 @@ HasNestArgument(const MachineFunction *MF) {
   const Function &F = MF->getFunction();
   for (Function::const_arg_iterator I = F.arg_begin(), E = F.arg_end();
        I != E; I++) {
-    if (I->hasNestAttr())
+    if (I->hasNestAttr() && !I->use_empty())
       return true;
   }
   return false;
@@ -2276,7 +2269,8 @@ GetScratchRegister(bool Is64Bit, bool IsLP64, const MachineFunction &MF, bool Pr
   bool IsNested = HasNestArgument(&MF);
 
   if (CallingConvention == CallingConv::X86_FastCall ||
-      CallingConvention == CallingConv::Fast) {
+      CallingConvention == CallingConv::Fast ||
+      CallingConvention == CallingConv::Tail) {
     if (IsNested)
       report_fatal_error("Segmented stacks does not support fastcall with "
                          "nested function.");
@@ -2557,6 +2551,18 @@ static unsigned getHiPELiteral(
                      + " required but not provided");
 }
 
+// Return true if there are no non-ehpad successors to MBB and there are no
+// non-meta instructions between MBBI and MBB.end().
+static bool blockEndIsUnreachable(const MachineBasicBlock &MBB,
+                                  MachineBasicBlock::const_iterator MBBI) {
+  return std::all_of(
+             MBB.succ_begin(), MBB.succ_end(),
+             [](const MachineBasicBlock *Succ) { return Succ->isEHPad(); }) &&
+         std::all_of(MBBI, MBB.end(), [](const MachineInstr &MI) {
+           return MI.isMetaInstruction();
+         });
+}
+
 /// Erlang programs may need a special prologue to handle the stack size they
 /// might need at runtime. That is because Erlang/OTP does not implement a C
 /// stack but uses a custom implementation of hybrid stack/heap architecture.
@@ -2790,7 +2796,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
   unsigned Opcode = I->getOpcode();
   bool isDestroy = Opcode == TII.getCallFrameDestroyOpcode();
   DebugLoc DL = I->getDebugLoc();
-  uint64_t Amount = !reserveCallFrame ? TII.getFrameSize(*I) : 0;
+  uint64_t Amount = TII.getFrameSize(*I);
   uint64_t InternalAmt = (isDestroy || Amount) ? TII.getFrameAdjustment(*I) : 0;
   I = MBB.erase(I);
   auto InsertPos = skipDebugInstructionsForward(I, MBB.end());
@@ -2879,7 +2885,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
     return I;
   }
 
-  if (isDestroy && InternalAmt) {
+  if (isDestroy && InternalAmt && !blockEndIsUnreachable(MBB, I)) {
     // If we are performing frame pointer elimination and if the callee pops
     // something off the stack pointer, add it back.  We do this until we have
     // more advanced stack pointer tracking ability.
@@ -2944,8 +2950,8 @@ MachineBasicBlock::iterator X86FrameLowering::restoreWin32EHStackPointers(
          "restoring EBP/ESI on non-32-bit target");
 
   MachineFunction &MF = *MBB.getParent();
-  unsigned FramePtr = TRI->getFrameRegister(MF);
-  unsigned BasePtr = TRI->getBaseRegister();
+  Register FramePtr = TRI->getFrameRegister(MF);
+  Register BasePtr = TRI->getBaseRegister();
   WinEHFuncInfo &FuncInfo = *MF.getWinEHFuncInfo();
   X86MachineFunctionInfo *X86FI = MF.getInfo<X86MachineFunctionInfo>();
   MachineFrameInfo &MFI = MF.getFrameInfo();

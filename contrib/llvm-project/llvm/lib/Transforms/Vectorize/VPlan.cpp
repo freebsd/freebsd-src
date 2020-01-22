@@ -283,6 +283,12 @@ iplist<VPRecipeBase>::iterator VPRecipeBase::eraseFromParent() {
   return getParent()->getRecipeList().erase(getIterator());
 }
 
+void VPRecipeBase::moveAfter(VPRecipeBase *InsertPos) {
+  InsertPos->getParent()->getRecipeList().splice(
+      std::next(InsertPos->getIterator()), getParent()->getRecipeList(),
+      getIterator());
+}
+
 void VPInstruction::generateInstruction(VPTransformState &State,
                                         unsigned Part) {
   IRBuilder<> &Builder = State.Builder;
@@ -306,6 +312,14 @@ void VPInstruction::generateInstruction(VPTransformState &State,
     Value *IV = State.get(getOperand(0), Part);
     Value *TC = State.get(getOperand(1), Part);
     Value *V = Builder.CreateICmpULE(IV, TC);
+    State.set(this, V, Part);
+    break;
+  }
+  case Instruction::Select: {
+    Value *Cond = State.get(getOperand(0), Part);
+    Value *Op1 = State.get(getOperand(1), Part);
+    Value *Op2 = State.get(getOperand(2), Part);
+    Value *V = Builder.CreateSelect(Cond, Op1, Op2);
     State.set(this, V, Part);
     break;
   }
@@ -728,7 +742,7 @@ void VPInterleavedAccessInfo::visitBlock(VPBlockBase *Block, Old2NewTy &Old2New,
       auto NewIGIter = Old2New.find(IG);
       if (NewIGIter == Old2New.end())
         Old2New[IG] = new InterleaveGroup<VPInstruction>(
-            IG->getFactor(), IG->isReverse(), IG->getAlignment());
+            IG->getFactor(), IG->isReverse(), Align(IG->getAlignment()));
 
       if (Inst == IG->getInsertPos())
         Old2New[IG]->setInsertPos(VPInst);
@@ -736,7 +750,8 @@ void VPInterleavedAccessInfo::visitBlock(VPBlockBase *Block, Old2NewTy &Old2New,
       InterleaveGroupMap[VPInst] = Old2New[IG];
       InterleaveGroupMap[VPInst]->insertMember(
           VPInst, IG->getIndex(Inst),
-          IG->isReverse() ? (-1) * int(IG->getFactor()) : IG->getFactor());
+          Align(IG->isReverse() ? (-1) * int(IG->getFactor())
+                                : IG->getFactor()));
     }
   } else if (VPRegionBlock *Region = dyn_cast<VPRegionBlock>(Block))
     visitRegion(Region, Old2New, IAI);

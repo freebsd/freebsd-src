@@ -49,7 +49,7 @@ static MachineFunction *getMFIfAvailable(MachineOperand &MO) {
       getMFIfAvailable(const_cast<const MachineOperand &>(MO)));
 }
 
-void MachineOperand::setReg(unsigned Reg) {
+void MachineOperand::setReg(Register Reg) {
   if (getReg() == Reg)
     return; // No change.
 
@@ -71,9 +71,9 @@ void MachineOperand::setReg(unsigned Reg) {
   SmallContents.RegNo = Reg;
 }
 
-void MachineOperand::substVirtReg(unsigned Reg, unsigned SubIdx,
+void MachineOperand::substVirtReg(Register Reg, unsigned SubIdx,
                                   const TargetRegisterInfo &TRI) {
-  assert(TargetRegisterInfo::isVirtualRegister(Reg));
+  assert(Reg.isVirtual());
   if (SubIdx && getSubReg())
     SubIdx = TRI.composeSubRegIndices(SubIdx, getSubReg());
   setReg(Reg);
@@ -81,8 +81,8 @@ void MachineOperand::substVirtReg(unsigned Reg, unsigned SubIdx,
     setSubReg(SubIdx);
 }
 
-void MachineOperand::substPhysReg(unsigned Reg, const TargetRegisterInfo &TRI) {
-  assert(TargetRegisterInfo::isPhysicalRegister(Reg));
+void MachineOperand::substPhysReg(MCRegister Reg, const TargetRegisterInfo &TRI) {
+  assert(Reg.isPhysical());
   if (getSubReg()) {
     Reg = TRI.getSubReg(Reg, getSubReg());
     // Note that getSubReg() may return 0 if the sub-register doesn't exist.
@@ -114,7 +114,7 @@ void MachineOperand::setIsDef(bool Val) {
 
 bool MachineOperand::isRenamable() const {
   assert(isReg() && "Wrong MachineOperand accessor");
-  assert(TargetRegisterInfo::isPhysicalRegister(getReg()) &&
+  assert(Register::isPhysicalRegister(getReg()) &&
          "isRenamable should only be checked on physical registers");
   if (!IsRenamable)
     return false;
@@ -132,7 +132,7 @@ bool MachineOperand::isRenamable() const {
 
 void MachineOperand::setIsRenamable(bool Val) {
   assert(isReg() && "Wrong MachineOperand accessor");
-  assert(TargetRegisterInfo::isPhysicalRegister(getReg()) &&
+  assert(Register::isPhysicalRegister(getReg()) &&
          "setIsRenamable should only be called on physical registers");
   IsRenamable = Val;
 }
@@ -169,7 +169,7 @@ void MachineOperand::ChangeToFPImmediate(const ConstantFP *FPImm) {
 }
 
 void MachineOperand::ChangeToES(const char *SymName,
-                                unsigned char TargetFlags) {
+                                unsigned TargetFlags) {
   assert((!isReg() || !isTied()) &&
          "Cannot change a tied operand into an external symbol");
 
@@ -182,7 +182,7 @@ void MachineOperand::ChangeToES(const char *SymName,
 }
 
 void MachineOperand::ChangeToGA(const GlobalValue *GV, int64_t Offset,
-                                unsigned char TargetFlags) {
+                                unsigned TargetFlags) {
   assert((!isReg() || !isTied()) &&
          "Cannot change a tied operand into a global address");
 
@@ -215,7 +215,7 @@ void MachineOperand::ChangeToFrameIndex(int Idx) {
 }
 
 void MachineOperand::ChangeToTargetIndex(unsigned Idx, int64_t Offset,
-                                         unsigned char TargetFlags) {
+                                         unsigned TargetFlags) {
   assert((!isReg() || !isTied()) &&
          "Cannot change a tied operand into a FrameIndex");
 
@@ -230,7 +230,7 @@ void MachineOperand::ChangeToTargetIndex(unsigned Idx, int64_t Offset,
 /// ChangeToRegister - Replace this operand with a new register operand of
 /// the specified value.  If an operand is known to be an register already,
 /// the setReg method should be used.
-void MachineOperand::ChangeToRegister(unsigned Reg, bool isDef, bool isImp,
+void MachineOperand::ChangeToRegister(Register Reg, bool isDef, bool isImp,
                                       bool isKill, bool isDead, bool isUndef,
                                       bool isDebug) {
   MachineRegisterInfo *RegInfo = nullptr;
@@ -333,6 +333,8 @@ bool MachineOperand::isIdenticalTo(const MachineOperand &Other) const {
     return getIntrinsicID() == Other.getIntrinsicID();
   case MachineOperand::MO_Predicate:
     return getPredicate() == Other.getPredicate();
+  case MachineOperand::MO_ShuffleMask:
+    return getShuffleMask() == Other.getShuffleMask();
   }
   llvm_unreachable("Invalid machine operand type");
 }
@@ -381,6 +383,8 @@ hash_code llvm::hash_value(const MachineOperand &MO) {
     return hash_combine(MO.getType(), MO.getTargetFlags(), MO.getIntrinsicID());
   case MachineOperand::MO_Predicate:
     return hash_combine(MO.getType(), MO.getTargetFlags(), MO.getPredicate());
+  case MachineOperand::MO_ShuffleMask:
+    return hash_combine(MO.getType(), MO.getTargetFlags(), MO.getShuffleMask());
   }
   llvm_unreachable("Invalid machine operand type");
 }
@@ -425,12 +429,10 @@ static void printCFIRegister(unsigned DwarfReg, raw_ostream &OS,
     return;
   }
 
-  int Reg = TRI->getLLVMRegNum(DwarfReg, true);
-  if (Reg == -1) {
+  if (Optional<unsigned> Reg = TRI->getLLVMRegNum(DwarfReg, true))
+    OS << printReg(*Reg, TRI);
+  else
     OS << "<badreg>";
-    return;
-  }
-  OS << printReg(Reg, TRI);
 }
 
 static void printIRBlockReference(raw_ostream &OS, const BasicBlock &BB,
@@ -746,7 +748,7 @@ void MachineOperand::print(raw_ostream &OS, ModuleSlotTracker &MST,
   printTargetFlags(OS, *this);
   switch (getType()) {
   case MachineOperand::MO_Register: {
-    unsigned Reg = getReg();
+    Register Reg = getReg();
     if (isImplicit())
       OS << (isDef() ? "implicit-def " : "implicit ");
     else if (PrintDef && isDef())
@@ -762,13 +764,13 @@ void MachineOperand::print(raw_ostream &OS, ModuleSlotTracker &MST,
       OS << "undef ";
     if (isEarlyClobber())
       OS << "early-clobber ";
-    if (TargetRegisterInfo::isPhysicalRegister(getReg()) && isRenamable())
+    if (Register::isPhysicalRegister(getReg()) && isRenamable())
       OS << "renamable ";
     // isDebug() is exactly true for register operands of a DBG_VALUE. So we
     // simply infer it when parsing and do not need to print it.
 
     const MachineRegisterInfo *MRI = nullptr;
-    if (TargetRegisterInfo::isVirtualRegister(Reg)) {
+    if (Register::isVirtualRegister(Reg)) {
       if (const MachineFunction *MF = getMFIfAvailable(*this)) {
         MRI = &MF->getRegInfo();
       }
@@ -783,7 +785,7 @@ void MachineOperand::print(raw_ostream &OS, ModuleSlotTracker &MST,
         OS << ".subreg" << SubReg;
     }
     // Print the register class / bank.
-    if (TargetRegisterInfo::isVirtualRegister(Reg)) {
+    if (Register::isVirtualRegister(Reg)) {
       if (const MachineFunction *MF = getMFIfAvailable(*this)) {
         const MachineRegisterInfo &MRI = MF->getRegInfo();
         if (IsStandalone || !PrintDef || MRI.def_empty(Reg)) {
@@ -936,6 +938,20 @@ void MachineOperand::print(raw_ostream &OS, ModuleSlotTracker &MST,
        << CmpInst::getPredicateName(Pred) << ')';
     break;
   }
+  case MachineOperand::MO_ShuffleMask:
+    OS << "shufflemask(";
+    const Constant* C = getShuffleMask();
+    const int NumElts = C->getType()->getVectorNumElements();
+
+    StringRef Separator;
+    for (int I = 0; I != NumElts; ++I) {
+      OS << Separator;
+      C->getAggregateElement(I)->printAsOperand(OS, false, MST);
+      Separator = ", ";
+    }
+
+    OS << ')';
+    break;
   }
 }
 
@@ -963,7 +979,8 @@ bool MachinePointerInfo::isDereferenceable(unsigned Size, LLVMContext &C,
     return false;
 
   return isDereferenceableAndAlignedPointer(
-      BasePtr, 1, APInt(DL.getPointerSizeInBits(), Offset + Size), DL);
+      BasePtr, Align::None(), APInt(DL.getPointerSizeInBits(), Offset + Size),
+      DL);
 }
 
 /// getConstantPool - Return a MachinePointerInfo record that refers to the
@@ -1047,17 +1064,6 @@ void MachineMemOperand::refineAlignment(const MachineMemOperand *MMO) {
 /// actual memory reference.
 uint64_t MachineMemOperand::getAlignment() const {
   return MinAlign(getBaseAlignment(), getOffset());
-}
-
-void MachineMemOperand::print(raw_ostream &OS) const {
-  ModuleSlotTracker DummyMST(nullptr);
-  print(OS, DummyMST);
-}
-
-void MachineMemOperand::print(raw_ostream &OS, ModuleSlotTracker &MST) const {
-  SmallVector<StringRef, 0> SSNs;
-  LLVMContext Ctx;
-  print(OS, MST, SSNs, Ctx, nullptr, nullptr);
 }
 
 void MachineMemOperand::print(raw_ostream &OS, ModuleSlotTracker &MST,

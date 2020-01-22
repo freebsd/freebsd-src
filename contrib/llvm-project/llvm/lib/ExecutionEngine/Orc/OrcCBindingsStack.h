@@ -97,7 +97,7 @@ public:
 
   template <typename LayerT>
   std::unique_ptr<GenericLayerImpl<LayerT>> createGenericLayer(LayerT &Layer) {
-    return llvm::make_unique<GenericLayerImpl<LayerT>>(Layer);
+    return std::make_unique<GenericLayerImpl<LayerT>>(Layer);
   }
 
 } // end namespace detail
@@ -316,7 +316,8 @@ public:
     if (auto Err = CtorRunner.runViaLayer(*this))
       return std::move(Err);
 
-    IRStaticDestructorRunners.emplace_back(std::move(DtorNames), K);
+    IRStaticDestructorRunners.emplace_back(AcknowledgeORCv1Deprecation,
+                                           std::move(DtorNames), K);
 
     return K;
   }
@@ -326,7 +327,7 @@ public:
                    LLVMOrcSymbolResolverFn ExternalResolver,
                    void *ExternalResolverCtx) {
     return addIRModule(CompileLayer, std::move(M),
-                       llvm::make_unique<SectionMemoryManager>(),
+                       std::make_unique<SectionMemoryManager>(),
                        std::move(ExternalResolver), ExternalResolverCtx);
   }
 
@@ -340,7 +341,7 @@ public:
                                      inconvertibleErrorCode());
 
     return addIRModule(*CODLayer, std::move(M),
-                       llvm::make_unique<SectionMemoryManager>(),
+                       std::make_unique<SectionMemoryManager>(),
                        std::move(ExternalResolver), ExternalResolverCtx);
   }
 
@@ -468,7 +469,7 @@ private:
     if (!CCMgr)
       return nullptr;
 
-    return llvm::make_unique<CODLayerT>(
+    return std::make_unique<CODLayerT>(
         AcknowledgeORCv1Deprecation, ES, CompileLayer,
         [&Resolvers](orc::VModuleKey K) {
           auto ResolverI = Resolvers.find(K);

@@ -1467,6 +1467,13 @@ public:
       U.pVal[whichWord(BitPosition)] &= Mask;
   }
 
+  /// Set bottom loBits bits to 0.
+  void clearLowBits(unsigned loBits) {
+    assert(loBits <= BitWidth && "More bits than bitwidth");
+    APInt Keep = getHighBitsSet(BitWidth, BitWidth - loBits);
+    *this &= Keep;
+  }
+
   /// Set the sign bit to 0.
   void clearSignBit() {
     clearBit(BitWidth - 1);
@@ -1496,9 +1503,11 @@ public:
 
   /// Insert the bits from a smaller APInt starting at bitPosition.
   void insertBits(const APInt &SubBits, unsigned bitPosition);
+  void insertBits(uint64_t SubBits, unsigned bitPosition, unsigned numBits);
 
   /// Return an APInt with the extracted bits [bitPosition,bitPosition+numBits).
   APInt extractBits(unsigned numBits, unsigned bitPosition) const;
+  uint64_t extractBitsAsZExtValue(unsigned numBits, unsigned bitPosition) const;
 
   /// @}
   /// \name Value Characterization Functions

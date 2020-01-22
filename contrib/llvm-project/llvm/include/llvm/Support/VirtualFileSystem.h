@@ -647,8 +647,18 @@ private:
   friend class VFSFromYamlDirIterImpl;
   friend class RedirectingFileSystemParser;
 
+  bool shouldUseExternalFS() const {
+    return ExternalFSValidWD && IsFallthrough;
+  }
+
   /// The root(s) of the virtual file system.
   std::vector<std::unique_ptr<Entry>> Roots;
+
+  /// The current working directory of the file system.
+  std::string WorkingDirectory;
+
+  /// Whether the current working directory is valid for the external FS.
+  bool ExternalFSValidWD = false;
 
   /// The file system to use for external references.
   IntrusiveRefCntPtr<FileSystem> ExternalFS;
@@ -689,8 +699,7 @@ private:
       true;
 #endif
 
-  RedirectingFileSystem(IntrusiveRefCntPtr<FileSystem> ExternalFS)
-      : ExternalFS(std::move(ExternalFS)) {}
+  RedirectingFileSystem(IntrusiveRefCntPtr<FileSystem> ExternalFS);
 
   /// Looks up the path <tt>[Start, End)</tt> in \p From, possibly
   /// recursing into the contents of \p From if it is a directory.
@@ -730,9 +739,10 @@ public:
 
   StringRef getExternalContentsPrefixDir() const;
 
+  void dump(raw_ostream &OS) const;
+  void dumpEntry(raw_ostream &OS, Entry *E, int NumSpaces = 0) const;
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   LLVM_DUMP_METHOD void dump() const;
-  LLVM_DUMP_METHOD void dumpEntry(Entry *E, int NumSpaces = 0) const;
 #endif
 };
 

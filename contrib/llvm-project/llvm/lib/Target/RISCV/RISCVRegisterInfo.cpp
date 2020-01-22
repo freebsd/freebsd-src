@@ -26,6 +26,15 @@
 
 using namespace llvm;
 
+static_assert(RISCV::X1 == RISCV::X0 + 1, "Register list not consecutive");
+static_assert(RISCV::X31 == RISCV::X0 + 31, "Register list not consecutive");
+static_assert(RISCV::F1_F == RISCV::F0_F + 1, "Register list not consecutive");
+static_assert(RISCV::F31_F == RISCV::F0_F + 31,
+              "Register list not consecutive");
+static_assert(RISCV::F1_D == RISCV::F0_D + 1, "Register list not consecutive");
+static_assert(RISCV::F31_D == RISCV::F0_D + 31,
+              "Register list not consecutive");
+
 RISCVRegisterInfo::RISCVRegisterInfo(unsigned HwMode)
     : RISCVGenRegisterInfo(RISCV::X1, /*DwarfFlavour*/0, /*EHFlavor*/0,
                            /*PC*/0, HwMode) {}
@@ -109,8 +118,8 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     assert(isInt<32>(Offset) && "Int32 expected");
     // The offset won't fit in an immediate, so use a scratch register instead
     // Modify Offset and FrameReg appropriately
-    unsigned ScratchReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
-    TII->movImm32(MBB, II, DL, ScratchReg, Offset);
+    Register ScratchReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
+    TII->movImm(MBB, II, DL, ScratchReg, Offset);
     BuildMI(MBB, II, DL, TII->get(RISCV::ADD), ScratchReg)
         .addReg(FrameReg)
         .addReg(ScratchReg, RegState::Kill);

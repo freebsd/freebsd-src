@@ -200,8 +200,8 @@ bool InstCombiner::shouldChangeType(Type *From, Type *To) const {
 // where both B and C should be ConstantInts, results in a constant that does
 // not overflow. This function only handles the Add and Sub opcodes. For
 // all other opcodes, the function conservatively returns false.
-static bool MaintainNoSignedWrap(BinaryOperator &I, Value *B, Value *C) {
-  OverflowingBinaryOperator *OBO = dyn_cast<OverflowingBinaryOperator>(&I);
+static bool maintainNoSignedWrap(BinaryOperator &I, Value *B, Value *C) {
+  auto *OBO = dyn_cast<OverflowingBinaryOperator>(&I);
   if (!OBO || !OBO->hasNoSignedWrap())
     return false;
 
@@ -224,8 +224,13 @@ static bool MaintainNoSignedWrap(BinaryOperator &I, Value *B, Value *C) {
 }
 
 static bool hasNoUnsignedWrap(BinaryOperator &I) {
-  OverflowingBinaryOperator *OBO = dyn_cast<OverflowingBinaryOperator>(&I);
+  auto *OBO = dyn_cast<OverflowingBinaryOperator>(&I);
   return OBO && OBO->hasNoUnsignedWrap();
+}
+
+static bool hasNoSignedWrap(BinaryOperator &I) {
+  auto *OBO = dyn_cast<OverflowingBinaryOperator>(&I);
+  return OBO && OBO->hasNoSignedWrap();
 }
 
 /// Conservatively clears subclassOptionalData after a reassociation or
@@ -332,22 +337,21 @@ bool InstCombiner::SimplifyAssociativeOrCommutative(BinaryOperator &I) {
           // It simplifies to V.  Form "A op V".
           I.setOperand(0, A);
           I.setOperand(1, V);
-          // Conservatively clear the optional flags, since they may not be
-          // preserved by the reassociation.
           bool IsNUW = hasNoUnsignedWrap(I) && hasNoUnsignedWrap(*Op0);
-          bool IsNSW = MaintainNoSignedWrap(I, B, C);
+          bool IsNSW = maintainNoSignedWrap(I, B, C) && hasNoSignedWrap(*Op0);
 
+          // Conservatively clear all optional flags since they may not be
+          // preserved by the reassociation. Reset nsw/nuw based on the above
+          // analysis.
           ClearSubclassDataAfterReassociation(I);
 
+          // Note: this is only valid because SimplifyBinOp doesn't look at
+          // the operands to Op0.
           if (IsNUW)
             I.setHasNoUnsignedWrap(true);
 
-          if (IsNSW &&
-              (!Op0 || (isa<BinaryOperator>(Op0) && Op0->hasNoSignedWrap()))) {
-            // Note: this is only valid because SimplifyBinOp doesn't look at
-            // the operands to Op0.
+          if (IsNSW)
             I.setHasNoSignedWrap(true);
-          }
 
           Changed = true;
           ++NumReassoc;
@@ -610,7 +614,6 @@ Value *InstCombiner::tryFactorization(BinaryOperator &I,
           HasNUW &= ROBO->hasNoUnsignedWrap();
         }
 
-        const APInt *CInt;
         if (TopLevelOpcode == Instruction::Add &&
             InnerOpcode == Instruction::Mul) {
           // We can propagate 'nsw' if we know that
@@ -620,6 +623,7 @@ Value *InstCombiner::tryFactorization(BinaryOperator &I,
           //  %Z = mul nsw i16 %X, C+1
           //
           // iff C+1 isn't INT_MIN
+          const APInt *CInt;
           if (match(V, m_APInt(CInt))) {
             if (!CInt->isMinSignedValue())
               BO->setHasNoSignedWrap(HasNSW);
@@ -763,12 +767,16 @@ Value *InstCombiner::SimplifySelectsFeedingBinaryOp(BinaryOperator &I,
   if (match(LHS, m_Select(m_Value(A), m_Value(B), m_Value(C))) &&
       match(RHS, m_Select(m_Specific(A), m_Value(D), m_Value(E)))) {
     bool SelectsHaveOneUse = LHS->hasOneUse() && RHS->hasOneUse();
-    BuilderTy::FastMathFlagGuard Guard(Builder);
-    if (isa<FPMathOperator>(&I))
-      Builder.setFastMathFlags(I.getFastMathFlags());
 
-    Value *V1 = SimplifyBinOp(Opcode, C, E, SQ.getWithInstruction(&I));
-    Value *V2 = SimplifyBinOp(Opcode, B, D, SQ.getWithInstruction(&I));
+    FastMathFlags FMF;
+    BuilderTy::FastMathFlagGuard Guard(Builder);
+    if (isa<FPMathOperator>(&I)) {
+      FMF = I.getFastMathFlags();
+      Builder.setFastMathFlags(FMF);
+    }
+
+    Value *V1 = SimplifyBinOp(Opcode, C, E, FMF, SQ.getWithInstruction(&I));
+    Value *V2 = SimplifyBinOp(Opcode, B, D, FMF, SQ.getWithInstruction(&I));
     if (V1 && V2)
       SI = Builder.CreateSelect(A, V2, V1);
     else if (V2 && SelectsHaveOneUse)
@@ -1659,7 +1667,7 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
     // to an index of zero, so replace it with zero if it is not zero already.
     Type *EltTy = GTI.getIndexedType();
     if (EltTy->isSized() && DL.getTypeAllocSize(EltTy) == 0)
-      if (!isa<Constant>(*I) || !cast<Constant>(*I)->isNullValue()) {
+      if (!isa<Constant>(*I) || !match(I->get(), m_Zero())) {
         *I = Constant::getNullValue(NewIndexType);
         MadeChange = true;
       }
@@ -2549,9 +2557,7 @@ Instruction *InstCombiner::visitReturnInst(ReturnInst &RI) {
 Instruction *InstCombiner::visitBranchInst(BranchInst &BI) {
   // Change br (not X), label True, label False to: br X, label False, True
   Value *X = nullptr;
-  BasicBlock *TrueDest;
-  BasicBlock *FalseDest;
-  if (match(&BI, m_Br(m_Not(m_Value(X)), TrueDest, FalseDest)) &&
+  if (match(&BI, m_Br(m_Not(m_Value(X)), m_BasicBlock(), m_BasicBlock())) &&
       !isa<Constant>(X)) {
     // Swap Destinations and condition...
     BI.setCondition(X);
@@ -2569,8 +2575,8 @@ Instruction *InstCombiner::visitBranchInst(BranchInst &BI) {
 
   // Canonicalize, for example, icmp_ne -> icmp_eq or fcmp_one -> fcmp_oeq.
   CmpInst::Predicate Pred;
-  if (match(&BI, m_Br(m_OneUse(m_Cmp(Pred, m_Value(), m_Value())), TrueDest,
-                      FalseDest)) &&
+  if (match(&BI, m_Br(m_OneUse(m_Cmp(Pred, m_Value(), m_Value())),
+                      m_BasicBlock(), m_BasicBlock())) &&
       !isCanonicalPredicate(Pred)) {
     // Swap destinations and condition.
     CmpInst *Cond = cast<CmpInst>(BI.getCondition());
@@ -3156,6 +3162,21 @@ static bool TryToSinkInstruction(Instruction *I, BasicBlock *DestBlock) {
   findDbgUsers(DbgUsers, I);
   for (auto *DII : reverse(DbgUsers)) {
     if (DII->getParent() == SrcBlock) {
+      if (isa<DbgDeclareInst>(DII)) {
+        // A dbg.declare instruction should not be cloned, since there can only be
+        // one per variable fragment. It should be left in the original place since
+        // sunk instruction is not an alloca(otherwise we could not be here).
+        // But we need to update arguments of dbg.declare instruction, so that it
+        // would not point into sunk instruction.
+        if (!isa<CastInst>(I))
+          continue; // dbg.declare points at something it shouldn't
+
+        DII->setOperand(
+            0, MetadataAsValue::get(I->getContext(),
+                                    ValueAsMetadata::get(I->getOperand(0))));
+        continue;
+      }
+
       // dbg.value is in the same basic block as the sunk inst, see if we can
       // salvage it. Clone a new copy of the instruction: on success we need
       // both salvaged and unsalvaged copies.
@@ -3580,7 +3601,7 @@ bool InstructionCombiningPass::runOnFunction(Function &F) {
   // Required analyses.
   auto AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
   auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
-  auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+  auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
   auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   auto &ORE = getAnalysis<OptimizationRemarkEmitterWrapperPass>().getORE();
 

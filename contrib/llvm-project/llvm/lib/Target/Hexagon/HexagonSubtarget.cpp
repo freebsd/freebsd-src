@@ -119,7 +119,7 @@ HexagonSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS) {
 
   FeatureBitset Features = getFeatureBits();
   if (HexagonDisableDuplex)
-    setFeatureBits(Features.set(Hexagon::FeatureDuplex, false));
+    setFeatureBits(Features.reset(Hexagon::FeatureDuplex));
   setFeatureBits(Hexagon_MC::completeHVXFeatures(Features));
 
   return *this;
@@ -230,7 +230,7 @@ void HexagonSubtarget::CallMutation::apply(ScheduleDAGInstrs *DAGInstrs) {
     else if (SchedRetvalOptimization) {
       const MachineInstr *MI = DAG->SUnits[su].getInstr();
       if (MI->isCopy() &&
-          TargetRegisterInfo::isPhysicalRegister(MI->getOperand(1).getReg())) {
+          Register::isPhysicalRegister(MI->getOperand(1).getReg())) {
         // %vregX = COPY %r0
         VRegHoldingReg[MI->getOperand(0).getReg()] = MI->getOperand(1).getReg();
         LastVRegUse.erase(MI->getOperand(1).getReg());
@@ -243,8 +243,7 @@ void HexagonSubtarget::CallMutation::apply(ScheduleDAGInstrs *DAGInstrs) {
               VRegHoldingReg.count(MO.getReg())) {
             // <use of %vregX>
             LastVRegUse[VRegHoldingReg[MO.getReg()]] = &DAG->SUnits[su];
-          } else if (MO.isDef() &&
-                     TargetRegisterInfo::isPhysicalRegister(MO.getReg())) {
+          } else if (MO.isDef() && Register::isPhysicalRegister(MO.getReg())) {
             for (MCRegAliasIterator AI(MO.getReg(), &TRI, true); AI.isValid();
                  ++AI) {
               if (LastVRegUse.count(*AI) &&
@@ -345,7 +344,7 @@ void HexagonSubtarget::adjustSchedDependency(SUnit *Src, SUnit *Dst,
   // If it's a REG_SEQUENCE/COPY, use its destination instruction to determine
   // the correct latency.
   if ((DstInst->isRegSequence() || DstInst->isCopy()) && Dst->NumSuccs == 1) {
-    unsigned DReg = DstInst->getOperand(0).getReg();
+    Register DReg = DstInst->getOperand(0).getReg();
     MachineInstr *DDst = Dst->Succs[0].getSUnit()->getInstr();
     unsigned UseIdx = -1;
     for (unsigned OpNum = 0; OpNum < DDst->getNumOperands(); OpNum++) {
@@ -375,15 +374,15 @@ void HexagonSubtarget::adjustSchedDependency(SUnit *Src, SUnit *Dst,
 
 void HexagonSubtarget::getPostRAMutations(
     std::vector<std::unique_ptr<ScheduleDAGMutation>> &Mutations) const {
-  Mutations.push_back(llvm::make_unique<UsrOverflowMutation>());
-  Mutations.push_back(llvm::make_unique<HVXMemLatencyMutation>());
-  Mutations.push_back(llvm::make_unique<BankConflictMutation>());
+  Mutations.push_back(std::make_unique<UsrOverflowMutation>());
+  Mutations.push_back(std::make_unique<HVXMemLatencyMutation>());
+  Mutations.push_back(std::make_unique<BankConflictMutation>());
 }
 
 void HexagonSubtarget::getSMSMutations(
     std::vector<std::unique_ptr<ScheduleDAGMutation>> &Mutations) const {
-  Mutations.push_back(llvm::make_unique<UsrOverflowMutation>());
-  Mutations.push_back(llvm::make_unique<HVXMemLatencyMutation>());
+  Mutations.push_back(std::make_unique<UsrOverflowMutation>());
+  Mutations.push_back(std::make_unique<HVXMemLatencyMutation>());
 }
 
 // Pin the vtable to this file.

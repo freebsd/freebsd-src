@@ -229,7 +229,7 @@ void AMDGPUAsmPrinter::EmitFunctionBodyEnd() {
   // alignment.
   Streamer.EmitValueToAlignment(64, 0, 1, 0);
   if (ReadOnlySection.getAlignment() < 64)
-    ReadOnlySection.setAlignment(64);
+    ReadOnlySection.setAlignment(Align(64));
 
   const MCSubtargetInfo &STI = MF->getSubtarget();
 
@@ -273,7 +273,7 @@ void AMDGPUAsmPrinter::EmitFunctionEntryLabel() {
   AsmPrinter::EmitFunctionEntryLabel();
 }
 
-void AMDGPUAsmPrinter::EmitBasicBlockStart(const MachineBasicBlock &MBB) const {
+void AMDGPUAsmPrinter::EmitBasicBlockStart(const MachineBasicBlock &MBB) {
   if (DumpCodeInstEmitter && !isBlockOnlyReachableByFallthrough(&MBB)) {
     // Write a line for the basic block label if it is not only fallthrough.
     DisasmLines.push_back(
@@ -342,6 +342,8 @@ bool AMDGPUAsmPrinter::doFinalization(Module &M) {
 // Print comments that apply to both callable functions and entry points.
 void AMDGPUAsmPrinter::emitCommonFunctionComments(
   uint32_t NumVGPR,
+  Optional<uint32_t> NumAGPR,
+  uint32_t TotalNumVGPR,
   uint32_t NumSGPR,
   uint64_t ScratchSize,
   uint64_t CodeSize,
@@ -349,6 +351,11 @@ void AMDGPUAsmPrinter::emitCommonFunctionComments(
   OutStreamer->emitRawComment(" codeLenInByte = " + Twine(CodeSize), false);
   OutStreamer->emitRawComment(" NumSgprs: " + Twine(NumSGPR), false);
   OutStreamer->emitRawComment(" NumVgprs: " + Twine(NumVGPR), false);
+  if (NumAGPR) {
+    OutStreamer->emitRawComment(" NumAgprs: " + Twine(*NumAGPR), false);
+    OutStreamer->emitRawComment(" TotalNumVgprs: " + Twine(TotalNumVGPR),
+                                false);
+  }
   OutStreamer->emitRawComment(" ScratchSize: " + Twine(ScratchSize), false);
   OutStreamer->emitRawComment(" MemoryBound: " + Twine(MFI->isMemoryBound()),
                               false);
@@ -417,7 +424,7 @@ bool AMDGPUAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
 
   // The starting address of all shader programs must be 256 bytes aligned.
   // Regular functions just need the basic required instruction alignment.
-  MF.setAlignment(MFI->isEntryFunction() ? 8 : 2);
+  MF.setAlignment(MFI->isEntryFunction() ? Align(256) : Align(4));
 
   SetupMachineFunction(MF);
 
@@ -474,6 +481,8 @@ bool AMDGPUAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
       SIFunctionResourceInfo &Info = CallGraphResourceInfo[&MF.getFunction()];
       emitCommonFunctionComments(
         Info.NumVGPR,
+        STM.hasMAIInsts() ? Info.NumAGPR : Optional<uint32_t>(),
+        Info.getTotalNumVGPRs(STM),
         Info.getTotalNumSGPRs(MF.getSubtarget<GCNSubtarget>()),
         Info.PrivateSegmentSize,
         getFunctionCodeSize(MF), MFI);
@@ -481,7 +490,11 @@ bool AMDGPUAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
     }
 
     OutStreamer->emitRawComment(" Kernel info:", false);
-    emitCommonFunctionComments(CurrentProgramInfo.NumVGPR,
+    emitCommonFunctionComments(CurrentProgramInfo.NumArchVGPR,
+                               STM.hasMAIInsts()
+                                 ? CurrentProgramInfo.NumAccVGPR
+                                 : Optional<uint32_t>(),
+                               CurrentProgramInfo.NumVGPR,
                                CurrentProgramInfo.NumSGPR,
                                CurrentProgramInfo.ScratchSize,
                                getFunctionCodeSize(MF), MFI);
@@ -505,6 +518,10 @@ bool AMDGPUAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
     OutStreamer->emitRawComment(
       " NumVGPRsForWavesPerEU: " +
       Twine(CurrentProgramInfo.NumVGPRsForWavesPerEU), false);
+
+    OutStreamer->emitRawComment(
+      " Occupancy: " +
+      Twine(CurrentProgramInfo.Occupancy), false);
 
     OutStreamer->emitRawComment(
       " WaveLimiterHint : " + Twine(MFI->needsWaveLimiter()), false);
@@ -588,6 +605,11 @@ int32_t AMDGPUAsmPrinter::SIFunctionResourceInfo::getTotalNumSGPRs(
                                                      UsesVCC, UsesFlatScratch);
 }
 
+int32_t AMDGPUAsmPrinter::SIFunctionResourceInfo::getTotalNumVGPRs(
+  const GCNSubtarget &ST) const {
+  return std::max(NumVGPR, NumAGPR);
+}
+
 AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
   const MachineFunction &MF) const {
   SIFunctionResourceInfo Info;
@@ -634,11 +656,18 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
         HighestVGPRReg = Reg;
         break;
       }
-      MCPhysReg AReg = AMDGPU::AGPR0 + TRI.getHWRegIndex(Reg);
-      if (MRI.isPhysRegUsed(AReg)) {
-        HighestVGPRReg = AReg;
-        break;
+    }
+
+    if (ST.hasMAIInsts()) {
+      MCPhysReg HighestAGPRReg = AMDGPU::NoRegister;
+      for (MCPhysReg Reg : reverse(AMDGPU::AGPR_32RegClass.getRegisters())) {
+        if (MRI.isPhysRegUsed(Reg)) {
+          HighestAGPRReg = Reg;
+          break;
+        }
       }
+      Info.NumAGPR = HighestAGPRReg == AMDGPU::NoRegister ? 0 :
+        TRI.getHWRegIndex(HighestAGPRReg) + 1;
     }
 
     MCPhysReg HighestSGPRReg = AMDGPU::NoRegister;
@@ -660,6 +689,7 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
   }
 
   int32_t MaxVGPR = -1;
+  int32_t MaxAGPR = -1;
   int32_t MaxSGPR = -1;
   uint64_t CalleeFrameSize = 0;
 
@@ -669,11 +699,12 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
       for (const MachineOperand &MO : MI.operands()) {
         unsigned Width = 0;
         bool IsSGPR = false;
+        bool IsAGPR = false;
 
         if (!MO.isReg())
           continue;
 
-        unsigned Reg = MO.getReg();
+        Register Reg = MO.getReg();
         switch (Reg) {
         case AMDGPU::EXEC:
         case AMDGPU::EXEC_LO:
@@ -744,6 +775,7 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
           Width = 1;
         } else if (AMDGPU::AGPR_32RegClass.contains(Reg)) {
           IsSGPR = false;
+          IsAGPR = true;
           Width = 1;
         } else if (AMDGPU::SReg_64RegClass.contains(Reg)) {
           assert(!AMDGPU::TTMP_64RegClass.contains(Reg) &&
@@ -755,6 +787,7 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
           Width = 2;
         } else if (AMDGPU::AReg_64RegClass.contains(Reg)) {
           IsSGPR = false;
+          IsAGPR = true;
           Width = 2;
         } else if (AMDGPU::VReg_96RegClass.contains(Reg)) {
           IsSGPR = false;
@@ -771,6 +804,7 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
           Width = 4;
         } else if (AMDGPU::AReg_128RegClass.contains(Reg)) {
           IsSGPR = false;
+          IsAGPR = true;
           Width = 4;
         } else if (AMDGPU::SReg_256RegClass.contains(Reg)) {
           assert(!AMDGPU::TTMP_256RegClass.contains(Reg) &&
@@ -790,6 +824,7 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
           Width = 16;
         } else if (AMDGPU::AReg_512RegClass.contains(Reg)) {
           IsSGPR = false;
+          IsAGPR = true;
           Width = 16;
         } else if (AMDGPU::SReg_1024RegClass.contains(Reg)) {
           IsSGPR = true;
@@ -799,6 +834,7 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
           Width = 32;
         } else if (AMDGPU::AReg_1024RegClass.contains(Reg)) {
           IsSGPR = false;
+          IsAGPR = true;
           Width = 32;
         } else {
           llvm_unreachable("Unknown register class");
@@ -807,6 +843,8 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
         int MaxUsed = HWReg + Width - 1;
         if (IsSGPR) {
           MaxSGPR = MaxUsed > MaxSGPR ? MaxUsed : MaxSGPR;
+        } else if (IsAGPR) {
+          MaxAGPR = MaxUsed > MaxAGPR ? MaxUsed : MaxAGPR;
         } else {
           MaxVGPR = MaxUsed > MaxVGPR ? MaxUsed : MaxVGPR;
         }
@@ -828,6 +866,7 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
             47 - IsaInfo::getNumExtraSGPRs(&ST, true, ST.hasFlatAddressSpace());
           MaxSGPR = std::max(MaxSGPR, MaxSGPRGuess);
           MaxVGPR = std::max(MaxVGPR, 23);
+          MaxAGPR = std::max(MaxAGPR, 23);
 
           CalleeFrameSize = std::max(CalleeFrameSize, UINT64_C(16384));
           Info.UsesVCC = true;
@@ -852,6 +891,7 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
 
           MaxSGPR = std::max(I->second.NumExplicitSGPR - 1, MaxSGPR);
           MaxVGPR = std::max(I->second.NumVGPR - 1, MaxVGPR);
+          MaxAGPR = std::max(I->second.NumAGPR - 1, MaxAGPR);
           CalleeFrameSize
             = std::max(I->second.PrivateSegmentSize, CalleeFrameSize);
           Info.UsesVCC |= I->second.UsesVCC;
@@ -868,6 +908,7 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
 
   Info.NumExplicitSGPR = MaxSGPR + 1;
   Info.NumVGPR = MaxVGPR + 1;
+  Info.NumAGPR = MaxAGPR + 1;
   Info.PrivateSegmentSize += CalleeFrameSize;
 
   return Info;
@@ -876,8 +917,11 @@ AMDGPUAsmPrinter::SIFunctionResourceInfo AMDGPUAsmPrinter::analyzeResourceUsage(
 void AMDGPUAsmPrinter::getSIProgramInfo(SIProgramInfo &ProgInfo,
                                         const MachineFunction &MF) {
   SIFunctionResourceInfo Info = analyzeResourceUsage(MF);
+  const GCNSubtarget &STM = MF.getSubtarget<GCNSubtarget>();
 
-  ProgInfo.NumVGPR = Info.NumVGPR;
+  ProgInfo.NumArchVGPR = Info.NumVGPR;
+  ProgInfo.NumAccVGPR = Info.NumAGPR;
+  ProgInfo.NumVGPR = Info.getTotalNumVGPRs(STM);
   ProgInfo.NumSGPR = Info.NumExplicitSGPR;
   ProgInfo.ScratchSize = Info.PrivateSegmentSize;
   ProgInfo.VCCUsed = Info.UsesVCC;
@@ -890,7 +934,6 @@ void AMDGPUAsmPrinter::getSIProgramInfo(SIProgramInfo &ProgInfo,
     MF.getFunction().getContext().diagnose(DiagStackSize);
   }
 
-  const GCNSubtarget &STM = MF.getSubtarget<GCNSubtarget>();
   const SIMachineFunctionInfo *MFI = MF.getInfo<SIMachineFunctionInfo>();
 
   // TODO(scott.linder): The calculations related to SGPR/VGPR blocks are
@@ -1057,6 +1100,10 @@ void AMDGPUAsmPrinter::getSIProgramInfo(SIProgramInfo &ProgInfo,
       // For AMDHSA, LDS_SIZE must be zero, as it is populated by the CP.
       S_00B84C_LDS_SIZE(STM.isAmdHsaOS() ? 0 : ProgInfo.LDSBlocks) |
       S_00B84C_EXCP_EN(0);
+
+  ProgInfo.Occupancy = STM.computeOccupancy(MF, ProgInfo.LDSSize,
+                                            ProgInfo.NumSGPRsForWavesPerEU,
+                                            ProgInfo.NumVGPRsForWavesPerEU);
 }
 
 static unsigned getRsrcReg(CallingConv::ID CallConv) {
@@ -1214,17 +1261,16 @@ void AMDGPUAsmPrinter::getAmdKernelCode(amd_kernel_code_t &Out,
   if (STM.isXNACKEnabled())
     Out.code_properties |= AMD_CODE_PROPERTY_IS_XNACK_SUPPORTED;
 
-  unsigned MaxKernArgAlign;
+  Align MaxKernArgAlign;
   Out.kernarg_segment_byte_size = STM.getKernArgSegmentSize(F, MaxKernArgAlign);
   Out.wavefront_sgpr_count = CurrentProgramInfo.NumSGPR;
   Out.workitem_vgpr_count = CurrentProgramInfo.NumVGPR;
   Out.workitem_private_segment_byte_size = CurrentProgramInfo.ScratchSize;
   Out.workgroup_group_segment_byte_size = CurrentProgramInfo.LDSSize;
 
-  // These alignment values are specified in powers of two, so alignment =
-  // 2^n.  The minimum alignment is 2^4 = 16.
-  Out.kernarg_segment_alignment = std::max<size_t>(4,
-      countTrailingZeros(MaxKernArgAlign));
+  // kernarg_segment_alignment is specified as log of the alignment.
+  // The minimum alignment is 16.
+  Out.kernarg_segment_alignment = Log2(std::max(Align(16), MaxKernArgAlign));
 }
 
 bool AMDGPUAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,

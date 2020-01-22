@@ -351,7 +351,11 @@ def interleave;
 // RegisterTuples instances can be used in other set operations to form
 // register classes and so on. This is the only way of using the generated
 // registers.
-class RegisterTuples<list<SubRegIndex> Indices, list<dag> Regs> {
+//
+// RegNames may be specified to supply asm names for the generated tuples.
+// If used must have the same size as the list of produced registers.
+class RegisterTuples<list<SubRegIndex> Indices, list<dag> Regs,
+                     list<string> RegNames = []> {
   // SubRegs - N lists of registers to be zipped up. Super-registers are
   // synthesized from the first element of each SubRegs list, the second
   // element and so on.
@@ -360,6 +364,9 @@ class RegisterTuples<list<SubRegIndex> Indices, list<dag> Regs> {
   // SubRegIndices - N SubRegIndex instances. This provides the names of the
   // sub-registers in the synthesized super-registers.
   list<SubRegIndex> SubRegIndices = Indices;
+
+  // List of asm names for the generated tuple registers.
+  list<string> RegAsmNames = RegNames;
 }
 
 
@@ -436,6 +443,15 @@ class InstructionEncoding {
   bit hasCompleteDecoder = 1;
 }
 
+// Allows specifying an InstructionEncoding by HwMode. If an Instruction specifies
+// an EncodingByHwMode, its Inst and Size members are ignored and Ts are used
+// to encode and decode based on HwMode.
+class EncodingByHwMode<list<HwMode> Ms = [], list<InstructionEncoding> Ts = []>
+    : HwModeSelect<Ms> {
+  // The length of this list must be the same as the length of Ms.
+  list<InstructionEncoding> Objects = Ts;
+}
+
 //===----------------------------------------------------------------------===//
 // Instruction set description - These classes correspond to the C++ classes in
 // the Target/TargetInstrInfo.h file.
@@ -446,6 +462,10 @@ class Instruction : InstructionEncoding {
   dag OutOperandList;       // An dag containing the MI def operand list.
   dag InOperandList;        // An dag containing the MI use operand list.
   string AsmString = "";    // The .s format to print the instruction with.
+
+  // Allows specifying a canonical InstructionEncoding by HwMode. If non-empty,
+  // the Inst member of this Instruction is ignored.
+  EncodingByHwMode EncodingInfos;
 
   // Pattern - Set to the DAG pattern for this instruction, if we know of one,
   // otherwise, uninitialized.
@@ -471,6 +491,10 @@ class Instruction : InstructionEncoding {
 
   // Added complexity passed onto matching pattern.
   int AddedComplexity  = 0;
+
+  // Indicates if this is a pre-isel opcode that should be
+  // legalized/regbankselected/selected.
+  bit isPreISelOpcode = 0;
 
   // These bits capture information about the high-level semantics of the
   // instruction.
@@ -834,6 +858,7 @@ def f64imm : Operand<f64>;
 class TypedOperand<string Ty> : Operand<untyped> {
   let OperandType = Ty;
   bit IsPointer = 0;
+  bit IsImmediate = 0;
 }
 
 def type0 : TypedOperand<"OPERAND_GENERIC_0">;
@@ -850,6 +875,12 @@ let IsPointer = 1 in {
   def ptype3 : TypedOperand<"OPERAND_GENERIC_3">;
   def ptype4 : TypedOperand<"OPERAND_GENERIC_4">;
   def ptype5 : TypedOperand<"OPERAND_GENERIC_5">;
+}
+
+// untyped_imm is for operands where isImm() will be true. It currently has no
+// special behaviour and is only used for clarity.
+def untyped_imm_0 : TypedOperand<"OPERAND_GENERIC_IMM_0"> {
+  let IsImmediate = 1;
 }
 
 /// zero_reg definition - Special node to stand for the zero register.

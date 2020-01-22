@@ -269,6 +269,27 @@ ConstantRange::makeGuaranteedNoWrapRegion(Instruction::BinaryOps BinOp,
 
     return makeExactMulNSWRegion(Other.getSignedMin())
         .intersectWith(makeExactMulNSWRegion(Other.getSignedMax()));
+
+  case Instruction::Shl: {
+    // For given range of shift amounts, if we ignore all illegal shift amounts
+    // (that always produce poison), what shift amount range is left?
+    ConstantRange ShAmt = Other.intersectWith(
+        ConstantRange(APInt(BitWidth, 0), APInt(BitWidth, (BitWidth - 1) + 1)));
+    if (ShAmt.isEmptySet()) {
+      // If the entire range of shift amounts is already poison-producing,
+      // then we can freely add more poison-producing flags ontop of that.
+      return getFull(BitWidth);
+    }
+    // There are some legal shift amounts, we can compute conservatively-correct
+    // range of no-wrap inputs. Note that by now we have clamped the ShAmtUMax
+    // to be at most bitwidth-1, which results in most conservative range.
+    APInt ShAmtUMax = ShAmt.getUnsignedMax();
+    if (Unsigned)
+      return getNonEmpty(APInt::getNullValue(BitWidth),
+                         APInt::getMaxValue(BitWidth).lshr(ShAmtUMax) + 1);
+    return getNonEmpty(APInt::getSignedMinValue(BitWidth).ashr(ShAmtUMax),
+                       APInt::getSignedMaxValue(BitWidth).ashr(ShAmtUMax) + 1);
+  }
   }
 }
 
@@ -815,14 +836,55 @@ ConstantRange::add(const ConstantRange &Other) const {
   return X;
 }
 
-ConstantRange ConstantRange::addWithNoSignedWrap(const APInt &Other) const {
-  // Calculate the subset of this range such that "X + Other" is
-  // guaranteed not to wrap (overflow) for all X in this subset.
-  auto NSWRange = ConstantRange::makeExactNoWrapRegion(
-      BinaryOperator::Add, Other, OverflowingBinaryOperator::NoSignedWrap);
-  auto NSWConstrainedRange = intersectWith(NSWRange);
+ConstantRange ConstantRange::addWithNoWrap(const ConstantRange &Other,
+                                           unsigned NoWrapKind,
+                                           PreferredRangeType RangeType) const {
+  // Calculate the range for "X + Y" which is guaranteed not to wrap(overflow).
+  // (X is from this, and Y is from Other)
+  if (isEmptySet() || Other.isEmptySet())
+    return getEmpty();
+  if (isFullSet() && Other.isFullSet())
+    return getFull();
 
-  return NSWConstrainedRange.add(ConstantRange(Other));
+  using OBO = OverflowingBinaryOperator;
+  ConstantRange Result = add(Other);
+
+  auto addWithNoUnsignedWrap = [this](const ConstantRange &Other) {
+    APInt LMin = getUnsignedMin(), LMax = getUnsignedMax();
+    APInt RMin = Other.getUnsignedMin(), RMax = Other.getUnsignedMax();
+    bool Overflow;
+    APInt NewMin = LMin.uadd_ov(RMin, Overflow);
+    if (Overflow)
+      return getEmpty();
+    APInt NewMax = LMax.uadd_sat(RMax);
+    return getNonEmpty(std::move(NewMin), std::move(NewMax) + 1);
+  };
+
+  auto addWithNoSignedWrap = [this](const ConstantRange &Other) {
+    APInt LMin = getSignedMin(), LMax = getSignedMax();
+    APInt RMin = Other.getSignedMin(), RMax = Other.getSignedMax();
+    if (LMin.isNonNegative()) {
+      bool Overflow;
+      APInt Temp = LMin.sadd_ov(RMin, Overflow);
+      if (Overflow)
+        return getEmpty();
+    }
+    if (LMax.isNegative()) {
+      bool Overflow;
+      APInt Temp = LMax.sadd_ov(RMax, Overflow);
+      if (Overflow)
+        return getEmpty();
+    }
+    APInt NewMin = LMin.sadd_sat(RMin);
+    APInt NewMax = LMax.sadd_sat(RMax);
+    return getNonEmpty(std::move(NewMin), std::move(NewMax) + 1);
+  };
+
+  if (NoWrapKind & OBO::NoSignedWrap)
+    Result = Result.intersectWith(addWithNoSignedWrap(Other), RangeType);
+  if (NoWrapKind & OBO::NoUnsignedWrap)
+    Result = Result.intersectWith(addWithNoUnsignedWrap(Other), RangeType);
+  return Result;
 }
 
 ConstantRange

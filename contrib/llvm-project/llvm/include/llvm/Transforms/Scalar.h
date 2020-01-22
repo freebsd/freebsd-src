@@ -308,7 +308,7 @@ FunctionPass *createGVNSinkPass();
 // MergedLoadStoreMotion - This pass merges loads and stores in diamonds. Loads
 // are hoisted into the header, while stores sink into the footer.
 //
-FunctionPass *createMergedLoadStoreMotionPass();
+FunctionPass *createMergedLoadStoreMotionPass(bool SplitFooterBB = false);
 
 //===----------------------------------------------------------------------===//
 //
@@ -394,6 +394,13 @@ extern char &InferAddressSpacesID;
 // LowerExpectIntrinsics - Removes llvm.expect intrinsics and creates
 // "block_weights" metadata.
 FunctionPass *createLowerExpectIntrinsicPass();
+
+//===----------------------------------------------------------------------===//
+//
+// LowerConstantIntrinsicss - Expand any remaining llvm.objectsize and
+// llvm.is.constant intrinsic calls, even for the unknown cases.
+//
+FunctionPass *createLowerConstantIntrinsicsPass();
 
 //===----------------------------------------------------------------------===//
 //

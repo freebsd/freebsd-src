@@ -75,6 +75,9 @@ enum OutputFlags {
   OF_Default = 0,
   OF_NoCallingConvention = 1,
   OF_NoTagSpecifier = 2,
+  OF_NoAccessSpecifier = 4,
+  OF_NoMemberType = 8,
+  OF_NoReturnType = 16,
 };
 
 // Types
@@ -302,8 +305,6 @@ struct TypeNode : public Node {
     outputPre(OS, Flags);
     outputPost(OS, Flags);
   }
-
-  void outputQuals(bool SpaceBefore, bool SpaceAfter) const;
 
   Qualifiers Quals = Q_None;
 };

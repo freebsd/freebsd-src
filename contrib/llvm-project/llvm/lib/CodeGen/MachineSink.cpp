@@ -36,8 +36,9 @@
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/CommandLine.h"
@@ -114,15 +115,12 @@ namespace {
     bool runOnMachineFunction(MachineFunction &MF) override;
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.setPreservesCFG();
       MachineFunctionPass::getAnalysisUsage(AU);
       AU.addRequired<AAResultsWrapperPass>();
       AU.addRequired<MachineDominatorTree>();
       AU.addRequired<MachinePostDominatorTree>();
       AU.addRequired<MachineLoopInfo>();
       AU.addRequired<MachineBranchProbabilityInfo>();
-      AU.addPreserved<MachineDominatorTree>();
-      AU.addPreserved<MachinePostDominatorTree>();
       AU.addPreserved<MachineLoopInfo>();
       if (UseBlockFreqInfo)
         AU.addRequired<MachineBlockFrequencyInfo>();
@@ -195,11 +193,10 @@ bool MachineSinking::PerformTrivialForwardCoalescing(MachineInstr &MI,
   if (!MI.isCopy())
     return false;
 
-  unsigned SrcReg = MI.getOperand(1).getReg();
-  unsigned DstReg = MI.getOperand(0).getReg();
-  if (!TargetRegisterInfo::isVirtualRegister(SrcReg) ||
-      !TargetRegisterInfo::isVirtualRegister(DstReg) ||
-      !MRI->hasOneNonDBGUse(SrcReg))
+  Register SrcReg = MI.getOperand(1).getReg();
+  Register DstReg = MI.getOperand(0).getReg();
+  if (!Register::isVirtualRegister(SrcReg) ||
+      !Register::isVirtualRegister(DstReg) || !MRI->hasOneNonDBGUse(SrcReg))
     return false;
 
   const TargetRegisterClass *SRC = MRI->getRegClass(SrcReg);
@@ -233,8 +230,7 @@ MachineSinking::AllUsesDominatedByBlock(unsigned Reg,
                                         MachineBasicBlock *DefMBB,
                                         bool &BreakPHIEdge,
                                         bool &LocalUse) const {
-  assert(TargetRegisterInfo::isVirtualRegister(Reg) &&
-         "Only makes sense for vregs");
+  assert(Register::isVirtualRegister(Reg) && "Only makes sense for vregs");
 
   // Ignore debug uses because debug info doesn't affect the code.
   if (MRI->use_nodbg_empty(Reg))
@@ -416,13 +412,13 @@ bool MachineSinking::isWorthBreakingCriticalEdge(MachineInstr &MI,
     const MachineOperand &MO = MI.getOperand(i);
     if (!MO.isReg() || !MO.isUse())
       continue;
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (Reg == 0)
       continue;
 
     // We don't move live definitions of physical registers,
     // so sinking their uses won't enable any opportunities.
-    if (TargetRegisterInfo::isPhysicalRegister(Reg))
+    if (Register::isPhysicalRegister(Reg))
       continue;
 
     // If this instruction is the only user of a virtual register,
@@ -615,10 +611,10 @@ MachineSinking::FindSuccToSinkTo(MachineInstr &MI, MachineBasicBlock *MBB,
     const MachineOperand &MO = MI.getOperand(i);
     if (!MO.isReg()) continue;  // Ignore non-register operands.
 
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (Reg == 0) continue;
 
-    if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+    if (Register::isPhysicalRegister(Reg)) {
       if (MO.isUse()) {
         // If the physreg has no defs anywhere, it's just an ambient register
         // and we can freely move its uses. Alternatively, if it's allocatable,
@@ -817,8 +813,9 @@ bool MachineSinking::SinkInstruction(MachineInstr &MI, bool &SawStore,
   for (unsigned I = 0, E = MI.getNumOperands(); I != E; ++I) {
     const MachineOperand &MO = MI.getOperand(I);
     if (!MO.isReg()) continue;
-    unsigned Reg = MO.getReg();
-    if (Reg == 0 || !TargetRegisterInfo::isPhysicalRegister(Reg)) continue;
+    Register Reg = MO.getReg();
+    if (Reg == 0 || !Register::isPhysicalRegister(Reg))
+      continue;
     if (SuccToSinkTo->isLiveIn(Reg))
       return false;
   }
@@ -958,8 +955,9 @@ private:
   /// Track which register units have been modified and used.
   LiveRegUnits ModifiedRegUnits, UsedRegUnits;
 
-  /// Track DBG_VALUEs of (unmodified) register units.
-  DenseMap<unsigned, TinyPtrVector<MachineInstr*>> SeenDbgInstrs;
+  /// Track DBG_VALUEs of (unmodified) register units. Each DBG_VALUE has an
+  /// entry in this map for each unit it touches.
+  DenseMap<unsigned, TinyPtrVector<MachineInstr *>> SeenDbgInstrs;
 
   /// Sink Copy instructions unused in the same block close to their uses in
   /// successors.
@@ -1030,7 +1028,7 @@ static void clearKillFlags(MachineInstr *MI, MachineBasicBlock &CurBB,
                            const TargetRegisterInfo *TRI) {
   for (auto U : UsedOpsInCopy) {
     MachineOperand &MO = MI->getOperand(U);
-    unsigned SrcReg = MO.getReg();
+    Register SrcReg = MO.getReg();
     if (!UsedRegUnits.available(SrcReg)) {
       MachineBasicBlock::iterator NI = std::next(MI->getIterator());
       for (MachineInstr &UI : make_range(NI, CurBB.end())) {
@@ -1053,7 +1051,7 @@ static void updateLiveIn(MachineInstr *MI, MachineBasicBlock *SuccBB,
     for (MCSubRegIterator S(DefReg, TRI, true); S.isValid(); ++S)
       SuccBB->removeLiveIn(*S);
   for (auto U : UsedOpsInCopy) {
-    unsigned Reg = MI->getOperand(U).getReg();
+    Register Reg = MI->getOperand(U).getReg();
     if (!SuccBB->isLiveIn(Reg))
       SuccBB->addLiveIn(Reg);
   }
@@ -1069,7 +1067,7 @@ static bool hasRegisterDependency(MachineInstr *MI,
     MachineOperand &MO = MI->getOperand(i);
     if (!MO.isReg())
       continue;
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (!Reg)
       continue;
     if (MO.isDef()) {
@@ -1092,6 +1090,14 @@ static bool hasRegisterDependency(MachineInstr *MI,
     }
   }
   return HasRegDependency;
+}
+
+static SmallSet<unsigned, 4> getRegUnits(unsigned Reg,
+                                         const TargetRegisterInfo *TRI) {
+  SmallSet<unsigned, 4> RegUnits;
+  for (auto RI = MCRegUnitIterator(Reg, TRI); RI.isValid(); ++RI)
+    RegUnits.insert(*RI);
+  return RegUnits;
 }
 
 bool PostRAMachineSinking::tryToSinkCopy(MachineBasicBlock &CurBB,
@@ -1130,15 +1136,17 @@ bool PostRAMachineSinking::tryToSinkCopy(MachineBasicBlock &CurBB,
     // for DBG_VALUEs later, record them when they're encountered.
     if (MI->isDebugValue()) {
       auto &MO = MI->getOperand(0);
-      if (MO.isReg() && TRI->isPhysicalRegister(MO.getReg())) {
+      if (MO.isReg() && Register::isPhysicalRegister(MO.getReg())) {
         // Bail if we can already tell the sink would be rejected, rather
         // than needlessly accumulating lots of DBG_VALUEs.
         if (hasRegisterDependency(MI, UsedOpsInCopy, DefedRegsInCopy,
                                   ModifiedRegUnits, UsedRegUnits))
           continue;
 
-        // Record debug use of this register.
-        SeenDbgInstrs[MO.getReg()].push_back(MI);
+        // Record debug use of each reg unit.
+        SmallSet<unsigned, 4> Units = getRegUnits(MO.getReg(), TRI);
+        for (unsigned Reg : Units)
+          SeenDbgInstrs[Reg].push_back(MI);
       }
       continue;
     }
@@ -1177,15 +1185,22 @@ bool PostRAMachineSinking::tryToSinkCopy(MachineBasicBlock &CurBB,
     assert((SuccBB->pred_size() == 1 && *SuccBB->pred_begin() == &CurBB) &&
            "Unexpected predecessor");
 
-    // Collect DBG_VALUEs that must sink with this copy.
+    // Collect DBG_VALUEs that must sink with this copy. We've previously
+    // recorded which reg units that DBG_VALUEs read, if this instruction
+    // writes any of those units then the corresponding DBG_VALUEs must sink.
+    SetVector<MachineInstr *> DbgValsToSinkSet;
     SmallVector<MachineInstr *, 4> DbgValsToSink;
     for (auto &MO : MI->operands()) {
       if (!MO.isReg() || !MO.isDef())
         continue;
-      unsigned reg = MO.getReg();
-      for (auto *MI : SeenDbgInstrs.lookup(reg))
-        DbgValsToSink.push_back(MI);
+
+      SmallSet<unsigned, 4> Units = getRegUnits(MO.getReg(), TRI);
+      for (unsigned Reg : Units)
+        for (auto *MI : SeenDbgInstrs.lookup(Reg))
+          DbgValsToSinkSet.insert(MI);
     }
+    DbgValsToSink.insert(DbgValsToSink.begin(), DbgValsToSinkSet.begin(),
+                         DbgValsToSinkSet.end());
 
     // Clear the kill flag if SrcReg is killed between MI and the end of the
     // block.

@@ -132,7 +132,7 @@ public:
         MapRec->getName() + "' has empty " + "`ValueCols' field!");
 
     for (Init *I : ColValList->getValues()) {
-      ListInit *ColI = dyn_cast<ListInit>(I);
+      auto *ColI = cast<ListInit>(I);
 
       // Make sure that all the sub-lists in 'ValueCols' have same number of
       // elements as the fields in 'ColFields'.
@@ -168,7 +168,7 @@ public:
     return ValueCols;
   }
 };
-} // End anonymous namespace.
+} // end anonymous namespace
 
 
 //===----------------------------------------------------------------------===//
@@ -226,7 +226,7 @@ public:
   void emitMapFuncBody(raw_ostream &OS, unsigned TableSize);
 
 };
-} // End anonymous namespace.
+} // end anonymous namespace
 
 
 //===----------------------------------------------------------------------===//
@@ -521,7 +521,7 @@ static void emitEnums(raw_ostream &OS, RecordKeeper &Records) {
     unsigned ListSize = List->size();
 
     for (unsigned j = 0; j < ListSize; j++) {
-      ListInit *ListJ = dyn_cast<ListInit>(List->getElement(j));
+      auto *ListJ = cast<ListInit>(List->getElement(j));
 
       if (ListJ->size() != ColFields->size())
         PrintFatalError("Record `" + CurMap->getName() + "', field "
@@ -604,8 +604,8 @@ void EmitMapTable(RecordKeeper &Records, raw_ostream &OS) {
     // Emit map tables and the functions to query them.
     IMap.emitTablesWithFunc(OS);
   }
-  OS << "} // End " << NameSpace << " namespace\n";
-  OS << "} // End llvm namespace\n";
+  OS << "} // end namespace " << NameSpace << "\n";
+  OS << "} // end namespace llvm\n";
   OS << "#endif // GET_INSTRMAP_INFO\n\n";
 }
 

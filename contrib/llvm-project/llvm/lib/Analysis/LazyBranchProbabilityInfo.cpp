@@ -55,8 +55,9 @@ void LazyBranchProbabilityInfoPass::releaseMemory() { LBPI.reset(); }
 
 bool LazyBranchProbabilityInfoPass::runOnFunction(Function &F) {
   LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  TargetLibraryInfo &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
-  LBPI = llvm::make_unique<LazyBranchProbabilityInfo>(&F, &LI, &TLI);
+  TargetLibraryInfo &TLI =
+      getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
+  LBPI = std::make_unique<LazyBranchProbabilityInfo>(&F, &LI, &TLI);
   return false;
 }
 

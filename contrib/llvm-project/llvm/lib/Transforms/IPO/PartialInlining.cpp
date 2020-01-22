@@ -409,7 +409,7 @@ PartialInlinerImpl::computeOutliningColdRegionsInfo(Function *F,
     return std::unique_ptr<FunctionOutliningMultiRegionInfo>();
 
   std::unique_ptr<FunctionOutliningMultiRegionInfo> OutliningInfo =
-      llvm::make_unique<FunctionOutliningMultiRegionInfo>();
+      std::make_unique<FunctionOutliningMultiRegionInfo>();
 
   auto IsSingleEntry = [](SmallVectorImpl<BasicBlock *> &BlockList) {
     BasicBlock *Dom = BlockList.front();
@@ -589,7 +589,7 @@ PartialInlinerImpl::computeOutliningInfo(Function *F) {
   };
 
   std::unique_ptr<FunctionOutliningInfo> OutliningInfo =
-      llvm::make_unique<FunctionOutliningInfo>();
+      std::make_unique<FunctionOutliningInfo>();
 
   BasicBlock *CurrEntry = EntryBlock;
   bool CandidateFound = false;
@@ -966,7 +966,7 @@ PartialInlinerImpl::FunctionCloner::FunctionCloner(
     Function *F, FunctionOutliningInfo *OI, OptimizationRemarkEmitter &ORE,
     function_ref<AssumptionCache *(Function &)> LookupAC)
     : OrigFunc(F), ORE(ORE), LookupAC(LookupAC) {
-  ClonedOI = llvm::make_unique<FunctionOutliningInfo>();
+  ClonedOI = std::make_unique<FunctionOutliningInfo>();
 
   // Clone the function, so that we can hack away on it.
   ValueToValueMapTy VMap;
@@ -991,7 +991,7 @@ PartialInlinerImpl::FunctionCloner::FunctionCloner(
     OptimizationRemarkEmitter &ORE,
     function_ref<AssumptionCache *(Function &)> LookupAC)
     : OrigFunc(F), ORE(ORE), LookupAC(LookupAC) {
-  ClonedOMRI = llvm::make_unique<FunctionOutliningMultiRegionInfo>();
+  ClonedOMRI = std::make_unique<FunctionOutliningMultiRegionInfo>();
 
   // Clone the function, so that we can hack away on it.
   ValueToValueMapTy VMap;
@@ -1122,6 +1122,9 @@ bool PartialInlinerImpl::FunctionCloner::doMultiRegionFunctionOutlining() {
   BranchProbabilityInfo BPI(*ClonedFunc, LI);
   ClonedFuncBFI.reset(new BlockFrequencyInfo(*ClonedFunc, BPI, LI));
 
+  // Cache and recycle the CodeExtractor analysis to avoid O(n^2) compile-time.
+  CodeExtractorAnalysisCache CEAC(*ClonedFunc);
+
   SetVector<Value *> Inputs, Outputs, Sinks;
   for (FunctionOutliningMultiRegionInfo::OutlineRegionInfo RegionInfo :
        ClonedOMRI->ORI) {
@@ -1148,7 +1151,7 @@ bool PartialInlinerImpl::FunctionCloner::doMultiRegionFunctionOutlining() {
     if (Outputs.size() > 0 && !ForceLiveExit)
       continue;
 
-    Function *OutlinedFunc = CE.extractCodeRegion();
+    Function *OutlinedFunc = CE.extractCodeRegion(CEAC);
 
     if (OutlinedFunc) {
       CallSite OCS = PartialInlinerImpl::getOneCallSiteTo(OutlinedFunc);
@@ -1210,11 +1213,12 @@ PartialInlinerImpl::FunctionCloner::doSingleRegionFunctionOutlining() {
     }
 
   // Extract the body of the if.
+  CodeExtractorAnalysisCache CEAC(*ClonedFunc);
   Function *OutlinedFunc =
       CodeExtractor(ToExtract, &DT, /*AggregateArgs*/ false,
                     ClonedFuncBFI.get(), &BPI, LookupAC(*ClonedFunc),
                     /* AllowVarargs */ true)
-          .extractCodeRegion();
+          .extractCodeRegion(CEAC);
 
   if (OutlinedFunc) {
     BasicBlock *OutliningCallBB =
@@ -1264,7 +1268,7 @@ std::pair<bool, Function *> PartialInlinerImpl::unswitchFunction(Function *F) {
   if (PSI->isFunctionEntryCold(F))
     return {false, nullptr};
 
-  if (empty(F->users()))
+  if (F->users().empty())
     return {false, nullptr};
 
   OptimizationRemarkEmitter ORE(F);
@@ -1370,7 +1374,7 @@ bool PartialInlinerImpl::tryPartialInline(FunctionCloner &Cloner) {
     return false;
   }
 
-  assert(empty(Cloner.OrigFunc->users()) &&
+  assert(Cloner.OrigFunc->users().empty() &&
          "F's users should all be replaced!");
 
   std::vector<User *> Users(Cloner.ClonedFunc->user_begin(),

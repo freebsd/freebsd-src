@@ -111,6 +111,10 @@ public:
   /// of each call to runOnMachineFunction().
   MCSymbol *CurrentFnSym = nullptr;
 
+  /// The symbol for the current function descriptor on AIX. This is created
+  /// at the beginning of each call to SetupMachineFunction().
+  MCSymbol *CurrentFnDescSym = nullptr;
+
   /// The symbol used to represent the start of the current function for the
   /// purpose of calculating its size (e.g. using the .size directive). By
   /// default, this is equal to CurrentFnSym.
@@ -304,7 +308,7 @@ public:
 
   /// This should be called when a new MachineFunction is being processed from
   /// runOnMachineFunction.
-  void SetupMachineFunction(MachineFunction &MF);
+  virtual void SetupMachineFunction(MachineFunction &MF);
 
   /// This method emits the body and trailer for a function.
   void EmitFunctionBody();
@@ -342,12 +346,11 @@ public:
   /// so, emit it and return true, otherwise do nothing and return false.
   bool EmitSpecialLLVMGlobal(const GlobalVariable *GV);
 
-  /// Emit an alignment directive to the specified power of two boundary. For
-  /// example, if you pass in 3 here, you will get an 8 byte alignment. If a
+  /// Emit an alignment directive to the specified power of two boundary. If a
   /// global value is specified, and if that global has an explicit alignment
   /// requested, it will override the alignment request if required for
   /// correctness.
-  void EmitAlignment(unsigned NumBits, const GlobalObject *GV = nullptr) const;
+  void EmitAlignment(Align Alignment, const GlobalObject *GV = nullptr) const;
 
   /// Lower the specified LLVM Constant to an MCExpr.
   virtual const MCExpr *lowerConstant(const Constant *CV);
@@ -400,7 +403,7 @@ public:
   /// By default, this method prints the label for the specified
   /// MachineBasicBlock, an alignment (if present) and a comment describing it
   /// if appropriate.
-  virtual void EmitBasicBlockStart(const MachineBasicBlock &MBB) const;
+  virtual void EmitBasicBlockStart(const MachineBasicBlock &MBB);
 
   /// Targets can override this to emit stuff at the end of a basic block.
   virtual void EmitBasicBlockEnd(const MachineBasicBlock &MBB);
@@ -414,6 +417,10 @@ public:
   virtual MCSymbol *GetCPISymbol(unsigned CPID) const;
 
   virtual void EmitFunctionEntryLabel();
+
+  virtual void EmitFunctionDescriptor() {
+    llvm_unreachable("Function descriptor is target-specific.");
+  }
 
   virtual void EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV);
 
@@ -634,6 +641,10 @@ public:
   /// This emits linkage information about \p GVSym based on \p GV, if this is
   /// supported by the target.
   void EmitLinkage(const GlobalValue *GV, MCSymbol *GVSym) const;
+
+  /// Return the alignment for the specified \p GV.
+  static Align getGVAlignment(const GlobalValue *GV, const DataLayout &DL,
+                              Align InAlign = Align::None());
 
 private:
   /// Private state for PrintSpecial()

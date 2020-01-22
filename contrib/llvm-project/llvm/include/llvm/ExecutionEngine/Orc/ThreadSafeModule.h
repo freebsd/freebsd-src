@@ -38,17 +38,12 @@ private:
 public:
   // RAII based lock for ThreadSafeContext.
   class LLVM_NODISCARD Lock {
-  private:
-    using UnderlyingLock = std::lock_guard<std::recursive_mutex>;
-
   public:
-    Lock(std::shared_ptr<State> S)
-        : S(std::move(S)),
-          L(llvm::make_unique<UnderlyingLock>(this->S->Mutex)) {}
+    Lock(std::shared_ptr<State> S) : S(std::move(S)), L(this->S->Mutex) {}
 
   private:
     std::shared_ptr<State> S;
-    std::unique_ptr<UnderlyingLock> L;
+    std::unique_lock<std::recursive_mutex> L;
   };
 
   /// Construct a null context.
@@ -69,7 +64,7 @@ public:
   /// instance, or null if the instance was default constructed.
   const LLVMContext *getContext() const { return S ? S->Ctx.get() : nullptr; }
 
-  Lock getLock() {
+  Lock getLock() const {
     assert(S && "Can not lock an empty ThreadSafeContext");
     return Lock(S);
   }
@@ -95,7 +90,7 @@ public:
     // We also need to lock the context to make sure the module tear-down
     // does not overlap any other work on the context.
     if (M) {
-      auto L = getContextLock();
+      auto L = TSCtx.getLock();
       M = nullptr;
     }
     M = std::move(Other.M);
@@ -117,23 +112,14 @@ public:
   ~ThreadSafeModule() {
     // We need to lock the context while we destruct the module.
     if (M) {
-      auto L = getContextLock();
+      auto L = TSCtx.getLock();
       M = nullptr;
     }
   }
 
-  /// Get the module wrapped by this ThreadSafeModule.
-  Module *getModule() { return M.get(); }
-
-  /// Get the module wrapped by this ThreadSafeModule.
-  const Module *getModule() const { return M.get(); }
-
-  /// Take out a lock on the ThreadSafeContext for this module.
-  ThreadSafeContext::Lock getContextLock() { return TSCtx.getLock(); }
-
   /// Boolean conversion: This ThreadSafeModule will evaluate to true if it
   /// wraps a non-null module.
-  explicit operator bool() {
+  explicit operator bool() const {
     if (M) {
       assert(TSCtx.getContext() &&
              "Non-null module must have non-null context");
@@ -141,6 +127,33 @@ public:
     }
     return false;
   }
+
+  /// Locks the associated ThreadSafeContext and calls the given function
+  /// on the contained Module.
+  template <typename Func>
+  auto withModuleDo(Func &&F) -> decltype(F(std::declval<Module &>())) {
+    assert(M && "Can not call on null module");
+    auto Lock = TSCtx.getLock();
+    return F(*M);
+  }
+
+  /// Locks the associated ThreadSafeContext and calls the given function
+  /// on the contained Module.
+  template <typename Func>
+  auto withModuleDo(Func &&F) const
+      -> decltype(F(std::declval<const Module &>())) {
+    auto Lock = TSCtx.getLock();
+    return F(*M);
+  }
+
+  /// Get a raw pointer to the contained module without locking the context.
+  Module *getModuleUnlocked() { return M.get(); }
+
+  /// Get a raw pointer to the contained module without locking the context.
+  const Module *getModuleUnlocked() const { return M.get(); }
+
+  /// Returns the context for this ThreadSafeModule.
+  ThreadSafeContext getContext() const { return TSCtx; }
 
 private:
   std::unique_ptr<Module> M;

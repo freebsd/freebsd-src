@@ -468,6 +468,8 @@ template <> struct DenseMapInfo<ExitLimitQuery> {
 /// can't do much with the SCEV objects directly, they must ask this class
 /// for services.
 class ScalarEvolution {
+  friend class ScalarEvolutionsTest;
+
 public:
   /// An enum describing the relationship between a SCEV and a loop.
   enum LoopDisposition {
@@ -777,10 +779,10 @@ public:
   /// to (i.e. a "conservative over-approximation") of the value returend by
   /// getBackedgeTakenCount.  If such a value cannot be computed, it returns the
   /// SCEVCouldNotCompute object.
-  const SCEV *getMaxBackedgeTakenCount(const Loop *L);
+  const SCEV *getConstantMaxBackedgeTakenCount(const Loop *L);
 
   /// Return true if the backedge taken count is either the value returned by
-  /// getMaxBackedgeTakenCount or zero.
+  /// getConstantMaxBackedgeTakenCount or zero.
   bool isBackedgeTakenCountMaxOrZero(const Loop *L);
 
   /// Return true if the specified loop has an analyzable loop-invariant

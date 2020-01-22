@@ -239,10 +239,10 @@ static std::unique_ptr<ToolOutputFile> GetOutputStream(const char *TargetName,
 
   // Open the file.
   std::error_code EC;
-  sys::fs::OpenFlags OpenFlags = sys::fs::F_None;
+  sys::fs::OpenFlags OpenFlags = sys::fs::OF_None;
   if (!Binary)
-    OpenFlags |= sys::fs::F_Text;
-  auto FDOut = llvm::make_unique<ToolOutputFile>(OutputFilename, EC, OpenFlags);
+    OpenFlags |= sys::fs::OF_Text;
+  auto FDOut = std::make_unique<ToolOutputFile>(OutputFilename, EC, OpenFlags);
   if (EC) {
     WithColor::error() << EC.message() << '\n';
     return nullptr;
@@ -329,7 +329,7 @@ int main(int argc, char **argv) {
   // Set a diagnostic handler that doesn't exit on the first error
   bool HasError = false;
   Context.setDiagnosticHandler(
-      llvm::make_unique<LLCDiagnosticHandler>(&HasError));
+      std::make_unique<LLCDiagnosticHandler>(&HasError));
   Context.setInlineAsmDiagnosticHandler(InlineAsmDiagHandler, &HasError);
 
   Expected<std::unique_ptr<ToolOutputFile>> RemarksFileOrErr =
@@ -479,8 +479,8 @@ static int compileModule(char **argv, LLVMContext &Context) {
   std::unique_ptr<ToolOutputFile> DwoOut;
   if (!SplitDwarfOutputFile.empty()) {
     std::error_code EC;
-    DwoOut = llvm::make_unique<ToolOutputFile>(SplitDwarfOutputFile, EC,
-                                               sys::fs::F_None);
+    DwoOut = std::make_unique<ToolOutputFile>(SplitDwarfOutputFile, EC,
+                                               sys::fs::OF_None);
     if (EC) {
       WithColor::error(errs(), argv[0]) << EC.message() << '\n';
       return 1;
@@ -533,13 +533,14 @@ static int compileModule(char **argv, LLVMContext &Context) {
     if ((FileType != TargetMachine::CGFT_AssemblyFile &&
          !Out->os().supportsSeeking()) ||
         CompileTwice) {
-      BOS = make_unique<raw_svector_ostream>(Buffer);
+      BOS = std::make_unique<raw_svector_ostream>(Buffer);
       OS = BOS.get();
     }
 
     const char *argv0 = argv[0];
-    LLVMTargetMachine &LLVMTM = static_cast<LLVMTargetMachine&>(*Target);
-    MachineModuleInfo *MMI = new MachineModuleInfo(&LLVMTM);
+    LLVMTargetMachine &LLVMTM = static_cast<LLVMTargetMachine &>(*Target);
+    MachineModuleInfoWrapperPass *MMIWP =
+        new MachineModuleInfoWrapperPass(&LLVMTM);
 
     // Construct a custom pass pipeline that starts after instruction
     // selection.
@@ -559,7 +560,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
       TPC.setDisableVerify(NoVerify);
       PM.add(&TPC);
-      PM.add(MMI);
+      PM.add(MMIWP);
       TPC.printAndVerify("");
       for (const std::string &RunPassName : *RunPassNames) {
         if (addPass(PM, argv0, RunPassName, TPC))
@@ -570,7 +571,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
       PM.add(createFreeMachineFunctionPass());
     } else if (Target->addPassesToEmitFile(PM, *OS,
                                            DwoOut ? &DwoOut->os() : nullptr,
-                                           FileType, NoVerify, MMI)) {
+                                           FileType, NoVerify, MMIWP)) {
       WithColor::warning(errs(), argv[0])
           << "target does not support generation of this"
           << " file type!\n";
@@ -578,8 +579,8 @@ static int compileModule(char **argv, LLVMContext &Context) {
     }
 
     if (MIR) {
-      assert(MMI && "Forgot to create MMI?");
-      if (MIR->parseMachineFunctions(*M, *MMI))
+      assert(MMIWP && "Forgot to create MMIWP?");
+      if (MIR->parseMachineFunctions(*M, MMIWP->getMMI()))
         return 1;
     }
 

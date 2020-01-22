@@ -46,10 +46,18 @@ class AMDGPUTTIImpl final : public BasicTTIImplBase<AMDGPUTTIImpl> {
 
   Triple TargetTriple;
 
+  const TargetSubtargetInfo *ST;
+  const TargetLoweringBase *TLI;
+
+  const TargetSubtargetInfo *getST() const { return ST; }
+  const TargetLoweringBase *getTLI() const { return TLI; }
+
 public:
   explicit AMDGPUTTIImpl(const AMDGPUTargetMachine *TM, const Function &F)
-    : BaseT(TM, F.getParent()->getDataLayout()),
-      TargetTriple(TM->getTargetTriple()) {}
+      : BaseT(TM, F.getParent()->getDataLayout()),
+        TargetTriple(TM->getTargetTriple()),
+        ST(static_cast<const GCNSubtarget *>(TM->getSubtargetImpl(F))),
+        TLI(ST->getTargetLowering()) {}
 
   void getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
                                TTI::UnrollingPreferences &UP);
@@ -183,6 +191,11 @@ public:
     return AMDGPUAS::FLAT_ADDRESS;
   }
 
+  bool collectFlatAddressOperands(SmallVectorImpl<int> &OpIndexes,
+                                  Intrinsic::ID IID) const;
+  bool rewriteIntrinsicWithAddressSpace(IntrinsicInst *II,
+                                        Value *OldV, Value *NewV) const;
+
   unsigned getVectorSplitCost() { return 0; }
 
   unsigned getShuffleCost(TTI::ShuffleKind Kind, Type *Tp, int Index,
@@ -191,7 +204,7 @@ public:
   bool areInlineCompatible(const Function *Caller,
                            const Function *Callee) const;
 
-  unsigned getInliningThresholdMultiplier() { return 7; }
+  unsigned getInliningThresholdMultiplier() { return 9; }
 
   int getInlinerVectorBonusPercent() { return 0; }
 
@@ -201,6 +214,7 @@ public:
   int getMinMaxReductionCost(Type *Ty, Type *CondTy,
                              bool IsPairwiseForm,
                              bool IsUnsigned);
+  unsigned getUserCost(const User *U, ArrayRef<const Value *> Operands);
 };
 
 class R600TTIImpl final : public BasicTTIImplBase<R600TTIImpl> {

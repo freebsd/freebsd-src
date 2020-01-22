@@ -343,7 +343,10 @@ public:
   unsigned getFnStackAlignment() const {
     if (!hasFnAttribute(Attribute::StackAlignment))
       return 0;
-    return AttributeSets.getStackAlignment(AttributeList::FunctionIndex);
+    if (const auto MA =
+            AttributeSets.getStackAlignment(AttributeList::FunctionIndex))
+      return MA->value();
+    return 0;
   }
 
   /// hasGC/getGC/setGC/clearGC - The name of the garbage collection algorithm
@@ -433,7 +436,9 @@ public:
 
   /// Extract the alignment for a call or parameter (0=unknown).
   unsigned getParamAlignment(unsigned ArgNo) const {
-    return AttributeSets.getParamAlignment(ArgNo);
+    if (const auto MA = AttributeSets.getParamAlignment(ArgNo))
+      return MA->value();
+    return 0;
   }
 
   /// Extract the byval type for a parameter.
@@ -708,6 +713,12 @@ public:
   const_arg_iterator arg_end() const {
     CheckLazyArguments();
     return Arguments + NumArgs;
+  }
+
+  Argument* getArg(unsigned i) const {
+    assert (i < NumArgs && "getArg() out of range!");
+    CheckLazyArguments();
+    return Arguments + i;
   }
 
   iterator_range<arg_iterator> args() {

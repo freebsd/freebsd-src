@@ -22,6 +22,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -248,6 +249,20 @@ bool Constant::isNaN() const {
       return false;
   }
   return true;
+}
+
+bool Constant::isElementWiseEqual(Value *Y) const {
+  // Are they fully identical?
+  if (this == Y)
+    return true;
+  // They may still be identical element-wise (if they have `undef`s).
+  auto *Cy = dyn_cast<Constant>(Y);
+  if (!Cy)
+    return false;
+  return PatternMatch::match(ConstantExpr::getICmp(ICmpInst::Predicate::ICMP_EQ,
+                                                   const_cast<Constant *>(this),
+                                                   Cy),
+                             PatternMatch::m_One());
 }
 
 bool Constant::containsUndefElement() const {
@@ -502,22 +517,32 @@ bool Constant::needsRelocation() const {
   if (const BlockAddress *BA = dyn_cast<BlockAddress>(this))
     return BA->getFunction()->needsRelocation();
 
-  // While raw uses of blockaddress need to be relocated, differences between
-  // two of them don't when they are for labels in the same function.  This is a
-  // common idiom when creating a table for the indirect goto extension, so we
-  // handle it efficiently here.
-  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(this))
+  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(this)) {
     if (CE->getOpcode() == Instruction::Sub) {
       ConstantExpr *LHS = dyn_cast<ConstantExpr>(CE->getOperand(0));
       ConstantExpr *RHS = dyn_cast<ConstantExpr>(CE->getOperand(1));
       if (LHS && RHS && LHS->getOpcode() == Instruction::PtrToInt &&
-          RHS->getOpcode() == Instruction::PtrToInt &&
-          isa<BlockAddress>(LHS->getOperand(0)) &&
-          isa<BlockAddress>(RHS->getOperand(0)) &&
-          cast<BlockAddress>(LHS->getOperand(0))->getFunction() ==
-              cast<BlockAddress>(RHS->getOperand(0))->getFunction())
-        return false;
+          RHS->getOpcode() == Instruction::PtrToInt) {
+        Constant *LHSOp0 = LHS->getOperand(0);
+        Constant *RHSOp0 = RHS->getOperand(0);
+
+        // While raw uses of blockaddress need to be relocated, differences
+        // between two of them don't when they are for labels in the same
+        // function.  This is a common idiom when creating a table for the
+        // indirect goto extension, so we handle it efficiently here.
+        if (isa<BlockAddress>(LHSOp0) && isa<BlockAddress>(RHSOp0) &&
+            cast<BlockAddress>(LHSOp0)->getFunction() ==
+                cast<BlockAddress>(RHSOp0)->getFunction())
+          return false;
+
+        // Relative pointers do not need to be dynamically relocated.
+        if (auto *LHSGV = dyn_cast<GlobalValue>(LHSOp0->stripPointerCasts()))
+          if (auto *RHSGV = dyn_cast<GlobalValue>(RHSOp0->stripPointerCasts()))
+            if (LHSGV->isDSOLocal() && RHSGV->isDSOLocal())
+              return false;
+      }
     }
+  }
 
   bool Result = false;
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
@@ -563,13 +588,10 @@ void Constant::removeDeadConstantUsers() const {
     }
 
     // If the constant was dead, then the iterator is invalidated.
-    if (LastNonDeadUser == E) {
+    if (LastNonDeadUser == E)
       I = user_begin();
-      if (I == E) break;
-    } else {
-      I = LastNonDeadUser;
-      ++I;
-    }
+    else
+      I = std::next(LastNonDeadUser);
   }
 }
 

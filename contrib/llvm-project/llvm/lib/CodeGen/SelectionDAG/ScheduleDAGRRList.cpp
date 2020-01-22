@@ -1188,6 +1188,10 @@ SUnit *ScheduleDAGRRList::CopyAndMoveSuccessors(SUnit *SU) {
     if (!Pred.isArtificial())
       AddPredQueued(NewSU, Pred);
 
+  // Make sure the clone comes after the original. (InstrEmitter assumes
+  // this ordering.)
+  AddPredQueued(NewSU, SDep(SU, SDep::Artificial));
+
   // Only copy scheduled successors. Cut them from old node's successor
   // list and move them over.
   SmallVector<std::pair<SUnit *, SDep>, 4> DelDeps;
@@ -1374,7 +1378,7 @@ DelayForLiveRegsBottomUp(SUnit *SU, SmallVectorImpl<unsigned> &LRegs) {
           // Check for def of register or earlyclobber register.
           for (; NumVals; --NumVals, ++i) {
             unsigned Reg = cast<RegisterSDNode>(Node->getOperand(i))->getReg();
-            if (TargetRegisterInfo::isPhysicalRegister(Reg))
+            if (Register::isPhysicalRegister(Reg))
               CheckForLiveRegDef(SU, Reg, LiveRegDefs.get(), RegAdded, LRegs, TRI);
           }
         } else
@@ -2358,7 +2362,7 @@ static bool hasOnlyLiveInOpers(const SUnit *SU) {
         PredSU->getNode()->getOpcode() == ISD::CopyFromReg) {
       unsigned Reg =
         cast<RegisterSDNode>(PredSU->getNode()->getOperand(1))->getReg();
-      if (TargetRegisterInfo::isVirtualRegister(Reg)) {
+      if (Register::isVirtualRegister(Reg)) {
         RetVal = true;
         continue;
       }
@@ -2379,7 +2383,7 @@ static bool hasOnlyLiveOutUses(const SUnit *SU) {
     if (SuccSU->getNode() && SuccSU->getNode()->getOpcode() == ISD::CopyToReg) {
       unsigned Reg =
         cast<RegisterSDNode>(SuccSU->getNode()->getOperand(1))->getReg();
-      if (TargetRegisterInfo::isVirtualRegister(Reg)) {
+      if (Register::isVirtualRegister(Reg)) {
         RetVal = true;
         continue;
       }
@@ -2948,8 +2952,8 @@ void RegReductionPQBase::PrescheduleNodesWithMultipleUses() {
     // like other nodes from the perspective of scheduling heuristics.
     if (SDNode *N = SU.getNode())
       if (N->getOpcode() == ISD::CopyToReg &&
-          TargetRegisterInfo::isVirtualRegister
-            (cast<RegisterSDNode>(N->getOperand(1))->getReg()))
+          Register::isVirtualRegister(
+              cast<RegisterSDNode>(N->getOperand(1))->getReg()))
         continue;
 
     SDNode *PredFrameSetup = nullptr;
@@ -2995,8 +2999,8 @@ void RegReductionPQBase::PrescheduleNodesWithMultipleUses() {
     // like other nodes from the perspective of scheduling heuristics.
     if (SDNode *N = SU.getNode())
       if (N->getOpcode() == ISD::CopyFromReg &&
-          TargetRegisterInfo::isVirtualRegister
-            (cast<RegisterSDNode>(N->getOperand(1))->getReg()))
+          Register::isVirtualRegister(
+              cast<RegisterSDNode>(N->getOperand(1))->getReg()))
         continue;
 
     // Perform checks on the successors of PredSU.

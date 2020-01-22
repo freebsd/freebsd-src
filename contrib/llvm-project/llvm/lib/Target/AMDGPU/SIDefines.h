@@ -99,7 +99,10 @@ enum : uint64_t {
   FPAtomic = UINT64_C(1) << 53,
 
   // Is a MFMA instruction.
-  IsMAI = UINT64_C(1) << 54
+  IsMAI = UINT64_C(1) << 54,
+
+  // Is a DOT instruction.
+  IsDOT = UINT64_C(1) << 55
 };
 
 // v_cmp_class_* etc. use a 10-bit mask for what operation is checked.
@@ -444,6 +447,7 @@ namespace DPP {
 
 enum DppCtrl : unsigned {
   QUAD_PERM_FIRST   = 0,
+  QUAD_PERM_ID      = 0xE4, // identity permutation
   QUAD_PERM_LAST    = 0xFF,
   DPP_UNUSED1       = 0x100,
   ROW_SHL0          = 0x100,

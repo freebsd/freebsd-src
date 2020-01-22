@@ -30,17 +30,16 @@ namespace llvm {
   bool inferLibFuncAttributes(Function &F, const TargetLibraryInfo &TLI);
   bool inferLibFuncAttributes(Module *M, StringRef Name, const TargetLibraryInfo &TLI);
 
-  /// Check whether the overloaded unary floating point function
+  /// Check whether the overloaded floating point function
   /// corresponding to \a Ty is available.
-  bool hasUnaryFloatFn(const TargetLibraryInfo *TLI, Type *Ty,
-                       LibFunc DoubleFn, LibFunc FloatFn,
-                       LibFunc LongDoubleFn);
+  bool hasFloatFn(const TargetLibraryInfo *TLI, Type *Ty,
+                  LibFunc DoubleFn, LibFunc FloatFn, LibFunc LongDoubleFn);
 
-  /// Get the name of the overloaded unary floating point function
+  /// Get the name of the overloaded floating point function
   /// corresponding to \a Ty.
-  StringRef getUnaryFloatFn(const TargetLibraryInfo *TLI, Type *Ty,
-                            LibFunc DoubleFn, LibFunc FloatFn,
-                            LibFunc LongDoubleFn);
+  StringRef getFloatFnName(const TargetLibraryInfo *TLI, Type *Ty,
+                           LibFunc DoubleFn, LibFunc FloatFn,
+                           LibFunc LongDoubleFn);
 
   /// Return V if it is an i8*, otherwise cast it to i8*.
   Value *castToCStr(Value *V, IRBuilder<> &B);
@@ -50,6 +49,11 @@ namespace llvm {
   /// 'intptr_t' type.
   Value *emitStrLen(Value *Ptr, IRBuilder<> &B, const DataLayout &DL,
                     const TargetLibraryInfo *TLI);
+
+  /// Emit a call to the strdup function to the builder, for the specified
+  /// pointer. Ptr is required to be some pointer type, and the return value has
+  /// 'i8*' type.
+  Value *emitStrDup(Value *Ptr, IRBuilder<> &B, const TargetLibraryInfo *TLI);
 
   /// Emit a call to the strnlen function to the builder, for the specified
   /// pointer. Ptr is required to be some pointer type, MaxLen must be of size_t
@@ -162,6 +166,13 @@ namespace llvm {
   /// value with the same type. If 'Op1/Op2' are long double, 'l' is added as
   /// the suffix of name, if 'Op1/Op2' are float, we add a 'f' suffix.
   Value *emitBinaryFloatFnCall(Value *Op1, Value *Op2, StringRef Name,
+                               IRBuilder<> &B, const AttributeList &Attrs);
+
+  /// Emit a call to the binary function DoubleFn, FloatFn or LongDoubleFn,
+  /// depending of the type of Op1.
+  Value *emitBinaryFloatFnCall(Value *Op1, Value *Op2,
+                               const TargetLibraryInfo *TLI, LibFunc DoubleFn,
+                               LibFunc FloatFn, LibFunc LongDoubleFn,
                                IRBuilder<> &B, const AttributeList &Attrs);
 
   /// Emit a call to the putchar function. This assumes that Char is an integer.

@@ -32,7 +32,7 @@ void LiveRangeEdit::Delegate::anchor() { }
 
 LiveInterval &LiveRangeEdit::createEmptyIntervalFrom(unsigned OldReg,
                                                      bool createSubRanges) {
-  unsigned VReg = MRI.createVirtualRegister(MRI.getRegClass(OldReg));
+  Register VReg = MRI.createVirtualRegister(MRI.getRegClass(OldReg));
   if (VRM)
     VRM->setIsSplitFromReg(VReg, VRM->getOriginal(OldReg));
 
@@ -52,7 +52,7 @@ LiveInterval &LiveRangeEdit::createEmptyIntervalFrom(unsigned OldReg,
 }
 
 unsigned LiveRangeEdit::createFrom(unsigned OldReg) {
-  unsigned VReg = MRI.createVirtualRegister(MRI.getRegClass(OldReg));
+  Register VReg = MRI.createVirtualRegister(MRI.getRegClass(OldReg));
   if (VRM) {
     VRM->setIsSplitFromReg(VReg, VRM->getOriginal(OldReg));
   }
@@ -114,7 +114,7 @@ bool LiveRangeEdit::allUsesAvailableAt(const MachineInstr *OrigMI,
       continue;
 
     // We can't remat physreg uses, unless it is a constant.
-    if (TargetRegisterInfo::isPhysicalRegister(MO.getReg())) {
+    if (Register::isPhysicalRegister(MO.getReg())) {
       if (MRI.isConstantPhysReg(MO.getReg()))
         continue;
       return false;
@@ -232,7 +232,7 @@ bool LiveRangeEdit::foldAsLoad(LiveInterval *LI,
   LLVM_DEBUG(dbgs() << "                folded: " << *FoldMI);
   LIS.ReplaceMachineInstrInMaps(*UseMI, *FoldMI);
   if (UseMI->isCall())
-    UseMI->getMF()->updateCallSiteInfo(UseMI, FoldMI);
+    UseMI->getMF()->moveCallSiteInfo(UseMI, FoldMI);
   UseMI->eraseFromParent();
   DefMI->addRegisterDead(LI->reg, nullptr);
   Dead.push_back(DefMI);
@@ -308,8 +308,8 @@ void LiveRangeEdit::eliminateDeadDef(MachineInstr *MI, ToShrinkSet &ToShrink,
          MOE = MI->operands_end(); MOI != MOE; ++MOI) {
     if (!MOI->isReg())
       continue;
-    unsigned Reg = MOI->getReg();
-    if (!TargetRegisterInfo::isVirtualRegister(Reg)) {
+    Register Reg = MOI->getReg();
+    if (!Register::isVirtualRegister(Reg)) {
       // Check if MI reads any unreserved physregs.
       if (Reg && MOI->readsReg() && !MRI.isReserved(Reg))
         ReadsPhysRegs = true;
@@ -349,7 +349,7 @@ void LiveRangeEdit::eliminateDeadDef(MachineInstr *MI, ToShrinkSet &ToShrink,
     // Remove all operands that aren't physregs.
     for (unsigned i = MI->getNumOperands(); i; --i) {
       const MachineOperand &MO = MI->getOperand(i-1);
-      if (MO.isReg() && TargetRegisterInfo::isPhysicalRegister(MO.getReg()))
+      if (MO.isReg() && Register::isPhysicalRegister(MO.getReg()))
         continue;
       MI->RemoveOperand(i-1);
     }

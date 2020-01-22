@@ -114,18 +114,22 @@ unsigned GlobalValue::getAddressSpace() const {
 }
 
 void GlobalObject::setAlignment(unsigned Align) {
-  assert((Align & (Align-1)) == 0 && "Alignment is not a power of 2!");
-  assert(Align <= MaximumAlignment &&
+  setAlignment(MaybeAlign(Align));
+}
+
+void GlobalObject::setAlignment(MaybeAlign Align) {
+  assert((!Align || Align <= MaximumAlignment) &&
          "Alignment is greater than MaximumAlignment!");
-  unsigned AlignmentData = Log2_32(Align) + 1;
+  unsigned AlignmentData = encode(Align);
   unsigned OldData = getGlobalValueSubClassData();
   setGlobalValueSubClassData((OldData & ~AlignmentMask) | AlignmentData);
-  assert(getAlignment() == Align && "Alignment representation error!");
+  assert(MaybeAlign(getAlignment()) == Align &&
+         "Alignment representation error!");
 }
 
 void GlobalObject::copyAttributesFrom(const GlobalObject *Src) {
   GlobalValue::copyAttributesFrom(Src);
-  setAlignment(Src->getAlignment());
+  setAlignment(MaybeAlign(Src->getAlignment()));
   setSection(Src->getSection());
 }
 
@@ -427,6 +431,43 @@ GlobalIndirectSymbol::GlobalIndirectSymbol(Type *Ty, ValueTy VTy,
     Op<0>() = Symbol;
 }
 
+static const GlobalObject *
+findBaseObject(const Constant *C, DenseSet<const GlobalAlias *> &Aliases) {
+  if (auto *GO = dyn_cast<GlobalObject>(C))
+    return GO;
+  if (auto *GA = dyn_cast<GlobalAlias>(C))
+    if (Aliases.insert(GA).second)
+      return findBaseObject(GA->getOperand(0), Aliases);
+  if (auto *CE = dyn_cast<ConstantExpr>(C)) {
+    switch (CE->getOpcode()) {
+    case Instruction::Add: {
+      auto *LHS = findBaseObject(CE->getOperand(0), Aliases);
+      auto *RHS = findBaseObject(CE->getOperand(1), Aliases);
+      if (LHS && RHS)
+        return nullptr;
+      return LHS ? LHS : RHS;
+    }
+    case Instruction::Sub: {
+      if (findBaseObject(CE->getOperand(1), Aliases))
+        return nullptr;
+      return findBaseObject(CE->getOperand(0), Aliases);
+    }
+    case Instruction::IntToPtr:
+    case Instruction::PtrToInt:
+    case Instruction::BitCast:
+    case Instruction::GetElementPtr:
+      return findBaseObject(CE->getOperand(0), Aliases);
+    default:
+      break;
+    }
+  }
+  return nullptr;
+}
+
+const GlobalObject *GlobalIndirectSymbol::getBaseObject() const {
+  DenseSet<const GlobalAlias *> Aliases;
+  return findBaseObject(getOperand(0), Aliases);
+}
 
 //===----------------------------------------------------------------------===//
 // GlobalAlias Implementation

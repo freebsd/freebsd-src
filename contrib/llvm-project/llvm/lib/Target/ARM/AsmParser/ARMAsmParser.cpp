@@ -2275,6 +2275,14 @@ public:
     return Value >= 1 && Value <= 32;
   }
 
+  bool isMveSaturateOp() const {
+    if (!isImm()) return false;
+    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    if (!CE) return false;
+    uint64_t Value = CE->getValue();
+    return Value == 48 || Value == 64;
+  }
+
   bool isITCondCodeNoAL() const {
     if (!isITCondCode()) return false;
     ARMCC::CondCodes CC = getCondCode();
@@ -2479,28 +2487,28 @@ public:
 
   void addModImmNotOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     uint32_t Enc = ARM_AM::getSOImmVal(~CE->getValue());
     Inst.addOperand(MCOperand::createImm(Enc));
   }
 
   void addModImmNegOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     uint32_t Enc = ARM_AM::getSOImmVal(-CE->getValue());
     Inst.addOperand(MCOperand::createImm(Enc));
   }
 
   void addThumbModImmNeg8_255Operands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     uint32_t Val = -CE->getValue();
     Inst.addOperand(MCOperand::createImm(Val));
   }
 
   void addThumbModImmNeg1_7Operands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     uint32_t Val = -CE->getValue();
     Inst.addOperand(MCOperand::createImm(Val));
   }
@@ -2523,19 +2531,19 @@ public:
 
   void addFBits16Operands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(16 - CE->getValue()));
   }
 
   void addFBits32Operands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(32 - CE->getValue()));
   }
 
   void addFPImmOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     int Val = ARM_AM::getFP32Imm(APInt(32, CE->getValue()));
     Inst.addOperand(MCOperand::createImm(Val));
   }
@@ -2544,7 +2552,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // FIXME: We really want to scale the value here, but the LDRD/STRD
     // instruction don't encode operands that way yet.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue()));
   }
 
@@ -2552,35 +2560,31 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // FIXME: We really want to scale the value here, but the VSTR/VLDR_VSYSR
     // instruction don't encode operands that way yet.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue()));
   }
 
   void addImm7Shift0Operands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
-    assert(CE != nullptr && "Invalid operand type!");
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue()));
   }
 
   void addImm7Shift1Operands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
-    assert(CE != nullptr && "Invalid operand type!");
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue()));
   }
 
   void addImm7Shift2Operands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
-    assert(CE != nullptr && "Invalid operand type!");
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue()));
   }
 
   void addImm7Operands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
-    assert(CE != nullptr && "Invalid operand type!");
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue()));
   }
 
@@ -2588,7 +2592,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // The immediate is scaled by four in the encoding and is stored
     // in the MCInst as such. Lop off the low two bits here.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue() / 4));
   }
 
@@ -2596,7 +2600,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // The immediate is scaled by four in the encoding and is stored
     // in the MCInst as such. Lop off the low two bits here.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(-(CE->getValue() / 4)));
   }
 
@@ -2604,7 +2608,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // The immediate is scaled by four in the encoding and is stored
     // in the MCInst as such. Lop off the low two bits here.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue() / 4));
   }
 
@@ -2612,7 +2616,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // The constant encodes as the immediate-1, and we store in the instruction
     // the bits as encoded, so subtract off one here.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue() - 1));
   }
 
@@ -2620,7 +2624,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // The constant encodes as the immediate-1, and we store in the instruction
     // the bits as encoded, so subtract off one here.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue() - 1));
   }
 
@@ -2628,7 +2632,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // The constant encodes as the immediate, except for 32, which encodes as
     // zero.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     unsigned Imm = CE->getValue();
     Inst.addOperand(MCOperand::createImm((Imm == 32 ? 0 : Imm)));
   }
@@ -2637,7 +2641,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // An ASR value of 32 encodes as 0, so that's how we want to add it to
     // the instruction as well.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     int Val = CE->getValue();
     Inst.addOperand(MCOperand::createImm(Val == 32 ? 0 : Val));
   }
@@ -2646,7 +2650,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // The operand is actually a t2_so_imm, but we have its bitwise
     // negation in the assembly source, so twiddle it here.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(~(uint32_t)CE->getValue()));
   }
 
@@ -2654,7 +2658,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // The operand is actually a t2_so_imm, but we have its
     // negation in the assembly source, so twiddle it here.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(-(uint32_t)CE->getValue()));
   }
 
@@ -2662,7 +2666,7 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // The operand is actually an imm0_4095, but we have its
     // negation in the assembly source, so twiddle it here.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(-(uint32_t)CE->getValue()));
   }
 
@@ -2671,9 +2675,7 @@ public:
       Inst.addOperand(MCOperand::createImm(CE->getValue() >> 2));
       return;
     }
-
-    const MCSymbolRefExpr *SR = dyn_cast<MCSymbolRefExpr>(Imm.Val);
-    assert(SR && "Unknown value type!");
+    const MCSymbolRefExpr *SR = cast<MCSymbolRefExpr>(Imm.Val);
     Inst.addOperand(MCOperand::createExpr(SR));
   }
 
@@ -2685,10 +2687,7 @@ public:
         Inst.addOperand(MCOperand::createImm(CE->getValue()));
         return;
       }
-
-      const MCSymbolRefExpr *SR = dyn_cast<MCSymbolRefExpr>(Imm.Val);
-
-      assert(SR && "Unknown value type!");
+      const MCSymbolRefExpr *SR = cast<MCSymbolRefExpr>(Imm.Val);
       Inst.addOperand(MCOperand::createExpr(SR));
       return;
     }
@@ -2750,7 +2749,7 @@ public:
       return;
     }
 
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     int Val = CE->getValue();
     Inst.addOperand(MCOperand::createImm(Val));
   }
@@ -3130,7 +3129,7 @@ public:
 
   void addPowerTwoOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue()));
   }
 
@@ -3225,14 +3224,14 @@ public:
     assert(N == 1 && "Invalid number of operands!");
     // The immediate encodes the type of constant as well as the value.
     // Mask in that this is an i8 splat.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue() | 0xe00));
   }
 
   void addNEONi16splatOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     // The immediate encodes the type of constant as well as the value.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     unsigned Value = CE->getValue();
     Value = ARM_AM::encodeNEONi16splat(Value);
     Inst.addOperand(MCOperand::createImm(Value));
@@ -3241,7 +3240,7 @@ public:
   void addNEONi16splatNotOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     // The immediate encodes the type of constant as well as the value.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     unsigned Value = CE->getValue();
     Value = ARM_AM::encodeNEONi16splat(~Value & 0xffff);
     Inst.addOperand(MCOperand::createImm(Value));
@@ -3250,7 +3249,7 @@ public:
   void addNEONi32splatOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     // The immediate encodes the type of constant as well as the value.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     unsigned Value = CE->getValue();
     Value = ARM_AM::encodeNEONi32splat(Value);
     Inst.addOperand(MCOperand::createImm(Value));
@@ -3259,7 +3258,7 @@ public:
   void addNEONi32splatNotOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     // The immediate encodes the type of constant as well as the value.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     unsigned Value = CE->getValue();
     Value = ARM_AM::encodeNEONi32splat(~Value);
     Inst.addOperand(MCOperand::createImm(Value));
@@ -3267,7 +3266,7 @@ public:
 
   void addNEONi8ReplicateOperands(MCInst &Inst, bool Inv) const {
     // The immediate encodes the type of constant as well as the value.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     assert((Inst.getOpcode() == ARM::VMOVv8i8 ||
             Inst.getOpcode() == ARM::VMOVv16i8) &&
           "All instructions that wants to replicate non-zero byte "
@@ -3298,7 +3297,7 @@ public:
   void addNEONi32vmovOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     // The immediate encodes the type of constant as well as the value.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     unsigned Value = encodeNeonVMOVImmediate(CE->getValue());
     Inst.addOperand(MCOperand::createImm(Value));
   }
@@ -3310,7 +3309,7 @@ public:
 
   void addNEONvmovi16ReplicateOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     assert((Inst.getOpcode() == ARM::VMOVv4i16 ||
             Inst.getOpcode() == ARM::VMOVv8i16 ||
             Inst.getOpcode() == ARM::VMVNv4i16 ||
@@ -3327,14 +3326,14 @@ public:
   void addNEONi32vmovNegOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     // The immediate encodes the type of constant as well as the value.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     unsigned Value = encodeNeonVMOVImmediate(~CE->getValue());
     Inst.addOperand(MCOperand::createImm(Value));
   }
 
   void addNEONvmovi32ReplicateOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     assert((Inst.getOpcode() == ARM::VMOVv2i32 ||
             Inst.getOpcode() == ARM::VMOVv4i32 ||
             Inst.getOpcode() == ARM::VMVNv2i32 ||
@@ -3349,7 +3348,7 @@ public:
   void addNEONi64splatOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     // The immediate encodes the type of constant as well as the value.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     uint64_t Value = CE->getValue();
     unsigned Imm = 0;
     for (unsigned i = 0; i < 8; ++i, Value >>= 8) {
@@ -3360,20 +3359,28 @@ public:
 
   void addComplexRotationEvenOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm(CE->getValue() / 90));
   }
 
   void addComplexRotationOddOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
     Inst.addOperand(MCOperand::createImm((CE->getValue() - 90) / 180));
+  }
+
+  void addMveSaturateOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    const MCConstantExpr *CE = cast<MCConstantExpr>(getImm());
+    unsigned Imm = CE->getValue();
+    assert((Imm == 48 || Imm == 64) && "Invalid saturate operand");
+    Inst.addOperand(MCOperand::createImm(Imm == 48 ? 1 : 0));
   }
 
   void print(raw_ostream &OS) const override;
 
   static std::unique_ptr<ARMOperand> CreateITMask(unsigned Mask, SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_ITCondMask);
+    auto Op = std::make_unique<ARMOperand>(k_ITCondMask);
     Op->ITMask.Mask = Mask;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3382,7 +3389,7 @@ public:
 
   static std::unique_ptr<ARMOperand> CreateCondCode(ARMCC::CondCodes CC,
                                                     SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_CondCode);
+    auto Op = std::make_unique<ARMOperand>(k_CondCode);
     Op->CC.Val = CC;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3391,7 +3398,7 @@ public:
 
   static std::unique_ptr<ARMOperand> CreateVPTPred(ARMVCC::VPTCodes CC,
                                                    SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_VPTPred);
+    auto Op = std::make_unique<ARMOperand>(k_VPTPred);
     Op->VCC.Val = CC;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3399,7 +3406,7 @@ public:
   }
 
   static std::unique_ptr<ARMOperand> CreateCoprocNum(unsigned CopVal, SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_CoprocNum);
+    auto Op = std::make_unique<ARMOperand>(k_CoprocNum);
     Op->Cop.Val = CopVal;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3407,7 +3414,7 @@ public:
   }
 
   static std::unique_ptr<ARMOperand> CreateCoprocReg(unsigned CopVal, SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_CoprocReg);
+    auto Op = std::make_unique<ARMOperand>(k_CoprocReg);
     Op->Cop.Val = CopVal;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3416,7 +3423,7 @@ public:
 
   static std::unique_ptr<ARMOperand> CreateCoprocOption(unsigned Val, SMLoc S,
                                                         SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_CoprocOption);
+    auto Op = std::make_unique<ARMOperand>(k_CoprocOption);
     Op->Cop.Val = Val;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -3424,7 +3431,7 @@ public:
   }
 
   static std::unique_ptr<ARMOperand> CreateCCOut(unsigned RegNum, SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_CCOut);
+    auto Op = std::make_unique<ARMOperand>(k_CCOut);
     Op->Reg.RegNum = RegNum;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3432,7 +3439,7 @@ public:
   }
 
   static std::unique_ptr<ARMOperand> CreateToken(StringRef Str, SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_Token);
+    auto Op = std::make_unique<ARMOperand>(k_Token);
     Op->Tok.Data = Str.data();
     Op->Tok.Length = Str.size();
     Op->StartLoc = S;
@@ -3442,7 +3449,7 @@ public:
 
   static std::unique_ptr<ARMOperand> CreateReg(unsigned RegNum, SMLoc S,
                                                SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_Register);
+    auto Op = std::make_unique<ARMOperand>(k_Register);
     Op->Reg.RegNum = RegNum;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -3453,7 +3460,7 @@ public:
   CreateShiftedRegister(ARM_AM::ShiftOpc ShTy, unsigned SrcReg,
                         unsigned ShiftReg, unsigned ShiftImm, SMLoc S,
                         SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_ShiftedRegister);
+    auto Op = std::make_unique<ARMOperand>(k_ShiftedRegister);
     Op->RegShiftedReg.ShiftTy = ShTy;
     Op->RegShiftedReg.SrcReg = SrcReg;
     Op->RegShiftedReg.ShiftReg = ShiftReg;
@@ -3466,7 +3473,7 @@ public:
   static std::unique_ptr<ARMOperand>
   CreateShiftedImmediate(ARM_AM::ShiftOpc ShTy, unsigned SrcReg,
                          unsigned ShiftImm, SMLoc S, SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_ShiftedImmediate);
+    auto Op = std::make_unique<ARMOperand>(k_ShiftedImmediate);
     Op->RegShiftedImm.ShiftTy = ShTy;
     Op->RegShiftedImm.SrcReg = SrcReg;
     Op->RegShiftedImm.ShiftImm = ShiftImm;
@@ -3477,7 +3484,7 @@ public:
 
   static std::unique_ptr<ARMOperand> CreateShifterImm(bool isASR, unsigned Imm,
                                                       SMLoc S, SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_ShifterImmediate);
+    auto Op = std::make_unique<ARMOperand>(k_ShifterImmediate);
     Op->ShifterImm.isASR = isASR;
     Op->ShifterImm.Imm = Imm;
     Op->StartLoc = S;
@@ -3487,7 +3494,7 @@ public:
 
   static std::unique_ptr<ARMOperand> CreateRotImm(unsigned Imm, SMLoc S,
                                                   SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_RotateImmediate);
+    auto Op = std::make_unique<ARMOperand>(k_RotateImmediate);
     Op->RotImm.Imm = Imm;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -3496,7 +3503,7 @@ public:
 
   static std::unique_ptr<ARMOperand> CreateModImm(unsigned Bits, unsigned Rot,
                                                   SMLoc S, SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_ModifiedImmediate);
+    auto Op = std::make_unique<ARMOperand>(k_ModifiedImmediate);
     Op->ModImm.Bits = Bits;
     Op->ModImm.Rot = Rot;
     Op->StartLoc = S;
@@ -3506,7 +3513,7 @@ public:
 
   static std::unique_ptr<ARMOperand>
   CreateConstantPoolImm(const MCExpr *Val, SMLoc S, SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_ConstantPoolImmediate);
+    auto Op = std::make_unique<ARMOperand>(k_ConstantPoolImmediate);
     Op->Imm.Val = Val;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -3515,7 +3522,7 @@ public:
 
   static std::unique_ptr<ARMOperand>
   CreateBitfield(unsigned LSB, unsigned Width, SMLoc S, SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_BitfieldDescriptor);
+    auto Op = std::make_unique<ARMOperand>(k_BitfieldDescriptor);
     Op->Bitfield.LSB = LSB;
     Op->Bitfield.Width = Width;
     Op->StartLoc = S;
@@ -3543,16 +3550,15 @@ public:
         Kind = k_SPRRegisterList;
     }
 
-    // Sort based on the register encoding values.
-    array_pod_sort(Regs.begin(), Regs.end());
-
     if (Kind == k_RegisterList && Regs.back().second == ARM::APSR)
       Kind = k_RegisterListWithAPSR;
 
-    auto Op = make_unique<ARMOperand>(Kind);
-    for (SmallVectorImpl<std::pair<unsigned, unsigned>>::const_iterator
-           I = Regs.begin(), E = Regs.end(); I != E; ++I)
-      Op->Registers.push_back(I->second);
+    assert(std::is_sorted(Regs.begin(), Regs.end()) &&
+           "Register list must be sorted by encoding");
+
+    auto Op = std::make_unique<ARMOperand>(Kind);
+    for (const auto &P : Regs)
+      Op->Registers.push_back(P.second);
 
     Op->StartLoc = StartLoc;
     Op->EndLoc = EndLoc;
@@ -3563,7 +3569,7 @@ public:
                                                       unsigned Count,
                                                       bool isDoubleSpaced,
                                                       SMLoc S, SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_VectorList);
+    auto Op = std::make_unique<ARMOperand>(k_VectorList);
     Op->VectorList.RegNum = RegNum;
     Op->VectorList.Count = Count;
     Op->VectorList.isDoubleSpaced = isDoubleSpaced;
@@ -3575,7 +3581,7 @@ public:
   static std::unique_ptr<ARMOperand>
   CreateVectorListAllLanes(unsigned RegNum, unsigned Count, bool isDoubleSpaced,
                            SMLoc S, SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_VectorListAllLanes);
+    auto Op = std::make_unique<ARMOperand>(k_VectorListAllLanes);
     Op->VectorList.RegNum = RegNum;
     Op->VectorList.Count = Count;
     Op->VectorList.isDoubleSpaced = isDoubleSpaced;
@@ -3587,7 +3593,7 @@ public:
   static std::unique_ptr<ARMOperand>
   CreateVectorListIndexed(unsigned RegNum, unsigned Count, unsigned Index,
                           bool isDoubleSpaced, SMLoc S, SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_VectorListIndexed);
+    auto Op = std::make_unique<ARMOperand>(k_VectorListIndexed);
     Op->VectorList.RegNum = RegNum;
     Op->VectorList.Count = Count;
     Op->VectorList.LaneIndex = Index;
@@ -3599,7 +3605,7 @@ public:
 
   static std::unique_ptr<ARMOperand>
   CreateVectorIndex(unsigned Idx, SMLoc S, SMLoc E, MCContext &Ctx) {
-    auto Op = make_unique<ARMOperand>(k_VectorIndex);
+    auto Op = std::make_unique<ARMOperand>(k_VectorIndex);
     Op->VectorIndex.Val = Idx;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -3608,7 +3614,7 @@ public:
 
   static std::unique_ptr<ARMOperand> CreateImm(const MCExpr *Val, SMLoc S,
                                                SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_Immediate);
+    auto Op = std::make_unique<ARMOperand>(k_Immediate);
     Op->Imm.Val = Val;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -3620,7 +3626,7 @@ public:
             unsigned OffsetRegNum, ARM_AM::ShiftOpc ShiftType,
             unsigned ShiftImm, unsigned Alignment, bool isNegative, SMLoc S,
             SMLoc E, SMLoc AlignmentLoc = SMLoc()) {
-    auto Op = make_unique<ARMOperand>(k_Memory);
+    auto Op = std::make_unique<ARMOperand>(k_Memory);
     Op->Memory.BaseRegNum = BaseRegNum;
     Op->Memory.OffsetImm = OffsetImm;
     Op->Memory.OffsetRegNum = OffsetRegNum;
@@ -3637,7 +3643,7 @@ public:
   static std::unique_ptr<ARMOperand>
   CreatePostIdxReg(unsigned RegNum, bool isAdd, ARM_AM::ShiftOpc ShiftTy,
                    unsigned ShiftImm, SMLoc S, SMLoc E) {
-    auto Op = make_unique<ARMOperand>(k_PostIndexRegister);
+    auto Op = std::make_unique<ARMOperand>(k_PostIndexRegister);
     Op->PostIdxReg.RegNum = RegNum;
     Op->PostIdxReg.isAdd = isAdd;
     Op->PostIdxReg.ShiftTy = ShiftTy;
@@ -3649,7 +3655,7 @@ public:
 
   static std::unique_ptr<ARMOperand> CreateMemBarrierOpt(ARM_MB::MemBOpt Opt,
                                                          SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_MemBarrierOpt);
+    auto Op = std::make_unique<ARMOperand>(k_MemBarrierOpt);
     Op->MBOpt.Val = Opt;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3658,7 +3664,7 @@ public:
 
   static std::unique_ptr<ARMOperand>
   CreateInstSyncBarrierOpt(ARM_ISB::InstSyncBOpt Opt, SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_InstSyncBarrierOpt);
+    auto Op = std::make_unique<ARMOperand>(k_InstSyncBarrierOpt);
     Op->ISBOpt.Val = Opt;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3667,7 +3673,7 @@ public:
 
   static std::unique_ptr<ARMOperand>
   CreateTraceSyncBarrierOpt(ARM_TSB::TraceSyncBOpt Opt, SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_TraceSyncBarrierOpt);
+    auto Op = std::make_unique<ARMOperand>(k_TraceSyncBarrierOpt);
     Op->TSBOpt.Val = Opt;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3676,7 +3682,7 @@ public:
 
   static std::unique_ptr<ARMOperand> CreateProcIFlags(ARM_PROC::IFlags IFlags,
                                                       SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_ProcIFlags);
+    auto Op = std::make_unique<ARMOperand>(k_ProcIFlags);
     Op->IFlags.Val = IFlags;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3684,7 +3690,7 @@ public:
   }
 
   static std::unique_ptr<ARMOperand> CreateMSRMask(unsigned MMask, SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_MSRMask);
+    auto Op = std::make_unique<ARMOperand>(k_MSRMask);
     Op->MMask.Val = MMask;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -3692,7 +3698,7 @@ public:
   }
 
   static std::unique_ptr<ARMOperand> CreateBankedReg(unsigned Reg, SMLoc S) {
-    auto Op = make_unique<ARMOperand>(k_BankedReg);
+    auto Op = std::make_unique<ARMOperand>(k_BankedReg);
     Op->BankedReg.Val = Reg;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -4253,6 +4259,24 @@ static unsigned getNextRegister(unsigned Reg) {
   }
 }
 
+// Insert an <Encoding, Register> pair in an ordered vector. Return true on
+// success, or false, if duplicate encoding found.
+static bool
+insertNoDuplicates(SmallVectorImpl<std::pair<unsigned, unsigned>> &Regs,
+                   unsigned Enc, unsigned Reg) {
+  Regs.emplace_back(Enc, Reg);
+  for (auto I = Regs.rbegin(), J = I + 1, E = Regs.rend(); J != E; ++I, ++J) {
+    if (J->first == Enc) {
+      Regs.erase(J.base());
+      return false;
+    }
+    if (J->first < Enc)
+      break;
+    std::swap(*I, *J);
+  }
+  return true;
+}
+
 /// Parse a register list.
 bool ARMAsmParser::parseRegisterList(OperandVector &Operands,
                                      bool EnforceOrder) {
@@ -4278,7 +4302,7 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands,
   if (ARMMCRegisterClasses[ARM::QPRRegClassID].contains(Reg)) {
     Reg = getDRegFromQReg(Reg);
     EReg = MRI->getEncodingValue(Reg);
-    Registers.push_back(std::pair<unsigned, unsigned>(EReg, Reg));
+    Registers.emplace_back(EReg, Reg);
     ++Reg;
   }
   const MCRegisterClass *RC;
@@ -4295,7 +4319,7 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands,
 
   // Store the register.
   EReg = MRI->getEncodingValue(Reg);
-  Registers.push_back(std::pair<unsigned, unsigned>(EReg, Reg));
+  Registers.emplace_back(EReg, Reg);
 
   // This starts immediately after the first register token in the list,
   // so we can see either a comma or a minus (range separator) as a legal
@@ -4326,7 +4350,11 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands,
       while (Reg != EndReg) {
         Reg = getNextRegister(Reg);
         EReg = MRI->getEncodingValue(Reg);
-        Registers.push_back(std::pair<unsigned, unsigned>(EReg, Reg));
+        if (!insertNoDuplicates(Registers, EReg, Reg)) {
+          Warning(AfterMinusLoc, StringRef("duplicated register (") +
+                                     ARMInstPrinter::getRegisterName(Reg) +
+                                     ") in register list");
+        }
       }
       continue;
     }
@@ -4350,11 +4378,16 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands,
       // subset of GPRRegClassId except it contains APSR as well.
       RC = &ARMMCRegisterClasses[ARM::GPRwithAPSRnospRegClassID];
     }
-    if (Reg == ARM::VPR && (RC == &ARMMCRegisterClasses[ARM::SPRRegClassID] ||
-                            RC == &ARMMCRegisterClasses[ARM::DPRRegClassID])) {
+    if (Reg == ARM::VPR &&
+        (RC == &ARMMCRegisterClasses[ARM::SPRRegClassID] ||
+         RC == &ARMMCRegisterClasses[ARM::DPRRegClassID] ||
+         RC == &ARMMCRegisterClasses[ARM::FPWithVPRRegClassID])) {
       RC = &ARMMCRegisterClasses[ARM::FPWithVPRRegClassID];
       EReg = MRI->getEncodingValue(Reg);
-      Registers.push_back(std::pair<unsigned, unsigned>(EReg, Reg));
+      if (!insertNoDuplicates(Registers, EReg, Reg)) {
+        Warning(RegLoc, "duplicated register (" + RegTok.getString() +
+                            ") in register list");
+      }
       continue;
     }
     // The register must be in the same register class as the first.
@@ -4371,21 +4404,19 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands,
       else if (!ARMMCRegisterClasses[ARM::GPRwithAPSRnospRegClassID].contains(Reg))
         return Error(RegLoc, "register list not in ascending order");
     }
-    if (MRI->getEncodingValue(Reg) == MRI->getEncodingValue(OldReg)) {
-      Warning(RegLoc, "duplicated register (" + RegTok.getString() +
-              ") in register list");
-      continue;
-    }
     // VFP register lists must also be contiguous.
     if (RC != &ARMMCRegisterClasses[ARM::GPRRegClassID] &&
         RC != &ARMMCRegisterClasses[ARM::GPRwithAPSRnospRegClassID] &&
         Reg != OldReg + 1)
       return Error(RegLoc, "non-contiguous register range");
     EReg = MRI->getEncodingValue(Reg);
-    Registers.push_back(std::pair<unsigned, unsigned>(EReg, Reg));
+    if (!insertNoDuplicates(Registers, EReg, Reg)) {
+      Warning(RegLoc, "duplicated register (" + RegTok.getString() +
+                          ") in register list");
+    }
     if (isQReg) {
       EReg = MRI->getEncodingValue(++Reg);
-      Registers.push_back(std::pair<unsigned, unsigned>(EReg, Reg));
+      Registers.emplace_back(EReg, Reg);
     }
   }
 
@@ -5702,14 +5733,16 @@ bool ARMAsmParser::parseMemory(OperandVector &Operands) {
     return false;
   }
 
-  // If we have a '#', it's an immediate offset, else assume it's a register
-  // offset. Be friendly and also accept a plain integer (without a leading
-  // hash) for gas compatibility.
+  // If we have a '#' or '$', it's an immediate offset, else assume it's a
+  // register offset. Be friendly and also accept a plain integer or expression
+  // (without a leading hash) for gas compatibility.
   if (Parser.getTok().is(AsmToken::Hash) ||
       Parser.getTok().is(AsmToken::Dollar) ||
+      Parser.getTok().is(AsmToken::LParen) ||
       Parser.getTok().is(AsmToken::Integer)) {
-    if (Parser.getTok().isNot(AsmToken::Integer))
-      Parser.Lex(); // Eat '#' or '$'.
+    if (Parser.getTok().is(AsmToken::Hash) ||
+        Parser.getTok().is(AsmToken::Dollar))
+      Parser.Lex(); // Eat '#' or '$'
     E = Parser.getTok().getLoc();
 
     bool isNegative = getParser().getTok().is(AsmToken::Minus);
@@ -11308,7 +11341,7 @@ bool ARMAsmParser::parseDirectiveUnwindRaw(SMLoc L) {
   SmallVector<uint8_t, 16> Opcodes;
 
   auto parseOne = [&]() -> bool {
-    const MCExpr *OE;
+    const MCExpr *OE = nullptr;
     SMLoc OpcodeLoc = getLexer().getLoc();
     if (check(getLexer().is(AsmToken::EndOfStatement) ||
                   Parser.parseExpression(OE),
@@ -11694,14 +11727,14 @@ bool ARMAsmParser::parseDirectiveArchExtension(SMLoc L) {
     { ARM::AEK_CRYPTO,  {Feature_HasV8Bit},
       {ARM::FeatureCrypto, ARM::FeatureNEON, ARM::FeatureFPARMv8} },
     { ARM::AEK_FP, {Feature_HasV8Bit},
-      {ARM::FeatureVFP2_D16_SP, ARM::FeatureFPARMv8} },
+      {ARM::FeatureVFP2_SP, ARM::FeatureFPARMv8} },
     { (ARM::AEK_HWDIVTHUMB | ARM::AEK_HWDIVARM),
       {Feature_HasV7Bit, Feature_IsNotMClassBit},
       {ARM::FeatureHWDivThumb, ARM::FeatureHWDivARM} },
     { ARM::AEK_MP, {Feature_HasV7Bit, Feature_IsNotMClassBit},
       {ARM::FeatureMP} },
     { ARM::AEK_SIMD, {Feature_HasV8Bit},
-      {ARM::FeatureNEON, ARM::FeatureVFP2_D16_SP, ARM::FeatureFPARMv8} },
+      {ARM::FeatureNEON, ARM::FeatureVFP2_SP, ARM::FeatureFPARMv8} },
     { ARM::AEK_SEC, {Feature_HasV6KBit}, {ARM::FeatureTrustZone} },
     // FIXME: Only available in A-class, isel not predicated
     { ARM::AEK_VIRT, {Feature_HasV7Bit}, {ARM::FeatureVirtualization} },
@@ -11775,19 +11808,19 @@ unsigned ARMAsmParser::validateTargetOperandClass(MCParsedAsmOperand &AsmOp,
   // immediate in the syntax.
   switch (Kind) {
   default: break;
-  case MCK__35_0:
+  case MCK__HASH_0:
     if (Op.isImm())
       if (const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Op.getImm()))
         if (CE->getValue() == 0)
           return Match_Success;
     break;
-  case MCK__35_8:
+  case MCK__HASH_8:
     if (Op.isImm())
       if (const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Op.getImm()))
         if (CE->getValue() == 8)
           return Match_Success;
     break;
-  case MCK__35_16:
+  case MCK__HASH_16:
     if (Op.isImm())
       if (const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Op.getImm()))
         if (CE->getValue() == 16)

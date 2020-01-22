@@ -28,7 +28,8 @@ static cl::opt<TargetLibraryInfoImpl::VectorLibrary> ClVectorLibrary(
                clEnumValN(TargetLibraryInfoImpl::SVML, "SVML",
                           "Intel SVML library")));
 
-StringRef const TargetLibraryInfoImpl::StandardNames[LibFunc::NumLibFuncs] = {
+StringLiteral const TargetLibraryInfoImpl::StandardNames[LibFunc::NumLibFuncs] =
+    {
 #define TLI_DEFINE_STRING
 #include "llvm/Analysis/TargetLibraryInfo.def"
 };
@@ -58,14 +59,14 @@ static bool hasBcmp(const Triple &TT) {
     return TT.isGNUEnvironment() || TT.isMusl();
   // Both NetBSD and OpenBSD are planning to remove the function. Windows does
   // not have it.
-  return TT.isOSFreeBSD() || TT.isOSSolaris() || TT.isOSDarwin();
+  return TT.isOSFreeBSD() || TT.isOSSolaris();
 }
 
 /// Initialize the set of available library functions based on the specified
 /// target triple. This should be carefully written so that a missing target
 /// triple gets a sane set of defaults.
 static void initialize(TargetLibraryInfoImpl &TLI, const Triple &T,
-                       ArrayRef<StringRef> StandardNames) {
+                       ArrayRef<StringLiteral> StandardNames) {
   // Verify that the StandardNames array is in alphabetical order.
   assert(std::is_sorted(StandardNames.begin(), StandardNames.end(),
                         [](StringRef LHS, StringRef RHS) {
@@ -104,19 +105,10 @@ static void initialize(TargetLibraryInfoImpl &TLI, const Triple &T,
   TLI.setShouldSignExtI32Param(ShouldSignExtI32Param);
 
   if (T.getArch() == Triple::r600 ||
-      T.getArch() == Triple::amdgcn) {
-    TLI.setUnavailable(LibFunc_ldexp);
-    TLI.setUnavailable(LibFunc_ldexpf);
-    TLI.setUnavailable(LibFunc_ldexpl);
-    TLI.setUnavailable(LibFunc_exp10);
-    TLI.setUnavailable(LibFunc_exp10f);
-    TLI.setUnavailable(LibFunc_exp10l);
-    TLI.setUnavailable(LibFunc_log10);
-    TLI.setUnavailable(LibFunc_log10f);
-    TLI.setUnavailable(LibFunc_log10l);
-  }
+      T.getArch() == Triple::amdgcn)
+    TLI.disableAllFunctions();
 
-  // There are no library implementations of mempcy and memset for AMD gpus and
+  // There are no library implementations of memcpy and memset for AMD gpus and
   // these can be difficult to lower in the backend.
   if (T.getArch() == Triple::r600 ||
       T.getArch() == Triple::amdgcn) {
@@ -623,19 +615,14 @@ static StringRef sanitizeFunctionName(StringRef funcName) {
   return GlobalValue::dropLLVMManglingEscape(funcName);
 }
 
-bool TargetLibraryInfoImpl::getLibFunc(StringRef funcName,
-                                       LibFunc &F) const {
-  StringRef const *Start = &StandardNames[0];
-  StringRef const *End = &StandardNames[NumLibFuncs];
-
+bool TargetLibraryInfoImpl::getLibFunc(StringRef funcName, LibFunc &F) const {
   funcName = sanitizeFunctionName(funcName);
   if (funcName.empty())
     return false;
 
-  StringRef const *I = std::lower_bound(
-      Start, End, funcName, [](StringRef LHS, StringRef RHS) {
-        return LHS < RHS;
-      });
+  const auto *Start = std::begin(StandardNames);
+  const auto *End = std::end(StandardNames);
+  const auto *I = std::lower_bound(Start, End, funcName);
   if (I != End && *I == funcName) {
     F = (LibFunc)(I - Start);
     return true;
@@ -1481,6 +1468,7 @@ bool TargetLibraryInfoImpl::isValidProtoForLibFunc(const FunctionType &FTy,
       return false;
   }
   case LibFunc::NumLibFuncs:
+  case LibFunc::NotLibFunc:
     break;
   }
 
@@ -1597,14 +1585,6 @@ StringRef TargetLibraryInfoImpl::getScalarizedFunction(StringRef F,
     return StringRef();
   VF = I->VectorizationFactor;
   return I->ScalarFnName;
-}
-
-TargetLibraryInfo TargetLibraryAnalysis::run(Module &M,
-                                             ModuleAnalysisManager &) {
-  if (PresetInfoImpl)
-    return TargetLibraryInfo(*PresetInfoImpl);
-
-  return TargetLibraryInfo(lookupInfoImpl(Triple(M.getTargetTriple())));
 }
 
 TargetLibraryInfo TargetLibraryAnalysis::run(Function &F,

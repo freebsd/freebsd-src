@@ -22,22 +22,23 @@
 #include <memory>
 
 namespace llvm {
-  class FastISel;
-  class SelectionDAGBuilder;
-  class SDValue;
-  class MachineRegisterInfo;
-  class MachineBasicBlock;
-  class MachineFunction;
-  class MachineInstr;
-  class OptimizationRemarkEmitter;
-  class TargetLowering;
-  class TargetLibraryInfo;
-  class FunctionLoweringInfo;
-  class ScheduleHazardRecognizer;
-  class SwiftErrorValueTracking;
-  class GCFunctionInfo;
-  class ScheduleDAGSDNodes;
-  class LoadInst;
+class AAResults;
+class FastISel;
+class SelectionDAGBuilder;
+class SDValue;
+class MachineRegisterInfo;
+class MachineBasicBlock;
+class MachineFunction;
+class MachineInstr;
+class OptimizationRemarkEmitter;
+class TargetLowering;
+class TargetLibraryInfo;
+class FunctionLoweringInfo;
+class ScheduleHazardRecognizer;
+class SwiftErrorValueTracking;
+class GCFunctionInfo;
+class ScheduleDAGSDNodes;
+class LoadInst;
 
 /// SelectionDAGISel - This is the common base class used for SelectionDAG-based
 /// pattern-matching instruction selectors.
@@ -51,7 +52,7 @@ public:
   MachineRegisterInfo *RegInfo;
   SelectionDAG *CurDAG;
   SelectionDAGBuilder *SDB;
-  AliasAnalysis *AA;
+  AAResults *AA;
   GCFunctionInfo *GFI;
   CodeGenOpt::Level OptLevel;
   const TargetInstrInfo *TII;
@@ -162,6 +163,7 @@ public:
     OPC_EmitMergeInputChains1_1,
     OPC_EmitMergeInputChains1_2,
     OPC_EmitCopyToReg,
+    OPC_EmitCopyToReg2,
     OPC_EmitNodeXForm,
     OPC_EmitNode,
     // Space-optimized forms that implicitly encode number of result VTs.

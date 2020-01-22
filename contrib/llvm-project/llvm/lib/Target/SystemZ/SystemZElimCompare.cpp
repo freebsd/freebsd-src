@@ -152,7 +152,7 @@ Reference SystemZElimCompare::getRegReferences(MachineInstr &MI, unsigned Reg) {
   for (unsigned I = 0, E = MI.getNumOperands(); I != E; ++I) {
     const MachineOperand &MO = MI.getOperand(I);
     if (MO.isReg()) {
-      if (unsigned MOReg = MO.getReg()) {
+      if (Register MOReg = MO.getReg()) {
         if (TRI->regsOverlap(MOReg, Reg)) {
           if (MO.isUse())
             Ref.Use = true;
@@ -378,11 +378,8 @@ bool SystemZElimCompare::adjustCCMasksForInstr(
   }
 
   // CC is now live after MI.
-  if (!ConvOpc) {
-    int CCDef = MI.findRegisterDefOperandIdx(SystemZ::CC, false, true, TRI);
-    assert(CCDef >= 0 && "Couldn't find CC set");
-    MI.getOperand(CCDef).setIsDead(false);
-  }
+  if (!ConvOpc)
+    MI.clearRegisterDeads(SystemZ::CC);
 
   // Check if MI lies before Compare.
   bool BeforeCmp = false;

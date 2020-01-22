@@ -32,7 +32,7 @@ Value *EmitGEPOffset(IRBuilderTy *Builder, const DataLayout &DL, User *GEP,
   Value *Result = Constant::getNullValue(IntPtrTy);
 
   // If the GEP is inbounds, we know that none of the addressing operations will
-  // overflow in an unsigned sense.
+  // overflow in a signed sense.
   bool isInBounds = GEPOp->isInBounds() && !NoAssumptions;
 
   // Build a mask for high order bits.
@@ -51,10 +51,7 @@ Value *EmitGEPOffset(IRBuilderTy *Builder, const DataLayout &DL, User *GEP,
 
       // Handle a struct index, which adds its field offset to the pointer.
       if (StructType *STy = GTI.getStructTypeOrNull()) {
-        if (OpC->getType()->isVectorTy())
-          OpC = OpC->getSplatValue();
-
-        uint64_t OpValue = cast<ConstantInt>(OpC)->getZExtValue();
+        uint64_t OpValue = OpC->getUniqueInteger().getZExtValue();
         Size = DL.getStructLayout(STy)->getElementOffset(OpValue);
 
         if (Size)
@@ -63,20 +60,31 @@ Value *EmitGEPOffset(IRBuilderTy *Builder, const DataLayout &DL, User *GEP,
         continue;
       }
 
+      // Splat the constant if needed.
+      if (IntPtrTy->isVectorTy() && !OpC->getType()->isVectorTy())
+        OpC = ConstantVector::getSplat(IntPtrTy->getVectorNumElements(), OpC);
+
       Constant *Scale = ConstantInt::get(IntPtrTy, Size);
       Constant *OC = ConstantExpr::getIntegerCast(OpC, IntPtrTy, true /*SExt*/);
-      Scale = ConstantExpr::getMul(OC, Scale, isInBounds/*NUW*/);
+      Scale =
+          ConstantExpr::getMul(OC, Scale, false /*NUW*/, isInBounds /*NSW*/);
       // Emit an add instruction.
       Result = Builder->CreateAdd(Result, Scale, GEP->getName()+".offs");
       continue;
     }
+
+    // Splat the index if needed.
+    if (IntPtrTy->isVectorTy() && !Op->getType()->isVectorTy())
+      Op = Builder->CreateVectorSplat(IntPtrTy->getVectorNumElements(), Op);
+
     // Convert to correct type.
     if (Op->getType() != IntPtrTy)
       Op = Builder->CreateIntCast(Op, IntPtrTy, true, Op->getName()+".c");
     if (Size != 1) {
       // We'll let instcombine(mul) convert this to a shl if possible.
       Op = Builder->CreateMul(Op, ConstantInt::get(IntPtrTy, Size),
-                              GEP->getName()+".idx", isInBounds /*NUW*/);
+                              GEP->getName() + ".idx", false /*NUW*/,
+                              isInBounds /*NSW*/);
     }
 
     // Emit an add instruction.

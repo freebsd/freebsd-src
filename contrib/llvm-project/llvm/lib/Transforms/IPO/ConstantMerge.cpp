@@ -48,7 +48,7 @@ static void FindUsedValues(GlobalVariable *LLVMUsed,
   ConstantArray *Inits = cast<ConstantArray>(LLVMUsed->getInitializer());
 
   for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i) {
-    Value *Operand = Inits->getOperand(i)->stripPointerCastsNoFollowAliases();
+    Value *Operand = Inits->getOperand(i)->stripPointerCasts();
     GlobalValue *GV = cast<GlobalValue>(Operand);
     UsedValues.insert(GV);
   }
@@ -120,7 +120,7 @@ static void replace(Module &M, GlobalVariable *Old, GlobalVariable *New) {
 
   // Bump the alignment if necessary.
   if (Old->getAlignment() || New->getAlignment())
-    New->setAlignment(std::max(getAlignment(Old), getAlignment(New)));
+    New->setAlignment(Align(std::max(getAlignment(Old), getAlignment(New))));
 
   copyDebugLocMetadata(Old, New);
   Old->replaceAllUsesWith(NewConstant);

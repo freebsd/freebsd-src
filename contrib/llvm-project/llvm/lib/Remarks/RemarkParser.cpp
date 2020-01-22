@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Remarks/RemarkParser.h"
+#include "BitstreamRemarkParser.h"
 #include "YAMLRemarkParser.h"
 #include "llvm-c/Remarks.h"
 #include "llvm/ADT/STLExtras.h"
@@ -47,32 +48,81 @@ Expected<StringRef> ParsedStringTable::operator[](size_t Index) const {
   return StringRef(Buffer.data() + Offset, NextOffset - Offset - 1);
 }
 
-Expected<std::unique_ptr<Parser>>
-llvm::remarks::createRemarkParser(Format ParserFormat, StringRef Buf,
-                                  Optional<const ParsedStringTable *> StrTab) {
+Expected<std::unique_ptr<RemarkParser>>
+llvm::remarks::createRemarkParser(Format ParserFormat, StringRef Buf) {
   switch (ParserFormat) {
   case Format::YAML:
-    return llvm::make_unique<YAMLRemarkParser>(Buf, StrTab);
+    return std::make_unique<YAMLRemarkParser>(Buf);
+  case Format::YAMLStrTab:
+    return createStringError(
+        std::make_error_code(std::errc::invalid_argument),
+        "The YAML with string table format requires a parsed string table.");
+  case Format::Bitstream:
+    return std::make_unique<BitstreamRemarkParser>(Buf);
   case Format::Unknown:
     return createStringError(std::make_error_code(std::errc::invalid_argument),
                              "Unknown remark parser format.");
   }
-  llvm_unreachable("unknown format");
+  llvm_unreachable("unhandled ParseFormat");
 }
 
+Expected<std::unique_ptr<RemarkParser>>
+llvm::remarks::createRemarkParser(Format ParserFormat, StringRef Buf,
+                                  ParsedStringTable StrTab) {
+  switch (ParserFormat) {
+  case Format::YAML:
+    return createStringError(std::make_error_code(std::errc::invalid_argument),
+                             "The YAML format can't be used with a string "
+                             "table. Use yaml-strtab instead.");
+  case Format::YAMLStrTab:
+    return std::make_unique<YAMLStrTabRemarkParser>(Buf, std::move(StrTab));
+  case Format::Bitstream:
+    return std::make_unique<BitstreamRemarkParser>(Buf, std::move(StrTab));
+  case Format::Unknown:
+    return createStringError(std::make_error_code(std::errc::invalid_argument),
+                             "Unknown remark parser format.");
+  }
+  llvm_unreachable("unhandled ParseFormat");
+}
+
+Expected<std::unique_ptr<RemarkParser>>
+llvm::remarks::createRemarkParserFromMeta(
+    Format ParserFormat, StringRef Buf, Optional<ParsedStringTable> StrTab,
+    Optional<StringRef> ExternalFilePrependPath) {
+  switch (ParserFormat) {
+  // Depending on the metadata, the format can be either yaml or yaml-strtab,
+  // regardless of the input argument.
+  case Format::YAML:
+  case Format::YAMLStrTab:
+    return createYAMLParserFromMeta(Buf, std::move(StrTab),
+                                    std::move(ExternalFilePrependPath));
+  case Format::Bitstream:
+    return createBitstreamParserFromMeta(Buf, std::move(StrTab),
+                                         std::move(ExternalFilePrependPath));
+  case Format::Unknown:
+    return createStringError(std::make_error_code(std::errc::invalid_argument),
+                             "Unknown remark parser format.");
+  }
+  llvm_unreachable("unhandled ParseFormat");
+}
+
+namespace {
 // Wrapper that holds the state needed to interact with the C API.
 struct CParser {
-  std::unique_ptr<Parser> TheParser;
+  std::unique_ptr<RemarkParser> TheParser;
   Optional<std::string> Err;
 
   CParser(Format ParserFormat, StringRef Buf,
-          Optional<const ParsedStringTable *> StrTab = None)
-      : TheParser(cantFail(createRemarkParser(ParserFormat, Buf, StrTab))) {}
+          Optional<ParsedStringTable> StrTab = None)
+      : TheParser(cantFail(
+            StrTab ? createRemarkParser(ParserFormat, Buf, std::move(*StrTab))
+                   : createRemarkParser(ParserFormat, Buf))) {}
 
   void handleError(Error E) { Err.emplace(toString(std::move(E))); }
   bool hasError() const { return Err.hasValue(); }
   const char *getMessage() const { return Err ? Err->c_str() : nullptr; };
 };
+} // namespace
 
 // Create wrappers for C Binding types (see CBindingWrapping.h).
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(CParser, LLVMRemarkParserRef)
@@ -83,10 +133,16 @@ extern "C" LLVMRemarkParserRef LLVMRemarkParserCreateYAML(const void *Buf,
                           StringRef(static_cast<const char *>(Buf), Size)));
 }
 
+extern "C" LLVMRemarkParserRef LLVMRemarkParserCreateBitstream(const void *Buf,
+                                                               uint64_t Size) {
+  return wrap(new CParser(Format::Bitstream,
+                          StringRef(static_cast<const char *>(Buf), Size)));
+}
+
 extern "C" LLVMRemarkEntryRef
 LLVMRemarkParserGetNext(LLVMRemarkParserRef Parser) {
   CParser &TheCParser = *unwrap(Parser);
-  remarks::Parser &TheParser = *TheCParser.TheParser;
+  remarks::RemarkParser &TheParser = *TheCParser.TheParser;
 
   Expected<std::unique_ptr<Remark>> MaybeRemark = TheParser.next();
   if (Error E = MaybeRemark.takeError()) {

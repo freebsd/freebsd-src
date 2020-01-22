@@ -31,10 +31,10 @@
 #include "llvm/MC/MCValue.h"
 #include "llvm/MC/MCWinCOFFObjectWriter.h"
 #include "llvm/MC/StringTableBuilder.h"
+#include "llvm/Support/CRC.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/JamCRC.h"
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
@@ -239,7 +239,7 @@ WinCOFFObjectWriter::WinCOFFObjectWriter(
 }
 
 COFFSymbol *WinCOFFObjectWriter::createSymbol(StringRef Name) {
-  Symbols.push_back(make_unique<COFFSymbol>(Name));
+  Symbols.push_back(std::make_unique<COFFSymbol>(Name));
   return Symbols.back().get();
 }
 
@@ -251,7 +251,7 @@ COFFSymbol *WinCOFFObjectWriter::GetOrCreateCOFFSymbol(const MCSymbol *Symbol) {
 }
 
 COFFSection *WinCOFFObjectWriter::createSection(StringRef Name) {
-  Sections.emplace_back(make_unique<COFFSection>(Name));
+  Sections.emplace_back(std::make_unique<COFFSection>(Name));
   return Sections.back().get();
 }
 
@@ -605,7 +605,7 @@ uint32_t WinCOFFObjectWriter::writeSectionContents(MCAssembler &Asm,
   // Calculate our CRC with an initial value of '0', this is not how
   // JamCRC is specified but it aligns with the expected output.
   JamCRC JC(/*Init=*/0);
-  JC.update(Buf);
+  JC.update(makeArrayRef(reinterpret_cast<uint8_t*>(Buf.data()), Buf.size()));
   return JC.getCRC();
 }
 
@@ -1098,5 +1098,5 @@ void MCWinCOFFObjectTargetWriter::anchor() {}
 
 std::unique_ptr<MCObjectWriter> llvm::createWinCOFFObjectWriter(
     std::unique_ptr<MCWinCOFFObjectTargetWriter> MOTW, raw_pwrite_stream &OS) {
-  return llvm::make_unique<WinCOFFObjectWriter>(std::move(MOTW), OS);
+  return std::make_unique<WinCOFFObjectWriter>(std::move(MOTW), OS);
 }

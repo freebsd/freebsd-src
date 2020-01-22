@@ -93,9 +93,7 @@ static unsigned getNewAlignmentDiff(const SCEV *DiffSCEV,
                                     const SCEV *AlignSCEV,
                                     ScalarEvolution *SE) {
   // DiffUnits = Diff % int64_t(Alignment)
-  const SCEV *DiffAlignDiv = SE->getUDivExpr(DiffSCEV, AlignSCEV);
-  const SCEV *DiffAlign = SE->getMulExpr(DiffAlignDiv, AlignSCEV);
-  const SCEV *DiffUnitsSCEV = SE->getMinusSCEV(DiffAlign, DiffSCEV);
+  const SCEV *DiffUnitsSCEV = SE->getURemExpr(DiffSCEV, AlignSCEV);
 
   LLVM_DEBUG(dbgs() << "\talignment relative to " << *AlignSCEV << " is "
                     << *DiffUnitsSCEV << " (diff: " << *DiffSCEV << ")\n");
@@ -323,7 +321,7 @@ bool AlignmentFromAssumptionsPass::processAssumption(CallInst *ACall) {
         LI->getPointerOperand(), SE);
 
       if (NewAlignment > LI->getAlignment()) {
-        LI->setAlignment(NewAlignment);
+        LI->setAlignment(MaybeAlign(NewAlignment));
         ++NumLoadAlignChanged;
       }
     } else if (StoreInst *SI = dyn_cast<StoreInst>(J)) {
@@ -331,7 +329,7 @@ bool AlignmentFromAssumptionsPass::processAssumption(CallInst *ACall) {
         SI->getPointerOperand(), SE);
 
       if (NewAlignment > SI->getAlignment()) {
-        SI->setAlignment(NewAlignment);
+        SI->setAlignment(MaybeAlign(NewAlignment));
         ++NumStoreAlignChanged;
       }
     } else if (MemIntrinsic *MI = dyn_cast<MemIntrinsic>(J)) {

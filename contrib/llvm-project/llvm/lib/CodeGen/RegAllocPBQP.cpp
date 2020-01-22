@@ -558,7 +558,7 @@ void RegAllocPBQP::findVRegIntervalsToAlloc(const MachineFunction &MF,
 
   // Iterate over all live ranges.
   for (unsigned I = 0, E = MRI.getNumVirtRegs(); I != E; ++I) {
-    unsigned Reg = TargetRegisterInfo::index2VirtReg(I);
+    unsigned Reg = Register::index2VirtReg(I);
     if (MRI.reg_nodbg_empty(Reg))
       continue;
     VRegsToAlloc.insert(Reg);
@@ -824,11 +824,11 @@ bool RegAllocPBQP::runOnMachineFunction(MachineFunction &MF) {
   if (!VRegsToAlloc.empty()) {
     const TargetSubtargetInfo &Subtarget = MF.getSubtarget();
     std::unique_ptr<PBQPRAConstraintList> ConstraintsRoot =
-      llvm::make_unique<PBQPRAConstraintList>();
-    ConstraintsRoot->addConstraint(llvm::make_unique<SpillCosts>());
-    ConstraintsRoot->addConstraint(llvm::make_unique<Interference>());
+      std::make_unique<PBQPRAConstraintList>();
+    ConstraintsRoot->addConstraint(std::make_unique<SpillCosts>());
+    ConstraintsRoot->addConstraint(std::make_unique<Interference>());
     if (PBQPCoalescing)
-      ConstraintsRoot->addConstraint(llvm::make_unique<Coalescing>());
+      ConstraintsRoot->addConstraint(std::make_unique<Coalescing>());
     ConstraintsRoot->addConstraint(Subtarget.getCustomPBQPConstraints());
 
     bool PBQPAllocComplete = false;
@@ -848,7 +848,7 @@ bool RegAllocPBQP::runOnMachineFunction(MachineFunction &MF) {
         std::string GraphFileName = FullyQualifiedName + "." + RS.str() +
                                     ".pbqpgraph";
         std::error_code EC;
-        raw_fd_ostream OS(GraphFileName, EC, sys::fs::F_Text);
+        raw_fd_ostream OS(GraphFileName, EC, sys::fs::OF_Text);
         LLVM_DEBUG(dbgs() << "Dumping graph for round " << Round << " to \""
                           << GraphFileName << "\"\n");
         G.dump(OS);
