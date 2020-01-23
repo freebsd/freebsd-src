@@ -225,6 +225,14 @@ public:
 
   DebugMacros *GetDebugMacros();
 
+  /// Apply a lambda to each external lldb::Module referenced by this
+  /// compilation unit. Recursively also descends into the referenced external
+  /// modules of any encountered compilation unit.
+  ///
+  /// \param[in] lambda
+  ///     The lambda that should be applied to every module.
+  void ForEachExternalModule(llvm::function_ref<void(lldb::ModuleSP)> f);
+
   /// Get the compile unit's support file list.
   ///
   /// The support file list is used by the line table, and any objects that
@@ -297,6 +305,8 @@ public:
   /// \param[in] line_table
   ///     A line table object pointer that this object now owns.
   void SetLineTable(LineTable *line_table);
+
+  void SetSupportFiles(const FileSpecList &support_files);
 
   void SetDebugMacros(const DebugMacrosSP &debug_macros);
 

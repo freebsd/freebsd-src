@@ -23,14 +23,17 @@ class ExecutionContext;
 
 class ClangExpressionSourceCode : public ExpressionSourceCode {
 public:
+  /// The file name we use for the wrapper code that we inject before
+  /// the user expression.
+  static const llvm::StringRef g_prefix_file_name;
   static const char *g_expression_prefix;
 
-  static ClangExpressionSourceCode *CreateWrapped(const char *prefix,
-                                             const char *body) {
-    return new ClangExpressionSourceCode("$__lldb_expr", prefix, body, true);
+  static ClangExpressionSourceCode *CreateWrapped(llvm::StringRef filename,
+                                                  llvm::StringRef prefix,
+                                                  llvm::StringRef body) {
+    return new ClangExpressionSourceCode(filename, "$__lldb_expr", prefix, body,
+                                         Wrap);
   }
-
-  uint32_t GetNumBodyLines();
 
   /// Generates the source code that will evaluate the expression.
   ///
@@ -56,14 +59,20 @@ public:
   // Given a string returned by GetText, find the beginning and end of the body
   // passed to CreateWrapped. Return true if the bounds could be found.  This
   // will also work on text with FixItHints applied.
-  static bool GetOriginalBodyBounds(std::string transformed_text,
-                                    lldb::LanguageType wrapping_language,
-                                    size_t &start_loc, size_t &end_loc);
+  bool GetOriginalBodyBounds(std::string transformed_text,
+                             lldb::LanguageType wrapping_language,
+                             size_t &start_loc, size_t &end_loc);
 
 protected:
-  ClangExpressionSourceCode(const char *name, const char *prefix, const char *body,
-                       bool wrap) :
-      ExpressionSourceCode(name, prefix, body, wrap) {}
+  ClangExpressionSourceCode(llvm::StringRef filename, llvm::StringRef name,
+                            llvm::StringRef prefix, llvm::StringRef body,
+                            Wrapping wrap);
+
+private:
+  /// String marking the start of the user expression.
+  std::string m_start_marker;
+  /// String marking the end of the user expression.
+  std::string m_end_marker;
 };
 
 } // namespace lldb_private

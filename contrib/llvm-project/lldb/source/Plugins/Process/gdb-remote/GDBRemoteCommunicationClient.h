@@ -17,8 +17,9 @@
 #include <string>
 #include <vector>
 
+#include "lldb/Host/File.h"
 #include "lldb/Utility/ArchSpec.h"
-#include "lldb/Utility/StreamGDBRemote.h"
+#include "lldb/Utility/GDBRemote.h"
 #include "lldb/Utility/StructuredData.h"
 #if defined(_WIN32)
 #include "lldb/Host/windows/PosixApi.h"
@@ -248,6 +249,8 @@ public:
 
   llvm::VersionTuple GetOSVersion();
 
+  llvm::VersionTuple GetMacCatalystVersion();
+
   bool GetOSBuildString(std::string &s);
 
   bool GetOSKernelDescription(std::string &s);
@@ -348,7 +351,7 @@ public:
   size_t GetCurrentThreadIDs(std::vector<lldb::tid_t> &thread_ids,
                              bool &sequence_mutex_unavailable);
 
-  lldb::user_id_t OpenFile(const FileSpec &file_spec, uint32_t flags,
+  lldb::user_id_t OpenFile(const FileSpec &file_spec, File::OpenOptions flags,
                            mode_t mode, Status &error);
 
   bool CloseFile(lldb::user_id_t fd, Status &error);
@@ -548,6 +551,7 @@ protected:
   ArchSpec m_host_arch;
   ArchSpec m_process_arch;
   llvm::VersionTuple m_os_version;
+  llvm::VersionTuple m_maccatalyst_version;
   std::string m_os_build;
   std::string m_os_kernel;
   std::string m_hostname;
