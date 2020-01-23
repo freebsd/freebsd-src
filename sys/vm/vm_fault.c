@@ -795,6 +795,57 @@ vm_fault_lookup(struct faultstate *fs)
 	return (KERN_SUCCESS);
 }
 
+static int
+vm_fault_relookup(struct faultstate *fs)
+{
+	vm_object_t retry_object;
+	vm_pindex_t retry_pindex;
+	vm_prot_t retry_prot;
+	int result;
+
+	if (!vm_map_trylock_read(fs->map))
+		return (KERN_RESTART);
+
+	fs->lookup_still_valid = true;
+	if (fs->map->timestamp == fs->map_generation)
+		return (KERN_SUCCESS);
+
+	result = vm_map_lookup_locked(&fs->map, fs->vaddr, fs->fault_type,
+	    &fs->entry, &retry_object, &retry_pindex, &retry_prot,
+	    &fs->wired);
+	if (result != KERN_SUCCESS) {
+		/*
+		 * If retry of map lookup would have blocked then
+		 * retry fault from start.
+		 */
+		if (result == KERN_FAILURE)
+			return (KERN_RESTART);
+		return (result);
+	}
+	if (retry_object != fs->first_object ||
+	    retry_pindex != fs->first_pindex)
+		return (KERN_RESTART);
+
+	/*
+	 * Check whether the protection has changed or the object has
+	 * been copied while we left the map unlocked. Changing from
+	 * read to write permission is OK - we leave the page
+	 * write-protected, and catch the write fault. Changing from
+	 * write to read permission means that we can't mark the page
+	 * write-enabled after all.
+	 */
+	fs->prot &= retry_prot;
+	fs->fault_type &= retry_prot;
+	if (fs->prot == 0)
+		return (KERN_RESTART);
+
+	/* Reassert because wired may have changed. */
+	KASSERT(fs->wired || (fs->fault_flags & VM_FAULT_WIRE) == 0,
+	    ("!wired && VM_FAULT_WIRE"));
+
+	return (KERN_SUCCESS);
+}
+
 /*
  * Wait/Retry if the page is busy.  We have to do this if the page is
  * either exclusive or shared busy because the vm_pager may be using
@@ -837,10 +888,8 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	struct faultstate fs;
 	struct domainset *dset;
-	vm_object_t next_object, retry_object;
+	vm_object_t next_object;
 	vm_offset_t e_end, e_start;
-	vm_pindex_t retry_pindex;
-	vm_prot_t retry_prot;
 	int ahead, alloc_req, behind, cluster_offset, faultcount;
 	int nera, oom, result, rv;
 	u_char behavior;
@@ -1363,56 +1412,12 @@ next:
 	 * lookup.
 	 */
 	if (!fs.lookup_still_valid) {
-		if (!vm_map_trylock_read(fs.map)) {
+		result = vm_fault_relookup(&fs);
+		if (result != KERN_SUCCESS) {
 			fault_deallocate(&fs);
-			goto RetryFault;
-		}
-		fs.lookup_still_valid = true;
-		if (fs.map->timestamp != fs.map_generation) {
-			result = vm_map_lookup_locked(&fs.map, vaddr, fs.fault_type,
-			    &fs.entry, &retry_object, &retry_pindex, &retry_prot,
-			    &fs.wired);
-
-			/*
-			 * If we don't need the page any longer, put it on the inactive
-			 * list (the easiest thing to do here).  If no one needs it,
-			 * pageout will grab it eventually.
-			 */
-			if (result != KERN_SUCCESS) {
-				fault_deallocate(&fs);
-
-				/*
-				 * If retry of map lookup would have blocked then
-				 * retry fault from start.
-				 */
-				if (result == KERN_FAILURE)
-					goto RetryFault;
-				return (result);
-			}
-			if ((retry_object != fs.first_object) ||
-			    (retry_pindex != fs.first_pindex)) {
-				fault_deallocate(&fs);
+			if (result == KERN_RESTART)
 				goto RetryFault;
-			}
-
-			/*
-			 * Check whether the protection has changed or the object has
-			 * been copied while we left the map unlocked. Changing from
-			 * read to write permission is OK - we leave the page
-			 * write-protected, and catch the write fault. Changing from
-			 * write to read permission means that we can't mark the page
-			 * write-enabled after all.
-			 */
-			fs.prot &= retry_prot;
-			fs.fault_type &= retry_prot;
-			if (fs.prot == 0) {
-				fault_deallocate(&fs);
-				goto RetryFault;
-			}
-
-			/* Reassert because wired may have changed. */
-			KASSERT(fs.wired || (fs.fault_flags & VM_FAULT_WIRE) == 0,
-			    ("!wired && VM_FAULT_WIRE"));
+			return (result);
 		}
 	}
 	VM_OBJECT_ASSERT_UNLOCKED(fs.object);
