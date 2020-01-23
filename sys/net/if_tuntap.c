@@ -1778,6 +1778,7 @@ static int
 tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m,
 	    struct virtio_net_hdr_mrg_rxbuf *vhdr)
 {
+	struct epoch_tracker et;
 	struct ether_header *eh;
 	struct ifnet *ifp;
 
@@ -1808,7 +1809,9 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m,
 
 	/* Pass packet up to parent. */
 	CURVNET_SET(ifp->if_vnet);
+	NET_EPOCH_ENTER(et);
 	(*ifp->if_input)(ifp, m);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 	/* ibytes are counted in parent */
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
