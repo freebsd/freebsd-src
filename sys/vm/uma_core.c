@@ -2614,7 +2614,7 @@ void
 uma_startup2(void)
 {
 
-	if (!PMAP_HAS_DMAP) {
+	if (bootstart != bootmem) {
 		vm_map_lock(kernel_map);
 		(void)vm_map_insert(kernel_map, NULL, 0, bootstart, bootmem,
 		    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
