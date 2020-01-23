@@ -960,35 +960,8 @@ vm_fault_next(struct faultstate *fs)
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(fs->object);
 	next_object = fs->object->backing_object;
-	if (next_object == NULL) {
-		/*
-		 * If there's no object left, fill the page in the top
-		 * object with zeros.
-		 */
-		VM_OBJECT_WUNLOCK(fs->object);
-		if (fs->object != fs->first_object) {
-			vm_object_pip_wakeup(fs->object);
-			fs->object = fs->first_object;
-			fs->pindex = fs->first_pindex;
-		}
-		MPASS(fs->first_m != NULL);
-		MPASS(fs->m == NULL);
-		fs->m = fs->first_m;
-		fs->first_m = NULL;
-
-		/*
-		 * Zero the page if necessary and mark it valid.
-		 */
-		if ((fs->m->flags & PG_ZERO) == 0) {
-			pmap_zero_page(fs->m);
-		} else {
-			VM_CNT_INC(v_ozfod);
-		}
-		VM_CNT_INC(v_zfod);
-		vm_page_valid(fs->m);
-
+	if (next_object == NULL)
 		return (false);
-	}
 	MPASS(fs->first_m != NULL);
 	KASSERT(fs->object != next_object, ("object loop %p", next_object));
 	VM_OBJECT_WLOCK(next_object);
@@ -1000,6 +973,36 @@ vm_fault_next(struct faultstate *fs)
 	fs->object = next_object;
 
 	return (true);
+}
+
+static void
+vm_fault_zerofill(struct faultstate *fs)
+{
+
+	/*
+	 * If there's no object left, fill the page in the top
+	 * object with zeros.
+	 */
+	if (fs->object != fs->first_object) {
+		vm_object_pip_wakeup(fs->object);
+		fs->object = fs->first_object;
+		fs->pindex = fs->first_pindex;
+	}
+	MPASS(fs->first_m != NULL);
+	MPASS(fs->m == NULL);
+	fs->m = fs->first_m;
+	fs->first_m = NULL;
+
+	/*
+	 * Zero the page if necessary and mark it valid.
+	 */
+	if ((fs->m->flags & PG_ZERO) == 0) {
+		pmap_zero_page(fs->m);
+	} else {
+		VM_CNT_INC(v_ozfod);
+	}
+	VM_CNT_INC(v_zfod);
+	vm_page_valid(fs->m);
 }
 
 /*
@@ -1407,11 +1410,13 @@ RetryFault:
 		 * traverse into a backing object or zero fill if none is
 		 * found.
 		 */
-		if (!vm_fault_next(&fs)) {
-			/* Don't try to prefault neighboring pages. */
-			faultcount = 1;
-			break;	/* break to PAGE HAS BEEN FOUND. */
-		}
+		if (vm_fault_next(&fs))
+			continue;
+		VM_OBJECT_WUNLOCK(fs.object);
+		vm_fault_zerofill(&fs);
+		/* Don't try to prefault neighboring pages. */
+		faultcount = 1;
+		break;	/* break to PAGE HAS BEEN FOUND. */
 	}
 
 	/*
