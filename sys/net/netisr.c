@@ -861,7 +861,6 @@ static u_int
 netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 {
 	struct netisr_work local_npw, *npwp;
-	struct epoch_tracker et;
 	u_int handled;
 	struct mbuf *m;
 
@@ -891,7 +890,6 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 	npwp->nw_len = 0;
 	nwsp->nws_pendingbits &= ~(1 << proto);
 	NWS_UNLOCK(nwsp);
-	NET_EPOCH_ENTER(et);
 	while ((m = local_npw.nw_head) != NULL) {
 		local_npw.nw_head = m->m_nextpkt;
 		m->m_nextpkt = NULL;
@@ -904,7 +902,6 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 		netisr_proto[proto].np_handler(m);
 		CURVNET_RESTORE();
 	}
-	NET_EPOCH_EXIT(et);
 	KASSERT(local_npw.nw_len == 0,
 	    ("%s(%u): len %u", __func__, proto, local_npw.nw_len));
 	if (netisr_proto[proto].np_drainedcpu)
@@ -1248,7 +1245,7 @@ netisr_start_swi(u_int cpuid, struct pcpu *pc)
 	nwsp->nws_cpu = cpuid;
 	snprintf(swiname, sizeof(swiname), "netisr %u", cpuid);
 	error = swi_add(&nwsp->nws_intr_event, swiname, swi_net, nwsp,
-	    SWI_NET, INTR_MPSAFE, &nwsp->nws_swi_cookie);
+	    SWI_NET, INTR_TYPE_NET | INTR_MPSAFE, &nwsp->nws_swi_cookie);
 	if (error)
 		panic("%s: swi_add %d", __func__, error);
 	pc->pc_netisr = nwsp->nws_intr_event;
