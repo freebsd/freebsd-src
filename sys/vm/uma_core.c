@@ -2440,11 +2440,11 @@ keg_dtor(void *arg, int size, void *udata)
 		pages += keg->uk_domain[i].ud_pages;
 		KEG_LOCK_FINI(keg, i);
 	}
-	if (free != 0)
+	if (pages != 0)
 		printf("Freed UMA keg (%s) was not empty (%u items). "
 		    " Lost %u pages of memory.\n",
 		    keg->uk_name ? keg->uk_name : "",
-		    free, pages);
+		    pages / keg->uk_ppera * keg->uk_ipers - free, pages);
 
 	hash_free(&keg->uk_hash);
 }
