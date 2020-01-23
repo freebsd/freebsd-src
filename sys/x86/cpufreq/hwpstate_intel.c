@@ -140,10 +140,10 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	}
 
 	rdmsr_safe(MSR_IA32_HWP_CAPABILITIES, &data);
-	sbuf_printf(sb, "\tHighest Performance: %03lu\n", data & 0xff);
-	sbuf_printf(sb, "\tGuaranteed Performance: %03lu\n", (data >> 8) & 0xff);
-	sbuf_printf(sb, "\tEfficient Performance: %03lu\n", (data >> 16) & 0xff);
-	sbuf_printf(sb, "\tLowest Performance: %03lu\n", (data >> 24) & 0xff);
+	sbuf_printf(sb, "\tHighest Performance: %03ju\n", data & 0xff);
+	sbuf_printf(sb, "\tGuaranteed Performance: %03ju\n", (data >> 8) & 0xff);
+	sbuf_printf(sb, "\tEfficient Performance: %03ju\n", (data >> 16) & 0xff);
+	sbuf_printf(sb, "\tLowest Performance: %03ju\n", (data >> 24) & 0xff);
 
 	rdmsr_safe(MSR_IA32_HWP_REQUEST, &data);
 	if (sc->hwp_pkg_ctrl && (data & IA32_HWP_REQUEST_PACKAGE_CONTROL)) {
@@ -154,9 +154,9 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 #define pkg_print(x, name, offset) do {						\
 	if (!sc->hwp_pkg_ctrl || (data & x) != 0) 				\
-	sbuf_printf(sb, "\t%s: %03lu\n", name, (data >> offset) & 0xff);\
+	sbuf_printf(sb, "\t%s: %03ju\n", name, (data >> offset) & 0xff);\
 	else									\
-	sbuf_printf(sb, "\t%s: %03lu\n", name, (data2 >> offset) & 0xff);\
+	sbuf_printf(sb, "\t%s: %03ju\n", name, (data2 >> offset) & 0xff);\
 } while (0)
 
 	pkg_print(IA32_HWP_REQUEST_EPP_VALID,
