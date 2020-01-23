@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/epoch.h>
 #include <sys/random.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
@@ -94,6 +95,9 @@ static int intr_storm_threshold = 0;
 SYSCTL_INT(_hw, OID_AUTO, intr_storm_threshold, CTLFLAG_RWTUN,
     &intr_storm_threshold, 0,
     "Number of consecutive interrupts before storm protection is enabled");
+static int intr_epoch_batch = 1000;
+SYSCTL_INT(_hw, OID_AUTO, intr_epoch_batch, CTLFLAG_RWTUN, &intr_epoch_batch,
+    0, "Maximum interrupt handler executions without re-entering epoch(9)");
 static TAILQ_HEAD(, intr_event) event_list =
     TAILQ_HEAD_INITIALIZER(event_list);
 static struct mtx event_lock;
@@ -587,6 +591,8 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 		ih->ih_flags |= IH_MPSAFE;
 	if (flags & INTR_ENTROPY)
 		ih->ih_flags |= IH_ENTROPY;
+	if (flags & INTR_TYPE_NET)
+		ih->ih_flags |= IH_NET;
 
 	/* We can only have one exclusive handler in a event. */
 	mtx_lock(&ie->ie_lock);
@@ -1196,11 +1202,12 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 static void
 ithread_loop(void *arg)
 {
+	struct epoch_tracker et;
 	struct intr_thread *ithd;
 	struct intr_event *ie;
 	struct thread *td;
 	struct proc *p;
-	int wake;
+	int wake, epoch_count;
 
 	td = curthread;
 	p = td->td_proc;
@@ -1235,8 +1242,21 @@ ithread_loop(void *arg)
 		 * that the load of ih_need in ithread_execute_handlers()
 		 * is ordered after the load of it_need here.
 		 */
-		while (atomic_cmpset_acq_int(&ithd->it_need, 1, 0) != 0)
+		if (ie->ie_hflags & IH_NET) {
+			epoch_count = 0;
+			NET_EPOCH_ENTER(et);
+		}
+		while (atomic_cmpset_acq_int(&ithd->it_need, 1, 0) != 0) {
 			ithread_execute_handlers(p, ie);
+			if ((ie->ie_hflags & IH_NET) &&
+			    ++epoch_count >= intr_epoch_batch) {
+				NET_EPOCH_EXIT(et);
+				epoch_count = 0;
+				NET_EPOCH_ENTER(et);
+			}
+		}
+		if (ie->ie_hflags & IH_NET)
+			NET_EPOCH_EXIT(et);
 		WITNESS_WARN(WARN_PANIC, NULL, "suspending ithread");
 		mtx_assert(&Giant, MA_NOTOWNED);
 

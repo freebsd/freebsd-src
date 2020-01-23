@@ -58,6 +58,7 @@ struct intr_handler {
 };
 
 /* Interrupt handle flags kept in ih_flags */
+#define	IH_NET		0x00000001	/* Network. */
 #define	IH_EXCLUSIVE	0x00000002	/* Exclusive interrupt. */
 #define	IH_ENTROPY	0x00000004	/* Device is a good entropy source. */
 #define	IH_DEAD		0x00000008	/* Handler should be removed. */
