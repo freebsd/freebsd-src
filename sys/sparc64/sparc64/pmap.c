@@ -1302,6 +1302,7 @@ pmap_release(pmap_t pm)
 		m = TAILQ_FIRST(&obj->memq);
 		m->md.pmap = NULL;
 		vm_page_unwire_noq(m);
+		vm_page_xbusy(m);
 		vm_page_free_zero(m);
 	}
 	VM_OBJECT_WUNLOCK(obj);
