@@ -153,6 +153,7 @@ static struct sx uma_drain_lock;
 static int booted = 0;
 #define	UMA_STARTUP	1
 #define	UMA_STARTUP2	2
+#define	UMA_SHUTDOWN	3
 
 /*
  * This is the handle used to schedule events that need to happen
@@ -247,6 +248,7 @@ static int hash_expand(struct uma_hash *, struct uma_hash *);
 static void hash_free(struct uma_hash *hash);
 static void uma_timeout(void *);
 static void uma_startup3(void);
+static void uma_shutdown(void);
 static void *zone_alloc_item(uma_zone_t, void *, int);
 static void zone_free_item(uma_zone_t, void *, void *, enum zfreeskip);
 static void bucket_enable(void);
@@ -1849,10 +1851,6 @@ uma_startup2(void)
 #endif
 }
 
-/*
- * Initialize our callout handle
- *
- */
 
 static void
 uma_startup3(void)
@@ -1865,6 +1863,16 @@ uma_startup3(void)
 #ifdef UMA_DEBUG
 	printf("UMA startup3 complete.\n");
 #endif
+
+	EVENTHANDLER_REGISTER(shutdown_post_sync, uma_shutdown, NULL,
+	    EVENTHANDLER_PRI_FIRST);
+}
+
+static void
+uma_shutdown(void)
+{
+
+	booted = UMA_SHUTDOWN;
 }
 
 static uma_keg_t
@@ -2085,6 +2093,14 @@ void
 uma_zdestroy(uma_zone_t zone)
 {
 
+	/*
+	 * Large slabs are expensive to reclaim, so don't bother doing
+	 * unnecessary work if we're shutting down.
+	 */
+	if (booted == UMA_SHUTDOWN &&
+	    zone->uz_fini == NULL &&
+	    zone->uz_release == (uma_release)zone_release)
+		return;
 	sx_slock(&uma_drain_lock);
 	zone_free_item(zones, zone, NULL, SKIP_NONE);
 	sx_sunlock(&uma_drain_lock);
