@@ -21,6 +21,13 @@
 #include "llvm/Object/ELF.h"
 
 namespace lld {
+std::string toString(const elf::Symbol &);
+
+// There are two different ways to convert an Archive::Symbol to a string:
+// One for Microsoft name mangling and one for Itanium name mangling.
+// Call the functions toCOFFString and toELFString, not just toString.
+std::string toELFString(const llvm::object::Archive::Symbol &);
+
 namespace elf {
 class CommonSymbol;
 class Defined;
@@ -30,16 +37,6 @@ class LazyObject;
 class SharedSymbol;
 class Symbol;
 class Undefined;
-} // namespace elf
-
-std::string toString(const elf::Symbol &);
-
-// There are two different ways to convert an Archive::Symbol to a string:
-// One for Microsoft name mangling and one for Itanium name mangling.
-// Call the functions toCOFFString and toELFString, not just toString.
-std::string toELFString(const elf::Archive::Symbol &);
-
-namespace elf {
 
 // This is a StringRef-like container that doesn't run strlen().
 //
@@ -108,29 +105,43 @@ public:
 
   // Symbol visibility. This is the computed minimum visibility of all
   // observed non-DSO symbols.
-  uint8_t visibility : 2;
+  unsigned visibility : 2;
 
   // True if the symbol was used for linking and thus need to be added to the
   // output file's symbol table. This is true for all symbols except for
   // unreferenced DSO symbols, lazy (archive) symbols, and bitcode symbols that
   // are unreferenced except by other bitcode objects.
-  uint8_t isUsedInRegularObj : 1;
+  unsigned isUsedInRegularObj : 1;
 
-  // If this flag is true and the symbol has protected or default visibility, it
-  // will appear in .dynsym. This flag is set by interposable DSO symbols in
-  // executables, by most symbols in DSOs and executables built with
-  // --export-dynamic, and by dynamic lists.
-  uint8_t exportDynamic : 1;
+  // Used by a Defined symbol with protected or default visibility, to record
+  // whether it is required to be exported into .dynsym. This is set when any of
+  // the following conditions hold:
+  //
+  // - If there is an interposable symbol from a DSO.
+  // - If -shared or --export-dynamic is specified, any symbol in an object
+  //   file/bitcode sets this property, unless suppressed by LTO
+  //   canBeOmittedFromSymbolTable().
+  unsigned exportDynamic : 1;
+
+  // True if the symbol is in the --dynamic-list file. A Defined symbol with
+  // protected or default visibility with this property is required to be
+  // exported into .dynsym.
+  unsigned inDynamicList : 1;
 
   // False if LTO shouldn't inline whatever this symbol points to. If a symbol
   // is overwritten after LTO, LTO shouldn't inline the symbol because it
   // doesn't know the final contents of the symbol.
-  uint8_t canInline : 1;
+  unsigned canInline : 1;
+
+  // Used by Undefined and SharedSymbol to track if there has been at least one
+  // undefined reference to the symbol. The binding may change to STB_WEAK if
+  // the first undefined reference from a non-shared object is weak.
+  unsigned referenced : 1;
 
   // True if this symbol is specified by --trace-symbol option.
-  uint8_t traced : 1;
+  unsigned traced : 1;
 
-  inline void replace(const Symbol &New);
+  inline void replace(const Symbol &newSym);
 
   bool includeInDynsym() const;
   uint8_t computeBinding() const;
@@ -228,36 +239,37 @@ protected:
       : file(file), nameData(name.data), nameSize(name.size), binding(binding),
         type(type), stOther(stOther), symbolKind(k), visibility(stOther & 3),
         isUsedInRegularObj(!file || file->kind() == InputFile::ObjKind),
-        exportDynamic(isExportDynamic(k, visibility)), canInline(false),
-        traced(false), needsPltAddr(false), isInIplt(false), gotInIgot(false),
-        isPreemptible(false), used(!config->gcSections), needsTocRestore(false),
+        exportDynamic(isExportDynamic(k, visibility)), inDynamicList(false),
+        canInline(false), referenced(false), traced(false), needsPltAddr(false),
+        isInIplt(false), gotInIgot(false), isPreemptible(false),
+        used(!config->gcSections), needsTocRestore(false),
         scriptDefined(false) {}
 
 public:
   // True the symbol should point to its PLT entry.
   // For SharedSymbol only.
-  uint8_t needsPltAddr : 1;
+  unsigned needsPltAddr : 1;
 
   // True if this symbol is in the Iplt sub-section of the Plt and the Igot
   // sub-section of the .got.plt or .got.
-  uint8_t isInIplt : 1;
+  unsigned isInIplt : 1;
 
   // True if this symbol needs a GOT entry and its GOT entry is actually in
   // Igot. This will be true only for certain non-preemptible ifuncs.
-  uint8_t gotInIgot : 1;
+  unsigned gotInIgot : 1;
 
   // True if this symbol is preemptible at load time.
-  uint8_t isPreemptible : 1;
+  unsigned isPreemptible : 1;
 
   // True if an undefined or shared symbol is used from a live section.
-  uint8_t used : 1;
+  unsigned used : 1;
 
   // True if a call to this symbol needs to be followed by a restore of the
   // PPC64 toc pointer.
-  uint8_t needsTocRestore : 1;
+  unsigned needsTocRestore : 1;
 
   // True if this symbol is defined by a linker script.
-  uint8_t scriptDefined : 1;
+  unsigned scriptDefined : 1;
 
   // The partition whose dynamic symbol table contains this symbol's definition.
   uint8_t partition = 1;
@@ -367,11 +379,6 @@ public:
   uint64_t value; // st_value
   uint64_t size;  // st_size
   uint32_t alignment;
-
-  // This is true if there has been at least one undefined reference to the
-  // symbol. The binding may change to STB_WEAK if the first undefined reference
-  // is weak.
-  bool referenced = false;
 };
 
 // LazyArchive and LazyObject represent a symbols that is not yet in the link,
@@ -511,7 +518,7 @@ size_t Symbol::getSymbolSize() const {
 // replace() replaces "this" object with a given symbol by memcpy'ing
 // it over to "this". This function is called as a result of name
 // resolution, e.g. to replace an undefind symbol with a defined symbol.
-void Symbol::replace(const Symbol &New) {
+void Symbol::replace(const Symbol &newSym) {
   using llvm::ELF::STT_TLS;
 
   // Symbols representing thread-local variables must be referenced by
@@ -519,22 +526,23 @@ void Symbol::replace(const Symbol &New) {
   // non-TLS relocations, so there's a clear distinction between TLS
   // and non-TLS symbols. It is an error if the same symbol is defined
   // as a TLS symbol in one file and as a non-TLS symbol in other file.
-  if (symbolKind != PlaceholderKind && !isLazy() && !New.isLazy()) {
-    bool tlsMismatch = (type == STT_TLS && New.type != STT_TLS) ||
-                       (type != STT_TLS && New.type == STT_TLS);
-    if (tlsMismatch)
-      error("TLS attribute mismatch: " + toString(*this) + "\n>>> defined in " +
-            toString(New.file) + "\n>>> defined in " + toString(file));
-  }
+  if (symbolKind != PlaceholderKind && !isLazy() && !newSym.isLazy() &&
+      (type == STT_TLS) != (newSym.type == STT_TLS))
+    error("TLS attribute mismatch: " + toString(*this) + "\n>>> defined in " +
+          toString(newSym.file) + "\n>>> defined in " + toString(file));
 
   Symbol old = *this;
-  memcpy(this, &New, New.getSymbolSize());
+  memcpy(this, &newSym, newSym.getSymbolSize());
 
+  // old may be a placeholder. The referenced fields must be initialized in
+  // SymbolTable::insert.
   versionId = old.versionId;
   visibility = old.visibility;
   isUsedInRegularObj = old.isUsedInRegularObj;
   exportDynamic = old.exportDynamic;
+  inDynamicList = old.inDynamicList;
   canInline = old.canInline;
+  referenced = old.referenced;
   traced = old.traced;
   isPreemptible = old.isPreemptible;
   scriptDefined = old.scriptDefined;

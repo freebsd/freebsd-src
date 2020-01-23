@@ -10,13 +10,13 @@
 #define LLD_ELF_INPUT_FILES_H
 
 #include "Config.h"
+#include "lld/Common/DWARF.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/LLVM.h"
 #include "lld/Common/Reproduce.h"
 #include "llvm/ADT/CachedHashString.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/DebugInfo/DWARF/DWARFDebugLine.h"
 #include "llvm/IR/Comdat.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/ELF.h"
@@ -26,22 +26,19 @@
 
 namespace llvm {
 class TarWriter;
-struct DILineInfo;
 namespace lto {
 class InputFile;
 }
 } // namespace llvm
 
 namespace lld {
-namespace elf {
-class InputFile;
-class InputSectionBase;
-}
 
 // Returns "<internal>", "foo.a(bar.o)" or "baz.o".
 std::string toString(const elf::InputFile *f);
 
 namespace elf {
+class InputFile;
+class InputSectionBase;
 
 using llvm::object::Archive;
 
@@ -261,7 +258,7 @@ private:
   InputSectionBase *createInputSection(const Elf_Shdr &sec);
   StringRef getSectionName(const Elf_Shdr &sec);
 
-  bool shouldMerge(const Elf_Shdr &sec);
+  bool shouldMerge(const Elf_Shdr &sec, StringRef name);
 
   // Each ELF symbol contains a section index which the symbol belongs to.
   // However, because the number of bits dedicated for that is limited, a
@@ -284,14 +281,7 @@ private:
   // reporting. Linker may find reasonable number of errors in a
   // single object file, so we cache debugging information in order to
   // parse it only once for each object file we link.
-  std::unique_ptr<llvm::DWARFContext> dwarf;
-  std::vector<const llvm::DWARFDebugLine::LineTable *> lineTables;
-  struct VarLoc {
-    const llvm::DWARFDebugLine::LineTable *lt;
-    unsigned file;
-    unsigned line;
-  };
-  llvm::DenseMap<StringRef, VarLoc> variableLoc;
+  DWARFCache *dwarf;
   llvm::once_flag initDwarfLine;
 };
 
