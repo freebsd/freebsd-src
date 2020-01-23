@@ -126,6 +126,7 @@ struct faultstate {
 	vm_prot_t	fault_type;
 	vm_prot_t	prot;
 	int		fault_flags;
+	int		oom;
 	boolean_t	wired;
 
 	/* Page reference for cow. */
@@ -455,7 +456,7 @@ vm_fault_populate(struct faultstate *fs)
 		 */
 		vm_fault_restore_map_lock(fs);
 		if (fs->map->timestamp != fs->map_generation)
-			return (KERN_RESOURCE_SHORTAGE); /* RetryFault */
+			return (KERN_RESTART);
 		return (KERN_NOT_RECEIVER);
 	}
 	if (rv != VM_PAGER_OK)
@@ -471,7 +472,7 @@ vm_fault_populate(struct faultstate *fs)
 	if (fs->map->timestamp != fs->map_generation) {
 		vm_fault_populate_cleanup(fs->first_object, pager_first,
 		    pager_last);
-		return (KERN_RESOURCE_SHORTAGE); /* RetryFault */
+		return (KERN_RESTART);
 	}
 
 	/*
@@ -1001,6 +1002,86 @@ vm_fault_next(struct faultstate *fs)
 	return (true);
 }
 
+/*
+ * Allocate a page directly or via the object populate method.
+ */
+static int
+vm_fault_allocate(struct faultstate *fs)
+{
+	struct domainset *dset;
+	int alloc_req;
+	int rv;
+
+
+	if ((fs->object->flags & OBJ_SIZEVNLOCK) != 0) {
+		rv = vm_fault_lock_vnode(fs, true);
+		MPASS(rv == KERN_SUCCESS || rv == KERN_RESOURCE_SHORTAGE);
+		if (rv == KERN_RESOURCE_SHORTAGE)
+			return (rv);
+	}
+
+	if (fs->pindex >= fs->object->size)
+		return (KERN_OUT_OF_BOUNDS);
+
+	if (fs->object == fs->first_object &&
+	    (fs->first_object->flags & OBJ_POPULATE) != 0 &&
+	    fs->first_object->shadow_count == 0) {
+		rv = vm_fault_populate(fs);
+		switch (rv) {
+		case KERN_SUCCESS:
+		case KERN_FAILURE:
+		case KERN_RESTART:
+			return (rv);
+		case KERN_NOT_RECEIVER:
+			/*
+			 * Pager's populate() method
+			 * returned VM_PAGER_BAD.
+			 */
+			break;
+		default:
+			panic("inconsistent return codes");
+		}
+	}
+
+	/*
+	 * Allocate a new page for this object/offset pair.
+	 *
+	 * Unlocked read of the p_flag is harmless. At worst, the P_KILLED
+	 * might be not observed there, and allocation can fail, causing
+	 * restart and new reading of the p_flag.
+	 */
+	dset = fs->object->domain.dr_policy;
+	if (dset == NULL)
+		dset = curthread->td_domain.dr_policy;
+	if (!vm_page_count_severe_set(&dset->ds_mask) || P_KILLED(curproc)) {
+#if VM_NRESERVLEVEL > 0
+		vm_object_color(fs->object, atop(fs->vaddr) - fs->pindex);
+#endif
+		alloc_req = P_KILLED(curproc) ?
+		    VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL;
+		if (fs->object->type != OBJT_VNODE &&
+		    fs->object->backing_object == NULL)
+			alloc_req |= VM_ALLOC_ZERO;
+		fs->m = vm_page_alloc(fs->object, fs->pindex, alloc_req);
+	}
+	if (fs->m == NULL) {
+		unlock_and_deallocate(fs);
+		if (vm_pfault_oom_attempts < 0 ||
+		    fs->oom < vm_pfault_oom_attempts) {
+			fs->oom++;
+			vm_waitpfault(dset, vm_pfault_oom_wait * hz);
+		}
+		if (bootverbose)
+			printf(
+"proc %d (%s) failed to alloc page on fault, starting OOM\n",
+			    curproc->p_pid, curproc->p_comm);
+		vm_pageout_oom(VM_OOM_MEM_PF);
+		return (KERN_RESOURCE_SHORTAGE);
+	}
+	fs->oom = 0;
+
+	return (KERN_NOT_RECEIVER);
+}
 
 /*
  * Call the pager to retrieve the page if there is a chance
@@ -1131,9 +1212,8 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
 	struct faultstate fs;
-	struct domainset *dset;
-	int ahead, alloc_req, behind, faultcount;
-	int nera, oom, result, rv;
+	int ahead, behind, faultcount;
+	int nera, result, rv;
 	bool dead, hardfault;
 
 	VM_CNT_INC(v_vm_faults);
@@ -1147,13 +1227,12 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	fs.fault_flags = fault_flags;
 	fs.map = map;
 	fs.lookup_still_valid = false;
+	fs.oom = 0;
 	faultcount = 0;
 	nera = -1;
 	hardfault = false;
 
 RetryFault:
-	oom = 0;
-RetryFault_oom:
 	fs.fault_type = fault_type;
 
 	/*
@@ -1237,16 +1316,14 @@ RetryFault_oom:
 
 			/*
 			 * The page is marked busy for other processes and the
-			 * pagedaemon.  If it still isn't completely valid
-			 * (readable), jump to readrest, else break-out ( we
-			 * found the page ).
+			 * pagedaemon.  If it still is completely valid we
+			 * are done.
 			 */
-			if (!vm_page_all_valid(fs.m))
-				goto readrest;
-			VM_OBJECT_WUNLOCK(fs.object);
-			break; /* break to PAGE HAS BEEN FOUND. */
+			if (vm_page_all_valid(fs.m)) {
+				VM_OBJECT_WUNLOCK(fs.object);
+				break; /* break to PAGE HAS BEEN FOUND. */
+			}
 		}
-		KASSERT(fs.m == NULL, ("fs.m should be NULL, not %p", fs.m));
 		VM_OBJECT_ASSERT_WLOCKED(fs.object);
 
 		/*
@@ -1255,87 +1332,27 @@ RetryFault_oom:
 		 * page.  (Default objects are zero-fill, so there is no real
 		 * pager for them.)
 		 */
-		if (fs.object->type != OBJT_DEFAULT ||
-		    fs.object == fs.first_object) {
-			if ((fs.object->flags & OBJ_SIZEVNLOCK) != 0) {
-				rv = vm_fault_lock_vnode(&fs, true);
-				MPASS(rv == KERN_SUCCESS ||
-				    rv == KERN_RESOURCE_SHORTAGE);
-				if (rv == KERN_RESOURCE_SHORTAGE)
-					goto RetryFault;
-			}
-			if (fs.pindex >= fs.object->size) {
+		if (fs.m == NULL && (fs.object->type != OBJT_DEFAULT ||
+		    fs.object == fs.first_object)) {
+			rv = vm_fault_allocate(&fs);
+			switch (rv) {
+			case KERN_RESTART:
 				unlock_and_deallocate(&fs);
-				return (KERN_OUT_OF_BOUNDS);
-			}
-
-			if (fs.object == fs.first_object &&
-			    (fs.first_object->flags & OBJ_POPULATE) != 0 &&
-			    fs.first_object->shadow_count == 0) {
-				rv = vm_fault_populate(&fs);
-				switch (rv) {
-				case KERN_SUCCESS:
-				case KERN_FAILURE:
-					unlock_and_deallocate(&fs);
-					return (rv);
-				case KERN_RESOURCE_SHORTAGE:
-					unlock_and_deallocate(&fs);
-					goto RetryFault;
-				case KERN_NOT_RECEIVER:
-					/*
-					 * Pager's populate() method
-					 * returned VM_PAGER_BAD.
-					 */
-					break;
-				default:
-					panic("inconsistent return codes");
-				}
-			}
-
-			/*
-			 * Allocate a new page for this object/offset pair.
-			 *
-			 * Unlocked read of the p_flag is harmless. At
-			 * worst, the P_KILLED might be not observed
-			 * there, and allocation can fail, causing
-			 * restart and new reading of the p_flag.
-			 */
-			dset = fs.object->domain.dr_policy;
-			if (dset == NULL)
-				dset = curthread->td_domain.dr_policy;
-			if (!vm_page_count_severe_set(&dset->ds_mask) ||
-			    P_KILLED(curproc)) {
-#if VM_NRESERVLEVEL > 0
-				vm_object_color(fs.object, atop(vaddr) -
-				    fs.pindex);
-#endif
-				alloc_req = P_KILLED(curproc) ?
-				    VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL;
-				if (fs.object->type != OBJT_VNODE &&
-				    fs.object->backing_object == NULL)
-					alloc_req |= VM_ALLOC_ZERO;
-				fs.m = vm_page_alloc(fs.object, fs.pindex,
-				    alloc_req);
-			}
-			if (fs.m == NULL) {
-				unlock_and_deallocate(&fs);
-				if (vm_pfault_oom_attempts < 0 ||
-				    oom < vm_pfault_oom_attempts) {
-					oom++;
-					vm_waitpfault(dset,
-					    vm_pfault_oom_wait * hz);
-					goto RetryFault_oom;
-				}
-				if (bootverbose)
-					printf(
-	"proc %d (%s) failed to alloc page on fault, starting OOM\n",
-					    curproc->p_pid, curproc->p_comm);
-				vm_pageout_oom(VM_OOM_MEM_PF);
+				/* FALLTHROUGH */
+			case KERN_RESOURCE_SHORTAGE:
 				goto RetryFault;
+			case KERN_SUCCESS:
+			case KERN_FAILURE:
+			case KERN_OUT_OF_BOUNDS:
+				unlock_and_deallocate(&fs);
+				return (rv);
+			case KERN_NOT_RECEIVER:
+				break;
+			default:
+				panic("vm_fault: Unhandled rv %d", rv);
 			}
 		}
 
-readrest:
 		/*
 		 * Default objects have no pager so no exclusive busy exists
 		 * to protect this page in the chain.  Skip to the next
