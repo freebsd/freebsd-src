@@ -39,14 +39,14 @@
 
 rm -f tags tags.tmp tags.cfiles tags.sfiles tags.hfiles
 sed -e "s, machine/, ../../include/,g" \
-	-e 's,[a-z][^/    ]*/\.\./,,g' .depend | awk '{
+	-e 's,[a-z][^/    ]*/\.\./,,g' .depend.* | awk '{
 		for (i = 1; i <= NF; ++i) {
 			t = substr($i, length($i) - 1)
 			if (t == ".c")
 				cfiles[$i] = 1;
 			else if (t == ".h")
 				hfiles[$i] = 1;
-			else if (t == ".s")
+			else if (t == ".s" || t == ".S")
 				sfiles[$i] = 1;
 		}
 	};
