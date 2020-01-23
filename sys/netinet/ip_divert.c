@@ -406,96 +406,95 @@ static int
 div_output_outbound(int family, struct socket *so, struct mbuf *m)
 {
 	struct ip *const ip = mtod(m, struct ip *);
+	struct mbuf *options;
+	struct inpcb *inp;
+	int error;
 
-		struct mbuf *options;
-		struct inpcb *inp;
-		int error;
-
-		inp = sotoinpcb(so);
-		INP_RLOCK(inp);
-		switch (family) {
-		case AF_INET:
-			/*
-			 * Don't allow both user specified and setsockopt
-			 * options, and don't allow packet length sizes that
-			 * will crash.
-			 */
-			if ((((ip->ip_hl << 2) != sizeof(struct ip)) &&
-			    inp->inp_options != NULL) ||
-			    ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
-				INP_RUNLOCK(inp);
-				return (EINVAL);
-			}
-			break;
-#ifdef INET6
-		case AF_INET6:
-		    {
-			struct ip6_hdr *const ip6 = mtod(m, struct ip6_hdr *);
-
-			/* Don't allow packet length sizes that will crash */
-			if (((u_short)ntohs(ip6->ip6_plen) > m->m_pkthdr.len)) {
-				INP_RUNLOCK(inp);
-				return (EINVAL);
-			}
-			break;
-		    }
-#endif
+	inp = sotoinpcb(so);
+	INP_RLOCK(inp);
+	switch (family) {
+	case AF_INET:
+		/*
+		 * Don't allow both user specified and setsockopt
+		 * options, and don't allow packet length sizes that
+		 * will crash.
+		 */
+		if ((((ip->ip_hl << 2) != sizeof(struct ip)) &&
+		    inp->inp_options != NULL) ||
+		    ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
+			INP_RUNLOCK(inp);
+			return (EINVAL);
 		}
+		break;
+#ifdef INET6
+	case AF_INET6:
+	    {
+		struct ip6_hdr *const ip6 = mtod(m, struct ip6_hdr *);
 
-		/* Send packet to output processing */
-		KMOD_IPSTAT_INC(ips_rawout);		/* XXX */
+		/* Don't allow packet length sizes that will crash */
+		if (((u_short)ntohs(ip6->ip6_plen) > m->m_pkthdr.len)) {
+			INP_RUNLOCK(inp);
+			return (EINVAL);
+		}
+		break;
+	    }
+#endif
+	}
+
+	/* Send packet to output processing */
+	KMOD_IPSTAT_INC(ips_rawout);		/* XXX */
 
 #ifdef MAC
-		mac_inpcb_create_mbuf(inp, m);
+	mac_inpcb_create_mbuf(inp, m);
 #endif
-		/*
-		 * Get ready to inject the packet into ip_output().
-		 * Just in case socket options were specified on the
-		 * divert socket, we duplicate them.  This is done
-		 * to avoid having to hold the PCB locks over the call
-		 * to ip_output(), as doing this results in a number of
-		 * lock ordering complexities.
-		 *
-		 * Note that we set the multicast options argument for
-		 * ip_output() to NULL since it should be invariant that
-		 * they are not present.
-		 */
-		KASSERT(inp->inp_moptions == NULL,
-		    ("multicast options set on a divert socket"));
-		/*
-		 * XXXCSJP: It is unclear to me whether or not it makes
-		 * sense for divert sockets to have options.  However,
-		 * for now we will duplicate them with the INP locks
-		 * held so we can use them in ip_output() without
-		 * requring a reference to the pcb.
-		 */
-		options = NULL;
-		if (inp->inp_options != NULL) {
-			options = m_dup(inp->inp_options, M_NOWAIT);
-			if (options == NULL) {
-				INP_RUNLOCK(inp);
-				return (ENOBUFS);
-			}
+	/*
+	 * Get ready to inject the packet into ip_output().
+	 * Just in case socket options were specified on the
+	 * divert socket, we duplicate them.  This is done
+	 * to avoid having to hold the PCB locks over the call
+	 * to ip_output(), as doing this results in a number of
+	 * lock ordering complexities.
+	 *
+	 * Note that we set the multicast options argument for
+	 * ip_output() to NULL since it should be invariant that
+	 * they are not present.
+	 */
+	KASSERT(inp->inp_moptions == NULL,
+	    ("multicast options set on a divert socket"));
+	/*
+	 * XXXCSJP: It is unclear to me whether or not it makes
+	 * sense for divert sockets to have options.  However,
+	 * for now we will duplicate them with the INP locks
+	 * held so we can use them in ip_output() without
+	 * requring a reference to the pcb.
+	 */
+	options = NULL;
+	if (inp->inp_options != NULL) {
+		options = m_dup(inp->inp_options, M_NOWAIT);
+		if (options == NULL) {
+			INP_RUNLOCK(inp);
+			return (ENOBUFS);
 		}
-		INP_RUNLOCK(inp);
+	}
+	INP_RUNLOCK(inp);
 
-		error = 0;
-		switch (family) {
-		case AF_INET:
-			error = ip_output(m, options, NULL,
-			    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0)
-			    | IP_ALLOWBROADCAST | IP_RAWOUTPUT, NULL, NULL);
-			break;
+	error = 0;
+	switch (family) {
+	case AF_INET:
+		error = ip_output(m, options, NULL,
+		    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0)
+		    | IP_ALLOWBROADCAST | IP_RAWOUTPUT, NULL, NULL);
+		break;
 #ifdef INET6
-		case AF_INET6:
-			error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
-			break;
+	case AF_INET6:
+		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+		break;
 #endif
-		}
-		if (options != NULL)
-			m_freem(options);
+	}
+	if (options != NULL)
+		m_freem(options);
 
-		return (error);
+	return (error);
 }
 
 /*
@@ -511,46 +510,46 @@ div_output_inbound(int family, struct socket *so, struct mbuf *m,
 	const struct ip *ip;
 	struct ifaddr *ifa;
 
-		if (m->m_pkthdr.rcvif == NULL) {
-			/*
-			 * No luck with the name, check by IP address.
-			 * Clear the port and the ifname to make sure
-			 * there are no distractions for ifa_ifwithaddr.
-			 */
+	if (m->m_pkthdr.rcvif == NULL) {
+		/*
+		 * No luck with the name, check by IP address.
+		 * Clear the port and the ifname to make sure
+		 * there are no distractions for ifa_ifwithaddr.
+		 */
 
-			/* XXX: broken for IPv6 */
-			bzero(sin->sin_zero, sizeof(sin->sin_zero));
-			sin->sin_port = 0;
-			ifa = ifa_ifwithaddr((struct sockaddr *) sin);
-			if (ifa == NULL)
-				return (EADDRNOTAVAIL);
-			m->m_pkthdr.rcvif = ifa->ifa_ifp;
-		}
+		/* XXX: broken for IPv6 */
+		bzero(sin->sin_zero, sizeof(sin->sin_zero));
+		sin->sin_port = 0;
+		ifa = ifa_ifwithaddr((struct sockaddr *) sin);
+		if (ifa == NULL)
+			return (EADDRNOTAVAIL);
+		m->m_pkthdr.rcvif = ifa->ifa_ifp;
+	}
 #ifdef MAC
-		mac_socket_create_mbuf(so, m);
+	mac_socket_create_mbuf(so, m);
 #endif
-		/* Send packet to input processing via netisr */
-		switch (family) {
-		case AF_INET:
-			ip = mtod(m, struct ip *);
-			/*
-			 * Restore M_BCAST flag when destination address is
-			 * broadcast. It is expected by ip_tryforward().
-			 */
-			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)))
-				m->m_flags |= M_MCAST;
-			else if (in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
-				m->m_flags |= M_BCAST;
-			netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
-			break;
+	/* Send packet to input processing via netisr */
+	switch (family) {
+	case AF_INET:
+		ip = mtod(m, struct ip *);
+		/*
+		 * Restore M_BCAST flag when destination address is
+		 * broadcast. It is expected by ip_tryforward().
+		 */
+		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)))
+			m->m_flags |= M_MCAST;
+		else if (in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
+			m->m_flags |= M_BCAST;
+		netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
+		break;
 #ifdef INET6
-		case AF_INET6:
-			netisr_queue_src(NETISR_IPV6, (uintptr_t)so, m);
-			break;
+	case AF_INET6:
+		netisr_queue_src(NETISR_IPV6, (uintptr_t)so, m);
+		break;
 #endif
-		default:
-			return (EINVAL);
-		}
+	default:
+		return (EINVAL);
+	}
 
 	return (0);
 }
