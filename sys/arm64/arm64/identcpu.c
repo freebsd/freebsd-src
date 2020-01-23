@@ -643,6 +643,41 @@ static struct mrs_field id_aa64mmfr2_fields[] = {
 
 
 /* ID_AA64PFR0_EL1 */
+static struct mrs_field_value id_aa64pfr0_csv3[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR0_CSV3_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR0_CSV3_ISOLATED, "CSV3"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_csv2[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR0_CSV2_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR0_CSV2_ISOLATED, "CSV2"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_CSV2_SCXTNUM, "SCXTNUM"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_dit[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR0_DIT_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR0_DIT_PSTATE, "PSTATE.DIT"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_amu[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR0_AMU_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR0_AMU_V1, "AMUv1"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_mpam[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, MPAM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr0_sel2[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, SEL2, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static struct mrs_field_value id_aa64pfr0_sve[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, SVE, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -696,6 +731,12 @@ static struct mrs_field_value id_aa64pfr0_el0[] = {
 };
 
 static struct mrs_field id_aa64pfr0_fields[] = {
+	MRS_FIELD(ID_AA64PFR0, CSV3, false, MRS_EXACT, id_aa64pfr0_csv3),
+	MRS_FIELD(ID_AA64PFR0, CSV2, false, MRS_EXACT, id_aa64pfr0_csv2),
+	MRS_FIELD(ID_AA64PFR0, DIT, false, MRS_EXACT, id_aa64pfr0_dit),
+	MRS_FIELD(ID_AA64PFR0, AMU, false, MRS_EXACT, id_aa64pfr0_amu),
+	MRS_FIELD(ID_AA64PFR0, MPAM, false, MRS_EXACT, id_aa64pfr0_mpam),
+	MRS_FIELD(ID_AA64PFR0, SEL2, false, MRS_EXACT, id_aa64pfr0_sel2),
 	MRS_FIELD(ID_AA64PFR0, SVE, false, MRS_EXACT, id_aa64pfr0_sve),
 	MRS_FIELD(ID_AA64PFR0, RAS, false, MRS_EXACT, id_aa64pfr0_ras),
 	MRS_FIELD(ID_AA64PFR0, GIC, false, MRS_EXACT, id_aa64pfr0_gic),
@@ -710,7 +751,30 @@ static struct mrs_field id_aa64pfr0_fields[] = {
 
 
 /* ID_AA64PFR1_EL1 */
+static struct mrs_field_value id_aa64pfr1_bt[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR1_BT_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR1_BT_IMPL, "BTI"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr1_ssbs[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR1_SSBS_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR1_SSBS_PSTATE, "PSTATE.SSBS"),
+	MRS_FIELD_VALUE(ID_AA64PFR1_SSBS_PSTATE_MSR, "PSTATE.SSBS MSR"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64pfr1_mte[] = {
+	MRS_FIELD_VALUE(ID_AA64PFR1_MTE_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR1_MTE_IMPL_EL0, "MTE EL0"),
+	MRS_FIELD_VALUE(ID_AA64PFR1_MTE_IMPL, "MTE"),
+	MRS_FIELD_VALUE_END,
+};
+
 static struct mrs_field id_aa64pfr1_fields[] = {
+	MRS_FIELD(ID_AA64PFR1, BT, false, MRS_EXACT, id_aa64pfr1_bt),
+	MRS_FIELD(ID_AA64PFR1, SSBS, false, MRS_EXACT, id_aa64pfr1_ssbs),
+	MRS_FIELD(ID_AA64PFR1, MTE, false, MRS_EXACT, id_aa64pfr1_mte),
 	MRS_FIELD_END,
 };
 
@@ -743,6 +807,13 @@ static struct mrs_user_reg user_regs[] = {
 		.Op2 = 0,
 		.offset = __offsetof(struct cpu_desc, id_aa64pfr0),
 		.fields = id_aa64pfr0_fields,
+	},
+	{	/* id_aa64pfr0_el1 */
+		.reg = ID_AA64PFR1_EL1,
+		.CRm = 4,
+		.Op2 = 1,
+		.offset = __offsetof(struct cpu_desc, id_aa64pfr1),
+		.fields = id_aa64pfr1_fields,
 	},
 	{	/* id_aa64dfr0_el1 */
 		.reg = ID_AA64DFR0_EL1,
