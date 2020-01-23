@@ -189,7 +189,7 @@ llan_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	bus_setup_intr(dev, sc->irq, INTR_TYPE_MISC | INTR_MPSAFE |
+	bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE |
 	    INTR_ENTROPY, NULL, llan_intr, sc, &sc->irq_cookie);
 
 	/* Setup DMA */
