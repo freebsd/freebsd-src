@@ -28,8 +28,10 @@ add_lld_library(lldCOFF
   BinaryFormat
   Core
   DebugInfoCodeView
+  DebugInfoDWARF
   DebugInfoMSF
   DebugInfoPDB
+  Demangle
   LibDriver
   LTO
   MC
