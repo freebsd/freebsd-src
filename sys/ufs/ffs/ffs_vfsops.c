@@ -1483,8 +1483,12 @@ ffs_sync_lazy(mp)
 
 	allerror = 0;
 	td = curthread;
-	if ((mp->mnt_flag & MNT_NOATIME) != 0)
-		goto qupdate;
+	if ((mp->mnt_flag & MNT_NOATIME) != 0) {
+#ifdef QUOTA
+		qsync(mp);
+#endif
+		goto sbupdate;
+	}
 	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
@@ -1506,18 +1510,16 @@ ffs_sync_lazy(mp)
 		if ((error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
 		    td)) != 0)
 			continue;
+#ifdef QUOTA
+		qsyncvp(vp);
+#endif
 		if (sync_doupdate(ip))
 			error = ffs_update(vp, 0);
 		if (error != 0)
 			allerror = error;
 		vput(vp);
 	}
-
-qupdate:
-#ifdef QUOTA
-	qsync(mp);
-#endif
-
+sbupdate:
 	if (VFSTOUFS(mp)->um_fs->fs_fmod != 0 &&
 	    (error = ffs_sbupdate(VFSTOUFS(mp), MNT_LAZY, 0)) != 0)
 		allerror = error;
@@ -1610,6 +1612,9 @@ loop:
 			}
 			continue;
 		}
+#ifdef QUOTA
+		qsyncvp(vp);
+#endif
 		if ((error = ffs_syncvnode(vp, waitfor, 0)) != 0)
 			allerror = error;
 		vput(vp);
@@ -1624,9 +1629,6 @@ loop:
 		if (allerror == 0 && count)
 			goto loop;
 	}
-#ifdef QUOTA
-	qsync(mp);
-#endif
 
 	devvp = ump->um_devvp;
 	bo = &devvp->v_bufobj;
