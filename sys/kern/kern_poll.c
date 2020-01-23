@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/proc.h>
+#include <sys/epoch.h>
 #include <sys/eventhandler.h>
 #include <sys/resourcevar.h>
 #include <sys/socket.h>			/* needed by net/if.h		*/
@@ -332,6 +333,7 @@ hardclock_device_poll(void)
 static void
 ether_poll(int count)
 {
+	struct epoch_tracker et;
 	int i;
 
 	mtx_lock(&poll_mtx);
@@ -339,8 +341,10 @@ ether_poll(int count)
 	if (count > poll_each_burst)
 		count = poll_each_burst;
 
+	NET_EPOCH_ENTER(et);
 	for (i = 0 ; i < poll_handlers ; i++)
 		pr[i].handler(pr[i].ifp, POLL_ONLY, count);
+	NET_EPOCH_EXIT(et);
 
 	mtx_unlock(&poll_mtx);
 }
@@ -428,6 +432,8 @@ netisr_poll(void)
 {
 	int i, cycles;
 	enum poll_cmd arg = POLL_ONLY;
+
+	NET_EPOCH_ASSERT();
 
 	if (poll_handlers == 0)
 		return;
