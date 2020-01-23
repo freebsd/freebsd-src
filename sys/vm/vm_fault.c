@@ -1001,6 +1001,95 @@ vm_fault_next(struct faultstate *fs)
 	return (true);
 }
 
+
+/*
+ * Call the pager to retrieve the page if there is a chance
+ * that the pager has it, and potentially retrieve additional
+ * pages at the same time.
+ */
+static int
+vm_fault_getpages(struct faultstate *fs, int nera, int *behindp, int *aheadp)
+{
+	vm_offset_t e_end, e_start;
+	int ahead, behind, cluster_offset, rv;
+	u_char behavior;
+
+	/*
+	 * Prepare for unlocking the map.  Save the map
+	 * entry's start and end addresses, which are used to
+	 * optimize the size of the pager operation below.
+	 * Even if the map entry's addresses change after
+	 * unlocking the map, using the saved addresses is
+	 * safe.
+	 */
+	e_start = fs->entry->start;
+	e_end = fs->entry->end;
+	behavior = vm_map_entry_behavior(fs->entry);
+
+	/*
+	 * Release the map lock before locking the vnode or
+	 * sleeping in the pager.  (If the current object has
+	 * a shadow, then an earlier iteration of this loop
+	 * may have already unlocked the map.)
+	 */
+	unlock_map(fs);
+
+	rv = vm_fault_lock_vnode(fs, false);
+	MPASS(rv == KERN_SUCCESS || rv == KERN_RESOURCE_SHORTAGE);
+	if (rv == KERN_RESOURCE_SHORTAGE)
+		return (rv);
+	KASSERT(fs->vp == NULL || !fs->map->system_map,
+	    ("vm_fault: vnode-backed object mapped by system map"));
+
+	/*
+	 * Page in the requested page and hint the pager,
+	 * that it may bring up surrounding pages.
+	 */
+	if (nera == -1 || behavior == MAP_ENTRY_BEHAV_RANDOM ||
+	    P_KILLED(curproc)) {
+		behind = 0;
+		ahead = 0;
+	} else {
+		/* Is this a sequential fault? */
+		if (nera > 0) {
+			behind = 0;
+			ahead = nera;
+		} else {
+			/*
+			 * Request a cluster of pages that is
+			 * aligned to a VM_FAULT_READ_DEFAULT
+			 * page offset boundary within the
+			 * object.  Alignment to a page offset
+			 * boundary is more likely to coincide
+			 * with the underlying file system
+			 * block than alignment to a virtual
+			 * address boundary.
+			 */
+			cluster_offset = fs->pindex % VM_FAULT_READ_DEFAULT;
+			behind = ulmin(cluster_offset,
+			    atop(fs->vaddr - e_start));
+			ahead = VM_FAULT_READ_DEFAULT - 1 - cluster_offset;
+		}
+		ahead = ulmin(ahead, atop(e_end - fs->vaddr) - 1);
+	}
+	*behindp = behind;
+	*aheadp = ahead;
+	rv = vm_pager_get_pages(fs->object, &fs->m, 1, behindp, aheadp);
+	if (rv == VM_PAGER_OK)
+		return (KERN_SUCCESS);
+	if (rv == VM_PAGER_ERROR)
+		printf("vm_fault: pager read error, pid %d (%s)\n",
+		    curproc->p_pid, curproc->p_comm);
+	/*
+	 * If an I/O error occurred or the requested page was
+	 * outside the range of the pager, clean up and return
+	 * an error.
+	 */
+	if (rv == VM_PAGER_ERROR || rv == VM_PAGER_BAD)
+		return (KERN_OUT_OF_BOUNDS);
+	return (KERN_NOT_RECEIVER);
+}
+
 /*
  * Wait/Retry if the page is busy.  We have to do this if the page is
  * either exclusive or shared busy because the vm_pager may be using
@@ -1043,10 +1132,8 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	struct faultstate fs;
 	struct domainset *dset;
-	vm_offset_t e_end, e_start;
-	int ahead, alloc_req, behind, cluster_offset, faultcount;
+	int ahead, alloc_req, behind, faultcount;
 	int nera, oom, result, rv;
-	u_char behavior;
 	bool dead, hardfault;
 
 	VM_CNT_INC(v_vm_faults);
@@ -1282,104 +1369,28 @@ readrest:
 		 * have the page, the number of additional pages to read will
 		 * apply to subsequent objects in the shadow chain.
 		 */
-		if (nera == -1 && !P_KILLED(curproc)) {
+		if (nera == -1 && !P_KILLED(curproc))
 			nera = vm_fault_readahead(&fs);
-			/*
-			 * Prepare for unlocking the map.  Save the map
-			 * entry's start and end addresses, which are used to
-			 * optimize the size of the pager operation below.
-			 * Even if the map entry's addresses change after
-			 * unlocking the map, using the saved addresses is
-			 * safe.
-			 */
-			e_start = fs.entry->start;
-			e_end = fs.entry->end;
-			behavior = vm_map_entry_behavior(fs.entry);
+
+		rv = vm_fault_getpages(&fs, nera, &behind, &ahead);
+		if (rv == KERN_SUCCESS) {
+			faultcount = behind + 1 + ahead;
+			hardfault = true;
+			break; /* break to PAGE HAS BEEN FOUND. */
+		}
+		if (rv == KERN_RESOURCE_SHORTAGE)
+			goto RetryFault;
+		VM_OBJECT_WLOCK(fs.object);
+		if (rv == KERN_OUT_OF_BOUNDS) {
+			fault_page_free(&fs.m);
+			unlock_and_deallocate(&fs);
+			return (rv);
 		}
 
 		/*
-		 * Call the pager to retrieve the page if there is a chance
-		 * that the pager has it, and potentially retrieve additional
-		 * pages at the same time.
-		 */
-		if (fs.object->type != OBJT_DEFAULT) {
-			/*
-			 * Release the map lock before locking the vnode or
-			 * sleeping in the pager.  (If the current object has
-			 * a shadow, then an earlier iteration of this loop
-			 * may have already unlocked the map.)
-			 */
-			unlock_map(&fs);
-
-			rv = vm_fault_lock_vnode(&fs, false);
-			MPASS(rv == KERN_SUCCESS ||
-			    rv == KERN_RESOURCE_SHORTAGE);
-			if (rv == KERN_RESOURCE_SHORTAGE)
-				goto RetryFault;
-			KASSERT(fs.vp == NULL || !fs.map->system_map,
-			    ("vm_fault: vnode-backed object mapped by system map"));
-
-			/*
-			 * Page in the requested page and hint the pager,
-			 * that it may bring up surrounding pages.
-			 */
-			if (nera == -1 || behavior == MAP_ENTRY_BEHAV_RANDOM ||
-			    P_KILLED(curproc)) {
-				behind = 0;
-				ahead = 0;
-			} else {
-				/* Is this a sequential fault? */
-				if (nera > 0) {
-					behind = 0;
-					ahead = nera;
-				} else {
-					/*
-					 * Request a cluster of pages that is
-					 * aligned to a VM_FAULT_READ_DEFAULT
-					 * page offset boundary within the
-					 * object.  Alignment to a page offset
-					 * boundary is more likely to coincide
-					 * with the underlying file system
-					 * block than alignment to a virtual
-					 * address boundary.
-					 */
-					cluster_offset = fs.pindex %
-					    VM_FAULT_READ_DEFAULT;
-					behind = ulmin(cluster_offset,
-					    atop(vaddr - e_start));
-					ahead = VM_FAULT_READ_DEFAULT - 1 -
-					    cluster_offset;
-				}
-				ahead = ulmin(ahead, atop(e_end - vaddr) - 1);
-			}
-			rv = vm_pager_get_pages(fs.object, &fs.m, 1,
-			    &behind, &ahead);
-			if (rv == VM_PAGER_OK) {
-				faultcount = behind + 1 + ahead;
-				hardfault = true;
-				break; /* break to PAGE HAS BEEN FOUND. */
-			}
-			VM_OBJECT_WLOCK(fs.object);
-			if (rv == VM_PAGER_ERROR)
-				printf("vm_fault: pager read error, pid %d (%s)\n",
-				    curproc->p_pid, curproc->p_comm);
-
-			/*
-			 * If an I/O error occurred or the requested page was
-			 * outside the range of the pager, clean up and return
-			 * an error.
-			 */
-			if (rv == VM_PAGER_ERROR || rv == VM_PAGER_BAD) {
-				fault_page_free(&fs.m);
-				unlock_and_deallocate(&fs);
-				return (KERN_OUT_OF_BOUNDS);
-			}
-
-		}
-
-		/*
-		 * The page was not found in the current object.  Try to traverse
-		 * into a backing object or zero fill if none is found.
+		 * The page was not found in the current object.  Try to
+		 * traverse into a backing object or zero fill if none is
+		 * found.
 		 */
 		if (!vm_fault_next(&fs)) {
 			/* Don't try to prefault neighboring pages. */
