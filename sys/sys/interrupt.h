@@ -118,6 +118,7 @@ struct intr_event {
 	void		(*ie_post_filter)(void *);
 	int		(*ie_assign_cpu)(void *, int);
 	int		ie_flags;
+	int		ie_hflags;	/* Cumulative flags of all handlers. */
 	int		ie_count;	/* Loop counter. */
 	int		ie_warncnt;	/* Rate-check interrupt storm warns. */
 	struct timeval	ie_warntm;
@@ -129,7 +130,6 @@ struct intr_event {
 
 /* Interrupt event flags kept in ie_flags. */
 #define	IE_SOFT		0x000001	/* Software interrupt. */
-#define	IE_ENTROPY	0x000002	/* Interrupt is an entropy source. */
 #define	IE_ADDING_THREAD 0x000004	/* Currently building an ithread. */
 
 /* Flags to pass to sched_swi. */

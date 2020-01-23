@@ -190,7 +190,7 @@ intr_event_update(struct intr_event *ie)
 	/* Start off with no entropy and just the name of the event. */
 	mtx_assert(&ie->ie_lock, MA_OWNED);
 	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
-	ie->ie_flags &= ~IE_ENTROPY;
+	ie->ie_hflags = 0;
 	missed = 0;
 	space = 1;
 
@@ -203,8 +203,7 @@ intr_event_update(struct intr_event *ie)
 			space = 0;
 		} else
 			missed++;
-		if (ih->ih_flags & IH_ENTROPY)
-			ie->ie_flags |= IE_ENTROPY;
+		ie->ie_hflags |= ih->ih_flags;
 	}
 
 	/*
@@ -958,7 +957,7 @@ intr_event_schedule_thread(struct intr_event *ie)
 	 * If any of the handlers for this ithread claim to be good
 	 * sources of entropy, then gather some.
 	 */
-	if (ie->ie_flags & IE_ENTROPY) {
+	if (ie->ie_hflags & IH_ENTROPY) {
 		entropy.event = (uintptr_t)ie;
 		entropy.td = ctd;
 		random_harvest_queue(&entropy, sizeof(entropy), RANDOM_INTERRUPT);
@@ -1492,18 +1491,12 @@ db_dump_intr_event(struct intr_event *ie, int handlers)
 		db_printf("(pid %d)", it->it_thread->td_proc->p_pid);
 	else
 		db_printf("(no thread)");
-	if ((ie->ie_flags & (IE_SOFT | IE_ENTROPY | IE_ADDING_THREAD)) != 0 ||
+	if ((ie->ie_flags & (IE_SOFT | IE_ADDING_THREAD)) != 0 ||
 	    (it != NULL && it->it_need)) {
 		db_printf(" {");
 		comma = 0;
 		if (ie->ie_flags & IE_SOFT) {
 			db_printf("SOFT");
-			comma = 1;
-		}
-		if (ie->ie_flags & IE_ENTROPY) {
-			if (comma)
-				db_printf(", ");
-			db_printf("ENTROPY");
 			comma = 1;
 		}
 		if (ie->ie_flags & IE_ADDING_THREAD) {
