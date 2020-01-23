@@ -106,6 +106,7 @@ static driver_t hwpstate_intel_driver = {
 
 DRIVER_MODULE(hwpstate_intel, cpu, hwpstate_intel_driver,
     hwpstate_intel_devclass, NULL, NULL);
+MODULE_VERSION(hwpstate_intel, 1);
 
 static int
 intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
