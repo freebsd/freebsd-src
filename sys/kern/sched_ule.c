@@ -2121,6 +2121,7 @@ sched_switch(struct thread *td, int flags)
 	 */
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED | MA_NOTRECURSED);
 	newtd = choosethread();
+	newtd->td_oncpu = cpuid;
 	sched_pctcpu_update(td_get_sched(newtd), 0);
 	TDQ_UNLOCK(tdq);
 
@@ -2145,7 +2146,6 @@ sched_switch(struct thread *td, int flags)
 #endif
 		td->td_oncpu = NOCPU;
 		cpu_switch(td, newtd, mtx);
-		cpuid = td->td_oncpu = PCPU_GET(cpuid);
 
 		SDT_PROBE0(sched, , , on__cpu);
 #ifdef	HWPMC_HOOKS
@@ -2915,6 +2915,7 @@ sched_throw(struct thread *td)
 		thread_lock_block(td);
 	}
 	newtd = choosethread();
+	newtd->td_oncpu = PCPU_GET(cpuid);
 	spinlock_enter();
 	TDQ_UNLOCK(tdq);
 	KASSERT(curthread->td_md.md_spinlock_count == 1,
