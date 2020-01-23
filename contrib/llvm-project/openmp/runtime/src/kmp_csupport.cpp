@@ -545,7 +545,8 @@ void __kmpc_end_serialized_parallel(ident_t *loc, kmp_int32 global_tid) {
     if (ompt_enabled.ompt_callback_parallel_end) {
       ompt_callbacks.ompt_callback(ompt_callback_parallel_end)(
           &(serial_team->t.ompt_team_info.parallel_data), parent_task_data,
-          ompt_parallel_invoker_program, OMPT_LOAD_RETURN_ADDRESS(global_tid));
+          ompt_parallel_invoker_program | ompt_parallel_team,
+          OMPT_LOAD_RETURN_ADDRESS(global_tid));
     }
     __ompt_lw_taskteam_unlink(this_thr);
     this_thr->th.ompt_thread_info.state = ompt_state_overhead;
@@ -676,7 +677,8 @@ void __kmpc_flush(ident_t *loc) {
 #endif // KMP_COMPILER_ICC
   }
 #endif // KMP_MIC
-#elif (KMP_ARCH_ARM || KMP_ARCH_AARCH64 || KMP_ARCH_MIPS || KMP_ARCH_MIPS64)
+#elif (KMP_ARCH_ARM || KMP_ARCH_AARCH64 || KMP_ARCH_MIPS || KMP_ARCH_MIPS64 || \
+       KMP_ARCH_RISCV64)
 // Nothing to see here move along
 #elif KMP_ARCH_PPC64
 // Nothing needed here (we have a real MB above).
