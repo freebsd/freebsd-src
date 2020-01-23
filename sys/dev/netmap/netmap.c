@@ -437,11 +437,13 @@ ports attached to the switch)
 #include <sys/socketvar.h>	/* struct socket */
 #include <sys/malloc.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h> /* sockaddrs */
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
 #include <sys/jail.h>
+#include <sys/epoch.h>
 #include <net/vnet.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -1146,9 +1148,11 @@ netmap_dtor(void *data)
 static void
 netmap_send_up(struct ifnet *dst, struct mbq *q)
 {
+	struct epoch_tracker et;
 	struct mbuf *m;
 	struct mbuf *head = NULL, *prev = NULL;
 
+	NET_EPOCH_ENTER(et);
 	/* Send packets up, outside the lock; head/prev machinery
 	 * is only useful for Windows. */
 	while ((m = mbq_dequeue(q)) != NULL) {
@@ -1160,6 +1164,7 @@ netmap_send_up(struct ifnet *dst, struct mbq *q)
 	}
 	if (head)
 		nm_os_send_up(dst, NULL, head);
+	NET_EPOCH_EXIT(et);
 	mbq_fini(q);
 }
 
