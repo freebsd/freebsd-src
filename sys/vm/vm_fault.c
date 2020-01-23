@@ -846,6 +846,92 @@ vm_fault_relookup(struct faultstate *fs)
 	return (KERN_SUCCESS);
 }
 
+static void
+vm_fault_cow(struct faultstate *fs)
+{
+	bool is_first_object_locked;
+
+	/*
+	 * This allows pages to be virtually copied from a backing_object
+	 * into the first_object, where the backing object has no other
+	 * refs to it, and cannot gain any more refs.  Instead of a bcopy,
+	 * we just move the page from the backing object to the first
+	 * object.  Note that we must mark the page dirty in the first
+	 * object so that it will go out to swap when needed.
+	 */
+	is_first_object_locked = false;
+	if (
+	    /*
+	     * Only one shadow object and no other refs.
+	     */
+	    fs->object->shadow_count == 1 && fs->object->ref_count == 1 &&
+	    /*
+	     * No other ways to look the object up
+	     */
+	    fs->object->handle == NULL && (fs->object->flags & OBJ_ANON) != 0 &&
+	    /*
+	     * We don't chase down the shadow chain and we can acquire locks.
+	     */
+	    (is_first_object_locked = VM_OBJECT_TRYWLOCK(fs->first_object)) &&
+	    fs->object == fs->first_object->backing_object &&
+	    VM_OBJECT_TRYWLOCK(fs->object)) {
+
+		/*
+		 * Remove but keep xbusy for replace.  fs->m is moved into
+		 * fs->first_object and left busy while fs->first_m is
+		 * conditionally freed.
+		 */
+		vm_page_remove_xbusy(fs->m);
+		vm_page_replace(fs->m, fs->first_object, fs->first_pindex,
+		    fs->first_m);
+		vm_page_dirty(fs->m);
+#if VM_NRESERVLEVEL > 0
+		/*
+		 * Rename the reservation.
+		 */
+		vm_reserv_rename(fs->m, fs->first_object, fs->object,
+		    OFF_TO_IDX(fs->first_object->backing_object_offset));
+#endif
+		VM_OBJECT_WUNLOCK(fs->object);
+		VM_OBJECT_WUNLOCK(fs->first_object);
+		fs->first_m = fs->m;
+		fs->m = NULL;
+		VM_CNT_INC(v_cow_optim);
+	} else {
+		if (is_first_object_locked)
+			VM_OBJECT_WUNLOCK(fs->first_object);
+		/*
+		 * Oh, well, lets copy it.
+		 */
+		pmap_copy_page(fs->m, fs->first_m);
+		vm_page_valid(fs->first_m);
+		if (fs->wired && (fs->fault_flags & VM_FAULT_WIRE) == 0) {
+			vm_page_wire(fs->first_m);
+			vm_page_unwire(fs->m, PQ_INACTIVE);
+		}
+		/*
+		 * Save the cow page to be released after
+		 * pmap_enter is complete.
+		 */
+		fs->m_cow = fs->m;
+		fs->m = NULL;
+	}
+	/*
+	 * fs->object != fs->first_object due to above 
+	 * conditional
+	 */
+	vm_object_pip_wakeup(fs->object);
+
+	/*
+	 * Only use the new page below...
+	 */
+	fs->object = fs->first_object;
+	fs->pindex = fs->first_pindex;
+	fs->m = fs->first_m;
+	VM_CNT_INC(v_cow_faults);
+	curthread->td_cow++;
+}
+
 /*
  * Wait/Retry if the page is busy.  We have to do this if the page is
  * either exclusive or shared busy because the vm_pager may be using
@@ -893,7 +979,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	int ahead, alloc_req, behind, cluster_offset, faultcount;
 	int nera, oom, result, rv;
 	u_char behavior;
-	bool dead, hardfault, is_first_object_locked;
+	bool dead, hardfault;
 
 	VM_CNT_INC(v_vm_faults);
 
@@ -1302,89 +1388,7 @@ next:
 		 * We only really need to copy if we want to write it.
 		 */
 		if ((fs.fault_type & (VM_PROT_COPY | VM_PROT_WRITE)) != 0) {
-			/*
-			 * This allows pages to be virtually copied from a 
-			 * backing_object into the first_object, where the 
-			 * backing object has no other refs to it, and cannot
-			 * gain any more refs.  Instead of a bcopy, we just 
-			 * move the page from the backing object to the 
-			 * first object.  Note that we must mark the page 
-			 * dirty in the first object so that it will go out 
-			 * to swap when needed.
-			 */
-			is_first_object_locked = false;
-			if (
-			    /*
-			     * Only one shadow object
-			     */
-			    fs.object->shadow_count == 1 &&
-			    /*
-			     * No COW refs, except us
-			     */
-			    fs.object->ref_count == 1 &&
-			    /*
-			     * No one else can look this object up
-			     */
-			    fs.object->handle == NULL &&
-			    /*
-			     * No other ways to look the object up
-			     */
-			    (fs.object->flags & OBJ_ANON) != 0 &&
-			    (is_first_object_locked = VM_OBJECT_TRYWLOCK(fs.first_object)) &&
-			    /*
-			     * We don't chase down the shadow chain
-			     */
-			    fs.object == fs.first_object->backing_object &&
-			    VM_OBJECT_TRYWLOCK(fs.object)) {
-
-				/*
-				 * Remove but keep xbusy for replace.  fs.m is
-				 * moved into fs.first_object and left busy
-				 * while fs.first_m is conditionally freed.
-				 */
-				vm_page_remove_xbusy(fs.m);
-				vm_page_replace(fs.m, fs.first_object,
-				    fs.first_pindex, fs.first_m);
-				vm_page_dirty(fs.m);
-#if VM_NRESERVLEVEL > 0
-				/*
-				 * Rename the reservation.
-				 */
-				vm_reserv_rename(fs.m, fs.first_object,
-				    fs.object, OFF_TO_IDX(
-				    fs.first_object->backing_object_offset));
-#endif
-				VM_OBJECT_WUNLOCK(fs.object);
-				VM_OBJECT_WUNLOCK(fs.first_object);
-				fs.first_m = fs.m;
-				fs.m = NULL;
-				VM_CNT_INC(v_cow_optim);
-			} else {
-				if (is_first_object_locked)
-					VM_OBJECT_WUNLOCK(fs.first_object);
-				/*
-				 * Oh, well, lets copy it.
-				 */
-				pmap_copy_page(fs.m, fs.first_m);
-				vm_page_valid(fs.first_m);
-				if (fs.wired && (fs.fault_flags &
-				    VM_FAULT_WIRE) == 0) {
-					vm_page_wire(fs.first_m);
-					vm_page_unwire(fs.m, PQ_INACTIVE);
-				}
-				/*
-				 * Save the cow page to be released after
-				 * pmap_enter is complete.
-				 */
-				fs.m_cow = fs.m;
-				fs.m = NULL;
-			}
-			/*
-			 * fs.object != fs.first_object due to above 
-			 * conditional
-			 */
-			vm_object_pip_wakeup(fs.object);
-
+			vm_fault_cow(&fs);
 			/*
 			 * We only try to prefault read-only mappings to the
 			 * neighboring pages when this copy-on-write fault is
@@ -1394,14 +1398,6 @@ next:
 			if (faultcount == 0)
 				faultcount = 1;
 
-			/*
-			 * Only use the new page below...
-			 */
-			fs.object = fs.first_object;
-			fs.pindex = fs.first_pindex;
-			fs.m = fs.first_m;
-			VM_CNT_INC(v_cow_faults);
-			curthread->td_cow++;
 		} else {
 			fs.prot &= ~VM_PROT_WRITE;
 		}
