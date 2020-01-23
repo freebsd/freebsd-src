@@ -1359,49 +1359,47 @@ RetryFault:
 		 * object without dropping the lock to preserve atomicity of
 		 * shadow faults.
 		 */
-		if (fs.object->type == OBJT_DEFAULT) {
-			if (vm_fault_next(&fs))
-				continue;
-			/* Don't try to prefault neighboring pages. */
-			faultcount = 1;
-			break;
-		}
+		if (fs.object->type != OBJT_DEFAULT) {
+			/*
+			 * At this point, we have either allocated a new page
+			 * or found an existing page that is only partially
+			 * valid.
+			 *
+			 * We hold a reference on the current object and the
+			 * page is exclusive busied.  The exclusive busy
+			 * prevents simultaneous faults and collapses while
+			 * the object lock is dropped.
+		 	 */
+			VM_OBJECT_WUNLOCK(fs.object);
 
-		/*
-		 * At this point, we have either allocated a new page or found
-		 * an existing page that is only partially valid.
-		 *
-		 * We hold a reference on the current object and the page is
-		 * exclusive busied.  The exclusive busy prevents simultaneous
-		 * faults and collapses while the object lock is dropped.
-		 */
-		VM_OBJECT_WUNLOCK(fs.object);
+			/*
+			 * If the pager for the current object might have
+			 * the page, then determine the number of additional
+			 * pages to read and potentially reprioritize
+			 * previously read pages for earlier reclamation.
+			 * These operations should only be performed once per
+			 * page fault.  Even if the current pager doesn't
+			 * have the page, the number of additional pages to
+			 * read will apply to subsequent objects in the
+			 * shadow chain.
+			 */
+			if (nera == -1 && !P_KILLED(curproc))
+				nera = vm_fault_readahead(&fs);
 
-		/*
-		 * If the pager for the current object might have the page,
-		 * then determine the number of additional pages to read and
-		 * potentially reprioritize previously read pages for earlier
-		 * reclamation.  These operations should only be performed
-		 * once per page fault.  Even if the current pager doesn't
-		 * have the page, the number of additional pages to read will
-		 * apply to subsequent objects in the shadow chain.
-		 */
-		if (nera == -1 && !P_KILLED(curproc))
-			nera = vm_fault_readahead(&fs);
-
-		rv = vm_fault_getpages(&fs, nera, &behind, &ahead);
-		if (rv == KERN_SUCCESS) {
-			faultcount = behind + 1 + ahead;
-			hardfault = true;
-			break; /* break to PAGE HAS BEEN FOUND. */
-		}
-		if (rv == KERN_RESOURCE_SHORTAGE)
-			goto RetryFault;
-		VM_OBJECT_WLOCK(fs.object);
-		if (rv == KERN_OUT_OF_BOUNDS) {
-			fault_page_free(&fs.m);
-			unlock_and_deallocate(&fs);
-			return (rv);
+			rv = vm_fault_getpages(&fs, nera, &behind, &ahead);
+			if (rv == KERN_SUCCESS) {
+				faultcount = behind + 1 + ahead;
+				hardfault = true;
+				break; /* break to PAGE HAS BEEN FOUND. */
+			}
+			if (rv == KERN_RESOURCE_SHORTAGE)
+				goto RetryFault;
+			VM_OBJECT_WLOCK(fs.object);
+			if (rv == KERN_OUT_OF_BOUNDS) {
+				fault_page_free(&fs.m);
+				unlock_and_deallocate(&fs);
+				return (rv);
+			}
 		}
 
 		/*
