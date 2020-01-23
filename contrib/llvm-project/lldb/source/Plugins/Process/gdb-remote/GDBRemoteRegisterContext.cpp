@@ -206,11 +206,14 @@ bool GDBRemoteRegisterContext::ReadRegisterBytes(const RegisterInfo *reg_info,
         } else {
           Log *log(ProcessGDBRemoteLog::GetLogIfAnyCategoryIsSet(GDBR_LOG_THREAD |
                                                                 GDBR_LOG_PACKETS));
-          if (log)
-            log->Printf ("error: GDBRemoteRegisterContext::ReadRegisterBytes tried to read the "
-                        "entire register context at once, expected at least %" PRId64 " bytes "
-                        "but only got %" PRId64 " bytes.", m_reg_data.GetByteSize(),
-                        buffer_sp->GetByteSize());
+          LLDB_LOGF(
+              log,
+              "error: GDBRemoteRegisterContext::ReadRegisterBytes tried "
+              "to read the "
+              "entire register context at once, expected at least %" PRId64
+              " bytes "
+              "but only got %" PRId64 " bytes.",
+              m_reg_data.GetByteSize(), buffer_sp->GetByteSize());
         }
       }
       return false;
@@ -390,13 +393,15 @@ bool GDBRemoteRegisterContext::WriteRegisterBytes(const RegisterInfo *reg_info,
         if (log->GetVerbose()) {
           StreamString strm;
           gdb_comm.DumpHistory(strm);
-          log->Printf("error: failed to get packet sequence mutex, not sending "
-                      "write register for \"%s\":\n%s",
-                      reg_info->name, strm.GetData());
+          LLDB_LOGF(log,
+                    "error: failed to get packet sequence mutex, not sending "
+                    "write register for \"%s\":\n%s",
+                    reg_info->name, strm.GetData());
         } else
-          log->Printf("error: failed to get packet sequence mutex, not sending "
-                      "write register for \"%s\"",
-                      reg_info->name);
+          LLDB_LOGF(log,
+                    "error: failed to get packet sequence mutex, not sending "
+                    "write register for \"%s\"",
+                    reg_info->name);
       }
     }
   }
@@ -494,12 +499,14 @@ bool GDBRemoteRegisterContext::ReadAllRegisterValues(
       if (log->GetVerbose()) {
         StreamString strm;
         gdb_comm.DumpHistory(strm);
-        log->Printf("error: failed to get packet sequence mutex, not sending "
-                    "read all registers:\n%s",
-                    strm.GetData());
+        LLDB_LOGF(log,
+                  "error: failed to get packet sequence mutex, not sending "
+                  "read all registers:\n%s",
+                  strm.GetData());
       } else
-        log->Printf("error: failed to get packet sequence mutex, not sending "
-                    "read all registers");
+        LLDB_LOGF(log,
+                  "error: failed to get packet sequence mutex, not sending "
+                  "read all registers");
     }
   }
 
@@ -630,7 +637,9 @@ bool GDBRemoteRegisterContext::WriteAllRegisterValues(
       if (m_thread.GetProcess().get()) {
         const ArchSpec &arch =
             m_thread.GetProcess()->GetTarget().GetArchitecture();
-        if (arch.IsValid() && arch.GetMachine() == llvm::Triple::aarch64 &&
+        if (arch.IsValid() && 
+            (arch.GetMachine() == llvm::Triple::aarch64 ||
+             arch.GetMachine() == llvm::Triple::aarch64_32) &&
             arch.GetTriple().getVendor() == llvm::Triple::Apple &&
             arch.GetTriple().getOS() == llvm::Triple::IOS) {
           arm64_debugserver = true;
@@ -667,12 +676,14 @@ bool GDBRemoteRegisterContext::WriteAllRegisterValues(
       if (log->GetVerbose()) {
         StreamString strm;
         gdb_comm.DumpHistory(strm);
-        log->Printf("error: failed to get packet sequence mutex, not sending "
-                    "write all registers:\n%s",
-                    strm.GetData());
+        LLDB_LOGF(log,
+                  "error: failed to get packet sequence mutex, not sending "
+                  "write all registers:\n%s",
+                  strm.GetData());
       } else
-        log->Printf("error: failed to get packet sequence mutex, not sending "
-                    "write all registers");
+        LLDB_LOGF(log,
+                  "error: failed to get packet sequence mutex, not sending "
+                  "write all registers");
     }
   }
   return false;

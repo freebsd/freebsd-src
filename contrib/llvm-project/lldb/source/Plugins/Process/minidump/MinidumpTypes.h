@@ -85,90 +85,6 @@ struct MinidumpMemoryDescriptor64 {
 static_assert(sizeof(MinidumpMemoryDescriptor64) == 16,
               "sizeof MinidumpMemoryDescriptor64 is not correct!");
 
-// Reference:
-// https://msdn.microsoft.com/en-us/library/windows/desktop/ms680385(v=vs.85).aspx
-struct MinidumpMemoryInfoListHeader {
-  llvm::support::ulittle32_t size_of_header;
-  llvm::support::ulittle32_t size_of_entry;
-  llvm::support::ulittle64_t num_of_entries;
-};
-static_assert(sizeof(MinidumpMemoryInfoListHeader) == 16,
-              "sizeof MinidumpMemoryInfoListHeader is not correct!");
-
-enum class MinidumpMemoryInfoState : uint32_t {
-  MemCommit = 0x1000,
-  MemFree = 0x10000,
-  MemReserve = 0x2000,
-  LLVM_MARK_AS_BITMASK_ENUM(/* LargestValue = */ MemFree)
-};
-
-enum class MinidumpMemoryInfoType : uint32_t {
-  MemImage = 0x1000000,
-  MemMapped = 0x40000,
-  MemPrivate = 0x20000,
-  LLVM_MARK_AS_BITMASK_ENUM(/* LargestValue = */ MemImage)
-};
-
-// Reference:
-// https://msdn.microsoft.com/en-us/library/windows/desktop/aa366786(v=vs.85).aspx
-enum class MinidumpMemoryProtectionContants : uint32_t {
-  PageExecute = 0x10,
-  PageExecuteRead = 0x20,
-  PageExecuteReadWrite = 0x40,
-  PageExecuteWriteCopy = 0x80,
-  PageNoAccess = 0x01,
-  PageReadOnly = 0x02,
-  PageReadWrite = 0x04,
-  PageWriteCopy = 0x08,
-  PageTargetsInvalid = 0x40000000,
-  PageTargetsNoUpdate = 0x40000000,
-
-  PageWritable = PageExecuteReadWrite | PageExecuteWriteCopy | PageReadWrite |
-                 PageWriteCopy,
-  PageExecutable = PageExecute | PageExecuteRead | PageExecuteReadWrite |
-                   PageExecuteWriteCopy,
-  LLVM_MARK_AS_BITMASK_ENUM(/* LargestValue = */ PageTargetsInvalid)
-};
-
-// Reference:
-// https://msdn.microsoft.com/en-us/library/windows/desktop/ms680386(v=vs.85).aspx
-struct MinidumpMemoryInfo {
-  llvm::support::ulittle64_t base_address;
-  llvm::support::ulittle64_t allocation_base;
-  llvm::support::ulittle32_t allocation_protect;
-  llvm::support::ulittle32_t alignment1;
-  llvm::support::ulittle64_t region_size;
-  llvm::support::ulittle32_t state;
-  llvm::support::ulittle32_t protect;
-  llvm::support::ulittle32_t type;
-  llvm::support::ulittle32_t alignment2;
-
-  static std::vector<const MinidumpMemoryInfo *>
-  ParseMemoryInfoList(llvm::ArrayRef<uint8_t> &data);
-
-  bool isReadable() const {
-    const auto mask = MinidumpMemoryProtectionContants::PageNoAccess;
-    return (static_cast<uint32_t>(mask) & protect) == 0;
-  }
-
-  bool isWritable() const {
-    const auto mask = MinidumpMemoryProtectionContants::PageWritable;
-    return (static_cast<uint32_t>(mask) & protect) != 0;
-  }
-
-  bool isExecutable() const {
-    const auto mask = MinidumpMemoryProtectionContants::PageExecutable;
-    return (static_cast<uint32_t>(mask) & protect) != 0;
-  }
-  
-  bool isMapped() const {
-    return state != static_cast<uint32_t>(MinidumpMemoryInfoState::MemFree);
-  }
-};
-
-static_assert(sizeof(MinidumpMemoryInfo) == 48,
-              "sizeof MinidumpMemoryInfo is not correct!");
-
 // TODO misc2, misc3 ?
 // Reference:
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms680389(v=vs.85).aspx
@@ -201,35 +117,6 @@ public:
 private:
   LinuxProcStatus() = default;
 };
-
-// Exception stuff
-struct MinidumpException {
-  enum : unsigned {
-    ExceptonInfoMaxParams = 15,
-    DumpRequested = 0xFFFFFFFF,
-  };
-
-  llvm::support::ulittle32_t exception_code;
-  llvm::support::ulittle32_t exception_flags;
-  llvm::support::ulittle64_t exception_record;
-  llvm::support::ulittle64_t exception_address;
-  llvm::support::ulittle32_t number_parameters;
-  llvm::support::ulittle32_t unused_alignment;
-  llvm::support::ulittle64_t exception_information[ExceptonInfoMaxParams];
-};
-static_assert(sizeof(MinidumpException) == 152,
-              "sizeof MinidumpException is not correct!");
-
-struct MinidumpExceptionStream {
-  llvm::support::ulittle32_t thread_id;
-  llvm::support::ulittle32_t alignment;
-  MinidumpException exception_record;
-  LocationDescriptor thread_context;
-
-  static const MinidumpExceptionStream *Parse(llvm::ArrayRef<uint8_t> &data);
-};
-static_assert(sizeof(MinidumpExceptionStream) == 168,
-              "sizeof MinidumpExceptionStream is not correct!");
 
 } // namespace minidump
 } // namespace lldb_private

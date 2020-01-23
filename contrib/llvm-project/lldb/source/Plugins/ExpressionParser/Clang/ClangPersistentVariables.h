@@ -45,9 +45,18 @@ public:
       uint32_t addr_byte_size) override;
 
   void RemovePersistentVariable(lldb::ExpressionVariableSP variable) override;
-  llvm::StringRef
-  GetPersistentVariablePrefix(bool is_error) const override {
+
+  llvm::StringRef GetPersistentVariablePrefix(bool is_error) const override {
     return "$";
+  }
+
+  /// Returns the next file name that should be used for user expressions.
+  std::string GetNextExprFileName() {
+    std::string name;
+    name.append("<user expression ");
+    name.append(std::to_string(m_next_user_file_id++));
+    name.append(">");
+    return name;
   }
 
   llvm::Optional<CompilerType>
@@ -66,8 +75,10 @@ public:
   }
 
 private:
-  uint32_t m_next_persistent_variable_id; ///< The counter used by
-                                          ///GetNextResultName().
+  /// The counter used by GetNextExprFileName.
+  uint32_t m_next_user_file_id = 0;
+  // The counter used by GetNextPersistentVariableName
+  uint32_t m_next_persistent_variable_id = 0;
 
   typedef llvm::DenseMap<const char *, clang::NamedDecl *> PersistentDeclMap;
   PersistentDeclMap

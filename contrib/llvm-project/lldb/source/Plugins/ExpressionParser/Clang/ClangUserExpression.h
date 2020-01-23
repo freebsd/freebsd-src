@@ -15,6 +15,7 @@
 #include "ASTStructExtractor.h"
 #include "ClangExpressionDeclMap.h"
 #include "ClangExpressionHelper.h"
+#include "ClangExpressionSourceCode.h"
 #include "ClangExpressionVariable.h"
 #include "IRForTarget.h"
 
@@ -105,6 +106,9 @@ public:
   ///     If not eResultTypeAny, the type to use for the expression
   ///     result.
   ///
+  /// \param[in] options
+  ///     Additional options for the expression.
+  ///
   /// \param[in] ctx_obj
   ///     The object (if any) in which context the expression
   ///     must be evaluated. For details see the comment to
@@ -175,11 +179,11 @@ private:
                     lldb::addr_t struct_address,
                     DiagnosticManager &diagnostic_manager) override;
 
-  std::vector<std::string> GetModulesToImport(ExecutionContext &exe_ctx);
-  void UpdateLanguageForExpr(DiagnosticManager &diagnostic_manager,
-                             ExecutionContext &exe_ctx,
-                             std::vector<std::string> modules_to_import,
-                             bool for_completion);
+  void CreateSourceCode(DiagnosticManager &diagnostic_manager,
+                        ExecutionContext &exe_ctx,
+                        std::vector<std::string> modules_to_import,
+                        bool for_completion);
+  void UpdateLanguageForExpr();
   bool SetupPersistentState(DiagnosticManager &diagnostic_manager,
                                    ExecutionContext &exe_ctx);
   bool PrepareForParsing(DiagnosticManager &diagnostic_manager,
@@ -205,13 +209,17 @@ private:
   /// The language type of the current expression.
   lldb::LanguageType m_expr_lang = lldb::eLanguageTypeUnknown;
   /// The include directories that should be used when parsing the expression.
-  std::vector<ConstString> m_include_directories;
+  std::vector<std::string> m_include_directories;
 
   /// The absolute character position in the transformed source code where the
   /// user code (as typed by the user) starts. If the variable is empty, then we
   /// were not able to calculate this position.
   llvm::Optional<size_t> m_user_expression_start_pos;
   ResultDelegate m_result_delegate;
+  ClangPersistentVariables *m_clang_state;
+  std::unique_ptr<ClangExpressionSourceCode> m_source_code;
+  /// File name used for the expression.
+  std::string m_filename;
 
   /// The object (if any) in which context the expression is evaluated.
   /// See the comment to `UserExpression::Evaluate` for details.
@@ -219,6 +227,23 @@ private:
 
   /// True iff this expression explicitly imported C++ modules.
   bool m_imported_cpp_modules = false;
+
+  /// True if the expression parser should enforce the presence of a valid class
+  /// pointer in order to generate the expression as a method.
+  bool m_enforce_valid_object = true;
+  /// True if the expression is compiled as a C++ member function (true if it
+  /// was parsed when exe_ctx was in a C++ method).
+  bool m_in_cplusplus_method = false;
+  /// True if the expression is compiled as an Objective-C method (true if it
+  /// was parsed when exe_ctx was in an Objective-C method).
+  bool m_in_objectivec_method = false;
+  /// True if the expression is compiled as a static (or class) method
+  /// (currently true if it was parsed when exe_ctx was in an Objective-C class
+  /// method).
+  bool m_in_static_method = false;
+  /// True if "this" or "self" must be looked up and passed in.  False if the
+  /// expression doesn't really use them and they can be NULL.
+  bool m_needs_object_ptr = false;
 };
 
 } // namespace lldb_private

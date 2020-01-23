@@ -64,9 +64,10 @@ void ObjCLanguageRuntime::AddToMethodCache(lldb::addr_t class_addr,
                                            lldb::addr_t impl_addr) {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
   if (log) {
-    log->Printf("Caching: class 0x%" PRIx64 " selector 0x%" PRIx64
-                " implementation 0x%" PRIx64 ".",
-                class_addr, selector, impl_addr);
+    LLDB_LOGF(log,
+              "Caching: class 0x%" PRIx64 " selector 0x%" PRIx64
+              " implementation 0x%" PRIx64 ".",
+              class_addr, selector, impl_addr);
   }
   m_impl_cache.insert(std::pair<ClassAndSel, lldb::addr_t>(
       ClassAndSel(class_addr, selector), impl_addr));
@@ -102,8 +103,8 @@ ObjCLanguageRuntime::LookupInCompleteClassCache(ConstString &name) {
   const ModuleList &modules = m_process->GetTarget().GetImages();
 
   SymbolContextList sc_list;
-  const size_t matching_symbols =
-      modules.FindSymbolsWithNameAndType(name, eSymbolTypeObjCClass, sc_list);
+  modules.FindSymbolsWithNameAndType(name, eSymbolTypeObjCClass, sc_list);
+  const size_t matching_symbols = sc_list.GetSize();
 
   if (matching_symbols) {
     SymbolContext sc;
@@ -120,20 +121,17 @@ ObjCLanguageRuntime::LookupInCompleteClassCache(ConstString &name) {
     TypeList types;
 
     llvm::DenseSet<SymbolFile *> searched_symbol_files;
-    const uint32_t num_types = module_sp->FindTypes(
-        name, exact_match, max_matches, searched_symbol_files, types);
+    module_sp->FindTypes(name, exact_match, max_matches, searched_symbol_files,
+                         types);
 
-    if (num_types) {
-      uint32_t i;
-      for (i = 0; i < num_types; ++i) {
-        TypeSP type_sp(types.GetTypeAtIndex(i));
+    for (uint32_t i = 0; i < types.GetSize(); ++i) {
+      TypeSP type_sp(types.GetTypeAtIndex(i));
 
-        if (ClangASTContext::IsObjCObjectOrInterfaceType(
-                type_sp->GetForwardCompilerType())) {
-          if (type_sp->IsCompleteObjCClass()) {
-            m_complete_class_cache[name] = type_sp;
-            return type_sp;
-          }
+      if (ClangASTContext::IsObjCObjectOrInterfaceType(
+              type_sp->GetForwardCompilerType())) {
+        if (type_sp->IsCompleteObjCClass()) {
+          m_complete_class_cache[name] = type_sp;
+          return type_sp;
         }
       }
     }

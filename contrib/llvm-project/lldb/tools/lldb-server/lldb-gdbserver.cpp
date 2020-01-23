@@ -39,6 +39,8 @@
 #include "Plugins/Process/Linux/NativeProcessLinux.h"
 #elif defined(__NetBSD__)
 #include "Plugins/Process/NetBSD/NativeProcessNetBSD.h"
+#elif defined(_WIN32)
+#include "Plugins/Process/Windows/Common/NativeProcessWindows.h"
 #endif
 
 #ifndef LLGS_PROGRAM_NAME
@@ -60,6 +62,8 @@ namespace {
 typedef process_linux::NativeProcessLinux::Factory NativeProcessFactory;
 #elif defined(__NetBSD__)
 typedef process_netbsd::NativeProcessNetBSD::Factory NativeProcessFactory;
+#elif defined(_WIN32)
+typedef NativeProcessWindows::Factory NativeProcessFactory;
 #else
 // Dummy implementation to make sure the code compiles
 class NativeProcessFactory : public NativeProcessProtocol::Factory {
@@ -104,17 +108,16 @@ static struct option g_long_options[] = {
     {"fd", required_argument, nullptr, 'F'},
     {nullptr, 0, nullptr, 0}};
 
+#ifndef _WIN32
 // Watch for signals
 static int g_sighup_received_count = 0;
 
-#ifndef _WIN32
 static void sighup_handler(MainLoopBase &mainloop) {
   ++g_sighup_received_count;
 
   Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS));
-  if (log)
-    log->Printf("lldb-server:%s swallowing SIGHUP (receive count=%d)",
-                __FUNCTION__, g_sighup_received_count);
+  LLDB_LOGF(log, "lldb-server:%s swallowing SIGHUP (receive count=%d)",
+            __FUNCTION__, g_sighup_received_count);
 
   if (g_sighup_received_count >= 2)
     mainloop.RequestTermination();
@@ -479,9 +482,9 @@ int main_gdbserver(int argc, char *argv[]) {
 
   Log *log(lldb_private::GetLogIfAnyCategoriesSet(GDBR_LOG_PROCESS));
   if (log) {
-    log->Printf("lldb-server launch");
+    LLDB_LOGF(log, "lldb-server launch");
     for (int i = 0; i < argc; i++) {
-      log->Printf("argv[%i] = '%s'", i, argv[i]);
+      LLDB_LOGF(log, "argv[%i] = '%s'", i, argv[i]);
     }
   }
 
@@ -515,7 +518,7 @@ int main_gdbserver(int argc, char *argv[]) {
     handle_launch(gdb_server, argc, argv);
 
   // Print version info.
-  printf("%s-%s", LLGS_PROGRAM_NAME, LLGS_VERSION_STR);
+  printf("%s-%s\n", LLGS_PROGRAM_NAME, LLGS_VERSION_STR);
 
   ConnectToRemote(mainloop, gdb_server, reverse_connect, host_and_port,
                   progname, subcommand, named_pipe_path.c_str(), 

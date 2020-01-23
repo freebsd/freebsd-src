@@ -63,16 +63,22 @@ class ObjectFile : public std::enable_shared_from_this<ObjectFile>,
 public:
   enum Type {
     eTypeInvalid = 0,
-    eTypeCoreFile,      /// A core file that has a checkpoint of a program's
-                        /// execution state
-    eTypeExecutable,    /// A normal executable
-    eTypeDebugInfo,     /// An object file that contains only debug information
-    eTypeDynamicLinker, /// The platform's dynamic linker executable
-    eTypeObjectFile,    /// An intermediate object file
-    eTypeSharedLibrary, /// A shared library that can be used during execution
-    eTypeStubLibrary, /// A library that can be linked against but not used for
-                      /// execution
-    eTypeJIT, /// JIT code that has symbols, sections and possibly debug info
+    /// A core file that has a checkpoint of a program's execution state.
+    eTypeCoreFile,
+    /// A normal executable.
+    eTypeExecutable,
+    /// An object file that contains only debug information.
+    eTypeDebugInfo,
+    /// The platform's dynamic linker executable.
+    eTypeDynamicLinker,
+    /// An intermediate object file.
+    eTypeObjectFile,
+    /// A shared library that can be used during execution.
+    eTypeSharedLibrary,
+    /// A library that can be linked against but not used for execution.
+    eTypeStubLibrary,
+    /// JIT code that has symbols, sections and possibly debug info.
+    eTypeJIT,
     eTypeUnknown
   };
 
@@ -201,8 +207,12 @@ public:
   ///     \b false otherwise and \a archive_file and \a archive_object
   ///     are guaranteed to be remain unchanged.
   static bool SplitArchivePathWithObject(
-      const char *path_with_object, lldb_private::FileSpec &archive_file,
+      llvm::StringRef path_with_object, lldb_private::FileSpec &archive_file,
       lldb_private::ConstString &archive_object, bool must_exist);
+
+  // LLVM RTTI support
+  static char ID;
+  virtual bool isA(const void *ClassID) const { return ClassID == &ID; }
 
   /// Gets the address size in bytes for the current object file.
   ///
@@ -365,17 +375,6 @@ public:
   ///     The object file's UUID. In case of an error, an empty UUID is
   ///     returned.
   virtual UUID GetUUID() = 0;
-
-  /// Gets the symbol file spec list for this object file.
-  ///
-  /// If the object file format contains a debug symbol file link, the values
-  /// will be returned in the FileSpecList.
-  ///
-  /// \return
-  ///     Returns filespeclist.
-  virtual lldb_private::FileSpecList GetDebugSymbolFilePaths() {
-    return FileSpecList();
-  }
 
   /// Gets the file spec list of libraries re-exported by this object file.
   ///
@@ -656,6 +655,9 @@ public:
   ///
   /// \return
   virtual std::vector<LoadableData> GetLoadableData(Target &target);
+
+  /// Creates a plugin-specific call frame info
+  virtual std::unique_ptr<CallFrameInfo> CreateCallFrameInfo();
 
 protected:
   // Member variables.

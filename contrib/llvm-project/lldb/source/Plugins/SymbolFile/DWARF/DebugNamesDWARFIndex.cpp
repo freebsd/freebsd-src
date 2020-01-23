@@ -24,7 +24,7 @@ DebugNamesDWARFIndex::Create(Module &module, DWARFDataExtractor debug_names,
     return llvm::make_error<llvm::StringError>("debug info null",
                                                llvm::inconvertibleErrorCode());
   }
-  auto index_up = llvm::make_unique<DebugNames>(debug_names.GetAsLLVM(),
+  auto index_up = std::make_unique<DebugNames>(debug_names.GetAsLLVM(),
                                                 debug_str.GetAsLLVM());
   if (llvm::Error E = index_up->extract())
     return std::move(E);
@@ -105,7 +105,7 @@ void DebugNamesDWARFIndex::GetGlobalVariables(const RegularExpression &regex,
       if (!regex.Execute(nte.getString()))
         continue;
 
-      uint32_t entry_offset = nte.getEntryOffset();
+      uint64_t entry_offset = nte.getEntryOffset();
       llvm::Expected<DebugNames::Entry> entry_or = ni.getEntry(&entry_offset);
       for (; entry_or; entry_or = ni.getEntry(&entry_offset)) {
         if (entry_or->tag() != DW_TAG_variable)
@@ -125,7 +125,7 @@ void DebugNamesDWARFIndex::GetGlobalVariables(const DWARFUnit &cu,
   uint64_t cu_offset = cu.GetOffset();
   for (const DebugNames::NameIndex &ni: *m_debug_names_up) {
     for (DebugNames::NameTableEntry nte: ni) {
-      uint32_t entry_offset = nte.getEntryOffset();
+      uint64_t entry_offset = nte.getEntryOffset();
       llvm::Expected<DebugNames::Entry> entry_or = ni.getEntry(&entry_offset);
       for (; entry_or; entry_or = ni.getEntry(&entry_offset)) {
         if (entry_or->tag() != DW_TAG_variable)
@@ -248,7 +248,7 @@ void DebugNamesDWARFIndex::GetFunctions(const RegularExpression &regex,
       if (!regex.Execute(nte.getString()))
         continue;
 
-      uint32_t entry_offset = nte.getEntryOffset();
+      uint64_t entry_offset = nte.getEntryOffset();
       llvm::Expected<DebugNames::Entry> entry_or = ni.getEntry(&entry_offset);
       for (; entry_or; entry_or = ni.getEntry(&entry_offset)) {
         Tag tag = entry_or->tag();

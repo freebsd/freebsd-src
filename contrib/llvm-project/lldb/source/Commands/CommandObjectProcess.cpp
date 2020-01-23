@@ -127,14 +127,13 @@ public:
 
   ~CommandObjectProcessLaunch() override = default;
 
-  int HandleArgumentCompletion(
-      CompletionRequest &request,
-      OptionElementVector &opt_element_vector) override {
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
 
     CommandCompletions::InvokeCommonCompletionCallbacks(
         GetCommandInterpreter(), CommandCompletions::eDiskFileCompletion,
         request, nullptr);
-    return request.GetNumberOfMatches();
   }
 
   Options *GetOptions() override { return &m_options; }
@@ -255,16 +254,8 @@ protected:
   ProcessLaunchCommandOptions m_options;
 };
 
-static constexpr OptionDefinition g_process_attach_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "continue",         'c', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,         "Immediately continue the process once attached." },
-  { LLDB_OPT_SET_ALL, false, "plugin",           'P', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePlugin,       "Name of the process plugin you want to use." },
-  { LLDB_OPT_SET_1,   false, "pid",              'p', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePid,          "The process ID of an existing process to attach to." },
-  { LLDB_OPT_SET_2,   false, "name",             'n', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeProcessName,  "The name of the process to attach to." },
-  { LLDB_OPT_SET_2,   false, "include-existing", 'i', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,         "Include existing processes when doing attach -w." },
-  { LLDB_OPT_SET_2,   false, "waitfor",          'w', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,         "Wait for the process with <process-name> to launch." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_attach
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessAttach
 class CommandObjectProcessAttach : public CommandObjectProcessLaunchOrAttach {
@@ -316,9 +307,7 @@ public:
         break;
 
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -331,7 +320,7 @@ public:
       return llvm::makeArrayRef(g_process_attach_options);
     }
 
-    bool HandleOptionArgumentCompletion(
+    void HandleOptionArgumentCompletion(
         CompletionRequest &request, OptionElementVector &opt_element_vector,
         int opt_element_index, CommandInterpreter &interpreter) override {
       int opt_arg_pos = opt_element_vector[opt_element_index].opt_arg_pos;
@@ -339,37 +328,33 @@ public:
 
       // We are only completing the name option for now...
 
-      if (GetDefinitions()[opt_defs_index].short_option == 'n') {
-        // Are we in the name?
+      // Are we in the name?
+      if (GetDefinitions()[opt_defs_index].short_option != 'n')
+        return;
 
-        // Look to see if there is a -P argument provided, and if so use that
-        // plugin, otherwise use the default plugin.
+      // Look to see if there is a -P argument provided, and if so use that
+      // plugin, otherwise use the default plugin.
 
-        const char *partial_name = nullptr;
-        partial_name = request.GetParsedLine().GetArgumentAtIndex(opt_arg_pos);
+      const char *partial_name = nullptr;
+      partial_name = request.GetParsedLine().GetArgumentAtIndex(opt_arg_pos);
 
-        PlatformSP platform_sp(interpreter.GetPlatform(true));
-        if (platform_sp) {
-          ProcessInstanceInfoList process_infos;
-          ProcessInstanceInfoMatch match_info;
-          if (partial_name) {
-            match_info.GetProcessInfo().GetExecutableFile().SetFile(
-                partial_name, FileSpec::Style::native);
-            match_info.SetNameMatchType(NameMatch::StartsWith);
-          }
-          platform_sp->FindProcesses(match_info, process_infos);
-          const size_t num_matches = process_infos.GetSize();
-          if (num_matches > 0) {
-            for (size_t i = 0; i < num_matches; ++i) {
-              request.AddCompletion(llvm::StringRef(
-                  process_infos.GetProcessNameAtIndex(i),
-                  process_infos.GetProcessNameLengthAtIndex(i)));
-            }
-          }
-        }
+      PlatformSP platform_sp(interpreter.GetPlatform(true));
+      if (!platform_sp)
+        return;
+      ProcessInstanceInfoList process_infos;
+      ProcessInstanceInfoMatch match_info;
+      if (partial_name) {
+        match_info.GetProcessInfo().GetExecutableFile().SetFile(
+            partial_name, FileSpec::Style::native);
+        match_info.SetNameMatchType(NameMatch::StartsWith);
       }
-
-      return false;
+      platform_sp->FindProcesses(match_info, process_infos);
+      const size_t num_matches = process_infos.GetSize();
+      if (num_matches == 0)
+        return;
+      for (size_t i = 0; i < num_matches; ++i) {
+        request.AddCompletion(process_infos.GetProcessNameAtIndex(i));
+      }
     }
 
     // Instance variables to hold the values for command options.
@@ -444,7 +429,6 @@ protected:
         result.AppendMessage(stream.GetString());
         result.SetStatus(eReturnStatusSuccessFinishNoResult);
         result.SetDidChangeProcessState(true);
-        result.SetAbnormalStopWasExpected(true);
       } else {
         result.AppendError(
             "no error returned from Target::Attach, and target has no process");
@@ -505,11 +489,8 @@ protected:
 
 // CommandObjectProcessContinue
 
-static constexpr OptionDefinition g_process_continue_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "ignore-count",'i', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeUnsignedInteger, "Ignore <N> crossings of the breakpoint (if it exists) for the currently selected thread." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_continue
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessContinue
 
@@ -550,9 +531,7 @@ protected:
         break;
 
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -666,11 +645,8 @@ protected:
 };
 
 // CommandObjectProcessDetach
-static constexpr OptionDefinition g_process_detach_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_1, false, "keep-stopped", 's', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean, "Whether or not the process should be kept stopped on detach (if possible)." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_detach
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessDetach
 
@@ -703,9 +679,7 @@ public:
         }
         break;
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -762,12 +736,8 @@ protected:
 };
 
 // CommandObjectProcessConnect
-
-static constexpr OptionDefinition g_process_connect_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "plugin", 'p', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePlugin, "Name of the process plugin you want to use." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_connect
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessConnect
 
@@ -794,9 +764,7 @@ public:
         break;
 
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -887,12 +855,8 @@ public:
 };
 
 // CommandObjectProcessLoad
-
-static constexpr OptionDefinition g_process_load_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "install", 'i', OptionParser::eOptionalArgument, nullptr, {}, 0, eArgTypePath, "Install the shared library to the target. If specified without an argument then the library will installed in the current working directory." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_load
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessLoad
 
@@ -919,9 +883,7 @@ public:
           install_path.SetFile(option_arg, FileSpec::Style::native);
         break;
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -960,7 +922,7 @@ protected:
     for (auto &entry : command.entries()) {
       Status error;
       PlatformSP platform = process->GetTarget().GetPlatform();
-      llvm::StringRef image_path = entry.ref;
+      llvm::StringRef image_path = entry.ref();
       uint32_t image_token = LLDB_INVALID_IMAGE_TOKEN;
 
       if (!m_options.do_install) {
@@ -1022,9 +984,9 @@ protected:
 
     for (auto &entry : command.entries()) {
       uint32_t image_token;
-      if (entry.ref.getAsInteger(0, image_token)) {
+      if (entry.ref().getAsInteger(0, image_token)) {
         result.AppendErrorWithFormat("invalid image index argument '%s'",
-                                     entry.ref.str().c_str());
+                                     entry.ref().str().c_str());
         result.SetStatus(eReturnStatusFailed);
         break;
       } else {
@@ -1271,14 +1233,8 @@ public:
 };
 
 // CommandObjectProcessHandle
-
-static constexpr OptionDefinition g_process_handle_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_1, false, "stop",   's', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean, "Whether or not the process should be stopped if the signal is received." },
-  { LLDB_OPT_SET_1, false, "notify", 'n', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean, "Whether or not the debugger should notify the user if the signal is received." },
-  { LLDB_OPT_SET_1, false, "pass",   'p', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean, "Whether or not the signal should be passed to the process." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_handle
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessHandle
 
@@ -1306,9 +1262,7 @@ public:
         pass = option_arg;
         break;
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -1335,7 +1289,7 @@ public:
                             "Manage LLDB handling of OS signals for the "
                             "current target process.  Defaults to showing "
                             "current policy.",
-                            nullptr),
+                            nullptr, eCommandRequiresTarget),
         m_options() {
     SetHelpLong("\nIf no signals are specified, update them all.  If no update "
                 "option is specified, list the current values.");
@@ -1420,15 +1374,7 @@ public:
 
 protected:
   bool DoExecute(Args &signal_args, CommandReturnObject &result) override {
-    TargetSP target_sp = GetDebugger().GetSelectedTarget();
-
-    if (!target_sp) {
-      result.AppendError("No current target;"
-                         " cannot handle signals until you have a valid target "
-                         "and process.\n");
-      result.SetStatus(eReturnStatusFailed);
-      return false;
-    }
+    Target *target_sp = &GetSelectedTarget();
 
     ProcessSP process_sp = target_sp->GetProcessSP();
 

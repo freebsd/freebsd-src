@@ -1665,8 +1665,10 @@ ABIMacOSX_arm64::CreateInstance(ProcessSP process_sp, const ArchSpec &arch) {
   const llvm::Triple::VendorType vendor_type = arch.GetTriple().getVendor();
 
   if (vendor_type == llvm::Triple::Apple) {
-    if (arch_type == llvm::Triple::aarch64) {
-      return ABISP(new ABIMacOSX_arm64(process_sp));
+    if (arch_type == llvm::Triple::aarch64 || 
+        arch_type == llvm::Triple::aarch64_32) {
+      return ABISP(
+          new ABIMacOSX_arm64(std::move(process_sp), MakeMCRegisterInfo(arch)));
     }
   }
 
@@ -1710,9 +1712,8 @@ bool ABIMacOSX_arm64::PrepareTrivialCall(
   for (size_t i = 0; i < args.size(); ++i) {
     const RegisterInfo *reg_info = reg_ctx->GetRegisterInfo(
         eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG1 + i);
-    if (log)
-      log->Printf("About to write arg%d (0x%" PRIx64 ") into %s",
-                  static_cast<int>(i + 1), args[i], reg_info->name);
+    LLDB_LOGF(log, "About to write arg%d (0x%" PRIx64 ") into %s",
+              static_cast<int>(i + 1), args[i], reg_info->name);
     if (!reg_ctx->WriteRegisterFromUnsigned(reg_info, args[i]))
       return false;
   }
@@ -2011,6 +2012,7 @@ bool ABIMacOSX_arm64::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
   unwind_plan.SetSourceName("arm64-apple-darwin default unwind plan");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolNo);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   return true;
 }
 

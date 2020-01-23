@@ -48,7 +48,7 @@ std::string GetEscapedHostname(const char *hostname) {
 
 class ModuleLock {
 private:
-  File m_file;
+  FileUP m_file_up;
   std::unique_ptr<lldb_private::LockFile> m_lock;
   FileSpec m_file_spec;
 
@@ -94,9 +94,8 @@ void DeleteExistingModule(const FileSpec &root_dir_spec,
   Status error;
   ModuleLock lock(root_dir_spec, module_uuid, error);
   if (error.Fail()) {
-    if (log)
-      log->Printf("Failed to lock module %s: %s",
-                  module_uuid.GetAsString().c_str(), error.AsCString());
+    LLDB_LOGF(log, "Failed to lock module %s: %s",
+              module_uuid.GetAsString().c_str(), error.AsCString());
   }
 
   namespace fs = llvm::sys::fs;
@@ -158,16 +157,19 @@ ModuleLock::ModuleLock(const FileSpec &root_dir_spec, const UUID &uuid,
     return;
 
   m_file_spec = JoinPath(lock_dir_spec, uuid.GetAsString().c_str());
-  FileSystem::Instance().Open(m_file, m_file_spec,
-                              File::eOpenOptionWrite |
-                                  File::eOpenOptionCanCreate |
-                                  File::eOpenOptionCloseOnExec);
-  if (!m_file) {
-    error.SetErrorToErrno();
+
+  auto file = FileSystem::Instance().Open(
+      m_file_spec, File::eOpenOptionWrite | File::eOpenOptionCanCreate |
+                       File::eOpenOptionCloseOnExec);
+  if (file)
+    m_file_up = std::move(file.get());
+  else {
+    m_file_up.reset();
+    error = Status(file.takeError());
     return;
   }
 
-  m_lock.reset(new lldb_private::LockFile(m_file.GetDescriptor()));
+  m_lock.reset(new lldb_private::LockFile(m_file_up->GetDescriptor()));
   error = m_lock->WriteLock(0, 1);
   if (error.Fail())
     error.SetErrorStringWithFormat("Failed to lock file: %s",
@@ -175,10 +177,11 @@ ModuleLock::ModuleLock(const FileSpec &root_dir_spec, const UUID &uuid,
 }
 
 void ModuleLock::Delete() {
-  if (!m_file)
+  if (!m_file_up)
     return;
 
-  m_file.Close();
+  m_file_up->Close();
+  m_file_up.reset();
   llvm::sys::fs::remove(m_file_spec.GetPath());
 }
 

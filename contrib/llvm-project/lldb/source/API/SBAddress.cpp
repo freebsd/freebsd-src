@@ -28,7 +28,7 @@ SBAddress::SBAddress() : m_opaque_up(new Address()) {
 SBAddress::SBAddress(const Address *lldb_object_ptr)
     : m_opaque_up(new Address()) {
   if (lldb_object_ptr)
-    m_opaque_up = llvm::make_unique<Address>(*lldb_object_ptr);
+    m_opaque_up = std::make_unique<Address>(*lldb_object_ptr);
 }
 
 SBAddress::SBAddress(const SBAddress &rhs) : m_opaque_up(new Address()) {
@@ -210,12 +210,6 @@ bool SBAddress::GetDescription(SBStream &description) {
   if (m_opaque_up->IsValid()) {
     m_opaque_up->Dump(&strm, nullptr, Address::DumpStyleResolvedDescription,
                       Address::DumpStyleModuleWithFileAddress, 4);
-    StreamString sstrm;
-    //        m_opaque_up->Dump (&sstrm, NULL,
-    //        Address::DumpStyleResolvedDescription, Address::DumpStyleInvalid,
-    //        4);
-    //        if (sstrm.GetData())
-    //            strm.Printf (" (%s)", sstrm.GetData());
   } else
     strm.PutCString("No value");
 

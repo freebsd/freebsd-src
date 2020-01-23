@@ -1326,7 +1326,8 @@ ABIMacOSX_arm::CreateInstance(ProcessSP process_sp, const ArchSpec &arch) {
   if (vendor_type == llvm::Triple::Apple) {
     if ((arch_type == llvm::Triple::arm) ||
         (arch_type == llvm::Triple::thumb)) {
-      return ABISP(new ABIMacOSX_arm(process_sp));
+      return ABISP(
+          new ABIMacOSX_arm(std::move(process_sp), MakeMCRegisterInfo(arch)));
     }
   }
 
@@ -1846,6 +1847,7 @@ bool ABIMacOSX_arm::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
   unwind_plan.SetSourceName("arm-apple-ios default unwind plan");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolNo);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
 
   return true;
 }

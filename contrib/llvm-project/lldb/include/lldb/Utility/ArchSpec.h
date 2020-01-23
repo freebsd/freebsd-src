@@ -122,6 +122,7 @@ public:
     eCore_thumbv7em,
     eCore_arm_arm64,
     eCore_arm_armv8,
+    eCore_arm_arm64_32,
     eCore_arm_aarch64,
 
     eCore_mips32,
@@ -182,6 +183,8 @@ public:
 
     eCore_uknownMach32,
     eCore_uknownMach64,
+
+    eCore_arc, // little endian ARC
 
     kNumCores,
 
@@ -268,7 +271,7 @@ public:
   static bool ContainsOnlyArch(const llvm::Triple &normalized_triple);
 
   static void ListSupportedArchNames(StringList &list);
-  static size_t AutoComplete(CompletionRequest &request);
+  static void AutoComplete(CompletionRequest &request);
 
   /// Returns a static string representing the current architecture.
   ///

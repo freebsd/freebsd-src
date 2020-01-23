@@ -201,7 +201,8 @@ public:
         unspecified,            // not specified
         isRegisterPlusOffset,   // FA = register + offset
         isRegisterDereferenced, // FA = [reg]
-        isDWARFExpression       // FA = eval(dwarf_expr)
+        isDWARFExpression,      // FA = eval(dwarf_expr)
+        isRaSearch,             // FA = SP + offset + ???
       };
 
       FAValue() : m_type(unspecified), m_value() {}
@@ -213,6 +214,11 @@ public:
       void SetUnspecified() { m_type = unspecified; }
 
       bool IsUnspecified() const { return m_type == unspecified; }
+
+      void SetRaSearch(int32_t offset) {
+        m_type = isRaSearch;
+        m_value.ra_search_offset = offset;
+      }
 
       bool IsRegisterPlusOffset() const {
         return m_type == isRegisterPlusOffset;
@@ -250,9 +256,14 @@ public:
       ValueType GetValueType() const { return m_type; }
 
       int32_t GetOffset() const {
-        if (m_type == isRegisterPlusOffset)
-          return m_value.reg.offset;
-        return 0;
+        switch (m_type) {
+          case isRegisterPlusOffset:
+            return m_value.reg.offset;
+          case isRaSearch:
+            return m_value.ra_search_offset;
+          default:
+            return 0;
+        }
       }
 
       void IncOffset(int32_t delta) {
@@ -304,6 +315,8 @@ public:
           const uint8_t *opcodes;
           uint16_t length;
         } expr;
+        // For m_type == isRaSearch
+        int32_t ra_search_offset;
       } m_value;
     }; // class FAValue
 
@@ -370,6 +383,7 @@ public:
         m_return_addr_register(LLDB_INVALID_REGNUM), m_source_name(),
         m_plan_is_sourced_from_compiler(eLazyBoolCalculate),
         m_plan_is_valid_at_all_instruction_locations(eLazyBoolCalculate),
+        m_plan_is_for_signal_trap(eLazyBoolCalculate),
         m_lsda_address(), m_personality_func_addr() {}
 
   // Performs a deep copy of the plan, including all the rows (expensive).
@@ -463,6 +477,17 @@ public:
     m_plan_is_valid_at_all_instruction_locations = valid_at_all_insn;
   }
 
+  // Is this UnwindPlan for a signal trap frame?  If so, then its saved pc
+  // may have been set manually by the signal dispatch code and therefore
+  // not follow a call to the child frame.
+  lldb_private::LazyBool GetUnwindPlanForSignalTrap() const {
+    return m_plan_is_for_signal_trap;
+  }
+
+  void SetUnwindPlanForSignalTrap(lldb_private::LazyBool is_for_signal_trap) {
+    m_plan_is_for_signal_trap = is_for_signal_trap;
+  }
+
   int GetRowCount() const;
 
   void Clear() {
@@ -472,6 +497,7 @@ public:
     m_source_name.Clear();
     m_plan_is_sourced_from_compiler = eLazyBoolCalculate;
     m_plan_is_valid_at_all_instruction_locations = eLazyBoolCalculate;
+    m_plan_is_for_signal_trap = eLazyBoolCalculate;
     m_lsda_address.Clear();
     m_personality_func_addr.Clear();
   }
@@ -502,6 +528,7 @@ private:
       m_source_name; // for logging, where this UnwindPlan originated from
   lldb_private::LazyBool m_plan_is_sourced_from_compiler;
   lldb_private::LazyBool m_plan_is_valid_at_all_instruction_locations;
+  lldb_private::LazyBool m_plan_is_for_signal_trap;
 
   Address m_lsda_address; // Where the language specific data area exists in the
                           // module - used
