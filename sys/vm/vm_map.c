@@ -2477,19 +2477,12 @@ vm_map_submap(
 	vm_map_unlock(submap);
 
 	vm_map_lock(map);
-
 	VM_MAP_RANGE_CHECK(map, start, end);
-
-	if (vm_map_lookup_entry(map, start, &entry)) {
+	if (vm_map_lookup_entry(map, start, &entry) && entry->end >= end &&
+	    (entry->eflags & MAP_ENTRY_COW) == 0 &&
+	    entry->object.vm_object == NULL) {
 		vm_map_clip_start(map, entry, start);
-	} else
-		entry = vm_map_entry_succ(entry);
-
-	vm_map_clip_end(map, entry, end);
-
-	if ((entry->start == start) && (entry->end == end) &&
-	    ((entry->eflags & MAP_ENTRY_COW) == 0) &&
-	    (entry->object.vm_object == NULL)) {
+		vm_map_clip_end(map, entry, end);
 		entry->object.sub_map = submap;
 		entry->eflags |= MAP_ENTRY_IS_SUB_MAP;
 		result = KERN_SUCCESS;
