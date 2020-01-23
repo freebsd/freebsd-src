@@ -122,6 +122,10 @@ static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 
 static eventhandler_tag ip_divert_event_tag;
 
+static int div_output_inbound(int fmaily, struct socket *so, struct mbuf *m,
+    struct sockaddr_in *sin);
+static int div_output_outbound(int family, struct socket *so, struct mbuf *m);
+
 /*
  * Initialize divert connection block queue.
  */
@@ -308,10 +312,10 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
     struct mbuf *control)
 {
 	struct epoch_tracker et;
-	struct ip *const ip = mtod(m, struct ip *);
+	const struct ip *ip;
 	struct m_tag *mtag;
 	struct ipfw_rule_ref *dt;
-	int error = 0;
+	int error, family;
 
 	/*
 	 * An mbuf may hasn't come from userland, but we pretend
@@ -330,8 +334,8 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		mtag = m_tag_alloc(MTAG_IPFW_RULE, 0,
 		    sizeof(struct ipfw_rule_ref), M_NOWAIT | M_ZERO);
 		if (mtag == NULL) {
-			error = ENOBUFS;
-			goto cantsend;
+			m_freem(m);
+			return (ENOBUFS);
 		}
 		m_tag_prepend(m, mtag);
 	}
@@ -349,6 +353,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		dt->chain_id = 0;
 		dt->rulenum = sin->sin_port+1; /* host format ? */
 		dt->rule_id = 0;
+		/* XXX: broken for IPv6 */
 		/*
 		 * Find receive interface with the given name, stuffed
 		 * (if it exists) in the sin_zero[] field.
@@ -361,16 +366,55 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			m->m_pkthdr.rcvif = ifunit(sin->sin_zero);
 	}
 
-	/* Reinject packet into the system as incoming or outgoing */
-	if (!sin || sin->sin_addr.s_addr == 0) {
-		struct mbuf *options = NULL;
-		struct inpcb *inp;
+	ip = mtod(m, struct ip *);
+	switch (ip->ip_v) {
+	case IPVERSION:
+		family = AF_INET;
+		break;
+	case IPV6_VERSION >> 4:
+		family = AF_INET6;
+		break;
+	default:
+		m_freem(m);
+		return (EAFNOSUPPORT);
+	}
 
+	/* Reinject packet into the system as incoming or outgoing */
+	NET_EPOCH_ENTER(et);
+	if (!sin || sin->sin_addr.s_addr == 0) {
 		dt->info |= IPFW_IS_DIVERT | IPFW_INFO_OUT;
+		error = div_output_outbound(family, so, m);
+	} else {
+		dt->info |= IPFW_IS_DIVERT | IPFW_INFO_IN;
+		error = div_output_inbound(family, so, m, sin);
+	}
+	NET_EPOCH_EXIT(et);
+
+	if (error != 0)
+		m_freem(m);
+
+	return (error);
+}
+
+/*
+ * Sends mbuf @m to the wire via ip[6]_output().
+ *
+ * Returns 0 on success, @m is consumed.
+ * On failure, returns error code. It is caller responsibility to free @m.
+ */
+static int
+div_output_outbound(int family, struct socket *so, struct mbuf *m)
+{
+	struct ip *const ip = mtod(m, struct ip *);
+
+		struct mbuf *options;
+		struct inpcb *inp;
+		int error;
+
 		inp = sotoinpcb(so);
 		INP_RLOCK(inp);
-		switch (ip->ip_v) {
-		case IPVERSION:
+		switch (family) {
+		case AF_INET:
 			/*
 			 * Don't allow both user specified and setsockopt
 			 * options, and don't allow packet length sizes that
@@ -379,29 +423,23 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			if ((((ip->ip_hl << 2) != sizeof(struct ip)) &&
 			    inp->inp_options != NULL) ||
 			    ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
-				error = EINVAL;
 				INP_RUNLOCK(inp);
-				goto cantsend;
+				return (EINVAL);
 			}
 			break;
 #ifdef INET6
-		case IPV6_VERSION >> 4:
+		case AF_INET6:
 		    {
 			struct ip6_hdr *const ip6 = mtod(m, struct ip6_hdr *);
 
 			/* Don't allow packet length sizes that will crash */
 			if (((u_short)ntohs(ip6->ip6_plen) > m->m_pkthdr.len)) {
-				error = EINVAL;
 				INP_RUNLOCK(inp);
-				goto cantsend;
+				return (EINVAL);
 			}
 			break;
 		    }
 #endif
-		default:
-			error = EINVAL;
-			INP_RUNLOCK(inp);
-			goto cantsend;
 		}
 
 		/* Send packet to output processing */
@@ -431,61 +469,70 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		 * held so we can use them in ip_output() without
 		 * requring a reference to the pcb.
 		 */
+		options = NULL;
 		if (inp->inp_options != NULL) {
 			options = m_dup(inp->inp_options, M_NOWAIT);
 			if (options == NULL) {
 				INP_RUNLOCK(inp);
-				error = ENOBUFS;
-				goto cantsend;
+				return (ENOBUFS);
 			}
 		}
 		INP_RUNLOCK(inp);
 
-		NET_EPOCH_ENTER(et);
-		switch (ip->ip_v) {
-		case IPVERSION:
+		error = 0;
+		switch (family) {
+		case AF_INET:
 			error = ip_output(m, options, NULL,
 			    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0)
 			    | IP_ALLOWBROADCAST | IP_RAWOUTPUT, NULL, NULL);
 			break;
 #ifdef INET6
-		case IPV6_VERSION >> 4:
+		case AF_INET6:
 			error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 			break;
 #endif
 		}
-		NET_EPOCH_EXIT(et);
 		if (options != NULL)
 			m_freem(options);
-	} else {
-		dt->info |= IPFW_IS_DIVERT | IPFW_INFO_IN;
+
+		return (error);
+}
+
+/*
+ * Schedules mbuf @m for local processing via IPv4/IPv6 netisr queue.
+ *
+ * Returns 0 on success, @m is consumed.
+ * Returns error code on failure. It is caller responsibility to free @m.
+ */
+static int
+div_output_inbound(int family, struct socket *so, struct mbuf *m,
+    struct sockaddr_in *sin)
+{
+	const struct ip *ip;
+	struct ifaddr *ifa;
+
 		if (m->m_pkthdr.rcvif == NULL) {
 			/*
 			 * No luck with the name, check by IP address.
 			 * Clear the port and the ifname to make sure
 			 * there are no distractions for ifa_ifwithaddr.
 			 */
-			struct epoch_tracker et;
-			struct	ifaddr *ifa;
 
+			/* XXX: broken for IPv6 */
 			bzero(sin->sin_zero, sizeof(sin->sin_zero));
 			sin->sin_port = 0;
-			NET_EPOCH_ENTER(et);
 			ifa = ifa_ifwithaddr((struct sockaddr *) sin);
-			if (ifa == NULL) {
-				error = EADDRNOTAVAIL;
-				NET_EPOCH_EXIT(et);
-				goto cantsend;
-			}
+			if (ifa == NULL)
+				return (EADDRNOTAVAIL);
 			m->m_pkthdr.rcvif = ifa->ifa_ifp;
-			NET_EPOCH_EXIT(et);
 		}
 #ifdef MAC
 		mac_socket_create_mbuf(so, m);
 #endif
 		/* Send packet to input processing via netisr */
-		switch (ip->ip_v) {
-		case IPVERSION:
+		switch (family) {
+		case AF_INET:
+			ip = mtod(m, struct ip *);
 			/*
 			 * Restore M_BCAST flag when destination address is
 			 * broadcast. It is expected by ip_tryforward().
@@ -497,21 +544,15 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
 			break;
 #ifdef INET6
-		case IPV6_VERSION >> 4:
+		case AF_INET6:
 			netisr_queue_src(NETISR_IPV6, (uintptr_t)so, m);
 			break;
 #endif
 		default:
-			error = EINVAL;
-			goto cantsend;
+			return (EINVAL);
 		}
-	}
 
-	return (error);
-
-cantsend:
-	m_freem(m);
-	return (error);
+	return (0);
 }
 
 static int
