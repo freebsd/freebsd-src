@@ -747,6 +747,54 @@ vm_fault_readahead(struct faultstate *fs)
 	return (nera);
 }
 
+static int
+vm_fault_lookup(struct faultstate *fs)
+{
+	int result;
+
+	KASSERT(!fs->lookup_still_valid,
+	   ("vm_fault_lookup: Map already locked."));
+	result = vm_map_lookup(&fs->map, fs->vaddr, fs->fault_type |
+	    VM_PROT_FAULT_LOOKUP, &fs->entry, &fs->first_object,
+	    &fs->first_pindex, &fs->prot, &fs->wired);
+	if (result != KERN_SUCCESS) {
+		unlock_vp(fs);
+		return (result);
+	}
+
+	fs->map_generation = fs->map->timestamp;
+
+	if (fs->entry->eflags & MAP_ENTRY_NOFAULT) {
+		panic("%s: fault on nofault entry, addr: %#lx",
+		    __func__, (u_long)fs->vaddr);
+	}
+
+	if (fs->entry->eflags & MAP_ENTRY_IN_TRANSITION &&
+	    fs->entry->wiring_thread != curthread) {
+		vm_map_unlock_read(fs->map);
+		vm_map_lock(fs->map);
+		if (vm_map_lookup_entry(fs->map, fs->vaddr, &fs->entry) &&
+		    (fs->entry->eflags & MAP_ENTRY_IN_TRANSITION)) {
+			unlock_vp(fs);
+			fs->entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
+			vm_map_unlock_and_wait(fs->map, 0);
+		} else
+			vm_map_unlock(fs->map);
+		return (KERN_RESOURCE_SHORTAGE);
+	}
+
+	MPASS((fs->entry->eflags & MAP_ENTRY_GUARD) == 0);
+
+	if (fs->wired)
+		fs->fault_type = fs->prot | (fs->fault_type & VM_PROT_COPY);
+	else
+		KASSERT((fs->fault_flags & VM_FAULT_WIRE) == 0,
+		    ("!fs->wired && VM_FAULT_WIRE"));
+	fs->lookup_still_valid = true;
+
+	return (KERN_SUCCESS);
+}
+
 /*
  * Wait/Retry if the page is busy.  We have to do this if the page is
  * either exclusive or shared busy because the vm_pager may be using
@@ -807,6 +855,8 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	fs.vaddr = vaddr;
 	fs.m_hold = m_hold;
 	fs.fault_flags = fault_flags;
+	fs.map = map;
+	fs.lookup_still_valid = false;
 	faultcount = 0;
 	nera = -1;
 	hardfault = false;
@@ -820,43 +870,12 @@ RetryFault_oom:
 	 * Find the backing store object and offset into it to begin the
 	 * search.
 	 */
-	fs.map = map;
-	result = vm_map_lookup(&fs.map, fs.vaddr, fs.fault_type |
-	    VM_PROT_FAULT_LOOKUP, &fs.entry, &fs.first_object,
-	    &fs.first_pindex, &fs.prot, &fs.wired);
+	result = vm_fault_lookup(&fs);
 	if (result != KERN_SUCCESS) {
-		unlock_vp(&fs);
+		if (result == KERN_RESOURCE_SHORTAGE)
+			goto RetryFault;
 		return (result);
 	}
-
-	fs.map_generation = fs.map->timestamp;
-
-	if (fs.entry->eflags & MAP_ENTRY_NOFAULT) {
-		panic("%s: fault on nofault entry, addr: %#lx",
-		    __func__, (u_long)fs.vaddr);
-	}
-
-	if (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION &&
-	    fs.entry->wiring_thread != curthread) {
-		vm_map_unlock_read(fs.map);
-		vm_map_lock(fs.map);
-		if (vm_map_lookup_entry(fs.map, fs.vaddr, &fs.entry) &&
-		    (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION)) {
-			unlock_vp(&fs);
-			fs.entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
-			vm_map_unlock_and_wait(fs.map, 0);
-		} else
-			vm_map_unlock(fs.map);
-		goto RetryFault;
-	}
-
-	MPASS((fs.entry->eflags & MAP_ENTRY_GUARD) == 0);
-
-	if (fs.wired)
-		fs.fault_type = fs.prot | (fs.fault_type & VM_PROT_COPY);
-	else
-		KASSERT((fs.fault_flags & VM_FAULT_WIRE) == 0,
-		    ("!fs.wired && VM_FAULT_WIRE"));
 
 	/*
 	 * Try to avoid lock contention on the top-level object through
@@ -890,8 +909,6 @@ RetryFault_oom:
 	 */
 	vm_object_reference_locked(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
-
-	fs.lookup_still_valid = true;
 
 	fs.m_cow = fs.m = fs.first_m = NULL;
 
