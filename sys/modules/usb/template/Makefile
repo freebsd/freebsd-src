@@ -1,7 +1,7 @@
 #
 # $FreeBSD$
 #
-# Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+# Copyright (c) 2008-2020 Hans Petter Selasky. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -44,5 +44,10 @@ SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h vnode_if.h usbdevs.h \
 	usb_template_midi.c \
 	usb_template_multi.c \
 	usb_template_cdceem.c
+
+#
+# NOTE:
+# Keep source list above in sync with stand/usb/usbcore.mk
+#
 
 .include <bsd.kmod.mk>
