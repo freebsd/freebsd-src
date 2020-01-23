@@ -809,7 +809,8 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 * them up. This allows the drivers to amortize the receive lock.
 	 */
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	NET_EPOCH_ENTER(et);
+	if (__predict_false(ifp->if_flags & IFF_NEEDSEPOCH))
+		NET_EPOCH_ENTER(et);
 	while (m) {
 		mn = m->m_nextpkt;
 		m->m_nextpkt = NULL;
@@ -824,7 +825,8 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		netisr_dispatch(NETISR_ETHER, m);
 		m = mn;
 	}
-	NET_EPOCH_EXIT(et);
+	if (__predict_false(ifp->if_flags & IFF_NEEDSEPOCH))
+		NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }
 
