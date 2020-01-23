@@ -932,6 +932,75 @@ vm_fault_cow(struct faultstate *fs)
 	curthread->td_cow++;
 }
 
+static bool
+vm_fault_next(struct faultstate *fs)
+{
+	vm_object_t next_object;
+
+	/*
+	 * The requested page does not exist at this object/
+	 * offset.  Remove the invalid page from the object,
+	 * waking up anyone waiting for it, and continue on to
+	 * the next object.  However, if this is the top-level
+	 * object, we must leave the busy page in place to
+	 * prevent another process from rushing past us, and
+	 * inserting the page in that object at the same time
+	 * that we are.
+	 */
+	if (fs->object == fs->first_object) {
+		fs->first_m = fs->m;
+		fs->m = NULL;
+	} else
+		fault_page_free(&fs->m);
+
+	/*
+	 * Move on to the next object.  Lock the next object before
+	 * unlocking the current one.
+	 */
+	VM_OBJECT_ASSERT_WLOCKED(fs->object);
+	next_object = fs->object->backing_object;
+	if (next_object == NULL) {
+		/*
+		 * If there's no object left, fill the page in the top
+		 * object with zeros.
+		 */
+		VM_OBJECT_WUNLOCK(fs->object);
+		if (fs->object != fs->first_object) {
+			vm_object_pip_wakeup(fs->object);
+			fs->object = fs->first_object;
+			fs->pindex = fs->first_pindex;
+		}
+		MPASS(fs->first_m != NULL);
+		MPASS(fs->m == NULL);
+		fs->m = fs->first_m;
+		fs->first_m = NULL;
+
+		/*
+		 * Zero the page if necessary and mark it valid.
+		 */
+		if ((fs->m->flags & PG_ZERO) == 0) {
+			pmap_zero_page(fs->m);
+		} else {
+			VM_CNT_INC(v_ozfod);
+		}
+		VM_CNT_INC(v_zfod);
+		vm_page_valid(fs->m);
+
+		return (false);
+	}
+	MPASS(fs->first_m != NULL);
+	KASSERT(fs->object != next_object, ("object loop %p", next_object));
+	VM_OBJECT_WLOCK(next_object);
+	vm_object_pip_add(next_object, 1);
+	if (fs->object != fs->first_object)
+		vm_object_pip_wakeup(fs->object);
+	fs->pindex += OFF_TO_IDX(fs->object->backing_object_offset);
+	VM_OBJECT_WUNLOCK(fs->object);
+	fs->object = next_object;
+
+	return (true);
+}
+
 /*
  * Wait/Retry if the page is busy.  We have to do this if the page is
  * either exclusive or shared busy because the vm_pager may be using
@@ -974,7 +1043,6 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	struct faultstate fs;
 	struct domainset *dset;
-	vm_object_t next_object;
 	vm_offset_t e_end, e_start;
 	int ahead, alloc_req, behind, cluster_offset, faultcount;
 	int nera, oom, result, rv;
@@ -1187,8 +1255,13 @@ readrest:
 		 * object without dropping the lock to preserve atomicity of
 		 * shadow faults.
 		 */
-		if (fs.object->type == OBJT_DEFAULT)
-			goto next;
+		if (fs.object->type == OBJT_DEFAULT) {
+			if (vm_fault_next(&fs))
+				continue;
+			/* Don't try to prefault neighboring pages. */
+			faultcount = 1;
+			break;
+		}
 
 		/*
 		 * At this point, we have either allocated a new page or found
@@ -1304,70 +1377,14 @@ readrest:
 
 		}
 
-next:
 		/*
-		 * The requested page does not exist at this object/
-		 * offset.  Remove the invalid page from the object,
-		 * waking up anyone waiting for it, and continue on to
-		 * the next object.  However, if this is the top-level
-		 * object, we must leave the busy page in place to
-		 * prevent another process from rushing past us, and
-		 * inserting the page in that object at the same time
-		 * that we are.
+		 * The page was not found in the current object.  Try to traverse
+		 * into a backing object or zero fill if none is found.
 		 */
-		if (fs.object == fs.first_object) {
-			fs.first_m = fs.m;
-			fs.m = NULL;
-		} else
-			fault_page_free(&fs.m);
-
-		/*
-		 * Move on to the next object.  Lock the next object before
-		 * unlocking the current one.
-		 */
-		VM_OBJECT_ASSERT_WLOCKED(fs.object);
-		next_object = fs.object->backing_object;
-		if (next_object == NULL) {
-			/*
-			 * If there's no object left, fill the page in the top
-			 * object with zeros.
-			 */
-			VM_OBJECT_WUNLOCK(fs.object);
-			if (fs.object != fs.first_object) {
-				vm_object_pip_wakeup(fs.object);
-				fs.object = fs.first_object;
-				fs.pindex = fs.first_pindex;
-			}
-			MPASS(fs.first_m != NULL);
-			MPASS(fs.m == NULL);
-			fs.m = fs.first_m;
-			fs.first_m = NULL;
-
-			/*
-			 * Zero the page if necessary and mark it valid.
-			 */
-			if ((fs.m->flags & PG_ZERO) == 0) {
-				pmap_zero_page(fs.m);
-			} else {
-				VM_CNT_INC(v_ozfod);
-			}
-			VM_CNT_INC(v_zfod);
-			vm_page_valid(fs.m);
+		if (!vm_fault_next(&fs)) {
 			/* Don't try to prefault neighboring pages. */
 			faultcount = 1;
 			break;	/* break to PAGE HAS BEEN FOUND. */
-		} else {
-			MPASS(fs.first_m != NULL);
-			KASSERT(fs.object != next_object,
-			    ("object loop %p", next_object));
-			VM_OBJECT_WLOCK(next_object);
-			vm_object_pip_add(next_object, 1);
-			if (fs.object != fs.first_object)
-				vm_object_pip_wakeup(fs.object);
-			fs.pindex +=
-			    OFF_TO_IDX(fs.object->backing_object_offset);
-			VM_OBJECT_WUNLOCK(fs.object);
-			fs.object = next_object;
 		}
 	}
 
