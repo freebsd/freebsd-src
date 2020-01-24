@@ -319,8 +319,10 @@ DIEUnit::DIEUnit(uint16_t V, uint8_t A, dwarf::Tag UnitTag)
 {
   Die.Owner = this;
   assert((UnitTag == dwarf::DW_TAG_compile_unit ||
+          UnitTag == dwarf::DW_TAG_skeleton_unit ||
           UnitTag == dwarf::DW_TAG_type_unit ||
-          UnitTag == dwarf::DW_TAG_partial_unit) && "expected a unit TAG");
+          UnitTag == dwarf::DW_TAG_partial_unit) &&
+         "expected a unit TAG");
 }
 
 void DIEValue::EmitValue(const AsmPrinter *AP) const {
@@ -798,6 +800,8 @@ void DIEBlock::print(raw_ostream &O) const {
 //===----------------------------------------------------------------------===//
 
 unsigned DIELocList::SizeOf(const AsmPrinter *AP, dwarf::Form Form) const {
+  if (Form == dwarf::DW_FORM_loclistx)
+    return getULEB128Size(Index);
   if (Form == dwarf::DW_FORM_data4)
     return 4;
   if (Form == dwarf::DW_FORM_sec_offset)
@@ -808,6 +812,10 @@ unsigned DIELocList::SizeOf(const AsmPrinter *AP, dwarf::Form Form) const {
 /// EmitValue - Emit label value.
 ///
 void DIELocList::EmitValue(const AsmPrinter *AP, dwarf::Form Form) const {
+  if (Form == dwarf::DW_FORM_loclistx) {
+    AP->EmitULEB128(Index);
+    return;
+  }
   DwarfDebug *DD = AP->getDwarfDebug();
   MCSymbol *Label = DD->getDebugLocs().getList(Index).Label;
   AP->emitDwarfSymbolReference(Label, /*ForceOffset*/ DD->useSplitDwarf());

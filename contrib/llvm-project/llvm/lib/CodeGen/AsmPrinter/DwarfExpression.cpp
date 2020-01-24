@@ -155,20 +155,18 @@ bool DwarfExpression::addMachineReg(const TargetRegisterInfo &TRI,
     CurSubReg.set(Offset, Offset + Size);
 
     // If this sub-register has a DWARF number and we haven't covered
-    // its range, emit a DWARF piece for it.
-    if (CurSubReg.test(Coverage)) {
+    // its range, and its range covers the value, emit a DWARF piece for it.
+    if (Offset < MaxSize && CurSubReg.test(Coverage)) {
       // Emit a piece for any gap in the coverage.
       if (Offset > CurPos)
-        DwarfRegs.push_back({-1, Offset - CurPos, "no DWARF register encoding"});
+        DwarfRegs.push_back(
+            {-1, Offset - CurPos, "no DWARF register encoding"});
       DwarfRegs.push_back(
           {Reg, std::min<unsigned>(Size, MaxSize - Offset), "sub-register"});
-      if (Offset >= MaxSize)
-        break;
-
-      // Mark it as emitted.
-      Coverage.set(Offset, Offset + Size);
-      CurPos = Offset + Size;
     }
+    // Mark it as emitted.
+    Coverage.set(Offset, Offset + Size);
+    CurPos = Offset + Size;
   }
   // Failed to find any DWARF encoding.
   if (CurPos == 0)
@@ -246,8 +244,8 @@ bool DwarfExpression::addMachineRegExpression(const TargetRegisterInfo &TRI,
   // a call site parameter expression and if that expression is just a register
   // location, emit it with addBReg and offset 0, because we should emit a DWARF
   // expression representing a value, rather than a location.
-  if (!isMemoryLocation() && !HasComplexExpression &&
-      (!isParameterValue() || isEntryValue())) {
+  if (!isMemoryLocation() && !HasComplexExpression && (!isParameterValue() ||
+                                                       isEntryValue())) {
     for (auto &Reg : DwarfRegs) {
       if (Reg.DwarfRegNo >= 0)
         addReg(Reg.DwarfRegNo, Reg.Comment);
@@ -391,6 +389,7 @@ void DwarfExpression::addExpression(DIExpressionCursor &&ExprCursor,
       // empty DW_OP_piece / DW_OP_bit_piece before we emitted the base
       // location.
       assert(OffsetInBits >= FragmentOffset && "fragment offset not added?");
+      assert(SizeInBits >= OffsetInBits - FragmentOffset && "size underflow");
 
       // If addMachineReg already emitted DW_OP_piece operations to represent
       // a super-register by splicing together sub-registers, subtract the size
@@ -436,9 +435,6 @@ void DwarfExpression::addExpression(DIExpressionCursor &&ExprCursor,
       break;
     case dwarf::DW_OP_deref:
       assert(!isRegisterLocation());
-      // For more detailed explanation see llvm.org/PR43343.
-      assert(!isParameterValue() && "Parameter entry values should not be "
-                                    "dereferenced due to safety reasons.");
       if (!isMemoryLocation() && ::isMemoryLocation(ExprCursor))
         // Turning this into a memory location description makes the deref
         // implicit.
@@ -575,4 +571,12 @@ void DwarfExpression::emitLegacyZExt(unsigned FromBits) {
   emitOp(dwarf::DW_OP_constu);
   emitUnsigned((1ULL << FromBits) - 1);
   emitOp(dwarf::DW_OP_and);
+}
+
+void DwarfExpression::addWasmLocation(unsigned Index, int64_t Offset) {
+  assert(LocationKind == Implicit || LocationKind == Unknown);
+  LocationKind = Implicit;
+  emitOp(dwarf::DW_OP_WASM_location);
+  emitUnsigned(Index);
+  emitSigned(Offset);
 }

@@ -92,7 +92,7 @@ bool X86FrameLowering::hasFP(const MachineFunction &MF) const {
           MFI.hasCopyImplyingStackAdjustment());
 }
 
-static unsigned getSUBriOpcode(unsigned IsLP64, int64_t Imm) {
+static unsigned getSUBriOpcode(bool IsLP64, int64_t Imm) {
   if (IsLP64) {
     if (isInt<8>(Imm))
       return X86::SUB64ri8;
@@ -104,7 +104,7 @@ static unsigned getSUBriOpcode(unsigned IsLP64, int64_t Imm) {
   }
 }
 
-static unsigned getADDriOpcode(unsigned IsLP64, int64_t Imm) {
+static unsigned getADDriOpcode(bool IsLP64, int64_t Imm) {
   if (IsLP64) {
     if (isInt<8>(Imm))
       return X86::ADD64ri8;
@@ -116,12 +116,12 @@ static unsigned getADDriOpcode(unsigned IsLP64, int64_t Imm) {
   }
 }
 
-static unsigned getSUBrrOpcode(unsigned isLP64) {
-  return isLP64 ? X86::SUB64rr : X86::SUB32rr;
+static unsigned getSUBrrOpcode(bool IsLP64) {
+  return IsLP64 ? X86::SUB64rr : X86::SUB32rr;
 }
 
-static unsigned getADDrrOpcode(unsigned isLP64) {
-  return isLP64 ? X86::ADD64rr : X86::ADD32rr;
+static unsigned getADDrrOpcode(bool IsLP64) {
+  return IsLP64 ? X86::ADD64rr : X86::ADD32rr;
 }
 
 static unsigned getANDriOpcode(bool IsLP64, int64_t Imm) {
@@ -135,7 +135,7 @@ static unsigned getANDriOpcode(bool IsLP64, int64_t Imm) {
   return X86::AND32ri;
 }
 
-static unsigned getLEArOpcode(unsigned IsLP64) {
+static unsigned getLEArOpcode(bool IsLP64) {
   return IsLP64 ? X86::LEA64r : X86::LEA32r;
 }
 
@@ -993,8 +993,7 @@ void X86FrameLowering::emitPrologue(MachineFunction &MF,
   bool NeedsWinFPO =
       !IsFunclet && STI.isTargetWin32() && MMI.getModule()->getCodeViewFlag();
   bool NeedsWinCFI = NeedsWin64CFI || NeedsWinFPO;
-  bool NeedsDwarfCFI =
-      !IsWin64Prologue && (MMI.hasDebugInfo() || Fn.needsUnwindTableEntry());
+  bool NeedsDwarfCFI = !IsWin64Prologue && MF.needsFrameMoves();
   Register FramePtr = TRI->getFrameRegister(MF);
   const Register MachineFramePtr =
       STI.isTarget64BitILP32()
@@ -1262,7 +1261,7 @@ void X86FrameLowering::emitPrologue(MachineFunction &MF,
     if (Is64Bit) {
       // Handle the 64-bit Windows ABI case where we need to call __chkstk.
       // Function prologue is responsible for adjusting the stack pointer.
-      int Alloc = isEAXAlive ? NumBytes - 8 : NumBytes;
+      int64_t Alloc = isEAXAlive ? NumBytes - 8 : NumBytes;
       if (isUInt<32>(Alloc)) {
         BuildMI(MBB, MBBI, DL, TII.get(X86::MOV32ri), X86::EAX)
             .addImm(Alloc)
@@ -1614,10 +1613,9 @@ void X86FrameLowering::emitEpilogue(MachineFunction &MF,
   bool HasFP = hasFP(MF);
   uint64_t NumBytes = 0;
 
-  bool NeedsDwarfCFI =
-      (!MF.getTarget().getTargetTriple().isOSDarwin() &&
-       !MF.getTarget().getTargetTriple().isOSWindows()) &&
-      (MF.getMMI().hasDebugInfo() || MF.getFunction().needsUnwindTableEntry());
+  bool NeedsDwarfCFI = (!MF.getTarget().getTargetTriple().isOSDarwin() &&
+                        !MF.getTarget().getTargetTriple().isOSWindows()) &&
+                       MF.needsFrameMoves();
 
   if (IsFunclet) {
     assert(HasFP && "EH funclets without FP not yet implemented");
@@ -1862,7 +1860,7 @@ int X86FrameLowering::getWin64EHFrameIndexRef(const MachineFunction &MF,
     return getFrameIndexReference(MF, FI, FrameReg);
 
   FrameReg = TRI->getStackRegister();
-  return alignTo(MFI.getMaxCallFrameSize(), getStackAlignment()) + it->second;
+  return alignDown(MFI.getMaxCallFrameSize(), getStackAlignment()) + it->second;
 }
 
 int X86FrameLowering::getFrameIndexReferenceSP(const MachineFunction &MF,
@@ -2812,11 +2810,9 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
     unsigned StackAlign = getStackAlignment();
     Amount = alignTo(Amount, StackAlign);
 
-    MachineModuleInfo &MMI = MF.getMMI();
     const Function &F = MF.getFunction();
     bool WindowsCFI = MF.getTarget().getMCAsmInfo()->usesWindowsCFI();
-    bool DwarfCFI = !WindowsCFI &&
-                    (MMI.hasDebugInfo() || F.needsUnwindTableEntry());
+    bool DwarfCFI = !WindowsCFI && MF.needsFrameMoves();
 
     // If we have any exception handlers in this function, and we adjust
     // the SP before calls, we may need to indicate this to the unwinder

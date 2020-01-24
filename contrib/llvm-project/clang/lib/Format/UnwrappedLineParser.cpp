@@ -466,7 +466,7 @@ void UnwrappedLineParser::calculateBraceTypes(bool ExpectClassBody) {
               (NextTok->is(tok::semi) &&
                (!ExpectClassBody || LBraceStack.size() != 1)) ||
               (NextTok->isBinaryOperator() && !NextIsObjCMethod);
-          if (NextTok->is(tok::l_square)) {
+          if (!Style.isCSharp() && NextTok->is(tok::l_square)) {
             // We can have an array subscript after a braced init
             // list, but C++11 attributes are expected after blocks.
             NextTok = Tokens->getNextToken();
@@ -2498,9 +2498,10 @@ bool UnwrappedLineParser::isOnNewLine(const FormatToken &FormatTok) {
 
 // Checks if \p FormatTok is a line comment that continues the line comment
 // section on \p Line.
-static bool continuesLineCommentSection(const FormatToken &FormatTok,
-                                        const UnwrappedLine &Line,
-                                        llvm::Regex &CommentPragmasRegex) {
+static bool
+continuesLineCommentSection(const FormatToken &FormatTok,
+                            const UnwrappedLine &Line,
+                            const llvm::Regex &CommentPragmasRegex) {
   if (Line.Tokens.empty())
     return false;
 

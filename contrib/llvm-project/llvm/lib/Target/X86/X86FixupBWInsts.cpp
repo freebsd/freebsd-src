@@ -48,11 +48,14 @@
 #include "X86InstrInfo.h"
 #include "X86Subtarget.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
+#include "llvm/CodeGen/LazyMachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/MachineSizeOpts.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/Support/Debug.h"
@@ -113,6 +116,8 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachineLoopInfo>(); // Machine loop info is used to
                                        // guide some heuristics.
+    AU.addRequired<ProfileSummaryInfoWrapperPass>();
+    AU.addRequired<LazyMachineBlockFrequencyInfoPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
@@ -127,19 +132,22 @@ public:
   }
 
 private:
-  MachineFunction *MF;
+  MachineFunction *MF = nullptr;
 
   /// Machine instruction info used throughout the class.
-  const X86InstrInfo *TII;
+  const X86InstrInfo *TII = nullptr;
 
   /// Local member for function's OptForSize attribute.
-  bool OptForSize;
+  bool OptForSize = false;
 
   /// Machine loop info used for guiding some heruistics.
-  MachineLoopInfo *MLI;
+  MachineLoopInfo *MLI = nullptr;
 
   /// Register Liveness information after the current instruction.
   LivePhysRegs LiveRegs;
+
+  ProfileSummaryInfo *PSI;
+  MachineBlockFrequencyInfo *MBFI;
 };
 char FixupBWInstPass::ID = 0;
 }
@@ -154,8 +162,11 @@ bool FixupBWInstPass::runOnMachineFunction(MachineFunction &MF) {
 
   this->MF = &MF;
   TII = MF.getSubtarget<X86Subtarget>().getInstrInfo();
-  OptForSize = MF.getFunction().hasOptSize();
   MLI = &getAnalysis<MachineLoopInfo>();
+  PSI = &getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
+  MBFI = (PSI && PSI->hasProfileSummary()) ?
+         &getAnalysis<LazyMachineBlockFrequencyInfoPass>().getBFI() :
+         nullptr;
   LiveRegs.init(TII->getRegisterInfo());
 
   LLVM_DEBUG(dbgs() << "Start X86FixupBWInsts\n";);
@@ -425,6 +436,9 @@ void FixupBWInstPass::processBasicBlock(MachineFunction &MF,
   LiveRegs.clear();
   // We run after PEI, so we need to AddPristinesAndCSRs.
   LiveRegs.addLiveOuts(MBB);
+
+  OptForSize = MF.getFunction().hasOptSize() ||
+               llvm::shouldOptimizeForSize(&MBB, PSI, MBFI);
 
   for (auto I = MBB.rbegin(); I != MBB.rend(); ++I) {
     MachineInstr *MI = &*I;

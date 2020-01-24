@@ -34,8 +34,8 @@ LanaiInstrInfo::LanaiInstrInfo()
 void LanaiInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator Position,
                                  const DebugLoc &DL,
-                                 unsigned DestinationRegister,
-                                 unsigned SourceRegister,
+                                 MCRegister DestinationRegister,
+                                 MCRegister SourceRegister,
                                  bool KillSource) const {
   if (!Lanai::GPRRegClass.contains(DestinationRegister, SourceRegister)) {
     llvm_unreachable("Impossible reg-to-reg copy");
@@ -788,8 +788,10 @@ bool LanaiInstrInfo::getMemOperandWithOffsetWidth(
 
   BaseOp = &LdSt.getOperand(1);
   Offset = LdSt.getOperand(2).getImm();
-  assert(BaseOp->isReg() && "getMemOperandWithOffset only supports base "
-                            "operands of type register.");
+
+  if (!BaseOp->isReg())
+    return false;
+
   return true;
 }
 

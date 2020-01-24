@@ -290,6 +290,9 @@ class PeelingModuloScheduleExpander {
   /// but not produced (in the epilog) or produced but not available (in the
   /// prolog).
   DenseMap<MachineBasicBlock *, BitVector> AvailableStages;
+  /// When peeling the epilogue keep track of the distance between the phi
+  /// nodes and the kernel.
+  DenseMap<MachineInstr *, unsigned> PhiNodeLoopIteration;
 
   /// CanonicalMIs and BlockMIs form a bidirectional map between any of the
   /// loop kernel clones.
@@ -299,6 +302,8 @@ class PeelingModuloScheduleExpander {
 
   /// State passed from peelKernel to peelPrologAndEpilogs().
   std::deque<MachineBasicBlock *> PeeledFront, PeeledBack;
+  /// Illegal phis that need to be deleted once we re-link stages.
+  SmallVector<MachineInstr *, 4> IllegalPhisToDelete;
 
 public:
   PeelingModuloScheduleExpander(MachineFunction &MF, ModuloSchedule &S,
@@ -321,6 +326,13 @@ private:
   /// Peels one iteration of the rewritten kernel (BB) in the specified
   /// direction.
   MachineBasicBlock *peelKernel(LoopPeelDirection LPD);
+  // Delete instructions whose stage is less than MinStage in the given basic
+  // block.
+  void filterInstructions(MachineBasicBlock *MB, int MinStage);
+  // Move instructions of the given stage from sourceBB to DestBB. Remap the phi
+  // instructions to keep a valid IR.
+  void moveStageBetweenBlocks(MachineBasicBlock *DestBB,
+                              MachineBasicBlock *SourceBB, unsigned Stage);
   /// Peel the kernel forwards and backwards to produce prologs and epilogs,
   /// and stitch them together.
   void peelPrologAndEpilogs();
@@ -342,6 +354,11 @@ private:
       MI = CanonicalMIs[MI];
     return Schedule.getStage(MI);
   }
+  /// Helper function to find the right canonical register for a phi instruction
+  /// coming from a peeled out prologue.
+  Register getPhiCanonicalReg(MachineInstr* CanonicalPhi, MachineInstr* Phi);
+  /// Target loop info before kernel peeling.
+  std::unique_ptr<TargetInstrInfo::PipelinerLoopInfo> Info;
 };
 
 /// Expander that simply annotates each scheduled instruction with a post-instr

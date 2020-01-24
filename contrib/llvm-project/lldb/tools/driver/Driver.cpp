@@ -22,7 +22,6 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/WithColor.h"
@@ -733,8 +732,30 @@ void sigcont_handler(int signo) {
   signal(signo, sigcont_handler);
 }
 
+void reproducer_handler(void *argv0) {
+  if (SBReproducer::Generate()) {
+    auto exe = static_cast<const char *>(argv0);
+    llvm::outs() << "********************\n";
+    llvm::outs() << "Crash reproducer for ";
+    llvm::outs() << lldb::SBDebugger::GetVersionString() << '\n';
+    llvm::outs() << '\n';
+    llvm::outs() << "Reproducer written to '" << SBReproducer::GetPath()
+                 << "'\n";
+    llvm::outs() << '\n';
+    llvm::outs() << "Before attaching the reproducer to a bug report:\n";
+    llvm::outs() << " - Look at the directory to ensure you're willing to "
+                    "share its content.\n";
+    llvm::outs()
+        << " - Make sure the reproducer works by replaying the reproducer.\n";
+    llvm::outs() << '\n';
+    llvm::outs() << "Replay the reproducer with the following command:\n";
+    llvm::outs() << exe << " -replay " << SBReproducer::GetPath() << "\n";
+    llvm::outs() << "********************\n";
+  }
+}
+
 static void printHelp(LLDBOptTable &table, llvm::StringRef tool_name) {
-  std::string usage_str = tool_name.str() + "options";
+  std::string usage_str = tool_name.str() + " [options]";
   table.PrintHelp(llvm::outs(), usage_str.c_str(), "LLDB", false);
 
   std::string examples = R"___(
@@ -770,14 +791,15 @@ EXAMPLES:
     lldb -K /source/before/crash -k /source/after/crash
 
   Note: In REPL mode no file is loaded, so commands specified to run after
-  loading the file (via -o or -s) will be ignored.
-  )___";
-  llvm::outs() << examples;
+  loading the file (via -o or -s) will be ignored.)___";
+  llvm::outs() << examples << '\n';
 }
 
 llvm::Optional<int> InitializeReproducer(opt::InputArgList &input_args) {
   if (auto *replay_path = input_args.getLastArg(OPT_replay)) {
-    if (const char *error = SBReproducer::Replay(replay_path->getValue())) {
+    const bool skip_version_check = input_args.hasArg(OPT_skip_version_check);
+    if (const char *error =
+            SBReproducer::Replay(replay_path->getValue(), skip_version_check)) {
       WithColor::error() << "reproducer replay failed: " << error << '\n';
       return 1;
     }
@@ -807,14 +829,10 @@ llvm::Optional<int> InitializeReproducer(opt::InputArgList &input_args) {
   return llvm::None;
 }
 
-int main(int argc, char const *argv[])
-{
-  llvm::InitLLVM IL(argc, argv);
-
-  // Print stack trace on crash.
-  llvm::StringRef ToolName = llvm::sys::path::filename(argv[0]);
-  llvm::sys::PrintStackTraceOnErrorSignal(ToolName);
-  llvm::PrettyStackTraceProgram X(argc, argv);
+int main(int argc, char const *argv[]) {
+  // Setup LLVM signal handlers and make sure we call llvm_shutdown() on
+  // destruction.
+  llvm::InitLLVM IL(argc, argv, /*InstallPipeSignalExitHandler=*/false);
 
   // Parse arguments.
   LLDBOptTable T;
@@ -824,7 +842,7 @@ int main(int argc, char const *argv[])
   opt::InputArgList input_args = T.ParseArgs(arg_arr, MAI, MAC);
 
   if (input_args.hasArg(OPT_help)) {
-    printHelp(T, ToolName);
+    printHelp(T, llvm::sys::path::filename(argv[0]));
     return 0;
   }
 
@@ -836,6 +854,9 @@ int main(int argc, char const *argv[])
   if (auto exit_code = InitializeReproducer(input_args)) {
     return *exit_code;
   }
+
+  // Register the reproducer signal handler.
+  llvm::sys::AddSignalHandler(reproducer_handler, const_cast<char *>(argv[0]));
 
   SBError error = SBDebugger::InitializeWithErrorHandling();
   if (error.Fail()) {
@@ -852,16 +873,6 @@ int main(int argc, char const *argv[])
   signal(SIGTSTP, sigtstp_handler);
   signal(SIGCONT, sigcont_handler);
 #endif
-
-  // Occasionally, during test teardown, LLDB writes to a closed pipe.
-  // Sometimes the communication is inherently unreliable, so LLDB tries to
-  // avoid being killed due to SIGPIPE. However, LLVM's default SIGPIPE behavior
-  // is to exit with IO_ERR. Opt LLDB out of that.
-  //
-  // We don't disable LLVM's signal handling entirely because we still want
-  // pretty stack traces, and file cleanup (for when, say, the clang embedded
-  // in LLDB leaves behind temporary objects).
-  llvm::sys::SetPipeSignalFunction(nullptr);
 
   int exit_code = 0;
   // Create a scope for driver so that the driver object will destroy itself

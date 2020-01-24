@@ -180,7 +180,8 @@ void MachOWriter::writeLoadCommands() {
       MachO::swapStruct(MLC.LCStruct##_data);                                  \
     memcpy(Begin, &MLC.LCStruct##_data, sizeof(MachO::LCStruct));              \
     Begin += sizeof(MachO::LCStruct);                                          \
-    memcpy(Begin, LC.Payload.data(), LC.Payload.size());                       \
+    if (!LC.Payload.empty())                                                   \
+      memcpy(Begin, LC.Payload.data(), LC.Payload.size());                     \
     Begin += LC.Payload.size();                                                \
     break;
 
@@ -193,7 +194,8 @@ void MachOWriter::writeLoadCommands() {
         MachO::swapStruct(MLC.load_command_data);
       memcpy(Begin, &MLC.load_command_data, sizeof(MachO::load_command));
       Begin += sizeof(MachO::load_command);
-      memcpy(Begin, LC.Payload.data(), LC.Payload.size());
+      if (!LC.Payload.empty())
+        memcpy(Begin, LC.Payload.data(), LC.Payload.size());
       Begin += LC.Payload.size();
       break;
 #include "llvm/BinaryFormat/MachO.def"
@@ -369,11 +371,14 @@ void MachOWriter::writeIndirectSymbolTable() {
       O.LoadCommands[*O.DySymTabCommandIndex]
           .MachOLoadCommand.dysymtab_command_data;
 
-  char *Out = (char *)B.getBufferStart() + DySymTabCommand.indirectsymoff;
-  assert((DySymTabCommand.nindirectsyms == O.IndirectSymTable.Symbols.size()) &&
-         "Incorrect indirect symbol table size");
-  memcpy(Out, O.IndirectSymTable.Symbols.data(),
-         sizeof(uint32_t) * O.IndirectSymTable.Symbols.size());
+  uint32_t *Out =
+      (uint32_t *)(B.getBufferStart() + DySymTabCommand.indirectsymoff);
+  for (const IndirectSymbolEntry &Sym : O.IndirectSymTable.Symbols) {
+    uint32_t Entry = (Sym.Symbol) ? (*Sym.Symbol)->Index : Sym.OriginalIndex;
+    if (IsLittleEndian != sys::IsLittleEndianHost)
+      sys::swapByteOrder(Entry);
+    *Out++ = Entry;
+  }
 }
 
 void MachOWriter::writeDataInCodeData() {

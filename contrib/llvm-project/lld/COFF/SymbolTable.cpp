@@ -17,6 +17,7 @@
 #include "lld/Common/Timer.h"
 #include "llvm/DebugInfo/Symbolize/Symbolize.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/LTO/LTO.h"
 #include "llvm/Object/WindowsMachineFlag.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -226,8 +227,6 @@ void SymbolTable::loadMinGWAutomaticImports() {
     Symbol *sym = i.second;
     auto *undef = dyn_cast<Undefined>(sym);
     if (!undef)
-      continue;
-    if (!sym->isUsedInRegularObj)
       continue;
     if (undef->getWeakAlias())
       continue;
@@ -546,6 +545,8 @@ static std::string getSourceLocationObj(ObjFile *file, SectionChunk *sc,
 
 static std::string getSourceLocation(InputFile *file, SectionChunk *sc,
                                      uint32_t offset, StringRef name) {
+  if (!file)
+    return "";
   if (auto *o = dyn_cast<ObjFile>(file))
     return getSourceLocationObj(o, sc, offset, name);
   if (auto *b = dyn_cast<BitcodeFile>(file))
@@ -567,7 +568,7 @@ void SymbolTable::reportDuplicate(Symbol *existing, InputFile *newFile,
   llvm::raw_string_ostream os(msg);
   os << "duplicate symbol: " << toString(*existing);
 
-  DefinedRegular *d = cast<DefinedRegular>(existing);
+  DefinedRegular *d = dyn_cast<DefinedRegular>(existing);
   if (d && isa<ObjFile>(d->getFile())) {
     os << getSourceLocation(d->getFile(), d->getChunk(), d->getValue(),
                             existing->getName());
@@ -590,7 +591,10 @@ Symbol *SymbolTable::addAbsolute(StringRef n, COFFSymbolRef sym) {
   s->isUsedInRegularObj = true;
   if (wasInserted || isa<Undefined>(s) || s->isLazy())
     replaceSymbol<DefinedAbsolute>(s, n, sym);
-  else if (!isa<DefinedCOFF>(s))
+  else if (auto *da = dyn_cast<DefinedAbsolute>(s)) {
+    if (da->getVA() != sym.getValue())
+      reportDuplicate(s, nullptr);
+  } else if (!isa<DefinedCOFF>(s))
     reportDuplicate(s, nullptr);
   return s;
 }
@@ -602,7 +606,10 @@ Symbol *SymbolTable::addAbsolute(StringRef n, uint64_t va) {
   s->isUsedInRegularObj = true;
   if (wasInserted || isa<Undefined>(s) || s->isLazy())
     replaceSymbol<DefinedAbsolute>(s, n, va);
-  else if (!isa<DefinedCOFF>(s))
+  else if (auto *da = dyn_cast<DefinedAbsolute>(s)) {
+    if (da->getVA() != va)
+      reportDuplicate(s, nullptr);
+  } else if (!isa<DefinedCOFF>(s))
     reportDuplicate(s, nullptr);
   return s;
 }

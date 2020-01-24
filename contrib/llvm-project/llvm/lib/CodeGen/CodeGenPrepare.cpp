@@ -30,7 +30,6 @@
 #include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/CodeGen/Analysis.h"
@@ -61,6 +60,8 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsAArch64.h"
+#include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Module.h"
@@ -73,6 +74,7 @@
 #include "llvm/IR/Value.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/IR/ValueMap.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/BranchProbability.h"
@@ -88,7 +90,9 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/BypassSlowDivision.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SimplifyLibCalls.h"
+#include "llvm/Transforms/Utils/SizeOpts.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -222,6 +226,10 @@ static cl::opt<bool>
                          cl::init(true),
                          cl::desc("Enable splitting large offset of GEP."));
 
+static cl::opt<bool> EnableICMP_EQToICMP_ST(
+    "cgp-icmp-eq2icmp-st", cl::Hidden, cl::init(false),
+    cl::desc("Enable ICMP_EQ to ICMP_S(L|G)T conversion."));
+
 namespace {
 
 enum ExtType {
@@ -251,6 +259,7 @@ class TypePromotionTransaction;
     const LoopInfo *LI;
     std::unique_ptr<BlockFrequencyInfo> BFI;
     std::unique_ptr<BranchProbabilityInfo> BPI;
+    ProfileSummaryInfo *PSI;
 
     /// As we scan instructions optimizing them, this is the next instruction
     /// to optimize. Transforms that can invalidate this should update it.
@@ -293,7 +302,7 @@ class TypePromotionTransaction;
     /// Keep track of SExt promoted.
     ValueToSExts ValToSExtendedUses;
 
-    /// True if optimizing for size.
+    /// True if the function has the OptSize attribute.
     bool OptSize;
 
     /// DataLayout for the Function being processed.
@@ -370,6 +379,7 @@ class TypePromotionTransaction;
     bool optimizeSwitchInst(SwitchInst *SI);
     bool optimizeExtractElementInst(Instruction *Inst);
     bool dupRetToEnableTailCallOpts(BasicBlock *BB, bool &ModifiedDT);
+    bool fixupDbgValue(Instruction *I);
     bool placeDbgValues(Function &F);
     bool canFormExtLd(const SmallVectorImpl<Instruction *> &MovedExts,
                       LoadInst *&LI, Instruction *&Inst, bool HasPromoted);
@@ -429,10 +439,8 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
   LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   BPI.reset(new BranchProbabilityInfo(F, *LI));
   BFI.reset(new BlockFrequencyInfo(F, *BPI, *LI));
+  PSI = &getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
   OptSize = F.hasOptSize();
-
-  ProfileSummaryInfo *PSI =
-      &getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
   if (ProfileGuidedSectionPrefix) {
     if (PSI->isFunctionHotInCallGraph(&F, *BFI))
       F.setSectionPrefix(".hot");
@@ -451,7 +459,9 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
       // bypassSlowDivision may create new BBs, but we don't want to reapply the
       // optimization to those blocks.
       BasicBlock* Next = BB->getNextNode();
-      EverMadeChange |= bypassSlowDivision(BB, BypassWidths);
+      // F.hasOptSize is already checked in the outer if statement.
+      if (!llvm::shouldOptimizeForSize(BB, PSI, BFI.get()))
+        EverMadeChange |= bypassSlowDivision(BB, BypassWidths);
       BB = Next;
     }
   }
@@ -1049,7 +1059,7 @@ bool CodeGenPrepare::simplifyOffsetableRelocate(Instruction &I) {
       // Collect all the relocate calls associated with a statepoint
       AllRelocateCalls.push_back(Relocate);
 
-  // We need atleast one base pointer relocation + one derived pointer
+  // We need at least one base pointer relocation + one derived pointer
   // relocation to mangle
   if (AllRelocateCalls.size() < 2)
     return false;
@@ -1408,6 +1418,93 @@ static bool sinkCmpExpression(CmpInst *Cmp, const TargetLowering &TLI) {
   return MadeChange;
 }
 
+/// For pattern like:
+///
+///   DomCond = icmp sgt/slt CmpOp0, CmpOp1 (might not be in DomBB)
+///   ...
+/// DomBB:
+///   ...
+///   br DomCond, TrueBB, CmpBB
+/// CmpBB: (with DomBB being the single predecessor)
+///   ...
+///   Cmp = icmp eq CmpOp0, CmpOp1
+///   ...
+///
+/// It would use two comparison on targets that lowering of icmp sgt/slt is
+/// different from lowering of icmp eq (PowerPC). This function try to convert
+/// 'Cmp = icmp eq CmpOp0, CmpOp1' to ' Cmp = icmp slt/sgt CmpOp0, CmpOp1'.
+/// After that, DomCond and Cmp can use the same comparison so reduce one
+/// comparison.
+///
+/// Return true if any changes are made.
+static bool foldICmpWithDominatingICmp(CmpInst *Cmp,
+                                       const TargetLowering &TLI) {
+  if (!EnableICMP_EQToICMP_ST && TLI.isEqualityCmpFoldedWithSignedCmp())
+    return false;
+
+  ICmpInst::Predicate Pred = Cmp->getPredicate();
+  if (Pred != ICmpInst::ICMP_EQ)
+    return false;
+
+  // If icmp eq has users other than BranchInst and SelectInst, converting it to
+  // icmp slt/sgt would introduce more redundant LLVM IR.
+  for (User *U : Cmp->users()) {
+    if (isa<BranchInst>(U))
+      continue;
+    if (isa<SelectInst>(U) && cast<SelectInst>(U)->getCondition() == Cmp)
+      continue;
+    return false;
+  }
+
+  // This is a cheap/incomplete check for dominance - just match a single
+  // predecessor with a conditional branch.
+  BasicBlock *CmpBB = Cmp->getParent();
+  BasicBlock *DomBB = CmpBB->getSinglePredecessor();
+  if (!DomBB)
+    return false;
+
+  // We want to ensure that the only way control gets to the comparison of
+  // interest is that a less/greater than comparison on the same operands is
+  // false.
+  Value *DomCond;
+  BasicBlock *TrueBB, *FalseBB;
+  if (!match(DomBB->getTerminator(), m_Br(m_Value(DomCond), TrueBB, FalseBB)))
+    return false;
+  if (CmpBB != FalseBB)
+    return false;
+
+  Value *CmpOp0 = Cmp->getOperand(0), *CmpOp1 = Cmp->getOperand(1);
+  ICmpInst::Predicate DomPred;
+  if (!match(DomCond, m_ICmp(DomPred, m_Specific(CmpOp0), m_Specific(CmpOp1))))
+    return false;
+  if (DomPred != ICmpInst::ICMP_SGT && DomPred != ICmpInst::ICMP_SLT)
+    return false;
+
+  // Convert the equality comparison to the opposite of the dominating
+  // comparison and swap the direction for all branch/select users.
+  // We have conceptually converted:
+  // Res = (a < b) ? <LT_RES> : (a == b) ? <EQ_RES> : <GT_RES>;
+  // to
+  // Res = (a < b) ? <LT_RES> : (a > b)  ? <GT_RES> : <EQ_RES>;
+  // And similarly for branches.
+  for (User *U : Cmp->users()) {
+    if (auto *BI = dyn_cast<BranchInst>(U)) {
+      assert(BI->isConditional() && "Must be conditional");
+      BI->swapSuccessors();
+      continue;
+    }
+    if (auto *SI = dyn_cast<SelectInst>(U)) {
+      // Swap operands
+      SI->swapValues();
+      SI->swapProfMetadata();
+      continue;
+    }
+    llvm_unreachable("Must be a branch or a select");
+  }
+  Cmp->setPredicate(CmpInst::getSwappedPredicate(DomPred));
+  return true;
+}
+
 bool CodeGenPrepare::optimizeCmp(CmpInst *Cmp, bool &ModifiedDT) {
   if (sinkCmpExpression(Cmp, *TLI))
     return true;
@@ -1416,6 +1513,9 @@ bool CodeGenPrepare::optimizeCmp(CmpInst *Cmp, bool &ModifiedDT) {
     return true;
 
   if (combineToUSubWithOverflow(Cmp, ModifiedDT))
+    return true;
+
+  if (foldICmpWithDominatingICmp(Cmp, *TLI))
     return true;
 
   return false;
@@ -1842,7 +1942,8 @@ bool CodeGenPrepare::optimizeCallInst(CallInst *CI, bool &ModifiedDT) {
   // cold block.  This interacts with our handling for loads and stores to
   // ensure that we can fold all uses of a potential addressing computation
   // into their uses.  TODO: generalize this to work over profiling data
-  if (!OptSize && CI->hasFnAttr(Attribute::Cold))
+  bool OptForSize = OptSize || llvm::shouldOptimizeForSize(BB, PSI, BFI.get());
+  if (!OptForSize && CI->hasFnAttr(Attribute::Cold))
     for (auto &Arg : CI->arg_operands()) {
       if (!Arg->getType()->isPointerTy())
         continue;
@@ -1907,6 +2008,8 @@ bool CodeGenPrepare::optimizeCallInst(CallInst *CI, bool &ModifiedDT) {
     case Intrinsic::ctlz:
       // If counting zeros is expensive, try to avoid it.
       return despeculateCountZeros(II, TLI, DL, ModifiedDT);
+    case Intrinsic::dbg_value:
+      return fixupDbgValue(II);
     }
 
     if (TLI) {
@@ -2777,16 +2880,24 @@ class AddressingModeMatcher {
   /// When true, IsProfitableToFoldIntoAddressingMode always returns true.
   bool IgnoreProfitability;
 
+  /// True if we are optimizing for size.
+  bool OptSize;
+
+  ProfileSummaryInfo *PSI;
+  BlockFrequencyInfo *BFI;
+
   AddressingModeMatcher(
       SmallVectorImpl<Instruction *> &AMI, const TargetLowering &TLI,
       const TargetRegisterInfo &TRI, Type *AT, unsigned AS, Instruction *MI,
       ExtAddrMode &AM, const SetOfInstrs &InsertedInsts,
       InstrToOrigTy &PromotedInsts, TypePromotionTransaction &TPT,
-      std::pair<AssertingVH<GetElementPtrInst>, int64_t> &LargeOffsetGEP)
+      std::pair<AssertingVH<GetElementPtrInst>, int64_t> &LargeOffsetGEP,
+      bool OptSize, ProfileSummaryInfo *PSI, BlockFrequencyInfo *BFI)
       : AddrModeInsts(AMI), TLI(TLI), TRI(TRI),
         DL(MI->getModule()->getDataLayout()), AccessTy(AT), AddrSpace(AS),
         MemoryInst(MI), AddrMode(AM), InsertedInsts(InsertedInsts),
-        PromotedInsts(PromotedInsts), TPT(TPT), LargeOffsetGEP(LargeOffsetGEP) {
+        PromotedInsts(PromotedInsts), TPT(TPT), LargeOffsetGEP(LargeOffsetGEP),
+        OptSize(OptSize), PSI(PSI), BFI(BFI) {
     IgnoreProfitability = false;
   }
 
@@ -2804,12 +2915,14 @@ public:
         const TargetLowering &TLI, const TargetRegisterInfo &TRI,
         const SetOfInstrs &InsertedInsts, InstrToOrigTy &PromotedInsts,
         TypePromotionTransaction &TPT,
-        std::pair<AssertingVH<GetElementPtrInst>, int64_t> &LargeOffsetGEP) {
+        std::pair<AssertingVH<GetElementPtrInst>, int64_t> &LargeOffsetGEP,
+        bool OptSize, ProfileSummaryInfo *PSI, BlockFrequencyInfo *BFI) {
     ExtAddrMode Result;
 
     bool Success = AddressingModeMatcher(AddrModeInsts, TLI, TRI, AccessTy, AS,
                                          MemoryInst, Result, InsertedInsts,
-                                         PromotedInsts, TPT, LargeOffsetGEP)
+                                         PromotedInsts, TPT, LargeOffsetGEP,
+                                         OptSize, PSI, BFI)
                        .matchAddr(V, 0);
     (void)Success; assert(Success && "Couldn't select *anything*?");
     return Result;
@@ -4420,7 +4533,8 @@ static bool FindAllMemoryUses(
     Instruction *I,
     SmallVectorImpl<std::pair<Instruction *, unsigned>> &MemoryUses,
     SmallPtrSetImpl<Instruction *> &ConsideredInsts, const TargetLowering &TLI,
-    const TargetRegisterInfo &TRI, int SeenInsts = 0) {
+    const TargetRegisterInfo &TRI, bool OptSize, ProfileSummaryInfo *PSI,
+    BlockFrequencyInfo *BFI, int SeenInsts = 0) {
   // If we already considered this instruction, we're done.
   if (!ConsideredInsts.insert(I).second)
     return false;
@@ -4428,8 +4542,6 @@ static bool FindAllMemoryUses(
   // If this is an obviously unfoldable instruction, bail out.
   if (!MightBeFoldableInst(I))
     return true;
-
-  const bool OptSize = I->getFunction()->hasOptSize();
 
   // Loop over all the uses, recursively processing them.
   for (Use &U : I->uses()) {
@@ -4471,7 +4583,9 @@ static bool FindAllMemoryUses(
     if (CallInst *CI = dyn_cast<CallInst>(UserI)) {
       // If this is a cold call, we can sink the addressing calculation into
       // the cold path.  See optimizeCallInst
-      if (!OptSize && CI->hasFnAttr(Attribute::Cold))
+      bool OptForSize = OptSize ||
+          llvm::shouldOptimizeForSize(CI->getParent(), PSI, BFI);
+      if (!OptForSize && CI->hasFnAttr(Attribute::Cold))
         continue;
 
       InlineAsm *IA = dyn_cast<InlineAsm>(CI->getCalledValue());
@@ -4483,8 +4597,8 @@ static bool FindAllMemoryUses(
       continue;
     }
 
-    if (FindAllMemoryUses(UserI, MemoryUses, ConsideredInsts, TLI, TRI,
-                          SeenInsts))
+    if (FindAllMemoryUses(UserI, MemoryUses, ConsideredInsts, TLI, TRI, OptSize,
+                          PSI, BFI, SeenInsts))
       return true;
   }
 
@@ -4572,7 +4686,8 @@ isProfitableToFoldIntoAddressingMode(Instruction *I, ExtAddrMode &AMBefore,
   // the use is just a particularly nice way of sinking it.
   SmallVector<std::pair<Instruction*,unsigned>, 16> MemoryUses;
   SmallPtrSet<Instruction*, 16> ConsideredInsts;
-  if (FindAllMemoryUses(I, MemoryUses, ConsideredInsts, TLI, TRI))
+  if (FindAllMemoryUses(I, MemoryUses, ConsideredInsts, TLI, TRI, OptSize,
+                        PSI, BFI))
     return false;  // Has a non-memory, non-foldable use!
 
   // Now that we know that all uses of this instruction are part of a chain of
@@ -4608,7 +4723,7 @@ isProfitableToFoldIntoAddressingMode(Instruction *I, ExtAddrMode &AMBefore,
         TPT.getRestorationPoint();
     AddressingModeMatcher Matcher(
         MatchedAddrModeInsts, TLI, TRI, AddressAccessTy, AS, MemoryInst, Result,
-        InsertedInsts, PromotedInsts, TPT, LargeOffsetGEP);
+        InsertedInsts, PromotedInsts, TPT, LargeOffsetGEP, OptSize, PSI, BFI);
     Matcher.IgnoreProfitability = true;
     bool Success = Matcher.matchAddr(Address, 0);
     (void)Success; assert(Success && "Couldn't select *anything*?");
@@ -4714,7 +4829,8 @@ bool CodeGenPrepare::optimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
                                                                       0);
     ExtAddrMode NewAddrMode = AddressingModeMatcher::Match(
         V, AccessTy, AddrSpace, MemoryInst, AddrModeInsts, *TLI, *TRI,
-        InsertedInsts, PromotedInsts, TPT, LargeOffsetGEP);
+        InsertedInsts, PromotedInsts, TPT, LargeOffsetGEP, OptSize, PSI,
+        BFI.get());
 
     GetElementPtrInst *GEP = LargeOffsetGEP.first;
     if (GEP && !NewGEPBases.count(GEP)) {
@@ -5932,7 +6048,9 @@ bool CodeGenPrepare::optimizeShiftInst(BinaryOperator *Shift) {
 /// turn it into a branch.
 bool CodeGenPrepare::optimizeSelectInst(SelectInst *SI) {
   // If branch conversion isn't desirable, exit early.
-  if (DisableSelectToBranch || OptSize || !TLI)
+  if (DisableSelectToBranch ||
+      OptSize || llvm::shouldOptimizeForSize(SI->getParent(), PSI, BFI.get()) ||
+      !TLI)
     return false;
 
   // Find all consecutive select instructions that share the same condition.
@@ -7110,42 +7228,68 @@ bool CodeGenPrepare::optimizeBlock(BasicBlock &BB, bool &ModifiedDT) {
   return MadeChange;
 }
 
-// llvm.dbg.value is far away from the value then iSel may not be able
-// handle it properly. iSel will drop llvm.dbg.value if it can not
-// find a node corresponding to the value.
+// Some CGP optimizations may move or alter what's computed in a block. Check
+// whether a dbg.value intrinsic could be pointed at a more appropriate operand.
+bool CodeGenPrepare::fixupDbgValue(Instruction *I) {
+  assert(isa<DbgValueInst>(I));
+  DbgValueInst &DVI = *cast<DbgValueInst>(I);
+
+  // Does this dbg.value refer to a sunk address calculation?
+  Value *Location = DVI.getVariableLocation();
+  WeakTrackingVH SunkAddrVH = SunkAddrs[Location];
+  Value *SunkAddr = SunkAddrVH.pointsToAliveValue() ? SunkAddrVH : nullptr;
+  if (SunkAddr) {
+    // Point dbg.value at locally computed address, which should give the best
+    // opportunity to be accurately lowered. This update may change the type of
+    // pointer being referred to; however this makes no difference to debugging
+    // information, and we can't generate bitcasts that may affect codegen.
+    DVI.setOperand(0, MetadataAsValue::get(DVI.getContext(),
+                                           ValueAsMetadata::get(SunkAddr)));
+    return true;
+  }
+  return false;
+}
+
+// A llvm.dbg.value may be using a value before its definition, due to
+// optimizations in this pass and others. Scan for such dbg.values, and rescue
+// them by moving the dbg.value to immediately after the value definition.
+// FIXME: Ideally this should never be necessary, and this has the potential
+// to re-order dbg.value intrinsics.
 bool CodeGenPrepare::placeDbgValues(Function &F) {
   bool MadeChange = false;
+  DominatorTree DT(F);
+
   for (BasicBlock &BB : F) {
-    Instruction *PrevNonDbgInst = nullptr;
     for (BasicBlock::iterator BI = BB.begin(), BE = BB.end(); BI != BE;) {
       Instruction *Insn = &*BI++;
       DbgValueInst *DVI = dyn_cast<DbgValueInst>(Insn);
-      // Leave dbg.values that refer to an alloca alone. These
-      // intrinsics describe the address of a variable (= the alloca)
-      // being taken.  They should not be moved next to the alloca
-      // (and to the beginning of the scope), but rather stay close to
-      // where said address is used.
-      if (!DVI || (DVI->getValue() && isa<AllocaInst>(DVI->getValue()))) {
-        PrevNonDbgInst = Insn;
+      if (!DVI)
         continue;
-      }
 
       Instruction *VI = dyn_cast_or_null<Instruction>(DVI->getValue());
-      if (VI && VI != PrevNonDbgInst && !VI->isTerminator()) {
-        // If VI is a phi in a block with an EHPad terminator, we can't insert
-        // after it.
-        if (isa<PHINode>(VI) && VI->getParent()->getTerminator()->isEHPad())
-          continue;
-        LLVM_DEBUG(dbgs() << "Moving Debug Value before :\n"
-                          << *DVI << ' ' << *VI);
-        DVI->removeFromParent();
-        if (isa<PHINode>(VI))
-          DVI->insertBefore(&*VI->getParent()->getFirstInsertionPt());
-        else
-          DVI->insertAfter(VI);
-        MadeChange = true;
-        ++NumDbgValueMoved;
-      }
+
+      if (!VI || VI->isTerminator())
+        continue;
+
+      // If VI is a phi in a block with an EHPad terminator, we can't insert
+      // after it.
+      if (isa<PHINode>(VI) && VI->getParent()->getTerminator()->isEHPad())
+        continue;
+
+      // If the defining instruction dominates the dbg.value, we do not need
+      // to move the dbg.value.
+      if (DT.dominates(VI, DVI))
+        continue;
+
+      LLVM_DEBUG(dbgs() << "Moving Debug Value before :\n"
+                        << *DVI << ' ' << *VI);
+      DVI->removeFromParent();
+      if (isa<PHINode>(VI))
+        DVI->insertBefore(&*VI->getParent()->getFirstInsertionPt());
+      else
+        DVI->insertAfter(VI);
+      MadeChange = true;
+      ++NumDbgValueMoved;
     }
   }
   return MadeChange;
@@ -7199,6 +7343,10 @@ bool CodeGenPrepare::splitBranchCondition(Function &F, bool &ModifiedDT) {
 
     auto *Br1 = cast<BranchInst>(BB.getTerminator());
     if (Br1->getMetadata(LLVMContext::MD_unpredictable))
+      continue;
+
+    // The merging of mostly empty BB can cause a degenerate branch.
+    if (TBB == FBB)
       continue;
 
     unsigned Opc;

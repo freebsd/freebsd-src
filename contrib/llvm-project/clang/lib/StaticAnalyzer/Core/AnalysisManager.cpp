@@ -43,6 +43,9 @@ AnalysisManager::AnalysisManager(ASTContext &ASTCtx,
       CreateConstraintMgr(constraintmgr), CheckerMgr(checkerMgr),
       options(Options) {
   AnaCtxMgr.getCFGBuildOptions().setAllAlwaysAdd();
+  AnaCtxMgr.getCFGBuildOptions().OmitImplicitValueInitializers = true;
+  AnaCtxMgr.getCFGBuildOptions().AddCXXDefaultInitExprInAggregates =
+      Options.ShouldIncludeDefaultInitForAggregates;
 }
 
 AnalysisManager::~AnalysisManager() {

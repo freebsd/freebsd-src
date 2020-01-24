@@ -12,17 +12,21 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
+#include "llvm/CodeGen/LazyMachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/MachineSizeOpts.h"
 #include "llvm/CodeGen/MachineTraceMetrics.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -66,6 +70,8 @@ class MachineCombiner : public MachineFunctionPass {
   MachineLoopInfo *MLI; // Current MachineLoopInfo
   MachineTraceMetrics *Traces;
   MachineTraceMetrics::Ensemble *MinInstr;
+  MachineBlockFrequencyInfo *MBFI;
+  ProfileSummaryInfo *PSI;
 
   TargetSchedModel TSchedModel;
 
@@ -82,7 +88,7 @@ public:
   StringRef getPassName() const override { return "Machine InstCombiner"; }
 
 private:
-  bool doSubstitute(unsigned NewSize, unsigned OldSize);
+  bool doSubstitute(unsigned NewSize, unsigned OldSize, bool OptForSize);
   bool combineInstructions(MachineBasicBlock *);
   MachineInstr *getOperandDef(const MachineOperand &MO);
   unsigned getDepth(SmallVectorImpl<MachineInstr *> &InsInstrs,
@@ -131,6 +137,8 @@ void MachineCombiner::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<MachineLoopInfo>();
   AU.addRequired<MachineTraceMetrics>();
   AU.addPreserved<MachineTraceMetrics>();
+  AU.addRequired<LazyMachineBlockFrequencyInfoPass>();
+  AU.addRequired<ProfileSummaryInfoWrapperPass>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
@@ -408,8 +416,9 @@ bool MachineCombiner::preservesResourceLen(
 
 /// \returns true when new instruction sequence should be generated
 /// independent if it lengthens critical path or not
-bool MachineCombiner::doSubstitute(unsigned NewSize, unsigned OldSize) {
-  if (OptSize && (NewSize < OldSize))
+bool MachineCombiner::doSubstitute(unsigned NewSize, unsigned OldSize,
+                                   bool OptForSize) {
+  if (OptForSize && (NewSize < OldSize))
     return true;
   if (!TSchedModel.hasInstrSchedModelOrItineraries())
     return true;
@@ -507,6 +516,8 @@ bool MachineCombiner::combineInstructions(MachineBasicBlock *MBB) {
   SparseSet<LiveRegUnit> RegUnits;
   RegUnits.setUniverse(TRI->getNumRegUnits());
 
+  bool OptForSize = OptSize || llvm::shouldOptimizeForSize(MBB, PSI, MBFI);
+
   while (BlockIter != MBB->end()) {
     auto &MI = *BlockIter++;
     SmallVector<MachineCombinerPattern, 16> Patterns;
@@ -583,7 +594,8 @@ bool MachineCombiner::combineInstructions(MachineBasicBlock *MBB) {
       // fewer instructions OR
       // the new sequence neither lengthens the critical path nor increases
       // resource pressure.
-      if (SubstituteAlways || doSubstitute(NewInstCount, OldInstCount)) {
+      if (SubstituteAlways ||
+          doSubstitute(NewInstCount, OldInstCount, OptForSize)) {
         insertDeleteInstructions(MBB, MI, InsInstrs, DelInstrs, MinInstr,
                                  RegUnits, IncrementalUpdate);
         // Eagerly stop after the first pattern fires.
@@ -638,6 +650,10 @@ bool MachineCombiner::runOnMachineFunction(MachineFunction &MF) {
   MRI = &MF.getRegInfo();
   MLI = &getAnalysis<MachineLoopInfo>();
   Traces = &getAnalysis<MachineTraceMetrics>();
+  PSI = &getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
+  MBFI = (PSI && PSI->hasProfileSummary()) ?
+         &getAnalysis<LazyMachineBlockFrequencyInfoPass>().getBFI() :
+         nullptr;
   MinInstr = nullptr;
   OptSize = MF.getFunction().hasOptSize();
 

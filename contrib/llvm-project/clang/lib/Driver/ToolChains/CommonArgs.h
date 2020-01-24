@@ -68,6 +68,9 @@ ParsePICArgs(const ToolChain &ToolChain, const llvm::opt::ArgList &Args);
 unsigned ParseFunctionAlignment(const ToolChain &TC,
                                 const llvm::opt::ArgList &Args);
 
+unsigned ParseDebugDefaultVersion(const ToolChain &TC,
+                                  const llvm::opt::ArgList &Args);
+
 void AddAssemblerKPIC(const ToolChain &ToolChain,
                       const llvm::opt::ArgList &Args,
                       llvm::opt::ArgStringList &CmdArgs);
@@ -117,14 +120,6 @@ SmallString<128> getStatsFileName(const llvm::opt::ArgList &Args,
 //     otherwise '-print-multi-lib' will not emit them correctly.
 void addMultilibFlag(bool Enabled, const char *const Flag,
                      Multilib::flags_list &Flags);
-
-StringRef getTargetABI(const llvm::opt::ArgList &Args,
-                       const llvm::Triple &Triple);
-
-void getTargetFeatures(const ToolChain &TC, const llvm::Triple &Triple,
-                       const llvm::opt::ArgList &Args,
-                       llvm::opt::ArgStringList &CmdArgs, bool ForAS,
-                       bool ForLTOPlugin = false);
 
 } // end namespace tools
 } // end namespace driver

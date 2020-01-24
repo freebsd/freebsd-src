@@ -6,11 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifdef LLDB_DISABLE_PYTHON
+#include "lldb/Host/Config.h"
 
-// Python is disabled in this build
-
-#else
+#if LLDB_ENABLE_PYTHON
 
 #include "PythonDataObjects.h"
 #include "ScriptInterpreterPython.h"
@@ -802,29 +800,11 @@ bool PythonCallable::Check(PyObject *py_obj) {
   return PyCallable_Check(py_obj);
 }
 
-PythonCallable::ArgInfo PythonCallable::GetNumInitArguments() const {
-  auto arginfo = GetInitArgInfo();
-  if (!arginfo) {
-    llvm::consumeError(arginfo.takeError());
-    return ArgInfo{};
-  }
-  return arginfo.get();
-}
-
-Expected<PythonCallable::ArgInfo> PythonCallable::GetInitArgInfo() const {
-  if (!IsValid())
-    return nullDeref();
-  auto init = As<PythonCallable>(GetAttribute("__init__"));
-  if (!init)
-    return init.takeError();
-  return init.get().GetArgInfo();
-}
-
 #if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 3
 static const char get_arg_info_script[] = R"(
 from inspect import signature, Parameter, ismethod
 from collections import namedtuple
-ArgInfo = namedtuple('ArgInfo', ['count', 'has_varargs', 'is_bound_method'])
+ArgInfo = namedtuple('ArgInfo', ['count', 'has_varargs'])
 def main(f):
     count = 0
     varargs = False
@@ -840,7 +820,7 @@ def main(f):
             pass
         else:
             raise Exception(f'unknown parameter kind: {kind}')
-    return ArgInfo(count, varargs, ismethod(f))
+    return ArgInfo(count, varargs)
 )";
 #endif
 
@@ -856,21 +836,27 @@ Expected<PythonCallable::ArgInfo> PythonCallable::GetArgInfo() const {
   Expected<PythonObject> pyarginfo = get_arg_info(*this);
   if (!pyarginfo)
     return pyarginfo.takeError();
-  result.count = cantFail(As<long long>(pyarginfo.get().GetAttribute("count")));
-  result.has_varargs =
+  long long count =
+      cantFail(As<long long>(pyarginfo.get().GetAttribute("count")));
+  bool has_varargs =
       cantFail(As<bool>(pyarginfo.get().GetAttribute("has_varargs")));
-  bool is_method =
-      cantFail(As<bool>(pyarginfo.get().GetAttribute("is_bound_method")));
-  result.max_positional_args =
-      result.has_varargs ? ArgInfo::UNBOUNDED : result.count;
-
-  // FIXME emulate old broken behavior
-  if (is_method)
-    result.count++;
+  result.max_positional_args = has_varargs ? ArgInfo::UNBOUNDED : count;
 
 #else
+  PyObject *py_func_obj;
   bool is_bound_method = false;
-  PyObject *py_func_obj = m_py_obj;
+  bool is_class = false;
+
+  if (PyType_Check(m_py_obj) || PyClass_Check(m_py_obj)) {
+    auto init = GetAttribute("__init__");
+    if (!init)
+      return init.takeError();
+    py_func_obj = init.get().get();
+    is_class = true;
+  } else {
+    py_func_obj = m_py_obj;
+  }
+
   if (PyMethod_Check(py_func_obj)) {
     py_func_obj = PyMethod_GET_FUNCTION(py_func_obj);
     PythonObject im_self = GetAttributeValue("im_self");
@@ -899,11 +885,11 @@ Expected<PythonCallable::ArgInfo> PythonCallable::GetArgInfo() const {
   if (!code)
     return result;
 
-  result.count = code->co_argcount;
-  result.has_varargs = !!(code->co_flags & CO_VARARGS);
-  result.max_positional_args = result.has_varargs
-                                   ? ArgInfo::UNBOUNDED
-                                   : (result.count - (int)is_bound_method);
+  auto count = code->co_argcount;
+  bool has_varargs = !!(code->co_flags & CO_VARARGS);
+  result.max_positional_args =
+      has_varargs ? ArgInfo::UNBOUNDED
+                  : (count - (int)is_bound_method) - (int)is_class;
 
 #endif
 
@@ -912,15 +898,6 @@ Expected<PythonCallable::ArgInfo> PythonCallable::GetArgInfo() const {
 
 constexpr unsigned
     PythonCallable::ArgInfo::UNBOUNDED; // FIXME delete after c++17
-
-PythonCallable::ArgInfo PythonCallable::GetNumArguments() const {
-  auto arginfo = GetArgInfo();
-  if (!arginfo) {
-    llvm::consumeError(arginfo.takeError());
-    return ArgInfo{};
-  }
-  return arginfo.get();
-}
 
 PythonObject PythonCallable::operator()() {
   return PythonObject(PyRefType::Owned, PyObject_CallObject(m_py_obj, nullptr));
@@ -1385,11 +1362,13 @@ llvm::Expected<FileSP> PythonFile::ConvertToFile(bool borrowed) {
   if (!options)
     return options.takeError();
 
-  // LLDB and python will not share I/O buffers.  We should probably
-  // flush the python buffers now.
-  auto r = CallMethod("flush");
-  if (!r)
-    return r.takeError();
+  if (options.get() & File::eOpenOptionWrite) {
+    // LLDB and python will not share I/O buffers.  We should probably
+    // flush the python buffers now.
+    auto r = CallMethod("flush");
+    if (!r)
+      return r.takeError();
+  }
 
   FileSP file_sp;
   if (borrowed) {
@@ -1498,14 +1477,23 @@ Expected<PythonFile> PythonFile::FromFile(File &file, const char *mode) {
   PyObject *file_obj;
 #if PY_MAJOR_VERSION >= 3
   file_obj = PyFile_FromFd(file.GetDescriptor(), nullptr, mode, -1, nullptr,
-                           "ignore", nullptr, 0);
+                           "ignore", nullptr, /*closefd=*/0);
 #else
-  // Read through the Python source, doesn't seem to modify these strings
-  char *cmode = const_cast<char *>(mode);
-  // We pass ::flush instead of ::fclose here so we borrow the FILE* --
-  // the lldb_private::File still owns it.
-  file_obj =
-      PyFile_FromFile(file.GetStream(), const_cast<char *>(""), cmode, ::fflush);
+  // I'd like to pass ::fflush here if the file is writable,  so that
+  // when the python side destructs the file object it will be flushed.
+  // However, this would be dangerous.    It can cause fflush to be called
+  // after fclose if the python program keeps a reference to the file after
+  // the original lldb_private::File has been destructed.
+  //
+  // It's all well and good to ask a python program not to use a closed file
+  // but asking a python program to make sure objects get released in a
+  // particular order is not safe.
+  //
+  // The tradeoff here is that if a python 2 program wants to make sure this
+  // file gets flushed, they'll have to do it explicitly or wait untill the
+  // original lldb File itself gets flushed.
+  file_obj = PyFile_FromFile(file.GetStream(), py2_const_cast(""),
+                             py2_const_cast(mode), [](FILE *) { return 0; });
 #endif
 
   if (!file_obj)

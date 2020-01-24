@@ -410,8 +410,8 @@ unsigned FastISel::materializeConstant(const Value *V, MVT VT) {
   else if (isa<ConstantPointerNull>(V))
     // Translate this as an integer zero so that it can be
     // local-CSE'd with actual integer zeros.
-    Reg = getRegForValue(
-        Constant::getNullValue(DL.getIntPtrType(V->getContext())));
+    Reg =
+        getRegForValue(Constant::getNullValue(DL.getIntPtrType(V->getType())));
   else if (const auto *CF = dyn_cast<ConstantFP>(V)) {
     if (CF->isNullValue())
       Reg = fastMaterializeFloatZero(CF);
@@ -1190,6 +1190,8 @@ bool FastISel::lowerCallTo(CallLoweringInfo &CLI) {
       Flags.setSwiftSelf();
     if (Arg.IsSwiftError)
       Flags.setSwiftError();
+    if (Arg.IsCFGuardTarget)
+      Flags.setCFGuardTarget();
     if (Arg.IsByVal)
       Flags.setByVal();
     if (Arg.IsInAlloca) {
@@ -1236,10 +1238,9 @@ bool FastISel::lowerCallTo(CallLoweringInfo &CLI) {
     updateValueMap(CLI.CS->getInstruction(), CLI.ResultReg, CLI.NumResultRegs);
 
   // Set labels for heapallocsite call.
-  if (CLI.CS && CLI.CS->getInstruction()->hasMetadata("heapallocsite")) {
-    const MDNode *MD = CLI.CS->getInstruction()->getMetadata("heapallocsite");
-    MF->addCodeViewHeapAllocSite(CLI.Call, MD);
-  }
+  if (CLI.CS)
+    if (MDNode *MD = CLI.CS->getInstruction()->getMetadata("heapallocsite"))
+      CLI.Call->setHeapAllocMarker(*MF, MD);
 
   return true;
 }
@@ -1274,6 +1275,10 @@ bool FastISel::lowerCall(const CallInst *CI) {
   // Target-dependent constraints are checked within fastLowerCall.
   bool IsTailCall = CI->isTailCall();
   if (IsTailCall && !isInTailCallPosition(CS, TM))
+    IsTailCall = false;
+  if (IsTailCall && MF->getFunction()
+                            .getFnAttribute("disable-tail-calls")
+                            .getValueAsString() == "true")
     IsTailCall = false;
 
   CallLoweringInfo CLI;
@@ -1926,7 +1931,8 @@ FastISel::FastISel(FunctionLoweringInfo &FuncInfo,
       TII(*MF->getSubtarget().getInstrInfo()),
       TLI(*MF->getSubtarget().getTargetLowering()),
       TRI(*MF->getSubtarget().getRegisterInfo()), LibInfo(LibInfo),
-      SkipTargetIndependentISel(SkipTargetIndependentISel) {}
+      SkipTargetIndependentISel(SkipTargetIndependentISel),
+      LastLocalValue(nullptr), EmitStartPt(nullptr) {}
 
 FastISel::~FastISel() = default;
 

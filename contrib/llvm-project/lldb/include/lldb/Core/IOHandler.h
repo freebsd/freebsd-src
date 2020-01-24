@@ -10,6 +10,7 @@
 #define liblldb_IOHandler_h_
 
 #include "lldb/Core/ValueObjectList.h"
+#include "lldb/Host/Config.h"
 #include "lldb/Utility/CompletionRequest.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Flags.h"
@@ -51,6 +52,7 @@ public:
     REPL,
     ProcessIO,
     PythonInterpreter,
+    LuaInterpreter,
     PythonCode,
     Other
   };
@@ -406,7 +408,7 @@ public:
   void PrintAsync(Stream *stream, const char *s, size_t len) override;
 
 private:
-#ifndef LLDB_DISABLE_LIBEDIT
+#if LLDB_ENABLE_LIBEDIT
   static bool IsInputCompleteCallback(Editline *editline, StringList &lines,
                                       void *baton);
 
@@ -417,7 +419,7 @@ private:
 #endif
 
 protected:
-#ifndef LLDB_DISABLE_LIBEDIT
+#if LLDB_ENABLE_LIBEDIT
   std::unique_ptr<Editline> m_editline_up;
 #endif
   IOHandlerDelegate &m_delegate;
@@ -456,48 +458,9 @@ protected:
   bool m_user_response;
 };
 
-class IOHandlerCursesGUI : public IOHandler {
-public:
-  IOHandlerCursesGUI(Debugger &debugger);
-
-  ~IOHandlerCursesGUI() override;
-
-  void Run() override;
-
-  void Cancel() override;
-
-  bool Interrupt() override;
-
-  void GotEOF() override;
-
-  void Activate() override;
-
-  void Deactivate() override;
-
-protected:
-  curses::ApplicationAP m_app_ap;
-};
-
-class IOHandlerCursesValueObjectList : public IOHandler {
-public:
-  IOHandlerCursesValueObjectList(Debugger &debugger,
-                                 ValueObjectList &valobj_list);
-
-  ~IOHandlerCursesValueObjectList() override;
-
-  void Run() override;
-
-  void GotEOF() override;
-
-protected:
-  ValueObjectList m_valobj_list;
-};
-
 class IOHandlerStack {
 public:
-  IOHandlerStack() : m_stack(), m_mutex(), m_top(nullptr) {}
-
-  ~IOHandlerStack() = default;
+  IOHandlerStack() = default;
 
   size_t GetSize() const {
     std::lock_guard<std::recursive_mutex> guard(m_mutex);
@@ -574,7 +537,7 @@ protected:
   typedef std::vector<lldb::IOHandlerSP> collection;
   collection m_stack;
   mutable std::recursive_mutex m_mutex;
-  IOHandler *m_top;
+  IOHandler *m_top = nullptr;
 
 private:
   DISALLOW_COPY_AND_ASSIGN(IOHandlerStack);

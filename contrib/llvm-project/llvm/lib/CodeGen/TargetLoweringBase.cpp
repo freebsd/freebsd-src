@@ -88,6 +88,14 @@ static cl::opt<unsigned> OptsizeJumpTableDensity(
     cl::desc("Minimum density for building a jump table in "
              "an optsize function"));
 
+// FIXME: This option is only to test if the strict fp operation processed
+// correctly by preventing mutating strict fp operation to normal fp operation
+// during development. When the backend supports strict float operation, this
+// option will be meaningless.
+static cl::opt<bool> DisableStrictNodeMutation("disable-strictnode-mutation",
+       cl::desc("Don't mutate strict-float node to a legalize node"),
+       cl::init(false), cl::Hidden);
+
 static bool darwinHasSinCos(const Triple &TT) {
   assert(TT.isOSDarwin() && "should be called with darwin triple");
   // Don't bother with 32 bit x86.
@@ -148,7 +156,6 @@ void TargetLoweringBase::InitLibcalls(const Triple &TT) {
     setLibcallName(RTLIB::OLE_F128, "__lekf2");
     setLibcallName(RTLIB::OGT_F128, "__gtkf2");
     setLibcallName(RTLIB::UO_F128, "__unordkf2");
-    setLibcallName(RTLIB::O_F128, "__unordkf2");
   }
 
   // A few names are different on particular architectures or environments.
@@ -556,10 +563,6 @@ static void InitCmpLibcallCCs(ISD::CondCode *CCs) {
   CCs[RTLIB::UO_F64] = ISD::SETNE;
   CCs[RTLIB::UO_F128] = ISD::SETNE;
   CCs[RTLIB::UO_PPCF128] = ISD::SETNE;
-  CCs[RTLIB::O_F32] = ISD::SETEQ;
-  CCs[RTLIB::O_F64] = ISD::SETEQ;
-  CCs[RTLIB::O_F128] = ISD::SETEQ;
-  CCs[RTLIB::O_PPCF128] = ISD::SETEQ;
 }
 
 /// NOTE: The TargetMachine owns TLOF.
@@ -572,8 +575,6 @@ TargetLoweringBase::TargetLoweringBase(const TargetMachine &tm) : TM(tm) {
   MaxGluedStoresPerMemcpy = 0;
   MaxStoresPerMemsetOptSize = MaxStoresPerMemcpyOptSize =
       MaxStoresPerMemmoveOptSize = MaxLoadsPerMemcmpOptSize = 4;
-  UseUnderscoreSetJmp = false;
-  UseUnderscoreLongJmp = false;
   HasMultipleConditionRegisters = false;
   HasExtractBitsInsn = false;
   JumpIsExpensive = JumpIsExpensiveOverride;
@@ -585,6 +586,7 @@ TargetLoweringBase::TargetLoweringBase(const TargetMachine &tm) : TM(tm) {
   BooleanVectorContents = UndefinedBooleanContent;
   SchedPreferenceInfo = Sched::ILP;
   GatherAllAliasesMaxDepth = 18;
+  IsStrictFPEnabled = DisableStrictNodeMutation;
   // TODO: the default will be switched to 0 in the next commit, along
   // with the Target-specific changes necessary.
   MaxAtomicSizeInBitsSupported = 1024;
@@ -624,6 +626,8 @@ void TargetLoweringBase::initActions() {
          IM != (unsigned)ISD::LAST_INDEXED_MODE; ++IM) {
       setIndexedLoadAction(IM, VT, Expand);
       setIndexedStoreAction(IM, VT, Expand);
+      setIndexedMaskedLoadAction(IM, VT, Expand);
+      setIndexedMaskedStoreAction(IM, VT, Expand);
     }
 
     // Most backends expect to see the node which just returns the value loaded.
@@ -654,6 +658,8 @@ void TargetLoweringBase::initActions() {
     setOperationAction(ISD::SMULFIXSAT, VT, Expand);
     setOperationAction(ISD::UMULFIX, VT, Expand);
     setOperationAction(ISD::UMULFIXSAT, VT, Expand);
+    setOperationAction(ISD::SDIVFIX, VT, Expand);
+    setOperationAction(ISD::UDIVFIX, VT, Expand);
 
     // Overflow operations default to expand
     setOperationAction(ISD::SADDO, VT, Expand);
@@ -687,6 +693,7 @@ void TargetLoweringBase::initActions() {
     // These operations default to expand for vector types.
     if (VT.isVector()) {
       setOperationAction(ISD::FCOPYSIGN, VT, Expand);
+      setOperationAction(ISD::SIGN_EXTEND_INREG, VT, Expand);
       setOperationAction(ISD::ANY_EXTEND_VECTOR_INREG, VT, Expand);
       setOperationAction(ISD::SIGN_EXTEND_VECTOR_INREG, VT, Expand);
       setOperationAction(ISD::ZERO_EXTEND_VECTOR_INREG, VT, Expand);
@@ -694,38 +701,9 @@ void TargetLoweringBase::initActions() {
     }
 
     // Constrained floating-point operations default to expand.
-    setOperationAction(ISD::STRICT_FADD, VT, Expand);
-    setOperationAction(ISD::STRICT_FSUB, VT, Expand);
-    setOperationAction(ISD::STRICT_FMUL, VT, Expand);
-    setOperationAction(ISD::STRICT_FDIV, VT, Expand);
-    setOperationAction(ISD::STRICT_FREM, VT, Expand);
-    setOperationAction(ISD::STRICT_FMA, VT, Expand);
-    setOperationAction(ISD::STRICT_FSQRT, VT, Expand);
-    setOperationAction(ISD::STRICT_FPOW, VT, Expand);
-    setOperationAction(ISD::STRICT_FPOWI, VT, Expand);
-    setOperationAction(ISD::STRICT_FSIN, VT, Expand);
-    setOperationAction(ISD::STRICT_FCOS, VT, Expand);
-    setOperationAction(ISD::STRICT_FEXP, VT, Expand);
-    setOperationAction(ISD::STRICT_FEXP2, VT, Expand);
-    setOperationAction(ISD::STRICT_FLOG, VT, Expand);
-    setOperationAction(ISD::STRICT_FLOG10, VT, Expand);
-    setOperationAction(ISD::STRICT_FLOG2, VT, Expand);
-    setOperationAction(ISD::STRICT_LRINT, VT, Expand);
-    setOperationAction(ISD::STRICT_LLRINT, VT, Expand);
-    setOperationAction(ISD::STRICT_FRINT, VT, Expand);
-    setOperationAction(ISD::STRICT_FNEARBYINT, VT, Expand);
-    setOperationAction(ISD::STRICT_FCEIL, VT, Expand);
-    setOperationAction(ISD::STRICT_FFLOOR, VT, Expand);
-    setOperationAction(ISD::STRICT_LROUND, VT, Expand);
-    setOperationAction(ISD::STRICT_LLROUND, VT, Expand);
-    setOperationAction(ISD::STRICT_FROUND, VT, Expand);
-    setOperationAction(ISD::STRICT_FTRUNC, VT, Expand);
-    setOperationAction(ISD::STRICT_FMAXNUM, VT, Expand);
-    setOperationAction(ISD::STRICT_FMINNUM, VT, Expand);
-    setOperationAction(ISD::STRICT_FP_ROUND, VT, Expand);
-    setOperationAction(ISD::STRICT_FP_EXTEND, VT, Expand);
-    setOperationAction(ISD::STRICT_FP_TO_SINT, VT, Expand);
-    setOperationAction(ISD::STRICT_FP_TO_UINT, VT, Expand);
+#define INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)                   \
+    setOperationAction(ISD::STRICT_##DAGN, VT, Expand);
+#include "llvm/IR/ConstrainedOps.def"
 
     // For most targets @llvm.get.dynamic.area.offset just returns 0.
     setOperationAction(ISD::GET_DYNAMIC_AREA_OFFSET, VT, Expand);
@@ -1332,8 +1310,11 @@ void TargetLoweringBase::computeRegisterProperties(
       MVT IntermediateVT;
       MVT RegisterVT;
       unsigned NumIntermediates;
-      NumRegistersForVT[i] = getVectorTypeBreakdownMVT(VT, IntermediateVT,
+      unsigned NumRegisters = getVectorTypeBreakdownMVT(VT, IntermediateVT,
           NumIntermediates, RegisterVT, this);
+      NumRegistersForVT[i] = NumRegisters;
+      assert(NumRegistersForVT[i] == NumRegisters &&
+             "NumRegistersForVT size cannot represent NumRegisters!");
       RegisterTypeForVT[i] = RegisterVT;
 
       MVT NVT = VT.getPow2VectorType();
@@ -1454,6 +1435,28 @@ unsigned TargetLoweringBase::getVectorTypeBreakdown(LLVMContext &Context, EVT VT
   // Otherwise, promotion or legal types use the same number of registers as
   // the vector decimated to the appropriate level.
   return NumVectorRegs;
+}
+
+bool TargetLoweringBase::isSuitableForJumpTable(const SwitchInst *SI,
+                                                uint64_t NumCases,
+                                                uint64_t Range,
+                                                ProfileSummaryInfo *PSI,
+                                                BlockFrequencyInfo *BFI) const {
+  // FIXME: This function check the maximum table size and density, but the
+  // minimum size is not checked. It would be nice if the minimum size is
+  // also combined within this function. Currently, the minimum size check is
+  // performed in findJumpTable() in SelectionDAGBuiler and
+  // getEstimatedNumberOfCaseClusters() in BasicTTIImpl.
+  const bool OptForSize =
+      SI->getParent()->getParent()->hasOptSize() ||
+      llvm::shouldOptimizeForSize(SI->getParent(), PSI, BFI);
+  const unsigned MinDensity = getMinimumJumpTableDensity(OptForSize);
+  const unsigned MaxJumpTableSize = getMaximumJumpTableSize();
+
+  // Check whether the number of cases is small enough and
+  // the range is dense enough for a jump table.
+  return (OptForSize || Range <= MaxJumpTableSize) &&
+         (NumCases * 100 >= Range * MinDensity);
 }
 
 /// Get the EVTs and ArgFlags collections that represent the legalized return
@@ -1641,6 +1644,7 @@ int TargetLoweringBase::InstructionOpcodeToISD(unsigned Opcode) const {
   case ExtractValue:   return ISD::MERGE_VALUES;
   case InsertValue:    return ISD::MERGE_VALUES;
   case LandingPad:     return 0;
+  case Freeze:         return 0;
   }
 
   llvm_unreachable("Unknown instruction type encountered!");

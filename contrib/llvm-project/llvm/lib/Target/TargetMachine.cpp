@@ -36,8 +36,8 @@ TargetMachine::TargetMachine(const Target &T, StringRef DataLayoutString,
                              const TargetOptions &Options)
     : TheTarget(T), DL(DataLayoutString), TargetTriple(TT), TargetCPU(CPU),
       TargetFS(FS), AsmInfo(nullptr), MRI(nullptr), MII(nullptr), STI(nullptr),
-      RequireStructuredCFG(false), DefaultOptions(Options), Options(Options) {
-}
+      RequireStructuredCFG(false), O0WantsFastISel(false),
+      DefaultOptions(Options), Options(Options) {}
 
 TargetMachine::~TargetMachine() = default;
 
@@ -184,15 +184,14 @@ bool TargetMachine::shouldAssumeDSOLocal(const Module &M,
     const Function *F = dyn_cast_or_null<Function>(GV);
     if (F && F->hasFnAttribute(Attribute::NonLazyBind))
       return false;
-
-    bool IsTLS = GV && GV->isThreadLocal();
-    bool IsAccessViaCopyRelocs =
-        GV && Options.MCOptions.MCPIECopyRelocations && isa<GlobalVariable>(GV);
     Triple::ArchType Arch = TT.getArch();
-    bool IsPPC =
-        Arch == Triple::ppc || Arch == Triple::ppc64 || Arch == Triple::ppc64le;
-    // Check if we can use copy relocations. PowerPC has no copy relocations.
-    if (!IsTLS && !IsPPC && (RM == Reloc::Static || IsAccessViaCopyRelocs))
+
+    // PowerPC prefers avoiding copy relocations.
+    if (Arch == Triple::ppc || TT.isPPC64())
+      return false;
+
+    // Check if we can use copy relocations.
+    if (!(GV && GV->isThreadLocal()) && RM == Reloc::Static)
       return true;
   }
 

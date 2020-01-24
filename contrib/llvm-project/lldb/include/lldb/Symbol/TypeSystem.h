@@ -49,51 +49,32 @@ struct LanguageSet {
   bool operator[](unsigned i) const;
 };
 
-/// Interface for representing the Type Systems in different languages.
+/// Interface for representing a type system.
+///
+/// Implemented by language plugins to define the type system for a given
+/// language.
+///
+/// This interface extensively used opaque pointers to prevent that generic
+/// LLDB code has dependencies on language plugins. The type and semantics of
+/// these opaque pointers are defined by the TypeSystem implementation inside
+/// the respective language plugin. Opaque pointers from one TypeSystem
+/// instance should never be passed to a different TypeSystem instance (even
+/// when the language plugin for both TypeSystem instances is the same).
+///
+/// Most of the functions in this class should not be called directly but only
+/// called by their respective counterparts in CompilerType, CompilerDecl and
+/// CompilerDeclContext.
+///
+/// \see lldb_private::CompilerType
+/// \see lldb_private::CompilerDecl
+/// \see lldb_private::CompilerDeclContext
 class TypeSystem : public PluginInterface {
 public:
-  // Intrusive type system that allows us to use llvm casting.
-  //
-  // To add a new type system:
-  //
-  // 1 - Add a new enumeration for llvm casting below for your TypeSystem
-  //     subclass, here we will use eKindFoo
-  //
-  // 2 - Your TypeSystem subclass will inherit from TypeSystem and needs
-  //     to implement a static classof() function that returns your
-  //     enumeration:
-  //
-  //    class Foo : public lldb_private::TypeSystem
-  //    {
-  //        static bool classof(const TypeSystem *ts)
-  //        {
-  //            return ts->getKind() == TypeSystem::eKindFoo;
-  //        }
-  //    };
-  //
-  // 3 - Contruct your TypeSystem subclass with the enumeration from below
-  //
-  //    Foo() :
-  //        TypeSystem(TypeSystem::eKindFoo),
-  //        ...
-  //    {
-  //    }
-  //
-  // Then you can use the llvm casting on any "TypeSystem *" to get an instance
-  // of your subclass.
-  enum LLVMCastKind {
-    eKindClang,
-    eKindSwift,
-    eKindOCaml,
-    kNumKinds
-  };
-
   // Constructors and Destructors
-  TypeSystem(LLVMCastKind kind);
-
   ~TypeSystem() override;
 
-  LLVMCastKind getKind() const { return m_kind; }
+  // LLVM RTTI support
+  virtual bool isA(const void *ClassID) const = 0;
 
   static lldb::TypeSystemSP CreateInstance(lldb::LanguageType language,
                                            Module *module);
@@ -134,8 +115,6 @@ public:
   virtual std::vector<CompilerDecl>
   DeclContextFindDeclByName(void *opaque_decl_ctx, ConstString name,
                             const bool ignore_imported_decls);
-
-  virtual bool DeclContextIsStructUnionOrClass(void *opaque_decl_ctx) = 0;
 
   virtual ConstString DeclContextGetName(void *opaque_decl_ctx) = 0;
 
@@ -264,6 +243,8 @@ public:
 
   virtual CompilerType
   GetRValueReferenceType(lldb::opaque_compiler_type_t type);
+
+  virtual CompilerType GetAtomicType(lldb::opaque_compiler_type_t type);
 
   virtual CompilerType AddConstModifier(lldb::opaque_compiler_type_t type);
 
@@ -494,8 +475,7 @@ public:
   virtual bool IsMeaninglessWithoutDynamicResolution(void *type);
 
 protected:
-  const LLVMCastKind m_kind; // Support for llvm casting
-  SymbolFile *m_sym_file;
+  SymbolFile *m_sym_file = nullptr;
 };
 
 class TypeSystemMap {

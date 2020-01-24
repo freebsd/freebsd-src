@@ -1421,22 +1421,32 @@ bool llvm::LowerDbgDeclare(Function &F) {
         }))
       continue;
 
-    for (auto &AIUse : AI->uses()) {
-      User *U = AIUse.getUser();
-      if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
-        if (AIUse.getOperandNo() == 1)
-          ConvertDebugDeclareToDebugValue(DDI, SI, DIB);
-      } else if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
-        ConvertDebugDeclareToDebugValue(DDI, LI, DIB);
-      } else if (CallInst *CI = dyn_cast<CallInst>(U)) {
-        // This is a call by-value or some other instruction that takes a
-        // pointer to the variable. Insert a *value* intrinsic that describes
-        // the variable by dereferencing the alloca.
-        DebugLoc NewLoc = getDebugValueLoc(DDI, nullptr);
-        auto *DerefExpr =
-            DIExpression::append(DDI->getExpression(), dwarf::DW_OP_deref);
-        DIB.insertDbgValueIntrinsic(AI, DDI->getVariable(), DerefExpr, NewLoc,
-                                    CI);
+    SmallVector<const Value *, 8> WorkList;
+    WorkList.push_back(AI);
+    while (!WorkList.empty()) {
+      const Value *V = WorkList.pop_back_val();
+      for (auto &AIUse : V->uses()) {
+        User *U = AIUse.getUser();
+        if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
+          if (AIUse.getOperandNo() == 1)
+            ConvertDebugDeclareToDebugValue(DDI, SI, DIB);
+        } else if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
+          ConvertDebugDeclareToDebugValue(DDI, LI, DIB);
+        } else if (CallInst *CI = dyn_cast<CallInst>(U)) {
+          // This is a call by-value or some other instruction that takes a
+          // pointer to the variable. Insert a *value* intrinsic that describes
+          // the variable by dereferencing the alloca.
+          if (!CI->isLifetimeStartOrEnd()) {
+            DebugLoc NewLoc = getDebugValueLoc(DDI, nullptr);
+            auto *DerefExpr =
+                DIExpression::append(DDI->getExpression(), dwarf::DW_OP_deref);
+            DIB.insertDbgValueIntrinsic(AI, DDI->getVariable(), DerefExpr,
+                                        NewLoc, CI);
+          }
+        } else if (BitCastInst *BI = dyn_cast<BitCastInst>(U)) {
+          if (BI->getType()->isPointerTy())
+            WorkList.push_back(BI);
+        }
       }
     }
     DDI->eraseFromParent();
@@ -1611,6 +1621,11 @@ bool llvm::salvageDebugInfo(Instruction &I) {
   return salvageDebugInfoForDbgValues(I, DbgUsers);
 }
 
+void llvm::salvageDebugInfoOrMarkUndef(Instruction &I) {
+  if (!salvageDebugInfo(I))
+    replaceDbgUsesWithUndef(&I);
+}
+
 bool llvm::salvageDebugInfoForDbgValues(
     Instruction &I, ArrayRef<DbgVariableIntrinsic *> DbgUsers) {
   auto &Ctx = I.getContext();
@@ -1661,9 +1676,8 @@ DIExpression *llvm::salvageDebugInfoImpl(Instruction &I,
   };
 
   // initializer-list helper for applying operators to the source DIExpression.
-  auto applyOps =
-      [&](std::initializer_list<uint64_t> Opcodes) -> DIExpression * {
-    SmallVector<uint64_t, 8> Ops(Opcodes);
+  auto applyOps = [&](ArrayRef<uint64_t> Opcodes) -> DIExpression * {
+    SmallVector<uint64_t, 8> Ops(Opcodes.begin(), Opcodes.end());
     return doSalvage(Ops);
   };
 
@@ -1671,8 +1685,21 @@ DIExpression *llvm::salvageDebugInfoImpl(Instruction &I,
     // No-op casts and zexts are irrelevant for debug info.
     if (CI->isNoopCast(DL) || isa<ZExtInst>(&I))
       return SrcDIExpr;
-    return nullptr;
-  } else if (auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
+
+    Type *Type = CI->getType();
+    // Casts other than Trunc or SExt to scalar types cannot be salvaged.
+    if (Type->isVectorTy() || (!isa<TruncInst>(&I) && !isa<SExtInst>(&I)))
+      return nullptr;
+
+    Value *FromValue = CI->getOperand(0);
+    unsigned FromTypeBitSize = FromValue->getType()->getScalarSizeInBits();
+    unsigned ToTypeBitSize = Type->getScalarSizeInBits();
+
+    return applyOps(DIExpression::getExtOps(FromTypeBitSize, ToTypeBitSize,
+                                            isa<SExtInst>(&I)));
+  }
+
+  if (auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
     unsigned BitWidth =
         M.getDataLayout().getIndexSizeInBits(GEP->getPointerAddressSpace());
     // Rewrite a constant GEP into a DIExpression.
@@ -1727,7 +1754,7 @@ DIExpression *llvm::salvageDebugInfoImpl(Instruction &I,
 using DbgValReplacement = Optional<DIExpression *>;
 
 /// Point debug users of \p From to \p To using exprs given by \p RewriteExpr,
-/// possibly moving/deleting users to prevent use-before-def. Returns true if
+/// possibly moving/undefing users to prevent use-before-def. Returns true if
 /// changes are made.
 static bool rewriteDebugUsers(
     Instruction &From, Value &To, Instruction &DomPoint, DominatorTree &DT,
@@ -1740,7 +1767,7 @@ static bool rewriteDebugUsers(
 
   // Prevent use-before-def of To.
   bool Changed = false;
-  SmallPtrSet<DbgVariableIntrinsic *, 1> DeleteOrSalvage;
+  SmallPtrSet<DbgVariableIntrinsic *, 1> UndefOrSalvage;
   if (isa<Instruction>(&To)) {
     bool DomPointAfterFrom = From.getNextNonDebugInstruction() == &DomPoint;
 
@@ -1755,14 +1782,14 @@ static bool rewriteDebugUsers(
       // Users which otherwise aren't dominated by the replacement value must
       // be salvaged or deleted.
       } else if (!DT.dominates(&DomPoint, DII)) {
-        DeleteOrSalvage.insert(DII);
+        UndefOrSalvage.insert(DII);
       }
     }
   }
 
   // Update debug users without use-before-def risk.
   for (auto *DII : Users) {
-    if (DeleteOrSalvage.count(DII))
+    if (UndefOrSalvage.count(DII))
       continue;
 
     LLVMContext &Ctx = DII->getContext();
@@ -1776,18 +1803,10 @@ static bool rewriteDebugUsers(
     Changed = true;
   }
 
-  if (!DeleteOrSalvage.empty()) {
+  if (!UndefOrSalvage.empty()) {
     // Try to salvage the remaining debug users.
-    Changed |= salvageDebugInfo(From);
-
-    // Delete the debug users which weren't salvaged.
-    for (auto *DII : DeleteOrSalvage) {
-      if (DII->getVariableLocation() == &From) {
-        LLVM_DEBUG(dbgs() << "Erased UseBeforeDef:  " << *DII << '\n');
-        DII->eraseFromParent();
-        Changed = true;
-      }
-    }
+    salvageDebugInfoOrMarkUndef(From);
+    Changed = true;
   }
 
   return Changed;
@@ -1862,10 +1881,8 @@ bool llvm::replaceAllDbgUsesWith(Instruction &From, Value &To,
         return None;
 
       bool Signed = *Signedness == DIBasicType::Signedness::Signed;
-      dwarf::TypeKind TK = Signed ? dwarf::DW_ATE_signed : dwarf::DW_ATE_unsigned;
-      SmallVector<uint64_t, 8> Ops({dwarf::DW_OP_LLVM_convert, ToBits, TK,
-                                   dwarf::DW_OP_LLVM_convert, FromBits, TK});
-      return DIExpression::appendToStack(DII.getExpression(), Ops);
+      return DIExpression::appendExt(DII.getExpression(), ToBits, FromBits,
+                                     Signed);
     };
     return rewriteDebugUsers(From, To, DomPoint, DT, SignOrZeroExt);
   }
@@ -2574,7 +2591,7 @@ void llvm::copyRangeMetadata(const DataLayout &DL, const LoadInst &OldLI,
   if (!NewTy->isPointerTy())
     return;
 
-  unsigned BitWidth = DL.getIndexTypeSizeInBits(NewTy);
+  unsigned BitWidth = DL.getPointerTypeSizeInBits(NewTy);
   if (!getConstantRangeFromMetadata(*N).contains(APInt(BitWidth, 0))) {
     MDNode *NN = MDNode::get(OldLI.getContext(), None);
     NewLI.setMetadata(LLVMContext::MD_nonnull, NN);

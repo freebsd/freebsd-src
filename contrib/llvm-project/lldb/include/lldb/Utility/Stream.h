@@ -213,126 +213,14 @@ public:
   ///     in one statement.
   Stream &operator<<(char ch);
 
-  /// Output a uint8_t \a uval to the stream \a s.
-  ///
-  /// \param[in] uval
-  ///     A uint8_t value.
-  ///
-  /// \return
-  ///     A reference to this class so multiple things can be streamed
-  ///     in one statement.
-  Stream &operator<<(uint8_t uval);
-
-  /// Output a uint16_t \a uval to the stream \a s.
-  ///
-  /// \param[in] uval
-  ///     A uint16_t value.
-  ///
-  /// \return
-  ///     A reference to this class so multiple things can be streamed
-  ///     in one statement.
-  Stream &operator<<(uint16_t uval);
-
-  /// Output a uint32_t \a uval to the stream \a s.
-  ///
-  /// \param[in] uval
-  ///     A uint32_t value.
-  ///
-  /// \return
-  ///     A reference to this class so multiple things can be streamed
-  ///     in one statement.
-  Stream &operator<<(uint32_t uval);
-
-  /// Output a uint64_t \a uval to the stream \a s.
-  ///
-  /// \param[in] uval
-  ///     A uint64_t value.
-  ///
-  /// \return
-  ///     A reference to this class so multiple things can be streamed
-  ///     in one statement.
-  Stream &operator<<(uint64_t uval);
-
-  /// Output a int8_t \a sval to the stream \a s.
-  ///
-  /// \param[in] sval
-  ///     A int8_t value.
-  ///
-  /// \return
-  ///     A reference to this class so multiple things can be streamed
-  ///     in one statement.
-  Stream &operator<<(int8_t sval);
-
-  /// Output a int16_t \a sval to the stream \a s.
-  ///
-  /// \param[in] sval
-  ///     A int16_t value.
-  ///
-  /// \return
-  ///     A reference to this class so multiple things can be streamed
-  ///     in one statement.
-  Stream &operator<<(int16_t sval);
-
-  /// Output a int32_t \a sval to the stream \a s.
-  ///
-  /// \param[in] sval
-  ///     A int32_t value.
-  ///
-  /// \return
-  ///     A reference to this class so multiple things can be streamed
-  ///     in one statement.
-  Stream &operator<<(int32_t sval);
-
-  /// Output a int64_t \a sval to the stream \a s.
-  ///
-  /// \param[in] sval
-  ///     A int64_t value.
-  ///
-  /// \return
-  ///     A reference to this class so multiple things can be streamed
-  ///     in one statement.
-  Stream &operator<<(int64_t sval);
-
-  /// Output an address value to this stream.
-  ///
-  /// Put an address \a addr out to the stream with optional \a prefix and \a
-  /// suffix strings.
-  ///
-  /// \param[in] addr
-  ///     An address value.
-  ///
-  /// \param[in] addr_size
-  ///     Size in bytes of the address, used for formatting.
-  ///
-  /// \param[in] prefix
-  ///     A prefix C string. If nullptr, no prefix will be output.
-  ///
-  /// \param[in] suffix
-  ///     A suffix C string. If nullptr, no suffix will be output.
-  void Address(uint64_t addr, uint32_t addr_size, const char *prefix = nullptr,
-               const char *suffix = nullptr);
-
-  /// Output an address range to this stream.
-  ///
-  /// Put an address range \a lo_addr - \a hi_addr out to the stream with
-  /// optional \a prefix and \a suffix strings.
-  ///
-  /// \param[in] lo_addr
-  ///     The start address of the address range.
-  ///
-  /// \param[in] hi_addr
-  ///     The end address of the address range.
-  ///
-  /// \param[in] addr_size
-  ///     Size in bytes of the address, used for formatting.
-  ///
-  /// \param[in] prefix
-  ///     A prefix C string. If nullptr, no prefix will be output.
-  ///
-  /// \param[in] suffix
-  ///     A suffix C string. If nullptr, no suffix will be output.
-  void AddressRange(uint64_t lo_addr, uint64_t hi_addr, uint32_t addr_size,
-                    const char *prefix = nullptr, const char *suffix = nullptr);
+  Stream &operator<<(uint8_t uval) = delete;
+  Stream &operator<<(uint16_t uval) = delete;
+  Stream &operator<<(uint32_t uval) = delete;
+  Stream &operator<<(uint64_t uval) = delete;
+  Stream &operator<<(int8_t sval) = delete;
+  Stream &operator<<(int16_t sval) = delete;
+  Stream &operator<<(int32_t sval) = delete;
+  Stream &operator<<(int64_t sval) = delete;
 
   /// Output a C string to the stream.
   ///
@@ -373,8 +261,8 @@ public:
   /// Get the current indentation level.
   ///
   /// \return
-  ///     The current indentation level as an integer.
-  int GetIndentLevel() const;
+  ///     The current indentation level.
+  unsigned GetIndentLevel() const;
 
   /// Indent the current line in the stream.
   ///
@@ -388,10 +276,10 @@ public:
   size_t Indent(llvm::StringRef s);
 
   /// Decrement the current indentation level.
-  void IndentLess(int amount = 2);
+  void IndentLess(unsigned amount = 2);
 
   /// Increment the current indentation level.
-  void IndentMore(int amount = 2);
+  void IndentMore(unsigned amount = 2);
 
   /// Output an offset value.
   ///
@@ -446,7 +334,7 @@ public:
   ///
   /// \param[in] level
   ///     The new indentation level.
-  void SetIndentLevel(int level);
+  void SetIndentLevel(unsigned level);
 
   /// Output a SLEB128 number to the stream.
   ///
@@ -477,7 +365,7 @@ protected:
   uint32_t m_addr_size; ///< Size of an address in bytes.
   lldb::ByteOrder
       m_byte_order;   ///< Byte order to use when encoding scalar types.
-  int m_indent_level; ///< Indention level.
+  unsigned m_indent_level;         ///< Indention level.
   std::size_t m_bytes_written = 0; ///< Number of bytes written so far.
 
   void _PutHex8(uint8_t uvalue, bool add_prefix);
@@ -522,6 +410,54 @@ protected:
   };
   RawOstreamForward m_forwarder;
 };
+
+/// Output an address value to this stream.
+///
+/// Put an address \a addr out to the stream with optional \a prefix and \a
+/// suffix strings.
+///
+/// \param[in] s
+///     The output stream.
+///
+/// \param[in] addr
+///     An address value.
+///
+/// \param[in] addr_size
+///     Size in bytes of the address, used for formatting.
+///
+/// \param[in] prefix
+///     A prefix C string. If nullptr, no prefix will be output.
+///
+/// \param[in] suffix
+///     A suffix C string. If nullptr, no suffix will be output.
+void DumpAddress(llvm::raw_ostream &s, uint64_t addr, uint32_t addr_size,
+                 const char *prefix = nullptr, const char *suffix = nullptr);
+
+/// Output an address range to this stream.
+///
+/// Put an address range \a lo_addr - \a hi_addr out to the stream with
+/// optional \a prefix and \a suffix strings.
+///
+/// \param[in] s
+///     The output stream.
+///
+/// \param[in] lo_addr
+///     The start address of the address range.
+///
+/// \param[in] hi_addr
+///     The end address of the address range.
+///
+/// \param[in] addr_size
+///     Size in bytes of the address, used for formatting.
+///
+/// \param[in] prefix
+///     A prefix C string. If nullptr, no prefix will be output.
+///
+/// \param[in] suffix
+///     A suffix C string. If nullptr, no suffix will be output.
+void DumpAddressRange(llvm::raw_ostream &s, uint64_t lo_addr, uint64_t hi_addr,
+                      uint32_t addr_size, const char *prefix = nullptr,
+                      const char *suffix = nullptr);
 
 } // namespace lldb_private
 

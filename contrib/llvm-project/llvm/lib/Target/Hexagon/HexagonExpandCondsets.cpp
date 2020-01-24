@@ -106,6 +106,7 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/LaneBitmask.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
@@ -1040,7 +1041,7 @@ bool HexagonExpandCondsets::predicate(MachineInstr &TfrI, bool Cond,
   bool CanDown = canMoveOver(*DefI, Defs, Uses);
   // The TfrI does not access memory, but DefI could. Check if it's safe
   // to move DefI down to TfrI.
-  if (DefI->mayLoad() || DefI->mayStore())
+  if (DefI->mayLoadOrStore())
     if (!canMoveMemTo(*DefI, TfrI, true))
       CanDown = false;
 

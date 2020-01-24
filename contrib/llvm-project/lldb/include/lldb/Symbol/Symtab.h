@@ -40,8 +40,12 @@ public:
   uint32_t AddSymbol(const Symbol &symbol);
   size_t GetNumSymbols() const;
   void SectionFileAddressesChanged();
-  void Dump(Stream *s, Target *target, SortOrder sort_type);
-  void Dump(Stream *s, Target *target, std::vector<uint32_t> &indexes) const;
+  void
+  Dump(Stream *s, Target *target, SortOrder sort_type,
+       Mangled::NamePreference name_preference = Mangled::ePreferDemangled);
+  void Dump(Stream *s, Target *target, std::vector<uint32_t> &indexes,
+            Mangled::NamePreference name_preference =
+                Mangled::ePreferDemangled) const;
   uint32_t GetIndexForSymbol(const Symbol *symbol) const;
   std::recursive_mutex &GetMutex() { return m_mutex; }
   Symbol *FindSymbolByID(lldb::user_id_t uid) const;
@@ -139,7 +143,29 @@ protected:
   typedef std::vector<Symbol> collection;
   typedef collection::iterator iterator;
   typedef collection::const_iterator const_iterator;
-  typedef RangeDataVector<lldb::addr_t, lldb::addr_t, uint32_t>
+  class FileRangeToIndexMapCompare {
+  public:
+    FileRangeToIndexMapCompare(const Symtab &symtab) : m_symtab(symtab) {}
+    bool operator()(const uint32_t a_data, const uint32_t b_data) const {
+      return rank(a_data) > rank(b_data);
+    }
+
+  private:
+    // How much preferred is this symbol?
+    int rank(const uint32_t data) const {
+      const Symbol &symbol = *m_symtab.SymbolAtIndex(data);
+      if (symbol.IsExternal())
+        return 3;
+      if (symbol.IsWeak())
+        return 2;
+      if (symbol.IsDebug())
+        return 0;
+      return 1;
+    }
+    const Symtab &m_symtab;
+  };
+  typedef RangeDataVector<lldb::addr_t, lldb::addr_t, uint32_t, 0,
+                          FileRangeToIndexMapCompare>
       FileRangeToIndexMap;
   void InitNameIndexes();
   void InitAddressIndexes();

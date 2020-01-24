@@ -19,12 +19,14 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/DebugCounter.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "dce"
@@ -79,6 +81,43 @@ INITIALIZE_PASS(DeadInstElimination, "die",
 Pass *llvm::createDeadInstEliminationPass() {
   return new DeadInstElimination();
 }
+
+//===--------------------------------------------------------------------===//
+// RedundantDbgInstElimination pass implementation
+//
+
+namespace {
+struct RedundantDbgInstElimination : public FunctionPass {
+  static char ID; // Pass identification, replacement for typeid
+  RedundantDbgInstElimination() : FunctionPass(ID) {
+    initializeRedundantDbgInstEliminationPass(*PassRegistry::getPassRegistry());
+  }
+  bool runOnFunction(Function &F) override {
+    if (skipFunction(F))
+      return false;
+    bool Changed = false;
+    for (auto &BB : F)
+      Changed |= RemoveRedundantDbgInstrs(&BB);
+    return Changed;
+  }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.setPreservesCFG();
+  }
+};
+}
+
+char RedundantDbgInstElimination::ID = 0;
+INITIALIZE_PASS(RedundantDbgInstElimination, "redundant-dbg-inst-elim",
+                "Redundant Dbg Instruction Elimination", false, false)
+
+Pass *llvm::createRedundantDbgInstEliminationPass() {
+  return new RedundantDbgInstElimination();
+}
+
+//===--------------------------------------------------------------------===//
+// DeadCodeElimination pass implementation
+//
 
 static bool DCEInstruction(Instruction *I,
                            SmallSetVector<Instruction *, 16> &WorkList,

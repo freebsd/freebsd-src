@@ -32,6 +32,8 @@
 #define liblldb_Editline_h_
 #if defined(__cplusplus)
 
+#include "lldb/Host/Config.h"
+
 #if LLDB_EDITLINE_USE_WCHAR
 #include <codecvt>
 #endif
@@ -132,6 +134,15 @@ enum class CursorLocation {
   /// The location immediately after the last character in a multi-line edit
   /// session
   BlockEnd
+};
+
+/// Operation for the history.
+enum class HistoryOperation {
+  Oldest,
+  Older,
+  Current,
+  Newer,
+  Newest
 };
 }
 
@@ -258,11 +269,7 @@ private:
   StringList GetInputAsStringList(int line_count = UINT32_MAX);
 
   /// Replaces the current multi-line session with the next entry from history.
-  /// When the parameter is
-  /// true it will take the next earlier entry from history, when it is false it
-  /// takes the next most
-  /// recent.
-  unsigned char RecallHistory(bool earlier);
+  unsigned char RecallHistory(HistoryOperation op);
 
   /// Character reading implementation for EditLine that supports our multi-line
   /// editing trickery.

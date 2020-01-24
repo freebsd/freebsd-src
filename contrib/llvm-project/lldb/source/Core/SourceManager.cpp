@@ -64,7 +64,8 @@ SourceManager::~SourceManager() {}
 
 SourceManager::FileSP SourceManager::GetFile(const FileSpec &file_spec) {
   bool same_as_previous =
-      m_last_file_sp && m_last_file_sp->FileSpecMatches(file_spec);
+      m_last_file_sp &&
+      FileSpec::Match(file_spec, m_last_file_sp->GetFileSpec());
 
   DebuggerSP debugger_sp(m_debugger_wp.lock());
   FileSP file_sp;
@@ -399,24 +400,25 @@ void SourceManager::File::CommonInitializer(const FileSpec &file_spec,
         if (num_matches != 0) {
           if (num_matches > 1) {
             SymbolContext sc;
-            FileSpec *test_cu_spec = nullptr;
+            CompileUnit *test_cu = nullptr;
 
             for (unsigned i = 0; i < num_matches; i++) {
               sc_list.GetContextAtIndex(i, sc);
               if (sc.comp_unit) {
-                if (test_cu_spec) {
-                  if (test_cu_spec != static_cast<FileSpec *>(sc.comp_unit))
+                if (test_cu) {
+                  if (test_cu != sc.comp_unit)
                     got_multiple = true;
                   break;
                 } else
-                  test_cu_spec = sc.comp_unit;
+                  test_cu = sc.comp_unit;
               }
             }
           }
           if (!got_multiple) {
             SymbolContext sc;
             sc_list.GetContextAtIndex(0, sc);
-            m_file_spec = sc.comp_unit;
+            if (sc.comp_unit)
+              m_file_spec = sc.comp_unit->GetPrimaryFile();
             m_mod_time = FileSystem::Instance().GetModificationTime(m_file_spec);
           }
         }
@@ -599,10 +601,6 @@ void SourceManager::File::FindLinesMatchingRegex(
       match_lines.push_back(line_no);
     }
   }
-}
-
-bool SourceManager::File::FileSpecMatches(const FileSpec &file_spec) {
-  return FileSpec::Equal(m_file_spec, file_spec, false);
 }
 
 bool lldb_private::operator==(const SourceManager::File &lhs,

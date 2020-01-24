@@ -36,7 +36,7 @@ public:
       Layer.ReturnObjectBuffer(std::move(ObjBuffer));
   }
 
-  JITLinkMemoryManager &getMemoryManager() override { return Layer.MemMgr; }
+  JITLinkMemoryManager &getMemoryManager() override { return *Layer.MemMgr; }
 
   MemoryBufferRef getObjectBuffer() const override {
     return ObjBuffer->getMemBufferRef();
@@ -47,18 +47,28 @@ public:
     MR.failMaterialization();
   }
 
-  void lookup(const DenseSet<StringRef> &Symbols,
+  void lookup(const LookupMap &Symbols,
               std::unique_ptr<JITLinkAsyncLookupContinuation> LC) override {
 
-    JITDylibSearchList SearchOrder;
+    JITDylibSearchOrder SearchOrder;
     MR.getTargetJITDylib().withSearchOrderDo(
-        [&](const JITDylibSearchList &JDs) { SearchOrder = JDs; });
+        [&](const JITDylibSearchOrder &O) { SearchOrder = O; });
 
     auto &ES = Layer.getExecutionSession();
 
-    SymbolNameSet InternedSymbols;
-    for (auto &S : Symbols)
-      InternedSymbols.insert(ES.intern(S));
+    SymbolLookupSet LookupSet;
+    for (auto &KV : Symbols) {
+      orc::SymbolLookupFlags LookupFlags;
+      switch (KV.second) {
+      case jitlink::SymbolLookupFlags::RequiredSymbol:
+        LookupFlags = orc::SymbolLookupFlags::RequiredSymbol;
+        break;
+      case jitlink::SymbolLookupFlags::WeaklyReferencedSymbol:
+        LookupFlags = orc::SymbolLookupFlags::WeaklyReferencedSymbol;
+        break;
+      }
+      LookupSet.add(ES.intern(KV.first), LookupFlags);
+    }
 
     // OnResolve -- De-intern the symbols and pass the result to the linker.
     auto OnResolve = [this, LookupContinuation = std::move(LC)](
@@ -74,8 +84,9 @@ public:
       }
     };
 
-    ES.lookup(SearchOrder, std::move(InternedSymbols), SymbolState::Resolved,
-              std::move(OnResolve), [this](const SymbolDependenceMap &Deps) {
+    ES.lookup(LookupKind::Static, SearchOrder, std::move(LookupSet),
+              SymbolState::Resolved, std::move(OnResolve),
+              [this](const SymbolDependenceMap &Deps) {
                 registerDependencies(Deps);
               });
   }
@@ -317,9 +328,9 @@ private:
 
 ObjectLinkingLayer::Plugin::~Plugin() {}
 
-ObjectLinkingLayer::ObjectLinkingLayer(ExecutionSession &ES,
-                                       JITLinkMemoryManager &MemMgr)
-    : ObjectLayer(ES), MemMgr(MemMgr) {}
+ObjectLinkingLayer::ObjectLinkingLayer(
+    ExecutionSession &ES, std::unique_ptr<JITLinkMemoryManager> MemMgr)
+    : ObjectLayer(ES), MemMgr(std::move(MemMgr)) {}
 
 ObjectLinkingLayer::~ObjectLinkingLayer() {
   if (auto Err = removeAllModules())

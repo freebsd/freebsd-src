@@ -33,6 +33,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -580,6 +581,15 @@ bool AMDGPUPrintfRuntimeBinding::runOnModule(Module &M) {
 
   if (Printfs.empty())
     return false;
+
+  if (auto HostcallFunction = M.getFunction("__ockl_hostcall_internal")) {
+    for (auto &U : HostcallFunction->uses()) {
+      if (auto *CI = dyn_cast<CallInst>(U.getUser())) {
+        M.getContext().emitError(
+            CI, "Cannot use both printf and hostcall in the same module");
+      }
+    }
+  }
 
   TD = &M.getDataLayout();
   auto DTWP = getAnalysisIfAvailable<DominatorTreeWrapperPass>();

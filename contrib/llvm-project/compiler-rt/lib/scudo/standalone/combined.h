@@ -18,16 +18,35 @@
 #include "quarantine.h"
 #include "report.h"
 #include "secondary.h"
+#include "string_utils.h"
 #include "tsd.h"
+
+#ifdef GWP_ASAN_HOOKS
+#include "gwp_asan/guarded_pool_allocator.h"
+// GWP-ASan is declared here in order to avoid indirect call overhead. It's also
+// instantiated outside of the Allocator class, as the allocator is only
+// zero-initialised. GWP-ASan requires constant initialisation, and the Scudo
+// allocator doesn't have a constexpr constructor (see discussion here:
+// https://reviews.llvm.org/D69265#inline-624315).
+static gwp_asan::GuardedPoolAllocator GuardedAlloc;
+#endif // GWP_ASAN_HOOKS
+
+extern "C" inline void EmptyCallback() {}
 
 namespace scudo {
 
-template <class Params> class Allocator {
+template <class Params, void (*PostInitCallback)(void) = EmptyCallback>
+class Allocator {
 public:
   using PrimaryT = typename Params::Primary;
   using CacheT = typename PrimaryT::CacheT;
-  typedef Allocator<Params> ThisT;
+  typedef Allocator<Params, PostInitCallback> ThisT;
   typedef typename Params::template TSDRegistryT<ThisT> TSDRegistryT;
+
+  void callPostInitCallback() {
+    static pthread_once_t OnceControl = PTHREAD_ONCE_INIT;
+    pthread_once(&OnceControl, PostInitCallback);
+  }
 
   struct QuarantineCallback {
     explicit QuarantineCallback(ThisT &Instance, CacheT &LocalCache)
@@ -133,6 +152,22 @@ public:
     Quarantine.init(
         static_cast<uptr>(getFlags()->quarantine_size_kb << 10),
         static_cast<uptr>(getFlags()->thread_local_quarantine_size_kb << 10));
+
+#ifdef GWP_ASAN_HOOKS
+    gwp_asan::options::Options Opt;
+    Opt.Enabled = getFlags()->GWP_ASAN_Enabled;
+    // Bear in mind - Scudo has its own alignment guarantees that are strictly
+    // enforced. Scudo exposes the same allocation function for everything from
+    // malloc() to posix_memalign, so in general this flag goes unused, as Scudo
+    // will always ask GWP-ASan for an aligned amount of bytes.
+    Opt.PerfectlyRightAlign = getFlags()->GWP_ASAN_PerfectlyRightAlign;
+    Opt.MaxSimultaneousAllocations =
+        getFlags()->GWP_ASAN_MaxSimultaneousAllocations;
+    Opt.SampleRate = getFlags()->GWP_ASAN_SampleRate;
+    Opt.InstallSignalHandlers = getFlags()->GWP_ASAN_InstallSignalHandlers;
+    Opt.Printf = Printf;
+    GuardedAlloc.init(Opt);
+#endif // GWP_ASAN_HOOKS
   }
 
   void reset() { memset(this, 0, sizeof(*this)); }
@@ -144,7 +179,10 @@ public:
 
   TSDRegistryT *getTSDRegistry() { return &TSDRegistry; }
 
-  void initCache(CacheT *Cache) { Cache->init(&Stats, &Primary); }
+  // The Cache must be provided zero-initialized.
+  void initCache(CacheT *Cache) {
+    Cache->initLinkerInitialized(&Stats, &Primary);
+  }
 
   // Release the resources used by a TSD, which involves:
   // - draining the local quarantine cache to the global quarantine;
@@ -161,6 +199,15 @@ public:
                           uptr Alignment = MinAlignment,
                           bool ZeroContents = false) {
     initThreadMaybe();
+
+#ifdef GWP_ASAN_HOOKS
+    if (UNLIKELY(GuardedAlloc.shouldSample())) {
+      if (void *Ptr = GuardedAlloc.allocate(roundUpTo(Size, Alignment)))
+        return Ptr;
+    }
+#endif // GWP_ASAN_HOOKS
+
+    ZeroContents |= static_cast<bool>(Options.ZeroContents);
 
     if (UNLIKELY(Alignment > MaxAlignment)) {
       if (Options.MayReturnNull)
@@ -180,12 +227,13 @@ public:
         ((Alignment > MinAlignment) ? Alignment : Chunk::getHeaderSize());
 
     // Takes care of extravagantly large sizes as well as integer overflows.
-    if (UNLIKELY(Size >= MaxAllowedMallocSize ||
-                 NeededSize >= MaxAllowedMallocSize)) {
+    static_assert(MaxAllowedMallocSize < UINTPTR_MAX - MaxAlignment, "");
+    if (UNLIKELY(Size >= MaxAllowedMallocSize)) {
       if (Options.MayReturnNull)
         return nullptr;
       reportAllocationSizeTooBig(Size, NeededSize, MaxAllowedMallocSize);
     }
+    DCHECK_LE(Size, NeededSize);
 
     void *Block;
     uptr ClassId;
@@ -200,7 +248,8 @@ public:
         TSD->unlock();
     } else {
       ClassId = 0;
-      Block = Secondary.allocate(NeededSize, Alignment, &BlockEnd);
+      Block =
+          Secondary.allocate(NeededSize, Alignment, &BlockEnd, ZeroContents);
     }
 
     if (UNLIKELY(!Block)) {
@@ -212,22 +261,23 @@ public:
     // We only need to zero the contents for Primary backed allocations. This
     // condition is not necessarily unlikely, but since memset is costly, we
     // might as well mark it as such.
-    if (UNLIKELY((ZeroContents || Options.ZeroContents) && ClassId))
+    if (UNLIKELY(ZeroContents && ClassId))
       memset(Block, 0, PrimaryT::getSizeByClassId(ClassId));
 
+    const uptr UnalignedUserPtr =
+        reinterpret_cast<uptr>(Block) + Chunk::getHeaderSize();
+    const uptr UserPtr = roundUpTo(UnalignedUserPtr, Alignment);
+
     Chunk::UnpackedHeader Header = {};
-    uptr UserPtr = reinterpret_cast<uptr>(Block) + Chunk::getHeaderSize();
-    if (UNLIKELY(!isAligned(UserPtr, Alignment))) {
-      const uptr AlignedUserPtr = roundUpTo(UserPtr, Alignment);
-      const uptr Offset = AlignedUserPtr - UserPtr;
-      DCHECK_GT(Offset, 2 * sizeof(u32));
+    if (UNLIKELY(UnalignedUserPtr != UserPtr)) {
+      const uptr Offset = UserPtr - UnalignedUserPtr;
+      DCHECK_GE(Offset, 2 * sizeof(u32));
       // The BlockMarker has no security purpose, but is specifically meant for
       // the chunk iteration function that can be used in debugging situations.
       // It is the only situation where we have to locate the start of a chunk
       // based on its block address.
       reinterpret_cast<u32 *>(Block)[0] = BlockMarker;
       reinterpret_cast<u32 *>(Block)[1] = static_cast<u32>(Offset);
-      UserPtr = AlignedUserPtr;
       Header.Offset = (Offset >> MinAlignmentLog) & Chunk::OffsetMask;
     }
     Header.ClassId = ClassId & Chunk::ClassIdMask;
@@ -253,6 +303,13 @@ public:
     // the TLS destructors, ending up in initialized thread specific data never
     // being destroyed properly. Any other heap operation will do a full init.
     initThreadMaybe(/*MinimalInit=*/true);
+
+#ifdef GWP_ASAN_HOOKS
+    if (UNLIKELY(GuardedAlloc.pointerIsMine(Ptr))) {
+      GuardedAlloc.deallocate(Ptr);
+      return;
+    }
+#endif // GWP_ASAN_HOOKS
 
     if (&__scudo_deallocate_hook)
       __scudo_deallocate_hook(Ptr);
@@ -292,6 +349,17 @@ public:
     // The following cases are handled by the C wrappers.
     DCHECK_NE(OldPtr, nullptr);
     DCHECK_NE(NewSize, 0);
+
+#ifdef GWP_ASAN_HOOKS
+    if (UNLIKELY(GuardedAlloc.pointerIsMine(OldPtr))) {
+      uptr OldSize = GuardedAlloc.getSize(OldPtr);
+      void *NewPtr = allocate(NewSize, Chunk::Origin::Malloc, Alignment);
+      if (NewPtr)
+        memcpy(NewPtr, OldPtr, (NewSize < OldSize) ? NewSize : OldSize);
+      GuardedAlloc.deallocate(OldPtr);
+      return NewPtr;
+    }
+#endif // GWP_ASAN_HOOKS
 
     if (UNLIKELY(!isAligned(reinterpret_cast<uptr>(OldPtr), MinAlignment)))
       reportMisalignedPointer(AllocatorAction::Reallocating, OldPtr);
@@ -354,11 +422,14 @@ public:
     return NewPtr;
   }
 
-  // TODO(kostyak): while this locks the Primary & Secondary, it still allows
-  //                pointers to be fetched from the TSD. We ultimately want to
-  //                lock the registry as well. For now, it's good enough.
+  // TODO(kostyak): disable() is currently best-effort. There are some small
+  //                windows of time when an allocation could still succeed after
+  //                this function finishes. We will revisit that later.
   void disable() {
     initThreadMaybe();
+    TSDRegistry.disable();
+    Stats.disable();
+    Quarantine.disable();
     Primary.disable();
     Secondary.disable();
   }
@@ -367,6 +438,9 @@ public:
     initThreadMaybe();
     Secondary.enable();
     Primary.enable();
+    Quarantine.enable();
+    Stats.enable();
+    TSDRegistry.enable();
   }
 
   // The function returns the amount of bytes required to store the statistics,
@@ -396,7 +470,10 @@ public:
     Str.output();
   }
 
-  void releaseToOS() { Primary.releaseToOS(); }
+  void releaseToOS() {
+    initThreadMaybe();
+    Primary.releaseToOS();
+  }
 
   // Iterate over all chunks and call a callback for all busy chunks located
   // within the provided memory range. Said callback must not use this allocator
@@ -409,10 +486,11 @@ public:
     auto Lambda = [this, From, To, Callback, Arg](uptr Block) {
       if (Block < From || Block >= To)
         return;
-      uptr ChunkSize;
-      const uptr ChunkBase = getChunkFromBlock(Block, &ChunkSize);
-      if (ChunkBase != InvalidChunk)
-        Callback(ChunkBase, ChunkSize, Arg);
+      uptr Chunk;
+      Chunk::UnpackedHeader Header;
+      if (getChunkFromBlock(Block, &Chunk, &Header) &&
+          Header.State == Chunk::State::Allocated)
+        Callback(Chunk, getSize(reinterpret_cast<void *>(Chunk), &Header), Arg);
     };
     Primary.iterateOverBlocks(Lambda);
     Secondary.iterateOverBlocks(Lambda);
@@ -435,6 +513,12 @@ public:
     initThreadMaybe();
     if (UNLIKELY(!Ptr))
       return 0;
+
+#ifdef GWP_ASAN_HOOKS
+    if (UNLIKELY(GuardedAlloc.pointerIsMine(Ptr)))
+      return GuardedAlloc.getSize(Ptr);
+#endif // GWP_ASAN_HOOKS
+
     Chunk::UnpackedHeader Header;
     Chunk::loadHeader(Cookie, Ptr, &Header);
     // Getting the usable size of a chunk only makes sense if it's allocated.
@@ -448,8 +532,24 @@ public:
     Stats.get(S);
   }
 
+  // Returns true if the pointer provided was allocated by the current
+  // allocator instance, which is compliant with tcmalloc's ownership concept.
+  // A corrupted chunk will not be reported as owned, which is WAI.
+  bool isOwned(const void *Ptr) {
+    initThreadMaybe();
+#ifdef GWP_ASAN_HOOKS
+    if (GuardedAlloc.pointerIsMine(Ptr))
+      return true;
+#endif // GWP_ASAN_HOOKS
+    if (!Ptr || !isAligned(reinterpret_cast<uptr>(Ptr), MinAlignment))
+      return false;
+    Chunk::UnpackedHeader Header;
+    return Chunk::isValid(Cookie, Ptr, &Header) &&
+           Header.State == Chunk::State::Allocated;
+  }
+
 private:
-  typedef MapAllocator SecondaryT;
+  using SecondaryT = typename Params::Secondary;
   typedef typename PrimaryT::SizeClassMap SizeClassMap;
 
   static const uptr MinAlignmentLog = SCUDO_MIN_ALIGNMENT_LOG;
@@ -459,9 +559,10 @@ private:
   static const uptr MaxAllowedMallocSize =
       FIRST_32_SECOND_64(1UL << 31, 1ULL << 40);
 
-  // Constants used by the chunk iteration mechanism.
+  static_assert(MinAlignment >= sizeof(Chunk::PackedHeader),
+                "Minimal alignment must at least cover a chunk header.");
+
   static const u32 BlockMarker = 0x44554353U;
-  static const uptr InvalidChunk = ~static_cast<uptr>(0);
 
   GlobalStats Stats;
   TSDRegistryT TSDRegistry;
@@ -514,7 +615,7 @@ private:
       reportSanityCheckError("class ID");
   }
 
-  static INLINE void *getBlockBegin(const void *Ptr,
+  static inline void *getBlockBegin(const void *Ptr,
                                     Chunk::UnpackedHeader *Header) {
     return reinterpret_cast<void *>(
         reinterpret_cast<uptr>(Ptr) - Chunk::getHeaderSize() -
@@ -522,7 +623,7 @@ private:
   }
 
   // Return the size of a chunk as requested during its allocation.
-  INLINE uptr getSize(const void *Ptr, Chunk::UnpackedHeader *Header) {
+  inline uptr getSize(const void *Ptr, Chunk::UnpackedHeader *Header) {
     const uptr SizeOrUnusedBytes = Header->SizeOrUnusedBytes;
     if (LIKELY(Header->ClassId))
       return SizeOrUnusedBytes;
@@ -539,7 +640,9 @@ private:
     Chunk::UnpackedHeader NewHeader = *Header;
     // If the quarantine is disabled, the actual size of a chunk is 0 or larger
     // than the maximum allowed, we return a chunk directly to the backend.
-    const bool BypassQuarantine = !Quarantine.getCacheSize() || !Size ||
+    // Logical Or can be short-circuited, which introduces unnecessary
+    // conditional jumps, so use bitwise Or and let the compiler be clever.
+    const bool BypassQuarantine = !Quarantine.getCacheSize() | !Size |
                                   (Size > Options.QuarantineMaxChunkSize);
     if (BypassQuarantine) {
       NewHeader.State = Chunk::State::Available;
@@ -567,20 +670,13 @@ private:
     }
   }
 
-  // This only cares about valid busy chunks. This might change in the future.
-  uptr getChunkFromBlock(uptr Block, uptr *Size) {
+  bool getChunkFromBlock(uptr Block, uptr *Chunk,
+                         Chunk::UnpackedHeader *Header) {
     u32 Offset = 0;
     if (reinterpret_cast<u32 *>(Block)[0] == BlockMarker)
       Offset = reinterpret_cast<u32 *>(Block)[1];
-    const uptr P = Block + Offset + Chunk::getHeaderSize();
-    const void *Ptr = reinterpret_cast<const void *>(P);
-    Chunk::UnpackedHeader Header;
-    if (!Chunk::isValid(Cookie, Ptr, &Header) ||
-        Header.State != Chunk::State::Allocated)
-      return InvalidChunk;
-    if (Size)
-      *Size = getSize(Ptr, &Header);
-    return P;
+    *Chunk = Block + Offset + Chunk::getHeaderSize();
+    return Chunk::isValid(Cookie, reinterpret_cast<void *>(*Chunk), Header);
   }
 
   uptr getStats(ScopedString *Str) {

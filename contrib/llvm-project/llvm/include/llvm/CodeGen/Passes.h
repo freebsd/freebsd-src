@@ -275,6 +275,11 @@ namespace llvm {
   /// MachineCSE - This pass performs global CSE on machine instructions.
   extern char &MachineCSEID;
 
+  /// MIRCanonicalizer - This pass canonicalizes MIR by renaming vregs
+  /// according to the semantics of the instruction as well as hoists
+  /// code.
+  extern char &MIRCanonicalizerID;
+
   /// ImplicitNullChecks - This pass folds null pointer checks into nearby
   /// memory operations.
   extern char &ImplicitNullChecksID;
@@ -451,8 +456,15 @@ namespace llvm {
   /// Creates CFI Instruction Inserter pass. \see CFIInstrInserter.cpp
   FunctionPass *createCFIInstrInserter();
 
+  /// Creates CFGuard longjmp target identification pass.
+  /// \see CFGuardLongjmp.cpp
+  FunctionPass *createCFGuardLongjmpPass();
+
   /// Create Hardware Loop pass. \see HardwareLoops.cpp
   FunctionPass *createHardwareLoopsPass();
+
+  /// Create IR Type Promotion pass. \see TypePromotion.cpp
+  FunctionPass *createTypePromotionPass();
 
 } // End llvm namespace
 

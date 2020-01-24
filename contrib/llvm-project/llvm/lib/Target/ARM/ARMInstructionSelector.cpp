@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/GlobalISel/InstructionSelectorImpl.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/IR/IntrinsicsARM.h"
 #include "llvm/Support/Debug.h"
 
 #define DEBUG_TYPE "arm-isel"
@@ -137,8 +138,10 @@ private:
   unsigned selectLoadStoreOpCode(unsigned Opc, unsigned RegBank,
                                  unsigned Size) const;
 
-  void renderVFPF32Imm(MachineInstrBuilder &New, const MachineInstr &Old) const;
-  void renderVFPF64Imm(MachineInstrBuilder &New, const MachineInstr &Old) const;
+  void renderVFPF32Imm(MachineInstrBuilder &New, const MachineInstr &Old,
+                       int OpIdx = -1) const;
+  void renderVFPF64Imm(MachineInstrBuilder &New, const MachineInstr &Old,
+                       int OpIdx = -1) const;
 
 #define GET_GLOBALISEL_PREDICATES_DECL
 #include "ARMGenGlobalISel.inc"
@@ -810,9 +813,10 @@ bool ARMInstructionSelector::selectShift(unsigned ShiftOpc,
 }
 
 void ARMInstructionSelector::renderVFPF32Imm(
-    MachineInstrBuilder &NewInstBuilder, const MachineInstr &OldInst) const {
+  MachineInstrBuilder &NewInstBuilder, const MachineInstr &OldInst,
+  int OpIdx) const {
   assert(OldInst.getOpcode() == TargetOpcode::G_FCONSTANT &&
-         "Expected G_FCONSTANT");
+         OpIdx == -1 && "Expected G_FCONSTANT");
 
   APFloat FPImmValue = OldInst.getOperand(1).getFPImm()->getValueAPF();
   int FPImmEncoding = ARM_AM::getFP32Imm(FPImmValue);
@@ -822,9 +826,9 @@ void ARMInstructionSelector::renderVFPF32Imm(
 }
 
 void ARMInstructionSelector::renderVFPF64Imm(
-    MachineInstrBuilder &NewInstBuilder, const MachineInstr &OldInst) const {
+  MachineInstrBuilder &NewInstBuilder, const MachineInstr &OldInst, int OpIdx) const {
   assert(OldInst.getOpcode() == TargetOpcode::G_FCONSTANT &&
-         "Expected G_FCONSTANT");
+         OpIdx == -1 && "Expected G_FCONSTANT");
 
   APFloat FPImmValue = OldInst.getOperand(1).getFPImm()->getValueAPF();
   int FPImmEncoding = ARM_AM::getFP64Imm(FPImmValue);
@@ -1061,7 +1065,7 @@ bool ARMInstructionSelector::select(MachineInstr &I) {
   case G_SHL: {
     return selectShift(ARM_AM::ShiftOpc::lsl, MIB);
   }
-  case G_GEP:
+  case G_PTR_ADD:
     I.setDesc(TII.get(Opcodes.ADDrr));
     MIB.add(predOps(ARMCC::AL)).add(condCodeOp());
     break;

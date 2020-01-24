@@ -36,6 +36,18 @@ struct PreferredTuple {
   MachineInstr *MI;
 };
 
+struct IndexedLoadStoreMatchInfo {
+  Register Addr;
+  Register Base;
+  Register Offset;
+  bool IsPre;
+};
+
+struct PtrAddChain {
+  int64_t Imm;
+  Register Base;
+};
+
 class CombinerHelper {
 protected:
   MachineIRBuilder &Builder;
@@ -84,6 +96,8 @@ public:
   /// Combine \p MI into a pre-indexed or post-indexed load/store operation if
   /// legal and the surrounding code makes it useful.
   bool tryCombineIndexedLoadStore(MachineInstr &MI);
+  bool matchCombineIndexedLoadStore(MachineInstr &MI, IndexedLoadStoreMatchInfo &MatchInfo);
+  void applyCombineIndexedLoadStore(MachineInstr &MI, IndexedLoadStoreMatchInfo &MatchInfo);
 
   bool matchElideBrByInvertingCond(MachineInstr &MI);
   void applyElideBrByInvertingCond(MachineInstr &MI);
@@ -134,7 +148,7 @@ public:
   ///
   /// For example (pre-indexed):
   ///
-  ///     $addr = G_GEP $base, $offset
+  ///     $addr = G_PTR_ADD $base, $offset
   ///     [...]
   ///     $val = G_LOAD $addr
   ///     [...]
@@ -150,7 +164,7 @@ public:
   ///
   ///     G_STORE $val, $base
   ///     [...]
-  ///     $addr = G_GEP $base, $offset
+  ///     $addr = G_PTR_ADD $base, $offset
   ///     [...]
   ///     $whatever = COPY $addr
   ///
@@ -160,6 +174,9 @@ public:
   ///     [...]
   ///     $whatever = COPY $addr
   bool tryCombineMemCpyFamily(MachineInstr &MI, unsigned MaxLen = 0);
+
+  bool matchPtrAddImmedChain(MachineInstr &MI, PtrAddChain &MatchInfo);
+  bool applyPtrAddImmedChain(MachineInstr &MI, PtrAddChain &MatchInfo);
 
   /// Try to transform \p MI by using all of the above
   /// combine functions. Returns true if changed.

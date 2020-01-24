@@ -782,12 +782,12 @@ LLVMDIBuilderCreateModule(LLVMDIBuilderRef Builder, LLVMMetadataRef ParentScope,
                           const char *Name, size_t NameLen,
                           const char *ConfigMacros, size_t ConfigMacrosLen,
                           const char *IncludePath, size_t IncludePathLen,
-                          const char *ISysRoot, size_t ISysRootLen) {
+                          const char *SysRoot, size_t SysRootLen) {
   return wrap(unwrap(Builder)->createModule(
       unwrapDI<DIScope>(ParentScope), StringRef(Name, NameLen),
       StringRef(ConfigMacros, ConfigMacrosLen),
       StringRef(IncludePath, IncludePathLen),
-      StringRef(ISysRoot, ISysRootLen)));
+      StringRef(SysRoot, SysRootLen)));
 }
 
 LLVMMetadataRef LLVMDIBuilderCreateNameSpace(LLVMDIBuilderRef Builder,
@@ -1108,11 +1108,10 @@ LLVMMetadataRef
 LLVMDIBuilderCreateTypedef(LLVMDIBuilderRef Builder, LLVMMetadataRef Type,
                            const char *Name, size_t NameLen,
                            LLVMMetadataRef File, unsigned LineNo,
-                           LLVMMetadataRef Scope) {
+                           LLVMMetadataRef Scope, uint32_t AlignInBits) {
   return wrap(unwrap(Builder)->createTypedef(
-                  unwrapDI<DIType>(Type), {Name, NameLen},
-                  unwrapDI<DIFile>(File), LineNo,
-                  unwrapDI<DIScope>(Scope)));
+      unwrapDI<DIType>(Type), {Name, NameLen}, unwrapDI<DIFile>(File), LineNo,
+      unwrapDI<DIScope>(Scope), AlignInBits));
 }
 
 LLVMMetadataRef
@@ -1290,7 +1289,7 @@ LLVMMetadataRef LLVMDIBuilderCreateGlobalVariableExpression(
   return wrap(unwrap(Builder)->createGlobalVariableExpression(
       unwrapDI<DIScope>(Scope), {Name, NameLen}, {Linkage, LinkLen},
       unwrapDI<DIFile>(File), LineNo, unwrapDI<DIType>(Ty), LocalToUnit,
-      unwrap<DIExpression>(Expr), unwrapDI<MDNode>(Decl),
+      true, unwrap<DIExpression>(Expr), unwrapDI<MDNode>(Decl),
       nullptr, AlignInBits));
 }
 
