@@ -209,7 +209,6 @@ static void
 lockmgr_note_shared_release(struct lock *lk, const char *file, int line)
 {
 
-	LOCKSTAT_PROFILE_RELEASE_RWLOCK(lockmgr__release, lk, LOCKSTAT_READER);
 	WITNESS_UNLOCK(&lk->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("SUNLOCK", &lk->lock_object, 0, 0, file, line);
 	TD_LOCKS_DEC(curthread);
@@ -234,11 +233,12 @@ static void
 lockmgr_note_exclusive_release(struct lock *lk, const char *file, int line)
 {
 
-	LOCKSTAT_PROFILE_RELEASE_RWLOCK(lockmgr__release, lk, LOCKSTAT_WRITER);
+	if (LK_HOLDER(lk->lk_lock) != LK_KERNPROC) {
+		WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE, file, line);
+		TD_LOCKS_DEC(curthread);
+	}
 	LOCK_LOG_LOCK("XUNLOCK", &lk->lock_object, 0, lk->lk_recurse, file,
 	    line);
-	WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE, file, line);
-	TD_LOCKS_DEC(curthread);
 }
 
 static __inline struct thread *
@@ -388,7 +388,7 @@ retry_sleepq:
 		break;
 	}
 
-	lockmgr_note_shared_release(lk, file, line);
+	LOCKSTAT_PROFILE_RELEASE_RWLOCK(lockmgr__release, lk, LOCKSTAT_READER);
 	return (wakeup_swapper);
 }
 
@@ -924,6 +924,7 @@ lockmgr_upgrade(struct lock *lk, u_int flags, struct lock_object *ilk,
 	 * We have been unable to succeed in upgrading, so just
 	 * give up the shared lock.
 	 */
+	lockmgr_note_shared_release(lk, file, line);
 	wakeup_swapper |= wakeupshlk(lk, file, line);
 	error = lockmgr_xlock_hard(lk, flags, ilk, file, line, lwa);
 	flags &= ~LK_INTERLOCK;
@@ -1034,11 +1035,6 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	 */
 	if (LK_HOLDER(x) == LK_KERNPROC)
 		tid = LK_KERNPROC;
-	else {
-		WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE, file, line);
-		TD_LOCKS_DEC(curthread);
-	}
-	LOCK_LOG_LOCK("XUNLOCK", &lk->lock_object, 0, lk->lk_recurse, file, line);
 
 	/*
 	 * The lock is held in exclusive mode.
@@ -1135,16 +1131,18 @@ lockmgr_unlock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk)
 	_lockmgr_assert(lk, KA_LOCKED, file, line);
 	x = lk->lk_lock;
 	if (__predict_true(x & LK_SHARE) != 0) {
+		lockmgr_note_shared_release(lk, file, line);
 		if (lockmgr_sunlock_try(lk, &x)) {
-			lockmgr_note_shared_release(lk, file, line);
+			LOCKSTAT_PROFILE_RELEASE_RWLOCK(lockmgr__release, lk, LOCKSTAT_READER);
 		} else {
 			return (lockmgr_sunlock_hard(lk, x, flags, ilk, file, line));
 		}
 	} else {
 		tid = (uintptr_t)curthread;
+		lockmgr_note_exclusive_release(lk, file, line);
 		if (!lockmgr_recursed(lk) &&
 		    atomic_cmpset_rel_ptr(&lk->lk_lock, tid, LK_UNLOCKED)) {
-			lockmgr_note_exclusive_release(lk, file, line);
+			LOCKSTAT_PROFILE_RELEASE_RWLOCK(lockmgr__release, lk, LOCKSTAT_WRITER);
 		} else {
 			return (lockmgr_xunlock_hard(lk, x, flags, ilk, file, line));
 		}
@@ -1221,16 +1219,18 @@ lockmgr_unlock(struct lock *lk)
 	_lockmgr_assert(lk, KA_LOCKED, file, line);
 	x = lk->lk_lock;
 	if (__predict_true(x & LK_SHARE) != 0) {
+		lockmgr_note_shared_release(lk, file, line);
 		if (lockmgr_sunlock_try(lk, &x)) {
-			lockmgr_note_shared_release(lk, file, line);
+			LOCKSTAT_PROFILE_RELEASE_RWLOCK(lockmgr__release, lk, LOCKSTAT_READER);
 		} else {
 			return (lockmgr_sunlock_hard(lk, x, LK_RELEASE, NULL, file, line));
 		}
 	} else {
 		tid = (uintptr_t)curthread;
+		lockmgr_note_exclusive_release(lk, file, line);
 		if (!lockmgr_recursed(lk) &&
 		    atomic_cmpset_rel_ptr(&lk->lk_lock, tid, LK_UNLOCKED)) {
-			lockmgr_note_exclusive_release(lk, file, line);
+			LOCKSTAT_PROFILE_RELEASE_RWLOCK(lockmgr__release, lk, LOCKSTAT_WRITER);
 		} else {
 			return (lockmgr_xunlock_hard(lk, x, LK_RELEASE, NULL, file, line));
 		}
@@ -1347,8 +1347,10 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		x = lk->lk_lock;
 
 		if (__predict_true(x & LK_SHARE) != 0) {
+			lockmgr_note_shared_release(lk, file, line);
 			return (lockmgr_sunlock_hard(lk, x, flags, ilk, file, line));
 		} else {
+			lockmgr_note_exclusive_release(lk, file, line);
 			return (lockmgr_xunlock_hard(lk, x, flags, ilk, file, line));
 		}
 		break;
