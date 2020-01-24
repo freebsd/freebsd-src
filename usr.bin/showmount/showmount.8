@@ -67,20 +67,20 @@ for a detailed description of the protocol.
 .Pp
 The following options are available:
 .Bl -tag -width indent
-.It Fl a
+.It Fl a , Fl -all
 List all mount points in the form:
 .Bd -ragged -offset indent -compact
 .Ar host : Ns Ar dirpath .
 .Ed
-.It Fl d
+.It Fl d , Fl -directories
 List directory paths of mount points instead of hosts.
-.It Fl E
+.It Fl E , Fl -exports-script
 Show the
 .Ar host Ns 's
 exports list in a script-friendly format.
 Client addresses and the header are not shown, and special
 characters are escaped.
-.It Fl e
+.It Fl e , Fl -exports
 Show the
 .Ar host Ns 's
 exports list.
