@@ -2826,11 +2826,10 @@ v_decr_devcount(struct vnode *vp)
  * see doomed vnodes.  If inactive processing was delayed in
  * vput try to do it here.
  *
- * usecount is manipulated using atomics without holding any locks,
- * except when transitioning 0->1 in which case the interlock is held.
-
- * holdcnt is manipulated using atomics without holding any locks,
- * except when transitioning 1->0 in which case the interlock is held.
+ * usecount is manipulated using atomics without holding any locks.
+ *
+ * holdcnt can be manipulated using atomics without holding any locks,
+ * except when transitioning 1<->0, in which case the interlock is held.
  */
 enum vgetstate
 vget_prep(struct vnode *vp)
@@ -2857,10 +2856,46 @@ vget(struct vnode *vp, int flags, struct thread *td)
 	return (vget_finish(vp, flags, vs));
 }
 
+static int __noinline
+vget_finish_vchr(struct vnode *vp)
+{
+
+	VNASSERT(vp->v_type == VCHR, vp, ("type != VCHR)"));
+
+	/*
+	 * See the comment in vget_finish before usecount bump.
+	 */
+	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
+#ifdef INVARIANTS
+		int old = atomic_fetchadd_int(&vp->v_holdcnt, -1);
+		VNASSERT(old > 0, vp, ("%s: wrong hold count %d", __func__, old));
+#else
+		refcount_release(&vp->v_holdcnt);
+#endif
+		return (0);
+	}
+
+	VI_LOCK(vp);
+	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
+#ifdef INVARIANTS
+		int old = atomic_fetchadd_int(&vp->v_holdcnt, -1);
+		VNASSERT(old > 1, vp, ("%s: wrong hold count %d", __func__, old));
+#else
+		refcount_release(&vp->v_holdcnt);
+#endif
+		VI_UNLOCK(vp);
+		return (0);
+	}
+	v_incr_devcount(vp);
+	refcount_acquire(&vp->v_usecount);
+	VI_UNLOCK(vp);
+	return (0);
+}
+
 int
 vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 {
-	int error;
+	int error, old;
 
 	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
 	    ("%s: invalid lock operation", __func__));
@@ -2890,47 +2925,24 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 		return (0);
 	}
 
+	if (__predict_false(vp->v_type == VCHR))
+		return (vget_finish_vchr(vp));
+
 	/*
 	 * We hold the vnode. If the usecount is 0 it will be utilized to keep
 	 * the vnode around. Otherwise someone else lended their hold count and
 	 * we have to drop ours.
 	 */
-	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
+	old = atomic_fetchadd_int(&vp->v_usecount, 1);
+	VNASSERT(old >= 0, vp, ("%s: wrong use count %d", __func__, old));
+	if (old != 0) {
 #ifdef INVARIANTS
-		int old = atomic_fetchadd_int(&vp->v_holdcnt, -1);
+		old = atomic_fetchadd_int(&vp->v_holdcnt, -1);
 		VNASSERT(old > 1, vp, ("%s: wrong hold count %d", __func__, old));
 #else
 		refcount_release(&vp->v_holdcnt);
 #endif
-		return (0);
 	}
-
-	/*
-	 * We don't guarantee that any particular close will
-	 * trigger inactive processing so just make a best effort
-	 * here at preventing a reference to a removed file.  If
-	 * we don't succeed no harm is done.
-	 *
-	 * Upgrade our holdcnt to a usecount.
-	 */
-	VI_LOCK(vp);
-	/*
-	 * See the previous section. By the time we get here we may find
-	 * ourselves in the same spot.
-	 */
-	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
-#ifdef INVARIANTS
-		int old = atomic_fetchadd_int(&vp->v_holdcnt, -1);
-		VNASSERT(old > 1, vp, ("%s: wrong hold count %d", __func__, old));
-#else
-		refcount_release(&vp->v_holdcnt);
-#endif
-		VI_UNLOCK(vp);
-		return (0);
-	}
-	v_incr_devcount(vp);
-	refcount_acquire(&vp->v_usecount);
-	VI_UNLOCK(vp);
 	return (0);
 }
 
@@ -2938,21 +2950,81 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
  * Increase the reference (use) and hold count of a vnode.
  * This will also remove the vnode from the free list if it is presently free.
  */
+static void __noinline
+vref_vchr(struct vnode *vp, bool interlock)
+{
+
+	/*
+	 * See the comment in vget_finish before usecount bump.
+	 */
+	if (!interlock) {
+		if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
+			VNODE_REFCOUNT_FENCE_ACQ();
+			VNASSERT(vp->v_holdcnt > 0, vp,
+			    ("%s: active vnode not held", __func__));
+			return;
+		}
+		VI_LOCK(vp);
+		/*
+		 * By the time we get here the vnode might have been doomed, at
+		 * which point the 0->1 use count transition is no longer
+		 * protected by the interlock. Since it can't bounce back to
+		 * VCHR and requires vref semantics, punt it back
+		 */
+		if (__predict_false(vp->v_type == VBAD)) {
+			VI_UNLOCK(vp);
+			vref(vp);
+			return;
+		}
+	}
+	VNASSERT(vp->v_type == VCHR, vp, ("type != VCHR)"));
+	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
+		VNODE_REFCOUNT_FENCE_ACQ();
+		VNASSERT(vp->v_holdcnt > 0, vp,
+		    ("%s: active vnode not held", __func__));
+		if (!interlock)
+			VI_UNLOCK(vp);
+		return;
+	}
+	vhold(vp);
+	v_incr_devcount(vp);
+	refcount_acquire(&vp->v_usecount);
+	if (!interlock)
+		VI_UNLOCK(vp);
+	return;
+}
+
 void
 vref(struct vnode *vp)
 {
+	int old;
 
-	ASSERT_VI_UNLOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	if (__predict_false(vp->v_type == VCHR)) {
+		 vref_vchr(vp, false);
+		 return;
+	}
+
 	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
 		VNODE_REFCOUNT_FENCE_ACQ();
 		VNASSERT(vp->v_holdcnt > 0, vp,
 		    ("%s: active vnode not held", __func__));
 		return;
 	}
-	VI_LOCK(vp);
-	vrefl(vp);
-	VI_UNLOCK(vp);
+	vhold(vp);
+	/*
+	 * See the comment in vget_finish.
+	 */
+	old = atomic_fetchadd_int(&vp->v_usecount, 1);
+	VNASSERT(old >= 0, vp, ("%s: wrong use count %d", __func__, old));
+	if (old != 0) {
+#ifdef INVARIANTS
+		old = atomic_fetchadd_int(&vp->v_holdcnt, -1);
+		VNASSERT(old > 1, vp, ("%s: wrong hold count %d", __func__, old));
+#else
+		refcount_release(&vp->v_holdcnt);
+#endif
+	}
 }
 
 void
@@ -2961,15 +3033,11 @@ vrefl(struct vnode *vp)
 
 	ASSERT_VI_LOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
-		VNODE_REFCOUNT_FENCE_ACQ();
-		VNASSERT(vp->v_holdcnt > 0, vp,
-		    ("%s: active vnode not held", __func__));
+	if (__predict_false(vp->v_type == VCHR)) {
+		vref_vchr(vp, true);
 		return;
 	}
-	vholdl(vp);
-	v_incr_devcount(vp);
-	refcount_acquire(&vp->v_usecount);
+	vref(vp);
 }
 
 void
@@ -3147,8 +3215,6 @@ vputx(struct vnode *vp, enum vputx_op func)
 		}
 		break;
 	}
-	VNASSERT(vp->v_usecount == 0 || (vp->v_iflag & VI_OWEINACT) == 0, vp,
-	    ("vnode with usecount and VI_OWEINACT set"));
 	if (error == 0) {
 		vinactive(vp);
 		if (func != VPUTX_VUNREF)
