@@ -144,6 +144,19 @@ __FBSDID("$FreeBSD$");
 static const int degrees[MAX_TYPES] =	{ DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
 static const int seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
 
+/* A full instance of the random(3) generator. */
+struct random_state {
+	uint32_t	*rst_fptr;
+	uint32_t	*rst_rptr;
+	uint32_t	*rst_state;
+	int		rst_type;
+	int		rst_deg;
+	int		rst_sep;
+	uint32_t	*rst_end_ptr;
+	/* Flexible array member must be last. */
+	uint32_t	rst_randtbl[];
+};
+
 /*
  * Initially, everything is set up as if from:
  *
@@ -157,52 +170,58 @@ static const int seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
  *
  *	MAX_TYPES * (rptr - state) + TYPE_3 == TYPE_3.
  */
+static struct random_state implicit = {
+	.rst_randtbl = {
+		TYPE_3,
+		0x2cf41758, 0x27bb3711, 0x4916d4d1, 0x7b02f59f, 0x9b8e28eb, 0xc0e80269,
+		0x696f5c16, 0x878f1ff5, 0x52d9c07f, 0x916a06cd, 0xb50b3a20, 0x2776970a,
+		0xee4eb2a6, 0xe94640ec, 0xb1d65612, 0x9d1ed968, 0x1043f6b7, 0xa3432a76,
+		0x17eacbb9, 0x3c09e2eb, 0x4f8c2b3,  0x708a1f57, 0xee341814, 0x95d0e4d2,
+		0xb06f216c, 0x8bd2e72e, 0x8f7c38d7, 0xcfc6a8fc, 0x2a59495,  0xa20d2a69,
+		0xe29d12d1
+	},
 
-static uint32_t randtbl[DEG_3 + 1] = {
-	TYPE_3,
-	0x2cf41758, 0x27bb3711, 0x4916d4d1, 0x7b02f59f, 0x9b8e28eb, 0xc0e80269,
-	0x696f5c16, 0x878f1ff5, 0x52d9c07f, 0x916a06cd, 0xb50b3a20, 0x2776970a,
-	0xee4eb2a6, 0xe94640ec, 0xb1d65612, 0x9d1ed968, 0x1043f6b7, 0xa3432a76,
-	0x17eacbb9, 0x3c09e2eb, 0x4f8c2b3,  0x708a1f57, 0xee341814, 0x95d0e4d2,
-	0xb06f216c, 0x8bd2e72e, 0x8f7c38d7, 0xcfc6a8fc, 0x2a59495,  0xa20d2a69,
-	0xe29d12d1
+	/*
+	 * fptr and rptr are two pointers into the state info, a front and a rear
+	 * pointer.  These two pointers are always rand_sep places aparts, as they
+	 * cycle cyclically through the state information.  (Yes, this does mean we
+	 * could get away with just one pointer, but the code for random() is more
+	 * efficient this way).  The pointers are left positioned as they would be
+	 * from the call
+	 *
+	 *	initstate(1, randtbl, 128);
+	 *
+	 * (The position of the rear pointer, rptr, is really 0 (as explained above
+	 * in the initialization of randtbl) because the state table pointer is set
+	 * to point to randtbl[1] (as explained below).
+	 */
+	.rst_fptr = &implicit.rst_randtbl[SEP_3 + 1],
+	.rst_rptr = &implicit.rst_randtbl[1],
+
+	/*
+	 * The following things are the pointer to the state information table, the
+	 * type of the current generator, the degree of the current polynomial being
+	 * used, and the separation between the two pointers.  Note that for efficiency
+	 * of random(), we remember the first location of the state information, not
+	 * the zeroeth.  Hence it is valid to access state[-1], which is used to
+	 * store the type of the R.N.G.  Also, we remember the last location, since
+	 * this is more efficient than indexing every time to find the address of
+	 * the last element to see if the front and rear pointers have wrapped.
+	 */
+	.rst_state = &implicit.rst_randtbl[1],
+	.rst_type = TYPE_3,
+	.rst_deg = DEG_3,
+	.rst_sep = SEP_3,
+	.rst_end_ptr = &implicit.rst_randtbl[DEG_3 + 1],
 };
 
 /*
- * fptr and rptr are two pointers into the state info, a front and a rear
- * pointer.  These two pointers are always rand_sep places aparts, as they
- * cycle cyclically through the state information.  (Yes, this does mean we
- * could get away with just one pointer, but the code for random() is more
- * efficient this way).  The pointers are left positioned as they would be
- * from the call
- *
- *	initstate(1, randtbl, 128);
- *
- * (The position of the rear pointer, rptr, is really 0 (as explained above
- * in the initialization of randtbl) because the state table pointer is set
- * to point to randtbl[1] (as explained below).
+ * This is the same low quality PRNG used in rand(3) in FreeBSD 12 and prior.
+ * It may be sufficient for distributing bits and expanding a small seed
+ * integer into a larger state.
  */
-static uint32_t *fptr = &randtbl[SEP_3 + 1];
-static uint32_t *rptr = &randtbl[1];
-
-/*
- * The following things are the pointer to the state information table, the
- * type of the current generator, the degree of the current polynomial being
- * used, and the separation between the two pointers.  Note that for efficiency
- * of random(), we remember the first location of the state information, not
- * the zeroeth.  Hence it is valid to access state[-1], which is used to
- * store the type of the R.N.G.  Also, we remember the last location, since
- * this is more efficient than indexing every time to find the address of
- * the last element to see if the front and rear pointers have wrapped.
- */
-static uint32_t *state = &randtbl[1];
-static int rand_type = TYPE_3;
-static int rand_deg = DEG_3;
-static int rand_sep = SEP_3;
-static uint32_t *end_ptr = &randtbl[DEG_3 + 1];
-
 static inline uint32_t
-good_rand(uint32_t ctx)
+parkmiller32(uint32_t ctx)
 {
 /*
  * Compute x = (7^5 * x) mod (2^31 - 1)
@@ -242,15 +261,16 @@ srandom(unsigned int x)
 {
 	int i, lim;
 
-	state[0] = (uint32_t)x;
-	if (rand_type == TYPE_0)
+	implicit.rst_state[0] = (uint32_t)x;
+	if (implicit.rst_type == TYPE_0)
 		lim = NSHUFF;
 	else {
-		for (i = 1; i < rand_deg; i++)
-			state[i] = good_rand(state[i - 1]);
-		fptr = &state[rand_sep];
-		rptr = &state[0];
-		lim = 10 * rand_deg;
+		for (i = 1; i < implicit.rst_deg; i++)
+			implicit.rst_state[i] =
+			    parkmiller32(implicit.rst_state[i - 1]);
+		implicit.rst_fptr = &implicit.rst_state[implicit.rst_sep];
+		implicit.rst_rptr = &implicit.rst_state[0];
+		lim = 10 * implicit.rst_deg;
 	}
 	for (i = 0; i < lim; i++)
 		(void)random();
@@ -274,14 +294,16 @@ srandomdev(void)
 	int mib[2];
 	size_t expected, len;
 
-	if (rand_type == TYPE_0)
-		expected = len = sizeof(state[0]);
+	if (implicit.rst_type == TYPE_0)
+		len = sizeof(implicit.rst_state[0]);
 	else
-		expected = len = rand_deg * sizeof(state[0]);
+		len = implicit.rst_deg * sizeof(implicit.rst_state[0]);
+	expected = len;
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_ARND;
-	if (sysctl(mib, 2, state, &len, NULL, 0) == -1 || len != expected) {
+	if (sysctl(mib, 2, implicit.rst_state, &len, NULL, 0) == -1 ||
+	    len != expected) {
 		/*
 		 * The sysctl cannot fail. If it does fail on some FreeBSD
 		 * derivative or after some future change, just abort so that
@@ -291,9 +313,9 @@ srandomdev(void)
 		abort();
 	}
 
-	if (rand_type != TYPE_0) {
-		fptr = &state[rand_sep];
-		rptr = &state[0];
+	if (implicit.rst_type != TYPE_0) {
+		implicit.rst_fptr = &implicit.rst_state[implicit.rst_sep];
+		implicit.rst_rptr = &implicit.rst_state[0];
 	}
 }
 
@@ -323,43 +345,48 @@ srandomdev(void)
 char *
 initstate(unsigned int seed, char *arg_state, size_t n)
 {
-	char *ostate = (char *)(&state[-1]);
+	char *ostate = (char *)(&implicit.rst_state[-1]);
 	uint32_t *int_arg_state = (uint32_t *)arg_state;
 
 	if (n < BREAK_0)
 		return (NULL);
-	if (rand_type == TYPE_0)
-		state[-1] = rand_type;
+	if (implicit.rst_type == TYPE_0)
+		implicit.rst_state[-1] = implicit.rst_type;
 	else
-		state[-1] = MAX_TYPES * (rptr - state) + rand_type;
+		implicit.rst_state[-1] = MAX_TYPES *
+		    (implicit.rst_rptr - implicit.rst_state) +
+		    implicit.rst_type;
 	if (n < BREAK_1) {
-		rand_type = TYPE_0;
-		rand_deg = DEG_0;
-		rand_sep = SEP_0;
+		implicit.rst_type = TYPE_0;
+		implicit.rst_deg = DEG_0;
+		implicit.rst_sep = SEP_0;
 	} else if (n < BREAK_2) {
-		rand_type = TYPE_1;
-		rand_deg = DEG_1;
-		rand_sep = SEP_1;
+		implicit.rst_type = TYPE_1;
+		implicit.rst_deg = DEG_1;
+		implicit.rst_sep = SEP_1;
 	} else if (n < BREAK_3) {
-		rand_type = TYPE_2;
-		rand_deg = DEG_2;
-		rand_sep = SEP_2;
+		implicit.rst_type = TYPE_2;
+		implicit.rst_deg = DEG_2;
+		implicit.rst_sep = SEP_2;
 	} else if (n < BREAK_4) {
-		rand_type = TYPE_3;
-		rand_deg = DEG_3;
-		rand_sep = SEP_3;
+		implicit.rst_type = TYPE_3;
+		implicit.rst_deg = DEG_3;
+		implicit.rst_sep = SEP_3;
 	} else {
-		rand_type = TYPE_4;
-		rand_deg = DEG_4;
-		rand_sep = SEP_4;
+		implicit.rst_type = TYPE_4;
+		implicit.rst_deg = DEG_4;
+		implicit.rst_sep = SEP_4;
 	}
-	state = int_arg_state + 1; /* first location */
-	end_ptr = &state[rand_deg];	/* must set end_ptr before srandom */
+	implicit.rst_state = int_arg_state + 1; /* first location */
+	/* must set end_ptr before srandom */
+	implicit.rst_end_ptr = &implicit.rst_state[implicit.rst_deg];
 	srandom(seed);
-	if (rand_type == TYPE_0)
-		int_arg_state[0] = rand_type;
+	if (implicit.rst_type == TYPE_0)
+		int_arg_state[0] = implicit.rst_type;
 	else
-		int_arg_state[0] = MAX_TYPES * (rptr - state) + rand_type;
+		int_arg_state[0] = MAX_TYPES *
+		    (implicit.rst_rptr - implicit.rst_state) +
+		    implicit.rst_type;
 	return (ostate);
 }
 
@@ -388,23 +415,26 @@ setstate(char *arg_state)
 	uint32_t *new_state = (uint32_t *)arg_state;
 	uint32_t type = new_state[0] % MAX_TYPES;
 	uint32_t rear = new_state[0] / MAX_TYPES;
-	char *ostate = (char *)(&state[-1]);
+	char *ostate = (char *)(&implicit.rst_state[-1]);
 
 	if (type != TYPE_0 && rear >= degrees[type])
 		return (NULL);
-	if (rand_type == TYPE_0)
-		state[-1] = rand_type;
+	if (implicit.rst_type == TYPE_0)
+		implicit.rst_state[-1] = implicit.rst_type;
 	else
-		state[-1] = MAX_TYPES * (rptr - state) + rand_type;
-	rand_type = type;
-	rand_deg = degrees[type];
-	rand_sep = seps[type];
-	state = new_state + 1;
-	if (rand_type != TYPE_0) {
-		rptr = &state[rear];
-		fptr = &state[(rear + rand_sep) % rand_deg];
+		implicit.rst_state[-1] = MAX_TYPES *
+		    (implicit.rst_rptr - implicit.rst_state) +
+		    implicit.rst_type;
+	implicit.rst_type = type;
+	implicit.rst_deg = degrees[type];
+	implicit.rst_sep = seps[type];
+	implicit.rst_state = new_state + 1;
+	if (implicit.rst_type != TYPE_0) {
+		implicit.rst_rptr = &implicit.rst_state[rear];
+		implicit.rst_fptr = &implicit.rst_state[
+		    (rear + implicit.rst_sep) % implicit.rst_deg];
 	}
-	end_ptr = &state[rand_deg];		/* set end_ptr too */
+	implicit.rst_end_ptr = &implicit.rst_state[implicit.rst_deg];
 	return (ostate);
 }
 
@@ -431,25 +461,28 @@ random(void)
 	uint32_t i;
 	uint32_t *f, *r;
 
-	if (rand_type == TYPE_0) {
-		i = state[0];
-		state[0] = i = good_rand(i);
+	if (implicit.rst_type == TYPE_0) {
+		i = implicit.rst_state[0];
+		i = parkmiller32(i);
+		implicit.rst_state[0] = i;
 	} else {
 		/*
 		 * Use local variables rather than static variables for speed.
 		 */
-		f = fptr; r = rptr;
+		f = implicit.rst_fptr;
+		r = implicit.rst_rptr;
 		*f += *r;
 		i = *f >> 1;	/* chucking least random bit */
-		if (++f >= end_ptr) {
-			f = state;
+		if (++f >= implicit.rst_end_ptr) {
+			f = implicit.rst_state;
 			++r;
 		}
-		else if (++r >= end_ptr) {
-			r = state;
+		else if (++r >= implicit.rst_end_ptr) {
+			r = implicit.rst_state;
 		}
 
-		fptr = f; rptr = r;
+		implicit.rst_fptr = f;
+		implicit.rst_rptr = r;
 	}
 	return ((long)i);
 }
