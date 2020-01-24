@@ -104,6 +104,7 @@ namespace clang {
     void VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D);
     void VisitTemplateDecl(TemplateDecl *D);
     void VisitConceptDecl(ConceptDecl *D);
+    void VisitRequiresExprBodyDecl(RequiresExprBodyDecl *D);
     void VisitRedeclarableTemplateDecl(RedeclarableTemplateDecl *D);
     void VisitClassTemplateDecl(ClassTemplateDecl *D);
     void VisitVarTemplateDecl(VarTemplateDecl *D);
@@ -1481,6 +1482,10 @@ void ASTDeclWriter::VisitConceptDecl(ConceptDecl *D) {
   Code = serialization::DECL_CONCEPT;
 }
 
+void ASTDeclWriter::VisitRequiresExprBodyDecl(RequiresExprBodyDecl *D) {
+  Code = serialization::DECL_REQUIRES_EXPR_BODY;
+}
+
 void ASTDeclWriter::VisitRedeclarableTemplateDecl(RedeclarableTemplateDecl *D) {
   VisitRedeclarable(D);
 
@@ -1670,6 +1675,8 @@ void ASTDeclWriter::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
   // For an expanded parameter pack, record the number of expansion types here
   // so that it's easier for deserialization to allocate the right amount of
   // memory.
+  Expr *TypeConstraint = D->getPlaceholderTypeConstraint();
+  Record.push_back(!!TypeConstraint);
   if (D->isExpandedParameterPack())
     Record.push_back(D->getNumExpansionTypes());
 
@@ -1677,6 +1684,8 @@ void ASTDeclWriter::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
   // TemplateParmPosition.
   Record.push_back(D->getDepth());
   Record.push_back(D->getPosition());
+  if (TypeConstraint)
+    Record.AddStmt(TypeConstraint);
 
   if (D->isExpandedParameterPack()) {
     for (unsigned I = 0, N = D->getNumExpansionTypes(); I != N; ++I) {
