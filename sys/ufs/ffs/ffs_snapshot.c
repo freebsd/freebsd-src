@@ -2583,15 +2583,7 @@ process_deferred_inactive(struct mount *mp)
 			UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 		}
 		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_OWEINACT) == 0 || vp->v_usecount > 0) {
-			VI_UNLOCK(vp);
-			VOP_UNLOCK(vp);
-			vdrop(vp);
-			continue;
-		}
 		vinactive(vp);
-		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
-			 ("process_deferred_inactive: got VI_OWEINACT"));
 		VI_UNLOCK(vp);
 		VOP_UNLOCK(vp);
 		vdrop(vp);
