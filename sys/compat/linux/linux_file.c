@@ -1107,11 +1107,8 @@ out:
 int
 linux_oldumount(struct thread *td, struct linux_oldumount_args *args)
 {
-	struct linux_umount_args args2;
 
-	args2.path = args->path;
-	args2.flags = 0;
-	return (linux_umount(td, &args2));
+	return (kern_unmount(td, args->path, 0));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
@@ -1119,16 +1116,19 @@ linux_oldumount(struct thread *td, struct linux_oldumount_args *args)
 int
 linux_umount(struct thread *td, struct linux_umount_args *args)
 {
-	struct unmount_args bsd;
 	int flags;
 
 	flags = 0;
-	if ((args->flags & LINUX_MNT_FORCE) != 0)
+	if ((args->flags & LINUX_MNT_FORCE) != 0) {
+		args->flags &= ~LINUX_MNT_FORCE;
 		flags |= MNT_FORCE;
+	}
+	if (args->flags != 0) {
+		linux_msg(td, "unsupported umount2 flags %#x", args->flags);
+		return (EINVAL);
+	}
 
-	bsd.path = args->path;
-	bsd.flags = flags;
-	return (sys_unmount(td, &bsd));
+	return (kern_unmount(td, args->path, flags));
 }
 #endif
 
