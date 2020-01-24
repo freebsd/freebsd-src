@@ -10093,6 +10093,7 @@ static int
 rack_set_sockopt(struct socket *so, struct sockopt *sopt,
     struct inpcb *inp, struct tcpcb *tp, struct tcp_rack *rack)
 {
+	struct epoch_tracker et;
 	int32_t error = 0, optval;
 
 	switch (sopt->sopt_name) {
@@ -10261,7 +10262,9 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 		if (tp->t_flags & TF_DELACK) {
 			tp->t_flags &= ~TF_DELACK;
 			tp->t_flags |= TF_ACKNOW;
+			NET_EPOCH_ENTER(et);
 			rack_output(tp);
+			NET_EPOCH_EXIT(et);
 		}
 		break;
 	case TCP_RACK_MIN_PACE:
