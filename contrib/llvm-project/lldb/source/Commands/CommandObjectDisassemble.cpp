@@ -10,16 +10,13 @@
 #include "lldb/Core/AddressRange.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/SourceManager.h"
 #include "lldb/Host/OptionParser.h"
-#include "lldb/Interpreter/CommandCompletions.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Interpreter/Options.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/Symbol.h"
-#include "lldb/Target/Process.h"
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
@@ -249,9 +246,8 @@ bool CommandObjectDisassemble::DoExecute(Args &command,
           m_options.arch.GetArchitectureName());
     result.SetStatus(eReturnStatusFailed);
     return false;
-  } else if (flavor_string != nullptr &&
-             !disassembler->FlavorValidForArchSpec(m_options.arch,
-                                                   flavor_string))
+  } else if (flavor_string != nullptr && !disassembler->FlavorValidForArchSpec(
+                                             m_options.arch, flavor_string))
     result.AppendWarningWithFormat(
         "invalid disassembler flavor \"%s\", using default.\n", flavor_string);
 

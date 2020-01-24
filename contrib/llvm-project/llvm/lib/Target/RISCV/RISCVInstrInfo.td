@@ -636,9 +636,6 @@ def : InstAlias<"jr $rs, $offset",        (JALR      X0, GPR:$rs, simm12:$offset
 def : InstAlias<"jalr $rs, $offset",      (JALR      X1, GPR:$rs, simm12:$offset), 0>;
 def : InstAlias<"jalr $rd, $rs, $offset", (JALR GPR:$rd, GPR:$rs, simm12:$offset), 0>;
 
-// TODO call
-// TODO tail
-
 def : InstAlias<"fence", (FENCE 0xF, 0xF)>; // 0xF == iorw
 
 def : InstAlias<"rdinstret $rd", (CSRRS GPR:$rd, INSTRET.Encoding, X0)>;
@@ -901,7 +898,7 @@ def : Pat<(brind GPR:$rs1), (PseudoBRIND GPR:$rs1, 0)>;
 def : Pat<(brind (add GPR:$rs1, simm12:$imm12)),
           (PseudoBRIND GPR:$rs1, simm12:$imm12)>;
 
-// PsuedoCALLReg is a generic pseudo instruction for calls which will eventually
+// PseudoCALLReg is a generic pseudo instruction for calls which will eventually
 // expand to auipc and jalr while encoding, with any given register used as the
 // destination.
 // Define AsmString to print "call" when compile with -S flag.
@@ -1022,13 +1019,13 @@ defm : StPat<store, SW, GPR>, Requires<[IsRV32]>;
 // Manual: Volume I.
 
 // fence acquire -> fence r, rw
-def : Pat<(atomic_fence (XLenVT 4), (imm)), (FENCE 0b10, 0b11)>;
+def : Pat<(atomic_fence (XLenVT 4), (timm)), (FENCE 0b10, 0b11)>;
 // fence release -> fence rw, w
-def : Pat<(atomic_fence (XLenVT 5), (imm)), (FENCE 0b11, 0b1)>;
+def : Pat<(atomic_fence (XLenVT 5), (timm)), (FENCE 0b11, 0b1)>;
 // fence acq_rel -> fence.tso
-def : Pat<(atomic_fence (XLenVT 6), (imm)), (FENCE_TSO)>;
+def : Pat<(atomic_fence (XLenVT 6), (timm)), (FENCE_TSO)>;
 // fence seq_cst -> fence rw, rw
-def : Pat<(atomic_fence (XLenVT 7), (imm)), (FENCE 0b11, 0b11)>;
+def : Pat<(atomic_fence (XLenVT 7), (timm)), (FENCE 0b11, 0b11)>;
 
 // Lowering for atomic load and store is defined in RISCVInstrInfoA.td.
 // Although these are lowered to fence+load/store instructions defined in the
@@ -1096,6 +1093,16 @@ def : Pat<(readcyclecounter), (CSRRS CYCLE.Encoding, X0)>;
 let Predicates = [IsRV32], usesCustomInserter = 1, hasSideEffects = 0,
 mayLoad = 0, mayStore = 0, hasNoSchedulingInfo = 1 in
 def ReadCycleWide : Pseudo<(outs GPR:$lo, GPR:$hi), (ins), [], "", "">;
+
+/// traps
+
+// We lower `trap` to `unimp`, as this causes a hard exception on nearly all
+// systems.
+def : Pat<(trap), (UNIMP)>;
+
+// We lower `debugtrap` to `ebreak`, as this will get the attention of the
+// debugger if possible.
+def : Pat<(debugtrap), (EBREAK)>;
 
 //===----------------------------------------------------------------------===//
 // Standard extensions

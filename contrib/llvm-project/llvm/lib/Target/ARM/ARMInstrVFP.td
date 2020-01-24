@@ -277,7 +277,7 @@ def : MnemonicAlias<"vstm", "vstmia">;
 //
 let mayLoad = 1 in
 def VLLDM : AXSI4<(outs), (ins GPRnopc:$Rn, pred:$p), IndexModeNone,
-                  IIC_fpLoad_m, "vlldm${p}\t$Rn", "", []>,
+                  NoItinerary, "vlldm${p}\t$Rn", "", []>,
             Requires<[HasV8MMainline, Has8MSecExt]> {
     let Inst{24-23} = 0b00;
     let Inst{22}    = 0;
@@ -290,7 +290,7 @@ def VLLDM : AXSI4<(outs), (ins GPRnopc:$Rn, pred:$p), IndexModeNone,
 
 let mayStore = 1 in
 def VLSTM : AXSI4<(outs), (ins GPRnopc:$Rn, pred:$p), IndexModeNone,
-                  IIC_fpStore_m, "vlstm${p}\t$Rn", "", []>,
+                  NoItinerary, "vlstm${p}\t$Rn", "", []>,
             Requires<[HasV8MMainline, Has8MSecExt]> {
     let Inst{24-23} = 0b00;
     let Inst{22}    = 0;
@@ -2143,6 +2143,9 @@ def : Pat<(f64 (fma (fneg DPR:$Dn), DPR:$Dm, DPR:$Ddin)),
 def : Pat<(f32 (fma (fneg SPR:$Sn), SPR:$Sm, SPR:$Sdin)),
           (VFMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
+def : Pat<(f16 (fma (fneg HPR:$Sn), HPR:$Sm, HPR:$Sdin)),
+          (VFMSH HPR:$Sdin, HPR:$Sn, HPR:$Sm)>,
+      Requires<[HasFullFP16]>;
 // (fma x, (fneg y), z) -> (vfms z, x, y)
 def : Pat<(f64 (fma DPR:$Dn, (fneg DPR:$Dm), DPR:$Ddin)),
           (VFMSD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
@@ -2150,6 +2153,9 @@ def : Pat<(f64 (fma DPR:$Dn, (fneg DPR:$Dm), DPR:$Ddin)),
 def : Pat<(f32 (fma SPR:$Sn, (fneg SPR:$Sm), SPR:$Sdin)),
           (VFMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
+def : Pat<(f16 (fma HPR:$Sn, (fneg HPR:$Sm), HPR:$Sdin)),
+          (VFMSH HPR:$Sdin, HPR:$Sn, HPR:$Sm)>,
+      Requires<[HasFullFP16]>;
 
 def VFNMAD : ADbI<0b11101, 0b01, 1, 0,
                   (outs DPR:$Dd), (ins DPR:$Ddin, DPR:$Dn, DPR:$Dm),
@@ -2196,6 +2202,9 @@ def : Pat<(fneg (fma (f64 DPR:$Dn), (f64 DPR:$Dm), (f64 DPR:$Ddin))),
 def : Pat<(fneg (fma (f32 SPR:$Sn), (f32 SPR:$Sm), (f32 SPR:$Sdin))),
           (VFNMAS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
+def : Pat<(fneg (fma (f16 HPR:$Sn), (f16 HPR:$Sm), (f16 HPR:$Sdin))),
+          (VFNMAH HPR:$Sdin, HPR:$Sn, HPR:$Sm)>,
+      Requires<[HasFullFP16]>;
 // (fma (fneg x), y, (fneg z)) -> (vfnma z, x, y)
 def : Pat<(f64 (fma (fneg DPR:$Dn), DPR:$Dm, (fneg DPR:$Ddin))),
           (VFNMAD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
@@ -2203,6 +2212,9 @@ def : Pat<(f64 (fma (fneg DPR:$Dn), DPR:$Dm, (fneg DPR:$Ddin))),
 def : Pat<(f32 (fma (fneg SPR:$Sn), SPR:$Sm, (fneg SPR:$Sdin))),
           (VFNMAS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
+def : Pat<(f16 (fma (fneg HPR:$Sn), HPR:$Sm, (fneg HPR:$Sdin))),
+          (VFNMAH HPR:$Sdin, HPR:$Sn, HPR:$Sm)>,
+      Requires<[HasFullFP16]>;
 
 def VFNMSD : ADbI<0b11101, 0b01, 0, 0,
                   (outs DPR:$Dd), (ins DPR:$Ddin, DPR:$Dn, DPR:$Dm),
@@ -2248,6 +2260,9 @@ def : Pat<(f64 (fma DPR:$Dn, DPR:$Dm, (fneg DPR:$Ddin))),
 def : Pat<(f32 (fma SPR:$Sn, SPR:$Sm, (fneg SPR:$Sdin))),
           (VFNMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
+def : Pat<(f16 (fma HPR:$Sn, HPR:$Sm, (fneg HPR:$Sdin))),
+          (VFNMSH HPR:$Sdin, HPR:$Sn, HPR:$Sm)>,
+      Requires<[HasFullFP16]>;
 // (fneg (fma (fneg x), y, z)) -> (vfnms z, x, y)
 def : Pat<(fneg (f64 (fma (fneg DPR:$Dn), DPR:$Dm, DPR:$Ddin))),
           (VFNMSD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
@@ -2255,6 +2270,9 @@ def : Pat<(fneg (f64 (fma (fneg DPR:$Dn), DPR:$Dm, DPR:$Ddin))),
 def : Pat<(fneg (f32 (fma (fneg SPR:$Sn), SPR:$Sm, SPR:$Sdin))),
           (VFNMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
+def : Pat<(fneg (f16 (fma (fneg HPR:$Sn), HPR:$Sm, HPR:$Sdin))),
+          (VFNMSH HPR:$Sdin, HPR:$Sn, HPR:$Sm)>,
+      Requires<[HasFullFP16]>;
 // (fneg (fma x, (fneg y), z) -> (vfnms z, x, y)
 def : Pat<(fneg (f64 (fma DPR:$Dn, (fneg DPR:$Dm), DPR:$Ddin))),
           (VFNMSD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
@@ -2262,6 +2280,9 @@ def : Pat<(fneg (f64 (fma DPR:$Dn, (fneg DPR:$Dm), DPR:$Ddin))),
 def : Pat<(fneg (f32 (fma SPR:$Sn, (fneg SPR:$Sm), SPR:$Sdin))),
           (VFNMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
+def : Pat<(fneg (f16 (fma HPR:$Sn, (fneg HPR:$Sm), HPR:$Sdin))),
+          (VFNMSH HPR:$Sdin, HPR:$Sn, HPR:$Sm)>,
+      Requires<[HasFullFP16]>;
 
 //===----------------------------------------------------------------------===//
 // FP Conditional moves.
@@ -2279,6 +2300,12 @@ def VMOVScc  : PseudoInst<(outs SPR:$Sd), (ins SPR:$Sn, SPR:$Sm, cmovpred:$p),
                     [(set (f32 SPR:$Sd),
                           (ARMcmov SPR:$Sn, SPR:$Sm, cmovpred:$p))]>,
                RegConstraint<"$Sn = $Sd">, Requires<[HasFPRegs]>;
+
+def VMOVHcc  : PseudoInst<(outs HPR:$Sd), (ins HPR:$Sn, HPR:$Sm, cmovpred:$p),
+                    IIC_fpUNA16,
+                    [(set (f16 HPR:$Sd),
+                          (ARMcmov HPR:$Sn, HPR:$Sm, cmovpred:$p))]>,
+               RegConstraint<"$Sd = $Sn">, Requires<[HasFPRegs]>;
 } // hasSideEffects
 
 //===----------------------------------------------------------------------===//

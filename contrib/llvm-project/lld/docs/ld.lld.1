@@ -123,6 +123,11 @@ may be
 .Cm none
 or
 .Cm zlib .
+The default compression level is 1 (fastest) as the debug info usually
+compresses well at that level, but if you want to compress it more,
+you can specify
+.Fl O2
+to set the compression level to 6.
 .It Fl -cref
 Output cross reference table.
 .It Fl -define-common , Fl d
@@ -191,8 +196,6 @@ Set the
 field to the specified value.
 .It Fl -fini Ns = Ns Ar symbol
 Specify a finalizer function.
-.It Fl -force-bti
-Force enable AArch64 BTI instruction in PLT, warn if Input ELF file does not have GNU_PROPERTY_AARCH64_FEATURE_1_BTI property.
 .It Fl -format Ns = Ns Ar input-format , Fl b Ar input-format
 Specify the format of the inputs following this option.
 .Ar input-format
@@ -332,7 +335,9 @@ Disable string merging.
 .It Cm 1
 Enable string merging.
 .It Cm 2
-Enable string tail merging.
+Enable string tail merging. If
+.Fl -compress-debug-sections
+is given, compress debug sections at compression level 6 instead of 1.
 .El
 .Pp
 .Fl O Ns Cm 1
@@ -401,8 +406,6 @@ If
 .Fl -use-android-relr-tags
 is specified, use SHT_ANDROID_RELR instead of SHT_RELR.
 .Pp
-.It Fl -pac-plt
-AArch64 only, use pointer authentication in PLT.
 .It Fl -pic-veneer
 Always generate position independent thunks.
 .It Fl -pie , Fl -pic-executable
@@ -599,6 +602,13 @@ Stack permissions are recorded in the
 .Dv PT_GNU_STACK
 segment.
 .Pp
+.It Cm force-bti
+Force enable AArch64 BTI instruction in PLT, warn if Input ELF file does not have GNU_PROPERTY_AARCH64_FEATURE_1_BTI property.
+.Pp
+.It Cm force-ibt
+Force enable Intel Indirect Branch Tracking in PLT, warn if an input ELF file
+does not have GNU_PROPERTY_X86_FEATURE_1_IBT property.
+.Pp
 .It Cm global
 Sets the
 .Dv DF_1_GLOBAL flag in the
@@ -655,8 +665,13 @@ Set the
 flag to indicate that the object may not be opened by
 .Xr dlopen 3 .
 .Pp
+.It Cm nognustack
+Do not emit the
+.Dv PT_GNU_STACK
+segment.
+.Pp
 .It Cm norelro
-Do not indicate that portions of the object shold be mapped read-only
+Do not indicate that portions of the object should be mapped read-only
 after initial relocation processing.
 The object will omit the
 .Dv PT_GNU_RELRO
@@ -683,6 +698,9 @@ flag to indicate that the object requires
 $ORIGIN
 processing.
 .Pp
+.It Cm pac-plt
+AArch64 only, use pointer authentication in PLT.
+.Pp
 .It Cm retpolineplt
 Emit retpoline format PLT entries as a mitigation for CVE-2017-5715.
 .Pp
@@ -704,6 +722,9 @@ Specify whether two adjacent PT_LOAD segments are allowed to overlap in pages.
 allows overlap between two executable segments, or two non-executable segments.
 .Cm separate-loadable-segments
 disallows overlap.
+.Pp
+.It Cm shstk
+x86 only, use shadow stack.
 .Pp
 .It Cm stack-size Ns = Ns Ar size
 Set the main thread's stack size to

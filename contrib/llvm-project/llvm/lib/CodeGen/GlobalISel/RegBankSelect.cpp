@@ -32,6 +32,7 @@
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/CommandLine.h"
@@ -118,16 +119,16 @@ bool RegBankSelect::assignmentMatch(
     return false;
 
   const RegisterBank *CurRegBank = RBI->getRegBank(Reg, *MRI, *TRI);
-  const RegisterBank *DesiredRegBrank = ValMapping.BreakDown[0].RegBank;
+  const RegisterBank *DesiredRegBank = ValMapping.BreakDown[0].RegBank;
   // Reg is free of assignment, a simple assignment will make the
   // register bank to match.
   OnlyAssign = CurRegBank == nullptr;
   LLVM_DEBUG(dbgs() << "Does assignment already match: ";
              if (CurRegBank) dbgs() << *CurRegBank; else dbgs() << "none";
              dbgs() << " against ";
-             assert(DesiredRegBrank && "The mapping must be valid");
-             dbgs() << *DesiredRegBrank << '\n';);
-  return CurRegBank == DesiredRegBrank;
+             assert(DesiredRegBank && "The mapping must be valid");
+             dbgs() << *DesiredRegBank << '\n';);
+  return CurRegBank == DesiredRegBank;
 }
 
 bool RegBankSelect::repairReg(
@@ -259,11 +260,11 @@ uint64_t RegBankSelect::getRepairCost(
     return RBI->getBreakDownCost(ValMapping, CurRegBank);
 
   if (IsSameNumOfValues) {
-    const RegisterBank *DesiredRegBrank = ValMapping.BreakDown[0].RegBank;
+    const RegisterBank *DesiredRegBank = ValMapping.BreakDown[0].RegBank;
     // If we repair a definition, swap the source and destination for
     // the repairing.
     if (MO.isDef())
-      std::swap(CurRegBank, DesiredRegBrank);
+      std::swap(CurRegBank, DesiredRegBank);
     // TODO: It may be possible to actually avoid the copy.
     // If we repair something where the source is defined by a copy
     // and the source of that copy is on the right bank, we can reuse
@@ -275,7 +276,7 @@ uint64_t RegBankSelect::getRepairCost(
     // into a new virtual register.
     // We would also need to propagate this information in the
     // repairing placement.
-    unsigned Cost = RBI->copyCost(*DesiredRegBrank, *CurRegBank,
+    unsigned Cost = RBI->copyCost(*DesiredRegBank, *CurRegBank,
                                   RBI->getSizeInBits(MO.getReg(), *MRI, *TRI));
     // TODO: use a dedicated constant for ImpossibleCost.
     if (Cost != std::numeric_limits<unsigned>::max())

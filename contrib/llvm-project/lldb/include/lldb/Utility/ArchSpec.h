@@ -101,6 +101,7 @@ public:
     eCore_arm_armv6,
     eCore_arm_armv6m,
     eCore_arm_armv7,
+    eCore_arm_armv7l,
     eCore_arm_armv7f,
     eCore_arm_armv7s,
     eCore_arm_armv7k,
@@ -122,6 +123,7 @@ public:
     eCore_thumbv7em,
     eCore_arm_arm64,
     eCore_arm_armv8,
+    eCore_arm_armv8l,
     eCore_arm_arm64_32,
     eCore_arm_aarch64,
 
@@ -257,13 +259,6 @@ public:
 
   /// Destructor.
   ~ArchSpec();
-
-  /// Assignment operator.
-  ///
-  /// \param[in] rhs another ArchSpec object to copy.
-  ///
-  /// \return A const reference to this object.
-  const ArchSpec &operator=(const ArchSpec &rhs);
 
   /// Returns true if the OS, vendor and environment fields of the triple are
   /// unset. The triple is expected to be normalized
@@ -438,7 +433,7 @@ public:
   /// \return A triple describing this ArchSpec.
   const llvm::Triple &GetTriple() const { return m_triple; }
 
-  void DumpTriple(Stream &s) const;
+  void DumpTriple(llvm::raw_ostream &s) const;
 
   /// Architecture triple setter.
   ///

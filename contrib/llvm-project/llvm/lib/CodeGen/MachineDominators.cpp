@@ -14,6 +14,7 @@
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
@@ -49,11 +50,15 @@ void MachineDominatorTree::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool MachineDominatorTree::runOnMachineFunction(MachineFunction &F) {
+  calculate(F);
+  return false;
+}
+
+void MachineDominatorTree::calculate(MachineFunction &F) {
   CriticalEdgesToSplit.clear();
   NewBBs.clear();
   DT.reset(new DomTreeBase<MachineBasicBlock>());
   DT->recalculate(F);
-  return false;
 }
 
 MachineDominatorTree::MachineDominatorTree()

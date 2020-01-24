@@ -3927,8 +3927,8 @@ static int __kmp_reset_root(int gtid, kmp_root_t *root) {
   }
   __kmp_reap_thread(root->r.r_uber_thread, 1);
 
-  // We canot put root thread to __kmp_thread_pool, so we have to reap it istead
-  // of freeing.
+  // We canot put root thread to __kmp_thread_pool, so we have to reap it
+  // instead of freeing.
   root->r.r_uber_thread = NULL;
   /* mark root as no longer in use */
   root->r.r_begin = FALSE;
@@ -5799,15 +5799,9 @@ void __kmp_internal_end_dest(void *specific_gtid) {
 
 #if KMP_OS_UNIX && KMP_DYNAMIC_LIB
 
-// 2009-09-08 (lev): It looks the destructor does not work. In simple test cases
-// destructors work perfectly, but in real libomp.so I have no evidence it is
-// ever called. However, -fini linker option in makefile.mk works fine.
-
 __attribute__((destructor)) void __kmp_internal_end_dtor(void) {
   __kmp_internal_end_atexit();
 }
-
-void __kmp_internal_end_fini(void) { __kmp_internal_end_atexit(); }
 
 #endif
 
@@ -7158,7 +7152,7 @@ int __kmp_invoke_teams_master(int gtid) {
 
 /* this sets the requested number of threads for the next parallel region
    encountered by this team. since this should be enclosed in the forkjoin
-   critical section it should avoid race conditions with assymmetrical nested
+   critical section it should avoid race conditions with asymmetrical nested
    parallelism */
 
 void __kmp_push_num_threads(ident_t *id, int gtid, int num_threads) {

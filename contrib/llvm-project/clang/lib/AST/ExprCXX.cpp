@@ -107,7 +107,7 @@ CXXRewrittenBinaryOperator::getDecomposedForm() const {
     return Result;
 
   // Otherwise, we expect a <=> to now be on the LHS.
-  E = Result.LHS->IgnoreImplicit();
+  E = Result.LHS->IgnoreImplicitAsWritten();
   if (auto *BO = dyn_cast<BinaryOperator>(E)) {
     assert(BO->getOpcode() == BO_Cmp);
     Result.LHS = BO->getLHS();
@@ -1653,7 +1653,23 @@ FunctionParmPackExpr::CreateEmpty(const ASTContext &Context,
       FunctionParmPackExpr(QualType(), nullptr, SourceLocation(), 0, nullptr);
 }
 
-void MaterializeTemporaryExpr::setExtendingDecl(const ValueDecl *ExtendedBy,
+MaterializeTemporaryExpr::MaterializeTemporaryExpr(
+    QualType T, Expr *Temporary, bool BoundToLvalueReference,
+    LifetimeExtendedTemporaryDecl *MTD)
+    : Expr(MaterializeTemporaryExprClass, T,
+           BoundToLvalueReference ? VK_LValue : VK_XValue, OK_Ordinary,
+           Temporary->isTypeDependent(), Temporary->isValueDependent(),
+           Temporary->isInstantiationDependent(),
+           Temporary->containsUnexpandedParameterPack()) {
+  if (MTD) {
+    State = MTD;
+    MTD->ExprWithTemporary = Temporary;
+    return;
+  }
+  State = Temporary;
+}
+
+void MaterializeTemporaryExpr::setExtendingDecl(ValueDecl *ExtendedBy,
                                                 unsigned ManglingNumber) {
   // We only need extra state if we have to remember more than just the Stmt.
   if (!ExtendedBy)
@@ -1661,13 +1677,11 @@ void MaterializeTemporaryExpr::setExtendingDecl(const ValueDecl *ExtendedBy,
 
   // We may need to allocate extra storage for the mangling number and the
   // extended-by ValueDecl.
-  if (!State.is<ExtraState *>()) {
-    auto *ES = new (ExtendedBy->getASTContext()) ExtraState;
-    ES->Temporary = State.get<Stmt *>();
-    State = ES;
-  }
+  if (!State.is<LifetimeExtendedTemporaryDecl *>())
+    State = LifetimeExtendedTemporaryDecl::Create(
+        cast<Expr>(State.get<Stmt *>()), ExtendedBy, ManglingNumber);
 
-  auto ES = State.get<ExtraState *>();
+  auto ES = State.get<LifetimeExtendedTemporaryDecl *>();
   ES->ExtendingDecl = ExtendedBy;
   ES->ManglingNumber = ManglingNumber;
 }
@@ -1751,44 +1765,42 @@ CUDAKernelCallExpr *CUDAKernelCallExpr::CreateEmpty(const ASTContext &Ctx,
   return new (Mem) CUDAKernelCallExpr(NumArgs, Empty);
 }
 
-ConceptSpecializationExpr::ConceptSpecializationExpr(ASTContext &C,
+ConceptSpecializationExpr::ConceptSpecializationExpr(const ASTContext &C,
     NestedNameSpecifierLoc NNS, SourceLocation TemplateKWLoc,
-    SourceLocation ConceptNameLoc, NamedDecl *FoundDecl,
+    DeclarationNameInfo ConceptNameInfo, NamedDecl *FoundDecl,
     ConceptDecl *NamedConcept, const ASTTemplateArgumentListInfo *ArgsAsWritten,
-    ArrayRef<TemplateArgument> ConvertedArgs, Optional<bool> IsSatisfied)
+    ArrayRef<TemplateArgument> ConvertedArgs,
+    const ConstraintSatisfaction *Satisfaction)
     : Expr(ConceptSpecializationExprClass, C.BoolTy, VK_RValue, OK_Ordinary,
            /*TypeDependent=*/false,
            // All the flags below are set in setTemplateArguments.
-           /*ValueDependent=*/!IsSatisfied.hasValue(),
-           /*InstantiationDependent=*/false,
+           /*ValueDependent=*/!Satisfaction, /*InstantiationDependent=*/false,
            /*ContainsUnexpandedParameterPacks=*/false),
-      NestedNameSpec(NNS), TemplateKWLoc(TemplateKWLoc),
-      ConceptNameLoc(ConceptNameLoc), FoundDecl(FoundDecl),
-      NamedConcept(NamedConcept, IsSatisfied ? *IsSatisfied : true),
-      NumTemplateArgs(ConvertedArgs.size()) {
-
-  setTemplateArguments(ArgsAsWritten, ConvertedArgs);
+      ConceptReference(NNS, TemplateKWLoc, ConceptNameInfo, FoundDecl,
+                       NamedConcept, ArgsAsWritten),
+      NumTemplateArgs(ConvertedArgs.size()),
+      Satisfaction(Satisfaction ?
+                   ASTConstraintSatisfaction::Create(C, *Satisfaction) :
+                   nullptr) {
+  setTemplateArguments(ConvertedArgs);
 }
 
 ConceptSpecializationExpr::ConceptSpecializationExpr(EmptyShell Empty,
     unsigned NumTemplateArgs)
-    : Expr(ConceptSpecializationExprClass, Empty),
+    : Expr(ConceptSpecializationExprClass, Empty), ConceptReference(),
       NumTemplateArgs(NumTemplateArgs) { }
 
 void ConceptSpecializationExpr::setTemplateArguments(
-    const ASTTemplateArgumentListInfo *ArgsAsWritten,
     ArrayRef<TemplateArgument> Converted) {
   assert(Converted.size() == NumTemplateArgs);
-  assert(!this->ArgsAsWritten && "setTemplateArguments can only be used once");
-  this->ArgsAsWritten = ArgsAsWritten;
   std::uninitialized_copy(Converted.begin(), Converted.end(),
                           getTrailingObjects<TemplateArgument>());
   bool IsInstantiationDependent = false;
   bool ContainsUnexpandedParameterPack = false;
-  for (const TemplateArgumentLoc& LocInfo : ArgsAsWritten->arguments()) {
-    if (LocInfo.getArgument().isInstantiationDependent())
+  for (const TemplateArgument& Arg : Converted) {
+    if (Arg.isInstantiationDependent())
       IsInstantiationDependent = true;
-    if (LocInfo.getArgument().containsUnexpandedParameterPack())
+    if (Arg.containsUnexpandedParameterPack())
       ContainsUnexpandedParameterPack = true;
     if (ContainsUnexpandedParameterPack && IsInstantiationDependent)
       break;
@@ -1806,20 +1818,21 @@ void ConceptSpecializationExpr::setTemplateArguments(
 }
 
 ConceptSpecializationExpr *
-ConceptSpecializationExpr::Create(ASTContext &C, NestedNameSpecifierLoc NNS,
+ConceptSpecializationExpr::Create(const ASTContext &C,
+                                  NestedNameSpecifierLoc NNS,
                                   SourceLocation TemplateKWLoc,
-                                  SourceLocation ConceptNameLoc,
+                                  DeclarationNameInfo ConceptNameInfo,
                                   NamedDecl *FoundDecl,
                                   ConceptDecl *NamedConcept,
                                const ASTTemplateArgumentListInfo *ArgsAsWritten,
                                   ArrayRef<TemplateArgument> ConvertedArgs,
-                                  Optional<bool> IsSatisfied) {
+                                  const ConstraintSatisfaction *Satisfaction) {
   void *Buffer = C.Allocate(totalSizeToAlloc<TemplateArgument>(
                                 ConvertedArgs.size()));
   return new (Buffer) ConceptSpecializationExpr(C, NNS, TemplateKWLoc,
-                                                ConceptNameLoc, FoundDecl,
+                                                ConceptNameInfo, FoundDecl,
                                                 NamedConcept, ArgsAsWritten,
-                                                ConvertedArgs, IsSatisfied);
+                                                ConvertedArgs, Satisfaction);
 }
 
 ConceptSpecializationExpr *

@@ -211,6 +211,7 @@
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 
@@ -452,7 +453,7 @@ Function *WebAssemblyLowerEmscriptenEHSjLj::getInvokeWrapper(CallOrInvoke *CI) {
     CalleeFTy = F->getFunctionType();
   else {
     auto *CalleeTy = cast<PointerType>(Callee->getType())->getElementType();
-    CalleeFTy = dyn_cast<FunctionType>(CalleeTy);
+    CalleeFTy = cast<FunctionType>(CalleeTy);
   }
 
   std::string Sig = getSignature(CalleeFTy);
@@ -750,7 +751,6 @@ bool WebAssemblyLowerEmscriptenEHSjLj::runEHOnFunction(Function &F) {
     auto *II = dyn_cast<InvokeInst>(BB.getTerminator());
     if (!II)
       continue;
-    Changed = true;
     LandingPads.insert(II->getLandingPadInst());
     IRB.SetInsertPoint(II);
 
@@ -830,6 +830,7 @@ bool WebAssemblyLowerEmscriptenEHSjLj::runEHOnFunction(Function &F) {
     if (auto *LPI = dyn_cast<LandingPadInst>(I))
       LandingPads.insert(LPI);
   }
+  Changed = !LandingPads.empty();
 
   // Handle all the landingpad for this function together, as multiple invokes
   // may share a single lp

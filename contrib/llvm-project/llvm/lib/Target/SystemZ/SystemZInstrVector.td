@@ -1034,7 +1034,7 @@ let Predicates = [FeatureVector] in {
     def VCDGB : TernaryVRRa<"vcdgb", 0xE7C3, null_frag, v128db, v128g, 3, 0>;
     def WCDGB : TernaryVRRa<"wcdgb", 0xE7C3, null_frag, v64db, v64g, 3, 8>;
   }
-  def : FPConversion<VCDGB, sint_to_fp, v128db, v128g, 0, 0>;
+  def : FPConversion<VCDGB, any_sint_to_fp, v128db, v128g, 0, 0>;
   let Predicates = [FeatureVectorEnhancements2] in {
     let Uses = [FPC], mayRaiseFPException = 1 in {
       let isAsmParserOnly = 1 in
@@ -1042,7 +1042,7 @@ let Predicates = [FeatureVector] in {
       def VCEFB : TernaryVRRa<"vcefb", 0xE7C3, null_frag, v128sb, v128g, 2, 0>;
       def WCEFB : TernaryVRRa<"wcefb", 0xE7C3, null_frag, v32sb, v32f, 2, 8>;
     }
-    def : FPConversion<VCEFB, sint_to_fp, v128sb, v128f, 0, 0>;
+    def : FPConversion<VCEFB, any_sint_to_fp, v128sb, v128f, 0, 0>;
   }
 
   // Convert from logical.
@@ -1051,7 +1051,7 @@ let Predicates = [FeatureVector] in {
     def VCDLGB : TernaryVRRa<"vcdlgb", 0xE7C1, null_frag, v128db, v128g, 3, 0>;
     def WCDLGB : TernaryVRRa<"wcdlgb", 0xE7C1, null_frag, v64db, v64g, 3, 8>;
   }
-  def : FPConversion<VCDLGB, uint_to_fp, v128db, v128g, 0, 0>;
+  def : FPConversion<VCDLGB, any_uint_to_fp, v128db, v128g, 0, 0>;
   let Predicates = [FeatureVectorEnhancements2] in {
     let Uses = [FPC], mayRaiseFPException = 1 in {
       let isAsmParserOnly = 1 in
@@ -1059,7 +1059,7 @@ let Predicates = [FeatureVector] in {
       def VCELFB : TernaryVRRa<"vcelfb", 0xE7C1, null_frag, v128sb, v128g, 2, 0>;
       def WCELFB : TernaryVRRa<"wcelfb", 0xE7C1, null_frag, v32sb, v32f, 2, 8>;
     }
-    def : FPConversion<VCELFB, uint_to_fp, v128sb, v128f, 0, 0>;
+    def : FPConversion<VCELFB, any_uint_to_fp, v128sb, v128f, 0, 0>;
   }
 
   // Convert to fixed.
@@ -1134,7 +1134,7 @@ let Predicates = [FeatureVector] in {
   // Load lengthened.
   let Uses = [FPC], mayRaiseFPException = 1 in {
     def VLDE  : UnaryVRRaFloatGeneric<"vlde", 0xE7C4>;
-    def VLDEB : UnaryVRRa<"vldeb", 0xE7C4, z_vextend, v128db, v128sb, 2, 0>;
+    def VLDEB : UnaryVRRa<"vldeb", 0xE7C4, z_any_vextend, v128db, v128sb, 2, 0>;
     def WLDEB : UnaryVRRa<"wldeb", 0xE7C4, any_fpextend, v64db, v32sb, 2, 8>;
   }
   let Predicates = [FeatureVectorEnhancements1] in {
@@ -1156,7 +1156,7 @@ let Predicates = [FeatureVector] in {
     def VLEDB : TernaryVRRa<"vledb", 0xE7C5, null_frag, v128sb, v128db, 3, 0>;
     def WLEDB : TernaryVRRa<"wledb", 0xE7C5, null_frag, v32sb, v64db, 3, 8>;
   }
-  def : Pat<(v4f32 (z_vround (v2f64 VR128:$src))), (VLEDB VR128:$src, 0, 0)>;
+  def : Pat<(v4f32 (z_any_vround (v2f64 VR128:$src))), (VLEDB VR128:$src, 0, 0)>;
   def : FPConversion<WLEDB, any_fpround, v32sb, v64db, 0, 0>;
   let Predicates = [FeatureVectorEnhancements1] in {
     let Uses = [FPC], mayRaiseFPException = 1 in {
@@ -1175,7 +1175,7 @@ let Predicates = [FeatureVector] in {
   // Maximum.
   multiclass VectorMax<Instruction insn, TypedReg tr> {
     def : FPMinMax<insn, any_fmaxnum, tr, 4>;
-    def : FPMinMax<insn, fmaximum, tr, 1>;
+    def : FPMinMax<insn, any_fmaximum, tr, 1>;
   }
   let Predicates = [FeatureVectorEnhancements1] in {
     let Uses = [FPC], mayRaiseFPException = 1 in {
@@ -1201,7 +1201,7 @@ let Predicates = [FeatureVector] in {
   // Minimum.
   multiclass VectorMin<Instruction insn, TypedReg tr> {
     def : FPMinMax<insn, any_fminnum, tr, 4>;
-    def : FPMinMax<insn, fminimum, tr, 1>;
+    def : FPMinMax<insn, any_fminimum, tr, 1>;
   }
   let Predicates = [FeatureVectorEnhancements1] in {
     let Uses = [FPC], mayRaiseFPException = 1 in {
@@ -1364,32 +1364,32 @@ let Predicates = [FeatureVector] in {
   // Compare scalar.
   let Uses = [FPC], mayRaiseFPException = 1, Defs = [CC] in {
     def WFC   : CompareVRRaFloatGeneric<"wfc", 0xE7CB>;
-    def WFCDB : CompareVRRa<"wfcdb", 0xE7CB, z_fcmp, v64db, 3>;
+    def WFCDB : CompareVRRa<"wfcdb", 0xE7CB, z_any_fcmp, v64db, 3>;
     let Predicates = [FeatureVectorEnhancements1] in {
-      def WFCSB : CompareVRRa<"wfcsb", 0xE7CB, z_fcmp, v32sb, 2>;
-      def WFCXB : CompareVRRa<"wfcxb", 0xE7CB, z_fcmp, v128xb, 4>;
+      def WFCSB : CompareVRRa<"wfcsb", 0xE7CB, z_any_fcmp, v32sb, 2>;
+      def WFCXB : CompareVRRa<"wfcxb", 0xE7CB, z_any_fcmp, v128xb, 4>;
     }
   }
 
   // Compare and signal scalar.
   let Uses = [FPC], mayRaiseFPException = 1, Defs = [CC] in {
     def WFK   : CompareVRRaFloatGeneric<"wfk", 0xE7CA>;
-    def WFKDB : CompareVRRa<"wfkdb", 0xE7CA, null_frag, v64db, 3>;
+    def WFKDB : CompareVRRa<"wfkdb", 0xE7CA, z_strict_fcmps, v64db, 3>;
     let Predicates = [FeatureVectorEnhancements1] in {
-      def WFKSB : CompareVRRa<"wfksb", 0xE7CA, null_frag, v32sb, 2>;
-      def WFKXB : CompareVRRa<"wfkxb", 0xE7CA, null_frag, v128xb, 4>;
+      def WFKSB : CompareVRRa<"wfksb", 0xE7CA, z_strict_fcmps, v32sb, 2>;
+      def WFKXB : CompareVRRa<"wfkxb", 0xE7CA, z_strict_fcmps, v128xb, 4>;
     }
   }
 
   // Compare equal.
   let Uses = [FPC], mayRaiseFPException = 1 in {
     def  VFCE   : BinaryVRRcSPairFloatGeneric<"vfce", 0xE7E8>;
-    defm VFCEDB : BinaryVRRcSPair<"vfcedb", 0xE7E8, z_vfcmpe, z_vfcmpes,
+    defm VFCEDB : BinaryVRRcSPair<"vfcedb", 0xE7E8, z_any_vfcmpe, z_vfcmpes,
                                   v128g, v128db, 3, 0>;
     defm WFCEDB : BinaryVRRcSPair<"wfcedb", 0xE7E8, null_frag, null_frag,
                                   v64g, v64db, 3, 8>;
     let Predicates = [FeatureVectorEnhancements1] in {
-      defm VFCESB : BinaryVRRcSPair<"vfcesb", 0xE7E8, z_vfcmpe, z_vfcmpes,
+      defm VFCESB : BinaryVRRcSPair<"vfcesb", 0xE7E8, z_any_vfcmpe, z_vfcmpes,
                                     v128f, v128sb, 2, 0>;
       defm WFCESB : BinaryVRRcSPair<"wfcesb", 0xE7E8, null_frag, null_frag,
                                     v32f, v32sb, 2, 8>;
@@ -1401,11 +1401,11 @@ let Predicates = [FeatureVector] in {
   // Compare and signal equal.
   let Uses = [FPC], mayRaiseFPException = 1,
       Predicates = [FeatureVectorEnhancements1] in {
-    defm VFKEDB : BinaryVRRcSPair<"vfkedb", 0xE7E8, null_frag, null_frag,
+    defm VFKEDB : BinaryVRRcSPair<"vfkedb", 0xE7E8, z_strict_vfcmpes, null_frag,
                                   v128g, v128db, 3, 4>;
     defm WFKEDB : BinaryVRRcSPair<"wfkedb", 0xE7E8, null_frag, null_frag,
                                   v64g, v64db, 3, 12>;
-    defm VFKESB : BinaryVRRcSPair<"vfkesb", 0xE7E8, null_frag, null_frag,
+    defm VFKESB : BinaryVRRcSPair<"vfkesb", 0xE7E8, z_strict_vfcmpes, null_frag,
                                   v128f, v128sb, 2, 4>;
     defm WFKESB : BinaryVRRcSPair<"wfkesb", 0xE7E8, null_frag, null_frag,
                                   v32f, v32sb, 2, 12>;
@@ -1416,12 +1416,12 @@ let Predicates = [FeatureVector] in {
   // Compare high.
   let Uses = [FPC], mayRaiseFPException = 1 in {
     def  VFCH   : BinaryVRRcSPairFloatGeneric<"vfch", 0xE7EB>;
-    defm VFCHDB : BinaryVRRcSPair<"vfchdb", 0xE7EB, z_vfcmph, z_vfcmphs,
+    defm VFCHDB : BinaryVRRcSPair<"vfchdb", 0xE7EB, z_any_vfcmph, z_vfcmphs,
                                   v128g, v128db, 3, 0>;
     defm WFCHDB : BinaryVRRcSPair<"wfchdb", 0xE7EB, null_frag, null_frag,
                                   v64g, v64db, 3, 8>;
     let Predicates = [FeatureVectorEnhancements1] in {
-      defm VFCHSB : BinaryVRRcSPair<"vfchsb", 0xE7EB, z_vfcmph, z_vfcmphs,
+      defm VFCHSB : BinaryVRRcSPair<"vfchsb", 0xE7EB, z_any_vfcmph, z_vfcmphs,
                                     v128f, v128sb, 2, 0>;
       defm WFCHSB : BinaryVRRcSPair<"wfchsb", 0xE7EB, null_frag, null_frag,
                                     v32f, v32sb, 2, 8>;
@@ -1433,11 +1433,11 @@ let Predicates = [FeatureVector] in {
   // Compare and signal high.
   let Uses = [FPC], mayRaiseFPException = 1,
       Predicates = [FeatureVectorEnhancements1] in {
-    defm VFKHDB : BinaryVRRcSPair<"vfkhdb", 0xE7EB, null_frag, null_frag,
+    defm VFKHDB : BinaryVRRcSPair<"vfkhdb", 0xE7EB, z_strict_vfcmphs, null_frag,
                                   v128g, v128db, 3, 4>;
     defm WFKHDB : BinaryVRRcSPair<"wfkhdb", 0xE7EB, null_frag, null_frag,
                                   v64g, v64db, 3, 12>;
-    defm VFKHSB : BinaryVRRcSPair<"vfkhsb", 0xE7EB, null_frag, null_frag,
+    defm VFKHSB : BinaryVRRcSPair<"vfkhsb", 0xE7EB, z_strict_vfcmphs, null_frag,
                                   v128f, v128sb, 2, 4>;
     defm WFKHSB : BinaryVRRcSPair<"wfkhsb", 0xE7EB, null_frag, null_frag,
                                   v32f, v32sb, 2, 12>;
@@ -1448,12 +1448,12 @@ let Predicates = [FeatureVector] in {
   // Compare high or equal.
   let Uses = [FPC], mayRaiseFPException = 1 in {
     def  VFCHE   : BinaryVRRcSPairFloatGeneric<"vfche", 0xE7EA>;
-    defm VFCHEDB : BinaryVRRcSPair<"vfchedb", 0xE7EA, z_vfcmphe, z_vfcmphes,
+    defm VFCHEDB : BinaryVRRcSPair<"vfchedb", 0xE7EA, z_any_vfcmphe, z_vfcmphes,
                                    v128g, v128db, 3, 0>;
     defm WFCHEDB : BinaryVRRcSPair<"wfchedb", 0xE7EA, null_frag, null_frag,
                                    v64g, v64db, 3, 8>;
     let Predicates = [FeatureVectorEnhancements1] in {
-      defm VFCHESB : BinaryVRRcSPair<"vfchesb", 0xE7EA, z_vfcmphe, z_vfcmphes,
+      defm VFCHESB : BinaryVRRcSPair<"vfchesb", 0xE7EA, z_any_vfcmphe, z_vfcmphes,
                                      v128f, v128sb, 2, 0>;
       defm WFCHESB : BinaryVRRcSPair<"wfchesb", 0xE7EA, null_frag, null_frag,
                                      v32f, v32sb, 2, 8>;
@@ -1465,11 +1465,11 @@ let Predicates = [FeatureVector] in {
   // Compare and signal high or equal.
   let Uses = [FPC], mayRaiseFPException = 1,
       Predicates = [FeatureVectorEnhancements1] in {
-    defm VFKHEDB : BinaryVRRcSPair<"vfkhedb", 0xE7EA, null_frag, null_frag,
+    defm VFKHEDB : BinaryVRRcSPair<"vfkhedb", 0xE7EA, z_strict_vfcmphes, null_frag,
                                    v128g, v128db, 3, 4>;
     defm WFKHEDB : BinaryVRRcSPair<"wfkhedb", 0xE7EA, null_frag, null_frag,
                                    v64g, v64db, 3, 12>;
-    defm VFKHESB : BinaryVRRcSPair<"vfkhesb", 0xE7EA, null_frag, null_frag,
+    defm VFKHESB : BinaryVRRcSPair<"vfkhesb", 0xE7EA, z_strict_vfcmphes, null_frag,
                                    v128f, v128sb, 2, 4>;
     defm WFKHESB : BinaryVRRcSPair<"wfkhesb", 0xE7EA, null_frag, null_frag,
                                    v32f, v32sb, 2, 12>;

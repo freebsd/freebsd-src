@@ -8,12 +8,13 @@
 
 #include "AMDGPU.h"
 #include "AMDGPUSubtarget.h"
-#include "SIInstrInfo.h"
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
+#include "SIInstrInfo.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 
 using namespace llvm;
@@ -56,7 +57,7 @@ char SIOptimizeExecMasking::ID = 0;
 char &llvm::SIOptimizeExecMaskingID = SIOptimizeExecMasking::ID;
 
 /// If \p MI is a copy from exec, return the register copied to.
-static unsigned isCopyFromExec(const MachineInstr &MI, const GCNSubtarget &ST) {
+static Register isCopyFromExec(const MachineInstr &MI, const GCNSubtarget &ST) {
   switch (MI.getOpcode()) {
   case AMDGPU::COPY:
   case AMDGPU::S_MOV_B64:
@@ -74,7 +75,7 @@ static unsigned isCopyFromExec(const MachineInstr &MI, const GCNSubtarget &ST) {
 }
 
 /// If \p MI is a copy to exec, return the register copied from.
-static unsigned isCopyToExec(const MachineInstr &MI, const GCNSubtarget &ST) {
+static Register isCopyToExec(const MachineInstr &MI, const GCNSubtarget &ST) {
   switch (MI.getOpcode()) {
   case AMDGPU::COPY:
   case AMDGPU::S_MOV_B64:
@@ -91,12 +92,12 @@ static unsigned isCopyToExec(const MachineInstr &MI, const GCNSubtarget &ST) {
     llvm_unreachable("should have been replaced");
   }
 
-  return AMDGPU::NoRegister;
+  return Register();
 }
 
 /// If \p MI is a logical operation on an exec value,
 /// return the register copied to.
-static unsigned isLogicalOpOnExec(const MachineInstr &MI) {
+static Register isLogicalOpOnExec(const MachineInstr &MI) {
   switch (MI.getOpcode()) {
   case AMDGPU::S_AND_B64:
   case AMDGPU::S_OR_B64:
@@ -244,8 +245,8 @@ static MachineBasicBlock::reverse_iterator findExecCopy(
 
   auto E = MBB.rend();
   for (unsigned N = 0; N <= InstLimit && I != E; ++I, ++N) {
-    unsigned CopyFromExec = isCopyFromExec(*I, ST);
-    if (CopyFromExec != AMDGPU::NoRegister)
+    Register CopyFromExec = isCopyFromExec(*I, ST);
+    if (CopyFromExec.isValid())
       return I;
   }
 
@@ -271,7 +272,7 @@ bool SIOptimizeExecMasking::runOnMachineFunction(MachineFunction &MF) {
   const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
   const SIRegisterInfo *TRI = ST.getRegisterInfo();
   const SIInstrInfo *TII = ST.getInstrInfo();
-  unsigned Exec = ST.isWave32() ? AMDGPU::EXEC_LO : AMDGPU::EXEC;
+  MCRegister Exec = ST.isWave32() ? AMDGPU::EXEC_LO : AMDGPU::EXEC;
 
   // Optimize sequences emitted for control flow lowering. They are originally
   // emitted as the separate operations because spill code may need to be
@@ -290,8 +291,8 @@ bool SIOptimizeExecMasking::runOnMachineFunction(MachineFunction &MF) {
     if (I == E)
       continue;
 
-    unsigned CopyToExec = isCopyToExec(*I, ST);
-    if (CopyToExec == AMDGPU::NoRegister)
+    Register CopyToExec = isCopyToExec(*I, ST);
+    if (!CopyToExec.isValid())
       continue;
 
     // Scan backwards to find the def.

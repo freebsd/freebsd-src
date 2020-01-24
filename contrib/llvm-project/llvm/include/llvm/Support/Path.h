@@ -52,10 +52,10 @@ enum class Style { windows, posix, native };
 class const_iterator
     : public iterator_facade_base<const_iterator, std::input_iterator_tag,
                                   const StringRef> {
-  StringRef Path;      ///< The entire path.
-  StringRef Component; ///< The current component. Not necessarily in Path.
-  size_t    Position;  ///< The iterators current position within Path.
-  Style S;             ///< The path style to use.
+  StringRef Path;          ///< The entire path.
+  StringRef Component;     ///< The current component. Not necessarily in Path.
+  size_t    Position = 0;  ///< The iterators current position within Path.
+  Style S = Style::native; ///< The path style to use.
 
   // An end iterator has Position = Path.size() + 1.
   friend const_iterator begin(StringRef path, Style style);
@@ -78,10 +78,10 @@ public:
 class reverse_iterator
     : public iterator_facade_base<reverse_iterator, std::input_iterator_tag,
                                   const StringRef> {
-  StringRef Path;      ///< The entire path.
-  StringRef Component; ///< The current component. Not necessarily in Path.
-  size_t    Position;  ///< The iterators current position within Path.
-  Style S;             ///< The path style to use.
+  StringRef Path;          ///< The entire path.
+  StringRef Component;     ///< The current component. Not necessarily in Path.
+  size_t    Position = 0;  ///< The iterators current position within Path.
+  Style S = Style::native; ///< The path style to use.
 
   friend reverse_iterator rbegin(StringRef path, Style style);
   friend reverse_iterator rend(StringRef path);
@@ -121,6 +121,8 @@ reverse_iterator rend(StringRef path);
 
 /// Remove the last component from \a path unless it is the root dir.
 ///
+/// Similar to the POSIX "dirname" utility.
+///
 /// @code
 ///   directory/filename.cpp => directory/
 ///   directory/             => directory
@@ -150,18 +152,33 @@ void replace_extension(SmallVectorImpl<char> &path, const Twine &extension,
 ///
 /// @code
 ///   /foo, /old, /new => /foo
+///   /old, /old, /new => /new
+///   /old, /old/, /new, false => /old
+///   /old, /old/, /new, true => /new
 ///   /old/foo, /old, /new => /new/foo
+///   /old/foo, /old/, /new => /new/foo
+///   /old/foo, /old/, /new/ => /new/foo
+///   /oldfoo, /old, /new => /oldfoo
 ///   /foo, <empty>, /new => /new/foo
-///   /old/foo, /old, <empty> => /foo
+///   /foo, <empty>, new => new/foo
+///   /old/foo, /old, <empty>, false => /foo
+///   /old/foo, /old, <empty>, true => foo
 /// @endcode
 ///
 /// @param Path If \a Path starts with \a OldPrefix modify to instead
 ///        start with \a NewPrefix.
-/// @param OldPrefix The path prefix to strip from \a Path.
+/// @param OldPrefix The path prefix to strip from \a Path. Any trailing
+///        path separator is ignored if strict is true.
 /// @param NewPrefix The path prefix to replace \a NewPrefix with.
-void replace_path_prefix(SmallVectorImpl<char> &Path,
+/// @param style The path separator style
+/// @param strict If strict is true, a directory separator following
+///        \a OldPrefix will also be stripped. Otherwise, directory
+///        separators will only be matched and stripped when present
+///        in \a OldPrefix.
+/// @result true if \a Path begins with OldPrefix
+bool replace_path_prefix(SmallVectorImpl<char> &Path,
                          const StringRef &OldPrefix, const StringRef &NewPrefix,
-                         Style style = Style::native);
+                         Style style = Style::native, bool strict = false);
 
 /// Append to path.
 ///
@@ -295,7 +312,7 @@ StringRef parent_path(StringRef path, Style style = Style::native);
 ///
 /// @param path Input path.
 /// @result The filename part of \a path. This is defined as the last component
-///         of \a path.
+///         of \a path. Similar to the POSIX "basename" utility.
 StringRef filename(StringRef path, Style style = Style::native);
 
 /// Get stem.

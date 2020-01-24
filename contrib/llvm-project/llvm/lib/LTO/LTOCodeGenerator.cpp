@@ -259,7 +259,7 @@ bool LTOCodeGenerator::compileOptimizedToFile(const char **Name) {
   int FD;
 
   StringRef Extension
-      (FileType == TargetMachine::CGFT_AssemblyFile ? "s" : "o");
+      (FileType == CGFT_AssemblyFile ? "s" : "o");
 
   std::error_code EC =
       sys::fs::createTemporaryFile("lto-llvm", Extension, FD, Filename);
@@ -622,12 +622,9 @@ bool LTOCodeGenerator::compileOptimized(ArrayRef<raw_pwrite_stream *> Out) {
   return true;
 }
 
-/// setCodeGenDebugOptions - Set codegen debugging options to aid in debugging
-/// LTO problems.
-void LTOCodeGenerator::setCodeGenDebugOptions(StringRef Options) {
-  for (std::pair<StringRef, StringRef> o = getToken(Options); !o.first.empty();
-       o = getToken(o.second))
-    CodegenOptions.push_back(o.first);
+void LTOCodeGenerator::setCodeGenDebugOptions(ArrayRef<const char *> Options) {
+  for (StringRef Option : Options)
+    CodegenOptions.push_back(Option);
 }
 
 void LTOCodeGenerator::parseCodeGenDebugOptions() {

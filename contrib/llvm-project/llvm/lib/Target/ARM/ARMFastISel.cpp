@@ -1879,6 +1879,8 @@ CCAssignFn *ARMFastISel::CCAssignFnForCall(CallingConv::ID CC,
       report_fatal_error("Can't return in GHC call convention");
     else
       return CC_ARM_APCS_GHC;
+  case CallingConv::CFGuard_Check:
+    return (Return ? RetCC_ARM_AAPCS : CC_ARM_Win32_CFGuard_Check);
   }
 }
 
@@ -2564,8 +2566,12 @@ bool ARMFastISel::SelectIntrinsicCall(const IntrinsicInst &I) {
     return SelectCall(&I, "memset");
   }
   case Intrinsic::trap: {
-    BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(
-      Subtarget->useNaClTrap() ? ARM::TRAPNaCl : ARM::TRAP));
+    unsigned Opcode;
+    if (Subtarget->isThumb())
+      Opcode = ARM::tTRAP;
+    else
+      Opcode = Subtarget->useNaClTrap() ? ARM::TRAPNaCl : ARM::TRAP;
+    BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(Opcode));
     return true;
   }
   }

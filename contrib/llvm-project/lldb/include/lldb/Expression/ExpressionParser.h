@@ -29,7 +29,7 @@ public:
   ///
   /// Initializes class variables.
   ///
-  /// \param[in] exe_scope,
+  /// \param[in] exe_scope
   ///     If non-NULL, an execution context scope that can help to
   ///     correctly create an expression with a valid process for
   ///     optional tuning Objective-C runtime support. Can be NULL.
@@ -75,17 +75,6 @@ public:
   ///     false otherwise.
   virtual bool Complete(CompletionRequest &request, unsigned line, unsigned pos,
                         unsigned typed_pos) = 0;
-
-  /// Parse a single expression and convert it to IR using Clang.  Don't wrap
-  /// the expression in anything at all.
-  ///
-  /// \param[in] diagnostic_manager
-  ///     The diagnostic manager in which to store the errors and warnings.
-  ///
-  /// \return
-  ///     The number of errors encountered during parsing.  0 means
-  ///     success.
-  virtual unsigned Parse(DiagnosticManager &diagnostic_manager) = 0;
 
   /// Try to use the FixIts in the diagnostic_manager to rewrite the
   /// expression.  If successful, the rewritten expression is stored in the

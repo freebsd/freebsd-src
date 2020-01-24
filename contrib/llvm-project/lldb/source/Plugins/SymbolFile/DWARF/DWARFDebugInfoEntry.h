@@ -23,6 +23,10 @@ class DWARFDeclContext;
 
 #define DIE_SIBLING_IDX_BITSIZE 31
 
+/// DWARFDebugInfoEntry objects assume that they are living in one big
+/// vector and do pointer arithmetic on their this pointers. Don't
+/// pass them by value. Due to the way they are constructed in a
+/// std::vector, we cannot delete the copy constructor.
 class DWARFDebugInfoEntry {
 public:
   typedef std::vector<DWARFDebugInfoEntry> collection;
@@ -46,7 +50,7 @@ public:
   bool Extract(const lldb_private::DWARFDataExtractor &data,
                const DWARFUnit *cu, lldb::offset_t *offset_ptr);
 
-  bool LookupAddress(const dw_addr_t address, const DWARFUnit *cu,
+  bool LookupAddress(const dw_addr_t address, DWARFUnit *cu,
                      DWARFDebugInfoEntry **function_die,
                      DWARFDebugInfoEntry **block_die);
 
@@ -87,7 +91,7 @@ public:
       bool check_specification_or_abstract_origin = false) const;
 
   size_t GetAttributeAddressRanges(
-      const DWARFUnit *cu, DWARFRangeList &ranges, bool check_hi_lo_pc,
+      DWARFUnit *cu, DWARFRangeList &ranges, bool check_hi_lo_pc,
       bool check_specification_or_abstract_origin = false) const;
 
   const char *GetName(const DWARFUnit *cu) const;
@@ -112,7 +116,7 @@ public:
                 dw_attr_t attr, DWARFFormValue &form_value);
 
   bool GetDIENamesAndRanges(
-      const DWARFUnit *cu, const char *&name, const char *&mangled,
+      DWARFUnit *cu, const char *&name, const char *&mangled,
       DWARFRangeList &rangeList, int &decl_file, int &decl_line,
       int &decl_column, int &call_file, int &call_line, int &call_column,
       lldb_private::DWARFExpression *frame_base = nullptr) const;

@@ -38,6 +38,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/Casting.h"
@@ -674,7 +675,7 @@ static PartwordMaskValues createMaskInstrs(IRBuilder<> &Builder, Instruction *I,
 
   Ret.ShiftAmt = Builder.CreateTrunc(Ret.ShiftAmt, Ret.WordType, "ShiftAmt");
   Ret.Mask = Builder.CreateShl(
-      ConstantInt::get(Ret.WordType, (1 << ValueSize * 8) - 1), Ret.ShiftAmt,
+      ConstantInt::get(Ret.WordType, (1 << (ValueSize * 8)) - 1), Ret.ShiftAmt,
       "Mask");
   Ret.Inv_Mask = Builder.CreateNot(Ret.Mask, "Inv_Mask");
 

@@ -53,6 +53,7 @@
 #include "lld/Common/Memory.h"
 #include "lld/Common/Strings.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/Demangle/Demangle.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -176,7 +177,9 @@ handleTlsRelocation(RelType type, Symbol &sym, InputSectionBase &c,
     return 1;
   }
 
-  bool canRelax = config->emachine != EM_ARM && config->emachine != EM_RISCV;
+  bool canRelax = config->emachine != EM_ARM &&
+                  config->emachine != EM_HEXAGON &&
+                  config->emachine != EM_RISCV;
 
   // If we are producing an executable and the symbol is non-preemptable, it
   // must be defined and the code sequence can be relaxed to use Local-Exec.
@@ -374,8 +377,8 @@ static bool isStaticLinkTimeConstant(RelExpr e, RelType type, const Symbol &sym,
             R_AARCH64_GOT_PAGE_PC, R_GOT_PC, R_GOTONLY_PC, R_GOTPLTONLY_PC,
             R_PLT_PC, R_TLSGD_GOT, R_TLSGD_GOTPLT, R_TLSGD_PC, R_PPC32_PLTREL,
             R_PPC64_CALL_PLT, R_PPC64_RELAX_TOC, R_RISCV_ADD, R_TLSDESC_CALL,
-            R_TLSDESC_PC, R_AARCH64_TLSDESC_PAGE, R_HINT, R_TLSLD_HINT,
-            R_TLSIE_HINT>(e))
+            R_TLSDESC_PC, R_AARCH64_TLSDESC_PAGE, R_TLSLD_HINT, R_TLSIE_HINT>(
+          e))
     return true;
 
   // These never do, except if the entire file is position dependent or if
@@ -403,17 +406,7 @@ static bool isStaticLinkTimeConstant(RelExpr e, RelType type, const Symbol &sym,
   if (!absVal && !relE)
     return target->usesOnlyLowPageBits(type);
 
-  // Relative relocation to an absolute value. This is normally unrepresentable,
-  // but if the relocation refers to a weak undefined symbol, we allow it to
-  // resolve to the image base. This is a little strange, but it allows us to
-  // link function calls to such symbols. Normally such a call will be guarded
-  // with a comparison, which will load a zero from the GOT.
-  // Another special case is MIPS _gp_disp symbol which represents offset
-  // between start of a function and '_gp' value and defined as absolute just
-  // to simplify the code.
   assert(absVal && relE);
-  if (sym.isUndefWeak())
-    return true;
 
   // We set the final symbols values for linker script defined symbols later.
   // They always can be computed as a link time constant.
@@ -508,7 +501,6 @@ static void replaceWithDefined(Symbol &sym, SectionBase *sec, uint64_t value,
   sym.pltIndex = old.pltIndex;
   sym.gotIndex = old.gotIndex;
   sym.verdefIndex = old.verdefIndex;
-  sym.ppc64BranchltIndex = old.ppc64BranchltIndex;
   sym.exportDynamic = true;
   sym.isUsedInRegularObj = true;
 }
@@ -538,7 +530,7 @@ static void replaceWithDefined(Symbol &sym, SectionBase *sec, uint64_t value,
 //
 // As you can see in this function, we create a copy relocation for the
 // dynamic linker, and the relocation contains not only symbol name but
-// various other informtion about the symbol. So, such attributes become a
+// various other information about the symbol. So, such attributes become a
 // part of the ABI.
 //
 // Note for application developers: I can give you a piece of advice if
@@ -553,7 +545,7 @@ static void replaceWithDefined(Symbol &sym, SectionBase *sec, uint64_t value,
 // reserved in .bss unless you recompile the main program. That means they
 // are likely to overlap with other data that happens to be laid out next
 // to the variable in .bss. This kind of issue is sometimes very hard to
-// debug. What's a solution? Instead of exporting a varaible V from a DSO,
+// debug. What's a solution? Instead of exporting a variable V from a DSO,
 // define an accessor getV().
 template <class ELFT> static void addCopyRelSymbol(SharedSymbol &ss) {
   // Copy relocation against zero-sized symbol doesn't make sense.
@@ -696,13 +688,37 @@ struct UndefinedDiag {
 
 static std::vector<UndefinedDiag> undefs;
 
+// Check whether the definition name def is a mangled function name that matches
+// the reference name ref.
+static bool canSuggestExternCForCXX(StringRef ref, StringRef def) {
+  llvm::ItaniumPartialDemangler d;
+  std::string name = def.str();
+  if (d.partialDemangle(name.c_str()))
+    return false;
+  char *buf = d.getFunctionName(nullptr, nullptr);
+  if (!buf)
+    return false;
+  bool ret = ref == buf;
+  free(buf);
+  return ret;
+}
+
 // Suggest an alternative spelling of an "undefined symbol" diagnostic. Returns
 // the suggested symbol, which is either in the symbol table, or in the same
 // file of sym.
-static const Symbol *getAlternativeSpelling(const Undefined &sym) {
-  // Build a map of local defined symbols.
+template <class ELFT>
+static const Symbol *getAlternativeSpelling(const Undefined &sym,
+                                            std::string &pre_hint,
+                                            std::string &post_hint) {
   DenseMap<StringRef, const Symbol *> map;
-  if (sym.file && !isa<SharedFile>(sym.file)) {
+  if (auto *file = dyn_cast_or_null<ObjFile<ELFT>>(sym.file)) {
+    // If sym is a symbol defined in a discarded section, maybeReportDiscarded()
+    // will give an error. Don't suggest an alternative spelling.
+    if (file && sym.discardedSecIdx != 0 &&
+        file->getSections()[sym.discardedSecIdx] == &InputSection::discarded)
+      return nullptr;
+
+    // Build a map of local defined symbols.
     for (const Symbol *s : sym.file->getSymbols())
       if (s->isLocal() && s->isDefined())
         map.try_emplace(s->getName(), s);
@@ -759,6 +775,48 @@ static const Symbol *getAlternativeSpelling(const Undefined &sym) {
       return s;
   }
 
+  // Case mismatch, e.g. Foo vs FOO.
+  for (auto &it : map)
+    if (name.equals_lower(it.first))
+      return it.second;
+  for (Symbol *sym : symtab->symbols())
+    if (!sym->isUndefined() && name.equals_lower(sym->getName()))
+      return sym;
+
+  // The reference may be a mangled name while the definition is not. Suggest a
+  // missing extern "C".
+  if (name.startswith("_Z")) {
+    std::string buf = name.str();
+    llvm::ItaniumPartialDemangler d;
+    if (!d.partialDemangle(buf.c_str()))
+      if (char *buf = d.getFunctionName(nullptr, nullptr)) {
+        const Symbol *s = suggest(buf);
+        free(buf);
+        if (s) {
+          pre_hint = ": extern \"C\" ";
+          return s;
+        }
+      }
+  } else {
+    const Symbol *s = nullptr;
+    for (auto &it : map)
+      if (canSuggestExternCForCXX(name, it.first)) {
+        s = it.second;
+        break;
+      }
+    if (!s)
+      for (Symbol *sym : symtab->symbols())
+        if (canSuggestExternCForCXX(name, sym->getName())) {
+          s = sym;
+          break;
+        }
+    if (s) {
+      pre_hint = " to declare ";
+      post_hint = " as extern \"C\"?";
+      return s;
+    }
+  }
+
   return nullptr;
 }
 
@@ -804,13 +862,15 @@ static void reportUndefinedSymbol(const UndefinedDiag &undef,
     msg += ("\n>>> referenced " + Twine(undef.locs.size() - i) + " more times")
                .str();
 
-  if (correctSpelling)
-    if (const Symbol *corrected =
-            getAlternativeSpelling(cast<Undefined>(sym))) {
-      msg += "\n>>> did you mean: " + toString(*corrected);
+  if (correctSpelling) {
+    std::string pre_hint = ": ", post_hint;
+    if (const Symbol *corrected = getAlternativeSpelling<ELFT>(
+            cast<Undefined>(sym), pre_hint, post_hint)) {
+      msg += "\n>>> did you mean" + pre_hint + toString(*corrected) + post_hint;
       if (corrected->file)
         msg += "\n>>> defined in: " + toString(corrected->file);
     }
+  }
 
   if (sym.getName().startswith("_ZTV"))
     msg += "\nthe vtable symbol may be undefined because the class is missing "
@@ -950,10 +1010,10 @@ static void addRelativeReloc(InputSectionBase *isec, uint64_t offsetInSec,
                          expr, type);
 }
 
-template <class ELFT, class GotPltSection>
+template <class PltSection, class GotPltSection>
 static void addPltEntry(PltSection *plt, GotPltSection *gotPlt,
                         RelocationBaseSection *rel, RelType type, Symbol &sym) {
-  plt->addEntry<ELFT>(sym);
+  plt->addEntry(sym);
   gotPlt->addEntry(sym);
   rel->addReloc(
       {type, gotPlt, sym.getGotPltOffset(), !sym.isPreemptible, &sym, 0});
@@ -1129,7 +1189,7 @@ static void processRelocAux(InputSectionBase &sec, RelExpr expr, RelType type,
                     "' cannot be preempted; recompile with -fPIE" +
                     getLocation(sec, sym, offset));
       if (!sym.isInPlt())
-        addPltEntry<ELFT>(in.plt, in.gotPlt, in.relaPlt, target->pltRel, sym);
+        addPltEntry(in.plt, in.gotPlt, in.relaPlt, target->pltRel, sym);
       if (!sym.isDefined())
         replaceWithDefined(
             sym, in.plt,
@@ -1190,8 +1250,8 @@ static void scanReloc(InputSectionBase &sec, OffsetGetter &getOffset, RelTy *&i,
   const uint8_t *relocatedAddr = sec.data().begin() + rel.r_offset;
   RelExpr expr = target->getRelExpr(type, sym, relocatedAddr);
 
-  // Ignore "hint" relocations because they are only markers for relaxation.
-  if (oneof<R_HINT, R_NONE>(expr))
+  // Ignore R_*_NONE and other marker relocations.
+  if (expr == R_NONE)
     return;
 
   // We can separate the small code model relocations into 2 categories:
@@ -1222,9 +1282,9 @@ static void scanReloc(InputSectionBase &sec, OffsetGetter &getOffset, RelTy *&i,
   //
   // If we know that a PLT entry will be resolved within the same ELF module, we
   // can skip PLT access and directly jump to the destination function. For
-  // example, if we are linking a main exectuable, all dynamic symbols that can
+  // example, if we are linking a main executable, all dynamic symbols that can
   // be resolved within the executable will actually be resolved that way at
-  // runtime, because the main exectuable is always at the beginning of a search
+  // runtime, because the main executable is always at the beginning of a search
   // list. We can leverage that fact.
   if (!sym.isPreemptible && (!sym.isGnuIFunc() || config->zIfuncNoplt)) {
     if (expr == R_GOT_PC && !isAbsoluteValue(sym)) {
@@ -1270,7 +1330,7 @@ static void scanReloc(InputSectionBase &sec, OffsetGetter &getOffset, RelTy *&i,
   if (!sym.isGnuIFunc() || sym.isPreemptible) {
     // If a relocation needs PLT, we create PLT and GOTPLT slots for the symbol.
     if (needsPlt(expr) && !sym.isInPlt())
-      addPltEntry<ELFT>(in.plt, in.gotPlt, in.relaPlt, target->pltRel, sym);
+      addPltEntry(in.plt, in.gotPlt, in.relaPlt, target->pltRel, sym);
 
     // Create a GOT slot if a relocation needs GOT.
     if (needsGot(expr)) {
@@ -1340,8 +1400,8 @@ static void scanReloc(InputSectionBase &sec, OffsetGetter &getOffset, RelTy *&i,
       // that's really needed to create the IRELATIVE is the section and value,
       // so ideally we should just need to copy those.
       auto *directSym = make<Defined>(cast<Defined>(sym));
-      addPltEntry<ELFT>(in.iplt, in.igotPlt, in.relaIplt, target->iRelativeRel,
-                        *directSym);
+      addPltEntry(in.iplt, in.igotPlt, in.relaIplt, target->iRelativeRel,
+                  *directSym);
       sym.pltIndex = directSym->pltIndex;
     }
     if (needsGot(expr)) {
@@ -1354,13 +1414,9 @@ static void scanReloc(InputSectionBase &sec, OffsetGetter &getOffset, RelTy *&i,
     } else if (!needsPlt(expr)) {
       // Make the ifunc's PLT entry canonical by changing the value of its
       // symbol to redirect all references to point to it.
-      unsigned entryOffset = sym.pltIndex * target->pltEntrySize;
-      if (config->zRetpolineplt)
-        entryOffset += target->pltHeaderSize;
-
       auto &d = cast<Defined>(sym);
       d.section = in.iplt;
-      d.value = entryOffset;
+      d.value = sym.pltIndex * target->ipltEntrySize;
       d.size = 0;
       // It's important to set the symbol type here so that dynamic loaders
       // don't try to call the PLT as if it were an ifunc resolver.
@@ -1555,7 +1611,7 @@ void ThunkCreator::mergeThunks(ArrayRef<OutputSection *> outputSections) {
         // those inserted in previous passes. Extract the Thunks created this
         // pass and order them in ascending outSecOff.
         std::vector<ThunkSection *> newThunks;
-        for (const std::pair<ThunkSection *, uint32_t> ts : isd->thunkSections)
+        for (std::pair<ThunkSection *, uint32_t> ts : isd->thunkSections)
           if (ts.second == pass)
             newThunks.push_back(ts.first);
         llvm::stable_sort(newThunks,
@@ -1701,23 +1757,43 @@ static bool isThunkSectionCompatible(InputSection *source,
   return true;
 }
 
+static int64_t getPCBias(RelType type) {
+  if (config->emachine != EM_ARM)
+    return 0;
+  switch (type) {
+  case R_ARM_THM_JUMP19:
+  case R_ARM_THM_JUMP24:
+  case R_ARM_THM_CALL:
+    return 4;
+  default:
+    return 8;
+  }
+}
+
 std::pair<Thunk *, bool> ThunkCreator::getThunk(InputSection *isec,
                                                 Relocation &rel, uint64_t src) {
   std::vector<Thunk *> *thunkVec = nullptr;
+  int64_t addend = rel.addend + getPCBias(rel.type);
 
-  // We use (section, offset) pair to find the thunk position if possible so
-  // that we create only one thunk for aliased symbols or ICFed sections.
+  // We use a ((section, offset), addend) pair to find the thunk position if
+  // possible so that we create only one thunk for aliased symbols or ICFed
+  // sections. There may be multiple relocations sharing the same (section,
+  // offset + addend) pair. We may revert the relocation back to its original
+  // non-Thunk target, so we cannot fold offset + addend.
   if (auto *d = dyn_cast<Defined>(rel.sym))
     if (!d->isInPlt() && d->section)
-      thunkVec = &thunkedSymbolsBySection[{d->section->repl, d->value}];
+      thunkVec = &thunkedSymbolsBySectionAndAddend[{
+          {d->section->repl, d->value}, addend}];
   if (!thunkVec)
-    thunkVec = &thunkedSymbols[rel.sym];
+    thunkVec = &thunkedSymbols[{rel.sym, addend}];
 
   // Check existing Thunks for Sym to see if they can be reused
   for (Thunk *t : *thunkVec)
     if (isThunkSectionCompatible(isec, t->getThunkTargetSym()->section) &&
         t->isCompatibleWith(*isec, rel) &&
-        target->inBranchRange(rel.type, src, t->getThunkTargetSym()->getVA()))
+        target->inBranchRange(rel.type, src,
+                              t->getThunkTargetSym()->getVA(rel.addend) +
+                                  getPCBias(rel.type)))
       return std::make_pair(t, false);
 
   // No existing compatible Thunk in range, create a new one
@@ -1732,9 +1808,13 @@ std::pair<Thunk *, bool> ThunkCreator::getThunk(InputSection *isec,
 // relocation back to its original non-Thunk target.
 bool ThunkCreator::normalizeExistingThunk(Relocation &rel, uint64_t src) {
   if (Thunk *t = thunks.lookup(rel.sym)) {
-    if (target->inBranchRange(rel.type, src, rel.sym->getVA()))
+    if (target->inBranchRange(rel.type, src,
+                              rel.sym->getVA(rel.addend) + getPCBias(rel.type)))
       return true;
     rel.sym = &t->destination;
+    // TODO Restore addend on all targets.
+    if (config->emachine == EM_AARCH64 || config->emachine == EM_PPC64)
+      rel.addend = t->addend;
     if (rel.sym->isInPlt())
       rel.expr = toPlt(rel.expr);
   }
@@ -1790,7 +1870,7 @@ bool ThunkCreator::createThunks(ArrayRef<OutputSection *> outputSections) {
               continue;
 
             if (!target->needsThunk(rel.expr, rel.type, isec->file, src,
-                                    *rel.sym))
+                                    *rel.sym, rel.addend))
               continue;
 
             Thunk *t;
@@ -1812,9 +1892,15 @@ bool ThunkCreator::createThunks(ArrayRef<OutputSection *> outputSections) {
             rel.sym = t->getThunkTargetSym();
             rel.expr = fromPlt(rel.expr);
 
+            // On AArch64 and PPC64, a jump/call relocation may be encoded as
+            // STT_SECTION + non-zero addend, clear the addend after
+            // redirection.
+            //
             // The addend of R_PPC_PLTREL24 should be ignored after changing to
             // R_PC.
-            if (config->emachine == EM_PPC && rel.type == R_PPC_PLTREL24)
+            if (config->emachine == EM_AARCH64 ||
+                config->emachine == EM_PPC64 ||
+                (config->emachine == EM_PPC && rel.type == R_PPC_PLTREL24))
               rel.addend = 0;
           }
 

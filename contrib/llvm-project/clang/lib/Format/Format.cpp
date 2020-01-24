@@ -467,6 +467,7 @@ template <> struct MappingTraits<FormatStyle> {
                    Style.ConstructorInitializerIndentWidth);
     IO.mapOptional("ContinuationIndentWidth", Style.ContinuationIndentWidth);
     IO.mapOptional("Cpp11BracedListStyle", Style.Cpp11BracedListStyle);
+    IO.mapOptional("DeriveLineEnding", Style.DeriveLineEnding);
     IO.mapOptional("DerivePointerAlignment", Style.DerivePointerAlignment);
     IO.mapOptional("DisableFormat", Style.DisableFormat);
     IO.mapOptional("ExperimentalAutoDetectBinPacking",
@@ -476,6 +477,8 @@ template <> struct MappingTraits<FormatStyle> {
     IO.mapOptional("IncludeBlocks", Style.IncludeStyle.IncludeBlocks);
     IO.mapOptional("IncludeCategories", Style.IncludeStyle.IncludeCategories);
     IO.mapOptional("IncludeIsMainRegex", Style.IncludeStyle.IncludeIsMainRegex);
+    IO.mapOptional("IncludeIsMainSourceRegex",
+                   Style.IncludeStyle.IncludeIsMainSourceRegex);
     IO.mapOptional("IndentCaseLabels", Style.IndentCaseLabels);
     IO.mapOptional("IndentGotoLabels", Style.IndentGotoLabels);
     IO.mapOptional("IndentPPDirectives", Style.IndentPPDirectives);
@@ -534,16 +537,21 @@ template <> struct MappingTraits<FormatStyle> {
     IO.mapOptional("SpacesBeforeTrailingComments",
                    Style.SpacesBeforeTrailingComments);
     IO.mapOptional("SpacesInAngles", Style.SpacesInAngles);
+    IO.mapOptional("SpacesInConditionalStatement",
+                   Style.SpacesInConditionalStatement);
     IO.mapOptional("SpacesInContainerLiterals",
                    Style.SpacesInContainerLiterals);
     IO.mapOptional("SpacesInCStyleCastParentheses",
                    Style.SpacesInCStyleCastParentheses);
     IO.mapOptional("SpacesInParentheses", Style.SpacesInParentheses);
     IO.mapOptional("SpacesInSquareBrackets", Style.SpacesInSquareBrackets);
+    IO.mapOptional("SpaceBeforeSquareBrackets",
+                   Style.SpaceBeforeSquareBrackets);
     IO.mapOptional("Standard", Style.Standard);
     IO.mapOptional("StatementMacros", Style.StatementMacros);
     IO.mapOptional("TabWidth", Style.TabWidth);
     IO.mapOptional("TypenameMacros", Style.TypenameMacros);
+    IO.mapOptional("UseCRLF", Style.UseCRLF);
     IO.mapOptional("UseTab", Style.UseTab);
   }
 };
@@ -760,6 +768,7 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
   LLVMStyle.ConstructorInitializerIndentWidth = 4;
   LLVMStyle.ContinuationIndentWidth = 4;
   LLVMStyle.Cpp11BracedListStyle = true;
+  LLVMStyle.DeriveLineEnding = true;
   LLVMStyle.DerivePointerAlignment = false;
   LLVMStyle.ExperimentalAutoDetectBinPacking = false;
   LLVMStyle.FixNamespaceComments = true;
@@ -790,6 +799,7 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
   LLVMStyle.PointerAlignment = FormatStyle::PAS_Right;
   LLVMStyle.SpacesBeforeTrailingComments = 1;
   LLVMStyle.Standard = FormatStyle::LS_Latest;
+  LLVMStyle.UseCRLF = false;
   LLVMStyle.UseTab = FormatStyle::UT_Never;
   LLVMStyle.ReflowComments = true;
   LLVMStyle.SpacesInParentheses = false;
@@ -807,7 +817,9 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
   LLVMStyle.SpaceBeforeRangeBasedForLoopColon = true;
   LLVMStyle.SpaceBeforeAssignmentOperators = true;
   LLVMStyle.SpaceBeforeCpp11BracedList = false;
+  LLVMStyle.SpaceBeforeSquareBrackets = false;
   LLVMStyle.SpacesInAngles = false;
+  LLVMStyle.SpacesInConditionalStatement = false;
 
   LLVMStyle.PenaltyBreakAssignment = prec::Assignment;
   LLVMStyle.PenaltyBreakComment = 300;
@@ -1348,7 +1360,11 @@ public:
 
     WhitespaceManager Whitespaces(
         Env.getSourceManager(), Style,
-        inputUsesCRLF(Env.getSourceManager().getBufferData(Env.getFileID())));
+        Style.DeriveLineEnding
+            ? inputUsesCRLF(
+                  Env.getSourceManager().getBufferData(Env.getFileID()),
+                  Style.UseCRLF)
+            : Style.UseCRLF);
     ContinuationIndenter Indenter(Style, Tokens.getKeywords(),
                                   Env.getSourceManager(), Whitespaces, Encoding,
                                   BinPackInconclusiveFunctions);
@@ -1369,8 +1385,10 @@ public:
   }
 
 private:
-  static bool inputUsesCRLF(StringRef Text) {
-    return Text.count('\r') * 2 > Text.count('\n');
+  static bool inputUsesCRLF(StringRef Text, bool DefaultToCRLF) {
+    size_t LF = Text.count('\n');
+    size_t CR = Text.count('\r') * 2;
+    return LF == CR ? DefaultToCRLF : CR > LF;
   }
 
   bool
@@ -2600,6 +2618,10 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
   if (std::error_code EC = FS->makeAbsolute(Path))
     return make_string_error(EC.message());
 
+  llvm::SmallVector<std::string, 2> FilesToLookFor;
+  FilesToLookFor.push_back(".clang-format");
+  FilesToLookFor.push_back("_clang-format");
+
   for (StringRef Directory = Path; !Directory.empty();
        Directory = llvm::sys::path::parent_path(Directory)) {
 
@@ -2609,43 +2631,35 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
       continue;
     }
 
-    SmallString<128> ConfigFile(Directory);
+    for (const auto &F : FilesToLookFor) {
+      SmallString<128> ConfigFile(Directory);
 
-    llvm::sys::path::append(ConfigFile, ".clang-format");
-    LLVM_DEBUG(llvm::dbgs() << "Trying " << ConfigFile << "...\n");
-
-    Status = FS->status(ConfigFile.str());
-    bool FoundConfigFile =
-        Status && (Status->getType() == llvm::sys::fs::file_type::regular_file);
-    if (!FoundConfigFile) {
-      // Try _clang-format too, since dotfiles are not commonly used on Windows.
-      ConfigFile = Directory;
-      llvm::sys::path::append(ConfigFile, "_clang-format");
+      llvm::sys::path::append(ConfigFile, F);
       LLVM_DEBUG(llvm::dbgs() << "Trying " << ConfigFile << "...\n");
-      Status = FS->status(ConfigFile.str());
-      FoundConfigFile = Status && (Status->getType() ==
-                                   llvm::sys::fs::file_type::regular_file);
-    }
 
-    if (FoundConfigFile) {
-      llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> Text =
-          FS->getBufferForFile(ConfigFile.str());
-      if (std::error_code EC = Text.getError())
-        return make_string_error(EC.message());
-      if (std::error_code ec =
-              parseConfiguration(Text.get()->getBuffer(), &Style)) {
-        if (ec == ParseError::Unsuitable) {
-          if (!UnsuitableConfigFiles.empty())
-            UnsuitableConfigFiles.append(", ");
-          UnsuitableConfigFiles.append(ConfigFile);
-          continue;
+      Status = FS->status(ConfigFile.str());
+
+      if (Status &&
+          (Status->getType() == llvm::sys::fs::file_type::regular_file)) {
+        llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> Text =
+            FS->getBufferForFile(ConfigFile.str());
+        if (std::error_code EC = Text.getError())
+          return make_string_error(EC.message());
+        if (std::error_code ec =
+                parseConfiguration(Text.get()->getBuffer(), &Style)) {
+          if (ec == ParseError::Unsuitable) {
+            if (!UnsuitableConfigFiles.empty())
+              UnsuitableConfigFiles.append(", ");
+            UnsuitableConfigFiles.append(ConfigFile);
+            continue;
+          }
+          return make_string_error("Error reading " + ConfigFile + ": " +
+                                   ec.message());
         }
-        return make_string_error("Error reading " + ConfigFile + ": " +
-                                 ec.message());
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Using configuration file " << ConfigFile << "\n");
+        return Style;
       }
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Using configuration file " << ConfigFile << "\n");
-      return Style;
     }
   }
   if (!UnsuitableConfigFiles.empty())

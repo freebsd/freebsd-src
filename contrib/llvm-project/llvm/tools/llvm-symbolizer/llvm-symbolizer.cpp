@@ -24,6 +24,7 @@
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -150,6 +151,12 @@ static cl::opt<std::string>
     ClFallbackDebugPath("fallback-debug-path", cl::init(""),
                         cl::desc("Fallback path for debug binaries."));
 
+static cl::list<std::string>
+    ClDebugFileDirectory("debug-file-directory", cl::ZeroOrMore,
+                         cl::value_desc("dir"),
+                         cl::desc("Path to directory where to look for debug "
+                                  "files."));
+
 static cl::opt<DIPrinter::OutputStyle>
     ClOutputStyle("output-style", cl::init(DIPrinter::OutputStyle::LLVM),
                   cl::desc("Specify print style"),
@@ -222,7 +229,7 @@ static void symbolizeInput(StringRef InputString, LLVMSymbolizer &Symbolizer,
   std::string ModuleName;
   uint64_t Offset = 0;
   if (!parseCommand(StringRef(InputString), Cmd, ModuleName, Offset)) {
-    outs() << InputString;
+    outs() << InputString << "\n";
     return;
   }
 
@@ -283,8 +290,10 @@ int main(int argc, char **argv) {
   }
 
   llvm::sys::InitializeCOMRAII COM(llvm::sys::COMThreadingMode::MultiThreaded);
-  cl::ParseCommandLineOptions(argc, argv, IsAddr2Line ? "llvm-addr2line\n"
-                                                      : "llvm-symbolizer\n");
+  cl::ParseCommandLineOptions(
+      argc, argv, IsAddr2Line ? "llvm-addr2line\n" : "llvm-symbolizer\n",
+      /*Errs=*/nullptr,
+      IsAddr2Line ? "LLVM_ADDR2LINE_OPTS" : "LLVM_SYMBOLIZER_OPTS");
 
   // If both --demangle and --no-demangle are specified then pick the last one.
   if (ClNoDemangle.getPosition() > ClDemangle.getPosition())
@@ -299,6 +308,7 @@ int main(int argc, char **argv) {
   Opts.DefaultArch = ClDefaultArch;
   Opts.FallbackDebugPath = ClFallbackDebugPath;
   Opts.DWPName = ClDwpName;
+  Opts.DebugFileDirectory = ClDebugFileDirectory;
 
   for (const auto &hint : ClDsymHint) {
     if (sys::path::extension(hint) == ".dSYM") {
@@ -319,7 +329,13 @@ int main(int argc, char **argv) {
     char InputString[kMaxInputStringLength];
 
     while (fgets(InputString, sizeof(InputString), stdin)) {
-      symbolizeInput(InputString, Symbolizer, Printer);
+      // Strip newline characters.
+      std::string StrippedInputString(InputString);
+      StrippedInputString.erase(
+          std::remove_if(StrippedInputString.begin(), StrippedInputString.end(),
+                         [](char c) { return c == '\r' || c == '\n'; }),
+          StrippedInputString.end());
+      symbolizeInput(StrippedInputString, Symbolizer, Printer);
       outs().flush();
     }
   } else {

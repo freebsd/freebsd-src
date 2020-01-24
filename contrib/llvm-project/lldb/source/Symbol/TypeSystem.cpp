@@ -43,8 +43,6 @@ size_t LanguageSet::Size() const { return bitvector.count(); }
 bool LanguageSet::Empty() const { return bitvector.none(); }
 bool LanguageSet::operator[](unsigned i) const { return bitvector[i]; }
 
-TypeSystem::TypeSystem(LLVMCastKind kind) : m_kind(kind), m_sym_file(nullptr) {}
-
 TypeSystem::~TypeSystem() {}
 
 static lldb::TypeSystemSP CreateInstanceHelper(lldb::LanguageType language,
@@ -88,6 +86,10 @@ TypeSystem::GetLValueReferenceType(lldb::opaque_compiler_type_t type) {
 
 CompilerType
 TypeSystem::GetRValueReferenceType(lldb::opaque_compiler_type_t type) {
+  return CompilerType();
+}
+
+CompilerType TypeSystem::GetAtomicType(lldb::opaque_compiler_type_t type) {
   return CompilerType();
 }
 

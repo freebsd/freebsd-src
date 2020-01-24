@@ -49,6 +49,9 @@ public:
   StringRef getABI() const override;
   bool setABI(const std::string &Name) override;
 
+  bool validateBranchProtection(StringRef, BranchProtectionInfo &,
+                                StringRef &) const override;
+
   bool isValidCPUName(StringRef Name) const override;
   void fillValidCPUList(SmallVectorImpl<StringRef> &Values) const override;
   bool setCPU(const std::string &Name) override;
@@ -97,6 +100,8 @@ public:
   }
 
   int getEHDataRegisterNumber(unsigned RegNo) const override;
+
+  bool hasInt128Type() const override;
 };
 
 class LLVM_LIBRARY_VISIBILITY AArch64leTargetInfo : public AArch64TargetInfo {

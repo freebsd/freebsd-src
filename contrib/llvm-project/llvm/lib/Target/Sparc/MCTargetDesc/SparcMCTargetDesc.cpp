@@ -33,7 +33,8 @@ using namespace llvm;
 #include "SparcGenRegisterInfo.inc"
 
 static MCAsmInfo *createSparcMCAsmInfo(const MCRegisterInfo &MRI,
-                                       const Triple &TT) {
+                                       const Triple &TT,
+                                       const MCTargetOptions &Options) {
   MCAsmInfo *MAI = new SparcELFMCAsmInfo(TT);
   unsigned Reg = MRI.getDwarfRegNum(SP::O6, true);
   MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, Reg, 0);
@@ -42,7 +43,8 @@ static MCAsmInfo *createSparcMCAsmInfo(const MCRegisterInfo &MRI,
 }
 
 static MCAsmInfo *createSparcV9MCAsmInfo(const MCRegisterInfo &MRI,
-                                         const Triple &TT) {
+                                         const Triple &TT,
+                                         const MCTargetOptions &Options) {
   MCAsmInfo *MAI = new SparcELFMCAsmInfo(TT);
   unsigned Reg = MRI.getDwarfRegNum(SP::O6, true);
   MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, Reg, 2047);
@@ -89,7 +91,7 @@ static MCInstPrinter *createSparcMCInstPrinter(const Triple &T,
   return new SparcInstPrinter(MAI, MII, MRI);
 }
 
-extern "C" void LLVMInitializeSparcTargetMC() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeSparcTargetMC() {
   // Register the MC asm info.
   RegisterMCAsmInfoFn X(getTheSparcTarget(), createSparcMCAsmInfo);
   RegisterMCAsmInfoFn Y(getTheSparcV9Target(), createSparcV9MCAsmInfo);

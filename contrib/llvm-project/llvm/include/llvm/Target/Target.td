@@ -530,6 +530,7 @@ class Instruction : InstructionEncoding {
   bit hasCtrlDep   = 0;     // Does this instruction r/w ctrl-flow chains?
   bit isNotDuplicable = 0;  // Is it unsafe to duplicate this instruction?
   bit isConvergent = 0;     // Is this instruction convergent?
+  bit isAuthenticated = 0;  // Does this instruction authenticate a pointer?
   bit isAsCheapAsAMove = 0; // As cheap (or cheaper) than a move instruction.
   bit hasExtraSrcRegAllocReq = 0; // Sources have special regalloc requirement?
   bit hasExtraDefRegAllocReq = 0; // Defs have special regalloc requirement?
@@ -1210,7 +1211,7 @@ def PATCHABLE_TAIL_CALL : StandardPseudoInstruction {
 }
 def PATCHABLE_EVENT_CALL : StandardPseudoInstruction {
   let OutOperandList = (outs);
-  let InOperandList = (ins ptr_rc:$event, i8imm:$size);
+  let InOperandList = (ins ptr_rc:$event, unknown:$size);
   let AsmString = "# XRay Custom Event Log.";
   let usesCustomInserter = 1;
   let isCall = 1;
@@ -1220,7 +1221,7 @@ def PATCHABLE_EVENT_CALL : StandardPseudoInstruction {
 }
 def PATCHABLE_TYPED_EVENT_CALL : StandardPseudoInstruction {
   let OutOperandList = (outs);
-  let InOperandList = (ins i16imm:$type, ptr_rc:$event, i32imm:$size);
+  let InOperandList = (ins unknown:$type, ptr_rc:$event, unknown:$size);
   let AsmString = "# XRay Typed Event Log.";
   let usesCustomInserter = 1;
   let isCall = 1;
@@ -1292,7 +1293,7 @@ class AsmParser {
   // ReportMultipleNearMisses -
   // When 0, the assembly matcher reports an error for one encoding or operand
   // that did not match the parsed instruction.
-  // When 1, the assmebly matcher returns a list of encodings that were close
+  // When 1, the assembly matcher returns a list of encodings that were close
   // to matching the parsed instruction, so to allow more detailed error
   // messages.
   bit ReportMultipleNearMisses = 0;

@@ -23,7 +23,8 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
@@ -91,7 +92,7 @@ private:
   EHPersonality Personality = EHPersonality::Unknown;
   Function *PersonalityFn = nullptr;
   bool UseStackGuard = false;
-  int ParentBaseState;
+  int ParentBaseState = 0;
   FunctionCallee SehLongjmpUnwind = nullptr;
   Constant *Cookie = nullptr;
 
@@ -177,11 +178,6 @@ bool WinEHStatePass::runOnFunction(Function &F) {
                       Type::getInt32Ty(TheModule->getContext()),
                       {Int8PtrType, Type::getInt32Ty(TheModule->getContext())},
                       /*isVarArg=*/true));
-
-  // Disable frame pointer elimination in this function.
-  // FIXME: Do the nested handlers need to keep the parent ebp in ebp, or can we
-  // use an arbitrary register?
-  F.addFnAttr("no-frame-pointer-elim", "true");
 
   emitExceptionRegistrationRecord(&F);
 

@@ -33,10 +33,11 @@
 
 #include "llvm/Transforms/Scalar/MakeGuardsExplicit.h"
 #include "llvm/Analysis/GuardUtils.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/IRBuilder.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/GuardUtils.h"
@@ -56,23 +57,11 @@ struct MakeGuardsExplicitLegacyPass : public FunctionPass {
 
 static void turnToExplicitForm(CallInst *Guard, Function *DeoptIntrinsic) {
   // Replace the guard with an explicit branch (just like in GuardWidening).
-  BasicBlock *BB = Guard->getParent();
-  makeGuardControlFlowExplicit(DeoptIntrinsic, Guard);
-  BranchInst *ExplicitGuard = cast<BranchInst>(BB->getTerminator());
-  assert(ExplicitGuard->isConditional() && "Must be!");
+  BasicBlock *OriginalBB = Guard->getParent();
+  (void)OriginalBB;
+  makeGuardControlFlowExplicit(DeoptIntrinsic, Guard, true);
+  assert(isWidenableBranch(OriginalBB->getTerminator()) && "should hold");
 
-  // We want the guard to be expressed as explicit control flow, but still be
-  // widenable. For that, we add Widenable Condition intrinsic call to the
-  // guard's condition.
-  IRBuilder<> B(ExplicitGuard);
-  auto *WidenableCondition =
-      B.CreateIntrinsic(Intrinsic::experimental_widenable_condition,
-                        {}, {}, nullptr, "widenable_cond");
-  WidenableCondition->setCallingConv(Guard->getCallingConv());
-  auto *NewCond =
-      B.CreateAnd(ExplicitGuard->getCondition(), WidenableCondition);
-  NewCond->setName("exiplicit_guard_cond");
-  ExplicitGuard->setCondition(NewCond);
   Guard->eraseFromParent();
 }
 

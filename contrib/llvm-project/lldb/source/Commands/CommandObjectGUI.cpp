@@ -8,9 +8,10 @@
 
 #include "CommandObjectGUI.h"
 
+#include "lldb/Core/IOHandlerCursesGUI.h"
+#include "lldb/Host/Config.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
-#include "lldb/lldb-private.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -24,7 +25,7 @@ CommandObjectGUI::CommandObjectGUI(CommandInterpreter &interpreter)
 CommandObjectGUI::~CommandObjectGUI() {}
 
 bool CommandObjectGUI::DoExecute(Args &args, CommandReturnObject &result) {
-#ifndef LLDB_DISABLE_CURSES
+#if LLDB_ENABLE_CURSES
   if (args.GetArgumentCount() == 0) {
     Debugger &debugger = GetDebugger();
 

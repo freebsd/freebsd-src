@@ -47,6 +47,7 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/Casting.h"
@@ -1493,7 +1494,7 @@ void MemoryDependenceResults::RemoveCachedNonLocalPointerDependencies(
     if (auto *I = dyn_cast<Instruction>(P.getPointer())) {
       auto toRemoveIt = ReverseNonLocalDefsCache.find(I);
       if (toRemoveIt != ReverseNonLocalDefsCache.end()) {
-        for (const auto &entry : toRemoveIt->second)
+        for (const auto *entry : toRemoveIt->second)
           NonLocalDefsCache.erase(entry);
         ReverseNonLocalDefsCache.erase(toRemoveIt);
       }

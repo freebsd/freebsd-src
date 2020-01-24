@@ -43,19 +43,8 @@ public:
   bool runOnMachineFunction(MachineFunction &MF) override;
 
 private:
-  // Find the preceding instruction that imp-defs eflags.
-  MachineInstr *findFlagsImpDef(MachineBasicBlock *MBB,
-                                MachineBasicBlock::reverse_iterator MI);
-
-  // Return true if MI imp-uses eflags.
-  bool impUsesFlags(MachineInstr *MI);
-
-  // Return true if this is the opcode of a SetCC instruction with a register
-  // output.
-  bool isSetCCr(unsigned Opode);
-
-  MachineRegisterInfo *MRI;
-  const X86InstrInfo *TII;
+  MachineRegisterInfo *MRI = nullptr;
+  const X86InstrInfo *TII = nullptr;
 
   enum { SearchBound = 16 };
 
@@ -67,31 +56,6 @@ char X86FixupSetCCPass::ID = 0;
 
 FunctionPass *llvm::createX86FixupSetCC() { return new X86FixupSetCCPass(); }
 
-// We expect the instruction *immediately* before the setcc to imp-def
-// EFLAGS (because of scheduling glue). To make this less brittle w.r.t
-// scheduling, look backwards until we hit the beginning of the
-// basic-block, or a small bound (to avoid quadratic behavior).
-MachineInstr *
-X86FixupSetCCPass::findFlagsImpDef(MachineBasicBlock *MBB,
-                                   MachineBasicBlock::reverse_iterator MI) {
-  // FIXME: Should this be instr_rend(), and MI be reverse_instr_iterator?
-  auto MBBStart = MBB->rend();
-  for (int i = 0; (i < SearchBound) && (MI != MBBStart); ++i, ++MI)
-    for (auto &Op : MI->implicit_operands())
-      if (Op.isReg() && (Op.getReg() == X86::EFLAGS) && Op.isDef())
-        return &*MI;
-
-  return nullptr;
-}
-
-bool X86FixupSetCCPass::impUsesFlags(MachineInstr *MI) {
-  for (auto &Op : MI->implicit_operands())
-    if (Op.isReg() && (Op.getReg() == X86::EFLAGS) && Op.isUse())
-      return true;
-
-  return false;
-}
-
 bool X86FixupSetCCPass::runOnMachineFunction(MachineFunction &MF) {
   bool Changed = false;
   MRI = &MF.getRegInfo();
@@ -100,7 +64,12 @@ bool X86FixupSetCCPass::runOnMachineFunction(MachineFunction &MF) {
   SmallVector<MachineInstr*, 4> ToErase;
 
   for (auto &MBB : MF) {
+    MachineInstr *FlagsDefMI = nullptr;
     for (auto &MI : MBB) {
+      // Remember the most recent preceding eflags defining instruction.
+      if (MI.definesRegister(X86::EFLAGS))
+        FlagsDefMI = &MI;
+
       // Find a setcc that is used by a zext.
       // This doesn't have to be the only use, the transformation is safe
       // regardless.
@@ -115,9 +84,6 @@ bool X86FixupSetCCPass::runOnMachineFunction(MachineFunction &MF) {
       if (!ZExt)
         continue;
 
-      // Find the preceding instruction that imp-defs eflags.
-      MachineInstr *FlagsDefMI = findFlagsImpDef(
-          MI.getParent(), MachineBasicBlock::reverse_iterator(&MI));
       if (!FlagsDefMI)
         continue;
 
@@ -126,7 +92,7 @@ bool X86FixupSetCCPass::runOnMachineFunction(MachineFunction &MF) {
       // it, itself, by definition, clobbers eflags. But it may happen that
       // FlagsDefMI also *uses* eflags, in which case the transformation is
       // invalid.
-      if (impUsesFlags(FlagsDefMI))
+      if (FlagsDefMI->readsRegister(X86::EFLAGS))
         continue;
 
       ++NumSubstZexts;

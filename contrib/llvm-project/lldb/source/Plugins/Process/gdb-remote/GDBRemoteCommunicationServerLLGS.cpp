@@ -669,9 +669,9 @@ GDBRemoteCommunicationServerLLGS::SendStopReplyPacketForThread(
         response.PutStringAsRawHex8(unescaped_response.GetData());
         response.PutChar(';');
       } else {
-        LLDB_LOG(log, "failed to prepare a jstopinfo field for pid {0}:",
-                 m_debugged_process_up->GetID(),
-                 llvm::toString(threads_info.takeError()));
+        LLDB_LOG_ERROR(log, threads_info.takeError(),
+                       "failed to prepare a jstopinfo field for pid {1}: {0}",
+                       m_debugged_process_up->GetID());
       }
     }
 
@@ -2013,7 +2013,7 @@ GDBRemoteCommunicationServerLLGS::Handle_p(StringExtractorGDBRemote &packet) {
   }
 
   const uint8_t *const data =
-      reinterpret_cast<const uint8_t *>(reg_value.GetBytes());
+      static_cast<const uint8_t *>(reg_value.GetBytes());
   if (!data) {
     LLDB_LOGF(log,
               "GDBRemoteCommunicationServerLLGS::%s failed to get data "
@@ -3087,9 +3087,9 @@ GDBRemoteCommunicationServerLLGS::Handle_jThreadsInfo(
   llvm::Expected<json::Value> threads_info = GetJSONThreadsInfo(
       *m_debugged_process_up, threads_with_valid_stop_info_only);
   if (!threads_info) {
-    LLDB_LOG(log, "failed to prepare a packet for pid {0}: {1}",
-             m_debugged_process_up->GetID(),
-             llvm::toString(threads_info.takeError()));
+    LLDB_LOG_ERROR(log, threads_info.takeError(),
+                   "failed to prepare a packet for pid {1}: {0}",
+                   m_debugged_process_up->GetID());
     return SendErrorResponse(52);
   }
 

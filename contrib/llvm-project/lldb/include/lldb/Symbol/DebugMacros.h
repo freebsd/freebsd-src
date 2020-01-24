@@ -23,7 +23,9 @@ typedef std::shared_ptr<DebugMacros> DebugMacrosSP;
 
 class DebugMacroEntry {
 public:
-  enum EntryType { INVALID, DEFINE, UNDEF, START_FILE, END_FILE, INDIRECT };
+  enum EntryType : uint8_t {
+      INVALID, DEFINE, UNDEF, START_FILE, END_FILE, INDIRECT
+  };
 
 public:
   static DebugMacroEntry CreateDefineEntry(uint32_t line, const char *str);
@@ -42,7 +44,7 @@ public:
 
   ~DebugMacroEntry() = default;
 
-  EntryType GetType() const { return m_type; }
+  EntryType GetType() const { return static_cast<EntryType>(m_type); }
 
   uint64_t GetLineNumber() const { return m_line; }
 
@@ -60,7 +62,7 @@ private:
 
   DebugMacroEntry(EntryType type, const DebugMacrosSP &debug_macros_sp);
 
-  EntryType m_type : 3;
+  uint32_t m_type : 3;
   uint32_t m_line : 29;
   uint32_t m_debug_line_file_idx;
   ConstString m_str;

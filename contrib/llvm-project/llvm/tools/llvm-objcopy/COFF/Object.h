@@ -25,11 +25,11 @@ namespace objcopy {
 namespace coff {
 
 struct Relocation {
-  Relocation() {}
+  Relocation() = default;
   Relocation(const object::coff_relocation& R) : Reloc(R) {}
 
   object::coff_relocation Reloc;
-  size_t Target;
+  size_t Target = 0;
   StringRef TargetName; // Used for diagnostics only
 };
 
@@ -124,7 +124,7 @@ struct Object {
 
   ArrayRef<Section> getSections() const { return Sections; }
   // This allows mutating individual Sections, but not mutating the list
-  // of symbols itself.
+  // of sections itself.
   iterator_range<std::vector<Section>::iterator> getMutableSections() {
     return make_range(Sections.begin(), Sections.end());
   }

@@ -6,9 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "lldb/API/SBHostOS.h"
 #include "SBReproducerPrivate.h"
 #include "lldb/API/SBError.h"
-#include "lldb/API/SBHostOS.h"
+#include "lldb/Host/Config.h"
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
@@ -18,7 +19,7 @@
 #include "lldb/Utility/FileSpec.h"
 
 #include "Plugins/ExpressionParser/Clang/ClangHost.h"
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
 #include "Plugins/ScriptInterpreter/Python/ScriptInterpreterPython.h"
 #endif
 
@@ -60,7 +61,7 @@ SBFileSpec SBHostOS::GetLLDBPath(lldb::PathType path_type) {
     fspec = HostInfo::GetHeaderDir();
     break;
   case ePathTypePythonDir:
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
     fspec = ScriptInterpreterPython::GetPythonDir();
 #endif
     break;

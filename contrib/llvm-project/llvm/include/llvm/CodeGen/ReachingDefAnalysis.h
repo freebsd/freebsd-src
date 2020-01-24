@@ -25,6 +25,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/LoopTraversal.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/InitializePasses.h"
 
 namespace llvm {
 
@@ -86,16 +87,57 @@ public:
 
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
-        MachineFunctionProperties::Property::NoVRegs);
+        MachineFunctionProperties::Property::NoVRegs).set(
+          MachineFunctionProperties::Property::TracksLiveness);
   }
 
   /// Provides the instruction id of the closest reaching def instruction of
   /// PhysReg that reaches MI, relative to the begining of MI's basic block.
   int getReachingDef(MachineInstr *MI, int PhysReg);
 
+  /// Provides the instruction of the closest reaching def instruction of
+  /// PhysReg that reaches MI, relative to the begining of MI's basic block.
+  MachineInstr *getReachingMIDef(MachineInstr *MI, int PhysReg);
+
+  /// Provides the MI, from the given block, corresponding to the Id or a
+  /// nullptr if the id does not refer to the block.
+  MachineInstr *getInstFromId(MachineBasicBlock *MBB, int InstId);
+
+  /// Return whether A and B use the same def of PhysReg.
+  bool hasSameReachingDef(MachineInstr *A, MachineInstr *B, int PhysReg);
+
+  /// Return whether the reaching def for MI also is live out of its parent
+  /// block.
+  bool isReachingDefLiveOut(MachineInstr *MI, int PhysReg);
+
+  /// Return the local MI that produces the live out value for PhysReg, or
+  /// nullptr for a non-live out or non-local def.
+  MachineInstr *getLocalLiveOutMIDef(MachineBasicBlock *MBB,
+                                     int PhysReg);
+
+  /// Return whether the given register is used after MI, whether it's a local
+  /// use or a live out.
+  bool isRegUsedAfter(MachineInstr *MI, int PhysReg);
+
+  /// Provides the first instruction before MI that uses PhysReg
+  MachineInstr *getInstWithUseBefore(MachineInstr *MI, int PhysReg);
+
+  /// Provides all instructions before MI that uses PhysReg
+  void getAllInstWithUseBefore(MachineInstr *MI, int PhysReg,
+                               SmallVectorImpl<MachineInstr*> &Uses);
+
   /// Provides the clearance - the number of instructions since the closest
   /// reaching def instuction of PhysReg that reaches MI.
   int getClearance(MachineInstr *MI, MCPhysReg PhysReg);
+
+  /// Provides the uses, in the same block as MI, of register that MI defines.
+  /// This does not consider live-outs.
+  void getReachingLocalUses(MachineInstr *MI, int PhysReg,
+                            SmallVectorImpl<MachineInstr*> &Uses);
+
+  /// Provide the number of uses, in the same block as MI, of the register that
+  /// MI defines.
+  unsigned getNumUses(MachineInstr *MI, int PhysReg);
 
 private:
   /// Set up LiveRegs by merging predecessor live-out values.

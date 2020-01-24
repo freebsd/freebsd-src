@@ -22,6 +22,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -185,7 +186,7 @@ bool ARCOptAddrMode::noUseOfAddBeforeLoadOrStore(const MachineInstr *Add,
 }
 
 MachineInstr *ARCOptAddrMode::tryToCombine(MachineInstr &Ldst) {
-  assert((Ldst.mayLoad() || Ldst.mayStore()) && "LD/ST instruction expected");
+  assert(Ldst.mayLoadOrStore() && "LD/ST instruction expected");
 
   unsigned BasePos, OffsetPos;
 

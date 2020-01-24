@@ -21,6 +21,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/IPO.h"
 using namespace llvm;
@@ -254,7 +255,7 @@ static bool PropagateConstantReturn(Function &F) {
       // Find the index of the retval to replace with
       int index = -1;
       if (ExtractValueInst *EV = dyn_cast<ExtractValueInst>(Ins))
-        if (EV->hasIndices())
+        if (EV->getNumIndices() == 1)
           index = *EV->idx_begin();
 
       // If this use uses a specific return value, and we have a replacement,

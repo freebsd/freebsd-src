@@ -31,6 +31,7 @@
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/RegularExpression.h"
+#include "lldb/Utility/Reproducer.h"
 #include "lldb/Utility/StreamString.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/ScopedPrinter.h"
@@ -49,7 +50,7 @@
 #include <compression.h>
 #endif
 
-#if defined(HAVE_LIBZ)
+#if LLVM_ENABLE_ZLIB
 #include <zlib.h>
 #endif
 
@@ -581,7 +582,7 @@ bool GDBRemoteCommunication::DecompressPacket() {
   }
 #endif
 
-#if defined(HAVE_LIBZ)
+#if LLVM_ENABLE_ZLIB
   if (decompressed_bytes == 0 && decompressed_bufsize != ULONG_MAX &&
       decompressed_buffer != nullptr &&
       m_compression_type == CompressionType::ZlibDeflate) {
@@ -1243,8 +1244,9 @@ Status GDBRemoteCommunication::StartDebugserverProcess(
 
 void GDBRemoteCommunication::DumpHistory(Stream &strm) { m_history.Dump(strm); }
 
-void GDBRemoteCommunication::SetHistoryStream(llvm::raw_ostream *strm) {
-  m_history.SetStream(strm);
+void GDBRemoteCommunication::SetPacketRecorder(
+    repro::PacketRecorder *recorder) {
+  m_history.SetRecorder(recorder);
 }
 
 llvm::Error

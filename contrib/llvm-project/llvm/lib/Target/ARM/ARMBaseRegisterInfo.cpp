@@ -75,6 +75,8 @@ ARMBaseRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     // GHC set of callee saved regs is empty as all those regs are
     // used for passing STG regs around
     return CSR_NoRegs_SaveList;
+  } else if (F.getCallingConv() == CallingConv::CFGuard_Check) {
+    return CSR_Win_AAPCS_CFGuard_Check_SaveList;
   } else if (F.hasFnAttribute("interrupt")) {
     if (STI.isMClass()) {
       // M-class CPUs have hardware which saves the registers needed to allow a
@@ -123,7 +125,8 @@ ARMBaseRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
   if (CC == CallingConv::GHC)
     // This is academic because all GHC calls are (supposed to be) tail calls
     return CSR_NoRegs_RegMask;
-
+  if (CC == CallingConv::CFGuard_Check)
+    return CSR_Win_AAPCS_CFGuard_Check_RegMask;
   if (STI.getTargetLowering()->supportSwiftError() &&
       MF.getFunction().getAttributes().hasAttrSomewhere(Attribute::SwiftError))
     return STI.isTargetDarwin() ? CSR_iOS_SwiftError_RegMask
@@ -191,7 +194,7 @@ getReservedRegs(const MachineFunction &MF) const {
   markSuperRegs(Reserved, ARM::PC);
   markSuperRegs(Reserved, ARM::FPSCR);
   markSuperRegs(Reserved, ARM::APSR_NZCV);
-  if (TFI->hasFP(MF) || STI.isTargetDarwin())
+  if (TFI->hasFP(MF))
     markSuperRegs(Reserved, getFramePointerReg(STI));
   if (hasBasePointer(MF))
     markSuperRegs(Reserved, BasePtr);
@@ -385,7 +388,7 @@ bool ARMBaseRegisterInfo::hasBasePointer(const MachineFunction &MF) const {
     return true;
 
   // Thumb has trouble with negative offsets from the FP. Thumb2 has a limited
-  // negative range for ldr/str (255), and thumb1 is positive offsets only.
+  // negative range for ldr/str (255), and Thumb1 is positive offsets only.
   //
   // It's going to be better to use the SP or Base Pointer instead. When there
   // are variable sized objects, we can't reference off of the SP, so we

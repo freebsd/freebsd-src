@@ -85,19 +85,19 @@ static kmp_dephash_t *__kmp_dephash_extend(kmp_info_t *thread,
   h->nelements = current_dephash->nelements;
   h->buckets = (kmp_dephash_entry **)(h + 1);
   h->generation = gen;
-
+  h->nconflicts = 0;
   // insert existing elements in the new table
   for (size_t i = 0; i < current_dephash->size; i++) {
-    kmp_dephash_entry_t *next;
-    for (kmp_dephash_entry_t *entry = current_dephash->buckets[i]; entry; entry = next) {
+    kmp_dephash_entry_t *next, *entry;
+    for (entry = current_dephash->buckets[i]; entry; entry = next) {
       next = entry->next_in_bucket;
       // Compute the new hash using the new size, and insert the entry in
       // the new bucket.
       kmp_int32 new_bucket = __kmp_dephash_hash(entry->addr, h->size);
+      entry->next_in_bucket = h->buckets[new_bucket];
       if (entry->next_in_bucket) {
         h->nconflicts++;
       }
-      entry->next_in_bucket = h->buckets[new_bucket];
       h->buckets[new_bucket] = entry;
     }
   }
@@ -417,7 +417,7 @@ static bool __kmp_check_deps(kmp_int32 gtid, kmp_depnode_t *node,
   kmp_taskdata_t *taskdata = KMP_TASK_TO_TASKDATA(task);
 #endif
   KA_TRACE(20, ("__kmp_check_deps: T#%d checking dependencies for task %p : %d "
-                "possibly aliased dependencies, %d non-aliased depedencies : "
+                "possibly aliased dependencies, %d non-aliased dependencies : "
                 "dep_barrier=%d .\n",
                 gtid, taskdata, ndeps, ndeps_noalias, dep_barrier));
 

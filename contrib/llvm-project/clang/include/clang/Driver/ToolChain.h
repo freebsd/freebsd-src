@@ -134,6 +134,7 @@ private:
   path_list ProgramPaths;
 
   mutable std::unique_ptr<Tool> Clang;
+  mutable std::unique_ptr<Tool> Flang;
   mutable std::unique_ptr<Tool> Assemble;
   mutable std::unique_ptr<Tool> Link;
   mutable std::unique_ptr<Tool> IfsMerge;
@@ -141,6 +142,7 @@ private:
   mutable std::unique_ptr<Tool> OffloadWrapper;
 
   Tool *getClang() const;
+  Tool *getFlang() const;
   Tool *getAssemble() const;
   Tool *getLink() const;
   Tool *getIfsMerge() const;
@@ -600,6 +602,10 @@ public:
   virtual SanitizerMask getDefaultSanitizers() const {
     return SanitizerMask();
   }
+
+  /// Returns true when it's possible to split LTO unit to use whole
+  /// program devirtualization and CFI santiizers.
+  virtual bool canSplitThinLTOUnit() const { return true; }
 };
 
 /// Set a ToolChain's effective triple. Reset it when the registration object

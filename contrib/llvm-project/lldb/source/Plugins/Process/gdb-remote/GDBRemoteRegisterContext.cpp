@@ -31,9 +31,11 @@ using namespace lldb_private::process_gdb_remote;
 // GDBRemoteRegisterContext constructor
 GDBRemoteRegisterContext::GDBRemoteRegisterContext(
     ThreadGDBRemote &thread, uint32_t concrete_frame_idx,
-    GDBRemoteDynamicRegisterInfo &reg_info, bool read_all_at_once)
+    GDBRemoteDynamicRegisterInfo &reg_info, bool read_all_at_once,
+    bool write_all_at_once)
     : RegisterContext(thread, concrete_frame_idx), m_reg_info(reg_info),
-      m_reg_valid(), m_reg_data(), m_read_all_at_once(read_all_at_once) {
+      m_reg_valid(), m_reg_data(), m_read_all_at_once(read_all_at_once),
+      m_write_all_at_once(write_all_at_once) {
   // Resize our vector of bools to contain one bool for every register. We will
   // use these boolean values to know when a register value is valid in
   // m_reg_data.
@@ -87,6 +89,9 @@ bool GDBRemoteRegisterContext::ReadRegister(const RegisterInfo *reg_info,
                                             RegisterValue &value) {
   // Read the register
   if (ReadRegisterBytes(reg_info, m_reg_data)) {
+    const uint32_t reg = reg_info->kinds[eRegisterKindLLDB];
+    if (m_reg_valid[reg] == false)
+      return false;
     const bool partial_data_ok = false;
     Status error(value.SetValueFromData(
         reg_info, m_reg_data, reg_info->byte_offset, partial_data_ok));
@@ -202,6 +207,18 @@ bool GDBRemoteRegisterContext::ReadRegisterBytes(const RegisterInfo *reg_info,
                std::min(buffer_sp->GetByteSize(), m_reg_data.GetByteSize()));
         if (buffer_sp->GetByteSize() >= m_reg_data.GetByteSize()) {
           SetAllRegisterValid(true);
+          return true;
+        } else if (buffer_sp->GetByteSize() > 0) {
+          const int regcount = m_reg_info.GetNumRegisters();
+          for (int i = 0; i < regcount; i++) {
+            struct RegisterInfo *reginfo = m_reg_info.GetRegisterInfoAtIndex(i);
+            if (reginfo->byte_offset + reginfo->byte_size 
+                   <= buffer_sp->GetByteSize()) {
+              m_reg_valid[i] = true;
+            } else {
+              m_reg_valid[i] = false;
+            }
+          }
           return true;
         } else {
           Log *log(ProcessGDBRemoteLog::GetLogIfAnyCategoryIsSet(GDBR_LOG_THREAD |
@@ -333,7 +350,7 @@ bool GDBRemoteRegisterContext::WriteRegisterBytes(const RegisterInfo *reg_info,
   {
     GDBRemoteClientBase::Lock lock(gdb_comm, false);
     if (lock) {
-      if (m_read_all_at_once) {
+      if (m_write_all_at_once) {
         // Invalidate all register values
         InvalidateIfNeeded(true);
 

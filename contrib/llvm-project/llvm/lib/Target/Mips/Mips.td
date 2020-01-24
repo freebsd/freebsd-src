@@ -192,9 +192,9 @@ def FeatureGINV : SubtargetFeature<"ginv", "HasGINV", "true",
 def FeatureMicroMips  : SubtargetFeature<"micromips", "InMicroMipsMode", "true",
                                          "microMips mode">;
 
-def FeatureCnMips     : SubtargetFeature<"cnmips", "HasCnMips",
-                                "true", "Octeon cnMIPS Support",
-                                [FeatureMips64r2]>;
+def FeatureCnMips : SubtargetFeature<"cnmips", "HasCnMips",
+                                     "true", "Octeon cnMIPS Support",
+                                     [FeatureMips64r2]>;
 
 def FeatureCnMipsP : SubtargetFeature<"cnmipsp", "HasCnMipsP",
                                       "true", "Octeon+ cnMIPS Support",
@@ -205,8 +205,9 @@ def FeatureUseTCCInDIV : SubtargetFeature<
                                "UseTCCInDIV", "false",
                                "Force the assembler to use trapping">;
 
-def FeatureMadd4 : SubtargetFeature<"nomadd4", "DisableMadd4", "true",
-                                    "Disable 4-operand madd.fmt and related instructions">;
+def FeatureMadd4
+    : SubtargetFeature<"nomadd4", "DisableMadd4", "true",
+                       "Disable 4-operand madd.fmt and related instructions">;
 
 def FeatureMT : SubtargetFeature<"mt", "HasMT", "true", "Mips MT ASE">;
 
@@ -231,6 +232,7 @@ def ImplP5600 : SubtargetFeature<"p5600", "ProcImpl",
 class Proc<string Name, list<SubtargetFeature> Features>
  : ProcessorModel<Name, MipsGenericModel, Features>;
 
+def : Proc<"generic", [FeatureMips32]>;
 def : Proc<"mips1", [FeatureMips1]>;
 def : Proc<"mips2", [FeatureMips2]>;
 def : Proc<"mips32", [FeatureMips32]>;

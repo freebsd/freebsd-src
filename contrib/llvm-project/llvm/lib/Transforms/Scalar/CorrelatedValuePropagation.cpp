@@ -37,6 +37,7 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -194,7 +195,14 @@ static bool simplifyCommonValuePhi(PHINode *P, LazyValueInfo *LVI,
   }
 
   // All constant incoming values map to the same variable along the incoming
-  // edges of the phi. The phi is unnecessary.
+  // edges of the phi. The phi is unnecessary. However, we must drop all
+  // poison-generating flags to ensure that no poison is propagated to the phi
+  // location by performing this substitution.
+  // Warning: If the underlying analysis changes, this may not be enough to
+  //          guarantee that poison is not propagated.
+  // TODO: We may be able to re-infer flags by re-analyzing the instruction.
+  if (auto *CommonInst = dyn_cast<Instruction>(CommonValue))
+    CommonInst->dropPoisonGeneratingFlags();
   P->replaceAllUsesWith(CommonValue);
   P->eraseFromParent();
   ++NumPhiCommon;

@@ -67,7 +67,7 @@ FileRange syntax::Token::range(const SourceManager &SM,
   auto F = First.range(SM);
   auto L = Last.range(SM);
   assert(F.file() == L.file() && "tokens from different files");
-  assert(F.endOffset() <= L.beginOffset() && "wrong order of tokens");
+  assert((F == L || F.endOffset() <= L.beginOffset()) && "wrong order of tokens");
   return FileRange(F.file(), F.beginOffset(), L.endOffset());
 }
 
@@ -117,6 +117,28 @@ llvm::StringRef FileRange::text(const SourceManager &SM) const {
   assert(Begin <= Text.size());
   assert(End <= Text.size());
   return Text.substr(Begin, length());
+}
+
+llvm::ArrayRef<syntax::Token> TokenBuffer::expandedTokens(SourceRange R) const {
+  if (R.isInvalid())
+    return {};
+  const Token *Begin =
+      llvm::partition_point(expandedTokens(), [&](const syntax::Token &T) {
+        return SourceMgr->isBeforeInTranslationUnit(T.location(), R.getBegin());
+      });
+  const Token *End =
+      llvm::partition_point(expandedTokens(), [&](const syntax::Token &T) {
+        return !SourceMgr->isBeforeInTranslationUnit(R.getEnd(), T.location());
+      });
+  if (Begin > End)
+    return {};
+  return {Begin, End};
+}
+
+CharSourceRange FileRange::toCharRange(const SourceManager &SM) const {
+  return CharSourceRange(
+      SourceRange(SM.getComposedLoc(File, Begin), SM.getComposedLoc(File, End)),
+      /*IsTokenRange=*/false);
 }
 
 std::pair<const syntax::Token *, const TokenBuffer::Mapping *>
@@ -230,6 +252,30 @@ TokenBuffer::expansionStartingAt(const syntax::Token *Spelled) const {
   E.Expanded = llvm::makeArrayRef(ExpandedTokens.data() + M->BeginExpanded,
                                   ExpandedTokens.data() + M->EndExpanded);
   return E;
+}
+
+llvm::ArrayRef<syntax::Token>
+syntax::spelledTokensTouching(SourceLocation Loc,
+                              const syntax::TokenBuffer &Tokens) {
+  assert(Loc.isFileID());
+  llvm::ArrayRef<syntax::Token> All =
+      Tokens.spelledTokens(Tokens.sourceManager().getFileID(Loc));
+  auto *Right = llvm::partition_point(
+      All, [&](const syntax::Token &Tok) { return Tok.location() < Loc; });
+  bool AcceptRight = Right != All.end() && Right->location() <= Loc;
+  bool AcceptLeft = Right != All.begin() && (Right - 1)->endLocation() >= Loc;
+  return llvm::makeArrayRef(Right - (AcceptLeft ? 1 : 0),
+                            Right + (AcceptRight ? 1 : 0));
+}
+
+const syntax::Token *
+syntax::spelledIdentifierTouching(SourceLocation Loc,
+                                  const syntax::TokenBuffer &Tokens) {
+  for (const syntax::Token &Tok : spelledTokensTouching(Loc, Tokens)) {
+    if (Tok.kind() == tok::identifier)
+      return &Tok;
+  }
+  return nullptr;
 }
 
 std::vector<const syntax::Token *>

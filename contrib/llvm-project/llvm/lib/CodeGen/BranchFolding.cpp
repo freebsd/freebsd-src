@@ -24,6 +24,7 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -38,6 +39,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/MachineSizeOpts.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
@@ -46,6 +48,7 @@
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/LaneBitmask.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
@@ -102,6 +105,7 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequired<MachineBlockFrequencyInfo>();
       AU.addRequired<MachineBranchProbabilityInfo>();
+      AU.addRequired<ProfileSummaryInfoWrapperPass>();
       AU.addRequired<TargetPassConfig>();
       MachineFunctionPass::getAnalysisUsage(AU);
     }
@@ -128,7 +132,8 @@ bool BranchFolderPass::runOnMachineFunction(MachineFunction &MF) {
   BranchFolder::MBFIWrapper MBBFreqInfo(
       getAnalysis<MachineBlockFrequencyInfo>());
   BranchFolder Folder(EnableTailMerge, /*CommonHoist=*/true, MBBFreqInfo,
-                      getAnalysis<MachineBranchProbabilityInfo>());
+                      getAnalysis<MachineBranchProbabilityInfo>(),
+                      &getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI());
   auto *MMIWP = getAnalysisIfAvailable<MachineModuleInfoWrapperPass>();
   return Folder.OptimizeFunction(
       MF, MF.getSubtarget().getInstrInfo(), MF.getSubtarget().getRegisterInfo(),
@@ -138,9 +143,10 @@ bool BranchFolderPass::runOnMachineFunction(MachineFunction &MF) {
 BranchFolder::BranchFolder(bool defaultEnableTailMerge, bool CommonHoist,
                            MBFIWrapper &FreqInfo,
                            const MachineBranchProbabilityInfo &ProbInfo,
+                           ProfileSummaryInfo *PSI,
                            unsigned MinTailLength)
     : EnableHoistCommonCode(CommonHoist), MinCommonTailLength(MinTailLength),
-      MBBFreqInfo(FreqInfo), MBPI(ProbInfo) {
+      MBBFreqInfo(FreqInfo), MBPI(ProbInfo), PSI(PSI) {
   if (MinCommonTailLength == 0)
     MinCommonTailLength = TailMergeSize;
   switch (FlagEnableTailMerge) {
@@ -301,113 +307,56 @@ static unsigned HashEndOfMBB(const MachineBasicBlock &MBB) {
   return HashMachineInstr(*I);
 }
 
-///  Whether MI should be counted as an instruction when calculating common tail.
+/// Whether MI should be counted as an instruction when calculating common tail.
 static bool countsAsInstruction(const MachineInstr &MI) {
   return !(MI.isDebugInstr() || MI.isCFIInstruction());
 }
 
-/// ComputeCommonTailLength - Given two machine basic blocks, compute the number
-/// of instructions they actually have in common together at their end.  Return
-/// iterators for the first shared instruction in each block.
+/// Iterate backwards from the given iterator \p I, towards the beginning of the
+/// block. If a MI satisfying 'countsAsInstruction' is found, return an iterator
+/// pointing to that MI. If no such MI is found, return the end iterator.
+static MachineBasicBlock::iterator
+skipBackwardPastNonInstructions(MachineBasicBlock::iterator I,
+                                MachineBasicBlock *MBB) {
+  while (I != MBB->begin()) {
+    --I;
+    if (countsAsInstruction(*I))
+      return I;
+  }
+  return MBB->end();
+}
+
+/// Given two machine basic blocks, return the number of instructions they
+/// actually have in common together at their end. If a common tail is found (at
+/// least by one instruction), then iterators for the first shared instruction
+/// in each block are returned as well.
+///
+/// Non-instructions according to countsAsInstruction are ignored.
 static unsigned ComputeCommonTailLength(MachineBasicBlock *MBB1,
                                         MachineBasicBlock *MBB2,
                                         MachineBasicBlock::iterator &I1,
                                         MachineBasicBlock::iterator &I2) {
-  I1 = MBB1->end();
-  I2 = MBB2->end();
+  MachineBasicBlock::iterator MBBI1 = MBB1->end();
+  MachineBasicBlock::iterator MBBI2 = MBB2->end();
 
   unsigned TailLen = 0;
-  while (I1 != MBB1->begin() && I2 != MBB2->begin()) {
-    --I1; --I2;
-    // Skip debugging pseudos; necessary to avoid changing the code.
-    while (!countsAsInstruction(*I1)) {
-      if (I1==MBB1->begin()) {
-        while (!countsAsInstruction(*I2)) {
-          if (I2==MBB2->begin()) {
-            // I1==DBG at begin; I2==DBG at begin
-            goto SkipTopCFIAndReturn;
-          }
-          --I2;
-        }
-        ++I2;
-        // I1==DBG at begin; I2==non-DBG, or first of DBGs not at begin
-        goto SkipTopCFIAndReturn;
-      }
-      --I1;
-    }
-    // I1==first (untested) non-DBG preceding known match
-    while (!countsAsInstruction(*I2)) {
-      if (I2==MBB2->begin()) {
-        ++I1;
-        // I1==non-DBG, or first of DBGs not at begin; I2==DBG at begin
-        goto SkipTopCFIAndReturn;
-      }
-      --I2;
-    }
-    // I1, I2==first (untested) non-DBGs preceding known match
-    if (!I1->isIdenticalTo(*I2) ||
+  while (true) {
+    MBBI1 = skipBackwardPastNonInstructions(MBBI1, MBB1);
+    MBBI2 = skipBackwardPastNonInstructions(MBBI2, MBB2);
+    if (MBBI1 == MBB1->end() || MBBI2 == MBB2->end())
+      break;
+    if (!MBBI1->isIdenticalTo(*MBBI2) ||
         // FIXME: This check is dubious. It's used to get around a problem where
         // people incorrectly expect inline asm directives to remain in the same
         // relative order. This is untenable because normal compiler
         // optimizations (like this one) may reorder and/or merge these
         // directives.
-        I1->isInlineAsm()) {
-      ++I1; ++I2;
+        MBBI1->isInlineAsm()) {
       break;
     }
     ++TailLen;
-  }
-  // Back past possible debugging pseudos at beginning of block.  This matters
-  // when one block differs from the other only by whether debugging pseudos
-  // are present at the beginning. (This way, the various checks later for
-  // I1==MBB1->begin() work as expected.)
-  if (I1 == MBB1->begin() && I2 != MBB2->begin()) {
-    --I2;
-    while (I2->isDebugInstr()) {
-      if (I2 == MBB2->begin())
-        return TailLen;
-      --I2;
-    }
-    ++I2;
-  }
-  if (I2 == MBB2->begin() && I1 != MBB1->begin()) {
-    --I1;
-    while (I1->isDebugInstr()) {
-      if (I1 == MBB1->begin())
-        return TailLen;
-      --I1;
-    }
-    ++I1;
-  }
-
-SkipTopCFIAndReturn:
-  // Ensure that I1 and I2 do not point to a CFI_INSTRUCTION. This can happen if
-  // I1 and I2 are non-identical when compared and then one or both of them ends
-  // up pointing to a CFI instruction after being incremented. For example:
-  /*
-    BB1:
-    ...
-    INSTRUCTION_A
-    ADD32ri8  <- last common instruction
-    ...
-    BB2:
-    ...
-    INSTRUCTION_B
-    CFI_INSTRUCTION
-    ADD32ri8  <- last common instruction
-    ...
-  */
-  // When INSTRUCTION_A and INSTRUCTION_B are compared as not equal, after
-  // incrementing the iterators, I1 will point to ADD, however I2 will point to
-  // the CFI instruction. Later on, this leads to BB2 being 'hacked off' at the
-  // wrong place (in ReplaceTailWithBranchTo()) which results in losing this CFI
-  // instruction.
-  while (I1 != MBB1->end() && I1->isCFIInstruction()) {
-    ++I1;
-  }
-
-  while (I2 != MBB2->end() && I2->isCFIInstruction()) {
-    ++I2;
+    I1 = MBBI1;
+    I2 = MBBI2;
   }
 
   return TailLen;
@@ -500,7 +449,7 @@ static unsigned EstimateRuntime(MachineBasicBlock::iterator I,
       continue;
     if (I->isCall())
       Time += 10;
-    else if (I->mayLoad() || I->mayStore())
+    else if (I->mayLoadOrStore())
       Time += 2;
     else
       ++Time;
@@ -641,7 +590,9 @@ ProfitableToMerge(MachineBasicBlock *MBB1, MachineBasicBlock *MBB2,
                   MachineBasicBlock::iterator &I2, MachineBasicBlock *SuccBB,
                   MachineBasicBlock *PredBB,
                   DenseMap<const MachineBasicBlock *, int> &EHScopeMembership,
-                  bool AfterPlacement) {
+                  bool AfterPlacement,
+                  BranchFolder::MBFIWrapper &MBBFreqInfo,
+                  ProfileSummaryInfo *PSI) {
   // It is never profitable to tail-merge blocks from two different EH scopes.
   if (!EHScopeMembership.empty()) {
     auto EHScope1 = EHScopeMembership.find(MBB1);
@@ -658,6 +609,17 @@ ProfitableToMerge(MachineBasicBlock *MBB1, MachineBasicBlock *MBB2,
   LLVM_DEBUG(dbgs() << "Common tail length of " << printMBBReference(*MBB1)
                     << " and " << printMBBReference(*MBB2) << " is "
                     << CommonTailLen << '\n');
+
+  // Move the iterators to the beginning of the MBB if we only got debug
+  // instructions before the tail. This is to avoid splitting a block when we
+  // only got debug instructions before the tail (to be invariant on -g).
+  if (skipDebugInstructionsForward(MBB1->begin(), MBB1->end()) == I1)
+    I1 = MBB1->begin();
+  if (skipDebugInstructionsForward(MBB2->begin(), MBB2->end()) == I2)
+    I2 = MBB2->begin();
+
+  bool FullBlockTail1 = I1 == MBB1->begin();
+  bool FullBlockTail2 = I2 == MBB2->begin();
 
   // It's almost always profitable to merge any number of non-terminator
   // instructions with the block that falls through into the common successor.
@@ -677,7 +639,7 @@ ProfitableToMerge(MachineBasicBlock *MBB1, MachineBasicBlock *MBB2,
   // are unlikely to become a fallthrough target after machine block placement.
   // Tail merging these blocks is unlikely to create additional unconditional
   // branches, and will reduce the size of this cold code.
-  if (I1 == MBB1->begin() && I2 == MBB2->begin() &&
+  if (FullBlockTail1 && FullBlockTail2 &&
       blockEndsInUnreachable(MBB1) && blockEndsInUnreachable(MBB2))
     return true;
 
@@ -685,16 +647,16 @@ ProfitableToMerge(MachineBasicBlock *MBB1, MachineBasicBlock *MBB2,
   // a position where the other could fall through into it, merge any number
   // of instructions, because it can be done without a branch.
   // TODO: If the blocks are not adjacent, move one of them so that they are?
-  if (MBB1->isLayoutSuccessor(MBB2) && I2 == MBB2->begin())
+  if (MBB1->isLayoutSuccessor(MBB2) && FullBlockTail2)
     return true;
-  if (MBB2->isLayoutSuccessor(MBB1) && I1 == MBB1->begin())
+  if (MBB2->isLayoutSuccessor(MBB1) && FullBlockTail1)
     return true;
 
   // If both blocks are identical and end in a branch, merge them unless they
   // both have a fallthrough predecessor and successor.
   // We can only do this after block placement because it depends on whether
   // there are fallthroughs, and we don't know until after layout.
-  if (AfterPlacement && I1 == MBB1->begin() && I2 == MBB2->begin()) {
+  if (AfterPlacement && FullBlockTail1 && FullBlockTail2) {
     auto BothFallThrough = [](MachineBasicBlock *MBB) {
       if (MBB->succ_size() != 0 && !MBB->canFallThrough())
         return false;
@@ -727,8 +689,12 @@ ProfitableToMerge(MachineBasicBlock *MBB1, MachineBasicBlock *MBB2,
   // branch instruction, which is likely to be smaller than the 2
   // instructions that would be deleted in the merge.
   MachineFunction *MF = MBB1->getParent();
-  return EffectiveTailLen >= 2 && MF->getFunction().hasOptSize() &&
-         (I1 == MBB1->begin() || I2 == MBB2->begin());
+  bool OptForSize =
+      MF->getFunction().hasOptSize() ||
+      (llvm::shouldOptimizeForSize(MBB1, PSI, &MBBFreqInfo.getMBFI()) &&
+       llvm::shouldOptimizeForSize(MBB2, PSI, &MBBFreqInfo.getMBFI()));
+  return EffectiveTailLen >= 2 && OptForSize &&
+         (FullBlockTail1 || FullBlockTail2);
 }
 
 unsigned BranchFolder::ComputeSameTails(unsigned CurHash,
@@ -749,7 +715,7 @@ unsigned BranchFolder::ComputeSameTails(unsigned CurHash,
                             CommonTailLen, TrialBBI1, TrialBBI2,
                             SuccBB, PredBB,
                             EHScopeMembership,
-                            AfterBlockPlacement)) {
+                            AfterBlockPlacement, MBBFreqInfo, PSI)) {
         if (CommonTailLen > maxCommonTailLength) {
           SameTails.clear();
           maxCommonTailLength = CommonTailLen;
@@ -869,7 +835,7 @@ mergeOperations(MachineBasicBlock::iterator MBBIStartPos,
     assert(MBBICommon->isIdenticalTo(*MBBI) && "Expected matching MIIs!");
 
     // Merge MMOs from memory operations in the common block.
-    if (MBBICommon->mayLoad() || MBBICommon->mayStore())
+    if (MBBICommon->mayLoadOrStore())
       MBBICommon->cloneMergedMemRefs(*MBB->getParent(), {&*MBBICommon, &*MBBI});
     // Drop undef flags if they aren't present in all merged instructions.
     for (unsigned I = 0, E = MBBICommon->getNumOperands(); I != E; ++I) {
@@ -1579,8 +1545,10 @@ ReoptimizeBlock:
     }
   }
 
-  if (!IsEmptyBlock(MBB) && MBB->pred_size() == 1 &&
-      MF.getFunction().hasOptSize()) {
+  bool OptForSize =
+      MF.getFunction().hasOptSize() ||
+      llvm::shouldOptimizeForSize(MBB, PSI, &MBBFreqInfo.getMBFI());
+  if (!IsEmptyBlock(MBB) && MBB->pred_size() == 1 && OptForSize) {
     // Changing "Jcc foo; foo: jmp bar;" into "Jcc bar;" might change the branch
     // direction, thereby defeating careful block placement and regressing
     // performance. Therefore, only consider this for optsize functions.

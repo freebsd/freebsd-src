@@ -37,6 +37,7 @@
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
@@ -182,7 +183,7 @@ static cl::opt<bool> EnableScalarIRPasses(
   cl::init(true),
   cl::Hidden);
 
-extern "C" void LLVMInitializeAMDGPUTarget() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeAMDGPUTarget() {
   // Register the target
   RegisterTargetMachine<R600TargetMachine> X(getTheAMDGPUTarget());
   RegisterTargetMachine<GCNTargetMachine> Y(getTheGCNTarget());
@@ -227,6 +228,7 @@ extern "C" void LLVMInitializeAMDGPUTarget() {
   initializeSIModeRegisterPass(*PR);
   initializeSIWholeQuadModePass(*PR);
   initializeSILowerControlFlowPass(*PR);
+  initializeSIRemoveShortExecBranchesPass(*PR);
   initializeSIInsertSkipsPass(*PR);
   initializeSIMemoryLegalizerPass(*PR);
   initializeSIOptimizeExecMaskingPass(*PR);
@@ -947,7 +949,7 @@ void GCNPassConfig::addOptimizedRegAlloc() {
   insertPass(&RegisterCoalescerID, &SIPreAllocateWWMRegsID, false);
 
   if (EnableDCEInRA)
-    insertPass(&RenameIndependentSubregsID, &DeadMachineInstructionElimID);
+    insertPass(&DetectDeadLanesID, &DeadMachineInstructionElimID);
 
   TargetPassConfig::addOptimizedRegAlloc();
 }
@@ -992,6 +994,7 @@ void GCNPassConfig::addPreEmitPass() {
   // be better for it to emit S_NOP <N> when possible.
   addPass(&PostRAHazardRecognizerID);
 
+  addPass(&SIRemoveShortExecBranchesID);
   addPass(&SIInsertSkipsPassID);
   addPass(&BranchRelaxationPassID);
 }
@@ -1151,6 +1154,8 @@ bool GCNTargetMachine::parseMachineFunctionInfo(
 
   MFI->Mode.IEEE = YamlMFI.Mode.IEEE;
   MFI->Mode.DX10Clamp = YamlMFI.Mode.DX10Clamp;
+  MFI->Mode.FP32Denormals = YamlMFI.Mode.FP32Denormals;
+  MFI->Mode.FP64FP16Denormals = YamlMFI.Mode.FP64FP16Denormals;
 
   return false;
 }

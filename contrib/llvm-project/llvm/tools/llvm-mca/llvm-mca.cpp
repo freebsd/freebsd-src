@@ -353,7 +353,9 @@ int main(int argc, char **argv) {
   std::unique_ptr<MCRegisterInfo> MRI(TheTarget->createMCRegInfo(TripleName));
   assert(MRI && "Unable to create target register info!");
 
-  std::unique_ptr<MCAsmInfo> MAI(TheTarget->createMCAsmInfo(*MRI, TripleName));
+  MCTargetOptions MCOptions = InitMCTargetOptionsFromFlags();
+  std::unique_ptr<MCAsmInfo> MAI(
+      TheTarget->createMCAsmInfo(*MRI, TripleName, MCOptions));
   assert(MAI && "Unable to create target asm info!");
 
   MCObjectFileInfo MOFI;
@@ -472,7 +474,7 @@ int main(int argc, char **argv) {
                   std::string InstructionStr;
                   raw_string_ostream SS(InstructionStr);
                   WithColor::error() << IE.Message << '\n';
-                  IP->printInst(&IE.Inst, SS, "", *STI);
+                  IP->printInst(&IE.Inst, 0, "", *STI, SS);
                   SS.flush();
                   WithColor::note()
                       << "instruction: " << InstructionStr << '\n';

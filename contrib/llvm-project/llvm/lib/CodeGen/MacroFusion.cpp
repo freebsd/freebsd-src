@@ -36,6 +36,21 @@ static bool isHazard(const SDep &Dep) {
   return Dep.getKind() == SDep::Anti || Dep.getKind() == SDep::Output;
 }
 
+static SUnit *getPredClusterSU(const SUnit &SU) {
+  for (const SDep &SI : SU.Preds)
+    if (SI.isCluster())
+      return SI.getSUnit();
+
+  return nullptr;
+}
+
+static bool hasLessThanNumFused(const SUnit &SU, unsigned FuseLimit) {
+  unsigned Num = 1;
+  const SUnit *CurrentSU = &SU;
+  while ((CurrentSU = getPredClusterSU(*CurrentSU)) && Num < FuseLimit) Num ++;
+  return Num < FuseLimit;
+}
+
 static bool fuseInstructionPair(ScheduleDAGInstrs &DAG, SUnit &FirstSU,
                                 SUnit &SecondSU) {
   // Check that neither instr is already paired with another along the edge
@@ -55,6 +70,14 @@ static bool fuseInstructionPair(ScheduleDAGInstrs &DAG, SUnit &FirstSU,
   // to cause bottom-up scheduling to heavily prioritize the clustered instrs.
   if (!DAG.addEdge(&SecondSU, SDep(&FirstSU, SDep::Cluster)))
     return false;
+
+  // TODO - If we want to chain more than two instructions, we need to create
+  // artifical edges to make dependencies from the FirstSU also dependent
+  // on other chained instructions, and other chained instructions also
+  // dependent on the dependencies of the SecondSU, to prevent them from being
+  // scheduled into these chained instructions.
+  assert(hasLessThanNumFused(FirstSU, 2) &&
+         "Currently we only support chaining together two instructions");
 
   // Adjust the latency between both instrs.
   for (SDep &SI : FirstSU.Succs)
@@ -161,8 +184,10 @@ bool MacroFusion::scheduleAdjacentImpl(ScheduleDAGInstrs &DAG, SUnit &AnchorSU) 
     if (DepSU.isBoundaryNode())
       continue;
 
+    // Only chain two instructions together at most.
     const MachineInstr *DepMI = DepSU.getInstr();
-    if (!shouldScheduleAdjacent(TII, ST, DepMI, AnchorMI))
+    if (!hasLessThanNumFused(DepSU, 2) ||
+        !shouldScheduleAdjacent(TII, ST, DepMI, AnchorMI))
       continue;
 
     if (fuseInstructionPair(DAG, DepSU, AnchorSU))

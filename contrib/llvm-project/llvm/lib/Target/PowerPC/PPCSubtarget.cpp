@@ -61,7 +61,7 @@ PPCSubtarget::PPCSubtarget(const Triple &TT, const std::string &CPU,
 
 void PPCSubtarget::initializeEnvironment() {
   StackAlignment = Align(16);
-  DarwinDirective = PPC::DIR_NONE;
+  CPUDirective = PPC::DIR_NONE;
   HasMFOCRF = false;
   Has64BitSupport = false;
   Use64BitRegs = false;
@@ -100,6 +100,7 @@ void PPCSubtarget::initializeEnvironment() {
   IsPPC6xx = false;
   IsE500 = false;
   FeatureMFTB = false;
+  AllowsUnalignedFPAccess = false;
   DeprecatedDST = false;
   HasLazyResolverStubs = false;
   HasICBT = false;
@@ -192,7 +193,7 @@ bool PPCSubtarget::hasLazyResolverStub(const GlobalValue *GV) const {
 bool PPCSubtarget::enableMachineScheduler() const { return true; }
 
 bool PPCSubtarget::enableMachinePipeliner() const {
-  return (DarwinDirective == PPC::DIR_PWR9) && EnableMachinePipeliner;
+  return (CPUDirective == PPC::DIR_PWR9) && EnableMachinePipeliner;
 }
 
 bool PPCSubtarget::useDFAforSMS() const { return false; }

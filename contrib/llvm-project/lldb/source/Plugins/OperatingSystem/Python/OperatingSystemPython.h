@@ -9,7 +9,9 @@
 #ifndef liblldb_OperatingSystemPython_h_
 #define liblldb_OperatingSystemPython_h_
 
-#ifndef LLDB_DISABLE_PYTHON
+#include "lldb/Host/Config.h"
+
+#if LLDB_ENABLE_PYTHON
 
 #include "lldb/Target/OperatingSystem.h"
 #include "lldb/Utility/StructuredData.h"
@@ -80,6 +82,6 @@ protected:
   lldb_private::StructuredData::ObjectSP m_python_object_sp;
 };
 
-#endif // LLDB_DISABLE_PYTHON
+#endif
 
 #endif // liblldb_OperatingSystemPython_h_

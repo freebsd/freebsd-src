@@ -12,6 +12,7 @@
 
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/TemplateBase.h"
@@ -293,6 +294,12 @@ bool TypeSpecTypeLoc::isKind(const TypeLoc &TL) {
   return TSTChecker().Visit(TL);
 }
 
+bool TagTypeLoc::isDefinition() const {
+  TagDecl *D = getDecl();
+  return D->isCompleteDefinition() &&
+         (D->getIdentifier() == nullptr || D->getLocation() == getNameLoc());
+}
+
 // Reimplemented to account for GNU/C++ extension
 //     typeof unary-expression
 // where there are no parentheses.
@@ -465,6 +472,19 @@ void ObjCObjectTypeLoc::initializeLocal(ASTContext &Context,
   setProtocolRAngleLoc(Loc);
   for (unsigned i = 0, e = getNumProtocols(); i != e; ++i)
     setProtocolLoc(i, Loc);
+}
+
+SourceRange AttributedTypeLoc::getLocalSourceRange() const {
+  // Note that this does *not* include the range of the attribute
+  // enclosure, e.g.:
+  //    __attribute__((foo(bar)))
+  //    ^~~~~~~~~~~~~~~        ~~
+  // or
+  //    [[foo(bar)]]
+  //    ^~        ~~
+  // That enclosure doesn't necessarily belong to a single attribute
+  // anyway.
+  return getAttr() ? getAttr()->getRange() : SourceRange();
 }
 
 void TypeOfTypeLoc::initializeLocal(ASTContext &Context,

@@ -543,19 +543,22 @@ GDBRemoteCommunicationClient::SendThreadSpecificPacketAndWaitForResponse(
 //
 // Takes a valid thread ID because p needs to apply to a thread.
 bool GDBRemoteCommunicationClient::GetpPacketSupported(lldb::tid_t tid) {
-  if (m_supports_p == eLazyBoolCalculate) {
-    m_supports_p = eLazyBoolNo;
-    StreamString payload;
-    payload.PutCString("p0");
-    StringExtractorGDBRemote response;
-    if (SendThreadSpecificPacketAndWaitForResponse(tid, std::move(payload),
-                                                   response, false) ==
-            PacketResult::Success &&
-        response.IsNormalResponse()) {
-      m_supports_p = eLazyBoolYes;
-    }
-  }
+  if (m_supports_p == eLazyBoolCalculate)
+    m_supports_p = GetThreadPacketSupported(tid, "p0");
   return m_supports_p;
+}
+
+LazyBool GDBRemoteCommunicationClient::GetThreadPacketSupported(
+    lldb::tid_t tid, llvm::StringRef packetStr) {
+  StreamString payload;
+  payload.PutCString(packetStr);
+  StringExtractorGDBRemote response;
+  if (SendThreadSpecificPacketAndWaitForResponse(
+          tid, std::move(payload), response, false) == PacketResult::Success &&
+      response.IsNormalResponse()) {
+    return eLazyBoolYes;
+  }
+  return eLazyBoolNo;
 }
 
 StructuredData::ObjectSP GDBRemoteCommunicationClient::GetThreadsInfo() {
@@ -1042,7 +1045,7 @@ void GDBRemoteCommunicationClient::MaybeEnableCompression(
   }
 #endif
 
-#if defined(HAVE_LIBZ)
+#if LLVM_ENABLE_ZLIB
   if (avail_type == CompressionType::None) {
     for (auto compression : supported_compressions) {
       if (compression == "zlib-deflate") {
@@ -3737,7 +3740,7 @@ bool GDBRemoteCommunicationClient::ReadExtFeature(
     case ('m'):
       if (str.length() > 1)
         output << &str[1];
-      offset += size;
+      offset += str.length() - 1;
       break;
 
     // unknown chunk

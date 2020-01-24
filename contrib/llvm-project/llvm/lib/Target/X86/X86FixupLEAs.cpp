@@ -113,8 +113,8 @@ public:
 
 private:
   TargetSchedModel TSM;
-  const X86InstrInfo *TII;
-  const X86RegisterInfo *TRI;
+  const X86InstrInfo *TII = nullptr;
+  const X86RegisterInfo *TRI = nullptr;
 };
 }
 
@@ -650,6 +650,9 @@ void FixupLEAPass::processInstrForSlow3OpLEA(MachineBasicBlock::iterator &I,
                 .addReg(DestReg)
                 .add(Index);
     LLVM_DEBUG(NewMI->dump(););
+
+    MBB.erase(I);
+    I = NewMI;
     return;
   }
 

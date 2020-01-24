@@ -201,8 +201,8 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
   if (elf_aux_info(AT_EXECPATH, exe_path, sizeof(exe_path)) == 0)
     return exe_path;
 #else
-  // elf_aux_info(AT_EXECPATH, ... is not available on older FreeBSD.  Fall
-  // back to finding the ELF auxiliary vectors after the processes's
+  // elf_aux_info(AT_EXECPATH, ... is not available in all supported versions,
+  // fall back to finding the ELF auxiliary vectors after the process's
   // environment.
   char **p = ::environ;
   while (*p++ != 0)
@@ -221,7 +221,7 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
   // Fall back to argv[0] if auxiliary vectors are not available.
   if (getprogpath(exe_path, argv0) != NULL)
     return exe_path;
-#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__minix) || \
+#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__minix) ||       \
     defined(__DragonFly__) || defined(__FreeBSD_kernel__) || defined(_AIX)
   const char *curproc = "/proc/curproc/file";
   char exe_path[PATH_MAX];
@@ -238,7 +238,7 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
   // If we don't have procfs mounted, fall back to argv[0]
   if (getprogpath(exe_path, argv0) != NULL)
     return exe_path;
-#elif defined(__linux__) || defined(__CYGWIN__)
+#elif defined(__linux__) || defined(__CYGWIN__) || defined(__gnu_hurd__)
   char exe_path[MAXPATHLEN];
   const char *aPath = "/proc/self/exe";
   if (sys::fs::exists(aPath)) {

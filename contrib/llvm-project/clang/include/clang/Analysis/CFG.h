@@ -1248,9 +1248,11 @@ public:
     bool AddStaticInitBranches = false;
     bool AddCXXNewAllocator = false;
     bool AddCXXDefaultInitExprInCtors = false;
+    bool AddCXXDefaultInitExprInAggregates = false;
     bool AddRichCXXConstructors = false;
     bool MarkElidedCXXConstructors = false;
     bool AddVirtualBaseBranches = false;
+    bool OmitImplicitValueInitializers = false;
 
     BuildOptions() = default;
 

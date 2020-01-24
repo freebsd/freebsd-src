@@ -350,6 +350,10 @@ tgtok::TokKind TGLexer::LexIdentifier() {
     .Case("field", tgtok::Field)
     .Case("let", tgtok::Let)
     .Case("in", tgtok::In)
+    .Case("defvar", tgtok::Defvar)
+    .Case("if", tgtok::If)
+    .Case("then", tgtok::Then)
+    .Case("else", tgtok::ElseKW)
     .Default(tgtok::Id);
 
   if (Kind == tgtok::Id)
@@ -379,15 +383,7 @@ bool TGLexer::LexInclude() {
     return true;
   }
 
-  DependenciesMapTy::const_iterator Found = Dependencies.find(IncludedFile);
-  if (Found != Dependencies.end()) {
-    PrintError(getLoc(),
-               "File '" + IncludedFile + "' has already been included.");
-    SrcMgr.PrintMessage(Found->second, SourceMgr::DK_Note,
-                        "previously included here");
-    return true;
-  }
-  Dependencies.insert(std::make_pair(IncludedFile, getLoc()));
+  Dependencies.insert(IncludedFile);
   // Save the line number and lex buffer of the includer.
   CurBuf = SrcMgr.getMemoryBuffer(CurBuffer)->getBuffer();
   CurPtr = CurBuf.begin();
@@ -567,6 +563,8 @@ tgtok::TokKind TGLexer::LexExclaim() {
     .Case("listconcat", tgtok::XListConcat)
     .Case("listsplat", tgtok::XListSplat)
     .Case("strconcat", tgtok::XStrConcat)
+    .Case("setop", tgtok::XSetOp)
+    .Case("getop", tgtok::XGetOp)
     .Default(tgtok::Error);
 
   return Kind != tgtok::Error ? Kind : ReturnError(Start-1, "Unknown operator");

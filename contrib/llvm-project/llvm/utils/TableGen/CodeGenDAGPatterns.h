@@ -194,6 +194,7 @@ struct TypeSetByHwMode : public InfoByHwMode<MachineValueTypeSet> {
 
   TypeSetByHwMode() = default;
   TypeSetByHwMode(const TypeSetByHwMode &VTS) = default;
+  TypeSetByHwMode &operator=(const TypeSetByHwMode &) = default;
   TypeSetByHwMode(MVT::SimpleValueType VT)
     : TypeSetByHwMode(ValueTypeByHwMode(VT)) {}
   TypeSetByHwMode(ValueTypeByHwMode VT)
@@ -1144,7 +1145,6 @@ class CodeGenDAGPatterns {
   RecordKeeper &Records;
   CodeGenTarget Target;
   CodeGenIntrinsicTable Intrinsics;
-  CodeGenIntrinsicTable TgtIntrinsics;
 
   std::map<Record*, SDNodeInfo, LessRecordByID> SDNodes;
   std::map<Record*, std::pair<Record*, std::string>, LessRecordByID>
@@ -1195,12 +1195,6 @@ public:
     return F->second;
   }
 
-  typedef std::map<Record*, NodeXForm, LessRecordByID>::const_iterator
-          nx_iterator;
-  nx_iterator nx_begin() const { return SDNodeXForms.begin(); }
-  nx_iterator nx_end() const { return SDNodeXForms.end(); }
-
-
   const ComplexPattern &getComplexPattern(Record *R) const {
     auto F = ComplexPatterns.find(R);
     assert(F != ComplexPatterns.end() && "Unknown addressing mode!");
@@ -1210,24 +1204,18 @@ public:
   const CodeGenIntrinsic &getIntrinsic(Record *R) const {
     for (unsigned i = 0, e = Intrinsics.size(); i != e; ++i)
       if (Intrinsics[i].TheDef == R) return Intrinsics[i];
-    for (unsigned i = 0, e = TgtIntrinsics.size(); i != e; ++i)
-      if (TgtIntrinsics[i].TheDef == R) return TgtIntrinsics[i];
     llvm_unreachable("Unknown intrinsic!");
   }
 
   const CodeGenIntrinsic &getIntrinsicInfo(unsigned IID) const {
     if (IID-1 < Intrinsics.size())
       return Intrinsics[IID-1];
-    if (IID-Intrinsics.size()-1 < TgtIntrinsics.size())
-      return TgtIntrinsics[IID-Intrinsics.size()-1];
     llvm_unreachable("Bad intrinsic ID!");
   }
 
   unsigned getIntrinsicID(Record *R) const {
     for (unsigned i = 0, e = Intrinsics.size(); i != e; ++i)
       if (Intrinsics[i].TheDef == R) return i;
-    for (unsigned i = 0, e = TgtIntrinsics.size(); i != e; ++i)
-      if (TgtIntrinsics[i].TheDef == R) return i + Intrinsics.size();
     llvm_unreachable("Unknown intrinsic!");
   }
 
@@ -1283,8 +1271,6 @@ public:
   Record *get_intrinsic_wo_chain_sdnode() const {
     return intrinsic_wo_chain_sdnode;
   }
-
-  bool hasTargetIntrinsics() { return !TgtIntrinsics.empty(); }
 
   unsigned allocateScope() { return ++NumScopes; }
 

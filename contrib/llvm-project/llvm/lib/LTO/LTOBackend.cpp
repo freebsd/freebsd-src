@@ -34,6 +34,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
+#include "llvm/Support/SmallVectorMemoryBuffer.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/ThreadPool.h"
 #include "llvm/Support/raw_ostream.h"
@@ -101,23 +102,25 @@ Error Config::addSaveTemps(std::string OutputFileName,
   setHook("4.opt", PostOptModuleHook);
   setHook("5.precodegen", PreCodeGenModuleHook);
 
-  CombinedIndexHook = [=](const ModuleSummaryIndex &Index) {
-    std::string Path = OutputFileName + "index.bc";
-    std::error_code EC;
-    raw_fd_ostream OS(Path, EC, sys::fs::OpenFlags::OF_None);
-    // Because -save-temps is a debugging feature, we report the error
-    // directly and exit.
-    if (EC)
-      reportOpenError(Path, EC.message());
-    WriteIndexToFile(Index, OS);
+  CombinedIndexHook =
+      [=](const ModuleSummaryIndex &Index,
+          const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols) {
+        std::string Path = OutputFileName + "index.bc";
+        std::error_code EC;
+        raw_fd_ostream OS(Path, EC, sys::fs::OpenFlags::OF_None);
+        // Because -save-temps is a debugging feature, we report the error
+        // directly and exit.
+        if (EC)
+          reportOpenError(Path, EC.message());
+        WriteIndexToFile(Index, OS);
 
-    Path = OutputFileName + "index.dot";
-    raw_fd_ostream OSDot(Path, EC, sys::fs::OpenFlags::OF_None);
-    if (EC)
-      reportOpenError(Path, EC.message());
-    Index.exportToDot(OSDot);
-    return true;
-  };
+        Path = OutputFileName + "index.dot";
+        raw_fd_ostream OSDot(Path, EC, sys::fs::OpenFlags::OF_None);
+        if (EC)
+          reportOpenError(Path, EC.message());
+        Index.exportToDot(OSDot, GUIDPreservedSymbols);
+        return true;
+      };
 
   return Error::success();
 }
@@ -125,7 +128,7 @@ Error Config::addSaveTemps(std::string OutputFileName,
 namespace {
 
 std::unique_ptr<TargetMachine>
-createTargetMachine(Config &Conf, const Target *TheTarget, Module &M) {
+createTargetMachine(const Config &Conf, const Target *TheTarget, Module &M) {
   StringRef TheTriple = M.getTargetTriple();
   SubtargetFeatures Features;
   Features.getDefaultSubtargetFeatures(Triple(TheTriple));
@@ -150,7 +153,7 @@ createTargetMachine(Config &Conf, const Target *TheTarget, Module &M) {
       CodeModel, Conf.CGOptLevel));
 }
 
-static void runNewPMPasses(Config &Conf, Module &Mod, TargetMachine *TM,
+static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
                            unsigned OptLevel, bool IsThinLTO,
                            ModuleSummaryIndex *ExportSummary,
                            const ModuleSummaryIndex *ImportSummary) {
@@ -169,7 +172,7 @@ static void runNewPMPasses(Config &Conf, Module &Mod, TargetMachine *TM,
   PassInstrumentationCallbacks PIC;
   StandardInstrumentations SI;
   SI.registerCallbacks(PIC);
-  PassBuilder PB(TM, PipelineTuningOptions(),PGOOpt, &PIC);
+  PassBuilder PB(TM, Conf.PTO, PGOOpt, &PIC);
   AAManager AA;
 
   // Parse a custom AA pipeline if asked to.
@@ -266,7 +269,7 @@ static void runNewPMCustomPasses(Module &Mod, TargetMachine *TM,
   MPM.run(Mod, MAM);
 }
 
-static void runOldPMPasses(Config &Conf, Module &Mod, TargetMachine *TM,
+static void runOldPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
                            bool IsThinLTO, ModuleSummaryIndex *ExportSummary,
                            const ModuleSummaryIndex *ImportSummary) {
   legacy::PassManager passes;
@@ -297,7 +300,7 @@ static void runOldPMPasses(Config &Conf, Module &Mod, TargetMachine *TM,
   passes.run(Mod);
 }
 
-bool opt(Config &Conf, TargetMachine *TM, unsigned Task, Module &Mod,
+bool opt(const Config &Conf, TargetMachine *TM, unsigned Task, Module &Mod,
          bool IsThinLTO, ModuleSummaryIndex *ExportSummary,
          const ModuleSummaryIndex *ImportSummary) {
   // FIXME: Plumb the combined index into the new pass manager.
@@ -312,10 +315,29 @@ bool opt(Config &Conf, TargetMachine *TM, unsigned Task, Module &Mod,
   return !Conf.PostOptModuleHook || Conf.PostOptModuleHook(Task, Mod);
 }
 
-void codegen(Config &Conf, TargetMachine *TM, AddStreamFn AddStream,
+static cl::opt<bool> EmbedBitcode(
+    "lto-embed-bitcode", cl::init(false),
+    cl::desc("Embed LLVM bitcode in object files produced by LTO"));
+
+static void EmitBitcodeSection(Module &M, const Config &Conf) {
+  if (!EmbedBitcode)
+    return;
+  SmallVector<char, 0> Buffer;
+  raw_svector_ostream OS(Buffer);
+  WriteBitcodeToFile(M, OS);
+
+  std::unique_ptr<MemoryBuffer> Buf(
+      new SmallVectorMemoryBuffer(std::move(Buffer)));
+  llvm::EmbedBitcodeInModule(M, Buf->getMemBufferRef(), /*EmbedBitcode*/ true,
+                             /*EmbedMarker*/ false, /*CmdArgs*/ nullptr);
+}
+
+void codegen(const Config &Conf, TargetMachine *TM, AddStreamFn AddStream,
              unsigned Task, Module &Mod) {
   if (Conf.PreCodeGenModuleHook && !Conf.PreCodeGenModuleHook(Task, Mod))
     return;
+
+  EmitBitcodeSection(Mod, Conf);
 
   std::unique_ptr<ToolOutputFile> DwoOut;
   SmallString<1024> DwoFile(Conf.SplitDwarfOutput);
@@ -350,7 +372,7 @@ void codegen(Config &Conf, TargetMachine *TM, AddStreamFn AddStream,
     DwoOut->keep();
 }
 
-void splitCodeGen(Config &C, TargetMachine *TM, AddStreamFn AddStream,
+void splitCodeGen(const Config &C, TargetMachine *TM, AddStreamFn AddStream,
                   unsigned ParallelCodeGenParallelismLevel,
                   std::unique_ptr<Module> Mod) {
   ThreadPool CodegenThreadPool(ParallelCodeGenParallelismLevel);
@@ -398,7 +420,7 @@ void splitCodeGen(Config &C, TargetMachine *TM, AddStreamFn AddStream,
   CodegenThreadPool.wait();
 }
 
-Expected<const Target *> initAndLookupTarget(Config &C, Module &Mod) {
+Expected<const Target *> initAndLookupTarget(const Config &C, Module &Mod) {
   if (!C.OverrideTriple.empty())
     Mod.setTargetTriple(C.OverrideTriple);
   else if (Mod.getTargetTriple().empty())
@@ -410,7 +432,6 @@ Expected<const Target *> initAndLookupTarget(Config &C, Module &Mod) {
     return make_error<StringError>(Msg, inconvertibleErrorCode());
   return T;
 }
-
 }
 
 static Error
@@ -424,7 +445,7 @@ finalizeOptimizationRemarks(std::unique_ptr<ToolOutputFile> DiagOutputFile) {
   return Error::success();
 }
 
-Error lto::backend(Config &C, AddStreamFn AddStream,
+Error lto::backend(const Config &C, AddStreamFn AddStream,
                    unsigned ParallelCodeGenParallelismLevel,
                    std::unique_ptr<Module> Mod,
                    ModuleSummaryIndex &CombinedIndex) {
@@ -478,7 +499,7 @@ static void dropDeadSymbols(Module &Mod, const GVSummaryMapTy &DefinedGlobals,
   }
 }
 
-Error lto::thinBackend(Config &Conf, unsigned Task, AddStreamFn AddStream,
+Error lto::thinBackend(const Config &Conf, unsigned Task, AddStreamFn AddStream,
                        Module &Mod, const ModuleSummaryIndex &CombinedIndex,
                        const FunctionImporter::ImportMapTy &ImportList,
                        const GVSummaryMapTy &DefinedGlobals,

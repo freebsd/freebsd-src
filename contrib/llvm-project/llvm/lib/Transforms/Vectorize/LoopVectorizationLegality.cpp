@@ -72,7 +72,7 @@ LoopVectorizeHints::LoopVectorizeHints(const Loop *L,
       Interleave("interleave.count", InterleaveOnlyWhenForced, HK_UNROLL),
       Force("vectorize.enable", FK_Undefined, HK_FORCE),
       IsVectorized("isvectorized", 0, HK_ISVECTORIZED),
-      Predicate("vectorize.predicate.enable", 0, HK_PREDICATE), TheLoop(L),
+      Predicate("vectorize.predicate.enable", FK_Undefined, HK_PREDICATE), TheLoop(L),
       ORE(ORE) {
   // Populate values with existing loop metadata.
   getHintsFromMetadata();
@@ -814,6 +814,18 @@ bool LoopVectorizationLegality::canVectorizeInstrs() {
       LLVM_DEBUG(dbgs() << "LV: Did not find one integer induction var.\n");
     }
   }
+
+  // For first order recurrences, we use the previous value (incoming value from
+  // the latch) to check if it dominates all users of the recurrence. Bail out
+  // if we have to sink such an instruction for another recurrence, as the
+  // dominance requirement may not hold after sinking.
+  BasicBlock *LoopLatch = TheLoop->getLoopLatch();
+  if (any_of(FirstOrderRecurrences, [LoopLatch, this](const PHINode *Phi) {
+        Instruction *V =
+            cast<Instruction>(Phi->getIncomingValueForBlock(LoopLatch));
+        return SinkAfter.find(V) != SinkAfter.end();
+      }))
+    return false;
 
   // Now we know the widest induction type, check if our found induction
   // is the same size. If it's not, unset it here and InnerLoopVectorizer

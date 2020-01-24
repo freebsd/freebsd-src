@@ -31,7 +31,7 @@ namespace {
 class SparcDAGToDAGISel : public SelectionDAGISel {
   /// Subtarget - Keep a pointer to the Sparc Subtarget around so that we can
   /// make the right decision when generating code for different targets.
-  const SparcSubtarget *Subtarget;
+  const SparcSubtarget *Subtarget = nullptr;
 public:
   explicit SparcDAGToDAGISel(SparcTargetMachine &tm) : SelectionDAGISel(tm) {}
 
@@ -380,7 +380,6 @@ SparcDAGToDAGISel::SelectInlineAsmMemoryOperand(const SDValue &Op,
   SDValue Op0, Op1;
   switch (ConstraintID) {
   default: return true;
-  case InlineAsm::Constraint_i:
   case InlineAsm::Constraint_o:
   case InlineAsm::Constraint_m: // memory
    if (!SelectADDRrr(Op, Op0, Op1))

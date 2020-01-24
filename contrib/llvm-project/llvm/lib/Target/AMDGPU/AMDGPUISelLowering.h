@@ -52,7 +52,7 @@ protected:
   SDValue LowerFRINT(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFNEARBYINT(SDValue Op, SelectionDAG &DAG) const;
 
-  SDValue LowerFROUND32_16(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerFROUND_LegalFTRUNC(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFROUND64(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFROUND(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFFLOOR(SDValue Op, SelectionDAG &DAG) const;
@@ -531,7 +531,6 @@ enum NodeType : unsigned {
   BUFFER_ATOMIC_CMPSWAP,
   BUFFER_ATOMIC_FADD,
   BUFFER_ATOMIC_PK_FADD,
-  ATOMIC_FADD,
   ATOMIC_PK_FADD,
 
   LAST_AMDGPU_ISD_NUMBER

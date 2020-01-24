@@ -169,12 +169,13 @@ unsigned X86TTIImpl::getMaxInterleaveFactor(unsigned VF) {
   return 2;
 }
 
-int X86TTIImpl::getArithmeticInstrCost(
-    unsigned Opcode, Type *Ty,
-    TTI::OperandValueKind Op1Info, TTI::OperandValueKind Op2Info,
-    TTI::OperandValueProperties Opd1PropInfo,
-    TTI::OperandValueProperties Opd2PropInfo,
-    ArrayRef<const Value *> Args) {
+int X86TTIImpl::getArithmeticInstrCost(unsigned Opcode, Type *Ty,
+                                       TTI::OperandValueKind Op1Info,
+                                       TTI::OperandValueKind Op2Info,
+                                       TTI::OperandValueProperties Opd1PropInfo,
+                                       TTI::OperandValueProperties Opd2PropInfo,
+                                       ArrayRef<const Value *> Args,
+                                       const Instruction *CxtI) {
   // Legalize the type.
   std::pair<int, MVT> LT = TLI->getTypeLegalizationCost(DL, Ty);
 
@@ -188,7 +189,7 @@ int X86TTIImpl::getArithmeticInstrCost(
     { ISD::FDIV,  MVT::v2f64, 65 }, // divpd
   };
 
-  if (ST->isGLM())
+  if (ST->useGLMDivSqrtCosts())
     if (const auto *Entry = CostTableLookup(GLMCostTable, ISD,
                                             LT.second))
       return LT.first * Entry->Cost;
@@ -280,7 +281,7 @@ int X86TTIImpl::getArithmeticInstrCost(
                                     TargetTransformInfo::OP_None,
                                     TargetTransformInfo::OP_None);
 
-    if (ISD == ISD::UREM)
+    else // UREM
       return getArithmeticInstrCost(Instruction::And, Ty, Op1Info, Op2Info,
                                     TargetTransformInfo::OP_None,
                                     TargetTransformInfo::OP_None);
@@ -1389,6 +1390,7 @@ int X86TTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src,
     { ISD::UINT_TO_FP,  MVT::v4f64,  MVT::v4i64,  5 },
     { ISD::UINT_TO_FP,  MVT::v8f64,  MVT::v8i64,  5 },
 
+    { ISD::UINT_TO_FP,  MVT::f32,    MVT::i64,    1 },
     { ISD::UINT_TO_FP,  MVT::f64,    MVT::i64,    1 },
     { ISD::FP_TO_UINT,  MVT::i64,    MVT::f32,    1 },
     { ISD::FP_TO_UINT,  MVT::i64,    MVT::f64,    1 },
@@ -1397,6 +1399,7 @@ int X86TTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src,
     { ISD::FP_TO_UINT,  MVT::v4i32,  MVT::v4f32,  1 },
     { ISD::FP_TO_UINT,  MVT::v4i32,  MVT::v4f64,  1 },
     { ISD::FP_TO_UINT,  MVT::v8i32,  MVT::v8f32,  1 },
+    { ISD::FP_TO_UINT,  MVT::v8i32,  MVT::v8f64,  1 },
     { ISD::FP_TO_UINT,  MVT::v8i16,  MVT::v8f64,  2 },
     { ISD::FP_TO_UINT,  MVT::v8i8,   MVT::v8f64,  2 },
     { ISD::FP_TO_UINT,  MVT::v16i32, MVT::v16f32, 1 },
@@ -1550,6 +1553,7 @@ int X86TTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src,
     { ISD::TRUNCATE,    MVT::v16i16, MVT::v16i32, 6 },
     { ISD::TRUNCATE,    MVT::v2i8,   MVT::v2i64,  1 }, // PSHUFB
 
+    { ISD::UINT_TO_FP,  MVT::f32,    MVT::i64,    4 },
     { ISD::UINT_TO_FP,  MVT::f64,    MVT::i64,    4 },
   };
 
@@ -1576,9 +1580,14 @@ int X86TTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src,
     { ISD::UINT_TO_FP, MVT::v2f64, MVT::v2i64, 6 },
     { ISD::UINT_TO_FP, MVT::v4f32, MVT::v2i64, 15 },
 
+    { ISD::FP_TO_SINT,  MVT::v4i16,  MVT::v4f32,  2 },
+    { ISD::FP_TO_SINT,  MVT::v2i16,  MVT::v2f64,  2 },
+
     { ISD::FP_TO_SINT,  MVT::v2i32,  MVT::v2f64,  3 },
 
+    { ISD::UINT_TO_FP,  MVT::f32,    MVT::i64,    6 },
     { ISD::UINT_TO_FP,  MVT::f64,    MVT::i64,    6 },
+
     { ISD::FP_TO_UINT,  MVT::i64,    MVT::f32,    4 },
     { ISD::FP_TO_UINT,  MVT::i64,    MVT::f64,    4 },
 
@@ -2199,7 +2208,7 @@ int X86TTIImpl::getIntrinsicInstrCost(Intrinsic::ID IID, Type *RetTy,
     MVT MTy = LT.second;
 
     // Attempt to lookup cost.
-    if (ST->isGLM())
+    if (ST->useGLMDivSqrtCosts())
       if (const auto *Entry = CostTableLookup(GLMCostTbl, ISD, MTy))
         return LT.first * Entry->Cost;
 
@@ -2374,6 +2383,13 @@ int X86TTIImpl::getIntrinsicInstrCost(Intrinsic::ID IID, Type *RetTy,
 }
 
 int X86TTIImpl::getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index) {
+  static const CostTblEntry SLMCostTbl[] = {
+     { ISD::EXTRACT_VECTOR_ELT,       MVT::i8,      4 },
+     { ISD::EXTRACT_VECTOR_ELT,       MVT::i16,     4 },
+     { ISD::EXTRACT_VECTOR_ELT,       MVT::i32,     4 },
+     { ISD::EXTRACT_VECTOR_ELT,       MVT::i64,     7 }
+   };
+
   assert(Val->isVectorTy() && "This must be a vector type");
 
   Type *ScalarType = Val->getScalarType();
@@ -2390,9 +2406,22 @@ int X86TTIImpl::getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index) {
     unsigned Width = LT.second.getVectorNumElements();
     Index = Index % Width;
 
-    // Floating point scalars are already located in index #0.
-    if (ScalarType->isFloatingPointTy() && Index == 0)
-      return 0;
+    if (Index == 0) {
+      // Floating point scalars are already located in index #0.
+      if (ScalarType->isFloatingPointTy())
+        return 0;
+
+      // Assume movd/movq XMM <-> GPR is relatively cheap on all targets.
+      if (ScalarType->isIntegerTy())
+        return 1;
+    }
+
+    int ISD = TLI->InstructionOpcodeToISD(Opcode);
+    assert(ISD && "Unexpected vector opcode");
+    MVT MScalarTy = LT.second.getScalarType();
+    if (ST->isSLM())
+      if (auto *Entry = CostTableLookup(SLMCostTbl, ISD, MScalarTy))
+        return LT.first * Entry->Cost;
   }
 
   // Add to the base cost if we know that the extracted element of a vector is
@@ -2404,8 +2433,9 @@ int X86TTIImpl::getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index) {
   return BaseT::getVectorInstrCost(Opcode, Val, Index) + RegisterFileMoveCost;
 }
 
-int X86TTIImpl::getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
-                                unsigned AddressSpace, const Instruction *I) {
+int X86TTIImpl::getMemoryOpCost(unsigned Opcode, Type *Src,
+                                MaybeAlign Alignment, unsigned AddressSpace,
+                                const Instruction *I) {
   // Handle non-power-of-two vectors such as <3 x float>
   if (VectorType *VTy = dyn_cast<VectorType>(Src)) {
     unsigned NumElem = VTy->getVectorNumElements();
@@ -2456,7 +2486,7 @@ int X86TTIImpl::getMaskedMemoryOpCost(unsigned Opcode, Type *SrcTy,
   VectorType *SrcVTy = dyn_cast<VectorType>(SrcTy);
   if (!SrcVTy)
     // To calculate scalar take the regular cost, without mask
-    return getMemoryOpCost(Opcode, SrcTy, Alignment, AddressSpace);
+    return getMemoryOpCost(Opcode, SrcTy, MaybeAlign(Alignment), AddressSpace);
 
   unsigned NumElem = SrcVTy->getVectorNumElements();
   VectorType *MaskTy =
@@ -2474,7 +2504,7 @@ int X86TTIImpl::getMaskedMemoryOpCost(unsigned Opcode, Type *SrcTy,
     int ValueSplitCost = getScalarizationOverhead(SrcVTy, IsLoad, IsStore);
     int MemopCost =
         NumElem * BaseT::getMemoryOpCost(Opcode, SrcVTy->getScalarType(),
-                                         Alignment, AddressSpace);
+                                         MaybeAlign(Alignment), AddressSpace);
     return MemopCost + ValueSplitCost + MaskSplitCost + MaskCmpCost;
   }
 
@@ -2533,6 +2563,11 @@ int X86TTIImpl::getArithmeticReductionCost(unsigned Opcode, Type *ValTy,
   // We use the Intel Architecture Code Analyzer(IACA) to measure the throughput
   // and make it as the cost.
 
+  static const CostTblEntry SLMCostTblPairWise[] = {
+    { ISD::FADD,  MVT::v2f64,   3 },
+    { ISD::ADD,   MVT::v2i64,   5 },
+  };
+
   static const CostTblEntry SSE2CostTblPairWise[] = {
     { ISD::FADD,  MVT::v2f64,   2 },
     { ISD::FADD,  MVT::v4f32,   4 },
@@ -2556,6 +2591,11 @@ int X86TTIImpl::getArithmeticReductionCost(unsigned Opcode, Type *ValTy,
     { ISD::ADD,   MVT::v8i32,   5 },
     { ISD::ADD,   MVT::v16i16,  6 },
     { ISD::ADD,   MVT::v32i8,   4 },
+  };
+
+  static const CostTblEntry SLMCostTblNoPairWise[] = {
+    { ISD::FADD,  MVT::v2f64,   3 },
+    { ISD::ADD,   MVT::v2i64,   5 },
   };
 
   static const CostTblEntry SSE2CostTblNoPairWise[] = {
@@ -2594,6 +2634,10 @@ int X86TTIImpl::getArithmeticReductionCost(unsigned Opcode, Type *ValTy,
   if (VT.isSimple()) {
     MVT MTy = VT.getSimpleVT();
     if (IsPairwise) {
+      if (ST->isSLM())
+        if (const auto *Entry = CostTableLookup(SLMCostTblPairWise, ISD, MTy))
+          return Entry->Cost;
+
       if (ST->hasAVX())
         if (const auto *Entry = CostTableLookup(AVX1CostTblPairWise, ISD, MTy))
           return Entry->Cost;
@@ -2602,6 +2646,10 @@ int X86TTIImpl::getArithmeticReductionCost(unsigned Opcode, Type *ValTy,
         if (const auto *Entry = CostTableLookup(SSE2CostTblPairWise, ISD, MTy))
           return Entry->Cost;
     } else {
+      if (ST->isSLM())
+        if (const auto *Entry = CostTableLookup(SLMCostTblNoPairWise, ISD, MTy))
+          return Entry->Cost;
+
       if (ST->hasAVX())
         if (const auto *Entry = CostTableLookup(AVX1CostTblNoPairWise, ISD, MTy))
           return Entry->Cost;
@@ -2617,6 +2665,10 @@ int X86TTIImpl::getArithmeticReductionCost(unsigned Opcode, Type *ValTy,
   MVT MTy = LT.second;
 
   if (IsPairwise) {
+    if (ST->isSLM())
+      if (const auto *Entry = CostTableLookup(SLMCostTblPairWise, ISD, MTy))
+        return LT.first * Entry->Cost;
+
     if (ST->hasAVX())
       if (const auto *Entry = CostTableLookup(AVX1CostTblPairWise, ISD, MTy))
         return LT.first * Entry->Cost;
@@ -2625,6 +2677,10 @@ int X86TTIImpl::getArithmeticReductionCost(unsigned Opcode, Type *ValTy,
       if (const auto *Entry = CostTableLookup(SSE2CostTblPairWise, ISD, MTy))
         return LT.first * Entry->Cost;
   } else {
+    if (ST->isSLM())
+      if (const auto *Entry = CostTableLookup(SLMCostTblNoPairWise, ISD, MTy))
+        return LT.first * Entry->Cost;
+
     if (ST->hasAVX())
       if (const auto *Entry = CostTableLookup(AVX1CostTblNoPairWise, ISD, MTy))
         return LT.first * Entry->Cost;
@@ -2633,6 +2689,24 @@ int X86TTIImpl::getArithmeticReductionCost(unsigned Opcode, Type *ValTy,
       if (const auto *Entry = CostTableLookup(SSE2CostTblNoPairWise, ISD, MTy))
         return LT.first * Entry->Cost;
   }
+
+  // FIXME: These assume a naive kshift+binop lowering, which is probably
+  // conservative in most cases.
+  // FIXME: This doesn't cost large types like v128i1 correctly.
+  static const CostTblEntry AVX512BoolReduction[] = {
+    { ISD::AND,  MVT::v2i1,   3 },
+    { ISD::AND,  MVT::v4i1,   5 },
+    { ISD::AND,  MVT::v8i1,   7 },
+    { ISD::AND,  MVT::v16i1,  9 },
+    { ISD::AND,  MVT::v32i1, 11 },
+    { ISD::AND,  MVT::v64i1, 13 },
+    { ISD::OR,   MVT::v2i1,   3 },
+    { ISD::OR,   MVT::v4i1,   5 },
+    { ISD::OR,   MVT::v8i1,   7 },
+    { ISD::OR,   MVT::v16i1,  9 },
+    { ISD::OR,   MVT::v32i1, 11 },
+    { ISD::OR,   MVT::v64i1, 13 },
+  };
 
   static const CostTblEntry AVX2BoolReduction[] = {
     { ISD::AND,  MVT::v16i16,  2 }, // vpmovmskb + cmp
@@ -2664,7 +2738,10 @@ int X86TTIImpl::getArithmeticReductionCost(unsigned Opcode, Type *ValTy,
   };
 
   // Handle bool allof/anyof patterns.
-  if (ValTy->getVectorElementType()->isIntegerTy(1)) {
+  if (!IsPairwise && ValTy->getVectorElementType()->isIntegerTy(1)) {
+    if (ST->hasAVX512())
+      if (const auto *Entry = CostTableLookup(AVX512BoolReduction, ISD, MTy))
+        return LT.first * Entry->Cost;
     if (ST->hasAVX2())
       if (const auto *Entry = CostTableLookup(AVX2BoolReduction, ISD, MTy))
         return LT.first * Entry->Cost;
@@ -2956,7 +3033,7 @@ int X86TTIImpl::getIntImmCost(const APInt &Imm, Type *Ty) {
   return std::max(1, Cost);
 }
 
-int X86TTIImpl::getIntImmCost(unsigned Opcode, unsigned Idx, const APInt &Imm,
+int X86TTIImpl::getIntImmCostInst(unsigned Opcode, unsigned Idx, const APInt &Imm,
                               Type *Ty) {
   assert(Ty->isIntegerTy());
 
@@ -3053,8 +3130,8 @@ int X86TTIImpl::getIntImmCost(unsigned Opcode, unsigned Idx, const APInt &Imm,
   return X86TTIImpl::getIntImmCost(Imm, Ty);
 }
 
-int X86TTIImpl::getIntImmCost(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
-                              Type *Ty) {
+int X86TTIImpl::getIntImmCostIntrin(Intrinsic::ID IID, unsigned Idx,
+                                    const APInt &Imm, Type *Ty) {
   assert(Ty->isIntegerTy());
 
   unsigned BitSize = Ty->getPrimitiveSizeInBits();
@@ -3164,7 +3241,7 @@ int X86TTIImpl::getGSVectorCost(unsigned Opcode, Type *SrcVTy, Value *Ptr,
                              ? ST->getGatherOverhead()
                              : ST->getScatterOverhead();
   return GSOverhead + VF * getMemoryOpCost(Opcode, SrcVTy->getScalarType(),
-                                           Alignment, AddressSpace);
+                                           MaybeAlign(Alignment), AddressSpace);
 }
 
 /// Return the cost of full scalarization of gather / scatter operation.
@@ -3194,7 +3271,7 @@ int X86TTIImpl::getGSScalarCost(unsigned Opcode, Type *SrcVTy,
 
   // The cost of the scalar loads/stores.
   int MemoryOpCost = VF * getMemoryOpCost(Opcode, SrcVTy->getScalarType(),
-                                          Alignment, AddressSpace);
+                                          MaybeAlign(Alignment), AddressSpace);
 
   int InsertExtractCost = 0;
   if (Opcode == Instruction::Load)
@@ -3224,8 +3301,10 @@ int X86TTIImpl::getGatherScatterOpCost(unsigned Opcode, Type *SrcVTy,
   unsigned AddressSpace = PtrTy->getAddressSpace();
 
   bool Scalarize = false;
-  if ((Opcode == Instruction::Load && !isLegalMaskedGather(SrcVTy)) ||
-      (Opcode == Instruction::Store && !isLegalMaskedScatter(SrcVTy)))
+  if ((Opcode == Instruction::Load &&
+       !isLegalMaskedGather(SrcVTy, MaybeAlign(Alignment))) ||
+      (Opcode == Instruction::Store &&
+       !isLegalMaskedScatter(SrcVTy, MaybeAlign(Alignment))))
     Scalarize = true;
   // Gather / Scatter for vector 2 is not profitable on KNL / SKX
   // Vector-4 of gather/scatter instruction does not exist on KNL.
@@ -3348,7 +3427,7 @@ bool X86TTIImpl::isLegalMaskedCompressStore(Type *DataTy) {
   return isLegalMaskedExpandLoad(DataTy);
 }
 
-bool X86TTIImpl::isLegalMaskedGather(Type *DataTy) {
+bool X86TTIImpl::isLegalMaskedGather(Type *DataTy, MaybeAlign Alignment) {
   // Some CPUs have better gather performance than others.
   // TODO: Remove the explicit ST->hasAVX512()?, That would mean we would only
   // enable gather with a -march.
@@ -3386,11 +3465,11 @@ bool X86TTIImpl::isLegalMaskedGather(Type *DataTy) {
   return IntWidth == 32 || IntWidth == 64;
 }
 
-bool X86TTIImpl::isLegalMaskedScatter(Type *DataType) {
+bool X86TTIImpl::isLegalMaskedScatter(Type *DataType, MaybeAlign Alignment) {
   // AVX2 doesn't support scatter
   if (!ST->hasAVX512())
     return false;
-  return isLegalMaskedGather(DataType);
+  return isLegalMaskedGather(DataType, Alignment);
 }
 
 bool X86TTIImpl::hasDivRemOp(Type *DataType, bool IsSigned) {
@@ -3443,10 +3522,9 @@ X86TTIImpl::enableMemCmpExpansion(bool OptSize, bool IsZeroCmp) const {
     // version is not as fast for three way compare (see #33329).
     const unsigned PreferredWidth = ST->getPreferVectorWidth();
     if (PreferredWidth >= 512 && ST->hasAVX512()) Options.LoadSizes.push_back(64);
-    if (PreferredWidth >= 256 && ST->hasAVX2()) Options.LoadSizes.push_back(32);
+    if (PreferredWidth >= 256 && ST->hasAVX()) Options.LoadSizes.push_back(32);
     if (PreferredWidth >= 128 && ST->hasSSE2()) Options.LoadSizes.push_back(16);
-    // All GPR and vector loads can be unaligned. SIMD compare requires integer
-    // vectors (SSE2/AVX2).
+    // All GPR and vector loads can be unaligned.
     Options.AllowOverlappingLoads = true;
   }
   if (ST->is64Bit()) {
@@ -3520,8 +3598,8 @@ int X86TTIImpl::getInterleavedMemoryOpCostAVX2(unsigned Opcode, Type *VecTy,
   // Get the cost of one memory operation.
   Type *SingleMemOpTy = VectorType::get(VecTy->getVectorElementType(),
                                         LegalVT.getVectorNumElements());
-  unsigned MemOpCost =
-      getMemoryOpCost(Opcode, SingleMemOpTy, Alignment, AddressSpace);
+  unsigned MemOpCost = getMemoryOpCost(Opcode, SingleMemOpTy,
+                                       MaybeAlign(Alignment), AddressSpace);
 
   VectorType *VT = VectorType::get(ScalarTy, VF);
   EVT ETy = TLI->getValueType(DL, VT);
@@ -3620,8 +3698,8 @@ int X86TTIImpl::getInterleavedMemoryOpCostAVX512(unsigned Opcode, Type *VecTy,
   // Get the cost of one memory operation.
   Type *SingleMemOpTy = VectorType::get(VecTy->getVectorElementType(),
                                         LegalVT.getVectorNumElements());
-  unsigned MemOpCost =
-      getMemoryOpCost(Opcode, SingleMemOpTy, Alignment, AddressSpace);
+  unsigned MemOpCost = getMemoryOpCost(Opcode, SingleMemOpTy,
+                                       MaybeAlign(Alignment), AddressSpace);
 
   unsigned VF = VecTy->getVectorNumElements() / Factor;
   MVT VT = MVT::getVectorVT(MVT::getVT(VecTy->getScalarType()), VF);

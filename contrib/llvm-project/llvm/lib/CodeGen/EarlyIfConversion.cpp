@@ -33,6 +33,7 @@
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -940,6 +941,7 @@ class EarlyIfPredicator : public MachineFunctionPass {
   TargetSchedModel SchedModel;
   MachineRegisterInfo *MRI;
   MachineDominatorTree *DomTree;
+  MachineBranchProbabilityInfo *MBPI;
   MachineLoopInfo *Loops;
   SSAIfConv IfConv;
 
@@ -965,10 +967,12 @@ char &llvm::EarlyIfPredicatorID = EarlyIfPredicator::ID;
 INITIALIZE_PASS_BEGIN(EarlyIfPredicator, DEBUG_TYPE, "Early If Predicator",
                       false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
 INITIALIZE_PASS_END(EarlyIfPredicator, DEBUG_TYPE, "Early If Predicator", false,
                     false)
 
 void EarlyIfPredicator::getAnalysisUsage(AnalysisUsage &AU) const {
+  AU.addRequired<MachineBranchProbabilityInfo>();
   AU.addRequired<MachineDominatorTree>();
   AU.addPreserved<MachineDominatorTree>();
   AU.addRequired<MachineLoopInfo>();
@@ -978,6 +982,7 @@ void EarlyIfPredicator::getAnalysisUsage(AnalysisUsage &AU) const {
 
 /// Apply the target heuristic to decide if the transformation is profitable.
 bool EarlyIfPredicator::shouldConvertIf() {
+  auto TrueProbability = MBPI->getEdgeProbability(IfConv.Head, IfConv.TBB);
   if (IfConv.isTriangle()) {
     MachineBasicBlock &IfBlock =
         (IfConv.TBB == IfConv.Tail) ? *IfConv.FBB : *IfConv.TBB;
@@ -992,7 +997,7 @@ bool EarlyIfPredicator::shouldConvertIf() {
     }
 
     return TII->isProfitableToIfCvt(IfBlock, Cycles, ExtraPredCost,
-                                    BranchProbability::getUnknown());
+                                    TrueProbability);
   }
   unsigned TExtra = 0;
   unsigned FExtra = 0;
@@ -1011,8 +1016,7 @@ bool EarlyIfPredicator::shouldConvertIf() {
     FExtra += TII->getPredicationCost(I);
   }
   return TII->isProfitableToIfCvt(*IfConv.TBB, TCycle, TExtra, *IfConv.FBB,
-                                  FCycle, FExtra,
-                                  BranchProbability::getUnknown());
+                                  FCycle, FExtra, TrueProbability);
 }
 
 /// Attempt repeated if-conversion on MBB, return true if successful.
@@ -1043,6 +1047,7 @@ bool EarlyIfPredicator::runOnMachineFunction(MachineFunction &MF) {
   SchedModel.init(&STI);
   DomTree = &getAnalysis<MachineDominatorTree>();
   Loops = getAnalysisIfAvailable<MachineLoopInfo>();
+  MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
 
   bool Changed = false;
   IfConv.runOnMachineFunction(MF);

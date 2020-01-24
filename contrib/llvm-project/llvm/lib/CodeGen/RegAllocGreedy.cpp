@@ -3126,6 +3126,11 @@ unsigned RAGreedy::selectOrSplitImpl(LiveInterval &VirtReg,
     spiller().spill(LRE);
     setStage(NewVRegs.begin(), NewVRegs.end(), RS_Done);
 
+    // Tell LiveDebugVariables about the new ranges. Ranges not being covered by
+    // the new regs are kept in LDV (still mapping to the old register), until
+    // we rewrite spilled locations in LDV at a later stage.
+    DebugVars->splitRegister(VirtReg.reg, LRE.regs(), *LIS);
+
     if (VerifyEnabled)
       MF->verify(this, "After spilling");
   }
@@ -3220,8 +3225,10 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
                         MF->getSubtarget().enableRALocalReassignment(
                             MF->getTarget().getOptLevel());
 
-  EnableAdvancedRASplitCost = ConsiderLocalIntervalCost ||
-                              MF->getSubtarget().enableAdvancedRASplitCost();
+  EnableAdvancedRASplitCost =
+      ConsiderLocalIntervalCost.getNumOccurrences()
+          ? ConsiderLocalIntervalCost
+          : MF->getSubtarget().enableAdvancedRASplitCost();
 
   if (VerifyEnabled)
     MF->verify(this, "Before greedy register allocator");

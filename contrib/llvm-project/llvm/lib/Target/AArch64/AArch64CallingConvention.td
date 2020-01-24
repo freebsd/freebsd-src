@@ -75,10 +75,10 @@ def CC_AArch64_AAPCS : CallingConv<[
   CCIfConsecutiveRegs<CCCustom<"CC_AArch64_Custom_Block">>,
 
   CCIfType<[nxv16i8, nxv8i16, nxv4i32, nxv2i64, nxv2f16, nxv4f16, nxv8f16,
-            nxv1f32, nxv2f32, nxv4f32, nxv1f64, nxv2f64],
+            nxv2f32, nxv4f32, nxv2f64],
            CCAssignToReg<[Z0, Z1, Z2, Z3, Z4, Z5, Z6, Z7]>>,
   CCIfType<[nxv16i8, nxv8i16, nxv4i32, nxv2i64, nxv2f16, nxv4f16, nxv8f16,
-            nxv1f32, nxv2f32, nxv4f32, nxv1f64, nxv2f64],
+            nxv2f32, nxv4f32, nxv2f64],
            CCPassIndirect<i64>>,
 
   CCIfType<[nxv2i1, nxv4i1, nxv8i1, nxv16i1],
@@ -155,7 +155,7 @@ def RetCC_AArch64_AAPCS : CallingConv<[
       CCAssignToReg<[Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
 
   CCIfType<[nxv16i8, nxv8i16, nxv4i32, nxv2i64, nxv2f16, nxv4f16, nxv8f16,
-            nxv1f32, nxv2f32, nxv4f32, nxv1f64, nxv2f64],
+            nxv2f32, nxv4f32, nxv2f64],
            CCAssignToReg<[Z0, Z1, Z2, Z3, Z4, Z5, Z6, Z7]>>,
 
   CCIfType<[nxv2i1, nxv4i1, nxv8i1, nxv16i1],
@@ -168,6 +168,13 @@ def CC_AArch64_Win64_VarArg : CallingConv<[
   CCIfType<[f16, f32], CCPromoteToType<f64>>,
   CCIfType<[f64], CCBitConvertToType<i64>>,
   CCDelegateTo<CC_AArch64_AAPCS>
+]>;
+
+// Windows Control Flow Guard checks take a single argument (the target function
+// address) and have no return value.
+let Entry = 1 in
+def CC_AArch64_Win64_CFGuard_Check : CallingConv<[
+  CCIfType<[i64], CCAssignToReg<[X15]>>
 ]>;
 
 
@@ -384,6 +391,12 @@ def CSR_Win_AArch64_AAPCS : CalleeSavedRegs<(add X19, X20, X21, X22, X23, X24,
                                                D8, D9, D10, D11,
                                                D12, D13, D14, D15)>;
 
+// The Control Flow Guard check call uses a custom calling convention that also
+// preserves X0-X8 and Q0-Q7.
+def CSR_Win_AArch64_CFGuard_Check : CalleeSavedRegs<(add CSR_Win_AArch64_AAPCS,
+                                               (sequence "X%u", 0, 8),
+                                               (sequence "Q%u", 0, 7))>;
+
 // AArch64 PCS for vector functions (VPCS)
 // must (additionally) preserve full Q8-Q23 registers
 def CSR_AArch64_AAVPCS : CalleeSavedRegs<(add X19, X20, X21, X22, X23, X24,
@@ -392,10 +405,10 @@ def CSR_AArch64_AAVPCS : CalleeSavedRegs<(add X19, X20, X21, X22, X23, X24,
 
 // Functions taking SVE arguments or returning an SVE type
 // must (additionally) preserve full Z8-Z23 and predicate registers P4-P15
-def CSR_AArch64_SVE_AAPCS : CalleeSavedRegs<(add X19, X20, X21, X22, X23, X24,
-                                               X25, X26, X27, X28, LR, FP,
-                                               (sequence "Z%u", 8, 23),
-                                               (sequence "P%u", 4, 15))>;
+def CSR_AArch64_SVE_AAPCS : CalleeSavedRegs<(add (sequence "Z%u", 8, 23),
+                                                 (sequence "P%u", 4, 15),
+                                                 X19, X20, X21, X22, X23, X24,
+                                                 X25, X26, X27, X28, LR, FP)>;
 
 // Constructors and destructors return 'this' in the iOS 64-bit C++ ABI; since
 // 'this' and the pointer return value are both passed in X0 in these cases,
@@ -473,5 +486,7 @@ def CSR_AArch64_RT_MostRegs_SCS
     : CalleeSavedRegs<(add CSR_AArch64_RT_MostRegs, X18)>;
 def CSR_AArch64_AAVPCS_SCS
     : CalleeSavedRegs<(add CSR_AArch64_AAVPCS, X18)>;
+def CSR_AArch64_SVE_AAPCS_SCS
+    : CalleeSavedRegs<(add CSR_AArch64_SVE_AAPCS, X18)>;
 def CSR_AArch64_AAPCS_SCS
     : CalleeSavedRegs<(add CSR_AArch64_AAPCS, X18)>;

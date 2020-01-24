@@ -42,7 +42,7 @@
 //    relocation targets. Relocation targets are considered equivalent if
 //    their targets are in the same equivalence class. Sections with
 //    different relocation targets are put into different equivalence
-//    clases.
+//    classes.
 //
 // 3. If we split an equivalence class in step 2, two relocations
 //    previously target the same equivalence class may now target
@@ -259,6 +259,13 @@ bool ICF<ELFT>::constantEq(const InputSection *secA, ArrayRef<RelTy> ra,
     if (!da || !db || da->scriptDefined || db->scriptDefined)
       return false;
 
+    // When comparing a pair of relocations, if they refer to different symbols,
+    // and either symbol is preemptible, the containing sections should be
+    // considered different. This is because even if the sections are identical
+    // in this DSO, they may not be after preemption.
+    if (da->isPreemptible || db->isPreemptible)
+      return false;
+
     // Relocations referring to absolute symbols are constant-equal if their
     // values are equal.
     if (!da->section && !db->section && da->value + addA == db->value + addB)
@@ -445,6 +452,12 @@ static void print(const Twine &s) {
 
 // The main function of ICF.
 template <class ELFT> void ICF<ELFT>::run() {
+  // Compute isPreemptible early. We may add more symbols later, so this loop
+  // cannot be merged with the later computeIsPreemptible() pass which is used
+  // by scanRelocations().
+  for (Symbol *sym : symtab->symbols())
+    sym->isPreemptible = computeIsPreemptible(*sym);
+
   // Collect sections to merge.
   for (InputSectionBase *sec : inputSections) {
     auto *s = cast<InputSection>(sec);

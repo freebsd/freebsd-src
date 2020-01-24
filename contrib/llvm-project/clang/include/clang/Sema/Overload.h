@@ -68,7 +68,10 @@ class Sema;
     OCD_AllCandidates,
 
     /// Requests that only viable candidates be shown.
-    OCD_ViableCandidates
+    OCD_ViableCandidates,
+
+    /// Requests that only tied-for-best candidates be shown.
+    OCD_AmbiguousCandidates
   };
 
   /// The parameter ordering that will be used for the candidate. This is
@@ -729,10 +732,9 @@ class Sema;
     /// attribute disabled it.
     ovl_fail_enable_if,
 
-    /// This candidate constructor or conversion fonction
-    /// is used implicitly but the explicit(bool) specifier
-    /// was resolved to true
-    ovl_fail_explicit_resolved,
+    /// This candidate constructor or conversion function is explicit but
+    /// the context doesn't permit explicit functions.
+    ovl_fail_explicit,
 
     /// This candidate was not viable because its address could not be taken.
     ovl_fail_addr_not_available,
@@ -751,7 +753,11 @@ class Sema;
     /// This constructor/conversion candidate fail due to an address space
     /// mismatch between the object being constructed and the overload
     /// candidate.
-    ovl_fail_object_addrspace_mismatch
+    ovl_fail_object_addrspace_mismatch,
+
+    /// This candidate was not viable because its associated constraints were
+    /// not satisfied.
+    ovl_fail_constraints_not_satisfied,
   };
 
   /// A list of implicit conversion sequences for the arguments of an
@@ -791,6 +797,15 @@ class Sema;
     /// Viable - True to indicate that this overload candidate is viable.
     bool Viable : 1;
 
+    /// Whether this candidate is the best viable function, or tied for being
+    /// the best viable function.
+    ///
+    /// For an ambiguous overload resolution, indicates whether this candidate
+    /// was part of the ambiguity kernel: the minimal non-empty set of viable
+    /// candidates such that all elements of the ambiguity kernel are better
+    /// than all viable candidates not in the ambiguity kernel.
+    bool Best : 1;
+
     /// IsSurrogate - True to indicate that this candidate is a
     /// surrogate for a conversion to a function pointer or reference
     /// (C++ [over.call.object]).
@@ -809,7 +824,7 @@ class Sema;
     CallExpr::ADLCallKind IsADLCandidate : 1;
 
     /// Whether this is a rewritten candidate, and if so, of what kind?
-    OverloadCandidateRewriteKind RewriteKind : 2;
+    unsigned RewriteKind : 2;
 
     /// FailureKind - The reason why this candidate is not viable.
     /// Actually an OverloadFailureKind.
@@ -828,6 +843,12 @@ class Sema;
       /// of calling the conversion function to the required type.
       StandardConversionSequence FinalConversion;
     };
+
+    /// Get RewriteKind value in OverloadCandidateRewriteKind type (This
+    /// function is to workaround the spurious GCC bitfield enum warning)
+    OverloadCandidateRewriteKind getRewriteKind() const {
+      return static_cast<OverloadCandidateRewriteKind>(RewriteKind);
+    }
 
     /// hasAmbiguousConversion - Returns whether this overload
     /// candidate requires an ambiguous conversion or not.
@@ -917,7 +938,17 @@ class Sema;
       }
 
       bool isAcceptableCandidate(const FunctionDecl *FD) {
-        return AllowRewrittenCandidates || !isRewrittenOperator(FD);
+        if (!OriginalOperator)
+          return true;
+
+        // For an overloaded operator, we can have candidates with a different
+        // name in our unqualified lookup set. Make sure we only consider the
+        // ones we're supposed to.
+        OverloadedOperatorKind OO =
+            FD->getDeclName().getCXXOverloadedOperator();
+        return OO && (OO == OriginalOperator ||
+                      (AllowRewrittenCandidates &&
+                       OO == getRewrittenOverloadedOperator(OriginalOperator)));
       }
 
       /// Determine the kind of rewrite that should be performed for this
@@ -1008,6 +1039,12 @@ class Sema;
       uintptr_t Key = reinterpret_cast<uintptr_t>(F->getCanonicalDecl());
       Key |= static_cast<uintptr_t>(PO);
       return Functions.insert(Key).second;
+    }
+
+    /// Exclude a function from being considered by overload resolution.
+    void exclude(Decl *F) {
+      isNewCandidate(F, OverloadCandidateParamOrder::Normal);
+      isNewCandidate(F, OverloadCandidateParamOrder::Reversed);
     }
 
     /// Clear out all of the candidates.

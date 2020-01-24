@@ -448,9 +448,9 @@ include "AArch64SchedA57.td"
 include "AArch64SchedCyclone.td"
 include "AArch64SchedFalkor.td"
 include "AArch64SchedKryo.td"
-include "AArch64SchedExynosM1.td"
 include "AArch64SchedExynosM3.td"
 include "AArch64SchedExynosM4.td"
+include "AArch64SchedExynosM5.td"
 include "AArch64SchedThunderX.td"
 include "AArch64SchedThunderX2T99.td"
 
@@ -565,8 +565,8 @@ def ProcA76     : SubtargetFeature<"a76", "ARMProcFamily", "CortexA76",
 
 // Note that cyclone does not fuse AES instructions, but newer apple chips do
 // perform the fusion and cyclone is used by default when targetting apple OSes.
-def ProcCyclone : SubtargetFeature<"cyclone", "ARMProcFamily", "Cyclone",
-                                   "Cyclone", [
+def ProcAppleA7 : SubtargetFeature<"apple-a7", "ARMProcFamily", "AppleA7",
+                                   "Apple A7 (the CPU formerly known as Cyclone)", [
                                    FeatureAlternateSExtLoadCVTF32Pattern,
                                    FeatureArithmeticBccFusion,
                                    FeatureArithmeticCbzFusion,
@@ -582,32 +582,82 @@ def ProcCyclone : SubtargetFeature<"cyclone", "ARMProcFamily", "Cyclone",
                                    FeatureZCZeroingFPWorkaround
                                    ]>;
 
-def ProcExynosM1 : SubtargetFeature<"exynosm1", "ARMProcFamily", "ExynosM1",
-                                    "Samsung Exynos-M1 processors",
-                                    [FeatureSlowPaired128,
-                                     FeatureCRC,
-                                     FeatureCrypto,
-                                     FeatureExynosCheapAsMoveHandling,
-                                     FeatureForce32BitJumpTables,
-                                     FeatureFuseAES,
-                                     FeaturePerfMon,
-                                     FeaturePostRAScheduler,
-                                     FeatureSlowMisaligned128Store,
-                                     FeatureUseRSqrt,
-                                     FeatureZCZeroingFP]>;
+def ProcAppleA10 : SubtargetFeature<"apple-a10", "ARMProcFamily", "AppleA10",
+                                    "Apple A10", [
+                                    FeatureAlternateSExtLoadCVTF32Pattern,
+                                    FeatureArithmeticBccFusion,
+                                    FeatureArithmeticCbzFusion,
+                                    FeatureCrypto,
+                                    FeatureDisableLatencySchedHeuristic,
+                                    FeatureFPARMv8,
+                                    FeatureFuseAES,
+                                    FeatureFuseCryptoEOR,
+                                    FeatureNEON,
+                                    FeaturePerfMon,
+                                    FeatureZCRegMove,
+                                    FeatureZCZeroing,
+                                    FeatureCRC,
+                                    FeatureRDM,
+                                    FeaturePAN,
+                                    FeatureLOR,
+                                    FeatureVH,
+                                    ]>;
 
-def ProcExynosM2 : SubtargetFeature<"exynosm2", "ARMProcFamily", "ExynosM1",
-                                    "Samsung Exynos-M2 processors",
-                                    [FeatureSlowPaired128,
-                                     FeatureCRC,
+def ProcAppleA11 : SubtargetFeature<"apple-a11", "ARMProcFamily", "AppleA11",
+                                    "Apple A11", [
+                                    FeatureAlternateSExtLoadCVTF32Pattern,
+                                    FeatureArithmeticBccFusion,
+                                    FeatureArithmeticCbzFusion,
+                                    FeatureCrypto,
+                                    FeatureDisableLatencySchedHeuristic,
+                                    FeatureFPARMv8,
+                                    FeatureFuseAES,
+                                    FeatureFuseCryptoEOR,
+                                    FeatureNEON,
+                                    FeaturePerfMon,
+                                    FeatureZCRegMove,
+                                    FeatureZCZeroing,
+                                    FeatureFullFP16,
+                                    HasV8_2aOps
+                                    ]>;
+
+def ProcAppleA12 : SubtargetFeature<"apple-a12", "ARMProcFamily", "AppleA12",
+                                    "Apple A12", [
+                                    FeatureAlternateSExtLoadCVTF32Pattern,
+                                    FeatureArithmeticBccFusion,
+                                    FeatureArithmeticCbzFusion,
+                                    FeatureCrypto,
+                                    FeatureDisableLatencySchedHeuristic,
+                                    FeatureFPARMv8,
+                                    FeatureFuseAES,
+                                    FeatureFuseCryptoEOR,
+                                    FeatureNEON,
+                                    FeaturePerfMon,
+                                    FeatureZCRegMove,
+                                    FeatureZCZeroing,
+                                    FeatureFullFP16,
+                                    HasV8_3aOps
+                                    ]>;
+
+def ProcAppleA13 : SubtargetFeature<"apple-a13", "ARMProcFamily", "AppleA13",
+                                     "Apple A13", [
+                                     FeatureAlternateSExtLoadCVTF32Pattern,
+                                     FeatureArithmeticBccFusion,
+                                     FeatureArithmeticCbzFusion,
                                      FeatureCrypto,
-                                     FeatureExynosCheapAsMoveHandling,
-                                     FeatureForce32BitJumpTables,
+                                     FeatureDisableLatencySchedHeuristic,
+                                     FeatureFPARMv8,
                                      FeatureFuseAES,
+                                     FeatureFuseCryptoEOR,
+                                     FeatureNEON,
                                      FeaturePerfMon,
-                                     FeaturePostRAScheduler,
-                                     FeatureSlowMisaligned128Store,
-                                     FeatureZCZeroingFP]>;
+                                     FeatureZCRegMove,
+                                     FeatureZCZeroing,
+                                     FeatureFullFP16,
+                                     FeatureFP16FML,
+                                     FeatureSHA3,
+                                     HasV8_4aOps
+                                     ]>;
 
 def ProcExynosM3 : SubtargetFeature<"exynosm3", "ARMProcFamily", "ExynosM3",
                                     "Samsung Exynos-M3 processors",
@@ -815,12 +865,9 @@ def : ProcessorModel<"cortex-a76", CortexA57Model, [ProcA76]>;
 def : ProcessorModel<"cortex-a76ae", CortexA57Model, [ProcA76]>;
 def : ProcessorModel<"neoverse-e1", CortexA53Model, [ProcNeoverseE1]>;
 def : ProcessorModel<"neoverse-n1", CortexA57Model, [ProcNeoverseN1]>;
-def : ProcessorModel<"cyclone", CycloneModel, [ProcCyclone]>;
-def : ProcessorModel<"exynos-m1", ExynosM1Model, [ProcExynosM1]>;
-def : ProcessorModel<"exynos-m2", ExynosM1Model, [ProcExynosM2]>;
 def : ProcessorModel<"exynos-m3", ExynosM3Model, [ProcExynosM3]>;
 def : ProcessorModel<"exynos-m4", ExynosM4Model, [ProcExynosM4]>;
-def : ProcessorModel<"exynos-m5", ExynosM4Model, [ProcExynosM4]>;
+def : ProcessorModel<"exynos-m5", ExynosM5Model, [ProcExynosM4]>;
 def : ProcessorModel<"falkor", FalkorModel, [ProcFalkor]>;
 def : ProcessorModel<"saphira", FalkorModel, [ProcSaphira]>;
 def : ProcessorModel<"kryo", KryoModel, [ProcKryo]>;
@@ -834,8 +881,24 @@ def : ProcessorModel<"thunderx2t99", ThunderX2T99Model, [ProcThunderX2T99]>;
 // FIXME: HiSilicon TSV110 is currently modeled as a Cortex-A57.
 def : ProcessorModel<"tsv110", CortexA57Model, [ProcTSV110]>;
 
+// Support cyclone as an alias for apple-a7 so we can still LTO old bitcode.
+def : ProcessorModel<"cyclone", CycloneModel, [ProcAppleA7]>;
+
+// iPhone and iPad CPUs
+def : ProcessorModel<"apple-a7", CycloneModel, [ProcAppleA7]>;
+def : ProcessorModel<"apple-a8", CycloneModel, [ProcAppleA7]>;
+def : ProcessorModel<"apple-a9", CycloneModel, [ProcAppleA7]>;
+def : ProcessorModel<"apple-a10", CycloneModel, [ProcAppleA10]>;
+def : ProcessorModel<"apple-a11", CycloneModel, [ProcAppleA11]>;
+def : ProcessorModel<"apple-a12", CycloneModel, [ProcAppleA12]>;
+def : ProcessorModel<"apple-a13", CycloneModel, [ProcAppleA13]>;
+
+// watch CPUs.
+def : ProcessorModel<"apple-s4", CycloneModel, [ProcAppleA12]>;
+def : ProcessorModel<"apple-s5", CycloneModel, [ProcAppleA12]>;
+
 // Alias for the latest Apple processor model supported by LLVM.
-def : ProcessorModel<"apple-latest", CycloneModel, [ProcCyclone]>;
+def : ProcessorModel<"apple-latest", CycloneModel, [ProcAppleA13]>;
 
 //===----------------------------------------------------------------------===//
 // Assembly parser

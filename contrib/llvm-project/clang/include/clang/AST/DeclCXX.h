@@ -17,7 +17,6 @@
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTUnresolvedSet.h"
-#include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclarationName.h"
@@ -42,7 +41,6 @@
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/iterator_range.h"
-#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
@@ -1048,7 +1046,8 @@ public:
 
   /// Get all conversion functions visible in current class,
   /// including conversion function templates.
-  llvm::iterator_range<conversion_iterator> getVisibleConversionFunctions();
+  llvm::iterator_range<conversion_iterator>
+  getVisibleConversionFunctions() const;
 
   /// Determine whether this class is an aggregate (C++ [dcl.init.aggr]),
   /// which is a class with no user-declared constructors, no private
@@ -1737,10 +1736,10 @@ public:
   }
 
   /// Returns the inheritance model used for this record.
-  MSInheritanceAttr::Spelling getMSInheritanceModel() const;
+  MSInheritanceModel getMSInheritanceModel() const;
 
   /// Calculate what the inheritance model would be for this class.
-  MSInheritanceAttr::Spelling calculateInheritanceModel() const;
+  MSInheritanceModel calculateInheritanceModel() const;
 
   /// In the Microsoft C++ ABI, use zero for the field offset of a null data
   /// member pointer if we can guarantee that zero is not a valid field offset,
@@ -1748,15 +1747,11 @@ public:
   /// vfptr at offset zero, so we can use zero for null.  If there are multiple
   /// fields, we can use zero even if it is a valid field offset because
   /// null-ness testing will check the other fields.
-  bool nullFieldOffsetIsZero() const {
-    return !MSInheritanceAttr::hasOnlyOneField(/*IsMemberFunction=*/false,
-                                               getMSInheritanceModel()) ||
-           (hasDefinition() && isPolymorphic());
-  }
+  bool nullFieldOffsetIsZero() const;
 
   /// Controls when vtordisps will be emitted if this record is used as a
   /// virtual base.
-  MSVtorDispAttr::Mode getMSVtorDispMode() const;
+  MSVtorDispMode getMSVtorDispMode() const;
 
   /// Determine whether this lambda expression was known to be dependent
   /// at the time it was created, even if its context does not appear to be
@@ -1788,7 +1783,7 @@ public:
 };
 
 /// Store information needed for an explicit specifier.
-/// used by CXXDeductionGuideDecl, CXXConstructorDecl and CXXConversionDecl.
+/// Used by CXXDeductionGuideDecl, CXXConstructorDecl and CXXConversionDecl.
 class ExplicitSpecifier {
   llvm::PointerIntPair<Expr *, 2, ExplicitSpecKind> ExplicitSpec{
       nullptr, ExplicitSpecKind::ResolvedFalse};
@@ -1801,20 +1796,22 @@ public:
   const Expr *getExpr() const { return ExplicitSpec.getPointer(); }
   Expr *getExpr() { return ExplicitSpec.getPointer(); }
 
-  /// Return true if the ExplicitSpecifier isn't defaulted.
+  /// Determine if the declaration had an explicit specifier of any kind.
   bool isSpecified() const {
     return ExplicitSpec.getInt() != ExplicitSpecKind::ResolvedFalse ||
            ExplicitSpec.getPointer();
   }
 
-  /// Check for Equivalence of explicit specifiers.
-  /// Return True if the explicit specifier are equivalent false otherwise.
+  /// Check for equivalence of explicit specifiers.
+  /// \return true if the explicit specifier are equivalent, false otherwise.
   bool isEquivalent(const ExplicitSpecifier Other) const;
-  /// Return true if the explicit specifier is already resolved to be explicit.
+  /// Determine whether this specifier is known to correspond to an explicit
+  /// declaration. Returns false if the specifier is absent or has an
+  /// expression that is value-dependent or evaluates to false.
   bool isExplicit() const {
     return ExplicitSpec.getInt() == ExplicitSpecKind::ResolvedTrue;
   }
-  /// Return true if the ExplicitSpecifier isn't valid.
+  /// Determine if the explicit specifier is invalid.
   /// This state occurs after a substitution failures.
   bool isInvalid() const {
     return ExplicitSpec.getInt() == ExplicitSpecKind::Unresolved &&
@@ -1822,9 +1819,7 @@ public:
   }
   void setKind(ExplicitSpecKind Kind) { ExplicitSpec.setInt(Kind); }
   void setExpr(Expr *E) { ExplicitSpec.setPointer(E); }
-  // getFromDecl - retrieve the explicit specifier in the given declaration.
-  // if the given declaration has no explicit. the returned explicit specifier
-  // is defaulted. .isSpecified() will be false.
+  // Retrieve the explicit specifier in the given declaration, if any.
   static ExplicitSpecifier getFromDecl(FunctionDecl *Function);
   static const ExplicitSpecifier getFromDecl(const FunctionDecl *Function) {
     return getFromDecl(const_cast<FunctionDecl *>(Function));
@@ -1910,9 +1905,10 @@ protected:
                 SourceLocation StartLoc, const DeclarationNameInfo &NameInfo,
                 QualType T, TypeSourceInfo *TInfo, StorageClass SC,
                 bool isInline, ConstexprSpecKind ConstexprKind,
-                SourceLocation EndLocation)
+                SourceLocation EndLocation,
+                Expr *TrailingRequiresClause = nullptr)
       : FunctionDecl(DK, C, RD, StartLoc, NameInfo, T, TInfo, SC, isInline,
-                     ConstexprKind) {
+                     ConstexprKind, TrailingRequiresClause) {
     if (EndLocation.isValid())
       setRangeEnd(EndLocation);
   }
@@ -1923,7 +1919,8 @@ public:
                                const DeclarationNameInfo &NameInfo, QualType T,
                                TypeSourceInfo *TInfo, StorageClass SC,
                                bool isInline, ConstexprSpecKind ConstexprKind,
-                               SourceLocation EndLocation);
+                               SourceLocation EndLocation,
+                               Expr *TrailingRequiresClause = nullptr);
 
   static CXXMethodDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
@@ -1999,16 +1996,6 @@ public:
   }
   const CXXMethodDecl *getMostRecentDecl() const {
     return const_cast<CXXMethodDecl*>(this)->getMostRecentDecl();
-  }
-
-  /// True if this method is user-declared and was not
-  /// deleted or defaulted on its first declaration.
-  bool isUserProvided() const {
-    auto *DeclAsWritten = this;
-    if (auto *Pattern = getTemplateInstantiationPattern())
-      DeclAsWritten = cast<CXXMethodDecl>(Pattern);
-    return !(DeclAsWritten->isDeleted() ||
-             DeclAsWritten->getCanonicalDecl()->isDefaulted());
   }
 
   void addOverriddenMethod(const CXXMethodDecl *MD);
@@ -2138,8 +2125,8 @@ class CXXCtorInitializer final {
   /// Either the base class name/delegating constructor type (stored as
   /// a TypeSourceInfo*), an normal field (FieldDecl), or an anonymous field
   /// (IndirectFieldDecl*) being initialized.
-  llvm::PointerUnion3<TypeSourceInfo *, FieldDecl *, IndirectFieldDecl *>
-    Initializee;
+  llvm::PointerUnion<TypeSourceInfo *, FieldDecl *, IndirectFieldDecl *>
+      Initializee;
 
   /// The source location for the field name or, for a base initializer
   /// pack expansion, the location of the ellipsis.
@@ -2378,7 +2365,8 @@ class CXXConstructorDecl final
                      const DeclarationNameInfo &NameInfo, QualType T,
                      TypeSourceInfo *TInfo, ExplicitSpecifier ES, bool isInline,
                      bool isImplicitlyDeclared, ConstexprSpecKind ConstexprKind,
-                     InheritedConstructor Inherited);
+                     InheritedConstructor Inherited,
+                     Expr *TrailingRequiresClause);
 
   void anchor() override;
 
@@ -2431,7 +2419,8 @@ public:
          const DeclarationNameInfo &NameInfo, QualType T, TypeSourceInfo *TInfo,
          ExplicitSpecifier ES, bool isInline, bool isImplicitlyDeclared,
          ConstexprSpecKind ConstexprKind,
-         InheritedConstructor Inherited = InheritedConstructor());
+         InheritedConstructor Inherited = InheritedConstructor(),
+         Expr *TrailingRequiresClause = nullptr);
 
   ExplicitSpecifier getExplicitSpecifier() {
     return getCanonicalDecl()->getExplicitSpecifierInternal();
@@ -2638,9 +2627,11 @@ class CXXDestructorDecl : public CXXMethodDecl {
   CXXDestructorDecl(ASTContext &C, CXXRecordDecl *RD, SourceLocation StartLoc,
                     const DeclarationNameInfo &NameInfo, QualType T,
                     TypeSourceInfo *TInfo, bool isInline,
-                    bool isImplicitlyDeclared, ConstexprSpecKind ConstexprKind)
+                    bool isImplicitlyDeclared, ConstexprSpecKind ConstexprKind,
+                    Expr *TrailingRequiresClause = nullptr)
       : CXXMethodDecl(CXXDestructor, C, RD, StartLoc, NameInfo, T, TInfo,
-                      SC_None, isInline, ConstexprKind, SourceLocation()) {
+                      SC_None, isInline, ConstexprKind, SourceLocation(),
+                      TrailingRequiresClause) {
     setImplicit(isImplicitlyDeclared);
   }
 
@@ -2652,7 +2643,8 @@ public:
                                    const DeclarationNameInfo &NameInfo,
                                    QualType T, TypeSourceInfo *TInfo,
                                    bool isInline, bool isImplicitlyDeclared,
-                                   ConstexprSpecKind ConstexprKind);
+                                   ConstexprSpecKind ConstexprKind,
+                                   Expr *TrailingRequiresClause = nullptr);
   static CXXDestructorDecl *CreateDeserialized(ASTContext & C, unsigned ID);
 
   void setOperatorDelete(FunctionDecl *OD, Expr *ThisArg);
@@ -2691,9 +2683,11 @@ class CXXConversionDecl : public CXXMethodDecl {
   CXXConversionDecl(ASTContext &C, CXXRecordDecl *RD, SourceLocation StartLoc,
                     const DeclarationNameInfo &NameInfo, QualType T,
                     TypeSourceInfo *TInfo, bool isInline, ExplicitSpecifier ES,
-                    ConstexprSpecKind ConstexprKind, SourceLocation EndLocation)
+                    ConstexprSpecKind ConstexprKind, SourceLocation EndLocation,
+                    Expr *TrailingRequiresClause = nullptr)
       : CXXMethodDecl(CXXConversion, C, RD, StartLoc, NameInfo, T, TInfo,
-                      SC_None, isInline, ConstexprKind, EndLocation),
+                      SC_None, isInline, ConstexprKind, EndLocation,
+                      TrailingRequiresClause),
         ExplicitSpec(ES) {}
   void anchor() override;
 
@@ -2709,7 +2703,7 @@ public:
   Create(ASTContext &C, CXXRecordDecl *RD, SourceLocation StartLoc,
          const DeclarationNameInfo &NameInfo, QualType T, TypeSourceInfo *TInfo,
          bool isInline, ExplicitSpecifier ES, ConstexprSpecKind ConstexprKind,
-         SourceLocation EndLocation);
+         SourceLocation EndLocation, Expr *TrailingRequiresClause = nullptr);
   static CXXConversionDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
   ExplicitSpecifier getExplicitSpecifier() {
@@ -2758,15 +2752,8 @@ public:
   /// Represents the language in a linkage specification.
   ///
   /// The values are part of the serialization ABI for
-  /// ASTs and cannot be changed without altering that ABI.  To help
-  /// ensure a stable ABI for this, we choose the DW_LANG_ encodings
-  /// from the dwarf standard.
-  enum LanguageIDs {
-    lang_c = llvm::dwarf::DW_LANG_C,
-    lang_cxx = llvm::dwarf::DW_LANG_C_plus_plus,
-    lang_cxx_11 = llvm::dwarf::DW_LANG_C_plus_plus_11,
-    lang_cxx_14 = llvm::dwarf::DW_LANG_C_plus_plus_14
-  };
+  /// ASTs and cannot be changed without altering that ABI.
+  enum LanguageIDs { lang_c = 1, lang_cxx = 2 };
 
 private:
   /// The source location for the extern keyword.
@@ -3050,6 +3037,82 @@ public:
 
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K == NamespaceAlias; }
+};
+
+/// Implicit declaration of a temporary that was materialized by
+/// a MaterializeTemporaryExpr and lifetime-extended by a declaration
+class LifetimeExtendedTemporaryDecl final
+    : public Decl,
+      public Mergeable<LifetimeExtendedTemporaryDecl> {
+  friend class MaterializeTemporaryExpr;
+  friend class ASTDeclReader;
+
+  Stmt *ExprWithTemporary = nullptr;
+
+  /// The declaration which lifetime-extended this reference, if any.
+  /// Either a VarDecl, or (for a ctor-initializer) a FieldDecl.
+  ValueDecl *ExtendingDecl = nullptr;
+  unsigned ManglingNumber;
+
+  mutable APValue *Value = nullptr;
+
+  virtual void anchor();
+
+  LifetimeExtendedTemporaryDecl(Expr *Temp, ValueDecl *EDecl, unsigned Mangling)
+      : Decl(Decl::LifetimeExtendedTemporary, EDecl->getDeclContext(),
+             EDecl->getLocation()),
+        ExprWithTemporary(Temp), ExtendingDecl(EDecl),
+        ManglingNumber(Mangling) {}
+
+  LifetimeExtendedTemporaryDecl(EmptyShell)
+      : Decl(Decl::LifetimeExtendedTemporary, EmptyShell{}) {}
+
+public:
+  static LifetimeExtendedTemporaryDecl *Create(Expr *Temp, ValueDecl *EDec,
+                                               unsigned Mangling) {
+    return new (EDec->getASTContext(), EDec->getDeclContext())
+        LifetimeExtendedTemporaryDecl(Temp, EDec, Mangling);
+  }
+  static LifetimeExtendedTemporaryDecl *CreateDeserialized(ASTContext &C,
+                                                           unsigned ID) {
+    return new (C, ID) LifetimeExtendedTemporaryDecl(EmptyShell{});
+  }
+
+  ValueDecl *getExtendingDecl() { return ExtendingDecl; }
+  const ValueDecl *getExtendingDecl() const { return ExtendingDecl; }
+
+  /// Retrieve the storage duration for the materialized temporary.
+  StorageDuration getStorageDuration() const;
+
+  /// Retrieve the expression to which the temporary materialization conversion
+  /// was applied. This isn't necessarily the initializer of the temporary due
+  /// to the C++98 delayed materialization rules, but
+  /// skipRValueSubobjectAdjustments can be used to find said initializer within
+  /// the subexpression.
+  Expr *getTemporaryExpr() { return cast<Expr>(ExprWithTemporary); }
+  const Expr *getTemporaryExpr() const { return cast<Expr>(ExprWithTemporary); }
+
+  unsigned getManglingNumber() const { return ManglingNumber; }
+
+  /// Get the storage for the constant value of a materialized temporary
+  /// of static storage duration.
+  APValue *getOrCreateValue(bool MayCreate) const;
+
+  APValue *getValue() const { return Value; }
+
+  // Iterators
+  Stmt::child_range childrenExpr() {
+    return Stmt::child_range(&ExprWithTemporary, &ExprWithTemporary + 1);
+  }
+
+  Stmt::const_child_range childrenExpr() const {
+    return Stmt::const_child_range(&ExprWithTemporary, &ExprWithTemporary + 1);
+  }
+
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) {
+    return K == Decl::LifetimeExtendedTemporary;
+  }
 };
 
 /// Represents a shadow declaration introduced into a scope by a

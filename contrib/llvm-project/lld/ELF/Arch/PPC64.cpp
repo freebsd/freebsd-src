@@ -9,6 +9,7 @@
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
+#include "Thunks.h"
 #include "lld/Common/ErrorHandler.h"
 #include "llvm/Support/Endian.h"
 
@@ -200,12 +201,15 @@ public:
                      const uint8_t *loc) const override;
   RelType getDynRel(RelType type) const override;
   void writePltHeader(uint8_t *buf) const override;
-  void writePlt(uint8_t *buf, uint64_t gotPltEntryAddr, uint64_t pltEntryAddr,
-                int32_t index, unsigned relOff) const override;
+  void writePlt(uint8_t *buf, const Symbol &sym,
+                uint64_t pltEntryAddr) const override;
+  void writeIplt(uint8_t *buf, const Symbol &sym,
+                 uint64_t pltEntryAddr) const override;
   void relocateOne(uint8_t *loc, RelType type, uint64_t val) const override;
   void writeGotHeader(uint8_t *buf) const override;
   bool needsThunk(RelExpr expr, RelType type, const InputFile *file,
-                  uint64_t branchAddr, const Symbol &s) const override;
+                  uint64_t branchAddr, const Symbol &s,
+                  int64_t a) const override;
   uint32_t getThunkSectionSpacing() const override;
   bool inBranchRange(RelType type, uint64_t src, uint64_t dst) const override;
   RelExpr adjustRelaxExpr(RelType type, const uint8_t *data,
@@ -295,11 +299,12 @@ PPC64::PPC64() {
   relativeRel = R_PPC64_RELATIVE;
   iRelativeRel = R_PPC64_IRELATIVE;
   symbolicRel = R_PPC64_ADDR64;
+  pltHeaderSize = 60;
   pltEntrySize = 4;
+  ipltEntrySize = 16; // PPC64PltCallStub::size
   gotBaseSymInGotPlt = false;
   gotHeaderEntriesNum = 1;
   gotPltHeaderEntriesNum = 2;
-  pltHeaderSize = 60;
   needsThunks = true;
 
   tlsModuleIndexRel = R_PPC64_DTPMOD64;
@@ -667,12 +672,16 @@ void PPC64::writePltHeader(uint8_t *buf) const {
   write64(buf + 52, gotPltOffset);
 }
 
-void PPC64::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
-                     uint64_t pltEntryAddr, int32_t index,
-                     unsigned relOff) const {
-  int32_t offset = pltHeaderSize + index * pltEntrySize;
+void PPC64::writePlt(uint8_t *buf, const Symbol &sym,
+                     uint64_t /*pltEntryAddr*/) const {
+  int32_t offset = pltHeaderSize + sym.pltIndex * pltEntrySize;
   // bl __glink_PLTresolve
   write32(buf, 0x48000000 | ((-offset) & 0x03FFFFFc));
+}
+
+void PPC64::writeIplt(uint8_t *buf, const Symbol &sym,
+                      uint64_t /*pltEntryAddr*/) const {
+  writePPC64LoadAndBranch(buf, sym.getGotPltVA() - getPPC64TocBase());
 }
 
 static std::pair<RelType, uint64_t> toAddr16Rel(RelType type, uint64_t val) {
@@ -827,7 +836,7 @@ void PPC64::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
   case R_PPC64_ADDR16_LO:
   case R_PPC64_REL16_LO:
   case R_PPC64_TPREL16_LO:
-    // When the high-adjusted part of a toc relocation evalutes to 0, it is
+    // When the high-adjusted part of a toc relocation evaluates to 0, it is
     // changed into a nop. The lo part then needs to be updated to use the
     // toc-pointer register r2, as the base register.
     if (config->tocOptimize && shouldTocOptimize && ha(val) == 0) {
@@ -849,7 +858,7 @@ void PPC64::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
     uint16_t mask = isDQFormInstruction(insn) ? 0xf : 0x3;
     checkAlignment(loc, lo(val), mask + 1, originalType);
     if (config->tocOptimize && shouldTocOptimize && ha(val) == 0) {
-      // When the high-adjusted part of a toc relocation evalutes to 0, it is
+      // When the high-adjusted part of a toc relocation evaluates to 0, it is
       // changed into a nop. The lo part then needs to be updated to use the toc
       // pointer register r2, as the base register.
       if (isInstructionUpdateForm(insn))
@@ -898,7 +907,7 @@ void PPC64::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
 }
 
 bool PPC64::needsThunk(RelExpr expr, RelType type, const InputFile *file,
-                       uint64_t branchAddr, const Symbol &s) const {
+                       uint64_t branchAddr, const Symbol &s, int64_t a) const {
   if (type != R_PPC64_REL14 && type != R_PPC64_REL24)
     return false;
 
@@ -915,7 +924,7 @@ bool PPC64::needsThunk(RelExpr expr, RelType type, const InputFile *file,
   // a range-extending thunk.
   // See the comment in getRelocTargetVA() about R_PPC64_CALL.
   return !inBranchRange(type, branchAddr,
-                        s.getVA() +
+                        s.getVA(a) +
                             getPPC64GlobalEntryToLocalEntryOffset(s.stOther));
 }
 
@@ -990,7 +999,7 @@ void PPC64::relaxTlsGdToIe(uint8_t *loc, RelType type, uint64_t val) const {
 // The prologue for a split-stack function is expected to look roughly
 // like this:
 //    .Lglobal_entry_point:
-//      # TOC pointer initalization.
+//      # TOC pointer initialization.
 //      ...
 //    .Llocal_entry_point:
 //      # load the __private_ss member of the threads tcbhead.

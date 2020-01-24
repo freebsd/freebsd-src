@@ -108,9 +108,9 @@ public:
   ///     A const reference to the Right Hand Side object to compare.
   ///
   /// \return
-  ///     \li -1 if \a lhs is less than \a rhs
-  ///     \li 0 if \a lhs is equal to \a rhs
-  ///     \li 1 if \a lhs is greater than \a rhs
+  ///     -1 if \a lhs is less than \a rhs
+  ///     0 if \a lhs is equal to \a rhs
+  ///     1 if \a lhs is greater than \a rhs
   static int Compare(const Mangled &lhs, const Mangled &rhs);
 
   /// Dump a description of this object to a Stream \a s.
@@ -260,6 +260,15 @@ public:
   ///     True on success, false otherwise.
   bool DemangleWithRichManglingInfo(RichManglingContext &context,
                                     SkipMangledNameFn *skip_mangled_name);
+
+  /// Try to identify the mangling scheme used.
+  /// \param[in] name
+  ///     The name we are attempting to identify the mangling scheme for.
+  ///
+  /// \return
+  ///     eManglingSchemeNone if no known mangling scheme could be identified
+  ///     for s, otherwise the enumerator for the mangling scheme detected.
+  static Mangled::ManglingScheme GetManglingScheme(llvm::StringRef const name);
 
 private:
   /// Mangled member variables.

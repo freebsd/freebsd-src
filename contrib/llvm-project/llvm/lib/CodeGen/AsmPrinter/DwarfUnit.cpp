@@ -188,8 +188,9 @@ int64_t DwarfUnit::getDefaultLowerBound() const {
 
 /// Check whether the DIE for this MDNode can be shared across CUs.
 bool DwarfUnit::isShareableAcrossCUs(const DINode *D) const {
-  // When the MDNode can be part of the type system, the DIE can be shared
-  // across CUs.
+  // When the MDNode can be part of the type system (this includes subprogram
+  // declarations *and* subprogram definitions, even local definitions), the
+  // DIE must be shared across CUs.
   // Combining type units and cross-CU DIE sharing is lower value (since
   // cross-CU DIE sharing is used in LTO and removes type redundancy at that
   // level already) but may be implementable for some value in projects
@@ -197,9 +198,7 @@ bool DwarfUnit::isShareableAcrossCUs(const DINode *D) const {
   // together.
   if (isDwoUnit() && !DD->shareAcrossDWOCUs())
     return false;
-  return (isa<DIType>(D) ||
-          (isa<DISubprogram>(D) && !cast<DISubprogram>(D)->isDefinition())) &&
-         !DD->generateTypeUnits();
+  return (isa<DIType>(D) || isa<DISubprogram>(D)) && !DD->generateTypeUnits();
 }
 
 DIE *DwarfUnit::getDIE(const DINode *D) const {
@@ -800,6 +799,15 @@ void DwarfUnit::constructTypeDIE(DIE &Buffer, const DIDerivedType *DTy) {
   if (!Name.empty())
     addString(Buffer, dwarf::DW_AT_name, Name);
 
+  // If alignment is specified for a typedef , create and insert DW_AT_alignment
+  // attribute in DW_TAG_typedef DIE.
+  if (Tag == dwarf::DW_TAG_typedef && DD->getDwarfVersion() >= 5) {
+    uint32_t AlignInBytes = DTy->getAlignInBytes();
+    if (AlignInBytes > 0)
+      addUInt(Buffer, dwarf::DW_AT_alignment, dwarf::DW_FORM_udata,
+              AlignInBytes);
+  }
+
   // Add size if non-zero (derived types might be zero-sized.)
   if (Size && Tag != dwarf::DW_TAG_pointer_type
            && Tag != dwarf::DW_TAG_ptr_to_member_type
@@ -1114,8 +1122,8 @@ DIE *DwarfUnit::getOrCreateModule(const DIModule *M) {
               M->getConfigurationMacros());
   if (!M->getIncludePath().empty())
     addString(MDie, dwarf::DW_AT_LLVM_include_path, M->getIncludePath());
-  if (!M->getISysRoot().empty())
-    addString(MDie, dwarf::DW_AT_LLVM_isysroot, M->getISysRoot());
+  if (!M->getSysRoot().empty())
+    addString(MDie, dwarf::DW_AT_LLVM_sysroot, M->getSysRoot());
 
   return &MDie;
 }
@@ -1224,6 +1232,9 @@ void DwarfUnit::applySubprogramAttributes(const DISubprogram *SP, DIE &SPDie,
        Language == dwarf::DW_LANG_ObjC))
     addFlag(SPDie, dwarf::DW_AT_prototyped);
 
+  if (SP->isObjCDirect())
+    addFlag(SPDie, dwarf::DW_AT_APPLE_objc_direct);
+
   unsigned CC = 0;
   DITypeRefArray Args;
   if (const DISubroutineType *SPTy = SP->getType()) {
@@ -1307,6 +1318,9 @@ void DwarfUnit::applySubprogramAttributes(const DISubprogram *SP, DIE &SPDie,
     addFlag(SPDie, dwarf::DW_AT_elemental);
   if (SP->isRecursive())
     addFlag(SPDie, dwarf::DW_AT_recursive);
+
+  if (DD->getDwarfVersion() >= 5 && SP->isDeleted())
+    addFlag(SPDie, dwarf::DW_AT_deleted);
 }
 
 void DwarfUnit::constructSubrangeDIE(DIE &Buffer, const DISubrange *SR,

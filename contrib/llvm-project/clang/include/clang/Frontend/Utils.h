@@ -15,6 +15,7 @@
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Driver/OptionUtils.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -33,12 +34,6 @@
 namespace llvm {
 
 class Triple;
-
-namespace opt {
-
-class ArgList;
-
-} // namespace opt
 
 } // namespace llvm
 
@@ -217,37 +212,18 @@ createChainedIncludesSource(CompilerInstance &CI,
 /// non-null (and possibly incorrect) CompilerInvocation if any errors were
 /// encountered. When this flag is false, always return null on errors.
 ///
-/// \return A CompilerInvocation, or 0 if none was built for the given
+/// \param CC1Args - if non-null, will be populated with the args to cc1
+/// expanded from \p Args. May be set even if nullptr is returned.
+///
+/// \return A CompilerInvocation, or nullptr if none was built for the given
 /// argument vector.
 std::unique_ptr<CompilerInvocation> createInvocationFromCommandLine(
     ArrayRef<const char *> Args,
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags =
         IntrusiveRefCntPtr<DiagnosticsEngine>(),
     IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS = nullptr,
-    bool ShouldRecoverOnErrors = false);
-
-/// Return the value of the last argument as an integer, or a default. If Diags
-/// is non-null, emits an error if the argument is given, but non-integral.
-int getLastArgIntValue(const llvm::opt::ArgList &Args,
-                       llvm::opt::OptSpecifier Id, int Default,
-                       DiagnosticsEngine *Diags = nullptr);
-
-inline int getLastArgIntValue(const llvm::opt::ArgList &Args,
-                              llvm::opt::OptSpecifier Id, int Default,
-                              DiagnosticsEngine &Diags) {
-  return getLastArgIntValue(Args, Id, Default, &Diags);
-}
-
-uint64_t getLastArgUInt64Value(const llvm::opt::ArgList &Args,
-                               llvm::opt::OptSpecifier Id, uint64_t Default,
-                               DiagnosticsEngine *Diags = nullptr);
-
-inline uint64_t getLastArgUInt64Value(const llvm::opt::ArgList &Args,
-                                      llvm::opt::OptSpecifier Id,
-                                      uint64_t Default,
-                                      DiagnosticsEngine &Diags) {
-  return getLastArgUInt64Value(Args, Id, Default, &Diags);
-}
+    bool ShouldRecoverOnErrors = false,
+    std::vector<std::string> *CC1Args = nullptr);
 
 // Frontend timing utils
 

@@ -950,9 +950,9 @@ private:
         if (CurrentToken->isOneOf(tok::star, tok::amp))
           CurrentToken->Type = TT_PointerOrReference;
         consumeToken();
-        if (CurrentToken &&
-            CurrentToken->Previous->isOneOf(TT_BinaryOperator, TT_UnaryOperator,
-                                            tok::comma))
+        if (CurrentToken && CurrentToken->Previous->isOneOf(
+                                TT_BinaryOperator, TT_UnaryOperator, tok::comma,
+                                tok::star, tok::arrow, tok::amp, tok::ampamp))
           CurrentToken->Previous->Type = TT_OverloadedOperator;
       }
       if (CurrentToken) {
@@ -1344,10 +1344,78 @@ private:
         Contexts.back().IsExpression = false;
     } else if (Current.is(tok::kw_new)) {
       Contexts.back().CanBeExpression = false;
-    } else if (Current.isOneOf(tok::semi, tok::exclaim)) {
+    } else if (Current.is(tok::semi) ||
+               (Current.is(tok::exclaim) && Current.Previous &&
+                !Current.Previous->is(tok::kw_operator))) {
       // This should be the condition or increment in a for-loop.
+      // But not operator !() (can't use TT_OverloadedOperator here as its not
+      // been annotated yet).
       Contexts.back().IsExpression = true;
     }
+  }
+
+  static FormatToken *untilMatchingParen(FormatToken *Current) {
+    // Used when `MatchingParen` is not yet established.
+    int ParenLevel = 0;
+    while (Current) {
+      if (Current->is(tok::l_paren))
+        ParenLevel++;
+      if (Current->is(tok::r_paren))
+        ParenLevel--;
+      if (ParenLevel < 1)
+        break;
+      Current = Current->Next;
+    }
+    return Current;
+  }
+
+  static bool isDeductionGuide(FormatToken &Current) {
+    // Look for a deduction guide template<T> A(...) -> A<...>;
+    if (Current.Previous && Current.Previous->is(tok::r_paren) &&
+        Current.startsSequence(tok::arrow, tok::identifier, tok::less)) {
+      // Find the TemplateCloser.
+      FormatToken *TemplateCloser = Current.Next->Next;
+      int NestingLevel = 0;
+      while (TemplateCloser) {
+        // Skip over an expressions in parens  A<(3 < 2)>;
+        if (TemplateCloser->is(tok::l_paren)) {
+          // No Matching Paren yet so skip to matching paren
+          TemplateCloser = untilMatchingParen(TemplateCloser);
+        }
+        if (TemplateCloser->is(tok::less))
+          NestingLevel++;
+        if (TemplateCloser->is(tok::greater))
+          NestingLevel--;
+        if (NestingLevel < 1)
+          break;
+        TemplateCloser = TemplateCloser->Next;
+      }
+      // Assuming we have found the end of the template ensure its followed
+      // with a semi-colon.
+      if (TemplateCloser && TemplateCloser->Next &&
+          TemplateCloser->Next->is(tok::semi) &&
+          Current.Previous->MatchingParen) {
+        // Determine if the identifier `A` prior to the A<..>; is the same as
+        // prior to the A(..)
+        FormatToken *LeadingIdentifier =
+            Current.Previous->MatchingParen->Previous;
+
+        // Differentiate a deduction guide by seeing the
+        // > of the template prior to the leading identifier.
+        if (LeadingIdentifier) {
+          FormatToken *PriorLeadingIdentifier = LeadingIdentifier->Previous;
+          // Skip back past explicit decoration
+          if (PriorLeadingIdentifier &&
+              PriorLeadingIdentifier->is(tok::kw_explicit))
+            PriorLeadingIdentifier = PriorLeadingIdentifier->Previous;
+
+          return (PriorLeadingIdentifier &&
+                  PriorLeadingIdentifier->is(TT_TemplateCloser) &&
+                  LeadingIdentifier->TokenText == Current.Next->TokenText);
+        }
+      }
+    }
+    return false;
   }
 
   void determineTokenType(FormatToken &Current) {
@@ -1396,6 +1464,10 @@ private:
                Current.NestingLevel == 0 &&
                !Current.Previous->is(tok::kw_operator)) {
       // not auto operator->() -> xxx;
+      Current.Type = TT_TrailingReturnArrow;
+
+    } else if (isDeductionGuide(Current)) {
+      // Deduction guides trailing arrow " A(...) -> A<T>;".
       Current.Type = TT_TrailingReturnArrow;
     } else if (Current.isOneOf(tok::star, tok::amp, tok::ampamp)) {
       Current.Type = determineStarAmpUsage(Current,
@@ -1757,7 +1829,8 @@ private:
     // Use heuristics to recognize unary operators.
     if (PrevToken->isOneOf(tok::equal, tok::l_paren, tok::comma, tok::l_square,
                            tok::question, tok::colon, tok::kw_return,
-                           tok::kw_case, tok::at, tok::l_brace, tok::kw_throw))
+                           tok::kw_case, tok::at, tok::l_brace, tok::kw_throw,
+                           tok::kw_co_return, tok::kw_co_yield))
       return TT_UnaryOperator;
 
     // There can't be two consecutive binary operators.
@@ -2087,9 +2160,20 @@ static bool isFunctionDeclarationName(const FormatToken &Current,
         continue;
       if (Next->isOneOf(tok::kw_new, tok::kw_delete)) {
         // For 'new[]' and 'delete[]'.
-        if (Next->Next && Next->Next->is(tok::l_square) && Next->Next->Next &&
-            Next->Next->Next->is(tok::r_square))
+        if (Next->Next &&
+            Next->Next->startsSequence(tok::l_square, tok::r_square))
           Next = Next->Next->Next;
+        continue;
+      }
+      if (Next->startsSequence(tok::l_square, tok::r_square)) {
+        // For operator[]().
+        Next = Next->Next;
+        continue;
+      }
+      if ((Next->isSimpleTypeSpecifier() || Next->is(tok::identifier)) &&
+          Next->Next && Next->Next->isOneOf(tok::star, tok::amp, tok::ampamp)) {
+        // For operator void*(), operator char*(), operator Foo*().
+        Next = Next->Next;
         continue;
       }
 
@@ -2508,6 +2592,13 @@ bool TokenAnnotator::spaceRequiredBeforeParens(const FormatToken &Right) const {
           Right.ParameterCount > 0);
 }
 
+/// Returns \c true if the token is followed by a boolean condition, \c false
+/// otherwise.
+static bool isKeywordWithCondition(const FormatToken &Tok) {
+  return Tok.isOneOf(tok::kw_if, tok::kw_for, tok::kw_while, tok::kw_switch,
+                     tok::kw_constexpr);
+}
+
 bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
                                           const FormatToken &Left,
                                           const FormatToken &Right) {
@@ -2526,6 +2617,15 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
       (Left.is(tok::l_brace) && Left.BlockKind != BK_Block &&
        Right.is(tok::r_brace) && Right.BlockKind != BK_Block))
     return Style.SpaceInEmptyParentheses;
+  if (Style.SpacesInConditionalStatement) {
+    if (Left.is(tok::l_paren) && Left.Previous &&
+        isKeywordWithCondition(*Left.Previous))
+      return true;
+    if (Right.is(tok::r_paren) && Right.MatchingParen &&
+        Right.MatchingParen->Previous &&
+        isKeywordWithCondition(*Right.MatchingParen->Previous))
+      return true;
+  }
   if (Left.is(tok::l_paren) || Right.is(tok::r_paren))
     return (Right.is(TT_CastRParen) ||
             (Left.MatchingParen && Left.MatchingParen->is(TT_CastRParen)))
@@ -2567,7 +2667,7 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
     return Left.Tok.isLiteral() || (Left.is(tok::identifier) && Left.Previous &&
                                     Left.Previous->is(tok::kw_case));
   if (Left.is(tok::l_square) && Right.is(tok::amp))
-    return false;
+    return Style.SpacesInSquareBrackets;
   if (Right.is(TT_PointerOrReference)) {
     if (Left.is(tok::r_paren) && Line.MightBeFunctionDecl) {
       if (!Left.MatchingParen)
@@ -2605,6 +2705,13 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
                                     tok::l_square));
   if (Right.is(tok::star) && Left.is(tok::l_paren))
     return false;
+  if (Right.isOneOf(tok::star, tok::amp, tok::ampamp) &&
+      (Left.is(tok::identifier) || Left.isSimpleTypeSpecifier()) &&
+      Left.Previous && Left.Previous->is(tok::kw_operator))
+    // Space between the type and the *
+    // operator void*(), operator char*(), operator Foo*() dependant
+    // on PointerAlignment style.
+    return (Style.PointerAlignment != FormatStyle::PAS_Left);
   const auto SpaceRequiredForArrayInitializerLSquare =
       [](const FormatToken &LSquareTok, const FormatStyle &Style) {
         return Style.SpacesInContainerLiterals ||
@@ -2634,7 +2741,9 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
       !Right.isOneOf(TT_ObjCMethodExpr, TT_LambdaLSquare,
                      TT_DesignatedInitializerLSquare,
                      TT_StructuredBindingLSquare, TT_AttributeSquare) &&
-      !Left.isOneOf(tok::numeric_constant, TT_DictLiteral))
+      !Left.isOneOf(tok::numeric_constant, TT_DictLiteral) &&
+      !(!Left.is(tok::r_square) && Style.SpaceBeforeSquareBrackets &&
+        Right.is(TT_ArraySubscriptLSquare)))
     return false;
   if (Left.is(tok::l_brace) && Right.is(tok::r_brace))
     return !Left.Children.empty(); // No spaces in "{}".
@@ -2906,14 +3015,18 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
     return true;
   }
   if (Left.is(TT_UnaryOperator)) {
-    // The alternative operators for ~ and ! are "compl" and "not".
-    // If they are used instead, we do not want to combine them with
-    // the token to the right, unless that is a left paren.
     if (!Right.is(tok::l_paren)) {
+      // The alternative operators for ~ and ! are "compl" and "not".
+      // If they are used instead, we do not want to combine them with
+      // the token to the right, unless that is a left paren.
       if (Left.is(tok::exclaim) && Left.TokenText == "not")
         return true;
       if (Left.is(tok::tilde) && Left.TokenText == "compl")
         return true;
+      // Lambda captures allow for a lone &, so "&]" needs to be properly
+      // handled.
+      if (Left.is(tok::amp) && Right.is(tok::r_square))
+        return Style.SpacesInSquareBrackets;
     }
     return (Style.SpaceAfterLogicalNot && Left.is(tok::exclaim)) ||
            Right.is(TT_BinaryOperator);
@@ -2947,7 +3060,8 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
     // The identifier might actually be a macro name such as ALWAYS_INLINE. If
     // this turns out to be too lenient, add analysis of the identifier itself.
     return Right.WhitespaceRange.getBegin() != Right.WhitespaceRange.getEnd();
-  if (Right.is(tok::coloncolon) && !Left.isOneOf(tok::l_brace, tok::comment))
+  if (Right.is(tok::coloncolon) &&
+      !Left.isOneOf(tok::l_brace, tok::comment, tok::l_paren))
     return (Left.is(TT_TemplateOpener) &&
             Style.Standard < FormatStyle::LS_Cpp11) ||
            !(Left.isOneOf(tok::l_paren, tok::r_paren, tok::l_square,

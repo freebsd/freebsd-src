@@ -18,7 +18,6 @@
 
 namespace llvm {
 
-class BasicBlockPass;
 class Function;
 class FunctionPass;
 class ModulePass;
@@ -50,10 +49,16 @@ FunctionPass *createSCCPPass();
 //===----------------------------------------------------------------------===//
 //
 // DeadInstElimination - This pass quickly removes trivially dead instructions
-// without modifying the CFG of the function.  It is a BasicBlockPass, so it
-// runs efficiently when queued next to other BasicBlockPass's.
+// without modifying the CFG of the function.  It is a FunctionPass.
 //
 Pass *createDeadInstEliminationPass();
+
+//===----------------------------------------------------------------------===//
+//
+// RedundantDbgInstElimination - This pass removes redundant dbg intrinsics
+// without modifying the CFG of the function.  It is a FunctionPass.
+//
+Pass *createRedundantDbgInstEliminationPass();
 
 //===----------------------------------------------------------------------===//
 //
@@ -360,6 +365,12 @@ Pass *createLowerAtomicPass();
 // LowerGuardIntrinsic - Lower guard intrinsics to normal control flow.
 //
 Pass *createLowerGuardIntrinsicPass();
+
+//===----------------------------------------------------------------------===//
+//
+// LowerMatrixIntrinsics - Lower matrix intrinsics to vector operations.
+//
+Pass *createLowerMatrixIntrinsicsPass();
 
 //===----------------------------------------------------------------------===//
 //
