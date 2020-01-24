@@ -1103,6 +1103,8 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
 
   Opts.PatchableFunctionEntryCount =
       getLastArgIntValue(Args, OPT_fpatchable_function_entry_EQ, 0, Diags);
+  Opts.PatchableFunctionEntryOffset = getLastArgIntValue(
+      Args, OPT_fpatchable_function_entry_offset_EQ, 0, Diags);
   Opts.InstrumentForProfiling = Args.hasArg(OPT_pg);
   Opts.CallFEntry = Args.hasArg(OPT_mfentry);
   Opts.MNopMCount = Args.hasArg(OPT_mnop_mcount);
@@ -2852,7 +2854,10 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
                                                  << A->getValue();
     Opts.NewAlignOverride = 0;
   }
-  Opts.ConceptsTS = Args.hasArg(OPT_fconcepts_ts);
+  Opts.ConceptSatisfactionCaching =
+      !Args.hasArg(OPT_fno_concept_satisfaction_caching);
+  if (Args.hasArg(OPT_fconcepts_ts))
+    Diags.Report(diag::warn_fe_concepts_ts_flag);
   Opts.HeinousExtensions = Args.hasArg(OPT_fheinous_gnu_extensions);
   Opts.AccessControl = !Args.hasArg(OPT_fno_access_control);
   Opts.ElideConstructors = !Args.hasArg(OPT_fno_elide_constructors);
