@@ -2576,6 +2576,7 @@ re_intr(void *arg)
 static void
 re_int_task(void *arg, int npending)
 {
+	struct epoch_tracker	et;
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
 	u_int16_t		status;
@@ -2602,8 +2603,11 @@ re_int_task(void *arg, int npending)
 	}
 #endif
 
-	if (status & (RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_FIFO_OFLOW))
+	if (status & (RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_FIFO_OFLOW)) {
+		NET_EPOCH_ENTER(et);
 		rval = re_rxeof(sc, NULL);
+		NET_EPOCH_EXIT(et);
+	}
 
 	/*
 	 * Some chips will ignore a second TX request issued
