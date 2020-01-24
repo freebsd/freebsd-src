@@ -76,6 +76,9 @@ options 	INTRNG
 # RISC-V SBI console
 device		rcons
 
+# Bus drivers
+device		pci
+
 # VirtIO support
 device		virtio			# Generic VirtIO bus (required)
 device		virtio_pci		# VirtIO PCI device

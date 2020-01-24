@@ -6,6 +6,9 @@ crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
 dev/cadence/if_cgem.c		optional	cgem
 dev/ofw/ofw_cpu.c		optional	fdt
+dev/ofw/ofwpci.c		optional 	pci fdt
+dev/pci/pci_host_generic.c	optional	pci
+dev/pci/pci_host_generic_fdt.c	optional	pci fdt
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
 dev/uart/uart_dev_lowrisc.c	optional	uart_lowrisc
 dev/xilinx/axi_quad_spi.c	optional	xilinx_spi
