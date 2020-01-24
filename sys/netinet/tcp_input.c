@@ -2226,7 +2226,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		/*
 		 * DSACK - add SACK block for dropped range
 		 */
-		if (tp->t_flags & TF_SACK_PERMIT) {
+		if ((todrop > 0) && (tp->t_flags & TF_SACK_PERMIT)) {
 			tcp_update_sack_list(tp, th->th_seq,
 			    th->th_seq + todrop);
 			/*
