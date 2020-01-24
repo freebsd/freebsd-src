@@ -164,8 +164,7 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 .endif
 .if ${MK_NLS} != "no"
 .for alias nls in ${NLS_ALIASES}
-	${INSTALL_SYMLINK} -T "package=utilities" \
-	    "${nls}" "${DESTDIR}${SHAREDIR}/nls/${alias}"
+	${INSTALL_SYMLINK} "${nls}" "${DESTDIR}${SHAREDIR}/nls/${alias}"
 .endfor
 .endif
 
