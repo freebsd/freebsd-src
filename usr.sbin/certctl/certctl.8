@@ -1,0 +1,119 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright 2018 Allan Jude <allanjude@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted providing that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 19, 2019
+.Dt CERTCTL 8
+.Os
+.Sh NAME
+.Nm certctl
+.Nd "tool for managing trusted and blacklist TLS certificates"
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Ic list
+.Nm
+.Op Fl v
+.Ic blacklisted
+.Nm
+.Op Fl nv
+.Ic rehash
+.Nm
+.Op Fl nv
+.Ic blacklist Ar file
+.Nm
+.Op Fl nv
+.Ic unblacklist Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility manages the list of TLS Certificate Authorities that are trusted by
+applications that use OpenSSL.
+.Pp
+Flags:
+.Bl -tag -width 4n
+.It Fl n
+No-Op mode, do not actually perform any actions.
+.It Fl v
+be verbose, print details about actions before performing them.
+.El
+.Pp
+Primary command functions:
+.Bl -tag -width blacklisted
+.It Ic list
+List all currently trusted certificate authorities.
+.It Ic blacklisted
+List all currently blacklisted certificates.
+.It Ic rehash
+Rebuild the list of trusted certificate authorities by scanning all directories
+in
+.Ev TRUSTPATH
+and all blacklisted certificates in
+.Ev BLACKLISTPATH .
+A symbolic link to each trusted certificate is placed in
+.Ev CERTDESTDIR
+and each blacklisted certificate in
+.Ev BLACKLISTDESTDIR .
+.It Ic blacklist
+Add the specified file to the blacklist.
+.It Ic unblacklist
+Remove the specified file from the blacklist.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width BLACKLISTDESTDIR
+.It Ev DESTDIR
+Alternate destination directory to operate on.
+.It Ev TRUSTPATH
+List of paths to search for trusted certificates.
+Default:
+.Pa <DESTDIR>/usr/share/certs/trusted
+.Pa <DESTDIR>/usr/local/share/certs <DESTDIR>/usr/local/etc/ssl/certs
+.It Ev BLACKLISTPATH
+List of paths to search for blacklisted certificates.
+Default:
+.Pa <DESTDIR>/usr/share/certs/blacklisted
+.Pa <DESTDIR>/usr/local/etc/ssl/blacklisted
+.It Ev CERTDESTDIR
+Destination directory for symbolic links to trusted certificates.
+Default:
+.Pa <DESTDIR>/etc/ssl/certs
+.It Ev BLACKLISTDESTDIR
+Destination directory for symbolic links to blacklisted certificates.
+Default:
+.Pa <DESTDIR>/etc/ssl/blacklisted
+.It Ev EXTENSIONS
+List of file extensions to read as certificate files.
+Default: *.pem *.crt *.cer *.crl *.0
+.El
+.Sh SEE ALSO
+.Xr openssl 1
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 12.0
+.Sh AUTHORS
+.An Allan Jude Aq Mt allanjude@freebsd.org

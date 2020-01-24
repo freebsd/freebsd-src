@@ -10,6 +10,8 @@ SUBDIR_PARALLEL=
 _tests=	tests
 .endif
 
+SUBDIR.${MK_CAROOT}+= caroot
+
 # These are the programs which depend on crypto, but not Kerberos.
 SPROGS=	lib/libfetch lib/libpam lib/libradius lib/libtelnet	\
 	bin/ed libexec/telnetd usr.bin/fetch usr.bin/telnet	\
