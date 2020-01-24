@@ -38,9 +38,12 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/sysctl.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include "un-namespace.h"
+
+#include "random.h"
 
 /*
  * random.c:
@@ -144,19 +147,6 @@ __FBSDID("$FreeBSD$");
 static const int degrees[MAX_TYPES] =	{ DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
 static const int seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
 
-/* A full instance of the random(3) generator. */
-struct random_state {
-	uint32_t	*rst_fptr;
-	uint32_t	*rst_rptr;
-	uint32_t	*rst_state;
-	int		rst_type;
-	int		rst_deg;
-	int		rst_sep;
-	uint32_t	*rst_end_ptr;
-	/* Flexible array member must be last. */
-	uint32_t	rst_randtbl[];
-};
-
 /*
  * Initially, everything is set up as if from:
  *
@@ -170,7 +160,7 @@ struct random_state {
  *
  *	MAX_TYPES * (rptr - state) + TYPE_3 == TYPE_3.
  */
-static struct random_state implicit = {
+static struct __random_state implicit = {
 	.rst_randtbl = {
 		TYPE_3,
 		0x2cf41758, 0x27bb3711, 0x4916d4d1, 0x7b02f59f, 0x9b8e28eb, 0xc0e80269,
@@ -257,23 +247,29 @@ parkmiller32(uint32_t ctx)
  * for default usage relies on values produced by this routine.
  */
 void
-srandom(unsigned int x)
+srandom_r(struct __random_state *estate, unsigned x)
 {
 	int i, lim;
 
-	implicit.rst_state[0] = (uint32_t)x;
-	if (implicit.rst_type == TYPE_0)
+	estate->rst_state[0] = (uint32_t)x;
+	if (estate->rst_type == TYPE_0)
 		lim = NSHUFF;
 	else {
-		for (i = 1; i < implicit.rst_deg; i++)
-			implicit.rst_state[i] =
-			    parkmiller32(implicit.rst_state[i - 1]);
-		implicit.rst_fptr = &implicit.rst_state[implicit.rst_sep];
-		implicit.rst_rptr = &implicit.rst_state[0];
-		lim = 10 * implicit.rst_deg;
+		for (i = 1; i < estate->rst_deg; i++)
+			estate->rst_state[i] =
+			    parkmiller32(estate->rst_state[i - 1]);
+		estate->rst_fptr = &estate->rst_state[estate->rst_sep];
+		estate->rst_rptr = &estate->rst_state[0];
+		lim = 10 * estate->rst_deg;
 	}
 	for (i = 0; i < lim; i++)
-		(void)random();
+		(void)random_r(estate);
+}
+
+void
+srandom(unsigned x)
+{
+	srandom_r(&implicit, x);
 }
 
 /*
@@ -289,20 +285,20 @@ srandom(unsigned int x)
  * derived from the LC algorithm applied to a fixed seed.
  */
 void
-srandomdev(void)
+srandomdev_r(struct __random_state *estate)
 {
 	int mib[2];
 	size_t expected, len;
 
-	if (implicit.rst_type == TYPE_0)
-		len = sizeof(implicit.rst_state[0]);
+	if (estate->rst_type == TYPE_0)
+		len = sizeof(estate->rst_state[0]);
 	else
-		len = implicit.rst_deg * sizeof(implicit.rst_state[0]);
+		len = estate->rst_deg * sizeof(estate->rst_state[0]);
 	expected = len;
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_ARND;
-	if (sysctl(mib, 2, implicit.rst_state, &len, NULL, 0) == -1 ||
+	if (sysctl(mib, 2, estate->rst_state, &len, NULL, 0) == -1 ||
 	    len != expected) {
 		/*
 		 * The sysctl cannot fail. If it does fail on some FreeBSD
@@ -313,14 +309,20 @@ srandomdev(void)
 		abort();
 	}
 
-	if (implicit.rst_type != TYPE_0) {
-		implicit.rst_fptr = &implicit.rst_state[implicit.rst_sep];
-		implicit.rst_rptr = &implicit.rst_state[0];
+	if (estate->rst_type != TYPE_0) {
+		estate->rst_fptr = &estate->rst_state[estate->rst_sep];
+		estate->rst_rptr = &estate->rst_state[0];
 	}
 }
 
+void
+srandomdev(void)
+{
+	srandomdev_r(&implicit);
+}
+
 /*
- * initstate:
+ * initstate_r:
  *
  * Initialize the state information in the given array of n bytes for future
  * random number generation.  Based on the number of bytes we are given, and
@@ -328,65 +330,95 @@ srandomdev(void)
  * one we can and set things up for it.  srandom() is then called to
  * initialize the state information.
  *
- * Note that on return from srandom(), we set state[-1] to be the type
- * multiplexed with the current value of the rear pointer; this is so
- * successive calls to initstate() won't lose this information and will be
- * able to restart with setstate().
+ * Returns zero on success, or an error number on failure.
+ *
+ * Note: There is no need for a setstate_r(); just use a new context.
+ */
+int
+initstate_r(struct __random_state *estate, unsigned seed, uint32_t *arg_state,
+    size_t sz)
+{
+	if (sz < BREAK_0)
+		return (EINVAL);
+
+	if (sz < BREAK_1) {
+		estate->rst_type = TYPE_0;
+		estate->rst_deg = DEG_0;
+		estate->rst_sep = SEP_0;
+	} else if (sz < BREAK_2) {
+		estate->rst_type = TYPE_1;
+		estate->rst_deg = DEG_1;
+		estate->rst_sep = SEP_1;
+	} else if (sz < BREAK_3) {
+		estate->rst_type = TYPE_2;
+		estate->rst_deg = DEG_2;
+		estate->rst_sep = SEP_2;
+	} else if (sz < BREAK_4) {
+		estate->rst_type = TYPE_3;
+		estate->rst_deg = DEG_3;
+		estate->rst_sep = SEP_3;
+	} else {
+		estate->rst_type = TYPE_4;
+		estate->rst_deg = DEG_4;
+		estate->rst_sep = SEP_4;
+	}
+	estate->rst_state = arg_state + 1;
+	estate->rst_end_ptr = &estate->rst_state[estate->rst_deg];
+	srandom_r(estate, seed);
+	return (0);
+}
+
+/*
+ * initstate:
  *
  * Note: the first thing we do is save the current state, if any, just like
  * setstate() so that it doesn't matter when initstate is called.
  *
+ * Note that on return from initstate_r(), we set state[-1] to be the type
+ * multiplexed with the current value of the rear pointer; this is so
+ * successive calls to initstate() won't lose this information and will be able
+ * to restart with setstate().
+ *
  * Returns a pointer to the old state.
  *
- * Note: The Sparc platform requires that arg_state begin on an int
- * word boundary; otherwise a bus error will occur. Even so, lint will
- * complain about mis-alignment, but you should disregard these messages.
+ * Despite the misleading "char *" type, arg_state must alias an array of
+ * 32-bit unsigned integer values.  Naturally, such an array is 32-bit aligned.
+ * Usually objects are naturally aligned to at least 32-bits on all platforms,
+ * but if you treat the provided 'state' as char* you may inadvertently
+ * misalign it.  Don't do that.
  */
 char *
 initstate(unsigned int seed, char *arg_state, size_t n)
 {
 	char *ostate = (char *)(&implicit.rst_state[-1]);
 	uint32_t *int_arg_state = (uint32_t *)arg_state;
+	int error;
 
-	if (n < BREAK_0)
-		return (NULL);
+	/*
+	 * Persist rptr offset and rst_type in the first word of the prior
+	 * state we are replacing.
+	 */
 	if (implicit.rst_type == TYPE_0)
 		implicit.rst_state[-1] = implicit.rst_type;
 	else
 		implicit.rst_state[-1] = MAX_TYPES *
 		    (implicit.rst_rptr - implicit.rst_state) +
 		    implicit.rst_type;
-	if (n < BREAK_1) {
-		implicit.rst_type = TYPE_0;
-		implicit.rst_deg = DEG_0;
-		implicit.rst_sep = SEP_0;
-	} else if (n < BREAK_2) {
-		implicit.rst_type = TYPE_1;
-		implicit.rst_deg = DEG_1;
-		implicit.rst_sep = SEP_1;
-	} else if (n < BREAK_3) {
-		implicit.rst_type = TYPE_2;
-		implicit.rst_deg = DEG_2;
-		implicit.rst_sep = SEP_2;
-	} else if (n < BREAK_4) {
-		implicit.rst_type = TYPE_3;
-		implicit.rst_deg = DEG_3;
-		implicit.rst_sep = SEP_3;
-	} else {
-		implicit.rst_type = TYPE_4;
-		implicit.rst_deg = DEG_4;
-		implicit.rst_sep = SEP_4;
-	}
-	implicit.rst_state = int_arg_state + 1; /* first location */
-	/* must set end_ptr before srandom */
-	implicit.rst_end_ptr = &implicit.rst_state[implicit.rst_deg];
-	srandom(seed);
+
+	error = initstate_r(&implicit, seed, int_arg_state, n);
+	if (error != 0)
+		return (NULL);
+
+	/*
+	 * Persist rptr offset and rst_type of the new state in its first word.
+	 */
 	if (implicit.rst_type == TYPE_0)
 		int_arg_state[0] = implicit.rst_type;
 	else
 		int_arg_state[0] = MAX_TYPES *
 		    (implicit.rst_rptr - implicit.rst_state) +
 		    implicit.rst_type;
+
 	return (ostate);
 }
 
@@ -456,33 +488,39 @@ setstate(char *arg_state)
  * Returns a 31-bit random number.
  */
 long
-random(void)
+random_r(struct __random_state *estate)
 {
 	uint32_t i;
 	uint32_t *f, *r;
 
-	if (implicit.rst_type == TYPE_0) {
-		i = implicit.rst_state[0];
+	if (estate->rst_type == TYPE_0) {
+		i = estate->rst_state[0];
 		i = parkmiller32(i);
-		implicit.rst_state[0] = i;
+		estate->rst_state[0] = i;
 	} else {
 		/*
 		 * Use local variables rather than static variables for speed.
 		 */
-		f = implicit.rst_fptr;
-		r = implicit.rst_rptr;
+		f = estate->rst_fptr;
+		r = estate->rst_rptr;
 		*f += *r;
 		i = *f >> 1;	/* chucking least random bit */
-		if (++f >= implicit.rst_end_ptr) {
-			f = implicit.rst_state;
+		if (++f >= estate->rst_end_ptr) {
+			f = estate->rst_state;
 			++r;
 		}
-		else if (++r >= implicit.rst_end_ptr) {
-			r = implicit.rst_state;
+		else if (++r >= estate->rst_end_ptr) {
+			r = estate->rst_state;
 		}
 
-		implicit.rst_fptr = f;
-		implicit.rst_rptr = r;
+		estate->rst_fptr = f;
+		estate->rst_rptr = r;
 	}
 	return ((long)i);
+}
+
+long
+random(void)
+{
+	return (random_r(&implicit));
 }
