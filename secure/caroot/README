@@ -1,0 +1,34 @@
+# $FreeBSD$
+
+This directory contains the scripts to update the TLS CA Root Certificates
+that comprise the 'root trust store'.
+
+The 'updatecerts' make target should be run periodically by secteam@
+specifically when there is an important change to the list of trusted root
+certificates included by Mozilla.
+
+It will:
+	1) Remove the old trusted certificates (cleancerts)
+	2) Download the latest certdata.txt from Mozilla (fetchcerts)
+	3) Split certdata.txt into the individual .pem files (updatecerts)
+
+Then the results should manually be inspected (svn status)
+	1) Any no-longer-trusted certificates should be moved to the
+	blacklisted directory (svn mv)
+	2) any newly added certificates will need to be added (svn add)
+
+
+The following make targets exist:
+
+cleancerts:
+	Delete the old certificates, run as a dependency of updatecerts.
+
+fetchcerts:
+	Download the latest certdata.txt from the Mozilla NSS hg repo
+	See the changelog here:
+		https://hg.mozilla.org/projects/nss/log/tip/lib/ckfw/builtins/certdata.txt
+
+updatecerts:
+	Runs a perl script (MAca-bundle.pl) on the downloaded certdata.txt
+	to generate the individual certificate files (.pem) and store them
+	in the trusted/ directory.
