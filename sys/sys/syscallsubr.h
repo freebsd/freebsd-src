@@ -315,6 +315,7 @@ int	kern_wait6(struct thread *td, enum idtype idtype, id_t id, int *status,
 int	kern_writev(struct thread *td, int fd, struct uio *auio);
 int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	    int *rsv);
+int	kern_unmount(struct thread *td, const char *path, int flags);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */
