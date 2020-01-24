@@ -647,6 +647,7 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
     uint64_t tsf, int nf, HAL_RX_QUEUE qtype, struct ath_buf *bf,
     struct mbuf *m)
 {
+	struct epoch_tracker et;
 	uint64_t rstamp;
 	/* XXX TODO: make this an mbuf tag? */
 	struct ieee80211_rx_stats rxs;
@@ -941,6 +942,7 @@ rx_accept:
 		rxs.c_nf_ext[i] = nf;
 	}
 
+	NET_EPOCH_ENTER(et);
 	if (ni != NULL) {
 		/*
 		 * Only punt packets for ampdu reorder processing for
@@ -986,6 +988,7 @@ rx_accept:
 		type = ieee80211_input_mimo_all(ic, m);
 		m = NULL;
 	}
+	NET_EPOCH_EXIT(et);
 
 	/*
 	 * At this point we have passed the frame up the stack; thus
