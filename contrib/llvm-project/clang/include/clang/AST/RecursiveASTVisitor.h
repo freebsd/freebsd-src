@@ -23,6 +23,7 @@
 #include "clang/AST/DeclOpenMP.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprConcepts.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExprOpenMP.h"
@@ -1039,7 +1040,13 @@ DEF_TRAVERSE_TYPE(UnaryTransformType, {
   TRY_TO(TraverseType(T->getUnderlyingType()));
 })
 
-DEF_TRAVERSE_TYPE(AutoType, { TRY_TO(TraverseType(T->getDeducedType())); })
+DEF_TRAVERSE_TYPE(AutoType, {
+  TRY_TO(TraverseType(T->getDeducedType()));
+  if (T->isConstrained()) {
+    TRY_TO(TraverseDecl(T->getTypeConstraintConcept()));
+    TRY_TO(TraverseTemplateArguments(T->getArgs(), T->getNumArgs()));
+  }
+})
 DEF_TRAVERSE_TYPE(DeducedTemplateSpecializationType, {
   TRY_TO(TraverseTemplateName(T->getTemplateName()));
   TRY_TO(TraverseType(T->getDeducedType()));
@@ -1286,6 +1293,12 @@ DEF_TRAVERSE_TYPELOC(UnaryTransformType, {
 
 DEF_TRAVERSE_TYPELOC(AutoType, {
   TRY_TO(TraverseType(TL.getTypePtr()->getDeducedType()));
+  if (TL.isConstrained()) {
+    TRY_TO(TraverseNestedNameSpecifierLoc(TL.getNestedNameSpecifierLoc()));
+    TRY_TO(TraverseDeclarationNameInfo(TL.getConceptNameInfo()));
+    for (unsigned I = 0, E = TL.getNumArgs(); I != E; ++I)
+      TRY_TO(TraverseTemplateArgumentLoc(TL.getArgLoc(I)));
+  }
 })
 
 DEF_TRAVERSE_TYPELOC(DeducedTemplateSpecializationType, {
@@ -2138,6 +2151,8 @@ DEF_TRAVERSE_DECL(ParmVarDecl, {
     TRY_TO(TraverseStmt(D->getDefaultArg()));
 })
 
+DEF_TRAVERSE_DECL(RequiresExprBodyDecl, {})
+
 #undef DEF_TRAVERSE_DECL
 
 // ----------------- Stmt traversal -----------------
@@ -2707,6 +2722,28 @@ DEF_TRAVERSE_STMT(CoyieldExpr, {
 
 DEF_TRAVERSE_STMT(ConceptSpecializationExpr, {
   TRY_TO(TraverseConceptReference(*S));
+})
+
+DEF_TRAVERSE_STMT(RequiresExpr, {
+  TRY_TO(TraverseDecl(S->getBody()));
+  for (ParmVarDecl *Parm : S->getLocalParameters())
+    TRY_TO(TraverseDecl(Parm));
+  for (concepts::Requirement *Req : S->getRequirements())
+    if (auto *TypeReq = dyn_cast<concepts::TypeRequirement>(Req)) {
+      if (!TypeReq->isSubstitutionFailure())
+        TRY_TO(TraverseTypeLoc(TypeReq->getType()->getTypeLoc()));
+    } else if (auto *ExprReq = dyn_cast<concepts::ExprRequirement>(Req)) {
+      if (!ExprReq->isExprSubstitutionFailure())
+        TRY_TO(TraverseStmt(ExprReq->getExpr()));
+      auto &RetReq = ExprReq->getReturnTypeRequirement();
+      if (RetReq.isTypeConstraint())
+        TRY_TO(TraverseTemplateParameterListHelper(
+                   RetReq.getTypeConstraintTemplateParameterList()));
+    } else {
+      auto *NestedReq = cast<concepts::NestedRequirement>(Req);
+      if (!NestedReq->isSubstitutionFailure())
+        TRY_TO(TraverseStmt(NestedReq->getConstraintExpr()));
+    }
 })
 
 // These literals (all of them) do not need any action.

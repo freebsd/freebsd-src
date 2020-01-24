@@ -724,38 +724,48 @@ private:
     // Compute the set of template parameter indices that correspond to
     // parameter packs expanded by the pack expansion.
     llvm::SmallBitVector SawIndices(TemplateParams->size());
+    llvm::SmallVector<TemplateArgument, 4> ExtraDeductions;
 
     auto AddPack = [&](unsigned Index) {
       if (SawIndices[Index])
         return;
       SawIndices[Index] = true;
       addPack(Index);
+
+      // Deducing a parameter pack that is a pack expansion also constrains the
+      // packs appearing in that parameter to have the same deduced arity. Also,
+      // in C++17 onwards, deducing a non-type template parameter deduces its
+      // type, so we need to collect the pending deduced values for those packs.
+      if (auto *NTTP = dyn_cast<NonTypeTemplateParmDecl>(
+              TemplateParams->getParam(Index))) {
+        if (auto *Expansion = dyn_cast<PackExpansionType>(NTTP->getType()))
+          ExtraDeductions.push_back(Expansion->getPattern());
+      }
+      // FIXME: Also collect the unexpanded packs in any type and template
+      // parameter packs that are pack expansions.
     };
 
-    // First look for unexpanded packs in the pattern.
-    SmallVector<UnexpandedParameterPack, 2> Unexpanded;
-    S.collectUnexpandedParameterPacks(Pattern, Unexpanded);
-    for (unsigned I = 0, N = Unexpanded.size(); I != N; ++I) {
-      unsigned Depth, Index;
-      std::tie(Depth, Index) = getDepthAndIndex(Unexpanded[I]);
-      if (Depth == Info.getDeducedDepth())
-        AddPack(Index);
-    }
+    auto Collect = [&](TemplateArgument Pattern) {
+      SmallVector<UnexpandedParameterPack, 2> Unexpanded;
+      S.collectUnexpandedParameterPacks(Pattern, Unexpanded);
+      for (unsigned I = 0, N = Unexpanded.size(); I != N; ++I) {
+        unsigned Depth, Index;
+        std::tie(Depth, Index) = getDepthAndIndex(Unexpanded[I]);
+        if (Depth == Info.getDeducedDepth())
+          AddPack(Index);
+      }
+    };
+
+    // Look for unexpanded packs in the pattern.
+    Collect(Pattern);
     assert(!Packs.empty() && "Pack expansion without unexpanded packs?");
 
     unsigned NumNamedPacks = Packs.size();
 
-    // We can also have deduced template parameters that do not actually
-    // appear in the pattern, but can be deduced by it (the type of a non-type
-    // template parameter pack, in particular). These won't have prevented us
-    // from partially expanding the pack.
-    llvm::SmallBitVector Used(TemplateParams->size());
-    MarkUsedTemplateParameters(S.Context, Pattern, /*OnlyDeduced*/true,
-                               Info.getDeducedDepth(), Used);
-    for (int Index = Used.find_first(); Index != -1;
-         Index = Used.find_next(Index))
-      if (TemplateParams->getParam(Index)->isParameterPack())
-        AddPack(Index);
+    // Also look for unexpanded packs that are indirectly deduced by deducing
+    // the sizes of the packs in this pattern.
+    while (!ExtraDeductions.empty())
+      Collect(ExtraDeductions.pop_back_val());
 
     return NumNamedPacks;
   }
@@ -4404,9 +4414,10 @@ namespace {
 
       QualType Result = SemaRef.Context.getAutoType(
           Replacement, TL.getTypePtr()->getKeyword(), Replacement.isNull(),
-          ReplacementIsPack);
+          ReplacementIsPack, TL.getTypePtr()->getTypeConstraintConcept(),
+          TL.getTypePtr()->getTypeConstraintArguments());
       auto NewTL = TLB.push<AutoTypeLoc>(Result);
-      NewTL.setNameLoc(TL.getNameLoc());
+      NewTL.copy(TL);
       return Result;
     }
 
@@ -4441,9 +4452,10 @@ namespace {
 
 Sema::DeduceAutoResult
 Sema::DeduceAutoType(TypeSourceInfo *Type, Expr *&Init, QualType &Result,
-                     Optional<unsigned> DependentDeductionDepth) {
+                     Optional<unsigned> DependentDeductionDepth,
+                     bool IgnoreConstraints) {
   return DeduceAutoType(Type->getTypeLoc(), Init, Result,
-                        DependentDeductionDepth);
+                        DependentDeductionDepth, IgnoreConstraints);
 }
 
 /// Attempt to produce an informative diagostic explaining why auto deduction
@@ -4471,6 +4483,49 @@ static bool diagnoseAutoDeductionFailure(Sema &S,
   }
 }
 
+static Sema::DeduceAutoResult
+CheckDeducedPlaceholderConstraints(Sema &S, const AutoType &Type,
+                                   AutoTypeLoc TypeLoc, QualType Deduced) {
+  ConstraintSatisfaction Satisfaction;
+  ConceptDecl *Concept = Type.getTypeConstraintConcept();
+  TemplateArgumentListInfo TemplateArgs(TypeLoc.getLAngleLoc(),
+                                        TypeLoc.getRAngleLoc());
+  TemplateArgs.addArgument(
+      TemplateArgumentLoc(TemplateArgument(Deduced),
+                          S.Context.getTrivialTypeSourceInfo(
+                              Deduced, TypeLoc.getNameLoc())));
+  for (unsigned I = 0, C = TypeLoc.getNumArgs(); I != C; ++I)
+    TemplateArgs.addArgument(TypeLoc.getArgLoc(I));
+
+  llvm::SmallVector<TemplateArgument, 4> Converted;
+  if (S.CheckTemplateArgumentList(Concept, SourceLocation(), TemplateArgs,
+                                  /*PartialTemplateArgs=*/false, Converted))
+    return Sema::DAR_FailedAlreadyDiagnosed;
+  if (S.CheckConstraintSatisfaction(Concept, {Concept->getConstraintExpr()},
+                                    Converted, TypeLoc.getLocalSourceRange(),
+                                    Satisfaction))
+    return Sema::DAR_FailedAlreadyDiagnosed;
+  if (!Satisfaction.IsSatisfied) {
+    std::string Buf;
+    llvm::raw_string_ostream OS(Buf);
+    OS << "'" << Concept->getName();
+    if (TypeLoc.hasExplicitTemplateArgs()) {
+      OS << "<";
+      for (const auto &Arg : Type.getTypeConstraintArguments())
+        Arg.print(S.getPrintingPolicy(), OS);
+      OS << ">";
+    }
+    OS << "'";
+    OS.flush();
+    S.Diag(TypeLoc.getConceptNameLoc(),
+           diag::err_placeholder_constraints_not_satisfied)
+         << Deduced << Buf << TypeLoc.getLocalSourceRange();
+    S.DiagnoseUnsatisfiedConstraint(Satisfaction);
+    return Sema::DAR_FailedAlreadyDiagnosed;
+  }
+  return Sema::DAR_Succeeded;
+}
+
 /// Deduce the type for an auto type-specifier (C++11 [dcl.spec.auto]p6)
 ///
 /// Note that this is done even if the initializer is dependent. (This is
@@ -4485,9 +4540,12 @@ static bool diagnoseAutoDeductionFailure(Sema &S,
 ///        dependent cases. This is necessary for template partial ordering with
 ///        'auto' template parameters. The value specified is the template
 ///        parameter depth at which we should perform 'auto' deduction.
+/// \param IgnoreConstraints Set if we should not fail if the deduced type does
+///                          not satisfy the type-constraint in the auto type.
 Sema::DeduceAutoResult
 Sema::DeduceAutoType(TypeLoc Type, Expr *&Init, QualType &Result,
-                     Optional<unsigned> DependentDeductionDepth) {
+                     Optional<unsigned> DependentDeductionDepth,
+                     bool IgnoreConstraints) {
   if (Init->getType()->isNonOverloadPlaceholderType()) {
     ExprResult NonPlaceholder = CheckPlaceholderExpr(Init);
     if (NonPlaceholder.isInvalid())
@@ -4528,6 +4586,14 @@ Sema::DeduceAutoType(TypeLoc Type, Expr *&Init, QualType &Result,
         return DAR_FailedAlreadyDiagnosed;
       // FIXME: Support a non-canonical deduced type for 'auto'.
       Deduced = Context.getCanonicalType(Deduced);
+      if (AT->isConstrained() && !IgnoreConstraints) {
+        auto ConstraintsResult =
+            CheckDeducedPlaceholderConstraints(*this, *AT,
+                                               Type.getContainedAutoTypeLoc(),
+                                               Deduced);
+        if (ConstraintsResult != DAR_Succeeded)
+          return ConstraintsResult;
+      }
       Result = SubstituteDeducedTypeTransform(*this, Deduced).Apply(Type);
       if (Result.isNull())
         return DAR_FailedAlreadyDiagnosed;
@@ -4633,6 +4699,17 @@ Sema::DeduceAutoType(TypeLoc Type, Expr *&Init, QualType &Result,
     DeducedType = BuildStdInitializerList(DeducedType, Loc);
     if (DeducedType.isNull())
       return DAR_FailedAlreadyDiagnosed;
+  }
+
+  if (const auto *AT = Type.getType()->getAs<AutoType>()) {
+    if (AT->isConstrained() && !IgnoreConstraints) {
+      auto ConstraintsResult =
+          CheckDeducedPlaceholderConstraints(*this, *AT,
+                                             Type.getContainedAutoTypeLoc(),
+                                             DeducedType);
+      if (ConstraintsResult != DAR_Succeeded)
+        return ConstraintsResult;
+    }
   }
 
   Result = SubstituteDeducedTypeTransform(*this, DeducedType).Apply(Type);
