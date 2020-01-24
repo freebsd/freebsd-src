@@ -2860,7 +2860,7 @@ vget(struct vnode *vp, int flags, struct thread *td)
 int
 vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 {
-	int error, oweinact;
+	int error;
 
 	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
 	    ("%s: invalid lock operation", __func__));
@@ -2887,8 +2887,6 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 	}
 
 	if (vs == VGET_USECOUNT) {
-		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
-		    ("%s: vnode with usecount and VI_OWEINACT set", __func__));
 		return (0);
 	}
 
@@ -2904,9 +2902,6 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 #else
 		refcount_release(&vp->v_holdcnt);
 #endif
-		VNODE_REFCOUNT_FENCE_ACQ();
-		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
-		    ("%s: vnode with usecount and VI_OWEINACT set", __func__));
 		return (0);
 	}
 
@@ -2930,25 +2925,11 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 #else
 		refcount_release(&vp->v_holdcnt);
 #endif
-		VNODE_REFCOUNT_FENCE_ACQ();
-		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
-		    ("%s: vnode with usecount and VI_OWEINACT set",
-		    __func__));
 		VI_UNLOCK(vp);
 		return (0);
 	}
-	if ((vp->v_iflag & VI_OWEINACT) == 0) {
-		oweinact = 0;
-	} else {
-		oweinact = 1;
-		vp->v_iflag &= ~VI_OWEINACT;
-		VNODE_REFCOUNT_FENCE_REL();
-	}
 	v_incr_devcount(vp);
 	refcount_acquire(&vp->v_usecount);
-	if (oweinact && VOP_ISLOCKED(vp) == LK_EXCLUSIVE &&
-	    (flags & LK_NOWAIT) == 0)
-		vinactive(vp);
 	VI_UNLOCK(vp);
 	return (0);
 }
@@ -2967,8 +2948,6 @@ vref(struct vnode *vp)
 		VNODE_REFCOUNT_FENCE_ACQ();
 		VNASSERT(vp->v_holdcnt > 0, vp,
 		    ("%s: active vnode not held", __func__));
-		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
-		    ("%s: vnode with usecount and VI_OWEINACT set", __func__));
 		return;
 	}
 	VI_LOCK(vp);
@@ -2986,15 +2965,9 @@ vrefl(struct vnode *vp)
 		VNODE_REFCOUNT_FENCE_ACQ();
 		VNASSERT(vp->v_holdcnt > 0, vp,
 		    ("%s: active vnode not held", __func__));
-		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
-		    ("%s: vnode with usecount and VI_OWEINACT set", __func__));
 		return;
 	}
 	vholdl(vp);
-	if ((vp->v_iflag & VI_OWEINACT) != 0) {
-		vp->v_iflag &= ~VI_OWEINACT;
-		VNODE_REFCOUNT_FENCE_REL();
-	}
 	v_incr_devcount(vp);
 	refcount_acquire(&vp->v_usecount);
 }
@@ -3052,14 +3025,19 @@ vdefer_inactive(struct vnode *vp)
 {
 
 	ASSERT_VI_LOCKED(vp, __func__);
-	VNASSERT(vp->v_iflag & VI_OWEINACT, vp,
-	    ("%s: vnode without VI_OWEINACT", __func__));
+	VNASSERT(vp->v_holdcnt > 0, vp,
+	    ("%s: vnode without hold count", __func__));
 	if (VN_IS_DOOMED(vp)) {
 		vdropl(vp);
 		return;
 	}
 	if (vp->v_iflag & VI_DEFINACT) {
 		VNASSERT(vp->v_holdcnt > 1, vp, ("lost hold count"));
+		vdropl(vp);
+		return;
+	}
+	if (vp->v_usecount > 0) {
+		vp->v_iflag &= ~VI_OWEINACT;
 		vdropl(vp);
 		return;
 	}
@@ -3070,11 +3048,10 @@ vdefer_inactive(struct vnode *vp)
 }
 
 static void
-vdefer_inactive_cond(struct vnode *vp)
+vdefer_inactive_unlocked(struct vnode *vp)
 {
 
 	VI_LOCK(vp);
-	VNASSERT(vp->v_holdcnt > 0, vp, ("vnode without hold count"));
 	if ((vp->v_iflag & VI_OWEINACT) == 0) {
 		vdropl(vp);
 		return;
@@ -3173,15 +3150,12 @@ vputx(struct vnode *vp, enum vputx_op func)
 	VNASSERT(vp->v_usecount == 0 || (vp->v_iflag & VI_OWEINACT) == 0, vp,
 	    ("vnode with usecount and VI_OWEINACT set"));
 	if (error == 0) {
-		if (vp->v_iflag & VI_OWEINACT)
-			vinactive(vp);
+		vinactive(vp);
 		if (func != VPUTX_VUNREF)
 			VOP_UNLOCK(vp);
 		vdropl(vp);
-	} else if (vp->v_iflag & VI_OWEINACT) {
-		vdefer_inactive(vp);
 	} else {
-		vdropl(vp);
+		vdefer_inactive(vp);
 	}
 	return;
 out:
@@ -3442,11 +3416,9 @@ vdropl(struct vnode *vp)
 /*
  * Call VOP_INACTIVE on the vnode and manage the DOINGINACT and OWEINACT
  * flags.  DOINGINACT prevents us from recursing in calls to vinactive.
- * OWEINACT tracks whether a vnode missed a call to inactive due to a
- * failed lock upgrade.
  */
-void
-vinactive(struct vnode *vp)
+static void
+vinactivef(struct vnode *vp)
 {
 	struct vm_object *obj;
 
@@ -3479,6 +3451,25 @@ vinactive(struct vnode *vp)
 	VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
 	    ("vinactive: lost VI_DOINGINACT"));
 	vp->v_iflag &= ~VI_DOINGINACT;
+}
+
+void
+vinactive(struct vnode *vp)
+{
+
+	ASSERT_VOP_ELOCKED(vp, "vinactive");
+	ASSERT_VI_LOCKED(vp, "vinactive");
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+
+	if ((vp->v_iflag & VI_OWEINACT) == 0)
+		return;
+	if (vp->v_iflag & VI_DOINGINACT)
+		return;
+	if (vp->v_usecount > 0) {
+		vp->v_iflag &= ~VI_OWEINACT;
+		return;
+	}
+	vinactivef(vp);
 }
 
 /*
@@ -3779,8 +3770,7 @@ vgonel(struct vnode *vp)
 		VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
 	if (oweinact || active) {
 		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_DOINGINACT) == 0)
-			vinactive(vp);
+		vinactivef(vp);
 		VI_UNLOCK(vp);
 	}
 	if (vp->v_type == VSOCK)
@@ -4530,13 +4520,12 @@ vfs_deferred_inactive(struct vnode *vp, int lkflags)
 	}
 	if (vn_lock(vp, lkflags) == 0) {
 		VI_LOCK(vp);
-		if ((vp->v_iflag & (VI_OWEINACT | VI_DOINGINACT)) == VI_OWEINACT)
-			vinactive(vp);
+		vinactive(vp);
 		VOP_UNLOCK(vp);
 		vdropl(vp);
 		return;
 	}
-	vdefer_inactive_cond(vp);
+	vdefer_inactive_unlocked(vp);
 }
 
 static int
@@ -4636,7 +4625,7 @@ vfs_periodic_msync_inactive(struct mount *mp, int flags)
 				vdrop(vp);
 		} else {
 			if (seen_defer)
-				vdefer_inactive_cond(vp);
+				vdefer_inactive_unlocked(vp);
 		}
 	}
 }
