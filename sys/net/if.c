@@ -1920,10 +1920,13 @@ ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
 
 	error = rtrequest1_fib(cmd, &info, NULL, ifp->if_fib);
 
-	if (error != 0 &&
-	    !(cmd == RTM_ADD && error == EEXIST) &&
-	    !(cmd == RTM_DELETE && error == ENOENT))
-		if_printf(ifp, "%s failed: %d\n", otype, error);
+	if (error == 0 ||
+	    (cmd == RTM_ADD && error == EEXIST) ||
+	    (cmd == RTM_DELETE && (error == ENOENT || error == ESRCH)))
+		return (error);
+
+	log(LOG_DEBUG, "%s: %s failed for interface %s: %u\n",
+		__func__, otype, if_name(ifp), error);
 
 	return (error);
 }
