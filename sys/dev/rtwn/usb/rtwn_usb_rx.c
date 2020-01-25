@@ -363,6 +363,7 @@ rtwn_rx_frame(struct rtwn_softc *sc, struct mbuf *m)
 void
 rtwn_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
+	struct epoch_tracker et;
 	struct rtwn_usb_softc *uc = usbd_xfer_softc(xfer);
 	struct rtwn_softc *sc = &uc->uc_sc;
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -399,6 +400,7 @@ tr_setup:
 		 * ieee80211_input() because here is at the end of a USB
 		 * callback and safe to unlock.
 		 */
+		NET_EPOCH_ENTER(et);
 		while (m != NULL) {
 			next = m->m_nextpkt;
 			m->m_nextpkt = NULL;
@@ -416,6 +418,7 @@ tr_setup:
 			RTWN_LOCK(sc);
 			m = next;
 		}
+		NET_EPOCH_EXIT(et);
 		break;
 	default:
 		/* needs it to the inactive queue due to a error. */

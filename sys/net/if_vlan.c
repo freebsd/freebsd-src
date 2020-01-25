@@ -46,6 +46,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_kern_tls.h"
 #include "opt_vlan.h"
 #include "opt_ratelimit.h"
@@ -75,11 +76,20 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
+#endif
+
+#ifdef INET6
+/*
+ * XXX: declare here to avoid to include many inet6 related files..
+ * should be more generalized?
+ */
+extern void	nd6_setmtu(struct ifnet *);
 #endif
 
 #define	VLAN_DEF_HWIDTH	4
@@ -1807,7 +1817,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifvlan *ifv;
 	struct ifvlantrunk *trunk;
 	struct vlanreq vlr;
-	int error = 0;
+	int error = 0, oldmtu;
 
 	ifr = (struct ifreq *)data;
 	ifa = (struct ifaddr *) data;
@@ -1901,8 +1911,20 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = ENOENT;
 			break;
 		}
+		oldmtu = ifp->if_mtu;
 		error = vlan_config(ifv, p, vlr.vlr_tag);
 		if_rele(p);
+
+		/*
+		 * VLAN MTU may change during addition of the vlandev.
+		 * If it did, do network layer specific procedure.
+		 */
+		if (ifp->if_mtu != oldmtu) {
+#ifdef INET6
+			nd6_setmtu(ifp);
+#endif
+			rt_updatemtu(ifp);
+		}
 		break;
 
 	case SIOCGETVLAN:

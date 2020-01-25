@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2006
+.Dd January 22, 2020
 .Dt CPUFREQ 4
 .Os
 .Sh NAME
@@ -85,6 +85,10 @@ sysctl entry.
 .Bl -tag -width indent
 .It Va dev.cpu.%d.freq
 Current active CPU frequency in MHz.
+.It Va dev.cpu.%d.freq_driver
+The specific
+.Nm
+driver used by this cpu.
 .It Va dev.cpu.%d.freq_levels
 Currently available levels for the CPU (frequency/power usage).
 Values are in units of MHz and milliwatts.

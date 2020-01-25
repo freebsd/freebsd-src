@@ -340,10 +340,12 @@ vm_thread_stack_create(struct domainset *ds, vm_object_t *ksobjp, int pages)
 	 * page of stack.
 	 */
 	VM_OBJECT_WLOCK(ksobj);
-	(void)vm_page_grab_pages(ksobj, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
-	    VM_ALLOC_WIRED, ma, pages);
-	for (i = 0; i < pages; i++)
-		ma[i]->valid = VM_PAGE_BITS_ALL;
+	(void)vm_page_grab_pages(ksobj, 0, VM_ALLOC_NORMAL | VM_ALLOC_WIRED,
+	    ma, pages);
+	for (i = 0; i < pages; i++) {
+		vm_page_valid(ma[i]);
+		vm_page_xunbusy(ma[i]);
+	}
 	VM_OBJECT_WUNLOCK(ksobj);
 	pmap_qenter(ks, ma, pages);
 	*ksobjp = ksobj;

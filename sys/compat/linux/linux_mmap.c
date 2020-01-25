@@ -113,6 +113,14 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 	if (flags & LINUX_MAP_GROWSDOWN)
 		bsd_flags |= MAP_STACK;
 
+#if defined(__amd64__)
+	/*
+	 * According to the Linux mmap(2) man page, "MAP_32BIT flag
+	 * is ignored when MAP_FIXED is set."
+	 */
+	if ((flags & LINUX_MAP_32BIT) && (flags & LINUX_MAP_FIXED) == 0)
+		bsd_flags |= MAP_32BIT;
+
 	/*
 	 * PROT_READ, PROT_WRITE, or PROT_EXEC implies PROT_READ and PROT_EXEC
 	 * on Linux/i386 if the binary requires executable stack.
@@ -121,7 +129,6 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 	 *
 	 * XXX. Linux checks that the file system is not mounted with noexec.
 	 */
-#if defined(__amd64__)
 	linux_fixup_prot(td, &prot);
 #endif
 

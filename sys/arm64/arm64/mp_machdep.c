@@ -240,18 +240,12 @@ init_secondary(uint64_t cpu)
 	dbg_init();
 	pan_enable();
 
-	/* Enable interrupts */
-	intr_enable();
-
 	mtx_lock_spin(&ap_boot_mtx);
-
 	atomic_add_rel_32(&smp_cpus, 1);
-
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
 		atomic_store_rel_int(&smp_started, 1);
 	}
-
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	kcsan_cpu_init(cpu);

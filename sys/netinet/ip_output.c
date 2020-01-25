@@ -304,7 +304,6 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
     struct ip_moptions *imo, struct inpcb *inp)
 {
 	struct rm_priotracker in_ifa_tracker;
-	struct epoch_tracker et;
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
@@ -323,6 +322,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 #endif
 
 	M_ASSERTPKTHDR(m);
+	NET_EPOCH_ASSERT();
 
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
@@ -375,7 +375,6 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		dst->sin_addr = ip->ip_dst;
 	}
 	gw = dst;
-	NET_EPOCH_ENTER(et);
 again:
 	/*
 	 * Validate route against routing table additions;
@@ -837,7 +836,6 @@ sendit:
 		IPSTAT_INC(ips_fragmented);
 
 done:
-	NET_EPOCH_EXIT(et);
 	return (error);
  bad:
 	m_freem(m);

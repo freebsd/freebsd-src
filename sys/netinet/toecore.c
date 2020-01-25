@@ -503,6 +503,7 @@ void
 toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 {
 
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
 	if (!(inp->inp_flags & INP_DROPPED)) {
@@ -527,7 +528,6 @@ toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 			(void) tp->t_fb->tfb_tcp_output(tp);
 		} else {
 
-			NET_EPOCH_ASSERT();
 			tp = tcp_drop(tp, err);
 			if (tp == NULL)
 				INP_WLOCK(inp);	/* re-acquire */

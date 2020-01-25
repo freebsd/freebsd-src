@@ -69,10 +69,6 @@ MTX_SYSINIT(pfil_mtxinit, &pfil_lock, "pfil(9) lock", MTX_DEF);
 #define	PFIL_UNLOCK()	mtx_unlock(&pfil_lock)
 #define	PFIL_LOCK_ASSERT()	mtx_assert(&pfil_lock, MA_OWNED)
 
-#define	PFIL_EPOCH		net_epoch_preempt
-#define	PFIL_EPOCH_ENTER(et)	epoch_enter_preempt(net_epoch_preempt, &(et))
-#define	PFIL_EPOCH_EXIT(et)	epoch_exit_preempt(net_epoch_preempt, &(et))
-
 struct pfil_hook {
 	pfil_func_t	 hook_func;
 	void		*hook_ruleset;
@@ -168,11 +164,12 @@ int
 pfil_run_hooks(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
     int flags, struct inpcb *inp)
 {
-	struct epoch_tracker et;
 	pfil_chain_t *pch;
 	struct pfil_link *link;
 	pfil_return_t rv;
 	bool realloc = false;
+
+	NET_EPOCH_ASSERT();
 
 	if (PFIL_DIR(flags) == PFIL_IN)
 		pch = &head->head_in;
@@ -182,7 +179,6 @@ pfil_run_hooks(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
 		panic("%s: bogus flags %d", __func__, flags);
 
 	rv = PFIL_PASS;
-	PFIL_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(link, pch, link_chain) {
 		if ((flags & PFIL_MEMPTR) && !(link->link_flags & PFIL_MEMPTR))
 			rv = pfil_fake_mbuf(link->link_func, &p, ifp, flags,
@@ -197,7 +193,6 @@ pfil_run_hooks(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
 			realloc = true;
 		}
 	}
-	PFIL_EPOCH_EXIT(et);
 	if (realloc && rv == PFIL_PASS)
 		rv = PFIL_REALLOCED;
 	return (rv);
@@ -313,9 +308,9 @@ pfil_unlink(struct pfil_link_args *pa, pfil_head_t head, pfil_hook_t hook)
 	PFIL_UNLOCK();
 
 	if (in != NULL)
-		epoch_call(PFIL_EPOCH, pfil_link_free, &in->link_epoch_ctx);
+		NET_EPOCH_CALL(pfil_link_free, &in->link_epoch_ctx);
 	if (out != NULL)
-		epoch_call(PFIL_EPOCH, pfil_link_free, &out->link_epoch_ctx);
+		NET_EPOCH_CALL(pfil_link_free, &out->link_epoch_ctx);
 
 	if (in == NULL && out == NULL)
 		return (ENOENT);
@@ -443,15 +438,13 @@ retry:
 		if (in != NULL) {
 			head->head_nhooksin--;
 			hook->hook_links--;
-			epoch_call(PFIL_EPOCH, pfil_link_free,
-			    &in->link_epoch_ctx);
+			NET_EPOCH_CALL(pfil_link_free, &in->link_epoch_ctx);
 		}
 		out = pfil_link_remove(&head->head_out, hook);
 		if (out != NULL) {
 			head->head_nhooksout--;
 			hook->hook_links--;
-			epoch_call(PFIL_EPOCH, pfil_link_free,
-			    &out->link_epoch_ctx);
+			NET_EPOCH_CALL(pfil_link_free, &out->link_epoch_ctx);
 		}
 		if (in != NULL || out != NULL)
 			/* What if some stupid admin put same filter twice? */

@@ -2297,7 +2297,8 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_flags = 0;
 	zone->uz_warning = NULL;
 	/* The domain structures follow the cpu structures. */
-	zone->uz_domain = (struct uma_zone_domain *)&zone->uz_cpu[mp_ncpus];
+	zone->uz_domain =
+	    (struct uma_zone_domain *)&zone->uz_cpu[mp_maxid + 1];
 	zone->uz_bkt_max = ULONG_MAX;
 	timevalclear(&zone->uz_ratecheck);
 
@@ -2440,11 +2441,11 @@ keg_dtor(void *arg, int size, void *udata)
 		pages += keg->uk_domain[i].ud_pages;
 		KEG_LOCK_FINI(keg, i);
 	}
-	if (free != 0)
+	if (pages != 0)
 		printf("Freed UMA keg (%s) was not empty (%u items). "
 		    " Lost %u pages of memory.\n",
 		    keg->uk_name ? keg->uk_name : "",
-		    free, pages);
+		    pages / keg->uk_ppera * keg->uk_ipers - free, pages);
 
 	hash_free(&keg->uk_hash);
 }
@@ -2614,7 +2615,7 @@ void
 uma_startup2(void)
 {
 
-	if (!PMAP_HAS_DMAP) {
+	if (bootstart != bootmem) {
 		vm_map_lock(kernel_map);
 		(void)vm_map_insert(kernel_map, NULL, 0, bootstart, bootmem,
 		    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);

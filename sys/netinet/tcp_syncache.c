@@ -467,6 +467,7 @@ syncache_timer(void *xsch)
 {
 	struct syncache_head *sch = (struct syncache_head *)xsch;
 	struct syncache *sc, *nsc;
+	struct epoch_tracker et;
 	int tick = ticks;
 	char *s;
 	bool paused;
@@ -526,7 +527,9 @@ syncache_timer(void *xsch)
 			free(s, M_TCPLOG);
 		}
 
+		NET_EPOCH_ENTER(et);
 		syncache_respond(sc, NULL, TH_SYN|TH_ACK);
+		NET_EPOCH_EXIT(et);
 		TCPSTAT_INC(tcps_sc_retransmitted);
 		syncache_timeout(sc, sch, 0);
 	}
@@ -1751,6 +1754,9 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 #endif
+
+	NET_EPOCH_ASSERT();
+
 	hlen =
 #ifdef INET6
 	       (sc->sc_inc.inc_flags & INC_ISIPV6) ? sizeof(struct ip6_hdr) :

@@ -985,7 +985,7 @@ interfaces, as in
 or even connect the NIC to the host stack using netmap
 .Dl bridge -i netmap:ix0
 .Ss USING THE NATIVE API
-The following code implements a traffic generator
+The following code implements a traffic generator:
 .Pp
 .Bd -literal -compact
 #include <net/netmap_user.h>
@@ -1020,7 +1020,8 @@ void sender(void)
 }
 .Ed
 .Ss HELPER FUNCTIONS
-A simple receiver can be implemented using the helper functions
+A simple receiver can be implemented using the helper functions:
+.Pp
 .Bd -literal -compact
 #define NETMAP_WITH_LIBS
 #include <net/netmap_user.h>
@@ -1049,6 +1050,7 @@ it is possible to do packet forwarding between ports
 swapping buffers.
 The buffer from the transmit ring is used
 to replenish the receive ring:
+.Pp
 .Bd -literal -compact
     uint32_t tmp;
     struct netmap_slot *src, *dst;

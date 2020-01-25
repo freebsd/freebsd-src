@@ -512,14 +512,6 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	struct inpcb *inp;
 	int error;
 
-#ifdef INVARIANTS
-	if (pcbinfo == &V_tcbinfo) {
-		NET_EPOCH_ASSERT();
-	} else {
-		INP_INFO_WLOCK_ASSERT(pcbinfo);
-	}
-#endif
-
 	error = 0;
 	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT);
 	if (inp == NULL)
@@ -1036,9 +1028,9 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	struct sockaddr *sa;
 	struct sockaddr_in *sin;
 	struct route sro;
-	struct epoch_tracker et;
 	int error;
 
+	NET_EPOCH_ASSERT();
 	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
 	/*
 	 * Bypass source address selection and use the primary jail IP
@@ -1072,7 +1064,6 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * network and try to find a corresponding interface to take
 	 * the source address from.
 	 */
-	NET_EPOCH_ENTER(et);
 	if (sro.ro_rt == NULL || sro.ro_rt->rt_ifp == NULL) {
 		struct in_ifaddr *ia;
 		struct ifnet *ifp;
@@ -1236,7 +1227,6 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	}
 
 done:
-	NET_EPOCH_EXIT(et);
 	if (sro.ro_rt != NULL)
 		RTFREE(sro.ro_rt);
 	return (error);
@@ -1274,6 +1264,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	 * Because a global state change doesn't actually occur here, a read
 	 * lock is sufficient.
 	 */
+	NET_EPOCH_ASSERT();
 	INP_LOCK_ASSERT(inp);
 	INP_HASH_LOCK_ASSERT(inp->inp_pcbinfo);
 
@@ -1647,13 +1638,6 @@ in_pcbfree(struct inpcb *inp)
 		return;
 	}
 
-#ifdef INVARIANTS
-	if (pcbinfo == &V_tcbinfo) {
-		INP_INFO_LOCK_ASSERT(pcbinfo);
-	} else {
-		INP_INFO_WLOCK_ASSERT(pcbinfo);
-	}
-#endif
 	INP_WLOCK_ASSERT(inp);
 	INP_LIST_WLOCK(pcbinfo);
 	in_pcbremlists(inp);
@@ -2648,14 +2632,6 @@ static void
 in_pcbremlists(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
-
-#ifdef INVARIANTS
-	if (pcbinfo == &V_tcbinfo) {
-		NET_EPOCH_ASSERT();
-	} else {
-		INP_INFO_WLOCK_ASSERT(pcbinfo);
-	}
-#endif
 
 	INP_WLOCK_ASSERT(inp);
 	INP_LIST_WLOCK_ASSERT(pcbinfo);

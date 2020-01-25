@@ -224,9 +224,9 @@ spinlock_enter(void)
 		wrpr(pil, 0, PIL_TICK);
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_pil = pil;
+		critical_enter();
 	} else
 		td->td_md.md_spinlock_count++;
-	critical_enter();
 }
 
 void
@@ -236,11 +236,12 @@ spinlock_exit(void)
 	register_t pil;
 
 	td = curthread;
-	critical_exit();
 	pil = td->td_md.md_saved_pil;
 	td->td_md.md_spinlock_count--;
-	if (td->td_md.md_spinlock_count == 0)
+	if (td->td_md.md_spinlock_count == 0) {
+		critical_exit();
 		wrpr(pil, pil, 0);
+	}
 }
 
 static phandle_t

@@ -2362,7 +2362,8 @@ hn_attach(device_t dev)
 	 */
 
 	ifp->if_baudrate = IF_Gbps(10);
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSEPOCH;
 	ifp->if_ioctl = hn_ioctl;
 	ifp->if_init = hn_init;
 #ifdef HN_IFSTART_SUPPORT

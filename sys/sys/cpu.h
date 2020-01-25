@@ -120,11 +120,16 @@ TAILQ_HEAD(cf_level_lst, cf_level);
  * information about settings but rely on another machine-dependent driver
  * for actually performing the frequency transition (e.g., ACPI performance
  * states of type "functional fixed hardware.")
+ *
+ * The "uncached" flag tells CPUFREQ_DRV_GET to try obtaining the real
+ * instantaneous frequency from the underlying hardware regardless of cached
+ * state. It is probably a bug to not combine this with "info only"
  */
 #define CPUFREQ_TYPE_MASK	0xffff
 #define CPUFREQ_TYPE_RELATIVE	(1<<0)
 #define CPUFREQ_TYPE_ABSOLUTE	(1<<1)
 #define CPUFREQ_FLAG_INFO_ONLY	(1<<16)
+#define CPUFREQ_FLAG_UNCACHED	(1<<17)
 
 /*
  * When setting a level, the caller indicates the priority of this request.

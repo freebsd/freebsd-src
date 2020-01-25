@@ -232,6 +232,7 @@ tcp_output(struct tcpcb *tp)
 	const bool hw_tls = false;
 #endif
 
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 #ifdef TCP_OFFLOAD
@@ -1161,6 +1162,7 @@ send:
 		 * Ignore pure ack packets, retransmissions and window probes.
 		 */
 		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
+		    (sack_rxmit == 0) &&
 		    !((tp->t_flags & TF_FORCEDATA) && len == 1)) {
 #ifdef INET6
 			if (isipv6)

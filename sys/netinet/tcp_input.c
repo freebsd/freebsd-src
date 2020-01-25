@@ -460,6 +460,8 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 		tp->snd_ssthresh = max(2, min(tp->snd_wnd, tp->snd_cwnd) / 2 /
 		    maxseg) * maxseg;
 		tp->snd_cwnd = maxseg;
+		if (tp->t_flags2 & TF2_ECN_PERMIT)
+			tp->t_flags2 |= TF2_ECN_SND_CWR;
 		break;
 	case CC_RTO_ERR:
 		TCPSTAT_INC(tcps_sndrexmitbad);
@@ -1545,8 +1547,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * TCP ECN processing.
 	 */
 	if (tp->t_flags2 & TF2_ECN_PERMIT) {
-		if (thflags & TH_CWR)
+		if (thflags & TH_CWR) {
 			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
+			tp->t_flags |= TF_ACKNOW;
+		}
 		switch (iptos & IPTOS_ECN_MASK) {
 		case IPTOS_ECN_CE:
 			tp->t_flags2 |= TF2_ECN_SND_ECE;
@@ -1977,7 +1981,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				tp->t_flags |= TF_ACKNOW;
 
 			if (((thflags & (TH_CWR | TH_ECE)) == TH_ECE) &&
-			    V_tcp_do_ecn) {
+			    (V_tcp_do_ecn == 1)) {
 				tp->t_flags2 |= TF2_ECN_PERMIT;
 				TCPSTAT_INC(tcps_ecn_shs);
 			}
@@ -2226,7 +2230,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		/*
 		 * DSACK - add SACK block for dropped range
 		 */
-		if (tp->t_flags & TF_SACK_PERMIT) {
+		if ((todrop > 0) && (tp->t_flags & TF_SACK_PERMIT)) {
 			tcp_update_sack_list(tp, th->th_seq,
 			    th->th_seq + todrop);
 			/*

@@ -251,6 +251,7 @@ int tcp_totbackoff = 2559;	/* sum of tcp_backoff[] */
 void
 tcp_timer_delack(void *xtp)
 {
+	struct epoch_tracker et;
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
 	CURVNET_SET(tp->t_vnet);
@@ -272,8 +273,10 @@ tcp_timer_delack(void *xtp)
 	}
 	tp->t_flags |= TF_ACKNOW;
 	TCPSTAT_INC(tcps_delack);
+	NET_EPOCH_ENTER(et);
 	(void) tp->t_fb->tfb_tcp_output(tp);
 	INP_WUNLOCK(inp);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }
 
@@ -452,9 +455,11 @@ tcp_timer_keep(void *xtp)
 		TCPSTAT_INC(tcps_keepprobe);
 		t_template = tcpip_maketemplate(inp);
 		if (t_template) {
+			NET_EPOCH_ENTER(et);
 			tcp_respond(tp, t_template->tt_ipgen,
 				    &t_template->tt_t, (struct mbuf *)NULL,
 				    tp->rcv_nxt, tp->snd_una - 1, 0);
+			NET_EPOCH_EXIT(et);
 			free(t_template, M_TEMP);
 		}
 		callout_reset(&tp->t_timers->tt_keep, TP_KEEPINTVL(tp),
@@ -568,7 +573,9 @@ tcp_timer_persist(void *xtp)
 	}
 	tcp_setpersist(tp);
 	tp->t_flags |= TF_FORCEDATA;
+	NET_EPOCH_ENTER(et);
 	(void) tp->t_fb->tfb_tcp_output(tp);
+	NET_EPOCH_EXIT(et);
 	tp->t_flags &= ~TF_FORCEDATA;
 
 #ifdef TCPDEBUG
@@ -822,9 +829,9 @@ tcp_timer_rexmt(void * xtp)
 	tp->t_rtttime = 0;
 
 	cc_cong_signal(tp, NULL, CC_RTO);
-
+	NET_EPOCH_ENTER(et);
 	(void) tp->t_fb->tfb_tcp_output(tp);
-
+	NET_EPOCH_EXIT(et);
 #ifdef TCPDEBUG
 	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,

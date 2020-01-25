@@ -14462,6 +14462,8 @@ bbr_output(struct tcpcb *tp)
 	struct timeval tv;
 	struct tcp_bbr *bbr;
 
+	NET_EPOCH_ASSERT();
+
 	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	(void)tcp_get_usecs(&tv);

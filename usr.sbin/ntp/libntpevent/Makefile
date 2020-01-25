@@ -1,15 +1,21 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .PATH: ${SRCTOP}/contrib/libevent
 
 LIB= ntpevent
 INTERNALLIB=
 
-SRCS=	buffer.c bufferevent.c bufferevent_filter.c bufferevent_openssl.c \
+SRCS=	buffer.c bufferevent.c bufferevent_filter.c \
 	bufferevent_pair.c epoll.c evdns.c event.c event_tagging.c \
 	evmap.c evport.c evrpc.c evthread.c evthread_pthread.c evutil.c \
 	evutil_rand.c evutil_time.c http.c kqueue.c listener.c log.c poll.c \
 	select.c signal.c strlcpy.c
+
+.if ${MK_OPENSSL} != "no"
+SRCS+=	bufferevent_openssl.c
+.endif
 
 .if ${MACHINE_ARCH} == "i386"
 NTP_ATOMIC=x86_32

@@ -16,19 +16,15 @@ SRCS=	base64.c bitfield.c blacklist.c bss.c cli.c common.c \
 	ctrl_iface.c ctrl_iface_common.c ctrl_iface_unix.c \
 	dh_groups.c driver_bsd.c driver_common.c \
 	driver_ndis.c driver_wired.c driver_wired_common.c drivers.c \
-	eap_register.c eap_wsc.c eap_wsc_common.c eloop.c \
-	events.c gas.c gas_query.c hs20_supplicant.c \
+	eap_register.c eloop.c \
+	events.c gas.c gas_query.c \
 	http_client.c http_server.c \
 	httpread.c hw_features_common.c \
-	ieee802_11_common.c interworking.c l2_packet_freebsd.c main.c \
+	ieee802_11_common.c l2_packet_freebsd.c main.c \
 	notify.c offchannel.c op_classes.c os_unix.c pmksa_cache.c preauth.c \
-	rrm.c scan.c upnp_xml.c uuid.c \
+	rrm.c scan.c upnp_xml.c \
 	wmm_ac.c wpa.c wpa_common.c wpa_ctrl.c \
 	wpa_debug.c wpa_ft.c wpa_ie.c wpa_supplicant.c wpabuf.c wpas_glue.c \
-	wps.c wps_attr_build.c wps_attr_parse.c wps_attr_process.c \
-	wps_common.c wps_dev_attr.c wps_enrollee.c wps_registrar.c \
-	wps_supplicant.c wps_upnp.c wps_upnp_ap.c wps_upnp_event.c \
-	wps_upnp_ssdp.c wps_upnp_web.c \
 	Packet32.c
 
 MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
@@ -45,15 +41,12 @@ CFLAGS+=-DCONFIG_BACKEND_FILE \
 	-DCONFIG_DRIVER_NDIS \
 	-DCONFIG_DRIVER_WIRED \
 	-DCONFIG_GAS \
-	-DCONFIG_HS20 \
 	-DCONFIG_IEEE80211R \
-	-DCONFIG_INTERWORKING \
 	-DCONFIG_PEERKEY \
 	-DCONFIG_PRIVSEP \
 	-DCONFIG_SMARTCARD \
 	-DCONFIG_TERMINATE_ONLASTIF \
 	-DCONFIG_TLS=openssl \
-	-DCONFIG_WPS \
 	-DCONFIG_WPS2 \
 	-DCONFIG_WPS_UPNP \
 	-DPKCS12_FUNCS
@@ -67,7 +60,10 @@ LDADD+=${WPA_SUPPLICANT_LDADD}
 #LDFLAGS+=${WPA_SUPPLICANT_LDFLAGS}
 
 .if ${MK_WPA_SUPPLICANT_EAPOL} != "no"
-CFLAGS+=-DEAP_GTC \
+CFLAGS+=-DCONFIG_WPS \
+	-DCONFIG_HS20 \
+	-DCONFIG_INTERWORKING \
+	-DEAP_GTC \
 	-DEAP_LEAP \
 	-DEAP_MD5 \
 	-DEAP_MSCHAPv2 \
@@ -76,6 +72,7 @@ CFLAGS+=-DEAP_GTC \
 	-DEAP_PSK \
 	-DEAP_TLS \
 	-DEAP_TTLS \
+	-DEAP_WSC \
 	-DIEEE8021X_EAPOL
 SRCS+=	chap.c \
 	eap.c \
@@ -93,14 +90,23 @@ SRCS+=	chap.c \
 	eap_tls.c \
 	eap_tls_common.c \
 	eap_ttls.c \
+	eap_wsc.c \
 	eapol_supp_sm.c \
+	eap_wsc_common.c \
+	hs20_supplicant.c \
+	interworking.c \
 	ms_funcs.c \
-	mschapv2.c
-TLS_FUNCS=y
+	mschapv2.c \
+	uuid.c \
+	wps.c wps_attr_build.c wps_attr_parse.c wps_attr_process.c \
+	wps_common.c wps_dev_attr.c wps_enrollee.c wps_registrar.c \
+	wps_supplicant.c wps_upnp.c wps_upnp_ap.c wps_upnp_event.c \
+	wps_upnp_ssdp.c wps_upnp_web.c
 NEED_AES_EAX=y
 NEED_AES_ENCBLOCK=y
 NEED_AES_OMAC1=y
 .endif
+TLS_FUNCS=y
 
 .if !empty(CFLAGS:M*-DEAP_AKA)
 SRCS+=	eap_aka.c

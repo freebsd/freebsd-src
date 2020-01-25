@@ -384,7 +384,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct mbuf *m = m0;
 	struct mbuf *mprev = NULL;
 	int hlen, tlen, len;
-	struct epoch_tracker et;
 	struct route_in6 ip6route;
 	struct rtentry *rt = NULL;
 	struct sockaddr_in6 *dst, src_sa, dst_sa;
@@ -405,7 +404,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct m_tag *fwd_tag = NULL;
 	uint32_t id;
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ASSERT();
 
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
@@ -1189,7 +1188,6 @@ sendorfree:
 		IP6STAT_INC(ip6s_fragmented);
 
 done:
-	NET_EPOCH_EXIT(et);
 	if (ro == &ip6route)
 		RO_RTFREE(ro);
 	return (error);

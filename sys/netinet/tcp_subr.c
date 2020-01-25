@@ -1394,6 +1394,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	bool incl_opts;
 
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
+	NET_EPOCH_ASSERT();
 
 #ifdef INET6
 	isipv6 = ((struct ip *)ipgen)->ip_v == (IPV6_VERSION >> 4);
@@ -1870,6 +1871,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 
+	NET_EPOCH_ASSERT();
 	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
