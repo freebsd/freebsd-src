@@ -88,7 +88,7 @@ TEST_JIG = \
 
 TEST_JIG2 = \
 echo "... $$test ... $$fmt ..."; \
-xoopts==warn,encoder=csv$$csv ; \
+xoopts==warn,$$csv ; \
 ${TEST_JIG}; true;
 
 TEST_FORMATS = T XP JP HP X J H HIPx
@@ -111,9 +111,12 @@ test tests: ${bin_PROGRAMS}
             done) \
 	done)
 	-@ (${TEST_TRACE} test=test_01.c; base=test_01; \
-	    (   fmt=Ecsv1; csv= ; ${TEST_JIG2} ); \
-	    (   fmt=Ecsv2; csv=:path=top/data/item+no-header ; ${TEST_JIG2} ); \
-	    (   fmt=Ecsv3; csv=:path=item+leafs=sku.sold+no-quotes ; ${TEST_JIG2} ); \
+	    (   fmt=Ecsv1; csv=encoder=csv ; \
+			${TEST_JIG2} ); \
+	    (   fmt=Ecsv2; csv=encoder=csv:path=top/data/item:no-header ; \
+			${TEST_JIG2} ); \
+	    (   fmt=Ecsv3; csv=@csv:path=item:leafs=sku.sold:no-quotes ; \
+			${TEST_JIG2} ); \
 	)
 
 

@@ -162,3 +162,23 @@ foreground and background output to "yellow", give only the fifth
 mapping, skipping the first four mappings with bare plus signs ("+")::
 
     --libxo colors=++++yellow/yellow
+
+Encoders
+--------
+
+In addition to the four "built-in" formats, libxo supports an
+extensible mechanism for adding encoders.  These are activated
+using the "encoder" keyword::
+
+   --libxo encoder=cbor
+
+The encoder can include encoder-specific options, separated by either
+colons (":") or plus signs ("+"):
+
+    --libxo encoder=csv+path=filesystem+leaf=name+no-header
+    --libxo encoder=csv:path=filesystem:leaf=name:no-header
+
+For brevity, the string "@" can be used in place of the string
+"encoder=".
+
+    df --libxo @csv:no-header

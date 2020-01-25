@@ -21,6 +21,8 @@
 int
 main (int argc, char **argv)
 {
+    xo_set_program("test_02");
+
     argc = xo_parse_args(argc, argv);
     if (argc < 0)
 	return 1;
@@ -144,6 +146,10 @@ main (int argc, char **argv)
 	       "ten yard penalty", "first down");
 
     xo_error("Shut 'er down, Clancey!  She's a-pumpin' mud!  <>!,\"!<>\n");
+    xo_error("err message (%d)", 1);
+    xo_error("err message (%d)\n", 2);
+    xo_errorn("err message (%d)", 1);
+    xo_errorn("err message (%d)\n", 2);
 
     xo_close_container("data");
 
