@@ -895,6 +895,7 @@ void mlx4_en_rx_irq(struct mlx4_cq *mcq)
 
 void mlx4_en_rx_que(void *context, int pending)
 {
+	struct epoch_tracker et;
         struct mlx4_en_cq *cq;
 	struct thread *td;
 
@@ -905,8 +906,10 @@ void mlx4_en_rx_que(void *context, int pending)
 	sched_bind(td, cq->curr_poll_rx_cpu_id);
 	thread_unlock(td);
 
+	NET_EPOCH_ENTER(et);
         while (mlx4_en_poll_rx_cq(cq, MLX4_EN_RX_BUDGET)
                         == MLX4_EN_RX_BUDGET);
+	NET_EPOCH_EXIT(et);
         mlx4_en_arm_cq(cq->dev->if_softc, cq);
 }
 
