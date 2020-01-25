@@ -855,7 +855,6 @@ SRCS_MIN+=	Support/ManagedStatic.cpp
 SRCS_MIN+=	Support/MathExtras.cpp
 SRCS_XDL+=	Support/Memory.cpp
 SRCS_MIN+=	Support/MemoryBuffer.cpp
-SRCS_MIN+=	Support/Mutex.cpp
 SRCS_MIN+=	Support/NativeFormatting.cpp
 SRCS_MIN+=	Support/Optional.cpp
 SRCS_LLD+=	Support/Parallel.cpp
