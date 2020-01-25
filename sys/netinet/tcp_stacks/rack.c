@@ -9477,6 +9477,7 @@ send:
 		 * retransmissions and window probes.
 		 */
 		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
+		    (sack_rxmit == 0) &&
 		    !((tp->t_flags & TF_FORCEDATA) && len == 1)) {
 #ifdef INET6
 			if (isipv6)
