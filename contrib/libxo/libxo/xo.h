@@ -389,6 +389,15 @@ xo_error_h (xo_handle_t *xop, const char *fmt, ...);
 void
 xo_error (const char *fmt, ...);
 
+void
+xo_errorn_hv (xo_handle_t *xop, int need_newline, const char *fmt, va_list vap);
+
+void
+xo_errorn_h (xo_handle_t *xop, const char *fmt, ...);
+
+void
+xo_errorn (const char *fmt, ...);
+
 xo_ssize_t
 xo_flush_h (xo_handle_t *xop);
 

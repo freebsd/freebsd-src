@@ -1204,6 +1204,11 @@ message associated with either *errno* or the *code* parameter::
             xo_err(1, "cannot open file '%s'", filename);
 
 .. index:: xo_error
+.. index:: xo_error_h
+.. index:: xo_error_hv
+.. index:: xo_errorn
+.. index:: xo_errorn_h
+.. index:: xo_errorn_hv
 
 xo_error
 ~~~~~~~~
@@ -1212,6 +1217,50 @@ xo_error
 
   :param fmt: Format string
   :type fmt: const char *
+  :returns: void
+
+.. c:function:: void xo_error_h (xo_handle_t *xop, const char *fmt, ...)
+
+  :param xop: libxo handle pointer
+  :type xop: xo_handle_t *
+  :param fmt: Format string
+  :type fmt: const char *
+  :returns: void
+
+.. c:function:: void xo_error_hv (xo_handle_t *xop, const char *fmt, va_list vap)
+
+  :param xop: libxo handle pointer
+  :type xop: xo_handle_t *
+  :param fmt: Format string
+  :type fmt: const char *
+  :param vap: variadic arguments
+  :type xop: va_list
+  :returns: void
+
+.. c:function:: void xo_errorn (const char *fmt, ...)
+
+  :param fmt: Format string
+  :type fmt: const char *
+  :returns: void
+
+.. c:function:: void xo_errorn_h (xo_handle_t *xop, const char *fmt, ...)
+
+  :param xop: libxo handle pointer
+  :type xop: xo_handle_t *
+  :param fmt: Format string
+  :type fmt: const char *
+  :returns: void
+
+.. c:function:: void xo_errorn_hv (xo_handle_t *xop, int need_newline, const char *fmt, va_list vap)
+
+  :param xop: libxo handle pointer
+  :type xop: xo_handle_t *
+  :param need_newline: boolean indicating need for trailing newline
+  :type need_newline: int
+  :param fmt: Format string
+  :type fmt: const char *
+  :param vap: variadic arguments
+  :type xop: va_list
   :returns: void
 
   The `xo_error` function can be used for generic errors that should
@@ -1225,6 +1274,16 @@ xo_error
         <error><message>Does not compute</message></error>
     JSON::
         "error": { "message": "Does not compute" }
+
+  The `xo_error_h` and `xo_error_hv` add a handle object and a
+  variadic-ized parameter to the signature, respectively.
+
+  The `xo_errorn` function supplies a newline at the end the error
+  message if the format string does not include one.  The
+  `xo_errorn_h` and `xo_errorn_hv` functions add a handle object and
+  a variadic-ized parameter to the signature, respectively.  The
+  `xo_errorn_hv` function also adds a boolean to indicate the need for
+  a trailing newline.
 
 .. index:: xo_no_setlocale
 .. index:: Locale
