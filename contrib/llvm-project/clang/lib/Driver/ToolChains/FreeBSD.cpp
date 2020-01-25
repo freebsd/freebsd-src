@@ -383,8 +383,7 @@ ToolChain::CXXStdlibType FreeBSD::GetDefaultCXXStdlibType() const {
 }
 
 unsigned FreeBSD::GetDefaultDwarfVersion() const {
-  // Default to use DWARF 2 before FreeBSD 13.
-  if (getTriple().getOSMajorVersion() < 13)
+  if (getTriple().getOSMajorVersion() < 12)
     return 2;
   return 4;
 }
