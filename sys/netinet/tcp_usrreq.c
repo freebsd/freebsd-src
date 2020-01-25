@@ -121,7 +121,6 @@ __FBSDID("$FreeBSD$");
 /*
  * TCP protocol interface to socket abstraction.
  */
-static int	tcp_attach(struct socket *);
 #ifdef INET
 static int	tcp_connect(struct tcpcb *, struct sockaddr *,
 		    struct thread *td);
@@ -161,40 +160,63 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 	KASSERT(inp == NULL, ("tcp_usr_attach: inp != NULL"));
 	TCPDEBUG1();
 
-	error = tcp_attach(so);
+	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
+		error = soreserve(so, V_tcp_sendspace, V_tcp_recvspace);
+		if (error)
+			goto out;
+	}
+
+	so->so_rcv.sb_flags |= SB_AUTOSIZE;
+	so->so_snd.sb_flags |= SB_AUTOSIZE;
+	error = in_pcballoc(so, &V_tcbinfo);
 	if (error)
 		goto out;
-
+	inp = sotoinpcb(so);
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6PROTO) {
+		inp->inp_vflag |= INP_IPV6;
+		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
+			inp->inp_vflag |= INP_IPV4;
+		inp->in6p_hops = -1;	/* use kernel default */
+	}
+	else
+#endif
+		inp->inp_vflag |= INP_IPV4;
+	tp = tcp_newtcpcb(inp);
+	if (tp == NULL) {
+		error = ENOBUFS;
+		in_pcbdetach(inp);
+		in_pcbfree(inp);
+		goto out;
+	}
+	tp->t_state = TCPS_CLOSED;
+	INP_WUNLOCK(inp);
+	TCPSTATES_INC(TCPS_CLOSED);
 	if ((so->so_options & SO_LINGER) && so->so_linger == 0)
 		so->so_linger = TCP_LINGERTIME;
-
-	inp = sotoinpcb(so);
-	tp = intotcpcb(inp);
 out:
 	TCPDEBUG2(PRU_ATTACH);
 	TCP_PROBE2(debug__user, tp, PRU_ATTACH);
-	return error;
+	return (error);
 }
 
 /*
- * tcp_detach is called when the socket layer loses its final reference
+ * tcp_usr_detach is called when the socket layer loses its final reference
  * to the socket, be it a file descriptor reference, a reference from TCP,
  * etc.  At this point, there is only one case in which we will keep around
  * inpcb state: time wait.
- *
- * This function can probably be re-absorbed back into tcp_usr_detach() now
- * that there is a single detach path.
  */
 static void
-tcp_detach(struct socket *so, struct inpcb *inp)
+tcp_usr_detach(struct socket *so)
 {
+	struct inpcb *inp;
 	struct tcpcb *tp;
 
-	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
-	INP_WLOCK_ASSERT(inp);
-
-	KASSERT(so->so_pcb == inp, ("tcp_detach: so_pcb != inp"));
-	KASSERT(inp->inp_socket == so, ("tcp_detach: inp_socket != so"));
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("%s: inp == NULL", __func__));
+	INP_WLOCK(inp);
+	KASSERT(so->so_pcb == inp && inp->inp_socket == so,
+		("%s: socket %p inp %p mismatch", __func__, so, inp));
 
 	tp = intotcpcb(inp);
 
@@ -214,16 +236,16 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		 * Astute question indeed, from twtcp perspective there are
 		 * four cases to consider:
 		 *
-		 * #1 tcp_detach is called at tcptw creation time by
+		 * #1 tcp_usr_detach is called at tcptw creation time by
 		 *  tcp_twstart, then do not discard the newly created tcptw
 		 *  and leave inpcb present until timewait ends
-		 * #2 tcp_detach is called at tcptw creation time by
+		 * #2 tcp_usr_detach is called at tcptw creation time by
 		 *  tcp_twstart, but connection is local and tw will be
 		 *  discarded immediately
-		 * #3 tcp_detach is called at timewait end (or reuse) by
+		 * #3 tcp_usr_detach is called at timewait end (or reuse) by
 		 *  tcp_twclose, then the tcptw has already been discarded
 		 *  (or reused) and inpcb is freed here
-		 * #4 tcp_detach is called() after timewait ends (or reuse)
+		 * #4 tcp_usr_detach is called() after timewait ends (or reuse)
 		 *  (e.g. by soclose), then tcptw has already been discarded
 		 *  (or reused) and inpcb is freed here
 		 *
@@ -274,34 +296,6 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 			INP_WUNLOCK(inp);
 		}
 	}
-}
-
-/*
- * pru_detach() detaches the TCP protocol from the socket.
- * If the protocol state is non-embryonic, then can't
- * do this directly: have to initiate a pru_disconnect(),
- * which may finish later; embryonic TCB's can just
- * be discarded here.
- */
-static void
-tcp_usr_detach(struct socket *so)
-{
-	struct inpcb *inp;
-	int rlock = 0;
-	struct epoch_tracker et;
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("tcp_usr_detach: inp == NULL"));
-	if (!INP_INFO_WLOCKED(&V_tcbinfo)) {
-		NET_EPOCH_ENTER(et);
-		rlock = 1;
-	}
-	INP_WLOCK(inp);
-	KASSERT(inp->inp_socket != NULL,
-	    ("tcp_usr_detach: inp_socket == NULL"));
-	tcp_detach(so, inp);
-	if (rlock)
-		NET_EPOCH_EXIT(et);
 }
 
 #ifdef INET
@@ -531,6 +525,7 @@ out:
 static int
 tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct epoch_tracker et;
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -562,16 +557,19 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
+	NET_EPOCH_ENTER(et);
 	if ((error = tcp_connect(tp, nam, td)) != 0)
-		goto out;
+		goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
 	    (so->so_options & SO_NO_OFFLOAD) == 0 &&
 	    (error = tcp_offload_connect(so, nam)) == 0)
-		goto out;
+		goto out_in_epoch;
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 	error = tp->t_fb->tfb_tcp_output(tp);
+out_in_epoch:
+	NET_EPOCH_EXIT(et);
 out:
 	TCPDEBUG2(PRU_CONNECT);
 	TCP_PROBE2(debug__user, tp, PRU_CONNECT);
@@ -584,6 +582,7 @@ out:
 static int
 tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct epoch_tracker et;
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -646,16 +645,17 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			goto out;
 		inp->inp_vflag |= INP_IPV4;
 		inp->inp_vflag &= ~INP_IPV6;
+		NET_EPOCH_ENTER(et);
 		if ((error = tcp_connect(tp, (struct sockaddr *)&sin, td)) != 0)
-			goto out;
+			goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 		if (registered_toedevs > 0 &&
 		    (so->so_options & SO_NO_OFFLOAD) == 0 &&
 		    (error = tcp_offload_connect(so, nam)) == 0)
-			goto out;
+			goto out_in_epoch;
 #endif
 		error = tp->t_fb->tfb_tcp_output(tp);
-		goto out;
+		goto out_in_epoch;
 	} else {
 		if ((inp->inp_vflag & INP_IPV6) == 0) {
 			error = EAFNOSUPPORT;
@@ -677,8 +677,12 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
+	NET_EPOCH_ENTER(et);
 	error = tp->t_fb->tfb_tcp_output(tp);
-
+#ifdef INET
+out_in_epoch:
+#endif
+	NET_EPOCH_EXIT(et);
 out:
 	/*
 	 * If the implicit bind in the connect call fails, restore
@@ -882,6 +886,7 @@ out:
 static int
 tcp_usr_rcvd(struct socket *so, int flags)
 {
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	int error = 0;
@@ -911,8 +916,9 @@ tcp_usr_rcvd(struct socket *so, int flags)
 		tcp_offload_rcvd(tp);
 	else
 #endif
+	NET_EPOCH_ENTER(et);
 	tp->t_fb->tfb_tcp_output(tp);
-
+	NET_EPOCH_EXIT(et);
 out:
 	TCPDEBUG2(PRU_RCVD);
 	TCP_PROBE2(debug__user, tp, PRU_RCVD);
@@ -953,8 +959,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	 * We require the pcbinfo "read lock" if we will close the socket
 	 * as part of this call.
 	 */
-	if (flags & PRUS_EOF)
-		NET_EPOCH_ENTER(et);
+	NET_EPOCH_ENTER(et);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_send: inp == NULL"));
 	INP_WLOCK(inp);
@@ -1145,7 +1150,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			 * Close the send side of the connection after
 			 * the data is sent.
 			 */
-			NET_EPOCH_ASSERT();
 			socantsendmore(so);
 			tcp_usrclosed(tp);
 		}
@@ -1240,14 +1244,14 @@ out:
 	TCP_PROBE2(debug__user, tp, (flags & PRUS_OOB) ? PRU_SENDOOB :
 		   ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
 	INP_WUNLOCK(inp);
-	if (flags & PRUS_EOF)
-		NET_EPOCH_EXIT(et);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
 static int
 tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
 {
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	int error;
@@ -1264,8 +1268,11 @@ tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
 	SOCKBUF_LOCK(&so->so_snd);
 	error = sbready(&so->so_snd, m, count);
 	SOCKBUF_UNLOCK(&so->so_snd);
-	if (error == 0)
+	if (error == 0) {
+		NET_EPOCH_ENTER(et);
 		error = tp->t_fb->tfb_tcp_output(tp);
+		NET_EPOCH_EXIT(et);
+	}
 	INP_WUNLOCK(inp);
 
 	return (error);
@@ -1464,6 +1471,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	u_short lport;
 	int error;
 
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK(&V_tcbinfo);
 
@@ -1921,8 +1929,13 @@ unlock_and_done:
 				tp->t_flags |= TF_NOPUSH;
 			else if (tp->t_flags & TF_NOPUSH) {
 				tp->t_flags &= ~TF_NOPUSH;
-				if (TCPS_HAVEESTABLISHED(tp->t_state))
+				if (TCPS_HAVEESTABLISHED(tp->t_state)) {
+					struct epoch_tracker et;
+
+					NET_EPOCH_ENTER(et);
 					error = tp->t_fb->tfb_tcp_output(tp);
+					NET_EPOCH_EXIT(et);
+				}
 			}
 			goto unlock_and_done;
 
@@ -2387,57 +2400,6 @@ unhold:
 }
 #undef INP_WLOCK_RECHECK
 #undef INP_WLOCK_RECHECK_CLEANUP
-
-/*
- * Attach TCP protocol to socket, allocating
- * internet protocol control block, tcp control block,
- * bufer space, and entering LISTEN state if to accept connections.
- */
-static int
-tcp_attach(struct socket *so)
-{
-	struct tcpcb *tp;
-	struct inpcb *inp;
-	struct epoch_tracker et;
-	int error;
-
-	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		error = soreserve(so, V_tcp_sendspace, V_tcp_recvspace);
-		if (error)
-			return (error);
-	}
-	so->so_rcv.sb_flags |= SB_AUTOSIZE;
-	so->so_snd.sb_flags |= SB_AUTOSIZE;
-	NET_EPOCH_ENTER(et);
-	error = in_pcballoc(so, &V_tcbinfo);
-	if (error) {
-		NET_EPOCH_EXIT(et);
-		return (error);
-	}
-	inp = sotoinpcb(so);
-#ifdef INET6
-	if (inp->inp_vflag & INP_IPV6PROTO) {
-		inp->inp_vflag |= INP_IPV6;
-		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
-			inp->inp_vflag |= INP_IPV4;
-		inp->in6p_hops = -1;	/* use kernel default */
-	}
-	else
-#endif
-	inp->inp_vflag |= INP_IPV4;
-	tp = tcp_newtcpcb(inp);
-	if (tp == NULL) {
-		in_pcbdetach(inp);
-		in_pcbfree(inp);
-		NET_EPOCH_EXIT(et);
-		return (ENOBUFS);
-	}
-	tp->t_state = TCPS_CLOSED;
-	INP_WUNLOCK(inp);
-	NET_EPOCH_EXIT(et);
-	TCPSTATES_INC(TCPS_CLOSED);
-	return (0);
-}
 
 /*
  * Initiate (or continue) disconnect.

@@ -45,10 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include "un-namespace.h"
 
-#ifdef TEST
-#include <stdio.h>
-#endif /* TEST */
-
 static int
 do_rand(unsigned long *ctx)
 {
@@ -116,33 +112,3 @@ __sranddev_fbsd12(void)
 	}
 }
 __sym_compat(sranddev, __sranddev_fbsd12, FBSD_1.0);
-
-
-#ifdef TEST
-
-main()
-{
-    int i;
-    unsigned myseed;
-
-    printf("seeding rand with 0x19610910: \n");
-    srand(0x19610910);
-
-    printf("generating three pseudo-random numbers:\n");
-    for (i = 0; i < 3; i++)
-    {
-	printf("next random number = %d\n", rand());
-    }
-
-    printf("generating the same sequence with rand_r:\n");
-    myseed = 0x19610910;
-    for (i = 0; i < 3; i++)
-    {
-	printf("next random number = %d\n", rand_r(&myseed));
-    }
-
-    return 0;
-}
-
-#endif /* TEST */
-

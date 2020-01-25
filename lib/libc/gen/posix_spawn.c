@@ -201,7 +201,7 @@ struct posix_spawn_args {
 	char * const * argv;
 	char * const * envp;
 	int use_env_path;
-	int error;
+	volatile int error;
 };
 
 #if defined(__i386__) || defined(__amd64__)

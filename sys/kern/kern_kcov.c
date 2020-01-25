@@ -383,8 +383,9 @@ kcov_alloc(struct kcov_info *info, size_t entries)
 	VM_OBJECT_WLOCK(info->bufobj);
 	for (n = 0; n < pages; n++) {
 		m = vm_page_grab(info->bufobj, n,
-		    VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_WIRED);
-		m->valid = VM_PAGE_BITS_ALL;
+		    VM_ALLOC_ZERO | VM_ALLOC_WIRED);
+		vm_page_valid(m);
+		vm_page_xunbusy(m);
 		pmap_qenter(info->kvaddr + n * PAGE_SIZE, &m, 1);
 	}
 	VM_OBJECT_WUNLOCK(info->bufobj);

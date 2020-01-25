@@ -1813,6 +1813,8 @@ rack_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 		tp->snd_ssthresh = max(2, min(tp->snd_wnd, tp->snd_cwnd) / 2 /
 		    ctf_fixed_maxseg(tp)) * ctf_fixed_maxseg(tp);
 		tp->snd_cwnd = ctf_fixed_maxseg(tp);
+		if (tp->t_flags2 & TF2_ECN_PERMIT)
+			tp->t_flags2 |= TF2_ECN_SND_CWR;
 		break;
 	case CC_RTO_ERR:
 		TCPSTAT_INC(tcps_sndrexmitbad);
@@ -6296,7 +6298,7 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		}
 
 		if (((thflags & (TH_CWR | TH_ECE)) == TH_ECE) &&
-		    V_tcp_do_ecn) {
+		    (V_tcp_do_ecn == 1)) {
 			tp->t_flags2 |= TF2_ECN_PERMIT;
 			TCPSTAT_INC(tcps_ecn_shs);
 		}
@@ -7701,8 +7703,10 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * this to occur after we've validated the segment.
 	 */
 	if (tp->t_flags2 & TF2_ECN_PERMIT) {
-		if (thflags & TH_CWR)
+		if (thflags & TH_CWR) {
 			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
+			tp->t_flags |= TF_ACKNOW;
+		}
 		switch (iptos & IPTOS_ECN_MASK) {
 		case IPTOS_ECN_CE:
 			tp->t_flags2 |= TF2_ECN_SND_ECE;
@@ -8154,8 +8158,10 @@ rack_output(struct tcpcb *tp)
 #ifdef KERN_TLS
 	hw_tls = (so->so_snd.sb_flags & SB_TLS_IFNET) != 0;
 #endif
-	
+
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
+
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
 		return (tcp_offload_output(tp));
@@ -9473,6 +9479,7 @@ send:
 		 * retransmissions and window probes.
 		 */
 		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
+		    (sack_rxmit == 0) &&
 		    !((tp->t_flags & TF_FORCEDATA) && len == 1)) {
 #ifdef INET6
 			if (isipv6)
@@ -10091,6 +10098,7 @@ static int
 rack_set_sockopt(struct socket *so, struct sockopt *sopt,
     struct inpcb *inp, struct tcpcb *tp, struct tcp_rack *rack)
 {
+	struct epoch_tracker et;
 	int32_t error = 0, optval;
 
 	switch (sopt->sopt_name) {
@@ -10259,7 +10267,9 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 		if (tp->t_flags & TF_DELACK) {
 			tp->t_flags &= ~TF_DELACK;
 			tp->t_flags |= TF_ACKNOW;
+			NET_EPOCH_ENTER(et);
 			rack_output(tp);
+			NET_EPOCH_EXIT(et);
 		}
 		break;
 	case TCP_RACK_MIN_PACE:

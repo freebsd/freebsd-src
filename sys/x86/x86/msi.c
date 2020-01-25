@@ -321,6 +321,7 @@ msi_init(void)
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_INTEL:
 	case CPU_VENDOR_AMD:
+	case CPU_VENDOR_HYGON:
 		break;
 	case CPU_VENDOR_CENTAUR:
 		if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&

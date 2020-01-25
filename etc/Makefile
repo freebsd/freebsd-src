@@ -57,7 +57,7 @@ distribution:
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
-	${INSTALL_SYMLINK} ../var/run/os-release \
+	${INSTALL_SYMLINK} -T "package=runtime" ../var/run/os-release \
 		${DESTDIR}/etc/os-release
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
@@ -164,7 +164,8 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 .endif
 .if ${MK_NLS} != "no"
 .for alias nls in ${NLS_ALIASES}
-	${INSTALL_SYMLINK} "${nls}" "${DESTDIR}${SHAREDIR}/nls/${alias}"
+	${INSTALL_SYMLINK} -T "package=utilities" \
+	    "${nls}" "${DESTDIR}${SHAREDIR}/nls/${alias}"
 .endfor
 .endif
 

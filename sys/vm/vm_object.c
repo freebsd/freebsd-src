@@ -1700,13 +1700,24 @@ vm_object_scan_all_shadowed(vm_object_t object)
 		if (new_pindex >= object->size)
 			break;
 
-		/*
-		 * If the backing object page is busy a grandparent or older
-		 * page may still be undergoing CoW.  It is not safe to
-		 * collapse the backing object until it is quiesced.
-		 */
-		if (p != NULL && vm_page_busied(p))
-			return (false);
+		if (p != NULL) {
+			/*
+			 * If the backing object page is busy a
+			 * grandparent or older page may still be
+			 * undergoing CoW.  It is not safe to collapse
+			 * the backing object until it is quiesced.
+			 */
+			if (vm_page_tryxbusy(p) == 0)
+				return (false);
+
+			/*
+			 * We raced with the fault handler that left
+			 * newly allocated invalid page on the object
+			 * queue and retried.
+			 */
+			if (!vm_page_all_valid(p))
+				goto unbusy_ret;
+		}
 
 		/*
 		 * See if the parent has the page or if the parent's object
@@ -1717,15 +1728,24 @@ vm_object_scan_all_shadowed(vm_object_t object)
 		 * object and we might as well give up now.
 		 */
 		pp = vm_page_lookup(object, new_pindex);
+
 		/*
-		 * The valid check here is stable due to object lock being
-		 * required to clear valid and initiate paging.
+		 * The valid check here is stable due to object lock
+		 * being required to clear valid and initiate paging.
+		 * Busy of p disallows fault handler to validate pp.
 		 */
 		if ((pp == NULL || vm_page_none_valid(pp)) &&
 		    !vm_pager_has_page(object, new_pindex, NULL, NULL))
-			return (false);
+			goto unbusy_ret;
+		if (p != NULL)
+			vm_page_xunbusy(p);
 	}
 	return (true);
+
+unbusy_ret:
+	if (p != NULL)
+		vm_page_xunbusy(p);
+	return (false);
 }
 
 static void
@@ -1769,6 +1789,14 @@ vm_object_collapse_scan(vm_object_t object)
 				swap_pager_freespace(backing_object, p->pindex,
 				    1);
 
+			KASSERT(!pmap_page_is_mapped(p),
+			    ("freeing mapped page %p", p));
+			if (vm_page_remove(p))
+				vm_page_free(p);
+			continue;
+		}
+
+		if (!vm_page_all_valid(p)) {
 			KASSERT(!pmap_page_is_mapped(p),
 			    ("freeing mapped page %p", p));
 			if (vm_page_remove(p))

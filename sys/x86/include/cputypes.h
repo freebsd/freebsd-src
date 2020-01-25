@@ -45,5 +45,6 @@
 #define	CPU_VENDOR_INTEL	0x8086		/* Intel */
 #define	CPU_VENDOR_RISE		0xdead2bad	/* Rise */
 #define	CPU_VENDOR_CENTAUR	CPU_VENDOR_IDT
+#define	CPU_VENDOR_HYGON	0x1d94		/* Hygon */
 
 #endif /* !_X86_CPUTYPES_H_ */

@@ -2894,7 +2894,7 @@ sched_throw(struct thread *td)
 	struct thread *newtd;
 	struct tdq *tdq;
 
-	if (td == NULL) {
+	if (__predict_false(td == NULL)) {
 #ifdef SMP
 		PCPU_SET(sched, DPCPU_PTR(tdq));
 #endif
@@ -2912,13 +2912,18 @@ sched_throw(struct thread *td)
 		tdq_load_rem(tdq, td);
 		td->td_lastcpu = td->td_oncpu;
 		td->td_oncpu = NOCPU;
+		thread_lock_block(td);
 	}
 	newtd = choosethread();
 	spinlock_enter();
 	TDQ_UNLOCK(tdq);
 	KASSERT(curthread->td_md.md_spinlock_count == 1,
 	    ("invalid count %d", curthread->td_md.md_spinlock_count));
-	cpu_throw(td, newtd);		/* doesn't return */
+	/* doesn't return */
+	if (__predict_false(td == NULL))
+		cpu_throw(td, newtd);		/* doesn't return */
+	else
+		cpu_switch(td, newtd, TDQ_LOCKPTR(tdq));
 }
 
 /*

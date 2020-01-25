@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/bpf.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
@@ -73,6 +74,14 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 #include <net/if_lagg.h>
 #include <net/ieee8023ad_lacp.h>
+
+#ifdef INET6
+/*
+ * XXX: declare here to avoid to include many inet6 related files..
+ * should be more generalized?
+ */
+extern void	nd6_setmtu(struct ifnet *);
+#endif
 
 #define	LAGG_RLOCK()	struct epoch_tracker lagg_et; epoch_enter_preempt(net_epoch_preempt, &lagg_et)
 #define	LAGG_RUNLOCK()	epoch_exit_preempt(net_epoch_preempt, &lagg_et)
@@ -1178,7 +1187,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifnet *tpif;
 	struct thread *td = curthread;
 	char *buf, *outbuf;
-	int count, buflen, len, error = 0;
+	int count, buflen, len, error = 0, oldmtu;
 
 	bzero(&rpbuf, sizeof(rpbuf));
 
@@ -1453,10 +1462,23 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				    tpif->if_xname);
 		}
 #endif
+		oldmtu = ifp->if_mtu;
 		LAGG_XLOCK(sc);
 		error = lagg_port_create(sc, tpif);
 		LAGG_XUNLOCK(sc);
 		if_rele(tpif);
+
+		/*
+		 * LAGG MTU may change during addition of the first port.
+		 * If it did, do network layer specific procedure.
+		 */
+		if (ifp->if_mtu != oldmtu) {
+#ifdef INET6
+			nd6_setmtu(ifp);
+#endif
+			rt_updatemtu(ifp);
+		}
+
 		VLAN_CAPABILITIES(ifp);
 		break;
 	case SIOCSLAGGDELPORT:

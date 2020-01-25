@@ -1381,7 +1381,8 @@ atse_attach(device_t dev)
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSEPOCH;
 	ifp->if_ioctl = atse_ioctl;
 	ifp->if_transmit = atse_transmit;
 	ifp->if_qflush = atse_qflush;

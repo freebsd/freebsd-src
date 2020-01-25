@@ -937,7 +937,7 @@ vtscsi_cam_path_inquiry(struct vtscsi_softc *sc, struct cam_sim *sim,
 
 	cpi->max_target = sc->vtscsi_max_target;
 	cpi->max_lun = sc->vtscsi_max_lun;
-	cpi->initiator_id = VTSCSI_INITIATOR_ID;
+	cpi->initiator_id = cpi->max_target + 1;
 
 	strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 	strlcpy(cpi->hba_vid, "VirtIO", HBA_IDLEN);

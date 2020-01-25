@@ -770,7 +770,6 @@ MLINKS+=callout.9 callout_active.9 \
 	callout.9 callout_async_drain.9 \
 	callout.9 callout_deactivate.9 \
 	callout.9 callout_drain.9 \
-	callout.9 callout_handle_init.9 \
 	callout.9 callout_init.9 \
 	callout.9 callout_init_mtx.9 \
 	callout.9 callout_init_rm.9 \

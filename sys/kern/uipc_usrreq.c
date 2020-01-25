@@ -260,7 +260,7 @@ static struct mtx	unp_defers_lock;
 #define	UNP_LINK_LOCK_INIT()		rw_init(&unp_link_rwlock,	\
 					    "unp_link_rwlock")
 
-#define	UNP_LINK_LOCK_ASSERT()	rw_assert(&unp_link_rwlock,	\
+#define	UNP_LINK_LOCK_ASSERT()		rw_assert(&unp_link_rwlock,	\
 					    RA_LOCKED)
 #define	UNP_LINK_UNLOCK_ASSERT()	rw_assert(&unp_link_rwlock,	\
 					    RA_UNLOCKED)
@@ -778,6 +778,8 @@ uipc_detach(struct socket *so)
 
 	UNP_LINK_WLOCK();
 	LIST_REMOVE(unp, unp_link);
+	if (unp->unp_gcflag & UNPGC_DEAD)
+		LIST_REMOVE(unp, unp_dead);
 	unp->unp_gencnt = ++unp_gencnt;
 	--unp_count;
 	UNP_LINK_WUNLOCK();
@@ -2481,49 +2483,60 @@ unp_externalize_fp(struct file *fp)
  * synchronization.
  */
 static int	unp_marked;
-static int	unp_unreachable;
 
 static void
-unp_accessable(struct filedescent **fdep, int fdcount)
+unp_remove_dead_ref(struct filedescent **fdep, int fdcount)
 {
 	struct unpcb *unp;
 	struct file *fp;
 	int i;
 
+	/*
+	 * This function can only be called from the gc task.
+	 */
+	KASSERT(taskqueue_member(taskqueue_thread, curthread) != 0,
+	    ("%s: not on gc callout", __func__));
+	UNP_LINK_LOCK_ASSERT();
+
 	for (i = 0; i < fdcount; i++) {
 		fp = fdep[i]->fde_file;
 		if ((unp = fptounp(fp)) == NULL)
 			continue;
-		if (unp->unp_gcflag & UNPGC_REF)
+		if ((unp->unp_gcflag & UNPGC_DEAD) == 0)
 			continue;
-		unp->unp_gcflag &= ~UNPGC_DEAD;
-		unp->unp_gcflag |= UNPGC_REF;
+		unp->unp_gcrefs--;
+	}
+}
+
+static void
+unp_restore_undead_ref(struct filedescent **fdep, int fdcount)
+{
+	struct unpcb *unp;
+	struct file *fp;
+	int i;
+
+	/*
+	 * This function can only be called from the gc task.
+	 */
+	KASSERT(taskqueue_member(taskqueue_thread, curthread) != 0,
+	    ("%s: not on gc callout", __func__));
+	UNP_LINK_LOCK_ASSERT();
+
+	for (i = 0; i < fdcount; i++) {
+		fp = fdep[i]->fde_file;
+		if ((unp = fptounp(fp)) == NULL)
+			continue;
+		if ((unp->unp_gcflag & UNPGC_DEAD) == 0)
+			continue;
+		unp->unp_gcrefs++;
 		unp_marked++;
 	}
 }
 
 static void
-unp_gc_process(struct unpcb *unp)
+unp_gc_scan(struct unpcb *unp, void (*op)(struct filedescent **, int))
 {
 	struct socket *so, *soa;
-	struct file *fp;
-
-	/* Already processed. */
-	if (unp->unp_gcflag & UNPGC_SCANNED)
-		return;
-	fp = unp->unp_file;
-
-	/*
-	 * Check for a socket potentially in a cycle.  It must be in a
-	 * queue as indicated by msgcount, and this must equal the file
-	 * reference count.  Note that when msgcount is 0 the file is NULL.
-	 */
-	if ((unp->unp_gcflag & UNPGC_REF) == 0 && fp &&
-	    unp->unp_msgcount != 0 && fp->f_count == unp->unp_msgcount) {
-		unp->unp_gcflag |= UNPGC_DEAD;
-		unp_unreachable++;
-		return;
-	}
 
 	so = unp->unp_socket;
 	SOCK_LOCK(so);
@@ -2535,7 +2548,7 @@ unp_gc_process(struct unpcb *unp)
 			if (sotounpcb(soa)->unp_gcflag & UNPGC_IGNORE_RIGHTS)
 				continue;
 			SOCKBUF_LOCK(&soa->so_rcv);
-			unp_scan(soa->so_rcv.sb_mb, unp_accessable);
+			unp_scan(soa->so_rcv.sb_mb, op);
 			SOCKBUF_UNLOCK(&soa->so_rcv);
 		}
 	} else {
@@ -2544,12 +2557,11 @@ unp_gc_process(struct unpcb *unp)
 		 */
 		if ((unp->unp_gcflag & UNPGC_IGNORE_RIGHTS) == 0) {
 			SOCKBUF_LOCK(&so->so_rcv);
-			unp_scan(so->so_rcv.sb_mb, unp_accessable);
+			unp_scan(so->so_rcv.sb_mb, op);
 			SOCKBUF_UNLOCK(&so->so_rcv);
 		}
 	}
 	SOCK_UNLOCK(so);
-	unp->unp_gcflag |= UNPGC_SCANNED;
 }
 
 static int unp_recycled;
@@ -2560,67 +2572,115 @@ static int unp_taskcount;
 SYSCTL_INT(_net_local, OID_AUTO, taskcount, CTLFLAG_RD, &unp_taskcount, 0, 
     "Number of times the garbage collector has run.");
 
+SYSCTL_UINT(_net_local, OID_AUTO, sockcount, CTLFLAG_RD, &unp_count, 0, 
+    "Number of active local sockets.");
+
 static void
 unp_gc(__unused void *arg, int pending)
 {
 	struct unp_head *heads[] = { &unp_dhead, &unp_shead, &unp_sphead,
 				    NULL };
 	struct unp_head **head;
+	struct unp_head unp_deadhead;	/* List of potentially-dead sockets. */
 	struct file *f, **unref;
-	struct unpcb *unp;
-	int i, total;
+	struct unpcb *unp, *unptmp;
+	int i, total, unp_unreachable;
 
+	LIST_INIT(&unp_deadhead);
 	unp_taskcount++;
 	UNP_LINK_RLOCK();
 	/*
-	 * First clear all gc flags from previous runs, apart from
-	 * UNPGC_IGNORE_RIGHTS.
+	 * First determine which sockets may be in cycles.
 	 */
+	unp_unreachable = 0;
+
 	for (head = heads; *head != NULL; head++)
-		LIST_FOREACH(unp, *head, unp_link)
-			unp->unp_gcflag =
-			    (unp->unp_gcflag & UNPGC_IGNORE_RIGHTS);
+		LIST_FOREACH(unp, *head, unp_link) {
+
+			KASSERT((unp->unp_gcflag & ~UNPGC_IGNORE_RIGHTS) == 0,
+			    ("%s: unp %p has unexpected gc flags 0x%x",
+			    __func__, unp, (unsigned int)unp->unp_gcflag));
+
+			f = unp->unp_file;
+
+			/*
+			 * Check for an unreachable socket potentially in a
+			 * cycle.  It must be in a queue as indicated by
+			 * msgcount, and this must equal the file reference
+			 * count.  Note that when msgcount is 0 the file is
+			 * NULL.
+			 */
+			if (f != NULL && unp->unp_msgcount != 0 &&
+			    f->f_count == unp->unp_msgcount) {
+				LIST_INSERT_HEAD(&unp_deadhead, unp, unp_dead);
+				unp->unp_gcflag |= UNPGC_DEAD;
+				unp->unp_gcrefs = unp->unp_msgcount;
+				unp_unreachable++;
+			}
+		}
 
 	/*
-	 * Scan marking all reachable sockets with UNPGC_REF.  Once a socket
-	 * is reachable all of the sockets it references are reachable.
+	 * Scan all sockets previously marked as potentially being in a cycle
+	 * and remove the references each socket holds on any UNPGC_DEAD
+	 * sockets in its queue.  After this step, all remaining references on
+	 * sockets marked UNPGC_DEAD should not be part of any cycle.
+	 */
+	LIST_FOREACH(unp, &unp_deadhead, unp_dead)
+		unp_gc_scan(unp, unp_remove_dead_ref);
+
+	/*
+	 * If a socket still has a non-negative refcount, it cannot be in a
+	 * cycle.  In this case increment refcount of all children iteratively.
 	 * Stop the scan once we do a complete loop without discovering
 	 * a new reachable socket.
 	 */
 	do {
-		unp_unreachable = 0;
 		unp_marked = 0;
-		for (head = heads; *head != NULL; head++)
-			LIST_FOREACH(unp, *head, unp_link)
-				unp_gc_process(unp);
+		LIST_FOREACH_SAFE(unp, &unp_deadhead, unp_dead, unptmp)
+			if (unp->unp_gcrefs > 0) {
+				unp->unp_gcflag &= ~UNPGC_DEAD;
+				LIST_REMOVE(unp, unp_dead);
+				KASSERT(unp_unreachable > 0,
+				    ("%s: unp_unreachable underflow.",
+				    __func__));
+				unp_unreachable--;
+				unp_gc_scan(unp, unp_restore_undead_ref);
+			}
 	} while (unp_marked);
+
 	UNP_LINK_RUNLOCK();
+
 	if (unp_unreachable == 0)
 		return;
 
 	/*
-	 * Allocate space for a local list of dead unpcbs.
+	 * Allocate space for a local array of dead unpcbs.
+	 * TODO: can this path be simplified by instead using the local
+	 * dead list at unp_deadhead, after taking out references
+	 * on the file object and/or unpcb and dropping the link lock?
 	 */
 	unref = malloc(unp_unreachable * sizeof(struct file *),
 	    M_TEMP, M_WAITOK);
 
 	/*
 	 * Iterate looking for sockets which have been specifically marked
-	 * as as unreachable and store them locally.
+	 * as unreachable and store them locally.
 	 */
 	UNP_LINK_RLOCK();
-	for (total = 0, head = heads; *head != NULL; head++)
-		LIST_FOREACH(unp, *head, unp_link)
-			if ((unp->unp_gcflag & UNPGC_DEAD) != 0) {
-				f = unp->unp_file;
-				if (unp->unp_msgcount == 0 || f == NULL ||
-				    f->f_count != unp->unp_msgcount ||
-				    !fhold(f))
-					continue;
-				unref[total++] = f;
-				KASSERT(total <= unp_unreachable,
-				    ("unp_gc: incorrect unreachable count."));
-			}
+	total = 0;
+	LIST_FOREACH(unp, &unp_deadhead, unp_dead) {
+		KASSERT((unp->unp_gcflag & UNPGC_DEAD) != 0,
+		    ("%s: unp %p not marked UNPGC_DEAD", __func__, unp));
+		unp->unp_gcflag &= ~UNPGC_DEAD;
+		f = unp->unp_file;
+		if (unp->unp_msgcount == 0 || f == NULL ||
+		    f->f_count != unp->unp_msgcount ||
+		    !fhold(f))
+			continue;
+		unref[total++] = f;
+		KASSERT(total <= unp_unreachable,
+		    ("%s: incorrect unreachable count.", __func__));
+	}
 	UNP_LINK_RUNLOCK();
 
 	/*

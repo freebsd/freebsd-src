@@ -1372,19 +1372,6 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 	u_int32_t iszone, idzone, oszone, odzone;
 	int error = 0;
 
-/*
- * Macro to send packet on mif.  Since RSVP packets don't get counted on
- * input, they shouldn't get counted on output, so statistics keeping is
- * separate.
- */
-
-#define MC6_SEND(ip6, mifp, m) do {				\
-	if ((mifp)->m6_flags & MIFF_REGISTER)			\
-		register_send((ip6), (mifp), (m));		\
-	else							\
-		phyint_send((ip6), (mifp), (m));		\
-} while (/*CONSTCOND*/ 0)
-
 	/*
 	 * Don't forward if it didn't arrive from the parent mif
 	 * for its origin.
@@ -1528,7 +1515,10 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 
 			mifp->m6_pkt_out++;
 			mifp->m6_bytes_out += plen;
-			MC6_SEND(ip6, mifp, m);
+			if (mifp->m6_flags & MIFF_REGISTER)
+				register_send(ip6, mifp, m);
+			else
+				phyint_send(ip6, mifp, m);
 		}
 	}
 	return (0);
@@ -1569,13 +1559,16 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	 */
 	if (m->m_pkthdr.rcvif == NULL) {
 		struct ip6_moptions im6o;
+		struct epoch_tracker et;
 
 		im6o.im6o_multicast_ifp = ifp;
 		/* XXX: ip6_output will override ip6->ip6_hlim */
 		im6o.im6o_multicast_hlim = ip6->ip6_hlim;
 		im6o.im6o_multicast_loop = 1;
+		NET_EPOCH_ENTER(et);
 		error = ip6_output(mb_copy, NULL, NULL, IPV6_FORWARDING, &im6o,
 		    NULL, NULL);
+		NET_EPOCH_EXIT(et);
 
 		MRT6_DLOG(DEBUG_XMIT, "mif %u err %d",
 		    (uint16_t)(mifp - mif6table), error);

@@ -388,7 +388,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 		if (!vm_pager_has_page(obj, OFF_TO_IDX(vmoff(i, off)), NULL,
 		    &a)) {
 			pmap_zero_page(pa[i]);
-			pa[i]->valid = VM_PAGE_BITS_ALL;
+			vm_page_valid(pa[i]);
 			MPASS(pa[i]->dirty == 0);
 			vm_page_xunbusy(pa[i]);
 			i++;

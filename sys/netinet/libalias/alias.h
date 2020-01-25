@@ -228,6 +228,14 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  */
 #define	PKT_ALIAS_SKIP_GLOBAL		0x200
 
+/*
+ * Like PKT_ALIAS_UNREGISTERED_ONLY, but includes the RFC 6598
+ * (Carrier Grade NAT) address range as follows:
+ *
+ *		100.64.0.0   ->   100.127.255.255
+ */
+#define	PKT_ALIAS_UNREGISTERED_CGN	0x400
+
 /* Function return codes. */
 #define	PKT_ALIAS_ERROR			-1
 #define	PKT_ALIAS_OK			1
