@@ -52,6 +52,7 @@ FILES=	\
 	bsd.subdir.mk \
 	bsd.symver.mk \
 	bsd.sys.mk \
+	bsd.sysdir.mk \
 	bsd.test.mk \
 	dirdeps.mk \
 	gendirdeps.mk \
