@@ -2,7 +2,7 @@
 
 PACKAGE=	tests
 
-TESTSDIR=       ${TESTSBASE}/sys/net
+TESTSDIR=       ${TESTSBASE}/sys/net/routing
 
 ATF_TESTS_C +=	test_rtsock_l3
 ATF_TESTS_C +=	test_rtsock_lladdr
