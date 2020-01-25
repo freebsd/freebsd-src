@@ -125,6 +125,7 @@ clang/utils/bash-autocomplete.sh
 clang/utils/builtin-defines.c
 clang/utils/check_cfc/
 clang/utils/clangdiag.py
+clang/utils/convert_arm_neon.py
 clang/utils/creduce-clang-crash.py
 clang/utils/find-unused-diagnostics.sh
 clang/utils/hmaptool/
