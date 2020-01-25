@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 TESTSDIR=	${TESTSBASE}/sys/netinet
 BINDIR=		${TESTSDIR}
 
