@@ -284,7 +284,6 @@ dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 			dctcp_data->ece_curr = 1;
 			break;
 		case CC_RTO:
-			CCV(ccv, t_flags2) |= TF2_ECN_SND_CWR;
 			dctcp_update_alpha(ccv);
 			dctcp_data->save_sndnxt += CCV(ccv, t_maxseg);
 			dctcp_data->num_cong_events++;

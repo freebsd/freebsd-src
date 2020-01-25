@@ -460,6 +460,8 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 		tp->snd_ssthresh = max(2, min(tp->snd_wnd, tp->snd_cwnd) / 2 /
 		    maxseg) * maxseg;
 		tp->snd_cwnd = maxseg;
+		if (tp->t_flags2 & TF2_ECN_PERMIT)
+			tp->t_flags2 |= TF2_ECN_SND_CWR;
 		break;
 	case CC_RTO_ERR:
 		TCPSTAT_INC(tcps_sndrexmitbad);
