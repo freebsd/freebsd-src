@@ -25,6 +25,8 @@ main (int argc, char **argv)
     xo_emit_flags_t flags = XOEF_RETAIN;
     int opt_color = 1;
 
+    xo_set_program("test_12");
+
     argc = xo_parse_args(argc, argv);
     if (argc < 0)
 	return 1;
