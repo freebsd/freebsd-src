@@ -41,10 +41,12 @@
  *   (double) quote characters.
  * - Leading and trialing whitespace require fields be quoted.
  *
- * Cheesy, but simple.  The RFC also requires MS-DOS end-of-line, which
- * we only do with the "dos" option.  Strange that we still live in a
- * DOS-friendly world, but then again, we make spaceships based on the
- * horse butts (http://www.astrodigital.org/space/stshorse.html).
+ * Cheesy, but simple.  The RFC also requires MS-DOS end-of-line,
+ * which we only do with the "dos" option.  Strange that we still live
+ * in a DOS-friendly world, but then again, we make spaceships based
+ * on the horse butts (http://www.astrodigital.org/space/stshorse.html
+ * though the "built by English expatriates” bit is rubbish; better to
+ * say the first engines used in America were built by Englishmen.)
  */
 
 #include <string.h>
@@ -655,10 +657,12 @@ csv_record_path (xo_handle_t *xop, csv_private_t *csv, const char *path_raw)
 
 /*
  * Extract the option values.  The format is:
- *    -libxo encoder=csv:kw=val+kw=val+kw=val,pretty,etc
+ *    -libxo encoder=csv:kw=val:kw=val:kw=val,pretty
+ *    -libxo encoder=csv+kw=val+kw=val+kw=val,pretty
  */
 static int
-csv_options (xo_handle_t *xop, csv_private_t *csv, const char *raw_opts)
+csv_options (xo_handle_t *xop, csv_private_t *csv,
+	     const char *raw_opts, char opts_char)
 {
     ssize_t len = strlen(raw_opts);
     char *options = alloca(len + 1);
@@ -667,7 +671,7 @@ csv_options (xo_handle_t *xop, csv_private_t *csv, const char *raw_opts)
 
     char *cp, *ep, *np, *vp;
     for (cp = options, ep = options + len + 1; cp && cp < ep; cp = np) {
-	np = strchr(cp, '+');
+	np = strchr(cp, opts_char);
 	if (np)
 	    *np++ = '\0';
 
@@ -761,7 +765,11 @@ csv_handler (XO_ENCODER_HANDLER_ARGS)
 	break;
 
     case XO_OP_OPTIONS:
-	rc = csv_options(xop, csv, value);
+	rc = csv_options(xop, csv, value, ':');
+	break;
+
+    case XO_OP_OPTIONS_PLUS:
+	rc = csv_options(xop, csv, value, '+');
 	break;
 
     case XO_OP_OPEN_LIST:
