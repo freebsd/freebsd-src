@@ -148,7 +148,7 @@ int main(int argc, const char **argv) {
 
   std::vector<const char *> args(argv, argv + argc);
 #ifdef __FreeBSD__
-  return !elf::link(args, true);
+  return !elf::link(args, canExitEarly(), llvm::outs(), llvm::errs());
 #else
   switch (parseFlavor(args)) {
   case Gnu:
