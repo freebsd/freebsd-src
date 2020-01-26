@@ -53,8 +53,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: pwait [-t timeout] [-v] pid ...\n");
-	exit(EX_USAGE);
+	errx(EX_USAGE, "usage: pwait [-t timeout] [-v] pid ...");
 }
 
 /*
@@ -120,11 +119,11 @@ main(int argc, char *argv[])
 
 	kq = kqueue();
 	if (kq == -1)
-		err(1, "kqueue");
+		err(EX_OSERR, "kqueue");
 
 	e = malloc((argc + tflag) * sizeof(struct kevent));
 	if (e == NULL)
-		err(1, "malloc");
+		err(EX_OSERR, "malloc");
 	nleft = 0;
 	for (n = 0; n < argc; n++) {
 		s = argv[n];
@@ -166,12 +165,12 @@ main(int argc, char *argv[])
 	while (nleft > 0) {
 		n = kevent(kq, NULL, 0, e, nleft + tflag, NULL);
 		if (n == -1)
-			err(1, "kevent");
+			err(EX_OSERR, "kevent");
 		for (i = 0; i < n; i++) {
 			if (e[i].filter == EVFILT_SIGNAL) {
 				if (verbose)
 					printf("timeout\n");
-				return (124);
+				exit(124);
 			}
 			if (verbose) {
 				status = e[i].data;
