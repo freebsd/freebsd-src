@@ -371,9 +371,11 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 	case IPVERSION:
 		family = AF_INET;
 		break;
+#ifdef INET6
 	case IPV6_VERSION >> 4:
 		family = AF_INET6;
 		break;
+#endif
 	default:
 		m_freem(m);
 		return (EAFNOSUPPORT);
