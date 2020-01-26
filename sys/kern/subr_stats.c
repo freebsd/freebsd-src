@@ -1583,7 +1583,9 @@ stats_v1_blob_iter(struct statsblobv1 *sb, stats_v1_blob_itercb_t icb,
 	int i, j, firstvoi;
 
 	ctx.usrctx = usrctx;
-	ctx.flags = SB_IT_FIRST_CB;
+	ctx.flags |= SB_IT_FIRST_CB;
+	ctx.flags &= ~(SB_IT_FIRST_VOI | SB_IT_LAST_VOI | SB_IT_FIRST_VOISTAT |
+	    SB_IT_LAST_VOISTAT);
 	firstvoi = 1;
 
 	for (i = 0; i < NVOIS(sb); i++) {
