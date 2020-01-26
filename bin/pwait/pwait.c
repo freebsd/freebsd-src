@@ -66,7 +66,7 @@ main(int argc, char *argv[])
 	int kq;
 	struct kevent *e;
 	int tflag, verbose;
-	int opt, nleft, n, i, duplicate, status;
+	int opt, nleft, n, i, status;
 	long pid;
 	char *s, *end;
 	double timeout;
@@ -135,18 +135,19 @@ main(int argc, char *argv[])
 			warnx("%s: bad process id", s);
 			continue;
 		}
-		duplicate = 0;
-		for (i = 0; i < nleft; i++)
+		for (i = 0; i < nleft; i++) {
 			if (e[i].ident == (uintptr_t)pid)
-				duplicate = 1;
-		if (!duplicate) {
-			EV_SET(e + nleft, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT,
-			    0, NULL);
-			if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1)
-				warn("%ld", pid);
-			else
-				nleft++;
+				break;
 		}
+		if (i < nleft) {
+			/* Duplicate. */
+			continue;
+		}
+		EV_SET(e + nleft, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
+		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1)
+			warn("%ld", pid);
+		else
+			nleft++;
 	}
 
 	if (tflag) {
