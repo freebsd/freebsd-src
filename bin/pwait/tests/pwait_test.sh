@@ -232,6 +232,85 @@ timeout_many_cleanup()
 	wait $p1 $p5 $p10 >/dev/null 2>&1
 }
 
+atf_test_case or_flag
+or_flag_head()
+{
+	atf_set "descr" "Test OR flag"
+}
+
+or_flag_body()
+{
+	sleep 2 &
+	p2=$!
+
+	sleep 4 &
+	p4=$!
+
+	sleep 6 &
+	p6=$!
+
+	atf_check \
+		-o inline:"$p2: exited with status 0.\n" \
+		-e empty \
+		-s exit:0 \
+		timeout --preserve-status 15 pwait -o -v $p2 $p4 $p6
+
+	atf_check \
+		-o empty \
+		-e inline:"pwait: $p2: No such process\n" \
+		-s exit:0 \
+		timeout --preserve-status 15 pwait -o $p2 $p4 $p6
+
+	atf_check \
+		-o empty \
+		-e empty \
+		-s exit:0 \
+		timeout --preserve-status 15 pwait -o $p4 $p6
+
+	atf_check \
+		-o empty \
+		-e inline:"pwait: $p4: No such process\n" \
+		-s exit:0 \
+		timeout --preserve-status 15 pwait -o $p4 $p6
+
+	atf_check \
+		-o inline:"$p6: exited with status 0.\n" \
+		-e empty \
+		-s exit:0 \
+		timeout --preserve-status 15 pwait -o -v $p6
+
+	atf_check \
+		-o empty \
+		-e inline:"pwait: $p6: No such process\n" \
+		-s exit:0 \
+		timeout --preserve-status 15 pwait -o $p6
+
+	atf_check \
+		-o empty \
+		-e inline:"kill: $p2: No such process\n" \
+		-s exit:1 \
+		kill -0 $p2
+
+	atf_check \
+		-o empty \
+		-e inline:"kill: $p4: No such process\n" \
+		-s exit:1 \
+		kill -0 $p4
+
+	atf_check \
+		-o empty \
+		-e inline:"kill: $p6: No such process\n" \
+		-s exit:1 \
+		kill -0 $p6
+
+}
+
+or_flag_cleanup()
+{
+	kill $p2 $p4 $p6 >/dev/null 2>&1
+	wait $p2 $p4 $p6 >/dev/null 2>&1
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -239,4 +318,5 @@ atf_init_test_cases()
 	atf_add_test_case timeout_trigger_timeout
 	atf_add_test_case timeout_no_timeout
 	atf_add_test_case timeout_many
+	atf_add_test_case or_flag
 }
