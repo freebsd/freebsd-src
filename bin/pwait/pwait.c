@@ -53,7 +53,7 @@ static void
 usage(void)
 {
 
-	errx(EX_USAGE, "usage: pwait [-t timeout] [-v] pid ...");
+	errx(EX_USAGE, "usage: pwait [-t timeout] [-ov] pid ...");
 }
 
 /*
@@ -65,16 +65,22 @@ main(int argc, char *argv[])
 	struct itimerval itv;
 	int kq;
 	struct kevent *e;
-	int tflag, verbose;
+	int oflag, tflag, verbose;
 	int opt, nleft, n, i, status;
 	long pid;
 	char *s, *end;
 	double timeout;
 
-	tflag = verbose = 0;
+	oflag = 0;
+	tflag = 0;
+	verbose = 0;
 	memset(&itv, 0, sizeof(itv));
-	while ((opt = getopt(argc, argv, "t:v")) != -1) {
+
+	while ((opt = getopt(argc, argv, "t:ov")) != -1) {
 		switch (opt) {
+		case 'o':
+			oflag = 1;
+			break;
 		case 't':
 			tflag = 1;
 			errno = 0;
@@ -144,10 +150,13 @@ main(int argc, char *argv[])
 			continue;
 		}
 		EV_SET(e + nleft, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
-		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1)
+		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1) {
 			warn("%ld", pid);
-		else
+			if (oflag)
+				exit(EX_OK);
+		} else {
 			nleft++;
+		}
 	}
 
 	if (nleft > 0 && tflag) {
@@ -187,6 +196,8 @@ main(int argc, char *argv[])
 					printf("%ld: terminated.\n",
 					    (long)e[i].ident);
 			}
+			if (oflag)
+				exit(EX_OK);
 			--nleft;
 		}
 	}
