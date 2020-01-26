@@ -3324,10 +3324,10 @@ vdbatch_process(struct vdbatch *vd)
 		vp->v_dbatchcpu = NOCPU;
 	}
 	mtx_unlock(&vnode_list_mtx);
-	critical_exit();
 	vd->freevnodes = 0;
 	bzero(vd->tab, sizeof(vd->tab));
 	vd->index = 0;
+	critical_exit();
 }
 
 static void
