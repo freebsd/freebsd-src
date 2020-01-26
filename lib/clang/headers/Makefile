@@ -5,14 +5,11 @@
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
-INCSGROUPS=	INCS CUDA FUZZ OMP PPC PROF SAN
+INCSGROUPS=	INCS CUDA OMP PPC
 INCSDIR=	${LIBDIR}/clang/10.0.0/include
 CUDADIR=	${INCSDIR}/cuda_wrappers
-FUZZDIR=	${INCSDIR}/fuzzer
 OMPDIR=		${INCSDIR}/openmp_wrappers
 PPCDIR=		${INCSDIR}/ppc_wrappers
-PROFDIR=	${INCSDIR}/profile
-SANDIR=		${INCSDIR}/sanitizer
 
 GENINCS+=	arm_fp16.h
 GENINCS+=	arm_mve.h
@@ -149,8 +146,6 @@ CUDA+=		cuda_wrappers/algorithm
 CUDA+=		cuda_wrappers/complex
 CUDA+=		cuda_wrappers/new
 
-FUZZ+=		fuzzer/FuzzedDataProvider.h
-
 OMP+=		openmp_wrappers/__clang_openmp_math.h
 OMP+=		openmp_wrappers/__clang_openmp_math_declares.h
 OMP+=		openmp_wrappers/cmath
@@ -163,27 +158,6 @@ PPC+=		ppc_wrappers/pmmintrin.h
 PPC+=		ppc_wrappers/smmintrin.h
 PPC+=		ppc_wrappers/tmmintrin.h
 PPC+=		ppc_wrappers/xmmintrin.h
-
-PROF+=		profile/InstrProfData.inc
-
-SAN+=		sanitizer/allocator_interface.h
-SAN+=		sanitizer/asan_interface.h
-SAN+=		sanitizer/common_interface_defs.h
-SAN+=		sanitizer/coverage_interface.h
-SAN+=		sanitizer/dfsan_interface.h
-SAN+=		sanitizer/hwasan_interface.h
-SAN+=		sanitizer/linux_syscall_hooks.h
-SAN+=		sanitizer/lsan_interface.h
-SAN+=		sanitizer/msan_interface.h
-SAN+=		sanitizer/netbsd_syscall_hooks.h
-SAN+=		sanitizer/scudo_interface.h
-SAN+=		sanitizer/tsan_interface.h
-SAN+=		sanitizer/tsan_interface_atomic.h
-SAN+=		sanitizer/ubsan_interface.h
-
-XRAY+=		xray/xray_interface.h
-XRAY+=		xray/xray_log_interface.h
-XRAY+=		xray/xray_records.h
 
 arm_fp16.h: ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
 	${CLANG_TBLGEN} -gen-arm-fp16 \
