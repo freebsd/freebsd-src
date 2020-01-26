@@ -542,7 +542,7 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 				goto err;
 			}
 			p = fgetln(sfd, &linelen);
-			if (p == NULL &&
+			if (p == NULL ||
 			    (linelen < 2 || linelen > sizeof(linebuf))) {
 				warn("mdconfig (attach) unexpected output");
 				ret = NULL;
