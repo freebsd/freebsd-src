@@ -63,12 +63,11 @@ int
 main(int argc, char *argv[])
 {
 	struct itimerval itv;
-	int kq;
 	struct kevent *e;
 	int oflag, tflag, verbose;
-	int opt, nleft, n, i, status;
+	int i, kq, n, nleft, opt, status;
 	long pid;
-	char *s, *end;
+	char *end, *s;
 	double timeout;
 
 	oflag = 0;
@@ -76,7 +75,7 @@ main(int argc, char *argv[])
 	verbose = 0;
 	memset(&itv, 0, sizeof(itv));
 
-	while ((opt = getopt(argc, argv, "t:ov")) != -1) {
+	while ((opt = getopt(argc, argv, "ot:v")) != -1) {
 		switch (opt) {
 		case 'o':
 			oflag = 1;
@@ -85,9 +84,9 @@ main(int argc, char *argv[])
 			tflag = 1;
 			errno = 0;
 			timeout = strtod(optarg, &end);
-			if (end == optarg || errno == ERANGE ||
-			    timeout < 0)
+			if (end == optarg || errno == ERANGE || timeout < 0) {
 				errx(EX_DATAERR, "timeout value");
+			}
 			switch(*end) {
 			case 0:
 			case 's':
@@ -101,8 +100,9 @@ main(int argc, char *argv[])
 			default:
 				errx(EX_DATAERR, "timeout unit");
 			}
-			if (timeout > 100000000L)
+			if (timeout > 100000000L) {
 				errx(EX_DATAERR, "timeout value");
+			}
 			itv.it_value.tv_sec = (time_t)timeout;
 			timeout -= (time_t)timeout;
 			itv.it_value.tv_usec =
@@ -120,21 +120,26 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc == 0)
+	if (argc == 0) {
 		usage();
+	}
 
 	kq = kqueue();
-	if (kq == -1)
+	if (kq == -1) {
 		err(EX_OSERR, "kqueue");
+	}
 
 	e = malloc((argc + tflag) * sizeof(struct kevent));
-	if (e == NULL)
+	if (e == NULL) {
 		err(EX_OSERR, "malloc");
+	}
 	nleft = 0;
 	for (n = 0; n < argc; n++) {
 		s = argv[n];
-		if (!strncmp(s, "/proc/", 6)) /* Undocumented Solaris compat */
+		/* Undocumented Solaris compat */
+		if (!strncmp(s, "/proc/", 6)) {
 			s += 6;
+		}
 		errno = 0;
 		pid = strtol(s, &end, 10);
 		if (pid < 0 || *end != '\0' || errno != 0) {
@@ -142,8 +147,9 @@ main(int argc, char *argv[])
 			continue;
 		}
 		for (i = 0; i < nleft; i++) {
-			if (e[i].ident == (uintptr_t)pid)
+			if (e[i].ident == (uintptr_t)pid) {
 				break;
+			}
 		}
 		if (i < nleft) {
 			/* Duplicate. */
@@ -152,8 +158,9 @@ main(int argc, char *argv[])
 		EV_SET(e + nleft, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
 		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1) {
 			warn("%ld", pid);
-			if (oflag)
+			if (oflag) {
 				exit(EX_OK);
+			}
 		} else {
 			nleft++;
 		}
@@ -165,39 +172,45 @@ main(int argc, char *argv[])
 		 * can be returned rather than 142.
 		 */
 		EV_SET(e + nleft, SIGALRM, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
-		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1)
+		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1) {
 			err(EX_OSERR, "kevent");
+		}
 		/* Ignore SIGALRM to not interrupt kevent(2). */
 		signal(SIGALRM, SIG_IGN);
-		if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
+		if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
 			err(EX_OSERR, "setitimer");
+		}
 	}
 	while (nleft > 0) {
 		n = kevent(kq, NULL, 0, e, nleft + tflag, NULL);
-		if (n == -1)
+		if (n == -1) {
 			err(EX_OSERR, "kevent");
+		}
 		for (i = 0; i < n; i++) {
 			if (e[i].filter == EVFILT_SIGNAL) {
-				if (verbose)
+				if (verbose) {
 					printf("timeout\n");
+				}
 				exit(124);
 			}
 			if (verbose) {
 				status = e[i].data;
-				if (WIFEXITED(status))
+				if (WIFEXITED(status)) {
 					printf("%ld: exited with status %d.\n",
 					    (long)e[i].ident,
 					    WEXITSTATUS(status));
-				else if (WIFSIGNALED(status))
+				} else if (WIFSIGNALED(status)) {
 					printf("%ld: killed by signal %d.\n",
 					    (long)e[i].ident,
 					    WTERMSIG(status));
-				else
+				} else {
 					printf("%ld: terminated.\n",
 					    (long)e[i].ident);
+				}
 			}
-			if (oflag)
+			if (oflag) {
 				exit(EX_OK);
+			}
 			--nleft;
 		}
 	}
