@@ -6368,6 +6368,9 @@ __mnt_vnode_first_lazy(struct vnode **mvp, struct mount *mp, mnt_lazy_cb_t *cb,
 {
 	struct vnode *vp;
 
+	if (TAILQ_EMPTY(&mp->mnt_lazyvnodelist))
+		return (NULL);
+
 	*mvp = vn_alloc_marker(mp);
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
