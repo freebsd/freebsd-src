@@ -367,14 +367,11 @@ while ((getline < srcfile) > 0) {
 		add_pre(name);
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "Entry", "\t");
-		printc("\tif (__predict_true(!SDT_PROBES_ENABLED() && vop->"name" != NULL)) {");
+		printc("\tif (!SDT_PROBES_ENABLED()) {");
 		printc("\t\trc = vop->"name"(a);")
 		printc("\t} else {")
 		printc("\t\tSDT_PROBE2(vfs, vop, " name ", entry, a->a_" args[0] ", a);");
-		printc("\t\tif (vop->"name" != NULL)")
-		printc("\t\t\trc = vop->"name"(a);")
-		printc("\t\telse")
-		printc("\t\t\trc = vop->vop_bypass(&a->a_gen);")
+		printc("\t\trc = vop->"name"(a);")
 		printc("\t\tSDT_PROBE3(vfs, vop, " name ", return, a->a_" args[0] ", a, rc);");
 		printc("\t}")
 		printc("\tif (rc == 0) {");
@@ -449,6 +446,11 @@ if (cfile) {
 	printc("\t\tvop = vop->vop_default;")
 	printc("\tif (vop != NULL)");
 	printc("\t\torig_vop->vop_bypass = vop->vop_bypass;");
+	printc("");
+	for (name in funcarr) {
+		printc("\tif (orig_vop->"name" == NULL)");
+		printc("\t\torig_vop->"name" = (void *)orig_vop->vop_bypass;");
+	}
 	printc("");
 	printc("\torig_vop->registered = true;");
 	printc("}")
