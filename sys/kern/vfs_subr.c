@@ -2911,7 +2911,8 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 		    __func__));
 	}
 
-	if ((error = vn_lock(vp, flags)) != 0) {
+	error = vn_lock(vp, flags);
+	if (__predict_false(error != 0)) {
 		if (vs == VGET_USECOUNT)
 			vrele(vp);
 		else
