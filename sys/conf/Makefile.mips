@@ -50,12 +50,9 @@ ARCH_FLAGS+=-mabi=${MIPS_ABI}
 EXTRA_FLAGS=-fno-pic -mno-abicalls -G0 -DKERNLOADADDR=${KERNLOADADDR}
 EXTRA_FLAGS+=-${MIPS_ENDIAN}
 
-HACK_EXTRA_FLAGS=-shared
-
 # We add the -fno-pic flag to kernels because otherwise performance
 # is extremely poor, as well as -mno-abicalls to force no ABI usage.
 CFLAGS+=${EXTRA_FLAGS} $(ARCH_FLAGS)
-HACK_EXTRA_FLAGS+=${EXTRA_FLAGS} $(ARCH_FLAGS)
 TRAMP_ARCH_FLAGS?=$(ARCH_FLAGS)
 TRAMP_EXTRA_FLAGS=${EXTRA_FLAGS} ${TRAMP_ARCH_FLAGS}
 # Kernel code is always compiled with soft-float on MIPS
