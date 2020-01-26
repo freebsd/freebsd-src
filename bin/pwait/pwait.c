@@ -150,7 +150,7 @@ main(int argc, char *argv[])
 			nleft++;
 	}
 
-	if (tflag) {
+	if (nleft > 0 && tflag) {
 		/*
 		 * Explicitly detect SIGALRM so that an exit status of 124
 		 * can be returned rather than 142.
