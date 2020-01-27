@@ -139,71 +139,52 @@ dmar_gas_cmp_entries(struct dmar_map_entry *a, struct dmar_map_entry *b)
 static void
 dmar_gas_augment_entry(struct dmar_map_entry *entry)
 {
-	struct dmar_map_entry *l, *r;
+	struct dmar_map_entry *child;
+	dmar_gaddr_t free_down;
 
-	for (; entry != NULL; entry = RB_PARENT(entry, rb_entry)) {
-		l = RB_LEFT(entry, rb_entry);
-		r = RB_RIGHT(entry, rb_entry);
-		if (l == NULL && r == NULL) {
-			entry->free_down = entry->free_after;
-		} else if (l == NULL && r != NULL) {
-			entry->free_down = MAX(entry->free_after, r->free_down);
-		} else if (/*l != NULL && */ r == NULL) {
-			entry->free_down = MAX(entry->free_after, l->free_down);
-		} else /* if (l != NULL && r != NULL) */ {
-			entry->free_down = MAX(entry->free_after, l->free_down);
-			entry->free_down = MAX(entry->free_down, r->free_down);
-		}
-	}
+	free_down = 0;
+	if ((child = RB_LEFT(entry, rb_entry)) != NULL) {
+		free_down = MAX(free_down, child->free_down);
+		free_down = MAX(free_down, entry->start - child->last);
+		entry->first = child->first;
+	} else
+		entry->first = entry->start;
+	
+	if ((child = RB_RIGHT(entry, rb_entry)) != NULL) {
+		free_down = MAX(free_down, child->free_down);
+		free_down = MAX(free_down, child->first - entry->end);
+		entry->last = child->last;
+	} else
+		entry->last = entry->end;
+	entry->free_down = free_down;
 }
 
 RB_GENERATE(dmar_gas_entries_tree, dmar_map_entry, rb_entry,
     dmar_gas_cmp_entries);
 
-static void
-dmar_gas_fix_free(struct dmar_domain *domain, struct dmar_map_entry *entry)
-{
-	struct dmar_map_entry *next;
-
-	next = RB_NEXT(dmar_gas_entries_tree, &domain->rb_root, entry);
-	entry->free_after = (next != NULL ? next->start : domain->end) -
-	    entry->end;
-	dmar_gas_augment_entry(entry);
-}
-
 #ifdef INVARIANTS
 static void
 dmar_gas_check_free(struct dmar_domain *domain)
 {
-	struct dmar_map_entry *entry, *next, *l, *r;
+	struct dmar_map_entry *entry, *l, *r;
 	dmar_gaddr_t v;
 
 	RB_FOREACH(entry, dmar_gas_entries_tree, &domain->rb_root) {
 		KASSERT(domain == entry->domain,
 		    ("mismatched free domain %p entry %p entry->domain %p",
 		    domain, entry, entry->domain));
-		next = RB_NEXT(dmar_gas_entries_tree, &domain->rb_root, entry);
-		if (next == NULL) {
-			MPASS(entry->free_after == domain->end - entry->end);
-		} else {
-			MPASS(entry->free_after = next->start - entry->end);
-			MPASS(entry->end <= next->start);
-		}
 		l = RB_LEFT(entry, rb_entry);
 		r = RB_RIGHT(entry, rb_entry);
-		if (l == NULL && r == NULL) {
-			MPASS(entry->free_down == entry->free_after);
-		} else if (l == NULL && r != NULL) {
-			MPASS(entry->free_down = MAX(entry->free_after,
-			    r->free_down));
-		} else if (r == NULL) {
-			MPASS(entry->free_down = MAX(entry->free_after,
-			    l->free_down));
-		} else {
-			v = MAX(entry->free_after, l->free_down);
-			v = MAX(v, r->free_down);
-			MPASS(entry->free_down == v);
+		v = 0;
+		if (l != NULL) {
+			v = MAX(v, l->free_down);
+			v = MAX(v, entry->start - l->last);
 		}
+		if (r != NULL) {
+			v = MAX(v, r->free_down);
+			v = MAX(v, r->first - entry->end);
+		}
+		MPASS(entry->free_down == v);
 	}
 }
 #endif
@@ -211,25 +192,17 @@ dmar_gas_check_free(struct dmar_domain *domain)
 static bool
 dmar_gas_rb_insert(struct dmar_domain *domain, struct dmar_map_entry *entry)
 {
-	struct dmar_map_entry *prev, *found;
+	struct dmar_map_entry *found;
 
 	found = RB_INSERT(dmar_gas_entries_tree, &domain->rb_root, entry);
-	dmar_gas_fix_free(domain, entry);
-	prev = RB_PREV(dmar_gas_entries_tree, &domain->rb_root, entry);
-	if (prev != NULL)
-		dmar_gas_fix_free(domain, prev);
 	return (found == NULL);
 }
 
 static void
 dmar_gas_rb_remove(struct dmar_domain *domain, struct dmar_map_entry *entry)
 {
-	struct dmar_map_entry *prev;
 
-	prev = RB_PREV(dmar_gas_entries_tree, &domain->rb_root, entry);
 	RB_REMOVE(dmar_gas_entries_tree, &domain->rb_root, entry);
-	if (prev != NULL)
-		dmar_gas_fix_free(domain, prev);
 }
 
 void
@@ -246,13 +219,11 @@ dmar_gas_init_domain(struct dmar_domain *domain)
 
 	begin->start = 0;
 	begin->end = DMAR_PAGE_SIZE;
-	begin->free_after = domain->end - begin->end;
 	begin->flags = DMAR_MAP_ENTRY_PLACE | DMAR_MAP_ENTRY_UNMAPPED;
 	dmar_gas_rb_insert(domain, begin);
 
 	end->start = domain->end;
 	end->end = domain->end;
-	end->free_after = 0;
 	end->flags = DMAR_MAP_ENTRY_PLACE | DMAR_MAP_ENTRY_UNMAPPED;
 	dmar_gas_rb_insert(domain, end);
 
@@ -281,7 +252,6 @@ dmar_gas_fini_domain(struct dmar_domain *domain)
 	entry = RB_MAX(dmar_gas_entries_tree, &domain->rb_root);
 	KASSERT(entry->start == domain->end, ("end entry start %p", domain));
 	KASSERT(entry->end == domain->end, ("end entry end %p", domain));
-	KASSERT(entry->free_after == 0, ("end entry free_after %p", domain));
 	KASSERT(entry->flags == DMAR_MAP_ENTRY_PLACE,
 	    ("end entry flags %p", domain));
 	RB_REMOVE(dmar_gas_entries_tree, &domain->rb_root, entry);
@@ -305,19 +275,26 @@ struct dmar_gas_match_args {
 	struct dmar_map_entry *entry;
 };
 
+/*
+ * The interval [beg, end) is a free interval between two dmar_map_entries.
+ * maxaddr is an upper bound on addresses that can be allocated. Try to
+ * allocate space in the free interval, subject to the conditions expressed
+ * by a, and return 'true' if and only if the allocation attempt succeeds.
+ */
 static bool
-dmar_gas_match_one(struct dmar_gas_match_args *a, struct dmar_map_entry *prev,
-    dmar_gaddr_t end)
+dmar_gas_match_one(struct dmar_gas_match_args *a, dmar_gaddr_t beg,
+    dmar_gaddr_t end, dmar_gaddr_t maxaddr)
 {
 	dmar_gaddr_t bs, start;
 
-	if (a->entry->start + a->size > end)
+	a->entry->start = roundup2(beg + DMAR_PAGE_SIZE,
+	    a->common->alignment);
+	if (a->entry->start + a->size > maxaddr)
 		return (false);
 
 	/* DMAR_PAGE_SIZE to create gap after new entry. */
-	if (a->entry->start < prev->end + DMAR_PAGE_SIZE ||
-	    a->entry->start + a->size + a->offset + DMAR_PAGE_SIZE >
-	    prev->end + prev->free_after)
+	if (a->entry->start < beg + DMAR_PAGE_SIZE ||
+	    a->entry->start + a->size + a->offset + DMAR_PAGE_SIZE > end)
 		return (false);
 
 	/* No boundary crossing. */
@@ -328,15 +305,14 @@ dmar_gas_match_one(struct dmar_gas_match_args *a, struct dmar_map_entry *prev,
 	/*
 	 * The start + offset to start + offset + size region crosses
 	 * the boundary.  Check if there is enough space after the
-	 * next boundary after the prev->end.
+	 * next boundary after the beg.
 	 */
 	bs = rounddown2(a->entry->start + a->offset + a->common->boundary,
 	    a->common->boundary);
 	start = roundup2(bs, a->common->alignment);
 	/* DMAR_PAGE_SIZE to create gap after new entry. */
-	if (start + a->offset + a->size + DMAR_PAGE_SIZE <=
-	    prev->end + prev->free_after &&
-	    start + a->offset + a->size <= end &&
+	if (start + a->offset + a->size + DMAR_PAGE_SIZE <= end &&
+	    start + a->offset + a->size <= maxaddr &&
 	    dmar_test_boundary(start + a->offset, a->size,
 	    a->common->boundary)) {
 		a->entry->start = start;
@@ -346,7 +322,7 @@ dmar_gas_match_one(struct dmar_gas_match_args *a, struct dmar_map_entry *prev,
 	/*
 	 * Not enough space to align at the requested boundary, or
 	 * boundary is smaller than the size, but allowed to split.
-	 * We already checked that start + size does not overlap end.
+	 * We already checked that start + size does not overlap maxaddr.
 	 *
 	 * XXXKIB. It is possible that bs is exactly at the start of
 	 * the next entry, then we do not have gap.  Ignore for now.
@@ -360,10 +336,8 @@ dmar_gas_match_one(struct dmar_gas_match_args *a, struct dmar_map_entry *prev,
 }
 
 static void
-dmar_gas_match_insert(struct dmar_gas_match_args *a,
-    struct dmar_map_entry *prev)
+dmar_gas_match_insert(struct dmar_gas_match_args *a)
 {
-	struct dmar_map_entry *next;
 	bool found;
 
 	/*
@@ -376,102 +350,67 @@ dmar_gas_match_insert(struct dmar_gas_match_args *a,
 	 */
 	a->entry->end = a->entry->start + a->size;
 
-	next = RB_NEXT(dmar_gas_entries_tree, &a->domain->rb_root, prev);
-	KASSERT(next->start >= a->entry->end &&
-	    next->start - a->entry->start >= a->size &&
-	    prev->end <= a->entry->end,
-	    ("dmar_gas_match_insert hole failed %p prev (%jx, %jx) "
-	    "free_after %jx next (%jx, %jx) entry (%jx, %jx)", a->domain,
-	    (uintmax_t)prev->start, (uintmax_t)prev->end,
-	    (uintmax_t)prev->free_after,
-	    (uintmax_t)next->start, (uintmax_t)next->end,
-	    (uintmax_t)a->entry->start, (uintmax_t)a->entry->end));
-
-	prev->free_after = a->entry->start - prev->end;
-	a->entry->free_after = next->start - a->entry->end;
-
 	found = dmar_gas_rb_insert(a->domain, a->entry);
 	KASSERT(found, ("found dup %p start %jx size %jx",
 	    a->domain, (uintmax_t)a->entry->start, (uintmax_t)a->size));
 	a->entry->flags = DMAR_MAP_ENTRY_MAP;
-
-	KASSERT(RB_PREV(dmar_gas_entries_tree, &a->domain->rb_root,
-	    a->entry) == prev,
-	    ("entry %p prev %p inserted prev %p", a->entry, prev,
-	    RB_PREV(dmar_gas_entries_tree, &a->domain->rb_root, a->entry)));
-	KASSERT(RB_NEXT(dmar_gas_entries_tree, &a->domain->rb_root,
-	    a->entry) == next,
-	    ("entry %p next %p inserted next %p", a->entry, next,
-	    RB_NEXT(dmar_gas_entries_tree, &a->domain->rb_root, a->entry)));
 }
 
 static int
-dmar_gas_lowermatch(struct dmar_gas_match_args *a, struct dmar_map_entry *prev)
+dmar_gas_lowermatch(struct dmar_gas_match_args *a, struct dmar_map_entry *entry)
 {
-	struct dmar_map_entry *l;
-	int ret;
+	struct dmar_map_entry *child;
 
-	if (prev->end < a->common->lowaddr) {
-		a->entry->start = roundup2(prev->end + DMAR_PAGE_SIZE,
-		    a->common->alignment);
-		if (dmar_gas_match_one(a, prev, a->common->lowaddr)) {
-			dmar_gas_match_insert(a, prev);
-			return (0);
-		}
+	child = RB_RIGHT(entry, rb_entry);
+	if (child != NULL && entry->end < a->common->lowaddr &&
+	    dmar_gas_match_one(a, entry->end, child->first,
+	    a->common->lowaddr)) {
+		dmar_gas_match_insert(a);
+		return (0);
 	}
-	if (prev->free_down < a->size + a->offset + DMAR_PAGE_SIZE)
+	if (entry->free_down < a->size + a->offset + DMAR_PAGE_SIZE)
 		return (ENOMEM);
-	l = RB_LEFT(prev, rb_entry);
-	if (l != NULL) {
-		ret = dmar_gas_lowermatch(a, l);
-		if (ret == 0)
-			return (0);
+	child = RB_LEFT(entry, rb_entry);
+	if (child != NULL && 0 == dmar_gas_lowermatch(a, child))
+		return (0);
+	if (child != NULL && child->last < a->common->lowaddr &&
+	    dmar_gas_match_one(a, child->last, entry->start,
+	    a->common->lowaddr)) {
+		dmar_gas_match_insert(a);
+		return (0);
 	}
-	l = RB_RIGHT(prev, rb_entry);
-	if (l != NULL)
-		return (dmar_gas_lowermatch(a, l));
+	child = RB_RIGHT(entry, rb_entry);
+	if (child != NULL && 0 == dmar_gas_lowermatch(a, child))
+		return (0);
 	return (ENOMEM);
 }
 
 static int
-dmar_gas_uppermatch(struct dmar_gas_match_args *a)
+dmar_gas_uppermatch(struct dmar_gas_match_args *a, struct dmar_map_entry *entry)
 {
-	struct dmar_map_entry *next, *prev, find_entry;
+	struct dmar_map_entry *child;
 
-	find_entry.start = a->common->highaddr;
-	next = RB_NFIND(dmar_gas_entries_tree, &a->domain->rb_root,
-	    &find_entry);
-	if (next == NULL)
+	if (entry->last < a->common->highaddr)
 		return (ENOMEM);
-	prev = RB_PREV(dmar_gas_entries_tree, &a->domain->rb_root, next);
-	KASSERT(prev != NULL, ("no prev %p %jx", a->domain,
-	    (uintmax_t)find_entry.start));
-	for (;;) {
-		a->entry->start = prev->start + DMAR_PAGE_SIZE;
-		if (a->entry->start < a->common->highaddr)
-			a->entry->start = a->common->highaddr;
-		a->entry->start = roundup2(a->entry->start,
-		    a->common->alignment);
-		if (dmar_gas_match_one(a, prev, a->domain->end)) {
-			dmar_gas_match_insert(a, prev);
-			return (0);
-		}
-
-		/*
-		 * XXXKIB.  This falls back to linear iteration over
-		 * the free space in the high region.  But high
-		 * regions are almost unused, the code should be
-		 * enough to cover the case, although in the
-		 * non-optimal way.
-		 */
-		prev = next;
-		next = RB_NEXT(dmar_gas_entries_tree, &a->domain->rb_root,
-		    prev);
-		KASSERT(next != NULL, ("no next %p %jx", a->domain,
-		    (uintmax_t)find_entry.start));
-		if (next->end >= a->domain->end)
-			return (ENOMEM);
+	child = RB_LEFT(entry, rb_entry);
+	if (child != NULL && 0 == dmar_gas_uppermatch(a, child))
+		return (0);
+	if (child != NULL && child->last >= a->common->highaddr &&
+	    dmar_gas_match_one(a, child->last, entry->start,
+	    a->domain->end)) {
+		dmar_gas_match_insert(a);
+		return (0);
 	}
+	child = RB_RIGHT(entry, rb_entry);
+	if (child != NULL && entry->end >= a->common->highaddr &&
+	    dmar_gas_match_one(a, entry->end, child->first,
+	    a->domain->end)) {
+		dmar_gas_match_insert(a);
+		return (0);
+	}
+	if (child != NULL && 0 == dmar_gas_uppermatch(a, child))
+		return (0);
+	return (ENOMEM);
 }
 
 static int
@@ -504,7 +443,7 @@ dmar_gas_find_space(struct dmar_domain *domain,
 	/* Handle upper region. */
 	if (common->highaddr >= domain->end)
 		return (ENOMEM);
-	error = dmar_gas_uppermatch(&a);
+	error = dmar_gas_uppermatch(&a, RB_ROOT(&domain->rb_root));
 	KASSERT(error == ENOMEM,
 	    ("error %d from dmar_gas_uppermatch", error));
 	return (error);

@@ -1112,9 +1112,9 @@ dmar_print_domain_entry(const struct dmar_map_entry *entry)
 	struct dmar_map_entry *l, *r;
 
 	db_printf(
-	    "    start %jx end %jx free_after %jx free_down %jx flags %x ",
-	    entry->start, entry->end, entry->free_after, entry->free_down,
-	    entry->flags);
+	    "    start %jx end %jx first %jx last %jx free_down %jx flags %x ",
+	    entry->start, entry->end, entry->first, entry->last,
+	    entry->free_down, entry->flags);
 	db_printf("left ");
 	l = RB_LEFT(entry, rb_entry);
 	if (l == NULL)
