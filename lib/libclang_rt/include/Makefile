@@ -19,5 +19,6 @@ INCS+=		netbsd_syscall_hooks.h
 INCS+=		scudo_interface.h
 INCS+=		tsan_interface.h
 INCS+=		tsan_interface_atomic.h
+INCS+=		ubsan_interface.h
 
 .include <bsd.prog.mk>
