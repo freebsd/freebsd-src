@@ -47,7 +47,8 @@ struct dmar_qi_genseq {
 struct dmar_map_entry {
 	dmar_gaddr_t start;
 	dmar_gaddr_t end;
-	dmar_gaddr_t free_after;	/* Free space after the entry */
+	dmar_gaddr_t first;		/* Least start in subtree */
+	dmar_gaddr_t last;		/* Greatest end in subtree */
 	dmar_gaddr_t free_down;		/* Max free space below the
 					   current R/B tree node */
 	u_int flags;

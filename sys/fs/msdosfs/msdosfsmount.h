@@ -56,8 +56,10 @@
 #if defined (_KERNEL) || defined(MAKEFS)
 
 #include <sys/types.h>
+#ifndef MAKEFS
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
+#endif
 #include <sys/tree.h>
 
 #ifdef MALLOC_DECLARE
@@ -110,7 +112,9 @@ struct msdosfsmount {
 	void *pm_w2u;	/* Unicode->Local iconv handle */
 	void *pm_u2d;	/* Unicode->DOS iconv handle */
 	void *pm_d2u;	/* DOS->Local iconv handle */
+#ifndef MAKEFS
 	struct lock pm_fatlock;	/* lockmgr protecting allocations */
+#endif
 };
 
 /*

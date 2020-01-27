@@ -2911,7 +2911,8 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 		    __func__));
 	}
 
-	if ((error = vn_lock(vp, flags)) != 0) {
+	error = vn_lock(vp, flags);
+	if (__predict_false(error != 0)) {
 		if (vs == VGET_USECOUNT)
 			vrele(vp);
 		else
@@ -3323,10 +3324,10 @@ vdbatch_process(struct vdbatch *vd)
 		vp->v_dbatchcpu = NOCPU;
 	}
 	mtx_unlock(&vnode_list_mtx);
-	critical_exit();
 	vd->freevnodes = 0;
 	bzero(vd->tab, sizeof(vd->tab));
 	vd->index = 0;
+	critical_exit();
 }
 
 static void
@@ -6366,6 +6367,9 @@ __mnt_vnode_first_lazy(struct vnode **mvp, struct mount *mp, mnt_lazy_cb_t *cb,
     void *cbarg)
 {
 	struct vnode *vp;
+
+	if (TAILQ_EMPTY(&mp->mnt_lazyvnodelist))
+		return (NULL);
 
 	*mvp = vn_alloc_marker(mp);
 	MNT_ILOCK(mp);

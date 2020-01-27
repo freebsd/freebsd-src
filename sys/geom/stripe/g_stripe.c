@@ -298,6 +298,8 @@ g_stripe_done(struct bio *bp)
 		mtx_unlock(&sc->sc_lock);
 		if (pbp->bio_driver1 != NULL)
 			uma_zfree(g_stripe_zone, pbp->bio_driver1);
+		if (bp->bio_cmd == BIO_SPEEDUP)
+			pbp->bio_completed = pbp->bio_length;
 		g_io_deliver(pbp, pbp->bio_error);
 	} else
 		mtx_unlock(&sc->sc_lock);

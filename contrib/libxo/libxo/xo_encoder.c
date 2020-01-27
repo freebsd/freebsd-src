@@ -290,8 +290,21 @@ xo_encoder_init (xo_handle_t *xop, const char *name)
 {
     xo_encoder_setup();
 
-    const char *opts = strchr(name, ':');
+    char opts_char = '\0';
+    const char *col_opts = strchr(name, ':');
+    const char *plus_opts = strchr(name, '+');
+
+    /*
+     * Find the option-separating character (plus or colon) which
+     * appears first in the options string.
+     */
+    const char *opts = (col_opts == NULL) ? plus_opts
+	: (plus_opts == NULL) ? col_opts
+	: (plus_opts < col_opts) ? plus_opts : col_opts;
+
     if (opts) {
+	opts_char = *opts;
+
 	/* Make a writable copy of the name */
 	size_t len = strlen(name);
 	char *copy = alloca(len + 1);
@@ -329,7 +342,11 @@ xo_encoder_init (xo_handle_t *xop, const char *name)
 
     int rc = xo_encoder_handle(xop, XO_OP_CREATE, name, NULL, 0);
     if (rc == 0 && opts != NULL) {
-	rc = xo_encoder_handle(xop, XO_OP_OPTIONS, name, opts, 0);
+	xo_encoder_op_t op;
+
+	/* Encoder API is limited, so we're stuck with two different options */
+	op = (opts_char == '+') ? XO_OP_OPTIONS_PLUS : XO_OP_OPTIONS;
+	rc = xo_encoder_handle(xop, op, name, opts, 0);
     }
 
     return rc;

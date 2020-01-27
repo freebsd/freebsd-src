@@ -90,6 +90,7 @@ typedef unsigned xo_encoder_op_t;
 #define XO_OP_ATTRIBUTE		15 /* Attribute name/value */
 #define XO_OP_VERSION		16 /* Version string */
 #define XO_OP_OPTIONS		17 /* Additional command line options */
+#define XO_OP_OPTIONS_PLUS	18 /* Additional command line options */
 
 #define XO_ENCODER_HANDLER_ARGS					\
 	xo_handle_t *xop __attribute__ ((__unused__)),		\

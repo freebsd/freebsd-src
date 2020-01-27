@@ -4189,6 +4189,9 @@ ATF_TC_BODY(ptrace__procdesc_reparent_wait_child, tc)
 	pid_t traced, debuger, wpid;
 	int pd, status;
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/243605");
+
 	traced = pdfork(&pd, 0);
 	ATF_REQUIRE(traced >= 0);
 	if (traced == 0) {

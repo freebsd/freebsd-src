@@ -26,12 +26,13 @@ example uses the "cbor" encoder, saving the output into a file::
     df --libxo encoder=cbor > df-output.cbor
 
 Encoders can support specific options that can be accessed by
-following the encoder name with a colon (':') and one of more options,
-separated by a plus sign "+"::
+following the encoder name with a colon (':') or a plus sign ('+') and
+one of more options, separated by the same character::
 
-    df --libxo encoder=csv:path=filesystem+leaf=name+no-header
+    df --libxo encoder=csv+path=filesystem+leaf=name+no-header
+    df --libxo encoder=csv:path=filesystem:leaf=name:no-header
 
-This example instructs libxo to load the "csv" encoder and pass the
+These examples instructs libxo to load the "csv" encoder and pass the
 following options::
 
    path=filesystem
@@ -41,6 +42,10 @@ following options::
 Each of these option is interpreted by the encoder, and all such
 options names and semantics are specific to the particular encoder.
 Refer to the intended encoder for documentation on its options.
+
+The string "@" can be used in place of the string "encoder=".
+
+    df --libxo @csv:no-header
 
 .. _csv_encoder:
 

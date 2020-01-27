@@ -3374,6 +3374,7 @@ msk_txeof(struct msk_if_softc *sc_if, int idx)
 static void
 msk_tick(void *xsc_if)
 {
+	struct epoch_tracker et;
 	struct msk_if_softc *sc_if;
 	struct mii_data *mii;
 
@@ -3386,7 +3387,9 @@ msk_tick(void *xsc_if)
 	mii_tick(mii);
 	if ((sc_if->msk_flags & MSK_FLAG_LINK) == 0)
 		msk_miibus_statchg(sc_if->msk_if_dev);
+	NET_EPOCH_ENTER(et);
 	msk_handle_events(sc_if->msk_softc);
+	NET_EPOCH_EXIT(et);
 	msk_watchdog(sc_if);
 	callout_reset(&sc_if->msk_tick_ch, hz, msk_tick, sc_if);
 }

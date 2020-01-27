@@ -2371,6 +2371,25 @@ xo_set_options (xo_handle_t *xop, const char *input)
 	if (np)
 	    *np++ = '\0';
 
+	/*
+	 * "@foo" is a shorthand for "encoder=foo".  This is driven
+	 * chiefly by a desire to make pluggable encoders not appear
+	 * so distinct from built-in encoders.
+	 */
+	if (*cp == '@') {
+	    vp = cp + 1;
+
+	    if (*vp == '\0')
+		xo_failure(xop, "missing value for encoder option");
+	    else {
+		rc = xo_encoder_init(xop, vp);
+		if (rc)
+		    xo_warnx("error initializing encoder: %s", vp);
+	    }
+
+	    continue;
+	}
+
 	vp = strchr(cp, '=');
 	if (vp)
 	    *vp++ = '\0';
@@ -8007,7 +8026,7 @@ xo_finish_atexit (void)
  * Generate an error message, such as would be displayed on stderr
  */
 void
-xo_error_hv (xo_handle_t *xop, const char *fmt, va_list vap)
+xo_errorn_hv (xo_handle_t *xop, int need_newline, const char *fmt, va_list vap)
 {
     xop = xo_default(xop);
 
@@ -8015,13 +8034,15 @@ xo_error_hv (xo_handle_t *xop, const char *fmt, va_list vap)
      * If the format string doesn't end with a newline, we pop
      * one on ourselves.
      */
-    ssize_t len = strlen(fmt);
-    if (len > 0 && fmt[len - 1] != '\n') {
-	char *newfmt = alloca(len + 2);
-	memcpy(newfmt, fmt, len);
-	newfmt[len] = '\n';
-	newfmt[len + 1] = '\0';
-	fmt = newfmt;
+    if (need_newline) {
+	ssize_t len = strlen(fmt);
+	if (len > 0 && fmt[len - 1] != '\n') {
+	    char *newfmt = alloca(len + 2);
+	    memcpy(newfmt, fmt, len);
+	    newfmt[len] = '\n';
+	    newfmt[len + 1] = '\0';
+	    fmt = newfmt;
+	}
     }
 
     switch (xo_style(xop)) {
@@ -8069,7 +8090,7 @@ xo_error_h (xo_handle_t *xop, const char *fmt, ...)
     va_list vap;
 
     va_start(vap, fmt);
-    xo_error_hv(xop, fmt, vap);
+    xo_errorn_hv(xop, 0, fmt, vap);
     va_end(vap);
 }
 
@@ -8082,7 +8103,30 @@ xo_error (const char *fmt, ...)
     va_list vap;
 
     va_start(vap, fmt);
-    xo_error_hv(NULL, fmt, vap);
+    xo_errorn_hv(NULL, 0, fmt, vap);
+    va_end(vap);
+}
+
+void
+xo_errorn_h (xo_handle_t *xop, const char *fmt, ...)
+{
+    va_list vap;
+
+    va_start(vap, fmt);
+    xo_errorn_hv(xop, 1, fmt, vap);
+    va_end(vap);
+}
+
+/*
+ * Generate an error message, such as would be displayed on stderr
+ */
+void
+xo_errorn (const char *fmt, ...)
+{
+    va_list vap;
+
+    va_start(vap, fmt);
+    xo_errorn_hv(NULL, 1, fmt, vap);
     va_end(vap);
 }
 
@@ -8099,21 +8143,30 @@ xo_parse_args (int argc, char **argv)
     char *cp;
     int i, save;
 
-    /* Save our program name for xo_err and friends */
-    xo_program = argv[0];
-    cp = strrchr(xo_program, '/');
-    if (cp)
-	xo_program = ++cp;
-    else
-	cp = argv[0];		/* Reset to front of string */
+    /*
+     * If xo_set_program has always been called, we honor that value
+     */
+    if (xo_program == NULL) {
+	/* Save our program name for xo_err and friends */
+	xo_program = argv[0];
+	cp = strrchr(xo_program, '/');
+	if (cp)
+	    xo_program = ++cp;
+	else
+	    cp = argv[0];		/* Reset to front of string */
 
-    /* GNU tools add an annoying ".test" as the program extension; remove it */
-    size_t len = strlen(xo_program);
-    static const char gnu_ext[] = ".test";
-    if (len >= sizeof(gnu_ext)) {
-	cp += len + 1 - sizeof(gnu_ext);
-	if (xo_streq(cp, gnu_ext))
-	    *cp = '\0';
+	/*
+	 * GNU libtool add an annoying ".test" as the program
+	 * extension; we remove it.  libtool also adds a "lt-" prefix
+	 * that we cannot remove.
+	 */
+	size_t len = strlen(xo_program);
+	static const char gnu_ext[] = ".test";
+	if (len >= sizeof(gnu_ext)) {
+	    cp += len + 1 - sizeof(gnu_ext);
+	    if (xo_streq(cp, gnu_ext))
+		*cp = '\0';
+	}
     }
 
     xo_handle_t *xop = xo_default(NULL);

@@ -263,11 +263,12 @@ emu_dspmixer_uninit(struct snd_mixer *m)
 
 	/* drop submixer for AC97 codec */
 	sc = mix_getdevinfo(m);
-	if (sc->sm != NULL)
+	if (sc->sm != NULL) {
 		err = mixer_delete(sc->sm);
 		if (err)
 			return (err);
 		sc->sm = NULL;
+	}
 	return (0);
 }
 
