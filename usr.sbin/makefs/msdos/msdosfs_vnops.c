@@ -103,7 +103,11 @@ msdosfs_times(struct denode *dep, const struct stat *st)
 	if (stampst.st_ino)
 		st = &stampst;
 
+#ifdef HAVE_STRUCT_STAT_BIRTHTIME
 	unix2fattime(&st->st_birthtim, &dep->de_CDate, &dep->de_CTime);
+#else
+	unix2fattime(&st->st_ctim, &dep->de_CDate, &dep->de_CTime);
+#endif
 	unix2fattime(&st->st_atim, &dep->de_ADate, NULL);
 	unix2fattime(&st->st_mtim, &dep->de_MDate, &dep->de_MTime);
 }

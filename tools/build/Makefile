@@ -4,11 +4,16 @@
 
 LIB=		egacy
 SRC=
-INCSGROUPS=	INCS SYSINCS CASPERINC
+INCSGROUPS=	INCS SYSINCS CASPERINC UFSINCS FFSINCS MSDOSFSINCS DISKINCS
 INCS=
 
 SYSINCSDIR=	${INCLUDEDIR}/sys
 CASPERINCDIR=	${INCLUDEDIR}/casper
+# Also add ufs/ffs/msdosfs/disk headers to allow building makefs as a bootstrap tool
+UFSINCSDIR=	${INCLUDEDIR}/ufs/ufs
+FFSINCSDIR=	${INCLUDEDIR}/ufs/ffs
+MSDOSFSINCSDIR=	${INCLUDEDIR}/fs/msdosfs
+DISKINCSDIR=	${INCLUDEDIR}/sys/disk
 
 BOOTSTRAPPING?=	0
 
@@ -69,6 +74,19 @@ SRCS=		dummy.c
 .if defined(CROSS_BUILD_TESTING)
 SUBDIR=		cross-build
 .endif
+
+# To allow bootstrapping makefs on FreeBSD 11 or non-FreeBSD systems:
+UFSINCS+=	${SRCTOP}/sys/ufs/ufs/dinode.h
+UFSINCS+=	${SRCTOP}/sys/ufs/ufs/dir.h
+FFSINCS+=	${SRCTOP}/sys/ufs/ffs/fs.h
+
+MSDOSFSINCS+=	${SRCTOP}/sys/fs/msdosfs/bootsect.h
+MSDOSFSINCS+=	${SRCTOP}/sys/fs/msdosfs/bpb.h
+MSDOSFSINCS+=	${SRCTOP}/sys/fs/msdosfs/denode.h
+MSDOSFSINCS+=	${SRCTOP}/sys/fs/msdosfs/direntry.h
+MSDOSFSINCS+=	${SRCTOP}/sys/fs/msdosfs/fat.h
+MSDOSFSINCS+=	${SRCTOP}/sys/fs/msdosfs/msdosfsmount.h
+DISKINCS+=	${SRCTOP}/sys/sys/disk/bsd.h
 
 # Needed to build config (since it uses libnv)
 SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h \
