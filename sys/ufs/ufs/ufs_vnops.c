@@ -1839,6 +1839,7 @@ ufs_mkdir(ap)
 			if (DOINGSOFTDEP(tvp))
 				softdep_revert_link(dp, ip);
 			UFS_VFREE(tvp, ip->i_number, dmode);
+			vgone(tvp);
 			vput(tvp);
 			return (error);
 		}
@@ -1853,6 +1854,7 @@ ufs_mkdir(ap)
 		if (DOINGSOFTDEP(tvp))
 			softdep_revert_link(dp, ip);
 		UFS_VFREE(tvp, ip->i_number, dmode);
+		vgone(tvp);
 		vput(tvp);
 		return (error);
 	}
@@ -1980,7 +1982,7 @@ bad:
 		UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 		if (DOINGSOFTDEP(tvp))
 			softdep_revert_mkdir(dp, ip);
-
+		vgone(tvp);
 		vput(tvp);
 	}
 out:
@@ -2607,6 +2609,7 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 			if (DOINGSOFTDEP(tvp))
 				softdep_revert_link(pdir, ip);
 			UFS_VFREE(tvp, ip->i_number, mode);
+			vgone(tvp);
 			vput(tvp);
 			return (error);
 		}
@@ -2621,6 +2624,7 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 		if (DOINGSOFTDEP(tvp))
 			softdep_revert_link(pdir, ip);
 		UFS_VFREE(tvp, ip->i_number, mode);
+		vgone(tvp);
 		vput(tvp);
 		return (error);
 	}
@@ -2691,6 +2695,7 @@ bad:
 	UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 	if (DOINGSOFTDEP(tvp))
 		softdep_revert_create(VTOI(dvp), ip);
+	vgone(tvp);
 	vput(tvp);
 	return (error);
 }

@@ -1134,8 +1134,11 @@ g_std_done(struct bio *bp)
 	bp2->bio_completed += bp->bio_completed;
 	g_destroy_bio(bp);
 	bp2->bio_inbed++;
-	if (bp2->bio_children == bp2->bio_inbed)
+	if (bp2->bio_children == bp2->bio_inbed) {
+		if (bp2->bio_cmd == BIO_SPEEDUP)
+			bp2->bio_completed = bp2->bio_length;
 		g_io_deliver(bp2, bp2->bio_error);
+	}
 }
 
 /* XXX: maybe this is only g_slice_spoiled */

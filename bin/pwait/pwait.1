@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2017
+.Dd January 26, 2020
 .Dt PWAIT 1
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl t Ar duration
-.Op Fl v
+.Op Fl ov
 .Ar pid
 \&...
 .Sh DESCRIPTION
@@ -51,6 +51,8 @@ utility will wait until each of the given processes has terminated.
 .Pp
 The following option is available:
 .Bl -tag -width indent
+.It Fl o
+Exit when any of the given processes has terminated.
 .It Fl t Ar duration
 If any process is still running after
 .Ar duration ,

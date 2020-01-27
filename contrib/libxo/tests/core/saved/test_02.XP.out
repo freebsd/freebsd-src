@@ -87,5 +87,20 @@
       <message>Shut 'er down, Clancey!  She's a-pumpin' mud!  &lt;&gt;!,"!&lt;&gt;
 </message>
     </error>
+    <error>
+      <message>err message (1)</message>
+    </error>
+    <error>
+      <message>err message (2)
+</message>
+    </error>
+    <error>
+      <message>err message (1)
+</message>
+    </error>
+    <error>
+      <message>err message (2)
+</message>
+    </error>
   </data>
 </top>

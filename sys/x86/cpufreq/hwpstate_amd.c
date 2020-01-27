@@ -173,8 +173,12 @@ hwpstate_goto_pstate(device_t dev, int id)
 	/* get the current pstate limit */
 	msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
 	limit = AMD_10H_11H_GET_PSTATE_LIMIT(msr);
-	if (limit > id)
+	if (limit > id) {
+		HWPSTATE_DEBUG(dev,
+		    "Restricting requested P%d to P%d due to HW limit\n", id,
+		    limit);
 		id = limit;
+	}
 
 	cpu = curcpu;
 	HWPSTATE_DEBUG(dev, "setting P%d-state on cpu%d\n", id, cpu);
