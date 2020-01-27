@@ -31,10 +31,15 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#ifdef MAKEFS
+/* In the makefs case we only want struct disklabel */
+#include <sys/disk/bsd.h>
+#else
 #include <sys/fdcio.h>
 #include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/mount.h>
+#endif
 #include <sys/stat.h>
 #include <sys/time.h>
 
@@ -285,14 +290,18 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	if (!S_ISREG(sb.st_mode))
 	    warnx("warning, %s is not a regular file", fname);
     } else {
-#ifndef MAKEFS
+#ifdef MAKEFS
+	errx(1, "o.create_size must be set!");
+#else
 	if (!S_ISCHR(sb.st_mode))
 	    warnx("warning, %s is not a character device", fname);
 #endif
     }
+#ifndef MAKEFS
     if (!o.no_create)
 	if (check_mounted(fname, sb.st_mode) == -1)
 	    goto done;
+#endif
     if (o.offset && o.offset != lseek(fd, o.offset, SEEK_SET)) {
 	warnx("cannot seek to %jd", (intmax_t)o.offset);
 	goto done;
@@ -621,10 +630,12 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 				   bpb.bpbBigFATsecs) * bpb.bpbFATs;
 	memset(&si_sa, 0, sizeof(si_sa));
 	si_sa.sa_handler = infohandler;
+#ifdef SIGINFO
 	if (sigaction(SIGINFO, &si_sa, NULL) == -1) {
 	    warn("sigaction SIGINFO");
 	    goto done;
 	}
+#endif
 	for (lsn = 0; lsn < dir + (fat == 32 ? bpb.bpbSecPerClust : rds); lsn++) {
 	    if (got_siginfo) {
 		    fprintf(stderr,"%s: writing sector %u of %u (%u%%)\n",
@@ -766,6 +777,11 @@ done:
 static int
 check_mounted(const char *fname, mode_t mode)
 {
+/*
+ * If getmntinfo() is not available (e.g. Linux) don't check. This should
+ * not be a problem since we will only be using makefs to create images.
+ */
+#if !defined(MAKEFS)
     struct statfs *mp;
     const char *s1, *s2;
     size_t len;
@@ -790,6 +806,7 @@ check_mounted(const char *fname, mode_t mode)
 	    return -1;
 	}
     }
+#endif
     return 0;
 }
 
@@ -811,6 +828,23 @@ getstdfmt(const char *fmt, struct bpb *bpb)
     return 0;
 }
 
+static void
+compute_geometry_from_file(int fd, const char *fname, struct disklabel *lp)
+{
+	struct stat st;
+	off_t ms;
+
+	if (fstat(fd, &st))
+		err(1, "cannot get disk size");
+	if (!S_ISREG(st.st_mode))
+		errx(1, "%s is not a regular file", fname);
+	ms = st.st_size;
+	lp->d_secsize = 512;
+	lp->d_nsectors = 63;
+	lp->d_ntracks = 255;
+	lp->d_secperunit = ms / lp->d_secsize;
+}
+
 /*
  * Get disk slice, partition, and geometry information.
  */
@@ -819,8 +853,10 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 	    struct bpb *bpb)
 {
     struct disklabel *lp, dlp;
+    off_t hs = 0;
+#ifndef MAKEFS
+    off_t ms;
     struct fd_type type;
-    off_t ms, hs = 0;
 
     lp = NULL;
 
@@ -832,16 +868,8 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
     /* Maybe it's a floppy drive */
     if (lp == NULL) {
 	if (ioctl(fd, DIOCGMEDIASIZE, &ms) == -1) {
-	    struct stat st;
-
-	    if (fstat(fd, &st))
-		err(1, "cannot get disk size");
 	    /* create a fake geometry for a file image */
-	    ms = st.st_size;
-	    dlp.d_secsize = 512;
-	    dlp.d_nsectors = 63;
-	    dlp.d_ntracks = 255;
-	    dlp.d_secperunit = ms / dlp.d_secsize;
+	    compute_geometry_from_file(fd, fname, &dlp);
 	    lp = &dlp;
 	} else if (ioctl(fd, FD_GTYPE, &type) != -1) {
 	    dlp.d_secsize = 128 << type.secsize;
@@ -881,6 +909,11 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 	hs = (ms / dlp.d_secsize) - dlp.d_secperunit;
 	lp = &dlp;
     }
+#else
+    /* In the makefs case we only support image files: */
+    compute_geometry_from_file(fd, fname, &dlp);
+    lp = &dlp;
+#endif
 
     if (bpb->bpbBytesPerSec == 0) {
 	if (ckgeom(fname, lp->d_secsize, "bytes/sector") == -1)
