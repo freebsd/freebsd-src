@@ -13,7 +13,6 @@ SRCS+=		fuzzer/FuzzerExtraCounters.cpp
 SRCS+=		fuzzer/FuzzerFork.cpp
 SRCS+=		fuzzer/FuzzerIO.cpp
 SRCS+=		fuzzer/FuzzerIOPosix.cpp
-SRCS+=		fuzzer/FuzzerIOWindows.cpp
 SRCS+=		fuzzer/FuzzerLoop.cpp
 SRCS+=		fuzzer/FuzzerMain.cpp
 SRCS+=		fuzzer/FuzzerMerge.cpp

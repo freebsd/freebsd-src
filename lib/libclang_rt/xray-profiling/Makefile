@@ -4,8 +4,8 @@
 
 LIB=		clang_rt.xray-profiling-${CRTARCH}
 
-SRCS+=		xray/xray_profile_collector.cc
-SRCS+=		xray/xray_profiling.cc
-SRCS+=		xray/xray_profiling_flags.cc
+SRCS+=		xray/xray_profile_collector.cpp
+SRCS+=		xray/xray_profiling.cpp
+SRCS+=		xray/xray_profiling_flags.cpp
 
 .include <bsd.lib.mk>
