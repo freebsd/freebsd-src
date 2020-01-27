@@ -52,10 +52,12 @@ std::string ppc::getPPCTargetCPU(const ArgList &Args) {
         .Case("7450", "7450")
         .Case("G4+", "g4+")
         .Case("750", "750")
+        .Case("8548", "e500")
         .Case("970", "970")
         .Case("G5", "g5")
         .Case("a2", "a2")
         .Case("a2q", "a2q")
+        .Case("e500", "e500")
         .Case("e500mc", "e500mc")
         .Case("e5500", "e5500")
         .Case("power3", "pwr3")
@@ -100,6 +102,9 @@ const char *ppc::getPPCAsmModeForCPU(StringRef Name) {
 void ppc::getPPCTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                                const ArgList &Args,
                                std::vector<StringRef> &Features) {
+  if (Triple.getSubArch() == llvm::Triple::PPCSubArch_spe)
+    Features.push_back("+spe");
+
   handleTargetFeaturesGroup(Args, Features, options::OPT_m_ppc_Features_Group);
 
   ppc::FloatABI FloatABI = ppc::getPPCFloatABI(D, Args);
