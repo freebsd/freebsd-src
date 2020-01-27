@@ -4,8 +4,6 @@
 
 PACKAGE=	lldb
 PROG_CXX=	lldb
-# Man page directory
-.PATH:		${LLDB_SRCS}/docs
 
 CFLAGS+=	-I${LLDB_SRCS}/include
 CFLAGS+=	-I${.OBJDIR}
@@ -38,8 +36,9 @@ CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LIBADD+=	edit
 LIBADD+=	execinfo
-LIBADD+=	panel
+LIBADD+=	lzma
 LIBADD+=	ncursesw
+LIBADD+=	panel
 LIBADD+=	pthread
 LIBADD+=	z
 
