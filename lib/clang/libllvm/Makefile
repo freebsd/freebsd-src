@@ -859,6 +859,7 @@ SRCS_MIN+=	Support/DynamicLibrary.cpp
 SRCS_MIN+=	Support/Errno.cpp
 SRCS_MIN+=	Support/Error.cpp
 SRCS_MIN+=	Support/ErrorHandling.cpp
+SRCS_XDB+=	Support/FileCollector.cpp
 SRCS_EXL+=	Support/FileOutputBuffer.cpp
 SRCS_MIN+=	Support/FileUtilities.cpp
 SRCS_MIN+=	Support/FoldingSet.cpp

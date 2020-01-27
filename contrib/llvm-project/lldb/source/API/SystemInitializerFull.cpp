@@ -168,12 +168,22 @@ SystemInitializerFull::SystemInitializerFull() {}
 
 SystemInitializerFull::~SystemInitializerFull() {}
 
+#ifdef LLDB_ENABLE_ALL
 #define LLDB_PROCESS_AArch64(op)                                               \
   ABIMacOSX_arm64::op();                                                       \
   ABISysV_arm64::op();
+#else // LLDB_ENABLE_ALL
+#define LLDB_PROCESS_AArch64(op)                                               \
+  ABISysV_arm64::op();
+#endif // LLDB_ENABLE_ALL
+#ifdef LLDB_ENABLE_ALL
 #define LLDB_PROCESS_ARM(op)                                                   \
   ABIMacOSX_arm::op();                                                         \
   ABISysV_arm::op();
+#else // LLDB_ENABLE_ALL
+#define LLDB_PROCESS_ARM(op)                                                   \
+  ABISysV_arm::op();
+#endif // LLDB_ENABLE_ALL
 #define LLDB_PROCESS_ARC(op)                                                   \
   ABISysV_arc::op();
 #define LLDB_PROCESS_Hexagon(op) ABISysV_hexagon::op();
@@ -184,11 +194,17 @@ SystemInitializerFull::~SystemInitializerFull() {}
   ABISysV_ppc::op();                                                          \
   ABISysV_ppc64::op();
 #define LLDB_PROCESS_SystemZ(op) ABISysV_s390x::op();
+#ifdef LLDB_ENABLE_ALL
 #define LLDB_PROCESS_X86(op)                                                   \
   ABIMacOSX_i386::op();                                                        \
   ABISysV_i386::op();                                                          \
   ABISysV_x86_64::op();                                                        \
   ABIWindows_x86_64::op();
+#else // LLDB_ENABLE_ALL
+#define LLDB_PROCESS_X86(op)                                                   \
+  ABISysV_i386::op();                                                          \
+  ABISysV_x86_64::op();
+#endif // LLDB_ENABLE_ALL
 
 #define LLDB_PROCESS_AMDGPU(op)
 #define LLDB_PROCESS_AVR(op)
