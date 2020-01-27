@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/errno.h>
-#include <sys/vnode.h>
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -288,10 +287,7 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 				return (error);
 			}
 			memset(bp->b_data + boff, 0, pmp->pm_bpcluster - boff);
-			if (flags & IO_SYNC)
 				bwrite(bp);
-			else
-				bdwrite(bp);
 		}
 	}
 
