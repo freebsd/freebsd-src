@@ -2346,20 +2346,22 @@ static int SQLITE_TCLAPI DbObjCmd(
       const char *zName;
       int op;
     } aDbConfig[] = {
+        { "defensive",          SQLITE_DBCONFIG_DEFENSIVE             },
+        { "dqs_ddl",            SQLITE_DBCONFIG_DQS_DDL               },
+        { "dqs_dml",            SQLITE_DBCONFIG_DQS_DML               },
         { "enable_fkey",        SQLITE_DBCONFIG_ENABLE_FKEY           },
+        { "enable_qpsg",        SQLITE_DBCONFIG_ENABLE_QPSG           },
         { "enable_trigger",     SQLITE_DBCONFIG_ENABLE_TRIGGER        },
         { "enable_view",        SQLITE_DBCONFIG_ENABLE_VIEW           },
         { "fts3_tokenizer",     SQLITE_DBCONFIG_ENABLE_FTS3_TOKENIZER },
+        { "legacy_alter_table", SQLITE_DBCONFIG_LEGACY_ALTER_TABLE    },
+        { "legacy_file_format", SQLITE_DBCONFIG_LEGACY_FILE_FORMAT    },
         { "load_extension",     SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION },
         { "no_ckpt_on_close",   SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE      },
-        { "enable_qpsg",        SQLITE_DBCONFIG_ENABLE_QPSG           },
-        { "trigger_eqp",        SQLITE_DBCONFIG_TRIGGER_EQP           },
         { "reset_database",     SQLITE_DBCONFIG_RESET_DATABASE        },
-        { "defensive",          SQLITE_DBCONFIG_DEFENSIVE             },
+        { "trigger_eqp",        SQLITE_DBCONFIG_TRIGGER_EQP           },
+        { "trusted_schema",     SQLITE_DBCONFIG_TRUSTED_SCHEMA        },
         { "writable_schema",    SQLITE_DBCONFIG_WRITABLE_SCHEMA       },
-        { "legacy_alter_table", SQLITE_DBCONFIG_LEGACY_ALTER_TABLE    },
-        { "dqs_dml",            SQLITE_DBCONFIG_DQS_DML               },
-        { "dqs_ddl",            SQLITE_DBCONFIG_DQS_DDL               },
     };
     Tcl_Obj *pResult;
     int ii;
@@ -2823,6 +2825,7 @@ deserialize_error:
   **         --argcount N           Function has exactly N arguments
   **         --deterministic        The function is pure
   **         --directonly           Prohibit use inside triggers and views
+  **         --innocuous            Has no side effects or information leaks
   **         --returntype TYPE      Specify the return type of the function
   */
   case DB_FUNCTION: {
@@ -2859,6 +2862,9 @@ deserialize_error:
       if( n>1 && strncmp(z, "-directonly",n)==0 ){
         flags |= SQLITE_DIRECTONLY;
       }else
+      if( n>1 && strncmp(z, "-innocuous",n)==0 ){
+        flags |= SQLITE_INNOCUOUS;
+      }else
       if( n>1 && strncmp(z, "-returntype", n)==0 ){
         const char *azType[] = {"integer", "real", "text", "blob", "any", 0};
         assert( SQLITE_INTEGER==1 && SQLITE_FLOAT==2 && SQLITE_TEXT==3 );
@@ -2875,7 +2881,7 @@ deserialize_error:
       }else{
         Tcl_AppendResult(interp, "bad option \"", z,
             "\": must be -argcount, -deterministic, -directonly,"
-            " or -returntype", (char*)0
+            " -innocuous, or -returntype", (char*)0
         );
         return TCL_ERROR;
       }
@@ -3675,6 +3681,7 @@ static int sqliteCmdUsage(
 ){
   Tcl_WrongNumArgs(interp, 1, objv,
     "HANDLE ?FILENAME? ?-vfs VFSNAME? ?-readonly BOOLEAN? ?-create BOOLEAN?"
+    " ?-nofollow BOOLEAN?"
     " ?-nomutex BOOLEAN? ?-fullmutex BOOLEAN? ?-uri BOOLEAN?"
 #if defined(SQLITE_HAS_CODEC) && !defined(SQLITE_OMIT_CODEC_FROM_TCL)
     " ?-key CODECKEY?"
@@ -3686,6 +3693,7 @@ static int sqliteCmdUsage(
 /*
 **   sqlite3 DBNAME FILENAME ?-vfs VFSNAME? ?-key KEY? ?-readonly BOOLEAN?
 **                           ?-create BOOLEAN? ?-nomutex BOOLEAN?
+**                           ?-nofollow BOOLEAN?
 **
 ** This is the main Tcl command.  When the "sqlite" Tcl command is
 ** invoked, this routine runs to process that command.
@@ -3783,6 +3791,14 @@ static int SQLITE_TCLAPI DbMain(
         flags |= SQLITE_OPEN_CREATE;
       }else{
         flags &= ~SQLITE_OPEN_CREATE;
+      }
+    }else if( strcmp(zArg, "-nofollow")==0 ){
+      int b;
+      if( Tcl_GetBooleanFromObj(interp, objv[i], &b) ) return TCL_ERROR;
+      if( b ){
+        flags |= SQLITE_OPEN_NOFOLLOW;
+      }else{
+        flags &= ~SQLITE_OPEN_NOFOLLOW;
       }
     }else if( strcmp(zArg, "-nomutex")==0 ){
       int b;
