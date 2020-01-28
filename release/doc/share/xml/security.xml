@@ -125,6 +125,20 @@
 	<entry>12&nbsp;November&nbsp;2019</entry>
 	<entry><para>Intel CPU Microcode Update</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:01.libfetch.asc">FreeBSD-SA-20:01.libfetch</link></entry>
+	<entry>28&nbsp;January&nbsp;2020</entry>
+	<entry><para>&man.fetch.3; buffer overflow</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:03.thrmisc.asc">FreeBSD-SA-20:03.thrmisc</link></entry>
+	<entry>28&nbsp;January&nbsp;2020</entry>
+	<entry><para>Kennel stack data disclosure</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

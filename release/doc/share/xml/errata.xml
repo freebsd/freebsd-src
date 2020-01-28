@@ -54,6 +54,21 @@
 	<entry><para>Timezone database information
 	    update</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:01.ssp.asc">FreeBSD-EN-20:01.ssp</link></entry>
+	<entry>28&nbsp;January&nbsp;2020</entry>
+	<entry><para>Imprecise orderring of canary
+	  initialization</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:02.nmount.asc">FreeBSD-EN-20:02.nmount</link></entry>
+	<entry>28&nbsp;January&nbsp;2020</entry>
+	<entry><para>Invalid pointer dereference</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
