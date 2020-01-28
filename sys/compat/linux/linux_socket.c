@@ -244,6 +244,8 @@ linux_to_bsd_tcp_sockopt(int opt)
 		return (TCP_NODELAY);
 	case LINUX_TCP_MAXSEG:
 		return (TCP_MAXSEG);
+	case LINUX_TCP_CORK:
+		return (TCP_NOPUSH);
 	case LINUX_TCP_KEEPIDLE:
 		return (TCP_KEEPIDLE);
 	case LINUX_TCP_KEEPINTVL:
