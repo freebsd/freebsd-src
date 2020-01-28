@@ -933,7 +933,7 @@ printcpuinfo(void)
 				"\034PTSC"	/* Performance TSC */
 				"\035PL2I"	/* L2I perf count */
 				"\036MWAITX"	/* MONITORX/MWAITX instructions */
-				"\037<b30>"
+				"\037ADMSKX"	/* Address mask extension */
 				"\040<b31>"
 				);
 			}
