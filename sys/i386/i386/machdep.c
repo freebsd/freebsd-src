@@ -1621,8 +1621,9 @@ DB_SHOW_COMMAND(sysregs, db_show_sysregs)
 	if (cpu_feature2 & (CPUID2_VMX | CPUID2_SMX))
 		db_printf("FEATURES_CTL\t0x%016llx\n",
 		    rdmsr(MSR_IA32_FEATURE_CONTROL));
-	if ((cpu_vendor_id == CPU_VENDOR_INTEL ||
-	    cpu_vendor_id == CPU_VENDOR_AMD) && CPUID_TO_FAMILY(cpu_id) >= 6)
+	if (((cpu_vendor_id == CPU_VENDOR_INTEL ||
+	    cpu_vendor_id == CPU_VENDOR_AMD) && CPUID_TO_FAMILY(cpu_id) >= 6) ||
+	    cpu_vendor_id == CPU_VENDOR_HYGON)
 		db_printf("DEBUG_CTL\t0x%016llx\n", rdmsr(MSR_DEBUGCTLMSR));
 	if (cpu_feature & CPUID_PAT)
 		db_printf("PAT\t0x%016llx\n", rdmsr(MSR_PAT));
