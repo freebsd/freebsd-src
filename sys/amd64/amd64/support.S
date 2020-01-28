@@ -111,92 +111,191 @@ END(sse2_pagezero)
  */
 ENTRY(memcmp)
 	PUSH_FRAME_POINTER
+
+	xorl	%eax,%eax
+10:
 	cmpq	$16,%rdx
-	jae	5f
+	ja	101632f
+
+100816:
+	cmpb	$8,%dl
+	jl	100408f
+	movq	(%rdi),%r8
+	movq	(%rsi),%r9
+	cmpq	%r8,%r9
+	jne	1f
+	movq	-8(%rdi,%rdx),%r8
+	movq	-8(%rsi,%rdx),%r9
+	cmpq	%r8,%r9
+	jne	10081608f
+	POP_FRAME_POINTER
+	ret
+100408:
+	cmpb	$4,%dl
+	jl	100204f
+	movl	(%rsi),%r8d
+	movl	(%rdi),%r9d
+	cmpl	%r8d,%r9d
+	jne	1f
+	movl	-4(%rsi,%rdx),%r8d
+	movl	-4(%rdi,%rdx),%r9d
+	cmpl	%r8d,%r9d
+	jne	1f
+	POP_FRAME_POINTER
+	ret
+100204:
+	cmpb	$2,%dl
+	jl	100001f
+	movzwl	(%rsi),%r8d
+	movzwl	(%rdi),%r9d
+	cmpl	%r8d,%r9d
+	jne	1f
+	movzwl	-2(%rsi,%rdx),%r8d
+	movzwl	-2(%rdi,%rdx),%r9d
+	cmpl	%r8d,%r9d
+	jne	1f
+	POP_FRAME_POINTER
+	ret
+100001:
+	cmpb	$1,%dl
+	jl	100000f
+	movzbl	(%rdi),%r8d
+	movzbl	(%rsi),%r9d
+	cmpb	%r8b,%r9b
+	jne	1f
+100000:
+	POP_FRAME_POINTER
+	ret
+ALIGN_TEXT
+101632:
+	cmpq	$32,%rdx
+	ja	103200f
+	movq	(%rdi),%r8
+	movq	(%rsi),%r9
+	cmpq	%r8,%r9
+	jne	1f
+	movq	8(%rdi),%r8
+	movq	8(%rsi),%r9
+	cmpq	%r8,%r9
+	jne	 10163208f
+	movq	-16(%rdi,%rdx),%r8
+	movq	-16(%rsi,%rdx),%r9
+	cmpq	%r8,%r9
+	jne	10163216f
+	movq	-8(%rdi,%rdx),%r8
+	movq	-8(%rsi,%rdx),%r9
+	cmpq	%r8,%r9
+	jne	10163224f
+	POP_FRAME_POINTER
+	ret
+ALIGN_TEXT
+103200:
+	movq	(%rdi),%r8
+	movq	8(%rdi),%r9
+	subq	(%rsi),%r8
+	subq	8(%rsi),%r9
+	or	%r8,%r9
+	jnz	10320000f
+
+	movq    16(%rdi),%r8
+	movq    24(%rdi),%r9
+	subq    16(%rsi),%r8
+	subq    24(%rsi),%r9
+	or      %r8,%r9
+	jnz     10320016f
+
+	leaq	32(%rdi),%rdi
+	leaq	32(%rsi),%rsi
+	subq	$32,%rdx
+	cmpq	$32,%rdx
+	jae	103200b
+	cmpb	$0,%dl
+	jne	10b
+	POP_FRAME_POINTER
+	ret
+
+10320016:
+	leaq	16(%rdi),%rdi
+	leaq	16(%rsi),%rsi
+10320000:
+/*
+ * Mismatch was found within a 16 bytes range. The part of the routine
+ * which calculates it only operates on sizes up to 8 bytes. Find the
+ * right part.
+ */
+	movq	(%rdi),%r8
+	movq	(%rsi),%r9
+	cmpq	%r8,%r9
+	jne	1f
+	leaq	8(%rdi),%rdi
+	leaq	8(%rsi),%rsi
+	jmp	1f
+10163224:
+	leaq	-8(%rdi,%rdx),%rdi
+	leaq	-8(%rsi,%rdx),%rsi
+	jmp	1f
+10163216:
+	leaq	-16(%rdi,%rdx),%rdi
+	leaq	-16(%rsi,%rdx),%rsi
+	jmp	1f
+10163208:
+10081608:
+	leaq	8(%rdi),%rdi
+	leaq	8(%rsi),%rsi
+	jmp	1f
+
+/*
+ * Mismatch was found. We have no more than 8 bytes to inspect.
+ */
+ALIGN_TEXT
 1:
-	testq	%rdx,%rdx
-	je	3f
-	xorl	%ecx,%ecx
-2:
-	movzbl	(%rdi,%rcx,1),%eax
-	movzbl	(%rsi,%rcx,1),%r8d
+	movzbl	(%rdi),%eax
+	movzbl	(%rsi),%r8d
 	cmpb	%r8b,%al
-	jne	4f
-	addq    $1,%rcx
-	cmpq    %rcx,%rdx
-	jz	3f
-	movzbl	(%rdi,%rcx,1),%eax
-	movzbl	(%rsi,%rcx,1),%r8d
+	jne	2f
+
+	movzbl	1(%rdi),%eax
+	movzbl	1(%rsi),%r8d
 	cmpb	%r8b,%al
-	jne	4f
-	addq	$1,%rcx
-	cmpq	%rcx,%rdx
-	jz	3f
-	movzbl	(%rdi,%rcx,1),%eax
-	movzbl	(%rsi,%rcx,1),%r8d
+	jne	2f
+
+	movzbl	2(%rdi),%eax
+	movzbl	2(%rsi),%r8d
 	cmpb	%r8b,%al
-	jne	4f
-	addq	$1,%rcx
-	cmpq	%rcx,%rdx
-	jz	3f
-	movzbl	(%rdi,%rcx,1),%eax
-	movzbl	(%rsi,%rcx,1),%r8d
+	jne	2f
+
+	movzbl	3(%rdi),%eax
+	movzbl	3(%rsi),%r8d
 	cmpb	%r8b,%al
-	jne	4f
-	addq	$1,%rcx
-	cmpq	%rcx,%rdx
-	jne	2b
-3:
+	jne	2f
+
+	movzbl	4(%rdi),%eax
+	movzbl	4(%rsi),%r8d
+	cmpb	%r8b,%al
+	jne	2f
+
+	movzbl	5(%rdi),%eax
+	movzbl	5(%rsi),%r8d
+	cmpb	%r8b,%al
+	jne	2f
+
+	movzbl	6(%rdi),%eax
+	movzbl	6(%rsi),%r8d
+	cmpb	%r8b,%al
+	jne	2f
+
+	movzbl	7(%rdi),%eax
+	movzbl	7(%rsi),%r8d
+	cmpb	%r8b,%al
+	jne	2f
+
 	xorl	%eax,%eax
 	POP_FRAME_POINTER
 	ret
-4:
+2:
 	subl	%r8d,%eax
 	POP_FRAME_POINTER
 	ret
-5:
-	cmpq	$32,%rdx
-	jae	7f
-6:
-	/*
-	 * 8 bytes
-	 */
-	movq    (%rdi),%r8
-	movq    (%rsi),%r9
-	cmpq    %r8,%r9
-	jne	1b
-	leaq	8(%rdi),%rdi
-	leaq	8(%rsi),%rsi
-	subq	$8,%rdx
-	cmpq	$8,%rdx
-	jae	6b
-	jl	1b
-	jmp	3b
-7:
-	/*
-	 * 32 bytes
-	 */
-	movq    (%rsi),%r8
-	movq    8(%rsi),%r9
-	subq    (%rdi),%r8
-	subq    8(%rdi),%r9
-	or	%r8,%r9
-	jnz	1b
-
-	movq    16(%rsi),%r8
-	movq    24(%rsi),%r9
-	subq    16(%rdi),%r8
-	subq    24(%rdi),%r9
-	or	%r8,%r9
-	jnz	1b
-
-	leaq    32(%rdi),%rdi
-	leaq    32(%rsi),%rsi
-	subq    $32,%rdx
-	cmpq    $32,%rdx
-	jae	7b
-	jnz	1b
-	jmp	3b
 END(memcmp)
 
 /*
