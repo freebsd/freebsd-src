@@ -16,6 +16,16 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200128	p2	FreeBSD-EN-20:01.ssp
+			FreeBSD-SA-20:01.libfetch
+			FreeBSD-SA-20:03.thrmisc
+
+        Fix imprecise ordering of SSP canary initialization [EN-20:01.ssp]
+
+        Fix libfetch buffer overflow [SA-20:01.libfetch]
+
+        Fix kernel stack data disclosure [SA-20:03.thrmisc]
+
 20191112	p1	FreeBSD-EN-19:19.loader
 			FreeBSD-SA-19:25.mcepsc
 
