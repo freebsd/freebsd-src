@@ -202,6 +202,7 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_IP_TTL		2
 #define	LINUX_IP_HDRINCL	3
 #define	LINUX_IP_OPTIONS	4
+#define	LINUX_IP_RECVERR	11
 
 #define	LINUX_IP_MULTICAST_IF		32
 #define	LINUX_IP_MULTICAST_TTL		33
