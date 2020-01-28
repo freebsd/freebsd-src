@@ -232,9 +232,7 @@
 	as sound, graphics, power management, and PCCARD expansion
 	slots.  These features tend to vary in idiosyncratic ways
 	between machines, and frequently require special-case support
-	in &os; to work around hardware bugs or other oddities.  When
-	in doubt, a search of the archives of the &a.mobile; may be
-	useful.</para>
+	in &os; to work around hardware bugs or other oddities.</para>
 
       <para>Most modern laptops (as well as many desktops) use the
 	Advanced Configuration and Power Management (ACPI) standard.
