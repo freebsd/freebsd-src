@@ -651,26 +651,46 @@ amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 }
 
 static uint32_t
-amdtemp_decode_fam10h_to_16h(int32_t sc_offset, uint32_t val)
+amdtemp_decode_fam10h_to_17h(int32_t sc_offset, uint32_t val, bool minus49)
 {
 	uint32_t temp;
 
 	/* Convert raw register subfield units (0.125C) to units of 0.1C. */
-	temp = ((val >> AMDTEMP_REPTMP10H_CURTMP_SHIFT) &
-	    AMDTEMP_REPTMP10H_CURTMP_MASK) * 5 / 4;
+	temp = (val & AMDTEMP_REPTMP10H_CURTMP_MASK) * 5 / 4;
+
+	if (minus49)
+		temp -= AMDTEMP_CURTMP_RANGE_ADJUST;
+
+	temp += AMDTEMP_ZERO_C_TO_K + sc_offset * 10;
+	return (temp);
+}
+
+static uint32_t
+amdtemp_decode_fam10h_to_16h(int32_t sc_offset, uint32_t val)
+{
+	bool minus49;
 
 	/*
 	 * On Family 15h and higher, if CurTmpTjSel is 11b, the range is
 	 * adjusted down by 49.0 degrees Celsius.  (This adjustment is not
 	 * documented in BKDGs prior to family 15h model 00h.)
 	 */
-	if (CPUID_TO_FAMILY(cpu_id) >= 0x15 &&
+	minus49 = (CPUID_TO_FAMILY(cpu_id) >= 0x15 &&
 	    ((val >> AMDTEMP_REPTMP10H_TJSEL_SHIFT) &
-	    AMDTEMP_REPTMP10H_TJSEL_MASK) == 0x3)
-		temp -= AMDTEMP_CURTMP_RANGE_ADJUST;
+	    AMDTEMP_REPTMP10H_TJSEL_MASK) == 0x3);
 
-	temp += AMDTEMP_ZERO_C_TO_K + sc_offset * 10;
-	return (temp);
+	return (amdtemp_decode_fam10h_to_17h(sc_offset,
+	    val >> AMDTEMP_REPTMP10H_CURTMP_SHIFT, minus49));
+}
+
+static uint32_t
+amdtemp_decode_fam17h_tctl(int32_t sc_offset, uint32_t val)
+{
+	bool minus49;
+
+	minus49 = ((val & AMDTEMP_17H_CUR_TMP_RANGE_SEL) != 0);
+	return (amdtemp_decode_fam10h_to_17h(sc_offset,
+	    val >> AMDTEMP_REPTMP10H_CURTMP_SHIFT, minus49));
 }
 
 static int32_t
@@ -699,16 +719,11 @@ static int32_t
 amdtemp_gettemp17h(device_t dev, amdsensor_t sensor)
 {
 	struct amdtemp_softc *sc = device_get_softc(dev);
-	uint32_t temp, val;
+	uint32_t val;
 	int error;
 
 	error = amdsmn_read(sc->sc_smn, AMDTEMP_17H_CUR_TMP, &val);
 	KASSERT(error == 0, ("amdsmn_read"));
 
-	temp = ((val >> 21) & 0x7ff) * 5 / 4;
-	if ((val & AMDTEMP_17H_CUR_TMP_RANGE_SEL) != 0)
-		temp -= AMDTEMP_CURTMP_RANGE_ADJUST;
-	temp += AMDTEMP_ZERO_C_TO_K + sc->sc_offset * 10;
-
-	return (temp);
+	return (amdtemp_decode_fam17h_tctl(sc->sc_offset, val));
 }
