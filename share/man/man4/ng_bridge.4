@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2010
+.Dd October 2, 2019
 .Dt NG_BRIDGE 4
 .Os
 .Sh NAME
@@ -76,9 +76,7 @@ Processing of IP packets via the
 .Xr ipfirewall 4
 mechanism on a per-link basis is not yet implemented.
 .Sh HOOKS
-This node type supports up to
-.Dv NG_BRIDGE_MAX_LINKS
-hooks.
+This node type supports an unlimited number of hooks.
 Each connected hook represents a bridged link.
 The hooks are named
 .Dv link0 ,
@@ -106,7 +104,6 @@ as an argument:
 .Bd -literal -offset 0n
 /* Node configuration structure */
 struct ng_bridge_config {
-  u_char      ipfw[NG_BRIDGE_MAX_LINKS]; /* enable ipfw */
   u_char      debugLevel;           /* debug level */
   uint32_t    loopTimeout;          /* link loopback mute time */
   uint32_t    maxStaleness;         /* max host age before nuking */
@@ -114,11 +111,6 @@ struct ng_bridge_config {
 };
 .Ed
 .Pp
-The
-.Dv ipfw
-array enables
-.Xr ipfirewall 4
-processing of IP packets received on the corresponding links.
 The
 .Dv debugLevel
 field sets the debug level on the node.
