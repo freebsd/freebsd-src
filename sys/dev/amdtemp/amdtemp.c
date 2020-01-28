@@ -760,11 +760,6 @@ amdtemp_gettemp17h(device_t dev, amdsensor_t sensor)
 		    ("sensor %d: not valid", (int)sensor));
 		return (amdtemp_decode_fam10h_to_17h(sc->sc_offset, val, true));
 	default:
-#if 0
-		KASSERT(false, ("%s: invalid sensor %d", __func__,
-			(int)sensor));
-		return (-1);
-#endif
 		__unreachable();
 	}
 }
