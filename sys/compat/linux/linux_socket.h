@@ -237,6 +237,7 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 
 #define	LINUX_TCP_NODELAY	1
 #define	LINUX_TCP_MAXSEG	2
+#define	LINUX_TCP_CORK		3
 #define	LINUX_TCP_KEEPIDLE	4
 #define	LINUX_TCP_KEEPINTVL	5
 #define	LINUX_TCP_KEEPCNT	6
