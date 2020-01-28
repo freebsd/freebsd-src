@@ -138,5 +138,5 @@ seta20.3:	sti				# Enable interrupts
  * Save drive number from BIOS so boot2 can see it and start BTX.
  */
 		movb %dl,MEM_ARG
-		jmp MEM_JMP			# Start BTX
+		jmp start+MEM_JMP-MEM_ORG	# Start BTX
 end:
