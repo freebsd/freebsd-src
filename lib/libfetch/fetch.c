@@ -328,6 +328,8 @@ fetch_pctdecode(char *dst, const char *src, size_t dlen)
 		}
 		if (dlen-- > 0)
 			*dst++ = c;
+		else
+			return (NULL);
 	}
 	return (s);
 }
@@ -375,11 +377,15 @@ fetchParseURL(const char *URL)
 	if (p && *p == '@') {
 		/* username */
 		q = fetch_pctdecode(u->user, URL, URL_USERLEN);
+		if (q == NULL)
+			goto ouch;
 
 		/* password */
-		if (*q == ':')
+		if (*q == ':') {
 			q = fetch_pctdecode(u->pwd, q + 1, URL_PWDLEN);
-
+			if (q == NULL)
+				goto ouch;
+		}
 		p++;
 	} else {
 		p = URL;
