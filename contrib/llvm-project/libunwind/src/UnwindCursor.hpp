@@ -1123,12 +1123,6 @@ private:
   }
 #endif
 
-#if defined (_LIBUNWIND_TARGET_RISCV)
-  compact_unwind_encoding_t dwarfEncoding(Registers_riscv &) const {
-    return 0;
-  }
-#endif
-
 #if defined (_LIBUNWIND_TARGET_MIPS_O32)
   compact_unwind_encoding_t dwarfEncoding(Registers_mips_o32 &) const {
     return 0;
