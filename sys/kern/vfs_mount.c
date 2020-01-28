@@ -603,7 +603,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	 */
 	fstypelen = 0;
 	error = vfs_getopt(optlist, "fstype", (void **)&fstype, &fstypelen);
-	if (error || fstype[fstypelen - 1] != '\0') {
+	if (error || fstypelen <= 0 || fstype[fstypelen - 1] != '\0') {
 		error = EINVAL;
 		if (errmsg != NULL)
 			strncpy(errmsg, "Invalid fstype", errmsg_len);
@@ -611,7 +611,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	}
 	fspathlen = 0;
 	error = vfs_getopt(optlist, "fspath", (void **)&fspath, &fspathlen);
-	if (error || fspath[fspathlen - 1] != '\0') {
+	if (error || fspathlen <= 0 || fspath[fspathlen - 1] != '\0') {
 		error = EINVAL;
 		if (errmsg != NULL)
 			strncpy(errmsg, "Invalid fspath", errmsg_len);
