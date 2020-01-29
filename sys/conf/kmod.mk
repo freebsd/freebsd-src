@@ -106,6 +106,9 @@ NOSTDINC=	-nostdinc
 CFLAGS:=	${CFLAGS:N-I*} ${NOSTDINC} ${INCLMAGIC} ${CFLAGS:M-I*}
 .if defined(KERNBUILDDIR)
 CFLAGS+=	-DHAVE_KERNEL_OPTION_HEADERS -include ${KERNBUILDDIR}/opt_global.h
+.else
+SRCS+=		opt_global.h
+CFLAGS+=	-include ${.OBJDIR}/opt_global.h
 .endif
 
 # Add -I paths for system headers.  Individual module makefiles don't
