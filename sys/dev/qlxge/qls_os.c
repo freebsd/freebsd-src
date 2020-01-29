@@ -321,7 +321,7 @@ qls_watchdog(void *arg)
 		ha->qla_watchdog_paused = 1;
 	}
 
-	ha->watchdog_ticks = ha->watchdog_ticks++ % 1000;
+	ha->watchdog_ticks = (ha->watchdog_ticks + 1) % 1000;
 	callout_reset(&ha->tx_callout, QLA_WATCHDOG_CALLOUT_TICKS,
 		qls_watchdog, ha);
 

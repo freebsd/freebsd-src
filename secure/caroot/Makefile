@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=	caroot
-
 CLEANFILES+=	certdata.txt
 
 SUBDIR+=	trusted

@@ -7,4 +7,6 @@ DTS=	\
 	rockchip/rk3328-rock64.dts \
 	rockchip/rk3399-rockpro64.dts
 
+DTSO=	rk3328-dwc3.dtso
+
 .include <bsd.dtb.mk>

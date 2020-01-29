@@ -2,6 +2,8 @@
 
 BINDIR=		/usr/share/certs/blacklisted
 
-FILES=
+BLACKLISTED_CERTS!=	ls ${.CURDIR}/*.pem 2> /dev/null || true
+
+FILES+=	 ${BLACKLISTED_CERTS}
 
 .include <bsd.prog.mk>

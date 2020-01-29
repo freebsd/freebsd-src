@@ -18,7 +18,7 @@ FILESDIR=	${LIBDIR}
 .undef LIBRARIES_ONLY
 
 CLEANFILES=	${OBJS}
-CLEANFILES+=	crt1.s crtsavres.s gcrt1.s Scrt1.s
+CLEANFILES+=	crt1.s crtsavres.S gcrt1.s Scrt1.s
 
 # See the comment in lib/csu/common/crtbrand.c for the reason crt1.c is not
 # directly compiled to .o files.
@@ -28,7 +28,7 @@ crt1.s: crt1.c
 	sed ${SED_FIX_NOTE} ${.TARGET}
 
 # On powerpc64 crtsavres is an empty file
-crtsavres.s:
+crtsavres.S:
 	touch ${.TARGET}
 
 crt1.o: crt1.s

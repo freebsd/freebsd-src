@@ -41,13 +41,25 @@ f_include $BSDCFG_SHARE/dialog.subr
 hline_arrows_tab_enter="Press arrows, TAB or ENTER"
 hline_arrows_tab_space_enter="Press arrows, TAB, SPACE or ENTER"
 msg_abort="Abort"
+msg_an_installation_step_has_been_aborted="An installation step has been aborted. Would you like\nto restart the installation or exit the installer?"
+msg_auto_ufs="Auto (UFS)"
+msg_auto_ufs_desc="Guided UFS Disk Setup"
+msg_auto_ufs_help="Menu options help choose which disk to setup using UFS and standard partitions"
+msg_auto_zfs="Auto (ZFS)"
+msg_auto_zfs_desc="Guided Root-on-ZFS"
+msg_auto_zfs_help="To use ZFS with less than 8GB RAM, see https://wiki.freebsd.org/ZFSTuningGuide"
 msg_exit="Exit"
 msg_freebsd_installer="FreeBSD Installer"
 msg_gpt_active_fix="Your hardware is known to have issues booting in CSM/Legacy/BIOS mode from GPT partitions that are not set active. Would you like the installer to apply this workaround for you?"
 msg_lenovo_fix="Your model of Lenovo is known to have a BIOS bug that prevents it booting from GPT partitions without UEFI. Would you like the installer to apply a workaround for you?"
-msg_an_installation_step_has_been_aborted="An installation step has been aborted. Would you like\nto restart the installation or exit the installer?"
+msg_manual="Manual"
+msg_manual_desc="Manual Disk Setup (experts)"
+msg_manual_help="Create customized partitions from menu options"
 msg_no="NO"
 msg_restart="Restart"
+msg_shell="Shell"
+msg_shell_desc="Open a shell and partition by hand"
+msg_shell_help="Create customized partitions using command-line utilities"
 msg_yes="YES"
 
 ############################################################ FUNCTIONS
@@ -281,42 +293,47 @@ if f_interactive; then
 	esac
 fi
 
-PMODES="\
-\"Auto (UFS)\" \"Guided Disk Setup\" \
-Manual \"Manual Disk Setup (experts)\" \
-Shell \"Open a shell and partition by hand\""
+PMODES="
+	'$msg_auto_ufs' '$msg_auto_ufs_desc' '$msg_auto_ufs_help'
+	'$msg_manual' '$msg_manual_desc' '$msg_manual_help'
+	'$msg_shell' '$msg_shell_desc' '$msg_shell_help'
+" # END-QUOTE
 
 CURARCH=$( uname -m )
 case $CURARCH in
 	amd64|arm64|i386)	# Booting ZFS Supported
-		PMODES="\"Auto (ZFS)\" \"Guided Root-on-ZFS\" $PMODES"
+		PMODES="
+			'$msg_auto_zfs' '$msg_auto_zfs_desc' '$msg_auto_zfs_help'
+			$PMODES
+		" # END-QUOTE
 		;;
-	*)		# Booting ZFS Unspported
+	*)			# Booting ZFS Unsupported
 		;;
 esac
 
 exec 3>&1
 PARTMODE=`echo $PMODES | xargs dialog --backtitle "FreeBSD Installer" \
 	--title "Partitioning" \
+	--item-help \
 	--menu "How would you like to partition your disk?" \
 	0 0 0 2>&1 1>&3` || exit 1
 exec 3>&-
 
 case "$PARTMODE" in
-"Auto (ZFS)")	# ZFS
+"$msg_auto_zfs")	# ZFS
 	bsdinstall zfsboot || error "ZFS setup failed"
 	bsdinstall mount || error "Failed to mount filesystem"
 	;;
-"Auto (UFS)")	# Guided
+"$msg_auto_ufs")	# Guided UFS
 	bsdinstall autopart || error "Partitioning error"
 	bsdinstall mount || error "Failed to mount filesystem"
 	;;
-"Shell")	# Shell
+"$msg_shell")		# Shell
 	clear
 	echo "Use this shell to set up partitions for the new system. When finished, mount the system at $BSDINSTALL_CHROOT and place an fstab file for the new system at $PATH_FSTAB. Then type 'exit'. You can also enter the partition editor at any time by entering 'bsdinstall partedit'."
 	sh 2>&1
 	;;
-"Manual")	# Manual
+"$msg_manual")		# Manual
 	if f_isset debugFile; then
 		# Give partedit the path to our logfile so it can append
 		BSDINSTALL_LOG="${debugFile#+}" bsdinstall partedit || error "Partitioning error"

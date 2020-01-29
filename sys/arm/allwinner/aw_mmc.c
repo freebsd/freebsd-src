@@ -213,33 +213,11 @@ aw_mmc_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_PATH_INQ:
-	{
-		struct ccb_pathinq *cpi;
-
-		cpi = &ccb->cpi;
-		cpi->version_num = 1;
-		cpi->hba_inquiry = 0;
-		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_NOBUSRESET | PIM_SEQSCAN;
-		cpi->hba_eng_cnt = 0;
-		cpi->max_target = 0;
-		cpi->max_lun = 0;
-		cpi->initiator_id = 1;
-		cpi->maxio = (sc->aw_mmc_conf->dma_xferlen *
-			      AW_MMC_DMA_SEGS) / MMC_SECTOR_SIZE;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "Deglitch Networks", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
-		cpi->unit_number = cam_sim_unit(sim);
-		cpi->bus_id = cam_sim_bus(sim);
-		cpi->protocol = PROTO_MMCSD;
-		cpi->protocol_version = SCSI_REV_0;
-		cpi->transport = XPORT_MMCSD;
-		cpi->transport_version = 1;
-
-		cpi->ccb_h.status = CAM_REQ_CMP;
+		mmc_path_inq(&ccb->cpi, "Deglitch Networks", sim,
+		    (sc->aw_mmc_conf->dma_xferlen * AW_MMC_DMA_SEGS) /
+		    MMC_SECTOR_SIZE);
 		break;
-	}
+
 	case XPT_GET_TRAN_SETTINGS:
 	{
 		struct ccb_trans_settings *cts = &ccb->cts;

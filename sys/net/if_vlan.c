@@ -963,10 +963,14 @@ vlan_clone_match_ethervid(const char *name, int *vidp)
 static int
 vlan_clone_match(struct if_clone *ifc, const char *name)
 {
+	struct ifnet *ifp;
 	const char *cp;
 
-	if (vlan_clone_match_ethervid(name, NULL) != NULL)
+	ifp = vlan_clone_match_ethervid(name, NULL);
+	if (ifp != NULL) {
+		if_rele(ifp);
 		return (1);
+	}
 
 	if (strncmp(vlanname, name, strlen(vlanname)) != 0)
 		return (0);
