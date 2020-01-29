@@ -54,8 +54,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/phy/phy_usb.h>
 #include <dev/extres/syscon/syscon.h>
 
+enum rk_dwc3_type {
+	RK3328 = 1,
+	RK3399,
+};
+
 static struct ofw_compat_data compat_data[] = {
-	{ "rockchip,rk3399-dwc3",	1 },
+	{ "rockchip,rk3328-dwc3",	RK3328 },
+	{ "rockchip,rk3399-dwc3",	RK3399 },
 	{ NULL,				0 }
 };
 
@@ -69,6 +75,7 @@ struct rk_dwc3_softc {
 	clk_t			clk_usb3;
 	clk_t			clk_grf;
 	hwreset_t		rst_usb3;
+	enum rk_dwc3_type	type;
 };
 
 static int
@@ -102,6 +109,7 @@ rk_dwc3_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
+	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
 	/* Mandatory clocks */
 	if (clk_get_by_ofw_name(dev, 0, "ref_clk", &sc->clk_ref) != 0) {
@@ -134,17 +142,18 @@ rk_dwc3_attach(device_t dev)
 		    clk_get_name(sc->clk_bus));
 		return (ENXIO);
 	}
-	if (clk_get_by_ofw_name(dev, 0, "grf_clk", &sc->clk_grf) != 0) {
-		device_printf(dev, "Cannot get grf_clk clock\n");
-		return (ENXIO);
+	if (sc->type == RK3399) {
+		if (clk_get_by_ofw_name(dev, 0, "grf_clk", &sc->clk_grf) != 0) {
+			device_printf(dev, "Cannot get grf_clk clock\n");
+			return (ENXIO);
+		}
+		err = clk_enable(sc->clk_grf);
+		if (err != 0) {
+			device_printf(dev, "Could not enable clock %s\n",
+			    clk_get_name(sc->clk_grf));
+			return (ENXIO);
+		}
 	}
-	err = clk_enable(sc->clk_grf);
-	if (err != 0) {
-		device_printf(dev, "Could not enable clock %s\n",
-		    clk_get_name(sc->clk_grf));
-		return (ENXIO);
-	}
-
 	/* Optional clocks */
 	if (clk_get_by_ofw_name(dev, 0, "aclk_usb3_rksoc_axi_perf", &sc->clk_axi_perf) == 0) {
 		err = clk_enable(sc->clk_axi_perf);
