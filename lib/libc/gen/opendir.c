@@ -35,8 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
-#include <sys/mount.h>
-#include <sys/stat.h>
 
 #include <dirent.h>
 #include <errno.h>
@@ -276,7 +274,6 @@ _filldir(DIR *dirp, bool use_current_pos)
 static bool
 is_unionstack(int fd)
 {
-	struct statfs sfb;
 	int unionstack;
 
 	unionstack = _fcntl(fd, F_ISUNIONSTACK, 0);
@@ -284,12 +281,10 @@ is_unionstack(int fd)
 		return (unionstack);
 
 	/*
-	 * Temporary compat for kernels which don't provide F_ISUNIONSTACK.
+	 * Should not happen unless running on a kernel without the op,
+	 * but no use rendering the system useless in such a case.
 	 */
-	if (_fstatfs(fd, &sfb) < 0)
-		return (true);
-	return (strcmp(sfb.f_fstypename, "unionfs") == 0 ||
-	    (sfb.f_flags & MNT_UNION));
+	return (0);
 }
 
 /*

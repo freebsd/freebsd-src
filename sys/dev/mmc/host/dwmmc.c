@@ -67,8 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/host/dwmmc_reg.h>
 #include <dev/mmc/host/dwmmc_var.h>
 
-#include "opt_mmccam.h"
-
 #include "mmcbr_if.h"
 
 #define dprintf(x, arg...)

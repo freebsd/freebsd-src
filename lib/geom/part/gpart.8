@@ -158,7 +158,7 @@ The
 command accepts these options:
 .Bl -tag -width 12n
 .It Fl a Ar alignment
-If specified, then
+If specified, then the
 .Nm
 utility tries to align
 .Ar start
@@ -407,7 +407,7 @@ The
 command accepts these options:
 .Bl -tag -width 12n
 .It Fl a Ar alignment
-If specified, then
+If specified, then the
 .Nm
 utility tries to align partition
 .Ar size
@@ -704,8 +704,8 @@ for APM,
 for GPT, and 0x0904 for VTOC8.
 .El
 .Pp
-Other symbolic names that can be used with
-.Cm gpart
+Other symbolic names that can be used with the
+.Nm
 utility are:
 .Bl -tag -width ".Cm dragonfly-disklabel64"
 .It Cm apple-apfs
@@ -1215,8 +1215,8 @@ This variable overrides this restriction and allows arbitrary nesting (except
 within partitions created at offset 0).
 Some schemes have their own separate checks, for which see below.
 .It Va kern.geom.part.auto_resize : No 1
-This variable controls automatic resize behavior of
-.Nm
+This variable controls automatic resize behavior of the
+.Nm PART
 GEOM class.
 When this variable is enable and new size of provider is detected, the schema
 metadata is resized but all changes are not saved to disk, until

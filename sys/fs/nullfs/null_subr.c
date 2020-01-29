@@ -252,6 +252,8 @@ null_nodeget(mp, lowervp, vpp)
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
 	vp->v_vnlock = lowervp->v_vnlock;
+	if (lowervp == MOUNTTONULLMOUNT(mp)->nullm_lowerrootvp)
+		vp->v_vflag |= VV_ROOT;
 	error = insmntque1(vp, mp, null_insmntque_dtr, xp);
 	if (error != 0)
 		return (error);

@@ -1244,10 +1244,18 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 	avl_tree_t slice_cache;
 	rdsk_node_t *slice;
 	void *cookie;
+	boolean_t skip_zvols = B_FALSE;
+	int value;
+	size_t size = sizeof(value);
 
 	if (dirs == 0) {
 		dirs = 1;
 		dir = &default_dir;
+	}
+
+	if (sysctlbyname("vfs.zfs.vol.recursive", &value, &size, NULL, 0) == 0
+	    && value == 0) {
+		skip_zvols = B_TRUE;
 	}
 
 	/*
@@ -1314,6 +1322,10 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 			}
 
 			LIST_FOREACH(mp, &mesh.lg_class, lg_class) {
+				if (skip_zvols &&
+				    strcmp(mp->lg_name, "ZFS::ZVOL") == 0) {
+					continue;
+				}
 		        	LIST_FOREACH(gp, &mp->lg_geom, lg_geom) {
 					LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 						slice = zfs_alloc(hdl, sizeof (rdsk_node_t));

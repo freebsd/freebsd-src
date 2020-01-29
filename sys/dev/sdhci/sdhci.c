@@ -124,7 +124,6 @@ static void sdhci_transfer_pio(struct sdhci_slot *slot);
 static void sdhci_cam_action(struct cam_sim *sim, union ccb *ccb);
 static int sdhci_cam_get_possible_host_clock(const struct sdhci_slot *slot,
     int proposed_clock);
-static void sdhci_cam_handle_mmcio(struct cam_sim *sim, union ccb *ccb);
 static void sdhci_cam_poll(struct cam_sim *sim);
 static int sdhci_cam_request(struct sdhci_slot *slot, union ccb *ccb);
 static int sdhci_cam_settran_settings(struct sdhci_slot *slot, union ccb *ccb);
@@ -2560,16 +2559,6 @@ fail:
 		cam_simq_free(slot->devq);
 }
 
-static void
-sdhci_cam_handle_mmcio(struct cam_sim *sim, union ccb *ccb)
-{
-	struct sdhci_slot *slot;
-
-	slot = cam_sim_softc(sim);
-
-	sdhci_cam_request(slot, ccb);
-}
-
 void
 sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
@@ -2586,33 +2575,9 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_PATH_INQ:
-	{
-		struct ccb_pathinq *cpi;
-
-		cpi = &ccb->cpi;
-		cpi->version_num = 1;
-		cpi->hba_inquiry = 0;
-		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_NOBUSRESET | PIM_SEQSCAN;
-		cpi->hba_eng_cnt = 0;
-		cpi->max_target = 0;
-		cpi->max_lun = 0;
-		cpi->initiator_id = 1;
-		cpi->maxio = MAXPHYS;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "Deglitch Networks", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
-		cpi->unit_number = cam_sim_unit(sim);
-		cpi->bus_id = cam_sim_bus(sim);
-		cpi->base_transfer_speed = 100; /* XXX WTF? */
-		cpi->protocol = PROTO_MMCSD;
-		cpi->protocol_version = SCSI_REV_0;
-		cpi->transport = XPORT_MMCSD;
-		cpi->transport_version = 0;
-
-		cpi->ccb_h.status = CAM_REQ_CMP;
+		mmc_path_inq(&ccb->cpi, "Deglitch Networks", sim, MAXPHYS);
 		break;
-	}
+
 	case XPT_GET_TRAN_SETTINGS:
 	{
 		struct ccb_trans_settings *cts = &ccb->cts;
@@ -2648,13 +2613,11 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	case XPT_SET_TRAN_SETTINGS:
-	{
 		if (sdhci_debug > 1)
 			slot_printf(slot, "Got XPT_SET_TRAN_SETTINGS\n");
 		sdhci_cam_settran_settings(slot, ccb);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
-	}
 	case XPT_RESET_BUS:
 		if (sdhci_debug > 1)
 			slot_printf(slot, "Got XPT_RESET_BUS, ACK it...\n");
@@ -2671,10 +2634,8 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 			slot_printf(slot, "Got XPT_MMC_IO\n");
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 
-		sdhci_cam_handle_mmcio(sim, ccb);
+		sdhci_cam_request(cam_sim_softc(sim), ccb);
 		return;
-		/* NOTREACHED */
-		break;
 	default:
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		break;

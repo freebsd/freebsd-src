@@ -147,17 +147,19 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb, "\tLowest Performance: %03ju\n", (data >> 24) & 0xff);
 
 	rdmsr_safe(MSR_IA32_HWP_REQUEST, &data);
-	if (sc->hwp_pkg_ctrl && (data & IA32_HWP_REQUEST_PACKAGE_CONTROL)) {
+	data2 = 0;
+	if (sc->hwp_pkg_ctrl && (data & IA32_HWP_REQUEST_PACKAGE_CONTROL))
 		rdmsr_safe(MSR_IA32_HWP_REQUEST_PKG, &data2);
-	}
 
 	sbuf_putc(sb, '\n');
 
-#define pkg_print(x, name, offset) do {						\
-	if (!sc->hwp_pkg_ctrl || (data & x) != 0) 				\
-	sbuf_printf(sb, "\t%s: %03ju\n", name, (data >> offset) & 0xff);\
-	else									\
-	sbuf_printf(sb, "\t%s: %03ju\n", name, (data2 >> offset) & 0xff);\
+#define pkg_print(x, name, offset) do {					\
+	if (!sc->hwp_pkg_ctrl || (data & x) != 0) 			\
+		sbuf_printf(sb, "\t%s: %03u\n", name,			\
+		    (unsigned)(data >> offset) & 0xff);			\
+	else								\
+		sbuf_printf(sb, "\t%s: %03u\n", name,			\
+		    (unsigned)(data2 >> offset) & 0xff);		\
 } while (0)
 
 	pkg_print(IA32_HWP_REQUEST_EPP_VALID,
@@ -413,7 +415,7 @@ intel_hwpstate_attach(device_t dev)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "epp", CTLTYPE_INT | CTLFLAG_RWTUN, dev, sizeof(dev),
+	    "epp", CTLTYPE_INT | CTLFLAG_RWTUN, dev, 0,
 	    sysctl_epp_select, "I",
 	    "Efficiency/Performance Preference "
 	    "(range from 0, most performant, through 100, most efficient)");

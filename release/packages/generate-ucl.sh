@@ -34,6 +34,9 @@ main() {
 	outname="$(echo ${outname} | tr '-' '_')"
 
 	case "${outname}" in
+		caroot)
+			pkgdeps="utilities"
+			;;
 		runtime)
 			outname="runtime"
 			uclfile="${uclfile}"

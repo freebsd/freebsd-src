@@ -1073,12 +1073,14 @@ vm_fault_allocate(struct faultstate *fs)
 		    fs->oom < vm_pfault_oom_attempts) {
 			fs->oom++;
 			vm_waitpfault(dset, vm_pfault_oom_wait * hz);
+		} else 	{
+			if (bootverbose)
+				printf(
+		"proc %d (%s) failed to alloc page on fault, starting OOM\n",
+				    curproc->p_pid, curproc->p_comm);
+			vm_pageout_oom(VM_OOM_MEM_PF);
+			fs->oom = 0;
 		}
-		if (bootverbose)
-			printf(
-"proc %d (%s) failed to alloc page on fault, starting OOM\n",
-			    curproc->p_pid, curproc->p_comm);
-		vm_pageout_oom(VM_OOM_MEM_PF);
 		return (KERN_RESOURCE_SHORTAGE);
 	}
 	fs->oom = 0;

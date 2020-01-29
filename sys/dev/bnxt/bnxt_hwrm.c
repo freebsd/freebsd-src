@@ -1778,15 +1778,13 @@ int bnxt_hwrm_func_rgtr_async_events(struct bnxt_softc *softc, unsigned long *bm
 	uint32_t *events;
 	int i;
 
-	async_events_bmap = bit_alloc(256, M_DEVBUF, M_WAITOK|M_ZERO);
-	events = (uint32_t *)async_events_bmap;
+#define AE_BMAP_SZ_BITS	256
+	async_events_bmap = bit_alloc(AE_BMAP_SZ_BITS, M_DEVBUF, M_WAITOK);
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_DRV_RGTR);
 
 	req.enables =
 		htole32(HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_ASYNC_EVENT_FWD);
-
-	memset(async_events_bmap, 0, sizeof(256 / 8));
 
 	bit_set(async_events_bmap, HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE);
 	bit_set(async_events_bmap, HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
@@ -1801,8 +1799,12 @@ int bnxt_hwrm_func_rgtr_async_events(struct bnxt_softc *softc, unsigned long *bm
 		}
 	}
 
-	for (i = 0; i < 8; i++)
+#define AE_BMAP_SZ_WORDS	(AE_BMAP_SZ_BITS / 8 / sizeof(uint32_t))
+	events = (uint32_t *)async_events_bmap;
+	for (i = 0; i < AE_BMAP_SZ_WORDS; i++)
 		req.async_event_fwd[i] |= htole32(events[i]);
+#undef AE_BMAP_SZ_WORDS
+#undef AE_BMAP_SZ_BITS
 
 	free(async_events_bmap, M_DEVBUF);
 

@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_common.h>
 #include <compat/linux/linux_file.h>
+#include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
@@ -243,6 +244,8 @@ linux_to_bsd_tcp_sockopt(int opt)
 		return (TCP_NODELAY);
 	case LINUX_TCP_MAXSEG:
 		return (TCP_MAXSEG);
+	case LINUX_TCP_CORK:
+		return (TCP_NOPUSH);
 	case LINUX_TCP_KEEPIDLE:
 		return (TCP_KEEPIDLE);
 	case LINUX_TCP_KEEPINTVL:
@@ -1424,6 +1427,14 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		}
 		break;
 	case IPPROTO_IP:
+		if (args->optname == LINUX_IP_RECVERR &&
+		    linux_ignore_ip_recverr) {
+			/*
+			 * XXX: This is a hack to unbreak DNS resolution
+			 *	with glibc 2.30 and above.
+			 */
+			return (0);
+		}
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_IPV6:
