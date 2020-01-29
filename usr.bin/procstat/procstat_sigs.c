@@ -74,9 +74,10 @@ procstat_close_signame(int sig)
 		for (i = 0; name[i] != 0; i++)
 			name[i] = toupper(name[i]);
 		xo_close_container(name);
-	} else
+	} else {
 		snprintf(name, 12, "%d", sig);
 		xo_close_container(name);
+	}
 }
 
 static void
