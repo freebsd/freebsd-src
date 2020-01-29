@@ -1796,7 +1796,7 @@ daclose(struct disk *dp)
 	}
 
 	/*
-	 * If we've got removeable media, mark the blocksize as
+	 * If we've got removable media, mark the blocksize as
 	 * unavailable, since it could change when new media is
 	 * inserted.
 	 */
