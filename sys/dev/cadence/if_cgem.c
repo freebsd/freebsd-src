@@ -99,9 +99,10 @@ __FBSDID("$FreeBSD$");
 				 CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
 
 static struct ofw_compat_data compat_data[] = {
-	{ "cadence,gem",	1 },
-	{ "cdns,macb",		1 },
-	{ NULL,			0 },
+	{ "cadence,gem",		1 },
+	{ "cdns,macb",			1 },
+	{ "sifive,fu540-c000-gem",	1 },
+	{ NULL,				0 },
 };
 
 struct cgem_softc {
