@@ -473,11 +473,12 @@ cf_get_method(device_t dev, struct cf_level *level)
 		 * first try the driver and if that fails, fall back to
 		 * estimating.
 		 */
-		if (CPUFREQ_DRV_GET(sc->cf_drv_dev, &set) != 0)
-			goto estimate;
-		sc->curr_level.total_set = set;
-		CF_DEBUG("get returning immediate freq %d\n", curr_set->freq);
-		goto out;
+		if (CPUFREQ_DRV_GET(sc->cf_drv_dev, &set) == 0) {
+			sc->curr_level.total_set = set;
+			CF_DEBUG("get returning immediate freq %d\n",
+			    curr_set->freq);
+			goto out;
+		}
 	} else if (curr_set->freq != CPUFREQ_VAL_UNKNOWN) {
 		CF_DEBUG("get returning known freq %d\n", curr_set->freq);
 		error = 0;
@@ -522,9 +523,6 @@ cf_get_method(device_t dev, struct cf_level *level)
 		CF_DEBUG("get matched freq %d from drivers\n", curr_set->freq);
 		goto out;
 	}
-
-estimate:
-	CF_MTX_ASSERT(&sc->lock);
 
 	/*
 	 * We couldn't find an exact match, so attempt to estimate and then
