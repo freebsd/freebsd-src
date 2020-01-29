@@ -8,6 +8,10 @@
 # the code here when they all produce identical results
 # (or should)
 .if !defined(KERNBUILDDIR)
+opt_global.h:
+.if ${MACHINE} != "mips"
+	@echo "#define VIMAGE 1" > ${.TARGET}
+.endif
 opt_bpf.h:
 	echo "#define DEV_BPF 1" > ${.TARGET}
 .if ${MK_INET_SUPPORT} != "no"
