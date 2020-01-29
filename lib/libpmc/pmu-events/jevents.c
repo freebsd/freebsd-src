@@ -921,7 +921,8 @@ is_leaf_dir(const char *fpath)
 			char path[PATH_MAX];
 			struct stat st;
 
-			sprintf(path, "%s/%s", fpath, dir->d_name);
+			snprintf(path, sizeof(path), "%s/%s", fpath,
+			    dir->d_name);
 			if (stat(path, &st))
 				break;
 
@@ -1080,10 +1081,6 @@ process_one_file(const char *fpath, const struct stat *sb, int typeflag,
 	return err;
 }
 
-#ifndef PATH_MAX
-#define PATH_MAX	4096
-#endif
-
 /*
  * Starting in directory 'start_dirname', find the "mapfile.csv" and
  * the set of JSON files for the architecture 'arch'.
@@ -1128,7 +1125,7 @@ main(int argc, char *argv[])
 		return 2;
 	}
 
-	sprintf(ldirname, "%s/%s", start_dirname, arch);
+	snprintf(ldirname, sizeof(ldirname), "%s/%s", start_dirname, arch);
 
 	/* If architecture does not have any event lists, bail out */
 	if (stat(ldirname, &stbuf) < 0) {
