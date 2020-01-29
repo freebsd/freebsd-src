@@ -1232,9 +1232,9 @@ op_begemot_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 
 		    case LEAF_begemotBridgeStpPortEnable:
 			if (val->v.integer !=
-			    begemotBridgeStpPortEnable_enabled ||
+			    (int32_t)begemotBridgeStpPortEnable_enabled ||
 			    val->v.integer !=
-			    begemotBridgeStpPortEnable_disabled)
+			    (int32_t)begemotBridgeStpPortEnable_disabled)
 			    return (SNMP_ERR_WRONG_VALUE);
 
 			ctx->scratch->int1 = bp->enable;
