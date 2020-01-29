@@ -1550,10 +1550,10 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head",
-		    CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
+		    CTLTYPE_UINT | CTLFLAG_RD, txr, 0,
 		    ixgbe_sysctl_tdh_handler, "IU", "Transmit Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail",
-		    CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
+		    CTLTYPE_UINT | CTLFLAG_RD, txr, 0,
 		    ixgbe_sysctl_tdt_handler, "IU", "Transmit Descriptor Tail");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tso_tx",
 		    CTLFLAG_RD, &txr->tso_tx, "TSO");
@@ -1570,18 +1570,17 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
-		    CTLTYPE_UINT | CTLFLAG_RW, &adapter->rx_queues[i],
-		    sizeof(&adapter->rx_queues[i]),
+		    CTLTYPE_UINT | CTLFLAG_RW, &adapter->rx_queues[i], 0,
 		    ixgbe_sysctl_interrupt_rate_handler, "IU",
 		    "Interrupt Rate");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irqs",
 		    CTLFLAG_RD, &(adapter->rx_queues[i].irqs),
 		    "irqs on this queue");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head",
-		    CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
+		    CTLTYPE_UINT | CTLFLAG_RD, rxr, 0,
 		    ixgbe_sysctl_rdh_handler, "IU", "Receive Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail",
-		    CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
+		    CTLTYPE_UINT | CTLFLAG_RD, rxr, 0,
 		    ixgbe_sysctl_rdt_handler, "IU", "Receive Descriptor Tail");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 		    CTLFLAG_RD, &rxr->rx_packets, "Queue Packets Received");
