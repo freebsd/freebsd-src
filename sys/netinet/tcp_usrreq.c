@@ -911,12 +911,12 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	if (IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_state == TCPS_SYN_RECEIVED))
 		goto out;
+	NET_EPOCH_ENTER(et);
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
 		tcp_offload_rcvd(tp);
 	else
 #endif
-	NET_EPOCH_ENTER(et);
 	tp->t_fb->tfb_tcp_output(tp);
 	NET_EPOCH_EXIT(et);
 out:
