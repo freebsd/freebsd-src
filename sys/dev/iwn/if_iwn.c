@@ -3031,6 +3031,7 @@ static void
 iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
+	struct epoch_tracker et;
 	struct iwn_ops *ops = &sc->ops;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct iwn_rx_ring *ring = &sc->rxq;
@@ -3190,6 +3191,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	}
 
 	IWN_UNLOCK(sc);
+	NET_EPOCH_ENTER(et);
 
 	/* Send the frame to the 802.11 layer. */
 	if (ni != NULL) {
@@ -3201,6 +3203,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	} else
 		(void)ieee80211_input_all(ic, m, rssi - nf, nf);
 
+	NET_EPOCH_EXIT(et);
 	IWN_LOCK(sc);
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
