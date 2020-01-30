@@ -686,7 +686,6 @@ exit1(struct thread *td, int rval, int signo)
 	thread_exit();
 }
 
-
 #ifndef _SYS_SYSPROTO_H_
 struct abort2_args {
 	char *why;
@@ -762,7 +761,6 @@ out:
 	exit1(td, 0, sig);
 	return (0);
 }
-
 
 #ifdef COMPAT_43
 /*

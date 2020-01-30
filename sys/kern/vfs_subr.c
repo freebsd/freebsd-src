@@ -699,7 +699,6 @@ vntblinit(void *dummy __unused)
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 
-
 /*
  * Mark a mount point as busy. Used to synchronize access and to delay
  * unmounting. Eventually, mountlist_mtx is not released on failure.
@@ -6129,7 +6128,6 @@ vfs_cache_root_set(struct mount *mp, struct vnode *vp)
  *
  * This interface replaces MNT_VNODE_FOREACH.
  */
-
 
 struct vnode *
 __mnt_vnode_next_all(struct vnode **mvp, struct mount *mp)

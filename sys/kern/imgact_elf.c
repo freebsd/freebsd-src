@@ -630,7 +630,6 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 			return (0);
 	}
 
-
 	/*
 	 * We have to get the remaining bit of the file into the first part
 	 * of the oversized map segment.  This is normally because the .data

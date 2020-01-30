@@ -316,7 +316,6 @@ static int	unp_externalize_fp(struct file *);
 static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
 static void	unp_process_defers(void * __unused, int);
 
-
 static void
 unp_pcb_hold(struct unpcb *unp)
 {
@@ -384,7 +383,6 @@ unp_pcb_owned_lock2_slowpath(struct unpcb *unp, struct unpcb **unp2p,
 	else								\
 		unp_pcb_owned_lock2_slowpath((unp), &(unp2), &freed);	\
 } while (0)
-
 
 /*
  * Definitions of protocols supported in the LOCAL domain.
@@ -705,7 +703,6 @@ uipc_close(struct socket *so)
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_close: unp == NULL"));
 
-
 	vplock = NULL;
 	if ((vp = unp->unp_vnode) != NULL) {
 		vplock = mtx_pool_find(mtxpool_sleep, vp);
@@ -1025,7 +1022,6 @@ connect_internal(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	return (error);
 }
-
 
 static int
 uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,

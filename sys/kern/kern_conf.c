@@ -950,7 +950,6 @@ dev_dependsl(struct cdev *pdev, struct cdev *cdev)
 	LIST_INSERT_HEAD(&pdev->si_children, cdev, si_siblings);
 }
 
-
 void
 dev_depends(struct cdev *pdev, struct cdev *cdev)
 {
@@ -1324,7 +1323,6 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up,
 	    ("Too high unit (0x%x) in clone_create", *up));
 	KASSERT(csw->d_flags & D_NEEDMINOR,
 	    ("clone_create() on cdevsw without minor numbers"));
-
 
 	/*
 	 * Search the list for a lot of things in one go:

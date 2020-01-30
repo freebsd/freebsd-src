@@ -156,7 +156,6 @@ _gtaskqueue_create(const char *name, int mflags,
 	return (queue);
 }
 
-
 /*
  * Signal a taskqueue thread to terminate.
  */
@@ -570,7 +569,6 @@ gtaskqueue_thread_enqueue(void *context)
 	wakeup_any(tq);
 }
 
-
 static struct gtaskqueue *
 gtaskqueue_create_fast(const char *name, int mflags,
 		 taskqueue_enqueue_fn enqueue, void *context)
@@ -578,7 +576,6 @@ gtaskqueue_create_fast(const char *name, int mflags,
 	return _gtaskqueue_create(name, mflags, enqueue, context,
 			MTX_SPIN, "fast_taskqueue");
 }
-
 
 struct taskqgroup_cpu {
 	LIST_HEAD(, grouptask)	tgc_tasks;

@@ -737,7 +737,6 @@ sysctl_remove_name(struct sysctl_oid *parent, const char *name,
 	return (error);
 }
 
-
 static int
 sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 {
@@ -1293,7 +1292,6 @@ sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-
 static SYSCTL_NODE(_sysctl, CTL_SYSCTL_OIDFMT, oidfmt, CTLFLAG_RD |
     CTLFLAG_MPSAFE | CTLFLAG_CAPRD, sysctl_sysctl_oidfmt, "");
 
@@ -1545,7 +1543,6 @@ sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
 	*(int *)arg1 = tt;
 	return (0);
 }
-
 
 /*
  * Handle a long, signed or unsigned.

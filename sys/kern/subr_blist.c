@@ -192,7 +192,6 @@ bitrange(int n, int count)
 	    ((u_daddr_t)-1 >> (BLIST_BMAP_RADIX - (n + count))));
 }
 
-
 /*
  * Find the first bit set in a u_daddr_t.
  */

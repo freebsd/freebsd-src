@@ -92,7 +92,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-
 /*
  * Constants for the hash table of sleep queue chains.
  * SC_TABLESIZE must be a power of two for SC_MASK to work properly.

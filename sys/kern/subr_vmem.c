@@ -201,7 +201,6 @@ static uma_zone_t vmem_zone;
 #define	VMEM_CONDVAR_WAIT(vm)		cv_wait(&vm->vm_cv, &vm->vm_lock)
 #define	VMEM_CONDVAR_BROADCAST(vm)	cv_broadcast(&vm->vm_cv)
 
-
 #define	VMEM_LOCK(vm)		mtx_lock(&vm->vm_lock)
 #define	VMEM_TRYLOCK(vm)	mtx_trylock(&vm->vm_lock)
 #define	VMEM_UNLOCK(vm)		mtx_unlock(&vm->vm_lock)

@@ -133,7 +133,6 @@ setup_time_filter_small(struct time_filter_small *tf, int fil_type, uint32_t tim
 	return(0);
 }
 
-
 static void
 check_update_times(struct time_filter *tf, uint64_t value, uint32_t now)
 {
@@ -203,8 +202,6 @@ check_update_times_small(struct time_filter_small *tf, uint32_t value, uint32_t 
 		tf->entries[i].time_up = now;
 	}
 }
-
-
 
 void
 filter_reduce_by(struct time_filter *tf, uint64_t reduce_by, uint32_t now)
@@ -294,7 +291,6 @@ forward_filter_clock(struct time_filter *tf, uint32_t ticks_forward)
 	}
 }
 
-
 void
 forward_filter_clock_small(struct time_filter_small *tf, uint32_t ticks_forward)
 {
@@ -308,7 +304,6 @@ forward_filter_clock_small(struct time_filter_small *tf, uint32_t ticks_forward)
 		tf->entries[i].time_up += ticks_forward;
 	}
 }
-
 
 void
 tick_filter_clock(struct time_filter *tf, uint32_t now)
@@ -452,7 +447,6 @@ apply_filter_max(struct time_filter *tf, uint64_t value, uint32_t now)
 	check_update_times(tf, value, now);
 	return (tf->entries[0].value);
 }
-
 
 uint32_t
 apply_filter_max_small(struct time_filter_small *tf,

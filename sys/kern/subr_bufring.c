@@ -29,14 +29,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/ktr.h>
 #include <sys/buf_ring.h>
-
 
 struct buf_ring *
 buf_ring_alloc(int count, struct malloc_type *type, int flags, struct mtx *lock)

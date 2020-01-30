@@ -828,7 +828,6 @@ static void
 sched_priority(struct thread *td, u_char prio)
 {
 
-
 	KTR_POINT3(KTR_SCHED, "thread", sched_tdname(td), "priority change",
 	    "prio:%d", td->td_priority, "new prio:%d", prio, KTR_ATTR_LINKED,
 	    sched_tdname(curthread));
@@ -1297,7 +1296,6 @@ sched_add(struct thread *td, int flags)
 	    KTR_ATTR_LINKED, sched_tdname(td));
 	SDT_PROBE4(sched, , , enqueue, td, td->td_proc, NULL, 
 	    flags & SRQ_PREEMPTED);
-
 
 	/*
 	 * Now that the thread is moving to the run-queue, set the lock

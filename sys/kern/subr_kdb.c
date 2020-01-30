@@ -258,7 +258,6 @@ kdb_sysctl_stack_overflow(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-
 void
 kdb_panic(const char *msg)
 {

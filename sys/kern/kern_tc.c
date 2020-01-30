@@ -1540,7 +1540,6 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
     0, 0, sysctl_kern_timecounter_hardware, "A",
     "Timecounter hardware selected");
 
-
 /* Report the available timecounter hardware. */
 static int
 sysctl_kern_timecounter_choice(SYSCTL_HANDLER_ARGS)
