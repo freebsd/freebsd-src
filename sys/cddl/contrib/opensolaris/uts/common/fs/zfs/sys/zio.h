@@ -227,12 +227,11 @@ enum zio_wait_type {
 };
 
 /*
- * We'll take the number 122 and 123 to indicate checksum errors and
- * fragmentation. Those doesn't collide with any errno values as they
- * are greater than ELAST.
+ * These are bespoke errnos used in ZFS. We map them to their closest FreeBSD
+ * equivalents. This gives us more useful error messages from strerror(3).
  */
-#define	ECKSUM	122
-#define	EFRAGS	123
+#define	ECKSUM	EINTEGRITY
+#define	EFRAGS	ENOSPC
 
 typedef void zio_done_func_t(zio_t *zio);
 
