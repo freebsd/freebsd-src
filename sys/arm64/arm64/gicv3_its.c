@@ -685,7 +685,8 @@ its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
 		target = vtophys(rman_get_virtual(&rpcpu->res));
 	} else {
 		/* This ITS wants the unique processor number */
-		target = GICR_TYPER_CPUNUM(gic_r_read_8(gicv3, GICR_TYPER));
+		target = GICR_TYPER_CPUNUM(gic_r_read_8(gicv3, GICR_TYPER)) <<
+		    CMD_TARGET_SHIFT;
 	}
 
 	sc->sc_its_cols[cpuid]->col_target = target;
