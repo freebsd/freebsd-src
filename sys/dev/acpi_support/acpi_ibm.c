@@ -75,6 +75,7 @@ ACPI_MODULE_NAME("IBM")
 #define ACPI_IBM_METHOD_THERMAL		13
 #define ACPI_IBM_METHOD_HANDLEREVENTS	14
 #define ACPI_IBM_METHOD_MIC_LED		15
+#define ACPI_IBM_METHOD_PRIVACYGUARD	16
 
 /* Hotkeys/Buttons */
 #define IBM_RTC_HOTKEY1			0x64
@@ -123,6 +124,8 @@ ACPI_MODULE_NAME("IBM")
 #define   IBM_NAME_MASK_WLAN		(1 << 2)
 #define IBM_NAME_THERMAL_GET		"TMP7"
 #define IBM_NAME_THERMAL_UPDT		"UPDT"
+#define IBM_NAME_PRIVACYGUARD_GET	"GSSS"
+#define IBM_NAME_PRIVACYGUARD_SET	"SSSS"
 
 #define IBM_NAME_EVENTS_STATUS_GET	"DHKC"
 #define IBM_NAME_EVENTS_MASK_GET	"DHKN"
@@ -145,6 +148,10 @@ ACPI_MODULE_NAME("IBM")
 #define IBM_EVENT_VOLUME_DOWN		0x16
 #define IBM_EVENT_MUTE			0x17
 #define IBM_EVENT_ACCESS_IBM_BUTTON	0x18
+
+/* Device-specific register flags */
+#define IBM_FLAG_PRIVACYGUARD_DEVICE_PRESENT	0x10000
+#define IBM_FLAG_PRIVACYGUARD_ON	0x1
 
 #define ABS(x) (((x) < 0)? -(x) : (x))
 
@@ -268,6 +275,11 @@ static struct {
 		.method		= ACPI_IBM_METHOD_MIC_LED,
 		.description	= "Mic led",
 	},
+	{
+	 .name		= "privacyguard",
+	 .method	= ACPI_IBM_METHOD_PRIVACYGUARD,
+	 .description	= "PrivacyGuard enable",
+	},
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -327,6 +339,11 @@ static int	acpi_ibm_bluetooth_set(struct acpi_ibm_softc *sc, int arg);
 static int	acpi_ibm_thinklight_set(struct acpi_ibm_softc *sc, int arg);
 static int	acpi_ibm_volume_set(struct acpi_ibm_softc *sc, int arg);
 static int	acpi_ibm_mute_set(struct acpi_ibm_softc *sc, int arg);
+static int	acpi_ibm_privacyguard_get(struct acpi_ibm_softc *sc);
+static ACPI_STATUS	acpi_ibm_privacyguard_set(struct acpi_ibm_softc *sc, int arg);
+static ACPI_STATUS	acpi_ibm_privacyguard_acpi_call(struct acpi_ibm_softc *sc, bool write, int *arg);
+
+static int	acpi_status_to_errno(ACPI_STATUS status);
 
 static device_method_t acpi_ibm_methods[] = {
 	/* Device interface */
@@ -350,6 +367,19 @@ DRIVER_MODULE(acpi_ibm, acpi, acpi_ibm_driver, acpi_ibm_devclass,
 	      0, 0);
 MODULE_DEPEND(acpi_ibm, acpi, 1, 1, 1);
 static char    *ibm_ids[] = {"IBM0068", "LEN0068", "LEN0268", NULL};
+
+static int
+acpi_status_to_errno(ACPI_STATUS status)
+{
+	switch (status) {
+	case AE_OK:
+		return (0);
+	case AE_BAD_PARAMETER:
+		return (EINVAL);
+	default:
+		return (ENODEV);
+	}
+}
 
 static void
 ibm_led(void *softc, int onoff)
@@ -821,6 +851,11 @@ acpi_ibm_sysctl_get(struct acpi_ibm_softc *sc, int method)
 		else
 			val = -1;
 		break;
+
+	case ACPI_IBM_METHOD_PRIVACYGUARD:
+		val = acpi_ibm_privacyguard_get(sc);
+		break;
+
 	}
 
 	return (val);
@@ -875,6 +910,10 @@ acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 
 	case ACPI_IBM_METHOD_BLUETOOTH:
 		return acpi_ibm_bluetooth_set(sc, arg);
+		break;
+
+	case ACPI_IBM_METHOD_PRIVACYGUARD:
+		return (acpi_status_to_errno(acpi_ibm_privacyguard_set(sc, arg)));
 		break;
 
 	case ACPI_IBM_METHOD_FANLEVEL:
@@ -1008,6 +1047,10 @@ acpi_ibm_sysctl_init(struct acpi_ibm_softc *sc, int method)
 
 	case ACPI_IBM_METHOD_HANDLEREVENTS:
 		return (TRUE);
+
+	case ACPI_IBM_METHOD_PRIVACYGUARD:
+		return (acpi_ibm_privacyguard_get(sc) != -1);
+
 	}
 	return (FALSE);
 }
@@ -1223,6 +1266,60 @@ acpi_ibm_thinklight_set(struct acpi_ibm_softc *sc, int arg)
 	}
 
 	return (0);
+}
+
+/*
+ * Helper function to make a get or set ACPI call to the PrivacyGuard handle.
+ * Only meant to be used internally by the get/set functions below.
+ */
+static ACPI_STATUS
+acpi_ibm_privacyguard_acpi_call(struct acpi_ibm_softc *sc, bool write, int *arg) {
+	ACPI_OBJECT		Arg;
+	ACPI_OBJECT_LIST	Args;
+	ACPI_STATUS		status;
+	ACPI_OBJECT		out_obj;
+	ACPI_BUFFER		result;
+
+	Arg.Type = ACPI_TYPE_INTEGER;
+	Arg.Integer.Value = (write ? *arg : 0);
+	Args.Count = 1;
+	Args.Pointer = &Arg;
+	result.Length = sizeof(out_obj);
+	result.Pointer = &out_obj;
+
+	status = AcpiEvaluateObject(sc->handle,
+	    (write ? IBM_NAME_PRIVACYGUARD_SET : IBM_NAME_PRIVACYGUARD_GET),
+	    &Args, &result);
+	if (ACPI_SUCCESS(status) && !write)
+		*arg = out_obj.Integer.Value;
+
+	return (status);
+}
+
+/*
+ * Returns -1 if the device is not present.
+ */
+static int
+acpi_ibm_privacyguard_get(struct acpi_ibm_softc *sc)
+{
+	ACPI_STATUS status;
+	int val;
+
+	status = acpi_ibm_privacyguard_acpi_call(sc, false, &val);
+	if (ACPI_SUCCESS(status) &&
+	    (val & IBM_FLAG_PRIVACYGUARD_DEVICE_PRESENT))
+		return (val & IBM_FLAG_PRIVACYGUARD_ON);
+
+	return (-1);
+}
+
+static ACPI_STATUS
+acpi_ibm_privacyguard_set(struct acpi_ibm_softc *sc, int arg)
+{
+	if (arg < 0 || arg > 1)
+		return (AE_BAD_PARAMETER);
+
+	return (acpi_ibm_privacyguard_acpi_call(sc, true, &arg));
 }
 
 static int
