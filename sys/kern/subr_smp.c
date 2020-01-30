@@ -550,7 +550,7 @@ smp_rendezvous_cpus(cpuset_t map,
 {
 	int curcpumap, i, ncpus = 0;
 
-	/* Look comments in the !SMP case. */
+	/* See comments in the !SMP case. */
 	if (!smp_started) {
 		spinlock_enter();
 		if (setup_func != NULL)
@@ -565,7 +565,7 @@ smp_rendezvous_cpus(cpuset_t map,
 
 	/*
 	 * Make sure we come here with interrupts enabled.  Otherwise we
-	 * livelock if smp_ipi_mtx is owned by a thread which sent as an IPI.
+	 * livelock if smp_ipi_mtx is owned by a thread which sent us an IPI.
 	 */
 	MPASS(curthread->td_md.md_spinlock_count == 0);
 
