@@ -4858,6 +4858,11 @@ zfs_freebsd_access(ap)
 	accmode_t accmode;
 	int error = 0;
 
+	if (ap->a_accmode == VEXEC) {
+		if (zfs_freebsd_fastaccesschk_execute(ap->a_vp, ap->a_cred) == 0)
+			return (0);
+	}
+
 	/*
 	 * ZFS itself only knowns about VREAD, VWRITE, VEXEC and VAPPEND,
 	 */
