@@ -708,6 +708,7 @@ APR_DECLARE(int) apr_vformatter(int (*flush_func)(apr_vformatter_buff_t *),
 
     char num_buf[NUM_BUF_SIZE];
     char char_buf[2];                /* for printing %% and %<unknown> */
+    char buf[5];                     /* for printing %B, %F, and %S */
 
     enum var_type_enum {
             IS_QUAD, IS_LONG, IS_SHORT, IS_INT
@@ -1246,7 +1247,6 @@ APR_DECLARE(int) apr_vformatter(int (*flush_func)(apr_vformatter_buff_t *),
                 case 'F':
                 case 'S':
                 {
-                    char buf[5];
                     apr_off_t size = 0;
 
                     if (*fmt == 'B') {
