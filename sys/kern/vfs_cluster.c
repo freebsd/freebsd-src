@@ -802,7 +802,6 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
 	vp->v_lasta = bp->b_blkno;
 }
 
-
 /*
  * This is an awful lot like cluster_rbuild...wish they could be combined.
  * The last lbn argument is the current block on which I/O is being

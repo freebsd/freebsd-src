@@ -609,7 +609,6 @@ imgact_binmisc_exec(struct image_params *imgp)
 		fname = sbuf_data(sname);
 	}
 
-
 	/*
 	 * We need to "push" the interpreter in the arg[] list.  To do this,
 	 * we first shift all the other values in the `begin_argv' area to
@@ -706,7 +705,6 @@ imgact_binmisc_exec(struct image_params *imgp)
 
 	if (!error)
 		imgp->interpreter_name = imgp->args->begin_argv;
-
 
 done:
 	if (sname)

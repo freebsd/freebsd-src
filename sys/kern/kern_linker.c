@@ -133,7 +133,6 @@ retry:									\
 	(a) = next_file_id;						\
 } while(0)
 
-
 /* XXX wrong name; we're looking at version provision tags here, not modules */
 typedef TAILQ_HEAD(, modlist) modlisthead_t;
 struct modlist {

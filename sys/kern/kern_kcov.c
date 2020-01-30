@@ -321,7 +321,6 @@ kcov_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	struct kcov_info *info;
 	int error;
 
-
 	if ((error = devfs_get_cdevpriv((void **)&info)) != 0)
 		return (error);
 

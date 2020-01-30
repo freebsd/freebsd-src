@@ -1262,7 +1262,6 @@ void intr_free_intr_map_data(struct intr_map_data *data)
 	free(data, M_INTRNG);
 }
 
-
 /*
  *  Register a MSI/MSI-X interrupt controller
  */
@@ -1376,7 +1375,6 @@ intr_alloc_msix(device_t pci, device_t child, intptr_t xref, int *irq)
 	    ("%s: Found a non-MSI controller: %s", __func__,
 	     device_get_name(pic->pic_dev)));
 
-
 	err = MSI_ALLOC_MSIX(pic->pic_dev, child, &pdev, &isrc);
 	if (err != 0)
 		return (err);
@@ -1444,7 +1442,6 @@ intr_map_msi(device_t pci, device_t child, intptr_t xref, int irq,
 	err = MSI_MAP_MSI(pic->pic_dev, child, isrc, addr, data);
 	return (err);
 }
-
 
 void dosoftints(void);
 void
@@ -1594,7 +1591,6 @@ intr_map_copy_map_data(u_int res_id, device_t *map_dev, intptr_t *map_xref,
 	*map_xref = irq_map[res_id]->xref;
 	mtx_unlock(&irq_map_lock);
 }
-
 
 /*
  * Allocate and fill new entry in irq_map table.

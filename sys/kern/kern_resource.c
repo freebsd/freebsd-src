@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-
 static MALLOC_DEFINE(M_PLIMIT, "plimit", "plimit structures");
 static MALLOC_DEFINE(M_UIDINFO, "uidinfo", "uidinfo structures");
 #define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])

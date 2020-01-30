@@ -518,7 +518,6 @@ sysctl_build_id(SYSCTL_HANDLER_ARGS)
 		return (ENOENT);
 	}
 
-
 	hashlen = sectionlen - BUILD_ID_HEADER_LEN;
 	for (int i = 0; i < hashlen; i++) {
 		uint8_t c = __build_id_start[i+BUILD_ID_HEADER_LEN];

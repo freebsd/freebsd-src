@@ -1293,7 +1293,6 @@ vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
 	return (0);
 }
 
-
 /*
  * File table truncate routine.
  */
@@ -1855,7 +1854,6 @@ vn_finished_write(struct mount *mp)
 	MNT_IUNLOCK(mp);
 }
 
-
 /*
  * Filesystem secondary write operation has completed. If we are
  * suspending and this operation is the last one, notify the suspender
@@ -1876,8 +1874,6 @@ vn_finished_secondary_write(struct mount *mp)
 		wakeup(&mp->mnt_secondary_writes);
 	MNT_IUNLOCK(mp);
 }
-
-
 
 /*
  * Request a filesystem to suspend write operations.

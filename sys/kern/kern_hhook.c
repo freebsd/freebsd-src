@@ -508,7 +508,6 @@ hhook_vnet_uninit(const void *unused __unused)
 	HHHLIST_UNLOCK();
 }
 
-
 /*
  * When a vnet is created and being initialised, init the V_hhook_vhead_list.
  */

@@ -120,7 +120,6 @@ static void alq_shutdown(struct alq *);
 static void alq_destroy(struct alq *);
 static int alq_doio(struct alq *);
 
-
 /*
  * Add a new queue to the global list.  Fail if we're shutting down.
  */
@@ -422,7 +421,6 @@ static struct kproc_desc ald_kp = {
 SYSINIT(aldthread, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &ald_kp);
 SYSINIT(ald, SI_SUB_LOCK, SI_ORDER_ANY, ald_startup, NULL);
 
-
 /* User visible queue functions */
 
 /*
@@ -501,7 +499,6 @@ alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
 
 	return (ret);
 }
-
 
 /*
  * Copy a new entry into the queue.  If the operation would block either

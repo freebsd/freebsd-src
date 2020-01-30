@@ -230,7 +230,6 @@ kproc_suspend_check(struct proc *p)
 	PROC_UNLOCK(p);
 }
 
-
 /*
  * Start a kernel thread.  
  *
