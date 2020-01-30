@@ -23,12 +23,6 @@ scripts: {
 	chmod 1777 ${PKG_ROOTDIR}/tmp
 EOD
 }
-deps: {
-    "FreeBSD-clibs": {
-        origin: "base"
-        version: "%VERSION%"
-    }
-}
 directories {
     /dev = "y";
     /tmp = "y";
