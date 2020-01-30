@@ -360,7 +360,7 @@ sysctl_maxvnodes(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern, KERN_MAXVNODES, maxvnodes,
     CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_maxvnodes,
-    "UL", "Target for maximum number of vnodes");
+    "LU", "Target for maximum number of vnodes");
 
 static int
 sysctl_wantfreevnodes(SYSCTL_HANDLER_ARGS)
@@ -384,7 +384,7 @@ sysctl_wantfreevnodes(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_vfs, OID_AUTO, wantfreevnodes,
     CTLTYPE_ULONG | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_wantfreevnodes,
-    "UL", "Target for minimum number of \"free\" vnodes");
+    "LU", "Target for minimum number of \"free\" vnodes");
 
 SYSCTL_ULONG(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &wantfreevnodes, 0, "Old name for vfs.wantfreevnodes (legacy)");
