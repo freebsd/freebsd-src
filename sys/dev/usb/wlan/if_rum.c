@@ -1168,6 +1168,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame_min *wh;
 	struct ieee80211_node *ni;
+	struct epoch_tracker et;
 	struct mbuf *m = NULL;
 	struct usb_page_cache *pc;
 	uint32_t flags;
@@ -1286,6 +1287,7 @@ tr_setup:
 			else
 				ni = NULL;
 
+			NET_EPOCH_ENTER(et);
 			if (ni != NULL) {
 				(void) ieee80211_input(ni, m, rssi,
 				    RT2573_NOISE_FLOOR);
@@ -1293,6 +1295,7 @@ tr_setup:
 			} else
 				(void) ieee80211_input_all(ic, m, rssi,
 				    RT2573_NOISE_FLOOR);
+			NET_EPOCH_EXIT(et);
 		}
 		RUM_LOCK(sc);
 		rum_start(sc);
