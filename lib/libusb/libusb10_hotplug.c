@@ -123,8 +123,10 @@ libusb_hotplug_scan(void *arg)
 		TAILQ_INIT(&hotplug_devs);
 
 		if (ctx->hotplug_handler != NO_THREAD) {
-			if (libusb_hotplug_enumerate(ctx, &hotplug_devs) < 0)
+			if (libusb_hotplug_enumerate(ctx, &hotplug_devs) < 0) {
+				HOTPLUG_UNLOCK(ctx);
 				continue;
+			}
 		} else {
 			do_loop = 0;
 		}
