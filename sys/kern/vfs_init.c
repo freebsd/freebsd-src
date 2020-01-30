@@ -523,7 +523,6 @@ vfs_register(struct vfsconf *vfc)
 	return (0);
 }
 
-
 /* Remove registration of a filesystem type */
 static int
 vfs_unregister(struct vfsconf *vfc)

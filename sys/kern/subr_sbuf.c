@@ -302,7 +302,6 @@ void
 sbuf_set_flags(struct sbuf *s, int flags)
 {
 
-
 	s->s_flags |= (flags & SBUF_USRFLAGMSK);
 }
 

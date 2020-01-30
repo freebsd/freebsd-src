@@ -4199,7 +4199,6 @@ getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 	return (0);
 }
 
-
 /*
  * Get an (NFS) file handle.
  */

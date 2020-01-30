@@ -803,7 +803,6 @@ smp_topo_2level(int l2share, int l2count, int l1share, int l1count,
 	return (top);
 }
 
-
 struct cpu_group *
 smp_topo_find(struct cpu_group *top, int cpu)
 {
@@ -1005,7 +1004,6 @@ sysctl_kern_smp_active(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, &active, sizeof(active));
 	return (error);
 }
-
 
 #ifdef SMP
 void

@@ -87,7 +87,6 @@ typedef struct {
 	int		sec;
 } Elf_relaent;
 
-
 typedef struct elf_file {
 	struct linker_file lf;		/* Common fields */
 
@@ -1269,7 +1268,6 @@ relocate_file(elf_file_t ef)
 	int i;
 	Elf_Size symidx;
 	Elf_Addr base;
-
 
 	/* Perform relocations without addend if there are any: */
 	for (i = 0; i < ef->nreltab; i++) {

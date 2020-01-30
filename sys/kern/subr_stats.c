@@ -1733,7 +1733,6 @@ stats_voistatdata_tdgst_tostr(enum vsd_dtype voi_dtype __unused,
 		    sizeof(qstr));
 		sbuf_cat(buf, qstr);
 
-
 		switch (fmt) {
 		case SB_STRFMT_FREEFORM:
 			fmtstr = is32bit ? ",cnt=%u}" : ",cnt=%ju}";

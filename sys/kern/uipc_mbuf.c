@@ -2113,7 +2113,6 @@ mbprof_clr_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-
 SYSCTL_PROC(_kern_ipc, OID_AUTO, mbufprofile, CTLTYPE_STRING|CTLFLAG_RD,
 	    NULL, 0, mbprof_handler, "A", "mbuf profiling statistics");
 
