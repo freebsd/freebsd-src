@@ -563,6 +563,12 @@ smp_rendezvous_cpus(cpuset_t map,
 		return;
 	}
 
+	/*
+	 * Make sure we come here with interrupts enabled.  Otherwise we
+	 * livelock if smp_ipi_mtx is owned by a thread which sent as an IPI.
+	 */
+	MPASS(curthread->td_md.md_spinlock_count == 0);
+
 	CPU_FOREACH(i) {
 		if (CPU_ISSET(i, &map))
 			ncpus++;
