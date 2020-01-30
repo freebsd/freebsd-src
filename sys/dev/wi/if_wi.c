@@ -1254,6 +1254,7 @@ wi_sync_bssid(struct wi_softc *sc, u_int8_t new_bssid[IEEE80211_ADDR_LEN])
 static __noinline void
 wi_rx_intr(struct wi_softc *sc)
 {
+	struct epoch_tracker et;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct wi_frame frmhdr;
 	struct mbuf *m;
@@ -1349,11 +1350,14 @@ wi_rx_intr(struct wi_softc *sc)
 	WI_UNLOCK(sc);
 
 	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
+
+	NET_EPOCH_ENTER(et);
 	if (ni != NULL) {
 		(void) ieee80211_input(ni, m, rssi, nf);
 		ieee80211_free_node(ni);
 	} else
 		(void) ieee80211_input_all(ic, m, rssi, nf);
+	NET_EPOCH_EXIT(et);
 
 	WI_LOCK(sc);
 }

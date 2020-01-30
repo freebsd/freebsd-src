@@ -5072,6 +5072,7 @@ bwn_intr(void *arg)
 static void
 bwn_intrtask(void *arg, int npending)
 {
+	struct epoch_tracker et;
 	struct bwn_mac *mac = arg;
 	struct bwn_softc *sc = mac->mac_sc;
 	uint32_t merged = 0;
@@ -5132,6 +5133,7 @@ bwn_intrtask(void *arg, int npending)
 	if (mac->mac_reason_intr & BWN_INTR_NOISESAMPLE_OK)
 		bwn_intr_noise(mac);
 
+	NET_EPOCH_ENTER(et);
 	if (mac->mac_flags & BWN_MAC_FLAG_DMA) {
 		if (mac->mac_reason[0] & BWN_DMAINTR_RX_DONE) {
 			bwn_dma_rx(mac->mac_method.dma.rx);
@@ -5139,6 +5141,7 @@ bwn_intrtask(void *arg, int npending)
 		}
 	} else
 		rx = bwn_pio_rx(&mac->mac_method.pio.rx);
+	NET_EPOCH_EXIT(et);
 
 	KASSERT(!(mac->mac_reason[1] & BWN_DMAINTR_RX_DONE), ("%s", __func__));
 	KASSERT(!(mac->mac_reason[2] & BWN_DMAINTR_RX_DONE), ("%s", __func__));

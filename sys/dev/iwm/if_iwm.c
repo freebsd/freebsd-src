@@ -3465,6 +3465,7 @@ static bool
 iwm_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
     bool stolen)
 {
+  	struct epoch_tracker et;
 	struct ieee80211com *ic;
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
@@ -3484,6 +3485,8 @@ iwm_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 
 	IWM_UNLOCK(sc);
+
+	NET_EPOCH_ENTER(et);
 	if (ni != NULL) {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV, "input m %p\n", m);
 		ieee80211_input_mimo(ni, m);
@@ -3492,6 +3495,8 @@ iwm_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV, "inputall m %p\n", m);
 		ieee80211_input_mimo_all(ic, m);
 	}
+	NET_EPOCH_EXIT(et);
+
 	IWM_LOCK(sc);
 
 	return true;
