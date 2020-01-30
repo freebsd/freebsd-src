@@ -32,11 +32,12 @@
 .\"     @(#)fflush.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2017
+.Dd January 23, 2020
 .Dt FFLUSH 3
 .Os
 .Sh NAME
 .Nm fflush ,
+.Nm fflush_unlocked ,
 .Nm fpurge
 .Nd flush a stream
 .Sh LIBRARY
@@ -45,6 +46,8 @@
 .In stdio.h
 .Ft int
 .Fn fflush "FILE *stream"
+.Ft int
+.Fn fflush_unlocked "FILE *stream"
 .Ft int
 .Fn fpurge "FILE *stream"
 .Sh DESCRIPTION
@@ -63,6 +66,16 @@ argument is
 flushes
 .Em all
 open output streams.
+.Pp
+The
+.Fn fflush_unlocked
+function is equivalent to
+.Fn fflush ,
+except that the caller is responsible for locking the stream with
+.Xr flockfile 3
+before calling it.
+This function may be used to avoid the overhead of locking the stream and to
+prevent races when multiple threads are operating on the same stream.
 .Pp
 The function
 .Fn fpurge

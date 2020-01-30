@@ -172,6 +172,10 @@ FBSD_1.5 {
 };
 
 FBSD_1.6 {
+	fflush_unlocked;
+	fputs_unlocked;
+	fread_unlocked;
+	fwrite_unlocked;
 	mkostempsat;
 };
 
