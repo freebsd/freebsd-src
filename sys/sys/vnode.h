@@ -463,7 +463,6 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 #define	VDESC_VP1_WILLRELE	0x0002
 #define	VDESC_VP2_WILLRELE	0x0004
 #define	VDESC_VP3_WILLRELE	0x0008
-#define	VDESC_NOMAP_VPP		0x0100
 #define	VDESC_VPP_WILLRELE	0x0200
 
 /*
