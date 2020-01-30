@@ -189,9 +189,10 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 	vfs_ref(mp);
 	vput(nd.ni_vp);
 	error = vfs_busy(mp, 0);
-	vfs_rel(mp);
-	if (error != 0)
+	if (error != 0) {
+		vfs_rel(mp);
 		return (error);
+	}
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg);
 
 	/*
@@ -208,6 +209,7 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 	if ((uap->cmd >> SUBCMDSHIFT) != Q_QUOTAON &&
 	    (uap->cmd >> SUBCMDSHIFT) != Q_QUOTAOFF)
 		vfs_unbusy(mp);
+	vfs_rel(mp);
 	return (error);
 }
 
