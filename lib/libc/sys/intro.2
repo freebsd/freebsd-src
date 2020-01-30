@@ -472,6 +472,20 @@ The system call or operation is not permitted for capability mode processes.
 The state protected by a robust mutex is not recoverable.
 .It Er 96 EOWNERDEAD Em "Previous owner died" .
 The owner of a robust mutex terminated while holding the mutex lock.
+.It Er 97 EINTEGRITY Em "Integrity check failed" .
+An integrity check such as a check-hash or a cross-correlation failed.
+The integrity error falls between
+.Er EINVAL
+that identifies errors in parameters to a system call and
+.Er EIO
+that identifies errors with the underlying storage media.
+It is typically raised by intermediate kernel layers such as a
+filesystem or an in-kernel GEOM subsystem when they detect inconsistencies.
+Uses include allowing the
+.Xr mount 8
+command to return a different exit value to automate the running of
+.Xr fsck 8
+during a system boot.
 .El
 .Sh DEFINITIONS
 .Bl -tag -width Ds

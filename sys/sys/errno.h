@@ -180,10 +180,11 @@ __END_DECLS
 #define	ECAPMODE	94		/* Not permitted in capability mode */
 #define	ENOTRECOVERABLE	95		/* State not recoverable */
 #define	EOWNERDEAD	96		/* Previous owner died */
+#define	EINTEGRITY	97		/* Integrity check failed */
 #endif /* _POSIX_SOURCE */
 
 #ifndef _POSIX_SOURCE
-#define	ELAST		96		/* Must be equal largest errno */
+#define	ELAST		97		/* Must be equal largest errno */
 #endif /* _POSIX_SOURCE */
 
 #if defined(_KERNEL) || defined(_WANT_KERNEL_ERRNO)

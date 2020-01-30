@@ -457,3 +457,7 @@ msgstr "Atestay otnay ecoverableray"
 # 96 - EOWNERDEAD
 msgid "Previous owner died"
 msgstr "Eviouspray ownerway iedday"
+
+# 97 - EINTEGRITY
+msgid "Integrity check failed"
+msgstr "integrityyay eckchay ailedfay"

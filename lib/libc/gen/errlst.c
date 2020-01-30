@@ -158,12 +158,12 @@ const char *const sys_errlist[] = {
 	"Not permitted in capability mode",	/* 94 - ECAPMODE */
 	"State not recoverable",		/* 95 - ENOTRECOVERABLE */
 	"Previous owner died",			/* 96 - EOWNERDEAD */
+	"Integrity check failed",		/* 97 - EINTEGRITY */
 
 /*
  * Reserved space in sys_errlist, take the next slot for a next error code.
  * Reserve prevents the array size from changing for some time.
  */
-	__uprefix,				/* 97 */
 	__uprefix,				/* 98 */
 	__uprefix,				/* 99 */
 	__uprefix,				/* 100 */
