@@ -45,7 +45,7 @@ ENTRY(memcmp)
 	movq	(%rdi),%r8
 	movq	(%rsi),%r9
 	cmpq	%r8,%r9
-	jne	1f
+	jne	80f
 	movq	-8(%rdi,%rdx),%r8
 	movq	-8(%rsi,%rdx),%r9
 	cmpq	%r8,%r9
@@ -54,34 +54,33 @@ ENTRY(memcmp)
 100408:
 	cmpb	$4,%dl
 	jl	100204f
-	movl	(%rsi),%r8d
-	movl	(%rdi),%r9d
+	movl	(%rdi),%r8d
+	movl	(%rsi),%r9d
 	cmpl	%r8d,%r9d
-	jne	1f
-	movl	-4(%rsi,%rdx),%r8d
-	movl	-4(%rdi,%rdx),%r9d
+	jne	80f
+	movl	-4(%rdi,%rdx),%r8d
+	movl	-4(%rsi,%rdx),%r9d
 	cmpl	%r8d,%r9d
-	jne	1f
+	jne	10040804f
 	ret
 100204:
 	cmpb	$2,%dl
 	jl	100001f
-	movzwl	(%rsi),%r8d
-	movzwl	(%rdi),%r9d
+	movzwl	(%rdi),%r8d
+	movzwl	(%rsi),%r9d
 	cmpl	%r8d,%r9d
 	jne	1f
-	movzwl	-2(%rsi,%rdx),%r8d
-	movzwl	-2(%rdi,%rdx),%r9d
+	movzwl	-2(%rdi,%rdx),%r8d
+	movzwl	-2(%rsi,%rdx),%r9d
 	cmpl	%r8d,%r9d
 	jne	1f
 	ret
 100001:
 	cmpb	$1,%dl
 	jl	100000f
-	movzbl	(%rdi),%r8d
-	movzbl	(%rsi),%r9d
-	cmpb	%r8b,%r9b
-	jne	1f
+	movzbl	(%rdi),%eax
+	movzbl	(%rsi),%r8d
+	subl	%r8d,%eax
 100000:
 	ret
 ALIGN_TEXT
@@ -91,11 +90,11 @@ ALIGN_TEXT
 	movq	(%rdi),%r8
 	movq	(%rsi),%r9
 	cmpq	%r8,%r9
-	jne	1f
+	jne	80f
 	movq	8(%rdi),%r8
 	movq	8(%rsi),%r9
 	cmpq	%r8,%r9
-	jne	 10163208f
+	jne	10163208f
 	movq	-16(%rdi,%rdx),%r8
 	movq	-16(%rsi,%rdx),%r9
 	cmpq	%r8,%r9
@@ -111,14 +110,14 @@ ALIGN_TEXT
 	movq	8(%rdi),%r9
 	subq	(%rsi),%r8
 	subq	8(%rsi),%r9
-	or	%r8,%r9
+	orq	%r8,%r9
 	jnz	10320000f
 
 	movq    16(%rdi),%r8
 	movq    24(%rdi),%r9
 	subq    16(%rsi),%r8
 	subq    24(%rsi),%r9
-	or      %r8,%r9
+	orq	%r8,%r9
 	jnz     10320016f
 
 	leaq	32(%rdi),%rdi
@@ -130,40 +129,57 @@ ALIGN_TEXT
 	jne	10b
 	ret
 
+/*
+ * Mismatch was found.
+ *
+ * Before we compute it we narrow down the range (16 -> 8 -> 4 bytes).
+ */
+ALIGN_TEXT
 10320016:
 	leaq	16(%rdi),%rdi
 	leaq	16(%rsi),%rsi
 10320000:
-/*
- * Mismatch was found within a 16 bytes range. The part of the routine
- * which calculates it only operates on sizes up to 8 bytes. Find the
- * right part.
- */
 	movq	(%rdi),%r8
 	movq	(%rsi),%r9
 	cmpq	%r8,%r9
-	jne	1f
+	jne	80f
 	leaq	8(%rdi),%rdi
 	leaq	8(%rsi),%rsi
-	jmp	1f
+	jmp	80f
+ALIGN_TEXT
+10081608:
 10163224:
 	leaq	-8(%rdi,%rdx),%rdi
 	leaq	-8(%rsi,%rdx),%rsi
-	jmp	1f
+	jmp	80f
+ALIGN_TEXT
 10163216:
 	leaq	-16(%rdi,%rdx),%rdi
 	leaq	-16(%rsi,%rdx),%rsi
-	jmp	1f
+	jmp	80f
+ALIGN_TEXT
 10163208:
-10081608:
 	leaq	8(%rdi),%rdi
 	leaq	8(%rsi),%rsi
+	jmp	80f
+ALIGN_TEXT
+10040804:
+	leaq	-4(%rdi,%rdx),%rdi
+	leaq	-4(%rsi,%rdx),%rsi
 	jmp	1f
 
-/*
- * Mismatch was found. We have no more than 8 bytes to inspect.
- */
 ALIGN_TEXT
+80:
+	movl	(%rdi),%r8d
+	movl	(%rsi),%r9d
+	cmpl	%r8d,%r9d
+	jne	1f
+	leaq	4(%rdi),%rdi
+	leaq	4(%rsi),%rsi
+
+/*
+ * We have up to 4 bytes to inspect.
+ */
 1:
 	movzbl	(%rdi),%eax
 	movzbl	(%rsi),%r8d
@@ -182,31 +198,6 @@ ALIGN_TEXT
 
 	movzbl	3(%rdi),%eax
 	movzbl	3(%rsi),%r8d
-	cmpb	%r8b,%al
-	jne	2f
-
-	movzbl	4(%rdi),%eax
-	movzbl	4(%rsi),%r8d
-	cmpb	%r8b,%al
-	jne	2f
-
-	movzbl	5(%rdi),%eax
-	movzbl	5(%rsi),%r8d
-	cmpb	%r8b,%al
-	jne	2f
-
-	movzbl	6(%rdi),%eax
-	movzbl	6(%rsi),%r8d
-	cmpb	%r8b,%al
-	jne	2f
-
-	movzbl	7(%rdi),%eax
-	movzbl	7(%rsi),%r8d
-	cmpb	%r8b,%al
-	jne	2f
-
-	xorl	%eax,%eax
-	ret
 2:
 	subl	%r8d,%eax
 	ret
