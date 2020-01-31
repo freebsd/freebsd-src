@@ -32,6 +32,8 @@ MLINKS+=	lex.1 lex++.1
 
 WARNS?=		3
 
+NO_WMISLEADING_INDENTATION=
+
 CLEANFILES=	scan.c skel.c
 GENFILES=	parse.c parse.h scan.c skel.c
 
