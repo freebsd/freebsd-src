@@ -920,7 +920,6 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 static void
 swi_net(void *arg)
 {
-	struct epoch_tracker et;
 #ifdef NETISR_LOCKING
 	struct rm_priotracker tracker;
 #endif
@@ -932,9 +931,7 @@ swi_net(void *arg)
 #ifdef DEVICE_POLLING
 	KASSERT(nws_count == 1,
 	    ("%s: device_polling but nws_count != 1", __func__));
-	NET_EPOCH_ENTER(et);
 	netisr_poll();
-	NET_EPOCH_EXIT(et);
 #endif
 #ifdef NETISR_LOCKING
 	NETISR_RLOCK(&tracker);
@@ -943,7 +940,6 @@ swi_net(void *arg)
 	KASSERT(!(nwsp->nws_flags & NWS_RUNNING), ("swi_net: running"));
 	if (nwsp->nws_flags & NWS_DISPATCHING)
 		goto out;
-	NET_EPOCH_ENTER(et);
 	nwsp->nws_flags |= NWS_RUNNING;
 	nwsp->nws_flags &= ~NWS_SCHEDULED;
 	while ((bits = nwsp->nws_pendingbits) != 0) {
@@ -954,7 +950,6 @@ swi_net(void *arg)
 		}
 	}
 	nwsp->nws_flags &= ~NWS_RUNNING;
-	NET_EPOCH_EXIT(et);
 out:
 	NWS_UNLOCK(nwsp);
 #ifdef NETISR_LOCKING
