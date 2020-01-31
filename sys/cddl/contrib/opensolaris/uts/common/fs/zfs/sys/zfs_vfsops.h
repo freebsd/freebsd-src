@@ -33,6 +33,7 @@
 #include <sys/sa.h>
 #include <sys/rrwlock.h>
 #include <sys/zfs_ioctl.h>
+#include <sys/rmlock.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -65,7 +66,7 @@ struct zfsvfs {
 	boolean_t	z_atime;	/* enable atimes mount option */
 	boolean_t	z_unmounted;	/* unmounted */
 	rrmlock_t	z_teardown_lock;
-	krwlock_t	z_teardown_inactive_lock;
+	struct rmslock	z_teardown_inactive_lock;
 	list_t		z_all_znodes;	/* all vnodes in the fs */
 	kmutex_t	z_znodes_lock;	/* lock for z_all_znodes */
 	struct zfsctl_root	*z_ctldir;	/* .zfs directory pointer */
@@ -91,22 +92,22 @@ struct zfsvfs {
 };
 
 #define	ZFS_TRYRLOCK_TEARDOWN_INACTIVE(zfsvfs) \
-		rw_tryenter(&(zfsvfs)->z_teardown_inactive_lock, RW_READER)
+		rms_try_rlock(&(zfsvfs)->z_teardown_inactive_lock)
 
 #define	ZFS_RLOCK_TEARDOWN_INACTIVE(zfsvfs) \
-		rw_enter(&(zfsvfs)->z_teardown_inactive_lock, RW_READER)
+		rms_rlock(&(zfsvfs)->z_teardown_inactive_lock)
 
 #define	ZFS_RUNLOCK_TEARDOWN_INACTIVE(zfsvfs) \
-		rw_exit(&(zfsvfs)->z_teardown_inactive_lock)
+		rms_runlock(&(zfsvfs)->z_teardown_inactive_lock)
 
 #define	ZFS_WLOCK_TEARDOWN_INACTIVE(zfsvfs) \
-		rw_enter(&(zfsvfs)->z_teardown_inactive_lock, RW_WRITER)
+		rms_wlock(&(zfsvfs)->z_teardown_inactive_lock)
 
 #define	ZFS_WUNLOCK_TEARDOWN_INACTIVE(zfsvfs) \
-		rw_exit(&(zfsvfs)->z_teardown_inactive_lock)
+		rms_wunlock(&(zfsvfs)->z_teardown_inactive_lock)
 
 #define	ZFS_WLOCK_TEARDOWN_INACTIVE_WLOCKED(zfsvfs) \
-		RW_WRITE_HELD(&(zfsvfs)->z_teardown_inactive_lock)
+		rms_wowned(&(zfsvfs)->z_teardown_inactive_lock)
 
 /*
  * Normal filesystems (those not under .zfs/snapshot) have a total
