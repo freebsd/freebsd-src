@@ -70,10 +70,17 @@ struct smr {
  * Return the current write sequence number.
  */
 static inline smr_seq_t
+smr_shared_current(smr_shared_t s)
+{
+
+	return (atomic_load_int(&s->s_wr_seq));
+}
+
+static inline smr_seq_t
 smr_current(smr_t smr)
 {
 
-	return (atomic_load_int(&smr->c_shared->s_wr_seq));
+	return (smr_shared_current(zpcpu_get(smr)->c_shared));
 }
 
 /*
@@ -106,7 +113,7 @@ smr_enter(smr_t smr)
 	 * is detected and handled there.
 	 */
 	/* This is an add because we do not have atomic_store_acq_int */
-	atomic_add_acq_int(&smr->c_seq, smr_current(smr));
+	atomic_add_acq_int(&smr->c_seq, smr_shared_current(smr->c_shared));
 }
 
 /*
