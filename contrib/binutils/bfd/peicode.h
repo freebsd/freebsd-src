@@ -1353,13 +1353,13 @@ pe_bfd_object_p (bfd * abfd)
 	      if (pe_arch (bfd_target_efi_arch (*target_ptr)) != arch)
 		continue;
 
-		if (efi)
-		  {
-		    /* TARGET_PTR is an EFI backend.  Don't match
-		       TARGET with a EFI file.  */
-		    bfd_set_error (bfd_error_wrong_format);
-		    return NULL;
-		  }
+	      if (efi)
+		{
+		  /* TARGET_PTR is an EFI backend.  Don't match
+		     TARGET with a EFI file.  */
+		  bfd_set_error (bfd_error_wrong_format);
+		  return NULL;
+		}
 	    }
 	  else if (bfd_target_pei_p (*target_ptr))
 	    {
@@ -1367,13 +1367,13 @@ pe_bfd_object_p (bfd * abfd)
 	      if (pe_arch (bfd_target_pei_arch (*target_ptr)) != arch)
 		continue;
 
-		if (!efi)
-		  {
-		    /* TARGET_PTR is a PE backend.  Don't match
-		       TARGET with a PE file.  */
-		    bfd_set_error (bfd_error_wrong_format);
-		    return NULL;
-		  }
+	      if (!efi)
+		{
+		  /* TARGET_PTR is a PE backend.  Don't match
+		     TARGET with a PE file.  */
+		  bfd_set_error (bfd_error_wrong_format);
+		  return NULL;
+		}
 	    }
 	}
     }
