@@ -92,7 +92,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-
 /*
  * Constants for the hash table of sleep queue chains.
  * SC_TABLESIZE must be a power of two for SC_MASK to work properly.
@@ -1246,7 +1245,7 @@ sleepq_sbuf_print_stacks(struct sbuf *sb, const void *wchan, int queue,
 				goto loop_end;
 
 			/* Note the td_lock is equal to the sleepq_lock here. */
-			stack_save_td(st[stack_idx], td);
+			(void)stack_save_td(st[stack_idx], td);
 
 			sbuf_printf(td_infos[stack_idx], "%d: %s %p",
 			    td->td_tid, td->td_name, td);

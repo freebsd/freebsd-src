@@ -38,8 +38,6 @@ struct mlx5_core_cq {
 	int			cqe_sz;
 	__be32		       *set_ci_db;
 	__be32		       *arm_db;
-	atomic_t		refcount;
-	struct completion	free;
 	unsigned		vector;
 	int			irqn;
 	void (*comp)		(struct mlx5_core_cq *);

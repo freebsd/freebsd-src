@@ -3591,7 +3591,6 @@ resource_list_release_active(struct resource_list *rl, device_t bus,
 	return (retval);
 }
 
-
 /**
  * @brief Fully release a reserved resource
  *
@@ -3906,7 +3905,6 @@ bus_generic_resume(device_t dev)
 	}
 	return (0);
 }
-
 
 /**
  * @brief Helper function for implementing BUS_RESET_POST

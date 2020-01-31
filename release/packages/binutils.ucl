@@ -15,10 +15,4 @@ licenses = [ GPLv2 ]
 desc = <<EOD
 %DESC%
 EOD
-deps: {
-    FreeBSD-%PKGDEPS%: {
-        origin: "base",
-        version: "%VERSION%"
-    }
-}
 

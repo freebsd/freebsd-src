@@ -135,7 +135,6 @@ res_find(char **hintp_cookie, int *line, int *startln,
 	char *hintp, *p;
 	bool dyn_used = false;
 
-
 	/*
 	 * We are expecting that the caller will pass us a hintp_cookie that
 	 * they are tracking.  Upon entry, if *hintp_cookie is *not* set, this
@@ -448,7 +447,6 @@ resource_find_match(int *anchor, const char **name, int *unit,
 	*anchor = newln;
 	return ret;
 }
-
 
 /*
  * err = resource_find_dev(&anchor, name, &unit, res, value);

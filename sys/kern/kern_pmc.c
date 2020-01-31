@@ -183,7 +183,6 @@ pmc_cpu_is_primary(int cpu)
 #endif
 }
 
-
 /*
  * Return the maximum CPU number supported by the system.  The return
  * value is used for scaling internal data structures and for runtime

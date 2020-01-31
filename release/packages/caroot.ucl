@@ -15,12 +15,6 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 %DESC%
 EOD
-deps: {
-    FreeBSD-%PKGDEPS%: {
-        origin: "base",
-        version: "%VERSION%"
-    }
-}
 scripts: {
 	# XXX If pkg picks up a mechanism to detect in the post-install script
 	# files being added or removed, we should use it instead to gate the

@@ -886,7 +886,6 @@ lf_free_edge(struct lockf_edge *e)
 	free(e, M_LOCKF);
 }
 
-
 /*
  * Ensure that the lock's owner has a corresponding vertex in the
  * owner graph.

@@ -310,9 +310,7 @@ null_bypass(struct vop_generic_args *ap)
 	 * (Assumes that the lower layer always returns
 	 * a VREF'ed vpp unless it gets an error.)
 	 */
-	if (descp->vdesc_vpp_offset != VDESC_NO_OFFSET &&
-	    !(descp->vdesc_flags & VDESC_NOMAP_VPP) &&
-	    !error) {
+	if (descp->vdesc_vpp_offset != VDESC_NO_OFFSET && !error) {
 		/*
 		 * XXX - even though some ops have vpp returned vp's,
 		 * several ops actually vrele this before returning.

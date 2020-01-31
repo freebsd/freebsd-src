@@ -135,7 +135,6 @@ static const struct {
 	{ NOV + 3 * YEAR + 1, ENC(3, 12) }
 };
 
-
 void
 timespec2fattime(const struct timespec *tsp, int utc, uint16_t *ddp,
     uint16_t *dtp, uint8_t *dhp)

@@ -436,7 +436,6 @@ kern_jail(struct thread *td, struct jail *j)
 	return (error);
 }
 
-
 /*
  * struct jail_set_args {
  *	struct iovec *iovp;
@@ -1896,7 +1895,6 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	return (error);
 }
 
-
 /*
  * struct jail_get_args {
  *	struct iovec *iovp;
@@ -2208,7 +2206,6 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	return (error);
 }
 
-
 /*
  * struct jail_remove_args {
  *	int jid;
@@ -2307,7 +2304,6 @@ prison_remove_one(struct prison *pr)
 	/* Remove the temporary reference added by jail_remove. */
 	prison_deref(pr, deuref | PD_DEREF);
 }
-
 
 /*
  * struct jail_attach_args {
@@ -2424,7 +2420,6 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	prison_deref(pr, PD_DEREF | PD_DEUREF);
 	return (error);
 }
-
 
 /*
  * Returns a locked prison instance, or NULL on failure.
@@ -3426,7 +3421,6 @@ prison_path(struct prison *pr1, struct prison *pr2)
 		return (path2 + len1);
 	return (path2);
 }
-
 
 /*
  * Jail-related sysctls.

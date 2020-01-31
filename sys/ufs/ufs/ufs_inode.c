@@ -77,6 +77,8 @@ ufs_need_inactive(ap)
 	ip = VTOI(vp);
 	if (UFS_RDONLY(ip))
 		return (0);
+	if (vn_need_pageq_flush(vp))
+		return (1);
 	if (ip->i_mode == 0 ||  ip->i_nlink <= 0 ||
 	    (ip->i_effnlink == 0 && DOINGSOFTDEP(vp)) ||
 	    (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |

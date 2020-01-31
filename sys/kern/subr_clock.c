@@ -84,7 +84,6 @@ SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock, CTLFLAG_RW,
  * Derived from NetBSD arch/hp300/hp300/clock.c
  */
 
-
 #define	FEBRUARY	2
 #define	days_in_year(y) 	(leapyear(y) ? 366 : 365)
 #define	days_in_month(y, m) \

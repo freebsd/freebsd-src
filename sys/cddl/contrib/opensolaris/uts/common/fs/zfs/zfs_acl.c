@@ -2299,6 +2299,40 @@ zfs_zaccess_append(znode_t *zp, uint32_t *working_mode, boolean_t *check_privs,
 	    check_privs, B_FALSE, cr));
 }
 
+/*
+ * Check if VEXEC is allowed.
+ *
+ * This routine is based on zfs_fastaccesschk_execute which has slowpath
+ * calling zfs_zaccess. This would be incorrect on FreeBSD (see
+ * zfs_freebsd_access for the difference). Thus this variant let's the
+ * caller handle the slowpath (if necessary).
+ *
+ * We only check for ZFS_NO_EXECS_DENIED and fail early. This routine can
+ * be extended to cover more cases, but the flag covers the majority.
+ */
+int
+zfs_freebsd_fastaccesschk_execute(struct vnode *vp, cred_t *cr)
+{
+	boolean_t is_attr;
+	znode_t *zdp = VTOZ(vp);
+
+	ASSERT_VOP_LOCKED(vp, __func__);
+
+	if (zdp->z_pflags & ZFS_AV_QUARANTINED)
+		return (1);
+
+	is_attr = ((zdp->z_pflags & ZFS_XATTR) &&
+	    (ZTOV(zdp)->v_type == VDIR));
+	if (is_attr)
+		return (1);
+
+	if (zdp->z_pflags & ZFS_NO_EXECS_DENIED)
+		return (0);
+
+	return (1);
+}
+
+#ifdef illumos
 int
 zfs_fastaccesschk_execute(znode_t *zdp, cred_t *cr)
 {
@@ -2365,6 +2399,7 @@ slow:
 	ZFS_EXIT(zdp->z_zfsvfs);
 	return (error);
 }
+#endif
 
 /*
  * Determine whether Access should be granted/denied.

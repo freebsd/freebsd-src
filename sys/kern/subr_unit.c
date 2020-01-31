@@ -143,7 +143,6 @@ _Malloc(size_t foo, int line)
 
 struct unrhdr;
 
-
 struct mtx {
 	int	state;
 } unitmtx;
@@ -225,7 +224,6 @@ ub_full(struct unrb *ub, int len)
 	return (first_clear == -1);
 }
 
-
 #if defined(DIAGNOSTIC) || !defined(_KERNEL)
 /*
  * Consistency check function.
@@ -275,7 +273,6 @@ check_unrhdr(struct unrhdr *uh __unused, int line __unused)
 }
 
 #endif
-
 
 /*
  * Userland memory management.  Just use calloc and keep track of how
@@ -1044,7 +1041,6 @@ main(int argc, char **argv)
 			usage(argv);
 			exit(2);
 		}
-
 
 	}
 

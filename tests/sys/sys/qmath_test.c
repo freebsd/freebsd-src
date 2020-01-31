@@ -47,7 +47,25 @@
 #define	QTEST_QITRUNC(q, iv) ((iv) >> Q_RPSHFT(q))
 #define	QTEST_FFACTOR 32.0
 
-#define	GENRAND(a)	arc4random_buf((a), sizeof(*(a)))
+#define	bitsperrand 31
+#define	GENRAND(a, lb, ub)						\
+({									\
+	int _rembits;							\
+	do {								\
+		_rembits = Q_BITSPERBASEUP(ub) + Q_LTZ(lb);		\
+		*(a) = (__typeof(*(a)))0;				\
+		while (_rembits > 0) {					\
+			*(a) |= (((uint64_t)random()) &			\
+			    ((1ULL << (_rembits > bitsperrand ?		\
+			    bitsperrand : _rembits)) - 1));		\
+			*(a) <<= (_rembits - (_rembits > bitsperrand ?	\
+			    bitsperrand : _rembits));			\
+			_rembits -= bitsperrand;			\
+		}							\
+		*(a) += lb;						\
+	} while (*(a) < (lb) || (uint64_t)*(a) > (ub));			\
+	*(a);								\
+})
 
 /*
  * Smoke tests for basic qmath operations, such as initialization
@@ -195,9 +213,11 @@ ATF_TC_BODY(qmulq_s64q, tc)
 #endif
 	int error;
 
+	srandomdev();
+
 	for (int i = 0; i < 10;) {
-		GENRAND(&a_s64q);
-		GENRAND(&b_s64q);
+		GENRAND(&a_s64q, INT64_MIN, UINT64_MAX);
+		GENRAND(&b_s64q, INT64_MIN, UINT64_MAX);
 
 		/*
 		 * XXX: We cheat a bit, to stand any chance of multiplying
@@ -258,9 +278,12 @@ ATF_TC_BODY(qdivq_s64q, tc)
 	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
 		atf_tc_skip("https://bugs.freebsd.org/240219");
 
+
+	srandomdev();
+
 	for (int i = 0; i < 10; i++) {
-		GENRAND(&a_s64q);
-		GENRAND(&b_s64q);
+		GENRAND(&a_s64q, INT64_MIN, UINT64_MAX);
+		GENRAND(&b_s64q, INT64_MIN, UINT64_MAX);
 		/*
 		 * XXXLAS: Until Qmath handles precision normalisation, only
 		 * test with equal precision.
@@ -301,9 +324,11 @@ ATF_TC_BODY(qaddq_s64q, tc)
 	double a_dbl, b_dbl, r_dbl, maxe_dbl, delta_dbl;
 	int error;
 
+	srandomdev();
+
 	for (int i = 0; i < 10;) {
-		GENRAND(&a_s64q);
-		GENRAND(&b_s64q);
+		GENRAND(&a_s64q, INT64_MIN, UINT64_MAX);
+		GENRAND(&b_s64q, INT64_MIN, UINT64_MAX);
 		/*
 		 * XXXLAS: Until Qmath handles precision normalisation, only
 		 * test with equal precision.
@@ -347,9 +372,11 @@ ATF_TC_BODY(qsubq_s64q, tc)
 	double a_dbl, b_dbl, r_dbl, maxe_dbl, delta_dbl;
 	int error;
 
+	srandomdev();
+
 	for (int i = 0; i < 10; i++) {
-		GENRAND(&a_s64q);
-		GENRAND(&b_s64q);
+		GENRAND(&a_s64q, INT64_MIN, UINT64_MAX);
+		GENRAND(&b_s64q, INT64_MIN, UINT64_MAX);
 		/*
 		 * XXXLAS: Until Qmath handles precision normalisation, only
 		 * test with equal precision.
@@ -391,9 +418,11 @@ ATF_TC_BODY(qfraci_s64q, tc)
 	int64_t a_int, b_int;
 	int error;
 
+	srandomdev();
+
 	for (int i = 0; i < 10;) {
-		GENRAND(&a_s64q);
-		GENRAND(&b_s64q);
+		GENRAND(&a_s64q, INT64_MIN, UINT64_MAX);
+		GENRAND(&b_s64q, INT64_MIN, UINT64_MAX);
 		/*
 		 * XXXLAS: Until Qmath handles precision normalisation, only
 		 * test with equal precision.
@@ -436,9 +465,11 @@ ATF_TC_BODY(qmuli_s64q, tc)
 	int64_t a_int, b_int;
 	int error;
 
+	srandomdev();
+
 	for (int i = 0; i < 10;) {
-		GENRAND(&a_s64q);
-		GENRAND(&b_s64q);
+		GENRAND(&a_s64q, INT64_MIN, UINT64_MAX);
+		GENRAND(&b_s64q, INT64_MIN, UINT64_MAX);
 		/*
 		 * XXXLAS: Until Qmath handles precision normalisation, only
 		 * test with equal precision.
@@ -481,9 +512,11 @@ ATF_TC_BODY(qaddi_s64q, tc)
 	int64_t a_int, b_int;
 	int error;
 
+	srandomdev();
+
 	for (int i = 0; i < 10;) {
-		GENRAND(&a_s64q);
-		GENRAND(&b_s64q);
+		GENRAND(&a_s64q, INT64_MIN, UINT64_MAX);
+		GENRAND(&b_s64q, INT64_MIN, UINT64_MAX);
 		/*
 		 * XXXLAS: Until Qmath handles precision normalisation, only
 		 * test with equal precision.
@@ -530,9 +563,11 @@ ATF_TC_BODY(qsubi_s64q, tc)
 	int64_t a_int, b_int;
 	int error;
 
+	srandomdev();
+
 	for (int i = 0; i < 10; i++) {
-		GENRAND(&a_s64q);
-		GENRAND(&b_s64q);
+		GENRAND(&a_s64q, INT64_MIN, UINT64_MAX);
+		GENRAND(&b_s64q, INT64_MIN, UINT64_MAX);
 		/*
 		 * XXXLAS: Until Qmath handles precision normalisation, only
 		 * test with equal precision.

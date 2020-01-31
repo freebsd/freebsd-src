@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2017
+.Dd January 31, 2020
 .Dt STACK 9
 .Os
 .Sh NAME
@@ -65,10 +65,8 @@ In the kernel configuration file:
 .Fn stack_sbuf_print_ddb "struct sbuf sb*" "const struct stack *st"
 .Ft void
 .Fn stack_save "struct stack *st"
-.Ft void
-.Fn stack_save_td "struct stack *st" "struct thread *td"
 .Ft int
-.Fn stack_save_td_running "struct stack *st" "struct thread *td"
+.Fn stack_save_td "struct stack *st" "struct thread *td"
 .Sh DESCRIPTION
 The
 .Nm
@@ -93,18 +91,17 @@ argument is passed to
 Memory associated with a trace is freed by calling
 .Fn stack_destroy .
 .Pp
-A trace of the current kernel thread's call stack may be captured using
+A trace of the current thread's kernel call stack may be captured using
 .Fn stack_save .
 .Fn stack_save_td
-and
-.Fn stack_save_td_running
-can also be used to capture the stack of a caller-specified thread.
-Callers of these functions must own the thread lock of the specified thread.
+can be used to capture the kernel stack of a caller-specified thread.
+Callers of these functions must own the thread lock of the specified thread,
+and the thread's stack must not be swapped out.
 .Fn stack_save_td
-can capture the stack of a kernel thread that is not running or
-swapped out at the time of the call.
-.Fn stack_save_td_running
-can capture the stack of a running kernel thread.
+can capture the kernel stack of a running thread, though note that this is
+not implemented on all platforms.
+If the thread is running, the caller must also hold the process lock for the
+target thread.
 .Pp
 .Fn stack_print
 and
@@ -157,11 +154,11 @@ Otherwise the
 does not contain space to record additional frames, and a non-zero value is
 returned.
 .Pp
-.Fn stack_save_td_running
+.Fn stack_save_td
 returns 0 when the stack capture was successful and a non-zero error number
 otherwise.
 In particular,
-.Er EAGAIN
+.Er EBUSY
 is returned if the thread was running in user mode at the time that the
 capture was attempted, and
 .Er EOPNOTSUPP

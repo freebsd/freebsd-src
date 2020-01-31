@@ -1583,9 +1583,7 @@ stats_v1_blob_iter(struct statsblobv1 *sb, stats_v1_blob_itercb_t icb,
 	int i, j, firstvoi;
 
 	ctx.usrctx = usrctx;
-	ctx.flags |= SB_IT_FIRST_CB;
-	ctx.flags &= ~(SB_IT_FIRST_VOI | SB_IT_LAST_VOI | SB_IT_FIRST_VOISTAT |
-	    SB_IT_LAST_VOISTAT);
+	ctx.flags = SB_IT_FIRST_CB;
 	firstvoi = 1;
 
 	for (i = 0; i < NVOIS(sb); i++) {
@@ -1734,7 +1732,6 @@ stats_voistatdata_tdgst_tostr(enum vsd_dtype voi_dtype __unused,
 		Q_TOSTR((is32bit ? ctd32->mu : ctd64->mu), -1, 10, qstr,
 		    sizeof(qstr));
 		sbuf_cat(buf, qstr);
-
 
 		switch (fmt) {
 		case SB_STRFMT_FREEFORM:

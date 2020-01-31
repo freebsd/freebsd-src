@@ -247,7 +247,6 @@ static uint32_t idlepoll_sleeping; /* idlepoll is sleeping */
 SYSCTL_UINT(_kern_polling, OID_AUTO, idlepoll_sleeping, CTLFLAG_RD,
 	&idlepoll_sleeping, 0, "idlepoll is sleeping");
 
-
 #define POLL_LIST_LEN  128
 struct pollrec {
 	poll_handler_t	*handler;
@@ -272,7 +271,6 @@ init_device_poll(void)
 	    SHUTDOWN_PRI_LAST);
 }
 SYSINIT(device_poll, SI_SUB_SOFTINTR, SI_ORDER_MIDDLE, init_device_poll, NULL);
-
 
 /*
  * Hook from hardclock. Tries to schedule a netisr, but keeps track
