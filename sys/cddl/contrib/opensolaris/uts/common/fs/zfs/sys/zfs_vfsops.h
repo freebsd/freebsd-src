@@ -90,6 +90,24 @@ struct zfsvfs {
 #endif
 };
 
+#define	ZFS_TRYRLOCK_TEARDOWN_INACTIVE(zfsvfs) \
+		rw_tryenter(&(zfsvfs)->z_teardown_inactive_lock, RW_READER)
+
+#define	ZFS_RLOCK_TEARDOWN_INACTIVE(zfsvfs) \
+		rw_enter(&(zfsvfs)->z_teardown_inactive_lock, RW_READER)
+
+#define	ZFS_RUNLOCK_TEARDOWN_INACTIVE(zfsvfs) \
+		rw_exit(&(zfsvfs)->z_teardown_inactive_lock)
+
+#define	ZFS_WLOCK_TEARDOWN_INACTIVE(zfsvfs) \
+		rw_enter(&(zfsvfs)->z_teardown_inactive_lock, RW_WRITER)
+
+#define	ZFS_WUNLOCK_TEARDOWN_INACTIVE(zfsvfs) \
+		rw_exit(&(zfsvfs)->z_teardown_inactive_lock)
+
+#define	ZFS_WLOCK_TEARDOWN_INACTIVE_WLOCKED(zfsvfs) \
+		RW_WRITE_HELD(&(zfsvfs)->z_teardown_inactive_lock)
+
 /*
  * Normal filesystems (those not under .zfs/snapshot) have a total
  * file ID size limited to 12 bytes (including the length field) due to
