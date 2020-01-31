@@ -136,9 +136,21 @@ struct rm_args {
 void	rms_init(struct rmslock *rms, const char *name);
 void	rms_destroy(struct rmslock *rms);
 void	rms_rlock(struct rmslock *rms);
+int	rms_try_rlock(struct rmslock *rms);
 void	rms_runlock(struct rmslock *rms);
 void	rms_wlock(struct rmslock *rms);
 void	rms_wunlock(struct rmslock *rms);
+
+/*
+ * Writers are not explicitly tracked, thus until that changes the best we can
+ * do is indicate the lock is taken for writing by *someone*.
+ */
+static inline int
+rms_wowned(struct rmslock *rms)
+{
+
+	return (rms->writers > 0);
+}
 
 #endif /* _KERNEL */
 #endif /* !_SYS_RMLOCK_H_ */

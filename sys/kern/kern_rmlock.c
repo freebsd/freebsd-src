@@ -934,6 +934,30 @@ rms_rlock(struct rmslock *rms)
 	critical_exit();
 }
 
+int
+rms_try_rlock(struct rmslock *rms)
+{
+	int *influx;
+
+	critical_enter();
+	influx = zpcpu_get(rms->readers_influx);
+	__compiler_membar();
+	*influx = 1;
+	__compiler_membar();
+	if (__predict_false(rms->writers > 0)) {
+		__compiler_membar();
+		*influx = 0;
+		critical_exit();
+		return (0);
+	}
+	__compiler_membar();
+	(*zpcpu_get(rms->readers_pcpu))++;
+	__compiler_membar();
+	*influx = 0;
+	critical_exit();
+	return (1);
+}
+
 static void __noinline
 rms_runlock_fallback(struct rmslock *rms)
 {
