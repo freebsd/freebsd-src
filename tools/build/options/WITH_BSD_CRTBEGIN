@@ -1,5 +1,0 @@
-.\" $FreeBSD$
-Enable the BSD licensed
-.Pa crtbegin.o
-and
-.Pa crtend.o .
