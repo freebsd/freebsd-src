@@ -10,10 +10,6 @@ SUBDIR+=		libgomp
 .endif
 SUBDIR.${MK_TESTS}+=	tests
 
-.if ${MK_BSD_CRTBEGIN} == "no"
-SUBDIR+=		csu
-.endif
-
 .if ${MK_GNU_GREP} != "no" || ${MK_GNU_GREP_COMPAT} != "no" || \
     ${MK_GDB} != "no"
 SUBDIR+=		libregex
