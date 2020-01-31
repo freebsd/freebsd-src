@@ -184,6 +184,7 @@
     "\30VTOSLAB"			\
     "\27HASH"				\
     "\26OFFPAGE"			\
+    "\23SMR"				\
     "\22ROUNDROBIN"			\
     "\21FIRSTTOUCH"			\
     "\20PCPU"				\
@@ -245,9 +246,10 @@ struct uma_hash {
  */
 struct uma_bucket {
 	TAILQ_ENTRY(uma_bucket)	ub_link;	/* Link into the zone */
-	int16_t	ub_cnt;				/* Count of items in bucket. */
-	int16_t	ub_entries;			/* Max items. */
-	void	*ub_bucket[];			/* actual allocation storage */
+	int16_t		ub_cnt;			/* Count of items in bucket. */
+	int16_t		ub_entries;		/* Max items. */
+	smr_seq_t	ub_seq;			/* SMR sequence number. */
+	void		*ub_bucket[];		/* actual allocation storage */
 };
 
 typedef struct uma_bucket * uma_bucket_t;
@@ -484,7 +486,7 @@ struct uma_zone {
 	uint32_t	uz_size;	/* Size inherited from kegs */
 	uma_ctor	uz_ctor;	/* Constructor for each allocation */
 	uma_dtor	uz_dtor;	/* Destructor */
-	uint64_t	uz_spare0;
+	smr_t		uz_smr;		/* Safe memory reclaim context. */
 	uint64_t	uz_max_items;	/* Maximum number of items to alloc */
 	uint32_t	uz_sleepers;	/* Threads sleeping on limit */
 	uint16_t	uz_bucket_size;	/* Number of items in full bucket */
