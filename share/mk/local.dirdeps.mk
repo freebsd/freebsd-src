@@ -38,7 +38,6 @@ DIRDEPS_FILTER.host = \
 	Nlib/csu* \
 	Nlib/libc \
 	Nlib/[mn]* \
-	Ngnu/lib/csu* \
 	Ngnu/lib/lib[a-r]* \
 	Nsecure/lib* \
 	Nusr.bin/xinstall* \
@@ -219,11 +218,6 @@ DIRDEPS+= ${_lib${_lib}reldir}
 .if ${DEP_RELDIR} != "targets/pseudo/stage"
 DIRDEPS += targets/pseudo/stage
 .endif
-.endif
-
-# this one is too pervasive
-.if ${MK_BSD_CRTBEGIN} == "no" && ${DEP_RELDIR:N.:Ngnu/lib/csu:Ninclude*:Ntargets/*} != ""
-DIRDEPS+= gnu/lib/csu
 .endif
 
 DEP_MACHINE_ARCH = ${MACHINE_ARCH.${DEP_MACHINE}}

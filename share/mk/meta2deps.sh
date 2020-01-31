@@ -49,7 +49,6 @@
 #	The output, is a set of absolute paths with "SB" like:
 #.nf
 #
-#	$SB/obj-i386/bsd/gnu/lib/csu
 #	$SB/obj-i386/bsd/gnu/lib/libgcc
 #	$SB/obj-i386/bsd/include
 #	$SB/obj-i386/bsd/lib/csu/i386
