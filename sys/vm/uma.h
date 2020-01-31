@@ -40,6 +40,7 @@
 
 #include <sys/param.h>		/* For NULL */
 #include <sys/malloc.h>		/* For M_* */
+#include <sys/_smr.h>
 
 /* User visible parameters */
 #define	UMA_SMALLEST_UNIT	8 /* Smallest item allocated */
@@ -259,16 +260,27 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 					 * mini-dumps.
 					 */
 #define	UMA_ZONE_PCPU		0x8000	/*
-					 * Allocates mp_maxid + 1 slabs of PAGE_SIZE
+					 * Allocates mp_maxid + 1 slabs of
+					 * PAGE_SIZE
 					 */
 #define	UMA_ZONE_FIRSTTOUCH	0x10000	/* First touch NUMA policy */
 #define	UMA_ZONE_ROUNDROBIN	0x20000	/* Round-robin NUMA policy. */
+#define	UMA_ZONE_SMR		0x40000 /*
+					 * Safe memory reclamation defers
+					 * frees until all read sections
+					 * have exited.  This flag creates
+					 * a unique SMR context for this
+					 * zone.  To share contexts see
+					 * uma_zone_set_smr() below.
+					 *
+					 * See sys/smr.h for more details.
+					 */
 /* In use by UMA_ZFLAGs:	0xffe00000 */
 
 /*
- * These flags are shared between the keg and zone.  In zones wishing to add
- * new kegs these flags must be compatible.  Some are determined based on
- * physical parameters of the request and may not be provided by the consumer.
+ * These flags are shared between the keg and zone.  Some are determined
+ * based on physical parameters of the request and may not be provided by
+ * the consumer.
  */
 #define	UMA_ZONE_INHERIT						\
     (UMA_ZONE_NOTOUCH | UMA_ZONE_MALLOC | UMA_ZONE_NOFREE |		\
@@ -310,7 +322,12 @@ void uma_zdestroy(uma_zone_t zone);
  */
 
 void *uma_zalloc_arg(uma_zone_t zone, void *arg, int flags);
+
+/* Allocate per-cpu data.  Access the correct data with zpcpu_get(). */
 void *uma_zalloc_pcpu_arg(uma_zone_t zone, void *arg, int flags);
+
+/* Use with SMR zones. */
+void *uma_zalloc_smr(uma_zone_t zone, int flags);
 
 /*
  * Allocate an item from a specific NUMA domain.  This uses a slow path in
@@ -359,7 +376,12 @@ uma_zalloc_pcpu(uma_zone_t zone, int flags)
  */
 
 void uma_zfree_arg(uma_zone_t zone, void *item, void *arg);
+
+/* Use with PCPU zones. */
 void uma_zfree_pcpu_arg(uma_zone_t zone, void *item, void *arg);
+
+/* Use with SMR zones. */
+void uma_zfree_smr(uma_zone_t zone, void *item);
 
 /*
  * Frees an item back to the specified zone's domain specific pool.
@@ -599,6 +621,17 @@ void uma_zone_set_allocf(uma_zone_t zone, uma_alloc allocf);
  */
 
 void uma_zone_set_freef(uma_zone_t zone, uma_free freef);
+
+/*
+ * Associate a zone with a smr context that is allocated after creation
+ * so that multiple zones may share the same context.
+ */
+void uma_zone_set_smr(uma_zone_t zone, smr_t smr);
+
+/*
+ * Fetch the smr context that was set or made in uma_zcreate().
+ */
+smr_t uma_zone_get_smr(uma_zone_t zone);
 
 /*
  * These flags are setable in the allocf and visible in the freef.
