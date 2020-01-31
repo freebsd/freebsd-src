@@ -779,7 +779,6 @@ bufspace_wait(struct bufdomain *bd, struct vnode *vp, int gbflags,
 	BD_UNLOCK(bd);
 }
 
-
 /*
  *	bufspace_daemon:
  *
@@ -941,7 +940,6 @@ waitrunningbufspace(void)
 	}
 	mtx_unlock(&rbreqlock);
 }
-
 
 /*
  *	vfs_buf_test_cache:

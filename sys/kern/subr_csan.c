@@ -493,7 +493,6 @@ kcsan_copyout(const void *kaddr, void *uaddr, size_t len)
 		atomic_subtract_##name(ptr, val); 			\
 	}
 
-
 #define	CSAN_ATOMIC_FUNC_SUBTRACT(name, type)				\
 	_CSAN_ATOMIC_FUNC_SUBTRACT(name, type)				\
 	_CSAN_ATOMIC_FUNC_SUBTRACT(acq_##name, type)			\
@@ -534,7 +533,6 @@ kcsan_copyout(const void *kaddr, void *uaddr, size_t len)
 		    __RET_ADDR);					\
 		return (atomic_testandset_##name(ptr, val)); 		\
 	}
-
 
 CSAN_ATOMIC_FUNC_ADD(8, uint8_t)
 CSAN_ATOMIC_FUNC_CLEAR(8, uint8_t)
@@ -659,7 +657,6 @@ CSAN_ATOMIC_FUNC_TESTANDSET(ptr, uintptr_t)
 	{								\
 		atomic_thread_fence_##name();				\
 	}
-
 
 CSAN_ATOMIC_FUNC_THREAD_FENCE(acq)
 CSAN_ATOMIC_FUNC_THREAD_FENCE(acq_rel)

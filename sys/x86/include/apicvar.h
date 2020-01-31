@@ -123,20 +123,20 @@
 #define	IPI_AST		0 	/* Generate software trap. */
 #define IPI_PREEMPT     1
 #define IPI_HARDCLOCK   2
-#define IPI_BITMAP_LAST IPI_HARDCLOCK
+#define	IPI_TRACE	3	/* Collect stack trace. */
+#define	IPI_BITMAP_LAST IPI_TRACE
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
 #define	IPI_SUSPEND	(APIC_IPI_INTS + 7)	/* Suspend CPU until restarted. */
 #define	IPI_DYN_FIRST	(APIC_IPI_INTS + 8)
-#define	IPI_DYN_LAST	(253)			/* IPIs allocated at runtime */
+#define	IPI_DYN_LAST	(254)			/* IPIs allocated at runtime */
 
 /*
  * IPI_STOP_HARD does not need to occupy a slot in the IPI vector space since
  * it is delivered using an NMI anyways.
  */
-#define	IPI_NMI_FIRST	254
-#define	IPI_TRACE	254			/* Interrupt for tracing. */
+#define	IPI_NMI_FIRST	255
 #define	IPI_STOP_HARD	255			/* Stop CPU with a NMI. */
 
 /*

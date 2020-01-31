@@ -69,9 +69,7 @@ ASSYM(PCB_RA, offsetof(struct pcb, pcb_ra));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_GP, offsetof(struct pcb, pcb_gp));
 ASSYM(PCB_TP, offsetof(struct pcb, pcb_tp));
-ASSYM(PCB_T, offsetof(struct pcb, pcb_t));
 ASSYM(PCB_S, offsetof(struct pcb, pcb_s));
-ASSYM(PCB_A, offsetof(struct pcb, pcb_a));
 ASSYM(PCB_X, offsetof(struct pcb, pcb_x));
 ASSYM(PCB_FCSR, offsetof(struct pcb, pcb_fcsr));
 

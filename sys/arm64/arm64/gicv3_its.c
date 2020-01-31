@@ -224,6 +224,7 @@ struct its_col {
 struct gicv3_its_irqsrc {
 	struct intr_irqsrc	gi_isrc;
 	u_int			gi_irq;
+	u_int			gi_lpi;
 	struct its_dev		*gi_its_dev;
 };
 
@@ -241,7 +242,7 @@ struct gicv3_its_softc {
 	 * TODO: We should get these from the parent as we only want a
 	 * single copy of each across the interrupt controller.
 	 */
-	vm_offset_t sc_conf_base;
+	uint8_t		*sc_conf_base;
 	vm_offset_t sc_pend_base[MAXCPU];
 
 	/* Command handling */
@@ -262,6 +263,8 @@ struct gicv3_its_softc {
 #define	ITS_FLAGS_ERRATA_CAVIUM_22375	0x00000004
 	u_int sc_its_flags;
 };
+
+static void *conf_base;
 
 typedef void (its_quirk_func_t)(device_t);
 static its_quirk_func_t its_quirk_cavium_22375;
@@ -542,17 +545,29 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 static void
 gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 {
+	void *conf_table;
 
-	sc->sc_conf_base = (vm_offset_t)contigmalloc(LPI_CONFTAB_SIZE,
-	    M_GICV3_ITS, M_WAITOK, 0, LPI_CONFTAB_MAX_ADDR, LPI_CONFTAB_ALIGN,
-	    0);
+	conf_table = (void *)atomic_load_ptr((uintptr_t *)&conf_base);
+	if (conf_table == NULL) {
+		conf_table = contigmalloc(LPI_CONFTAB_SIZE,
+		    M_GICV3_ITS, M_WAITOK, 0, LPI_CONFTAB_MAX_ADDR,
+		    LPI_CONFTAB_ALIGN, 0);
+
+		if (atomic_cmpset_ptr((uintptr_t *)&conf_base,
+		    (uintptr_t)NULL, (uintptr_t)conf_table) == 0) {
+			contigfree(conf_table, LPI_CONFTAB_SIZE, M_GICV3_ITS);
+			conf_table =
+			    (void *)atomic_load_ptr((uintptr_t *)&conf_base);
+		}
+	}
+	sc->sc_conf_base = conf_table;
 
 	/* Set the default configuration */
-	memset((void *)sc->sc_conf_base, GIC_PRIORITY_MAX | LPI_CONF_GROUP1,
+	memset(sc->sc_conf_base, GIC_PRIORITY_MAX | LPI_CONF_GROUP1,
 	    LPI_CONFTAB_SIZE);
 
 	/* Flush the table to memory */
-	cpu_dcache_wb_range(sc->sc_conf_base, LPI_CONFTAB_SIZE);
+	cpu_dcache_wb_range((vm_offset_t)sc->sc_conf_base, LPI_CONFTAB_SIZE);
 }
 
 static void
@@ -685,7 +700,8 @@ its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
 		target = vtophys(rman_get_virtual(&rpcpu->res));
 	} else {
 		/* This ITS wants the unique processor number */
-		target = GICR_TYPER_CPUNUM(gic_r_read_8(gicv3, GICR_TYPER));
+		target = GICR_TYPER_CPUNUM(gic_r_read_8(gicv3, GICR_TYPER)) <<
+		    CMD_TARGET_SHIFT;
 	}
 
 	sc->sc_its_cols[cpuid]->col_target = target;
@@ -791,6 +807,7 @@ gicv3_its_attach(device_t dev)
 	name = device_get_nameunit(dev);
 	for (i = 0; i < sc->sc_irq_length; i++) {
 		sc->sc_irqs[i].gi_irq = i;
+		sc->sc_irqs[i].gi_lpi = i + sc->sc_irq_base - GIC_FIRST_LPI;
 		err = intr_isrc_register(&sc->sc_irqs[i].gi_isrc, dev, 0,
 		    "%s,%u", name, i);
 	}
@@ -823,13 +840,13 @@ gicv3_its_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
-	conf = (uint8_t *)sc->sc_conf_base;
+	conf = sc->sc_conf_base;
 
-	conf[girq->gi_irq] &= ~LPI_CONF_ENABLE;
+	conf[girq->gi_lpi] &= ~LPI_CONF_ENABLE;
 
 	if ((sc->sc_its_flags & ITS_FLAGS_LPI_CONF_FLUSH) != 0) {
 		/* Clean D-cache under command. */
-		cpu_dcache_wb_range((vm_offset_t)&conf[girq->gi_irq], 1);
+		cpu_dcache_wb_range((vm_offset_t)&conf[girq->gi_lpi], 1);
 	} else {
 		/* DSB inner shareable, store */
 		dsb(ishst);
@@ -847,13 +864,13 @@ gicv3_its_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
-	conf = (uint8_t *)sc->sc_conf_base;
+	conf = sc->sc_conf_base;
 
-	conf[girq->gi_irq] |= LPI_CONF_ENABLE;
+	conf[girq->gi_lpi] |= LPI_CONF_ENABLE;
 
 	if ((sc->sc_its_flags & ITS_FLAGS_LPI_CONF_FLUSH) != 0) {
 		/* Clean D-cache under command. */
-		cpu_dcache_wb_range((vm_offset_t)&conf[girq->gi_irq], 1);
+		cpu_dcache_wb_range((vm_offset_t)&conf[girq->gi_lpi], 1);
 	} else {
 		/* DSB inner shareable, store */
 		dsb(ishst);
@@ -911,21 +928,29 @@ gicv3_its_post_filter(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-gicv3_its_bind_intr(device_t dev, struct intr_irqsrc *isrc)
+gicv3_its_select_cpu(device_t dev, struct intr_irqsrc *isrc)
 {
-	struct gicv3_its_irqsrc *girq;
 	struct gicv3_its_softc *sc;
 
 	sc = device_get_softc(dev);
-	girq = (struct gicv3_its_irqsrc *)isrc;
 	if (CPU_EMPTY(&isrc->isrc_cpu)) {
 		sc->gic_irq_cpu = intr_irq_next_cpu(sc->gic_irq_cpu,
 		    &sc->sc_cpus);
 		CPU_SETOF(sc->gic_irq_cpu, &isrc->isrc_cpu);
 	}
 
-	its_cmd_movi(dev, girq);
+	return (0);
+}
 
+static int
+gicv3_its_bind_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct gicv3_its_irqsrc *girq;
+
+	gicv3_its_select_cpu(dev, isrc);
+
+	girq = (struct gicv3_its_irqsrc *)isrc;
+	its_cmd_movi(dev, girq);
 	return (0);
 }
 
@@ -1112,6 +1137,10 @@ gicv3_its_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 		girq = &sc->sc_irqs[irq];
 		girq->gi_its_dev = its_dev;
 		srcs[i] = (struct intr_irqsrc *)girq;
+
+		/* Map the message to the given IRQ */
+		gicv3_its_select_cpu(dev, (struct intr_irqsrc *)girq);
+		its_cmd_mapti(dev, girq);
 	}
 	its_dev->lpis.lpi_busy += count;
 	*pic = dev;
@@ -1172,6 +1201,10 @@ gicv3_its_alloc_msix(device_t dev, device_t child, device_t *pic,
 	girq = &sc->sc_irqs[irq];
 	girq->gi_its_dev = its_dev;
 
+	/* Map the message to the given IRQ */
+	gicv3_its_select_cpu(dev, (struct intr_irqsrc *)girq);
+	its_cmd_mapti(dev, girq);
+
 	*pic = dev;
 	*isrcp = (struct intr_irqsrc *)girq;
 
@@ -1211,9 +1244,6 @@ gicv3_its_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 
 	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
-
-	/* Map the message to the given IRQ */
-	its_cmd_mapti(dev, girq);
 
 	*addr = vtophys(rman_get_virtual(sc->sc_its_res)) + GITS_TRANSLATER;
 	*data = girq->gi_irq - girq->gi_its_dev->lpis.lpi_base;

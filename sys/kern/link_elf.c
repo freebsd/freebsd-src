@@ -1314,7 +1314,6 @@ elf_relocaddr(linker_file_t lf, Elf_Addr x)
 	return (x);
 }
 
-
 static void
 link_elf_unload_file(linker_file_t file)
 {

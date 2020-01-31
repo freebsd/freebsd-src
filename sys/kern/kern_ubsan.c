@@ -26,7 +26,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 /*
  * The micro UBSan implementation for the userland (uUBSan) and kernel (kUBSan).
  * The uBSSan versions is suitable for inclusion into libc or used standalone

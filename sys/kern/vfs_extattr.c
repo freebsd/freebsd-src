@@ -673,7 +673,6 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 	return (error);
 }
 
-
 #ifndef _SYS_SYSPROTO_H_
 struct extattr_list_fd_args {
 	int fd;

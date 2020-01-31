@@ -63,14 +63,11 @@ typedef struct i386_frame *x86_frame_t;
 typedef struct amd64_frame *x86_frame_t;
 #endif
 
-#ifdef STACK
-static struct stack *nmi_stack;
-static volatile struct thread *nmi_pending;
-
 #ifdef SMP
-static struct mtx nmi_lock;
-MTX_SYSINIT(nmi_lock, &nmi_lock, "stack_nmi", MTX_SPIN);
-#endif
+static struct stack *stack_intr_stack;
+static struct thread *stack_intr_td;
+static struct mtx intr_lock;
+MTX_SYSINIT(intr_lock, &intr_lock, "stack intr", MTX_DEF);
 #endif
 
 static void
@@ -97,74 +94,74 @@ stack_capture(struct thread *td, struct stack *st, register_t fp)
 	}
 }
 
-int
-stack_nmi_handler(struct trapframe *tf)
-{
-
-#ifdef STACK
-	/* Don't consume an NMI that wasn't meant for us. */
-	if (nmi_stack == NULL || curthread != nmi_pending)
-		return (0);
-
-	if (!TRAPF_USERMODE(tf) && (TF_FLAGS(tf) & PSL_I) != 0)
-		stack_capture(curthread, nmi_stack, TF_FP(tf));
-	else
-		/* We were running in usermode or had interrupts disabled. */
-		nmi_stack->depth = 0;
-
-	atomic_store_rel_ptr((long *)&nmi_pending, (long)NULL);
-	return (1);
-#else
-	return (0);
-#endif
-}
-
+#ifdef SMP
 void
+stack_capture_intr(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	stack_capture(td, stack_intr_stack, TF_FP(td->td_intr_frame));
+	atomic_store_rel_ptr((void *)&stack_intr_td, (uintptr_t)td);
+}
+#endif
+
+int
 stack_save_td(struct stack *st, struct thread *td)
 {
+	int cpuid, error;
+	bool done;
 
-	if (TD_IS_SWAPPED(td))
-		panic("stack_save_td: swapped");
-	if (TD_IS_RUNNING(td))
-		panic("stack_save_td: running");
-
-	stack_capture(td, st, PCB_FP(td->td_pcb));
-}
-
-int
-stack_save_td_running(struct stack *st, struct thread *td)
-{
-
-#ifdef STACK
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	MPASS(TD_IS_RUNNING(td));
+	KASSERT(!TD_IS_SWAPPED(td),
+	    ("stack_save_td: thread %p is swapped", td));
+	if (TD_IS_RUNNING(td) && td != curthread)
+		PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 
 	if (td == curthread) {
 		stack_save(st);
 		return (0);
 	}
 
+	for (done = false, error = 0; !done;) {
+		if (!TD_IS_RUNNING(td)) {
+			/*
+			 * The thread will not start running so long as we hold
+			 * its lock.
+			 */
+			stack_capture(td, st, PCB_FP(td->td_pcb));
+			error = 0;
+			break;
+		}
+
 #ifdef SMP
-	mtx_lock_spin(&nmi_lock);
+		thread_unlock(td);
+		cpuid = atomic_load_int(&td->td_oncpu);
+		if (cpuid == NOCPU) {
+			cpu_spinwait();
+		} else {
+			mtx_lock(&intr_lock);
+			stack_intr_td = NULL;
+			stack_intr_stack = st;
+			ipi_cpu(cpuid, IPI_TRACE);
+			while (atomic_load_acq_ptr((void *)&stack_intr_td) ==
+			    (uintptr_t)NULL)
+				cpu_spinwait();
+			if (stack_intr_td == td) {
+				done = true;
+				error = st->depth > 0 ? 0 : EBUSY;
+			}
+			stack_intr_td = NULL;
+			mtx_unlock(&intr_lock);
+		}
+		thread_lock(td);
+#else
+		(void)cpuid;
+		KASSERT(0, ("%s: multiple running threads", __func__));
+#endif
+	}
 
-	nmi_stack = st;
-	nmi_pending = td;
-	ipi_cpu(td->td_oncpu, IPI_TRACE);
-	while ((void *)atomic_load_acq_ptr((long *)&nmi_pending) != NULL)
-		cpu_spinwait();
-	nmi_stack = NULL;
-
-	mtx_unlock_spin(&nmi_lock);
-
-	if (st->depth == 0)
-		return (EAGAIN);
-#else /* !SMP */
-	KASSERT(0, ("curthread isn't running"));
-#endif /* SMP */
-	return (0);
-#else /* !STACK */
-	return (EOPNOTSUPP);
-#endif /* STACK */
+	return (error);
 }
 
 void

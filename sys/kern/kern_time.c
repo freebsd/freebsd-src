@@ -118,7 +118,6 @@ int		itimespecfix(struct timespec *ts);
 
 SYSINIT(posix_timer, SI_SUB_P1003_1B, SI_ORDER_FIRST+4, itimer_start, NULL);
 
-
 static int
 settime(struct thread *td, struct timeval *tv)
 {

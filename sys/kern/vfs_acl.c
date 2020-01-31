@@ -67,7 +67,6 @@ CTASSERT(ACL_MAX_ENTRIES >= OLDACL_MAX_ENTRIES);
 
 MALLOC_DEFINE(M_ACL, "acl", "Access Control Lists");
 
-
 static int	kern___acl_aclcheck_path(struct thread *td, const char *path,
 		    acl_type_t type, struct acl *aclp, int follow);
 static int	kern___acl_delete_path(struct thread *td, const char *path,

@@ -131,6 +131,12 @@ static int	hwpstate_verify;
 SYSCTL_INT(_debug, OID_AUTO, hwpstate_verify, CTLFLAG_RWTUN,
     &hwpstate_verify, 0, "Verify P-state after setting");
 
+static bool	hwpstate_pstate_limit;
+SYSCTL_BOOL(_debug, OID_AUTO, hwpstate_pstate_limit, CTLFLAG_RWTUN,
+    &hwpstate_pstate_limit, 0,
+    "If enabled (1), limit administrative control of P-states to the value in "
+    "CurPstateLimit");
+
 static device_method_t hwpstate_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	hwpstate_identify),
@@ -161,7 +167,8 @@ static driver_t hwpstate_driver = {
 DRIVER_MODULE(hwpstate, cpu, hwpstate_driver, hwpstate_devclass, 0, 0);
 
 /*
- * Go to Px-state on all cpus considering the limit.
+ * Go to Px-state on all cpus, considering the limit register (if so
+ * configured).
  */
 static int
 hwpstate_goto_pstate(device_t dev, int id)
@@ -170,14 +177,15 @@ hwpstate_goto_pstate(device_t dev, int id)
 	uint64_t msr;
 	int cpu, i, j, limit;
 
-	/* get the current pstate limit */
-	msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
-	limit = AMD_10H_11H_GET_PSTATE_LIMIT(msr);
-	if (limit > id) {
-		HWPSTATE_DEBUG(dev,
-		    "Restricting requested P%d to P%d due to HW limit\n", id,
-		    limit);
-		id = limit;
+	if (hwpstate_pstate_limit) {
+		/* get the current pstate limit */
+		msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
+		limit = AMD_10H_11H_GET_PSTATE_LIMIT(msr);
+		if (limit > id) {
+			HWPSTATE_DEBUG(dev, "Restricting requested P%d to P%d "
+			    "due to HW limit\n", id, limit);
+			id = limit;
+		}
 	}
 
 	cpu = curcpu;

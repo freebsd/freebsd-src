@@ -99,7 +99,6 @@ static int msg_prison_get(void *, void *);
 static int msg_prison_remove(void *, void *);
 static void msg_prison_cleanup(struct prison *);
 
-
 #ifdef MSG_DEBUG
 #define DPRINTF(a)	printf a
 #else
@@ -351,7 +350,6 @@ msgunload()
 	mtx_destroy(&msq_mtx);
 	return (0);
 }
-
 
 static int
 sysvmsg_modload(struct module *module, int cmd, void *arg)

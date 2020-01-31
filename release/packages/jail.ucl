@@ -16,10 +16,4 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 %DESC%
 EOD
-deps: {
-    FreeBSD-%PKGDEPS%: {
-        origin: "base",
-        version: "%VERSION%"
-    }
-}
 

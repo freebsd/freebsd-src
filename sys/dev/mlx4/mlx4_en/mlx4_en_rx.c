@@ -866,14 +866,16 @@ out:
 /* Rx CQ polling - called by NAPI */
 static int mlx4_en_poll_rx_cq(struct mlx4_en_cq *cq, int budget)
 {
-        struct net_device *dev = cq->dev;
-        int done;
+	struct net_device *dev = cq->dev;
+	struct epoch_tracker et;
+	int done;
 
-        done = mlx4_en_process_rx_cq(dev, cq, budget);
-        cq->tot_rx += done;
+	NET_EPOCH_ENTER(et);
+	done = mlx4_en_process_rx_cq(dev, cq, budget);
+	NET_EPOCH_EXIT(et);
+	cq->tot_rx += done;
 
-        return done;
-
+	return done;
 }
 void mlx4_en_rx_irq(struct mlx4_cq *mcq)
 {

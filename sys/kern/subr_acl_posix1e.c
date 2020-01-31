@@ -652,7 +652,6 @@ acl_posix1e_newfilemode(mode_t cmode, struct acl *dacl)
 	return (mode);
 }
 
-
 static int
 acl_posix1e_modload(module_t mod, int what, void *arg)
 {

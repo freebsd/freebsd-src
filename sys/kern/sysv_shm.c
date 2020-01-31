@@ -609,7 +609,6 @@ kern_shmctl(struct thread *td, int shmid, int cmd, void *buf, size_t *bufsz)
 	return (error);
 }
 
-
 #ifndef _SYS_SYSPROTO_H_
 struct shmctl_args {
 	int shmid;
@@ -657,7 +656,6 @@ done:
 	}
 	return (error);
 }
-
 
 static int
 shmget_existing(struct thread *td, struct shmget_args *uap, int mode,

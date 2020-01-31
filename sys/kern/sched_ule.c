@@ -1506,7 +1506,6 @@ sched_initticks(void *dummy)
 		sched_idlespinthresh = 2 * max(10000, 6 * hz) / realstathz;
 }
 
-
 /*
  * This is the core of the interactivity algorithm.  Determines a score based
  * on past behavior.  It is the ratio of sleep time to run time scaled to
