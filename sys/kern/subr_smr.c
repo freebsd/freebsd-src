@@ -195,7 +195,7 @@ smr_advance(smr_t smr)
 	 * odd and an observed value of 0 in a particular CPU means
 	 * it is not currently in a read section.
 	 */
-	s = smr->c_shared;
+	s = zpcpu_get(smr)->c_shared;
 	goal = atomic_fetchadd_int(&s->s_wr_seq, SMR_SEQ_INCR) + SMR_SEQ_INCR;
 
 	/*
@@ -242,14 +242,19 @@ smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 	 */
 	success = true;
 	critical_enter();
-	s = smr->c_shared;
+	s = zpcpu_get(smr)->c_shared;
 
 	/*
 	 * Acquire barrier loads s_wr_seq after s_rd_seq so that we can not
 	 * observe an updated read sequence that is larger than write.
 	 */
 	s_rd_seq = atomic_load_acq_int(&s->s_rd_seq);
-	s_wr_seq = smr_current(smr);
+
+	/*
+	 * wr_seq must be loaded prior to any c_seq value so that a stale
+	 * c_seq can only reference time after this wr_seq.
+	 */
+	s_wr_seq = atomic_load_acq_int(&s->s_wr_seq);
 
 	/*
 	 * Detect whether the goal is valid and has already been observed.
@@ -335,6 +340,12 @@ smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 
 out:
 	critical_exit();
+
+	/*
+	 * Serialize with smr_advance()/smr_exit().  The caller is now free
+	 * to modify memory as expected.
+	 */
+	atomic_thread_fence_acq();
 
 	return (success);
 }
