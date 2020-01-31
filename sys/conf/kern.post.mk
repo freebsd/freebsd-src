@@ -355,7 +355,8 @@ kernel-cleandepend: .PHONY
 	rm -f .depend .depend.* ${_ILINKS}
 
 kernel-tags:
-	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
+	@ls .depend.* > /dev/null 2>&1 || \
+	    { echo "you must make depend first"; exit 1; }
 	sh $S/conf/systags.sh
 
 kernel-install: .PHONY
