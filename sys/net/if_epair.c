@@ -704,6 +704,23 @@ epair_clone_match(struct if_clone *ifc, const char *name)
 	return (1);
 }
 
+static void
+epair_clone_add(struct if_clone *ifc, struct epair_softc *scb)
+{
+	struct ifnet *ifp;
+	uint8_t eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
+
+	ifp = scb->ifp;
+	/* Assign a hopefully unique, locally administered etheraddr. */
+	eaddr[0] = 0x02;
+	eaddr[3] = (ifp->if_index >> 8) & 0xff;
+	eaddr[4] = ifp->if_index & 0xff;
+	eaddr[5] = 0x0b;
+	ether_ifattach(ifp, eaddr);
+
+	if_clone_addif(ifc, ifp);
+}
+
 static int
 epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
@@ -712,26 +729,6 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	char *dp;
 	int error, unit, wildcard;
 	uint8_t eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
-
-	/*
-	 * We are abusing params to create our second interface.
-	 * Actually we already created it and called if_clone_create()
-	 * for it to do the official insertion procedure the moment we knew
-	 * it cannot fail anymore. So just do attach it here.
-	 */
-	if (params) {
-		scb = (struct epair_softc *)params;
-		ifp = scb->ifp;
-		/* Assign a hopefully unique, locally administered etheraddr. */
-		eaddr[0] = 0x02;
-		eaddr[3] = (ifp->if_index >> 8) & 0xff;
-		eaddr[4] = ifp->if_index & 0xff;
-		eaddr[5] = 0x0b;
-		ether_ifattach(ifp, eaddr);
-		/* Correctly set the name for the cloner list. */
-		strlcpy(name, scb->ifp->if_xname, len);
-		return (0);
-	}
 
 	/* Try to see if a special unit was requested. */
 	error = ifc_name2unit(name, &unit);
@@ -860,10 +857,11 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	/* We need to play some tricks here for the second interface. */
 	strlcpy(name, epairname, len);
-	error = if_clone_create(name, len, (caddr_t)scb);
-	if (error)
-		panic("%s: if_clone_create() for our 2nd iface failed: %d",
-		    __func__, error);
+
+	/* Correctly set the name for the cloner list. */
+	strlcpy(name, scb->ifp->if_xname, len);
+	epair_clone_add(ifc, scb);
+
 	scb->if_qflush = ifp->if_qflush;
 	ifp->if_qflush = epair_qflush;
 	ifp->if_transmit = epair_transmit;
