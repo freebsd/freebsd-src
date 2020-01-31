@@ -340,12 +340,8 @@ tty_info(struct tty *tp)
 	if (tty_info_kstacks) {
 		if (TD_IS_SWAPPED(td))
 			sterr = ENOENT;
-		else if (TD_IS_RUNNING(td))
-			sterr = stack_save_td_running(&stack, td);
-		else {
-			stack_save_td(&stack, td);
-			sterr = 0;
-		}
+		else
+			sterr = stack_save_td(&stack, td);
 	}
 #endif
 	thread_unlock(td);

@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
 #include "opt_kdb.h"
-#include "opt_stack.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -226,11 +225,6 @@ trap(struct trapframe *frame)
 		 */
 		if (pmc_intr != NULL &&
 		    (*pmc_intr)(frame) != 0)
-			return;
-#endif
-
-#ifdef STACK
-		if (stack_nmi_handler(frame) != 0)
 			return;
 #endif
 	}
