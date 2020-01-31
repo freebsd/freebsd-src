@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2020
+.Dd January 31, 2020
 .Dt CPUFREQ 4
 .Os
 .Sh NAME
@@ -73,9 +73,13 @@ has passed (e.g., the system has cooled sufficiently).
 If a sysctl cannot be set due to an override condition, it will return
 .Er EPERM .
 .Pp
-The frequency cannot be changed if TSC is in use as the timecounter.
+The frequency cannot be changed if TSC is in use as the timecounter and the
+hardware does not support invariant TSC.
 This is because the timecounter system needs to use a source that has a
 constant rate.
+(On invariant TSC hardware, the TSC runs at the P0 rate regardless of the
+configured P-state.)
+Modern hardware mostly has invariant TSC.
 The timecounter source can be changed with the
 .Pa kern.timecounter.hardware
 sysctl.
@@ -105,6 +109,15 @@ some systems.
 .It Va debug.cpufreq.verbose
 Print verbose messages.
 This setting is also accessible via a tunable with the same name.
+.It Va debug.hwpstate_pstate_limit
+If enabled, the AMD hwpstate driver limits administrative control of P-states
+(including by
+.Xr powerd 8 )
+to the value in the 0xc0010061 MSR, known as "PStateCurLim[CurPstateLimit]."
+It is disabled (0) by default.
+On some hardware, the limit register seems to simply follow the configured
+P-state, which results in the inability to ever raise the P-state back to P0
+from a reduced frequency state.
 .El
 .Sh SUPPORTED DRIVERS
 The following device drivers offer absolute frequency control via the
@@ -112,11 +125,15 @@ The following device drivers offer absolute frequency control via the
 interface.
 Usually, only one of these can be active at a time.
 .Pp
-.Bl -tag -compact -width ".Pa acpi_perf"
+.Bl -tag -compact -width ".Pa hwpstate_intel"
 .It Pa acpi_perf
 ACPI CPU performance states
 .It Pa est
 Intel Enhanced SpeedStep
+.It Pa hwpstate
+AMD Cool'n'Quiet2 used in K10 through Family 17h
+.It Pa hwpstate_intel
+Intel SpeedShift driver
 .It Pa ichss
 Intel SpeedStep for ICH
 .It Pa powernow
