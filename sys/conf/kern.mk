@@ -37,6 +37,9 @@ CWARNEXTRA+=	-Wno-error-shift-negative-value
 .if ${COMPILER_VERSION} >= 40000
 CWARNEXTRA+=	-Wno-address-of-packed-member
 .endif
+.if ${COMPILER_VERSION} >= 100000
+NO_WINT_IN_BOOL_CONTEXT=	-Wno-int-in-bool-context
+.endif
 .endif
 
 .if ${COMPILER_TYPE} == "gcc"
