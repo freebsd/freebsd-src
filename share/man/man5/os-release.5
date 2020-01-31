@@ -1,0 +1,130 @@
+.\" Copyright (c) 2019 M. Warner Losh.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 9, 2019
+.Dt OS-RELEASE 5
+.Os
+.Sh NAME
+.Nm os-release
+.Nd file describing the current OS and some of its attributes
+.Sh DESCRIPTION
+The
+.Nm
+file is a new-line separated list of key value pairs.
+The syntax of this file is a reduced
+.Xr sh 1
+variable assignment with the
+following restrictions:
+.Bl -bullet
+.It
+Strings cannot be concatenated together
+.It
+No variable expansion is done
+.It
+All shell special characters must be quoted as documented in
+.Xr sh 1
+.It
+Variable assignments must be included inside of double quotes
+if they contain characters outside of A-Z, a-z and 0-9
+.It
+All strings should be UTF-8 format
+.It
+Non-printable characters should not be used in the strings
+.El
+.Pp
+Lines starting with the character
+.Ql #
+are ignored as comments.
+.Sh VARIABLES
+The following variables are defined by the standard.
+.Bl -tag -width XXXXXXXXXX -compact
+.It Dv NAME
+A string describing the preferred OS name.
+.It Dv VERSION
+Version string for the OS, in its usual and customary format.
+.It Dv ID
+Lower case version of the name with only a-z, 0-9,
+.Ql . ,
+.Ql - ,
+and
+.Ql _ .
+.It Dv VERSION_ID
+Lower case version of the version with only a-z, 0-9,
+.Ql . ,
+.Ql - ,
+and
+.Ql _ .
+.It Dv PRETTY_NAME
+A pretty version of the name presented to the user.
+May contain release information.
+.It Dv ANSI_COLOR
+Suggested color presentation for the OS.
+This string should be suitable for inclusion within an ESC [ m ANSI/ECMA-48
+escape sequence to render the OS in its preferred color.
+This variable is optional.
+.It Dv CPE_NAME
+A CPE name for the operating system.
+This field shall follow the NIST Common Platform Enumeration specification.
+.It Dv HOME_URL
+.It Dv SUPPORT_URL
+.It Dv BUG_REPORT_URL
+.It Dv PRIVACY_POLICY_URL
+Links on the internet, in RFC 3986 format for different aspects of this OS.
+These variables are optional.
+.It Dv BUILD_ID
+A string identifying the build.
+This variable is optional.
+.It Dv VARIANT
+A string describing the variant of this operating system.
+This variable is optional.
+.It Dv VARIANT_ID
+Lower case version of the variant with only a-z, 0-9,
+.Ql . ,
+.Ql - ,
+and
+.Ql _ .
+This variable is optional.
+.El
+.Pp
+All other variables have no standard-defined meaning.
+.Sh FILES
+.Bl -tag -width XXXXXXXXXX -compact
+.It Pa /etc/os-release
+Symbolic link to actual
+.Pa os-release
+file.
+.It Pa /var/run/os-release
+Generated os-release file describing the currently running system.
+.Sh SEE ALSO
+.Bl -tag -width XXXXXXXXXX -compact
+.It CPE Specification
+.Lk https://csrc.nist.gov/projects/security-content-automation-protocol/scap-specifications/cpe
+.It RFC 3986
+.Lk https://tools.ietf.org/html/rfc3986
+.It os-release Specification
+.Lk https://www.linux.org/docs/man5/os-release.html
+.Sh HISTORY
+This file first appeared in
+.Fx 13.0 .
