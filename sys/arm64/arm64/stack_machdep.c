@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/stack.h>
 
@@ -55,28 +57,24 @@ stack_capture(struct stack *st, struct unwind_state *frame)
 	}
 }
 
-void
+int
 stack_save_td(struct stack *st, struct thread *td)
 {
 	struct unwind_state frame;
 
-	if (TD_IS_SWAPPED(td))
-		panic("stack_save_td: swapped");
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	KASSERT(!TD_IS_SWAPPED(td),
+	    ("stack_save_td: thread %p is swapped", td));
+
 	if (TD_IS_RUNNING(td))
-		panic("stack_save_td: running");
+		return (EOPNOTSUPP);
 
 	frame.sp = td->td_pcb->pcb_sp;
 	frame.fp = td->td_pcb->pcb_x[29];
 	frame.pc = td->td_pcb->pcb_x[30];
 
 	stack_capture(st, &frame);
-}
-
-int
-stack_save_td_running(struct stack *st, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
+	return (0);
 }
 
 void

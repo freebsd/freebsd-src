@@ -55,7 +55,7 @@ struct i386_frame {
 #endif /* __amd64__ */
 
 #ifdef _KERNEL
-int	stack_nmi_handler(struct trapframe *);
+void	stack_capture_intr(void);
 #endif
 
 #endif /* !_X86_STACK_H */
