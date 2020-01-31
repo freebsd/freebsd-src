@@ -928,21 +928,29 @@ gicv3_its_post_filter(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-gicv3_its_bind_intr(device_t dev, struct intr_irqsrc *isrc)
+gicv3_its_select_cpu(device_t dev, struct intr_irqsrc *isrc)
 {
-	struct gicv3_its_irqsrc *girq;
 	struct gicv3_its_softc *sc;
 
 	sc = device_get_softc(dev);
-	girq = (struct gicv3_its_irqsrc *)isrc;
 	if (CPU_EMPTY(&isrc->isrc_cpu)) {
 		sc->gic_irq_cpu = intr_irq_next_cpu(sc->gic_irq_cpu,
 		    &sc->sc_cpus);
 		CPU_SETOF(sc->gic_irq_cpu, &isrc->isrc_cpu);
 	}
 
-	its_cmd_movi(dev, girq);
+	return (0);
+}
 
+static int
+gicv3_its_bind_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct gicv3_its_irqsrc *girq;
+
+	gicv3_its_select_cpu(dev, isrc);
+
+	girq = (struct gicv3_its_irqsrc *)isrc;
+	its_cmd_movi(dev, girq);
 	return (0);
 }
 
@@ -1129,6 +1137,10 @@ gicv3_its_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 		girq = &sc->sc_irqs[irq];
 		girq->gi_its_dev = its_dev;
 		srcs[i] = (struct intr_irqsrc *)girq;
+
+		/* Map the message to the given IRQ */
+		gicv3_its_select_cpu(dev, (struct intr_irqsrc *)girq);
+		its_cmd_mapti(dev, girq);
 	}
 	its_dev->lpis.lpi_busy += count;
 	*pic = dev;
@@ -1189,6 +1201,10 @@ gicv3_its_alloc_msix(device_t dev, device_t child, device_t *pic,
 	girq = &sc->sc_irqs[irq];
 	girq->gi_its_dev = its_dev;
 
+	/* Map the message to the given IRQ */
+	gicv3_its_select_cpu(dev, (struct intr_irqsrc *)girq);
+	its_cmd_mapti(dev, girq);
+
 	*pic = dev;
 	*isrcp = (struct intr_irqsrc *)girq;
 
@@ -1228,9 +1244,6 @@ gicv3_its_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 
 	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
-
-	/* Map the message to the given IRQ */
-	its_cmd_mapti(dev, girq);
 
 	*addr = vtophys(rman_get_virtual(sc->sc_its_res)) + GITS_TRANSLATER;
 	*data = girq->gi_irq - girq->gi_its_dev->lpis.lpi_base;
