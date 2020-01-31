@@ -956,8 +956,6 @@ rms_runlock(struct rmslock *rms)
 {
 	int *influx;
 
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
-
 	critical_enter();
 	influx = zpcpu_get(rms->readers_influx);
 	__compiler_membar();
