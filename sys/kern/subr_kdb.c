@@ -432,9 +432,8 @@ kdb_backtrace_thread(struct thread *td)
 		struct stack st;
 
 		printf("KDB: stack backtrace of thread %d:\n", td->td_tid);
-		stack_zero(&st);
-		stack_save_td(&st, td);
-		stack_print_ddb(&st);
+		if (stack_save_td(&st, td) == 0)
+			stack_print_ddb(&st);
 	}
 #endif
 }

@@ -29,9 +29,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/stack.h>
 
@@ -127,26 +128,22 @@ done:
 	return;
 }
 
-void
+int
 stack_save_td(struct stack *st, struct thread *td)
 {
 	u_register_t pc, sp;
 
-	if (TD_IS_SWAPPED(td))
-		panic("stack_save_td: swapped");
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	KASSERT(!TD_IS_SWAPPED(td),
+	    ("stack_save_td: thread %p is swapped", td));
+
 	if (TD_IS_RUNNING(td))
-		panic("stack_save_td: running");
+		return (EOPNOTSUPP);
 
 	pc = td->td_pcb->pcb_regs.pc;
 	sp = td->td_pcb->pcb_regs.sp;
 	stack_capture(st, pc, sp);
-}
-
-int
-stack_save_td_running(struct stack *st, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
+	return (0);
 }
 
 void
