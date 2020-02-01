@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/syscallsubr.h>
+#include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 
@@ -60,28 +60,25 @@ __FBSDID("$FreeBSD$");
  * Find pathname of process's current directory.
  */
 int
-linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
+linux_getcwd(struct thread *td, struct linux_getcwd_args *uap)
 {
-	char *path;
-	int error, lenused;
+	char *buf, *retbuf;
+	size_t buflen;
+	int error;
 
-	/*
-	 * Linux returns ERANGE instead of EINVAL.
-	 */
-	if (args->bufsize < 2)
+	buflen = uap->bufsize;
+	if (__predict_false(buflen < 2))
 		return (ERANGE);
+	if (buflen > LINUX_PATH_MAX)
+		buflen = LINUX_PATH_MAX;
 
-	path = malloc(LINUX_PATH_MAX, M_LINUX, M_WAITOK);
-
-	error = kern___getcwd(td, path, UIO_SYSSPACE, args->bufsize,
-	    LINUX_PATH_MAX);
+	buf = malloc(buflen, M_TEMP, M_WAITOK);
+	error = vn_getcwd(td, buf, &retbuf, &buflen);
 	if (error == 0) {
-		lenused = strlen(path) + 1;
-		error = copyout(path, args->buf, lenused);
+		error = copyout(retbuf, uap->buf, buflen);
 		if (error == 0)
-			td->td_retval[0] = lenused;
+			td->td_retval[0] = buflen;
 	}
-
-	free(path, M_LINUX);
+	free(buf, M_TEMP);
 	return (error);
 }

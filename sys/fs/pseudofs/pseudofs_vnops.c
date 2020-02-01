@@ -377,7 +377,7 @@ pfs_vptocnp(struct vop_vptocnp_args *ap)
 	struct pfs_node *pn;
 	struct mount *mp;
 	char *buf = ap->a_buf;
-	int *buflen = ap->a_buflen;
+	size_t *buflen = ap->a_buflen;
 	char pidbuf[PFS_NAMELEN];
 	pid_t pid = pvd->pvd_pid;
 	int len, i, error, locked;

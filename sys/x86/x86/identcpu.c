@@ -119,9 +119,9 @@ u_int	cpu_mon_min_size;	/* MONITOR minimum range size, bytes */
 u_int	cpu_mon_max_size;	/* MONITOR minimum range size, bytes */
 u_int	cpu_maxphyaddr;		/* Max phys addr width in bits */
 u_int	cpu_power_eax;		/* 06H: Power management leaf, %eax */
-u_int	cpu_power_ebx;		/* 06H: Power management leaf, %eax */
-u_int	cpu_power_ecx;		/* 06H: Power management leaf, %eax */
-u_int	cpu_power_edx;		/* 06H: Power management leaf, %eax */
+u_int	cpu_power_ebx;		/* 06H: Power management leaf, %ebx */
+u_int	cpu_power_ecx;		/* 06H: Power management leaf, %ecx */
+u_int	cpu_power_edx;		/* 06H: Power management leaf, %edx */
 char machine[] = MACHINE;
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
