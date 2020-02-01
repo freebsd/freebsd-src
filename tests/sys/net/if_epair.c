@@ -25,17 +25,19 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/linker.h>
 #include <sys/module.h>
-#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
 #include <net/if.h>
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <strings.h>
 
 #include <atf-c.h>
 
@@ -51,7 +53,7 @@ ATF_TC_BODY(params, tc)
 	int s;
 
 	s = kldload("if_epair");
-	if (s != 0)
+	if (s != 0 && errno != EEXIST)
 		atf_tc_fail("Failed to load if_epair");
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
