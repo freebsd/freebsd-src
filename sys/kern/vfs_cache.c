@@ -388,7 +388,7 @@ STATNODE_COUNTER(shrinking_skipped,
 
 static void cache_zap_locked(struct namecache *ncp, bool neg_locked);
 static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
-    char *buf, char **retbuf, u_int buflen);
+    char *buf, char **retbuf, size_t buflen);
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
@@ -2293,7 +2293,7 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 }
 
 int
-vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, u_int *buflen)
+vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 {
 	struct vnode *dvp;
 	struct namecache *ncp;
@@ -2359,7 +2359,7 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, u_int *buflen)
  */
 static int
 vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
-    char *buf, char **retbuf, u_int buflen)
+    char *buf, char **retbuf, size_t buflen)
 {
 	int error, slash_prefixed;
 #ifdef KDTRACE_HOOKS
