@@ -266,8 +266,6 @@ out:
 void
 intel_hwpstate_identify(driver_t *driver, device_t parent)
 {
-	uint32_t regs[4];
-
 	if (device_find_child(parent, "hwpstate_intel", -1) != NULL)
 		return;
 
@@ -279,25 +277,12 @@ intel_hwpstate_identify(driver_t *driver, device_t parent)
 
 	/*
 	 * Intel SDM 14.4.1 (HWP Programming Interfaces):
-	 *   The CPUID instruction allows software to discover the presence of
-	 *   HWP support in an Intel processor. Specifically, execute CPUID
-	 *   instruction with EAX=06H as input will return 5 bit flags covering
-	 *   the following aspects in bits 7 through 11 of CPUID.06H:EAX.
-	 */
-
-	if (cpu_high < 6)
-		return;
-
-	/*
-	 * Intel SDM 14.4.1 (HWP Programming Interfaces):
 	 *   Availability of HWP baseline resource and capability,
 	 *   CPUID.06H:EAX[bit 7]: If this bit is set, HWP provides several new
 	 *   architectural MSRs: IA32_PM_ENABLE, IA32_HWP_CAPABILITIES,
 	 *   IA32_HWP_REQUEST, IA32_HWP_STATUS.
 	 */
-
-	do_cpuid(6, regs);
-	if ((regs[0] & CPUTPM1_HWP) == 0)
+	if ((cpu_power_eax & CPUTPM1_HWP) == 0)
 		return;
 
 	if (BUS_ADD_CHILD(parent, 10, "hwpstate_intel", -1) == NULL)
@@ -396,20 +381,18 @@ static int
 intel_hwpstate_attach(device_t dev)
 {
 	struct hwp_softc *sc;
-	uint32_t regs[4];
 	int ret;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	do_cpuid(6, regs);
-	if (regs[0] & CPUTPM1_HWP_NOTIFICATION)
+	if (cpu_power_eax & CPUTPM1_HWP_NOTIFICATION)
 		sc->hwp_notifications = true;
-	if (regs[0] & CPUTPM1_HWP_ACTIVITY_WINDOW)
+	if (cpu_power_eax & CPUTPM1_HWP_ACTIVITY_WINDOW)
 		sc->hwp_activity_window = true;
-	if (regs[0] & CPUTPM1_HWP_PERF_PREF)
+	if (cpu_power_eax & CPUTPM1_HWP_PERF_PREF)
 		sc->hwp_pref_ctrl = true;
-	if (regs[0] & CPUTPM1_HWP_PKG)
+	if (cpu_power_eax & CPUTPM1_HWP_PKG)
 		sc->hwp_pkg_ctrl = true;
 
 	ret = set_autonomous_hwp(sc);
