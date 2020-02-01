@@ -52,6 +52,13 @@ __FBSDID("$FreeBSD$");
 
 #include <gnu/dts/include/dt-bindings/clock/sifive-fu540-prci.h>
 
+static struct ofw_compat_data compat_data[] = {
+	{ "sifive,aloeprci0",		1 },
+	{ "sifive,ux00prci0",		1 },
+	{ "sifive,fu540-c000-prci",	1 },
+	{ NULL,				0 },
+};
+
 static struct resource_spec prci_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
 	RESOURCE_SPEC_END
@@ -177,7 +184,7 @@ prci_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "sifive,aloeprci0"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "SiFive FU540 Power Reset Clocking Interrupt");
@@ -229,7 +236,7 @@ prci_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	error = ofw_bus_parse_xref_list_get_length(node, "clocks",
 	    "#clock-cells", &ncells);
-	if (error != 0 || ncells != 1) {
+	if (error != 0 || ncells < 1) {
 		device_printf(dev, "couldn't find parent clock\n");
 		goto fail;
 	}
