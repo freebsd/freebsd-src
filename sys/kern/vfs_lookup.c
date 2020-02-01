@@ -254,7 +254,7 @@ namei_cleanup_cnp(struct componentname *cnp)
 }
 
 static int
-namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
+namei_handle_root(struct nameidata *ndp, struct vnode **dpp, u_int n)
 {
 	struct componentname *cnp;
 
@@ -276,7 +276,7 @@ namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
 		ndp->ni_pathlen--;
 	}
 	*dpp = ndp->ni_rootdir;
-	vrefact(*dpp);
+	vrefactn(*dpp, n);
 	return (0);
 }
 
@@ -395,8 +395,11 @@ namei(struct nameidata *ndp)
 	 * Get starting point for the translation.
 	 */
 	FILEDESC_SLOCK(fdp);
+	/*
+	 * The reference on ni_rootdir is acquired in the block below to avoid
+	 * back-to-back atomics for absolute lookups.
+	 */
 	ndp->ni_rootdir = fdp->fd_rdir;
-	vrefact(ndp->ni_rootdir);
 	ndp->ni_topdir = fdp->fd_jdir;
 
 	/*
@@ -412,15 +415,29 @@ namei(struct nameidata *ndp)
 	cnp->cn_nameptr = cnp->cn_pnbuf;
 	if (cnp->cn_pnbuf[0] == '/') {
 		ndp->ni_resflags |= NIRES_ABS;
-		error = namei_handle_root(ndp, &dp);
+		error = namei_handle_root(ndp, &dp, 2);
+		if (error != 0) {
+			/*
+			 * Simplify error handling, we should almost never be
+			 * here.
+			 */
+			vrefact(ndp->ni_rootdir);
+		}
 	} else {
 		if (ndp->ni_startdir != NULL) {
+			vrefact(ndp->ni_rootdir);
 			dp = ndp->ni_startdir;
 			startdir_used = 1;
 		} else if (ndp->ni_dirfd == AT_FDCWD) {
 			dp = fdp->fd_cdir;
-			vrefact(dp);
+			if (dp == ndp->ni_rootdir) {
+				vrefactn(dp, 2);
+			} else {
+				vrefact(ndp->ni_rootdir);
+				vrefact(dp);
+			}
 		} else {
+			vrefact(ndp->ni_rootdir);
 			rights = ndp->ni_rightsneeded;
 			cap_rights_set(&rights, CAP_LOOKUP);
 
@@ -567,7 +584,7 @@ namei(struct nameidata *ndp)
 		cnp->cn_nameptr = cnp->cn_pnbuf;
 		if (*(cnp->cn_nameptr) == '/') {
 			vrele(dp);
-			error = namei_handle_root(ndp, &dp);
+			error = namei_handle_root(ndp, &dp, 1);
 			if (error != 0)
 				goto out;
 		}
