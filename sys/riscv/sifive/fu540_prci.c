@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 #include <dev/extres/clk/clk.h>
+#include <dev/extres/clk/clk_fixed.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -117,6 +118,17 @@ struct prci_pll_def pll_clks[] = {
 	PLL(PRCI_CLK_COREPLL, "coreclk",  PRCI_COREPLL_CFG0),
 	PLL(PRCI_CLK_DDRPLL, "ddrclk",   PRCI_DDRPLL_CFG0),
 	PLL(PRCI_CLK_GEMGXLPLL, "gemgxclk", PRCI_GEMGXLPLL_CFG0),
+};
+
+/* Fixed divisor clock TLCLK. */
+struct clk_fixed_def tlclk_def = {
+	.clkdef.id = PRCI_CLK_TLCLK,
+	.clkdef.name = "prci_tlclk",
+	.clkdef.parent_names = (const char *[]){"coreclk"},
+	.clkdef.parent_cnt = 1,
+	.clkdef.flags = CLK_NODE_STATIC_STRINGS,
+	.mult = 1,
+	.div = 2,
 };
 
 static int
@@ -270,6 +282,16 @@ prci_attach(device_t dev)
 		clkdef.name = pll_clks[i].name;
 		prci_pll_register(sc, &clkdef, pll_clks[i].reg);
 	}
+
+	/*
+	 * Register the fixed clock "tlclk".
+	 *
+	 * If an older device tree is being used, tlclk may appear as its own
+	 * entity in the device tree, under soc/tlclk. If this is the case it
+	 * will be registered automatically by the fixed_clk driver, and the
+	 * version we register here will be an unreferenced duplicate.
+	 */
+	clknode_fixed_register(sc->clkdom, &tlclk_def);
 
 	error = clkdom_finit(sc->clkdom);
 	if (error)
