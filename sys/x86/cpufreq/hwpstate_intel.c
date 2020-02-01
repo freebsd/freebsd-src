@@ -88,6 +88,7 @@ struct hwp_softc {
 	bool			hwp_activity_window;
 	bool			hwp_pref_ctrl;
 	bool			hwp_pkg_ctrl;
+	bool			hwp_perf_bias;
 
 	uint64_t		req; /* Cached copy of last request */
 
@@ -215,6 +216,26 @@ raw_to_percent(int x)
 	return (round10(x * 1000 / 0xff));
 }
 
+/* Range of MSR_IA32_ENERGY_PERF_BIAS is more limited: 0-0xf. */
+static inline int
+percent_to_raw_perf_bias(int x)
+{
+	/*
+	 * Round up so that raw values present as nice round human numbers and
+	 * also round-trip to the same raw value.
+	 */
+	MPASS(x <= 100 && x >= 0);
+	return (((0xf * x) + 50) / 100);
+}
+
+static inline int
+raw_to_percent_perf_bias(int x)
+{
+	/* Rounding to nice human numbers despite a step interval of 6.67%. */
+	MPASS(x <= 0xf && x >= 0);
+	return (((x * 20) / 0xf) * 5);
+}
+
 static int
 sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 {
@@ -227,7 +248,7 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 
 	dev = oidp->oid_arg1;
 	sc = device_get_softc(dev);
-	if (!sc->hwp_pref_ctrl)
+	if (!sc->hwp_pref_ctrl && !sc->hwp_perf_bias)
 		return (ENODEV);
 
 	pc = cpu_get_pcpu(dev);
@@ -238,11 +259,24 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	sched_bind(curthread, pc->pc_cpuid);
 	thread_unlock(curthread);
 
-	ret = rdmsr_safe(MSR_IA32_HWP_REQUEST, &requested);
-	if (ret)
-		goto out;
-	val = (requested & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
-	val = raw_to_percent(val);
+	if (sc->hwp_pref_ctrl) {
+		ret = rdmsr_safe(MSR_IA32_HWP_REQUEST, &requested);
+		if (ret)
+			goto out;
+		val = (requested & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
+		val = raw_to_percent(val);
+	} else {
+		/*
+		 * If cpuid indicates EPP is not supported, the HWP controller
+		 * uses MSR_IA32_ENERGY_PERF_BIAS instead (Intel SDM §14.4.4).
+		 * This register is per-core (but not HT).
+		 */
+		ret = rdmsr_safe(MSR_IA32_ENERGY_PERF_BIAS, &requested);
+		if (ret)
+			goto out;
+		val = requested & IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK;
+		val = raw_to_percent_perf_bias(val);
+	}
 
 	MPASS(val >= 0 && val <= 100);
 
@@ -255,12 +289,18 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 		goto out;
 	}
 
-	val = percent_to_raw(val);
+	if (sc->hwp_pref_ctrl) {
+		val = percent_to_raw(val);
 
-	requested &= ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE;
-	requested |= val << 24;
+		requested &= ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE;
+		requested |= val << 24;
 
-	ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, requested);
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, requested);
+	} else {
+		requested = percent_to_raw_perf_bias(val);
+		MPASS((requested & ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) == 0);
+		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS, requested);
+	}
 
 out:
 	thread_lock(curthread);
@@ -405,6 +445,7 @@ intel_hwpstate_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
+	/* eax */
 	if (cpu_power_eax & CPUTPM1_HWP_NOTIFICATION)
 		sc->hwp_notifications = true;
 	if (cpu_power_eax & CPUTPM1_HWP_ACTIVITY_WINDOW)
@@ -413,6 +454,10 @@ intel_hwpstate_attach(device_t dev)
 		sc->hwp_pref_ctrl = true;
 	if (cpu_power_eax & CPUTPM1_HWP_PKG)
 		sc->hwp_pkg_ctrl = true;
+
+	/* ecx */
+	if (cpu_power_ecx & CPUID_PERF_BIAS)
+		sc->hwp_perf_bias = true;
 
 	ret = set_autonomous_hwp(sc);
 	if (ret)
