@@ -604,8 +604,10 @@ intel_hwpstate_resume(device_t dev)
 	}
 	if (sc->hwp_pkg_ctrl_en) {
 		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
-		device_printf(dev,
-		    "Failed to set autonomous HWP for package after suspend\n");
+		if (ret)
+			device_printf(dev,
+			    "Failed to set autonomous HWP for package after "
+			    "suspend\n");
 	}
 
 out:
