@@ -3046,6 +3046,19 @@ vrefact(struct vnode *vp)
 #endif
 }
 
+void
+vrefactn(struct vnode *vp, u_int n)
+{
+
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+#ifdef INVARIANTS
+	int old = atomic_fetchadd_int(&vp->v_usecount, n);
+	VNASSERT(old > 0, vp, ("%s: wrong use count %d", __func__, old));
+#else
+	atomic_add_int(&vp->v_usecount, n);
+#endif
+}
+
 /*
  * Return reference count of a vnode.
  *
@@ -5940,23 +5953,6 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
 	(*ap->a_cookies)[*ap->a_ncookies] = off;
 	*ap->a_ncookies += 1;
 	return (0);
-}
-
-/*
- * Mark for update the access time of the file if the filesystem
- * supports VOP_MARKATIME.  This functionality is used by execve and
- * mmap, so we want to avoid the I/O implied by directly setting
- * va_atime for the sake of efficiency.
- */
-void
-vfs_mark_atime(struct vnode *vp, struct ucred *cred)
-{
-	struct mount *mp;
-
-	mp = vp->v_mount;
-	ASSERT_VOP_LOCKED(vp, "vfs_mark_atime");
-	if (mp != NULL && (mp->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
-		(void)VOP_MARKATIME(vp);
 }
 
 /*

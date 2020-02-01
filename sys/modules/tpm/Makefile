@@ -11,5 +11,3 @@ SRCS+=	tpm_isa.c tpm_acpi.c isa_if.h opt_acpi.h acpi_if.h
 SRCS+=	tpm20.c tpm_crb.c tpm_tis.c opt_tpm.h
 
 .include <bsd.kmod.mk>
-
-CWARNFLAGS.tpm_crb.c+=	${NO_WINT_IN_BOOL_CONTEXT}
