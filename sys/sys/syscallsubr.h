@@ -65,8 +65,6 @@ struct uio;
 
 typedef int (*mmap_check_fp_fn)(struct file *, int, int, int);
 
-int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
-	    size_t buflen, size_t path_max);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,
 	    socklen_t *namelen, struct file **fp);
 int	kern_accept4(struct thread *td, int s, struct sockaddr **name,
