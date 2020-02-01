@@ -181,9 +181,9 @@ vop_setattr {
 };
 
 
-%% markatime	vp	L L L
+%% mmapped	vp	L L L
 
-vop_markatime {
+vop_mmapped {
 	IN struct vnode *vp;
 };
 

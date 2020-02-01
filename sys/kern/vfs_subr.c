@@ -5956,23 +5956,6 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
 }
 
 /*
- * Mark for update the access time of the file if the filesystem
- * supports VOP_MARKATIME.  This functionality is used by execve and
- * mmap, so we want to avoid the I/O implied by directly setting
- * va_atime for the sake of efficiency.
- */
-void
-vfs_mark_atime(struct vnode *vp, struct ucred *cred)
-{
-	struct mount *mp;
-
-	mp = vp->v_mount;
-	ASSERT_VOP_LOCKED(vp, "vfs_mark_atime");
-	if (mp != NULL && (mp->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
-		(void)VOP_MARKATIME(vp);
-}
-
-/*
  * The purpose of this routine is to remove granularity from accmode_t,
  * reducing it into standard unix access bits - VEXEC, VREAD, VWRITE,
  * VADMIN and VAPPEND.
