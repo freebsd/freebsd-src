@@ -53,7 +53,8 @@ static void
 usage(void)
 {
 
-	errx(EX_USAGE, "usage: pwait [-t timeout] [-ov] pid ...");
+	fprintf(stderr, "usage: pwait [-t timeout] [-ov] pid ...\n");
+	exit(EX_USAGE);
 }
 
 /*
