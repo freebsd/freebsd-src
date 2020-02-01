@@ -2101,7 +2101,9 @@ zone_kva_available(uma_zone_t zone, void *unused)
 	if ((zone->uz_flags & UMA_ZFLAG_CACHE) != 0)
 		return;
 	KEG_GET(zone, keg);
-	if (keg->uk_allocf == startup_alloc)
+	if (keg->uk_flags & UMA_ZONE_PCPU)
+		keg->uk_allocf = pcpu_page_alloc;
+	else if (keg->uk_allocf == startup_alloc)
 		keg->uk_allocf = page_alloc;
 }
 
