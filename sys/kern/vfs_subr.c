@@ -3046,6 +3046,19 @@ vrefact(struct vnode *vp)
 #endif
 }
 
+void
+vrefactn(struct vnode *vp, u_int n)
+{
+
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+#ifdef INVARIANTS
+	int old = atomic_fetchadd_int(&vp->v_usecount, n);
+	VNASSERT(old > 0, vp, ("%s: wrong use count %d", __func__, old));
+#else
+	atomic_add_int(&vp->v_usecount, n);
+#endif
+}
+
 /*
  * Return reference count of a vnode.
  *
