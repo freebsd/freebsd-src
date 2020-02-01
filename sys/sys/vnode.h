@@ -900,6 +900,7 @@ void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
 void	vrefl(struct vnode *vp);
 void	vrefact(struct vnode *vp);
+void	vrefactn(struct vnode *vp, u_int n);
 int	vrefcnt(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
 
