@@ -53,7 +53,7 @@ ATF_TC_BODY(params, tc)
 	int s;
 
 	s = kldload("if_epair");
-	if (s != 0 && errno != EEXIST)
+	if (s == -1 && errno != EEXIST)
 		atf_tc_fail("Failed to load if_epair");
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
