@@ -388,7 +388,7 @@ STATNODE_COUNTER(shrinking_skipped,
 
 static void cache_zap_locked(struct namecache *ncp, bool neg_locked);
 static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
-    char *buf, char **retbuf, size_t buflen);
+    char *buf, char **retbuf, size_t *buflen);
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
@@ -2198,15 +2198,15 @@ kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, size_t buflen,
 	rdir = fdp->fd_rdir;
 	vrefact(rdir);
 	FILEDESC_SUNLOCK(fdp);
-	error = vn_fullpath1(td, cdir, rdir, tmpbuf, &bp, buflen);
+	error = vn_fullpath1(td, cdir, rdir, tmpbuf, &bp, &buflen);
 	vrele(rdir);
 	vrele(cdir);
 
 	if (!error) {
 		if (bufseg == UIO_SYSSPACE)
-			bcopy(bp, buf, strlen(bp) + 1);
+			bcopy(bp, buf, buflen);
 		else
-			error = copyout(bp, buf, strlen(bp) + 1);
+			error = copyout(bp, buf, buflen);
 #ifdef KTRACE
 	if (KTRPOINT(curthread, KTR_NAMEI))
 		ktrnamei(bp);
@@ -2226,18 +2226,20 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	char *buf;
 	struct filedesc *fdp;
 	struct vnode *rdir;
+	size_t buflen;
 	int error;
 
 	if (__predict_false(vn == NULL))
 		return (EINVAL);
 
-	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	buflen = MAXPATHLEN;
+	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
 	rdir = fdp->fd_rdir;
 	vrefact(rdir);
 	FILEDESC_SUNLOCK(fdp);
-	error = vn_fullpath1(td, vn, rdir, buf, retbuf, MAXPATHLEN);
+	error = vn_fullpath1(td, vn, rdir, buf, retbuf, &buflen);
 	vrele(rdir);
 
 	if (!error)
@@ -2258,12 +2260,14 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
     char **retbuf, char **freebuf)
 {
 	char *buf;
+	size_t buflen;
 	int error;
 
 	if (__predict_false(vn == NULL))
 		return (EINVAL);
-	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	error = vn_fullpath1(td, vn, rootvnode, buf, retbuf, MAXPATHLEN);
+	buflen = MAXPATHLEN;
+	buf = malloc(buflen, M_TEMP, M_WAITOK);
+	error = vn_fullpath1(td, vn, rootvnode, buf, retbuf, &buflen);
 	if (!error)
 		*freebuf = buf;
 	else
@@ -2338,13 +2342,16 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
  */
 static int
 vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
-    char *buf, char **retbuf, size_t buflen)
+    char *buf, char **retbuf, size_t *len)
 {
 	int error, slash_prefixed;
 #ifdef KDTRACE_HOOKS
 	struct vnode *startvp = vp;
 #endif
 	struct vnode *vp1;
+	size_t buflen;
+
+	buflen = *len;
 
 	buflen--;
 	buf[buflen] = '\0';
@@ -2436,6 +2443,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 
 	SDT_PROBE3(vfs, namecache, fullpath, return, 0, startvp, buf + buflen);
 	*retbuf = buf + buflen;
+	*len -= buflen;
 	return (0);
 }
 
