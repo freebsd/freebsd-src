@@ -640,7 +640,7 @@ vop_vptocnp {
 	OUT struct vnode **vpp;
 	IN struct ucred *cred;
 	INOUT char *buf;
-	INOUT int *buflen;
+	INOUT size_t *buflen;
 };
 
 
