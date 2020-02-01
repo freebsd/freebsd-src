@@ -88,6 +88,7 @@ struct hwp_softc {
 	bool			hwp_activity_window;
 	bool			hwp_pref_ctrl;
 	bool			hwp_pkg_ctrl;
+	bool			hwp_pkg_ctrl_en;
 	bool			hwp_perf_bias;
 
 	uint64_t		req; /* Cached copy of last request */
@@ -108,6 +109,11 @@ static driver_t hwpstate_intel_driver = {
 DRIVER_MODULE(hwpstate_intel, cpu, hwpstate_intel_driver,
     hwpstate_intel_devclass, NULL, NULL);
 MODULE_VERSION(hwpstate_intel, 1);
+
+static bool hwpstate_pkg_ctrl_enable = true;
+SYSCTL_BOOL(_machdep, OID_AUTO, hwpstate_pkg_ctrl, CTLFLAG_RDTUN,
+    &hwpstate_pkg_ctrl_enable, 0,
+    "Set 1 (default) to enable package-level control, 0 to disable");
 
 static int
 intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
@@ -260,7 +266,10 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	thread_unlock(curthread);
 
 	if (sc->hwp_pref_ctrl) {
-		ret = rdmsr_safe(MSR_IA32_HWP_REQUEST, &requested);
+		if (sc->hwp_pkg_ctrl_en)
+			ret = rdmsr_safe(MSR_IA32_HWP_REQUEST_PKG, &requested);
+		else
+			ret = rdmsr_safe(MSR_IA32_HWP_REQUEST, &requested);
 		if (ret)
 			goto out;
 		val = (requested & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
@@ -293,9 +302,12 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 		val = percent_to_raw(val);
 
 		requested &= ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE;
-		requested |= val << 24;
+		requested |= val << 24u;
 
-		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, requested);
+		if (sc->hwp_pkg_ctrl_en)
+			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, requested);
+		else
+			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, requested);
 	} else {
 		requested = percent_to_raw_perf_bias(val);
 		MPASS((requested & ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) == 0);
@@ -347,7 +359,6 @@ intel_hwpstate_probe(device_t dev)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
-/* FIXME: Need to support PKG variant */
 static int
 set_autonomous_hwp(struct hwp_softc *sc)
 {
@@ -421,11 +432,30 @@ set_autonomous_hwp(struct hwp_softc *sc)
 	sc->req &= ~IA32_HWP_REQUEST_MAXIMUM_PERFORMANCE;
 	sc->req |= sc->high << 8;
 
-	ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
+	/* If supported, request package-level control for this CPU. */
+	if (sc->hwp_pkg_ctrl_en)
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req |
+		    IA32_HWP_REQUEST_PACKAGE_CONTROL);
+	else
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
 	if (ret) {
 		device_printf(dev,
-		    "Failed to setup autonomous HWP for cpu%d\n",
-		    pc->pc_cpuid);
+		    "Failed to setup%s autonomous HWP for cpu%d\n",
+		    sc->hwp_pkg_ctrl_en ? " PKG" : "", pc->pc_cpuid);
+		goto out;
+	}
+
+	/* If supported, write the PKG-wide control MSR. */
+	if (sc->hwp_pkg_ctrl_en) {
+		/*
+		 * "The structure of the IA32_HWP_REQUEST_PKG MSR
+		 * (package-level) is identical to the IA32_HWP_REQUEST MSR
+		 * with the exception of the Package Control field, which does
+		 * not exist." (Intel SDM §14.4.4)
+		 */
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
+		device_printf(dev,
+		    "Failed to set autonomous HWP for package\n");
 	}
 
 out:
@@ -454,6 +484,9 @@ intel_hwpstate_attach(device_t dev)
 		sc->hwp_pref_ctrl = true;
 	if (cpu_power_eax & CPUTPM1_HWP_PKG)
 		sc->hwp_pkg_ctrl = true;
+
+	/* Allow administrators to disable pkg-level control. */
+	sc->hwp_pkg_ctrl_en = (sc->hwp_pkg_ctrl && hwpstate_pkg_ctrl_enable);
 
 	/* ecx */
 	if (cpu_power_ecx & CPUID_PERF_BIAS)
@@ -558,11 +591,21 @@ intel_hwpstate_resume(device_t dev)
 		goto out;
 	}
 
-	ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
+	if (sc->hwp_pkg_ctrl_en)
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req |
+		    IA32_HWP_REQUEST_PACKAGE_CONTROL);
+	else
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
 	if (ret) {
 		device_printf(dev,
-		    "Failed to setup autonomous HWP for cpu%d after suspend\n",
-		    pc->pc_cpuid);
+		    "Failed to set%s autonomous HWP for cpu%d after suspend\n",
+		    sc->hwp_pkg_ctrl_en ? " PKG" : "", pc->pc_cpuid);
+		goto out;
+	}
+	if (sc->hwp_pkg_ctrl_en) {
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
+		device_printf(dev,
+		    "Failed to set autonomous HWP for package after suspend\n");
 	}
 
 out:
