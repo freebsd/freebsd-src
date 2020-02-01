@@ -40,11 +40,60 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/sysctl.h>
+#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <syslog.h>
 #include "un-namespace.h"
 
+#include "random.h"
+
+/*
+ * Implement rand(3), the standard C PRNG API, using the non-standard but
+ * higher quality random(3) implementation and the same size 128-byte state
+ * LFSR as the random(3) default.
+ *
+ * It turns out there are portable applications that want a PRNG but are too
+ * lazy to use better-but-nonstandard interfaces like random(3), when
+ * available, and too lazy to import higher-quality and faster PRNGs into their
+ * codebase (such as any of SFC, JSF, 128-bit LCGs, PCG, or Splitmix64).
+ *
+ * Since we're stuck with rand(3) due to the C standard, we can at least have
+ * it produce a relatively good PRNG sequence using our existing random(3)
+ * LFSR.  The random(3) design is not particularly fast nor compact, but it has
+ * the advantage of being the one already in the tree.
+ */
+static struct __random_state *rand3_state;
+
+static void
+initialize_rand3(void)
+{
+	int error;
+
+	rand3_state = allocatestate(TYPE_3);
+	error = initstate_r(rand3_state, 1, rand3_state->rst_randtbl, BREAK_3);
+	assert(error == 0);
+}
+
+int
+rand(void)
+{
+	if (rand3_state == NULL)
+		initialize_rand3();
+	return ((int)random_r(rand3_state));
+}
+
+void
+srand(unsigned seed)
+{
+	if (rand3_state == NULL)
+		initialize_rand3();
+	srandom_r(rand3_state, seed);
+}
+
+/*
+ * FreeBSD 12 and prior compatibility implementation of rand(3).
+ */
 static int
 do_rand(unsigned long *ctx)
 {
@@ -71,7 +120,9 @@ do_rand(unsigned long *ctx)
 	return (x);
 }
 
-
+/*
+ * Can't fix this garbage; too little state.
+ */
 int
 rand_r(unsigned *ctx)
 {
@@ -84,21 +135,23 @@ rand_r(unsigned *ctx)
 	return (r);
 }
 
-
 static u_long next = 1;
 
+int __rand_fbsd12(void);
 int
-rand(void)
+__rand_fbsd12(void)
 {
 	return (do_rand(&next));
 }
+__sym_compat(rand, __rand_fbsd12, FBSD_1.0);
 
+void __srand_fbsd12(unsigned seed);
 void
-srand(unsigned seed)
+__srand_fbsd12(unsigned seed)
 {
 	next = seed;
 }
-
+__sym_compat(srand, __srand_fbsd12, FBSD_1.0);
 
 void __sranddev_fbsd12(void);
 void

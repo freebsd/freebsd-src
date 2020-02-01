@@ -45,10 +45,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 #include <dev/extres/clk/clk.h>
+#include <dev/extres/clk/clk_fixed.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
+
+#include <gnu/dts/include/dt-bindings/clock/sifive-fu540-prci.h>
+
+static struct ofw_compat_data compat_data[] = {
+	{ "sifive,aloeprci0",		1 },
+	{ "sifive,ux00prci0",		1 },
+	{ "sifive,fu540-c000-prci",	1 },
+	{ NULL,				0 },
+};
 
 static struct resource_spec prci_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
@@ -68,6 +78,7 @@ struct prci_softc {
 
 struct prci_clk_pll_sc {
 	struct prci_softc	*parent_sc;
+	uint32_t		reg;
 };
 
 #define	PRCI_LOCK(sc)			mtx_lock(&(sc)->mtx)
@@ -75,16 +86,50 @@ struct prci_clk_pll_sc {
 #define	PRCI_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED);
 #define	PRCI_ASSERT_UNLOCKED(sc)	mtx_assert(&(sc)->mtx, MA_NOTOWNED);
 
-#define	PRCI_COREPLL			0x4
-#define		PRCI_COREPLL_DIVR_MASK	0x3f
-#define		PRCI_COREPLL_DIVR_SHIFT	0
-#define		PRCI_COREPLL_DIVF_MASK	0x7fc0
-#define		PRCI_COREPLL_DIVF_SHIFT	6
-#define		PRCI_COREPLL_DIVQ_MASK	0x38000
-#define		PRCI_COREPLL_DIVQ_SHIFT	15
+#define	PRCI_COREPLL_CFG0		0x4
+#define	PRCI_DDRPLL_CFG0		0xC
+#define	PRCI_GEMGXLPLL_CFG0		0x1C
+
+#define	PRCI_PLL_DIVR_MASK		0x3f
+#define	PRCI_PLL_DIVR_SHIFT		0
+#define	PRCI_PLL_DIVF_MASK		0x7fc0
+#define	PRCI_PLL_DIVF_SHIFT		6
+#define	PRCI_PLL_DIVQ_MASK		0x38000
+#define	PRCI_PLL_DIVQ_SHIFT		15
 
 #define	PRCI_READ(_sc, _reg)		\
     bus_space_read_4((_sc)->bst, (_sc)->bsh, (_reg))
+
+struct prci_pll_def {
+	uint32_t	id;
+	const char	*name;
+	uint32_t	reg;
+};
+
+#define PLL(_id, _name, _base)					\
+{								\
+	.id = (_id),						\
+	.name = (_name),					\
+	.reg = (_base),						\
+}
+
+/* PLL Clocks */
+struct prci_pll_def pll_clks[] = {
+	PLL(PRCI_CLK_COREPLL, "coreclk",  PRCI_COREPLL_CFG0),
+	PLL(PRCI_CLK_DDRPLL, "ddrclk",   PRCI_DDRPLL_CFG0),
+	PLL(PRCI_CLK_GEMGXLPLL, "gemgxclk", PRCI_GEMGXLPLL_CFG0),
+};
+
+/* Fixed divisor clock TLCLK. */
+struct clk_fixed_def tlclk_def = {
+	.clkdef.id = PRCI_CLK_TLCLK,
+	.clkdef.name = "prci_tlclk",
+	.clkdef.parent_names = (const char *[]){"coreclk"},
+	.clkdef.parent_cnt = 1,
+	.clkdef.flags = CLK_NODE_STATIC_STRINGS,
+	.mult = 1,
+	.div = 2,
+};
 
 static int
 prci_clk_pll_init(struct clknode *clk, device_t dev)
@@ -121,11 +166,11 @@ prci_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
 	}
 
 	/* Calculate the PLL output */
-	val = PRCI_READ(sc->parent_sc, PRCI_COREPLL);
+	val = PRCI_READ(sc->parent_sc, sc->reg);
 
-	divf = (val & PRCI_COREPLL_DIVF_MASK) >> PRCI_COREPLL_DIVF_SHIFT;
-	divq = (val & PRCI_COREPLL_DIVQ_MASK) >> PRCI_COREPLL_DIVQ_SHIFT;
-	divr = (val & PRCI_COREPLL_DIVR_MASK) >> PRCI_COREPLL_DIVR_SHIFT;
+	divf = (val & PRCI_PLL_DIVF_MASK) >> PRCI_PLL_DIVF_SHIFT;
+	divq = (val & PRCI_PLL_DIVQ_MASK) >> PRCI_PLL_DIVQ_SHIFT;
+	divr = (val & PRCI_PLL_DIVR_MASK) >> PRCI_PLL_DIVR_SHIFT;
 
 	*freq = refclk / (divr + 1) * (2 * (divf + 1)) / (1 << divq);
 
@@ -151,7 +196,7 @@ prci_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "sifive,aloeprci0"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "SiFive FU540 Power Reset Clocking Interrupt");
@@ -160,7 +205,8 @@ prci_probe(device_t dev)
 }
 
 static void
-prci_pll_register(struct prci_softc *parent_sc, struct clknode_init_def *clkdef)
+prci_pll_register(struct prci_softc *parent_sc, struct clknode_init_def *clkdef,
+	uint32_t reg)
 {
 	struct clknode *clk;
 	struct prci_clk_pll_sc *sc;
@@ -172,6 +218,7 @@ prci_pll_register(struct prci_softc *parent_sc, struct clknode_init_def *clkdef)
 
 	sc = clknode_get_softc(clk);
 	sc->parent_sc = parent_sc;
+	sc->reg = reg;
 
 	clknode_register(parent_sc->clkdom, clk);
 }
@@ -201,14 +248,12 @@ prci_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	error = ofw_bus_parse_xref_list_get_length(node, "clocks",
 	    "#clock-cells", &ncells);
-	if (error != 0 || ncells != 1) {
+	if (error != 0 || ncells < 1) {
 		device_printf(dev, "couldn't find parent clock\n");
 		goto fail;
 	}
 
 	bzero(&clkdef, sizeof(clkdef));
-	clkdef.id = 0;
-	clkdef.name = "coreclk";
 	clkdef.parent_names = mallocarray(ncells, sizeof(char *), M_OFWPROP,
 	    M_WAITOK);
 	for (i = 0; i < ncells; i++) {
@@ -232,7 +277,21 @@ prci_attach(device_t dev)
 	}
 
 	/* We can't free a clkdom, so from now on we cannot fail. */
-	prci_pll_register(sc, &clkdef);
+	for (i = 0; i < nitems(pll_clks); i++) {
+		clkdef.id = pll_clks[i].id;
+		clkdef.name = pll_clks[i].name;
+		prci_pll_register(sc, &clkdef, pll_clks[i].reg);
+	}
+
+	/*
+	 * Register the fixed clock "tlclk".
+	 *
+	 * If an older device tree is being used, tlclk may appear as its own
+	 * entity in the device tree, under soc/tlclk. If this is the case it
+	 * will be registered automatically by the fixed_clk driver, and the
+	 * version we register here will be an unreferenced duplicate.
+	 */
+	clknode_fixed_register(sc->clkdom, &tlclk_def);
 
 	error = clkdom_finit(sc->clkdom);
 	if (error)

@@ -32,7 +32,7 @@
 .\"     @(#)rand.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2019
+.Dd February 1, 2020
 .Dt RAND 3
 .Os
 .Sh NAME
@@ -59,49 +59,52 @@ Applications which require unpredictable random numbers should use
 instead.
 .Ef
 .Pp
-These interfaces are obsoleted by
-.Xr random 3 .
-.Pp
 The
 .Fn rand
 function computes a sequence of pseudo-random integers in the range
 of 0 to
-.Dv RAND_MAX
-(as defined by the header file
-.In stdlib.h ) .
+.Dv RAND_MAX ,
+inclusive.
 .Pp
 The
 .Fn srand
-function sets its argument
+function seeds the algorithm with the
 .Fa seed
-as the seed for a new sequence of
-pseudo-random numbers to be returned by
-.Fn rand .
-These sequences are repeatable by calling
+parameter.
+Repeatable sequences of
+.Fn rand
+output may be obtained by calling
 .Fn srand
-with the same seed value.
+with the same
+.Fa seed .
+.Fn rand
+is implicitly initialized as if
+.Fn srand "1"
+had been invoked explicitly.
 .Pp
-If no
-.Fa seed
-value is provided, the functions are automatically
-seeded with a value of 1.
-.Pp
-The
+In
+.Fx 13 ,
+.Fn rand
+is implemented using the same 128-byte state LFSR generator algorithm as
+.Xr random 3 .
+However, the legacy
 .Fn rand_r
-function
-provides the same functionality as
-.Fn rand .
-A pointer to the context value
-.Fa ctx
-must be supplied by the caller.
-.Pp
-For better generator quality, use
-.Xr random 3
-or
-.Xr lrand48 3 .
+function is not (and can not be, because of its limited
+.Fa *ctx
+size).
+.Fn rand_r
+implements the historical, poor-quality Park-Miller 32-bit LCG and should not
+be used in new designs.
+.Sh IMPLEMENTATION NOTES
+Since
+.Fx 13 ,
+.Fn rand
+is implemented with the same generator as
+.Xr random 3 ,
+so the low-order bits should no longer be significantly worse than the
+high-order bits.
 .Sh SEE ALSO
 .Xr arc4random 3 ,
-.Xr lrand48 3 ,
 .Xr random 3 ,
 .Xr random 4
 .Sh STANDARDS
@@ -115,5 +118,32 @@ conform to
 .Pp
 The
 .Fn rand_r
-function is marked as obsolescent in POSIX and may be removed in a future
-revision of the standard.
+function is not part of
+.St -isoC
+and is marked obsolescent in
+.St -p1003.1-2008 .
+It may be removed in a future revision of POSIX.
+.Sh CAVEATS
+Prior to
+.Fx 13 ,
+.Fn rand
+used the historical Park-Miller generator with 32 bits of state and produced
+poor quality output, especially in the lower bits.
+.Fn rand
+in earlier versions of
+.Fx ,
+as well as other standards-conforming implementations, may continue to produce
+poor quality output.
+.Pp
+.Em These functions should not be used in portable applications that want a
+.Em high quality or high performance pseudorandom number generator .
+One possible replacement,
+.Xr random 3 ,
+is portable to Linux — but it is not especially fast, nor standardized.
+.Pp
+If broader portability or better performance is desired, any of the widely
+available and permissively licensed SFC64/32, JSF64/32, PCG64/32, or SplitMix64
+algorithm implementations may be embedded in your application.
+These algorithms have the benefit of requiring less space than
+.Xr random 3
+and being quite fast (in header inline implementations).

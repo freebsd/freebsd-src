@@ -88,8 +88,12 @@ struct hwp_softc {
 	bool			hwp_activity_window;
 	bool			hwp_pref_ctrl;
 	bool			hwp_pkg_ctrl;
+	bool			hwp_pkg_ctrl_en;
+	bool			hwp_perf_bias;
+	bool			hwp_perf_bias_cached;
 
-	uint64_t		req; /* Cached copy of last request */
+	uint64_t		req; /* Cached copy of HWP_REQUEST */
+	uint64_t		hwp_energy_perf_bias;	/* Cache PERF_BIAS */
 
 	uint8_t			high;
 	uint8_t			guaranteed;
@@ -107,6 +111,11 @@ static driver_t hwpstate_intel_driver = {
 DRIVER_MODULE(hwpstate_intel, cpu, hwpstate_intel_driver,
     hwpstate_intel_devclass, NULL, NULL);
 MODULE_VERSION(hwpstate_intel, 1);
+
+static bool hwpstate_pkg_ctrl_enable = true;
+SYSCTL_BOOL(_machdep, OID_AUTO, hwpstate_pkg_ctrl, CTLFLAG_RDTUN,
+    &hwpstate_pkg_ctrl_enable, 0,
+    "Set 1 (default) to enable package-level control, 0 to disable");
 
 static int
 intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
@@ -215,16 +224,41 @@ raw_to_percent(int x)
 	return (round10(x * 1000 / 0xff));
 }
 
+/* Range of MSR_IA32_ENERGY_PERF_BIAS is more limited: 0-0xf. */
+static inline int
+percent_to_raw_perf_bias(int x)
+{
+	/*
+	 * Round up so that raw values present as nice round human numbers and
+	 * also round-trip to the same raw value.
+	 */
+	MPASS(x <= 100 && x >= 0);
+	return (((0xf * x) + 50) / 100);
+}
+
+static inline int
+raw_to_percent_perf_bias(int x)
+{
+	/* Rounding to nice human numbers despite a step interval of 6.67%. */
+	MPASS(x <= 0xf && x >= 0);
+	return (((x * 20) / 0xf) * 5);
+}
+
 static int
 sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 {
+	struct hwp_softc *sc;
 	device_t dev;
 	struct pcpu *pc;
-	uint64_t requested;
+	uint64_t epb;
 	uint32_t val;
 	int ret;
 
 	dev = oidp->oid_arg1;
+	sc = device_get_softc(dev);
+	if (!sc->hwp_pref_ctrl && !sc->hwp_perf_bias)
+		return (ENODEV);
+
 	pc = cpu_get_pcpu(dev);
 	if (pc == NULL)
 		return (ENXIO);
@@ -233,9 +267,26 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	sched_bind(curthread, pc->pc_cpuid);
 	thread_unlock(curthread);
 
-	rdmsr_safe(MSR_IA32_HWP_REQUEST, &requested);
-	val = (requested & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
-	val = raw_to_percent(val);
+	if (sc->hwp_pref_ctrl) {
+		val = (sc->req & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
+		val = raw_to_percent(val);
+	} else {
+		/*
+		 * If cpuid indicates EPP is not supported, the HWP controller
+		 * uses MSR_IA32_ENERGY_PERF_BIAS instead (Intel SDM §14.4.4).
+		 * This register is per-core (but not HT).
+		 */
+		if (!sc->hwp_perf_bias_cached) {
+			ret = rdmsr_safe(MSR_IA32_ENERGY_PERF_BIAS, &epb);
+			if (ret)
+				goto out;
+			sc->hwp_energy_perf_bias = epb;
+			sc->hwp_perf_bias_cached = true;
+		}
+		val = sc->hwp_energy_perf_bias &
+		    IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK;
+		val = raw_to_percent_perf_bias(val);
+	}
 
 	MPASS(val >= 0 && val <= 100);
 
@@ -248,12 +299,27 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 		goto out;
 	}
 
-	val = percent_to_raw(val);
+	if (sc->hwp_pref_ctrl) {
+		val = percent_to_raw(val);
 
-	requested &= ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE;
-	requested |= val << 24;
+		sc->req =
+		    ((sc->req & ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE)
+		    | (val << 24u));
 
-	wrmsr_safe(MSR_IA32_HWP_REQUEST, requested);
+		if (sc->hwp_pkg_ctrl_en)
+			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
+		else
+			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
+	} else {
+		val = percent_to_raw_perf_bias(val);
+		MPASS((val & ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) == 0);
+
+		sc->hwp_energy_perf_bias =
+		    ((sc->hwp_energy_perf_bias &
+		    ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) | val);
+		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS,
+		    sc->hwp_energy_perf_bias);
+	}
 
 out:
 	thread_lock(curthread);
@@ -266,8 +332,6 @@ out:
 void
 intel_hwpstate_identify(driver_t *driver, device_t parent)
 {
-	uint32_t regs[4];
-
 	if (device_find_child(parent, "hwpstate_intel", -1) != NULL)
 		return;
 
@@ -279,25 +343,12 @@ intel_hwpstate_identify(driver_t *driver, device_t parent)
 
 	/*
 	 * Intel SDM 14.4.1 (HWP Programming Interfaces):
-	 *   The CPUID instruction allows software to discover the presence of
-	 *   HWP support in an Intel processor. Specifically, execute CPUID
-	 *   instruction with EAX=06H as input will return 5 bit flags covering
-	 *   the following aspects in bits 7 through 11 of CPUID.06H:EAX.
-	 */
-
-	if (cpu_high < 6)
-		return;
-
-	/*
-	 * Intel SDM 14.4.1 (HWP Programming Interfaces):
 	 *   Availability of HWP baseline resource and capability,
 	 *   CPUID.06H:EAX[bit 7]: If this bit is set, HWP provides several new
 	 *   architectural MSRs: IA32_PM_ENABLE, IA32_HWP_CAPABILITIES,
 	 *   IA32_HWP_REQUEST, IA32_HWP_STATUS.
 	 */
-
-	do_cpuid(6, regs);
-	if ((regs[0] & CPUTPM1_HWP) == 0)
+	if ((cpu_power_eax & CPUTPM1_HWP) == 0)
 		return;
 
 	if (BUS_ADD_CHILD(parent, 10, "hwpstate_intel", -1) == NULL)
@@ -315,7 +366,6 @@ intel_hwpstate_probe(device_t dev)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
-/* FIXME: Need to support PKG variant */
 static int
 set_autonomous_hwp(struct hwp_softc *sc)
 {
@@ -337,19 +387,39 @@ set_autonomous_hwp(struct hwp_softc *sc)
 	/* XXX: Many MSRs aren't readable until feature is enabled */
 	ret = wrmsr_safe(MSR_IA32_PM_ENABLE, 1);
 	if (ret) {
+		/*
+		 * This is actually a package-level MSR, and only the first
+		 * write is not ignored.  So it is harmless to enable it across
+		 * all devices, and this allows us not to care especially in
+		 * which order cores (and packages) are probed.  This error
+		 * condition should not happen given we gate on the HWP CPUID
+		 * feature flag, if the Intel SDM is correct.
+		 */
 		device_printf(dev, "Failed to enable HWP for cpu%d (%d)\n",
 		    pc->pc_cpuid, ret);
 		goto out;
 	}
 
 	ret = rdmsr_safe(MSR_IA32_HWP_REQUEST, &sc->req);
-	if (ret)
-		return (ret);
+	if (ret) {
+		device_printf(dev,
+		    "Failed to read HWP request MSR for cpu%d (%d)\n",
+		    pc->pc_cpuid, ret);
+		goto out;
+	}
 
 	ret = rdmsr_safe(MSR_IA32_HWP_CAPABILITIES, &caps);
-	if (ret)
-		return (ret);
+	if (ret) {
+		device_printf(dev,
+		    "Failed to read HWP capabilities MSR for cpu%d (%d)\n",
+		    pc->pc_cpuid, ret);
+		goto out;
+	}
 
+	/*
+	 * High and low are static; "guaranteed" is dynamic; and efficient is
+	 * also dynamic.
+	 */
 	sc->high = IA32_HWP_CAPABILITIES_HIGHEST_PERFORMANCE(caps);
 	sc->guaranteed = IA32_HWP_CAPABILITIES_GUARANTEED_PERFORMANCE(caps);
 	sc->efficient = IA32_HWP_CAPABILITIES_EFFICIENT_PERFORMANCE(caps);
@@ -369,11 +439,30 @@ set_autonomous_hwp(struct hwp_softc *sc)
 	sc->req &= ~IA32_HWP_REQUEST_MAXIMUM_PERFORMANCE;
 	sc->req |= sc->high << 8;
 
-	ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
+	/* If supported, request package-level control for this CPU. */
+	if (sc->hwp_pkg_ctrl_en)
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req |
+		    IA32_HWP_REQUEST_PACKAGE_CONTROL);
+	else
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
 	if (ret) {
 		device_printf(dev,
-		    "Failed to setup autonomous HWP for cpu%d (file a bug)\n",
-		    pc->pc_cpuid);
+		    "Failed to setup%s autonomous HWP for cpu%d\n",
+		    sc->hwp_pkg_ctrl_en ? " PKG" : "", pc->pc_cpuid);
+		goto out;
+	}
+
+	/* If supported, write the PKG-wide control MSR. */
+	if (sc->hwp_pkg_ctrl_en) {
+		/*
+		 * "The structure of the IA32_HWP_REQUEST_PKG MSR
+		 * (package-level) is identical to the IA32_HWP_REQUEST MSR
+		 * with the exception of the Package Control field, which does
+		 * not exist." (Intel SDM §14.4.4)
+		 */
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
+		device_printf(dev,
+		    "Failed to set autonomous HWP for package\n");
 	}
 
 out:
@@ -388,21 +477,27 @@ static int
 intel_hwpstate_attach(device_t dev)
 {
 	struct hwp_softc *sc;
-	uint32_t regs[4];
 	int ret;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	do_cpuid(6, regs);
-	if (regs[0] & CPUTPM1_HWP_NOTIFICATION)
+	/* eax */
+	if (cpu_power_eax & CPUTPM1_HWP_NOTIFICATION)
 		sc->hwp_notifications = true;
-	if (regs[0] & CPUTPM1_HWP_ACTIVITY_WINDOW)
+	if (cpu_power_eax & CPUTPM1_HWP_ACTIVITY_WINDOW)
 		sc->hwp_activity_window = true;
-	if (regs[0] & CPUTPM1_HWP_PERF_PREF)
+	if (cpu_power_eax & CPUTPM1_HWP_PERF_PREF)
 		sc->hwp_pref_ctrl = true;
-	if (regs[0] & CPUTPM1_HWP_PKG)
+	if (cpu_power_eax & CPUTPM1_HWP_PKG)
 		sc->hwp_pkg_ctrl = true;
+
+	/* Allow administrators to disable pkg-level control. */
+	sc->hwp_pkg_ctrl_en = (sc->hwp_pkg_ctrl && hwpstate_pkg_ctrl_enable);
+
+	/* ecx */
+	if (cpu_power_ecx & CPUID_PERF_BIAS)
+		sc->hwp_perf_bias = true;
 
 	ret = set_autonomous_hwp(sc);
 	if (ret)
@@ -503,11 +598,34 @@ intel_hwpstate_resume(device_t dev)
 		goto out;
 	}
 
-	ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
+	if (sc->hwp_pkg_ctrl_en)
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req |
+		    IA32_HWP_REQUEST_PACKAGE_CONTROL);
+	else
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
 	if (ret) {
 		device_printf(dev,
-		    "Failed to setup autonomous HWP for cpu%d after suspend\n",
-		    pc->pc_cpuid);
+		    "Failed to set%s autonomous HWP for cpu%d after suspend\n",
+		    sc->hwp_pkg_ctrl_en ? " PKG" : "", pc->pc_cpuid);
+		goto out;
+	}
+	if (sc->hwp_pkg_ctrl_en) {
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
+		if (ret) {
+			device_printf(dev,
+			    "Failed to set autonomous HWP for package after "
+			    "suspend\n");
+			goto out;
+		}
+	}
+	if (!sc->hwp_pref_ctrl && sc->hwp_perf_bias_cached) {
+		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS,
+		    sc->hwp_energy_perf_bias);
+		if (ret) {
+			device_printf(dev,
+			    "Failed to set energy perf bias for cpu%d after "
+			    "suspend\n", pc->pc_cpuid);
+		}
 	}
 
 out:

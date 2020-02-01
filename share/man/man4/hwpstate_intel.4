@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2020
+.Dd February 1, 2020
 .Dt HWPSTATE_INTEL 4
 .Os
 .Sh NAME
@@ -49,7 +49,15 @@ Can be used to disable
 .Nm ,
 allowing other compatible drivers to manage performance states, like
 .Xr est 4 .
-.Pq default 0
+Defaults to
+.Dv Qq 0
+(enabled).
+.It Va machdep.hwpstate_pkg_ctrl
+Selects between package-level control (the default) and per-core control.
+.Dv Qq 1
+selects package-level control and
+.Dv Qq 0
+selects core-level control.
 .El
 .Sh SYSCTL VARIABLES
 The following

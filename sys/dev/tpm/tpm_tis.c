@@ -386,12 +386,11 @@ tpmtis_go_ready(struct tpm_sc *sc)
 	mask = TPM_STS_CMD_RDY;
 	sc->intr_type = TPM_INT_STS_CMD_RDY;
 
-	OR4(sc, TPM_STS, TPM_STS_CMD_RDY);
+	WR4(sc, TPM_STS, TPM_STS_CMD_RDY);
 	bus_barrier(sc->mem_res, TPM_STS, 4, BUS_SPACE_BARRIER_WRITE);
 	if (!tpm_wait_for_u32(sc, TPM_STS, mask, mask, TPM_TIMEOUT_B))
 		return (false);
 
-	AND4(sc, TPM_STS, ~TPM_STS_CMD_RDY);
 	return (true);
 }
 
