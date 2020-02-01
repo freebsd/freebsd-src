@@ -343,12 +343,20 @@ set_autonomous_hwp(struct hwp_softc *sc)
 	}
 
 	ret = rdmsr_safe(MSR_IA32_HWP_REQUEST, &sc->req);
-	if (ret)
-		return (ret);
+	if (ret) {
+		device_printf(dev,
+		    "Failed to read HWP request MSR for cpu%d (%d)\n",
+		    pc->pc_cpuid, ret);
+		goto out;
+	}
 
 	ret = rdmsr_safe(MSR_IA32_HWP_CAPABILITIES, &caps);
-	if (ret)
-		return (ret);
+	if (ret) {
+		device_printf(dev,
+		    "Failed to read HWP capabilities MSR for cpu%d (%d)\n",
+		    pc->pc_cpuid, ret);
+		goto out;
+	}
 
 	sc->high = IA32_HWP_CAPABILITIES_HIGHEST_PERFORMANCE(caps);
 	sc->guaranteed = IA32_HWP_CAPABILITIES_GUARANTEED_PERFORMANCE(caps);
@@ -372,7 +380,7 @@ set_autonomous_hwp(struct hwp_softc *sc)
 	ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
 	if (ret) {
 		device_printf(dev,
-		    "Failed to setup autonomous HWP for cpu%d (file a bug)\n",
+		    "Failed to setup autonomous HWP for cpu%d\n",
 		    pc->pc_cpuid);
 	}
 
