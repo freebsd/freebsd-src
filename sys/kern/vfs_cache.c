@@ -364,7 +364,7 @@ STATNODE_COUNTER(numposhits, "Number of cache hits (positive)");
 STATNODE_COUNTER(numnegzaps,
     "Number of cache hits (negative) we do not want to cache");
 STATNODE_COUNTER(numneghits, "Number of cache hits (negative)");
-/* These count for kern___getcwd(), too. */
+/* These count for vn_getcwd(), too. */
 STATNODE_COUNTER(numfullpathcalls, "Number of fullpath search calls");
 STATNODE_COUNTER(numfullpathfail1, "Number of fullpath search errors (ENOTDIR)");
 STATNODE_COUNTER(numfullpathfail2,
@@ -2171,26 +2171,31 @@ vfs_cache_lookup(struct vop_lookup_args *ap)
 int
 sys___getcwd(struct thread *td, struct __getcwd_args *uap)
 {
+	char *buf, *retbuf;
+	size_t buflen;
+	int error;
 
-	return (kern___getcwd(td, uap->buf, UIO_USERSPACE, uap->buflen,
-	    MAXPATHLEN));
+	buflen = uap->buflen;
+	if (__predict_false(buflen < 2))
+		return (EINVAL);
+	if (buflen > MAXPATHLEN)
+		buflen = MAXPATHLEN;
+
+	buf = malloc(buflen, M_TEMP, M_WAITOK);
+	error = vn_getcwd(td, buf, &retbuf, &buflen);
+	if (error == 0)
+		error = copyout(retbuf, uap->buf, buflen);
+	free(buf, M_TEMP);
+	return (error);
 }
 
 int
-kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, size_t buflen,
-    size_t path_max)
+vn_getcwd(struct thread *td, char *buf, char **retbuf, size_t *buflen)
 {
-	char *bp, *tmpbuf;
 	struct filedesc *fdp;
 	struct vnode *cdir, *rdir;
 	int error;
 
-	if (__predict_false(buflen < 2))
-		return (EINVAL);
-	if (buflen > path_max)
-		buflen = path_max;
-
-	tmpbuf = malloc(buflen, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
 	cdir = fdp->fd_cdir;
@@ -2198,21 +2203,14 @@ kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, size_t buflen,
 	rdir = fdp->fd_rdir;
 	vrefact(rdir);
 	FILEDESC_SUNLOCK(fdp);
-	error = vn_fullpath1(td, cdir, rdir, tmpbuf, &bp, &buflen);
+	error = vn_fullpath1(td, cdir, rdir, buf, retbuf, buflen);
 	vrele(rdir);
 	vrele(cdir);
 
-	if (!error) {
-		if (bufseg == UIO_SYSSPACE)
-			bcopy(bp, buf, buflen);
-		else
-			error = copyout(bp, buf, buflen);
 #ifdef KTRACE
-	if (KTRPOINT(curthread, KTR_NAMEI))
-		ktrnamei(bp);
+	if (KTRPOINT(curthread, KTR_NAMEI) && error == 0)
+		ktrnamei(*retbuf);
 #endif
-	}
-	free(tmpbuf, M_TEMP);
 	return (error);
 }
 
@@ -2338,7 +2336,7 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 }
 
 /*
- * The magic behind kern___getcwd() and vn_fullpath().
+ * The magic behind vn_getcwd() and vn_fullpath().
  */
 static int
 vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
