@@ -90,8 +90,10 @@ struct hwp_softc {
 	bool			hwp_pkg_ctrl;
 	bool			hwp_pkg_ctrl_en;
 	bool			hwp_perf_bias;
+	bool			hwp_perf_bias_cached;
 
-	uint64_t		req; /* Cached copy of last request */
+	uint64_t		req; /* Cached copy of HWP_REQUEST */
+	uint64_t		hwp_energy_perf_bias;	/* Cache PERF_BIAS */
 
 	uint8_t			high;
 	uint8_t			guaranteed;
@@ -248,7 +250,7 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	struct hwp_softc *sc;
 	device_t dev;
 	struct pcpu *pc;
-	uint64_t requested;
+	uint64_t epb;
 	uint32_t val;
 	int ret;
 
@@ -266,13 +268,7 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	thread_unlock(curthread);
 
 	if (sc->hwp_pref_ctrl) {
-		if (sc->hwp_pkg_ctrl_en)
-			ret = rdmsr_safe(MSR_IA32_HWP_REQUEST_PKG, &requested);
-		else
-			ret = rdmsr_safe(MSR_IA32_HWP_REQUEST, &requested);
-		if (ret)
-			goto out;
-		val = (requested & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
+		val = (sc->req & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
 		val = raw_to_percent(val);
 	} else {
 		/*
@@ -280,10 +276,15 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 		 * uses MSR_IA32_ENERGY_PERF_BIAS instead (Intel SDM §14.4.4).
 		 * This register is per-core (but not HT).
 		 */
-		ret = rdmsr_safe(MSR_IA32_ENERGY_PERF_BIAS, &requested);
-		if (ret)
-			goto out;
-		val = requested & IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK;
+		if (!sc->hwp_perf_bias_cached) {
+			ret = rdmsr_safe(MSR_IA32_ENERGY_PERF_BIAS, &epb);
+			if (ret)
+				goto out;
+			sc->hwp_energy_perf_bias = epb;
+			sc->hwp_perf_bias_cached = true;
+		}
+		val = sc->hwp_energy_perf_bias &
+		    IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK;
 		val = raw_to_percent_perf_bias(val);
 	}
 
@@ -301,17 +302,23 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	if (sc->hwp_pref_ctrl) {
 		val = percent_to_raw(val);
 
-		requested &= ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE;
-		requested |= val << 24u;
+		sc->req =
+		    ((sc->req & ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE)
+		    | (val << 24u));
 
 		if (sc->hwp_pkg_ctrl_en)
-			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, requested);
+			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
 		else
-			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, requested);
+			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
 	} else {
-		requested = percent_to_raw_perf_bias(val);
-		MPASS((requested & ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) == 0);
-		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS, requested);
+		val = percent_to_raw_perf_bias(val);
+		MPASS((val & ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) == 0);
+
+		sc->hwp_energy_perf_bias =
+		    ((sc->hwp_energy_perf_bias &
+		    ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) | val);
+		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS,
+		    sc->hwp_energy_perf_bias);
 	}
 
 out:
@@ -604,10 +611,21 @@ intel_hwpstate_resume(device_t dev)
 	}
 	if (sc->hwp_pkg_ctrl_en) {
 		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
-		if (ret)
+		if (ret) {
 			device_printf(dev,
 			    "Failed to set autonomous HWP for package after "
 			    "suspend\n");
+			goto out;
+		}
+	}
+	if (!sc->hwp_pref_ctrl && sc->hwp_perf_bias_cached) {
+		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS,
+		    sc->hwp_energy_perf_bias);
+		if (ret) {
+			device_printf(dev,
+			    "Failed to set energy perf bias for cpu%d after "
+			    "suspend\n", pc->pc_cpuid);
+		}
 	}
 
 out:
