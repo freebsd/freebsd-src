@@ -218,6 +218,7 @@ raw_to_percent(int x)
 static int
 sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 {
+	struct hwp_softc *sc;
 	device_t dev;
 	struct pcpu *pc;
 	uint64_t requested;
@@ -225,6 +226,10 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	int ret;
 
 	dev = oidp->oid_arg1;
+	sc = device_get_softc(dev);
+	if (!sc->hwp_pref_ctrl)
+		return (ENODEV);
+
 	pc = cpu_get_pcpu(dev);
 	if (pc == NULL)
 		return (ENXIO);
@@ -233,7 +238,9 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	sched_bind(curthread, pc->pc_cpuid);
 	thread_unlock(curthread);
 
-	rdmsr_safe(MSR_IA32_HWP_REQUEST, &requested);
+	ret = rdmsr_safe(MSR_IA32_HWP_REQUEST, &requested);
+	if (ret)
+		goto out;
 	val = (requested & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
 	val = raw_to_percent(val);
 
@@ -253,7 +260,7 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	requested &= ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE;
 	requested |= val << 24;
 
-	wrmsr_safe(MSR_IA32_HWP_REQUEST, requested);
+	ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, requested);
 
 out:
 	thread_lock(curthread);
