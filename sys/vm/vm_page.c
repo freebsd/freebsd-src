@@ -1156,23 +1156,6 @@ vm_page_xunbusy_hard_unchecked(vm_page_t m)
 }
 
 /*
- * Avoid releasing and reacquiring the same page lock.
- */
-void
-vm_page_change_lock(vm_page_t m, struct mtx **mtx)
-{
-	struct mtx *mtx1;
-
-	mtx1 = vm_page_lockptr(m);
-	if (*mtx == mtx1)
-		return;
-	if (*mtx != NULL)
-		mtx_unlock(*mtx);
-	*mtx = mtx1;
-	mtx_lock(mtx1);
-}
-
-/*
  *	vm_page_unhold_pages:
  *
  *	Unhold each of the pages that is referenced by the given array.
@@ -2444,7 +2427,6 @@ vm_page_t
 vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
     u_long alignment, vm_paddr_t boundary, int options)
 {
-	struct mtx *m_mtx;
 	vm_object_t object;
 	vm_paddr_t pa;
 	vm_page_t m, m_run;
@@ -2458,7 +2440,6 @@ vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
 	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
 	m_run = NULL;
 	run_len = 0;
-	m_mtx = NULL;
 	for (m = m_start; m < m_end && run_len < npages; m += m_inc) {
 		KASSERT((m->flags & PG_MARKER) == 0,
 		    ("page %p is PG_MARKER", m));
@@ -2489,9 +2470,8 @@ vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
 		} else
 			KASSERT(m_run != NULL, ("m_run == NULL"));
 
-		vm_page_change_lock(m, &m_mtx);
-		m_inc = 1;
 retry:
+		m_inc = 1;
 		if (vm_page_wired(m))
 			run_ext = 0;
 #if VM_NRESERVLEVEL > 0
@@ -2504,23 +2484,17 @@ retry:
 			    pa);
 		}
 #endif
-		else if ((object = m->object) != NULL) {
+		else if ((object =
+		    (vm_object_t)atomic_load_ptr(&m->object)) != NULL) {
 			/*
 			 * The page is considered eligible for relocation if
 			 * and only if it could be laundered or reclaimed by
 			 * the page daemon.
 			 */
-			if (!VM_OBJECT_TRYRLOCK(object)) {
-				mtx_unlock(m_mtx);
-				VM_OBJECT_RLOCK(object);
-				mtx_lock(m_mtx);
-				if (m->object != object) {
-					/*
-					 * The page may have been freed.
-					 */
-					VM_OBJECT_RUNLOCK(object);
-					goto retry;
-				}
+			VM_OBJECT_RLOCK(object);
+			if (object != m->object) {
+				VM_OBJECT_RUNLOCK(object);
+				goto retry;
 			}
 			/* Don't care: PG_NODUMP, PG_ZERO. */
 			if (object->type != OBJT_DEFAULT &&
@@ -2537,8 +2511,7 @@ retry:
 				    vm_reserv_size(level)) - pa);
 #endif
 			} else if (object->memattr == VM_MEMATTR_DEFAULT &&
-			    vm_page_queue(m) != PQ_NONE && !vm_page_busied(m) &&
-			    !vm_page_wired(m)) {
+			    vm_page_queue(m) != PQ_NONE && !vm_page_busied(m)) {
 				/*
 				 * The page is allocated but eligible for
 				 * relocation.  Extend the current run by one
@@ -2605,8 +2578,6 @@ retry:
 			}
 		}
 	}
-	if (m_mtx != NULL)
-		mtx_unlock(m_mtx);
 	if (run_len >= npages)
 		return (m_run);
 	return (NULL);
@@ -2634,7 +2605,6 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
     vm_paddr_t high)
 {
 	struct vm_domain *vmd;
-	struct mtx *m_mtx;
 	struct spglist free;
 	vm_object_t object;
 	vm_paddr_t pa;
@@ -2647,42 +2617,28 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 	error = 0;
 	m = m_run;
 	m_end = m_run + npages;
-	m_mtx = NULL;
 	for (; error == 0 && m < m_end; m++) {
 		KASSERT((m->flags & (PG_FICTITIOUS | PG_MARKER)) == 0,
 		    ("page %p is PG_FICTITIOUS or PG_MARKER", m));
 
 		/*
-		 * Avoid releasing and reacquiring the same page lock.
-		 */
-		vm_page_change_lock(m, &m_mtx);
-retry:
-		/*
-		 * Racily check for wirings.  Races are handled below.
+		 * Racily check for wirings.  Races are handled once the object
+		 * lock is held and the page is unmapped.
 		 */
 		if (vm_page_wired(m))
 			error = EBUSY;
-		else if ((object = m->object) != NULL) {
+		else if ((object =
+		    (vm_object_t)atomic_load_ptr(&m->object)) != NULL) {
 			/*
 			 * The page is relocated if and only if it could be
 			 * laundered or reclaimed by the page daemon.
 			 */
-			if (!VM_OBJECT_TRYWLOCK(object)) {
-				mtx_unlock(m_mtx);
-				VM_OBJECT_WLOCK(object);
-				mtx_lock(m_mtx);
-				if (m->object != object) {
-					/*
-					 * The page may have been freed.
-					 */
-					VM_OBJECT_WUNLOCK(object);
-					goto retry;
-				}
-			}
+			VM_OBJECT_WLOCK(object);
 			/* Don't care: PG_NODUMP, PG_ZERO. */
-			if (object->type != OBJT_DEFAULT &&
+			if (m->object != object ||
+			    (object->type != OBJT_DEFAULT &&
 			    object->type != OBJT_SWAP &&
-			    object->type != OBJT_VNODE)
+			    object->type != OBJT_VNODE))
 				error = EINVAL;
 			else if (object->memattr != VM_MEMATTR_DEFAULT)
 				error = EINVAL;
@@ -2781,7 +2737,6 @@ retry:
 					 * The new page must be deactivated
 					 * before the object is unlocked.
 					 */
-					vm_page_change_lock(m_new, &m_mtx);
 					vm_page_deactivate(m_new);
 				} else {
 					m->flags &= ~PG_ZERO;
@@ -2821,8 +2776,6 @@ unlock:
 				error = EINVAL;
 		}
 	}
-	if (m_mtx != NULL)
-		mtx_unlock(m_mtx);
 	if ((m = SLIST_FIRST(&free)) != NULL) {
 		int cnt;
 
