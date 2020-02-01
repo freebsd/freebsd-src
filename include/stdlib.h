@@ -73,7 +73,11 @@ typedef struct {
 #define	EXIT_FAILURE	1
 #define	EXIT_SUCCESS	0
 
-#define	RAND_MAX	0x7ffffffd
+/*
+ * I.e., INT_MAX; rand(3) returns a signed integer but must produce output in
+ * the range [0, RAND_MAX], so half of the possible output range is unused.
+ */
+#define	RAND_MAX	0x7fffffff
 
 __BEGIN_DECLS
 #ifdef _XLOCALE_H_

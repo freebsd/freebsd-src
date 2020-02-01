@@ -104,48 +104,13 @@ __FBSDID("$FreeBSD$");
  * byte buffer it is about 5 percent faster.
  */
 
-/*
- * For each of the currently supported random number generators, we have a
- * break value on the amount of state information (you need at least this
- * many bytes of state info to support this random number generator), a degree
- * for the polynomial (actually a trinomial) that the R.N.G. is based on, and
- * the separation between the two lower order coefficients of the trinomial.
- */
-#define	TYPE_0		0		/* linear congruential */
-#define	BREAK_0		8
-#define	DEG_0		0
-#define	SEP_0		0
-
-#define	TYPE_1		1		/* x**7 + x**3 + 1 */
-#define	BREAK_1		32
-#define	DEG_1		7
-#define	SEP_1		3
-
-#define	TYPE_2		2		/* x**15 + x + 1 */
-#define	BREAK_2		64
-#define	DEG_2		15
-#define	SEP_2		1
-
-#define	TYPE_3		3		/* x**31 + x**3 + 1 */
-#define	BREAK_3		128
-#define	DEG_3		31
-#define	SEP_3		3
-
-#define	TYPE_4		4		/* x**63 + x + 1 */
-#define	BREAK_4		256
-#define	DEG_4		63
-#define	SEP_4		1
-
-/*
- * Array versions of the above information to make code run faster --
- * relies on fact that TYPE_i == i.
- */
-#define	MAX_TYPES	5		/* max number of types above */
-
 #define NSHUFF 50       /* to drop some "seed -> 1st value" linearity */
 
 static const int degrees[MAX_TYPES] =	{ DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
-static const int seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
+static const int seps[MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
+static const int breaks[MAX_TYPES] = {
+	BREAK_0, BREAK_1, BREAK_2, BREAK_3, BREAK_4
+};
 
 /*
  * Initially, everything is set up as if from:
@@ -523,4 +488,20 @@ long
 random(void)
 {
 	return (random_r(&implicit));
+}
+
+struct __random_state *
+allocatestate(unsigned type)
+{
+	size_t asize;
+
+	/* No point using this interface to get the Park-Miller LCG. */
+	if (type < TYPE_1)
+		abort();
+	/* Clamp to widest supported variant. */
+	if (type > (MAX_TYPES - 1))
+		type = (MAX_TYPES - 1);
+
+	asize = sizeof(struct __random_state) + (size_t)breaks[type];
+	return (malloc(asize));
 }
