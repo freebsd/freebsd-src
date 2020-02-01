@@ -1491,7 +1491,7 @@ tmpfs_vptocnp_dir(struct tmpfs_node *tn, struct tmpfs_node *tnp,
 
 static int
 tmpfs_vptocnp_fill(struct vnode *vp, struct tmpfs_node *tn,
-    struct tmpfs_node *tnp, char *buf, int *buflen, struct vnode **dvp)
+    struct tmpfs_node *tnp, char *buf, size_t *buflen, struct vnode **dvp)
 {
 	struct tmpfs_dirent *de;
 	int error, i;
@@ -1531,7 +1531,7 @@ tmpfs_vptocnp(struct vop_vptocnp_args *ap)
 	struct tmpfs_dirent *de;
 	struct tmpfs_mount *tm;
 	char *buf;
-	int *buflen;
+	size_t *buflen;
 	int error;
 
 	vp = ap->a_vp;
