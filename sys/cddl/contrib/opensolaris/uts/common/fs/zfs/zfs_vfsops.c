@@ -2437,7 +2437,7 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 	znode_t *zp;
 
 	ASSERT(RRM_WRITE_HELD(&zfsvfs->z_teardown_lock));
-	ASSERT(ZFS_WLOCK_TEARDOWN_INACTIVE_WLOCKED(zp->z_zfsvfs));
+	ASSERT(ZFS_TEARDOWN_INACTIVE_WLOCKED(zfsvfs));
 
 	/*
 	 * We already own this, so just update the objset_t, as the one we
