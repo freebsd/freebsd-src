@@ -28,7 +28,7 @@
 .\"     @(#)random.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2020
+.Dd February 1, 2020
 .Dt RANDOM 3
 .Os
 .Sh NAME
@@ -74,8 +74,7 @@ The period of this random number generator is very large, approximately
 .Pp
 If initialized with less than 32 bytes of state,
 .Fn random
-uses the same poor-quality Park-Miller LCG as
-.Xr rand 3 .
+uses the poor-quality 32-bit Park-Miller LCG.
 .Pp
 The
 .Fn random
@@ -85,9 +84,6 @@ functions are analagous to
 .Xr rand 3
 and
 .Xr srand 3 .
-The difference is that
-.Xr rand 3
-is a worse pseudo-random number generator.
 .Pp
 Like
 .Xr rand 3 ,
