@@ -2783,7 +2783,6 @@ struct vop_vector ufs_fifoops = {
 	.vop_getattr =		ufs_getattr,
 	.vop_inactive =		ufs_inactive,
 	.vop_kqfilter =		ufsfifo_kqfilter,
-	.vop_markatime =	ufs_markatime,
 	.vop_pathconf = 	ufs_pathconf,
 	.vop_print =		ufs_print,
 	.vop_read =		VOP_PANIC,
