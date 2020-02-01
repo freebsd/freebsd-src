@@ -329,6 +329,14 @@ set_autonomous_hwp(struct hwp_softc *sc)
 	/* XXX: Many MSRs aren't readable until feature is enabled */
 	ret = wrmsr_safe(MSR_IA32_PM_ENABLE, 1);
 	if (ret) {
+		/*
+		 * This is actually a package-level MSR, and only the first
+		 * write is not ignored.  So it is harmless to enable it across
+		 * all devices, and this allows us not to care especially in
+		 * which order cores (and packages) are probed.  This error
+		 * condition should not happen given we gate on the HWP CPUID
+		 * feature flag, if the Intel SDM is correct.
+		 */
 		device_printf(dev, "Failed to enable HWP for cpu%d (%d)\n",
 		    pc->pc_cpuid, ret);
 		goto out;
@@ -350,6 +358,10 @@ set_autonomous_hwp(struct hwp_softc *sc)
 		goto out;
 	}
 
+	/*
+	 * High and low are static; "guaranteed" is dynamic; and efficient is
+	 * also dynamic.
+	 */
 	sc->high = IA32_HWP_CAPABILITIES_HIGHEST_PERFORMANCE(caps);
 	sc->guaranteed = IA32_HWP_CAPABILITIES_GUARANTEED_PERFORMANCE(caps);
 	sc->efficient = IA32_HWP_CAPABILITIES_EFFICIENT_PERFORMANCE(caps);
