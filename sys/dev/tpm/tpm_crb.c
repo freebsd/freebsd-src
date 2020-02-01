@@ -299,7 +299,7 @@ tpmcrb_cancel_cmd(struct tpm_sc *sc)
 		return (false);
 	}
 
-	WR4(sc, TPM_CRB_CTRL_CANCEL, TPM_CRB_CTRL_CANCEL_CLEAR;
+	WR4(sc, TPM_CRB_CTRL_CANCEL, TPM_CRB_CTRL_CANCEL_CLEAR);
 	return (true);
 }
 
@@ -331,7 +331,7 @@ tpmcrb_transmit(struct tpm_sc *sc, size_t length)
 		return (EIO);
 	}
 	/* Clear cancellation bit */
-	WR4(sc, TPM_CRB_CTRL_CANCEL, TPM_CRB_CTRL_CANCEL_CLEAR;
+	WR4(sc, TPM_CRB_CTRL_CANCEL, TPM_CRB_CTRL_CANCEL_CLEAR);
 
 	/* Switch device to idle state if necessary */
 	if (!(RD4(sc, TPM_CRB_CTRL_STS) & TPM_CRB_CTRL_STS_IDLE_BIT)) {
