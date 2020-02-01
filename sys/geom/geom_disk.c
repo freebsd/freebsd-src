@@ -268,7 +268,6 @@ g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct t
 {
 	struct disk *dp;
 	struct g_disk_softc *sc;
-	int error;
 
 	sc = pp->private;
 	dp = sc->dp;
@@ -277,8 +276,7 @@ g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct t
 
 	if (dp->d_ioctl == NULL)
 		return (ENOIOCTL);
-	error = dp->d_ioctl(dp, cmd, data, fflag, td);
-	return (error);
+	return (dp->d_ioctl(dp, cmd, data, fflag, td));
 }
 
 static off_t

@@ -106,7 +106,7 @@ struct zfsvfs {
 #define	ZFS_WUNLOCK_TEARDOWN_INACTIVE(zfsvfs) \
 		rms_wunlock(&(zfsvfs)->z_teardown_inactive_lock)
 
-#define	ZFS_WLOCK_TEARDOWN_INACTIVE_WLOCKED(zfsvfs) \
+#define	ZFS_TEARDOWN_INACTIVE_WLOCKED(zfsvfs) \
 		rms_wowned(&(zfsvfs)->z_teardown_inactive_lock)
 
 /*

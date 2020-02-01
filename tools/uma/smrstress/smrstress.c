@@ -84,7 +84,7 @@ smrs_read(void)
 	/* Wait for the writer to exit. */
 	while (smrs_completed == 0) {
 		smr_enter(smrs_smr);
-		cur = (void *)atomic_load_ptr(&smrs_current);
+		cur = (void *)atomic_load_acq_ptr(&smrs_current);
 		if (cur->generation == -1)
 			smrs_error(cur, "read early: Use after free!\n");
 		atomic_add_int(&cur->count, 1);
@@ -107,6 +107,7 @@ smrs_write(void)
 
 	for (i = 0; i < smrs_iterations; i++) {
 		cur = uma_zalloc_smr(smrs_zone, M_WAITOK);
+		atomic_thread_fence_rel();
 		cur = (void *)atomic_swap_ptr(&smrs_current, (uintptr_t)cur);
 		uma_zfree_smr(smrs_zone, cur);
 	}
