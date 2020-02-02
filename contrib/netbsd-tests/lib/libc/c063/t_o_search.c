@@ -33,9 +33,10 @@ __RCSID("$NetBSD: t_o_search.c,v 1.5 2017/01/10 22:25:01 christos Exp $");
 
 #include <atf-c.h>
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -50,7 +51,7 @@ __RCSID("$NetBSD: t_o_search.c,v 1.5 2017/01/10 22:25:01 christos Exp $");
  * until a decision is reached about the semantics of O_SEARCH and a
  * non-broken implementation is available.
  */
-#if (O_MASK & O_SEARCH) != 0
+#if defined(__FreeBSD__) || (O_MASK & O_SEARCH) != 0
 #define USE_O_SEARCH
 #endif
 
@@ -257,10 +258,78 @@ ATF_TC_BODY(o_search_notdir, tc)
 	int fd;
 
 	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
+#ifndef __FreeBSD__
 	ATF_REQUIRE((dfd = open(FILE, O_CREAT|O_RDWR|O_SEARCH, 0644)) != -1);
+#else
+	ATF_REQUIRE((dfd = open(FILE, O_CREAT|O_SEARCH, 0644)) != -1);
+#endif
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) == -1);
 	ATF_REQUIRE(errno == ENOTDIR);
 }
+
+#ifdef USE_O_SEARCH
+ATF_TC(o_search_nord);
+ATF_TC_HEAD(o_search_nord, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "See that openat succeeds with no read permission");
+	atf_tc_set_md_var(tc, "require.user", "unprivileged");
+}
+ATF_TC_BODY(o_search_nord, tc)
+{
+	int dfd, fd;
+
+	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
+	ATF_REQUIRE((fd = open(FILE, O_CREAT|O_RDWR, 0644)) != -1);
+	ATF_REQUIRE(close(fd) == 0);
+
+	ATF_REQUIRE(chmod(DIR, 0100) == 0);
+	ATF_REQUIRE((dfd = open(DIR, O_SEARCH, 0)) != -1);
+
+	ATF_REQUIRE(faccessat(dfd, BASEFILE, W_OK, 0) != -1);
+
+	ATF_REQUIRE(close(dfd) == 0);
+}
+
+ATF_TC(o_search_getdents);
+ATF_TC_HEAD(o_search_getdents, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "See that O_SEARCH forbids getdents");
+}
+ATF_TC_BODY(o_search_getdents, tc)
+{
+	char buf[1024];
+	int dfd;
+
+	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
+	ATF_REQUIRE((dfd = open(DIR, O_SEARCH, 0)) != -1);
+	ATF_REQUIRE(getdents(dfd, buf, sizeof(buf)) < 0);
+	ATF_REQUIRE(close(dfd) == 0);
+}
+
+ATF_TC(o_search_revokex);
+ATF_TC_HEAD(o_search_revokex, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "See that *at behaves after chmod -x");
+	atf_tc_set_md_var(tc, "require.user", "unprivileged");
+}
+ATF_TC_BODY(o_search_revokex, tc)
+{
+	int dfd, fd;
+	struct stat sb;
+
+	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
+	ATF_REQUIRE((fd = open(FILE, O_CREAT|O_RDWR, 0644)) != -1);
+	ATF_REQUIRE(close(fd) == 0);
+
+	ATF_REQUIRE((dfd = open(DIR, O_SEARCH, 0)) != -1);
+
+	/* Drop permissions. The kernel must still not check the exec bit. */
+	ATF_REQUIRE(chmod(DIR, 0000) == 0);
+	ATF_REQUIRE(fstatat(dfd, BASEFILE, &sb, 0) == 0);
+
+	ATF_REQUIRE(close(dfd) == 0);
+}
+#endif /* USE_O_SEARCH */
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -276,6 +345,11 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, o_search_unpriv_flag2);
 #endif
 	ATF_TP_ADD_TC(tp, o_search_notdir);
+#ifdef USE_O_SEARCH
+	ATF_TP_ADD_TC(tp, o_search_nord);
+	ATF_TP_ADD_TC(tp, o_search_getdents);
+	ATF_TP_ADD_TC(tp, o_search_revokex);
+#endif
 
 	return atf_no_error();
 }
