@@ -34,6 +34,10 @@ feeder_rate_gen.h		optional sound				   \
 	compile-with	"${AWK} -f $S/tools/sound/feeder_rate_mkfilter.awk -- ${FEEDER_RATE_PRESETS} > feeder_rate_gen.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"feeder_rate_gen.h"
+font.h				optional	sc_dflt_font		\
+	compile-with	"uudecode < ${SRCTOP}/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'static u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < ${SRCTOP}/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'static u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < ${SRCTOP}/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'static u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h"									\
+	no-obj no-implicit-rule before-depend				\
+	clean		"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 snd_fxdiv_gen.h			optional sound				   \
 	dependency	"$S/tools/sound/snd_fxdiv_gen.awk"		   \
 	compile-with	"${AWK} -f $S/tools/sound/snd_fxdiv_gen.awk -- > snd_fxdiv_gen.h" \
