@@ -386,7 +386,6 @@ vop_lock1 {
 
 
 %! unlock	pre	vop_unlock_pre
-%! unlock	post	vop_unlock_post
 
 vop_unlock {
 	IN struct vnode *vp;

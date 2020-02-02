@@ -89,7 +89,7 @@
 #
 # See src/UPDATING `COMMON ITEMS' for more complete information.
 #
-# If TARGET=machine (e.g. powerpc, sparc64, ...) is specified you can
+# If TARGET=machine (e.g. powerpc, arm64, ...) is specified you can
 # cross build world for other machine types using the buildworld target,
 # and once the world is built you can cross build a kernel using the
 # buildkernel target.
@@ -488,7 +488,7 @@ worlds: .PHONY
 # In all cases, if the user specifies TARGETS on the command line,
 # honor that most of all.
 #
-TARGETS?=amd64 arm arm64 i386 mips powerpc riscv sparc64
+TARGETS?=amd64 arm arm64 i386 mips powerpc riscv
 _UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
@@ -501,14 +501,12 @@ TARGET_ARCHES_${target}?= ${target}
 .endfor
 
 MAKE_PARAMS_mips?=	CROSS_TOOLCHAIN=mips-gcc6
-MAKE_PARAMS_sparc64?=	CROSS_TOOLCHAIN=sparc64-gcc6
 
 TOOLCHAINS_mips=	mips-gcc6
-TOOLCHAINS_sparc64=	sparc64-gcc6
 
 # Remove architectures only supported by external toolchain from
 # universe if required toolchain packages are missing.
-.for target in mips sparc64
+.for target in mips
 .if ${_UNIVERSE_TARGETS:M${target}}
 .for toolchain in ${TOOLCHAINS_${target}}
 .if !exists(/usr/local/share/toolchains/${toolchain}.mk)

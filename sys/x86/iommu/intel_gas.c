@@ -370,6 +370,8 @@ dmar_gas_lowermatch(struct dmar_gas_match_args *a, struct dmar_map_entry *entry)
 	}
 	if (entry->free_down < a->size + a->offset + DMAR_PAGE_SIZE)
 		return (ENOMEM);
+	if (entry->first >= a->common->lowaddr)
+		return (ENOMEM);
 	child = RB_LEFT(entry, rb_entry);
 	if (child != NULL && 0 == dmar_gas_lowermatch(a, child))
 		return (0);
@@ -390,6 +392,8 @@ dmar_gas_uppermatch(struct dmar_gas_match_args *a, struct dmar_map_entry *entry)
 {
 	struct dmar_map_entry *child;
 
+	if (entry->free_down < a->size + a->offset + DMAR_PAGE_SIZE)
+		return (ENOMEM);
 	if (entry->last < a->common->highaddr)
 		return (ENOMEM);
 	child = RB_LEFT(entry, rb_entry);

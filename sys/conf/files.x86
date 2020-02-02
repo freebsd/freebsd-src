@@ -12,6 +12,11 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 
+#
+atkbdmap.h			optional	atkbd_dflt_keymap	\
+	compile-with	"${KEYMAP} -L ${ATKBD_DFLT_KEYMAP} | ${KEYMAP_FIX} > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"atkbdmap.h"
 cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"

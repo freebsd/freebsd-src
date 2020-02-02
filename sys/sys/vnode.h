@@ -463,7 +463,6 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 #define	VDESC_VP1_WILLRELE	0x0002
 #define	VDESC_VP2_WILLRELE	0x0004
 #define	VDESC_VP3_WILLRELE	0x0008
-#define	VDESC_VPP_WILLRELE	0x0200
 
 /*
  * A generic structure.
@@ -825,7 +824,6 @@ void	vop_strategy_pre(void *a);
 void	vop_lock_pre(void *a);
 void	vop_lock_post(void *a, int rc);
 void	vop_unlock_pre(void *a);
-void	vop_unlock_post(void *a, int rc);
 void	vop_need_inactive_pre(void *a);
 void	vop_need_inactive_post(void *a, int rc);
 #else
@@ -833,7 +831,6 @@ void	vop_need_inactive_post(void *a, int rc);
 #define	vop_lock_pre(x)		do { } while (0)
 #define	vop_lock_post(x, y)	do { } while (0)
 #define	vop_unlock_pre(x)	do { } while (0)
-#define	vop_unlock_post(x, y)	do { } while (0)
 #define	vop_need_inactive_pre(x)	do { } while (0)
 #define	vop_need_inactive_post(x, y)	do { } while (0)
 #endif
