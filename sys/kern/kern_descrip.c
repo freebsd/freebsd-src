@@ -2737,8 +2737,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 			 * table before this fd was closed, so it possible that
 			 * there is a stale fp pointer in cached version.
 			 */
-			fdt = *(const struct fdescenttbl * const volatile *)
-			    &(fdp->fd_files);
+			fdt = (struct fdescenttbl *)atomic_load_ptr(&fdp->fd_files);
 			continue;
 		}
 		if (__predict_false(count + 1 < count))
