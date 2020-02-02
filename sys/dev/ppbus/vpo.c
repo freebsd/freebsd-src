@@ -126,6 +126,7 @@ vpo_probe(device_t dev)
 		return (error);
 	}
 	ppb_unlock(ppbus);
+	gone_in_dev(dev, 13, "Hardware no longer relevant");
 
 	return (0);
 }
