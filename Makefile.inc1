@@ -153,8 +153,7 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		powerpc64/powerpc \
 		powerpcspe/powerpc \
 		riscv64/riscv \
-		riscv64sf/riscv \
-		sparc64
+		riscv64sf/riscv
 
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
@@ -2290,8 +2289,6 @@ _basic_bootstrap_tools_multilink+=bin/test test,[
 _basic_bootstrap_tools=usr.bin/awk usr.bin/cut bin/expr usr.bin/gencat \
     usr.bin/join usr.bin/mktemp bin/rmdir usr.bin/sed usr.bin/sort \
     usr.bin/truncate usr.bin/tsort
-# elf2aout is required for sparc64 build
-_basic_bootstrap_tools+=usr.bin/elf2aout
 # file2c is required for building usr.sbin/config:
 _basic_bootstrap_tools+=usr.bin/file2c
 # uuencode/uudecode required for share/tabset
@@ -2915,14 +2912,10 @@ _cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib
 cddl/lib/libctf__L: lib/libz__L
 .endif
-# cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
-# on select architectures though (see cddl/lib/Makefile)
-.if ${MACHINE_CPUARCH} != "sparc64"
 _prebuild_libs+=	lib/libprocstat lib/libproc lib/librtld_db
 lib/libprocstat__L: lib/libelf__L lib/libkvm__L lib/libutil__L
 lib/libproc__L: lib/libprocstat__L
 lib/librtld_db__L: lib/libprocstat__L
-.endif
 
 .if ${MK_CRYPT} != "no"
 .if ${MK_OPENSSL} != "no"
