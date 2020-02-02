@@ -355,11 +355,11 @@ struct ether_vlan_header {
 #define	ETHERTYPE_PROFINET	0x8892	/* PROFINET RT Protocol */
 #define	ETHERTYPE_AOE		0x88a2	/* ATA Protocol */
 #define	ETHERTYPE_ETHERCAT	0x88a4	/* EtherCat Protocol */
-#define	ETHERTYPE_FCOE		0x8906	/* Fibre Channel over Ethernet */
 #define	ETHERTYPE_QINQ		0x88A8	/* 802.1ad VLAN stacking */
 #define	ETHERTYPE_LLDP		0x88CC	/* Link Layer Discovery Protocol */
 #define	ETHERTYPE_MACSEC	0x88e5	/* 802.1AE MAC Security */
 #define	ETHERTYPE_PBB		0x88e7	/* 802.1Q Provider Backbone Bridges */
+#define	ETHERTYPE_FCOE		0x8906	/* Fibre Channel over Ethernet */
 #define	ETHERTYPE_LOOPBACK	0x9000	/* Loopback: used to test interfaces */
 #define	ETHERTYPE_8021Q9100	0x9100	/* IEEE 802.1Q stacking (proprietary) */
 #define	ETHERTYPE_LBACK		ETHERTYPE_LOOPBACK	/* DEC MOP loopback */
