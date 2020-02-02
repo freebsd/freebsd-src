@@ -6,7 +6,7 @@
  */
 
 #ifndef _NET_ETHERNET_H_
-#define _NET_ETHERNET_H_
+#define	_NET_ETHERNET_H_
 
 /*
  * Some basic Ethernet constants.
@@ -271,7 +271,7 @@ struct ether_vlan_header {
 #define	ETHERTYPE_AARP		0x80F3	/* AppleTalk AARP */
 		    /* 0x80F4 - 0x80F5	   Kinetics */
 #define	ETHERTYPE_APOLLO	0x80F7	/* Apollo Computer */
-#define ETHERTYPE_VLAN		0x8100	/* IEEE 802.1Q VLAN tagging (XXX conflicts) */
+#define	ETHERTYPE_VLAN		0x8100	/* IEEE 802.1Q VLAN tagging (XXX conflicts) */
 		    /* 0x80FF - 0x8101	   Wellfleet Communications (XXX conflicts) */
 #define	ETHERTYPE_BOFL		0x8102	/* Wellfleet; BOFL (Breath OF Life) pkts [every 5-10 secs.] */
 #define	ETHERTYPE_WELLFLEET	0x8103	/* Wellfleet Communications */
@@ -344,7 +344,7 @@ struct ether_vlan_header {
 #define	ETHERTYPE_SLOW		0x8809	/* 802.3ad link aggregation (LACP) */
 #define	ETHERTYPE_PPP		0x880B	/* PPP (obsolete by PPPoE) */
 #define	ETHERTYPE_HITACHI	0x8820	/* Hitachi Cable (Optoelectronic Systems Laboratory) */
-#define ETHERTYPE_TEST		0x8822  /* Network Conformance Testing */
+#define	ETHERTYPE_TEST		0x8822  /* Network Conformance Testing */
 #define	ETHERTYPE_MPLS		0x8847	/* MPLS Unicast */
 #define	ETHERTYPE_MPLS_MCAST	0x8848	/* MPLS Multicast */
 #define	ETHERTYPE_AXIS		0x8856	/* Axis Communications AB proprietary bootstrap/config */
@@ -393,7 +393,7 @@ struct ether_vlan_header {
  * ether_vlan_mtap.  This function will re-insert VLAN tags for the duration
  * of the tap, so they show up properly for network analyzers.
  */
-#define ETHER_BPF_MTAP(_ifp, _m) do {					\
+#define	ETHER_BPF_MTAP(_ifp, _m) do {					\
 	if (bpf_peers_present((_ifp)->if_bpf)) {			\
 		M_ASSERTVALID(_m);					\
 		if (((_m)->m_flags & M_VLANTAG) != 0)			\
