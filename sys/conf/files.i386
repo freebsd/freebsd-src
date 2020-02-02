@@ -30,10 +30,6 @@ dev/agp/agp_intel.c		optional agp
 dev/agp/agp_nvidia.c		optional agp
 dev/agp/agp_sis.c		optional agp
 dev/agp/agp_via.c		optional agp
-dev/ce/ceddk.c			optional ce
-dev/ce/if_ce.c			optional ce
-dev/ce/tau32-ddk.c		optional ce \
-	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION} ${NO_WMISLEADING_INDENTATION} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb

@@ -82,7 +82,6 @@ SUBDIR=	\
 	${_ccp} \
 	cd9660 \
 	cd9660_iconv \
-	${_ce} \
 	${_cfi} \
 	${_chromebook_platform} \
 	${_ciss} \
@@ -811,9 +810,6 @@ _vmm=		vmm
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
-.if ${MK_SOURCELESS_HOST} != "no"
-_ce=		ce
-.endif
 .if ${MK_SOURCELESS_HOST} != "no"
 _cp=		cp
 .endif
