@@ -348,6 +348,7 @@ int	 feof_unlocked(FILE *);
 int	 ferror_unlocked(FILE *);
 int	 fflush_unlocked(FILE *);
 int	 fileno_unlocked(FILE *);
+int	 fputc_unlocked(int, FILE *);
 int	 fputs_unlocked(const char * __restrict, FILE * __restrict);
 size_t	 fread_unlocked(void * __restrict, size_t, size_t, FILE * __restrict);
 size_t	 fwrite_unlocked(const void * __restrict, size_t, size_t,
