@@ -725,7 +725,7 @@ _vmm=		vmm
 _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
 _apm=		apm
-.if ${MK_SOURCELESS_UCODE} != "no"
+.if ${MK_SOURCELESS_HOST} != "no"
 _ce=		ce
 .endif
 .if ${MK_SOURCELESS_UCODE} != "no"
