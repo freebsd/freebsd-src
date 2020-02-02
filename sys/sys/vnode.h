@@ -824,7 +824,6 @@ void	vop_strategy_pre(void *a);
 void	vop_lock_pre(void *a);
 void	vop_lock_post(void *a, int rc);
 void	vop_unlock_pre(void *a);
-void	vop_unlock_post(void *a, int rc);
 void	vop_need_inactive_pre(void *a);
 void	vop_need_inactive_post(void *a, int rc);
 #else
@@ -832,7 +831,6 @@ void	vop_need_inactive_post(void *a, int rc);
 #define	vop_lock_pre(x)		do { } while (0)
 #define	vop_lock_post(x, y)	do { } while (0)
 #define	vop_unlock_pre(x)	do { } while (0)
-#define	vop_unlock_post(x, y)	do { } while (0)
 #define	vop_need_inactive_pre(x)	do { } while (0)
 #define	vop_need_inactive_post(x, y)	do { } while (0)
 #endif
