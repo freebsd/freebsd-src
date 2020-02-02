@@ -317,15 +317,12 @@ null_bypass(struct vop_generic_args *ap)
 		 * We must avoid these ops.
 		 * (This should go away when these ops are regularized.)
 		 */
-		if (descp->vdesc_flags & VDESC_VPP_WILLRELE)
-			goto out;
 		vppp = VOPARG_OFFSETTO(struct vnode***,
 				 descp->vdesc_vpp_offset,ap);
 		if (*vppp)
 			error = null_nodeget(old_vps[0]->v_mount, **vppp, *vppp);
 	}
 
- out:
 	return (error);
 }
 
