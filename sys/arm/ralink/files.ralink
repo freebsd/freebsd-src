@@ -1,7 +1,0 @@
-# $FreeBSD$
-arm/ralink/rt1310_machdep.c		standard
-arm/ralink/rt1310_intc.c		standard
-arm/ralink/rt1310_gpio.c		optional	rt1310gpio
-arm/ralink/rt1310_timer.c		standard
-arm/ralink/if_fv.c			optional	fv
-
