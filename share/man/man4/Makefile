@@ -553,7 +553,6 @@ MAN=	aac.4 \
 	${_vmd.4} \
 	${_vmm.4} \
 	${_vmx.4} \
-	vpo.4 \
 	vr.4 \
 	vt.4 \
 	vte.4 \
@@ -740,7 +739,6 @@ MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vxlan.4 if_vxlan.4
 MLINKS+=${_vmx.4} ${_if_vmx.4}
-MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
 MLINKS+=vte.4 if_vte.4
 MLINKS+=${_vtnet.4} ${_if_vtnet.4}

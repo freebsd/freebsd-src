@@ -33,8 +33,6 @@
 .Sh SYNOPSIS
 .Cd "device ppbus"
 .Pp
-.Cd "device vpo"
-.Pp
 .Cd "device lpt"
 .Cd "device plip"
 .Cd "device ppi"
@@ -66,8 +64,6 @@ and non-standard software:
 .Pp
 .Bl -column "Driver" -compact
 .It Em Driver Ta Em Description
-.It Sy vpo Ta "VPI0 parallel to Adaptec AIC-7110 SCSI controller driver" .
-It uses standard and non-standard parallel port accesses.
 .It Sy ppi Ta "Parallel port interface for general I/O"
 .It Sy pps Ta "Pulse per second Timing Interface"
 .It Sy lpbb Ta "Philips official parallel port I2C bit-banging interface"
@@ -336,22 +332,11 @@ operation (opcodes are described in
 .Xr microseq 9 ) .
 Standard I/O operations are implemented at ppbus level whereas basic I/O
 operations and microseq language are coded at adapter level for efficiency.
-.Pp
-As an example, the
-.Xr vpo 4
-driver uses microsequences to implement:
-.Bl -bullet -offset indent
-.It
-a modified version of the NIBBLE transfer mode
-.It
-various I/O sequences to initialize, select and allocate the peripheral
-.El
 .Sh SEE ALSO
 .Xr lpt 4 ,
 .Xr plip 4 ,
 .Xr ppc 4 ,
 .Xr ppi 4 ,
-.Xr vpo 4
 .Sh HISTORY
 The
 .Nm
