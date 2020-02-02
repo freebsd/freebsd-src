@@ -217,7 +217,7 @@ feholdexcept(fenv_t *__envp)
 	union __fpscr __r;
 
 	__mffs(&__r);
-	*__envp = __r.__d;
+	*__envp = __r.__bits.__reg;
 	__r.__bits.__reg &= ~(FE_ALL_EXCEPT | _ENABLE_MASK);
 	__mtfsf(__r);
 	return (0);
