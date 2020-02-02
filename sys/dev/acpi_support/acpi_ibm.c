@@ -383,7 +383,7 @@ acpi_status_to_errno(ACPI_STATUS status)
 static void
 ibm_led(void *softc, int onoff)
 {
-	struct acpi_ibm_softc *sc = (struct acpi_ibm_softc *)softc;
+	struct acpi_ibm_softc *sc = softc;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
