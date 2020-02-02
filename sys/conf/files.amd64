@@ -77,11 +77,6 @@ font.h				optional	sc_dflt_font		\
 	no-obj no-implicit-rule before-depend				\
 	clean		"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 #
-atkbdmap.h			optional	atkbd_dflt_keymap	\
-	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
-	no-obj no-implicit-rule before-depend				\
-	clean		"atkbdmap.h"
-#
 amd64/acpica/acpi_machdep.c	optional	acpi
 acpi_wakecode.o			optional	acpi			\
 	dependency	"$S/amd64/acpica/acpi_wakecode.S assym.inc"	\
