@@ -276,9 +276,9 @@ static struct {
 		.description	= "Mic led",
 	},
 	{
-	 .name		= "privacyguard",
-	 .method	= ACPI_IBM_METHOD_PRIVACYGUARD,
-	 .description	= "PrivacyGuard enable",
+		.name		= "privacyguard",
+		.method		= ACPI_IBM_METHOD_PRIVACYGUARD,
+		.description	= "PrivacyGuard enable",
 	},
 	{ NULL, 0, NULL, 0 }
 };
