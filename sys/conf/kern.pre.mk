@@ -271,6 +271,9 @@ SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.pico
 
+KEYMAP=kbdcontrol -P ${SRCTOP}/share/vt/keymaps -P ${SRCTOP}/share/syscons/keymaps
+KEYMAP_FIX=sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /'
+
 MD_ROOT_SIZE_CONFIGURED!=	grep MD_ROOT_SIZE opt_md.h || true ; echo
 .if ${MFS_IMAGE:Uno} != "no"
 .if empty(MD_ROOT_SIZE_CONFIGURED)

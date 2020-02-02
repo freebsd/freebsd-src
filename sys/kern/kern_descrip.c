@@ -1437,7 +1437,7 @@ kern_fstat(struct thread *td, int fd, struct stat *sbp)
 	AUDIT_ARG_FD(fd);
 
 	error = fget(td, fd, &cap_fstat_rights, &fp);
-	if (error != 0)
+	if (__predict_false(error != 0))
 		return (error);
 
 	AUDIT_ARG_FILE(td->td_proc, fp);
@@ -2737,8 +2737,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 			 * table before this fd was closed, so it possible that
 			 * there is a stale fp pointer in cached version.
 			 */
-			fdt = *(const struct fdescenttbl * const volatile *)
-			    &(fdp->fd_files);
+			fdt = (struct fdescenttbl *)atomic_load_ptr(&fdp->fd_files);
 			continue;
 		}
 		if (__predict_false(count + 1 < count))
@@ -2793,9 +2792,9 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 	*fpp = NULL;
 	fdp = td->td_proc->p_fd;
 	error = fget_unlocked(fdp, fd, needrightsp, &fp, seqp);
-	if (error != 0)
+	if (__predict_false(error != 0))
 		return (error);
-	if (fp->f_ops == &badfileops) {
+	if (__predict_false(fp->f_ops == &badfileops)) {
 		fdrop(fp, td);
 		return (EBADF);
 	}

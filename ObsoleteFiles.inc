@@ -272,6 +272,10 @@ OLD_FILES+=usr/lib/clang/9.0.1/lib/freebsd/libclang_rt.xray-x86_64.a
 OLD_DIRS+=usr/lib/clang/9.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/9.0.1/lib
 OLD_DIRS+=usr/lib/clang/9.0.1
+# 20200127: vpo removed
+OLD_FILES+=usr/share/man/man4/imm.4.gz
+OLD_FILES+=usr/share/man/man4/vpo.4.gz
+
 # 20200104: gcc libssp removed
 OLD_FILES+=usr/include/ssp/ssp.h
 OLD_FILES+=usr/include/ssp/stdio.h

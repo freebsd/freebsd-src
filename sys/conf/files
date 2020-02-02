@@ -34,6 +34,10 @@ feeder_rate_gen.h		optional sound				   \
 	compile-with	"${AWK} -f $S/tools/sound/feeder_rate_mkfilter.awk -- ${FEEDER_RATE_PRESETS} > feeder_rate_gen.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"feeder_rate_gen.h"
+font.h				optional	sc_dflt_font		\
+	compile-with	"uudecode < ${SRCTOP}/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'static u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < ${SRCTOP}/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'static u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < ${SRCTOP}/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'static u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h"									\
+	no-obj no-implicit-rule before-depend				\
+	clean		"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 snd_fxdiv_gen.h			optional sound				   \
 	dependency	"$S/tools/sound/snd_fxdiv_gen.awk"		   \
 	compile-with	"${AWK} -f $S/tools/sound/snd_fxdiv_gen.awk -- > snd_fxdiv_gen.h" \
@@ -50,7 +54,7 @@ pccarddevs.h			standard				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
 kbdmuxmap.h			optional	kbdmux_dflt_keymap 	   \
-	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${KBDMUX_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > kbdmuxmap.h" \
+	compile-with	"${KEYMAP} -L ${KBDMUX_DFLT_KEYMAP} | ${KEYMAP_FIX} > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"kbdmuxmap.h"
 teken_state.h		optional sc | vt				   \
@@ -59,7 +63,7 @@ teken_state.h		optional sc | vt				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"teken_state.h"
 ukbdmap.h			optional	ukbd_dflt_keymap	\
-	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
+	compile-with	"${KEYMAP} -L ${UKBD_DFLT_KEYMAP} | ${KEYMAP_FIX} > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 usbdevs.h			optional usb				   \
@@ -2672,7 +2676,6 @@ dev/pms/RefTisa/tisa/sassata/sata/host/ossasat.c	optional pmspcv \
 dev/pms/RefTisa/tisa/sassata/sata/host/sathw.c		optional pmspcv \
 	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
 dev/ppbus/if_plip.c		optional plip
-dev/ppbus/immio.c		optional vpo
 dev/ppbus/lpbb.c		optional lpbb
 dev/ppbus/lpt.c			optional lpt
 dev/ppbus/pcfclock.c		optional pcfclock
@@ -2683,8 +2686,6 @@ dev/ppbus/ppbconf.c		optional ppbus
 dev/ppbus/ppbus_if.m		optional ppbus
 dev/ppbus/ppi.c			optional ppi
 dev/ppbus/pps.c			optional pps
-dev/ppbus/vpo.c			optional vpo
-dev/ppbus/vpoio.c		optional vpo
 dev/ppc/ppc.c			optional ppc
 dev/ppc/ppc_acpi.c		optional ppc acpi
 dev/ppc/ppc_isa.c		optional ppc isa
