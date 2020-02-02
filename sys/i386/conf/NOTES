@@ -484,8 +484,6 @@ device		cpufreq
 
 # bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
 #       adapters.
-# ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
-#       with 32 HDLC subchannels, requires NETGRAPH
 # igc:	Intel I225 2.5G Ethernet adapter
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
@@ -505,7 +503,6 @@ device		cpufreq
 # Order for ISA/EISA devices is important here
 
 device          bxe             # Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
-device		ce
 envvar		hint.cs.0.at="isa"
 envvar		hint.cs.0.port="0x300"
 envvar		hint.ed.0.at="isa"
