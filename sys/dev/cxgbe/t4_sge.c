@@ -1804,10 +1804,9 @@ cl_metadata(struct adapter *sc, struct sge_fl *fl, struct cluster_layout *cll,
 static void
 rxb_free(struct mbuf *m)
 {
-	uma_zone_t zone = m->m_ext.ext_arg1;
-	void *cl = m->m_ext.ext_arg2;
+	struct cluster_metadata *clm = m->m_ext.ext_arg1;
 
-	uma_zfree(zone, cl);
+	uma_zfree(clm->zone, clm->cl);
 	counter_u64_add(extfree_rels, 1);
 }
 
@@ -1880,10 +1879,12 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int fr_offset,
 		fl->mbuf_inlined++;
 		if (sd->nmbuf++ == 0) {
 			clm->refcount = 1;
+			clm->zone = swz->zone;
+			clm->cl = sd->cl;
 			counter_u64_add(extfree_refs, 1);
 		}
-		m_extaddref(m, payload, blen, &clm->refcount, rxb_free,
-		    swz->zone, sd->cl);
+		m_extaddref(m, payload, blen, &clm->refcount, rxb_free, clm,
+		    NULL);
 	} else {
 
 		/*
@@ -1899,10 +1900,12 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int fr_offset,
 		if (clm != NULL) {
 			if (sd->nmbuf++ == 0) {
 				clm->refcount = 1;
+				clm->zone = swz->zone;
+				clm->cl = sd->cl;
 				counter_u64_add(extfree_refs, 1);
 			}
 			m_extaddref(m, payload, blen, &clm->refcount,
-			    rxb_free, swz->zone, sd->cl);
+			    rxb_free, clm, NULL);
 		} else {
 			m_cljset(m, sd->cl, swz->type);
 			sd->cl = NULL;	/* consumed, not a recycle candidate */
