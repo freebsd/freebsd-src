@@ -87,7 +87,7 @@ static char unknown[] = { '?', '?', '\0' };
 static Dwarf_Addr section_base;
 /* Need a new curlopc that stores last lopc value. */
 static Dwarf_Unsigned curlopc = ~0ULL;
-static RB_HEAD(cutree, CU) head = RB_INITIALIZER(&head);
+static RB_HEAD(cutree, CU) cuhead = RB_INITIALIZER(&cuhead);
 
 static int
 lopccmp(struct CU *e1, struct CU *e2)
@@ -397,14 +397,14 @@ culookup(Dwarf_Unsigned addr)
 	struct CU find, *res;
 
 	find.lopc = addr;
-	res = RB_NFIND(cutree, &head, &find);
+	res = RB_NFIND(cutree, &cuhead, &find);
 	if (res != NULL) {
 		if (res->lopc != addr)
-			res = RB_PREV(cutree, &head, res);
+			res = RB_PREV(cutree, &cuhead, res);
 		if (res != NULL && addr >= res->lopc && addr < res->hipc)
 			return (res);
 	} else {
-		res = RB_MAX(cutree, &head);
+		res = RB_MAX(cutree, &cuhead);
 		if (res != NULL && addr >= res->lopc && addr < res->hipc)
 			return (res);
 	}
@@ -509,7 +509,7 @@ translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 				cu->hipc = hipc;
 				cu->die = die;
 				STAILQ_INIT(&cu->funclist);
-				RB_INSERT(cutree, &head, cu);
+				RB_INSERT(cutree, &cuhead, cu);
 
 				curlopc = lopc;
 				break;
