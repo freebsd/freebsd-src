@@ -59,173 +59,79 @@
 
 #include <sys/atomic_common.h>
 
-#define	ATOMIC_OP(op, asm_op, bar, a, l)				\
+#define	_ATOMIC_OP_IMPL(t, w, s, op, asm_op, bar, a, l)			\
 static __inline void							\
-atomic_##op##_##bar##8(volatile uint8_t *p, uint8_t val)		\
+atomic_##op##_##bar##t(volatile uint##t##_t *p, uint##t##_t val)	\
 {									\
-	uint8_t tmp;							\
+	uint##t##_t tmp;						\
 	int res;							\
 									\
 	__asm __volatile(						\
-	    "1: ld"#a"xrb  %w0, [%2]      \n"				\
-	    "   "#asm_op"  %w0, %w0, %w3  \n"				\
-	    "   st"#l"xrb  %w1, %w0, [%2] \n"				\
-            "   cbnz       %w1, 1b        \n"				\
-	    : "=&r"(tmp), "=&r"(res)					\
-	    : "r" (p), "r" (val)					\
-	    : "memory"							\
-	);								\
-}									\
-									\
-static __inline void							\
-atomic_##op##_##bar##16(volatile uint16_t *p, uint16_t val)		\
-{									\
-	uint16_t tmp;							\
-	int res;							\
-									\
-	__asm __volatile(						\
-	    "1: ld"#a"xrh  %w0, [%2]      \n"				\
-	    "   "#asm_op"  %w0, %w0, %w3  \n"				\
-	    "   st"#l"xrh  %w1, %w0, [%2] \n"				\
-            "   cbnz       %w1, 1b        \n"				\
-	    : "=&r"(tmp), "=&r"(res)					\
-	    : "r" (p), "r" (val)					\
-	    : "memory"							\
-	);								\
-}									\
-									\
-static __inline void							\
-atomic_##op##_##bar##32(volatile uint32_t *p, uint32_t val)		\
-{									\
-	uint32_t tmp;							\
-	int res;							\
-									\
-	__asm __volatile(						\
-	    "1: ld"#a"xr   %w0, [%2]      \n"				\
-	    "   "#asm_op"  %w0, %w0, %w3  \n"				\
-	    "   st"#l"xr   %w1, %w0, [%2] \n"				\
-            "   cbnz       %w1, 1b        \n"				\
-	    : "=&r"(tmp), "=&r"(res)					\
-	    : "r" (p), "r" (val)					\
-	    : "memory"							\
-	);								\
-}									\
-									\
-static __inline void							\
-atomic_##op##_##bar##64(volatile uint64_t *p, uint64_t val)		\
-{									\
-	uint64_t tmp;							\
-	int res;							\
-									\
-	__asm __volatile(						\
-	    "1: ld"#a"xr   %0, [%2]      \n"				\
-	    "   "#asm_op"  %0, %0, %3    \n"				\
-	    "   st"#l"xr   %w1, %0, [%2] \n"				\
-            "   cbnz       %w1, 1b       \n"				\
+	    "1: ld"#a"xr"#s"	%"#w"0, [%2]\n"				\
+	    "   "#asm_op"	%"#w"0, %"#w"0, %"#w"3\n"		\
+	    "   st"#l"xr"#s"	%w1, %"#w"0, [%2]\n"			\
+	    "   cbnz		%w1, 1b\n"				\
 	    : "=&r"(tmp), "=&r"(res)					\
 	    : "r" (p), "r" (val)					\
 	    : "memory"							\
 	);								\
 }
 
-#define	ATOMIC(op, asm_op)						\
-    ATOMIC_OP(op, asm_op,     ,  ,  )					\
-    ATOMIC_OP(op, asm_op, acq_, a,  )					\
-    ATOMIC_OP(op, asm_op, rel_,  , l)					\
+#define	__ATOMIC_OP(op, asm_op, bar, a, l)				\
+	_ATOMIC_OP_IMPL(8,  w, b, op, asm_op, bar, a, l)		\
+	_ATOMIC_OP_IMPL(16, w, h, op, asm_op, bar, a, l)		\
+	_ATOMIC_OP_IMPL(32, w,  , op, asm_op, bar, a, l)		\
+	_ATOMIC_OP_IMPL(64,  ,  , op, asm_op, bar, a, l)
 
-ATOMIC(add,      add)
-ATOMIC(clear,    bic)
-ATOMIC(set,      orr)
-ATOMIC(subtract, sub)
+#define	_ATOMIC_OP(op, asm_op)						\
+	__ATOMIC_OP(op, asm_op,     ,  ,  )				\
+	__ATOMIC_OP(op, asm_op, acq_, a,  )				\
+	__ATOMIC_OP(op, asm_op, rel_,  , l)
 
-#define	ATOMIC_FCMPSET(bar, a, l)					\
+_ATOMIC_OP(add,      add)
+_ATOMIC_OP(clear,    bic)
+_ATOMIC_OP(set,      orr)
+_ATOMIC_OP(subtract, sub)
+
+#define	_ATOMIC_CMPSET_IMPL(t, w, s, bar, a, l)				\
 static __inline int							\
-atomic_fcmpset_##bar##8(volatile uint8_t *p, uint8_t *cmpval,		\
-    uint8_t newval)		 					\
+atomic_cmpset_##bar##t(volatile uint##t##_t *p, uint##t##_t cmpval,	\
+    uint##t##_t newval)							\
 {									\
-	uint8_t tmp;							\
-	uint8_t _cmpval = *cmpval;					\
+	uint##t##_t tmp;						\
 	int res;							\
 									\
 	__asm __volatile(						\
-	    "1: mov      %w1, #1        \n"				\
-	    "   ld"#a"xrb %w0, [%2]     \n"				\
-	    "   cmp      %w0, %w3       \n"				\
-	    "   b.ne     2f             \n"				\
-	    "   st"#l"xrb %w1, %w4, [%2]\n"				\
+	    "1: mov		%w1, #1\n"				\
+	    "   ld"#a"xr"#s"	%"#w"0, [%2]\n"				\
+	    "   cmp		%"#w"0, %"#w"3\n"			\
+	    "   b.ne		2f\n"					\
+	    "   st"#l"xr"#s"	%w1, %"#w"4, [%2]\n"			\
+	    "   cbnz		%w1, 1b\n"				\
 	    "2:"							\
 	    : "=&r"(tmp), "=&r"(res)					\
-	    : "r" (p), "r" (_cmpval), "r" (newval)			\
+	    : "r" (p), "r" (cmpval), "r" (newval)			\
 	    : "cc", "memory"						\
 	);								\
-	*cmpval = tmp;							\
 									\
 	return (!res);							\
 }									\
 									\
 static __inline int							\
-atomic_fcmpset_##bar##16(volatile uint16_t *p, uint16_t *cmpval,	\
-    uint16_t newval)		 					\
+atomic_fcmpset_##bar##t(volatile uint##t##_t *p, uint##t##_t *cmpval,	\
+    uint##t##_t newval)		 					\
 {									\
-	uint16_t tmp;							\
-	uint16_t _cmpval = *cmpval;					\
+	uint##t##_t _cmpval, tmp;					\
 	int res;							\
 									\
+	_cmpval = *cmpval;						\
 	__asm __volatile(						\
-	    "1: mov      %w1, #1        \n"				\
-	    "   ld"#a"xrh %w0, [%2]      \n"				\
-	    "   cmp      %w0, %w3       \n"				\
-	    "   b.ne     2f             \n"				\
-	    "   st"#l"xrh %w1, %w4, [%2] \n"				\
-	    "2:"							\
-	    : "=&r"(tmp), "=&r"(res)					\
-	    : "r" (p), "r" (_cmpval), "r" (newval)			\
-	    : "cc", "memory"						\
-	);								\
-	*cmpval = tmp;							\
-									\
-	return (!res);							\
-}									\
-									\
-static __inline int							\
-atomic_fcmpset_##bar##32(volatile uint32_t *p, uint32_t *cmpval,	\
-    uint32_t newval)		 					\
-{									\
-	uint32_t tmp;							\
-	uint32_t _cmpval = *cmpval;					\
-	int res;							\
-									\
-	__asm __volatile(						\
-	    "1: mov      %w1, #1        \n"				\
-	    "   ld"#a"xr %w0, [%2]      \n"				\
-	    "   cmp      %w0, %w3       \n"				\
-	    "   b.ne     2f             \n"				\
-	    "   st"#l"xr %w1, %w4, [%2] \n"				\
-	    "2:"							\
-	    : "=&r"(tmp), "=&r"(res)					\
-	    : "r" (p), "r" (_cmpval), "r" (newval)			\
-	    : "cc", "memory"						\
-	);								\
-	*cmpval = tmp;							\
-									\
-	return (!res);							\
-}									\
-									\
-static __inline int							\
-atomic_fcmpset_##bar##64(volatile uint64_t *p, uint64_t *cmpval,	\
-    uint64_t newval)							\
-{									\
-	uint64_t tmp;							\
-	uint64_t _cmpval = *cmpval;					\
-	int res;							\
-									\
-	__asm __volatile(						\
-	    "1: mov      %w1, #1       \n"				\
-	    "   ld"#a"xr %0, [%2]      \n"				\
-	    "   cmp      %0, %3        \n"				\
-	    "   b.ne     2f            \n"				\
-	    "   st"#l"xr %w1, %4, [%2] \n"				\
-	    "2:"							\
+	    "   mov		%w1, #1\n"				\
+	    "   ld"#a"xr"#s"	%"#w"0, [%2]\n"				\
+	    "   cmp		%"#w"0, %"#w"3\n"			\
+	    "   b.ne		1f\n"					\
+	    "   st"#l"xr"#s"	%w1, %"#w"4, [%2]\n"			\
+	    "1:"							\
 	    : "=&r"(tmp), "=&r"(res)					\
 	    : "r" (p), "r" (_cmpval), "r" (newval)			\
 	    : "cc", "memory"						\
@@ -235,399 +141,142 @@ atomic_fcmpset_##bar##64(volatile uint64_t *p, uint64_t *cmpval,	\
 	return (!res);							\
 }
 
-ATOMIC_FCMPSET(    ,  , )
-ATOMIC_FCMPSET(acq_, a, )
-ATOMIC_FCMPSET(rel_,  ,l)
+#define	_ATOMIC_CMPSET(bar, a, l)					\
+	_ATOMIC_CMPSET_IMPL(8,  w, b, bar, a, l)			\
+	_ATOMIC_CMPSET_IMPL(16, w, h, bar, a, l)			\
+	_ATOMIC_CMPSET_IMPL(32, w,  , bar, a, l)			\
+	_ATOMIC_CMPSET_IMPL(64,  ,  , bar, a, l)
 
-#undef ATOMIC_FCMPSET
+_ATOMIC_CMPSET(    ,  , )
+_ATOMIC_CMPSET(acq_, a, )
+_ATOMIC_CMPSET(rel_,  ,l)
 
-#define	ATOMIC_CMPSET(bar, a, l)					\
-static __inline int							\
-atomic_cmpset_##bar##8(volatile uint8_t *p, uint8_t cmpval,		\
-    uint8_t newval)							\
+#define	_ATOMIC_FETCHADD_IMPL(t, w)					\
+static __inline uint##t##_t						\
+atomic_fetchadd_##t(volatile uint##t##_t *p, uint##t##_t val)		\
 {									\
-	uint8_t tmp;							\
+	uint##t##_t tmp, ret;						\
 	int res;							\
 									\
 	__asm __volatile(						\
-	    "1: mov       %w1, #1        \n"				\
-	    "   ld"#a"xrb %w0, [%2]      \n"				\
-	    "   cmp       %w0, %w3       \n"				\
-	    "   b.ne      2f             \n"				\
-	    "   st"#l"xrb %w1, %w4, [%2] \n"				\
-            "   cbnz      %w1, 1b        \n"				\
-	    "2:"							\
-	    : "=&r"(tmp), "=&r"(res)					\
-	    : "r" (p), "r" (cmpval), "r" (newval)			\
-	    : "cc", "memory"							\
+	    "1: ldxr	%"#w"2, [%3]\n"					\
+	    "   add	%"#w"0, %"#w"2, %"#w"4\n"			\
+	    "   stxr	%w1, %"#w"0, [%3]\n"				\
+            "   cbnz	%w1, 1b\n"					\
+	    : "=&r" (tmp), "=&r" (res), "=&r" (ret)			\
+	    : "r" (p), "r" (val)					\
+	    : "memory"							\
 	);								\
 									\
-	return (!res);							\
+	return (ret);							\
+}
+
+_ATOMIC_FETCHADD_IMPL(32, w)
+_ATOMIC_FETCHADD_IMPL(64,  )
+
+#define	_ATOMIC_SWAP_IMPL(t, w, zreg)					\
+static __inline uint##t##_t						\
+atomic_swap_##t(volatile uint##t##_t *p, uint##t##_t val)		\
+{									\
+	uint##t##_t ret;						\
+	int res;							\
+									\
+	__asm __volatile(						\
+	    "1: ldxr	%"#w"1, [%2]\n"					\
+	    "   stxr	%w0, %"#w"3, [%2]\n"				\
+            "   cbnz	%w0, 1b\n"					\
+	    : "=&r" (res), "=&r" (ret)					\
+	    : "r" (p), "r" (val)					\
+	    : "memory"							\
+	);								\
+									\
+	return (ret);							\
 }									\
 									\
-static __inline int							\
-atomic_cmpset_##bar##16(volatile uint16_t *p, uint16_t cmpval,		\
-    uint16_t newval)							\
+static __inline uint##t##_t						\
+atomic_readandclear_##t(volatile uint##t##_t *p)			\
 {									\
-	uint16_t tmp;							\
+	uint##t##_t ret;						\
 	int res;							\
 									\
 	__asm __volatile(						\
-	    "1: mov       %w1, #1        \n"				\
-	    "   ld"#a"xrh %w0, [%2]      \n"				\
-	    "   cmp       %w0, %w3       \n"				\
-	    "   b.ne      2f             \n"				\
-	    "   st"#l"xrh %w1, %w4, [%2] \n"				\
-            "   cbnz      %w1, 1b        \n"				\
-	    "2:"							\
-	    : "=&r"(tmp), "=&r"(res)					\
-	    : "r" (p), "r" (cmpval), "r" (newval)			\
-	    : "cc", "memory"							\
+	    "1: ldxr	%"#w"1, [%2]\n"					\
+	    "   stxr	%w0, "#zreg", [%2]\n"				\
+	    "   cbnz	%w0, 1b\n"					\
+	    : "=&r" (res), "=&r" (ret)					\
+	    : "r" (p)							\
+	    : "memory"							\
 	);								\
 									\
-	return (!res);							\
-}									\
-									\
+	return (ret);							\
+}
+
+_ATOMIC_SWAP_IMPL(32, w, wzr)
+_ATOMIC_SWAP_IMPL(64,  , xzr)
+
+#define	_ATOMIC_TEST_OP_IMPL(t, w, op, asm_op)				\
 static __inline int							\
-atomic_cmpset_##bar##32(volatile uint32_t *p, uint32_t cmpval,		\
-    uint32_t newval)							\
+atomic_testand##op##_##t(volatile uint##t##_t *p, u_int val)		\
 {									\
-	uint32_t tmp;							\
+	uint##t##_t mask, old, tmp;					\
 	int res;							\
 									\
+	mask = 1u << (val & 0x1f);					\
 	__asm __volatile(						\
-	    "1: mov      %w1, #1        \n"				\
-	    "   ld"#a"xr %w0, [%2]      \n"				\
-	    "   cmp      %w0, %w3       \n"				\
-	    "   b.ne     2f             \n"				\
-	    "   st"#l"xr %w1, %w4, [%2] \n"				\
-            "   cbnz     %w1, 1b        \n"				\
-	    "2:"							\
-	    : "=&r"(tmp), "=&r"(res)					\
-	    : "r" (p), "r" (cmpval), "r" (newval)			\
-	    : "cc", "memory"							\
+	    "1: ldxr		%"#w"2, [%3]\n"				\
+	    "  "#asm_op"	%"#w"0, %"#w"2, %"#w"4\n"		\
+	    "   stxr		%w1, %"#w"0, [%3]\n"			\
+	    "   cbnz		%w1, 1b\n"				\
+	    : "=&r" (tmp), "=&r" (res), "=&r" (old)			\
+	    : "r" (p), "r" (mask)					\
+	    : "memory"							\
 	);								\
 									\
-	return (!res);							\
-}									\
-									\
-static __inline int							\
-atomic_cmpset_##bar##64(volatile uint64_t *p, uint64_t cmpval,		\
-    uint64_t newval)							\
+	return ((old & mask) != 0);					\
+}
+
+#define	_ATOMIC_TEST_OP(op, asm_op)					\
+	_ATOMIC_TEST_OP_IMPL(32, w, op, asm_op)				\
+	_ATOMIC_TEST_OP_IMPL(64,  , op, asm_op)
+
+_ATOMIC_TEST_OP(clear, bic)
+_ATOMIC_TEST_OP(set,   orr)
+
+#define	_ATOMIC_LOAD_ACQ_IMPL(t, w, s)					\
+static __inline uint##t##_t						\
+atomic_load_acq_##t(volatile uint##t##_t *p)				\
 {									\
-	uint64_t tmp;							\
-	int res;							\
+	uint##t##_t ret;						\
 									\
 	__asm __volatile(						\
-	    "1: mov      %w1, #1       \n"				\
-	    "   ld"#a"xr %0, [%2]      \n"				\
-	    "   cmp      %0, %3        \n"				\
-	    "   b.ne     2f            \n"				\
-	    "   st"#l"xr %w1, %4, [%2] \n"				\
-            "   cbnz     %w1, 1b       \n"				\
-	    "2:"							\
-	    : "=&r"(tmp), "=&r"(res)					\
-	    : "r" (p), "r" (cmpval), "r" (newval)			\
-	    : "cc", "memory"							\
-	);								\
+	    "ldar"#s"	%"#w"0, [%1]\n"					\
+	    : "=&r" (ret)						\
+	    : "r" (p)							\
+	    : "memory");						\
 									\
-	return (!res);							\
+	return (ret);							\
 }
 
-ATOMIC_CMPSET(    ,  , )
-ATOMIC_CMPSET(acq_, a, )
-ATOMIC_CMPSET(rel_,  ,l)
+_ATOMIC_LOAD_ACQ_IMPL(8,  w, b)
+_ATOMIC_LOAD_ACQ_IMPL(16, w, h)
+_ATOMIC_LOAD_ACQ_IMPL(32, w,  )
+_ATOMIC_LOAD_ACQ_IMPL(64,  ,  )
 
-static __inline uint32_t
-atomic_fetchadd_32(volatile uint32_t *p, uint32_t val)
-{
-	uint32_t tmp, ret;
-	int res;
-
-	__asm __volatile(
-	    "1: ldxr	%w2, [%3]      \n"
-	    "   add	%w0, %w2, %w4  \n"
-	    "   stxr	%w1, %w0, [%3] \n"
-            "   cbnz	%w1, 1b        \n"
-	    : "=&r"(tmp), "=&r"(res), "=&r"(ret)
-	    : "r" (p), "r" (val)
-	    : "memory"
-	);
-
-	return (ret);
+#define	_ATOMIC_STORE_REL_IMPL(t, w, s)					\
+static __inline void							\
+atomic_store_rel_##t(volatile uint##t##_t *p, uint##t##_t val)		\
+{									\
+	__asm __volatile(						\
+	    "stlr"#s"	%"#w"0, [%1]\n"					\
+	    :								\
+	    : "r" (val), "r" (p)					\
+	    : "memory");						\
 }
 
-static __inline uint64_t
-atomic_fetchadd_64(volatile uint64_t *p, uint64_t val)
-{
-	uint64_t tmp, ret;
-	int res;
-
-	__asm __volatile(
-	    "1: ldxr	%2, [%3]      \n"
-	    "   add	%0, %2, %4    \n"
-	    "   stxr	%w1, %0, [%3] \n"
-            "   cbnz	%w1, 1b       \n"
-	    : "=&r"(tmp), "=&r"(res), "=&r"(ret)
-	    : "r" (p), "r" (val)
-	    : "memory"
-	);
-
-	return (ret);
-}
-
-static __inline uint32_t
-atomic_readandclear_32(volatile uint32_t *p)
-{
-	uint32_t ret;
-	int res;
-
-	__asm __volatile(
-	    "1: ldxr	%w1, [%2]      \n"
-	    "   stxr	%w0, wzr, [%2] \n"
-            "   cbnz	%w0, 1b        \n"
-	    : "=&r"(res), "=&r"(ret)
-	    : "r" (p)
-	    : "memory"
-	);
-
-	return (ret);
-}
-
-static __inline uint64_t
-atomic_readandclear_64(volatile uint64_t *p)
-{
-	uint64_t ret;
-	int res;
-
-	__asm __volatile(
-	    "1: ldxr	%1, [%2]      \n"
-	    "   stxr	%w0, xzr, [%2] \n"
-            "   cbnz	%w0, 1b        \n"
-	    : "=&r"(res), "=&r"(ret)
-	    : "r" (p)
-	    : "memory"
-	);
-
-	return (ret);
-}
-
-static __inline uint32_t
-atomic_swap_32(volatile uint32_t *p, uint32_t val)
-{
-	uint32_t ret;
-	int res;
-
-	__asm __volatile(
-	    "1: ldxr	%w0, [%2]      \n"
-	    "   stxr	%w1, %w3, [%2] \n"
-	    "   cbnz	%w1, 1b        \n"
-	    : "=&r"(ret), "=&r"(res)
-	    : "r" (p), "r" (val)
-	    : "memory"
-	);
-
-	return (ret);
-}
-
-static __inline uint64_t
-atomic_swap_64(volatile uint64_t *p, uint64_t val)
-{
-	uint64_t ret;
-	int res;
-
-	__asm __volatile(
-	    "1: ldxr	%0, [%2]      \n"
-	    "   stxr	%w1, %3, [%2] \n"
-	    "   cbnz	%w1, 1b       \n"
-	    : "=&r"(ret), "=&r"(res)
-	    : "r" (p), "r" (val)
-	    : "memory"
-	);
-
-	return (ret);
-}
-
-static __inline uint8_t
-atomic_load_acq_8(volatile uint8_t *p)
-{
-	uint8_t ret;
-
-	__asm __volatile(
-	    "ldarb	%w0, [%1] \n"
-	    : "=&r" (ret)
-	    : "r" (p)
-	    : "memory");
-
-	return (ret);
-}
-
-static __inline uint16_t
-atomic_load_acq_16(volatile uint16_t *p)
-{
-	uint16_t ret;
-
-	__asm __volatile(
-	    "ldarh	%w0, [%1] \n"
-	    : "=&r" (ret)
-	    : "r" (p)
-	    : "memory");
-
-	return (ret);
-}
-
-static __inline uint32_t
-atomic_load_acq_32(volatile uint32_t *p)
-{
-	uint32_t ret;
-
-	__asm __volatile(
-	    "ldar	%w0, [%1] \n"
-	    : "=&r" (ret)
-	    : "r" (p)
-	    : "memory");
-
-	return (ret);
-}
-
-static __inline uint64_t
-atomic_load_acq_64(volatile uint64_t *p)
-{
-	uint64_t ret;
-
-	__asm __volatile(
-	    "ldar	%0, [%1] \n"
-	    : "=&r" (ret)
-	    : "r" (p)
-	    : "memory");
-
-	return (ret);
-}
-
-static __inline void
-atomic_store_rel_8(volatile uint8_t *p, uint8_t val)
-{
-
-	__asm __volatile(
-	    "stlrb	%w0, [%1] \n"
-	    :
-	    : "r" (val), "r" (p)
-	    : "memory");
-}
-
-static __inline void
-atomic_store_rel_16(volatile uint16_t *p, uint16_t val)
-{
-
-	__asm __volatile(
-	    "stlrh	%w0, [%1] \n"
-	    :
-	    : "r" (val), "r" (p)
-	    : "memory");
-}
-
-static __inline void
-atomic_store_rel_32(volatile uint32_t *p, uint32_t val)
-{
-
-	__asm __volatile(
-	    "stlr	%w0, [%1] \n"
-	    :
-	    : "r" (val), "r" (p)
-	    : "memory");
-}
-
-static __inline void
-atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
-{
-
-	__asm __volatile(
-	    "stlr	%0, [%1] \n"
-	    :
-	    : "r" (val), "r" (p)
-	    : "memory");
-}
-
-static __inline int
-atomic_testandclear_32(volatile uint32_t *p, u_int val)
-{
-	uint32_t mask, old, tmp;
-	int res;
-
-	mask = 1u << (val & 0x1f);
-	__asm __volatile(
-	    "1: ldxr	%w2, [%3]      \n"
-	    "   bic	%w0, %w2, %w4  \n"
-	    "   stxr	%w1, %w0, [%3] \n"
-            "   cbnz	%w1, 1b        \n"
-	    : "=&r"(tmp), "=&r"(res), "=&r"(old)
-	    : "r" (p), "r" (mask)
-	    : "memory"
-	);
-
-	return ((old & mask) != 0);
-}
-
-static __inline int
-atomic_testandclear_64(volatile uint64_t *p, u_int val)
-{
-	uint64_t mask, old, tmp;
-	int res;
-
-	mask = 1ul << (val & 0x1f);
-	__asm __volatile(
-	    "1: ldxr	%2, [%3]       \n"
-	    "   bic	%0, %2, %4     \n"
-	    "   stxr	%w1, %0, [%3]  \n"
-            "   cbnz	%w1, 1b        \n"
-	    : "=&r"(tmp), "=&r"(res), "=&r"(old)
-	    : "r" (p), "r" (mask)
-	    : "memory"
-	);
-
-	return ((old & mask) != 0);
-}
-
-static __inline int
-atomic_testandset_32(volatile uint32_t *p, u_int val)
-{
-	uint32_t mask, old, tmp;
-	int res;
-
-	mask = 1u << (val & 0x1f);
-	__asm __volatile(
-	    "1: ldxr	%w2, [%3]      \n"
-	    "   orr	%w0, %w2, %w4  \n"
-	    "   stxr	%w1, %w0, [%3] \n"
-            "   cbnz	%w1, 1b        \n"
-	    : "=&r"(tmp), "=&r"(res), "=&r"(old)
-	    : "r" (p), "r" (mask)
-	    : "memory"
-	);
-
-	return ((old & mask) != 0);
-}
-
-static __inline int
-atomic_testandset_64(volatile uint64_t *p, u_int val)
-{
-	uint64_t mask, old, tmp;
-	int res;
-
-	mask = 1ul << (val & 0x1f);
-	__asm __volatile(
-	    "1: ldxr	%2, [%3]       \n"
-	    "   orr	%0, %2, %4     \n"
-	    "   stxr	%w1, %0, [%3]  \n"
-            "   cbnz	%w1, 1b        \n"
-	    : "=&r"(tmp), "=&r"(res), "=&r"(old)
-	    : "r" (p), "r" (mask)
-	    : "memory"
-	);
-
-	return ((old & mask) != 0);
-}
-
+_ATOMIC_STORE_REL_IMPL(8,  w, b)
+_ATOMIC_STORE_REL_IMPL(16, w, h)
+_ATOMIC_STORE_REL_IMPL(32, w,  )
+_ATOMIC_STORE_REL_IMPL(64,  ,  )
 
 #define	atomic_add_int			atomic_add_32
 #define	atomic_fcmpset_int		atomic_fcmpset_32
@@ -742,4 +391,3 @@ atomic_thread_fence_seq_cst(void)
 #endif /* KCSAN && !KCSAN_RUNTIME */
 
 #endif /* _MACHINE_ATOMIC_H_ */
-
