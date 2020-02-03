@@ -351,14 +351,14 @@ struct ether_vlan_header {
 #define	ETHERTYPE_PPPOEDISC	0x8863	/* PPP Over Ethernet Discovery Stage */
 #define	ETHERTYPE_PPPOE		0x8864	/* PPP Over Ethernet Session Stage */
 #define	ETHERTYPE_LANPROBE	0x8888	/* HP LanProbe test? */
-#define	ETHERTYPE_PAE		0x888e	/* EAPOL PAE/802.1x */
+#define	ETHERTYPE_PAE		0x888E	/* EAPOL PAE/802.1x */
 #define	ETHERTYPE_PROFINET	0x8892	/* PROFINET RT Protocol */
-#define	ETHERTYPE_AOE		0x88a2	/* ATA Protocol */
-#define	ETHERTYPE_ETHERCAT	0x88a4	/* EtherCat Protocol */
+#define	ETHERTYPE_AOE		0x88A2	/* ATA Protocol */
+#define	ETHERTYPE_ETHERCAT	0x88A4	/* EtherCat Protocol */
 #define	ETHERTYPE_QINQ		0x88A8	/* 802.1ad VLAN stacking */
 #define	ETHERTYPE_LLDP		0x88CC	/* Link Layer Discovery Protocol */
-#define	ETHERTYPE_MACSEC	0x88e5	/* 802.1AE MAC Security */
-#define	ETHERTYPE_PBB		0x88e7	/* 802.1Q Provider Backbone Bridges */
+#define	ETHERTYPE_MACSEC	0x88E5	/* 802.1AE MAC Security */
+#define	ETHERTYPE_PBB		0x88E7	/* 802.1Q Provider Backbone Bridges */
 #define	ETHERTYPE_FCOE		0x8906	/* Fibre Channel over Ethernet */
 #define	ETHERTYPE_LOOPBACK	0x9000	/* Loopback: used to test interfaces */
 #define	ETHERTYPE_8021Q9100	0x9100	/* IEEE 802.1Q stacking (proprietary) */
