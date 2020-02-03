@@ -4173,7 +4173,7 @@ getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 	struct file *fp;
 	int error;
 
-	error = fget_unlocked(td->td_proc->p_fd, fd, rightsp, &fp, NULL);
+	error = fget_unlocked(td->td_proc->p_fd, fd, rightsp, &fp);
 	if (error != 0)
 		return (error);
 

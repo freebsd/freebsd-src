@@ -619,7 +619,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			break;
 		}
 
-		error = fget_unlocked(fdp, fd, &cap_flock_rights, &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_flock_rights, &fp);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -706,7 +706,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * that the closing thread was a bit slower and that the
 		 * advisory lock succeeded before the close.
 		 */
-		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp2, NULL);
+		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp2);
 		if (error != 0) {
 			fdrop(fp, td);
 			break;
@@ -724,7 +724,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETLK:
-		error = fget_unlocked(fdp, fd, &cap_flock_rights, &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_flock_rights, &fp);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -758,7 +758,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_ADD_SEALS:
-		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp);
 		if (error != 0)
 			break;
 		error = fo_add_seals(fp, arg);
@@ -766,7 +766,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GET_SEALS:
-		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp);
 		if (error != 0)
 			break;
 		if (fo_get_seals(fp, &seals) == 0)
@@ -780,7 +780,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		arg = arg ? 128 * 1024: 0;
 		/* FALLTHROUGH */
 	case F_READAHEAD:
-		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -831,7 +831,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * horrible kludge facilitates the current behavior in a much
 		 * cheaper manner until someone(tm) sorts this out.
 		 */
-		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -2644,15 +2644,15 @@ fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
 	struct filedesc *fdp = td->td_proc->p_fd;
 	int error;
 #ifndef CAPABILITIES
-	error = fget_unlocked(fdp, fd, needrightsp, fpp, NULL);
-	if (error == 0 && havecapsp != NULL)
+	error = fget_unlocked(fdp, fd, needrightsp, fpp);
+	if (havecapsp != NULL && error == 0)
 		filecaps_fill(havecapsp);
 #else
 	struct file *fp;
 	seqc_t seq;
 
 	for (;;) {
-		error = fget_unlocked(fdp, fd, needrightsp, &fp, &seq);
+		error = fget_unlocked_seq(fdp, fd, needrightsp, &fp, &seq);
 		if (error != 0)
 			return (error);
 
@@ -2683,7 +2683,7 @@ get_locked:
 }
 
 int
-fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     struct file **fpp, seqc_t *seqp)
 {
 #ifdef CAPABILITIES
@@ -2788,7 +2788,7 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 
 	*fpp = NULL;
 	fdp = td->td_proc->p_fd;
-	error = fget_unlocked(fdp, fd, needrightsp, &fp, NULL);
+	error = fget_unlocked(fdp, fd, needrightsp, &fp);
 	if (__predict_false(error != 0))
 		return (error);
 	if (__predict_false(fp->f_ops == &badfileops)) {
@@ -2850,7 +2850,7 @@ fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
 	fdp = td->td_proc->p_fd;
 	MPASS(cap_rights_is_set(rightsp, CAP_MMAP));
 	for (;;) {
-		error = fget_unlocked(fdp, fd, rightsp, fpp, &seq);
+		error = fget_unlocked_seq(fdp, fd, rightsp, fpp, &seq);
 		if (__predict_false(error != 0))
 			return (error);
 		if (__predict_false((*fpp)->f_ops == &badfileops)) {
@@ -2893,14 +2893,14 @@ fget_fcntl(struct thread *td, int fd, cap_rights_t *rightsp, int needfcntl,
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
 #ifndef CAPABILITIES
-	return (fget_unlocked(fdp, fd, rightsp, fpp, NULL));
+	return (fget_unlocked(fdp, fd, rightsp, fpp));
 #else
 	int error;
 	seqc_t seq;
 
 	MPASS(cap_rights_is_set(rightsp, CAP_FCNTL));
 	for (;;) {
-		error = fget_unlocked(fdp, fd, rightsp, fpp, &seq);
+		error = fget_unlocked_seq(fdp, fd, rightsp, fpp, &seq);
 		if (error != 0)
 			return (error);
 		error = cap_fcntl_check(fdp, fd, needfcntl);
