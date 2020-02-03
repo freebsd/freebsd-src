@@ -326,6 +326,8 @@ struct cluster_layout {
 };
 
 struct cluster_metadata {
+	uma_zone_t zone;
+	caddr_t cl;
 	u_int refcount;
 };
 
