@@ -59,6 +59,18 @@
 
 #include <sys/atomic_common.h>
 
+#ifdef _KERNEL
+extern bool lse_supported;
+
+#ifdef LSE_ATOMICS
+#define	_ATOMIC_LSE_SUPPORTED	1
+#else
+#define	_ATOMIC_LSE_SUPPORTED	lse_supported
+#endif
+#else
+#define	_ATOMIC_LSE_SUPPORTED	0
+#endif
+
 #define	_ATOMIC_OP_PROTO(t, op, bar, flav)				\
 static __inline void							\
 atomic_##op##_##bar##t##flav(volatile uint##t##_t *p, uint##t##_t val)
@@ -98,7 +110,10 @@ _ATOMIC_OP_PROTO(t, op, bar, _lse)					\
 									\
 _ATOMIC_OP_PROTO(t, op, bar, )						\
 {									\
-	atomic_##op##_##bar##t##_llsc(p, val);				\
+	if (_ATOMIC_LSE_SUPPORTED)					\
+		atomic_##op##_##bar##t##_lse(p, val);			\
+	else								\
+		atomic_##op##_##bar##t##_llsc(p, val);			\
 }
 
 #define	__ATOMIC_OP(op, llsc_asm_op, lse_asm_op, pre, bar, a, l)	\
@@ -175,7 +190,12 @@ _ATOMIC_CMPSET_PROTO(t, bar, _lse)					\
 									\
 _ATOMIC_CMPSET_PROTO(t, bar, )						\
 {									\
-	return (atomic_cmpset_##bar##t##_llsc(p, cmpval, newval));	\
+	if (_ATOMIC_LSE_SUPPORTED)					\
+		return (atomic_cmpset_##bar##t##_lse(p, cmpval,		\
+		    newval));						\
+	else								\
+		return (atomic_cmpset_##bar##t##_llsc(p, cmpval,	\
+		    newval));						\
 }									\
 									\
 _ATOMIC_FCMPSET_PROTO(t, bar, _llsc)					\
@@ -223,7 +243,12 @@ _ATOMIC_FCMPSET_PROTO(t, bar, _lse)					\
 									\
 _ATOMIC_FCMPSET_PROTO(t, bar, )						\
 {									\
-	return (atomic_fcmpset_##bar##t##_llsc(p, cmpval, newval));	\
+	if (_ATOMIC_LSE_SUPPORTED)					\
+		return (atomic_fcmpset_##bar##t##_lse(p, cmpval,	\
+		    newval));						\
+	else								\
+		return (atomic_fcmpset_##bar##t##_llsc(p, cmpval,	\
+		    newval));						\
 }
 
 #define	_ATOMIC_CMPSET(bar, a, l)					\
@@ -277,7 +302,10 @@ _ATOMIC_FETCHADD_PROTO(t, _lse)						\
 									\
 _ATOMIC_FETCHADD_PROTO(t, )						\
 {									\
-	return (atomic_fetchadd_##t##_llsc(p, val));			\
+	if (_ATOMIC_LSE_SUPPORTED)					\
+		return (atomic_fetchadd_##t##_lse(p, val));		\
+	else								\
+		return (atomic_fetchadd_##t##_llsc(p, val));		\
 }
 
 _ATOMIC_FETCHADD_IMPL(32, w)
@@ -327,7 +355,10 @@ _ATOMIC_SWAP_PROTO(t, _lse)						\
 									\
 _ATOMIC_SWAP_PROTO(t, )							\
 {									\
-	return (atomic_swap_##t##_llsc(p, val));			\
+	if (_ATOMIC_LSE_SUPPORTED)					\
+		return (atomic_swap_##t##_lse(p, val));			\
+	else								\
+		return (atomic_swap_##t##_llsc(p, val));		\
 }									\
 									\
 _ATOMIC_READANDCLEAR_PROTO(t, _llsc)					\
@@ -354,7 +385,10 @@ _ATOMIC_READANDCLEAR_PROTO(t, _lse)					\
 									\
 _ATOMIC_READANDCLEAR_PROTO(t, )						\
 {									\
-	return (atomic_readandclear_##t##_llsc(p));			\
+	if (_ATOMIC_LSE_SUPPORTED)					\
+		return (atomic_readandclear_##t##_lse(p));		\
+	else								\
+		return (atomic_readandclear_##t##_llsc(p));		\
 }
 
 _ATOMIC_SWAP_IMPL(32, w, wzr)
@@ -403,7 +437,10 @@ _ATOMIC_TEST_OP_PROTO(t, op, _lse)					\
 									\
 _ATOMIC_TEST_OP_PROTO(t, op, )						\
 {									\
-	return (atomic_testand##op##_##t##_llsc(p, val));		\
+	if (_ATOMIC_LSE_SUPPORTED)					\
+		return (atomic_testand##op##_##t##_lse(p, val));	\
+	else								\
+		return (atomic_testand##op##_##t##_llsc(p, val));	\
 }
 
 #define	_ATOMIC_TEST_OP(op, llsc_asm_op, lse_asm_op)			\

@@ -114,8 +114,8 @@ struct cpu_desc {
 	uint64_t	id_aa64pfr1;
 };
 
-struct cpu_desc cpu_desc[MAXCPU];
-struct cpu_desc user_cpu_desc;
+static struct cpu_desc cpu_desc[MAXCPU];
+static struct cpu_desc user_cpu_desc;
 static u_int cpu_print_regs;
 #define	PRINT_ID_AA64_AFR0	0x00000001
 #define	PRINT_ID_AA64_AFR1	0x00000002
@@ -961,6 +961,7 @@ update_user_regs(u_int cpu)
 
 /* HWCAP */
 extern u_long elf_hwcap;
+bool __read_frequently lse_supported = false;
 
 static void
 identify_cpu_sysinit(void *dummy __unused)
@@ -975,7 +976,6 @@ identify_cpu_sysinit(void *dummy __unused)
 	    ID_AA64PFR0_FP_NONE | ID_AA64PFR0_EL1_64 | ID_AA64PFR0_EL0_64;
 	user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DebugVer_8;
 
-
 	CPU_FOREACH(cpu) {
 		print_cpu_features(cpu);
 		hwcap = parse_cpu_features_hwcap(cpu);
@@ -985,6 +985,16 @@ identify_cpu_sysinit(void *dummy __unused)
 			elf_hwcap &= hwcap;
 		update_user_regs(cpu);
 	}
+
+	if ((elf_hwcap & HWCAP_ATOMICS) != 0) {
+		lse_supported = true;
+		if (bootverbose)
+			printf("Enabling LSE atomics in the kernel\n");
+	}
+#ifdef LSE_ATOMICS
+	if (!lse_supported)
+		panic("CPU does not support LSE atomic instructions");
+#endif
 
 	install_undef_handler(true, user_mrs_handler);
 }
