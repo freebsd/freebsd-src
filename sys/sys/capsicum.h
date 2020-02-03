@@ -351,8 +351,14 @@ void __cap_rights_sysinit(void *arg);
 _Static_assert(CAP_RIGHTS_VERSION == CAP_RIGHTS_VERSION_00,
     "unsupported version of capsicum rights");
 
+/*
+ * Allow checking caps which are possibly getting modified at the same time.
+ * The caller is expected to determine whether the result is legitimate via
+ * other means, see fget_unlocked for an example.
+ */
+
 static inline bool
-cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little)
+cap_rights_contains_transient(const cap_rights_t *big, const cap_rights_t *little)
 {
 
         if (__predict_true(
@@ -361,6 +367,8 @@ cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little)
                 return (true);
         return (false);
 }
+
+#define cap_rights_contains cap_rights_contains_transient
 
 int cap_check_failed_notcapable(const cap_rights_t *havep,
     const cap_rights_t *needp);
@@ -371,6 +379,15 @@ cap_check_inline(const cap_rights_t *havep, const cap_rights_t *needp)
 
         if (__predict_false(!cap_rights_contains(havep, needp)))
 		return (cap_check_failed_notcapable(havep, needp));
+        return (0);
+}
+
+static inline int
+cap_check_inline_transient(const cap_rights_t *havep, const cap_rights_t *needp)
+{
+
+        if (__predict_false(!cap_rights_contains(havep, needp)))
+		return (1);
         return (0);
 }
 

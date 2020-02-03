@@ -2766,6 +2766,69 @@ fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 }
 
 /*
+ * See the comments in fget_unlocked_seq for an explanation of how this works.
+ *
+ * This is a simplified variant which bails out to the aforementioned routine
+ * if anything goes wrong. In practice this will only happens when userspace
+ * is racing with itself.
+ */
+int
+fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+    struct file **fpp)
+{
+#ifdef CAPABILITIES
+	const struct filedescent *fde;
+#endif
+	const struct fdescenttbl *fdt;
+	struct file *fp;
+#ifdef CAPABILITIES
+	seqc_t seq;
+	const cap_rights_t *haverights;
+#endif
+
+	fdt = fdp->fd_files;
+	if (__predict_false((u_int)fd >= fdt->fdt_nfiles))
+		return (EBADF);
+#ifdef CAPABILITIES
+	seq = seqc_read_any(fd_seqc(fdt, fd));
+	if (__predict_false(seqc_in_modify(seq)))
+		goto out_fallback;
+	fde = &fdt->fdt_ofiles[fd];
+	haverights = cap_rights_fde_inline(fde);
+	fp = fde->fde_file;
+#else
+	fp = fdt->fdt_ofiles[fd].fde_file;
+#endif
+	if (__predict_false(fp == NULL))
+		goto out_fallback;
+#ifdef CAPABILITIES
+	if (__predict_false(cap_check_inline_transient(haverights, needrightsp)))
+		goto out_fallback;
+#endif
+	if (__predict_false(!refcount_acquire_if_not_zero(&fp->f_count)))
+		goto out_fallback;
+
+	/*
+	 * Use an acquire barrier to force re-reading of fdt so it is
+	 * refreshed for verification.
+	 */
+	atomic_thread_fence_acq();
+	fdt = fdp->fd_files;
+#ifdef	CAPABILITIES
+	if (__predict_false(!seqc_consistent_nomb(fd_seqc(fdt, fd), seq)))
+#else
+	if (__predict_false(fp != fdt->fdt_ofiles[fd].fde_file))
+#endif
+		goto out_fdrop;
+	*fpp = fp;
+	return (0);
+out_fdrop:
+	fdrop(fp, curthread);
+out_fallback:
+	return (fget_unlocked_seq(fdp, fd, needrightsp, fpp, NULL));
+}
+
+/*
  * Extract the file pointer associated with the specified descriptor for the
  * current user process.
  *
