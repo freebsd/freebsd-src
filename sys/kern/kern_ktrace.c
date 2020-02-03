@@ -779,6 +779,14 @@ ktrstruct(const char *name, const void *data, size_t datalen)
 }
 
 void
+ktrstruct_error(const char *name, const void *data, size_t datalen, int error)
+{
+
+	if (error == 0)
+		ktrstruct(name, data, datalen);
+}
+
+void
 ktrstructarray(const char *name, enum uio_seg seg, const void *data,
     int num_items, size_t struct_size)
 {

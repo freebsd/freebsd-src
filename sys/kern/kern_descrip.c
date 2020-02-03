@@ -1445,16 +1445,14 @@ kern_fstat(struct thread *td, int fd, struct stat *sbp)
 	error = fo_stat(fp, sbp, td->td_ucred, td);
 	fdrop(fp, td);
 #ifdef __STAT_TIME_T_EXT
-	if (error == 0) {
-		sbp->st_atim_ext = 0;
-		sbp->st_mtim_ext = 0;
-		sbp->st_ctim_ext = 0;
-		sbp->st_btim_ext = 0;
-	}
+	sbp->st_atim_ext = 0;
+	sbp->st_mtim_ext = 0;
+	sbp->st_ctim_ext = 0;
+	sbp->st_btim_ext = 0;
 #endif
 #ifdef KTRACE
-	if (error == 0 && KTRPOINT(td, KTR_STRUCT))
-		ktrstat(sbp);
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrstat_error(sbp, error);
 #endif
 	return (error);
 }
