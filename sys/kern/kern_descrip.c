@@ -2724,7 +2724,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		if (fp == NULL)
 			return (EBADF);
 #ifdef CAPABILITIES
-		error = cap_check(&haverights, needrightsp);
+		error = cap_check_inline(&haverights, needrightsp);
 		if (error != 0)
 			return (error);
 #endif
