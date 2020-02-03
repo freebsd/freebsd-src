@@ -2,9 +2,6 @@
 
 .PATH: ${SRCTOP}/sys/dev/scc
 
-.if ${MACHINE} == "sparc64"
-scc_bfe= scc_bfe_ebus.c scc_bfe_sbus.c
-.endif
 .if ${MACHINE_CPUARCH} == "powerpc"
 scc_bfe= scc_bfe_macio.c scc_bfe_quicc.c scc_dev_quicc.c
 .endif

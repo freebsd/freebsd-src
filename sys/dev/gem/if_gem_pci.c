@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 
 #include <machine/bus.h>
-#if defined(__powerpc__) || defined(__sparc64__)
+#if defined(__powerpc__)
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
@@ -149,7 +149,7 @@ gem_pci_attach(device_t dev)
 {
 	struct gem_softc *sc;
 	int i;
-#if defined(__powerpc__) || defined(__sparc64__)
+#if defined(__powerpc__)
 	char buf[sizeof(GEM_SHARED_PINS)];
 #else
 	int j;
@@ -215,7 +215,7 @@ gem_pci_attach(device_t dev)
 	   GEM_PCI_BIF_CNF_M66EN) != 0)
 		sc->sc_flags |= GEM_PCI66;
 
-#if defined(__powerpc__) || defined(__sparc64__)
+#if defined(__powerpc__)
 	OF_getetheraddr(dev, sc->sc_enaddr);
 	if (OF_getprop(ofw_bus_get_node(dev), GEM_SHARED_PINS, buf,
 	    sizeof(buf)) > 0) {

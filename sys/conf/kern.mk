@@ -154,18 +154,6 @@ CFLAGS+=	-mno-relax
 .endif
 
 #
-# For sparc64 we want the medany code model so modules may be located
-# anywhere in the 64-bit address space.  We also tell GCC to use floating
-# point emulation.  This avoids using floating point registers for integer
-# operations which it has a tendency to do.
-#
-.if ${MACHINE_CPUARCH} == "sparc64"
-CFLAGS.clang+=	-mcmodel=large -fno-dwarf2-cfi-asm
-CFLAGS.gcc+=	-mcmodel=medany -msoft-float
-INLINE_LIMIT?=	15000
-.endif
-
-#
 # For AMD64, we explicitly prohibit the use of FPU, SSE and other SIMD
 # operations inside the kernel itself.  These operations are exclusively
 # reserved for user applications.
@@ -315,5 +303,4 @@ LD_EMULATION_powerpc= elf32ppc_fbsd
 LD_EMULATION_powerpcspe= elf32ppc_fbsd
 LD_EMULATION_powerpc64= elf64ppc_fbsd
 LD_EMULATION_riscv64= elf64lriscv
-LD_EMULATION_sparc64= elf64_sparc_fbsd
 LD_EMULATION=${LD_EMULATION_${MACHINE_ARCH}}

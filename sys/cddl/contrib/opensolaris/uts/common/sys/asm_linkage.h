@@ -41,11 +41,6 @@ extern "C" {
 
 #define	ASM_ENTRY_ALIGN	16
 
-#elif defined(__sparc64__)
-
-/* GCC uses 32-byte function alignment for UltraSPARC CPUs. */
-#define	ASM_ENTRY_ALIGN	32
-
 #else
 
 #error Unsupported architecture.

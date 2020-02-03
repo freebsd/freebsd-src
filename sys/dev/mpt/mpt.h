@@ -122,11 +122,6 @@
 #include <machine/cpu.h>
 #include <machine/resource.h>
 
-#ifdef __sparc64__
-#include <dev/ofw/openfirm.h>
-#include <machine/ofw_machdep.h>
-#endif
-
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 

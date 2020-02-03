@@ -35,8 +35,4 @@ SRCS+=	hwpmc_tsc.c hwpmc_x86.c hwpmc_uncore.c
 SRCS+=	hwpmc_powerpc.c hwpmc_e500.c hwpmc_mpc7xxx.c hwpmc_ppc970.c
 .endif
 
-.if ${MACHINE_CPUARCH} == "sparc64"
-SRCS+=	hwpmc_sparc64.c
-.endif
-
 .include <bsd.kmod.mk>

@@ -71,11 +71,7 @@
 /*
  * Efficiency- get rid of SBus code && tests unless we need them.
  */
-#ifdef __sparc64__
-#define	ISP_SBUS_SUPPORTED	1
-#else
 #define	ISP_SBUS_SUPPORTED	0
-#endif
 
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 

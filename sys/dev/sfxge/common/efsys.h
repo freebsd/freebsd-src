@@ -130,26 +130,6 @@ prefetch_read_once(void *addr)
 	    :
 	    : "r" (addr));
 }
-#elif defined(__sparc64__)
-static __inline void
-prefetch_read_many(void *addr)
-{
-
-	__asm__(
-	    "prefetch [%0], 0"
-	    :
-	    : "r" (addr));
-}
-
-static __inline void
-prefetch_read_once(void *addr)
-{
-
-	__asm__(
-	    "prefetch [%0], 1"
-	    :
-	    : "r" (addr));
-}
 #else
 static __inline void
 prefetch_read_many(void *addr)
