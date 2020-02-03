@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 12, 2019
+.Dd February 4, 2020
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -592,7 +592,7 @@ build its dependencies.
 Instead, the dependencies are downloaded via
 .Xr pkg 8 .
 .Bd -literal -offset 2n
-.Li # Ic make missing | xargs pkg install --automatic --yes
+.Li # Ic make install-missing-packages
 .Li # Ic make install
 .Ed
 .Pp
