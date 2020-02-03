@@ -2349,8 +2349,6 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
-	if (error != 0)
-		return (error);
 #ifdef __STAT_TIME_T_EXT
 	sbp->st_atim_ext = 0;
 	sbp->st_mtim_ext = 0;
@@ -2359,9 +2357,9 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 #endif
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_STRUCT))
-		ktrstat(sbp);
+		ktrstat_error(sbp, error);
 #endif
-	return (0);
+	return (error);
 }
 
 #if defined(COMPAT_FREEBSD11)
