@@ -2769,8 +2769,8 @@ fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
  * See the comments in fget_unlocked_seq for an explanation of how this works.
  *
  * This is a simplified variant which bails out to the aforementioned routine
- * if anything goes wrong. In practice this will only happens when userspace
- * is racing with itself.
+ * if anything goes wrong. In practice this only happens when userspace is
+ * racing with itself.
  */
 int
 fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
