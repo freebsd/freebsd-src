@@ -441,8 +441,7 @@ ffs_lock(ap)
 		flags = ap->a_flags;
 		for (;;) {
 #ifdef DEBUG_VFS_LOCKS
-			KASSERT(vp->v_holdcnt != 0,
-			    ("ffs_lock %p: zero hold count", vp));
+			VNPASS(vp->v_holdcnt != 0, vp);
 #endif
 			lkp = vp->v_vnlock;
 			result = _lockmgr_args(lkp, flags, VI_MTX(vp),
