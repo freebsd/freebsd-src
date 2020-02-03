@@ -93,8 +93,8 @@ BROKEN_OPTIONS+= OFED
 BROKEN_OPTIONS+= KERNEL_RETPOLINE
 .endif
 
-# EFI doesn't exist on mips, powerpc, sparc or riscv.
-.if ${MACHINE:Mmips} || ${MACHINE:Mpowerpc} || ${MACHINE:Msparc64} || ${MACHINE:Mriscv}
+# EFI doesn't exist on mips, powerpc, or riscv.
+.if ${MACHINE:Mmips} || ${MACHINE:Mpowerpc} || ${MACHINE:Mriscv}
 BROKEN_OPTIONS+=EFI
 .endif
 

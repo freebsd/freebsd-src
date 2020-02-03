@@ -65,8 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/power.h>
 
 #include <machine/clock.h>
-#if defined(__arm__) || defined(__mips__) || defined(__powerpc__) || \
-    defined(__sparc64__)
+#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
 #include <machine/sc_machdep.h>
 #else
 #include <machine/pc/display.h>
@@ -536,10 +535,8 @@ sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 	scp->end = 0;
 	scp->cursor_pos = scp->cursor_oldpos = scp->xsize * scp->xsize;
 	scp->mode = sc->initial_mode = vmode;
-#ifndef __sparc64__
 	sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 	    (void *)sc->adp->va_window, FALSE);
-#endif
 	sc_alloc_scr_buffer(scp, FALSE, FALSE);
 	sc_init_emulator(scp, NULL);
 #ifndef SC_NO_CUTPASTE
@@ -725,9 +722,7 @@ sctty_open(struct tty *tp)
 	int unit = scdevtounit(tp);
 	sc_softc_t *sc;
 	scr_stat *scp;
-#ifndef __sparc64__
 	keyarg_t key;
-#endif
 
 	DPRINTF(5,
 	    ("scopen: dev:%s, unit:%d, vty:%d\n", devtoname(tp->t_dev), unit,
@@ -741,13 +736,11 @@ sctty_open(struct tty *tp)
 	if (!tty_opened(tp)) {
 		/* Use the current setting of the <-- key as default VERASE. */
 		/* If the Delete key is preferable, an stty is necessary     */
-#ifndef __sparc64__
 		if (sc->kbd != NULL) {
 			key.keynum = KEYCODE_BS;
 			(void)kbdd_ioctl(sc->kbd, GIO_KEYMAPENT, (caddr_t)&key);
 			tp->t_termios.c_cc[VERASE] = key.key.map[0];
 		}
-#endif
 	}
 
 	scp = sc_get_stat(tp);
@@ -789,9 +782,7 @@ sctty_close(struct tty *tp)
 			scp->smode.mode = VT_AUTO;
 		} else {
 			sc_vtb_destroy(&scp->vtb);
-#ifndef __sparc64__
 			sc_vtb_destroy(&scp->scr);
-#endif
 			sc_free_history_buffer(scp, scp->ysize);
 			SC_STAT(tp) = NULL;
 			free(scp, M_DEVBUF);
@@ -3003,11 +2994,9 @@ exchange_scr(sc_softc_t *sc)
 	scp = sc->cur_scp = sc->new_scp;
 	if (sc->old_scp->mode != scp->mode || ISUNKNOWNSC(sc->old_scp))
 		set_mode(scp);
-#ifndef __sparc64__
 	else
 		sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 		    (void *)sc->adp->va_window, FALSE);
-#endif
 	scp->status |= MOUSE_HIDDEN;
 	sc_move_cursor(scp, scp->xpos, scp->ypos);
 	if (!ISGRAPHSC(scp))
@@ -3334,14 +3323,12 @@ scinit(int unit, int flags)
 		}
 		sc->cur_scp = scp;
 
-#ifndef __sparc64__
 		/* copy screen to temporary buffer */
 		sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 		    (void *)scp->sc->adp->va_window, FALSE);
 		if (ISTEXTSC(scp))
 			sc_vtb_copy(&scp->scr, 0, &scp->vtb, 0,
 			    scp->xsize * scp->ysize);
-#endif
 
 		/* Sync h/w cursor position to s/w (sc and teken). */
 		if (col >= scp->xsize)
@@ -3666,9 +3653,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 #endif
 
 	sc_vtb_init(&scp->vtb, VTB_MEMORY, 0, 0, NULL, FALSE);
-#ifndef __sparc64__
 	sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, 0, 0, NULL, FALSE);
-#endif
 	scp->xoff = scp->yoff = 0;
 	scp->xpos = scp->ypos = 0;
 	scp->start = scp->xsize * scp->ysize - 1;
@@ -4192,10 +4177,8 @@ set_mode(scr_stat *scp)
 	/* setup video hardware for the given mode */
 	vidd_set_mode(scp->sc->adp, scp->mode);
 	scp->rndr->init(scp);
-#ifndef __sparc64__
 	sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 	    (void *)scp->sc->adp->va_window, FALSE);
-#endif
 
 	update_font(scp);
 

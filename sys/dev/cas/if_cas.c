@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 
 #include <machine/bus.h>
-#if defined(__powerpc__) || defined(__sparc64__)
+#if defined(__powerpc__)
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
@@ -1045,14 +1045,10 @@ cas_init_locked(struct cas_softc *sc)
 
 	/*
 	 * Enable infinite bursts for revisions without PCI issues if
-	 * applicable.  Doing so greatly improves the TX performance on
-	 * !__sparc64__ (on sparc64, setting CAS_INF_BURST improves TX
-	 * performance only marginally but hurts RX throughput quite a bit).
+	 * applicable.  Doing so greatly improves the TX performance.
 	 */
 	CAS_WRITE_4(sc, CAS_INF_BURST,
-#if !defined(__sparc64__)
 	    (sc->sc_flags & CAS_TABORT) == 0 ? CAS_INF_BURST_EN :
-#endif
 	    0);
 
 	/* Set up interrupts. */
@@ -2652,7 +2648,7 @@ cas_pci_attach(device_t dev)
 	char buf[sizeof(CAS_LOCAL_MAC_ADDRESS)];
 	struct cas_softc *sc;
 	int i;
-#if !(defined(__powerpc__) || defined(__sparc64__))
+#if !defined(__powerpc__)
 	u_char enaddr[4][ETHER_ADDR_LEN];
 	u_int j, k, lma, pcs[4], phy;
 #endif
@@ -2696,7 +2692,7 @@ cas_pci_attach(device_t dev)
 
 	CAS_LOCK_INIT(sc, device_get_nameunit(dev));
 
-#if defined(__powerpc__) || defined(__sparc64__)
+#if defined(__powerpc__)
 	OF_getetheraddr(dev, sc->sc_enaddr);
 	if (OF_getprop(ofw_bus_get_node(dev), CAS_PHY_INTERFACE, buf,
 	    sizeof(buf)) > 0 || OF_getprop(ofw_bus_get_node(dev),

@@ -8,13 +8,8 @@ uart_bus_acpi=uart_bus_acpi.c
 uart_cpu_acpi=uart_cpu_acpi.c
 .endif
 
-.if ${MACHINE_CPUARCH} == "sparc64"
-uart_bus_ebus=	uart_bus_ebus.c
-.endif
-
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
-    ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "riscv" || \
-    ${MACHINE_CPUARCH} == "sparc64"
+    ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "riscv"
 ofw_bus_if=	ofw_bus_if.h
 .endif
 

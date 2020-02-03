@@ -2045,8 +2045,6 @@ device		sound
 # snd_ad1816:		Analog Devices AD1816 ISA PnP/non-PnP.
 # snd_als4000:		Avance Logic ALS4000 PCI.
 # snd_atiixp:		ATI IXP 200/300/400 PCI.
-# snd_audiocs:		Crystal Semiconductor CS4231 SBus/EBus. Only
-#			for sparc64.
 # snd_cmi:		CMedia CMI8338/CMI8738 PCI.
 # snd_cs4281:		Crystal Semiconductor CS4281 PCI.
 # snd_csa:		Crystal Semiconductor CS461x/428x PCI. (except
@@ -2089,7 +2087,6 @@ device		sound
 device		snd_ad1816
 device		snd_als4000
 device		snd_atiixp
-#device		snd_audiocs
 device		snd_cmi
 device		snd_cs4281
 device		snd_csa

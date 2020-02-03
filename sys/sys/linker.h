@@ -216,8 +216,8 @@ void *linker_hwpmc_list_objects(void);
 #define MODINFOMD_SSYM		0x0003		/* start of symbols */
 #define MODINFOMD_ESYM		0x0004		/* end of symbols */
 #define MODINFOMD_DYNAMIC	0x0005		/* _DYNAMIC pointer */
-/* These values are MD on these two platforms */
-#if !defined(__sparc64__) && !defined(__powerpc__)
+/* These values are MD on PowerPC */
+#if !defined(__powerpc__)
 #define MODINFOMD_ENVP		0x0006		/* envp[] */
 #define MODINFOMD_HOWTO		0x0007		/* boothowto */
 #define MODINFOMD_KERNEND	0x0008		/* kernend */

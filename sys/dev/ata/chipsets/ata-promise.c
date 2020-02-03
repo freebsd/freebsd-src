@@ -250,14 +250,6 @@ ata_promise_chipinit(device_t dev)
 						    &ctlr->r_rid1, RF_ACTIVE)))
 	    goto failnfree;
 
-#ifdef __sparc64__
-	if (ctlr->chip->cfg2 == PR_SX4X &&
-	    !bus_space_map(rman_get_bustag(ctlr->r_res1),
-	    rman_get_bushandle(ctlr->r_res1), rman_get_size(ctlr->r_res1),
-	    BUS_SPACE_MAP_LINEAR, NULL))
-		goto failnfree;
-#endif
-
 	ctlr->r_type2 = SYS_RES_MEMORY;
 	ctlr->r_rid2 = PCIR_BAR(3);
 	if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
