@@ -1872,11 +1872,12 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int fr_offset,
 		    fr_offset == 0 ? M_PKTHDR | M_NOFREE : M_NOFREE))
 			return (NULL);
 		fl->mbuf_inlined++;
+		if (sd->nmbuf++ == 0) {
+			clm->refcount = 1;
+			counter_u64_add(extfree_refs, 1);
+		}
 		m_extaddref(m, payload, blen, &clm->refcount, rxb_free,
 		    swz->zone, sd->cl);
-		if (sd->nmbuf++ == 0)
-			counter_u64_add(extfree_refs, 1);
-
 	} else {
 
 		/*
@@ -1890,10 +1891,12 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int fr_offset,
 			return (NULL);
 		fl->mbuf_allocated++;
 		if (clm != NULL) {
+			if (sd->nmbuf++ == 0) {
+				clm->refcount = 1;
+				counter_u64_add(extfree_refs, 1);
+			}
 			m_extaddref(m, payload, blen, &clm->refcount,
 			    rxb_free, swz->zone, sd->cl);
-			if (sd->nmbuf++ == 0)
-				counter_u64_add(extfree_refs, 1);
 		} else {
 			m_cljset(m, sd->cl, swz->type);
 			sd->cl = NULL;	/* consumed, not a recycle candidate */
@@ -4401,7 +4404,7 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int n)
 				if (clm != NULL)
 					MPASS(clm->refcount == 1);
 #endif
-				goto recycled_fast;
+				goto recycled;
 			}
 
 			/*
@@ -4440,16 +4443,8 @@ alloc:
 		sd->cl = cl;
 		sd->cll = *cll;
 		*d = htobe64(pa | cll->hwidx);
-		clm = cl_metadata(sc, fl, cll, cl);
-		if (clm != NULL) {
 recycled:
-#ifdef INVARIANTS
-			clm->sd = sd;
-#endif
-			clm->refcount = 1;
-		}
 		sd->nmbuf = 0;
-recycled_fast:
 		d++;
 		sd++;
 		if (__predict_false(++fl->pidx % 8 == 0)) {
