@@ -100,7 +100,7 @@ struct ether_vlan_header {
 /*
  * Ethernet protocol types.
  *
- * A public list is available from the IEEE Ragistration Authority:
+ * A public list is available from the IEEE Registration Authority:
  *	https://standards.ieee.org/products-services/regauth/
  *
  *  NOTE: 0x0000-0x05DC (0..1500) are generally IEEE 802.3 length fields.
