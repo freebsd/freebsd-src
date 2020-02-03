@@ -55,6 +55,12 @@ mmdrop(struct mm_struct *mm)
 		linux_mm_dtor(mm);
 }
 
+static inline bool
+mmget_not_zero(struct mm_struct *mm)
+{
+	return (atomic_inc_not_zero(&mm->mm_users));
+}
+
 static inline void
 mmput(struct mm_struct *mm)
 {
