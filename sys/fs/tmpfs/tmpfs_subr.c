@@ -1889,13 +1889,6 @@ tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
 	random_harvest_queue(node, sizeof(*node), RANDOM_FS_ATIME);
 }
 
-void
-tmpfs_update(struct vnode *vp)
-{
-
-	tmpfs_itimes(vp, NULL, NULL);
-}
-
 int
 tmpfs_truncate(struct vnode *vp, off_t length)
 {
