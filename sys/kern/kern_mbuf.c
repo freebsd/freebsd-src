@@ -829,15 +829,18 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 static void
 mb_reclaim(uma_zone_t zone __unused, int pending __unused)
 {
+	struct epoch_tracker et;
 	struct domain *dp;
 	struct protosw *pr;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK | WARN_PANIC, NULL, __func__);
 
+	NET_EPOCH_ENTER(et);
 	for (dp = domains; dp != NULL; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_drain != NULL)
 				(*pr->pr_drain)();
+	NET_EPOCH_EXIT(et);
 }
 
 /*
