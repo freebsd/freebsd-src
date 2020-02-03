@@ -799,7 +799,7 @@ gicv3_its_attach(device_t dev)
 	 * XXX: This assumes there are no other interrupt controllers in the
 	 * system.
 	 */
-	sc->sc_irq_alloc = vmem_create("GICv3 ITS IRQs", 0,
+	sc->sc_irq_alloc = vmem_create(device_get_nameunit(dev), 0,
 	    gicv3_get_nirqs(dev), 1, 0, M_FIRSTFIT | M_WAITOK);
 
 	sc->sc_irqs = malloc(sizeof(*sc->sc_irqs) * sc->sc_irq_length,
