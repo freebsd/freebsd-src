@@ -1245,7 +1245,7 @@ static __inline int
 getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
 {
 
-	return (fget_unlocked(fdp, fd, &cap_event_rights, fpp, NULL));
+	return (fget_unlocked(fdp, fd, &cap_event_rights, fpp));
 }
 
 /*

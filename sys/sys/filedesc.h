@@ -204,8 +204,10 @@ int	fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
 	    struct file **fpp, struct filecaps *havecapsp);
 
 /* Return a referenced file from an unlocked descriptor. */
-int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+int	fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	    struct file **fpp, seqc_t *seqp);
+#define	fget_unlocked(fdp, fd, needrightsp, fpp)	\
+	fget_unlocked_seq(fdp, fd, needrightsp, fpp, NULL)
 
 /* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */
 static __inline struct file *
