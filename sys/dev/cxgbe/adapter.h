@@ -327,7 +327,6 @@ struct cluster_layout {
 
 struct cluster_metadata {
 	u_int refcount;
-	struct fl_sdesc *sd;	/* For debug only.  Could easily be stale */
 };
 
 struct fl_sdesc {
