@@ -49,55 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "geliboot.h"
 #endif
 
-#if defined(__sparc64__)
-#include <openfirm.h>
-
-extern struct tlb_entry *dtlb_store;
-extern struct tlb_entry *itlb_store;
-
-extern int dtlb_slot;
-extern int itlb_slot;
-
-static int
-md_bootserial(void)
-{
-    char        buf[64];
-    ihandle_t        inst;
-    phandle_t        input;
-    phandle_t        node;
-    phandle_t        output;
-
-    if ((node = OF_finddevice("/options")) == -1)
-        return(-1);
-    if (OF_getprop(node, "input-device", buf, sizeof(buf)) == -1)
-        return(-1);
-    input = OF_finddevice(buf);
-    if (OF_getprop(node, "output-device", buf, sizeof(buf)) == -1)
-        return(-1);
-    output = OF_finddevice(buf);
-    if (input == -1 || output == -1 ||
-        OF_getproplen(input, "keyboard") >= 0) {
-        if ((node = OF_finddevice("/chosen")) == -1)
-            return(-1);
-        if (OF_getprop(node, "stdin", &inst, sizeof(inst)) == -1)
-            return(-1);
-        if ((input = OF_instance_to_package(inst)) == -1)
-            return(-1);
-        if (OF_getprop(node, "stdout", &inst, sizeof(inst)) == -1)
-            return(-1);
-        if ((output = OF_instance_to_package(inst)) == -1)
-            return(-1);
-    }
-    if (input != output)
-        return(-1);
-    if (OF_getprop(input, "device_type", buf, sizeof(buf)) == -1)
-        return(-1);
-    if (strcmp(buf, "serial") != 0)
-        return(-1);
-    return(0);
-}
-#endif
-
 static int
 md_getboothowto(char *kargs)
 {
@@ -106,15 +57,10 @@ md_getboothowto(char *kargs)
     /* Parse kargs */
     howto = boot_parse_cmdline(kargs);
     howto |= boot_env_to_howto();
-#if defined(__sparc64__)
-    if (md_bootserial() != -1)
-	howto |= RB_SERIAL;
-#else
     if (!strcmp(getenv("console"), "comconsole"))
 	howto |= RB_SERIAL;
     if (!strcmp(getenv("console"), "nullconsole"))
 	howto |= RB_MUTE;
-#endif
     return(howto);
 }
 
@@ -362,16 +308,6 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
 #ifdef LOADER_GELI_SUPPORT
     geli_export_key_metadata(kfp);
 #endif
-#if defined(__sparc64__)
-    file_addmetadata(kfp, MODINFOMD_DTLB_SLOTS,
-	sizeof dtlb_slot, &dtlb_slot);
-    file_addmetadata(kfp, MODINFOMD_ITLB_SLOTS,
-	sizeof itlb_slot, &itlb_slot);
-    file_addmetadata(kfp, MODINFOMD_DTLB,
-	dtlb_slot * sizeof(*dtlb_store), dtlb_store);
-    file_addmetadata(kfp, MODINFOMD_ITLB,
-	itlb_slot * sizeof(*itlb_store), itlb_store);
-#endif
 
     *modulep = addr;
     size = md_copymodules(0, kern64);
@@ -411,15 +347,13 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
     return(0);
 }
 
-#if !defined(__sparc64__)
 int
 md_load(char *args, vm_offset_t *modulep, vm_offset_t *dtb)
 {
     return (md_load_dual(args, modulep, dtb, 0));
 }
-#endif
 
-#if defined(__mips__) || defined(__powerpc__) || defined(__sparc64__)
+#if defined(__mips__) || defined(__powerpc__)
 int
 md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb)
 {
