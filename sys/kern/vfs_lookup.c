@@ -452,8 +452,15 @@ namei(struct nameidata *ndp)
 			 */
 			error = fget_cap_locked(fdp, ndp->ni_dirfd, &rights,
 			    &dfp, &ndp->ni_filecaps);
-			if (error != 0 || dfp->f_ops == &badfileops ||
-			    dfp->f_vnode == NULL) {
+			if (error != 0) {
+				/*
+				 * Preserve the error; it should either be EBADF
+				 * or capability-related, both of which can be
+				 * safely returned to the caller.
+				 */
+			} else if (dfp->f_ops == &badfileops) {
+				error = EBADF;
+			} else if (dfp->f_vnode == NULL) {
 				error = ENOTDIR;
 			} else {
 				dp = dfp->f_vnode;
