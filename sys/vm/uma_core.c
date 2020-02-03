@@ -239,7 +239,9 @@ struct uma_bucket_zone {
 #define	BUCKET_MIN	BUCKET_SIZE(4)
 
 struct uma_bucket_zone bucket_zones[] = {
+#ifndef __ILP32__
 	{ NULL, "4 Bucket", BUCKET_SIZE(4), 4096 },
+#endif
 	{ NULL, "6 Bucket", BUCKET_SIZE(6), 3072 },
 	{ NULL, "8 Bucket", BUCKET_SIZE(8), 2048 },
 	{ NULL, "12 Bucket", BUCKET_SIZE(12), 1536 },
