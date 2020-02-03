@@ -2859,10 +2859,8 @@ vfs_vmio_iodone(struct buf *bp)
 	    REFCOUNT_COUNT(obj->paging_in_progress), bp->b_npages));
 
 	vp = bp->b_vp;
-	KASSERT(vp->v_holdcnt > 0,
-	    ("vfs_vmio_iodone: vnode %p has zero hold count", vp));
-	KASSERT(vp->v_object != NULL,
-	    ("vfs_vmio_iodone: vnode %p has no vm_object", vp));
+	VNPASS(vp->v_holdcnt > 0, vp);
+	VNPASS(vp->v_object != NULL, vp);
 
 	foff = bp->b_offset;
 	KASSERT(bp->b_offset != NOOFFSET,
