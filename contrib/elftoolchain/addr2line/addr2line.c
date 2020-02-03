@@ -25,6 +25,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/tree.h>
 
 #include <capsicum_helpers.h>
 #include <dwarf.h>
@@ -39,7 +40,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "uthash.h"
 #include "_elftc.h"
 
 ELFTC_VCSID("$Id: addr2line.c 3499 2016-11-25 16:06:29Z emaste $");
@@ -57,13 +57,14 @@ struct Func {
 };
 
 struct CU {
+	RB_ENTRY(CU) entry;
 	Dwarf_Off off;
 	Dwarf_Unsigned lopc;
 	Dwarf_Unsigned hipc;
 	char **srcfiles;
 	Dwarf_Signed nsrcfiles;
 	STAILQ_HEAD(, Func) funclist;
-	UT_hash_handle hh;
+	Dwarf_Die die;
 };
 
 static struct option longopts[] = {
@@ -80,10 +81,22 @@ static struct option longopts[] = {
 	{"version", no_argument, NULL, 'V'},
 	{NULL, 0, NULL, 0}
 };
+
 static int demangle, func, base, inlines, print_addr, pretty_print;
 static char unknown[] = { '?', '?', '\0' };
 static Dwarf_Addr section_base;
-static struct CU *culist;
+/* Need a new curlopc that stores last lopc value. */
+static Dwarf_Unsigned curlopc = ~0ULL;
+static RB_HEAD(cutree, CU) head = RB_INITIALIZER(&head);
+
+static int
+lopccmp(struct CU *e1, struct CU *e2)
+{
+	return (e1->lopc < e2->lopc ? -1 : e1->lopc > e2->lopc);
+}
+
+RB_PROTOTYPE(cutree, CU, entry, lopccmp);
+RB_GENERATE(cutree, CU, entry, lopccmp)
 
 #define	USAGE_MESSAGE	"\
 Usage: %s [options] hexaddress...\n\
@@ -378,6 +391,26 @@ print_inlines(struct CU *cu, struct Func *f, Dwarf_Unsigned call_file,
 		    f->call_line);
 }
 
+static struct CU *
+culookup(Dwarf_Unsigned addr)
+{
+	struct CU find, *res;
+
+	find.lopc = addr;
+	res = RB_NFIND(cutree, &head, &find);
+	if (res != NULL) {
+		if (res->lopc != addr)
+			res = RB_PREV(cutree, &head, res);
+		if (res != NULL && addr >= res->lopc && addr < res->hipc)
+			return (res);
+	} else {
+		res = RB_MAX(cutree, &head);
+		if (res != NULL && addr >= res->lopc && addr < res->hipc)
+			return (res);
+	}
+	return (NULL);
+}
+
 static void
 translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 {
@@ -400,11 +433,30 @@ translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 	addr += section_base;
 	lineno = 0;
 	file = unknown;
-	cu = NULL;
 	die = NULL;
+	ret = DW_DLV_OK;
 
-	while ((ret = dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL, NULL,
-	    &de)) ==  DW_DLV_OK) {
+	cu = culookup(addr);
+	if (cu != NULL) {
+		die = cu->die;
+		goto status_ok;
+	}
+
+	while (true) {
+		/*
+		 * We resume the CU scan from the last place we found a match.
+		 * Because when we have 2 sequential addresses, and the second
+		 * one is of the next CU, it is faster to just go to the next CU
+		 * instead of starting from the beginning.
+		 */
+		ret = dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL, NULL,
+		    &de);
+		if (ret == DW_DLV_NO_ENTRY) {
+			if (curlopc == ~0ULL)
+				goto out;
+			ret = dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL,
+			    NULL, &de);
+		}
 		die = NULL;
 		while (dwarf_siblingof(dbg, die, &ret_die, &de) == DW_DLV_OK) {
 			if (die != NULL)
@@ -420,12 +472,15 @@ translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 			if (tag == DW_TAG_compile_unit)
 				break;
 		}
+
 		if (ret_die == NULL) {
 			warnx("could not find DW_TAG_compile_unit die");
 			goto next_cu;
 		}
 		if (dwarf_attrval_unsigned(die, DW_AT_low_pc, &lopc, &de) ==
 		    DW_DLV_OK) {
+			if (lopc == curlopc)
+				goto out;
 			if (dwarf_attrval_unsigned(die, DW_AT_high_pc, &hipc,
 			   &de) == DW_DLV_OK) {
 				/*
@@ -440,31 +495,27 @@ translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 				hipc = ~0ULL;
 			}
 
-			/*
-			 * Record the CU in the hash table for faster lookup
-			 * later.
-			 */
 			if (dwarf_dieoffset(die, &off, &de) != DW_DLV_OK) {
 				warnx("dwarf_dieoffset failed: %s",
 				    dwarf_errmsg(de));
 				goto out;
 			}
-			HASH_FIND(hh, culist, &off, sizeof(off), cu);
-			if (cu == NULL) {
+
+			if (addr >= lopc && addr < hipc) {
 				if ((cu = calloc(1, sizeof(*cu))) == NULL)
 					err(EXIT_FAILURE, "calloc");
 				cu->off = off;
 				cu->lopc = lopc;
 				cu->hipc = hipc;
+				cu->die = die;
 				STAILQ_INIT(&cu->funclist);
-				HASH_ADD(hh, culist, off, sizeof(off), cu);
-			}
+				RB_INSERT(cutree, &head, cu);
 
-			if (addr >= lopc && addr < hipc)
+				curlopc = lopc;
 				break;
+			}
 		}
-
-	next_cu:
+next_cu:
 		if (die != NULL) {
 			dwarf_dealloc(dbg, die, DW_DLA_DIE);
 			die = NULL;
@@ -474,6 +525,7 @@ translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 	if (ret != DW_DLV_OK || die == NULL)
 		goto out;
 
+status_ok:
 	switch (dwarf_srclines(die, &lbuf, &lcount, &de)) {
 	case DW_DLV_OK:
 		break;
@@ -572,21 +624,6 @@ out:
 	    cu->srcfiles != NULL && f != NULL && f->inlined_caller != NULL)
 		print_inlines(cu, f->inlined_caller, f->call_file,
 		    f->call_line);
-
-	if (die != NULL)
-		dwarf_dealloc(dbg, die, DW_DLA_DIE);
-
-	/*
-	 * Reset internal CU pointer, so we will start from the first CU
-	 * next round.
-	 */
-	while (ret != DW_DLV_NO_ENTRY) {
-		if (ret == DW_DLV_ERROR)
-			errx(EXIT_FAILURE, "dwarf_next_cu_header: %s",
-			    dwarf_errmsg(de));
-		ret = dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL, NULL,
-		    &de);
-	}
 }
 
 static void
