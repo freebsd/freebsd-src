@@ -309,4 +309,4 @@ midi_uninit(void *arg __unused)
 }
 
 SYSINIT(midi_init, SI_SUB_LOCK, SI_ORDER_FIRST, midi_init, NULL);
-SYSUNINIT(midi_init, SI_SUB_LOCK, SI_ORDER_FIRST, midi_uninit, NULL);
+SYSUNINIT(midi_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, midi_uninit, NULL);

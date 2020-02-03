@@ -500,4 +500,4 @@ phone_uninit(void *arg __unused)
 }
 
 SYSINIT(phone_init, SI_SUB_LOCK, SI_ORDER_FIRST, phone_init, NULL);
-SYSUNINIT(phone_init, SI_SUB_LOCK, SI_ORDER_FIRST, phone_uninit, NULL);
+SYSUNINIT(phone_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, phone_uninit, NULL);
