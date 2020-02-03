@@ -2693,7 +2693,6 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 #endif
 	const struct fdescenttbl *fdt;
 	struct file *fp;
-	u_int count;
 #ifdef CAPABILITIES
 	seqc_t seq;
 	cap_rights_t haverights;
@@ -2729,27 +2728,27 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		if (error != 0)
 			return (error);
 #endif
-		count = fp->f_count;
-	retry:
-		if (count == 0) {
+		if (__predict_false(!refcount_acquire_if_not_zero(&fp->f_count))) {
+			/*
+			 * The count was found either saturated or zero.
+			 * This re-read is not any more racy than using the
+			 * return value from fcmpset.
+			 */
+			if (fp->f_count != 0)
+				return (EBADF);
 			/*
 			 * Force a reload. Other thread could reallocate the
-			 * table before this fd was closed, so it possible that
-			 * there is a stale fp pointer in cached version.
+			 * table before this fd was closed, so it is possible
+			 * that there is a stale fp pointer in cached version.
 			 */
 			fdt = (struct fdescenttbl *)atomic_load_ptr(&fdp->fd_files);
 			continue;
 		}
-		if (__predict_false(count + 1 < count))
-			return (EBADF);
-
 		/*
 		 * Use an acquire barrier to force re-reading of fdt so it is
 		 * refreshed for verification.
 		 */
-		if (__predict_false(atomic_fcmpset_acq_int(&fp->f_count,
-		    &count, count + 1) == 0))
-			goto retry;
+		atomic_thread_fence_acq();
 		fdt = fdp->fd_files;
 #ifdef	CAPABILITIES
 		if (seqc_consistent_nomb(fd_seqc(fdt, fd), seq))
