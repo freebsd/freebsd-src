@@ -216,6 +216,7 @@ struct worklist {
 #ifdef INVARIANTS
 	const char		*wk_func;	/* func where added / removed */
 	int			wk_line;	/* line where added / removed */
+	LIST_ENTRY(worklist)	wk_all;		/* list of deps of this type */
 #endif
 };
 #define	WK_DATA(wk) ((void *)(wk))
@@ -1073,6 +1074,9 @@ struct mount_softdeps {
 	TAILQ_ENTRY(mount_softdeps) sd_next;	/* List of softdep filesystem */
 	struct	ufsmount *sd_ump;		/* our ufsmount structure */
 	u_long	sd_curdeps[D_LAST + 1];		/* count of current deps */
+#ifdef INVARIANTS
+	struct	workhead sd_alldeps[D_LAST + 1];/* Lists of all deps */
+#endif
 };
 /*
  * Flags for communicating with the syncer thread.
@@ -1113,3 +1117,4 @@ struct mount_softdeps {
 #define	softdep_flags			um_softdep->sd_flags
 #define	softdep_flushtd			um_softdep->sd_flushtd
 #define	softdep_curdeps			um_softdep->sd_curdeps
+#define	softdep_alldeps			um_softdep->sd_alldeps
