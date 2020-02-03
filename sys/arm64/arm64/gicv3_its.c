@@ -223,7 +223,7 @@ struct its_col {
 
 struct gicv3_its_irqsrc {
 	struct intr_irqsrc	gi_isrc;
-	u_int			gi_irq;
+	u_int			gi_id;
 	u_int			gi_lpi;
 	struct its_dev		*gi_its_dev;
 };
@@ -806,7 +806,7 @@ gicv3_its_attach(device_t dev)
 	    M_GICV3_ITS, M_WAITOK | M_ZERO);
 	name = device_get_nameunit(dev);
 	for (i = 0; i < sc->sc_irq_length; i++) {
-		sc->sc_irqs[i].gi_irq = i;
+		sc->sc_irqs[i].gi_id = -1;
 		sc->sc_irqs[i].gi_lpi = i + sc->sc_irq_base - GIC_FIRST_LPI;
 		err = intr_isrc_register(&sc->sc_irqs[i].gi_isrc, dev, 0,
 		    "%s,%u", name, i);
@@ -906,7 +906,7 @@ gicv3_its_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
 	gicv3_its_disable_intr(dev, isrc);
-	gic_icc_write(EOIR1, girq->gi_irq + sc->sc_irq_base);
+	gic_icc_write(EOIR1, girq->gi_lpi + GIC_FIRST_LPI);
 }
 
 static void
@@ -924,7 +924,7 @@ gicv3_its_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
-	gic_icc_write(EOIR1, girq->gi_irq + sc->sc_irq_base);
+	gic_icc_write(EOIR1, girq->gi_lpi + GIC_FIRST_LPI);
 }
 
 static int
@@ -1135,6 +1135,7 @@ gicv3_its_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	for (i = 0; i < count; i++, irq++) {
 		its_dev->lpis.lpi_free--;
 		girq = &sc->sc_irqs[irq];
+		girq->gi_id = i;
 		girq->gi_its_dev = its_dev;
 		srcs[i] = (struct intr_irqsrc *)girq;
 
@@ -1167,6 +1168,7 @@ gicv3_its_release_msi(device_t dev, device_t child, int count,
 	     its_dev->lpis.lpi_busy));
 	for (i = 0; i < count; i++) {
 		girq = (struct gicv3_its_irqsrc *)isrc[i];
+		girq->gi_id = -1;
 		girq->gi_its_dev = NULL;
 	}
 	its_dev->lpis.lpi_busy -= count;
@@ -1196,10 +1198,12 @@ gicv3_its_alloc_msix(device_t dev, device_t child, device_t *pic,
 	sc = device_get_softc(dev);
 	irq = its_dev->lpis.lpi_base + its_dev->lpis.lpi_num -
 	    its_dev->lpis.lpi_free;
+	girq = &sc->sc_irqs[irq];
+	girq->gi_id = its_dev->lpis.lpi_busy;
+	girq->gi_its_dev = its_dev;
+
 	its_dev->lpis.lpi_free--;
 	its_dev->lpis.lpi_busy++;
-	girq = &sc->sc_irqs[irq];
-	girq->gi_its_dev = its_dev;
 
 	/* Map the message to the given IRQ */
 	gicv3_its_select_cpu(dev, (struct intr_irqsrc *)girq);
@@ -1227,6 +1231,7 @@ gicv3_its_release_msix(device_t dev, device_t child, struct intr_irqsrc *isrc)
 	     "were allocated: allocated %d", its_dev->lpis.lpi_busy));
 	girq = (struct gicv3_its_irqsrc *)isrc;
 	girq->gi_its_dev = NULL;
+	girq->gi_id = -1;
 	its_dev->lpis.lpi_busy--;
 
 	if (its_dev->lpis.lpi_busy == 0)
@@ -1246,7 +1251,7 @@ gicv3_its_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 	girq = (struct gicv3_its_irqsrc *)isrc;
 
 	*addr = vtophys(rman_get_virtual(sc->sc_its_res)) + GITS_TRANSLATER;
-	*data = girq->gi_irq - girq->gi_its_dev->lpis.lpi_base;
+	*data = girq->gi_id;
 
 	return (0);
 }
@@ -1581,7 +1586,7 @@ its_cmd_movi(device_t dev, struct gicv3_its_irqsrc *girq)
 	desc.cmd_type = ITS_CMD_MOVI;
 	desc.cmd_desc_movi.its_dev = girq->gi_its_dev;
 	desc.cmd_desc_movi.col = col;
-	desc.cmd_desc_movi.id = girq->gi_irq - girq->gi_its_dev->lpis.lpi_base;
+	desc.cmd_desc_movi.id = girq->gi_id;
 
 	its_cmd_send(dev, &desc);
 }
@@ -1619,9 +1624,9 @@ its_cmd_mapti(device_t dev, struct gicv3_its_irqsrc *girq)
 	desc.cmd_desc_mapvi.its_dev = girq->gi_its_dev;
 	desc.cmd_desc_mapvi.col = col;
 	/* The EventID sent to the device */
-	desc.cmd_desc_mapvi.id = girq->gi_irq - girq->gi_its_dev->lpis.lpi_base;
+	desc.cmd_desc_mapvi.id = girq->gi_id;
 	/* The physical interrupt presented to softeware */
-	desc.cmd_desc_mapvi.pid = girq->gi_irq + sc->sc_irq_base;
+	desc.cmd_desc_mapvi.pid = girq->gi_lpi + GIC_FIRST_LPI;
 
 	its_cmd_send(dev, &desc);
 }
@@ -1651,7 +1656,7 @@ its_cmd_inv(device_t dev, struct its_dev *its_dev,
 
 	desc.cmd_type = ITS_CMD_INV;
 	/* The EventID sent to the device */
-	desc.cmd_desc_inv.pid = girq->gi_irq - its_dev->lpis.lpi_base;
+	desc.cmd_desc_inv.pid = girq->gi_id;
 	desc.cmd_desc_inv.its_dev = its_dev;
 	desc.cmd_desc_inv.col = col;
 
