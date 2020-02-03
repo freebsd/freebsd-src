@@ -800,7 +800,7 @@ gicv3_its_attach(device_t dev)
 	 * system.
 	 */
 	sc->sc_irq_alloc = vmem_create("GICv3 ITS IRQs", 0,
-	    gicv3_get_nirqs(dev), 1, 1, M_FIRSTFIT | M_WAITOK);
+	    gicv3_get_nirqs(dev), 1, 0, M_FIRSTFIT | M_WAITOK);
 
 	sc->sc_irqs = malloc(sizeof(*sc->sc_irqs) * sc->sc_irq_length,
 	    M_GICV3_ITS, M_WAITOK | M_ZERO);
