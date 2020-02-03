@@ -2780,7 +2780,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
  */
 static __inline int
 _fget(struct thread *td, int fd, struct file **fpp, int flags,
-    cap_rights_t *needrightsp, seqc_t *seqp)
+    cap_rights_t *needrightsp)
 {
 	struct filedesc *fdp;
 	struct file *fp;
@@ -2788,7 +2788,7 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 
 	*fpp = NULL;
 	fdp = td->td_proc->p_fd;
-	error = fget_unlocked(fdp, fd, needrightsp, &fp, seqp);
+	error = fget_unlocked(fdp, fd, needrightsp, &fp, NULL);
 	if (__predict_false(error != 0))
 		return (error);
 	if (__predict_false(fp->f_ops == &badfileops)) {
@@ -2830,7 +2830,7 @@ int
 fget(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 {
 
-	return (_fget(td, fd, fpp, 0, rightsp, NULL));
+	return (_fget(td, fd, fpp, 0, rightsp));
 }
 
 int
@@ -2839,19 +2839,24 @@ fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
 {
 	int error;
 #ifndef CAPABILITIES
-	error = _fget(td, fd, fpp, 0, rightsp, NULL);
+	error = _fget(td, fd, fpp, 0, rightsp);
 	if (maxprotp != NULL)
 		*maxprotp = VM_PROT_ALL;
 #else
 	cap_rights_t fdrights;
-	struct filedesc *fdp = td->td_proc->p_fd;
+	struct filedesc *fdp;
 	seqc_t seq;
 
+	fdp = td->td_proc->p_fd;
 	MPASS(cap_rights_is_set(rightsp, CAP_MMAP));
 	for (;;) {
-		error = _fget(td, fd, fpp, 0, rightsp, &seq);
-		if (error != 0)
+		error = fget_unlocked(fdp, fd, rightsp, fpp, &seq);
+		if (__predict_false(error != 0))
 			return (error);
+		if (__predict_false((*fpp)->f_ops == &badfileops)) {
+			fdrop(*fpp, td);
+			return (EBADF);
+		}
 		if (maxprotp != NULL)
 			fdrights = *cap_rights(fdp, fd);
 		if (!fd_modified(fdp, fd, seq))
@@ -2872,14 +2877,14 @@ int
 fget_read(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 {
 
-	return (_fget(td, fd, fpp, FREAD, rightsp, NULL));
+	return (_fget(td, fd, fpp, FREAD, rightsp));
 }
 
 int
 fget_write(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 {
 
-	return (_fget(td, fd, fpp, FWRITE, rightsp, NULL));
+	return (_fget(td, fd, fpp, FWRITE, rightsp));
 }
 
 int
@@ -2926,7 +2931,7 @@ _fgetvp(struct thread *td, int fd, int flags, cap_rights_t *needrightsp,
 	int error;
 
 	*vpp = NULL;
-	error = _fget(td, fd, &fp, flags, needrightsp, NULL);
+	error = _fget(td, fd, &fp, flags, needrightsp);
 	if (error != 0)
 		return (error);
 	if (fp->f_vnode == NULL) {
