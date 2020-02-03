@@ -747,6 +747,10 @@ dbuf_evict_thread(void *unused __unused)
 			(void) cv_timedwait_hires(&dbuf_evict_cv,
 			    &dbuf_evict_lock, SEC2NSEC(1), MSEC2NSEC(1), 0);
 			CALLB_CPR_SAFE_END(&cpr, &dbuf_evict_lock);
+#ifdef __FreeBSD__
+			if (dbuf_ksp != NULL)
+				dbuf_ksp->ks_update(dbuf_ksp, KSTAT_READ);
+#endif
 		}
 		mutex_exit(&dbuf_evict_lock);
 
@@ -880,18 +884,10 @@ retry:
 	dbuf_cache_evict_thread = thread_create(NULL, 0, dbuf_evict_thread,
 	    NULL, 0, &p0, TS_RUN, minclsyspri);
 
-#ifdef __linux__
-	/*
-	 * XXX FreeBSD's SPL lacks KSTAT_TYPE_NAMED support - TODO 
-	 */
 	dbuf_ksp = kstat_create("zfs", 0, "dbufstats", "misc",
 	    KSTAT_TYPE_NAMED, sizeof (dbuf_stats) / sizeof (kstat_named_t),
 	    KSTAT_FLAG_VIRTUAL);
 	if (dbuf_ksp != NULL) {
-		dbuf_ksp->ks_data = &dbuf_stats;
-		dbuf_ksp->ks_update = dbuf_kstat_update;
-		kstat_install(dbuf_ksp);
-
 		for (i = 0; i < DN_MAX_LEVELS; i++) {
 			snprintf(dbuf_stats.cache_levels[i].name,
 			    KSTAT_STRLEN, "cache_level_%d", i);
@@ -902,8 +898,10 @@ retry:
 			dbuf_stats.cache_levels_bytes[i].data_type =
 			    KSTAT_DATA_UINT64;
 		}
+		dbuf_ksp->ks_data = &dbuf_stats;
+		dbuf_ksp->ks_update = dbuf_kstat_update;
+		kstat_install(dbuf_ksp);
 	}
-#endif	
 }
 
 void
