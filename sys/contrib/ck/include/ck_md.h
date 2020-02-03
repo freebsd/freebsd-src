@@ -114,9 +114,6 @@ net $
 #define CK_MD_SSE_DISABLE 1
 #elif defined(__amd64__)
 #define CK_MD_TSO
-#elif defined(__sparc64__) && !defined(__sparcv9__)
-#define __sparcv9__
-#define CK_MD_TSO
 #elif defined(__powerpc64__) && !defined(__ppc64__)
 #define __ppc64__
 #elif defined(__powerpc__) && !defined(__ppc__)

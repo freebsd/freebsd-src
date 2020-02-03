@@ -39,9 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #if	defined(ISP_ALL) || !defined(KLD_MODULE) 
-#ifdef __sparc64__
-#define	ISP_1000	1
-#endif
 #define	ISP_1040	1
 #define	ISP_1040_IT	1
 #define	ISP_1080	1
@@ -60,13 +57,6 @@ __FBSDID("$FreeBSD$");
 #define	MODULE_NAME	"ispfw"
 #endif
 
-#if	defined(ISP_1000)
-#ifdef __sparc64__
-#include <dev/ispfw/asm_1000.h>
-#else
-#error "firmware not compatible with this platform"
-#endif
-#endif
 #if	defined(ISP_1040) || defined(ISP_1040_IT)
 #include <dev/ispfw/asm_1040.h>
 #endif
@@ -95,9 +85,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ispfw/asm_2500.h>
 #endif
 
-#if	defined(ISP_1000)
-static int	isp_1000_loaded;
-#endif
 #if	defined(ISP_1040)
 static int	isp_1040_loaded;
 #endif
@@ -152,9 +139,6 @@ static int
 do_load_fw(void)
 {
 
-#if	defined(ISP_1000)
-	RMACRO(isp_1000);
-#endif
 #if	defined(ISP_1040)
 	RMACRO(isp_1040);
 #endif
@@ -190,9 +174,6 @@ do_unload_fw(void)
 {
 	int error = 0;
 
-#if	defined(ISP_1000)
-	UMACRO(isp_1000);
-#endif
 #if	defined(ISP_1040)
 	UMACRO(isp_1040);
 #endif
@@ -240,8 +221,6 @@ static moduledata_t ispfw_mod = {
 };
 #if	defined(ISP_ALL) || !defined(KLD_MODULE) 
 DECLARE_MODULE(ispfw, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_1000)
-DECLARE_MODULE(isp_1000, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_1040)
 DECLARE_MODULE(isp_1040, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_1080)

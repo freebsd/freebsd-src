@@ -112,13 +112,6 @@ __FBSDID("$FreeBSD$");
 #include "miidevs.h"
 #include <dev/mii/brgphyreg.h>
 
-#ifdef __sparc64__
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/openfirm.h>
-#include <machine/ofw_machdep.h>
-#include <machine/ver.h>
-#endif
-
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -557,47 +550,9 @@ static SYSCTL_NODE(_hw, OID_AUTO, bge, CTLFLAG_RD, 0, "BGE driver parameters");
 SYSCTL_INT(_hw_bge, OID_AUTO, allow_asf, CTLFLAG_RDTUN, &bge_allow_asf, 0,
 	"Allow ASF mode if available");
 
-#define	SPARC64_BLADE_1500_MODEL	"SUNW,Sun-Blade-1500"
-#define	SPARC64_BLADE_1500_PATH_BGE	"/pci@1f,700000/network@2"
-#define	SPARC64_BLADE_2500_MODEL	"SUNW,Sun-Blade-2500"
-#define	SPARC64_BLADE_2500_PATH_BGE	"/pci@1c,600000/network@3"
-#define	SPARC64_OFW_SUBVENDOR		"subsystem-vendor-id"
-
 static int
 bge_has_eaddr(struct bge_softc *sc)
 {
-#ifdef __sparc64__
-	char buf[sizeof(SPARC64_BLADE_1500_PATH_BGE)];
-	device_t dev;
-	uint32_t subvendor;
-
-	dev = sc->bge_dev;
-
-	/*
-	 * The on-board BGEs found in sun4u machines aren't fitted with
-	 * an EEPROM which means that we have to obtain the MAC address
-	 * via OFW and that some tests will always fail.  We distinguish
-	 * such BGEs by the subvendor ID, which also has to be obtained
-	 * from OFW instead of the PCI configuration space as the latter
-	 * indicates Broadcom as the subvendor of the netboot interface.
-	 * For early Blade 1500 and 2500 we even have to check the OFW
-	 * device path as the subvendor ID always defaults to Broadcom
-	 * there.
-	 */
-	if (OF_getprop(ofw_bus_get_node(dev), SPARC64_OFW_SUBVENDOR,
-	    &subvendor, sizeof(subvendor)) == sizeof(subvendor) &&
-	    (subvendor == FJTSU_VENDORID || subvendor == SUN_VENDORID))
-		return (0);
-	memset(buf, 0, sizeof(buf));
-	if (OF_package_to_path(ofw_bus_get_node(dev), buf, sizeof(buf)) > 0) {
-		if (strcmp(sparc64_model, SPARC64_BLADE_1500_MODEL) == 0 &&
-		    strcmp(buf, SPARC64_BLADE_1500_PATH_BGE) == 0)
-			return (0);
-		if (strcmp(sparc64_model, SPARC64_BLADE_2500_MODEL) == 0 &&
-		    strcmp(buf, SPARC64_BLADE_2500_PATH_BGE) == 0)
-			return (0);
-	}
-#endif
 	return (1);
 }
 
@@ -6744,15 +6699,7 @@ bge_sysctl_mem_read(SYSCTL_HANDLER_ARGS)
 static int
 bge_get_eaddr_fw(struct bge_softc *sc, uint8_t ether_addr[])
 {
-#ifdef __sparc64__
-	if (sc->bge_flags & BGE_FLAG_EADDR)
-		return (1);
-
-	OF_getetheraddr(sc->bge_dev, ether_addr);
-	return (0);
-#else
 	return (1);
-#endif
 }
 
 static int
