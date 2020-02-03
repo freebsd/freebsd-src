@@ -1208,6 +1208,9 @@ workitem_free(item, type)
 	    ump->um_fs->fs_fsmnt, TYPENAME(item->wk_type)));
 	atomic_subtract_long(&dep_current[item->wk_type], 1);
 	ump->softdep_curdeps[item->wk_type] -= 1;
+#ifdef INVARIANTS
+	LIST_REMOVE(item, wk_all);
+#endif
 	free(item, DtoM(type));
 }
 
@@ -1234,6 +1237,9 @@ workitem_alloc(item, type, mp)
 	ump->softdep_curdeps[type] += 1;
 	ump->softdep_deps++;
 	ump->softdep_accdeps++;
+#ifdef INVARIANTS
+	LIST_INSERT_HEAD(&ump->softdep_alldeps[type], item, wk_all);
+#endif
 	FREE_LOCK(ump);
 }
 
@@ -2532,6 +2538,10 @@ softdep_mount(devvp, mp, fs, cred)
 	ump->indir_hash_size = i - 1;
 	for (i = 0; i <= ump->indir_hash_size; i++)
 		TAILQ_INIT(&ump->indir_hashtbl[i]);
+#ifdef INVARIANTS
+	for (i = 0; i <= D_LAST; i++)
+		LIST_INIT(&ump->softdep_alldeps[i]);
+#endif
 	ACQUIRE_GBLLOCK(&lk);
 	TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
 	FREE_GBLLOCK(&lk);
@@ -2638,10 +2648,14 @@ softdep_unmount(mp)
 	    ump->bmsafemap_hash_size);
 	free(ump->indir_hashtbl, M_FREEWORK);
 #ifdef INVARIANTS
-	for (i = 0; i <= D_LAST; i++)
+	for (i = 0; i <= D_LAST; i++) {
 		KASSERT(ump->softdep_curdeps[i] == 0,
 		    ("Unmount %s: Dep type %s != 0 (%ld)", ump->um_fs->fs_fsmnt,
 		    TYPENAME(i), ump->softdep_curdeps[i]));
+		KASSERT(LIST_EMPTY(&ump->softdep_alldeps[i]),
+		    ("Unmount %s: Dep type %s not empty (%p)", ump->um_fs->fs_fsmnt,
+		    TYPENAME(i), LIST_FIRST(&ump->softdep_alldeps[i])));
+	}
 #endif
 	free(ump->um_softdep, M_MOUNTDATA);
 }
