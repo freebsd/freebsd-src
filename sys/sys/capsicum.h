@@ -342,8 +342,37 @@ bool __cap_rights_is_set(const cap_rights_t *rights, ...);
 bool cap_rights_is_valid(const cap_rights_t *rights);
 cap_rights_t *cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src);
 cap_rights_t *cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src);
-bool cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little);
 void __cap_rights_sysinit(void *arg);
+
+
+/*
+ * We only support one size to reduce branching.
+ */
+_Static_assert(CAP_RIGHTS_VERSION == CAP_RIGHTS_VERSION_00,
+    "unsupported version of capsicum rights");
+
+static inline bool
+cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little)
+{
+
+        if (__predict_true(
+            (big->cr_rights[0] & little->cr_rights[0]) == little->cr_rights[0] &&
+            (big->cr_rights[1] & little->cr_rights[1]) == little->cr_rights[1]))
+                return (true);
+        return (false);
+}
+
+int cap_check_failed_notcapable(const cap_rights_t *havep,
+    const cap_rights_t *needp);
+
+static inline int
+cap_check_inline(const cap_rights_t *havep, const cap_rights_t *needp)
+{
+
+        if (__predict_false(!cap_rights_contains(havep, needp)))
+		return (cap_check_failed_notcapable(havep, needp));
+        return (0);
+}
 
 __END_DECLS
 struct cap_rights_init_args {
