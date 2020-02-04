@@ -271,14 +271,12 @@ thread_create(struct thread *td, struct rtprio *rtp,
 
 	tidhash_add(newtd);
 
+	/* ignore timesharing class */
+	if (rtp != NULL && !(td->td_pri_class == PRI_TIMESHARE &&
+	    rtp->type == RTP_PRIO_NORMAL))
+		rtp_to_pri(rtp, newtd);
+
 	thread_lock(newtd);
-	if (rtp != NULL) {
-		if (!(td->td_pri_class == PRI_TIMESHARE &&
-		      rtp->type == RTP_PRIO_NORMAL)) {
-			rtp_to_pri(rtp, newtd);
-			sched_prio(newtd, newtd->td_user_pri);
-		} /* ignore timesharing class */
-	}
 	TD_SET_CAN_RUN(newtd);
 	sched_add(newtd, SRQ_BORING);
 
