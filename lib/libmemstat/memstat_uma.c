@@ -459,9 +459,9 @@ skip_percpu:
 				if (ret != 0)
 					continue;
 				for (ubp =
-				    TAILQ_FIRST(&uzd.uzd_buckets);
+				    STAILQ_FIRST(&uzd.uzd_buckets);
 				    ubp != NULL;
-				    ubp = TAILQ_NEXT(&ub, ub_link)) {
+				    ubp = STAILQ_NEXT(&ub, ub_link)) {
 					ret = kread(kvm, ubp, &ub,
 					   sizeof(ub), 0);
 					if (ret != 0)
