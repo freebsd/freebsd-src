@@ -200,6 +200,7 @@
     "\6NOFREE"				\
     "\5MALLOC"				\
     "\4NOTOUCH"				\
+    "\3CONTIG"				\
     "\2ZINIT"
 
 /*

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2020
+.Dd February 4, 2020
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -340,6 +340,10 @@ was allocated will cause mixing in per-CPU caches.
 See
 .Xr numa 4
 for more details.
+.It Dv UMA_ZONE_CONTIG
+Items in this zone must be contiguous in physical address space.
+Items will follow normal alignment constraints and may span page boundaries
+between pages with contiguous physical addresses.
 .El
 .Pp
 Zones can be destroyed using
@@ -465,12 +469,8 @@ and
 .Fn uma_zone_set_freef
 functions allow a zone's default slab allocation and free functions to be
 overridden.
-This is useful if the zone's items have special memory allocation constraints.
-For example, if multi-page objects are required to be physically contiguous,
-an
-.Fa allocf
-function which requests contiguous memory from the kernel's page allocator
-may be used.
+This is useful if memory with special constraints such as attributes,
+alignment, or address ranges must be used.
 .Pp
 The
 .Fn uma_zone_set_max
