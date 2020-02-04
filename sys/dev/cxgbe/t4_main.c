@@ -10291,8 +10291,6 @@ clear_stats(struct adapter *sc, u_int port_id)
 				rxq->rxcsum = 0;
 				rxq->vlan_extraction = 0;
 
-				rxq->fl.mbuf_allocated = 0;
-				rxq->fl.mbuf_inlined = 0;
 				rxq->fl.cl_allocated = 0;
 				rxq->fl.cl_recycled = 0;
 				rxq->fl.cl_fast_recycled = 0;
@@ -10334,8 +10332,6 @@ clear_stats(struct adapter *sc, u_int port_id)
 #endif
 #ifdef TCP_OFFLOAD
 			for_each_ofld_rxq(vi, i, ofld_rxq) {
-				ofld_rxq->fl.mbuf_allocated = 0;
-				ofld_rxq->fl.mbuf_inlined = 0;
 				ofld_rxq->fl.cl_allocated = 0;
 				ofld_rxq->fl.cl_recycled = 0;
 				ofld_rxq->fl.cl_fast_recycled = 0;

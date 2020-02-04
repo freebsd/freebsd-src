@@ -345,7 +345,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	struct sge_nm_rxq *nm_rxq;
 	struct sge_nm_txq *nm_txq;
 	int rc, i, j, hwidx, defq, nrssq;
-	struct hw_buf_info *hwb;
+	struct rx_buf_info *rxb;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
@@ -353,17 +353,22 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return (EAGAIN);
 
-	hwb = &sc->sge.hw_buf_info[0];
-	for (i = 0; i < SGE_FLBUF_SIZES; i++, hwb++) {
-		if (hwb->size == NETMAP_BUF_SIZE(na))
+	rxb = &sc->sge.rx_buf_info[0];
+	for (i = 0; i < SW_ZONE_SIZES; i++, rxb++) {
+		if (rxb->size1 == NETMAP_BUF_SIZE(na)) {
+			hwidx = rxb->hwidx1;
 			break;
+		}
+		if (rxb->size2 == NETMAP_BUF_SIZE(na)) {
+			hwidx = rxb->hwidx2;
+			break;
+		}
 	}
-	if (i >= SGE_FLBUF_SIZES) {
+	if (i >= SW_ZONE_SIZES) {
 		if_printf(ifp, "no hwidx for netmap buffer size %d.\n",
 		    NETMAP_BUF_SIZE(na));
 		return (ENXIO);
 	}
-	hwidx = i;
 
 	/* Must set caps before calling netmap_reset */
 	nm_set_native_flags(na);
