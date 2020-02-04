@@ -209,6 +209,26 @@ smr_advance(smr_t smr)
 	return (goal);
 }
 
+smr_seq_t
+smr_advance_deferred(smr_t smr, int limit)
+{
+	smr_seq_t goal;
+	smr_t csmr;
+
+	critical_enter();
+	csmr = zpcpu_get(smr);
+	if (++csmr->c_deferred >= limit) {
+		goal = SMR_SEQ_INVALID;
+		csmr->c_deferred = 0;
+	} else
+		goal = smr_shared_current(csmr->c_shared) + SMR_SEQ_INCR;
+	critical_exit();
+	if (goal != SMR_SEQ_INVALID)
+		return (goal);
+
+	return (smr_advance(smr));
+}
+
 /*
  * Poll to determine whether all readers have observed the 'goal' write
  * sequence number.
@@ -255,6 +275,17 @@ smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 	 * c_seq can only reference time after this wr_seq.
 	 */
 	s_wr_seq = atomic_load_acq_int(&s->s_wr_seq);
+
+	/*
+	 * This may have come from a deferred advance.  Consider one
+	 * increment past the current wr_seq valid and make sure we
+	 * have advanced far enough to succeed.  We simply add to avoid
+	 * an additional fence.
+	 */
+	if (goal == s_wr_seq + SMR_SEQ_INCR) {
+		atomic_add_int(&s->s_wr_seq, SMR_SEQ_INCR);
+		s_wr_seq = goal;
+	}
 
 	/*
 	 * Detect whether the goal is valid and has already been observed.

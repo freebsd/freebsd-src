@@ -64,6 +64,7 @@ typedef struct smr_shared *smr_shared_t;
 struct smr {
 	smr_seq_t	c_seq;		/* Current observed sequence. */
 	smr_shared_t	c_shared;	/* Shared SMR state. */
+	int		c_deferred;	/* Deferred advance counter. */
 };
 
 /*
@@ -144,6 +145,13 @@ smr_exit(smr_t smr)
  * required to ensure that all modifications are visible to readers.
  */
 smr_seq_t smr_advance(smr_t smr);
+
+/*
+ * Advances the write sequence number only after N calls.  Returns
+ * the correct goal for a wr_seq that has not yet occurred.  Used to
+ * minimize shared cacheline invalidations for frequent writers.
+ */
+smr_seq_t smr_advance_deferred(smr_t smr, int limit);
 
 /*
  * Returns true if a goal sequence has been reached.  If
