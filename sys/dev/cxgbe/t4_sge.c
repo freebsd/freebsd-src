@@ -219,7 +219,8 @@ struct sgl {
 static int service_iq(struct sge_iq *, int);
 static int service_iq_fl(struct sge_iq *, int);
 static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t);
-static int t4_eth_rx(struct sge_iq *, const struct rss_header *, struct mbuf *);
+static int eth_rx(struct adapter *, struct sge_rxq *, const struct iq_desc *,
+    u_int);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int);
 static inline void init_fl(struct adapter *, struct sge_fl *, int, int, char *);
 static inline void init_eq(struct adapter *, struct sge_eq *, int, int, uint8_t,
@@ -550,7 +551,6 @@ t4_sge_modload(void)
 	t4_register_cpl_handler(CPL_FW4_MSG, handle_fw_msg);
 	t4_register_cpl_handler(CPL_FW6_MSG, handle_fw_msg);
 	t4_register_cpl_handler(CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
-	t4_register_cpl_handler(CPL_RX_PKT, t4_eth_rx);
 #ifdef RATELIMIT
 	t4_register_shared_cpl_handler(CPL_FW4_ACK, ethofld_fw4_ack,
 	    CPL_COOKIE_ETHOFLD);
@@ -1611,24 +1611,14 @@ service_iq_fl(struct sge_iq *iq, int budget)
 				fl_hw_cidx = fl->hw_cidx;
 			}
 
+			if (d->rss.opcode == CPL_RX_PKT) {
+				if (__predict_true(eth_rx(sc, rxq, d, lq) == 0))
+					break;
+				goto out;
+			}
 			m0 = get_fl_payload(sc, fl, lq);
 			if (__predict_false(m0 == NULL))
 				goto out;
-
-			if (iq->flags & IQ_RX_TIMESTAMP) {
-				/*
-				 * Fill up rcv_tstmp but do not set M_TSTMP.
-				 * rcv_tstmp is not in the format that the
-				 * kernel expects and we don't want to mislead
-				 * it.  For now this is only for custom code
-				 * that knows how to interpret cxgbe's stamp.
-				 */
-				m0->m_pkthdr.rcv_tstmp =
-				    last_flit_to_ns(sc, d->rsp.u.last_flit);
-#ifdef notyet
-				m0->m_flags |= M_TSTMP;
-#endif
-			}
 
 			/* fall through */
 
@@ -1861,12 +1851,13 @@ get_segment:
 }
 
 static int
-t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
+eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
+    u_int plen)
 {
-	struct sge_rxq *rxq = iq_to_rxq(iq);
+	struct mbuf *m0;
 	struct ifnet *ifp = rxq->ifp;
-	struct adapter *sc = iq->adapter;
-	const struct cpl_rx_pkt *cpl = (const void *)(rss + 1);
+	struct sge_fl *fl = &rxq->fl;
+	const struct cpl_rx_pkt *cpl;
 #if defined(INET) || defined(INET6)
 	struct lro_ctrl *lro = &rxq->lro;
 #endif
@@ -1877,17 +1868,20 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 		{M_HASHTYPE_RSS_UDP_IPV4, M_HASHTYPE_RSS_UDP_IPV6},
 	};
 
-	KASSERT(m0 != NULL, ("%s: no payload with opcode %02x", __func__,
-	    rss->opcode));
+	MPASS(plen > sc->params.sge.fl_pktshift);
+	m0 = get_fl_payload(sc, fl, plen);
+	if (__predict_false(m0 == NULL))
+		return (ENOMEM);
 
 	m0->m_pkthdr.len -= sc->params.sge.fl_pktshift;
 	m0->m_len -= sc->params.sge.fl_pktshift;
 	m0->m_data += sc->params.sge.fl_pktshift;
 
 	m0->m_pkthdr.rcvif = ifp;
-	M_HASHTYPE_SET(m0, sw_hashtype[rss->hash_type][rss->ipv6]);
-	m0->m_pkthdr.flowid = be32toh(rss->hash_val);
+	M_HASHTYPE_SET(m0, sw_hashtype[d->rss.hash_type][d->rss.ipv6]);
+	m0->m_pkthdr.flowid = be32toh(d->rss.hash_val);
 
+	cpl = (const void *)(&d->rss + 1);
 	if (cpl->csum_calc && !(cpl->err_vec & sc->params.tp.err_vec_mask)) {
 		if (ifp->if_capenable & IFCAP_RXCSUM &&
 		    cpl->l2info & htobe32(F_RXF_IP)) {
@@ -1913,11 +1907,26 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 		rxq->vlan_extraction++;
 	}
 
+	if (rxq->iq.flags & IQ_RX_TIMESTAMP) {
+		/*
+		 * Fill up rcv_tstmp but do not set M_TSTMP.
+		 * rcv_tstmp is not in the format that the
+		 * kernel expects and we don't want to mislead
+		 * it.  For now this is only for custom code
+		 * that knows how to interpret cxgbe's stamp.
+		 */
+		m0->m_pkthdr.rcv_tstmp =
+		    last_flit_to_ns(sc, d->rsp.u.last_flit);
+#ifdef notyet
+		m0->m_flags |= M_TSTMP;
+#endif
+	}
+
 #ifdef NUMA
 	m0->m_pkthdr.numa_domain = ifp->if_numa_domain;
 #endif
 #if defined(INET) || defined(INET6)
-	if (iq->flags & IQ_LRO_ENABLED &&
+	if (rxq->iq.flags & IQ_LRO_ENABLED &&
 	    (M_HASHTYPE_GET(m0) == M_HASHTYPE_RSS_TCP_IPV4 ||
 	    M_HASHTYPE_GET(m0) == M_HASHTYPE_RSS_TCP_IPV6)) {
 		if (sort_before_lro(lro)) {
