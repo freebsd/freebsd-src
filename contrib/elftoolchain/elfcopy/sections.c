@@ -1137,7 +1137,7 @@ read_section(struct section *s, size_t *size)
 		if (b == NULL)
 			b = malloc(id->d_size);
 		else
-			b = malloc(sz + id->d_size);
+			b = realloc(b, sz + id->d_size);
 		if (b == NULL)
 			err(EXIT_FAILURE, "malloc or realloc failed");
 
