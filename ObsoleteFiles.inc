@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200204: simple_httpd removed
+OLD_FILES+=usr/sbin/simple_httpd
+
 # 20200127: vpo removed
 OLD_FILES+=usr/share/man/man4/imm.4.gz
 OLD_FILES+=usr/share/man/man4/vpo.4.gz
