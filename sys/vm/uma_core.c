@@ -236,16 +236,15 @@ struct uma_bucket_zone {
     (((sizeof(void *) * (n)) - sizeof(struct uma_bucket)) / sizeof(void *))
 
 #define	BUCKET_MAX	BUCKET_SIZE(256)
-#define	BUCKET_MIN	BUCKET_SIZE(4)
+#define	BUCKET_MIN	2
 
 struct uma_bucket_zone bucket_zones[] = {
-#ifndef __ILP32__
-	{ NULL, "4 Bucket", BUCKET_SIZE(4), 4096 },
-#endif
-	{ NULL, "6 Bucket", BUCKET_SIZE(6), 3072 },
-	{ NULL, "8 Bucket", BUCKET_SIZE(8), 2048 },
-	{ NULL, "12 Bucket", BUCKET_SIZE(12), 1536 },
-	{ NULL, "16 Bucket", BUCKET_SIZE(16), 1024 },
+	/* Literal bucket sizes. */
+	{ NULL, "2 Bucket", 2, 4096 },
+	{ NULL, "4 Bucket", 4, 3072 },
+	{ NULL, "8 Bucket", 8, 2048 },
+	{ NULL, "16 Bucket", 16, 1024 },
+	/* Rounded down power of 2 sizes for efficiency. */
 	{ NULL, "32 Bucket", BUCKET_SIZE(32), 512 },
 	{ NULL, "64 Bucket", BUCKET_SIZE(64), 256 },
 	{ NULL, "128 Bucket", BUCKET_SIZE(128), 128 },
