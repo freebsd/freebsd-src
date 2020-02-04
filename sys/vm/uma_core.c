@@ -1704,6 +1704,12 @@ pcpu_page_free(void *mem, vm_size_t size, uint8_t flags)
 	vm_page_t m;
 
 	MPASS(size == (mp_maxid+1)*PAGE_SIZE);
+
+	if ((flags & UMA_SLAB_BOOT) != 0) {
+		startup_free(mem, size);
+		return;
+	}
+
 	sva = (vm_offset_t)mem;
 	for (curva = sva; curva < sva + size; curva += PAGE_SIZE) {
 		paddr = pmap_kextract(curva);
