@@ -1965,10 +1965,8 @@ psmattach(device_t dev)
 		return (ENXIO);
 	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, NULL, psmintr, sc,
 	    &sc->ih);
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
-		return (error);
-	}
+	if (error)
+		goto out;
 
 	/* Done */
 	sc->dev = make_dev(&psm_cdevsw, 0, 0, 0, 0666, "psm%d", unit);
@@ -1991,7 +1989,7 @@ psmattach(device_t dev)
 	}
 
 	if (error)
-		return (error);
+		goto out;
 #endif
 
 	/* Some touchpad devices need full reinitialization after suspend. */
@@ -2032,7 +2030,10 @@ psmattach(device_t dev)
 	if (bootverbose)
 		--verbose;
 
-	return (0);
+out:
+	if (error != 0)
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
+	return (error);
 }
 
 static int
