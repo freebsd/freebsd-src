@@ -303,7 +303,6 @@ static void	mb_dtor_pack(void *, int, void *);
 static int	mb_zinit_pack(void *, int, int);
 static void	mb_zfini_pack(void *, int);
 static void	mb_reclaim(uma_zone_t, int);
-static void    *mbuf_jumbo_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 
 /* Ensure that MSIZE is a power of 2. */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
@@ -323,7 +322,7 @@ mbuf_init(void *dummy)
 	 */
 	zone_mbuf = uma_zcreate(MBUF_MEM_NAME, MSIZE,
 	    mb_ctor_mbuf, mb_dtor_mbuf, NULL, NULL,
-	    MSIZE - 1, UMA_ZONE_MAXBUCKET);
+	    MSIZE - 1, UMA_ZONE_CONTIG | UMA_ZONE_MAXBUCKET);
 	if (nmbufs > 0)
 		nmbufs = uma_zone_set_max(zone_mbuf, nmbufs);
 	uma_zone_set_warning(zone_mbuf, "kern.ipc.nmbufs limit reached");
@@ -331,7 +330,7 @@ mbuf_init(void *dummy)
 
 	zone_clust = uma_zcreate(MBUF_CLUSTER_MEM_NAME, MCLBYTES,
 	    mb_ctor_clust, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
+	    UMA_ALIGN_PTR, UMA_ZONE_CONTIG);
 	if (nmbclusters > 0)
 		nmbclusters = uma_zone_set_max(zone_clust, nmbclusters);
 	uma_zone_set_warning(zone_clust, "kern.ipc.nmbclusters limit reached");
@@ -343,7 +342,7 @@ mbuf_init(void *dummy)
 	/* Make jumbo frame zone too. Page size, 9k and 16k. */
 	zone_jumbop = uma_zcreate(MBUF_JUMBOP_MEM_NAME, MJUMPAGESIZE,
 	    mb_ctor_clust, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
+	    UMA_ALIGN_PTR, UMA_ZONE_CONTIG);
 	if (nmbjumbop > 0)
 		nmbjumbop = uma_zone_set_max(zone_jumbop, nmbjumbop);
 	uma_zone_set_warning(zone_jumbop, "kern.ipc.nmbjumbop limit reached");
@@ -351,8 +350,7 @@ mbuf_init(void *dummy)
 
 	zone_jumbo9 = uma_zcreate(MBUF_JUMBO9_MEM_NAME, MJUM9BYTES,
 	    mb_ctor_clust, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
-	uma_zone_set_allocf(zone_jumbo9, mbuf_jumbo_alloc);
+	    UMA_ALIGN_PTR, UMA_ZONE_CONTIG);
 	if (nmbjumbo9 > 0)
 		nmbjumbo9 = uma_zone_set_max(zone_jumbo9, nmbjumbo9);
 	uma_zone_set_warning(zone_jumbo9, "kern.ipc.nmbjumbo9 limit reached");
@@ -360,8 +358,7 @@ mbuf_init(void *dummy)
 
 	zone_jumbo16 = uma_zcreate(MBUF_JUMBO16_MEM_NAME, MJUM16BYTES,
 	    mb_ctor_clust, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
-	uma_zone_set_allocf(zone_jumbo16, mbuf_jumbo_alloc);
+	    UMA_ALIGN_PTR, UMA_ZONE_CONTIG);
 	if (nmbjumbo16 > 0)
 		nmbjumbo16 = uma_zone_set_max(zone_jumbo16, nmbjumbo16);
 	uma_zone_set_warning(zone_jumbo16, "kern.ipc.nmbjumbo16 limit reached");
@@ -613,24 +610,6 @@ debugnet_mbuf_reinit(int nmbuf, int nclust, int clsize)
 	}
 }
 #endif /* DEBUGNET */
-
-/*
- * UMA backend page allocator for the jumbo frame zones.
- *
- * Allocates kernel virtual memory that is backed by contiguous physical
- * pages.
- */
-static void *
-mbuf_jumbo_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
-    int wait)
-{
-
-	/* Inform UMA that this allocator uses kernel_map/object. */
-	*flags = UMA_SLAB_KERNEL;
-	return ((void *)kmem_alloc_contig_domainset(DOMAINSET_FIXED(domain),
-	    bytes, wait, (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0,
-	    VM_MEMATTR_DEFAULT));
-}
 
 /*
  * Constructor for Mbuf master zone.
