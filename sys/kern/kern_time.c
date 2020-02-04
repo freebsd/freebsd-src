@@ -242,7 +242,7 @@ sys_clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 	return (error);
 }
 
-static inline void 
+static inline void
 cputick2timespec(uint64_t runtime, struct timespec *ats)
 {
 	runtime = cputick2usec(runtime);
@@ -250,12 +250,15 @@ cputick2timespec(uint64_t runtime, struct timespec *ats)
 	ats->tv_nsec = runtime % 1000000 * 1000;
 }
 
-static void
-get_thread_cputime(struct thread *targettd, struct timespec *ats)
+void
+kern_thread_cputime(struct thread *targettd, struct timespec *ats)
 {
 	uint64_t runtime, curtime, switchtime;
+	struct proc *p;
 
 	if (targettd == NULL) { /* current thread */
+		p = curthread->td_proc;
+		PROC_LOCK_ASSERT(p, MA_OWNED);
 		critical_enter();
 		switchtime = PCPU_GET(switchtime);
 		curtime = cpu_ticks();
@@ -263,6 +266,8 @@ get_thread_cputime(struct thread *targettd, struct timespec *ats)
 		critical_exit();
 		runtime += curtime - switchtime;
 	} else {
+		p = targettd->td_proc;
+		PROC_LOCK_ASSERT(p, MA_OWNED);
 		thread_lock(targettd);
 		runtime = targettd->td_runtime;
 		thread_unlock(targettd);
@@ -270,12 +275,13 @@ get_thread_cputime(struct thread *targettd, struct timespec *ats)
 	cputick2timespec(runtime, ats);
 }
 
-static void
-get_process_cputime(struct proc *targetp, struct timespec *ats)
+void
+kern_process_cputime(struct proc *targetp, struct timespec *ats)
 {
 	uint64_t runtime;
 	struct rusage ru;
 
+	PROC_LOCK_ASSERT(targetp, MA_OWNED);
 	PROC_STATLOCK(targetp);
 	rufetch(targetp, &ru);
 	runtime = targetp->p_rux.rux_runtime;
@@ -300,14 +306,14 @@ get_cputime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		td2 = tdfind(tid, p->p_pid);
 		if (td2 == NULL)
 			return (EINVAL);
-		get_thread_cputime(td2, ats);
+		kern_thread_cputime(td2, ats);
 		PROC_UNLOCK(td2->td_proc);
 	} else {
 		pid = clock_id & CPUCLOCK_ID_MASK;
 		error = pget(pid, PGET_CANSEE, &p2);
 		if (error != 0)
 			return (EINVAL);
-		get_process_cputime(p2, ats);
+		kern_process_cputime(p2, ats);
 		PROC_UNLOCK(p2);
 	}
 	return (0);
@@ -360,11 +366,11 @@ kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		ats->tv_nsec = 0;
 		break;
 	case CLOCK_THREAD_CPUTIME_ID:
-		get_thread_cputime(NULL, ats);
+		kern_thread_cputime(NULL, ats);
 		break;
 	case CLOCK_PROCESS_CPUTIME_ID:
 		PROC_LOCK(p);
-		get_process_cputime(p, ats);
+		kern_process_cputime(p, ats);
 		PROC_UNLOCK(p);
 		break;
 	default:
