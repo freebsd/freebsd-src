@@ -1650,10 +1650,11 @@ altq_is_enabled(int pfdev)
 			syslog(LOG_INFO, "No ALTQ support in kernel\n"
 			    "ALTQ related functions disabled\n");
 			return (0);
-		} else
+		} else {
 			syslog(LOG_ERR, "DIOCGETALTQS returned an error: %s",
 			    strerror(errno));
 			return (-1);
+		}
 	}
 	return (1);
 }
