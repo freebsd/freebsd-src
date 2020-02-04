@@ -122,6 +122,23 @@ elf_is_ifunc_reloc(Elf_Size r_info __unused)
 }
 
 static int
+reloc_instr_imm(Elf32_Addr *where, Elf_Addr val, u_int msb, u_int lsb)
+{
+
+	/* Check bounds: upper bits must be all ones or all zeros. */
+	if ((uint64_t)((int64_t)val >> (msb + 1)) + 1 > 1)
+		return (-1);
+	val >>= lsb;
+	val &= (1 << (msb - lsb + 1)) - 1;
+	*where |= (Elf32_Addr)val;
+	return (0);
+}
+
+/*
+ * Process a relocation.  Support for some static relocations is required
+ * in order for the -zifunc-noplt optimization to work.
+ */
+static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
     int type, int local, elf_lookup_fn lookup)
 {
@@ -156,9 +173,32 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		return (0);
 	}
 
+	error = 0;
 	switch (rtype) {
 	case R_AARCH64_NONE:
 	case R_AARCH64_RELATIVE:
+		break;
+	case R_AARCH64_TSTBR14:
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return (-1);
+		error = reloc_instr_imm((Elf32_Addr *)where,
+		    addr + addend - (Elf_Addr)where, 15, 2);
+		break;
+	case R_AARCH64_CONDBR19:
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return (-1);
+		error = reloc_instr_imm((Elf32_Addr *)where,
+		    addr + addend - (Elf_Addr)where, 20, 2);
+		break;
+	case R_AARCH64_JUMP26:
+	case R_AARCH64_CALL26:
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return (-1);
+		error = reloc_instr_imm((Elf32_Addr *)where,
+		    addr + addend - (Elf_Addr)where, 27, 2);
 		break;
 	case R_AARCH64_ABS64:
 	case R_AARCH64_GLOB_DAT:
@@ -178,7 +218,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		printf("kldload: unexpected relocation type %d\n", rtype);
 		return (-1);
 	}
-	return (0);
+	return (error);
 }
 
 int
