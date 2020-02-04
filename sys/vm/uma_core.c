@@ -271,6 +271,7 @@ static void *noobj_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 static void *page_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 static void *pcpu_page_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 static void *startup_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
+static void *contig_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 static void page_free(void *, vm_size_t, uint8_t);
 static void pcpu_page_free(void *, vm_size_t, uint8_t);
 static uma_slab_t keg_alloc_slab(uma_keg_t, uma_zone_t, int, int, int);
@@ -1660,6 +1661,19 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 }
 
 /*
+ * Allocate physically contiguous pages.
+ */
+static void *
+contig_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
+    int wait)
+{
+
+	*pflag = UMA_SLAB_KERNEL;
+	return ((void *)kmem_alloc_contig_domainset(DOMAINSET_FIXED(domain),
+	    bytes, wait, 0, ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT));
+}
+
+/*
  * Frees a number of pages to the system
  *
  * Arguments:
@@ -1679,8 +1693,8 @@ page_free(void *mem, vm_size_t size, uint8_t flags)
 		return;
 	}
 
-	if ((flags & UMA_SLAB_KERNEL) == 0)
-		panic("UMA: page_free used with invalid flags %x", flags);
+	KASSERT((flags & UMA_SLAB_KERNEL) != 0,
+	    ("UMA: page_free used with invalid flags %x", flags));
 
 	kmem_free((vm_offset_t)mem, size);
 }
@@ -2044,6 +2058,8 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		keg->uk_allocf = startup_alloc;
 	else if (keg->uk_flags & UMA_ZONE_PCPU)
 		keg->uk_allocf = pcpu_page_alloc;
+	else if ((keg->uk_flags & UMA_ZONE_CONTIG) != 0 && keg->uk_ppera > 1)
+		keg->uk_allocf = contig_alloc;
 	else
 		keg->uk_allocf = page_alloc;
 #ifdef UMA_MD_SMALL_ALLOC
@@ -2105,10 +2121,17 @@ zone_kva_available(uma_zone_t zone, void *unused)
 	if ((zone->uz_flags & UMA_ZFLAG_CACHE) != 0)
 		return;
 	KEG_GET(zone, keg);
-	if (keg->uk_flags & UMA_ZONE_PCPU)
-		keg->uk_allocf = pcpu_page_alloc;
-	else if (keg->uk_allocf == startup_alloc)
-		keg->uk_allocf = page_alloc;
+
+	if (keg->uk_allocf == startup_alloc) {
+		/* Switch to the real allocator. */
+		if (keg->uk_flags & UMA_ZONE_PCPU)
+			keg->uk_allocf = pcpu_page_alloc;
+		else if ((keg->uk_flags & UMA_ZONE_CONTIG) != 0 &&
+		    keg->uk_ppera > 1)
+			keg->uk_allocf = contig_alloc;
+		else
+			keg->uk_allocf = page_alloc;
+	}
 }
 
 static void
