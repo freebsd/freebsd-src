@@ -322,8 +322,15 @@ static __inline bool
 vm_object_mightbedirty(vm_object_t object)
 {
 
-	return (object->type == OBJT_VNODE &&
-	    object->generation != object->cleangeneration);
+	if (object->type != OBJT_VNODE) {
+		if ((object->flags & OBJ_TMPFS_NODE) == 0)
+			return (false);
+#ifdef KASSERT
+		KASSERT(object->type == OBJT_SWAP,
+		    ("TMPFS_NODE obj %p is not swap", object));
+#endif
+	}
+	return (object->generation != object->cleangeneration);
 }
 
 void vm_object_clear_flag(vm_object_t object, u_short bits);
