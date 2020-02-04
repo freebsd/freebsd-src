@@ -317,11 +317,16 @@ static int
 vdev_read_pad2(vdev_t *vdev, char *buf, size_t size)
 {
 	blkptr_t bp;
-	char *tmp = zap_scratch;
+	char *tmp;
 	off_t off = offsetof(vdev_label_t, vl_pad2);
+	int rc;
 
 	if (size > VDEV_PAD_SIZE)
 		size = VDEV_PAD_SIZE;
+
+	tmp = malloc(size);
+	if (tmp == NULL)
+		return (ENOMEM);
 
 	BP_ZERO(&bp);
 	BP_SET_LSIZE(&bp, VDEV_PAD_SIZE);
@@ -329,18 +334,24 @@ vdev_read_pad2(vdev_t *vdev, char *buf, size_t size)
 	BP_SET_CHECKSUM(&bp, ZIO_CHECKSUM_LABEL);
 	BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
 	DVA_SET_OFFSET(BP_IDENTITY(&bp), off);
-	if (vdev_read_phys(vdev, &bp, tmp, off, 0))
-		return (EIO);
-	memcpy(buf, tmp, size);
-	return (0);
+	rc = vdev_read_phys(vdev, &bp, tmp, off, 0);
+	if (rc == 0)
+		memcpy(buf, tmp, size);
+	free(buf);
+	return (rc);
 }
 
 static int
 vdev_clear_pad2(vdev_t *vdev)
 {
-	char *zeroes = zap_scratch;
+	char *zeroes;
 	uint64_t *end;
 	off_t off = offsetof(vdev_label_t, vl_pad2);
+	int rc;
+
+	zeroes = malloc(VDEV_PAD_SIZE);
+	if (zeroes == NULL)
+		return (ENOMEM);
 
 	memset(zeroes, 0, VDEV_PAD_SIZE);
 	end = (uint64_t *)(zeroes + VDEV_PAD_SIZE);
@@ -350,9 +361,9 @@ vdev_clear_pad2(vdev_t *vdev)
 	end[-3] = 0xaf909f1658aacefc;
 	end[-2] = 0xcbd1ea57ff6db48b;
 	end[-1] = 0x6ec692db0d465fab;
-	if (vdev_write(vdev, vdev->v_read_priv, off, zeroes, VDEV_PAD_SIZE))
-		return (EIO);
-	return (0);
+	rc = vdev_write(vdev, vdev->v_read_priv, off, zeroes, VDEV_PAD_SIZE);
+	free(zeroes);
+	return (rc);
 }
 
 static void
