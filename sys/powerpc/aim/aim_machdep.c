@@ -251,8 +251,25 @@ aim_cpu_init(vm_offset_t toc)
 	psl_userset32 = psl_userset & ~PSL_SF;
 #endif
 
-	/* Bits that users aren't allowed to change */
-	psl_userstatic = ~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1);
+	/*
+	 * Zeroed bits in this variable signify that the value of the bit
+	 * in its position is allowed to vary between userspace contexts.
+	 *
+	 * All other bits are required to be identical for every userspace
+	 * context. The actual *value* of the bit is determined by
+	 * psl_userset and/or psl_userset32, and is not allowed to change.
+	 *
+	 * Remember to update this set when implementing support for
+	 * *conditionally* enabling a processor facility. Failing to do
+	 * this will cause swapcontext() in userspace to break when a
+	 * process uses a conditionally-enabled facility.
+	 *
+	 * When *unconditionally* implementing support for a processor
+	 * facility, update psl_userset / psl_userset32 instead.
+	 *
+	 * See the access control check in set_mcontext().
+	 */
+	psl_userstatic = ~(PSL_VSX | PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1);
 	/*
 	 * Mask bits from the SRR1 that aren't really the MSR:
 	 * Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64)
