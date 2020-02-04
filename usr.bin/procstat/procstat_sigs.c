@@ -52,8 +52,9 @@ procstat_print_signame(int sig)
 		for (i = 0; name[i] != 0; i++)
 			name[i] = toupper(name[i]);
 		printf("%-7s ", name);
-	} else
+	} else {
 		printf("%-7d ", sig);
+	}
 }
 
 static void
