@@ -323,6 +323,9 @@ static int sysctl_handle_uma_zone_items(SYSCTL_HANDLER_ARGS);
 
 static uint64_t uma_zone_get_allocs(uma_zone_t zone);
 
+static SYSCTL_NODE(_vm, OID_AUTO, debug, CTLFLAG_RD, 0,
+    "Memory allocation debugging");
+
 #ifdef INVARIANTS
 static uint64_t uma_keg_get_allocs(uma_keg_t zone);
 static inline struct noslabbits *slab_dbg_bits(uma_slab_t slab, uma_keg_t keg);
@@ -331,9 +334,6 @@ static bool uma_dbg_kskip(uma_keg_t keg, void *mem);
 static bool uma_dbg_zskip(uma_zone_t zone, void *mem);
 static void uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item);
 static void uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item);
-
-static SYSCTL_NODE(_vm, OID_AUTO, debug, CTLFLAG_RD, 0,
-    "Memory allocation debugging");
 
 static u_int dbg_divisor = 1;
 SYSCTL_UINT(_vm_debug, OID_AUTO, divisor,
@@ -361,6 +361,12 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLTYPE_STRUCT,
 static int zone_warnings = 1;
 SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RWTUN, &zone_warnings, 0,
     "Warn when UMA zones becomes full");
+
+static int multipage_slabs = 1;
+TUNABLE_INT("vm.debug.uma_multipage_slabs", &multipage_slabs);
+SYSCTL_INT(_vm_debug, OID_AUTO, uma_multipage_slabs,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &multipage_slabs, 0,
+    "UMA may choose larger slab sizes for better efficiency");
 
 /*
  * Select the slab zone for an offpage slab with the given maximum item count.
@@ -1993,7 +1999,7 @@ keg_layout(uma_keg_t keg)
 				break;
 		}
 
-		if (kl.eff >= UMA_MIN_EFF ||
+		if (kl.eff >= UMA_MIN_EFF || !multipage_slabs ||
 		    slabsize >= SLAB_MAX_SETSIZE * rsize ||
 		    (keg->uk_flags & (UMA_ZONE_PCPU | UMA_ZONE_CONTIG)) != 0)
 			break;
