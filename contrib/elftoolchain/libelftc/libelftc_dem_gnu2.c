@@ -216,11 +216,13 @@ cpp_demangle_gnu2(const char *org)
 			break;
 
 		if ((arg = vector_str_substr(&d.vec, arg_begin, d.vec.size - 1,
-			    &arg_len)) == NULL)
+		    &arg_len)) == NULL)
 			goto clean;
 
-		if (vector_str_push(&d.arg, arg, arg_len) == false)
+		if (vector_str_push(&d.arg, arg, arg_len) == false) {
+			free(arg);
 			goto clean;
+		}
 
 		free(arg);
 

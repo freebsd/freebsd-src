@@ -203,11 +203,13 @@ cpp_demangle_ARM(const char *org)
 			break;
 
 		if ((arg = vector_str_substr(&d.vec, arg_begin, d.vec.size - 1,
-			    &arg_len)) == NULL)
+		    &arg_len)) == NULL)
 			goto clean;
 
-		if (vector_str_push(&d.arg, arg, arg_len) == false)
+		if (vector_str_push(&d.arg, arg, arg_len) == false) {
+			free(arg);
 			goto clean;
+		}
 
 		free(arg);
 
@@ -956,7 +958,7 @@ read_op_user(struct demangle_data *d)
 		goto clean;
 
 	if (VEC_PUSH_STR(&d->vec, "::operator ") == false)
-		return (false);
+		goto clean;
 
 	if (vector_str_push(&d->vec, to_str, to_len) == false)
 		goto clean;
