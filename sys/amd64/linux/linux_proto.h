@@ -551,6 +551,9 @@ struct linux_sched_rr_get_interval_args {
 struct linux_vhangup_args {
 	register_t dummy;
 };
+struct linux_modify_ldt_args {
+	register_t dummy;
+};
 struct linux_pivot_root_args {
 	register_t dummy;
 };
@@ -606,6 +609,9 @@ struct linux_setdomainname_args {
 struct linux_iopl_args {
 	char level_l_[PADL_(l_uint)]; l_uint level; char level_r_[PADR_(l_uint)];
 };
+struct linux_ioperm_args {
+	register_t dummy;
+};
 struct linux_init_module_args {
 	register_t dummy;
 };
@@ -616,6 +622,9 @@ struct linux_quotactl_args {
 	register_t dummy;
 };
 struct linux_gettid_args {
+	register_t dummy;
+};
+struct linux_readahead_args {
 	register_t dummy;
 };
 struct linux_setxattr_args {
@@ -679,6 +688,21 @@ struct linux_sched_getaffinity_args {
 	char len_l_[PADL_(l_uint)]; l_uint len; char len_r_[PADR_(l_uint)];
 	char user_mask_ptr_l_[PADL_(l_ulong *)]; l_ulong * user_mask_ptr; char user_mask_ptr_r_[PADR_(l_ulong *)];
 };
+struct linux_io_setup_args {
+	register_t dummy;
+};
+struct linux_io_destroy_args {
+	register_t dummy;
+};
+struct linux_io_getevents_args {
+	register_t dummy;
+};
+struct linux_io_submit_args {
+	register_t dummy;
+};
+struct linux_io_cancel_args {
+	register_t dummy;
+};
 struct linux_lookup_dcookie_args {
 	register_t dummy;
 };
@@ -695,6 +719,9 @@ struct linux_getdents64_args {
 };
 struct linux_set_tid_address_args {
 	char tidptr_l_[PADL_(l_int *)]; l_int * tidptr; char tidptr_r_[PADR_(l_int *)];
+};
+struct linux_restart_syscall_args {
+	register_t dummy;
 };
 struct linux_semtimedop_args {
 	register_t dummy;
@@ -1360,6 +1387,7 @@ int	linux_sched_get_priority_max(struct thread *, struct linux_sched_get_priorit
 int	linux_sched_get_priority_min(struct thread *, struct linux_sched_get_priority_min_args *);
 int	linux_sched_rr_get_interval(struct thread *, struct linux_sched_rr_get_interval_args *);
 int	linux_vhangup(struct thread *, struct linux_vhangup_args *);
+int	linux_modify_ldt(struct thread *, struct linux_modify_ldt_args *);
 int	linux_pivot_root(struct thread *, struct linux_pivot_root_args *);
 int	linux_sysctl(struct thread *, struct linux_sysctl_args *);
 int	linux_prctl(struct thread *, struct linux_prctl_args *);
@@ -1373,10 +1401,12 @@ int	linux_reboot(struct thread *, struct linux_reboot_args *);
 int	linux_sethostname(struct thread *, struct linux_sethostname_args *);
 int	linux_setdomainname(struct thread *, struct linux_setdomainname_args *);
 int	linux_iopl(struct thread *, struct linux_iopl_args *);
+int	linux_ioperm(struct thread *, struct linux_ioperm_args *);
 int	linux_init_module(struct thread *, struct linux_init_module_args *);
 int	linux_delete_module(struct thread *, struct linux_delete_module_args *);
 int	linux_quotactl(struct thread *, struct linux_quotactl_args *);
 int	linux_gettid(struct thread *, struct linux_gettid_args *);
+int	linux_readahead(struct thread *, struct linux_readahead_args *);
 int	linux_setxattr(struct thread *, struct linux_setxattr_args *);
 int	linux_lsetxattr(struct thread *, struct linux_lsetxattr_args *);
 int	linux_fsetxattr(struct thread *, struct linux_fsetxattr_args *);
@@ -1394,11 +1424,17 @@ int	linux_time(struct thread *, struct linux_time_args *);
 int	linux_sys_futex(struct thread *, struct linux_sys_futex_args *);
 int	linux_sched_setaffinity(struct thread *, struct linux_sched_setaffinity_args *);
 int	linux_sched_getaffinity(struct thread *, struct linux_sched_getaffinity_args *);
+int	linux_io_setup(struct thread *, struct linux_io_setup_args *);
+int	linux_io_destroy(struct thread *, struct linux_io_destroy_args *);
+int	linux_io_getevents(struct thread *, struct linux_io_getevents_args *);
+int	linux_io_submit(struct thread *, struct linux_io_submit_args *);
+int	linux_io_cancel(struct thread *, struct linux_io_cancel_args *);
 int	linux_lookup_dcookie(struct thread *, struct linux_lookup_dcookie_args *);
 int	linux_epoll_create(struct thread *, struct linux_epoll_create_args *);
 int	linux_remap_file_pages(struct thread *, struct linux_remap_file_pages_args *);
 int	linux_getdents64(struct thread *, struct linux_getdents64_args *);
 int	linux_set_tid_address(struct thread *, struct linux_set_tid_address_args *);
+int	linux_restart_syscall(struct thread *, struct linux_restart_syscall_args *);
 int	linux_semtimedop(struct thread *, struct linux_semtimedop_args *);
 int	linux_fadvise64(struct thread *, struct linux_fadvise64_args *);
 int	linux_timer_create(struct thread *, struct linux_timer_create_args *);
@@ -1681,6 +1717,7 @@ int	linux_io_uring_register(struct thread *, struct linux_io_uring_register_args
 #define	LINUX_SYS_AUE_linux_sched_get_priority_min	AUE_SCHED_GET_PRIORITY_MIN
 #define	LINUX_SYS_AUE_linux_sched_rr_get_interval	AUE_SCHED_RR_GET_INTERVAL
 #define	LINUX_SYS_AUE_linux_vhangup	AUE_NULL
+#define	LINUX_SYS_AUE_linux_modify_ldt	AUE_NULL
 #define	LINUX_SYS_AUE_linux_pivot_root	AUE_PIVOT_ROOT
 #define	LINUX_SYS_AUE_linux_sysctl	AUE_SYSCTL
 #define	LINUX_SYS_AUE_linux_prctl	AUE_PRCTL
@@ -1694,10 +1731,12 @@ int	linux_io_uring_register(struct thread *, struct linux_io_uring_register_args
 #define	LINUX_SYS_AUE_linux_sethostname	AUE_SYSCTL
 #define	LINUX_SYS_AUE_linux_setdomainname	AUE_SYSCTL
 #define	LINUX_SYS_AUE_linux_iopl	AUE_NULL
+#define	LINUX_SYS_AUE_linux_ioperm	AUE_NULL
 #define	LINUX_SYS_AUE_linux_init_module	AUE_NULL
 #define	LINUX_SYS_AUE_linux_delete_module	AUE_NULL
 #define	LINUX_SYS_AUE_linux_quotactl	AUE_QUOTACTL
 #define	LINUX_SYS_AUE_linux_gettid	AUE_NULL
+#define	LINUX_SYS_AUE_linux_readahead	AUE_NULL
 #define	LINUX_SYS_AUE_linux_setxattr	AUE_NULL
 #define	LINUX_SYS_AUE_linux_lsetxattr	AUE_NULL
 #define	LINUX_SYS_AUE_linux_fsetxattr	AUE_NULL
@@ -1715,11 +1754,17 @@ int	linux_io_uring_register(struct thread *, struct linux_io_uring_register_args
 #define	LINUX_SYS_AUE_linux_sys_futex	AUE_NULL
 #define	LINUX_SYS_AUE_linux_sched_setaffinity	AUE_NULL
 #define	LINUX_SYS_AUE_linux_sched_getaffinity	AUE_NULL
+#define	LINUX_SYS_AUE_linux_io_setup	AUE_NULL
+#define	LINUX_SYS_AUE_linux_io_destroy	AUE_NULL
+#define	LINUX_SYS_AUE_linux_io_getevents	AUE_NULL
+#define	LINUX_SYS_AUE_linux_io_submit	AUE_NULL
+#define	LINUX_SYS_AUE_linux_io_cancel	AUE_NULL
 #define	LINUX_SYS_AUE_linux_lookup_dcookie	AUE_NULL
 #define	LINUX_SYS_AUE_linux_epoll_create	AUE_NULL
 #define	LINUX_SYS_AUE_linux_remap_file_pages	AUE_NULL
 #define	LINUX_SYS_AUE_linux_getdents64	AUE_GETDIRENTRIES
 #define	LINUX_SYS_AUE_linux_set_tid_address	AUE_NULL
+#define	LINUX_SYS_AUE_linux_restart_syscall	AUE_NULL
 #define	LINUX_SYS_AUE_linux_semtimedop	AUE_NULL
 #define	LINUX_SYS_AUE_linux_fadvise64	AUE_NULL
 #define	LINUX_SYS_AUE_linux_timer_create	AUE_NULL
