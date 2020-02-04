@@ -417,8 +417,9 @@ tipin(void)
 			if (boolean(value(HALFDUPLEX)))
 				printf("\r\n");
 			continue;
-		} else if (!cumode && gch == character(value(FORCE)))
+		} else if (!cumode && gch == character(value(FORCE))) {
 			gch = getchar()&STRIP_PAR;
+		}
 		bol = any(gch, value(EOL));
 		if (boolean(value(RAISE)) && islower(gch))
 			gch = toupper(gch);
