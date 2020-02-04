@@ -7247,7 +7247,6 @@ dump_object(struct readelf *re, int fd)
 
 done:
 	elf_end(re->elf);
-	close(fd);
 }
 
 static void
