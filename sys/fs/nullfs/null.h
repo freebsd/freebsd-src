@@ -41,7 +41,7 @@
 
 struct null_mount {
 	struct mount	*nullm_vfs;
-	struct vnode	*nullm_rootvp;	/* Reference to root null_node */
+	struct vnode	*nullm_lowerrootvp;	/* Ref to lower root vnode */
 	uint64_t	nullm_flags;
 };
 

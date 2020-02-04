@@ -254,6 +254,9 @@ null_nodeget(mp, lowervp, vpp)
 	error = insmntque1(vp, mp, null_insmntque_dtr, xp);
 	if (error != 0)
 		return (error);
+	if (lowervp == MOUNTTONULLMOUNT(mp)->nullm_lowerrootvp)
+		vp->v_vflag |= VV_ROOT;
+
 	/*
 	 * Atomically insert our new node into the hash or vget existing 
 	 * if someone else has beaten us to it.
