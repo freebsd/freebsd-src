@@ -789,7 +789,6 @@ sctp_stop_timers_for_shutdown(struct sctp_tcb *stcb)
 	(void)SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
 	(void)SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
 	(void)SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		(void)SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
 		(void)SCTP_OS_TIMER_STOP(&net->hb_timer.timer);
