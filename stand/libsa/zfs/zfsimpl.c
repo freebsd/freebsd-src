@@ -138,7 +138,6 @@ static spa_list_t zfs_pools;
 static const dnode_phys_t *dnode_cache_obj;
 static uint64_t dnode_cache_bn;
 static char *dnode_cache_buf;
-static char *zap_scratch;
 static char *zfs_temp_buf, *zfs_temp_end, *zfs_temp_ptr;
 
 #define	TEMP_SIZE	(1024 * 1024)
@@ -172,7 +171,6 @@ zfs_init(void)
 	zfs_temp_end = zfs_temp_buf + TEMP_SIZE;
 	zfs_temp_ptr = zfs_temp_buf;
 	dnode_cache_buf = malloc(SPA_MAXBLOCKSIZE);
-	zap_scratch = malloc(SPA_MAXBLOCKSIZE);
 
 	zfs_init_crc();
 }
@@ -2300,22 +2298,17 @@ dnode_read(const spa_t *spa, const dnode_phys_t *dnode, off_t offset,
  * scratch buffer contains the directory contents.
  */
 static int
-mzap_lookup(const dnode_phys_t *dnode, const char *name, uint64_t *value)
+mzap_lookup(const mzap_phys_t *mz, size_t size, const char *name,
+    uint64_t *value)
 {
-	const mzap_phys_t *mz;
 	const mzap_ent_phys_t *mze;
-	size_t size;
 	int chunks, i;
 
 	/*
 	 * Microzap objects use exactly one block. Read the whole
 	 * thing.
 	 */
-	size = dnode->dn_datablkszsec * 512;
-
-	mz = (const mzap_phys_t *) zap_scratch;
 	chunks = size / MZAP_ENT_LEN - 1;
-
 	for (i = 0; i < chunks; i++) {
 		mze = &mz->mz_chunk[i];
 		if (strcmp(mze->mze_name, name) == 0) {
@@ -2458,89 +2451,166 @@ fzap_check_size(uint64_t integer_size, uint64_t num_integers)
 	return (0);
 }
 
-/*
- * Lookup a value in a fatzap directory. Assumes that the zap scratch
- * buffer contains the directory header.
- */
+static void
+zap_leaf_free(zap_leaf_t *leaf)
+{
+	free(leaf->l_phys);
+	free(leaf);
+}
+
 static int
-fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name,
+zap_get_leaf_byblk(fat_zap_t *zap, uint64_t blk, zap_leaf_t **lp)
+{
+	int bs = FZAP_BLOCK_SHIFT(zap);
+	int err;
+
+	*lp = malloc(sizeof(**lp));
+	if (*lp == NULL)
+		return (ENOMEM);
+
+	(*lp)->l_bs = bs;
+	(*lp)->l_phys = malloc(1 << bs);
+
+	if ((*lp)->l_phys == NULL) {
+		free(*lp);
+		return (ENOMEM);
+	}
+	err = dnode_read(zap->zap_spa, zap->zap_dnode, blk << bs, (*lp)->l_phys,
+	    1 << bs);
+	if (err != 0) {
+		zap_leaf_free(*lp);
+	}
+	return (err);
+}
+
+static int
+zap_table_load(fat_zap_t *zap, zap_table_phys_t *tbl, uint64_t idx,
+    uint64_t *valp)
+{
+	int bs = FZAP_BLOCK_SHIFT(zap);
+	uint64_t blk = idx >> (bs - 3);
+	uint64_t off = idx & ((1 << (bs - 3)) - 1);
+	uint64_t *buf;
+	int rc;
+
+	buf = malloc(1 << zap->zap_block_shift);
+	if (buf == NULL)
+		return (ENOMEM);
+	rc = dnode_read(zap->zap_spa, zap->zap_dnode, (tbl->zt_blk + blk) << bs,
+	    buf, 1 << zap->zap_block_shift);
+	if (rc == 0)
+		*valp = buf[off];
+	free(buf);
+	return (rc);
+}
+
+static int
+zap_idx_to_blk(fat_zap_t *zap, uint64_t idx, uint64_t *valp)
+{
+	if (zap->zap_phys->zap_ptrtbl.zt_numblks == 0) {
+		*valp = ZAP_EMBEDDED_PTRTBL_ENT(zap, idx);
+		return (0);
+	} else {
+		return (zap_table_load(zap, &zap->zap_phys->zap_ptrtbl,
+		    idx, valp));
+	}
+}
+
+#define	ZAP_HASH_IDX(hash, n)	(((n) == 0) ? 0 : ((hash) >> (64 - (n))))
+static int
+zap_deref_leaf(fat_zap_t *zap, uint64_t h, zap_leaf_t **lp)
+{
+	uint64_t idx, blk;
+	int err;
+
+	idx = ZAP_HASH_IDX(h, zap->zap_phys->zap_ptrtbl.zt_shift);
+	err = zap_idx_to_blk(zap, idx, &blk);
+	if (err != 0)
+		return (err);
+	return (zap_get_leaf_byblk(zap, blk, lp));
+}
+
+#define	CHAIN_END	0xffff	/* end of the chunk chain */
+#define	LEAF_HASH(l, h) \
+	((ZAP_LEAF_HASH_NUMENTRIES(l)-1) & \
+	((h) >> \
+	(64 - ZAP_LEAF_HASH_SHIFT(l) - (l)->l_phys->l_hdr.lh_prefix_len)))
+#define	LEAF_HASH_ENTPTR(l, h)	(&(l)->l_phys->l_hash[LEAF_HASH(l, h)])
+
+static int
+zap_leaf_lookup(zap_leaf_t *zl, uint64_t hash, const char *name,
     uint64_t integer_size, uint64_t num_integers, void *value)
 {
+	int rc;
+	uint16_t *chunkp;
+	struct zap_leaf_entry *le;
+
+	/*
+	 * Make sure this chunk matches our hash.
+	 */
+	if (zl->l_phys->l_hdr.lh_prefix_len > 0 &&
+	    zl->l_phys->l_hdr.lh_prefix !=
+	    hash >> (64 - zl->l_phys->l_hdr.lh_prefix_len))
+		return (EIO);
+
+	rc = ENOENT;
+	for (chunkp = LEAF_HASH_ENTPTR(zl, hash);
+	    *chunkp != CHAIN_END; chunkp = &le->le_next) {
+		zap_leaf_chunk_t *zc;
+		uint16_t chunk = *chunkp;
+
+		le = ZAP_LEAF_ENTRY(zl, chunk);
+		if (le->le_hash != hash)
+			continue;
+		zc = &ZAP_LEAF_CHUNK(zl, chunk);
+		if (fzap_name_equal(zl, zc, name)) {
+			if (zc->l_entry.le_value_intlen > integer_size) {
+				rc = EINVAL;
+			} else {
+				fzap_leaf_array(zl, zc, integer_size,
+				    num_integers, value);
+				rc = 0;
+			}
+			break;
+		}
+	}
+	return (rc);
+}
+
+/*
+ * Lookup a value in a fatzap directory.
+ */
+static int
+fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, zap_phys_t *zh,
+    const char *name, uint64_t integer_size, uint64_t num_integers,
+    void *value)
+{
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
-	zap_phys_t zh = *(zap_phys_t *)zap_scratch;
 	fat_zap_t z;
-	uint64_t *ptrtbl;
+	zap_leaf_t *zl;
 	uint64_t hash;
 	int rc;
 
-	if (zh.zap_magic != ZAP_MAGIC)
+	if (zh->zap_magic != ZAP_MAGIC)
 		return (EIO);
 
 	if ((rc = fzap_check_size(integer_size, num_integers)) != 0)
 		return (rc);
 
 	z.zap_block_shift = ilog2(bsize);
-	z.zap_phys = (zap_phys_t *)zap_scratch;
+	z.zap_phys = zh;
+	z.zap_spa = spa;
+	z.zap_dnode = dnode;
 
-	/*
-	 * Figure out where the pointer table is and read it in if necessary.
-	 */
-	if (zh.zap_ptrtbl.zt_blk) {
-		rc = dnode_read(spa, dnode, zh.zap_ptrtbl.zt_blk * bsize,
-		    zap_scratch, bsize);
-		if (rc)
-			return (rc);
-		ptrtbl = (uint64_t *)zap_scratch;
-	} else {
-		ptrtbl = &ZAP_EMBEDDED_PTRTBL_ENT(&z, 0);
-	}
-
-	hash = zap_hash(zh.zap_salt, name);
-
-	zap_leaf_t zl;
-	zl.l_bs = z.zap_block_shift;
-
-	off_t off = ptrtbl[hash >> (64 - zh.zap_ptrtbl.zt_shift)] << zl.l_bs;
-	zap_leaf_chunk_t *zc;
-
-	rc = dnode_read(spa, dnode, off, zap_scratch, bsize);
-	if (rc)
+	hash = zap_hash(zh->zap_salt, name);
+	rc = zap_deref_leaf(&z, hash, &zl);
+	if (rc != 0)
 		return (rc);
 
-	zl.l_phys = (zap_leaf_phys_t *)zap_scratch;
+	rc = zap_leaf_lookup(zl, hash, name, integer_size, num_integers, value);
 
-	/*
-	 * Make sure this chunk matches our hash.
-	 */
-	if (zl.l_phys->l_hdr.lh_prefix_len > 0 &&
-	    zl.l_phys->l_hdr.lh_prefix !=
-	    hash >> (64 - zl.l_phys->l_hdr.lh_prefix_len))
-		return (ENOENT);
-
-	/*
-	 * Hash within the chunk to find our entry.
-	 */
-	int shift = (64 - ZAP_LEAF_HASH_SHIFT(&zl) -
-	    zl.l_phys->l_hdr.lh_prefix_len);
-	int h = (hash >> shift) & ((1 << ZAP_LEAF_HASH_SHIFT(&zl)) - 1);
-	h = zl.l_phys->l_hash[h];
-	if (h == 0xffff)
-		return (ENOENT);
-	zc = &ZAP_LEAF_CHUNK(&zl, h);
-	while (zc->l_entry.le_hash != hash) {
-		if (zc->l_entry.le_next == 0xffff)
-			return (ENOENT);
-		zc = &ZAP_LEAF_CHUNK(&zl, zc->l_entry.le_next);
-	}
-	if (fzap_name_equal(&zl, zc, name)) {
-		if (zc->l_entry.le_value_intlen * zc->l_entry.le_value_numints >
-		    integer_size * num_integers)
-			return (E2BIG);
-		fzap_leaf_array(&zl, zc, integer_size, num_integers, value);
-		return (0);
-	}
-
-	return (ENOENT);
+	zap_leaf_free(zl);
+	return (rc);
 }
 
 /*
@@ -2551,74 +2621,80 @@ zap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name,
     uint64_t integer_size, uint64_t num_integers, void *value)
 {
 	int rc;
-	uint64_t zap_type;
+	zap_phys_t *zap;
 	size_t size = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 
-	rc = dnode_read(spa, dnode, 0, zap_scratch, size);
-	if (rc)
-		return (rc);
+	zap = malloc(size);
+	if (zap == NULL)
+		return (ENOMEM);
 
-	zap_type = *(uint64_t *)zap_scratch;
-	if (zap_type == ZBT_MICRO)
-		return (mzap_lookup(dnode, name, value));
-	else if (zap_type == ZBT_HEADER) {
-		return (fzap_lookup(spa, dnode, name, integer_size,
-		    num_integers, value));
+	rc = dnode_read(spa, dnode, 0, zap, size);
+	if (rc)
+		goto done;
+
+	switch (zap->zap_block_type) {
+	case ZBT_MICRO:
+		rc = mzap_lookup((const mzap_phys_t *)zap, size, name, value);
+		break;
+	case ZBT_HEADER:
+		rc = fzap_lookup(spa, dnode, zap, name, integer_size,
+		    num_integers, value);
+		break;
+	default:
+		printf("ZFS: invalid zap_type=%" PRIx64 "\n",
+		    zap->zap_block_type);
+		rc = EIO;
 	}
-	printf("ZFS: invalid zap_type=%d\n", (int)zap_type);
-	return (EIO);
+done:
+	free(zap);
+	return (rc);
 }
 
 /*
- * List a microzap directory. Assumes that the zap scratch buffer contains
- * the directory contents.
+ * List a microzap directory.
  */
 static int
-mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *, uint64_t))
+mzap_list(const mzap_phys_t *mz, size_t size,
+    int (*callback)(const char *, uint64_t))
 {
-	const mzap_phys_t *mz;
 	const mzap_ent_phys_t *mze;
-	size_t size;
 	int chunks, i, rc;
 
 	/*
 	 * Microzap objects use exactly one block. Read the whole
 	 * thing.
 	 */
-	size = dnode->dn_datablkszsec * 512;
-	mz = (const mzap_phys_t *) zap_scratch;
+	rc = 0;
 	chunks = size / MZAP_ENT_LEN - 1;
-
 	for (i = 0; i < chunks; i++) {
 		mze = &mz->mz_chunk[i];
 		if (mze->mze_name[0]) {
 			rc = callback(mze->mze_name, mze->mze_value);
 			if (rc != 0)
-				return (rc);
+				break;
 		}
 	}
 
-	return (0);
+	return (rc);
 }
 
 /*
- * List a fatzap directory. Assumes that the zap scratch buffer contains
- * the directory header.
+ * List a fatzap directory.
  */
 static int
-fzap_list(const spa_t *spa, const dnode_phys_t *dnode,
+fzap_list(const spa_t *spa, const dnode_phys_t *dnode, zap_phys_t *zh,
     int (*callback)(const char *, uint64_t))
 {
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
-	zap_phys_t zh = *(zap_phys_t *)zap_scratch;
 	fat_zap_t z;
-	int i, j, rc;
+	uint64_t i;
+	int j, rc;
 
-	if (zh.zap_magic != ZAP_MAGIC)
+	if (zh->zap_magic != ZAP_MAGIC)
 		return (EIO);
 
 	z.zap_block_shift = ilog2(bsize);
-	z.zap_phys = (zap_phys_t *)zap_scratch;
+	z.zap_phys = zh;
 
 	/*
 	 * This assumes that the leaf blocks start at block 1. The
@@ -2626,15 +2702,19 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode,
 	 */
 	zap_leaf_t zl;
 	zl.l_bs = z.zap_block_shift;
-	for (i = 0; i < zh.zap_num_leafs; i++) {
+	zl.l_phys = malloc(bsize);
+	if (zl.l_phys == NULL)
+		return (ENOMEM);
+
+	for (i = 0; i < zh->zap_num_leafs; i++) {
 		off_t off = ((off_t)(i + 1)) << zl.l_bs;
 		char name[256], *p;
 		uint64_t value;
 
-		if (dnode_read(spa, dnode, off, zap_scratch, bsize))
+		if (dnode_read(spa, dnode, off, zl.l_phys, bsize)) {
+			free(zl.l_phys);
 			return (EIO);
-
-		zl.l_phys = (zap_leaf_phys_t *)zap_scratch;
+		}
 
 		for (j = 0; j < ZAP_LEAF_NUMCHUNKS(&zl); j++) {
 			zap_leaf_chunk_t *zc, *nc;
@@ -2671,11 +2751,14 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode,
 
 			/* printf("%s 0x%jx\n", name, (uintmax_t)value); */
 			rc = callback((const char *)name, value);
-			if (rc != 0)
+			if (rc != 0) {
+				free(zl.l_phys);
 				return (rc);
+			}
 		}
 	}
 
+	free(zl.l_phys);
 	return (0);
 }
 
@@ -2693,17 +2776,24 @@ static int zfs_printf(const char *name, uint64_t value __unused)
 static int
 zap_list(const spa_t *spa, const dnode_phys_t *dnode)
 {
-	uint64_t zap_type;
+	zap_phys_t *zap;
 	size_t size = dnode->dn_datablkszsec * 512;
+	int rc;
 
-	if (dnode_read(spa, dnode, 0, zap_scratch, size))
-		return (EIO);
+	zap = malloc(size);
+	if (zap == NULL)
+		return (ENOMEM);
 
-	zap_type = *(uint64_t *)zap_scratch;
-	if (zap_type == ZBT_MICRO)
-		return (mzap_list(dnode, zfs_printf));
-	else
-		return (fzap_list(spa, dnode, zfs_printf));
+	rc = dnode_read(spa, dnode, 0, zap, size);
+	if (rc == 0) {
+		if (zap->zap_block_type == ZBT_MICRO)
+			rc = mzap_list((const mzap_phys_t *)zap, size,
+			    zfs_printf);
+		else
+			rc = fzap_list(spa, dnode, zap, zfs_printf);
+	}
+	free(zap);
+	return (rc);
 }
 
 static int
@@ -2717,24 +2807,20 @@ objset_get_dnode(const spa_t *spa, const objset_phys_t *os, uint64_t objnum,
 		dnode, sizeof(dnode_phys_t));
 }
 
+/*
+ * Lookup a name in a microzap directory.
+ */
 static int
-mzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
-    uint64_t value)
+mzap_rlookup(const mzap_phys_t *mz, size_t size, char *name, uint64_t value)
 {
-	const mzap_phys_t *mz;
 	const mzap_ent_phys_t *mze;
-	size_t size;
 	int chunks, i;
 
 	/*
 	 * Microzap objects use exactly one block. Read the whole
 	 * thing.
 	 */
-	size = dnode->dn_datablkszsec * 512;
-
-	mz = (const mzap_phys_t *)zap_scratch;
 	chunks = size / MZAP_ENT_LEN - 1;
-
 	for (i = 0; i < chunks; i++) {
 		mze = &mz->mz_chunk[i];
 		if (value == mze->mze_value) {
@@ -2772,19 +2858,19 @@ fzap_name_copy(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc, char *name)
 }
 
 static int
-fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
-    uint64_t value)
+fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, zap_phys_t *zh,
+    char *name, uint64_t value)
 {
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
-	zap_phys_t zh = *(zap_phys_t *)zap_scratch;
 	fat_zap_t z;
-	int i, j;
+	uint64_t i;
+	int j, rc;
 
-	if (zh.zap_magic != ZAP_MAGIC)
+	if (zh->zap_magic != ZAP_MAGIC)
 		return (EIO);
 
 	z.zap_block_shift = ilog2(bsize);
-	z.zap_phys = (zap_phys_t *)zap_scratch;
+	z.zap_phys = zh;
 
 	/*
 	 * This assumes that the leaf blocks start at block 1. The
@@ -2792,13 +2878,16 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
 	 */
 	zap_leaf_t zl;
 	zl.l_bs = z.zap_block_shift;
-	for (i = 0; i < zh.zap_num_leafs; i++) {
+	zl.l_phys = malloc(bsize);
+	if (zl.l_phys == NULL)
+		return (ENOMEM);
+
+	for (i = 0; i < zh->zap_num_leafs; i++) {
 		off_t off = ((off_t)(i + 1)) << zl.l_bs;
 
-		if (dnode_read(spa, dnode, off, zap_scratch, bsize))
-			return (EIO);
-
-		zl.l_phys = (zap_leaf_phys_t *)zap_scratch;
+		rc = dnode_read(spa, dnode, off, zl.l_phys, bsize);
+		if (rc != 0)
+			goto done;
 
 		for (j = 0; j < ZAP_LEAF_NUMCHUNKS(&zl); j++) {
 			zap_leaf_chunk_t *zc;
@@ -2812,31 +2901,39 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
 
 			if (fzap_leaf_value(&zl, zc) == value) {
 				fzap_name_copy(&zl, zc, name);
-				return (0);
+				goto done;
 			}
 		}
 	}
 
-	return (ENOENT);
+	rc = ENOENT;
+done:
+	free(zl.l_phys);
+	return (rc);
 }
 
 static int
 zap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
     uint64_t value)
 {
-	int rc;
-	uint64_t zap_type;
+	zap_phys_t *zap;
 	size_t size = dnode->dn_datablkszsec * 512;
+	int rc;
 
-	rc = dnode_read(spa, dnode, 0, zap_scratch, size);
-	if (rc)
-		return (rc);
+	zap = malloc(size);
+	if (zap == NULL)
+		return (ENOMEM);
 
-	zap_type = *(uint64_t *)zap_scratch;
-	if (zap_type == ZBT_MICRO)
-		return (mzap_rlookup(spa, dnode, name, value));
-	else
-		return (fzap_rlookup(spa, dnode, name, value));
+	rc = dnode_read(spa, dnode, 0, zap, size);
+	if (rc == 0) {
+		if (zap->zap_block_type == ZBT_MICRO)
+			rc = mzap_rlookup((const mzap_phys_t *)zap, size,
+			    name, value);
+		else
+			rc = fzap_rlookup(spa, dnode, zap, name, value);
+	}
+	free(zap);
+	return (rc);
 }
 
 static int
@@ -2988,10 +3085,12 @@ int
 zfs_callback_dataset(const spa_t *spa, uint64_t objnum,
     int (*callback)(const char *, uint64_t))
 {
-	uint64_t dir_obj, child_dir_zapobj, zap_type;
+	uint64_t dir_obj, child_dir_zapobj;
 	dnode_phys_t child_dir_zap, dir, dataset;
 	dsl_dataset_phys_t *ds;
 	dsl_dir_phys_t *dd;
+	zap_phys_t *zap;
+	size_t size;
 	int err;
 
 	err = objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset);
@@ -3017,16 +3116,22 @@ zfs_callback_dataset(const spa_t *spa, uint64_t objnum,
 		return (err);
 	}
 
-	err = dnode_read(spa, &child_dir_zap, 0, zap_scratch,
-	    child_dir_zap.dn_datablkszsec * 512);
-	if (err != 0)
-		return (err);
+	size = child_dir_zap.dn_datablkszsec * 512;
+	zap = malloc(size);
+	if (zap != NULL) {
+		err = dnode_read(spa, &child_dir_zap, 0, zap, size);
+		if (err != 0)
+			goto done;
 
-	zap_type = *(uint64_t *)zap_scratch;
-	if (zap_type == ZBT_MICRO)
-		return (mzap_list(&child_dir_zap, callback));
-	else
-		return (fzap_list(spa, &child_dir_zap, callback));
+		if (zap->zap_block_type == ZBT_MICRO)
+			err = mzap_list((const mzap_phys_t *)zap, size,
+			    callback);
+		else
+			err = fzap_list(spa, &child_dir_zap, zap, callback);
+	}
+done:
+	free(zap);
+	return (err);
 }
 #endif
 
@@ -3158,7 +3263,8 @@ static int
 check_mos_features(const spa_t *spa)
 {
 	dnode_phys_t dir;
-	uint64_t objnum, zap_type;
+	zap_phys_t *zap;
+	uint64_t objnum;
 	size_t size;
 	int rc;
 
@@ -3181,15 +3287,21 @@ check_mos_features(const spa_t *spa)
 		return (EIO);
 
 	size = dir.dn_datablkszsec * 512;
-	if (dnode_read(spa, &dir, 0, zap_scratch, size))
+	zap = malloc(size);
+	if (zap == NULL)
+		return (ENOMEM);
+
+	if (dnode_read(spa, &dir, 0, zap, size)) {
+		free(zap);
 		return (EIO);
+	}
 
-	zap_type = *(uint64_t *)zap_scratch;
-	if (zap_type == ZBT_MICRO)
-		rc = mzap_list(&dir, check_feature);
+	if (zap->zap_block_type == ZBT_MICRO)
+		rc = mzap_list((const mzap_phys_t *)zap, size, check_feature);
 	else
-		rc = fzap_list(spa, &dir, check_feature);
+		rc = fzap_list(spa, &dir, zap, check_feature);
 
+	free(zap);
 	return (rc);
 }
 
