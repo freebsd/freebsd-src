@@ -54,6 +54,7 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/pfil.h>
 #include <netinet/in.h>
 #include <netinet/tcp_lro.h>
 
@@ -191,6 +192,7 @@ struct vi_info {
 	struct port_info *pi;
 
 	struct ifnet *ifp;
+	struct pfil_head *pfil;
 
 	unsigned long flags;
 	int if_flags;
