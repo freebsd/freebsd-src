@@ -1673,6 +1673,7 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 {
 	struct ifnet *ifp;
 	struct sbuf *sb;
+	struct pfil_head_args pa;
 
 	vi->xact_addr_filt = -1;
 	callout_init(&vi->tick, 1);
@@ -1768,6 +1769,12 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 
 	vi_sysctls(vi);
 
+	pa.pa_version = PFIL_VERSION;
+	pa.pa_flags = PFIL_IN;
+	pa.pa_type = PFIL_TYPE_ETHERNET;
+	pa.pa_headname = ifp->if_xname;
+	vi->pfil = pfil_head_register(&pa);
+
 	return (0);
 }
 
@@ -1807,6 +1814,11 @@ static void
 cxgbe_vi_detach(struct vi_info *vi)
 {
 	struct ifnet *ifp = vi->ifp;
+
+	if (vi->pfil != NULL) {
+		pfil_head_unregister(vi->pfil);
+		vi->pfil = NULL;
+	}
 
 	ether_ifdetach(ifp);
 

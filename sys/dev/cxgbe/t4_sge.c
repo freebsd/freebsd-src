@@ -1851,12 +1851,73 @@ get_segment:
 }
 
 static int
+skip_scatter_segment(struct adapter *sc, struct sge_fl *fl, int fr_offset,
+    int remaining)
+{
+	struct fl_sdesc *sd = &fl->sdesc[fl->cidx];
+	struct rx_buf_info *rxb = &sc->sge.rx_buf_info[sd->zidx];
+	int len, blen;
+
+	if (fl->flags & FL_BUF_PACKING) {
+		u_int l, pad;
+
+		blen = rxb->size2 - fl->rx_offset;	/* max possible in this buf */
+		len = min(remaining, blen);
+
+		l = fr_offset + len;
+		pad = roundup2(l, fl->buf_boundary) - l;
+		if (fl->rx_offset + len + pad < rxb->size2)
+			blen = len + pad;
+		fl->rx_offset += blen;
+		MPASS(fl->rx_offset <= rxb->size2);
+		if (fl->rx_offset < rxb->size2)
+			return (len);	/* without advancing the cidx */
+	} else {
+		MPASS(fl->rx_offset == 0);	/* not packing */
+		blen = rxb->size1;
+		len = min(remaining, blen);
+	}
+	move_to_next_rxbuf(fl);
+	return (len);
+}
+
+static inline void
+skip_fl_payload(struct adapter *sc, struct sge_fl *fl, int plen)
+{
+	int remaining, fr_offset, len;
+
+	fr_offset = 0;
+	remaining = plen;
+	while (remaining > 0) {
+		len = skip_scatter_segment(sc, fl, fr_offset, remaining);
+		fr_offset += len;
+		remaining -= len;
+	}
+}
+
+static inline int
+get_segment_len(struct adapter *sc, struct sge_fl *fl, int plen)
+{
+	int len;
+	struct fl_sdesc *sd = &fl->sdesc[fl->cidx];
+	struct rx_buf_info *rxb = &sc->sge.rx_buf_info[sd->zidx];
+
+	if (fl->flags & FL_BUF_PACKING)
+		len = rxb->size2 - fl->rx_offset;
+	else
+		len = rxb->size1;
+
+	return (min(plen, len));
+}
+
+static int
 eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
     u_int plen)
 {
 	struct mbuf *m0;
 	struct ifnet *ifp = rxq->ifp;
 	struct sge_fl *fl = &rxq->fl;
+	struct vi_info *vi = ifp->if_softc;
 	const struct cpl_rx_pkt *cpl;
 #if defined(INET) || defined(INET6)
 	struct lro_ctrl *lro = &rxq->lro;
@@ -1869,6 +1930,30 @@ eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
 	};
 
 	MPASS(plen > sc->params.sge.fl_pktshift);
+	if (vi->pfil != NULL && PFIL_HOOKED_IN(vi->pfil) &&
+	    __predict_true((fl->flags & FL_BUF_RESUME) == 0)) {
+		struct fl_sdesc *sd = &fl->sdesc[fl->cidx];
+		caddr_t frame;
+		int rc, slen;
+
+		slen = get_segment_len(sc, fl, plen) -
+		    sc->params.sge.fl_pktshift;
+		frame = sd->cl + fl->rx_offset + sc->params.sge.fl_pktshift;
+		CURVNET_SET_QUIET(ifp->if_vnet);
+		rc = pfil_run_hooks(vi->pfil, frame, ifp,
+		    slen | PFIL_MEMPTR | PFIL_IN, NULL);
+		CURVNET_RESTORE();
+		if (rc == PFIL_DROPPED || rc == PFIL_CONSUMED) {
+			skip_fl_payload(sc, fl, plen);
+			return (0);
+		}
+		if (rc == PFIL_REALLOCED) {
+			skip_fl_payload(sc, fl, plen);
+			m0 = pfil_mem2mbuf(frame);
+			goto have_mbuf;
+		}
+	}
+
 	m0 = get_fl_payload(sc, fl, plen);
 	if (__predict_false(m0 == NULL))
 		return (ENOMEM);
@@ -1877,6 +1962,7 @@ eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
 	m0->m_len -= sc->params.sge.fl_pktshift;
 	m0->m_data += sc->params.sge.fl_pktshift;
 
+have_mbuf:
 	m0->m_pkthdr.rcvif = ifp;
 	M_HASHTYPE_SET(m0, sw_hashtype[d->rss.hash_type][d->rss.ipv6]);
 	m0->m_pkthdr.flowid = be32toh(d->rss.hash_val);
