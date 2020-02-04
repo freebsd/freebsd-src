@@ -346,6 +346,7 @@ tmpfs_mount(struct mount *mp)
 		/* Only support update mounts for certain options. */
 		if (vfs_filteropt(mp->mnt_optnew, tmpfs_updateopts) != 0)
 			return (EOPNOTSUPP);
+		tmp = VFS_TO_TMPFS(mp);
 		if (vfs_getopt_size(mp->mnt_optnew, "size", &size_max) == 0) {
 			/*
 			 * On-the-fly resizing is not supported (yet). We still
@@ -354,17 +355,17 @@ tmpfs_mount(struct mount *mp)
 			 * parameter, say trying to change rw to ro or vice
 			 * versa, would cause vfs_filteropt() to bail.
 			 */
-			if (size_max != VFS_TO_TMPFS(mp)->tm_size_max)
+			if (size_max != tmp->tm_size_max)
 				return (EOPNOTSUPP);
 		}
 		if (vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
-		    !(VFS_TO_TMPFS(mp)->tm_ronly)) {
+		    !tmp->tm_ronly) {
 			/* RW -> RO */
 			return (tmpfs_rw_to_ro(mp));
 		} else if (!vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
-		    VFS_TO_TMPFS(mp)->tm_ronly) {
+		    tmp->tm_ronly) {
 			/* RO -> RW */
-			VFS_TO_TMPFS(mp)->tm_ronly = 0;
+			tmp->tm_ronly = 0;
 			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_RDONLY;
 			MNT_IUNLOCK(mp);
