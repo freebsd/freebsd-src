@@ -245,7 +245,7 @@ struct uma_hash {
  * for use.
  */
 struct uma_bucket {
-	TAILQ_ENTRY(uma_bucket)	ub_link;	/* Link into the zone */
+	STAILQ_ENTRY(uma_bucket)	ub_link; /* Link into the zone */
 	int16_t		ub_cnt;			/* Count of items in bucket. */
 	int16_t		ub_entries;		/* Max items. */
 	smr_seq_t	ub_seq;			/* SMR sequence number. */
@@ -462,7 +462,7 @@ slab_item_index(uma_slab_t slab, uma_keg_t keg, void *item)
 }
 #endif /* _KERNEL */
 
-TAILQ_HEAD(uma_bucketlist, uma_bucket);
+STAILQ_HEAD(uma_bucketlist, uma_bucket);
 
 struct uma_zone_domain {
 	struct uma_bucketlist uzd_buckets; /* full buckets */

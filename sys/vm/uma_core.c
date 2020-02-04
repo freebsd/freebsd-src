@@ -544,7 +544,7 @@ zone_fetch_bucket(uma_zone_t zone, uma_zone_domain_t zdom)
 
 	ZONE_LOCK_ASSERT(zone);
 
-	if ((bucket = TAILQ_FIRST(&zdom->uzd_buckets)) == NULL)
+	if ((bucket = STAILQ_FIRST(&zdom->uzd_buckets)) == NULL)
 		return (NULL);
 
 	if ((zone->uz_flags & UMA_ZONE_SMR) != 0 &&
@@ -555,7 +555,7 @@ zone_fetch_bucket(uma_zone_t zone, uma_zone_domain_t zdom)
 		dtor = (zone->uz_dtor != NULL) | UMA_ALWAYS_CTORDTOR;
 	}
 	MPASS(zdom->uzd_nitems >= bucket->ub_cnt);
-	TAILQ_REMOVE(&zdom->uzd_buckets, bucket, ub_link);
+	STAILQ_REMOVE_HEAD(&zdom->uzd_buckets, ub_link);
 	zdom->uzd_nitems -= bucket->ub_cnt;
 	if (zdom->uzd_imin > zdom->uzd_nitems)
 		zdom->uzd_imin = zdom->uzd_nitems;
@@ -583,10 +583,7 @@ zone_put_bucket(uma_zone_t zone, uma_zone_domain_t zdom, uma_bucket_t bucket,
 	KASSERT(!ws || zone->uz_bkt_count < zone->uz_bkt_max,
 	    ("%s: zone %p overflow", __func__, zone));
 
-	if (ws && bucket->ub_seq == SMR_SEQ_INVALID)
-		TAILQ_INSERT_HEAD(&zdom->uzd_buckets, bucket, ub_link);
-	else
-		TAILQ_INSERT_TAIL(&zdom->uzd_buckets, bucket, ub_link);
+	STAILQ_INSERT_TAIL(&zdom->uzd_buckets, bucket, ub_link);
 	zdom->uzd_nitems += bucket->ub_cnt;
 	if (ws && zdom->uzd_imax < zdom->uzd_nitems)
 		zdom->uzd_imax = zdom->uzd_nitems;
@@ -1187,11 +1184,11 @@ bucket_cache_reclaim(uma_zone_t zone, bool drain)
 		target = drain ? 0 : lmax(zdom->uzd_wss, zdom->uzd_nitems -
 		    zdom->uzd_imin);
 		while (zdom->uzd_nitems > target) {
-			bucket = TAILQ_FIRST(&zdom->uzd_buckets);
+			bucket = STAILQ_FIRST(&zdom->uzd_buckets);
 			if (bucket == NULL)
 				break;
 			tofree = bucket->ub_cnt;
-			TAILQ_REMOVE(&zdom->uzd_buckets, bucket, ub_link);
+			STAILQ_REMOVE_HEAD(&zdom->uzd_buckets, ub_link);
 			zdom->uzd_nitems -= tofree;
 
 			/*
@@ -2365,7 +2362,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	ZONE_CROSS_LOCK_INIT(zone);
 
 	for (i = 0; i < vm_ndomains; i++)
-		TAILQ_INIT(&zone->uz_domain[i].uzd_buckets);
+		STAILQ_INIT(&zone->uz_domain[i].uzd_buckets);
 
 #ifdef INVARIANTS
 	if (arg->uminit == trash_init && arg->fini == trash_fini)
@@ -3930,7 +3927,7 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 	    "uma_zfree: zone %s(%p) draining cross bucket %p",
 	    zone->uz_name, zone, bucket);
 
-	TAILQ_INIT(&fullbuckets);
+	STAILQ_INIT(&fullbuckets);
 
 	/*
 	 * To avoid having ndomain * ndomain buckets for sorting we have a
@@ -3949,19 +3946,19 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 		}
 		zdom->uzd_cross->ub_bucket[zdom->uzd_cross->ub_cnt++] = item;
 		if (zdom->uzd_cross->ub_cnt == zdom->uzd_cross->ub_entries) {
-			TAILQ_INSERT_HEAD(&fullbuckets, zdom->uzd_cross,
+			STAILQ_INSERT_HEAD(&fullbuckets, zdom->uzd_cross,
 			    ub_link);
 			zdom->uzd_cross = NULL;
 		}
 		bucket->ub_cnt--;
 	}
 	ZONE_CROSS_UNLOCK(zone);
-	if (!TAILQ_EMPTY(&fullbuckets)) {
+	if (!STAILQ_EMPTY(&fullbuckets)) {
 		ZONE_LOCK(zone);
-		while ((b = TAILQ_FIRST(&fullbuckets)) != NULL) {
+		while ((b = STAILQ_FIRST(&fullbuckets)) != NULL) {
 			if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
 				bucket->ub_seq = smr_current(zone->uz_smr);
-			TAILQ_REMOVE(&fullbuckets, b, ub_link);
+			STAILQ_REMOVE_HEAD(&fullbuckets, ub_link);
 			if (zone->uz_bkt_count >= zone->uz_bkt_max) {
 				ZONE_UNLOCK(zone);
 				bucket_drain(zone, b);
