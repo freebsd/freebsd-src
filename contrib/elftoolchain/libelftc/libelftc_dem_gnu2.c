@@ -389,12 +389,11 @@ init_demangle_data(struct demangle_data *d)
 
 	d->type = ENCODE_FUNC;
 
-	if (vector_str_init(&d->vec) == false)
+	if (!vector_str_init(&d->vec))
 		return (false);
 
-	if (vector_str_init(&d->arg) == false) {
+	if (!vector_str_init(&d->arg)) {
 		vector_str_dest(&d->vec);
-
 		return (false);
 	}
 
