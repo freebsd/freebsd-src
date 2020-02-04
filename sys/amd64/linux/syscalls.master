@@ -304,7 +304,7 @@
 151	AUE_MLOCKALL	NOPROTO	{ int mlockall(int how); }
 152	AUE_MUNLOCKALL	NOPROTO	{ int munlockall(void); }
 153	AUE_NULL	STD	{ int linux_vhangup(void); }
-154	AUE_NULL	UNIMPL	modify_ldt
+154	AUE_NULL	STD	{ int linux_modify_ldt(void); }
 155	AUE_PIVOT_ROOT	STD	{ int linux_pivot_root(void); }
 156	AUE_SYSCTL	STD	{ int linux_sysctl( \
 				    struct l___sysctl_args *args); }
@@ -332,7 +332,7 @@
 171	AUE_SYSCTL	STD	{ int linux_setdomainname(char *name, \
 				    l_int len); }
 172	AUE_NULL	STD	{ int linux_iopl(l_uint level); }
-173	AUE_NULL	UNIMPL	ioperm
+173	AUE_NULL	STD	{ int linux_ioperm(void); }
 174	AUE_NULL	UNIMPL	create_module
 175	AUE_NULL	STD	{ int linux_init_module(void); }
 176	AUE_NULL	STD	{ int linux_delete_module(void); }
@@ -346,7 +346,7 @@
 184	AUE_NULL	UNIMPL	tuxcall
 185	AUE_NULL	UNIMPL	security
 186	AUE_NULL	STD	{ int linux_gettid(void); }
-187	AUE_NULL	UNIMPL	linux_readahead
+187	AUE_NULL	STD	{ int linux_readahead(void); }
 188	AUE_NULL	STD	{ int linux_setxattr(void); }
 189	AUE_NULL	STD	{ int linux_lsetxattr(void); }
 190	AUE_NULL	STD	{ int linux_fsetxattr(void); }
@@ -368,11 +368,11 @@
 204	AUE_NULL	STD	{ int linux_sched_getaffinity(l_pid_t pid, l_uint len, \
 				    l_ulong *user_mask_ptr); }
 205	AUE_NULL	UNIMPL	set_thread_area
-206	AUE_NULL	UNIMPL	linux_io_setup
-207	AUE_NULL	UNIMPL	linux_io_destroy
-208	AUE_NULL	UNIMPL	linux_io_getevents
-209	AUE_NULL	UNIMPL	linux_io_submit
-210	AUE_NULL	UNIMPL	linux_io_cancel
+206	AUE_NULL	STD	{ int linux_io_setup(void); }
+207	AUE_NULL	STD	{ int linux_io_destroy(void); }
+208	AUE_NULL	STD	{ int linux_io_getevents(void); }
+209	AUE_NULL	STD	{ int linux_io_submit(void); }
+210	AUE_NULL	STD	{ int linux_io_cancel(void); }
 211	AUE_NULL	UNIMPL	get_thread_area
 212	AUE_NULL	STD	{ int linux_lookup_dcookie(void); }
 213	AUE_NULL	STD	{ int linux_epoll_create(l_int size); }
@@ -382,7 +382,7 @@
 217	AUE_GETDIRENTRIES	STD { int linux_getdents64(l_uint fd, \
 				    void *dirent, l_uint count); }
 218	AUE_NULL	STD	{ int linux_set_tid_address(l_int *tidptr); }
-219	AUE_NULL	UNIMPL	restart_syscall
+219	AUE_NULL	STD	{ int linux_restart_syscall(void); }
 220	AUE_NULL	STD	{ int linux_semtimedop(void); }
 221	AUE_NULL	STD	{ int linux_fadvise64(l_int fd, l_loff_t offset, \
 				    l_size_t len, l_int advice); }
