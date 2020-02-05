@@ -2033,6 +2033,7 @@ setprocresources(const char *cname)
 	login_cap_t *lc;
 	if ((lc = login_getclassbyname(cname, NULL)) != NULL) {
 		setusercontext(lc, (struct passwd*)NULL, 0,
+		    LOGIN_SETENV |
 		    LOGIN_SETPRIORITY | LOGIN_SETRESOURCES |
 		    LOGIN_SETLOGINCLASS | LOGIN_SETCPUMASK);
 		login_close(lc);
