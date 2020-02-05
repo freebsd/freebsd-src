@@ -1,4 +1,4 @@
-/*	$NetBSD: t_o_search.c,v 1.5 2017/01/10 22:25:01 christos Exp $ */
+/*	$NetBSD: t_o_search.c,v 1.8 2020/02/05 17:13:24 martin Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_o_search.c,v 1.5 2017/01/10 22:25:01 christos Exp $");
+__RCSID("$NetBSD: t_o_search.c,v 1.8 2020/02/05 17:13:24 martin Exp $");
 
 #include <atf-c.h>
 
@@ -79,7 +79,7 @@ ATF_TC_BODY(o_search_perm1, tc)
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) != -1);
 	ATF_REQUIRE(close(fd) == 0);
 
-	ATF_REQUIRE(fchmod(dfd, 644) == 0);
+	ATF_REQUIRE(fchmod(dfd, 0644) == 0);
 
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) == -1);
 	ATF_REQUIRE(errno == EACCES);
@@ -109,12 +109,12 @@ ATF_TC_BODY(o_search_root_flag1, tc)
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) != -1);
 	ATF_REQUIRE(close(fd) == 0);
 
-	ATF_REQUIRE(fchmod(dfd, 644) == 0);
+	ATF_REQUIRE(fchmod(dfd, 0644) == 0);
 
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) != -1);
 	ATF_REQUIRE(close(fd) == 0);
 
-	ATF_REQUIRE(fchmod(dfd, 444) == 0);
+	ATF_REQUIRE(fchmod(dfd, 0444) == 0);
 
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) != -1);
 
@@ -141,12 +141,12 @@ ATF_TC_BODY(o_search_unpriv_flag1, tc)
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) != -1);
 	ATF_REQUIRE(close(fd) == 0);
 
-	ATF_REQUIRE(fchmod(dfd, 644) == 0);
+	ATF_REQUIRE(fchmod(dfd, 0644) == 0);
 
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) != -1);
 	ATF_REQUIRE(close(fd) == 0);
 
-	ATF_REQUIRE(fchmod(dfd, 444) == 0);
+	ATF_REQUIRE(fchmod(dfd, 0444) == 0);
 
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) != -1);
 
@@ -173,7 +173,7 @@ ATF_TC_BODY(o_search_perm2, tc)
 
 	ATF_REQUIRE(faccessat(dfd, BASEFILE, W_OK, 0) == 0);
 
-	ATF_REQUIRE(fchmod(dfd, 644) == 0);
+	ATF_REQUIRE(fchmod(dfd, 0644) == 0);
 
 	ATF_REQUIRE(faccessat(dfd, BASEFILE, W_OK, 0) == -1);
 	ATF_REQUIRE(errno == EACCES);
@@ -202,11 +202,11 @@ ATF_TC_BODY(o_search_root_flag2, tc)
 
 	ATF_REQUIRE(faccessat(dfd, BASEFILE, W_OK, 0) == 0);
 
-	ATF_REQUIRE(fchmod(dfd, 644) == 0);
+	ATF_REQUIRE(fchmod(dfd, 0644) == 0);
 
 	ATF_REQUIRE(faccessat(dfd, BASEFILE, W_OK, 0) == 0);
 
-	ATF_REQUIRE(fchmod(dfd, 444) == 0);
+	ATF_REQUIRE(fchmod(dfd, 0444) == 0);
 
 	ATF_REQUIRE(faccessat(dfd, BASEFILE, W_OK, 0) == 0);
 
@@ -232,11 +232,11 @@ ATF_TC_BODY(o_search_unpriv_flag2, tc)
 
 	ATF_REQUIRE(faccessat(dfd, BASEFILE, W_OK, 0) == 0);
 
-	ATF_REQUIRE(fchmod(dfd, 644) == 0);
+	ATF_REQUIRE(fchmod(dfd, 0644) == 0);
 
 	ATF_REQUIRE(faccessat(dfd, BASEFILE, W_OK, 0) == 0);
 
-	ATF_REQUIRE(fchmod(dfd, 444) == 0);
+	ATF_REQUIRE(fchmod(dfd, 0444) == 0);
 
 	ATF_REQUIRE(faccessat(dfd, BASEFILE, W_OK, 0) == 0);
 
@@ -257,9 +257,10 @@ ATF_TC_BODY(o_search_notdir, tc)
 	int fd;
 
 	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
-	ATF_REQUIRE((dfd = open(FILE, O_CREAT|O_RDWR|O_SEARCH, 0644)) != -1);
+	ATF_REQUIRE((dfd = open(FILE, O_CREAT|O_SEARCH, 0644)) != -1);
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) == -1);
 	ATF_REQUIRE(errno == ENOTDIR);
+	ATF_REQUIRE(close(dfd) == 0);
 }
 
 ATF_TP_ADD_TCS(tp)
