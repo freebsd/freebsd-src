@@ -258,11 +258,7 @@ ATF_TC_BODY(o_search_notdir, tc)
 	int fd;
 
 	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
-#ifndef __FreeBSD__
-	ATF_REQUIRE((dfd = open(FILE, O_CREAT|O_RDWR|O_SEARCH, 0644)) != -1);
-#else
 	ATF_REQUIRE((dfd = open(FILE, O_CREAT|O_SEARCH, 0644)) != -1);
-#endif
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) == -1);
 	ATF_REQUIRE(errno == ENOTDIR);
 	ATF_REQUIRE(close(dfd) == 0);
