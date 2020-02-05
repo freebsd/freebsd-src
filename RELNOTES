@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r357560-r357565:
+	init(8), service(8), and cron(8) will now adopt user/class environment
+	variables (excluding PATH, by default, which will be overwritten) by
+	default.  Notably, environment variables for all cron jobs and rc
+	services can now be set via login.conf(5).
+
 r355677:
 	Adds support for NFSv4.2 (RFC-7862) and Extended Attributes
 	(RFC-8276) to the NFS client and server.
