@@ -110,6 +110,16 @@ static int nm_split_rss = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_split_rss, CTLFLAG_RWTUN,
     &nm_split_rss, 0, "Split the netmap rx queues into two groups.");
 
+/*
+ * netmap(4) says "netmap does not use features such as checksum offloading, TCP
+ * segmentation offloading, encryption, VLAN encapsulation/decapsulation, etc."
+ * but this knob can be used to get the hardware to checksum all tx traffic
+ * anyway.
+ */
+static int nm_txcsum = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_txcsum, CTLFLAG_RWTUN,
+    &nm_txcsum, 0, "Enable transmit checksum offloading.");
+
 static int
 alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 {
@@ -696,13 +706,8 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 			cpl->ctrl0 = nm_txq->cpl_ctrl0;
 			cpl->pack = 0;
 			cpl->len = htobe16(slot->len);
-			/*
-			 * netmap(4) says "netmap does not use features such as
-			 * checksum offloading, TCP segmentation offloading,
-			 * encryption, VLAN encapsulation/decapsulation, etc."
-			 */
-			cpl->ctrl1 = htobe64(F_TXPKT_IPCSUM_DIS |
-			    F_TXPKT_L4CSUM_DIS);
+			cpl->ctrl1 = nm_txcsum ? 0 :
+			    htobe64(F_TXPKT_IPCSUM_DIS | F_TXPKT_L4CSUM_DIS);
 
 			usgl = (void *)(cpl + 1);
 			usgl->cmd_nsge = htobe32(V_ULPTX_CMD(ULP_TX_SC_DSGL) |
