@@ -42,6 +42,8 @@ static void		child_process(entry *, user *);
 
 static WAIT_T		wait_on_child(PID_T, const char *);
 
+extern char	*environ;
+
 void
 do_command(e, u)
 	entry	*e;
@@ -275,9 +277,11 @@ child_process(e, u)
 		close(stdin_pipe[READ_PIPE]);
 		close(stdout_pipe[WRITE_PIPE]);
 
+		environ = NULL;
+
 # if defined(LOGIN_CAP)
-		/* Set user's entire context, but skip the environment
-		 * as cron provides a separate interface for this
+		/* Set user's entire context, but note that PATH will
+		 * be overridden later
 		 */
 		if ((pwd = getpwnam(usernm)) == NULL)
 			pwd = getpwuid(e->uid);
@@ -289,7 +293,7 @@ child_process(e, u)
 		}
 		if (pwd &&
 		    setusercontext(lc, pwd, e->uid,
-			    LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETENV)) == 0)
+			    LOGIN_SETALL) == 0)
 			(void) endpwent();
 		else {
 			/* fall back to the old method */
@@ -332,6 +336,18 @@ child_process(e, u)
 		 */
 		{
 			char	*shell = env_get("SHELL", e->envp);
+			char	**p;
+
+			/* Apply the environment from the entry, overriding existing
+			 * values (this will always set PATH, LOGNAME, etc.) putenv
+			 * should not fail unless malloc does.
+			 */
+			for (p = e->envp; *p; ++p) {
+				if (putenv(*p) != 0) {
+					warn("putenv");
+					_exit(ERROR_EXIT);
+				}
+			}
 
 # if DEBUGGING
 			if (DebugFlags & DTEST) {
@@ -342,9 +358,8 @@ child_process(e, u)
 				_exit(OK_EXIT);
 			}
 # endif /*DEBUGGING*/
-			execle(shell, shell, "-c", e->cmd, (char *)NULL,
-			    e->envp);
-			warn("execle: couldn't exec `%s'", shell);
+			execl(shell, shell, "-c", e->cmd, (char *)NULL);
+			warn("execl: couldn't exec `%s'", shell);
 			_exit(ERROR_EXIT);
 		}
 		break;
