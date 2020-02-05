@@ -1335,7 +1335,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_sendfile */
 	case 187: {
-		*n_args = 0;
+		struct linux_sendfile_args *p = params;
+		iarg[0] = p->out; /* l_int */
+		iarg[1] = p->in; /* l_int */
+		uarg[2] = (intptr_t) p->offset; /* l_long * */
+		iarg[3] = p->count; /* l_size_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_vfork */
@@ -1657,6 +1662,16 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->tid; /* int */
 		iarg[1] = p->sig; /* int */
 		*n_args = 2;
+		break;
+	}
+	/* linux_sendfile64 */
+	case 239: {
+		struct linux_sendfile64_args *p = params;
+		iarg[0] = p->out; /* l_int */
+		iarg[1] = p->in; /* l_int */
+		uarg[2] = (intptr_t) p->offset; /* l_loff_t * */
+		iarg[3] = p->count; /* l_size_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_sys_futex */
@@ -5107,6 +5122,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sendfile */
 	case 187:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland l_long *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_vfork */
 	case 190:
@@ -5541,6 +5572,25 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_sendfile64 */
+	case 239:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland l_loff_t *";
+			break;
+		case 3:
+			p = "l_size_t";
 			break;
 		default:
 			break;
@@ -8516,6 +8566,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sendfile */
 	case 187:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_vfork */
 	case 190:
 	/* linux_getrlimit */
@@ -8686,6 +8739,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 237:
 	/* linux_tkill */
 	case 238:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sendfile64 */
+	case 239:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
