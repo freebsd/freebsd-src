@@ -135,6 +135,14 @@ __FBSDID("$FreeBSD$");
 
 #include <net/route.h>
 
+#ifdef INET6
+/*
+ * XXX: declare here to avoid to include many inet6 related files..
+ * should be more generalized?
+ */
+extern void	nd6_setmtu(struct ifnet *);
+#endif
+
 /*
  * Size of the route hash table.  Must be a power of two.
  */
@@ -772,7 +780,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	} args;
 	struct ifdrv *ifd = (struct ifdrv *) data;
 	const struct bridge_control *bc;
-	int error = 0;
+	int error = 0, oldmtu;
 
 	switch (cmd) {
 
@@ -818,11 +826,23 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				break;
 		}
 
+		oldmtu = ifp->if_mtu;
 		BRIDGE_LOCK(sc);
 		error = (*bc->bc_func)(sc, &args);
 		BRIDGE_UNLOCK(sc);
 		if (error)
 			break;
+
+		/*
+		 * Bridge MTU may change during addition of the first port.
+		 * If it did, do network layer specific procedure.
+		 */
+		if (ifp->if_mtu != oldmtu) {
+#ifdef INET6
+			nd6_setmtu(ifp);
+#endif
+			rt_updatemtu(ifp);
+		}
 
 		if (bc->bc_flags & BC_F_COPYOUT)
 			error = copyout(&args, ifd->ifd_data, ifd->ifd_len);
