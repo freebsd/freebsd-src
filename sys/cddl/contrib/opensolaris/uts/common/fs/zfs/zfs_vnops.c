@@ -1525,7 +1525,7 @@ zfs_lookup_lock(vnode_t *dvp, vnode_t *vp, const char *name, int lkflags)
 /* ARGSUSED */
 static int
 zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
-    int nameiop, cred_t *cr, kthread_t *td, int flags)
+    int nameiop, cred_t *cr, kthread_t *td, int flags, boolean_t cached)
 {
 	znode_t *zdp = VTOZ(dvp);
 	znode_t *zp;
@@ -1597,9 +1597,12 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	/*
 	 * Check accessibility of directory.
 	 */
-	if (error = zfs_zaccess(zdp, ACE_EXECUTE, 0, B_FALSE, cr)) {
-		ZFS_EXIT(zfsvfs);
-		return (error);
+	if (!cached) {
+		error = zfs_zaccess(zdp, ACE_EXECUTE, 0, B_FALSE, cr);
+		if (error != 0) {
+			ZFS_EXIT(zfsvfs);
+			return (error);
+		}
 	}
 
 	if (zfsvfs->z_utf8 && u8_validate(nm, strlen(nm),
@@ -4941,12 +4944,7 @@ zfs_freebsd_access(ap)
 }
 
 static int
-zfs_freebsd_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-	} */ *ap;
+zfs_freebsd_lookup(struct vop_lookup_args *ap, boolean_t cached)
 {
 	struct componentname *cnp = ap->a_cnp;
 	char nm[NAME_MAX + 1];
@@ -4955,7 +4953,14 @@ zfs_freebsd_lookup(ap)
 	strlcpy(nm, cnp->cn_nameptr, MIN(cnp->cn_namelen + 1, sizeof(nm)));
 
 	return (zfs_lookup(ap->a_dvp, nm, ap->a_vpp, cnp, cnp->cn_nameiop,
-	    cnp->cn_cred, cnp->cn_thread, 0));
+	    cnp->cn_cred, cnp->cn_thread, 0, cached));
+}
+
+static int
+zfs_freebsd_cachedlookup(struct vop_cachedlookup_args *ap)
+{
+
+	return (zfs_freebsd_lookup((struct vop_lookup_args *)ap, B_TRUE));
 }
 
 static int
@@ -4972,7 +4977,7 @@ zfs_cache_lookup(ap)
 	if (zfsvfs->z_use_namecache)
 		return (vfs_cache_lookup(ap));
 	else
-		return (zfs_freebsd_lookup(ap));
+		return (zfs_freebsd_lookup(ap, B_FALSE));
 }
 
 static int
@@ -5535,7 +5540,7 @@ vop_getextattr {
 	ZFS_ENTER(zfsvfs);
 
 	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
-	    LOOKUP_XATTR);
+	    LOOKUP_XATTR, B_FALSE);
 	if (error != 0) {
 		ZFS_EXIT(zfsvfs);
 		return (error);
@@ -5604,7 +5609,7 @@ vop_deleteextattr {
 	ZFS_ENTER(zfsvfs);
 
 	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
-	    LOOKUP_XATTR);
+	    LOOKUP_XATTR, B_FALSE);
 	if (error != 0) {
 		ZFS_EXIT(zfsvfs);
 		return (error);
@@ -5672,7 +5677,7 @@ vop_setextattr {
 	ZFS_ENTER(zfsvfs);
 
 	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
-	    LOOKUP_XATTR | CREATE_XATTR_DIR);
+	    LOOKUP_XATTR | CREATE_XATTR_DIR, B_FALSE);
 	if (error != 0) {
 		ZFS_EXIT(zfsvfs);
 		return (error);
@@ -5749,7 +5754,7 @@ vop_listextattr {
 		*sizep = 0;
 
 	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
-	    LOOKUP_XATTR);
+	    LOOKUP_XATTR, B_FALSE);
 	if (error != 0) {
 		ZFS_EXIT(zfsvfs);
 		/*
@@ -6007,7 +6012,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_reclaim =		zfs_freebsd_reclaim,
 	.vop_access =		zfs_freebsd_access,
 	.vop_lookup =		zfs_cache_lookup,
-	.vop_cachedlookup =	zfs_freebsd_lookup,
+	.vop_cachedlookup =	zfs_freebsd_cachedlookup,
 	.vop_getattr =		zfs_freebsd_getattr,
 	.vop_setattr =		zfs_freebsd_setattr,
 	.vop_create =		zfs_freebsd_create,

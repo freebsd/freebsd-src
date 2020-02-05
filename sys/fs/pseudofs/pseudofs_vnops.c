@@ -446,10 +446,6 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 		PFS_RETURN (ENOTDIR);
 	KASSERT_PN_IS_DIR(pd);
 
-	error = VOP_ACCESS(vn, VEXEC, cnp->cn_cred, cnp->cn_thread);
-	if (error)
-		PFS_RETURN (error);
-
 	/*
 	 * Don't support DELETE or RENAME.  CREATE is supported so
 	 * that O_CREAT will work, but the lookup will still fail if
