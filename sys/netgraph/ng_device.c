@@ -46,6 +46,8 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
+#include <sys/epoch.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
@@ -454,6 +456,7 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 static int
 ngdwrite(struct cdev *dev, struct uio *uio, int flag)
 {
+	struct epoch_tracker et;
 	priv_p	priv = (priv_p )dev->si_drv1;
 	struct mbuf *m;
 	int error = 0;
@@ -469,7 +472,9 @@ ngdwrite(struct cdev *dev, struct uio *uio, int flag)
 	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, 0, M_PKTHDR)) == NULL)
 		return (ENOBUFS);
 
+	NET_EPOCH_ENTER(et);
 	NG_SEND_DATA_ONLY(error, priv->hook, m);
+	NET_EPOCH_EXIT(et);
 
 	return (error);
 }
