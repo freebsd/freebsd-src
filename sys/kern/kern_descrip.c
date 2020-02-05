@@ -2651,6 +2651,7 @@ fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
 	struct file *fp;
 	seqc_t seq;
 
+	*fpp = NULL;
 	for (;;) {
 		error = fget_unlocked_seq(fdp, fd, needrightsp, &fp, &seq);
 		if (error != 0)
@@ -2905,26 +2906,29 @@ fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
 	error = _fget(td, fd, fpp, 0, rightsp);
 	if (maxprotp != NULL)
 		*maxprotp = VM_PROT_ALL;
+	return (error);
 #else
 	cap_rights_t fdrights;
 	struct filedesc *fdp;
+	struct file *fp;
 	seqc_t seq;
 
+	*fpp = NULL;
 	fdp = td->td_proc->p_fd;
 	MPASS(cap_rights_is_set(rightsp, CAP_MMAP));
 	for (;;) {
-		error = fget_unlocked_seq(fdp, fd, rightsp, fpp, &seq);
+		error = fget_unlocked_seq(fdp, fd, rightsp, &fp, &seq);
 		if (__predict_false(error != 0))
 			return (error);
-		if (__predict_false((*fpp)->f_ops == &badfileops)) {
-			fdrop(*fpp, td);
+		if (__predict_false(fp->f_ops == &badfileops)) {
+			fdrop(fp, td);
 			return (EBADF);
 		}
 		if (maxprotp != NULL)
 			fdrights = *cap_rights(fdp, fd);
 		if (!fd_modified(fdp, fd, seq))
 			break;
-		fdrop(*fpp, td);
+		fdrop(fp, td);
 	}
 
 	/*
@@ -2932,8 +2936,9 @@ fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
 	 */
 	if (maxprotp != NULL)
 		*maxprotp = cap_rights_to_vmprot(&fdrights);
+	*fpp = fp;
+	return (0);
 #endif
-	return (error);
 }
 
 int
@@ -2958,24 +2963,27 @@ fget_fcntl(struct thread *td, int fd, cap_rights_t *rightsp, int needfcntl,
 #ifndef CAPABILITIES
 	return (fget_unlocked(fdp, fd, rightsp, fpp));
 #else
+	struct file *fp;
 	int error;
 	seqc_t seq;
 
+	*fpp = NULL;
 	MPASS(cap_rights_is_set(rightsp, CAP_FCNTL));
 	for (;;) {
-		error = fget_unlocked_seq(fdp, fd, rightsp, fpp, &seq);
+		error = fget_unlocked_seq(fdp, fd, rightsp, &fp, &seq);
 		if (error != 0)
 			return (error);
 		error = cap_fcntl_check(fdp, fd, needfcntl);
 		if (!fd_modified(fdp, fd, seq))
 			break;
-		fdrop(*fpp, td);
+		fdrop(fp, td);
 	}
 	if (error != 0) {
-		fdrop(*fpp, td);
-		*fpp = NULL;
+		fdrop(fp, td);
+		return (error);
 	}
-	return (error);
+	*fpp = fp;
+	return (0);
 #endif
 }
 
