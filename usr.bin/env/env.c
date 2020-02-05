@@ -44,11 +44,16 @@ static char sccsid[] = "@(#)env.c	8.3 (Berkeley) 4/2/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+
 #include <err.h>
 #include <errno.h>
+#include <login_cap.h>
+#include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "envopts.h"
@@ -71,13 +76,23 @@ main(int argc, char **argv)
 {
 	char *altpath, **ep, *p, **parg, term;
 	char *cleanenv[1];
+	char *login_class, *login_name;
+	struct passwd *pw;
+	login_cap_t *lc;
+	bool login_as_user;
+	uid_t uid;
 	int ch, want_clear;
 	int rtrn;
 
 	altpath = NULL;
+	login_class = NULL;
+	login_name = NULL;
+	pw = NULL;
+	lc = NULL;
+	login_as_user = false;
 	want_clear = 0;
 	term = '\n';
-	while ((ch = getopt(argc, argv, "-0iP:S:u:v")) != -1)
+	while ((ch = getopt(argc, argv, "-0iL:P:S:U:u:v")) != -1)
 		switch(ch) {
 		case '-':
 		case 'i':
@@ -85,6 +100,12 @@ main(int argc, char **argv)
 			break;
 		case '0':
 			term = '\0';
+			break;
+		case 'U':
+			login_as_user = true;
+			/* FALLTHROUGH */
+		case 'L':
+			login_name = optarg;
 			break;
 		case 'P':
 			altpath = strdup(optarg);
@@ -118,6 +139,48 @@ main(int argc, char **argv)
 		cleanenv[0] = NULL;
 		if (env_verbosity)
 			fprintf(stderr, "#env clearing environ\n");
+	}
+	if (login_name != NULL) {
+		login_class = strchr(login_name, '/');
+		if (login_class)
+			*login_class++ = '\0';
+		pw = getpwnam(login_name);
+		if (pw == NULL) {
+			char *endp = NULL;
+			errno = 0;
+			uid = strtoul(login_name, &endp, 10);
+			if (errno == 0 && *endp == '\0')
+				pw = getpwuid(uid);
+		}
+		if (pw == NULL)
+			errx(EXIT_FAILURE, "no such user: %s", login_name);
+		if (login_class != NULL) {
+			lc = login_getclass(login_class);
+			if (lc == NULL)
+				errx(EXIT_FAILURE, "no such login class: %s",
+				    login_class);
+		} else {
+			lc = login_getpwclass(pw);
+			if (lc == NULL)
+				errx(EXIT_FAILURE, "login_getpwclass failed");
+		}
+
+		/*
+		 * This is not done with setusercontext() because that will
+		 * try and use ~/.login_conf even when we don't want it to.
+		 */
+		setclassenvironment(lc, pw, 1);
+		setclassenvironment(lc, pw, 0);
+		if (login_as_user) {
+			login_close(lc);
+			if ((lc = login_getuserclass(pw)) != NULL) {
+				setclassenvironment(lc, pw, 1);
+				setclassenvironment(lc, pw, 0);
+			}
+		}
+		endpwent();
+		if (lc != NULL)
+			login_close(lc);
 	}
 	for (argv += optind; *argv && (p = strchr(*argv, '=')); ++argv) {
 		if (env_verbosity)
@@ -154,7 +217,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: env [-0iv] [-P utilpath] [-S string] [-u name]\n"
+	    "usage: env [-0iv] [-L|-U user[/class]] [-P utilpath] [-S string] [-u name]\n"
 	    "           [name=value ...] [utility [argument ...]]\n");
 	exit(1);
 }
