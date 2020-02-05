@@ -63,7 +63,7 @@ extern int fl_pad;	/* XXXNM */
  * 2 = supermassive black hole (buffer packing enabled)
  */
 int black_hole = 0;
-SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_black_hole, CTLFLAG_RDTUN, &black_hole, 0,
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_black_hole, CTLFLAG_RWTUN, &black_hole, 0,
     "Sink incoming packets.");
 
 int rx_ndesc = 256;
@@ -85,7 +85,7 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
  *  1: no backpressure, drop packets for the congested queue immediately.
  */
 static int nm_cong_drop = 1;
-SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_cong_drop, CTLFLAG_RDTUN,
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_cong_drop, CTLFLAG_RWTUN,
     &nm_cong_drop, 0,
     "Congestion control for netmap rx queues (0 = backpressure, 1 = drop");
 
