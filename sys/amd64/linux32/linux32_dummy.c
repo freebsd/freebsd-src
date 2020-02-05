@@ -72,7 +72,6 @@ DUMMY(delete_module);
 DUMMY(quotactl);
 DUMMY(bdflush);
 DUMMY(sysfs);
-DUMMY(sendfile);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(pivot_root);

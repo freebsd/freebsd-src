@@ -868,7 +868,12 @@
 		);
 	}
 187	AUE_SENDFILE	STD	{
-		int linux_sendfile(void);
+		int linux_sendfile(
+			l_int out,
+			l_int in,
+			l_long *offset,
+			l_size_t count
+		);
 	}
 188	AUE_NULL	UNIMPL	; was getpmsg
 189	AUE_NULL	UNIMPL	; was putpmsg
@@ -1090,7 +1095,14 @@
 		    int sig
 		);
 	}
-239	AUE_SENDFILE	UNIMPL	linux_sendfile64
+239	AUE_SENDFILE	STD	{
+		int linux_sendfile64(
+			l_int out,
+			l_int in,
+			l_loff_t *offset,
+			l_size_t count
+		);
+	}
 240	AUE_NULL	STD	{
 		int linux_sys_futex(void *uaddr,
 		    int op,

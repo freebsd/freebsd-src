@@ -49,8 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/uio.h>
+#include <sys/stat.h>
 #include <sys/syslog.h>
 #include <sys/un.h>
+#include <sys/unistd.h>
+
+#include <security/audit/audit.h>
 
 #include <net/if.h>
 #include <net/vnet.h>
@@ -1581,7 +1585,134 @@ out:
 	return (error);
 }
 
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+static int
+linux_sendfile_common(struct thread *td, l_int out, l_int in,
+    l_loff_t *offset, l_size_t count)
+{
+	off_t bytes_read;
+	int error;
+	l_loff_t current_offset;
+	struct file *fp;
+
+	AUDIT_ARG_FD(in);
+	error = fget_read(td, in, &cap_pread_rights, &fp);
+	if (error != 0)
+		return (error);
+
+	if (offset != NULL) {
+		current_offset = *offset;
+	} else {
+		error = (fp->f_ops->fo_flags & DFLAG_SEEKABLE) != 0 ?
+		    fo_seek(fp, 0, SEEK_CUR, td) : ESPIPE;
+		if (error != 0)
+			goto drop;
+		current_offset = td->td_uretoff.tdu_off;
+	}
+
+	bytes_read = 0;
+
+	/* Linux cannot have 0 count. */
+	if (count <= 0 || current_offset < 0) {
+		error = EINVAL;
+		goto drop;
+	}
+
+	error = fo_sendfile(fp, out, NULL, NULL, current_offset, count,
+	    &bytes_read, 0, td);
+	if (error != 0)
+		goto drop;
+	current_offset += bytes_read;
+
+	if (offset != NULL) {
+		*offset = current_offset;
+	} else {
+		error = fo_seek(fp, current_offset, SEEK_SET, td);
+		if (error != 0)
+			goto drop;
+	}
+
+	td->td_retval[0] = (ssize_t)bytes_read;
+drop:
+	fdrop(fp, td);
+	return (error);
+}
+
+int
+linux_sendfile(struct thread *td, struct linux_sendfile_args *arg)
+{
+	/*
+	 * Differences between FreeBSD and Linux sendfile:
+	 * - Linux doesn't send anything when count is 0 (FreeBSD uses 0 to
+	 *   mean send the whole file.)  In linux_sendfile given fds are still
+	 *   checked for validity when the count is 0.
+	 * - Linux can send to any fd whereas FreeBSD only supports sockets.
+	 *   The same restriction follows for linux_sendfile.
+	 * - Linux doesn't have an equivalent for FreeBSD's flags and sf_hdtr.
+	 * - Linux takes an offset pointer and updates it to the read location.
+	 *   FreeBSD takes in an offset and a 'bytes read' parameter which is
+	 *   only filled if it isn't NULL.  We use this parameter to update the
+	 *   offset pointer if it exists.
+	 * - Linux sendfile returns bytes read on success while FreeBSD
+	 *   returns 0.  We use the 'bytes read' parameter to get this value.
+	 */
+
+	l_loff_t offset64;
+	l_long offset;
+	int ret;
+	int error;
+
+	if (arg->offset != NULL) {
+		error = copyin(arg->offset, &offset, sizeof(offset));
+		if (error != 0)
+			return (error);
+		offset64 = (l_loff_t)offset;
+	}
+
+	ret = linux_sendfile_common(td, arg->out, arg->in,
+	    arg->offset != NULL ? &offset64 : NULL, arg->count);
+
+	if (arg->offset != NULL) {
+#if defined(__i386__) || defined(__arm__) || \
+    (defined(__amd64__) && defined(COMPAT_LINUX32))
+		if (offset64 > INT32_MAX)
+			return (EOVERFLOW);
+#endif
+		offset = (l_long)offset64;
+		error = copyout(&offset, arg->offset, sizeof(offset));
+		if (error != 0)
+			return (error);
+	}
+
+	return (ret);
+}
+
+#if defined(__i386__) || defined(__arm__) || \
+    (defined(__amd64__) && defined(COMPAT_LINUX32))
+
+int
+linux_sendfile64(struct thread *td, struct linux_sendfile64_args *arg)
+{
+	l_loff_t offset;
+	int ret;
+	int error;
+
+	if (arg->offset != NULL) {
+		error = copyin(arg->offset, &offset, sizeof(offset));
+		if (error != 0)
+			return (error);
+	}
+
+	ret = linux_sendfile_common(td, arg->out, arg->in,
+		arg->offset != NULL ? &offset : NULL, arg->count);
+
+	if (arg->offset != NULL) {
+		error = copyout(&offset, arg->offset, sizeof(offset));
+		if (error != 0)
+			return (error);
+	}
+
+	return (ret);
+}
 
 /* Argument list sizes for linux_socketcall */
 static const unsigned char lxs_args_cnt[] = {
@@ -1595,7 +1726,7 @@ static const unsigned char lxs_args_cnt[] = {
 	5 /* setsockopt */,	5 /* getsockopt */,
 	3 /* sendmsg */,	3 /* recvmsg */,
 	4 /* accept4 */,	5 /* recvmmsg */,
-	4 /* sendmmsg */
+	4 /* sendmmsg */,	4 /* sendfile */
 };
 #define	LINUX_ARGS_CNT		(nitems(lxs_args_cnt) - 1)
 #define	LINUX_ARG_SIZE(x)	(lxs_args_cnt[x] * sizeof(l_ulong))
@@ -1664,9 +1795,11 @@ linux_socketcall(struct thread *td, struct linux_socketcall_args *args)
 		return (linux_recvmmsg(td, arg));
 	case LINUX_SENDMMSG:
 		return (linux_sendmmsg(td, arg));
+	case LINUX_SENDFILE:
+		return (linux_sendfile(td, arg));
 	}
 
 	uprintf("LINUX: 'socket' typ=%d not implemented\n", args->what);
 	return (ENOSYS);
 }
-#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+#endif /* __i386__ || __arm__ || (__amd64__ && COMPAT_LINUX32) */

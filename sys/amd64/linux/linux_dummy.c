@@ -59,7 +59,6 @@ UNIMPLEMENTED(set_thread_area);
 UNIMPLEMENTED(uselib);
 UNIMPLEMENTED(vserver);
 
-DUMMY(sendfile);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(sysfs);
