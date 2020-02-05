@@ -324,7 +324,7 @@ vdev_read_pad2(vdev_t *vdev, char *buf, size_t size)
 	if (size > VDEV_PAD_SIZE)
 		size = VDEV_PAD_SIZE;
 
-	tmp = malloc(size);
+	tmp = malloc(VDEV_PAD_SIZE);
 	if (tmp == NULL)
 		return (ENOMEM);
 
