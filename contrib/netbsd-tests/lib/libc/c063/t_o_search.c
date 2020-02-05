@@ -265,6 +265,7 @@ ATF_TC_BODY(o_search_notdir, tc)
 #endif
 	ATF_REQUIRE((fd = openat(dfd, BASEFILE, O_RDWR, 0)) == -1);
 	ATF_REQUIRE(errno == ENOTDIR);
+	ATF_REQUIRE(close(dfd) == 0);
 }
 
 #ifdef USE_O_SEARCH
