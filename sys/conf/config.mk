@@ -11,8 +11,9 @@
 opt_global.h:
 	touch ${.TARGET}
 .if ${MACHINE} != "mips"
-	@echo "#define VIMAGE 1" >> ${.TARGET}
+	@echo "#define SMP 1" >> ${.TARGET}
 	@echo "#define MAC 1" >> ${.TARGET}
+	@echo "#define VIMAGE 1" >> ${.TARGET}
 .endif
 opt_bpf.h:
 	echo "#define DEV_BPF 1" > ${.TARGET}
