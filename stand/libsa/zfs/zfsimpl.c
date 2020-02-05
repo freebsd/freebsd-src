@@ -2290,8 +2290,7 @@ dnode_read(const spa_t *spa, const dnode_phys_t *dnode, off_t offset,
 }
 
 /*
- * Lookup a value in a microzap directory. Assumes that the zap
- * scratch buffer contains the directory contents.
+ * Lookup a value in a microzap directory.
  */
 static int
 mzap_lookup(const mzap_phys_t *mz, size_t size, const char *name,
@@ -2773,7 +2772,7 @@ static int
 zap_list(const spa_t *spa, const dnode_phys_t *dnode)
 {
 	zap_phys_t *zap;
-	size_t size = dnode->dn_datablkszsec * 512;
+	size_t size = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	int rc;
 
 	zap = malloc(size);
@@ -2913,7 +2912,7 @@ zap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name,
     uint64_t value)
 {
 	zap_phys_t *zap;
-	size_t size = dnode->dn_datablkszsec * 512;
+	size_t size = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	int rc;
 
 	zap = malloc(size);
@@ -3112,7 +3111,7 @@ zfs_callback_dataset(const spa_t *spa, uint64_t objnum,
 		return (err);
 	}
 
-	size = child_dir_zap.dn_datablkszsec * 512;
+	size = child_dir_zap.dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	zap = malloc(size);
 	if (zap != NULL) {
 		err = dnode_read(spa, &child_dir_zap, 0, zap, size);
@@ -3124,6 +3123,8 @@ zfs_callback_dataset(const spa_t *spa, uint64_t objnum,
 			    callback);
 		else
 			err = fzap_list(spa, &child_dir_zap, zap, callback);
+	} else {
+		err = ENOMEM;
 	}
 done:
 	free(zap);
@@ -3282,7 +3283,7 @@ check_mos_features(const spa_t *spa)
 	if (dir.dn_type != DMU_OTN_ZAP_METADATA)
 		return (EIO);
 
-	size = dir.dn_datablkszsec * 512;
+	size = dir.dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	zap = malloc(size);
 	if (zap == NULL)
 		return (ENOMEM);
