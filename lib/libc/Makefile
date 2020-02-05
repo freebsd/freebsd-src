@@ -31,7 +31,8 @@ CFLAGS+=-DNO__SCCSID -DNO__RCSID
 
 LIB=c
 SHLIB_MAJOR= 7
-.if ${MK_SSP} != "no"
+.if ${MK_SSP} != "no" && \
+    (${LIBC_ARCH} == "i386" || ${MACHINE_ARCH:Mpower*} != "")
 SHLIB_LDSCRIPT=libc.ldscript
 .else
 SHLIB_LDSCRIPT=libc_nossp.ldscript
@@ -59,7 +60,8 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 LDFLAGS+= -nodefaultlibs
 LIBADD+=	compiler_rt
 
-.if ${MK_SSP} != "no"
+.if ${MK_SSP} != "no" && \
+    (${LIBC_ARCH} == "i386" || ${MACHINE_ARCH:Mpower*} != "")
 LIBADD+=	ssp_nonshared
 .endif
 
