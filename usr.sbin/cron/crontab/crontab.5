@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2019
+.Dd January 19, 2020
 .Dt CRONTAB 5
 .Os
 .Sh NAME
@@ -82,10 +82,18 @@ and
 are set from the
 .Pa /etc/passwd
 line of the crontab's owner.
+In addition, the environment variables of the
+user's login class, with the exception of
+.Ev PATH ,
+will be set from
+.Pa /etc/login.conf.db
+and
+.Pa ~/.login_conf .
 .Ev HOME ,
 .Ev PATH
 and
-.Ev SHELL
+.Ev SHELL ,
+and any variables set from the login class,
 may be overridden by settings in the crontab;
 .Ev LOGNAME
 may not.
