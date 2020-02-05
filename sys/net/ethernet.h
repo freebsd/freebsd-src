@@ -356,7 +356,9 @@ struct ether_vlan_header {
 #define	ETHERTYPE_AOE		0x88A2	/* ATA Protocol */
 #define	ETHERTYPE_ETHERCAT	0x88A4	/* EtherCat Protocol */
 #define	ETHERTYPE_QINQ		0x88A8	/* 802.1ad VLAN stacking */
+#define	ETHERTYPE_POWERLINK	0x88AB	/* Ethernet Powerlink (EPL) */
 #define	ETHERTYPE_LLDP		0x88CC	/* Link Layer Discovery Protocol */
+#define	ETHERTYPE_SERCOS	0x88CD	/* SERCOS III Protocol */
 #define	ETHERTYPE_MACSEC	0x88E5	/* 802.1AE MAC Security */
 #define	ETHERTYPE_PBB		0x88E7	/* 802.1Q Provider Backbone Bridges */
 #define	ETHERTYPE_FCOE		0x8906	/* Fibre Channel over Ethernet */
