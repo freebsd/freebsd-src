@@ -337,7 +337,7 @@ vdev_read_pad2(vdev_t *vdev, char *buf, size_t size)
 	rc = vdev_read_phys(vdev, &bp, tmp, off, 0);
 	if (rc == 0)
 		memcpy(buf, tmp, size);
-	free(buf);
+	free(tmp);
 	return (rc);
 }
 
