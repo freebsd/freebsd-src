@@ -24,8 +24,6 @@ CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/powerpc
 .PATH:		${SYSDIR}/cddl/contrib/opensolaris/common/unicode
 SRCS+=		u8_textprep.c
 
-CFLAGS+=	-DSMP
-
 .include <bsd.kmod.mk>
 
 CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h
