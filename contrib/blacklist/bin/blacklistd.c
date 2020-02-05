@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklistd.c,v 1.37 2017/02/18 00:26:16 christos Exp $	*/
+/*	$NetBSD: blacklistd.c,v 1.38 2019/02/27 02:20:18 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include "config.h"
 #endif
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklistd.c,v 1.37 2017/02/18 00:26:16 christos Exp $");
+__RCSID("$NetBSD: blacklistd.c,v 1.38 2019/02/27 02:20:18 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -408,7 +408,6 @@ rules_restore(void)
 	for (f = 1; state_iterate(state, &c, &dbi, f) == 1; f = 0) {
 		if (dbi.id[0] == '\0')
 			continue;
-		(void)run_change("rem", &c, dbi.id, 0);
 		(void)run_change("add", &c, dbi.id, sizeof(dbi.id));
 	}
 }
@@ -505,7 +504,8 @@ main(int argc, char *argv[])
 	conf_parse(configfile);
 	if (flush) {
 		rules_flush();
-		flags |= O_TRUNC;
+		if (!restore)
+			flags |= O_TRUNC;
 	}
 
 	struct pollfd *pfd = NULL;
@@ -536,8 +536,11 @@ main(int argc, char *argv[])
 	if (state == NULL)
 		return EXIT_FAILURE;
 
-	if (restore)
+	if (restore) {
+		if (!flush)
+			rules_flush();
 		rules_restore();
+	}
 
 	if (!debug) {
 		if (daemon(0, 0) == -1)

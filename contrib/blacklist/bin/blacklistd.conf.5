@@ -1,4 +1,4 @@
-.\" $NetBSD: blacklistd.conf.5,v 1.5 2016/06/08 12:48:37 wiz Exp $
+.\" $NetBSD: blacklistd.conf.5,v 1.7 2017/06/07 13:50:57 wiz Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 7, 2016
+.Dd June 5, 2017
 .Dt BLACKLISTD.CONF 5
 .Os
 .Sh NAME
@@ -36,12 +36,13 @@
 .Sh DESCRIPTION
 The
 .Nm
-files contains configuration lines for
-.Xr blacklistd 8 .
-It contains one entry per line, and is similar to
+files contains configuration entries for
+.Xr blacklistd 8
+in a fashion similar to
 .Xr inetd.conf 5 .
-There must be an entry for each field of the configuration file, with
-entries for each field separated by a tab or a space.
+Only one entry per line is permitted.
+Every entry must have all fields populated.
+Each field can be separated by a tab or a space.
 Comments are denoted by a
 .Dq #
 at the beginning of a line.
@@ -109,7 +110,7 @@ The
 can be an IPv4 address in numeric format, an IPv6 address
 in numeric format and enclosed by square brackets, or an interface name.
 Mask modifiers are not allowed on interfaces because interfaces
-have multiple address in different protocols where the mask has a different
+can have multiple addresses in different protocols where the mask has a different
 size.
 .Pp
 The
@@ -150,8 +151,8 @@ If the
 contains a
 .Dq / ,
 the remaining portion of the name is interpreted as the mask to be
-applied to the address specified in the rule, so one can block whole
-subnets for a single rule violation.
+applied to the address specified in the rule, causing a single rule violation to
+block the entire subnet for the configured prefix.
 .Pp
 The
 .Va nfail
@@ -176,10 +177,11 @@ for days.
 .Pp
 Matching is done first by checking the
 .Va local
-rules one by one, from the most specific to the least specific.
+rules individually, in the order of the most specific to the least specific.
 If a match is found, then the
 .Va remote
-rules are applied, and if a match is found the
+rules are applied.
+The
 .Va name ,
 .Va nfail ,
 and
@@ -191,15 +193,15 @@ rule that matched.
 The
 .Va remote
 rules can be used for whitelisting specific addresses, changing the mask
-size, or the rule that the packet filter uses, the number of failed attempts,
-or the blocked duration.
+size, the rule that the packet filter uses, the number of failed attempts,
+or the block duration.
 .Sh FILES
 .Bl -tag -width /etc/blacklistd.conf -compact
 .It Pa /etc/blacklistd.conf
 Configuration file.
 .El
 .Sh EXAMPLES
-.Bd -literal -offset
+.Bd -literal -offset 8n
 # Block ssh, after 3 attempts for 6 hours on the bnx0 interface
 [local]
 # location	type	proto	owner	name	nfail	duration

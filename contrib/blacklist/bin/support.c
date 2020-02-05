@@ -1,4 +1,4 @@
-/*	$NetBSD: support.c,v 1.8 2016/04/04 15:52:56 christos Exp $	*/
+/*	$NetBSD: support.c,v 1.9 2018/09/18 22:12:19 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: support.c,v 1.8 2016/04/04 15:52:56 christos Exp $");
+__RCSID("$NetBSD: support.c,v 1.9 2018/09/18 22:12:19 christos Exp $");
 
 #include <time.h>
 #include <string.h>
@@ -105,12 +105,16 @@ fmtydhms(char *b, size_t l, time_t t)
 
 	s = t % 60;
 	t /= 60;
+
 	m = t % 60;
 	t /= 60;
-	h = t % 60;
+
+	h = t % 24;
 	t /= 24;
-	d = t % 24;
-	t /= 356;
+
+	d = t % 365;
+	t /= 365;
+
 	y = t;
 
 	z = 0;
