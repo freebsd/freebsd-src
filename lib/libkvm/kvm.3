@@ -32,7 +32,7 @@
 .\"     @(#)kvm.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2016
+.Dd February 5, 2020
 .Dt KVM 3
 .Os
 .Sh NAME
@@ -133,7 +133,8 @@ respectively.
 Finally, only a limited subset of operations are supported for non-native
 crash dumps:
 .Fn kvm_close ,
-.Fn kvm_geterr
+.Fn kvm_geterr ,
+.Fn kvm_kerndisp ,
 .Fn kvm_open2 ,
 .Fn kvm_native ,
 .Fn kvm_nlist2 ,
@@ -147,6 +148,7 @@ and
 .Xr kvm_getloadavg 3 ,
 .Xr kvm_getprocs 3 ,
 .Xr kvm_getswapinfo 3 ,
+.Xr kvm_kerndisp 3 ,
 .Xr kvm_native 3 ,
 .Xr kvm_nlist 3 ,
 .Xr kvm_nlist2 3 ,
