@@ -26,7 +26,9 @@ auditd_stop()
 {
 
 	/usr/sbin/audit -t
-	sleep 1
+	if [ -n "$rc_pid" ]; then
+		wait_for_pids $rc_pid
+	fi
 }
 
 load_rc_config $name
