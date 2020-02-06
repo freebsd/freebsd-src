@@ -526,6 +526,9 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 		pcb->pcb_vec.vscr = mcp->mc_vscr;
 		pcb->pcb_vec.vrsave = mcp->mc_vrsave;
 		memcpy(pcb->pcb_vec.vr, mcp->mc_avec, sizeof(mcp->mc_avec));
+	} else {
+		tf->srr1 &= ~PSL_VEC;
+		pcb->pcb_flags &= ~PCB_VEC;
 	}
 
 	return (0);
