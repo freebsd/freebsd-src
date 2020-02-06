@@ -160,7 +160,7 @@ static uma_zone_t smr_zone;
 #define	SMR_SEQ_INCR	(UINT_MAX / 10000)
 #define	SMR_SEQ_INIT	(UINT_MAX - 100000)
 /* Force extra polls to test the integer overflow detection. */
-#define	SMR_SEQ_MAX_DELTA	(1000)
+#define	SMR_SEQ_MAX_DELTA	(SMR_SEQ_INCR * 32)
 #define	SMR_SEQ_MAX_ADVANCE	SMR_SEQ_MAX_DELTA / 2
 #endif
 
@@ -188,7 +188,7 @@ smr_seq_t
 smr_advance(smr_t smr)
 {
 	smr_shared_t s;
-	smr_seq_t goal;
+	smr_seq_t goal, s_rd_seq;
 
 	/*
 	 * It is illegal to enter while in an smr section.
@@ -203,12 +203,18 @@ smr_advance(smr_t smr)
 	atomic_thread_fence_rel();
 
 	/*
+	 * Load the current read seq before incrementing the goal so
+	 * we are guaranteed it is always < goal.
+	 */
+	s = zpcpu_get(smr)->c_shared;
+	s_rd_seq = atomic_load_acq_int(&s->s_rd_seq);
+
+	/*
 	 * Increment the shared write sequence by 2.  Since it is
 	 * initialized to 1 this means the only valid values are
 	 * odd and an observed value of 0 in a particular CPU means
 	 * it is not currently in a read section.
 	 */
-	s = zpcpu_get(smr)->c_shared;
 	goal = atomic_fetchadd_int(&s->s_wr_seq, SMR_SEQ_INCR) + SMR_SEQ_INCR;
 	counter_u64_add(advance, 1);
 
@@ -217,7 +223,7 @@ smr_advance(smr_t smr)
 	 * far ahead of the read sequence number.  This keeps the
 	 * wrap detecting arithmetic working in pathological cases.
 	 */
-	if (goal - atomic_load_int(&s->s_rd_seq) >= SMR_SEQ_MAX_DELTA) {
+	if (SMR_SEQ_DELTA(goal, s_rd_seq) >= SMR_SEQ_MAX_DELTA) {
 		counter_u64_add(advance_wait, 1);
 		smr_wait(smr, goal - SMR_SEQ_MAX_ADVANCE);
 	}
