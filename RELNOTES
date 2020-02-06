@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r357627:
+	remove elf2aout.
+
 r357560-r357565:
 	init(8), service(8), and cron(8) will now adopt user/class environment
 	variables (excluding PATH, by default, which will be overwritten) by
