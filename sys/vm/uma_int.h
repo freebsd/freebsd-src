@@ -166,14 +166,12 @@
 #define	UMA_ZFLAG_BUCKET	0x10000000	/* Bucket zone. */
 #define	UMA_ZFLAG_INTERNAL	0x20000000	/* No offpage no PCPU. */
 #define	UMA_ZFLAG_TRASH		0x40000000	/* Add trash ctor/dtor. */
-#define	UMA_ZFLAG_CACHEONLY	0x80000000	/* Don't ask VM for buckets. */
 
 #define	UMA_ZFLAG_INHERIT						\
     (UMA_ZFLAG_OFFPAGE | UMA_ZFLAG_HASH | UMA_ZFLAG_VTOSLAB |		\
-     UMA_ZFLAG_BUCKET | UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY)
+     UMA_ZFLAG_BUCKET | UMA_ZFLAG_INTERNAL)
 
 #define	PRINT_UMA_ZFLAGS	"\20"	\
-    "\40CACHEONLY"			\
     "\37TRASH"				\
     "\36INTERNAL"			\
     "\35BUCKET"				\

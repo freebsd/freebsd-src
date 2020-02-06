@@ -493,7 +493,7 @@ bucket_alloc(uma_zone_t zone, void *udata, int flags)
 			return (NULL);
 		udata = (void *)((uintptr_t)udata | UMA_ZFLAG_BUCKET);
 	}
-	if ((uintptr_t)udata & UMA_ZFLAG_CACHEONLY)
+	if (((uintptr_t)udata & UMA_ZONE_VM) != 0)
 		flags |= M_NOVM;
 	ubz = bucket_zone_lookup(zone->uz_bucket_size);
 	if (ubz->ubz_zone == zone && (ubz + 1)->ubz_entries != 0)
@@ -1897,8 +1897,7 @@ keg_layout(uma_keg_t keg)
 	    ("%s: cannot configure for PCPU: keg=%s, size=%u, flags=0x%b",
 	     __func__, keg->uk_name, keg->uk_size, keg->uk_flags,
 	     PRINT_UMA_ZFLAGS));
-	KASSERT((keg->uk_flags &
-	    (UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY)) == 0 ||
+	KASSERT((keg->uk_flags & (UMA_ZFLAG_INTERNAL | UMA_ZONE_VM)) == 0 ||
 	    (keg->uk_flags & (UMA_ZONE_NOTOUCH | UMA_ZONE_PCPU)) == 0,
 	    ("%s: incompatible flags 0x%b", __func__, keg->uk_flags,
 	     PRINT_UMA_ZFLAGS));
@@ -1947,16 +1946,16 @@ keg_layout(uma_keg_t keg)
 	/*
 	 * We can't do OFFPAGE if we're internal or if we've been
 	 * asked to not go to the VM for buckets.  If we do this we
-	 * may end up going to the VM  for slabs which we do not
-	 * want to do if we're UMA_ZFLAG_CACHEONLY as a result
-	 * of UMA_ZONE_VM, which clearly forbids it.  In those cases,
-	 * evaluate a pseudo-format called INTERNAL which has an inline
-	 * slab header and one extra page to guarantee that it fits.
+	 * may end up going to the VM for slabs which we do not want
+	 * to do if we're UMA_ZONE_VM, which clearly forbids it.
+	 * In those cases, evaluate a pseudo-format called INTERNAL
+	 * which has an inline slab header and one extra page to
+	 * guarantee that it fits.
 	 *
 	 * Otherwise, see if using an OFFPAGE slab will improve our
 	 * efficiency.
 	 */
-	if ((keg->uk_flags & (UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY)) != 0)
+	if ((keg->uk_flags & (UMA_ZFLAG_INTERNAL | UMA_ZONE_VM)) != 0)
 		fmts[nfmt++] = UMA_ZFLAG_INTERNAL;
 	else
 		fmts[nfmt++] = UMA_ZFLAG_OFFPAGE;
@@ -2072,9 +2071,6 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	 */
 	zone = arg->zone;
 	keg->uk_name = zone->uz_name;
-
-	if (arg->flags & UMA_ZONE_VM)
-		keg->uk_flags |= UMA_ZFLAG_CACHEONLY;
 
 	if (arg->flags & UMA_ZONE_ZINIT)
 		keg->uk_init = zero_init;
@@ -2461,8 +2457,6 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	if (arg->import) {
 		KASSERT((arg->flags & UMA_ZFLAG_CACHE) != 0,
 		    ("zone_ctor: Import specified for non-cache zone."));
-		if (arg->flags & UMA_ZONE_VM)
-			arg->flags |= UMA_ZFLAG_CACHEONLY;
 		zone->uz_flags = arg->flags;
 		zone->uz_size = arg->size;
 		zone->uz_import = arg->import;
