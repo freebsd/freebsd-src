@@ -47,6 +47,7 @@ struct kvm_arch {
 	int	(*ka_kvatop)(kvm_t *, kvaddr_t, off_t *);
 	int	(*ka_native)(kvm_t *);
 	int	(*ka_walk_pages)(kvm_t *, kvm_walk_pages_cb_t *, void *);
+	kssize_t (*ka_kerndisp)(kvm_t *);
 };
 
 #define	KVM_ARCH(ka)	DATA_SET(kvm_arch, ka)
