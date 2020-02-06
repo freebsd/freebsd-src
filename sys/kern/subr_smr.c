@@ -30,11 +30,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/limits.h>
+#include <sys/counter.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/smr.h>
+#include <sys/sysctl.h>
 
 #include <vm/uma.h>
 
@@ -162,6 +164,17 @@ static uma_zone_t smr_zone;
 #define	SMR_SEQ_MAX_ADVANCE	SMR_SEQ_MAX_DELTA / 2
 #endif
 
+static SYSCTL_NODE(_debug, OID_AUTO, smr, CTLFLAG_RW, NULL, "SMR Stats");
+static counter_u64_t advance = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance, CTLFLAG_RD, &advance, "");
+static counter_u64_t advance_wait = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance_wait, CTLFLAG_RD, &advance_wait, "");
+static counter_u64_t poll = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll, CTLFLAG_RD, &poll, "");
+static counter_u64_t poll_scan = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll_scan, CTLFLAG_RD, &poll_scan, "");
+
+
 /*
  * Advance the write sequence and return the new value for use as the
  * wait goal.  This guarantees that any changes made by the calling
@@ -197,14 +210,17 @@ smr_advance(smr_t smr)
 	 */
 	s = zpcpu_get(smr)->c_shared;
 	goal = atomic_fetchadd_int(&s->s_wr_seq, SMR_SEQ_INCR) + SMR_SEQ_INCR;
+	counter_u64_add(advance, 1);
 
 	/*
 	 * Force a synchronization here if the goal is getting too
 	 * far ahead of the read sequence number.  This keeps the
 	 * wrap detecting arithmetic working in pathological cases.
 	 */
-	if (goal - atomic_load_int(&s->s_rd_seq) >= SMR_SEQ_MAX_DELTA)
+	if (goal - atomic_load_int(&s->s_rd_seq) >= SMR_SEQ_MAX_DELTA) {
+		counter_u64_add(advance_wait, 1);
 		smr_wait(smr, goal - SMR_SEQ_MAX_ADVANCE);
+	}
 
 	return (goal);
 }
@@ -263,6 +279,7 @@ smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 	success = true;
 	critical_enter();
 	s = zpcpu_get(smr)->c_shared;
+	counter_u64_add_protected(poll, 1);
 
 	/*
 	 * Acquire barrier loads s_wr_seq after s_rd_seq so that we can not
@@ -306,6 +323,7 @@ smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 	 * gone inactive.  Keep track of the oldest sequence currently
 	 * active as rd_seq.
 	 */
+	counter_u64_add_protected(poll_scan, 1);
 	rd_seq = s_wr_seq;
 	CPU_FOREACH(i) {
 		c = zpcpu_get_cpu(smr, i);
@@ -366,7 +384,7 @@ smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 	s_rd_seq = atomic_load_int(&s->s_rd_seq);
 	do {
 		if (SMR_SEQ_LEQ(rd_seq, s_rd_seq))
-			break;
+			goto out;
 	} while (atomic_fcmpset_int(&s->s_rd_seq, &s_rd_seq, rd_seq) == 0);
 
 out:
@@ -426,3 +444,14 @@ smr_init(void)
 	smr_zone = uma_zcreate("SMR CPU", sizeof(struct smr),
 	    NULL, NULL, NULL, NULL, (CACHE_LINE_SIZE * 2) - 1, UMA_ZONE_PCPU);
 }
+
+static void
+smr_init_counters(void *unused)
+{
+
+	advance = counter_u64_alloc(M_WAITOK);
+	advance_wait = counter_u64_alloc(M_WAITOK);
+	poll = counter_u64_alloc(M_WAITOK);
+	poll_scan = counter_u64_alloc(M_WAITOK);
+}
+SYSINIT(smr_counters, SI_SUB_CPU, SI_ORDER_ANY, smr_init_counters, NULL);
