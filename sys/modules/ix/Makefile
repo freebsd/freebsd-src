@@ -10,6 +10,6 @@ SRCS    += if_ix.c if_bypass.c if_fdir.c if_sriov.c ix_txrx.c ixgbe_osdep.c
 SRCS    += ixgbe_common.c ixgbe_api.c ixgbe_phy.c ixgbe_mbx.c ixgbe_vf.c
 SRCS    += ixgbe_dcb.c ixgbe_dcb_82598.c ixgbe_dcb_82599.c
 SRCS    += ixgbe_82598.c ixgbe_82599.c ixgbe_x540.c ixgbe_x550.c
-CFLAGS+= -I${SRCTOP}/sys/dev/ixgbe -DSMP
+CFLAGS+= -I${SRCTOP}/sys/dev/ixgbe
 
 .include <bsd.kmod.mk>
