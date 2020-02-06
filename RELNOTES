@@ -16,6 +16,9 @@ r357560-r357565:
 	default.  Notably, environment variables for all cron jobs and rc
 	services can now be set via login.conf(5).
 
+r357455:
+	sparc64 has been removed from FreeBSD.
+
 r355677:
 	Adds support for NFSv4.2 (RFC-7862) and Extended Attributes
 	(RFC-8276) to the NFS client and server.
@@ -37,6 +40,9 @@ r355677:
 	server.
 	Setting vfs.nfsd.server_max_minorversion4 to 0 or 1 will disable NFSv4.2
 	on the server.
+
+r356263:
+	armv5 support has been removed from FreeBSD.
 
 r354517:
 	iwm(4) now supports most Intel 9260, 9460 and 9560 Wi-Fi devices.
