@@ -96,9 +96,13 @@ static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
  * The sysctlmemlock is used to limit the amount of user memory wired for
  * sysctl requests.  This is implemented by serializing any userland
  * sysctl requests larger than a single page via an exclusive lock.
+ *
+ * The sysctlstringlock is used to protect concurrent access to writable
+ * string nodes in sysctl_handle_string().
  */
 static struct rmlock sysctllock;
 static struct sx __exclusive_cache_line sysctlmemlock;
+static struct sx sysctlstringlock;
 
 #define	SYSCTL_WLOCK()		rm_wlock(&sysctllock)
 #define	SYSCTL_WUNLOCK()	rm_wunlock(&sysctllock)
@@ -170,10 +174,16 @@ sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intmax_t arg2,
 	else
 		SYSCTL_WUNLOCK();
 
-	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
+	/*
+	 * Treat set CTLFLAG_NEEDGIANT and unset CTLFLAG_MPSAFE flags the same,
+	 * untill we're ready to remove all traces of Giant from sysctl(9).
+	 */
+	if ((oid->oid_kind & CTLFLAG_NEEDGIANT) ||
+	    (!(oid->oid_kind & CTLFLAG_MPSAFE)))
 		mtx_lock(&Giant);
 	error = oid->oid_handler(oid, arg1, arg2, req);
-	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
+	if ((oid->oid_kind & CTLFLAG_NEEDGIANT) ||
+	    (!(oid->oid_kind & CTLFLAG_MPSAFE)))
 		mtx_unlock(&Giant);
 
 	KFAIL_POINT_ERROR(_debug_fail_point, sysctl_running, error);
@@ -917,6 +927,7 @@ sysctl_register_all(void *arg)
 	struct sysctl_oid **oidp;
 
 	sx_init(&sysctlmemlock, "sysctl mem");
+	sx_init(&sysctlstringlock, "sysctl string handler");
 	SYSCTL_INIT();
 	SYSCTL_WLOCK();
 	SET_FOREACH(oidp, sysctl_set)
@@ -1632,48 +1643,69 @@ sysctl_handle_64(SYSCTL_HANDLER_ARGS)
 int
 sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 {
+	char *tmparg;
 	size_t outlen;
 	int error = 0, ro_string = 0;
 
 	/*
+	 * If the sysctl isn't writable, microoptimise and treat it as a
+	 * const string.
 	 * A zero-length buffer indicates a fixed size read-only
 	 * string.  In ddb, don't worry about trying to make a malloced
 	 * snapshot.
 	 */
-	if (arg2 == 0 || kdb_active) {
+	if (!(oidp->oid_kind & CTLFLAG_WR) || arg2 == 0 || kdb_active) {
 		arg2 = strlen((char *)arg1) + 1;
 		ro_string = 1;
 	}
 
 	if (req->oldptr != NULL) {
-		char *tmparg;
-
 		if (ro_string) {
 			tmparg = arg1;
+			outlen = strlen(tmparg) + 1;
 		} else {
-			/* try to make a coherent snapshot of the string */
 			tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
+			sx_slock(&sysctlstringlock);
 			memcpy(tmparg, arg1, arg2);
+			sx_sunlock(&sysctlstringlock);
+			outlen = strlen(tmparg) + 1;
 		}
 
-		outlen = strnlen(tmparg, arg2 - 1) + 1;
 		error = SYSCTL_OUT(req, tmparg, outlen);
 
 		if (!ro_string)
 			free(tmparg, M_SYSCTLTMP);
 	} else {
-		outlen = strnlen((char *)arg1, arg2 - 1) + 1;
+		if (!ro_string)
+			sx_slock(&sysctlstringlock);
+		outlen = strlen((char *)arg1) + 1;
+		if (!ro_string)
+			sx_sunlock(&sysctlstringlock);
 		error = SYSCTL_OUT(req, NULL, outlen);
 	}
 	if (error || !req->newptr)
 		return (error);
 
-	if ((req->newlen - req->newidx) >= arg2) {
+	if (req->newlen - req->newidx >= arg2 ||
+	    req->newlen - req->newidx <= 0) {
 		error = EINVAL;
 	} else {
-		arg2 = (req->newlen - req->newidx);
-		error = SYSCTL_IN(req, arg1, arg2);
+		arg2 = req->newlen - req->newidx;
+		tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
+
+		error = copyin((const char *)req->newptr + req->newidx,
+		    tmparg, arg2);
+		if (error) {
+			free(tmparg, M_SYSCTLTMP);
+			return (error);
+		}
+
+		sx_xlock(&sysctlstringlock);
+		memcpy(arg1, tmparg, arg2);
 		((char *)arg1)[arg2] = '\0';
+		sx_xunlock(&sysctlstringlock);
+		free(tmparg, M_SYSCTLTMP);
+		req->newidx += arg2;
 	}
 	return (error);
 }
