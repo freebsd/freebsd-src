@@ -994,6 +994,11 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 		case BIO_FLUSH:
 			nda_nvme_flush(softc, nvmeio);
 			break;
+		default:
+			biofinish(bp, NULL, EOPNOTSUPP);
+			xpt_release_ccb(start_ccb);
+			ndaschedule(periph);
+			return;
 		}
 		start_ccb->ccb_state = NDA_CCB_BUFFER_IO;
 		start_ccb->ccb_bp = bp;

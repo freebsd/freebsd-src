@@ -315,8 +315,10 @@ cfi_disk_strategy(struct bio *bp)
 {
 	struct cfi_disk_softc *sc = bp->bio_disk->d_drv1;
 
-	if (sc == NULL)
-		goto invalid;
+	if (sc == NULL) {
+		biofinish(bp, NULL, EINVAL);
+		return;
+	}
 	if (bp->bio_bcount == 0) {
 		bp->bio_resid = bp->bio_bcount;
 		biodone(bp);
@@ -330,13 +332,11 @@ cfi_disk_strategy(struct bio *bp)
 		bioq_insert_tail(&sc->bioq, bp);
 		mtx_unlock(&sc->qlock);
 		taskqueue_enqueue(sc->tq, &sc->iotask);
-		return;
+		break;
+	default:
+		biofinish(bp, NULL, EOPNOTSUPP);
+		break;
 	}
-	/* fall thru... */
-invalid:
-	bp->bio_flags |= BIO_ERROR;
-	bp->bio_error = EINVAL;
-	biodone(bp);
 }
 
 static int
