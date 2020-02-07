@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2008-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 2008-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,12 +26,13 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: clip_printw.c,v 1.9 2012/11/18 00:39:48 tom Exp $
+ * $Id: clip_printw.c,v 1.16 2019/08/17 21:49:40 tom Exp $
  *
  * demonstrate how to use printw without wrapping.
  */
 
 #include <test.priv.h>
+#include <popup_msg.h>
 
 #ifdef HAVE_VW_PRINTW
 
@@ -55,7 +56,7 @@ typedef struct {
 } STATUS;
 
 static int
-clip_wprintw(WINDOW *win, NCURSES_CONST char *fmt,...)
+clip_wprintw(WINDOW *win, NCURSES_CONST char *fmt, ...)
 {
     int y0, x0, y1, x1, width;
     WINDOW *sub;
@@ -102,10 +103,11 @@ color_params(unsigned state, int *pair)
     };
     /* *INDENT-ON* */
 
-    static bool first = TRUE;
     const char *result = 0;
 
     if (has_colors()) {
+	static bool first = TRUE;
+
 	if (first) {
 	    unsigned n;
 
@@ -132,11 +134,11 @@ video_params(unsigned state, attr_t *attr)
 	attr_t attr;
 	const char *msg;
     } table[] = {
-	{ A_NORMAL,	"normal" },
-	{ A_BOLD,	"bold" },
-	{ A_REVERSE,	"reverse" },
-	{ A_UNDERLINE,	"underline" },
-	{ A_BLINK, 	"blink" },
+	{ WA_NORMAL,	"normal" },
+	{ WA_BOLD,	"bold" },
+	{ WA_REVERSE,	"reverse" },
+	{ WA_UNDERLINE,	"underline" },
+	{ WA_BLINK, 	"blink" },
     };
     /* *INDENT-ON* */
 
@@ -231,7 +233,7 @@ init_status(WINDOW *win, STATUS * sp)
 static void
 show_help(WINDOW *win)
 {
-    static const char *table[] =
+    static const char *msgs[] =
     {
 	"Basic commands:"
 	,"Use h/j/k/l or arrow keys to move the cursor."
@@ -240,21 +242,13 @@ show_help(WINDOW *win)
 	,"Other commands:"
 	,"space toggles through the set of video attributes and colors."
 	,"t     touches (forces repaint) of the current line."
-	,".     calls clip_wprintw at the current position with the given count."
+	,".     calls vw_printw at the current position with the given count."
 	,"=     resets count to zero."
 	,"?     shows this help-window"
-	,""
+	,0
     };
 
-    int y_max, x_max;
-    int row;
-
-    getmaxyx(win, y_max, x_max);
-    for (row = 0; row < (int) SIZEOF(table) && row < y_max; ++row) {
-	MvWPrintw(win, row, 0, "%.*s", x_max, table[row]);
-    }
-    while (wgetch(win) != 'q')
-	beep();
+    popup_msg(win, msgs);
 }
 
 static void
@@ -304,8 +298,8 @@ update_status(WINDOW *win, STATUS * sp)
 	sp->count = 0;
 	show_status(win, sp);
 	break;
-    case '?':
-	do_subwindow(win, sp, show_help);
+    case HELP_KEY_1:
+	show_help(win);
 	break;
     default:
 	if (isdigit(sp->ch)) {
@@ -331,13 +325,13 @@ test_clipping(WINDOW *win)
     do {
 	switch (st.ch) {
 	case '.':		/* change from current position */
-	    (void) wattrset(win, (int) (st.attr | (chtype) COLOR_PAIR(st.pair)));
+	    (void) wattrset(win, AttrArg(COLOR_PAIR(st.pair), st.attr));
 	    if (st.count > 0) {
 		need = (unsigned) st.count + 1;
-		sprintf(fmt, "%%c%%%ds%%c", st.count);
+		_nc_SPRINTF(fmt, _nc_SLIMIT(sizeof(fmt)) "%%c%%%ds%%c", st.count);
 	    } else {
 		need = (unsigned) getmaxx(win) - 1;
-		strcpy(fmt, "%c%s%c");
+		_nc_STRCPY(fmt, "%c%s%c", sizeof(fmt));
 	    }
 	    if ((buffer = typeMalloc(char, need + 1)) != 0) {
 		for (j = 0; j < need; ++j) {

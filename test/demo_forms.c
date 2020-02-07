@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2003-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 2003-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,14 +26,12 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_forms.c,v 1.46 2013/09/28 21:55:54 tom Exp $
+ * $Id: demo_forms.c,v 1.56 2019/08/17 21:49:19 tom Exp $
  *
  * Demonstrate a variety of functions from the form library.
  * Thomas Dickey - 2003/4/26
  */
 /*
-TYPE_ENUM			-
-TYPE_REGEXP			-
 dup_field			-
 field_init			-
 field_just			-
@@ -149,8 +147,8 @@ read_data(const char *filename)
 		    char *value = typeRealloc(char, need, prior);
 		    if (value == 0)
 			failed("realloc");
-		    strcat(value, "\n");
-		    strcat(value, buffer);
+		    _nc_STRCAT(value, "\n", need);
+		    _nc_STRCAT(value, buffer, need);
 		    my_data[more - 1].value = value;
 		} else {
 		    more = 0;
@@ -172,6 +170,7 @@ read_data(const char *filename)
 		failed("expected a colon");
 	    }
 	}
+	fclose(fp);
     } else {
 	failed(filename);
     }
@@ -208,7 +207,7 @@ make_field(const char *label, int frow, int fcol, int rows, int cols)
 	if (d_option) {
 	    if (has_colors()) {
 		set_field_fore(f, (chtype) COLOR_PAIR(2));
-		set_field_back(f, A_UNDERLINE | COLOR_PAIR(3));
+		set_field_back(f, (A_UNDERLINE | (chtype) COLOR_PAIR(3)));
 	    } else {
 		set_field_fore(f, A_BOLD);
 	    }
@@ -226,7 +225,7 @@ make_field(const char *label, int frow, int fcol, int rows, int cols)
 }
 
 static void
-display_form(FORM * f)
+display_form(FORM *f)
 {
     WINDOW *w;
     int rows, cols;
@@ -249,7 +248,7 @@ display_form(FORM * f)
 }
 
 static void
-erase_form(FORM * f)
+erase_form(FORM *f)
 {
     WINDOW *w = form_win(f);
     WINDOW *s = form_sub(f);
@@ -272,7 +271,7 @@ show_insert_mode(bool insert_mode)
 #define O_SELECTABLE (O_ACTIVE | O_VISIBLE)
 
 static FIELD *
-another_field(FORM * form, FIELD * field)
+another_field(FORM *form, FIELD *field)
 {
     FIELD **f = form_fields(form);
     FIELD *result = 0;
@@ -289,7 +288,7 @@ another_field(FORM * form, FIELD * field)
 }
 
 static int
-my_form_driver(FORM * form, int c)
+my_form_driver(FORM *form, int c)
 {
     static bool insert_mode = TRUE;
     FIELD *field;
@@ -336,12 +335,9 @@ my_form_driver(FORM * form, int c)
 }
 
 static void
-show_current_field(WINDOW *win, FORM * form)
+show_current_field(WINDOW *win, FORM *form)
 {
     FIELD *field;
-    FIELDTYPE *type;
-    char *buffer;
-    int nbuf;
     int field_rows, field_cols, field_max;
     int currow, curcol;
 
@@ -356,7 +352,11 @@ show_current_field(WINDOW *win, FORM * form)
     if (data_behind(form))
 	waddstr(win, " behind");
     waddch(win, '\n');
+
     if ((field = current_field(form)) != 0) {
+	FIELDTYPE *type;
+	int nbuf;
+
 	wprintw(win, "Page %d%s, Field %d/%d%s:",
 		form_page(form),
 		new_page(field) ? "*" : "",
@@ -398,13 +398,13 @@ show_current_field(WINDOW *win, FORM * form)
 	}
 
 	waddch(win, ' ');
-	(void) wattrset(win, (int) field_fore(field));
+	(void) wattrset(win, AttrArg(field_fore(field), 0));
 	waddstr(win, "fore");
 	wattroff(win, (int) field_fore(field));
 
 	waddch(win, '/');
 
-	(void) wattrset(win, (int) field_back(field));
+	(void) wattrset(win, AttrArg(field_back(field), 0));
 	waddstr(win, "back");
 	wattroff(win, (int) field_back(field));
 
@@ -412,6 +412,7 @@ show_current_field(WINDOW *win, FORM * form)
 
 	waddstr(win, "\n");
 	for (nbuf = 0; nbuf <= 2; ++nbuf) {
+	    char *buffer;
 	    if ((buffer = field_buffer(field, nbuf)) != 0) {
 		wprintw(win, "buffer %d:", nbuf);
 		(void) wattrset(win, A_REVERSE);
@@ -431,14 +432,14 @@ show_current_field(WINDOW *win, FORM * form)
 static void
 demo_forms(void)
 {
-    WINDOW *w;
     FORM *form;
     FIELD *f[100];		/* will memset to zero */
-    int finished = 0, c;
+    int c;
     unsigned n = 0;
     int pg;
-    WINDOW *also;
     const char *fname;
+    static const char *my_enum[] =
+    {"first", "second", "third", 0};
 
 #ifdef NCURSES_MOUSE_VERSION
     mousemask(ALL_MOUSE_EVENTS, (mmask_t *) 0);
@@ -455,7 +456,8 @@ demo_forms(void)
     memset(f, 0, sizeof(f));
     for (pg = 0; pg < 4; ++pg) {
 	char label[80];
-	sprintf(label, "Sample Form Page %d", pg + 1);
+	_nc_SPRINTF(label, _nc_SLIMIT(sizeof(label))
+		    "Sample Form Page %d", pg + 1);
 	f[n++] = make_label(label, 0, 15);
 	set_new_page(f[n - 1], TRUE);
 
@@ -476,23 +478,30 @@ demo_forms(void)
 	    f[n++] = make_field(fname, 3, 34, 1, 12);
 	    set_field_type(f[n - 1], TYPE_ALPHA, 1);
 	    break;
+
 	case 1:
 	    fname = "Last Name";
 	    f[n++] = make_label(fname, 2, 0);
-	    f[n++] = make_field(fname, 3, 0, 1, 18);
+	    f[n++] = make_field(fname, 3, 0, 1, 12);
 	    set_field_type(f[n - 1], TYPE_ALPHA, 1);
 
 	    fname = "First Name";
-	    f[n++] = make_label(fname, 2, 20);
-	    f[n++] = make_field(fname, 3, 20, 1, 12);
+	    f[n++] = make_label(fname, 2, 14);
+	    f[n++] = make_field(fname, 3, 14, 1, 12);
 	    set_field_type(f[n - 1], TYPE_ALPHA, 1);
 
 	    fname = "MI";
-	    f[n++] = make_label(fname, 2, 34);
-	    f[n++] = make_field(fname, 3, 34, 1, 1);
+	    f[n++] = make_label(fname, 2, 28);
+	    f[n++] = make_field(fname, 3, 28, 1, 1);
 	    set_field_pad(f[n - 1], '?');
 	    set_field_type(f[n - 1], TYPE_ALPHA, 1);
+
+	    fname = "First/Second/Third";
+	    f[n++] = make_label(fname, 2, 32);
+	    f[n++] = make_field(fname, 3, 32, 1, 12);
+	    set_field_type(f[n - 1], TYPE_ENUM, my_enum, 0, 0);
 	    break;
+
 	case 2:
 	    fname = "Host Name";
 	    f[n++] = make_label(fname, 2, 0);
@@ -505,20 +514,24 @@ demo_forms(void)
 	    f[n++] = make_field(fname, 3, 26, 1, 16);
 	    set_field_type(f[n - 1], TYPE_IPV4, 1);
 #endif
-
 	    break;
 
 	case 3:
 	    fname = "Four digits";
 	    f[n++] = make_label(fname, 2, 0);
-	    f[n++] = make_field(fname, 3, 0, 1, 18);
+	    f[n++] = make_field(fname, 3, 0, 1, 10);
 	    set_field_type(f[n - 1], TYPE_INTEGER, 4, 0, 0);
 
 	    fname = "Numeric";
-	    f[n++] = make_label(fname, 2, 20);
-	    f[n++] = make_field(fname, 3, 20, 1, 12);
+	    f[n++] = make_label(fname, 2, 13);
+	    f[n++] = make_field(fname, 3, 13, 1, 12);
 	    set_field_type(f[n - 1], TYPE_NUMERIC, 3, -10000.0, 100000000.0);
 
+	    fname = "Phone number";
+	    f[n++] = make_label(fname, 2, 27);
+	    f[n++] = make_field(fname, 3, 27, 1, 16);
+	    set_field_type(f[n - 1], TYPE_REGEXP,
+			   "^([0-9]-)?[0-9]{3}-[0-9]{3}-[0-9]{4} *$");;
 	    break;
 	}
 
@@ -531,6 +544,9 @@ demo_forms(void)
     f[n] = (FIELD *) 0;
 
     if ((form = new_form(f)) != 0) {
+	WINDOW *w;
+	WINDOW *also;
+	int finished = 0;
 
 	display_form(form);
 
@@ -557,8 +573,7 @@ demo_forms(void)
 	free_form(form);
     }
     for (c = 0; f[c] != 0; c++) {
-	void *ptr = field_userptr(f[c]);
-	free(ptr);
+	free_edit_field(f[c]);
 	free_field(f[c]);
     }
     noraw();

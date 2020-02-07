@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2013,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +33,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: safe_sprintf.c,v 1.27 2013/01/20 01:04:32 tom Exp $")
+MODULE_ID("$Id: safe_sprintf.c,v 1.32 2018/12/15 22:26:38 tom Exp $")
 
 #if USE_SAFE_SPRINTF
 
@@ -41,7 +41,7 @@ typedef enum {
     Flags, Width, Prec, Type, Format
 } PRINTF;
 
-#define VA_INTGR(type) ival = va_arg(ap, type)
+#define VA_INTGR(type) ival = (int) va_arg(ap, type)
 #define VA_FLOAT(type) fval = va_arg(ap, type)
 #define VA_POINT(type) pval = (void *)va_arg(ap, type)
 
@@ -157,9 +157,9 @@ _nc_printf_length(const char *fmt, va_list ap)
 		    case 's':
 			VA_POINT(char *);
 			if (prec < 0)
-			    prec = strlen(pval);
+			    prec = (int) strlen(pval);
 			if (prec > (int) length) {
-			    length = length + prec;
+			    length = length + (size_t) prec;
 			    buffer = typeRealloc(char, length, buffer);
 			    if (buffer == 0) {
 				free(format);
@@ -224,7 +224,7 @@ NCURSES_SP_NAME(_nc_printf_string) (NCURSES_SP_DCLx
 {
     char *result = 0;
 
-    if (fmt != 0) {
+    if (SP_PARM != 0 && fmt != 0) {
 #if USE_SAFE_SPRINTF
 	va_list ap2;
 	int len;
@@ -234,7 +234,7 @@ NCURSES_SP_NAME(_nc_printf_string) (NCURSES_SP_DCLx
 	end_va_copy(ap2);
 
 	if ((int) my_length < len + 1) {
-	    my_length = 2 * (len + 1);
+	    my_length = (size_t) (2 * (len + 1));
 	    my_buffer = typeRealloc(char, my_length, my_buffer);
 	}
 	if (my_buffer != 0) {
@@ -259,9 +259,9 @@ NCURSES_SP_NAME(_nc_printf_string) (NCURSES_SP_DCLx
 
 	if (my_buffer != 0) {
 # if HAVE_VSNPRINTF
-	    vsnprintf(my_buffer, my_length, fmt, ap);	/* GNU extension */
+	    vsnprintf(my_buffer, my_length, fmt, ap);	/* SUSv2, 1997 */
 # else
-	    vsprintf(my_buffer, fmt, ap);	/* ANSI */
+	    vsprintf(my_buffer, fmt, ap);	/* ISO/ANSI C, 1989 */
 # endif
 	    result = my_buffer;
 	}

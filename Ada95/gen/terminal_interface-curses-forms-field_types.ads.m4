@@ -10,7 +10,7 @@ include(M4MACRO)dnl
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2014,2018 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -38,14 +38,14 @@ include(M4MACRO)dnl
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.17 $
+--  $Revision: 1.20 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Interfaces.C;
+with Terminal_Interface.Curses.Aux;
 
 package Terminal_Interface.Curses.Forms.Field_Types is
    pragma Preelaborate (Terminal_Interface.Curses.Forms.Field_Types);
-   use type Interfaces.C.int;
    subtype C_Int is Interfaces.C.int;
 
    --  MANPAGE(`form_fieldtype.3x')
@@ -227,12 +227,12 @@ private
                                Mak : Makearg_Function := Make_Arg'Access;
                                Cop : Copyarg_Function := Copy_Arg'Access;
                                Fre : Freearg_Function := Free_Arg'Access)
-     return C_Int;
+     return Aux.Eti_Error;
    pragma Import (C, Set_Fieldtype_Arg, "set_fieldtype_arg");
 
    function Set_Fieldtype_Choice (Cft : C_Field_Type;
                                   Next, Prev : Choice_Function)
-     return C_Int;
+     return Aux.Eti_Error;
    pragma Import (C, Set_Fieldtype_Choice, "set_fieldtype_choice");
 
 end Terminal_Interface.Curses.Forms.Field_Types;

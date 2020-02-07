@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998 Free Software Foundation, Inc.                        --
+-- Copyright (c) 1998,2003 Free Software Foundation, Inc.                   --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -36,7 +36,7 @@
 --  Author:  Laurent Pautet <pautet@gnat.com>
 --  Modified by:  Juergen Pfeifer, 1997
 --  Version Control
---  $Revision: 1.7 $
+--  $Revision: 1.8 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 --  This package has been contributed by Laurent Pautet <pautet@gnat.com>   --

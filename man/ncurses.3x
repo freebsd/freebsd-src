@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: ncurses.3x,v 1.112 2013/07/20 19:29:59 tom Exp $
+.\" $Id: ncurses.3x,v 1.143 2019/11/30 20:47:07 tom Exp $
 .hy 0
 .TH ncurses 3X ""
 .ie \n(.g .ds `` \(lq
@@ -35,7 +35,22 @@
 .ie \n(.g .ds '' \(rq
 .el       .ds '' ''
 .de bP
-.IP \(bu 4
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.de NS
+.ie n  .sp
+.el    .sp .5
+.ie n  .in +4
+.el    .in +2
+.nf
+.ft C			\" Courier
+..
+.de NE
+.fi
+.ft R
+.ie n  .in -4
+.el    .in -2
 ..
 .ds n 5
 .ds d @TERMINFO@
@@ -82,12 +97,14 @@ manipulation; output to windows and pads; reading terminal input; control over
 terminal and \fBcurses\fR input and output options; environment query
 routines; color manipulation; use of soft label keys; terminfo capabilities;
 and access to low-level terminal-manipulation routines.
+.SS Initialization
 .PP
 The library uses the locale which the calling program has initialized.
 That is normally done with \fBsetlocale\fP:
-.sp
-      \fBsetlocale(LC_ALL, "");\fP
-.sp
+.NS
+\fBsetlocale(LC_ALL, "");\fP
+.NE
+.PP
 If the locale is not initialized,
 the library assumes that characters are printable as in ISO\-8859\-1,
 to work with certain legacy programs.
@@ -98,26 +115,29 @@ The function \fBinitscr\fR or \fBnewterm\fR
 must be called to initialize the library
 before any of the other routines that deal with windows
 and screens are used.
-The routine \fBendwin\fR must be called before exiting.
+The routine \fBendwin\fR(3X) must be called before exiting.
 .PP
 To get character-at-a-time input without echoing (most
 interactive, screen oriented programs want this), the following
 sequence should be used:
-.sp
-      \fBinitscr(); cbreak(); noecho();\fR
-.sp
+.NS
+\fBinitscr(); cbreak(); noecho();\fR
+.NE
+.PP
 Most programs would additionally use the sequence:
-.sp
-      \fBnonl();\fR
-      \fBintrflush(stdscr, FALSE);\fR
-      \fBkeypad(stdscr, TRUE);\fR
-.sp
+.NS
+\fBnonl();\fR
+\fBintrflush(stdscr, FALSE);\fR
+\fBkeypad(stdscr, TRUE);\fR
+.NE
+.PP
 Before a \fBcurses\fR program is run, the tab stops of the terminal
 should be set and its initialization strings, if defined, must be output.
 This can be done by executing the \fB@TPUT@ init\fR command
 after the shell environment variable \fBTERM\fR has been exported.
 \fB@TSET@(1)\fR is usually responsible for doing this.
 [See \fBterminfo\fR(\*n) for further details.]
+.SS Datatypes
 .PP
 The \fBncurses\fR library permits manipulation of data structures,
 called \fIwindows\fR, which can be thought of as two-dimensional
@@ -144,7 +164,7 @@ allowing the user to specify a window.
 The routines not beginning
 with \fBw\fR affect \fBstdscr\fR.
 .PP
-After using routines to manipulate a window, \fBrefresh\fR is called,
+After using routines to manipulate a window, \fBrefresh\fR(3X) is called,
 telling \fBcurses\fR to make the user's CRT screen look like
 \fBstdscr\fR.
 The characters in a window are actually of type
@@ -167,6 +187,7 @@ transmit escape sequences into single values.
 The video attributes, line
 drawing characters, and input values use names, defined in \fB<curses.h>\fR,
 such as \fBA_REVERSE\fR, \fBACS_HLINE\fR, and \fBKEY_LEFT\fR.
+.SS Environment variables
 .PP
 If the environment variables \fBLINES\fR and \fBCOLUMNS\fR are set, or if the
 program is executing in a window environment, line and column information in
@@ -180,19 +201,22 @@ If the environment variable \fBTERMINFO\fR is defined, any program using
 standard place.
 For example, if \fBTERM\fR is set to \fBatt4424\fR, then the
 compiled terminal definition is found in
-.sp
-      \fB\*d/a/att4424\fR.
-.sp
+.NS
+\fB\*d/a/att4424\fR.
+.NE
+.PP
 (The \fBa\fR is copied from the first letter of \fBatt4424\fR to avoid
 creation of huge directories.)  However, if \fBTERMINFO\fR is set to
 \fB$HOME/myterms\fR, \fBcurses\fR first checks
-.sp
-      \fB$HOME/myterms/a/att4424\fR,
-.sp
+.NS
+\fB$HOME/myterms/a/att4424\fR,
+.NE
+.PP
 and if that fails, it then checks
-.sp
-      \fB\*d/a/att4424\fR.
-.sp
+.NS
+\fB\*d/a/att4424\fR.
+.NE
+.PP
 This is useful for developing experimental definitions or when write
 permission in \fB\*d\fR is not available.
 .PP
@@ -240,10 +264,10 @@ Types used for the terminfo routines such as
 This manual page describes functions which may appear in any configuration
 of the library.
 There are two common configurations of the library:
-.RS
+.RS 3
 .TP 5
-ncurses
-the "normal" library, which handles 8-bit characters.
+.I ncurses
+the \*(``normal\*('' library, which handles 8-bit characters.
 The normal (8-bit) library stores characters combined with attributes
 in \fBchtype\fP data.
 .IP
@@ -253,13 +277,14 @@ In either case, the data is stored in something like an integer.
 .IP
 Each cell (row and column) in a \fBWINDOW\fP is stored as a \fBchtype\fP.
 .TP 5
-ncursesw
-the so-called "wide" library, which handles multibyte characters
+.I ncursesw
+the so-called \*(``wide\*('' library, which handles multibyte characters
 (see the section on \fBALTERNATE CONFIGURATIONS\fP).
-The "wide" library includes all of the calls from the "normal" library.
+The \*(``wide\*('' library includes all of the calls
+from the \*(``normal\*('' library.
 It adds about one third more calls using data types which store
 multibyte characters:
-.RS
+.RS 5
 .TP 5
 .B cchar_t
 corresponds to \fBchtype\fP.
@@ -270,9 +295,13 @@ may be more than one character per cell.
 The video attributes and color are stored in separate fields of the structure.
 .IP
 Each cell (row and column) in a \fBWINDOW\fP is stored as a \fBcchar_t\fP.
+.IP
+The \fBsetcchar\fP(3X) and \fBgetcchar\fP(3X)
+functions store and retrieve the data from
+a \fBcchar_t\fP structure.
 .TP 5
 .B wchar_t
-stores a "wide" character.
+stores a \*(``wide\*('' character.
 Like \fBchtype\fP, this may be an integer.
 .TP 5
 .B wint_t
@@ -280,10 +309,10 @@ stores a \fBwchar_t\fP or \fBWEOF\fP \- not the same, though both may have
 the same size.
 .RE
 .IP
-The "wide" library provides new functions which are analogous to
-functions in the "normal" library.
+The \*(``wide\*('' library provides new functions which are analogous to
+functions in the \*(``normal\*('' library.
 There is a naming convention which relates many of the normal/wide variants:
-a "_w" is inserted into the name.
+a \*(``_w\*('' is inserted into the name.
 For example, \fBwaddch\fP becomes \fBwadd_wch\fP.
 .RE
 .PP
@@ -291,7 +320,7 @@ For example, \fBwaddch\fP becomes \fBwadd_wch\fP.
 .SS Routine Name Index
 The following table lists each \fBcurses\fR routine and the name of
 the manual page on which it is described.
-Routines flagged with `*'
+Routines flagged with \*(``*\*(''
 are ncurses-specific, not described by XPG4 or present in SVr4.
 .PP
 .TS
@@ -323,6 +352,7 @@ addnstr/\fBcurs_addstr\fR(3X)
 addnwstr/\fBcurs_addwstr\fR(3X)
 addstr/\fBcurs_addstr\fR(3X)
 addwstr/\fBcurs_addwstr\fR(3X)
+alloc_pair/\fBnew_pair\fR(3X)*
 assume_default_colors/\fBdefault_colors\fR(3X)*
 attr_get/\fBcurs_attr\fR(3X)
 attr_off/\fBcurs_attr\fR(3X)
@@ -372,9 +402,14 @@ endwin/\fBcurs_initscr\fR(3X)
 erase/\fBcurs_clear\fR(3X)
 erasechar/\fBcurs_termattrs\fR(3X)
 erasewchar/\fBcurs_termattrs\fR(3X)
+extended_color_content/\fBcurs_color\fR(3X)*
+extended_pair_content/\fBcurs_color\fR(3X)*
+extended_slk_color/\fBcurs_slk\fR(3X)*
 filter/\fBcurs_util\fR(3X)
+find_pair/\fBnew_pair\fR(3X)*
 flash/\fBcurs_beep\fR(3X)
 flushinp/\fBcurs_util\fR(3X)
+free_pair/\fBnew_pair\fR(3X)*
 get_wch/\fBcurs_get_wch\fR(3X)
 get_wstr/\fBcurs_get_wstr\fR(3X)
 getattrs/\fBcurs_attr\fR(3X)
@@ -417,6 +452,8 @@ inch/\fBcurs_inch\fR(3X)
 inchnstr/\fBcurs_inchstr\fR(3X)
 inchstr/\fBcurs_inchstr\fR(3X)
 init_color/\fBcurs_color\fR(3X)
+init_extended_color/\fBcurs_color\fR(3X)*
+init_extended_pair/\fBcurs_color\fR(3X)*
 init_pair/\fBcurs_color\fR(3X)
 initscr/\fBcurs_initscr\fR(3X)
 innstr/\fBcurs_instr\fR(3X)
@@ -441,7 +478,9 @@ is_leaveok/\fBcurs_opaque\fR(3X)*
 is_linetouched/\fBcurs_touch\fR(3X)
 is_nodelay/\fBcurs_opaque\fR(3X)*
 is_notimeout/\fBcurs_opaque\fR(3X)*
+is_pad/\fBcurs_opaque\fR(3X)*
 is_scrollok/\fBcurs_opaque\fR(3X)*
+is_subwin/\fBcurs_opaque\fR(3X)*
 is_syncok/\fBcurs_opaque\fR(3X)*
 is_term_resized/\fBresizeterm\fR(3X)*
 is_wintouched/\fBcurs_touch\fR(3X)
@@ -574,6 +613,7 @@ refresh/\fBcurs_refresh\fR(3X)
 reset_prog_mode/\fBcurs_kernel\fR(3X)
 reset_shell_mode/\fBcurs_kernel\fR(3X)
 resetty/\fBcurs_kernel\fR(3X)
+resize_term/\fBresizeterm\fR(3X)*
 resizeterm/\fBresizeterm\fR(3X)*
 restartterm/\fBcurs_terminfo\fR(3X)
 ripoffline/\fBcurs_kernel\fR(3X)
@@ -627,6 +667,7 @@ tigetflag/\fBcurs_terminfo\fR(3X)
 tigetnum/\fBcurs_terminfo\fR(3X)
 tigetstr/\fBcurs_terminfo\fR(3X)
 timeout/\fBcurs_inopts\fR(3X)
+tiparm/\fBcurs_terminfo\fR(3X)*
 touchline/\fBcurs_touch\fR(3X)
 touchwin/\fBcurs_touch\fR(3X)
 tparm/\fBcurs_terminfo\fR(3X)
@@ -643,7 +684,7 @@ use_default_colors/\fBdefault_colors\fR(3X)*
 use_env/\fBcurs_util\fR(3X)
 use_extended_names/\fBcurs_extend\fR(3X)*
 use_legacy_coding/\fBlegacy_coding\fR(3X)*
-use_tioctl/\fBcurs_util\fR(3X)
+use_tioctl/\fBcurs_util\fR(3X)*
 vid_attr/\fBcurs_terminfo\fR(3X)
 vid_puts/\fBcurs_terminfo\fR(3X)
 vidattr/\fBcurs_terminfo\fR(3X)
@@ -693,8 +734,11 @@ wget_wch/\fBcurs_get_wch\fR(3X)
 wget_wstr/\fBcurs_get_wstr\fR(3X)
 wgetbkgrnd/\fBcurs_bkgrnd\fR(3X)
 wgetch/\fBcurs_getch\fR(3X)
+wgetdelay/\fBcurs_opaque\fR(3X)*
 wgetn_wstr/\fBcurs_get_wstr\fR(3X)
 wgetnstr/\fBcurs_getstr\fR(3X)
+wgetparent/\fBcurs_opaque\fR(3X)*
+wgetscrreg/\fBcurs_opaque\fR(3X)*
 wgetstr/\fBcurs_getstr\fR(3X)
 whline/\fBcurs_border\fR(3X)
 whline_set/\fBcurs_border_set\fR(3X)
@@ -756,108 +800,109 @@ right-hand side of assignment statements).
 .PP
 Routines that return pointers return \fBNULL\fR on error.
 .SH ENVIRONMENT
+.PP
 The following environment symbols are useful for customizing the
 runtime behavior of the \fBncurses\fR library.
 The most important ones have been already discussed in detail.
-.TP 5
-BAUDRATE
+.SS CC command-character
+.PP
+When set, change occurrences of the command_character
+(i.e., the \fBcmdch\fP capability)
+of the loaded terminfo entries to the value of this variable.
+Very few terminfo entries provide this feature.
+.PP
+Because this name is also used in development environments to represent
+the C compiler's name, \fBncurses\fR ignores it if it does not happen to
+be a single character.
+.SS BAUDRATE
+.PP
 The debugging library checks this environment variable when the application
 has redirected output to a file.
 The variable's numeric value is used for the baudrate.
 If no value is found, \fBncurses\fR uses 9600.
 This allows testers to construct repeatable test-cases
 that take into account costs that depend on baudrate.
-.TP 5
-CC
-When set, change occurrences of the command_character
-(i.e., the \fBcmdch\fP capability)
-of the loaded terminfo entries to the value of this variable.
-Very few terminfo entries provide this feature.
-.IP
-Because this name is also used in development environments to represent
-the C compiler's name, \fBncurses\fR ignores it if it does not happen to
-be a single character.
-.TP 5
-COLUMNS
+.SS COLUMNS
+.PP
 Specify the width of the screen in characters.
 Applications running in a windowing environment usually are able to
 obtain the width of the window in which they are executing.
 If neither the \fBCOLUMNS\fP value nor the terminal's screen size is available,
 \fBncurses\fR uses the size which may be specified in the terminfo database
 (i.e., the \fBcols\fR capability).
-.IP
+.PP
 It is important that your application use a correct size for the screen.
 This is not always possible because your application may be
 running on a host which does not honor NAWS (Negotiations About Window
 Size), or because you are temporarily running as another user.
 However, setting \fBCOLUMNS\fP and/or \fBLINES\fP overrides the library's
 use of the screen size obtained from the operating system.
-.IP
+.PP
 Either \fBCOLUMNS\fP or \fBLINES\fP symbols may be specified independently.
 This is mainly useful to circumvent legacy misfeatures of terminal descriptions,
 e.g., xterm which commonly specifies a 65 line screen.
 For best results, \fBlines\fR and \fBcols\fR should not be specified in
 a terminal description for terminals which are run as emulations.
-.IP
+.PP
 Use the \fBuse_env\fR function to disable all use of external environment
 (but not including system calls) to determine the screen size.
 Use the \fBuse_tioctl\fR function to update \fBCOLUMNS\fP or \fBLINES\fP
 to match the screen size obtained from system calls or the terminal database.
-.TP 5
-ESCDELAY
+.SS ESCDELAY
+.PP
 Specifies the total time, in milliseconds, for which ncurses will
 await a character sequence, e.g., a function key.
 The default value, 1000 milliseconds, is enough for most uses.
 However, it is made a variable to accommodate unusual applications.
-.IP
+.PP
 The most common instance where you may wish to change this value
 is to work with slow hosts, e.g., running on a network.
 If the host cannot read characters rapidly enough, it will have the same
 effect as if the terminal did not send characters rapidly enough.
 The library will still see a timeout.
-.IP
+.PP
 Note that xterm mouse events are built up from character sequences
 received from the xterm.
 If your application makes heavy use of multiple-clicking, you may
 wish to lengthen this default value because the timeout applies
 to the composed multi-click event as well as the individual clicks.
-.IP
+.PP
 In addition to the environment variable,
 this implementation provides a global variable with the same name.
 Portable applications should not rely upon the presence of ESCDELAY
 in either form,
 but setting the environment variable rather than the global variable
 does not create problems when compiling an application.
-.TP 5
-HOME
+.SS HOME
 Tells \fBncurses\fR where your home directory is.
 That is where it may read and write auxiliary terminal descriptions:
-.IP
+.NS
 $HOME/.termcap
-.br
 $HOME/.terminfo
-.TP 5
-LINES
+.NE
+.SS LINES
+.PP
 Like COLUMNS, specify the height of the screen in characters.
 See COLUMNS for a detailed description.
-.TP 5
-MOUSE_BUTTONS_123
+.SS MOUSE_BUTTONS_123
+.PP
 This applies only to the OS/2 EMX port.
 It specifies the order of buttons on the mouse.
 OS/2 numbers a 3-button mouse inconsistently from other
 platforms:
-.sp
+.NS
 1 = left
 .br
 2 = right
 .br
 3 = middle.
-.sp
+.NE
+.PP
 This variable lets you customize the mouse.
 The variable must be three numeric digits 1\-3 in any order, e.g., 123 or 321.
 If it is not specified, \fBncurses\fR uses 132.
-.TP 5
-NCURSES_ASSUMED_COLORS
+.SS NCURSES_ASSUMED_COLORS
+.PP
 Override the compiled-in assumption that the
 terminal's default colors are white-on-black
 (see \fBdefault_colors\fR(3X)).
@@ -867,35 +912,45 @@ For example, to tell ncurses to not assume anything
 about the colors, set this to "\-1,\-1".
 To make it green-on-black, set it to "2,0".
 Any positive value from zero to the terminfo \fBmax_colors\fR value is allowed.
-.TP 5
-NCURSES_GPM_TERMS
+.SS NCURSES_CONSOLE2
+This applies only to the MinGW port of ncurses.
+.PP
+The \fBConsole2\fP program's handling of the Microsoft Console API call
+\fBCreateConsoleScreenBuffer\fP is defective.
+Applications which use this will hang.
+However, it is possible to simulate the action of this call by
+mapping coordinates,
+explicitly saving and restoring the original screen contents.
+Setting the environment variable \fBNCGDB\fP has the same effect.
+.SS NCURSES_GPM_TERMS
+.PP
 This applies only to ncurses configured to use the GPM interface.
-.IP
+.PP
 If present,
 the environment variable is a list of one or more terminal names
-against which the TERM environment variable is matched.
+against which the \fBTERM\fP environment variable is matched.
 Setting it to an empty value disables the GPM interface;
 using the built-in support for xterm, etc.
-.IP
+.PP
 If the environment variable is absent,
-ncurses will attempt to open GPM if TERM contains "linux".
-.TP 5
-NCURSES_NO_HARD_TABS
+ncurses will attempt to open GPM if \fBTERM\fP contains \*(``linux\*(''.
+.SS NCURSES_NO_HARD_TABS
+.PP
 \fBNcurses\fP may use tabs as part of the cursor movement optimization.
 In some cases,
 your terminal driver may not handle these properly.
 Set this environment variable to disable the feature.
 You can also adjust your \fBstty\fP settings to avoid the problem.
-.TP 5
-NCURSES_NO_MAGIC_COOKIES
+.SS NCURSES_NO_MAGIC_COOKIE
+.PP
 Some terminals use a magic-cookie feature which requires special handling
 to make highlighting and other video attributes display properly.
 You can suppress the highlighting entirely for these terminals by
 setting this environment variable.
-.TP 5
-NCURSES_NO_PADDING
+.SS NCURSES_NO_PADDING
+.PP
 Most of the terminal descriptions in the terminfo database are written
-for real "hardware" terminals.
+for real \*(``hardware\*('' terminals.
 Many people use terminal emulators
 which run in a windowing environment and use curses-based applications.
 Terminal emulators can duplicate
@@ -909,29 +964,28 @@ it (or your application) must manage dataflow, preventing overruns.
 The cheapest solution (no hardware cost)
 is for your program to do this by pausing after
 operations that the terminal does slowly, such as clearing the display.
-.IP
+.PP
 As a result, many terminal descriptions (including the vt100)
 have delay times embedded.
 You may wish to use these descriptions,
 but not want to pay the performance penalty.
-.IP
+.PP
 Set the NCURSES_NO_PADDING environment variable to disable all but mandatory
 padding.
 Mandatory padding is used as a part of special control
 sequences such as \fIflash\fR.
-.TP 5
-NCURSES_NO_SETBUF
+.SS NCURSES_NO_SETBUF
 This setting is obsolete.
 Before changes
-.RS
+.RS 3
 .bP
-started with 5.9 patch 20120825 
+started with 5.9 patch 20120825
 and
 .bP
 continued
 though 5.9 patch 20130126
 .RE
-.IP
+.PP
 \fBncurses\fR enabled buffered output during terminal initialization.
 This was done (as in SVr4 curses) for performance reasons.
 For testing purposes, both of \fBncurses\fR and certain applications,
@@ -939,11 +993,11 @@ this feature was made optional.
 Setting the NCURSES_NO_SETBUF variable
 disabled output buffering, leaving the output in the original (usually
 line buffered) mode.
-.IP
+.PP
 In the current implementation,
 ncurses performs its own buffering and does not require this workaround.
 It does not modify the buffering of the standard output.
-.IP
+.PP
 The reason for the change was to make the behavior for interrupts and
 other signals more robust.
 One drawback is that certain nonconventional programs would mix
@@ -953,30 +1007,30 @@ the buffered standard output but its own output (to the same file descriptor).
 As a special case, the low-level calls such as \fBputp\fP still use the
 standard output.
 But high-level curses calls do not.
-.TP 5
-NCURSES_NO_UTF8_ACS
+.SS NCURSES_NO_UTF8_ACS
+.PP
 During initialization, the \fBncurses\fR library
 checks for special cases where VT100 line-drawing (and the corresponding
 alternate character set capabilities) described in the terminfo are known
 to be missing.
 Specifically, when running in a UTF\-8 locale,
 the Linux console emulator and the GNU screen program ignore these.
-Ncurses checks the TERM environment variable for these.
+Ncurses checks the \fBTERM\fP environment variable for these.
 For other special cases, you should set this environment variable.
 Doing this tells ncurses to use Unicode values which correspond to
 the VT100 line-drawing glyphs.
 That works for the special cases cited,
 and is likely to work for terminal emulators.
-.IP
+.PP
 When setting this variable, you should set it to a nonzero value.
 Setting it to zero (or to a nonnumber)
-disables the special check for "linux" and "screen".
-.IP
+disables the special check for \*(``linux\*('' and \*(``screen\*(''.
+.PP
 As an alternative to the environment variable,
 ncurses checks for an extended terminfo capability \fBU8\fP.
 This is a numeric capability which can be compiled using \fB@TIC@\ \-x\fP.
 For example
-.RS 5
+.RS 3
 .ft CW
 .sp
 .nf
@@ -991,94 +1045,157 @@ xterm-utf8|xterm relying on UTF-8 line-graphics,
 .fi
 .ft
 .RE
-.IP
-The name "U8" is chosen to be two characters,
+.PP
+The name \*(``U8\*('' is chosen to be two characters,
 to permit it to be used by applications that use ncurses'
 termcap interface.
-.TP 5
-NCURSES_TRACE
+.SS NCURSES_TRACE
+.PP
 During initialization, the \fBncurses\fR debugging library
 checks the NCURSES_TRACE environment variable.
 If it is defined, to a numeric value, \fBncurses\fR calls the \fBtrace\fR
 function, using that value as the argument.
-.IP
+.PP
 The argument values, which are defined in \fBcurses.h\fR, provide several
 types of information.
 When running with traces enabled, your application will write the
 file \fBtrace\fR to the current directory.
-.TP 5
-TERM
+.PP
+See \fBcurs_trace\fP(3X) for more information.
+.SS TERM
+.PP
 Denotes your terminal type.
 Each terminal type is distinct, though many are similar.
-.TP 5
-TERMCAP
+.PP
+\fBTERM\fP is commonly set by terminal emulators to help
+applications find a workable terminal description.
+Some of those choose a popular approximation, e.g.,
+\*(``ansi\*('', \*(``vt100\*('', \*(``xterm\*('' rather than an exact fit.
+Not infrequently, your application will have problems with that approach,
+e.g., incorrect function-key definitions.
+.PP
+If you set \fBTERM\fP in your environment,
+it has no effect on the operation of the terminal emulator.
+It only affects the way applications work within the terminal.
+Likewise, as a general rule (\fBxterm\fP being a rare exception),
+terminal emulators which allow you to
+specify \fBTERM\fP as a parameter or configuration value do
+not change their behavior to match that setting.
+.SS TERMCAP
 If the \fBncurses\fR library has been configured with \fItermcap\fR
 support, \fBncurses\fR will check for a terminal's description in
 termcap form if it is not available in the terminfo database.
-.IP
-The TERMCAP environment variable contains either a terminal description (with
-newlines stripped out),
+.PP
+The \fBTERMCAP\fP environment variable contains
+either a terminal description (with newlines stripped out),
 or a file name telling where the information denoted by
-the TERM environment variable exists.
+the \fBTERM\fP environment variable exists.
 In either case, setting it directs \fBncurses\fR to ignore
 the usual place for this information, e.g., /etc/termcap.
-.TP 5
-TERMINFO
-Overrides the directory in which \fBncurses\fR searches for your terminal
+.SS TERMINFO
+.PP
+\fBncurses\fP can be configured to read from multiple terminal databases.
+The \fBTERMINFO\fP variable overrides the location for
+the default terminal database.
+Terminal descriptions (in terminal format) are stored in terminal databases:
+.bP
+Normally these are stored in a directory tree,
+using subdirectories named by the first letter of the terminal names therein.
+.IP
+This is the scheme used in System V, which legacy Unix systems use,
+and the \fBTERMINFO\fP variable is used by \fIcurses\fP applications on those
+systems to override the default location of the terminal database.
+.bP
+If \fBncurses\fP is built to use hashed databases,
+then each entry in this list may be the path of a hashed database file, e.g.,
+.NS
+/usr/share/terminfo.db
+.NE
+.IP
+rather than
+.NS
+/usr/share/terminfo/
+.NE
+.IP
+The hashed database uses less disk-space and is a little faster than the
+directory tree.
+However,
+some applications assume the existence of the directory tree,
+reading it directly
+rather than using the terminfo library calls.
+.bP
+If \fBncurses\fP is built with a support for reading termcap files
+directly, then an entry in this list may be the path of a termcap file.
+.bP
+If the \fBTERMINFO\fP variable begins with
+\*(``hex:\*('' or \*(``b64:\*('',
+\fBncurses\fP uses the remainder of that variable as a compiled terminal
 description.
-This is the simplest, but not the only way to change the list of directories.
-The complete list of directories in order follows:
-.RS
+You might produce the base64 format using \fBinfocmp\fP(1M):
+.NS
+TERMINFO="$(infocmp -0 -Q2 -q)"
+export TERMINFO
+.NE
+.IP
+The compiled description is used if it corresponds to the terminal identified
+by the \fBTERM\fP variable.
+.PP
+Setting \fBTERMINFO\fP is the simplest,
+but not the only way to set location of the default terminal database.
+The complete list of database locations in order follows:
+.RS 3
 .bP
-the last directory to which \fBncurses\fR wrote, if any, is searched first
+the last terminal database to which \fBncurses\fR wrote,
+if any, is searched first
 .bP
-the directory specified by the TERMINFO environment variable
+the location specified by the TERMINFO environment variable
 .bP
 $HOME/.terminfo
 .bP
-directories listed in the TERMINFO_DIRS environment variable
+locations listed in the TERMINFO_DIRS environment variable
 .bP
-one or more directories whose names are configured and compiled into the
+one or more locations whose names are configured and compiled into the
 ncurses library, i.e.,
-.RS
+.RS 3
 .bP
 @TERMINFO_DIRS@ (corresponding to the TERMINFO_DIRS variable)
 .bP
 @TERMINFO@ (corresponding to the TERMINFO variable)
 .RE
 .RE
-.TP 5
-TERMINFO_DIRS
-Specifies a list of directories to search for terminal descriptions.
+.PP
+.SS TERMINFO_DIRS
+.PP
+Specifies a list of locations to search for terminal descriptions.
+Each location in the list is a terminal database as described in
+the section on the \fBTERMINFO\fP variable.
 The list is separated by colons (i.e., ":") on Unix, semicolons on OS/2 EMX.
-.IP
-All of the terminal descriptions are in terminfo form.
-Normally these are stored in a directory tree,
-using subdirectories named by the first letter of the terminal names therein.
-.IP
-If \fBncurses\fP is built with a hashed database,
-then each entry in this list can also be the path of the corresponding
-database file.
-.IP
-If \fBncurses\fP is built with a support for reading termcap files
-directly, then an entry in this list may be the path of a termcap file.
-.TP 5
-TERMPATH
-If TERMCAP does not hold a file name then \fBncurses\fR checks
-the TERMPATH environment variable.
+.PP
+There is no corresponding feature in System V terminfo;
+it is an extension developed for \fBncurses\fP.
+.SS TERMPATH
+.PP
+If \fBTERMCAP\fP does not hold a file name then \fBncurses\fR checks
+the \fBTERMPATH\fP environment variable.
 This is a list of filenames separated by spaces or colons (i.e., ":") on Unix,
 semicolons on OS/2 EMX.
-.IP
-If the TERMPATH environment variable is not set,
+.PP
+If the \fBTERMPATH\fP environment variable is not set,
 \fBncurses\fR looks in the files
-/etc/termcap, /usr/share/misc/termcap and $HOME/.termcap, in that order.
+.NS
+/etc/termcap, /usr/share/misc/termcap and $HOME/.termcap,
+.NE
+.PP
+in that order.
 .PP
 The library may be configured to disregard the following variables when the
 current user is the superuser (root), or if the application uses setuid or
 setgid permissions:
-.IP
+.NS
 $TERMINFO, $TERMINFO_DIRS, $TERMPATH, as well as $HOME.
+.NE
 .SH ALTERNATE CONFIGURATIONS
+.PP
 Several different configurations are possible,
 depending on the configure script options used when building \fBncurses\fP.
 There are a few main options whose effects are visible to the applications
@@ -1086,19 +1203,17 @@ developer using \fBncurses\fP:
 .TP 5
 \-\-disable\-overwrite
 The standard include for \fBncurses\fP is as noted in \fBSYNOPSIS\fP:
-.RS
-.sp
+.NS
 \fB#include <curses.h>\fR
-.RE
+.NE
 .IP
 This option is used to avoid filename conflicts when \fBncurses\fP
 is not the main implementation of curses of the computer.
 If \fBncurses\fP is installed disabling overwrite, it puts its headers in
 a subdirectory, e.g.,
-.RS
-.sp
+.NS
 \fB#include <ncurses/curses.h>\fR
-.RE
+.NE
 .IP
 It also omits a symbolic link which would allow you to use \fB\-lcurses\fP
 to build executables.
@@ -1107,29 +1222,59 @@ to build executables.
 The configure script renames the library and
 (if the \fB\-\-disable\-overwrite\fP option is used)
 puts the header files in a different subdirectory.
-All of the library names have a "w" appended to them,
+All of the library names have a \*(``w\*('' appended to them,
 i.e., instead of
-.RS
-.sp
+.NS
 \fB\-lncurses\fR
-.RE
+.NE
 .IP
 you link with
-.RS
-.sp
+.NS
 \fB\-lncursesw\fR
+.NE
+.IP
+You must also enable the wide-character features in the header file
+when compiling for the wide-character library
+to use the extended (wide-character) functions.
+The symbol which enables these features has changed since XSI Curses, Issue 4:
+.RS
+.bP
+Originally, the wide-character feature required the symbol
+\fB_XOPEN_SOURCE_EXTENDED\fP
+but that was only valid for XPG4 (1996).
+.bP
+Later, that was deemed conflicting with \fB_XOPEN_SOURCE\fP defined to 500.
+.bP
+As of mid-2018,
+none of the features in this implementation require a \fB_XOPEN_SOURCE\fP
+feature greater than 600.
+However, X/Open Curses, Issue 7 (2009) recommends defining it to 700.
+.bP
+Alternatively, you can enable the feature by defining \fBNCURSES_WIDECHAR\fP
+with the caveat that some other header file than \fBcurses.h\fP
+may require a specific value for \fB_XOPEN_SOURCE\fP
+(or a system-specific symbol).
 .RE
 .IP
-You must also define \fB_XOPEN_SOURCE_EXTENDED\fP when compiling for the
-wide-character library to use the extended (wide-character) functions.
 The \fBcurses.h\fP file which is installed for the wide-character
 library is designed to be compatible with the normal library's header.
 Only the size of the \fBWINDOW\fP structure differs, and very few
 applications require more than a pointer to \fBWINDOW\fPs.
+.IP
 If the headers are installed allowing overwrite,
 the wide-character library's headers should be installed last,
 to allow applications to be built using either library
 from the same set of headers.
+.TP 5
+\-\-with\-pthread
+The configure script renames the library.
+All of the library names have a \*(``t\*('' appended to them
+(before any \*(``w\*('' added by \fB\-\-enable\-widec\fP).
+.IP
+The global variables such as \fBLINES\fP are replaced by macros to
+allow read-only access.
+At the same time, setter-functions are provided to set these values.
+Some applications (very few) may require changes to work with this convention.
 .TP 5
 \-\-with\-shared
 .TP
@@ -1140,8 +1285,8 @@ from the same set of headers.
 \-\-with\-profile
 The shared and normal (static) library names differ by their suffixes,
 e.g., \fBlibncurses.so\fP and \fBlibncurses.a\fP.
-The debug and profiling libraries add a "_g" and a "_p" to the root
-names respectively,
+The debug and profiling libraries add a \*(``_g\*(''
+and a \*(``_p\*('' to the root names respectively,
 e.g., \fBlibncurses_g.a\fP and \fBlibncurses_p.a\fP.
 .TP 5
 \-\-with\-trace
@@ -1157,9 +1302,11 @@ directory containing initialization files for the terminal capability database
 terminal capability database
 .SH SEE ALSO
 \fBterminfo\fR(\*n) and related pages whose names begin
-"curs_" for detailed routine descriptions.
+\*(``curs_\*('' for detailed routine descriptions.
 .br
-\fBcurs_variables\fR(3X) 
+\fBcurs_variables\fR(3X)
+.br
+\fBuser_caps\fP(5) for user-defined capabilities
 .SH EXTENSIONS
 The \fBncurses\fR library can be compiled with an option (\fB\-DUSE_GETCAP\fR)
 that falls back to the old-style /etc/termcap file if the terminal setup code
@@ -1177,7 +1324,7 @@ The \fBncurses\fR library includes facilities for responding to window
 resizing events, e.g., when running in an xterm.
 See the \fBresizeterm\fR(3X)
 and \fBwresize\fR(3X) manual pages for details.
-In addition, the library may be configured with a SIGWINCH handler.
+In addition, the library may be configured with a \fBSIGWINCH\fP handler.
 .PP
 The \fBncurses\fR library extends the fixed set of function key capabilities
 of terminals by allowing the application designer to define additional

@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2005,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,9 +35,9 @@
 #include "cursesf.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesf.cc,v 1.22 2011/09/17 22:12:10 tom Exp $")
+MODULE_ID("$Id: cursesf.cc,v 1.23 2019/07/28 19:55:27 tom Exp $")
 
-NCursesFormField::~NCursesFormField ()
+NCursesFormField::~NCursesFormField () THROWS(NCursesException)
 {
   if (field)
     OnError(::free_field (field));
@@ -149,7 +149,7 @@ NCursesForm::InitForm(NCursesFormField* nfields[],
   setDefaultAttributes();
 }
 
-NCursesForm::~NCursesForm()
+NCursesForm::~NCursesForm() THROWS(NCursesException)
 {
   UserHook* hook = reinterpret_cast<UserHook*>(::form_userptr(form));
   delete hook;

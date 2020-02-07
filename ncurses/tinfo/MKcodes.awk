@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2010,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +25,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKcodes.awk,v 1.9 2010/01/23 17:57:43 tom Exp $
+# $Id: MKcodes.awk,v 1.10 2019/03/09 16:43:37 tom Exp $
 function large_item(value) {
 	result = sprintf("%d,", offset);
 	offset = offset + length(value) + 1;
@@ -79,7 +79,9 @@ BEGIN	{
 	}
 
 $1 ~ /^#/		{next;}
+$1 ~ /^(cap|info)alias/	{next;}
 
+$1 == "userdef"		{next;}
 $1 == "SKIPWARN"	{next;}
 
 $3 == "bool"	{

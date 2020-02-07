@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,7 +35,7 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.10 $
+--  $Revision: 1.12 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Unchecked_Deallocation;
@@ -94,21 +94,18 @@ package body Terminal_Interface.Curses.Forms.Field_Types.Enumeration is
       function Set_Fld_Type (F    : Field := Fld;
                              Arg1 : chars_ptr_array;
                              Arg2 : C_Int;
-                             Arg3 : C_Int) return C_Int;
+                             Arg3 : C_Int) return Eti_Error;
       pragma Import (C, Set_Fld_Type, "set_field_type_enum");
 
-      Res : Eti_Error;
    begin
       if Typ.Arr = null then
          raise Form_Exception;
       end if;
-      Res := Set_Fld_Type (Arg1 => Typ.Arr.all,
-                           Arg2 => C_Int (Boolean'Pos (Typ.Case_Sensitive)),
-                           Arg3 => C_Int (Boolean'Pos
-                                          (Typ.Match_Must_Be_Unique)));
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception
+        (Set_Fld_Type
+           (Arg1 => Typ.Arr.all,
+            Arg2 => C_Int (Boolean'Pos (Typ.Case_Sensitive)),
+            Arg3 => C_Int (Boolean'Pos (Typ.Match_Must_Be_Unique))));
       Wrap_Builtin (Fld, Typ, C_Choice_Router);
    end Set_Field_Type;
 

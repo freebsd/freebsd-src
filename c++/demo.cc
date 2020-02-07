@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
  *   Demo code for NCursesMenu and NCursesForm written by
  *   Juergen Pfeifer
  *
- * $Id: demo.cc,v 1.41 2012/02/23 10:41:56 tom Exp $
+ * $Id: demo.cc,v 1.44 2019/07/28 19:55:27 tom Exp $
  */
 
 #include "internal.h"
@@ -43,11 +43,11 @@
 #include "cursesm.h"
 #include "cursesf.h"
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 #undef KEY_EVENT
 #endif
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 extern "C" unsigned int sleep(unsigned int);
 #endif
 
@@ -176,7 +176,7 @@ public:
     : NCursesUserItem<T>(p_name, static_cast<const char*>(0), p_UserData)
   {}
 
-  virtual ~MyAction() {}
+  virtual ~MyAction() THROWS(NCursesException) {}
 
   bool action() {
     SillyDemo a;
@@ -295,7 +295,7 @@ public:
   {
   }
 
-  ~TestForm() {
+  ~TestForm() THROWS(NCursesException) {
     delete mft;
     delete ift;
     delete eft;
@@ -320,7 +320,7 @@ public:
     for(int i=1; i <= S->labels(); i++) {
       char buf[8];
       assert(i < 100);
-      ::_nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf)) "Frm%02d", i);
+      ::_nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf)) "Frm%02d", i % 100);
       (*S)[i] = buf;                                      // Text
       (*S)[i] = Soft_Label_Key_Set::Soft_Label_Key::Left; // Justification
     }
@@ -473,7 +473,7 @@ public:
   {
   }
 
-  ~MyMenu()
+  ~MyMenu() THROWS(NCursesException)
   {
     P->hide();
     delete P;
@@ -540,7 +540,7 @@ void TestApplication::init_labels(Soft_Label_Key_Set& S) const
   for(int i=1; i <= S.labels(); i++) {
     char buf[8];
     assert(i < 100);
-    ::_nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf)) "Key%02d", i);
+    ::_nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf)) "Key%02d", i % 100);
     S[i] = buf;                                      // Text
     S[i] = Soft_Label_Key_Set::Soft_Label_Key::Left; // Justification
   }

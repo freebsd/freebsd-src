@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2012 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2012,2018 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +33,7 @@
 
 #if USE_WIDEC_SUPPORT
 
-#if defined(__MINGW32__)
+#if defined(_WIN32)
 /*
  * MinGW has wide-character functions, but they do not work correctly.
  */
@@ -45,7 +45,7 @@ extern int __MINGW_NOTHROW _nc_mbtowc(wchar_t *pwc, const char *s, size_t n);
 extern int __MINGW_NOTHROW _nc_mblen(const char *, size_t);
 #define mblen(s,n) _nc_mblen(s, n)
 
-#endif /* __MINGW32__ */
+#endif /* _WIN32 */
 
 #if HAVE_MBTOWC && HAVE_MBLEN
 #define reset_mbytes(state) IGNORE_RC(mblen(NULL, 0)), IGNORE_RC(mbtowc(NULL, NULL, 0))

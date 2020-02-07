@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2011,2018 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.11 $
---  $Date: 2011/03/23 00:33:00 $
+--  $Revision: 1.12 $
+--  $Date: 2018/07/07 23:31:55 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 --  Windows and scrolling tester.
@@ -226,14 +226,11 @@ procedure ncurses2.acs_and_scroll is
 
       mypair : pair;
 
-      use Ada.Strings.Fixed;
-
    begin
       Move_Cursor (Line => Lines - 4, Column => 0);
       for n in legend'Range loop
          pos := Ada.Strings.Fixed.Index (Source => legend (n).msg.all,
                                          Pattern => "%s");
-         --  buf := (others => ' ');
          buf := To_Bounded_String (legend (n).msg.all);
          case legend (n).code is
             when 0 => null;

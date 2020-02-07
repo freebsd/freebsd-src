@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,10 +42,7 @@
 
 #include <dump_entry.h>
 
-MODULE_ID("$Id: infocmp.c,v 1.129 2014/02/01 22:11:03 tom Exp $")
-
-#define L_CURL "{"
-#define R_CURL "}"
+MODULE_ID("$Id: infocmp.c,v 1.143 2017/04/05 09:27:51 tom Exp $")
 
 #define MAX_STRING	1024	/* maximum formatted string */
 
@@ -137,6 +134,33 @@ canonical_name(char *ptr, char *buf)
 	*bp = '\0';
 
     return (buf);
+}
+
+static bool
+no_boolean(int value)
+{
+    bool result = (value == ABSENT_BOOLEAN);
+    if (!strcmp(s_absent, s_cancel))
+	result = !VALID_BOOLEAN(value);
+    return result;
+}
+
+static bool
+no_numeric(int value)
+{
+    bool result = (value == ABSENT_NUMERIC);
+    if (!strcmp(s_absent, s_cancel))
+	result = !VALID_NUMERIC(value);
+    return result;
+}
+
+static bool
+no_string(char *value)
+{
+    bool result = (value == ABSENT_STRING);
+    if (!strcmp(s_absent, s_cancel))
+	result = !VALID_STRING(value);
+    return result;
 }
 
 /***************************************************************************
@@ -271,7 +295,7 @@ useeq(ENTRY * e1, ENTRY * e2)
 }
 
 static bool
-entryeq(TERMTYPE *t1, TERMTYPE *t2)
+entryeq(TERMTYPE2 *t1, TERMTYPE2 *t2)
 /* are two entries equivalent? */
 {
     unsigned i;
@@ -329,7 +353,7 @@ dump_boolean(int val)
 
 static void
 dump_numeric(int val, char *buf)
-/* display the value of a boolean capability */
+/* display the value of a numeric capability */
 {
     switch (val) {
     case ABSENT_NUMERIC:
@@ -437,7 +461,7 @@ compare_predicate(PredType type, PredIdx idx, const char *name)
 	switch (compare) {
 	case C_DIFFERENCE:
 	    b2 = next_entry->Booleans[idx];
-	    if (!(b1 == ABSENT_BOOLEAN && b2 == ABSENT_BOOLEAN) && b1 != b2)
+	    if (!(no_boolean(b1) && no_boolean(b2)) && (b1 != b2))
 		(void) printf("\t%s: %s%s%s.\n",
 			      name,
 			      dump_boolean(b1),
@@ -485,7 +509,7 @@ compare_predicate(PredType type, PredIdx idx, const char *name)
 	switch (compare) {
 	case C_DIFFERENCE:
 	    n2 = next_entry->Numbers[idx];
-	    if (!((n1 == ABSENT_NUMERIC && n2 == ABSENT_NUMERIC)) && n1 != n2) {
+	    if (!(no_numeric(n1) && no_numeric(n2)) && n1 != n2) {
 		dump_numeric(n1, buf1);
 		dump_numeric(n2, buf2);
 		(void) printf("\t%s: %s, %s.\n", name, buf1, buf2);
@@ -533,7 +557,7 @@ compare_predicate(PredType type, PredIdx idx, const char *name)
 	switch (compare) {
 	case C_DIFFERENCE:
 	    s2 = next_entry->Strings[idx];
-	    if (capcmp(idx, s1, s2)) {
+	    if (!(no_string(s1) && no_string(s2)) && capcmp(idx, s1, s2)) {
 		dump_string(s1, buf1);
 		dump_string(s2, buf2);
 		if (strcmp(buf1, buf2))
@@ -631,98 +655,103 @@ compare_predicate(PredType type, PredIdx idx, const char *name)
  *
  ***************************************************************************/
 
+#define DATA(from, to) { { from }, { to } }
+#define DATAX()        DATA("", "")
+
 typedef struct {
-    const char *from;
-    const char *to;
+    const char from[4];
+    const char to[12];
 } assoc;
 
 static const assoc std_caps[] =
 {
     /* these are specified by X.364 and iBCS2 */
-    {"\033c", "RIS"},		/* full reset */
-    {"\0337", "SC"},		/* save cursor */
-    {"\0338", "RC"},		/* restore cursor */
-    {"\033[r", "RSR"},		/* not an X.364 mnemonic */
-    {"\033[m", "SGR0"},		/* not an X.364 mnemonic */
-    {"\033[2J", "ED2"},		/* clear page */
+    DATA("\033c", "RIS"),	/* full reset */
+    DATA("\0337", "SC"),	/* save cursor */
+    DATA("\0338", "RC"),	/* restore cursor */
+    DATA("\033[r", "RSR"),	/* not an X.364 mnemonic */
+    DATA("\033[m", "SGR0"),	/* not an X.364 mnemonic */
+    DATA("\033[2J", "ED2"),	/* clear page */
 
     /* this group is specified by ISO 2022 */
-    {"\033(0", "ISO DEC G0"},	/* enable DEC graphics for G0 */
-    {"\033(A", "ISO UK G0"},	/* enable UK chars for G0 */
-    {"\033(B", "ISO US G0"},	/* enable US chars for G0 */
-    {"\033)0", "ISO DEC G1"},	/* enable DEC graphics for G1 */
-    {"\033)A", "ISO UK G1"},	/* enable UK chars for G1 */
-    {"\033)B", "ISO US G1"},	/* enable US chars for G1 */
+    DATA("\033(0", "ISO DEC G0"),	/* enable DEC graphics for G0 */
+    DATA("\033(A", "ISO UK G0"),	/* enable UK chars for G0 */
+    DATA("\033(B", "ISO US G0"),	/* enable US chars for G0 */
+    DATA("\033)0", "ISO DEC G1"),	/* enable DEC graphics for G1 */
+    DATA("\033)A", "ISO UK G1"),	/* enable UK chars for G1 */
+    DATA("\033)B", "ISO US G1"),	/* enable US chars for G1 */
 
     /* these are DEC private controls widely supported by emulators */
-    {"\033=", "DECPAM"},	/* application keypad mode */
-    {"\033>", "DECPNM"},	/* normal keypad mode */
-    {"\033<", "DECANSI"},	/* enter ANSI mode */
-    {"\033[!p", "DECSTR"},	/* soft reset */
-    {"\033 F", "S7C1T"},	/* 7-bit controls */
+    DATA("\033=", "DECPAM"),	/* application keypad mode */
+    DATA("\033>", "DECPNM"),	/* normal keypad mode */
+    DATA("\033<", "DECANSI"),	/* enter ANSI mode */
+    DATA("\033[!p", "DECSTR"),	/* soft reset */
+    DATA("\033 F", "S7C1T"),	/* 7-bit controls */
 
-    {(char *) 0, (char *) 0}
+    DATAX()
 };
 
 static const assoc std_modes[] =
 /* ECMA \E[ ... [hl] modes recognized by many emulators */
 {
-    {"2", "AM"},		/* keyboard action mode */
-    {"4", "IRM"},		/* insert/replace mode */
-    {"12", "SRM"},		/* send/receive mode */
-    {"20", "LNM"},		/* linefeed mode */
-    {(char *) 0, (char *) 0}
+    DATA("2", "AM"),		/* keyboard action mode */
+    DATA("4", "IRM"),		/* insert/replace mode */
+    DATA("12", "SRM"),		/* send/receive mode */
+    DATA("20", "LNM"),		/* linefeed mode */
+    DATAX()
 };
 
 static const assoc private_modes[] =
 /* DEC \E[ ... [hl] modes recognized by many emulators */
 {
-    {"1", "CKM"},		/* application cursor keys */
-    {"2", "ANM"},		/* set VT52 mode */
-    {"3", "COLM"},		/* 132-column mode */
-    {"4", "SCLM"},		/* smooth scroll */
-    {"5", "SCNM"},		/* reverse video mode */
-    {"6", "OM"},		/* origin mode */
-    {"7", "AWM"},		/* wraparound mode */
-    {"8", "ARM"},		/* auto-repeat mode */
-    {(char *) 0, (char *) 0}
+    DATA("1", "CKM"),		/* application cursor keys */
+    DATA("2", "ANM"),		/* set VT52 mode */
+    DATA("3", "COLM"),		/* 132-column mode */
+    DATA("4", "SCLM"),		/* smooth scroll */
+    DATA("5", "SCNM"),		/* reverse video mode */
+    DATA("6", "OM"),		/* origin mode */
+    DATA("7", "AWM"),		/* wraparound mode */
+    DATA("8", "ARM"),		/* auto-repeat mode */
+    DATAX()
 };
 
 static const assoc ecma_highlights[] =
 /* recognize ECMA attribute sequences */
 {
-    {"0", "NORMAL"},		/* normal */
-    {"1", "+BOLD"},		/* bold on */
-    {"2", "+DIM"},		/* dim on */
-    {"3", "+ITALIC"},		/* italic on */
-    {"4", "+UNDERLINE"},	/* underline on */
-    {"5", "+BLINK"},		/* blink on */
-    {"6", "+FASTBLINK"},	/* fastblink on */
-    {"7", "+REVERSE"},		/* reverse on */
-    {"8", "+INVISIBLE"},	/* invisible on */
-    {"9", "+DELETED"},		/* deleted on */
-    {"10", "MAIN-FONT"},	/* select primary font */
-    {"11", "ALT-FONT-1"},	/* select alternate font 1 */
-    {"12", "ALT-FONT-2"},	/* select alternate font 2 */
-    {"13", "ALT-FONT-3"},	/* select alternate font 3 */
-    {"14", "ALT-FONT-4"},	/* select alternate font 4 */
-    {"15", "ALT-FONT-5"},	/* select alternate font 5 */
-    {"16", "ALT-FONT-6"},	/* select alternate font 6 */
-    {"17", "ALT-FONT-7"},	/* select alternate font 7 */
-    {"18", "ALT-FONT-1"},	/* select alternate font 1 */
-    {"19", "ALT-FONT-1"},	/* select alternate font 1 */
-    {"20", "FRAKTUR"},		/* Fraktur font */
-    {"21", "DOUBLEUNDER"},	/* double underline */
-    {"22", "-DIM"},		/* dim off */
-    {"23", "-ITALIC"},		/* italic off */
-    {"24", "-UNDERLINE"},	/* underline off */
-    {"25", "-BLINK"},		/* blink off */
-    {"26", "-FASTBLINK"},	/* fastblink off */
-    {"27", "-REVERSE"},		/* reverse off */
-    {"28", "-INVISIBLE"},	/* invisible off */
-    {"29", "-DELETED"},		/* deleted off */
-    {(char *) 0, (char *) 0}
+    DATA("0", "NORMAL"),	/* normal */
+    DATA("1", "+BOLD"),		/* bold on */
+    DATA("2", "+DIM"),		/* dim on */
+    DATA("3", "+ITALIC"),	/* italic on */
+    DATA("4", "+UNDERLINE"),	/* underline on */
+    DATA("5", "+BLINK"),	/* blink on */
+    DATA("6", "+FASTBLINK"),	/* fastblink on */
+    DATA("7", "+REVERSE"),	/* reverse on */
+    DATA("8", "+INVISIBLE"),	/* invisible on */
+    DATA("9", "+DELETED"),	/* deleted on */
+    DATA("10", "MAIN-FONT"),	/* select primary font */
+    DATA("11", "ALT-FONT-1"),	/* select alternate font 1 */
+    DATA("12", "ALT-FONT-2"),	/* select alternate font 2 */
+    DATA("13", "ALT-FONT-3"),	/* select alternate font 3 */
+    DATA("14", "ALT-FONT-4"),	/* select alternate font 4 */
+    DATA("15", "ALT-FONT-5"),	/* select alternate font 5 */
+    DATA("16", "ALT-FONT-6"),	/* select alternate font 6 */
+    DATA("17", "ALT-FONT-7"),	/* select alternate font 7 */
+    DATA("18", "ALT-FONT-1"),	/* select alternate font 1 */
+    DATA("19", "ALT-FONT-1"),	/* select alternate font 1 */
+    DATA("20", "FRAKTUR"),	/* Fraktur font */
+    DATA("21", "DOUBLEUNDER"),	/* double underline */
+    DATA("22", "-DIM"),		/* dim off */
+    DATA("23", "-ITALIC"),	/* italic off */
+    DATA("24", "-UNDERLINE"),	/* underline off */
+    DATA("25", "-BLINK"),	/* blink off */
+    DATA("26", "-FASTBLINK"),	/* fastblink off */
+    DATA("27", "-REVERSE"),	/* reverse off */
+    DATA("28", "-INVISIBLE"),	/* invisible off */
+    DATA("29", "-DELETED"),	/* deleted off */
+    DATAX()
 };
+
+#undef DATA
 
 static int
 skip_csi(const char *cap)
@@ -757,7 +786,7 @@ lookup_params(const assoc * table, char *dst, char *src)
 	do {
 	    bool found = FALSE;
 
-	    for (ap = table; ap->from; ap++) {
+	    for (ap = table; ap->from[0]; ap++) {
 		size_t tlen = strlen(ap->from);
 
 		if (same_param(ap->from, ep, tlen)) {
@@ -781,7 +810,7 @@ lookup_params(const assoc * table, char *dst, char *src)
 }
 
 static void
-analyze_string(const char *name, const char *cap, TERMTYPE *tp)
+analyze_string(const char *name, const char *cap, TERMTYPE2 *tp)
 {
     char buf2[MAX_TERMINFO_LENGTH];
     const char *sp;
@@ -812,7 +841,7 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 		cp[0] != '\0' &&
 		cp != cap) {
 		len = strlen(cp);
-		(void) strncpy(buf2, sp, len);
+		_nc_STRNCPY(buf2, sp, len);
 		buf2[len] = '\0';
 
 		if (_nc_capcmp(cp, buf2))
@@ -839,7 +868,7 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 	/* now check the standard capabilities */
 	if (!expansion) {
 	    csi = skip_csi(sp);
-	    for (ap = std_caps; ap->from; ap++) {
+	    for (ap = std_caps; ap->from[0]; ap++) {
 		size_t adj = (size_t) (csi ? 2 : 0);
 
 		len = strlen(ap->from);
@@ -868,7 +897,7 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 			? "ECMA+"
 			: "ECMA-"),
 		       sizeof(buf2));
-	    (void) strncpy(buf3, sp + csi, len);
+	    _nc_STRNCPY(buf3, sp + csi, len);
 	    buf3[len] = '\0';
 	    len += (size_t) csi + 1;
 
@@ -889,7 +918,7 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 			? "DEC+"
 			: "DEC-"),
 		       sizeof(buf2));
-	    (void) strncpy(buf3, sp + csi + 1, len);
+	    _nc_STRNCPY(buf3, sp + csi + 1, len);
 	    buf3[len] = '\0';
 	    len += (size_t) csi + 2;
 
@@ -905,7 +934,7 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 	    && sp[next] == 'm') {
 
 	    _nc_STRCPY(buf2, "SGR:", sizeof(buf2));
-	    (void) strncpy(buf3, sp + csi, len);
+	    _nc_STRNCPY(buf3, sp + csi, len);
 	    buf3[len] = '\0';
 	    len += (size_t) csi + 1;
 
@@ -984,7 +1013,8 @@ file_comparison(int argc, char *argv[])
     int i, n;
 
     memset(heads, 0, sizeof(heads));
-    dump_init((char *) 0, F_LITERAL, S_TERMINFO, 0, 65535, itrace, FALSE);
+    dump_init((char *) 0, F_LITERAL, S_TERMINFO,
+	      FALSE, 0, 65535, itrace, FALSE, FALSE, FALSE);
 
     for (n = 0; n < argc && n < MAXCOMPARE; n++) {
 	if (freopen(argv[n], "r", stdin) == 0)
@@ -1155,37 +1185,45 @@ file_comparison(int argc, char *argv[])
 static void
 usage(void)
 {
-    static const char *tbl[] =
+#define DATA(s) s "\n"
+    static const char head[] =
     {
-	"Usage: infocmp [options] [-A directory] [-B directory] [termname...]"
-	,""
-	,"Options:"
-	,"  -0    print single-row"
+	DATA("Usage: infocmp [options] [-A directory] [-B directory] [termname...]")
+	DATA("")
+	DATA("Options:")
+    };
+#undef DATA
+#define DATA(s) s
+    static const char options[][45] =
+    {
+	"  -0    print single-row"
 	,"  -1    print single-column"
-	,"  -K    use termcap-names and BSD syntax"
 	,"  -C    use termcap-names"
+	,"  -D    print database locations"
+	,"  -E    format output as C tables"
 	,"  -F    compare terminfo-files"
+	,"  -G    format %{number} to %'char'"
 	,"  -I    use terminfo-names"
+	,"  -K    use termcap-names and BSD syntax"
 	,"  -L    use long names"
 	,"  -R subset (see manpage)"
 	,"  -T    eliminate size limits (test)"
-	,"  -U    eliminate post-processing of entries"
-	,"  -D    print database locations"
+	,"  -U    do not post-process entries"
 	,"  -V    print version"
+	,"  -W    wrap long strings per -w[n]"
 #if NCURSES_XNAMES
 	,"  -a    with -F, list commented-out caps"
 #endif
 	,"  -c    list common capabilities"
 	,"  -d    list different capabilities"
 	,"  -e    format output for C initializer"
-	,"  -E    format output as C tables"
 	,"  -f    with -1, format complex strings"
-	,"  -G    format %{number} to %'char'"
 	,"  -g    format %'char' to %{number}"
 	,"  -i    analyze initialization/reset"
 	,"  -l    output terminfo names"
 	,"  -n    list capabilities in neither"
 	,"  -p    ignore padding specifiers"
+	,"  -Q number  dump compiled description"
 	,"  -q    brief listing, removes headers"
 	,"  -r    with -C, output in termcap form"
 	,"  -r    with -F, resolve use-references"
@@ -1197,20 +1235,21 @@ usage(void)
 	,"  -v number  (verbose)"
 	,"  -w number  (width)"
 #if NCURSES_XNAMES
-	,"  -x    treat unknown capabilities as user-defined"
+	,"  -x    unknown capabilities are user-defined"
 #endif
     };
-    const size_t first = 3;
-    const size_t last = SIZEOF(tbl);
-    const size_t left = (last - first + 1) / 2 + first;
+#undef DATA
+    const size_t last = SIZEOF(options);
+    const size_t left = (last + 1) / 2;
     size_t n;
 
+    fputs(head, stderr);
     for (n = 0; n < left; n++) {
-	size_t m = (n < first) ? last : n + left - first;
+	size_t m = n + left;
 	if (m < last)
-	    fprintf(stderr, "%-40.40s%s\n", tbl[n], tbl[m]);
+	    fprintf(stderr, "%-40.40s%s\n", options[n], options[m]);
 	else
-	    fprintf(stderr, "%s\n", tbl[n]);
+	    fprintf(stderr, "%s\n", options[n]);
     }
     ExitProgram(EXIT_FAILURE);
 }
@@ -1255,7 +1294,7 @@ string_variable(const char *type)
 
 /* dump C initializers for the terminal type */
 static void
-dump_initializers(TERMTYPE *term)
+dump_initializers(TERMTYPE2 *term)
 {
     unsigned n;
     const char *str = 0;
@@ -1379,7 +1418,7 @@ dump_initializers(TERMTYPE *term)
 
 /* dump C initializers for the terminal type */
 static void
-dump_termtype(TERMTYPE *term)
+dump_termtype(TERMTYPE2 *term)
 {
     (void) printf("\t%s\n\t\t%s,\n", L_CURL, name_initializer("alias"));
     (void) printf("\t\t(char *)0,\t/* pointer to string table */\n");
@@ -1494,6 +1533,8 @@ main(int argc, char *argv[])
     int initdump = 0;
     bool init_analyze = FALSE;
     bool suppress_untranslatable = FALSE;
+    int quickdump = 0;
+    bool wrap_strings = FALSE;
 
     /* where is the terminfo database location going to default to? */
     restdir = firstdir = 0;
@@ -1515,7 +1556,7 @@ main(int argc, char *argv[])
 
     while ((c = getopt(argc,
 		       argv,
-		       "01A:aB:CcDdEeFfGgIiKLlnpqR:rs:TtUuVv:w:x")) != -1) {
+		       "01A:aB:CcDdEeFfGgIiKLlnpQ:qR:rs:TtUuVv:Ww:x")) != -1) {
 	switch (c) {
 	case '0':
 	    mwidth = 65535;
@@ -1616,6 +1657,10 @@ main(int argc, char *argv[])
 	    ignorepads = TRUE;
 	    break;
 
+	case 'Q':
+	    quickdump = optarg_to_number();
+	    break;
+
 	case 'q':
 	    quiet = TRUE;
 	    s_absent = "-";
@@ -1674,6 +1719,10 @@ main(int argc, char *argv[])
 	case 'v':
 	    itrace = (unsigned) optarg_to_number();
 	    set_trace_level(itrace);
+	    break;
+
+	case 'W':
+	    wrap_strings = TRUE;
 	    break;
 
 	case 'w':
@@ -1738,7 +1787,9 @@ main(int argc, char *argv[])
     }
 
     /* set up for display */
-    dump_init(tversion, outform, sortmode, mwidth, mheight, itrace, formatted);
+    dump_init(tversion, outform, sortmode,
+	      wrap_strings, mwidth, mheight, itrace,
+	      formatted, FALSE, quickdump);
 
     if (!filecompare) {
 	/* grab the entries */
@@ -1782,7 +1833,7 @@ main(int argc, char *argv[])
 				   _nc_progname,
 				   tname[termcount]);
 
-		status = _nc_read_entry(tname[termcount],
+		status = _nc_read_entry2(tname[termcount],
 					tfile[termcount],
 					&entries[termcount].tterm);
 	    }
@@ -1824,6 +1875,8 @@ main(int argc, char *argv[])
 	    analyze_string("rs3", reset_3string, &entries[0].tterm);
 	    analyze_string("smcup", enter_ca_mode, &entries[0].tterm);
 	    analyze_string("rmcup", exit_ca_mode, &entries[0].tterm);
+	    analyze_string("smkx", keypad_xmit, &entries[0].tterm);
+	    analyze_string("rmkx", keypad_local, &entries[0].tterm);
 #undef CUR
 	} else {
 
@@ -1837,8 +1890,10 @@ main(int argc, char *argv[])
 				   "%s: about to dump %s\n",
 				   _nc_progname,
 				   tname[0]);
-		(void) printf("#\tReconstructed via infocmp from file: %s\n",
-			      tfile[0]);
+		if (!quiet)
+		    (void)
+			printf("#\tReconstructed via infocmp from file: %s\n",
+			       tfile[0]);
 		dump_entry(&entries[0].tterm,
 			   suppress_untranslatable,
 			   limited,

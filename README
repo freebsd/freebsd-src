@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.               --
+-- Copyright (c) 1998-2012,2018 Free Software Foundation, Inc.               --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: README,v 1.25 2012/08/11 20:11:26 tom Exp $
+-- $Id: README,v 1.27 2018/01/01 15:09:04 tom Exp $
 -------------------------------------------------------------------------------
 		README file for the ncurses package
 
@@ -161,7 +161,7 @@ Thomas Dickey (maintainer for 1.9.9g through 4.1, resuming with FSF's 5.0):
 	bug fixes -- more than half of those enumerated in NEWS beginning with
 	the internal release 1.8.9, see
 
-		http://invisible-island.net/personal/changelogs.html
+		https://invisible-island.net/personal/changelogs.html
 
 Florian La Roche (official maintainer for FSF's ncurses 4.2)
 	Beginning with release 4.2, ncurses is distributed under an MIT-style

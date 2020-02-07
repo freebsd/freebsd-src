@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.21 $
---  $Date: 2011/03/23 00:44:58 $
+--  $Revision: 1.23 $
+--  $Date: 2014/05/24 21:31:05 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with System.Address_To_Access_Conversions;
@@ -53,10 +53,8 @@ package body Terminal_Interface.Curses.Forms.Field_Types.User is
       function Set_Fld_Type (F    : Field := Fld;
                              Cft  : C_Field_Type := C_Generic_Type;
                              Arg1 : Argument_Access)
-                             return C_Int;
+                             return Eti_Error;
       pragma Import (C, Set_Fld_Type, "set_field_type_user");
-
-      Res : Eti_Error;
 
       function Allocate_Arg (T : User_Defined_Field_Type'Class)
                              return Argument_Access
@@ -70,10 +68,7 @@ package body Terminal_Interface.Curses.Forms.Field_Types.User is
       end Allocate_Arg;
 
    begin
-      Res := Set_Fld_Type (Arg1 => Allocate_Arg (Typ));
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Fld_Type (Arg1 => Allocate_Arg (Typ)));
    end Set_Field_Type;
 
    package Argument_Conversions is
@@ -120,9 +115,7 @@ package body Terminal_Interface.Curses.Forms.Field_Types.User is
                                       Make_Arg'Access,
                                       Copy_Arg'Access,
                                       Free_Arg'Access);
-            if Res /= E_Ok then
-               Eti_Exception (Res);
-            end if;
+            Eti_Exception (Res);
          end if;
          M_Generic_Type := T;
       end if;

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 2006-2017,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,10 +30,13 @@
  *  Author: Thomas E. Dickey                        2006                    *
  ****************************************************************************/
 
-/* $Id: nc_tparm.h,v 1.6 2012/02/18 21:34:42 tom Exp $ */
+/* $Id: nc_tparm.h,v 1.9 2018/03/17 19:19:58 tom Exp $ */
 
 #ifndef NC_TPARM_included
 #define NC_TPARM_included 1
+
+#include <ncurses_cfg.h>
+#include <curses.h>
 
 /*
  * Cast parameters past the formatting-string for tparm() to match the
@@ -69,7 +72,6 @@
 #define TPARM_4(a,b,c,d,e) TPARM_5(a,b,c,d,e,0)
 #define TPARM_3(a,b,c,d) TPARM_4(a,b,c,d,0)
 #define TPARM_2(a,b,c) TPARM_3(a,b,c,0)
-#define TPARM_1(a,b) TPARM_2(a,b,0)
 #define TPARM_1(a,b) TPARM_2(a,b,0)
 #define TPARM_0(a) TPARM_1(a,0)
 #endif

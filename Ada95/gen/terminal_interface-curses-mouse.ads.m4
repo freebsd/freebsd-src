@@ -10,7 +10,7 @@ include(M4MACRO)dnl
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2014,2015 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -38,11 +38,10 @@ include(M4MACRO)dnl
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.29 $
---  $Date: 2011/03/19 12:35:58 $
+--  $Revision: 1.32 $
+--  $Date: 2015/05/30 23:19:19 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
-include(`Mouse_Base_Defs')
 with System;
 
 package Terminal_Interface.Curses.Mouse is
@@ -155,7 +154,10 @@ package Terminal_Interface.Curses.Mouse is
    pragma Inline (Mouse_Interval);
 
 private
-   type Event_Mask is new Interfaces.C.unsigned_long;
+   --  This can be as little as 32 bits (unsigned), or as long as the system's
+   --  unsigned long.  Declare it as the minimum size to handle all valid
+   --  sizes.
+   type Event_Mask is mod 4294967296;
 
    type Mouse_Event is
       record
@@ -167,12 +169,35 @@ private
       end record;
    pragma Convention (C, Mouse_Event);
 
-include(`Mouse_Event_Rep')
-   Generation_Bit_Order : constant System.Bit_Order := System.M4_BIT_ORDER;
-   --  This constant may be different on your system.
+   for Mouse_Event use
+      record
+         Id     at 0 range Curses_Constants.MEVENT_id_First
+           .. Curses_Constants.MEVENT_id_Last;
+         X      at 0 range Curses_Constants.MEVENT_x_First
+           .. Curses_Constants.MEVENT_x_Last;
+         Y      at 0 range Curses_Constants.MEVENT_y_First
+           .. Curses_Constants.MEVENT_y_Last;
+         Z      at 0 range Curses_Constants.MEVENT_z_First
+           .. Curses_Constants.MEVENT_z_Last;
+         Bstate at 0 range Curses_Constants.MEVENT_bstate_First
+           .. Curses_Constants.MEVENT_bstate_Last;
+      end record;
+   for Mouse_Event'Size use Curses_Constants.MEVENT_Size;
+   Generation_Bit_Order : System.Bit_Order renames Curses_Constants.Bit_Order;
 
-include(`Mouse_Events')
-   No_Events  : constant Event_Mask := 0;
-   All_Events : constant Event_Mask := ALL_MOUSE_EVENTS;
+   BUTTON_CTRL      : constant Event_Mask := Curses_Constants.BUTTON_CTRL;
+   BUTTON_SHIFT     : constant Event_Mask := Curses_Constants.BUTTON_SHIFT;
+   BUTTON_ALT       : constant Event_Mask := Curses_Constants.BUTTON_ALT;
+   BUTTON1_EVENTS   : constant Event_Mask
+     := Curses_Constants.all_events_button_1;
+   BUTTON2_EVENTS   : constant Event_Mask
+     := Curses_Constants.all_events_button_2;
+   BUTTON3_EVENTS   : constant Event_Mask
+     := Curses_Constants.all_events_button_3;
+   BUTTON4_EVENTS   : constant Event_Mask
+     := Curses_Constants.all_events_button_4;
+   ALL_MOUSE_EVENTS : constant Event_Mask := Curses_Constants.ALL_MOUSE_EVENTS;
+   No_Events        : constant Event_Mask := 0;
+   All_Events       : constant Event_Mask := ALL_MOUSE_EVENTS;
 
 end Terminal_Interface.Curses.Mouse;

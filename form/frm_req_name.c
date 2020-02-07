@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2015 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,72 +37,76 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_req_name.c,v 1.18 2012/07/21 23:17:23 tom Exp $")
+MODULE_ID("$Id: frm_req_name.c,v 1.19 2015/04/04 17:11:46 tom Exp $")
 
-static const char *request_names[MAX_FORM_COMMAND - MIN_FORM_COMMAND + 1] =
+#define DATA(s) { s }
+
+static const char request_names[MAX_FORM_COMMAND - MIN_FORM_COMMAND + 1][13] =
 {
-  "NEXT_PAGE",
-  "PREV_PAGE",
-  "FIRST_PAGE",
-  "LAST_PAGE",
+  DATA("NEXT_PAGE"),
+  DATA("PREV_PAGE"),
+  DATA("FIRST_PAGE"),
+  DATA("LAST_PAGE"),
 
-  "NEXT_FIELD",
-  "PREV_FIELD",
-  "FIRST_FIELD",
-  "LAST_FIELD",
-  "SNEXT_FIELD",
-  "SPREV_FIELD",
-  "SFIRST_FIELD",
-  "SLAST_FIELD",
-  "LEFT_FIELD",
-  "RIGHT_FIELD",
-  "UP_FIELD",
-  "DOWN_FIELD",
+  DATA("NEXT_FIELD"),
+  DATA("PREV_FIELD"),
+  DATA("FIRST_FIELD"),
+  DATA("LAST_FIELD"),
+  DATA("SNEXT_FIELD"),
+  DATA("SPREV_FIELD"),
+  DATA("SFIRST_FIELD"),
+  DATA("SLAST_FIELD"),
+  DATA("LEFT_FIELD"),
+  DATA("RIGHT_FIELD"),
+  DATA("UP_FIELD"),
+  DATA("DOWN_FIELD"),
 
-  "NEXT_CHAR",
-  "PREV_CHAR",
-  "NEXT_LINE",
-  "PREV_LINE",
-  "NEXT_WORD",
-  "PREV_WORD",
-  "BEG_FIELD",
-  "END_FIELD",
-  "BEG_LINE",
-  "END_LINE",
-  "LEFT_CHAR",
-  "RIGHT_CHAR",
-  "UP_CHAR",
-  "DOWN_CHAR",
+  DATA("NEXT_CHAR"),
+  DATA("PREV_CHAR"),
+  DATA("NEXT_LINE"),
+  DATA("PREV_LINE"),
+  DATA("NEXT_WORD"),
+  DATA("PREV_WORD"),
+  DATA("BEG_FIELD"),
+  DATA("END_FIELD"),
+  DATA("BEG_LINE"),
+  DATA("END_LINE"),
+  DATA("LEFT_CHAR"),
+  DATA("RIGHT_CHAR"),
+  DATA("UP_CHAR"),
+  DATA("DOWN_CHAR"),
 
-  "NEW_LINE",
-  "INS_CHAR",
-  "INS_LINE",
-  "DEL_CHAR",
-  "DEL_PREV",
-  "DEL_LINE",
-  "DEL_WORD",
-  "CLR_EOL",
-  "CLR_EOF",
-  "CLR_FIELD",
-  "OVL_MODE",
-  "INS_MODE",
-  "SCR_FLINE",
-  "SCR_BLINE",
-  "SCR_FPAGE",
-  "SCR_BPAGE",
-  "SCR_FHPAGE",
-  "SCR_BHPAGE",
-  "SCR_FCHAR",
-  "SCR_BCHAR",
-  "SCR_HFLINE",
-  "SCR_HBLINE",
-  "SCR_HFHALF",
-  "SCR_HBHALF",
+  DATA("NEW_LINE"),
+  DATA("INS_CHAR"),
+  DATA("INS_LINE"),
+  DATA("DEL_CHAR"),
+  DATA("DEL_PREV"),
+  DATA("DEL_LINE"),
+  DATA("DEL_WORD"),
+  DATA("CLR_EOL"),
+  DATA("CLR_EOF"),
+  DATA("CLR_FIELD"),
+  DATA("OVL_MODE"),
+  DATA("INS_MODE"),
+  DATA("SCR_FLINE"),
+  DATA("SCR_BLINE"),
+  DATA("SCR_FPAGE"),
+  DATA("SCR_BPAGE"),
+  DATA("SCR_FHPAGE"),
+  DATA("SCR_BHPAGE"),
+  DATA("SCR_FCHAR"),
+  DATA("SCR_BCHAR"),
+  DATA("SCR_HFLINE"),
+  DATA("SCR_HBLINE"),
+  DATA("SCR_HFHALF"),
+  DATA("SCR_HBHALF"),
 
-  "VALIDATION",
-  "NEXT_CHOICE",
-  "PREV_CHOICE"
+  DATA("VALIDATION"),
+  DATA("NEXT_CHOICE"),
+  DATA("PREV_CHOICE")
 };
+
+#undef DATA
 
 #define A_SIZE (sizeof(request_names)/sizeof(request_names[0]))
 

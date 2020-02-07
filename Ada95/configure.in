@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 2010-2012,2013 Free Software Foundation, Inc.              *
+dnl Copyright (c) 2010-2019,2020 Free Software Foundation, Inc.              *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,18 +28,24 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey
 dnl
-dnl $Id: configure.in,v 1.49 2013/11/16 20:06:37 tom Exp $
+dnl $Id: configure.in,v 1.74 2020/01/11 23:33:38 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
-dnl See http://invisible-island.net/autoconf/ for additional information.
+dnl For additional information, see
+dnl     https://invisible-island.net/autoconf/
+dnl     https://invisible-island.net/autoconf/my-autoconf.html
 dnl
 dnl ---------------------------------------------------------------------------
-AC_PREREQ(2.52.20030208)
-AC_REVISION($Revision: 1.49 $)
+AC_PREREQ(2.52.20200111)
+AC_REVISION($Revision: 1.74 $)
 AC_INIT(gen/gen.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
+AC_DEFUN([AC_PATH_XTRA],[])dnl ignore dependencies on this
+
 CF_TOP_BUILDDIR
+
+CF_HELP_MESSAGE(General Options:)
 
 CF_WITH_SYSTYPE
 
@@ -53,7 +59,7 @@ CF_CFG_DEFAULTS
 CF_PROG_CC(gnatgcc gcc cc)
 AC_PROG_CPP
 AC_PROG_GCC_TRADITIONAL
-CF_PROG_CC_C_O(CC)
+CF_PROG_CC_C_O(CC,[$CFLAGS $CPPFLAGS])
 
 AC_ARG_PROGRAM
 
@@ -62,12 +68,14 @@ CF_PROG_EGREP
 AC_PROG_INSTALL
 CF_PROG_LN_S
 
+CF_PROG_INSTALL
+CF_INSTALL_OPTS
+
 AC_SYS_LONG_FILE_NAMES
 
 # if we find pkg-config, check if we should install the ".pc" files.
 CF_PKG_CONFIG
 CF_WITH_PKG_CONFIG_LIBDIR
-CF_ENABLE_PC_FILES
 
 AC_MSG_CHECKING(if you want to build test-programs)
 AC_ARG_WITH(tests,
@@ -83,12 +91,12 @@ AC_ARG_ENABLE(mixed-case,
 	[enable_mixedcase=auto])
 AC_MSG_RESULT($enable_mixedcase)
 if test "$enable_mixedcase" = "auto" ; then
-    CF_MIXEDCASE_FILENAMES
+	CF_MIXEDCASE_FILENAMES
 else
-    cf_cv_mixedcase=$enable_mixedcase
-    if test "$enable_mixedcase" = "yes" ; then
-        AC_DEFINE(MIXEDCASE_FILENAMES)
-    fi
+	cf_cv_mixedcase=$enable_mixedcase
+	if test "$enable_mixedcase" = "yes" ; then
+		AC_DEFINE(MIXEDCASE_FILENAMES)
+	fi
 fi
 
 # do this after mixed-case option (tags/TAGS is not as important as tic).
@@ -109,10 +117,10 @@ dnl archive can be built without modifying the host system's configuration.
 AC_MSG_CHECKING(if you have specified an install-prefix)
 AC_ARG_WITH(install-prefix,
 	[  --with-install-prefix   prefixes actual install-location ($DESTDIR)],
-	[case "$withval" in #(vi
-	yes|no) #(vi
+	[case "$withval" in
+	(yes|no)
 		;;
-	*)	DESTDIR="$withval"
+	(*)	DESTDIR="$withval"
 		;;
 	esac])
 AC_MSG_RESULT($DESTDIR)
@@ -175,10 +183,10 @@ AC_SUBST(CC_G_OPT)
 
 AC_MSG_CHECKING(for default loader flags)
 case $DFT_LWR_MODEL in
-normal)  LD_MODEL=''   ;;
-debug)   LD_MODEL=$CC_G_OPT ;;
-profile) LD_MODEL='-pg';;
-shared)  LD_MODEL=''   ;;
+(normal)  LD_MODEL=''   ;;
+(debug)   LD_MODEL=$CC_G_OPT ;;
+(profile) LD_MODEL='-pg';;
+(shared)  LD_MODEL=''   ;;
 esac
 AC_SUBST(LD_MODEL)dnl		the type of link (e.g., -g or -pg)
 AC_MSG_RESULT($LD_MODEL)
@@ -218,8 +226,8 @@ if test "$with_broken_linker" = yes ; then
 	AC_DEFINE(BROKEN_LINKER)
 	BROKEN_LINKER=1
 elif test "$DFT_LWR_MODEL" = shared ; then
-	case $cf_cv_system_name in #(vi
-	cygwin*)
+	case $cf_cv_system_name in
+	(cygwin*)
 		AC_DEFINE(BROKEN_LINKER)
 		BROKEN_LINKER=1
 		CF_VERBOSE(cygwin linker is broken anyway)
@@ -229,7 +237,7 @@ fi
 AC_SUBST(BROKEN_LINKER)
 
 # Check to define _XOPEN_SOURCE "automatically"
-CF_XOPEN_SOURCE
+CF_XOPEN_SOURCE(600)
 
 CF_LARGEFILE
 
@@ -294,27 +302,27 @@ CF_WITH_PTHREAD
 
 AC_MSG_CHECKING(if you want to use weak-symbols for pthreads)
 AC_ARG_ENABLE(weak-symbols,
-    [  --enable-weak-symbols   enable weak-symbols for pthreads],
-    [use_weak_symbols=$withval],
-    [use_weak_symbols=no])
+	[  --enable-weak-symbols   enable weak-symbols for pthreads],
+	[use_weak_symbols=$withval],
+	[use_weak_symbols=no])
 AC_MSG_RESULT($use_weak_symbols)
 if test "$use_weak_symbols" = yes ; then
-    CF_WEAK_SYMBOLS
+	CF_WEAK_SYMBOLS
 else
-    cf_cv_weak_symbols=no
+	cf_cv_weak_symbols=no
 fi
 
 if test $cf_cv_weak_symbols = yes ; then
-    AC_DEFINE(USE_WEAK_SYMBOLS,1,[Define to 1 to enable weak-symbols for pthreads])
+	AC_DEFINE(USE_WEAK_SYMBOLS,1,[Define to 1 to enable weak-symbols for pthreads])
 fi
 
 PTHREAD=
 if test "$with_pthread" = "yes" ; then
-    AC_DEFINE(USE_PTHREADS,1,[Define to 1 to use the pthreads library])
-    enable_reentrant=yes
-    if test $cf_cv_weak_symbols = yes ; then
-        PTHREAD=-lpthread
-    fi
+	AC_DEFINE(USE_PTHREADS,1,[Define to 1 to use the pthreads library])
+	enable_reentrant=yes
+	if test $cf_cv_weak_symbols = yes ; then
+		PTHREAD=-lpthread
+	fi
 fi
 AC_SUBST(PTHREAD)
 
@@ -411,7 +419,7 @@ AC_ARG_ENABLE(macros,
 # extended to all models of the ncurses library:
 cf_all_traces=no
 case "$CFLAGS $CPPFLAGS" in
-*-DTRACE*)
+(*-DTRACE*)
 	cf_all_traces=yes
 	;;
 esac
@@ -432,11 +440,13 @@ fi
 
 AC_SUBST(ADA_TRACE)
 
+CF_DISABLE_GNAT_PROJECTS
+
 ###	Checks for libraries.
-case $cf_cv_system_name in #(vi
-*mingw32*) #(vi
+case $cf_cv_system_name in
+(*mingw32*)
 	;;
-*)
+(*)
 AC_CHECK_FUNC(gettimeofday,
 	AC_DEFINE(HAVE_GETTIMEOFDAY),[
 
@@ -447,6 +457,7 @@ AC_CHECK_LIB(bsd, gettimeofday,
 esac
 
 ###	Checks for header files.
+AC_CHECK_SIZEOF([signed char], 0)
 AC_STDC_HEADERS
 AC_HEADER_DIRENT
 AC_HEADER_TIME
@@ -476,9 +487,10 @@ if test "$cf_with_ada" != "no" ; then
 	if test	"$cf_cv_prog_gnat_correct" = yes; then
 		CF_FIXUP_ADAFLAGS
 
+		CF_GNATPREP_OPT_T
+
 		CF_GNAT_GENERICS
 		CF_GNAT_SIGINT
-		CF_GNAT_PRAGMA_UNREF
 		CF_GNAT_PROJECTS
 
 		CF_WITH_ADA_COMPILER
@@ -489,6 +501,9 @@ if test "$cf_with_ada" != "no" ; then
 		CF_WITH_ADA_INCLUDE
 		CF_WITH_ADA_OBJECTS
 		CF_WITH_ADA_SHAREDLIB
+
+		# allow the Ada binding to be renamed
+		CF_WITH_ADA_LIBNAME(AdaCurses)
 	else
 		AC_MSG_ERROR(No usable Ada compiler found)
 	fi
@@ -527,36 +542,34 @@ AC_MSG_RESULT($DFT_OBJ_SUBDIR)
 ### Set up low-level terminfo dependencies for makefiles.
 
 if test "$DFT_LWR_MODEL" = shared ; then
-	case $cf_cv_system_name in #(vi
-	cygwin*)
+	case $cf_cv_system_name in
+	(cygwin*)
 		# "lib" files have ".dll.a" suffix, "cyg" files have ".dll"
 		;;
-	msys*)
+	(msys*)
 		# "lib" files have ".dll.a" suffix, "msys-" files have ".dll"
 		;;
 	esac
 fi
 
+USE_ARG_SUFFIX=${DFT_ARG_SUFFIX}
+AC_SUBST(USE_ARG_SUFFIX)
+
+USE_LIB_SUFFIX=${DFT_ARG_SUFFIX}
+AC_SUBST(USE_LIB_SUFFIX)
+
+USE_CFG_SUFFIX=${DFT_ARG_SUFFIX}
+AC_SUBST(USE_CFG_SUFFIX)
+
 ### Construct the list of subdirectories for which we'll customize makefiles
 ### with the appropriate compile-rules.
 
-SUB_MAKEFILES="gen/adacurses${DFT_ARG_SUFFIX}-config:gen/adacurses-config.in"
+SUB_MAKEFILES="gen/adacurses${USE_ARG_SUFFIX}-config:gen/adacurses-config.in"
 
 AC_DEFINE_UNQUOTED(NCURSES_PATHSEP,'$PATH_SEPARATOR',[Define to override ':' as the library path-separator])
 
 ### Now that we're done running tests, add the compiler-warnings, if any
 CF_ADD_CFLAGS($EXTRA_CFLAGS)
-
-################################################################################
-
-if test x"$enable_pc_files" = xyes ; then \
-SUB_MAKEFILES="$SUB_MAKEFILES misc/gen-pkgconfig:misc/gen-pkgconfig.in"
-MAKE_PC_FILES=
-else
-MAKE_PC_FILES="#"
-fi
-AC_SUBST(MAKE_PC_FILES)
-AC_SUBST(cross_compiling)
 
 ################################################################################
 
@@ -590,8 +603,17 @@ AC_SUBST(EXTERNAL_TREE)
 ADAHTML_DIR=../doc/ada
 AC_SUBST(ADAHTML_DIR)
 
+if test "x$cross_compiling" = xyes ; then
+	ADAGEN_LDFLAGS='$(CROSS_LDFLAGS)'
+else
+	ADAGEN_LDFLAGS='$(NATIVE_LDFLAGS)'
+fi
+
+AC_SUBST(ADAGEN_LDFLAGS)
+
 AC_OUTPUT( \
 	$SUB_MAKEFILES \
+	src/library.gpr:src/library.gpr.in \
 	doc/adacurses${DFT_ARG_SUFFIX}-config.1:doc/MKada_config.in \
 	Makefile,[
 if test -z "$USE_OLD_MAKERULES" ; then

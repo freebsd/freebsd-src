@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.3 2011/03/19 23:39:59 tom Exp $
+# $Id: Makefile.in,v 1.5 2018/01/15 22:12:59 tom Exp $
 ##############################################################################
-# Copyright (c) 2010,2011 Free Software Foundation, Inc.                     #
+# Copyright (c) 2010-2015,2018 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -39,7 +39,7 @@
 # turn off _all_ suffix rules; we'll generate our own
 .SUFFIXES:
 
-SHELL		= /bin/sh
+SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
@@ -49,7 +49,7 @@ prefix		= @prefix@
 exec_prefix	= @exec_prefix@
 includedir	= @includedir@
 
-INSTALL		= @INSTALL@
+INSTALL		= @INSTALL@ @INSTALL_OPT_O@
 INSTALL_DATA	= @INSTALL_DATA@
 
 AWK		= @AWK@
@@ -68,7 +68,7 @@ install ::	$(AUTO_SRC)
 uninstall ::
 
 ncurses_def.h: $(srcdir)/ncurses_defs $(srcdir)/MKncurses_def.sh
-	AWK=$(AWK) sh $(srcdir)/MKncurses_def.sh $(srcdir)/ncurses_defs >$@
+	AWK=$(AWK) $(SHELL) $(srcdir)/MKncurses_def.sh $(srcdir)/ncurses_defs >$@
 
 tags:
 	ctags *.[ch]

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2010,2011 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 2010-2016,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,30 +26,96 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: MKada_config.in,v 1.5 2011/03/26 14:44:51 tom Exp $
+.\" $Id: MKada_config.in,v 1.11 2019/09/07 20:22:51 tom Exp $
+.ds C adacurses@USE_CFG_SUFFIX@\-config
 .TH ADACURSES "1" "" "" "User Commands"
 .SH NAME
-adacurses\-config \- helper script for AdaCurses libraries
+adacurses@USE_CFG_SUFFIX@\-config \- helper script for @ADA_LIBNAME@ libraries
 .SH SYNOPSIS
-.B adacurses\-config
+.B \*C
 [\fIoptions\fR]
 .SH DESCRIPTION
 This is a shell script which simplifies configuring an application to use
-the AdaCurses library binding to ncurses.
+the @ADA_LIBNAME@ library binding to ncurses.
 .SH OPTIONS
 .TP
 \fB\-\-cflags\fR
-echos the gnat (Ada compiler) flags needed to compile with AdaCurses.
+echos the gnat (Ada compiler) flags needed to compile with @ADA_LIBNAME@.
 .TP
 \fB\-\-libs\fR
-echos the gnat libraries needed to link with AdaCurses.
+echos the gnat libraries needed to link with @ADA_LIBNAME@.
 .TP
 \fB\-\-version\fR
 echos the release+patchdate version of the ncurses libraries used
-to configure and build AdaCurses.
+to configure and build @ADA_LIBNAME@.
 .TP
 \fB\-\-help\fR
-prints a list of the \fBadacurses\-config\fP script's options.
+prints a list of the \fB\*C\fP script's options.
+.PP
+If no options are given, \fB\*C\fP prints the combination
+of 
+\fB\-\-cflags\fR and
+\fB\-\-libs\fR
+that \fBgnatmake\fP expects (see example).
+.SH EXAMPLE
+.PP
+For example, supposing that you want to compile the "Hello World!"
+program for @ADA_LIBNAME@.
+Make a file named "hello.adb":
+.RS
+.nf
+.ft CW
+with Terminal_Interface.Curses; use Terminal_Interface.Curses;
+
+procedure Hello is
+
+   Visibility : Cursor_Visibility := Invisible;
+   done : Boolean := False;
+   c : Key_Code;
+
+begin
+
+   Init_Screen;
+   Set_Echo_Mode (False);
+
+   Set_Cursor_Visibility (Visibility);
+   Set_Timeout_Mode (Standard_Window, Non_Blocking, 0);
+
+   Move_Cursor (Line => Lines / 2, Column => (Columns - 12) / 2);
+   Add (Str => "Hello World!");
+
+   while not done loop
+
+      c := Get_Keystroke (Standard_Window);
+      case c is
+      when Character'Pos ('q') => done := True;
+      when others => null;
+      end case;
+
+      Nap_Milli_Seconds (50);
+   end loop;
+
+   End_Windows;
+
+end Hello;
+.fi
+.RE
+.PP
+Then, using
+.RS
+.ft CW
+gnatmake `adacurses-config --cflags` hello -largs `adacurses-config --libs`
+.ft
+.RE
+.PP
+or (simpler):
+.RS
+.ft CW
+gnatmake hello `adacurses-config`
+.ft
+.RE
+.PP
+you will compile and link the program.
 .SH "SEE ALSO"
 \fBcurses\fR(3X)
 .PP

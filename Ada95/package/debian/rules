@@ -14,7 +14,9 @@ DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 TARGET_DIR = $(CURDIR)/debian/adacurses
 SAMPLE_DIR = $(TARGET_DIR)/usr/bin/AdaCurses
 
-CFLAGS =
+CFLAGS   = $(shell dpkg-buildflags --get CFLAGS) $(CC_NORMAL)
+CPPFLAGS = $(shell dpkg-buildflags --get CPPFLAGS)
+LDFLAGS  = $(shell dpkg-buildflags --get LDFLAGS)
 
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
         CFLAGS += -O0
@@ -30,13 +32,16 @@ configure: configure-stamp
 configure-stamp:
 	dh_testdir
 
-	CFLAGS="$(CFLAGS)" ./configure \
+	CFLAGS="$(CFLAGS)" \
+	CPPFLAGS="$(CPPFLAGS)" \
+	LDFLAGS="$(LDFLAGS)" ./configure \
 		--host=$(DEB_HOST_GNU_TYPE) \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--prefix=/usr \
 		--disable-rpath-link \
 		--with-shared \
-		--with-ada-sharedlib
+		--with-ada-sharedlib \
+		--without-pkg-config
 
 	touch configure-stamp
 
@@ -88,6 +93,7 @@ binary-arch: build install
 	dh_compress
 	dh_fixperms
 	dh_installdeb
+	dh_makeshlibs
 	dh_shlibdeps
 	dh_gencontrol
 	dh_md5sums

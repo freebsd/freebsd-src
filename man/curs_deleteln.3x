@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2010,2018 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_deleteln.3x,v 1.13 2010/12/04 18:36:44 tom Exp $
+.\" $Id: curs_deleteln.3x,v 1.14 2018/07/28 21:34:06 tom Exp $
 .TH curs_deleteln 3X ""
 .SH NAME
 \fBdeleteln\fR,
@@ -53,13 +53,18 @@
 .SH DESCRIPTION
 The \fBdeleteln\fR and \fBwdeleteln\fR routines delete the line under the
 cursor in the window; all lines below the current line are moved up one line.
-The bottom line of the window is cleared.  The cursor position does not change.
+The bottom line of the window is cleared.
+The cursor position does not change.
 .PP
 The \fBinsdelln\fR and \fBwinsdelln\fR routines, for positive \fIn\fR, insert
-\fIn\fR lines into the specified window above the current line.  The \fIn\fR
-bottom lines are lost.  For negative \fIn\fR, delete \fIn\fR lines (starting
-with the one under the cursor), and move the remaining lines up.  The bottom
-\fIn\fR lines are cleared.  The current cursor position remains the same.
+\fIn\fR lines into the specified window above the current line.
+The \fIn\fR
+bottom lines are lost.
+For negative \fIn\fR, delete \fIn\fR lines (starting
+with the one under the cursor), and move the remaining lines up.
+The bottom
+\fIn\fR lines are cleared.
+The current cursor position remains the same.
 .PP
 The \fBinsertln\fR and \fBwinsertln\fR routines insert a blank line above the
 current line and the bottom line is lost.
@@ -72,14 +77,16 @@ X/Open defines no error conditions.
 In this implementation,
 if the window parameter is null, an error is returned.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.  The
+These functions are described in the XSI Curses standard, Issue 4.
+The
 standard specifies that they return \fBERR\fR on failure, but specifies no
 error conditions.
 .SH NOTES
 Note that all but \fBwinsdelln\fR may be macros.
 .PP
 These routines do not require a hardware line delete or insert feature in the
-terminal.  In fact, they will not use hardware line delete/insert unless
+terminal.
+In fact, they will not use hardware line delete/insert unless
 \fBidlok(..., TRUE)\fR has been set on the current window.
 .SH SEE ALSO
 \fBcurses\fR(3X)

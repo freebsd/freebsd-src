@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2014,2018 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.24 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.26 $
+--  $Date: 2018/07/07 23:35:05 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Terminal_Interface.Curses.Aux; use Terminal_Interface.Curses.Aux;
@@ -44,8 +44,6 @@ with Interfaces.C; use Interfaces.C;
 use Interfaces;
 
 package body Terminal_Interface.Curses.Mouse is
-
-   use type System.Bit_Order;
 
    function Has_Mouse return Boolean
    is
@@ -199,7 +197,8 @@ package body Terminal_Interface.Curses.Mouse is
       pragma Import (C, Wenclose, "wenclose");
    begin
       if Wenclose (Win, C_Int (Event.Y), C_Int (Event.X))
-        = Curses_Bool_False then
+        = Curses_Bool_False
+      then
          return False;
       else
          return True;

@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1999-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1999-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,14 +27,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: infotocap.1m,v 1.11 2010/12/04 18:38:55 tom Exp $
+.\" $Id: infotocap.1m,v 1.15 2019/10/12 21:16:00 tom Exp $
 .TH @INFOTOCAP@ 1M ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
 \fB@INFOTOCAP@\fR \- convert a \fIterminfo\fR description into a \fItermcap\fR description
 .SH SYNOPSIS
-\fB@INFOTOCAP@\fR [\fB\-v\fR\fIn\fR \fIwidth\fR]  [\fB\-V\fR] [\fB\-1\fR] [\fB\-w\fR \fIwidth\fR] \fIfile\fR . . .
+\fB@INFOTOCAP@\fR [\fB\-v\fR\fIn\fR \fIwidth\fR]  [\fB\-V\fR] [\fB\-1\fR] [\fB\-w\fR \fIwidth\fR] \fIfile\fR ...
 .SH DESCRIPTION
 \fB@INFOTOCAP@\fR looks in each given text
 \fIfile\fR for \fBterminfo\fR descriptions.
@@ -61,8 +61,10 @@ change the output to \fIwidth\fR characters.
 \*d
 Compiled terminal description database.
 .SH NOTES
-This utility is actually a link to \fI@TIC@\fR, running in \fI\-C\fR mode.
-You can use other \fI@TIC@\fR options such as \fB\-f\fR and  \fB\-x\fR.
+This utility is actually a link to \fB@TIC@\fR, running in \fI\-C\fR mode.
+You can use other \fB@TIC@\fR options such as \fB\-f\fR and  \fB\-x\fR.
+.SH PORTABILITY
+None of X/Open Curses, Issue 7 (2009), SVr4 or NetBSD document this application.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fB@TIC@\fR(1M),

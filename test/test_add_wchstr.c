@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2010-2011,2012 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2009-2016,2017 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_add_wchstr.c,v 1.20 2012/12/16 00:12:04 tom Exp $
+ * $Id: test_add_wchstr.c,v 1.26 2017/04/15 15:15:25 tom Exp $
  *
  * Demonstrate the waddwchstr() and wadd_wch functions.
  * Thomas Dickey - 2009/9/12
@@ -48,18 +48,24 @@
 #define WIDE_LINEDATA
 #include <linedata.h>
 
+#undef AddCh
 #undef MvAddCh
 #undef MvAddStr
 #undef MvWAddCh
+#undef MvWAddChStr
 #undef MvWAddStr
+#undef WAddCh
 
-/* definitions to make it simpler to compare with test_addstr.c */
+/*
+ * redefinitions to simplify comparison between test_*str programs
+ */
 #define AddNStr    add_wchnstr
 #define AddStr     add_wchstr
 #define MvAddNStr  (void) mvadd_wchnstr
 #define MvAddStr   (void) mvadd_wchstr
 #define MvWAddNStr (void) mvwadd_wchnstr
 #define MvWAddStr  (void) mvwadd_wchstr
+#define MvWAddChStr(w,y,x,s)	(void) mvwadd_wchstr((w),(y),(x),(s))
 #define WAddNStr   wadd_wchnstr
 #define WAddStr    wadd_wchstr
 
@@ -103,7 +109,7 @@ static size_t temp_length;
 	     && (temp = unctrl((chtype) have[0])) != 0 \
 	     && strlen(temp) > 1) { \
 		while (*temp != '\0') { \
-		    have[0] = *temp++; \
+		    have[0] = (wchar_t) *temp++; \
 		    setcchar(&temp_buffer[n++], have, A_NORMAL, 0, NULL); \
 		} \
 	    } else { \
@@ -210,7 +216,7 @@ ColOf(wchar_t *buffer, int length, int margin)
 	    result += 2;
 	    break;
 	default:
-	    result += wcwidth(ch);
+	    result += wcwidth((wchar_t) ch);
 	    if (ch < 32)
 		++result;
 	    break;
@@ -291,7 +297,7 @@ AddCh(chtype ch)
 
 #define LEN(n) ((length - (n) > n_opt) ? n_opt : (length - (n)))
 static void
-test_add_wchstr(int level)
+recursive_test(int level)
 {
     static bool first = TRUE;
 
@@ -306,14 +312,19 @@ test_add_wchstr(int level)
     WINDOW *work = 0;
     WINDOW *show = 0;
     int margin = (2 * MY_TABSIZE) - 1;
-    Options option = ((m_opt ? oMove : oDefault)
-		      | ((w_opt || (level > 0)) ? oWindow : oDefault));
+    Options option = (Options) ((unsigned) (m_opt
+					    ? oMove
+					    : oDefault)
+				| (unsigned) ((w_opt || (level > 0))
+					      ? oWindow
+					      : oDefault));
 
     if (first) {
 	static char cmd[80];
 	setlocale(LC_ALL, "");
 
-	putenv(strcpy(cmd, "TABSIZE=8"));
+	_nc_STRCPY(cmd, "TABSIZE=8", sizeof(cmd));
+	putenv(cmd);
 
 	initscr();
 	(void) cbreak();	/* take input chars one at a time, no wait for \n */
@@ -351,8 +362,8 @@ test_add_wchstr(int level)
     MvWVLine(work, row, margin + 1, ACS_VLINE, limit - 2);
     limit /= 2;
 
-    (void) mvwadd_wchstr(work, 1, 2, ChStr("String"));
-    (void) mvwadd_wchstr(work, limit + 1, 2, ChStr("Chars"));
+    MvWAddChStr(work, 1, 2, ChStr("String"));
+    MvWAddChStr(work, limit + 1, 2, ChStr("Chars"));
     wnoutrefresh(work);
 
     buffer[length = 0] = '\0';
@@ -369,7 +380,7 @@ test_add_wchstr(int level)
 	wmove(work, row, margin + 1);
 	switch (ch) {
 	case key_RECUR:
-	    test_add_wchstr(level + 1);
+	    recursive_test(level + 1);
 
 	    if (look)
 		touchwin(look);
@@ -468,7 +479,7 @@ test_add_wchstr(int level)
 	    }
 	    break;
 	default:
-	    buffer[length++] = ch;
+	    buffer[length++] = (wchar_t) ch;
 	    buffer[length] = '\0';
 
 	    /* put the string in, one character at a time */
@@ -582,8 +593,11 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
     if (optind < argc)
 	usage();
 
-    test_add_wchstr(0);
+    recursive_test(0);
     endwin();
+#if NO_LEAKS
+    free(temp_buffer);
+#endif
     ExitProgram(EXIT_SUCCESS);
 }
 #else

@@ -24,7 +24,7 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,114 +52,113 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.20 @</EM></span>
-<span class="comment"><EM>--  @Date: 2009/12/26 17:38:58 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.22 @</EM></span>
+<span class="comment"><EM>--  @Date: 2014/05/24 21:31:57 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <b>with</b> System;
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<span class="symbol"><A NAME="ref_44_35" HREF="terminal_interface-curses-panels__adb.htm#ref_45_40">Panels</A></span> <b>is</b>
-   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>);
-   <b>pragma</b> Linker_Options ("-lpanel");
-   <b>pragma</b> Linker_Options ("-lncurses");
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<span class="symbol"><A NAME="ref_44_35" HREF="terminal_interface-curses-panels__adb.htm#ref_45_40">Panels</A></span> <b>is</b>
+   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>);
+   <b>pragma</b> Linker_Options ("-lpanel" &amp; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_9_4">DFT_ARG_SUFFIX</A>);
 
-   <b>type</b> <span class="symbol"><A NAME="ref_49_9">Panel</A></span> <b>is</b> <b>private</b>;
+   <b>type</b> <span class="symbol"><A NAME="ref_48_9">Panel</A></span> <b>is</b> <b>private</b>;
 
    <span class="comment"><EM>---------------------------</EM></span>
    <span class="comment"><EM>--  Interface constants  --</EM></span>
    <span class="comment"><EM>---------------------------</EM></span>
-   <span class="symbol"><A NAME="ref_54_4">Null_Panel</A></span> : <b>constant</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+   <span class="symbol"><A NAME="ref_53_4">Null_Panel</A></span> : <b>constant</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>;
 
    <span class="comment"><EM>-------------------</EM></span>
    <span class="comment"><EM>--  Exceptions   --</EM></span>
    <span class="comment"><EM>-------------------</EM></span>
 
-   <span class="symbol"><A NAME="ref_60_4">Panel_Exception</A></span> : <b>exception</b>;
+   <span class="symbol"><A NAME="ref_59_4">Panel_Exception</A></span> : <b>exception</b>;
 
    <span class="comment"><EM>--  |=====================================================================</EM></span>
    <span class="comment"><EM>--  | Man page <A HREF="../man/panel.3x.html">panel.3x</A></EM></span>
    <span class="comment"><EM>--  |=====================================================================</EM></span>
 
-   <span class="comment"><EM>--  #1A NAME="AFU_1"#2|</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_67_13" HREF="terminal_interface-curses-panels__adb.htm#ref_49_13">Create</A></span> (<span class="symbol"><A NAME="ref_67_21" HREF="terminal_interface-curses-panels__adb.htm#ref_49_21">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+   <span class="comment"><EM>--  <A NAME="AFU_1">|</A></EM></span>
+   <b>function</b> <span class="symbol"><A NAME="ref_66_13" HREF="terminal_interface-curses-panels__adb.htm#ref_49_13">Create</A></span> (<span class="symbol"><A NAME="ref_66_21" HREF="terminal_interface-curses-panels__adb.htm#ref_49_21">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>;
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">new_panel()</A></EM></span>
    <b>pragma</b> Inline (Create);
 
-   <span class="comment"><EM>--  #1A NAME="AFU_2"#2|</EM></span>
-   <b>function</b> New_Panel (<span class="symbol"><A NAME="ref_72_24">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A> <b>renames</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_67_13">Create</A>;
+   <span class="comment"><EM>--  <A NAME="AFU_2">|</A></EM></span>
+   <b>function</b> New_Panel (<span class="symbol"><A NAME="ref_71_24">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A> <b>renames</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_66_13">Create</A>;
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">new_panel()</A></EM></span>
    <span class="comment"><EM>--  pragma Inline (New_Panel);</EM></span>
 
-   <span class="comment"><EM>--  #1A NAME="AFU_3"#2|</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_77_14" HREF="terminal_interface-curses-panels__adb.htm#ref_63_14">Bottom</A></span> (<span class="symbol"><A NAME="ref_77_22" HREF="terminal_interface-curses-panels__adb.htm#ref_63_22">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>);
+   <span class="comment"><EM>--  <A NAME="AFU_3">|</A></EM></span>
+   <b>procedure</b> <span class="symbol"><A NAME="ref_76_14" HREF="terminal_interface-curses-panels__adb.htm#ref_63_14">Bottom</A></span> (<span class="symbol"><A NAME="ref_76_22" HREF="terminal_interface-curses-panels__adb.htm#ref_63_22">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>);
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">bottom_panel()</A></EM></span>
-   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_77_14">Bottom</A>);
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_76_14">Bottom</A>);
 
-   <span class="comment"><EM>--  #1A NAME="AFU_4"#2|</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_82_14" HREF="terminal_interface-curses-panels__adb.htm#ref_73_14">Top</A></span> (<span class="symbol"><A NAME="ref_82_19" HREF="terminal_interface-curses-panels__adb.htm#ref_73_19">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>);
+   <span class="comment"><EM>--  <A NAME="AFU_4">|</A></EM></span>
+   <b>procedure</b> <span class="symbol"><A NAME="ref_81_14" HREF="terminal_interface-curses-panels__adb.htm#ref_73_14">Top</A></span> (<span class="symbol"><A NAME="ref_81_19" HREF="terminal_interface-curses-panels__adb.htm#ref_73_19">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>);
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">top_panel()</A></EM></span>
-   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_82_14">Top</A>);
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_81_14">Top</A>);
 
-   <span class="comment"><EM>--  #1A NAME="AFU_5"#2|</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_87_14" HREF="terminal_interface-curses-panels__adb.htm#ref_83_14">Show</A></span> (<span class="symbol"><A NAME="ref_87_20" HREF="terminal_interface-curses-panels__adb.htm#ref_83_20">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>);
+   <span class="comment"><EM>--  <A NAME="AFU_5">|</A></EM></span>
+   <b>procedure</b> <span class="symbol"><A NAME="ref_86_14" HREF="terminal_interface-curses-panels__adb.htm#ref_83_14">Show</A></span> (<span class="symbol"><A NAME="ref_86_20" HREF="terminal_interface-curses-panels__adb.htm#ref_83_20">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>);
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">show_panel()</A></EM></span>
-   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_87_14">Show</A>);
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_86_14">Show</A>);
 
-   <span class="comment"><EM>--  #1A NAME="AFU_6"#2|</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_92_14">Update_Panels</A></span>;
+   <span class="comment"><EM>--  <A NAME="AFU_6">|</A></EM></span>
+   <b>procedure</b> <span class="symbol"><A NAME="ref_91_14">Update_Panels</A></span>;
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">update_panels()</A></EM></span>
    <b>pragma</b> Import (C, Update_Panels, "update_panels");
 
-   <span class="comment"><EM>--  #1A NAME="AFU_7"#2|</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_97_14" HREF="terminal_interface-curses-panels__adb.htm#ref_93_14">Hide</A></span> (<span class="symbol"><A NAME="ref_97_20" HREF="terminal_interface-curses-panels__adb.htm#ref_93_20">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>);
+   <span class="comment"><EM>--  <A NAME="AFU_7">|</A></EM></span>
+   <b>procedure</b> <span class="symbol"><A NAME="ref_96_14" HREF="terminal_interface-curses-panels__adb.htm#ref_93_14">Hide</A></span> (<span class="symbol"><A NAME="ref_96_20" HREF="terminal_interface-curses-panels__adb.htm#ref_93_20">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>);
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">hide_panel()</A></EM></span>
-   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_97_14">Hide</A>);
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_96_14">Hide</A>);
 
-   <span class="comment"><EM>--  #1A NAME="AFU_8"#2|</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_102_13" HREF="terminal_interface-curses-panels__adb.htm#ref_103_13">Get_Window</A></span> (<span class="symbol"><A NAME="ref_102_25" HREF="terminal_interface-curses-panels__adb.htm#ref_103_25">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;
+   <span class="comment"><EM>--  <A NAME="AFU_8">|</A></EM></span>
+   <b>function</b> <span class="symbol"><A NAME="ref_101_13" HREF="terminal_interface-curses-panels__adb.htm#ref_103_13">Get_Window</A></span> (<span class="symbol"><A NAME="ref_101_25" HREF="terminal_interface-curses-panels__adb.htm#ref_103_25">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>;
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">panel_window()</A></EM></span>
-   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_102_13">Get_Window</A>);
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_101_13">Get_Window</A>);
 
-   <span class="comment"><EM>--  #1A NAME="AFU_9"#2|</EM></span>
-   <b>function</b> Panel_Window (<span class="symbol"><A NAME="ref_107_27">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A> <b>renames</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_102_13">Get_Window</A>;
+   <span class="comment"><EM>--  <A NAME="AFU_9">|</A></EM></span>
+   <b>function</b> Panel_Window (<span class="symbol"><A NAME="ref_106_27">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A> <b>renames</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_101_13">Get_Window</A>;
    <span class="comment"><EM>--  pragma Inline (Panel_Window);</EM></span>
 
-   <span class="comment"><EM>--  #1A NAME="AFU_10"#2|</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_111_14" HREF="terminal_interface-curses-panels__adb.htm#ref_116_14">Replace</A></span> (<span class="symbol"><A NAME="ref_111_23" HREF="terminal_interface-curses-panels__adb.htm#ref_116_23">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
-                      <span class="symbol"><A NAME="ref_112_23" HREF="terminal_interface-curses-panels__adb.htm#ref_117_23">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>);
+   <span class="comment"><EM>--  <A NAME="AFU_10">|</A></EM></span>
+   <b>procedure</b> <span class="symbol"><A NAME="ref_110_14" HREF="terminal_interface-curses-panels__adb.htm#ref_116_14">Replace</A></span> (<span class="symbol"><A NAME="ref_110_23" HREF="terminal_interface-curses-panels__adb.htm#ref_116_23">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>;
+                      <span class="symbol"><A NAME="ref_111_23" HREF="terminal_interface-curses-panels__adb.htm#ref_117_23">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>);
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">replace_panel()</A></EM></span>
-   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_111_14">Replace</A>);
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_110_14">Replace</A>);
 
-   <span class="comment"><EM>--  #1A NAME="AFU_11"#2|</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_117_14" HREF="terminal_interface-curses-panels__adb.htm#ref_128_14">Move</A></span> (<span class="symbol"><A NAME="ref_117_20" HREF="terminal_interface-curses-panels__adb.htm#ref_128_20">Pan</A></span>    : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
-                   <span class="symbol"><A NAME="ref_118_20" HREF="terminal_interface-curses-panels__adb.htm#ref_129_20">Line</A></span>   : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
-                   <span class="symbol"><A NAME="ref_119_20" HREF="terminal_interface-curses-panels__adb.htm#ref_130_20">Column</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>);
+   <span class="comment"><EM>--  <A NAME="AFU_11">|</A></EM></span>
+   <b>procedure</b> <span class="symbol"><A NAME="ref_116_14" HREF="terminal_interface-curses-panels__adb.htm#ref_128_14">Move</A></span> (<span class="symbol"><A NAME="ref_116_20" HREF="terminal_interface-curses-panels__adb.htm#ref_128_20">Pan</A></span>    : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>;
+                   <span class="symbol"><A NAME="ref_117_20" HREF="terminal_interface-curses-panels__adb.htm#ref_129_20">Line</A></span>   : <A HREF="terminal_interface-curses__ads.htm#ref_58_9">Line_Position</A>;
+                   <span class="symbol"><A NAME="ref_118_20" HREF="terminal_interface-curses-panels__adb.htm#ref_130_20">Column</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_59_9">Column_Position</A>);
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">move_panel()</A></EM></span>
-   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_117_14">Move</A>);
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_116_14">Move</A>);
 
-   <span class="comment"><EM>--  #1A NAME="AFU_12"#2|</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_124_13" HREF="terminal_interface-curses-panels__adb.htm#ref_142_13">Is_Hidden</A></span> (<span class="symbol"><A NAME="ref_124_24" HREF="terminal_interface-curses-panels__adb.htm#ref_142_24">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> Boolean;
+   <span class="comment"><EM>--  <A NAME="AFU_12">|</A></EM></span>
+   <b>function</b> <span class="symbol"><A NAME="ref_123_13" HREF="terminal_interface-curses-panels__adb.htm#ref_142_13">Is_Hidden</A></span> (<span class="symbol"><A NAME="ref_123_24" HREF="terminal_interface-curses-panels__adb.htm#ref_142_24">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>) <b>return</b> Boolean;
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">panel_hidden()</A></EM></span>
-   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_124_13">Is_Hidden</A>);
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_123_13">Is_Hidden</A>);
 
-   <span class="comment"><EM>--  #1A NAME="AFU_13"#2|</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_129_13">Above</A></span> (<span class="symbol"><A NAME="ref_129_20" HREF="terminal_interface-curses-panels__ads.htm#ref_129_13">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+   <span class="comment"><EM>--  <A NAME="AFU_13">|</A></EM></span>
+   <b>function</b> <span class="symbol"><A NAME="ref_128_13">Above</A></span> (<span class="symbol"><A NAME="ref_128_20" HREF="terminal_interface-curses-panels__ads.htm#ref_128_13">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>;
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">panel_above()</A></EM></span>
    <b>pragma</b> Import (C, Above, "panel_above");
 
-   <span class="comment"><EM>--  #1A NAME="AFU_14"#2|</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_134_13">Below</A></span> (<span class="symbol"><A NAME="ref_134_20" HREF="terminal_interface-curses-panels__ads.htm#ref_134_13">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+   <span class="comment"><EM>--  <A NAME="AFU_14">|</A></EM></span>
+   <b>function</b> <span class="symbol"><A NAME="ref_133_13">Below</A></span> (<span class="symbol"><A NAME="ref_133_20" HREF="terminal_interface-curses-panels__ads.htm#ref_133_13">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>;
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">panel_below()</A></EM></span>
    <b>pragma</b> Import (C, Below, "panel_below");
 
-   <span class="comment"><EM>--  #1A NAME="AFU_15"#2|</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_139_14" HREF="terminal_interface-curses-panels__adb.htm#ref_154_14">Delete</A></span> (<span class="symbol"><A NAME="ref_139_22" HREF="terminal_interface-curses-panels__adb.htm#ref_154_22">Pan</A></span> : <b>in</b> <b>out</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>);
+   <span class="comment"><EM>--  <A NAME="AFU_15">|</A></EM></span>
+   <b>procedure</b> <span class="symbol"><A NAME="ref_138_14" HREF="terminal_interface-curses-panels__adb.htm#ref_154_14">Delete</A></span> (<span class="symbol"><A NAME="ref_138_22" HREF="terminal_interface-curses-panels__adb.htm#ref_154_22">Pan</A></span> : <b>in</b> <b>out</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>);
    <span class="comment"><EM>--  AKA: <A HREF="../man/panel.3x.html">del_panel()</A></EM></span>
    <b>pragma</b> Inline (Delete);
 
 <b>private</b>
-      <b>type</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A> <b>is</b> <b>new</b> System.Storage_Elements.Integer_Address;
-      <A HREF="terminal_interface-curses-panels__ads.htm#ref_54_4">Null_Panel</A> : <b>constant</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A> := 0;
+      <b>type</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A> <b>is</b> <b>new</b> System.Storage_Elements.Integer_Address;
+      <A HREF="terminal_interface-curses-panels__ads.htm#ref_53_4">Null_Panel</A> : <b>constant</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A> := 0;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>;
 </PRE></BODY></HTML>

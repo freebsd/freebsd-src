@@ -7,7 +7,7 @@
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2018,2020 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,7 +35,7 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.12 $
+--  $Revision: 1.14 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Interfaces.C.Strings;
@@ -54,9 +54,9 @@ package Terminal_Interface.Curses.Forms.Field_Types.Enumeration is
 
    type Enumeration_Info (C : Positive) is
       record
-         Names                : Enum_Array (1 .. C);
          Case_Sensitive       : Boolean := False;
          Match_Must_Be_Unique : Boolean := False;
+         Names                : Enum_Array (1 .. C);
       end record;
 
    type Enumeration_Field is new Field_Type with private;
@@ -78,7 +78,7 @@ package Terminal_Interface.Curses.Forms.Field_Types.Enumeration is
    --  But we may want to release the field to release the memory allocated
    --  by it internally. After that the Enumeration field is no longer usable.
 
-   --  The next type defintions are all ncurses extensions. They are typically
+   --  The next type definitions are all ncurses extensions. They are typically
    --  not available in other curses implementations.
 
    procedure Set_Field_Type (Fld : Field;

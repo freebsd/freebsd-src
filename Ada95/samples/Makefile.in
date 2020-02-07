@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,11 +28,11 @@
 #
 #  Author:  Juergen Pfeifer, 1996
 #
-#  $Id: Makefile.in,v 1.48 2012/10/06 19:00:42 tom Exp $
+#  $Id: Makefile.in,v 1.57 2019/12/22 01:09:19 tom Exp $
 #
 .SUFFIXES:
 
-SHELL		= /bin/sh
+SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
@@ -47,7 +47,7 @@ datadir		= @datadir@
 libdir		= @libdir@
 includedir	= @includedir@
 
-INSTALL		= @INSTALL@
+INSTALL		= @INSTALL@ @INSTALL_OPT_O@
 INSTALL_DATA	= @INSTALL_DATA@
 
 AWK		= @AWK@
@@ -81,26 +81,32 @@ BINDIR		= $(DESTDIR)$(bindir)
 DATADIR		= $(DESTDIR)$(datadir)
 LIBDIR		= $(DESTDIR)$(libdir)
 
-MY_DATADIR	= $(DATADIR)/AdaCurses
+MY_DATADIR	= $(DATADIR)/@ADA_LIBNAME@
+THIS_DATADIR	= $(datadir)/@ADA_LIBNAME@
 
 ################################################################################
-ada_srcdir=../src
+ada_srcdir	= ../src
 
-LD_FLAGS     = @LD_MODEL@ $(LOCAL_LIBS) @LDFLAGS@ @LIBS@ @LOCAL_LDFLAGS2@ $(LDFLAGS)
+LD_FLAGS	= @LD_MODEL@ $(LOCAL_LIBS) @LDFLAGS@ @LIBS@ @LOCAL_LDFLAGS2@ $(LDFLAGS)
 
-ADA          = @cf_ada_compiler@
-ADAFLAGS     = @ADAFLAGS@ -I$(srcdir)
+ADA		= @cf_ada_compiler@
+ADAPREP		= gnatprep
+ADAFLAGS	= @ADAFLAGS@ -I$(srcdir)
 
-ADAMAKE      = @cf_ada_make@
-ADAMAKEFLAGS = -a -A$(srcdir) -A$(ada_srcdir) -A$(srcdir)/$(ada_srcdir)
+ADAMAKE		= @cf_ada_make@
+ADAMAKEFLAGS	= -a \
+	-A$(srcdir) \
+	-A$(ada_srcdir) \
+	-A$(srcdir)/$(ada_srcdir)
 
-ALIB         = @cf_ada_package@
-ABASE        = $(ALIB)-curses
+ALIB		= @cf_ada_package@
+ABASE		= $(ALIB)-curses
+THISLIB		= sample
 
-CARGS        =-cargs $(ADAFLAGS)
-LARGS        =-largs -L../lib -lAdaCurses @TEST_ARG2@ $(LD_FLAGS) @TEST_LIBS2@
+CARGS		= -cargs $(ADAFLAGS)
+LARGS		= -largs -L../lib -l@ADA_LIBNAME@ @TEST_ARG2@ $(LD_FLAGS) @TEST_LIBS2@
 
-PROGS        = tour$x ncurses$x @USE_GNAT_SIGINT@ rain$x 
+PROGS		= tour$x ncurses$x @USE_GNAT_SIGINT@ rain$x 
 
 all ::  $(PROGS)
 	@echo made $@
@@ -133,13 +139,15 @@ $(BINDIR) \
 $(MY_DATADIR) :
 	mkdir -p $@
 
-ncurses$x :
+AUTO_SRC = $(THISLIB)-explanation.adb
+
+ncurses$x : $(AUTO_SRC)
 	$(ADAMAKE) $(ADAMAKEFLAGS) ncurses $(CARGS) $(LARGS)
 
-tour$x :
+tour$x : $(AUTO_SRC)
 	$(ADAMAKE) $(ADAMAKEFLAGS) tour $(CARGS) $(LARGS)
 
-rain$x :
+rain$x : $(AUTO_SRC)
 	$(ADAMAKE) $(ADAMAKEFLAGS) rain $(CARGS) $(LARGS)
 
 mostlyclean:
@@ -147,10 +155,15 @@ mostlyclean:
 
 clean :: mostlyclean
 	rm -f *.o *.ali b_t*.* *.s $(PROGS) a.out core b_*_test.c *.xr[bs] \
-	trace screendump b~*.ad[bs]
+	rm -f $(AUTO_SRC)
+	rm -f trace screendump b~*.ad[bs]
 
 distclean :: clean
 	rm -f Makefile
 
 realclean :: distclean
 	@echo made $@
+
+$(THISLIB)-explanation.adb : $(srcdir)/$(THISLIB)-explanation.adb_p
+	rm -f $@
+	$(ADAPREP) -DTHIS_DATADIR=\"$(THIS_DATADIR)/\" @GNATPREP_OPTS@ $(srcdir)/$(THISLIB)-explanation.adb_p $@

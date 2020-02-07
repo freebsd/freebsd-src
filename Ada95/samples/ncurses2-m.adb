@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2006,2008 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2018,2020 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.8 $
---  $Date: 2008/07/26 18:47:50 $
+--  $Revision: 1.10 $
+--  $Date: 2020/01/18 17:02:13 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 --  TODO use Default_Character where appropriate
@@ -50,7 +50,6 @@ with Terminal_Interface.Curses.Trace; use Terminal_Interface.Curses.Trace;
 with Ada.Text_IO; use Ada.Text_IO;
 
 with Ada.Characters.Latin_1;
---  with Ada.Characters.Handling;
 
 with Ada.Command_Line; use Ada.Command_Line;
 
@@ -76,7 +75,6 @@ with ncurses2.trace_set;
 with ncurses2.getopt; use ncurses2.getopt;
 
 package body ncurses2.m is
-   use Int_IO;
 
    function To_trace (n : Integer) return Trace_Attribute_Set;
    procedure usage;
@@ -188,7 +186,7 @@ package body ncurses2.m is
       Erase (Win);
       Move_Cursor (Win, 0, 0);
       Add (Win, "header:"  & Columns'Img & " columns");
-      --  'Img is a GNAT extention
+      --  'Img is a GNAT extension
       Refresh_Without_Update (Win);
       return 0; -- Curses_OK;
    end rip_header;
@@ -304,7 +302,6 @@ package body ncurses2.m is
    tmpi : Integer;
 
    package myio is new Ada.Text_IO.Integer_IO (Integer);
-   use myio;
 
    save_trace : Integer := 0;
    save_trace_set : Trace_Attribute_Set;

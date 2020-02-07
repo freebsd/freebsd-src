@@ -1,6 +1,6 @@
-# $Id: mk-test.awk,v 1.12 2010/11/06 23:06:48 tom Exp $
+# $Id: mk-test.awk,v 1.22 2019/01/06 00:35:28 tom Exp $
 ##############################################################################
-# Copyright (c) 2006-2007,2010 Free Software Foundation, Inc.                #
+# Copyright (c) 2006-2018,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -67,11 +67,21 @@ END	{
 		}
 		print "";
 	}
+	print	"SCRIPTS = \\"
+	print	"	$(srcdir)/savescreen.sh \\"
+	print	"	$(srcdir)/tput-colorcube \\"
+	print	"	$(srcdir)/tput-initc \\"
+	print	"	$(srcdir)/tracemunch"
+	print	"DATAFILES = \\"
+	print	"	$(srcdir)/*.x* \\"
+	print	"	$(srcdir)/*.dat"
 	print	""
 	print	"all: $(TESTS)"
 	print	""
 	print	"sources:"
 	print	""
+	print	"check:"
+	print	"	@ echo The test-programs are interactive"
 	print	"tags:"
 	print	"	$(CTAGS) *.[ch]"
 	print	""
@@ -83,17 +93,42 @@ END	{
 	if (INSTALL == "yes") {
 		print	"# we might install the test-programs"
 		print	"install \\"
-		print	"install.test: $(BINDIR) $(TESTS)"
-		print	"	$(SHELL) -c 'for src in $(TESTS); do \\"
+		print	"install.test: $(BINDIR) $(DATADIR) $(TESTS)"
+
+		print	"	@$(SHELL) -c 'for src in $(TESTS); do \\"
 		print	"	dst=`echo $$src | $(TRANSFORM)`; \\"
+		print	"	echo \"installing $$src -> $(BINDIR)/$$dst\"; \\"
 		print	"	$(INSTALL_PROG) $$src $(BINDIR)/$$dst; \\"
+		print	"	done'"
+
+		print	"	@$(SHELL) -c 'for src in $(SCRIPTS); do \\"
+		print	"	dst=`echo $$src | sed -e 's,^.*/,,' | $(TRANSFORM)`; \\"
+		print	"	echo \"installing $$src -> $(BINDIR)/$$dst\"; \\"
+		print	"	$(INSTALL_SCRIPT) $$src $(BINDIR)/$$dst; \\"
+		print	"	done'"
+
+		print	"	@$(SHELL) -c 'for src in $(DATAFILES); do \\"
+		print	"	dst=`echo $$src | sed -e 's,^.*/,,'`; \\"
+		print	"	echo \"installing $$src -> $(DATADIR)/$$dst\"; \\"
+		print	"	$(INSTALL_DATA) $$src $(DATADIR)/$$dst; \\"
 		print	"	done'"
 		print	""
 		print	"uninstall \\"
 		print	"uninstall.test:"
-		print	"	$(SHELL) -c 'for src in $(TESTS); do \\"
+
+		print	"	@$(SHELL) -c 'for src in $(TESTS); do \\"
 		print	"	dst=`echo $$src | $(TRANSFORM)`; \\"
 		print	"	rm -f $(BINDIR)/$$dst; \\"
+		print	"	done'"
+
+		print	"	@$(SHELL) -c 'for src in $(SCRIPTS); do \\"
+		print	"	dst=`echo $$src | sed -e 's,^.*/,,' | $(TRANSFORM)`; \\"
+		print	"	rm -f $(BINDIR)/$$dst; \\"
+		print	"	done'"
+
+		print	"	@$(SHELL) -c 'for src in $(DATAFILES); do \\"
+		print	"	dst=`echo $$src | sed -e 's,^.*/,,'`; \\"
+		print	"	rm -f $(DATADIR)/$$dst; \\"
 		print	"	done'"
 	} else {
 		print	"install \\"
@@ -107,7 +142,7 @@ END	{
 	print	""
 	print	"clean :: mostlyclean"
 	print	"	-$(SHELL) -c \"if test -n '$x' ; then $(MAKE) clean x=''; fi\""
-	print	"	-rm -rf *$o screendump *.lis $(TESTS) .libs"
+	print	"	-rm -rf *$o screendump *.lis $(TESTS) .libs *.dSYM"
 	print	""
 	print	"distclean :: clean"
 	print	"	-rm -f Makefile ncurses_cfg.h config.status config.log"
@@ -116,7 +151,7 @@ END	{
 	print	""
 	print	"lint:"
 	print	"	$(SHELL) -c 'for N in $(TESTS); do echo LINT:$$N; $(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/$$N.c $(LINT_LIBS); done'"
-	print	"$(BINDIR) :"
+	print	"$(BINDIR) $(DATADIR) :"
 	print	"	mkdir -p $@"
 
 

@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.21 2010/11/27 21:45:27 tom Exp $
+# $Id: Makefile.in,v 1.22 2015/08/05 23:15:41 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2003,2010 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2010,2015 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -30,9 +30,9 @@
 #  Author:  Juergen Pfeifer, 1996
 #
 #  Version Control
-#  $Revision: 1.21 $
+#  $Revision: 1.22 $
 #
-SHELL		= /bin/sh
+SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 

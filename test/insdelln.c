@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2008-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 2008-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,12 +26,16 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: insdelln.c,v 1.7 2012/11/18 00:37:58 tom Exp $
+ * $Id: insdelln.c,v 1.13 2019/08/24 23:11:01 tom Exp $
  *
  * test-driver for deleteln, wdeleteln, insdelln, winsdelln, insertln, winsertln
  */
 
 #include <test.priv.h>
+
+#if HAVE_WINSDELLN
+
+#include <popup_msg.h>
 
 #define SHOW(n) ((n) == ERR ? "ERR" : "OK")
 #define COLOR_DEFAULT (-1)
@@ -66,10 +70,10 @@ color_params(unsigned state, int *pair)
     };
     /* *INDENT-ON* */
 
-    static bool first = TRUE;
     const char *result = 0;
 
     if (has_colors()) {
+	static bool first = TRUE;
 	if (first) {
 	    unsigned n;
 
@@ -217,19 +221,10 @@ show_help(WINDOW *win)
 	,"q     quit"
 	,"=     resets count to zero."
 	,"?     shows this help-window"
-	,""
-	,""
+	,0
     };
 
-    int y_max, x_max;
-    int row;
-
-    getmaxyx(win, y_max, x_max);
-    for (row = 0; row < (int) SIZEOF(table) && row < y_max; ++row) {
-	MvWPrintw(win, row, 0, "%.*s", x_max, table[row]);
-    }
-    while (wgetch(win) != 'q')
-	beep();
+    popup_msg(win, table);
 }
 
 static void
@@ -279,8 +274,8 @@ update_status(WINDOW *win, STATUS * sp)
 	sp->count = 0;
 	show_status(win, sp);
 	break;
-    case '?':
-	do_subwindow(win, sp, show_help);
+    case HELP_KEY_1:
+	show_help(win);
 	break;
     default:
 	if (isdigit(sp->ch)) {
@@ -302,7 +297,7 @@ test_winsdelln(WINDOW *win)
     init_status(win, &st);
 
     do {
-	(void) wattrset(win, (int) (st.attr | (attr_t) COLOR_PAIR(st.pair)));
+	(void) wattrset(win, AttrArg(COLOR_PAIR(st.pair), st.attr));
 	switch (st.ch) {
 	case 'i':
 	    for (n = 0; n < st.count; ++n)
@@ -343,7 +338,7 @@ test_insdelln(void)
     init_status(stdscr, &st);
 
     do {
-	(void) attrset(st.attr | (attr_t) COLOR_PAIR(st.pair));
+	(void) attrset(AttrArg(COLOR_PAIR(st.pair), st.attr));
 	switch (st.ch) {
 	case 'i':
 	    for (n = 0; n < st.count; ++n)
@@ -387,3 +382,12 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 
     ExitProgram(EXIT_SUCCESS);
 }
+
+#else
+int
+main(void)
+{
+    printf("This program requires the curses winsdelln function\n");
+    ExitProgram(EXIT_FAILURE);
+}
+#endif

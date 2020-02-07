@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,7 +35,7 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.10 $
+--  $Revision: 1.12 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Interfaces.C; use Interfaces.C;
@@ -46,21 +46,12 @@ package body Terminal_Interface.Curses.Forms.Field_Types.RegExp is
    procedure Set_Field_Type (Fld : Field;
                              Typ : Regular_Expression_Field)
    is
-      type Char_Ptr is access all Interfaces.C.char;
-
       function Set_Ftyp (F    : Field := Fld;
-                         Arg1 : Char_Ptr) return C_Int;
+                         Arg1 : char_array) return Eti_Error;
       pragma Import (C, Set_Ftyp, "set_field_type_regexp");
 
-      Txt : char_array (0 .. Typ.Regular_Expression.all'Length);
-      Len : size_t;
-      Res : Eti_Error;
    begin
-      To_C (Typ.Regular_Expression.all, Txt, Len);
-      Res := Set_Ftyp (Arg1 => Txt (Txt'First)'Access);
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Ftyp (Arg1 => To_C (Typ.Regular_Expression.all)));
       Wrap_Builtin (Fld, Typ);
    end Set_Field_Type;
 

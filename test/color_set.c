@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2003-2012,2014 Free Software Foundation, Inc.              *
+ * Copyright (c) 2003-2014,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: color_set.c,v 1.8 2014/02/01 22:10:42 tom Exp $
+ * $Id: color_set.c,v 1.9 2019/08/17 21:49:19 tom Exp $
  */
 
 #include <test.priv.h>
@@ -39,13 +39,14 @@ int
 main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 {
     NCURSES_COLOR_T f, b;
-    int i;
 
     initscr();
     cbreak();
     noecho();
 
     if (has_colors()) {
+	int i;
+
 	start_color();
 
 	(void) pair_content(0, &f, &b);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2015 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey        1997,2005,2010                          *
+ *  Author: Thomas E. Dickey       1996-on                                  *
  ****************************************************************************/
 /* LINTLIBRARY */
 
@@ -181,13 +181,13 @@ void	update_panels(void)
 #undef set_panel_userptr
 int	set_panel_userptr(
 		PANEL	*pan, 
-		void	*uptr)
+		const void *uptr)
 		{ return(*(int *)0); }
 
 #undef panel_userptr
-void	*panel_userptr(
+const void *panel_userptr(
 		const PANEL *pan)
-		{ return(*(void **)0); }
+		{ return(*(const void **)0); }
 
 /* ./p_win.c */
 

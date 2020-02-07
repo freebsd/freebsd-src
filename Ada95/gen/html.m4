@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 2000-2006,2007 Free Software Foundation, Inc.              *
+dnl Copyright (c) 2000-2007,2019 Free Software Foundation, Inc.              *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@ dnl sale, use or other dealings in this Software without prior written       *
 dnl authorization.                                                           *
 dnl***************************************************************************
 dnl
-dnl $Id: html.m4,v 1.3 2007/09/01 23:59:59 tom Exp $
+dnl $Id: html.m4,v 1.4 2019/03/16 21:49:15 tom Exp $
 define(`ANCHORIDX',`0')dnl
 define(`MANPAGE',`define(`MANPG',$1)dnl
 |=====================================================================
@@ -35,6 +35,6 @@ define(`MANPAGE',`define(`MANPG',$1)dnl
 define(`ANCHOR',`define(`ANCHORIDX',incr(ANCHORIDX))dnl
 `#'1A NAME="AFU`_'ANCHORIDX"`#'2dnl
 define(`CFUNAME',`$1')define(`AFUNAME',`$2')dnl
-|')dnl
+|#1/A#2')dnl
 define(`AKA',``AKA': <A HREF="../man/MANPG.html">CFUNAME</A>')dnl
 define(`ALIAS',``AKA': $1')dnl

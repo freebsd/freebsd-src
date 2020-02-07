@@ -10,7 +10,7 @@ include(M4MACRO)dnl
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -38,16 +38,16 @@ include(M4MACRO)dnl
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.20 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.22 $
+--  $Date: 2014/05/24 21:31:57 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with System;
 
 package Terminal_Interface.Curses.Panels is
    pragma Preelaborate (Terminal_Interface.Curses.Panels);
-include(`Panel_Linker_Options')dnl
-include(`Linker_Options')
+   pragma Linker_Options ("-lpanel" & Curses_Constants.DFT_ARG_SUFFIX);
+
    type Panel is private;
 
    ---------------------------

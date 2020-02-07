@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
  * v2.0 featuring strict ANSI/POSIX conformance, November 1993.
  * v2.1 with ncurses mouse support, September 1995
  *
- * $Id: bs.c,v 1.62 2013/11/16 19:57:56 tom Exp $
+ * $Id: bs.c,v 1.74 2019/08/17 21:49:19 tom Exp $
  */
 
 #include <test.priv.h>
@@ -63,6 +63,8 @@ static int getcoord(int);
 #define MARK_MISS	'o'
 #define CTRLC		'\003'	/* used as terminate command */
 #define FF		'\014'	/* used as redraw command */
+
+#define is_QUIT(c) ((c) == CTRLC || (c) == QUIT)
 
 /* coordinate handling */
 #define BWIDTH		10
@@ -114,17 +116,20 @@ static char *your_name;
 static char dftname[] = "stranger";
 
 /* direction constants */
-#define E	0
-#define SE	1
-#define S	2
-#define SW	3
-#define W	4
-#define NW	5
-#define N	6
-#define NE	7
-static int xincr[8] =
+typedef enum {
+    dir_E = 0
+    ,dir_SE
+    ,dir_S
+    ,dir_SW
+    ,dir_W
+    ,dir_NW
+    ,dir_N
+    ,dir_NE
+    ,dir_MAX
+} DIRECTIONS;
+static int xincr[dir_MAX + 2] =
 {1, 1, 0, -1, -1, -1, 0, 1};
-static int yincr[8] =
+static int yincr[dir_MAX + 2] =
 {0, 1, 1, 1, 0, -1, -1, -1};
 
 /* current ship position and direction */
@@ -145,6 +150,7 @@ static bool checkplace(int b, ship_t * ss, int vis);
 
 #define SHIPIT(name, symbol, length) { name, 0, symbol, length, 0,0, 0, FALSE }
 
+/* "ply=player", "cpu=computer" */
 static ship_t plyship[SHIPTYPES] =
 {
     SHIPIT(carrier, 'A', 5),
@@ -185,6 +191,7 @@ uninitgame(int sig GCC_UNUSED)
     (void) reset_shell_mode();
     (void) echo();
     (void) endwin();
+    free(your_name);
     ExitProgram(sig ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
@@ -214,20 +221,19 @@ announceopts(void)
 static void
 intro(void)
 {
-    char *tmpname;
+    const char *tmpname;
 
     srand((unsigned) (time(0L) + getpid()));	/* Kick the random number generator */
 
-    CATCHALL(uninitgame);
+    InitAndCatch(initscr(), uninitgame);
 
     if ((tmpname = getlogin()) != 0 &&
 	(your_name = strdup(tmpname)) != 0) {
 	your_name[0] = (char) toupper(UChar(your_name[0]));
     } else {
-	your_name = dftname;
+	your_name = strdup(dftname);
     }
 
-    (void) initscr();
     keypad(stdscr, TRUE);
     (void) def_prog_mode();
     (void) nonl();
@@ -306,7 +312,7 @@ placeship(int b, ship_t * ss, int vis)
 	board[b][newx][newy] = ss->symbol;
 	if (vis) {
 	    pgoto(newy, newx);
-	    (void) addch((chtype) ss->symbol);
+	    AddCh(ss->symbol);
 	}
     }
     ss->hits = 0;
@@ -324,9 +330,9 @@ randomplace(int b, ship_t * ss)
 {
 
     do {
-	ss->dir = rnd(2) ? E : S;
-	ss->x = rnd(BWIDTH - (ss->dir == E ? ss->length : 0));
-	ss->y = rnd(BDEPTH - (ss->dir == S ? ss->length : 0));
+	ss->dir = rnd(2) ? dir_E : dir_S;
+	ss->x = rnd(BWIDTH - (ss->dir == dir_E ? ss->length : 0));
+	ss->y = rnd(BDEPTH - (ss->dir == dir_S ? ss->length : 0));
     } while
 	(!checkplace(b, ss, FALSE));
 }
@@ -369,16 +375,16 @@ initgame(void)
 	MvAddCh(PYBASE + i, PXBASE - 3, (chtype) (i + 'A'));
 #ifdef A_COLOR
 	if (has_colors())
-	    attron((attr_t) COLOR_PAIR(COLOR_BLUE));
+	    attron(COLOR_PAIR(COLOR_BLUE));
 #endif /* A_COLOR */
-	(void) addch(' ');
+	AddCh(' ');
 	for (j = 0; j < BWIDTH; j++)
 	    (void) addstr(" . ");
 #ifdef A_COLOR
 	(void) attrset(0);
 #endif /* A_COLOR */
-	(void) addch(' ');
-	(void) addch((chtype) (i + 'A'));
+	AddCh(' ');
+	AddCh(i + 'A');
     }
     MvAddStr(PYBASE + BDEPTH, PXBASE - 3, numbers);
     MvAddStr(CYBASE - 2, CXBASE + 7, "Hit/Miss Board");
@@ -387,16 +393,16 @@ initgame(void)
 	MvAddCh(CYBASE + i, CXBASE - 3, (chtype) (i + 'A'));
 #ifdef A_COLOR
 	if (has_colors())
-	    attron((attr_t) COLOR_PAIR(COLOR_BLUE));
+	    attron(COLOR_PAIR(COLOR_BLUE));
 #endif /* A_COLOR */
-	(void) addch(' ');
+	AddCh(' ');
 	for (j = 0; j < BWIDTH; j++)
 	    (void) addstr(" . ");
 #ifdef A_COLOR
 	(void) attrset(0);
 #endif /* A_COLOR */
-	(void) addch(' ');
-	(void) addch((chtype) (i + 'A'));
+	AddCh(' ');
+	AddCh(i + 'A');
     }
 
     MvAddStr(CYBASE + BDEPTH, CXBASE - 3, numbers);
@@ -461,9 +467,11 @@ initgame(void)
 	do {
 	    c = (char) getch();
 	} while
-	    (!(strchr("hjkl8462rR", c) || c == FF));
+	    (!(strchr("hjkl8462rR", c) || c == FF || is_QUIT(c)));
 
-	if (c == FF) {
+	if (is_QUIT(c)) {
+	    uninitgame(0);
+	} else if (c == FF) {
 	    (void) clearok(stdscr, TRUE);
 	    (void) refresh();
 	} else if (ss == 0) {
@@ -490,19 +498,19 @@ initgame(void)
 	    switch (c) {
 	    case 'k':
 	    case '8':
-		ss->dir = N;
+		ss->dir = dir_N;
 		break;
 	    case 'j':
 	    case '2':
-		ss->dir = S;
+		ss->dir = dir_S;
 		break;
 	    case 'h':
 	    case '4':
-		ss->dir = W;
+		ss->dir = dir_W;
 		break;
 	    case 'l':
 	    case '6':
-		ss->dir = E;
+		ss->dir = dir_E;
 		break;
 	    }
 
@@ -540,14 +548,15 @@ initgame(void)
 static int
 getcoord(int atcpu)
 {
-    int ny, nx, c;
-
     if (atcpu)
 	cgoto(cury, curx);
     else
 	pgoto(cury, curx);
     (void) refresh();
+
     for (;;) {
+	int ny, nx, c;
+
 	if (atcpu) {
 	    MvPrintw(CYBASE + BDEPTH + 1, CXBASE + 11, "(%d, %c)",
 		     curx, 'A' + cury);
@@ -660,7 +669,7 @@ collidecheck(int b, int y, int x)
     if (!closepack) {
 	int i;
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < dir_MAX; i++) {
 	    int xend, yend;
 
 	    yend = y + yincr[i];
@@ -723,10 +732,9 @@ static int
 awinna(void)
 {
     int i, j;
-    ship_t *ss;
 
     for (i = 0; i < 2; ++i) {
-	ss = (i) ? cpuship : plyship;
+	ship_t *ss = (i) ? cpuship : plyship;
 	for (j = 0; j < SHIPTYPES; ++j, ++ss)
 	    if (ss->length > ss->hits)
 		break;
@@ -753,12 +761,14 @@ hitship(int x, int y)
 	    if (++ss->hits < ss->length)	/* still afloat? */
 		return ((ship_t *) NULL);
 	    else {		/* sunk! */
-		int i, j;
+		int i;
 
-		if (!closepack)
+		if (!closepack) {
+		    int j;
+
 		    for (j = -1; j <= 1; j++) {
-			int bx = ss->x + j * xincr[(ss->dir + 2) % 8];
-			int by = ss->y + j * yincr[(ss->dir + 2) % 8];
+			int bx = ss->x + j * xincr[(ss->dir + 2) % dir_MAX];
+			int by = ss->y + j * yincr[(ss->dir + 2) % dir_MAX];
 
 			for (i = -1; i <= ss->length; ++i) {
 			    int x1, y1;
@@ -771,19 +781,20 @@ hitship(int x, int y)
 				    cgoto(y1, x1);
 #ifdef A_COLOR
 				    if (has_colors())
-					attron((attr_t) COLOR_PAIR(COLOR_GREEN));
+					attron(COLOR_PAIR(COLOR_GREEN));
 #endif /* A_COLOR */
-				    (void) addch(MARK_MISS);
+				    AddCh(MARK_MISS);
 #ifdef A_COLOR
 				    (void) attrset(0);
 #endif /* A_COLOR */
 				} else {
 				    pgoto(y1, x1);
-				    (void) addch(SHOWSPLASH);
+				    AddCh(SHOWSPLASH);
 				}
 			    }
 			}
 		    }
+		}
 
 		for (i = 0; i < ss->length; ++i) {
 		    int x1 = ss->x + i * xincr[ss->dir];
@@ -792,14 +803,14 @@ hitship(int x, int y)
 		    hits[turn][x1][y1] = ss->symbol;
 		    if (turn % 2 == PLAYER) {
 			cgoto(y1, x1);
-			(void) addch((chtype) (ss->symbol));
+			AddCh(ss->symbol);
 		    } else {
 			pgoto(y1, x1);
 #ifdef A_COLOR
 			if (has_colors())
-			    attron((attr_t) COLOR_PAIR(COLOR_RED));
+			    attron(COLOR_PAIR(COLOR_RED));
 #endif /* A_COLOR */
-			(void) addch(SHOWHIT);
+			AddCh(SHOWHIT);
 #ifdef A_COLOR
 			(void) attrset(0);
 #endif /* A_COLOR */
@@ -836,12 +847,12 @@ plyturn(void)
 #ifdef A_COLOR
     if (has_colors()) {
 	if (hit)
-	    attron((attr_t) COLOR_PAIR(COLOR_RED));
+	    attron(COLOR_PAIR(COLOR_RED));
 	else
-	    attron((attr_t) COLOR_PAIR(COLOR_GREEN));
+	    attron(COLOR_PAIR(COLOR_GREEN));
     }
 #endif /* A_COLOR */
-    (void) addch((chtype) hits[PLAYER][curx][cury]);
+    AddCh(hits[PLAYER][curx][cury]);
 #ifdef A_COLOR
     (void) attrset(0);
 #endif /* A_COLOR */
@@ -876,20 +887,20 @@ plyturn(void)
 static int
 sgetc(const char *s)
 {
-    const char *s1;
-    int ch;
-
     (void) refresh();
+
     for (;;) {
-	ch = getch();
+	int ch = getch();
+	const char *s1;
+
 	if (islower(ch))
 	    ch = toupper(ch);
-	if (ch == CTRLC)
+	if (is_QUIT(ch))
 	    uninitgame(0);
 	for (s1 = s; *s1 && ch != *s1; ++s1)
 	    continue;
 	if (*s1) {
-	    (void) addch((chtype) ch);
+	    AddCh(ch);
 	    (void) refresh();
 	    return (ch);
 	}
@@ -969,12 +980,12 @@ cpufire(int x, int y)
 #ifdef A_COLOR
     if (has_colors()) {
 	if (hit)
-	    attron((attr_t) COLOR_PAIR(COLOR_RED));
+	    attron(COLOR_PAIR(COLOR_RED));
 	else
-	    attron((attr_t) COLOR_PAIR(COLOR_GREEN));
+	    attron(COLOR_PAIR(COLOR_GREEN));
     }
 #endif /* A_COLOR */
-    (void) addch((chtype) (hit ? SHOWHIT : SHOWSPLASH));
+    AddCh((hit ? SHOWHIT : SHOWSPLASH));
 #ifdef A_COLOR
     (void) attrset(0);
 #endif /* A_COLOR */
@@ -1002,7 +1013,7 @@ cputurn(void)
 #define REVERSE_JUMP	4
 #define SECOND_PASS	5
     static int next = RANDOM_FIRE;
-    static bool used[4];
+    static bool used[5];
     static ship_t ts;
     int navail, x, y, d, n;
     int hit = S_MISS;
@@ -1022,11 +1033,14 @@ cputurn(void)
 	break;
 
     case RANDOM_HIT:		/* last shot was random and hit */
-	used[E / 2] = used[S / 2] = used[W / 2] = used[N / 2] = FALSE;
+	used[dir_E / 2] =
+	    used[dir_S / 2] =
+	    used[dir_W / 2] =
+	    used[dir_N / 2] = FALSE;
 	/* FALLTHROUGH */
 
     case HUNT_DIRECT:		/* last shot hit, we're looking for ship's long axis */
-	for (d = navail = 0; d < 4; d++) {
+	for (d = navail = 0; d < (dir_MAX) / 2; d++) {
 	    x = ts.x + xincr[d * 2];
 	    y = ts.y + yincr[d * 2];
 	    if (!used[d] && POSSIBLE(x, y))
@@ -1038,13 +1052,13 @@ cputurn(void)
 	    goto refire;	/* ...so we must random-fire */
 	else {
 	    n = rnd(navail) + 1;
-	    for (d = 0; used[d]; d++) ;
+	    for (d = 0; d < (dir_MAX) / 2 && used[d]; d++) ;
 	    /* used[d] is first that == 0 */
 	    for (; n > 1; n--)
-		while (used[++d]) ;
+		while (d < (dir_MAX) / 2 && used[++d]) ;
 	    /* used[d] is next that == 0 */
 
-	    assert(d < 4);
+	    assert(d < (dir_MAX) / 2);
 	    assert(used[d] == FALSE);
 
 	    used[d] = TRUE;
@@ -1078,7 +1092,7 @@ cputurn(void)
 	break;
 
     case REVERSE_JUMP:		/* nail down the ship's other end */
-	d = (ts.dir + 4) % 8;
+	d = (ts.dir + (dir_MAX) / 2) % dir_MAX;
 	x = ts.x + ts.hits * xincr[d];
 	y = ts.y + ts.hits * yincr[d];
 	if (POSSIBLE(x, y) && (hit = cpufire(x, y))) {
@@ -1127,7 +1141,7 @@ playagain(void)
     for (ss = cpuship; ss < cpuship + SHIPTYPES; ss++)
 	for (j = 0; j < ss->length; j++) {
 	    cgoto(ss->y + j * yincr[ss->dir], ss->x + j * xincr[ss->dir]);
-	    (void) addch((chtype) ss->symbol);
+	    AddCh(ss->symbol);
 	}
 
     if (awinna())
@@ -1150,14 +1164,14 @@ playagain(void)
 static void
 do_options(int c, char *op[])
 {
-    register int i;
-
     if (c > 1) {
+	int i;
+
 	for (i = 1; i < c; i++) {
 	    switch (op[i][0]) {
 	    default:
 	    case '?':
-		(void) fprintf(stderr, "Usage: battle [-s | -b] [-c]\n");
+		(void) fprintf(stderr, "Usage: bs [-s | -b] [-c]\n");
 		(void) fprintf(stderr, "\tWhere the options are:\n");
 		(void) fprintf(stderr, "\t-s : play a salvo game\n");
 		(void) fprintf(stderr, "\t-b : play a blitz game\n");

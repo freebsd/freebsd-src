@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_slkrefr.c,v 1.29 2013/01/12 17:25:48 tom Exp $")
+MODULE_ID("$Id: lib_slkrefr.c,v 1.30 2014/03/08 20:32:59 tom Exp $")
 
 #ifdef USE_TERM_DRIVER
 #define NumLabels    InfoOf(SP_PARM).numlabels
@@ -97,7 +97,7 @@ slk_intern_refresh(SCREEN *sp)
 	    if (slk->ent[i].visible) {
 		if (numlab > 0 && SLK_STDFMT(fmt)) {
 #ifdef USE_TERM_DRIVER
-		    CallDriver_2(sp, hwlabel, i + 1, slk->ent[i].form_text);
+		    CallDriver_2(sp, td_hwlabel, i + 1, slk->ent[i].form_text);
 #else
 		    if (i < num_labels) {
 			NCURSES_PUTP2("plab_norm",
@@ -125,7 +125,7 @@ slk_intern_refresh(SCREEN *sp)
 
     if (numlab > 0) {
 #ifdef USE_TERM_DRIVER
-	CallDriver_1(sp, hwlabelOnOff, slk->hidden ? FALSE : TRUE);
+	CallDriver_1(sp, td_hwlabelOnOff, slk->hidden ? FALSE : TRUE);
 #else
 	if (slk->hidden) {
 	    NCURSES_PUTP2("label_off", label_off);

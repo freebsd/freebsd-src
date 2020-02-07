@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.11 $
---  $Date: 2011/03/19 00:45:37 $
+--  $Revision: 1.13 $
+--  $Date: 2014/05/24 21:31:05 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Terminal_Interface.Curses.Aux; use Terminal_Interface.Curses.Aux;
@@ -49,17 +49,13 @@ package body Terminal_Interface.Curses.Forms.Field_Types.IntField is
       function Set_Fld_Type (F    : Field := Fld;
                              Arg1 : C_Int;
                              Arg2 : C_Long_Int;
-                             Arg3 : C_Long_Int) return C_Int;
+                             Arg3 : C_Long_Int) return Eti_Error;
       pragma Import (C, Set_Fld_Type, "set_field_type_integer");
 
-      Res : Eti_Error;
    begin
-      Res := Set_Fld_Type (Arg1 => C_Int (Typ.Precision),
-                           Arg2 => C_Long_Int (Typ.Lower_Limit),
-                           Arg3 => C_Long_Int (Typ.Upper_Limit));
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Fld_Type (Arg1 => C_Int (Typ.Precision),
+                                   Arg2 => C_Long_Int (Typ.Lower_Limit),
+                                   Arg3 => C_Long_Int (Typ.Upper_Limit)));
       Wrap_Builtin (Fld, Typ);
    end Set_Field_Type;
 

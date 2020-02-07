@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2005-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2005-2016,2017 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -28,18 +28,16 @@
 .\"
 .\" Author: Thomas E. Dickey
 .\"
-.\" $Id: legacy_coding.3x,v 1.4 2010/12/04 18:49:20 tom Exp $
+.\" $Id: legacy_coding.3x,v 1.6 2017/03/15 08:14:25 tom Exp $
 .TH legacy_coding 3X ""
 .SH NAME
-\fBuse_legacy_coding\fR \- use terminal's default colors
+\fBuse_legacy_coding\fR \- override locale-encoding checks
 .SH SYNOPSIS
 \fB#include <curses.h>\fP
 .sp
 \fBint use_legacy_coding(int level);\fP
 .SH DESCRIPTION
-The
-.I use_legacy_coding()
-function is an extension to the curses library.
+The \fBuse_legacy_coding\fP function is an extension to the curses library.
 It allows the caller to change the result of \fBunctrl\fP,
 and suppress related checks within the library that would normally
 cause nonprinting characters to be rendered in visible form.

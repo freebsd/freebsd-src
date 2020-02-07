@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2001,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-/* $Id: termcap.h.in,v 1.16 2001/03/24 21:53:27 tom Exp $ */
+/* $Id: termcap.h.in,v 1.18 2018/04/07 20:46:20 tom Exp $ */
 
 #ifndef NCURSES_TERMCAP_H_incl
 #define NCURSES_TERMCAP_H_incl	1
@@ -48,9 +48,6 @@ extern "C"
 
 #include <sys/types.h>
 
-#undef  NCURSES_CONST 
-#define NCURSES_CONST @NCURSES_CONST@ 
-
 #undef  NCURSES_OSPEED 
 #define NCURSES_OSPEED @NCURSES_OSPEED@ 
 
@@ -60,11 +57,11 @@ extern NCURSES_EXPORT_VAR(char *) BC;
 extern NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed; 
 
 #if !defined(NCURSES_TERM_H_incl)
-extern NCURSES_EXPORT(char *) tgetstr (NCURSES_CONST char *, char **);
+extern NCURSES_EXPORT(char *) tgetstr (const char *, char **);
 extern NCURSES_EXPORT(char *) tgoto (const char *, int, int);
 extern NCURSES_EXPORT(int) tgetent (char *, const char *);
-extern NCURSES_EXPORT(int) tgetflag (NCURSES_CONST char *);
-extern NCURSES_EXPORT(int) tgetnum (NCURSES_CONST char *);
+extern NCURSES_EXPORT(int) tgetflag (const char *);
+extern NCURSES_EXPORT(int) tgetnum (const char *);
 extern NCURSES_EXPORT(int) tputs (const char *, int, int (*)(int));
 #endif
 

@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: make-tar.sh,v 1.14 2013/10/26 23:10:24 tom Exp $
+# $Id: make-tar.sh,v 1.17 2019/03/02 22:51:42 tom Exp $
 ##############################################################################
-# Copyright (c) 2010-2011,2013 Free Software Foundation, Inc.                #
+# Copyright (c) 2010-2017,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -66,7 +66,7 @@ edit_specfile() {
 make_changelog() {
 	test -f $1 && chmod u+w $1
 	cat >$1 <<EOF
-`echo $PKG_NAME|tr '[A-Z]' '[a-z]'` ($NCURSES_MAJOR.$NCURSES_MINOR-$NCURSES_PATCH) unstable; urgency=low
+`echo $PKG_NAME|tr '[A-Z]' '[a-z]'` ($NCURSES_MAJOR.$NCURSES_MINOR+$NCURSES_PATCH) unstable; urgency=low
 
   * snapshot of ncurses subpackage for $PKG_NAME.
 
@@ -80,7 +80,7 @@ test -d ./Ada95 && cd ./Ada95
 SOURCE=`cd ..;pwd`
 
 BUILD=$TMPDIR/make-tar$$
-trap "cd /; rm -rf $BUILD; exit 0" 0 1 2 5 15
+trap "cd /; rm -rf $BUILD; exit 0" EXIT INT QUIT TERM HUP
 
 umask 077
 if ! ( mkdir $BUILD )

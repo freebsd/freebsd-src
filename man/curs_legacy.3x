@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2007,2010 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 2007-2017,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,57 +26,82 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_legacy.3x,v 1.5 2010/12/04 18:38:55 tom Exp $
+.\" $Id: curs_legacy.3x,v 1.9 2019/03/23 21:51:12 tom Exp $
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .TH curs_legacy 3X ""
 .SH NAME
-getattrs \- get \fBcurses\fR cursor and window coordinates, attributes
+curs_legacy \- get \fBcurses\fP cursor and window coordinates, attributes
 .SH SYNOPSIS
-\fB#include <curses.h>\fR
+\fB#include <curses.h>\fP
 .sp
-\fBint getattrs(WINDOW *win);\fR
+\fBint getattrs(const WINDOW *win);\fP
 .br
-\fBint getbegx(WINDOW *win);\fR
+\fBint getbegx(const WINDOW *win);\fP
 .br
-\fBint getbegy(WINDOW *win);\fR
+\fBint getbegy(const WINDOW *win);\fP
 .br
-\fBint getcurx(WINDOW *win);\fR
+\fBint getcurx(const WINDOW *win);\fP
 .br
-\fBint getcury(WINDOW *win);\fR
+\fBint getcury(const WINDOW *win);\fP
 .br
-\fBint getmaxx(WINDOW *win);\fR
+\fBint getmaxx(const WINDOW *win);\fP
 .br
-\fBint getmaxy(WINDOW *win);\fR
+\fBint getmaxy(const WINDOW *win);\fP
 .br
-\fBint getparx(WINDOW *win);\fR
+\fBint getparx(const WINDOW *win);\fP
 .br
-\fBint getpary(WINDOW *win);\fR
+\fBint getpary(const WINDOW *win);\fP
 .br
 .SH DESCRIPTION
-The \fBgetbegy\fR and \fBgetbegx\fR functions return the same
-data as \fBgetbegyx\fR.
-.PP
-The \fBgetcury\fR and \fBgetcurx\fR functions return the same
-data as \fBgetyx\fR.
-.PP
-The \fBgetmaxy\fR and \fBgetmaxx\fR functions return the same
-data as \fBgetmaxyx\fR.
-.PP
-The \fBgetpary\fR and \fBgetparx\fR functions return the same
-data as \fBgetparyx\fR.
+These legacy functions are simpler to use than the X/Open Curses functions:
+.bP
+The \fBgetattrs\fP function returns the same attribute data as \fBwattr_get\fP.
+.IP
+However, \fBgetattrs\fP returns an integer (actually a \fBchtype\fP),
+while \fBwattr_get\fP returns the current color pair in a separate parameter.
+In the wide-character library configuration,
+color pairs may not fit into a \fBchtype\fP,
+so \fBwattr_get\fP is the only way to obtain the color information.
+.IP
+Because \fBgetattrs\fP returns the attributes in a single parameter,
+it would not be possible for an application to distinguish that from
+\fBERR\fP (a \fI-1\fP).
+If the window parameter is null, \fBgetattrs\fP returns \fBA_NORMAL\fP (zero).
+.bP
+The \fBgetbegy\fP and \fBgetbegx\fP functions return the same
+data as \fBgetbegyx\fP.
+.bP
+The \fBgetcury\fP and \fBgetcurx\fP functions return the same
+data as \fBgetyx\fP.
+.bP
+The \fBgetmaxy\fP and \fBgetmaxx\fP functions return the same
+data as \fBgetmaxyx\fP.
+.bP
+The \fBgetpary\fP and \fBgetparx\fP functions return the same
+data as \fBgetparyx\fP.
 .SH RETURN VALUE
-These functions return an integer,
-or ERR if the window parameter is null.
+Except as noted,
+these functions return an integer,
+or \fBERR\fP if the window parameter is null.
 .SH NOTES
 All of these interfaces are provided as macros and functions.
 The macros are suppressed (and only the functions provided)
-when \fBNCURSES_OPAQUE\fR is defined.
+when \fBNCURSES_OPAQUE\fP is defined.
 The standard forms such as \fBgetyx\fP must be implemented as macros,
 and (in this implementation) are defined in terms of the functions
 described here,
 to avoid reliance on internal details of the WINDOW structure.
 .SH PORTABILITY
 These functions were supported on Version 7, BSD or System V implementations.
+None of those implementations checked the window parameter.
+.PP
+The \fBgetattrs\fP function and macro are defined to return a (signed) integer
+for compatibility with those implementations
+although an unsigned type would have been more appropriate.
 .SH SEE ALSO
-\fBcurses\fR(3X),
-\fBcurs_getyx\fR(3X),
-\fBcurs_opaque\fR(3X)
+\fBcurses\fP(3X),
+\fBcurs_getyx\fP(3X),
+\fBcurs_opaque\fP(3X)

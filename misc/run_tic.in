@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: run_tic.in,v 1.34 2012/10/06 19:00:51 tom Exp $
+# $Id: run_tic.in,v 1.36 2019/06/30 16:29:23 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -36,7 +36,7 @@
 # Assumes:
 #	The leaf directory names (lib, tabset, terminfo)
 #
-echo '** Building terminfo database, please wait...'
+echo "** Building terminfo database, please wait..."
 #
 # The script is designed to be run from the misc/Makefile as
 #	make install.data
@@ -50,7 +50,7 @@ echo '** Building terminfo database, please wait...'
 : ${srcdir:=@srcdir@}
 : ${datarootdir:=@datarootdir@}
 : ${datadir:=@datadir@}
-: ${TIC_PATH:=@TIC_PATH@}
+: ${TIC_PATH:=@TIC@}
 : ${ticdir:=@TERMINFO@}
 : ${source:=@TERMINFO_SRC@}
 : ${LN_S:="@LN_S@"}
@@ -84,7 +84,7 @@ then
 		fi
 	elif test "$TIC_PATH" = unknown
 	then
-		echo '? no tic program found'
+		echo "? no tic program found"
 		exit 1
 	fi
 else
@@ -105,11 +105,12 @@ SHLIB_HOST=@host_os@
 export SHLIB_HOST
 
 # don't use user's TERMINFO variable
-TERMINFO=${DESTDIR}$ticdir ; export TERMINFO
+unset TERMINFO_DIRS
+TERMINFO="${DESTDIR}$ticdir" ; export TERMINFO
 umask 022
 
 # Construct the name of the old (obsolete) pathname, e.g., /usr/lib/terminfo.
-TICDIR=`echo $TERMINFO | sed -e 's%/share/\([^/]*\)$%/lib/\1%'`
+TICDIR=`echo "$TERMINFO" | sed -e 's%/share/\([^/]*\)$%/lib/\1%'`
 
 # Parent directory may not exist, which would confuse the install for hashed
 # database.  Fix.
@@ -123,7 +124,13 @@ fi
 # would generate a lot of confusing error messages if we tried to overwrite it.
 # We explicitly remove its contents rather than the directory itself, in case
 # the directory is actually a symbolic link.
-( test -d "$TERMINFO" && cd $TERMINFO && rm -fr ? 2>/dev/null )
+if test -d "$TERMINFO"
+then
+	( cd "$TERMINFO" && rm -fr ? 2>/dev/null )
+elif test -f "$TERMINFO.db"
+then
+	( rm -f "$TERMINFO.db" 2>/dev/null )
+fi
 
 if test "$ext_funcs" = 1 ; then
 cat <<EOF
@@ -137,11 +144,11 @@ Running $TIC_PATH to install $TERMINFO ...
 	document, and install the terminfo without the -x option.
 
 EOF
-if ( $TIC_PATH -x -s -o $TERMINFO $source )
+if ( $TIC_PATH -x -s -o "$TERMINFO" $source )
 then
-	echo '** built new '$TERMINFO
+	echo "** built new $TERMINFO"
 else
-	echo '? tic could not build '$TERMINFO
+	echo "? tic could not build $TERMINFO"
 	exit 1
 fi
 else
@@ -156,11 +163,11 @@ Running $TIC_PATH to install $TERMINFO ...
 	document, and install the terminfo without the -x option.
 
 EOF
-if ( $TIC_PATH -s -o $TERMINFO $source )
+if ( $TIC_PATH -s -o "$TERMINFO" $source )
 then
-	echo '** built new '$TERMINFO
+	echo "** built new $TERMINFO"
 else
-	echo '? tic could not build '$TERMINFO
+	echo "? tic could not build $TERMINFO"
 	exit 1
 fi
 fi
@@ -170,12 +177,12 @@ fi
 # all systems support symbolic links, and those that do provide a variety
 # of options for 'test'.
 if test "$TICDIR" != "$TERMINFO" ; then
-	( rm -f $TICDIR 2>/dev/null )
-	if ( cd $TICDIR 2>/dev/null )
+	( rm -f "$TICDIR" 2>/dev/null )
+	if ( cd "$TICDIR" 2>/dev/null )
 	then
-		cd $TICDIR
+		cd "$TICDIR"
 		TICDIR=`pwd`
-		if test $TICDIR != $TERMINFO ; then
+		if test "$TICDIR "!= "$TERMINFO "; then
 			# Well, we tried.  Some systems lie to us, so the
 			# installer will have to double-check.
 			echo "Verify if $TICDIR and $TERMINFO are the same."
@@ -190,11 +197,11 @@ if test "$TICDIR" != "$TERMINFO" ; then
 		if test "$RELATIVE" != "$ticdir" ; then
 			RELATIVE=../`echo $ticdir|sed -e 's%^'$prefix'/%%' -e 's%^/%%'`
 		fi
-		if ( @LN_S@ $RELATIVE $TICDIR )
+		if ( @LN_S@ "$RELATIVE" "$TICDIR" )
 		then
-			echo '** sym-linked '$TICDIR' for compatibility'
+			echo "** sym-linked $TICDIR for compatibility"
 		else
-			echo '** could not sym-link '$TICDIR' for compatibility'
+			echo "** could not sym-link $TICDIR for compatibility"
 		fi
 	fi
 fi

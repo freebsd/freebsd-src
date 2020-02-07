@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.19 $
---  $Date: 2011/03/22 23:54:38 $
+--  $Revision: 1.20 $
+--  $Date: 2014/09/13 19:10:18 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Calendar; use Ada.Calendar;
@@ -121,8 +121,11 @@ package body Sample.Header_Handler is
       D      : constant Day_Number   := Day (Now);
    begin
       if Header_Window /= Null_Window then
-         if Minute /= Display_Min or else Hour /= Display_Hour
-           or else Display_Day /= D or else Display_Month /= Mon then
+         if Minute /= Display_Min
+           or else Hour /= Display_Hour
+           or else Display_Day /= D
+           or else Display_Month /= Mon
+         then
             Move_Cursor (Header_Window, 0, 0);
             N_Out (D); Add (Header_Window, '.');
             Add (Header_Window, Month_Names (Mon));

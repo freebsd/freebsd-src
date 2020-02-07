@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2012,2013 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2012-2013,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,9 +30,9 @@
 
 #if USE_WIDEC_SUPPORT
 
-MODULE_ID("$Id: widechars.c,v 1.5 2013/03/02 18:55:51 tom Exp $")
+MODULE_ID("$Id: widechars.c,v 1.6 2018/06/24 00:06:37 tom Exp $")
 
-#if defined(__MINGW32__)
+#if defined(_WIN32)
 /*
  * MinGW has wide-character functions, but they do not work correctly.
  */
@@ -147,6 +147,6 @@ _nc_wctomb(char *s, wchar_t wc)
     return result;
 }
 
-#endif /* __MINGW32__ */
+#endif /* _WIN32 */
 
 #endif /* USE_WIDEC_SUPPORT */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2013,2014 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2013-2014,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,26 +31,38 @@
  ****************************************************************************/
 
 /*
- * $Id: form_driver_w.c,v 1.11 2014/02/09 22:20:27 tom Exp $
+ * $Id: form_driver_w.c,v 1.15 2017/04/15 20:41:35 tom Exp $
  *
  * Test form_driver_w (int, int, wchar_t), a wide char aware
  * replacement of form_driver.
  */
 
-#include <locale.h>
-
 #include <test.priv.h>
+#include <popup_msg.h>
 
-#if USE_WIDEC_SUPPORT && USE_LIBFORM
+#if USE_WIDEC_SUPPORT && USE_LIBFORM && (defined(NCURSES_VERSION_PATCH) && NCURSES_VERSION_PATCH >= 20131207)
 
 #include <form.h>
 
 int
 main(void)
 {
-    FIELD *field[3];
+    static const char *help[] =
+    {
+	"Commands:",
+	"  ^D,^Q,ESC           - quit program",
+	"  <Tab>,<Down>        - move to next field",
+	"  <BackTab>,<Up>      - move to previous field",
+	0
+    };
+
+#define NUM_FIELDS 3
+#define MyRow(n) (4 + (n) * 2)
+#define MyCol(n) 10
+    FIELD *field[NUM_FIELDS + 1];
     FORM *my_form;
     bool done = FALSE;
+    int n;
 
     setlocale(LC_ALL, "");
 
@@ -61,32 +73,34 @@ main(void)
     keypad(stdscr, TRUE);
 
     /* Initialize the fields */
-    field[0] = new_field(1, 10, 4, 18, 0, 0);
-    field[1] = new_field(1, 10, 6, 18, 0, 0);
-    field[2] = NULL;
-
-    /* Set field options */
-    set_field_back(field[0], A_UNDERLINE);	/* Print a line for the option  */
-    field_opts_off(field[0], O_AUTOSKIP);	/* Don't go to next field when this */
-    /* Field is filled up           */
-    set_field_back(field[1], A_UNDERLINE);
-    field_opts_off(field[1], O_AUTOSKIP);
+    for (n = 0; n < NUM_FIELDS; ++n) {
+	field[n] = new_field(1, 10, MyRow(n), 18, 0, 0);
+	set_field_back(field[n], A_UNDERLINE);
+	/* Print a line for the option  */
+	field_opts_off(field[n], O_AUTOSKIP);
+	/* Don't go to next field when this is filled */
+    }
+    field[n] = NULL;
 
     /* Create the form and post it */
     my_form = new_form(field);
     post_form(my_form);
     refresh();
 
-    mvprintw(4, 10, "Value 1:");
-    mvprintw(6, 10, "Value 2:");
-    refresh();
+    for (n = 0; n < NUM_FIELDS; ++n) {
+	mvprintw(MyRow(n), MyCol(n), "Value %d:", n + 1);
+    }
 
     /* Loop through to get user requests */
     while (!done) {
 	wint_t ch;
 	int ret = get_wch(&ch);
 
-	mvprintw(8, 10, "Got %d (%#x), type: %s", (int) ch, (int) ch,
+	mvprintw(MyRow(NUM_FIELDS),
+		 MyCol(NUM_FIELDS),
+		 "Got %d (%#x), type: %s",
+		 (int) ch,
+		 (int) ch,
 		 (ret == KEY_CODE_YES)
 		 ? "KEY_CODE_YES"
 		 : ((ret == OK)
@@ -106,6 +120,7 @@ main(void)
 		/* Leaves nicely at the last character */
 		form_driver_w(my_form, KEY_CODE_YES, REQ_END_LINE);
 		break;
+	    case KEY_BTAB:
 	    case KEY_UP:
 		/* Go to previous field */
 		form_driver_w(my_form, KEY_CODE_YES, REQ_PREV_FIELD);
@@ -122,8 +137,15 @@ main(void)
 	    case ESCAPE:
 		done = TRUE;
 		break;
+	    case '\t':
+		form_driver_w(my_form, KEY_CODE_YES, REQ_NEXT_FIELD);
+		form_driver_w(my_form, KEY_CODE_YES, REQ_END_LINE);
+		break;
+	    case HELP_KEY_1:
+		popup_msg(form_win(my_form), help);
+		break;
 	    default:
-		form_driver_w(my_form, OK, ch);
+		form_driver_w(my_form, OK, (wchar_t) ch);
 		break;
 	    }
 	    break;
@@ -133,8 +155,9 @@ main(void)
     /* Un post form and free the memory */
     unpost_form(my_form);
     free_form(my_form);
-    free_field(field[0]);
-    free_field(field[1]);
+    for (n = 0; n < NUM_FIELDS; ++n) {
+	free_field(field[n]);
+    }
 
     endwin();
     ExitProgram(EXIT_SUCCESS);

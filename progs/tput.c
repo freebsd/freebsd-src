@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -38,30 +39,27 @@
  * Ross Ridge's mytinfo package.
  */
 
-#define USE_LIBTINFO
-#include <progs.priv.h>
+#include <tparm_type.h>
+#include <clear_cmd.h>
+#include <reset_cmd.h>
 
 #if !PURE_TERMINFO
 #include <dump_entry.h>
 #include <termsort.c>
 #endif
 #include <transform.h>
+#include <tty_settings.h>
 
-MODULE_ID("$Id: tput.c,v 1.49 2013/09/28 20:57:25 tom Exp $")
+MODULE_ID("$Id: tput.c,v 1.80 2019/07/28 18:18:41 tom Exp $")
 
 #define PUTS(s)		fputs(s, stdout)
-#define PUTCHAR(c)	putchar(c)
-#define FLUSH		fflush(stdout)
 
-typedef enum {
-    Numbers = 0
-    ,Num_Str
-    ,Num_Str_Str
-} TParams;
+const char *_nc_progname = "tput";
 
 static char *prg_name;
 static bool is_init = FALSE;
 static bool is_reset = FALSE;
+static bool is_clear = FALSE;
 
 static void
 quit(int status, const char *fmt,...)
@@ -79,47 +77,42 @@ quit(int status, const char *fmt,...)
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: %s [-V] [-S] [-T term] capname\n", prg_name);
-    ExitProgram(EXIT_FAILURE);
-}
-
-static void
-check_aliases(const char *name)
-{
-    is_init = same_program(name, PROG_INIT);
-    is_reset = same_program(name, PROG_RESET);
-}
-
-/*
- * Lookup the type of call we should make to tparm().  This ignores the actual
- * terminfo capability (bad, because it is not extensible), but makes this
- * code portable to platforms where sizeof(int) != sizeof(char *).
- */
-static TParams
-tparm_type(const char *name)
-{
-#define TD(code, longname, ti, tc) {code,longname},{code,ti},{code,tc}
-    TParams result = Numbers;
-    /* *INDENT-OFF* */
-    static const struct {
-	TParams code;
-	const char *name;
-    } table[] = {
-	TD(Num_Str,	"pkey_key",	"pfkey",	"pk"),
-	TD(Num_Str,	"pkey_local",	"pfloc",	"pl"),
-	TD(Num_Str,	"pkey_xmit",	"pfx",		"px"),
-	TD(Num_Str,	"plab_norm",	"pln",		"pn"),
-	TD(Num_Str_Str, "pkey_plab",	"pfxl",		"xl"),
+#define KEEP(s) s "\n"
+    static const char msg[] =
+    {
+	KEEP("")
+	KEEP("Options:")
+	KEEP("  -S <<       read commands from standard input")
+	KEEP("  -T TERM     use this instead of $TERM")
+	KEEP("  -V          print curses-version")
+	KEEP("  -x          do not try to clear scrollback")
+	KEEP("")
+	KEEP("Commands:")
+	KEEP("  clear       clear the screen")
+	KEEP("  init        initialize the terminal")
+	KEEP("  reset       reinitialize the terminal")
+	KEEP("  capname     unlike clear/init/reset, print value for capability \"capname\"")
     };
-    /* *INDENT-ON* */
+#undef KEEP
+    (void) fprintf(stderr, "Usage: %s [options] [command]\n", prg_name);
+    fputs(msg, stderr);
+    ExitProgram(ErrUsage);
+}
 
-    unsigned n;
-    for (n = 0; n < SIZEOF(table); n++) {
-	if (!strcmp(name, table[n].name)) {
-	    result = table[n].code;
-	    break;
-	}
-    }
+static char *
+check_aliases(char *name, bool program)
+{
+    static char my_init[] = "init";
+    static char my_reset[] = "reset";
+    static char my_clear[] = "clear";
+
+    char *result = name;
+    if ((is_init = same_program(name, program ? PROG_INIT : my_init)))
+	result = my_init;
+    if ((is_reset = same_program(name, program ? PROG_RESET : my_reset)))
+	result = my_reset;
+    if ((is_clear = same_program(name, program ? PROG_CLEAR : my_clear)))
+	result = my_clear;
     return result;
 }
 
@@ -142,121 +135,46 @@ exit_code(int token, int value)
     return result;
 }
 
+/*
+ * Returns nonzero on error.
+ */
 static int
-tput(int argc, char *argv[])
+tput_cmd(int fd, TTY * saved_settings, bool opt_x, int argc, char *argv[])
 {
     NCURSES_CONST char *name;
     char *s;
-    int i, j, c;
     int status;
-    FILE *f;
 #if !PURE_TERMINFO
     bool termcap = FALSE;
 #endif
 
-    if ((name = argv[0]) == 0)
-	name = "";
-    check_aliases(name);
+    name = check_aliases(argv[0], FALSE);
     if (is_reset || is_init) {
-	if (init_prog != 0) {
-	    system(init_prog);
-	}
-	FLUSH;
+	TTY oldmode;
 
-	if (is_reset && reset_1string != 0) {
-	    PUTS(reset_1string);
-	} else if (init_1string != 0) {
-	    PUTS(init_1string);
-	}
-	FLUSH;
+	int terasechar = -1;	/* new erase character */
+	int intrchar = -1;	/* new interrupt character */
+	int tkillchar = -1;	/* new kill character */
 
-	if (is_reset && reset_2string != 0) {
-	    PUTS(reset_2string);
-	} else if (init_2string != 0) {
-	    PUTS(init_2string);
+	if (is_reset) {
+	    reset_start(stdout, TRUE, FALSE);
+	    reset_tty_settings(fd, saved_settings);
+	} else {
+	    reset_start(stdout, FALSE, TRUE);
 	}
-	FLUSH;
 
-#ifdef set_lr_margin
-	if (set_lr_margin != 0) {
-	    PUTS(TPARM_2(set_lr_margin, 0, columns - 1));
-	} else
+#if HAVE_SIZECHANGE
+	set_window_size(fd, &lines, &columns);
+#else
+	(void) fd;
 #endif
-#ifdef set_left_margin_parm
-	    if (set_left_margin_parm != 0
-		&& set_right_margin_parm != 0) {
-	    PUTS(TPARM_1(set_left_margin_parm, 0));
-	    PUTS(TPARM_1(set_right_margin_parm, columns - 1));
-	} else
-#endif
-	    if (clear_margins != 0
-		&& set_left_margin != 0
-		&& set_right_margin != 0) {
-	    PUTS(clear_margins);
-	    if (carriage_return != 0) {
-		PUTS(carriage_return);
-	    } else {
-		PUTCHAR('\r');
-	    }
-	    PUTS(set_left_margin);
-	    if (parm_right_cursor) {
-		PUTS(TPARM_1(parm_right_cursor, columns - 1));
-	    } else {
-		for (i = 0; i < columns - 1; i++) {
-		    PUTCHAR(' ');
-		}
-	    }
-	    PUTS(set_right_margin);
-	    if (carriage_return != 0) {
-		PUTS(carriage_return);
-	    } else {
-		PUTCHAR('\r');
-	    }
-	}
-	FLUSH;
-
-	if (init_tabs != 8) {
-	    if (clear_all_tabs != 0 && set_tab != 0) {
-		for (i = 0; i < columns - 1; i += 8) {
-		    if (parm_right_cursor) {
-			PUTS(TPARM_1(parm_right_cursor, 8));
-		    } else {
-			for (j = 0; j < 8; j++)
-			    PUTCHAR(' ');
-		    }
-		    PUTS(set_tab);
-		}
-		FLUSH;
-	    }
+	set_control_chars(saved_settings, terasechar, intrchar, tkillchar);
+	set_conversions(saved_settings);
+	if (send_init_strings(fd, &oldmode)) {
+	    reset_flush();
 	}
 
-	if (is_reset && reset_file != 0) {
-	    f = fopen(reset_file, "r");
-	    if (f == 0) {
-		quit(4 + errno, "Can't open reset_file: '%s'", reset_file);
-	    }
-	    while ((c = fgetc(f)) != EOF) {
-		PUTCHAR(c);
-	    }
-	    fclose(f);
-	} else if (init_file != 0) {
-	    f = fopen(init_file, "r");
-	    if (f == 0) {
-		quit(4 + errno, "Can't open init_file: '%s'", init_file);
-	    }
-	    while ((c = fgetc(f)) != EOF) {
-		PUTCHAR(c);
-	    }
-	    fclose(f);
-	}
-	FLUSH;
-
-	if (is_reset && reset_3string != 0) {
-	    PUTS(reset_3string);
-	} else if (init_3string != 0) {
-	    PUTS(init_3string);
-	}
-	FLUSH;
+	update_tty_settings(&oldmode, saved_settings);
 	return 0;
     }
 
@@ -267,7 +185,9 @@ tput(int argc, char *argv[])
 #if !PURE_TERMINFO
   retry:
 #endif
-    if ((status = tigetflag(name)) != -1) {
+    if (strcmp(name, "clear") == 0) {
+	return (clear_cmd(opt_x) == ERR) ? ErrUsage : 0;
+    } else if ((status = tigetflag(name)) != -1) {
 	return exit_code(BOOLEAN, status);
     } else if ((status = tigetnum(name)) != CANCELLED_NUMERIC) {
 	(void) printf("%d\n", status);
@@ -281,26 +201,23 @@ tput(int argc, char *argv[])
 	    if ((np = _nc_find_entry(name, _nc_get_hash_table(termcap))) != 0) {
 		switch (np->nte_type) {
 		case BOOLEAN:
-		    if (bool_from_termcap[np->nte_index])
-			name = boolnames[np->nte_index];
+		    name = boolnames[np->nte_index];
 		    break;
 
 		case NUMBER:
-		    if (num_from_termcap[np->nte_index])
-			name = numnames[np->nte_index];
+		    name = numnames[np->nte_index];
 		    break;
 
 		case STRING:
-		    if (str_from_termcap[np->nte_index])
-			name = strnames[np->nte_index];
+		    name = strnames[np->nte_index];
 		    break;
 		}
 		goto retry;
 	    }
 	}
 #endif
-	quit(4, "unknown terminfo capability '%s'", name);
-    } else if (s != ABSENT_STRING) {
+	quit(ErrCapName, "unknown terminfo capability '%s'", name);
+    } else if (VALID_STRING(s)) {
 	if (argc > 1) {
 	    int k;
 	    int ignored;
@@ -313,7 +230,7 @@ tput(int argc, char *argv[])
 	     * representations
 	     */
 
-	    for (k = 1; k < argc; k++) {
+	    for (k = 1; (k < argc) && (k < NUM_PARM); k++) {
 		char *tmp = 0;
 		strings[k] = argv[k];
 		numbers[k] = strtol(argv[k], &tmp, 0);
@@ -366,33 +283,48 @@ main(int argc, char **argv)
     int c;
     char buf[BUFSIZ];
     int result = 0;
+    int fd;
+    TTY tty_settings;
+    bool opt_x = FALSE;		/* clear scrollback if possible */
+    bool is_alias;
+    bool need_tty;
 
-    check_aliases(prg_name = _nc_rootname(argv[0]));
+    prg_name = check_aliases(_nc_rootname(argv[0]), TRUE);
 
     term = getenv("TERM");
 
-    while ((c = getopt(argc, argv, "ST:V")) != -1) {
+    while ((c = getopt(argc, argv, "ST:Vx")) != -1) {
 	switch (c) {
 	case 'S':
 	    cmdline = FALSE;
 	    break;
 	case 'T':
 	    use_env(FALSE);
+	    use_tioctl(TRUE);
 	    term = optarg;
 	    break;
 	case 'V':
 	    puts(curses_version());
 	    ExitProgram(EXIT_SUCCESS);
+	case 'x':		/* do not try to clear scrollback */
+	    opt_x = TRUE;
+	    break;
 	default:
 	    usage();
 	    /* NOTREACHED */
 	}
     }
 
+    is_alias = (is_clear || is_reset || is_init);
+    need_tty = ((is_reset || is_init) ||
+		(optind < argc &&
+		 (!strcmp(argv[optind], "reset") ||
+		  !strcmp(argv[optind], "init"))));
+
     /*
      * Modify the argument list to omit the options we processed.
      */
-    if (is_reset || is_init) {
+    if (is_alias) {
 	if (optind-- < argc) {
 	    argc -= optind;
 	    argv += optind;
@@ -404,15 +336,17 @@ main(int argc, char **argv)
     }
 
     if (term == 0 || *term == '\0')
-	quit(2, "No value for $TERM and no -T specified");
+	quit(ErrUsage, "No value for $TERM and no -T specified");
 
-    if (setupterm(term, STDOUT_FILENO, &errret) != OK && errret <= 0)
-	quit(3, "unknown terminal \"%s\"", term);
+    fd = save_tty_settings(&tty_settings, need_tty);
+
+    if (setupterm(term, fd, &errret) != OK && errret <= 0)
+	quit(ErrTermType, "unknown terminal \"%s\"", term);
 
     if (cmdline) {
-	if ((argc <= 0) && !is_reset && !is_init)
+	if ((argc <= 0) && !is_alias)
 	    usage();
-	ExitProgram(tput(argc, argv));
+	ExitProgram(tput_cmd(fd, &tty_settings, opt_x, argc, argv));
     }
 
     while (fgets(buf, sizeof(buf), stdin) != 0) {
@@ -433,9 +367,9 @@ main(int argc, char **argv)
 	argvec[argnum] = 0;
 
 	if (argnum != 0
-	    && tput(argnum, argvec) != 0) {
+	    && tput_cmd(fd, &tty_settings, opt_x, argnum, argvec) != 0) {
 	    if (result == 0)
-		result = 4;	/* will return value >4 */
+		result = ErrSystem(0);	/* will return value >4 */
 	    ++result;
 	}
     }

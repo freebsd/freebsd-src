@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2011 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2011,2015 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,10 +26,18 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-/* $Id: c_varargs_to_ada.h,v 1.3 2011/03/19 19:07:41 tom Exp $ */
+/* $Id: c_varargs_to_ada.h,v 1.4 2015/08/06 23:08:47 tom Exp $ */
 
 #ifndef __C_VARARGS_TO_ADA_H
 #define __C_VARARGS_TO_ADA_H
+
+#ifdef HAVE_CONFIG_H
+#include <ncurses_cfg.h>
+#else
+#include <ncurses.h>
+#endif
+
+#include <stdlib.h>
 
 #include <form.h>
 

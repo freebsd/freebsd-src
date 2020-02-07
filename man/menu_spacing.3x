@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,11 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_spacing.3x,v 1.12 2010/12/04 18:38:55 tom Exp $
+.\" $Id: menu_spacing.3x,v 1.15 2019/06/01 22:33:45 tom Exp $
 .TH menu_spacing 3X ""
 .SH NAME
-\fBmenu_spacing\fR \- Control spacing between menu items.
+\fBset_menu_spacing\fP,
+\fBmenu_spacing\fR \- set and get spacing between menu items.
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
 .br
@@ -46,21 +47,23 @@ int menu_spacing(const MENU *menu,
 .br
 .SH DESCRIPTION
 The function \fBset_menu_spacing\fR sets the spacing information for the menu.
-Its parameter \fBspc_description\fR controls the number of spaces between an item name and an item
-description.
+Its parameter \fBspc_description\fR controls the number of spaces
+between an item name and an item description.
 It must not be larger than \fBTABSIZE\fR.
 The menu system puts in the
 middle of this spacing area the pad character.
 The remaining parts are filled with
 spaces.
-The \fBspc_rows\fR parameter controls the number of rows that are used for an item.
+The \fBspc_rows\fR parameter controls the number of rows
+that are used for an item.
 It must not be larger than 3.
 The menu system inserts the blank lines between item rows, these lines
 will contain the pad character in the appropriate positions.
-The \fBspc_columns\fR parameter controls the number of blanks between columns of items.
-It must not be larger than TABSIZE.
-A value of 0 for all the spacing values resets them to the default, which is 1 for all
-of them.
+The \fBspc_columns\fR parameter controls
+the number of blanks between columns of items.
+It must not be larger than \fBTABSIZE\fP.
+A value of 0 for all the spacing values resets them to the default,
+which is 1 for all of them.
 .br
 The function \fBmenu_spacing\fR passes back the spacing info for the menu.
 If a

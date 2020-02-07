@@ -1,9 +1,15 @@
-Upstream source http://invisible-island.net/ncurses/ncurses-examples.html
+Upstream source https://invisible-island.net/ncurses/ncurses-examples.html
 
 Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
 
 -------------------------------------------------------------------------------
-    Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.
+Files: *
+Copyright: 1998-2019,2020 Free Software Foundation, Inc.
+Licence: X11
+
+Files: aclocal.m4 package
+Copyright: 2010-2019,2020 by Thomas E. Dickey
+Licence: X11
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the
@@ -28,11 +34,12 @@ Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
     holders shall not be used in advertising or otherwise to promote the
     sale, use or other dealings in this Software without prior written
     authorization.
--------------------------------------------------------------------------------
 
+-------------------------------------------------------------------------------
 Files: install-sh
 Copyright:  1994 X Consortium
-Licence: other-BSD
+Licence: X11
+
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to
     deal in the Software without restriction, including without limitation the
@@ -67,3 +74,5 @@ Licence: other-BSD
 
 On Debian systems, the complete text of the GNU General
 Public License can be found in '/usr/share/common-licenses/GPL-2'
+
+-- vile: txtmode file-encoding=utf-8

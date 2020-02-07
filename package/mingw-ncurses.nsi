@@ -1,4 +1,4 @@
-; $Id: mingw-ncurses.nsi,v 1.28 2014/02/22 16:55:12 tom Exp $
+; $Id: mingw-ncurses.nsi,v 1.370 2020/01/18 10:27:03 tom Exp $
 
 ; TODO add examples
 ; TODO bump ABI to 6
@@ -7,10 +7,10 @@
 !define APPNAME "ncurses"
 !define EXENAME "ncurses.exe"
 
-!define VERSION_MAJOR "5"
-!define VERSION_MINOR "9"
-!define VERSION_YYYY  "2014"
-!define VERSION_MMDD  "0222"
+!define VERSION_MAJOR "6"
+!define VERSION_MINOR "1"
+!define VERSION_YYYY  "2020"
+!define VERSION_MMDD  "0118"
 !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
 
 !define MY_ABI   "5"

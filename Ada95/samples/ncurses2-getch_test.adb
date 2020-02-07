@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2008,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2009,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.8 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.9 $
+--  $Date: 2014/09/13 19:10:18 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 --  Character input test
@@ -210,8 +210,10 @@ begin
          end;
       elsif c = Character'Pos ('s') then
          ShellOut (True);
-      elsif c = Character'Pos ('x') or c = Character'Pos ('q') or
-        (c = Key_None and blockflag = Blocking) then
+      elsif c = Character'Pos ('x') or
+            c = Character'Pos ('q') or
+           (c = Key_None and blockflag = Blocking)
+      then
          exit;
       elsif c = Character'Pos ('?') then
          Add (Str => "Type any key to see its keypad value.  Also:");

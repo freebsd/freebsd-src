@@ -55,15 +55,15 @@
 <span class="comment"><EM>--  @Revision: 1.11 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_44_43">Float_IO</A>;
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_44_43">Float_IO</A>;
 
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<span class="symbol"><A NAME="ref_43_48" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_46_43">Complex_IO</A></span> <b>is</b>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<span class="symbol"><A NAME="ref_43_48" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_46_43">Complex_IO</A></span> <b>is</b>
 
    <b>package</b> FIO <b>is</b> <b>new</b>
-     <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_44_43">Float_IO</A> (Complex_Types.Real'Base);
+     <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_44_43">Float_IO</A> (Complex_Types.Real'Base);
 
    <b>procedure</b> <span class="symbol"><A NAME="ref_48_14" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_54_14">Put</A></span>
-     (<span class="symbol"><A NAME="ref_49_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_55_7">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;
+     (<span class="symbol"><A NAME="ref_49_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_55_7">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>;
       Item : Complex;
       <span class="symbol"><A NAME="ref_51_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_57_7">Fore</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_50_4">Default_Fore</A>;
       <span class="symbol"><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_58_7">Aft</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_51_4">Default_Aft</A>;
@@ -87,5 +87,5 @@
       <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_54_14">Put</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>, Item, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_63_7">Fore</A>, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_64_7">Aft</A>, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_65_7">Exp</A>);
    <b>end</b> <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_61_14">Put</A>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_46_43">Complex_IO</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_46_43">Complex_IO</A>;
 </PRE></BODY></HTML>

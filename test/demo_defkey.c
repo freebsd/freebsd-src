@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_defkey.c,v 1.22 2013/09/28 22:02:17 tom Exp $
+ * $Id: demo_defkey.c,v 1.29 2019/08/17 21:49:19 tom Exp $
  *
  * Demonstrate the define_key() function.
  * Thomas Dickey - 2002/11/23
@@ -45,10 +45,10 @@ static void
 log_last_line(WINDOW *win)
 {
     FILE *fp;
-    int y, x, n;
-    char temp[256];
 
     if ((fp = fopen(MY_LOGFILE, "a")) != 0) {
+	char temp[256];
+	int y, x, n;
 	int need = sizeof(temp) - 1;
 	if (need > COLS)
 	    need = COLS;
@@ -78,15 +78,15 @@ visichar(int ch)
     ch = UChar(ch);
     assert(ch >= 0 && ch < 256);
     if (ch == '\\') {
-	strcpy(temp, "\\\\");
+	_nc_STRCPY(temp, "\\\\", sizeof(temp));
     } else if (ch == '\033') {
-	strcpy(temp, "\\E");
+	_nc_STRCPY(temp, "\\E", sizeof(temp));
     } else if (ch < ' ') {
-	sprintf(temp, "\\%03o", ch);
+	_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp)) "\\%03o", ch);
     } else if (ch >= 127) {
-	sprintf(temp, "\\%03o", ch);
+	_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp)) "\\%03o", ch);
     } else {
-	sprintf(temp, "%c", ch);
+	_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp)) "%c", ch);
     }
     return temp;
 }
@@ -98,19 +98,21 @@ static char *
 visible(const char *string)
 {
     char *result = 0;
-    size_t need = 1;
-    int pass;
-    int n;
 
     if (string != 0 && *string != '\0') {
+	int pass;
+	int n;
+	size_t need = 1;
+
 	for (pass = 0; pass < 2; ++pass) {
 	    for (n = 0; string[n] != '\0'; ++n) {
 		char temp[80];
-		strncpy(temp, visichar(string[n]), sizeof(temp) - 2);
-		if (pass)
-		    strcat(result, temp);
-		else
+		_nc_STRNCPY(temp, visichar(string[n]), sizeof(temp) - 2);
+		if (pass) {
+		    _nc_STRCAT(result, temp, need);
+		} else {
 		    need += strlen(temp);
+		}
 	    }
 	    if (!pass)
 		result = typeCalloc(char, need);
@@ -131,7 +133,7 @@ really_define_key(WINDOW *win, const char *new_string, int code)
     char temp[80];
 
     if (code_name == 0) {
-	sprintf(temp, "Keycode %d", code);
+	_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp)) "Keycode %d", code);
 	code_name = temp;
     }
 
@@ -184,15 +186,16 @@ duplicate(WINDOW *win, NCURSES_CONST char *name, int code)
 
     if (value != 0) {
 	const char *prefix = 0;
-	char temp[BUFSIZ];
 
-	if (!strncmp(value, "\033[", (size_t) 2)) {
+	if (!(strncmp) (value, "\033[", (size_t) 2)) {
 	    prefix = "\033O";
-	} else if (!strncmp(value, "\033O", (size_t) 2)) {
+	} else if (!(strncmp) (value, "\033O", (size_t) 2)) {
 	    prefix = "\033[";
 	}
 	if (prefix != 0) {
-	    sprintf(temp, "%s%s", prefix, value + 2);
+	    char temp[BUFSIZ];
+	    _nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp))
+			"%s%s", prefix, value + 2);
 	    really_define_key(win, temp, code);
 	}
     }
@@ -239,7 +242,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
      */
     for (n = 0; n < 12; ++n) {
 	char name[10];
-	sprintf(name, "kf%d", n + 1);
+	_nc_SPRINTF(name, _nc_SLIMIT(sizeof(name)) "kf%d", n + 1);
 	fkeys[n] = tigetstr(name);
     }
     for (n = 0; n < 12; ++n) {
@@ -270,7 +273,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    break;
     }
     endwin();
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(EXIT_SUCCESS);
 }
 #else
 int

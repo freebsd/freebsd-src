@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.25 $
---  $Date: 2011/03/22 23:22:27 $
+--  $Revision: 1.28 $
+--  $Date: 2014/09/13 19:00:47 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Terminal_Interface.Curses.Aux; use Terminal_Interface.Curses.Aux;
@@ -76,9 +76,10 @@ package body Terminal_Interface.Curses.Forms.Field_Types is
          return null;
       else
          if Low_Level = M_Builtin_Router or else
-           Low_Level = M_Generic_Type or else
-           Low_Level = M_Choice_Router or else
-           Low_Level = M_Generic_Choice then
+            Low_Level = M_Generic_Type or else
+            Low_Level = M_Choice_Router or else
+            Low_Level = M_Generic_Choice
+         then
             Arg := Argument_Access
          (Argument_Conversions.To_Pointer (Get_Arg (Fld)));
             if Arg = null then
@@ -130,10 +131,9 @@ package body Terminal_Interface.Curses.Forms.Field_Types is
       Usr_Arg   : constant System.Address := Get_Arg (Fld);
       Low_Level : constant C_Field_Type := Get_Fieldtype (Fld);
       Arg : Argument_Access;
-      Res : Eti_Error;
       function Set_Fld_Type (F    : Field := Fld;
                              Cf   : C_Field_Type := Cft;
-                             Arg1 : Argument_Access) return C_Int;
+                             Arg1 : Argument_Access) return Eti_Error;
       pragma Import (C, Set_Fld_Type, "set_field_type_user");
 
    begin
@@ -152,10 +152,7 @@ package body Terminal_Interface.Curses.Forms.Field_Types is
             end if;
          end if;
 
-         Res := Set_Fld_Type (Arg1 => Arg);
-         if Res /= E_Ok then
-            Eti_Exception (Res);
-         end if;
+         Eti_Exception (Set_Fld_Type (Arg1 => Arg));
       end if;
    end Wrap_Builtin;
 
@@ -223,7 +220,6 @@ package body Terminal_Interface.Curses.Forms.Field_Types is
    --
    function C_Builtin_Router return C_Field_Type
    is
-      Res : Eti_Error;
       T   : C_Field_Type;
    begin
       if M_Builtin_Router = Null_Field_Type then
@@ -232,13 +228,10 @@ package body Terminal_Interface.Curses.Forms.Field_Types is
          if T = Null_Field_Type then
             raise Form_Exception;
          else
-            Res := Set_Fieldtype_Arg (T,
-                                      Make_Arg'Access,
-                                      Copy_Arg'Access,
-                                      Free_Arg'Access);
-            if Res /= E_Ok then
-               Eti_Exception (Res);
-            end if;
+            Eti_Exception (Set_Fieldtype_Arg (T,
+                                              Make_Arg'Access,
+                                              Copy_Arg'Access,
+                                              Free_Arg'Access));
          end if;
          M_Builtin_Router := T;
       end if;
@@ -250,7 +243,6 @@ package body Terminal_Interface.Curses.Forms.Field_Types is
    --
    function C_Choice_Router return C_Field_Type
    is
-      Res : Eti_Error;
       T   : C_Field_Type;
    begin
       if M_Choice_Router = Null_Field_Type then
@@ -259,20 +251,14 @@ package body Terminal_Interface.Curses.Forms.Field_Types is
          if T = Null_Field_Type then
             raise Form_Exception;
          else
-            Res := Set_Fieldtype_Arg (T,
-                                      Make_Arg'Access,
-                                      Copy_Arg'Access,
-                                      Free_Arg'Access);
-            if Res /= E_Ok then
-               Eti_Exception (Res);
-            end if;
+            Eti_Exception (Set_Fieldtype_Arg (T,
+                                              Make_Arg'Access,
+                                              Copy_Arg'Access,
+                                              Free_Arg'Access));
 
-            Res := Set_Fieldtype_Choice (T,
-                                         Next_Router'Access,
-                                         Prev_Router'Access);
-            if Res /= E_Ok then
-               Eti_Exception (Res);
-            end if;
+            Eti_Exception (Set_Fieldtype_Choice (T,
+                                                 Next_Router'Access,
+                                                 Prev_Router'Access));
          end if;
          M_Choice_Router := T;
       end if;

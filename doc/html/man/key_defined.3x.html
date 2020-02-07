@@ -1,7 +1,6 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 2003-2006,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 2003-2010,2018 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -28,76 +27,73 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey 2003
-  * @Id: key_defined.3x,v 1.6 2010/12/04 18:40:45 tom Exp @
+  * @Id: key_defined.3x,v 1.8 2018/07/28 22:08:59 tom Exp @
 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+<meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
 <TITLE>key_defined 3x</TITLE>
-<link rev=made href="mailto:bug-ncurses@gnu.org">
+<link rel="author" href="mailto:bug-ncurses@gnu.org">
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 </HEAD>
 <BODY>
-<H1>key_defined 3x</H1>
-<HR>
+<H1 class="no-header">key_defined 3x</H1>
 <PRE>
-<!-- Manpage converted by man2html 3.0.1 -->
-<STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>                                         <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
+<STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>                                                <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
 
 
 
 
-</PRE>
-<H2>NAME</H2><PRE>
+</PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <STRONG>key_defined</STRONG> - check if a keycode is defined
 
 
-</PRE>
-<H2>SYNOPSIS</H2><PRE>
+</PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>key_defined(const</STRONG> <STRONG>char</STRONG> <STRONG>*definition);</STRONG>
 
 
-</PRE>
-<H2>DESCRIPTION</H2><PRE>
-       This is an extension to the curses library.  It permits an
-       application to determine if a string is currently bound to
-       any keycode.
+</PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
+       This  is an extension to the curses library.  It permits an application
+       to determine if a string is currently bound to any keycode.
 
 
-</PRE>
-<H2>RETURN VALUE</H2><PRE>
-       If  the  string  is bound to a keycode, its value (greater
-       than zero) is returned.  If no keycode is bound,  zero  is
-       returned.   If  the  string  conflicts with longer strings
-       which are bound to keys, -1 is returned.
+</PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
+       If the string is bound to a keycode, its value (greater than  zero)  is
+       returned.   If  no  keycode  is bound, zero is returned.  If the string
+       conflicts with longer strings which are bound to keys, -1 is returned.
 
 
-</PRE>
-<H2>PORTABILITY</H2><PRE>
-       These routines are specific to  ncurses.   They  were  not
-       supported  on  Version 7, BSD or System V implementations.
-       It is recommended that any code depending on them be  con-
-       ditioned using NCURSES_VERSION.
+</PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+       These routines are specific to ncurses.  They  were  not  supported  on
+       Version 7, BSD or System V implementations.  It is recommended that any
+       code depending on them be conditioned using NCURSES_VERSION.
 
 
-</PRE>
-<H2>SEE ALSO</H2><PRE>
+</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>.
 
 
-</PRE>
-<H2>AUTHOR</H2><PRE>
+</PRE><H2><a name="h2-AUTHOR">AUTHOR</a></H2><PRE>
        Thomas Dickey.
 
 
 
-                                                        <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
+                                                               <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
 </PRE>
-<HR>
-<ADDRESS>
-Man(1) output converted with
-<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
-</ADDRESS>
+<div class="nav">
+<ul>
+<li><a href="#h2-NAME">NAME</a></li>
+<li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
+<li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
+<li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
+<li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
+<li><a href="#h2-AUTHOR">AUTHOR</a></li>
+</ul>
+</div>
 </BODY>
 </HTML>

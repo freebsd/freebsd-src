@@ -55,42 +55,42 @@
 <span class="comment"><EM>--  @Revision: 1.12 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<b>with</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C;
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
-<b>use</b>  <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>;
-<b>use</b>  <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>;
+<b>use</b>  <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>;
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>;
+<b>use</b>  <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>;
 
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>.<span class="symbol"><A NAME="ref_47_47" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_45_42">User_Data</A></span> <b>is</b>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>.<span class="symbol"><A NAME="ref_47_47" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_45_42">User_Data</A></span> <b>is</b>
 
-   <b>use</b> <b>type</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.int;
+   <b>use</b> <b>type</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_51_14" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_53_14">Set_User_Data</A></span> (<span class="symbol"><A NAME="ref_51_29" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_53_29">Pan</A></span>  : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+   <b>procedure</b> <span class="symbol"><A NAME="ref_51_14" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_53_14">Set_User_Data</A></span> (<span class="symbol"><A NAME="ref_51_29" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_53_29">Pan</A></span>  : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>;
                             <span class="symbol"><A NAME="ref_52_29" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_54_29">Data</A></span> : <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_44_9">User_Access</A>)
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_54_16">Set_Panel_Userptr</A></span> (<span class="symbol"><A NAME="ref_54_35" HREF="terminal_interface-curses-panels-user_data__adb.htm#ref_54_16">Pan</A></span>  : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
-                                  <span class="symbol"><A NAME="ref_55_35" HREF="terminal_interface-curses-panels-user_data__adb.htm#ref_54_16">Addr</A></span> : <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_44_9">User_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_54_16">Set_Panel_Userptr</A></span> (<span class="symbol"><A NAME="ref_54_35" HREF="terminal_interface-curses-panels-user_data__adb.htm#ref_54_16">Pan</A></span>  : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>;
+                                  <span class="symbol"><A NAME="ref_55_35" HREF="terminal_interface-curses-panels-user_data__adb.htm#ref_54_16">Addr</A></span> : <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_44_9">User_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>;
       <b>pragma</b> Import (C, Set_Panel_Userptr, "set_panel_userptr");
    <b>begin</b>
-      <b>if</b> <A HREF="terminal_interface-curses-panels-user_data__adb.htm#ref_54_16">Set_Panel_Userptr</A> (<A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_53_29">Pan</A>, <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_54_29">Data</A>) = <A HREF="terminal_interface-curses-aux__ads.htm#ref_72_4">Curses_Err</A> <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_60_4">Panel_Exception</A>;
+      <b>if</b> <A HREF="terminal_interface-curses-panels-user_data__adb.htm#ref_54_16">Set_Panel_Userptr</A> (<A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_53_29">Pan</A>, <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_54_29">Data</A>) = <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_4">Curses_Err</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_59_4">Panel_Exception</A>;
       <b>end</b> <b>if</b>;
    <b>end</b> <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_53_14">Set_User_Data</A>;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_63_13" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_64_13">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_63_28" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_64_28">Pan</A></span>  : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_44_9">User_Access</A>
+   <b>function</b> <span class="symbol"><A NAME="ref_63_13" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_64_13">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_63_28" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_64_28">Pan</A></span>  : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_44_9">User_Access</A>
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_65_16">Panel_Userptr</A></span> (<span class="symbol"><A NAME="ref_65_31" HREF="terminal_interface-curses-panels-user_data__adb.htm#ref_65_16">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_44_9">User_Access</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_65_16">Panel_Userptr</A></span> (<span class="symbol"><A NAME="ref_65_31" HREF="terminal_interface-curses-panels-user_data__adb.htm#ref_65_16">Pan</A></span> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_44_9">User_Access</A>;
       <b>pragma</b> Import (C, Panel_Userptr, "panel_userptr");
    <b>begin</b>
       <b>return</b> <A HREF="terminal_interface-curses-panels-user_data__adb.htm#ref_65_16">Panel_Userptr</A> (<A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_64_28">Pan</A>);
    <b>end</b> <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_64_13">Get_User_Data</A>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_71_14" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_59_14">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_71_29" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_59_29">Pan</A></span>  : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+   <b>procedure</b> <span class="symbol"><A NAME="ref_71_14" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_59_14">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_71_29" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_59_29">Pan</A></span>  : <A HREF="terminal_interface-curses-panels__ads.htm#ref_48_9">Panel</A>;
                             <span class="symbol"><A NAME="ref_72_29" HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_60_29">Data</A></span> : <b>out</b> <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_44_9">User_Access</A>)
    <b>is</b>
    <b>begin</b>
       <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_60_29">Data</A> := <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_64_13">Get_User_Data</A> (<A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_59_29">Pan</A>);
    <b>end</b> <A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_59_14">Get_User_Data</A>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>.<A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_45_42">User_Data</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>.<A HREF="terminal_interface-curses-panels-user_data__ads.htm#ref_45_42">User_Data</A>;
 </PRE></BODY></HTML>
