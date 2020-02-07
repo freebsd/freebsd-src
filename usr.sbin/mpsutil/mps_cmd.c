@@ -727,28 +727,55 @@ mps_pass_command(int fd, void *req, uint32_t req_len, void *reply,
 	return (0);
 }
 
+/* Return the length in bytes of the device's MPI2_IOC_FACTS reply */
+static size_t
+mps_get_ioc_factslen(int fd)
+{
+	MPI2_IOC_FACTS_REQUEST req;
+	const size_t factslen = 4;
+	char factsbuf[4] = {0};
+	MPI2_IOC_FACTS_REPLY *facts = (MPI2_IOC_FACTS_REPLY*)factsbuf;
+	int error;
+
+	bzero(&req, sizeof(req));
+	req.Function = MPI2_FUNCTION_IOC_FACTS;
+	error = mps_pass_command(fd, &req, sizeof(MPI2_IOC_FACTS_REQUEST),
+	    factsbuf, factslen, NULL, 0, NULL, 0, 10);
+
+	if (error)
+		return (0);
+
+	/* The card's response is measured in dwords */
+	return (facts->MsgLength * 4);
+}
+
 MPI2_IOC_FACTS_REPLY *
 mps_get_iocfacts(int fd)
 {
 	MPI2_IOC_FACTS_REPLY *facts;
 	MPI2_IOC_FACTS_REQUEST req;
+	size_t factslen;
 	int error;
 
-	facts = malloc(sizeof(MPI2_IOC_FACTS_REPLY));
+	factslen = mps_get_ioc_factslen(fd);
+	if (factslen == 0)
+		return (NULL);
+
+	facts = malloc(factslen);
 	if (facts == NULL) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 
-	bzero(&req, sizeof(MPI2_IOC_FACTS_REQUEST));
+	bzero(&req, sizeof(req));
 	req.Function = MPI2_FUNCTION_IOC_FACTS;
 
 #if 1
 	error = mps_pass_command(fd, &req, sizeof(MPI2_IOC_FACTS_REQUEST),
-	    facts, sizeof(MPI2_IOC_FACTS_REPLY), NULL, 0, NULL, 0, 10);
+	    facts, factslen, NULL, 0, NULL, 0, 10);
 #else
 	error = mps_user_command(fd, &req, sizeof(MPI2_IOC_FACTS_REQUEST),
-	    facts, sizeof(MPI2_IOC_FACTS_REPLY), NULL, 0, 0);
+	    facts, factslen, NULL, 0, 0);
 #endif
 	if (error) {
 		free(facts);
