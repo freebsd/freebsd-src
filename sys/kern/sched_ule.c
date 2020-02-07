@@ -2605,15 +2605,17 @@ sched_add(struct thread *td, int flags)
 		sched_setpreempt(td);
 #else
 	tdq = TDQ_SELF();
-	TDQ_LOCK(tdq);
 	/*
 	 * Now that the thread is moving to the run-queue, set the lock
 	 * to the scheduler's lock.
 	 */
-	if ((flags & SRQ_HOLD) != 0)
-		td->td_lock = TDQ_LOCKPTR(tdq);
-	else
-		thread_lock_set(td, TDQ_LOCKPTR(tdq));
+	if (td->td_lock != TDQ_LOCKPTR(tdq)) {
+		TDQ_LOCK(tdq);
+		if ((flags & SRQ_HOLD) != 0)
+			td->td_lock = TDQ_LOCKPTR(tdq);
+		else
+			thread_lock_set(td, TDQ_LOCKPTR(tdq));
+	}
 	tdq_add(tdq, td, flags);
 	if (!(flags & SRQ_YIELDING))
 		sched_setpreempt(td);

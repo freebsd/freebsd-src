@@ -346,6 +346,13 @@ struct dnode {
 };
 
 /*
+ * Since AVL already has embedded element counter, use dn_dbufs_count
+ * only for dbufs not counted there (bonus buffers) and just add them.
+ */
+#define	DN_DBUFS_COUNT(dn)	((dn)->dn_dbufs_count + \
+    avl_numnodes(&(dn)->dn_dbufs))
+
+/*
  * Adds a level of indirection between the dbuf and the dnode to avoid
  * iterating descendent dbufs in dnode_move(). Handles are not allocated
  * individually, but as an array of child dnodes in dnode_hold_impl().

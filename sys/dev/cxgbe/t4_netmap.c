@@ -63,7 +63,7 @@ extern int fl_pad;	/* XXXNM */
  * 2 = supermassive black hole (buffer packing enabled)
  */
 int black_hole = 0;
-SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_black_hole, CTLFLAG_RDTUN, &black_hole, 0,
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_black_hole, CTLFLAG_RWTUN, &black_hole, 0,
     "Sink incoming packets.");
 
 int rx_ndesc = 256;
@@ -85,7 +85,7 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
  *  1: no backpressure, drop packets for the congested queue immediately.
  */
 static int nm_cong_drop = 1;
-SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_cong_drop, CTLFLAG_RDTUN,
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_cong_drop, CTLFLAG_RWTUN,
     &nm_cong_drop, 0,
     "Congestion control for netmap rx queues (0 = backpressure, 1 = drop");
 
@@ -109,6 +109,16 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, lazy_tx_credit_flush, CTLFLAG_RWTUN,
 static int nm_split_rss = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_split_rss, CTLFLAG_RWTUN,
     &nm_split_rss, 0, "Split the netmap rx queues into two groups.");
+
+/*
+ * netmap(4) says "netmap does not use features such as checksum offloading, TCP
+ * segmentation offloading, encryption, VLAN encapsulation/decapsulation, etc."
+ * but this knob can be used to get the hardware to checksum all tx traffic
+ * anyway.
+ */
+static int nm_txcsum = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_txcsum, CTLFLAG_RWTUN,
+    &nm_txcsum, 0, "Enable transmit checksum offloading.");
 
 static int
 alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
@@ -345,7 +355,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	struct sge_nm_rxq *nm_rxq;
 	struct sge_nm_txq *nm_txq;
 	int rc, i, j, hwidx, defq, nrssq;
-	struct hw_buf_info *hwb;
+	struct rx_buf_info *rxb;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
@@ -353,17 +363,22 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return (EAGAIN);
 
-	hwb = &sc->sge.hw_buf_info[0];
-	for (i = 0; i < SGE_FLBUF_SIZES; i++, hwb++) {
-		if (hwb->size == NETMAP_BUF_SIZE(na))
+	rxb = &sc->sge.rx_buf_info[0];
+	for (i = 0; i < SW_ZONE_SIZES; i++, rxb++) {
+		if (rxb->size1 == NETMAP_BUF_SIZE(na)) {
+			hwidx = rxb->hwidx1;
 			break;
+		}
+		if (rxb->size2 == NETMAP_BUF_SIZE(na)) {
+			hwidx = rxb->hwidx2;
+			break;
+		}
 	}
-	if (i >= SGE_FLBUF_SIZES) {
+	if (i >= SW_ZONE_SIZES) {
 		if_printf(ifp, "no hwidx for netmap buffer size %d.\n",
 		    NETMAP_BUF_SIZE(na));
 		return (ENXIO);
 	}
-	hwidx = i;
 
 	/* Must set caps before calling netmap_reset */
 	nm_set_native_flags(na);
@@ -691,13 +706,8 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 			cpl->ctrl0 = nm_txq->cpl_ctrl0;
 			cpl->pack = 0;
 			cpl->len = htobe16(slot->len);
-			/*
-			 * netmap(4) says "netmap does not use features such as
-			 * checksum offloading, TCP segmentation offloading,
-			 * encryption, VLAN encapsulation/decapsulation, etc."
-			 */
-			cpl->ctrl1 = htobe64(F_TXPKT_IPCSUM_DIS |
-			    F_TXPKT_L4CSUM_DIS);
+			cpl->ctrl1 = nm_txcsum ? 0 :
+			    htobe64(F_TXPKT_IPCSUM_DIS | F_TXPKT_L4CSUM_DIS);
 
 			usgl = (void *)(cpl + 1);
 			usgl->cmd_nsge = htobe32(V_ULPTX_CMD(ULP_TX_SC_DSGL) |
@@ -986,6 +996,7 @@ cxgbe_nm_attach(struct vi_info *vi)
 	na.nm_register = cxgbe_netmap_reg;
 	na.num_tx_rings = vi->nnmtxq;
 	na.num_rx_rings = vi->nnmrxq;
+	na.rx_buf_maxsize = MAX_MTU;
 	netmap_attach(&na);	/* This adds IFCAP_NETMAP to if_capabilities */
 }
 

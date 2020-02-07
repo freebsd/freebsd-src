@@ -106,6 +106,11 @@ idad_strategy(struct bio *bp)
 		goto bad;
 	}
 
+	if ((bp->bio_cmd != BIO_READ) && (bp->bio_cmd != BIO_WRITE)) {
+		bp->bio_error = EOPNOTSUPP;
+		goto bad;
+	}
+
 	bp->bio_driver1 = drv;
 	ida_submit_buf(drv->controller, bp);
 	return;

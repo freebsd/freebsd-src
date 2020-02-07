@@ -51,13 +51,6 @@ copyw(uint16_t *src, uint16_t *dst, size_t size)
 #define bzero_io(d, c)		bzero((void *)(d), (c))
 #define fill_io(p, d, c)	fill((p), (void *)(d), (c))
 #define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))
-#elif defined(__sparc64__)
-static __inline void
-fillw(int val, uint16_t *buf, size_t size)
-{
-	while (size--)
-		*buf++ = val;
-}
 #elif defined(__powerpc__)
 
 #define bcopy_io(s, d, c)	ofwfb_bcopy((void *)(s), (void *)(d), (c))
@@ -102,7 +95,7 @@ fillw(int val, uint16_t *buf, size_t size)
 #define	writew(a, v)		(*(uint16_t*)(a) = (v))
 #endif
 
-#else /* !__i386__ && !__amd64__ && !__sparc64__ && !__powerpc__ */
+#else /* !__i386__ && !__amd64__ && !__powerpc__ */
 #define bcopy_io(s, d, c)	memcpy_io((d), (s), (c))
 #define bcopy_toio(s, d, c)	memcpy_toio((d), (void *)(s), (c))
 #define bcopy_fromio(s, d, c)	memcpy_fromio((void *)(d), (s), (c))

@@ -93,7 +93,7 @@ S_flag_cleanup()
 	restore_mixer_vol
 }
 
-atf_test_case set_empty_value
+atf_test_case set_empty_value cleanup
 set_empty_value_head()
 {
 	atf_set	"descr" "Verify that mixer returns when the provided " \

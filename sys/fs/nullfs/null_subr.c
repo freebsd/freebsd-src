@@ -209,7 +209,7 @@ null_nodeget(mp, lowervp, vpp)
 	int error;
 
 	ASSERT_VOP_LOCKED(lowervp, "lowervp");
-	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p", lowervp));
+	VNPASS(lowervp->v_usecount > 0, lowervp);
 
 	/* Lookup the hash firstly. */
 	*vpp = null_hashget(mp, lowervp);

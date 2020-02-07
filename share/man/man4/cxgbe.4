@@ -317,11 +317,6 @@ Allow the hardware to deliver multiple frames in the same receive buffer
 opportunistically.
 The default is -1 which lets the driver decide.
 0 or 1 explicitly disable or enable this feature.
-.It Va hw.cxgbe.allow_mbufs_in_cluster
-1 allows the driver to lay down one or more mbufs within the receive buffer
-opportunistically.
-This is the default.
-0 prohibits the driver from doing so.
 .It Va hw.cxgbe.largest_rx_cluster
 .It Va hw.cxgbe.safest_rx_cluster
 Sizes of rx clusters.

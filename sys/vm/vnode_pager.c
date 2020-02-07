@@ -248,7 +248,7 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	vp = (struct vnode *)handle;
 	ASSERT_VOP_LOCKED(vp, "vnode_pager_alloc");
-	KASSERT(vp->v_usecount != 0, ("vnode_pager_alloc: no vnode reference"));
+	VNPASS(vp->v_usecount > 0, vp);
 retry:
 	object = vp->v_object;
 

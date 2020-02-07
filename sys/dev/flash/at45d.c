@@ -493,7 +493,7 @@ at45d_task(void *arg)
 				len = sc->pagesize - offset;
 			break;
 		default:
-			berr = EINVAL;
+			berr = EOPNOTSUPP;
 			goto out;
 		}
 

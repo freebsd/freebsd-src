@@ -731,21 +731,21 @@ static void __dead2
 usage(void)
 {
 	fprintf(stderr,
-		"usage: units [-f unitsfile] [-H historyfile] [-UVq] [from-unit to-unit]\n");
+	    "usage: units [-ehqtUVv] [-f unitsfile] [-o format] [from to]\n");
 	exit(3);
 }
 
 static struct option longopts[] = {
-	{"help", no_argument, NULL, 'h'},
 	{"exponential", no_argument, NULL, 'e'},
 	{"file", required_argument, NULL, 'f'},
 	{"history", required_argument, NULL, 'H'},
+	{"help", no_argument, NULL, 'h'},
 	{"output-format", required_argument, NULL, 'o'},
 	{"quiet", no_argument, NULL, 'q'},
 	{"terse", no_argument, NULL, 't'},
 	{"unitsfile", no_argument, NULL, 'U'},
-	{"verbose", no_argument, NULL, 'v'},
 	{"version", no_argument, NULL, 'V'},
+	{"verbose", no_argument, NULL, 'v'},
 	{ 0, 0, 0, 0 }
 };
 

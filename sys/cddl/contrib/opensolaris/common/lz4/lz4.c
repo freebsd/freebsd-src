@@ -246,16 +246,6 @@ lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len,
 #endif
 
 /*
- * FreeBSD: can't use GCC's __builtin_ctz when using sparc64 because
- * gcc currently rely on libcompiler_rt.
- *
- * TODO: revisit this when situation changes.
- */
-#if defined(__sparc64__)
-#define	LZ4_FORCE_SW_BITCOUNT
-#endif
-
-/*
  * Compiler Options
  */
 #if __STDC_VERSION__ >= 199901L	/* C99 */

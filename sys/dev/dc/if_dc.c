@@ -135,11 +135,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/dc/if_dcreg.h>
 
-#ifdef __sparc64__
-#include <dev/ofw/openfirm.h>
-#include <machine/ofw_machdep.h>
-#endif
-
 MODULE_DEPEND(dc, pci, 1, 1, 1);
 MODULE_DEPEND(dc, ether, 1, 1, 1);
 MODULE_DEPEND(dc, miibus, 1, 1, 1);
@@ -2293,14 +2288,6 @@ dc_attach(device_t dev)
 		break;
 	case DC_TYPE_DM9102:
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_EE_NODEADDR, 3, 0);
-#ifdef __sparc64__
-		/*
-		 * If this is an onboard dc(4) the station address read from
-		 * the EEPROM is all zero and we have to get it from the FCode.
-		 */
-		if (eaddr[0] == 0 && (eaddr[1] & ~0xffff) == 0)
-			OF_getetheraddr(dev, (caddr_t)&eaddr);
-#endif
 		break;
 	case DC_TYPE_21143:
 	case DC_TYPE_ASIX:

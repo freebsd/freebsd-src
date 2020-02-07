@@ -36,10 +36,10 @@ _dwarf_add_expr(Dwarf_P_Expr expr, Dwarf_Small opcode, Dwarf_Unsigned val1,
 	Dwarf_Debug dbg;
 	int len;
 
-	dbg = expr != NULL ? expr->pe_dbg : NULL;
+	dbg = expr->pe_dbg;
 
-	if (_dwarf_loc_expr_add_atom(expr->pe_dbg, NULL, NULL, opcode, val1,
-	    val2, &len, error) != DW_DLE_NONE)
+	if (_dwarf_loc_expr_add_atom(dbg, NULL, NULL, opcode, val1, val2, &len,
+	    error) != DW_DLE_NONE)
 		return (NULL);
 	assert(len > 0);
 
@@ -67,7 +67,7 @@ _dwarf_expr_into_block(Dwarf_P_Expr expr, Dwarf_Error *error)
 	Dwarf_Debug dbg;
 	int len, pos, ret;
 
-	dbg = expr != NULL ? expr->pe_dbg : NULL;
+	dbg = expr->pe_dbg;
 
 	if (expr->pe_block != NULL) {
 		free(expr->pe_block);
@@ -88,7 +88,7 @@ _dwarf_expr_into_block(Dwarf_P_Expr expr, Dwarf_Error *error)
 	pos = 0;
 	STAILQ_FOREACH(ee, &expr->pe_eelist, ee_next) {
 		assert((Dwarf_Unsigned) pos < expr->pe_length);
-		ret = _dwarf_loc_expr_add_atom(expr->pe_dbg,
+		ret = _dwarf_loc_expr_add_atom(dbg,
 		    &expr->pe_block[pos], &expr->pe_block[expr->pe_length],
 		    ee->ee_loc.lr_atom, ee->ee_loc.lr_number,
 		    ee->ee_loc.lr_number2, &len, error);

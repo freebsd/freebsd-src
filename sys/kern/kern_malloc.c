@@ -930,9 +930,7 @@ reallocf(void *addr, size_t size, struct malloc_type *mtp, int flags)
 	return (mem);
 }
 
-#ifndef __sparc64__
 CTASSERT(VM_KMEM_SIZE_SCALE >= 1);
-#endif
 
 /*
  * Initialize the kernel memory (kmem) arena.

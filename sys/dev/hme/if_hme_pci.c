@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <machine/bus.h>
-#if defined(__powerpc__) || defined(__sparc64__)
+#if defined(__powerpc__)
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
 #endif
@@ -140,7 +140,7 @@ hme_pci_attach(device_t dev)
 	bus_space_tag_t	memt;
 	bus_space_handle_t memh;
 	int i, error = 0;
-#if !(defined(__powerpc__) || defined(__sparc64__))
+#if !defined(__powerpc__)
 	device_t *children, ebus_dev;
 	struct resource *ebus_rres;
 	int j, slot;
@@ -197,7 +197,7 @@ hme_pci_attach(device_t dev)
 	bus_space_subregion(memt, memh, 0x6000, 0x1000, &sc->sc_mach);
 	bus_space_subregion(memt, memh, 0x7000, 0x1000, &sc->sc_mifh);
 
-#if defined(__powerpc__) || defined(__sparc64__)
+#if defined(__powerpc__)
 	OF_getetheraddr(dev, sc->sc_enaddr);
 #else
 	/*

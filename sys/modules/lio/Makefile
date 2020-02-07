@@ -7,7 +7,6 @@
 KMOD = if_lio
 CFLAGS += -I${.CURDIR}/../../dev/liquidio
 CFLAGS += -I${.CURDIR}/../../dev/liquidio/base
-CFLAGS += -DSMP
 
 SRCS = device_if.h bus_if.h pci_if.h vnode_if.h opt_inet.h opt_inet6.h
 SRCS += vnode_if_newproto.h vnode_if_typedef.h

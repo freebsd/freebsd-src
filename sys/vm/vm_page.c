@@ -508,7 +508,7 @@ vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
 
 	m->object = NULL;
 	m->ref_count = 0;
-	m->busy_lock = VPB_UNBUSIED;
+	m->busy_lock = VPB_FREED;
 	m->flags = m->a.flags = 0;
 	m->phys_addr = pa;
 	m->a.queue = PQ_NONE;
@@ -988,6 +988,8 @@ vm_page_sunbusy(vm_page_t m)
 
 	x = m->busy_lock;
 	for (;;) {
+		KASSERT(x != VPB_FREED,
+		    ("vm_page_sunbusy: Unlocking freed page."));
 		if (VPB_SHARERS(x) > 1) {
 			if (atomic_fcmpset_int(&m->busy_lock, &x,
 			    x - VPB_ONE_SHARER))
@@ -1155,6 +1157,17 @@ vm_page_xunbusy_hard_unchecked(vm_page_t m)
 	vm_page_xunbusy_hard_tail(m);
 }
 
+static void
+vm_page_busy_free(vm_page_t m)
+{
+	u_int x;
+
+	atomic_thread_fence_rel();
+	x = atomic_swap_int(&m->busy_lock, VPB_FREED);
+	if ((x & VPB_BIT_WAITERS) != 0)
+		wakeup(m);
+}
+
 /*
  *	vm_page_unhold_pages:
  *
@@ -1249,7 +1262,8 @@ vm_page_putfake(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) != 0, ("managed %p", m));
 	KASSERT((m->flags & PG_FICTITIOUS) != 0,
 	    ("vm_page_putfake: bad page %p", m));
-	vm_page_xunbusy(m);
+	vm_page_assert_xbusied(m);
+	vm_page_busy_free(m);
 	uma_zfree(fakepg_zone, m);
 }
 
@@ -2012,11 +2026,12 @@ found:
 	m->a.flags = 0;
 	m->oflags = object == NULL || (object->flags & OBJ_UNMANAGED) != 0 ?
 	    VPO_UNMANAGED : 0;
-	m->busy_lock = VPB_UNBUSIED;
 	if ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ | VM_ALLOC_SBUSY)) == 0)
 		m->busy_lock = VPB_CURTHREAD_EXCLUSIVE;
-	if ((req & VM_ALLOC_SBUSY) != 0)
+	else if ((req & VM_ALLOC_SBUSY) != 0)
 		m->busy_lock = VPB_SHARERS_WORD(1);
+	else
+		m->busy_lock = VPB_UNBUSIED;
 	if (req & VM_ALLOC_WIRED) {
 		vm_wire_add(1);
 		m->ref_count = 1;
@@ -2202,11 +2217,12 @@ found:
 		flags |= PG_NODUMP;
 	oflags = object == NULL || (object->flags & OBJ_UNMANAGED) != 0 ?
 	    VPO_UNMANAGED : 0;
-	busy_lock = VPB_UNBUSIED;
 	if ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ | VM_ALLOC_SBUSY)) == 0)
 		busy_lock = VPB_CURTHREAD_EXCLUSIVE;
-	if ((req & VM_ALLOC_SBUSY) != 0)
+	else if ((req & VM_ALLOC_SBUSY) != 0)
 		busy_lock = VPB_SHARERS_WORD(1);
+	else
+		busy_lock = VPB_UNBUSIED;
 	if ((req & VM_ALLOC_WIRED) != 0)
 		vm_wire_add(npages);
 	if (object != NULL) {
@@ -2268,7 +2284,7 @@ vm_page_alloc_check(vm_page_t m)
 	    ("page %p has unexpected queue %d, flags %#x",
 	    m, m->a.queue, (m->a.flags & PGA_QUEUE_STATE_MASK)));
 	KASSERT(m->ref_count == 0, ("page %p has references", m));
-	KASSERT(!vm_page_busied(m), ("page %p is busy", m));
+	KASSERT(vm_page_busy_freed(m), ("page %p is not freed", m));
 	KASSERT(m->dirty == 0, ("page %p is dirty", m));
 	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
 	    ("page %p has unexpected memattr %d",
@@ -3592,9 +3608,6 @@ vm_page_free_prep(vm_page_t m)
 	 */
 	atomic_thread_fence_acq();
 
-	if (vm_page_sbusied(m))
-		panic("vm_page_free_prep: freeing shared busy page %p", m);
-
 #if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
 	if (PMAP_HAS_DMAP && (m->flags & PG_ZERO) != 0) {
 		uint64_t *p;
@@ -3621,7 +3634,7 @@ vm_page_free_prep(vm_page_t m)
 		    ((m->object->flags & OBJ_UNMANAGED) != 0),
 		    ("vm_page_free_prep: managed flag mismatch for page %p",
 		    m));
-		vm_page_object_remove(m);
+		vm_page_assert_xbusied(m);
 
 		/*
 		 * The object reference can be released without an atomic
@@ -3631,13 +3644,13 @@ vm_page_free_prep(vm_page_t m)
 		    m->ref_count == VPRC_OBJREF,
 		    ("vm_page_free_prep: page %p has unexpected ref_count %u",
 		    m, m->ref_count));
+		vm_page_object_remove(m);
 		m->object = NULL;
 		m->ref_count -= VPRC_OBJREF;
-		vm_page_xunbusy(m);
-	}
+	} else
+		vm_page_assert_unbusied(m);
 
-	if (vm_page_xbusied(m))
-		panic("vm_page_free_prep: freeing exclusive busy page %p", m);
+	vm_page_busy_free(m);
 
 	/*
 	 * If fictitious remove object association and

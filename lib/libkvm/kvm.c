@@ -46,6 +46,7 @@ __SCCSID("@(#)kvm.c	8.2 (Berkeley) 2/13/94");
 #include <sys/linker.h>
 #include <sys/pcpu.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/mman.h>
 
 #include <net/vnet.h>
@@ -498,4 +499,33 @@ kvm_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *closure)
 		return (0);
 
 	return (kd->arch->ka_walk_pages(kd, cb, closure));
+}
+
+kssize_t
+kvm_kerndisp(kvm_t *kd)
+{
+	unsigned long kernbase, rel_kernbase;
+	size_t kernbase_len = sizeof(kernbase);
+	size_t rel_kernbase_len = sizeof(rel_kernbase);
+
+	if (ISALIVE(kd)) {
+		if (sysctlbyname("kern.base_address", &kernbase,
+		    &kernbase_len, NULL, 0) == -1) {
+			_kvm_syserr(kd, kd->program,
+				"failed to get kernel base address");
+			return (0);
+		}
+		if (sysctlbyname("kern.relbase_address", &rel_kernbase,
+		    &rel_kernbase_len, NULL, 0) == -1) {
+			_kvm_syserr(kd, kd->program,
+				"failed to get relocated kernel base address");
+			return (0);
+		}
+		return (rel_kernbase - kernbase);
+	}
+
+	if (kd->arch->ka_kerndisp == NULL)
+		return (0);
+
+	return (kd->arch->ka_kerndisp(kd));
 }

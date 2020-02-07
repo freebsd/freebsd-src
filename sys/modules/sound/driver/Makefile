@@ -21,12 +21,6 @@ _maestro3=	maestro3
 SUBDIR+=	cmi mss
 .endif
 
-.if ${MACHINE_CPUARCH} == "sparc64"
-.if ${MACHINE} == "sparc64"
-SUBDIR+=	audiocs
-.endif
-.endif
-
 .if ${MACHINE_CPUARCH} == "powerpc"
 SUBDIR+=	ai2s davbus
 .endif

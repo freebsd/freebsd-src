@@ -462,7 +462,7 @@ n25q_task(void *arg)
 			    bp->bio_data, bp->bio_bcount);
 			break;
 		default:
-			bp->bio_error = EINVAL;
+			bp->bio_error = EOPNOTSUPP;
 		}
 
 		biodone(bp);

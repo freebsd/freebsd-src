@@ -65,7 +65,7 @@ _ld_version!=	(${${ld}} --version || echo none) | sed -n 1p
 .if ${_ld_version:[1..2]} == "GNU ld"
 ${X_}LINKER_TYPE=	bfd
 ${X_}LINKER_FREEBSD_VERSION=	0
-_v=	${_ld_version:M[1-9].[0-9]*:[1]}
+_v=	${_ld_version:M[1-9]*.[0-9]*:[1]}
 .elif ${_ld_version:[1]} == "LLD"
 ${X_}LINKER_TYPE=	lld
 _v=	${_ld_version:[2]}
@@ -77,7 +77,7 @@ ${X_}LINKER_FREEBSD_VERSION!= \
 ${X_}LINKER_TYPE=	bfd
 _v=	2.17.50
 .endif
-${X_}LINKER_VERSION!=	echo "${_v:M[1-9].[0-9]*}" | \
+${X_}LINKER_VERSION!=	echo "${_v:M[1-9]*.[0-9]*}" | \
 			  awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3;}'
 .undef _ld_version
 .undef _v

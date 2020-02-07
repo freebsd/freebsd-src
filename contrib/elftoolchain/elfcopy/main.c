@@ -587,15 +587,19 @@ copy_from_tempfile(const char *src, const char *dst, int infd, int *outfd,
 	if ((tmpfd = open(dst, O_CREAT | O_TRUNC | O_WRONLY, 0755)) < 0)
 		return (-1);
 
-	if (elftc_copyfile(infd, tmpfd) < 0)
+	if (elftc_copyfile(infd, tmpfd) < 0) {
+		(void) close(tmpfd);
 		return (-1);
+	}
 
 	/*
 	 * Remove the temporary file from the file system
 	 * namespace, and close its file descriptor.
 	 */
-	if (unlink(src) < 0)
+	if (unlink(src) < 0) {
+		(void) close(tmpfd);
 		return (-1);
+	}
 
 	(void) close(infd);
 

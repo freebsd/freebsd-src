@@ -92,20 +92,19 @@ static void	tmpfs_susp_clean(struct mount *);
 
 static const char *tmpfs_opts[] = {
 	"from", "size", "maxfilesize", "inodes", "uid", "gid", "mode", "export",
-	"union", "nonc", NULL
+	"union", "nonc", "nomtime", NULL
 };
 
 static const char *tmpfs_updateopts[] = {
-	"from", "export", "size", NULL
+	"from", "export", "nomtime", "size", NULL
 };
 
 /*
- * Handle updates of time from writes to mmaped regions.  Use
- * MNT_VNODE_FOREACH_ALL instead of MNT_VNODE_FOREACH_LAZY, since
+ * Handle updates of time from writes to mmaped regions, if allowed.
+ * Use MNT_VNODE_FOREACH_ALL instead of MNT_VNODE_FOREACH_LAZY, since
  * unmap of the tmpfs-backed vnode does not call vinactive(), due to
- * vm object type is OBJT_SWAP.
- * If lazy, only handle delayed update of mtime due to the writes to
- * mapped files.
+ * vm object type is OBJT_SWAP.  If lazy, only handle delayed update
+ * of mtime due to the writes to mapped files.
  */
 static void
 tmpfs_update_mtime(struct mount *mp, bool lazy)
@@ -113,6 +112,8 @@ tmpfs_update_mtime(struct mount *mp, bool lazy)
 	struct vnode *vp, *mvp;
 	struct vm_object *obj;
 
+	if (VFS_TO_TMPFS(mp)->tm_nomtime)
+		return;
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		if (vp->v_type != VREG) {
 			VI_UNLOCK(vp);
@@ -327,7 +328,7 @@ tmpfs_mount(struct mount *mp)
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
 	int error;
-	bool nonc;
+	bool nomtime, nonc;
 	/* Size counters. */
 	u_quad_t pages;
 	off_t nodes_max, size_max, maxfilesize;
@@ -346,6 +347,7 @@ tmpfs_mount(struct mount *mp)
 		/* Only support update mounts for certain options. */
 		if (vfs_filteropt(mp->mnt_optnew, tmpfs_updateopts) != 0)
 			return (EOPNOTSUPP);
+		tmp = VFS_TO_TMPFS(mp);
 		if (vfs_getopt_size(mp->mnt_optnew, "size", &size_max) == 0) {
 			/*
 			 * On-the-fly resizing is not supported (yet). We still
@@ -354,21 +356,23 @@ tmpfs_mount(struct mount *mp)
 			 * parameter, say trying to change rw to ro or vice
 			 * versa, would cause vfs_filteropt() to bail.
 			 */
-			if (size_max != VFS_TO_TMPFS(mp)->tm_size_max)
+			if (size_max != tmp->tm_size_max)
 				return (EOPNOTSUPP);
 		}
 		if (vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
-		    !(VFS_TO_TMPFS(mp)->tm_ronly)) {
+		    !tmp->tm_ronly) {
 			/* RW -> RO */
 			return (tmpfs_rw_to_ro(mp));
 		} else if (!vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
-		    VFS_TO_TMPFS(mp)->tm_ronly) {
+		    tmp->tm_ronly) {
 			/* RO -> RW */
-			VFS_TO_TMPFS(mp)->tm_ronly = 0;
+			tmp->tm_ronly = 0;
 			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_RDONLY;
 			MNT_IUNLOCK(mp);
 		}
+		tmp->tm_nomtime = vfs_getopt(mp->mnt_optnew, "nomtime", NULL,
+		    0) == 0;
 		return (0);
 	}
 
@@ -394,6 +398,7 @@ tmpfs_mount(struct mount *mp)
 	if (vfs_getopt_size(mp->mnt_optnew, "maxfilesize", &maxfilesize) != 0)
 		maxfilesize = 0;
 	nonc = vfs_getopt(mp->mnt_optnew, "nonc", NULL, NULL) == 0;
+	nomtime = vfs_getopt(mp->mnt_optnew, "nomtime", NULL, NULL) == 0;
 
 	/* Do not allow mounts if we do not have enough memory to preserve
 	 * the minimum reserved pages. */
@@ -440,6 +445,7 @@ tmpfs_mount(struct mount *mp)
 	new_unrhdr64(&tmp->tm_ino_unr, 2);
 	tmp->tm_ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	tmp->tm_nonc = nonc;
+	tmp->tm_nomtime = nomtime;
 
 	/* Allocate the root node. */
 	error = tmpfs_alloc_node(mp, tmp, VDIR, root_uid, root_gid,

@@ -3772,11 +3772,14 @@ ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn, void *arg1,
 static void
 ng_callout_trampoline(void *arg)
 {
+	struct epoch_tracker et;
 	item_p item = arg;
 
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET(NGI_NODE(item)->nd_vnet);
 	ng_snd_item(item, 0);
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 }
 
 int

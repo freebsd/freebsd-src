@@ -134,11 +134,7 @@ SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, tags, CTLFLAG_RWTUN, &sbp_tags, 0,
 #define NEED_RESPONSE 0
 
 #define SBP_SEG_MAX rounddown(0xffff, PAGE_SIZE)
-#ifdef __sparc64__ /* iommu */
-#define SBP_IND_MAX howmany(SBP_MAXPHYS, SBP_SEG_MAX)
-#else
 #define SBP_IND_MAX howmany(SBP_MAXPHYS, PAGE_SIZE)
-#endif
 struct sbp_ocb {
 	STAILQ_ENTRY(sbp_ocb)	ocb;
 	union ccb	*ccb;

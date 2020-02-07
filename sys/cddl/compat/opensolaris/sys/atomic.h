@@ -91,7 +91,6 @@ atomic_dec_32_nv(volatile uint32_t *target)
 	return (atomic_add_32_nv(target, -1));
 }
 
-#ifndef __sparc64__
 static inline uint32_t
 atomic_cas_32(volatile uint32_t *target, uint32_t cmp, uint32_t newval)
 {
@@ -107,7 +106,6 @@ atomic_cas_32(volatile uint32_t *target, uint32_t cmp, uint32_t newval)
 #endif
 	return (cmp);
 }
-#endif
 
 #if defined(__LP64__) || defined(__mips_n32) || \
     defined(ARM_HAVE_ATOMIC64) || defined(I386_HAVE_ATOMIC64) || \
@@ -124,7 +122,6 @@ atomic_add_64_nv(volatile uint64_t *target, int64_t delta)
 	return (atomic_fetchadd_64(target, delta) + delta);
 }
 
-#ifndef __sparc64__
 static inline uint64_t
 atomic_cas_64(volatile uint64_t *target, uint64_t cmp, uint64_t newval)
 {
@@ -140,7 +137,6 @@ atomic_cas_64(volatile uint64_t *target, uint64_t cmp, uint64_t newval)
 #endif
 	return (cmp);
 }
-#endif
 #endif
 
 static __inline void
