@@ -1064,7 +1064,7 @@ __CONCAT(PMTYPE, init)(void)
 #ifdef PMAP_PAE_COMP
 	pdptzone = uma_zcreate("PDPT", NPGPTD * sizeof(pdpt_entry_t), NULL,
 	    NULL, NULL, NULL, (NPGPTD * sizeof(pdpt_entry_t)) - 1,
-	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
+	    UMA_ZONE_CONTIG | UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	uma_zone_set_allocf(pdptzone, pmap_pdpt_allocf);
 #endif
 

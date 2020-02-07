@@ -2141,9 +2141,7 @@ vfs_cache_lookup(struct vop_lookup_args *ap)
 	int error;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
-	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
-	struct thread *td = cnp->cn_thread;
 
 	*vpp = NULL;
 	dvp = ap->a_dvp;
@@ -2155,8 +2153,8 @@ vfs_cache_lookup(struct vop_lookup_args *ap)
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
 
-	error = VOP_ACCESS(dvp, VEXEC, cred, td);
-	if (error)
+	error = vn_dir_check_exec(dvp, cnp);
+	if (error != 0)
 		return (error);
 
 	error = cache_lookup(dvp, vpp, cnp, NULL, NULL);

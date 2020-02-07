@@ -64,7 +64,6 @@ UNIMPLEMENTED(tuxcall);
 UNIMPLEMENTED(uselib);
 UNIMPLEMENTED(vserver);
 
-DUMMY(sendfile);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(vhangup);

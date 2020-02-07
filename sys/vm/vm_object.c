@@ -1017,6 +1017,10 @@ vm_object_page_remove_write(vm_page_t p, int flags, boolean_t *allclean)
  *	write out pages with PGA_NOSYNC set (originally comes from MAP_NOSYNC),
  *	leaving the object dirty.
  *
+ *	For swap objects backing tmpfs regular files, do not flush anything,
+ *	but remove write protection on the mapped pages to update mtime through
+ *	mmaped writes.
+ *
  *	When stuffing pages asynchronously, allow clustering.  XXX we need a
  *	synchronous clustering mode implementation.
  *
@@ -1038,8 +1042,7 @@ vm_object_page_clean(vm_object_t object, vm_ooffset_t start, vm_ooffset_t end,
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
-	if (object->type != OBJT_VNODE || !vm_object_mightbedirty(object) ||
-	    object->resident_page_count == 0)
+	if (!vm_object_mightbedirty(object) || object->resident_page_count == 0)
 		return (TRUE);
 
 	pagerflags = (flags & (OBJPC_SYNC | OBJPC_INVAL)) != 0 ?
@@ -1072,32 +1075,36 @@ rescan:
 			vm_page_xunbusy(p);
 			continue;
 		}
+		if (object->type == OBJT_VNODE) {
+			n = vm_object_page_collect_flush(object, p, pagerflags,
+			    flags, &allclean, &eio);
+			if (eio) {
+				res = FALSE;
+				allclean = FALSE;
+			}
+			if (object->generation != curgeneration &&
+			    (flags & OBJPC_SYNC) != 0)
+				goto rescan;
 
-		n = vm_object_page_collect_flush(object, p, pagerflags,
-		    flags, &allclean, &eio);
-		if (eio) {
-			res = FALSE;
-			allclean = FALSE;
-		}
-		if (object->generation != curgeneration &&
-		    (flags & OBJPC_SYNC) != 0)
-			goto rescan;
-
-		/*
-		 * If the VOP_PUTPAGES() did a truncated write, so
-		 * that even the first page of the run is not fully
-		 * written, vm_pageout_flush() returns 0 as the run
-		 * length.  Since the condition that caused truncated
-		 * write may be permanent, e.g. exhausted free space,
-		 * accepting n == 0 would cause an infinite loop.
-		 *
-		 * Forwarding the iterator leaves the unwritten page
-		 * behind, but there is not much we can do there if
-		 * filesystem refuses to write it.
-		 */
-		if (n == 0) {
+			/*
+			 * If the VOP_PUTPAGES() did a truncated write, so
+			 * that even the first page of the run is not fully
+			 * written, vm_pageout_flush() returns 0 as the run
+			 * length.  Since the condition that caused truncated
+			 * write may be permanent, e.g. exhausted free space,
+			 * accepting n == 0 would cause an infinite loop.
+			 *
+			 * Forwarding the iterator leaves the unwritten page
+			 * behind, but there is not much we can do there if
+			 * filesystem refuses to write it.
+			 */
+			if (n == 0) {
+				n = 1;
+				allclean = FALSE;
+			}
+		} else {
 			n = 1;
-			allclean = FALSE;
+			vm_page_xunbusy(p);
 		}
 		np = vm_page_find_least(object, pi + n);
 	}
@@ -1105,7 +1112,12 @@ rescan:
 	VOP_FSYNC(vp, (pagerflags & VM_PAGER_PUT_SYNC) ? MNT_WAIT : 0);
 #endif
 
-	if (allclean)
+	/*
+	 * Leave updating cleangeneration for tmpfs objects to tmpfs
+	 * scan.  It needs to update mtime, which happens for other
+	 * filesystems during page writeouts.
+	 */
+	if (allclean && object->type == OBJT_VNODE)
 		object->cleangeneration = curgeneration;
 	return (res);
 }

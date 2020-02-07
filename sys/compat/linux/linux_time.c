@@ -65,6 +65,7 @@ __KERNEL_RCSID(0, "$NetBSD: linux_time.c,v 1.14 2006/05/14 03:40:54 christos Exp
 #endif
 
 #include <compat/linux/linux_dtrace.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_timer.h>
 
 /* DTrace init */
@@ -203,6 +204,12 @@ linux_to_native_clockid(clockid_t *n, clockid_t l)
 	case LINUX_CLOCK_MONOTONIC:
 		*n = CLOCK_MONOTONIC;
 		break;
+	case LINUX_CLOCK_PROCESS_CPUTIME_ID:
+		*n = CLOCK_PROCESS_CPUTIME_ID;
+		break;
+	case LINUX_CLOCK_THREAD_CPUTIME_ID:
+		*n = CLOCK_THREAD_CPUTIME_ID;
+		break;
 	case LINUX_CLOCK_REALTIME_COARSE:
 		*n = CLOCK_REALTIME_FAST;
 		break;
@@ -253,7 +260,7 @@ linux_clock_gettime(struct thread *td, struct linux_clock_gettime_args *args)
 	struct thread *targettd;
 	struct proc *p;
 	int error, clockwhich;
-	clockid_t nwhich = 0;	/* XXX: GCC */
+	clockid_t nwhich;
 	pid_t pid;
 	lwpid_t tid;
 
@@ -269,8 +276,13 @@ linux_clock_gettime(struct thread *td, struct linux_clock_gettime_args *args)
 
 	switch (nwhich) {
 	case CLOCK_PROCESS_CPUTIME_ID:
-		clockwhich = LINUX_CPUCLOCK_WHICH(args->which);
-		pid = LINUX_CPUCLOCK_ID(args->which);
+		if (args->which < 0) {
+			clockwhich = LINUX_CPUCLOCK_WHICH(args->which);
+			pid = LINUX_CPUCLOCK_ID(args->which);
+		} else {
+			clockwhich = LINUX_CPUCLOCK_SCHED;
+			pid = 0;
+		}
 		if (pid == 0) {
 			p = td->td_proc;
 			PROC_LOCK(p);
@@ -296,12 +308,8 @@ linux_clock_gettime(struct thread *td, struct linux_clock_gettime_args *args)
 			TIMEVAL_TO_TIMESPEC(&ru.ru_utime, &tp);
 			break;
 		case LINUX_CPUCLOCK_SCHED:
+			kern_process_cputime(p, &tp);
 			PROC_UNLOCK(p);
-			error = kern_clock_getcpuclockid2(td, pid,
-			    CPUCLOCK_WHICH_PID, &nwhich);
-			if (error != 0)
-				return (EINVAL);
-			error = kern_clock_gettime(td, nwhich, &tp);
 			break;
 		default:
 			PROC_UNLOCK(p);
@@ -311,14 +319,19 @@ linux_clock_gettime(struct thread *td, struct linux_clock_gettime_args *args)
 		break;
 
 	case CLOCK_THREAD_CPUTIME_ID:
-		clockwhich = LINUX_CPUCLOCK_WHICH(args->which);
+		if (args->which < 0) {
+			clockwhich = LINUX_CPUCLOCK_WHICH(args->which);
+			tid = LINUX_CPUCLOCK_ID(args->which);
+		} else {
+			clockwhich = LINUX_CPUCLOCK_SCHED;
+			tid = 0;
+		}
 		p = td->td_proc;
-		tid = LINUX_CPUCLOCK_ID(args->which);
 		if (tid == 0) {
 			targettd = td;
 			PROC_LOCK(p);
 		} else {
-			targettd = tdfind(tid, p->p_pid);
+			targettd = linux_tdfind(td, tid, p->p_pid);
 			if (targettd == NULL)
 				return (EINVAL);
 		}
@@ -343,12 +356,10 @@ linux_clock_gettime(struct thread *td, struct linux_clock_gettime_args *args)
 			TIMEVAL_TO_TIMESPEC(&ru.ru_utime, &tp);
 			break;
 		case LINUX_CPUCLOCK_SCHED:
-			error = kern_clock_getcpuclockid2(td, tid,
-			    CPUCLOCK_WHICH_TID, &nwhich);
+			if (td == targettd)
+				targettd = NULL;
+			kern_thread_cputime(targettd, &tp);
 			PROC_UNLOCK(p);
-			if (error != 0)
-				return (EINVAL);
-			error = kern_clock_gettime(td, nwhich, &tp);
 			break;
 		default:
 			PROC_UNLOCK(p);
@@ -382,7 +393,7 @@ linux_clock_settime(struct thread *td, struct linux_clock_settime_args *args)
 	struct timespec ts;
 	struct l_timespec lts;
 	int error;
-	clockid_t nwhich = 0;	/* XXX: GCC */
+	clockid_t nwhich;
 
 	LIN_SDT_PROBE2(time, linux_clock_settime, entry, args->which, args->tp);
 
@@ -422,7 +433,7 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 	struct timespec ts;
 	struct l_timespec lts;
 	int error, clockwhich;
-	clockid_t nwhich = 0;	/* XXX: GCC */
+	clockid_t nwhich;
 	pid_t pid;
 	lwpid_t tid;
 
@@ -440,25 +451,27 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 	 * Check user supplied clock id in case of per-process
 	 * or thread-specific cpu-time clock.
 	 */
-	switch (nwhich) {
-	case CLOCK_THREAD_CPUTIME_ID:
-		tid = LINUX_CPUCLOCK_ID(args->which);
-		if (tid != 0) {
-			p = td->td_proc;
-			if (tdfind(tid, p->p_pid) == NULL)
-				return (ESRCH);
-			PROC_UNLOCK(p);
+	if (args->which < 0) {
+		switch (nwhich) {
+		case CLOCK_THREAD_CPUTIME_ID:
+			tid = LINUX_CPUCLOCK_ID(args->which);
+			if (tid != 0) {
+				p = td->td_proc;
+				if (linux_tdfind(td, tid, p->p_pid) == NULL)
+					return (EINVAL);
+				PROC_UNLOCK(p);
+			}
+			break;
+		case CLOCK_PROCESS_CPUTIME_ID:
+			pid = LINUX_CPUCLOCK_ID(args->which);
+			if (pid != 0) {
+				error = pget(pid, PGET_CANSEE, &p);
+				if (error != 0)
+					return (EINVAL);
+				PROC_UNLOCK(p);
+			}
+			break;
 		}
-		break;
-	case CLOCK_PROCESS_CPUTIME_ID:
-		pid = LINUX_CPUCLOCK_ID(args->which);
-		if (pid != 0) {
-			error = pget(pid, PGET_CANSEE, &p);
-			if (error != 0)
-				return (EINVAL);
-			PROC_UNLOCK(p);
-		}
-		break;
 	}
 
 	if (args->tp == NULL) {
@@ -471,14 +484,26 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 	case CLOCK_THREAD_CPUTIME_ID:
 	case CLOCK_PROCESS_CPUTIME_ID:
 		clockwhich = LINUX_CPUCLOCK_WHICH(args->which);
+		/*
+		 * In both cases (when the clock id obtained by a call to
+		 * clock_getcpuclockid() or using the clock
+		 * ID CLOCK_PROCESS_CPUTIME_ID Linux hardcodes precision
+		 * of clock. The same for the CLOCK_THREAD_CPUTIME_ID clock.
+		 *
+		 * See Linux posix_cpu_clock_getres() implementation.
+		 */
+		if (args->which > 0 || clockwhich == LINUX_CPUCLOCK_SCHED) {
+			ts.tv_sec = 0;
+			ts.tv_nsec = 1;
+			goto out;
+		}
+
 		switch (clockwhich) {
 		case LINUX_CPUCLOCK_PROF:
 			nwhich = CLOCK_PROF;
 			break;
 		case LINUX_CPUCLOCK_VIRT:
 			nwhich = CLOCK_VIRTUAL;
-			break;
-		case LINUX_CPUCLOCK_SCHED:
 			break;
 		default:
 			return (EINVAL);
@@ -494,6 +519,8 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 		LIN_SDT_PROBE1(time, linux_clock_getres, return, error);
 		return (error);
 	}
+
+out:
 	error = native_to_linux_timespec(&lts, &ts);
 	if (error != 0)
 		return (error);

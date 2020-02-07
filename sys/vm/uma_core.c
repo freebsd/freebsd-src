@@ -236,14 +236,15 @@ struct uma_bucket_zone {
     (((sizeof(void *) * (n)) - sizeof(struct uma_bucket)) / sizeof(void *))
 
 #define	BUCKET_MAX	BUCKET_SIZE(256)
-#define	BUCKET_MIN	BUCKET_SIZE(4)
+#define	BUCKET_MIN	2
 
 struct uma_bucket_zone bucket_zones[] = {
-	{ NULL, "4 Bucket", BUCKET_SIZE(4), 4096 },
-	{ NULL, "6 Bucket", BUCKET_SIZE(6), 3072 },
-	{ NULL, "8 Bucket", BUCKET_SIZE(8), 2048 },
-	{ NULL, "12 Bucket", BUCKET_SIZE(12), 1536 },
-	{ NULL, "16 Bucket", BUCKET_SIZE(16), 1024 },
+	/* Literal bucket sizes. */
+	{ NULL, "2 Bucket", 2, 4096 },
+	{ NULL, "4 Bucket", 4, 3072 },
+	{ NULL, "8 Bucket", 8, 2048 },
+	{ NULL, "16 Bucket", 16, 1024 },
+	/* Rounded down power of 2 sizes for efficiency. */
 	{ NULL, "32 Bucket", BUCKET_SIZE(32), 512 },
 	{ NULL, "64 Bucket", BUCKET_SIZE(64), 256 },
 	{ NULL, "128 Bucket", BUCKET_SIZE(128), 128 },
@@ -270,6 +271,7 @@ static void *noobj_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 static void *page_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 static void *pcpu_page_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 static void *startup_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
+static void *contig_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 static void page_free(void *, vm_size_t, uint8_t);
 static void pcpu_page_free(void *, vm_size_t, uint8_t);
 static uma_slab_t keg_alloc_slab(uma_keg_t, uma_zone_t, int, int, int);
@@ -321,6 +323,9 @@ static int sysctl_handle_uma_zone_items(SYSCTL_HANDLER_ARGS);
 
 static uint64_t uma_zone_get_allocs(uma_zone_t zone);
 
+static SYSCTL_NODE(_vm, OID_AUTO, debug, CTLFLAG_RD, 0,
+    "Memory allocation debugging");
+
 #ifdef INVARIANTS
 static uint64_t uma_keg_get_allocs(uma_keg_t zone);
 static inline struct noslabbits *slab_dbg_bits(uma_slab_t slab, uma_keg_t keg);
@@ -329,9 +334,6 @@ static bool uma_dbg_kskip(uma_keg_t keg, void *mem);
 static bool uma_dbg_zskip(uma_zone_t zone, void *mem);
 static void uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item);
 static void uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item);
-
-static SYSCTL_NODE(_vm, OID_AUTO, debug, CTLFLAG_RD, 0,
-    "Memory allocation debugging");
 
 static u_int dbg_divisor = 1;
 SYSCTL_UINT(_vm_debug, OID_AUTO, divisor,
@@ -359,6 +361,12 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLTYPE_STRUCT,
 static int zone_warnings = 1;
 SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RWTUN, &zone_warnings, 0,
     "Warn when UMA zones becomes full");
+
+static int multipage_slabs = 1;
+TUNABLE_INT("vm.debug.uma_multipage_slabs", &multipage_slabs);
+SYSCTL_INT(_vm_debug, OID_AUTO, uma_multipage_slabs,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &multipage_slabs, 0,
+    "UMA may choose larger slab sizes for better efficiency");
 
 /*
  * Select the slab zone for an offpage slab with the given maximum item count.
@@ -485,7 +493,7 @@ bucket_alloc(uma_zone_t zone, void *udata, int flags)
 			return (NULL);
 		udata = (void *)((uintptr_t)udata | UMA_ZFLAG_BUCKET);
 	}
-	if ((uintptr_t)udata & UMA_ZFLAG_CACHEONLY)
+	if (((uintptr_t)udata & UMA_ZONE_VM) != 0)
 		flags |= M_NOVM;
 	ubz = bucket_zone_lookup(zone->uz_bucket_size);
 	if (ubz->ubz_zone == zone && (ubz + 1)->ubz_entries != 0)
@@ -542,7 +550,7 @@ zone_fetch_bucket(uma_zone_t zone, uma_zone_domain_t zdom)
 
 	ZONE_LOCK_ASSERT(zone);
 
-	if ((bucket = TAILQ_FIRST(&zdom->uzd_buckets)) == NULL)
+	if ((bucket = STAILQ_FIRST(&zdom->uzd_buckets)) == NULL)
 		return (NULL);
 
 	if ((zone->uz_flags & UMA_ZONE_SMR) != 0 &&
@@ -553,7 +561,7 @@ zone_fetch_bucket(uma_zone_t zone, uma_zone_domain_t zdom)
 		dtor = (zone->uz_dtor != NULL) | UMA_ALWAYS_CTORDTOR;
 	}
 	MPASS(zdom->uzd_nitems >= bucket->ub_cnt);
-	TAILQ_REMOVE(&zdom->uzd_buckets, bucket, ub_link);
+	STAILQ_REMOVE_HEAD(&zdom->uzd_buckets, ub_link);
 	zdom->uzd_nitems -= bucket->ub_cnt;
 	if (zdom->uzd_imin > zdom->uzd_nitems)
 		zdom->uzd_imin = zdom->uzd_nitems;
@@ -581,10 +589,7 @@ zone_put_bucket(uma_zone_t zone, uma_zone_domain_t zdom, uma_bucket_t bucket,
 	KASSERT(!ws || zone->uz_bkt_count < zone->uz_bkt_max,
 	    ("%s: zone %p overflow", __func__, zone));
 
-	if (ws && bucket->ub_seq == SMR_SEQ_INVALID)
-		TAILQ_INSERT_HEAD(&zdom->uzd_buckets, bucket, ub_link);
-	else
-		TAILQ_INSERT_TAIL(&zdom->uzd_buckets, bucket, ub_link);
+	STAILQ_INSERT_TAIL(&zdom->uzd_buckets, bucket, ub_link);
 	zdom->uzd_nitems += bucket->ub_cnt;
 	if (ws && zdom->uzd_imax < zdom->uzd_nitems)
 		zdom->uzd_imax = zdom->uzd_nitems;
@@ -1185,11 +1190,11 @@ bucket_cache_reclaim(uma_zone_t zone, bool drain)
 		target = drain ? 0 : lmax(zdom->uzd_wss, zdom->uzd_nitems -
 		    zdom->uzd_imin);
 		while (zdom->uzd_nitems > target) {
-			bucket = TAILQ_FIRST(&zdom->uzd_buckets);
+			bucket = STAILQ_FIRST(&zdom->uzd_buckets);
 			if (bucket == NULL)
 				break;
 			tofree = bucket->ub_cnt;
-			TAILQ_REMOVE(&zdom->uzd_buckets, bucket, ub_link);
+			STAILQ_REMOVE_HEAD(&zdom->uzd_buckets, ub_link);
 			zdom->uzd_nitems -= tofree;
 
 			/*
@@ -1662,6 +1667,19 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 }
 
 /*
+ * Allocate physically contiguous pages.
+ */
+static void *
+contig_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
+    int wait)
+{
+
+	*pflag = UMA_SLAB_KERNEL;
+	return ((void *)kmem_alloc_contig_domainset(DOMAINSET_FIXED(domain),
+	    bytes, wait, 0, ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT));
+}
+
+/*
  * Frees a number of pages to the system
  *
  * Arguments:
@@ -1681,8 +1699,8 @@ page_free(void *mem, vm_size_t size, uint8_t flags)
 		return;
 	}
 
-	if ((flags & UMA_SLAB_KERNEL) == 0)
-		panic("UMA: page_free used with invalid flags %x", flags);
+	KASSERT((flags & UMA_SLAB_KERNEL) != 0,
+	    ("UMA: page_free used with invalid flags %x", flags));
 
 	kmem_free((vm_offset_t)mem, size);
 }
@@ -1706,6 +1724,12 @@ pcpu_page_free(void *mem, vm_size_t size, uint8_t flags)
 	vm_page_t m;
 
 	MPASS(size == (mp_maxid+1)*PAGE_SIZE);
+
+	if ((flags & UMA_SLAB_BOOT) != 0) {
+		startup_free(mem, size);
+		return;
+	}
+
 	sva = (vm_offset_t)mem;
 	for (curva = sva; curva < sva + size; curva += PAGE_SIZE) {
 		paddr = pmap_kextract(curva);
@@ -1812,6 +1836,39 @@ slab_ipers(size_t size, int align)
 	return (slab_ipers_hdr(size, rsize, UMA_SLAB_SIZE, true));
 }
 
+struct keg_layout_result {
+	u_int format;
+	u_int slabsize;
+	u_int ipers;
+	u_int eff;
+};
+
+static void
+keg_layout_one(uma_keg_t keg, u_int rsize, u_int slabsize, u_int fmt,
+    struct keg_layout_result *kl)
+{
+	u_int total;
+
+	kl->format = fmt;
+	kl->slabsize = slabsize;
+
+	/* Handle INTERNAL as inline with an extra page. */
+	if ((fmt & UMA_ZFLAG_INTERNAL) != 0) {
+		kl->format &= ~UMA_ZFLAG_INTERNAL;
+		kl->slabsize += PAGE_SIZE;
+	}
+
+	kl->ipers = slab_ipers_hdr(keg->uk_size, rsize, kl->slabsize,
+	    (fmt & UMA_ZFLAG_OFFPAGE) == 0);
+
+	/* Account for memory used by an offpage slab header. */
+	total = kl->slabsize;
+	if ((fmt & UMA_ZFLAG_OFFPAGE) != 0)
+		total += slabzone(kl->ipers)->uz_keg->uk_rsize;
+
+	kl->eff = UMA_FRAC_FIXPT(kl->ipers * rsize, total);
+}
+
 /*
  * Determine the format of a uma keg.  This determines where the slab header
  * will be placed (inline or offpage) and calculates ipers, rsize, and ppera.
@@ -1825,15 +1882,14 @@ slab_ipers(size_t size, int align)
 static void
 keg_layout(uma_keg_t keg)
 {
+	struct keg_layout_result kl = {}, kl_tmp;
+	u_int fmts[2];
 	u_int alignsize;
-	u_int eff;
-	u_int eff_offpage;
-	u_int format;
-	u_int ipers;
-	u_int ipers_offpage;
+	u_int nfmt;
 	u_int pages;
 	u_int rsize;
 	u_int slabsize;
+	u_int i, j;
 
 	KASSERT((keg->uk_flags & UMA_ZONE_PCPU) == 0 ||
 	    (keg->uk_size <= UMA_PCPU_ALLOC_SIZE &&
@@ -1841,15 +1897,12 @@ keg_layout(uma_keg_t keg)
 	    ("%s: cannot configure for PCPU: keg=%s, size=%u, flags=0x%b",
 	     __func__, keg->uk_name, keg->uk_size, keg->uk_flags,
 	     PRINT_UMA_ZFLAGS));
-	KASSERT((keg->uk_flags &
-	    (UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY)) == 0 ||
+	KASSERT((keg->uk_flags & (UMA_ZFLAG_INTERNAL | UMA_ZONE_VM)) == 0 ||
 	    (keg->uk_flags & (UMA_ZONE_NOTOUCH | UMA_ZONE_PCPU)) == 0,
 	    ("%s: incompatible flags 0x%b", __func__, keg->uk_flags,
 	     PRINT_UMA_ZFLAGS));
 
 	alignsize = keg->uk_align + 1;
-	format = 0;
-	ipers = 0;
 
 	/*
 	 * Calculate the size of each allocation (rsize) according to
@@ -1859,10 +1912,7 @@ keg_layout(uma_keg_t keg)
 	rsize = MAX(keg->uk_size, UMA_SMALLEST_UNIT);
 	rsize = roundup2(rsize, alignsize);
 
-	if ((keg->uk_flags & UMA_ZONE_PCPU) != 0) {
-		slabsize = UMA_PCPU_ALLOC_SIZE;
-		pages = mp_maxid + 1;
-	} else if ((keg->uk_flags & UMA_ZONE_CACHESPREAD) != 0) {
+	if ((keg->uk_flags & UMA_ZONE_CACHESPREAD) != 0) {
 		/*
 		 * We want one item to start on every align boundary in a page.
 		 * To do this we will span pages.  We will also extend the item
@@ -1874,90 +1924,115 @@ keg_layout(uma_keg_t keg)
 		slabsize = rsize * (PAGE_SIZE / alignsize);
 		slabsize = MIN(slabsize, rsize * SLAB_MAX_SETSIZE);
 		slabsize = MIN(slabsize, UMA_CACHESPREAD_MAX_SIZE);
-		pages = howmany(slabsize, PAGE_SIZE);
-		slabsize = ptoa(pages);
+		slabsize = round_page(slabsize);
 	} else {
 		/*
-		 * Choose a slab size of as many pages as it takes to represent
-		 * a single item.  We will then try to fit as many additional
-		 * items into the slab as possible.  At some point, we may want
-		 * to increase the slab size for awkward item sizes in order to
-		 * increase efficiency.
+		 * Start with a slab size of as many pages as it takes to
+		 * represent a single item.  We will try to fit as many
+		 * additional items into the slab as possible.
 		 */
-		pages = howmany(keg->uk_size, PAGE_SIZE);
-		slabsize = ptoa(pages);
+		slabsize = round_page(keg->uk_size);
 	}
+
+	/* Build a list of all of the available formats for this keg. */
+	nfmt = 0;
 
 	/* Evaluate an inline slab layout. */
 	if ((keg->uk_flags & (UMA_ZONE_NOTOUCH | UMA_ZONE_PCPU)) == 0)
-		ipers = slab_ipers_hdr(keg->uk_size, rsize, slabsize, true);
+		fmts[nfmt++] = 0;
 
 	/* TODO: vm_page-embedded slab. */
 
 	/*
 	 * We can't do OFFPAGE if we're internal or if we've been
 	 * asked to not go to the VM for buckets.  If we do this we
-	 * may end up going to the VM  for slabs which we do not
-	 * want to do if we're UMA_ZFLAG_CACHEONLY as a result
-	 * of UMA_ZONE_VM, which clearly forbids it.
+	 * may end up going to the VM for slabs which we do not want
+	 * to do if we're UMA_ZONE_VM, which clearly forbids it.
+	 * In those cases, evaluate a pseudo-format called INTERNAL
+	 * which has an inline slab header and one extra page to
+	 * guarantee that it fits.
+	 *
+	 * Otherwise, see if using an OFFPAGE slab will improve our
+	 * efficiency.
 	 */
-	if ((keg->uk_flags &
-	    (UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY)) != 0) {
-		if (ipers == 0) {
-			/* We need an extra page for the slab header. */
-			pages++;
-			slabsize = ptoa(pages);
-			ipers = slab_ipers_hdr(keg->uk_size, rsize, slabsize,
-			    true);
-		}
-		goto out;
-	}
+	if ((keg->uk_flags & (UMA_ZFLAG_INTERNAL | UMA_ZONE_VM)) != 0)
+		fmts[nfmt++] = UMA_ZFLAG_INTERNAL;
+	else
+		fmts[nfmt++] = UMA_ZFLAG_OFFPAGE;
 
 	/*
-	 * See if using an OFFPAGE slab will improve our efficiency.
-	 * Only do this if we are below our efficiency threshold.
+	 * Choose a slab size and format which satisfy the minimum efficiency.
+	 * Prefer the smallest slab size that meets the constraints.
 	 *
-	 * XXX We could try growing slabsize to limit max waste as well.
-	 * Historically this was not done because the VM could not
-	 * efficiently handle contiguous allocations.
+	 * Start with a minimum slab size, to accommodate CACHESPREAD.  Then,
+	 * for small items (up to PAGE_SIZE), the iteration increment is one
+	 * page; and for large items, the increment is one item.
 	 */
-	eff = UMA_FRAC_FIXPT(ipers * rsize, slabsize);
-	ipers_offpage = slab_ipers_hdr(keg->uk_size, rsize, slabsize, false);
-	eff_offpage = UMA_FRAC_FIXPT(ipers_offpage * rsize,
-	    slabsize + slabzone(ipers_offpage)->uz_keg->uk_rsize);
-	if (ipers == 0 || (eff < UMA_MIN_EFF && eff < eff_offpage)) {
-		CTR5(KTR_UMA, "UMA decided we need offpage slab headers for "
-		    "keg: %s(%p), minimum efficiency allowed = %u%%, "
-		    "old efficiency = %u%%, offpage efficiency = %u%%",
-		    keg->uk_name, keg, UMA_FIXPT_PCT(UMA_MIN_EFF),
-		    UMA_FIXPT_PCT(eff), UMA_FIXPT_PCT(eff_offpage));
-		format = UMA_ZFLAG_OFFPAGE;
-		ipers = ipers_offpage;
+	i = (slabsize + rsize - keg->uk_size) / MAX(PAGE_SIZE, rsize);
+	KASSERT(i >= 1, ("keg %s(%p) flags=0x%b slabsize=%u, rsize=%u, i=%u",
+	    keg->uk_name, keg, keg->uk_flags, PRINT_UMA_ZFLAGS, slabsize,
+	    rsize, i));
+	for ( ; ; i++) {
+		slabsize = (rsize <= PAGE_SIZE) ? ptoa(i) :
+		    round_page(rsize * (i - 1) + keg->uk_size);
+
+		for (j = 0; j < nfmt; j++) {
+			/* Only if we have no viable format yet. */
+			if ((fmts[j] & UMA_ZFLAG_INTERNAL) != 0 &&
+			    kl.ipers > 0)
+				continue;
+
+			keg_layout_one(keg, rsize, slabsize, fmts[j], &kl_tmp);
+			if (kl_tmp.eff <= kl.eff)
+				continue;
+
+			kl = kl_tmp;
+
+			CTR6(KTR_UMA, "keg %s layout: format %#x "
+			    "(ipers %u * rsize %u) / slabsize %#x = %u%% eff",
+			    keg->uk_name, kl.format, kl.ipers, rsize,
+			    kl.slabsize, UMA_FIXPT_PCT(kl.eff));
+
+			/* Stop when we reach the minimum efficiency. */
+			if (kl.eff >= UMA_MIN_EFF)
+				break;
+		}
+
+		if (kl.eff >= UMA_MIN_EFF || !multipage_slabs ||
+		    slabsize >= SLAB_MAX_SETSIZE * rsize ||
+		    (keg->uk_flags & (UMA_ZONE_PCPU | UMA_ZONE_CONTIG)) != 0)
+			break;
 	}
 
-out:
+	pages = atop(kl.slabsize);
+	if ((keg->uk_flags & UMA_ZONE_PCPU) != 0)
+		pages *= mp_maxid + 1;
+
+	keg->uk_rsize = rsize;
+	keg->uk_ipers = kl.ipers;
+	keg->uk_ppera = pages;
+	keg->uk_flags |= kl.format;
+
 	/*
 	 * How do we find the slab header if it is offpage or if not all item
 	 * start addresses are in the same page?  We could solve the latter
 	 * case with vaddr alignment, but we don't.
 	 */
-	if ((format & UMA_ZFLAG_OFFPAGE) != 0 ||
-	    (ipers - 1) * rsize >= PAGE_SIZE) {
+	if ((keg->uk_flags & UMA_ZFLAG_OFFPAGE) != 0 ||
+	    (keg->uk_ipers - 1) * rsize >= PAGE_SIZE) {
 		if ((keg->uk_flags & UMA_ZONE_NOTPAGE) != 0)
-			format |= UMA_ZFLAG_HASH;
+			keg->uk_flags |= UMA_ZFLAG_HASH;
 		else
-			format |= UMA_ZFLAG_VTOSLAB;
+			keg->uk_flags |= UMA_ZFLAG_VTOSLAB;
 	}
-	keg->uk_ipers = ipers;
-	keg->uk_rsize = rsize;
-	keg->uk_flags |= format;
-	keg->uk_ppera = pages;
+
 	CTR6(KTR_UMA, "%s: keg=%s, flags=%#x, rsize=%u, ipers=%u, ppera=%u",
-	    __func__, keg->uk_name, keg->uk_flags, rsize, ipers, pages);
+	    __func__, keg->uk_name, keg->uk_flags, rsize, keg->uk_ipers,
+	    pages);
 	KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= SLAB_MAX_SETSIZE,
 	    ("%s: keg=%s, flags=0x%b, rsize=%u, ipers=%u, ppera=%u", __func__,
-	     keg->uk_name, keg->uk_flags, PRINT_UMA_ZFLAGS, rsize, ipers,
-	     pages));
+	     keg->uk_name, keg->uk_flags, PRINT_UMA_ZFLAGS, rsize,
+	     keg->uk_ipers, pages));
 }
 
 /*
@@ -1996,9 +2071,6 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	 */
 	zone = arg->zone;
 	keg->uk_name = zone->uz_name;
-
-	if (arg->flags & UMA_ZONE_VM)
-		keg->uk_flags |= UMA_ZFLAG_CACHEONLY;
 
 	if (arg->flags & UMA_ZONE_ZINIT)
 		keg->uk_init = zero_init;
@@ -2040,6 +2112,8 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		keg->uk_allocf = startup_alloc;
 	else if (keg->uk_flags & UMA_ZONE_PCPU)
 		keg->uk_allocf = pcpu_page_alloc;
+	else if ((keg->uk_flags & UMA_ZONE_CONTIG) != 0 && keg->uk_ppera > 1)
+		keg->uk_allocf = contig_alloc;
 	else
 		keg->uk_allocf = page_alloc;
 #ifdef UMA_MD_SMALL_ALLOC
@@ -2101,10 +2175,17 @@ zone_kva_available(uma_zone_t zone, void *unused)
 	if ((zone->uz_flags & UMA_ZFLAG_CACHE) != 0)
 		return;
 	KEG_GET(zone, keg);
-	if (keg->uk_flags & UMA_ZONE_PCPU)
-		keg->uk_allocf = pcpu_page_alloc;
-	else if (keg->uk_allocf == startup_alloc)
-		keg->uk_allocf = page_alloc;
+
+	if (keg->uk_allocf == startup_alloc) {
+		/* Switch to the real allocator. */
+		if (keg->uk_flags & UMA_ZONE_PCPU)
+			keg->uk_allocf = pcpu_page_alloc;
+		else if ((keg->uk_flags & UMA_ZONE_CONTIG) != 0 &&
+		    keg->uk_ppera > 1)
+			keg->uk_allocf = contig_alloc;
+		else
+			keg->uk_allocf = page_alloc;
+	}
 }
 
 static void
@@ -2363,7 +2444,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	ZONE_CROSS_LOCK_INIT(zone);
 
 	for (i = 0; i < vm_ndomains; i++)
-		TAILQ_INIT(&zone->uz_domain[i].uzd_buckets);
+		STAILQ_INIT(&zone->uz_domain[i].uzd_buckets);
 
 #ifdef INVARIANTS
 	if (arg->uminit == trash_init && arg->fini == trash_fini)
@@ -2376,8 +2457,6 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	if (arg->import) {
 		KASSERT((arg->flags & UMA_ZFLAG_CACHE) != 0,
 		    ("zone_ctor: Import specified for non-cache zone."));
-		if (arg->flags & UMA_ZONE_VM)
-			arg->flags |= UMA_ZFLAG_CACHEONLY;
 		zone->uz_flags = arg->flags;
 		zone->uz_size = arg->size;
 		zone->uz_import = arg->import;
@@ -3928,7 +4007,7 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 	    "uma_zfree: zone %s(%p) draining cross bucket %p",
 	    zone->uz_name, zone, bucket);
 
-	TAILQ_INIT(&fullbuckets);
+	STAILQ_INIT(&fullbuckets);
 
 	/*
 	 * To avoid having ndomain * ndomain buckets for sorting we have a
@@ -3947,19 +4026,19 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 		}
 		zdom->uzd_cross->ub_bucket[zdom->uzd_cross->ub_cnt++] = item;
 		if (zdom->uzd_cross->ub_cnt == zdom->uzd_cross->ub_entries) {
-			TAILQ_INSERT_HEAD(&fullbuckets, zdom->uzd_cross,
+			STAILQ_INSERT_HEAD(&fullbuckets, zdom->uzd_cross,
 			    ub_link);
 			zdom->uzd_cross = NULL;
 		}
 		bucket->ub_cnt--;
 	}
 	ZONE_CROSS_UNLOCK(zone);
-	if (!TAILQ_EMPTY(&fullbuckets)) {
+	if (!STAILQ_EMPTY(&fullbuckets)) {
 		ZONE_LOCK(zone);
-		while ((b = TAILQ_FIRST(&fullbuckets)) != NULL) {
+		while ((b = STAILQ_FIRST(&fullbuckets)) != NULL) {
 			if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
 				bucket->ub_seq = smr_current(zone->uz_smr);
-			TAILQ_REMOVE(&fullbuckets, b, ub_link);
+			STAILQ_REMOVE_HEAD(&fullbuckets, ub_link);
 			if (zone->uz_bkt_count >= zone->uz_bkt_max) {
 				ZONE_UNLOCK(zone);
 				bucket_drain(zone, b);

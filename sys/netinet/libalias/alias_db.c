@@ -664,7 +664,7 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 	}
 
 #ifdef LIBALIAS_DEBUG
-	fprintf(stderr, "PacketAlias/GetnewPort(): ");
+	fprintf(stderr, "PacketAlias/GetNewPort(): ");
 	fprintf(stderr, "could not find free port\n");
 #endif
 

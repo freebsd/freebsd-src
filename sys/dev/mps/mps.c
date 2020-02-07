@@ -498,6 +498,12 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 	    sc->facts->FWVersion.Struct.Unit,
 	    sc->facts->FWVersion.Struct.Dev);
 
+	snprintf(sc->msg_version, sizeof(sc->msg_version), "%d.%d",
+	    (sc->facts->MsgVersion & MPI2_IOCFACTS_MSGVERSION_MAJOR_MASK) >>
+	    MPI2_IOCFACTS_MSGVERSION_MAJOR_SHIFT, 
+	    (sc->facts->MsgVersion & MPI2_IOCFACTS_MSGVERSION_MINOR_MASK) >>
+	    MPI2_IOCFACTS_MSGVERSION_MINOR_SHIFT);
+
 	mps_dprint(sc, MPS_INFO, "Firmware: %s, Driver: %s\n", sc->fw_version,
 	    MPS_DRIVER_VERSION);
 	mps_dprint(sc, MPS_INFO, "IOCCapabilities: %b\n",
@@ -1742,12 +1748,16 @@ mps_setup_sysctl(struct mps_softc *sc)
 	    "Total number of event frames allocated");
 
 	SYSCTL_ADD_STRING(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
-	    OID_AUTO, "firmware_version", CTLFLAG_RW, sc->fw_version,
+	    OID_AUTO, "firmware_version", CTLFLAG_RD, sc->fw_version,
 	    strlen(sc->fw_version), "firmware version");
 
 	SYSCTL_ADD_STRING(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
-	    OID_AUTO, "driver_version", CTLFLAG_RW, MPS_DRIVER_VERSION,
+	    OID_AUTO, "driver_version", CTLFLAG_RD, MPS_DRIVER_VERSION,
 	    strlen(MPS_DRIVER_VERSION), "driver version");
+
+	SYSCTL_ADD_STRING(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "msg_version", CTLFLAG_RD, sc->msg_version,
+	    strlen(sc->msg_version), "message interface version");
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "io_cmds_active", CTLFLAG_RD,

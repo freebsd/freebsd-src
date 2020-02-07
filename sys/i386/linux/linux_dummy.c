@@ -75,7 +75,6 @@ DUMMY(quotactl);
 DUMMY(bdflush);
 DUMMY(sysfs);
 DUMMY(vm86);
-DUMMY(sendfile);		/* different semantics */
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(pivot_root);

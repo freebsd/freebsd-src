@@ -1948,6 +1948,7 @@ psm_register_elantech(device_t dev)
 static int
 psmattach(device_t dev)
 {
+	struct make_dev_args mda;
 	int unit = device_get_unit(dev);
 	struct psm_softc *sc = device_get_softc(dev);
 	int error;
@@ -1965,16 +1966,19 @@ psmattach(device_t dev)
 		return (ENXIO);
 	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, NULL, psmintr, sc,
 	    &sc->ih);
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
-		return (error);
-	}
+	if (error)
+		goto out;
 
 	/* Done */
-	sc->dev = make_dev(&psm_cdevsw, 0, 0, 0, 0666, "psm%d", unit);
-	sc->dev->si_drv1 = sc;
-	sc->bdev = make_dev(&psm_cdevsw, 0, 0, 0, 0666, "bpsm%d", unit);
-	sc->bdev->si_drv1 = sc;
+	make_dev_args_init(&mda);
+	mda.mda_devsw = &psm_cdevsw;
+	mda.mda_mode = 0666;
+	mda.mda_si_drv1 = sc;
+
+	if ((error = make_dev_s(&mda, &sc->dev, "psm%d", unit)) != 0)
+		goto out;
+	if ((error = make_dev_s(&mda, &sc->bdev, "bpsm%d", unit)) != 0)
+		goto out;
 
 #ifdef EVDEV_SUPPORT
 	switch (sc->hw.model) {
@@ -1991,7 +1995,7 @@ psmattach(device_t dev)
 	}
 
 	if (error)
-		return (error);
+		goto out;
 #endif
 
 	/* Some touchpad devices need full reinitialization after suspend. */
@@ -2032,7 +2036,15 @@ psmattach(device_t dev)
 	if (bootverbose)
 		--verbose;
 
-	return (0);
+out:
+	if (error != 0) {
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
+		if (sc->dev != NULL)
+			destroy_dev(sc->dev);
+		if (sc->bdev != NULL)
+			destroy_dev(sc->bdev);
+	}
+	return (error);
 }
 
 static int

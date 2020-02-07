@@ -19,15 +19,14 @@ SRCS=	kvm.c kvm_cptime.c kvm_getloadavg.c \
 	kvm_minidump_mips.c \
 	kvm_powerpc.c kvm_powerpc64.c \
 	kvm_minidump_riscv.c \
-	kvm_minidump_powerpc64.c kvm_minidump_powerpc64_hpt.c \
-	kvm_sparc64.c
+	kvm_minidump_powerpc64.c kvm_minidump_powerpc64_hpt.c
 INCS=	kvm.h
 
 LIBADD=	elf
 
 MAN=	kvm.3 kvm_getcptime.3 kvm_geterr.3 kvm_getloadavg.3 \
-	kvm_getpcpu.3 kvm_getprocs.3 kvm_getswapinfo.3 kvm_native.3 \
-	kvm_nlist.3 kvm_open.3 kvm_read.3
+	kvm_getpcpu.3 kvm_getprocs.3 kvm_getswapinfo.3 kvm_kerndisp.3 \
+	kvm_native.3 kvm_nlist.3 kvm_open.3 kvm_read.3
 
 MLINKS+=kvm_getpcpu.3 kvm_getmaxcpu.3 \
 	kvm_getpcpu.3 kvm_dpcpu_setcpu.3 \

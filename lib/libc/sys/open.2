@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2019
+.Dd January 31, 2020
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -166,6 +166,7 @@ O_RDONLY	open for reading only
 O_WRONLY	open for writing only
 O_RDWR		open for reading and writing
 O_EXEC		open for execute only
+O_SEARCH	open for search only, an alias for O_EXEC
 O_NONBLOCK	do not block on open
 O_APPEND	append on each write
 O_CREAT		create file if it does not exist
@@ -325,6 +326,19 @@ If the specified path is absolute,
 .Dv O_BENEATH
 allows arbitrary prefix that ends up at the topping directory,
 after which all further resolved components must be under it.
+.Pp
+When
+.Fa fd
+is opened with
+.Dv O_SEARCH ,
+execute permissions are checked at open time.
+The
+.Fa fd
+may not be used for any read operations like
+.Xr getdirentries 2 .
+The primary use for this descriptor will be as the lookup descriptor for the
+.Fn *at
+family of functions.
 .Pp
 If successful,
 .Fn open
@@ -518,9 +532,12 @@ An attempt was made to open a descriptor with an illegal combination
 of
 .Dv O_RDONLY ,
 .Dv O_WRONLY ,
-.Dv O_RDWR
+or
+.Dv O_RDWR ,
 and
-.Dv O_EXEC .
+.Dv O_EXEC
+or
+.Dv O_SEARCH .
 .It Bq Er EBADF
 The
 .Fa path

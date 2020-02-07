@@ -330,6 +330,7 @@ struct mps_softc {
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct sysctl_oid		*sysctl_tree;
 	char                            fw_version[16];
+	char				msg_version[8];
 	struct mps_command		*commands;
 	struct mps_chain		*chains;
 	struct callout			periodic;

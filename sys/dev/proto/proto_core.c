@@ -507,9 +507,7 @@ proto_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 		if (offset >= r->r_size)
 			return (EINVAL);
 		*paddr = rman_get_start(r->r_d.res) + offset;
-#ifndef __sparc64__
 		*memattr = VM_MEMATTR_UNCACHEABLE;
-#endif
 		break;
 	case PROTO_RES_BUSDMA:
 		if (!proto_busdma_mmap_allowed(r->r_d.busdma, offset))

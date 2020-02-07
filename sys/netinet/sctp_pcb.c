@@ -2746,7 +2746,6 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	stcb->asoc.strreset_timer.ep = (void *)new_inp;
 	stcb->asoc.shut_guard_timer.ep = (void *)new_inp;
 	stcb->asoc.autoclose_timer.ep = (void *)new_inp;
-	stcb->asoc.delayed_event_timer.ep = (void *)new_inp;
 	stcb->asoc.delete_prim_timer.ep = (void *)new_inp;
 	/* now what about the nets? */
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
@@ -4407,7 +4406,6 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 	SCTP_OS_TIMER_INIT(&asoc->asconf_timer.timer);
 	SCTP_OS_TIMER_INIT(&asoc->shut_guard_timer.timer);
 	SCTP_OS_TIMER_INIT(&asoc->autoclose_timer.timer);
-	SCTP_OS_TIMER_INIT(&asoc->delayed_event_timer.timer);
 	SCTP_OS_TIMER_INIT(&asoc->delete_prim_timer.timer);
 
 	LIST_INSERT_HEAD(&inp->sctp_asoc_list, stcb, sctp_tcblist);
@@ -4781,8 +4779,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	asoc->autoclose_timer.self = NULL;
 	(void)SCTP_OS_TIMER_STOP(&asoc->shut_guard_timer.timer);
 	asoc->shut_guard_timer.self = NULL;
-	(void)SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
-	asoc->delayed_event_timer.self = NULL;
 	/* Mobility adaptation */
 	(void)SCTP_OS_TIMER_STOP(&asoc->delete_prim_timer.timer);
 	asoc->delete_prim_timer.self = NULL;
@@ -4967,7 +4963,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	(void)SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
 	(void)SCTP_OS_TIMER_STOP(&asoc->shut_guard_timer.timer);
 	(void)SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		(void)SCTP_OS_TIMER_STOP(&net->rxt_timer.timer);
 		(void)SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);

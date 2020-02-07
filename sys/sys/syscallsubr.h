@@ -91,6 +91,8 @@ int	kern_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
 	    const struct timespec *rqtp, struct timespec *rmtp);
 int	kern_clock_settime(struct thread *td, clockid_t clock_id,
 	    struct timespec *ats);
+void	kern_thread_cputime(struct thread *targettd, struct timespec *ats);
+void	kern_process_cputime(struct proc *targetp, struct timespec *ats);
 int	kern_close(struct thread *td, int fd);
 int	kern_connectat(struct thread *td, int dirfd, int fd,
 	    struct sockaddr *sa);

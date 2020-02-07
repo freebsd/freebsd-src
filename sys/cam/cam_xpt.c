@@ -2716,17 +2716,6 @@ xpt_action_default(union ccb *start_ccb)
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
 			break;
 		}
-#if defined(__sparc64__)
-		/*
-		 * For sparc64, we may need adjust the geometry of large
-		 * disks in order to fit the limitations of the 16-bit
-		 * fields of the VTOC8 disk label.
-		 */
-		if (scsi_da_bios_params(&start_ccb->ccg) != 0) {
-			start_ccb->ccb_h.status = CAM_REQ_CMP;
-			break;
-		}
-#endif
 		goto call_sim;
 	case XPT_ABORT:
 	{

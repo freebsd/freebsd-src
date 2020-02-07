@@ -132,7 +132,7 @@ platform_cpu_mask(cpuset_t *mask)
 				continue;
 			}
 			if (se->entry_addr != 1) {
-				printf("%s: CPU %d has uninitalized spin "
+				printf("%s: CPU %d has uninitialized spin "
 				    "entry\n", __func__, reg);
 				continue;
 			}

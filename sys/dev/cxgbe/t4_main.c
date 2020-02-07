@@ -401,6 +401,22 @@ SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 15, CTLFLAG_RDTUN,
 #endif
 
 #ifdef DEV_NETMAP
+#define NN_MAIN_VI	(1 << 0)	/* Native netmap on the main VI */
+#define NN_EXTRA_VI	(1 << 1)	/* Native netmap on the extra VI(s) */
+static int t4_native_netmap = NN_EXTRA_VI;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, native_netmap, CTLFLAG_RDTUN, &t4_native_netmap,
+    0, "Native netmap support.  bit 0 = main VI, bit 1 = extra VIs");
+
+#define NNMTXQ 8
+static int t4_nnmtxq = -NNMTXQ;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nnmtxq, CTLFLAG_RDTUN, &t4_nnmtxq, 0,
+    "Number of netmap TX queues");
+
+#define NNMRXQ 8
+static int t4_nnmrxq = -NNMRXQ;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nnmrxq, CTLFLAG_RDTUN, &t4_nnmrxq, 0,
+    "Number of netmap RX queues");
+
 #define NNMTXQ_VI 2
 static int t4_nnmtxq_vi = -NNMTXQ_VI;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nnmtxq_vi, CTLFLAG_RDTUN, &t4_nnmtxq_vi, 0,
@@ -621,6 +637,8 @@ struct intrs_and_queues {
 	uint16_t nrxq;		/* # of NIC rxq's for each port */
 	uint16_t nofldtxq;	/* # of TOE/ETHOFLD txq's for each port */
 	uint16_t nofldrxq;	/* # of TOE rxq's for each port */
+	uint16_t nnmtxq;	/* # of netmap txq's */
+	uint16_t nnmrxq;	/* # of netmap rxq's */
 
 	/* The vcxgbe/vcxl interfaces use these and not the ones above. */
 	uint16_t ntxq_vi;	/* # of NIC txq's */
@@ -1247,9 +1265,15 @@ t4_attach(device_t dev)
 	}
 #endif
 #ifdef DEV_NETMAP
-	if (num_vis > 1) {
-		s->nnmrxq = nports * (num_vis - 1) * iaq.nnmrxq_vi;
-		s->nnmtxq = nports * (num_vis - 1) * iaq.nnmtxq_vi;
+	s->nnmrxq = 0;
+	s->nnmtxq = 0;
+	if (t4_native_netmap & NN_MAIN_VI) {
+		s->nnmrxq += nports * iaq.nnmrxq;
+		s->nnmtxq += nports * iaq.nnmtxq;
+	}
+	if (num_vis > 1 && t4_native_netmap & NN_EXTRA_VI) {
+		s->nnmrxq += nports * (num_vis - 1) * iaq.nnmrxq_vi;
+		s->nnmtxq += nports * (num_vis - 1) * iaq.nnmtxq_vi;
 	}
 	s->neq += s->nnmtxq + s->nnmrxq;
 	s->niq += s->nnmrxq;
@@ -1344,14 +1368,17 @@ t4_attach(device_t dev)
 			ofld_rqidx += vi->nofldrxq;
 #endif
 #ifdef DEV_NETMAP
-			if (j > 0) {
-				vi->first_nm_rxq = nm_rqidx;
-				vi->first_nm_txq = nm_tqidx;
+			vi->first_nm_rxq = nm_rqidx;
+			vi->first_nm_txq = nm_tqidx;
+			if (j == 0) {
+				vi->nnmrxq = iaq.nnmrxq;
+				vi->nnmtxq = iaq.nnmtxq;
+			} else {
 				vi->nnmrxq = iaq.nnmrxq_vi;
 				vi->nnmtxq = iaq.nnmtxq_vi;
-				nm_rqidx += vi->nnmrxq;
-				nm_tqidx += vi->nnmtxq;
 			}
+			nm_rqidx += vi->nnmrxq;
+			nm_tqidx += vi->nnmtxq;
 #endif
 		}
 	}
@@ -1673,6 +1700,7 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 {
 	struct ifnet *ifp;
 	struct sbuf *sb;
+	struct pfil_head_args pa;
 
 	vi->xact_addr_filt = -1;
 	callout_init(&vi->tick, 1);
@@ -1768,6 +1796,12 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 
 	vi_sysctls(vi);
 
+	pa.pa_version = PFIL_VERSION;
+	pa.pa_flags = PFIL_IN;
+	pa.pa_type = PFIL_TYPE_ETHERNET;
+	pa.pa_headname = ifp->if_xname;
+	vi->pfil = pfil_head_register(&pa);
+
 	return (0);
 }
 
@@ -1807,6 +1841,11 @@ static void
 cxgbe_vi_detach(struct vi_info *vi)
 {
 	struct ifnet *ifp = vi->ifp;
+
+	if (vi->pfil != NULL) {
+		pfil_head_unregister(vi->pfil);
+		vi->pfil = NULL;
+	}
 
 	ether_ifdetach(ifp);
 
@@ -3304,10 +3343,10 @@ fixup_devlog_params(struct adapter *sc)
 static void
 update_nirq(struct intrs_and_queues *iaq, int nports)
 {
-	int extra = T4_EXTRA_INTR;
 
-	iaq->nirq = extra;
-	iaq->nirq += nports * (iaq->nrxq + iaq->nofldrxq);
+	iaq->nirq = T4_EXTRA_INTR;
+	iaq->nirq += nports * max(iaq->nrxq, iaq->nnmrxq);
+	iaq->nirq += nports * iaq->nofldrxq;
 	iaq->nirq += nports * (iaq->num_vis - 1) *
 	    max(iaq->nrxq_vi, iaq->nnmrxq_vi);
 	iaq->nirq += nports * (iaq->num_vis - 1) * iaq->nofldrxq_vi;
@@ -3346,8 +3385,14 @@ calculate_iaq(struct adapter *sc, struct intrs_and_queues *iaq, int itype,
 	}
 #endif
 #ifdef DEV_NETMAP
-	iaq->nnmtxq_vi = t4_nnmtxq_vi;
-	iaq->nnmrxq_vi = t4_nnmrxq_vi;
+	if (t4_native_netmap & NN_MAIN_VI) {
+		iaq->nnmtxq = t4_nnmtxq;
+		iaq->nnmrxq = t4_nnmrxq;
+	}
+	if (t4_native_netmap & NN_EXTRA_VI) {
+		iaq->nnmtxq_vi = t4_nnmtxq_vi;
+		iaq->nnmrxq_vi = t4_nnmrxq_vi;
+	}
 #endif
 
 	update_nirq(iaq, nports);
@@ -3405,6 +3450,8 @@ calculate_iaq(struct adapter *sc, struct intrs_and_queues *iaq, int itype,
 			do {
 				iaq->nrxq--;
 			} while (!powerof2(iaq->nrxq));
+			if (iaq->nnmrxq > iaq->nrxq)
+				iaq->nnmrxq = iaq->nrxq;
 		}
 		if (iaq->nofldrxq > 1)
 			iaq->nofldrxq >>= 1;
@@ -3426,10 +3473,14 @@ calculate_iaq(struct adapter *sc, struct intrs_and_queues *iaq, int itype,
 	device_printf(sc->dev, "running with minimal number of queues.  "
 	    "itype %d, navail %u.\n", itype, navail);
 	iaq->nirq = 1;
-	MPASS(iaq->nrxq == 1);
+	iaq->nrxq = 1;
 	iaq->ntxq = 1;
-	if (iaq->nofldrxq > 1)
+	if (iaq->nofldrxq > 0) {
+		iaq->nofldrxq = 1;
 		iaq->nofldtxq = 1;
+	}
+	iaq->nnmtxq = 0;
+	iaq->nnmrxq = 0;
 done:
 	MPASS(iaq->num_vis > 0);
 	if (iaq->num_vis > 1) {
@@ -10291,8 +10342,6 @@ clear_stats(struct adapter *sc, u_int port_id)
 				rxq->rxcsum = 0;
 				rxq->vlan_extraction = 0;
 
-				rxq->fl.mbuf_allocated = 0;
-				rxq->fl.mbuf_inlined = 0;
 				rxq->fl.cl_allocated = 0;
 				rxq->fl.cl_recycled = 0;
 				rxq->fl.cl_fast_recycled = 0;
@@ -10334,8 +10383,6 @@ clear_stats(struct adapter *sc, u_int port_id)
 #endif
 #ifdef TCP_OFFLOAD
 			for_each_ofld_rxq(vi, i, ofld_rxq) {
-				ofld_rxq->fl.mbuf_allocated = 0;
-				ofld_rxq->fl.mbuf_inlined = 0;
 				ofld_rxq->fl.cl_allocated = 0;
 				ofld_rxq->fl.cl_recycled = 0;
 				ofld_rxq->fl.cl_fast_recycled = 0;
@@ -10884,6 +10931,8 @@ tweak_tunables(void)
 #endif
 
 #ifdef DEV_NETMAP
+	calculate_nqueues(&t4_nnmtxq, nc, NNMTXQ);
+	calculate_nqueues(&t4_nnmrxq, nc, NNMRXQ);
 	calculate_nqueues(&t4_nnmtxq_vi, nc, NNMTXQ_VI);
 	calculate_nqueues(&t4_nnmrxq_vi, nc, NNMRXQ_VI);
 #endif

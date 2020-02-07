@@ -571,7 +571,7 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 
 	memcpy(pcb->pcb_s, tf->tf_s, sizeof(tf->tf_s));
 
-	pcb->pcb_ra = tf->tf_ra;
+	pcb->pcb_ra = tf->tf_sepc;
 	pcb->pcb_sp = tf->tf_sp;
 	pcb->pcb_gp = tf->tf_gp;
 	pcb->pcb_tp = tf->tf_tp;

@@ -184,6 +184,12 @@ _powerpc64_native(kvm_t *kd __unused)
 #endif
 }
 
+static kssize_t
+_powerpc64_kerndisp(kvm_t *kd)
+{
+	return (kd->vmst->hdr.startkernel - PPC64_KERNBASE);
+}
+
 static int
 _powerpc64_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
 {
@@ -197,6 +203,7 @@ static struct kvm_arch kvm_powerpc64_minidump = {
 	.ka_kvatop	= _powerpc64_minidump_kvatop,
 	.ka_walk_pages	= _powerpc64_minidump_walk_pages,
 	.ka_native	= _powerpc64_native,
+	.ka_kerndisp	= _powerpc64_kerndisp,
 };
 
 KVM_ARCH(kvm_powerpc64_minidump);

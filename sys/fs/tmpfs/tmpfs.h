@@ -382,6 +382,8 @@ struct tmpfs_mount {
 	bool			tm_ronly;
 	/* Do not use namecache. */
 	bool			tm_nonc;
+	/* Do not update mtime on writes through mmaped areas. */
+	bool			tm_nomtime;
 };
 #define	TMPFS_LOCK(tm) mtx_lock(&(tm)->tm_allnode_lock)
 #define	TMPFS_UNLOCK(tm) mtx_unlock(&(tm)->tm_allnode_lock)
@@ -450,12 +452,17 @@ void	tmpfs_itimes(struct vnode *, const struct timespec *,
 
 void	tmpfs_set_status(struct tmpfs_mount *tm, struct tmpfs_node *node,
 	    int status);
-void	tmpfs_update(struct vnode *);
 int	tmpfs_truncate(struct vnode *, off_t);
 struct tmpfs_dirent *tmpfs_dir_first(struct tmpfs_node *dnode,
 	    struct tmpfs_dir_cursor *dc);
 struct tmpfs_dirent *tmpfs_dir_next(struct tmpfs_node *dnode,
 	    struct tmpfs_dir_cursor *dc);
+static __inline void
+tmpfs_update(struct vnode *vp)
+{
+
+	tmpfs_itimes(vp, NULL, NULL);
+}
 
 /*
  * Convenience macros to simplify some logical expressions.
@@ -534,6 +541,20 @@ tmpfs_use_nc(struct vnode *vp)
 
 	return (!(VFS_TO_TMPFS(vp->v_mount)->tm_nonc));
 }
+
+static inline void
+tmpfs_update_getattr(struct vnode *vp)
+{
+	struct tmpfs_node *node;
+	int update_flags;
+
+	update_flags = TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED | TMPFS_NODE_CHANGED;
+
+	node = VP_TO_TMPFS_NODE(vp);
+	if (__predict_false(node->tn_status & update_flags) != 0)
+		tmpfs_update(vp);
+}
+
 #endif /* _KERNEL */
 
 #endif /* _FS_TMPFS_TMPFS_H_ */

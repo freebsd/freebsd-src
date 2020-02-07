@@ -325,27 +325,6 @@ struct mxge_pkt_info {
 };
 
 
-/* implement our own memory barriers, since bus_space_barrier
-   cannot handle write-combining regions */
-
-#if __FreeBSD_version < 800053
-
-#if defined (__GNUC__)
-  #if #cpu(i386) || defined __i386 || defined i386 || defined __i386__ || #cpu(x86_64) || defined __x86_64__
-    #define wmb()  __asm__ __volatile__ ("sfence;": : :"memory")
-  #elif #cpu(sparc64) || defined sparc64 || defined __sparcv9 
-    #define wmb()  __asm__ __volatile__ ("membar #MemIssue": : :"memory")
-  #elif #cpu(sparc) || defined sparc || defined __sparc__
-    #define wmb()  __asm__ __volatile__ ("stbar;": : :"memory")
-  #else
-    #define wmb() 	/* XXX just to make this compile */
-  #endif
-#else
-  #error "unknown compiler"
-#endif
-
-#endif
-
 static inline void
 mxge_pio_copy(volatile void *to_v, void *from_v, size_t size)
 {

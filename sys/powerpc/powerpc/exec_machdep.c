@@ -463,7 +463,17 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 		return (EINVAL);
 
 	/*
-	 * Don't let the user set privileged MSR bits
+	 * Don't let the user change privileged MSR bits.
+	 *
+	 * psl_userstatic is used here to mask off any bits that can
+	 * legitimately vary between user contexts (Floating point
+	 * exception control and any facilities that we are using the
+	 * "enable on first use" pattern with.)
+	 *
+	 * All other bits are required to match psl_userset(32).
+	 *
+	 * Remember to update the platform cpu_init code when implementing
+	 * support for a new conditional facility!
 	 */
 	if ((mcp->mc_srr1 & psl_userstatic) != (tf->srr1 & psl_userstatic)) {
 		return (EINVAL);
@@ -480,9 +490,19 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	else
 		tf->fixreg[2] = tls;
 
-	/* Disable FPU */
-	tf->srr1 &= ~PSL_FP;
-	pcb->pcb_flags &= ~PCB_FPU;
+	/*
+	 * Force the FPU back off to ensure the new context will not bypass
+	 * the enable_fpu() setup code accidentally.
+	 *
+	 * This prevents an issue where a process that uses floating point
+	 * inside a signal handler could end up in a state where the MSR
+	 * did not match pcb_flags.
+	 *
+	 * Additionally, ensure VSX is disabled as well, as it is illegal
+	 * to leave it turned on when FP or VEC are off.
+	 */
+	tf->srr1 &= ~(PSL_FP | PSL_VSX);
+	pcb->pcb_flags &= ~(PCB_FPU | PCB_VSX);
 
 	if (mcp->mc_flags & _MC_FP_VALID) {
 		/* enable_fpu() will happen lazily on a fault */
@@ -506,6 +526,9 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 		pcb->pcb_vec.vscr = mcp->mc_vscr;
 		pcb->pcb_vec.vrsave = mcp->mc_vrsave;
 		memcpy(pcb->pcb_vec.vr, mcp->mc_avec, sizeof(mcp->mc_avec));
+	} else {
+		tf->srr1 &= ~PSL_VEC;
+		pcb->pcb_flags &= ~PCB_VEC;
 	}
 
 	return (0);

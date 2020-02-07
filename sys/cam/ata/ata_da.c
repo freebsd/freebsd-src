@@ -2430,6 +2430,10 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			}
 			break;
 		}
+		default:
+			biofinish(bp, NULL, EOPNOTSUPP);
+			xpt_release_ccb(start_ccb);
+			return;
 		}
 		start_ccb->ccb_h.ccb_state = ADA_CCB_BUFFER_IO;
 		start_ccb->ccb_h.flags |= CAM_UNLOCKED;

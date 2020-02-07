@@ -142,9 +142,9 @@ static char symbol[MAX_DS] = { ' ', 'x', '+', '*', '%', '#', '@', 'O' };
 struct dataset {
 	char *name;
 	double	*points;
-	unsigned lpoints;
+	size_t lpoints;
 	double sy, syy;
-	unsigned n;
+	size_t n;
 };
 
 static struct dataset *
@@ -202,7 +202,7 @@ Avg(const struct dataset *ds)
 static double
 Median(const struct dataset *ds)
 {
-	const unsigned m = ds->n / 2;
+	const size_t m = ds->n / 2;
 
 	if ((ds->n % 2) == 0)
 		return ((ds->points[m] + (ds->points[m - 1])) / 2);
@@ -212,13 +212,13 @@ Median(const struct dataset *ds)
 static double
 Var(struct dataset *ds)
 {
-	unsigned n;
+	size_t z;
 	const double a = Avg(ds);
 
 	if (isnan(ds->syy)) {
 		ds->syy = 0.0;
-		for (n = 0; n < ds->n; n++)
-			ds->syy += (ds->points[n] - a) * (ds->points[n] - a);
+		for (z = 0; z < ds->n; z++)
+			ds->syy += (ds->points[z] - a) * (ds->points[z] - a);
 	}
 
 	return (ds->syy / (ds->n - 1.0));
@@ -242,7 +242,7 @@ static void
 Vitals(struct dataset *ds, int flag)
 {
 
-	printf("%c %3d %13.8g %13.8g %13.8g %13.8g %13.8g", symbol[flag],
+	printf("%c %3zu %13.8g %13.8g %13.8g %13.8g %13.8g", symbol[flag],
 	    ds->n, Min(ds), Max(ds), Median(ds), Avg(ds), Stddev(ds));
 	printf("\n");
 }
@@ -252,13 +252,13 @@ Relative(struct dataset *ds, struct dataset *rs, int confidx)
 {
 	double spool, s, d, e, t;
 	double re;
-	int i;
+	size_t z;
 
-	i = ds->n + rs->n - 2;
-	if (i > NSTUDENT)
+	z = ds->n + rs->n - 2;
+	if (z > NSTUDENT)
 		t = student[0][confidx];
 	else
-		t = student[i][confidx];
+		t = student[z][confidx];
 	spool = (ds->n - 1) * Var(ds) + (rs->n - 1) * Var(rs);
 	spool /= ds->n + rs->n - 2;
 	spool = sqrt(spool);
@@ -272,7 +272,6 @@ Relative(struct dataset *ds, struct dataset *rs, int confidx)
 	re = t * sqrt(re);
 
 	if (fabs(d) > e) {
-
 		printf("Difference at %.1f%% confidence\n", studentpct[confidx]);
 		printf("	%g +/- %g\n", d, e);
 		printf("	%g%% +/- %g%%\n", d * 100 / Avg(rs), re * 100 / Avg(rs));
@@ -290,7 +289,7 @@ struct plot {
 	int		width;
 
 	double		x0, dx;
-	int		height;
+	size_t		height;
 	char		*data;
 	char		**bar;
 	int		separate_bars;
@@ -343,9 +342,11 @@ static void
 PlotSet(struct dataset *ds, int val)
 {
 	struct plot *pl;
-	int i, j, m, x;
-	unsigned n;
+	int i, x;
+	size_t m, j, z;
+	size_t n;
 	int bar;
+	double av, sd;
 
 	pl = &plot;
 	if (pl->span == 0)
@@ -370,6 +371,7 @@ PlotSet(struct dataset *ds, int val)
 	m = 1;
 	i = -1;
 	j = 0;
+	/* Set m to max(j) + 1, to allocate required memory */
 	for (n = 0; n < ds->n; n++) {
 		x = (ds->points[n] - pl->x0) / pl->dx;
 		if (x == i) {
@@ -400,18 +402,20 @@ PlotSet(struct dataset *ds, int val)
 		}
 		pl->data[j * pl->width + x] |= val;
 	}
-	if (!isnan(Stddev(ds))) {
-		x = ((Avg(ds) - Stddev(ds)) - pl->x0) / pl->dx;
-		m = ((Avg(ds) + Stddev(ds)) - pl->x0) / pl->dx;
+	av = Avg(ds);
+	sd = Stddev(ds);
+	if (!isnan(sd)) {
+		x = ((av - sd) - pl->x0) / pl->dx;
+		m = ((av + sd) - pl->x0) / pl->dx;
 		pl->bar[bar][m] = '|';
 		pl->bar[bar][x] = '|';
-		for (i = x + 1; i < m; i++)
-			if (pl->bar[bar][i] == 0)
-				pl->bar[bar][i] = '_';
+		for (z = x + 1; z < m; z++)
+			if (pl->bar[bar][z] == 0)
+				pl->bar[bar][z] = '_';
 	}
 	x = (Median(ds) - pl->x0) / pl->dx;
 	pl->bar[bar][x] = 'M';
-	x = (Avg(ds) - pl->x0) / pl->dx;
+	x = (av - pl->x0) / pl->dx;
 	pl->bar[bar][x] = 'A';
 }
 
@@ -420,6 +424,7 @@ DumpPlot(void)
 {
 	struct plot *pl;
 	int i, j, k;
+	size_t z;
 
 	pl = &plot;
 	if (pl->span == 0) {
@@ -432,10 +437,10 @@ DumpPlot(void)
 		putchar('-');
 	putchar('+');
 	putchar('\n');
-	for (i = 1; i < pl->height; i++) {
+	for (z = 1; z < pl->height; z++) {
 		putchar('|');
 		for (j = 0; j < pl->width; j++) {
-			k = pl->data[(pl->height - i) * pl->width + j];
+			k = pl->data[(pl->height - z) * pl->width + j];
 			if (k >= 0 && k < MAX_DS)
 				putchar(symbol[k]);
 			else

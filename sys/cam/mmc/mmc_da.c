@@ -1834,6 +1834,10 @@ sddastart(struct cam_periph *periph, union ccb *start_ccb)
 		CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("BIO_DELETE\n"));
 		sddaschedule(periph);
 		break;
+	default:
+		biofinish(bp, NULL, EOPNOTSUPP);
+		xpt_release_ccb(start_ccb);
+		return;
 	}
 	start_ccb->ccb_h.ccb_bp = bp;
 	softc->outstanding_cmds++;

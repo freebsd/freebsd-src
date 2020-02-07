@@ -1142,7 +1142,7 @@ sys_semop(struct thread *td, struct semop_args *uap)
 		DPRINTF(("error = %d from copyin(%p, %p, %d)\n", error,
 		    uap->sops, sops, nsops * sizeof(sops[0])));
 		if (sops != small_sops)
-			free(sops, M_SEM);
+			free(sops, M_TEMP);
 		return (error);
 	}
 
@@ -1393,7 +1393,7 @@ done:
 done2:
 	mtx_unlock(sema_mtxp);
 	if (sops != small_sops)
-		free(sops, M_SEM);
+		free(sops, M_TEMP);
 	return (error);
 }
 

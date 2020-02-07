@@ -1,3 +1,3 @@
 .\" $FreeBSD$
-Build binutils (as on i386 and amd64, objdump, and ld on powerpc)
+Build GNU binutils
 as part of the bootstrap process.

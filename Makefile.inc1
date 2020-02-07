@@ -2912,6 +2912,7 @@ _cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib
 cddl/lib/libctf__L: lib/libz__L
 .endif
+# cddl/lib/libdtrace requires lib/libproc and lib/librtld_db
 _prebuild_libs+=	lib/libprocstat lib/libproc lib/librtld_db
 lib/libprocstat__L: lib/libelf__L lib/libkvm__L lib/libutil__L
 lib/libproc__L: lib/libprocstat__L

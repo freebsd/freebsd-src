@@ -671,13 +671,6 @@ dbuf_cache_lowater_bytes(void)
 }
 
 static inline boolean_t
-dbuf_cache_above_hiwater(void)
-{
-	return (zfs_refcount_count(&dbuf_caches[DB_DBUF_CACHE].size) >
-	    dbuf_cache_hiwater_bytes());
-}
-
-static inline boolean_t
 dbuf_cache_above_lowater(void)
 {
 	return (zfs_refcount_count(&dbuf_caches[DB_DBUF_CACHE].size) >
@@ -717,8 +710,6 @@ dbuf_evict_one(void)
 		ASSERT3U(db->db_caching_status, ==, DB_DBUF_CACHE);
 		db->db_caching_status = DB_NO_CACHE;
 		dbuf_destroy(db);
-		DBUF_STAT_MAX(cache_size_bytes_max,
-		    zfs_refcount_count(&dbuf_caches[DB_DBUF_CACHE].size));
 		DBUF_STAT_BUMP(cache_total_evicts);
 	} else {
 		multilist_sublist_unlock(mls);
@@ -747,6 +738,10 @@ dbuf_evict_thread(void *unused __unused)
 			(void) cv_timedwait_hires(&dbuf_evict_cv,
 			    &dbuf_evict_lock, SEC2NSEC(1), MSEC2NSEC(1), 0);
 			CALLB_CPR_SAFE_END(&cpr, &dbuf_evict_lock);
+#ifdef __FreeBSD__
+			if (dbuf_ksp != NULL)
+				dbuf_ksp->ks_update(dbuf_ksp, KSTAT_READ);
+#endif
 		}
 		mutex_exit(&dbuf_evict_lock);
 
@@ -774,16 +769,15 @@ dbuf_evict_thread(void *unused __unused)
  * dbuf cache using the callers context.
  */
 static void
-dbuf_evict_notify(void)
+dbuf_evict_notify(uint64_t size)
 {
 	/*
 	 * We check if we should evict without holding the dbuf_evict_lock,
 	 * because it's OK to occasionally make the wrong decision here,
 	 * and grabbing the lock results in massive lock contention.
 	 */
-	if (zfs_refcount_count(&dbuf_caches[DB_DBUF_CACHE].size) >
-	    dbuf_cache_max_bytes) {
-		if (dbuf_cache_above_hiwater())
+	if (size > dbuf_cache_max_bytes) {
+		if (size > dbuf_cache_hiwater_bytes())
 			dbuf_evict_one();
 		cv_signal(&dbuf_evict_cv);
 	}
@@ -880,18 +874,10 @@ retry:
 	dbuf_cache_evict_thread = thread_create(NULL, 0, dbuf_evict_thread,
 	    NULL, 0, &p0, TS_RUN, minclsyspri);
 
-#ifdef __linux__
-	/*
-	 * XXX FreeBSD's SPL lacks KSTAT_TYPE_NAMED support - TODO 
-	 */
 	dbuf_ksp = kstat_create("zfs", 0, "dbufstats", "misc",
 	    KSTAT_TYPE_NAMED, sizeof (dbuf_stats) / sizeof (kstat_named_t),
 	    KSTAT_FLAG_VIRTUAL);
 	if (dbuf_ksp != NULL) {
-		dbuf_ksp->ks_data = &dbuf_stats;
-		dbuf_ksp->ks_update = dbuf_kstat_update;
-		kstat_install(dbuf_ksp);
-
 		for (i = 0; i < DN_MAX_LEVELS; i++) {
 			snprintf(dbuf_stats.cache_levels[i].name,
 			    KSTAT_STRLEN, "cache_level_%d", i);
@@ -902,8 +888,10 @@ retry:
 			dbuf_stats.cache_levels_bytes[i].data_type =
 			    KSTAT_DATA_UINT64;
 		}
+		dbuf_ksp->ks_data = &dbuf_stats;
+		dbuf_ksp->ks_update = dbuf_kstat_update;
+		kstat_install(dbuf_ksp);
 	}
-#endif	
 }
 
 void
@@ -2387,7 +2375,6 @@ dbuf_destroy(dmu_buf_impl_t *db)
 		if (needlock)
 			mutex_enter(&dn->dn_dbufs_mtx);
 		avl_remove(&dn->dn_dbufs, db);
-		atomic_dec_32(&dn->dn_dbufs_count);
 		membar_producer();
 		DB_DNODE_EXIT(db);
 		if (needlock)
@@ -2612,7 +2599,6 @@ dbuf_create(dnode_t *dn, uint8_t level, uint64_t blkid,
 	ASSERT(dn->dn_object == DMU_META_DNODE_OBJECT ||
 	    zfs_refcount_count(&dn->dn_holds) > 0);
 	(void) zfs_refcount_add(&dn->dn_holds, db);
-	atomic_inc_32(&dn->dn_dbufs_count);
 
 	dprintf_dbuf(db, "db=%p\n", db);
 
@@ -3188,6 +3174,7 @@ void
 dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag, boolean_t evicting)
 {
 	int64_t holds;
+	uint64_t size;
 
 	ASSERT(MUTEX_HELD(&db->db_mtx));
 	DBUF_VERIFY(db);
@@ -3284,15 +3271,14 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag, boolean_t evicting)
 				db->db_caching_status = dcs;
 
 				multilist_insert(dbuf_caches[dcs].cache, db);
-				(void) zfs_refcount_add_many(
+				size = zfs_refcount_add_many(
 				    &dbuf_caches[dcs].size, db->db.db_size, db);
 
 				if (dcs == DB_DBUF_METADATA_CACHE) {
 					DBUF_STAT_BUMP(metadata_cache_count);
 					DBUF_STAT_MAX(
 					    metadata_cache_size_bytes_max,
-					    zfs_refcount_count(
-					    &dbuf_caches[dcs].size));
+					    size);
 				} else {
 					DBUF_STAT_BUMP(
 					    cache_levels[db->db_level]);
@@ -3301,15 +3287,12 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag, boolean_t evicting)
 					    cache_levels_bytes[db->db_level],
 					    db->db.db_size);
 					DBUF_STAT_MAX(cache_size_bytes_max,
-					    zfs_refcount_count(
-					    &dbuf_caches[dcs].size));
+					    size);
 				}
 				mutex_exit(&db->db_mtx);
 
-				if (db->db_caching_status == DB_DBUF_CACHE &&
-				    !evicting) {
-					dbuf_evict_notify();
-				}
+				if (dcs == DB_DBUF_CACHE && !evicting)
+					dbuf_evict_notify(size);
 			}
 
 			if (do_arc_evict)

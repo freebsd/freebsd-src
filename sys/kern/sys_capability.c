@@ -179,6 +179,17 @@ cap_check(const cap_rights_t *havep, const cap_rights_t *needp)
 	return (_cap_check(havep, needp, CAPFAIL_NOTCAPABLE));
 }
 
+int
+cap_check_failed_notcapable(const cap_rights_t *havep, const cap_rights_t *needp)
+{
+
+#ifdef KTRACE
+	if (KTRPOINT(curthread, KTR_CAPFAIL))
+		ktrcapfail(CAPFAIL_NOTCAPABLE, needp, havep);
+#endif
+	return (ENOTCAPABLE);
+}
+
 /*
  * Convert capability rights into VM access flags.
  */

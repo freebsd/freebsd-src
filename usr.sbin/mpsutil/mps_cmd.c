@@ -724,23 +724,36 @@ mps_get_iocfacts(int fd)
 {
 	MPI2_IOC_FACTS_REPLY *facts;
 	MPI2_IOC_FACTS_REQUEST req;
+	char msgver[8], sysctlname[128];
+	size_t len, factslen;
 	int error;
 
-	facts = malloc(sizeof(MPI2_IOC_FACTS_REPLY));
+	snprintf(sysctlname, sizeof(sysctlname), "dev.%s.%d.msg_version",
+	    is_mps ? "mps" : "mpr", mps_unit);
+
+	factslen = sizeof(MPI2_IOC_FACTS_REPLY);
+	len = sizeof(msgver);
+	error = sysctlbyname(sysctlname, msgver, &len, NULL, 0);
+	if (error == 0) {
+		if (strncmp(msgver, "2.6", sizeof(msgver)) == 0)
+			factslen += 4;
+	}
+
+	facts = malloc(factslen);
 	if (facts == NULL) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 
-	bzero(&req, sizeof(MPI2_IOC_FACTS_REQUEST));
+	bzero(&req, factslen);
 	req.Function = MPI2_FUNCTION_IOC_FACTS;
 
 #if 1
 	error = mps_pass_command(fd, &req, sizeof(MPI2_IOC_FACTS_REQUEST),
-	    facts, sizeof(MPI2_IOC_FACTS_REPLY), NULL, 0, NULL, 0, 10);
+	    facts, factslen, NULL, 0, NULL, 0, 10);
 #else
 	error = mps_user_command(fd, &req, sizeof(MPI2_IOC_FACTS_REQUEST),
-	    facts, sizeof(MPI2_IOC_FACTS_REPLY), NULL, 0, 0);
+	    facts, factslen, NULL, 0, 0);
 #endif
 	if (error) {
 		free(facts);

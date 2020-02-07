@@ -439,9 +439,13 @@ twe_startio(struct twe_softc *sc)
 	    if (bp->bio_cmd == BIO_READ) {
 		tr->tr_flags |= TWE_CMD_DATAIN;
 		cmd->io.opcode = TWE_OP_READ;
-	    } else {
+	    } else if (bp->bio_cmd == BIO_WRITE) {
 		tr->tr_flags |= TWE_CMD_DATAOUT;
 		cmd->io.opcode = TWE_OP_WRITE;
+	    } else {
+		twe_release_request(tr);
+		biofinish(bp, NULL, EOPNOTSUPP);
+		break;
 	    }
 	
 	    /* build a suitable I/O command (assumes 512-byte rounded transfers) */

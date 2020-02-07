@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2017-2019 The DragonFly Project
+ * Copyright (c) 2017-2019 Tomohiro Kusumi <tkusumi@netbsd.org>
  * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
@@ -32,8 +33,10 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <err.h>
+#include <assert.h>
 
 #include <sys/types.h>
 
@@ -42,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "fstyp.h"
 
 static hammer2_volume_data_t*
-__read_voldata(FILE *fp)
+read_voldata(FILE *fp)
 {
 	hammer2_volume_data_t *voldata;
 
@@ -54,7 +57,7 @@ __read_voldata(FILE *fp)
 }
 
 static int
-__test_voldata(const hammer2_volume_data_t *voldata)
+test_voldata(const hammer2_volume_data_t *voldata)
 {
 	if (voldata->magic != HAMMER2_VOLUME_ID_HBO &&
 	    voldata->magic != HAMMER2_VOLUME_ID_ABO)
@@ -63,14 +66,152 @@ __test_voldata(const hammer2_volume_data_t *voldata)
 	return (0);
 }
 
+static hammer2_media_data_t*
+read_media(FILE *fp, const hammer2_blockref_t *bref, size_t *media_bytes)
+{
+	hammer2_media_data_t *media;
+	hammer2_off_t io_off, io_base;
+	size_t bytes, io_bytes, boff;
+
+	bytes = (bref->data_off & HAMMER2_OFF_MASK_RADIX);
+	if (bytes)
+		bytes = (size_t)1 << bytes;
+	*media_bytes = bytes;
+
+	if (!bytes) {
+		warnx("blockref has no data");
+		return (NULL);
+	}
+
+	io_off = bref->data_off & ~HAMMER2_OFF_MASK_RADIX;
+	io_base = io_off & ~(hammer2_off_t)(HAMMER2_MINIOSIZE - 1);
+	boff = io_off - io_base;
+
+	io_bytes = HAMMER2_MINIOSIZE;
+	while (io_bytes + boff < bytes)
+		io_bytes <<= 1;
+
+	if (io_bytes > sizeof(hammer2_media_data_t)) {
+		warnx("invalid I/O bytes");
+		return (NULL);
+	}
+
+	if (fseek(fp, io_base, SEEK_SET) == -1) {
+		warnx("failed to seek media");
+		return (NULL);
+	}
+	media = read_buf(fp, io_base, io_bytes);
+	if (media == NULL) {
+		warnx("failed to read media");
+		return (NULL);
+	}
+	if (boff)
+		memcpy(media, (char *)media + boff, bytes);
+
+	return (media);
+}
+
 static int
-__read_label(FILE *fp, char *label, size_t size)
+find_pfs(FILE *fp, const hammer2_blockref_t *bref, const char *pfs, bool *res)
+{
+	hammer2_media_data_t *media;
+	hammer2_inode_data_t ipdata;
+	hammer2_blockref_t *bscan;
+	size_t bytes;
+	int i, bcount;
+
+	media = read_media(fp, bref, &bytes);
+	if (media == NULL)
+		return (-1);
+
+	switch (bref->type) {
+	case HAMMER2_BREF_TYPE_INODE:
+		ipdata = media->ipdata;
+		if (ipdata.meta.pfs_type & HAMMER2_PFSTYPE_SUPROOT) {
+			bscan = &ipdata.u.blockset.blockref[0];
+			bcount = HAMMER2_SET_COUNT;
+		} else {
+			bscan = NULL;
+			bcount = 0;
+			if (ipdata.meta.op_flags & HAMMER2_OPFLAG_PFSROOT) {
+				if (memchr(ipdata.filename, 0,
+				    sizeof(ipdata.filename))) {
+					if (!strcmp(
+					    (const char*)ipdata.filename, pfs))
+						*res = true;
+				} else {
+					if (strlen(pfs) > 0 &&
+					    !memcmp(ipdata.filename, pfs,
+					    strlen(pfs)))
+						*res = true;
+				}
+			} else
+				assert(0);
+		}
+		break;
+	case HAMMER2_BREF_TYPE_INDIRECT:
+		bscan = &media->npdata[0];
+		bcount = bytes / sizeof(hammer2_blockref_t);
+		break;
+	default:
+		bscan = NULL;
+		bcount = 0;
+		break;
+	}
+
+	for (i = 0; i < bcount; ++i) {
+		if (bscan[i].type != HAMMER2_BREF_TYPE_EMPTY) {
+			if (find_pfs(fp, &bscan[i], pfs, res) == -1) {
+				free(media);
+				return (-1);
+			}
+		}
+	}
+	free(media);
+
+	return (0);
+}
+
+static char*
+extract_device_name(const char *devpath)
+{
+	char *p, *head;
+
+	if (!devpath)
+		return NULL;
+
+	p = strdup(devpath);
+	head = p;
+
+	p = strchr(p, '@');
+	if (p)
+		*p = 0;
+
+	p = strrchr(head, '/');
+	if (p) {
+		p++;
+		if (*p == 0) {
+			free(head);
+			return NULL;
+		}
+		p = strdup(p);
+		free(head);
+		return p;
+	}
+
+	return head;
+}
+
+static int
+read_label(FILE *fp, char *label, size_t size)
 {
 	hammer2_blockref_t broot, best, *bref;
 	hammer2_media_data_t *vols[HAMMER2_NUM_VOLHDRS], *media;
-	hammer2_off_t io_off, io_base;
-	size_t bytes, io_bytes, boff;
-	int i, best_i, error = 0;
+	size_t bytes;
+	bool res = false;
+	int i, best_i, error = 1;
+	const char *pfs;
+	char *devname;
 
 	best_i = -1;
 	memset(&best, 0, sizeof(best));
@@ -90,40 +231,39 @@ __read_label(FILE *fp, char *label, size_t size)
 
 	bref = &vols[best_i]->voldata.sroot_blockset.blockref[0];
 	if (bref->type != HAMMER2_BREF_TYPE_INODE) {
-		warnx("Superroot blockref type is not inode");
-		error = 2;
-		goto done;
+		warnx("blockref type is not inode");
+		goto fail;
 	}
 
-	bytes = bref->data_off & HAMMER2_OFF_MASK_RADIX;
-	if (bytes)
-		bytes = (size_t)1 << bytes;
-	if (bytes != sizeof(hammer2_inode_data_t)) {
-		warnx("Superroot blockref size does not match inode size");
-		error = 3;
-		goto done;
+	media = read_media(fp, bref, &bytes);
+	if (media == NULL) {
+		goto fail;
 	}
 
-	io_off = bref->data_off & ~HAMMER2_OFF_MASK_RADIX;
-	io_base = io_off & ~(hammer2_off_t)(HAMMER2_MINIOSIZE - 1);
-	boff = io_off - io_base;
+	pfs = "";
+	devname = extract_device_name(NULL);
+	assert(!devname); /* Currently always NULL in FreeBSD. */
 
-	io_bytes = HAMMER2_MINIOSIZE;
-	while (io_bytes + boff < bytes)
-		io_bytes <<= 1;
-	if (io_bytes > sizeof(*media)) {
-		warnx("Invalid I/O bytes");
-		error = 4;
-		goto done;
+	/* Add device name to help support multiple autofs -media mounts. */
+	if (find_pfs(fp, bref, pfs, &res) == 0 && res) {
+		if (devname)
+			snprintf(label, size, "%s_%s", pfs, devname);
+		else
+			strlcpy(label, pfs, size);
+	} else {
+		memset(label, 0, size);
+		memcpy(label, media->ipdata.filename,
+		    sizeof(media->ipdata.filename));
+		if (devname) {
+			strlcat(label, "_", size);
+			strlcat(label, devname, size);
+		}
 	}
-
-	media = read_buf(fp, io_base, io_bytes);
-	if (boff)
-		memcpy(media, (char*)media + boff, bytes);
-
-	strlcpy(label, (char*)media->ipdata.filename, size);
+	if (devname)
+		free(devname);
 	free(media);
-done:
+	error = 0;
+fail:
 	for (i = 0; i < HAMMER2_NUM_VOLHDRS; i++)
 		free(vols[i]);
 
@@ -136,12 +276,12 @@ fstyp_hammer2(FILE *fp, char *label, size_t size)
 	hammer2_volume_data_t *voldata;
 	int error = 1;
 
-	voldata = __read_voldata(fp);
-	if (__test_voldata(voldata))
-		goto done;
+	voldata = read_voldata(fp);
+	if (test_voldata(voldata))
+		goto fail;
 
-	error = __read_label(fp, label, size);
-done:
+	error = read_label(fp, label, size);
+fail:
 	free(voldata);
 	return (error);
 }

@@ -1060,8 +1060,10 @@ prepend_header:
 			 * we can send data right now without the
 			 * PRUS_NOTREADY flag.
 			 */
-			vm_object_pip_wakeup(sfio->obj);
-			free(sfio, M_TEMP);
+			if (sfio != NULL) {
+				vm_object_pip_wakeup(sfio->obj);
+				free(sfio, M_TEMP);
+			}
 #ifdef KERN_TLS
 			if (tls != NULL && tls->mode == TCP_TLS_MODE_SW) {
 				error = (*so->so_proto->pr_usrreqs->pru_send)

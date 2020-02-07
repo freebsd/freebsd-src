@@ -216,6 +216,7 @@
 #define	LINUX32_SYS_linux_lremovexattr	236
 #define	LINUX32_SYS_linux_fremovexattr	237
 #define	LINUX32_SYS_linux_tkill	238
+#define	LINUX32_SYS_linux_sendfile64	239
 #define	LINUX32_SYS_linux_sys_futex	240
 #define	LINUX32_SYS_linux_sched_setaffinity	241
 #define	LINUX32_SYS_linux_sched_getaffinity	242
