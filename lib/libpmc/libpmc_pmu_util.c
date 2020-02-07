@@ -103,7 +103,8 @@ pmu_events_mfr(void)
 		free(buf);
 		return (PMU_INVALID);
 	}
-	if (strcasestr(buf, "AuthenticAMD") != NULL)
+	if (strcasestr(buf, "AuthenticAMD") != NULL ||
+	    strcasestr(buf, "HygonGenuine") != NULL)
 		mfr = PMU_AMD;
 	else if (strcasestr(buf, "GenuineIntel") != NULL)
 		mfr = PMU_INTEL;

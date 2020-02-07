@@ -1089,6 +1089,9 @@ pmc_amd_initialize(void)
 	if (CPUID_TO_FAMILY(cpu_id) == 0x17)
 		snprintf(pmc_cpuid, sizeof(pmc_cpuid), "AuthenticAMD-%d-%02X",
 				 CPUID_TO_FAMILY(cpu_id), model);
+	if (CPUID_TO_FAMILY(cpu_id) == 0x18)
+		snprintf(pmc_cpuid, sizeof(pmc_cpuid), "HygonGenuine-%d-%02X",
+				 CPUID_TO_FAMILY(cpu_id), model);
 
 	switch (cpu_id & 0xF00) {
 #if	defined(__i386__)
