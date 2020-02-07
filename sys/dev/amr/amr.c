@@ -1315,6 +1315,10 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
 	ac->ac_flags |= AMR_CMD_PRIORITY | AMR_CMD_DATAOUT;
 	cmd = AMR_CMD_FLUSH;
 	break;
+    default:
+	biofinish(bio, NULL, EOPNOTSUPP);
+	amr_releasecmd(ac);
+	return (0);
     }
     amrd = (struct amrd_softc *)bio->bio_disk->d_drv1;
     driveno = amrd->amrd_drive - sc->amr_drive;

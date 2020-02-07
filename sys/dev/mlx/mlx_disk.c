@@ -157,6 +157,11 @@ mlxd_strategy(struct bio *bp)
 	goto bad;
     }
 
+    if ((bp->bio_cmd != BIO_READ) && (bp->bio_cmd != BIO_WRITE)) {
+	bp->bio_error = EOPNOTSUPP;
+	goto bad;
+    }
+
     /* XXX may only be temporarily offline - sleep? */
     MLX_IO_LOCK(sc->mlxd_controller);
     if (sc->mlxd_drive->ms_state == MLX_SYSD_OFFLINE) {

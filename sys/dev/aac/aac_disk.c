@@ -163,6 +163,11 @@ aac_disk_strategy(struct bio *bp)
 		return;
 	}
 
+	if ((bp->bio_cmd != BIO_READ) && (bp->bio_cmd != BIO_WRITE)) {
+		biofinish(bp, NULL, EOPNOTSUPP);
+		return;
+	}
+
 	/* perform accounting */
 
 	/* pass the bio to the controller - it can work out who we are */

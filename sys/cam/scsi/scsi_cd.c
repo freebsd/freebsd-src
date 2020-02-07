@@ -927,6 +927,13 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 			}
 			bioq_remove(&softc->bio_queue, bp);
 
+			if ((bp->bio_cmd != BIO_READ) &&
+			    (bp->bio_cmd != BIO_WRITE)) {
+				biofinish(bp, NULL, EOPNOTSUPP);
+				xpt_release_ccb(start_ccb);
+				return;
+			}
+
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/ cd_retry_count,
 					/* cbfcnp */ cddone,
