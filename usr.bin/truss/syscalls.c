@@ -908,7 +908,7 @@ print_mask_arg32(bool (*decoder)(FILE *, uint32_t, uint32_t *), FILE *fp,
  * Add argument padding to subsequent system calls after Quad
  * syscall arguments as needed.  This used to be done by hand in the
  * decoded_syscalls table which was ugly and error prone.  It is
- * simpler to do the fixup of offsets at initalization time than when
+ * simpler to do the fixup of offsets at initialization time than when
  * decoding arguments.
  */
 static void

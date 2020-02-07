@@ -5856,7 +5856,7 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 		/*
 		 * Not enough data has been acknowledged to make a
 		 * judgement unless we are hardware TLS. Set up
-		 * the inital TSO based on if we are sending a
+		 * the initial TSO based on if we are sending a
 		 * full IW at once or not.
 		 */
 		if (bbr->rc_use_google)
@@ -12361,7 +12361,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	if (IS_FASTOPEN(tp->t_flags) &&
 	    ((tp->t_state == TCPS_SYN_RECEIVED) ||
 	     (tp->t_state == TCPS_SYN_SENT)) &&
-	    SEQ_GT(tp->snd_max, tp->snd_una) &&	/* inital SYN or SYN|ACK sent */
+	    SEQ_GT(tp->snd_max, tp->snd_una) &&	/* initial SYN or SYN|ACK sent */
 	    (tp->t_rxtshift == 0)) {	/* not a retransmit */
 		return (0);
 	}
