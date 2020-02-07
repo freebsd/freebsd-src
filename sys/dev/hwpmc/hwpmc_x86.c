@@ -248,7 +248,8 @@ pmc_md_initialize()
 	struct pmc_mdep *md;
 
 	/* determine the CPU kind */
-	if (cpu_vendor_id == CPU_VENDOR_AMD)
+	if (cpu_vendor_id == CPU_VENDOR_AMD ||
+	    cpu_vendor_id == CPU_VENDOR_HYGON)
 		md = pmc_amd_initialize();
 	else if (cpu_vendor_id == CPU_VENDOR_INTEL)
 		md = pmc_intel_initialize();
@@ -271,7 +272,8 @@ pmc_md_finalize(struct pmc_mdep *md)
 {
 
 	lapic_disable_pmc();
-	if (cpu_vendor_id == CPU_VENDOR_AMD)
+	if (cpu_vendor_id == CPU_VENDOR_AMD ||
+	    cpu_vendor_id == CPU_VENDOR_HYGON)
 		pmc_amd_finalize(md);
 	else if (cpu_vendor_id == CPU_VENDOR_INTEL)
 		pmc_intel_finalize(md);
