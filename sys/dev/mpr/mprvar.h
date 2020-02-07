@@ -372,6 +372,7 @@ struct mpr_softc {
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct sysctl_oid		*sysctl_tree;
 	char                            fw_version[16];
+	char				msg_version[8];
 	struct mpr_command		*commands;
 	struct mpr_chain		*chains;
 	struct mpr_prp_page		*prps;
