@@ -1001,14 +1001,14 @@ int	vfs_mount_fetch_counter(struct mount *, enum mount_counter);
  */
 #define vfs_op_thread_entered(mp) ({				\
 	MPASS(curthread->td_critnest > 0);			\
-	*(int *)zpcpu_get(mp->mnt_thread_in_ops_pcpu) == 1;	\
+	*zpcpu_get(mp->mnt_thread_in_ops_pcpu) == 1;		\
 })
 
 #define vfs_op_thread_enter(mp) ({				\
 	bool _retval = true;					\
 	critical_enter();					\
 	MPASS(!vfs_op_thread_entered(mp));			\
-	*(int *)zpcpu_get(mp->mnt_thread_in_ops_pcpu) = 1;	\
+	zpcpu_set_protected(mp->mnt_thread_in_ops_pcpu, 1);	\
 	atomic_thread_fence_seq_cst();				\
 	if (__predict_false(mp->mnt_vfs_ops > 0)) {		\
 		vfs_op_thread_exit(mp);				\
@@ -1020,18 +1020,18 @@ int	vfs_mount_fetch_counter(struct mount *, enum mount_counter);
 #define vfs_op_thread_exit(mp) do {				\
 	MPASS(vfs_op_thread_entered(mp));			\
 	atomic_thread_fence_rel();				\
-	*(int *)zpcpu_get(mp->mnt_thread_in_ops_pcpu) = 0;	\
+	zpcpu_set_protected(mp->mnt_thread_in_ops_pcpu, 0);	\
 	critical_exit();					\
 } while (0)
 
 #define vfs_mp_count_add_pcpu(mp, count, val) do {		\
 	MPASS(vfs_op_thread_entered(mp));			\
-	(*(int *)zpcpu_get(mp->mnt_##count##_pcpu)) += val;	\
+	zpcpu_add_protected(mp->mnt_##count##_pcpu, val);	\
 } while (0)
 
 #define vfs_mp_count_sub_pcpu(mp, count, val) do {		\
 	MPASS(vfs_op_thread_entered(mp));			\
-	(*(int *)zpcpu_get(mp->mnt_##count##_pcpu)) -= val;	\
+	zpcpu_sub_protected(mp->mnt_##count##_pcpu, val);	\
 } while (0)
 
 #else /* !_KERNEL */
