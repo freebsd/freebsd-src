@@ -37,7 +37,7 @@ static char *sccsid = "@(#)xdr_reference.c	2.1 88/07/29 4.0 RPCSRC";
 __FBSDID("$FreeBSD$");
 
 /*
- * xdr_reference.c, Generic XDR routines impelmentation.
+ * xdr_reference.c, Generic XDR routines implementation.
  *
  * Copyright (C) 1987, Sun Microsystems, Inc.
  *
