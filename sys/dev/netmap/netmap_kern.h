@@ -1591,7 +1591,6 @@ int netmap_adapter_put(struct netmap_adapter *na);
 #define NETMAP_BUF_BASE(_na)	((_na)->na_lut.lut[0].vaddr)
 #define NETMAP_BUF_SIZE(_na)	((_na)->na_lut.objsize)
 extern int netmap_no_pendintr;
-extern int netmap_mitigate;
 extern int netmap_verbose;
 #ifdef CONFIG_NETMAP_DEBUG
 extern int netmap_debug;		/* for debugging */
@@ -1613,7 +1612,6 @@ enum {                                  /* debug flags */
 };
 
 extern int netmap_txsync_retry;
-extern int netmap_flags;
 extern int netmap_generic_hwcsum;
 extern int netmap_generic_mit;
 extern int netmap_generic_ringsize;
