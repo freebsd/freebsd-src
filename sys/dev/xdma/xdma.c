@@ -511,6 +511,24 @@ xdma_ofw_get(device_t dev, const char *prop)
 #endif
 
 /*
+ * Allocate xdma controller.
+ */
+xdma_controller_t *
+xdma_get(device_t dev, device_t dma_dev)
+{
+	xdma_controller_t *xdma;
+
+	xdma = malloc(sizeof(struct xdma_controller),
+	    M_XDMA, M_WAITOK | M_ZERO);
+	xdma->dev = dev;
+	xdma->dma_dev = dma_dev;
+
+	TAILQ_INIT(&xdma->channels);
+
+	return (xdma);
+}
+
+/*
  * Free xDMA controller object.
  */
 int
