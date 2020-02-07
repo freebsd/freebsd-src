@@ -708,7 +708,7 @@ const struct puc_cfg puc_pci_devices[] = {
 	 * The Advantech PCI-1602 Rev. A use the first two ports of an Oxford
 	 * Semiconductor OXuPCI954.  Note these boards have a hardware bug in
 	 * that they drive the RS-422/485 transmitters after power-on until a
-	 * driver initalizes the UARTs.
+	 * driver initializes the UARTs.
 	 */
 	{   0x13fe, 0x1600, 0x1602, 0x0002,
 	    "Advantech PCI-1602 Rev. A",

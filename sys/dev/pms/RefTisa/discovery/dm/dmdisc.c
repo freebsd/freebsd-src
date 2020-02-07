@@ -5618,7 +5618,7 @@ dmSubReportRemovals(
   }
  
   
-  /* this function is called at the end of discovery; reinitalizes oneDeviceData->reported */
+  /* this function is called at the end of discovery; reinitializes oneDeviceData->reported */
   oneDeviceData->reported = agFALSE;
   return;
 }
@@ -5661,7 +5661,7 @@ dmSubReportChanges(
   }
  
   
-  /* this function is called at the end of discovery; reinitalizes oneDeviceData->reported */
+  /* this function is called at the end of discovery; reinitializes oneDeviceData->reported */
   oneDeviceData->reported = agFALSE;
   return;
 }

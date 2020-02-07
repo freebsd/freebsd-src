@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
  *   to send any packets.
  *
  * Note that this device appears to only support loading the station
- * address via autload from the EEPROM (i.e. there's no way to manaully
+ * address via autload from the EEPROM (i.e. there's no way to manually
  * set it).
  *
  * (Adam Weinberger wanted me to name this driver if_gir.c.)

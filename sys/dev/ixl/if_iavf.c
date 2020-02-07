@@ -705,7 +705,7 @@ iavf_if_init(if_ctx_t ctx)
 }
 
 /*
- * iavf_attach() helper function; initalizes the admin queue
+ * iavf_attach() helper function; initializes the admin queue
  * and attempts to establish contact with the PF by
  * retrying the initial "API version" message several times
  * or until the PF responds.
