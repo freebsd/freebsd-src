@@ -256,6 +256,24 @@ extern struct pcpu *cpuid_to_pcpu[];
 	_old;								\
 })
 
+#define zpcpu_set_protected(base, val) ({				\
+	MPASS(curthread->td_critnest > 0);				\
+	__typeof(val) *_ptr = zpcpu_get(base);				\
+	*_ptr = (val);							\
+})
+
+#define zpcpu_add_protected(base, val) ({				\
+	MPASS(curthread->td_critnest > 0);				\
+	__typeof(val) *_ptr = zpcpu_get(base);				\
+	*_ptr += (val);							\
+})
+
+#define zpcpu_sub_protected(base, val) ({				\
+	MPASS(curthread->td_critnest > 0);				\
+	__typeof(val) *_ptr = zpcpu_get(base);				\
+	*_ptr -= (val);							\
+})
+
 /*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for
  * initializing machine dependent fields of struct pcpu, and
