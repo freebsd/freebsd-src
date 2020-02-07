@@ -34,6 +34,11 @@ __RCSID("$NetBSD: t_o_search.c,v 1.9 2020/02/06 12:18:06 martin Exp $");
 #include <atf-c.h>
 
 #include <sys/types.h>
+#ifdef __FreeBSD__
+#include <sys/mount.h>
+#else
+#include <sys/statvfs.h>
+#endif
 #include <sys/stat.h>
 
 #include <dirent.h>
@@ -322,6 +327,23 @@ ATF_TC_BODY(o_search_revokex, tc)
 
 	/* Drop permissions. The kernel must still not check the exec bit. */
 	ATF_REQUIRE(chmod(DIR, 0000) == 0);
+	{
+		const char *fstypename;
+#ifdef __FreeBSD__
+		struct statfs st;
+
+		fstatfs(dfd, &st);
+		fstypename = st.f_fstypename;
+#else
+		struct statvfs vst;
+
+		fstatvfs(dfd, &vst);
+		fstypename = vst.f_fstypename;
+#endif
+		if (strcmp(fstypename, "nfs") == 0)
+			atf_tc_expect_fail(
+			    "NFS protocol cannot observe O_SEARCH semantics");
+	}
 	ATF_REQUIRE(fstatat(dfd, BASEFILE, &sb, 0) == 0);
 
 	ATF_REQUIRE(close(dfd) == 0);
