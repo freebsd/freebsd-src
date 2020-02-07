@@ -1169,7 +1169,8 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (md.md_provsize != pp->mediasize)
 		return (NULL);
 	/* Should we attach it on boot? */
-	if (!(md.md_flags & G_ELI_FLAG_BOOT))
+	if (!(md.md_flags & G_ELI_FLAG_BOOT) &&
+	    !(md.md_flags & G_ELI_FLAG_GELIBOOT))
 		return (NULL);
 	if (md.md_keys == 0x00) {
 		G_ELI_DEBUG(0, "No valid keys on %s.", pp->name);
