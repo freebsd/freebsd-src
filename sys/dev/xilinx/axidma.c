@@ -61,6 +61,15 @@ __FBSDID("$FreeBSD$");
 
 #include "xdma_if.h"
 
+#define	READ4(_sc, _reg)	\
+	bus_space_read_4(_sc->bst, _sc->bsh, _reg)
+#define	WRITE4(_sc, _reg, _val)	\
+	bus_space_write_4(_sc->bst, _sc->bsh, _reg, _val)
+#define	READ8(_sc, _reg)	\
+	bus_space_read_8(_sc->bst, _sc->bsh, _reg)
+#define	WRITE8(_sc, _reg, _val)	\
+	bus_space_write_8(_sc->bst, _sc->bsh, _reg, _val)
+
 #define AXIDMA_DEBUG
 #undef AXIDMA_DEBUG
 
@@ -70,16 +79,7 @@ __FBSDID("$FreeBSD$");
 #define dprintf(fmt, ...)
 #endif
 
-#define	AXIDMA_NCHANNELS	2
-#define	AXIDMA_DESCS_NUM	512
-#define	AXIDMA_TX_CHAN		0
-#define	AXIDMA_RX_CHAN		1
-
 extern struct bus_space memmap_bus;
-
-struct axidma_fdt_data {
-	int id;
-};
 
 struct axidma_channel {
 	struct axidma_softc	*sc;
