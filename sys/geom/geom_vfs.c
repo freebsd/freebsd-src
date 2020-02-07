@@ -139,7 +139,7 @@ g_vfs_done(struct bio *bip)
 
 	cp = bip->bio_from;
 	sc = cp->geom->softc;
-	if (bip->bio_error)
+	if (bip->bio_error && bip->bio_error != EOPNOTSUPP)
 		g_print_bio("g_vfs_done():", bip, "error = %d",
 		    bip->bio_error);
 	bp->b_error = bip->bio_error;
