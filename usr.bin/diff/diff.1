@@ -30,7 +30,7 @@
 .\"     @(#)diff.1	8.1 (Berkeley) 6/30/93
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2018
+.Dd February 07, 2020
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Op Fl aBbdipTtw
 .Oo
 .Fl c | e | f |
-.Fl n | q | u
+.Fl n | q | u | y
 .Oc
 .Op Fl -brief
 .Op Fl -changed-group-format Ar GFMT
@@ -182,6 +182,21 @@
 .Op Fl x Ar pattern | Fl -exclude Ar pattern
 .Ek
 .Ar dir1 dir2
+.Nm diff
+.Op Fl aBbditwW
+.Op --expand-tabs
+.Op --ignore-all-blanks
+.Op --ignore-blank-lines
+.Op --ignore-case
+.Op --minimal
+.Op --no-ignore-file-name-case
+.Op --strip-trailing-cr
+.Op --suppress-common-lines
+.Op --tabsize
+.Op --text
+.Op --width
+.Fl y | Fl -side-by-side
+.Ar file1 file2
 .Sh DESCRIPTION
 The
 .Nm
@@ -284,6 +299,20 @@ However, unlike with
 .Fl c ,
 all lines to be changed (added and/or removed) are present in
 a single section.
+.It Fl y Fl -side-by-side
+Output in two columns with a marker between them. The marker can be one 
+of the following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It space 
+Corresponding lines are identical.
+.It '|'
+Corresponding lines are different.
+.It '<'
+Files differ and only the first file contains the line.
+.It '>'
+Files differ and only the second file contains the line.
+.El
 .El
 .Pp
 Comparison options:
@@ -362,6 +391,10 @@ E.g.,
 .Dq if (\ \&a == b \&)
 will compare equal to
 .Dq if(a==b) .
+.It Fl W Ar number Fl -width Ar number
+Output at most
+.Ar number
+columns when using side by side format. The default value is 130.
 .It Fl -changed-group-format Ar GFMT
 Format input groups in the provided
 .Pp
@@ -382,7 +415,9 @@ default diff output
 stub option for compatibility with GNU diff
 .It Fl -strip-trailing-cr
 strip carriage return on input files
-.It Fl tabsize Ar number
+.It Fl -suppress-common-lines
+Do not output common lines when using the side by side format
+.It Fl -tabsize Ar number
 Number of spaces representing a tab (default 8)
 .El
 .Pp
