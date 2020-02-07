@@ -28,7 +28,7 @@
 .\"     @(#)tty.4	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2017
+.Dd November 27, 2019
 .Dt TTY 4
 .Os
 .Sh NAME
@@ -194,7 +194,6 @@ Simulate typed input.
 Pretend as if the terminal received the character pointed to by
 .Fa cp .
 .It Dv TIOCNOTTY Fa void
-This call is obsolete but left for compatibility.
 In the past, when a process that did not have a controlling terminal (see
 .Em The Controlling Terminal
 in
@@ -203,7 +202,7 @@ first opened a terminal device, it acquired that terminal as its
 controlling terminal.
 For some programs this was a hazard as they
 did not want a controlling terminal in the first place, and this
-provided a mechanism to disassociate the controlling terminal from
+provides a mechanism to disassociate the controlling terminal from
 the calling process.
 It
 .Em must
@@ -228,6 +227,14 @@ system call which will place the process into its own session - which
 has the effect of disassociating it from the controlling terminal.
 This is the new and preferred method for programs to lose their controlling
 terminal.
+.Pp
+However, environmental restrictions may prohibit the process from being able to
+.Fn fork
+and call the
+.Fn setsid
+system call to disassociate it from the controlling terminal.
+In this case, it must use
+.Dv TIOCNOTTY .
 .It Dv TIOCSTOP Fa void
 Stop output on the terminal (like typing ^S at the keyboard).
 .It Dv TIOCSTART Fa void

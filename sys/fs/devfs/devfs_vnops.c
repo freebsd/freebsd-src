@@ -802,9 +802,16 @@ out:
 		error = ENOTTY;
 
 	if (error == 0 && com == TIOCSCTTY) {
-		/* Do nothing if reassigning same control tty */
+		/*
+		 * Do nothing if reassigning same control tty, or if the
+		 * control tty has already disappeared.  If it disappeared,
+		 * it's because we were racing with TIOCNOTTY.  TIOCNOTTY
+		 * already took care of releasing the old vnode and we have
+		 * nothing left to do.
+		 */
 		sx_slock(&proctree_lock);
-		if (td->td_proc->p_session->s_ttyvp == vp) {
+		if (td->td_proc->p_session->s_ttyvp == vp ||
+		    td->td_proc->p_session->s_ttyp == NULL) {
 			sx_sunlock(&proctree_lock);
 			return (0);
 		}
