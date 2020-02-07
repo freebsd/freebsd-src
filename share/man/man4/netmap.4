@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2019
+.Dd February 6, 2020
 .Dt NETMAP 4
 .Os
 .Sh NAME
@@ -694,7 +694,7 @@ or
 are called with a write event (POLLOUT/wfdset) or a full ring.
 .Pp
 When registering a virtual interface that is dynamically created to a
-.Xr vale 4
+.Nm VALE
 switch, we can specify the desired number of rings (1 by default,
 and currently up to 16) on it using nr_tx_rings and nr_rx_rings fields.
 .It Dv NIOCTXSYNC
@@ -861,8 +861,10 @@ The sysctl variable
 .Va dev.netmap.admode
 globally controls how netmap mode is implemented.
 .Sh SYSCTL VARIABLES AND MODULE PARAMETERS
-Some aspect of the operation of
+Some aspects of the operation of
 .Nm
+and
+.Nm VALE
 are controlled through sysctl variables on
 .Fx
 .Em ( dev.netmap.* )
@@ -883,15 +885,14 @@ Number of rings used for emulated netmap mode
 Ring size used for emulated netmap mode
 .It Va dev.netmap.generic_mit: 100000
 Controls interrupt moderation for emulated mode
-.It Va dev.netmap.mmap_unreg: 0
 .It Va dev.netmap.fwd: 0
 Forces NS_FORWARD mode
-.It Va dev.netmap.flags: 0
 .It Va dev.netmap.txsync_retry: 2
+Number of txsync loops in the
+.Nm VALE
+flush function
 .It Va dev.netmap.no_pendintr: 1
 Forces recovery of transmit buffers on system calls
-.It Va dev.netmap.mitigate: 1
-Propagates interrupt mitigation to user processes
 .It Va dev.netmap.no_timestamp: 0
 Disables the update of the timestamp in the netmap ring
 .It Va dev.netmap.verbose: 0
@@ -914,6 +915,18 @@ as it impacts the total amount of memory used by netmap.
 .It Va dev.netmap.if_curr_num: 0
 .It Va dev.netmap.if_curr_size: 0
 Actual values in use.
+.It Va dev.netmap.priv_buf_num: 4098
+.It Va dev.netmap.priv_buf_size: 2048
+.It Va dev.netmap.priv_ring_num: 4
+.It Va dev.netmap.priv_ring_size: 20480
+.It Va dev.netmap.priv_if_num: 2
+.It Va dev.netmap.priv_if_size: 1024
+Sizes and number of objects (netmap_if, netmap_ring, buffers)
+for private memory regions.
+A separate memory region is used for each
+.Nm VALE
+port and each pair of
+.Nm netmap pipes .
 .It Va dev.netmap.bridge_batch: 1024
 Batch size used when moving packets across a
 .Nm VALE
