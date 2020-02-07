@@ -51,7 +51,7 @@ NETWORK_INITIALIZED=
 # initialized and returns success.
 #
 # The variables (from variable.subr) used to initialize the network are as
-# follows (all of which are configured either automatically or manaully):
+# follows (all of which are configured either automatically or manually):
 #
 # 	VAR_IFCONFIG + device_name (e.g., `ifconfig_em0')
 # 		Automatically populated but can be overridden in a script. This

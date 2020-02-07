@@ -238,7 +238,7 @@ tcp_update_dsack_list(struct tcpcb *tp, tcp_seq rcv_start, tcp_seq rcv_end)
 	}
 	j = 0;
 	for (i = 0; i < n; i++) {
-		/* we can end up with a stale inital entry */
+		/* we can end up with a stale initial entry */
 		if (SEQ_LT(saved_blks[i].start, saved_blks[i].end)) {
 			tp->sackblks[j++] = saved_blks[i];
 		}

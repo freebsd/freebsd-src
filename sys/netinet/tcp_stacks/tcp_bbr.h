@@ -598,7 +598,7 @@ struct bbr_control {
 	uint32_t rc_reorder_ts;	/* Last time we saw reordering Lock(a) */
 	uint32_t rc_init_rwnd;	/* Initial rwnd when we transitioned */
                                 /*- ---
-				 * used only inital and close 
+				 * used only initial and close 
                                  */
 	uint32_t rc_high_rwnd;	/* Highest rwnd seen */
 	uint32_t rc_lowest_rtt;	/* Smallest RTT we have seen */
