@@ -40,21 +40,21 @@
 
 #ifdef IN_SUBR_COUNTER_C
 static inline uint64_t
-counter_u64_read_one(uint64_t *p, int cpu)
+counter_u64_read_one(counter_u64_t c, int cpu)
 {
 
-	return (*(uint64_t *)((char *)p + UMA_PCPU_ALLOC_SIZE * cpu));
+	return (*zpcpu_get_cpu(c, cpu));
 }
 
 static inline uint64_t
-counter_u64_fetch_inline(uint64_t *p)
+counter_u64_fetch_inline(uint64_t *c)
 {
 	uint64_t r;
-	int i;
+	int cpu;
 
 	r = 0;
-	CPU_FOREACH(i)
-		r += counter_u64_read_one((uint64_t *)p, i);
+	CPU_FOREACH(cpu)
+		r += counter_u64_read_one(c, cpu);
 
 	return (r);
 }
@@ -62,9 +62,10 @@ counter_u64_fetch_inline(uint64_t *p)
 static void
 counter_u64_zero_one_cpu(void *arg)
 {
+	counter_u64_t c;
 
-	*((uint64_t *)((char *)arg + UMA_PCPU_ALLOC_SIZE *
-	    PCPU_GET(cpuid))) = 0;
+	c = arg;
+	*(zpcpu_get(c)) = 0;
 }
 
 static inline void
