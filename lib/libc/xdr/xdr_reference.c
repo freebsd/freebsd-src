@@ -41,7 +41,7 @@ static char *sccsid = "@(#)xdr_reference.c	2.1 88/07/29 4.0 RPCSRC";
 __FBSDID("$FreeBSD$");
 
 /*
- * xdr_reference.c, Generic XDR routines impelmentation.
+ * xdr_reference.c, Generic XDR routines implementation.
  *
  * These are the "non-trivial" xdr primitives used to serialize and de-serialize
  * "pointers".  See xdr.h for more info on the interface to xdr.
