@@ -2152,7 +2152,9 @@ mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 		break;
 	default:
 		/* TODO: what about BIO_DELETE??? */
-		panic("Unsupported bio command %x\n", bio->bio_cmd);
+		biofinish(bio, NULL, EOPNOTSUPP);
+		mfi_enqueue_free(cm);
+		return (NULL);
 	}
 
 	/* Cheat with the sector length to avoid a non-constant division */
@@ -2211,7 +2213,9 @@ mfi_build_ldio(struct mfi_softc *sc, struct bio *bio)
 		break;
 	default:
 		/* TODO: what about BIO_DELETE??? */
-		panic("Unsupported bio command %x\n", bio->bio_cmd);
+		biofinish(bio, NULL, EOPNOTSUPP);
+		mfi_enqueue_free(cm);
+		return (NULL);
 	}
 
 	/* Cheat with the sector length to avoid a non-constant division */

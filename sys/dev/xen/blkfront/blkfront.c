@@ -399,7 +399,9 @@ xbd_bio_command(struct xbd_softc *sc)
 			panic("flush request, but no flush support available");
 		break;
 	default:
-		panic("unknown bio command %d", bp->bio_cmd);
+		biofinish(bp, NULL, EOPNOTSUPP);
+		xbd_enqueue_cm(cm, XBD_Q_FREE);
+		return (NULL);
 	}
 
 	return (cm);

@@ -109,6 +109,13 @@ static void ipsd_strategy(struct bio *iobuf)
 	dsc = iobuf->bio_disk->d_drv1;	
 	DEVICE_PRINTF(8,dsc->dev,"in strategy\n");
 	iobuf->bio_driver1 = (void *)(uintptr_t)dsc->sc->drives[dsc->disk_number].drivenum;
+
+	if ((iobuf->bio_cmd != BIO_READ) &&
+	    (iobuf->bio_cmd != BIO_WRITE)) {
+		biofinish(iobuf, NULL, EOPNOTSUPP);
+		return;
+	}
+
 	mtx_lock(&dsc->sc->queue_mtx);
 	bioq_insert_tail(&dsc->sc->queue, iobuf);
 	ips_start_io_request(dsc->sc);

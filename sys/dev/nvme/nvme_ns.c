@@ -488,7 +488,7 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 			free(dsm_range, M_NVME);
 		break;
 	default:
-		err = EIO;
+		err = EOPNOTSUPP;
 		break;
 	}
 

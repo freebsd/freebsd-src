@@ -2683,6 +2683,12 @@ again:
 			bioq_remove(&softc->bio_queue, bp);
 			softc->queue_count--;
 
+			if ((bp->bio_cmd != BIO_READ) &&
+			    (bp->bio_cmd != BIO_WRITE)) {
+				biofinish(bp, NULL, EOPNOTSUPP);
+				xpt_release_ccb(start_ccb);
+				return;
+			}
 			length = bp->bio_bcount;
 
 			if ((softc->flags & SA_FLAG_FIXED) != 0) {

@@ -549,6 +549,12 @@ vtblk_strategy(struct bio *bp)
 		return;
 	}
 
+	if ((bp->bio_cmd != BIO_READ) && (bp->bio_cmd != BIO_WRITE) &&
+	    (bp->bio_cmd != BIO_FLUSH)) {
+		vtblk_bio_done(sc, bp, EOPNOTSUPP);
+		return;
+	}
+
 	VTBLK_LOCK(sc);
 
 	if (sc->vtblk_flags & VTBLK_FLAG_DETACH) {
