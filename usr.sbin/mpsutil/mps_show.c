@@ -225,7 +225,7 @@ show_iocfacts(int ac, char **av)
 	bzero(tmpbuf, sizeof(tmpbuf));
 	mps_parse_flags(facts->IOCCapabilities, IOCCAP, tmpbuf, sizeof(tmpbuf));
 
-	printf("          MsgVersion: %02d.%02d\n",
+	printf("          MsgVersion: %d.%d\n",
 	    facts->MsgVersion >> 8, facts->MsgVersion & 0xff);
 	printf("           MsgLength: %d\n", facts->MsgLength);
 	printf("            Function: 0x%x\n", facts->Function);
@@ -246,7 +246,9 @@ show_iocfacts(int ac, char **av)
 	printf("           ProductID: 0x%x\n", facts->ProductID);
 	printf("     IOCCapabilities: 0x%x %s\n", facts->IOCCapabilities,
 	    tmpbuf);
-	printf("           FWVersion: 0x%08x\n", facts->FWVersion.Word);
+	printf("           FWVersion: %02d.%02d.%02d.%02d\n",
+	    facts->FWVersion.Struct.Major, facts->FWVersion.Struct.Minor,
+	    facts->FWVersion.Struct.Unit, facts->FWVersion.Struct.Dev);
 	printf(" IOCRequestFrameSize: %d\n", facts->IOCRequestFrameSize);
 	printf("       MaxInitiators: %d\n", facts->MaxInitiators);
 	printf("          MaxTargets: %d\n", facts->MaxTargets);
