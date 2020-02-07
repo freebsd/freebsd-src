@@ -900,60 +900,56 @@ static void __noinline
 rms_rlock_fallback(struct rmslock *rms)
 {
 
-	(*zpcpu_get(rms->readers_influx)) = 0;
+	zpcpu_set_protected(rms->readers_influx, 0);
 	critical_exit();
 
 	mtx_lock(&rms->mtx);
 	MPASS(*zpcpu_get(rms->readers_pcpu) == 0);
 	while (rms->writers > 0)
 		msleep(&rms->readers, &rms->mtx, PUSER - 1, mtx_name(&rms->mtx), 0);
-	(*zpcpu_get(rms->readers_pcpu))++;
+	critical_enter();
+	zpcpu_add_protected(rms->readers_pcpu, 1);
 	mtx_unlock(&rms->mtx);
+	critical_exit();
 }
 
 void
 rms_rlock(struct rmslock *rms)
 {
-	int *influx;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 	critical_enter();
-	influx = zpcpu_get(rms->readers_influx);
-	__compiler_membar();
-	*influx = 1;
+	zpcpu_set_protected(rms->readers_influx, 1);
 	__compiler_membar();
 	if (__predict_false(rms->writers > 0)) {
 		rms_rlock_fallback(rms);
 		return;
 	}
 	__compiler_membar();
-	(*zpcpu_get(rms->readers_pcpu))++;
+	zpcpu_add_protected(rms->readers_pcpu, 1);
 	__compiler_membar();
-	*influx = 0;
+	zpcpu_set_protected(rms->readers_influx, 0);
 	critical_exit();
 }
 
 int
 rms_try_rlock(struct rmslock *rms)
 {
-	int *influx;
 
 	critical_enter();
-	influx = zpcpu_get(rms->readers_influx);
-	__compiler_membar();
-	*influx = 1;
+	zpcpu_set_protected(rms->readers_influx, 1);
 	__compiler_membar();
 	if (__predict_false(rms->writers > 0)) {
 		__compiler_membar();
-		*influx = 0;
+		zpcpu_set_protected(rms->readers_influx, 0);
 		critical_exit();
 		return (0);
 	}
 	__compiler_membar();
-	(*zpcpu_get(rms->readers_pcpu))++;
+	zpcpu_add_protected(rms->readers_pcpu, 1);
 	__compiler_membar();
-	*influx = 0;
+	zpcpu_set_protected(rms->readers_influx, 0);
 	critical_exit();
 	return (1);
 }
@@ -962,7 +958,7 @@ static void __noinline
 rms_runlock_fallback(struct rmslock *rms)
 {
 
-	(*zpcpu_get(rms->readers_influx)) = 0;
+	zpcpu_set_protected(rms->readers_influx, 0);
 	critical_exit();
 
 	mtx_lock(&rms->mtx);
@@ -978,21 +974,18 @@ rms_runlock_fallback(struct rmslock *rms)
 void
 rms_runlock(struct rmslock *rms)
 {
-	int *influx;
 
 	critical_enter();
-	influx = zpcpu_get(rms->readers_influx);
-	__compiler_membar();
-	*influx = 1;
+	zpcpu_set_protected(rms->readers_influx, 1);
 	__compiler_membar();
 	if (__predict_false(rms->writers > 0)) {
 		rms_runlock_fallback(rms);
 		return;
 	}
 	__compiler_membar();
-	(*zpcpu_get(rms->readers_pcpu))--;
+	zpcpu_sub_protected(rms->readers_pcpu, 1);
 	__compiler_membar();
-	*influx = 0;
+	zpcpu_set_protected(rms->readers_influx, 0);
 	critical_exit();
 }
 
