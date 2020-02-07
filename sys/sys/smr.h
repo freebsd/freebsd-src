@@ -49,6 +49,7 @@
 #define	SMR_SEQ_LEQ(a, b)	((int32_t)((a)-(b)) <= 0)
 #define	SMR_SEQ_GT(a, b)	((int32_t)((a)-(b)) > 0)
 #define	SMR_SEQ_GEQ(a, b)	((int32_t)((a)-(b)) >= 0)
+#define	SMR_SEQ_DELTA(a, b)	((int32_t)((a)-(b)))
 
 #define	SMR_SEQ_INVALID		0
 
