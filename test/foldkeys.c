@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2006-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey, 2006
  *
- * $Id: foldkeys.c,v 1.4 2010/11/14 01:00:53 tom Exp $
+ * $Id: foldkeys.c,v 1.8 2019/08/24 23:11:01 tom Exp $
  *
  * Demonstrate a method for altering key definitions at runtime.
  *
@@ -38,20 +38,10 @@
  * merging only for the keys which are defined in the terminal description.
  */
 
+#define NEED_TIME_H
 #include <test.priv.h>
 
 #if defined(NCURSES_VERSION) && NCURSES_EXT_FUNCS
-
-#if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
-#else
-# if HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
-#endif
 
 #define MY_LOGFILE "demo_foldkeys.log"
 #define MY_KEYS (KEY_MAX + 1)
@@ -63,10 +53,10 @@ static void
 log_last_line(WINDOW *win)
 {
     FILE *fp;
-    int y, x, n;
-    char temp[256];
 
     if ((fp = fopen(MY_LOGFILE, "a")) != 0) {
+	char temp[256];
+	int y, x, n;
 	int need = sizeof(temp) - 1;
 	if (need > COLS)
 	    need = COLS;
@@ -155,6 +145,7 @@ demo_foldkeys(void)
 	int first, second;
 	char final[2];
 	char *value;
+	size_t need = 0;
 	if (info[j].state == 0
 	    && sscanf(info[j].value,
 		      "\033[%d;%d%c",
@@ -162,8 +153,9 @@ demo_foldkeys(void)
 		      &second,
 		      final) == 3
 	    && *final != ';'
+	    && (need = strlen(info[j].value)) != 0
 	    && (value = strdup(info[j].value)) != 0) {
-	    sprintf(value, "\033[%d%c", first, *final);
+	    _nc_SPRINTF(value, _nc_SLIMIT(need) "\033[%d%c", first, *final);
 	    for (k = 0; k < info_len; ++k) {
 		if (info[k].state == 0
 		    && !strcmp(info[k].value, value)) {
@@ -172,7 +164,7 @@ demo_foldkeys(void)
 		}
 	    }
 	    if (info[j].state == 0) {
-		sprintf(value, "\033O%c", *final);
+		_nc_SPRINTF(value, _nc_SLIMIT(need) "\033O%c", *final);
 		for (k = 0; k < info_len; ++k) {
 		    if (info[k].state == 0
 			&& !strcmp(info[k].value, value)) {
@@ -203,13 +195,16 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 {
     int ch;
 #if HAVE_GETTIMEOFDAY
-    int secs, msecs;
-    struct timeval current, previous;
+    struct timeval previous;
 #endif
+
+    if (newterm(0, stdout, stdin) == 0) {
+	fprintf(stderr, "Cannot initialize terminal\n");
+	ExitProgram(EXIT_FAILURE);
+    }
 
     unlink(MY_LOGFILE);
 
-    newterm(0, stdout, stdin);
     (void) cbreak();		/* take input chars one at a time, no wait for \n */
     (void) noecho();		/* don't echo input */
 
@@ -228,6 +223,9 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	const char *name = keyname(escaped ? (ch - MY_KEYS) : ch);
 
 #if HAVE_GETTIMEOFDAY
+	int secs, msecs;
+	struct timeval current;
+
 	gettimeofday(&current, 0);
 	secs = (int) (current.tv_sec - previous.tv_sec);
 	msecs = (int) ((current.tv_usec - previous.tv_usec) / 1000);

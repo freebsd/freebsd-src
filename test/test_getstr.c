@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2007-2009,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 2007-2012,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_getstr.c,v 1.10 2012/07/07 18:22:49 tom Exp $
+ * $Id: test_getstr.c,v 1.13 2017/09/28 23:11:12 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -43,6 +43,7 @@
  */
 
 #include <test.priv.h>
+#include <popup_msg.h>
 
 #if HAVE_CHGAT
 /* Solaris SVr4 curses lacks wchgat, mvgetnstr, mvwgetnstr */
@@ -86,14 +87,14 @@ Remainder(WINDOW *txtwin)
 static void
 ShowPrompt(WINDOW *txtwin, int limit)
 {
-    wchgat(txtwin, limit, A_REVERSE, 0, NULL);
+    wchgat(txtwin, limit, WA_REVERSE, 0, NULL);
     wnoutrefresh(txtwin);
 }
 
 static void
 MovePrompt(WINDOW *txtwin, int limit, int y, int x)
 {
-    wchgat(txtwin, Remainder(txtwin), A_NORMAL, 0, NULL);
+    wchgat(txtwin, Remainder(txtwin), WA_NORMAL, 0, NULL);
     wmove(txtwin, y, x);
     ShowPrompt(txtwin, limit);
 }
@@ -141,8 +142,30 @@ ShowFlavor(WINDOW *strwin, WINDOW *txtwin, int flavor, int limit)
 }
 
 static int
-test_getstr(int level, char **argv, WINDOW *strwin)
+recursive_test(int level, char **argv, WINDOW *strwin)
 {
+    static const char *help[] =
+    {
+	"Commands:",
+	"  q,^Q,ESC       - quit this program",
+	"  ^Q,ESC         - quit help-screen",
+	"",
+	"  p,<Up>         - move beginning of prompt one up row",
+	"  j,<Down>       - move beginning of prompt one down row",
+	"  h,<Left>       - move beginning of prompt one left column",
+	"  l,<Right>      - move beginning of prompt one right column",
+	"",
+	"  -              - reduce getnstr buffer-size one column",
+	"  +              - increase getnstr buffer-size one column",
+	"  :              - prompt for input-text",
+	"",
+	"  <              - scroll \"left\" through getstr-functions",
+	"  >              - scroll \"right\" through getstr-functions",
+	"",
+	"  w              - recur to subwindow",
+	"  ?,<F1>         - show help-screen",
+	0
+    };
     WINDOW *txtbox = 0;
     WINDOW *txtwin = 0;
     FILE *fp;
@@ -233,7 +256,7 @@ test_getstr(int level, char **argv, WINDOW *strwin)
 	    break;
 
 	case 'w':
-	    test_getstr(level + 1, argv, strwin);
+	    recursive_test(level + 1, argv, strwin);
 	    if (txtbox != 0) {
 		touchwin(txtbox);
 		wnoutrefresh(txtbox);
@@ -322,6 +345,9 @@ test_getstr(int level, char **argv, WINDOW *strwin)
 	    wprintw(strwin, "%s:%s", ok_keyname(rc), buffer);
 	    wnoutrefresh(strwin);
 	    break;
+	case HELP_KEY_1:
+	    popup_msg(stdscr, help);
+	    break;
 	default:
 	    beep();
 	    break;
@@ -356,7 +382,7 @@ main(int argc, char *argv[])
 
     strwin = derwin(chrbox, 4, COLS - 2, 1, 1);
 
-    test_getstr(1, argv, strwin);
+    recursive_test(1, argv, strwin);
 
     endwin();
     ExitProgram(EXIT_SUCCESS);

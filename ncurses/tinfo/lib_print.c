@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_print.c,v 1.23 2012/02/22 22:34:31 tom Exp $")
+MODULE_ID("$Id: lib_print.c,v 1.24 2018/06/24 00:06:37 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(mcprint) (NCURSES_SP_DCLx char *data, int len)
@@ -95,7 +95,7 @@ NCURSES_SP_NAME(mcprint) (NCURSES_SP_DCLx char *data, int len)
      * kernel will ship the contiguous clist items from the last write
      * immediately.
      */
-#ifndef __MINGW32__
+#ifndef _WIN32
     (void) sleep(0);
 #endif
     free(mybuf);

@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 2007-2012,2014 Free Software Foundation, Inc.              *
+ * Copyright (c) 2007-2014,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 #include "internal.h"
 #include "cursesw.h"
 
-MODULE_ID("$Id: cursesw.cc,v 1.54 2014/02/01 22:10:42 tom Exp $")
+MODULE_ID("$Id: cursesw.cc,v 1.55 2019/07/28 19:55:27 tom Exp $")
 
 #define COLORS_NEED_INITIALIZATION  -1
 #define COLORS_NOT_INITIALIZED       0
@@ -344,7 +344,7 @@ NCursesWindow::kill_subwindows()
 }
 
 
-NCursesWindow::~NCursesWindow()
+NCursesWindow::~NCursesWindow() THROWS(NCursesException)
 {
     kill_subwindows();
 

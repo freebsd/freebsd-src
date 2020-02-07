@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2011 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2011,2015 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,12 +32,22 @@
 
 /*
     Version Control
-    $Id: ncurses_compat.c,v 1.2 2011/03/28 00:29:04 tom Exp $
+    $Id: ncurses_compat.c,v 1.3 2015/08/06 23:09:10 tom Exp $
   --------------------------------------------------------------------------*/
 
 /*
  * Provide compatibility with older versions of ncurses.
  */
+#include <ncurses_cfg.h>
+
+#if HAVE_INTTYPES_H
+# include <inttypes.h>
+#else
+# if HAVE_STDINT_H
+#  include <stdint.h>
+# endif
+#endif
+
 #include <curses.h>
 
 #if defined(NCURSES_VERSION_PATCH)
@@ -49,7 +59,7 @@ extern int _nc_has_mouse(void);
 bool
 has_mouse(void)
 {
-  return (bool) _nc_has_mouse();
+  return (bool)_nc_has_mouse();
 }
 #endif
 

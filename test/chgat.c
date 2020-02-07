@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 2006-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,12 +26,13 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: chgat.c,v 1.12 2012/11/18 01:55:35 tom Exp $
+ * $Id: chgat.c,v 1.18 2019/08/17 21:49:19 tom Exp $
  *
  * test-driver for chgat/wchgat/mvchgat/mvwchgat
  */
 
 #include <test.priv.h>
+#include <popup_msg.h>
 
 #if HAVE_CHGAT
 
@@ -45,10 +46,10 @@
 #endif
 
 typedef struct {
-    unsigned c;
-    unsigned v;
+    size_t c;
+    size_t v;
     short pair;
-    unsigned attr;
+    attr_t attr;
     int count;
     int ch;
     const char *c_msg;
@@ -60,7 +61,7 @@ typedef struct {
 } STATUS;
 
 static const char *
-color_params(unsigned state, short *pair)
+color_params(size_t state, short *pair)
 {
     /* *INDENT-OFF* */
     static struct {
@@ -74,12 +75,13 @@ color_params(unsigned state, short *pair)
     };
     /* *INDENT-ON* */
 
-    static bool first = TRUE;
     const char *result = 0;
 
     if (has_colors()) {
+	static bool first = TRUE;
+
 	if (first) {
-	    unsigned n;
+	    size_t n;
 
 	    start_color();
 	    for (n = 0; n < SIZEOF(table); ++n) {
@@ -95,18 +97,18 @@ color_params(unsigned state, short *pair)
 }
 
 static const char *
-video_params(unsigned state, unsigned *attr)
+video_params(size_t state, attr_t *attr)
 {
     /* *INDENT-OFF* */
     static struct {
-	unsigned attr;
+	attr_t attr;
 	const char *msg;
     } table[] = {
-	{ A_NORMAL,	"normal" },
-	{ A_BOLD,	"bold" },
-	{ A_REVERSE,	"reverse" },
-	{ A_UNDERLINE,	"underline" },
-	{ A_BLINK, 	"blink" },
+	{ WA_NORMAL,	"normal" },
+	{ WA_BOLD,	"bold" },
+	{ WA_REVERSE,	"reverse" },
+	{ WA_UNDERLINE,	"underline" },
+	{ WA_BLINK, 	"blink" },
     };
     /* *INDENT-ON* */
 
@@ -200,7 +202,7 @@ init_status(WINDOW *win, STATUS * sp)
 static void
 show_help(WINDOW *win)
 {
-    static const char *table[] =
+    static const char *msgs[] =
     {
 	"Basic commands:"
 	,"Use h/j/k/l or arrow keys to move the cursor."
@@ -214,19 +216,10 @@ show_help(WINDOW *win)
 	,"=     resets count to zero."
 	,"-     negates count."
 	,"?     shows this help-window"
-	,""
-	,""
+	,0
     };
 
-    int y_max, x_max;
-    int row;
-
-    getmaxyx(win, y_max, x_max);
-    for (row = 0; row < (int) SIZEOF(table) && row < y_max; ++row) {
-	MvWPrintw(win, row, 0, "%.*s", x_max, table[row]);
-    }
-    while (wgetch(win) != 'q')
-	beep();
+    popup_msg(win, msgs);
 }
 
 static void
@@ -280,8 +273,8 @@ update_status(WINDOW *win, STATUS * sp)
 	sp->count = -(sp->count);
 	show_status(win, sp);
 	break;
-    case '?':
-	do_subwindow(win, sp, show_help);
+    case HELP_KEY_1:
+	show_help(win);
 	break;
     default:
 	if (isdigit(sp->ch)) {

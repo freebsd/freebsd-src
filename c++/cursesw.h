@@ -1,7 +1,7 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 // vile:cppmode
 /****************************************************************************
- * Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2019,2020 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,13 +31,13 @@
 #ifndef NCURSES_CURSESW_H_incl
 #define NCURSES_CURSESW_H_incl 1
 
-// $Id: cursesw.h,v 1.50 2014/02/01 22:17:37 tom Exp $
-
-#include <etip.h>
+// $Id: cursesw.h,v 1.55 2020/01/18 17:02:13 tom Exp $
 
 extern "C" {
 #  include   <curses.h>
 }
+
+#include <etip.h>
 
 /* SCO 3.2v4 curses.h includes term.h, which defines lines as a macro.
    Undefine it here, because NCursesWindow uses lines as a method.  */
@@ -322,6 +322,12 @@ inline int UNDEF(instr)(char *_str)  { return instr(_str); }
 inline void UNDEF(intrflush)(WINDOW *win, bool bf) { intrflush(); }
 #undef intrflush
 #define intrflush UNDEF(intrflush)
+#endif
+
+#ifdef is_linetouched
+inline int UNDEF(is_linetouched)(WINDOW *w, int l)  { return is_linetouched(w,l); }
+#undef is_linetouched
+#define is_linetouched UNDEF(is_linetouched)
 #endif
 
 #ifdef leaveok
@@ -831,7 +837,7 @@ public:
   {
   }
 
-  virtual ~NCursesWindow();
+  virtual ~NCursesWindow() THROWS(NCursesException);
 
   NCursesWindow Clone();
   // Make an exact copy of the window.
@@ -1241,7 +1247,7 @@ public:
   // on the value of the changed flag.
 
   bool           is_linetouched(int line) const {
-    return (::is_linetouched(w, line) ? TRUE:FALSE); }
+    return (::is_linetouched(w, line) == TRUE ? TRUE:FALSE); }
   // Return TRUE if line is marked as changed, FALSE otherwise
 
   bool           is_wintouched() const {
@@ -1249,7 +1255,7 @@ public:
   // Return TRUE if window is marked as changed, FALSE otherwise
 
   int            leaveok(bool bf) { return ::leaveok(w, bf); }
-  // If bf is TRUE, curses will leave the cursor after an update whereever
+  // If bf is TRUE, curses will leave the cursor after an update wherever
   // it is after the update.
 
   int            redrawln(int from, int n) { return ::wredrawln(w, from, n); }
@@ -1479,7 +1485,7 @@ public:
   {
   }
 
-  virtual ~NCursesPad() {}
+  virtual ~NCursesPad() THROWS(NCursesException) {}
 
   int echochar(const chtype ch) { return ::pechochar(w, ch); }
   // Put the attributed character onto the pad and immediately do a
@@ -1540,7 +1546,7 @@ public:
   }
   // Construct the FramedPad with the given Window win as viewport.
 
-  virtual ~NCursesFramedPad() {
+  virtual ~NCursesFramedPad() THROWS(NCursesException) {
     delete getSubWindow();
   }
 

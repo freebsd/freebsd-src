@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_hook.3x,v 1.11 2010/12/04 18:40:45 tom Exp $
+.\" $Id: form_hook.3x,v 1.13 2019/01/20 20:31:42 tom Exp $
 .TH form_hook 3X ""
 .SH NAME
 \fBform_hook\fR \- set hooks for automatic invocation by applications
@@ -55,40 +55,46 @@ These functions make it possible to set hook functions to be called at various
 points in the automatic processing of input event codes by \fBform_driver\fR.
 .PP
 The function \fBset_field_init\fR sets a hook to be called at form-post time
-and each time the selected field changes (after the change).  \fBfield_init\fR
+and each time the selected field changes (after the change).
+\fBfield_init\fR
 returns the current field init hook, if any (\fBNULL\fR if there is no such
 hook).
 .PP
 The function \fBset_field_term\fR sets a hook to be called at form-unpost time
-and each time the selected field changes (before the change).  \fBfield_term\fR
+and each time the selected field changes (before the change).
+\fBfield_term\fR
 returns the current field term hook, if any (\fBNULL\fR if there is no such
 hook).
 .PP
 The function \fBset_form_init\fR sets a hook to be called at form-post time and
-just after a page change once it is posted.  \fBform_init\fR returns the
+just after a page change once it is posted.
+\fBform_init\fR returns the
 current form init hook, if any (\fBNULL\fR if there is no such hook).
 .PP
 The function \fBset_form_term\fR sets a hook to be called at form-unpost time
-and just before a page change once it is posted.  \fBform_init\fR
+and just before a page change once it is posted.
+\fBform_init\fR
 returns the current form term hook, if any (\fBNULL\fR if there is no such
 hook).
 .SH RETURN VALUE
-Routines that return pointers return \fBNULL\fR on error.  Other routines
+Routines that return pointers return \fBNULL\fR on error.
+Other routines
 return one of the following:
 .TP 5
 .B E_OK
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V forms library.  They were not supported on
+These routines emulate the System V forms library.
+They were not supported on
 Version 7 or BSD versions.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

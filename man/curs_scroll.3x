@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,12 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_scroll.3x,v 1.15 2010/12/04 18:40:45 tom Exp $
+.\" $Id: curs_scroll.3x,v 1.17 2019/11/30 21:06:30 tom Exp $
 .TH curs_scroll 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .na
 .hy 0
 .SH NAME
@@ -50,8 +54,8 @@ The \fBscroll\fR routine scrolls the window up one line.
 This involves moving
 the lines in the window data structure.
 As an optimization, if the scrolling
-region of the window is the entire screen, the physical screen may be scrolled
-at the same time.
+region of the window is the entire screen,
+the \fIphysical screen\fP may be scrolled at the same time.
 .PP
 For positive \fIn\fR, the \fBscrl\fR and \fBwscrl\fR routines scroll the
 window up \fIn\fR lines (line \fIi\fR+\fIn\fR becomes \fIi\fR); otherwise
@@ -74,8 +78,8 @@ if scrolling is not enabled in the window, e.g., with \fBscrollok\fP.
 Note that \fBscrl\fR and \fBscroll\fR may be macros.
 .PP
 The SVr4 documentation says that the optimization of physically scrolling
-immediately if the scroll region is the entire screen "is" performed, not
-"may be" performed.
+immediately if the scroll region is the entire screen \*(``is\*('' performed, not
+\*(``may be\*('' performed.
 This implementation deliberately does not guarantee
 that this will occur, to leave open the possibility of smarter
 optimization of multiple scroll actions on the next update.

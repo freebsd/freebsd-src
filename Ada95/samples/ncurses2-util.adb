@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2006,2008 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2008,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,15 +35,11 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.7 $
---  $Date: 2008/07/26 18:51:20 $
+--  $Revision: 1.9 $
+--  $Date: 2014/05/24 21:32:18 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Text_IO; use Ada.Text_IO;
-
-pragma Warnings (Off);
-with Terminal_Interface.Curses.Aux;
-pragma Warnings (On);
 
 with Terminal_Interface.Curses.Trace; use Terminal_Interface.Curses.Trace;
 
@@ -115,7 +111,6 @@ package body ncurses2.util is
    procedure Cannot (s : String) is
       use Interfaces.C;
       use Interfaces.C.Strings;
-      use Terminal_Interface.Curses.Aux;
       function getenv (x : char_array)  return chars_ptr;
       pragma Import (C, getenv, "getenv");
       tmp1 : char_array (0 .. 10);

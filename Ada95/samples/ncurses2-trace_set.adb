@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2008,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2011,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.5 $
---  $Date: 2011/03/23 00:40:33 $
+--  $Revision: 1.6 $
+--  $Date: 2014/09/13 19:10:18 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with ncurses2.util; use ncurses2.util;
@@ -141,7 +141,8 @@ procedure ncurses2.trace_set is
         (super.Internal_Calls or not sub.Internal_Calls) and
         (super.Character_Calls or not sub.Character_Calls) and
         (super.Termcap_TermInfo or not sub.Termcap_TermInfo) and
-        True then
+        True
+      then
          return True;
       else
          return False;
@@ -250,93 +251,107 @@ procedure ncurses2.trace_set is
       else
 
          if subset (tlevel,
-                    Trace_Attribute_Set'(Times => True, others => False)) then
+                    Trace_Attribute_Set'(Times => True, others => False))
+         then
             Append (buf, "Times");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
-                    Trace_Attribute_Set'(Tputs => True, others => False)) then
+                    Trace_Attribute_Set'(Tputs => True, others => False))
+         then
             Append (buf, "Tputs");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
-                    Trace_Attribute_Set'(Update => True, others => False)) then
+                    Trace_Attribute_Set'(Update => True, others => False))
+         then
             Append (buf, "Update");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
                     Trace_Attribute_Set'(Cursor_Move => True,
-                                         others => False)) then
+                                         others => False))
+         then
             Append (buf, "Cursor_Move");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
                     Trace_Attribute_Set'(Character_Output => True,
-                                         others => False)) then
+                                         others => False))
+         then
             Append (buf, "Character_Output");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
-                    Trace_Ordinary) then
+                    Trace_Ordinary)
+         then
             Append (buf, "Ordinary");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
-                    Trace_Attribute_Set'(Calls => True, others => False)) then
+                    Trace_Attribute_Set'(Calls => True, others => False))
+         then
             Append (buf, "Calls");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
                     Trace_Attribute_Set'(Virtual_Puts => True,
-                                         others => False)) then
+                                         others => False))
+         then
             Append (buf, "Virtual_Puts");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
                     Trace_Attribute_Set'(Input_Events => True,
-                                         others => False)) then
+                                         others => False))
+         then
             Append (buf, "Input_Events");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
                     Trace_Attribute_Set'(TTY_State => True,
-                                         others => False)) then
+                                         others => False))
+         then
             Append (buf, "TTY_State");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
                     Trace_Attribute_Set'(Internal_Calls => True,
-                                         others => False)) then
+                                         others => False))
+         then
             Append (buf, "Internal_Calls");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
                     Trace_Attribute_Set'(Character_Calls => True,
-                                         others => False)) then
+                                         others => False))
+         then
             Append (buf, "Character_Calls");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
                     Trace_Attribute_Set'(Termcap_TermInfo => True,
-                                         others => False)) then
+                                         others => False))
+         then
             Append (buf, "Termcap_TermInfo");
             Append (buf, ", ");
          end if;
 
          if subset (tlevel,
-                    Trace_Maximum) then
+                    Trace_Maximum)
+         then
             Append (buf, "Maximium");
             Append (buf, ", ");
          end if;

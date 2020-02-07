@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2006,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2011,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.6 $
---  $Date: 2011/03/23 00:44:12 $
+--  $Revision: 1.7 $
+--  $Date: 2014/09/13 19:10:18 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with ncurses2.util; use ncurses2.util;
@@ -317,8 +317,9 @@ procedure ncurses2.demo_forms is
    function my_form_driver (f : Form; c : Key_Code) return Boolean is
       flag : constant Driver_Result := Driver (f, F_Validate_Field);
    begin
-      if c = Form_Request_Code'Last + 1
-        and flag = Form_Ok then
+      if c = Form_Request_Code'Last + 1 and
+         flag = Form_Ok
+      then
          return True;
       else
          Beep;

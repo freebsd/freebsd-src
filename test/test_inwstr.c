@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2007,2010 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2007-2010,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_inwstr.c,v 1.4 2010/05/01 19:13:46 tom Exp $
+ * $Id: test_inwstr.c,v 1.5 2017/04/15 14:14:48 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -70,7 +70,7 @@ showmore(WINDOW *win, int line, wchar_t *buffer)
 }
 
 static int
-test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
+recursive_test(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 {
     WINDOW *txtbox = 0;
     WINDOW *txtwin = 0;
@@ -151,7 +151,7 @@ test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 		beep();
 	    break;
 	case 'w':
-	    test_inchs(level + 1, argv, chrwin, strwin);
+	    recursive_test(level + 1, argv, chrwin, strwin);
 	    if (txtbox != 0) {
 		touchwin(txtbox);
 		wnoutrefresh(txtbox);
@@ -254,7 +254,7 @@ main(int argc, char *argv[])
     chrwin = derwin(chrbox, 2, COLS - 2, 1, 1);
     strwin = derwin(chrbox, 2, COLS - 2, 3, 1);
 
-    test_inchs(1, argv, chrwin, strwin);
+    recursive_test(1, argv, chrwin, strwin);
 
     endwin();
     ExitProgram(EXIT_SUCCESS);

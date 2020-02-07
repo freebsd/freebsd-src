@@ -24,7 +24,7 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 2000 Free Software Foundation, Inc.                        --</EM></span>
+<span class="comment"><EM>-- Copyright (c) 2000,2003 Free Software Foundation, Inc.                   --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,12 +52,12 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.3 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.4 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<span class="symbol"><A NAME="ref_42_35" HREF="terminal_interface-curses-termcap__adb.htm#ref_47_40">Termcap</A></span> <b>is</b>
-   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-termcap__ads.htm#ref_42_35">Termcap</A>);
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<span class="symbol"><A NAME="ref_42_35" HREF="terminal_interface-curses-termcap__adb.htm#ref_47_40">Termcap</A></span> <b>is</b>
+   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-termcap__ads.htm#ref_42_35">Termcap</A>);
 
    <span class="comment"><EM>--  |=====================================================================</EM></span>
    <span class="comment"><EM>--  | Man page curs_termcap.3x</EM></span>
@@ -68,8 +68,8 @@
 
    <span class="comment"><EM>--  |</EM></span>
    <b>function</b> <span class="symbol"><A NAME="ref_53_13" HREF="terminal_interface-curses-termcap__adb.htm#ref_148_13">TGoto</A></span> (<span class="symbol"><A NAME="ref_53_20" HREF="terminal_interface-curses-termcap__adb.htm#ref_148_20">Cap</A></span> : String;
-                   <span class="symbol"><A NAME="ref_54_20" HREF="terminal_interface-curses-termcap__adb.htm#ref_149_20">Col</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
-                   <span class="symbol"><A NAME="ref_55_20" HREF="terminal_interface-curses-termcap__adb.htm#ref_150_20">Row</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>) <b>return</b> Termcap_String;
+                   <span class="symbol"><A NAME="ref_54_20" HREF="terminal_interface-curses-termcap__adb.htm#ref_149_20">Col</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_59_9">Column_Position</A>;
+                   <span class="symbol"><A NAME="ref_55_20" HREF="terminal_interface-curses-termcap__adb.htm#ref_150_20">Row</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_58_9">Line_Position</A>) <b>return</b> Termcap_String;
    <span class="comment"><EM>--  AKA: tgoto()</EM></span>
 
    <span class="comment"><EM>--  |</EM></span>
@@ -94,5 +94,5 @@
    <span class="comment"><EM>--  Returns True if the string is found.</EM></span>
    <span class="comment"><EM>--  AKA: tgetstr()</EM></span>
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-termcap__ads.htm#ref_42_35">Termcap</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-termcap__ads.htm#ref_42_35">Termcap</A>;
 </PRE></BODY></HTML>

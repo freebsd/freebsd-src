@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,10 +26,11 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_driver.3x,v 1.20 2010/12/04 18:38:55 tom Exp $
+.\" $Id: menu_driver.3x,v 1.25 2019/01/20 20:32:23 tom Exp $
 .TH menu_driver 3X ""
 .de bP
-.IP \(bu 4
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
 ..
 .SH NAME
 \fBmenu_driver\fR \- command-processing loop of the menu system
@@ -44,7 +45,8 @@ through \fBmenu_driver\fR.  This routine has three major input cases:
 .bP
 The input is a form navigation request.
 Navigation request codes are constants defined in \fB<form.h>\fP,
-which are distinct from the key- and character codes returned by \fBwgetch\fP.
+which are distinct from the key- and character codes
+returned by \fBwgetch\fP(3X).
 .bP
 The input is a printable character.
 Printable characters (which must be positive, less than 256) are
@@ -107,7 +109,8 @@ Move to the previous item matching the pattern match.
 .PP
 If the second argument is a printable character, the code appends
 it to the pattern buffer and attempts to move to the next item matching
-the new pattern.  If there is no such match, \fBmenu_driver\fR returns
+the new pattern.
+If there is no such match, \fBmenu_driver\fR returns
 \fBE_NO_MATCH\fR and deletes the appended character from the buffer.
 .PP
 If the second argument is one of the above pre-defined requests, the
@@ -150,12 +153,14 @@ application specific command should be executed.
 If a translation
 into a request was done, \fBmenu_driver\fR returns the result of this request.
 .PP
-If you clicked outside the user window or the mouse event could not be translated
+If you clicked outside the user window
+or the mouse event could not be translated
 into a menu request an \fBE_REQUEST_DENIED\fR is returned.
 .SS APPLICATION-DEFINED COMMANDS
 .PP
 If the second argument is neither printable nor one of the above
-pre-defined menu requests or KEY_MOUSE, the drive assumes it is an application-specific
+pre-defined menu requests or KEY_MOUSE,
+the drive assumes it is an application-specific
 command and returns \fBE_UNKNOWN_COMMAND\fR.  Application-defined commands
 should be defined relative to \fBMAX_COMMAND\fR, the maximum value of these
 pre-defined requests.
@@ -166,7 +171,7 @@ pre-defined requests.
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .TP 5
 .B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
@@ -193,8 +198,10 @@ The menu driver could not process the request.
 The header file \fB<menu.h>\fR automatically includes the header files
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V menu library.  They were not supported on
-Version 7 or BSD versions. The support for mouse events is ncurses specific.
+These routines emulate the System V menu library.
+They were not supported on
+Version 7 or BSD versions.
+The support for mouse events is ncurses specific.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

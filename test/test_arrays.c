@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2007,2008 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2007-2010,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_arrays.c,v 1.5 2010/11/13 19:57:57 tom Exp $
+ * $Id: test_arrays.c,v 1.8 2017/10/07 23:55:21 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -50,7 +50,14 @@ extern NCURSES_EXPORT_VAR(NCURSES_CONST char * const ) strfnames[];
 #if HAVE_TIGETSTR
 #if defined(HAVE_CURSES_DATA_BOOLNAMES) || defined(DECL_CURSES_DATA_BOOLNAMES)
 
-#define DUMP(name) dump_array(#name, name)
+static bool opt_C;
+static bool opt_T;
+static bool opt_c;
+static bool opt_f;
+static bool opt_n;
+static bool opt_t;
+
+#define PLAIN(opts, name) if (opts) dump_array(#name, name)
 
 static void
 dump_array(const char *name, NCURSES_CONST char *const *list)
@@ -63,20 +70,139 @@ dump_array(const char *name, NCURSES_CONST char *const *list)
     }
 }
 
-int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+static void
+dump_plain(void)
 {
-    DUMP(boolnames);
-    DUMP(boolcodes);
-    DUMP(boolfnames);
+    PLAIN(opt_T && opt_n, boolnames);
+    PLAIN(opt_C && opt_c, boolcodes);
+    PLAIN(opt_T && opt_f, boolfnames);
 
-    DUMP(numnames);
-    DUMP(numcodes);
-    DUMP(numfnames);
+    PLAIN(opt_T && opt_n, numnames);
+    PLAIN(opt_C && opt_c, numcodes);
+    PLAIN(opt_T && opt_f, numfnames);
 
-    DUMP(strnames);
-    DUMP(strcodes);
-    DUMP(strfnames);
+    PLAIN(opt_T && opt_n, strnames);
+    PLAIN(opt_C && opt_c, strcodes);
+    PLAIN(opt_T && opt_f, strfnames);
+}
+
+#define STRING(opts, name) if (opts) { printf("%s\"%s\"", c++ ? "," : "", name); }
+#define NUMBER(opts, value) if (opts) { printf("%s%d", c++ ? "," : "", value); }
+
+static void
+dump_table(void)
+{
+    int c = 0;
+    int r;
+
+    STRING(opt_t, "Index");
+    STRING(opt_t, "Type");
+    STRING(opt_n, "Name");
+    STRING(opt_c, "Code");
+    STRING(opt_f, "FName");
+    printf("\n");
+
+    for (r = 0; boolnames[r]; ++r) {
+	c = 0;
+	NUMBER(opt_t, r);
+	STRING(opt_t, "bool");
+	STRING(opt_T && opt_n, boolnames[r]);
+	STRING(opt_C && opt_c, boolcodes[r]);
+	STRING(opt_T && opt_f, boolfnames[r]);
+	printf("\n");
+    }
+
+    for (r = 0; numnames[r]; ++r) {
+	c = 0;
+	NUMBER(opt_t, r);
+	STRING(opt_t, "num");
+	STRING(opt_T && opt_n, numnames[r]);
+	STRING(opt_C && opt_c, numcodes[r]);
+	STRING(opt_T && opt_f, numfnames[r]);
+	printf("\n");
+    }
+
+    for (r = 0; strnames[r]; ++r) {
+	c = 0;
+	NUMBER(opt_t, r);
+	STRING(opt_t, "str");
+	STRING(opt_T && opt_n, strnames[r]);
+	STRING(opt_C && opt_c, strcodes[r]);
+	STRING(opt_T && opt_f, strfnames[r]);
+	printf("\n");
+    }
+}
+
+static void
+usage(void)
+{
+    static const char *msg[] =
+    {
+	"Usage: test_arrays [options]",
+	"",
+	"If no options are given, print all (boolean, numeric, string)",
+	"capability names showing their index within the tables.",
+	"",
+	"Options:",
+	" -C       print termcap names",
+	" -T       print terminfo names",
+	" -c       print termcap names",
+	" -f       print full terminfo names",
+	" -n       print short terminfo names",
+	" -t       print the result as CSV table",
+    };
+    unsigned n;
+    for (n = 0; n < SIZEOF(msg); ++n) {
+	fprintf(stderr, "%s\n", msg[n]);
+    }
+    ExitProgram(EXIT_FAILURE);
+}
+
+int
+main(int argc, char *argv[])
+{
+    int n;
+
+    while ((n = getopt(argc, argv, "CTcfnt")) != -1) {
+	switch (n) {
+	case 'C':
+	    opt_C = TRUE;
+	    break;
+	case 'T':
+	    opt_T = TRUE;
+	    break;
+	case 'c':
+	    opt_c = TRUE;
+	    break;
+	case 'f':
+	    opt_f = TRUE;
+	    break;
+	case 'n':
+	    opt_n = TRUE;
+	    break;
+	case 't':
+	    opt_t = TRUE;
+	    break;
+	default:
+	    usage();
+	    /* NOTREACHED */
+	}
+    }
+    if (optind < argc)
+	usage();
+
+    if (!(opt_T || opt_C)) {
+	opt_T = opt_C = TRUE;
+    }
+    if (!(opt_c || opt_f || opt_n)) {
+	opt_c = opt_f = opt_n = TRUE;
+    }
+
+    if (opt_t) {
+	dump_table();
+    } else {
+	dump_plain();
+    }
 
     ExitProgram(EXIT_SUCCESS);
 }

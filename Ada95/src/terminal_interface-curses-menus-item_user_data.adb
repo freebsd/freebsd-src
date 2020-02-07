@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2014,2018 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,28 +35,22 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.12 $
+--  $Revision: 1.15 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
-with Interfaces.C;
 with Terminal_Interface.Curses.Aux; use Terminal_Interface.Curses.Aux;
 
 package body Terminal_Interface.Curses.Menus.Item_User_Data is
-
-   use type Interfaces.C.int;
 
    procedure Set_User_Data (Itm  : Item;
                             Data : User_Access)
    is
       function Set_Item_Userptr (Itm  : Item;
-                                 Addr : User_Access)  return C_Int;
+                                 Addr : User_Access)  return Eti_Error;
       pragma Import (C, Set_Item_Userptr, "set_item_userptr");
 
-      Res : constant Eti_Error := Set_Item_Userptr (Itm, Data);
    begin
-      if  Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Item_Userptr (Itm, Data));
    end Set_User_Data;
 
    function Get_User_Data (Itm  : Item) return User_Access

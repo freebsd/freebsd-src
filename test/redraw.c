@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 2006-2012,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,13 +26,14 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: redraw.c,v 1.8 2012/12/08 20:46:02 tom Exp $
+ * $Id: redraw.c,v 1.10 2017/06/24 14:04:57 tom Exp $
  *
  * Demonstrate the redrawwin() and wredrawln() functions.
  * Thomas Dickey - 2006/11/4
  */
 
 #include <test.priv.h>
+#include <popup_msg.h>
 
 static void
 trash(int beg_x, int max_x, int cur_x)
@@ -53,11 +54,30 @@ trash(int beg_x, int max_x, int cur_x)
     for (x = max_x; x > cur_x; --x) {
 	putchar('\b');
     }
+    fflush(stdout);
 }
 
 static void
 test_redraw(WINDOW *win)
 {
+    static const char *help[] =
+    {
+	"Commands:",
+	"  ^Q/ESC/q   - quit",
+	"  w          - recur in a new window",
+	"  !          - overwrite current line using stdio outside curses.",
+#ifdef NCURSES_VERSION
+	"  @          - run \"date\" command, to put its output on screen.",
+#endif
+	"  ^L         - call redrawwin() for current window.",
+	"  ^W         - call wredrawln() for current line/current window.",
+	"  arrow-keys - move cursor on the screen",
+	"",
+	"Other control characters are added to the screen in printable form.",
+	"Other printable characters are added to the screen as is.",
+	0
+    };
+
     WINDOW *win1;
     WINDOW *win2;
     bool done = FALSE;
@@ -77,6 +97,7 @@ test_redraw(WINDOW *win)
 	switch (ch) {
 	case 'q':
 	    /* FALLTHRU */
+	case QUIT:
 	case ESCAPE:
 	    done = TRUE;
 	    break;
@@ -146,9 +167,14 @@ test_redraw(WINDOW *win)
 		wmove(win, y, x + 1);
 	    break;
 
+	case HELP_KEY_1:
+	    popup_msg(win, help);
+	    break;
+
 	default:
 	    if (ch > KEY_MIN) {
 		waddstr(win, keyname(ch));
+		waddch(win, '\n');
 	    } else {
 		waddstr(win, unctrl(UChar(ch)));
 	    }
@@ -159,10 +185,52 @@ test_redraw(WINDOW *win)
     }
 }
 
+static void
+usage(void)
+{
+    static const char *tbl[] =
+    {
+	"Usage: redraw [options]"
+	,""
+	,"Options:"
+	,"  -e      use stderr (default stdout)"
+	,"  -n      do not initialize terminal"
+    };
+    unsigned n;
+    for (n = 0; n < SIZEOF(tbl); ++n)
+	fprintf(stderr, "%s\n", tbl[n]);
+    ExitProgram(EXIT_FAILURE);
+}
+
 int
 main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 {
-    initscr();
+    int ch;
+    bool no_init = FALSE;
+    FILE *my_fp = stdout;
+
+    while ((ch = getopt(argc, argv, "en")) != -1) {
+	switch (ch) {
+	case 'e':
+	    my_fp = stderr;
+	    break;
+	case 'n':
+	    no_init = TRUE;
+	    break;
+	default:
+	    usage();
+	    break;
+	}
+    }
+    if (optind < argc)
+	usage();
+
+    if (no_init) {
+	START_TRACE();
+    } else {
+	newterm((char *) 0, my_fp, stdin);
+    }
+
     raw();
     noecho();
     test_redraw(stdscr);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2013 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2013-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,22 +29,20 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: dots_termcap.c,v 1.7 2013/09/28 21:50:35 tom Exp $
+ * $Id: dots_termcap.c,v 1.19 2019/08/24 22:25:55 tom Exp $
  *
  * A simple demo of the termcap interface.
  */
 #define USE_TINFO
 #include <test.priv.h>
 
-#if !defined(__MINGW32__)
+#if !defined(_WIN32)
 #include <sys/time.h>
 #endif
 
 #if HAVE_TGETENT
 
 #include <time.h>
-
-#define valid(s) ((s != 0) && s != (char *)-1)
 
 static bool interrupted = FALSE;
 static long total_chars = 0;
@@ -62,7 +60,7 @@ static char *t_ve;
 static char *t_vi;
 
 static struct {
-    const char *name;
+    NCURSES_CONST char *name;
     char **value;
 } my_caps[] = {
 
@@ -116,7 +114,7 @@ TPUTS_PROTO(outc, c)
 static bool
 outs(char *s)
 {
-    if (valid(s)) {
+    if (VALID_STRING(s)) {
 	tputs(s, 1, outc);
 	return TRUE;
     }
@@ -132,7 +130,7 @@ cleanup(void)
     outs(t_cl);
     outs(t_ve);
 
-    printf("\n\n%ld total chars, rate %.2f/sec\n",
+    printf("\n\n%ld total cells, rate %.2f/sec\n",
 	   total_chars,
 	   ((double) (total_chars) / (double) (time((time_t *) 0) - started)));
 }
@@ -153,38 +151,103 @@ ranf(void)
 static void
 my_napms(int ms)
 {
-#if defined(__MINGW32__) || !HAVE_GETTIMEOFDAY
-    Sleep(ms);
+    if (ms > 0) {
+#if defined(_WIN32) || !HAVE_GETTIMEOFDAY
+	Sleep((DWORD) ms);
 #else
-    struct timeval data;
-    data.tv_sec = 0;
-    data.tv_usec = ms * 1000;
-    select(0, NULL, NULL, NULL, &data);
+	struct timeval data;
+	data.tv_sec = 0;
+	data.tv_usec = ms * 1000;
+	select(0, NULL, NULL, NULL, &data);
 #endif
+    }
+}
+
+static int
+get_number(NCURSES_CONST char *cap, const char *env)
+{
+    int result = tgetnum(cap);
+    char *value = env ? getenv(env) : 0;
+    if (value != 0 && *value != 0) {
+	char *next = 0;
+	long check = strtol(value, &next, 10);
+	if (check > 0 && *next == '\0')
+	    result = (int) check;
+    }
+    return result;
+}
+
+static void
+usage(void)
+{
+    static const char *msg[] =
+    {
+	"Usage: dots_termcap [options]"
+	,""
+	,"Options:"
+	," -T TERM  override $TERM"
+	," -e       allow environment $LINES / $COLUMNS"
+	," -m SIZE  set margin (default: 2)"
+	," -s MSECS delay 1% of the time (default: 1 msecs)"
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(EXIT_FAILURE);
 }
 
 int
-main(int argc GCC_UNUSED,
-     char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
-    int x, y, z, p;
+    int ch;
     int num_colors;
     int num_lines;
     int num_columns;
+    int e_option = 0;
+    int m_option = 2;
+    int s_option = 1;
     double r;
     double c;
     char buffer[1024];
     char area[1024];
     char *name;
+    size_t need;
+    char *my_env;
 
-    CATCHALL(onsig);
-
-    srand((unsigned) time(0));
+    while ((ch = getopt(argc, argv, "T:em:s:")) != -1) {
+	switch (ch) {
+	case 'T':
+	    need = 6 + strlen(optarg);
+	    my_env = malloc(need);
+	    _nc_SPRINTF(my_env, _nc_SLIMIT(need) "TERM=%s", optarg);
+	    putenv(my_env);
+	    break;
+	case 'e':
+	    e_option = 1;
+	    break;
+	case 'm':
+	    m_option = atoi(optarg);
+	    break;
+	case 's':
+	    s_option = atoi(optarg);
+	    break;
+	default:
+	    usage();
+	    break;
+	}
+    }
 
     if ((name = getenv("TERM")) == 0) {
 	fprintf(stderr, "TERM is not set\n");
 	ExitProgram(EXIT_FAILURE);
-    } else if (tgetent(buffer, name) < 0) {
+    }
+
+    srand((unsigned) time(0));
+
+    InitAndCatch(ch = tgetent(buffer, name), onsig);
+    if (ch < 0) {
 	fprintf(stderr, "terminal description not found\n");
 	ExitProgram(EXIT_FAILURE);
     } else {
@@ -197,43 +260,44 @@ main(int argc GCC_UNUSED,
     }
 
     num_colors = tgetnum("Co");
-    num_lines = tgetnum("li");
-    num_columns = tgetnum("co");
+#define GetNumber(cap,env) get_number(cap, e_option ? env : 0)
+    num_lines = GetNumber("li", "LINES");
+    num_columns = GetNumber("co", "COLUMNS");
 
     outs(t_cl);
     outs(t_vi);
     if (num_colors > 1) {
-	if (!valid(t_AF)
-	    || !valid(t_AB)
-	    || (!valid(t_oc) && !valid(t_op)))
+	if (!VALID_STRING(t_AF)
+	    || !VALID_STRING(t_AB)
+	    || (!VALID_STRING(t_oc) && !VALID_STRING(t_op)))
 	    num_colors = -1;
     }
 
-    r = (double) (num_lines - 4);
-    c = (double) (num_columns - 4);
+    r = (double) (num_lines - (2 * m_option));
+    c = (double) (num_columns - (2 * m_option));
     started = time((time_t *) 0);
 
     while (!interrupted) {
-	x = (int) (c * ranf()) + 2;
-	y = (int) (r * ranf()) + 2;
-	p = (ranf() > 0.9) ? '*' : ' ';
+	int x = (int) (c * ranf()) + m_option;
+	int y = (int) (r * ranf()) + m_option;
+	int p = (ranf() > 0.9) ? '*' : ' ';
 
 	tputs(tgoto(t_cm, x, y), 1, outc);
 	if (num_colors > 0) {
-	    z = (int) (ranf() * num_colors);
+	    int z = (int) (ranf() * num_colors);
 	    if (ranf() > 0.01) {
 		tputs(tgoto(t_AF, 0, z), 1, outc);
 	    } else {
 		tputs(tgoto(t_AB, 0, z), 1, outc);
-		my_napms(1);
+		my_napms(s_option);
 	    }
-	} else if (valid(t_me)
-		   && valid(t_mr)) {
+	} else if (VALID_STRING(t_me)
+		   && VALID_STRING(t_mr)) {
 	    if (ranf() <= 0.01) {
 		outs((ranf() > 0.6)
 		     ? t_mr
 		     : t_me);
-		my_napms(1);
+		my_napms(s_option);
 	    }
 	}
 	outc(p);

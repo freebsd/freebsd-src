@@ -1,8 +1,7 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   * t
   ****************************************************************************
-  * Copyright (c) 1998,2010 Free Software Foundation, Inc.                   *
+  * Copyright (c) 1998-2010,2018 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -28,73 +27,72 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: mitem_visible.3x,v 1.7 2010/12/04 18:40:45 tom Exp @
+  * @Id: mitem_visible.3x,v 1.8 2018/07/28 21:34:06 tom Exp @
 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+<meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
 <TITLE>mitem_visible 3x</TITLE>
-<link rev=made href="mailto:bug-ncurses@gnu.org">
+<link rel="author" href="mailto:bug-ncurses@gnu.org">
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 </HEAD>
 <BODY>
-<H1>mitem_visible 3x</H1>
-<HR>
+<H1 class="no-header">mitem_visible 3x</H1>
 <PRE>
-<!-- Manpage converted by man2html 3.0.1 -->
-<STRONG><A HREF="mitem_visible.3x.html">mitem_visible(3x)</A></STRONG>                                     <STRONG><A HREF="mitem_visible.3x.html">mitem_visible(3x)</A></STRONG>
+<STRONG><A HREF="mitem_visible.3x.html">mitem_visible(3x)</A></STRONG>                                            <STRONG><A HREF="mitem_visible.3x.html">mitem_visible(3x)</A></STRONG>
 
 
 
 
-</PRE>
-<H2>NAME</H2><PRE>
+</PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <STRONG>mitem_visible</STRONG> - check visibility of a menu item
 
 
-</PRE>
-<H2>SYNOPSIS</H2><PRE>
+</PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
        bool item_visible(const ITEM *item);
 
 
-</PRE>
-<H2>DESCRIPTION</H2><PRE>
-       A  menu  item  is  visible  when it is in the portion of a
-       posted menu that is mapped onto the screen (if the menu is
-       scrollable,  in  particular,  this portion will be smaller
-       than the whole menu).
+</PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
+       A  menu item is visible when it is in the portion of a posted menu that
+       is mapped onto the screen (if the menu is  scrollable,  in  particular,
+       this portion will be smaller than the whole menu).
 
 
-</PRE>
-<H2>SEE ALSO</H2><PRE>
+</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>.
 
 
+</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+       The  header  file  <STRONG>&lt;menu.h&gt;</STRONG>  automatically  includes  the  header  file
+       <STRONG>&lt;curses.h&gt;</STRONG>.
+
+
+</PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+       These routines emulate the System V menu library.  They were  not  sup-
+       ported on Version 7 or BSD versions.
+
+
+</PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
+       Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric S.
+       Raymond.
+
+
+
+                                                             <STRONG><A HREF="mitem_visible.3x.html">mitem_visible(3x)</A></STRONG>
 </PRE>
-<H2>NOTES</H2><PRE>
-       The header file <STRONG>&lt;menu.h&gt;</STRONG> automatically includes the header
-       file <STRONG>&lt;curses.h&gt;</STRONG>.
-
-
-</PRE>
-<H2>PORTABILITY</H2><PRE>
-       These  routines  emulate  the System V menu library.  They
-       were not supported on Version 7 or BSD versions.
-
-
-</PRE>
-<H2>AUTHORS</H2><PRE>
-       Juergen Pfeifer.  Manual  pages  and  adaptation  for  new
-       curses by Eric S. Raymond.
-
-
-
-                                                      <STRONG><A HREF="mitem_visible.3x.html">mitem_visible(3x)</A></STRONG>
-</PRE>
-<HR>
-<ADDRESS>
-Man(1) output converted with
-<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
-</ADDRESS>
+<div class="nav">
+<ul>
+<li><a href="#h2-NAME">NAME</a></li>
+<li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
+<li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
+<li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
+<li><a href="#h2-NOTES">NOTES</a></li>
+<li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-AUTHORS">AUTHORS</a></li>
+</ul>
+</div>
 </BODY>
 </HTML>

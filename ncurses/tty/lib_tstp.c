@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2014,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 
 #include <SigAction.h>
 
-MODULE_ID("$Id: lib_tstp.c,v 1.47 2013/04/27 19:50:17 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.49 2017/07/22 23:29:58 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1
@@ -155,8 +155,10 @@ handle_SIGTSTP(int dummy GCC_UNUSED)
      * taken ownership of the tty and modified the settings when our
      * parent was stopped before us, and we would likely pick up the
      * settings already modified by the shell.
+     *
+     * Don't do this if we're not in curses -
      */
-    if (sp != 0 && !sp->_endwin)	/* don't do this if we're not in curses */
+    if (sp != 0 && (sp->_endwin == ewRunning))
 #if HAVE_TCGETPGRP
 	if (tcgetpgrp(STDIN_FILENO) == getpgrp())
 #endif
@@ -267,13 +269,13 @@ handle_SIGINT(int sig)
 	    SCREEN *scan;
 	    for (each_screen(scan)) {
 		if (scan->_ofp != 0
-		    && isatty(fileno(scan->_ofp))) {
+		    && NC_ISATTY(fileno(scan->_ofp))) {
 		    scan->_outch = NCURSES_SP_NAME(_nc_outch);
 		}
 		set_term(scan);
 		NCURSES_SP_NAME(endwin) (NCURSES_SP_ARG);
 		if (sp)
-		    sp->_endwin = FALSE;	/* in case of reuse */
+		    sp->_endwin = ewInitial;	/* in case of reuse */
 	    }
 	}
     }

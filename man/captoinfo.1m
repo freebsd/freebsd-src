@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,14 +27,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: captoinfo.1m,v 1.25 2010/12/04 18:36:44 tom Exp $
+.\" $Id: captoinfo.1m,v 1.29 2019/10/12 21:10:00 tom Exp $
 .TH @CAPTOINFO@ 1M ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
 \fB@CAPTOINFO@\fR \- convert a \fItermcap\fR description into a \fIterminfo\fR description
 .SH SYNOPSIS
-\fB@CAPTOINFO@\fR [\fB\-v\fR\fIn\fR \fIwidth\fR]  [\fB\-V\fR] [\fB\-1\fR] [\fB\-w\fR \fIwidth\fR] \fIfile\fR . . .
+\fB@CAPTOINFO@\fR [\fB\-v\fR\fIn\fR \fIwidth\fR]  [\fB\-V\fR] [\fB\-1\fR] [\fB\-w\fR \fIwidth\fR] \fIfile\fR ...
 .SH DESCRIPTION
 \fB@CAPTOINFO@\fR looks in each given text
 \fIfile\fR for \fBtermcap\fR descriptions.
@@ -152,7 +152,7 @@ GG	acs magic cookie count
 .TE
 .PP
 If the single-line capabilities occur in an entry, they will automatically
-be composed into an \fIacsc\fR string.
+be composed into an \fBacsc\fR string.
 The double-line capabilities and
 \fBGG\fR are discarded with a warning message.
 .PP
@@ -174,18 +174,24 @@ font3	s3ds
 .TE
 .PP
 Additionally, the AIX \fIbox1\fR capability will be automatically translated to
-an \fIacsc\fR string.
+an \fBacsc\fR string.
 .PP
 Hewlett-Packard's terminfo library supports two nonstandard terminfo
-capabilities \fImeml\fR (memory lock) and \fImemu\fR (memory unlock).
+capabilities \fBmeml\fR (memory lock) and \fBmemu\fR (memory unlock).
 These will be discarded with a warning message.
 .SH NOTES
 This utility is actually a link to \fB@TIC@\fR(1M), running in \fI\-I\fR mode.
 You can use other \fB@TIC@\fR options such as \fB\-f\fR and  \fB\-x\fR.
 .PP
-The trace option is not identical to SVr4's.
+The verbose option is not identical to SVr4's.
 Under SVr4, instead of following
 the \fB\-v\fR with a trace level n, you repeat it n times.
+.SH PORTABILITY
+X/Open Curses, Issue 7 (2009) describes \fBtic\fP briefly,
+but omits this program.
+SVr4 systems provide \fBcaptoinfo\fP as a separate application from \fBtic\fP.
+.PP
+NetBSD does not provide this application.
 .SH SEE ALSO
 \fB@INFOCMP@\fR(1M),
 \fBcurses\fR(3X),

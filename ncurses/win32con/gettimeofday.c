@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2008,2010 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2008-2010,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,13 +26,16 @@
  * authorization.                                                           *
  ****************************************************************************/
 
+#ifdef WINVER
+#  undef WINVER
+#endif
 #define WINVER 0x0501
 
 #include <curses.priv.h>
 
 #include <windows.h>
 
-MODULE_ID("$Id: gettimeofday.c,v 1.2 2010/01/16 15:18:51 tom Exp $")
+MODULE_ID("$Id: gettimeofday.c,v 1.3 2014/04/26 19:41:34 juergen Exp $")
 
 #define JAN1970 116444736000000000LL	/* the value for 01/01/1970 00:00 */
 

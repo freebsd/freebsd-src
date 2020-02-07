@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2019,2020 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesm.h,v 1.29 2012/12/29 21:48:33 tom Exp $
+// $Id: cursesm.h,v 1.32 2020/01/18 17:02:13 tom Exp $
 
 #ifndef NCURSES_CURSESM_H_incl
 #define NCURSES_CURSESM_H_incl 1
@@ -85,7 +85,7 @@ public:
     (void) rhs;
   }
 
-  virtual ~NCursesMenuItem ();
+  virtual ~NCursesMenuItem () THROWS(NCursesException);
   // Release the items memory
 
   inline const char* name () const {
@@ -179,7 +179,7 @@ public:
   {
   }
 
-  virtual ~NCursesMenuCallbackItem();
+  virtual ~NCursesMenuCallbackItem() THROWS(NCursesException);
 
   bool action();
 };
@@ -332,7 +332,7 @@ public:
   {
   }
 
-  virtual ~NCursesMenu ();
+  virtual ~NCursesMenu () THROWS(NCursesException);
 
   // Retrieve the menus subwindow
   inline NCursesWindow& subWindow() const {
@@ -358,7 +358,7 @@ public:
     flag ? OnError (::post_menu(menu)) : OnError (::unpost_menu (menu));
   }
 
-  // Get the numer of rows and columns for this menu
+  // Get the number of rows and columns for this menu
   inline void scale (int& mrows, int& mcols) const  {
     OnError (::scale_menu (menu, &mrows, &mcols));
   }
@@ -606,7 +606,7 @@ public:
 	OnError (::set_item_userptr (item, const_cast<void *>(reinterpret_cast<const void*>(p_UserData))));
   }
 
-  virtual ~NCursesUserItem() {}
+  virtual ~NCursesUserItem() THROWS(NCursesException) {}
 
   inline const T* UserData (void) const {
     return reinterpret_cast<const T*>(::item_userptr (item));
@@ -632,7 +632,7 @@ protected:
 		   const T* p_UserData = STATIC_CAST(T*)(0))
     : NCursesMenu(nlines,ncols,begin_y,begin_x) {
       if (menu)
-	set_user (const_cast<void *>(p_UserData));
+	set_user (const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
   }
 
 public:
@@ -642,7 +642,7 @@ public:
 		   bool autoDelete_Items=FALSE)
     : NCursesMenu (Items, with_frame, autoDelete_Items) {
       if (menu)
-	set_user (const_cast<void *>(p_UserData));
+	set_user (const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
   };
 
   NCursesUserMenu (NCursesMenuItem* Items[],
@@ -654,19 +654,19 @@ public:
 		   bool with_frame=FALSE)
     : NCursesMenu (Items, nlines, ncols, begin_y, begin_x, with_frame) {
       if (menu)
-	set_user (const_cast<void *>(p_UserData));
+	set_user (const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
   };
 
-  virtual ~NCursesUserMenu() {
+  virtual ~NCursesUserMenu() THROWS(NCursesException) {
   };
 
-  inline T* UserData (void) const {
+  inline T* UserData (void) {
     return reinterpret_cast<T*>(get_user ());
   };
 
   inline virtual void setUserData (const T* p_UserData) {
     if (menu)
-      set_user (const_cast<void *>(p_UserData));
+      set_user (const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
   }
 };
 

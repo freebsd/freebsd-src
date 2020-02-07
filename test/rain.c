@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,9 +26,10 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: rain.c,v 1.40 2012/01/21 23:54:47 tom Exp $
+ * $Id: rain.c,v 1.50 2019/12/14 23:26:09 tom Exp $
  */
 #include <test.priv.h>
+#include <popup_msg.h>
 
 /* rain 11/3/1980 EPS/CITHEP */
 
@@ -66,11 +67,18 @@ typedef struct {
 static STATS drop_threads[MAX_THREADS];
 #endif
 
+#if HAVE_USE_WINDOW
+static int
+safe_wgetch(WINDOW *w, void *data GCC_UNUSED)
+{
+    return wgetch(w);
+}
+#endif
+
 static void
 onsig(int n GCC_UNUSED)
 {
-    curs_set(1);
-    endwin();
+    stop_curses();
     ExitProgram(EXIT_FAILURE);
 }
 
@@ -102,10 +110,7 @@ next_j(int j)
 	--j;
     if (has_colors()) {
 	int z = (int) (3 * ranf());
-	chtype color = (chtype) COLOR_PAIR(z);
-	if (z)
-	    color |= A_BOLD;
-	(void) attrset(color);
+	(void) attrset(AttrArg(COLOR_PAIR(z), (z ? A_BOLD : A_NORMAL)));
     }
     return j;
 }
@@ -222,7 +227,7 @@ draw_drop(void *arg)
      * Find myself in the list of threads so we can count the number of loops.
      */
     for (mystats = 0; mystats < MAX_THREADS; ++mystats) {
-#if defined(__MINGW32__) && !defined(__WINPTHREADS_VERSION)
+#if defined(_WIN32) && !defined(__WINPTHREADS_VERSION)
 	if (drop_threads[mystats].myself.p == pthread_self().p)
 #else
 	if (drop_threads[mystats].myself == pthread_self())
@@ -288,30 +293,76 @@ start_drop(DATA * data)
 static int
 get_input(void)
 {
-    return USING_WINDOW(stdscr, wgetch);
+    return USING_WINDOW1(stdscr, wgetch, safe_wgetch);
+}
+
+static void
+usage(void)
+{
+    static const char *msg[] =
+    {
+	"Usage: rain [options]"
+	,""
+	,"Options:"
+#if HAVE_USE_DEFAULT_COLORS
+	," -d       invoke use_default_colors"
+#endif
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(EXIT_FAILURE);
 }
 
 int
-main(int argc GCC_UNUSED,
-     char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
+    static const char *help[] =
+    {
+	"Commands:",
+	" q/Q        exit the program",
+	" s          do single-step",
+	" <space>    undo single-step",
+	"",
+	0
+    };
+
     bool done = FALSE;
     DATA drop;
 #ifndef USE_PTHREADS
     DATA last[MAX_DROP];
 #endif
     int j = 0;
+    int ch;
+#if HAVE_USE_DEFAULT_COLORS
+    bool d_option = FALSE;
+#endif
+
+    while ((ch = getopt(argc, argv, "d")) != -1) {
+	switch (ch) {
+#if HAVE_USE_DEFAULT_COLORS
+	case 'd':
+	    d_option = TRUE;
+	    break;
+#endif
+	default:
+	    usage();
+	    /* NOTREACHED */
+	}
+    }
+    if (optind < argc)
+	usage();
 
     setlocale(LC_ALL, "");
 
-    CATCHALL(onsig);
-
-    initscr();
+    InitAndCatch(initscr(), onsig);
     if (has_colors()) {
 	int bg = COLOR_BLACK;
 	start_color();
 #if HAVE_USE_DEFAULT_COLORS
-	if (use_default_colors() == OK)
+	if (d_option && (use_default_colors() == OK))
 	    bg = -1;
 #endif
 	init_pair(1, COLOR_BLUE, (short) bg);
@@ -376,11 +427,17 @@ main(int argc GCC_UNUSED,
 	case (KEY_RESIZE):
 	    break;
 #endif
+	case HELP_KEY_1:
+	    popup_msg(stdscr, help);
+	    break;
+	case ERR:
+	    break;
+	default:
+	    beep();
 	}
 	napms(50);
     }
-    curs_set(1);
-    endwin();
+    stop_curses();
 #ifdef USE_PTHREADS
     printf("Counts per thread:\n");
     for (j = 0; j < MAX_THREADS; ++j)

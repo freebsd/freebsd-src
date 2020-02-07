@@ -57,12 +57,12 @@
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
-<b>with</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C; <b>use</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C;
-<b>with</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.Strings; <b>use</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.Strings;
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings;
 <b>with</b> Ada.Unchecked_Conversion;
 
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<span class="symbol"><A NAME="ref_48_40" HREF="terminal_interface-curses-terminfo__ads.htm#ref_44_35">Terminfo</A></span> <b>is</b>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<span class="symbol"><A NAME="ref_48_40" HREF="terminal_interface-curses-terminfo__ads.htm#ref_44_35">Terminfo</A></span> <b>is</b>
 
    <b>function</b> <span class="symbol"><A NAME="ref_50_13" HREF="terminal_interface-curses-terminfo__adb.htm#ref_52_13">Is_MinusOne_Pointer</A></span> (<span class="symbol"><A NAME="ref_50_34" HREF="terminal_interface-curses-terminfo__adb.htm#ref_52_34">P</A></span> : chars_ptr) <b>return</b> Boolean;
 
@@ -83,13 +83,13 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
    <b>function</b> <span class="symbol"><A NAME="ref_67_13" HREF="terminal_interface-curses-terminfo__ads.htm#ref_64_13">Get_Flag</A></span> (<span class="symbol"><A NAME="ref_67_23" HREF="terminal_interface-curses-terminfo__ads.htm#ref_64_23">Name</A></span> : String) <b>return</b> Boolean
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_69_16">tigetflag</A></span> (<span class="symbol"><A NAME="ref_69_27" HREF="terminal_interface-curses-terminfo__adb.htm#ref_69_16">id</A></span> : char_array) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1925_9">Curses_Bool</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_69_16">tigetflag</A></span> (<span class="symbol"><A NAME="ref_69_27" HREF="terminal_interface-curses-terminfo__adb.htm#ref_69_16">id</A></span> : char_array) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_2098_9">Curses_Bool</A>;
       <b>pragma</b> Import (C, tigetflag);
       <span class="symbol"><A NAME="ref_71_7">Txt</A></span>    : char_array (0 .. <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_64_23">Name</A>'Length);
       <span class="symbol"><A NAME="ref_72_7">Length</A></span> : size_t;
    <b>begin</b>
       To_C (<A HREF="terminal_interface-curses-terminfo__ads.htm#ref_64_23">Name</A>, <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_71_7">Txt</A>, <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_72_7">Length</A>);
-      <b>if</b> <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_69_16">tigetflag</A> (<A HREF="terminal_interface-curses-terminfo__adb.htm#ref_71_7">Txt</A>) = <A HREF="terminal_interface-curses__ads.htm#ref_1925_9">Curses_Bool</A> (<A HREF="terminal_interface-curses-aux__ads.htm#ref_74_4">Curses_True</A>) <b>then</b>
+      <b>if</b> <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_69_16">tigetflag</A> (<A HREF="terminal_interface-curses-terminfo__adb.htm#ref_71_7">Txt</A>) = <A HREF="terminal_interface-curses__ads.htm#ref_2098_9">Curses_Bool</A> (<A HREF="terminal_interface-curses-aux__ads.htm#ref_65_4">Curses_True</A>) <b>then</b>
          <b>return</b> True;
       <b>else</b>
          <b>return</b> False;
@@ -112,9 +112,9 @@
       <b>if</b> <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_91_7">Txt2</A> = Null_Ptr <b>then</b>
          <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_59_26">Result</A> := False;
       <b>elsif</b> <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_50_13">Is_MinusOne_Pointer</A> (<A HREF="terminal_interface-curses-terminfo__adb.htm#ref_91_7">Txt2</A>) <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_384_4">Curses_Exception</A>;
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_521_4">Curses_Exception</A>;
       <b>else</b>
-         <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_58_26">Value</A>  := Terminfo_String (<A HREF="terminal_interface-curses-aux__ads.htm#ref_121_13">Fill_String</A> (<A HREF="terminal_interface-curses-terminfo__adb.htm#ref_91_7">Txt2</A>));
+         <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_58_26">Value</A>  := Terminfo_String (<A HREF="terminal_interface-curses-aux__ads.htm#ref_95_13">Fill_String</A> (<A HREF="terminal_interface-curses-terminfo__adb.htm#ref_91_7">Txt2</A>));
          <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_59_26">Result</A> := True;
       <b>end</b> <b>if</b>;
    <b>end</b> <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_57_14">Get_String</A>;
@@ -133,7 +133,7 @@
       <b>if</b> <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_112_7">Txt2</A> = Null_Ptr <b>then</b>
          <b>return</b> False;
       <b>elsif</b> <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_50_13">Is_MinusOne_Pointer</A> (<A HREF="terminal_interface-curses-terminfo__adb.htm#ref_112_7">Txt2</A>) <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_384_4">Curses_Exception</A>;
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_521_4">Curses_Exception</A>;
       <b>else</b>
          <b>return</b> True;
       <b>end</b> <b>if</b>;
@@ -141,7 +141,7 @@
 
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
    <b>function</b> <span class="symbol"><A NAME="ref_126_13" HREF="terminal_interface-curses-terminfo__ads.htm#ref_68_13">Get_Number</A></span> (<span class="symbol"><A NAME="ref_126_25" HREF="terminal_interface-curses-terminfo__ads.htm#ref_68_25">Name</A></span> : String) <b>return</b> Integer <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_127_16">tigetstr</A></span> (<span class="symbol"><A NAME="ref_127_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_127_16">s</A></span> : char_array) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_127_16">tigetstr</A></span> (<span class="symbol"><A NAME="ref_127_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_127_16">s</A></span> : char_array) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>;
       <b>pragma</b> Import (C, tigetstr);
       <span class="symbol"><A NAME="ref_129_7">Txt</A></span>    : char_array (0 .. <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_68_25">Name</A>'Length);
       <span class="symbol"><A NAME="ref_130_7">Length</A></span> : size_t;
@@ -151,29 +151,29 @@
    <b>end</b> <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_68_13">Get_Number</A>;
 
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_137_14" HREF="terminal_interface-curses-terminfo__ads.htm#ref_76_14">Put_String</A></span> (<span class="symbol"><A NAME="ref_137_26" HREF="terminal_interface-curses-terminfo__ads.htm#ref_76_26">Str</A></span>    : Terminfo_String;
+   <b>procedure</b> <span class="symbol"><A NAME="ref_137_14" HREF="terminal_interface-curses-terminfo__ads.htm#ref_76_14">Put_String</A></span> (<span class="symbol"><A NAME="ref_137_26" HREF="terminal_interface-curses-terminfo__ads.htm#ref_76_26">Str</A></span>    : <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_44_35">Terminfo_String</A>;
                          <span class="symbol"><A NAME="ref_138_26" HREF="terminal_interface-curses-terminfo__ads.htm#ref_77_26">affcnt</A></span> : Natural := 1;
                          <span class="symbol"><A NAME="ref_139_26" HREF="terminal_interface-curses-terminfo__ads.htm#ref_78_26">putc</A></span>   : <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_71_9">putctype</A> := <b>null</b>) <b>is</b>
       <b>function</b> <span class="symbol"><A NAME="ref_140_16">tputs</A></span> (<span class="symbol"><A NAME="ref_140_23" HREF="terminal_interface-curses-terminfo__adb.htm#ref_140_16">str</A></span>    : char_array;
-                      <span class="symbol"><A NAME="ref_141_23" HREF="terminal_interface-curses-terminfo__adb.htm#ref_140_16">affcnt</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
-                      <span class="symbol"><A NAME="ref_142_23" HREF="terminal_interface-curses-terminfo__adb.htm#ref_140_16">putc</A></span>   : <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_71_9">putctype</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
-      <b>function</b> <span class="symbol"><A NAME="ref_143_16">putp</A></span> (<span class="symbol"><A NAME="ref_143_22" HREF="terminal_interface-curses-terminfo__adb.htm#ref_143_16">str</A></span> : char_array) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+                      <span class="symbol"><A NAME="ref_141_23" HREF="terminal_interface-curses-terminfo__adb.htm#ref_140_16">affcnt</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>;
+                      <span class="symbol"><A NAME="ref_142_23" HREF="terminal_interface-curses-terminfo__adb.htm#ref_140_16">putc</A></span>   : <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_71_9">putctype</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_143_16">putp</A></span> (<span class="symbol"><A NAME="ref_143_22" HREF="terminal_interface-curses-terminfo__adb.htm#ref_143_16">str</A></span> : char_array) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>;
       <b>pragma</b> Import (C, tputs);
       <b>pragma</b> Import (C, putp);
       <span class="symbol"><A NAME="ref_146_7">Txt</A></span>    : char_array (0 .. <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_76_26">Str</A>'Length);
       <span class="symbol"><A NAME="ref_147_7">Length</A></span> : size_t;
-      <span class="symbol"><A NAME="ref_148_7">Err</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <span class="symbol"><A NAME="ref_148_7">Err</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>;
    <b>begin</b>
       To_C (String (<A HREF="terminal_interface-curses-terminfo__ads.htm#ref_76_26">Str</A>), <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_146_7">Txt</A>, <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_147_7">Length</A>);
       <b>if</b> <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_78_26">putc</A> = <b>null</b> <b>then</b>
          <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_148_7">Err</A> := <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_143_16">putp</A> (<A HREF="terminal_interface-curses-terminfo__adb.htm#ref_146_7">Txt</A>);
       <b>else</b>
-         <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_148_7">Err</A> := <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_140_16">tputs</A> (<A HREF="terminal_interface-curses-terminfo__adb.htm#ref_146_7">Txt</A>, <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-terminfo__ads.htm#ref_77_26">affcnt</A>), <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_78_26">putc</A>);
+         <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_148_7">Err</A> := <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_140_16">tputs</A> (<A HREF="terminal_interface-curses-terminfo__adb.htm#ref_146_7">Txt</A>, <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A> (<A HREF="terminal_interface-curses-terminfo__ads.htm#ref_77_26">affcnt</A>), <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_78_26">putc</A>);
       <b>end</b> <b>if</b>;
-      <b>if</b> <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_148_7">Err</A> = <A HREF="terminal_interface-curses-aux__ads.htm#ref_72_4">Curses_Err</A> <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_384_4">Curses_Exception</A>;
+      <b>if</b> <A HREF="terminal_interface-curses-terminfo__adb.htm#ref_148_7">Err</A> = <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_4">Curses_Err</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_521_4">Curses_Exception</A>;
       <b>end</b> <b>if</b>;
    <b>end</b> <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_76_14">Put_String</A>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-terminfo__ads.htm#ref_44_35">Terminfo</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-terminfo__ads.htm#ref_44_35">Terminfo</A>;
 </PRE></BODY></HTML>

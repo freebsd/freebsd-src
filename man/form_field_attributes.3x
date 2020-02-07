@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,8 +27,12 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_attributes.3x,v 1.12 2010/12/04 18:40:45 tom Exp $
+.\" $Id: form_field_attributes.3x,v 1.15 2019/11/30 21:01:57 tom Exp $
 .TH form_field_attributes 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .SH NAME
 \fBform_field_attributes\fR \- color and attribute control for form fields
 .SH SYNOPSIS
@@ -49,16 +53,20 @@ int field_pad(const FIELD *field);
 .SH DESCRIPTION
 The function \fBset_field_fore\fR sets the foreground attribute of
 \fIfield\fR. This is the highlight used to display the field contents.  The
-function \fBfield_fore\fR returns the foreground attribute.  The default is
+function \fBfield_fore\fR returns the foreground attribute.
+The default is
 \fBA_STANDOUT\fR.
 .PP
 The function \fBset_field_back\fR sets the background attribute of
 \fIform\fR. This is the highlight used to display the extent fields in the
-form.  The function \fBfield_back\fR returns the background attribute.  The
+form.
+The function \fBfield_back\fR returns the background attribute.
+The
 default is \fBA_NORMAL\fR.
 .PP
 The function \fBset_field_pad\fR sets the character used to fill the field.
-The function \fBfield_pad\fR returns the given form's pad character.  The
+The function \fBfield_pad\fR returns the given form's pad character.
+The
 default is a blank.
 .SH RETURN VALUE
 These routines return one of the following:
@@ -70,17 +78,18 @@ The routine succeeded.
 Routine detected an incorrect or out-of-range argument.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .
 .SH SEE ALSO
-\fBcurses\fR(3X) and related pages whose names begin "form_" for detailed
+\fBcurses\fR(3X) and related pages whose names begin \*(``form_\*('' for detailed
 descriptions of the entry points.
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V forms library.  They were not supported on
+These routines emulate the System V forms library.
+They were not supported on
 Version 7 or BSD versions.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

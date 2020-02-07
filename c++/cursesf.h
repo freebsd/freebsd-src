@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2019,2020 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesf.h,v 1.31 2012/12/29 21:49:58 tom Exp $
+// $Id: cursesf.h,v 1.34 2020/01/18 17:02:13 tom Exp $
 
 #ifndef NCURSES_CURSESF_H_incl
 #define NCURSES_CURSESF_H_incl 1
@@ -47,7 +47,7 @@ extern "C" {
 }
 //
 // -------------------------------------------------------------------------
-// The abstract base class for buitin and user defined Fieldtypes.
+// The abstract base class for builtin and user defined Fieldtypes.
 // -------------------------------------------------------------------------
 //
 class NCURSES_IMPEXP NCursesFormField; // forward declaration
@@ -151,7 +151,7 @@ public:
   {
   }
 
-  virtual ~NCursesFormField ();
+  virtual ~NCursesFormField () THROWS(NCursesException);
 
   // Duplicate the field at a new position
   inline NCursesFormField* dup(int first_row, int first_col)
@@ -470,7 +470,7 @@ public:
   {
   }
 
-  virtual ~NCursesForm();
+  virtual ~NCursesForm() THROWS(NCursesException);
 
   // Set the default attributes for the form
   virtual void setDefaultAttributes();
@@ -645,7 +645,7 @@ public:
 	OnError(::set_field_userptr(field, STATIC_CAST(void *)(p_UserData)));
   }
 
-  virtual ~NCursesUserField() {};
+  virtual ~NCursesUserField() THROWS(NCursesException) {};
 
   inline const T* UserData (void) const {
     return reinterpret_cast<const T*>(::field_userptr (field));
@@ -673,7 +673,8 @@ protected:
 		   const T* p_UserData = STATIC_CAST(T*)(0))
     : NCursesForm(nlines,ncols,begin_y,begin_x) {
       if (form)
-	set_user (const_cast<void *>(p_UserData));
+	set_user (const_cast<void *>(reinterpret_cast<const void*>
+				     (p_UserData)));
   }
 
 public:
@@ -683,7 +684,7 @@ public:
 		   bool autoDelete_Fields=FALSE)
     : NCursesForm (Fields, with_frame, autoDelete_Fields) {
       if (form)
-	set_user (const_cast<void *>(p_UserData));
+	set_user (const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
   };
 
   NCursesUserForm (NCursesFormField* Fields[],
@@ -697,19 +698,20 @@ public:
     : NCursesForm (Fields, nlines, ncols, begin_y, begin_x,
 		   with_frame, autoDelete_Fields) {
       if (form)
-	set_user (const_cast<void *>(p_UserData));
+	set_user (const_cast<void *>(reinterpret_cast<const void*>
+				     (p_UserData)));
   };
 
-  virtual ~NCursesUserForm() {
+  virtual ~NCursesUserForm() THROWS(NCursesException) {
   };
 
-  inline T* UserData (void) const {
+  inline T* UserData (void) {
     return reinterpret_cast<T*>(get_user ());
   };
 
   inline virtual void setUserData (const T* p_UserData) {
     if (form)
-      set_user (const_cast<void *>(p_UserData));
+      set_user (const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
   }
 
 };

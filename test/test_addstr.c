@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2009-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 2009-2016,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,25 +26,24 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_addstr.c,v 1.10 2012/12/16 00:14:10 tom Exp $
+ * $Id: test_addstr.c,v 1.15 2017/09/06 09:27:34 tom Exp $
  *
  * Demonstrate the waddstr() and waddch functions.
  * Thomas Dickey - 2009/9/12
  */
 
 #include <test.priv.h>
-
 #include <linedata.h>
 
+/*
+ * redefinitions to simplify comparison between test_*str programs
+ */
 #define AddNStr    addnstr
 #define AddStr     addstr
 #define MvAddNStr  (void) mvaddnstr
 #define MvWAddNStr (void) mvwaddnstr
 #define WAddNStr   waddnstr
 #define WAddStr    waddstr
-
-#define AddCh      addch
-#define WAddCh     waddch
 
 #define MY_TABSIZE 8
 
@@ -129,7 +128,7 @@ ColOf(char *buffer, int length, int margin)
 
 #define LEN(n) ((length - (n) > n_opt) ? n_opt : (length - (n)))
 static void
-test_adds(int level)
+recursive_test(int level)
 {
     static bool first = TRUE;
 
@@ -155,7 +154,8 @@ test_adds(int level)
 	static char cmd[80];
 	setlocale(LC_ALL, "");
 
-	putenv(strcpy(cmd, "TABSIZE=8"));
+	_nc_STRCPY(cmd, "TABSIZE=8", sizeof(cmd));
+	putenv(cmd);
 
 	initscr();
 	(void) cbreak();	/* take input chars one at a time, no wait for \n */
@@ -211,7 +211,7 @@ test_adds(int level)
 	wmove(work, row, margin + 1);
 	switch (ch) {
 	case key_RECUR:
-	    test_adds(level + 1);
+	    recursive_test(level + 1);
 
 	    if (look)
 		touchwin(look);
@@ -423,7 +423,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
     if (optind < argc)
 	usage();
 
-    test_adds(0);
+    recursive_test(0);
     endwin();
     ExitProgram(EXIT_SUCCESS);
 }

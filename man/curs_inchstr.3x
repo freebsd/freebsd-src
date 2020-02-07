@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inchstr.3x,v 1.15 2010/12/04 18:36:44 tom Exp $
+.\" $Id: curs_inchstr.3x,v 1.18 2018/07/28 21:34:06 tom Exp $
 .TH curs_inchstr 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .na
 .hy 0
 .SH NAME
@@ -63,7 +71,8 @@
 .SH DESCRIPTION
 These routines return a NULL-terminated array of \fBchtype\fR quantities,
 starting at the current cursor position in the named window and ending at the
-right margin of the window.  The four functions with \fIn\fR as
+right margin of the window.
+The four functions with \fIn\fR as
 the last argument, return a leading substring at most \fIn\fR characters long
 (exclusive of the trailing (chtype)0).
 Constants defined in \fB<curses.h>\fR can be used with the \fB&\fR (logical
@@ -74,22 +83,27 @@ All routines return the integer \fBERR\fR upon failure and an integer value
 other than \fBERR\fR upon successful completion (the number of characters
 retrieved, exclusive of the trailing 0).
 .PP
-No error conditions are defined.
-If the \fIchstr\fP parameter is null,
-no data is returned,
-and the return value is zero.
+X/Open Curses defines no error conditions.
+In this implementation:
+.bP
+If the \fIwin\fP parameter is null, an error is returned,
+.bP
+If the \fIchstr\fP parameter is null, an error is returned,
 .PP
-Functions with a "mv" prefix first perform a cursor movement using
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
 \fBwmove\fP, and return an error if the position is outside the window,
 or if the window pointer is null.
 .SH NOTES
-Note that all routines except \fBwinchnstr\fR may be macros.  SVr4 does not
+Note that all routines except \fBwinchnstr\fR may be macros.
+SVr4 does not
 document whether the result string is zero-terminated; it does not document
 whether a length limit argument includes any trailing 0; and it does not
 document the meaning of the return value.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.  It is no
-more specific than the SVr4 documentation on the trailing 0.  It does specify
+These functions are described in the XSI Curses standard, Issue 4.
+It is no
+more specific than the SVr4 documentation on the trailing 0.
+It does specify
 that the successful return of the functions is \fBOK\fR.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_inch\fR(3X).

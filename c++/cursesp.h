@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2008,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2014,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 #ifndef NCURSES_CURSESP_H_incl
 #define NCURSES_CURSESP_H_incl 1
 
-// $Id: cursesp.h,v 1.30 2012/12/29 21:50:55 tom Exp $
+// $Id: cursesp.h,v 1.32 2019/07/28 19:55:27 tom Exp $
 
 #include <cursesw.h>
 
@@ -131,7 +131,7 @@ public:
   {
   }
 
-  virtual ~NCursesPanel();
+  virtual ~NCursesPanel() THROWS(NCursesException);
 
   // basic manipulation
   inline void hide()
@@ -236,7 +236,8 @@ public:
     : NCursesPanel (nlines, ncols, begin_y, begin_x)
   {
       if (p)
-	set_user (const_cast<void *>(p_UserData));
+	set_user (const_cast<void *>(reinterpret_cast<const void*>
+				     (p_UserData)));
   };
   // This creates an user panel of the requested size with associated
   // user data pointed to by p_UserData.
@@ -244,14 +245,14 @@ public:
   NCursesUserPanel(const T* p_UserData = STATIC_CAST(T*)(0)) : NCursesPanel()
   {
     if (p)
-      set_user(const_cast<void *>(p_UserData));
+      set_user(const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
   };
   // This creates an user panel associated with the ::stdscr and user data
   // pointed to by p_UserData.
 
-  virtual ~NCursesUserPanel() {};
+  virtual ~NCursesUserPanel() THROWS(NCursesException) {};
 
-  T* UserData (void) const
+  T* UserData (void)
   {
     return reinterpret_cast<T*>(get_user ());
   };
@@ -260,7 +261,7 @@ public:
   virtual void setUserData (const T* p_UserData)
   {
     if (p)
-      set_user (const_cast<void *>(p_UserData));
+      set_user (const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
   }
   // Associate the user panel with the user data pointed to by p_UserData.
 };

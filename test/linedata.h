@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2009-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 2009-2012,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -25,6 +25,16 @@
  * sale, use or other dealings in this Software without prior written       *
  * authorization.                                                           *
  ****************************************************************************/
+
+/*
+ * $Id: linedata.h,v 1.7 2018/02/03 22:51:43 tom Exp $
+ *
+ * Utility functions for reading a line of text from a file.
+ */
+#ifndef LINEDATA_H_incl
+#define LINEDATA_H_incl 1
+
+#include <test.priv.h>
 
 #define isQUIT(c)     ((c) == QUIT || (c) == ESCAPE)
 
@@ -96,3 +106,5 @@ read_linedata(WINDOW *work)
     }
     return result;
 }
+
+#endif /* LINEDATA_H_incl */

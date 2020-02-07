@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: etip.h.in,v 1.39 2012/12/29 21:50:44 tom Exp $
+// $Id: etip.h.in,v 1.42 2018/05/26 14:47:47 tom Exp $
 
 #ifndef NCURSES_ETIP_H_incl
 #define NCURSES_ETIP_H_incl 1
@@ -113,7 +113,7 @@
 #  include <generic.h>
 #endif
 
-#include <ncurses_dll.h>
+#include <curses.h>
 
 extern "C" {
 #if HAVE_VALUES_H
@@ -330,7 +330,7 @@ public:
   }
 };
 
-#if !((defined(__GNUG__) && defined(__EXCEPTIONS)) || defined(__SUNPRO_CC))
+#if !((defined(__GNUG__) && defined(__EXCEPTIONS) && (__GNUG__ < 7)) || defined(__SUNPRO_CC))
 #  if HAVE_IOSTREAM
 #     include <iostream>
 #     if IOSTREAM_NAMESPACE
@@ -347,15 +347,20 @@ inline void THROW(const NCursesException *e) {
 #if defined(__GNUG__) && defined(__EXCEPTIONS)
 #  if ((__GNUG__ <= 2) && (__GNUC_MINOR__ < 8))
       (*lib_error_handler)(e ? e->classname() : "", e ? e->message : "");
-#else
-#define CPP_HAS_TRY_CATCH 1
-#endif
+#  elif (__GNUG__ >= 7)
+     // g++ 7.0 warns about deprecation, but lacks the predefined symbols
+      ::endwin();
+      std::cerr << "Found a problem - goodbye" << std::endl;
+      exit(EXIT_FAILURE);
+#  else
+#    define CPP_HAS_TRY_CATCH 1
+#  endif
 #elif defined(__SUNPRO_CC)
 #  if !defined(__SUNPRO_CC_COMPAT) || (__SUNPRO_CC_COMPAT < 5)
   genericerror(1, ((e != 0) ? (char *)(e->message) : ""));
-#else
-#define CPP_HAS_TRY_CATCH 1
-#endif
+#  else
+#    define CPP_HAS_TRY_CATCH 1
+#  endif
 #else
   if (e)
     cerr << e->message << endl;
@@ -372,8 +377,14 @@ inline void THROW(const NCursesException *e) {
   throw *e;
 #define NCURSES_CPP_TRY		try
 #define NCURSES_CPP_CATCH(e)	catch(e)
+#if defined(__cpp_noexcept_function_type) && (__cpp_noexcept_function_type >= 201510)
+// C++17 deprecates the usage of throw().
+#define THROWS(s)		/* nothing */
+#define THROW2(s,t)		/* nothing */
+#else
 #define THROWS(s)		throw(s)
 #define THROW2(s,t)		throw(s,t)
+#endif
 #endif
 }
 

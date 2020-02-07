@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursslk.h,v 1.13 2005/05/28 21:58:18 tom Exp $
+// $Id: cursslk.h,v 1.14 2019/07/28 19:55:27 tom Exp $
 
 #ifndef NCURSES_CURSSLK_H_incl
 #define NCURSES_CURSSLK_H_incl
@@ -161,7 +161,7 @@ public:
     init();		// allocate a new slk_array[]
   }
 
-  virtual ~Soft_Label_Key_Set();
+  virtual ~Soft_Label_Key_Set() THROWS(NCursesException);
 
   // Get Label# i. Label counting starts with 1!
   NCURSES_IMPEXP Soft_Label_Key& operator[](int i);

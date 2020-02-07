@@ -7,7 +7,7 @@
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998 Free Software Foundation, Inc.                        --
+-- Copyright (c) 1998,2003 Free Software Foundation, Inc.                   --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -36,7 +36,7 @@
 --  Author:  Laurent Pautet <pautet@gnat.com>
 --  Modified by:  Juergen Pfeifer, 1997
 --  Version Control
---  $Revision: 1.6 $
+--  $Revision: 1.7 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 --                                                                          --

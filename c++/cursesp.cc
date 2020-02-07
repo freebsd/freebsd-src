@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 #include "internal.h"
 #include "cursesp.h"
 
-MODULE_ID("$Id: cursesp.cc,v 1.25 2005/08/06 22:12:36 tom Exp $")
+MODULE_ID("$Id: cursesp.cc,v 1.26 2019/07/28 19:55:27 tom Exp $")
 
 NCursesPanel* NCursesPanel::dummy = static_cast<NCursesPanel*>(0);
 
@@ -51,7 +51,7 @@ void NCursesPanel::init()
   ::set_panel_userptr(p, reinterpret_cast<void *>(hook));
 }
 
-NCursesPanel::~NCursesPanel()
+NCursesPanel::~NCursesPanel() THROWS(NCursesException)
 {
   UserHook* hook = UserPointer();
   assert(hook != 0 && hook->m_back==this && hook->m_owner==p);

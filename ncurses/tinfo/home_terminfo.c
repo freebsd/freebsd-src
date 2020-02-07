@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2016 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: home_terminfo.c,v 1.15 2012/10/27 21:49:14 tom Exp $")
+MODULE_ID("$Id: home_terminfo.c,v 1.16 2016/05/28 23:22:52 tom Exp $")
 
 /* ncurses extension...fall back on user's private directory */
 
@@ -48,10 +48,11 @@ _nc_home_terminfo(void)
 {
     char *result = 0;
 #if USE_HOME_TERMINFO
-    char *home;
-
     if (use_terminfo_vars()) {
+
 	if (MyBuffer == 0) {
+	    char *home;
+
 	    if ((home = getenv("HOME")) != 0) {
 		size_t want = (strlen(home) + sizeof(PRIVATE_INFO));
 		TYPE_MALLOC(char, want, MyBuffer);

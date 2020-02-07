@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2011,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 1999
  *
- * $Id: dots.c,v 1.25 2013/09/28 22:12:09 tom Exp $
+ * $Id: dots.c,v 1.35 2019/08/24 21:49:50 tom Exp $
  *
  * A simple demo of the terminfo interface.
  */
@@ -39,8 +39,6 @@
 #if HAVE_SETUPTERM
 
 #include <time.h>
-
-#define valid(s) ((s != 0) && s != (char *)-1)
 
 static bool interrupted = FALSE;
 static long total_chars = 0;
@@ -64,7 +62,7 @@ TPUTS_PROTO(outc, c)
 static bool
 outs(const char *s)
 {
-    if (valid(s)) {
+    if (VALID_STRING(s)) {
 	tputs(s, 1, outc);
 	return TRUE;
     }
@@ -80,7 +78,7 @@ cleanup(void)
     outs(clear_screen);
     outs(cursor_normal);
 
-    printf("\n\n%ld total chars, rate %.2f/sec\n",
+    printf("\n\n%ld total cells, rate %.2f/sec\n",
 	   total_chars,
 	   ((double) (total_chars) / (double) (time((time_t *) 0) - started)));
 }
@@ -98,54 +96,125 @@ ranf(void)
     return ((double) r / 32768.);
 }
 
-int
-main(int argc GCC_UNUSED,
-     char *argv[]GCC_UNUSED)
+static int
+get_number(NCURSES_CONST char *cap, int map)
 {
-    int x, y, z, p;
+    int result = map;
+    if (cap != 0) {
+	int check = tigetnum(cap);
+	if (check > 0)
+	    result = check;
+    }
+    return result;
+}
+
+static void
+usage(void)
+{
+    static const char *msg[] =
+    {
+	"Usage: dots [options]"
+	,""
+	,"Options:"
+	," -T TERM  override $TERM"
+#if HAVE_USE_ENV
+	," -e       allow environment $LINES / $COLUMNS"
+#endif
+	," -f       use tigetnum rather than <term.h> mapping"
+	," -m SIZE  set margin (default: 2)"
+	," -s MSECS delay 1% of the time (default: 1 msecs)"
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(EXIT_FAILURE);
+}
+
+int
+main(int argc,
+     char *argv[])
+{
+    int ch;
     double r;
     double c;
     int my_colors;
+    int f_option = 0;
+    int m_option = 2;
+    int s_option = 1;
+    size_t need;
+    char *my_env;
 
-    CATCHALL(onsig);
+    while ((ch = getopt(argc, argv, "T:efm:s:")) != -1) {
+	switch (ch) {
+	case 'T':
+	    need = 6 + strlen(optarg);
+	    my_env = malloc(need);
+	    _nc_SPRINTF(my_env, _nc_SLIMIT(need) "TERM=%s", optarg);
+	    putenv(my_env);
+	    break;
+#if HAVE_USE_ENV
+	case 'e':
+	    use_env(TRUE);
+	    break;
+#endif
+	case 'f':
+	    f_option = 1;
+	    break;
+	case 'm':
+	    m_option = atoi(optarg);
+	    break;
+	case 's':
+	    s_option = atoi(optarg);
+	    break;
+	default:
+	    usage();
+	    break;
+	}
+    }
+
+    InitAndCatch(setupterm((char *) 0, 1, (int *) 0), onsig);
 
     srand((unsigned) time(0));
-    setupterm((char *) 0, 1, (int *) 0);
+
     outs(clear_screen);
     outs(cursor_invisible);
-    my_colors = max_colors;
+
+#define GetNumber(ln,sn) get_number(f_option ? #sn : 0, ln)
+    my_colors = GetNumber(max_colors, colors);
     if (my_colors > 1) {
-	if (!valid(set_a_foreground)
-	    || !valid(set_a_background)
-	    || (!valid(orig_colors) && !valid(orig_pair)))
+	if (!VALID_STRING(set_a_foreground)
+	    || !VALID_STRING(set_a_background)
+	    || (!VALID_STRING(orig_colors) && !VALID_STRING(orig_pair)))
 	    my_colors = -1;
     }
 
-    r = (double) (lines - 4);
-    c = (double) (columns - 4);
+    r = (double) (GetNumber(lines, lines) - (m_option * 2));
+    c = (double) (GetNumber(columns, cols) - (m_option * 2));
     started = time((time_t *) 0);
 
     while (!interrupted) {
-	x = (int) (c * ranf()) + 2;
-	y = (int) (r * ranf()) + 2;
-	p = (ranf() > 0.9) ? '*' : ' ';
+	int x = (int) (c * ranf()) + m_option;
+	int y = (int) (r * ranf()) + m_option;
+	int p = (ranf() > 0.9) ? '*' : ' ';
 
 	tputs(tparm3(cursor_address, y, x), 1, outc);
 	if (my_colors > 0) {
-	    z = (int) (ranf() * my_colors);
+	    int z = (int) (ranf() * my_colors);
 	    if (ranf() > 0.01) {
 		tputs(tparm2(set_a_foreground, z), 1, outc);
 	    } else {
 		tputs(tparm2(set_a_background, z), 1, outc);
-		napms(1);
+		napms(s_option);
 	    }
-	} else if (valid(exit_attribute_mode)
-		   && valid(enter_reverse_mode)) {
+	} else if (VALID_STRING(exit_attribute_mode)
+		   && VALID_STRING(enter_reverse_mode)) {
 	    if (ranf() <= 0.01) {
 		outs((ranf() > 0.6)
 		     ? enter_reverse_mode
 		     : exit_attribute_mode);
-		napms(1);
+		napms(s_option);
 	    }
 	}
 	outc(p);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2007,2010 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2007-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: inch_wide.c,v 1.7 2010/05/01 19:13:46 tom Exp $
+ * $Id: inch_wide.c,v 1.10 2019/08/24 23:11:01 tom Exp $
  */
 /*
        int in_wch(cchar_t *wcval);
@@ -44,6 +44,7 @@
 */
 
 #include <test.priv.h>
+#include <popup_msg.h>
 
 #if USE_WIDEC_SUPPORT
 
@@ -59,13 +60,24 @@ Quit(int ch)
 static int
 test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 {
+    static const char *help[] =
+    {
+	"Test input from screen using inch(), etc., in a moveable viewport.",
+	"",
+	"Commands:",
+	" ESC/^Q                   - quit",
+	" h,j,k,l (and arrow-keys) - move viewport",
+	" w                        - recur to new window",
+	"                            for next input file",
+	0
+    };
+
     WINDOW *txtbox = 0;
     WINDOW *txtwin = 0;
     FILE *fp;
     int j;
     int txt_x = 0, txt_y = 0;
     int base_y;
-    int limit;
     cchar_t ch;
     cchar_t text[MAX_COLS];
 
@@ -109,6 +121,8 @@ test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
     }
 
     while (!Quit(j = mvwgetch(txtwin, txt_y, txt_x))) {
+	int limit;
+
 	switch (j) {
 	case KEY_DOWN:
 	case 'j':
@@ -147,6 +161,9 @@ test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 		touchwin(txtwin);
 		wnoutrefresh(txtwin);
 	    }
+	    break;
+	case HELP_KEY_1:
+	    popup_msg(txtwin, help);
 	    break;
 	default:
 	    beep();
@@ -251,7 +268,7 @@ main(int argc, char *argv[])
     setlocale(LC_ALL, "");
 
     if (argc < 2) {
-	fprintf(stderr, "usage: %s file\n", argv[0]);
+	fprintf(stderr, "usage: %s file1 [file2 [...]]\n", argv[0]);
 	return EXIT_FAILURE;
     }
 

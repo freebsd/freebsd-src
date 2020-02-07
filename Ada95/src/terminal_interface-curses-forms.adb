@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,12 +35,11 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.28 $
---  $Date: 2011/03/22 23:37:32 $
+--  $Revision: 1.32 $
+--  $Date: 2014/05/24 21:31:05 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Unchecked_Deallocation;
-with Ada.Unchecked_Conversion;
 
 with Interfaces.C; use Interfaces.C;
 with Interfaces.C.Strings; use Interfaces.C.Strings;
@@ -61,22 +60,6 @@ package body Terminal_Interface.Curses.Forms is
    --  |
    --  |
    --  subtype chars_ptr is Interfaces.C.Strings.chars_ptr;
-
-   function FOS_2_CInt is new
-     Ada.Unchecked_Conversion (Field_Option_Set,
-                               C_Int);
-
-   function CInt_2_FOS is new
-     Ada.Unchecked_Conversion (C_Int,
-                               Field_Option_Set);
-
-   function FrmOS_2_CInt is new
-     Ada.Unchecked_Conversion (Form_Option_Set,
-                               C_Int);
-
-   function CInt_2_FrmOS is new
-     Ada.Unchecked_Conversion (C_Int,
-                               Form_Option_Set);
 
    procedure Request_Name (Key  : Form_Request_Code;
                                 Name : out String)
@@ -130,15 +113,11 @@ package body Terminal_Interface.Curses.Forms is
 --  |
    procedure Delete (Fld : in out Field)
    is
-      function Free_Field (Fld : Field) return C_Int;
+      function Free_Field (Fld : Field) return Eti_Error;
       pragma Import (C, Free_Field, "free_field");
 
-      Res : Eti_Error;
    begin
-      Res := Free_Field (Fld);
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Free_Field (Fld));
       Fld := Null_Field;
    end Delete;
    --  |
@@ -194,16 +173,12 @@ package body Terminal_Interface.Curses.Forms is
                                 Just : Field_Justification := None)
    is
       function Set_Field_Just (Fld  : Field;
-                               Just : C_Int) return C_Int;
+                               Just : C_Int) return Eti_Error;
       pragma Import (C, Set_Field_Just, "set_field_just");
 
-      Res : constant Eti_Error :=
-        Set_Field_Just (Fld,
-                        C_Int (Field_Justification'Pos (Just)));
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Field_Just (Fld,
+                                     C_Int (Field_Justification'Pos (Just))));
    end Set_Justification;
    --  |
    --  |
@@ -227,22 +202,14 @@ package body Terminal_Interface.Curses.Forms is
       Buffer : Buffer_Number := Buffer_Number'First;
       Str    : String)
    is
-      type Char_Ptr is access all Interfaces.C.char;
       function Set_Fld_Buffer (Fld    : Field;
                                  Bufnum : C_Int;
-                                 S      : Char_Ptr)
-        return C_Int;
+                                 S      : char_array)
+        return Eti_Error;
       pragma Import (C, Set_Fld_Buffer, "set_field_buffer");
 
-      Txt : char_array (0 .. Str'Length);
-      Len : size_t;
-      Res : Eti_Error;
    begin
-      To_C (Str, Txt, Len);
-      Res := Set_Fld_Buffer (Fld, C_Int (Buffer), Txt (Txt'First)'Access);
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Fld_Buffer (Fld, C_Int (Buffer), To_C (Str)));
    end Set_Buffer;
    --  |
    --  |
@@ -276,12 +243,11 @@ package body Terminal_Interface.Curses.Forms is
                          Status : Boolean := True)
    is
       function Set_Fld_Status (Fld : Field;
-                               St  : C_Int) return C_Int;
+                               St  : C_Int) return Eti_Error;
       pragma Import (C, Set_Fld_Status, "set_field_status");
 
-      Res : constant Eti_Error := Set_Fld_Status (Fld, Boolean'Pos (Status));
    begin
-      if Res /= E_Ok then
+      if Set_Fld_Status (Fld, Boolean'Pos (Status)) /= E_Ok then
          raise Form_Exception;
       end if;
    end Set_Status;
@@ -308,14 +274,11 @@ package body Terminal_Interface.Curses.Forms is
                                Max : Natural := 0)
    is
       function Set_Field_Max (Fld : Field;
-                              M   : C_Int) return C_Int;
+                              M   : C_Int) return Eti_Error;
       pragma Import (C, Set_Field_Max, "set_max_field");
 
-      Res : constant Eti_Error := Set_Field_Max (Fld, C_Int (Max));
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Field_Max (Fld, C_Int (Max)));
    end Set_Maximum_Size;
    --  |
    --  |=====================================================================
@@ -328,16 +291,11 @@ package body Terminal_Interface.Curses.Forms is
                           Options : Field_Option_Set)
    is
       function Set_Field_Opts (Fld : Field;
-                               Opt : C_Int) return C_Int;
+                               Opt : Field_Option_Set) return Eti_Error;
       pragma Import (C, Set_Field_Opts, "set_field_opts");
 
-      Opt : constant C_Int := FOS_2_CInt (Options);
-      Res : Eti_Error;
    begin
-      Res := Set_Field_Opts (Fld, Opt);
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Field_Opts (Fld, Options));
    end Set_Options;
    --  |
    --  |
@@ -347,22 +305,17 @@ package body Terminal_Interface.Curses.Forms is
                              On      : Boolean := True)
    is
       function Field_Opts_On (Fld : Field;
-                              Opt : C_Int) return C_Int;
+                              Opt : Field_Option_Set) return Eti_Error;
       pragma Import (C, Field_Opts_On, "field_opts_on");
       function Field_Opts_Off (Fld : Field;
-                               Opt : C_Int) return C_Int;
+                               Opt : Field_Option_Set) return Eti_Error;
       pragma Import (C, Field_Opts_Off, "field_opts_off");
 
-      Err : Eti_Error;
-      Opt : constant C_Int := FOS_2_CInt (Options);
    begin
       if On then
-         Err := Field_Opts_On (Fld, Opt);
+         Eti_Exception (Field_Opts_On (Fld, Options));
       else
-         Err := Field_Opts_Off (Fld, Opt);
-      end if;
-      if Err /= E_Ok then
-         Eti_Exception (Err);
+         Eti_Exception (Field_Opts_Off (Fld, Options));
       end if;
    end Switch_Options;
    --  |
@@ -371,12 +324,11 @@ package body Terminal_Interface.Curses.Forms is
    procedure Get_Options (Fld     : Field;
                           Options : out Field_Option_Set)
    is
-      function Field_Opts (Fld : Field) return C_Int;
+      function Field_Opts (Fld : Field) return Field_Option_Set;
       pragma Import (C, Field_Opts, "field_opts");
 
-      Res : constant C_Int := Field_Opts (Fld);
    begin
-      Options := CInt_2_FOS (Res);
+      Options := Field_Opts (Fld);
    end Get_Options;
    --  |
    --  |
@@ -402,18 +354,13 @@ package body Terminal_Interface.Curses.Forms is
       Color : Color_Pair := Color_Pair'First)
    is
       function Set_Field_Fore (Fld  : Field;
-                               Attr : C_Chtype) return C_Int;
+                               Attr : Attributed_Character) return Eti_Error;
       pragma Import (C, Set_Field_Fore, "set_field_fore");
 
-      Ch : constant Attributed_Character := (Ch    => Character'First,
-                                             Color => Color,
-                                             Attr  => Fore);
-      Res : constant Eti_Error :=
-        Set_Field_Fore (Fld, AttrChar_To_Chtype (Ch));
    begin
-      if  Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Field_Fore (Fld, (Ch    => Character'First,
+                                           Color => Color,
+                                           Attr  => Fore)));
    end Set_Foreground;
    --  |
    --  |
@@ -421,21 +368,21 @@ package body Terminal_Interface.Curses.Forms is
    procedure Foreground (Fld  : Field;
                          Fore : out Character_Attribute_Set)
    is
-      function Field_Fore (Fld : Field) return C_Chtype;
+      function Field_Fore (Fld : Field) return Attributed_Character;
       pragma Import (C, Field_Fore, "field_fore");
    begin
-      Fore := Chtype_To_AttrChar (Field_Fore (Fld)).Attr;
+      Fore := Field_Fore (Fld).Attr;
    end Foreground;
 
    procedure Foreground (Fld   : Field;
                          Fore  : out Character_Attribute_Set;
                          Color : out Color_Pair)
    is
-      function Field_Fore (Fld : Field) return C_Chtype;
+      function Field_Fore (Fld : Field) return Attributed_Character;
       pragma Import (C, Field_Fore, "field_fore");
    begin
-      Fore  := Chtype_To_AttrChar (Field_Fore (Fld)).Attr;
-      Color := Chtype_To_AttrChar (Field_Fore (Fld)).Color;
+      Fore  := Field_Fore (Fld).Attr;
+      Color := Field_Fore (Fld).Color;
    end Foreground;
    --  |
    --  |
@@ -446,18 +393,13 @@ package body Terminal_Interface.Curses.Forms is
       Color : Color_Pair := Color_Pair'First)
    is
       function Set_Field_Back (Fld  : Field;
-                               Attr : C_Chtype) return C_Int;
+                               Attr : Attributed_Character) return Eti_Error;
       pragma Import (C, Set_Field_Back, "set_field_back");
 
-      Ch : constant Attributed_Character := (Ch    => Character'First,
-                                             Color => Color,
-                                             Attr  => Back);
-      Res : constant Eti_Error :=
-        Set_Field_Back (Fld, AttrChar_To_Chtype (Ch));
    begin
-      if  Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Field_Back (Fld, (Ch    => Character'First,
+                                           Color => Color,
+                                           Attr  => Back)));
    end Set_Background;
    --  |
    --  |
@@ -465,21 +407,21 @@ package body Terminal_Interface.Curses.Forms is
    procedure Background (Fld  : Field;
                          Back : out Character_Attribute_Set)
    is
-      function Field_Back (Fld : Field) return C_Chtype;
+      function Field_Back (Fld : Field) return Attributed_Character;
       pragma Import (C, Field_Back, "field_back");
    begin
-      Back := Chtype_To_AttrChar (Field_Back (Fld)).Attr;
+      Back := Field_Back (Fld).Attr;
    end Background;
 
    procedure Background (Fld   : Field;
                          Back  : out Character_Attribute_Set;
                          Color : out Color_Pair)
    is
-      function Field_Back (Fld : Field) return C_Chtype;
+      function Field_Back (Fld : Field) return Attributed_Character;
       pragma Import (C, Field_Back, "field_back");
    begin
-      Back  := Chtype_To_AttrChar (Field_Back (Fld)).Attr;
-      Color := Chtype_To_AttrChar (Field_Back (Fld)).Color;
+      Back  := Field_Back (Fld).Attr;
+      Color := Field_Back (Fld).Color;
    end Background;
    --  |
    --  |
@@ -488,15 +430,12 @@ package body Terminal_Interface.Curses.Forms is
                                 Pad : Character := Space)
    is
       function Set_Field_Pad (Fld : Field;
-                              Ch  : C_Int) return C_Int;
+                              Ch  : C_Int) return Eti_Error;
       pragma Import (C, Set_Field_Pad, "set_field_pad");
 
-      Res : constant Eti_Error := Set_Field_Pad (Fld,
-                                                 C_Int (Character'Pos (Pad)));
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Field_Pad (Fld,
+                                    C_Int (Character'Pos (Pad))));
    end Set_Pad_Character;
    --  |
    --  |
@@ -527,25 +466,21 @@ package body Terminal_Interface.Curses.Forms is
       type C_Int_Access is access all C_Int;
       function Fld_Info (Fld : Field;
                          L, C, Fr, Fc, Os, Ab : C_Int_Access)
-                         return C_Int;
+                         return Eti_Error;
       pragma Import (C, Fld_Info, "field_info");
 
       L, C, Fr, Fc, Os, Ab : aliased C_Int;
-      Res : constant Eti_Error := Fld_Info (Fld,
-                                            L'Access, C'Access,
-                                            Fr'Access, Fc'Access,
-                                            Os'Access, Ab'Access);
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      else
-         Lines              := Line_Count (L);
-         Columns            := Column_Count (C);
-         First_Row          := Line_Position (Fr);
-         First_Column       := Column_Position (Fc);
-         Off_Screen         := Natural (Os);
-         Additional_Buffers := Buffer_Number (Ab);
-      end if;
+      Eti_Exception (Fld_Info (Fld,
+                               L'Access, C'Access,
+                               Fr'Access, Fc'Access,
+                               Os'Access, Ab'Access));
+      Lines              := Line_Count (L);
+      Columns            := Column_Count (C);
+      First_Row          := Line_Position (Fr);
+      First_Column       := Column_Position (Fc);
+      Off_Screen         := Natural (Os);
+      Additional_Buffers := Buffer_Number (Ab);
    end Info;
 --  |
 --  |
@@ -556,21 +491,17 @@ package body Terminal_Interface.Curses.Forms is
                            Max     : out Natural)
    is
       type C_Int_Access is access all C_Int;
-      function Dyn_Info (Fld : Field; L, C, M : C_Int_Access) return C_Int;
+      function Dyn_Info (Fld : Field; L, C, M : C_Int_Access) return Eti_Error;
       pragma Import (C, Dyn_Info, "dynamic_field_info");
 
       L, C, M : aliased C_Int;
-      Res : constant Eti_Error := Dyn_Info (Fld,
-                                            L'Access, C'Access,
-                                            M'Access);
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      else
-         Lines   := Line_Count (L);
-         Columns := Column_Count (C);
-         Max     := Natural (M);
-      end if;
+      Eti_Exception (Dyn_Info (Fld,
+                               L'Access, C'Access,
+                               M'Access));
+      Lines   := Line_Count (L);
+      Columns := Column_Count (C);
+      Max     := Natural (M);
    end Dynamic_Info;
    --  |
    --  |=====================================================================
@@ -583,14 +514,11 @@ package body Terminal_Interface.Curses.Forms is
                          Win : Window)
    is
       function Set_Form_Win (Frm : Form;
-                             Win : Window) return C_Int;
+                             Win : Window) return Eti_Error;
       pragma Import (C, Set_Form_Win, "set_form_win");
 
-      Res : constant Eti_Error := Set_Form_Win (Frm, Win);
    begin
-      if  Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Form_Win (Frm, Win));
    end Set_Window;
    --  |
    --  |
@@ -611,14 +539,11 @@ package body Terminal_Interface.Curses.Forms is
                              Win : Window)
    is
       function Set_Form_Sub (Frm : Form;
-                             Win : Window) return C_Int;
+                             Win : Window) return Eti_Error;
       pragma Import (C, Set_Form_Sub, "set_form_sub");
 
-      Res : constant Eti_Error := Set_Form_Sub (Frm, Win);
    begin
-      if  Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Form_Sub (Frm, Win));
    end Set_Sub_Window;
    --  |
    --  |
@@ -640,16 +565,13 @@ package body Terminal_Interface.Curses.Forms is
                     Columns : out Column_Count)
    is
       type C_Int_Access is access all C_Int;
-      function M_Scale (Frm : Form; Yp, Xp : C_Int_Access) return C_Int;
+      function M_Scale (Frm : Form; Yp, Xp : C_Int_Access) return Eti_Error;
       pragma Import (C, M_Scale, "scale_form");
 
       X, Y : aliased C_Int;
-      Res  : constant Eti_Error := M_Scale (Frm, Y'Access, X'Access);
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
-      Lines := Line_Count (Y);
+      Eti_Exception (M_Scale (Frm, Y'Access, X'Access));
+      Lines   := Line_Count (Y);
       Columns := Column_Count (X);
    end Scale;
    --  |
@@ -663,14 +585,11 @@ package body Terminal_Interface.Curses.Forms is
                                   Proc : Form_Hook_Function)
    is
       function Set_Field_Init (Frm  : Form;
-                               Proc : Form_Hook_Function) return C_Int;
+                               Proc : Form_Hook_Function) return Eti_Error;
       pragma Import (C, Set_Field_Init, "set_field_init");
 
-      Res : constant Eti_Error := Set_Field_Init (Frm, Proc);
    begin
-      if  Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Field_Init (Frm, Proc));
    end Set_Field_Init_Hook;
    --  |
    --  |
@@ -679,14 +598,11 @@ package body Terminal_Interface.Curses.Forms is
                                   Proc : Form_Hook_Function)
    is
       function Set_Field_Term (Frm  : Form;
-                               Proc : Form_Hook_Function) return C_Int;
+                               Proc : Form_Hook_Function) return Eti_Error;
       pragma Import (C, Set_Field_Term, "set_field_term");
 
-      Res : constant Eti_Error := Set_Field_Term (Frm, Proc);
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Field_Term (Frm, Proc));
    end Set_Field_Term_Hook;
    --  |
    --  |
@@ -695,14 +611,11 @@ package body Terminal_Interface.Curses.Forms is
                                  Proc : Form_Hook_Function)
    is
       function Set_Form_Init (Frm  : Form;
-                              Proc : Form_Hook_Function) return C_Int;
+                              Proc : Form_Hook_Function) return Eti_Error;
       pragma Import (C, Set_Form_Init, "set_form_init");
 
-      Res : constant Eti_Error := Set_Form_Init (Frm, Proc);
    begin
-      if  Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Form_Init (Frm, Proc));
    end Set_Form_Init_Hook;
    --  |
    --  |
@@ -711,14 +624,11 @@ package body Terminal_Interface.Curses.Forms is
                                  Proc : Form_Hook_Function)
    is
       function Set_Form_Term (Frm  : Form;
-                              Proc : Form_Hook_Function) return C_Int;
+                              Proc : Form_Hook_Function) return Eti_Error;
       pragma Import (C, Set_Form_Term, "set_form_term");
 
-      Res : constant Eti_Error := Set_Form_Term (Frm, Proc);
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Form_Term (Frm, Proc));
    end Set_Form_Term_Hook;
    --  |
    --  |=====================================================================
@@ -731,19 +641,15 @@ package body Terminal_Interface.Curses.Forms is
                        Flds : Field_Array_Access)
    is
       function Set_Frm_Fields (Frm   : Form;
-                               Items : System.Address) return C_Int;
+                               Items : System.Address) return Eti_Error;
       pragma Import (C, Set_Frm_Fields, "set_form_fields");
 
-      Res : Eti_Error;
    begin
       pragma Assert (Flds.all (Flds'Last) = Null_Field);
       if Flds.all (Flds'Last) /= Null_Field then
          raise Form_Exception;
       else
-         Res := Set_Frm_Fields (Frm, Flds.all (Flds'First)'Address);
-         if  Res /= E_Ok then
-            Eti_Exception (Res);
-         end if;
+         Eti_Exception (Set_Frm_Fields (Frm, Flds.all (Flds'First)'Address));
       end if;
    end Redefine;
    --  |
@@ -783,14 +689,11 @@ package body Terminal_Interface.Curses.Forms is
                    Line   : Line_Position;
                    Column : Column_Position)
    is
-      function Move (Fld : Field; L, C : C_Int) return C_Int;
+      function Move (Fld : Field; L, C : C_Int) return Eti_Error;
       pragma Import (C, Move, "move_field");
 
-      Res : constant Eti_Error := Move (Fld, C_Int (Line), C_Int (Column));
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Move (Fld, C_Int (Line), C_Int (Column)));
    end Move;
    --  |
    --  |=====================================================================
@@ -822,14 +725,11 @@ package body Terminal_Interface.Curses.Forms is
    --  |
    procedure Delete (Frm : in out Form)
    is
-      function Free (Frm : Form) return C_Int;
+      function Free (Frm : Form) return Eti_Error;
       pragma Import (C, Free, "free_form");
 
-      Res : constant Eti_Error := Free (Frm);
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Free (Frm));
       Frm := Null_Form;
    end Delete;
    --  |
@@ -843,16 +743,11 @@ package body Terminal_Interface.Curses.Forms is
                           Options : Form_Option_Set)
    is
       function Set_Form_Opts (Frm : Form;
-                              Opt : C_Int) return C_Int;
+                              Opt : Form_Option_Set) return Eti_Error;
       pragma Import (C, Set_Form_Opts, "set_form_opts");
 
-      Opt : constant C_Int := FrmOS_2_CInt (Options);
-      Res : Eti_Error;
    begin
-      Res := Set_Form_Opts (Frm, Opt);
-      if  Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Form_Opts (Frm, Options));
    end Set_Options;
    --  |
    --  |
@@ -862,22 +757,17 @@ package body Terminal_Interface.Curses.Forms is
                              On      : Boolean := True)
    is
       function Form_Opts_On (Frm : Form;
-                             Opt : C_Int) return C_Int;
+                             Opt : Form_Option_Set) return Eti_Error;
       pragma Import (C, Form_Opts_On, "form_opts_on");
       function Form_Opts_Off (Frm : Form;
-                              Opt : C_Int) return C_Int;
+                              Opt : Form_Option_Set) return Eti_Error;
       pragma Import (C, Form_Opts_Off, "form_opts_off");
 
-      Err : Eti_Error;
-      Opt : constant C_Int := FrmOS_2_CInt (Options);
    begin
       if On then
-         Err := Form_Opts_On (Frm, Opt);
+         Eti_Exception (Form_Opts_On (Frm, Options));
       else
-         Err := Form_Opts_Off (Frm, Opt);
-      end if;
-      if Err /= E_Ok then
-         Eti_Exception (Err);
+         Eti_Exception (Form_Opts_Off (Frm, Options));
       end if;
    end Switch_Options;
    --  |
@@ -886,12 +776,11 @@ package body Terminal_Interface.Curses.Forms is
    procedure Get_Options (Frm     : Form;
                           Options : out Form_Option_Set)
    is
-      function Form_Opts (Frm : Form) return C_Int;
+      function Form_Opts (Frm : Form) return Form_Option_Set;
       pragma Import (C, Form_Opts, "form_opts");
 
-      Res : constant C_Int := Form_Opts (Frm);
    begin
-      Options := CInt_2_FrmOS (Res);
+      Options := Form_Opts (Frm);
    end Get_Options;
    --  |
    --  |
@@ -913,20 +802,16 @@ package body Terminal_Interface.Curses.Forms is
    procedure Post (Frm  : Form;
                    Post : Boolean := True)
    is
-      function M_Post (Frm : Form) return C_Int;
+      function M_Post (Frm : Form) return Eti_Error;
       pragma Import (C, M_Post, "post_form");
-      function M_Unpost (Frm : Form) return C_Int;
+      function M_Unpost (Frm : Form) return Eti_Error;
       pragma Import (C, M_Unpost, "unpost_form");
 
-      Res : Eti_Error;
    begin
       if Post then
-         Res := M_Post (Frm);
+         Eti_Exception (M_Post (Frm));
       else
-         Res := M_Unpost (Frm);
-      end if;
-      if Res /= E_Ok then
-         Eti_Exception (Res);
+         Eti_Exception (M_Unpost (Frm));
       end if;
    end Post;
    --  |
@@ -938,14 +823,11 @@ package body Terminal_Interface.Curses.Forms is
    --  |
    procedure Position_Cursor (Frm : Form)
    is
-      function Pos_Form_Cursor (Frm : Form) return C_Int;
+      function Pos_Form_Cursor (Frm : Form) return Eti_Error;
       pragma Import (C, Pos_Form_Cursor, "pos_form_cursor");
 
-      Res : constant Eti_Error := Pos_Form_Cursor (Frm);
    begin
-      if  Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Pos_Form_Cursor (Frm));
    end Position_Cursor;
    --  |
    --  |=====================================================================
@@ -993,25 +875,22 @@ package body Terminal_Interface.Curses.Forms is
    function Driver (Frm : Form;
                     Key : Key_Code) return Driver_Result
    is
-      function Frm_Driver (Frm : Form; Key : C_Int) return C_Int;
+      function Frm_Driver (Frm : Form; Key : C_Int) return Eti_Error;
       pragma Import (C, Frm_Driver, "form_driver");
 
       R : constant Eti_Error := Frm_Driver (Frm, C_Int (Key));
    begin
-      if R /= E_Ok then
-         if R = E_Unknown_Command then
+      case R is
+         when E_Unknown_Command =>
             return Unknown_Request;
-         elsif R = E_Invalid_Field then
+         when E_Invalid_Field =>
             return Invalid_Field;
-         elsif R = E_Request_Denied then
+         when E_Request_Denied =>
             return Request_Denied;
-         else
+         when others =>
             Eti_Exception (R);
             return Form_Ok;
-         end if;
-      else
-         return Form_Ok;
-      end if;
+      end case;
    end Driver;
    --  |
    --  |=====================================================================
@@ -1023,14 +902,11 @@ package body Terminal_Interface.Curses.Forms is
    procedure Set_Current (Frm : Form;
                           Fld : Field)
    is
-      function Set_Current_Fld (Frm : Form; Fld : Field) return C_Int;
+      function Set_Current_Fld (Frm : Form; Fld : Field) return Eti_Error;
       pragma Import (C, Set_Current_Fld, "set_current_field");
 
-      Res : constant Eti_Error := Set_Current_Fld (Frm, Fld);
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Current_Fld (Frm, Fld));
    end Set_Current;
    --  |
    --  |
@@ -1053,14 +929,11 @@ package body Terminal_Interface.Curses.Forms is
    procedure Set_Page (Frm  : Form;
                        Page : Page_Number := Page_Number'First)
    is
-      function Set_Frm_Page (Frm : Form; Pg : C_Int) return C_Int;
+      function Set_Frm_Page (Frm : Form; Pg : C_Int) return Eti_Error;
       pragma Import (C, Set_Frm_Page, "set_form_page");
 
-      Res : constant Eti_Error := Set_Frm_Page (Frm, C_Int (Page));
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Frm_Page (Frm, C_Int (Page)));
    end Set_Page;
    --  |
    --  |
@@ -1102,14 +975,11 @@ package body Terminal_Interface.Curses.Forms is
    procedure Set_New_Page (Fld      : Field;
                            New_Page : Boolean := True)
    is
-      function Set_Page (Fld : Field; Flg : C_Int) return C_Int;
+      function Set_Page (Fld : Field; Flg : C_Int) return Eti_Error;
       pragma Import (C, Set_Page, "set_new_page");
 
-      Res : constant Eti_Error := Set_Page (Fld, Boolean'Pos (New_Page));
    begin
-      if Res /= E_Ok then
-         Eti_Exception (Res);
-      end if;
+      Eti_Exception (Set_Page (Fld, Boolean'Pos (New_Page)));
    end Set_New_Page;
    --  |
    --  |

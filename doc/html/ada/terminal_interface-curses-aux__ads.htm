@@ -24,7 +24,7 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright (c) 1998-2014,2018 Free Software Foundation, Inc.              --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,91 +52,84 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.18 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.24 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>--  curses binding.</EM></span>
-<span class="comment"><EM>--  This module is generated. Please don't change it manually!</EM></span>
-<span class="comment"><EM>--  Run the generator instead.</EM></span>
-<span class="comment"><EM>--  |</EM></span>
 <b>with</b> System;
-<b>with</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C;
-<b>with</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.Strings; <b>use</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.Strings;
-<b>with</b> <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A>;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings;
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<span class="symbol"><A NAME="ref_50_35" HREF="terminal_interface-curses-aux__adb.htm#ref_41_40">Aux</A></span> <b>is</b>
-   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>);
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<span class="symbol"><A NAME="ref_45_35" HREF="terminal_interface-curses-aux__adb.htm#ref_41_40">Aux</A></span> <b>is</b>
+   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>);
 
-   <b>use</b> <b>type</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.int;
-
-   <b>subtype</b> <span class="symbol"><A NAME="ref_55_12">C_Int</A></span>      <b>is</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.int;
-   <b>subtype</b> <span class="symbol"><A NAME="ref_56_12">C_Short</A></span>    <b>is</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.short;
-   <b>subtype</b> <span class="symbol"><A NAME="ref_57_12">C_Long_Int</A></span> <b>is</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.long;
-   <b>subtype</b> <span class="symbol"><A NAME="ref_58_12">C_Size_T</A></span>   <b>is</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.size_t;
-   <b>subtype</b> <span class="symbol"><A NAME="ref_59_12">C_UInt</A></span>     <b>is</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.unsigned;
-   <b>subtype</b> <span class="symbol"><A NAME="ref_60_12">C_ULong</A></span>    <b>is</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.unsigned_long;
-   <b>subtype</b> <span class="symbol"><A NAME="ref_61_12">C_Char_Ptr</A></span> <b>is</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.Strings.chars_ptr;
-   <b>type</b>    <span class="symbol"><A NAME="ref_62_12">C_Void_Ptr</A></span> <b>is</b> <b>new</b> System.Address;
-   <b>type</b>    <span class="symbol"><A NAME="ref_63_12">C_Chtype</A></span>   <b>is</b> <b>new</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_59_12">C_UInt</A>;
-   <b>type</b>    <span class="symbol"><A NAME="ref_64_12">C_AttrType</A></span> <b>is</b> <b>new</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_59_12">C_UInt</A>;
+   <b>subtype</b> <span class="symbol"><A NAME="ref_48_12">C_Int</A></span>      <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int;
+   <b>subtype</b> <span class="symbol"><A NAME="ref_49_12">C_Short</A></span>    <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.short;
+   <b>subtype</b> <span class="symbol"><A NAME="ref_50_12">C_Long_Int</A></span> <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.long;
+   <b>subtype</b> <span class="symbol"><A NAME="ref_51_12">C_Size_T</A></span>   <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.size_t;
+   <b>subtype</b> <span class="symbol"><A NAME="ref_52_12">C_UInt</A></span>     <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.unsigned;
+   <b>subtype</b> <span class="symbol"><A NAME="ref_53_12">C_ULong</A></span>    <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.unsigned_long;
+   <b>subtype</b> <span class="symbol"><A NAME="ref_54_12">C_Char_Ptr</A></span> <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings.chars_ptr;
+   <b>type</b>    <span class="symbol"><A NAME="ref_55_12">C_Void_Ptr</A></span> <b>is</b> <b>new</b> System.Address;
 
    <span class="comment"><EM>--  This is how those constants are defined in ncurses. I see them also</EM></span>
    <span class="comment"><EM>--  exactly like this in all ETI implementations I ever tested. So it</EM></span>
    <span class="comment"><EM>--  could be that this is quite general, but please check with your curses.</EM></span>
    <span class="comment"><EM>--  This is critical, because curses sometime mixes Boolean returns with</EM></span>
    <span class="comment"><EM>--  returning an error status.</EM></span>
-   <span class="symbol"><A NAME="ref_71_4">Curses_Ok</A></span>    : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := 0;
-   <span class="symbol"><A NAME="ref_72_4">Curses_Err</A></span>   : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := -1;
+   <span class="symbol"><A NAME="ref_62_4">Curses_Ok</A></span>    : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A> := <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_12_4">OK</A>;
+   <span class="symbol"><A NAME="ref_63_4">Curses_Err</A></span>   : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A> := <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_13_4">ERR</A>;
 
-   <span class="symbol"><A NAME="ref_74_4">Curses_True</A></span>  : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := 1;
-   <span class="symbol"><A NAME="ref_75_4">Curses_False</A></span> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := 0;
+   <span class="symbol"><A NAME="ref_65_4">Curses_True</A></span>  : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A> := <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_15_4">TRUE</A>;
+   <span class="symbol"><A NAME="ref_66_4">Curses_False</A></span> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A> := <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_16_4">FALSE</A>;
 
    <span class="comment"><EM>--  Eti_Error: type for error codes returned by the menu and form subsystem</EM></span>
-   <b>subtype</b> <span class="symbol"><A NAME="ref_78_12">Eti_Error</A></span> <b>is</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> <b>range</b> -14 .. 0;
+   <b>type</b> <span class="symbol"><A NAME="ref_69_9" HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Eti_Error</A></span> <b>is</b>
+     (<span class="symbol"><A NAME="ref_70_7">E_Current</A></span>,
+      <span class="symbol"><A NAME="ref_71_7">E_Invalid_Field</A></span>,
+      <span class="symbol"><A NAME="ref_72_7">E_Request_Denied</A></span>,
+      <span class="symbol"><A NAME="ref_73_7">E_Not_Connected</A></span>,
+      <span class="symbol"><A NAME="ref_74_7">E_Not_Selectable</A></span>,
+      <span class="symbol"><A NAME="ref_75_7">E_No_Match</A></span>,
+      <span class="symbol"><A NAME="ref_76_7">E_Unknown_Command</A></span>,
+      <span class="symbol"><A NAME="ref_77_7">E_Not_Posted</A></span>,
+      <span class="symbol"><A NAME="ref_78_7">E_No_Room</A></span>,
+      <span class="symbol"><A NAME="ref_79_7">E_Bad_State</A></span>,
+      <span class="symbol"><A NAME="ref_80_7">E_Connected</A></span>,
+      <span class="symbol"><A NAME="ref_81_7">E_Posted</A></span>,
+      <span class="symbol"><A NAME="ref_82_7">E_Bad_Argument</A></span>,
+      <span class="symbol"><A NAME="ref_83_7">E_System_Error</A></span>,
+      <span class="symbol"><A NAME="ref_84_7">E_Ok</A></span>);
 
-   <span class="symbol"><A NAME="ref_80_4">E_Ok</A></span>               : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := 0;
-   <span class="symbol"><A NAME="ref_81_4">E_System_Error</A></span>     : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -1;
-   <span class="symbol"><A NAME="ref_82_4">E_Bad_Argument</A></span>     : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -2;
-   <span class="symbol"><A NAME="ref_83_4">E_Posted</A></span>           : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -3;
-   <span class="symbol"><A NAME="ref_84_4">E_Connected</A></span>        : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -4;
-   <span class="symbol"><A NAME="ref_85_4">E_Bad_State</A></span>        : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -5;
-   <span class="symbol"><A NAME="ref_86_4">E_No_Room</A></span>          : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -6;
-   <span class="symbol"><A NAME="ref_87_4">E_Not_Posted</A></span>       : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -7;
-   <span class="symbol"><A NAME="ref_88_4">E_Unknown_Command</A></span>  : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -8;
-   <span class="symbol"><A NAME="ref_89_4">E_No_Match</A></span>         : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -9;
-   <span class="symbol"><A NAME="ref_90_4">E_Not_Selectable</A></span>   : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -10;
-   <span class="symbol"><A NAME="ref_91_4">E_Not_Connected</A></span>    : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -11;
-   <span class="symbol"><A NAME="ref_92_4">E_Request_Denied</A></span>   : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -12;
-   <span class="symbol"><A NAME="ref_93_4">E_Invalid_Field</A></span>    : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -13;
-   <span class="symbol"><A NAME="ref_94_4">E_Current</A></span>          : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -14;
+   <b>procedure</b> <span class="symbol"><A NAME="ref_86_14" HREF="terminal_interface-curses-aux__adb.htm#ref_94_14">Eti_Exception</A></span> (<span class="symbol"><A NAME="ref_86_29" HREF="terminal_interface-curses-aux__adb.htm#ref_94_29">Code</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_69_9">Eti_Error</A>);
+   <span class="comment"><EM>--  Do nothing if Code = E_Ok.</EM></span>
+   <span class="comment"><EM>--  Else dispatch the error code and raise the appropriate exception.</EM></span>
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_96_14" HREF="terminal_interface-curses-aux__adb.htm#ref_94_14">Eti_Exception</A></span> (<span class="symbol"><A NAME="ref_96_29" HREF="terminal_interface-curses-aux__adb.htm#ref_94_29">Code</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>);
-   <span class="comment"><EM>--  Dispatch the error code and raise the appropriate exception</EM></span>
-   <span class="comment"><EM>--</EM></span>
-   <span class="comment"><EM>--</EM></span>
-   <span class="comment"><EM>--  Some helpers</EM></span>
-   <b>function</b> Chtype_To_AttrChar <b>is</b> <b>new</b>
-     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>,
-                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_353_9">Attributed_Character</A>);
-   <b>function</b> AttrChar_To_Chtype <b>is</b> <b>new</b>
-     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_353_9">Attributed_Character</A>,
-                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>);
-
-   <b>function</b> AttrChar_To_AttrType <b>is</b> <b>new</b>
-     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_353_9">Attributed_Character</A>,
-                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_64_12">C_AttrType</A>);
-
-   <b>function</b> AttrType_To_AttrChar <b>is</b> <b>new</b>
-     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_64_12">C_AttrType</A>,
-                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_353_9">Attributed_Character</A>);
-
-   <b>procedure</b> <span class="symbol"><A NAME="ref_116_14" HREF="terminal_interface-curses-aux__adb.htm#ref_44_14">Fill_String</A></span> (<span class="symbol"><A NAME="ref_116_27" HREF="terminal_interface-curses-aux__adb.htm#ref_44_27">Cp</A></span>  : chars_ptr;
-                          <span class="symbol"><A NAME="ref_117_27" HREF="terminal_interface-curses-aux__adb.htm#ref_45_27">Str</A></span> : <b>out</b> String);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_90_14" HREF="terminal_interface-curses-aux__adb.htm#ref_44_14">Fill_String</A></span> (<span class="symbol"><A NAME="ref_90_27" HREF="terminal_interface-curses-aux__adb.htm#ref_44_27">Cp</A></span>  : chars_ptr;
+                          <span class="symbol"><A NAME="ref_91_27" HREF="terminal_interface-curses-aux__adb.htm#ref_45_27">Str</A></span> : <b>out</b> String);
    <span class="comment"><EM>--  Fill the Str parameter with the string denoted by the chars_ptr</EM></span>
    <span class="comment"><EM>--  C-Style string.</EM></span>
 
-   <b>function</b> <span class="symbol"><A NAME="ref_121_13" HREF="terminal_interface-curses-aux__adb.htm#ref_73_13">Fill_String</A></span> (<span class="symbol"><A NAME="ref_121_26" HREF="terminal_interface-curses-aux__adb.htm#ref_73_26">Cp</A></span> : chars_ptr) <b>return</b> String;
+   <b>function</b> <span class="symbol"><A NAME="ref_95_13" HREF="terminal_interface-curses-aux__adb.htm#ref_73_13">Fill_String</A></span> (<span class="symbol"><A NAME="ref_95_26" HREF="terminal_interface-curses-aux__adb.htm#ref_73_26">Cp</A></span> : chars_ptr) <b>return</b> String;
    <span class="comment"><EM>--  Same but as function.</EM></span>
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
+<b>private</b>
+   <b>for</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_69_9">Eti_Error</A>'Size <b>use</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>'Size;
+   <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-aux__ads.htm#ref_69_9">Eti_Error</A>);
+   <b>for</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_69_9">Eti_Error</A> <b>use</b>
+     (<A HREF="terminal_interface-curses-aux__ads.htm#ref_70_7">E_Current</A>         =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_94_4">E_CURRENT</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_71_7">E_Invalid_Field</A>   =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_93_4">E_INVALID_FIELD</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_72_7">E_Request_Denied</A>  =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_92_4">E_REQUEST_DENIED</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_73_7">E_Not_Connected</A>   =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_91_4">E_NOT_CONNECTED</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_74_7">E_Not_Selectable</A>  =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_90_4">E_NOT_SELECTABLE</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_75_7">E_No_Match</A>        =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_89_4">E_NO_MATCH</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_76_7">E_Unknown_Command</A> =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_88_4">E_UNKNOWN_COMMAND</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_77_7">E_Not_Posted</A>      =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_87_4">E_NOT_POSTED</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_7">E_No_Room</A>         =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_86_4">E_NO_ROOM</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_79_7">E_Bad_State</A>       =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_85_4">E_BAD_STATE</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_7">E_Connected</A>       =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_84_4">E_CONNECTED</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_81_7">E_Posted</A>          =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_83_4">E_POSTED</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_82_7">E_Bad_Argument</A>    =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_82_4">E_BAD_ARGUMENT</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_83_7">E_System_Error</A>    =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_81_4">E_SYSTEM_ERROR</A>,
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_84_7">E_Ok</A>              =&gt; <A HREF="terminal_interface-curses_constants__ads.htm#ref_6_28">Curses_Constants</A>.<A HREF="terminal_interface-curses_constants__ads.htm#ref_80_4">E_OK</A>);
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>;
 </PRE></BODY></HTML>

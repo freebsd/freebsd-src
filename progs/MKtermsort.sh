@@ -1,10 +1,10 @@
 #!/bin/sh
-# $Id: MKtermsort.sh,v 1.10 2008/07/12 20:22:54 tom Exp $
+# $Id: MKtermsort.sh,v 1.12 2017/08/12 12:22:06 tom Exp $
 #
 # MKtermsort.sh -- generate indirection vectors for the various sort methods
 #
 ##############################################################################
-# Copyright (c) 1998-2003,2008 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2015,2017 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -46,7 +46,7 @@ AWK=${1-awk}
 DATA=${2-../include/Caps}
 
 data=data$$
-trap 'rm -f $data' 1 2 5 15
+trap 'rm -f $data' 1 2 3 15
 sed -e 's/[	][	]*/	/g' < $DATA >$data
 DATA=$data
 
@@ -139,24 +139,30 @@ echo "";
 
 echo "static const bool bool_from_termcap[] = {";
 $AWK <$DATA '
-$3 == "bool" && substr($7, 1, 1) == "-"       {print "\tFALSE,\t/* ", $2, " */";}
-$3 == "bool" && substr($7, 1, 1) == "Y"       {print "\tTRUE,\t/* ", $2, " */";}
+BEGIN { count = 0; valid = 0; }
+$3 == "bool" && substr($7, 1, 1) == "-"       {print "\tFALSE,\t/* ", $2, " */"; count++; }
+$3 == "bool" && substr($7, 1, 1) == "Y"       {print "\tTRUE,\t/* ", $2, " */"; valid = count++; }
+END { printf "#define OK_bool_from_termcap %d\n", valid; }
 '
 echo "};";
 echo "";
 
 echo "static const bool num_from_termcap[] = {";
 $AWK <$DATA '
-$3 == "num" && substr($7, 1, 1) == "-"        {print "\tFALSE,\t/* ", $2, " */";}
-$3 == "num" && substr($7, 1, 1) == "Y"        {print "\tTRUE,\t/* ", $2, " */";}
+BEGIN { count = 0; valid = 0; }
+$3 == "num" && substr($7, 1, 1) == "-"        {print "\tFALSE,\t/* ", $2, " */"; count++; }
+$3 == "num" && substr($7, 1, 1) == "Y"        {print "\tTRUE,\t/* ", $2, " */"; valid = count++; }
+END { printf "#define OK_num_from_termcap %d\n", valid; }
 '
 echo "};";
 echo "";
 
 echo "static const bool str_from_termcap[] = {";
 $AWK <$DATA '
-$3 == "str" && substr($7, 1, 1) == "-"        {print "\tFALSE,\t/* ", $2, " */";}
-$3 == "str" && substr($7, 1, 1) == "Y"        {print "\tTRUE,\t/* ", $2, " */";}
+BEGIN { count = 0; valid = 0; }
+$3 == "str" && substr($7, 1, 1) == "-"        {print "\tFALSE,\t/* ", $2, " */"; count++; }
+$3 == "str" && substr($7, 1, 1) == "Y"        {print "\tTRUE,\t/* ", $2, " */"; valid = count++; }
+END { printf "#define OK_str_from_termcap %d\n", valid; }
 '
 echo "};";
 echo "";

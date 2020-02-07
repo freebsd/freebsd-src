@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 2006-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: movewindow.c,v 1.39 2013/05/04 19:41:02 tom Exp $
+ * $Id: movewindow.c,v 1.50 2019/01/21 20:11:22 tom Exp $
  *
  * Demonstrate move functions for windows and derived windows from the curses
  * library.
@@ -45,13 +45,18 @@ TODO:
  */
 
 #include <test.priv.h>
-#include <stdarg.h>
+
+#if HAVE_MVDERWIN && HAVE_MVWIN
+
+#include <popup_msg.h>
 
 #ifdef HAVE_XCURSES
 #undef derwin
 #endif
 
-#ifdef NCURSES_VERSION
+#if defined(NCURSES_CONST)
+#define CONST_FMT NCURSES_CONST
+#elif defined(PDCURSES)
 #define CONST_FMT const
 #else
 #define CONST_FMT		/* nothing */
@@ -73,8 +78,8 @@ typedef struct {
     WINDOW *child;		/* the actual value */
 } FRAME;
 
-static void head_line(CONST_FMT char *fmt,...) GCC_PRINTFLIKE(1, 2);
-static void tail_line(CONST_FMT char *fmt,...) GCC_PRINTFLIKE(1, 2);
+static void head_line(CONST_FMT char *fmt, ...) GCC_PRINTFLIKE(1, 2);
+static void tail_line(CONST_FMT char *fmt, ...) GCC_PRINTFLIKE(1, 2);
 
 static unsigned num_windows;
 static FRAME *all_windows;
@@ -102,6 +107,8 @@ message(int lineno, CONST_FMT char *fmt, va_list argp)
 	vsprintf(buffer, fmt, argp);
 	addstr(buffer);
     }
+#elif defined(HAVE_VW_PRINTW)
+    vw_printw(stdscr, fmt, argp);
 #else
     vwprintw(stdscr, fmt, argp);
 #endif
@@ -111,7 +118,7 @@ message(int lineno, CONST_FMT char *fmt, va_list argp)
 }
 
 static void
-head_line(CONST_FMT char *fmt,...)
+head_line(CONST_FMT char *fmt, ...)
 {
     va_list argp;
 
@@ -121,7 +128,7 @@ head_line(CONST_FMT char *fmt,...)
 }
 
 static void
-tail_line(CONST_FMT char *fmt,...)
+tail_line(CONST_FMT char *fmt, ...)
 {
     va_list argp;
 
@@ -190,6 +197,7 @@ selectcell(WINDOW *parent,
 	    moved = TRUE;
 	    break;
 	case QUIT:
+	    /* FALLTHRU */
 	case ESCAPE:
 	    return ((PAIR *) 0);
 #ifdef NCURSES_MOUSE_VERSION
@@ -211,8 +219,8 @@ selectcell(WINDOW *parent,
 		    break;
 		}
 	    }
-	    /* FALLTHRU */
 #endif
+	    /* FALLTHRU */
 	default:
 	    res.y = uli + i;
 	    res.x = ulj + j;
@@ -637,7 +645,7 @@ show_help(WINDOW *current)
 	int	key;
 	CONST_FMT char * msg;
     } help[] = {
-	{ '?',		"Show this screen" },
+	{ HELP_KEY_1,	"Show this screen" },
 	{ 'b',		"Draw a box inside the current window" },
 	{ 'c',		"Create a new window" },
 	{ 'd',		"Create a new derived window" },
@@ -654,20 +662,20 @@ show_help(WINDOW *current)
     };
     /* *INDENT-ON* */
 
-    WINDOW *mywin = newwin(LINES, COLS, 0, 0);
-    int row;
+    char **msgs = typeCalloc(char *, SIZEOF(help) + 1);
+    size_t n;
 
-    for (row = 0; row < LINES - 2 && row < (int) SIZEOF(help); ++row) {
-	wmove(mywin, row + 1, 1);
-	wprintw(mywin, "%s", keyname(help[row].key));
-	wmove(mywin, row + 1, 20);
-	wprintw(mywin, "%s", help[row].msg);
+    for (n = 0; n < SIZEOF(help); ++n) {
+	size_t need = (21 + strlen(help[n].msg));
+	msgs[n] = typeMalloc(char, need);
+	_nc_SPRINTF(msgs[n], _nc_SLIMIT(need)
+		    "%-20s%s", keyname(help[n].key), help[n].msg);
     }
-    box_inside(mywin);
-    wmove(mywin, 1, 1);
-    wgetch(mywin);
-    delwin(mywin);
-    refresh_all(current);
+    popup_msg2(current, msgs);
+    for (n = 0; n < SIZEOF(help); ++n) {
+	free(msgs[n]);
+    }
+    free(msgs);
 }
 
 int
@@ -695,7 +703,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	getyx(current_win, y, x);
 
 	switch (ch) {
-	case '?':
+	case HELP_KEY_1:
 	    show_help(current_win);
 	    break;
 	case 'b':
@@ -762,5 +770,16 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	wmove(current_win, 0, 0);
     }
     endwin();
+#if NO_LEAKS
+    free(all_windows);
+#endif
     ExitProgram(EXIT_SUCCESS);
 }
+#else
+int
+main(void)
+{
+    printf("This program requires the curses mvderwin and mvwin functions\n");
+    ExitProgram(EXIT_FAILURE);
+}
+#endif

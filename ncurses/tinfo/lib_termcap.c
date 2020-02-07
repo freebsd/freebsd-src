@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -48,7 +48,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_termcap.c,v 1.80 2013/06/08 16:48:47 tom Exp $")
+MODULE_ID("$Id: lib_termcap.c,v 1.87 2018/04/07 21:11:15 tom Exp $")
 
 NCURSES_EXPORT_VAR(char *) UP = 0;
 NCURSES_EXPORT_VAR(char *) BC = 0;
@@ -100,8 +100,7 @@ NCURSES_SP_NAME(tgetent) (NCURSES_SP_DCLx char *bufp, const char *name)
     START_TRACE();
     T((T_CALLED("tgetent()")));
 
-    TINFO_SETUP_TERM(&termp, (NCURSES_CONST char *) name,
-		     STDOUT_FILENO, &rc, TRUE);
+    TINFO_SETUP_TERM(&termp, name, STDOUT_FILENO, &rc, TRUE);
 
 #ifdef USE_TERM_DRIVER
     if (termp == 0 ||
@@ -153,8 +152,12 @@ NCURSES_SP_NAME(tgetent) (NCURSES_SP_DCLx char *bufp, const char *name)
 	}
 	CacheInx = best;
     }
-    LAST_TRM = TerminalOf(SP_PARM);
-    LAST_SEQ = ++CacheSeq;
+    if (rc == 1) {
+	LAST_TRM = TerminalOf(SP_PARM);
+	LAST_SEQ = ++CacheSeq;
+    } else {
+	LAST_TRM = 0;
+    }
 
     PC = 0;
     UP = 0;
@@ -175,7 +178,8 @@ NCURSES_SP_NAME(tgetent) (NCURSES_SP_DCLx char *bufp, const char *name)
 	if (backspace_if_not_bs != NULL)
 	    BC = backspace_if_not_bs;
 
-	if ((FIX_SGR0 = _nc_trim_sgr0(&(TerminalOf(SP_PARM)->type))) != 0) {
+	if ((FIX_SGR0 = _nc_trim_sgr0(&TerminalType(TerminalOf(SP_PARM))))
+	    != 0) {
 	    if (!strcmp(FIX_SGR0, exit_attribute_mode)) {
 		if (FIX_SGR0 != exit_attribute_mode) {
 		    free(FIX_SGR0);
@@ -230,15 +234,15 @@ same_tcname(const char *a, const char *b)
  ***************************************************************************/
 
 NCURSES_EXPORT(int)
-NCURSES_SP_NAME(tgetflag) (NCURSES_SP_DCLx NCURSES_CONST char *id)
+NCURSES_SP_NAME(tgetflag) (NCURSES_SP_DCLx const char *id)
 {
     int result = 0;		/* Solaris returns zero for missing flag */
-    int j = -1;
 
     T((T_CALLED("tgetflag(%p, %s)"), (void *) SP_PARM, id));
     if (HasTInfoTerminal(SP_PARM) && ValidCap(id)) {
-	TERMTYPE *tp = &(TerminalOf(SP_PARM)->type);
+	TERMTYPE2 *tp = &TerminalType(TerminalOf(SP_PARM));
 	struct name_table_entry const *entry_ptr;
+	int j = -1;
 
 	entry_ptr = _nc_find_type_entry(id, BOOLEAN, TRUE);
 	if (entry_ptr != 0) {
@@ -266,7 +270,7 @@ NCURSES_SP_NAME(tgetflag) (NCURSES_SP_DCLx NCURSES_CONST char *id)
 
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
-tgetflag(NCURSES_CONST char *id)
+tgetflag(const char *id)
 {
     return NCURSES_SP_NAME(tgetflag) (CURRENT_SCREEN, id);
 }
@@ -282,15 +286,15 @@ tgetflag(NCURSES_CONST char *id)
  ***************************************************************************/
 
 NCURSES_EXPORT(int)
-NCURSES_SP_NAME(tgetnum) (NCURSES_SP_DCLx NCURSES_CONST char *id)
+NCURSES_SP_NAME(tgetnum) (NCURSES_SP_DCLx const char *id)
 {
     int result = ABSENT_NUMERIC;
-    int j = -1;
 
     T((T_CALLED("tgetnum(%p, %s)"), (void *) SP_PARM, id));
     if (HasTInfoTerminal(SP_PARM) && ValidCap(id)) {
-	TERMTYPE *tp = &(TerminalOf(SP_PARM)->type);
+	TERMTYPE2 *tp = &TerminalType(TerminalOf(SP_PARM));
 	struct name_table_entry const *entry_ptr;
+	int j = -1;
 
 	entry_ptr = _nc_find_type_entry(id, NUMBER, TRUE);
 	if (entry_ptr != 0) {
@@ -318,7 +322,7 @@ NCURSES_SP_NAME(tgetnum) (NCURSES_SP_DCLx NCURSES_CONST char *id)
 
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
-tgetnum(NCURSES_CONST char *id)
+tgetnum(const char *id)
 {
     return NCURSES_SP_NAME(tgetnum) (CURRENT_SCREEN, id);
 }
@@ -334,15 +338,15 @@ tgetnum(NCURSES_CONST char *id)
  ***************************************************************************/
 
 NCURSES_EXPORT(char *)
-NCURSES_SP_NAME(tgetstr) (NCURSES_SP_DCLx NCURSES_CONST char *id, char **area)
+NCURSES_SP_NAME(tgetstr) (NCURSES_SP_DCLx const char *id, char **area)
 {
     char *result = NULL;
-    int j = -1;
 
     T((T_CALLED("tgetstr(%s,%p)"), id, (void *) area));
     if (HasTInfoTerminal(SP_PARM) && ValidCap(id)) {
-	TERMTYPE *tp = &(TerminalOf(SP_PARM)->type);
+	TERMTYPE2 *tp = &TerminalType(TerminalOf(SP_PARM));
 	struct name_table_entry const *entry_ptr;
+	int j = -1;
 
 	entry_ptr = _nc_find_type_entry(id, STRING, TRUE);
 	if (entry_ptr != 0) {
@@ -384,20 +388,41 @@ NCURSES_SP_NAME(tgetstr) (NCURSES_SP_DCLx NCURSES_CONST char *id, char **area)
 
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(char *)
-tgetstr(NCURSES_CONST char *id, char **area)
+tgetstr(const char *id, char **area)
 {
     return NCURSES_SP_NAME(tgetstr) (CURRENT_SCREEN, id, area);
 }
 #endif
 
 #if NO_LEAKS
+#undef CacheInx
+#define CacheInx num
+NCURSES_EXPORT(void)
+_nc_tgetent_leak(TERMINAL *termp)
+{
+    if (termp != 0) {
+	int num;
+	for (CacheInx = 0; CacheInx < TGETENT_MAX; ++CacheInx) {
+	    if (LAST_TRM == termp) {
+		FreeAndNull(FIX_SGR0);
+		if (LAST_TRM != 0) {
+		    LAST_TRM = 0;
+		}
+		break;
+	    }
+	}
+    }
+}
+
 NCURSES_EXPORT(void)
 _nc_tgetent_leaks(void)
 {
+    int num;
     for (CacheInx = 0; CacheInx < TGETENT_MAX; ++CacheInx) {
-	FreeIfNeeded(FIX_SGR0);
-	if (LAST_TRM != 0)
+	if (LAST_TRM != 0) {
 	    del_curterm(LAST_TRM);
+	    _nc_tgetent_leak(LAST_TRM);
+	}
     }
 }
 #endif

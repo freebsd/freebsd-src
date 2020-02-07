@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2004,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2014,2015 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.5 $
---  $Date: 2011/03/19 12:07:18 $
+--  $Revision: 1.7 $
+--  $Date: 2015/07/25 23:43:19 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with ncurses2.util; use ncurses2.util;
@@ -72,8 +72,9 @@ procedure ncurses2.overlap_test is
       Get_Size (win, y1, x1);
       for y in 0 .. y1 - 1 loop
          for x in 0 .. x1 - 1 loop
-            if ((x > (x1 - 1) / 3) and (x <= (2 * (x1 - 1)) / 3))
-                or (((y > (y1 - 1) / 3) and (y <= (2 * (y1 - 1)) / 3))) then
+            if ((x > (x1 - 1) / 3) and (x <= (2 * (x1 - 1)) / 3)) or
+               (((y > (y1 - 1) / 3) and (y <= (2 * (y1 - 1)) / 3)))
+            then
                Move_Cursor (win, y, x);
                Add (win, Ch => ch);
             end if;
@@ -93,7 +94,7 @@ begin
    Add (Str => "This test shows the behavior of wnoutrefresh() with " &
         "respect to");
    Add (Ch => newl);
-   Add (Str => "the shared region of two overlapping windows A and B. "&
+   Add (Str => "the shared region of two overlapping windows A and B. " &
         "The cross");
    Add (Ch => newl);
    Add (Str => "pattern in each window does not overlap the other.");

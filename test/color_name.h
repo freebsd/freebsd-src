@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2011,2012 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2011-2016,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: color_name.h,v 1.4 2012/11/18 01:59:32 tom Exp $
+ * $Id: color_name.h,v 1.6 2018/12/29 15:19:30 tom Exp $
  */
 
 #ifndef __COLORNAME_H
@@ -79,7 +79,7 @@ color_code(const char *color)
     }
     return result;
 }
-#endif /* NEED_COLOR_NAME */
+#endif /* NEED_COLOR_CODE */
 
 #ifdef NEED_COLOR_NAME
 static const char *
@@ -89,7 +89,7 @@ color_name(int color)
     const char *result = 0;
 
     if (color >= (int) SIZEOF(the_color_names)) {
-	sprintf(temp, "%d", color);
+	_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(result)) "%d", color);
 	result = temp;
     } else if (color < 0) {
 	result = "default";

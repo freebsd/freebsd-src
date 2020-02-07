@@ -6,13 +6,13 @@
  *  wrs(5/28/93) -- modified to be consistent (perform identically) with either
  *                  PDCurses or under Unix System V, R4
  *
- * $Id: testcurs.c,v 1.48 2013/05/18 22:05:06 tom Exp $
+ * $Id: testcurs.c,v 1.55 2019/12/14 23:25:29 tom Exp $
  */
 
 #include <test.priv.h>
 
 #if defined(XCURSES)
-char *XCursesProgramName = "testcurs";
+const char *XCursesProgramName = "testcurs";
 #endif
 
 static int initTest(WINDOW **);
@@ -20,126 +20,15 @@ static void display_menu(int, int);
 static void inputTest(WINDOW *);
 static void introTest(WINDOW *);
 static void outputTest(WINDOW *);
+#if HAVE_NEWPAD
 static void padTest(WINDOW *);
+#endif
 static void scrollTest(WINDOW *);
 #if defined(PDCURSES) && !defined(XCURSES)
 static void resizeTest(WINDOW *);
 #endif
 
-struct commands {
-    NCURSES_CONST char *text;
-    void (*function) (WINDOW *);
-};
-typedef struct commands COMMAND;
-
-static const COMMAND command[] =
-{
-    {"General Test", introTest},
-    {"Pad Test", padTest},
-#if defined(PDCURSES) && !defined(XCURSES)
-    {"Resize Test", resizeTest},
-#endif
-    {"Scroll Test", scrollTest},
-    {"Input Test", inputTest},
-    {"Output Test", outputTest}
-};
-#define MAX_OPTIONS (int) SIZEOF(command)
-
 static int width, height;
-
-int
-main(
-	int argc GCC_UNUSED,
-	char *argv[]GCC_UNUSED)
-{
-    WINDOW *win;
-    int key;
-    int old_option = (-1);
-    int new_option = 0;
-    bool quit = FALSE;
-    int n;
-
-    setlocale(LC_ALL, "");
-
-#ifdef PDCDEBUG
-    PDC_debug("testcurs started\n");
-#endif
-    if (!initTest(&win))
-	ExitProgram(EXIT_FAILURE);
-
-    erase();
-    display_menu(old_option, new_option);
-    for (;;) {
-#ifdef A_COLOR
-	if (has_colors()) {
-	    init_pair(1, COLOR_WHITE, COLOR_BLUE);
-	    wbkgd(win, (chtype) COLOR_PAIR(1));
-	} else
-	    wbkgd(win, A_REVERSE);
-#else
-	wbkgd(win, A_REVERSE);
-#endif
-	werase(win);
-
-	noecho();
-	keypad(stdscr, TRUE);
-	raw();
-	key = getch();
-	if (key < KEY_MIN && key > 0 && isalpha(key)) {
-	    if (islower(key))
-		key = toupper(key);
-	    for (n = 0; n < MAX_OPTIONS; ++n) {
-		if (key == command[n].text[0]) {
-		    display_menu(old_option, new_option = n);
-		    key = ' ';
-		    break;
-		}
-	    }
-	}
-	switch (key) {
-	case 10:
-	case 13:
-	case KEY_ENTER:
-	    erase();
-	    refresh();
-	    (*command[new_option].function) (win);
-	    erase();
-	    display_menu(old_option, new_option);
-	    break;
-	case KEY_UP:
-	    new_option = ((new_option == 0)
-			  ? new_option
-			  : new_option - 1);
-	    display_menu(old_option, new_option);
-	    break;
-	case KEY_DOWN:
-	    new_option = ((new_option == (MAX_OPTIONS - 1))
-			  ? new_option
-			  : new_option + 1);
-	    display_menu(old_option, new_option);
-	    break;
-	case 'Q':
-	case 'q':
-	    quit = TRUE;
-	    break;
-	default:
-	    beep();
-	    break;
-	case ' ':
-	    break;
-	}
-	if (quit == TRUE)
-	    break;
-    }
-
-    delwin(win);
-
-    endwin();
-#ifdef XCURSES
-    XCursesExit();
-#endif
-    ExitProgram(EXIT_SUCCESS);
-}
 
 static void
 Continue(WINDOW *win)
@@ -170,7 +59,7 @@ initTest(WINDOW **win)
     PDC_debug("initTest called\n");
 #endif
 #ifdef TRACE
-    trace(TRACE_MAXIMUM);
+    curses_trace(TRACE_MAXIMUM);
 #endif
     initscr();
 #ifdef PDCDEBUG
@@ -184,7 +73,7 @@ initTest(WINDOW **win)
     height = 13;		/* Create a drawing window */
     *win = newwin(height, width, (LINES - height) / 2, (COLS - width) / 2);
     if (*win == NULL) {
-	endwin();
+	stop_curses();
 	return 0;
     }
     return 1;
@@ -286,7 +175,7 @@ inputTest(WINDOW *win)
 #ifdef A_COLOR
     if (has_colors()) {
 	init_pair(2, COLOR_WHITE, COLOR_RED);
-	wbkgd(subWin, COLOR_PAIR(2) | A_BOLD);
+	wbkgd(subWin, (chtype) COLOR_PAIR(2) | A_BOLD);
     } else
 	wbkgd(subWin, A_BOLD);
 #else
@@ -437,7 +326,7 @@ inputTest(WINDOW *win)
 	    "%d %[][a-zA-Z]s",
 	    "%d %[^0-9]"
 	};
-	const char *format = fmt[(unsigned) repeat % SIZEOF(fmt)];
+	char *format = strdup(fmt[(unsigned) repeat % SIZEOF(fmt)]);
 
 	wclear(win);
 	MvWAddStr(win, 3, 2, "The window should have moved");
@@ -453,12 +342,13 @@ inputTest(WINDOW *win)
 	noraw();
 	num = 0;
 	*buffer = 0;
-	answered = mvwscanw(win, 7, 6, strdup(format), &num, buffer);
+	answered = mvwscanw(win, 7, 6, format, &num, buffer);
 	MvWPrintw(win, 8, 6,
 		  "String: %s Number: %d (%d values read)",
 		  buffer, num, answered);
 	Continue(win);
 	++repeat;
+	free(format);
     } while (answered > 0);
 }
 
@@ -667,7 +557,7 @@ resizeTest(WINDOW *dummy GCC_UNUSED)
 
     win1 = newwin(10, 50, 14, 25);
     if (win1 == NULL) {
-	endwin();
+	stop_curses();
 	return;
     }
 #ifdef A_COLOR
@@ -695,6 +585,7 @@ resizeTest(WINDOW *dummy GCC_UNUSED)
 }
 #endif
 
+#if HAVE_NEWPAD
 static void
 padTest(WINDOW *dummy GCC_UNUSED)
 {
@@ -735,6 +626,28 @@ padTest(WINDOW *dummy GCC_UNUSED)
 	delwin(pad);
     }
 }
+#endif /* HAVE_NEWPAD */
+
+struct commands {
+    NCURSES_CONST char *text;
+    void (*function) (WINDOW *);
+};
+typedef struct commands COMMAND;
+
+static const COMMAND command[] =
+{
+    {"General Test", introTest},
+#if HAVE_NEWPAD
+    {"Pad Test", padTest},
+#endif
+#if defined(PDCURSES) && !defined(XCURSES)
+    {"Resize Test", resizeTest},
+#endif
+    {"Scroll Test", scrollTest},
+    {"Input Test", inputTest},
+    {"Output Test", outputTest}
+};
+#define MAX_OPTIONS (int) SIZEOF(command)
 
 static void
 display_menu(int old_option, int new_option)
@@ -758,4 +671,98 @@ display_menu(int old_option, int new_option)
     MvAddStr(13, 3,
 	     "Use Up and Down Arrows to select - Enter to run - Q to quit");
     refresh();
+}
+
+int
+main(
+	int argc GCC_UNUSED,
+	char *argv[]GCC_UNUSED)
+{
+    WINDOW *win;
+    int key;
+    int old_option = (-1);
+    int new_option = 0;
+    bool quit = FALSE;
+    int n;
+
+    setlocale(LC_ALL, "");
+
+#ifdef PDCDEBUG
+    PDC_debug("testcurs started\n");
+#endif
+    if (!initTest(&win))
+	ExitProgram(EXIT_FAILURE);
+
+    erase();
+    display_menu(old_option, new_option);
+    for (;;) {
+#ifdef A_COLOR
+	if (has_colors()) {
+	    init_pair(1, COLOR_WHITE, COLOR_BLUE);
+	    wbkgd(win, (chtype) COLOR_PAIR(1));
+	} else
+	    wbkgd(win, A_REVERSE);
+#else
+	wbkgd(win, A_REVERSE);
+#endif
+	werase(win);
+
+	noecho();
+	keypad(stdscr, TRUE);
+	raw();
+	key = getch();
+	if (key < KEY_MIN && key > 0 && isalpha(key)) {
+	    if (islower(key))
+		key = toupper(key);
+	    for (n = 0; n < MAX_OPTIONS; ++n) {
+		if (key == command[n].text[0]) {
+		    display_menu(old_option, new_option = n);
+		    key = ' ';
+		    break;
+		}
+	    }
+	}
+	switch (key) {
+	case 10:
+	case 13:
+	case KEY_ENTER:
+	    erase();
+	    refresh();
+	    (*command[new_option].function) (win);
+	    erase();
+	    display_menu(old_option, new_option);
+	    break;
+	case KEY_UP:
+	    new_option = ((new_option == 0)
+			  ? new_option
+			  : new_option - 1);
+	    display_menu(old_option, new_option);
+	    break;
+	case KEY_DOWN:
+	    new_option = ((new_option == (MAX_OPTIONS - 1))
+			  ? new_option
+			  : new_option + 1);
+	    display_menu(old_option, new_option);
+	    break;
+	case 'Q':
+	case 'q':
+	    quit = TRUE;
+	    break;
+	default:
+	    beep();
+	    break;
+	case ' ':
+	    break;
+	}
+	if (quit == TRUE)
+	    break;
+    }
+
+    delwin(win);
+
+    stop_curses();
+#ifdef XCURSES
+    XCursesExit();
+#endif
+    ExitProgram(EXIT_SUCCESS);
 }

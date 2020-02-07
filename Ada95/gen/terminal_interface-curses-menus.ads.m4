@@ -10,7 +10,7 @@ include(M4MACRO)dnl
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2007,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -38,18 +38,17 @@ include(M4MACRO)dnl
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.28 $
---  $Date: 2009/12/26 18:35:22 $
+--  $Revision: 1.31 $
+--  $Date: 2014/05/24 21:31:57 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
-include(`Menu_Base_Defs')
 with System;
 with Ada.Characters.Latin_1;
 
 package Terminal_Interface.Curses.Menus is
    pragma Preelaborate (Terminal_Interface.Curses.Menus);
-include(`Menu_Linker_Options')dnl
-include(`Linker_Options')
+   pragma Linker_Options ("-lmenu" & Curses_Constants.DFT_ARG_SUFFIX);
+
    Space : Character renames Ada.Characters.Latin_1.Space;
 
    type Item is private;
@@ -116,9 +115,34 @@ include(`Linker_Options')
    --
    --  Menu options
    --
-   pragma Warnings (Off);
-include(`Menu_Opt_Rep')dnl
+   type Menu_Option_Set is
+      record
+         One_Valued        : Boolean;
+         Show_Descriptions : Boolean;
+         Row_Major_Order   : Boolean;
+         Ignore_Case       : Boolean;
+         Show_Matches      : Boolean;
+         Non_Cyclic        : Boolean;
+      end record;
+   pragma Convention (C_Pass_By_Copy, Menu_Option_Set);
 
+   for Menu_Option_Set use
+      record
+         One_Valued        at 0 range Curses_Constants.O_ONEVALUE_First
+           .. Curses_Constants.O_ONEVALUE_Last;
+         Show_Descriptions at 0 range Curses_Constants.O_SHOWDESC_First
+           .. Curses_Constants.O_SHOWDESC_Last;
+         Row_Major_Order   at 0 range Curses_Constants.O_ROWMAJOR_First
+           .. Curses_Constants.O_ROWMAJOR_Last;
+         Ignore_Case       at 0 range Curses_Constants.O_IGNORECASE_First
+           .. Curses_Constants.O_IGNORECASE_Last;
+         Show_Matches      at 0 range Curses_Constants.O_SHOWMATCH_First
+           .. Curses_Constants.O_SHOWMATCH_Last;
+         Non_Cyclic        at 0 range Curses_Constants.O_NONCYCLIC_First
+           .. Curses_Constants.O_NONCYCLIC_Last;
+      end record;
+   pragma Warnings (Off);
+   for Menu_Option_Set'Size use Curses_Constants.Menu_Options_Size;
    pragma Warnings (On);
 
    function Default_Menu_Options return Menu_Option_Set;
@@ -127,9 +151,19 @@ include(`Menu_Opt_Rep')dnl
    --
    --  Item options
    --
-   pragma Warnings (Off);
-include(`Item_Rep')dnl
+   type Item_Option_Set is
+      record
+         Selectable : Boolean;
+      end record;
+   pragma Convention (C_Pass_By_Copy, Item_Option_Set);
 
+   for Item_Option_Set use
+      record
+         Selectable at 0 range Curses_Constants.O_SELECTABLE_First
+           ..  Curses_Constants.O_SELECTABLE_Last;
+      end record;
+   pragma Warnings (Off);
+   for Item_Option_Set'Size use Curses_Constants.Item_Options_Size;
    pragma Warnings (On);
 
    function Default_Item_Options return Item_Option_Set;

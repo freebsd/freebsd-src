@@ -24,7 +24,7 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright (c) 1998-2018,2020 Free Software Foundation, Inc.              --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,14 +52,14 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.12 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.14 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<b>with</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.Strings;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings;
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<span class="symbol"><A NAME="ref_43_53" HREF="terminal_interface-curses-forms-field_types-enumeration__adb.htm#ref_46_58">Enumeration</A></span> <b>is</b>
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<span class="symbol"><A NAME="ref_43_53" HREF="terminal_interface-curses-forms-field_types-enumeration__adb.htm#ref_46_58">Enumeration</A></span> <b>is</b>
    <b>pragma</b> Preelaborate
-     (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_43_53">Enumeration</A>);
+     (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_43_53">Enumeration</A>);
 
    <b>type</b> <span class="symbol"><A NAME="ref_47_9">String_Access</A></span> <b>is</b> <b>access</b> String;
 
@@ -71,9 +71,9 @@
 
    <b>type</b> <span class="symbol"><A NAME="ref_55_9">Enumeration_Info</A></span> (<span class="symbol"><A NAME="ref_55_27" HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_55_9">C</A></span> : Positive) <b>is</b>
       <b>record</b>
-         <span class="symbol"><A NAME="ref_57_10">Names</A></span>                : Enum_Array (1 .. <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_55_27">C</A>);
-         <span class="symbol"><A NAME="ref_58_10">Case_Sensitive</A></span>       : Boolean := False;
-         <span class="symbol"><A NAME="ref_59_10">Match_Must_Be_Unique</A></span> : Boolean := False;
+         <span class="symbol"><A NAME="ref_57_10">Case_Sensitive</A></span>       : Boolean := False;
+         <span class="symbol"><A NAME="ref_58_10">Match_Must_Be_Unique</A></span> : Boolean := False;
+         <span class="symbol"><A NAME="ref_59_10">Names</A></span>                : Enum_Array (1 .. <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_55_27">C</A>);
       <b>end</b> <b>record</b>;
 
    <b>type</b> <span class="symbol"><A NAME="ref_62_9">Enumeration_Field</A></span> <b>is</b> <b>new</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_52_9">Field_Type</A> <b>with</b> <b>private</b>;
@@ -95,15 +95,15 @@
    <span class="comment"><EM>--  But we may want to release the field to release the memory allocated</EM></span>
    <span class="comment"><EM>--  by it internally. After that the Enumeration field is no longer usable.</EM></span>
 
-   <span class="comment"><EM>--  The next type defintions are all ncurses extensions. They are typically</EM></span>
+   <span class="comment"><EM>--  The next type definitions are all ncurses extensions. They are typically</EM></span>
    <span class="comment"><EM>--  not available in other curses implementations.</EM></span>
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_84_14" HREF="terminal_interface-curses-forms-field_types-enumeration__adb.htm#ref_91_14">Set_Field_Type</A></span> (<span class="symbol"><A NAME="ref_84_30" HREF="terminal_interface-curses-forms-field_types-enumeration__adb.htm#ref_91_30">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+   <b>procedure</b> <span class="symbol"><A NAME="ref_84_14" HREF="terminal_interface-curses-forms-field_types-enumeration__adb.htm#ref_91_14">Set_Field_Type</A></span> (<span class="symbol"><A NAME="ref_84_30" HREF="terminal_interface-curses-forms-field_types-enumeration__adb.htm#ref_91_30">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>;
                              <span class="symbol"><A NAME="ref_85_30" HREF="terminal_interface-curses-forms-field_types-enumeration__adb.htm#ref_92_30">Typ</A></span> : <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_62_9">Enumeration_Field</A>);
    <b>pragma</b> Inline (Set_Field_Type);
 
 <b>private</b>
-   <b>type</b> <span class="symbol"><A NAME="ref_89_9">CPA_Access</A></span> <b>is</b> <b>access</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C.Strings.chars_ptr_array;
+   <b>type</b> <span class="symbol"><A NAME="ref_89_9" HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_43_53">CPA_Access</A></span> <b>is</b> <b>access</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings.chars_ptr_array;
 
    <b>type</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_62_9">Enumeration_Field</A> <b>is</b> <b>new</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_52_9">Field_Type</A> <b>with</b>
       <b>record</b>
@@ -112,5 +112,5 @@
          <span class="symbol"><A NAME="ref_95_10">Arr</A></span>                  : <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_89_9">CPA_Access</A> := <b>null</b>;
       <b>end</b> <b>record</b>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_43_53">Enumeration</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_43_53">Enumeration</A>;
 </PRE></BODY></HTML>

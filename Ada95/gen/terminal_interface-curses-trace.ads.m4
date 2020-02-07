@@ -9,7 +9,7 @@ include(M4MACRO)----------------------------------------------------------------
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000 Free Software Foundation, Inc.                        --
+-- Copyright (c) 2000,2014 Free Software Foundation, Inc.                   --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -37,16 +37,62 @@ include(M4MACRO)----------------------------------------------------------------
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control:
---  $Revision: 1.1 $
+--  $Revision: 1.4 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 
 package Terminal_Interface.Curses.Trace is
    pragma Preelaborate (Terminal_Interface.Curses.Trace);
 
-   pragma Warnings (Off);
-include(`Trace_Defs')
+   type Trace_Attribute_Set is
+      record
+         Times            : Boolean;
+         Tputs            : Boolean;
+         Update           : Boolean;
+         Cursor_Move      : Boolean;
+         Character_Output : Boolean;
+         Calls            : Boolean;
+         Virtual_Puts     : Boolean;
+         Input_Events     : Boolean;
+         TTY_State        : Boolean;
+         Internal_Calls   : Boolean;
+         Character_Calls  : Boolean;
+         Termcap_TermInfo : Boolean;
+         Attribute_Color  : Boolean;
+      end record;
+   pragma Convention (C_Pass_By_Copy, Trace_Attribute_Set);
 
+   for Trace_Attribute_Set use
+      record
+         Times            at 0 range Curses_Constants.TRACE_TIMES_First
+           .. Curses_Constants.TRACE_TIMES_Last;
+         Tputs            at 0 range Curses_Constants.TRACE_TPUTS_First
+           .. Curses_Constants.TRACE_TPUTS_Last;
+         Update           at 0 range Curses_Constants.TRACE_UPDATE_First
+           .. Curses_Constants.TRACE_UPDATE_Last;
+         Cursor_Move      at 0 range Curses_Constants.TRACE_MOVE_First
+           .. Curses_Constants.TRACE_MOVE_Last;
+         Character_Output at 0 range Curses_Constants.TRACE_CHARPUT_First
+           .. Curses_Constants.TRACE_CHARPUT_Last;
+         Calls            at 0 range Curses_Constants.TRACE_CALLS_First
+           .. Curses_Constants.TRACE_CALLS_Last;
+         Virtual_Puts     at 0 range Curses_Constants.TRACE_VIRTPUT_First
+           .. Curses_Constants.TRACE_VIRTPUT_Last;
+         Input_Events     at 0 range Curses_Constants.TRACE_IEVENT_First
+           .. Curses_Constants.TRACE_IEVENT_Last;
+         TTY_State        at 0 range Curses_Constants.TRACE_BITS_First
+           .. Curses_Constants.TRACE_BITS_Last;
+         Internal_Calls   at 0 range Curses_Constants.TRACE_ICALLS_First
+           .. Curses_Constants.TRACE_ICALLS_Last;
+         Character_Calls  at 0 range Curses_Constants.TRACE_CCALLS_First
+           .. Curses_Constants.TRACE_CCALLS_Last;
+         Termcap_TermInfo at 0 range Curses_Constants.TRACE_DATABASE_First
+           .. Curses_Constants.TRACE_DATABASE_Last;
+         Attribute_Color  at 0 range Curses_Constants.TRACE_ATTRS_First
+           .. Curses_Constants.TRACE_ATTRS_Last;
+      end record;
+   pragma Warnings (Off);
+   for Trace_Attribute_Set'Size use Curses_Constants.Trace_Size;
    pragma Warnings (On);
 
    Trace_Disable  : constant Trace_Attribute_Set := (others => False);

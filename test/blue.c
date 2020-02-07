@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,16 +36,16 @@
  *****************************************************************************/
 
 /*
- * Compile this with the command `cc -O blue.c -lcurses -o blue'.  For best
- * results, use the ncurses(3) library.  On non-Intel machines, SVr4 curses is
- * just as good.
- *
- * $Id: blue.c,v 1.35 2013/04/27 19:46:53 tom Exp $
+ * $Id: blue.c,v 1.52 2019/08/17 21:49:19 tom Exp $
  */
 
 #include <test.priv.h>
 
 #include <time.h>
+
+#if HAVE_LANGINFO_CODESET
+#include <langinfo.h>
+#endif
 
 #define NOCARD		(-1)
 
@@ -97,40 +97,38 @@ static chtype ranks[SUIT_LENGTH][2] =
     {' ', 'K'}
 };
 
-/* Please note, that this is a bad example.
-   Color values should not be or'ed in. This
-   only works, because the characters used here
-   are plain and have no color attribute themselves. */
-#ifdef COLOR_PAIR
-#define OR_COLORS(value,pair) ((value) | COLOR_PAIR(pair))
-#else
-#define OR_COLORS(value,pair) (value)
+static int letters[4] =
+{
+    'h',			/* hearts */
+    's',			/* spades */
+    'd',			/* diamonds */
+    'c',			/* clubs */
+};
+
+#if HAVE_LANGINFO_CODESET
+
+#if HAVE_TIGETSTR
+static int glyphs[] =
+{
+    '\003',			/* hearts */
+    '\006',			/* spades */
+    '\004',			/* diamonds */
+    '\005',			/* clubs */
+};
 #endif
 
-#define PC_COLORS(value,pair) (OR_COLORS(value,pair) | A_ALTCHARSET)
-
-static chtype letters[4] =
+#if USE_WIDEC_SUPPORT
+static int uglyphs[] =
 {
-    OR_COLORS('h', RED_ON_WHITE),	/* hearts */
-    OR_COLORS('s', BLACK_ON_WHITE),	/* spades */
-    OR_COLORS('d', RED_ON_WHITE),	/* diamonds */
-    OR_COLORS('c', BLACK_ON_WHITE),	/* clubs */
+    0x2665,			/* hearts */
+    0x2660,			/* spades */
+    0x2666,			/* diamonds */
+    0x2663			/* clubs */
 };
+#endif
+#endif /* HAVE_LANGINFO_CODESET */
 
-#if defined(__i386__) && defined(A_ALTCHARSET) && HAVE_TIGETSTR
-static chtype glyphs[] =
-{
-    PC_COLORS('\003', RED_ON_WHITE),	/* hearts */
-    PC_COLORS('\006', BLACK_ON_WHITE),	/* spades */
-    PC_COLORS('\004', RED_ON_WHITE),	/* diamonds */
-    PC_COLORS('\005', BLACK_ON_WHITE),	/* clubs */
-};
-#define USE_CP437 1
-#else
-#define USE_CP437 0
-#endif /* __i386__ */
-
-static chtype *suits = letters;	/* this may change to glyphs below */
+static int *suits = letters;	/* this may change to glyphs below */
 
 static void
 die(int onsig)
@@ -155,14 +153,14 @@ init_vars(void)
 static void
 shuffle(int size)
 {
-    int i, j, numswaps, swapnum, temp;
+    int numswaps, swapnum;
 
     numswaps = size * 10;	/* an arbitrary figure */
 
     for (swapnum = 0; swapnum < numswaps; swapnum++) {
-	i = rand() % size;
-	j = rand() % size;
-	temp = deck[i];
+	int i = rand() % size;
+	int j = rand() % size;
+	int temp = deck[i];
 	deck[i] = deck[j];
 	deck[j] = temp;
     }
@@ -171,11 +169,11 @@ shuffle(int size)
 static void
 deal_cards(void)
 {
-    int ptr, card = 0, value, csuit, crank, suit, aces[4];
+    int card = 0, value, csuit, crank, suit, aces[4];
 
     memset(aces, 0, sizeof(aces));
     for (suit = HEARTS; suit <= CLUBS; suit++) {
-	ptr = freeptr[suit];
+	int ptr = freeptr[suit];
 	grid[ptr++] = NOCARD;	/* 1st card space is blank */
 	while ((ptr % GRID_WIDTH) != 0) {
 	    value = deck[card++];
@@ -198,15 +196,41 @@ deal_cards(void)
 static void
 printcard(int value)
 {
-    (void) addch(' ');
-    if (value == NOCARD)
+    AddCh(' ');
+    if (value == NOCARD) {
 	(void) addstr("   ");
-    else {
-	addch(ranks[value % SUIT_LENGTH][0] | (chtype) COLOR_PAIR(BLUE_ON_WHITE));
-	addch(ranks[value % SUIT_LENGTH][1] | (chtype) COLOR_PAIR(BLUE_ON_WHITE));
-	addch(suits[value / SUIT_LENGTH]);
+    } else {
+	int which = (value / SUIT_LENGTH);
+	int isuit = (value % SUIT_LENGTH);
+	chtype color = (chtype) COLOR_PAIR(((which % 2) == 0)
+					   ? RED_ON_WHITE
+					   : BLACK_ON_WHITE);
+
+	AddCh(ranks[isuit][0] | (chtype) COLOR_PAIR(BLUE_ON_WHITE));
+	AddCh(ranks[isuit][1] | (chtype) COLOR_PAIR(BLUE_ON_WHITE));
+
+#ifdef NCURSES_VERSION
+	(attron) ((int) color);	/* quieter compiler warnings */
+#else
+	attron(color);		/* PDCurses, etc., either no macro or wrong */
+#endif
+#if USE_WIDEC_SUPPORT
+	{
+	    wchar_t values[2];
+	    values[0] = (wchar_t) suits[which];
+	    values[1] = 0;
+	    addwstr(values);
+	}
+#else
+	AddCh(suits[which]);
+#endif
+#ifdef NCURSES_VERSION
+	(attroff) ((int) color);
+#else
+	attroff(color);
+#endif
     }
-    (void) addch(' ');
+    AddCh(' ');
 }
 
 static void
@@ -315,16 +339,16 @@ play_game(void)
 	    } else {
 		char buf[BUFSIZ];
 
-		(void) sprintf(buf,
-			       "Type [%s] to move, r to redraw, q or INTR to quit: ",
-			       live);
+		_nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
+			    "Type [%s] to move, r to redraw, q or INTR to quit: ",
+			    live);
 
 		do {
 		    move(PROMPTROW, 0);
 		    (void) addstr(buf);
 		    move(PROMPTROW, (int) strlen(buf));
 		    clrtoeol();
-		    (void) addch(' ');
+		    AddCh(' ');
 		} while
 		    (((c = (char) getch()) < 'a' || c > 'd')
 		     && (c != 'r')
@@ -364,10 +388,10 @@ play_game(void)
 static int
 collect_discards(void)
 {
-    int row, col, cardno = 0, finish, gridno;
+    int row, col, cardno = 0, gridno;
 
     for (row = HEARTS; row <= CLUBS; row++) {
-	finish = 0;
+	int finish = 0;
 	for (col = 1; col < GRID_WIDTH; col++) {
 	    gridno = row * GRID_WIDTH + col;
 
@@ -402,40 +426,57 @@ game_finished(int deal)
     refresh();
 }
 
+#if HAVE_LANGINFO_CODESET
+/*
+ * This program first appeared in ncurses in January 1995.  At that point, the
+ * Linux console was able to display CP437 graphic characters, e.g., in the
+ * range 0-31.  As of 2016, most Linux consoles are running with the UTF-8
+ * (partial) support.  Incidentally, that makes all of the cards diamonds.
+ */
+static void
+use_pc_display(void)
+{
+    char *check = nl_langinfo(CODESET);
+    if (!strcmp(check, "UTF-8")) {
+#if USE_WIDEC_SUPPORT
+	suits = uglyphs;
+#endif
+    } else {
+#if HAVE_TIGETSTR
+	if (!strcmp(check, "IBM437") ||
+	    !strcmp(check, "CP437") ||
+	    !strcmp(check, "IBM850") ||
+	    !strcmp(check, "CP850")) {
+	    char *smacs = tigetstr("smacs");
+	    char *smpch = tigetstr("smpch");
+	    /*
+	     * The ncurses library makes this check to decide whether to allow
+	     * the alternate character set for the (normally) nonprinting codes.
+	     */
+	    if (smacs != 0 && smpch != 0 && !strcmp(smacs, smpch)) {
+		suits = glyphs;
+	    }
+	}
+#endif
+    }
+}
+#else
+#define use_pc_display()	/* nothing */
+#endif /* HAVE_LANGINFO_CODESET */
+
 int
 main(int argc, char *argv[])
 {
-    CATCHALL(die);
-
     setlocale(LC_ALL, "");
 
-    initscr();
+    use_pc_display();
 
-    /*
-     * We use COLOR_GREEN because COLOR_BLACK is wired to the wrong thing.
-     */
+    InitAndCatch(initscr(), die);
+
     start_color();
     init_pair(RED_ON_WHITE, COLOR_RED, COLOR_WHITE);
     init_pair(BLUE_ON_WHITE, COLOR_BLUE, COLOR_WHITE);
     init_pair(BLACK_ON_WHITE, COLOR_BLACK, COLOR_WHITE);
-
-#ifndef COLOR_PAIR
-    letters[0] = OR_COLORS('h', RED_ON_WHITE);	/* hearts */
-    letters[1] = OR_COLORS('s', BLACK_ON_WHITE);	/* spades */
-    letters[2] = OR_COLORS('d', RED_ON_WHITE);	/* diamonds */
-    letters[3] = OR_COLORS('c', BLACK_ON_WHITE);	/* clubs */
-#if USE_CP437
-    glyphs[0] = PC_COLORS('\003', RED_ON_WHITE);	/* hearts */
-    glyphs[1] = PC_COLORS('\006', BLACK_ON_WHITE);	/* spades */
-    glyphs[2] = PC_COLORS('\004', RED_ON_WHITE);	/* diamonds */
-    glyphs[3] = PC_COLORS('\005', BLACK_ON_WHITE);	/* clubs */
-#endif
-#endif
-
-#if USE_CP437
-    if (tigetstr("smpch"))
-	suits = glyphs;
-#endif /* USE_CP437 */
 
     cbreak();
 

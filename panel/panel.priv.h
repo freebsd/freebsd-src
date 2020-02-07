@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2014,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,10 +26,11 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-/* $Id: panel.priv.h,v 1.25 2012/12/15 23:57:43 tom Exp $ */
+/* $Id: panel.priv.h,v 1.27 2017/02/11 16:50:43 tom Exp $ */
 
 #ifndef NCURSES_PANEL_PRIV_H
 #define NCURSES_PANEL_PRIV_H 1
+/* *INDENT-OFF* */
 
 #if HAVE_CONFIG_H
 #  include <ncurses_cfg.h>
@@ -42,15 +43,10 @@
 struct screen;              /* forward declaration */
 
 #include "curses.priv.h"    /* includes nc_panel.h */
+
+#define NCURSES_OPAQUE_PANEL 0
+
 #include "panel.h"
-
-
-#if USE_RCS_IDS
-#  define MODULE_ID(id) static const char Ident[] = id;
-#else
-#  define MODULE_ID(id) /*nothing*/
-#endif
-
 
 #ifdef TRACE
    extern NCURSES_EXPORT(const char *) _nc_my_visbuf (const void *);
@@ -60,7 +56,7 @@ struct screen;              /* forward declaration */
 #    define USER_PTR(ptr) _nc_my_visbuf((const char *)ptr)
 #  endif
 
-#  define returnPanel(code)	TRACE_RETURN(code,panel)
+#  define returnPanel(code)	TRACE_RETURN1(code,panel)
 
    extern NCURSES_EXPORT(PANEL *) _nc_retrace_panel (PANEL *);
    extern NCURSES_EXPORT(void) _nc_dPanel (const char*, const PANEL*);
@@ -210,5 +206,6 @@ struct screen;              /* forward declaration */
 /* These may become later renamed and part of panel.h and the public API */
 extern NCURSES_EXPORT(void) NCURSES_SP_NAME(_nc_update_panels)(SCREEN*);
 #endif
+/* *INDENT-ON* */
 
 #endif /* NCURSES_PANEL_PRIV_H */

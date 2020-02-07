@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,14 +27,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_current.3x,v 1.13 2010/12/04 18:40:45 tom Exp $
+.\" $Id: mitem_current.3x,v 1.16 2019/03/23 21:47:36 tom Exp $
 .TH mitem_current 3X ""
 .SH NAME
 \fBmitem_current\fR \- set and get current_menu_item
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
 .br
-int set_current_item(MENU *menu, const ITEM *item);
+int set_current_item(MENU *menu, ITEM *item);
 .br
 ITEM *current_item(const MENU *menu);
 .br
@@ -46,13 +46,16 @@ int item_index(const ITEM *item);
 .br
 .SH DESCRIPTION
 The function \fBset_current_item\fR sets the current item (the item on which
-the menu cursor is positioned).  \fBcurrent_item\fR returns a pointer to the
+the menu cursor is positioned).
+\fBcurrent_item\fR returns a pointer to the
 current item in the given menu.
 .PP
 The function \fBset_top_row\fR sets the top row of the menu to show the given
 row (the top row is initially 0, and is reset to this value whenever the
-\fBO_ROWMAJOR\fR option is toggled).  The item leftmost on the given row
-becomes current.  The function \fBtop_row\fR returns the number of the top menu
+\fBO_ROWMAJOR\fR option is toggled).
+The item leftmost on the given row
+becomes current.
+The function \fBtop_row\fR returns the number of the top menu
 row being displayed.
 .PP
 The function \fBitem_index\fR returns the (zero-origin) index of \fIitem\fR in
@@ -79,18 +82,19 @@ Routine was called from an initialization or termination function.
 No items are connected to the menu.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).
 .SH NOTES
 The header file \fB<menu.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V menu library.  They were not supported on
+These routines emulate the System V menu library.
+They were not supported on
 Version 7 or BSD versions.
 .PP
 The SVr4 menu library documentation specifies the \fBtop_row\fR and
 \fBindex_item\fR error value as \-1 (which is the value of \fBERR\fR).
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

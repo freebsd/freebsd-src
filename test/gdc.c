@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +33,7 @@
  * modified 10-18-89 for curses (jrl)
  * 10-18-89 added signal handling
  *
- * $Id: gdc.c,v 1.40 2014/02/15 17:34:36 tom Exp $
+ * $Id: gdc.c,v 1.53 2019/12/14 23:25:29 tom Exp $
  */
 
 #include <test.priv.h>
@@ -66,7 +66,7 @@ sighndl(int signo)
     signal(signo, sighndl);
     sigtermed = signo;
     if (redirected) {
-	endwin();
+	stop_curses();
 	ExitProgram(EXIT_FAILURE);
     }
 }
@@ -76,7 +76,7 @@ check_term(void)
 {
     if (sigtermed) {
 	(void) standend();
-	endwin();
+	stop_curses();
 	fprintf(stderr, "gdc terminated by signal %d\n", sigtermed);
 	ExitProgram(EXIT_FAILURE);
     }
@@ -86,10 +86,9 @@ static void
 drawbox(bool scrolling)
 {
     chtype bottom[XLENGTH + 1];
-    int n;
 
     if (hascolor)
-	(void) attrset((attr_t) COLOR_PAIR(PAIR_FRAMES));
+	(void) attrset(AttrArg(COLOR_PAIR(PAIR_FRAMES), 0));
 
     MvAddCh(YBASE - 1, XBASE - 1, ACS_ULCORNER);
     hline(ACS_HLINE, XLENGTH);
@@ -97,6 +96,7 @@ drawbox(bool scrolling)
 
     MvAddCh(YBASE + YDEPTH, XBASE - 1, ACS_LLCORNER);
     if ((mvinchnstr(YBASE + YDEPTH, XBASE, bottom, XLENGTH)) != ERR) {
+	int n;
 	for (n = 0; n < XLENGTH; n++) {
 	    if (!scrolling)
 		bottom[n] &= ~A_COLOR;
@@ -113,7 +113,7 @@ drawbox(bool scrolling)
     vline(ACS_VLINE, YDEPTH);
 
     if (hascolor)
-	(void) attrset((attr_t) COLOR_PAIR(PAIR_OTHERS));
+	(void) attrset(AttrArg(COLOR_PAIR(PAIR_OTHERS), 0));
 }
 
 static void
@@ -121,13 +121,13 @@ standt(int on)
 {
     if (on) {
 	if (hascolor) {
-	    attron((attr_t) COLOR_PAIR(PAIR_DIGITS));
+	    attron(COLOR_PAIR(PAIR_DIGITS));
 	} else {
 	    attron(A_STANDOUT);
 	}
     } else {
 	if (hascolor) {
-	    attron((attr_t) COLOR_PAIR(PAIR_OTHERS));
+	    attron(COLOR_PAIR(PAIR_OTHERS));
 	} else {
 	    attroff(A_STANDOUT);
 	}
@@ -156,8 +156,11 @@ usage(void)
 	"Usage: gdc [options] [count]"
 	,""
 	,"Options:"
-	,"  -n  redirect input to /dev/null"
-	,"  -s  scroll each number into place, rather than flipping"
+#if HAVE_USE_DEFAULT_COLORS
+	,"  -d       invoke use_default_colors"
+#endif
+	,"  -n       redirect input to /dev/null"
+	,"  -s       scroll each number into place, rather than flipping"
 	,"  -t hh:mm:ss specify starting time (default is ``now'')"
 	,""
 	,"If you specify a count, gdc runs for that number of seconds"
@@ -218,13 +221,19 @@ main(int argc, char *argv[])
     bool smooth = FALSE;
     bool stages = FALSE;
     time_t starts = 0;
+#if HAVE_USE_DEFAULT_COLORS
+    bool d_option = FALSE;
+#endif
 
     setlocale(LC_ALL, "");
 
-    CATCHALL(sighndl);
-
-    while ((k = getopt(argc, argv, "nst:")) != -1) {
+    while ((k = getopt(argc, argv, "dnst:")) != -1) {
 	switch (k) {
+#if HAVE_USE_DEFAULT_COLORS
+	case 'd':
+	    d_option = TRUE;
+	    break;
+#endif
 	case 'n':
 	    ifp = fopen("/dev/null", "r");
 	    redirected = TRUE;
@@ -242,21 +251,24 @@ main(int argc, char *argv[])
     if (optind < argc) {
 	count = atoi(argv[optind++]);
 	assert(count >= 0);
+	if (optind < argc)
+	    usage();
     }
-    if (optind < argc)
-	usage();
 
-    if (redirected) {
-	char *name = getenv("TERM");
-	if (name == 0
-	    || newterm(name, ofp, ifp) == 0) {
-	    fprintf(stderr, "cannot open terminal\n");
-	    ExitProgram(EXIT_FAILURE);
+    InitAndCatch({
+	if (redirected) {
+	    char *name = getenv("TERM");
+	    if (name == 0
+		|| newterm(name, ofp, ifp) == 0) {
+		fprintf(stderr, "cannot open terminal\n");
+		ExitProgram(EXIT_FAILURE);
+	    }
+	} else {
+	    initscr();
 	}
-
-    } else {
-	initscr();
     }
+    ,sighndl);
+
     cbreak();
     noecho();
     nodelay(stdscr, 1);
@@ -268,13 +280,13 @@ main(int argc, char *argv[])
 	short bg = COLOR_BLACK;
 	start_color();
 #if HAVE_USE_DEFAULT_COLORS
-	if (use_default_colors() == OK)
+	if (d_option && (use_default_colors() == OK))
 	    bg = -1;
 #endif
 	init_pair(PAIR_DIGITS, COLOR_BLACK, COLOR_RED);
 	init_pair(PAIR_OTHERS, COLOR_RED, bg);
 	init_pair(PAIR_FRAMES, COLOR_WHITE, bg);
-	(void) attrset((attr_t) COLOR_PAIR(PAIR_OTHERS));
+	(void) attrset(AttrArg(COLOR_PAIR(PAIR_OTHERS), 0));
     }
 
   restart:
@@ -379,8 +391,12 @@ main(int argc, char *argv[])
 	}
 
 	/* this depends on the detailed format of ctime(3) */
-	(void) strncpy(buf, ctime(&now), (size_t) 30);
-	(void) strcpy(buf + 10, buf + 19);
+	_nc_STRNCPY(buf, ctime(&now), (size_t) 30);
+	{
+	    char *d2 = buf + 10;
+	    char *s2 = buf + 19;
+	    while ((*d2++ = *s2++) != '\0') ;
+	}
 	MvAddStr(16, 30, buf);
 
 	move(6, 0);
@@ -431,6 +447,6 @@ main(int argc, char *argv[])
 	}
     } while (--count);
     (void) standend();
-    endwin();
+    stop_curses();
     ExitProgram(EXIT_SUCCESS);
 }

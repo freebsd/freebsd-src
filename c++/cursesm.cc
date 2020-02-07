@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2005,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,9 +35,9 @@
 #include "cursesm.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesm.cc,v 1.23 2011/09/17 22:11:32 tom Exp $")
+MODULE_ID("$Id: cursesm.cc,v 1.25 2019/07/28 19:55:27 tom Exp $")
 
-NCursesMenuItem::~NCursesMenuItem()
+NCursesMenuItem::~NCursesMenuItem() THROWS(NCursesException)
 {
   if (item)
     OnError(::free_item(item));
@@ -49,7 +49,7 @@ NCursesMenuItem::action()
   return FALSE;
 }
 
-NCursesMenuCallbackItem::~NCursesMenuCallbackItem()
+NCursesMenuCallbackItem::~NCursesMenuCallbackItem() THROWS(NCursesException)
 {
 }
 
@@ -175,13 +175,13 @@ NCursesMenu::setDefaultAttributes()
   }
 }
 
-NCursesMenu::~NCursesMenu()
+NCursesMenu::~NCursesMenu() THROWS(NCursesException)
 {
   UserHook* hook = reinterpret_cast<UserHook*>(::menu_userptr(menu));
   delete hook;
   if (b_sub_owner) {
-    delete sub;
     ::set_menu_sub(menu, static_cast<WINDOW *>(0));
+    delete sub;
   }
   if (menu) {
     ITEM** itms = ::menu_items(menu);

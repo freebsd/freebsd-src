@@ -4,12 +4,12 @@ Section: misc
 Priority: optional
 Standards-Version: 3.8.4
 Build-Depends: debhelper (>= 5)
-Homepage: http://invisible-island.net/adacurses/
+Homepage: https://invisible-island.net/adacurses/
 
 Package: adacurses
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: AdaCurses - Ada95 binding for ncurses
+Description: Ada95 binding for ncurses
  This package installs as "adacurses" to avoid conflict with other packages.
  This is the Ada95 binding from the ncurses distribution.
  .

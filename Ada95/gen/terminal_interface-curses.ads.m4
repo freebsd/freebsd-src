@@ -9,7 +9,7 @@ include(M4MACRO)----------------------------------------------------------------
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -37,18 +37,23 @@ include(M4MACRO)----------------------------------------------------------------
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.44 $
---  $Date: 2011/03/19 23:05:56 $
+--  $Revision: 1.47 $
+--  $Date: 2014/05/24 21:31:57 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
-include(`Base_Defs')
 with System.Storage_Elements;
 with Interfaces.C;   --  We need this for some assertions.
 
+with Terminal_Interface.Curses_Constants;
+
 package Terminal_Interface.Curses is
    pragma Preelaborate (Terminal_Interface.Curses);
-include(`Linker_Options')
-include(`Version_Info')
+   pragma Linker_Options ("-lncurses" & Curses_Constants.DFT_ARG_SUFFIX);
+
+   Major_Version : constant := Curses_Constants.NCURSES_VERSION_MAJOR;
+   Minor_Version : constant := Curses_Constants.NCURSES_VERSION_MINOR;
+   NC_Version : String renames Curses_Constants.Version;
+
    type Window is private;
    Null_Window : constant Window;
 
@@ -65,24 +70,315 @@ include(`Version_Info')
    --  request codes.
 
    --  FIXME: The "-1" should be Curses_Err
-   subtype Real_Key_Code is Key_Code range -1 .. M4_KEY_MAX;
+   subtype Real_Key_Code is Key_Code range -1 .. Curses_Constants.KEY_MAX;
    --  This are the codes that potentially represent a real keystroke.
    --  Not all codes may be possible on a specific terminal. To check the
    --  availability of a special key, the Has_Key function is provided.
 
    subtype Special_Key_Code is Real_Key_Code
-     range M4_SPECIAL_FIRST .. Real_Key_Code'Last;
+     range Curses_Constants. KEY_MIN - 1 .. Real_Key_Code'Last;
    --  Type for a function- or special key number
 
    subtype Normal_Key_Code is Real_Key_Code range
      Character'Pos (Character'First) .. Character'Pos (Character'Last);
    --  This are the codes for regular (incl. non-graphical) characters.
 
+   --  For those who like to use the original key names we produce them were
+   --  they differ from the original.
+
    --  Constants for function- and special keys
-   --
-   Key_None                       : constant Special_Key_Code := M4_SPECIAL_FIRST;
-include(`Key_Definitions')
-   Key_Max                        : constant Special_Key_Code
+   Key_None                    : constant Special_Key_Code
+     := Curses_Constants.KEY_MIN - 1;
+   Key_Min                     : constant Special_Key_Code
+     := Curses_Constants.KEY_MIN;
+   Key_Break                   : constant Special_Key_Code
+     := Curses_Constants.KEY_BREAK;
+   KEY_DOWN                    : constant Special_Key_Code
+     := Curses_Constants.KEY_DOWN;
+   Key_Cursor_Down             : Special_Key_Code renames KEY_DOWN;
+   KEY_UP                      : constant Special_Key_Code
+     := Curses_Constants.KEY_UP;
+   Key_Cursor_Up               : Special_Key_Code renames KEY_UP;
+   KEY_LEFT                    : constant Special_Key_Code
+     := Curses_Constants.KEY_LEFT;
+   Key_Cursor_Left             : Special_Key_Code renames KEY_LEFT;
+   KEY_RIGHT                   : constant Special_Key_Code
+     := Curses_Constants.KEY_RIGHT;
+   Key_Cursor_Right            : Special_Key_Code renames KEY_RIGHT;
+   Key_Home                    : constant Special_Key_Code
+     := Curses_Constants.KEY_HOME;
+   Key_Backspace               : constant Special_Key_Code
+     := Curses_Constants.KEY_BACKSPACE;
+   Key_F0                      : constant Special_Key_Code
+     := Curses_Constants.KEY_F0;
+   Key_F1                      : constant Special_Key_Code
+     := Curses_Constants.KEY_F1;
+   Key_F2                      : constant Special_Key_Code
+     := Curses_Constants.KEY_F2;
+   Key_F3                      : constant Special_Key_Code
+     := Curses_Constants.KEY_F3;
+   Key_F4                      : constant Special_Key_Code
+     := Curses_Constants.KEY_F4;
+   Key_F5                      : constant Special_Key_Code
+     := Curses_Constants.KEY_F5;
+   Key_F6                      : constant Special_Key_Code
+     := Curses_Constants.KEY_F6;
+   Key_F7                      : constant Special_Key_Code
+     := Curses_Constants.KEY_F7;
+   Key_F8                      : constant Special_Key_Code
+     := Curses_Constants.KEY_F8;
+   Key_F9                      : constant Special_Key_Code
+     := Curses_Constants.KEY_F9;
+   Key_F10                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F10;
+   Key_F11                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F11;
+   Key_F12                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F12;
+   Key_F13                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F13;
+   Key_F14                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F14;
+   Key_F15                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F15;
+   Key_F16                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F16;
+   Key_F17                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F17;
+   Key_F18                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F18;
+   Key_F19                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F19;
+   Key_F20                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F20;
+   Key_F21                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F21;
+   Key_F22                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F22;
+   Key_F23                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F23;
+   Key_F24                     : constant Special_Key_Code
+     := Curses_Constants.KEY_F24;
+   KEY_DL                      : constant Special_Key_Code
+     := Curses_Constants.KEY_DL;
+   Key_Delete_Line             : Special_Key_Code renames KEY_DL;
+   KEY_IL                      : constant Special_Key_Code
+     := Curses_Constants.KEY_IL;
+   Key_Insert_Line             : Special_Key_Code renames KEY_IL;
+   KEY_DC                      : constant Special_Key_Code
+     := Curses_Constants.KEY_DC;
+   Key_Delete_Char             : Special_Key_Code renames KEY_DC;
+   KEY_IC                      : constant Special_Key_Code
+     := Curses_Constants.KEY_IC;
+   Key_Insert_Char             : Special_Key_Code renames KEY_IC;
+   KEY_EIC                     : constant Special_Key_Code
+     := Curses_Constants.KEY_EIC;
+   Key_Exit_Insert_Mode        : Special_Key_Code renames KEY_EIC;
+   KEY_CLEAR                   : constant Special_Key_Code
+     := Curses_Constants.KEY_CLEAR;
+   Key_Clear_Screen            : Special_Key_Code renames KEY_CLEAR;
+   KEY_EOS                     : constant Special_Key_Code
+     := Curses_Constants.KEY_EOS;
+   Key_Clear_End_Of_Screen     : Special_Key_Code renames KEY_EOS;
+   KEY_EOL                     : constant Special_Key_Code
+     := Curses_Constants.KEY_EOL;
+   Key_Clear_End_Of_Line       : Special_Key_Code renames KEY_EOL;
+   KEY_SF                      : constant Special_Key_Code
+     := Curses_Constants.KEY_SF;
+   Key_Scroll_1_Forward        : Special_Key_Code renames KEY_SF;
+   KEY_SR                      : constant Special_Key_Code
+     := Curses_Constants.KEY_SR;
+   Key_Scroll_1_Backward       : Special_Key_Code renames KEY_SR;
+   KEY_NPAGE                   : constant Special_Key_Code
+     := Curses_Constants.KEY_NPAGE;
+   Key_Next_Page               : Special_Key_Code renames KEY_NPAGE;
+   KEY_PPAGE                   : constant Special_Key_Code
+     := Curses_Constants.KEY_PPAGE;
+   Key_Previous_Page           : Special_Key_Code renames KEY_PPAGE;
+   KEY_STAB                    : constant Special_Key_Code
+     := Curses_Constants.KEY_STAB;
+   Key_Set_Tab                 : Special_Key_Code renames KEY_STAB;
+   KEY_CTAB                    : constant Special_Key_Code
+     := Curses_Constants.KEY_CTAB;
+   Key_Clear_Tab               : Special_Key_Code renames KEY_CTAB;
+   KEY_CATAB                   : constant Special_Key_Code
+     := Curses_Constants.KEY_CATAB;
+   Key_Clear_All_Tabs          : Special_Key_Code renames KEY_CATAB;
+   KEY_ENTER                   : constant Special_Key_Code
+     := Curses_Constants.KEY_ENTER;
+   Key_Enter_Or_Send           : Special_Key_Code renames KEY_ENTER;
+   KEY_SRESET                  : constant Special_Key_Code
+     := Curses_Constants.KEY_SRESET;
+   Key_Soft_Reset              : Special_Key_Code renames KEY_SRESET;
+   Key_Reset                   : constant Special_Key_Code
+     := Curses_Constants.KEY_RESET;
+   Key_Print                   : constant Special_Key_Code
+     := Curses_Constants.KEY_PRINT;
+   KEY_LL                      : constant Special_Key_Code
+     := Curses_Constants.KEY_LL;
+   Key_Bottom                  : Special_Key_Code renames KEY_LL;
+   KEY_A1                      : constant Special_Key_Code
+     := Curses_Constants.KEY_A1;
+   Key_Upper_Left_Of_Keypad    : Special_Key_Code renames KEY_A1;
+   KEY_A3                      : constant Special_Key_Code
+     := Curses_Constants.KEY_A3;
+   Key_Upper_Right_Of_Keypad   : Special_Key_Code renames KEY_A3;
+   KEY_B2                      : constant Special_Key_Code
+     := Curses_Constants.KEY_B2;
+   Key_Center_Of_Keypad        : Special_Key_Code renames KEY_B2;
+   KEY_C1                      : constant Special_Key_Code
+     := Curses_Constants.KEY_C1;
+   Key_Lower_Left_Of_Keypad    : Special_Key_Code renames KEY_C1;
+   KEY_C3                      : constant Special_Key_Code
+     := Curses_Constants.KEY_C3;
+   Key_Lower_Right_Of_Keypad   : Special_Key_Code renames KEY_C3;
+   KEY_BTAB                    : constant Special_Key_Code
+     := Curses_Constants.KEY_BTAB;
+   Key_Back_Tab                : Special_Key_Code renames KEY_BTAB;
+   KEY_BEG                     : constant Special_Key_Code
+     := Curses_Constants.KEY_BEG;
+   Key_Beginning               : Special_Key_Code renames KEY_BEG;
+   Key_Cancel                  : constant Special_Key_Code
+     := Curses_Constants.KEY_CANCEL;
+   Key_Close                   : constant Special_Key_Code
+     := Curses_Constants.KEY_CLOSE;
+   Key_Command                 : constant Special_Key_Code
+     := Curses_Constants.KEY_COMMAND;
+   Key_Copy                    : constant Special_Key_Code
+     := Curses_Constants.KEY_COPY;
+   Key_Create                  : constant Special_Key_Code
+     := Curses_Constants.KEY_CREATE;
+   Key_End                     : constant Special_Key_Code
+     := Curses_Constants.KEY_END;
+   Key_Exit                    : constant Special_Key_Code
+     := Curses_Constants.KEY_EXIT;
+   Key_Find                    : constant Special_Key_Code
+     := Curses_Constants.KEY_FIND;
+   Key_Help                    : constant Special_Key_Code
+     := Curses_Constants.KEY_HELP;
+   Key_Mark                    : constant Special_Key_Code
+     := Curses_Constants.KEY_MARK;
+   Key_Message                 : constant Special_Key_Code
+     := Curses_Constants.KEY_MESSAGE;
+   Key_Move                    : constant Special_Key_Code
+     := Curses_Constants.KEY_MOVE;
+   Key_Next                    : constant Special_Key_Code
+     := Curses_Constants.KEY_NEXT;
+   Key_Open                    : constant Special_Key_Code
+     := Curses_Constants.KEY_OPEN;
+   Key_Options                 : constant Special_Key_Code
+     := Curses_Constants.KEY_OPTIONS;
+   Key_Previous                : constant Special_Key_Code
+     := Curses_Constants.KEY_PREVIOUS;
+   Key_Redo                    : constant Special_Key_Code
+     := Curses_Constants.KEY_REDO;
+   Key_Reference               : constant Special_Key_Code
+     := Curses_Constants.KEY_REFERENCE;
+   Key_Refresh                 : constant Special_Key_Code
+     := Curses_Constants.KEY_REFRESH;
+   Key_Replace                 : constant Special_Key_Code
+     := Curses_Constants.KEY_REPLACE;
+   Key_Restart                 : constant Special_Key_Code
+     := Curses_Constants.KEY_RESTART;
+   Key_Resume                  : constant Special_Key_Code
+     := Curses_Constants.KEY_RESUME;
+   Key_Save                    : constant Special_Key_Code
+     := Curses_Constants.KEY_SAVE;
+   KEY_SBEG                    : constant Special_Key_Code
+     := Curses_Constants.KEY_SBEG;
+   Key_Shift_Begin             : Special_Key_Code renames KEY_SBEG;
+   KEY_SCANCEL                 : constant Special_Key_Code
+     := Curses_Constants.KEY_SCANCEL;
+   Key_Shift_Cancel            : Special_Key_Code renames KEY_SCANCEL;
+   KEY_SCOMMAND                : constant Special_Key_Code
+     := Curses_Constants.KEY_SCOMMAND;
+   Key_Shift_Command           : Special_Key_Code renames KEY_SCOMMAND;
+   KEY_SCOPY                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SCOPY;
+   Key_Shift_Copy              : Special_Key_Code renames KEY_SCOPY;
+   KEY_SCREATE                 : constant Special_Key_Code
+     := Curses_Constants.KEY_SCREATE;
+   Key_Shift_Create            : Special_Key_Code renames KEY_SCREATE;
+   KEY_SDC                     : constant Special_Key_Code
+     := Curses_Constants.KEY_SDC;
+   Key_Shift_Delete_Char       : Special_Key_Code renames KEY_SDC;
+   KEY_SDL                     : constant Special_Key_Code
+     := Curses_Constants.KEY_SDL;
+   Key_Shift_Delete_Line       : Special_Key_Code renames KEY_SDL;
+   Key_Select                  : constant Special_Key_Code
+     := Curses_Constants.KEY_SELECT;
+   KEY_SEND                    : constant Special_Key_Code
+     := Curses_Constants.KEY_SEND;
+   Key_Shift_End               : Special_Key_Code renames KEY_SEND;
+   KEY_SEOL                    : constant Special_Key_Code
+     := Curses_Constants.KEY_SEOL;
+   Key_Shift_Clear_End_Of_Line : Special_Key_Code renames KEY_SEOL;
+   KEY_SEXIT                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SEXIT;
+   Key_Shift_Exit              : Special_Key_Code renames KEY_SEXIT;
+   KEY_SFIND                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SFIND;
+   Key_Shift_Find              : Special_Key_Code renames KEY_SFIND;
+   KEY_SHELP                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SHELP;
+   Key_Shift_Help              : Special_Key_Code renames KEY_SHELP;
+   KEY_SHOME                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SHOME;
+   Key_Shift_Home              : Special_Key_Code renames KEY_SHOME;
+   KEY_SIC                     : constant Special_Key_Code
+     := Curses_Constants.KEY_SIC;
+   Key_Shift_Insert_Char       : Special_Key_Code renames KEY_SIC;
+   KEY_SLEFT                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SLEFT;
+   Key_Shift_Cursor_Left       : Special_Key_Code renames KEY_SLEFT;
+   KEY_SMESSAGE                : constant Special_Key_Code
+     := Curses_Constants.KEY_SMESSAGE;
+   Key_Shift_Message           : Special_Key_Code renames KEY_SMESSAGE;
+   KEY_SMOVE                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SMOVE;
+   Key_Shift_Move              : Special_Key_Code renames KEY_SMOVE;
+   KEY_SNEXT                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SNEXT;
+   Key_Shift_Next_Page         : Special_Key_Code renames KEY_SNEXT;
+   KEY_SOPTIONS                : constant Special_Key_Code
+     := Curses_Constants.KEY_SOPTIONS;
+   Key_Shift_Options           : Special_Key_Code renames KEY_SOPTIONS;
+   KEY_SPREVIOUS               : constant Special_Key_Code
+     := Curses_Constants.KEY_SPREVIOUS;
+   Key_Shift_Previous_Page     : Special_Key_Code renames KEY_SPREVIOUS;
+   KEY_SPRINT                  : constant Special_Key_Code
+     := Curses_Constants.KEY_SPRINT;
+   Key_Shift_Print             : Special_Key_Code renames KEY_SPRINT;
+   KEY_SREDO                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SREDO;
+   Key_Shift_Redo              : Special_Key_Code renames KEY_SREDO;
+   KEY_SREPLACE                : constant Special_Key_Code
+     := Curses_Constants.KEY_SREPLACE;
+   Key_Shift_Replace           : Special_Key_Code renames KEY_SREPLACE;
+   KEY_SRIGHT                  : constant Special_Key_Code
+     := Curses_Constants.KEY_SRIGHT;
+   Key_Shift_Cursor_Right      : Special_Key_Code renames KEY_SRIGHT;
+   KEY_SRSUME                  : constant Special_Key_Code
+     := Curses_Constants.KEY_SRSUME;
+   Key_Shift_Resume            : Special_Key_Code renames KEY_SRSUME;
+   KEY_SSAVE                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SSAVE;
+   Key_Shift_Save              : Special_Key_Code renames KEY_SSAVE;
+   KEY_SSUSPEND                : constant Special_Key_Code
+     := Curses_Constants.KEY_SSUSPEND;
+   Key_Shift_Suspend           : Special_Key_Code renames KEY_SSUSPEND;
+   KEY_SUNDO                   : constant Special_Key_Code
+     := Curses_Constants.KEY_SUNDO;
+   Key_Shift_Undo              : Special_Key_Code renames KEY_SUNDO;
+   Key_Suspend                 : constant Special_Key_Code
+     := Curses_Constants.KEY_SUSPEND;
+   Key_Undo                    : constant Special_Key_Code
+     := Curses_Constants.KEY_UNDO;
+   Key_Mouse                   : constant Special_Key_Code
+     := Curses_Constants.KEY_MOUSE;
+   Key_Resize                  : constant Special_Key_Code
+     := Curses_Constants.KEY_RESIZE;
+   Key_Max                     : constant Special_Key_Code
      := Special_Key_Code'Last;
 
    subtype User_Key_Code is Key_Code
@@ -90,12 +386,7 @@ include(`Key_Definitions')
    --  This is reserved for user defined key codes. The range between Key_Max
    --  and the first user code is reserved for subsystems like menu and forms.
 
-   --  For those who like to use the original key names we produce them were
-   --  they differ from the original. Please note that they may differ in
-   --  lower/upper case.
-include(`Old_Keys')dnl
-
-------------------------------------------------------------------------------
+   --------------------------------------------------------------------------
 
    type Color_Number is range -1 .. Integer (Interfaces.C.short'Last);
    for Color_Number'Size use Interfaces.C.short'Size;
@@ -104,7 +395,15 @@ include(`Old_Keys')dnl
    --  (potentially) definable colors. Some of those indices are
    --  predefined (see below), although they may not really exist.
 
-include(`Color_Defs')
+   Black   : constant Color_Number := Curses_Constants.COLOR_BLACK;
+   Red     : constant Color_Number := Curses_Constants.COLOR_RED;
+   Green   : constant Color_Number := Curses_Constants.COLOR_GREEN;
+   Yellow  : constant Color_Number := Curses_Constants.COLOR_YELLOW;
+   Blue    : constant Color_Number := Curses_Constants.COLOR_BLUE;
+   Magenta : constant Color_Number := Curses_Constants.COLOR_MAGENTA;
+   Cyan    : constant Color_Number := Curses_Constants.COLOR_CYAN;
+   White   : constant Color_Number := Curses_Constants.COLOR_WHITE;
+
    type RGB_Value is range 0 .. Integer (Interfaces.C.short'Last);
    for RGB_Value'Size use Interfaces.C.short'Size;
    --  Some system may allow to redefine a color by setting RGB values.
@@ -117,8 +416,73 @@ include(`Color_Defs')
    --  two colors described by Color_Numbers, one for the foreground and
    --  the other for the background
 
-include(`Character_Attribute_Set_Rep')
-   --  (n)curses uses all but the lowest 16 Bits for Attributes.
+   type Character_Attribute_Set is
+      record
+         Stand_Out               : Boolean;
+         Under_Line              : Boolean;
+         Reverse_Video           : Boolean;
+         Blink                   : Boolean;
+         Dim_Character           : Boolean;
+         Bold_Character          : Boolean;
+         Protected_Character     : Boolean;
+         Invisible_Character     : Boolean;
+         Alternate_Character_Set : Boolean;
+         Horizontal              : Boolean;
+         Left                    : Boolean;
+         Low                     : Boolean;
+         Right                   : Boolean;
+         Top                     : Boolean;
+         Vertical                : Boolean;
+      end record;
+
+   for Character_Attribute_Set use
+      record
+         Stand_Out at 0 range
+           Curses_Constants.A_STANDOUT_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_STANDOUT_Last - Curses_Constants.Attr_First;
+         Under_Line at 0 range
+           Curses_Constants.A_UNDERLINE_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_UNDERLINE_Last - Curses_Constants.Attr_First;
+         Reverse_Video at 0 range
+           Curses_Constants.A_REVERSE_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_REVERSE_Last - Curses_Constants.Attr_First;
+         Blink at 0 range
+           Curses_Constants.A_BLINK_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_BLINK_Last - Curses_Constants.Attr_First;
+         Dim_Character at 0 range
+           Curses_Constants.A_DIM_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_DIM_Last - Curses_Constants.Attr_First;
+         Bold_Character at 0 range
+           Curses_Constants.A_BOLD_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_BOLD_Last - Curses_Constants.Attr_First;
+         Protected_Character at 0 range
+           Curses_Constants.A_PROTECT_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_PROTECT_Last - Curses_Constants.Attr_First;
+         Invisible_Character at 0 range
+           Curses_Constants.A_INVIS_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_INVIS_Last - Curses_Constants.Attr_First;
+         Alternate_Character_Set at 0 range
+           Curses_Constants.A_ALTCHARSET_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_ALTCHARSET_Last - Curses_Constants.Attr_First;
+         Horizontal at 0 range
+           Curses_Constants.A_HORIZONTAL_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_HORIZONTAL_Last - Curses_Constants.Attr_First;
+         Left at 0 range
+           Curses_Constants.A_LEFT_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_LEFT_Last - Curses_Constants.Attr_First;
+         Low at 0 range
+           Curses_Constants.A_LOW_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_LOW_Last - Curses_Constants.Attr_First;
+         Right at 0 range
+           Curses_Constants.A_RIGHT_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_RIGHT_Last - Curses_Constants.Attr_First;
+         Top at 0 range
+           Curses_Constants.A_TOP_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_TOP_Last - Curses_Constants.Attr_First;
+         Vertical at 0 range
+           Curses_Constants.A_VERTICAL_First - Curses_Constants.Attr_First
+           .. Curses_Constants.A_VERTICAL_Last - Curses_Constants.Attr_First;
+      end record;
 
    Normal_Video : constant Character_Attribute_Set := (others => False);
 
@@ -128,17 +492,29 @@ include(`Character_Attribute_Set_Rep')
          Color : Color_Pair;
          Ch    : Character;
       end record;
-   pragma Convention (C, Attributed_Character);
+   pragma Convention (C_Pass_By_Copy, Attributed_Character);
    --  This is the counterpart for the chtype in C.
 
-include(`AC_Rep')
+   for Attributed_Character use
+      record
+         Ch    at 0 range Curses_Constants.A_CHARTEXT_First
+           .. Curses_Constants.A_CHARTEXT_Last;
+         Color at 0 range Curses_Constants.A_COLOR_First
+           .. Curses_Constants.A_COLOR_Last;
+         pragma Warnings (Off);
+         Attr  at 0 range Curses_Constants.Attr_First
+           .. Curses_Constants.Attr_Last;
+         pragma Warnings (On);
+      end record;
+   for Attributed_Character'Size use Curses_Constants.chtype_Size;
+
    Default_Character : constant Attributed_Character
      := (Ch    => Character'First,
          Color => Color_Pair'First,
          Attr  => (others => False));  --  preelaboratable Normal_Video
 
    type Attributed_String is array (Positive range <>) of Attributed_Character;
-   pragma Pack (Attributed_String);
+   pragma Convention (C, Attributed_String);
    --  In this binding we allow strings of attributed characters.
 
    ------------------
@@ -188,7 +564,78 @@ include(`AC_Rep')
    function Number_Of_Color_Pairs return Natural;
    pragma Inline (Number_Of_Color_Pairs);
 
-include(`ACS_Map')dnl
+   subtype ACS_Index is Character range
+     Character'Val (0) .. Character'Val (127);
+   function ACS_Map (Index : ACS_Index) return Attributed_Character;
+   pragma Import (C, ACS_Map, "acs_map_as_function");
+
+   --  Constants for several characters from the Alternate Character Set
+   --  You must use these constants as indices into the ACS_Map function
+   --  to get the corresponding attributed character at runtime
+   ACS_Upper_Left_Corner  : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_ULCORNER);
+   ACS_Lower_Left_Corner  : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_LLCORNER);
+   ACS_Upper_Right_Corner : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_URCORNER);
+   ACS_Lower_Right_Corner : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_LRCORNER);
+   ACS_Left_Tee           : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_LTEE);
+   ACS_Right_Tee          : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_RTEE);
+   ACS_Bottom_Tee         : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_BTEE);
+   ACS_Top_Tee            : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_TTEE);
+   ACS_Horizontal_Line    : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_HLINE);
+   ACS_Vertical_Line      : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_VLINE);
+   ACS_Plus_Symbol        : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_PLUS);
+   ACS_Scan_Line_1        : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_S1);
+   ACS_Scan_Line_9        : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_S9);
+   ACS_Diamond            : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_DIAMOND);
+   ACS_Checker_Board      : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_CKBOARD);
+   ACS_Degree             : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_DEGREE);
+   ACS_Plus_Minus         : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_PLMINUS);
+   ACS_Bullet             : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_BULLET);
+   ACS_Left_Arrow         : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_LARROW);
+   ACS_Right_Arrow        : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_RARROW);
+   ACS_Down_Arrow         : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_DARROW);
+   ACS_Up_Arrow           : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_UARROW);
+   ACS_Board_Of_Squares   : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_BOARD);
+   ACS_Lantern            : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_LANTERN);
+   ACS_Solid_Block        : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_BLOCK);
+   ACS_Scan_Line_3        : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_S3);
+   ACS_Scan_Line_7        : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_S7);
+   ACS_Less_Or_Equal      : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_LEQUAL);
+   ACS_Greater_Or_Equal   : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_GEQUAL);
+   ACS_PI                 : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_PI);
+   ACS_Not_Equal          : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_NEQUAL);
+   ACS_Sterling           : constant ACS_Index
+      := Character'Val (Curses_Constants.ACS_STERLING);
 
    --  MANPAGE(`curs_initscr.3x')
    --  | Not implemented: newterm, set_term, delscreen
@@ -196,11 +643,13 @@ include(`ACS_Map')dnl
    --  ANCHOR(`stdscr',`Standard_Window')
    function Standard_Window return Window;
    --  AKA
+   pragma Import (C, Standard_Window, "stdscr_as_function");
    pragma Inline (Standard_Window);
 
    --  ANCHOR(`curscr',`Current_Window')
    function Current_Window return Window;
    --  AKA
+   pragma Import (C, Current_Window, "curscr_as_function");
    pragma Inline (Current_Window);
 
    --  ANCHOR(`initscr()',`Init_Screen')
@@ -1476,6 +1925,8 @@ include(`ACS_Map')dnl
 
    --  MANPAGE(`default_colors.3x')
 
+   Default_Color : constant Color_Number := -1;
+
    --  ANCHOR(`use_default_colors()',`Use_Default_Colors')
    procedure Use_Default_Colors;
    --  AKA
@@ -1553,7 +2004,11 @@ private
    --  The next constants are generated and may be different on your
    --  architecture.
    --
-include(`Window_Offsets')dnl
+
+   Sizeof_Bool : constant := Curses_Constants.Sizeof_Bool;
+
+   type Curses_Bool is mod 2 ** Sizeof_Bool;
+
    Curses_Bool_False : constant Curses_Bool := 0;
 
 end Terminal_Interface.Curses;

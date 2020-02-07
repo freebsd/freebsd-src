@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1999-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1999-2016,2018 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@
 .\"
 .\" Author: Thomas E. Dickey 1999-on
 .\"
-.\" $Id: curs_extend.3x,v 1.19 2010/12/04 18:36:44 tom Exp $
+.\" $Id: curs_extend.3x,v 1.22 2018/07/28 21:34:06 tom Exp $
 .TH curs_extend 3X ""
 .SH NAME
 \fBcurses_version\fP,
@@ -43,14 +43,14 @@
 .SH DESCRIPTION
 These functions are extensions to the curses library
 which do not fit easily into other categories.
+.SS curses_version
 .PP
-Use
-.I curses_version()
+Use \fBcurses_version\fP
 to get the version number, including patch level of the library, e.g.,
 .B 5.0.19991023
+.SS use_extended_names
 .PP
-The
-.I use_extended_names()
+The \fBuse_extended_names\fP
 function controls whether the calling application
 is able to use user-defined or nonstandard names
 which may be compiled into the terminfo
@@ -60,9 +60,18 @@ is made by using the \fB\-x\fP option of \fB@TIC@\fP to compile
 extended terminal definitions.
 However you can disable this feature
 to ensure compatibility with other implementations of curses.
+.SH RETURN VALUE
+.PP
+\fBcurses_version\fP returns a pointer to static memory; you should not free
+this in your application.
+.PP
+\fBuse_extended_names\fP returns the previous state, allowing you to
+save this and restore it.
 .SH PORTABILITY
-These routines are specific to ncurses.  They were not supported on
-Version 7, BSD or System V implementations.  It is recommended that
+These routines are specific to ncurses.
+They were not supported on
+Version 7, BSD or System V implementations.
+It is recommended that
 any code depending on them be conditioned using NCURSES_VERSION.
 .SH SEE ALSO
 \fBcurs_getch\fR(3X),

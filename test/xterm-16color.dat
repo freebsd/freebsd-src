@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 2004,2006 Free Software Foundation, Inc.                     #
+# Copyright (c) 2004-2006,2016 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +25,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: xterm-16color.dat,v 1.2 2006/04/22 21:40:00 tom Exp $
+# $Id: xterm-16color.dat,v 1.3 2016/12/10 22:34:58 tom Exp $
 # This illustrates the predefined colors for XFree86 xterm's "xterm-16color". 
 # If you set $TERM to "xterm-88color" (and have xterm compiled to support the
 # 88-color or 256-color feature), you can use the ncurses 'd' screen to
@@ -33,13 +33,13 @@
 # the first 16 colors, and xterm happens to use the same first 16 colors in
 # the extended color models that support initc.
 #
-# The colors shown are for xterm patch #189.
+# The colors shown are for xterm patch #192.
 scale:255
 0:	  0   0   0		black
 1:	205   0	  0		red3
 2:	  0 205	  0		green3
 3:	205 205	  0		yellow3
-4:	 30 144 255		DodgerBlue1
+4:	  0   0 238		blue2
 5:	205   0 205		magenta3
 6:	  0 205 205		cyan3
 7:	229 229 229 		gray90
@@ -47,7 +47,7 @@ scale:255
 9:	255   0   0		red
 10:	  0 255   0		green
 11:	255 255   0		yellow
-12:	 99 184 255		SteelBlue1
+12:	 92  92 255		customblue
 13:	255   0 255		magenta
 14:	  0 255 255		cyan
 15:	255 255 255		white

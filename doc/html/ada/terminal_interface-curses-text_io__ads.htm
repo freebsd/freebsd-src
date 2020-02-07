@@ -58,7 +58,7 @@
 <b>with</b> Ada.Text_IO;
 <b>with</b> Ada.IO_Exceptions;
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<span class="symbol"><A NAME="ref_44_35" HREF="terminal_interface-curses-text_io__adb.htm#ref_42_40">Text_IO</A></span> <b>is</b>
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<span class="symbol"><A NAME="ref_44_35" HREF="terminal_interface-curses-text_io__adb.htm#ref_42_40">Text_IO</A></span> <b>is</b>
 
    <b>use</b> <b>type</b> Ada.Text_IO.Count;
    <b>subtype</b> <span class="symbol"><A NAME="ref_47_12">Count</A></span> <b>is</b> Ada.Text_IO.Count;
@@ -73,13 +73,13 @@
    <span class="comment"><EM>--  type parameter. They will operate on a default window, which can</EM></span>
    <span class="comment"><EM>--  be set by the user. It is initially equal to Standard_Window.</EM></span>
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_59_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_46_14">Set_Window</A></span> (<span class="symbol"><A NAME="ref_59_26" HREF="terminal_interface-curses-text_io__adb.htm#ref_46_26">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_59_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_46_14">Set_Window</A></span> (<span class="symbol"><A NAME="ref_59_26" HREF="terminal_interface-curses-text_io__adb.htm#ref_46_26">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>);
    <span class="comment"><EM>--  Set Win as the default window</EM></span>
 
-   <b>function</b> <span class="symbol"><A NAME="ref_62_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_52_13">Get_Window</A></span> <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;
+   <b>function</b> <span class="symbol"><A NAME="ref_62_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_52_13">Get_Window</A></span> <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>;
    <span class="comment"><EM>--  Get the current default window</EM></span>
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_65_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_63_14">Flush</A></span> (<span class="symbol"><A NAME="ref_65_21" HREF="terminal_interface-curses-text_io__adb.htm#ref_63_21">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_65_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_63_14">Flush</A></span> (<span class="symbol"><A NAME="ref_65_21" HREF="terminal_interface-curses-text_io__adb.htm#ref_63_21">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>);
    <b>procedure</b> <span class="symbol"><A NAME="ref_66_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_69_14">Flush</A></span>;
 
    <span class="comment"><EM>--------------------------------------------</EM></span>
@@ -91,49 +91,49 @@
    <span class="comment"><EM>--  A scroll-window is interpreted as an page with unbounded page length,</EM></span>
    <span class="comment"><EM>--  i.e. it returns the conventional 0 as page length.</EM></span>
 
-   <b>function</b> <span class="symbol"><A NAME="ref_77_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_84_13">Line_Length</A></span> (<span class="symbol"><A NAME="ref_77_26" HREF="terminal_interface-curses-text_io__adb.htm#ref_84_26">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A>;
+   <b>function</b> <span class="symbol"><A NAME="ref_77_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_84_13">Line_Length</A></span> (<span class="symbol"><A NAME="ref_77_26" HREF="terminal_interface-curses-text_io__adb.htm#ref_84_26">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A>;
    <b>function</b> <span class="symbol"><A NAME="ref_78_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_96_13">Line_Length</A></span> <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A>;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_80_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_102_13">Page_Length</A></span> (<span class="symbol"><A NAME="ref_80_26" HREF="terminal_interface-curses-text_io__adb.htm#ref_102_26">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A>;
+   <b>function</b> <span class="symbol"><A NAME="ref_80_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_102_13">Page_Length</A></span> (<span class="symbol"><A NAME="ref_80_26" HREF="terminal_interface-curses-text_io__adb.htm#ref_102_26">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A>;
    <b>function</b> <span class="symbol"><A NAME="ref_81_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_118_13">Page_Length</A></span> <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A>;
 
    <span class="comment"><EM>------------------------------------</EM></span>
    <span class="comment"><EM>-- Column, Line, and Page Control --</EM></span>
    <span class="comment"><EM>------------------------------------</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_86_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_127_14">New_Line</A></span> (<span class="symbol"><A NAME="ref_86_24" HREF="terminal_interface-curses-text_io__adb.htm#ref_127_24">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>; <span class="symbol"><A NAME="ref_86_38" HREF="terminal_interface-curses-text_io__adb.htm#ref_127_38">Spacing</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A> := 1);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_86_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_127_14">New_Line</A></span> (<span class="symbol"><A NAME="ref_86_24" HREF="terminal_interface-curses-text_io__adb.htm#ref_127_24">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>; <span class="symbol"><A NAME="ref_86_38" HREF="terminal_interface-curses-text_io__adb.htm#ref_127_38">Spacing</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A> := 1);
    <b>procedure</b> <span class="symbol"><A NAME="ref_87_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_144_14">New_Line</A></span> (<span class="symbol"><A NAME="ref_87_24" HREF="terminal_interface-curses-text_io__adb.htm#ref_144_24">Spacing</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A> := 1);
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_89_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_150_14">New_Page</A></span> (<span class="symbol"><A NAME="ref_89_24" HREF="terminal_interface-curses-text_io__adb.htm#ref_150_24">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_89_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_150_14">New_Page</A></span> (<span class="symbol"><A NAME="ref_89_24" HREF="terminal_interface-curses-text_io__adb.htm#ref_150_24">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>);
    <b>procedure</b> <span class="symbol"><A NAME="ref_90_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_156_14">New_Page</A></span>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_92_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_162_14">Set_Col</A></span> (<span class="symbol"><A NAME="ref_92_23" HREF="terminal_interface-curses-text_io__adb.htm#ref_162_23">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;  <span class="symbol"><A NAME="ref_92_38" HREF="terminal_interface-curses-text_io__adb.htm#ref_162_38">To</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_92_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_162_14">Set_Col</A></span> (<span class="symbol"><A NAME="ref_92_23" HREF="terminal_interface-curses-text_io__adb.htm#ref_162_23">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>;  <span class="symbol"><A NAME="ref_92_38" HREF="terminal_interface-curses-text_io__adb.htm#ref_162_38">To</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>);
    <b>procedure</b> <span class="symbol"><A NAME="ref_93_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_190_14">Set_Col</A></span> (<span class="symbol"><A NAME="ref_93_23" HREF="terminal_interface-curses-text_io__adb.htm#ref_190_23">To</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>);
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_95_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_196_14">Set_Line</A></span> (<span class="symbol"><A NAME="ref_95_24" HREF="terminal_interface-curses-text_io__adb.htm#ref_196_24">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>; <span class="symbol"><A NAME="ref_95_38" HREF="terminal_interface-curses-text_io__adb.htm#ref_196_38">To</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_95_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_196_14">Set_Line</A></span> (<span class="symbol"><A NAME="ref_95_24" HREF="terminal_interface-curses-text_io__adb.htm#ref_196_24">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>; <span class="symbol"><A NAME="ref_95_38" HREF="terminal_interface-curses-text_io__adb.htm#ref_196_38">To</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>);
    <b>procedure</b> <span class="symbol"><A NAME="ref_96_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_220_14">Set_Line</A></span> (<span class="symbol"><A NAME="ref_96_24" HREF="terminal_interface-curses-text_io__adb.htm#ref_220_24">To</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>);
 
-   <b>function</b> <span class="symbol"><A NAME="ref_98_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_226_13">Col</A></span> (<span class="symbol"><A NAME="ref_98_18" HREF="terminal_interface-curses-text_io__adb.htm#ref_226_18">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>;
+   <b>function</b> <span class="symbol"><A NAME="ref_98_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_226_13">Col</A></span> (<span class="symbol"><A NAME="ref_98_18" HREF="terminal_interface-curses-text_io__adb.htm#ref_226_18">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>;
    <b>function</b> <span class="symbol"><A NAME="ref_99_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_240_13">Col</A></span> <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_101_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_246_13">Line</A></span> (<span class="symbol"><A NAME="ref_101_19" HREF="terminal_interface-curses-text_io__adb.htm#ref_246_19">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>;
+   <b>function</b> <span class="symbol"><A NAME="ref_101_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_246_13">Line</A></span> (<span class="symbol"><A NAME="ref_101_19" HREF="terminal_interface-curses-text_io__adb.htm#ref_246_19">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>;
    <b>function</b> <span class="symbol"><A NAME="ref_102_13" HREF="terminal_interface-curses-text_io__adb.htm#ref_260_13">Line</A></span> <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>;
 
    <span class="comment"><EM>-----------------------</EM></span>
    <span class="comment"><EM>-- Characters-Output --</EM></span>
    <span class="comment"><EM>-----------------------</EM></span>
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_108_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_270_14">Put</A></span> (<span class="symbol"><A NAME="ref_108_19" HREF="terminal_interface-curses-text_io__adb.htm#ref_270_19">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>; <span class="symbol"><A NAME="ref_108_34" HREF="terminal_interface-curses-text_io__adb.htm#ref_270_34">Item</A></span> : Character);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_108_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_270_14">Put</A></span> (<span class="symbol"><A NAME="ref_108_19" HREF="terminal_interface-curses-text_io__adb.htm#ref_270_19">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>; <span class="symbol"><A NAME="ref_108_34" HREF="terminal_interface-curses-text_io__adb.htm#ref_270_34">Item</A></span> : Character);
    <b>procedure</b> <span class="symbol"><A NAME="ref_109_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_288_14">Put</A></span> (<span class="symbol"><A NAME="ref_109_19" HREF="terminal_interface-curses-text_io__adb.htm#ref_288_19">Item</A></span> : Character);
 
    <span class="comment"><EM>--------------------</EM></span>
    <span class="comment"><EM>-- Strings-Output --</EM></span>
    <span class="comment"><EM>--------------------</EM></span>
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_115_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_298_14">Put</A></span> (<span class="symbol"><A NAME="ref_115_19" HREF="terminal_interface-curses-text_io__adb.htm#ref_298_19">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>; <span class="symbol"><A NAME="ref_115_34" HREF="terminal_interface-curses-text_io__adb.htm#ref_298_34">Item</A></span> : String);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_115_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_298_14">Put</A></span> (<span class="symbol"><A NAME="ref_115_19" HREF="terminal_interface-curses-text_io__adb.htm#ref_298_19">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>; <span class="symbol"><A NAME="ref_115_34" HREF="terminal_interface-curses-text_io__adb.htm#ref_298_34">Item</A></span> : String);
    <b>procedure</b> <span class="symbol"><A NAME="ref_116_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_316_14">Put</A></span> (<span class="symbol"><A NAME="ref_116_19" HREF="terminal_interface-curses-text_io__adb.htm#ref_316_19">Item</A></span> : String);
 
    <b>procedure</b> <span class="symbol"><A NAME="ref_118_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_322_14">Put_Line</A></span>
-     (<span class="symbol"><A NAME="ref_119_7" HREF="terminal_interface-curses-text_io__adb.htm#ref_323_7">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;
+     (<span class="symbol"><A NAME="ref_119_7" HREF="terminal_interface-curses-text_io__adb.htm#ref_323_7">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>;
       <span class="symbol"><A NAME="ref_120_7" HREF="terminal_interface-curses-text_io__adb.htm#ref_324_7">Item</A></span> : String);
 
    <b>procedure</b> <span class="symbol"><A NAME="ref_122_14" HREF="terminal_interface-curses-text_io__adb.htm#ref_331_14">Put_Line</A></span>
@@ -150,5 +150,5 @@
    <span class="symbol"><A NAME="ref_133_4">Data_Error</A></span>   : <b>exception</b> <b>renames</b> Ada.IO_Exceptions.Data_Error;
    <span class="symbol"><A NAME="ref_134_4">Layout_Error</A></span> : <b>exception</b> <b>renames</b> Ada.IO_Exceptions.Layout_Error;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>;
 </PRE></BODY></HTML>

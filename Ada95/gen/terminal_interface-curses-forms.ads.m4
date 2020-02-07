@@ -10,7 +10,7 @@ include(M4MACRO)dnl
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -38,18 +38,17 @@ include(M4MACRO)dnl
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.30 $
---  $Date: 2009/12/26 17:31:35 $
+--  $Revision: 1.33 $
+--  $Date: 2014/05/24 21:31:57 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
-include(`Form_Base_Defs')
 with System;
 with Ada.Characters.Latin_1;
 
 package Terminal_Interface.Curses.Forms is
    pragma Preelaborate (Terminal_Interface.Curses.Forms);
-include(`Form_Linker_Options')dnl
-include(`Linker_Options')
+   pragma Linker_Options ("-lform" & Curses_Constants.DFT_ARG_SUFFIX);
+
    Space : Character renames Ada.Characters.Latin_1.Space;
 
    type Field        is private;
@@ -63,18 +62,68 @@ include(`Linker_Options')
                                 Center,
                                 Right);
 
-   pragma Warnings (Off);
-include(`Field_Rep')Dnl
+   type Field_Option_Set is
+      record
+         Visible   : Boolean;
+         Active    : Boolean;
+         Public    : Boolean;
+         Edit      : Boolean;
+         Wrap      : Boolean;
+         Blank     : Boolean;
+         Auto_Skip : Boolean;
+         Null_Ok   : Boolean;
+         Pass_Ok   : Boolean;
+         Static    : Boolean;
+      end record;
+   pragma Convention (C_Pass_By_Copy, Field_Option_Set);
 
+   for Field_Option_Set use
+      record
+         Visible   at 0 range Curses_Constants.O_VISIBLE_First
+           .. Curses_Constants.O_VISIBLE_Last;
+         Active    at 0 range Curses_Constants.O_ACTIVE_First
+           .. Curses_Constants.O_ACTIVE_Last;
+         Public    at 0 range Curses_Constants.O_PUBLIC_First
+           .. Curses_Constants.O_PUBLIC_Last;
+         Edit      at 0 range Curses_Constants.O_EDIT_First
+           .. Curses_Constants.O_EDIT_Last;
+         Wrap      at 0 range Curses_Constants.O_WRAP_First
+           .. Curses_Constants.O_WRAP_Last;
+         Blank     at 0 range Curses_Constants.O_BLANK_First
+           .. Curses_Constants.O_BLANK_Last;
+         Auto_Skip at 0 range Curses_Constants.O_AUTOSKIP_First
+           .. Curses_Constants.O_AUTOSKIP_Last;
+         Null_Ok   at 0 range Curses_Constants.O_NULLOK_First
+           .. Curses_Constants.O_NULLOK_Last;
+         Pass_Ok   at 0 range Curses_Constants.O_PASSOK_First
+           .. Curses_Constants.O_PASSOK_Last;
+         Static    at 0 range Curses_Constants.O_STATIC_First
+           .. Curses_Constants.O_STATIC_Last;
+      end record;
+   pragma Warnings (Off);
+   for Field_Option_Set'Size use Curses_Constants.Field_Options_Size;
    pragma Warnings (On);
 
    function Default_Field_Options return Field_Option_Set;
    --  The initial defaults for the field options.
    pragma Inline (Default_Field_Options);
 
-   pragma Warnings (Off);
-include(`Form_Opt_Rep')Dnl
+   type Form_Option_Set is
+      record
+         NL_Overload : Boolean;
+         BS_Overload : Boolean;
+      end record;
+   pragma Convention (C_Pass_By_Copy, Form_Option_Set);
 
+   for Form_Option_Set use
+      record
+         NL_Overload at 0 range Curses_Constants.O_NL_OVERLOAD_First
+           .. Curses_Constants.O_NL_OVERLOAD_Last;
+         BS_Overload at 0 range Curses_Constants.O_BS_OVERLOAD_First
+           .. Curses_Constants.O_BS_OVERLOAD_Last;
+      end record;
+   pragma Warnings (Off);
+   for Form_Option_Set'Size use Curses_Constants.Field_Options_Size;
    pragma Warnings (On);
 
    function Default_Form_Options return Form_Option_Set;

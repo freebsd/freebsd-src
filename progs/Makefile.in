@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.90 2013/08/04 20:23:20 tom Exp $
+# $Id: Makefile.in,v 1.102 2018/01/15 19:28:45 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2016,2018 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -42,7 +42,7 @@
 # turn off _all_ suffix rules; we'll generate our own
 .SUFFIXES:
 
-SHELL		= /bin/sh
+SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
@@ -67,7 +67,10 @@ includesubdir	= @includesubdir@
 
 INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
 
+PACKAGE		= @PACKAGE@
+
 LIBTOOL		= @LIBTOOL@
+LIBTOOL_OPTS	= @LIBTOOL_OPTS@
 LIBTOOL_CLEAN	= @LIB_CLEAN@
 LIBTOOL_COMPILE	= @LIB_COMPILE@
 LIBTOOL_LINK	= @LIB_LINK@
@@ -75,7 +78,7 @@ LIBTOOL_INSTALL	= @LIB_INSTALL@
 LIBTOOL_UNINSTALL = @LIB_UNINSTALL@
 
 INSTALL		= @INSTALL@
-INSTALL_PROG	= @INSTALL_PROGRAM@
+INSTALL_PROG	= @INSTALL_PROGRAM@ @INSTALL_OPT_S@
 transform	= @program_transform_name@
 
 AWK		= @AWK@
@@ -89,7 +92,7 @@ CPP		= @CPP@
 CFLAGS		= @CFLAGS@
 
 INCDIR		= $(top_srcdir)/include
-CPPFLAGS	= -I../progs -I$(srcdir) -DHAVE_CONFIG_H @CPPFLAGS@
+CPPFLAGS	= -DHAVE_CONFIG_H -I../progs @CPPFLAGS@
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 
@@ -176,6 +179,7 @@ actual_tset      = `echo tset$x|      $(TRANSFORM)`
 
 # transformed names for comparing at runtime
 define_captoinfo = `echo captoinfo|   $(TRANSFORM)`
+define_clear     = `echo clear|       $(TRANSFORM)`
 define_infotocap = `echo infotocap|   $(TRANSFORM)`
 define_init      = `echo init|        $(TRANSFORM)`
 define_reset     = `echo reset|       $(TRANSFORM)`
@@ -185,9 +189,10 @@ transform.h :
 	echo "#define __TRANSFORM_H 1"					>>$@
 	echo "#include <progs.priv.h>"					>>$@
 	echo "extern bool same_program(const char *, const char *);"	>>$@
-	-sh -c 'if test -n "$x" ; then echo "#define SUFFIX_IGNORED \"$x\"">>$@; fi'
+	-$(SHELL) -c 'if test -n "$x" ; then echo "#define SUFFIX_IGNORED \"$x\"">>$@; fi'
 	echo "#define PROG_CAPTOINFO \"$(define_captoinfo)\""		>>$@
 	echo "#define PROG_INFOTOCAP \"$(define_infotocap)\""		>>$@
+	echo "#define PROG_CLEAR     \"$(define_clear)\""		>>$@
 	echo "#define PROG_RESET     \"$(define_reset)\""		>>$@
 	echo "#define PROG_INIT      \"$(define_init)\""		>>$@
 	echo "#endif /* __TRANSFORM_H */"				>>$@
@@ -232,6 +237,7 @@ $(DESTDIR)$(bindir) :
 DEPS_TIC = \
 	$(MODEL)/tic$o \
 	$(MODEL)/dump_entry$o \
+	$(MODEL)/tparm_type$o \
 	$(MODEL)/transform$o
 
 tic$x: $(DEPS_TIC) $(DEPS_CURSES) transform.h
@@ -244,20 +250,27 @@ toe$x: $(DEPS_TOE) $(DEPS_CURSES)
 	@ECHO_LD@ $(LINK) $(DEPS_TOE) $(LDFLAGS_TIC) -o $@
 
 DEPS_CLEAR = \
-	$(MODEL)/clear$o
+	$(MODEL)/clear$o \
+	$(MODEL)/clear_cmd$o \
+	$(MODEL)/tty_settings$o
 
 clear$x: $(DEPS_CLEAR) $(DEPS_CURSES)
 	@ECHO_LD@ $(LINK) $(DEPS_CLEAR) $(LDFLAGS_TINFO) -o $@
 
 DEPS_TABS = \
-	$(MODEL)/tabs$o
+	$(MODEL)/tabs$o \
+	$(MODEL)/tty_settings$o
 
 tabs$x: $(DEPS_TABS) $(DEPS_TABS)
 	@ECHO_LD@ $(LINK) $(DEPS_TABS) $(LDFLAGS_TINFO) -o $@
 
 DEPS_TPUT = \
 	$(MODEL)/tput$o \
-	$(MODEL)/transform$o
+	$(MODEL)/clear_cmd$o \
+	$(MODEL)/reset_cmd$o \
+	$(MODEL)/tparm_type$o \
+	$(MODEL)/transform$o \
+	$(MODEL)/tty_settings$o
 
 tput$x: $(DEPS_TPUT) $(DEPS_CURSES) transform.h
 	@ECHO_LD@ $(LINK) $(DEPS_TPUT) $(LDFLAGS_TINFO) -o $@
@@ -271,13 +284,15 @@ infocmp$x: $(DEPS_INFOCMP) $(DEPS_CURSES)
 
 DEPS_TSET = \
 	$(MODEL)/tset$o \
-	$(MODEL)/transform$o
+	$(MODEL)/reset_cmd$o \
+	$(MODEL)/transform$o \
+	$(MODEL)/tty_settings$o
 
 tset$x: $(DEPS_TSET) $(DEPS_CURSES) transform.h
 	@ECHO_LD@ $(LINK) $(DEPS_TSET) $(LDFLAGS_TINFO) -o $@
 
 termsort.c: $(srcdir)/MKtermsort.sh
-	sh $(srcdir)/MKtermsort.sh $(AWK) $(srcdir)/../include/@TERMINFO_CAPS@ >$@
+	$(SHELL) $(srcdir)/MKtermsort.sh $(AWK) $(srcdir)/../include/@TERMINFO_CAPS@ >$@
 
 #
 # Utility productions start here
@@ -293,10 +308,10 @@ mostlyclean ::
 	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace
 
 clean :: mostlyclean
-	-sh -c "if test -n '$x' ; then $(MAKE) clean x=''; fi"
+	-$(SHELL) -c "if test -n '$x' ; then $(MAKE) clean x=''; fi"
 	-rm -f $(AUTO_SRC)
 	-rm -f $(PROGS)
-	-rm -rf .libs
+	-rm -rf .libs *.dSYM
 
 distclean :: clean
 	-rm -f Makefile

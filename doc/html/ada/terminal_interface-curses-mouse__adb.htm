@@ -24,7 +24,7 @@
 <span class="comment"><EM>--                                 B O D Y                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright (c) 1998-2014,2018 Free Software Foundation, Inc.              --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,184 +52,183 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.24 @</EM></span>
-<span class="comment"><EM>--  @Date: 2009/12/26 17:38:58 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.26 @</EM></span>
+<span class="comment"><EM>--  @Date: 2018/07/07 23:35:05 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
-<b>with</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C; <b>use</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>.C;
-<b>use</b> <A HREF="interfac__ads.htm#ref_36_9">Interfaces</A>;
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
+<b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>;
 
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<span class="symbol"><A NAME="ref_46_40" HREF="terminal_interface-curses-mouse__ads.htm#ref_48_35">Mouse</A></span> <b>is</b>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<span class="symbol"><A NAME="ref_46_40" HREF="terminal_interface-curses-mouse__ads.htm#ref_44_35">Mouse</A></span> <b>is</b>
 
-   <b>use</b> <b>type</b> System.Bit_Order;
-
-   <b>function</b> <span class="symbol"><A NAME="ref_50_13" HREF="terminal_interface-curses-mouse__ads.htm#ref_94_13">Has_Mouse</A></span> <b>return</b> Boolean
+   <b>function</b> <span class="symbol"><A NAME="ref_48_13" HREF="terminal_interface-curses-mouse__ads.htm#ref_90_13">Has_Mouse</A></span> <b>return</b> Boolean
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_52_16">Mouse_Avail</A></span> <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_50_16">Mouse_Avail</A></span> <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>;
       <b>pragma</b> Import (C, Mouse_Avail, "has_mouse");
    <b>begin</b>
-      <b>if</b> <A HREF="terminal_interface-curses__ads.htm#ref_768_13">Has_Key</A> (<A HREF="terminal_interface-curses__ads.htm#ref_204_4">Key_Mouse</A>) <b>or</b> <b>else</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_52_16">Mouse_Avail</A> /= 0 <b>then</b>
+      <b>if</b> <A HREF="terminal_interface-curses__ads.htm#ref_937_13">Has_Key</A> (<A HREF="terminal_interface-curses__ads.htm#ref_375_4">Key_Mouse</A>) <b>or</b> <b>else</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_50_16">Mouse_Avail</A> /= 0 <b>then</b>
          <b>return</b> True;
       <b>else</b>
          <b>return</b> False;
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_94_13">Has_Mouse</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_90_13">Has_Mouse</A>;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_62_13" HREF="terminal_interface-curses-mouse__ads.htm#ref_129_13">Get_Mouse</A></span> <b>return</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_88_9">Mouse_Event</A>
+   <b>function</b> <span class="symbol"><A NAME="ref_60_13" HREF="terminal_interface-curses-mouse__ads.htm#ref_125_13">Get_Mouse</A></span> <b>return</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_84_9">Mouse_Event</A>
    <b>is</b>
-      <b>type</b> <span class="symbol"><A NAME="ref_64_12">Event_Access</A></span> <b>is</b> <b>access</b> <b>all</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_88_9">Mouse_Event</A>;
+      <b>type</b> <span class="symbol"><A NAME="ref_62_12">Event_Access</A></span> <b>is</b> <b>access</b> <b>all</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_84_9">Mouse_Event</A>;
 
-      <b>function</b> <span class="symbol"><A NAME="ref_66_16">Getmouse</A></span> (<span class="symbol"><A NAME="ref_66_26" HREF="terminal_interface-curses-mouse__adb.htm#ref_66_16">Ev</A></span> : <A HREF="terminal_interface-curses-mouse__adb.htm#ref_64_12">Event_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_64_16">Getmouse</A></span> (<span class="symbol"><A NAME="ref_64_26" HREF="terminal_interface-curses-mouse__adb.htm#ref_64_16">Ev</A></span> : <A HREF="terminal_interface-curses-mouse__adb.htm#ref_62_12">Event_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>;
       <b>pragma</b> Import (C, Getmouse, "getmouse");
 
-      <span class="symbol"><A NAME="ref_69_7">Event</A></span> : <b>aliased</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_88_9">Mouse_Event</A>;
+      <span class="symbol"><A NAME="ref_67_7">Event</A></span> : <b>aliased</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_84_9">Mouse_Event</A>;
    <b>begin</b>
-      <b>if</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_66_16">Getmouse</A> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_69_7">Event</A>'<b>Access</b>) = <A HREF="terminal_interface-curses-aux__ads.htm#ref_72_4">Curses_Err</A> <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_384_4">Curses_Exception</A>;
+      <b>if</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_64_16">Getmouse</A> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_67_7">Event</A>'<b>Access</b>) = <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_4">Curses_Err</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_521_4">Curses_Exception</A>;
       <b>end</b> <b>if</b>;
-      <b>return</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_69_7">Event</A>;
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_129_13">Get_Mouse</A>;
+      <b>return</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_67_7">Event</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_125_13">Get_Mouse</A>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_77_14" HREF="terminal_interface-curses-mouse__ads.htm#ref_97_14">Register_Reportable_Event</A></span> (<span class="symbol"><A NAME="ref_77_41" HREF="terminal_interface-curses-mouse__ads.htm#ref_98_7">Button</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_64_9">Mouse_Button</A>;
-                                        <span class="symbol"><A NAME="ref_78_41" HREF="terminal_interface-curses-mouse__ads.htm#ref_99_7">State</A></span>  : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_75_9">Button_State</A>;
-                                        <span class="symbol"><A NAME="ref_79_41" HREF="terminal_interface-curses-mouse__ads.htm#ref_100_7">Mask</A></span>   : <b>in</b> <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>)
+   <b>procedure</b> <span class="symbol"><A NAME="ref_75_14" HREF="terminal_interface-curses-mouse__ads.htm#ref_93_14">Register_Reportable_Event</A></span> (<span class="symbol"><A NAME="ref_75_41" HREF="terminal_interface-curses-mouse__ads.htm#ref_94_7">Button</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Mouse_Button</A>;
+                                        <span class="symbol"><A NAME="ref_76_41" HREF="terminal_interface-curses-mouse__ads.htm#ref_95_7">State</A></span>  : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_71_9">Button_State</A>;
+                                        <span class="symbol"><A NAME="ref_77_41" HREF="terminal_interface-curses-mouse__ads.htm#ref_96_7">Mask</A></span>   : <b>in</b> <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>)
    <b>is</b>
-      <span class="symbol"><A NAME="ref_81_7">Button_Nr</A></span> : <b>constant</b> Natural := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_64_9">Mouse_Button</A>'Pos (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_98_7">Button</A>);
-      <span class="symbol"><A NAME="ref_82_7">State_Nr</A></span>  : <b>constant</b> Natural := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_75_9">Button_State</A>'Pos (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_99_7">State</A>);
+      <span class="symbol"><A NAME="ref_79_7">Button_Nr</A></span> : <b>constant</b> Natural := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Mouse_Button</A>'Pos (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_94_7">Button</A>);
+      <span class="symbol"><A NAME="ref_80_7">State_Nr</A></span>  : <b>constant</b> Natural := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_71_9">Button_State</A>'Pos (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_95_7">State</A>);
    <b>begin</b>
-      <b>if</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_98_7">Button</A> <b>in</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_73_12">Modifier_Keys</A> <b>and</b> <b>then</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_99_7">State</A> /= <A HREF="terminal_interface-curses-mouse__ads.htm#ref_76_26">Pressed</A> <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_384_4">Curses_Exception</A>;
+      <b>if</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_94_7">Button</A> <b>in</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_69_12">Modifier_Keys</A> <b>and</b> <b>then</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_95_7">State</A> /= <A HREF="terminal_interface-curses-mouse__ads.htm#ref_72_26">Pressed</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_521_4">Curses_Exception</A>;
       <b>else</b>
-         <b>if</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_98_7">Button</A> <b>in</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_72_12">Real_Buttons</A> <b>then</b>
-            <A HREF="terminal_interface-curses-mouse__ads.htm#ref_100_7">Mask</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_100_7">Mask</A> <b>or</b> ((2 ** (6 * <A HREF="terminal_interface-curses-mouse__adb.htm#ref_81_7">Button_Nr</A>)) ** <A HREF="terminal_interface-curses-mouse__adb.htm#ref_82_7">State_Nr</A>);
+         <b>if</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_94_7">Button</A> <b>in</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_68_12">Real_Buttons</A> <b>then</b>
+            <A HREF="terminal_interface-curses-mouse__ads.htm#ref_96_7">Mask</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_96_7">Mask</A> <b>or</b> ((2 ** (6 * <A HREF="terminal_interface-curses-mouse__adb.htm#ref_79_7">Button_Nr</A>)) ** <A HREF="terminal_interface-curses-mouse__adb.htm#ref_80_7">State_Nr</A>);
          <b>else</b>
-            <A HREF="terminal_interface-curses-mouse__ads.htm#ref_100_7">Mask</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_100_7">Mask</A> <b>or</b> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_212_4">BUTTON_CTRL</A> ** (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_81_7">Button_Nr</A> - 4));
+            <A HREF="terminal_interface-curses-mouse__ads.htm#ref_96_7">Mask</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_96_7">Mask</A> <b>or</b> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_189_4">BUTTON_CTRL</A> ** (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_79_7">Button_Nr</A> - 4));
          <b>end</b> <b>if</b>;
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_97_14">Register_Reportable_Event</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_93_14">Register_Reportable_Event</A>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_95_14" HREF="terminal_interface-curses-mouse__ads.htm#ref_106_14">Register_Reportable_Events</A></span> (<span class="symbol"><A NAME="ref_95_42" HREF="terminal_interface-curses-mouse__ads.htm#ref_107_7">Button</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_64_9">Mouse_Button</A>;
-                                         <span class="symbol"><A NAME="ref_96_42" HREF="terminal_interface-curses-mouse__ads.htm#ref_108_7">State</A></span>  : Button_States;
-                                         <span class="symbol"><A NAME="ref_97_42" HREF="terminal_interface-curses-mouse__ads.htm#ref_109_7">Mask</A></span>   : <b>in</b> <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>)
+   <b>procedure</b> <span class="symbol"><A NAME="ref_93_14" HREF="terminal_interface-curses-mouse__ads.htm#ref_102_14">Register_Reportable_Events</A></span> (<span class="symbol"><A NAME="ref_93_42" HREF="terminal_interface-curses-mouse__ads.htm#ref_103_7">Button</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Mouse_Button</A>;
+                                         <span class="symbol"><A NAME="ref_94_42" HREF="terminal_interface-curses-mouse__ads.htm#ref_104_7">State</A></span>  : Button_States;
+                                         <span class="symbol"><A NAME="ref_95_42" HREF="terminal_interface-curses-mouse__ads.htm#ref_105_7">Mask</A></span>   : <b>in</b> <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>)
    <b>is</b>
    <b>begin</b>
-      <b>for</b> <span class="symbol"><A NAME="ref_100_11">S</A></span> <b>in</b> Button_States'<b>Range</b> <b>loop</b>
-         <b>if</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_108_7">State</A> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_100_11">S</A>) <b>then</b>
-            <A HREF="terminal_interface-curses-mouse__ads.htm#ref_97_14">Register_Reportable_Event</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_107_7">Button</A>, <A HREF="terminal_interface-curses-mouse__adb.htm#ref_100_11">S</A>, <A HREF="terminal_interface-curses-mouse__ads.htm#ref_109_7">Mask</A>);
+      <b>for</b> <span class="symbol"><A NAME="ref_98_11">S</A></span> <b>in</b> Button_States'<b>Range</b> <b>loop</b>
+         <b>if</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_104_7">State</A> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_98_11">S</A>) <b>then</b>
+            <A HREF="terminal_interface-curses-mouse__ads.htm#ref_93_14">Register_Reportable_Event</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_103_7">Button</A>, <A HREF="terminal_interface-curses-mouse__adb.htm#ref_98_11">S</A>, <A HREF="terminal_interface-curses-mouse__ads.htm#ref_105_7">Mask</A>);
          <b>end</b> <b>if</b>;
       <b>end</b> <b>loop</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_106_14">Register_Reportable_Events</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_102_14">Register_Reportable_Events</A>;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_107_13" HREF="terminal_interface-curses-mouse__ads.htm#ref_119_13">Start_Mouse</A></span> (<span class="symbol"><A NAME="ref_107_26" HREF="terminal_interface-curses-mouse__ads.htm#ref_119_26">Mask</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_62_4">All_Events</A>)
-                         <b>return</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>
+   <b>function</b> <span class="symbol"><A NAME="ref_105_13" HREF="terminal_interface-curses-mouse__ads.htm#ref_115_13">Start_Mouse</A></span> (<span class="symbol"><A NAME="ref_105_26" HREF="terminal_interface-curses-mouse__ads.htm#ref_115_26">Mask</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_58_4">All_Events</A>)
+                         <b>return</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_110_16">MMask</A></span> (<span class="symbol"><A NAME="ref_110_23" HREF="terminal_interface-curses-mouse__adb.htm#ref_110_16">M</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>;
-                      <span class="symbol"><A NAME="ref_111_23" HREF="terminal_interface-curses-mouse__adb.htm#ref_110_16">O</A></span> : <b>access</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>) <b>return</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_108_16">MMask</A></span> (<span class="symbol"><A NAME="ref_108_23" HREF="terminal_interface-curses-mouse__adb.htm#ref_108_16">M</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>;
+                      <span class="symbol"><A NAME="ref_109_23" HREF="terminal_interface-curses-mouse__adb.htm#ref_108_16">O</A></span> : <b>access</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>) <b>return</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>;
       <b>pragma</b> Import (C, MMask, "mousemask");
-      <span class="symbol"><A NAME="ref_113_7">R</A></span>   : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>;
-      <span class="symbol"><A NAME="ref_114_7">Old</A></span> : <b>aliased</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>;
+      <span class="symbol"><A NAME="ref_111_7">R</A></span>   : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>;
+      <span class="symbol"><A NAME="ref_112_7">Old</A></span> : <b>aliased</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>;
    <b>begin</b>
-      <A HREF="terminal_interface-curses-mouse__adb.htm#ref_113_7">R</A> := <A HREF="terminal_interface-curses-mouse__adb.htm#ref_110_16">MMask</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_119_26">Mask</A>, <A HREF="terminal_interface-curses-mouse__adb.htm#ref_114_7">Old</A>'<b>Access</b>);
-      <b>if</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_113_7">R</A> = <A HREF="terminal_interface-curses-mouse__ads.htm#ref_61_4">No_Events</A> <b>then</b>
-         <A HREF="terminal_interface-curses__ads.htm#ref_871_14">Beep</A>;
+      <A HREF="terminal_interface-curses-mouse__adb.htm#ref_111_7">R</A> := <A HREF="terminal_interface-curses-mouse__adb.htm#ref_108_16">MMask</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_115_26">Mask</A>, <A HREF="terminal_interface-curses-mouse__adb.htm#ref_112_7">Old</A>'<b>Access</b>);
+      <b>if</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_111_7">R</A> = <A HREF="terminal_interface-curses-mouse__ads.htm#ref_57_4">No_Events</A> <b>then</b>
+         <A HREF="terminal_interface-curses__ads.htm#ref_1040_14">Beep</A>;
       <b>end</b> <b>if</b>;
-      <b>return</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_114_7">Old</A>;
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_119_13">Start_Mouse</A>;
+      <b>return</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_112_7">Old</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_115_13">Start_Mouse</A>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_123_14" HREF="terminal_interface-curses-mouse__ads.htm#ref_124_14">End_Mouse</A></span> (<span class="symbol"><A NAME="ref_123_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_124_25">Mask</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_61_4">No_Events</A>)
+   <b>procedure</b> <span class="symbol"><A NAME="ref_121_14" HREF="terminal_interface-curses-mouse__ads.htm#ref_120_14">End_Mouse</A></span> (<span class="symbol"><A NAME="ref_121_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_120_25">Mask</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_57_4">No_Events</A>)
    <b>is</b>
    <b>begin</b>
-      <b>if</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_124_25">Mask</A> /= <A HREF="terminal_interface-curses-mouse__ads.htm#ref_61_4">No_Events</A> <b>then</b>
-         <A HREF="terminal_interface-curses__ads.htm#ref_871_14">Beep</A>;
+      <b>if</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_120_25">Mask</A> /= <A HREF="terminal_interface-curses-mouse__ads.htm#ref_57_4">No_Events</A> <b>then</b>
+         <A HREF="terminal_interface-curses__ads.htm#ref_1040_14">Beep</A>;
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_124_14">End_Mouse</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_120_14">End_Mouse</A>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_131_14" HREF="terminal_interface-curses-mouse__adb.htm#ref_135_14">Dispatch_Event</A></span> (<span class="symbol"><A NAME="ref_131_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_135_30">Mask</A></span>   : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>;
-                             <span class="symbol"><A NAME="ref_132_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_136_30">Button</A></span> : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_64_9">Mouse_Button</A>;
-                             <span class="symbol"><A NAME="ref_133_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_137_30">State</A></span>  : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_75_9">Button_State</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_129_14" HREF="terminal_interface-curses-mouse__adb.htm#ref_133_14">Dispatch_Event</A></span> (<span class="symbol"><A NAME="ref_129_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_133_30">Mask</A></span>   : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>;
+                             <span class="symbol"><A NAME="ref_130_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_134_30">Button</A></span> : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Mouse_Button</A>;
+                             <span class="symbol"><A NAME="ref_131_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_135_30">State</A></span>  : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_71_9">Button_State</A>);
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_135_14" HREF="terminal_interface-curses-mouse__adb.htm#ref_131_14">Dispatch_Event</A></span> (<span class="symbol"><A NAME="ref_135_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">Mask</A></span>   : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>;
-                             <span class="symbol"><A NAME="ref_136_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A></span> : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_64_9">Mouse_Button</A>;
-                             <span class="symbol"><A NAME="ref_137_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_133_30">State</A></span>  : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_75_9">Button_State</A>) <b>is</b>
-      <span class="symbol"><A NAME="ref_138_7">L</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A>;
+   <b>procedure</b> <span class="symbol"><A NAME="ref_133_14" HREF="terminal_interface-curses-mouse__adb.htm#ref_129_14">Dispatch_Event</A></span> (<span class="symbol"><A NAME="ref_133_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_129_30">Mask</A></span>   : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>;
+                             <span class="symbol"><A NAME="ref_134_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A></span> : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Mouse_Button</A>;
+                             <span class="symbol"><A NAME="ref_135_30" HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">State</A></span>  : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_71_9">Button_State</A>) <b>is</b>
+      <span class="symbol"><A NAME="ref_136_7">L</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A>;
    <b>begin</b>
-      <A HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_70_26">Alt</A>;  <span class="comment"><EM>--  preset to non real button;</EM></span>
-      <b>if</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_217_4">BUTTON1_EVENTS</A>) /= 0 <b>then</b>
-         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_64_26">Left</A>;
-      <b>elsif</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_218_4">BUTTON2_EVENTS</A>) /= 0 <b>then</b>
-         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_65_26">Middle</A>;
-      <b>elsif</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_219_4">BUTTON3_EVENTS</A>) /= 0 <b>then</b>
-         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_66_26">Right</A>;
-      <b>elsif</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_220_4">BUTTON4_EVENTS</A>) /= 0 <b>then</b>
-         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_67_26">Button4</A>;
+      <A HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_66_26">Alt</A>;  <span class="comment"><EM>--  preset to non real button;</EM></span>
+      <b>if</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_129_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_192_4">BUTTON1_EVENTS</A>) /= 0 <b>then</b>
+         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_26">Left</A>;
+      <b>elsif</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_129_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_194_4">BUTTON2_EVENTS</A>) /= 0 <b>then</b>
+         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_61_26">Middle</A>;
+      <b>elsif</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_129_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_196_4">BUTTON3_EVENTS</A>) /= 0 <b>then</b>
+         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_62_26">Right</A>;
+      <b>elsif</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_129_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_198_4">BUTTON4_EVENTS</A>) /= 0 <b>then</b>
+         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_63_26">Button4</A>;
       <b>end</b> <b>if</b>;
-      <b>if</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A> <b>in</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_72_12">Real_Buttons</A> <b>then</b>
-         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_138_7">L</A> := 2 ** (6 * <A HREF="terminal_interface-curses-mouse__ads.htm#ref_64_9">Mouse_Button</A>'Pos (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A>));
-         <b>for</b> <span class="symbol"><A NAME="ref_152_14">I</A></span> <b>in</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_75_9">Button_State</A>'<b>Range</b> <b>loop</b>
-            <b>if</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_138_7">L</A>) /= 0 <b>then</b>
-               <A HREF="terminal_interface-curses-mouse__adb.htm#ref_133_30">State</A> := <A HREF="terminal_interface-curses-mouse__adb.htm#ref_152_14">I</A>;
+      <b>if</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A> <b>in</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_68_12">Real_Buttons</A> <b>then</b>
+         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_136_7">L</A> := 2 ** (6 * <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Mouse_Button</A>'Pos (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A>));
+         <b>for</b> <span class="symbol"><A NAME="ref_150_14">I</A></span> <b>in</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_71_9">Button_State</A>'<b>Range</b> <b>loop</b>
+            <b>if</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_129_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_136_7">L</A>) /= 0 <b>then</b>
+               <A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">State</A> := <A HREF="terminal_interface-curses-mouse__adb.htm#ref_150_14">I</A>;
                <b>exit</b>;
             <b>end</b> <b>if</b>;
-            <A HREF="terminal_interface-curses-mouse__adb.htm#ref_138_7">L</A> := 2 * <A HREF="terminal_interface-curses-mouse__adb.htm#ref_138_7">L</A>;
+            <A HREF="terminal_interface-curses-mouse__adb.htm#ref_136_7">L</A> := 2 * <A HREF="terminal_interface-curses-mouse__adb.htm#ref_136_7">L</A>;
          <b>end</b> <b>loop</b>;
       <b>else</b>
-         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_133_30">State</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_76_26">Pressed</A>;
-         <b>if</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_212_4">BUTTON_CTRL</A>) /= 0 <b>then</b>
-            <A HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_68_26">Control</A>;
-         <b>elsif</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_213_4">BUTTON_SHIFT</A>) /= 0 <b>then</b>
-            <A HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_69_26">Shift</A>;
-         <b>elsif</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_214_4">BUTTON_ALT</A>) /= 0 <b>then</b>
-            <A HREF="terminal_interface-curses-mouse__adb.htm#ref_132_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_70_26">Alt</A>;
+         <A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_30">State</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_72_26">Pressed</A>;
+         <b>if</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_129_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_189_4">BUTTON_CTRL</A>) /= 0 <b>then</b>
+            <A HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_64_26">Control</A>;
+         <b>elsif</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_129_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_190_4">BUTTON_SHIFT</A>) /= 0 <b>then</b>
+            <A HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_65_26">Shift</A>;
+         <b>elsif</b> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_129_30">Mask</A> <b>and</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_191_4">BUTTON_ALT</A>) /= 0 <b>then</b>
+            <A HREF="terminal_interface-curses-mouse__adb.htm#ref_130_30">Button</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_66_26">Alt</A>;
          <b>end</b> <b>if</b>;
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_14">Dispatch_Event</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_129_14">Dispatch_Event</A>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_171_14" HREF="terminal_interface-curses-mouse__ads.htm#ref_133_14">Get_Event</A></span> (<span class="symbol"><A NAME="ref_171_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_133_25">Event</A></span>  : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_88_9">Mouse_Event</A>;
-                        <span class="symbol"><A NAME="ref_172_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_134_25">Y</A></span>      : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
-                        <span class="symbol"><A NAME="ref_173_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_135_25">X</A></span>      : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
-                        <span class="symbol"><A NAME="ref_174_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_136_25">Button</A></span> : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_64_9">Mouse_Button</A>;
-                        <span class="symbol"><A NAME="ref_175_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_137_25">State</A></span>  : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_75_9">Button_State</A>)
+   <b>procedure</b> <span class="symbol"><A NAME="ref_169_14" HREF="terminal_interface-curses-mouse__ads.htm#ref_129_14">Get_Event</A></span> (<span class="symbol"><A NAME="ref_169_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_129_25">Event</A></span>  : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_84_9">Mouse_Event</A>;
+                        <span class="symbol"><A NAME="ref_170_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_130_25">Y</A></span>      : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_58_9">Line_Position</A>;
+                        <span class="symbol"><A NAME="ref_171_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_131_25">X</A></span>      : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_59_9">Column_Position</A>;
+                        <span class="symbol"><A NAME="ref_172_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_132_25">Button</A></span> : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Mouse_Button</A>;
+                        <span class="symbol"><A NAME="ref_173_25" HREF="terminal_interface-curses-mouse__ads.htm#ref_133_25">State</A></span>  : <b>out</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_71_9">Button_State</A>)
    <b>is</b>
-      <span class="symbol"><A NAME="ref_177_7">Mask</A></span>  : <b>constant</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_60_9">Event_Mask</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_133_25">Event</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_170_10">Bstate</A>;
+      <span class="symbol"><A NAME="ref_175_7">Mask</A></span>  : <b>constant</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_56_9">Event_Mask</A> := <A HREF="terminal_interface-curses-mouse__ads.htm#ref_129_25">Event</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_169_10">Bstate</A>;
    <b>begin</b>
-      <A HREF="terminal_interface-curses-mouse__ads.htm#ref_135_25">X</A> := <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_133_25">Event</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_168_10">X</A>);
-      <A HREF="terminal_interface-curses-mouse__ads.htm#ref_134_25">Y</A> := <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>   (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_133_25">Event</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_168_13">Y</A>);
-      <A HREF="terminal_interface-curses-mouse__adb.htm#ref_131_14">Dispatch_Event</A> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_177_7">Mask</A>, <A HREF="terminal_interface-curses-mouse__ads.htm#ref_136_25">Button</A>, <A HREF="terminal_interface-curses-mouse__ads.htm#ref_137_25">State</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_133_14">Get_Event</A>;
+      <A HREF="terminal_interface-curses-mouse__ads.htm#ref_131_25">X</A> := <A HREF="terminal_interface-curses__ads.htm#ref_59_9">Column_Position</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_129_25">Event</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_167_10">X</A>);
+      <A HREF="terminal_interface-curses-mouse__ads.htm#ref_130_25">Y</A> := <A HREF="terminal_interface-curses__ads.htm#ref_58_9">Line_Position</A>   (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_129_25">Event</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_167_13">Y</A>);
+      <A HREF="terminal_interface-curses-mouse__adb.htm#ref_129_14">Dispatch_Event</A> (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_175_7">Mask</A>, <A HREF="terminal_interface-curses-mouse__ads.htm#ref_132_25">Button</A>, <A HREF="terminal_interface-curses-mouse__ads.htm#ref_133_25">State</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_129_14">Get_Event</A>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_184_14" HREF="terminal_interface-curses-mouse__ads.htm#ref_145_14">Unget_Mouse</A></span> (<span class="symbol"><A NAME="ref_184_27" HREF="terminal_interface-curses-mouse__ads.htm#ref_145_27">Event</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_88_9">Mouse_Event</A>)
+   <b>procedure</b> <span class="symbol"><A NAME="ref_182_14" HREF="terminal_interface-curses-mouse__ads.htm#ref_141_14">Unget_Mouse</A></span> (<span class="symbol"><A NAME="ref_182_27" HREF="terminal_interface-curses-mouse__ads.htm#ref_141_27">Event</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_84_9">Mouse_Event</A>)
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_186_16">Ungetmouse</A></span> (<span class="symbol"><A NAME="ref_186_28" HREF="terminal_interface-curses-mouse__adb.htm#ref_186_16">Ev</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_88_9">Mouse_Event</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_184_16">Ungetmouse</A></span> (<span class="symbol"><A NAME="ref_184_28" HREF="terminal_interface-curses-mouse__adb.htm#ref_184_16">Ev</A></span> : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_84_9">Mouse_Event</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>;
       <b>pragma</b> Import (C, Ungetmouse, "ungetmouse");
    <b>begin</b>
-      <b>if</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_186_16">Ungetmouse</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_145_27">Event</A>) = <A HREF="terminal_interface-curses-aux__ads.htm#ref_72_4">Curses_Err</A> <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_384_4">Curses_Exception</A>;
+      <b>if</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_184_16">Ungetmouse</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_141_27">Event</A>) = <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_4">Curses_Err</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_521_4">Curses_Exception</A>;
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_145_14">Unget_Mouse</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_141_14">Unget_Mouse</A>;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_194_13" HREF="terminal_interface-curses-mouse__ads.htm#ref_150_13">Enclosed_In_Window</A></span> (<span class="symbol"><A NAME="ref_194_33" HREF="terminal_interface-curses-mouse__ads.htm#ref_150_33">Win</A></span>    : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A> := <A HREF="terminal_interface-curses__ads.htm#ref_477_13">Standard_Window</A>;
-                                <span class="symbol"><A NAME="ref_195_33" HREF="terminal_interface-curses-mouse__ads.htm#ref_151_33">Event</A></span>  : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_88_9">Mouse_Event</A>) <b>return</b> Boolean
+   <b>function</b> <span class="symbol"><A NAME="ref_192_13" HREF="terminal_interface-curses-mouse__ads.htm#ref_146_13">Enclosed_In_Window</A></span> (<span class="symbol"><A NAME="ref_192_33" HREF="terminal_interface-curses-mouse__ads.htm#ref_146_33">Win</A></span>    : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A> := <A HREF="terminal_interface-curses__ads.htm#ref_644_13">Standard_Window</A>;
+                                <span class="symbol"><A NAME="ref_193_33" HREF="terminal_interface-curses-mouse__ads.htm#ref_147_33">Event</A></span>  : <A HREF="terminal_interface-curses-mouse__ads.htm#ref_84_9">Mouse_Event</A>) <b>return</b> Boolean
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_197_16">Wenclose</A></span> (<span class="symbol"><A NAME="ref_197_26" HREF="terminal_interface-curses-mouse__adb.htm#ref_197_16">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>; <span class="symbol"><A NAME="ref_197_40" HREF="terminal_interface-curses-mouse__adb.htm#ref_197_16">Y</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>; <span class="symbol"><A NAME="ref_197_51" HREF="terminal_interface-curses-mouse__adb.htm#ref_197_16">X</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>)
-                         <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1925_9">Curses_Bool</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_195_16">Wenclose</A></span> (<span class="symbol"><A NAME="ref_195_26" HREF="terminal_interface-curses-mouse__adb.htm#ref_195_16">Win</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>; <span class="symbol"><A NAME="ref_195_40" HREF="terminal_interface-curses-mouse__adb.htm#ref_195_16">Y</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>; <span class="symbol"><A NAME="ref_195_51" HREF="terminal_interface-curses-mouse__adb.htm#ref_195_16">X</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>)
+                         <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_2098_9">Curses_Bool</A>;
       <b>pragma</b> Import (C, Wenclose, "wenclose");
    <b>begin</b>
-      <b>if</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_197_16">Wenclose</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_150_33">Win</A>, <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_151_33">Event</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_168_13">Y</A>), <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_151_33">Event</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_168_10">X</A>))
-        = <A HREF="terminal_interface-curses__ads.htm#ref_1926_4">Curses_Bool_False</A> <b>then</b>
+      <b>if</b> <A HREF="terminal_interface-curses-mouse__adb.htm#ref_195_16">Wenclose</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_146_33">Win</A>, <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_147_33">Event</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_167_13">Y</A>), <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_147_33">Event</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_167_10">X</A>))
+        = <A HREF="terminal_interface-curses__ads.htm#ref_2100_4">Curses_Bool_False</A>
+      <b>then</b>
          <b>return</b> False;
       <b>else</b>
          <b>return</b> True;
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_150_13">Enclosed_In_Window</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_146_13">Enclosed_In_Window</A>;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_209_13" HREF="terminal_interface-curses-mouse__ads.htm#ref_157_13">Mouse_Interval</A></span> (<span class="symbol"><A NAME="ref_209_29" HREF="terminal_interface-curses-mouse__ads.htm#ref_157_29">Msec</A></span> : Natural := 200) <b>return</b> Natural
+   <b>function</b> <span class="symbol"><A NAME="ref_208_13" HREF="terminal_interface-curses-mouse__ads.htm#ref_153_13">Mouse_Interval</A></span> (<span class="symbol"><A NAME="ref_208_29" HREF="terminal_interface-curses-mouse__ads.htm#ref_153_29">Msec</A></span> : Natural := 200) <b>return</b> Natural
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_211_16">Mouseinterval</A></span> (<span class="symbol"><A NAME="ref_211_31" HREF="terminal_interface-curses-mouse__adb.htm#ref_211_16">Msec</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_210_16">Mouseinterval</A></span> (<span class="symbol"><A NAME="ref_210_31" HREF="terminal_interface-curses-mouse__adb.htm#ref_210_16">Msec</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A>;
       <b>pragma</b> Import (C, Mouseinterval, "mouseinterval");
    <b>begin</b>
-      <b>return</b> Natural (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_211_16">Mouseinterval</A> (<A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_157_29">Msec</A>)));
-   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_157_13">Mouse_Interval</A>;
+      <b>return</b> Natural (<A HREF="terminal_interface-curses-mouse__adb.htm#ref_210_16">Mouseinterval</A> (<A HREF="terminal_interface-curses-aux__ads.htm#ref_48_12">C_Int</A> (<A HREF="terminal_interface-curses-mouse__ads.htm#ref_153_29">Msec</A>)));
+   <b>end</b> <A HREF="terminal_interface-curses-mouse__ads.htm#ref_153_13">Mouse_Interval</A>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_48_35">Mouse</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-mouse__ads.htm#ref_44_35">Mouse</A>;
 </PRE></BODY></HTML>
