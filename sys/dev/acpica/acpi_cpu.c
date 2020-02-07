@@ -140,6 +140,8 @@ struct acpi_cpu_device {
 #define	CST_FFH_MWAIT_HW_COORD	0x0001
 #define	CST_FFH_MWAIT_BM_AVOID	0x0002
 
+#define	CPUDEV_DEVICE_ID	"ACPI0007"
+
 /* Allow users to ignore processor orders in MADT. */
 static int cpu_unordered;
 SYSCTL_INT(_debug_acpi, OID_AUTO, cpu_unordered, CTLFLAG_RDTUN,
@@ -236,14 +238,21 @@ MODULE_DEPEND(cpu, acpi, 1, 1, 1);
 static int
 acpi_cpu_probe(device_t dev)
 {
+    static char		   *cpudev_ids[] = { CPUDEV_DEVICE_ID, NULL };
     int			   acpi_id, cpu_id;
     ACPI_BUFFER		   buf;
     ACPI_HANDLE		   handle;
     ACPI_OBJECT		   *obj;
     ACPI_STATUS		   status;
+    ACPI_OBJECT_TYPE	   type;
 
-    if (acpi_disabled("cpu") || acpi_get_type(dev) != ACPI_TYPE_PROCESSOR ||
-	    acpi_cpu_disabled)
+    if (acpi_disabled("cpu") || acpi_cpu_disabled)
+	return (ENXIO);
+    type = acpi_get_type(dev);
+    if (type != ACPI_TYPE_PROCESSOR && type != ACPI_TYPE_DEVICE)
+	return (ENXIO);
+    if (type == ACPI_TYPE_DEVICE &&
+	ACPI_ID_PROBE(device_get_parent(dev), dev, cpudev_ids) == NULL)
 	return (ENXIO);
 
     handle = acpi_get_handle(dev);
@@ -251,29 +260,39 @@ acpi_cpu_probe(device_t dev)
 	cpu_softc = malloc(sizeof(struct acpi_cpu_softc *) *
 	    (mp_maxid + 1), M_TEMP /* XXX */, M_WAITOK | M_ZERO);
 
-    /* Get our Processor object. */
-    buf.Pointer = NULL;
-    buf.Length = ACPI_ALLOCATE_BUFFER;
-    status = AcpiEvaluateObject(handle, NULL, NULL, &buf);
-    if (ACPI_FAILURE(status)) {
-	device_printf(dev, "probe failed to get Processor obj - %s\n",
-		      AcpiFormatException(status));
-	return (ENXIO);
-    }
-    obj = (ACPI_OBJECT *)buf.Pointer;
-    if (obj->Type != ACPI_TYPE_PROCESSOR) {
-	device_printf(dev, "Processor object has bad type %d\n", obj->Type);
-	AcpiOsFree(obj);
-	return (ENXIO);
-    }
+    if (type == ACPI_TYPE_PROCESSOR) {
+	/* Get our Processor object. */
+	buf.Pointer = NULL;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	status = AcpiEvaluateObject(handle, NULL, NULL, &buf);
+	if (ACPI_FAILURE(status)) {
+	    device_printf(dev, "probe failed to get Processor obj - %s\n",
+		AcpiFormatException(status));
+	    return (ENXIO);
+	}
+	obj = (ACPI_OBJECT *)buf.Pointer;
+	if (obj->Type != ACPI_TYPE_PROCESSOR) {
+	    device_printf(dev, "Processor object has bad type %d\n",
+		obj->Type);
+	    AcpiOsFree(obj);
+	    return (ENXIO);
+	}
 
-    /*
-     * Find the processor associated with our unit.  We could use the
-     * ProcId as a key, however, some boxes do not have the same values
-     * in their Processor object as the ProcId values in the MADT.
-     */
-    acpi_id = obj->Processor.ProcId;
-    AcpiOsFree(obj);
+	/*
+	 * Find the processor associated with our unit.  We could use the
+	 * ProcId as a key, however, some boxes do not have the same values
+	 * in their Processor object as the ProcId values in the MADT.
+	 */
+	acpi_id = obj->Processor.ProcId;
+	AcpiOsFree(obj);
+    } else {
+	status = acpi_GetInteger(handle, "_UID", &acpi_id);
+	if (ACPI_FAILURE(status)) {
+	    device_printf(dev, "Device object has bad value - %s\n",
+		AcpiFormatException(status));
+	    return (ENXIO);
+	}
+    }
     if (acpi_pcpu_get_id(dev, &acpi_id, &cpu_id) != 0)
 	return (ENXIO);
 
@@ -325,19 +344,32 @@ acpi_cpu_attach(device_t dev)
     cpu_smi_cmd = AcpiGbl_FADT.SmiCommand;
     cpu_cst_cnt = AcpiGbl_FADT.CstControl;
 
-    buf.Pointer = NULL;
-    buf.Length = ACPI_ALLOCATE_BUFFER;
-    status = AcpiEvaluateObject(sc->cpu_handle, NULL, NULL, &buf);
-    if (ACPI_FAILURE(status)) {
-	device_printf(dev, "attach failed to get Processor obj - %s\n",
-		      AcpiFormatException(status));
-	return (ENXIO);
+    if (acpi_get_type(dev) == ACPI_TYPE_PROCESSOR) {
+	buf.Pointer = NULL;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	status = AcpiEvaluateObject(sc->cpu_handle, NULL, NULL, &buf);
+	if (ACPI_FAILURE(status)) {
+	    device_printf(dev, "attach failed to get Processor obj - %s\n",
+		AcpiFormatException(status));
+	    return (ENXIO);
+	}
+	obj = (ACPI_OBJECT *)buf.Pointer;
+	sc->cpu_p_blk = obj->Processor.PblkAddress;
+	sc->cpu_p_blk_len = obj->Processor.PblkLength;
+	sc->cpu_acpi_id = obj->Processor.ProcId;
+	AcpiOsFree(obj);
+    } else {
+	KASSERT(acpi_get_type(dev) == ACPI_TYPE_DEVICE,
+	    ("Unexpected ACPI object"));
+	status = acpi_GetInteger(sc->cpu_handle, "_UID", &sc->cpu_acpi_id);
+	if (ACPI_FAILURE(status)) {
+	    device_printf(dev, "Device object has bad value - %s\n",
+		AcpiFormatException(status));
+	    return (ENXIO);
+	}
+	sc->cpu_p_blk = 0;
+	sc->cpu_p_blk_len = 0;
     }
-    obj = (ACPI_OBJECT *)buf.Pointer;
-    sc->cpu_p_blk = obj->Processor.PblkAddress;
-    sc->cpu_p_blk_len = obj->Processor.PblkLength;
-    sc->cpu_acpi_id = obj->Processor.ProcId;
-    AcpiOsFree(obj);
     ACPI_DEBUG_PRINT((ACPI_DB_INFO, "acpi_cpu%d: P_BLK at %#x/%d\n",
 		     device_get_unit(dev), sc->cpu_p_blk, sc->cpu_p_blk_len));
 
