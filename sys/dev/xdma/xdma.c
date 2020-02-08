@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/epoch.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/kobj.h>
@@ -203,7 +204,7 @@ xdma_channel_free(xdma_channel_t *xchan)
 }
 
 int
-xdma_setup_intr(xdma_channel_t *xchan,
+xdma_setup_intr(xdma_channel_t *xchan, int flags,
     int (*cb)(void *, xdma_transfer_status_t *),
     void *arg, void **ihandler)
 {
@@ -224,6 +225,7 @@ xdma_setup_intr(xdma_channel_t *xchan,
 
 	ih = malloc(sizeof(struct xdma_intr_handler),
 	    M_XDMA, M_WAITOK | M_ZERO);
+	ih->flags = flags;
 	ih->cb = cb;
 	ih->cb_user = arg;
 
@@ -325,13 +327,20 @@ xdma_callback(xdma_channel_t *xchan, xdma_transfer_status_t *status)
 	struct xdma_intr_handler *ih_tmp;
 	struct xdma_intr_handler *ih;
 	xdma_controller_t *xdma;
+	struct epoch_tracker et;
 
 	xdma = xchan->xdma;
 	KASSERT(xdma != NULL, ("xdma is NULL"));
 
-	TAILQ_FOREACH_SAFE(ih, &xchan->ie_handlers, ih_next, ih_tmp)
-		if (ih->cb != NULL)
+	TAILQ_FOREACH_SAFE(ih, &xchan->ie_handlers, ih_next, ih_tmp) {
+		if (ih->cb != NULL) {
+			if (ih->flags & XDMA_INTR_NET)
+				NET_EPOCH_ENTER(et);
 			ih->cb(ih->cb_user, status);
+			if (ih->flags & XDMA_INTR_NET)
+				NET_EPOCH_EXIT(et);
+		}
+	}
 
 	if (xchan->flags & XCHAN_TYPE_SG)
 		xdma_queue_submit(xchan);

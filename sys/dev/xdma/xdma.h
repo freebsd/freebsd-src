@@ -195,6 +195,8 @@ typedef struct xdma_channel xdma_channel_t;
 
 struct xdma_intr_handler {
 	int		(*cb)(void *cb_user, xdma_transfer_status_t *status);
+	int		flags;
+#define	XDMA_INTR_NET	(1 << 0)
 	void		*cb_user;
 	TAILQ_ENTRY(xdma_intr_handler)	ih_next;
 };
@@ -275,7 +277,7 @@ uint32_t xdma_mbuf_chain_count(struct mbuf *m0);
 int xdma_control(xdma_channel_t *xchan, enum xdma_command cmd);
 
 /* Interrupt callback */
-int xdma_setup_intr(xdma_channel_t *xchan, int (*cb)(void *,
+int xdma_setup_intr(xdma_channel_t *xchan, int flags, int (*cb)(void *,
     xdma_transfer_status_t *), void *arg, void **);
 int xdma_teardown_intr(xdma_channel_t *xchan, struct xdma_intr_handler *ih);
 int xdma_teardown_all_intr(xdma_channel_t *xchan);
