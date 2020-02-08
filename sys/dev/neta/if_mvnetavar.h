@@ -32,15 +32,12 @@
 #define	_IF_MVNETAVAR_H_
 #include <net/if.h>
 
-#define	MVNETA_HWHEADER_SIZE	2	/* Marvell Header */
-#define	MVNETA_ETHER_SIZE	22	/* Maximum ether size */
-#define	MVNETA_MAX_CSUM_MTU	1600	/* Port1,2 hw limit */
+#define	MVNETA_HWHEADER_SIZE		2	/* Marvell Header */
+#define	MVNETA_ETHER_SIZE		22	/* Maximum ether size */
+#define	MVNETA_A370_MAX_CSUM_MTU	1600	/* Max frame len for TX csum */
+#define	MVNETA_A3700_MAX_CSUM_MTU	9600
 
-/*
- * Limit support for frame up to hw csum limit
- * until jumbo frame support is added.
- */
-#define	MVNETA_MAX_FRAME		(MVNETA_MAX_CSUM_MTU + MVNETA_ETHER_SIZE)
+#define	MVNETA_MAX_FRAME		(MJUM9BYTES)
 
 /*
  * Default limit of queue length
@@ -54,7 +51,6 @@
 #define	MVNETA_BUFRING_SIZE	1024
 
 #define	MVNETA_PACKET_OFFSET	64
-#define	MVNETA_PACKET_SIZE	MCLBYTES
 
 #define	MVNETA_RXTH_COUNT	128
 #define	MVNETA_RX_REFILL_COUNT	8
@@ -268,6 +264,8 @@ struct mvneta_softc {
 	struct ifnet	*ifp;
 	uint32_t        mvneta_if_flags;
 	uint32_t        mvneta_media;
+	uint32_t	tx_csum_limit;
+	uint32_t	rx_frame_size;
 
 	int			phy_attached;
 	enum mvneta_phy_mode	phy_mode;
