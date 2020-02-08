@@ -869,7 +869,7 @@ setup_xdma(struct xae_softc *sc)
 	}
 
 	/* Setup interrupt handler. */
-	error = xdma_setup_intr(sc->xchan_tx,
+	error = xdma_setup_intr(sc->xchan_tx, 0,
 	    xae_xdma_tx_intr, sc, &sc->ih_tx);
 	if (error) {
 		device_printf(sc->dev,
@@ -885,7 +885,7 @@ setup_xdma(struct xae_softc *sc)
 	}
 
 	/* Setup interrupt handler. */
-	error = xdma_setup_intr(sc->xchan_rx,
+	error = xdma_setup_intr(sc->xchan_rx, XDMA_INTR_NET,
 	    xae_xdma_rx_intr, sc, &sc->ih_rx);
 	if (error) {
 		device_printf(sc->dev,
