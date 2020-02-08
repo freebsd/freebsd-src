@@ -874,6 +874,8 @@ mvneta_detach(device_t dev)
 		bus_dma_tag_destroy(sc->rx_dtag);
 	if (sc->txmbuf_dtag != NULL)
 		bus_dma_tag_destroy(sc->txmbuf_dtag);
+	if (sc->rxbuf_dtag != NULL)
+		bus_dma_tag_destroy(sc->rxbuf_dtag);
 
 	bus_release_resources(dev, res_spec, sc->res);
 	return (0);
