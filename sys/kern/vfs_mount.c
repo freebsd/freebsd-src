@@ -1266,8 +1266,7 @@ vfs_domount(
 		pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 		strcpy(pathbuf, fspath);
 		error = vn_path_to_global_path(td, vp, pathbuf, MNAMELEN);
-		/* debug.disablefullpath == 1 results in ENODEV */
-		if (error == 0 || error == ENODEV) {
+		if (error == 0) {
 			error = vfs_domount_first(td, vfsp, pathbuf, vp,
 			    fsflags, optlist);
 		}
@@ -1346,7 +1345,7 @@ kern_unmount(struct thread *td, const char *path, int flags)
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			error = vn_path_to_global_path(td, nd.ni_vp, pathbuf,
 			    MNAMELEN);
-			if (error == 0 || error == ENODEV)
+			if (error == 0)
 				vput(nd.ni_vp);
 		}
 		mtx_lock(&mountlist_mtx);
