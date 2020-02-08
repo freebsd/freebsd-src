@@ -1606,8 +1606,9 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
 {
 	int error;
 
-	VNASSERT((flags & LK_TYPE_MASK) != 0, vp, ("vn_lock: no locktype"));
-	VNASSERT(vp->v_holdcnt != 0, vp, ("vn_lock: zero hold count"));
+	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
+	    ("vn_lock: no locktype (%d passed)", flags));
+	VNPASS(vp->v_holdcnt > 0, vp);
 	error = VOP_LOCK1(vp, flags, file, line);
 	if (__predict_false(error != 0 || VN_IS_DOOMED(vp)))
 		return (_vn_lock_fallback(vp, flags, file, line, error));
