@@ -2889,19 +2889,12 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 {
 	int error, old;
 
-	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
-	    ("%s: invalid lock operation", __func__));
-
 	if ((flags & LK_INTERLOCK) != 0)
 		ASSERT_VI_LOCKED(vp, __func__);
 	else
 		ASSERT_VI_UNLOCKED(vp, __func__);
-	VNASSERT(vp->v_holdcnt > 0, vp, ("%s: vnode not held", __func__));
-	if (vs == VGET_USECOUNT) {
-		VNASSERT(vp->v_usecount > 0, vp,
-		    ("%s: vnode without usecount when VGET_USECOUNT was passed",
-		    __func__));
-	}
+	VNPASS(vp->v_holdcnt > 0, vp);
+	VNPASS(vs == VGET_HOLDCNT || vp->v_usecount > 0, vp);
 
 	error = vn_lock(vp, flags);
 	if (__predict_false(error != 0)) {
@@ -2914,9 +2907,8 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 		return (error);
 	}
 
-	if (vs == VGET_USECOUNT) {
+	if (vs == VGET_USECOUNT)
 		return (0);
-	}
 
 	if (__predict_false(vp->v_type == VCHR))
 		return (vget_finish_vchr(vp));
