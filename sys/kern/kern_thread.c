@@ -1085,7 +1085,7 @@ thread_suspend_check(int return_instead)
  * Typically, when retrying due to casueword(9) failure (rv == 1), we
  * should handle the stop requests there, with exception of cases when
  * the thread owns a kernel resource, for instance busied the umtx
- * key, or when functions return immediately if casueword_check_susp()
+ * key, or when functions return immediately if thread_check_susp()
  * returned non-zero.  On the other hand, retrying the whole lock
  * operation, we better not stop there but delegate the handling to
  * ast.
