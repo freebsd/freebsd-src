@@ -3547,7 +3547,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	}
 	if (cnt) {
 		/* Ok we have someone out there that will kill us */
-		(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 3);
 #endif
@@ -3566,7 +3565,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	if ((inp->refcount) ||
 	    (being_refed) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP)) {
-		(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 4);
 #endif
@@ -4761,35 +4759,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			return (0);
 		}
 	}
-	/* now clean up any other timers */
-	(void)SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
-	asoc->dack_timer.self = NULL;
-	(void)SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
-	/*-
-	 * For stream reset we don't blast this unless
-	 * it is a str-reset timer, it might be the
-	 * free-asoc timer which we DON'T want to
-	 * disturb.
-	 */
-	if (asoc->strreset_timer.type == SCTP_TIMER_TYPE_STRRESET)
-		asoc->strreset_timer.self = NULL;
-	(void)SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
-	asoc->asconf_timer.self = NULL;
-	(void)SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
-	asoc->autoclose_timer.self = NULL;
-	(void)SCTP_OS_TIMER_STOP(&asoc->shut_guard_timer.timer);
-	asoc->shut_guard_timer.self = NULL;
-	/* Mobility adaptation */
-	(void)SCTP_OS_TIMER_STOP(&asoc->delete_prim_timer.timer);
-	asoc->delete_prim_timer.self = NULL;
-	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		(void)SCTP_OS_TIMER_STOP(&net->rxt_timer.timer);
-		net->rxt_timer.self = NULL;
-		(void)SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
-		net->pmtu_timer.self = NULL;
-		(void)SCTP_OS_TIMER_STOP(&net->hb_timer.timer);
-		net->hb_timer.self = NULL;
-	}
+	/* Now clean up any other timers */
+	sctp_stop_association_timers(stcb, false);
 	/* Now the read queue needs to be cleaned up (only once) */
 	if ((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) == 0) {
 		SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_ABOUT_TO_BE_FREED);
@@ -4957,19 +4928,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	/*
 	 * Now restop the timers to be sure this is paranoia at is finest!
 	 */
-	(void)SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->shut_guard_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
-	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		(void)SCTP_OS_TIMER_STOP(&net->rxt_timer.timer);
-		(void)SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
-		(void)SCTP_OS_TIMER_STOP(&net->hb_timer.timer);
-	}
+	sctp_stop_association_timers(stcb, true);
 
-	asoc->strreset_timer.type = SCTP_TIMER_TYPE_NONE;
 	/*
 	 * The chunk lists and such SHOULD be empty but we check them just
 	 * in case.
@@ -7033,7 +6993,8 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 		 * asoc->highest_tsn_inside_map?
 		 */
 		asoc->last_revoke_count = cnt;
-		(void)SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
+		sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, NULL,
+		    SCTP_FROM_SCTP_PCB + SCTP_LOC_16);
 		/* sa_ignore NO_NULL_CHK */
 		sctp_send_sack(stcb, SCTP_SO_NOT_LOCKED);
 		sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_DRAIN, SCTP_SO_NOT_LOCKED);
