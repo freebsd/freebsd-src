@@ -954,8 +954,9 @@ typedef struct {
 #define	AT_EHDRFLAGS	24	/* e_flags field from elf hdr */
 #define	AT_HWCAP	25	/* CPU feature flags. */
 #define	AT_HWCAP2	26	/* CPU feature flags 2. */
+#define	AT_BSDFLAGS	27	/* ELF BSD Flags. */
 
-#define	AT_COUNT	27	/* Count of defined aux entry types. */
+#define	AT_COUNT	28	/* Count of defined aux entry types. */
 
 /*
  * Relocation types.
@@ -1456,5 +1457,6 @@ typedef struct {
 #define	R_X86_64_TLSDESC	36
 #define	R_X86_64_IRELATIVE	37
 
+#define	ELF_BSDF_SIGFASTBLK	0x0001	/* Kernel supports fast sigblock */
 
 #endif /* !_SYS_ELF_COMMON_H_ */
