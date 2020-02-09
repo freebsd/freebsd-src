@@ -567,6 +567,7 @@ FBSDprivate_1.0 {
 	__sys_extattr_set_link;
 	_extattrctl;
 	__sys_extattrctl;
+	__sys_sigfastblock;
 	_fchdir;
 	__sys_fchdir;
 	_fchflags;
