@@ -67,6 +67,8 @@ void	procstat_kstack(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_ptlwpinfo(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_rlimit(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_rusage(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_sigfastblock(struct procstat *procstat,
+	    struct kinfo_proc *kipp);
 void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_threads(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
