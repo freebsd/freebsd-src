@@ -31,7 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/auxv.h>
+#include <sys/elf.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <signal.h>
@@ -92,10 +93,9 @@ static const sigset_t _thr_maskset={{
 	0xffffffff,
 	0xffffffff}};
 
-void
-_thr_signal_block(struct pthread *curthread)
+static void
+thr_signal_block_slow(struct pthread *curthread)
 {
-	
 	if (curthread->sigblock > 0) {
 		curthread->sigblock++;
 		return;
@@ -104,11 +104,66 @@ _thr_signal_block(struct pthread *curthread)
 	curthread->sigblock++;
 }
 
-void
-_thr_signal_unblock(struct pthread *curthread)
+static void
+thr_signal_unblock_slow(struct pthread *curthread)
 {
 	if (--curthread->sigblock == 0)
 		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
+}
+
+static void
+thr_signal_block_fast(struct pthread *curthread)
+{
+	atomic_add_32(&curthread->fsigblock, SIGFASTBLOCK_INC);
+}
+
+static void
+thr_signal_unblock_fast(struct pthread *curthread)
+{
+	uint32_t oldval;
+
+	oldval = atomic_fetchadd_32(&curthread->fsigblock, -SIGFASTBLOCK_INC);
+	if (oldval == (SIGFASTBLOCK_PEND | SIGFASTBLOCK_INC))
+		__sys_sigfastblock(SIGFASTBLOCK_UNBLOCK, NULL);
+}
+
+static bool fast_sigblock;
+
+void
+_thr_signal_block(struct pthread *curthread)
+{
+	if (fast_sigblock)
+		thr_signal_block_fast(curthread);
+	else
+		thr_signal_block_slow(curthread);
+}
+
+void
+_thr_signal_unblock(struct pthread *curthread)
+{
+	if (fast_sigblock)
+		thr_signal_unblock_fast(curthread);
+	else
+		thr_signal_unblock_slow(curthread);
+}
+
+void
+_thr_signal_block_check_fast(void)
+{
+	int bsdflags, error;
+
+	error = elf_aux_info(AT_BSDFLAGS, &bsdflags, sizeof(bsdflags));
+	if (error != 0)
+		return;
+	fast_sigblock = (bsdflags & ELF_BSDF_SIGFASTBLK) != 0;
+}
+
+void
+_thr_signal_block_setup(struct pthread *curthread)
+{
+	if (!fast_sigblock)
+		return;
+	__sys_sigfastblock(SIGFASTBLOCK_SETPTR, &curthread->fsigblock);
 }
 
 int
