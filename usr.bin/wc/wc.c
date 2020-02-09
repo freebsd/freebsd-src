@@ -218,7 +218,7 @@ cnt(const char *file)
 	 */
 	if (doline == 0 && dolongline == 0) {
 		if (fstat(fd, &sb)) {
-			xo_warn("%s: fstat", file);
+			xo_warn("%s: fstat", file != NULL ? file : "stdin");
 			(void)close(fd);
 			return (1);
 		}
@@ -239,7 +239,7 @@ cnt(const char *file)
 	 */
 	while ((len = read(fd, buf, MAXBSIZE))) {
 		if (len == -1) {
-			xo_warn("%s: read", file);
+			xo_warn("%s: read", file != NULL ? file : "stdin");
 			(void)close(fd);
 			return (1);
 		}
