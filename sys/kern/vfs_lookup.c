@@ -288,6 +288,7 @@ namei(struct nameidata *ndp)
 	struct vnode *dp;	/* the directory we are searching */
 	struct iovec aiov;		/* uio for reading symbolic links */
 	struct componentname *cnp;
+	struct file *dfp;
 	struct thread *td;
 	struct proc *p;
 	cap_rights_t rights;
@@ -408,10 +409,29 @@ namei(struct nameidata *ndp)
 				AUDIT_ARG_ATFD1(ndp->ni_dirfd);
 			if (cnp->cn_flags & AUDITVNODE2)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
-			error = fgetvp_rights(td, ndp->ni_dirfd,
-			    &rights, &ndp->ni_filecaps, &dp);
-			if (error == EINVAL)
+			/*
+			 * Effectively inlined fgetvp_rights, because we need to
+			 * inspect the file as well as grabbing the vnode.
+			 */
+			error = fget_cap_locked(fdp, ndp->ni_dirfd, &rights,
+			    &dfp, &ndp->ni_filecaps);
+			if (error != 0) {
+				/*
+				 * Preserve the error; it should either be EBADF
+				 * or capability-related, both of which can be
+				 * safely returned to the caller.
+				 */
+			} else if (dfp->f_ops == &badfileops) {
+				error = EBADF;
+			} else if (dfp->f_vnode == NULL) {
 				error = ENOTDIR;
+			} else {
+				dp = dfp->f_vnode;
+				vrefact(dp);
+
+				if ((dfp->f_flag & FSEARCH) != 0)
+					cnp->cn_flags |= NOEXECCHECK;
+			}
 #ifdef CAPABILITIES
 			/*
 			 * If file descriptor doesn't have all rights,

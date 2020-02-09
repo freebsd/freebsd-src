@@ -1196,7 +1196,8 @@ smbfs_lookup(ap)
 	islastcn = flags & ISLASTCN;
 	if (islastcn && (mp->mnt_flag & MNT_RDONLY) && (nameiop != LOOKUP))
 		return EROFS;
-	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0)
+	error = vn_dir_check_exec(dvp, cnp);
+	if (error != 0)
 		return error;
 	smp = VFSTOSMBFS(mp);
 	dnp = VTOSMB(dvp);

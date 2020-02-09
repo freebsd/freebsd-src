@@ -1049,7 +1049,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 	}
 	mtx_unlock(&np->n_mtx);
 
-	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0)
+	error = vn_dir_check_exec(dvp, cnp);
+	if (error != 0)
 		return (error);
 	error = cache_lookup(dvp, vpp, cnp, &nctime, &ncticks);
 	if (error > 0 && error != ENOENT)

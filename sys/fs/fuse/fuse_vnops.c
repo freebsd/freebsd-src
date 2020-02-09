@@ -699,7 +699,10 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 
 	bzero(&facp, sizeof(facp));
 	if (vnode_isvroot(dvp)) {	/* early permission check hack */
-		if ((err = fuse_internal_access(dvp, VEXEC, &facp, td, cred))) {
+		if ((cnp->cn_flags & NOEXECCHECK) != 0) {
+			cnp->cn_flags &= ~NOEXECCHECK;
+		} else if ((err = fuse_internal_access(dvp, VEXEC, &facp, td,
+		    cred))) {
 			return err;
 		}
 	}

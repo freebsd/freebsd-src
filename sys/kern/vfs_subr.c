@@ -5485,3 +5485,15 @@ __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *mp)
 	mtx_unlock(&vnode_free_list_mtx);
 	mnt_vnode_markerfree_active(mvp, mp);
 }
+
+int
+vn_dir_check_exec(struct vnode *vp, struct componentname *cnp)
+{
+
+	if ((cnp->cn_flags & NOEXECCHECK) != 0) {
+		cnp->cn_flags &= ~NOEXECCHECK;
+		return (0);
+	}
+
+	return (VOP_ACCESS(vp, VEXEC, cnp->cn_cred, cnp->cn_thread));
+}
