@@ -119,9 +119,11 @@ typedef	__pid_t		pid_t;
 #if __POSIX_VISIBLE >= 200809
 #define	O_DIRECTORY	0x00020000	/* Fail if not directory */
 #define	O_EXEC		0x00040000	/* Open for execute only */
+#define	O_SEARCH	O_EXEC
 #endif
 #ifdef	_KERNEL
 #define	FEXEC		O_EXEC
+#define	FSEARCH		O_SEARCH
 #endif
 
 #if __POSIX_VISIBLE >= 200809

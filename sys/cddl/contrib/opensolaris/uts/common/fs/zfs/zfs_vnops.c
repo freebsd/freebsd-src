@@ -1593,10 +1593,14 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	 * Check accessibility of directory.
 	 */
 	if (!cached) {
-		error = zfs_zaccess(zdp, ACE_EXECUTE, 0, B_FALSE, cr);
-		if (error != 0) {
-			ZFS_EXIT(zfsvfs);
-			return (error);
+		if ((cnp->cn_flags & NOEXECCHECK) != 0) {
+			cnp->cn_flags &= ~NOEXECCHECK;
+		} else {
+			error = zfs_zaccess(zdp, ACE_EXECUTE, 0, B_FALSE, cr);
+			if (error != 0) {
+				ZFS_EXIT(zfsvfs);
+				return (error);
+			}
 		}
 	}
 

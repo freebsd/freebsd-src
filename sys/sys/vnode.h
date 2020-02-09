@@ -921,6 +921,8 @@ int vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 
 void vn_fsid(struct vnode *vp, struct vattr *va);
 
+int vn_dir_check_exec(struct vnode *vp, struct componentname *cnp);
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */
