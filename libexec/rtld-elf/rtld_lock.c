@@ -45,6 +45,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/signalvar.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <time.h>
@@ -68,6 +69,7 @@ typedef struct Struct_Lock {
 
 static sigset_t fullsigmask, oldsigmask;
 static int thread_flag, wnested;
+static uint32_t fsigblock;
 
 static void *
 def_lock_create(void)
@@ -118,20 +120,40 @@ def_rlock_acquire(void *lock)
 }
 
 static void
+sig_fastunblock(void)
+{
+	uint32_t oldval;
+
+	assert((fsigblock & ~SIGFASTBLOCK_FLAGS) >= SIGFASTBLOCK_INC);
+	oldval = atomic_fetchadd_32(&fsigblock, -SIGFASTBLOCK_INC);
+	if (oldval == (SIGFASTBLOCK_PEND | SIGFASTBLOCK_INC))
+		__sys_sigfastblock(SIGFASTBLOCK_UNBLOCK, NULL);
+}
+
+static void
 def_wlock_acquire(void *lock)
 {
 	Lock *l;
 	sigset_t tmp_oldsigmask;
 
 	l = (Lock *)lock;
-	for (;;) {
-		sigprocmask(SIG_BLOCK, &fullsigmask, &tmp_oldsigmask);
-		if (atomic_cmpset_acq_int(&l->lock, 0, WAFLAG))
-			break;
-		sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
+	if (ld_fast_sigblock) {
+		for (;;) {
+			atomic_add_32(&fsigblock, SIGFASTBLOCK_INC);
+			if (atomic_cmpset_acq_int(&l->lock, 0, WAFLAG))
+				break;
+			sig_fastunblock();
+		}
+	} else {
+		for (;;) {
+			sigprocmask(SIG_BLOCK, &fullsigmask, &tmp_oldsigmask);
+			if (atomic_cmpset_acq_int(&l->lock, 0, WAFLAG))
+				break;
+			sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
+		}
+		if (atomic_fetchadd_int(&wnested, 1) == 0)
+			oldsigmask = tmp_oldsigmask;
 	}
-	if (atomic_fetchadd_int(&wnested, 1) == 0)
-		oldsigmask = tmp_oldsigmask;
 }
 
 static void
@@ -143,9 +165,10 @@ def_lock_release(void *lock)
 	if ((l->lock & WAFLAG) == 0)
 		atomic_add_rel_int(&l->lock, -RC_INCR);
 	else {
-		assert(wnested > 0);
 		atomic_add_rel_int(&l->lock, -WAFLAG);
-		if (atomic_fetchadd_int(&wnested, -1) == 1)
+		if (ld_fast_sigblock)
+			sig_fastunblock();
+		else if (atomic_fetchadd_int(&wnested, -1) == 1)
 			sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
 	}
 }
@@ -279,38 +302,36 @@ lock_restart_for_upgrade(RtldLockState *lockstate)
 void
 lockdflt_init(void)
 {
-    int i;
+	int i;
 
-    deflockinfo.rtli_version  = RTLI_VERSION;
-    deflockinfo.lock_create   = def_lock_create;
-    deflockinfo.lock_destroy  = def_lock_destroy;
-    deflockinfo.rlock_acquire = def_rlock_acquire;
-    deflockinfo.wlock_acquire = def_wlock_acquire;
-    deflockinfo.lock_release  = def_lock_release;
-    deflockinfo.thread_set_flag = def_thread_set_flag;
-    deflockinfo.thread_clr_flag = def_thread_clr_flag;
-    deflockinfo.at_fork = NULL;
+	deflockinfo.rtli_version = RTLI_VERSION;
+	deflockinfo.lock_create = def_lock_create;
+	deflockinfo.lock_destroy = def_lock_destroy;
+	deflockinfo.rlock_acquire = def_rlock_acquire;
+	deflockinfo.wlock_acquire = def_wlock_acquire;
+	deflockinfo.lock_release = def_lock_release;
+	deflockinfo.thread_set_flag = def_thread_set_flag;
+	deflockinfo.thread_clr_flag = def_thread_clr_flag;
+	deflockinfo.at_fork = NULL;
 
-    for (i = 0; i < RTLD_LOCK_CNT; i++) {
-	    rtld_locks[i].mask   = (1 << i);
-	    rtld_locks[i].handle = NULL;
-    }
+	for (i = 0; i < RTLD_LOCK_CNT; i++) {
+		rtld_locks[i].mask   = (1 << i);
+		rtld_locks[i].handle = NULL;
+	}
 
-    memcpy(&lockinfo, &deflockinfo, sizeof(lockinfo));
-    _rtld_thread_init(NULL);
-    /*
-     * Construct a mask to block all signals except traps which might
-     * conceivably be generated within the dynamic linker itself.
-     */
-    sigfillset(&fullsigmask);
-    sigdelset(&fullsigmask, SIGILL);
-    sigdelset(&fullsigmask, SIGTRAP);
-    sigdelset(&fullsigmask, SIGABRT);
-    sigdelset(&fullsigmask, SIGEMT);
-    sigdelset(&fullsigmask, SIGFPE);
-    sigdelset(&fullsigmask, SIGBUS);
-    sigdelset(&fullsigmask, SIGSEGV);
-    sigdelset(&fullsigmask, SIGSYS);
+	memcpy(&lockinfo, &deflockinfo, sizeof(lockinfo));
+	_rtld_thread_init(NULL);
+	if (ld_fast_sigblock) {
+		__sys_sigfastblock(SIGFASTBLOCK_SETPTR, &fsigblock);
+	} else {
+		/*
+		 * Construct a mask to block all signals.  Note that
+		 * blocked traps mean that the process is terminated
+		 * if trap occurs while we are in locked section, with
+		 * the default settings for kern.forcesigexit.
+		 */
+		sigfillset(&fullsigmask);
+	}
 }
 
 /*
@@ -331,7 +352,10 @@ _rtld_thread_init(struct RtldLockInfo *pli)
 
 	if (pli == NULL)
 		pli = &deflockinfo;
-
+	else if (ld_fast_sigblock) {
+		fsigblock = 0;
+		__sys_sigfastblock(SIGFASTBLOCK_UNSETPTR, NULL);
+	}
 
 	for (i = 0; i < RTLD_LOCK_CNT; i++)
 		if ((locks[i] = pli->lock_create()) == NULL)
