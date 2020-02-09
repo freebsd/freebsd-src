@@ -257,6 +257,7 @@ thread_start(struct pthread *curthread)
 
 	if (curthread->attr.suspend == THR_CREATE_SUSPENDED)
 		set = curthread->sigmask;
+	_thr_signal_block_setup(curthread);
 
 	/*
 	 * This is used as a serialization point to allow parent

@@ -396,6 +396,9 @@ struct pthread {
 	/* Signal blocked counter. */
 	int			sigblock;
 
+	/* Fast sigblock var. */
+	uint32_t		fsigblock;
+
 	/* Queue entry for list of all threads. */
 	TAILQ_ENTRY(pthread)	tle;	/* link for all threads in process */
 
@@ -813,6 +816,8 @@ void	_thr_cancel_leave(struct pthread *, int) __hidden;
 void	_thr_testcancel(struct pthread *) __hidden;
 void	_thr_signal_block(struct pthread *) __hidden;
 void	_thr_signal_unblock(struct pthread *) __hidden;
+void	_thr_signal_block_check_fast(void) __hidden;
+void	_thr_signal_block_setup(struct pthread *) __hidden;
 void	_thr_signal_init(int) __hidden;
 void	_thr_signal_deinit(void) __hidden;
 int	_thr_send_sig(struct pthread *, int sig) __hidden;
