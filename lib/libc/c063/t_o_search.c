@@ -1,4 +1,4 @@
-/*	$NetBSD: t_o_search.c,v 1.9 2020/02/06 12:18:06 martin Exp $ */
+/*	$NetBSD: t_o_search.c,v 1.10 2020/02/08 19:58:36 kamil Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,11 +29,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_o_search.c,v 1.9 2020/02/06 12:18:06 martin Exp $");
+__RCSID("$NetBSD: t_o_search.c,v 1.10 2020/02/08 19:58:36 kamil Exp $");
 
 #include <atf-c.h>
 
 #include <sys/types.h>
+#include <sys/mount.h>
+#include <sys/statvfs.h>
 #include <sys/stat.h>
 
 #include <dirent.h>
@@ -53,6 +55,11 @@ __RCSID("$NetBSD: t_o_search.c,v 1.9 2020/02/06 12:18:06 martin Exp $");
  */
 #if defined(__FreeBSD__) || (O_MASK & O_SEARCH) != 0
 #define USE_O_SEARCH
+#endif
+
+#ifdef __FreeBSD__
+#define	statvfs		statfs
+#define	fstatvfs	fstatfs
 #endif
 
 #define DIR "dir"
@@ -311,8 +318,9 @@ ATF_TC_HEAD(o_search_revokex, tc)
 }
 ATF_TC_BODY(o_search_revokex, tc)
 {
-	int dfd, fd;
+	struct statvfs vst;
 	struct stat sb;
+	int dfd, fd;
 
 	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
 	ATF_REQUIRE((fd = open(FILE, O_CREAT|O_RDWR, 0644)) != -1);
@@ -322,6 +330,11 @@ ATF_TC_BODY(o_search_revokex, tc)
 
 	/* Drop permissions. The kernel must still not check the exec bit. */
 	ATF_REQUIRE(chmod(DIR, 0000) == 0);
+
+	fstatvfs(dfd, &vst);
+	if (strcmp(vst.f_fstypename, "nfs") == 0)
+		atf_tc_expect_fail("NFS protocol cannot observe O_SEARCH semantics");
+
 	ATF_REQUIRE(fstatat(dfd, BASEFILE, &sb, 0) == 0);
 
 	ATF_REQUIRE(close(dfd) == 0);
