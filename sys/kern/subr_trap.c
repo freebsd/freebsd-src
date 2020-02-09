@@ -116,12 +116,16 @@ userret(struct thread *td, struct trapframe *frame)
 	if (p->p_numthreads == 1) {
 		PROC_LOCK(p);
 		thread_lock(td);
-		if ((p->p_flag & P_PPWAIT) == 0) {
-			KASSERT(!SIGPENDING(td) || (td->td_flags &
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) ==
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING),
-			    ("failed to set signal flags for ast p %p "
-			    "td %p fl %x", p, td, td->td_flags));
+		if ((p->p_flag & P_PPWAIT) == 0 &&
+		    (td->td_pflags & TDP_SIGFASTBLOCK) == 0) {
+			if (SIGPENDING(td) && (td->td_flags &
+			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) !=
+			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) {
+				thread_unlock(td);
+				panic(
+	"failed to set signal flags for ast p %p td %p fl %x",
+				    p, td, td->td_flags);
+			}
 		}
 		thread_unlock(td);
 		PROC_UNLOCK(p);
@@ -218,8 +222,8 @@ ast(struct trapframe *framep)
 {
 	struct thread *td;
 	struct proc *p;
-	int flags;
-	int sig;
+	uint32_t oldval;
+	int flags, sig, res;
 
 	td = curthread;
 	p = td->td_proc;
@@ -298,12 +302,16 @@ ast(struct trapframe *framep)
 		 * the reason for looping check for AST condition.
 		 * See comment in userret() about P_PPWAIT.
 		 */
-		if ((p->p_flag & P_PPWAIT) == 0) {
-			KASSERT(!SIGPENDING(td) || (td->td_flags &
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) ==
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING),
-			    ("failed2 to set signal flags for ast p %p td %p "
-			    "fl %x %x", p, td, flags, td->td_flags));
+		if ((p->p_flag & P_PPWAIT) == 0 &&
+		    (td->td_pflags & TDP_SIGFASTBLOCK) == 0) {
+			if (SIGPENDING(td) && (td->td_flags &
+			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) !=
+			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) {
+				thread_unlock(td); /* fix dumps */
+				panic(
+	"failed2 to set signal flags for ast p %p td %p fl %x %x",
+				    p, td, flags, td->td_flags);
+			}
 		}
 		thread_unlock(td);
 		PROC_UNLOCK(p);
@@ -317,15 +325,54 @@ ast(struct trapframe *framep)
 	 */
 	if (flags & TDF_NEEDSIGCHK || p->p_pendingcnt > 0 ||
 	    !SIGISEMPTY(p->p_siglist)) {
+		fetch_sigfastblock(td);
 		PROC_LOCK(p);
 		mtx_lock(&p->p_sigacts->ps_mtx);
-		while ((sig = cursig(td)) != 0) {
-			KASSERT(sig >= 0, ("sig %d", sig));
-			postsig(sig);
+		if ((td->td_pflags & TDP_SIGFASTBLOCK) != 0 &&
+		    td->td_sigblock_val != 0) {
+			reschedule_signals(p, fastblock_mask,
+			    SIGPROCMASK_PS_LOCKED | SIGPROCMASK_FASTBLK);
+		} else {
+			while ((sig = cursig(td)) != 0) {
+				KASSERT(sig >= 0, ("sig %d", sig));
+				postsig(sig);
+			}
 		}
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 		PROC_UNLOCK(p);
 	}
+
+	/*
+	 * Handle deferred update of the fast sigblock value, after
+	 * the postsig() loop was performed.
+	 */
+	if (td->td_pflags & TDP_SIGFASTPENDING) {
+		td->td_pflags &= ~TDP_SIGFASTPENDING;
+		res = fueword32(td->td_sigblock_ptr, &oldval);
+		if (res == -1) {
+			fetch_sigfastblock_failed(td, false);
+		} else {
+			for (;;) {
+				oldval |= SIGFASTBLOCK_PEND;
+				res = casueword32(td->td_sigblock_ptr, oldval,
+				    &oldval, oldval | SIGFASTBLOCK_PEND);
+				if (res == -1) {
+					fetch_sigfastblock_failed(td, true);
+					break;
+				}
+				if (res == 0) {
+					td->td_sigblock_val = oldval &
+					    ~SIGFASTBLOCK_FLAGS;
+					break;
+				}
+				MPASS(res == 1);
+				res = thread_check_susp(td, false);
+				if (res != 0)
+					break;
+			}
+		}
+	}
+
 	/*
 	 * We need to check to see if we have to exit or wait due to a
 	 * single threading requirement or some other STOP condition.

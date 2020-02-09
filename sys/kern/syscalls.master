@@ -3212,6 +3212,12 @@
 		    int flags
 		);
 	}
+573	AUE_NULL	STD {
+		int sigfastblock(
+		    int cmd,
+		    _Inout_opt_ uint32_t *ptr
+		);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
