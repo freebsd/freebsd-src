@@ -365,6 +365,7 @@ void free_aligned(void *ptr);
 extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 extern Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 extern bool ld_bind_not;
+extern bool ld_fast_sigblock;
 
 void dump_relocations(Obj_Entry *);
 void dump_obj_relocations(Obj_Entry *);
