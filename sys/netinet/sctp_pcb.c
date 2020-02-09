@@ -4425,8 +4425,10 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 void
 sctp_remove_net(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
+	struct sctp_inpcb *inp;
 	struct sctp_association *asoc;
 
+	inp = stcb->sctp_ep;
 	asoc = &stcb->asoc;
 	asoc->numnets--;
 	TAILQ_REMOVE(&asoc->nets, net, sctp_next);
@@ -4474,6 +4476,10 @@ out:
 		sctp_free_remote_addr(stcb->asoc.alternate);
 		stcb->asoc.alternate = NULL;
 	}
+	sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net,
+	    SCTP_FROM_SCTP_PCB + SCTP_LOC_9);
+	sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, inp, stcb, net,
+	    SCTP_FROM_SCTP_PCB + SCTP_LOC_10);
 	sctp_free_remote_addr(net);
 }
 
@@ -6994,7 +7000,7 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 		 */
 		asoc->last_revoke_count = cnt;
 		sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, NULL,
-		    SCTP_FROM_SCTP_PCB + SCTP_LOC_16);
+		    SCTP_FROM_SCTP_PCB + SCTP_LOC_11);
 		/* sa_ignore NO_NULL_CHK */
 		sctp_send_sack(stcb, SCTP_SO_NOT_LOCKED);
 		sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_DRAIN, SCTP_SO_NOT_LOCKED);
