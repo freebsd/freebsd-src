@@ -348,7 +348,12 @@ BROKEN_OPTIONS+=LIB32
 BROKEN_OPTIONS+=LIBSOFT
 .endif
 .if ${__T:Mmips*}
-BROKEN_OPTIONS+=SSP
+# GOOGLETEST cannot currently be compiled on mips due to external circumstances.
+# Notably, the freebsd-gcc port isn't linking in libgcc so we end up trying ot
+# link to a hidden symbol. LLVM would successfully link this in, but some of
+# the mips variants are broken under LLVM until LLVM 10. GOOGLETEST should be
+# marked no longer broken with the switch to LLVM.
+BROKEN_OPTIONS+=GOOGLETEST SSP
 .endif
 # EFI doesn't exist on mips, powerpc, sparc or riscv.
 .if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
