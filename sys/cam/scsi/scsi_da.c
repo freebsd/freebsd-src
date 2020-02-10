@@ -1942,10 +1942,6 @@ dagetattr(struct bio *bp)
 	int ret;
 	struct cam_periph *periph;
 
-	/* TODO: tunable knob for this */
-	if (g_handleattr_int(bp, "GEOM::canspeedup", 1))
-		return (0);
-
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
 	cam_periph_lock(periph);
 	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
