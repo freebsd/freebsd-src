@@ -3170,6 +3170,7 @@ static void
 vputx(struct vnode *vp, enum vputx_op func)
 {
 	int error;
+	bool want_unlock;
 
 	KASSERT(vp != NULL, ("vputx: null vp"));
 	if (func == VPUTX_VUNREF)
@@ -3221,13 +3222,31 @@ vputx(struct vnode *vp, enum vputx_op func)
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
 	vp->v_iflag |= VI_OWEINACT;
+	want_unlock = false;
+	error = 0;
 	switch (func) {
 	case VPUTX_VRELE:
-		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
-		VI_LOCK(vp);
+		switch (VOP_ISLOCKED(vp)) {
+		case LK_EXCLUSIVE:
+			break;
+		case LK_EXCLOTHER:
+		case 0:
+			want_unlock = true;
+			error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
+			VI_LOCK(vp);
+			break;
+		default:
+			/*
+			 * The lock has at least one sharer, but we have no way
+			 * to conclude whether this is us. Play it safe and
+			 * defer processing.
+			 */
+			error = EAGAIN;
+			break;
+		}
 		break;
 	case VPUTX_VPUT:
-		error = 0;
+		want_unlock = true;
 		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
 			error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK |
 			    LK_NOWAIT);
@@ -3235,7 +3254,6 @@ vputx(struct vnode *vp, enum vputx_op func)
 		}
 		break;
 	case VPUTX_VUNREF:
-		error = 0;
 		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
 			error = VOP_LOCK(vp, LK_TRYUPGRADE | LK_INTERLOCK);
 			VI_LOCK(vp);
@@ -3244,7 +3262,7 @@ vputx(struct vnode *vp, enum vputx_op func)
 	}
 	if (error == 0) {
 		vinactive(vp);
-		if (func != VPUTX_VUNREF)
+		if (want_unlock)
 			VOP_UNLOCK(vp);
 		vdropl(vp);
 	} else {
