@@ -21,12 +21,8 @@ SRCS+=	bufferevent_openssl.c
 NTP_ATOMIC=x86_32
 .elif ${MACHINE_ARCH} == "amd64"
 NTP_ATOMIC=x86_64
-.elif ${MACHINE_ARCH} == "ia64"
-NTP_ATOMIC=ia64
 .elif ${MACHINE_ARCH} == "powerpc64"
 NTP_ATOMIC=powerpc
-.elif ${MACHINE_ARCH} == "sparc64"
-NTP_ATOMIC=sparc64
 .else
 NTP_ATOMIC=noatomic
 .endif
