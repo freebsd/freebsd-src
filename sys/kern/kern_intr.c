@@ -189,12 +189,12 @@ intr_event_update(struct intr_event *ie)
 {
 	struct intr_handler *ih;
 	char *last;
-	int missed, space;
+	int missed, space, flags;
 
 	/* Start off with no entropy and just the name of the event. */
 	mtx_assert(&ie->ie_lock, MA_OWNED);
 	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
-	ie->ie_hflags = 0;
+	flags = 0;
 	missed = 0;
 	space = 1;
 
@@ -207,8 +207,9 @@ intr_event_update(struct intr_event *ie)
 			space = 0;
 		} else
 			missed++;
-		ie->ie_hflags |= ih->ih_flags;
+		flags |= ih->ih_flags;
 	}
+	ie->ie_hflags = flags;
 
 	/*
 	 * If there is only one handler and its name is too long, just copy in
@@ -1208,6 +1209,7 @@ ithread_loop(void *arg)
 	struct thread *td;
 	struct proc *p;
 	int wake, epoch_count;
+	bool needs_epoch;
 
 	td = curthread;
 	p = td->td_proc;
@@ -1242,20 +1244,22 @@ ithread_loop(void *arg)
 		 * that the load of ih_need in ithread_execute_handlers()
 		 * is ordered after the load of it_need here.
 		 */
-		if (ie->ie_hflags & IH_NET) {
+		needs_epoch =
+		    (atomic_load_int(&ie->ie_hflags) & IH_NET) != 0;
+		if (needs_epoch) {
 			epoch_count = 0;
 			NET_EPOCH_ENTER(et);
 		}
 		while (atomic_cmpset_acq_int(&ithd->it_need, 1, 0) != 0) {
 			ithread_execute_handlers(p, ie);
-			if ((ie->ie_hflags & IH_NET) &&
+			if (needs_epoch &&
 			    ++epoch_count >= intr_epoch_batch) {
 				NET_EPOCH_EXIT(et);
 				epoch_count = 0;
 				NET_EPOCH_ENTER(et);
 			}
 		}
-		if (ie->ie_hflags & IH_NET)
+		if (needs_epoch)
 			NET_EPOCH_EXIT(et);
 		WITNESS_WARN(WARN_PANIC, NULL, "suspending ithread");
 		mtx_assert(&Giant, MA_NOTOWNED);
