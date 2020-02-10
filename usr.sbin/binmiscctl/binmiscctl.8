@@ -27,7 +27,7 @@
 .\"
 .\" Support for miscellaneous binary image activators
 .\"
-.Dd July 21, 2018
+.Dd February 10, 2020
 .Dt BINMISCCTL 8
 .Os
 .Sh NAME
@@ -267,17 +267,6 @@ Add QEMU bsd-user program as an image activator for PowerPC64 binaries:
   --interpreter "/usr/local/bin/qemu-ppc64-static" \e
   --magic "\ex7f\ex45\ex4c\ex46\ex02\ex02\ex01\ex00\ex00\ex00\e
            \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex15" \e
-  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
-           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
-  --size 20 --set-enabled
-.Ed
-.Pp
-Add QEMU bsd-user program as an image activator for SPARC64 binaries:
-.Bd -literal -offset indent
-# binmiscctl add sparc64 \e
-  --interpreter "/usr/local/bin/qemu-sparc64-static" \e
-  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex02\ex01\ex00\ex00\ex00\e
-           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex2b" \e
   --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
            \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
   --size 20 --set-enabled
