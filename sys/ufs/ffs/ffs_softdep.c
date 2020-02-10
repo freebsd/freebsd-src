@@ -1464,6 +1464,9 @@ softdep_send_speedup(struct ufsmount *ump, size_t shortage, u_int flags)
 {
 	struct buf *bp;
 
+	if ((ump->um_flags & UM_CANSPEEDUP) == 0)
+		return;
+
 	bp = malloc(sizeof(*bp), M_TRIM, M_WAITOK | M_ZERO);
 	bp->b_iocmd = BIO_SPEEDUP;
 	bp->b_ioflags = flags;
