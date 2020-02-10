@@ -1592,7 +1592,7 @@
 #define STR_SYSTEM "arm64-undermydesk-freebsd"
 #elif defined(__arm__)
 #define STR_SYSTEM "arm-undermydesk-freebsd"
-#elif defined(__riscv__)
+#elif defined(__riscv)
 #define STR_SYSTEM "riscv64-undermydesk-freebsd"
 #else
 #define STR_SYSTEM "i386-undermydesk-freebsd"
