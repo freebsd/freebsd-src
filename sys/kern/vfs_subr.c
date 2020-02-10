@@ -3192,12 +3192,22 @@ vputx(struct vnode *vp, enum vputx_op func)
 	 * count which provides liveness of the vnode, in which case we
 	 * have to vdrop.
 	 */
-	if (!refcount_release(&vp->v_usecount)) {
-		if (func == VPUTX_VPUT)
-			VOP_UNLOCK(vp);
-		return;
+	if (__predict_false(vp->v_type == VCHR && func == VPUTX_VRELE)) {
+		if (refcount_release_if_not_last(&vp->v_usecount))
+			return;
+		VI_LOCK(vp);
+		if (!refcount_release(&vp->v_usecount)) {
+			VI_UNLOCK(vp);
+			return;
+		}
+	} else {
+		if (!refcount_release(&vp->v_usecount)) {
+			if (func == VPUTX_VPUT)
+				VOP_UNLOCK(vp);
+			return;
+		}
+		VI_LOCK(vp);
 	}
-	VI_LOCK(vp);
 	v_decr_devcount(vp);
 	/*
 	 * By the time we got here someone else might have transitioned
