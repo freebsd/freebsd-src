@@ -131,7 +131,6 @@ struct ufsmount {
  */
 #define UM_CANDELETE		0x00000001	/* devvp supports TRIM */
 #define UM_WRITESUSPENDED	0x00000002	/* suspension in progress */
-#define UM_CANSPEEDUP		0x00000004	/* devvp supports SPEEDUP */
 
 /*
  * function prototypes
