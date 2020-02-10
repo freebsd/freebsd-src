@@ -1687,8 +1687,12 @@ sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if (req->newlen - req->newidx >= arg2 ||
-	    req->newlen - req->newidx <= 0) {
+	    req->newlen - req->newidx < 0) {
 		error = EINVAL;
+	} else if (req->newlen - req->newidx == 0) {
+		sx_xlock(&sysctlstringlock);
+		((char *)arg1)[0] = '\0';
+		sx_xunlock(&sysctlstringlock);
 	} else {
 		arg2 = req->newlen - req->newidx;
 		tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
