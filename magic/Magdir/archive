@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.129 2019/05/09 18:58:02 christos Exp $
+# $File: archive,v 1.133 2019/11/15 21:03:14 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -263,7 +263,7 @@
 # NL terminated original package length
 >>>>>&1	string		x		\b, unsplitted size %s
 # NL terminated part length
->>>>>>&1	string	x		\b, part lenght %s
+>>>>>>&1	string	x		\b, part length %s
 # NL terminated package part like n/m
 >>>>>>>&1	string	x		\b, part %s
 # NL terminated package architecture like armhf since dpkg 1.16.1 or later
@@ -439,6 +439,34 @@
 # skip keyword with low entropy
 >12	default		x	TTComp archive, binary, 4K dictionary
 # (version 5.25) labeled the above entry as "TTComp archive data"
+# From:		Joerg Jenderek
+# URL:		https://wiki.68kmla.org/DiskCopy_4.2_format_specification
+# reference:	http://nulib.com/library/FTN.e00005.htm
+0x52	ubeshort	0x0100
+# test for disk size equal or above 400k
+>0x40	ubelong		>409599	Apple DiskCopy 4.2 image
+#!:mime	application/octet-stream
+!:apple	dCpydImg
+!:ext	image/dc42
+# image pascal name padded with NULs like Microsoft Mail
+>>00	pstring/B	x	%s
+# data size in bytes like 409600
+>>0x40	ubelong		x	\b, %u bytes
+# tag size in bytes
+>>0x44	ubelong		>0	\b, 0x%x tag size
+# data checksum
+#>>0x48	ubelong		x	\b, 0x%x checksum
+# tag checksum
+#>>0x4c	ubelong		x	\b, 0x%x tag checksum
+# disk encoding
+>>0x50	ubyte		0	\b, GCR CLV ssdd (400k)
+>>0x50	ubyte		1	\b, GCR CLV dsdd (800k)
+>>0x50	ubyte		2	\b, MFM CAV dsdd (720k)
+>>0x50	ubyte		3	\b, MFM CAV dshd (1440k)
+>>0x50	ubyte		>3	\b, 0x%x encoding
+# format byte
+>>0x51	ubyte		x	\b, 0x%x format
+#>>0x54	ubequad		x	\b, data 0x%16.16llx
 # ESP, could this conflict with Easy Software Products' (e.g.ESP ghostscript) documentation?
 0	string	ESP ESP archive data
 # ZPack
@@ -1168,17 +1196,31 @@
 >>50	string	epub+zip	EPUB document
 !:mime application/epub+zip
 
+# From:	Joerg Jenderek
+# URL:	http://en.wikipedia.org/wiki/CorelDRAW
+# NOTE:	version; til 2 WL-based; from 3 til 13 by ./riff; from 14 zip based
+>>50	string	x-vnd.corel.	 Corel
+>>>62	string	draw.document+zip	Draw drawing, version 14-16
+!:mime	application/x-vnd.corel.draw.document+zip
+!:ext	cdr
+>>>62	string	draw.template+zip	Draw template, version 14-16
+!:mime	application/x-vnd.corel.draw.template+zip
+!:ext	cdrt
+>>>62	string	zcf.draw.document+zip	Draw drawing, version 17-21
+!:mime	application/x-vnd.corel.zcf.draw.document+zip
+!:ext	cdr
+>>>62	string	zcf.draw.template+zip	Draw template, version 17-21
+!:mime	application/x-vnd.corel.zcf.draw.template+zip
+!:ext	cdt/cdrt
+
 #  Catch other ZIP-with-mimetype formats
 #	In a ZIP file, the bytes immediately after a member's contents are
 #	always "PK". The 2 regex rules here print the "mimetype" member's
 #	contents up to the first 'P'. Luckily, most MIME types don't contain
 #	any capital 'P's. This is a kludge.
 #    (mimetype contains "application/<OTHER>")
->>50		string	!epub+zip
->>>50		string	!vnd.oasis.opendocument.
->>>>50		string	!vnd.sun.xml.
->>>>>50		string	!vnd.kde.
->>>>>>38	regex	[!-OQ-~]+		Zip data (MIME type "%s"?)
+>>50		default	x			Zip data
+>>>38		regex	[!-OQ-~]+		(MIME type "%s"?)
 !:mime	application/zip
 #    (mimetype contents other than "application/*")
 >26		string	\x8\0\0\0mimetype
@@ -1289,6 +1331,10 @@
 !:mime	application/x-bittorrent
 # Durval Menezes, <jmgthbfile at durval dot com>
 0	string	d13:announce-list	BitTorrent file
+!:mime	application/x-bittorrent
+0	string	d7:comment	BitTorrent file
+!:mime	application/x-bittorrent
+0	string	d4:info		BitTorrent file
 !:mime	application/x-bittorrent
 
 # Atari MSA archive - Teemu Hukkanen <tjhukkan@iki.fi>

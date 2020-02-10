@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: buffer.c,v 1.6 2019/05/07 02:27:11 christos Exp $")
+FILE_RCSID("@(#)$File: buffer.c,v 1.7 2019/06/10 21:35:26 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -77,6 +77,7 @@ buffer_fill(const struct buffer *bb)
 	b->eoff = b->st.st_size - b->elen;
 	if (pread(b->fd, b->ebuf, b->elen, b->eoff) == -1) {
 		free(b->ebuf);
+		b->ebuf = NULL;
 		goto out;
 	}
 
