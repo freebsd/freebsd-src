@@ -58,9 +58,6 @@ do_command(e, u)
 	/* fork to become asynchronous -- parent process is done immediately,
 	 * and continues to run the normal cron code, which means return to
 	 * tick().  the child and grandchild don't leave this function, alive.
-	 *
-	 * vfork() is unsuitable, since we have much to do, and the parent
-	 * needs to be able to run off and fork other processes.
 	 */
 	switch ((pid = fork())) {
 	case -1:
@@ -222,13 +219,13 @@ child_process(e, u)
 
 	/* fork again, this time so we can exec the user's command.
 	 */
-	switch (jobpid = vfork()) {
+	switch (jobpid = fork()) {
 	case -1:
-		log_it("CRON",getpid(),"error","can't vfork");
+		log_it("CRON",getpid(),"error","can't fork");
 		exit(ERROR_EXIT);
 		/*NOTREACHED*/
 	case 0:
-		Debug(DPROC, ("[%d] grandchild process Vfork()'ed\n",
+		Debug(DPROC, ("[%d] grandchild process fork()'ed\n",
 			      getpid()))
 
 		if (e->uid == ROOT_UID)
@@ -315,24 +312,24 @@ child_process(e, u)
 			if (setgid(e->gid) != 0) {
 				log_it(usernm, getpid(),
 				    "error", "setgid failed");
-				exit(ERROR_EXIT);
+				_exit(ERROR_EXIT);
 			}
 # if defined(BSD)
 			if (initgroups(usernm, e->gid) != 0) {
 				log_it(usernm, getpid(),
 				    "error", "initgroups failed");
-				exit(ERROR_EXIT);
+				_exit(ERROR_EXIT);
 			}
 # endif
 			if (setlogin(usernm) != 0) {
 				log_it(usernm, getpid(),
 				    "error", "setlogin failed");
-				exit(ERROR_EXIT);
+				_exit(ERROR_EXIT);
 			}
 			if (setuid(e->uid) != 0) {
 				log_it(usernm, getpid(),
 				    "error", "setuid failed");
-				exit(ERROR_EXIT);
+				_exit(ERROR_EXIT);
 			}
 			/* we aren't root after this..*/
 #if defined(LOGIN_CAP)
