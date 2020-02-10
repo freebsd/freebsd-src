@@ -794,7 +794,7 @@ ffs_mountfs(devvp, mp, td)
 	struct ucred *cred;
 	struct g_consumer *cp;
 	struct mount *nmp;
-	int candelete, canspeedup;
+	int candelete;
 	off_t loc;
 
 	fs = NULL;
@@ -1009,13 +1009,6 @@ ffs_mountfs(devvp, mp, td)
 			ump->um_trimhash = hashinit(MAXTRIMIO, M_TRIM,
 			    &ump->um_trimlisthashsize);
 		}
-	}
-
-	/* TODO: sysctl tunables, runtime modification */
-	len = sizeof(int);
-	if (g_io_getattr("GEOM::canspeedup", cp, &len, &canspeedup) == 0) {
-		if (canspeedup)
-			ump->um_flags |= UM_CANSPEEDUP;
 	}
 
 	ump->um_mountp = mp;

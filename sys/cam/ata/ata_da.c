@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sbuf.h>
-#include <geom/geom.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
 
@@ -1566,10 +1565,6 @@ adagetattr(struct bio *bp)
 {
 	int ret;
 	struct cam_periph *periph;
-
-	/* TODO: tunable knob */
-	if (g_handleattr_int(bp, "GEOM::canspeedup", 1))
-		return (0);
 
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
 	cam_periph_lock(periph);
