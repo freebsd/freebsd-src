@@ -858,23 +858,75 @@ atomic_store_rel_long(volatile u_long *p, u_long v)
 }
 
 static __inline int
-atomic_testandset_32(volatile uint32_t *p, u_int v)
+atomic_testandclear_32(volatile uint32_t *ptr, u_int bit)
 {
-	uint32_t tmp, tmp2, res, mask;
+	int newv, oldv, result;
 
-	mask = 1u << (v & 0x1f);
-	tmp = tmp2 = 0;
 	__asm __volatile(
-	"1:	ldrex	%0, [%4]	\n"
-	"	orr	%1, %0, %3	\n"
-	"	strex	%2, %1, [%4]	\n"
-	"	cmp	%2, #0		\n"
-	"	it	ne		\n"
-	"	bne	1b		\n"
-	: "=&r" (res), "=&r" (tmp), "=&r" (tmp2)
-	: "r" (mask), "r" (p)
-	: "cc", "memory");
-	return ((res & mask) != 0);
+	    "   mov     ip, #1					\n"
+	    "   lsl     ip, ip, %[bit]				\n"
+	    /*  Done with %[bit] as input, reuse below as output. */
+	    "1:							\n"
+	    "   ldrex	%[oldv], [%[ptr]]			\n"
+	    "   bic     %[newv], %[oldv], ip			\n"
+	    "   strex	%[bit], %[newv], [%[ptr]]		\n"
+	    "   teq	%[bit], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    "   ands	%[bit], %[oldv], ip			\n"
+	    "   it	ne					\n"
+	    "   movne   %[bit], #1                              \n"
+	    : [bit]  "=&r"   (result),
+	      [oldv] "=&r"   (oldv),
+	      [newv] "=&r"   (newv)
+	    : [ptr]  "r"     (ptr),
+	             "[bit]" (bit)
+	    : "cc", "ip", "memory");
+
+	return (result);
+}
+
+static __inline int
+atomic_testandclear_int(volatile u_int *p, u_int v)
+{
+
+	return (atomic_testandclear_32((volatile uint32_t *)p, v));
+}
+
+static __inline int
+atomic_testandclear_long(volatile u_long *p, u_int v)
+{
+
+	return (atomic_testandclear_32((volatile uint32_t *)p, v));
+}
+
+static __inline int
+atomic_testandset_32(volatile uint32_t *ptr, u_int bit)
+{
+	int newv, oldv, result;
+
+	__asm __volatile(
+	    "   mov     ip, #1					\n"
+	    "   lsl     ip, ip, %[bit]				\n"
+	    /*  Done with %[bit] as input, reuse below as output. */
+	    "1:							\n"
+	    "   ldrex	%[oldv], [%[ptr]]			\n"
+	    "   orr     %[newv], %[oldv], ip			\n"
+	    "   strex	%[bit], %[newv], [%[ptr]]		\n"
+	    "   teq	%[bit], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    "   ands	%[bit], %[oldv], ip			\n"
+	    "   it	ne					\n"
+	    "   movne   %[bit], #1                              \n"
+	    : [bit]  "=&r"   (result),
+	      [oldv] "=&r"   (oldv),
+	      [newv] "=&r"   (newv)
+	    : [ptr]  "r"     (ptr),
+	             "[bit]" (bit)
+	    : "cc", "ip", "memory");
+
+	return (result);
 }
 
 static __inline int
