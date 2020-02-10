@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #define	PCI_OHCI_VENDORID_APPLE		0x106b
 #define	PCI_OHCI_VENDORID_ATI		0x1002
 #define	PCI_OHCI_VENDORID_CMDTECH	0x1095
+#define	PCI_OHCI_VENDORID_HYGON		0x1d94
 #define	PCI_OHCI_VENDORID_NEC		0x1033
 #define	PCI_OHCI_VENDORID_NVIDIA	0x12D2
 #define	PCI_OHCI_VENDORID_NVIDIA2	0x10DE
@@ -279,6 +280,9 @@ ohci_pci_attach(device_t self)
 		break;
 	case PCI_OHCI_VENDORID_CMDTECH:
 		sprintf(sc->sc_vendor, "CMDTECH");
+		break;
+	case PCI_OHCI_VENDORID_HYGON:
+		sprintf(sc->sc_vendor, "Hygon");
 		break;
 	case PCI_OHCI_VENDORID_NEC:
 		sprintf(sc->sc_vendor, "NEC");
