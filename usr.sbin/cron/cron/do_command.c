@@ -38,8 +38,7 @@ static const char rcsid[] =
 #endif
 
 
-static void		child_process(entry *, user *),
-			do_univ(user *);
+static void		child_process(entry *, user *);
 
 static WAIT_T		wait_on_child(PID_T, const char *);
 
@@ -277,12 +276,6 @@ child_process(e, u)
 		 */
 		close(stdin_pipe[READ_PIPE]);
 		close(stdout_pipe[WRITE_PIPE]);
-
-		/* set our login universe.  Do this in the grandchild
-		 * so that the child can invoke /usr/lib/sendmail
-		 * without surprises.
-		 */
-		do_univ(u);
 
 		environ = NULL;
 
@@ -638,42 +631,4 @@ wait_on_child(PID_T childpid, const char *name) {
 	Debug(DPROC, ("\n"))
 
 	return waiter;
-}
-
-
-static void
-do_univ(u)
-	user	*u;
-{
-#if defined(sequent)
-/* Dynix (Sequent) hack to put the user associated with
- * the passed user structure into the ATT universe if
- * necessary.  We have to dig the gecos info out of
- * the user's password entry to see if the magic
- * "universe(att)" string is present.
- */
-
-	struct	passwd	*p;
-	char	*s;
-	int	i;
-
-	p = getpwuid(u->uid);
-	(void) endpwent();
-
-	if (p == NULL)
-		return;
-
-	s = p->pw_gecos;
-
-	for (i = 0; i < 4; i++)
-	{
-		if ((s = strchr(s, ',')) == NULL)
-			return;
-		s++;
-	}
-	if (strcmp(s, "universe(att)"))
-		return;
-
-	(void) universe(U_ATT);
-#endif
 }
