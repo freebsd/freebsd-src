@@ -137,7 +137,7 @@
 	<entry><link
 	    xlink:href="&security.url;/FreeBSD-SA-20:03.thrmisc.asc">FreeBSD-SA-20:03.thrmisc</link></entry>
 	<entry>28&nbsp;January&nbsp;2020</entry>
-	<entry><para>Kennel stack data disclosure</para></entry>
+	<entry><para>Kernel stack data disclosure</para></entry>
       </row>
     </tbody>
   </tgroup>
