@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sniffer,v 1.25 2019/05/05 17:03:41 christos Exp $
+# $File: sniffer,v 1.27 2019/12/08 18:22:24 christos Exp $
 # sniffer:  file(1) magic for packet capture files
 #
 # From: guy@alum.mit.edu (Guy Harris)
@@ -99,7 +99,7 @@
 >20	belong		9		(PPP
 >20	belong		10		(FDDI
 >20	belong		11		(RFC 1483 ATM
->20	belong		12		(raw IP
+>20	belong		12		(Raw IP
 >20	belong		13		(BSD/OS SLIP
 >20	belong		14		(BSD/OS PPP
 >20	belong		19		(Linux ATM Classical IP
@@ -107,7 +107,7 @@
 >20	belong		51		(PPP-over-Ethernet
 >20	belong		99		(Symantec Enterprise Firewall
 >20	belong		100		(RFC 1483 ATM
->20	belong		101		(raw IP
+>20	belong		101		(Raw IP
 >20	belong		102		(BSD/OS SLIP
 >20	belong		103		(BSD/OS PPP
 >20	belong		104		(BSD/OS Cisco HDLC
@@ -262,6 +262,8 @@
 >20	belong		279		(Elektrobit High Speed Capture and Replay (EBHSCR)
 >20	belong		281		(Broadcom tag
 >20	belong		282		(Broadcom tag (prepended)
+>20	belong		284		(Marvell DSA
+>20	belong		285		(Marvell EDSA
 # print default match
 >20	default		x
 >>20	belong		x		(linktype#%u

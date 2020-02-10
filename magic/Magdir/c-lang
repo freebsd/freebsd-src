@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: c-lang,v 1.27 2019/02/27 16:46:23 christos Exp $
+# $File: c-lang,v 1.28 2019/11/15 21:03:14 christos Exp $
 # c-lang:  file(1) magic for C and related languages programs
 #
 # The strength is to beat standard HTML
@@ -11,7 +11,7 @@
 !:mime	text/x-bcpl
 
 # C
-# Check for class if include is found, otherwise class is beaten by include becouse of lowered strength
+# Check for class if include is found, otherwise class is beaten by include because of lowered strength
 0	search/8192	#include
 >0	regex	\^#include			C
 >>0	regex	\^class[[:space:]]+

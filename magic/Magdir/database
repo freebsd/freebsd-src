@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: database,v 1.55 2019/04/19 00:42:27 christos Exp $
+# $File: database,v 1.56 2019/06/14 20:12:00 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -149,7 +149,6 @@
 # updated by Joerg Jenderek at Feb 2013
 # https://www.dbase.com/Knowledgebase/INT/db7_file_fmt.htm
 # https://www.clicketyclick.dk/databases/xbase/format/dbf.html
-# http://home.f1.htw-berlin.de/scheibl/db/intern/dBase.htm
 # inspect VVYYMMDD , where 1<= MM <= 12 and 1<= DD <= 31
 0	ubelong&0x0000FFFF		<0x00000C20
 # skip Infocom game Z-machine
@@ -339,7 +338,7 @@
 # next free block index is positive
 >>>0		ulelong		>0
 # skip many JPG. ZIP, BZ2 by test for reserved bytes NULL , 0|2 , 0|1 , low byte of block size
->>>>17		ubelong&0xFFfdFE00	0x00000000
+>>>>17		ubelong&0xFFfdFEff	0x00000000
 # skip many RAR by test for low byte 0 ,high byte 0|2|even of block size, 0|a|e|d7 , 0|64h
 >>>>>20		ubelong&0xFF01209B	0x00000000
 # dBASE III
@@ -355,36 +354,34 @@
 >>>>>>>>>6	ubeshort	>0
 # skip emacs.PIF
 >>>>>>>>>>4	ushort		0
->>>>>>>>>>>0	use		foxpro-memo-print
+# check for valid FoxPro field type
+>>>>>>>>>>>512	ubelong		<3
+>>>>>>>>>>>>0	use		foxpro-memo-print
 # dBASE III DBT , garbage
->>>>>>>>>6	ubeshort	0
-# skip MM*DD*.bin by test for for reserved NULL byte
->>>>>>>>>>510	ubeshort	0
-# skip TK-DOS11.img image by looking for memo text
->>>>>>>>>>>512	ubelong		<0xfeffff03
-# skip EFI executables by looking for memo text
->>>>>>>>>>>>512	ubelong		>0x1F202020
->>>>>>>>>>>>>513 ubyte		>0
+# skip WORD1XW.DOC with improbably high free block index
+>>>>>>>>>0	lelong		<2205083
 # unusual dBASE III DBT like adressen.dbt
->>>>>>>>>>>>>>0	use		dbase3-memo-print
+>>>>>>>>>>0	use		dbase3-memo-print
 # dBASE III DBT like angest.dbt, or garbage PCX DBF
 >>>>>>>>8	ubelong		!0
 # skip PCX and some DBF by test for for reserved NULL bytes
 >>>>>>>>>510	ubeshort	0
-# skip some DBF by test of invalid version
->>>>>>>>>>0	ubyte		>5
->>>>>>>>>>>0	ubyte		<48
->>>>>>>>>>>>0	use		dbase3-memo-print
+# skip AI070GEP.EPS with improbably high free block index
+>>>>>>>>>>0	lelong		<458766
+>>>>>>>>>>>0	use		dbase3-memo-print
 # dBASE IV DBT with positive block size
 >>>>>>>20	uleshort	>0
 # dBASE IV DBT with valid block length like 512, 1024
 # multiple of 2 in between 16 and 16 K ,implies upper and lower bits are zero
->>>>>>>>20	uleshort&0x800f	0
+# skip also 3600h 3E00h size
+>>>>>>>>20	uleshort&0xE00f	0
 >>>>>>>>>0	use		dbase4-memo-print
 
 #		Print the information of dBase III DBT memo file
 0	name				dbase3-memo-print
 >0	ubyte			x		dBase III DBT
+!:mime	application/x-dbt
+!:ext	dbt
 # instead 3 as version number 0 for unusual examples like biblio.dbt
 >16	ubyte			!3		\b, version number %u
 # Number of next available block for appending data
@@ -395,6 +392,7 @@
 >20	uleshort		!0		\b, block length %u
 # dBase III memo field terminated by \032\032
 >512	string			>\0		\b, 1st item "%s"
+# https://www.clicketyclick.dk/databases/xbase/format/dbt.html
 #		Print the information of dBase IV DBT memo file
 0	name				dbase4-memo-print
 >0		lelong		x		dBase IV DBT
@@ -433,9 +431,12 @@
 # length of memo field
 >>4		lelong		x		\b, field length %d
 >>>8		string		>\0		\b, 1st used item "%s"
+# http://www.dbfree.org/webdocs/1-documentation/0018-developers_stuff_(advanced)/os_related_stuff/xbase_file_format.htm
 #		Print the information of FoxPro FPT memo file
 0	name				foxpro-memo-print
 >0		belong		x		FoxPro FPT
+!:mime	application/x-fpt
+!:ext	fpt
 # Size of blocks for FoxPro ( 64,256 )
 >6		ubeshort	x		\b, blocks size %u
 # next available block
