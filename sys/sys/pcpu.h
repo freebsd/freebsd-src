@@ -245,32 +245,41 @@ extern struct pcpu *cpuid_to_pcpu[];
  * If you need atomicity use xchg.
  * */
 #define zpcpu_replace(base, val) ({					\
-	__typeof(val) _old = *(__typeof(base))zpcpu_get(base);		\
-	*(__typeof(val) *)zpcpu_get(base) = val;			\
+	__typeof(val) *_ptr = zpcpu_get(base);				\
+	__typeof(val) _old;						\
+									\
+	_old = *_ptr;							\
+	*_ptr = val;							\
 	_old;								\
 })
 
 #define zpcpu_replace_cpu(base, val, cpu) ({				\
-	__typeof(val) _old = *(__typeof(base))zpcpu_get_cpu(base, cpu);	\
-	*(__typeof(val) *)zpcpu_get_cpu(base, cpu) = val;		\
+	__typeof(val) *_ptr = zpcpu_get_cpu(base, cpu);			\
+	__typeof(val) _old;						\
+									\
+	_old = *_ptr;							\
+	*_ptr = val;							\
 	_old;								\
 })
 
 #define zpcpu_set_protected(base, val) ({				\
 	MPASS(curthread->td_critnest > 0);				\
 	__typeof(val) *_ptr = zpcpu_get(base);				\
+									\
 	*_ptr = (val);							\
 })
 
 #define zpcpu_add_protected(base, val) ({				\
 	MPASS(curthread->td_critnest > 0);				\
 	__typeof(val) *_ptr = zpcpu_get(base);				\
+									\
 	*_ptr += (val);							\
 })
 
 #define zpcpu_sub_protected(base, val) ({				\
 	MPASS(curthread->td_critnest > 0);				\
 	__typeof(val) *_ptr = zpcpu_get(base);				\
+									\
 	*_ptr -= (val);							\
 })
 
