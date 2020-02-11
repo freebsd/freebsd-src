@@ -1543,7 +1543,7 @@ qla_create_fp_taskqueues(qla_host_t *ha)
                 bzero(tq_name, sizeof (tq_name));
                 snprintf(tq_name, sizeof (tq_name), "ql_fp_tq_%d", i);
 
-                TASK_INIT(&fp->fp_task, 0, qla_fp_taskqueue, fp);
+                NET_TASK_INIT(&fp->fp_task, 0, qla_fp_taskqueue, fp);
 
                 fp->fp_taskqueue = taskqueue_create_fast(tq_name, M_NOWAIT,
                                         taskqueue_thread_enqueue,

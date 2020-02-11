@@ -931,7 +931,7 @@ nicvf_init_cmp_queue(struct nicvf *nic, struct cmp_queue *cq, int q_len,
 	    &cq->mtx);
 
 	/* Allocate taskqueue */
-	TASK_INIT(&cq->cmp_task, 0, nicvf_cmp_task, cq);
+	NET_TASK_INIT(&cq->cmp_task, 0, nicvf_cmp_task, cq);
 	cq->cmp_taskq = taskqueue_create_fast("nicvf_cmp_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &cq->cmp_taskq);
 	taskqueue_start_threads(&cq->cmp_taskq, 1, PI_NET, "%s: cmp_taskq(%d)",
@@ -1577,7 +1577,7 @@ nicvf_alloc_resources(struct nicvf *nic)
 	}
 
 	/* Allocate QS error taskqueue */
-	TASK_INIT(&qs->qs_err_task, 0, nicvf_qs_err_task, nic);
+	NET_TASK_INIT(&qs->qs_err_task, 0, nicvf_qs_err_task, nic);
 	qs->qs_err_taskq = taskqueue_create_fast("nicvf_qs_err_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &qs->qs_err_taskq);
 	taskqueue_start_threads(&qs->qs_err_taskq, 1, PI_NET, "%s: qs_taskq",

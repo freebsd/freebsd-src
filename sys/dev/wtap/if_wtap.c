@@ -637,7 +637,7 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	sc->sc_tq = taskqueue_create("wtap_taskq", M_NOWAIT | M_ZERO,
 	    taskqueue_thread_enqueue, &sc->sc_tq);
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_SOFT, "%s taskQ", sc->name);
-	TASK_INIT(&sc->sc_rxtask, 0, wtap_rx_proc, sc);
+	NET_TASK_INIT(&sc->sc_rxtask, 0, wtap_rx_proc, sc);
 
 	ic->ic_softc = sc;
 	ic->ic_name = sc->name;

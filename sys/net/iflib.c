@@ -3781,7 +3781,6 @@ _task_fn_tx(void *context)
 static void
 _task_fn_rx(void *context)
 {
-	struct epoch_tracker et;
 	iflib_rxq_t rxq = context;
 	if_ctx_t ctx = rxq->ifr_ctx;
 	bool more;
@@ -3805,7 +3804,6 @@ _task_fn_rx(void *context)
 	budget = ctx->ifc_sysctl_rx_budget;
 	if (budget == 0)
 		budget = 16;	/* XXX */
-	NET_EPOCH_ENTER(et);
 	if (more == false || (more = iflib_rxeof(rxq, budget)) == false) {
 		if (ctx->ifc_flags & IFC_LEGACY)
 			IFDI_INTR_ENABLE(ctx);
@@ -3813,7 +3811,6 @@ _task_fn_rx(void *context)
 			IFDI_RX_QUEUE_INTR_ENABLE(ctx, rxq->ifr_id);
 		DBG_COUNTER_INC(rx_intr_enables);
 	}
-	NET_EPOCH_EXIT(et);
 	if (__predict_false(!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)))
 		return;
 	if (more)
@@ -5971,7 +5968,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_rx;
 		intr_fast = iflib_fast_intr;
-		GROUPTASK_INIT(gtask, 0, fn, q);
+		NET_GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	case IFLIB_INTR_RXTX:
 		q = &ctx->ifc_rxqs[qid];
@@ -5980,7 +5977,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_rx;
 		intr_fast = iflib_fast_intr_rxtx;
-		GROUPTASK_INIT(gtask, 0, fn, q);
+		NET_GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	case IFLIB_INTR_ADMIN:
 		q = ctx;
