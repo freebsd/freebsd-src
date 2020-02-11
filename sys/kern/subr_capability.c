@@ -394,3 +394,27 @@ cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src)
 
 	return (dst);
 }
+
+#ifndef _KERNEL
+bool
+cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little)
+{
+	unsigned int i, n;
+
+	assert(CAPVER(big) == CAP_RIGHTS_VERSION_00);
+	assert(CAPVER(little) == CAP_RIGHTS_VERSION_00);
+	assert(CAPVER(big) == CAPVER(little));
+
+	n = CAPARSIZE(big);
+	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
+
+	for (i = 0; i < n; i++) {
+		if ((big->cr_rights[i] & little->cr_rights[i]) !=
+		    little->cr_rights[i]) {
+			return (false);
+		}
+	}
+
+	return (true);
+}
+#endif
