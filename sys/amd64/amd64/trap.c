@@ -993,8 +993,6 @@ cpu_fetch_syscall_args_fallback(struct thread *td, struct syscall_args *sa)
 	reg = 0;
 	regcnt = NARGREGS;
 
-	sa->code = frame->tf_rax;
-
 	if (sa->code == SYS_syscall || sa->code == SYS___syscall) {
 		sa->code = frame->tf_rdi;
 		reg++;
