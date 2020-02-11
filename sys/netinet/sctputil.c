@@ -802,7 +802,7 @@ sctp_stop_timers_for_shutdown(struct sctp_tcb *stcb)
 }
 
 void
-sctp_stop_association_timers(struct sctp_tcb *stcb, bool stop_assoc_kill_timer)
+sctp_stop_association_timers(struct sctp_tcb *stcb, int stop_assoc_kill_timer)
 {
 	struct sctp_inpcb *inp;
 	struct sctp_nets *net;
@@ -812,7 +812,7 @@ sctp_stop_association_timers(struct sctp_tcb *stcb, bool stop_assoc_kill_timer)
 	    SCTP_FROM_SCTPUTIL + SCTP_LOC_18);
 	sctp_timer_stop(SCTP_TIMER_TYPE_STRRESET, inp, stcb, NULL,
 	    SCTP_FROM_SCTPUTIL + SCTP_LOC_19);
-	if (stop_assoc_kill_timer) {
+	if (stop_assoc_kill_timer != 0) {
 		sctp_timer_stop(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL,
 		    SCTP_FROM_SCTPUTIL + SCTP_LOC_20);
 	}
