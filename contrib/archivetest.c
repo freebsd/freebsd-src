@@ -37,10 +37,14 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-const char *errnostr(int errno)
+#if defined __MINGW32__
+#include <getopt.h>
+#endif
+
+static const char *errnostr(int e)
 {
 	char *estr;
-	switch(errno) {
+	switch(e) {
 		case ARCHIVE_EOF:
 			estr = "ARCHIVE_EOF";
 		break;
@@ -66,12 +70,12 @@ const char *errnostr(int errno)
 	return (estr);
 }
 
-void usage(const char *prog)
+static void usage(const char *prog)
 {
 	fprintf(stderr, "Usage: %s [-f filename] [-h] [-q] [-s]\n", prog);
 }
 
-void printhelp()
+static void printhelp()
 {
 	fprintf(stdout, "archivetest: verify reading archives with "
 	    "libarchive\n\n"
@@ -84,7 +88,7 @@ void printhelp()
 	    "\n%s\n", archive_version_details());
 }
 
-int v_print(int verbose, const char *format, ...)
+static int v_print(int verbose, const char *format, ...)
 {
 	int r = 0;
 
@@ -139,6 +143,8 @@ int main(int argc, char *argv[])
 					fprintf(stderr, "Unknown option "
 					    "character '\\x%x'.\n", optopt);
 				usage(argv[0]);
+				exit(1);
+				break;
 			default:
 				exit(1);
 		}

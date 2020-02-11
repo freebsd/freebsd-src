@@ -25,6 +25,9 @@
  * $FreeBSD: src/usr.bin/tar/bsdtar.h,v 1.37 2008/12/06 07:37:14 kientzle Exp $
  */
 
+#ifndef BSDTAR_H_INCLUDED
+#define BSDTAR_H_INCLUDED
+
 #include "bsdtar_platform.h"
 #include <stdio.h>
 
@@ -161,6 +164,7 @@ enum {
 	OPTION_NO_ACLS,
 	OPTION_NO_FFLAGS,
 	OPTION_NO_MAC_METADATA,
+	OPTION_NO_SAFE_WRITES,
 	OPTION_NO_SAME_OWNER,
 	OPTION_NO_SAME_PERMISSIONS,
 	OPTION_NO_XATTRS,
@@ -174,6 +178,7 @@ enum {
 	OPTION_OPTIONS,
 	OPTION_PASSPHRASE,
 	OPTION_POSIX,
+	OPTION_SAFE_WRITES,
 	OPTION_SAME_OWNER,
 	OPTION_STRIP_COMPONENTS,
 	OPTION_TOTALS,
@@ -224,3 +229,5 @@ const char * passphrase_callback(struct archive *, void *);
 void	     passphrase_free(char *);
 void	list_item_verbose(struct bsdtar *, FILE *,
 		    struct archive_entry *);
+
+#endif

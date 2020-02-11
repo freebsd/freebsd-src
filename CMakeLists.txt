@@ -18,7 +18,7 @@ endif()
 #   RelWithDebInfo : Release build with Debug Info
 #   MinSizeRel     : Release Min Size build
 IF(NOT CMAKE_BUILD_TYPE)
-  SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build Type" FORCE)
+  SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build Type" FORCE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 # Set a value type to properly display CMAKE_BUILD_TYPE on GUI if the
 # value type is "UNINITIALIZED".
@@ -155,9 +155,9 @@ IF (MSVC)
   #################################################################
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
-  # Enable level 4 C4061: The enumerate has no associated handler in a switch
-  #                       statement.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4061")
+  # Enable level 4 C4062: The enumerate has no associated handler in a switch
+  #                       statement and there is no default that can catch it.
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4062")
   # Enable level 4 C4254: A larger bit field was assigned to a smaller bit
   #                       field.
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4254")
@@ -285,6 +285,10 @@ ENDIF(MSVC)
 
 IF("${CMAKE_C_PLATFORM_ID}" MATCHES "^(HP-UX)$")
   ADD_DEFINITIONS(-D_XOPEN_SOURCE=500) # Ask wchar.h for mbstate_t
+ENDIF()
+
+IF(MINGW)
+  ADD_DEFINITIONS(-D__USE_MINGW_ANSI_STDIO)
 ENDIF()
 
 #
@@ -1392,6 +1396,7 @@ CHECK_FUNCTION_EXISTS_GLIBC(wctomb HAVE_WCTOMB)
 CHECK_FUNCTION_EXISTS_GLIBC(_ctime64_s HAVE__CTIME64_S)
 CHECK_FUNCTION_EXISTS_GLIBC(_fseeki64 HAVE__FSEEKI64)
 CHECK_FUNCTION_EXISTS_GLIBC(_get_timezone HAVE__GET_TIMEZONE)
+CHECK_FUNCTION_EXISTS_GLIBC(_gmtime64_s HAVE__GMTIME64_S)
 CHECK_FUNCTION_EXISTS_GLIBC(_localtime64_s HAVE__LOCALTIME64_S)
 CHECK_FUNCTION_EXISTS_GLIBC(_mkgmtime64 HAVE__MKGMTIME64)
 

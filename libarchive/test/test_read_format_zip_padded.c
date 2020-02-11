@@ -34,7 +34,7 @@ verify_padded_archive(const char *refname)
 	struct archive_entry *ae;
 
 	extract_reference_file(refname);
-	p = slurpfile(&s, refname);
+	p = slurpfile(&s, "%s", refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip_seekable(a));

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_ar.c 201108 200
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
+#include "archive_write_set_format_private.h"
 
 struct ar_w {
 	uint64_t	 entry_bytes_remaining;

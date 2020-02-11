@@ -258,6 +258,7 @@ archive_read_support_format_mtree(struct archive *_a)
 		    "Can't allocate mtree data");
 		return (ARCHIVE_FATAL);
 	}
+	mtree->checkfs = 0;
 	mtree->fd = -1;
 
 	__archive_rb_tree_init(&mtree->rbtree, &rb_ops);

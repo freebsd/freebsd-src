@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2017
+.Dd January 19, 2020
 .Dt ARCHIVE_WRITE_DISK 3
 .Os
 .Sh NAME
@@ -139,6 +139,11 @@ is not specified, then SUID and SGID bits will only be restored
 if the default user and group IDs of newly-created objects on disk
 happen to match those specified in the archive entry.
 By default, only basic permissions are restored, and umask is obeyed.
+.It Cm ARCHIVE_EXTRACT_SAFE_WRITES
+Extract files atomically, by first creating a unique temporary file and then
+renaming it to its required destination name.
+This avoids a race where an application might see a partial file (or no
+file) during extraction.
 .It Cm ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS
 Refuse to extract an absolute path.
 The default is to not refuse such paths.

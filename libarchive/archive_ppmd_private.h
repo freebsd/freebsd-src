@@ -2,12 +2,12 @@
 2010-03-12 : Igor Pavlov : Public domain
 This code is based on PPMd var.H (2001): Dmitry Shkarin : Public domain */
 
+#ifndef ARCHIVE_PPMD_PRIVATE_H_INCLUDED
+#define ARCHIVE_PPMD_PRIVATE_H_INCLUDED
+
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-
-#ifndef ARCHIVE_PPMD_PRIVATE_H_INCLUDED
-#define ARCHIVE_PPMD_PRIVATE_H_INCLUDED
 
 #include <stddef.h>
 

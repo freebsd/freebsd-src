@@ -1246,8 +1246,9 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			archive_array_append(&lha->filename,
 				(const char *)extdheader, datasize);
 			/* Setup a string conversion for a filename. */
-			lha->sconv_fname = archive_string_conversion_from_charset(
-				&a->archive, "UTF-16LE", 1);
+			lha->sconv_fname =
+			    archive_string_conversion_from_charset(&a->archive,
+			        "UTF-16LE", 1);
 			if (lha->sconv_fname == NULL)
 				return (ARCHIVE_FATAL);
 			break;
@@ -1273,32 +1274,46 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			break;
 		case EXT_UTF16_DIRECTORY:
 			/* UTF-16 characters take always 2 or 4 bytes */
-			if (datasize == 0 || (datasize & 1) || extdheader[0] == '\0')
+			if (datasize == 0 || (datasize & 1) ||
+			    extdheader[0] == '\0') {
 				/* no directory name data. exit this case. */
 				goto invalid;
+			}
 
 			archive_string_empty(&lha->dirname);
 			archive_array_append(&lha->dirname,
 				(const char *)extdheader, datasize);
-			lha->sconv_dir = archive_string_conversion_from_charset(
-				&a->archive, "UTF-16LE", 1);
+			lha->sconv_dir =
+			    archive_string_conversion_from_charset(&a->archive,
+			        "UTF-16LE", 1);
 			if (lha->sconv_dir == NULL)
 				return (ARCHIVE_FATAL);
 			else {
 				/*
-				 * Convert directory delimiter from 0xFF
+				 * Convert directory delimiter from 0xFFFF
 				 * to '/' for local system.
 				 */
+				uint16_t dirSep;
+				uint16_t d = 1;
+				if (archive_be16dec(&d) == 1)
+					dirSep = 0x2F00;
+				else
+					dirSep = 0x002F;
+
 				/* UTF-16LE character */
-				uint16_t *utf16name = (uint16_t *)lha->dirname.s;
+				uint16_t *utf16name =
+				    (uint16_t *)lha->dirname.s;
 				for (i = 0; i < lha->dirname.length / 2; i++) {
-					if (utf16name[i] == 0xFFFF)
-						utf16name[i] = L'/';
+					if (utf16name[i] == 0xFFFF) {
+						utf16name[i] = dirSep;
+					}
 				}
 				/* Is last character directory separator? */
-				if (utf16name[lha->dirname.length / 2 - 1] != L'/')
+				if (utf16name[lha->dirname.length / 2 - 1] !=
+				    dirSep) {
 					/* invalid directory data */
 					goto invalid;
+				}
 			}
 			break;
 		case EXT_DOS_ATTR:
