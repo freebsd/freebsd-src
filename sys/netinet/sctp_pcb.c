@@ -4767,7 +4767,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		}
 	}
 	/* Now clean up any other timers */
-	sctp_stop_association_timers(stcb, 0);
+	sctp_stop_association_timers(stcb, false);
 	/* Now the read queue needs to be cleaned up (only once) */
 	if ((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) == 0) {
 		SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_ABOUT_TO_BE_FREED);
@@ -4935,7 +4935,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	/*
 	 * Now restop the timers to be sure this is paranoia at is finest!
 	 */
-	sctp_stop_association_timers(stcb, 1);
+	sctp_stop_association_timers(stcb, true);
 
 	/*
 	 * The chunk lists and such SHOULD be empty but we check them just
