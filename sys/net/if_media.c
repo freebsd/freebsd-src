@@ -1,5 +1,4 @@
 /*	$NetBSD: if_media.c,v 1.1 1997/03/17 02:55:15 thorpej Exp $	*/
-/* $FreeBSD$ */
 
 /*-
  * SPDX-License-Identifier: BSD-4-Clause
@@ -47,6 +46,9 @@
  * Many thanks to Matt Thomas for providing the information necessary
  * to implement this interface.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ifmedia.h"
 
