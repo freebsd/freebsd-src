@@ -1258,39 +1258,34 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 static void
 keg_drain(uma_keg_t keg)
 {
-	struct slabhead freeslabs = { 0 };
+	struct slabhead freeslabs;
 	uma_domain_t dom;
 	uma_slab_t slab, tmp;
 	int i, n;
 
-	/*
-	 * We don't want to take pages from statically allocated kegs at this
-	 * time
-	 */
 	if (keg->uk_flags & UMA_ZONE_NOFREE || keg->uk_freef == NULL)
 		return;
 
 	for (i = 0; i < vm_ndomains; i++) {
 		CTR4(KTR_UMA, "keg_drain %s(%p) domain %d free items: %u",
-		    keg->uk_name, keg, i, dom->ud_free);
-		n = 0;
+		    keg->uk_name, keg, i, dom->ud_free_items);
 		dom = &keg->uk_domain[i];
-		KEG_LOCK(keg, i);
-		LIST_FOREACH_SAFE(slab, &dom->ud_free_slab, us_link, tmp) {
-			if (keg->uk_flags & UMA_ZFLAG_HASH)
-				UMA_HASH_REMOVE(&keg->uk_hash, slab);
-			n++;
-			LIST_REMOVE(slab, us_link);
-			LIST_INSERT_HEAD(&freeslabs, slab, us_link);
-		}
-		dom->ud_pages -= n * keg->uk_ppera;
-		dom->ud_free -= n * keg->uk_ipers;
-		KEG_UNLOCK(keg, i);
-	}
+		LIST_INIT(&freeslabs);
 
-	while ((slab = LIST_FIRST(&freeslabs)) != NULL) {
-		LIST_REMOVE(slab, us_link);
-		keg_free_slab(keg, slab, keg->uk_ipers);
+		KEG_LOCK(keg, i);
+		if ((keg->uk_flags & UMA_ZFLAG_HASH) != 0) {
+			LIST_FOREACH(slab, &dom->ud_free_slab, us_link)
+				UMA_HASH_REMOVE(&keg->uk_hash, slab);
+		}
+		n = dom->ud_free_slabs;
+		LIST_SWAP(&freeslabs, &dom->ud_free_slab, uma_slab, us_link);
+		dom->ud_free_slabs = 0;
+		dom->ud_free_items -= n * keg->uk_ipers;
+		dom->ud_pages -= n * keg->uk_ppera;
+		KEG_UNLOCK(keg, i);
+
+		LIST_FOREACH_SAFE(slab, &freeslabs, us_link, tmp)
+			keg_free_slab(keg, slab, keg->uk_ipers);
 	}
 }
 
@@ -1458,7 +1453,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	dom = &keg->uk_domain[domain];
 	LIST_INSERT_HEAD(&dom->ud_part_slab, slab, us_link);
 	dom->ud_pages += keg->uk_ppera;
-	dom->ud_free += keg->uk_ipers;
+	dom->ud_free_items += keg->uk_ipers;
 
 	return (slab);
 
@@ -2286,7 +2281,7 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 			    "pages", CTLFLAG_RD, &dom->ud_pages, 0,
 			    "Total pages currently allocated from VM");
 			SYSCTL_ADD_U32(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
-			    "free", CTLFLAG_RD, &dom->ud_free, 0,
+			    "free_items", CTLFLAG_RD, &dom->ud_free_items, 0,
 			    "items free in the slab layer");
 		}
 	} else
@@ -2572,7 +2567,7 @@ keg_dtor(void *arg, int size, void *udata)
 	keg = (uma_keg_t)arg;
 	free = pages = 0;
 	for (i = 0; i < vm_ndomains; i++) {
-		free += keg->uk_domain[i].ud_free;
+		free += keg->uk_domain[i].ud_free_items;
 		pages += keg->uk_domain[i].ud_pages;
 		KEG_LOCK_FINI(keg, i);
 	}
@@ -3386,11 +3381,11 @@ keg_first_slab(uma_keg_t keg, int domain, bool rr)
 	start = domain;
 	do {
 		dom = &keg->uk_domain[domain];
-		if (!LIST_EMPTY(&dom->ud_part_slab))
-			return (LIST_FIRST(&dom->ud_part_slab));
-		if (!LIST_EMPTY(&dom->ud_free_slab)) {
-			slab = LIST_FIRST(&dom->ud_free_slab);
+		if ((slab = LIST_FIRST(&dom->ud_part_slab)) != NULL)
+			return (slab);
+		if ((slab = LIST_FIRST(&dom->ud_free_slab)) != NULL) {
 			LIST_REMOVE(slab, us_link);
+			dom->ud_free_slabs--;
 			LIST_INSERT_HEAD(&dom->ud_part_slab, slab, us_link);
 			return (slab);
 		}
@@ -3417,7 +3412,7 @@ keg_fetch_free_slab(uma_keg_t keg, int domain, bool rr, int flags)
 
 	KEG_LOCK(keg, domain);
 	reserve = (flags & M_USE_RESERVE) != 0 ? 0 : keg->uk_reserve;
-	if (keg->uk_domain[domain].ud_free <= reserve ||
+	if (keg->uk_domain[domain].ud_free_items <= reserve ||
 	    (slab = keg_first_slab(keg, domain, rr)) == NULL) {
 		KEG_UNLOCK(keg, domain);
 		return (NULL);
@@ -3502,9 +3497,13 @@ slab_alloc_item(uma_keg_t keg, uma_slab_t slab)
 	BIT_CLR(keg->uk_ipers, freei, &slab->us_free);
 	item = slab_item(slab, keg, freei);
 	slab->us_freecount--;
-	dom->ud_free--;
+	dom->ud_free_items--;
 
-	/* Move this slab to the full list */
+	/*
+	 * Move this slab to the full list.  It must be on the partial list, so
+	 * we do not need to update the free slab count.  In particular,
+	 * keg_fetch_slab() always returns slabs on the partial list.
+	 */
 	if (slab->us_freecount == 0) {
 		LIST_REMOVE(slab, us_link);
 		LIST_INSERT_HEAD(&dom->ud_full_slab, slab, us_link);
@@ -3538,7 +3537,7 @@ zone_import(void *arg, void **bucket, int max, int domain, int flags)
 		dom = &keg->uk_domain[slab->us_domain];
 		while (slab->us_freecount && i < max) { 
 			bucket[i++] = slab_alloc_item(keg, slab);
-			if (dom->ud_free <= keg->uk_reserve)
+			if (dom->ud_free_items <= keg->uk_reserve)
 				break;
 #ifdef NUMA
 			/*
@@ -4240,9 +4239,10 @@ slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item)
 
 	/* Do we need to remove from any lists? */
 	dom = &keg->uk_domain[slab->us_domain];
-	if (slab->us_freecount+1 == keg->uk_ipers) {
+	if (slab->us_freecount + 1 == keg->uk_ipers) {
 		LIST_REMOVE(slab, us_link);
 		LIST_INSERT_HEAD(&dom->ud_free_slab, slab, us_link);
+		dom->ud_free_slabs++;
 	} else if (slab->us_freecount == 0) {
 		LIST_REMOVE(slab, us_link);
 		LIST_INSERT_HEAD(&dom->ud_part_slab, slab, us_link);
@@ -4254,7 +4254,7 @@ slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item)
 	slab->us_freecount++;
 
 	/* Keg statistics. */
-	dom->ud_free++;
+	dom->ud_free_items++;
 }
 
 static void
@@ -4635,9 +4635,14 @@ uma_prealloc(uma_zone_t zone, int items)
 			    aflags);
 			if (slab != NULL) {
 				dom = &keg->uk_domain[slab->us_domain];
+				/*
+				 * keg_alloc_slab() always returns a slab on the
+				 * partial list.
+				 */
 				LIST_REMOVE(slab, us_link);
 				LIST_INSERT_HEAD(&dom->ud_free_slab, slab,
 				    us_link);
+				dom->ud_free_slabs++;
 				KEG_UNLOCK(keg, slab->us_domain);
 				break;
 			}
@@ -4915,7 +4920,7 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		kfree = pages = 0;
 		for (i = 0; i < vm_ndomains; i++) {
-			kfree += kz->uk_domain[i].ud_free;
+			kfree += kz->uk_domain[i].ud_free_items;
 			pages += kz->uk_domain[i].ud_pages;
 		}
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
@@ -5219,7 +5224,7 @@ get_uma_stats(uma_keg_t kz, uma_zone_t z, uint64_t *allocs, uint64_t *used,
 		*cachefree += z->uz_domain[i].uzd_nitems;
 		if (!((z->uz_flags & UMA_ZONE_SECONDARY) &&
 		    (LIST_FIRST(&kz->uk_zones) != z)))
-			*cachefree += kz->uk_domain[i].ud_free;
+			*cachefree += kz->uk_domain[i].ud_free_items;
 	}
 	*used = *allocs - frees;
 	return (((int64_t)*used + *cachefree) * kz->uk_size);
