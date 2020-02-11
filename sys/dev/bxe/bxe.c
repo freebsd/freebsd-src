@@ -9241,7 +9241,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
         fp = &sc->fp[i];
         snprintf(fp->tq_name, sizeof(fp->tq_name),
                  "bxe%d_fp%d_tq", sc->unit, i);
-        TASK_INIT(&fp->tq_task, 0, bxe_handle_fp_tq, fp);
+        NET_TASK_INIT(&fp->tq_task, 0, bxe_handle_fp_tq, fp);
         TASK_INIT(&fp->tx_task, 0, bxe_tx_mq_start_deferred, fp);
         fp->tq = taskqueue_create(fp->tq_name, M_NOWAIT,
                                   taskqueue_thread_enqueue,

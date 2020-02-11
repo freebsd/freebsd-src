@@ -695,11 +695,12 @@ ptnet_irqs_init(struct ptnet_softc *sc)
 	cpu_cur = CPU_FIRST();
 	for (i = 0; i < nvecs; i++) {
 		struct ptnet_queue *pq = sc->queues + i;
-		static void (*handler)(void *context, int pending);
 
-		handler = (i < sc->num_tx_rings) ? ptnet_tx_task : ptnet_rx_task;
+		if (i < sc->num_tx_rings)
+			TASK_INIT(&pq->task, 0, ptnet_tx_task, pq);
+		else
+			NET_TASK_INIT(&pq->task, 0, ptnet_rx_task, pq);
 
-		TASK_INIT(&pq->task, 0, handler, pq);
 		pq->taskq = taskqueue_create_fast("ptnet_queue", M_NOWAIT,
 					taskqueue_thread_enqueue, &pq->taskq);
 		taskqueue_start_threads(&pq->taskq, 1, PI_NET, "%s-pq-%d",
