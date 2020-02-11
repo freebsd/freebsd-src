@@ -121,7 +121,6 @@ void	taskqueue_thread_enqueue(void *context);
  * Initialise a task structure.
  */
 #define TASK_INIT_FLAGS(task, priority, func, context, flags) do {	\
-	MPASS((priority) >= 0 && (priority) <= 255);		\
 	(task)->ta_pending = 0;					\
 	(task)->ta_priority = (priority);			\
 	(task)->ta_flags = (flags);				\
