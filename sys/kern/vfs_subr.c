@@ -6264,7 +6264,13 @@ mnt_vnode_next_lazy_relock(struct vnode *mvp, struct mount *mp,
 	TAILQ_REMOVE(&mp->mnt_lazyvnodelist, mvp, v_lazylist);
 	TAILQ_INSERT_BEFORE(vp, mvp, v_lazylist);
 
-	vholdnz(vp);
+	/*
+	 * Note we may be racing against vdrop which transitioned the hold
+	 * count to 0 and now waits for the ->mnt_listmtx lock. This is fine,
+	 * if we are the only user after we get the interlock we will just
+	 * vdrop.
+	 */
+	vhold(vp);
 	mtx_unlock(&mp->mnt_listmtx);
 	VI_LOCK(vp);
 	if (VN_IS_DOOMED(vp)) {
@@ -6273,8 +6279,7 @@ mnt_vnode_next_lazy_relock(struct vnode *mvp, struct mount *mp,
 	}
 	VNPASS(vp->v_mflag & VMP_LAZYLIST, vp);
 	/*
-	 * Since we had a period with no locks held we may be the last
-	 * remaining user, in which case there is nothing to do.
+	 * There is nothing to do if we are the last user.
 	 */
 	if (!refcount_release_if_not_last(&vp->v_holdcnt))
 		goto out_lost;
