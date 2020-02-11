@@ -469,6 +469,9 @@ ATF_TC_BODY(ptrace__parent_exits_before_child, tc)
 	int cpipe1[2], cpipe2[2], gcpipe[2], status;
 	pid_t child, gchild;
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/244056");
+
 	ATF_REQUIRE(pipe(cpipe1) == 0);
 	ATF_REQUIRE(pipe(cpipe2) == 0);
 	ATF_REQUIRE(pipe(gcpipe) == 0);
