@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: elf,v 1.77 2019/01/16 19:33:35 christos Exp $
+# $File: elf,v 1.79 2019/12/16 04:24:01 christos Exp $
 # elf:  file(1) magic for ELF executables
 #
 # We have to check the byte order flag to see what byte order all the
@@ -38,7 +38,7 @@
 >0	lelong&0x3		2		relaxed memory ordering,
 
 0	name		elf-pa-risc
->2	leshort		0x0208		1.0
+>2	leshort		0x020b		1.0
 >2	leshort		0x0210		1.1
 >2	leshort		0x0214		2.0
 >0	leshort		&0x0008		(LP64)

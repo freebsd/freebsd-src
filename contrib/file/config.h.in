@@ -6,6 +6,9 @@
 /* Define in built-in ELF support is used */
 #undef BUILTIN_ELF
 
+/* Enable bzlib compression support */
+#undef BZLIBSUPPORT
+
 /* Define for ELF core file support */
 #undef ELFCORE
 
@@ -14,6 +17,9 @@
 
 /* Define to 1 if you have the `asprintf' function. */
 #undef HAVE_ASPRINTF
+
+/* Define to 1 if you have the <bzlib.h> header file. */
+#undef HAVE_BZLIB_H
 
 /* Define to 1 if you have the `ctime_r' function. */
 #undef HAVE_CTIME_R
@@ -74,8 +80,14 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the `bz2' library (-lbz2). */
+#undef HAVE_LIBBZ2
+
 /* Define to 1 if you have the `gnurx' library (-lgnurx). */
 #undef HAVE_LIBGNURX
+
+/* Define to 1 if you have the `lzma' library (-llzma). */
+#undef HAVE_LIBLZMA
 
 /* Define to 1 if you have the `seccomp' library (-lseccomp). */
 #undef HAVE_LIBSECCOMP
@@ -85,6 +97,9 @@
 
 /* Define to 1 if you have the `localtime_r' function. */
 #undef HAVE_LOCALTIME_R
+
+/* Define to 1 if you have the <lzma.h> header file. */
+#undef HAVE_LZMA_H
 
 /* Define to 1 if mbrtowc and mbstate_t are properly declared. */
 #undef HAVE_MBRTOWC
@@ -240,8 +255,7 @@
 /* Define to 1 if you have the <zlib.h> header file. */
 #undef HAVE_ZLIB_H
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Define to 1 if `major', `minor', and `makedev' are declared in <mkdev.h>.
@@ -316,6 +330,9 @@
 # endif
 #endif
 
+/* Enable xzlib compression support */
+#undef XZLIBSUPPORT
+
 /* Enable zlib compression support */
 #undef ZLIBSUPPORT
 
@@ -357,9 +374,6 @@
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
    #define below would cause a syntax error. */
 #undef _UINT8_T
-
-/* Define to empty if `const' does not conform to ANSI C. */
-#undef const
 
 /* Define to the type of a signed integer type of width exactly 32 bits if
    such a type exists and the standard includes do not define it. */

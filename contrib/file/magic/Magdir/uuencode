@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: uuencode,v 1.7 2009/09/19 16:28:13 christos Exp $
+# $File: uuencode,v 1.8 2019/12/14 20:40:26 christos Exp $
 # uuencode:  file(1) magic for ASCII-encoded files
 #
 
@@ -22,10 +22,5 @@
 # bencode(8) is used to encode compressed news batches (Bnews/Cnews only?)
 # Greg Roelofs, newt@uchicago.edu
 0	search/1	Decode\ the\ following\ with\ bdeco	bencoded News text
-
-# BinHex is the Macintosh ASCII-encoded file format (see also "apple")
-# Daniel Quinlan, quinlan@yggdrasil.com
-11	search/1	must\ be\ converted\ with\ BinHex	BinHex binary text
->41	search/1	x					\b, version %.3s
 
 # GRR: handle BASE64
