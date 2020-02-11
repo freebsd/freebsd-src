@@ -2718,6 +2718,7 @@ dyn_grow_hashtable(struct ip_fw_chain *chain, uint32_t new)
 static void
 dyn_tick(void *vnetx)
 {
+	struct epoch_tracker et;
 	uint32_t buckets;
 
 	CURVNET_SET((struct vnet *)vnetx);
@@ -2740,10 +2741,12 @@ dyn_tick(void *vnetx)
 	if (V_dyn_keepalive != 0 &&
 	    V_dyn_keepalive_last + V_dyn_keepalive_period <= time_uptime) {
 		V_dyn_keepalive_last = time_uptime;
+		NET_EPOCH_ENTER(et);
 		dyn_send_keepalive_ipv4(&V_layer3_chain);
 #ifdef INET6
 		dyn_send_keepalive_ipv6(&V_layer3_chain);
 #endif
+		NET_EPOCH_EXIT(et);
 	}
 	/*
 	 * Check if we need to resize the hash:
