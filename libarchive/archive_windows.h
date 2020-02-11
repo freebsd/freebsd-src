@@ -27,10 +27,6 @@
  * $FreeBSD$
  */
 
-#ifndef __LIBARCHIVE_BUILD
-#error This header is only to be used internally to libarchive.
-#endif
-
 /*
  * TODO: A lot of stuff in here isn't actually used by libarchive and
  * can be trimmed out.  Note that this file is used by libarchive and
@@ -47,6 +43,10 @@
 
 #ifndef LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED
 #define	LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED
+
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
 
 /* Start of configuration for native Win32  */
 #ifndef MINGW_HAS_SECURE_API

@@ -59,7 +59,7 @@ DEFINE_TEST(test_0)
 	 * we know some option that will succeed.
 	 */
 	if (0 != systemf("%s --version >" DEV_NULL, testprog)) {
-		failure("Unable to successfully run: %s --version\n", testprog, testprog);
+		failure("Unable to successfully run: %s --version\n", testprog);
 		assert(0);
 	}
 

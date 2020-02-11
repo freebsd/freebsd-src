@@ -96,7 +96,7 @@ run_tar(const char *target, const char *pack_options,
 
 	/* Use the tar program to create an archive. */
 	r = systemf("%s cf - %s %s >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
-	failure("Error invoking %s cf -", testprog, pack_options);
+	failure("Error invoking %s cf -%s", testprog, pack_options);
 	assertEqualInt(r, 0);
 
 	assertChdir(target);

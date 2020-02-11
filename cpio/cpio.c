@@ -1139,6 +1139,14 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	const char		*fmt;
 	time_t			 mtime;
 	static time_t		 now;
+	struct tm		*ltime;
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
+	struct tm		tmbuf;
+#endif
+#if defined(HAVE__LOCALTIME64_S)
+	errno_t			terr;
+	__time64_t		tmptime;
+#endif
 
 	if (!now)
 		time(&now);
@@ -1186,7 +1194,19 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	else
 		fmt = cpio->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
 #endif
-	strftime(date, sizeof(date), fmt, localtime(&mtime));
+#if defined(HAVE_LOCALTIME_R)
+	ltime = localtime_r(&mtime, &tmbuf);
+#elif defined(HAVE__LOCALTIME64_S)
+	tmptime = mtime;
+	terr = _localtime64_s(&tmbuf, &tmptime);
+	if (terr)
+		ltime = NULL;
+	else
+		ltime = &tmbuf;
+#else
+	ltime = localtime(&mtime);
+#endif
+	strftime(date, sizeof(date), fmt, ltime);
 
 	fprintf(out, "%s%3d %-8s %-8s %8s %12s %s",
 	    archive_entry_strmode(entry),

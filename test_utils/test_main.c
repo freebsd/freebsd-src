@@ -388,7 +388,7 @@ static const char *refdir;
  */
 static int log_console = 0;
 static FILE *logfile;
-static void
+static void __LA_PRINTFLIKE(1, 0)
 vlogprintf(const char *fmt, va_list ap)
 {
 #ifdef va_copy
@@ -406,7 +406,7 @@ vlogprintf(const char *fmt, va_list ap)
 #endif
 }
 
-static void
+static void __LA_PRINTFLIKE(1, 2)
 logprintf(const char *fmt, ...)
 {
 	va_list ap;
@@ -478,7 +478,7 @@ static struct line {
 const char *failed_filename;
 
 /* Count this failure, setup up log destination and handle initial report. */
-static void
+static void __LA_PRINTFLIKE(3, 4)
 failure_start(const char *filename, int line, const char *fmt, ...)
 {
 	va_list ap;
@@ -751,7 +751,7 @@ static void strdump(const char *e, const char *p, int ewidth, int utf8)
 		logprintf("]");
 		logprintf(" (count %d", cnt);
 		if (n < 0) {
-			logprintf(",unknown %d bytes", len);
+			logprintf(",unknown %zu bytes", len);
 		}
 		logprintf(")");
 
@@ -1167,7 +1167,7 @@ assertion_text_file_contents(const char *filename, int line, const char *buff, c
 	logprintf("  file=\"%s\"\n", fn);
 	if (n > 0) {
 		hexdump(contents, buff, n, 0);
-		logprintf("  expected\n", fn);
+		logprintf("  expected\n");
 		hexdump(buff, contents, s, 0);
 	} else {
 		logprintf("  File empty, contents should be:\n");
@@ -1497,7 +1497,7 @@ assertion_file_time(const char *file, int line,
 		}
 	} else if (filet != t || filet_nsec != nsec) {
 		failure_start(file, line,
-		    "File %s has %ctime %lld.%09lld, expected %lld.%09lld",
+		    "File %s has %ctime %lld.%09lld, expected %ld.%09ld",
 		    pathname, type, filet, filet_nsec, t, nsec);
 		failure_finish(NULL);
 		return (0);
@@ -1593,8 +1593,8 @@ assertion_file_nlinks(const char *file, int line,
 	r = my_GetFileInformationByName(pathname, &bhfi);
 	if (r != 0 && bhfi.nNumberOfLinks == (DWORD)nlinks)
 		return (1);
-	failure_start(file, line, "File %s has %d links, expected %d",
-	    pathname, bhfi.nNumberOfLinks, nlinks);
+	failure_start(file, line, "File %s has %jd links, expected %d",
+	    pathname, (intmax_t)bhfi.nNumberOfLinks, nlinks);
 	failure_finish(NULL);
 	return (0);
 #else
@@ -1605,8 +1605,8 @@ assertion_file_nlinks(const char *file, int line,
 	r = lstat(pathname, &st);
 	if (r == 0 && (int)st.st_nlink == nlinks)
 		return (1);
-	failure_start(file, line, "File %s has %d links, expected %d",
-	    pathname, st.st_nlink, nlinks);
+	failure_start(file, line, "File %s has %jd links, expected %d",
+	    pathname, (intmax_t)st.st_nlink, nlinks);
 	failure_finish(NULL);
 	return (0);
 #endif
@@ -2480,7 +2480,7 @@ canBzip2(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("bzip2 -d -V %s", redirectArgs) == 0)
+		if (systemf("bzip2 --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2510,7 +2510,7 @@ canGzip(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("gzip -V %s", redirectArgs) == 0)
+		if (systemf("gzip --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2552,7 +2552,7 @@ canLz4(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lz4 -V %s", redirectArgs) == 0)
+		if (systemf("lz4 --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2567,7 +2567,7 @@ canZstd(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("zstd -V %s", redirectArgs) == 0)
+		if (systemf("zstd --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2582,7 +2582,7 @@ canLzip(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lzip -V %s", redirectArgs) == 0)
+		if (systemf("lzip --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2597,7 +2597,7 @@ canLzma(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lzma -V %s", redirectArgs) == 0)
+		if (systemf("lzma %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2612,7 +2612,7 @@ canLzop(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lzop -V %s", redirectArgs) == 0)
+		if (systemf("lzop --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2627,7 +2627,7 @@ canXz(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("xz -V %s", redirectArgs) == 0)
+		if (systemf("xz --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -3271,7 +3271,7 @@ assertion_entry_set_acls(const char *file, int line, struct archive_entry *ae,
 		    acls[i].qual, acls[i].name);
 		if (r != 0) {
 			ret = 1;
-			failure_start(file, line, "type=%#010x, ",
+			failure_start(file, line, "type=%#010x, "
 			    "permset=%#010x, tag=%d, qual=%d name=%s",
 			    acls[i].type, acls[i].permset, acls[i].tag,
 			    acls[i].qual, acls[i].name);
@@ -3499,9 +3499,9 @@ static int
 test_run(int i, const char *tmpdir)
 {
 #ifdef PATH_MAX
-	char workdir[PATH_MAX];
+	char workdir[PATH_MAX * 2];
 #else
-	char workdir[1024];
+	char workdir[1024 * 2];
 #endif
 	char logfilename[64];
 	int failures_before = failures;

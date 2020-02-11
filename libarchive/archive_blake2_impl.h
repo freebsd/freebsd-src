@@ -12,8 +12,9 @@
    More information about the BLAKE2 hash function can be found at
    https://blake2.net.
 */
-#ifndef BLAKE2_IMPL_H
-#define BLAKE2_IMPL_H
+
+#ifndef ARCHIVE_BLAKE2_IMPL_H
+#define ARCHIVE_BLAKE2_IMPL_H
 
 #include <stdint.h>
 #include <string.h>

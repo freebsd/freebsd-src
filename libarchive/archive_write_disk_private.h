@@ -26,12 +26,12 @@
  * $FreeBSD: head/lib/libarchive/archive_write_disk_private.h 201086 2009-12-28 02:17:53Z kientzle $
  */
 
+#ifndef ARCHIVE_WRITE_DISK_PRIVATE_H_INCLUDED
+#define ARCHIVE_WRITE_DISK_PRIVATE_H_INCLUDED
+
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-
-#ifndef ARCHIVE_WRITE_DISK_PRIVATE_H_INCLUDED
-#define ARCHIVE_WRITE_DISK_PRIVATE_H_INCLUDED
 
 #include "archive_platform_acl.h"
 #include "archive_acl_private.h"

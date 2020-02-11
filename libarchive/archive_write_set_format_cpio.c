@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_cpio.c 201170 2
 #include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
+#include "archive_write_set_format_private.h"
 
 static ssize_t	archive_write_cpio_data(struct archive_write *,
 		    const void *buff, size_t s);

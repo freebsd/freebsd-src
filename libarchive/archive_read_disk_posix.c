@@ -729,27 +729,23 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		if ((t->flags & needsRestoreTimes) != 0 &&
 		    t->restore_time.noatime == 0)
 			flags |= O_NOATIME;
-		do {
 #endif
-			t->entry_fd = open_on_current_dir(t,
-			    tree_current_access_path(t), flags);
-			__archive_ensure_cloexec_flag(t->entry_fd);
+		t->entry_fd = open_on_current_dir(t,
+		    tree_current_access_path(t), flags);
+		__archive_ensure_cloexec_flag(t->entry_fd);
 #if defined(O_NOATIME)
-			/*
-			 * When we did open the file with O_NOATIME flag,
-			 * if successful, set 1 to t->restore_time.noatime
-			 * not to restore an atime of the file later.
-			 * if failed by EPERM, retry it without O_NOATIME flag.
-			 */
-			if (flags & O_NOATIME) {
-				if (t->entry_fd >= 0)
-					t->restore_time.noatime = 1;
-				else if (errno == EPERM) {
-					flags &= ~O_NOATIME;
-					continue;
-				}
-			}
-		} while (0);
+		/*
+		 * When we did open the file with O_NOATIME flag,
+		 * if successful, set 1 to t->restore_time.noatime
+		 * not to restore an atime of the file later.
+		 * if failed by EPERM, retry it without O_NOATIME flag.
+		 */
+		if (flags & O_NOATIME) {
+			if (t->entry_fd >= 0)
+				t->restore_time.noatime = 1;
+			else if (errno == EPERM)
+				flags &= ~O_NOATIME;
+		}
 #endif
 		if (t->entry_fd < 0) {
 			archive_set_error(&a->archive, errno,
@@ -1110,8 +1106,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 			    "%s", delayed_str.s);
 		}
 	}
-	if (!archive_string_empty(&delayed_str))
-		archive_string_free(&delayed_str);
+	archive_string_free(&delayed_str);
 
 	return (r);
 }

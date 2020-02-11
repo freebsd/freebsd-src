@@ -256,13 +256,13 @@ verify_tree(size_t limit)
 					continue;
 				switch(dp[0]) {
 				case 'l': case 'm': case 'd':
-					failure("strlen(p)=%d", strlen(p));
+					failure("strlen(p)=%zu", strlen(p));
 					assert(strlen(p) < limit);
 					assertEqualString(p,
 					    filenames[strlen(p)]);
 					break;
 				case 'f': case 's':
-					failure("strlen(p)=%d", strlen(p));
+					failure("strlen(p)=%zu", strlen(p));
 					assert(strlen(p) < limit + 1);
 					assertEqualString(p,
 					    filenames[strlen(p)]);

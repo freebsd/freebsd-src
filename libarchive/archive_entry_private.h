@@ -25,12 +25,12 @@
  * $FreeBSD: head/lib/libarchive/archive_entry_private.h 201096 2009-12-28 02:41:27Z kientzle $
  */
 
+#ifndef ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
+#define ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
+
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-
-#ifndef ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
-#define	ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
 
 #include "archive_acl_private.h"
 #include "archive_string.h"

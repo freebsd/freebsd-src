@@ -1210,6 +1210,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `_get_timezone' function. */
 #cmakedefine HAVE__GET_TIMEZONE 1
 
+/* Define to 1 if you have the `_gmtime64_s' function. */
+#cmakedefine HAVE__GMTIME64_S 1
+
 /* Define to 1 if you have the `_localtime64_s' function. */
 #cmakedefine HAVE__LOCALTIME64_S 1
 

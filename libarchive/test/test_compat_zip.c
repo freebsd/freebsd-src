@@ -156,7 +156,7 @@ DEFINE_TEST(test_compat_zip_4)
 	size_t s;
 
 	extract_reference_file(refname);
-	p = slurpfile(&s, refname);
+	p = slurpfile(&s, "%s", refname);
 
 	/* SFX files require seek support. */
 	assert((a = archive_read_new()) != NULL);
@@ -214,7 +214,7 @@ DEFINE_TEST(test_compat_zip_5)
 	size_t s;
 
 	extract_reference_file(refname);
-	p = slurpfile(&s, refname);
+	p = slurpfile(&s, "%s", refname);
 
 	/* Verify with seek support.
 	 * Everything works correctly here. */
@@ -370,7 +370,7 @@ DEFINE_TEST(test_compat_zip_6)
 	size_t s;
 
 	extract_reference_file(refname);
-	p = slurpfile(&s, refname);
+	p = slurpfile(&s, "%s", refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -402,7 +402,7 @@ DEFINE_TEST(test_compat_zip_7)
 	int i;
 
 	extract_reference_file(refname);
-	p = slurpfile(&s, refname);
+	p = slurpfile(&s, "%s", refname);
 
 	for (i = 1; i < 1000; ++i) {
 		assert((a = archive_read_new()) != NULL);
@@ -436,7 +436,7 @@ DEFINE_TEST(test_compat_zip_8)
 	size_t s;
 
 	extract_reference_file(refname);
-	p = slurpfile(&s, refname);
+	p = slurpfile(&s, "%s", refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));

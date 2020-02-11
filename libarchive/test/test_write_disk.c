@@ -186,7 +186,7 @@ static void create_reg_file4(struct archive_entry *ae, const char *msg)
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
 #endif
-	failure(msg);
+	failure("%s", msg);
 	assertEqualInt(st.st_size, sizeof(data));
 }
 

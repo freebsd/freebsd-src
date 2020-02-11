@@ -42,6 +42,7 @@ while getopts a:b:c:d:s: opt; do
 				test) ;;
 				install) ;;
 				distcheck) ;;
+				artifact) ;;
 				*) inputerror "Invalid action (-a)" ;;
 			esac
 			ACTIONS="${ACTIONS} ${OPTARG}"
@@ -147,11 +148,15 @@ for action in ${ACTIONS}; do
 		install)
 			${MAKE} ${MAKE_ARGS} install DESTDIR="${BUILDDIR}/destdir"
 			RET="$?"
-			cd ${BUILDDIR}/destdir && ls -lR .
+			cd "${BUILDDIR}/destdir" && ls -lR .
 		;;
 		distcheck)
 			${MAKE} ${MAKE_ARGS} distcheck
 			RET="$?"
+		;;
+		artifact)
+			tar -c -J -C "${BUILDDIR}/destdir" -f "${CURDIR}/libarchive.tar.xz" usr
+			ls -l "${CURDIR}/libarchive.tar.xz"
 		;;
 	esac
 	if [ "${RET}" != "0" ]; then
