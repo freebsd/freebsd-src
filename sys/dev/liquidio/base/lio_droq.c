@@ -329,7 +329,7 @@ lio_init_droq(struct octeon_device *oct, uint32_t q_no,
 	 * output queue packet processing.
 	 */
 	lio_dev_dbg(oct, "Initializing droq%d taskqueue\n", q_no);
-	TASK_INIT(&droq->droq_task, 0, lio_droq_bh, (void *)droq);
+	NET_TASK_INIT(&droq->droq_task, 0, lio_droq_bh, (void *)droq);
 
 	droq->droq_taskqueue = taskqueue_create_fast("lio_droq_task", M_NOWAIT,
 						     taskqueue_thread_enqueue,
