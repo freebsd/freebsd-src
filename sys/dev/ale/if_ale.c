@@ -467,7 +467,7 @@ ale_attach(device_t dev)
 	mtx_init(&sc->ale_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->ale_tick_ch, &sc->ale_mtx, 0);
-	TASK_INIT(&sc->ale_int_task, 0, ale_int_task, sc);
+	NET_TASK_INIT(&sc->ale_int_task, 0, ale_int_task, sc);
 
 	/* Map the device. */
 	pci_enable_busmaster(dev);

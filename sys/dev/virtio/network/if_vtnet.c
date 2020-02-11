@@ -717,7 +717,7 @@ vtnet_init_rxq(struct vtnet_softc *sc, int id)
 	if (rxq->vtnrx_sg == NULL)
 		return (ENOMEM);
 
-	TASK_INIT(&rxq->vtnrx_intrtask, 0, vtnet_rxq_tq_intr, rxq);
+	NET_TASK_INIT(&rxq->vtnrx_intrtask, 0, vtnet_rxq_tq_intr, rxq);
 	rxq->vtnrx_tq = taskqueue_create(rxq->vtnrx_name, M_NOWAIT,
 	    taskqueue_thread_enqueue, &rxq->vtnrx_tq);
 

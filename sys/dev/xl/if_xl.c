@@ -1218,7 +1218,7 @@ xl_attach(device_t dev)
 	}
 
 	callout_init_mtx(&sc->xl_tick_callout, &sc->xl_mtx, 0);
-	TASK_INIT(&sc->xl_task, 0, xl_rxeof_task, sc);
+	NET_TASK_INIT(&sc->xl_task, 0, xl_rxeof_task, sc);
 
 	/*
 	 * Now allocate a tag for the DMA descriptor lists and a chunk

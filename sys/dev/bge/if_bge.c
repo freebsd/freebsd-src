@@ -3306,7 +3306,7 @@ bge_attach(device_t dev)
 	sc->bge_dev = dev;
 
 	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
-	TASK_INIT(&sc->bge_intr_task, 0, bge_intr_task, sc);
+	NET_TASK_INIT(&sc->bge_intr_task, 0, bge_intr_task, sc);
 	callout_init_mtx(&sc->bge_stat_ch, &sc->bge_mtx, 0);
 
 	pci_enable_busmaster(dev);
@@ -4601,7 +4601,6 @@ bge_msi_intr(void *arg)
 static void
 bge_intr_task(void *arg, int pending)
 {
-	struct epoch_tracker et;
 	struct bge_softc *sc;
 	if_t ifp;
 	uint32_t status, status_tag;
@@ -4644,9 +4643,7 @@ bge_intr_task(void *arg, int pending)
 	    sc->bge_rx_saved_considx != rx_prod) {
 		/* Check RX return ring producer/consumer. */
 		BGE_UNLOCK(sc);
-		NET_EPOCH_ENTER(et);
 		bge_rxeof(sc, rx_prod, 0);
-		NET_EPOCH_EXIT(et);
 		BGE_LOCK(sc);
 	}
 	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
