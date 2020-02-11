@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.45 2019/04/19 00:42:27 christos Exp $
+# $File: console,v 1.49 2019/05/27 01:33:32 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -508,6 +508,8 @@
 #------------------------------------------------------------------------------
 # Microsoft Xbox executables .xbe (Esa Hyytia <ehyytia@cc.hut.fi>)
 0	string	XBEH	Microsoft Xbox executable
+!:mime	audio/x-xbox-executable
+!:ext	xbe
 # expect base address of 0x10000
 >0x0104                 ulelong =0x10000
 >>(0x0118.l-0x0FFF4)    lestring16 x       \b: "%.40s"
@@ -546,25 +548,90 @@
 0		name	xbox-360-xex-execution-id
 >(0.L+0xC)	byte	x	(%c
 >(0.L+0xD)	byte	x	\b%c
->(0.L+0xE)	beshort	x	\b-%04u)
+>(0.L+0xE)	beshort	x	\b-%04u, media ID:
+>(0.L)		belong	x	%08X)
+
+# Region code (part of Security Info)
+0	name	xbox-360-xex-region-code
+>0	ubelong	0xFFFFFFFF	\b, all regions
+>0	ubelong	!0xFFFFFFFF
+>>0	ubelong	>0		(regions:
+>>0	ubelong&0x000000FF	0x000000FF	USA
+>>0	ubelong&0x00000100	0x00000100	Japan
+>>0	ubelong&0x00000200	0x00000200	China
+>>0	ubelong&0x0000FC00	0x0000FC00	Asia
+>>0	ubelong&0x00FF0000	0x00FF0000	PAL
+>>0	ubelong&0x00FF0000	0x00FE0000	PAL [except AU/NZ]
+>>0	ubelong&0x00FF0000	0x00010000	AU/NZ
+>>0	ubelong&0xFF000000	0xFF000000	Other
+>>0	ubelong	>0		\b)
 
 0	string	XEX2	Microsoft Xbox 360 executable
+!:mime	audio/x-xbox360-executable
+!:ext	xex
 >0x18	search/0x100	\x00\x04\x00\x06
 >>&0	use	xbox-360-xex-execution-id
->(0x010.L+0x178)	ubelong	0xFFFFFFFF	\b, all regions
->(0x010.L+0x178)	ubelong	!0xFFFFFFFF
->>(0x010.L+0x178)	ubelong	>0		(regions:
->>(0x010.L+0x178)	ubelong&0x000000FF	0x000000FF	USA
->>(0x010.L+0x178)	ubelong&0x00000100	0x00000100	Japan
->>(0x010.L+0x178)	ubelong&0x00000200	0x00000200	China
->>(0x010.L+0x178)	ubelong&0x0000FC00	0x0000FC00	Asia
->>(0x010.L+0x178)	ubelong&0x00FF0000	0x00FF0000	PAL
->>(0x010.L+0x178)	ubelong&0x00FF0000	0x00FE0000	PAL [except AU/NZ]
->>(0x010.L+0x178)	ubelong&0x00FF0000	0x00010000	AU/NZ
->>(0x010.L+0x178)	ubelong&0xFF000000	0xFF000000	Other
->>(0x010.L+0x178)	ubelong	>0		\b)
+>(0x010.L+0x178)	use	xbox-360-xex-region-code
 
+0	string	XEX1	Microsoft Xbox 360 executable (XEX1)
+!:mime	audio/x-xbox360-executable
+!:ext	xex
+>0x18	search/0x100	\x00\x04\x00\x06
+>>&0	use	xbox-360-xex-execution-id
+>(0x010.L+0x154)	use	xbox-360-xex-region-code
 
+#------------------------------------------------------------------------------
+# Microsoft Xbox 360 packages
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - https://free60project.github.io/wiki/STFS.html
+# - https://github.com/xenia-project/xenia/blob/HEAD/src/xenia/kernel/util/xex2_info.h
+
+# TODO: More information for console-signed packages.
+
+0	name	xbox-360-package
+>0x360	byte	x	(%c
+>0x361	byte	x	\b%c
+>0x362	beshort	x	\b-%04u, media ID:
+>0x354	belong	x	%08X)
+>0x344	belong	x	\b, content type:
+>>0x344	belong	0x1		Saved Game
+>>0x344	belong	0x2		Marketplace Content
+>>0x344	belong	0x3		Publisher
+>>0x344	belong	0x1000		Xbox 360 Title
+>>0x344	belong	0x2000		IPTV Pause Buffer
+>>0x344	belong	0x4000		Installed Game
+>>0x344	belong	0x5000		Original Xbox Game
+>>0x344	belong	0x9000		Avatar Item
+>>0x344	belong	0x10000		Profile
+>>0x344	belong	0x20000		Gamer Picture
+>>0x344	belong	0x30000		Theme
+>>0x344	belong	0x40000		Cache File
+>>0x344	belong	0x50000		Storage Download
+>>0x344	belong	0x60000		Xbox Saved Game
+>>0x344	belong	0x70000		Xbox Download
+>>0x344	belong	0x80000		Game Demo
+>>0x344	belong	0x90000		Video
+>>0x344	belong	0xA0000		Game
+>>0x344	belong	0xB0000		Installer
+>>0x344	belong	0xC0000		Game Trailer
+>>0x344	belong	0xD0000		Arcade Title
+>>0x344	belong	0xE0000		XNA
+>>0x344	belong	0xF0000		License Store
+>>0x344	belong	0x100000	Movie
+>>0x344	belong	0x200000	TV
+>>0x344	belong	0x300000	Music Video
+>>0x344	belong	0x400000	Game Video
+>>0x344	belong	0x500000	Podcast Video
+>>0x344	belong	0x600000	Viral Video
+>>0x344	belong	0x2000000	Community Game
+
+0	string	CON\x20	Microsoft Xbox 360 package (console-signed)
+>0	use	xbox-360-package
+0	string	PIRS	Microsoft Xbox 360 package (non-Xbox Live)
+>0	use	xbox-360-package
+0	string	LIVE	Microsoft Xbox 360 package (Xbox Live)
+>0	use	xbox-360-package
 
 # Atari Lynx cartridge dump (EXE/BLL header)
 # From: "Stefan A. Haubenthal" <polluks@web.de>

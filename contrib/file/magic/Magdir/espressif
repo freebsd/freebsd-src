@@ -1,5 +1,5 @@
 
-# $File: espressif,v 1.1 2018/11/20 18:57:17 christos Exp $
+# $File: espressif,v 1.2 2019/11/15 21:03:14 christos Exp $
 # configuration dump of Tasmota firmware for ESP8266 based devices by Espressif
 # URL: https://github.com/arendst/Sonoff-Tasmota/
 # Reference: https://codeload.github.com/arendst/Sonoff-Tasmota/zip/release-6.2/
@@ -8,7 +8,7 @@
 #
 # cfg_holder=4617=0x1209
 0		uleshort	4617
-# remainig settings normally 0x5A+offset XORed; free_1D5[20] empty since 5.12.0e
+# remaining settings normally 0x5A+offset XORed; free_1D5[20] empty since 5.12.0e
 >0x1D5		ubequad		0x2f30313233343536	configuration of Tasmota firmware (ESP8266)
 !:mime	application/x-tasmota-dmp
 !:ext	dmp

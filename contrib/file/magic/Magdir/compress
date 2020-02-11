@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.75 2019/04/19 00:42:27 christos Exp $
+# $File: compress,v 1.77 2019/10/08 20:25:13 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -58,11 +58,11 @@
 >>>13	string		09			\b, version 9
 # other gzipped binary like gzipped tar, VirtualBox extension package,...
 >>10	default		x		gzip compressed data
+!:mime	application/gzip
 >>>0	use	gzip-info
 # size of the original (uncompressed) input data modulo 2^32
 >>>-4	ulelong		x		\b, original size modulo 2^32 %u
 # gzipped TAR or VirtualBox extension package
-!:mime	application/gzip
 #!:mime	application/x-compressed-tar
 #!:mime	application/x-virtualbox-vbox-extpack
 # https://www.w3.org/TR/SVG/mimereg.html
@@ -308,25 +308,25 @@
 # Zstandard compressed data
 # https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
 0     lelong       0xFD2FB522  Zstandard compressed data (v0.2)
-!:mime  application/x-zstd
+!:mime  application/zstd
 0     lelong       0xFD2FB523  Zstandard compressed data (v0.3)
-!:mime  application/x-zstd
+!:mime  application/zstd
 0     lelong       0xFD2FB524  Zstandard compressed data (v0.4)
-!:mime  application/x-zstd
+!:mime  application/zstd
 0     lelong       0xFD2FB525  Zstandard compressed data (v0.5)
-!:mime  application/x-zstd
+!:mime  application/zstd
 0     lelong       0xFD2FB526  Zstandard compressed data (v0.6)
-!:mime  application/x-zstd
+!:mime  application/zstd
 0     lelong       0xFD2FB527  Zstandard compressed data (v0.7)
-!:mime  application/x-zstd
+!:mime  application/zstd
 >4    use          zstd-dictionary-id
 0     lelong       0xFD2FB528  Zstandard compressed data (v0.8+)
-!:mime  application/x-zstd
+!:mime  application/zstd
 >4    use          zstd-dictionary-id
 
 # https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
 0  lelong    0xEC30A437  Zstandard dictionary
-!:mime  application/x-zstd-dictionary
+!:mime  application/x-std-dictionary
 >4 lelong    x           (ID %u)
 
 # AFX compressed files (Wolfram Kleff)
