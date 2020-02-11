@@ -84,10 +84,6 @@ void	taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask,
 	    gtask_fn_t *fn, const char *name);
 void	taskqgroup_config_gtask_deinit(struct grouptask *gtask);
 
-#define TASK_ENQUEUED			0x1
-#define TASK_SKIP_WAKEUP		0x2
-#define TASK_NOENQUEUE			0x4
-
 #define	GTASK_INIT(gtask, flags, priority, func, context) do {	\
 	(gtask)->ta_flags = flags;				\
 	(gtask)->ta_priority = (priority);			\
@@ -96,7 +92,7 @@ void	taskqgroup_config_gtask_deinit(struct grouptask *gtask);
 } while (0)
 
 #define	GROUPTASK_INIT(gtask, priority, func, context)	\
-	GTASK_INIT(&(gtask)->gt_task, TASK_SKIP_WAKEUP, priority, func, context)
+	GTASK_INIT(&(gtask)->gt_task, 0, priority, func, context)
 
 #define	GROUPTASK_ENQUEUE(gtask)			\
 	grouptaskqueue_enqueue((gtask)->gt_taskqueue, &(gtask)->gt_task)

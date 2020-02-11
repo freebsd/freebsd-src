@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/epoch.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/taskqueue.h>
@@ -371,7 +372,7 @@ taskqueue_drain_tq_queue(struct taskqueue *queue)
 	 * anyway) so just insert it at tail while we have the
 	 * queue lock.
 	 */
-	TASK_INIT(&t_barrier, USHRT_MAX, taskqueue_task_nop_fn, &t_barrier);
+	TASK_INIT(&t_barrier, UCHAR_MAX, taskqueue_task_nop_fn, &t_barrier);
 	STAILQ_INSERT_TAIL(&queue->tq_queue, &t_barrier, ta_link);
 	queue->tq_hint = &t_barrier;
 	t_barrier.ta_pending = 1;
@@ -442,14 +443,17 @@ taskqueue_unblock(struct taskqueue *queue)
 static void
 taskqueue_run_locked(struct taskqueue *queue)
 {
+	struct epoch_tracker et;
 	struct taskqueue_busy tb;
 	struct task *task;
+	bool in_net_epoch;
 	int pending;
 
 	KASSERT(queue != NULL, ("tq is NULL"));
 	TQ_ASSERT_LOCKED(queue);
 	tb.tb_running = NULL;
 	LIST_INSERT_HEAD(&queue->tq_active, &tb, tb_link);
+	in_net_epoch = false;
 
 	while ((task = STAILQ_FIRST(&queue->tq_queue)) != NULL) {
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
@@ -462,11 +466,20 @@ taskqueue_run_locked(struct taskqueue *queue)
 		TQ_UNLOCK(queue);
 
 		KASSERT(task->ta_func != NULL, ("task->ta_func is NULL"));
+		if (!in_net_epoch && TASK_IS_NET(task)) {
+			in_net_epoch = true;
+			NET_EPOCH_ENTER(et);
+		} else if (in_net_epoch && !TASK_IS_NET(task)) {
+			NET_EPOCH_EXIT(et);
+			in_net_epoch = false;
+		}
 		task->ta_func(task->ta_context, pending);
 
 		TQ_LOCK(queue);
 		wakeup(task);
 	}
+	if (in_net_epoch)
+		NET_EPOCH_EXIT(et);
 	LIST_REMOVE(&tb, tb_link);
 }
 
