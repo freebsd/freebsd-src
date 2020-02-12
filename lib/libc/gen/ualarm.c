@@ -56,6 +56,5 @@ ualarm(useconds_t usecs, useconds_t reload)
 
 	if (setitimer(ITIMER_REAL, &new, &old) == 0)
 		return (old.it_value.tv_sec * USPS + old.it_value.tv_usec);
-	/* else */
-		return (-1);
+	return (-1);
 }
