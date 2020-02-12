@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
  *   cum-ack A
  *     sack D - E
  *     sack B - C
- * 
+ *
  * The previous sack information (B-C) is repeated
  * in SACK 2. If the receiver gets SACK 1 and then
  * SACK 2 then any work associated with B-C as already
@@ -69,8 +69,8 @@ __FBSDID("$FreeBSD$");
  * (as in bbr or rack) cases where we walk a linked list.
  *
  * Now the utility trys to keep everything in a single
- * cache line. This means that its not perfect and 
- * it could be that so big of sack's come that a 
+ * cache line. This means that its not perfect and
+ * it could be that so big of sack's come that a
  * "remembered" processed sack falls off the list and
  * so gets re-processed. Thats ok, it just means we
  * did some extra work. We could of course take more
@@ -135,7 +135,7 @@ sack_filter_prune(struct sack_filter *sf, tcp_seq th_ack)
 	sf->sf_ack = th_ack;
 }
 
-/* 
+/*
  * Return true if you find that
  * the sackblock b is on the score
  * board. Update it along the way
@@ -179,7 +179,7 @@ is_sack_on_board(struct sack_filter *sf, struct sackblk *b)
 			if(SEQ_LT(sf->sf_blks[i].end, b->start)) {
 				/**
 				 * Not near each other:
-				 * 
+				 *
 				 * board   |---|
 				 * sack           |---|
 				 */
@@ -189,21 +189,21 @@ is_sack_on_board(struct sack_filter *sf, struct sackblk *b)
 			if (SEQ_GT(sf->sf_blks[i].start, b->end)) {
 				/**
 				 * Not near each other:
-				 * 
+				 *
 				 * board         |---|
 				 * sack  |---|
 				 */
 				goto nxt_blk;
 			}
 			if (SEQ_LEQ(sf->sf_blks[i].start, b->start)) {
-				/** 
+				/**
 				 * The board block partial meets:
 				 *
 				 *  board   |--------|
-				 *  sack        |----------|  
+				 *  sack        |----------|
 				 *    <or>
 				 *  board   |--------|
-				 *  sack    |--------------|  
+				 *  sack    |--------------|
 				 *
 				 * up with this one (we have part of it).
 				 * 1) Update the board block to the new end
@@ -215,14 +215,14 @@ is_sack_on_board(struct sack_filter *sf, struct sackblk *b)
 				goto nxt_blk;
 			}
 			if (SEQ_GEQ(sf->sf_blks[i].end, b->end)) {
-				/** 
+				/**
 				 * The board block partial meets:
 				 *
 				 *  board       |--------|
-				 *  sack  |----------|  
+				 *  sack  |----------|
 				 *     <or>
 				 *  board       |----|
-				 *  sack  |----------|  
+				 *  sack  |----------|
 				 * 1) Update the board block to the new start
 				 *      and
 				 * 2) Update the start of this block to my end.
@@ -231,7 +231,7 @@ is_sack_on_board(struct sack_filter *sf, struct sackblk *b)
 				sf->sf_blks[i].start = b->start;
 				goto nxt_blk;
 			}
-		} 
+		}
 	nxt_blk:
 		i++;
 		i %= SACK_FILTER_BLOCKS;
@@ -248,7 +248,7 @@ sack_filter_old(struct sack_filter *sf, struct sackblk *in, int  numblks)
 {
 	int32_t num, i;
 	struct sackblk blkboard[TCP_MAX_SACK];
-	/* 
+	/*
 	 * An old sack has arrived. It may contain data
 	 * we do not have. We might not have it since
 	 * we could have had a lost ack <or> we might have the
@@ -263,8 +263,8 @@ sack_filter_old(struct sack_filter *sf, struct sackblk *in, int  numblks)
 #endif
 			continue;
 		}
-		/* Did not find it (or found only 
-		 * a piece of it). Copy it to 
+		/* Did not find it (or found only
+		 * a piece of it). Copy it to
 		 * our outgoing board.
 		 */
 		memcpy(&blkboard[num], &in[i], sizeof(struct sackblk));
@@ -279,8 +279,8 @@ sack_filter_old(struct sack_filter *sf, struct sackblk *in, int  numblks)
 	return (num);
 }
 
-/* 
- * Given idx its used but there is space available 
+/*
+ * Given idx its used but there is space available
  * move the entry to the next free slot
  */
 static void
@@ -291,7 +291,7 @@ sack_move_to_empty(struct sack_filter *sf, uint32_t idx)
 	i = (idx + 1) % SACK_FILTER_BLOCKS;
 	for (cnt=0; cnt <(SACK_FILTER_BLOCKS-1); cnt++) {
 		if (sack_blk_used(sf, i) == 0) {
-			memcpy(&sf->sf_blks[i], &sf->sf_blks[idx], sizeof(struct sackblk));			
+			memcpy(&sf->sf_blks[i], &sf->sf_blks[idx], sizeof(struct sackblk));
 			sf->sf_bits = sack_blk_clr(sf, idx);
 			sf->sf_bits = sack_blk_set(sf, i);
 			return;
@@ -306,9 +306,9 @@ sack_filter_new(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq
 {
 	struct sackblk blkboard[TCP_MAX_SACK];
 	int32_t num, i;
-	/* 
-	 * First lets trim the old and possibly 
-	 * throw any away we have. 
+	/*
+	 * First lets trim the old and possibly
+	 * throw any away we have.
 	 */
 	for(i=0, num=0; i<numblks; i++) {
 		if (is_sack_on_board(sf, &in[i]))
@@ -319,7 +319,7 @@ sack_filter_new(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq
 	if (num == 0)
 		return(num);
 
-	/* Now what we are left with is either 
+	/* Now what we are left with is either
 	 * completely merged on to the board
 	 * from the above steps, or is new
 	 * and need to be added to the board
@@ -328,7 +328,7 @@ sack_filter_new(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq
 	 * First copy it out, we want to return that
 	 * to our caller for processing.
 	 */
-	memcpy(in, blkboard, (num * sizeof(struct sackblk)));	
+	memcpy(in, blkboard, (num * sizeof(struct sackblk)));
 	numblks = num;
 	/* Now go through and add to our board as needed */
 	for(i=(num-1); i>=0; i--) {
@@ -370,7 +370,7 @@ static int32_t
 sack_blocks_overlap_or_meet(struct sack_filter *sf, struct sackblk *sb, uint32_t skip)
 {
 	int32_t i;
-	
+
 	for(i=0; i<SACK_FILTER_BLOCKS; i++) {
 		if (sack_blk_used(sf, i) == 0)
 			continue;
@@ -379,14 +379,14 @@ sack_blocks_overlap_or_meet(struct sack_filter *sf, struct sackblk *sb, uint32_t
 		if (SEQ_GEQ(sf->sf_blks[i].end, sb->start) &&
 		    SEQ_LEQ(sf->sf_blks[i].end, sb->end) &&
 		    SEQ_LEQ(sf->sf_blks[i].start, sb->start)) {
-			/** 
+			/**
 			 * The two board blocks meet:
 			 *
 			 *  board1   |--------|
-			 *  board2       |----------|  
+			 *  board2       |----------|
 			 *    <or>
 			 *  board1   |--------|
-			 *  board2   |--------------|  
+			 *  board2   |--------------|
 			 *    <or>
 			 *  board1   |--------|
 			 *  board2   |--------|
@@ -396,14 +396,14 @@ sack_blocks_overlap_or_meet(struct sack_filter *sf, struct sackblk *sb, uint32_t
 		if (SEQ_LEQ(sf->sf_blks[i].start, sb->end) &&
 		    SEQ_GEQ(sf->sf_blks[i].start, sb->start) &&
 		    SEQ_GEQ(sf->sf_blks[i].end, sb->end)) {
-			/** 
+			/**
 			 * The board block partial meets:
 			 *
 			 *  board       |--------|
-			 *  sack  |----------|  
+			 *  sack  |----------|
 			 *     <or>
 			 *  board       |----|
-			 *  sack  |----------|  
+			 *  sack  |----------|
 			 * 1) Update the board block to the new start
 			 *      and
 			 * 2) Update the start of this block to my end.
@@ -442,7 +442,7 @@ sack_board_collapse(struct sack_filter *sf)
 		if (sack_blk_used(sf, i) == 0)
 			continue;
 		/*
-		 * Look at all other blocks but this guy 
+		 * Look at all other blocks but this guy
 		 * to see if they overlap. If so we collapse
 		 * the two blocks together.
 		 */
@@ -451,7 +451,7 @@ sack_board_collapse(struct sack_filter *sf)
 			/* No overlap */
 			continue;
 		}
-		/* 
+		/*
 		 * Ok j and i overlap with each other, collapse the
 		 * one out furthest away from the current position.
 		 */
@@ -500,11 +500,11 @@ sack_filter_blks(struct sack_filter *sf, struct sackblk *in, int numblks,
 		 tcp_seq th_ack)
 {
 	int32_t i, ret;
-	
+
 	if (numblks > TCP_MAX_SACK) {
 #ifdef _KERNEL
 		panic("sf:%p sb:%p Impossible number of sack blocks %d > 4\n",
-		      sf, in, 
+		      sf, in,
 		      numblks);
 #endif
 		return(numblks);
@@ -513,13 +513,13 @@ sack_filter_blks(struct sack_filter *sf, struct sackblk *in, int numblks,
 	if ((sf->sf_used > 1) && (no_collapse == 0))
 		sack_board_collapse(sf);
 
-#else	
-	if (sf->sf_used > 1) 
+#else
+	if (sf->sf_used > 1)
 		sack_board_collapse(sf);
 #endif
 	if ((sf->sf_used == 0) && numblks) {
-		/* 
-		 * We are brand new add the blocks in 
+		/*
+		 * We are brand new add the blocks in
 		 * reverse order. Note we can see more
 		 * than one in new, since ack's could be lost.
 		 */
@@ -560,15 +560,15 @@ sack_filter_blks(struct sack_filter *sf, struct sackblk *in, int numblks,
 void
 sack_filter_reject(struct sack_filter *sf, struct sackblk *in)
 {
-	/* 
+	/*
 	 * Given a specified block (that had made
 	 * it past the sack filter). Reject that
 	 * block triming it off any sack-filter block
 	 * that has it. Usually because the block was
 	 * too small and did not cover a whole send.
 	 *
-	 * This function will only "undo" sack-blocks 
-	 * that are fresh and touch the edges of 
+	 * This function will only "undo" sack-blocks
+	 * that are fresh and touch the edges of
 	 * blocks in our filter.
 	 */
 	int i;
@@ -576,9 +576,9 @@ sack_filter_reject(struct sack_filter *sf, struct sackblk *in)
 	for(i=0; i<SACK_FILTER_BLOCKS; i++) {
 		if (sack_blk_used(sf, i) == 0)
 			continue;
-		/* 
+		/*
 		 * Now given the sack-filter block does it touch
-		 * with one of the ends 
+		 * with one of the ends
 		 */
 		if (sf->sf_blks[i].end == in->end) {
 			/* The end moves back to start */
