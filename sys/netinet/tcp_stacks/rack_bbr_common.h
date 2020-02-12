@@ -27,11 +27,6 @@
  * __FBSDID("$FreeBSD$");
  */
 
-/* XXXLAS: Couple STATS to NETFLIX_STATS until stats(3) is fully upstreamed. */
-#ifndef	NETFLIX_STATS
-#undef	STATS
-#endif
-
 /* Common defines and such used by both RACK and BBR */
 /* Special values for mss accounting array */
 #define TCP_MSS_ACCT_JUSTRET 0
