@@ -262,28 +262,6 @@ Xircom Cardbus Ethernet 10/100
 .It
 Xircom Cardbus Ethernet II 10/100
 .El
-.Sh NOTES
-On sparc64 the
-.Nm
-driver respects the
-.Va local-mac-address?
-system configuration variable for the built in Sun DMFE 10/100 Mbps Ethernet
-interfaces on Sun Netra X1 and Sun Fire V100.
-This system configuration variable can be set in the Open Firmware boot
-monitor using the
-.Ic setenv
-command or by
-.Xr eeprom 8 .
-If set to
-.Dq Li false
-(the default), the
-.Nm
-driver will use the system's default MAC address for both of the built in
-devices.
-If set to
-.Dq Li true ,
-the unique MAC address of each interface is used rather than the system's
-default MAC address.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "dc%d: couldn't map ports/memory"

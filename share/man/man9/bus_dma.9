@@ -716,11 +716,6 @@ and as opposed to streamable data such as receive and transmit buffers.
 Use of this flag does not remove the requirement of using
 .Fn bus_dmamap_sync ,
 but it may reduce the cost of performing these operations.
-For
-.Fn bus_dmamap_create ,
-the
-.Dv BUS_DMA_COHERENT
-flag is currently implemented on sparc64.
 .El
 .It Fa mapp
 Pointer to a
@@ -785,11 +780,6 @@ The load should not be deferred in case of insufficient mapping resources,
 and instead should return immediately with an appropriate error.
 .It Dv BUS_DMA_NOCACHE
 The generated transactions to and from the virtual page are non-cacheable.
-For
-.Fn bus_dmamap_load ,
-the
-.Dv BUS_DMA_NOCACHE
-flag is currently implemented on sparc64.
 .El
 .El
 .Pp
@@ -1050,7 +1040,7 @@ For
 .Fn bus_dmamem_alloc ,
 the
 .Dv BUS_DMA_COHERENT
-flag is currently implemented on arm, arm64 and sparc64.
+flag is currently implemented on arm and arm64.
 .It Dv BUS_DMA_ZERO
 Causes the allocated memory to be set to all zeros.
 .It Dv BUS_DMA_NOCACHE
