@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
  * Some notes about usage.
  *
  * The tcp_hpts system is designed to provide a high precision timer
- * system for tcp. Its main purpose is to provide a mechanism for 
+ * system for tcp. Its main purpose is to provide a mechanism for
  * pacing packets out onto the wire. It can be used in two ways
  * by a given TCP stack (and those two methods can be used simultaneously).
  *
@@ -59,22 +59,22 @@ __FBSDID("$FreeBSD$");
  * to prevent output processing until the time alotted has gone by.
  * Of course this is a bare bones example and the stack will probably
  * have more consideration then just the above.
- * 
+ *
  * Now the second function (actually two functions I guess :D)
- * the tcp_hpts system provides is the  ability to either abort 
- * a connection (later) or process input on a connection. 
+ * the tcp_hpts system provides is the  ability to either abort
+ * a connection (later) or process input on a connection.
  * Why would you want to do this? To keep processor locality
  * and or not have to worry about untangling any recursive
  * locks. The input function now is hooked to the new LRO
- * system as well. 
+ * system as well.
  *
  * In order to use the input redirection function the
- * tcp stack must define an input function for 
+ * tcp stack must define an input function for
  * tfb_do_queued_segments(). This function understands
  * how to dequeue a array of packets that were input and
- * knows how to call the correct processing routine. 
+ * knows how to call the correct processing routine.
  *
- * Locking in this is important as well so most likely the 
+ * Locking in this is important as well so most likely the
  * stack will need to define the tfb_do_segment_nounlock()
  * splitting tfb_do_segment() into two parts. The main processing
  * part that does not unlock the INP and returns a value of 1 or 0.
@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
  * The remains of tfb_do_segment() then become just a simple call
  * to the tfb_do_segment_nounlock() function and check the return
  * code and possibly unlock.
- * 
+ *
  * The stack must also set the flag on the INP that it supports this
  * feature i.e. INP_SUPPORTS_MBUFQ. The LRO code recoginizes
  * this flag as well and will queue packets when it is set.
@@ -99,11 +99,11 @@ __FBSDID("$FreeBSD$");
  *
  * There is a common functions within the rack_bbr_common code
  * version i.e. ctf_do_queued_segments(). This function
- * knows how to take the input queue of packets from 
- * tp->t_in_pkts and process them digging out 
- * all the arguments, calling any bpf tap and 
+ * knows how to take the input queue of packets from
+ * tp->t_in_pkts and process them digging out
+ * all the arguments, calling any bpf tap and
  * calling into tfb_do_segment_nounlock(). The common
- * function (ctf_do_queued_segments())  requires that 
+ * function (ctf_do_queued_segments())  requires that
  * you have defined the tfb_do_segment_nounlock() as
  * described above.
  *
@@ -113,9 +113,9 @@ __FBSDID("$FreeBSD$");
  * a stack wants to drop a connection it calls:
  *
  *     tcp_set_inp_to_drop(tp, ETIMEDOUT)
- * 
- * To schedule the tcp_hpts system to call 
- * 
+ *
+ * To schedule the tcp_hpts system to call
+ *
  *    tcp_drop(tp, drop_reason)
  *
  * at a future point. This is quite handy to prevent locking
@@ -284,7 +284,7 @@ sysctl_net_inet_tcp_hpts_max_sleep(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr) {
 		if ((new < (NUM_OF_HPTSI_SLOTS / 4)) ||
-		    (new > HPTS_MAX_SLEEP_ALLOWED)) 
+		    (new > HPTS_MAX_SLEEP_ALLOWED))
 			error = EINVAL;
 		else
 			hpts_sleep_max = new;
@@ -311,7 +311,7 @@ tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
 	     int ticks_to_run, int idx)
 {
 	union tcp_log_stackspecific log;
-	
+
 	memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 	log.u_bbr.flex1 = hpts->p_nxt_slot;
 	log.u_bbr.flex2 = hpts->p_cur_slot;
@@ -616,7 +616,7 @@ tcp_hpts_remove_locked_input(struct tcp_hpts_entry *hpts, struct inpcb *inp, int
  * Valid values in the flags are
  * HPTS_REMOVE_OUTPUT - remove from the output of the hpts.
  * HPTS_REMOVE_INPUT - remove from the input of the hpts.
- * Note that you can use one or both values together 
+ * Note that you can use one or both values together
  * and get two actions.
  */
 void
@@ -651,7 +651,7 @@ hpts_tick(uint32_t wheel_tick, uint32_t plus)
 static inline int
 tick_to_wheel(uint32_t cts_in_wticks)
 {
-	/* 
+	/*
 	 * Given a timestamp in wheel ticks (10usec inc's)
 	 * map it to our limited space wheel.
 	 */
@@ -668,8 +668,8 @@ hpts_ticks_diff(int prev_tick, int tick_now)
 	if (tick_now > prev_tick)
 		return (tick_now - prev_tick);
 	else if (tick_now == prev_tick)
-		/* 
-		 * Special case, same means we can go all of our 
+		/*
+		 * Special case, same means we can go all of our
 		 * wheel less one slot.
 		 */
 		return (NUM_OF_HPTSI_SLOTS - 1);
@@ -686,7 +686,7 @@ hpts_ticks_diff(int prev_tick, int tick_now)
  * a uint32_t *, fill it with the tick location.
  *
  * Note if you do not give this function the current
- * time (that you think it is) mapped to the wheel 
+ * time (that you think it is) mapped to the wheel
  * then the results will not be what you expect and
  * could lead to invalid inserts.
  */
@@ -721,8 +721,8 @@ max_ticks_available(struct tcp_hpts_entry *hpts, uint32_t wheel_tick, uint32_t *
 			end_tick--;
 		if (target_tick)
 			*target_tick = end_tick;
-		/* 
-		 * Now we have close to the full wheel left minus the 
+		/*
+		 * Now we have close to the full wheel left minus the
 		 * time it has been since the pacer went to sleep. Note
 		 * that wheel_tick, passed in, should be the current time
 		 * from the perspective of the caller, mapped to the wheel.
@@ -731,18 +731,18 @@ max_ticks_available(struct tcp_hpts_entry *hpts, uint32_t wheel_tick, uint32_t *
 			dis_to_travel = hpts_ticks_diff(hpts->p_prev_slot, wheel_tick);
 		else
 			dis_to_travel = 1;
-		/* 
-		 * dis_to_travel in this case is the space from when the 
-		 * pacer stopped (p_prev_slot) and where our wheel_tick 
-		 * is now. To know how many slots we can put it in we 
+		/*
+		 * dis_to_travel in this case is the space from when the
+		 * pacer stopped (p_prev_slot) and where our wheel_tick
+		 * is now. To know how many slots we can put it in we
 		 * subtract from the wheel size. We would not want
 		 * to place something after p_prev_slot or it will
 		 * get ran too soon.
 		 */
 		return (NUM_OF_HPTSI_SLOTS - dis_to_travel);
 	}
-	/* 
-	 * So how many slots are open between p_runningtick -> p_cur_slot 
+	/*
+	 * So how many slots are open between p_runningtick -> p_cur_slot
 	 * that is what is currently un-available for insertion. Special
 	 * case when we are at the last slot, this gets 1, so that
 	 * the answer to how many slots are available is all but 1.
@@ -751,7 +751,7 @@ max_ticks_available(struct tcp_hpts_entry *hpts, uint32_t wheel_tick, uint32_t *
 		dis_to_travel = 1;
 	else
 		dis_to_travel = hpts_ticks_diff(hpts->p_runningtick, hpts->p_cur_slot);
-	/* 
+	/*
 	 * How long has the pacer been running?
 	 */
 	if (hpts->p_cur_slot != wheel_tick) {
@@ -761,19 +761,19 @@ max_ticks_available(struct tcp_hpts_entry *hpts, uint32_t wheel_tick, uint32_t *
 		/* The pacer is right on time, now == pacers start time */
 		pacer_to_now = 0;
 	}
-	/* 
+	/*
 	 * To get the number left we can insert into we simply
 	 * subract the distance the pacer has to run from how
 	 * many slots there are.
 	 */
 	avail_on_wheel = NUM_OF_HPTSI_SLOTS - dis_to_travel;
-	/* 
-	 * Now how many of those we will eat due to the pacer's 
-	 * time (p_cur_slot) of start being behind the 
+	/*
+	 * Now how many of those we will eat due to the pacer's
+	 * time (p_cur_slot) of start being behind the
 	 * real time (wheel_tick)?
 	 */
 	if (avail_on_wheel <= pacer_to_now) {
-		/* 
+		/*
 		 * Wheel wrap, we can't fit on the wheel, that
 		 * is unusual the system must be way overloaded!
 		 * Insert into the assured tick, and return special
@@ -783,7 +783,7 @@ max_ticks_available(struct tcp_hpts_entry *hpts, uint32_t wheel_tick, uint32_t *
 		*target_tick = hpts->p_nxt_slot;
 		return (0);
 	} else {
-		/* 
+		/*
 		 * We know how many slots are open
 		 * on the wheel (the reverse of what
 		 * is left to run. Take away the time
@@ -800,7 +800,7 @@ static int
 tcp_queue_to_hpts_immediate_locked(struct inpcb *inp, struct tcp_hpts_entry *hpts, int32_t line, int32_t noref)
 {
 	uint32_t need_wake = 0;
-	
+
 	HPTS_MTX_ASSERT(hpts);
 	if (inp->inp_in_hpts == 0) {
 		/* Ok we need to set it on the hpts in the current slot */
@@ -808,7 +808,7 @@ tcp_queue_to_hpts_immediate_locked(struct inpcb *inp, struct tcp_hpts_entry *hpt
 		if ((hpts->p_hpts_active == 0) ||
 		    (hpts->p_wheel_complete)) {
 			/*
-			 * A sleeping hpts we want in next slot to run 
+			 * A sleeping hpts we want in next slot to run
 			 * note that in this state p_prev_slot == p_cur_slot
 			 */
 			inp->inp_hptsslot = hpts_tick(hpts->p_prev_slot, 1);
@@ -817,7 +817,7 @@ tcp_queue_to_hpts_immediate_locked(struct inpcb *inp, struct tcp_hpts_entry *hpt
 		} else if ((void *)inp == hpts->p_inp) {
 			/*
 			 * The hpts system is running and the caller
-			 * was awoken by the hpts system. 
+			 * was awoken by the hpts system.
 			 * We can't allow you to go into the same slot we
 			 * are in (we don't want a loop :-D).
 			 */
@@ -855,7 +855,7 @@ static void
 check_if_slot_would_be_wrong(struct tcp_hpts_entry *hpts, struct inpcb *inp, uint32_t inp_hptsslot, int line)
 {
 	/*
-	 * Sanity checks for the pacer with invariants 
+	 * Sanity checks for the pacer with invariants
 	 * on insert.
 	 */
 	if (inp_hptsslot >= NUM_OF_HPTSI_SLOTS)
@@ -863,7 +863,7 @@ check_if_slot_would_be_wrong(struct tcp_hpts_entry *hpts, struct inpcb *inp, uin
 		      hpts, inp, inp_hptsslot);
 	if ((hpts->p_hpts_active) &&
 	    (hpts->p_wheel_complete == 0)) {
-		/* 
+		/*
 		 * If the pacer is processing a arc
 		 * of the wheel, we need to make
 		 * sure we are not inserting within
@@ -929,7 +929,7 @@ tcp_hpts_insert_locked(struct tcp_hpts_entry *hpts, struct inpcb *inp, uint32_t 
 		if (maxticks == 0) {
 			/* The pacer is in a wheel wrap behind, yikes! */
 			if (slot > 1) {
-				/* 
+				/*
 				 * Reduce by 1 to prevent a forever loop in
 				 * case something else is wrong. Note this
 				 * probably does not hurt because the pacer
@@ -1178,7 +1178,7 @@ hpts_cpuid(struct inpcb *inp){
 	 * unknown cpuids to curcpu.  Not the best, but apparently better
 	 * than defaulting to swi 0.
 	 */
-	
+
 	if (inp->inp_flowtype == M_HASHTYPE_NONE)
 		return (hpts_random_cpu(inp));
 	/*
@@ -1201,7 +1201,7 @@ static void
 tcp_drop_in_pkts(struct tcpcb *tp)
 {
 	struct mbuf *m, *n;
-	
+
 	m = tp->t_in_pkt;
 	if (m)
 		n = m->m_nextpkt;
@@ -1327,8 +1327,8 @@ out:
 				INP_WLOCK(inp);
 			}
 		} else if (tp->t_in_pkt) {
-			/* 
-			 * We reach here only if we had a 
+			/*
+			 * We reach here only if we had a
 			 * stack that supported INP_SUPPORTS_MBUFQ
 			 * and then somehow switched to a stack that
 			 * does not. The packets are basically stranded
@@ -1380,8 +1380,8 @@ tcp_hptsi(struct tcp_hpts_entry *hpts)
 	hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
 	if ((hpts->p_on_queue_cnt == 0) ||
 	    (hpts->p_lasttick == hpts->p_curtick)) {
-		/* 
-		 * No time has yet passed, 
+		/*
+		 * No time has yet passed,
 		 * or nothing to do.
 		 */
 		hpts->p_prev_slot = hpts->p_cur_slot;
@@ -1394,7 +1394,7 @@ again:
 	ticks_to_run = hpts_ticks_diff(hpts->p_prev_slot, hpts->p_cur_slot);
 	if (((hpts->p_curtick - hpts->p_lasttick) > ticks_to_run) &&
 	    (hpts->p_on_queue_cnt != 0)) {
-		/* 
+		/*
 		 * Wheel wrap is occuring, basically we
 		 * are behind and the distance between
 		 * run's has spread so much it has exceeded
@@ -1413,7 +1413,7 @@ again:
 		wrap_loop_cnt++;
 		hpts->p_nxt_slot = hpts_tick(hpts->p_prev_slot, 1);
 		hpts->p_runningtick = hpts_tick(hpts->p_prev_slot, 2);
-		/* 
+		/*
 		 * Adjust p_cur_slot to be where we are starting from
 		 * hopefully we will catch up (fat chance if something
 		 * is broken this bad :( )
@@ -1427,7 +1427,7 @@ again:
 		 * put behind) does not really matter in this situation.
 		 */
 #ifdef INVARIANTS
-		/* 
+		/*
 		 * To prevent a panic we need to update the inpslot to the
 		 * new location. This is safe since it takes both the
 		 * INP lock and the pacer mutex to change the inp_hptsslot.
@@ -1441,7 +1441,7 @@ again:
 		ticks_to_run = NUM_OF_HPTSI_SLOTS - 1;
 		counter_u64_add(wheel_wrap, 1);
 	} else {
-		/* 
+		/*
 		 * Nxt slot is always one after p_runningtick though
 		 * its not used usually unless we are doing wheel wrap.
 		 */
@@ -1492,12 +1492,12 @@ again:
 			if (inp->inp_hpts_request) {
 				/*
 				 * This guy is deferred out further in time
-				 * then our wheel had available on it. 
+				 * then our wheel had available on it.
 				 * Push him back on the wheel or run it
 				 * depending.
 				 */
 				uint32_t maxticks, last_tick, remaining_slots;
-				
+
 				remaining_slots = ticks_to_run - (i + 1);
 				if (inp->inp_hpts_request > remaining_slots) {
 					/*
@@ -1521,7 +1521,7 @@ again:
 				/* Fall through we will so do it now */
 			}
 			/*
-			 * We clear the hpts flag here after dealing with	
+			 * We clear the hpts flag here after dealing with
 			 * remaining slots. This way anyone looking with the
 			 * TCB lock will see its on the hpts until just
 			 * before we unlock.
@@ -1680,7 +1680,7 @@ no_one:
 #endif
 	hpts->p_prev_slot = hpts->p_cur_slot;
 	hpts->p_lasttick = hpts->p_curtick;
-	if (loop_cnt > max_pacer_loops) {	    
+	if (loop_cnt > max_pacer_loops) {
 		/*
 		 * Something is serious slow we have
 		 * looped through processing the wheel
@@ -1691,7 +1691,7 @@ no_one:
 		 * can never catch up :(
 		 *
 		 * We will just lie to this thread
-		 * and let it thing p_curtick is 
+		 * and let it thing p_curtick is
 		 * correct. When it next awakens
 		 * it will find itself further behind.
 		 */
@@ -1713,7 +1713,7 @@ no_run:
 	 * input.
 	 */
 	hpts->p_wheel_complete = 1;
-	/* 
+	/*
 	 * Run any input that may be there not covered
 	 * in running data.
 	 */
