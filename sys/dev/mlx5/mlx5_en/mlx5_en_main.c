@@ -33,6 +33,8 @@
 #include <sys/sockio.h>
 #include <machine/atomic.h>
 
+#include <net/debugnet.h>
+
 #ifndef ETH_DRIVER_VERSION
 #define	ETH_DRIVER_VERSION	"3.5.2"
 #endif
@@ -398,6 +400,8 @@ static const struct media mlx5e_ext_mode_table[MLX5E_EXT_LINK_SPEEDS_NUMBER][MLX
 		.baudrate = IF_Gbps(200ULL),
 	},
 };
+
+DEBUGNET_DEFINE(mlx5_en);
 
 MALLOC_DEFINE(M_MLX5EN, "MLX5EN", "MLX5 Ethernet");
 
@@ -4444,6 +4448,9 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	/* Set autoselect by default */
 	ifmedia_set(&priv->media, IFM_ETHER | IFM_AUTO | IFM_FDX |
 	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE);
+
+	DEBUGNET_SET(ifp, mlx5_en);
+
 	ether_ifattach(ifp, dev_addr);
 
 	/* Register for VLAN events */
@@ -4590,6 +4597,71 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	if_free(ifp);
 	free(priv, M_MLX5EN);
 }
+
+#ifdef DEBUGNET
+static void
+mlx5_en_debugnet_init(struct ifnet *dev, int *nrxr, int *ncl, int *clsize)
+{
+	struct mlx5e_priv *priv = if_getsoftc(dev);
+
+	PRIV_LOCK(priv);
+	*nrxr = priv->params.num_channels;
+	*ncl = DEBUGNET_MAX_IN_FLIGHT;
+	*clsize = MLX5E_MAX_RX_BYTES;
+	PRIV_UNLOCK(priv);
+}
+
+static void
+mlx5_en_debugnet_event(struct ifnet *dev, enum debugnet_ev event)
+{
+}
+
+static int
+mlx5_en_debugnet_transmit(struct ifnet *dev, struct mbuf *m)
+{
+	struct mlx5e_priv *priv = if_getsoftc(dev);
+	struct mlx5e_sq *sq;
+	int err;
+
+	if ((if_getdrvflags(dev) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING || (priv->media_status_last & IFM_ACTIVE) == 0)
+		return (ENOENT);
+
+	sq = &priv->channel[0].sq[0];
+
+	if (sq->running == 0) {
+		m_freem(m);
+		return (ENOENT);
+	}
+
+	if (mlx5e_sq_xmit(sq, &m) != 0) {
+		m_freem(m);
+		err = ENOBUFS;
+	} else {
+		err = 0;
+	}
+
+	if (likely(sq->doorbell.d64 != 0)) {
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		sq->doorbell.d64 = 0;
+	}
+	return (err);
+}
+
+static int
+mlx5_en_debugnet_poll(struct ifnet *dev, int count)
+{
+	struct mlx5e_priv *priv = if_getsoftc(dev);
+
+	if ((if_getdrvflags(dev) & IFF_DRV_RUNNING) == 0 ||
+	    (priv->media_status_last & IFM_ACTIVE) == 0)
+		return (ENOENT);
+
+	mlx5_poll_interrupts(priv->mdev);
+
+	return (0);
+}
+#endif /* DEBUGNET */
 
 static void *
 mlx5e_get_ifp(void *vpriv)
