@@ -244,59 +244,6 @@ Note that unlike the
 driver, the
 .Nm
 driver does not support selecting 100Mbps (Fast Ethernet) media types.
-.Ss sparc64
-The
-.Nm
-driver supports the on-board
-.Tn LANCE
-interfaces found in
-.Tn Sun Ultra 1
-machines.
-The
-.Nm
-driver allows the selection of the following media types via
-.Xr ifconfig 8
-with these on-board interfaces:
-.Bl -tag -width ".Cm 10base5/AUI"
-.It Cm autoselect
-Enable autoselection of the media type.
-.It Cm 10baseT/UTP
-Select UTP media.
-.It Cm 10base5/AUI
-Select AUI media.
-.El
-.Pp
-When using autoselection, a default media type is selected for use by
-examining all ports for carrier.
-The first media type with which a carrier is detected will be selected.
-Additionally, if carrier is dropped on a port, the driver will switch
-between the possible ports until one with carrier is found.
-.Pp
-The
-.Nm
-driver also supports the following
-.Tn Sun SBus
-Ethernet add-on adapters:
-.Pp
-.Bl -bullet -compact
-.It
-.Tn SCSI HBA and Buffered Ethernet
-.Pq SBE/S, P/N 501-1869
-.It
-.Tn Fast SCSI and Buffered Ethernet
-.Pq FSBE/S, P/N 501-2015 and 501-2981
-.El
-.Pp
-The
-.Nm
-driver does not support the selection of media types and options via
-.Xr ifconfig 8
-with
-.Tn SBus
-Ethernet add-on adapters.
-.Pp
-For further information on configuring media types and options, see
-.Xr ifconfig 8 .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "le%d: overflow"
