@@ -739,3 +739,28 @@ static void mlx5_port_general_notification_event(struct mlx5_core_dev *dev,
 	}
 }
 
+void
+mlx5_disable_interrupts(struct mlx5_core_dev *dev)
+{
+	int nvec = dev->priv.eq_table.num_comp_vectors + MLX5_EQ_VEC_COMP_BASE;
+	int x;
+
+	for (x = 0; x != nvec; x++)
+		disable_irq(dev->priv.msix_arr[x].vector);
+}
+
+void
+mlx5_poll_interrupts(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq *eq;
+
+	if (unlikely(dev->priv.disable_irqs != 0))
+		return;
+
+	mlx5_eq_int(dev, &dev->priv.eq_table.cmd_eq);
+	mlx5_eq_int(dev, &dev->priv.eq_table.async_eq);
+	mlx5_eq_int(dev, &dev->priv.eq_table.pages_eq);
+
+	list_for_each_entry(eq, &dev->priv.eq_table.comp_eqs_list, list)
+		mlx5_eq_int(dev, eq);
+}
