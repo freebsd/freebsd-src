@@ -23,7 +23,7 @@
 .\"
 .\" $Id: elftc_bfd_find_target.3 3752 2019-06-28 01:12:53Z emaste $
 .\"
-.Dd June 27, 2019
+.Dd February 12, 2020
 .Dt ELFTC_BFD_FIND_TARGET 3
 .Os
 .Sh NAME
@@ -48,6 +48,8 @@
 .Fn elftc_bfd_target_flavor "Elftc_Bfd_Target *target"
 .Ft "unsigned int"
 .Fn elftc_bfd_target_machine "Elftc_Bfd_Target *target"
+.Ft "unsigned int"
+.Fn elftc_bfd_target_osabi "Elftc_Bfd_Target *target"
 .Sh DESCRIPTION
 Function
 .Fn elftc_bfd_find_target
