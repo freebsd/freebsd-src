@@ -372,7 +372,7 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 	struct if_ratelimit_query_results rl;
 	struct sysctl_oid *rl_sysctl_root;
 	/*
-	 * We expect to enter with the 
+	 * We expect to enter with the
 	 * mutex locked.
 	 */
 
@@ -392,8 +392,8 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 	rl.flags = RT_NOSUPPORT;
 	ifp->if_ratelimit_query(ifp, &rl);
 	if (rl.flags & RT_IS_UNUSABLE) {
-		/* 
-		 * The interface does not really support 
+		/*
+		 * The interface does not really support
 		 * the rate-limiting.
 		 */
 		memset(rs, 0, sizeof(struct tcp_rate_set));
