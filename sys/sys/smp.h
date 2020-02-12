@@ -276,6 +276,19 @@ void	smp_rendezvous_cpus(cpuset_t,
 		       void (*)(void *),
 		       void (*)(void *),
 		       void *arg);
+
+struct smp_rendezvous_cpus_retry_arg {
+	cpuset_t cpus;
+};
+void	smp_rendezvous_cpus_retry(cpuset_t,
+		       void (*)(void *),
+		       void (*)(void *),
+		       void (*)(void *),
+		       void (*)(void *, int),
+		       struct smp_rendezvous_cpus_retry_arg *);
+
+void	smp_rendezvous_cpus_done(struct smp_rendezvous_cpus_retry_arg *);
+
 #endif /* !LOCORE */
 #endif /* _KERNEL */
 #endif /* _SYS_SMP_H_ */
