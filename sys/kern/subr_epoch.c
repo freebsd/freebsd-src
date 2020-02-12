@@ -357,7 +357,7 @@ static epoch_record_t
 epoch_currecord(epoch_t epoch)
 {
 
-	return (zpcpu_get_cpu(epoch->e_pcpu_record, curcpu));
+	return (zpcpu_get(epoch->e_pcpu_record));
 }
 
 #define INIT_CHECK(epoch)					\
