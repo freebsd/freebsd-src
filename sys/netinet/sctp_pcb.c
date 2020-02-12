@@ -4634,9 +4634,6 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time, uint16_t lport, uint16_t 
 		SCTP_MALLOC(twait_block, struct sctp_tagblock *,
 		    sizeof(struct sctp_tagblock), SCTP_M_TIMW);
 		if (twait_block == NULL) {
-#ifdef INVARIANTS
-			panic("Can not alloc tagblock");
-#endif
 			return;
 		}
 		memset(twait_block, 0, sizeof(struct sctp_tagblock));
