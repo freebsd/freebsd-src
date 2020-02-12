@@ -1180,4 +1180,7 @@ static inline bool mlx5_rl_is_supported(struct mlx5_core_dev *dev)
 }
 #endif
 
+void mlx5_disable_interrupts(struct mlx5_core_dev *);
+void mlx5_poll_interrupts(struct mlx5_core_dev *);
+
 #endif /* MLX5_DRIVER_H */
