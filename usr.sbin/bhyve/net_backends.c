@@ -99,7 +99,8 @@ struct net_backend {
 	 * vector provided by the caller has 'iovcnt' elements and contains
 	 * the packet to send.
 	 */
-	ssize_t (*send)(struct net_backend *be, struct iovec *iov, int iovcnt);
+	ssize_t (*send)(struct net_backend *be, const struct iovec *iov,
+	    int iovcnt);
 
 	/*
 	 * Called to receive a packet from the backend. When the function
@@ -108,7 +109,8 @@ struct net_backend {
 	 * The function returns 0 if the backend doesn't have a new packet to
 	 * receive.
 	 */
-	ssize_t (*recv)(struct net_backend *be, struct iovec *iov, int iovcnt);
+	ssize_t (*recv)(struct net_backend *be, const struct iovec *iov,
+	    int iovcnt);
 
 	/*
 	 * Ask the backend to enable or disable receive operation in the
@@ -238,13 +240,13 @@ error:
  * Called to send a buffer chain out to the tap device
  */
 static ssize_t
-tap_send(struct net_backend *be, struct iovec *iov, int iovcnt)
+tap_send(struct net_backend *be, const struct iovec *iov, int iovcnt)
 {
 	return (writev(be->fd, iov, iovcnt));
 }
 
 static ssize_t
-tap_recv(struct net_backend *be, struct iovec *iov, int iovcnt)
+tap_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
 {
 	ssize_t ret;
 
@@ -458,7 +460,7 @@ netmap_cleanup(struct net_backend *be)
 }
 
 static ssize_t
-netmap_send(struct net_backend *be, struct iovec *iov,
+netmap_send(struct net_backend *be, const struct iovec *iov,
 	    int iovcnt)
 {
 	struct netmap_priv *priv = (struct netmap_priv *)be->opaque;
@@ -538,7 +540,7 @@ txsync:
 }
 
 static ssize_t
-netmap_recv(struct net_backend *be, struct iovec *iov, int iovcnt)
+netmap_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
 {
 	struct netmap_priv *priv = (struct netmap_priv *)be->opaque;
 	struct netmap_slot *slot = NULL;
@@ -749,41 +751,9 @@ netbe_set_cap(struct net_backend *be, uint64_t features,
 	return (ret);
 }
 
-static __inline struct iovec *
-iov_trim(struct iovec *iov, int *iovcnt, unsigned int tlen)
-{
-	struct iovec *riov;
-
-	/* XXX short-cut: assume first segment is >= tlen */
-	assert(iov[0].iov_len >= tlen);
-
-	iov[0].iov_len -= tlen;
-	if (iov[0].iov_len == 0) {
-		assert(*iovcnt > 1);
-		*iovcnt -= 1;
-		riov = &iov[1];
-	} else {
-		iov[0].iov_base = (void *)((uintptr_t)iov[0].iov_base + tlen);
-		riov = &iov[0];
-	}
-
-	return (riov);
-}
-
 ssize_t
-netbe_send(struct net_backend *be, struct iovec *iov, int iovcnt)
+netbe_send(struct net_backend *be, const struct iovec *iov, int iovcnt)
 {
-
-	assert(be != NULL);
-	if (be->be_vnet_hdr_len != be->fe_vnet_hdr_len) {
-		/*
-		 * The frontend uses a virtio-net header, but the backend
-		 * does not. We ignore it (as it must be all zeroes) and
-		 * strip it.
-		 */
-		assert(be->be_vnet_hdr_len == 0);
-		iov = iov_trim(iov, &iovcnt, be->fe_vnet_hdr_len);
-	}
 
 	return (be->send(be, iov, iovcnt));
 }
@@ -794,46 +764,10 @@ netbe_send(struct net_backend *be, struct iovec *iov, int iovcnt)
  * the length of the packet just read. Return -1 in case of errors.
  */
 ssize_t
-netbe_recv(struct net_backend *be, struct iovec *iov, int iovcnt)
+netbe_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
 {
-	/* Length of prepended virtio-net header. */
-	unsigned int hlen = be->fe_vnet_hdr_len;
-	int ret;
 
-	assert(be != NULL);
-
-	if (hlen && hlen != be->be_vnet_hdr_len) {
-		/*
-		 * The frontend uses a virtio-net header, but the backend
-		 * does not. We need to prepend a zeroed header.
-		 */
-		struct virtio_net_rxhdr *vh;
-
-		assert(be->be_vnet_hdr_len == 0);
-
-		/*
-		 * Get a pointer to the rx header, and use the
-		 * data immediately following it for the packet buffer.
-		 */
-		vh = iov[0].iov_base;
-		iov = iov_trim(iov, &iovcnt, hlen);
-
-		/*
-		 * The only valid field in the rx packet header is the
-		 * number of buffers if merged rx bufs were negotiated.
-		 */
-		memset(vh, 0, hlen);
-		if (hlen == VNET_HDR_LEN) {
-			vh->vrh_bufs = 1;
-		}
-	}
-
-	ret = be->recv(be, iov, iovcnt);
-	if (ret > 0) {
-		ret += hlen;
-	}
-
-	return (ret);
+	return (be->recv(be, iov, iovcnt));
 }
 
 /*
@@ -870,4 +804,11 @@ netbe_rx_enable(struct net_backend *be)
 {
 
 	return be->recv_enable(be);
+}
+
+size_t
+netbe_get_vnet_hdr_len(struct net_backend *be)
+{
+
+	return (be->be_vnet_hdr_len);
 }
