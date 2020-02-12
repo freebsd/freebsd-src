@@ -132,6 +132,7 @@ static struct login_vars {
 }, envars[] = {
     { "lang",           "LANG",       NULL, 1},
     { "charset",        "MM_CHARSET", NULL, 1},
+    { "mail",           "MAIL",       NULL, 1},
     { "timezone",       "TZ",         NULL, 1},
     { "term",           "TERM",       NULL, 0},
     { NULL,             NULL,         NULL, 0}
