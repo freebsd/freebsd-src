@@ -86,7 +86,7 @@ DEFINE_TEST(test_write_format_zip_file_zip64)
 	unsigned char *central_header, *local_header, *eocd, *eocd_record;
 	unsigned char *extension_start, *extension_end;
 	char file_data[] = {'1', '2', '3', '4', '5', '6', '7', '8'};
-	char *file_name = "file";
+	const char *file_name = "file";
 
 #ifndef HAVE_ZLIB_H
 	zip_compression = 0;

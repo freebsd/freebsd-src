@@ -81,7 +81,7 @@ DEFINE_TEST(test_write_format_tar)
 
 		/* This calculation gives "the smallest multiple of
 		 * the block size that is at least 2048 bytes". */
-		failure("blocksize=%d", blocksize);
+		failure("blocksize=%zu", blocksize);
 		assertEqualInt(((2048 - 1)/blocksize+1)*blocksize, used);
 
 		/*

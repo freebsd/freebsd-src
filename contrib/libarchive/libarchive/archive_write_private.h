@@ -25,14 +25,14 @@
  * $FreeBSD$
  */
 
+#ifndef ARCHIVE_WRITE_PRIVATE_H_INCLUDED
+#define ARCHIVE_WRITE_PRIVATE_H_INCLUDED
+
 #ifndef __LIBARCHIVE_BUILD
 #ifndef __LIBARCHIVE_TEST
 #error This header is only to be used internally to libarchive.
 #endif
 #endif
-
-#ifndef ARCHIVE_WRITE_PRIVATE_H_INCLUDED
-#define	ARCHIVE_WRITE_PRIVATE_H_INCLUDED
 
 #include "archive.h"
 #include "archive_string.h"

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2019
+.Dd January 31, 2020
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -209,15 +209,16 @@ specified on the command line.
 .It Fl Fl exclude-vcs
 Do not process files or directories internally used by the
 version control systems
-.Sq CVS ,
-.Sq RCS ,
-.Sq SCCS ,
-.Sq SVN ,
 .Sq Arch ,
 .Sq Bazaar ,
-.Sq Mercurial
+.Sq CVS ,
+.Sq Darcs ,
+.Sq Mercurial ,
+.Sq RCS ,
+.Sq SCCS ,
+.Sq SVN
 and
-.Sq Darcs .
+.Sq git .
 .It Fl Fl fflags
 (c, r, u, x modes only)
 Archive or extract platform-specific file attributes or file flags.
@@ -469,6 +470,13 @@ This is the reverse of
 and the default behavior if
 .Nm
 is run as non-root in x mode.
+.It Fl Fl no-safe-writes
+(x mode only)
+Do not create temporary files and use
+.Xr rename 2
+to replace the original ones.
+This is the reverse of
+.Fl Fl safe-writes .
 .It Fl Fl no-same-owner
 (x mode only)
 Do not extract owner and group IDs.
@@ -567,7 +575,14 @@ As above, but the corresponding key and value will be provided
 only to modules whose name matches
 .Ar module .
 .El
-The currently supported modules and keys are:
+.Pp
+The complete list of supported modules and keys
+for create and append modes is in
+.Xr archive_write_set_options 3
+and for extract and list modes in
+.Xr archive_read_set_options 3 .
+.Pp
+Examples of supported options:
 .Bl -tag -compact -width indent
 .It Cm iso9660:joliet
 Support Joliet extensions.
@@ -756,6 +771,26 @@ The default is
 .Ar hrs
 which applies substitutions to all names.
 In particular, it is never necessary to specify h, r, or s.
+.It Fl Fl safe-writes
+(x mode only)
+Extract files atomically.
+By default
+.Nm
+unlinks the original file with the same name as the extracted file (if it
+exists), and then creates it immediately under the same name and writes to
+it.
+For a short period of time, applications trying to access the file might
+not find it, or see incomplete results.
+If
+.Fl Fl safe-writes
+is enabled,
+.Nm
+first creates a unique temporary file, then writes the new contents to
+the temporary file, and finally renames the temporary file to its final
+name atomically using
+.Xr rename 2 .
+This guarantees that an application accessing the file, will either see
+the old contents or the new contents at all times.
 .It Fl Fl same-owner
 (x mode only)
 Extract owner and group IDs.

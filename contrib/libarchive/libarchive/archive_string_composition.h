@@ -34,12 +34,12 @@
  *  See also http://unicode.org/report/tr15/
  */
 
+#ifndef ARCHIVE_STRING_COMPOSITION_H_INCLUDED
+#define ARCHIVE_STRING_COMPOSITION_H_INCLUDED
+
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-
-#ifndef ARCHIVE_STRING_COMPOSITION_H_INCLUDED
-#define ARCHIVE_STRING_COMPOSITION_H_INCLUDED
 
 struct unicode_composition_table {
 	uint32_t cp1;

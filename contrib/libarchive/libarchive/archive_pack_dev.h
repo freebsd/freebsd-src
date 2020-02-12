@@ -31,8 +31,8 @@
 
 /* Originally from NetBSD's mknod(8) source. */
 
-#ifndef	_PACK_DEV_H
-#define	_PACK_DEV_H
+#ifndef	ARCHIVE_PACK_DEV_H
+#define	ARCHIVE_PACK_DEV_H
 
 typedef	dev_t pack_t(int, unsigned long [], const char **);
 
@@ -46,4 +46,4 @@ pack_t	 pack_native;
 					 (((y) << 12) & 0xfff00000) | \
 					 (((y) <<  0) & 0x000000ff)))
 
-#endif	/* _PACK_DEV_H */
+#endif	/* ARCHIVE_PACK_DEV_H */
