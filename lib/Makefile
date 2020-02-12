@@ -72,13 +72,13 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libpathconv \
 	libpcap \
 	libpjdlog \
-	${_libproc} \
+	libproc \
 	libprocstat \
 	libregex \
 	librpcsvc \
 	librss \
 	librt \
-	${_librtld_db} \
+	librtld_db \
 	libsbuf \
 	libsmb \
 	libsqlite3 \
@@ -193,11 +193,6 @@ SUBDIR.${MK_PMC}+=	libopencsd
 .if ${MACHINE_CPUARCH} == "amd64"
 SUBDIR.${MK_PMC}+=	libipt
 SUBDIR.${MK_BHYVE}+=	libvmmapi
-.endif
-
-.if ${MACHINE_CPUARCH} != "sparc64"
-_libproc=	libproc
-_librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_ARCH} != "powerpc"
