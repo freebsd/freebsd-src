@@ -2944,34 +2944,39 @@ uma_zwait(uma_zone_t zone)
 void *
 uma_zalloc_pcpu_arg(uma_zone_t zone, void *udata, int flags)
 {
-	void *item;
+	void *item, *pcpu_item;
 #ifdef SMP
 	int i;
 
 	MPASS(zone->uz_flags & UMA_ZONE_PCPU);
 #endif
 	item = uma_zalloc_arg(zone, udata, flags & ~M_ZERO);
-	if (item != NULL && (flags & M_ZERO)) {
+	if (item == NULL)
+		return (NULL);
+	pcpu_item = zpcpu_base_to_offset(item);
+	if (flags & M_ZERO) {
 #ifdef SMP
 		for (i = 0; i <= mp_maxid; i++)
-			bzero(zpcpu_get_cpu(item, i), zone->uz_size);
+			bzero(zpcpu_get_cpu(pcpu_item, i), zone->uz_size);
 #else
 		bzero(item, zone->uz_size);
 #endif
 	}
-	return (item);
+	return (pcpu_item);
 }
 
 /*
  * A stub while both regular and pcpu cases are identical.
  */
 void
-uma_zfree_pcpu_arg(uma_zone_t zone, void *item, void *udata)
+uma_zfree_pcpu_arg(uma_zone_t zone, void *pcpu_item, void *udata)
 {
+	void *item;
 
 #ifdef SMP
 	MPASS(zone->uz_flags & UMA_ZONE_PCPU);
 #endif
+	item = zpcpu_offset_to_base(pcpu_item);
 	uma_zfree_arg(zone, item, udata);
 }
 
