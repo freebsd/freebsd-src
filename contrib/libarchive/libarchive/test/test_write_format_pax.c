@@ -105,6 +105,28 @@ DEFINE_TEST(test_write_format_pax)
 	assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
 
 	/*
+	 * "file4" is similar to "file1" but has a large uid, large gid,
+	 * uname and gname are longer than 32 characters
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 20);
+	archive_entry_set_birthtime(ae, 3, 30);
+	archive_entry_set_ctime(ae, 4, 40);
+	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_copy_pathname(ae, "file4");
+	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	archive_entry_copy_uname(ae,
+	    "long-uname123456789012345678901234567890");
+	archive_entry_copy_gname(ae,
+	    "long-gname123456789012345678901234567890");
+	archive_entry_set_uid(ae, 536870912);
+	archive_entry_set_gid(ae, 536870913);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
+
+	/*
 	 * XXX TODO XXX Archive directory, other file types.
 	 * Archive extended attributes, ACLs, other metadata.
 	 * Verify they get read back correctly.
@@ -195,6 +217,30 @@ DEFINE_TEST(test_write_format_pax)
 		for (j = 0; j < 1024; j++)
 			assertEqualInt(0, nulls[j]);
 	}
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345678", 8);
+
+	/*
+	 * Read "file4
+	 */
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_entry_atime(ae));
+	assertEqualInt(20, archive_entry_atime_nsec(ae));
+	assertEqualInt(3, archive_entry_birthtime(ae));
+	assertEqualInt(30, archive_entry_birthtime_nsec(ae));
+	assertEqualInt(4, archive_entry_ctime(ae));
+	assertEqualInt(40, archive_entry_ctime_nsec(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(50, archive_entry_mtime_nsec(ae));
+	assertEqualString("file4", archive_entry_pathname(ae));
+	assertEqualString("long-uname123456789012345678901234567890",
+	    archive_entry_uname(ae));
+	assertEqualString("long-gname123456789012345678901234567890",
+	    archive_entry_gname(ae));
+	assertEqualInt(536870912, archive_entry_uid(ae));
+	assertEqualInt(536870913, archive_entry_gid(ae));
+	assert((S_IFREG | 0755) == archive_entry_mode(ae));
+	assertEqualInt(8, archive_entry_size(ae));
 	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
 	assertEqualMem(buff2, "12345678", 8);
 

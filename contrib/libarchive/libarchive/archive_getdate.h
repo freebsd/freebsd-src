@@ -25,12 +25,12 @@
  * $FreeBSD$
  */
 
+#ifndef ARCHIVE_GETDATE_H_INCLUDED
+#define ARCHIVE_GETDATE_H_INCLUDED
+
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-
-#ifndef ARCHIVE_GETDATE_H_INCLUDED
-#define	ARCHIVE_GETDATE_H_INCLUDED
 
 #include <time.h>
 

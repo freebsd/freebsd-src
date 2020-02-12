@@ -36,7 +36,7 @@
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3004001
+#define	ARCHIVE_VERSION_NUMBER 3004002
 
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
@@ -155,7 +155,7 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_ONLY_STRING "3.4.1"
+#define	ARCHIVE_VERSION_ONLY_STRING "3.4.2"
 #define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
@@ -693,6 +693,8 @@ __LA_DECL int archive_read_set_passphrase_callback(struct archive *,
 #define ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS (0x10000)
 /* Default: Do not clear no-change flags when unlinking object */
 #define	ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS	(0x20000)
+/* Default: Do not extract atomically (using rename) */
+#define	ARCHIVE_EXTRACT_SAFE_WRITES		(0x40000)
 
 __LA_DECL int archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);

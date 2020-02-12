@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_random_private.h"
 #include "archive_write_private.h"
+#include "archive_write_set_format_private.h"
 
 #ifndef HAVE_ZLIB_H
 #include "archive_crc32.h"
@@ -526,8 +527,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	/* Ignore types of entries that we don't support. */
 	type = archive_entry_filetype(entry);
 	if (type != AE_IFREG && type != AE_IFDIR && type != AE_IFLNK) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Filetype not supported");
+		__archive_write_entry_filetype_unsupported(
+		    &a->archive, entry, "zip");
 		return ARCHIVE_FAILED;
 	};
 
@@ -1372,10 +1373,28 @@ dos_time(const time_t unix_time)
 {
 	struct tm *t;
 	unsigned int dt;
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
+	struct tm tmbuf;
+#endif
+#if defined(HAVE__LOCALTIME64_S)
+	errno_t terr;
+	__time64_t tmptime;
+#endif
 
 	/* This will not preserve time when creating/extracting the archive
 	 * on two systems with different time zones. */
+#if defined(HAVE_LOCALTIME_R)
+	t = localtime_r(&unix_time, &tmbuf);
+#elif defined(HAVE__LOCALTIME64_S)
+	tmptime = unix_time;
+	terr = _localtime64_s(&tmbuf, &tmptime);
+	if (terr)
+		t = NULL;
+	else
+		t = &tmbuf;
+#else
 	t = localtime(&unix_time);
+#endif
 
 	/* MSDOS-style date/time is only between 1980-01-01 and 2107-12-31 */
 	if (t->tm_year < 1980 - 1900)

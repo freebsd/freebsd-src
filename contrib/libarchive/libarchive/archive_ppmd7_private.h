@@ -6,12 +6,12 @@ This code is based on PPMd var.H (2001): Dmitry Shkarin : Public domain */
 of RangeCoder from 7z, instead of RangeCoder from original PPMd var.H.
 If you need the compatibility with original PPMd var.H, you can use external RangeDecoder */
 
+#ifndef ARCHIVE_PPMD7_PRIVATE_H_INCLUDED
+#define ARCHIVE_PPMD7_PRIVATE_H_INCLUDED
+
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-
-#ifndef ARCHIVE_PPMD7_PRIVATE_H_INCLUDED
-#define ARCHIVE_PPMD7_PRIVATE_H_INCLUDED
 
 #include "archive_ppmd_private.h"
 

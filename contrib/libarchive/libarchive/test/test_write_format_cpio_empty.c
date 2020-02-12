@@ -64,7 +64,7 @@ DEFINE_TEST(test_write_format_cpio_empty)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	failure("Empty cpio archive should be exactly 87 bytes, was %d.", used);
+	failure("Empty cpio archive should be exactly 87 bytes, was %zu.", used);
 	assert(used == 87);
 	failure("Empty cpio archive is incorrectly formatted.");
 	assertEqualMem(buff, ref, 87);

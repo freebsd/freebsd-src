@@ -38,7 +38,7 @@ verify(const char *refname)
 	struct archive_entry *ae;
 
 	extract_reference_file(refname);
-	p = slurpfile(&s, refname);
+	p = slurpfile(&s, "%s", refname);
 
 	/* Symlinks can only be extracted with the seeking reader. */
 	assert((a = archive_read_new()) != NULL);
