@@ -235,9 +235,9 @@ struct pkt_node {
 	/* Number of segments currently in the reassembly queue. */
 	int			t_segqlen;
 	/* Flowid for the connection. */
-	u_int			flowid;	
+	u_int			flowid;
 	/* Flow type for the connection. */
-	u_int			flowtype;	
+	u_int			flowtype;
 	/* Link to next pkt_node in the list. */
 	STAILQ_ENTRY(pkt_node)	nodes;
 };
@@ -1103,7 +1103,7 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags, struct inpcb *inp)
 	 * Only pkts selected by the tcp port filter
 	 * can be inserted into the pkt_queue
 	 */
-	if ((siftr_port_filter != 0) && 
+	if ((siftr_port_filter != 0) &&
 	    (siftr_port_filter != ntohs(inp->inp_lport)) &&
 	    (siftr_port_filter != ntohs(inp->inp_fport))) {
 		goto inp_unlock6;

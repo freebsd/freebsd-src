@@ -182,7 +182,7 @@ VNET_DEFINE_STATIC(vifi_t, numvifs);
 VNET_DEFINE_STATIC(struct vif *, viftable);
 #define	V_viftable		VNET(viftable)
 /*
- * No one should be able to "query" this before initialisation happened in 
+ * No one should be able to "query" this before initialisation happened in
  * vnet_mroute_init(), so we should still be fine.
  */
 SYSCTL_OPAQUE(_net_inet_ip, OID_AUTO, viftable, CTLFLAG_VNET | CTLFLAG_RD,
@@ -653,7 +653,7 @@ if_detached_event(void *arg __unused, struct ifnet *ifp)
 
     MROUTER_UNLOCK();
 }
-                        
+
 /*
  * Enable multicast forwarding.
  */
@@ -742,7 +742,7 @@ X_ip_mrouter_done(void)
     bzero((caddr_t)V_viftable, sizeof(V_viftable));
     V_numvifs = 0;
     V_pim_assert_enabled = 0;
-    
+
     VIF_UNLOCK();
 
     callout_stop(&V_expire_upcalls_ch);
@@ -2833,7 +2833,7 @@ vnet_mroute_uninit(const void *unused __unused)
 	V_nexpire = NULL;
 }
 
-VNET_SYSUNINIT(vnet_mroute_uninit, SI_SUB_PROTO_MC, SI_ORDER_MIDDLE, 
+VNET_SYSUNINIT(vnet_mroute_uninit, SI_SUB_PROTO_MC, SI_ORDER_MIDDLE,
 	vnet_mroute_uninit, NULL);
 
 static int
@@ -2844,7 +2844,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
     case MOD_LOAD:
 	MROUTER_LOCK_INIT();
 
-	if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event, 
+	if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
 	    if_detached_event, NULL, EVENTHANDLER_PRI_ANY);
 	if (if_detach_event_tag == NULL) {
 		printf("ip_mroute: unable to register "

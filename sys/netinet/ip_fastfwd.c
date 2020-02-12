@@ -57,7 +57,7 @@
  *
  * We try to do the least expensive (in CPU ops) checks and operations
  * first to catch junk with as little overhead as possible.
- * 
+ *
  * We take full advantage of hardware support for IP checksum and
  * fragmentation offloading.
  *

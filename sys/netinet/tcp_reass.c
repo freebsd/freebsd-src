@@ -321,7 +321,7 @@ tcp_reass_flush(struct tcpcb *tp)
 
 static void
 tcp_reass_append(struct tcpcb *tp, struct tseg_qent *last,
-    struct mbuf *m, struct tcphdr *th, int tlen, 
+    struct mbuf *m, struct tcphdr *th, int tlen,
     struct mbuf *mlast, int lenofoh)
 {
 
@@ -350,7 +350,7 @@ tcp_reass_prepend(struct tcpcb *tp, struct tseg_qent *first, struct mbuf *m, str
 		  int tlen, struct mbuf *mlast, int lenofoh)
 {
 	int i;
-	
+
 #ifdef TCP_REASS_LOGGING
 	tcp_log_reassm(tp, first, NULL, th->th_seq, tlen, TCP_R_LOG_PREPEND, 0);
 #endif
@@ -381,7 +381,7 @@ tcp_reass_prepend(struct tcpcb *tp, struct tseg_qent *first, struct mbuf *m, str
 #endif
 }
 
-static void 
+static void
 tcp_reass_replace(struct tcpcb *tp, struct tseg_qent *q, struct mbuf *m,
     tcp_seq seq, int len, struct mbuf *mlast, int mbufoh, uint8_t flags)
 {
@@ -397,7 +397,7 @@ tcp_reass_replace(struct tcpcb *tp, struct tseg_qent *q, struct mbuf *m,
 	m_freem(q->tqe_m);
 	KASSERT(tp->t_segqmbuflen >= q->tqe_mbuf_cnt,
 		("Tp:%p seg queue goes negative", tp));
-	tp->t_segqmbuflen -= q->tqe_mbuf_cnt;		       
+	tp->t_segqmbuflen -= q->tqe_mbuf_cnt;
 	q->tqe_mbuf_cnt = mbufoh;
 	q->tqe_m = m;
 	q->tqe_last = mlast;
@@ -420,7 +420,7 @@ static void
 tcp_reass_merge_into(struct tcpcb *tp, struct tseg_qent *ent,
     struct tseg_qent *q)
 {
-	/* 
+	/*
 	 * Merge q into ent and free q from the list.
 	 */
 #ifdef TCP_REASS_LOGGING
@@ -473,8 +473,8 @@ tcp_reass_merge_forward(struct tcpcb *tp, struct tseg_qent *ent)
 			tp->t_segqlen--;
 			continue;
 		}
-		/* 
-		 * Trim the q entry to dovetail to this one 
+		/*
+		 * Trim the q entry to dovetail to this one
 		 * and then merge q into ent updating max
 		 * in the process.
 		 */
@@ -493,7 +493,7 @@ tcp_reass_merge_forward(struct tcpcb *tp, struct tseg_qent *ent)
 #endif
 }
 
-static int 
+static int
 tcp_reass_overhead_of_chain(struct mbuf *m, struct mbuf **mlast)
 {
 	int len = MSIZE;
@@ -571,7 +571,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 		 * the rcv_nxt <-> rcv_wnd but thats
 		 * already done for us by the caller.
 		 */
-#ifdef TCP_REASS_COUNTERS 
+#ifdef TCP_REASS_COUNTERS
 		counter_u64_add(tcp_zero_input, 1);
 #endif
 		m_freem(m);
@@ -616,7 +616,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 	if (last != NULL) {
 		if ((th->th_flags & TH_FIN) &&
 		    SEQ_LT((th->th_seq + *tlenp), (last->tqe_start + last->tqe_len))) {
-			/* 
+			/*
 			 * Someone is trying to game us, dump
 			 * the segment.
 			 */
@@ -656,8 +656,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 				}
 			}
 			if (last->tqe_flags & TH_FIN) {
-				/* 
-				 * We have data after the FIN on the last? 
+				/*
+				 * We have data after the FIN on the last?
 				 */
 				*tlenp = 0;
 				m_freem(m);
@@ -669,7 +669,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 			*tlenp = last->tqe_len;
 			return (0);
 		} else if (SEQ_GT(th->th_seq, (last->tqe_start + last->tqe_len))) {
-			/* 
+			/*
 			 * Second common case, we missed
 			 * another one and have something more
 			 * for the end.
@@ -681,8 +681,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 			 *  new segment                           |---|
 			 */
 			if (last->tqe_flags & TH_FIN) {
-				/* 
-				 * We have data after the FIN on the last? 
+				/*
+				 * We have data after the FIN on the last?
 				 */
 				*tlenp = 0;
 				m_freem(m);
@@ -726,8 +726,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 		counter_u64_add(reass_path3, 1);
 #endif
 		if (SEQ_LT(th->th_seq, tp->rcv_nxt)) {
-			/* 
-			 * The resend was even before 
+			/*
+			 * The resend was even before
 			 * what we have. We need to trim it.
 			 * Note TSNH (it should be trimmed
 			 * before the call to tcp_reass()).
@@ -785,7 +785,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 	}
 	p = TAILQ_PREV(q, tsegqe_head, tqe_q);
 	/**
-	 * Now is this fit just in-between only? 
+	 * Now is this fit just in-between only?
 	 * i.e.:
 	 *      p---+        +----q
 	 *          v        v
@@ -856,8 +856,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 			}
 		}
 		if (th->th_seq == (p->tqe_start + p->tqe_len)) {
-			/* 
-			 * If dovetails in with this one 
+			/*
+			 * If dovetails in with this one
 			 * append it.
 			 */
 			/**
@@ -882,7 +882,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 		q = p;
 	} else {
 		/*
-		 * The new data runs over the 
+		 * The new data runs over the
 		 * top of previously sack'd data (in q).
 		 * It may be partially overlapping, or
 		 * it may overlap the entire segment.
@@ -903,7 +903,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 #endif
 			tcp_reass_replace(tp, q, m, th->th_seq, *tlenp, mlast, lenofoh, th->th_flags);
 		} else {
-			/* 
+			/*
 			 * We just need to prepend the data
 			 * to this. It does not overrun
 			 * the end.
@@ -924,8 +924,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 	*tlenp = q->tqe_len;
 	goto present;
 
-	/* 
-	 * When we reach here we can't combine it 
+	/*
+	 * When we reach here we can't combine it
 	 * with any existing segment.
 	 *
 	 * Limit the number of segments that can be queued to reduce the
@@ -965,9 +965,9 @@ new_entry:
 	if (tcp_new_limits) {
 		if ((tp->t_segqlen > tcp_reass_queue_guard) &&
 		    (*tlenp < MSIZE)) {
-			/* 
+			/*
 			 * This is really a lie, we are not full but
-			 * are getting a segment that is above 
+			 * are getting a segment that is above
 			 * guard threshold. If it is and its below
 			 * a mbuf size (256) we drop it if it
 			 * can't fill in some place.

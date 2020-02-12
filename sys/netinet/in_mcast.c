@@ -526,7 +526,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	IN_MULTI_LIST_UNLOCK();
 	if (inm != NULL)
 		return (0);
-	
+
 	memset(&gsin, 0, sizeof(gsin));
 	gsin.sin_family = AF_INET;
 	gsin.sin_len = sizeof(struct sockaddr_in);
@@ -2207,7 +2207,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			goto out_inp_unlocked;
 		}
 		if (error) {
-                        CTR1(KTR_IGMPV3, "%s: in_joingroup_locked failed", 
+                        CTR1(KTR_IGMPV3, "%s: in_joingroup_locked failed",
                             __func__);
 			goto out_inp_locked;
 		}
@@ -2627,7 +2627,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		int			 i;
 
 		INP_WUNLOCK(inp);
- 
+
 		CTR2(KTR_IGMPV3, "%s: loading %lu source list entries",
 		    __func__, (unsigned long)msfr.msfr_nsrcs);
 		kss = malloc(sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,

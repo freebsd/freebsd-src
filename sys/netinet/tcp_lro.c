@@ -443,7 +443,7 @@ tcp_lro_log(struct tcpcb *tp, struct lro_ctrl *lc,
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 		uint32_t cts;
-		
+
 		cts = tcp_get_usecs(&tv);
 		memset(&log, 0, sizeof(union tcp_log_stackspecific));
 		log.u_bbr.flex8 = frm;
@@ -556,9 +556,9 @@ tcp_flush_out_le(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, in
 			tcp_lro_log(tp, lc, le, NULL, 7, 0, 0, 0, 0);
 		}
 	}
-	/* 
-	 * Break any chain, this is not set to NULL on the singleton 
-	 * case m_nextpkt points to m_head. Other case set them 
+	/*
+	 * Break any chain, this is not set to NULL on the singleton
+	 * case m_nextpkt points to m_head. Other case set them
 	 * m_nextpkt to NULL in push_and_replace.
 	 */
 	le->m_head->m_nextpkt = NULL;
@@ -646,7 +646,7 @@ tcp_set_le_to_m(struct lro_ctrl *lc, struct lro_entry *le, struct mbuf *m)
 	le->m_tail = m_last(m);
 	le->append_cnt = 0;
 	le->ulp_csum = tcp_lro_rx_csum_fixup(le, l3hdr, th, tcp_data_len,
-					     ~csum); 
+					     ~csum);
 	le->append_cnt++;
 	th->th_sum = csum;	/* Restore checksum on first packet. */
 }
@@ -656,7 +656,7 @@ tcp_push_and_replace(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le
 {
 	/*
 	 * Push up the stack the current le and replace
-	 * it with m. 
+	 * it with m.
 	 */
 	struct mbuf *msave;
 
@@ -666,7 +666,7 @@ tcp_push_and_replace(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le
 	/* Now push out the old le entry */
 	tcp_flush_out_le(tp, lc, le, locked);
 	/*
-	 * Now to replace the data properly in the le 
+	 * Now to replace the data properly in the le
 	 * we have to reset the tcp header and
 	 * other fields.
 	 */
@@ -678,9 +678,9 @@ tcp_push_and_replace(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le
 static void
 tcp_lro_condense(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, int locked)
 {
-	/* 
-	 * Walk through the mbuf chain we 
-	 * have on tap and compress/condense 
+	/*
+	 * Walk through the mbuf chain we
+	 * have on tap and compress/condense
 	 * as required.
 	 */
 	uint32_t *ts_ptr;
@@ -689,9 +689,9 @@ tcp_lro_condense(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, in
 	uint16_t tcp_data_len, csum_upd;
 	int l;
 
-	/* 
-	 * First we must check the lead (m_head) 
-	 * we must make sure that it is *not* 
+	/*
+	 * First we must check the lead (m_head)
+	 * we must make sure that it is *not*
 	 * something that should be sent up
 	 * right away (sack etc).
 	 */
@@ -703,7 +703,7 @@ again:
 		return;
 	}
 	th = tcp_lro_get_th(le, le->m_head);
-	KASSERT(th != NULL, 
+	KASSERT(th != NULL,
 		("le:%p m:%p th comes back NULL?", le, le->m_head));
 	l = (th->th_off << 2);
 	l -= sizeof(*th);
@@ -729,7 +729,7 @@ again:
 		goto again;
 	}
 	while((m = le->m_head->m_nextpkt) != NULL) {
-		/* 
+		/*
 		 * condense m into le, first
 		 * pull m out of the list.
 		 */
@@ -738,7 +738,7 @@ again:
 		/* Setup my data */
 		tcp_data_len = m->m_pkthdr.lro_len;
 		th = tcp_lro_get_th(le, m);
-		KASSERT(th != NULL, 
+		KASSERT(th != NULL,
 			("le:%p m:%p th comes back NULL?", le, m));
 		ts_ptr = (uint32_t *)(th + 1);
 		l = (th->th_off << 2);
@@ -871,14 +871,14 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 #ifdef TCPHPTS
 	struct inpcb *inp = NULL;
 	int need_wakeup = 0, can_queue = 0;
-	struct epoch_tracker et;	
+	struct epoch_tracker et;
 
 	/* Now lets lookup the inp first */
 	CURVNET_SET(lc->ifp->if_vnet);
 	/*
 	 * XXXRRS Currently the common input handler for
 	 * mbuf queuing cannot handle VLAN Tagged. This needs
-	 * to be fixed and the or condition removed (i.e. the 
+	 * to be fixed and the or condition removed (i.e. the
 	 * common code should do the right lookup for the vlan
 	 * tag and anything else that the vlan_input() does).
 	 */
@@ -907,7 +907,7 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 	if (inp && ((inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)) ||
 		    (inp->inp_flags2 & INP_FREED))) {
 		/* We don't want this guy */
-		INP_WUNLOCK(inp);		
+		INP_WUNLOCK(inp);
 		inp = NULL;
 	}
 	if (inp && (inp->inp_flags2 & INP_SUPPORTS_MBUFQ)) {
@@ -916,13 +916,13 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 		if (le->need_wakeup ||
 		    ((inp->inp_in_input == 0) &&
 		     ((inp->inp_flags2 & INP_MBUF_QUEUE_READY) == 0))) {
-			/* 
+			/*
 			 * Either the transport is off on a keep-alive
 			 * (it has the queue_ready flag clear and its
 			 *  not already been woken) or the entry has
 			 * some urgent thing (FIN or possibly SACK blocks).
 			 * This means we need to wake the transport up by
-			 * putting it on the input pacer. 
+			 * putting it on the input pacer.
 			 */
 			need_wakeup = 1;
 			if ((inp->inp_flags2 & INP_DONT_SACK_QUEUE) &&
@@ -949,7 +949,7 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 			    inp->inp_flags2, inp->inp_in_input, le->need_wakeup);
 		tcp_queue_pkts(tp, le);
 		if (need_wakeup) {
-			/* 
+			/*
 			 * We must get the guy to wakeup via
 			 * hpts.
 			 */
@@ -1233,7 +1233,7 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 	if (l != 0 && (__predict_false(l != TCPOLEN_TSTAMP_APPA) ||
 		       (*ts_ptr != ntohl(TCPOPT_NOP<<24|TCPOPT_NOP<<16|
 					 TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)))) {
-		/* 
+		/*
 		 * We have an option besides Timestamps, maybe
 		 * it is a sack (most likely) which means we
 		 * will probably need to wake up a sleeper (if
@@ -1362,7 +1362,7 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 		le->p_len = m->m_pkthdr.len - ETHER_HDR_LEN;
 		break;
 #endif
-	} 
+	}
 	le->source_port = th->th_sport;
 	le->dest_port = th->th_dport;
 	le->next_seq = seq + tcp_data_len;
@@ -1392,7 +1392,7 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 	le->m_last_mbuf = m;
 	m->m_nextpkt = NULL;
 	le->m_prev_last = NULL;
-	/* 
+	/*
 	 * We keep the total size here for cross checking when we may need
 	 * to flush/wakeup in the MBUF_QUEUE case.
 	 */

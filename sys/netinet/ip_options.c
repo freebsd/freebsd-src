@@ -75,8 +75,8 @@ SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute,
 #define	V_ip_dosourceroute	VNET(ip_dosourceroute)
 
 VNET_DEFINE_STATIC(int,	ip_acceptsourceroute);
-SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute, 
-    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_acceptsourceroute), 0, 
+SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_acceptsourceroute), 0,
     "Enable accepting source routed IP packets");
 #define	V_ip_acceptsourceroute	VNET(ip_acceptsourceroute)
 
@@ -208,7 +208,7 @@ ip_dooptions(struct mbuf *m, int pass)
 					 * ICMP
 					 */
 nosourcerouting:
-					log(LOG_WARNING, 
+					log(LOG_WARNING,
 					    "attempted source route from %s "
 					    "to %s\n",
 					    inet_ntoa_r(ip->ip_src, srcbuf),

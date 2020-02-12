@@ -77,12 +77,12 @@ struct lro_entry {
 	uint16_t		mbuf_appended;
 	struct timeval		mtime;
 };
-/* 
- * Note: The mbuf_cnt field tracks our number of mbufs added to the m_next 
- *       list. Each mbuf counted can have data and of course it will 
- *	 have an ack as well (by defintion any inbound tcp segment will 
+/*
+ * Note: The mbuf_cnt field tracks our number of mbufs added to the m_next
+ *       list. Each mbuf counted can have data and of course it will
+ *	 have an ack as well (by defintion any inbound tcp segment will
  *	 have an ack value. We use this count to tell us how many ACK's
- *	 are present for our ack-count threshold. If we exceed that or 
+ *	 are present for our ack-count threshold. If we exceed that or
  *	 the data threshold we will wake up the endpoint.
  */
 LIST_HEAD(lro_head, lro_entry);
@@ -130,7 +130,7 @@ void tcp_lro_flush_all(struct lro_ctrl *);
 int tcp_lro_rx(struct lro_ctrl *, struct mbuf *, uint32_t);
 void tcp_lro_queue_mbuf(struct lro_ctrl *, struct mbuf *);
 void tcp_lro_reg_mbufq(void);
-void tcp_lro_dereg_mbufq(void);	
+void tcp_lro_dereg_mbufq(void);
 
 #define	TCP_LRO_NO_ENTRIES	-2
 #define	TCP_LRO_CANNOT		-1
