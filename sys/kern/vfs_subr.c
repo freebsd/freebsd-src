@@ -6049,10 +6049,6 @@ restart:
 		}
 		MNT_IUNLOCK(mp);
 		if (vp != NULL) {
-			/*
-			 * Paired with a fence in vfs_op_thread_exit().
-			 */
-			atomic_thread_fence_acq();
 			vfs_op_barrier_wait(mp);
 			vrele(vp);
 		}
