@@ -228,6 +228,10 @@ extern struct pcpu *cpuid_to_pcpu[];
 #endif
 #define	curproc		(curthread->td_proc)
 
+#ifndef ZPCPU_ASSERT_PROTECTED
+#define ZPCPU_ASSERT_PROTECTED() MPASS(curthread->td_critnest > 0)
+#endif
+
 #ifndef zpcpu_offset_cpu
 #define zpcpu_offset_cpu(cpu)	(UMA_PCPU_ALLOC_SIZE * cpu)
 #endif
@@ -277,26 +281,32 @@ extern struct pcpu *cpuid_to_pcpu[];
 	_old;								\
 })
 
+#ifndef zpcpu_set_protected
 #define zpcpu_set_protected(base, val) ({				\
-	MPASS(curthread->td_critnest > 0);				\
+	ZPCPU_ASSERT_PROTECTED();					\
 	__typeof(val) *_ptr = zpcpu_get(base);				\
 									\
 	*_ptr = (val);							\
 })
+#endif
 
+#ifndef zpcpu_add_protected
 #define zpcpu_add_protected(base, val) ({				\
-	MPASS(curthread->td_critnest > 0);				\
+	ZPCPU_ASSERT_PROTECTED();					\
 	__typeof(val) *_ptr = zpcpu_get(base);				\
 									\
 	*_ptr += (val);							\
 })
+#endif
 
+#ifndef zpcpu_sub_protected
 #define zpcpu_sub_protected(base, val) ({				\
-	MPASS(curthread->td_critnest > 0);				\
+	ZPCPU_ASSERT_PROTECTED();					\
 	__typeof(val) *_ptr = zpcpu_get(base);				\
 									\
 	*_ptr -= (val);							\
 })
+#endif
 
 /*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for
