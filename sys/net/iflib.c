@@ -6060,23 +6060,25 @@ iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type, 
 		gtask = &ctx->ifc_txqs[qid].ift_task;
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_tx;
+		GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	case IFLIB_INTR_RX:
 		q = &ctx->ifc_rxqs[qid];
 		gtask = &ctx->ifc_rxqs[qid].ifr_task;
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_rx;
+		NET_GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	case IFLIB_INTR_IOV:
 		q = ctx;
 		gtask = &ctx->ifc_vflr_task;
 		tqg = qgroup_if_config_tqg;
 		fn = _task_fn_iov;
+		GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	default:
 		panic("unknown net intr type");
 	}
-	GROUPTASK_INIT(gtask, 0, fn, q);
 	if (irq != NULL) {
 		err = iflib_irq_set_affinity(ctx, irq, type, qid, gtask, tqg,
 		    q, name);
@@ -6111,7 +6113,6 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	struct grouptask *gtask;
 	struct resource *res;
 	struct taskqgroup *tqg;
-	gtask_fn_t *fn;
 	void *q;
 	int err, tqrid;
 	bool rx_only;
@@ -6121,7 +6122,6 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	gtask = &rxq[0].ifr_task;
 	tqg = qgroup_if_io_tqg;
 	tqrid = *rid;
-	fn = _task_fn_rx;
 	rx_only = (ctx->ifc_sctx->isc_flags & IFLIB_SINGLE_IRQ_RX_ONLY) != 0;
 
 	ctx->ifc_flags |= IFC_LEGACY;
@@ -6136,7 +6136,7 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	    iflib_fast_intr_rxtx, NULL, info, name);
 	if (err != 0)
 		return (err);
-	GROUPTASK_INIT(gtask, 0, fn, q);
+	NET_GROUPTASK_INIT(gtask, 0, _task_fn_rx, q);
 	res = irq->ii_res;
 	taskqgroup_attach(tqg, gtask, q, dev, res, name);
 
