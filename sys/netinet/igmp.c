@@ -877,7 +877,7 @@ out_locked:
  * We may be updating the group for the first time since we switched
  * to IGMPv3. If we are, then we must clear any recorded source lists,
  * and transition to REPORTING state; the group timer is overloaded
- * for group and group-source query responses. 
+ * for group and group-source query responses.
  *
  * Unlike IGMPv3, the delay per group should be jittered
  * to avoid bursts of IGMPv2 reports.
@@ -2324,7 +2324,7 @@ igmp_initial_join(struct in_multi *inm, struct igmp_ifsoftc *igi)
 	struct ifnet		*ifp;
 	struct mbufq		*mq;
 	int			 error, retval, syncstates;
- 
+
 	CTR4(KTR_IGMPV3, "%s: initial join 0x%08x on ifp %p(%s)", __func__,
 	    ntohl(inm->inm_addr.s_addr), inm->inm_ifp, inm->inm_ifp->if_xname);
 

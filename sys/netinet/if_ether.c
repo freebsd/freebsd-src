@@ -211,7 +211,7 @@ arptimer(void *arg)
 	LLE_WLOCK(lle);
 	if (callout_pending(&lle->lle_timer)) {
 		/*
-		 * Here we are a bit odd here in the treatment of 
+		 * Here we are a bit odd here in the treatment of
 		 * active/pending. If the pending bit is set, it got
 		 * rescheduled before I ran. The active
 		 * bit we ignore, since if it was stopped
@@ -709,7 +709,7 @@ arpintr(struct mbuf *m)
 		layer = "ethernet";
 		break;
 	case ARPHRD_INFINIBAND:
-		hlen = 20;	/* RFC 4391, INFINIBAND_ALEN */ 
+		hlen = 20;	/* RFC 4391, INFINIBAND_ALEN */
 		layer = "infiniband";
 		break;
 	case ARPHRD_IEEE1394:

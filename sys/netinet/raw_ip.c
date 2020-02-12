@@ -160,7 +160,7 @@ rip_inshash(struct inpcb *inp)
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
-	
+
 	if (inp->inp_ip_p != 0 &&
 	    inp->inp_laddr.s_addr != INADDR_ANY &&
 	    inp->inp_faddr.s_addr != INADDR_ANY) {
@@ -892,7 +892,7 @@ rip_detach(struct socket *so)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_detach: inp == NULL"));
-	KASSERT(inp->inp_faddr.s_addr == INADDR_ANY, 
+	KASSERT(inp->inp_faddr.s_addr == INADDR_ANY,
 	    ("rip_detach: not closed"));
 
 	INP_INFO_WLOCK(&V_ripcbinfo);

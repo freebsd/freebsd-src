@@ -277,7 +277,7 @@ the objects used by dummynet:
    to delay and bandwidth;
  + dn_profile describes a delay profile;
  + dn_flow describes the flow status (flow id, statistics)
-   
+
  + dn_sch describes a scheduler
  + dn_fs describes a flowset (msk, weight, queue parameters)
 

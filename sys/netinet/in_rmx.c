@@ -187,7 +187,7 @@ in_ifadown(struct ifaddr *ifa, int delete)
 }
 
 /*
- * inet versions of rt functions. These have fib extensions and 
+ * inet versions of rt functions. These have fib extensions and
  * for now will just reference the _fib variants.
  * eventually this order will be reversed,
  */

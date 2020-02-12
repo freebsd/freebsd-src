@@ -60,7 +60,7 @@ struct mbuf;
 typedef void(*udp_tun_func_t)(struct mbuf *, int, struct inpcb *,
 			      const struct sockaddr *, void *);
 typedef void(*udp_tun_icmp_t)(int, struct sockaddr *, void *, void *);
-			      
+
 /*
  * UDP control block; one per udp.
  */

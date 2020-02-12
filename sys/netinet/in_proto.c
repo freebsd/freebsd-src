@@ -146,7 +146,7 @@ struct protosw inetsw[] = {
 	.pr_usrreqs =		&tcp_usrreqs
 },
 #ifdef SCTP
-{ 
+{
 	.pr_type =		SOCK_SEQPACKET,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
@@ -158,7 +158,7 @@ struct protosw inetsw[] = {
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp_usrreqs
 },
-{ 
+{
 	.pr_type =		SOCK_STREAM,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,

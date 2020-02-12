@@ -607,7 +607,7 @@ cdg_ack_received(struct cc_var *ccv, uint16_t ack_type)
 				congestion = prob_backoff(qdiff_max);
 			else if (cdg_data->max_qtrend > 0)
 				congestion = prob_backoff(cdg_data->max_qtrend);
-			
+
 			/* Update estimate of queue state. */
 			if (cdg_data->min_qtrend > 0 &&
 			    cdg_data->max_qtrend <= 0) {

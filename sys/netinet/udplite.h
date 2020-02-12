@@ -40,7 +40,7 @@ struct udplitehdr {
 	u_short	udplite_checksum;	/* UDP-Lite checksum */
 };
 
-/* 
+/*
  * User-settable options (used with setsockopt).
  */
 #define	UDPLITE_SEND_CSCOV	2	/* Sender checksum coverage. */

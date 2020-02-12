@@ -97,7 +97,7 @@ static u_char	tcp_outflags[TCP_NSTATES] = {
 	TH_FIN|TH_ACK,		/* 8, LAST_ACK */
 	TH_ACK,			/* 9, FIN_WAIT_2 */
 	TH_ACK,			/* 10, TIME_WAIT */
-};	
+};
 #endif
 
 #ifdef KPROF
