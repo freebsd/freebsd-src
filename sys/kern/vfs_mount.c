@@ -1533,9 +1533,9 @@ vfs_assert_mount_counters(struct mount *mp)
 		return;
 
 	CPU_FOREACH(cpu) {
-		if (*(int *)zpcpu_get_cpu(mp->mnt_ref_pcpu, cpu) != 0 ||
-		    *(int *)zpcpu_get_cpu(mp->mnt_lockref_pcpu, cpu) != 0 ||
-		    *(int *)zpcpu_get_cpu(mp->mnt_writeopcount_pcpu, cpu) != 0)
+		if (*zpcpu_get_cpu(mp->mnt_ref_pcpu, cpu) != 0 ||
+		    *zpcpu_get_cpu(mp->mnt_lockref_pcpu, cpu) != 0 ||
+		    *zpcpu_get_cpu(mp->mnt_writeopcount_pcpu, cpu) != 0)
 			vfs_dump_mount_counters(mp);
 	}
 }
@@ -1605,7 +1605,7 @@ vfs_mount_fetch_counter(struct mount *mp, enum mount_counter which)
 
 	sum = *base;
 	CPU_FOREACH(cpu) {
-		sum += *(int *)zpcpu_get_cpu(pcpu, cpu);
+		sum += *zpcpu_get_cpu(pcpu, cpu);
 	}
 	return (sum);
 }
