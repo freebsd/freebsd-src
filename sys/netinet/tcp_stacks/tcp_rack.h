@@ -251,7 +251,7 @@ struct rack_control {
 	uint32_t rc_rcvtime;	/* When we last received data */
 	uint32_t rc_num_split_allocs;	/* num split map entries allocated */
 
-	uint32_t rc_last_output_to; 
+	uint32_t rc_last_output_to;
 	uint32_t rc_went_idle_time;
 
 	struct rack_sendmap *rc_sacklast;	/* sack remembered place
@@ -266,7 +266,7 @@ struct rack_control {
 	/* Cache line split 0x140 */
 	/* Flags for various things */
 	uint32_t rc_pace_max_segs;
-	uint32_t rc_pace_min_segs;	
+	uint32_t rc_pace_min_segs;
 	uint32_t rc_high_rwnd;
 	uint32_t ack_count;
 	uint32_t sack_count;
@@ -333,7 +333,7 @@ struct tcp_rack {
 	uint8_t rc_allow_data_af_clo: 1,
 		delayed_ack : 1,
 		set_pacing_done_a_iw : 1,
-		use_rack_cheat : 1, 
+		use_rack_cheat : 1,
 		alloc_limit_reported : 1,
 		sack_attack_disable : 1,
 		do_detection : 1,
