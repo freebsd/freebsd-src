@@ -128,6 +128,7 @@ interp_init(void)
                 errstr = errstr == NULL ? "unknown" : errstr;
                 printf("Startup error in %s:\nLUA ERROR: %s.\n", filename, errstr);
                 lua_pop(luap, 1);
+		setenv("autoboot_delay", "NO", 1);
 	}
 }
 
