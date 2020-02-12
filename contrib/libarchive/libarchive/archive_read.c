@@ -433,7 +433,7 @@ archive_read_add_callback_data(struct archive *_a, void *client_data,
 		return ARCHIVE_FATAL;
 	}
 	a->client.dataset = (struct archive_read_data_node *)p;
-	for (i = a->client.nodes - 1; i > iindex && i > 0; i--) {
+	for (i = a->client.nodes - 1; i > iindex; i--) {
 		a->client.dataset[i].data = a->client.dataset[i-1].data;
 		a->client.dataset[i].begin_position = -1;
 		a->client.dataset[i].total_size = -1;

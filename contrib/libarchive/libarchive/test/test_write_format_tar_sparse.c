@@ -94,7 +94,7 @@ test_1(void)
 
 		/* This calculation gives "the smallest multiple of
 		 * the block size that is at least 11264 bytes". */
-		failure("blocksize=%d", blocksize);
+		failure("blocksize=%zu", blocksize);
 		assertEqualInt(((11264 - 1)/blocksize+1)*blocksize, used);
 
 		/*
@@ -229,7 +229,7 @@ test_2(void)
 
 	/* This calculation gives "the smallest multiple of
 	 * the block size that is at least 11264 bytes". */
-	failure("blocksize=%d", blocksize);
+	failure("blocksize=%zu", blocksize);
 	assertEqualInt(((11264 - 1)/blocksize+1)*blocksize, used);
 
 	/*

@@ -626,7 +626,8 @@ _warc_rdver(const char *buf, size_t bsz)
 		if (ver >= 1200U) {
 			if (memcmp(c, "\r\n", 2U) != 0)
 				ver = 0U;
-		} else if (ver < 1200U) {
+		} else {
+			/* ver < 1200U */
 			if (*c != ' ' && *c != '\t')
 				ver = 0U;
 		}

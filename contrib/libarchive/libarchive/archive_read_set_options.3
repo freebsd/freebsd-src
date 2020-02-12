@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd January 31, 2020
 .Dt ARCHIVE_READ_OPTIONS 3
 .Os
 .Sh NAME
@@ -180,6 +180,18 @@ only to modules whose name matches
 .\"
 .Sh OPTIONS
 .Bl -tag -compact -width indent
+.It Format cab
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file names.
+.El
+.It Format cpio
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file names.
+.El
 .It Format iso9660
 .Bl -tag -compact -width indent
 .It Cm joliet
@@ -193,6 +205,24 @@ Defaults to enabled, use
 .Cm !rockridge
 to disable.
 .El
+.It Format lha
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file names.
+.El
+.It Format mtree
+.Bl -tag -compact -width indent
+.It Cm checkfs
+Allow reading information missing from the mtree from the file system.
+Disabled by default.
+.El
+.It Format rar
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file names.
+.El
 .It Format tar
 .Bl -tag -compact -width indent
 .It Cm compat-2x
@@ -202,7 +232,7 @@ This option mimics the libarchive 2.x filename handling
 so that such archives can be read correctly.
 .It Cm hdrcharset
 The value is used as a character set name that will be
-used when translating filenames.
+used when translating file names.
 .It Cm mac-ext
 Support Mac OS metadata extension that records data in special
 files beginning with a period and underscore.

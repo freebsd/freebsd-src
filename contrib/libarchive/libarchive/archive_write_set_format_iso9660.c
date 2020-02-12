@@ -289,12 +289,12 @@ struct isoent {
 		struct extr_rec	*current;
 	}			 extr_rec_list;
 
-	int			 virtual:1;
+	signed int		 virtual:1;
 	/* If set to one, this file type is a directory.
 	 * A convenience flag to be used as
 	 * "archive_entry_filetype(isoent->file->entry) == AE_IFDIR".
 	 */
-	int			 dir:1;
+	signed int		 dir:1;
 };
 
 struct hardlink {
@@ -755,9 +755,9 @@ struct iso9660 {
 
 	/* Used for making zisofs. */
 	struct {
-		int		 detect_magic:1;
-		int		 making:1;
-		int		 allzero:1;
+		signed int	 detect_magic:1;
+		signed int	 making:1;
+		signed int	 allzero:1;
 		unsigned char	 magic_buffer[64];
 		int		 magic_cnt;
 
@@ -5094,13 +5094,11 @@ isofile_init_hardlinks(struct iso9660 *iso9660)
 static void
 isofile_free_hardlinks(struct iso9660 *iso9660)
 {
-	struct archive_rb_node *n, *next;
+	struct archive_rb_node *n, *tmp;
 
-	for (n = ARCHIVE_RB_TREE_MIN(&(iso9660->hardlink_rbtree)); n;) {
-		next = __archive_rb_tree_iterate(&(iso9660->hardlink_rbtree),
-		    n, ARCHIVE_RB_DIR_RIGHT);
+	ARCHIVE_RB_TREE_FOREACH_SAFE(n, &(iso9660->hardlink_rbtree), tmp) {
+		__archive_rb_tree_remove_node(&(iso9660->hardlink_rbtree), n);
 		free(n);
-		n = next;
 	}
 }
 
@@ -7801,8 +7799,8 @@ struct zisofs_extract {
 	uint64_t	 pz_uncompressed_size;
 	size_t		 uncompressed_buffer_size;
 
-	int		 initialized:1;
-	int		 header_passed:1;
+	signed int	 initialized:1;
+	signed int	 header_passed:1;
 
 	uint32_t	 pz_offset;
 	unsigned char	*block_pointers;

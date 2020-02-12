@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Michihiro NAKAJIMA
+ * Copyright (c) 2020 Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,16 +21,22 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#ifndef ARCHIVE_RANDOM_PRIVATE_H_INCLUDED
-#define ARCHIVE_RANDOM_PRIVATE_H_INCLUDED
+#ifndef ARCHIVE_WRITE_SET_FORMAT_PRIVATE_H_INCLUDED
+#define ARCHIVE_WRITE_SET_FORMAT_PRIVATE_H_INCLUDED
 
 #ifndef __LIBARCHIVE_BUILD
+#ifndef __LIBARCHIVE_TEST
 #error This header is only to be used internally to libarchive.
 #endif
+#endif
 
-/* Random number generator. */
-int archive_random(void *buf, size_t nbytes);
+#include "archive.h"
+#include "archive_entry.h"
 
-#endif /* ARCHIVE_RANDOM_PRIVATE_H_INCLUDED */
+void __archive_write_entry_filetype_unsupported(struct archive *a,
+    struct archive_entry *entry, const char *format);
+#endif
