@@ -49,9 +49,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/mutex.h>
 #include <sys/ck.h>
-#define TCPSTATES		/* for logging */
+#include <net/if.h>
+#include <net/if_var.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#define TCPSTATES		/* for logging */
 #include <netinet/tcp_var.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
@@ -284,7 +286,7 @@ rs_defer_destroy(struct tcp_rate_set *rs)
 
 	/* Set flag to only defer once. */
 	rs->rs_flags |= RS_FUNERAL_SCHD;
-	epoch_call(net_epoch, &rs->rs_epoch_ctx, rs_destroy);
+	NET_EPOCH_CALL(rs_destroy, &rs->rs_epoch_ctx);
 }
 
 #ifdef INET
@@ -878,7 +880,7 @@ rt_setup_rate(struct inpcb *inp, struct ifnet *ifp, uint64_t bytes_per_sec,
 	struct epoch_tracker et;
 	int err;
 
-	epoch_enter_preempt(net_epoch_preempt, &et);
+	NET_EPOCH_ENTER(et);
 use_real_interface:
 	CK_LIST_FOREACH(rs, &int_rs, next) {
 		/*
@@ -911,14 +913,14 @@ use_real_interface:
 		 */
 		if (rs->rs_disable && error)
 			*error = ENODEV;
-		epoch_exit_preempt(net_epoch_preempt, &et);
+		NET_EPOCH_EXIT(et);
 		return (NULL);
 	}
 
 	if ((rs == NULL) || (rs->rs_disable != 0)) {
 		if (rs->rs_disable && error)
 			*error = ENOSPC;
-		epoch_exit_preempt(net_epoch_preempt, &et);
+		NET_EPOCH_EXIT(et);
 		return (NULL);
 	}
 	if (rs->rs_flags & RS_IS_DEFF) {
@@ -929,7 +931,7 @@ use_real_interface:
 		if (tifp == NULL) {
 			if (rs->rs_disable && error)
 				*error = ENOTSUP;
-			epoch_exit_preempt(net_epoch_preempt, &et);
+			NET_EPOCH_EXIT(et);
 			return (NULL);
 		}
 		goto use_real_interface;
@@ -938,7 +940,7 @@ use_real_interface:
 	    ((rs->rs_flows_using + 1) > rs->rs_flow_limit)) {
 		if (error)
 			*error = ENOSPC;
-		epoch_exit_preempt(net_epoch_preempt, &et);
+		NET_EPOCH_EXIT(et);
 		return (NULL);
 	}
 	rte = tcp_find_suitable_rate(rs, bytes_per_sec, flags);
@@ -962,7 +964,7 @@ use_real_interface:
 		 */
 		atomic_add_64(&rs->rs_flows_using, 1);
 	}
-	epoch_exit_preempt(net_epoch_preempt, &et);
+	NET_EPOCH_EXIT(et);
 	return (rte);
 }
 
