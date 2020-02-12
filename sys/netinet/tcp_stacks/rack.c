@@ -1681,7 +1681,7 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, struct tcphdr *th, ui
 				    tp->t_stats_gput_prev);
 			tp->t_flags &= ~TF_GPUTINPROG;
 			tp->t_stats_gput_prev = gput;
-
+#ifdef NETFLIX_PEAKRATE
 			if (tp->t_maxpeakrate) {
 				/*
 				 * We update t_peakrate_thr. This gives us roughly
@@ -1689,6 +1689,7 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, struct tcphdr *th, ui
 				 */
 				tcp_update_peakrate_thr(tp);
 			}
+#endif
 		}
 #endif
 		if (tp->snd_cwnd > tp->snd_ssthresh) {
