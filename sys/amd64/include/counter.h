@@ -86,10 +86,7 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 {
 
 	KASSERT(IS_BSP() || c != EARLY_COUNTER, ("EARLY_COUNTER used on AP"));
-	__asm __volatile("addq\t%1,%%gs:(%0)"
-	    :
-	    : "r" (c), "ri" (inc)
-	    : "memory", "cc");
+	zpcpu_add(c, inc);
 }
 
 #endif	/* ! __MACHINE_COUNTER_H__ */
