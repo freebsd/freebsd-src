@@ -2798,14 +2798,37 @@ v_incr_devcount(struct vnode *vp)
 
 /*
  * Decrement si_usecount of the associated device, if any.
+ *
+ * The caller is required to hold the interlock when transitioning a VCHR use
+ * count to zero. This prevents a race with devfs_reclaim_vchr() that would
+ * leak a si_usecount reference. The vnode lock will also prevent this race
+ * if it is held while dropping the last ref.
+ *
+ * The race is:
+ *
+ * CPU1					CPU2
+ *				  	devfs_reclaim_vchr
+ * make v_usecount == 0
+ * 				    	  VI_LOCK
+ * 				    	  sees v_usecount == 0, no updates
+ * 				    	  vp->v_rdev = NULL;
+ * 				    	  ...
+ * 				    	  VI_UNLOCK
+ * VI_LOCK
+ * v_decr_devcount
+ *   sees v_rdev == NULL, no updates
+ *
+ * In this scenario si_devcount decrement is not performed.
  */
 static void
 v_decr_devcount(struct vnode *vp)
 {
 
+	ASSERT_VOP_LOCKED(vp, __func__);
 	ASSERT_VI_LOCKED(vp, __FUNCTION__);
 	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
 		dev_lock();
+		VNPASS(vp->v_rdev->si_usecount > 0, vp);
 		vp->v_rdev->si_usecount--;
 		dev_unlock();
 	}
@@ -3154,12 +3177,21 @@ vdefer_inactive_unlocked(struct vnode *vp)
 	vdefer_inactive(vp);
 }
 
-enum vputx_op { VPUTX_VRELE, VPUTX_VPUT, VPUTX_VUNREF };
+enum vput_op { VRELE, VPUT, VUNREF };
 
 /*
- * Decrement the use and hold counts for a vnode.
+ * Handle ->v_usecount transitioning to 0.
  *
- * See an explanation near vget() as to why atomic operation is safe.
+ * By releasing the last usecount we take ownership of the hold count which
+ * provides liveness of the vnode, meaning we have to vdrop.
+ *
+ * If the vnode is of type VCHR we may need to decrement si_usecount, see
+ * v_decr_devcount for details.
+ *
+ * For all vnodes we may need to perform inactive processing. It requires an
+ * exclusive lock on the vnode, while it is legal to call here with only a
+ * shared lock (or no locks). If locking the vnode in an expected manner fails,
+ * inactive processing gets deferred to the syncer.
  *
  * XXX Some filesystems pass in an exclusively locked vnode and strongly depend
  * on the lock being held all the way until VOP_INACTIVE. This in particular
@@ -3167,75 +3199,49 @@ enum vputx_op { VPUTX_VRELE, VPUTX_VPUT, VPUTX_VUNREF };
  * can be found by other code.
  */
 static void
-vputx(struct vnode *vp, enum vputx_op func)
+vput_final(struct vnode *vp, enum vput_op func)
 {
 	int error;
 	bool want_unlock;
 
-	KASSERT(vp != NULL, ("vputx: null vp"));
-	if (func == VPUTX_VUNREF)
-		ASSERT_VOP_LOCKED(vp, "vunref");
-	else if (func == VPUTX_VPUT)
-		ASSERT_VOP_LOCKED(vp, "vput");
-	ASSERT_VI_UNLOCKED(vp, __func__);
-	VNASSERT(vp->v_holdcnt > 0 && vp->v_usecount > 0, vp,
-	    ("%s: wrong ref counts", __func__));
-
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	VNPASS(vp->v_holdcnt > 0, vp);
 
-	/*
-	 * We want to hold the vnode until the inactive finishes to
-	 * prevent vgone() races.  We drop the use count here and the
-	 * hold count below when we're done.
-	 *
-	 * If we release the last usecount we take ownership of the hold
-	 * count which provides liveness of the vnode, in which case we
-	 * have to vdrop.
-	 */
-	if (__predict_false(vp->v_type == VCHR && func == VPUTX_VRELE)) {
-		if (refcount_release_if_not_last(&vp->v_usecount))
-			return;
-		VI_LOCK(vp);
-		if (!refcount_release(&vp->v_usecount)) {
-			VI_UNLOCK(vp);
-			return;
-		}
-	} else {
-		if (!refcount_release(&vp->v_usecount)) {
-			if (func == VPUTX_VPUT)
-				VOP_UNLOCK(vp);
-			return;
-		}
-		VI_LOCK(vp);
-	}
-	v_decr_devcount(vp);
+	VI_LOCK(vp);
+	if (func != VRELE)
+		v_decr_devcount(vp);
+
 	/*
 	 * By the time we got here someone else might have transitioned
 	 * the count back to > 0.
 	 */
-	if (vp->v_usecount > 0 || vp->v_iflag & VI_DOINGINACT)
+	if (vp->v_usecount > 0)
 		goto out;
 
 	/*
-	 * Check if the fs wants to perform inactive processing. Note we
-	 * may be only holding the interlock, in which case it is possible
-	 * someone else called vgone on the vnode and ->v_data is now NULL.
-	 * Since vgone performs inactive on its own there is nothing to do
-	 * here but to drop our hold count.
+	 * If the vnode is doomed vgone already performed inactive processing
+	 * (if needed).
 	 */
-	if (__predict_false(VN_IS_DOOMED(vp)) ||
-	    VOP_NEED_INACTIVE(vp) == 0)
+	if (VN_IS_DOOMED(vp))
+		goto out;
+
+	if (__predict_true(VOP_NEED_INACTIVE(vp) == 0))
+		goto out;
+
+	if (vp->v_iflag & VI_DOINGINACT)
 		goto out;
 
 	/*
-	 * We must call VOP_INACTIVE with the node locked. Mark
-	 * as VI_DOINGINACT to avoid recursion.
+	 * Locking operations here will drop the interlock and possibly the
+	 * vnode lock, opening a window where the vnode can get doomed all the
+	 * while ->v_usecount is 0. Set VI_OWEINACT to let vgone know to
+	 * perform inactive.
 	 */
 	vp->v_iflag |= VI_OWEINACT;
 	want_unlock = false;
 	error = 0;
 	switch (func) {
-	case VPUTX_VRELE:
+	case VRELE:
 		switch (VOP_ISLOCKED(vp)) {
 		case LK_EXCLUSIVE:
 			break;
@@ -3255,7 +3261,7 @@ vputx(struct vnode *vp, enum vputx_op func)
 			break;
 		}
 		break;
-	case VPUTX_VPUT:
+	case VPUT:
 		want_unlock = true;
 		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
 			error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK |
@@ -3263,7 +3269,7 @@ vputx(struct vnode *vp, enum vputx_op func)
 			VI_LOCK(vp);
 		}
 		break;
-	case VPUTX_VUNREF:
+	case VUNREF:
 		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
 			error = VOP_LOCK(vp, LK_TRYUPGRADE | LK_INTERLOCK);
 			VI_LOCK(vp);
@@ -3280,42 +3286,87 @@ vputx(struct vnode *vp, enum vputx_op func)
 	}
 	return;
 out:
-	if (func == VPUTX_VPUT)
+	if (func == VPUT)
 		VOP_UNLOCK(vp);
 	vdropl(vp);
 }
 
 /*
- * Vnode put/release.
- * If count drops to zero, call inactive routine and return to freelist.
+ * Decrement ->v_usecount for a vnode.
+ *
+ * Releasing the last use count requires additional processing, see vput_final
+ * above for details.
+ *
+ * Note that releasing use count without the vnode lock requires special casing
+ * for VCHR, see v_decr_devcount for details.
+ *
+ * Comment above each variant denotes lock state on entry and exit.
+ */
+
+static void __noinline
+vrele_vchr(struct vnode *vp)
+{
+
+	if (refcount_release_if_not_last(&vp->v_usecount))
+		return;
+	VI_LOCK(vp);
+	if (!refcount_release(&vp->v_usecount)) {
+		VI_UNLOCK(vp);
+		return;
+	}
+	v_decr_devcount(vp);
+	VI_UNLOCK(vp);
+	vput_final(vp, VRELE);
+}
+
+/*
+ * in: any
+ * out: same as passed in
  */
 void
 vrele(struct vnode *vp)
 {
 
-	vputx(vp, VPUTX_VRELE);
+	ASSERT_VI_UNLOCKED(vp, __func__);
+	if (__predict_false(vp->v_type == VCHR)) {
+		vrele_vchr(vp);
+		return;
+	}
+	if (!refcount_release(&vp->v_usecount))
+		return;
+	vput_final(vp, VRELE);
 }
 
 /*
- * Release an already locked vnode.  This give the same effects as
- * unlock+vrele(), but takes less time and avoids releasing and
- * re-aquiring the lock (as vrele() acquires the lock internally.)
+ * in: locked
+ * out: unlocked
  */
 void
 vput(struct vnode *vp)
 {
 
-	vputx(vp, VPUTX_VPUT);
+	ASSERT_VOP_LOCKED(vp, __func__);
+	ASSERT_VI_UNLOCKED(vp, __func__);
+	if (!refcount_release(&vp->v_usecount)) {
+		VOP_UNLOCK(vp);
+		return;
+	}
+	vput_final(vp, VPUT);
 }
 
 /*
- * Release an exclusively locked vnode. Do not unlock the vnode lock.
+ * in: locked
+ * out: locked
  */
 void
 vunref(struct vnode *vp)
 {
 
-	vputx(vp, VPUTX_VUNREF);
+	ASSERT_VOP_LOCKED(vp, __func__);
+	ASSERT_VI_UNLOCKED(vp, __func__);
+	if (!refcount_release(&vp->v_usecount))
+		return;
+	vput_final(vp, VUNREF);
 }
 
 void
