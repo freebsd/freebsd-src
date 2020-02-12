@@ -3128,7 +3128,7 @@ key_delsav(struct secasvar *sav)
 	if ((sav->flags & SADB_X_EXT_F_CLONED) == 0) {
 		mtx_destroy(sav->lock);
 		free(sav->lock, M_IPSEC_MISC);
-		uma_zfree(V_key_lft_zone, sav->lft_c);
+		uma_zfree_pcpu(V_key_lft_zone, sav->lft_c);
 	}
 	free(sav, M_IPSEC_SA);
 }
