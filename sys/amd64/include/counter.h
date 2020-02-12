@@ -33,7 +33,7 @@
 
 #include <sys/pcpu.h>
 
-#define	EARLY_COUNTER	&temp_bsp_pcpu.pc_early_dummy_counter
+#define	EARLY_COUNTER	(void *)__offsetof(struct pcpu, pc_early_dummy_counter)
 
 #define	counter_enter()	do {} while (0)
 #define	counter_exit()	do {} while (0)
@@ -43,6 +43,7 @@ static inline uint64_t
 counter_u64_read_one(counter_u64_t c, int cpu)
 {
 
+	MPASS(c != EARLY_COUNTER);
 	return (*zpcpu_get_cpu(c, cpu));
 }
 
@@ -65,6 +66,7 @@ counter_u64_zero_one_cpu(void *arg)
 	counter_u64_t c;
 
 	c = arg;
+	MPASS(c != EARLY_COUNTER);
 	*(zpcpu_get(c)) = 0;
 }
 
@@ -86,7 +88,7 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 	KASSERT(IS_BSP() || c != EARLY_COUNTER, ("EARLY_COUNTER used on AP"));
 	__asm __volatile("addq\t%1,%%gs:(%0)"
 	    :
-	    : "r" ((char *)c - (char *)&__pcpu[0]), "ri" (inc)
+	    : "r" (c), "ri" (inc)
 	    : "memory", "cc");
 }
 
