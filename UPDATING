@@ -26,6 +26,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200212:
+	Defining the long deprecated NO_CTF, NO_DEBUG_FILES, NO_INSTALLLIB,
+	NO_MAN, NO_PROFILE, and NO_WARNS variables is now an error.  Update
+	your Makefiles and scripts to define MK_<var>=no instead as required.
+
+	One exception to this is that program or library Makefiles should
+	define MAN to empty rather than setting MK_MAN=no.
+
 20200108:
 	Clang/LLVM is now the default compiler and LLD the default
 	linker for riscv64.
