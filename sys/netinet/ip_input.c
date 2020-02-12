@@ -639,12 +639,12 @@ passin:
 		return;
 
         /* greedy RSVP, snatches any PATH packet of the RSVP protocol and no
-         * matter if it is destined to another node, or whether it is 
+         * matter if it is destined to another node, or whether it is
          * a multicast one, RSVP wants it! and prevents it from being forwarded
          * anywhere else. Also checks if the rsvp daemon is running before
 	 * grabbing the packet.
          */
-	if (V_rsvp_on && ip->ip_p==IPPROTO_RSVP) 
+	if (V_rsvp_on && ip->ip_p==IPPROTO_RSVP)
 		goto ours;
 
 	/*
@@ -675,7 +675,7 @@ passin:
 	 * insert a workaround. If the packet got here, we already
 	 * checked with carp_iamatch() and carp_forus().
 	 */
-	checkif = V_ip_checkinterface && (V_ipforwarding == 0) && 
+	checkif = V_ip_checkinterface && (V_ipforwarding == 0) &&
 	    ifp != NULL && ((ifp->if_flags & IFF_LOOPBACK) == 0) &&
 	    ifp->if_carp == NULL && (dchg == 0);
 
@@ -689,7 +689,7 @@ passin:
 		 * arrived via the correct interface if checking is
 		 * enabled.
 		 */
-		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr && 
+		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr &&
 		    (!checkif || ia->ia_ifp == ifp)) {
 			counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
 			counter_u64_add(ia->ia_ifa.ifa_ibytes,
@@ -1282,7 +1282,7 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 			}
 			bcopy(sdp, sdl2, sdp->sdl_len);
 		} else {
-makedummy:	
+makedummy:
 			sdl2->sdl_len =
 			    offsetof(struct sockaddr_dl, sdl_data[0]);
 			sdl2->sdl_family = AF_LINK;
@@ -1408,13 +1408,13 @@ rsvp_input(struct mbuf **mp, int *offp, int proto)
 	 * of the group to which the RSVP packet is addressed.  But in this
 	 * case we want to throw the packet away.
 	 */
-	
+
 	if (!V_rsvp_on) {
 		m_freem(m);
 		return (IPPROTO_DONE);
 	}
 
-	if (V_ip_rsvpd != NULL) { 
+	if (V_ip_rsvpd != NULL) {
 		*mp = m;
 		rip_input(mp, offp, proto);
 		return (IPPROTO_DONE);

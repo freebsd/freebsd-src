@@ -274,9 +274,9 @@ dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 					dctcp_data->bytes_total = 0;
 					dctcp_data->save_sndnxt = CCV(ccv, snd_nxt);
 				} else
-					CCV(ccv, snd_ssthresh) = 
+					CCV(ccv, snd_ssthresh) =
 					    max((cwin - (((uint64_t)cwin *
-					    dctcp_data->alpha) >> (DCTCP_SHIFT+1))), 
+					    dctcp_data->alpha) >> (DCTCP_SHIFT+1))),
 					    2 * mss);
 				CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 				ENTER_CONGRECOVERY(CCV(ccv, t_flags));

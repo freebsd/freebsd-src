@@ -168,7 +168,7 @@ struct tcp_timer {
 #define TT_2MSL		0x0010
 #define TT_MASK		(TT_DELACK|TT_REXMT|TT_PERSIST|TT_KEEP|TT_2MSL)
 
-/* 
+/*
  * Suspend flags - used when suspending a timer
  * from ever running again.
  */

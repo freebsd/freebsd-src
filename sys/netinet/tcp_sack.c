@@ -141,7 +141,7 @@ SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, maxholes, CTLFLAG_VNET | CTLFLAG_RW,
 
 VNET_DEFINE(int, tcp_sack_globalmaxholes) = 65536;
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, globalmaxholes, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(tcp_sack_globalmaxholes), 0, 
+    &VNET_NAME(tcp_sack_globalmaxholes), 0,
     "Global maximum number of TCP SACK holes");
 
 VNET_DEFINE(int, tcp_sack_globalholes) = 0;
@@ -397,7 +397,7 @@ tcp_clean_dsack_blocks(struct tcpcb *tp)
 	/*
 	 * Clean up any DSACK blocks that
 	 * are in our queue of sack blocks.
-	 * 
+	 *
 	 */
 	num_saved = 0;
 	for (i = 0; i < tp->rcv_numsacks; i++) {
@@ -638,18 +638,18 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 			sblkp--;
 			sack_changed = 1;
 		} else {
-			/* 
-			 * We failed to add a new hole based on the current 
-			 * sack block.  Skip over all the sack blocks that 
+			/*
+			 * We failed to add a new hole based on the current
+			 * sack block.  Skip over all the sack blocks that
 			 * fall completely to the right of snd_fack and
 			 * proceed to trim the scoreboard based on the
 			 * remaining sack blocks.  This also trims the
 			 * scoreboard for th_ack (which is sack_blocks[0]).
 			 */
-			while (sblkp >= sack_blocks && 
+			while (sblkp >= sack_blocks &&
 			       SEQ_LT(tp->snd_fack, sblkp->start))
 				sblkp--;
-			if (sblkp >= sack_blocks && 
+			if (sblkp >= sack_blocks &&
 			    SEQ_LT(tp->snd_fack, sblkp->end))
 				tp->snd_fack = sblkp->end;
 		}
