@@ -1585,7 +1585,7 @@ done:
 	return 0;
 }
 
-static void mlx5_disable_interrupts(struct mlx5_core_dev *mdev)
+static void mlx5_shutdown_disable_interrupts(struct mlx5_core_dev *mdev)
 {
 	int nvec = mdev->priv.eq_table.num_comp_vectors + MLX5_EQ_VEC_COMP_BASE;
 	int x;
@@ -1609,7 +1609,7 @@ static void shutdown_one(struct pci_dev *pdev)
 	set_bit(MLX5_INTERFACE_STATE_TEARDOWN, &dev->intf_state);
 
 	/* disable all interrupts */
-	mlx5_disable_interrupts(dev);
+	mlx5_shutdown_disable_interrupts(dev);
 
 	err = mlx5_try_fast_unload(dev);
 	if (err)
