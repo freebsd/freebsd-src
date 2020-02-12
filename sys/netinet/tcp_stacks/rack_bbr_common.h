@@ -129,13 +129,13 @@ void
 ctf_do_dropwithreset_conn(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
     int32_t rstreason, int32_t tlen);
 
-uint32_t 
+uint32_t
 ctf_fixed_maxseg(struct tcpcb *tp);
 
 void
 ctf_log_sack_filter(struct tcpcb *tp, int num_sack_blks, struct sackblk *sack_blocks);
 
-uint32_t 
+uint32_t
 ctf_decay_count(uint32_t count, uint32_t decay_percentage);
 
 #endif

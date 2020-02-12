@@ -173,7 +173,7 @@ again:
  * - INP_SUPPORTS_MBUFQ
  * - INP_MBUF_QUEUE_READY
  * - INP_DONT_SACK_QUEUE
- * 
+ *
  * These flags help control how LRO will deliver
  * packets to the transport. You first set in inp_flags2
  * the INP_SUPPORTS_MBUFQ to tell the LRO code that you
@@ -191,9 +191,9 @@ again:
  *
  * Now there are some interesting Caveats that the transport
  * designer needs to take into account when using this feature.
- * 
+ *
  * 1) It is used with HPTS and pacing, when the pacing timer
- *    for output calls it will first call the input. 
+ *    for output calls it will first call the input.
  * 2) When you set INP_MBUF_QUEUE_READY this tells LRO
  *    queue normal packets, I am busy pacing out data and
  *    will process the queued packets before my tfb_tcp_output
@@ -207,7 +207,7 @@ again:
  *    the loss.
  *
  * Now a critical thing you must be aware of here is that the
- * use of the flags has a far greater scope then just your 
+ * use of the flags has a far greater scope then just your
  * typical LRO. Why? Well thats because in the normal compressed
  * LRO case at the end of a driver interupt all packets are going
  * to get presented to the transport no matter if there is one
@@ -216,9 +216,9 @@ again:
  *     a) The flags discussed above allow it.
  *          <or>
  *     b) You exceed a ack or data limit (by default the
- *        ack limit is infinity (64k acks) and the data 
+ *        ack limit is infinity (64k acks) and the data
  *        limit is 64k of new TCP data)
- *         <or> 
+ *         <or>
  *     c) The push bit has been set by the peer
  */
 
@@ -239,7 +239,7 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	 *    after adjusting the time to match the arrival time.
 	 * Note that the LRO code assures no IP options are present.
 	 *
-	 * The symantics for calling tfb_tcp_hpts_do_segment are the 
+	 * The symantics for calling tfb_tcp_hpts_do_segment are the
 	 * following:
 	 * 1) It returns 0 if all went well and you (the caller) need
 	 *    to release the lock.
@@ -274,7 +274,7 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	if (ifp) {
 		bpf_req = bpf_peers_present(ifp->if_bpf);
 	} else  {
-		/* 
+		/*
 		 * We probably should not work around
 		 * but kassert, since lro alwasy sets rcvif.
 		 */
@@ -406,7 +406,7 @@ skip_vnet:
 		}
 		tlen -= off;
 		drop_hdrlen += off;
-		/* 
+		/*
 		 * Now lets setup the timeval to be when we should
 		 * have been called (if we can).
 		 */
@@ -470,7 +470,7 @@ ctf_outstanding(struct tcpcb *tp)
 	return(tp->snd_max - tp->snd_una);
 }
 
-uint32_t 
+uint32_t
 ctf_flight_size(struct tcpcb *tp, uint32_t rc_sacked)
 {
 	if (rc_sacked <= ctf_outstanding(tp))
@@ -480,7 +480,7 @@ ctf_flight_size(struct tcpcb *tp, uint32_t rc_sacked)
 #ifdef INVARIANTS
 		panic("tp:%p rc_sacked:%d > out:%d",
 		      tp, rc_sacked, ctf_outstanding(tp));
-#endif		
+#endif
 		return (0);
 	}
 }
@@ -821,7 +821,7 @@ ctf_fixed_maxseg(struct tcpcb *tp)
 	 * without a proper loop, and having most of paddings hardcoded.
 	 * We only consider fixed options that we would send every
 	 * time I.e. SACK is not considered.
-	 * 
+	 *
 	 */
 #define	PAD(len)	((((len) / 4) + !!((len) % 4)) * 4)
 	if (TCPS_HAVEESTABLISHED(tp->t_state)) {
@@ -886,12 +886,12 @@ ctf_log_sack_filter(struct tcpcb *tp, int num_sack_blks, struct sackblk *sack_bl
 	}
 }
 
-uint32_t 
+uint32_t
 ctf_decay_count(uint32_t count, uint32_t decay)
 {
 	/*
 	 * Given a count, decay it by a set percentage. The
-	 * percentage is in thousands i.e. 100% = 1000, 
+	 * percentage is in thousands i.e. 100% = 1000,
 	 * 19.3% = 193.
 	 */
 	uint64_t perc_count, decay_per;
@@ -904,8 +904,8 @@ ctf_decay_count(uint32_t count, uint32_t decay)
 	decay_per = decay;
 	perc_count *= decay_per;
 	perc_count /= 1000;
-	/* 
-	 * So now perc_count holds the 
+	/*
+	 * So now perc_count holds the
 	 * count decay value.
 	 */
 	decayed_count = count - (uint32_t)perc_count;
