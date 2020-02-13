@@ -4258,7 +4258,7 @@ retrylookup:
 		return (NULL);
 	m = vm_page_alloc(object, pindex, pflags);
 	if (m == NULL) {
-		if ((allocflags & VM_ALLOC_NOWAIT) != 0)
+		if ((allocflags & (VM_ALLOC_NOWAIT | VM_ALLOC_WAITFAIL)) != 0)
 			return (NULL);
 		goto retrylookup;
 	}
@@ -4466,7 +4466,8 @@ retrylookup:
 			m = vm_page_alloc_after(object, pindex + i,
 			    pflags | VM_ALLOC_COUNT(count - i), mpred);
 			if (m == NULL) {
-				if ((allocflags & VM_ALLOC_NOWAIT) != 0)
+				if ((allocflags & (VM_ALLOC_NOWAIT |
+				    VM_ALLOC_WAITFAIL)) != 0)
 					break;
 				goto retrylookup;
 			}
