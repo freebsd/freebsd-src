@@ -102,6 +102,7 @@ const struct intsmb_device {
 	{ AMDSB_SMBUS_DEVID, "AMD SB600/7xx/8xx/9xx SMBus Controller" },
 	{ AMDFCH_SMBUS_DEVID, "AMD FCH SMBus Controller" },
 	{ AMDCZ_SMBUS_DEVID, "AMD FCH SMBus Controller" },
+	{ HYGONCZ_SMBUS_DEVID, "Hygon FCH SMBus Controller" },
 };
 
 static int
@@ -243,6 +244,7 @@ intsmb_attach(device_t dev)
 		break;
 	case AMDFCH_SMBUS_DEVID:
 	case AMDCZ_SMBUS_DEVID:
+	case HYGONCZ_SMBUS_DEVID:
 		sc->sb8xx = 1;
 		break;
 	}
