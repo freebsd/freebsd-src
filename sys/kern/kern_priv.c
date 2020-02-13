@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
  * userland programs, and should not be done without careful consideration of
  * the consequences.
  */
-static int	suser_enabled = 1;
+static int __read_mostly 	suser_enabled = 1;
 SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RWTUN,
     &suser_enabled, 0, "processes with uid 0 have privilege");
 
