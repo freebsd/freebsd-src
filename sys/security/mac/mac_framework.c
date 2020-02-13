@@ -125,6 +125,12 @@ bool __read_frequently mac_##f##_fp_flag
 
 FPFLAG(priv_check);
 FPFLAG(priv_grant);
+FPFLAG(vnode_check_lookup);
+FPFLAG(vnode_check_open);
+FPFLAG(vnode_check_stat);
+FPFLAG(vnode_check_read);
+FPFLAG(vnode_check_write);
+FPFLAG(vnode_check_mmap);
 
 #undef FPFLAG
 
@@ -403,6 +409,18 @@ struct mac_policy_fastpath_elem {
 struct mac_policy_fastpath_elem mac_policy_fastpath_array[] = {
 	{ .offset = FPO(priv_check), .flag = &mac_priv_check_fp_flag },
 	{ .offset = FPO(priv_grant), .flag = &mac_priv_grant_fp_flag },
+	{ .offset = FPO(vnode_check_lookup),
+		.flag = &mac_vnode_check_lookup_fp_flag },
+	{ .offset = FPO(vnode_check_open),
+		.flag = &mac_vnode_check_open_fp_flag },
+	{ .offset = FPO(vnode_check_stat),
+		.flag = &mac_vnode_check_stat_fp_flag },
+	{ .offset = FPO(vnode_check_read),
+		.flag = &mac_vnode_check_read_fp_flag },
+	{ .offset = FPO(vnode_check_write),
+		.flag = &mac_vnode_check_write_fp_flag },
+	{ .offset = FPO(vnode_check_mmap),
+		.flag = &mac_vnode_check_mmap_fp_flag },
 };
 
 static void
