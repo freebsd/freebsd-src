@@ -67,7 +67,7 @@ MAC_CHECK_PROBE_DEFINE2(priv_check, "struct ucred *", "int");
  * policy denies access.
  */
 int
-mac_priv_check(struct ucred *cred, int priv)
+mac_priv_check_impl(struct ucred *cred, int priv)
 {
 	int error;
 
@@ -84,7 +84,7 @@ MAC_GRANT_PROBE_DEFINE2(priv_grant, "struct ucred *", "int");
  * policy grants access.
  */
 int
-mac_priv_grant(struct ucred *cred, int priv)
+mac_priv_grant_impl(struct ucred *cred, int priv)
 {
 	int error;
 
