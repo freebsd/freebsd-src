@@ -258,8 +258,27 @@ void 	mac_posixshm_create(struct ucred *cred, struct shmfd *shmfd);
 void	mac_posixshm_destroy(struct shmfd *);
 void	mac_posixshm_init(struct shmfd *);
 
-int	mac_priv_check(struct ucred *cred, int priv);
-int	mac_priv_grant(struct ucred *cred, int priv);
+int	mac_priv_check_impl(struct ucred *cred, int priv);
+extern bool mac_priv_check_fp_flag;
+static inline int
+mac_priv_check(struct ucred *cred, int priv)
+{
+
+	if (__predict_false(mac_priv_check_fp_flag))
+		return (mac_priv_check_impl(cred, priv));
+	return (0);
+}
+
+int	mac_priv_grant_impl(struct ucred *cred, int priv);
+extern bool mac_priv_grant_fp_flag;
+static inline int
+mac_priv_grant(struct ucred *cred, int priv)
+{
+
+	if (__predict_false(mac_priv_grant_fp_flag))
+		return (mac_priv_grant_impl(cred, priv));
+	return (EPERM);
+}
 
 int	mac_proc_check_debug(struct ucred *cred, struct proc *p);
 int	mac_proc_check_sched(struct ucred *cred, struct proc *p);
