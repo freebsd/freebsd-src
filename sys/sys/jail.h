@@ -369,7 +369,12 @@ struct mount;
 struct sockaddr;
 struct statfs;
 struct vfsconf;
-int jailed(struct ucred *cred);
+
+/*
+ * Return 1 if the passed credential is in a jail, otherwise 0.
+ */
+#define jailed(cred)	(cred->cr_prison != &prison0)
+
 int jailed_without_vnet(struct ucred *);
 void getcredhostname(struct ucred *, char *, size_t);
 void getcreddomainname(struct ucred *, char *, size_t);

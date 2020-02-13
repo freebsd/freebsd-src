@@ -2821,16 +2821,6 @@ prison_ischild(struct prison *pr1, struct prison *pr2)
 }
 
 /*
- * Return 1 if the passed credential is in a jail, otherwise 0.
- */
-int
-jailed(struct ucred *cred)
-{
-
-	return (cred->cr_prison != &prison0);
-}
-
-/*
  * Return 1 if the passed credential is in a jail and that jail does not
  * have its own virtual network stack, otherwise 0.
  */
