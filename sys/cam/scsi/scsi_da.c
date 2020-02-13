@@ -122,6 +122,28 @@ typedef enum {
 	DA_FLAG_CAN_ATA_ZONE	= 0x040000,
 	DA_FLAG_TUR_PENDING	= 0x080000
 } da_flags;
+#define DA_FLAG_STRING		\
+	"\020"			\
+	"\001PACK_INVALID"	\
+	"\002NEW_PACK"		\
+	"\003PACK_LOCKED"	\
+	"\004PACK_REMOVABLE"	\
+	"\005UNUSED"		\
+	"\006NEED_OTAG"		\
+	"\007WAS_OTAG"		\
+	"\010RETRY_UA"		\
+	"\011OPEN"		\
+	"\012SCTX_INIT"		\
+	"\013CAN_RC16"		\
+	"\014PROBED"		\
+	"\015DIRTY"		\
+	"\016ANNOUCNED"		\
+	"\017CAN_ATA_DMA"	\
+	"\020CAN_ATA_LOG"	\
+	"\021CAN_ATA_IDLOG"	\
+	"\022CAN_ATA_SUPACP"	\
+	"\023CAN_ATA_ZONE"	\
+	"\024TUR_PENDING"
 
 typedef enum {
 	DA_Q_NONE		= 0x00,
@@ -1442,6 +1464,7 @@ static	void		dasysctlinit(void *context, int pending);
 static	int		dasysctlsofttimeout(SYSCTL_HANDLER_ARGS);
 static	int		dacmdsizesysctl(SYSCTL_HANDLER_ARGS);
 static	int		dadeletemethodsysctl(SYSCTL_HANDLER_ARGS);
+static	int		daflagssysctl(SYSCTL_HANDLER_ARGS);
 static	int		dazonemodesysctl(SYSCTL_HANDLER_ARGS);
 static	int		dazonesupsysctl(SYSCTL_HANDLER_ARGS);
 static	int		dadeletemaxsysctl(SYSCTL_HANDLER_ARGS);
@@ -2316,6 +2339,11 @@ dasysctlinit(void *context, int pending)
 		       0,
 		       "DIF protection type");
 
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "flags", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    softc, 0, daflagssysctl, "A",
+	    "Flags for drive");
+
 #ifdef CAM_TEST_FAILURE
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "invalidate", CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE,
@@ -2588,6 +2616,24 @@ dadeletemethodchoose(struct da_softc *softc, da_delete_methods default_method)
 
 	/* Fallback to default. */
 	dadeletemethodset(softc, default_method);
+}
+
+static int
+daflagssysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	struct da_softc *softc = arg1;
+	int error;
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 0, req);
+	if (softc->flags != 0)
+		sbuf_printf(&sbuf, "0x%b", softc->flags, DA_FLAG_STRING);
+	else
+		sbuf_printf(&sbuf, "0");
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+
+	return (error);
 }
 
 static int
