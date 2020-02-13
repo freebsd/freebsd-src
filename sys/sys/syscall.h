@@ -508,4 +508,5 @@
 #define	SYS___sysctlbyname	570
 #define	SYS_shm_open2	571
 #define	SYS_shm_rename	572
-#define	SYS_MAXSYSCALL	573
+#define	SYS_sigfastblock	573
+#define	SYS_MAXSYSCALL	574

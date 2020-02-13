@@ -67,7 +67,7 @@ __init_elf_aux_vector(void)
 }
 
 static pthread_once_t aux_once = PTHREAD_ONCE_INIT;
-static int pagesize, osreldate, canary_len, ncpus, pagesizes_len;
+static int pagesize, osreldate, canary_len, ncpus, pagesizes_len, bsdflags;
 static int hwcap_present, hwcap2_present;
 static char *canary, *pagesizes, *execpath;
 static void *timekeep;
@@ -86,6 +86,10 @@ init_aux(void)
 
 	for (aux = __elf_aux_vector; aux->a_type != AT_NULL; aux++) {
 		switch (aux->a_type) {
+		case AT_BSDFLAGS:
+			bsdflags = aux->a_un.a_val;
+			break;
+
 		case AT_CANARY:
 			canary = (char *)(aux->a_un.a_ptr);
 			break;
@@ -323,6 +327,13 @@ _elf_aux_info(int aux, void *buf, int buflen)
 				res = 0;
 			} else
 				res = ENOENT;
+		} else
+			res = EINVAL;
+		break;
+	case AT_BSDFLAGS:
+		if (buflen == sizeof(int)) {
+			*(int *)buf = bsdflags;
+			res = 0;
 		} else
 			res = EINVAL;
 		break;

@@ -364,7 +364,7 @@ htcp_post_recovery(struct cc_var *ccv)
 			pipe = tcp_compute_pipe(ccv->ccvc.tcp);
 		else
 			pipe = CCV(ccv, snd_max) - ccv->curack;
-		
+
 		if (pipe < CCV(ccv, snd_ssthresh))
 			/*
 			 * Ensure that cwnd down not collape to 1 MSS under

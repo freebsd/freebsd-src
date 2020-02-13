@@ -8,8 +8,8 @@ AM_CPPFLAGS = -DMAGIC='"$(MAGIC)"'
 AM_CFLAGS = $(CFLAG_VISIBILITY) @WARNINGS@
 
 libmagic_la_SOURCES = buffer.c magic.c apprentice.c softmagic.c ascmagic.c \
-	encoding.c compress.c is_json.c is_tar.c readelf.c print.c fsmagic.c \
-	funcs.c file.h readelf.h tar.h apptype.c der.c der.h \
+	encoding.c compress.c is_csv.c is_json.c is_tar.c readelf.c print.c \
+	fsmagic.c funcs.c file.h readelf.h tar.h apptype.c der.c der.h \
 	file_opts.h elfclass.h mygetopt.h cdf.c cdf_time.c readcdf.c cdf.h
 libmagic_la_LDFLAGS = -no-undefined -version-info 1:0:0
 if MINGW

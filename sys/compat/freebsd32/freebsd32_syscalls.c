@@ -609,4 +609,5 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32___sysctlbyname",			/* 570 = freebsd32___sysctlbyname */
 	"shm_open2",			/* 571 = shm_open2 */
 	"shm_rename",			/* 572 = shm_rename */
+	"sigfastblock",			/* 573 = sigfastblock */
 };

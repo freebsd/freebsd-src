@@ -1713,7 +1713,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	 * Protect the TCP option TCP_FUNCTION_BLK so
 	 * that a sub-function can *never* overwrite this.
 	 */
-	if ((sopt->sopt_dir == SOPT_SET) && 
+	if ((sopt->sopt_dir == SOPT_SET) &&
 	    (sopt->sopt_name == TCP_FUNCTION_BLK)) {
 		INP_WUNLOCK(inp);
 		error = sooptcopyin(sopt, &fsn, sizeof fsn,
@@ -1733,13 +1733,13 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			return (0);
 		}
 		if (tp->t_state != TCPS_CLOSED) {
-			/* 
+			/*
 			 * The user has advanced the state
 			 * past the initial point, we may not
-			 * be able to switch. 
+			 * be able to switch.
 			 */
 			if (blk->tfb_tcp_handoff_ok != NULL) {
-				/* 
+				/*
 				 * Does the stack provide a
 				 * query mechanism, if so it may
 				 * still be possible?
@@ -1758,19 +1758,19 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			INP_WUNLOCK(inp);
 			return (ENOENT);
 		}
-		/* 
+		/*
 		 * Release the old refcnt, the
 		 * lookup acquired a ref on the
 		 * new one already.
 		 */
 		if (tp->t_fb->tfb_tcp_fb_fini) {
-			/* 
+			/*
 			 * Tell the stack to cleanup with 0 i.e.
 			 * the tcb is not going away.
 			 */
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
 		}
-#ifdef TCPHPTS 
+#ifdef TCPHPTS
 		/* Assure that we are not on any hpts */
 		tcp_hpts_remove(tp->t_inpcb, HPTS_REMOVE_ALL);
 #endif
@@ -1800,7 +1800,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 err_out:
 		INP_WUNLOCK(inp);
 		return (error);
-	} else if ((sopt->sopt_dir == SOPT_GET) && 
+	} else if ((sopt->sopt_dir == SOPT_GET) &&
 	    (sopt->sopt_name == TCP_FUNCTION_BLK)) {
 		strncpy(fsn.function_set_name, tp->t_fb->tfb_tcp_block_name,
 		    TCP_FUNCTION_NAME_LEN_MAX);
@@ -2493,7 +2493,7 @@ tcp_usrclosed(struct tcpcb *tp)
 		if (tp->t_state == TCPS_FIN_WAIT_2) {
 			int timeout;
 
-			timeout = (tcp_fast_finwait2_recycle) ? 
+			timeout = (tcp_fast_finwait2_recycle) ?
 			    tcp_finwait2_timeout : TP_MAXIDLE(tp);
 			tcp_timer_activate(tp, TT_2MSL, timeout);
 		}

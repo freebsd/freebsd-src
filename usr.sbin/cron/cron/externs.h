@@ -141,7 +141,3 @@ extern	int		getdtablesize(void);
 #ifdef NEED_SETENV
 extern	int		setenv(char *, char *, int);
 #endif
-
-#ifdef NEED_VFORK
-extern	PID_T		vfork(void);
-#endif

@@ -30,7 +30,7 @@
 .\"     @(#)diff.1	8.1 (Berkeley) 6/30/93
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2020
+.Dd February 12, 2020
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -184,17 +184,17 @@
 .Ar dir1 dir2
 .Nm diff
 .Op Fl aBbditwW
-.Op --expand-tabs
-.Op --ignore-all-blanks
-.Op --ignore-blank-lines
-.Op --ignore-case
-.Op --minimal
-.Op --no-ignore-file-name-case
-.Op --strip-trailing-cr
-.Op --suppress-common-lines
-.Op --tabsize
-.Op --text
-.Op --width
+.Op Fl -expand-tabs
+.Op Fl -ignore-all-blanks
+.Op Fl -ignore-blank-lines
+.Op Fl -ignore-case
+.Op Fl -minimal
+.Op Fl -no-ignore-file-name-case
+.Op Fl -strip-trailing-cr
+.Op Fl -suppress-common-lines
+.Op Fl -tabsize
+.Op Fl -text
+.Op Fl -width
 .Fl y | Fl -side-by-side
 .Ar file1 file2
 .Sh DESCRIPTION
@@ -637,7 +637,7 @@ utility is compliant with the
 specification.
 .Pp
 The flags
-.Op Fl aDdIiLlNnPpqSsTtwXx
+.Op Fl aDdIiLlNnPpqSsTtwXxy
 are extensions to that specification.
 .Sh HISTORY
 A

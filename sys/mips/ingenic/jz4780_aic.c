@@ -744,7 +744,7 @@ aic_attach(device_t dev)
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 
 	/* Setup interrupt handler. */
-	err = xdma_setup_intr(sc->xchan, aic_intr, scp, &sc->ih);
+	err = xdma_setup_intr(sc->xchan, 0, aic_intr, scp, &sc->ih);
 	if (err) {
 		device_printf(sc->dev,
 		    "Can't setup xDMA interrupt handler.\n");

@@ -98,14 +98,18 @@ prepare_route_message(struct rt_msghdr *rtm, int cmd, struct sockaddr *dst,
 #define	DESCRIBE_ROOT_TEST(_msg)	config_describe_root_test(tc, _msg)
 #define	CLEANUP_AFTER_TEST	config_generic_cleanup(config_setup(tc))
 
-
-ATF_TC_WITH_CLEANUP(rtm_add_v6_ll_lle_success);
-ATF_TC_HEAD(rtm_add_v6_ll_lle_success, tc)
-{
-
-	DESCRIBE_ROOT_TEST("Tests addition of link-local IPv6 ND entry");
+#define	RTM_DECLARE_ROOT_TEST(_name, _descr)			\
+ATF_TC_WITH_CLEANUP(_name);					\
+ATF_TC_HEAD(_name, tc)						\
+{								\
+	DESCRIBE_ROOT_TEST(_descr);				\
+}								\
+ATF_TC_CLEANUP(_name, tc)					\
+{								\
+	CLEANUP_AFTER_TEST;					\
 }
 
+RTM_DECLARE_ROOT_TEST(rtm_add_v6_ll_lle_success, "Tests addition of link-local IPv6 ND entry");
 ATF_TC_BODY(rtm_add_v6_ll_lle_success, tc)
 {
 	DECLARE_TEST_VARS;
@@ -134,7 +138,7 @@ ATF_TC_BODY(rtm_add_v6_ll_lle_success, tc)
 	 *  af=link len=54 sdl_index=3 if_name=tap4242 addr=52:54:00:14:E3:10
 	 */
 
-	rtm = rtsock_read_rtm(c->rtsock_fd, buffer, sizeof(buffer));
+	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
 
 	sa = rtsock_find_rtm_sa(rtm, RTA_DST);
 	ret = sa_equal_msg(sa, (struct sockaddr *)&sin6, msg, sizeof(msg));
@@ -145,23 +149,15 @@ ATF_TC_BODY(rtm_add_v6_ll_lle_success, tc)
 	ret = sa_equal_msg_flags(sa, (struct sockaddr *)&ether, msg, sizeof(msg), sa_flags);
 	RTSOCK_ATF_REQUIRE_MSG(rtm, ret != 0, "GATEWAY sa diff: %s", msg);
 
+#if 0
+	/* Disable the check until https://reviews.freebsd.org/D22003 merge */
 	/* Some additional checks to verify kernel has filled in interface data */
 	struct sockaddr_dl *sdl = (struct sockaddr_dl *)sa;
 	RTSOCK_ATF_REQUIRE_MSG(rtm, sdl->sdl_type > 0, "sdl_type not set");
+#endif
 }
 
-ATF_TC_CLEANUP(rtm_add_v6_ll_lle_success, tc)
-{
-	CLEANUP_AFTER_TEST;
-}
-
-ATF_TC_WITH_CLEANUP(rtm_add_v6_gu_lle_success);
-ATF_TC_HEAD(rtm_add_v6_gu_lle_success, tc)
-{
-
-	DESCRIBE_ROOT_TEST("Tests addition of global IPv6 ND entry");
-}
-
+RTM_DECLARE_ROOT_TEST(rtm_add_v6_gu_lle_success, "Tests addition of global IPv6 ND entry");
 ATF_TC_BODY(rtm_add_v6_gu_lle_success, tc)
 {
 	DECLARE_TEST_VARS;
@@ -194,7 +190,7 @@ ATF_TC_BODY(rtm_add_v6_gu_lle_success, tc)
 
 	/* XXX: where is uRPF?! this should fail */
 
-	rtm = rtsock_read_rtm(c->rtsock_fd, buffer, sizeof(buffer));
+	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
 
 	sa = rtsock_find_rtm_sa(rtm, RTA_DST);
 	ret = sa_equal_msg(sa, (struct sockaddr *)&sin6, msg, sizeof(msg));
@@ -205,23 +201,15 @@ ATF_TC_BODY(rtm_add_v6_gu_lle_success, tc)
 	ret = sa_equal_msg_flags(sa, (struct sockaddr *)&ether, msg, sizeof(msg), sa_flags);
 	RTSOCK_ATF_REQUIRE_MSG(rtm, ret != 0, "GATEWAY sa diff: %s", msg);
 
+#if 0
+	/* Disable the check until https://reviews.freebsd.org/D22003 merge */
 	/* Some additional checks to verify kernel has filled in interface data */
 	struct sockaddr_dl *sdl = (struct sockaddr_dl *)sa;
 	RTSOCK_ATF_REQUIRE_MSG(rtm, sdl->sdl_type > 0, "sdl_type not set");
+#endif
 }
 
-ATF_TC_CLEANUP(rtm_add_v6_gu_lle_success, tc)
-{
-	CLEANUP_AFTER_TEST;
-}
-
-ATF_TC_WITH_CLEANUP(rtm_add_v4_gu_lle_success);
-ATF_TC_HEAD(rtm_add_v4_gu_lle_success, tc)
-{
-
-	DESCRIBE_ROOT_TEST("Tests addition of IPv4 ARP entry");
-}
-
+RTM_DECLARE_ROOT_TEST(rtm_add_v4_gu_lle_success, "Tests addition of IPv4 ARP entry");
 ATF_TC_BODY(rtm_add_v4_gu_lle_success, tc)
 {
 	DECLARE_TEST_VARS;
@@ -250,7 +238,7 @@ ATF_TC_BODY(rtm_add_v4_gu_lle_success, tc)
 	 *  af=link len=54 sdl_index=3 if_name=tap4242 addr=52:54:00:14:E3:10
 	 */
 
-	rtm = rtsock_read_rtm(c->rtsock_fd, buffer, sizeof(buffer));
+	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
 
 	sa = rtsock_find_rtm_sa(rtm, RTA_DST);
 	ret = sa_equal_msg(sa, (struct sockaddr *)&sin, msg, sizeof(msg));
@@ -266,18 +254,7 @@ ATF_TC_BODY(rtm_add_v4_gu_lle_success, tc)
 	 */
 }
 
-ATF_TC_CLEANUP(rtm_add_v4_gu_lle_success, tc)
-{
-	CLEANUP_AFTER_TEST;
-}
-
-ATF_TC_WITH_CLEANUP(rtm_del_v6_ll_lle_success);
-ATF_TC_HEAD(rtm_del_v6_ll_lle_success, tc)
-{
-
-	DESCRIBE_ROOT_TEST("Tests removal of link-local IPv6 ND entry");
-}
-
+RTM_DECLARE_ROOT_TEST(rtm_del_v6_ll_lle_success, "Tests removal of link-local IPv6 ND entry");
 ATF_TC_BODY(rtm_del_v6_ll_lle_success, tc)
 {
 	DECLARE_TEST_VARS;
@@ -323,18 +300,7 @@ ATF_TC_BODY(rtm_del_v6_ll_lle_success, tc)
 	 */
 }
 
-ATF_TC_CLEANUP(rtm_del_v6_ll_lle_success, tc)
-{
-	CLEANUP_AFTER_TEST;
-}
-
-ATF_TC_WITH_CLEANUP(rtm_del_v6_gu_lle_success);
-ATF_TC_HEAD(rtm_del_v6_gu_lle_success, tc)
-{
-
-	DESCRIBE_ROOT_TEST("Tests removal of global IPv6 ND entry");
-}
-
+RTM_DECLARE_ROOT_TEST(rtm_del_v6_gu_lle_success, "Tests removal of global IPv6 ND entry");
 ATF_TC_BODY(rtm_del_v6_gu_lle_success, tc)
 {
 	DECLARE_TEST_VARS;
@@ -380,18 +346,7 @@ ATF_TC_BODY(rtm_del_v6_gu_lle_success, tc)
 	 */
 }
 
-ATF_TC_CLEANUP(rtm_del_v6_gu_lle_success, tc)
-{
-	CLEANUP_AFTER_TEST;
-}
-
-ATF_TC_WITH_CLEANUP(rtm_del_v4_gu_lle_success);
-ATF_TC_HEAD(rtm_del_v4_gu_lle_success, tc)
-{
-
-	DESCRIBE_ROOT_TEST("Tests removal of IPv4 ARP entry");
-}
-
+RTM_DECLARE_ROOT_TEST(rtm_del_v4_gu_lle_success, "Tests removal of IPv4 ARP entry");
 ATF_TC_BODY(rtm_del_v4_gu_lle_success, tc)
 {
 	DECLARE_TEST_VARS;
@@ -412,8 +367,6 @@ ATF_TC_BODY(rtm_del_v4_gu_lle_success, tc)
 	prepare_route_message(rtm, RTM_ADD, (struct sockaddr *)&sin, (struct sockaddr *)&ether);
 
 	rtsock_send_rtm(c->rtsock_fd, rtm);
-
-	rtsock_read_rtm(c->rtsock_fd, buffer, sizeof(buffer));
 
 	/* We successfully added an entry, let's try to remove it. */
 	prepare_route_message(rtm, RTM_DELETE, (struct sockaddr *)&sin, (struct sockaddr *)&ether);
@@ -437,12 +390,6 @@ ATF_TC_BODY(rtm_del_v4_gu_lle_success, tc)
 	 * TODO: Currently kernel code does not set sdl_type, contrary to IPv6.
 	 */
 }
-
-ATF_TC_CLEANUP(rtm_del_v4_gu_lle_success, tc)
-{
-	CLEANUP_AFTER_TEST;
-}
-
 
 ATF_TP_ADD_TCS(tp)
 {

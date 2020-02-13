@@ -42,7 +42,7 @@
 #define BBR_HAS_FIN	  0x0040	/* segment is sent with fin */
 #define BBR_TLP	  	  0x0080	/* segment sent as tail-loss-probe */
 #define BBR_HAS_SYN	  0x0100	/* segment has the syn */
-#define BBR_MARKED_LOST   0x0200	/* 
+#define BBR_MARKED_LOST   0x0200	/*
 					 * This segments is lost and
 					 * totaled into bbr->rc_ctl.rc_lost
 					 */
@@ -55,8 +55,8 @@
 #define BBR_INCL_TCP_OH  0x03
 
 /*
- * With the addition of both measurement algorithms 
- * I had to move over the size of a 
+ * With the addition of both measurement algorithms
+ * I had to move over the size of a
  * cache line (unfortunately). For now there is
  * no way around this. We may be able to cut back
  * at some point I hope.
@@ -221,8 +221,8 @@ struct bbr_rtt_sample {
 #define BBR_RT_FLAG_LIMITED    0x20	/* Saw application/cwnd or rwnd limited period */
 #define BBR_RT_SEEN_A_ACK      0x40	/* A ack has been saved */
 #define BBR_RT_PREV_RTT_SET    0x80	/* There was a RTT set in */
-#define BBR_RT_PREV_SEND_TIME  0x100	/* 
-					 *There was a RTT send time set that can be used 
+#define BBR_RT_PREV_SEND_TIME  0x100	/*
+					 *There was a RTT send time set that can be used
 					 * no snd_limits
 					 */
 #define BBR_RT_SET_GRADIENT    0x200
@@ -570,7 +570,7 @@ struct bbr_control {
 		 rc_pace_min_segs:15;	/* The minimum single segment size before we enter persists */
 
 	uint32_t rc_rtt_shrinks;	/* Time of last rtt shrinkage Lock(a) */
-	uint32_t r_app_limited_until;	
+	uint32_t r_app_limited_until;
 	uint32_t rc_timer_exp;	/* If a timer ticks of expiry */
 	uint32_t rc_rcv_epoch_start;	/* Start time of the Epoch Lock(a) */
 
@@ -598,7 +598,7 @@ struct bbr_control {
 	uint32_t rc_reorder_ts;	/* Last time we saw reordering Lock(a) */
 	uint32_t rc_init_rwnd;	/* Initial rwnd when we transitioned */
                                 /*- ---
-				 * used only inital and close 
+				 * used only initial and close
                                  */
 	uint32_t rc_high_rwnd;	/* Highest rwnd seen */
 	uint32_t rc_lowest_rtt;	/* Smallest RTT we have seen */

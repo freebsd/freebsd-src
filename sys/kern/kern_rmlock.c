@@ -900,60 +900,56 @@ static void __noinline
 rms_rlock_fallback(struct rmslock *rms)
 {
 
-	(*zpcpu_get(rms->readers_influx)) = 0;
+	zpcpu_set_protected(rms->readers_influx, 0);
 	critical_exit();
 
 	mtx_lock(&rms->mtx);
 	MPASS(*zpcpu_get(rms->readers_pcpu) == 0);
 	while (rms->writers > 0)
 		msleep(&rms->readers, &rms->mtx, PUSER - 1, mtx_name(&rms->mtx), 0);
-	(*zpcpu_get(rms->readers_pcpu))++;
+	critical_enter();
+	zpcpu_add_protected(rms->readers_pcpu, 1);
 	mtx_unlock(&rms->mtx);
+	critical_exit();
 }
 
 void
 rms_rlock(struct rmslock *rms)
 {
-	int *influx;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 	critical_enter();
-	influx = zpcpu_get(rms->readers_influx);
-	__compiler_membar();
-	*influx = 1;
+	zpcpu_set_protected(rms->readers_influx, 1);
 	__compiler_membar();
 	if (__predict_false(rms->writers > 0)) {
 		rms_rlock_fallback(rms);
 		return;
 	}
 	__compiler_membar();
-	(*zpcpu_get(rms->readers_pcpu))++;
+	zpcpu_add_protected(rms->readers_pcpu, 1);
 	__compiler_membar();
-	*influx = 0;
+	zpcpu_set_protected(rms->readers_influx, 0);
 	critical_exit();
 }
 
 int
 rms_try_rlock(struct rmslock *rms)
 {
-	int *influx;
 
 	critical_enter();
-	influx = zpcpu_get(rms->readers_influx);
-	__compiler_membar();
-	*influx = 1;
+	zpcpu_set_protected(rms->readers_influx, 1);
 	__compiler_membar();
 	if (__predict_false(rms->writers > 0)) {
 		__compiler_membar();
-		*influx = 0;
+		zpcpu_set_protected(rms->readers_influx, 0);
 		critical_exit();
 		return (0);
 	}
 	__compiler_membar();
-	(*zpcpu_get(rms->readers_pcpu))++;
+	zpcpu_add_protected(rms->readers_pcpu, 1);
 	__compiler_membar();
-	*influx = 0;
+	zpcpu_set_protected(rms->readers_influx, 0);
 	critical_exit();
 	return (1);
 }
@@ -962,7 +958,7 @@ static void __noinline
 rms_runlock_fallback(struct rmslock *rms)
 {
 
-	(*zpcpu_get(rms->readers_influx)) = 0;
+	zpcpu_set_protected(rms->readers_influx, 0);
 	critical_exit();
 
 	mtx_lock(&rms->mtx);
@@ -978,37 +974,34 @@ rms_runlock_fallback(struct rmslock *rms)
 void
 rms_runlock(struct rmslock *rms)
 {
-	int *influx;
 
 	critical_enter();
-	influx = zpcpu_get(rms->readers_influx);
-	__compiler_membar();
-	*influx = 1;
+	zpcpu_set_protected(rms->readers_influx, 1);
 	__compiler_membar();
 	if (__predict_false(rms->writers > 0)) {
 		rms_runlock_fallback(rms);
 		return;
 	}
 	__compiler_membar();
-	(*zpcpu_get(rms->readers_pcpu))--;
+	zpcpu_sub_protected(rms->readers_pcpu, 1);
 	__compiler_membar();
-	*influx = 0;
+	zpcpu_set_protected(rms->readers_influx, 0);
 	critical_exit();
 }
 
 struct rmslock_ipi {
 	struct rmslock *rms;
-	cpuset_t signal;
+	struct smp_rendezvous_cpus_retry_arg srcra;
 };
 
 static void
-rms_wlock_IPI(void *arg)
+rms_action_func(void *arg)
 {
 	struct rmslock_ipi *rmsipi;
 	struct rmslock *rms;
 	int readers;
 
-	rmsipi = arg;
+	rmsipi = __containerof(arg, struct rmslock_ipi, srcra);
 	rms = rmsipi->rms;
 
 	if (*zpcpu_get(rms->readers_influx))
@@ -1016,65 +1009,40 @@ rms_wlock_IPI(void *arg)
 	readers = zpcpu_replace(rms->readers_pcpu, 0);
 	if (readers != 0)
 		atomic_add_int(&rms->readers, readers);
-	CPU_CLR_ATOMIC(curcpu, &rmsipi->signal);
+	smp_rendezvous_cpus_done(arg);
+}
+
+static void
+rms_wait_func(void *arg, int cpu)
+{
+	struct rmslock_ipi *rmsipi;
+	struct rmslock *rms;
+	int *in_op;
+
+	rmsipi = __containerof(arg, struct rmslock_ipi, srcra);
+	rms = rmsipi->rms;
+
+	in_op = zpcpu_get_cpu(rms->readers_influx, cpu);
+	while (atomic_load_int(in_op))
+		cpu_spinwait();
 }
 
 static void
 rms_wlock_switch(struct rmslock *rms)
 {
 	struct rmslock_ipi rmsipi;
-	int *in_op;
-	int cpu;
 
 	MPASS(rms->readers == 0);
 	MPASS(rms->writers == 1);
 
 	rmsipi.rms = rms;
 
-	/*
-	 * Publishes rms->writers. rlock and runlock will get this ordered
-	 * via IPI in the worst case.
-	 */
-	atomic_thread_fence_rel();
-
-	/*
-	 * Collect reader counts from all CPUs using an IPI. The handler can
-	 * find itself running while the interrupted CPU was doing either
-	 * rlock or runlock in which case it will fail.
-	 *
-	 * Successful attempts clear the cpu id in the bitmap.
-	 *
-	 * In case of failure we observe all failing CPUs not executing there to
-	 * determine when to make the next attempt. Note that threads having
-	 * the var set have preemption disabled.  Setting of readers_influx
-	 * only uses compiler barriers making these loads unreliable, which is
-	 * fine -- the IPI handler will always see the correct result.
-	 *
-	 * We retry until all counts are collected. Forward progress is
-	 * guaranteed by that fact that the total number of threads which can
-	 * be caught like this is finite and they all are going to block on
-	 * their own.
-	 */
-	CPU_COPY(&all_cpus, &rmsipi.signal);
-	for (;;) {
-		smp_rendezvous_cpus(
-		    rmsipi.signal,
-		    smp_no_rendezvous_barrier,
-		    rms_wlock_IPI,
-		    smp_no_rendezvous_barrier,
-		    &rmsipi);
-
-		if (CPU_EMPTY(&rmsipi.signal))
-			break;
-
-		CPU_FOREACH(cpu) {
-			if (!CPU_ISSET(cpu, &rmsipi.signal))
-				continue;
-			in_op = zpcpu_get_cpu(rms->readers_influx, cpu);
-			while (atomic_load_int(in_op))
-				cpu_spinwait();
-		}
-	}
+	smp_rendezvous_cpus_retry(all_cpus,
+	    smp_no_rendezvous_barrier,
+	    rms_action_func,
+	    smp_no_rendezvous_barrier,
+	    rms_wait_func,
+	    &rmsipi.srcra);
 }
 
 void

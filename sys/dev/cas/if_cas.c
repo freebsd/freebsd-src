@@ -208,7 +208,7 @@ cas_attach(struct cas_softc *sc)
 	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->sc_rx_ch, &sc->sc_mtx, 0);
 	/* Create local taskq. */
-	TASK_INIT(&sc->sc_intr_task, 0, cas_intr_task, sc);
+	NET_TASK_INIT(&sc->sc_intr_task, 0, cas_intr_task, sc);
 	TASK_INIT(&sc->sc_tx_task, 1, cas_tx_task, ifp);
 	sc->sc_tq = taskqueue_create_fast("cas_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->sc_tq);
@@ -1608,11 +1608,14 @@ cas_tint(struct cas_softc *sc)
 static void
 cas_rint_timeout(void *arg)
 {
+	struct epoch_tracker et;
 	struct cas_softc *sc = arg;
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
+	NET_EPOCH_ENTER(et);
 	cas_rint(sc);
+	NET_EPOCH_EXIT(et);
 }
 
 static void

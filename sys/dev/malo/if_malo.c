@@ -253,7 +253,7 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	taskqueue_start_threads(&sc->malo_tq, 1, PI_NET,
 		"%s taskq", device_get_nameunit(sc->malo_dev));
 
-	TASK_INIT(&sc->malo_rxtask, 0, malo_rx_proc, sc);
+	NET_TASK_INIT(&sc->malo_rxtask, 0, malo_rx_proc, sc);
 	TASK_INIT(&sc->malo_txtask, 0, malo_tx_proc, sc);
 
 	ic->ic_softc = sc;

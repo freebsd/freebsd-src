@@ -1353,7 +1353,7 @@ ena_create_io_queues(struct ena_adapter *adapter)
 	for (i = 0; i < adapter->num_queues; i++) {
 		queue = &adapter->que[i];
 
-		TASK_INIT(&queue->cleanup_task, 0, ena_cleanup, queue);
+		NET_TASK_INIT(&queue->cleanup_task, 0, ena_cleanup, queue);
 		queue->cleanup_tq = taskqueue_create_fast("ena cleanup",
 		    M_WAITOK, taskqueue_thread_enqueue, &queue->cleanup_tq);
 

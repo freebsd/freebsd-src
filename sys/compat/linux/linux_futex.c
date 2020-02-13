@@ -329,9 +329,9 @@ futex_put(struct futex *f, struct waiting_proc *wp)
 	    f->f_key.shared);
 	LINUX_CTR3(sys_futex, "futex_put uaddr %p ref %d shared %d",
 	    f->f_uaddr, f->f_refcount, f->f_key.shared);
-	FUTEXES_UNLOCK;
 	if (FUTEX_LOCKED(f))
 		futex_unlock(f);
+	FUTEXES_UNLOCK;
 
 	LIN_SDT_PROBE0(futex, futex_put, return);
 }

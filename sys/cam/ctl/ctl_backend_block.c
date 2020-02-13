@@ -2367,9 +2367,10 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	 * device, he can specify that when the LUN is created, or change
 	 * the tunable/sysctl to alter the default number of threads.
 	 */
-	retval = taskqueue_start_threads(&be_lun->io_taskqueue,
+	retval = taskqueue_start_threads_in_proc(&be_lun->io_taskqueue,
 					 /*num threads*/num_threads,
 					 /*priority*/PUSER,
+					 /*proc*/control_softc->ctl_proc,
 					 /*thread name*/
 					 "%s taskq", be_lun->lunname);
 

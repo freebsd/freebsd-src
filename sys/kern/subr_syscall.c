@@ -140,6 +140,13 @@ syscallenter(struct thread *td)
 	/* Let system calls set td_errno directly. */
 	td->td_pflags &= ~TDP_NERRNO;
 
+	/*
+	 * Fetch fast sigblock value at the time of syscall
+	 * entry because sleepqueue primitives might call
+	 * cursig().
+	 */
+	fetch_sigfastblock(td);
+
 	AUDIT_SYSCALL_ENTER(sa->code, td);
 	error = (sa->callp->sy_call)(td, sa->args);
 	AUDIT_SYSCALL_EXIT(error, td);

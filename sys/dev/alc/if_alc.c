@@ -1387,7 +1387,7 @@ alc_attach(device_t dev)
 	mtx_init(&sc->alc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->alc_tick_ch, &sc->alc_mtx, 0);
-	TASK_INIT(&sc->alc_int_task, 0, alc_int_task, sc);
+	NET_TASK_INIT(&sc->alc_int_task, 0, alc_int_task, sc);
 	sc->alc_ident = alc_find_ident(dev);
 
 	/* Map the device. */

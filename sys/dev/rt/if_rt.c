@@ -552,7 +552,7 @@ rt_attach(device_t dev)
 	ifp->if_capenable |= IFCAP_RXCSUM|IFCAP_TXCSUM;
 
 	/* init task queue */
-	TASK_INIT(&sc->rx_done_task, 0, rt_rx_done_task, sc);
+	NET_TASK_INIT(&sc->rx_done_task, 0, rt_rx_done_task, sc);
 	TASK_INIT(&sc->tx_done_task, 0, rt_tx_done_task, sc);
 	TASK_INIT(&sc->periodic_task, 0, rt_periodic_task, sc);
 

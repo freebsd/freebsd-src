@@ -1394,6 +1394,7 @@ set_output_target(struct elfcopy *ecp, const char *target_name)
 		ecp->oec = elftc_bfd_target_class(tgt);
 		ecp->oed = elftc_bfd_target_byteorder(tgt);
 		ecp->oem = elftc_bfd_target_machine(tgt);
+		ecp->abi = elftc_bfd_target_osabi(tgt);
 	}
 	if (ecp->otf == ETF_EFI || ecp->otf == ETF_PE)
 		ecp->oem = elftc_bfd_target_machine(tgt);

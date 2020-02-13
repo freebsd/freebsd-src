@@ -2328,18 +2328,36 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	mac_provided = 0;
 	sc->esc_be = NULL;
 	if (opts != NULL) {
-		int err;
+		int err = 0;
 
 		devname = vtopts = strdup(opts);
 		(void) strsep(&vtopts, ",");
 
-		if (vtopts != NULL) {
-			err = net_parsemac(vtopts, sc->esc_mac.octet);
-			if (err != 0) {
-				free(devname);
-				return (err);
+		/*
+		 * Parse the list of options in the form
+		 *     key1=value1,...,keyN=valueN.
+		 */
+		while (vtopts != NULL) {
+			char *value = vtopts;
+			char *key;
+
+			key = strsep(&value, "=");
+			if (value == NULL)
+				break;
+			vtopts = value;
+			(void) strsep(&vtopts, ",");
+
+			if (strcmp(key, "mac") == 0) {
+				err = net_parsemac(value, sc->esc_mac.octet);
+				if (err)
+					break;
+				mac_provided = 1;
 			}
-			mac_provided = 1;
+		}
+
+		if (err) {
+			free(devname);
+			return (err);
 		}
 
 		err = netbe_init(&sc->esc_be, devname, e82545_rx_callback, sc);

@@ -33,15 +33,15 @@ verify_files(const char *msg)
 	 */
 
 	/* Regular file with 2 links. */
-	failure(msg);
+	failure("%s", msg);
 	assertIsReg("file", 0644);
-	failure(msg);
+	failure("%s", msg);
 	assertFileSize("file", 10);
-	failure(msg);
+	failure("%s", msg);
 	assertFileNLinks("file", 2);
 
 	/* Another name for the same file. */
-	failure(msg);
+	failure("%s", msg);
 	assertIsHardlink("linkfile", "file");
 
 	/* Symlink */
@@ -49,11 +49,11 @@ verify_files(const char *msg)
 		assertIsSymlink("symlink", "file", 0);
 
 	/* Another file with 1 link and different permissions. */
-	failure(msg);
+	failure("%s", msg);
 	assertIsReg("file2", 0777);
-	failure(msg);
+	failure("%s", msg);
 	assertFileSize("file2", 10);
-	failure(msg);
+	failure("%s", msg);
 	assertFileNLinks("file2", 1);
 
 	/* dir */

@@ -386,7 +386,7 @@ void
 tcp_fastopen_init(void)
 {
 	unsigned int i;
-	
+
 	V_counter_zone = uma_zcreate("tfo", sizeof(unsigned int),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	rm_init(&V_tcp_fastopen_keylock, "tfo_keylock");
@@ -450,7 +450,7 @@ tcp_fastopen_destroy(void)
 	struct tcp_fastopen_ccache_bucket *ccb;
 	unsigned int i;
 
-	for (i = 0; i < V_tcp_fastopen_ccache.buckets; i++) {		
+	for (i = 0; i < V_tcp_fastopen_ccache.buckets; i++) {
 		ccb = &V_tcp_fastopen_ccache.base[i];
 		tcp_fastopen_ccache_bucket_trim(ccb, 0);
 		mtx_destroy(&ccb->ccb_mtx);
@@ -807,7 +807,7 @@ sysctl_net_inet_tcp_fastopen_ccache_bucket_limit(SYSCTL_HANDLER_ARGS)
 	int error;
 	unsigned int new;
 	unsigned int i;
-	
+
 	new = V_tcp_fastopen_ccache.bucket_limit;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr) {
@@ -823,7 +823,7 @@ sysctl_net_inet_tcp_fastopen_ccache_bucket_limit(SYSCTL_HANDLER_ARGS)
 			}
 			V_tcp_fastopen_ccache.bucket_limit = new;
 		}
-			
+
 	}
 	return (error);
 }
@@ -860,7 +860,7 @@ sysctl_net_inet_tcp_fastopen_client_enable(SYSCTL_HANDLER_ARGS)
 					ccb->ccb_num_entries));
 				ccb->ccb_num_entries = 0; /* enable bucket */
 				CCB_UNLOCK(ccb);
-			}			
+			}
 			V_tcp_fastopen_client_enable = 1;
 		}
 	}
@@ -876,7 +876,7 @@ tcp_fastopen_connect(struct tcpcb *tp)
 	sbintime_t now;
 	uint16_t server_mss;
 	uint64_t psk_cookie;
-	
+
 	psk_cookie = 0;
 	inp = tp->t_inpcb;
 	cce = tcp_fastopen_ccache_lookup(&inp->inp_inc, &ccb);
@@ -1032,7 +1032,7 @@ tcp_fastopen_ccache_lookup(struct in_conninfo *inc,
 	ccb = &V_tcp_fastopen_ccache.base[hash & V_tcp_fastopen_ccache.mask];
 	*ccbp = ccb;
 	CCB_LOCK(ccb);
-	
+
 	/*
 	 * Always returns with locked bucket.
 	 */
@@ -1055,7 +1055,7 @@ tcp_fastopen_ccache_create(struct tcp_fastopen_ccache_bucket *ccb,
     struct in_conninfo *inc, uint16_t mss, uint8_t cookie_len, uint8_t *cookie)
 {
 	struct tcp_fastopen_ccache_entry *cce;
-	
+
 	/*
 	 * 1. Create a new entry, or
 	 * 2. Reclaim an existing entry, or
@@ -1063,7 +1063,7 @@ tcp_fastopen_ccache_create(struct tcp_fastopen_ccache_bucket *ccb,
 	 */
 
 	CCB_LOCK_ASSERT(ccb);
-	
+
 	cce = NULL;
 	if (ccb->ccb_num_entries < V_tcp_fastopen_ccache.bucket_limit)
 		cce = uma_zalloc(V_tcp_fastopen_ccache.zone, M_NOWAIT);
@@ -1106,7 +1106,7 @@ tcp_fastopen_ccache_create(struct tcp_fastopen_ccache_bucket *ccb,
 		cce->cookie_len = 0;
 		cce->disable_time = getsbinuptime();
 	}
-	
+
 	return (cce);
 }
 
@@ -1116,7 +1116,7 @@ tcp_fastopen_ccache_bucket_trim(struct tcp_fastopen_ccache_bucket *ccb,
 {
 	struct tcp_fastopen_ccache_entry *cce, *cce_tmp;
 	unsigned int entries;
-	
+
 	CCB_LOCK(ccb);
 	entries = 0;
 	TAILQ_FOREACH_SAFE(cce, &ccb->ccb_entries, cce_link, cce_tmp) {

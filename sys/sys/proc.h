@@ -322,6 +322,9 @@ struct thread {
 	uintptr_t	td_rb_inact;	/* (k) Current in-action mutex loc. */
 	struct syscall_args td_sa;	/* (kx) Syscall parameters. Copied on
 					   fork for child tracing. */
+	void		*td_sigblock_ptr; /* (k) uptr for fast sigblock. */
+	uint32_t	td_sigblock_val;  /* (k) fast sigblock value read at
+					     td_sigblock_ptr on kern entry */
 #define	td_endcopy td_pcb
 
 /*
@@ -486,7 +489,7 @@ do {									\
 #define	TDP_ALTSTACK	0x00000020 /* Have alternate signal stack. */
 #define	TDP_DEADLKTREAT	0x00000040 /* Lock acquisition - deadlock treatment. */
 #define	TDP_NOFAULTING	0x00000080 /* Do not handle page faults. */
-#define	TDP_UNUSED9	0x00000100 /* --available-- */
+#define	TDP_SIGFASTBLOCK 0x00000100 /* Fast sigblock active */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
 #define	TDP_ITHREAD	0x00000400 /* Thread is an interrupt thread. */
 #define	TDP_SYNCIO	0x00000800 /* Local override, disable async i/o. */
@@ -509,6 +512,7 @@ do {									\
 #define	TDP_UIOHELD	0x10000000 /* Current uio has pages held in td_ma */
 #define	TDP_FORKING	0x20000000 /* Thread is being created through fork() */
 #define	TDP_EXECVMSPC	0x40000000 /* Execve destroyed old vmspace */
+#define	TDP_SIGFASTPENDING 0x80000000 /* Pending signal due to sigfastblock */
 
 /*
  * Reasons that the current thread can not be run yet.

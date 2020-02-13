@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.41 2019/05/05 16:44:04 christos Exp $
+# $File: fonts,v 1.43 2019/07/16 11:11:31 christos Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -133,51 +133,55 @@
 # Reference: http://cd.textfiles.com/ataricompendium/BOOK/HTML/APPENDC.HTM#cnt
 #
 # usual case with lightening mask and skewing mask 5555h~UU
-62	ulelong		0x55555555
->0	use		gdos-font
+#62	ulelong		0x55555555
+# skip cl8m8ocofedso.testfile by looking for face size lower/equal 72
+#>2	uleshort	<73
+#>>0	use		gdos-font
 # BOX18.GFT COWBOY30.GFT ROYALK30.GFT
-62	ulelong		0
+#62	ulelong		0
 # skip ISO 9660 CD-ROM ./filesystem by looking for low positive face size
->2	uleshort	>2
-# skip DOS 2.0 backup id file ./msdos by looking for face size lower/equal 48
->>2	uleshort	<49
-# skip MS Windows ICO ./msdos by looking for valid face name
->>>4	ubeshort	>0x1F00
-# skip DOS executable BACKM212.COM by looking for horizontal offset table after header
-#>>>>68	ulelong		>87		OFFSET_OK
->>>>0	use		gdos-font
+#>2	uleshort	>2
+# skip DOS 2.0 backup id file ./msdos by looking for face size lower/equal 72
+#>>2	uleshort	<73
+# skip MS oem.hlp, some Windows ICO ./msdos by looking for valid long name like WYE
+#>>>4	ulelong		>0x001F1f1F
+# skip Microsoft WinWord 2.0 ./msdos by looking for positive offset to font data
+#>>>>76	ulelong		>83
+#>>>>>0	use		gdos-font
 0	name		gdos-font
 >0	uleshort	x		GEM GDOS font
 !:mime	application/x-font-gdos
 # also .eps found like AA070GEP.EPS AI360GEP.EPS
 !:ext	fnt/gtf
-# font name like University Bold
+# font name like Big&Tall, Celtic #s, Courier, University Bold, WYE
 >4	string		x		%.32s
-# face size in points 3-48
+# face size in points 3-72 SLSS03CG.FNT H1CELT72.FNT
 >2	uleshort	x		%u
 # face ID (must be unique)
 >0	uleshort	x		\b, ID 0x%4.4x
-# lowest character index in face (usually 32 for disk-loaded fonts).
-#>36	uleshort	x		\b, low character index %u
-# width of the widest character
+# lowest character index in face (4 but usually 32 for disk-loaded fonts)
+#>36	uleshort	!32		\b, unusual character index %u
+# width of the widest character like 0 8 10 12 16 24 32
 #>50	uleshort	x		\b, %u char width
-# width of the widest character cell
+# width of the widest character cell like 8 11 12 14 15 16 33 67
 #>52	uleshort	x		\b, %u cell width
-# thickening size
+# thickening size in pixel like 0 1 2 3 4 5 6 7 8
 #>58	uleshort	x		\b, %u thick
 # lightening mask to eliminate pixels, usually 5555h
 >62	uleshort	!0x5555		\b, lightening mask 0x%x
 # skewing mask to determine when to perform additional rotation when skewing, usually 5555h
 >64	uleshort	!0x5555		\b, skewing mask 0x%x
-# offset to horizontal offset table 58h~88 5eh
-#>68	ulelong		>88		\b, 0x%x horizontal table offset
-# offset character offset table
+# offset to optional horizontal offset table 0 58h~88 5eh 252h
+#>68	ulelong		x		\b, 0x%x horizontal table offset
+# offset of character offset table 54h for many *.GFT 55h 58h 5Eh 120h 1D4h 202h 220h
 #>72	ulelong		x		\b, 0x%x coffset
-# offset to font data
-#>72	ulelong		x		\b, 0x%x foffset
-# form width in bytes
+# offset to font data like 116h 118h 158 20Ah 20Eh
+>76	ulelong		x		\b, 0x%x foffset
+# form width in bytes like 58 67 156 190 227 317 345
 #>80	uleshort	x		\b, %u fwidth
-# pointer to the next font, set by GDOS after loading
+# form height in bytes like 4 8 11 17 26 56 70 90 120 146 150
+#>82	uleshort	x		\b, %u fheight
+# pointer to the next font like 0 10000h 20000h 30000h 40000h 60000h 80000h E0000h D0000h 
 #>84	ulelong		x		\b, 0x%x noffset
 
 # downloadable fonts for browser (prints type) anthon@mnt.org

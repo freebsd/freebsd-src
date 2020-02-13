@@ -476,7 +476,7 @@ skip_percpu:
 					ret = kread(kvm, &kzp->uk_domain[i],
 					    &ukd, sizeof(ukd), 0);
 					if (ret != 0)
-						kegfree += ukd.ud_free;
+						kegfree += ukd.ud_free_items;
 				}
 				mtp->mt_kegfree = kegfree;
 				mtp->mt_free += mtp->mt_kegfree;

@@ -82,7 +82,7 @@ DEFINE_TEST(test_read_pax_truncated)
 			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 			goto wrap_up;
 		} else {
-			failure("Archive truncated to %d bytes", i);
+			failure("Archive truncated to %zu bytes", i);
 			assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 		}
 
@@ -91,7 +91,7 @@ DEFINE_TEST(test_read_pax_truncated)
 			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, filedata, filedata_size));
 			goto wrap_up;
 		} else {
-			failure("Archive truncated to %d bytes", i);
+			failure("Archive truncated to %zu bytes", i);
 			assertEqualIntA(a, filedata_size,
 			    archive_read_data(a, filedata, filedata_size));
 		}
@@ -103,7 +103,7 @@ DEFINE_TEST(test_read_pax_truncated)
 		 * does not return an error if it can't consume
 		 * it.) */
 		if (i < 1536 + 512*((filedata_size + 511)/512) + 512) {
-			failure("i=%d minsize=%d", i,
+			failure("i=%zu minsize=%zu", i,
 			    1536 + 512*((filedata_size + 511)/512) + 512);
 			assertEqualIntA(a, ARCHIVE_FATAL,
 			    archive_read_next_header(a, &ae));

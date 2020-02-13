@@ -236,6 +236,8 @@ _thr_rtld_init(void)
 	_thr_signal_block(curthread);
 	_rtld_thread_init(&li);
 	_thr_signal_unblock(curthread);
+	_thr_signal_block_check_fast();
+	_thr_signal_block_setup(curthread);
 
 	uc_len = __getcontextx_size();
 	uc = alloca(uc_len);
