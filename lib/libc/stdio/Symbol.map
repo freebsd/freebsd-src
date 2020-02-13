@@ -171,6 +171,14 @@ FBSD_1.5 {
 	gets_s;
 };
 
+FBSD_1.6 {
+	fflush_unlocked;
+	fputc_unlocked;
+	fputs_unlocked;
+	fread_unlocked;
+	fwrite_unlocked;
+};
+
 FBSDprivate_1.0 {
 	_flockfile;
 	_flockfile_debug_stub;

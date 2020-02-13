@@ -113,3 +113,5 @@ __fread(void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
 	fp->_p += resid;
 	return (count);
 }
+
+__weak_reference(__fread, fread_unlocked);

@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
  * Write the given string to the given file.
  */
 int
-fputs(const char * __restrict s, FILE * __restrict fp)
+fputs_unlocked(const char * __restrict s, FILE * __restrict fp)
 {
 	int retval;
 	struct __suio uio;
@@ -59,11 +59,20 @@ fputs(const char * __restrict s, FILE * __restrict fp)
 	uio.uio_resid = iov.iov_len = strlen(s);
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
-	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, -1);
 	retval = __sfvwrite(fp, &uio);
-	FUNLOCKFILE_CANCELSAFE();
 	if (retval == 0)
 		return (iov.iov_len > INT_MAX ? INT_MAX : iov.iov_len);
+	return (retval);
+}
+
+int
+fputs(const char * __restrict s, FILE * __restrict fp)
+{
+	int retval;
+
+	FLOCKFILE_CANCELSAFE(fp);
+	retval = fputs_unlocked(s, fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }

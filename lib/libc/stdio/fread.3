@@ -32,12 +32,14 @@
 .\"     @(#)fread.3	8.2 (Berkeley) 3/8/94
 .\" $FreeBSD$
 .\"
-.Dd March 8, 1994
+.Dd January 23, 2020
 .Dt FREAD 3
 .Os
 .Sh NAME
 .Nm fread ,
-.Nm fwrite
+.Nm fread_unlocked ,
+.Nm fwrite ,
+.Nm fwrite_unlocked
 .Nd binary stream input/output
 .Sh LIBRARY
 .Lb libc
@@ -46,7 +48,11 @@
 .Ft size_t
 .Fn fread "void * restrict ptr" "size_t size" "size_t nmemb" "FILE * restrict stream"
 .Ft size_t
+.Fn fread_unlocked "void * restrict ptr" "size_t size" "size_t nmemb" "FILE * restrict stream"
+.Ft size_t
 .Fn fwrite "const void * restrict ptr" "size_t size" "size_t nmemb" "FILE * restrict stream"
+.Ft size_t
+.Fn fwrite_unlocked "const void * restrict ptr" "size_t size" "size_t nmemb" "FILE * restrict stream"
 .Sh DESCRIPTION
 The function
 .Fn fread
@@ -69,6 +75,21 @@ bytes long, to the stream pointed to by
 .Fa stream ,
 obtaining them from the location given by
 .Fa ptr .
+.Pp
+The
+.Fn fread_unlocked
+and
+.Fn fwrite_unlocked
+functions are equivalent to
+.Fn fread
+and
+.Fn fwrite
+respectively, except that the caller is responsible for locking the stream
+with
+.Xr flockfile 3
+before calling them.
+These functions may be used to avoid the overhead of locking the stream
+and to prevent races when multiple threads are operating on the same stream.
 .Sh RETURN VALUES
 The functions
 .Fn fread

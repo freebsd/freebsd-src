@@ -42,14 +42,24 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "libc_private.h"
 
+#undef fputc_unlocked
+
+int
+fputc_unlocked(int c, FILE *fp)
+{
+
+	/* Orientation set by __sputc() when buffer is full. */
+	/* ORIENT(fp, -1); */
+	return (__sputc(c, fp));
+}
+
 int
 fputc(int c, FILE *fp)
 {
 	int retval;
+
 	FLOCKFILE_CANCELSAFE(fp);
-	/* Orientation set by __sputc() when buffer is full. */
-	/* ORIENT(fp, -1); */
-	retval = __sputc(c, fp);
+	retval = fputc_unlocked(c, fp);
 	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }

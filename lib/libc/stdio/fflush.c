@@ -98,6 +98,8 @@ __fflush(FILE *fp)
 	return (retval);
 }
 
+__weak_reference(__fflush, fflush_unlocked);
+
 int
 __sflush(FILE *fp)
 {

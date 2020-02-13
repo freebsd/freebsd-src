@@ -32,11 +32,12 @@
 .\"     @(#)putc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2003
+.Dd January 23, 2020
 .Dt PUTC 3
 .Os
 .Sh NAME
 .Nm fputc ,
+.Nm fputc_unlocked ,
 .Nm putc ,
 .Nm putc_unlocked ,
 .Nm putchar ,
@@ -49,6 +50,8 @@
 .In stdio.h
 .Ft int
 .Fn fputc "int c" "FILE *stream"
+.Ft int
+.Fn fputc_unlocked "int c" "FILE *stream"
 .Ft int
 .Fn putc "int c" "FILE *stream"
 .Ft int
@@ -97,11 +100,13 @@ to the named output
 .Fa stream .
 .Pp
 The
-.Fn putc_unlocked
+.Fn fputc_unlocked ,
+.Fn putc_unlocked ,
 and
 .Fn putchar_unlocked
 functions are equivalent to
-.Fn putc
+.Fn fputc ,
+.Fn putc ,
 and
 .Fn putchar
 respectively,
