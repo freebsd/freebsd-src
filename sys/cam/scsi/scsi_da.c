@@ -2328,11 +2328,11 @@ dasysctlinit(void *context, int pending)
 	    softc, 0, daflagssysctl, "A",
 	    "Flags for drive");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "rotating", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    OID_AUTO, "rotating", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, DA_FLAG_ROTATING, dabitsysctl, "I",
 	    "Rotating media *DEPRECATED* gone in FreeBSD 14");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "unmapped_io", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    OID_AUTO, "unmapped_io", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, DA_FLAG_UNMAPPEDIO, dabitsysctl, "I",
 	    "Unmapped I/O support *DEPRECATED* gone in FreeBSD 14");
 
