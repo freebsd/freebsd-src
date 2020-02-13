@@ -68,6 +68,36 @@ attach_r_cleanup()
 	geli_test_cleanup
 }
 
+atf_test_case attach_multiple cleanup
+attach_multiple_head()
+{
+	atf_set "descr" "geli attach can attach multiple providers"
+	atf_set "require.user" "root"
+}
+attach_multiple_body()
+{
+	geli_test_setup
+
+	sectors=100
+	md0=$(attach_md -t malloc -s `expr $sectors + 1`)
+	md1=$(attach_md -t malloc -s `expr $sectors + 1`)
+	md2=$(attach_md -t malloc -s `expr $sectors + 1`)
+	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
+
+	atf_check geli init -B none -P -K keyfile ${md0}
+	atf_check geli init -B none -P -K keyfile ${md1}
+	atf_check geli init -B none -P -K keyfile ${md2}
+	atf_check geli attach -p -k keyfile ${md0} ${md1} ${md2}
+	# verify that it did create all 3 geli devices
+	atf_check -s exit:0 test -c /dev/${md0}.eli
+	atf_check -s exit:0 test -c /dev/${md1}.eli
+	atf_check -s exit:0 test -c /dev/${md2}.eli
+}
+attach_multiple_cleanup()
+{
+	geli_test_cleanup
+}
+
 atf_test_case nokey cleanup
 nokey_head()
 {
@@ -95,5 +125,6 @@ atf_init_test_cases()
 {
 	atf_add_test_case attach_d
 	atf_add_test_case attach_r
+	atf_add_test_case attach_multiple
 	atf_add_test_case nokey
 }
