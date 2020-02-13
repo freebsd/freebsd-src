@@ -2806,8 +2806,8 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->snd_numholes, TAILQ_FIRST(&tp->snd_holes));
 
 	db_print_indent(indent);
-	db_printf("snd_fack: 0x%08x   rcv_numsacks: %d   sack_newdata: "
-	    "0x%08x\n", tp->snd_fack, tp->rcv_numsacks, tp->sack_newdata);
+	db_printf("snd_fack: 0x%08x   rcv_numsacks: %d\n",
+	    tp->snd_fack, tp->rcv_numsacks);
 
 	/* Skip sackblks, sackhint. */
 

@@ -186,8 +186,6 @@ struct tcpcb {
 	TAILQ_HEAD(sackhole_head, sackhole) snd_holes;
 					/* SACK scoreboard (sorted) */
 	tcp_seq	snd_fack;		/* last seq number(+1) sack'd by rcv'r*/
-	tcp_seq sack_newdata;		/* New data xmitted in this recovery
-					   episode starts at this seq number */
 	struct sackblk sackblks[MAX_SACK_BLKS]; /* seq nos. of sack blocks */
 	struct sackhint	sackhint;	/* SACK scoreboard hint */
 	int	t_rttlow;		/* smallest observerved RTT */
