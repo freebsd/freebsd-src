@@ -1477,7 +1477,7 @@ vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	sb->st_blksize = max(PAGE_SIZE, vap->va_blocksize);
 	
 	sb->st_flags = vap->va_flags;
-	if (priv_check(td, PRIV_VFS_GENERATION))
+	if (priv_check_cred_vfs_generation(td->td_ucred))
 		sb->st_gen = 0;
 	else
 		sb->st_gen = vap->va_gen;

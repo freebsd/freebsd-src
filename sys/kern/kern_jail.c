@@ -2998,6 +2998,16 @@ int
 prison_priv_check(struct ucred *cred, int priv)
 {
 
+	/*
+	 * Some policies have custom handlers. This routine should not be
+	 * called for them. See priv_check_cred().
+	 */
+	switch (priv) {
+	case PRIV_VFS_GENERATION:
+		KASSERT(0, ("prison_priv_check instead of a custom handler "
+		    "called for %d\n", priv));
+	}
+
 	if (!jailed(cred))
 		return (0);
 
