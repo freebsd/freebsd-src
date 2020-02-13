@@ -46,9 +46,10 @@ vmm_is_intel(void)
 }
 
 bool
-vmm_is_amd(void)
+vmm_is_svm(void)
 {
-	return (strcmp(cpu_vendor, "AuthenticAMD") == 0);
+	return (strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
+	    strcmp(cpu_vendor, "HygonGenuine") == 0);
 }
 
 bool
