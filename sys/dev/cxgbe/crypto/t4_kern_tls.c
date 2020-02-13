@@ -2082,7 +2082,6 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 
 	ndesc += howmany(wr_len, EQ_ESIZE);
 	MPASS(ndesc <= available);
-	txq->tls_wrs++;
 
 	txq->kern_tls_records++;
 	txq->kern_tls_octets += tlen - mtod(m_tls, vm_offset_t);

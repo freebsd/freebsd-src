@@ -10359,7 +10359,6 @@ clear_stats(struct adapter *sc, u_int port_id)
 				txq->txpkts0_pkts = 0;
 				txq->txpkts1_pkts = 0;
 				txq->raw_wrs = 0;
-				txq->tls_wrs = 0;
 				txq->kern_tls_records = 0;
 				txq->kern_tls_short = 0;
 				txq->kern_tls_partial = 0;
