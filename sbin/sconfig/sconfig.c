@@ -904,9 +904,10 @@ setup_chan (int fd, int argc, char **argv)
 			} else if (strncasecmp ("rs449", argv[i]+5, 5) == 0) {
 				port = 2;
 				ioctl (fd, SERIAL_SETPORT, &port);
-			} else
+			} else {
 				fprintf (stderr, "invalid port type\n");
 				exit (-1);
+			}
 #if 1
 		} else if (strcasecmp ("reset", argv[i]) == 0) {
 			ioctl (fd, SERIAL_RESET, 0);
