@@ -13,8 +13,6 @@ SRCS+=	sha512c.c
 
 LIBADD=	md crypto
 
-WARNS?=	3
-
 CFLAGS+=-I${SRCTOP}/sys
 
 .include <bsd.lib.mk>
