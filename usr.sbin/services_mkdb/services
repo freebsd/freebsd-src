@@ -2494,14 +2494,6 @@ wnn6_DS		26208/tcp  #Wnn6 (Dserver)
 sgsap		29118/sctp #SGsAP in 3GPP
 sbcap		29168/sctp #SBcAP in 3GPP
 iuhsctpassoc	29169/sctp #HNBAP and RUA Common Association
-profinet-rt	34962/tcp  #PROFInet RT Unicast
-profinet-rt	34962/udp  #PROFInet RT Unicast
-profinet-rtm	34963/tcp  #PROFInet RT Multicast
-profinet-rtm	34963/udp  #PROFInet RT Multicast
-profinet-cm	34964/tcp  #PROFInet Context Manager
-profinet-cm	34964/udp  #PROFInet Context Manager
-ethercat	34980/tcp  #EtherCAT Port
-ethercat	34980/udp  #EhterCAT Port
 s1-control	36412/sctp #S1-Control Plane (3GPP)
 x2-control	36422/sctp #X2-Control Plane (3GPP)
 dbbrowse	47557/tcp  #Databeam Corporation
