@@ -203,7 +203,8 @@ ecc_ei_load(void)
 {
 	uint32_t val;
 
-	if (cpu_vendor_id != CPU_VENDOR_AMD || CPUID_TO_FAMILY(cpu_id) < 0x10) {
+	if ((cpu_vendor_id != CPU_VENDOR_AMD || CPUID_TO_FAMILY(cpu_id) < 0x10) &&
+	    cpu_vendor_id != CPU_VENDOR_HYGON) {
 		printf("DRAM ECC error injection is not supported\n");
 		return (ENXIO);
 	}
