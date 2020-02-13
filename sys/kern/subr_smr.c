@@ -414,7 +414,7 @@ smr_create(const char *name)
 	int i;
 
 	s = uma_zalloc(smr_shared_zone, M_WAITOK);
-	smr = uma_zalloc(smr_zone, M_WAITOK);
+	smr = uma_zalloc_pcpu(smr_zone, M_WAITOK);
 
 	s->s_name = name;
 	s->s_rd_seq = s->s_wr_seq = SMR_SEQ_INIT;
@@ -436,7 +436,7 @@ smr_destroy(smr_t smr)
 
 	smr_synchronize(smr);
 	uma_zfree(smr_shared_zone, smr->c_shared);
-	uma_zfree(smr_zone, smr);
+	uma_zfree_pcpu(smr_zone, smr);
 }
 
 /*
