@@ -420,7 +420,7 @@ after_sack_rexmit:
 			 */
 			if (len > 0) {
 				cwin = tp->snd_cwnd -
-					(tp->snd_nxt - tp->sack_newdata) -
+					(tp->snd_nxt - tp->snd_recover) -
 					sack_bytes_rxmt;
 				if (cwin < 0)
 					cwin = 0;

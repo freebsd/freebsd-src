@@ -780,7 +780,7 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	if ((BYTES_THIS_ACK(tp, th) / tp->t_maxseg) >= 2)
 		num_segs = 2;
 	tp->snd_cwnd = (tp->sackhint.sack_bytes_rexmit +
-	    (tp->snd_nxt - tp->sack_newdata) + num_segs * tp->t_maxseg);
+	    (tp->snd_nxt - tp->snd_recover) + num_segs * tp->t_maxseg);
 	if (tp->snd_cwnd > tp->snd_ssthresh)
 		tp->snd_cwnd = tp->snd_ssthresh;
 	tp->t_flags |= TF_ACKNOW;
