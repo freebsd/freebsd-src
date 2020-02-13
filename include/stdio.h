@@ -347,7 +347,13 @@ int	 putchar_unlocked(int);
 void	 clearerr_unlocked(FILE *);
 int	 feof_unlocked(FILE *);
 int	 ferror_unlocked(FILE *);
+int	 fflush_unlocked(FILE *);
 int	 fileno_unlocked(FILE *);
+int	 fputc_unlocked(int, FILE *);
+int	 fputs_unlocked(const char * __restrict, FILE * __restrict);
+size_t	 fread_unlocked(void * __restrict, size_t, size_t, FILE * __restrict);
+size_t	 fwrite_unlocked(const void * __restrict, size_t, size_t,
+    FILE * __restrict);
 #endif
 
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE >= 500
@@ -508,10 +514,11 @@ extern int __isthreaded;
  * See ISO/IEC 9945-1 ANSI/IEEE Std 1003.1 Second Edition 1996-07-12
  * B.8.2.7 for the rationale behind the *_unlocked() macros.
  */
+#define	clearerr_unlocked(p)	__sclearerr(p)
 #define	feof_unlocked(p)	__sfeof(p)
 #define	ferror_unlocked(p)	__sferror(p)
-#define	clearerr_unlocked(p)	__sclearerr(p)
 #define	fileno_unlocked(p)	__sfileno(p)
+#define	fputc_unlocked(s, p)	__sputc(s, p)
 #endif
 #if __POSIX_VISIBLE >= 199506
 #define	getc_unlocked(fp)	__sgetc(fp)

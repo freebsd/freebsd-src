@@ -32,11 +32,12 @@
 .\"     @(#)fputs.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 23, 2020
 .Dt FPUTS 3
 .Os
 .Sh NAME
 .Nm fputs ,
+.Nm fputs_unlocked ,
 .Nm puts
 .Nd output a line to a stream
 .Sh LIBRARY
@@ -45,6 +46,8 @@
 .In stdio.h
 .Ft int
 .Fn fputs "const char *str" "FILE *stream"
+.Ft int
+.Fn fputs_unlocked "const char *str" "FILE *stream"
 .Ft int
 .Fn puts "const char *str"
 .Sh DESCRIPTION
@@ -57,6 +60,16 @@ to the stream pointed to by
 .\" The terminating
 .\" .Dv NUL
 .\" character is not written.
+.Pp
+The
+.Fn fputs_unlocked
+function is equivalent to
+.Fn fputs ,
+except that the caller is responsible for locking the stream with
+.Xr flockfile 3
+before calling it.
+This function may be used to avoid the overhead of locking the stream and to
+prevent races when multiple threads are operating on the same stream.
 .Pp
 The function
 .Fn puts
