@@ -553,12 +553,13 @@ zone_fetch_bucket(uma_zone_t zone, uma_zone_domain_t zdom)
 	if ((bucket = STAILQ_FIRST(&zdom->uzd_buckets)) == NULL)
 		return (NULL);
 
+	/* SMR Buckets can not be re-used until readers expire. */
 	if ((zone->uz_flags & UMA_ZONE_SMR) != 0 &&
 	    bucket->ub_seq != SMR_SEQ_INVALID) {
 		if (!smr_poll(zone->uz_smr, bucket->ub_seq, false))
 			return (NULL);
 		bucket->ub_seq = SMR_SEQ_INVALID;
-		dtor = (zone->uz_dtor != NULL) | UMA_ALWAYS_CTORDTOR;
+		dtor = (zone->uz_dtor != NULL) || UMA_ALWAYS_CTORDTOR;
 	}
 	MPASS(zdom->uzd_nitems >= bucket->ub_cnt);
 	STAILQ_REMOVE_HEAD(&zdom->uzd_buckets, ub_link);
@@ -678,6 +679,7 @@ cache_bucket_load(uma_cache_bucket_t bucket, uma_bucket_t b)
 
 	CRITICAL_ASSERT(curthread);
 	MPASS(bucket->ucb_bucket == NULL);
+	MPASS(b->ub_seq == SMR_SEQ_INVALID);
 
 	bucket->ucb_bucket = b;
 	bucket->ucb_cnt = b->ub_cnt;
@@ -979,10 +981,10 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 	if ((zone->uz_flags & UMA_ZONE_SMR) != 0 &&
 	    bucket->ub_seq != SMR_SEQ_INVALID) {
 		smr_wait(zone->uz_smr, bucket->ub_seq);
+		bucket->ub_seq = SMR_SEQ_INVALID;
 		for (i = 0; i < bucket->ub_cnt; i++)
 			item_dtor(zone, bucket->ub_bucket[i],
 			    zone->uz_size, NULL, SKIP_NONE);
-		bucket->ub_seq = SMR_SEQ_INVALID;
 	}
 	if (zone->uz_fini)
 		for (i = 0; i < bucket->ub_cnt; i++) 
@@ -1014,6 +1016,7 @@ cache_drain(uma_zone_t zone)
 {
 	uma_cache_t cache;
 	uma_bucket_t bucket;
+	smr_seq_t seq;
 	int cpu;
 
 	/*
@@ -1024,6 +1027,9 @@ cache_drain(uma_zone_t zone)
 	 * XXX: It would good to be able to assert that the zone is being
 	 * torn down to prevent improper use of cache_drain().
 	 */
+	seq = SMR_SEQ_INVALID;
+	if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
+		seq = smr_current(zone->uz_smr);
 	CPU_FOREACH(cpu) {
 		cache = &zone->uz_cpu[cpu];
 		bucket = cache_bucket_unload_alloc(cache);
@@ -1033,11 +1039,13 @@ cache_drain(uma_zone_t zone)
 		}
 		bucket = cache_bucket_unload_free(cache);
 		if (bucket != NULL) {
+			bucket->ub_seq = seq;
 			bucket_drain(zone, bucket);
 			bucket_free(zone, bucket, NULL);
 		}
 		bucket = cache_bucket_unload_cross(cache);
 		if (bucket != NULL) {
+			bucket->ub_seq = seq;
 			bucket_drain(zone, bucket);
 			bucket_free(zone, bucket, NULL);
 		}
@@ -1069,7 +1077,6 @@ cache_drain_safe_cpu(uma_zone_t zone, void *unused)
 		return;
 
 	b1 = b2 = b3 = NULL;
-	ZONE_LOCK(zone);
 	critical_enter();
 	if (zone->uz_flags & UMA_ZONE_FIRSTTOUCH)
 		domain = PCPU_GET(domain);
@@ -1077,32 +1084,33 @@ cache_drain_safe_cpu(uma_zone_t zone, void *unused)
 		domain = 0;
 	cache = &zone->uz_cpu[curcpu];
 	b1 = cache_bucket_unload_alloc(cache);
-	if (b1 != NULL && b1->ub_cnt != 0) {
-		zone_put_bucket(zone, &zone->uz_domain[domain], b1, false);
-		b1 = NULL;
-	}
 
 	/*
 	 * Don't flush SMR zone buckets.  This leaves the zone without a
 	 * bucket and forces every free to synchronize().
 	 */
-	if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
-		goto out;
-	b2 = cache_bucket_unload_free(cache);
+	if ((zone->uz_flags & UMA_ZONE_SMR) == 0) {
+		b2 = cache_bucket_unload_free(cache);
+		b3 = cache_bucket_unload_cross(cache);
+	}
+	critical_exit();
+
+	ZONE_LOCK(zone);
+	if (b1 != NULL && b1->ub_cnt != 0) {
+		zone_put_bucket(zone, &zone->uz_domain[domain], b1, false);
+		b1 = NULL;
+	}
 	if (b2 != NULL && b2->ub_cnt != 0) {
 		zone_put_bucket(zone, &zone->uz_domain[domain], b2, false);
 		b2 = NULL;
 	}
-	b3 = cache_bucket_unload_cross(cache);
-
-out:
-	critical_exit();
 	ZONE_UNLOCK(zone);
-	if (b1)
+
+	if (b1 != NULL)
 		bucket_free(zone, b1, NULL);
-	if (b2)
+	if (b2 != NULL)
 		bucket_free(zone, b2, NULL);
-	if (b3) {
+	if (b3 != NULL) {
 		bucket_drain(zone, b3);
 		bucket_free(zone, b3, NULL);
 	}
@@ -4004,6 +4012,7 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 	struct uma_bucketlist fullbuckets;
 	uma_zone_domain_t zdom;
 	uma_bucket_t b;
+	smr_seq_t seq;
 	void *item;
 	int domain;
 
@@ -4019,6 +4028,14 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 	 * per-domain locking could be used if necessary.
 	 */
 	ZONE_CROSS_LOCK(zone);
+
+	/*
+	 * It is possible for buckets to arrive here out of order so we fetch
+	 * the current smr seq rather than accepting the bucket's.
+	 */
+	seq = SMR_SEQ_INVALID;
+	if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
+		seq = smr_current(zone->uz_smr);
 	while (bucket->ub_cnt > 0) {
 		item = bucket->ub_bucket[bucket->ub_cnt - 1];
 		domain = _vm_phys_domain(pmap_kextract((vm_offset_t)item));
@@ -4028,10 +4045,11 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 			if (zdom->uzd_cross == NULL)
 				break;
 		}
-		zdom->uzd_cross->ub_bucket[zdom->uzd_cross->ub_cnt++] = item;
-		if (zdom->uzd_cross->ub_cnt == zdom->uzd_cross->ub_entries) {
-			STAILQ_INSERT_HEAD(&fullbuckets, zdom->uzd_cross,
-			    ub_link);
+		b = zdom->uzd_cross;
+		b->ub_bucket[b->ub_cnt++] = item;
+		b->ub_seq = seq;
+		if (b->ub_cnt == b->ub_entries) {
+			STAILQ_INSERT_HEAD(&fullbuckets, b, ub_link);
 			zdom->uzd_cross = NULL;
 		}
 		bucket->ub_cnt--;
@@ -4040,8 +4058,6 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 	if (!STAILQ_EMPTY(&fullbuckets)) {
 		ZONE_LOCK(zone);
 		while ((b = STAILQ_FIRST(&fullbuckets)) != NULL) {
-			if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
-				bucket->ub_seq = smr_current(zone->uz_smr);
 			STAILQ_REMOVE_HEAD(&fullbuckets, ub_link);
 			if (zone->uz_bkt_count >= zone->uz_bkt_max) {
 				ZONE_UNLOCK(zone);
