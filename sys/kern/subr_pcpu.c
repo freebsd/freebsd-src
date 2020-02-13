@@ -95,6 +95,7 @@ pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	cpu_pcpu_init(pcpu, cpuid, size);
 	pcpu->pc_rm_queue.rmq_next = &pcpu->pc_rm_queue;
 	pcpu->pc_rm_queue.rmq_prev = &pcpu->pc_rm_queue;
+	pcpu->pc_zpcpu_offset = zpcpu_offset_cpu(cpuid);
 }
 
 void

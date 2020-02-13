@@ -208,7 +208,7 @@ static int32_t bbr_min_measurements_req = 1;	/* We need at least 2
 						 * to prevent it from being ok
 						 * to have no measurements). */
 static int32_t bbr_no_pacing_until = 4;
-						 
+
 static int32_t bbr_min_usec_delta = 20000;	/* 20,000 usecs */
 static int32_t bbr_min_peer_delta = 20;		/* 20 units */
 static int32_t bbr_delta_percent = 150;		/* 15.0 % */
@@ -380,9 +380,9 @@ static int32_t bbr_rto_max_sec = 4;	/* 4 seconds */
 static int32_t bbr_hptsi_per_second = 1000;
 
 /*
- * For hptsi under bbr_cross_over connections what is delay 
+ * For hptsi under bbr_cross_over connections what is delay
  * target 7ms (in usec) combined with a seg_max of 2
- * gets us close to identical google behavior in 
+ * gets us close to identical google behavior in
  * TSO size selection (possibly more 1MSS sends).
  */
 static int32_t bbr_hptsi_segments_delay_tar = 7000;
@@ -596,9 +596,9 @@ activate_rxt:
 			rsm = TAILQ_FIRST(&bbr->r_ctl.rc_tmap);
 			if (rsm) {
 				idx = rsm->r_rtr_cnt - 1;
-				if (TSTMP_GEQ(rsm->r_tim_lastsent[idx], bbr->r_ctl.rc_tlp_rxt_last_time)) 
+				if (TSTMP_GEQ(rsm->r_tim_lastsent[idx], bbr->r_ctl.rc_tlp_rxt_last_time))
 					tstmp_touse = rsm->r_tim_lastsent[idx];
-				else 
+				else
 					tstmp_touse = bbr->r_ctl.rc_tlp_rxt_last_time;
 				if (TSTMP_GT(tstmp_touse, cts))
 				    time_since_sent = cts - tstmp_touse;
@@ -673,9 +673,9 @@ activate_rxt:
 		}
 		time_since_sent = 0;
 		idx = rsm->r_rtr_cnt - 1;
-		if (TSTMP_GEQ(rsm->r_tim_lastsent[idx], bbr->r_ctl.rc_tlp_rxt_last_time)) 
+		if (TSTMP_GEQ(rsm->r_tim_lastsent[idx], bbr->r_ctl.rc_tlp_rxt_last_time))
 			tstmp_touse = rsm->r_tim_lastsent[idx];
-		else 
+		else
 			tstmp_touse = bbr->r_ctl.rc_tlp_rxt_last_time;
 		if (TSTMP_GT(tstmp_touse, cts))
 		    time_since_sent = cts - tstmp_touse;
@@ -695,11 +695,11 @@ activate_rxt:
 		}
 		if ((bbr->rc_tlp_rtx_out == 1) &&
 		    (rsm->r_start == bbr->r_ctl.rc_last_tlp_seq)) {
-			/* 
-			 * Second retransmit of the same TLP 
+			/*
+			 * Second retransmit of the same TLP
 			 * lets not.
 			 */
-			bbr->rc_tlp_rtx_out = 0; 
+			bbr->rc_tlp_rtx_out = 0;
 			goto activate_rxt;
 		}
 		if (rsm->r_start != bbr->r_ctl.rc_last_tlp_seq) {
@@ -766,7 +766,7 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 	prev_delay = bbr->r_ctl.rc_last_delay_val;
 	if (bbr->r_ctl.rc_last_delay_val &&
 	    (slot == 0)) {
-		/* 
+		/*
 		 * If a previous pacer delay was in place we
 		 * are not coming from the output side (where
 		 * we calculate a delay, more likely a timer).
@@ -777,7 +777,7 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 			delay_calc = cts - bbr->rc_pacer_started;
 			if (delay_calc <= slot)
 				slot -= delay_calc;
-		} 
+		}
 	}
 	/* Do we have early to make up for by pushing out the pacing time? */
 	if (bbr->r_agg_early_set) {
@@ -804,8 +804,8 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 		if (bbr->rc_in_persist == 0) {
 			delayed_ack = bbr_delack_time;
 		} else {
-			/* 
-			 * We are in persists and have 
+			/*
+			 * We are in persists and have
 			 * gotten a new data element.
 			 */
 			if (hpts_timeout > bbr_delack_time) {
@@ -816,7 +816,7 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 				hpts_timeout = bbr_delack_time;
 			}
 		}
-	} 
+	}
 	if (delayed_ack &&
 	    ((hpts_timeout == 0) ||
 	     (delayed_ack < hpts_timeout))) {
@@ -910,10 +910,10 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 			 * the do not disturbe even for sack.
 			 */
 			inp->inp_flags2 |= INP_DONT_SACK_QUEUE;
-		} else 
+		} else
 			inp->inp_flags2 &= ~INP_DONT_SACK_QUEUE;
 		bbr->rc_pacer_started = cts;
-		
+
 		(void)tcp_hpts_insert_diag(tp->t_inpcb, HPTS_USEC_TO_SLOTS(slot),
 					   __LINE__, &diag);
 		bbr->rc_timer_first = 0;
@@ -923,8 +923,8 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 	} else if (hpts_timeout) {
 		(void)tcp_hpts_insert_diag(tp->t_inpcb, HPTS_USEC_TO_SLOTS(hpts_timeout),
 					   __LINE__, &diag);
-		/* 
-		 * We add the flag here as well if the slot is set, 
+		/*
+		 * We add the flag here as well if the slot is set,
 		 * since hpts will call in to clear the queue first before
 		 * calling the output routine (which does our timers).
 		 * We don't want to set the flag if its just a timer
@@ -937,7 +937,7 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 			bbr->rc_pacer_started = cts;
 		if ((bbr->r_ctl.rc_hpts_flags & PACE_TMR_RACK) &&
 		    (bbr->rc_cwnd_limited == 0)) {
-			/* 
+			/*
 			 * For a rack timer, don't wake us even
 			 * if a sack arrives as long as we are
 			 * not cwnd limited.
@@ -1048,7 +1048,7 @@ bbr_timer_audit(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts, struct sock
 		 * We have outstanding data and
 		 * we *do* have a RACK, TLP or RXT
 		 * timer running. We won't restart
-		 * anything here since thats probably ok we 
+		 * anything here since thats probably ok we
 		 * will get called with some timer here shortly.
 		 */
 		return;
@@ -2223,7 +2223,7 @@ bbr_log_rtt_sample(struct tcp_bbr *bbr, uint32_t rtt, uint32_t tsin)
 		log.u_bbr.pkts_out = tcp_tv_to_mssectick(&bbr->rc_tv);
 		log.u_bbr.flex6 = tsin;
 		log.u_bbr.flex7 = 0;
-		log.u_bbr.flex8 = bbr->rc_ack_was_delayed;     
+		log.u_bbr.flex8 = bbr->rc_ack_was_delayed;
 		TCP_LOG_EVENTP(bbr->rc_tp, NULL,
 		    &bbr->rc_inp->inp_socket->so_rcv,
 		    &bbr->rc_inp->inp_socket->so_snd,
@@ -2423,7 +2423,7 @@ bbr_log_startup_event(struct tcp_bbr *bbr, uint32_t cts, uint32_t flex1, uint32_
 		log.u_bbr.flex1 = flex1;
 		log.u_bbr.flex2 = flex2;
 		log.u_bbr.flex3 = flex3;
-		log.u_bbr.flex4 = 0; 
+		log.u_bbr.flex4 = 0;
 		log.u_bbr.flex5 = bbr->r_ctl.rc_target_at_state;
 		log.u_bbr.flex6 = bbr->r_ctl.rc_lost_at_startup;
 		log.u_bbr.flex8 = reason;
@@ -2693,7 +2693,7 @@ bbr_log_type_bbrupd(struct tcp_bbr *bbr, uint8_t flex8, uint32_t cts,
 		log.u_bbr.flex8 = flex8;
 		if (bbr->rc_ack_was_delayed)
 			log.u_bbr.epoch = bbr->r_ctl.rc_ack_hdwr_delay;
-		else 
+		else
 			log.u_bbr.epoch = 0;
 		TCP_LOG_EVENTP(bbr->rc_tp, NULL,
 		    &bbr->rc_inp->inp_socket->so_rcv,
@@ -2725,7 +2725,7 @@ bbr_log_type_ltbw(struct tcp_bbr *bbr, uint32_t cts, int32_t reason,
 		if (bbr->rc_lt_use_bw == 0)
 			log.u_bbr.epoch = bbr->r_ctl.rc_pkt_epoch - bbr->r_ctl.rc_lt_epoch;
 		else
-			log.u_bbr.epoch = bbr->r_ctl.rc_pkt_epoch - bbr->r_ctl.rc_lt_epoch_use;			
+			log.u_bbr.epoch = bbr->r_ctl.rc_pkt_epoch - bbr->r_ctl.rc_lt_epoch_use;
 		TCP_LOG_EVENTP(bbr->rc_tp, NULL,
 		    &bbr->rc_inp->inp_socket->so_rcv,
 		    &bbr->rc_inp->inp_socket->so_snd,
@@ -2908,10 +2908,10 @@ bbr_set_pktepoch(struct tcp_bbr *bbr, uint32_t cts, int32_t line)
 		calclr /= (uint64_t)del;
 	} else {
 		/* Nothing delivered? 100.0% loss */
-		calclr = 1000; 
+		calclr = 1000;
 	}
 	bbr->r_ctl.rc_pkt_epoch_loss_rate =  (uint32_t)calclr;
-	if (IN_RECOVERY(bbr->rc_tp->t_flags)) 
+	if (IN_RECOVERY(bbr->rc_tp->t_flags))
 		bbr->r_ctl.recovery_lr += (uint32_t)calclr;
 	bbr->r_ctl.rc_pkt_epoch++;
 	if (bbr->rc_no_pacing &&
@@ -2959,8 +2959,8 @@ __bbr_get_bw(struct tcp_bbr *bbr)
 	uint64_t bw, min_bw;
 	uint64_t rtt;
 	int gm_measure_cnt = 1;
-	
-	/* 
+
+	/*
 	 * For startup we make, like google, a
 	 * minimum b/w. This is generated from the
 	 * IW and the rttProp. We do fall back to srtt
@@ -2970,7 +2970,7 @@ __bbr_get_bw(struct tcp_bbr *bbr)
 	 */
 	if (bbr->rc_bbr_state == BBR_STATE_STARTUP) {
 		/* Attempt first to use rttProp */
-		rtt = (uint64_t)get_filter_value_small(&bbr->r_ctl.rc_rttprop);		
+		rtt = (uint64_t)get_filter_value_small(&bbr->r_ctl.rc_rttprop);
 		if (rtt && (rtt < 0xffffffff)) {
 measure:
 			min_bw = (uint64_t)(bbr_initial_cwnd(bbr, bbr->rc_tp)) *
@@ -3158,7 +3158,7 @@ static void
 bbr_randomize_extra_state_time(struct tcp_bbr *bbr)
 {
 	uint32_t ran, deduct;
-	
+
 	ran = arc4random_uniform(bbr_rand_ot);
 	if (ran) {
 		deduct = bbr->r_ctl.rc_level_state_extra / ran;
@@ -3219,8 +3219,8 @@ reset_all:
 				bbr->rc_bbr_state = BBR_STATE_PROBE_BW;
 				bbr_log_type_statechange(bbr, cts, __LINE__);
 			} else {
-				/* 
-				 * This should not happen really 
+				/*
+				 * This should not happen really
 				 * unless we remove the startup/drain
 				 * restrictions above.
 				 */
@@ -3293,7 +3293,7 @@ reset_all:
 	}
 	diff = bbr->r_ctl.rc_pkt_epoch - bbr->r_ctl.rc_lt_epoch;
 	if (diff < bbr_lt_intvl_min_rtts) {
-		/* 
+		/*
 		 * need more samples (we don't
 		 * start on a round like linux so
 		 * we need 1 more).
@@ -3536,20 +3536,20 @@ bbr_get_target_cwnd(struct tcp_bbr *bbr, uint64_t bw, uint32_t gain)
 	mss = min((bbr->rc_tp->t_maxseg - bbr->rc_last_options), bbr->r_ctl.rc_pace_max_segs);
 	/* Get the base cwnd with gain rounded to a mss */
 	cwnd = roundup(bbr_get_raw_target_cwnd(bbr, bw, gain), mss);
-	/* 
+	/*
 	 * Add in N (2 default since we do not have a
-	 * fq layer to trap packets in) quanta's per the I-D 
-	 * section 4.2.3.2 quanta adjust. 
+	 * fq layer to trap packets in) quanta's per the I-D
+	 * section 4.2.3.2 quanta adjust.
 	 */
 	cwnd += (bbr_quanta * bbr->r_ctl.rc_pace_max_segs);
 	if (bbr->rc_use_google) {
 		if((bbr->rc_bbr_state == BBR_STATE_PROBE_BW) &&
 		   (bbr_state_val(bbr) == BBR_SUB_GAIN)) {
-			/* 
+			/*
 			 * The linux implementation adds
 			 * an extra 2 x mss in gain cycle which
 			 * is documented no-where except in the code.
-			 * so we add more for Neal undocumented feature 
+			 * so we add more for Neal undocumented feature
 			 */
 			cwnd += 2 * mss;
 		}
@@ -3605,7 +3605,7 @@ static uint32_t
 bbr_get_pacing_length(struct tcp_bbr *bbr, uint16_t gain, uint32_t useconds_time, uint64_t bw)
 {
 	uint64_t divor, res, tim;
-	
+
 	if (useconds_time == 0)
 		return (0);
 	gain = bbr_gain_adjust(bbr, gain);
@@ -3642,8 +3642,8 @@ bbr_get_pacing_delay(struct tcp_bbr *bbr, uint16_t gain, int32_t len, uint32_t c
 	bw = bbr_get_bw(bbr);
 	if (bbr->rc_use_google) {
 		uint64_t cbw;
-		
-		/* 
+
+		/*
 		 * Reduce the b/w by the google discount
 		 * factor 10 = 1%.
 		 */
@@ -3721,8 +3721,8 @@ bbr_ack_received(struct tcpcb *tp, struct tcp_bbr *bbr, struct tcphdr *th, uint3
 	bytes_this_ack += sack_changed;
 	if (bytes_this_ack > prev_acked) {
 		bytes_this_ack -= prev_acked;
-		/* 
-		 * A byte ack'd gives us a full mss 
+		/*
+		 * A byte ack'd gives us a full mss
 		 * to be like linux i.e. they count packets.
 		 */
 		if ((bytes_this_ack < maxseg) && bbr->rc_use_google)
@@ -3733,7 +3733,7 @@ bbr_ack_received(struct tcpcb *tp, struct tcp_bbr *bbr, struct tcphdr *th, uint3
 	}
 	cwnd = tp->snd_cwnd;
 	bw = get_filter_value(&bbr->r_ctl.rc_delrate);
-	if (bw) 
+	if (bw)
 		target_cwnd = bbr_get_target_cwnd(bbr,
 						  bw,
 						  (uint32_t)bbr->r_ctl.rc_bbr_cwnd_gain);
@@ -3741,7 +3741,7 @@ bbr_ack_received(struct tcpcb *tp, struct tcp_bbr *bbr, struct tcphdr *th, uint3
 		target_cwnd = bbr_initial_cwnd(bbr, bbr->rc_tp);
 	if (IN_RECOVERY(tp->t_flags) &&
 	    (bbr->bbr_prev_in_rec == 0)) {
-		/* 
+		/*
 		 * We are entering recovery and
 		 * thus packet conservation.
 		 */
@@ -3770,7 +3770,7 @@ bbr_ack_received(struct tcpcb *tp, struct tcp_bbr *bbr, struct tcphdr *th, uint3
 
 			if (TSTMP_GEQ(bbr->r_ctl.rc_rcvtime, bbr->r_ctl.rc_recovery_start))
 				time_in = bbr->r_ctl.rc_rcvtime - bbr->r_ctl.rc_recovery_start;
-			else 
+			else
 				time_in = 0;
 
 			if (time_in >= bbr_get_rtt(bbr, BBR_RTT_PROP)) {
@@ -3818,7 +3818,7 @@ bbr_ack_received(struct tcpcb *tp, struct tcp_bbr *bbr, struct tcphdr *th, uint3
 			meth = 3;
 			cwnd += bytes_this_ack;
 		} else {
-			/* 
+			/*
 			 * Method 4 means we are at target so no gain in
 			 * startup and past the initial window.
 			 */
@@ -3888,7 +3888,7 @@ bbr_post_recovery(struct tcpcb *tp)
 		uint64_t val, lr2use;
 		uint32_t maxseg, newcwnd, acks_inflight, ratio, cwnd;
 		uint32_t *cwnd_p;
-		
+
 		if (bbr_get_rtt(bbr, BBR_SRTT)) {
 			val = ((uint64_t)bbr_get_rtt(bbr, BBR_RTT_PROP) * (uint64_t)1000);
 			val /= bbr_get_rtt(bbr, BBR_SRTT);
@@ -3911,8 +3911,8 @@ bbr_post_recovery(struct tcpcb *tp)
 		     (bbr_state_val(bbr) == BBR_SUB_DRAIN)) ||
 		    ((bbr->rc_bbr_state == BBR_STATE_DRAIN) &&
 		     bbr_slam_cwnd_in_main_drain)) {
-			/* 
-			 * Here we must poke at the saved cwnd 
+			/*
+			 * Here we must poke at the saved cwnd
 			 * as well as the cwnd.
 			 */
 			cwnd = bbr->r_ctl.rc_saved_cwnd;
@@ -3954,7 +3954,7 @@ bbr_post_recovery(struct tcpcb *tp)
 		}
 		/* with standard delayed acks how many acks can I expect? */
 		if (bbr_drop_limit == 0) {
-			/* 
+			/*
 			 * Anticpate how much we will
 			 * raise the cwnd based on the acks.
 			 */
@@ -4013,8 +4013,8 @@ bbr_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type, struct bbr_s
 			/* Start a new epoch */
 			bbr_set_pktepoch(bbr, bbr->r_ctl.rc_rcvtime, __LINE__);
 			if (bbr->rc_lt_is_sampling || bbr->rc_lt_use_bw) {
-				/* 
-				 * Move forward the lt epoch 
+				/*
+				 * Move forward the lt epoch
 				 * so it won't count the truncated
 				 * epoch.
 				 */
@@ -4022,7 +4022,7 @@ bbr_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type, struct bbr_s
 			}
 			if (bbr->rc_bbr_state == BBR_STATE_STARTUP) {
 				/*
-				 * Just like the policer detection code 
+				 * Just like the policer detection code
 				 * if we are in startup we must push
 				 * forward the last startup epoch
 				 * to hide the truncated PE.
@@ -4036,7 +4036,7 @@ bbr_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type, struct bbr_s
 			tcp_bbr_tso_size_check(bbr, bbr->r_ctl.rc_rcvtime);
 			if (bbr->rc_inp->inp_in_hpts &&
 			    ((bbr->r_ctl.rc_hpts_flags & PACE_TMR_RACK) == 0)) {
-				/* 
+				/*
 				 * When we enter recovery, we need to restart
 				 * any timers. This may mean we gain an agg
 				 * early, which will be made up for at the last
@@ -4358,7 +4358,7 @@ bbr_is_lost(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t cts)
 {
 	uint32_t thresh;
 
-	
+
 	thresh = bbr_calc_thresh_rack(bbr, bbr_get_rtt(bbr, BBR_RTT_RACK),
 				      cts, rsm);
 	if ((cts - rsm->r_tim_lastsent[(rsm->r_rtr_cnt - 1)]) >= thresh) {
@@ -4447,7 +4447,7 @@ bbr_timeout_rack(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 * settings.
 	 */
 	uint32_t lost;
-	
+
 	if (bbr->rc_all_timers_stopped) {
 		return (1);
 	}
@@ -4519,7 +4519,7 @@ static int
 bbr_sack_mergable(struct bbr_sendmap *at,
 		  uint32_t start, uint32_t end)
 {
-	/* 
+	/*
 	 * Given a sack block defined by
 	 * start and end, and a current postion
 	 * at. Return 1 if either side of at
@@ -4554,7 +4554,7 @@ bbr_sack_mergable(struct bbr_sendmap *at,
 		if ((r_rsm->r_start == end) ||
 		    (SEQ_LT(start, r_rsm->r_start) &&
 		     SEQ_GT(end, r_rsm->r_start))) {
-			/* 
+			/*
 			 * map blk          |---------|
 			 * sack blk    |----|
 			 * <or>
@@ -4572,7 +4572,7 @@ bbr_merge_rsm(struct tcp_bbr *bbr,
 	      struct bbr_sendmap *l_rsm,
 	      struct bbr_sendmap *r_rsm)
 {
-	/* 
+	/*
 	 * We are merging two ack'd RSM's,
 	 * the l_rsm is on the left (lower seq
 	 * values) and the r_rsm is on the right
@@ -4604,7 +4604,7 @@ bbr_merge_rsm(struct tcp_bbr *bbr,
 		/* This really should not happen */
 		bbr->r_ctl.rc_lost_bytes -= r_rsm->r_end - r_rsm->r_start;
 	}
-	TAILQ_REMOVE(&bbr->r_ctl.rc_map, r_rsm, r_next);	
+	TAILQ_REMOVE(&bbr->r_ctl.rc_map, r_rsm, r_next);
 	if ((r_rsm->r_limit_type == 0) && (l_rsm->r_limit_type != 0)) {
 		/* Transfer the split limit to the map we free */
 		r_rsm->r_limit_type = l_rsm->r_limit_type;
@@ -4711,8 +4711,8 @@ need_retran:
 			goto restore;
 		}
 	} else {
-		/* 
-		 * We must find the last segment 
+		/*
+		 * We must find the last segment
 		 * that was acceptable by the client.
 		 */
 		TAILQ_FOREACH_REVERSE(rsm, &bbr->r_ctl.rc_map, bbr_head, r_next) {
@@ -4974,7 +4974,7 @@ bbr_remxt_tmr(struct tcpcb *tp)
 	TAILQ_FOREACH(rsm, &bbr->r_ctl.rc_map, r_next) {
 		if (rsm->r_flags & BBR_ACKED) {
 			uint32_t old_flags;
-			
+
 			rsm->r_dupack = 0;
 			if (rsm->r_in_tmap == 0) {
 				/* We must re-add it back to the tlist */
@@ -4996,7 +4996,7 @@ bbr_remxt_tmr(struct tcpcb *tp)
 			}
 			if (bbr_marks_rxt_sack_passed) {
 				/*
-				 * With this option, we will rack out 
+				 * With this option, we will rack out
 				 * in 1ms increments the rest of the packets.
 				 */
 				rsm->r_flags |= BBR_SACK_PASSED | BBR_MARKED_LOST;
@@ -5388,7 +5388,7 @@ static uint32_t
 bbr_get_earliest_send_outstanding(struct tcp_bbr *bbr, struct bbr_sendmap *u_rsm, uint32_t cts)
 {
 	struct bbr_sendmap *rsm;
-	
+
 	rsm = TAILQ_FIRST(&bbr->r_ctl.rc_tmap);
 	if ((rsm == NULL) || (u_rsm == rsm))
 		return (cts);
@@ -5414,7 +5414,7 @@ bbr_update_rsm(struct tcpcb *tp, struct tcp_bbr *bbr,
 	if (rsm->r_flags & BBR_MARKED_LOST) {
 		/* We have retransmitted, its no longer lost */
 		rsm->r_flags &= ~BBR_MARKED_LOST;
-		bbr->r_ctl.rc_lost_bytes -= rsm->r_end - rsm->r_start;		
+		bbr->r_ctl.rc_lost_bytes -= rsm->r_end - rsm->r_start;
 	}
 	if (rsm->r_flags & BBR_RXT_CLEARED) {
 		/*
@@ -5436,7 +5436,7 @@ bbr_update_rsm(struct tcpcb *tp, struct tcp_bbr *bbr,
 	rsm->r_pacing_delay = pacing_time;
 	rsm->r_delivered = bbr->r_ctl.rc_delivered;
 	rsm->r_ts_valid = bbr->rc_ts_valid;
-	if (bbr->rc_ts_valid) 
+	if (bbr->rc_ts_valid)
 		rsm->r_del_ack_ts = bbr->r_ctl.last_inbound_ts;
 	if (bbr->r_ctl.r_app_limited_until)
 		rsm->r_app_limited = 1;
@@ -5556,7 +5556,7 @@ static uint64_t
 bbr_get_hardware_rate(struct tcp_bbr *bbr)
 {
 	uint64_t bw;
-	
+
 	bw = bbr_get_bw(bbr);
 	bw *= (uint64_t)bbr_hptsi_gain[BBR_SUB_GAIN];
 	bw /= (uint64_t)BBR_UNIT;
@@ -5592,7 +5592,7 @@ bbr_update_hardware_pacing_rate(struct tcp_bbr *bbr, uint32_t cts)
 {
 	const struct tcp_hwrate_limit_table *nrte;
 	int error, rate = -1;
-	
+
 	if (bbr->r_ctl.crte == NULL)
 		return;
 	if ((bbr->rc_inp->inp_route.ro_rt == NULL) ||
@@ -5702,12 +5702,12 @@ bbr_adjust_for_hw_pacing(struct tcp_bbr *bbr, uint32_t cts)
 		 * time between each segment the
 		 * hardware sends rounding up and
 		 * derive a bytes from that. We multiply
-		 * that by bbr_hdwr_pace_adjust to get 
+		 * that by bbr_hdwr_pace_adjust to get
 		 * more bang for our buck.
 		 *
 		 * The goal is to have the software pacer
 		 * waiting no more than an additional
-		 * pacing delay if we can (without the 
+		 * pacing delay if we can (without the
 		 * compensation i.e. x bbr_hdwr_pace_adjust).
 		 */
 		seg_sz = max(((cur_delay + rlp->time_between)/rlp->time_between),
@@ -5724,12 +5724,12 @@ bbr_adjust_for_hw_pacing(struct tcp_bbr *bbr, uint32_t cts)
 		}
 		seg_sz *= maxseg;
 	} else if (delta == 0) {
-		/* 
+		/*
 		 * The highest pacing rate is
 		 * above our b/w gained. This means
 		 * we probably are going quite fast at
 		 * the hardware highest rate. Lets just multiply
-		 * the calculated TSO size by the 
+		 * the calculated TSO size by the
 		 * multiplier factor (its probably
 		 * 4 segments in the default config for
 		 * mlx).
@@ -5764,7 +5764,7 @@ bbr_adjust_for_hw_pacing(struct tcp_bbr *bbr, uint32_t cts)
 		new_tso = bbr->r_ctl.rc_pace_max_segs;
 	if (new_tso >= (PACE_MAX_IP_BYTES-maxseg))
 		new_tso = PACE_MAX_IP_BYTES - maxseg;
-	
+
 	if (new_tso != bbr->r_ctl.rc_pace_max_segs) {
 		bbr_log_type_tsosize(bbr, cts, new_tso, 0, bbr->r_ctl.rc_pace_max_segs, maxseg, 0);
 		bbr->r_ctl.rc_pace_max_segs = new_tso;
@@ -5778,7 +5778,7 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 	uint32_t old_tso = 0, new_tso;
 	uint32_t maxseg, bytes;
 	uint32_t tls_seg=0;
-	/* 
+	/*
 	 * Google/linux uses the following algorithm to determine
 	 * the TSO size based on the b/w of the link (from Neal Cardwell email 9/27/18):
 	 *
@@ -5791,7 +5791,7 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 	 *	min_tso_segs = 2
 	 * tso_segs = max(tso_segs, min_tso_segs)
 	 *
-	 * * Note apply a device specific limit (we apply this in the 
+	 * * Note apply a device specific limit (we apply this in the
 	 *   tcp_m_copym).
 	 * Note that before the initial measurement is made google bursts out
 	 * a full iwnd just like new-reno/cubic.
@@ -5824,7 +5824,7 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 	 * Note the default per-tcb-divisor is 1000 (same as google).
 	 * the goal cross over is 30Mbps however. To recreate googles
 	 * algorithm you need to set:
-	 * 
+	 *
 	 * cross-over = 23,168,000 bps
 	 * goal-time = 18000
 	 * per-tcb-max = 2
@@ -5856,7 +5856,7 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 		/*
 		 * Not enough data has been acknowledged to make a
 		 * judgement unless we are hardware TLS. Set up
-		 * the inital TSO based on if we are sending a
+		 * the initial TSO based on if we are sending a
 		 * full IW at once or not.
 		 */
 		if (bbr->rc_use_google)
@@ -5898,7 +5898,7 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 		new_tso = maxseg;
 	} else if (bbr->rc_use_google) {
 		int min_tso_segs;
-		
+
 		/* Google considers the gain too */
 		if (bbr->r_ctl.rc_bbr_hptsi_gain != BBR_UNIT) {
 			bw *= bbr->r_ctl.rc_bbr_hptsi_gain;
@@ -5984,7 +5984,7 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 		}
 #ifdef KERN_TLS
 	if (tls_seg) {
-		/* 
+		/*
 		 * Lets move the output size
 		 * up to 1 or more TLS record sizes.
 		 */
@@ -6116,7 +6116,7 @@ again:
 		rsm->r_first_sent_time = bbr_get_earliest_send_outstanding(bbr, rsm, cts);
 		rsm->r_flight_at_send = ctf_flight_size(bbr->rc_tp,
 						(bbr->r_ctl.rc_sacked + bbr->r_ctl.rc_lost_bytes));
-		/* 
+		/*
 		 * Here we must also add in this rsm since snd_max
 		 * is updated after we return from a new send.
 		 */
@@ -6274,7 +6274,7 @@ bbr_make_timestamp_determination(struct tcp_bbr *bbr)
 	 * And the peer's time between receiving them by doing:
 	 *
 	 * peer_delta = bbr->r_ctl.last_inbound_ts - bbr->r_ctl.bbr_ts_check_tstmp
-	 * 
+	 *
 	 * We want to figure out if the timestamp values are in msec, 10msec or usec.
 	 * We also may find that we can't use the timestamps if say we see
 	 * that the peer_delta indicates that though we may have taken 10ms to
@@ -6290,11 +6290,11 @@ bbr_make_timestamp_determination(struct tcp_bbr *bbr)
 	 * put a 1 there. If the value is faster then ours, we will disable the
 	 * use of timestamps (though we could revist this later if we find it to be not
 	 * just an isolated one or two flows)).
-	 * 
+	 *
 	 * To detect the batching middle boxes we will come up with our compensation and
 	 * if with it in place, we find the peer is drastically off (by some margin) in
 	 * the smaller direction, then we will assume the worst case and disable use of timestamps.
-	 * 
+	 *
 	 */
 	uint64_t delta, peer_delta, delta_up;
 
@@ -6327,7 +6327,7 @@ bbr_make_timestamp_determination(struct tcp_bbr *bbr)
 		/* Very unlikely, the peer without
 		 * compensation shows that it saw
 		 * the two sends arrive further apart
-		 * then we saw then in micro-seconds. 
+		 * then we saw then in micro-seconds.
 		 */
 		if (peer_delta < (delta + ((delta * (uint64_t)1000)/ (uint64_t)bbr_delta_percent))) {
 			/* well it looks like the peer is a micro-second clock. */
@@ -6352,7 +6352,7 @@ bbr_make_timestamp_determination(struct tcp_bbr *bbr)
 	/* Ok if not usec, what about 10usec (though unlikely)? */
 	delta_up = (peer_delta * 1000 * 10) / (uint64_t)bbr_delta_percent;
 	if (((peer_delta * 10) + delta_up) >= delta) {
-		bbr->r_ctl.bbr_peer_tsratio = 10; 
+		bbr->r_ctl.bbr_peer_tsratio = 10;
 		bbr_log_tstmp_validation(bbr, peer_delta, delta);
 		return;
 	}
@@ -6401,7 +6401,7 @@ tcp_bbr_xmit_timer_commit(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts)
 	rtt = bbr->r_ctl.cur_rtt;
 	tsin = bbr->r_ctl.ts_in;
 	if (bbr->rc_prtt_set_ts) {
-		/* 
+		/*
 		 * We are to force feed the rttProp filter due
 		 * to an entry into PROBE_RTT. This assures
 		 * that the times are sync'd between when we
@@ -6413,13 +6413,13 @@ tcp_bbr_xmit_timer_commit(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts)
 		 * value to the newest rtt.
 		 */
 		uint32_t rtt_prop;
-		
+
 		bbr->rc_prtt_set_ts = 0;
 		rtt_prop = get_filter_value_small(&bbr->r_ctl.rc_rttprop);
 		if (rtt > rtt_prop)
 			filter_increase_by_small(&bbr->r_ctl.rc_rttprop, (rtt - rtt_prop), cts);
 		else
-			apply_filter_min_small(&bbr->r_ctl.rc_rttprop, rtt, cts);	
+			apply_filter_min_small(&bbr->r_ctl.rc_rttprop, rtt, cts);
 	}
 	if (bbr->rc_ack_was_delayed)
 		rtt += bbr->r_ctl.rc_ack_hdwr_delay;
@@ -6453,8 +6453,8 @@ tcp_bbr_xmit_timer_commit(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts)
 				bbr->r_ctl.bbr_ts_check_our_cts = bbr->r_ctl.cur_rtt_send_time;
 			}
 		} else {
-			/* 
-			 * We have to have consecutive acks 
+			/*
+			 * We have to have consecutive acks
 			 * reset any "filled" state to none.
 			 */
 			bbr->rc_ts_data_set = 0;
@@ -6573,7 +6573,7 @@ bbr_earlier_retran(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap *rs
 		 */
 		return;
 	}
-		
+
 	if (rsm->r_flags & BBR_WAS_SACKPASS) {
 		/*
 		 * We retransmitted based on a sack and the earlier
@@ -6586,7 +6586,7 @@ bbr_earlier_retran(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap *rs
 	if (rsm->r_flags & BBR_MARKED_LOST) {
 		bbr->r_ctl.rc_lost -= rsm->r_end - rsm->r_start;
 		bbr->r_ctl.rc_lost_bytes -= rsm->r_end - rsm->r_start;
-		rsm->r_flags &= ~BBR_MARKED_LOST;		
+		rsm->r_flags &= ~BBR_MARKED_LOST;
 		if (SEQ_GT(bbr->r_ctl.rc_lt_lost, bbr->r_ctl.rc_lost))
 			/* LT sampling also needs adjustment */
 			bbr->r_ctl.rc_lt_lost = bbr->r_ctl.rc_lost;
@@ -6607,8 +6607,8 @@ bbr_set_reduced_rtt(struct tcp_bbr *bbr, uint32_t cts, uint32_t line)
 	if (bbr_can_force_probertt &&
 	    (TSTMP_GT(cts, bbr->r_ctl.last_in_probertt)) &&
 	    ((cts - bbr->r_ctl.last_in_probertt) > bbr->r_ctl.rc_probertt_int)) {
-		/* 
-		 * We should enter probe-rtt its been too long 
+		/*
+		 * We should enter probe-rtt its been too long
 		 * since we have been there.
 		 */
 		bbr_enter_probe_rtt(bbr, cts, __LINE__);
@@ -6666,7 +6666,7 @@ bbr_nf_measurement(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rtt, u
 			tim = (uint64_t)(bbr->r_ctl.rc_del_time - rsm->r_del_time);
 		else
 			tim = 1;
-		/* 
+		/*
 		 * Now that we have processed the tim (skipping the sample
 		 * or possibly updating the time, go ahead and
 		 * calculate the cdr.
@@ -6681,7 +6681,7 @@ bbr_nf_measurement(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rtt, u
 		}
 		upper = (bw >> 32) & 0x00000000ffffffff;
 		lower = bw & 0x00000000ffffffff;
-		/* 
+		/*
 		 * If we are using this b/w shove it in now so we
 		 * can see in the trace viewer if it gets over-ridden.
 		 */
@@ -6783,7 +6783,7 @@ bbr_google_measurement(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rt
 			tim = (uint64_t)(bbr->r_ctl.rc_del_time - rsm->r_del_time);
 		else
 			tim = 1;
-		/* 
+		/*
 		 * Now that we have processed the tim (skipping the sample
 		 * or possibly updating the time, go ahead and
 		 * calculate the cdr.
@@ -6800,7 +6800,7 @@ bbr_google_measurement(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rt
 		}
 		upper = (bw >> 32) & 0x00000000ffffffff;
 		lower = bw & 0x00000000ffffffff;
-		/* 
+		/*
 		 * If we are using this b/w shove it in now so we
 		 * can see in the trace viewer if it gets over-ridden.
 		 */
@@ -6900,7 +6900,7 @@ bbr_update_bbr_info(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rtt, 
 	else
 		bbr->rc_ack_is_cumack = 0;
 	old_rttprop = bbr_get_rtt(bbr, BBR_RTT_PROP);
-        /* 
+        /*
 	 * Note the following code differs to the original
 	 * BBR spec. It calls for <= not <. However after a
 	 * long discussion in email with Neal, he acknowledged
@@ -6932,7 +6932,7 @@ bbr_update_bbr_info(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rtt, 
 	}
 	if ((bbr->rc_use_google == 0) &&
 	    (match == BBR_RTT_BY_TIMESTAMP)) {
-		/* 
+		/*
 		 * We don't do b/w update with
 		 * these since they are not really
 		 * reliable.
@@ -7137,7 +7137,7 @@ bbr_log_sack_passed(struct tcpcb *tp,
 			continue;
 		}
 		if (nrsm->r_flags & BBR_SACK_PASSED) {
-			/* 
+			/*
 			 * We found one that is already marked
 			 * passed, we have been here before and
 			 * so all others below this are marked.
@@ -7240,7 +7240,7 @@ do_rest_ofb:
 		/*
 		 * Need to split this in two pieces the before and after.
 		 */
-		if (bbr_sack_mergable(rsm, start, end)) 
+		if (bbr_sack_mergable(rsm, start, end))
 			nrsm = bbr_alloc_full_limit(bbr);
 		else
 			nrsm = bbr_alloc_limit(bbr, BBR_LIMIT_TYPE_SPLIT);
@@ -7310,7 +7310,7 @@ do_rest_ofb:
 		goto out;
 	}
 	/* Ok we need to split off this one at the tail */
-	if (bbr_sack_mergable(rsm, start, end)) 
+	if (bbr_sack_mergable(rsm, start, end))
 		nrsm = bbr_alloc_full_limit(bbr);
 	else
 		nrsm = bbr_alloc_limit(bbr, BBR_LIMIT_TYPE_SPLIT);
@@ -7360,7 +7360,7 @@ do_rest_ofb:
 	}
 out:
 	if (rsm && (rsm->r_flags & BBR_ACKED)) {
-		/* 
+		/*
 		 * Now can we merge this newly acked
 		 * block with either the previous or
 		 * next block?
@@ -7462,7 +7462,7 @@ bbr_log_syn(struct tcpcb *tp, struct tcpopt *to)
 	struct tcp_bbr *bbr;
 	struct bbr_sendmap *rsm;
 	uint32_t cts;
-	
+
 	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 	cts = bbr->r_ctl.rc_rcvtime;
 	rsm = TAILQ_FIRST(&bbr->r_ctl.rc_map);
@@ -7526,7 +7526,7 @@ bbr_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th,
 		acked = th_ack - tp->snd_una;
 		bbr_log_progress_event(bbr, tp, ticks, PROGRESS_UPDATE, __LINE__);
 		bbr->rc_tp->t_acktime = ticks;
-	} else 
+	} else
 		acked = 0;
 	if (SEQ_LEQ(th_ack, tp->snd_una)) {
 		/* Only sent here for sack processing */
@@ -7601,7 +7601,7 @@ more:
 		/* None here to ack */
 		goto proc_sack;
 	}
-	/* 
+	/*
 	 * Clear the dup ack counter, it will
 	 * either be freed or if there is some
 	 * remaining we need to start it at zero.
@@ -7686,8 +7686,8 @@ more:
 	}
 	if ((rsm->r_flags & BBR_MARKED_LOST) &&
 	    ((rsm->r_flags & BBR_ACKED) == 0)) {
-		/* 
-		 * It was marked lost and partly ack'd now 
+		/*
+		 * It was marked lost and partly ack'd now
 		 * for the first time. We lower the rc_lost_bytes
 		 * and still leave it MARKED.
 		 */
@@ -8030,7 +8030,7 @@ nothing_left:
 		}
 		sack_filter_clear(&bbr->r_ctl.bbr_sf, tp->snd_una);
 		bbr_log_ack_clear(bbr, bbr->r_ctl.rc_rcvtime);
-		/* 
+		/*
 		 * We invalidate the last ack here since we
 		 * don't want to transfer forward the time
 		 * for our sum's calculations.
@@ -8092,11 +8092,11 @@ bbr_restart_after_idle(struct tcp_bbr *bbr, uint32_t cts, uint32_t idle_time)
 	 * Note that if idle time does not exceed our
 	 * threshold, we do nothing continuing the state
 	 * transitions we were last walking through.
-	 */ 
+	 */
 	if (idle_time >= bbr_idle_restart_threshold) {
 		if (bbr->rc_use_idle_restart) {
 			bbr->rc_bbr_state = BBR_STATE_IDLE_EXIT;
-			/* 
+			/*
 			 * Set our target using BBR_UNIT, so
 			 * we increase at a dramatic rate but
 			 * we stop when we get the pipe
@@ -8127,7 +8127,7 @@ bbr_exit_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts, int32_t li
 	bbr->rc_hit_state_1 = 0;
 	tp->t_flags &= ~TF_FORCEDATA;
 	bbr->r_ctl.rc_del_time = cts;
-	/* 
+	/*
 	 * We invalidate the last ack here since we
 	 * don't want to transfer forward the time
 	 * for our sum's calculations.
@@ -8167,7 +8167,7 @@ bbr_exit_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts, int32_t li
 	bbr->r_ctl.rc_bbr_state_time = cts;
 	if ((bbr->rc_bbr_state == BBR_STATE_PROBE_BW) ||
 	    (bbr->rc_bbr_state == BBR_STATE_PROBE_RTT)) {
-		/* 
+		/*
 		 * If we are going back to probe-bw
 		 * or probe_rtt, we may need to possibly
 		 * do a fast restart.
@@ -8181,7 +8181,7 @@ bbr_collapsed_window(struct tcp_bbr *bbr)
 {
 	/*
 	 * Now we must walk the
-	 * send map and divide the 
+	 * send map and divide the
 	 * ones left stranded. These
 	 * guys can't cause us to abort
 	 * the connection and are really
@@ -8192,7 +8192,7 @@ bbr_collapsed_window(struct tcp_bbr *bbr)
 	 * the win and acked that data. We would
 	 * get into an ack war, the simplier
 	 * method then of just pretending we
-	 * did not send those segments something 
+	 * did not send those segments something
 	 * won't work.
 	 */
 	struct bbr_sendmap *rsm, *nrsm;
@@ -8219,8 +8219,8 @@ bbr_collapsed_window(struct tcp_bbr *bbr)
 		/* Nothing to do strange */
 		return;
 	}
-	/* 
-	 * Now can we split? 
+	/*
+	 * Now can we split?
 	 *
 	 * We don't want to split if splitting
 	 * would generate too many small segments
@@ -8271,7 +8271,7 @@ bbr_collapsed_window(struct tcp_bbr *bbr)
 			nrsm->r_in_tmap = 1;
 		}
 	} else {
-		/* 
+		/*
 		 * Split not allowed just start here just
 		 * use this guy.
 		 */
@@ -8294,7 +8294,7 @@ bbr_un_collapse_window(struct tcp_bbr *bbr)
 {
 	struct bbr_sendmap *rsm;
 	int cleared = 0;
-	
+
 	TAILQ_FOREACH_REVERSE(rsm, &bbr->r_ctl.rc_map, bbr_head, r_next) {
 		if (rsm->r_flags & BBR_RWND_COLLAPSED) {
 			/* Clear the flag */
@@ -8843,7 +8843,7 @@ bbr_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/* Ok if we reach here, we can process a fast-ack */
 	nsegs = max(1, m->m_pkthdr.lro_nsegs);
 	sack_changed = bbr_log_ack(tp, to, th, &prev_acked);
-	/* 
+	/*
 	 * We never detect loss in fast ack [we can't
 	 * have a sack and can't be in recovery so
 	 * we always pass 0 (nothing detected)].
@@ -8959,7 +8959,7 @@ bbr_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		}
 		sack_filter_clear(&bbr->r_ctl.bbr_sf, tp->snd_una);
 		bbr_log_ack_clear(bbr, bbr->r_ctl.rc_rcvtime);
-		/* 
+		/*
 		 * We invalidate the last ack here since we
 		 * don't want to transfer forward the time
 		 * for our sum's calculations.
@@ -9060,19 +9060,19 @@ bbr_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_flags |= TF_ACKNOW;
 		}
 		if (SEQ_GT(th->th_ack, tp->iss)) {
-			/* 
+			/*
 			 * The SYN is acked
 			 * handle it specially.
 			 */
 			bbr_log_syn(tp, to);
 		}
 		if (SEQ_GT(th->th_ack, tp->snd_una)) {
-			/* 
-			 * We advance snd_una for the 
+			/*
+			 * We advance snd_una for the
 			 * fast open case. If th_ack is
-			 * acknowledging data beyond 
+			 * acknowledging data beyond
 			 * snd_una we can't just call
-			 * ack-processing since the 
+			 * ack-processing since the
 			 * data stream in our send-map
 			 * will start at snd_una + 1 (one
 			 * beyond the SYN). If its just
@@ -9133,7 +9133,7 @@ bbr_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (thflags & TH_ACK) {
 		if ((to->to_flags & TOF_TS) != 0) {
 			uint32_t t, rtt;
-			
+
 			t = tcp_tv_to_mssectick(&bbr->rc_tv);
 			if (TSTMP_GEQ(t, to->to_tsecr)) {
 				rtt = t - to->to_tsecr;
@@ -9316,7 +9316,7 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (thflags & TH_ACK)
 		bbr_log_syn(tp, to);
 	if (IS_FASTOPEN(tp->t_flags) && tp->t_tfo_pending) {
-		
+
 		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 		tp->t_tfo_pending = NULL;
 		/*
@@ -10260,7 +10260,7 @@ bbr_init(struct tcpcb *tp)
 		bbr->rc_use_ts_limit = 1;
 	else
 		bbr->rc_use_ts_limit = 0;
-	if (bbr_ts_can_raise) 
+	if (bbr_ts_can_raise)
 		bbr->ts_can_raise = 1;
 	else
 		bbr->ts_can_raise = 0;
@@ -10531,7 +10531,7 @@ bbr_substate_change(struct tcp_bbr *bbr, uint32_t cts, int32_t line, int dolog)
 	 */
 	int32_t old_state, old_gain;
 
-	
+
 	old_state = bbr_state_val(bbr);
 	old_gain = bbr->r_ctl.rc_bbr_hptsi_gain;
 	if (bbr_state_val(bbr) == BBR_SUB_LEVEL1) {
@@ -10551,7 +10551,7 @@ bbr_substate_change(struct tcp_bbr *bbr, uint32_t cts, int32_t line, int dolog)
 		 * shallow buffer detection is enabled)
 		 */
 		if (bbr->skip_gain) {
-			/* 
+			/*
 			 * Hardware pacing has set our rate to
 			 * the max and limited our b/w just
 			 * do level i.e. no gain.
@@ -10560,7 +10560,7 @@ bbr_substate_change(struct tcp_bbr *bbr, uint32_t cts, int32_t line, int dolog)
 		} else if (bbr->gain_is_limited &&
 			   bbr->bbr_hdrw_pacing &&
 			   bbr->r_ctl.crte) {
-			/* 
+			/*
 			 * We can't gain above the hardware pacing
 			 * rate which is less than our rate + the gain
 			 * calculate the gain needed to reach the hardware
@@ -10583,7 +10583,7 @@ bbr_substate_change(struct tcp_bbr *bbr, uint32_t cts, int32_t line, int dolog)
 			bbr->r_ctl.rc_bbr_hptsi_gain = bbr_hptsi_gain[BBR_SUB_GAIN];
 		if ((bbr->rc_use_google == 0) && (bbr_gain_to_target == 0)) {
 			bbr->r_ctl.rc_bbr_state_atflight = cts;
-		} else 
+		} else
 			bbr->r_ctl.rc_bbr_state_atflight = 0;
 	} else if (bbr_state_val(bbr) == BBR_SUB_DRAIN) {
 		bbr->rc_hit_state_1 = 1;
@@ -10682,14 +10682,14 @@ bbr_set_probebw_google_gains(struct tcp_bbr *bbr, uint32_t cts, uint32_t losses)
 		return;
 	}
 	if ((cts - bbr->r_ctl.rc_bbr_state_time) < bbr_get_rtt(bbr, BBR_RTT_PROP)) {
-		/* 
+		/*
 		 * Must be a rttProp movement forward before
 		 * we can change states.
 		 */
 		return;
 	}
 	if (bbr_state_val(bbr) == BBR_SUB_GAIN) {
-		/* 
+		/*
 		 * The needed time has passed but for
 		 * the gain cycle extra rules apply:
 		 * 1) If we have seen loss, we exit
@@ -10711,13 +10711,13 @@ static void
 bbr_set_probebw_gains(struct tcp_bbr *bbr, uint32_t cts, uint32_t losses)
 {
 	uint32_t flight, bbr_cur_cycle_time;
-	
+
 	if (bbr->rc_use_google) {
 		bbr_set_probebw_google_gains(bbr, cts, losses);
 		return;
 	}
 	if (cts == 0) {
-		/* 
+		/*
 		 * Never alow cts to be 0 we
 		 * do this so we can judge if
 		 * we have set a timestamp.
@@ -10728,13 +10728,13 @@ bbr_set_probebw_gains(struct tcp_bbr *bbr, uint32_t cts, uint32_t losses)
 		bbr_cur_cycle_time = bbr_get_rtt(bbr, BBR_RTT_PKTRTT);
 	else
 		bbr_cur_cycle_time = bbr_get_rtt(bbr, BBR_RTT_PROP);
-	
+
 	if (bbr->r_ctl.rc_bbr_state_atflight == 0) {
 		if (bbr_state_val(bbr) == BBR_SUB_DRAIN) {
 			flight = ctf_flight_size(bbr->rc_tp,
 				     (bbr->r_ctl.rc_sacked + bbr->r_ctl.rc_lost_bytes));
 			if (bbr_sub_drain_slam_cwnd && bbr->rc_hit_state_1) {
-				/* Keep it slam down */ 
+				/* Keep it slam down */
 				if (bbr->rc_tp->snd_cwnd > bbr->r_ctl.rc_target_at_state) {
 					bbr->rc_tp->snd_cwnd = bbr->r_ctl.rc_target_at_state;
 					bbr_log_type_cwndupd(bbr, 0, 0, 0, 12, 0, 0, __LINE__);
@@ -10802,11 +10802,11 @@ bbr_set_probebw_gains(struct tcp_bbr *bbr, uint32_t cts, uint32_t losses)
 		}
 		/**
 		 * We fall through and return always one of two things has
-		 * occured. 
-		 * 1) We are still not at target 
-		 *    <or> 
-		 * 2) We reached the target and set rc_bbr_state_atflight 
-		 *    which means we no longer hit this block 
+		 * occured.
+		 * 1) We are still not at target
+		 *    <or>
+		 * 2) We reached the target and set rc_bbr_state_atflight
+		 *    which means we no longer hit this block
 		 *    next time we are called.
 		 */
 		return;
@@ -10861,7 +10861,7 @@ static void
 bbr_set_state_target(struct tcp_bbr *bbr, int line)
 {
 	uint32_t tar, meth;
-	
+
 	if ((bbr->rc_bbr_state == BBR_STATE_PROBE_RTT) &&
 	    ((bbr->r_ctl.bbr_rttprobe_gain_val == 0) || bbr->rc_use_google)) {
 		/* Special case using old probe-rtt method */
@@ -10875,15 +10875,15 @@ bbr_set_state_target(struct tcp_bbr *bbr, int line)
 			tar = bbr_get_a_state_target(bbr, bbr->r_ctl.rc_bbr_hptsi_gain);
 			meth = 2;
 		} else if ((bbr_target_is_bbunit) || bbr->rc_use_google) {
-			/* 
+			/*
 			 * If configured, or for google all other states
 			 * get BBR_UNIT.
 			 */
 			tar = bbr_get_a_state_target(bbr, BBR_UNIT);
 			meth = 3;
 		} else {
-			/* 
-			 * Or we set a target based on the pacing gain 
+			/*
+			 * Or we set a target based on the pacing gain
 			 * for non-google mode and default (non-configured).
 			 * Note we don't set a target goal below drain (192).
 			 */
@@ -10925,14 +10925,14 @@ bbr_enter_probe_rtt(struct tcp_bbr *bbr, uint32_t cts, int32_t line)
 	bbr->r_ctl.rc_bbr_state_time = cts;
 	bbr->rc_bbr_state = BBR_STATE_PROBE_RTT;
 	/* We need to force the filter to update */
-	
+
 	if ((bbr_sub_drain_slam_cwnd) &&
 	    bbr->rc_hit_state_1 &&
 	    (bbr->rc_use_google == 0) &&
 	    (bbr_state_val(bbr) == BBR_SUB_DRAIN)) {
 		if (bbr->rc_tp->snd_cwnd > bbr->r_ctl.rc_saved_cwnd)
 			bbr->r_ctl.rc_saved_cwnd = bbr->rc_tp->snd_cwnd;
-	} else 
+	} else
 		bbr->r_ctl.rc_saved_cwnd = bbr->rc_tp->snd_cwnd;
 	/* Update the lost */
 	bbr->r_ctl.rc_lost_at_startup = bbr->r_ctl.rc_lost;
@@ -10977,7 +10977,7 @@ bbr_enter_probe_rtt(struct tcp_bbr *bbr, uint32_t cts, int32_t line)
 static void
 bbr_check_probe_rtt_limits(struct tcp_bbr *bbr, uint32_t cts)
 {
-	/* 
+	/*
 	 * Sanity check on probe-rtt intervals.
 	 * In crazy situations where we are competing
 	 * against new-reno flows with huge buffers
@@ -10995,7 +10995,7 @@ bbr_check_probe_rtt_limits(struct tcp_bbr *bbr, uint32_t cts)
 		cur_rttp = roundup(baseval, USECS_IN_SECOND);
 		fval = bbr_filter_len_sec * USECS_IN_SECOND;
 		if (bbr_is_ratio == 0) {
-			if (fval > bbr_rtt_probe_limit) 
+			if (fval > bbr_rtt_probe_limit)
 				newval = cur_rttp + (fval - bbr_rtt_probe_limit);
 			else
 				newval = cur_rttp;
@@ -11010,15 +11010,15 @@ bbr_check_probe_rtt_limits(struct tcp_bbr *bbr, uint32_t cts)
 			reset_time_small(&bbr->r_ctl.rc_rttprop, newval);
 			val = 1;
 		} else {
-			/* 
+			/*
 			 * No adjustments were made
 			 * do we need to shrink it?
 			 */
 			if (bbr->r_ctl.rc_probertt_int > bbr_rtt_probe_limit) {
 				if (cur_rttp <= bbr_rtt_probe_limit) {
-					/* 
-					 * Things have calmed down lets 
-					 * shrink all the way to default 
+					/*
+					 * Things have calmed down lets
+					 * shrink all the way to default
 					 */
 					bbr->r_ctl.rc_probertt_int = bbr_rtt_probe_limit;
 					reset_time_small(&bbr->r_ctl.rc_rttprop,
@@ -11079,8 +11079,8 @@ bbr_exit_probe_rtt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 		/* Back to startup */
 		bbr->rc_bbr_state = BBR_STATE_STARTUP;
 		bbr->r_ctl.rc_bbr_state_time = cts;
-		/* 
-		 * We don't want to give a complete free 3 
+		/*
+		 * We don't want to give a complete free 3
 		 * measurements until we exit, so we use
 		 * the number of pe's we were in probe-rtt
 		 * to add to the startup_epoch. That way
@@ -11123,7 +11123,7 @@ bbr_should_enter_probe_rtt(struct tcp_bbr *bbr, uint32_t cts)
 }
 
 
-static int32_t 
+static int32_t
 bbr_google_startup(struct tcp_bbr *bbr, uint32_t cts, int32_t  pkt_epoch)
 {
 	uint64_t btlbw, gain;
@@ -11223,7 +11223,7 @@ bbr_state_startup(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_
 		/*
 		 * We only assess if we have a new measurment when
 		 * we have no loss and are not in recovery.
-		 * Drag up by one our last_startup epoch so we will hold 
+		 * Drag up by one our last_startup epoch so we will hold
 		 * the number of non-gain we have already accumulated.
 		 */
 		if (bbr->r_ctl.rc_bbr_last_startup_epoch < bbr->r_ctl.rc_pkt_epoch)
@@ -11329,7 +11329,7 @@ bbr_state_change(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_e
 			if ((bbr->rc_use_google == 0) &&
 			    bbr_slam_cwnd_in_main_drain) {
 				/* Here we don't have to worry about probe-rtt */
-				bbr->r_ctl.rc_saved_cwnd = bbr->rc_tp->snd_cwnd;				
+				bbr->r_ctl.rc_saved_cwnd = bbr->rc_tp->snd_cwnd;
 				bbr->rc_tp->snd_cwnd = bbr->r_ctl.rc_target_at_state;
 				bbr_log_type_cwndupd(bbr, 0, 0, 0, 12, 0, 0, __LINE__);
 			}
@@ -11361,7 +11361,7 @@ bbr_state_change(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_e
 			bbr->r_ctl.rc_bbr_hptsi_gain = BBR_UNIT;
 			bbr->r_ctl.rc_bbr_cwnd_gain = BBR_UNIT;
 			bbr_set_state_target(bbr, __LINE__);
-			/* 
+			/*
 			 * Rig it so we don't do anything crazy and
 			 * start fresh with a new randomization.
 			 */
@@ -11380,8 +11380,8 @@ bbr_state_change(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_e
 		if ((bbr->rc_use_google == 0) &&
 		    bbr_slam_cwnd_in_main_drain &&
 		    (bbr->rc_tp->snd_cwnd > bbr->r_ctl.rc_target_at_state)) {
-			/* 
-			 * Here we don't have to worry about probe-rtt 
+			/*
+			 * Here we don't have to worry about probe-rtt
 			 * re-slam it, but keep it slammed down.
 			 */
 			bbr->rc_tp->snd_cwnd = bbr->r_ctl.rc_target_at_state;
@@ -11426,7 +11426,7 @@ bbr_state_change(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_e
 			 */
 			bbr->rc_tp->snd_cwnd = bbr_rtt_probe_cwndtarg * (bbr->rc_tp->t_maxseg - bbr->rc_last_options);
 			bbr_log_type_cwndupd(bbr, 0, 0, 0, 12, 0, 0, __LINE__);
-		} else if ((bbr_prtt_slam_cwnd) && 
+		} else if ((bbr_prtt_slam_cwnd) &&
 			   (bbr->rc_tp->snd_cwnd > bbr->r_ctl.rc_target_at_state)) {
 			/* Re-slam it */
 			bbr->rc_tp->snd_cwnd = bbr->r_ctl.rc_target_at_state;
@@ -11577,7 +11577,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (m->m_flags & M_TSTMP) {
 		/* Prefer the hardware timestamp if present */
 		struct timespec ts;
-		
+
 		mbuf_tstmp2timespec(m, &ts);
 		bbr->rc_tv.tv_sec = ts.tv_sec;
 		bbr->rc_tv.tv_usec = ts.tv_nsec / 1000;
@@ -11591,7 +11591,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		bbr->rc_tv.tv_usec = ts.tv_nsec / 1000;
 		bbr->r_ctl.rc_rcvtime = cts = tcp_tv_to_usectick(&bbr->rc_tv);
 	} else {
-		/* 
+		/*
 		 * Ok just get the current time.
 		 */
 		bbr->r_ctl.rc_rcvtime = lcts = cts = tcp_get_usecs(&bbr->rc_tv);
@@ -11709,7 +11709,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			bbr->r_ctl.rc_ack_hdwr_delay = lcts - cts;
 			bbr->rc_ack_was_delayed = 1;
 			if (TSTMP_GT(bbr->r_ctl.rc_ack_hdwr_delay,
-				     bbr->r_ctl.highest_hdwr_delay)) 
+				     bbr->r_ctl.highest_hdwr_delay))
 				bbr->r_ctl.highest_hdwr_delay = bbr->r_ctl.rc_ack_hdwr_delay;
 		} else {
 			bbr->r_ctl.rc_ack_hdwr_delay = 0;
@@ -11881,7 +11881,7 @@ bbr_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 {
 	struct timeval tv;
 	int retval;
-	
+
 	/* First lets see if we have old packets */
 	if (tp->t_in_pkt) {
 		if (ctf_do_queued_segments(so, tp, 1)) {
@@ -12274,12 +12274,12 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 			/* Setup the delay which will be added in */
 			delay_calc -= bbr->r_ctl.rc_last_delay_val;
 		else {
-			/* 
-			 * We are early setup to adjust 
+			/*
+			 * We are early setup to adjust
 			 * our slot time.
 			 */
 			uint64_t merged_val;
-			
+
 			bbr->r_ctl.rc_agg_early += (bbr->r_ctl.rc_last_delay_val - delay_calc);
 			bbr->r_agg_early_set = 1;
 			if (bbr->r_ctl.rc_hptsi_agg_delay) {
@@ -12325,7 +12325,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	if ((tp->snd_una == tp->snd_max) &&
 	    (bbr->rc_bbr_state != BBR_STATE_IDLE_EXIT) &&
 	    (sbavail(sb))) {
-		/* 
+		/*
 		 * Ok we have been idle with nothing outstanding
 		 * we possibly need to start fresh with either a new
 		 * suite of states or a fast-ramp up.
@@ -12361,7 +12361,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	if (IS_FASTOPEN(tp->t_flags) &&
 	    ((tp->t_state == TCPS_SYN_RECEIVED) ||
 	     (tp->t_state == TCPS_SYN_SENT)) &&
-	    SEQ_GT(tp->snd_max, tp->snd_una) &&	/* inital SYN or SYN|ACK sent */
+	    SEQ_GT(tp->snd_max, tp->snd_una) &&	/* initial SYN or SYN|ACK sent */
 	    (tp->t_rxtshift == 0)) {	/* not a retransmit */
 		return (0);
 	}
@@ -12515,8 +12515,8 @@ recheck_resend:
 		sb_offset = rsm->r_start - tp->snd_una;
 		BBR_STAT_INC(bbr_tlp_set);
 	}
-	/* 
-	 * Enforce a connection sendmap count limit if set 
+	/*
+	 * Enforce a connection sendmap count limit if set
 	 * as long as we are not retransmiting.
 	 */
 	if ((rsm == NULL) &&
@@ -12698,7 +12698,7 @@ recheck_resend:
 					 * to have something in the sb.
 					 */
 					len = 1;
-					sb_offset = 0;	
+					sb_offset = 0;
 					if (avail == 0)
 					    len = 0;
 				}
@@ -12795,7 +12795,7 @@ recheck_resend:
 	} else if ((rsm == NULL) &&
 		   (doing_tlp == 0) &&
 		   (len < bbr->r_ctl.rc_pace_max_segs)) {
-		/* 
+		/*
 		 * We are not sending a full segment for
 		 * some reason. Should we not send anything (think
 		 * sws or persists)?
@@ -12811,7 +12811,7 @@ recheck_resend:
 			 * lets not send, and possibly enter persists.
 			 */
 			len = 0;
-			if (tp->snd_max == tp->snd_una) 
+			if (tp->snd_max == tp->snd_una)
 				bbr_enter_persist(tp, bbr, cts, __LINE__);
 		} else if ((tp->snd_cwnd >= bbr->r_ctl.rc_pace_max_segs) &&
 			   (ctf_flight_size(tp, (bbr->r_ctl.rc_sacked +
@@ -12825,7 +12825,7 @@ recheck_resend:
 			 * not having gone off), We have 2 segments or
 			 * more already in flight, its not the tail end
 			 * of the socket buffer  and the cwnd is blocking
-			 * us from sending out minimum pacing segment size. 
+			 * us from sending out minimum pacing segment size.
 			 * Lets not send anything.
 			 */
 			bbr->rc_cwnd_limited = 1;
@@ -12836,10 +12836,10 @@ recheck_resend:
 						 bbr->r_ctl.rc_lost_bytes)) > (2 * maxseg)) &&
 			   (len < (int)(sbavail(sb) - sb_offset)) &&
 			   (TCPS_HAVEESTABLISHED(tp->t_state))) {
-			/* 
+			/*
 			 * Here we have a send window but we have
 			 * filled it up and we can't send another pacing segment.
-			 * We also have in flight more than 2 segments 
+			 * We also have in flight more than 2 segments
 			 * and we are not completing the sb i.e. we allow
 			 * the last bytes of the sb to go out even if
 			 * its not a full pacing segment.
@@ -12857,7 +12857,7 @@ recheck_resend:
 	    len &&
 	    (rsm == NULL) &&
 	    (len < min((bbr->r_ctl.rc_high_rwnd/2), bbr->r_ctl.rc_pace_max_segs))) {
-		/* 
+		/*
 		 * We are in persist, not doing a retransmit and don't have enough space
 		 * yet to send a full TSO. So is it at the end of the sb
 		 * if so we need to send else nuke to 0 and don't send.
@@ -13077,7 +13077,7 @@ just_return_nolock:
 		 */
 		bbr->r_ctl.r_app_limited_until = (ctf_flight_size(tp, (bbr->r_ctl.rc_sacked +
 								       bbr->r_ctl.rc_lost_bytes)) + bbr->r_ctl.rc_delivered);
-	} 
+	}
 	if (tot_len == 0)
 		counter_u64_add(bbr_out_size[TCP_MSS_ACCT_JUSTRET], 1);
 	tp->t_flags &= ~TF_FORCEDATA;
@@ -13518,8 +13518,8 @@ send:
 #endif
 				mb, moff, &len,
 				if_hw_tsomaxsegcount,
-				if_hw_tsomaxsegsize, msb, 
-				((rsm == NULL) ? hw_tls : 0) 
+				if_hw_tsomaxsegsize, msb,
+				((rsm == NULL) ? hw_tls : 0)
 #ifdef NETFLIX_COPY_ARGS
 				, &filled_all
 #endif
@@ -13896,7 +13896,7 @@ send:
 	/* Log to the black box */
 	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
 		union tcp_log_stackspecific log;
-		
+
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
 		/* Record info on type of transmission */
 		log.u_bbr.flex1 = bbr->r_ctl.rc_hptsi_agg_delay;
@@ -14043,7 +14043,7 @@ out:
 				if (doing_tlp) {
 					BBR_STAT_INC(bbr_miss_tlp);
 					bbr_log_type_hrdwtso(tp, bbr, len, 1, what_we_can);
-					
+
 
 				} else if (rsm) {
 					BBR_STAT_INC(bbr_miss_retran);
@@ -14175,8 +14175,8 @@ nomore:
 		/*
 		 * Failures do not advance the seq counter above. For the
 		 * case of ENOBUFS we will fall out and become ack-clocked.
-		 * capping the cwnd at the current flight. 
-		 * Everything else will just have to retransmit with the timer 
+		 * capping the cwnd at the current flight.
+		 * Everything else will just have to retransmit with the timer
 		 * (no pacer).
 		 */
 		SOCKBUF_UNLOCK_ASSERT(sb);
@@ -14310,7 +14310,7 @@ nomore:
 
 		rate_wanted = bbr_get_hardware_rate(bbr);
 		bbr->bbr_attempt_hdwr_pace = 1;
-		bbr->r_ctl.crte = tcp_set_pacing_rate(bbr->rc_tp, 
+		bbr->r_ctl.crte = tcp_set_pacing_rate(bbr->rc_tp,
 						      inp->inp_route.ro_rt->rt_ifp,
 						      rate_wanted,
 						      (RS_PACING_GEQ|RS_PACING_SUB_OK),
@@ -14357,9 +14357,9 @@ nomore:
 			bbr->bbr_hdrw_pacing = 0;
 		} else if ((inp->inp_route.ro_rt == NULL) ||
 		    (inp->inp_route.ro_rt->rt_ifp != inp->inp_snd_tag->ifp)) {
-			/* 
+			/*
 			 * We had an interface or route change,
-			 * detach from the current hdwr pacing 
+			 * detach from the current hdwr pacing
 			 * and setup to re-attempt next go
 			 * round.
 			 */
@@ -14432,8 +14432,8 @@ enobufs:
 			slot = 1000;
 	}
 	if (bbr->bbr_hdrw_pacing && (bbr->hw_pacing_set == 0)) {
-		/* 
-		 * We don't change the tso size until some number of sends 
+		/*
+		 * We don't change the tso size until some number of sends
 		 * to give the hardware commands time to get down
 		 * to the interface.
 		 */
@@ -14610,9 +14610,9 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
 			/* Turn on the google mode */
 			bbr_google_mode_on(bbr);
 			if ((optval > 3) && (optval < 500)) {
-				/* 
-				 * Must be at least greater than .3% 
-				 * and must be less than 50.0%. 
+				/*
+				 * Must be at least greater than .3%
+				 * and must be less than 50.0%.
 				 */
 				bbr->r_ctl.bbr_google_discount = optval;
 			}
@@ -14623,7 +14623,7 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
 		break;
 	case TCP_BBR_TSLIMITS:
 		BBR_OPTS_INC(tcp_bbr_tslimits);
-		if (optval == 1) 
+		if (optval == 1)
 			bbr->rc_use_ts_limit = 1;
 		else if (optval == 0)
 			bbr->rc_use_ts_limit = 0;
@@ -14753,7 +14753,7 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
 		break;
 	case TCP_BBR_FLOOR_MIN_TSO:
 		BBR_OPTS_INC(tcp_utter_max_tso);
-		if ((optval >= 0) && (optval < 40)) 
+		if ((optval >= 0) && (optval < 40))
 			bbr->r_ctl.bbr_hptsi_segments_floor = optval;
 		else
 			error = EINVAL;

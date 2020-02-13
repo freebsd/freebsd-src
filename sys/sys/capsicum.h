@@ -344,7 +344,7 @@ cap_rights_t *cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src);
 cap_rights_t *cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src);
 void __cap_rights_sysinit(void *arg);
 
-
+#ifdef _KERNEL
 /*
  * We only support one size to reduce branching.
  */
@@ -390,6 +390,9 @@ cap_check_inline_transient(const cap_rights_t *havep, const cap_rights_t *needp)
 		return (1);
         return (0);
 }
+#else
+bool cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little);
+#endif
 
 __END_DECLS
 struct cap_rights_init_args {

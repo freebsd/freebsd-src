@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2009
+.Dd February 12, 2020
 .Dt HME 4
 .Os
 .Sh NAME
@@ -50,6 +50,14 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 if_hme_load="YES"
 .Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
 .Sh DESCRIPTION
 The
 .Nm
@@ -97,29 +105,6 @@ Sun PCI Quad FastEthernet Controller
 Sun SBus Quad FastEthernet Controller
 .Pq Dq SUNW,qfe
 .El
-.Sh NOTES
-On sparc64 the
-.Nm
-driver respects the
-.Va local-mac-address?
-system configuration variable which can be set in the Open Firmware boot
-monitor using the
-.Ic setenv
-command or by
-.Xr eeprom 8 .
-If set to
-.Dq Li false
-(the default), the
-.Nm
-driver will use the system's default MAC address for all of its devices.
-If set to
-.Dq Li true ,
-the unique MAC address of each interface is used if present rather than
-the system's default MAC address.
-.Pp
-Supported interfaces having their own MAC address include on-board versions
-on boards equipped with more than one Ethernet interface and all add-on cards
-except the single-port SBus versions.
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr intro 4 ,

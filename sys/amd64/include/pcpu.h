@@ -240,6 +240,67 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 
 #define	IS_BSP()	(PCPU_GET(cpuid) == 0)
 
+#define zpcpu_offset_cpu(cpu)	((uintptr_t)&__pcpu[0] + UMA_PCPU_ALLOC_SIZE * cpu)
+#define zpcpu_base_to_offset(base) (void *)((uintptr_t)(base) - (uintptr_t)&__pcpu[0])
+#define zpcpu_offset_to_base(base) (void *)((uintptr_t)(base) + (uintptr_t)&__pcpu[0])
+
+#define zpcpu_sub_protected(base, n) do {				\
+	ZPCPU_ASSERT_PROTECTED();					\
+	zpcpu_sub(base, n);						\
+} while (0)
+
+#define zpcpu_set_protected(base, n) do {				\
+	__typeof(*base) __n = (n);					\
+	ZPCPU_ASSERT_PROTECTED();					\
+	switch (sizeof(*base)) {					\
+	case 4:								\
+		__asm __volatile("movl\t%1,%%gs:(%0)"			\
+		    : : "r" (base), "ri" (__n) : "memory", "cc");	\
+		break;							\
+	case 8:								\
+		__asm __volatile("movq\t%1,%%gs:(%0)"			\
+		    : : "r" (base), "ri" (__n) : "memory", "cc");	\
+		break;							\
+	default:							\
+		*zpcpu_get(base) = __n;					\
+	}								\
+} while (0);
+
+#define zpcpu_add(base, n) do {						\
+	__typeof(*base) __n = (n);					\
+	CTASSERT(sizeof(*base) == 4 || sizeof(*base) == 8);		\
+	switch (sizeof(*base)) {					\
+	case 4:								\
+		__asm __volatile("addl\t%1,%%gs:(%0)"			\
+		    : : "r" (base), "ri" (__n) : "memory", "cc");	\
+		break;							\
+	case 8:								\
+		__asm __volatile("addq\t%1,%%gs:(%0)"			\
+		    : : "r" (base), "ri" (__n) : "memory", "cc");	\
+		break;							\
+	}								\
+} while (0)
+
+#define zpcpu_add_protected(base, n) do {				\
+	ZPCPU_ASSERT_PROTECTED();					\
+	zpcpu_add(base, n);						\
+} while (0)
+
+#define zpcpu_sub(base, n) do {						\
+	__typeof(*base) __n = (n);					\
+	CTASSERT(sizeof(*base) == 4 || sizeof(*base) == 8);		\
+	switch (sizeof(*base)) {					\
+	case 4:								\
+		__asm __volatile("subl\t%1,%%gs:(%0)"			\
+		    : : "r" (base), "ri" (__n) : "memory", "cc");	\
+		break;							\
+	case 8:								\
+		__asm __volatile("subq\t%1,%%gs:(%0)"			\
+		    : : "r" (base), "ri" (__n) : "memory", "cc");	\
+		break;							\
+	}								\
+} while (0);
+
 #else /* !__GNUCLIKE_ASM || !__GNUCLIKE___TYPEOF */
 
 #error "this file needs to be ported to your compiler"

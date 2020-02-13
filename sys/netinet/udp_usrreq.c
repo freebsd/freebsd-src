@@ -641,7 +641,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			UDPLITE_PROBE(receive, NULL, last, ip, last, uh);
 		else
 			UDP_PROBE(receive, NULL, last, ip, last, uh);
-		if (udp_append(last, ip, m, iphlen, udp_in) == 0) 
+		if (udp_append(last, ip, m, iphlen, udp_in) == 0)
 			INP_RUNLOCK(last);
 	inp_lost:
 		return (IPPROTO_DONE);
@@ -741,7 +741,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		UDPLITE_PROBE(receive, NULL, inp, ip, inp, uh);
 	else
 		UDP_PROBE(receive, NULL, inp, ip, inp, uh);
-	if (udp_append(inp, ip, m, iphlen, udp_in) == 0) 
+	if (udp_append(inp, ip, m, iphlen, udp_in) == 0)
 		INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
 
@@ -1075,7 +1075,7 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 			break;
 		}
 		break;
-	}	
+	}
 	return (error);
 }
 

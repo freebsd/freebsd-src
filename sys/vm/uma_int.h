@@ -324,7 +324,8 @@ struct uma_domain {
 	struct slabhead	ud_free_slab;	/* completely unallocated slabs */
 	struct slabhead ud_full_slab;	/* fully allocated slabs */
 	uint32_t	ud_pages;	/* Total page count */
-	uint32_t	ud_free;	/* Count of items free in slabs */
+	uint32_t	ud_free_items;	/* Count of items free in all slabs */
+	uint32_t	ud_free_slabs;	/* Count of free slabs */
 } __aligned(CACHE_LINE_SIZE);
 
 typedef struct uma_domain * uma_domain_t;

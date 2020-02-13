@@ -194,6 +194,7 @@ struct pcpu {
 	struct rm_queue	pc_rm_queue;		/* rmlock list of trackers */
 	uintptr_t	pc_dynamic;		/* Dynamic per-cpu data area */
 	uint64_t	pc_early_dummy_counter;	/* Startup time counter(9) */
+	uintptr_t	pc_zpcpu_offset;	/* Offset into zpcpu allocs */
 
 	/*
 	 * Keep MD fields last, so that CPU-specific variations on a
@@ -227,14 +228,32 @@ extern struct pcpu *cpuid_to_pcpu[];
 #endif
 #define	curproc		(curthread->td_proc)
 
+#ifndef ZPCPU_ASSERT_PROTECTED
+#define ZPCPU_ASSERT_PROTECTED() MPASS(curthread->td_critnest > 0)
+#endif
+
+#ifndef zpcpu_offset_cpu
+#define zpcpu_offset_cpu(cpu)	(UMA_PCPU_ALLOC_SIZE * cpu)
+#endif
+#ifndef zpcpu_offset
+#define zpcpu_offset()		(PCPU_GET(zpcpu_offset))
+#endif
+
+#ifndef zpcpu_base_to_offset
+#define zpcpu_base_to_offset(base) (base)
+#endif
+#ifndef zpcpu_offset_to_base
+#define zpcpu_offset_to_base(base) (base)
+#endif
+
 /* Accessor to elements allocated via UMA_ZONE_PCPU zone. */
 #define zpcpu_get(base) ({								\
-	__typeof(base) _ptr = (void *)((char *)(base) + UMA_PCPU_ALLOC_SIZE * curcpu);	\
+	__typeof(base) _ptr = (void *)((char *)(base) + zpcpu_offset());		\
 	_ptr;										\
 })
 
 #define zpcpu_get_cpu(base, cpu) ({							\
-	__typeof(base) _ptr = (void *)((char *)(base) +	UMA_PCPU_ALLOC_SIZE * cpu);	\
+	__typeof(base) _ptr = (void *)((char *)(base) +	zpcpu_offset_cpu(cpu));		\
 	_ptr;										\
 })
 
@@ -245,16 +264,49 @@ extern struct pcpu *cpuid_to_pcpu[];
  * If you need atomicity use xchg.
  * */
 #define zpcpu_replace(base, val) ({					\
-	__typeof(val) _old = *(__typeof(base))zpcpu_get(base);		\
-	*(__typeof(val) *)zpcpu_get(base) = val;			\
+	__typeof(val) *_ptr = zpcpu_get(base);				\
+	__typeof(val) _old;						\
+									\
+	_old = *_ptr;							\
+	*_ptr = val;							\
 	_old;								\
 })
 
 #define zpcpu_replace_cpu(base, val, cpu) ({				\
-	__typeof(val) _old = *(__typeof(base))zpcpu_get_cpu(base, cpu);	\
-	*(__typeof(val) *)zpcpu_get_cpu(base, cpu) = val;		\
+	__typeof(val) *_ptr = zpcpu_get_cpu(base, cpu);			\
+	__typeof(val) _old;						\
+									\
+	_old = *_ptr;							\
+	*_ptr = val;							\
 	_old;								\
 })
+
+#ifndef zpcpu_set_protected
+#define zpcpu_set_protected(base, val) ({				\
+	ZPCPU_ASSERT_PROTECTED();					\
+	__typeof(val) *_ptr = zpcpu_get(base);				\
+									\
+	*_ptr = (val);							\
+})
+#endif
+
+#ifndef zpcpu_add_protected
+#define zpcpu_add_protected(base, val) ({				\
+	ZPCPU_ASSERT_PROTECTED();					\
+	__typeof(val) *_ptr = zpcpu_get(base);				\
+									\
+	*_ptr += (val);							\
+})
+#endif
+
+#ifndef zpcpu_sub_protected
+#define zpcpu_sub_protected(base, val) ({				\
+	ZPCPU_ASSERT_PROTECTED();					\
+	__typeof(val) *_ptr = zpcpu_get(base);				\
+									\
+	*_ptr -= (val);							\
+})
+#endif
 
 /*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for

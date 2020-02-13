@@ -23,13 +23,12 @@
 * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef __LIBARCHIVE_BUILD
-#error This header is only to be used internally to libarchive.
-#endif
-
 #ifndef ARCHIVE_CRYPTOR_PRIVATE_H_INCLUDED
 #define ARCHIVE_CRYPTOR_PRIVATE_H_INCLUDED
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
 /*
  * On systems that do not support any recognized crypto libraries,
  * the archive_cryptor.c file will normally define no usable symbols.

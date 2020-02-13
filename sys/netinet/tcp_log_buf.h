@@ -305,7 +305,7 @@ struct tcp_log_dev_log_queue {
  * information when needed.
  *
  * Prototype:
- * TCP_LOG_EVENT(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf, 
+ * TCP_LOG_EVENT(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf,
  *     struct sockbuf *txbuf, uint8_t eventid, int errornum,
  *     union tcp_log_stackspecific *stackinfo)
  *

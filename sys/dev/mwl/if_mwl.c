@@ -360,7 +360,7 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET,
 		"%s taskq", device_get_nameunit(sc->sc_dev));
 
-	TASK_INIT(&sc->sc_rxtask, 0, mwl_rx_proc, sc);
+	NET_TASK_INIT(&sc->sc_rxtask, 0, mwl_rx_proc, sc);
 	TASK_INIT(&sc->sc_radartask, 0, mwl_radar_proc, sc);
 	TASK_INIT(&sc->sc_chanswitchtask, 0, mwl_chanswitch_proc, sc);
 	TASK_INIT(&sc->sc_bawatchdogtask, 0, mwl_bawatchdog_proc, sc);

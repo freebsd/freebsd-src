@@ -129,6 +129,9 @@ __FBSDID("$FreeBSD$");
  */
 MALLOC_DEFINE(M_IFLIB, "iflib", "ifnet library");
 
+#define	IFLIB_RXEOF_MORE (1U << 0)
+#define	IFLIB_RXEOF_EMPTY (2U << 0)
+
 struct iflib_txq;
 typedef struct iflib_txq *iflib_txq_t;
 struct iflib_rxq;
@@ -434,6 +437,7 @@ struct iflib_rxq {
 	uint8_t		ifr_fl_offset;
 	struct lro_ctrl			ifr_lc;
 	struct grouptask        ifr_task;
+	struct callout		ifr_watchdog;
 	struct iflib_filter_info ifr_filter_info;
 	iflib_dma_info_t		ifr_ifdi;
 
@@ -1940,7 +1944,7 @@ _rxq_refill_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
  * (Re)populate an rxq free-buffer list with up to @count new packet buffers.
  * The caller must assure that @count does not exceed the queue's capacity.
  */
-static void
+static uint8_t
 _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 {
 	struct if_rxd_update iru;
@@ -2069,9 +2073,11 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	ctx->isc_rxd_flush(ctx->ifc_softc, fl->ifl_rxq->ifr_id, fl->ifl_id, pidx);
 	fl->ifl_fragidx = frag_idx;
+
+	return (n == -1 ? 0 : IFLIB_RXEOF_EMPTY);
 }
 
-static __inline void
+static __inline uint8_t
 __iflib_fl_refill_lt(if_ctx_t ctx, iflib_fl_t fl, int max)
 {
 	/* we avoid allowing pidx to catch up with cidx as it confuses ixl */
@@ -2084,7 +2090,8 @@ __iflib_fl_refill_lt(if_ctx_t ctx, iflib_fl_t fl, int max)
 	MPASS(reclaimable == delta);
 
 	if (reclaimable > 0)
-		_iflib_fl_refill(ctx, fl, min(max, reclaimable));
+		return (_iflib_fl_refill(ctx, fl, min(max, reclaimable)));
+	return (0);
 }
 
 uint8_t
@@ -2172,7 +2179,7 @@ iflib_fl_setup(iflib_fl_t fl)
 	/* avoid pre-allocating zillions of clusters to an idle card
 	 * potentially speeding up attach
 	 */
-	_iflib_fl_refill(ctx, fl, min(128, fl->ifl_size));
+	(void) _iflib_fl_refill(ctx, fl, min(128, fl->ifl_size));
 	MPASS(min(128, fl->ifl_size) == fl->ifl_credits);
 	if (min(128, fl->ifl_size) != fl->ifl_credits)
 		return (ENOBUFS);
@@ -2738,7 +2745,15 @@ iflib_get_ip_forwarding(struct lro_ctrl *lc __unused, bool *v4 __unused, bool *v
 }
 #endif
 
-static bool
+static void
+_task_fn_rx_watchdog(void *context)
+{
+	iflib_rxq_t rxq = context;
+
+	GROUPTASK_ENQUEUE(&rxq->ifr_task);
+}
+
+static uint8_t
 iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 {
 	if_t ifp;
@@ -2752,6 +2767,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	iflib_fl_t fl;
 	int lro_enabled;
 	bool v4_forwarding, v6_forwarding, lro_possible;
+	uint8_t retval = 0;
 
 	/*
 	 * XXX early demux data packets so that if_input processing only handles
@@ -2772,9 +2788,9 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		cidxp = &rxq->ifr_fl[0].ifl_cidx;
 	if ((avail = iflib_rxd_avail(ctx, rxq, *cidxp, budget)) == 0) {
 		for (i = 0, fl = &rxq->ifr_fl[0]; i < sctx->isc_nfl; i++, fl++)
-			__iflib_fl_refill_lt(ctx, fl, budget + 8);
+			retval |= __iflib_fl_refill_lt(ctx, fl, budget + 8);
 		DBG_COUNTER_INC(rx_unavail);
-		return (false);
+		return (retval);
 	}
 
 	/* pfil needs the vnet to be set */
@@ -2832,7 +2848,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	CURVNET_RESTORE();
 	/* make sure that we can refill faster than drain */
 	for (i = 0, fl = &rxq->ifr_fl[0]; i < sctx->isc_nfl; i++, fl++)
-		__iflib_fl_refill_lt(ctx, fl, budget + 8);
+		retval |= __iflib_fl_refill_lt(ctx, fl, budget + 8);
 
 	lro_enabled = (if_getcapenable(ifp) & IFCAP_LRO);
 	if (lro_enabled)
@@ -2891,15 +2907,15 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 #if defined(INET6) || defined(INET)
 	tcp_lro_flush_all(&rxq->ifr_lc);
 #endif
-	if (avail)
-		return true;
-	return (iflib_rxd_avail(ctx, rxq, *cidxp, 1));
+	if (avail != 0 || iflib_rxd_avail(ctx, rxq, *cidxp, 1) != 0)
+		retval |= IFLIB_RXEOF_MORE;
+	return (retval);
 err:
 	STATE_LOCK(ctx);
 	ctx->ifc_flags |= IFC_DO_RESET;
 	iflib_admin_intr_deferred(ctx);
 	STATE_UNLOCK(ctx);
-	return (false);
+	return (0);
 }
 
 #define TXD_NOTIFY_COUNT(txq) (((txq)->ift_size / (txq)->ift_update_freq)-1)
@@ -3781,10 +3797,9 @@ _task_fn_tx(void *context)
 static void
 _task_fn_rx(void *context)
 {
-	struct epoch_tracker et;
 	iflib_rxq_t rxq = context;
 	if_ctx_t ctx = rxq->ifr_ctx;
-	bool more;
+	uint8_t more;
 	uint16_t budget;
 
 #ifdef IFLIB_DIAGNOSTICS
@@ -3793,31 +3808,36 @@ _task_fn_rx(void *context)
 	DBG_COUNTER_INC(task_fn_rxs);
 	if (__predict_false(!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)))
 		return;
-	more = true;
 #ifdef DEV_NETMAP
 	if (if_getcapenable(ctx->ifc_ifp) & IFCAP_NETMAP) {
 		u_int work = 0;
 		if (netmap_rx_irq(ctx->ifc_ifp, rxq->ifr_id, &work)) {
-			more = false;
+			more = 0;
+			goto skip_rxeof;
 		}
 	}
 #endif
 	budget = ctx->ifc_sysctl_rx_budget;
 	if (budget == 0)
 		budget = 16;	/* XXX */
-	NET_EPOCH_ENTER(et);
-	if (more == false || (more = iflib_rxeof(rxq, budget)) == false) {
+	more = iflib_rxeof(rxq, budget);
+#ifdef DEV_NETMAP
+skip_rxeof:
+#endif
+	if ((more & IFLIB_RXEOF_MORE) == 0) {
 		if (ctx->ifc_flags & IFC_LEGACY)
 			IFDI_INTR_ENABLE(ctx);
 		else
 			IFDI_RX_QUEUE_INTR_ENABLE(ctx, rxq->ifr_id);
 		DBG_COUNTER_INC(rx_intr_enables);
 	}
-	NET_EPOCH_EXIT(et);
 	if (__predict_false(!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)))
 		return;
-	if (more)
+
+	if (more & IFLIB_RXEOF_MORE)
 		GROUPTASK_ENQUEUE(&rxq->ifr_task);
+	else if (more & IFLIB_RXEOF_EMPTY)
+		callout_reset_curcpu(&rxq->ifr_watchdog, 1, &_task_fn_rx_watchdog, rxq);
 }
 
 static void
@@ -5034,6 +5054,7 @@ iflib_pseudo_deregister(if_ctx_t ctx)
 			taskqgroup_detach(tqg, &txq->ift_task);
 	}
 	for (i = 0, rxq = ctx->ifc_rxqs; i < NRXQSETS(ctx); i++, rxq++) {
+		callout_drain(&rxq->ifr_watchdog);
 		if (rxq->ifr_task.gt_uniq != NULL)
 			taskqgroup_detach(tqg, &rxq->ifr_task);
 
@@ -5536,6 +5557,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 
 	for (rxconf = i = 0; i < nrxqsets; i++, rxconf++, rxq++) {
 		/* Set up some basics */
+		callout_init(&rxq->ifr_watchdog, 1);
 
 		if ((ifdip = malloc(sizeof(struct iflib_dma_info) * nrxqs,
 		   M_IFLIB, M_NOWAIT | M_ZERO)) == NULL) {
@@ -5971,7 +5993,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_rx;
 		intr_fast = iflib_fast_intr;
-		GROUPTASK_INIT(gtask, 0, fn, q);
+		NET_GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	case IFLIB_INTR_RXTX:
 		q = &ctx->ifc_rxqs[qid];
@@ -5980,7 +6002,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_rx;
 		intr_fast = iflib_fast_intr_rxtx;
-		GROUPTASK_INIT(gtask, 0, fn, q);
+		NET_GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	case IFLIB_INTR_ADMIN:
 		q = ctx;
@@ -6038,23 +6060,25 @@ iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type, 
 		gtask = &ctx->ifc_txqs[qid].ift_task;
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_tx;
+		GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	case IFLIB_INTR_RX:
 		q = &ctx->ifc_rxqs[qid];
 		gtask = &ctx->ifc_rxqs[qid].ifr_task;
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_rx;
+		NET_GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	case IFLIB_INTR_IOV:
 		q = ctx;
 		gtask = &ctx->ifc_vflr_task;
 		tqg = qgroup_if_config_tqg;
 		fn = _task_fn_iov;
+		GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	default:
 		panic("unknown net intr type");
 	}
-	GROUPTASK_INIT(gtask, 0, fn, q);
 	if (irq != NULL) {
 		err = iflib_irq_set_affinity(ctx, irq, type, qid, gtask, tqg,
 		    q, name);
@@ -6089,7 +6113,6 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	struct grouptask *gtask;
 	struct resource *res;
 	struct taskqgroup *tqg;
-	gtask_fn_t *fn;
 	void *q;
 	int err, tqrid;
 	bool rx_only;
@@ -6099,7 +6122,6 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	gtask = &rxq[0].ifr_task;
 	tqg = qgroup_if_io_tqg;
 	tqrid = *rid;
-	fn = _task_fn_rx;
 	rx_only = (ctx->ifc_sctx->isc_flags & IFLIB_SINGLE_IRQ_RX_ONLY) != 0;
 
 	ctx->ifc_flags |= IFC_LEGACY;
@@ -6114,7 +6136,7 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	    iflib_fast_intr_rxtx, NULL, info, name);
 	if (err != 0)
 		return (err);
-	GROUPTASK_INIT(gtask, 0, fn, q);
+	NET_GROUPTASK_INIT(gtask, 0, _task_fn_rx, q);
 	res = irq->ii_res;
 	taskqgroup_attach(tqg, gtask, q, dev, res, name);
 

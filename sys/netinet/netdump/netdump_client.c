@@ -277,7 +277,7 @@ netdump_dumper(void *priv __unused, void *virtual,
 }
 
 /*
- * Perform any initalization needed prior to transmitting the kernel core.
+ * Perform any initialization needed prior to transmitting the kernel core.
  */
 static int
 netdump_start(struct dumperinfo *di)

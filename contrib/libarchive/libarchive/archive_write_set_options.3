@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2019
+.Dd January 31, 2020
 .Dt ARCHIVE_WRITE_OPTIONS 3
 .Os
 .Sh NAME
@@ -170,33 +170,125 @@ only to modules whose name matches
 .\"
 .Sh OPTIONS
 .Bl -tag -compact -width indent
+.It Filter b64encode
+.Bl -tag -compact -width indent
+.It Cm mode
+The value is interpreted as octal digits specifying the file mode.
+.It Cm name
+The value specifies the file name.
+.El
+.It Filter bzip2
+.Bl -tag -compact -width indent
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+bzip2 compression level. Supported values are from 1 to 9.
+.El
 .It Filter gzip
 .Bl -tag -compact -width indent
 .It Cm compression-level
 The value is interpreted as a decimal integer specifying the
-gzip compression level.
+gzip compression level. Supported values are from 0 to 9.
+.It Cm timestamp
+Store timestamp. This is enabled by default.
+.El
+.It Filter lrzip
+.Bl -tag -compact -width indent
+.It Cm compression Ns = Ns Ar type
+Use
+.Ar type
+as compression method.
+Supported values are
+.Dq bzip2 ,
+.Dq gzipi ,
+.Dq lzo
+.Pq ultra fast ,
+and
+.Dq zpaq
+.Pq best, extremely slow .
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+lrzip compression level. Supported values are from 1 to 9.
+.El
+.It Filter lz4
+.Bl -tag -compact -width indent
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+lz4 compression level. Supported values are from 0 to 9.
+.It Cm stream-checksum
+Enable stream checksum. This is enabled by default.
+.It Cm block-checksum
+Enable block checksum. This is disabled by default.
+.It Cm block-size
+The value is interpreted as a decimal integer specifying the
+lz4 compression block size. Supported values are from 4 to 7
+.Pq default .
+.It Cm block-dependence
+Use the previous block of the block being compressed for
+a compression dictionary to improve compression ratio.
+This is disabled by default.
+.El
+.It Filter lzop
+.Bl -tag -compact -width indent
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+lzop compression level. Supported values are from 1 to 9.
+.El
+.It Filter uuencode
+.Bl -tag -compact -width indent
+.It Cm mode
+The value is interpreted as octal digits specifying the file mode.
+.It Cm name
+The value specifies the file name.
 .El
 .It Filter xz
 .Bl -tag -compact -width indent
 .It Cm compression-level
 The value is interpreted as a decimal integer specifying the
-compression level.
+compression level. Supported values are from 0 to 9.
+.It Cm threads
+The value is interpreted as a decimal integer specifying the
+number of threads for multi-threaded lzma compression.
+If supported, the default value is read from
+.Fn lzma_cputhreads .
 .El
-.It Format mtree
+.It Filter zstd
 .Bl -tag -compact -width indent
-.It Cm cksum , Cm device , Cm flags , Cm gid , Cm gname , Cm indent , Cm link , Cm md5 , Cm mode , Cm nlink , Cm rmd160 , Cm sha1 , Cm sha256 , Cm sha384 , Cm sha512 , Cm size , Cm time , Cm uid , Cm uname
-Enable a particular keyword in the mtree output.
-Prefix with an exclamation mark to disable the corresponding keyword.
-The default is equivalent to
-.Dq device, flags, gid, gname, link, mode, nlink, size, time, type, uid, uname .
-.It Cm all
-Enables all of the above keywords.
-.It Cm use-set
-Enables generation of
-.Cm /set
-lines that specify default values for the following files and/or directories.
-.It Cm indent
-XXX needs explanation XXX
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+compression level. Supported values are from 1 to 22.
+.El
+.It Format 7zip
+.Bl -tag -compact -width indent
+.It Cm compression
+The value is one of
+.Dq store ,
+.Dq deflate ,
+.Dq bzip2 ,
+.Dq lzma1 ,
+.Dq lzma2
+or
+.Dq ppmd
+to indicate how the following entries should be compressed.
+Note that this setting is ignored for directories, symbolic links,
+and other special entries.
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+compression level.
+Values between 0 and 9 are supported.
+The interpretation of the compression level depends on the chosen
+compression method.
+.El
+.It Format cpio
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file names.
+.El
+.It Format gnutar
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file, group and user names.
 .El
 .It Format iso9660 - volume metadata
 These options are used to set standard ISO9660 metadata.
@@ -404,10 +496,33 @@ Specifies a filename that should not be compressed when using
 This option can be provided multiple times to suppress compression
 on many files.
 .El
+.It Format mtree
+.Bl -tag -compact -width indent
+.It Cm cksum , Cm device , Cm flags , Cm gid , Cm gname , Cm indent , Cm link , Cm md5 , Cm mode , Cm nlink , Cm rmd160 , Cm sha1 , Cm sha256 , Cm sha384 , Cm sha512 , Cm size , Cm time , Cm uid , Cm uname
+Enable a particular keyword in the mtree output.
+Prefix with an exclamation mark to disable the corresponding keyword.
+The default is equivalent to
+.Dq device, flags, gid, gname, link, mode, nlink, size, time, type, uid, uname .
+.It Cm all
+Enables all of the above keywords.
+.It Cm use-set
+Enables generation of
+.Cm /set
+lines that specify default values for the following files and/or directories.
+.It Cm indent
+XXX needs explanation XXX
+.El
+.It Format newc
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file names.
+.El
 .It Format pax
 .Bl -tag -compact -width indent
 .It Cm hdrcharset
-This sets the character set used for filenames, uname and gname.
+The value is used as a character set name that will be
+used when translating file, group and user names.
 The value is one of
 .Dq BINARY
 or
@@ -430,26 +545,61 @@ and
 .Dq SCHILY.xattr
 headers are written.
 .El
-.It Format 7zip
+.It Format ustar
 .Bl -tag -compact -width indent
-.It Cm compression
-The value is one of
-.Dq store ,
-.Dq deflate ,
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file, group and user names.
+.El
+.It Format v7tar
+.Bl -tag -compact -width indent
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating file, group and user names.
+.El
+.It Format warc
+.Bl -tag -compact -width indent
+.It Cm omit-warcinfo
+Set to
+.Dq true
+to disable output of the warcinfo record.
+.El
+.It Format xar
+.Bl -tag -compact -width indent
+.It Cm checksum Ns = Ns Ar type
+Use
+.Ar type
+as file checksum method.
+Supported values are
+.Dq none ,
+.Dq md5 ,
+and
+.Dq sha1
+.Pq default .
+.It Cm compression Ns = Ns Ar type
+Use
+.Ar type
+as compression method.
+Supported values are
+.Dq none ,
 .Dq bzip2 ,
-.Dq lzma1 ,
-.Dq lzma2
-or
-.Dq ppmd
-to indicate how the following entries should be compressed.
-Note that this setting is ignored for directories, symbolic links,
-and other special entries.
-.It Cm compression-level
-The value is interpreted as a decimal integer specifying the
-compression level.
-Values between 0 and 9 are supported.
-The interpretation of the compression level depends on the chosen
-compression method.
+.Dq gzip
+.Pq default ,
+.Dq lzma
+and
+.Dq xz .
+.It Cm compression_level
+The value is a decimal integer from 1 to 9 specifying the compression level.
+.It Cm toc-checksum Ns = Ns Ar type
+Use
+.Ar type
+as table of contents checksum method.
+Supported values are
+.Dq none ,
+.Dq md5
+and
+.Dq sha1
+.Pq default .
 .El
 .It Format zip
 .Bl -tag -compact -width indent
@@ -470,6 +620,20 @@ A compression level of 0 switches the compression method to
 other values will enable
 .Dq deflate
 compression with the given level.
+.It Cm encryption
+Enable encryption using traditional zip encryption.
+.It Cm encryption Ns = Ns Ar type
+Use
+.Ar type
+as encryption type.
+Supported values are
+.Dq zipcrypt
+.Pq traditional zip encryption ,
+.Dq aes128
+.Pq WinZip AES-128 encryption
+and
+.Dq aes256
+.Pq WinZip AES-256 encryption .
 .It Cm experimental
 This boolean option enables or disables experimental Zip features
 that may not be compatible with other Zip implementations.
@@ -478,7 +642,8 @@ This boolean option disables CRC calculations.
 All CRC fields are set to zero.
 It should not be used except for testing purposes.
 .It Cm hdrcharset
-This sets the character set used for filenames.
+The value is used as a character set name that will be
+used when translating file names.
 .It Cm zip64
 Zip64 extensions provide additional file size information
 for entries larger than 4 GiB.

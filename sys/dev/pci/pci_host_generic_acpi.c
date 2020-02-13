@@ -230,7 +230,7 @@ pci_host_acpi_get_ecam_resource(device_t dev)
 }
 
 int
-pci_host_generic_acpi_attach(device_t dev)
+pci_host_generic_acpi_init(device_t dev)
 {
 	struct generic_pcie_acpi_softc *sc;
 	ACPI_HANDLE handle;
@@ -301,6 +301,18 @@ pci_host_generic_acpi_attach(device_t dev)
 			return (error);
 		}
 	}
+
+	return (0);
+}
+
+static int
+pci_host_generic_acpi_attach(device_t dev)
+{
+	int error;
+
+	error = pci_host_generic_acpi_init(dev);
+	if (error != 0)
+		return (error);
 
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));

@@ -1,3 +1,23 @@
+2019-12-16  21:11  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.38
+
+2019-12-15  22:13  Christos Zoulas <christos@zoulas.com>
+    Document changes since the previous release:
+	- Always accept -S (no sandbox) even if we don't support sandboxing
+	- More syscalls elided for sandboxiing
+	- For ELF dynamic means having an interpreter not just PT_DYNAMIC
+	- Check for large ELF session header offset
+	- When saving and restoring a locale, keep the locale name in our
+	  own storage.
+	- Add a flag to disable CSV file detection.
+	- Don't pass NULL/0 to memset to appease sanitizers.
+	- Avoid spurious prints when looks for extensions or apple strings
+	  in fsmagic.
+	- Add builtin decompressors for xz and and bzip.
+	- Add a limit for the number of CDF elements.
+	- More checks for overflow in CDF.
+
 2019-05-14  22:26  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.37

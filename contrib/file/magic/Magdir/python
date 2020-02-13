@@ -1,31 +1,44 @@
 
 #------------------------------------------------------------------------------
-# $File: python,v 1.36 2019/04/09 18:28:25 christos Exp $
+# $File: python,v 1.37 2019/10/21 19:40:58 christos Exp $
 # python:  file(1) magic for python
 #
 # Outlook puts """ too for urgent messages
 # From: David Necas <yeti@physics.muni.cz>
 # often the module starts with a multiline string
 0	string/t	"""	Python script text executable
-# MAGIC as specified in Python/import.c (1.5 to 2.7a0 and 3.1a0, assuming
-# that Py_UnicodeFlag is off for Python 2)
+# MAGIC as specified in Python/import.c (1.0 to 3.7)
 # two bytes of magic followed by "\r\n" in little endian order
-0	belong		0x994e0d0a	python 1.5/1.6 byte-compiled
+0	belong		0x02099900	python 1.0 byte-compiled
+0	belong		0x03099900	python 1.1/1.2 byte-compiled
+0	belong		0x892e0d0a	python 1.3 byte-compiled
+0	belong		0x04170d0a	python 1.4 byte-compiled
+0	belong		0x994e0d0a	python 1.5 byte-compiled
+0	belong		0xfcc40d0a	python 1.6 byte-compiled
+0	belong		0xfdc40d0a	python 1.6 byte-compiled
 0	belong		0x87c60d0a	python 2.0 byte-compiled
+0	belong		0x88c60d0a	python 2.0 byte-compiled
 0	belong		0x2aeb0d0a	python 2.1 byte-compiled
+0	belong		0x2beb0d0a	python 2.1 byte-compiled
 0	belong		0x2ded0d0a	python 2.2 byte-compiled
+0	belong		0x2eed0d0a	python 2.2 byte-compiled
 0	belong		0x3bf20d0a	python 2.3 byte-compiled
+0	belong		0x3cf20d0a	python 2.3 byte-compiled
 0	belong		0x6df20d0a	python 2.4 byte-compiled
+0	belong		0x6ef20d0a	python 2.4 byte-compiled
 0	belong		0xb3f20d0a	python 2.5 byte-compiled
+0	belong		0xb4f20d0a	python 2.5 byte-compiled
 0	belong		0xd1f20d0a	python 2.6 byte-compiled
+0	belong		0xd2f20d0a	python 2.6 byte-compiled
 0	belong		0x03f30d0a	python 2.7 byte-compiled
+0	belong		0x04f30d0a	python 2.7 byte-compiled
 0	belong		0x3b0c0d0a	python 3.0 byte-compiled
 0	belong		0x4f0c0d0a	python 3.1 byte-compiled
 0	belong		0x6c0c0d0a	python 3.2 byte-compiled
 0	belong		0x9e0c0d0a	python 3.3 byte-compiled
 0	belong		0xee0c0d0a	python 3.4 byte-compiled
-0	belong		0x160d0d0a	python 3.5.1- byte-compiled
-0	belong		0x170d0d0a	python 3.5.2+ byte-compiled
+0	belong		0x160d0d0a	python 3.5.2- byte-compiled
+0	belong		0x170d0d0a	python 3.5.3+ byte-compiled
 0	belong		0x330d0d0a	python 3.6 byte-compiled
 0	belong		0x420d0d0a	python 3.7 byte-compiled
 

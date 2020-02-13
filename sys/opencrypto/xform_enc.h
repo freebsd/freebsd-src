@@ -88,7 +88,7 @@ extern struct enc_xform enc_xform_ccm;
 
 struct aes_icm_ctx {
 	u_int32_t	ac_ek[4*(RIJNDAEL_MAXNR + 1)];
-	/* ac_block is initalized to IV */
+	/* ac_block is initialized to IV */
 	u_int8_t	ac_block[AESICM_BLOCKSIZE];
 	int		ac_nr;
 };

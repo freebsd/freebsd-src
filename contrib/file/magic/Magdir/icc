@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: icc,v 1.5 2017/08/13 00:21:47 christos Exp $
+# $File: icc,v 1.6 2019/11/15 21:03:14 christos Exp $
 # icc:  file(1) magic for International Color Consortium file formats
 
 #
@@ -54,7 +54,7 @@
 !:mime	application/vnd.iccprofile
 # for "ICM" extension only versions 2.x and for Kodak "CC" 2.0 is found
 >>>8	ubyte		=2
-# do not use empty message text to a avoid error like
+# do not use empty message text to avoid error like
 # icc, 82: Warning: Current entry does not yet have a description for adding a EXTENSION type
 # file.exe: could not find any valid magic files!
 >>>>9	ubyte		!0		\ble

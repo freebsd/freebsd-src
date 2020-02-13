@@ -27,11 +27,6 @@
  * __FBSDID("$FreeBSD$");
  */
 
-/* XXXLAS: Couple STATS to NETFLIX_STATS until stats(3) is fully upstreamed. */
-#ifndef	NETFLIX_STATS
-#undef	STATS
-#endif
-
 /* Common defines and such used by both RACK and BBR */
 /* Special values for mss accounting array */
 #define TCP_MSS_ACCT_JUSTRET 0
@@ -134,13 +129,13 @@ void
 ctf_do_dropwithreset_conn(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
     int32_t rstreason, int32_t tlen);
 
-uint32_t 
+uint32_t
 ctf_fixed_maxseg(struct tcpcb *tp);
 
 void
 ctf_log_sack_filter(struct tcpcb *tp, int num_sack_blks, struct sackblk *sack_blocks);
 
-uint32_t 
+uint32_t
 ctf_decay_count(uint32_t count, uint32_t decay_percentage);
 
 #endif

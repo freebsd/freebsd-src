@@ -323,8 +323,8 @@ __END_DECLS
  * Default local port range, used by IP_PORTRANGE_DEFAULT
  */
 #define IPPORT_EPHEMERALFIRST	10000
-#define IPPORT_EPHEMERALLAST	65535 
- 
+#define IPPORT_EPHEMERALLAST	65535
+
 /*
  * Dynamic port range, used by IP_PORTRANGE_HIGH.
  */
@@ -381,7 +381,7 @@ __END_DECLS
 			 (((in_addr_t)(i) & 0xffff0000) == 0xc0a80000))
 
 #define	IN_LOCAL_GROUP(i)	(((in_addr_t)(i) & 0xffffff00) == 0xe0000000)
- 
+
 #define	IN_ANY_LOCAL(i)		(IN_LINKLOCAL(i) || IN_LOCAL_GROUP(i))
 
 #define	INADDR_LOOPBACK		((in_addr_t)0x7f000001)

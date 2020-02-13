@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msooxml,v 1.12 2019/04/19 00:42:27 christos Exp $
+# $File: msooxml,v 1.13 2019/11/27 13:12:55 christos Exp $
 # msooxml:  file(1) magic for Microsoft Office XML
 # From: Ralf Brown <ralf.brown@gmail.com>
 
@@ -19,6 +19,8 @@
 !:mime application/vnd.openxmlformats-officedocument.presentationml.presentation
 >0		string		xl/		Microsoft Excel 2007+
 !:mime application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+0		string		visio/		Microsoft Visio 2013+
+!:mime application/vnd.ms-visio.drawing.main+xml
 
 # start by checking for ZIP local file header signature
 0		string		PK\003\004

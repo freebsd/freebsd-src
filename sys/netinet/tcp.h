@@ -333,7 +333,7 @@ struct tcp_info {
 	u_int32_t	tcpi_snd_rexmitpack;	/* Retransmitted packets */
 	u_int32_t	tcpi_rcv_ooopack;	/* Out-of-order packets */
 	u_int32_t	tcpi_snd_zerowin;	/* Zero-sized windows sent */
-	
+
 	/* Padding to grow without breaking ABI. */
 	u_int32_t	__tcpi_pad[26];		/* Padding. */
 };

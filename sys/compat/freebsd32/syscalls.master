@@ -1159,5 +1159,6 @@
 				    int shmflags, const char *name); }
 572	AUE_SHMRENAME	NOPROTO { int shm_rename(const char *path_from, \
 				    const char *path_to, int flags); }
+573	AUE_NULL	NOPROTO	{ int sigfastblock(int cmd, uint32_t *ptr); }
 
 ; vim: syntax=off

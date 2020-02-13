@@ -1477,9 +1477,6 @@ event.
 .It Va kdb.enter.panic
 .Xr panic 9
 was called.
-.It Va kdb.enter.powerfail
-The kernel debugger was entered as a result of a powerfail NMI on the sparc64
-platform.
 .It Va kdb.enter.powerpc
 The kernel debugger was entered as a result of an unimplemented interrupt
 type on the powerpc platform.
@@ -1487,9 +1484,6 @@ type on the powerpc platform.
 The kernel debugger was entered as a result of the
 .Va debug.kdb.enter
 sysctl being set.
-.It Va kdb.enter.trapsig
-The kernel debugger was entered as a result of a trapsig event on the sparc64
-platform.
 .It Va kdb.enter.unionfs
 The kernel debugger was entered as a result of an assertion failure in the
 union file system.

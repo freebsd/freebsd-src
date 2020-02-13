@@ -676,7 +676,7 @@ vr_attach(device_t dev)
 	ifp->if_snd.ifq_maxlen = VR_TX_RING_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	TASK_INIT(&sc->vr_inttask, 0, vr_int_task, sc);
+	NET_TASK_INIT(&sc->vr_inttask, 0, vr_int_task, sc);
 
 	/* Configure Tx FIFO threshold. */
 	sc->vr_txthresh = VR_TXTHRESH_MIN;

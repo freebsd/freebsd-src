@@ -648,7 +648,7 @@ restart:
 			KASSERT(bucket_locked || tlb == NULL,
 			    ("%s: bucket_locked (%d) and tlb (%p) are "
 			    "inconsistent", __func__, bucket_locked, tlb));
-			
+
 			if (bucket_locked) {
 				TCPID_BUCKET_UNLOCK(tlb);
 				bucket_locked = false;
@@ -728,7 +728,7 @@ refind:
 		 * Remember that we constructed (struct tcp_log_id_node) so
 		 * we can safely cast the id to it for the purposes of finding.
 		 */
-		KASSERT(tlb == NULL, ("%s:%d tlb unexpectedly non-NULL", 
+		KASSERT(tlb == NULL, ("%s:%d tlb unexpectedly non-NULL",
 		    __func__, __LINE__));
 		tmp_tlb = RB_FIND(tcp_log_id_tree, &tcp_log_id_head,
 		    (struct tcp_log_id_bucket *) id);
@@ -1351,7 +1351,7 @@ tcp_log_tcpcbfini(struct tcpcb *tp)
 	 * There are two ways we could keep logs: per-socket or per-ID. If
 	 * we are tracking logs with an ID, then the logs survive the
 	 * destruction of the TCPCB.
-	 * 
+	 *
 	 * If the TCPCB is associated with an ID node, move the logs from the
 	 * TCPCB to the ID node. In theory, this is safe, for reasons which I
 	 * will now explain for my own benefit when I next need to figure out
@@ -1361,7 +1361,7 @@ tcp_log_tcpcbfini(struct tcpcb *tp)
 	 * of this node (Rule C). Further, no one can remove this node from
 	 * the bucket while we hold the lock (Rule D). Basically, no one can
 	 * mess with this node. That leaves two states in which we could be:
-	 * 
+	 *
 	 * 1. Another thread is currently waiting to acquire the INP lock, with
 	 *    plans to do something with this node. When we drop the INP lock,
 	 *    they will have a chance to do that. They will recheck the
@@ -1770,7 +1770,7 @@ tcp_log_state_change(struct tcpcb *tp, int state)
 	if (tcp_disable_all_bb_logs) {
 		/* We are prohibited from doing any logs */
 		tp->t_logstate = TCP_LOG_STATE_OFF;
-	}	
+	}
 	tp->t_flags2 &= ~(TF2_LOG_AUTO);
 
 	return (0);
@@ -2110,7 +2110,7 @@ tcp_log_expandlogbuf(struct tcp_log_dev_queue *param)
 	sopt.sopt_val = hdr + 1;
 	sopt.sopt_valsize -= sizeof(struct tcp_log_header);
 	sopt.sopt_td = NULL;
-	
+
 	error = tcp_log_logs_to_buf(&sopt, &entry->tldl_entries,
 	    (struct tcp_log_buffer **)&end, entry->tldl_count);
 	if (error) {
@@ -2380,7 +2380,7 @@ tcp_log_dumpbucketlogs(struct tcp_log_id_bucket *tlb, char *reason)
 		 * If this isn't associated with a TCPCB, we can pull it off
 		 * the list now. We need to be careful that the expire timer
 		 * hasn't already taken ownership (tln_expiretime == SBT_MAX).
-		 * If so, we let the expire timer code free the data. 
+		 * If so, we let the expire timer code free the data.
 		 */
 		if (cur_tln->tln_closed) {
 no_inp:
@@ -2618,7 +2618,7 @@ tcp_log_dump_tp_bucket_logbufs(struct tcpcb *tp, char *reason)
 		return;
 	}
 
-	/* Turn this over to tcp_log_dumpbucketlogs() to finish the work. */ 
+	/* Turn this over to tcp_log_dumpbucketlogs() to finish the work. */
 	tcp_log_dumpbucketlogs(tlb, reason);
 }
 

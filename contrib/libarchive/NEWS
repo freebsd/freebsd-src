@@ -1,3 +1,11 @@
+Feb 11, 2020: libarchive 3.4.2 released
+
+Jan 23, 2020: Important fixes for writing XAR archives
+
+Jan 20, 2020: New tar option: --safe-writes (atomical file extraction)
+
+Jan 03, 2020: Support mbed TLS (PolarSSL) as optional crypto provider
+
 Dec 30, 2019: libarchive 3.4.1 released
 
 Dec 11, 2019: New pax write option "xattrhdr"

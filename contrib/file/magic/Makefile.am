@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.143 2019/05/09 16:24:36 christos Exp $
+# $File: Makefile.am,v 1.151 2019/11/02 18:37:58 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_DIR = $(top_srcdir)/magic
@@ -99,6 +99,7 @@ $(MAGIC_FRAGMENT_DIR)/finger \
 $(MAGIC_FRAGMENT_DIR)/flash \
 $(MAGIC_FRAGMENT_DIR)/flif \
 $(MAGIC_FRAGMENT_DIR)/fonts \
+$(MAGIC_FRAGMENT_DIR)/forth \
 $(MAGIC_FRAGMENT_DIR)/fortran \
 $(MAGIC_FRAGMENT_DIR)/frame \
 $(MAGIC_FRAGMENT_DIR)/freebsd \
@@ -110,6 +111,7 @@ $(MAGIC_FRAGMENT_DIR)/gconv \
 $(MAGIC_FRAGMENT_DIR)/geo \
 $(MAGIC_FRAGMENT_DIR)/geos \
 $(MAGIC_FRAGMENT_DIR)/gimp \
+$(MAGIC_FRAGMENT_DIR)/git \
 $(MAGIC_FRAGMENT_DIR)/glibc \
 $(MAGIC_FRAGMENT_DIR)/gnome \
 $(MAGIC_FRAGMENT_DIR)/gnu \
@@ -179,6 +181,7 @@ $(MAGIC_FRAGMENT_DIR)/mkid \
 $(MAGIC_FRAGMENT_DIR)/mlssa \
 $(MAGIC_FRAGMENT_DIR)/mmdf \
 $(MAGIC_FRAGMENT_DIR)/modem \
+$(MAGIC_FRAGMENT_DIR)/modulefile \
 $(MAGIC_FRAGMENT_DIR)/motorola \
 $(MAGIC_FRAGMENT_DIR)/mozilla \
 $(MAGIC_FRAGMENT_DIR)/msdos \
@@ -202,6 +205,8 @@ $(MAGIC_FRAGMENT_DIR)/ocaml \
 $(MAGIC_FRAGMENT_DIR)/octave \
 $(MAGIC_FRAGMENT_DIR)/ole2compounddocs \
 $(MAGIC_FRAGMENT_DIR)/olf \
+$(MAGIC_FRAGMENT_DIR)/openfst \
+$(MAGIC_FRAGMENT_DIR)/opentimestamps \
 $(MAGIC_FRAGMENT_DIR)/os2 \
 $(MAGIC_FRAGMENT_DIR)/os400 \
 $(MAGIC_FRAGMENT_DIR)/os9 \
@@ -222,6 +227,7 @@ $(MAGIC_FRAGMENT_DIR)/pgp \
 $(MAGIC_FRAGMENT_DIR)/pkgadd \
 $(MAGIC_FRAGMENT_DIR)/plan9 \
 $(MAGIC_FRAGMENT_DIR)/plus5 \
+$(MAGIC_FRAGMENT_DIR)/pmem \
 $(MAGIC_FRAGMENT_DIR)/polyml \
 $(MAGIC_FRAGMENT_DIR)/printer \
 $(MAGIC_FRAGMENT_DIR)/project \
@@ -238,6 +244,7 @@ $(MAGIC_FRAGMENT_DIR)/rpi \
 $(MAGIC_FRAGMENT_DIR)/rpm \
 $(MAGIC_FRAGMENT_DIR)/rpmsg \
 $(MAGIC_FRAGMENT_DIR)/rtf \
+$(MAGIC_FRAGMENT_DIR)/rst \
 $(MAGIC_FRAGMENT_DIR)/ruby \
 $(MAGIC_FRAGMENT_DIR)/sc \
 $(MAGIC_FRAGMENT_DIR)/sccs \
@@ -257,6 +264,7 @@ $(MAGIC_FRAGMENT_DIR)/smalltalk \
 $(MAGIC_FRAGMENT_DIR)/smile \
 $(MAGIC_FRAGMENT_DIR)/sniffer \
 $(MAGIC_FRAGMENT_DIR)/softquad \
+$(MAGIC_FRAGMENT_DIR)/sosi \
 $(MAGIC_FRAGMENT_DIR)/spec \
 $(MAGIC_FRAGMENT_DIR)/spectrum \
 $(MAGIC_FRAGMENT_DIR)/sql \

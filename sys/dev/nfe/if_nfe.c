@@ -654,7 +654,7 @@ nfe_attach(device_t dev)
 	}
 	ether_ifattach(ifp, sc->eaddr);
 
-	TASK_INIT(&sc->nfe_int_task, 0, nfe_int_task, sc);
+	NET_TASK_INIT(&sc->nfe_int_task, 0, nfe_int_task, sc);
 	sc->nfe_tq = taskqueue_create_fast("nfe_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->nfe_tq);
 	taskqueue_start_threads(&sc->nfe_tq, 1, PI_NET, "%s taskq",

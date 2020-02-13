@@ -256,7 +256,23 @@ typedef struct sigqueue {
 /* Flags for ksi_flags */
 #define	SQ_INIT	0x01
 
+/*
+ * Fast_sigblock
+ */
+#define	SIGFASTBLOCK_SETPTR	1
+#define	SIGFASTBLOCK_UNBLOCK	2
+#define	SIGFASTBLOCK_UNSETPTR	3
+
+#define	SIGFASTBLOCK_PEND	0x1
+#define	SIGFASTBLOCK_FLAGS	0xf
+#define	SIGFASTBLOCK_INC	0x10
+
+#ifndef _KERNEL
+int __sys_sigfastblock(int cmd, void *ptr);
+#endif
+
 #ifdef _KERNEL
+extern sigset_t fastblock_mask;
 
 /* Return nonzero if process p has an unmasked pending signal. */
 #define	SIGPENDING(td)							\
@@ -328,6 +344,7 @@ extern struct mtx	sigio_lock;
 #define	SIGPROCMASK_OLD		0x0001
 #define	SIGPROCMASK_PROC_LOCKED	0x0002
 #define	SIGPROCMASK_PS_LOCKED	0x0004
+#define	SIGPROCMASK_FASTBLK	0x0008
 
 /*
  * Modes for sigdeferstop().  Manages behaviour of
@@ -365,6 +382,8 @@ sigallowstop(int prev)
 
 int	cursig(struct thread *td);
 void	execsigs(struct proc *p);
+void	fetch_sigfastblock(struct thread *td);
+void	fetch_sigfastblock_failed(struct thread *td, bool write);
 void	gsignal(int pgid, int sig, ksiginfo_t *ksi);
 void	killproc(struct proc *p, char *why);
 ksiginfo_t * ksiginfo_alloc(int wait);
@@ -375,6 +394,7 @@ void	pgsignal(struct pgrp *pgrp, int sig, int checkctty, ksiginfo_t *ksi);
 int	postsig(int sig);
 void	kern_psignal(struct proc *p, int sig);
 int	ptracestop(struct thread *td, int sig, ksiginfo_t *si);
+void	reschedule_signals(struct proc *p, sigset_t block, int flags);
 void	sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *retmask);
 struct sigacts *sigacts_alloc(void);
 void	sigacts_copy(struct sigacts *dest, struct sigacts *src);

@@ -48,10 +48,17 @@ typedef void task_fn_t(void *context, int pending);
 struct task {
 	STAILQ_ENTRY(task) ta_link;	/* (q) link for queue */
 	uint16_t ta_pending;		/* (q) count times queued */
-	u_short	ta_priority;		/* (c) Priority */
+	uint8_t	ta_priority;		/* (c) Priority */
+	uint8_t	ta_flags;		/* (c) Flags */
 	task_fn_t *ta_func;		/* (c) task handler */
 	void	*ta_context;		/* (c) argument for handler */
 };
+
+#define	TASK_ENQUEUED		0x1
+#define	TASK_NOENQUEUE		0x2
+#define	TASK_NETWORK		0x4
+
+#define	TASK_IS_NET(ta)		((ta)->ta_flags & TASK_NETWORK)
 
 #ifdef _KERNEL
 

@@ -37,6 +37,8 @@
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -163,6 +165,7 @@ procstat_threads_sigs(struct procstat *procstat, struct kinfo_proc *kipp)
 		xo_open_container(threadid);
 		xo_emit("{e:thread_id/%6d/%d}", kipp->ki_tid);
 		xo_open_container("signals");
+
 		for (j = 1; j <= _SIG_MAXSIG; j++) {
 			xo_emit("{dk:process_id/%5d/%d} ", kipp->ki_pid);
 			xo_emit("{d:thread_id/%6d/%d} ", kipp->ki_tid);
@@ -175,6 +178,66 @@ procstat_threads_sigs(struct procstat *procstat, struct kinfo_proc *kipp)
 			xo_emit("\n");
 		}
 		xo_close_container("signals");
+		xo_close_container(threadid);
+		free(threadid);
+	}
+	xo_close_container("threads");
+	procstat_freeprocs(procstat, kip);
+}
+
+void
+procstat_sigfastblock(struct procstat *procstat, struct kinfo_proc *kipp)
+{
+	struct kinfo_proc *kip;
+	char *threadid;
+	uintptr_t sigfastblk_addr;
+	int error, name[4];
+	unsigned int count, i;
+	size_t len;
+	bool has_sigfastblk_addr;
+
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
+		xo_emit("{T:/%5s %6s %-16s %-16s}\n", "PID", "TID",
+		     "COMM", "SIGFBLK");
+
+	kip = procstat_getprocs(procstat, KERN_PROC_PID | KERN_PROC_INC_THREAD,
+	    kipp->ki_pid, &count);
+	if (kip == NULL)
+		return;
+	xo_emit("{ek:process_id/%5d/%d}", kipp->ki_pid);
+	xo_emit("{e:command/%-16s/%s}", kipp->ki_comm);
+	xo_open_container("threads");
+	kinfo_proc_sort(kip, count);
+	for (i = 0; i < count; i++) {
+		kipp = &kip[i];
+		len = sizeof(sigfastblk_addr);
+		name[0] = CTL_KERN;
+		name[1] = KERN_PROC;
+		name[2] = KERN_PROC_SIGFASTBLK;
+		name[3] = kipp->ki_tid;
+		error = sysctl(name, 4, &sigfastblk_addr, &len, NULL, 0);
+		if (error < 0) {
+			if (errno != ESRCH && errno != ENOTTY) {
+				warn("sysctl: kern.proc.fastsigblk: %d",
+				    kipp->ki_tid);
+			}
+			has_sigfastblk_addr = false;
+		} else
+			has_sigfastblk_addr = true;
+
+		asprintf(&threadid, "%d", kipp->ki_tid);
+		if (threadid == NULL)
+			xo_errc(1, ENOMEM, "Failed to allocate memory in "
+			    "procstat_sigfastblock()");
+		xo_open_container(threadid);
+		xo_emit("{dk:process_id/%5d/%d} ", kipp->ki_pid);
+		xo_emit("{d:thread_id/%6d/%d} ", kipp->ki_tid);
+		xo_emit("{d:command/%-16s/%s} ", kipp->ki_comm);
+		xo_emit("{e:sigfastblock/%#-16jx/%#jx}", has_sigfastblk_addr ?
+		    (uintmax_t)sigfastblk_addr : (uintmax_t)-1);
+		xo_emit("{d:sigfastblock/%#-16jx/%#jx}", has_sigfastblk_addr ?
+		    (uintmax_t)sigfastblk_addr : (uintmax_t)-1);
+		xo_emit("\n");
 		xo_close_container(threadid);
 		free(threadid);
 	}

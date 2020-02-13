@@ -248,6 +248,7 @@ dev/neta/if_mvneta_fdt.c	optional	neta fdt
 dev/neta/if_mvneta.c		optional	neta mdio mii
 dev/ofw/ofw_cpu.c		optional	fdt
 dev/ofw/ofwpci.c		optional 	fdt pci
+dev/pci/controller/pci_n1sdp.c	optional	pci_n1sdp acpi
 dev/pci/pci_host_generic.c	optional	pci
 dev/pci/pci_host_generic_acpi.c	optional	pci acpi
 dev/pci/pci_host_generic_fdt.c	optional	pci fdt

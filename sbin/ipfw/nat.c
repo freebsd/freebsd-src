@@ -793,6 +793,7 @@ ipfw_config_nat(int ac, char **av)
 		case TOK_SAME_PORTS:
 		case TOK_SKIP_GLOBAL:
 		case TOK_UNREG_ONLY:
+		case TOK_UNREG_CGN:
 		case TOK_RESET_ADDR:
 		case TOK_ALIAS_REV:
 		case TOK_PROXY_ONLY:
@@ -886,6 +887,9 @@ ipfw_config_nat(int ac, char **av)
 			break;
 		case TOK_UNREG_ONLY:
 			n->mode |= PKT_ALIAS_UNREGISTERED_ONLY;
+			break;
+		case TOK_UNREG_CGN:
+			n->mode |= PKT_ALIAS_UNREGISTERED_CGN;
 			break;
 		case TOK_SKIP_GLOBAL:
 			n->mode |= PKT_ALIAS_SKIP_GLOBAL;

@@ -28,7 +28,7 @@
 .\" $FreeBSD$
 .\" $Id: $
 .\"
-.Dd January 9, 2019
+.Dd February 6, 2020
 .Dt VALE 4
 .Os
 .Sh NAME
@@ -77,21 +77,13 @@ See
 for details on the API.
 .Ss LIMITS
 .Nm
-currently supports up to 4 switches, 16 ports per switch, with
-1024 buffers per port.
-These hard limits will be
-changed to sysctl variables in future releases.
+currently supports up to 8 switches, with 254 ports per switch.
 .Sh SYSCTL VARIABLES
+See
+.Xr netmap 4
+for a list of sysctl variables that affect
 .Nm
-uses the following sysctl variables to control operation:
-.Bl -tag -width dev.netmap.verbose
-.It dev.netmap.bridge_batch
-The maximum number of packets processed internally
-in each iteration.
-Defaults to 1024, use lower values to trade latency
-with throughput.
-.It dev.netmap.verbose
-Set to non-zero values to enable in-kernel diagnostics.
+bridges.
 .El
 .Sh EXAMPLES
 Create one switch, with a traffic generator connected to one
