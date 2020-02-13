@@ -67,7 +67,7 @@ vmm_stat_register(void *arg)
 	if (vst->scope == VMM_STAT_SCOPE_INTEL && !vmm_is_intel())
 		return;
 
-	if (vst->scope == VMM_STAT_SCOPE_AMD && !vmm_is_amd())
+	if (vst->scope == VMM_STAT_SCOPE_AMD && !vmm_is_svm())
 		return;
 
 	if (vst_num_elems + vst->nelems >= MAX_VMM_STAT_ELEMS) {
