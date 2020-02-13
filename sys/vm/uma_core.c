@@ -1204,6 +1204,7 @@ bucket_cache_reclaim(uma_zone_t zone, bool drain)
 			tofree = bucket->ub_cnt;
 			STAILQ_REMOVE_HEAD(&zdom->uzd_buckets, ub_link);
 			zdom->uzd_nitems -= tofree;
+			zone->uz_bkt_count -= tofree;
 
 			/*
 			 * Shift the bounds of the current WSS interval to avoid
