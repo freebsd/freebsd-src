@@ -657,6 +657,8 @@ cpu_vendor_intel(void)
 
 	if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
 		return (false);
+	} else if (strcmp(cpu_vendor, "HygonGenuine") == 0) {
+		return (false);
 	} else if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
 		return (true);
 	} else {
