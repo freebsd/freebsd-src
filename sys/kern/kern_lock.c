@@ -934,7 +934,7 @@ out:
 }
 
 int
-lockmgr_lock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk,
+lockmgr_lock_flags(struct lock *lk, u_int flags, struct lock_object *ilk,
     const char *file, int line)
 {
 	struct lock_class *class;
@@ -1123,7 +1123,7 @@ out:
  * 2. returning with an error after sleep
  * 3. unlocking the interlock
  *
- * If in doubt, use lockmgr_*_fast_path.
+ * If in doubt, use lockmgr_lock_flags.
  */
 int
 lockmgr_slock(struct lock *lk, u_int flags, const char *file, int line)
