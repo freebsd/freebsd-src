@@ -392,7 +392,7 @@ reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
 	obj->irelative = false;
 	rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
 	for (rel = obj->pltrel;  rel < rellim;  rel++) {
-		if (ELF_R_TYPE(rel->r_info) == R_386_RELATIVE)
+		if (ELF_R_TYPE(rel->r_info) == R_386_IRELATIVE)
 			reloc_iresolve_one(obj, rel, lockstate);
 	}
 	return (0);
