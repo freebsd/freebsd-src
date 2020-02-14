@@ -142,6 +142,9 @@
    Support for TCP wrappers was removed in upstream 6.7p1.  We've
    added it back by porting the 6.6p1 code forward.
 
+   TCP wrappers support in sshd will be disabled in HEAD and will
+   be removed from FreeBSD in the future.
+
 6) Agent client reference counting
 
    We've added code to ssh-agent.c to implement client reference
