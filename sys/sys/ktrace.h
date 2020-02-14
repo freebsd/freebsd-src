@@ -73,7 +73,7 @@ struct ktr_header {
 #define KTRPOINT(td, type)  (__predict_false(KTRCHECK((td), (type))))
 #define	KTRCHECKDRAIN(td)	(!(STAILQ_EMPTY(&(td)->td_proc->p_ktr)))
 #define	KTRUSERRET(td) do {						\
-	if (KTRCHECKDRAIN(td))						\
+	if (__predict_false(KTRCHECKDRAIN(td)))				\
 		ktruserret(td);						\
 } while (0)
 
