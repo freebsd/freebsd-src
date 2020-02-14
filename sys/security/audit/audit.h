@@ -378,7 +378,7 @@ void	 audit_thread_free(struct thread *td);
 } while (0)
 
 #define	AUDIT_SYSCALL_ENTER(code, td)	do {				\
-	if (audit_syscalls_enabled) {					\
+	if (__predict_false(audit_syscalls_enabled)) {			\
 		audit_syscall_enter(code, td);				\
 	}								\
 } while (0)
