@@ -3176,7 +3176,7 @@ static bool isNonTrivialObjCLifetimeConversion(Qualifiers FromQuals,
 /// FromType and \p ToType is permissible, given knowledge about whether every
 /// outer layer is const-qualified.
 static bool isQualificationConversionStep(QualType FromType, QualType ToType,
-                                          bool CStyle,
+                                          bool CStyle, bool IsTopLevel,
                                           bool &PreviousToQualsIncludeConst,
                                           bool &ObjCLifetimeConversion) {
   Qualifiers FromQuals = FromType.getQualifiers();
@@ -3213,11 +3213,15 @@ static bool isQualificationConversionStep(QualType FromType, QualType ToType,
   if (!CStyle && !ToQuals.compatiblyIncludes(FromQuals))
     return false;
 
-  // For a C-style cast, just require the address spaces to overlap.
-  // FIXME: Does "superset" also imply the representation of a pointer is the
-  // same? We're assuming that it does here and in compatiblyIncludes.
-  if (CStyle && !ToQuals.isAddressSpaceSupersetOf(FromQuals) &&
-      !FromQuals.isAddressSpaceSupersetOf(ToQuals))
+  // If address spaces mismatch:
+  //  - in top level it is only valid to convert to addr space that is a
+  //    superset in all cases apart from C-style casts where we allow
+  //    conversions between overlapping address spaces.
+  //  - in non-top levels it is not a valid conversion.
+  if (ToQuals.getAddressSpace() != FromQuals.getAddressSpace() &&
+      (!IsTopLevel ||
+       !(ToQuals.isAddressSpaceSupersetOf(FromQuals) ||
+         (CStyle && FromQuals.isAddressSpaceSupersetOf(ToQuals)))))
     return false;
 
   //   -- if the cv 1,j and cv 2,j are different, then const is in
@@ -3258,9 +3262,9 @@ Sema::IsQualificationConversion(QualType FromType, QualType ToType,
   bool PreviousToQualsIncludeConst = true;
   bool UnwrappedAnyPointer = false;
   while (Context.UnwrapSimilarTypes(FromType, ToType)) {
-    if (!isQualificationConversionStep(FromType, ToType, CStyle,
-                                       PreviousToQualsIncludeConst,
-                                       ObjCLifetimeConversion))
+    if (!isQualificationConversionStep(
+            FromType, ToType, CStyle, !UnwrappedAnyPointer,
+            PreviousToQualsIncludeConst, ObjCLifetimeConversion))
       return false;
     UnwrappedAnyPointer = true;
   }
@@ -4499,7 +4503,7 @@ Sema::CompareReferenceRelationship(SourceLocation Loc,
     // If we find a qualifier mismatch, the types are not reference-compatible,
     // but are still be reference-related if they're similar.
     bool ObjCLifetimeConversion = false;
-    if (!isQualificationConversionStep(T2, T1, /*CStyle=*/false,
+    if (!isQualificationConversionStep(T2, T1, /*CStyle=*/false, TopLevel,
                                        PreviousToQualsIncludeConst,
                                        ObjCLifetimeConversion))
       return (ConvertedReferent || Context.hasSimilarType(T1, T2))
@@ -6291,9 +6295,9 @@ void Sema::AddOverloadCandidate(
         return;
       }
 
-  if (Expr *RequiresClause = Function->getTrailingRequiresClause()) {
+  if (Function->getTrailingRequiresClause()) {
     ConstraintSatisfaction Satisfaction;
-    if (CheckConstraintSatisfaction(RequiresClause, Satisfaction) ||
+    if (CheckFunctionConstraints(Function, Satisfaction) ||
         !Satisfaction.IsSatisfied) {
       Candidate.Viable = false;
       Candidate.FailureKind = ovl_fail_constraints_not_satisfied;
@@ -6808,9 +6812,9 @@ Sema::AddMethodCandidate(CXXMethodDecl *Method, DeclAccessPair FoundDecl,
         return;
       }
 
-  if (Expr *RequiresClause = Method->getTrailingRequiresClause()) {
+  if (Method->getTrailingRequiresClause()) {
     ConstraintSatisfaction Satisfaction;
-    if (CheckConstraintSatisfaction(RequiresClause, Satisfaction) ||
+    if (CheckFunctionConstraints(Method, Satisfaction) ||
         !Satisfaction.IsSatisfied) {
       Candidate.Viable = false;
       Candidate.FailureKind = ovl_fail_constraints_not_satisfied;
@@ -7204,10 +7208,9 @@ void Sema::AddConversionCandidate(
     return;
   }
 
-  Expr *RequiresClause = Conversion->getTrailingRequiresClause();
-  if (RequiresClause) {
+  if (Conversion->getTrailingRequiresClause()) {
     ConstraintSatisfaction Satisfaction;
-    if (CheckConstraintSatisfaction(RequiresClause, Satisfaction) ||
+    if (CheckFunctionConstraints(Conversion, Satisfaction) ||
         !Satisfaction.IsSatisfied) {
       Candidate.Viable = false;
       Candidate.FailureKind = ovl_fail_constraints_not_satisfied;
@@ -9270,17 +9273,31 @@ Sema::AddArgumentDependentLookupCandidates(DeclarationName Name,
       if (ExplicitTemplateArgs)
         continue;
 
-      AddOverloadCandidate(FD, FoundDecl, Args, CandidateSet,
-                           /*SuppressUserConversions=*/false, PartialOverloading,
-                           /*AllowExplicit*/ true,
-                           /*AllowExplicitConversions*/ false,
-                           ADLCallKind::UsesADL);
+      AddOverloadCandidate(
+          FD, FoundDecl, Args, CandidateSet, /*SuppressUserConversions=*/false,
+          PartialOverloading, /*AllowExplicit=*/true,
+          /*AllowExplicitConversions=*/false, ADLCallKind::UsesADL);
+      if (CandidateSet.getRewriteInfo().shouldAddReversed(Context, FD)) {
+        AddOverloadCandidate(
+            FD, FoundDecl, {Args[1], Args[0]}, CandidateSet,
+            /*SuppressUserConversions=*/false, PartialOverloading,
+            /*AllowExplicit=*/true, /*AllowExplicitConversions=*/false,
+            ADLCallKind::UsesADL, None, OverloadCandidateParamOrder::Reversed);
+      }
     } else {
+      auto *FTD = cast<FunctionTemplateDecl>(*I);
       AddTemplateOverloadCandidate(
-          cast<FunctionTemplateDecl>(*I), FoundDecl, ExplicitTemplateArgs, Args,
-          CandidateSet,
+          FTD, FoundDecl, ExplicitTemplateArgs, Args, CandidateSet,
           /*SuppressUserConversions=*/false, PartialOverloading,
-          /*AllowExplicit*/true, ADLCallKind::UsesADL);
+          /*AllowExplicit=*/true, ADLCallKind::UsesADL);
+      if (CandidateSet.getRewriteInfo().shouldAddReversed(
+              Context, FTD->getTemplatedDecl())) {
+        AddTemplateOverloadCandidate(
+            FTD, FoundDecl, ExplicitTemplateArgs, {Args[1], Args[0]},
+            CandidateSet, /*SuppressUserConversions=*/false, PartialOverloading,
+            /*AllowExplicit=*/true, ADLCallKind::UsesADL,
+            OverloadCandidateParamOrder::Reversed);
+      }
     }
   }
 }
@@ -9566,17 +9583,15 @@ bool clang::isBetterOverloadCandidate(
       if (RC1 && RC2) {
         bool AtLeastAsConstrained1, AtLeastAsConstrained2;
         if (S.IsAtLeastAsConstrained(Cand1.Function, {RC1}, Cand2.Function,
-                                     {RC2}, AtLeastAsConstrained1))
-          return false;
-        if (!AtLeastAsConstrained1)
-          return false;
-        if (S.IsAtLeastAsConstrained(Cand2.Function, {RC2}, Cand1.Function,
+                                     {RC2}, AtLeastAsConstrained1) ||
+            S.IsAtLeastAsConstrained(Cand2.Function, {RC2}, Cand1.Function,
                                      {RC1}, AtLeastAsConstrained2))
           return false;
-        if (!AtLeastAsConstrained2)
-          return true;
-      } else if (RC1 || RC2)
+        if (AtLeastAsConstrained1 != AtLeastAsConstrained2)
+          return AtLeastAsConstrained1;
+      } else if (RC1 || RC2) {
         return RC1 != nullptr;
+      }
     }
   }
 
@@ -9947,9 +9962,9 @@ static bool checkAddressOfFunctionIsAvailable(Sema &S, const FunctionDecl *FD,
     return false;
   }
 
-  if (const Expr *RC = FD->getTrailingRequiresClause()) {
+  if (FD->getTrailingRequiresClause()) {
     ConstraintSatisfaction Satisfaction;
-    if (S.CheckConstraintSatisfaction(RC, Satisfaction))
+    if (S.CheckFunctionConstraints(FD, Satisfaction, Loc))
       return false;
     if (!Satisfaction.IsSatisfied) {
       if (Complain) {
@@ -10974,8 +10989,7 @@ static void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
         << (unsigned)FnKindPair.first << (unsigned)ocs_non_template
         << FnDesc /* Ignored */;
     ConstraintSatisfaction Satisfaction;
-    if (S.CheckConstraintSatisfaction(Fn->getTrailingRequiresClause(),
-                                      Satisfaction))
+    if (S.CheckFunctionConstraints(Fn, Satisfaction))
       break;
     S.DiagnoseUnsatisfiedConstraint(Satisfaction);
   }
