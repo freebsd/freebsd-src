@@ -94,6 +94,8 @@ void version(const char* progname)
 } // Anonymous namespace
 
 using fdt::device_tree;
+using fdt::tree_write_fn_ptr;
+using fdt::tree_read_fn_ptr;
 
 int
 main(int argc, char **argv)
@@ -104,8 +106,8 @@ main(int argc, char **argv)
 	const char *in_file = "-";
 	FILE *depfile = 0;
 	bool debug_mode = false;
-	auto write_fn = &device_tree::write_binary;
-	auto read_fn = &device_tree::parse_dts;
+	tree_write_fn_ptr write_fn = nullptr;
+	tree_read_fn_ptr read_fn = nullptr;
 	uint32_t boot_cpu = 0;
 	bool boot_cpu_specified = false;
 	bool keep_going = false;
@@ -135,6 +137,10 @@ main(int argc, char **argv)
 			if (arg == "dtb")
 			{
 				read_fn = &device_tree::parse_dtb;
+				if (write_fn == nullptr)
+				{
+					write_fn = &device_tree::write_dts;
+				}
 			}
 			else if (arg == "dts")
 			{
@@ -161,6 +167,10 @@ main(int argc, char **argv)
 			else if (arg == "dts")
 			{
 				write_fn = &device_tree::write_dts;
+				if (read_fn == nullptr)
+				{
+					read_fn = &device_tree::parse_dtb;
+				}
 			}
 			else
 			{
@@ -297,6 +307,14 @@ main(int argc, char **argv)
 			fprintf(stderr, "Unknown option %c\n", ch);
 			return EXIT_FAILURE;
 		}
+	}
+	if (read_fn == nullptr)
+	{
+		read_fn = &device_tree::parse_dts;
+	}
+	if (write_fn == nullptr)
+	{
+		write_fn = &device_tree::write_binary;
 	}
 	if (optind < argc)
 	{

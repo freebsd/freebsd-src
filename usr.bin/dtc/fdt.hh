@@ -59,6 +59,14 @@ class property;
 class node;
 class device_tree;
 /**
+ * Type for device tree write functions.
+ */
+typedef void (device_tree::* tree_write_fn_ptr)(int);
+/**
+ * Type for device tree read functions.
+ */
+typedef void (device_tree::* tree_read_fn_ptr)(const std::string &, FILE *);
+/**
  * Type for (owned) pointers to properties.
  */
 typedef std::shared_ptr<property> property_ptr;
