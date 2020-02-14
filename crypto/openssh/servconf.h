@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.136 2018/07/09 21:26:02 markus Exp $ */
+/* $OpenBSD: servconf.h,v 1.137 2018/09/20 03:28:06 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -110,6 +110,7 @@ typedef struct {
 	int     hostbased_uses_name_from_packet_only; /* experimental */
 	char   *hostbased_key_types;	/* Key types allowed for hostbased */
 	char   *hostkeyalgorithms;	/* SSH2 server key types */
+	char   *ca_sign_algorithms;	/* Allowed CA signature algorithms */
 	int     pubkey_authentication;	/* If true, permit ssh2 pubkey authentication. */
 	char   *pubkey_key_types;	/* Key types allowed for public key */
 	int     kerberos_authentication;	/* If true, permit Kerberos
@@ -243,6 +244,7 @@ struct connection_info {
 		M_CP_STROPT(authorized_principals_command_user); \
 		M_CP_STROPT(hostbased_key_types); \
 		M_CP_STROPT(pubkey_key_types); \
+		M_CP_STROPT(ca_sign_algorithms); \
 		M_CP_STROPT(routing_domain); \
 		M_CP_STROPT(permit_user_env_whitelist); \
 		M_CP_STRARRAYOPT(authorized_keys_files, num_authkeys_files); \

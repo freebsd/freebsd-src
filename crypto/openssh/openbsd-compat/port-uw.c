@@ -60,6 +60,9 @@ sys_auth_passwd(struct ssh *ssh, const char *password)
 	/* Just use the supplied fake password if authctxt is invalid */
 	char *pw_password = authctxt->valid ? shadow_pw(pw) : pw->pw_passwd;
 
+	if (pw_password == NULL)
+		return 0;
+
 	/* Check for users with no password. */
 	if (strcmp(pw_password, "") == 0 && strcmp(password, "") == 0)
 		return (1);
