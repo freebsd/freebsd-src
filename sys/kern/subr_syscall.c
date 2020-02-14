@@ -131,15 +131,6 @@ syscallenter(struct thread *td)
 		goto retval;
 	}
 
-#ifdef KDTRACE_HOOKS
-	/* Give the syscall:::entry DTrace probe a chance to fire. */
-	if (__predict_false(systrace_enabled && sa->callp->sy_entry != 0))
-		(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
-#endif
-
-	/* Let system calls set td_errno directly. */
-	td->td_pflags &= ~TDP_NERRNO;
-
 	/*
 	 * Fetch fast sigblock value at the time of syscall
 	 * entry because sleepqueue primitives might call
@@ -147,20 +138,32 @@ syscallenter(struct thread *td)
 	 */
 	fetch_sigfastblock(td);
 
-	AUDIT_SYSCALL_ENTER(sa->code, td);
-	error = (sa->callp->sy_call)(td, sa->args);
-	AUDIT_SYSCALL_EXIT(error, td);
+	/* Let system calls set td_errno directly. */
+	td->td_pflags &= ~TDP_NERRNO;
 
-	/* Save the latest error return value. */
-	if (__predict_false((td->td_pflags & TDP_NERRNO) == 0))
-		td->td_errno = error;
-
+	if (__predict_false(systrace_enabled || AUDIT_SYSCALL_ENTER(sa->code, td))) {
 #ifdef KDTRACE_HOOKS
-	/* Give the syscall:::return DTrace probe a chance to fire. */
-	if (__predict_false(systrace_enabled && sa->callp->sy_return != 0))
-		(*systrace_probe_func)(sa, SYSTRACE_RETURN,
-		    error ? -1 : td->td_retval[0]);
+		/* Give the syscall:::entry DTrace probe a chance to fire. */
+		if (__predict_false(sa->callp->sy_entry != 0))
+			(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
 #endif
+		error = (sa->callp->sy_call)(td, sa->args);
+		/* Save the latest error return value. */
+		if (__predict_false((td->td_pflags & TDP_NERRNO) == 0))
+			td->td_errno = error;
+		AUDIT_SYSCALL_EXIT(error, td);
+#ifdef KDTRACE_HOOKS
+		/* Give the syscall:::return DTrace probe a chance to fire. */
+		if (__predict_false(sa->callp->sy_return != 0))
+			(*systrace_probe_func)(sa, SYSTRACE_RETURN,
+			    error ? -1 : td->td_retval[0]);
+#endif
+	} else {
+		error = (sa->callp->sy_call)(td, sa->args);
+		/* Save the latest error return value. */
+		if (__predict_false((td->td_pflags & TDP_NERRNO) == 0))
+			td->td_errno = error;
+	}
 	syscall_thread_exit(td, sa->callp);
 
  retval:

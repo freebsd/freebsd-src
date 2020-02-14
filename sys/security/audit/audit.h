@@ -377,11 +377,14 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_vnode2((vp));					\
 } while (0)
 
-#define	AUDIT_SYSCALL_ENTER(code, td)	do {				\
+#define	AUDIT_SYSCALL_ENTER(code, td)	({				\
+	bool _audit_entered = false;					\
 	if (__predict_false(audit_syscalls_enabled)) {			\
 		audit_syscall_enter(code, td);				\
+		_audit_entered = true;					\
 	}								\
-} while (0)
+	_audit_entered;							\
+})
 
 /*
  * Wrap the audit_syscall_exit() function so that it is called only when
@@ -449,7 +452,7 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_VNODE1(vp)
 #define	AUDIT_ARG_VNODE2(vp)
 
-#define	AUDIT_SYSCALL_ENTER(code, td)
+#define	AUDIT_SYSCALL_ENTER(code, td)	0
 #define	AUDIT_SYSCALL_EXIT(error, td)
 
 #define	AUDIT_SYSCLOSE(p, fd)
