@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 #include <cam/cam_debug.h>
 #include <cam/cam_sim.h>
+#include <cam/cam_xpt_internal.h>	/* For KASSERTs only */
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -681,6 +682,10 @@ camperiphfree(struct cam_periph *periph)
 	cam_periph_assert(periph, MA_OWNED);
 	KASSERT(periph->periph_allocating == 0, ("%s%d: freed while allocating",
 	    periph->periph_name, periph->unit_number));
+	KASSERT(periph->path->device->ccbq.dev_active == 0,
+	    ("%s%d: freed with %d active CCBs\n",
+		periph->periph_name, periph->unit_number,
+		periph->path->device->ccbq.dev_active));
 	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
 		if (strcmp((*p_drv)->driver_name, periph->periph_name) == 0)
 			break;
