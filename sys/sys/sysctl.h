@@ -270,9 +270,9 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	__DESCR(d) ""
 #endif
 
-#ifdef notyet
+#ifdef	notyet
 #define	SYSCTL_ENFORCE_FLAGS(x)						\
-    _Static_assert(((CTLFLAG_MPSAFE ^ CTLFLAG_NEEDGIANT) & (x)),	\
+    _Static_assert((((x) & CTLFLAG_MPSAFE) != 0) ^ (((x) & CTLFLAG_NEEDGIANT) != 0), \
         "Has to be either CTLFLAG_MPSAFE or CTLFLAG_NEEDGIANT")
 #else
 #define	SYSCTL_ENFORCE_FLAGS(x)
