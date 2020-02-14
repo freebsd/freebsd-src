@@ -347,6 +347,13 @@ ukbd_any_key_valid(struct ukbd_softc *sc)
 	return (ret);
 }
 
+static bool
+ukbd_is_modifier_key(uint32_t key)
+{
+
+	return (key >= 0xe0 && key <= 0xe7);
+}
+
 static void
 ukbd_start_timer(struct ukbd_softc *sc)
 {
@@ -488,11 +495,8 @@ ukbd_interrupt(struct ukbd_softc *sc)
 {
 	const uint32_t now = sc->sc_time_ms;
 	unsigned key;
-	bool old_keys;
 
 	UKBD_LOCK_ASSERT();
-
-	old_keys = ukbd_any_key_pressed(sc);
 
 	/* Check for key changes */
 	for (key = 0; key != UKBD_NKEYCODE; key++) {
@@ -514,6 +518,19 @@ ukbd_interrupt(struct ukbd_softc *sc)
 			} else {
 				ukbd_put_key(sc, key | KEY_PRESS);
 
+				if (ukbd_is_modifier_key(key))
+					continue;
+
+				/*
+				 * Check for first new key and set
+				 * initial delay and [re]start timer:
+				 */
+				if (sc->sc_repeat_key == 0) {
+					sc->sc_co_basetime = sbinuptime();
+					sc->sc_delay = sc->sc_kbd.kb_delay1;
+					ukbd_start_timer(sc);
+				}
+
 				/* set repeat time for last key */
 				sc->sc_repeat_time = now + sc->sc_kbd.kb_delay1;
 				sc->sc_repeat_key = key;
@@ -533,13 +550,6 @@ ukbd_interrupt(struct ukbd_softc *sc)
 			ukbd_put_key(sc, sc->sc_repeat_key | KEY_PRESS);
 			sc->sc_repeat_time = now + sc->sc_kbd.kb_delay2;
 		}
-	}
-
-	/* check for first new key and set initial delay and [re]start timer */
-	if (old_keys == false && ukbd_any_key_pressed(sc) == true) {
-		sc->sc_co_basetime = sbinuptime();
-		sc->sc_delay = sc->sc_kbd.kb_delay1;
-		ukbd_start_timer(sc);
 	}
 
 	/* wakeup keyboard system */
