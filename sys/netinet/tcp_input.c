@@ -2564,7 +2564,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					if (tp->t_flags & TF_SACK_PERMIT) {
 						TCPSTAT_INC(
 						    tcps_sack_recovery_episode);
-						tp->sack_newdata = tp->snd_nxt;
+						tp->snd_recover = tp->snd_nxt;
 						tp->snd_cwnd = maxseg;
 						(void) tp->t_fb->tfb_tcp_output(tp);
 						goto drop;

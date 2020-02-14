@@ -1978,7 +1978,8 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
 	if (!fhold(fp))
 		return (EBADF);
 	FILEDESC_XLOCK(fdp);
-	if ((error = fdalloc(td, 0, fd))) {
+	error = fdalloc(td, 0, fd);
+	if (__predict_false(error != 0)) {
 		FILEDESC_XUNLOCK(fdp);
 		fdrop(fp, td);
 		return (error);
@@ -2898,7 +2899,7 @@ fget(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 }
 
 int
-fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
+fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, vm_prot_t *maxprotp,
     struct file **fpp)
 {
 	int error;

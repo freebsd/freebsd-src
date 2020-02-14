@@ -1686,7 +1686,6 @@ retry:
 	COPY_STAT(rcv_up);
 	COPY_STAT(rcv_adv);
 	COPY_STAT(rcv_nxt);
-	COPY_STAT(sack_newdata);
 	COPY_STAT(rcv_wnd);
 	COPY_STAT_T(dupacks);
 	COPY_STAT_T(segqlen);

@@ -2821,16 +2821,6 @@ prison_ischild(struct prison *pr1, struct prison *pr2)
 }
 
 /*
- * Return 1 if the passed credential is in a jail, otherwise 0.
- */
-int
-jailed(struct ucred *cred)
-{
-
-	return (cred->cr_prison != &prison0);
-}
-
-/*
  * Return 1 if the passed credential is in a jail and that jail does not
  * have its own virtual network stack, otherwise 0.
  */
@@ -3007,6 +2997,16 @@ prison_enforce_statfs(struct ucred *cred, struct mount *mp, struct statfs *sp)
 int
 prison_priv_check(struct ucred *cred, int priv)
 {
+
+	/*
+	 * Some policies have custom handlers. This routine should not be
+	 * called for them. See priv_check_cred().
+	 */
+	switch (priv) {
+	case PRIV_VFS_GENERATION:
+		KASSERT(0, ("prison_priv_check instead of a custom handler "
+		    "called for %d\n", priv));
+	}
 
 	if (!jailed(cred))
 		return (0);

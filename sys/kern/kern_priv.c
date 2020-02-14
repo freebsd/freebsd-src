@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
  * userland programs, and should not be done without careful consideration of
  * the consequences.
  */
-static int	suser_enabled = 1;
+static int __read_mostly 	suser_enabled = 1;
 SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RWTUN,
     &suser_enabled, 0, "processes with uid 0 have privilege");
 
@@ -71,6 +71,51 @@ SDT_PROVIDER_DEFINE(priv);
 SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv__ok, "int");
 SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv__err, "int");
 
+static __always_inline int
+priv_check_cred_pre(struct ucred *cred, int priv)
+{
+	int error;
+
+#ifdef MAC
+	error = mac_priv_check(cred, priv);
+#else
+	error = 0;
+#endif
+	return (error);
+}
+
+static __always_inline int
+priv_check_cred_post(struct ucred *cred, int priv, int error, bool handled)
+{
+
+	if (__predict_true(handled))
+		goto out;
+	/*
+	 * Now check with MAC, if enabled, to see if a policy module grants
+	 * privilege.
+	 */
+#ifdef MAC
+	if (mac_priv_grant(cred, priv) == 0) {
+		error = 0;
+		goto out;
+	}
+#endif
+
+	/*
+	 * The default is deny, so if no policies have granted it, reject
+	 * with a privilege error here.
+	 */
+	error = EPERM;
+out:
+	if (SDT_PROBES_ENABLED()) {
+		if (error)
+			SDT_PROBE1(priv, kernel, priv_check, priv__err, priv);
+		else
+			SDT_PROBE1(priv, kernel, priv_check, priv__ok, priv);
+	}
+	return (error);
+}
+
 /*
  * Check a credential for privilege.  Lots of good reasons to deny privilege;
  * only a few to grant it.
@@ -83,15 +128,18 @@ priv_check_cred(struct ucred *cred, int priv)
 	KASSERT(PRIV_VALID(priv), ("priv_check_cred: invalid privilege %d",
 	    priv));
 
+	switch (priv) {
+	case PRIV_VFS_GENERATION:
+		return (priv_check_cred_vfs_generation(cred));
+	}
+
 	/*
 	 * We first evaluate policies that may deny the granting of
 	 * privilege unilaterally.
 	 */
-#ifdef MAC
-	error = mac_priv_check(cred, priv);
+	error = priv_check_cred_pre(cred, priv);
 	if (error)
 		goto out;
-#endif
 
 	/*
 	 * Jail policy will restrict certain privileges that may otherwise be
@@ -177,30 +225,9 @@ priv_check_cred(struct ucred *cred, int priv)
 		}
 	}
 
-	/*
-	 * Now check with MAC, if enabled, to see if a policy module grants
-	 * privilege.
-	 */
-#ifdef MAC
-	if (mac_priv_grant(cred, priv) == 0) {
-		error = 0;
-		goto out;
-	}
-#endif
-
-	/*
-	 * The default is deny, so if no policies have granted it, reject
-	 * with a privilege error here.
-	 */
-	error = EPERM;
+	return (priv_check_cred_post(cred, priv, error, false));
 out:
-	if (SDT_PROBES_ENABLED()) {
-		if (error)
-			SDT_PROBE1(priv, kernel, priv_check, priv__err, priv);
-		else
-			SDT_PROBE1(priv, kernel, priv_check, priv__ok, priv);
-	}
-	return (error);
+	return (priv_check_cred_post(cred, priv, error, true));
 }
 
 int
@@ -210,4 +237,29 @@ priv_check(struct thread *td, int priv)
 	KASSERT(td == curthread, ("priv_check: td != curthread"));
 
 	return (priv_check_cred(td->td_ucred, priv));
+}
+
+int
+priv_check_cred_vfs_generation(struct ucred *cred)
+{
+	int error;
+
+	error = priv_check_cred_pre(cred, PRIV_VFS_GENERATION);
+	if (error)
+		goto out;
+
+	if (jailed(cred)) {
+		error = EPERM;
+		goto out;
+	}
+
+	if (cred->cr_uid == 0 && suser_enabled) {
+		error = 0;
+		goto out;
+	}
+
+	return (priv_check_cred_post(cred, PRIV_VFS_GENERATION, error, false));
+out:
+	return (priv_check_cred_post(cred, PRIV_VFS_GENERATION, error, true));
+
 }

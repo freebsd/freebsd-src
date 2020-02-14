@@ -193,8 +193,7 @@ smr_advance(smr_t smr)
 	/*
 	 * It is illegal to enter while in an smr section.
 	 */
-	KASSERT(curthread->td_critnest == 0,
-	    ("smr_advance: Not allowed in a critical section."));
+	SMR_ASSERT_NOT_ENTERED(smr);
 
 	/*
 	 * Modifications not done in a smr section need to be visible
@@ -237,6 +236,8 @@ smr_advance_deferred(smr_t smr, int limit)
 	smr_seq_t goal;
 	smr_t csmr;
 
+	SMR_ASSERT_NOT_ENTERED(smr);
+
 	critical_enter();
 	csmr = zpcpu_get(smr);
 	if (++csmr->c_deferred >= limit) {
@@ -275,8 +276,8 @@ smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 	/*
 	 * It is illegal to enter while in an smr section.
 	 */
-	KASSERT(!wait || curthread->td_critnest == 0,
-	    ("smr_poll: Blocking not allowed in a critical section."));
+	KASSERT(!wait || !SMR_ENTERED(smr),
+	    ("smr_poll: Blocking not allowed in a SMR section."));
 
 	/*
 	 * Use a critical section so that we can avoid ABA races
@@ -413,7 +414,7 @@ smr_create(const char *name)
 	int i;
 
 	s = uma_zalloc(smr_shared_zone, M_WAITOK);
-	smr = uma_zalloc(smr_zone, M_WAITOK);
+	smr = uma_zalloc_pcpu(smr_zone, M_WAITOK);
 
 	s->s_name = name;
 	s->s_rd_seq = s->s_wr_seq = SMR_SEQ_INIT;
@@ -435,7 +436,7 @@ smr_destroy(smr_t smr)
 
 	smr_synchronize(smr);
 	uma_zfree(smr_shared_zone, smr->c_shared);
-	uma_zfree(smr_zone, smr);
+	uma_zfree_pcpu(smr_zone, smr);
 }
 
 /*

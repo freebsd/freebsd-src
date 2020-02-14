@@ -188,6 +188,7 @@ hyperv_tsc_tcinit(void *dummy __unused)
 
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
+	case CPU_VENDOR_HYGON:
 		hyperv_tsc_timecounter.tc_get_timecount =
 		    hyperv_tsc_timecount_mfence;
 		tc64 = hyperv_tc64_tsc_mfence;

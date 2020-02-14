@@ -4204,8 +4204,6 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	    "# of frames tx'd using type1 txpkts work requests");
 	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "raw_wrs", CTLFLAG_RD,
 	    &txq->raw_wrs, "# of raw work requests (non-packets)");
-	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "tls_wrs", CTLFLAG_RD,
-	    &txq->tls_wrs, "# of TLS work requests (TLS records)");
 
 #ifdef KERN_TLS
 	if (sc->flags & KERN_TLS_OK) {

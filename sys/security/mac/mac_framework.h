@@ -258,8 +258,27 @@ void 	mac_posixshm_create(struct ucred *cred, struct shmfd *shmfd);
 void	mac_posixshm_destroy(struct shmfd *);
 void	mac_posixshm_init(struct shmfd *);
 
-int	mac_priv_check(struct ucred *cred, int priv);
-int	mac_priv_grant(struct ucred *cred, int priv);
+int	mac_priv_check_impl(struct ucred *cred, int priv);
+extern bool mac_priv_check_fp_flag;
+static inline int
+mac_priv_check(struct ucred *cred, int priv)
+{
+
+	if (__predict_false(mac_priv_check_fp_flag))
+		return (mac_priv_check_impl(cred, priv));
+	return (0);
+}
+
+int	mac_priv_grant_impl(struct ucred *cred, int priv);
+extern bool mac_priv_grant_fp_flag;
+static inline int
+mac_priv_grant(struct ucred *cred, int priv)
+{
+
+	if (__predict_false(mac_priv_grant_fp_flag))
+		return (mac_priv_grant_impl(cred, priv));
+	return (EPERM);
+}
 
 int	mac_proc_check_debug(struct ucred *cred, struct proc *p);
 int	mac_proc_check_sched(struct ucred *cred, struct proc *p);
@@ -371,6 +390,12 @@ void	mac_sysvshm_init(struct shmid_kernel *);
 
 void	mac_thread_userret(struct thread *td);
 
+#ifdef DEBUG_VFS_LOCKS
+void	mac_vnode_assert_locked(struct vnode *vp, const char *func);
+#else
+#define mac_vnode_assert_locked(vp, func) do { } while (0)
+#endif
+
 int	mac_vnode_associate_extattr(struct mount *mp, struct vnode *vp);
 void	mac_vnode_associate_singlelabel(struct mount *mp, struct vnode *vp);
 int	mac_vnode_check_access(struct ucred *cred, struct vnode *vp,
@@ -393,17 +418,52 @@ int	mac_vnode_check_link(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
 int	mac_vnode_check_listextattr(struct ucred *cred, struct vnode *vp,
 	    int attrnamespace);
-int	mac_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
+
+int	mac_vnode_check_lookup_impl(struct ucred *cred, struct vnode *dvp,
  	    struct componentname *cnp);
-int	mac_vnode_check_mmap(struct ucred *cred, struct vnode *vp, int prot,
+extern bool mac_vnode_check_lookup_fp_flag;
+static inline int
+mac_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
+    struct componentname *cnp)
+{
+
+	mac_vnode_assert_locked(dvp, "mac_vnode_check_lookup");
+	if (__predict_false(mac_vnode_check_lookup_fp_flag))
+                return (mac_vnode_check_lookup_impl(cred, dvp, cnp));
+	return (0);
+}
+
+int	mac_vnode_check_mmap_impl(struct ucred *cred, struct vnode *vp, int prot,
 	    int flags);
+extern bool mac_vnode_check_mmap_fp_flag;
+static inline int
+mac_vnode_check_mmap(struct ucred *cred, struct vnode *vp, int prot,
+    int flags)
+{
+
+	mac_vnode_assert_locked(vp, "mac_vnode_check_mmap");
+	if (__predict_false(mac_vnode_check_mmap_fp_flag))
+		return (mac_vnode_check_mmap_impl(cred, vp, prot, flags));
+	return (0);
+}
+
+int	mac_vnode_check_open_impl(struct ucred *cred, struct vnode *vp,
+	    accmode_t accmode);
+extern bool mac_vnode_check_open_fp_flag;
+static inline int
+mac_vnode_check_open(struct ucred *cred, struct vnode *vp,
+    accmode_t accmode)
+{
+
+	mac_vnode_assert_locked(vp, "mac_vnode_check_open");
+	if (__predict_false(mac_vnode_check_open_fp_flag))
+		return (mac_vnode_check_open_impl(cred, vp, accmode));
+	return (0);
+}
+
 int	mac_vnode_check_mprotect(struct ucred *cred, struct vnode *vp,
 	    int prot);
-int	mac_vnode_check_open(struct ucred *cred, struct vnode *vp,
-	    accmode_t accmode);
 int	mac_vnode_check_poll(struct ucred *active_cred,
-	    struct ucred *file_cred, struct vnode *vp);
-int	mac_vnode_check_read(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
 int	mac_vnode_check_readdir(struct ucred *cred, struct vnode *vp);
 int	mac_vnode_check_readlink(struct ucred *cred, struct vnode *vp);
@@ -424,12 +484,51 @@ int	mac_vnode_check_setowner(struct ucred *cred, struct vnode *vp,
 	    uid_t uid, gid_t gid);
 int	mac_vnode_check_setutimes(struct ucred *cred, struct vnode *vp,
 	    struct timespec atime, struct timespec mtime);
-int	mac_vnode_check_stat(struct ucred *active_cred,
+
+int	mac_vnode_check_stat_impl(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
+extern bool mac_vnode_check_stat_fp_flag;
+static inline int
+mac_vnode_check_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp)
+{
+
+	mac_vnode_assert_locked(vp, "mac_vnode_check_stat");
+	if (__predict_false(mac_vnode_check_stat_fp_flag))
+		return (mac_vnode_check_stat_impl(active_cred, file_cred, vp));
+	return (0);
+}
+
+int	mac_vnode_check_read_impl(struct ucred *active_cred,
+	    struct ucred *file_cred, struct vnode *vp);
+extern bool mac_vnode_check_read_fp_flag;
+static inline int
+mac_vnode_check_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp)
+{
+
+	mac_vnode_assert_locked(vp, "mac_vnode_check_read");
+	if (__predict_false(mac_vnode_check_read_fp_flag))
+		return (mac_vnode_check_read_impl(active_cred, file_cred, vp));
+	return (0);
+}
+
+int	mac_vnode_check_write_impl(struct ucred *active_cred,
+	    struct ucred *file_cred, struct vnode *vp);
+extern bool mac_vnode_check_write_fp_flag;
+static inline int
+mac_vnode_check_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp)
+{
+
+	mac_vnode_assert_locked(vp, "mac_vnode_check_write");
+	if (__predict_false(mac_vnode_check_write_fp_flag))
+		return (mac_vnode_check_write_impl(active_cred, file_cred, vp));
+	return (0);
+}
+
 int	mac_vnode_check_unlink(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
-int	mac_vnode_check_write(struct ucred *active_cred,
-	    struct ucred *file_cred, struct vnode *vp);
 void	mac_vnode_copy_label(struct label *, struct label *);
 void	mac_vnode_init(struct vnode *);
 int	mac_vnode_create_extattr(struct ucred *cred, struct mount *mp,
