@@ -54,7 +54,11 @@ typedef	void	(*systrace_probe_func_t)(struct syscall_args *,
 typedef	void	(*systrace_args_func_t)(int, void *, uint64_t *, int *);
 
 #ifdef _KERNEL
+#ifdef KDTRACE_HOOKS
 extern bool			systrace_enabled;
+#else
+#define systrace_enabled	0
+#endif
 #endif
 extern systrace_probe_func_t	systrace_probe_func;
 

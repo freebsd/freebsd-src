@@ -339,10 +339,6 @@ mlx5e_tls_snd_tag_alloc(struct ifnet *ifp,
 	case CRYPTO_AES_NIST_GCM_16:
 		switch (en->cipher_key_len) {
 		case 128 / 8:
-			if (en->auth_algorithm != CRYPTO_AES_128_NIST_GMAC) {
-				error = EINVAL;
-				goto failure;
-			}
 			if (en->tls_vminor == TLS_MINOR_VER_TWO) {
 				if (MLX5_CAP_TLS(priv->mdev, tls_1_2_aes_gcm_128) == 0) {
 					error = EPROTONOSUPPORT;
@@ -360,10 +356,6 @@ mlx5e_tls_snd_tag_alloc(struct ifnet *ifp,
 			break;
 
 		case 256 / 8:
-			if (en->auth_algorithm != CRYPTO_AES_256_NIST_GMAC) {
-				error = EINVAL;
-				goto failure;
-			}
 			if (en->tls_vminor == TLS_MINOR_VER_TWO) {
 				if (MLX5_CAP_TLS(priv->mdev, tls_1_2_aes_gcm_256) == 0) {
 					error = EPROTONOSUPPORT;

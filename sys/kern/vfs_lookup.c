@@ -932,12 +932,9 @@ dirloop:
 	 */
 unionlookup:
 #ifdef MAC
-	if ((cnp->cn_flags & NOMACCHECK) == 0) {
-		error = mac_vnode_check_lookup(cnp->cn_thread->td_ucred, dp,
-		    cnp);
-		if (error)
-			goto bad;
-	}
+	error = mac_vnode_check_lookup(cnp->cn_thread->td_ucred, dp, cnp);
+	if (error)
+		goto bad;
 #endif
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;

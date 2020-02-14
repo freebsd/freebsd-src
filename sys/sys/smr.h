@@ -68,6 +68,15 @@ struct smr {
 	int		c_deferred;	/* Deferred advance counter. */
 };
 
+#define	SMR_ENTERED(smr)						\
+    (curthread->td_critnest != 0 && zpcpu_get((smr))->c_seq != SMR_SEQ_INVALID)
+
+#define	SMR_ASSERT_ENTERED(smr)						\
+    KASSERT(SMR_ENTERED(smr), ("Not in smr section"))
+
+#define	SMR_ASSERT_NOT_ENTERED(smr)					\
+    KASSERT(!SMR_ENTERED(smr), ("In smr section."));
+
 /*
  * Return the current write sequence number.
  */

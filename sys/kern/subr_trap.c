@@ -141,13 +141,13 @@ userret(struct thread *td, struct trapframe *frame)
 	 * If this thread tickled GEOM, we need to wait for the giggling to
 	 * stop before we return to userland
 	 */
-	if (td->td_pflags & TDP_GEOM)
+	if (__predict_false(td->td_pflags & TDP_GEOM))
 		g_waitidle();
 
 	/*
 	 * Charge system time if profiling.
 	 */
-	if (p->p_flag & P_PROFIL)
+	if (__predict_false(p->p_flag & P_PROFIL))
 		addupc_task(td, TRAPF_PC(frame), td->td_pticks * psratio);
 
 #ifdef HWPMC_HOOKS

@@ -273,7 +273,7 @@ kern_do_statfs(struct thread *td, struct mount *mp, struct statfs *buf)
 	error = VFS_STATFS(mp, buf);
 	if (error != 0)
 		goto out;
-	if (priv_check(td, PRIV_VFS_GENERATION)) {
+	if (priv_check_cred_vfs_generation(td->td_ucred)) {
 		buf->f_fsid.val[0] = buf->f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, buf);
 	}
@@ -488,7 +488,7 @@ restart:
 					continue;
 				}
 			}
-			if (priv_check(td, PRIV_VFS_GENERATION)) {
+			if (priv_check_cred_vfs_generation(td->td_ucred)) {
 				sptmp = malloc(sizeof(struct statfs), M_STATFS,
 				    M_WAITOK);
 				*sptmp = *sp;
