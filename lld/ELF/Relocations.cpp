@@ -1198,10 +1198,16 @@ static void processRelocAux(InputSectionBase &sec, RelExpr expr, RelType type,
                     getLocation(sec, sym, offset));
       if (!sym.isInPlt())
         addPltEntry(in.plt, in.gotPlt, in.relaPlt, target->pltRel, sym);
-      if (!sym.isDefined())
+      if (!sym.isDefined()) {
         replaceWithDefined(
             sym, in.plt,
             target->pltHeaderSize + target->pltEntrySize * sym.pltIndex, 0);
+        if (config->emachine == EM_PPC) {
+          // PPC32 canonical PLT entries are at the beginning of .glink
+          cast<Defined>(sym).value = in.plt->headerSize;
+          in.plt->headerSize += 16;
+        }
+      }
       sym.needsPltAddr = true;
       sec.relocations.push_back({expr, type, offset, addend, &sym});
       return;
@@ -1298,10 +1304,10 @@ static void scanReloc(InputSectionBase &sec, OffsetGetter &getOffset, RelTy *&i,
     if (expr == R_GOT_PC && !isAbsoluteValue(sym)) {
       expr = target->adjustRelaxExpr(type, relocatedAddr, expr);
     } else {
-      // Addend of R_PPC_PLTREL24 is used to choose call stub type. It should be
-      // ignored if optimized to R_PC.
+      // The 0x8000 bit of r_addend of R_PPC_PLTREL24 is used to choose call
+      // stub type. It should be ignored if optimized to R_PC.
       if (config->emachine == EM_PPC && expr == R_PPC32_PLTREL)
-        addend = 0;
+        addend &= ~0x8000;
       expr = fromPlt(expr);
     }
   }
@@ -1752,6 +1758,37 @@ ThunkSection *ThunkCreator::addThunkSection(OutputSection *os,
                                             uint64_t off) {
   auto *ts = make<ThunkSection>(os, off);
   ts->partition = os->partition;
+  if ((config->fixCortexA53Errata843419 || config->fixCortexA8) &&
+      !isd->sections.empty()) {
+    // The errata fixes are sensitive to addresses modulo 4 KiB. When we add
+    // thunks we disturb the base addresses of sections placed after the thunks
+    // this makes patches we have generated redundant, and may cause us to
+    // generate more patches as different instructions are now in sensitive
+    // locations. When we generate more patches we may force more branches to
+    // go out of range, causing more thunks to be generated. In pathological
+    // cases this can cause the address dependent content pass not to converge.
+    // We fix this by rounding up the size of the ThunkSection to 4KiB, this
+    // limits the insertion of a ThunkSection on the addresses modulo 4 KiB,
+    // which means that adding Thunks to the section does not invalidate
+    // errata patches for following code.
+    // Rounding up the size to 4KiB has consequences for code-size and can
+    // trip up linker script defined assertions. For example the linux kernel
+    // has an assertion that what LLD represents as an InputSectionDescription
+    // does not exceed 4 KiB even if the overall OutputSection is > 128 Mib.
+    // We use the heuristic of rounding up the size when both of the following
+    // conditions are true:
+    // 1.) The OutputSection is larger than the ThunkSectionSpacing. This
+    //     accounts for the case where no single InputSectionDescription is
+    //     larger than the OutputSection size. This is conservative but simple.
+    // 2.) The InputSectionDescription is larger than 4 KiB. This will prevent
+    //     any assertion failures that an InputSectionDescription is < 4 KiB
+    //     in size.
+    uint64_t isdSize = isd->sections.back()->outSecOff +
+                       isd->sections.back()->getSize() -
+                       isd->sections.front()->outSecOff;
+    if (os->size > target->getThunkSectionSpacing() && isdSize > 4096)
+      ts->roundUpSizeForErrata = true;
+  }
   isd->thunkSections.push_back({ts, pass});
   return ts;
 }
@@ -1820,9 +1857,7 @@ bool ThunkCreator::normalizeExistingThunk(Relocation &rel, uint64_t src) {
                               rel.sym->getVA(rel.addend) + getPCBias(rel.type)))
       return true;
     rel.sym = &t->destination;
-    // TODO Restore addend on all targets.
-    if (config->emachine == EM_AARCH64 || config->emachine == EM_PPC64)
-      rel.addend = t->addend;
+    rel.addend = t->addend;
     if (rel.sym->isInPlt())
       rel.expr = toPlt(rel.expr);
   }
@@ -1900,16 +1935,11 @@ bool ThunkCreator::createThunks(ArrayRef<OutputSection *> outputSections) {
             rel.sym = t->getThunkTargetSym();
             rel.expr = fromPlt(rel.expr);
 
-            // On AArch64 and PPC64, a jump/call relocation may be encoded as
+            // On AArch64 and PPC, a jump/call relocation may be encoded as
             // STT_SECTION + non-zero addend, clear the addend after
             // redirection.
-            //
-            // The addend of R_PPC_PLTREL24 should be ignored after changing to
-            // R_PC.
-            if (config->emachine == EM_AARCH64 ||
-                config->emachine == EM_PPC64 ||
-                (config->emachine == EM_PPC && rel.type == R_PPC_PLTREL24))
-              rel.addend = 0;
+            if (config->emachine != EM_MIPS)
+              rel.addend = -getPCBias(rel.type);
           }
 
         for (auto &p : isd->thunkSections)

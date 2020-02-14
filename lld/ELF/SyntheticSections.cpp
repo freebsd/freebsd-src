@@ -2449,6 +2449,9 @@ PltSection::PltSection()
   if (config->emachine == EM_PPC || config->emachine == EM_PPC64) {
     name = ".glink";
     alignment = 4;
+    // PLTresolve is at the end.
+    if (config->emachine == EM_PPC)
+      footerSize = 64;
   }
 
   // On x86 when IBT is enabled, this section contains the second PLT (lazy
@@ -2486,7 +2489,7 @@ void PltSection::addEntry(Symbol &sym) {
 }
 
 size_t PltSection::getSize() const {
-  return headerSize + entries.size() * target->pltEntrySize;
+  return headerSize + entries.size() * target->pltEntrySize + footerSize;
 }
 
 bool PltSection::isNeeded() const {
@@ -3451,19 +3454,14 @@ bool ARMExidxSyntheticSection::classof(const SectionBase *d) {
 }
 
 ThunkSection::ThunkSection(OutputSection *os, uint64_t off)
-    : SyntheticSection(SHF_ALLOC | SHF_EXECINSTR, SHT_PROGBITS,
-                       config->wordsize, ".text.thunk") {
+    : SyntheticSection(SHF_ALLOC | SHF_EXECINSTR, SHT_PROGBITS, 4,
+                       ".text.thunk") {
   this->parent = os;
   this->outSecOff = off;
 }
 
-// When the errata patching is on, we round the size up to a 4 KiB
-// boundary. This limits the effect that adding Thunks has on the addresses
-// of the program modulo 4 KiB. As the errata patching is sensitive to address
-// modulo 4 KiB this can prevent further patches from being needed due to
-// Thunk insertion.
 size_t ThunkSection::getSize() const {
-  if (config->fixCortexA53Errata843419 || config->fixCortexA8)
+  if (roundUpSizeForErrata)
     return alignTo(size, 4096);
   return size;
 }

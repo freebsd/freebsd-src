@@ -195,12 +195,13 @@ public:
     Parser.addAliasForDirective(".dword", ".8byte");
     setAvailableFeatures(ComputeAvailableFeatures(STI.getFeatureBits()));
 
-    if (Options.ABIName.back() == 'f' &&
+    auto ABIName = StringRef(Options.ABIName);
+    if (ABIName.endswith("f") &&
         !getSTI().getFeatureBits()[RISCV::FeatureStdExtF]) {
       errs() << "Hard-float 'f' ABI can't be used for a target that "
                 "doesn't support the F instruction set extension (ignoring "
                 "target-abi)\n";
-    } else if (Options.ABIName.back() == 'd' &&
+    } else if (ABIName.endswith("d") &&
                !getSTI().getFeatureBits()[RISCV::FeatureStdExtD]) {
       errs() << "Hard-float 'd' ABI can't be used for a target that "
                 "doesn't support the D instruction set extension (ignoring "
