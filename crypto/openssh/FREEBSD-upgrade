@@ -71,6 +71,9 @@
 
 0E) Review changes to config.h very carefully.
 
+    Note that libwrap should not be defined in config.h; as of
+    r311585 it is conditional on MK_TCP_WRAPPERS.
+
 0F) If source files have been added or removed, update the appropriate
     makefiles to reflect changes in the vendor's Makefile.in.
 
