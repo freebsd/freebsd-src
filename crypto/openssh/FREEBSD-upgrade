@@ -1,11 +1,16 @@
 	    FreeBSD maintainer's guide to OpenSSH-portable
 	    ==============================================
 
+    These instructions assume you have a clone of the FreeBSD git repo
+    main branch in src/freebsd/main, and will store vendor trees under
+    src/freebsd/vendor/.  In addition, this assumes there is a "freebsd"
+    origin pointing to git(repo).freebsd.org/src.git.
+
 00) Make sure your mail spool has plenty of free space.  It'll fill up
     pretty fast once you're done with this checklist.
 
 01) Download the latest OpenSSH-portable tarball and signature from
-    OpenBSD (ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/).
+    OpenBSD (https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/).
 
 02) Verify the signature:
 
@@ -15,36 +20,46 @@
 
     $ tar xf openssh-X.YpZ.tar.gz
 
-04) Copy to the vendor directory:
+04) Copy to a vendor branch:
 
-    $ svn co svn+ssh://repo.freebsd.org/base/vendor-crypto/openssh/dist
-    $ rsync --archive --delete openssh-X.YpZ/ dist/
+    $ cd src/freebsd/main
+    $ git worktree add ../vendor/openssh freebsd/vendor/openssh
+    $ cd ../vendor/openssh
+    $ rsync --archive --delete --exclude=.git /path/to/openssh-X.YpZ/ ./
 
 05) Take care of added / deleted files:
 
-    $ svn rm $(svn stat dist | awk '$1 == "!" { print $2 }')
-    $ svn add --no-auto-props $(svn stat dist | awk '$1 == "?" { print $2 }')
+    $ git add -A
 
 06) Commit:
 
-    $ svn commit -m "Vendor import of OpenSSH X.YpZ." dist
+    $ git commit -m "Vendor import of OpenSSH X.YpZ"
 
 07) Tag:
 
-    $ svn copy -m "Tag OpenSSH X.YpZ." \
-	svn+ssh://repo.freebsd.org/base/vendor-crypto/openssh/dist \
-	svn+ssh://repo.freebsd.org/base/vendor-crypto/openssh/X.YpZ
+    $ git tag -a -m "Tag OpenSSH X.YpZ" vendor/openssh/X.YpZ
+
+    At this point the vendor branch can be pushed to the FreeBSD repo via:
+
+    $ git push freebsd vendor/openssh
+
+    (It could also be pushed later on, along with the merge to main, but
+    pushing now allows others to collaborate.)
 
 08) Check out head and run the pre-merge script, which strips our RCS
     tags from files that have them:
 
-    $ svn co svn+ssh://repo.freebsd.org/base/head
-    $ cd head/crypto/openssh
+    $ cd src/freebsd/main/crypto/openssh
     $ sh freebsd-pre-merge.sh
 
 09) Merge from the vendor branch:
 
-    $ svn merge -cNNNNNN \^/vendor-crypto/openssh/dist .
+    $ git subtree merge -P crypto/openssh vendor/openssh
+
+    A number of files have been deleted from FreeBSD's copy of ssh,
+    including rendered man pages (which have a .0 extension).  When
+    git prompts for these deleted files during the merge, choose 'd'
+    (leaving them deleted).
 
 0A) Resolve conflicts.  Remember to bump the version addendum in
     version.h, and update the default value in ssh{,d}_config and
@@ -52,8 +67,7 @@
 
 0B) Diff against the vendor branch:
 
-    $ svn diff --no-diff-deleted --no-diff-added \
-	--ignore-properties \^/vendor-crypto/openssh/X.YpZ .
+    $ git diff --diff-filter=M vendor/openssh/X.YpZ HEAD:crypto/openssh
 
     Files that have modifications relative to the vendor code, and
     only those files, must have the svn:keywords property set to
@@ -65,11 +79,17 @@
 
     $ sh freebsd-post-merge.sh
 
+    These tags are not used with git, but we will leave them in place as
+    long as svn-based FreeBSD 11.x and 12.x are supported.
+
 0D) Run the configure script:
 
     $ sh freebsd-configure.sh
 
 0E) Review changes to config.h very carefully.
+
+    Note that libwrap should not be defined in config.h; as of
+    r311585 (233932cc2a60) it is conditional on MK_TCP_WRAPPERS.
 
 0F) If source files have been added or removed, update the appropriate
     makefiles to reflect changes in the vendor's Makefile.in.
@@ -83,7 +103,12 @@
     something significant changes or if ssh_namespace.h is out of
     whack.
 
-12) Commit, and hunker down for the inevitable storm of complaints.
+12) Update nanobsd's copies of the ssh config files:
+
+    tools/tools/nanobsd/rescue/Files/etc/ssh/ssh_config
+    tools/tools/nanobsd/rescue/Files/etc/ssh/sshd_config
+
+13) Commit, and hunker down for the inevitable storm of complaints.
 
 
 
@@ -139,16 +164,21 @@
    Support for TCP wrappers was removed in upstream 6.7p1.  We've
    added it back by porting the 6.6p1 code forward.
 
+   TCP wrappers support in sshd will be disabled in HEAD and will
+   be removed from FreeBSD in the future.
+
 6) Agent client reference counting
 
    We've added code to ssh-agent.c to implement client reference
    counting; the agent will automatically exit when the last client
    disconnects.
 
-7) Class-based login restrictions
+7) Class-based login restrictions (27ceebbc2402)
 
-   We've added code to auth2.c to enforce the host.allow, host.deny,
-   times.allow and times.deny login class capabilities.
+   We've added code to auth.c to enforce the host.allow, host.deny,
+   times.allow and times.deny login class capabilities, based on an
+   upstream submission from
+   https://github.com/openssh/openssh-portable/pull/262.
 
 8) HPN
 
