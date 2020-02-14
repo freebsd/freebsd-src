@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.132 2018/07/11 08:19:35 martijn Exp $ */
+/* $OpenBSD: auth.c,v 1.133 2018/09/12 01:19:12 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -277,22 +277,26 @@ format_method_key(Authctxt *authctxt)
 {
 	const struct sshkey *key = authctxt->auth_method_key;
 	const char *methinfo = authctxt->auth_method_info;
-	char *fp, *ret = NULL;
+	char *fp, *cafp, *ret = NULL;
 
 	if (key == NULL)
 		return NULL;
 
 	if (sshkey_is_cert(key)) {
-		fp = sshkey_fingerprint(key->cert->signature_key,
+		fp = sshkey_fingerprint(key,
 		    options.fingerprint_hash, SSH_FP_DEFAULT);
-		xasprintf(&ret, "%s ID %s (serial %llu) CA %s %s%s%s",
-		    sshkey_type(key), key->cert->key_id,
+		cafp = sshkey_fingerprint(key->cert->signature_key,
+		    options.fingerprint_hash, SSH_FP_DEFAULT);
+		xasprintf(&ret, "%s %s ID %s (serial %llu) CA %s %s%s%s",
+		    sshkey_type(key), fp == NULL ? "(null)" : fp,
+		    key->cert->key_id,
 		    (unsigned long long)key->cert->serial,
 		    sshkey_type(key->cert->signature_key),
-		    fp == NULL ? "(null)" : fp,
+		    cafp == NULL ? "(null)" : cafp,
 		    methinfo == NULL ? "" : ", ",
 		    methinfo == NULL ? "" : methinfo);
 		free(fp);
+		free(cafp);
 	} else {
 		fp = sshkey_fingerprint(key, options.fingerprint_hash,
 		    SSH_FP_DEFAULT);
@@ -310,7 +314,7 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
     const char *method, const char *submethod)
 {
 	struct ssh *ssh = active_state; /* XXX */
-	void (*authlog) (const char *fmt,...) = verbose;
+	int level = SYSLOG_LEVEL_VERBOSE;
 	const char *authmsg;
 	char *extra = NULL;
 
@@ -322,7 +326,7 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
 	    !authctxt->valid ||
 	    authctxt->failures >= options.max_authtries / 2 ||
 	    strcmp(method, "password") == 0)
-		authlog = logit;
+		level = SYSLOG_LEVEL_INFO;
 
 	if (authctxt->postponed)
 		authmsg = "Postponed";
@@ -339,7 +343,7 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
 			extra = xstrdup(authctxt->auth_method_info);
 	}
 
-	authlog("%s %s%s%s for %s%.100s from %.200s port %d ssh2%s%s",
+	do_log2(level, "%s %s%s%s for %s%.100s from %.200s port %d ssh2%s%s",
 	    authmsg,
 	    method,
 	    submethod != NULL ? "/" : "", submethod == NULL ? "" : submethod,

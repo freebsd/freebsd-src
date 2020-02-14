@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.c,v 1.66 2018/08/04 00:55:06 djm Exp $ */
+/* $OpenBSD: dh.c,v 1.68 2018/09/17 15:40:14 millert Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  *
@@ -188,15 +188,17 @@ choose_dh(int min, int wantbits, int max)
 		logit("WARNING: no suitable primes in %s", _PATH_DH_MODULI);
 		return (dh_new_group_fallback(max));
 	}
+	which = arc4random_uniform(bestcount);
 
 	linenum = 0;
-	which = arc4random_uniform(bestcount);
+	bestcount = 0;
 	while (getline(&line, &linesize, f) != -1) {
+		linenum++;
 		if (!parse_prime(linenum, line, &dhg))
 			continue;
 		if ((dhg.size > max || dhg.size < min) ||
 		    dhg.size != best ||
-		    linenum++ != which) {
+		    bestcount++ != which) {
 			BN_clear_free(dhg.g);
 			BN_clear_free(dhg.p);
 			continue;
@@ -206,9 +208,9 @@ choose_dh(int min, int wantbits, int max)
 	free(line);
 	line = NULL;
 	fclose(f);
-	if (linenum != which+1) {
-		logit("WARNING: line %d disappeared in %s, giving up",
-		    which, _PATH_DH_MODULI);
+	if (bestcount != which + 1) {
+		logit("WARNING: selected prime disappeared in %s, giving up",
+		    _PATH_DH_MODULI);
 		return (dh_new_group_fallback(max));
 	}
 

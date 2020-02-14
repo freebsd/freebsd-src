@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.c,v 1.66 2018/07/03 13:20:25 djm Exp $ */
+/* $OpenBSD: sshkey.c,v 1.72 2018/10/11 00:52:46 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Alexander von Gernler.  All rights reserved.
@@ -80,6 +80,7 @@ int	sshkey_private_serialize_opt(const struct sshkey *key,
     struct sshbuf *buf, enum sshkey_serialize_rep);
 static int sshkey_from_blob_internal(struct sshbuf *buf,
     struct sshkey **keyp, int allow_cert);
+static int get_sigtype(const u_char *sig, size_t siglen, char **sigtypep);
 
 /* Supported key types */
 struct keytype {
@@ -118,17 +119,9 @@ static const struct keytype keytypes[] = {
 	{ "ssh-rsa-cert-v01@openssh.com", "RSA-CERT", NULL,
 	    KEY_RSA_CERT, 0, 1, 0 },
 	{ "rsa-sha2-256-cert-v01@openssh.com", "RSA-CERT",
-	    "ssh-rsa-sha2-256", KEY_RSA_CERT, 0, 1, 1 },
+	    "rsa-sha2-256", KEY_RSA_CERT, 0, 1, 1 },
 	{ "rsa-sha2-512-cert-v01@openssh.com", "RSA-CERT",
-	    "ssh-rsa-sha2-512", KEY_RSA_CERT, 0, 1, 1 },
-	{ "ssh-dss-cert-v01@openssh.com", "DSA-CERT", NULL,
-	    KEY_DSA_CERT, 0, 1, 0 },
-	{ "ssh-rsa-cert-v01@openssh.com", "RSA-CERT", NULL,
-	    KEY_RSA_CERT, 0, 1, 0 },
-	{ "rsa-sha2-256-cert-v01@openssh.com", "RSA-CERT",
-	    "ssh-rsa-sha2-256", KEY_RSA_CERT, 0, 1, 1 },
-	{ "rsa-sha2-512-cert-v01@openssh.com", "RSA-CERT",
-	    "ssh-rsa-sha2-512", KEY_RSA_CERT, 0, 1, 1 },
+	    "rsa-sha2-512", KEY_RSA_CERT, 0, 1, 1 },
 	{ "ssh-dss-cert-v01@openssh.com", "DSA-CERT", NULL,
 	    KEY_DSA_CERT, 0, 1, 0 },
 # ifdef OPENSSL_HAS_ECC
@@ -465,6 +458,7 @@ cert_free(struct sshkey_cert *cert)
 		free(cert->principals[i]);
 	free(cert->principals);
 	sshkey_free(cert->signature_key);
+	free(cert->signature_type);
 	freezero(cert, sizeof(*cert));
 }
 
@@ -484,6 +478,7 @@ cert_new(void)
 	cert->key_id = NULL;
 	cert->principals = NULL;
 	cert->signature_key = NULL;
+	cert->signature_type = NULL;
 	return cert;
 }
 
@@ -551,17 +546,6 @@ sshkey_new(int type)
 		}
 	}
 
-	return k;
-}
-
-/* XXX garbage-collect this API */
-struct sshkey *
-sshkey_new_private(int type)
-{
-	struct sshkey *k = sshkey_new(type);
-
-	if (k == NULL)
-		return NULL;
 	return k;
 }
 
@@ -1675,54 +1659,68 @@ sshkey_cert_copy(const struct sshkey *from_key, struct sshkey *to_key)
 	u_int i;
 	const struct sshkey_cert *from;
 	struct sshkey_cert *to;
-	int ret = SSH_ERR_INTERNAL_ERROR;
+	int r = SSH_ERR_INTERNAL_ERROR;
 
-	if (to_key->cert != NULL) {
-		cert_free(to_key->cert);
-		to_key->cert = NULL;
-	}
-
-	if ((from = from_key->cert) == NULL)
+	if (to_key == NULL || (from = from_key->cert) == NULL)
 		return SSH_ERR_INVALID_ARGUMENT;
 
-	if ((to = to_key->cert = cert_new()) == NULL)
+	if ((to = cert_new()) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 
-	if ((ret = sshbuf_putb(to->certblob, from->certblob)) != 0 ||
-	    (ret = sshbuf_putb(to->critical, from->critical)) != 0 ||
-	    (ret = sshbuf_putb(to->extensions, from->extensions)) != 0)
-		return ret;
+	if ((r = sshbuf_putb(to->certblob, from->certblob)) != 0 ||
+	    (r = sshbuf_putb(to->critical, from->critical)) != 0 ||
+	    (r = sshbuf_putb(to->extensions, from->extensions)) != 0)
+		goto out;
 
 	to->serial = from->serial;
 	to->type = from->type;
 	if (from->key_id == NULL)
 		to->key_id = NULL;
-	else if ((to->key_id = strdup(from->key_id)) == NULL)
-		return SSH_ERR_ALLOC_FAIL;
+	else if ((to->key_id = strdup(from->key_id)) == NULL) {
+		r = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
 	to->valid_after = from->valid_after;
 	to->valid_before = from->valid_before;
 	if (from->signature_key == NULL)
 		to->signature_key = NULL;
-	else if ((ret = sshkey_from_private(from->signature_key,
+	else if ((r = sshkey_from_private(from->signature_key,
 	    &to->signature_key)) != 0)
-		return ret;
-
-	if (from->nprincipals > SSHKEY_CERT_MAX_PRINCIPALS)
-		return SSH_ERR_INVALID_ARGUMENT;
+		goto out;
+	if (from->signature_type != NULL &&
+	    (to->signature_type = strdup(from->signature_type)) == NULL) {
+		r = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
+	if (from->nprincipals > SSHKEY_CERT_MAX_PRINCIPALS) {
+		r = SSH_ERR_INVALID_ARGUMENT;
+		goto out;
+	}
 	if (from->nprincipals > 0) {
 		if ((to->principals = calloc(from->nprincipals,
-		    sizeof(*to->principals))) == NULL)
-			return SSH_ERR_ALLOC_FAIL;
+		    sizeof(*to->principals))) == NULL) {
+			r = SSH_ERR_ALLOC_FAIL;
+			goto out;
+		}
 		for (i = 0; i < from->nprincipals; i++) {
 			to->principals[i] = strdup(from->principals[i]);
 			if (to->principals[i] == NULL) {
 				to->nprincipals = i;
-				return SSH_ERR_ALLOC_FAIL;
+				r = SSH_ERR_ALLOC_FAIL;
+				goto out;
 			}
 		}
 	}
 	to->nprincipals = from->nprincipals;
-	return 0;
+
+	/* success */
+	cert_free(to_key->cert);
+	to_key->cert = to;
+	to = NULL;
+	r = 0;
+ out:
+	cert_free(to);
+	return r;
 }
 
 int
@@ -1979,6 +1977,8 @@ cert_parse(struct sshbuf *b, struct sshkey *key, struct sshbuf *certbuf)
 	}
 	if ((ret = sshkey_verify(key->cert->signature_key, sig, slen,
 	    sshbuf_ptr(key->cert->certblob), signed_len, NULL, 0)) != 0)
+		goto out;
+	if ((ret = get_sigtype(sig, slen, &key->cert->signature_type)) != 0)
 		goto out;
 
 	/* Success */
@@ -2318,6 +2318,27 @@ get_sigtype(const u_char *sig, size_t siglen, char **sigtypep)
 }
 
 /*
+ *
+ * Checks whether a certificate's signature type is allowed.
+ * Returns 0 (success) if the certificate signature type appears in the
+ * "allowed" pattern-list, or the key is not a certificate to begin with.
+ * Otherwise returns a ssherr.h code.
+ */
+int
+sshkey_check_cert_sigtype(const struct sshkey *key, const char *allowed)
+{
+	if (key == NULL || allowed == NULL)
+		return SSH_ERR_INVALID_ARGUMENT;
+	if (!sshkey_type_is_cert(key->type))
+		return 0;
+	if (key->cert == NULL || key->cert->signature_type == NULL)
+		return SSH_ERR_INVALID_ARGUMENT;
+	if (match_pattern_list(key->cert->signature_type, allowed, 0) != 1)
+		return SSH_ERR_SIGN_ALG_UNSUPPORTED;
+	return 0;
+}
+
+/*
  * Returns the expected signature algorithm for a given public key algorithm.
  */
 const char *
@@ -2493,7 +2514,8 @@ sshkey_certify_custom(struct sshkey *k, struct sshkey *ca, const char *alg,
 	u_char *ca_blob = NULL, *sig_blob = NULL, nonce[32];
 	size_t i, ca_len, sig_len;
 	int ret = SSH_ERR_INTERNAL_ERROR;
-	struct sshbuf *cert;
+	struct sshbuf *cert = NULL;
+	char *sigtype = NULL;
 #ifdef WITH_OPENSSL
 	const BIGNUM *rsa_n, *rsa_e, *dsa_p, *dsa_q, *dsa_g, *dsa_pub_key;
 #endif /* WITH_OPENSSL */
@@ -2505,6 +2527,16 @@ sshkey_certify_custom(struct sshkey *k, struct sshkey *ca, const char *alg,
 		return SSH_ERR_KEY_TYPE_UNKNOWN;
 	if (!sshkey_type_is_valid_ca(ca->type))
 		return SSH_ERR_KEY_CERT_INVALID_SIGN_KEY;
+
+	/*
+	 * If no alg specified as argument but a signature_type was set,
+	 * then prefer that. If both were specified, then they must match.
+	 */
+	if (alg == NULL)
+		alg = k->cert->signature_type;
+	else if (k->cert->signature_type != NULL &&
+	    strcmp(alg, k->cert->signature_type) != 0)
+		return SSH_ERR_INVALID_ARGUMENT;
 
 	if ((ret = sshkey_to_blob(ca, &ca_blob, &ca_len)) != 0)
 		return SSH_ERR_KEY_CERT_INVALID_SIGN_KEY;
@@ -2597,7 +2629,17 @@ sshkey_certify_custom(struct sshkey *k, struct sshkey *ca, const char *alg,
 	if ((ret = signer(ca, &sig_blob, &sig_len, sshbuf_ptr(cert),
 	    sshbuf_len(cert), alg, 0, signer_ctx)) != 0)
 		goto out;
-
+	/* Check and update signature_type against what was actually used */
+	if ((ret = get_sigtype(sig_blob, sig_len, &sigtype)) != 0)
+		goto out;
+	if (alg != NULL && strcmp(alg, sigtype) != 0) {
+		ret = SSH_ERR_SIGN_ALG_UNSUPPORTED;
+		goto out;
+	}
+	if (k->cert->signature_type == NULL) {
+		k->cert->signature_type = sigtype;
+		sigtype = NULL;
+	}
 	/* Append signature and we are done */
 	if ((ret = sshbuf_put_string(cert, sig_blob, sig_len)) != 0)
 		goto out;
@@ -2607,6 +2649,7 @@ sshkey_certify_custom(struct sshkey *k, struct sshkey *ca, const char *alg,
 		sshbuf_reset(cert);
 	free(sig_blob);
 	free(ca_blob);
+	free(sigtype);
 	sshbuf_free(principals);
 	return ret;
 }
@@ -2894,7 +2937,7 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 	switch (type) {
 #ifdef WITH_OPENSSL
 	case KEY_DSA:
-		if ((k = sshkey_new_private(type)) == NULL) {
+		if ((k = sshkey_new(type)) == NULL) {
 			r = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
@@ -2939,7 +2982,7 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 		break;
 # ifdef OPENSSL_HAS_ECC
 	case KEY_ECDSA:
-		if ((k = sshkey_new_private(type)) == NULL) {
+		if ((k = sshkey_new(type)) == NULL) {
 			r = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
@@ -2989,7 +3032,7 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 		break;
 # endif /* OPENSSL_HAS_ECC */
 	case KEY_RSA:
-		if ((k = sshkey_new_private(type)) == NULL) {
+		if ((k = sshkey_new(type)) == NULL) {
 			r = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
@@ -3055,7 +3098,7 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 		break;
 #endif /* WITH_OPENSSL */
 	case KEY_ED25519:
-		if ((k = sshkey_new_private(type)) == NULL) {
+		if ((k = sshkey_new(type)) == NULL) {
 			r = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
@@ -3085,7 +3128,7 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 		break;
 #ifdef WITH_XMSS
 	case KEY_XMSS:
-		if ((k = sshkey_new_private(type)) == NULL) {
+		if ((k = sshkey_new(type)) == NULL) {
 			r = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
@@ -3863,6 +3906,20 @@ convert_libcrypto_error(void)
 }
 
 static int
+pem_passphrase_cb(char *buf, int size, int rwflag, void *u)
+{
+	char *p = (char *)u;
+	size_t len;
+
+	if (p == NULL || (len = strlen(p)) == 0)
+		return -1;
+	if (size < 0 || len > (size_t)size)
+		return -1;
+	memcpy(buf, p, len);
+	return (int)len;
+}
+
+static int
 sshkey_parse_private_pem_fileblob(struct sshbuf *blob, int type,
     const char *passphrase, struct sshkey **keyp)
 {
@@ -3883,9 +3940,18 @@ sshkey_parse_private_pem_fileblob(struct sshbuf *blob, int type,
 	}
 
 	clear_libcrypto_errors();
-	if ((pk = PEM_read_bio_PrivateKey(bio, NULL, NULL,
+	if ((pk = PEM_read_bio_PrivateKey(bio, NULL, pem_passphrase_cb,
 	    (char *)passphrase)) == NULL) {
-		r = convert_libcrypto_error();
+	       /*
+		* libcrypto may return various ASN.1 errors when attempting
+		* to parse a key with an incorrect passphrase.
+		* Treat all format errors as "incorrect passphrase" if a
+		* passphrase was supplied.
+		*/
+		if (passphrase != NULL && *passphrase != '\0')
+			r = SSH_ERR_KEY_WRONG_PASSPHRASE;
+		else
+			r = convert_libcrypto_error();
 		goto out;
 	}
 	if (EVP_PKEY_base_id(pk) == EVP_PKEY_RSA &&

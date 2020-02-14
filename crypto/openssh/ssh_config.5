@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.281 2018/07/23 19:02:49 kn Exp $
+.\" $OpenBSD: ssh_config.5,v 1.286 2018/10/03 06:38:35 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: July 23 2018 $
+.Dd $Mdocdate: October 3 2018 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -291,7 +291,9 @@ hostname lookups.
 If set to
 .Cm yes
 then, for connections that do not use a
-.Cm ProxyCommand ,
+.Cm ProxyCommand
+or
+.Cm ProxyJump ,
 .Xr ssh 1
 will attempt to canonicalize the hostname specified on the command line
 using the
@@ -337,6 +339,18 @@ to be canonicalized to names in the
 or
 .Qq *.c.example.com
 domains.
+.It Cm CASignatureAlgorithms
+Specifies which algorithms are allowed for signing of certificates
+by certificate authorities (CAs).
+The default is:
+.Bd -literal -offset indent
+ecdsa-sha2-nistp256.ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+.Ed
+.Pp
+.Xr ssh 1
+will not accept host certificates signed using algorithms other than those
+specified.
 .It Cm CertificateFile
 Specifies a file from which the user's certificate is read.
 A corresponding private key must be provided separately in order
@@ -674,6 +688,10 @@ section of
 X11 connections received by
 .Xr ssh 1
 after this time will be refused.
+Setting
+.Cm ForwardX11Timeout
+to zero will disable the timeout and permit X11 forwarding for the life
+of the connection.
 The default is to disable untrusted X11 forwarding after twenty minutes has
 elapsed.
 .It Cm ForwardX11Trusted
@@ -861,6 +879,10 @@ If the string
 is specified, the location of the socket will be read from the
 .Ev SSH_AUTH_SOCK
 environment variable.
+Otherwise if the specified value begins with a
+.Sq $
+character, then it will be treated as an environment variable containing
+the location of the socket.
 .Pp
 Arguments to
 .Cm IdentityAgent

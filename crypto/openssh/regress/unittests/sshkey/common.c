@@ -27,6 +27,8 @@
 # include <openssl/ec.h>
 #endif
 
+#include "openbsd-compat/openssl-compat.h"
+
 #include "../test_helper/test_helper.h"
 
 #include "ssherr.h"
