@@ -895,8 +895,7 @@ retry:
 				while (object == NULL || m->object != object) {
 					if (object != NULL)
 						VM_OBJECT_WUNLOCK(object);
-					object = (vm_object_t)atomic_load_ptr(
-					    &m->object);
+					object = atomic_load_ptr(&m->object);
 					if (object == NULL)
 						goto retry;
 					VM_OBJECT_WLOCK(object);
