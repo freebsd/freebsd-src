@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-getput-crypto.c,v 1.5 2016/01/12 23:42:54 djm Exp $	*/
+/*	$OpenBSD: sshbuf-getput-crypto.c,v 1.7 2019/01/21 09:54:11 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -32,41 +32,24 @@
 #include "sshbuf.h"
 
 int
-sshbuf_get_bignum2(struct sshbuf *buf, BIGNUM *v)
+sshbuf_get_bignum2(struct sshbuf *buf, BIGNUM **valp)
 {
+	BIGNUM *v;
 	const u_char *d;
 	size_t len;
 	int r;
 
+	if (valp != NULL)
+		*valp = NULL;
 	if ((r = sshbuf_get_bignum2_bytes_direct(buf, &d, &len)) != 0)
 		return r;
-	if (v != NULL && BN_bin2bn(d, len, v) == NULL)
-		return SSH_ERR_ALLOC_FAIL;
-	return 0;
-}
-
-int
-sshbuf_get_bignum1(struct sshbuf *buf, BIGNUM *v)
-{
-	const u_char *d = sshbuf_ptr(buf);
-	u_int16_t len_bits;
-	size_t len_bytes;
-
-	/* Length in bits */
-	if (sshbuf_len(buf) < 2)
-		return SSH_ERR_MESSAGE_INCOMPLETE;
-	len_bits = PEEK_U16(d);
-	len_bytes = (len_bits + 7) >> 3;
-	if (len_bytes > SSHBUF_MAX_BIGNUM)
-		return SSH_ERR_BIGNUM_TOO_LARGE;
-	if (sshbuf_len(buf) < 2 + len_bytes)
-		return SSH_ERR_MESSAGE_INCOMPLETE;
-	if (v != NULL && BN_bin2bn(d + 2, len_bytes, v) == NULL)
-		return SSH_ERR_ALLOC_FAIL;
-	if (sshbuf_consume(buf, 2 + len_bytes) != 0) {
-		SSHBUF_DBG(("SSH_ERR_INTERNAL_ERROR"));
-		SSHBUF_ABORT();
-		return SSH_ERR_INTERNAL_ERROR;
+	if (valp != NULL) {
+		if ((v = BN_new()) == NULL ||
+		    BN_bin2bn(d, len, v) == NULL) {
+			BN_clear_free(v);
+			return SSH_ERR_ALLOC_FAIL;
+		}
+		*valp = v;
 	}
 	return 0;
 }
@@ -161,28 +144,6 @@ sshbuf_put_bignum2(struct sshbuf *buf, const BIGNUM *v)
 		explicit_bzero(d, sizeof(d));
 		return r;
 	}
-	explicit_bzero(d, sizeof(d));
-	return 0;
-}
-
-int
-sshbuf_put_bignum1(struct sshbuf *buf, const BIGNUM *v)
-{
-	int r, len_bits = BN_num_bits(v);
-	size_t len_bytes = (len_bits + 7) / 8;
-	u_char d[SSHBUF_MAX_BIGNUM], *dp;
-
-	if (len_bits < 0 || len_bytes > SSHBUF_MAX_BIGNUM)
-		return SSH_ERR_INVALID_ARGUMENT;
-	if (BN_bn2bin(v, d) != (int)len_bytes)
-		return SSH_ERR_INTERNAL_ERROR; /* Shouldn't happen */
-	if ((r = sshbuf_reserve(buf, len_bytes + 2, &dp)) < 0) {
-		explicit_bzero(d, sizeof(d));
-		return r;
-	}
-	POKE_U16(dp, len_bits);
-	if (len_bytes != 0)
-		memcpy(dp + 2, d, len_bytes);
 	explicit_bzero(d, sizeof(d));
 	return 0;
 }

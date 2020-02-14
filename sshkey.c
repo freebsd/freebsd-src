@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.c,v 1.72 2018/10/11 00:52:46 djm Exp $ */
+/* $OpenBSD: sshkey.c,v 1.73 2019/01/21 09:54:11 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Alexander von Gernler.  All rights reserved.
@@ -2056,13 +2056,8 @@ sshkey_from_blob_internal(struct sshbuf *b, struct sshkey **keyp,
 			ret = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
-		if ((rsa_e = BN_new()) == NULL ||
-		    (rsa_n = BN_new()) == NULL) {
-			ret = SSH_ERR_ALLOC_FAIL;
-			goto out;
-		}
-		if (sshbuf_get_bignum2(b, rsa_e) != 0 ||
-		    sshbuf_get_bignum2(b, rsa_n) != 0) {
+		if (sshbuf_get_bignum2(b, &rsa_e) != 0 ||
+		    sshbuf_get_bignum2(b, &rsa_n) != 0) {
 			ret = SSH_ERR_INVALID_FORMAT;
 			goto out;
 		}
@@ -2089,17 +2084,10 @@ sshkey_from_blob_internal(struct sshbuf *b, struct sshkey **keyp,
 			ret = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
-		if ((dsa_p = BN_new()) == NULL ||
-		    (dsa_q = BN_new()) == NULL ||
-		    (dsa_g = BN_new()) == NULL ||
-		    (dsa_pub_key = BN_new()) == NULL) {
-			ret = SSH_ERR_ALLOC_FAIL;
-			goto out;
-		}
-		if (sshbuf_get_bignum2(b, dsa_p) != 0 ||
-		    sshbuf_get_bignum2(b, dsa_q) != 0 ||
-		    sshbuf_get_bignum2(b, dsa_g) != 0 ||
-		    sshbuf_get_bignum2(b, dsa_pub_key) != 0) {
+		if (sshbuf_get_bignum2(b, &dsa_p) != 0 ||
+		    sshbuf_get_bignum2(b, &dsa_q) != 0 ||
+		    sshbuf_get_bignum2(b, &dsa_g) != 0 ||
+		    sshbuf_get_bignum2(b, &dsa_pub_key) != 0) {
 			ret = SSH_ERR_INVALID_FORMAT;
 			goto out;
 		}
@@ -2941,19 +2929,11 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 			r = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
-		if ((dsa_p = BN_new()) == NULL ||
-		    (dsa_q = BN_new()) == NULL ||
-		    (dsa_g = BN_new()) == NULL ||
-		    (dsa_pub_key = BN_new()) == NULL ||
-		    (dsa_priv_key = BN_new()) == NULL) {
-			r = SSH_ERR_ALLOC_FAIL;
-			goto out;
-		}
-		if ((r = sshbuf_get_bignum2(buf, dsa_p)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, dsa_q)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, dsa_g)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, dsa_pub_key)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, dsa_priv_key)) != 0)
+		if ((r = sshbuf_get_bignum2(buf, &dsa_p)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &dsa_q)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &dsa_g)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &dsa_pub_key)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &dsa_priv_key)) != 0)
 			goto out;
 		if (!DSA_set0_pqg(k->dsa, dsa_p, dsa_q, dsa_g)) {
 			r = SSH_ERR_LIBCRYPTO_ERROR;
@@ -2967,12 +2947,8 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 		dsa_pub_key = dsa_priv_key = NULL; /* transferred */
 		break;
 	case KEY_DSA_CERT:
-		if ((dsa_priv_key = BN_new()) == NULL) {
-			r = SSH_ERR_ALLOC_FAIL;
-			goto out;
-		}
 		if ((r = sshkey_froms(buf, &k)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, dsa_priv_key)) != 0)
+		    (r = sshbuf_get_bignum2(buf, &dsa_priv_key)) != 0)
 			goto out;
 		if (!DSA_set0_key(k->dsa, NULL, dsa_priv_key)) {
 			r = SSH_ERR_LIBCRYPTO_ERROR;
@@ -2997,12 +2973,12 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 			goto out;
 		}
 		k->ecdsa = EC_KEY_new_by_curve_name(k->ecdsa_nid);
-		if (k->ecdsa  == NULL || (exponent = BN_new()) == NULL) {
+		if (k->ecdsa  == NULL) {
 			r = SSH_ERR_LIBCRYPTO_ERROR;
 			goto out;
 		}
 		if ((r = sshbuf_get_eckey(buf, k->ecdsa)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, exponent)))
+		    (r = sshbuf_get_bignum2(buf, &exponent)))
 			goto out;
 		if (EC_KEY_set_private_key(k->ecdsa, exponent) != 1) {
 			r = SSH_ERR_LIBCRYPTO_ERROR;
@@ -3014,12 +2990,8 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 			goto out;
 		break;
 	case KEY_ECDSA_CERT:
-		if ((exponent = BN_new()) == NULL) {
-			r = SSH_ERR_LIBCRYPTO_ERROR;
-			goto out;
-		}
 		if ((r = sshkey_froms(buf, &k)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, exponent)) != 0)
+		    (r = sshbuf_get_bignum2(buf, &exponent)) != 0)
 			goto out;
 		if (EC_KEY_set_private_key(k->ecdsa, exponent) != 1) {
 			r = SSH_ERR_LIBCRYPTO_ERROR;
@@ -3036,21 +3008,12 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 			r = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
-		if ((rsa_n = BN_new()) == NULL ||
-		    (rsa_e = BN_new()) == NULL ||
-		    (rsa_d = BN_new()) == NULL ||
-		    (rsa_iqmp = BN_new()) == NULL ||
-		    (rsa_p = BN_new()) == NULL ||
-		    (rsa_q = BN_new()) == NULL) {
-			r = SSH_ERR_ALLOC_FAIL;
-			goto out;
-		}
-		if ((r = sshbuf_get_bignum2(buf, rsa_n)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, rsa_e)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, rsa_d)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, rsa_iqmp)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, rsa_p)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, rsa_q)) != 0)
+		if ((r = sshbuf_get_bignum2(buf, &rsa_n)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &rsa_e)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &rsa_d)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &rsa_iqmp)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &rsa_p)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &rsa_q)) != 0)
 			goto out;
 		if (!RSA_set0_key(k->rsa, rsa_n, rsa_e, rsa_d)) {
 			r = SSH_ERR_LIBCRYPTO_ERROR;
@@ -3068,18 +3031,11 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 			goto out;
 		break;
 	case KEY_RSA_CERT:
-		if ((rsa_d = BN_new()) == NULL ||
-		    (rsa_iqmp = BN_new()) == NULL ||
-		    (rsa_p = BN_new()) == NULL ||
-		    (rsa_q = BN_new()) == NULL) {
-			r = SSH_ERR_ALLOC_FAIL;
-			goto out;
-		}
 		if ((r = sshkey_froms(buf, &k)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, rsa_d)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, rsa_iqmp)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, rsa_p)) != 0 ||
-		    (r = sshbuf_get_bignum2(buf, rsa_q)) != 0)
+		    (r = sshbuf_get_bignum2(buf, &rsa_d)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &rsa_iqmp)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &rsa_p)) != 0 ||
+		    (r = sshbuf_get_bignum2(buf, &rsa_q)) != 0)
 			goto out;
 		if (!RSA_set0_key(k->rsa, NULL, NULL, rsa_d)) {
 			r = SSH_ERR_LIBCRYPTO_ERROR;

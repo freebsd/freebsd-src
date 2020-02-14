@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.97 2018/06/07 04:46:34 djm Exp $
+#	$OpenBSD: Makefile,v 1.100 2019/01/20 23:24:19 djm Exp $
 
 REGRESS_TARGETS=	unit t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t-exec
 tests:		prep $(REGRESS_TARGETS)
@@ -11,7 +11,6 @@ prep:
 
 clean:
 	for F in $(CLEANFILES); do rm -f $(OBJ)$$F; done
-	test -z "${SUDO}" || ${SUDO} rm -f ${SUDO_CLEAN}
 	rm -rf $(OBJ).putty
 
 distclean:	clean
@@ -92,7 +91,8 @@ LTESTS= 	connect \
 INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
 #INTEROP_TESTS+=ssh-com ssh-com-client ssh-com-keygen ssh-com-sftp
 
-#LTESTS= 	cipher-speed
+EXTRA_TESTS=	agent-pkcs11
+#EXTRA_TESTS+= 	cipher-speed
 
 USERNAME=		${LOGNAME}
 CLEANFILES=	*.core actual agent-key.* authorized_keys_${USERNAME} \
@@ -121,8 +121,6 @@ CLEANFILES=	*.core actual agent-key.* authorized_keys_${USERNAME} \
 		t2.out t3.out t6.out1 t6.out2 t7.out t7.out.pub \
 		t8.out t8.out.pub t9.out t9.out.pub testdata \
 		user_*key* user_ca* user_key*
-
-SUDO_CLEAN+=	/var/run/testdata_${USERNAME} /var/run/keycommand_${USERNAME}
 
 # Enable all malloc(3) randomisations and checks
 TEST_ENV=      "MALLOC_OPTIONS=CFGJRSUX"
@@ -211,6 +209,13 @@ t-exec:	${LTESTS:=.sh}
 	done
 
 t-exec-interop:	${INTEROP_TESTS:=.sh}
+	@if [ "x$?" = "x" ]; then exit 0; fi; \
+	for TEST in ""$?; do \
+		echo "run test $${TEST}" ... 1>&2; \
+		(env SUDO="${SUDO}" TEST_ENV=${TEST_ENV} ${TEST_SHELL} ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
+	done
+
+t-extra:	${EXTRA_TESTS:=.sh}
 	@if [ "x$?" = "x" ]; then exit 0; fi; \
 	for TEST in ""$?; do \
 		echo "run test $${TEST}" ... 1>&2; \

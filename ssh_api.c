@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh_api.c,v 1.8 2017/04/30 23:13:25 djm Exp $ */
+/* $OpenBSD: ssh_api.c,v 1.15 2019/01/21 10:38:54 djm Exp $ */
 /*
  * Copyright (c) 2012 Markus Friedl.  All rights reserved.
  *
@@ -29,17 +29,19 @@
 #include "ssherr.h"
 #include "sshbuf.h"
 
+#include "openbsd-compat/openssl-compat.h"
+
 #include <string.h>
 
 int	_ssh_exchange_banner(struct ssh *);
-int	_ssh_send_banner(struct ssh *, char **);
-int	_ssh_read_banner(struct ssh *, char **);
+int	_ssh_send_banner(struct ssh *, struct sshbuf *);
+int	_ssh_read_banner(struct ssh *, struct sshbuf *);
 int	_ssh_order_hostkeyalgs(struct ssh *);
 int	_ssh_verify_host_key(struct sshkey *, struct ssh *);
 struct sshkey *_ssh_host_public_key(int, int, struct ssh *);
 struct sshkey *_ssh_host_private_key(int, int, struct ssh *);
-int	_ssh_host_key_sign(struct sshkey *, struct sshkey *,
-    u_char **, size_t *, const u_char *, size_t, const char *, u_int);
+int	_ssh_host_key_sign(struct ssh *, struct sshkey *, struct sshkey *,
+    u_char **, size_t *, const u_char *, size_t, const char *);
 
 /*
  * stubs for the server side implementation of kex.
@@ -79,9 +81,7 @@ ssh_init(struct ssh **sshp, int is_server, struct kex_params *kex_params)
 	int r;
 
 	if (!called) {
-#ifdef WITH_OPENSSL
-		OpenSSL_add_all_algorithms();
-#endif /* WITH_OPENSSL */
+		seed_rng();
 		called = 1;
 	}
 
@@ -92,42 +92,44 @@ ssh_init(struct ssh **sshp, int is_server, struct kex_params *kex_params)
 
 	/* Initialize key exchange */
 	proposal = kex_params ? kex_params->proposal : myproposal;
-	if ((r = kex_new(ssh, proposal, &ssh->kex)) != 0) {
+	if ((r = kex_ready(ssh, proposal)) != 0) {
 		ssh_free(ssh);
 		return r;
 	}
 	ssh->kex->server = is_server;
 	if (is_server) {
 #ifdef WITH_OPENSSL
-		ssh->kex->kex[KEX_DH_GRP1_SHA1] = kexdh_server;
-		ssh->kex->kex[KEX_DH_GRP14_SHA1] = kexdh_server;
-		ssh->kex->kex[KEX_DH_GRP14_SHA256] = kexdh_server;
-		ssh->kex->kex[KEX_DH_GRP16_SHA512] = kexdh_server;
-		ssh->kex->kex[KEX_DH_GRP18_SHA512] = kexdh_server;
+		ssh->kex->kex[KEX_DH_GRP1_SHA1] = kex_gen_server;
+		ssh->kex->kex[KEX_DH_GRP14_SHA1] = kex_gen_server;
+		ssh->kex->kex[KEX_DH_GRP14_SHA256] = kex_gen_server;
+		ssh->kex->kex[KEX_DH_GRP16_SHA512] = kex_gen_server;
+		ssh->kex->kex[KEX_DH_GRP18_SHA512] = kex_gen_server;
 		ssh->kex->kex[KEX_DH_GEX_SHA1] = kexgex_server;
 		ssh->kex->kex[KEX_DH_GEX_SHA256] = kexgex_server;
 # ifdef OPENSSL_HAS_ECC
-		ssh->kex->kex[KEX_ECDH_SHA2] = kexecdh_server;
+		ssh->kex->kex[KEX_ECDH_SHA2] = kex_gen_server;
 # endif
 #endif /* WITH_OPENSSL */
-		ssh->kex->kex[KEX_C25519_SHA256] = kexc25519_server;
+		ssh->kex->kex[KEX_C25519_SHA256] = kex_gen_server;
+		ssh->kex->kex[KEX_KEM_SNTRUP4591761X25519_SHA512] = kex_gen_server;
 		ssh->kex->load_host_public_key=&_ssh_host_public_key;
 		ssh->kex->load_host_private_key=&_ssh_host_private_key;
 		ssh->kex->sign=&_ssh_host_key_sign;
 	} else {
 #ifdef WITH_OPENSSL
-		ssh->kex->kex[KEX_DH_GRP1_SHA1] = kexdh_client;
-		ssh->kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
-		ssh->kex->kex[KEX_DH_GRP14_SHA256] = kexdh_client;
-		ssh->kex->kex[KEX_DH_GRP16_SHA512] = kexdh_client;
-		ssh->kex->kex[KEX_DH_GRP18_SHA512] = kexdh_client;
+		ssh->kex->kex[KEX_DH_GRP1_SHA1] = kex_gen_client;
+		ssh->kex->kex[KEX_DH_GRP14_SHA1] = kex_gen_client;
+		ssh->kex->kex[KEX_DH_GRP14_SHA256] = kex_gen_client;
+		ssh->kex->kex[KEX_DH_GRP16_SHA512] = kex_gen_client;
+		ssh->kex->kex[KEX_DH_GRP18_SHA512] = kex_gen_client;
 		ssh->kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 		ssh->kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
 # ifdef OPENSSL_HAS_ECC
-		ssh->kex->kex[KEX_ECDH_SHA2] = kexecdh_client;
+		ssh->kex->kex[KEX_ECDH_SHA2] = kex_gen_client;
 # endif
 #endif /* WITH_OPENSSL */
-		ssh->kex->kex[KEX_C25519_SHA256] = kexc25519_client;
+		ssh->kex->kex[KEX_C25519_SHA256] = kex_gen_client;
+		ssh->kex->kex[KEX_KEM_SNTRUP4591761X25519_SHA512] = kex_gen_client;
 		ssh->kex->verify_host_key =&_ssh_verify_host_key;
 	}
 	*sshp = ssh;
@@ -236,8 +238,8 @@ ssh_packet_next(struct ssh *ssh, u_char *typep)
 	 * enough data.
 	 */
 	*typep = SSH_MSG_NONE;
-	if (ssh->kex->client_version_string == NULL ||
-	    ssh->kex->server_version_string == NULL)
+	if (sshbuf_len(ssh->kex->client_version) == 0 ||
+	    sshbuf_len(ssh->kex->server_version) == 0)
 		return _ssh_exchange_banner(ssh);
 	/*
 	 * If we enough data and a dispatch function then
@@ -312,39 +314,46 @@ ssh_input_space(struct ssh *ssh, size_t len)
 
 /* Read other side's version identification. */
 int
-_ssh_read_banner(struct ssh *ssh, char **bannerp)
+_ssh_read_banner(struct ssh *ssh, struct sshbuf *banner)
 {
-	struct sshbuf *input;
-	const char *s;
-	char buf[256], remote_version[256];	/* must be same size! */
+	struct sshbuf *input = ssh_packet_get_input(ssh);
 	const char *mismatch = "Protocol mismatch.\r\n";
-	int r, remote_major, remote_minor;
-	size_t i, n, j, len;
+	const u_char *s = sshbuf_ptr(input);
+	u_char c;
+	char *cp, *remote_version;
+	int r, remote_major, remote_minor, expect_nl;
+	size_t n, j;
 
-	*bannerp = NULL;
-	input = ssh_packet_get_input(ssh);
-	len = sshbuf_len(input);
-	s = (const char *)sshbuf_ptr(input);
 	for (j = n = 0;;) {
-		for (i = 0; i < sizeof(buf) - 1; i++) {
-			if (j >= len)
-				return (0);
-			buf[i] = s[j++];
-			if (buf[i] == '\r') {
-				buf[i] = '\n';
-				buf[i + 1] = 0;
-				continue;		/**XXX wait for \n */
+		sshbuf_reset(banner);
+		expect_nl = 0;
+		for (;;) {
+			if (j >= sshbuf_len(input))
+				return 0; /* insufficient data in input buf */
+			c = s[j++];
+			if (c == '\r') {
+				expect_nl = 1;
+				continue;
 			}
-			if (buf[i] == '\n') {
-				buf[i + 1] = 0;
+			if (c == '\n')
 				break;
-			}
+			if (expect_nl)
+				goto bad;
+			if ((r = sshbuf_put_u8(banner, c)) != 0)
+				return r;
+			if (sshbuf_len(banner) > SSH_MAX_BANNER_LEN)
+				goto bad;
 		}
-		buf[sizeof(buf) - 1] = 0;
-		if (strncmp(buf, "SSH-", 4) == 0)
+		if (sshbuf_len(banner) >= 4 &&
+		    memcmp(sshbuf_ptr(banner), "SSH-", 4) == 0)
 			break;
-		debug("ssh_exchange_identification: %s", buf);
-		if (ssh->kex->server || ++n > 65536) {
+		if ((cp = sshbuf_dup_string(banner)) == NULL)
+			return SSH_ERR_ALLOC_FAIL;
+		debug("%s: %s", __func__, cp);
+		free(cp);
+		/* Accept lines before banner only on client */
+		if (ssh->kex->server || ++n > SSH_MAX_PRE_BANNER_LINES) {
+  bad:
 			if ((r = sshbuf_put(ssh_packet_get_output(ssh),
 			   mismatch, strlen(mismatch))) != 0)
 				return r;
@@ -354,11 +363,17 @@ _ssh_read_banner(struct ssh *ssh, char **bannerp)
 	if ((r = sshbuf_consume(input, j)) != 0)
 		return r;
 
+	if ((cp = sshbuf_dup_string(banner)) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	/* XXX remote version must be the same size as banner for sscanf */
+	if ((remote_version = calloc(1, sshbuf_len(banner))) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+
 	/*
 	 * Check that the versions match.  In future this might accept
 	 * several versions and set appropriate flags to handle them.
 	 */
-	if (sscanf(buf, "SSH-%d.%d-%[^\n]\n",
+	if (sscanf(cp, "SSH-%d.%d-%[^\n]\n",
 	    &remote_major, &remote_minor, remote_version) != 3)
 		return SSH_ERR_INVALID_FORMAT;
 	debug("Remote protocol version %d.%d, remote software version %.100s",
@@ -371,27 +386,29 @@ _ssh_read_banner(struct ssh *ssh, char **bannerp)
 	}
 	if (remote_major != 2)
 		return SSH_ERR_PROTOCOL_MISMATCH;
-	chop(buf);
-	debug("Remote version string %.100s", buf);
-	if ((*bannerp = strdup(buf)) == NULL)
-		return SSH_ERR_ALLOC_FAIL;
+	debug("Remote version string %.100s", cp);
+	free(cp);
 	return 0;
 }
 
 /* Send our own protocol version identification. */
 int
-_ssh_send_banner(struct ssh *ssh, char **bannerp)
+_ssh_send_banner(struct ssh *ssh, struct sshbuf *banner)
 {
-	char buf[256];
+	char *cp;
 	int r;
 
-	snprintf(buf, sizeof buf, "SSH-2.0-%.100s\r\n", SSH_VERSION);
-	if ((r = sshbuf_put(ssh_packet_get_output(ssh), buf, strlen(buf))) != 0)
+	if ((r = sshbuf_putf(banner, "SSH-2.0-%.100s\r\n", SSH_VERSION)) != 0)
 		return r;
-	chop(buf);
-	debug("Local version string %.100s", buf);
-	if ((*bannerp = strdup(buf)) == NULL)
+	if ((r = sshbuf_putb(ssh_packet_get_output(ssh), banner)) != 0)
+		return r;
+	/* Remove trailing \r\n */
+	if ((r = sshbuf_consume_end(banner, 2)) != 0)
+		return r;
+	if ((cp = sshbuf_dup_string(banner)) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
+	debug("Local version string %.100s", cp);
+	free(cp);
 	return 0;
 }
 
@@ -408,25 +425,25 @@ _ssh_exchange_banner(struct ssh *ssh)
 
 	r = 0;
 	if (kex->server) {
-		if (kex->server_version_string == NULL)
-			r = _ssh_send_banner(ssh, &kex->server_version_string);
+		if (sshbuf_len(ssh->kex->server_version) == 0)
+			r = _ssh_send_banner(ssh, ssh->kex->server_version);
 		if (r == 0 &&
-		    kex->server_version_string != NULL &&
-		    kex->client_version_string == NULL)
-			r = _ssh_read_banner(ssh, &kex->client_version_string);
+		    sshbuf_len(ssh->kex->server_version) != 0 &&
+		    sshbuf_len(ssh->kex->client_version) == 0)
+			r = _ssh_read_banner(ssh, ssh->kex->client_version);
 	} else {
-		if (kex->server_version_string == NULL)
-			r = _ssh_read_banner(ssh, &kex->server_version_string);
+		if (sshbuf_len(ssh->kex->server_version) == 0)
+			r = _ssh_read_banner(ssh, ssh->kex->server_version);
 		if (r == 0 &&
-		    kex->server_version_string != NULL &&
-		    kex->client_version_string == NULL)
-			r = _ssh_send_banner(ssh, &kex->client_version_string);
+		    sshbuf_len(ssh->kex->server_version) != 0 &&
+		    sshbuf_len(ssh->kex->client_version) == 0)
+			r = _ssh_send_banner(ssh, ssh->kex->client_version);
 	}
 	if (r != 0)
 		return r;
 	/* start initial kex as soon as we have exchanged the banners */
-	if (kex->server_version_string != NULL &&
-	    kex->client_version_string != NULL) {
+	if (sshbuf_len(ssh->kex->server_version) != 0 &&
+	    sshbuf_len(ssh->kex->client_version) != 0) {
 		if ((r = _ssh_order_hostkeyalgs(ssh)) != 0 ||
 		    (r = kex_send_kexinit(ssh)) != 0)
 			return r;
@@ -532,9 +549,10 @@ _ssh_order_hostkeyalgs(struct ssh *ssh)
 }
 
 int
-_ssh_host_key_sign(struct sshkey *privkey, struct sshkey *pubkey,
-    u_char **signature, size_t *slen, const u_char *data, size_t dlen,
-    const char *alg, u_int compat)
+_ssh_host_key_sign(struct ssh *ssh, struct sshkey *privkey,
+    struct sshkey *pubkey, u_char **signature, size_t *slen,
+    const u_char *data, size_t dlen, const char *alg)
 {
-	return sshkey_sign(privkey, signature, slen, data, dlen, alg, compat);
+	return sshkey_sign(privkey, signature, slen, data, dlen,
+	    alg, ssh->compat);
 }

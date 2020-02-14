@@ -4,7 +4,7 @@ NAME
      ssh-pkcs11-helper M-bM-^@M-^S ssh-agent helper program for PKCS#11 support
 
 SYNOPSIS
-     ssh-pkcs11-helper
+     ssh-pkcs11-helper [-v]
 
 DESCRIPTION
      ssh-pkcs11-helper is used by ssh-agent(1) to access keys provided by a
@@ -12,6 +12,16 @@ DESCRIPTION
 
      ssh-pkcs11-helper is not intended to be invoked by the user, but from
      ssh-agent(1).
+
+     A single option is supported:
+
+     -v      Verbose mode.  Causes ssh-pkcs11-helper to print debugging
+             messages about its progress.  This is helpful in debugging
+             problems.  Multiple -v options increase the verbosity.  The
+             maximum is 3.
+
+             Note that ssh-agent(1) will automatically pass the -v flag to
+             ssh-pkcs11-helper when it has itself been placed in debug mode.
 
 SEE ALSO
      ssh(1), ssh-add(1), ssh-agent(1)
@@ -22,4 +32,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 6.4                      July 16, 2013                     OpenBSD 6.4
+OpenBSD 6.5                    January 21, 2019                    OpenBSD 6.5

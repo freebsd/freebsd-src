@@ -391,7 +391,7 @@ audit_session_close(struct logininfo *li)
 }
 
 void
-audit_event(ssh_audit_event_t event)
+audit_event(struct ssh *ssh, ssh_audit_event_t event)
 {
 	char    textbuf[BSM_TEXTBUFSZ];
 	static int logged_in = 0;

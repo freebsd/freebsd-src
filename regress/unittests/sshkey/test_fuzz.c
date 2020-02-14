@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_fuzz.c,v 1.8 2017/12/21 00:41:22 djm Exp $ */
+/* 	$OpenBSD: test_fuzz.c,v 1.9 2018/10/17 23:28:05 djm Exp $ */
 /*
  * Fuzz tests for key parsing
  *
@@ -51,14 +51,16 @@ public_fuzz(struct sshkey *k)
 	struct sshkey *k1;
 	struct sshbuf *buf;
 	struct fuzz *fuzz;
+	u_int fuzzers = FUZZ_1_BIT_FLIP | FUZZ_1_BYTE_FLIP |
+	    FUZZ_TRUNCATE_START | FUZZ_TRUNCATE_END;
 
+	if (test_is_fast())
+		fuzzers &= ~FUZZ_1_BIT_FLIP;
+	if (test_is_slow())
+		fuzzers |= FUZZ_2_BIT_FLIP | FUZZ_2_BYTE_FLIP;
 	ASSERT_PTR_NE(buf = sshbuf_new(), NULL);
 	ASSERT_INT_EQ(sshkey_putb(k, buf), 0);
-	/* XXX need a way to run the tests in "slow, but complete" mode */
-	fuzz = fuzz_begin(FUZZ_1_BIT_FLIP | /* XXX too slow FUZZ_2_BIT_FLIP | */
-	    FUZZ_1_BYTE_FLIP | /* XXX too slow FUZZ_2_BYTE_FLIP | */
-	    FUZZ_TRUNCATE_START | FUZZ_TRUNCATE_END,
-	    sshbuf_mutable_ptr(buf), sshbuf_len(buf));
+	fuzz = fuzz_begin(fuzzers, sshbuf_mutable_ptr(buf), sshbuf_len(buf));
 	ASSERT_INT_EQ(sshkey_from_blob(sshbuf_ptr(buf), sshbuf_len(buf),
 	    &k1), 0);
 	sshkey_free(k1);
@@ -77,12 +79,17 @@ sig_fuzz(struct sshkey *k, const char *sig_alg)
 	struct fuzz *fuzz;
 	u_char *sig, c[] = "some junk to be signed";
 	size_t l;
+	u_int fuzzers = FUZZ_1_BIT_FLIP | FUZZ_1_BYTE_FLIP | FUZZ_2_BYTE_FLIP |
+	    FUZZ_TRUNCATE_START | FUZZ_TRUNCATE_END;
+
+	if (test_is_fast())
+		fuzzers &= ~FUZZ_2_BYTE_FLIP;
+	if (test_is_slow())
+		fuzzers |= FUZZ_2_BIT_FLIP;
 
 	ASSERT_INT_EQ(sshkey_sign(k, &sig, &l, c, sizeof(c), sig_alg, 0), 0);
 	ASSERT_SIZE_T_GT(l, 0);
-	fuzz = fuzz_begin(FUZZ_1_BIT_FLIP | /* too slow FUZZ_2_BIT_FLIP | */
-	    FUZZ_1_BYTE_FLIP | FUZZ_2_BYTE_FLIP |
-	    FUZZ_TRUNCATE_START | FUZZ_TRUNCATE_END, sig, l);
+	fuzz = fuzz_begin(fuzzers, sig, l);
 	ASSERT_INT_EQ(sshkey_verify(k, sig, l, c, sizeof(c), NULL, 0), 0);
 	free(sig);
 	TEST_ONERROR(onerror, fuzz);
@@ -96,13 +103,15 @@ sig_fuzz(struct sshkey *k, const char *sig_alg)
 	fuzz_cleanup(fuzz);
 }
 
+#define NUM_FAST_BASE64_TESTS	1024
+
 void
 sshkey_fuzz_tests(void)
 {
 	struct sshkey *k1;
 	struct sshbuf *buf, *fuzzed;
 	struct fuzz *fuzz;
-	int r;
+	int r, i;
 
 
 	TEST_START("fuzz RSA private");
@@ -114,12 +123,14 @@ sshkey_fuzz_tests(void)
 	sshbuf_free(buf);
 	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
 	TEST_ONERROR(onerror, fuzz);
-	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
+	for(i = 0; !fuzz_done(fuzz); i++, fuzz_next(fuzz)) {
 		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
 		ASSERT_INT_EQ(r, 0);
 		if (sshkey_parse_private_fileblob(fuzzed, "", &k1, NULL) == 0)
 			sshkey_free(k1);
 		sshbuf_reset(fuzzed);
+		if (test_is_fast() && i >= NUM_FAST_BASE64_TESTS)
+			break;
 	}
 	sshbuf_free(fuzzed);
 	fuzz_cleanup(fuzz);
@@ -134,12 +145,14 @@ sshkey_fuzz_tests(void)
 	sshbuf_free(buf);
 	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
 	TEST_ONERROR(onerror, fuzz);
-	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
+	for(i = 0; !fuzz_done(fuzz); i++, fuzz_next(fuzz)) {
 		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
 		ASSERT_INT_EQ(r, 0);
 		if (sshkey_parse_private_fileblob(fuzzed, "", &k1, NULL) == 0)
 			sshkey_free(k1);
 		sshbuf_reset(fuzzed);
+		if (test_is_fast() && i >= NUM_FAST_BASE64_TESTS)
+			break;
 	}
 	sshbuf_free(fuzzed);
 	fuzz_cleanup(fuzz);
@@ -154,12 +167,14 @@ sshkey_fuzz_tests(void)
 	sshbuf_free(buf);
 	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
 	TEST_ONERROR(onerror, fuzz);
-	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
+	for(i = 0; !fuzz_done(fuzz); i++, fuzz_next(fuzz)) {
 		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
 		ASSERT_INT_EQ(r, 0);
 		if (sshkey_parse_private_fileblob(fuzzed, "", &k1, NULL) == 0)
 			sshkey_free(k1);
 		sshbuf_reset(fuzzed);
+		if (test_is_fast() && i >= NUM_FAST_BASE64_TESTS)
+			break;
 	}
 	sshbuf_free(fuzzed);
 	fuzz_cleanup(fuzz);
@@ -174,12 +189,14 @@ sshkey_fuzz_tests(void)
 	sshbuf_free(buf);
 	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
 	TEST_ONERROR(onerror, fuzz);
-	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
+	for(i = 0; !fuzz_done(fuzz); i++, fuzz_next(fuzz)) {
 		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
 		ASSERT_INT_EQ(r, 0);
 		if (sshkey_parse_private_fileblob(fuzzed, "", &k1, NULL) == 0)
 			sshkey_free(k1);
 		sshbuf_reset(fuzzed);
+		if (test_is_fast() && i >= NUM_FAST_BASE64_TESTS)
+			break;
 	}
 	sshbuf_free(fuzzed);
 	fuzz_cleanup(fuzz);
@@ -195,12 +212,14 @@ sshkey_fuzz_tests(void)
 	sshbuf_free(buf);
 	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
 	TEST_ONERROR(onerror, fuzz);
-	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
+	for(i = 0; !fuzz_done(fuzz); i++, fuzz_next(fuzz)) {
 		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
 		ASSERT_INT_EQ(r, 0);
 		if (sshkey_parse_private_fileblob(fuzzed, "", &k1, NULL) == 0)
 			sshkey_free(k1);
 		sshbuf_reset(fuzzed);
+		if (test_is_fast() && i >= NUM_FAST_BASE64_TESTS)
+			break;
 	}
 	sshbuf_free(fuzzed);
 	fuzz_cleanup(fuzz);
@@ -215,12 +234,14 @@ sshkey_fuzz_tests(void)
 	sshbuf_free(buf);
 	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
 	TEST_ONERROR(onerror, fuzz);
-	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
+	for(i = 0; !fuzz_done(fuzz); i++, fuzz_next(fuzz)) {
 		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
 		ASSERT_INT_EQ(r, 0);
 		if (sshkey_parse_private_fileblob(fuzzed, "", &k1, NULL) == 0)
 			sshkey_free(k1);
 		sshbuf_reset(fuzzed);
+		if (test_is_fast() && i >= NUM_FAST_BASE64_TESTS)
+			break;
 	}
 	sshbuf_free(fuzzed);
 	fuzz_cleanup(fuzz);
@@ -236,12 +257,14 @@ sshkey_fuzz_tests(void)
 	sshbuf_free(buf);
 	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
 	TEST_ONERROR(onerror, fuzz);
-	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
+	for(i = 0; !fuzz_done(fuzz); i++, fuzz_next(fuzz)) {
 		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
 		ASSERT_INT_EQ(r, 0);
 		if (sshkey_parse_private_fileblob(fuzzed, "", &k1, NULL) == 0)
 			sshkey_free(k1);
 		sshbuf_reset(fuzzed);
+		if (test_is_fast() && i >= NUM_FAST_BASE64_TESTS)
+			break;
 	}
 	sshbuf_free(fuzzed);
 	fuzz_cleanup(fuzz);

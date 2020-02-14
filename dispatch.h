@@ -1,4 +1,4 @@
-/* $OpenBSD: dispatch.h,v 1.14 2017/05/31 07:00:13 markus Exp $ */
+/* $OpenBSD: dispatch.h,v 1.15 2019/01/19 21:45:31 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -45,12 +45,5 @@ void	ssh_dispatch_set(struct ssh *, int, dispatch_fn *);
 void	ssh_dispatch_range(struct ssh *, u_int, u_int, dispatch_fn *);
 int	ssh_dispatch_run(struct ssh *, int, volatile sig_atomic_t *);
 void	ssh_dispatch_run_fatal(struct ssh *, int, volatile sig_atomic_t *);
-
-#define dispatch_init(dflt) \
-	ssh_dispatch_init(active_state, (dflt))
-#define dispatch_range(from, to, fn) \
-	ssh_dispatch_range(active_state, (from), (to), (fn))
-#define dispatch_set(type, fn) \
-	ssh_dispatch_set(active_state, (type), (fn))
 
 #endif

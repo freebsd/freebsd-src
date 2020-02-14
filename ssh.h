@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.h,v 1.88 2018/06/06 18:29:18 markus Exp $ */
+/* $OpenBSD: ssh.h,v 1.89 2018/12/27 03:25:25 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -93,3 +93,7 @@
 
 /* Listen backlog for sshd, ssh-agent and forwarding sockets */
 #define SSH_LISTEN_BACKLOG		128
+
+/* Limits for banner exchange */
+#define SSH_MAX_BANNER_LEN		8192
+#define SSH_MAX_PRE_BANNER_LINES	1024

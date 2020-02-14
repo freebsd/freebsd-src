@@ -61,6 +61,7 @@ void closefrom(int);
 #endif
 
 #ifndef HAVE_GETLINE
+#include <stdio.h>
 ssize_t getline(char **, size_t *, FILE *);
 #endif
 

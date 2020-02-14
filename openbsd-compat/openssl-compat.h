@@ -21,16 +21,32 @@
 #ifdef WITH_OPENSSL
 
 #include <openssl/opensslv.h>
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <openssl/dsa.h>
+#ifdef OPENSSL_HAS_ECC
 #include <openssl/ecdsa.h>
+#endif
 #include <openssl/dh.h>
 
 int ssh_compatible_openssl(long, long);
+void ssh_libcrypto_init(void);
 
-#if (OPENSSL_VERSION_NUMBER <= 0x0090805fL)
-# error OpenSSL 0.9.8f or greater is required
+#if (OPENSSL_VERSION_NUMBER < 0x1000100fL)
+# error OpenSSL 1.0.1 or greater is required
+#endif
+
+#ifndef OPENSSL_VERSION
+# define OPENSSL_VERSION	SSLEAY_VERSION
+#endif
+
+#ifndef HAVE_OPENSSL_VERSION
+# define OpenSSL_version(x)	SSLeay_version(x)
+#endif
+
+#ifndef HAVE_OPENSSL_VERSION_NUM
+# define OpenSSL_version_num	SSLeay
 #endif
 
 #if OPENSSL_VERSION_NUMBER < 0x10000001L
@@ -76,27 +92,6 @@ void ssh_aes_ctr_iv(EVP_CIPHER_CTX *, int, u_char *, size_t);
 #  undef HAVE_EVP_RIPEMD160
 # endif
 #endif
-
-/*
- * We overload some of the OpenSSL crypto functions with ssh_* equivalents
- * to automatically handle OpenSSL engine initialisation.
- *
- * In order for the compat library to call the real functions, it must
- * define SSH_DONT_OVERLOAD_OPENSSL_FUNCS before including this file and
- * implement the ssh_* equivalents.
- */
-#ifndef SSH_DONT_OVERLOAD_OPENSSL_FUNCS
-
-# ifdef USE_OPENSSL_ENGINE
-#  ifdef OpenSSL_add_all_algorithms
-#   undef OpenSSL_add_all_algorithms
-#  endif
-#  define OpenSSL_add_all_algorithms()  ssh_OpenSSL_add_all_algorithms()
-# endif
-
-void ssh_OpenSSL_add_all_algorithms(void);
-
-#endif	/* SSH_DONT_OVERLOAD_OPENSSL_FUNCS */
 
 /* LibreSSL/OpenSSL 1.1x API compat */
 #ifndef HAVE_DSA_GET0_PQG
@@ -161,6 +156,7 @@ void DSA_SIG_get0(const DSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
 int DSA_SIG_set0(DSA_SIG *sig, BIGNUM *r, BIGNUM *s);
 #endif /* DSA_SIG_SET0 */
 
+#ifdef OPENSSL_HAS_ECC
 #ifndef HAVE_ECDSA_SIG_GET0
 void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
 #endif /* HAVE_ECDSA_SIG_GET0 */
@@ -168,6 +164,7 @@ void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
 #ifndef HAVE_ECDSA_SIG_SET0
 int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s);
 #endif /* HAVE_ECDSA_SIG_SET0 */
+#endif /* OPENSSL_HAS_ECC */
 
 #ifndef HAVE_DH_GET0_PQG
 void DH_get0_pqg(const DH *dh, const BIGNUM **p, const BIGNUM **q,

@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgex.c,v 1.29 2015/01/19 20:16:15 markus Exp $ */
+/* $OpenBSD: kexgex.c,v 1.32 2019/01/23 00:30:41 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -46,17 +46,17 @@
 int
 kexgex_hash(
     int hash_alg,
-    const char *client_version_string,
-    const char *server_version_string,
-    const u_char *ckexinit, size_t ckexinitlen,
-    const u_char *skexinit, size_t skexinitlen,
-    const u_char *serverhostkeyblob, size_t sbloblen,
+    const struct sshbuf *client_version,
+    const struct sshbuf *server_version,
+    const struct sshbuf *client_kexinit,
+    const struct sshbuf *server_kexinit,
+    const struct sshbuf *server_host_key_blob,
     int min, int wantbits, int max,
     const BIGNUM *prime,
     const BIGNUM *gen,
     const BIGNUM *client_dh_pub,
     const BIGNUM *server_dh_pub,
-    const BIGNUM *shared_secret,
+    const u_char *shared_secret, size_t secretlen,
     u_char *hash, size_t *hashlen)
 {
 	struct sshbuf *b;
@@ -66,16 +66,16 @@ kexgex_hash(
 		return SSH_ERR_INVALID_ARGUMENT;
 	if ((b = sshbuf_new()) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
-	if ((r = sshbuf_put_cstring(b, client_version_string)) != 0 ||
-	    (r = sshbuf_put_cstring(b, server_version_string)) != 0 ||
+	if ((r = sshbuf_put_stringb(b, client_version)) < 0 ||
+	    (r = sshbuf_put_stringb(b, server_version)) < 0 ||
 	    /* kexinit messages: fake header: len+SSH2_MSG_KEXINIT */
-	    (r = sshbuf_put_u32(b, ckexinitlen+1)) != 0 ||
+	    (r = sshbuf_put_u32(b, sshbuf_len(client_kexinit) + 1)) != 0 ||
 	    (r = sshbuf_put_u8(b, SSH2_MSG_KEXINIT)) != 0 ||
-	    (r = sshbuf_put(b, ckexinit, ckexinitlen)) != 0 ||
-	    (r = sshbuf_put_u32(b, skexinitlen+1)) != 0 ||
+	    (r = sshbuf_putb(b, client_kexinit)) != 0 ||
+	    (r = sshbuf_put_u32(b, sshbuf_len(server_kexinit) + 1)) != 0 ||
 	    (r = sshbuf_put_u8(b, SSH2_MSG_KEXINIT)) != 0 ||
-	    (r = sshbuf_put(b, skexinit, skexinitlen)) != 0 ||
-	    (r = sshbuf_put_string(b, serverhostkeyblob, sbloblen)) != 0 ||
+	    (r = sshbuf_putb(b, server_kexinit)) != 0 ||
+	    (r = sshbuf_put_stringb(b, server_host_key_blob)) != 0 ||
 	    (min != -1 && (r = sshbuf_put_u32(b, min)) != 0) ||
 	    (r = sshbuf_put_u32(b, wantbits)) != 0 ||
 	    (max != -1 && (r = sshbuf_put_u32(b, max)) != 0) ||
@@ -83,7 +83,7 @@ kexgex_hash(
 	    (r = sshbuf_put_bignum2(b, gen)) != 0 ||
 	    (r = sshbuf_put_bignum2(b, client_dh_pub)) != 0 ||
 	    (r = sshbuf_put_bignum2(b, server_dh_pub)) != 0 ||
-	    (r = sshbuf_put_bignum2(b, shared_secret)) != 0) {
+	    (r = sshbuf_put(b, shared_secret, secretlen)) != 0) {
 		sshbuf_free(b);
 		return r;
 	}

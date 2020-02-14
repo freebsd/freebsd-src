@@ -31,6 +31,8 @@
 
 #include "includes.h"
 
+struct ssh;
+
 /**
  ** you should use the login_* calls to work around platform dependencies
  **/
@@ -126,6 +128,7 @@ char *line_fullname(char *dst, const char *src, u_int dstsize);
 char *line_stripname(char *dst, const char *src, int dstsize);
 char *line_abbrevname(char *dst, const char *src, int dstsize);
 
-void record_failed_login(const char *, const char *, const char *);
+void record_failed_login(struct ssh *, const char *, const char *,
+    const char *);
 
 #endif /* _HAVE_LOGINREC_H_ */

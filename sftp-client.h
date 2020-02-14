@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.h,v 1.27 2015/05/08 06:45:13 djm Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.28 2019/01/16 23:23:45 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
@@ -90,6 +90,9 @@ int do_setstat(struct sftp_conn *, const char *, Attrib *);
 
 /* Set file attributes of open file 'handle' */
 int do_fsetstat(struct sftp_conn *, const u_char *, u_int, Attrib *);
+
+/* Set file attributes of 'path', not following symlinks */
+int do_lsetstat(struct sftp_conn *conn, const char *path, Attrib *a);
 
 /* Canonicalise 'path' - caller must free result */
 char *do_realpath(struct sftp_conn *, const char *);

@@ -1,4 +1,4 @@
-/* 	$OpenBSD: kexfuzz.c,v 1.4 2017/04/30 23:34:55 djm Exp $ */
+/* 	$OpenBSD: kexfuzz.c,v 1.5 2019/01/21 12:50:12 djm Exp $ */
 /*
  * Fuzz harness for KEX code
  *
@@ -28,8 +28,6 @@
 #include "myproposal.h"
 #include "authfile.h"
 #include "log.h"
-
-struct ssh *active_state = NULL; /* XXX - needed for linking */
 
 void kex_tests(void);
 static int do_debug = 0;
@@ -275,18 +273,18 @@ do_kex_with_key(const char *kex, struct sshkey *prvkey, int *c2s, int *s2c,
 	ASSERT_PTR_NE(server2->kex, NULL);
 	/* XXX we need to set the callbacks */
 #ifdef WITH_OPENSSL
-	server2->kex->kex[KEX_DH_GRP1_SHA1] = kexdh_server;
-	server2->kex->kex[KEX_DH_GRP14_SHA1] = kexdh_server;
-	server2->kex->kex[KEX_DH_GRP14_SHA256] = kexdh_server;
-	server2->kex->kex[KEX_DH_GRP16_SHA512] = kexdh_server;
-	server2->kex->kex[KEX_DH_GRP18_SHA512] = kexdh_server;
+	server2->kex->kex[KEX_DH_GRP1_SHA1] = kex_gen_server;
+	server2->kex->kex[KEX_DH_GRP14_SHA1] = kex_gen_server;
+	server2->kex->kex[KEX_DH_GRP14_SHA256] = kex_gen_server;
+	server2->kex->kex[KEX_DH_GRP16_SHA512] = kex_gen_server;
+	server2->kex->kex[KEX_DH_GRP18_SHA512] = kex_gen_server;
 	server2->kex->kex[KEX_DH_GEX_SHA1] = kexgex_server;
 	server2->kex->kex[KEX_DH_GEX_SHA256] = kexgex_server;
 # ifdef OPENSSL_HAS_ECC
-	server2->kex->kex[KEX_ECDH_SHA2] = kexecdh_server;
+	server2->kex->kex[KEX_ECDH_SHA2] = kex_gen_server;
 # endif
 #endif
-	server2->kex->kex[KEX_C25519_SHA256] = kexc25519_server;
+	server2->kex->kex[KEX_C25519_SHA256] = kex_gen_server;
 	server2->kex->load_host_public_key = server->kex->load_host_public_key;
 	server2->kex->load_host_private_key = server->kex->load_host_private_key;
 	server2->kex->sign = server->kex->sign;

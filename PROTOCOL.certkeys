@@ -36,6 +36,7 @@ Certified keys are represented using new key types:
     ecdsa-sha2-nistp256-cert-v01@openssh.com
     ecdsa-sha2-nistp384-cert-v01@openssh.com
     ecdsa-sha2-nistp521-cert-v01@openssh.com
+    ssh-ed25519-cert-v01@openssh.com
 
 Two additional types exist for RSA certificates to force use of
 SHA-2 signatures (SHA-256 and SHA-512 respectively):
@@ -303,4 +304,4 @@ permit-user-rc          empty         Flag indicating that execution of
                                       of this script will not be permitted if
                                       this option is not present.
 
-$OpenBSD: PROTOCOL.certkeys,v 1.15 2018/07/03 11:39:54 djm Exp $
+$OpenBSD: PROTOCOL.certkeys,v 1.16 2018/10/26 01:23:03 djm Exp $

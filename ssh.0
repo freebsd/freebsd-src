@@ -130,7 +130,7 @@ DESCRIPTION
 
      -I pkcs11
              Specify the PKCS#11 shared library ssh should use to communicate
-             with a PKCS#11 token providing the user's private RSA key.
+             with a PKCS#11 token providing keys for user authentication.
 
      -i identity_file
              Selects a file from which the identity (private key) for public
@@ -150,6 +150,10 @@ DESCRIPTION
              TCP forwarding to the ultimate destination from there.  Multiple
              jump hops may be specified separated by comma characters.  This
              is a shortcut to specify a ProxyJump configuration directive.
+             Note that configuration directives supplied on the command-line
+             generally apply to the destination host and not any specified
+             jump hosts.  Use ~/.ssh/config to specify configuration for jump
+             hosts.
 
      -K      Enables GSSAPI-based authentication and forwarding (delegation)
              of GSSAPI credentials to the server.
@@ -594,36 +598,30 @@ ESCAPE CHARACTERS
              to stderr.
 
 TCP FORWARDING
-     Forwarding of arbitrary TCP connections over the secure channel can be
+     Forwarding of arbitrary TCP connections over a secure channel can be
      specified either on the command line or in a configuration file.  One
      possible application of TCP forwarding is a secure connection to a mail
      server; another is going through firewalls.
 
-     In the example below, we look at encrypting communication between an IRC
-     client and server, even though the IRC server does not directly support
-     encrypted communications.  This works as follows: the user connects to
-     the remote host using ssh, specifying a port to be used to forward
-     connections to the remote server.  After that it is possible to start the
-     service which is to be encrypted on the client machine, connecting to the
-     same local port, and ssh will encrypt and forward the connection.
+     In the example below, we look at encrypting communication for an IRC
+     client, even though the IRC server it connects to does not directly
+     support encrypted communication.  This works as follows: the user
+     connects to the remote host using ssh, specifying the ports to be used to
+     forward the connection.  After that it is possible to start the program
+     locally, and ssh will encrypt and forward the connection to the remote
+     server.
 
-     The following example tunnels an IRC session from client machine
-     M-bM-^@M-^\127.0.0.1M-bM-^@M-^] (localhost) to remote server M-bM-^@M-^\server.example.comM-bM-^@M-^]:
+     The following example tunnels an IRC session from the client to an IRC
+     server at M-bM-^@M-^\server.example.comM-bM-^@M-^], joining channel M-bM-^@M-^\#usersM-bM-^@M-^], nickname
+     M-bM-^@M-^\pinkyM-bM-^@M-^], using the standard IRC port, 6667:
 
-         $ ssh -f -L 1234:localhost:6667 server.example.com sleep 10
-         $ irc -c '#users' -p 1234 pinky 127.0.0.1
-
-     This tunnels a connection to IRC server M-bM-^@M-^\server.example.comM-bM-^@M-^], joining
-     channel M-bM-^@M-^\#usersM-bM-^@M-^], nickname M-bM-^@M-^\pinkyM-bM-^@M-^], using port 1234.  It doesn't matter
-     which port is used, as long as it's greater than 1023 (remember, only
-     root can open sockets on privileged ports) and doesn't conflict with any
-     ports already in use.  The connection is forwarded to port 6667 on the
-     remote server, since that's the standard port for IRC services.
+         $ ssh -f -L 6667:localhost:6667 server.example.com sleep 10
+         $ irc -c '#users' pinky IRC/127.0.0.1
 
      The -f option backgrounds ssh and the remote command M-bM-^@M-^\sleep 10M-bM-^@M-^] is
      specified to allow an amount of time (10 seconds, in the example) to
-     start the service which is to be tunnelled.  If no connections are made
-     within the time specified, ssh will exit.
+     start the program which is going to use the tunnel.  If no connections
+     are made within the time specified, ssh will exit.
 
 X11 FORWARDING
      If the ForwardX11 variable is set to M-bM-^@M-^\yesM-bM-^@M-^] (or see the description of the
@@ -979,4 +977,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.4                   September 20, 2018                   OpenBSD 6.4
+OpenBSD 6.5                     March 16, 2019                     OpenBSD 6.5

@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.h,v 1.15 2016/05/02 10:26:04 djm Exp $ */
+/* $OpenBSD: dh.h,v 1.17 2019/01/20 01:12:40 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
@@ -48,7 +48,7 @@ u_int	 dh_estimate(int);
 
 /*
  * Max value from RFC4419.
- * Miniumum increased in light of DH precomputation attacks.
+ * Min value from RFC8270.
  */
 #define DH_GRP_MIN	2048
 #define DH_GRP_MAX	8192

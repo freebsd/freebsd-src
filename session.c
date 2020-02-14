@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.307 2018/10/04 00:10:11 djm Exp $ */
+/* $OpenBSD: session.c,v 1.315 2019/02/22 03:37:11 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -123,9 +123,6 @@ int	do_exec_no_pty(struct ssh *, Session *, const char *);
 int	do_exec(struct ssh *, Session *, const char *);
 void	do_login(struct ssh *, Session *, const char *);
 void	do_child(struct ssh *, Session *, const char *);
-#ifdef LOGIN_NEEDS_UTMPX
-static void	do_pre_login(Session *s);
-#endif
 void	do_motd(void);
 int	check_quietlogin(Session *, const char *);
 
@@ -142,7 +139,7 @@ extern int startup_pipe;
 extern void destroy_sensitive_data(void);
 extern struct sshbuf *loginmsg;
 extern struct sshauthopt *auth_opts;
-char *tun_fwd_ifnames; /* serverloop.c */
+extern char *tun_fwd_ifnames; /* serverloop.c */
 
 /* original command from peer. */
 const char *original_command = NULL;
@@ -204,7 +201,7 @@ auth_input_request_forwarding(struct ssh *ssh, struct passwd * pw)
 
 	/* Create private directory for socket */
 	if (mkdtemp(auth_sock_dir) == NULL) {
-		packet_send_debug("Agent forwarding disabled: "
+		ssh_packet_send_debug(ssh, "Agent forwarding disabled: "
 		    "mkdtemp() failed: %.100s", strerror(errno));
 		restore_uid();
 		free(auth_sock_dir);
@@ -236,7 +233,9 @@ auth_input_request_forwarding(struct ssh *ssh, struct passwd * pw)
  authsock_err:
 	free(auth_sock_name);
 	if (auth_sock_dir != NULL) {
+		temporarily_use_uid(pw);
 		rmdir(auth_sock_dir);
+		restore_uid();
 		free(auth_sock_dir);
 	}
 	if (sock != -1)
@@ -359,7 +358,7 @@ do_authenticated(struct ssh *ssh, Authctxt *authctxt)
 		else
 			channel_permit_all(ssh, FORWARD_REMOTE);
 	}
-	auth_debug_send();
+	auth_debug_send(ssh);
 
 	prepare_auth_info_file(authctxt->pw, authctxt->session_info);
 
@@ -521,7 +520,7 @@ do_exec_no_pty(struct ssh *ssh, Session *s, const char *command)
 
 	s->pid = pid;
 	/* Set interactive/non-interactive mode. */
-	packet_set_interactive(s->display != NULL,
+	ssh_packet_set_interactive(ssh, s->display != NULL,
 	    options.ip_qos_interactive, options.ip_qos_bulk);
 
 	/*
@@ -548,7 +547,7 @@ do_exec_no_pty(struct ssh *ssh, Session *s, const char *command)
 	 * Enter the interactive session.  Note: server_loop must be able to
 	 * handle the case that fdin and fdout are the same.
 	 */
-	session_set_fds(s, inout[1], inout[1], err[1],
+	session_set_fds(ssh, s, inout[1], inout[1], err[1],
 	    s->is_subsystem, 0);
 #endif
 	return 0;
@@ -650,40 +649,11 @@ do_exec_pty(struct ssh *ssh, Session *s, const char *command)
 
 	/* Enter interactive session. */
 	s->ptymaster = ptymaster;
-	packet_set_interactive(1, 
+	ssh_packet_set_interactive(ssh, 1,
 	    options.ip_qos_interactive, options.ip_qos_bulk);
 	session_set_fds(ssh, s, ptyfd, fdout, -1, 1, 1);
 	return 0;
 }
-
-#ifdef LOGIN_NEEDS_UTMPX
-static void
-do_pre_login(Session *s)
-{
-	struct ssh *ssh = active_state;	/* XXX */
-	socklen_t fromlen;
-	struct sockaddr_storage from;
-	pid_t pid = getpid();
-
-	/*
-	 * Get IP address of client. If the connection is not a socket, let
-	 * the address be 0.0.0.0.
-	 */
-	memset(&from, 0, sizeof(from));
-	fromlen = sizeof(from);
-	if (packet_connection_is_on_socket()) {
-		if (getpeername(packet_get_connection_in(),
-		    (struct sockaddr *)&from, &fromlen) < 0) {
-			debug("getpeername: %.100s", strerror(errno));
-			cleanup_exit(255);
-		}
-	}
-
-	record_utmp_only(pid, s->tty, s->pw->pw_name,
-	    session_get_remote_name_or_ip(ssh, utmp_len, options.use_dns),
-	    (struct sockaddr *)&from, fromlen);
-}
-#endif
 
 /*
  * This is called to fork and execute a command.  If another command is
@@ -783,8 +753,8 @@ do_login(struct ssh *ssh, Session *s, const char *command)
 	 */
 	memset(&from, 0, sizeof(from));
 	fromlen = sizeof(from);
-	if (packet_connection_is_on_socket()) {
-		if (getpeername(packet_get_connection_in(),
+	if (ssh_packet_connection_is_on_socket(ssh)) {
+		if (getpeername(ssh_packet_get_connection_in(ssh),
 		    (struct sockaddr *)&from, &fromlen) < 0) {
 			debug("getpeername: %.100s", strerror(errno));
 			cleanup_exit(255);
@@ -1082,8 +1052,11 @@ do_setup_env(struct ssh *ssh, Session *s, const char *shell)
 # endif /* HAVE_CYGWIN */
 #endif /* HAVE_LOGIN_CAP */
 
-	snprintf(buf, sizeof buf, "%.200s/%.50s", _PATH_MAILDIR, pw->pw_name);
-	child_set_env(&env, &envsize, "MAIL", buf);
+	if (!options.use_pam) {
+		snprintf(buf, sizeof buf, "%.200s/%.50s",
+		    _PATH_MAILDIR, pw->pw_name);
+		child_set_env(&env, &envsize, "MAIL", buf);
+	}
 
 	/* Normal systems set SHELL by default. */
 	child_set_env(&env, &envsize, "SHELL", shell);
@@ -1162,15 +1135,18 @@ do_setup_env(struct ssh *ssh, Session *s, const char *shell)
 		char **p;
 
 		/*
-		 * Don't allow SSH_AUTH_INFO variables posted to PAM to leak
-		 * back into the environment.
+		 * Don't allow PAM-internal env vars to leak
+		 * back into the session environment.
 		 */
+#define PAM_ENV_BLACKLIST  "SSH_AUTH_INFO*,SSH_CONNECTION*"
 		p = fetch_pam_child_environment();
-		copy_environment_blacklist(p, &env, &envsize, "SSH_AUTH_INFO*");
+		copy_environment_blacklist(p, &env, &envsize,
+		    PAM_ENV_BLACKLIST);
 		free_pam_environment(p);
 
 		p = fetch_pam_environment();
-		copy_environment_blacklist(p, &env, &envsize, "SSH_AUTH_INFO*");
+		copy_environment_blacklist(p, &env, &envsize,
+		    PAM_ENV_BLACKLIST);
 		free_pam_environment(p);
 	}
 #endif /* USE_PAM */
@@ -1192,7 +1168,7 @@ do_setup_env(struct ssh *ssh, Session *s, const char *shell)
 	    ssh_local_port(ssh));
 	child_set_env(&env, &envsize, "SSH_CLIENT", buf);
 
-	laddr = get_local_ipaddr(packet_get_connection_in());
+	laddr = get_local_ipaddr(ssh_packet_get_connection_in(ssh));
 	snprintf(buf, sizeof buf, "%.50s %d %.50s %d",
 	    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh),
 	    laddr, ssh_local_port(ssh));
@@ -1334,7 +1310,7 @@ safely_chroot(const char *path, uid_t uid)
 	char component[PATH_MAX];
 	struct stat st;
 
-	if (*path != '/')
+	if (!path_absolute(path))
 		fatal("chroot path does not begin at root");
 	if (strlen(path) >= sizeof(component))
 		fatal("chroot path too long");
@@ -1359,7 +1335,7 @@ safely_chroot(const char *path, uid_t uid)
 			    component, strerror(errno));
 		if (st.st_uid != 0 || (st.st_mode & 022) != 0)
 			fatal("bad ownership or modes for chroot "
-			    "directory %s\"%s\"", 
+			    "directory %s\"%s\"",
 			    cp == NULL ? "" : "component ", component);
 		if (!S_ISDIR(st.st_mode))
 			fatal("chroot path %s\"%s\" is not a directory",
@@ -1497,11 +1473,12 @@ child_close_fds(struct ssh *ssh)
 		auth_sock = -1;
 	}
 
-	if (packet_get_connection_in() == packet_get_connection_out())
-		close(packet_get_connection_in());
+	if (ssh_packet_get_connection_in(ssh) ==
+	    ssh_packet_get_connection_out(ssh))
+		close(ssh_packet_get_connection_in(ssh));
 	else {
-		close(packet_get_connection_in());
-		close(packet_get_connection_out());
+		close(ssh_packet_get_connection_in(ssh));
+		close(ssh_packet_get_connection_out(ssh));
 	}
 	/*
 	 * Close all descriptors related to channels.  They will still remain
@@ -1535,15 +1512,16 @@ void
 do_child(struct ssh *ssh, Session *s, const char *command)
 {
 	extern char **environ;
-	char **env;
-	char *argv[ARGV_MAX];
+	char **env, *argv[ARGV_MAX], remote_id[512];
 	const char *shell, *shell0;
 	struct passwd *pw = s->pw;
 	int r = 0;
 
+	sshpkt_fmt_connection_id(ssh, remote_id, sizeof(remote_id));
+
 	/* remove hostkey from the child's memory */
 	destroy_sensitive_data();
-	packet_clear_keys();
+	ssh_packet_clear_keys(ssh);
 
 	/* Force a password change */
 	if (s->authctxt->force_pwchange) {
@@ -1663,6 +1641,8 @@ do_child(struct ssh *ssh, Session *s, const char *command)
 	signal(SIGPIPE, SIG_DFL);
 
 	if (s->is_subsystem == SUBSYSTEM_INT_SFTP_ERROR) {
+		error("Connection from %s: refusing non-sftp session",
+		    remote_id);
 		printf("This service allows sftp connections only.\n");
 		fflush(NULL);
 		exit(1);
@@ -1905,11 +1885,14 @@ session_by_pid(pid_t pid)
 static int
 session_window_change_req(struct ssh *ssh, Session *s)
 {
-	s->col = packet_get_int();
-	s->row = packet_get_int();
-	s->xpixel = packet_get_int();
-	s->ypixel = packet_get_int();
-	packet_check_eom();
+	int r;
+
+	if ((r = sshpkt_get_u32(ssh, &s->col)) != 0 ||
+	    (r = sshpkt_get_u32(ssh, &s->row)) != 0 ||
+	    (r = sshpkt_get_u32(ssh, &s->xpixel)) != 0 ||
+	    (r = sshpkt_get_u32(ssh, &s->ypixel)) != 0 ||
+	    (r = sshpkt_get_end(ssh)) != 0)
+		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
 	pty_change_window_size(s->ptyfd, s->row, s->col, s->xpixel, s->ypixel);
 	return 1;
 }
@@ -1917,22 +1900,23 @@ session_window_change_req(struct ssh *ssh, Session *s)
 static int
 session_pty_req(struct ssh *ssh, Session *s)
 {
-	u_int len;
+	int r;
 
 	if (!auth_opts->permit_pty_flag || !options.permit_tty) {
 		debug("Allocating a pty not permitted for this connection.");
 		return 0;
 	}
 	if (s->ttyfd != -1) {
-		packet_disconnect("Protocol error: you already have a pty.");
+		ssh_packet_disconnect(ssh, "Protocol error: you already have a pty.");
 		return 0;
 	}
 
-	s->term = packet_get_string(&len);
-	s->col = packet_get_int();
-	s->row = packet_get_int();
-	s->xpixel = packet_get_int();
-	s->ypixel = packet_get_int();
+	if ((r = sshpkt_get_cstring(ssh, &s->term, NULL)) != 0 ||
+	    (r = sshpkt_get_u32(ssh, &s->col)) != 0 ||
+	    (r = sshpkt_get_u32(ssh, &s->row)) != 0 ||
+	    (r = sshpkt_get_u32(ssh, &s->xpixel)) != 0 ||
+	    (r = sshpkt_get_u32(ssh, &s->ypixel)) != 0)
+		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
 
 	if (strcmp(s->term, "") == 0) {
 		free(s->term);
@@ -1954,13 +1938,15 @@ session_pty_req(struct ssh *ssh, Session *s)
 
 	ssh_tty_parse_modes(ssh, s->ttyfd);
 
+	if ((r = sshpkt_get_end(ssh)) != 0)
+		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
+
 	if (!use_privsep)
 		pty_setowner(s->pw, s->tty);
 
 	/* Set window size from the packet. */
 	pty_change_window_size(s->ptyfd, s->row, s->col, s->xpixel, s->ypixel);
 
-	packet_check_eom();
 	session_proctitle(s);
 	return 1;
 }
@@ -1969,13 +1955,13 @@ static int
 session_subsystem_req(struct ssh *ssh, Session *s)
 {
 	struct stat st;
-	u_int len;
-	int success = 0;
+	int r, success = 0;
 	char *prog, *cmd;
 	u_int i;
 
-	s->subsys = packet_get_string(&len);
-	packet_check_eom();
+	if ((r = sshpkt_get_cstring(ssh, &s->subsys, NULL)) != 0 ||
+	    (r = sshpkt_get_end(ssh)) != 0)
+		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
 	debug2("subsystem request for %.100s by user %s", s->subsys,
 	    s->pw->pw_name);
 
@@ -2008,18 +1994,22 @@ session_subsystem_req(struct ssh *ssh, Session *s)
 static int
 session_x11_req(struct ssh *ssh, Session *s)
 {
-	int success;
+	int r, success;
+	u_char single_connection = 0;
 
 	if (s->auth_proto != NULL || s->auth_data != NULL) {
 		error("session_x11_req: session %d: "
 		    "x11 forwarding already active", s->self);
 		return 0;
 	}
-	s->single_connection = packet_get_char();
-	s->auth_proto = packet_get_string(NULL);
-	s->auth_data = packet_get_string(NULL);
-	s->screen = packet_get_int();
-	packet_check_eom();
+	if ((r = sshpkt_get_u8(ssh, &single_connection)) != 0 ||
+	    (r = sshpkt_get_cstring(ssh, &s->auth_proto, NULL)) != 0 ||
+	    (r = sshpkt_get_cstring(ssh, &s->auth_data, NULL)) != 0 ||
+	    (r = sshpkt_get_u32(ssh, &s->screen)) != 0 ||
+	    (r = sshpkt_get_end(ssh)) != 0)
+		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
+
+	s->single_connection = single_connection;
 
 	if (xauth_valid_string(s->auth_proto) &&
 	    xauth_valid_string(s->auth_data))
@@ -2040,17 +2030,24 @@ session_x11_req(struct ssh *ssh, Session *s)
 static int
 session_shell_req(struct ssh *ssh, Session *s)
 {
-	packet_check_eom();
+	int r;
+
+	if ((r = sshpkt_get_end(ssh)) != 0)
+		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
 	return do_exec(ssh, s, NULL) == 0;
 }
 
 static int
 session_exec_req(struct ssh *ssh, Session *s)
 {
-	u_int len, success;
+	u_int success;
+	int r;
+	char *command = NULL;
 
-	char *command = packet_get_string(&len);
-	packet_check_eom();
+	if ((r = sshpkt_get_cstring(ssh, &command, NULL)) != 0 ||
+	    (r = sshpkt_get_end(ssh)) != 0)
+		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
+
 	success = do_exec(ssh, s, command) == 0;
 	free(command);
 	return success;
@@ -2059,9 +2056,11 @@ session_exec_req(struct ssh *ssh, Session *s)
 static int
 session_break_req(struct ssh *ssh, Session *s)
 {
+	int r;
 
-	packet_get_int();	/* ignored */
-	packet_check_eom();
+	if ((r = sshpkt_get_u32(ssh, NULL)) != 0 || /* ignore */
+	    (r = sshpkt_get_end(ssh)) != 0)
+		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
 
 	if (s->ptymaster == -1 || tcsendbreak(s->ptymaster, 0) < 0)
 		return 0;
@@ -2072,11 +2071,13 @@ static int
 session_env_req(struct ssh *ssh, Session *s)
 {
 	char *name, *val;
-	u_int name_len, val_len, i;
+	u_int i;
+	int r;
 
-	name = packet_get_cstring(&name_len);
-	val = packet_get_cstring(&val_len);
-	packet_check_eom();
+	if ((r = sshpkt_get_cstring(ssh, &name, NULL)) != 0 ||
+	    (r = sshpkt_get_cstring(ssh, &val, NULL)) != 0 ||
+	    (r = sshpkt_get_end(ssh)) != 0)
+		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
 
 	/* Don't set too many environment variables */
 	if (s->num_env > 128) {
@@ -2179,8 +2180,10 @@ static int
 session_auth_agent_req(struct ssh *ssh, Session *s)
 {
 	static int called = 0;
+	int r;
 
-	packet_check_eom();
+	if ((r = sshpkt_get_end(ssh)) != 0)
+		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
 	if (!auth_opts->permit_agent_forwarding_flag ||
 	    !options.allow_agent_forwarding) {
 		debug("%s: agent forwarding disabled", __func__);
@@ -2370,6 +2373,7 @@ static void
 session_exit_message(struct ssh *ssh, Session *s, int status)
 {
 	Channel *c;
+	int r;
 
 	if ((c = channel_lookup(ssh, s->chanid)) == NULL)
 		fatal("%s: session %d: no channel %d",
@@ -2379,22 +2383,23 @@ session_exit_message(struct ssh *ssh, Session *s, int status)
 
 	if (WIFEXITED(status)) {
 		channel_request_start(ssh, s->chanid, "exit-status", 0);
-		packet_put_int(WEXITSTATUS(status));
-		packet_send();
+		if ((r = sshpkt_put_u32(ssh, WEXITSTATUS(status))) != 0 ||
+		    (r = sshpkt_send(ssh)) != 0)
+			sshpkt_fatal(ssh, r, "%s: exit reply", __func__);
 	} else if (WIFSIGNALED(status)) {
 		channel_request_start(ssh, s->chanid, "exit-signal", 0);
-		packet_put_cstring(sig2name(WTERMSIG(status)));
-#ifdef WCOREDUMP
-		packet_put_char(WCOREDUMP(status)? 1 : 0);
-#else /* WCOREDUMP */
-		packet_put_char(0);
-#endif /* WCOREDUMP */
-		packet_put_cstring("");
-		packet_put_cstring("");
-		packet_send();
+#ifndef WCOREDUMP
+# define WCOREDUMP(x) (0)
+#endif
+		if ((r = sshpkt_put_cstring(ssh, sig2name(WTERMSIG(status)))) != 0 ||
+		    (r = sshpkt_put_u8(ssh, WCOREDUMP(status)? 1 : 0)) != 0 ||
+		    (r = sshpkt_put_cstring(ssh, "")) != 0 ||
+		    (r = sshpkt_put_cstring(ssh, "")) != 0 ||
+		    (r = sshpkt_send(ssh)) != 0)
+			sshpkt_fatal(ssh, r, "%s: exit reply", __func__);
 	} else {
 		/* Some weird exit cause.  Just exit. */
-		packet_disconnect("wait returned status %04x.", status);
+		ssh_packet_disconnect(ssh, "wait returned status %04x.", status);
 	}
 
 	/* disconnect channel */
@@ -2565,7 +2570,7 @@ session_setup_x11fwd(struct ssh *ssh, Session *s)
 	u_int i;
 
 	if (!auth_opts->permit_x11_forwarding_flag) {
-		packet_send_debug("X11 forwarding disabled by key options.");
+		ssh_packet_send_debug(ssh, "X11 forwarding disabled by key options.");
 		return 0;
 	}
 	if (!options.x11_forwarding) {
@@ -2574,7 +2579,7 @@ session_setup_x11fwd(struct ssh *ssh, Session *s)
 	}
 	if (options.xauth_location == NULL ||
 	    (stat(options.xauth_location, &st) == -1)) {
-		packet_send_debug("No xauth program; cannot forward X11.");
+		ssh_packet_send_debug(ssh, "No xauth program; cannot forward X11.");
 		return 0;
 	}
 	if (s->display != NULL) {
@@ -2615,7 +2620,7 @@ session_setup_x11fwd(struct ssh *ssh, Session *s)
 		he = gethostbyname(hostname);
 		if (he == NULL) {
 			error("Can't get IP address for X11 DISPLAY.");
-			packet_send_debug("Can't get IP address for X11 DISPLAY.");
+			ssh_packet_send_debug(ssh, "Can't get IP address for X11 DISPLAY.");
 			return 0;
 		}
 		memcpy(&my_addr, he->h_addr_list[0], sizeof(struct in_addr));

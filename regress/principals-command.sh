@@ -1,4 +1,4 @@
-#	$OpenBSD: principals-command.sh,v 1.4 2017/04/30 23:34:55 djm Exp $
+#	$OpenBSD: principals-command.sh,v 1.6 2018/11/22 08:48:32 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="authorized principals command"
@@ -30,7 +30,8 @@ CA_FP=`${SSHKEYGEN} -lf $OBJ/user_ca_key.pub | awk '{ print $2 }'`
 
 # Establish a AuthorizedPrincipalsCommand in /var/run where it will have
 # acceptable directory permissions.
-PRINCIPALS_COMMAND="/var/run/principals_command_${LOGNAME}"
+PRINCIPALS_COMMAND="/var/run/principals_command_${LOGNAME}.$$"
+trap "$SUDO rm -f ${PRINCIPALS_COMMAND}" 0
 cat << _EOF | $SUDO sh -c "cat > '$PRINCIPALS_COMMAND'"
 #!/bin/sh
 test "x\$1" != "x${LOGNAME}" && exit 1
@@ -57,7 +58,7 @@ fi
 
 if [ -x $PRINCIPALS_COMMAND ]; then
 	# Test explicitly-specified principals
-	for privsep in yes no ; do
+	for privsep in yes sandbox ; do
 		_prefix="privsep $privsep"
 
 		# Setup for AuthorizedPrincipalsCommand

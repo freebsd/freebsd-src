@@ -36,6 +36,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
+#include <unistd.h>
 #ifdef HAVE_UTIL_H
 #include <util.h>
 #endif

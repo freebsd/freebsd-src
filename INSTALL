@@ -13,15 +13,15 @@ OpenSSL)
 Zlib 1.1.4 or 1.2.1.2 or greater (earlier 1.2.x versions have problems):
 http://www.gzip.org/zlib/
 
-libcrypto (LibreSSL or OpenSSL >= 1.0.1 < 1.1.0)
-LibreSSL http://www.libressl.org/ ; or
-OpenSSL http://www.openssl.org/
+libcrypto from either of:
+ - LibreSSL (http://www.libressl.org/)
+ - OpenSSL 1.0.x >= 1.0.1 or 1.1.0 >= 1.1.0g (http://www.openssl.org/)
 
 LibreSSL/OpenSSL should be compiled as a position-independent library
 (i.e. with -fPIC) otherwise OpenSSH will not be able to link with it.
 If you must use a non-position-independent libcrypto, then you may need
-to configure OpenSSH --without-pie.  Note that because of API changes,
-OpenSSL 1.1.x is not currently supported.
+to configure OpenSSH --without-pie.  Note that due to a bug in EVP_CipherInit
+OpenSSL 1.1 versions prior to 1.1.0g can't be used.
 
 The remaining items are optional.
 

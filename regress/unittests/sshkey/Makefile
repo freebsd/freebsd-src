@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.5 2017/12/21 00:41:22 djm Exp $
+#	$OpenBSD: Makefile,v 1.6 2018/10/17 23:28:05 djm Exp $
 
 PROG=test_sshkey
 SRCS=tests.c test_sshkey.c test_file.c test_fuzz.c common.c
@@ -18,7 +18,7 @@ SRCS+=digest-openssl.c
 REGRESS_TARGETS=run-regress-${PROG}
 
 run-regress-${PROG}: ${PROG}
-	env ${TEST_ENV} ./${PROG} -d ${.CURDIR}/testdata
+	env ${TEST_ENV} ./${PROG} ${UNITTEST_ARGS} -d ${.CURDIR}/testdata
 
 .include <bsd.regress.mk>
 

@@ -55,6 +55,7 @@ int binary_open(const char *, int , ...);
 int check_ntsec(const char *);
 char **fetch_windows_environment(void);
 void free_windows_environment(char **);
+int cygwin_ug_match_pattern_list(const char *, const char *);
 
 #ifndef NO_BINARY_OPEN
 #define open binary_open

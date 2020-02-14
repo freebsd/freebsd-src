@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.h,v 1.30 2018/09/14 04:17:44 djm Exp $ */
+/* $OpenBSD: sshkey.h,v 1.31 2019/01/20 22:51:37 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -33,6 +33,7 @@
 #include <openssl/dsa.h>
 # ifdef OPENSSL_HAS_ECC
 #  include <openssl/ec.h>
+#  include <openssl/ecdsa.h>
 # else /* OPENSSL_HAS_ECC */
 #  define EC_KEY	void
 #  define EC_GROUP	void

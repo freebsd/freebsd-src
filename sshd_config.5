@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.282 2018/09/20 03:28:06 djm Exp $
-.Dd $Mdocdate: September 20 2018 $
+.\" $OpenBSD: sshd_config.5,v 1.284 2019/03/22 20:58:34 jmc Exp $
+.Dd $Mdocdate: March 22 2019 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -1084,7 +1084,7 @@ and
 .Cm RDomain
 representing the
 .Xr rdomain 4
-on which the connection was received.)
+on which the connection was received).
 .Pp
 The match patterns may consist of single entries or comma-separated
 lists and may use the wildcard and negation operators described in the
@@ -1237,7 +1237,7 @@ Note also that
 .Xr ssh 1
 will request a listen host of
 .Dq localhost
-if no listen host was specifically requested, and this this name is
+if no listen host was specifically requested, and this name is
 treated differently to explicit localhost addresses of
 .Dq 127.0.0.1
 and

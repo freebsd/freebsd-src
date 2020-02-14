@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.286 2018/10/03 06:38:35 djm Exp $
-.Dd $Mdocdate: October 3 2018 $
+.\" $OpenBSD: ssh_config.5,v 1.292 2019/03/01 02:16:47 djm Exp $
+.Dd $Mdocdate: March 1 2019 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -139,6 +139,7 @@ or the single token
 which always matches.
 The available criteria keywords are:
 .Cm canonical ,
+.Cm final ,
 .Cm exec ,
 .Cm host ,
 .Cm originalhost ,
@@ -148,12 +149,15 @@ and
 The
 .Cm all
 criteria must appear alone or immediately after
-.Cm canonical .
+.Cm canonical
+or
+.Cm final .
 Other criteria may be combined arbitrarily.
 All criteria but
-.Cm all
+.Cm all ,
+.Cm canonical ,
 and
-.Cm canonical
+.Cm final
 require an argument.
 Criteria may be negated by prepending an exclamation mark
 .Pq Sq !\& .
@@ -163,9 +167,23 @@ The
 keyword matches only when the configuration file is being re-parsed
 after hostname canonicalization (see the
 .Cm CanonicalizeHostname
-option.)
+option).
 This may be useful to specify conditions that work with canonical host
 names only.
+.Pp
+The
+.Cm final
+keyword requests that the configuration be re-parsed (regardless of whether
+.Cm CanonicalizeHostname
+is enabled), and matches only during this final pass.
+If
+.Cm CanonicalizeHostname
+is enabled, then
+.Cm canonical
+and
+.Cm final
+match during the same pass.
+.Pp
 The
 .Cm exec
 keyword executes the specified command under the user's shell.
@@ -1040,7 +1058,6 @@ ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
 diffie-hellman-group16-sha512,
 diffie-hellman-group18-sha512,
-diffie-hellman-group-exchange-sha1,
 diffie-hellman-group14-sha256,
 diffie-hellman-group14-sha1
 .Ed
@@ -1163,11 +1180,13 @@ or
 .Cm no
 (the default).
 .It Cm PKCS11Provider
-Specifies which PKCS#11 provider to use.
-The argument to this keyword is the PKCS#11 shared library
+Specifies which PKCS#11 provider to use or
+.Cm none
+to indicate that no provider should be used (the default).
+The argument to this keyword is a path to the PKCS#11 shared library
 .Xr ssh 1
-should use to communicate with a PKCS#11 token providing the user's
-private RSA key.
+should use to communicate with a PKCS#11 token providing keys for user
+authentication.
 .It Cm Port
 Specifies the port number to connect on the remote host.
 The default is 22.
@@ -1245,6 +1264,12 @@ Note that this option will compete with the
 .Cm ProxyCommand
 option - whichever is specified first will prevent later instances of the
 other from taking effect.
+.Pp
+Note also that the configuration for the destination host (either supplied
+via the command-line or the configuration file) is not generally applied
+to jump hosts.
+.Pa ~/.ssh/config
+should be used if specific configuration is required for jump hosts.
 .It Cm ProxyUseFdpass
 Specifies that
 .Cm ProxyCommand
@@ -1785,7 +1810,7 @@ This is the per-user configuration file.
 The format of this file is described above.
 This file is used by the SSH client.
 Because of the potential for abuse, this file must have strict permissions:
-read/write for the user, and not accessible by others.
+read/write for the user, and not writable by others.
 .It Pa /etc/ssh/ssh_config
 Systemwide configuration file.
 This file provides defaults for those

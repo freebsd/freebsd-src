@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.133 2018/10/05 14:26:09 naddy Exp $ */
+/* $OpenBSD: misc.c,v 1.137 2019/01/23 21:50:56 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -38,6 +38,7 @@
 #ifdef HAVE_LIBGEN_H
 # include <libgen.h>
 #endif
+#include <poll.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -232,6 +233,80 @@ set_rdomain(int fd, const char *name)
 	error("Setting routing domain is not supported on this platform");
 	return -1;
 #endif
+}
+
+/*
+ * Wait up to *timeoutp milliseconds for fd to be readable. Updates
+ * *timeoutp with time remaining.
+ * Returns 0 if fd ready or -1 on timeout or error (see errno).
+ */
+int
+waitrfd(int fd, int *timeoutp)
+{
+	struct pollfd pfd;
+	struct timeval t_start;
+	int oerrno, r;
+
+	monotime_tv(&t_start);
+	pfd.fd = fd;
+	pfd.events = POLLIN;
+	for (; *timeoutp >= 0;) {
+		r = poll(&pfd, 1, *timeoutp);
+		oerrno = errno;
+		ms_subtract_diff(&t_start, timeoutp);
+		errno = oerrno;
+		if (r > 0)
+			return 0;
+		else if (r == -1 && errno != EAGAIN)
+			return -1;
+		else if (r == 0)
+			break;
+	}
+	/* timeout */
+	errno = ETIMEDOUT;
+	return -1;
+}
+
+/*
+ * Attempt a non-blocking connect(2) to the specified address, waiting up to
+ * *timeoutp milliseconds for the connection to complete. If the timeout is
+ * <=0, then wait indefinitely.
+ *
+ * Returns 0 on success or -1 on failure.
+ */
+int
+timeout_connect(int sockfd, const struct sockaddr *serv_addr,
+    socklen_t addrlen, int *timeoutp)
+{
+	int optval = 0;
+	socklen_t optlen = sizeof(optval);
+
+	/* No timeout: just do a blocking connect() */
+	if (timeoutp == NULL || *timeoutp <= 0)
+		return connect(sockfd, serv_addr, addrlen);
+
+	set_nonblock(sockfd);
+	if (connect(sockfd, serv_addr, addrlen) == 0) {
+		/* Succeeded already? */
+		unset_nonblock(sockfd);
+		return 0;
+	} else if (errno != EINPROGRESS)
+		return -1;
+
+	if (waitrfd(sockfd, timeoutp) == -1)
+		return -1;
+
+	/* Completed or failed */
+	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &optval, &optlen) == -1) {
+		debug("getsockopt: %s", strerror(errno));
+		return -1;
+	}
+	if (optval != 0) {
+		errno = optval;
+		return -1;
+	}
+	unset_nonblock(sockfd);
+	return 0;
 }
 
 /* Characters considered whitespace in strsep calls. */
@@ -489,7 +564,7 @@ put_host_port(const char *host, u_short port)
  * The delimiter char, if present, is stored in delim.
  * If this is the last field, *cp is set to NULL.
  */
-static char *
+char *
 hpdelim2(char **cp, char *delim)
 {
 	char *s, *old;
@@ -1335,11 +1410,11 @@ bandwidth_limit_init(struct bwlimit *bw, u_int64_t kbps, size_t buflen)
 {
 	bw->buflen = buflen;
 	bw->rate = kbps;
-	bw->thresh = bw->rate;
+	bw->thresh = buflen;
 	bw->lamt = 0;
 	timerclear(&bw->bwstart);
 	timerclear(&bw->bwend);
-}	
+}
 
 /* Callback from read/write loop to insert bandwidth-limiting delays */
 void
@@ -1348,12 +1423,11 @@ bandwidth_limit(struct bwlimit *bw, size_t read_len)
 	u_int64_t waitlen;
 	struct timespec ts, rm;
 
+	bw->lamt += read_len;
 	if (!timerisset(&bw->bwstart)) {
 		monotime_tv(&bw->bwstart);
 		return;
 	}
-
-	bw->lamt += read_len;
 	if (bw->lamt < bw->thresh)
 		return;
 
@@ -2036,4 +2110,11 @@ format_absolute_time(uint64_t t, char *buf, size_t len)
 
 	localtime_r(&tt, &tm);
 	strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &tm);
+}
+
+/* check if path is absolute */
+int
+path_absolute(const char *path)
+{
+	return (*path == '/') ? 1 : 0;
 }

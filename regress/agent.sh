@@ -1,4 +1,4 @@
-#	$OpenBSD: agent.sh,v 1.13 2017/12/19 00:49:30 djm Exp $
+#	$OpenBSD: agent.sh,v 1.14 2019/01/28 00:12:36 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="simple agent test"
@@ -26,6 +26,9 @@ ${SSHKEYGEN} -q -N '' -t ed25519 -f $OBJ/user_ca_key \
 
 trace "overwrite authorized keys"
 printf '' > $OBJ/authorized_keys_$USER
+
+echo "PubkeyAcceptedKeyTypes +ssh-dss" >> $OBJ/ssh_proxy
+echo "PubkeyAcceptedKeyTypes +ssh-dss" >> $OBJ/sshd_proxy
 
 for t in ${SSH_KEYTYPES}; do
 	# generate user key for agent
@@ -96,6 +99,7 @@ fi
 (printf 'cert-authority,principals="estragon" '; cat $OBJ/user_ca_key.pub) \
 	> $OBJ/authorized_keys_$USER
 for t in ${SSH_KEYTYPES}; do
+    if [ "$t" != "ssh-dss" ]; then
 	trace "connect via agent using $t key"
 	${SSH} -F $OBJ/ssh_proxy -i $OBJ/$t-agent.pub \
 		-oCertificateFile=$OBJ/$t-agent-cert.pub \
@@ -104,6 +108,7 @@ for t in ${SSH_KEYTYPES}; do
 	if [ $r -ne 52 ]; then
 		fail "ssh connect with failed (exit code $r)"
 	fi
+    fi
 done
 
 trace "delete all agent keys"

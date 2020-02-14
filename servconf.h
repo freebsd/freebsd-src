@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.137 2018/09/20 03:28:06 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.139 2019/01/19 21:37:48 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -75,6 +75,7 @@ typedef struct {
 	char	*routing_domain;	/* Bind session to routing domain */
 
 	char   **host_key_files;	/* Files containing host keys. */
+	int	*host_key_file_userprovided; /* Key was specified by user. */
 	u_int	num_host_key_files;     /* Number of files for host keys. */
 	char   **host_cert_files;	/* Files containing host certs. */
 	u_int	num_host_cert_files;	/* Number of files for host certs. */
@@ -257,7 +258,7 @@ struct connection_info {
 		M_CP_STRARRAYOPT(permitted_listens, num_permitted_listens); \
 	} while (0)
 
-struct connection_info *get_connection_info(int, int);
+struct connection_info *get_connection_info(struct ssh *, int, int);
 void	 initialize_server_options(ServerOptions *);
 void	 fill_default_server_options(ServerOptions *);
 int	 process_server_config_line(ServerOptions *, char *, const char *, int,
@@ -273,7 +274,7 @@ void	 copy_set_server_options(ServerOptions *, ServerOptions *, int);
 void	 dump_config(ServerOptions *);
 char	*derelativise_path(const char *);
 void	 servconf_add_hostkey(const char *, const int,
-	    ServerOptions *, const char *path);
+	    ServerOptions *, const char *path, int);
 void	 servconf_add_hostcert(const char *, const int,
 	    ServerOptions *, const char *path);
 

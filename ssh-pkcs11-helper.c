@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-helper.c,v 1.14 2018/01/08 15:18:46 markus Exp $ */
+/* $OpenBSD: ssh-pkcs11-helper.c,v 1.17 2019/01/23 02:01:10 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -24,10 +24,11 @@
 
 #include "openbsd-compat/sys-queue.h"
 
+#include <errno.h>
+#include <poll.h>
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 
 #include "xmalloc.h"
 #include "sshbuf.h"
@@ -110,7 +111,7 @@ static void
 process_add(void)
 {
 	char *name, *pin;
-	struct sshkey **keys;
+	struct sshkey **keys = NULL;
 	int r, i, nkeys;
 	u_char *blob;
 	size_t blen;
@@ -139,11 +140,13 @@ process_add(void)
 			free(blob);
 			add_key(keys[i], name);
 		}
-		free(keys);
 	} else {
 		if ((r = sshbuf_put_u8(msg, SSH_AGENT_FAILURE)) != 0)
 			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		if ((r = sshbuf_put_u32(msg, -nkeys)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	}
+	free(keys);
 	free(pin);
 	free(name);
 	send_msg(msg);
@@ -192,15 +195,33 @@ process_sign(void)
 	else {
 		if ((found = lookup_key(key)) != NULL) {
 #ifdef WITH_OPENSSL
+			u_int xslen;
 			int ret;
 
-			slen = RSA_size(key->rsa);
-			signature = xmalloc(slen);
-			if ((ret = RSA_private_encrypt(dlen, data, signature,
-			    found->rsa, RSA_PKCS1_PADDING)) != -1) {
-				slen = ret;
-				ok = 0;
-			}
+			if (key->type == KEY_RSA) {
+				slen = RSA_size(key->rsa);
+				signature = xmalloc(slen);
+				ret = RSA_private_encrypt(dlen, data, signature,
+				    found->rsa, RSA_PKCS1_PADDING);
+				if (ret != -1) {
+					slen = ret;
+					ok = 0;
+				}
+			} else if (key->type == KEY_ECDSA) {
+				xslen = ECDSA_size(key->ecdsa);
+				signature = xmalloc(xslen);
+				/* "The parameter type is ignored." */
+				ret = ECDSA_sign(-1, data, dlen, signature,
+				    &xslen, found->ecdsa);
+				if (ret != 0)
+					ok = 0;
+				else
+					error("%s: ECDSA_sign"
+					    " returns %d", __func__, ret);
+				slen = xslen;
+			} else
+				error("%s: don't know how to sign with key "
+				    "type %d", __func__, (int)key->type);
 #endif /* WITH_OPENSSL */
 		}
 		sshkey_free(key);
@@ -287,26 +308,43 @@ cleanup_exit(int i)
 	_exit(i);
 }
 
+
 int
 main(int argc, char **argv)
 {
-	fd_set *rset, *wset;
-	int r, in, out, max, log_stderr = 0;
-	ssize_t len, olen, set_size;
+	int r, ch, in, out, max, log_stderr = 0;
+	ssize_t len;
 	SyslogFacility log_facility = SYSLOG_FACILITY_AUTH;
 	LogLevel log_level = SYSLOG_LEVEL_ERROR;
 	char buf[4*4096];
-
 	extern char *__progname;
+	struct pollfd pfd[2];
 
 	ssh_malloc_init();	/* must be called before any mallocs */
-	TAILQ_INIT(&pkcs11_keylist);
-	pkcs11_init(0);
-
-	seed_rng();
 	__progname = ssh_get_progname(argv[0]);
+	seed_rng();
+	TAILQ_INIT(&pkcs11_keylist);
 
 	log_init(__progname, log_level, log_facility, log_stderr);
+
+	while ((ch = getopt(argc, argv, "v")) != -1) {
+		switch (ch) {
+		case 'v':
+			log_stderr = 1;
+			if (log_level == SYSLOG_LEVEL_ERROR)
+				log_level = SYSLOG_LEVEL_DEBUG1;
+			else if (log_level < SYSLOG_LEVEL_DEBUG3)
+				log_level++;
+			break;
+		default:
+			fprintf(stderr, "usage: %s [-v]\n", __progname);
+			exit(1);
+		}
+	}
+
+	log_init(__progname, log_level, log_facility, log_stderr);
+
+	pkcs11_init(0);
 
 	in = STDIN_FILENO;
 	out = STDOUT_FILENO;
@@ -322,13 +360,10 @@ main(int argc, char **argv)
 	if ((oqueue = sshbuf_new()) == NULL)
 		fatal("%s: sshbuf_new failed", __func__);
 
-	set_size = howmany(max + 1, NFDBITS) * sizeof(fd_mask);
-	rset = xmalloc(set_size);
-	wset = xmalloc(set_size);
-
-	for (;;) {
-		memset(rset, 0, set_size);
-		memset(wset, 0, set_size);
+	while (1) {
+		memset(pfd, 0, sizeof(pfd));
+		pfd[0].fd = in;
+		pfd[1].fd = out;
 
 		/*
 		 * Ensure that we can read a full buffer and handle
@@ -337,23 +372,21 @@ main(int argc, char **argv)
 		 */
 		if ((r = sshbuf_check_reserve(iqueue, sizeof(buf))) == 0 &&
 		    (r = sshbuf_check_reserve(oqueue, MAX_MSG_LENGTH)) == 0)
-			FD_SET(in, rset);
+			pfd[0].events = POLLIN;
 		else if (r != SSH_ERR_NO_BUFFER_SPACE)
 			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
-		olen = sshbuf_len(oqueue);
-		if (olen > 0)
-			FD_SET(out, wset);
+		if (sshbuf_len(oqueue) > 0)
+			pfd[1].events = POLLOUT;
 
-		if (select(max+1, rset, wset, NULL, NULL) < 0) {
-			if (errno == EINTR)
+		if ((r = poll(pfd, 2, -1 /* INFTIM */)) <= 0) {
+			if (r == 0 || errno == EINTR)
 				continue;
-			error("select: %s", strerror(errno));
-			cleanup_exit(2);
+			fatal("poll: %s", strerror(errno));
 		}
 
 		/* copy stdin to iqueue */
-		if (FD_ISSET(in, rset)) {
+		if ((pfd[0].revents & (POLLIN|POLLERR)) != 0) {
 			len = read(in, buf, sizeof buf);
 			if (len == 0) {
 				debug("read eof");
@@ -367,8 +400,9 @@ main(int argc, char **argv)
 			}
 		}
 		/* send oqueue to stdout */
-		if (FD_ISSET(out, wset)) {
-			len = write(out, sshbuf_ptr(oqueue), olen);
+		if ((pfd[1].revents & (POLLOUT|POLLHUP)) != 0) {
+			len = write(out, sshbuf_ptr(oqueue),
+			    sshbuf_len(oqueue));
 			if (len < 0) {
 				error("write: %s", strerror(errno));
 				cleanup_exit(1);

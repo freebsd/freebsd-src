@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.6 2017/12/21 00:41:22 djm Exp $
+#	$OpenBSD: Makefile,v 1.7 2018/10/17 23:28:05 djm Exp $
 
 .include <bsd.regress.mk>
 
@@ -17,6 +17,5 @@ SRCS+=sshbuf-getput-basic.c sshbuf-getput-crypto.c sshbuf-misc.c sshbuf.c
 SRCS+=atomicio.c
 
 run-regress-${PROG}: ${PROG}
-	env ${TEST_ENV} ./${PROG}
- 
+	env ${TEST_ENV} ./${PROG} ${UNITTEST_ARGS}
 

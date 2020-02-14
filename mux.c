@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.77 2018/09/26 07:32:44 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.79 2019/01/19 21:35:25 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -610,6 +610,7 @@ mux_confirm_remote_forward(struct ssh *ssh, int type, u_int32_t seq, void *ctxt)
 	struct Forward *rfwd;
 	Channel *c;
 	struct sshbuf *out;
+	u_int port;
 	int r;
 
 	if ((c = channel_by_id(ssh, fctx->cid)) == NULL) {
@@ -632,7 +633,15 @@ mux_confirm_remote_forward(struct ssh *ssh, int type, u_int32_t seq, void *ctxt)
 	    rfwd->connect_host, rfwd->connect_port);
 	if (type == SSH2_MSG_REQUEST_SUCCESS) {
 		if (rfwd->listen_port == 0) {
-			rfwd->allocated_port = packet_get_int();
+			if ((r = sshpkt_get_u32(ssh, &port)) != 0)
+				fatal("%s: packet error: %s",
+				    __func__, ssh_err(r));
+			if (port > 65535) {
+				fatal("Invalid allocated port %u for "
+				    "mux remote forward to %s:%d", port,
+				    rfwd->connect_host, rfwd->connect_port);
+			}
+			rfwd->allocated_port = (int)port;
 			debug("Allocated port %u for mux remote forward"
 			    " to %s:%d", rfwd->allocated_port,
 			    rfwd->connect_host, rfwd->connect_port);
@@ -1406,7 +1415,8 @@ mux_session_confirm(struct ssh *ssh, int id, int success, void *arg)
 	if (cctx->want_agent_fwd && options.forward_agent) {
 		debug("Requesting authentication agent forwarding.");
 		channel_request_start(ssh, id, "auth-agent-req@openssh.com", 0);
-		packet_send();
+		if ((r = sshpkt_send(ssh)) != 0)
+			fatal("%s: packet error: %s", __func__, ssh_err(r));
 	}
 
 	client_session2_setup(ssh, id, cctx->want_tty, cctx->want_subsys,

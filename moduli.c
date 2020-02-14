@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.32 2017/12/08 03:45:52 deraadt Exp $ */
+/* $OpenBSD: moduli.c,v 1.34 2019/01/23 09:49:00 dtucker Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -582,7 +582,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 	u_int32_t generator_known, in_tests, in_tries, in_type, in_size;
 	unsigned long last_processed = 0, end_lineno;
 	time_t time_start, time_stop;
-	int res;
+	int res, is_prime;
 
 	if (trials < TRIAL_MINIMUM) {
 		error("Minimum primality trials is %d", TRIAL_MINIMUM);
@@ -716,8 +716,6 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 		if (generator_known == 0) {
 			if (BN_mod_word(p, 24) == 11)
 				generator_known = 2;
-			else if (BN_mod_word(p, 12) == 5)
-				generator_known = 3;
 			else {
 				u_int32_t r = BN_mod_word(p, 10);
 
@@ -753,7 +751,10 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 		 * that p is also prime. A single pass will weed out the
 		 * vast majority of composite q's.
 		 */
-		if (BN_is_prime_ex(q, 1, ctx, NULL) <= 0) {
+		is_prime = BN_is_prime_ex(q, 1, ctx, NULL);
+		if (is_prime < 0)
+			fatal("BN_is_prime_ex failed");
+		if (is_prime == 0) {
 			debug("%10u: q failed first possible prime test",
 			    count_in);
 			continue;
@@ -766,14 +767,20 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 		 * will show up on the first Rabin-Miller iteration so it
 		 * doesn't hurt to specify a high iteration count.
 		 */
-		if (!BN_is_prime_ex(p, trials, ctx, NULL)) {
+		is_prime = BN_is_prime_ex(p, trials, ctx, NULL);
+		if (is_prime < 0)
+			fatal("BN_is_prime_ex failed");
+		if (is_prime == 0) {
 			debug("%10u: p is not prime", count_in);
 			continue;
 		}
 		debug("%10u: p is almost certainly prime", count_in);
 
 		/* recheck q more rigorously */
-		if (!BN_is_prime_ex(q, trials - 1, ctx, NULL)) {
+		is_prime = BN_is_prime_ex(q, trials - 1, ctx, NULL);
+		if (is_prime < 0)
+			fatal("BN_is_prime_ex failed");
+		if (is_prime == 0) {
 			debug("%10u: q is not prime", count_in);
 			continue;
 		}

@@ -88,7 +88,7 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 	canohost.o channels.o cipher.o cipher-aes.o cipher-aesctr.o \
 	cipher-ctr.o cleanup.o \
 	compat.o crc32.o fatal.o hostfile.o \
-	log.o match.o moduli.o nchan.o packet.o opacket.o \
+	log.o match.o moduli.o nchan.o packet.o \
 	readpass.o ttymodes.o xmalloc.o addrmatch.o \
 	atomicio.o dispatch.o mac.o uuencode.o misc.o utf8.o \
 	monitor_fdpass.o rijndael.o ssh-dss.o ssh-ecdsa.o ssh-rsa.o dh.o \
@@ -98,9 +98,10 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 	ssh-ed25519.o digest-openssl.o digest-libc.o hmac.o \
 	sc25519.o ge25519.o fe25519.o ed25519.o verify.o hash.o \
 	kex.o kexdh.o kexgex.o kexecdh.o kexc25519.o \
-	kexdhc.o kexgexc.o kexecdhc.o kexc25519c.o \
-	kexdhs.o kexgexs.o kexecdhs.o kexc25519s.o \
+	kexgexc.o kexgexs.o \
+	sntrup4591761.o kexsntrup4591761x25519.o kexgen.o \
 	platform-pledge.o platform-tracing.o platform-misc.o
+
 
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
 	sshconnect.o sshconnect2.o mux.o
@@ -186,7 +187,7 @@ ssh-agent$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-agent.o ssh-pkcs11-client.o
 ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keygen.o
 	$(LD) -o $@ ssh-keygen.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o readconf.o uidswap.o
+ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o readconf.o uidswap.o compat.o
 	$(LD) -o $@ ssh-keysign.o readconf.o uidswap.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-pkcs11-helper$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-pkcs11-helper.o ssh-pkcs11.o
@@ -598,6 +599,7 @@ tests interop-tests t-exec unit: regress-prep regress-binaries $(TARGETS)
 	TEST_SSH_SSHKEYSCAN="$${BUILDDIR}/ssh-keyscan"; \
 	TEST_SSH_SFTP="$${BUILDDIR}/sftp"; \
 	TEST_SSH_SFTPSERVER="$${BUILDDIR}/sftp-server"; \
+	TEST_SSH_SSHPKCS11HELPER="$${BUILDDIR}/ssh-pkcs11-helper"; \
 	TEST_SSH_PLINK="plink"; \
 	TEST_SSH_PUTTYGEN="puttygen"; \
 	TEST_SSH_CONCH="conch"; \

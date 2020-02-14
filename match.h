@@ -1,4 +1,4 @@
-/* $OpenBSD: match.h,v 1.18 2018/07/04 13:49:31 djm Exp $ */
+/* $OpenBSD: match.h,v 1.19 2019/03/06 22:14:23 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -16,6 +16,7 @@
 
 int	 match_pattern(const char *, const char *);
 int	 match_pattern_list(const char *, const char *, int);
+int	 match_usergroup_pattern_list(const char *, const char *);
 int	 match_hostname(const char *, const char *);
 int	 match_host_and_ip(const char *, const char *, const char *);
 int	 match_user(const char *, const char *, const char *, const char *);

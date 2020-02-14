@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.66 2017/08/29 13:05:58 jmc Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.69 2019/01/21 12:53:35 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: August 29 2017 $
+.Dd $Mdocdate: January 21 2019 $
 .Dt SSH-ADD 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd adds private key identities to the authentication agent
 .Sh SYNOPSIS
 .Nm ssh-add
-.Op Fl cDdkLlqXx
+.Op Fl cDdkLlqvXx
 .Op Fl E Ar fingerprint_hash
 .Op Fl t Ar life
 .Op Ar
@@ -51,6 +51,9 @@
 .Fl s Ar pkcs11
 .Nm ssh-add
 .Fl e Ar pkcs11
+.Nm ssh-add
+.Fl T
+.Ar pubkey ...
 .Sh DESCRIPTION
 .Nm
 adds private key identities to the authentication agent,
@@ -131,11 +134,25 @@ Be quiet after a successful operation.
 .It Fl s Ar pkcs11
 Add keys provided by the PKCS#11 shared library
 .Ar pkcs11 .
+.It Fl T Ar pubkey ...
+Tests whether the private keys that correspond to the specified
+.Ar pubkey
+files are usable by performing sign and verify operations on each.
 .It Fl t Ar life
 Set a maximum lifetime when adding identities to an agent.
 The lifetime may be specified in seconds or in a time format
 specified in
 .Xr sshd_config 5 .
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+to print debugging messages about its progress.
+This is helpful in debugging problems.
+Multiple
+.Fl v
+options increase the verbosity.
+The maximum is 3.
 .It Fl X
 Unlock the agent.
 .It Fl x

@@ -1,4 +1,4 @@
-/* $OpenBSD: match.c,v 1.38 2018/07/04 13:49:31 djm Exp $ */
+/* $OpenBSD: match.c,v 1.39 2019/03/06 22:14:23 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -168,6 +168,19 @@ match_pattern_list(const char *string, const char *pattern, int dolower)
 	 * match, we have already returned -1 and never get here.
 	 */
 	return got_positive;
+}
+
+/* Match a list representing users or groups. */
+int
+match_usergroup_pattern_list(const char *string, const char *pattern)
+{
+#ifdef HAVE_CYGWIN
+	/* Windows usernames may be Unicode and are not case sensitive */
+	return cygwin_ug_match_pattern_list(string, pattern);
+#else
+	/* Case insensitive match */
+	return match_pattern_list(string, pattern, 0);
+#endif
 }
 
 /*

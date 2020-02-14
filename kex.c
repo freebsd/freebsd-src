@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.141 2018/07/09 13:37:10 sf Exp $ */
+/* $OpenBSD: kex.c,v 1.150 2019/01/21 12:08:13 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -25,19 +25,25 @@
 
 #include "includes.h"
 
-
+#include <sys/types.h>
+#include <errno.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <poll.h>
 
 #ifdef WITH_OPENSSL
 #include <openssl/crypto.h>
 #include <openssl/dh.h>
 #endif
 
+#include "ssh.h"
 #include "ssh2.h"
+#include "atomicio.h"
+#include "version.h"
 #include "packet.h"
 #include "compat.h"
 #include "cipher.h"
@@ -102,6 +108,8 @@ static const struct kexalg kexalgs[] = {
 #if defined(HAVE_EVP_SHA256) || !defined(WITH_OPENSSL)
 	{ KEX_CURVE25519_SHA256, KEX_C25519_SHA256, 0, SSH_DIGEST_SHA256 },
 	{ KEX_CURVE25519_SHA256_OLD, KEX_C25519_SHA256, 0, SSH_DIGEST_SHA256 },
+	{ KEX_SNTRUP4591761X25519_SHA512, KEX_KEM_SNTRUP4591761X25519_SHA512, 0,
+	    SSH_DIGEST_SHA512 },
 #endif /* HAVE_EVP_SHA256 || !WITH_OPENSSL */
 	{ NULL, -1, -1, -1},
 };
@@ -487,6 +495,7 @@ kex_input_newkeys(int type, u_int32_t seq, struct ssh *ssh)
 	if ((r = ssh_set_newkeys(ssh, MODE_IN)) != 0)
 		return r;
 	kex->done = 1;
+	kex->flags &= ~KEX_INITIAL;
 	sshbuf_reset(kex->peer);
 	/* sshbuf_reset(kex->my); */
 	kex->flags &= ~KEX_INIT_SENT;
@@ -577,31 +586,20 @@ kex_input_kexinit(int type, u_int32_t seq, struct ssh *ssh)
 	return SSH_ERR_INTERNAL_ERROR;
 }
 
-int
-kex_new(struct ssh *ssh, char *proposal[PROPOSAL_MAX], struct kex **kexp)
+struct kex *
+kex_new(void)
 {
 	struct kex *kex;
-	int r;
 
-	*kexp = NULL;
-	if ((kex = calloc(1, sizeof(*kex))) == NULL)
-		return SSH_ERR_ALLOC_FAIL;
-	if ((kex->peer = sshbuf_new()) == NULL ||
-	    (kex->my = sshbuf_new()) == NULL) {
-		r = SSH_ERR_ALLOC_FAIL;
-		goto out;
-	}
-	if ((r = kex_prop2buf(kex->my, proposal)) != 0)
-		goto out;
-	kex->done = 0;
-	kex_reset_dispatch(ssh);
-	ssh_dispatch_set(ssh, SSH2_MSG_KEXINIT, &kex_input_kexinit);
-	r = 0;
-	*kexp = kex;
- out:
-	if (r != 0)
+	if ((kex = calloc(1, sizeof(*kex))) == NULL ||
+	    (kex->peer = sshbuf_new()) == NULL ||
+	    (kex->my = sshbuf_new()) == NULL ||
+	    (kex->client_version = sshbuf_new()) == NULL ||
+	    (kex->server_version = sshbuf_new()) == NULL) {
 		kex_free(kex);
-	return r;
+		return NULL;
+	}
+	return kex;
 }
 
 void
@@ -640,6 +638,9 @@ kex_free(struct kex *kex)
 {
 	u_int mode;
 
+	if (kex == NULL)
+		return;
+
 #ifdef WITH_OPENSSL
 	DH_free(kex->dh);
 #ifdef OPENSSL_HAS_ECC
@@ -652,9 +653,10 @@ kex_free(struct kex *kex)
 	}
 	sshbuf_free(kex->peer);
 	sshbuf_free(kex->my);
+	sshbuf_free(kex->client_version);
+	sshbuf_free(kex->server_version);
+	sshbuf_free(kex->client_pub);
 	free(kex->session_id);
-	free(kex->client_version_string);
-	free(kex->server_version_string);
 	free(kex->failed_choice);
 	free(kex->hostkey_alg);
 	free(kex->name);
@@ -662,11 +664,24 @@ kex_free(struct kex *kex)
 }
 
 int
+kex_ready(struct ssh *ssh, char *proposal[PROPOSAL_MAX])
+{
+	int r;
+
+	if ((r = kex_prop2buf(ssh->kex->my, proposal)) != 0)
+		return r;
+	ssh->kex->flags = KEX_INITIAL;
+	kex_reset_dispatch(ssh);
+	ssh_dispatch_set(ssh, SSH2_MSG_KEXINIT, &kex_input_kexinit);
+	return 0;
+}
+
+int
 kex_setup(struct ssh *ssh, char *proposal[PROPOSAL_MAX])
 {
 	int r;
 
-	if ((r = kex_new(ssh, proposal, &ssh->kex)) != 0)
+	if ((r = kex_ready(ssh, proposal)) != 0)
 		return r;
 	if ((r = kex_send_kexinit(ssh)) != 0) {		/* we start */
 		kex_free(ssh->kex);
@@ -839,7 +854,7 @@ kex_choose_conf(struct ssh *ssh)
 	}
 
 	/* Check whether client supports ext_info_c */
-	if (kex->server) {
+	if (kex->server && (kex->flags & KEX_INITIAL)) {
 		char *ext;
 
 		ext = match_list("ext-info-c", peer[PROPOSAL_KEX_ALGS], NULL);
@@ -997,6 +1012,14 @@ kex_derive_keys(struct ssh *ssh, u_char *hash, u_int hashlen,
 	u_int i, j, mode, ctos;
 	int r;
 
+	/* save initial hash as session id */
+	if (kex->session_id == NULL) {
+		kex->session_id_len = hashlen;
+		kex->session_id = malloc(kex->session_id_len);
+		if (kex->session_id == NULL)
+			return SSH_ERR_ALLOC_FAIL;
+		memcpy(kex->session_id, hash, kex->session_id_len);
+	}
 	for (i = 0; i < NKEYS; i++) {
 		if ((r = derive_key(ssh, 'A'+i, kex->we_need, hash, hashlen,
 		    shared_secret, &keys[i])) != 0) {
@@ -1015,29 +1038,276 @@ kex_derive_keys(struct ssh *ssh, u_char *hash, u_int hashlen,
 	return 0;
 }
 
-#ifdef WITH_OPENSSL
 int
-kex_derive_keys_bn(struct ssh *ssh, u_char *hash, u_int hashlen,
-    const BIGNUM *secret)
+kex_load_hostkey(struct ssh *ssh, struct sshkey **prvp, struct sshkey **pubp)
 {
-	struct sshbuf *shared_secret;
-	int r;
+	struct kex *kex = ssh->kex;
 
-	if ((shared_secret = sshbuf_new()) == NULL)
-		return SSH_ERR_ALLOC_FAIL;
-	if ((r = sshbuf_put_bignum2(shared_secret, secret)) == 0)
-		r = kex_derive_keys(ssh, hash, hashlen, shared_secret);
-	sshbuf_free(shared_secret);
-	return r;
+	*pubp = NULL;
+	*prvp = NULL;
+	if (kex->load_host_public_key == NULL ||
+	    kex->load_host_private_key == NULL)
+		return SSH_ERR_INVALID_ARGUMENT;
+	*pubp = kex->load_host_public_key(kex->hostkey_type,
+	    kex->hostkey_nid, ssh);
+	*prvp = kex->load_host_private_key(kex->hostkey_type,
+	    kex->hostkey_nid, ssh);
+	if (*pubp == NULL)
+		return SSH_ERR_NO_HOSTKEY_LOADED;
+	return 0;
 }
-#endif
 
+int
+kex_verify_host_key(struct ssh *ssh, struct sshkey *server_host_key)
+{
+	struct kex *kex = ssh->kex;
+
+	if (kex->verify_host_key == NULL)
+		return SSH_ERR_INVALID_ARGUMENT;
+	if (server_host_key->type != kex->hostkey_type ||
+	    (kex->hostkey_type == KEY_ECDSA &&
+	    server_host_key->ecdsa_nid != kex->hostkey_nid))
+		return SSH_ERR_KEY_TYPE_MISMATCH;
+	if (kex->verify_host_key(server_host_key, ssh) == -1)
+		return  SSH_ERR_SIGNATURE_INVALID;
+	return 0;
+}
 
 #if defined(DEBUG_KEX) || defined(DEBUG_KEXDH) || defined(DEBUG_KEXECDH)
 void
-dump_digest(char *msg, u_char *digest, int len)
+dump_digest(const char *msg, const u_char *digest, int len)
 {
 	fprintf(stderr, "%s\n", msg);
 	sshbuf_dump_data(digest, len, stderr);
 }
 #endif
+
+/*
+ * Send a plaintext error message to the peer, suffixed by \r\n.
+ * Only used during banner exchange, and there only for the server.
+ */
+static void
+send_error(struct ssh *ssh, char *msg)
+{
+	char *crnl = "\r\n";
+
+	if (!ssh->kex->server)
+		return;
+
+	if (atomicio(vwrite, ssh_packet_get_connection_out(ssh),
+	    msg, strlen(msg)) != strlen(msg) ||
+	    atomicio(vwrite, ssh_packet_get_connection_out(ssh),
+	    crnl, strlen(crnl)) != strlen(crnl))
+		error("%s: write: %.100s", __func__, strerror(errno));
+}
+
+/*
+ * Sends our identification string and waits for the peer's. Will block for
+ * up to timeout_ms (or indefinitely if timeout_ms <= 0).
+ * Returns on 0 success or a ssherr.h code on failure.
+ */
+int
+kex_exchange_identification(struct ssh *ssh, int timeout_ms,
+    const char *version_addendum)
+{
+	int remote_major, remote_minor, mismatch;
+	size_t len, i, n;
+	int r, expect_nl;
+	u_char c;
+	struct sshbuf *our_version = ssh->kex->server ?
+	    ssh->kex->server_version : ssh->kex->client_version;
+	struct sshbuf *peer_version = ssh->kex->server ?
+	    ssh->kex->client_version : ssh->kex->server_version;
+	char *our_version_string = NULL, *peer_version_string = NULL;
+	char *cp, *remote_version = NULL;
+
+	/* Prepare and send our banner */
+	sshbuf_reset(our_version);
+	if (version_addendum != NULL && *version_addendum == '\0')
+		version_addendum = NULL;
+	if ((r = sshbuf_putf(our_version, "SSH-%d.%d-%.100s%s%s\r\n",
+	   PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2, SSH_VERSION,
+	    version_addendum == NULL ? "" : " ",
+	    version_addendum == NULL ? "" : version_addendum)) != 0) {
+		error("%s: sshbuf_putf: %s", __func__, ssh_err(r));
+		goto out;
+	}
+
+	if (atomicio(vwrite, ssh_packet_get_connection_out(ssh),
+	    sshbuf_mutable_ptr(our_version),
+	    sshbuf_len(our_version)) != sshbuf_len(our_version)) {
+		error("%s: write: %.100s", __func__, strerror(errno));
+		r = SSH_ERR_SYSTEM_ERROR;
+		goto out;
+	}
+	if ((r = sshbuf_consume_end(our_version, 2)) != 0) { /* trim \r\n */
+		error("%s: sshbuf_consume_end: %s", __func__, ssh_err(r));
+		goto out;
+	}
+	our_version_string = sshbuf_dup_string(our_version);
+	if (our_version_string == NULL) {
+		error("%s: sshbuf_dup_string failed", __func__);
+		r = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
+	debug("Local version string %.100s", our_version_string);
+
+	/* Read other side's version identification. */
+	for (n = 0; ; n++) {
+		if (n >= SSH_MAX_PRE_BANNER_LINES) {
+			send_error(ssh, "No SSH identification string "
+			    "received.");
+			error("%s: No SSH version received in first %u lines "
+			    "from server", __func__, SSH_MAX_PRE_BANNER_LINES);
+			r = SSH_ERR_INVALID_FORMAT;
+			goto out;
+		}
+		sshbuf_reset(peer_version);
+		expect_nl = 0;
+		for (i = 0; ; i++) {
+			if (timeout_ms > 0) {
+				r = waitrfd(ssh_packet_get_connection_in(ssh),
+				    &timeout_ms);
+				if (r == -1 && errno == ETIMEDOUT) {
+					send_error(ssh, "Timed out waiting "
+					    "for SSH identification string.");
+					error("Connection timed out during "
+					    "banner exchange");
+					r = SSH_ERR_CONN_TIMEOUT;
+					goto out;
+				} else if (r == -1) {
+					error("%s: %s",
+					    __func__, strerror(errno));
+					r = SSH_ERR_SYSTEM_ERROR;
+					goto out;
+				}
+			}
+
+			len = atomicio(read, ssh_packet_get_connection_in(ssh),
+			    &c, 1);
+			if (len != 1 && errno == EPIPE) {
+				error("%s: Connection closed by remote host",
+				    __func__);
+				r = SSH_ERR_CONN_CLOSED;
+				goto out;
+			} else if (len != 1) {
+				error("%s: read: %.100s",
+				    __func__, strerror(errno));
+				r = SSH_ERR_SYSTEM_ERROR;
+				goto out;
+			}
+			if (c == '\r') {
+				expect_nl = 1;
+				continue;
+			}
+			if (c == '\n')
+				break;
+			if (c == '\0' || expect_nl) {
+				error("%s: banner line contains invalid "
+				    "characters", __func__);
+				goto invalid;
+			}
+			if ((r = sshbuf_put_u8(peer_version, c)) != 0) {
+				error("%s: sshbuf_put: %s",
+				    __func__, ssh_err(r));
+				goto out;
+			}
+			if (sshbuf_len(peer_version) > SSH_MAX_BANNER_LEN) {
+				error("%s: banner line too long", __func__);
+				goto invalid;
+			}
+		}
+		/* Is this an actual protocol banner? */
+		if (sshbuf_len(peer_version) > 4 &&
+		    memcmp(sshbuf_ptr(peer_version), "SSH-", 4) == 0)
+			break;
+		/* If not, then just log the line and continue */
+		if ((cp = sshbuf_dup_string(peer_version)) == NULL) {
+			error("%s: sshbuf_dup_string failed", __func__);
+			r = SSH_ERR_ALLOC_FAIL;
+			goto out;
+		}
+		/* Do not accept lines before the SSH ident from a client */
+		if (ssh->kex->server) {
+			error("%s: client sent invalid protocol identifier "
+			    "\"%.256s\"", __func__, cp);
+			free(cp);
+			goto invalid;
+		}
+		debug("%s: banner line %zu: %s", __func__, n, cp);
+		free(cp);
+	}
+	peer_version_string = sshbuf_dup_string(peer_version);
+	if (peer_version_string == NULL)
+		error("%s: sshbuf_dup_string failed", __func__);
+	/* XXX must be same size for sscanf */
+	if ((remote_version = calloc(1, sshbuf_len(peer_version))) == NULL) {
+		error("%s: calloc failed", __func__);
+		r = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
+
+	/*
+	 * Check that the versions match.  In future this might accept
+	 * several versions and set appropriate flags to handle them.
+	 */
+	if (sscanf(peer_version_string, "SSH-%d.%d-%[^\n]\n",
+	    &remote_major, &remote_minor, remote_version) != 3) {
+		error("Bad remote protocol version identification: '%.100s'",
+		    peer_version_string);
+ invalid:
+		send_error(ssh, "Invalid SSH identification string.");
+		r = SSH_ERR_INVALID_FORMAT;
+		goto out;
+	}
+	debug("Remote protocol version %d.%d, remote software version %.100s",
+	    remote_major, remote_minor, remote_version);
+	ssh->compat = compat_datafellows(remote_version);
+
+	mismatch = 0;
+	switch (remote_major) {
+	case 2:
+		break;
+	case 1:
+		if (remote_minor != 99)
+			mismatch = 1;
+		break;
+	default:
+		mismatch = 1;
+		break;
+	}
+	if (mismatch) {
+		error("Protocol major versions differ: %d vs. %d",
+		    PROTOCOL_MAJOR_2, remote_major);
+		send_error(ssh, "Protocol major versions differ.");
+		r = SSH_ERR_NO_PROTOCOL_VERSION;
+		goto out;
+	}
+
+	if (ssh->kex->server && (ssh->compat & SSH_BUG_PROBE) != 0) {
+		logit("probed from %s port %d with %s.  Don't panic.",
+		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh),
+		    peer_version_string);
+		r = SSH_ERR_CONN_CLOSED; /* XXX */
+		goto out;
+	}
+	if (ssh->kex->server && (ssh->compat & SSH_BUG_SCANNER) != 0) {
+		logit("scanned from %s port %d with %s.  Don't panic.",
+		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh),
+		    peer_version_string);
+		r = SSH_ERR_CONN_CLOSED; /* XXX */
+		goto out;
+	}
+	if ((ssh->compat & SSH_BUG_RSASIGMD5) != 0) {
+		logit("Remote version \"%.100s\" uses unsafe RSA signature "
+		    "scheme; disabling use of RSA keys", remote_version);
+	}
+	/* success */
+	r = 0;
+ out:
+	free(our_version_string);
+	free(peer_version_string);
+	free(remote_version);
+	return r;
+}
+

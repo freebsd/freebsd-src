@@ -4,9 +4,10 @@ NAME
      ssh-add M-bM-^@M-^S adds private key identities to the authentication agent
 
 SYNOPSIS
-     ssh-add [-cDdkLlqXx] [-E fingerprint_hash] [-t life] [file ...]
+     ssh-add [-cDdkLlqvXx] [-E fingerprint_hash] [-t life] [file ...]
      ssh-add -s pkcs11
      ssh-add -e pkcs11
+     ssh-add -T pubkey ...
 
 DESCRIPTION
      ssh-add adds private key identities to the authentication agent,
@@ -65,10 +66,19 @@ DESCRIPTION
      -s pkcs11
              Add keys provided by the PKCS#11 shared library pkcs11.
 
+     -T pubkey ...
+             Tests whether the private keys that correspond to the specified
+             pubkey files are usable by performing sign and verify operations
+             on each.
+
      -t life
              Set a maximum lifetime when adding identities to an agent.  The
              lifetime may be specified in seconds or in a time format
              specified in sshd_config(5).
+
+     -v      Verbose mode.  Causes ssh-add to print debugging messages about
+             its progress.  This is helpful in debugging problems.  Multiple
+             -v options increase the verbosity.  The maximum is 3.
 
      -X      Unlock the agent.
 
@@ -120,4 +130,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.4                     August 29, 2017                    OpenBSD 6.4
+OpenBSD 6.5                    January 21, 2019                    OpenBSD 6.5

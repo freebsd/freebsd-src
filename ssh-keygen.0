@@ -6,7 +6,9 @@ NAME
 SYNOPSIS
      ssh-keygen [-q] [-b bits] [-t dsa | ecdsa | ed25519 | rsa]
                 [-N new_passphrase] [-C comment] [-f output_keyfile]
+                [-m format]
      ssh-keygen -p [-P old_passphrase] [-N new_passphrase] [-f keyfile]
+                [-m format]
      ssh-keygen -i [-m key_format] [-f input_keyfile]
      ssh-keygen -e [-m key_format] [-f input_keyfile]
      ssh-keygen -y [-f input_keyfile]
@@ -68,11 +70,17 @@ DESCRIPTION
      or forgotten, a new key must be generated and the corresponding public
      key copied to other machines.
 
-     For keys stored in the newer OpenSSH format, there is also a comment
-     field in the key file that is only for convenience to the user to help
-     identify the key.  The comment can tell what the key is for, or whatever
-     is useful.  The comment is initialized to M-bM-^@M-^\user@hostM-bM-^@M-^] when the key is
-     created, but can be changed using the -c option.
+     ssh-keygen will by default write keys in an OpenSSH-specific format.
+     This format is preferred as it offers better protection for keys at rest
+     as well as allowing storage of key comments within the private key file
+     itself.  The key comment may be useful to help identify the key.  The
+     comment is initialized to M-bM-^@M-^\user@hostM-bM-^@M-^] when the key is created, but can be
+     changed using the -c option.
+
+     It is still possible for ssh-keygen to write the previously-used PEM
+     format private keys using the -m flag.  This may be used when generating
+     new keys, and existing new-format keys may be converted using this option
+     in conjunction with the -p (change passphrase) flag.
 
      After a key is generated, instructions below detail where the keys should
      be placed to be activated.
@@ -119,10 +127,10 @@ DESCRIPTION
              new comment.
 
      -D pkcs11
-             Download the RSA public keys provided by the PKCS#11 shared
-             library pkcs11.  When used in combination with -s, this option
-             indicates that a CA key resides in a PKCS#11 token (see the
-             CERTIFICATES section for details).
+             Download the public keys provided by the PKCS#11 shared library
+             pkcs11.  When used in combination with -s, this option indicates
+             that a CA key resides in a PKCS#11 token (see the CERTIFICATES
+             section for details).
 
      -E fingerprint_hash
              Specifies the hash algorithm used when displaying key
@@ -130,16 +138,17 @@ DESCRIPTION
              default is M-bM-^@M-^\sha256M-bM-^@M-^].
 
      -e      This option will read a private or public OpenSSH key file and
-             print to stdout the key in one of the formats specified by the -m
-             option.  The default export format is M-bM-^@M-^\RFC4716M-bM-^@M-^].  This option
-             allows exporting OpenSSH keys for use by other programs,
+             print to stdout a public key in one of the formats specified by
+             the -m option.  The default export format is M-bM-^@M-^\RFC4716M-bM-^@M-^].  This
+             option allows exporting OpenSSH keys for use by other programs,
              including several commercial SSH implementations.
 
-     -F hostname
-             Search for the specified hostname in a known_hosts file, listing
-             any occurrences found.  This option is useful to find hashed host
-             names or addresses and may also be used in conjunction with the
-             -H option to print found keys in a hashed format.
+     -F hostname | [hostname]:port
+             Search for the specified hostname (with optional port number) in
+             a known_hosts file, listing any occurrences found.  This option
+             is useful to find hashed host names or addresses and may also be
+             used in conjunction with the -H option to print found keys in a
+             hashed format.
 
      -f filename
              Specifies the filename of the key file.
@@ -206,13 +215,16 @@ DESCRIPTION
              generating candidate moduli for DH-GEX.
 
      -m key_format
-             Specify a key format for the -i (import) or -e (export)
-             conversion options.  The supported key formats are: M-bM-^@M-^\RFC4716M-bM-^@M-^]
-             (RFC 4716/SSH2 public or private key), M-bM-^@M-^\PKCS8M-bM-^@M-^] (PEM PKCS8 public
-             key) or M-bM-^@M-^\PEMM-bM-^@M-^] (PEM public key).  The default conversion format is
-             M-bM-^@M-^\RFC4716M-bM-^@M-^].  Setting a format of M-bM-^@M-^\PEMM-bM-^@M-^] when generating or updating
-             a supported private key type will cause the key to be stored in
-             the legacy PEM private key format.
+             Specify a key format for key generation, the -i (import), -e
+             (export) conversion options, and the -p change passphrase
+             operation.  The latter may be used to convert between OpenSSH
+             private key and PEM private key formats.  The supported key
+             formats are: M-bM-^@M-^\RFC4716M-bM-^@M-^] (RFC 4716/SSH2 public or private key),
+             M-bM-^@M-^\PKCS8M-bM-^@M-^] (PEM PKCS8 public key) or M-bM-^@M-^\PEMM-bM-^@M-^] (PEM public key).  The
+             default conversion format is M-bM-^@M-^\RFC4716M-bM-^@M-^].  Setting a format of
+             M-bM-^@M-^\PEMM-bM-^@M-^] when generating or updating a supported private key type
+             will cause the key to be stored in the legacy PEM private key
+             format.
 
      -N new_passphrase
              Provides the new passphrase.
@@ -301,10 +313,10 @@ DESCRIPTION
 
      -q      Silence ssh-keygen.
 
-     -R hostname
-             Removes all keys belonging to hostname from a known_hosts file.
-             This option is useful to delete hashed hosts (see the -H option
-             above).
+     -R hostname | [hostname]:port
+             Removes all keys belonging to the specified hostname (with
+             optional port number) from a known_hosts file.  This option is
+             useful to delete hashed hosts (see the -H option above).
 
      -r hostname
              Print the SSHFP fingerprint resource record named hostname for
@@ -378,8 +390,10 @@ DESCRIPTION
 
      -z serial_number
              Specifies a serial number to be embedded in the certificate to
-             distinguish this certificate from others from the same CA.  The
-             default serial number is zero.
+             distinguish this certificate from others from the same CA.  If
+             the serial_number is prefixed with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the
+             serial number will be incremented for each certificate signed on
+             a single command-line.  The default serial number is zero.
 
              When generating a KRL, the -z flag is used to specify a KRL
              version number.
@@ -582,4 +596,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.4                   September 12, 2018                   OpenBSD 6.4
+OpenBSD 6.5                      March 5, 2019                     OpenBSD 6.5

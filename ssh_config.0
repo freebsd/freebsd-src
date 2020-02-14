@@ -54,22 +54,28 @@ DESCRIPTION
              Match keyword) to be used only when the conditions following the
              Match keyword are satisfied.  Match conditions are specified
              using one or more criteria or the single token all which always
-             matches.  The available criteria keywords are: canonical, exec,
-             host, originalhost, user, and localuser.  The all criteria must
-             appear alone or immediately after canonical.  Other criteria may
-             be combined arbitrarily.  All criteria but all and canonical
-             require an argument.  Criteria may be negated by prepending an
-             exclamation mark (M-bM-^@M-^X!M-bM-^@M-^Y).
+             matches.  The available criteria keywords are: canonical, final,
+             exec, host, originalhost, user, and localuser.  The all criteria
+             must appear alone or immediately after canonical or final.  Other
+             criteria may be combined arbitrarily.  All criteria but all,
+             canonical, and final require an argument.  Criteria may be
+             negated by prepending an exclamation mark (M-bM-^@M-^X!M-bM-^@M-^Y).
 
              The canonical keyword matches only when the configuration file is
              being re-parsed after hostname canonicalization (see the
-             CanonicalizeHostname option.)  This may be useful to specify
-             conditions that work with canonical host names only.  The exec
-             keyword executes the specified command under the user's shell.
-             If the command returns a zero exit status then the condition is
-             considered true.  Commands containing whitespace characters must
-             be quoted.  Arguments to exec accept the tokens described in the
-             TOKENS section.
+             CanonicalizeHostname option).  This may be useful to specify
+             conditions that work with canonical host names only.
+
+             The final keyword requests that the configuration be re-parsed
+             (regardless of whether CanonicalizeHostname is enabled), and
+             matches only during this final pass.  If CanonicalizeHostname is
+             enabled, then canonical and final match during the same pass.
+
+             The exec keyword executes the specified command under the user's
+             shell.  If the command returns a zero exit status then the
+             condition is considered true.  Commands containing whitespace
+             characters must be quoted.  Arguments to exec accept the tokens
+             described in the TOKENS section.
 
              The other keywords' criteria must be single entries or comma-
              separated lists and may use the wildcard and negation operators
@@ -603,7 +609,6 @@ DESCRIPTION
                    diffie-hellman-group-exchange-sha256,
                    diffie-hellman-group16-sha512,
                    diffie-hellman-group18-sha512,
-                   diffie-hellman-group-exchange-sha1,
                    diffie-hellman-group14-sha256,
                    diffie-hellman-group14-sha1
 
@@ -690,10 +695,11 @@ DESCRIPTION
              be yes or no (the default).
 
      PKCS11Provider
-             Specifies which PKCS#11 provider to use.  The argument to this
-             keyword is the PKCS#11 shared library ssh(1) should use to
-             communicate with a PKCS#11 token providing the user's private RSA
-             key.
+             Specifies which PKCS#11 provider to use or none to indicate that
+             no provider should be used (the default).  The argument to this
+             keyword is a path to the PKCS#11 shared library ssh(1) should use
+             to communicate with a PKCS#11 token providing keys for user
+             authentication.
 
      Port    Specifies the port number to connect on the remote host.  The
              default is 22.
@@ -740,6 +746,11 @@ DESCRIPTION
              Note that this option will compete with the ProxyCommand option -
              whichever is specified first will prevent later instances of the
              other from taking effect.
+
+             Note also that the configuration for the destination host (either
+             supplied via the command-line or the configuration file) is not
+             generally applied to jump hosts.  ~/.ssh/config should be used if
+             specific configuration is required for jump hosts.
 
      ProxyUseFdpass
              Specifies that ProxyCommand will pass a connected file descriptor
@@ -1087,8 +1098,7 @@ FILES
              This is the per-user configuration file.  The format of this file
              is described above.  This file is used by the SSH client.
              Because of the potential for abuse, this file must have strict
-             permissions: read/write for the user, and not accessible by
-             others.
+             permissions: read/write for the user, and not writable by others.
 
      /etc/ssh/ssh_config
              Systemwide configuration file.  This file provides defaults for
@@ -1106,4 +1116,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.4                     October 3, 2018                    OpenBSD 6.4
+OpenBSD 6.5                      March 1, 2019                     OpenBSD 6.5

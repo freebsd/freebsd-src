@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-pkcs11-helper.8,v 1.4 2013/07/16 00:07:52 schwarze Exp $
+.\" $OpenBSD: ssh-pkcs11-helper.8,v 1.5 2019/01/21 12:53:35 djm Exp $
 .\"
 .\" Copyright (c) 2010 Markus Friedl.  All rights reserved.
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 16 2013 $
+.Dd $Mdocdate: January 21 2019 $
 .Dt SSH-PKCS11-HELPER 8
 .Os
 .Sh NAME
@@ -22,6 +22,7 @@
 .Nd ssh-agent helper program for PKCS#11 support
 .Sh SYNOPSIS
 .Nm
+.Op Fl v
 .Sh DESCRIPTION
 .Nm
 is used by
@@ -31,6 +32,28 @@ to access keys provided by a PKCS#11 token.
 .Nm
 is not intended to be invoked by the user, but from
 .Xr ssh-agent 1 .
+.Pp
+A single option is supported:
+.Bl -tag -width Ds
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+to print debugging messages about its progress.
+This is helpful in debugging problems.
+Multiple
+.Fl v
+options increase the verbosity.
+The maximum is 3.
+.Pp
+Note that
+.Xr ssh-agent 1
+will automatically pass the
+.Fl v
+flag to
+.Nm
+when it has itself been placed in debug mode.
+.El
 .Sh SEE ALSO
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,

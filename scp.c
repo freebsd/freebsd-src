@@ -401,6 +401,8 @@ main(int argc, char **argv)
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
 
+	seed_rng();
+
 	msetlocale();
 
 	/* Copy argv, because we modify it */
@@ -424,7 +426,7 @@ main(int argc, char **argv)
 
 	fflag = Tflag = tflag = 0;
 	while ((ch = getopt(argc, argv,
-	    "dfl:prtTvBCc:i:P:q12346S:o:F:")) != -1) {
+	    "dfl:prtTvBCc:i:P:q12346S:o:F:J:")) != -1) {
 		switch (ch) {
 		/* User-visible flags. */
 		case '1':
@@ -446,6 +448,7 @@ main(int argc, char **argv)
 		case 'c':
 		case 'i':
 		case 'F':
+		case 'J':
 			addargs(&remote_remote_args, "-%c", ch);
 			addargs(&remote_remote_args, "%s", optarg);
 			addargs(&args, "-%c", ch);
@@ -591,6 +594,7 @@ scpio(void *_cnt, size_t s)
 	off_t *cnt = (off_t *)_cnt;
 
 	*cnt += s;
+	refresh_progress_meter(0);
 	if (limit_kbps > 0)
 		bandwidth_limit(&bwlimit, s);
 	return 0;
@@ -1369,7 +1373,8 @@ sink(int argc, char **argv, const char *src)
 			SCREWUP("size out of range");
 		size = (off_t)ull;
 
-		if ((strchr(cp, '/') != NULL) || (strcmp(cp, "..") == 0)) {
+		if (*cp == '\0' || strchr(cp, '/') != NULL ||
+		    strcmp(cp, ".") == 0 || strcmp(cp, "..") == 0) {
 			run_err("error: unexpected filename: %s", cp);
 			exit(1);
 		}
@@ -1595,7 +1600,8 @@ usage(void)
 {
 	(void) fprintf(stderr,
 	    "usage: scp [-346BCpqrTv] [-c cipher] [-F ssh_config] [-i identity_file]\n"
-	    "           [-l limit] [-o ssh_option] [-P port] [-S program] source ... target\n");
+	    "            [-J destination] [-l limit] [-o ssh_option] [-P port]\n"
+	    "            [-S program] source ... target\n");
 	exit(1);
 }
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.111 2018/07/09 21:59:10 markus Exp $ */
+/* $OpenBSD: authfd.c,v 1.113 2018/12/27 23:02:11 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -94,7 +94,7 @@ ssh_get_authentication_socket(int *fdp)
 		*fdp = -1;
 
 	authsocket = getenv(SSH_AUTHSOCKET_ENV_NAME);
-	if (!authsocket)
+	if (authsocket == NULL || *authsocket == '\0')
 		return SSH_ERR_AGENT_NOT_PRESENT;
 
 	memset(&sunaddr, 0, sizeof(sunaddr));
@@ -327,10 +327,12 @@ ssh_free_identitylist(struct ssh_identitylist *idl)
 static u_int
 agent_encode_alg(const struct sshkey *key, const char *alg)
 {
-	if (alg != NULL && key->type == KEY_RSA) {
-		if (strcmp(alg, "rsa-sha2-256") == 0)
+	if (alg != NULL && sshkey_type_plain(key->type) == KEY_RSA) {
+		if (strcmp(alg, "rsa-sha2-256") == 0 ||
+		    strcmp(alg, "rsa-sha2-256-cert-v01@openssh.com") == 0)
 			return SSH_AGENT_RSA_SHA2_256;
-		else if (strcmp(alg, "rsa-sha2-512") == 0)
+		if (strcmp(alg, "rsa-sha2-512") == 0 ||
+		    strcmp(alg, "rsa-sha2-512-cert-v01@openssh.com") == 0)
 			return SSH_AGENT_RSA_SHA2_512;
 	}
 	return 0;

@@ -313,7 +313,8 @@ sys_auth_get_lastlogin_msg(const char *user, uid_t uid)
  * record_failed_login: generic "login failed" interface function
  */
 void
-record_failed_login(const char *user, const char *hostname, const char *ttyname)
+record_failed_login(struct ssh *ssh, const char *user, const char *hostname,
+    const char *ttyname)
 {
 	if (geteuid() != 0)
 		return;
