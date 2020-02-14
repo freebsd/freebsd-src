@@ -847,7 +847,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * and any vfs op on this vnode going forward will return an
 		 * error (meaning return value in this case is meaningless).
 		 */
-		mp = (struct mount *)atomic_load_ptr(&vp->v_mount);
+		mp = atomic_load_ptr(&vp->v_mount);
 		if (__predict_false(mp == NULL)) {
 			fdrop(fp, td);
 			error = EBADF;
@@ -2741,7 +2741,7 @@ fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 			 * table before this fd was closed, so it is possible
 			 * that there is a stale fp pointer in cached version.
 			 */
-			fdt = (struct fdescenttbl *)atomic_load_ptr(&fdp->fd_files);
+			fdt = atomic_load_ptr(&fdp->fd_files);
 			continue;
 		}
 		/*
