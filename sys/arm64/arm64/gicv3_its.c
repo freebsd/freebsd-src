@@ -547,7 +547,7 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 {
 	void *conf_table;
 
-	conf_table = (void *)atomic_load_ptr((uintptr_t *)&conf_base);
+	conf_table = atomic_load_ptr(&conf_base);
 	if (conf_table == NULL) {
 		conf_table = contigmalloc(LPI_CONFTAB_SIZE,
 		    M_GICV3_ITS, M_WAITOK, 0, LPI_CONFTAB_MAX_ADDR,
@@ -556,8 +556,7 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 		if (atomic_cmpset_ptr((uintptr_t *)&conf_base,
 		    (uintptr_t)NULL, (uintptr_t)conf_table) == 0) {
 			contigfree(conf_table, LPI_CONFTAB_SIZE, M_GICV3_ITS);
-			conf_table =
-			    (void *)atomic_load_ptr((uintptr_t *)&conf_base);
+			conf_table = atomic_load_ptr(&conf_base);
 		}
 	}
 	sc->sc_conf_base = conf_table;
