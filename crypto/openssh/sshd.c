@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.514 2018/08/13 02:41:05 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.516 2018/09/21 12:23:17 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -557,8 +557,7 @@ privsep_preauth_child(void)
 
 #ifdef GSSAPI
 	/* Cache supported mechanism OIDs for later use */
-	if (options.gss_authentication)
-		ssh_gssapi_prepare_supported_oids();
+	ssh_gssapi_prepare_supported_oids();
 #endif
 
 	reseed_prngs();

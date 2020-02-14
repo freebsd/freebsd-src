@@ -82,7 +82,8 @@ pick_salt(void)
 	strlcpy(salt, "xx", sizeof(salt));
 	setpwent();
 	while ((pw = getpwent()) != NULL) {
-		passwd = shadow_pw(pw);
+		if ((passwd = shadow_pw(pw)) == NULL)
+			continue;
 		if (passwd[0] == '$' && (p = strrchr(passwd+1, '$')) != NULL) {
 			typelen = p - passwd + 1;
 			strlcpy(salt, passwd, MIN(typelen, sizeof(salt)));
