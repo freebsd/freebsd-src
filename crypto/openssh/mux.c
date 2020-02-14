@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.75 2018/07/31 03:07:24 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.77 2018/09/26 07:32:44 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -16,19 +16,6 @@
  */
 
 /* ssh session multiplexing support */
-
-/*
- * TODO:
- *   - Better signalling from master to slave, especially passing of
- *      error messages
- *   - Better fall-back from mux slave error to new connection.
- *   - ExitOnForwardingFailure
- *   - Maybe extension mechanisms for multi-X11/multi-agent forwarding
- *   - Support ~^Z in mux slaves.
- *   - Inspect or control sessions in master.
- *   - If we ever support the "signal" channel request, send signals on
- *     sessions in master.
- */
 
 #include "includes.h"
 __RCSID("$FreeBSD$");
@@ -165,23 +152,23 @@ struct mux_master_state {
 static void mux_session_confirm(struct ssh *, int, int, void *);
 static void mux_stdio_confirm(struct ssh *, int, int, void *);
 
-static int process_mux_master_hello(struct ssh *, u_int,
+static int mux_master_process_hello(struct ssh *, u_int,
 	    Channel *, struct sshbuf *, struct sshbuf *);
-static int process_mux_new_session(struct ssh *, u_int,
+static int mux_master_process_new_session(struct ssh *, u_int,
 	    Channel *, struct sshbuf *, struct sshbuf *);
-static int process_mux_alive_check(struct ssh *, u_int,
+static int mux_master_process_alive_check(struct ssh *, u_int,
 	    Channel *, struct sshbuf *, struct sshbuf *);
-static int process_mux_terminate(struct ssh *, u_int,
+static int mux_master_process_terminate(struct ssh *, u_int,
 	    Channel *, struct sshbuf *, struct sshbuf *);
-static int process_mux_open_fwd(struct ssh *, u_int,
+static int mux_master_process_open_fwd(struct ssh *, u_int,
 	    Channel *, struct sshbuf *, struct sshbuf *);
-static int process_mux_close_fwd(struct ssh *, u_int,
+static int mux_master_process_close_fwd(struct ssh *, u_int,
 	    Channel *, struct sshbuf *, struct sshbuf *);
-static int process_mux_stdio_fwd(struct ssh *, u_int,
+static int mux_master_process_stdio_fwd(struct ssh *, u_int,
 	    Channel *, struct sshbuf *, struct sshbuf *);
-static int process_mux_stop_listening(struct ssh *, u_int,
+static int mux_master_process_stop_listening(struct ssh *, u_int,
 	    Channel *, struct sshbuf *, struct sshbuf *);
-static int process_mux_proxy(struct ssh *, u_int,
+static int mux_master_process_proxy(struct ssh *, u_int,
 	    Channel *, struct sshbuf *, struct sshbuf *);
 
 static const struct {
@@ -189,15 +176,15 @@ static const struct {
 	int (*handler)(struct ssh *, u_int, Channel *,
 	    struct sshbuf *, struct sshbuf *);
 } mux_master_handlers[] = {
-	{ MUX_MSG_HELLO, process_mux_master_hello },
-	{ MUX_C_NEW_SESSION, process_mux_new_session },
-	{ MUX_C_ALIVE_CHECK, process_mux_alive_check },
-	{ MUX_C_TERMINATE, process_mux_terminate },
-	{ MUX_C_OPEN_FWD, process_mux_open_fwd },
-	{ MUX_C_CLOSE_FWD, process_mux_close_fwd },
-	{ MUX_C_NEW_STDIO_FWD, process_mux_stdio_fwd },
-	{ MUX_C_STOP_LISTENING, process_mux_stop_listening },
-	{ MUX_C_PROXY, process_mux_proxy },
+	{ MUX_MSG_HELLO, mux_master_process_hello },
+	{ MUX_C_NEW_SESSION, mux_master_process_new_session },
+	{ MUX_C_ALIVE_CHECK, mux_master_process_alive_check },
+	{ MUX_C_TERMINATE, mux_master_process_terminate },
+	{ MUX_C_OPEN_FWD, mux_master_process_open_fwd },
+	{ MUX_C_CLOSE_FWD, mux_master_process_close_fwd },
+	{ MUX_C_NEW_STDIO_FWD, mux_master_process_stdio_fwd },
+	{ MUX_C_STOP_LISTENING, mux_master_process_stop_listening },
+	{ MUX_C_PROXY, mux_master_process_proxy },
 	{ 0, NULL }
 };
 
@@ -265,7 +252,7 @@ env_permitted(char *env)
 		return 0;
 	ret = snprintf(name, sizeof(name), "%.*s", (int)(cp - env), env);
 	if (ret <= 0 || (size_t)ret >= sizeof(name)) {
-		error("env_permitted: name '%.100s...' too long", env);
+		error("%s: name '%.100s...' too long", __func__, env);
 		return 0;
 	}
 
@@ -279,7 +266,7 @@ env_permitted(char *env)
 /* Mux master protocol message handlers */
 
 static int
-process_mux_master_hello(struct ssh *ssh, u_int rid,
+mux_master_process_hello(struct ssh *ssh, u_int rid,
     Channel *c, struct sshbuf *m, struct sshbuf *reply)
 {
 	u_int ver;
@@ -297,8 +284,8 @@ process_mux_master_hello(struct ssh *ssh, u_int rid,
 		return -1;
 	}
 	if (ver != SSHMUX_VER) {
-		error("Unsupported multiplexing protocol version %d "
-		    "(expected %d)", ver, SSHMUX_VER);
+		error("%s: unsupported multiplexing protocol version %u "
+		    "(expected %u)", __func__, ver, SSHMUX_VER);
 		return -1;
 	}
 	debug2("%s: channel %d slave version %u", __func__, c->self, ver);
@@ -306,14 +293,16 @@ process_mux_master_hello(struct ssh *ssh, u_int rid,
 	/* No extensions are presently defined */
 	while (sshbuf_len(m) > 0) {
 		char *name = NULL;
+		size_t value_len = 0;
 
 		if ((r = sshbuf_get_cstring(m, &name, NULL)) != 0 ||
-		    (r = sshbuf_skip_string(m)) != 0) { /* value */
+		    (r = sshbuf_get_string_direct(m, NULL, &value_len)) != 0) {
 			error("%s: malformed extension: %s",
 			    __func__, ssh_err(r));
 			return -1;
 		}
-		debug2("Unrecognised slave extension \"%s\"", name);
+		debug2("%s: Unrecognised extension \"%s\" length %zu",
+		    __func__, name, value_len);
 		free(name);
 	}
 	state->hello_rcvd = 1;
@@ -344,7 +333,7 @@ reply_error(struct sshbuf *reply, u_int type, u_int rid, const char *msg)
 }
 
 static int
-process_mux_new_session(struct ssh *ssh, u_int rid,
+mux_master_process_new_session(struct ssh *ssh, u_int rid,
     Channel *c, struct sshbuf *m, struct sshbuf *reply)
 {
 	Channel *nc;
@@ -392,8 +381,8 @@ process_mux_new_session(struct ssh *ssh, u_int rid,
 		cctx->env[env_len++] = cp;
 		cctx->env[env_len] = NULL;
 		if (env_len > MUX_MAX_ENV_VARS) {
-			error(">%d environment variables received, ignoring "
-			    "additional", MUX_MAX_ENV_VARS);
+			error("%s: >%d environment variables received, "
+			    "ignoring additional", __func__, MUX_MAX_ENV_VARS);
 			break;
 		}
 	}
@@ -510,7 +499,7 @@ process_mux_new_session(struct ssh *ssh, u_int rid,
 }
 
 static int
-process_mux_alive_check(struct ssh *ssh, u_int rid,
+mux_master_process_alive_check(struct ssh *ssh, u_int rid,
     Channel *c, struct sshbuf *m, struct sshbuf *reply)
 {
 	int r;
@@ -527,7 +516,7 @@ process_mux_alive_check(struct ssh *ssh, u_int rid,
 }
 
 static int
-process_mux_terminate(struct ssh *ssh, u_int rid,
+mux_master_process_terminate(struct ssh *ssh, u_int rid,
     Channel *c, struct sshbuf *m, struct sshbuf *reply)
 {
 	debug2("%s: channel %d: terminate request", __func__, c->self);
@@ -695,7 +684,7 @@ mux_confirm_remote_forward(struct ssh *ssh, int type, u_int32_t seq, void *ctxt)
 }
 
 static int
-process_mux_open_fwd(struct ssh *ssh, u_int rid,
+mux_master_process_open_fwd(struct ssh *ssh, u_int rid,
     Channel *c, struct sshbuf *m, struct sshbuf *reply)
 {
 	struct Forward fwd;
@@ -824,7 +813,7 @@ process_mux_open_fwd(struct ssh *ssh, u_int rid,
 		if (!channel_setup_local_fwd_listener(ssh, &fwd,
 		    &options.fwd_opts)) {
  fail:
-			logit("slave-requested %s failed", fwd_desc);
+			logit("%s: requested %s failed", __func__, fwd_desc);
 			reply_error(reply, MUX_S_FAILURE, rid,
 			    "Port forwarding failed");
 			goto out;
@@ -862,7 +851,7 @@ process_mux_open_fwd(struct ssh *ssh, u_int rid,
 }
 
 static int
-process_mux_close_fwd(struct ssh *ssh, u_int rid,
+mux_master_process_close_fwd(struct ssh *ssh, u_int rid,
     Channel *c, struct sshbuf *m, struct sshbuf *reply)
 {
 	struct Forward fwd, *found_fwd;
@@ -974,7 +963,7 @@ process_mux_close_fwd(struct ssh *ssh, u_int rid,
 }
 
 static int
-process_mux_stdio_fwd(struct ssh *ssh, u_int rid,
+mux_master_process_stdio_fwd(struct ssh *ssh, u_int rid,
     Channel *c, struct sshbuf *m, struct sshbuf *reply)
 {
 	Channel *nc;
@@ -1112,7 +1101,7 @@ mux_stdio_confirm(struct ssh *ssh, int id, int success, void *arg)
 }
 
 static int
-process_mux_stop_listening(struct ssh *ssh, u_int rid,
+mux_master_process_stop_listening(struct ssh *ssh, u_int rid,
     Channel *c, struct sshbuf *m, struct sshbuf *reply)
 {
 	debug("%s: channel %d: stop listening", __func__, c->self);
@@ -1142,7 +1131,7 @@ process_mux_stop_listening(struct ssh *ssh, u_int rid,
 }
 
 static int
-process_mux_proxy(struct ssh *ssh, u_int rid,
+mux_master_process_proxy(struct ssh *ssh, u_int rid,
     Channel *c, struct sshbuf *m, struct sshbuf *reply)
 {
 	int r;

@@ -164,15 +164,6 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	OSSH_CHECK_CFLAG_COMPILE([-Wunused-result], [-Wno-unused-result])
 	OSSH_CHECK_CFLAG_COMPILE([-fno-strict-aliasing])
     if test "x$use_toolchain_hardening" = "x1"; then
-	# Cygwin GCC 7.x allows thunking on the CLI, but produces non-working
-	# code.  Unfortunately you only notice this at link time.
-	case "$host" in
-	*-*-cygwin*) ;;
-	*)
-	    OSSH_CHECK_CFLAG_COMPILE([-mfunction-return=thunk]) # gcc
-	    OSSH_CHECK_CFLAG_COMPILE([-mindirect-branch=thunk]) # gcc
-	    ;;
-	esac
 	OSSH_CHECK_CFLAG_COMPILE([-mretpoline]) # clang
 	OSSH_CHECK_LDFLAG_LINK([-Wl,-z,retpolineplt])
 	OSSH_CHECK_CFLAG_COMPILE([-D_FORTIFY_SOURCE=2])
@@ -2165,6 +2156,29 @@ if test "x$ac_cv_func_snprintf" = "xyes" ; then
 	)
 fi
 
+if test "x$ac_cv_func_snprintf" = "xyes" ; then
+	AC_MSG_CHECKING([whether snprintf understands %zu])
+	AC_RUN_IFELSE(
+		[AC_LANG_PROGRAM([[
+#include <sys/types.h>
+#include <stdio.h>
+		]],
+		[[
+	size_t a = 1, b = 2;
+	char z[128];
+	snprintf(z, sizeof z, "%zu%zu", a, b);
+	exit(strcmp(z, "12"));
+		]])],
+		[AC_MSG_RESULT([yes])],
+		[
+			AC_MSG_RESULT([no])
+			AC_DEFINE([BROKEN_SNPRINTF], [1],
+				[snprintf does not understand %zu])
+		],
+		[ AC_MSG_WARN([cross compiling: Assuming working snprintf()]) ]
+	)
+fi
+
 # We depend on vsnprintf returning the right thing on overflow: the
 # number of characters it tried to create (as per SUSv3)
 if test "x$ac_cv_func_vsnprintf" = "xyes" ; then
@@ -2653,15 +2667,19 @@ if test "x$openssl" = "xyes" ; then
 			ssl_library_ver=`cat conftest.ssllibver`
 			# Check version is supported.
 			case "$ssl_library_ver" in
-				10000*|0*)
-					AC_MSG_ERROR([OpenSSL >= 1.0.1 required (have "$ssl_library_ver")])
-			                ;;
-				100*)   ;; # 1.0.x
-				101*)   ;; # 1.1.x
-				200*)   ;; # LibreSSL
-			        *)
-					AC_MSG_ERROR([OpenSSL > 1.1.x is not yet supported (have "$ssl_library_ver")])
-			                ;;
+			10000*|0*)
+				AC_MSG_ERROR([OpenSSL >= 1.0.1 required (have "$ssl_library_ver")])
+		                ;;
+			100*)   ;; # 1.0.x
+			101000[0123456]*)
+				# https://github.com/openssl/openssl/pull/4613
+				AC_MSG_ERROR([OpenSSL 1.1.x versions prior to 1.1.0g have a bug that breaks their use with OpenSSH (have "$ssl_library_ver")])
+				;;
+			101*)   ;; # 1.1.x
+			200*)   ;; # LibreSSL
+		        *)
+				AC_MSG_ERROR([OpenSSL > 1.1.x is not yet supported (have "$ssl_library_ver")])
+		                ;;
 			esac
 			AC_MSG_RESULT([$ssl_library_ver])
 		],

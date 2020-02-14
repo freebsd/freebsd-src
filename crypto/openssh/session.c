@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.305 2018/07/25 13:56:23 deraadt Exp $ */
+/* $OpenBSD: session.c,v 1.307 2018/10/04 00:10:11 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -706,7 +706,9 @@ do_exec(struct ssh *ssh, Session *s, const char *command)
 		command = auth_opts->force_command;
 		forced = "(key-option)";
 	}
+	s->forced = 0;
 	if (forced != NULL) {
+		s->forced = 1;
 		if (IS_INTERNAL_SFTP(command)) {
 			s->is_subsystem = s->is_subsystem ?
 			    SUBSYSTEM_INT_SFTP : SUBSYSTEM_INT_SFTP_ERROR;
@@ -2120,6 +2122,78 @@ session_env_req(struct ssh *ssh, Session *s)
 	return (0);
 }
 
+/*
+ * Conversion of signals from ssh channel request names.
+ * Subset of signals from RFC 4254 section 6.10C, with SIGINFO as
+ * local extension.
+ */
+static int
+name2sig(char *name)
+{
+#define SSH_SIG(x) if (strcmp(name, #x) == 0) return SIG ## x
+	SSH_SIG(HUP);
+	SSH_SIG(INT);
+	SSH_SIG(KILL);
+	SSH_SIG(QUIT);
+	SSH_SIG(TERM);
+	SSH_SIG(USR1);
+	SSH_SIG(USR2);
+#undef	SSH_SIG
+#ifdef SIGINFO
+	if (strcmp(name, "INFO@openssh.com") == 0)
+		return SIGINFO;
+#endif
+	return -1;
+}
+
+static int
+session_signal_req(struct ssh *ssh, Session *s)
+{
+	char *signame = NULL;
+	int r, sig, success = 0;
+
+	if ((r = sshpkt_get_cstring(ssh, &signame, NULL)) != 0 ||
+	    (r = sshpkt_get_end(ssh)) != 0) {
+		error("%s: parse packet: %s", __func__, ssh_err(r));
+		goto out;
+	}
+	if ((sig = name2sig(signame)) == -1) {
+		error("%s: unsupported signal \"%s\"", __func__, signame);
+		goto out;
+	}
+	if (s->pid <= 0) {
+		error("%s: no pid for session %d", __func__, s->self);
+		goto out;
+	}
+	if (s->forced || s->is_subsystem) {
+		error("%s: refusing to send signal %s to %s session", __func__,
+		    signame, s->forced ? "forced-command" : "subsystem");
+		goto out;
+	}
+	if (!use_privsep || mm_is_monitor()) {
+		error("%s: session signalling requires privilege separation",
+		    __func__);
+		goto out;
+	}
+
+	debug("%s: signal %s, killpg(%ld, %d)", __func__, signame,
+	    (long)s->pid, sig);
+	temporarily_use_uid(s->pw);
+	r = killpg(s->pid, sig);
+	restore_uid();
+	if (r != 0) {
+		error("%s: killpg(%ld, %d): %s", __func__, (long)s->pid,
+		    sig, strerror(errno));
+		goto out;
+	}
+
+	/* success */
+	success = 1;
+ out:
+	free(signame);
+	return success;
+}
+
 static int
 session_auth_agent_req(struct ssh *ssh, Session *s)
 {
@@ -2176,6 +2250,8 @@ session_input_channel_req(struct ssh *ssh, Channel *c, const char *rtype)
 		success = session_window_change_req(ssh, s);
 	} else if (strcmp(rtype, "break") == 0) {
 		success = session_break_req(ssh, s);
+	} else if (strcmp(rtype, "signal") == 0) {
+		success = session_signal_req(ssh, s);
 	}
 
 	return success;
@@ -2205,13 +2281,13 @@ void
 session_pty_cleanup2(Session *s)
 {
 	if (s == NULL) {
-		error("session_pty_cleanup: no session");
+		error("%s: no session", __func__);
 		return;
 	}
 	if (s->ttyfd == -1)
 		return;
 
-	debug("session_pty_cleanup: session %d release %s", s->self, s->tty);
+	debug("%s: session %d release %s", __func__, s->self, s->tty);
 
 	/* Record that the user has logged out. */
 	if (s->pid != 0)
@@ -2422,7 +2498,8 @@ session_close_by_channel(struct ssh *ssh, int id, void *arg)
 	}
 	debug("%s: channel %d child %ld", __func__, id, (long)s->pid);
 	if (s->pid != 0) {
-		debug("%s: channel %d: has child", __func__, id);
+		debug("%s: channel %d: has child, ttyfd %d",
+		    __func__, id, s->ttyfd);
 		/*
 		 * delay detach of session, but release pty, since
 		 * the fd's to the child are already closed

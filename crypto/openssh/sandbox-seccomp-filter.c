@@ -166,6 +166,9 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_exit_group
 	SC_ALLOW(__NR_exit_group),
 #endif
+#ifdef __NR_futex
+	SC_ALLOW(__NR_futex),
+#endif
 #ifdef __NR_geteuid
 	SC_ALLOW(__NR_geteuid),
 #endif

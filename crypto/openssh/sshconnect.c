@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.304 2018/07/27 05:34:42 dtucker Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.305 2018/09/20 03:30:44 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -738,19 +738,28 @@ confirm(const char *prompt)
 }
 
 static int
-check_host_cert(const char *host, const struct sshkey *host_key)
+check_host_cert(const char *host, const struct sshkey *key)
 {
 	const char *reason;
+	int r;
 
-	if (sshkey_cert_check_authority(host_key, 1, 0, host, &reason) != 0) {
+	if (sshkey_cert_check_authority(key, 1, 0, host, &reason) != 0) {
 		error("%s", reason);
 		return 0;
 	}
-	if (sshbuf_len(host_key->cert->critical) != 0) {
+	if (sshbuf_len(key->cert->critical) != 0) {
 		error("Certificate for %s contains unsupported "
 		    "critical options(s)", host);
 		return 0;
 	}
+	if ((r = sshkey_check_cert_sigtype(key,
+	    options.ca_sign_algorithms)) != 0) {
+		logit("%s: certificate signature algorithm %s: %s", __func__,
+		    (key->cert == NULL || key->cert->signature_type == NULL) ?
+		    "(null)" : key->cert->signature_type, ssh_err(r));
+		return 0;
+	}
+
 	return 1;
 }
 

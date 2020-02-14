@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.185 2018/04/26 14:47:03 bluhm Exp $ */
+/* $OpenBSD: sftp.c,v 1.186 2018/09/07 04:26:56 dtucker Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -1443,6 +1443,7 @@ parse_args(const char **cpp, int *ignore_errors, int *aflag,
 	case I_LUMASK:
 	case I_CHMOD:
 		base = 8;
+		/* FALLTHROUGH */
 	case I_CHOWN:
 	case I_CHGRP:
 		if ((optidx = parse_no_flags(cmd, argv, argc)) == -1)
@@ -1541,6 +1542,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 		break;
 	case I_SYMLINK:
 		sflag = 1;
+		/* FALLTHROUGH */
 	case I_LINK:
 		if (!sflag)
 			path1 = make_absolute(path1, *pwd);
