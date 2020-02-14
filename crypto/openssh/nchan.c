@@ -1,4 +1,4 @@
-/* $OpenBSD: nchan.c,v 1.67 2017/09/12 06:35:32 djm Exp $ */
+/* $OpenBSD: nchan.c,v 1.69 2018/10/04 07:47:35 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -80,6 +80,7 @@ static void	chan_send_eow2(struct ssh *, Channel *);
 /* helper */
 static void	chan_shutdown_write(struct ssh *, Channel *);
 static void	chan_shutdown_read(struct ssh *, Channel *);
+static void	chan_shutdown_extended_read(struct ssh *, Channel *);
 
 static const char *ostates[] = { "open", "drain", "wait_ieof", "closed" };
 static const char *istates[] = { "open", "drain", "wait_oclose", "closed" };
@@ -289,11 +290,13 @@ chan_rcvd_oclose(struct ssh *ssh, Channel *c)
 	switch (c->istate) {
 	case CHAN_INPUT_OPEN:
 		chan_shutdown_read(ssh, c);
+		chan_shutdown_extended_read(ssh, c);
 		chan_set_istate(c, CHAN_INPUT_CLOSED);
 		break;
 	case CHAN_INPUT_WAIT_DRAIN:
 		if (!(c->flags & CHAN_LOCAL))
 			chan_send_eof2(ssh, c);
+		chan_shutdown_extended_read(ssh, c);
 		chan_set_istate(c, CHAN_INPUT_CLOSED);
 		break;
 	}
@@ -373,17 +376,23 @@ chan_shutdown_write(struct ssh *ssh, Channel *c)
 	if (c->type == SSH_CHANNEL_LARVAL)
 		return;
 	/* shutdown failure is allowed if write failed already */
-	debug2("channel %d: close_write", c->self);
+	debug2("channel %d: %s (i%d o%d sock %d wfd %d efd %d [%s])",
+	    c->self, __func__, c->istate, c->ostate, c->sock, c->wfd, c->efd,
+	    channel_format_extended_usage(c));
 	if (c->sock != -1) {
-		if (shutdown(c->sock, SHUT_WR) < 0)
-			debug2("channel %d: chan_shutdown_write: "
-			    "shutdown() failed for fd %d: %.100s",
-			    c->self, c->sock, strerror(errno));
+		if (shutdown(c->sock, SHUT_WR) < 0) {
+			debug2("channel %d: %s: shutdown() failed for "
+			    "fd %d [i%d o%d]: %.100s", c->self, __func__,
+			    c->sock, c->istate, c->ostate,
+			    strerror(errno));
+		}
 	} else {
-		if (channel_close_fd(ssh, &c->wfd) < 0)
-			logit("channel %d: chan_shutdown_write: "
-			    "close() failed for fd %d: %.100s",
-			    c->self, c->wfd, strerror(errno));
+		if (channel_close_fd(ssh, &c->wfd) < 0) {
+			logit("channel %d: %s: close() failed for "
+			    "fd %d [i%d o%d]: %.100s",
+			    c->self, __func__, c->wfd, c->istate, c->ostate,
+			    strerror(errno));
+		}
 	}
 }
 
@@ -392,23 +401,46 @@ chan_shutdown_read(struct ssh *ssh, Channel *c)
 {
 	if (c->type == SSH_CHANNEL_LARVAL)
 		return;
-	debug2("channel %d: close_read", c->self);
+	debug2("channel %d: %s (i%d o%d sock %d wfd %d efd %d [%s])",
+	    c->self, __func__, c->istate, c->ostate, c->sock, c->rfd, c->efd,
+	    channel_format_extended_usage(c));
 	if (c->sock != -1) {
 		/*
 		 * shutdown(sock, SHUT_READ) may return ENOTCONN if the
 		 * write side has been closed already. (bug on Linux)
 		 * HP-UX may return ENOTCONN also.
 		 */
-		if (shutdown(c->sock, SHUT_RD) < 0
-		    && errno != ENOTCONN)
-			error("channel %d: chan_shutdown_read: "
-			    "shutdown() failed for fd %d [i%d o%d]: %.100s",
-			    c->self, c->sock, c->istate, c->ostate,
-			    strerror(errno));
+		if (shutdown(c->sock, SHUT_RD) < 0 && errno != ENOTCONN) {
+			error("channel %d: %s: shutdown() failed for "
+			    "fd %d [i%d o%d]: %.100s",
+			    c->self, __func__, c->sock, c->istate, c->ostate,
+ 			    strerror(errno));
+		}
 	} else {
-		if (channel_close_fd(ssh, &c->rfd) < 0)
-			logit("channel %d: chan_shutdown_read: "
-			    "close() failed for fd %d: %.100s",
-			    c->self, c->rfd, strerror(errno));
+		if (channel_close_fd(ssh, &c->rfd) < 0) {
+			logit("channel %d: %s: close() failed for "
+			    "fd %d [i%d o%d]: %.100s",
+			    c->self, __func__, c->rfd, c->istate, c->ostate,
+			    strerror(errno));
+		}
+	}
+}
+
+static void
+chan_shutdown_extended_read(struct ssh *ssh, Channel *c)
+{
+	if (c->type == SSH_CHANNEL_LARVAL || c->efd == -1)
+		return;
+	if (c->extended_usage != CHAN_EXTENDED_READ &&
+	    c->extended_usage != CHAN_EXTENDED_IGNORE)
+		return;
+	debug2("channel %d: %s (i%d o%d sock %d wfd %d efd %d [%s])",
+	    c->self, __func__, c->istate, c->ostate, c->sock, c->rfd, c->efd,
+	    channel_format_extended_usage(c));
+	if (channel_close_fd(ssh, &c->efd) < 0) {
+		logit("channel %d: %s: close() failed for "
+		    "extended fd %d [i%d o%d]: %.100s",
+		    c->self, __func__, c->efd, c->istate, c->ostate,
+		    strerror(errno));
 	}
 }

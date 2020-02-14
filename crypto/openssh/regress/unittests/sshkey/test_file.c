@@ -105,6 +105,24 @@ sshkey_file_tests(void)
 	sshkey_free(k2);
 	TEST_DONE();
 
+	TEST_START("load RSA cert with SHA1 signature");
+	ASSERT_INT_EQ(sshkey_load_cert(test_data_file("rsa_1_sha1"), &k2), 0);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(k2->type, KEY_RSA_CERT);
+	ASSERT_INT_EQ(sshkey_equal_public(k1, k2), 1);
+	ASSERT_STRING_EQ(k2->cert->signature_type, "ssh-rsa");
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("load RSA cert with SHA512 signature");
+	ASSERT_INT_EQ(sshkey_load_cert(test_data_file("rsa_1_sha512"), &k2), 0);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(k2->type, KEY_RSA_CERT);
+	ASSERT_INT_EQ(sshkey_equal_public(k1, k2), 1);
+	ASSERT_STRING_EQ(k2->cert->signature_type, "rsa-sha2-512");
+	sshkey_free(k2);
+	TEST_DONE();
+
 	TEST_START("load RSA cert");
 	ASSERT_INT_EQ(sshkey_load_cert(test_data_file("rsa_1"), &k2), 0);
 	ASSERT_PTR_NE(k2, NULL);

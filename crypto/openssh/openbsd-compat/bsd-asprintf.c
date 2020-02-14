@@ -19,6 +19,15 @@
 
 #include "includes.h"
 
+/*
+ * Don't let systems with broken printf(3) avoid our replacements
+ * via asprintf(3)/vasprintf(3) calling libc internally.
+ */
+#if defined(BROKEN_SNPRINTF)
+# undef HAVE_VASPRINTF
+# undef HAVE_ASPRINTF
+#endif
+
 #ifndef HAVE_VASPRINTF
 
 #include <errno.h>

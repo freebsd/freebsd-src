@@ -334,6 +334,13 @@ a server may offer multiple keys of the same type for a period (to
 give clients an opportunity to learn them using this extension) before
 removing the deprecated key from those offered.
 
+2.6. connection: SIGINFO support for "signal" channel request
+
+The SSH channels protocol (RFC4254 section 6.9) supports sending a
+signal to a session attached to a channel. OpenSSH supports one
+extension signal "INFO@openssh.com" that allows sending SIGINFO on
+BSD-derived systems.
+
 3. SFTP protocol changes
 
 3.1. sftp: Reversal of arguments to SSH_FXP_SYMLINK
@@ -489,4 +496,4 @@ OpenSSH's connection multiplexing uses messages as described in
 PROTOCOL.mux over a Unix domain socket for communications between a
 master instance and later clients.
 
-$OpenBSD: PROTOCOL,v 1.35 2018/08/10 00:44:01 djm Exp $
+$OpenBSD: PROTOCOL,v 1.36 2018/10/02 12:51:58 djm Exp $

@@ -1,12 +1,12 @@
-/* $OpenBSD: version.h,v 1.82 2018/07/03 11:42:12 djm Exp $ */
+/* $OpenBSD: version.h,v 1.83 2018/10/10 16:43:49 deraadt Exp $ */
 /* $FreeBSD$ */
 
-#define SSH_VERSION	"OpenSSH_7.8"
+#define SSH_VERSION	"OpenSSH_7.9"
 
 #define SSH_PORTABLE	"p1"
 #define SSH_RELEASE	SSH_VERSION SSH_PORTABLE
 
-#define SSH_VERSION_FREEBSD	"FreeBSD-20180909"
+#define SSH_VERSION_FREEBSD	"FreeBSD-20200214"
 
 #ifdef WITH_OPENSSL
 #define OPENSSL_VERSION_STRING	SSLeay_version(SSLEAY_VERSION)
