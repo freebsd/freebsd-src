@@ -1978,7 +1978,8 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
 	if (!fhold(fp))
 		return (EBADF);
 	FILEDESC_XLOCK(fdp);
-	if ((error = fdalloc(td, 0, fd))) {
+	error = fdalloc(td, 0, fd);
+	if (__predict_false(error != 0)) {
 		FILEDESC_XUNLOCK(fdp);
 		fdrop(fp, td);
 		return (error);
