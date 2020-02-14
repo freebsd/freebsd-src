@@ -248,7 +248,6 @@ static void	 xpt_run_allocq(struct cam_periph *periph, int sleep);
 static void	 xpt_run_allocq_task(void *context, int pending);
 static void	 xpt_run_devq(struct cam_devq *devq);
 static callout_func_t xpt_release_devq_timeout;
-static void	 xpt_release_simq_timeout(void *arg) __unused;
 static void	 xpt_acquire_bus(struct cam_eb *bus);
 static void	 xpt_release_bus(struct cam_eb *bus);
 static uint32_t	 xpt_freeze_devq_device(struct cam_ed *dev, u_int count);
@@ -4619,18 +4618,6 @@ xpt_release_simq(struct cam_sim *sim, int run_queue)
 		}
 	}
 	mtx_unlock(&devq->send_mtx);
-}
-
-/*
- * XXX Appears to be unused.
- */
-static void
-xpt_release_simq_timeout(void *arg)
-{
-	struct cam_sim *sim;
-
-	sim = (struct cam_sim *)arg;
-	xpt_release_simq(sim, /* run_queue */ TRUE);
 }
 
 void
