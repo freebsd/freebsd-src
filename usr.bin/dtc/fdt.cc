@@ -1563,11 +1563,11 @@ device_tree::parse_file(text_input_buffer &input,
 {
 	input.next_token();
 	// Read the header
-	if (input.consume("/dts-v1/;"))
+	while (input.consume("/dts-v1/;"))
 	{
 		read_header = true;
+		input.next_token();
 	}
-	input.next_token();
 	if (input.consume("/plugin/;"))
 	{
 		is_plugin = true;
