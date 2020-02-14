@@ -315,6 +315,10 @@ ACPI_STATUS
 AcpiHwEnableAllWakeupGpes (
     void);
 
+UINT8
+AcpiHwCheckAllGpes (
+    void);
+
 ACPI_STATUS
 AcpiHwEnableRuntimeGpeBlock (
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,

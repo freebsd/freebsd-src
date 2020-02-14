@@ -54,19 +54,19 @@ OBJECTS = \
 #
 # Per-host interfaces
 #
-ifeq ($(HOST), _DragonFly)
+ifeq ($(ACPI_HOST), _DragonFly)
 HOST_FAMILY = BSD
 endif
 
-ifeq ($(HOST), _FreeBSD)
+ifeq ($(ACPI_HOST), _FreeBSD)
 HOST_FAMILY = BSD
 endif
 
-ifeq ($(HOST), _NetBSD)
+ifeq ($(ACPI_HOST), _NetBSD)
 HOST_FAMILY = BSD
 endif
 
-ifeq ($(HOST), _QNX)
+ifeq ($(ACPI_HOST), _QNX)
 HOST_FAMILY = BSD
 endif
 

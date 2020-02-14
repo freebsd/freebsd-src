@@ -156,6 +156,7 @@
 #include "acnamesp.h"
 #include "acparser.h"
 #include "acapps.h"
+#include "acconvert.h"
 
 
 #define _COMPONENT          ACPI_TOOLS
@@ -379,8 +380,6 @@ AdAmlDisassemble (
             Status = AE_ERROR;
             goto Cleanup;
         }
-
-        AcpiOsRedirectOutput (File);
     }
 
     *OutFilename = DisasmFilename;
@@ -467,6 +466,11 @@ AdDisassembleOneTable (
 
     if (!AcpiGbl_ForceAmlDisassembly && !AcpiUtIsAmlTable (Table))
     {
+        if (File)
+        {
+            AcpiOsRedirectOutput (File);
+        }
+
         AdDisassemblerHeader (Filename, ACPI_IS_DATA_TABLE);
 
         /* This is a "Data Table" (non-AML table) */
@@ -489,6 +493,10 @@ AdDisassembleOneTable (
         return (AE_OK);
     }
 
+    /* Initialize the converter output file */
+
+    ASL_CV_INIT_FILETREE(Table, File);
+
     /*
      * This is an AML table (DSDT or SSDT).
      * Always parse the tables, only option is what to display
@@ -499,6 +507,13 @@ AdDisassembleOneTable (
         AcpiOsPrintf ("Could not parse ACPI tables, %s\n",
             AcpiFormatException (Status));
         return (Status);
+    }
+
+    /* Redirect output for code generation and debugging output */
+
+    if (File)
+    {
+        AcpiOsRedirectOutput (File);
     }
 
     /* Debug output, namespace and parse tree */

@@ -743,13 +743,18 @@ TrCreateConstantLeafOp (
 
         /* Get a copy of the current time */
 
+        Op->Asl.Value.String = "";
         CurrentTime = time (NULL);
-        StaticTimeString = ctime (&CurrentTime);
-        TimeString = UtLocalCalloc (strlen (StaticTimeString) + 1);
-        strcpy (TimeString, StaticTimeString);
 
-        TimeString[strlen(TimeString) -1] = 0;  /* Remove trailing newline */
-        Op->Asl.Value.String = TimeString;
+        StaticTimeString = ctime (&CurrentTime);
+        if (StaticTimeString)
+        {
+            TimeString = UtLocalCalloc (strlen (StaticTimeString) + 1);
+            strcpy (TimeString, StaticTimeString);
+
+            TimeString[strlen(TimeString) -1] = 0;  /* Remove trailing newline */
+            Op->Asl.Value.String = TimeString;
+        }
         break;
 
     default: /* This would be an internal error */

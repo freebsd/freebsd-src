@@ -255,12 +255,12 @@ CFLAGS += \
     -DACPI_CHECKSUM_ABORT=TRUE
 endif
 
-ifneq ($(HOST),_QNX)
+ifneq ($(ACPI_HOST),_QNX)
 LDFLAGS += -lpthread
 endif
 
-ifneq ($(HOST),_APPLE)
-ifneq ($(HOST),_QNX)
+ifneq ($(ACPI_HOST),_APPLE)
+ifneq ($(ACPI_HOST),_QNX)
 LDFLAGS += -lrt
 endif
 endif

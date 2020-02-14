@@ -5692,7 +5692,7 @@ DefinitionBlock (
                 {   Return (0x41)   }       //  Local1 indicates Local0 is not a Number
 
             If (LEqual (Local0, 0))     //  Number is type 1
-                {   Return (0x42)   }       //  non-existant signal was acquired
+                {   Return (0x42)   }       //  non-existent signal was acquired
 
             Store ("Acquire signal timeout PASS", Debug)
 
@@ -5713,7 +5713,7 @@ DefinitionBlock (
                 {   Return (0x51)   }       //  Local1 indicates Local0 is not a Number
 
             If (LEqual (Local0, 0))     //  Number is type 1
-                {   Return (0x52)   }       //  non-existant signal was acquired
+                {   Return (0x52)   }       //  non-existent signal was acquired
 
             Store ("Reset signal PASS", Debug)
 
@@ -5727,7 +5727,7 @@ DefinitionBlock (
                 {   Return (0x61)   }       //  Local1 indicates Local0 is not a Number
 
             If (LEqual (Local0, 0))     //  Number is type 1
-                {   Return (0x62)   }       //  non-existant signal was acquired
+                {   Return (0x62)   }       //  non-existent signal was acquired
 
             Store ("Zero Lvalue PASS", Debug)
 
@@ -5741,7 +5741,7 @@ DefinitionBlock (
                 {   Return (0x71)   }       //  Local1 indicates Local0 is not a Number
 
             If (LEqual (Local0, 0))     //  Number is type 1
-                {   Return (0x72)   }       //  non-existant signal was acquired
+                {   Return (0x72)   }       //  non-existent signal was acquired
 
             Store ("One Lvalue PASS", Debug)
 
@@ -5782,7 +5782,7 @@ DefinitionBlock (
                 {   Return (0x84)   }       //  Local1 indicates Local0 is not a Number
 
             If (LEqual (Local0, 0))     //  Number is type 1
-                {   Return (0x85)   }       //  non-existant signal was acquired
+                {   Return (0x85)   }       //  non-existent signal was acquired
 
             Store ("Acquire Lvalue signal timeout PASS", Debug)
 

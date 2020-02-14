@@ -13,4 +13,3 @@ echo 32-bit lint completed >> LintOut.txt
 @echo off
 echo ---
 echo  Output placed in LintOut.txt
-

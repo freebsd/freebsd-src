@@ -47,4 +47,3 @@ for f in $files ; do
         diff -pu -I" \*" $sig.asl $sig.dsl >> diff.log
     fi
 done
-
