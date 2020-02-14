@@ -170,7 +170,11 @@ void	kcsan_atomic_thread_fence_seq_cst(void);
 #define	atomic_fcmpset_acq_ptr		kcsan_atomic_fcmpset_acq_ptr
 #define	atomic_fcmpset_rel_ptr		kcsan_atomic_fcmpset_rel_ptr
 #define	atomic_fetchadd_ptr		kcsan_atomic_fetchadd_ptr
-#define	atomic_load_ptr(x)		kcsan_atomic_load_ptr((volatile uintptr_t *)(x))
+#define	atomic_load_ptr(x)		({					\
+	__typeof(*x) __retptr;							\
+	__retptr = (void *)kcsan_atomic_load_ptr((volatile uintptr_t *)(x));	\
+	__retptr;								\
+})
 #define	atomic_load_acq_ptr		kcsan_atomic_load_acq_ptr
 #define	atomic_readandclear_ptr		kcsan_atomic_readandclear_ptr
 #define	atomic_set_ptr			kcsan_atomic_set_ptr
