@@ -557,8 +557,10 @@ fetch_socks5_getenv(char **host, int *port)
 		*host = strndup(socks5env, ext - socks5env);
 	}
 
-	if (*host == NULL)
-		goto fail;
+	if (*host == NULL) {
+		fprintf(stderr, "Failure to allocate memory, exiting.\n");
+		return (-1);
+	}
 	if (ext == NULL) {
 		*port = 1080; /* Default port as defined in RFC1928 */
 	} else {
@@ -567,16 +569,14 @@ fetch_socks5_getenv(char **host, int *port)
 		*port = strtoimax(ext, (char **)&endptr, 10);
 		if (*endptr != '\0' || errno != 0 || *port < 0 ||
 		    *port > 65535) {
+			free(*host);
+			*host = NULL;
 			socks5_seterr(SOCKS5_ERR_BAD_PORT);
 			return (0);
 		}
 	}
 
 	return (2);
-
-fail:
-	fprintf(stderr, "Failure to allocate memory, exiting.\n");
-	return (-1);
 }
 
 
@@ -595,7 +595,11 @@ fetch_connect(const char *host, int port, int af, int verbose)
 
 	DEBUGF("---> %s:%d\n", host, port);
 
-	/* Check if SOCKS5_PROXY env variable is set */
+	/*
+	 * Check if SOCKS5_PROXY env variable is set.  fetch_socks5_getenv
+	 * will either set sockshost = NULL or allocate memory in all cases.
+	 */
+	sockshost = NULL;
 	if (!fetch_socks5_getenv(&sockshost, &socksport))
 		goto fail;
 
@@ -662,7 +666,7 @@ fetch_connect(const char *host, int port, int af, int verbose)
 				    "failed to connect to SOCKS5 server %s:%d",
 				    sockshost, socksport);
 			socks5_seterr(SOCKS5_ERR_CONN_REFUSED);
-			goto syserr1;
+			goto fail;
 		}
 		goto syserr;
 	}
@@ -680,9 +684,8 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	return (conn);
 syserr:
 	fetch_syserr();
-syserr1:
-	goto fail;
 fail:
+	free(sockshost);
 	if (sd >= 0)
 		close(sd);
 	if (cais != NULL)
