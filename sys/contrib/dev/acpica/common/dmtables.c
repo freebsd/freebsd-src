@@ -506,7 +506,6 @@ AdParseTable (
 
     AmlLength = Table->Length - sizeof (ACPI_TABLE_HEADER);
     AmlStart = ((UINT8 *) Table + sizeof (ACPI_TABLE_HEADER));
-    ASL_CV_INIT_FILETREE(Table, AmlStart, AmlLength);
 
     AcpiUtSetIntegerWidth (Table->Revision);
 
