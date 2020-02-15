@@ -3601,7 +3601,7 @@ export_file_to_kinfo(struct file *fp, int fd, cap_rights_t *rightsp,
 	if (rightsp != NULL)
 		kif->kf_cap_rights = *rightsp;
 	else
-		cap_rights_init(&kif->kf_cap_rights);
+		cap_rights_init_zero(&kif->kf_cap_rights);
 	kif->kf_fd = fd;
 	kif->kf_ref_count = fp->f_count;
 	kif->kf_offset = foffset_get(fp);
@@ -3632,7 +3632,7 @@ export_vnode_to_kinfo(struct vnode *vp, int fd, int fflags,
 	if (error == 0)
 		kif->kf_status |= KF_ATTR_VALID;
 	kif->kf_flags = xlate_fflags(fflags);
-	cap_rights_init(&kif->kf_cap_rights);
+	cap_rights_init_zero(&kif->kf_cap_rights);
 	kif->kf_fd = fd;
 	kif->kf_ref_count = -1;
 	kif->kf_offset = -1;
