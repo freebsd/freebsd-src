@@ -5,7 +5,7 @@
     pretty fast once you're done with this checklist.
 
 01) Download the latest OpenSSH-portable tarball and signature from
-    OpenBSD (ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/).
+    OpenBSD (https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/).
 
 02) Verify the signature:
 

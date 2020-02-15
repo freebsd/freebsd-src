@@ -95,7 +95,7 @@ __sanitizer_cov_trace_pc(void)
 {
 	cov_trace_pc_t trace_pc;
 
-	trace_pc = (cov_trace_pc_t)atomic_load_ptr(&cov_trace_pc);
+	trace_pc = atomic_load_ptr(&cov_trace_pc);
 	if (trace_pc != NULL)
 		trace_pc((uint64_t)__builtin_return_address(0));
 }
@@ -110,7 +110,7 @@ __sanitizer_cov_trace_cmp1(uint8_t arg1, uint8_t arg2)
 {
 	cov_trace_cmp_t trace_cmp;
 
-	trace_cmp = (cov_trace_cmp_t)atomic_load_ptr(&cov_trace_cmp);
+	trace_cmp = atomic_load_ptr(&cov_trace_cmp);
 	if (trace_cmp != NULL)
 		trace_cmp(COV_CMP_SIZE(0), arg1, arg2,
 		    (uint64_t)__builtin_return_address(0));
@@ -121,7 +121,7 @@ __sanitizer_cov_trace_cmp2(uint16_t arg1, uint16_t arg2)
 {
 	cov_trace_cmp_t trace_cmp;
 
-	trace_cmp = (cov_trace_cmp_t)atomic_load_ptr(&cov_trace_cmp);
+	trace_cmp = atomic_load_ptr(&cov_trace_cmp);
 	if (trace_cmp != NULL)
 		trace_cmp(COV_CMP_SIZE(1), arg1, arg2,
 		    (uint64_t)__builtin_return_address(0));
@@ -132,7 +132,7 @@ __sanitizer_cov_trace_cmp4(uint32_t arg1, uint32_t arg2)
 {
 	cov_trace_cmp_t trace_cmp;
 
-	trace_cmp = (cov_trace_cmp_t)atomic_load_ptr(&cov_trace_cmp);
+	trace_cmp = atomic_load_ptr(&cov_trace_cmp);
 	if (trace_cmp != NULL)
 		trace_cmp(COV_CMP_SIZE(2), arg1, arg2,
 		    (uint64_t)__builtin_return_address(0));
@@ -143,7 +143,7 @@ __sanitizer_cov_trace_cmp8(uint64_t arg1, uint64_t arg2)
 {
 	cov_trace_cmp_t trace_cmp;
 
-	trace_cmp = (cov_trace_cmp_t)atomic_load_ptr(&cov_trace_cmp);
+	trace_cmp = atomic_load_ptr(&cov_trace_cmp);
 	if (trace_cmp != NULL)
 		trace_cmp(COV_CMP_SIZE(3), arg1, arg2,
 		    (uint64_t)__builtin_return_address(0));
@@ -154,7 +154,7 @@ __sanitizer_cov_trace_const_cmp1(uint8_t arg1, uint8_t arg2)
 {
 	cov_trace_cmp_t trace_cmp;
 
-	trace_cmp = (cov_trace_cmp_t)atomic_load_ptr(&cov_trace_cmp);
+	trace_cmp = atomic_load_ptr(&cov_trace_cmp);
 	if (trace_cmp != NULL)
 		trace_cmp(COV_CMP_SIZE(0) | COV_CMP_CONST, arg1, arg2,
 		    (uint64_t)__builtin_return_address(0));
@@ -165,7 +165,7 @@ __sanitizer_cov_trace_const_cmp2(uint16_t arg1, uint16_t arg2)
 {
 	cov_trace_cmp_t trace_cmp;
 
-	trace_cmp = (cov_trace_cmp_t)atomic_load_ptr(&cov_trace_cmp);
+	trace_cmp = atomic_load_ptr(&cov_trace_cmp);
 	if (trace_cmp != NULL)
 		trace_cmp(COV_CMP_SIZE(1) | COV_CMP_CONST, arg1, arg2,
 		    (uint64_t)__builtin_return_address(0));
@@ -176,7 +176,7 @@ __sanitizer_cov_trace_const_cmp4(uint32_t arg1, uint32_t arg2)
 {
 	cov_trace_cmp_t trace_cmp;
 
-	trace_cmp = (cov_trace_cmp_t)atomic_load_ptr(&cov_trace_cmp);
+	trace_cmp = atomic_load_ptr(&cov_trace_cmp);
 	if (trace_cmp != NULL)
 		trace_cmp(COV_CMP_SIZE(2) | COV_CMP_CONST, arg1, arg2,
 		    (uint64_t)__builtin_return_address(0));
@@ -187,7 +187,7 @@ __sanitizer_cov_trace_const_cmp8(uint64_t arg1, uint64_t arg2)
 {
 	cov_trace_cmp_t trace_cmp;
 
-	trace_cmp = (cov_trace_cmp_t)atomic_load_ptr(&cov_trace_cmp);
+	trace_cmp = atomic_load_ptr(&cov_trace_cmp);
 	if (trace_cmp != NULL)
 		trace_cmp(COV_CMP_SIZE(3) | COV_CMP_CONST, arg1, arg2,
 		    (uint64_t)__builtin_return_address(0));
@@ -205,7 +205,7 @@ __sanitizer_cov_trace_switch(uint64_t val, uint64_t *cases)
 	uint64_t i, count, ret, type;
 	cov_trace_cmp_t trace_cmp;
 
-	trace_cmp = (cov_trace_cmp_t)atomic_load_ptr(&cov_trace_cmp);
+	trace_cmp = atomic_load_ptr(&cov_trace_cmp);
 	if (trace_cmp == NULL)
 		return;
 

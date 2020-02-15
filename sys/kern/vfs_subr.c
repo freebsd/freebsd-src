@@ -6139,7 +6139,7 @@ vfs_cache_root(struct mount *mp, int flags, struct vnode **vpp)
 
 	if (!vfs_op_thread_enter(mp))
 		return (vfs_cache_root_fallback(mp, flags, vpp));
-	vp = (struct vnode *)atomic_load_ptr(&mp->mnt_rootvnode);
+	vp = atomic_load_ptr(&mp->mnt_rootvnode);
 	if (vp == NULL || VN_IS_DOOMED(vp)) {
 		vfs_op_thread_exit(mp);
 		return (vfs_cache_root_fallback(mp, flags, vpp));

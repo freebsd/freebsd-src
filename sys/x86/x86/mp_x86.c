@@ -1106,7 +1106,7 @@ smp_after_idle_runnable(void *arg __unused)
 
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
 		pc = pcpu_find(cpu);
-		while (atomic_load_ptr(&pc->pc_curpcb) == (uintptr_t)NULL)
+		while (atomic_load_ptr(&pc->pc_curpcb) == NULL)
 			cpu_spinwait();
 		kmem_free((vm_offset_t)bootstacks[cpu], kstack_pages *
 		    PAGE_SIZE);

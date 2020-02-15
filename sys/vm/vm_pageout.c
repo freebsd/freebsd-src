@@ -767,7 +767,7 @@ scan:
 		if (object == NULL || object != m->object) {
 			if (object != NULL)
 				VM_OBJECT_WUNLOCK(object);
-			object = (vm_object_t)atomic_load_ptr(&m->object);
+			object = atomic_load_ptr(&m->object);
 			if (__predict_false(object == NULL))
 				/* The page is being freed by another thread. */
 				continue;
@@ -1238,7 +1238,7 @@ act_scan:
 		 * A page's object pointer may be set to NULL before
 		 * the object lock is acquired.
 		 */
-		object = (vm_object_t)atomic_load_ptr(&m->object);
+		object = atomic_load_ptr(&m->object);
 		if (__predict_false(object == NULL))
 			/*
 			 * The page has been removed from its object.
@@ -1481,7 +1481,7 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 		if (object == NULL || object != m->object) {
 			if (object != NULL)
 				VM_OBJECT_WUNLOCK(object);
-			object = (vm_object_t)atomic_load_ptr(&m->object);
+			object = atomic_load_ptr(&m->object);
 			if (__predict_false(object == NULL))
 				/* The page is being freed by another thread. */
 				continue;

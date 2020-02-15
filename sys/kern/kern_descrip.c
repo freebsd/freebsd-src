@@ -847,7 +847,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * and any vfs op on this vnode going forward will return an
 		 * error (meaning return value in this case is meaningless).
 		 */
-		mp = (struct mount *)atomic_load_ptr(&vp->v_mount);
+		mp = atomic_load_ptr(&vp->v_mount);
 		if (__predict_false(mp == NULL)) {
 			fdrop(fp, td);
 			error = EBADF;
@@ -2741,7 +2741,7 @@ fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 			 * table before this fd was closed, so it is possible
 			 * that there is a stale fp pointer in cached version.
 			 */
-			fdt = (struct fdescenttbl *)atomic_load_ptr(&fdp->fd_files);
+			fdt = atomic_load_ptr(&fdp->fd_files);
 			continue;
 		}
 		/*
@@ -3601,7 +3601,7 @@ export_file_to_kinfo(struct file *fp, int fd, cap_rights_t *rightsp,
 	if (rightsp != NULL)
 		kif->kf_cap_rights = *rightsp;
 	else
-		cap_rights_init(&kif->kf_cap_rights);
+		cap_rights_init_zero(&kif->kf_cap_rights);
 	kif->kf_fd = fd;
 	kif->kf_ref_count = fp->f_count;
 	kif->kf_offset = foffset_get(fp);
@@ -3632,7 +3632,7 @@ export_vnode_to_kinfo(struct vnode *vp, int fd, int fflags,
 	if (error == 0)
 		kif->kf_status |= KF_ATTR_VALID;
 	kif->kf_flags = xlate_fflags(fflags);
-	cap_rights_init(&kif->kf_cap_rights);
+	cap_rights_init_zero(&kif->kf_cap_rights);
 	kif->kf_fd = fd;
 	kif->kf_ref_count = -1;
 	kif->kf_offset = -1;
