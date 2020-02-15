@@ -87,7 +87,8 @@
 #ifdef USB_DEBUG
 static int usb_fifo_debug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB device");
 SYSCTL_INT(_hw_usb_dev, OID_AUTO, debug, CTLFLAG_RWTUN,
     &usb_fifo_debug, 0, "Debug Level");
 #endif

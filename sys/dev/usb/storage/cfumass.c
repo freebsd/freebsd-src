@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_private.h>
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, cfumass, CTLFLAG_RW, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, cfumass, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "CAM Target Layer USB Mass Storage Frontend");
 static int debug = 1;
 SYSCTL_INT(_hw_usb_cfumass, OID_AUTO, debug, CTLFLAG_RWTUN,

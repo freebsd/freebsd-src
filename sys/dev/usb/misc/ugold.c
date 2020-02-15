@@ -239,7 +239,7 @@ ugold_attach(device_t dev)
 
 	sensor_tree = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "sensors",
-	    CTLFLAG_RD, NULL, "");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 
 	if (sensor_tree == NULL) {
 		error = ENOMEM;

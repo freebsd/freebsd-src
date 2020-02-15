@@ -458,7 +458,7 @@ multi_init(void *arg __unused)
 
 	parent = SYSCTL_ADD_NODE(&multi_ctx_list,
 	    SYSCTL_STATIC_CHILDREN(_hw_usb_templates), OID_AUTO,
-	    parent_name, CTLFLAG_RW,
+	    parent_name, CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    0, "USB Multifunction device side template");
 	SYSCTL_ADD_U16(&multi_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
 	    "vendor_id", CTLFLAG_RWTUN,

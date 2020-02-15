@@ -61,7 +61,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/gadget/g_keyboard.h>
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, g_keyboard, CTLFLAG_RW, 0, "USB keyboard gadget");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, g_keyboard,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB keyboard gadget");
 
 #ifdef USB_DEBUG
 static int g_keyboard_debug = 0;
