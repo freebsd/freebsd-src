@@ -683,9 +683,9 @@ public:
   void addEntry(Symbol &sym);
   size_t getNumEntries() const { return entries.size(); }
 
-  size_t headerSize = 0;
+  size_t headerSize;
+  size_t footerSize = 0;
 
-private:
   std::vector<const Symbol *> entries;
 };
 
@@ -1068,6 +1068,10 @@ public:
   void writeTo(uint8_t *buf) override;
   InputSection *getTargetInputSection() const;
   bool assignOffsets();
+
+  // When true, round up reported size of section to 4 KiB. See comment
+  // in addThunkSection() for more details.
+  bool roundUpSizeForErrata = false;
 
 private:
   std::vector<Thunk *> thunks;

@@ -1837,6 +1837,23 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(
     return nullptr;
   QualType T = adjustFunctionTypeForInstantiation(SemaRef.Context, D, TInfo);
 
+  if (TemplateParams && TemplateParams->size()) {
+    auto *LastParam =
+        dyn_cast<TemplateTypeParmDecl>(TemplateParams->asArray().back());
+    if (LastParam && LastParam->isImplicit() &&
+        LastParam->hasTypeConstraint()) {
+      // In abbreviated templates, the type-constraints of invented template
+      // type parameters are instantiated with the function type, invalidating
+      // the TemplateParameterList which relied on the template type parameter
+      // not having a type constraint. Recreate the TemplateParameterList with
+      // the updated parameter list.
+      TemplateParams = TemplateParameterList::Create(
+          SemaRef.Context, TemplateParams->getTemplateLoc(),
+          TemplateParams->getLAngleLoc(), TemplateParams->asArray(),
+          TemplateParams->getRAngleLoc(), TemplateParams->getRequiresClause());
+    }
+  }
+
   NestedNameSpecifierLoc QualifierLoc = D->getQualifierLoc();
   if (QualifierLoc) {
     QualifierLoc = SemaRef.SubstNestedNameSpecifierLoc(QualifierLoc,
@@ -2177,6 +2194,23 @@ Decl *TemplateDeclInstantiator::VisitCXXMethodDecl(
     return nullptr;
   QualType T = adjustFunctionTypeForInstantiation(SemaRef.Context, D, TInfo);
 
+  if (TemplateParams && TemplateParams->size()) {
+    auto *LastParam =
+        dyn_cast<TemplateTypeParmDecl>(TemplateParams->asArray().back());
+    if (LastParam && LastParam->isImplicit() &&
+        LastParam->hasTypeConstraint()) {
+      // In abbreviated templates, the type-constraints of invented template
+      // type parameters are instantiated with the function type, invalidating
+      // the TemplateParameterList which relied on the template type parameter
+      // not having a type constraint. Recreate the TemplateParameterList with
+      // the updated parameter list.
+      TemplateParams = TemplateParameterList::Create(
+          SemaRef.Context, TemplateParams->getTemplateLoc(),
+          TemplateParams->getLAngleLoc(), TemplateParams->asArray(),
+          TemplateParams->getRAngleLoc(), TemplateParams->getRequiresClause());
+    }
+  }
+
   NestedNameSpecifierLoc QualifierLoc = D->getQualifierLoc();
   if (QualifierLoc) {
     QualifierLoc = SemaRef.SubstNestedNameSpecifierLoc(QualifierLoc,
@@ -2190,6 +2224,9 @@ Decl *TemplateDeclInstantiator::VisitCXXMethodDecl(
   if (TrailingRequiresClause) {
     EnterExpressionEvaluationContext ConstantEvaluated(
         SemaRef, Sema::ExpressionEvaluationContext::Unevaluated);
+    auto *ThisContext = dyn_cast_or_null<CXXRecordDecl>(Owner);
+    Sema::CXXThisScopeRAII ThisScope(SemaRef, ThisContext,
+                                     D->getMethodQualifiers(), ThisContext);
     ExprResult SubstRC = SemaRef.SubstExpr(TrailingRequiresClause,
                                            TemplateArgs);
     if (SubstRC.isInvalid())
@@ -2522,28 +2559,34 @@ Decl *TemplateDeclInstantiator::VisitTemplateTypeParmDecl(
   Inst->setAccess(AS_public);
   Inst->setImplicit(D->isImplicit());
   if (auto *TC = D->getTypeConstraint()) {
-    // TODO: Concepts: do not instantiate the constraint (delayed constraint
-    // substitution)
-    const ASTTemplateArgumentListInfo *TemplArgInfo
-      = TC->getTemplateArgsAsWritten();
-    TemplateArgumentListInfo InstArgs;
+    if (!D->isImplicit()) {
+      // Invented template parameter type constraints will be instantiated with
+      // the corresponding auto-typed parameter as it might reference other
+      // parameters.
 
-    if (TemplArgInfo) {
-      InstArgs.setLAngleLoc(TemplArgInfo->LAngleLoc);
-      InstArgs.setRAngleLoc(TemplArgInfo->RAngleLoc);
-      if (SemaRef.Subst(TemplArgInfo->getTemplateArgs(),
-                        TemplArgInfo->NumTemplateArgs,
-                        InstArgs, TemplateArgs))
+      // TODO: Concepts: do not instantiate the constraint (delayed constraint
+      // substitution)
+      const ASTTemplateArgumentListInfo *TemplArgInfo
+        = TC->getTemplateArgsAsWritten();
+      TemplateArgumentListInfo InstArgs;
+
+      if (TemplArgInfo) {
+        InstArgs.setLAngleLoc(TemplArgInfo->LAngleLoc);
+        InstArgs.setRAngleLoc(TemplArgInfo->RAngleLoc);
+        if (SemaRef.Subst(TemplArgInfo->getTemplateArgs(),
+                          TemplArgInfo->NumTemplateArgs,
+                          InstArgs, TemplateArgs))
+          return nullptr;
+      }
+      if (SemaRef.AttachTypeConstraint(
+              TC->getNestedNameSpecifierLoc(), TC->getConceptNameInfo(),
+              TC->getNamedConcept(), &InstArgs, Inst,
+              D->isParameterPack()
+                  ? cast<CXXFoldExpr>(TC->getImmediatelyDeclaredConstraint())
+                      ->getEllipsisLoc()
+                  : SourceLocation()))
         return nullptr;
     }
-    if (SemaRef.AttachTypeConstraint(
-            TC->getNestedNameSpecifierLoc(), TC->getConceptNameInfo(),
-            TC->getNamedConcept(), &InstArgs, Inst,
-            D->isParameterPack()
-                ? cast<CXXFoldExpr>(TC->getImmediatelyDeclaredConstraint())
-                    ->getEllipsisLoc()
-                : SourceLocation()))
-      return nullptr;
   }
   if (D->hasDefaultArgument() && !D->defaultArgumentWasInherited()) {
     TypeSourceInfo *InstantiatedDefaultArg =
@@ -4246,24 +4289,29 @@ bool Sema::CheckInstantiatedFunctionTemplateConstraints(
   Sema::ContextRAII savedContext(*this, Decl);
   LocalInstantiationScope Scope(*this);
 
-  MultiLevelTemplateArgumentList MLTAL =
-    getTemplateInstantiationArgs(Decl, nullptr, /*RelativeToPrimary*/true);
-
   // If this is not an explicit specialization - we need to get the instantiated
   // version of the template arguments and add them to scope for the
   // substitution.
   if (Decl->isTemplateInstantiation()) {
     InstantiatingTemplate Inst(*this, Decl->getPointOfInstantiation(),
         InstantiatingTemplate::ConstraintsCheck{}, Decl->getPrimaryTemplate(),
-        MLTAL.getInnermost(), SourceRange());
+        TemplateArgs, SourceRange());
     if (Inst.isInvalid())
       return true;
+    MultiLevelTemplateArgumentList MLTAL(
+        *Decl->getTemplateSpecializationArgs());
     if (addInstantiatedParametersToScope(
             *this, Decl, Decl->getPrimaryTemplate()->getTemplatedDecl(),
             Scope, MLTAL))
       return true;
   }
-
+  Qualifiers ThisQuals;
+  CXXRecordDecl *Record = nullptr;
+  if (auto *Method = dyn_cast<CXXMethodDecl>(Decl)) {
+    ThisQuals = Method->getMethodQualifiers();
+    Record = Method->getParent();
+  }
+  CXXThisScopeRAII ThisScope(*this, Record, ThisQuals, Record != nullptr);
   return CheckConstraintSatisfaction(Template, TemplateAC, TemplateArgs,
                                      PointOfInstantiation, Satisfaction);
 }
