@@ -82,7 +82,8 @@ FEATURE(iscsi_kernel_proxy, "iSCSI initiator built with ICL_KERNEL_PROXY");
  */
 static struct iscsi_softc	*sc;
 
-SYSCTL_NODE(_kern, OID_AUTO, iscsi, CTLFLAG_RD, 0, "iSCSI initiator");
+SYSCTL_NODE(_kern, OID_AUTO, iscsi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "iSCSI initiator");
 static int debug = 1;
 SYSCTL_INT(_kern_iscsi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 0, "Enable debug messages");
