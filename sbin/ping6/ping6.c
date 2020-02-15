@@ -238,6 +238,7 @@ static long npackets;		/* max packets to transmit */
 static long nreceived;		/* # of packets we got back */
 static long nrepeats;		/* number of duplicates */
 static long ntransmitted;	/* sequence # for outbound packets = #sent */
+static long ntransmitfailures;	/* number of transmit failures */
 static int interval = 1000;	/* interval between packets in ms */
 static int waittime = MAXWAIT;	/* timeout for each packet */
 static long nrcvtimeout = 0;	/* # of packets we got back after waittime */
@@ -1256,7 +1257,12 @@ main(int argc, char *argv[])
         if(packet != NULL)
                 free(packet);
 
-	exit(nreceived == 0 ? 2 : 0);
+	if (nreceived > 0)
+		exit(0);
+	else if (ntransmitted > ntransmitfailures)
+		exit(2);
+	else
+		exit(EX_OSERR);
 }
 
 static void
@@ -1423,8 +1429,10 @@ pinger(void)
 	i = sendmsg(ssend, &smsghdr, 0);
 
 	if (i < 0 || i != cc)  {
-		if (i < 0)
+		if (i < 0) {
+			ntransmitfailures++;
 			warn("sendmsg");
+		}
 		(void)printf("ping6: wrote %s %d chars, ret=%d\n",
 		    hostname, cc, i);
 	}
