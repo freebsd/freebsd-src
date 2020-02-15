@@ -28,7 +28,7 @@
 .\"     @(#)random.6	8.2 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2019
+.Dd February 15, 2020
 .Dt RANDOM 6
 .Os
 .Sh NAME
@@ -42,27 +42,26 @@
 .Sh DESCRIPTION
 .Nm Random
 has two distinct modes of operations.
-The default is to read in lines
-from the standard input and randomly write them out
-to the standard output with a probability of
-1 /
+The default is to read lines from standard input and write them to standard
+output with a probability of 1.0 /
 .Ar denominator .
+.Ar ( denominator
+is a real number greater than or equal to 1.0.)
 The default
 .Ar denominator
-for this mode of operation is 2, giving each line a 50/50 chance of
+for this mode of operation is 2.0, giving each line a 50% chance of
 being displayed.
 .Pp
-The second mode of operation is to read in a file from
-.Ar filename
-and randomize the contents of the file and send it back out to
+The second mode of operation, selected with the
+.Fl f Ar filename
+option, reads the specified file and outputs the randomized contents to
 standard output.
-The contents can be randomized based off of newlines or based off of
-space characters as determined by
-.Xr isspace 3 .
+The contents can be randomized in units of lines (split on newline characters)
+or in units of words (split on space characters as determined by
+.Xr isspace 3 . )
 The default
 .Ar denominator
-for this mode of operation is 1, which gives each line a chance to be
-displayed, but in a random order.
+for this mode of operation is 1.0, which displays every line.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -75,6 +74,9 @@ does not read or write anything, and simply exits with a random
 exit value of 0 to
 .Ar denominator
 \&- 1, inclusive.
+In this mode,
+.Ar denominator
+must be less than or equal to 256.
 .It Fl f Ar filename
 The
 .Fl f
@@ -83,27 +85,18 @@ option is used to specify the
 to read from.
 Standard input is used if
 .Ar filename
-is set to
-.Sq Fl .
+is
+.Sq - .
 .It Fl l
 Randomize the input via newlines (the default).
 .It Fl r
-The
-.Fl r
-option guarantees that the output is unbuffered.
+Do not buffer output.
 .It Fl U
-Tells
-.Xr random 6
-that it is okay for it to reuse any given line or word when creating a
-randomized output.
+Reuse any given line or word when creating a randomized output.
 .It Fl u
-Tells
-.Xr random 6
-not to select the same line or word from a file more than once (the
-default).
+Do not select the same line or word from a file more than once (the default).
 This does not guarantee uniqueness if there are two of the
-same tokens from the input, but it does prevent selecting the same
-token more than once.
+same tokens in the input.
 .It Fl w
 Randomize words separated by
 .Xr isspace 3
@@ -116,7 +109,12 @@ The
 functionality to randomizing lines and words was added in 2003 by
 .An Sean Chittenden Aq Mt seanc@FreeBSD.org .
 .Sh BUGS
+This tool is a remnant of the "games" collection formerly part of
+.Fx
+base.
+It probably should have been removed to ports with the rest of that collection.
+It does not have a coherent purpose and the motivation for it to be a core base
+utility is nonobvious.
+.Pp
 No index is used when printing out tokens from the list which
 makes it rather slow for large files (10MB+).
-For smaller
-files, however, it should still be quite fast and efficient.

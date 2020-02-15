@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -218,7 +219,7 @@ make_token:
 				if (n->cp == NULL)
 					break;
 
-				if (arc4random_uniform(denom) == 0) {
+				if (random_uniform_denom(denom)) {
 					ret = printf("%.*s",
 						(int)n->len - 1, n->cp);
 					if (ret < 0)
