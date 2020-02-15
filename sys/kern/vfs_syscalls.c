@@ -966,34 +966,34 @@ flags_to_rights(int flags, cap_rights_t *rightsp)
 {
 
 	if (flags & O_EXEC) {
-		cap_rights_set(rightsp, CAP_FEXECVE);
+		cap_rights_set_one(rightsp, CAP_FEXECVE);
 	} else {
 		switch ((flags & O_ACCMODE)) {
 		case O_RDONLY:
-			cap_rights_set(rightsp, CAP_READ);
+			cap_rights_set_one(rightsp, CAP_READ);
 			break;
 		case O_RDWR:
-			cap_rights_set(rightsp, CAP_READ);
+			cap_rights_set_one(rightsp, CAP_READ);
 			/* FALLTHROUGH */
 		case O_WRONLY:
-			cap_rights_set(rightsp, CAP_WRITE);
+			cap_rights_set_one(rightsp, CAP_WRITE);
 			if (!(flags & (O_APPEND | O_TRUNC)))
-				cap_rights_set(rightsp, CAP_SEEK);
+				cap_rights_set_one(rightsp, CAP_SEEK);
 			break;
 		}
 	}
 
 	if (flags & O_CREAT)
-		cap_rights_set(rightsp, CAP_CREATE);
+		cap_rights_set_one(rightsp, CAP_CREATE);
 
 	if (flags & O_TRUNC)
-		cap_rights_set(rightsp, CAP_FTRUNCATE);
+		cap_rights_set_one(rightsp, CAP_FTRUNCATE);
 
 	if (flags & (O_SYNC | O_FSYNC))
-		cap_rights_set(rightsp, CAP_FSYNC);
+		cap_rights_set_one(rightsp, CAP_FSYNC);
 
 	if (flags & (O_EXLOCK | O_SHLOCK))
-		cap_rights_set(rightsp, CAP_FLOCK);
+		cap_rights_set_one(rightsp, CAP_FLOCK);
 }
 
 /*
@@ -1048,7 +1048,7 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 
 	AUDIT_ARG_FFLAGS(flags);
 	AUDIT_ARG_MODE(mode);
-	cap_rights_init(&rights, CAP_LOOKUP);
+	cap_rights_init_one(&rights, CAP_LOOKUP);
 	flags_to_rights(flags, &rights);
 	/*
 	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
@@ -3752,7 +3752,7 @@ kern_frmdirat(struct thread *td, int dfd, const char *path, int fd,
 
 	fp = NULL;
 	if (fd != FD_NONE) {
-		error = getvnode(td, fd, cap_rights_init(&rights, CAP_LOOKUP),
+		error = getvnode(td, fd, cap_rights_init_one(&rights, CAP_LOOKUP),
 		    &fp);
 		if (error != 0)
 			return (error);
