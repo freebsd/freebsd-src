@@ -30,13 +30,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 3, 2018
+.Dd February 13, 2019
 .Dt PTHREAD_JOIN 3
 .Os
 .Sh NAME
 .Nm pthread_join ,
+.Nm pthread_peekjoin_np ,
 .Nm pthread_timedjoin_np
-.Nd wait for thread termination
+.Nd inspect thread termination state
 .Sh LIBRARY
 .Lb libpthread
 .Sh SYNOPSIS
@@ -45,7 +46,16 @@
 .Fn pthread_join "pthread_t thread" "void **value_ptr"
 .In pthread_np.h
 .Ft int
-.Fn pthread_timedjoin_np "pthread_t thread" "void **value_ptr" "const struct timespec *abstime"
+.Fo pthread_peekjoin_np
+.Fa "pthread_t thread"
+.Fa "void **value_ptr"
+.Fc
+.Ft int
+.Fo pthread_timedjoin_np
+.Fa "pthread_t thread"
+.Fa "void **value_ptr"
+.Fa "const struct timespec *abstime"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn pthread_join
@@ -82,19 +92,30 @@ function except it will return
 .Er ETIMEDOUT
 if target thread does not exit before specified absolute time passes.
 .Pp
+The
+.Fn pthread_peekjoin_np
+only peeks into the exit status of the specified thread.
+If the thread has not exited, the
+.Er EBUSY
+error is returned.
+Otherwise, zero is returned and the thread exit value is optionally stored
+into the location of
+.Fa *value_ptr .
+The target thread is left unjoined and can be used as an argument for
+the
+.Fn pthread_join
+family of functions again.
+.Pp
 A thread that has exited but remains unjoined counts against
 [_POSIX_THREAD_THREADS_MAX].
 .Sh RETURN VALUES
-If successful, the
-.Fn pthread_join
-and
-.Fn pthread_timedjoin_np
-functions will return zero.
-Otherwise an error number will be returned to
-indicate the error.
+If successful, the described functions return zero.
+Otherwise an error number is returned to indicate the error or
+special condition.
 .Sh ERRORS
 The
-.Fn pthread_join
+.Fn pthread_join ,
+.Fn pthread_peekjoin_np ,
 and
 .Fn pthread_timedjoin_np
 functions will fail if:
@@ -125,6 +146,14 @@ The specified absolute time passed while
 .Fn pthread_timedjoin_np
 waited for thread exit.
 .El
+.Pp
+The
+.Fn pthread_peekjoin_np
+function will also fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The specified thread has not yet exited.
+.El
 .Sh SEE ALSO
 .Xr wait 2 ,
 .Xr pthread_create 3
@@ -139,3 +168,7 @@ function is a
 .Fx
 extension which first appeared in
 .Fx 6.1 .
+Another extension, the
+.Fn pthread_peekjoin_np
+function, first appearead in
+.Fx 13.0 .
