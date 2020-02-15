@@ -198,15 +198,15 @@ struct sem_undo {
  * semaphore info struct
  */
 struct seminfo seminfo = {
-                SEMMNI,         /* # of semaphore identifiers */
-                SEMMNS,         /* # of semaphores in system */
-                SEMMNU,         /* # of undo structures in system */
-                SEMMSL,         /* max # of semaphores per id */
-                SEMOPM,         /* max # of operations per semop call */
-                SEMUME,         /* max # of undo entries per process */
-                SEMUSZ,         /* size in bytes of undo structure */
-                SEMVMX,         /* semaphore maximum value */
-                SEMAEM          /* adjust on exit max value */
+	.semmni =	SEMMNI,	/* # of semaphore identifiers */
+	.semmns =	SEMMNS,	/* # of semaphores in system */
+	.semmnu =	SEMMNU,	/* # of undo structures in system */
+	.semmsl =	SEMMSL,	/* max # of semaphores per id */
+	.semopm =	SEMOPM,	/* max # of operations per semop call */
+	.semume =	SEMUME,	/* max # of undo entries per process */
+	.semusz =	SEMUSZ,	/* size in bytes of undo structure */
+	.semvmx =	SEMVMX,	/* semaphore maximum value */
+	.semaem =	SEMAEM,	/* adjust on exit max value */
 };
 
 SYSCTL_INT(_kern_ipc, OID_AUTO, semmni, CTLFLAG_RDTUN, &seminfo.semmni, 0,
