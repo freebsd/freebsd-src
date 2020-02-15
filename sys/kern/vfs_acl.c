@@ -436,7 +436,7 @@ sys___acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 
 	AUDIT_ARG_FD(uap->filedes);
 	error = getvnode(td, uap->filedes,
-	    cap_rights_init(&rights, CAP_ACL_GET), &fp);
+	    cap_rights_init_one(&rights, CAP_ACL_GET), &fp);
 	if (error == 0) {
 		error = vacl_get_acl(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
@@ -456,7 +456,7 @@ sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 
 	AUDIT_ARG_FD(uap->filedes);
 	error = getvnode(td, uap->filedes,
-	    cap_rights_init(&rights, CAP_ACL_SET), &fp);
+	    cap_rights_init_one(&rights, CAP_ACL_SET), &fp);
 	if (error == 0) {
 		error = vacl_set_acl(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
@@ -512,7 +512,7 @@ sys___acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 
 	AUDIT_ARG_FD(uap->filedes);
 	error = getvnode(td, uap->filedes,
-	    cap_rights_init(&rights, CAP_ACL_DELETE), &fp);
+	    cap_rights_init_one(&rights, CAP_ACL_DELETE), &fp);
 	if (error == 0) {
 		error = vacl_delete(td, fp->f_vnode, uap->type);
 		fdrop(fp, td);
@@ -569,7 +569,7 @@ sys___acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 
 	AUDIT_ARG_FD(uap->filedes);
 	error = getvnode(td, uap->filedes,
-	    cap_rights_init(&rights, CAP_ACL_CHECK), &fp);
+	    cap_rights_init_one(&rights, CAP_ACL_CHECK), &fp);
 	if (error == 0) {
 		error = vacl_aclcheck(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
