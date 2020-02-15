@@ -547,18 +547,18 @@ fetch_socks5_getenv(char **host, int *port)
 	if (socks5env[0] == '[') {
 		if (socks5env[slen - 1] == ']') {
 			*host = strndup(socks5env, slen);
-			if (*host == NULL)
-				goto fail;
-		} else if (ext == NULL) {
+		} else if (ext != NULL) {
+			*host = strndup(socks5env, ext - socks5env + 1);
+		} else {
 			socks5_seterr(SOCKS5_ERR_BAD_PROXY_FORMAT);
 			return (0);
 		}
 	} else {
 		*host = strndup(socks5env, ext - socks5env);
-		if (*host == NULL)
-			goto fail;
 	}
 
+	if (*host == NULL)
+		goto fail;
 	if (ext == NULL) {
 		*port = 1080; /* Default port as defined in RFC1928 */
 	} else {
