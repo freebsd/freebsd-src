@@ -70,12 +70,47 @@ struct fetcherr {
 	const char	*string;
 };
 
+/* For SOCKS header size */
+#define HEAD_SIZE	4
+#define FQDN_SIZE	256
+#define PACK_SIZE	1
+#define PORT_SIZE	2
+#define BUFF_SIZE	HEAD_SIZE + FQDN_SIZE + PACK_SIZE + PORT_SIZE
+
+/* SOCKS5 Request Header */
+#define SOCKS_VERSION_5		0x05
+/* SOCKS5 CMD */
+#define SOCKS_CONNECTION	0x01
+#define SOCKS_BIND		0x02
+#define SOCKS_UDP		0x03
+#define SOCKS_NOMETHODS		0xFF
+#define SOCKS5_NOTIMPLEMENTED	0x00
+/* SOCKS5 Reserved */
+#define SOCKS_RSV		0x00
+/* SOCKS5 Address Type */
+#define SOCKS_ATYP_IPV4		0x01
+#define SOCKS_ATYP_DOMAINNAME	0x03
+#define SOCKS_ATYP_IPV6		0x04
+/* SOCKS5 Reply Field */
+#define SOCKS_SUCCESS			0x00
+#define SOCKS_GENERAL_FAILURE		0x01
+#define SOCKS_CONNECTION_NOT_ALLOWED	0x02
+#define SOCKS_NETWORK_UNREACHABLE	0x03
+#define SOCKS_HOST_UNREACHABLE		0x04
+#define SOCKS_CONNECTION_REFUSED	0x05
+#define SOCKS_TTL_EXPIRED		0x06
+#define SOCKS_COMMAND_NOT_SUPPORTED	0x07
+#define SOCKS_ADDRESS_NOT_SUPPORTED	0x08
+
 /* for fetch_writev */
 struct iovec;
 
 void		 fetch_seterr(struct fetcherr *, int);
 void		 fetch_syserr(void);
 void		 fetch_info(const char *, ...) __printflike(1, 2);
+int		 fetch_socks5_getenv(char **host, int *port);
+int		 fetch_socks5_init(conn_t *conn, const char *host,
+		     int port, int verbose);
 int		 fetch_default_port(const char *);
 int		 fetch_default_proxy_port(const char *);
 struct addrinfo *fetch_resolve(const char *, int, int);
@@ -102,6 +137,7 @@ int		 fetch_no_proxy_match(const char *);
 #define http_seterr(n)	 fetch_seterr(http_errlist, n)
 #define netdb_seterr(n)	 fetch_seterr(netdb_errlist, n)
 #define url_seterr(n)	 fetch_seterr(url_errlist, n)
+#define socks5_seterr(n) fetch_seterr(socks5_errlist, n)
 
 #ifndef NDEBUG
 #define DEBUGF(...)							\
