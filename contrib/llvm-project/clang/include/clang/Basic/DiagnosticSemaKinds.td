@@ -2378,17 +2378,17 @@ def warn_for_range_const_reference_copy : Warning<
   "loop variable %0 "
   "%diff{has type $ but is initialized with type $"
   "| is initialized with a value of a different type}1,2 resulting in a copy">,
-  InGroup<RangeLoopAnalysis>, DefaultIgnore;
+  InGroup<RangeLoopConstruct>, DefaultIgnore;
 def note_use_type_or_non_reference : Note<
   "use non-reference type %0 to keep the copy or type %1 to prevent copying">;
 def warn_for_range_variable_always_copy : Warning<
   "loop variable %0 is always a copy because the range of type %1 does not "
   "return a reference">,
-  InGroup<RangeLoopAnalysis>, DefaultIgnore;
+  InGroup<RangeLoopBindReference>, DefaultIgnore;
 def note_use_non_reference_type : Note<"use non-reference type %0">;
 def warn_for_range_copy : Warning<
   "loop variable %0 of type %1 creates a copy from type %2">,
-  InGroup<RangeLoopAnalysis>, DefaultIgnore;
+  InGroup<RangeLoopConstruct>, DefaultIgnore;
 def note_use_reference_type : Note<"use reference type %0 to prevent copying">;
 def err_objc_for_range_init_stmt : Error<
   "initialization statement is not supported when iterating over Objective-C "
@@ -4683,6 +4683,8 @@ def note_checking_constraints_for_var_spec_id_here : Note<
 def note_checking_constraints_for_class_spec_id_here : Note<
   "while checking constraint satisfaction for class template partial "
   "specialization '%0' required here">;
+def note_checking_constraints_for_function_here : Note<
+  "while checking constraint satisfaction for function '%0' required here">;
 def note_constraint_substitution_here : Note<
   "while substituting template arguments into constraint expression here">;
 def note_constraint_normalization_here : Note<
@@ -6746,6 +6748,10 @@ def err_bad_cxx_cast_scalar_to_vector_different_size : Error<
 def err_bad_cxx_cast_vector_to_vector_different_size : Error<
   "%select{||reinterpret_cast||C-style cast|}0 from vector %1 "
   "to vector %2 of different size">;
+def warn_bad_cxx_cast_nested_pointer_addr_space : Warning<
+  "%select{reinterpret_cast|C-style cast}0 from %1 to %2 "
+  "changes address space of nested pointers">,
+  InGroup<IncompatiblePointerTypesDiscardsQualifiers>;
 def err_bad_lvalue_to_rvalue_cast : Error<
   "cannot cast from lvalue of type %1 to rvalue reference type %2; types are "
   "not compatible">;
@@ -8390,6 +8396,12 @@ def note_defaulted_comparison_cannot_deduce : Note<
   "return type of defaulted 'operator<=>' cannot be deduced because "
   "return type %2 of three-way comparison for %select{|member|base class}0 %1 "
   "is not a standard comparison category type">;
+def err_defaulted_comparison_cannot_deduce_undeduced_auto : Error<
+  "return type of defaulted 'operator<=>' cannot be deduced because "
+  "three-way comparison for %select{|member|base class}0 %1 "
+  "has a deduced return type and is not yet defined">;
+def note_defaulted_comparison_cannot_deduce_undeduced_auto : Note<
+  "%select{|member|base class}0 %1 declared here">;
 def note_defaulted_comparison_cannot_deduce_callee : Note<
   "selected 'operator<=>' for %select{|member|base class}0 %1 declared here">;
 def err_incorrect_defaulted_comparison_constexpr : Error<
