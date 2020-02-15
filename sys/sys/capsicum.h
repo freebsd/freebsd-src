@@ -351,6 +351,27 @@ void __cap_rights_sysinit(void *arg);
 _Static_assert(CAP_RIGHTS_VERSION == CAP_RIGHTS_VERSION_00,
     "unsupported version of capsicum rights");
 
+#define cap_rights_init_zero(r) ({					\
+	cap_rights_t *_r = (r);						\
+	CAP_NONE(_r);							\
+	_r;								\
+})
+
+#define cap_rights_init_one(r, right) ({				\
+	CTASSERT(CAPRVER(right) == CAP_RIGHTS_VERSION);			\
+	cap_rights_t *_r = (r);						\
+	CAP_NONE(_r);							\
+	_r->cr_rights[CAPIDXBIT(right) - 1] |= right;			\
+	_r;								\
+})
+
+#define cap_rights_set_one(r, right) ({					\
+	CTASSERT(CAPRVER(right) == CAP_RIGHTS_VERSION);			\
+	cap_rights_t *_r = (r);						\
+	_r->cr_rights[CAPIDXBIT(right) - 1] |= right;			\
+	_r;								\
+})
+
 /*
  * Allow checking caps which are possibly getting modified at the same time.
  * The caller is expected to determine whether the result is legitimate via
