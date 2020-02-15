@@ -584,8 +584,9 @@ sem_remove(int semidx, struct ucred *cred)
 		    sema[i].u.__sem_base > semakptr->u.__sem_base)
 			mtx_lock_flags(&sema_mtx[i], LOP_DUPOK);
 	}
-	for (i = semakptr->u.__sem_base - sem; i < semtot; i++)
-		sem[i] = sem[i + semakptr->u.sem_nsems];
+	for (i = semakptr->u.__sem_base - sem + semakptr->u.sem_nsems;
+	    i < semtot; i++)
+		sem[i - semakptr->u.sem_nsems] = sem[i];
 	for (i = 0; i < seminfo.semmni; i++) {
 		if ((sema[i].u.sem_perm.mode & SEM_ALLOC) &&
 		    sema[i].u.__sem_base > semakptr->u.__sem_base) {
