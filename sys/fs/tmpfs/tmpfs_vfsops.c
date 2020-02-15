@@ -88,7 +88,6 @@ static int	tmpfs_root(struct mount *, int flags, struct vnode **);
 static int	tmpfs_fhtovp(struct mount *, struct fid *, int,
 		    struct vnode **);
 static int	tmpfs_statfs(struct mount *, struct statfs *);
-static void	tmpfs_susp_clean(struct mount *);
 
 static const char *tmpfs_opts[] = {
 	"from", "size", "maxfilesize", "inodes", "uid", "gid", "mode", "export",
@@ -646,14 +645,6 @@ tmpfs_sync(struct mount *mp, int waitfor)
 	return (0);
 }
 
-/*
- * The presence of a susp_clean method tells the VFS to track writes.
- */
-static void
-tmpfs_susp_clean(struct mount *mp __unused)
-{
-}
-
 static int
 tmpfs_init(struct vfsconf *conf)
 {
@@ -679,7 +670,6 @@ struct vfsops tmpfs_vfsops = {
 	.vfs_statfs =			tmpfs_statfs,
 	.vfs_fhtovp =			tmpfs_fhtovp,
 	.vfs_sync =			tmpfs_sync,
-	.vfs_susp_clean =		tmpfs_susp_clean,
 	.vfs_init =			tmpfs_init,
 	.vfs_uninit =			tmpfs_uninit,
 };

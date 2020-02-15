@@ -2500,8 +2500,7 @@ retry:
 			    pa);
 		}
 #endif
-		else if ((object =
-		    (vm_object_t)atomic_load_ptr(&m->object)) != NULL) {
+		else if ((object = atomic_load_ptr(&m->object)) != NULL) {
 			/*
 			 * The page is considered eligible for relocation if
 			 * and only if it could be laundered or reclaimed by
@@ -2643,8 +2642,7 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 		 */
 		if (vm_page_wired(m))
 			error = EBUSY;
-		else if ((object =
-		    (vm_object_t)atomic_load_ptr(&m->object)) != NULL) {
+		else if ((object = atomic_load_ptr(&m->object)) != NULL) {
 			/*
 			 * The page is relocated if and only if it could be
 			 * laundered or reclaimed by the page daemon.
@@ -4065,7 +4063,7 @@ vm_page_release(vm_page_t m, int flags)
 
 	if ((flags & VPR_TRYFREE) != 0) {
 		for (;;) {
-			object = (vm_object_t)atomic_load_ptr(&m->object);
+			object = atomic_load_ptr(&m->object);
 			if (object == NULL)
 				break;
 			/* Depends on type-stability. */

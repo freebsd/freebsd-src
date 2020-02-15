@@ -932,7 +932,7 @@ trap_user_dtrace(struct trapframe *frame, int (**hookp)(struct trapframe *))
 {
 	int (*hook)(struct trapframe *);
 
-	hook = (int (*)(struct trapframe *))atomic_load_ptr(hookp);
+	hook = atomic_load_ptr(hookp);
 	enable_intr();
 	if (hook != NULL)
 		return ((hook)(frame) == 0);
@@ -1075,7 +1075,7 @@ amd64_syscall_ret_flush_l1d_check(int error)
 
 	if (error != EEXIST && error != EAGAIN && error != EXDEV &&
 	    error != ENOENT && error != ENOTCONN && error != EINPROGRESS) {
-		p = (void *)atomic_load_ptr(&syscall_ret_l1d_flush);
+		p = atomic_load_ptr(&syscall_ret_l1d_flush);
 		if (p != NULL)
 			p();
 	}
