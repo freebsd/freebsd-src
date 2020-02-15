@@ -91,7 +91,8 @@ __FBSDID("$FreeBSD$");
 #include <asm/smp.h>
 #endif
 
-SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
+SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "LinuxKPI parameters");
 
 int linuxkpi_debug;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug, CTLFLAG_RWTUN,
@@ -2441,8 +2442,8 @@ linux_compat_init(void *arg)
 	kobject_init(&linux_root_device.kobj, &linux_dev_ktype);
 	kobject_set_name(&linux_root_device.kobj, "device");
 	linux_root_device.kobj.oidp = SYSCTL_ADD_NODE(NULL,
-	    SYSCTL_CHILDREN(rootoid), OID_AUTO, "device", CTLFLAG_RD, NULL,
-	    "device");
+	    SYSCTL_CHILDREN(rootoid), OID_AUTO, "device",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "device");
 	linux_root_device.bsddev = root_bus;
 	linux_class_misc.name = "misc";
 	class_register(&linux_class_misc);
