@@ -219,14 +219,14 @@ sys_sctp_generic_sendmsg (td, uap)
 		u_sinfo = &sinfo;
 	}
 
-	cap_rights_init(&rights, CAP_SEND);
+	cap_rights_init_one(&rights, CAP_SEND);
 	if (uap->tolen != 0) {
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error != 0) {
 			to = NULL;
 			goto sctp_bad2;
 		}
-		cap_rights_set(&rights, CAP_CONNECT);
+		cap_rights_set_one(&rights, CAP_CONNECT);
 	}
 
 	AUDIT_ARG_FD(uap->sd);
@@ -332,14 +332,14 @@ sys_sctp_generic_sendmsg_iov(td, uap)
 			return (error);
 		u_sinfo = &sinfo;
 	}
-	cap_rights_init(&rights, CAP_SEND);
+	cap_rights_init_one(&rights, CAP_SEND);
 	if (uap->tolen != 0) {
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error != 0) {
 			to = NULL;
 			goto sctp_bad2;
 		}
-		cap_rights_set(&rights, CAP_CONNECT);
+		cap_rights_set_one(&rights, CAP_CONNECT);
 	}
 
 	AUDIT_ARG_FD(uap->sd);
