@@ -1195,11 +1195,11 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	struct file *fp;
 	int error;
 
-	cap_rights_init(&rights);
+	cap_rights_init_zero(&rights);
 	if (nchanges > 0)
-		cap_rights_set(&rights, CAP_KQUEUE_CHANGE);
+		cap_rights_set_one(&rights, CAP_KQUEUE_CHANGE);
 	if (nevents > 0)
-		cap_rights_set(&rights, CAP_KQUEUE_EVENT);
+		cap_rights_set_one(&rights, CAP_KQUEUE_EVENT);
 	error = fget(td, fd, &rights, &fp);
 	if (error != 0)
 		return (error);
