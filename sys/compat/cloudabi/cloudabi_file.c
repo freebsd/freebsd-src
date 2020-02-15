@@ -214,7 +214,7 @@ cloudabi_sys_file_open(struct thread *td,
 	    fds.fs_rights_base | fds.fs_rights_inheriting, &rights);
 	if (error != 0)
 		return (error);
-	cap_rights_set(&rights, CAP_LOOKUP);
+	cap_rights_set_one(&rights, CAP_LOOKUP);
 
 	/* Convert rights to corresponding access mode. */
 	read = (fds.fs_rights_base & (CLOUDABI_RIGHT_FD_READ |
@@ -227,7 +227,7 @@ cloudabi_sys_file_open(struct thread *td,
 	/* Convert open flags. */
 	if ((uap->oflags & CLOUDABI_O_CREAT) != 0) {
 		fflags |= O_CREAT;
-		cap_rights_set(&rights, CAP_CREATE);
+		cap_rights_set_one(&rights, CAP_CREATE);
 	}
 	if ((uap->oflags & CLOUDABI_O_DIRECTORY) != 0)
 		fflags |= O_DIRECTORY;
@@ -235,7 +235,7 @@ cloudabi_sys_file_open(struct thread *td,
 		fflags |= O_EXCL;
 	if ((uap->oflags & CLOUDABI_O_TRUNC) != 0) {
 		fflags |= O_TRUNC;
-		cap_rights_set(&rights, CAP_FTRUNCATE);
+		cap_rights_set_one(&rights, CAP_FTRUNCATE);
 	}
 	if ((fds.fs_flags & CLOUDABI_FDFLAG_APPEND) != 0)
 		fflags |= O_APPEND;
@@ -244,12 +244,12 @@ cloudabi_sys_file_open(struct thread *td,
 	if ((fds.fs_flags & (CLOUDABI_FDFLAG_SYNC | CLOUDABI_FDFLAG_DSYNC |
 	    CLOUDABI_FDFLAG_RSYNC)) != 0) {
 		fflags |= O_SYNC;
-		cap_rights_set(&rights, CAP_FSYNC);
+		cap_rights_set_one(&rights, CAP_FSYNC);
 	}
 	if ((uap->dirfd.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) == 0)
 		fflags |= O_NOFOLLOW;
 	if (write && (fflags & (O_APPEND | O_TRUNC)) == 0)
-		cap_rights_set(&rights, CAP_SEEK);
+		cap_rights_set_one(&rights, CAP_SEEK);
 
 	/* Allocate new file descriptor. */
 	error = falloc_noinstall(td, &fp);
