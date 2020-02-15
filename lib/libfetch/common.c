@@ -525,54 +525,50 @@ int
 fetch_socks5_getenv(char **host, int *port)
 {
 	char *socks5env, *endptr, *ext;
+	const char *portDelim;
+	size_t slen;
 
+	portDelim = ":";
 	if ((socks5env = getenv("SOCKS5_PROXY")) == NULL || *socks5env == '\0') {
 		*host = NULL;
 		*port = -1;
 		return (-1);
 	}
 
-	/* IPv6 addresses begin and end in brackets */
+	/*
+	 * IPv6 addresses begin and end in brackets.  Set the port delimiter
+	 * accordingly and search for it so we can do appropriate validation.
+	 */
+	if (socks5env[0] == '[')
+		portDelim = "]:";
+
+	slen = strlen(socks5env);
+	ext = strstr(socks5env, portDelim);
 	if (socks5env[0] == '[') {
-		if (socks5env[strlen(socks5env) - 1] == ']') {
-			*host = strndup(socks5env, strlen(socks5env));
+		if (socks5env[slen - 1] == ']') {
+			*host = strndup(socks5env, slen);
 			if (*host == NULL)
 				goto fail;
-			*port = 1080; /* Default port as defined in RFC1928 */
-		} else {
-			ext = strstr(socks5env, "]:");
-			if (ext == NULL) {
-				socks5_seterr(SOCKS5_ERR_BAD_PROXY_FORMAT);
-				return (0);
-			}
-			ext=ext+1;
-			*host = strndup(socks5env, ext - socks5env);
-			if (*host == NULL)
-				goto fail;
-			errno = 0;
-			*port = strtoimax(ext + 1, (char **)&endptr, 10);
-			if (*endptr != '\0' || errno != 0 || *port < 0 ||
-			    *port > 65535) {
-				socks5_seterr(SOCKS5_ERR_BAD_PORT);
-				return (0);
-			}
+		} else if (ext == NULL) {
+			socks5_seterr(SOCKS5_ERR_BAD_PROXY_FORMAT);
+			return (0);
 		}
 	} else {
-		ext = strrchr(socks5env, ':');
-		if (ext == NULL) {
-			*host = strdup(socks5env);
-			*port = 1080;
-		} else {
-			*host = strndup(socks5env, ext-socks5env);
-			if (*host == NULL)
-				goto fail;
-			errno = 0;
-			*port = strtoimax(ext + 1, (char **)&endptr, 10);
-			if (*endptr != '\0' || errno != 0 || *port < 0 ||
-			    *port > 65535) {
-				socks5_seterr(SOCKS5_ERR_BAD_PORT);
-				return (0);
-			}
+		*host = strndup(socks5env, ext - socks5env);
+		if (*host == NULL)
+			goto fail;
+	}
+
+	if (ext == NULL) {
+		*port = 1080; /* Default port as defined in RFC1928 */
+	} else {
+		ext += strlen(portDelim);
+		errno = 0;
+		*port = strtoimax(ext, (char **)&endptr, 10);
+		if (*endptr != '\0' || errno != 0 || *port < 0 ||
+		    *port > 65535) {
+			socks5_seterr(SOCKS5_ERR_BAD_PORT);
+			return (0);
 		}
 	}
 
