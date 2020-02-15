@@ -48,7 +48,8 @@ __FBSDID("$FreeBSD$");
 #include "iommu.h"
 
 SYSCTL_DECL(_hw_vmm);
-SYSCTL_NODE(_hw_vmm, OID_AUTO, iommu, CTLFLAG_RW, 0, "bhyve iommu parameters");
+SYSCTL_NODE(_hw_vmm, OID_AUTO, iommu, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "bhyve iommu parameters");
 
 static int iommu_avail;
 SYSCTL_INT(_hw_vmm_iommu, OID_AUTO, initialized, CTLFLAG_RD, &iommu_avail,
