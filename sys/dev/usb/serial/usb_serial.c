@@ -97,7 +97,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_gdb.h"
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB ucom");
 
 static int ucom_pps_mode;
 

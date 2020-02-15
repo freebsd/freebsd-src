@@ -99,7 +99,8 @@ static int ehcinohighspeed = 0;
 static int ehciiaadbug = 0;
 static int ehcilostintrbug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB ehci");
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ehcidebug, 0, "Debug level");
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RWTUN,

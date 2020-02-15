@@ -170,7 +170,8 @@ __FBSDID("$FreeBSD$");
 /* end of driver specific options */
 
 /* Tunables */
-static SYSCTL_NODE(_hw_usb, OID_AUTO, atp, CTLFLAG_RW, 0, "USB ATP");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, atp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB ATP");
 
 #ifdef USB_DEBUG
 enum atp_log_level {
@@ -196,9 +197,11 @@ SYSCTL_UINT(_hw_usb_atp, OID_AUTO, double_tap_threshold, CTLFLAG_RWTUN,
 
 static u_int atp_mickeys_scale_factor = ATP_SCALE_FACTOR;
 static int atp_sysctl_scale_factor_handler(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_hw_usb_atp, OID_AUTO, scale_factor, CTLTYPE_UINT | CTLFLAG_RWTUN,
+SYSCTL_PROC(_hw_usb_atp, OID_AUTO, scale_factor,
+    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
     &atp_mickeys_scale_factor, sizeof(atp_mickeys_scale_factor),
-    atp_sysctl_scale_factor_handler, "IU", "movement scale factor");
+    atp_sysctl_scale_factor_handler, "IU",
+    "movement scale factor");
 
 static u_int atp_small_movement_threshold = ATP_SMALL_MOVEMENT_THRESHOLD;
 SYSCTL_UINT(_hw_usb_atp, OID_AUTO, small_movement, CTLFLAG_RWTUN,

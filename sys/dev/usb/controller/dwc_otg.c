@@ -106,7 +106,8 @@
 
 static int dwc_otg_phy_type = DWC_OTG_PHY_DEFAULT;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, dwc_otg, CTLFLAG_RW, 0, "USB DWC OTG");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, dwc_otg, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB DWC OTG");
 SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, phy_type, CTLFLAG_RDTUN,
     &dwc_otg_phy_type, 0, "DWC OTG PHY TYPE - 0/1/2/3 - ULPI/HSIC/INTERNAL/UTMI+");
 

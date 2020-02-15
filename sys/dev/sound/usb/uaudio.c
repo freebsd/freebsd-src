@@ -102,7 +102,8 @@ static int uaudio_buffer_ms = 8;
 #ifdef USB_DEBUG
 static int uaudio_debug;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB uaudio");
 
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uaudio_debug, 0, "uaudio debug level");
@@ -133,8 +134,9 @@ uaudio_buffer_ms_sysctl(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-SYSCTL_PROC(_hw_usb_uaudio, OID_AUTO, buffer_ms, CTLTYPE_INT | CTLFLAG_RWTUN,
-    0, sizeof(int), uaudio_buffer_ms_sysctl, "I",
+SYSCTL_PROC(_hw_usb_uaudio, OID_AUTO, buffer_ms,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof(int),
+    uaudio_buffer_ms_sysctl, "I",
     "uaudio buffering delay from 2ms to 8ms");
 #else
 #define	uaudio_debug 0
@@ -2905,7 +2907,7 @@ uaudio_mixer_register_sysctl(struct uaudio_softc *sc, device_t dev)
 
 	mixer_tree = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "mixer",
-	    CTLFLAG_RD, NULL, "");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 
 	if (mixer_tree == NULL)
 		return;
@@ -2925,15 +2927,17 @@ uaudio_mixer_register_sysctl(struct uaudio_softc *sc, device_t dev)
 
 			control_tree = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(mixer_tree), OID_AUTO, buf,
-			    CTLFLAG_RD, NULL, "Mixer control nodes");
+			    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+			    "Mixer control nodes");
 
 			if (control_tree == NULL)
 				continue;
 
 			SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(control_tree),
-			    OID_AUTO, "val", CTLTYPE_INT | CTLFLAG_RWTUN, sc,
-			    pmc->wValue[chan],
+			    OID_AUTO, "val",
+			    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+			    sc, pmc->wValue[chan],
 			    uaudio_mixer_sysctl_handler, "I", "Current value");
 
 			SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),

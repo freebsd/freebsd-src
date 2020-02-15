@@ -67,7 +67,8 @@ __FBSDID("$FreeBSD$");
 } while (0)
 
 /* Tunables */
-static	SYSCTL_NODE(_hw_usb, OID_AUTO, wsp, CTLFLAG_RW, 0, "USB wsp");
+static	SYSCTL_NODE(_hw_usb, OID_AUTO, wsp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB wsp");
 
 #ifdef USB_DEBUG
 enum wsp_log_level {
