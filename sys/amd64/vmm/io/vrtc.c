@@ -106,7 +106,8 @@ static void vrtc_set_reg_c(struct vrtc *vrtc, uint8_t newval);
 static MALLOC_DEFINE(M_VRTC, "vrtc", "bhyve virtual rtc");
 
 SYSCTL_DECL(_hw_vmm);
-SYSCTL_NODE(_hw_vmm, OID_AUTO, vrtc, CTLFLAG_RW, NULL, NULL);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, vrtc, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    NULL);
 
 static int rtc_flag_broken_time = 1;
 SYSCTL_INT(_hw_vmm_vrtc, OID_AUTO, flag_broken_time, CTLFLAG_RDTUN,
