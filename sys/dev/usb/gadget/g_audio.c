@@ -96,7 +96,8 @@ struct g_audio_softc {
 	uint8_t	sc_sample_rate[32];
 };
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, g_audio, CTLFLAG_RW, 0, "USB audio gadget");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, g_audio, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB audio gadget");
 
 #ifdef USB_DEBUG
 static int g_audio_debug = 0;

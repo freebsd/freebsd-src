@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int wmt_debug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, wmt, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, wmt, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB MSWindows 7/8/10 compatible Multi-touch Device");
 SYSCTL_INT(_hw_usb_wmt, OID_AUTO, debug, CTLFLAG_RWTUN,
     &wmt_debug, 1, "Debug level");

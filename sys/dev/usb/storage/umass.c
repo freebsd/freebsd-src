@@ -168,7 +168,8 @@ __FBSDID("$FreeBSD$");
 static int umass_debug;
 static int umass_throttle;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB umass");
 SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RWTUN,
     &umass_debug, 0, "umass debug level");
 SYSCTL_INT(_hw_usb_umass, OID_AUTO, throttle, CTLFLAG_RWTUN,

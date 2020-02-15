@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_process.h>
 #include <dev/usb/net/usb_ethernet.h>
 
-static SYSCTL_NODE(_net, OID_AUTO, ue, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_net, OID_AUTO, ue, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "USB Ethernet parameters");
 
 #define	UE_LOCK(_ue)		mtx_lock((_ue)->ue_mtx)
@@ -274,10 +274,10 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	snprintf(num, sizeof(num), "%u", ue->ue_unit);
 	ue->ue_sysctl_oid = SYSCTL_ADD_NODE(&ue->ue_sysctl_ctx,
 	    &SYSCTL_NODE_CHILDREN(_net, ue),
-	    OID_AUTO, num, CTLFLAG_RD, NULL, "");
+	    OID_AUTO, num, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_PROC(&ue->ue_sysctl_ctx,
-	    SYSCTL_CHILDREN(ue->ue_sysctl_oid), OID_AUTO,
-	    "%parent", CTLTYPE_STRING | CTLFLAG_RD, ue, 0,
+	    SYSCTL_CHILDREN(ue->ue_sysctl_oid), OID_AUTO, "%parent",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, ue, 0,
 	    ue_sysctl_parent, "A", "parent device");
 
 	UE_LOCK(ue);

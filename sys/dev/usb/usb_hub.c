@@ -82,7 +82,8 @@
 #ifdef USB_DEBUG
 static int uhub_debug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB HUB");
 SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RWTUN, &uhub_debug, 0,
     "Debug level");
 #endif

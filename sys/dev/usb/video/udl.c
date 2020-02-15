@@ -60,7 +60,8 @@
 #define	USB_DEBUG_VAR udl_debug
 #include <dev/usb/usb_debug.h>
 
-static	SYSCTL_NODE(_hw_usb, OID_AUTO, udl, CTLFLAG_RW, 0, "USB UDL");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, udl, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB UDL");
 
 #ifdef USB_DEBUG
 static int udl_debug = 0;

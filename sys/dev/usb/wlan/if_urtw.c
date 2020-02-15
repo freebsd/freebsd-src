@@ -67,7 +67,8 @@ __FBSDID("$FreeBSD$");
 #define	URTW_RIDX_OFDM6		4
 #define	URTW_RIDX_OFDM24	8
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, urtw, CTLFLAG_RW, 0, "USB Realtek 8187L");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, urtw, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB Realtek 8187L");
 #ifdef URTW_DEBUG
 int urtw_debug = 0;
 SYSCTL_INT(_hw_usb_urtw, OID_AUTO, debug, CTLFLAG_RWTUN, &urtw_debug, 0,
@@ -4385,13 +4386,13 @@ urtw_sysctl_node(struct urtw_softc *sc)
 	ctx = device_get_sysctl_ctx(sc->sc_dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sc_dev));
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "URTW statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "URTW statistics");
 	parent = SYSCTL_CHILDREN(tree);
 
 	/* Tx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "Tx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Tx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	URTW_SYSCTL_STAT_ADD32(ctx, child, "1m", &stats->txrates[0],
 	    "1 Mbit/s");
