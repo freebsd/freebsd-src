@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <geom/geom.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
 
@@ -174,9 +175,12 @@ static SYSCTL_NODE(_kern_cam, OID_AUTO, nda, CTLFLAG_RD, 0,
 static int nda_send_ordered = NDA_DEFAULT_SEND_ORDERED;
 static int nda_default_timeout = NDA_DEFAULT_TIMEOUT;
 static int nda_max_trim_entries = NDA_MAX_TRIM_ENTRIES;
+static int nda_enable_biospeedup = 1;
 SYSCTL_INT(_kern_cam_nda, OID_AUTO, max_trim, CTLFLAG_RDTUN,
     &nda_max_trim_entries, NDA_MAX_TRIM_ENTRIES,
     "Maximum number of BIO_DELETE to send down as a DSM TRIM.");
+SYSCTL_INT(_kern_cam_nda, OID_AUTO, enable_biospeedup, CTLFLAG_RDTUN,
+    &nda_enable_biospeedup, 0, "Enable BIO_SPEEDUP processing");
 
 /*
  * All NVMe media is non-rotational, so all nvme device instances
@@ -699,6 +703,9 @@ ndagetattr(struct bio *bp)
 {
 	int ret;
 	struct cam_periph *periph;
+
+	if (g_handleattr_int(bp, "GEOM::canspeedup", nda_enable_biospeedup))
+		return (EJUSTRETURN);
 
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
 	cam_periph_lock(periph);
