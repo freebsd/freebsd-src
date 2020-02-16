@@ -138,7 +138,7 @@ create_destroy_stress_head()
 create_destroy_stress_body()
 {
 	local TAP0 TAP1 LAGG MAC
-	
+
 	atf_skip "Skipping this test because it easily panics the machine"
 
 	TAP0=`get_tap`
@@ -161,7 +161,7 @@ create_destroy_stress_body()
 	CREATOR_PID=$!
 
 	# Second thread: destroy the lagg
-	while true; do 
+	while true; do
 		ifconfig $LAGG destroy 2>/dev/null && \
 			echo -n . >> destroyer_count.txt
 	done &
@@ -194,7 +194,7 @@ lacp_linkstate_destroy_stress_head()
 lacp_linkstate_destroy_stress_body()
 {
 	local TAP0 TAP1 LAGG MAC SRCDIR
-	
+
 	# Configure the lagg interface to use an RFC5737 nonrouteable addresses
 	ADDR="192.0.2.2"
 	MASK="24"
@@ -255,7 +255,7 @@ up_destroy_stress_body()
 	local TAP0 TAP1 LAGG MAC SRCDIR
 
 	atf_skip "Skipping this test because it panics the machine fairly often"
-	
+
 	# Configure the lagg interface to use an RFC5737 nonrouteable addresses
 	ADDR="192.0.2.2"
 	MASK="24"
