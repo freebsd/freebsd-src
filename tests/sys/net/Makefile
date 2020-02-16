@@ -5,11 +5,12 @@
 TESTSDIR=	${TESTSBASE}/sys/net
 BINDIR=		${TESTSDIR}
 
-ATF_TESTS_SH+=	if_lagg_test
+ATF_TESTS_C+=	if_epair
+ATF_TESTS_SH+=	if_bridge_test
 ATF_TESTS_SH+=	if_clone_test
+ATF_TESTS_SH+=	if_lagg_test
 ATF_TESTS_SH+=	if_tun_test
 ATF_TESTS_SH+=	if_vlan
-ATF_TESTS_C+=	if_epair
 
 TESTS_SUBDIRS+=	routing
 
