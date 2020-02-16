@@ -398,6 +398,10 @@ witness_head()
 }
 witness_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/244163"
+	fi
 	if [ `sysctl -n debug.witness.watch` -ne 1 ]; then
 		atf_skip "witness(4) is not enabled"
 	fi
