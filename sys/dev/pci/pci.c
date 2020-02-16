@@ -332,7 +332,8 @@ uint32_t pci_numdevs = 0;
 static int pcie_chipset, pcix_chipset;
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
+SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "PCI bus tuning parameters");
 
 static int pci_enable_io_modes = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RWTUN,
