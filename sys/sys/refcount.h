@@ -198,7 +198,7 @@ refcount_release_if_gt(volatile u_int *count, u_int n)
 			return (false);
 		if (__predict_false(REFCOUNT_SATURATED(old)))
 			return (true);
-		if (atomic_fcmpset_int(count, &old, old - 1))
+		if (atomic_fcmpset_rel_int(count, &old, old - 1))
 			return (true);
 	}
 }
