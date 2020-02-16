@@ -176,6 +176,10 @@ fail_on_error_head()
 }
 fail_on_error_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/244158"
+	fi
+
 	load_gnop
 	load_gmultipath
 	md0=$(alloc_md)
