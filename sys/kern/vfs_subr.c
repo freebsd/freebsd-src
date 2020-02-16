@@ -3208,7 +3208,7 @@ vput_final(struct vnode *vp, enum vput_op func)
 	VNPASS(vp->v_holdcnt > 0, vp);
 
 	VI_LOCK(vp);
-	if (func != VRELE)
+	if (__predict_false(vp->v_type == VCHR && func != VRELE))
 		v_decr_devcount(vp);
 
 	/*
