@@ -318,7 +318,7 @@ ATF_TC_BODY(rtm_get_v4_lpm_success, tc)
 	 * sockaddrs: <DST,GATEWAY,NETMASK,IFP,IFA>
 	 * 10.0.0.0 link#1 255.255.255.0 vtnet0:52.54.0.42.f.ef 10.0.0.157
 	 */
-	
+
 	verify_route_message(rtm, RTM_GET, (struct sockaddr *)&c->net4,
 	    (struct sockaddr *)&c->mask4, NULL);
 
