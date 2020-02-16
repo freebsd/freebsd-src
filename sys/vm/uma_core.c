@@ -3013,8 +3013,8 @@ item_ctor(uma_zone_t zone, int uz_flags, int size, void *udata, int flags,
 	if (!skipdbg)
 		uma_dbg_alloc(zone, NULL, item);
 #endif
-	if (flags & M_ZERO)
-		bzero(item, size);
+	if (__predict_false(flags & M_ZERO))
+		return (memset(item, 0, size));
 
 	return (item);
 }
@@ -3117,10 +3117,34 @@ uma_zfree_debug(uma_zone_t zone, void *item, void *udata)
 }
 #endif
 
-static __noinline void *
-uma_zalloc_single(uma_zone_t zone, void *udata, int flags)
+static inline void *
+cache_alloc_item(uma_zone_t zone, uma_cache_t cache, uma_cache_bucket_t bucket,
+    void *udata, int flags)
 {
+	void *item;
+	int size, uz_flags;
+
+	item = cache_bucket_pop(cache, bucket);
+	size = cache_uz_size(cache);
+	uz_flags = cache_uz_flags(cache);
+	critical_exit();
+	return (item_ctor(zone, uz_flags, size, udata, flags, item));
+}
+
+static __noinline void *
+cache_alloc_retry(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
+{
+	uma_cache_bucket_t bucket;
 	int domain;
+
+	while (cache_alloc(zone, cache, udata, flags)) {
+		cache = &zone->uz_cpu[curcpu];
+		bucket = &cache->uc_allocbucket;
+		if (__predict_false(bucket->ucb_cnt == 0))
+			continue;
+		return (cache_alloc_item(zone, cache, bucket, udata, flags));
+	}
+	critical_exit();
 
 	/*
 	 * We can not get a bucket so try to return a single item.
@@ -3138,10 +3162,10 @@ uma_zalloc_smr(uma_zone_t zone, int flags)
 {
 	uma_cache_bucket_t bucket;
 	uma_cache_t cache;
-	void *item;
-	int size, uz_flags;
 
 #ifdef UMA_ZALLOC_DEBUG
+	void *item;
+
 	KASSERT((zone->uz_flags & UMA_ZONE_SMR) != 0,
 	    ("uma_zalloc_arg: called with non-SMR zone.\n"));
 	if (uma_zalloc_debug(zone, &item, NULL, flags) == EJUSTRETURN)
@@ -3149,21 +3173,11 @@ uma_zalloc_smr(uma_zone_t zone, int flags)
 #endif
 
 	critical_enter();
-	do {
-		cache = &zone->uz_cpu[curcpu];
-		bucket = &cache->uc_allocbucket;
-		size = cache_uz_size(cache);
-		uz_flags = cache_uz_flags(cache);
-		if (__predict_true(bucket->ucb_cnt != 0)) {
-			item = cache_bucket_pop(cache, bucket);
-			critical_exit();
-			return (item_ctor(zone, uz_flags, size, NULL, flags,
-			    item));
-		}
-	} while (cache_alloc(zone, cache, NULL, flags));
-	critical_exit();
-
-	return (uma_zalloc_single(zone, NULL, flags));
+	cache = &zone->uz_cpu[curcpu];
+	bucket = &cache->uc_allocbucket;
+	if (__predict_false(bucket->ucb_cnt == 0))
+		return (cache_alloc_retry(zone, cache, NULL, flags));
+	return (cache_alloc_item(zone, cache, bucket, NULL, flags));
 }
 
 /* See uma.h */
@@ -3172,8 +3186,6 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 {
 	uma_cache_bucket_t bucket;
 	uma_cache_t cache;
-	void *item;
-	int size, uz_flags;
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
 	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
@@ -3183,6 +3195,8 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	    zone, flags);
 
 #ifdef UMA_ZALLOC_DEBUG
+	void *item;
+
 	KASSERT((zone->uz_flags & UMA_ZONE_SMR) == 0,
 	    ("uma_zalloc_arg: called with SMR zone.\n"));
 	if (uma_zalloc_debug(zone, &item, udata, flags) == EJUSTRETURN)
@@ -3201,21 +3215,11 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	 * must detect and handle migration if it has occurred.
 	 */
 	critical_enter();
-	do {
-		cache = &zone->uz_cpu[curcpu];
-		bucket = &cache->uc_allocbucket;
-		size = cache_uz_size(cache);
-		uz_flags = cache_uz_flags(cache);
-		if (__predict_true(bucket->ucb_cnt != 0)) {
-			item = cache_bucket_pop(cache, bucket);
-			critical_exit();
-			return (item_ctor(zone, uz_flags, size, udata, flags,
-			    item));
-		}
-	} while (cache_alloc(zone, cache, udata, flags));
-	critical_exit();
-
-	return (uma_zalloc_single(zone, udata, flags));
+	cache = &zone->uz_cpu[curcpu];
+	bucket = &cache->uc_allocbucket;
+	if (__predict_false(bucket->ucb_cnt == 0))
+		return (cache_alloc_retry(zone, cache, udata, flags));
+	return (cache_alloc_item(zone, cache, bucket, udata, flags));
 }
 
 /*
@@ -4326,7 +4330,7 @@ zone_release(void *arg, void **bucket, int cnt)
  *	udata  User supplied data for the dtor
  *	skip   Skip dtors and finis
  */
-static void
+static __noinline void
 zone_free_item(uma_zone_t zone, void *item, void *udata, enum zfreeskip skip)
 {
 
