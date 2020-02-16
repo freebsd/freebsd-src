@@ -112,7 +112,8 @@ struct pptdev {
 };
 
 SYSCTL_DECL(_hw_vmm);
-SYSCTL_NODE(_hw_vmm, OID_AUTO, ppt, CTLFLAG_RW, 0, "bhyve passthru devices");
+SYSCTL_NODE(_hw_vmm, OID_AUTO, ppt, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "bhyve passthru devices");
 
 static int num_pptdevs;
 SYSCTL_INT(_hw_vmm_ppt, OID_AUTO, devices, CTLFLAG_RD, &num_pptdevs, 0,

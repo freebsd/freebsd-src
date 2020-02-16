@@ -444,9 +444,8 @@ ffs_lock(ap)
 			VNPASS(vp->v_holdcnt != 0, vp);
 #endif
 			lkp = vp->v_vnlock;
-			result = _lockmgr_args(lkp, flags, VI_MTX(vp),
-			    LK_WMESG_DEFAULT, LK_PRIO_DEFAULT, LK_TIMO_DEFAULT,
-			    ap->a_file, ap->a_line);
+			result = lockmgr_lock_flags(lkp, flags,
+			    &VI_MTX(vp)->lock_object, ap->a_file, ap->a_line);
 			if (lkp == vp->v_vnlock || result != 0)
 				break;
 			/*
@@ -457,9 +456,7 @@ ffs_lock(ap)
 			 * right lock.  Release it, and try to get the
 			 * new lock.
 			 */
-			(void) _lockmgr_args(lkp, LK_RELEASE, NULL,
-			    LK_WMESG_DEFAULT, LK_PRIO_DEFAULT, LK_TIMO_DEFAULT,
-			    ap->a_file, ap->a_line);
+			lockmgr_unlock(lkp);
 			if ((flags & (LK_INTERLOCK | LK_NOWAIT)) ==
 			    (LK_INTERLOCK | LK_NOWAIT))
 				return (EBUSY);

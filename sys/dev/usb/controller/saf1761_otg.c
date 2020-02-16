@@ -97,7 +97,7 @@ static int saf1761_otg_debug = 0;
 static int saf1761_otg_forcefs = 0;
 
 static 
-SYSCTL_NODE(_hw_usb, OID_AUTO, saf1761_otg, CTLFLAG_RW, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, saf1761_otg, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB SAF1761 DCI");
 
 SYSCTL_INT(_hw_usb_saf1761_otg, OID_AUTO, debug, CTLFLAG_RWTUN,

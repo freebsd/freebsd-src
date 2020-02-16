@@ -111,7 +111,8 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int rue_debug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB rue");
 SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RWTUN,
     &rue_debug, 0, "Debug level");
 #endif

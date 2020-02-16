@@ -156,7 +156,7 @@ sa_print_hd(char *buf, int buflen, const char *data, int len)
 
 	ptr = buf;
 	rem_len = buflen;
-	
+
 	const char *last_char = NULL;
 	unsigned char v;
 	int repeat_count = 0;
@@ -265,7 +265,7 @@ rtsock_print_rtm(struct rt_msghdr *rtm)
 	char buf[64];
 
 	gettimeofday(&tv, NULL);
-	localtime_r(&tv.tv_sec, &tm_res); 
+	localtime_r(&tv.tv_sec, &tm_res);
 	strftime(buf, sizeof(buf), "%F %T", &tm_res);
 	printf("Got message of size %hu on %s\n", rtm->rtm_msglen, buf);
 
@@ -314,7 +314,7 @@ rtsock_print_ifa(struct ifa_msghdr *ifam)
 	char buf[64];
 
 	gettimeofday(&tv, NULL);
-	localtime_r(&tv.tv_sec, &tm_res); 
+	localtime_r(&tv.tv_sec, &tm_res);
 	strftime(buf, sizeof(buf), "%F %T", &tm_res);
 	printf("Got message of size %hu on %s\n", ifam->ifam_msglen, buf);
 
@@ -351,7 +351,7 @@ rtsock_print_message_hd(struct rt_msghdr *rtm)
 	char dumpbuf[2048];
 
 	gettimeofday(&tv, NULL);
-	localtime_r(&tv.tv_sec, &tm_res); 
+	localtime_r(&tv.tv_sec, &tm_res);
 	strftime(buf, sizeof(buf), "%F %T", &tm_res);
 	printf("Got message type %s of size %hu on %s\n",
 	    rtsock_print_cmdtype(rtm->rtm_type),

@@ -114,7 +114,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_uathreg.h>
 #include <dev/usb/wlan/if_uathvar.h>
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, uath, CTLFLAG_RW, 0, "USB Atheros");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uath, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB Atheros");
 
 static	int uath_countrycode = CTRY_DEFAULT;	/* country code */
 SYSCTL_INT(_hw_usb_uath, OID_AUTO, countrycode, CTLFLAG_RWTUN, &uath_countrycode,
@@ -2152,8 +2153,8 @@ uath_sysctl_node(struct uath_softc *sc)
 	ctx = device_get_sysctl_ctx(sc->sc_dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sc_dev));
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "UATH statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "UATH statistics");
 	child = SYSCTL_CHILDREN(tree);
 	UATH_SYSCTL_STAT_ADD32(ctx, child, "badchunkseqnum",
 	    &stats->st_badchunkseqnum, "Bad chunk sequence numbers");

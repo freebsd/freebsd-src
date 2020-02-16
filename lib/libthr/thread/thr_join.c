@@ -36,13 +36,15 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
+int	_pthread_peekjoin_np(pthread_t pthread, void **thread_return);
 int	_pthread_timedjoin_np(pthread_t pthread, void **thread_return,
-	const struct timespec *abstime);
-static int join_common(pthread_t, void **, const struct timespec *);
+	    const struct timespec *abstime);
+static int join_common(pthread_t, void **, const struct timespec *, bool peek);
 
 __weak_reference(_thr_join, pthread_join);
 __weak_reference(_thr_join, _pthread_join);
 __weak_reference(_pthread_timedjoin_np, pthread_timedjoin_np);
+__weak_reference(_pthread_peekjoin_np, pthread_peekjoin_np);
 
 static void backout_join(void *arg)
 {
@@ -57,7 +59,7 @@ static void backout_join(void *arg)
 int
 _thr_join(pthread_t pthread, void **thread_return)
 {
-	return (join_common(pthread, thread_return, NULL));
+	return (join_common(pthread, thread_return, NULL, false));
 }
 
 int
@@ -68,7 +70,13 @@ _pthread_timedjoin_np(pthread_t pthread, void **thread_return,
 	    abstime->tv_nsec >= 1000000000)
 		return (EINVAL);
 
-	return (join_common(pthread, thread_return, abstime));
+	return (join_common(pthread, thread_return, abstime, false));
+}
+
+int
+_pthread_peekjoin_np(pthread_t pthread, void **thread_return)
+{
+	return (join_common(pthread, thread_return, NULL, true));
 }
 
 /*
@@ -77,13 +85,13 @@ _pthread_timedjoin_np(pthread_t pthread, void **thread_return,
  */
 static int
 join_common(pthread_t pthread, void **thread_return,
-	const struct timespec *abstime)
+    const struct timespec *abstime, bool peek)
 {
 	struct pthread *curthread = _get_curthread();
 	struct timespec ts, ts2, *tsp;
 	void *tmp;
 	long tid;
-	int ret = 0;
+	int ret;
 
 	if (pthread == NULL)
 		return (EINVAL);
@@ -100,10 +108,21 @@ join_common(pthread_t pthread, void **thread_return,
 		/* Multiple joiners are not supported. */
 		ret = ENOTSUP;
 	}
-	if (ret) {
+	if (ret != 0) {
 		THR_THREAD_UNLOCK(curthread, pthread);
 		return (ret);
 	}
+
+	/* Only peek into status, do not gc the thread. */
+	if (peek) {
+		if (pthread->tid != TID_TERMINATED)
+			ret = EBUSY;
+		else if (thread_return != NULL)
+			*thread_return = pthread->ret;
+		THR_THREAD_UNLOCK(curthread, pthread);
+		return (ret);
+	}
+
 	/* Set the running thread to be the joiner: */
 	pthread->joiner = curthread;
 

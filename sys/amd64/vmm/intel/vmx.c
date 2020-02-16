@@ -123,7 +123,8 @@ static MALLOC_DEFINE(M_VMX, "vmx", "vmx");
 static MALLOC_DEFINE(M_VLAPIC, "vlapic", "vlapic");
 
 SYSCTL_DECL(_hw_vmm);
-SYSCTL_NODE(_hw_vmm, OID_AUTO, vmx, CTLFLAG_RW, NULL, NULL);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, vmx, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    NULL);
 
 int vmxon_enabled[MAXCPU];
 static char vmxon_region[MAXCPU][PAGE_SIZE] __aligned(PAGE_SIZE);
@@ -150,7 +151,9 @@ SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, initialized, CTLFLAG_RD,
 /*
  * Optional capabilities
  */
-static SYSCTL_NODE(_hw_vmm_vmx, OID_AUTO, cap, CTLFLAG_RW, NULL, NULL);
+static SYSCTL_NODE(_hw_vmm_vmx, OID_AUTO, cap,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    NULL);
 
 static int cap_halt_exit;
 SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, halt_exit, CTLFLAG_RD, &cap_halt_exit, 0,

@@ -115,7 +115,7 @@ static usb_error_t usb_temp_setup_by_index(struct usb_device *,
 		    uint16_t index);
 static void	usb_temp_init(void *);
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, templates, CTLFLAG_RW, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, templates, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB device side templates");
 SYSCTL_PROC(_hw_usb, OID_AUTO, template_power,
     CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,

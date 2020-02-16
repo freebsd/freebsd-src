@@ -456,7 +456,7 @@ do_stress()
 	CREATOR_PID=$!
 
 	# Second thread: destroy the lagg
-	while true; do 
+	while true; do
 		ifconfig $IFACE destroy 2>/dev/null && \
 			echo -n . >> destroyer_count.txt
 	done &
