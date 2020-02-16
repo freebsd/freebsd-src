@@ -363,7 +363,7 @@ struct da_softc {
 	uint32_t		unmap_max_lba; /* Max LBAs in UNMAP req */
 	uint32_t		unmap_gran;
 	uint32_t		unmap_gran_align;
-	uint64_t		ws_max_blks;
+quirk pr	uint64_t		ws_max_blks;
 	uint64_t		trim_count;
 	uint64_t		trim_ranges;
 	uint64_t		trim_lbas;
@@ -438,7 +438,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_FIXED, "FUJITSU", "M2954*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
-	{
+	{quirk pr
 		/*
 		 * This drive doesn't like the synchronize cache command
 		 * either.  Reported by: Matthew Jacob <mjacob@feral.com>
@@ -1415,6 +1415,15 @@ static struct da_quirk_entry da_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "MZ7*", "*" },
 		/*quirks*/DA_Q_4K
 	},
+	{
+                /*
+                 * Same as above but enable the quirks for SSD
+                 * SAMSUNG MZ7* connected via SATA-to-SAS interposer and 
+		 * because of this starting without "ATA"
+                 */
+                { T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "MZ7*", "*" },
+                /*quirks*/DA_Q_4K
+        },
 	{
 		/*
 		 * SuperTalent TeraDrive CT SSDs
