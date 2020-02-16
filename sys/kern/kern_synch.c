@@ -368,8 +368,8 @@ refcount_release_last(volatile u_int *count, u_int n, u_int old)
 	/*
 	 * Last reference.  Signal the user to call the destructor.
 	 *
-	 * Ensure that the destructor sees all updates.  The fence_rel
-	 * at the start of refcount_releasen synchronizes with this fence.
+	 * Ensure that the destructor sees all updates. This synchronizes
+	 * with release fences from all routines which drop the count.
 	 */
 	atomic_thread_fence_acq();
 	return (true);
