@@ -54,4 +54,14 @@
 #define SODIUM_MIN(A, B) ((A) < (B) ? (A) : (B))
 #define SODIUM_SIZE_MAX SODIUM_MIN(UINT64_MAX, SIZE_MAX)
 
+#ifdef _KERNEL
+#include <sys/param.h>
+#include <sys/libkern.h>
+static inline void
+sodium_misuse(void)
+{
+	panic("bad value passed to sodium");
+}
+#endif
+
 #endif
