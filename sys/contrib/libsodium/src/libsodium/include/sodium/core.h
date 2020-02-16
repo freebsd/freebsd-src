@@ -16,11 +16,11 @@ int sodium_init(void)
 
 SODIUM_EXPORT
 int sodium_set_misuse_handler(void (*handler)(void));
-
+#ifndef _KERNEL
 SODIUM_EXPORT
 void sodium_misuse(void)
             __attribute__ ((noreturn));
-
+#endif
 #ifdef __cplusplus
 }
 #endif
