@@ -16,6 +16,13 @@ vnet_mkepair()
 	echo ${ifname%a}
 }
 
+vnet_mkbridge()
+{
+	ifname=$(ifconfig bridge create)
+	echo $ifname >> created_interfaces.lst
+	echo ${ifname}
+}
+
 vnet_mkjail()
 {
 	jailname=$1
