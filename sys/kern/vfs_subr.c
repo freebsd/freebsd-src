@@ -1100,6 +1100,7 @@ vlrureclaim(bool reclaim_nc_src, int trigger, u_long target)
 {
 	struct vnode *vp, *mvp;
 	struct mount *mp;
+	struct vm_object *object;
 	u_long done;
 	bool retried;
 
@@ -1137,12 +1138,17 @@ restart:
 
 		if (vp->v_usecount > 0 || vp->v_holdcnt == 0 ||
 		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
-		    vp->v_type == VBAD || vp->v_type == VNON ||
-		    (vp->v_object != NULL &&
-		    vp->v_object->resident_page_count > trigger)) {
+		    VN_IS_DOOMED(vp) || vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			goto next_iter;
 		}
+
+		object = atomic_load_ptr(&vp->v_object);
+		if (object == NULL || object->resident_page_count > trigger) {
+			VI_UNLOCK(vp);
+			goto next_iter;
+		}
+
 		vholdl(vp);
 		VI_UNLOCK(vp);
 		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
