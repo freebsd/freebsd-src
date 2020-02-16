@@ -92,7 +92,8 @@ struct g_modem_softc {
 	uint8_t	sc_abstract_state[32];
 };
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, g_modem, CTLFLAG_RW, 0, "USB modem gadget");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, g_modem, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB modem gadget");
 
 #ifdef USB_DEBUG
 static int g_modem_debug = 0;

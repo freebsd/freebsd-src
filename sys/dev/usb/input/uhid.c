@@ -80,7 +80,8 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int uhid_debug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB uhid");
 SYSCTL_INT(_hw_usb_uhid, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uhid_debug, 0, "Debug level");
 #endif

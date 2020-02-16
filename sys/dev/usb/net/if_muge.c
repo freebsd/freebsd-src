@@ -122,7 +122,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int muge_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, muge, CTLFLAG_RW, 0,
+SYSCTL_NODE(_hw_usb, OID_AUTO, muge, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Microchip LAN78xx USB-GigE");
 SYSCTL_INT(_hw_usb_muge, OID_AUTO, debug, CTLFLAG_RWTUN, &muge_debug, 0,
     "Debug level");

@@ -118,7 +118,8 @@ static uint32_t	cdce_m_crc32(struct mbuf *, uint32_t, uint32_t);
 static int cdce_debug = 0;
 static int cdce_tx_interval = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, cdce, CTLFLAG_RW, 0, "USB CDC-Ethernet");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, cdce, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB CDC-Ethernet");
 SYSCTL_INT(_hw_usb_cdce, OID_AUTO, debug, CTLFLAG_RWTUN, &cdce_debug, 0,
     "Debug level");
 SYSCTL_INT(_hw_usb_cdce, OID_AUTO, interval, CTLFLAG_RWTUN, &cdce_tx_interval, 0,

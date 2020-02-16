@@ -98,7 +98,8 @@ static int ukbd_debug = 0;
 static int ukbd_no_leds = 0;
 static int ukbd_pollrate = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB keyboard");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB keyboard");
 SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ukbd_debug, 0, "Debug level");
 SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, no_leds, CTLFLAG_RWTUN,

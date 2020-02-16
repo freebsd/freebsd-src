@@ -132,7 +132,8 @@ struct usb_fifo_methods usb_ugen_methods = {
 #ifdef USB_DEBUG
 static int ugen_debug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB generic");
 SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RWTUN, &ugen_debug,
     0, "Debug level");
 #endif

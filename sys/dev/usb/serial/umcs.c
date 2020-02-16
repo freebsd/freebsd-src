@@ -81,7 +81,8 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int umcs_debug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, umcs, CTLFLAG_RW, 0, "USB umcs quadport serial adapter");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umcs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB umcs quadport serial adapter");
 SYSCTL_INT(_hw_usb_umcs, OID_AUTO, debug, CTLFLAG_RWTUN, &umcs_debug, 0, "Debug level");
 #endif					/* USB_DEBUG */
 

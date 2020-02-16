@@ -91,7 +91,8 @@
 #ifdef USB_DEBUG
 static int musbotgdebug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, musbotg, CTLFLAG_RW, 0, "USB musbotg");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, musbotg, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB musbotg");
 SYSCTL_INT(_hw_usb_musbotg, OID_AUTO, debug, CTLFLAG_RWTUN,
     &musbotgdebug, 0, "Debug level");
 #endif

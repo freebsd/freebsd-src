@@ -119,7 +119,8 @@ int autofs_sig_set[] = {
 
 struct autofs_softc	*autofs_softc;
 
-SYSCTL_NODE(_vfs, OID_AUTO, autofs, CTLFLAG_RD, 0, "Automounter filesystem");
+SYSCTL_NODE(_vfs, OID_AUTO, autofs, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Automounter filesystem");
 int autofs_debug = 1;
 TUNABLE_INT("vfs.autofs.debug", &autofs_debug);
 SYSCTL_INT(_vfs_autofs, OID_AUTO, debug, CTLFLAG_RWTUN,

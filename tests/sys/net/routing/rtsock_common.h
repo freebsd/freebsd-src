@@ -184,7 +184,7 @@ iface_destroy(char *ifname)
 {
 	struct ifreq ifr;
 	int s;
-	
+
 	s = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
 
@@ -587,7 +587,7 @@ rtsock_send_rtm(int fd, struct rt_msghdr *rtm)
 	RTSOCK_ATF_REQUIRE_MSG(rtm, len == rtm->rtm_msglen,
 	    "rtsock write failed: want %d got %zd (%s)",
 	    rtm->rtm_msglen, len, strerror(my_errno));
-	
+
 	return (len);
 }
 

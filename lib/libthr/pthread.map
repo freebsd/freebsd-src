@@ -326,3 +326,7 @@ FBSD_1.4 {
 FBSD_1.5 {
 	 pthread_get_name_np;
 };
+
+FBSD_1.6 {
+	 pthread_peekjoin_np;
+};

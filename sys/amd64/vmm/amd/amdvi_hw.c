@@ -58,7 +58,8 @@ __FBSDID("$FreeBSD$");
 #include "amdvi_priv.h"
 
 SYSCTL_DECL(_hw_vmm);
-SYSCTL_NODE(_hw_vmm, OID_AUTO, amdvi, CTLFLAG_RW, NULL, NULL);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, amdvi, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    NULL);
 
 #define MOD_INC(a, s, m) (((a) + (s)) % ((m) * (s)))
 #define MOD_DEC(a, s, m) (((a) - (s)) % ((m) * (s)))
@@ -947,16 +948,16 @@ amdvi_add_sysctl(struct amdvi_softc *softc)
 	SYSCTL_ADD_U16(ctx, child, OID_AUTO, "end_dev_rid", CTLFLAG_RD,
 	    &softc->end_dev_rid, 0, "End of device under this IOMMU");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "command_head",
-	    CTLTYPE_UINT | CTLFLAG_RD, softc, 0,
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, softc, 0,
 	    amdvi_handle_sysctl, "IU", "Command head");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "command_tail",
-	    CTLTYPE_UINT | CTLFLAG_RD, softc, 1,
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, softc, 1,
 	    amdvi_handle_sysctl, "IU", "Command tail");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "event_head",
-	    CTLTYPE_UINT | CTLFLAG_RD, softc, 2,
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, softc, 2,
 	    amdvi_handle_sysctl, "IU", "Command head");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "event_tail",
-	    CTLTYPE_UINT | CTLFLAG_RD, softc, 3,
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, softc, 3,
 	    amdvi_handle_sysctl, "IU", "Command tail");
 }
 
