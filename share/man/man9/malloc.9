@@ -49,6 +49,8 @@
 .Fn mallocarray "size_t nmemb" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void
 .Fn free "void *addr" "struct malloc_type *type"
+.Ft void
+.Fn zfree "void *addr" "struct malloc_type *type"
 .Ft void *
 .Fn realloc "void *addr" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void *
@@ -105,6 +107,19 @@ is
 then
 .Fn free
 does nothing.
+.Pp
+Like
+.Fn free ,
+the
+.Fn zfree
+function releases memory at address
+.Fa addr
+that was previously allocated by
+.Fn malloc
+for re-use.
+However,
+.Fn zfree
+will zero the memory before it is released.
 .Pp
 The
 .Fn realloc
