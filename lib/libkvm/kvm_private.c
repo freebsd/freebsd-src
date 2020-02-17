@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+#include <stdbool.h>
 #include <net/vnet.h>
 
 #include <assert.h>

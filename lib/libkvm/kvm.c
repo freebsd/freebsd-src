@@ -49,6 +49,7 @@ __SCCSID("@(#)kvm.c	8.2 (Berkeley) 2/13/94");
 #include <sys/sysctl.h>
 #include <sys/mman.h>
 
+#include <stdbool.h>
 #include <net/vnet.h>
 
 #include <fcntl.h>
