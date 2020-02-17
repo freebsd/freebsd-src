@@ -825,6 +825,7 @@ SRCS_MIN+=	Remarks/RemarkSerializer.cpp
 SRCS_MIN+=	Remarks/RemarkStringTable.cpp
 SRCS_MIN+=	Remarks/YAMLRemarkSerializer.cpp
 SRCS_MIN+=	Support/AArch64TargetParser.cpp
+SRCS_MIN+=	Support/ABIBreak.cpp
 SRCS_MIN+=	Support/APFloat.cpp
 SRCS_MIN+=	Support/APInt.cpp
 SRCS_MIN+=	Support/APSInt.cpp
