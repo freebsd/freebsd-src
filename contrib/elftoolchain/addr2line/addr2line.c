@@ -25,6 +25,8 @@
  */
 
 #include <sys/param.h>
+
+#include <capsicum_helpers.h>
 #include <dwarf.h>
 #include <err.h>
 #include <fcntl.h>
@@ -649,6 +651,7 @@ find_section_base(const char *exe, Elf *e, const char *section)
 int
 main(int argc, char **argv)
 {
+	cap_rights_t rights;
 	Elf *e;
 	Dwarf_Debug dbg;
 	Dwarf_Error de;
@@ -705,6 +708,16 @@ main(int argc, char **argv)
 
 	if ((fd = open(exe, O_RDONLY)) < 0)
 		err(EXIT_FAILURE, "%s", exe);
+
+	if (caph_rights_limit(fd, cap_rights_init(&rights, CAP_FSTAT,
+	    CAP_MMAP_R)) < 0)
+		errx(EXIT_FAILURE, "caph_rights_limit");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0)
+		errx(EXIT_FAILURE, "failed to limit stdio rights");
+	if (caph_enter() < 0)
+		errx(EXIT_FAILURE, "failed to enter capability mode");
 
 	if (dwarf_init(fd, DW_DLC_READ, NULL, NULL, &dbg, &de))
 		errx(EXIT_FAILURE, "dwarf_init: %s", dwarf_errmsg(de));
