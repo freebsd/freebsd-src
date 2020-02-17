@@ -1453,18 +1453,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		/* Maximum I/O size is limited by maximum swap block size. */
 		n = min(count - i, nsw_cluster_max);
 
-		/* Get a block of swap of size up to size n. */
-		blk = swp_pager_getswapspace(&n, 4);
-		if (blk == SWAPBLK_NONE) {
-			for (j = 0; j < n; ++j)
-				rtvals[i + j] = VM_PAGER_FAIL;
-			continue;
-		}
-
-		/*
-		 * All I/O parameters have been satisfied.  Build the I/O
-		 * request and assign the swap space.
-		 */
 		if (async) {
 			mtx_lock(&swbuf_mtx);
 			while (nsw_wcount_async == 0)
@@ -1473,6 +1461,33 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 			nsw_wcount_async--;
 			mtx_unlock(&swbuf_mtx);
 		}
+
+		/* Get a block of swap of size up to size n. */
+		VM_OBJECT_WLOCK(object);
+		blk = swp_pager_getswapspace(&n, 4);
+		if (blk == SWAPBLK_NONE) {
+			VM_OBJECT_WUNLOCK(object);
+			mtx_lock(&swbuf_mtx);
+			if (++nsw_wcount_async == 1)
+				wakeup(&nsw_wcount_async);
+			mtx_unlock(&swbuf_mtx);
+			for (j = 0; j < n; ++j)
+				rtvals[i + j] = VM_PAGER_FAIL;
+			continue;
+		}
+		for (j = 0; j < n; ++j) {
+			mreq = ma[i + j];
+			vm_page_aflag_clear(mreq, PGA_SWAP_FREE);
+			addr = swp_pager_meta_build(mreq->object, mreq->pindex,
+			    blk + j);
+			if (addr != SWAPBLK_NONE)
+				swp_pager_update_freerange(&s_free, &n_free,
+				    addr);
+			MPASS(mreq->dirty == VM_PAGE_BITS_ALL);
+			mreq->oflags |= VPO_SWAPINPROG;
+		}
+		VM_OBJECT_WUNLOCK(object);
+
 		bp = uma_zalloc(swwbuf_zone, M_WAITOK);
 		if (async)
 			bp->b_flags = B_ASYNC;
@@ -1484,22 +1499,10 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		bp->b_bcount = PAGE_SIZE * n;
 		bp->b_bufsize = PAGE_SIZE * n;
 		bp->b_blkno = blk;
-
-		VM_OBJECT_WLOCK(object);
-		for (j = 0; j < n; ++j) {
-			mreq = ma[i + j];
-			vm_page_aflag_clear(mreq, PGA_SWAP_FREE);
-			addr = swp_pager_meta_build(mreq->object, mreq->pindex,
-			    blk + j);
-			if (addr != SWAPBLK_NONE)
-				swp_pager_update_freerange(&s_free, &n_free,
-				    addr);
-			MPASS(mreq->dirty == VM_PAGE_BITS_ALL);
-			mreq->oflags |= VPO_SWAPINPROG;
-			bp->b_pages[j] = mreq;
-		}
-		VM_OBJECT_WUNLOCK(object);
+		for (j = 0; j < n; j++)
+			bp->b_pages[j] = ma[i + j];
 		bp->b_npages = n;
+
 		/*
 		 * Must set dirty range for NFS to work.
 		 */
@@ -2059,7 +2062,7 @@ allocated:
 	 * Free the swblk if we end up with the empty page run.
 	 */
 	if (swapblk == SWAPBLK_NONE)
-	    swp_pager_free_empty_swblk(object, sb);
+		swp_pager_free_empty_swblk(object, sb);
 	return (prev_swapblk);
 }
 
