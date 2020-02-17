@@ -119,6 +119,9 @@ refcount_releasen(volatile u_int *count, u_int n)
 	KASSERT(n < REFCOUNT_SATURATION_VALUE / 2,
 	    ("refcount_releasen: n=%u too large", n));
 
+	/*
+	 * Paired with acquire fence in refcount_release_last.
+	 */
 	atomic_thread_fence_rel();
 	old = atomic_fetchadd_int(count, -n);
 	if (__predict_false(n >= REFCOUNT_COUNT(old) ||
@@ -198,6 +201,9 @@ refcount_release_if_gt(volatile u_int *count, u_int n)
 			return (false);
 		if (__predict_false(REFCOUNT_SATURATED(old)))
 			return (true);
+		/*
+		 * Paired with acquire fence in refcount_release_last.
+		 */
 		if (atomic_fcmpset_rel_int(count, &old, old - 1))
 			return (true);
 	}

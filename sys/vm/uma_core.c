@@ -2944,10 +2944,13 @@ uma_zdestroy(uma_zone_t zone)
 void
 uma_zwait(uma_zone_t zone)
 {
-	void *item;
 
-	item = uma_zalloc_arg(zone, NULL, M_WAITOK);
-	uma_zfree(zone, item);
+	if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
+		uma_zfree_smr(zone, uma_zalloc_smr(zone, M_WAITOK));
+	else if ((zone->uz_flags & UMA_ZONE_PCPU) != 0)
+		uma_zfree_pcpu(zone, uma_zalloc_pcpu(zone, M_WAITOK));
+	else
+		uma_zfree(zone, uma_zalloc(zone, M_WAITOK));
 }
 
 void *
@@ -4676,6 +4679,27 @@ uma_prealloc(uma_zone_t zone, int items)
 				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask);
 		}
 	}
+}
+
+/*
+ * Returns a snapshot of memory consumption in bytes.
+ */
+size_t
+uma_zone_memory(uma_zone_t zone)
+{
+	size_t sz;
+	int i;
+
+	sz = 0;
+	if (zone->uz_flags & UMA_ZFLAG_CACHE) {
+		for (i = 0; i < vm_ndomains; i++)
+			sz += zone->uz_domain[i].uzd_nitems;
+		return (sz * zone->uz_size);
+	}
+	for (i = 0; i < vm_ndomains; i++)
+		sz += zone->uz_keg->uk_domain[i].ud_pages;
+
+	return (sz * PAGE_SIZE);
 }
 
 /* See uma.h */
