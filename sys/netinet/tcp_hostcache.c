@@ -437,8 +437,10 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 {
 	struct hc_metrics *hc_entry;
 
-	if (!V_tcp_use_hostcache)
+	if (!V_tcp_use_hostcache) {
+		bzero(hc_metrics_lite, sizeof(*hc_metrics_lite));
 		return;
+	}
 
 	/*
 	 * Find the right bucket.

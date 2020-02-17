@@ -42,7 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 
 static int drm_msi = 1;	/* Enable by default. */
-SYSCTL_NODE(_hw, OID_AUTO, drm, CTLFLAG_RW, NULL, "DRM device");
+SYSCTL_NODE(_hw, OID_AUTO, drm, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    "DRM device");
 SYSCTL_INT(_hw_drm, OID_AUTO, msi, CTLFLAG_RDTUN, &drm_msi, 1,
     "Enable MSI interrupts for drm devices");
 

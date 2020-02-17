@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/types.h>
 
+#include <stdbool.h>
 #include <net/vnet.h>
 
 #include <kvm.h>

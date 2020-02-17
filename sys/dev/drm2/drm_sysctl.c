@@ -69,7 +69,7 @@ int drm_sysctl_init(struct drm_device *dev)
 
 	/* Add the sysctl node for DRI if it doesn't already exist */
 	drioid = SYSCTL_ADD_NODE(&info->ctx, SYSCTL_CHILDREN(&sysctl___hw), OID_AUTO,
-	    "dri", CTLFLAG_RW, NULL, "DRI Graphics");
+	    "dri", CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "DRI Graphics");
 	if (!drioid) {
 		free(dev->sysctl, DRM_MEM_DRIVER);
 		dev->sysctl = NULL;
@@ -92,23 +92,17 @@ int drm_sysctl_init(struct drm_device *dev)
 	info->name[0] = '0' + i;
 	info->name[1] = 0;
 	top = SYSCTL_ADD_NODE(&info->ctx, SYSCTL_CHILDREN(drioid),
-	    OID_AUTO, info->name, CTLFLAG_RW, NULL, NULL);
+	    OID_AUTO, info->name, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, NULL);
 	if (!top) {
 		drm_sysctl_cleanup(dev);
 		return (-ENOMEM);
 	}
 
 	for (i = 0; i < DRM_SYSCTL_ENTRIES; i++) {
-		oid = SYSCTL_ADD_OID(&info->ctx,
-			SYSCTL_CHILDREN(top),
-			OID_AUTO,
-			drm_sysctl_list[i].name,
-			CTLTYPE_STRING | CTLFLAG_RD,
-			dev,
-			0,
-			drm_sysctl_list[i].f,
-			"A",
-			NULL);
+		oid = SYSCTL_ADD_OID(&info->ctx, SYSCTL_CHILDREN(top),
+			OID_AUTO, drm_sysctl_list[i].name,
+			CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+			dev, 0, drm_sysctl_list[i].f, "A", NULL);
 		if (!oid) {
 			drm_sysctl_cleanup(dev);
 			return (-ENOMEM);

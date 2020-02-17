@@ -1547,6 +1547,7 @@ static int da_default_timeout = DA_DEFAULT_TIMEOUT;
 static sbintime_t da_default_softtimeout = DA_DEFAULT_SOFTTIMEOUT;
 static int da_send_ordered = DA_DEFAULT_SEND_ORDERED;
 static int da_disable_wp_detection = 0;
+static int da_enable_biospeedup = 1;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, da, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
@@ -1561,6 +1562,8 @@ SYSCTL_INT(_kern_cam_da, OID_AUTO, send_ordered, CTLFLAG_RWTUN,
 SYSCTL_INT(_kern_cam_da, OID_AUTO, disable_wp_detection, CTLFLAG_RWTUN,
            &da_disable_wp_detection, 0,
 	   "Disable detection of write-protected disks");
+SYSCTL_INT(_kern_cam_da, OID_AUTO, enable_biospeedup, CTLFLAG_RDTUN,
+	    &da_enable_biospeedup, 0, "Enable BIO_SPEEDUP processing");
 
 SYSCTL_PROC(_kern_cam_da, OID_AUTO, default_softtimeout,
     CTLTYPE_UINT | CTLFLAG_RW, NULL, 0, dasysctlsofttimeout, "I",
@@ -1966,6 +1969,9 @@ dagetattr(struct bio *bp)
 {
 	int ret;
 	struct cam_periph *periph;
+
+	if (g_handleattr_int(bp, "GEOM::canspeedup", da_enable_biospeedup))
+		return (EJUSTRETURN);
 
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
 	cam_periph_lock(periph);
