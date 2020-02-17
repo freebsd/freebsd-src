@@ -4681,6 +4681,27 @@ uma_prealloc(uma_zone_t zone, int items)
 	}
 }
 
+/*
+ * Returns a snapshot of memory consumption in bytes.
+ */
+size_t
+uma_zone_memory(uma_zone_t zone)
+{
+	size_t sz;
+	int i;
+
+	sz = 0;
+	if (zone->uz_flags & UMA_ZFLAG_CACHE) {
+		for (i = 0; i < vm_ndomains; i++)
+			sz += zone->uz_domain[i].uzd_nitems;
+		return (sz * zone->uz_size);
+	}
+	for (i = 0; i < vm_ndomains; i++)
+		sz += zone->uz_keg->uk_domain[i].ud_pages;
+
+	return (sz * PAGE_SIZE);
+}
+
 /* See uma.h */
 void
 uma_reclaim(int req)

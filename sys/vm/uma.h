@@ -671,6 +671,11 @@ void uma_prealloc(uma_zone_t zone, int itemcnt);
 int uma_zone_exhausted(uma_zone_t zone);
 
 /*
+ * Returns the bytes of memory consumed by the zone.
+ */
+size_t uma_zone_memory(uma_zone_t zone);
+
+/*
  * Common UMA_ZONE_PCPU zones.
  */
 extern uma_zone_t pcpu_zone_int;
