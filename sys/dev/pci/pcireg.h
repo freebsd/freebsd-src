@@ -192,7 +192,7 @@
 #define	PCIZ_PMUX	0x001a	/* Protocol Multiplexing */
 #define	PCIZ_PASID	0x001b	/* Process Address Space ID */
 #define	PCIZ_LN_REQ	0x001c	/* LN Requester */
-#define	PCIZ_DPC	0x001d	/* Downstream Porto Containment */
+#define	PCIZ_DPC	0x001d	/* Downstream Port Containment */
 #define	PCIZ_L1PM	0x001e	/* L1 PM Substates */
 
 /* config registers for header type 0 devices */
