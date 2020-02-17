@@ -1146,4 +1146,7 @@ static inline int mlx5_core_is_pf(struct mlx5_core_dev *dev)
 	return !(dev->priv.pci_dev_data & MLX5_PCI_DEV_IS_VF);
 }
 
+void mlx5_disable_interrupts(struct mlx5_core_dev *);
+void mlx5_poll_interrupts(struct mlx5_core_dev *);
+
 #endif /* MLX5_DRIVER_H */
