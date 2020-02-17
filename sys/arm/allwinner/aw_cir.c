@@ -205,7 +205,7 @@ aw_ir_decode_packets(struct aw_ir_softc *sc)
 		device_printf(sc->dev, "sc->dcnt = %d\n", sc->dcnt);
 
 	/* Find Lead 1 (bit separator) */
-	active_delay = (AW_IR_ACTIVE_T + 1) * (AW_IR_ACTIVE_T_C ? 128 : 1);
+	active_delay = (AW_IR_ACTIVE_T + 1) * (AW_IR_ACTIVE_T_C != 0 ? 128 : 1);
 	len = 0;
 	len += (active_delay >> 1);
 	if (bootverbose)
