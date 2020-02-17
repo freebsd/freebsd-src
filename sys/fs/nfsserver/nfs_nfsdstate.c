@@ -1488,7 +1488,8 @@ nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp, int cansleep,
 				tvp = NULL;
 			else if (vp == NULL && cansleep != 0) {
 				tvp = nfsvno_getvp(&lfp->lf_fh);
-				NFSVOPUNLOCK(tvp, 0);
+				if (tvp != NULL)
+					NFSVOPUNLOCK(tvp, 0);
 			} else
 				tvp = vp;
 			gottvp = 1;
