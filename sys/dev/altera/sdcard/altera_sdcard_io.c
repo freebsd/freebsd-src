@@ -293,27 +293,31 @@ recheck:
 }
 
 static void
-altera_sdcard_io_start_internal(struct altera_sdcard_softc *sc, struct bio **bp)
+altera_sdcard_io_start_internal(struct altera_sdcard_softc *sc,
+    struct bio **bpp)
 {
+	struct bio *bp;
 
-	switch (*bp->bio_cmd) {
+	bp = *bpp;
+
+	switch (bp->bio_cmd) {
 	case BIO_READ:
-		altera_sdcard_write_cmd_arg(sc, *bp->bio_pblkno *
+		altera_sdcard_write_cmd_arg(sc, bp->bio_pblkno *
 		    ALTERA_SDCARD_SECTORSIZE);
 		altera_sdcard_write_cmd(sc, ALTERA_SDCARD_CMD_READ_BLOCK);
 		break;
 
 	case BIO_WRITE:
-		altera_sdcard_write_rxtx_buffer(sc, *bp->bio_data,
-		    *bp->bio_bcount);
-		altera_sdcard_write_cmd_arg(sc, *bp->bio_pblkno *
+		altera_sdcard_write_rxtx_buffer(sc, bp->bio_data,
+		    bp->bio_bcount);
+		altera_sdcard_write_cmd_arg(sc, bp->bio_pblkno *
 		    ALTERA_SDCARD_SECTORSIZE);
 		altera_sdcard_write_cmd(sc, ALTERA_SDCARD_CMD_WRITE_BLOCK);
 		break;
 
 	default:
-		biofinish(*bp, NULL, EOPNOTSUPP);
-		*bp = NULL;
+		biofinish(bp, NULL, EOPNOTSUPP);
+		*bpp = NULL;
 	}
 }
 
@@ -333,7 +337,7 @@ altera_sdcard_io_start(struct altera_sdcard_softc *sc, struct bio *bp)
 	KASSERT(bp->bio_bcount == ALTERA_SDCARD_SECTORSIZE,
 	    ("%s: I/O size not %d", __func__, ALTERA_SDCARD_SECTORSIZE));
 	altera_sdcard_io_start_internal(sc, &bp);
-	sc->as_currentbio = *bp;
+	sc->as_currentbio = bp;
 	sc->as_retriesleft = ALTERA_SDCARD_RETRY_LIMIT;
 }
 
