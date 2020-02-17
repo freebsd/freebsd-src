@@ -248,6 +248,7 @@ void TestSkipped(const char *testcase, const char *test, const std::string& reas
     const ::testing::TestInfo* const info = ::testing::UnitTest::GetInstance()->current_test_info(); \
     std::cerr << "Skipping " << info->test_case_name() << "::" << info->name() << " because: " << reason << std::endl; \
     TestSkipped(info->test_case_name(), info->name(), reason);          \
+    GTEST_SKIP(); \
   } while (0)
 
 // Mark a test that can only be run as root.
