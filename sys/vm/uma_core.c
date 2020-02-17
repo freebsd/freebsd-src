@@ -2944,10 +2944,13 @@ uma_zdestroy(uma_zone_t zone)
 void
 uma_zwait(uma_zone_t zone)
 {
-	void *item;
 
-	item = uma_zalloc_arg(zone, NULL, M_WAITOK);
-	uma_zfree(zone, item);
+	if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
+		uma_zfree_smr(zone, uma_zalloc_smr(zone, M_WAITOK));
+	else if ((zone->uz_flags & UMA_ZONE_PCPU) != 0)
+		uma_zfree_pcpu(zone, uma_zalloc_pcpu(zone, M_WAITOK));
+	else
+		uma_zfree(zone, uma_zalloc(zone, M_WAITOK));
 }
 
 void *
