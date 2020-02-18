@@ -17,10 +17,12 @@ static char sccsid[] = "%Z% %M% %I% %E% %U%";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <ctype.h>
 #include <errno.h>
 #include <grp.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -174,6 +176,9 @@ static int
 user_match(const char *tok, const char *string)
 {
     struct group *group;
+    struct passwd *passwd;
+    gid_t *grouplist;
+    int ngroups = NGROUPS;
     int     i;
 
     /*
@@ -186,10 +191,37 @@ user_match(const char *tok, const char *string)
 	return (netgroup_match(tok + 1, (char *) 0, string));
     } else if (string_match(tok, string)) {	/* ALL or exact match */
 	return (YES);
-    } else if ((group = getgrnam(tok)) != NULL) {/* try group membership */
-	for (i = 0; group->gr_mem[i]; i++)
-	    if (strcasecmp(string, group->gr_mem[i]) == 0)
+    } else {
+	if ((passwd = getpwnam(string)) == NULL)
+		return (NO);
+	errno = 0;
+	if ((group = getgrnam(tok)) == NULL) {/* try group membership */
+	    if (errno != 0) {
+		syslog(LOG_ERR, "getgrnam() failed for %s: %s", string, strerror(errno));
+	    } else {
+		syslog(LOG_NOTICE, "group not found: %s", string);
+	    }
+	    return (NO);
+	}
+	errno = 0;
+	if ((grouplist = calloc(ngroups, sizeof(gid_t))) == NULL) {
+	    if (errno == ENOMEM) {
+		syslog(LOG_ERR, "cannot allocate memory for grouplist: %s", string);
+	    }
+	    return (NO);
+	}
+	if (getgrouplist(string, passwd->pw_gid, grouplist, &ngroups) != 0) {
+	    syslog(LOG_ERR, "getgrouplist() failed for %s", string);
+	    free(grouplist);
+	    return (NO);
+	}
+	for (i = 0; i < ngroups; i++) {
+	    if (grouplist[i] == group->gr_gid) {
+		free(grouplist);
 		return (YES);
+	    }
+	}
+	free(grouplist);
     }
     return (NO);
 }
