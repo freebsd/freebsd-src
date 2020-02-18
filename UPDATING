@@ -2003,6 +2003,12 @@ COMMON ITEMS:
 	last couple of stable branches). See the top of this file when there's
 	an exception.
 
+	The update process will emit an error on an attempt to perform a build
+	or install from a FreeBSD version below the earliest supported version.
+	When updating from an older version the update should be performed one
+	major release at a time, including running `make delete-old` at each
+	step.
+
 	When upgrading a live system, having a root shell around before
 	installing anything can help undo problems. Not having a root shell
 	around can lead to problems if pam has changed too much from your
