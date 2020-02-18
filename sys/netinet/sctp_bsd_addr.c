@@ -363,23 +363,6 @@ sctp_addr_change_event_handler(void *arg __unused, struct ifaddr *ifa, int cmd)
 	sctp_addr_change(ifa, cmd);
 }
 
-void
-     sctp_add_or_del_interfaces(int (*pred) (struct ifnet *), int add){
-	struct ifnet *ifn;
-	struct ifaddr *ifa;
-
-	IFNET_RLOCK();
-	CK_STAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_link) {
-		if (!(*pred) (ifn)) {
-			continue;
-		}
-		CK_STAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link) {
-			sctp_addr_change(ifa, add ? RTM_ADD : RTM_DELETE);
-		}
-	}
-	IFNET_RUNLOCK();
-}
-
 struct mbuf *
 sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
     int how, int allonebuf, int type)
