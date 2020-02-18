@@ -252,7 +252,7 @@ from_match(const char *tok, const char *string)
 	    && strcasecmp(tok, string + str_len - tok_len) == 0)
 	    return (YES);
     } else if (strcmp(tok, "LOCAL") == 0) {	/* local: no dots */
-	if (strchr(string, '.') == 0)
+	if (strchr(string, '.') == NULL)
 	    return (YES);
     } else if (tok[(tok_len = strlen(tok)) - 1] == '.'	/* network */
 	       && strncmp(tok, string, tok_len) == 0) {
