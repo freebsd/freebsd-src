@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2016 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_current.c,v 1.12 2010/01/23 21:14:35 tom Exp $")
+MODULE_ID("$Id: fld_current.c,v 1.14 2016/10/29 22:30:10 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -76,7 +76,7 @@ set_current_field(FORM *form, FIELD *field)
 	{
 	  if (form->current != field)
 	    {
-	      if (!_nc_Internal_Validation(form))
+	      if (form->current && !_nc_Internal_Validation(form))
 		{
 		  err = E_INVALID_FIELD;
 		}
@@ -100,6 +100,32 @@ set_current_field(FORM *form, FIELD *field)
 	}
     }
   RETURN(err);
+}
+
+/*---------------------------------------------------------------------------
+|   Facility      :  libnform
+|   Function      :  int unfocus_current_field(FORM * form)
+|
+|   Description   :  Removes focus from the current field.
+|
+|   Return Values :  E_OK              - success
+|                    E_BAD_ARGUMENT    - invalid form pointer
+|                    E_REQUEST_DENIED  - there is no current field to unfocus
++--------------------------------------------------------------------------*/
+NCURSES_EXPORT(int)
+unfocus_current_field(FORM *const form)
+{
+  T((T_CALLED("unfocus_current_field(%p)"), (const void *)form));
+  if (form == 0)
+    {
+      RETURN(E_BAD_ARGUMENT);
+    }
+  else if (form->current == 0)
+    {
+      RETURN(E_REQUEST_DENIED);
+    }
+  _nc_Unset_Current_Field(form);
+  RETURN(E_OK);
 }
 
 /*---------------------------------------------------------------------------

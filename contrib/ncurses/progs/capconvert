@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 1998-2006,2011 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2019,2020 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: capconvert,v 1.5 2011/11/12 23:28:07 Robert.Millan Exp $
+# $Id: capconvert,v 1.8 2020/01/18 17:02:38 tom Exp $
 #
 # capconvert -- automated conversion from termcap to terminfo
 #
@@ -179,7 +179,7 @@ else
 		echo "I am going to assume this is the terminfo source included with"
 		echo "the ncurses distribution.  If this assumption is wrong, please"
 		echo "interrupt me now!  OK to continue?"
-		read ans;
+		read answer;
 	;;
 	2)
 		echo "I see more than one possible terminfo source.  Here they are:"
@@ -205,14 +205,14 @@ echo "OK, now I will make your private terminfo tree.  This may take a bit..."
 #
 # Kluge alert: we compile terminfo.src in two pieces because a lot of machines
 # with < 16MB RAM choke on tic's core-hog habits.
-trap "rm -f tsplit$$.*" 0 1 2 5 15
+trap "rm -f tsplit$$.*" EXIT INT QUIT TERM HUP
 sed -n $master \
 	-e '1,/SPLIT HERE/w 'tsplit$$.01 \
 	-e '/SPLIT HERE/,$w 'tsplit$$.02 \
 	2>/dev/null
 for x in tsplit$$.*; do eval $TIC $x; done
 rm tsplit$$.*
-trap 0 1 2 5 15
+trap EXIT INT QUIT TERM HUP
 #
 echo "You now have a private tree under $HOME/.terminfo;"
 echo "the ncurses library will automatically read from it,"
@@ -251,7 +251,7 @@ else
 	echo "Done."
 	echo "Note that editing TERMCAP will no longer change the data curses sees."
 fi
-echo "To do that, decompile the terminal decription you want with infocmp(1),"
+echo "To do that, decompile the terminal description you want with infocmp(1),"
 echo "edit to taste, and recompile using tic(1)."
 
 # capconvert ends here

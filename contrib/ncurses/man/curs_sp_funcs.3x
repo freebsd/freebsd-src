@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2010,2013 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 2010-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,18 +26,25 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_sp_funcs.3x,v 1.6 2013/06/22 17:53:59 tom Exp $
+.\" $Id: curs_sp_funcs.3x,v 1.17 2019/11/30 21:01:26 tom Exp $
 .TH curs_sp_funcs 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .na
 .hy 0
 .SH NAME
-new_prescr \- \fBcurses\fR screen-pointer extension
+curs_sp_funcs \- \fBcurses\fR screen-pointer extension
 .ad
 .hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
+\fB#include <term.h>\fR
 .nf
 .sp
+\fBint alloc_pair_sp(SCREEN*, int, int);\fR
+.br
 \fBint assume_default_colors_sp(SCREEN*, int, int);\fR
 .br
 \fBint baudrate_sp(SCREEN*);\fR
@@ -66,9 +73,19 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 .br
 \fBint endwin_sp(SCREEN*);\fR
 .br
-\fBint erasechar_sp(SCREEN*);\fR
+\fBchar erasechar_sp(SCREEN*);\fR
 .br
-\fBint filter_sp(SCREEN*);\fR
+\fBint extended_color_content_sp(SCREEN *, int, int *, int *, int *);\fR
+.br
+\fBint extended_pair_content_sp(SCREEN*, int, int *, int *);\fR
+.br
+\fBint extended_slk_color_sp(SCREEN*, int);\fR
+.br
+\fBvoid filter_sp(SCREEN*);\fR
+.br
+\fBint find_pair_sp(SCREEN*, int, int);\fR
+.br
+\fBint free_pair_sp(SCREEN*, int);\fR
 .br
 \fBint flash_sp(SCREEN*);\fR
 .br
@@ -80,7 +97,7 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 .br
 \fBWINDOW* getwin_sp(SCREEN*, FILE*);\fR
 .br
-\fBint halfdelay_sp(SCREEN*);\fR
+\fBint halfdelay_sp(SCREEN*, int);\fR
 .br
 \fBbool has_colors_sp(SCREEN*);\fR
 .br
@@ -93,6 +110,10 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 \fBbool has_mouse_sp(SCREEN*);\fR
 .br
 \fBint init_color_sp(SCREEN*, short, short, short, short);\fR
+.br
+\fBint init_extended_color_sp(SCREEN*, int, int, int, int);\fR
+.br
+\fBint init_extended_pair_sp(SCREEN*, int, int, int);\fR
 .br
 \fBint init_pair_sp(SCREEN*, short, short, short);\fR
 .br
@@ -112,6 +133,8 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 .br
 \fBchar killchar_sp(SCREEN*);\fR
 .br
+\fBchar* longname_sp(SCREEN*);\fR
+.br
 \fBint mcprint_sp(SCREEN*, char *, int);\fR
 .br
 \fBint mouseinterval_sp(SCREEN*, int);\fR
@@ -126,7 +149,7 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 .br
 \fBSCREEN* new_prescr(void);\fR
 .br
-\fBSCREEN* newterm_sp(SCREEN*, NCURSES_CONST char *, FILE *, FILE *);\fR
+\fBSCREEN* newterm_sp(SCREEN*, const char *, FILE *, FILE *);\fR
 .br
 \fBWINDOW* newwin_sp(SCREEN*, int, int, int, int);\fR
 .br
@@ -136,7 +159,7 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 .br
 \fBint noecho_sp(SCREEN*);\fR
 .br
-\fBint nofilter_sp(SCREEN*);\fR
+\fBvoid nofilter_sp(SCREEN*);\fR
 .br
 \fBint nonl_sp(SCREEN*);\fR
 .br
@@ -186,7 +209,7 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 .br
 \fBint slk_attrset_sp(SCREEN*, const chtype);\fR
 .br
-\fBint slk_attr_sp(SCREEN*);\fR
+\fBattr_t slk_attr_sp(SCREEN*);\fR
 .br
 \fBint slk_clear_sp(SCREEN*);\fR
 .br
@@ -194,7 +217,7 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 .br
 \fBint slk_init_sp(SCREEN*, int);\fR
 .br
-\fBint slk_label_sp(SCREEN*, int);\fR
+\fBchar* slk_label_sp(SCREEN*, int);\fR
 .br
 \fBint slk_noutrefresh_sp(SCREEN*);\fR
 .br
@@ -228,6 +251,8 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 .br
 \fBvoid use_env_sp(SCREEN*, bool);\fR
 .br
+\fBvoid use_tioctl_sp(SCREEN *, bool);\fR
+.br
 \fBint use_legacy_coding_sp(SCREEN*, int);\fR
 .br
 \fBint vid_attr_sp(SCREEN*, attr_t, short, void *);\fR
@@ -242,19 +267,19 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 .sp
 \fB#include <form.h>\fR
 .sp
-\fBint new_form_sp(SCREEN*, FIELD **);\fR
+\fBFORM* new_form_sp(SCREEN*, FIELD **);\fR
 .sp
 \fB#include <menu.h>\fR
 .sp
-\fBint new_menu_sp(SCREEN*, ITEM **);\fR
+\fBMENU* new_menu_sp(SCREEN*, ITEM **);\fR
 .sp
 \fB#include <panel.h>\fR
 .sp
-\fBint ceiling_panel(SCREEN*);\fR
+\fBPANEL* ceiling_panel(SCREEN*);\fR
 .br
 \fBPANEL* ground_panel(SCREEN*);\fR
 .br
-\fBint update_panels_sp(SCREEN*);\fR
+\fBvoid update_panels_sp(SCREEN*);\fR
 .sp
 \fB#include <term.h>\fR
 .sp
@@ -262,19 +287,19 @@ new_prescr \- \fBcurses\fR screen-pointer extension
 .br
 \fBint putp_sp(SCREEN*, const char *);\fR
 .br
-\fBint tgetflag_sp(SCREEN*, char *, const char *);\fR
+\fBint tgetflag_sp(SCREEN*, const char *);\fR
 .br
 \fBint tgetent_sp(SCREEN*, char *, const char *);\fR
 .br
-\fBint tgetnum_sp(SCREEN*, NCURSES_CONST char *);\fR
+\fBint tgetnum_sp(SCREEN*, const char *);\fR
 .br
-\fBchar* tgetstr_sp(SCREEN*, NCURSES_CONST char *, char **);\fR
+\fBchar* tgetstr_sp(SCREEN*, const char *, char **);\fR
 .br
-\fBint tigetflag_sp(SCREEN*, NCURSES_CONST char *);\fR
+\fBint tigetflag_sp(SCREEN*, const char *);\fR
 .br
-\fBint tigetnum_sp(SCREEN*, NCURSES_CONST char *);\fR
+\fBint tigetnum_sp(SCREEN*, const char *);\fR
 .br
-\fBchar* tigetstr_sp(SCREEN*, NCURSES_CONST char *);\fR
+\fBchar* tigetstr_sp(SCREEN*, const char *);\fR
 .br
 \fBint tputs_sp(SCREEN*, const char *, int, NCURSES_SP_OUTC);\fR
 .ad
@@ -328,7 +353,7 @@ to make it useful for checking if the extension is provided.
 NCURSES_SP_NAME
 The new functions are named using the macro \fINCURSES_SP_NAME\fP,
 which hides the actual implementation.
-Currently this adds a "_sp" suffix to the name of the unextended function.
+Currently this adds a \*(``_sp\*('' suffix to the name of the unextended function.
 This manual page indexes the extensions showing the full name.
 However the proper usage of these functions uses the macro,
 to provide for the possibility of changing the naming convention

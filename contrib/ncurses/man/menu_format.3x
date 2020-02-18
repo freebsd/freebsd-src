@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,11 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_format.3x,v 1.12 2010/12/04 18:40:45 tom Exp $
+.\" $Id: menu_format.3x,v 1.16 2019/01/20 20:32:23 tom Exp $
 .TH menu_format 3X ""
 .SH NAME
-\fBmenu_format\fR \- set and get menu sizes
+\fBset_menu_format\fP,
+\fBmenu_format\fP \- set and get menu sizes
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
 .br
@@ -40,12 +41,16 @@ void menu_format(const MENU *menu, int *rows, int *cols);
 .br
 .SH DESCRIPTION
 The function \fBset_menu_format\fR sets the maximum display size of the given
-menu.  If this size is too small to display all menu items, the menu will be
-made scrollable. If this size is larger than the menus subwindow and the
-subwindow is too small to display all menu items, \fBpost_menu()\fR will fail.
+menu.
+If this size is too small to display all menu items, the menu will be
+made scrollable.
+If this size is larger than the menus subwindow and the
+subwindow is too small to display all menu items, \fBpost_menu\fR will fail.
 .PP
-The default format is 16 rows, 1 column.  Calling \fBset_menu_format\fR with a
-null menu pointer will change this default.  A zero row or column argument to
+The default format is 16 rows, 1 column.
+Calling \fBset_menu_format\fR with a
+null menu pointer will change this default.
+A zero row or column argument to
 \fBset_menu_format\fR is interpreted as a request not to change the current
 value.
 .PP
@@ -58,7 +63,7 @@ These routines returns one of the following:
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .TP 5
 .B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
@@ -74,8 +79,9 @@ No items are connected to the menu.
 The header file \fB<menu.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V menu library.  They were not supported on
+These routines emulate the System V menu library.
+They were not supported on
 Version 7 or BSD versions.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

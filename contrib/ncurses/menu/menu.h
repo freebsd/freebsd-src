@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,7 @@
  *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
-/* $Id: menu.h,v 1.20 2009/04/05 00:28:07 tom Exp $ */
+/* $Id: menu.h,v 1.23 2017/02/11 16:54:04 tom Exp $ */
 
 #ifndef ETI_MENU
 #define ETI_MENU
@@ -56,17 +56,23 @@ typedef int Item_Options;
 #define O_IGNORECASE    (0x08)
 #define O_SHOWMATCH     (0x10)
 #define O_NONCYCLIC     (0x20)
+#define O_MOUSE_MENU    (0x40)
 
 /* Item options: */
 #define O_SELECTABLE    (0x01)
 
+#if !NCURSES_OPAQUE_MENU
 typedef struct
 {
   const char* str;
   unsigned short length;
 } TEXT;
+#endif /* !NCURSES_OPAQUE_MENU */
+
+struct tagMENU;
 
 typedef struct tagITEM 
+#if !NCURSES_OPAQUE_MENU
 {
   TEXT           name;        /* name of menu item                         */
   TEXT           description; /* description of item, optional in display  */ 
@@ -83,11 +89,14 @@ typedef struct tagITEM
   struct tagITEM *up;
   struct tagITEM *down;
 
-} ITEM;
+}
+#endif /* !NCURSES_OPAQUE_MENU */
+ITEM;
 
 typedef void (*Menu_Hook)(struct tagMENU *);
 
 typedef struct tagMENU 
+#if 1					/* not yet: !NCURSES_OPAQUE_MENU   */
 {
   short          height;                /* Nr. of chars high               */
   short          width;                 /* Nr. of chars wide               */
@@ -128,8 +137,9 @@ typedef struct tagMENU
 
   Menu_Options   opt;                   /* Menu options                    */
   unsigned short status;                /* Internal state of menu          */
-
-} MENU;
+}
+#endif /* !NCURSES_OPAQUE_MENU */
+MENU;
 
 
 /* Define keys */

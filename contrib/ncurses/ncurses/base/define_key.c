@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +33,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: define_key.c,v 1.20 2009/11/28 22:53:17 tom Exp $")
+MODULE_ID("$Id: define_key.c,v 1.21 2014/03/08 20:32:59 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(define_key) (NCURSES_SP_DCLx const char *str, int keycode)
@@ -47,7 +47,7 @@ NCURSES_SP_NAME(define_key) (NCURSES_SP_DCLx const char *str, int keycode)
 	unsigned ukey = (unsigned) keycode;
 
 #ifdef USE_TERM_DRIVER
-#define CallHasKey(keycode) CallDriver_1(SP_PARM, kyExist, keycode)
+#define CallHasKey(keycode) CallDriver_1(SP_PARM, td_kyExist, keycode)
 #else
 #define CallHasKey(keycode) NCURSES_SP_NAME(has_key)(NCURSES_SP_ARGx keycode)
 #endif

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_pad.c,v 1.46 2010/04/24 23:50:45 tom Exp $")
+MODULE_ID("$Id: lib_pad.c,v 1.47 2017/10/22 19:57:26 tom Exp $")
 
 NCURSES_EXPORT(WINDOW *)
 NCURSES_SP_NAME(newpad) (NCURSES_SP_DCLx int l, int c)
@@ -188,6 +188,12 @@ pnoutrefresh(WINDOW *win,
 
     T(("pad being refreshed"));
 
+#ifdef TRACE
+    if (USE_TRACEF(TRACE_UPDATE)) {
+	_tracedump("...pad", win);
+	_nc_unlock_global(tracef);
+    }
+#endif /* TRACE */
 #if USE_SCROLL_HINTS
     if (win->_pad._pad_y >= 0) {
 	displaced = pminrow - win->_pad._pad_y

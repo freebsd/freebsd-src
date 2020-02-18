@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_box.c,v 1.24 2010/04/24 23:51:57 tom Exp $")
+MODULE_ID("$Id: lib_box.c,v 1.25 2017/10/27 21:56:17 tom Exp $")
 
 #if USE_WIDEC_SUPPORT
 static NCURSES_INLINE chtype
@@ -114,10 +114,20 @@ wborder(WINDOW *win,
     win->_line[endy].lastchar = win->_line[0].lastchar = endx;
 
     for (i = 0; i <= endy; i++) {
+#if USE_WIDEC_SUPPORT
+	if (endx > 0 && isWidecExt(win->_line[i].text[endx])) {
+	    SetChar2(win->_line[i].text[endx - 1], ' ');
+	}
+#endif
 	SetChar2(win->_line[i].text[0], wls);
 	SetChar2(win->_line[i].text[endx], wrs);
 	win->_line[i].firstchar = 0;
 	win->_line[i].lastchar = endx;
+#if USE_WIDEC_SUPPORT
+	if (isWidecExt(win->_line[i].text[1])) {
+	    SetChar2(win->_line[i].text[1], ' ');
+	}
+#endif
     }
     SetChar2(win->_line[0].text[0], wtl);
     SetChar2(win->_line[0].text[endx], wtr);

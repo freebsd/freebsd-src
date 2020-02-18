@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2016,2018 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_clear.3x,v 1.14 2010/12/04 18:36:44 tom Exp $
+.\" $Id: curs_clear.3x,v 1.16 2018/07/28 21:34:06 tom Exp $
 .TH curs_clear 3X ""
 .na
 .hy 0
@@ -70,7 +70,8 @@ cleared completely on the next call to \fBwrefresh\fR for that window
 and repainted from scratch.
 .PP
 The \fBclrtobot\fR and \fBwclrtobot\fR routines erase from the cursor to the
-end of screen.  That is, they erase all lines below the cursor in the window.
+end of screen.
+That is, they erase all lines below the cursor in the window.
 Also, the current line to the right of the cursor, inclusive, is erased.
 .PP
 The \fBclrtoeol\fR and \fBwclrtoeol\fR routines erase the current line
@@ -90,18 +91,20 @@ functions using a window pointer parameter return an error if it is null.
 Note that \fBerase\fR, \fBwerase\fR, \fBclear\fR, \fBwclear\fR,
 \fBclrtobot\fR, and \fBclrtoeol\fR may be macros.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.  The
+These functions are described in the XSI Curses standard, Issue 4.
+The
 standard specifies that they return \fBERR\fR on failure, but specifies no
 error conditions.
 .PP
 Some historic curses implementations had, as an undocumented feature, the
 ability to do the equivalent of \fBclearok(..., 1)\fR by saying
-\fBtouchwin(stdscr)\fR or \fBclear(stdscr)\fR.  This will not work under
+\fBtouchwin(stdscr)\fR or \fBclear(stdscr)\fR.
+This will not work under
 ncurses.
 .PP
 This implementation, and others such as Solaris,
 sets the current position to 0,0 after erasing
-via \fBwerase()\fP and \fBwclear()\fP.
+via \fBwerase\fP and \fBwclear\fP.
 That fact is not documented in other implementations,
 and may not be true of implementations
 which were not derived from SVr4 source.

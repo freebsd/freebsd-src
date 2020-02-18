@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 #include <tic.h>
 #include <hashsize.h>
 
-MODULE_ID("$Id: comp_hash.c,v 1.48 2009/08/08 17:36:21 tom Exp $")
+MODULE_ID("$Id: comp_hash.c,v 1.51 2019/10/12 16:32:13 tom Exp $")
 
 /*
  * Finds the entry for the given string in the hash table if present.
@@ -63,7 +63,9 @@ _nc_find_entry(const char *string,
 
     hashvalue = data->hash_of(string);
 
-    if (data->table_data[hashvalue] >= 0) {
+    if (hashvalue >= 0
+	&& (unsigned) hashvalue < data->table_size
+	&& data->table_data[hashvalue] >= 0) {
 
 	real_table = _nc_get_table(termcap);
 	ptr = real_table + data->table_data[hashvalue];
@@ -96,7 +98,9 @@ _nc_find_type_entry(const char *string,
     const HashData *data = _nc_get_hash_info(termcap);
     int hashvalue = data->hash_of(string);
 
-    if (data->table_data[hashvalue] >= 0) {
+    if (hashvalue >= 0
+	&& (unsigned) hashvalue < data->table_size
+	&& data->table_data[hashvalue] >= 0) {
 	const struct name_table_entry *const table = _nc_get_table(termcap);
 
 	ptr = table + data->table_data[hashvalue];
@@ -112,3 +116,34 @@ _nc_find_type_entry(const char *string,
 
     return ptr;
 }
+
+#if NCURSES_XNAMES
+NCURSES_EXPORT(struct user_table_entry const *)
+_nc_find_user_entry(const char *string)
+{
+    const HashData *data = _nc_get_hash_user();
+    int hashvalue;
+    struct user_table_entry const *ptr = 0;
+    struct user_table_entry const *real_table;
+
+    hashvalue = data->hash_of(string);
+
+    if (hashvalue >= 0
+	&& (unsigned) hashvalue < data->table_size
+	&& data->table_data[hashvalue] >= 0) {
+
+	real_table = _nc_get_userdefs_table();
+	ptr = real_table + data->table_data[hashvalue];
+	while (!data->compare_names(ptr->ute_name, string)) {
+	    if (ptr->ute_link < 0) {
+		ptr = 0;
+		break;
+	    }
+	    ptr = real_table + (ptr->ute_link
+				+ data->table_data[data->table_size]);
+	}
+    }
+
+    return (ptr);
+}
+#endif /* NCURSES_XNAMES */
