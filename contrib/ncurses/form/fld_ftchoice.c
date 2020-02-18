@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2016,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_ftchoice.c,v 1.13 2012/06/10 00:27:49 tom Exp $")
+MODULE_ID("$Id: fld_ftchoice.c,v 1.15 2018/12/16 00:14:26 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -51,7 +51,12 @@ set_fieldtype_choice(FIELDTYPE *typ,
 		     bool (*const next_choice) (FIELD *, const void *),
 		     bool (*const prev_choice) (FIELD *, const void *))
 {
-  T((T_CALLED("set_fieldtype_choice(%p,%p,%p)"), (void *)typ, next_choice, prev_choice));
+  TR_FUNC_BFR(2);
+
+  T((T_CALLED("set_fieldtype_choice(%p,%s,%s)"),
+     (void *)typ,
+     TR_FUNC_ARG(0, next_choice),
+     TR_FUNC_ARG(1, prev_choice)));
 
   if (!typ || !next_choice || !prev_choice)
     RETURN(E_BAD_ARGUMENT);

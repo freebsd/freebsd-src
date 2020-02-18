@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2013,2015 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_overlay.3x,v 1.17 2013/04/06 23:48:51 tom Exp $
+.\" $Id: curs_overlay.3x,v 1.18 2015/07/21 00:51:31 tom Exp $
 .TH curs_overlay 3X ""
 .na
 .hy 0
@@ -39,20 +39,22 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBint overlay(const WINDOW *srcwin, WINDOW *dstwin);\fR
+\fBint overlay(const WINDOW *\fP\fIsrcwin\fP\fB, WINDOW *\fP\fIdstwin\fP\fB);\fR
 .br
-\fBint overwrite(const WINDOW *srcwin, WINDOW *dstwin);\fR
+\fBint overwrite(const WINDOW *\fP\fIsrcwin\fP\fB, WINDOW *\fP\fIdstwin\fP\fB);\fR
 .br
-\fBint copywin(const WINDOW *srcwin, WINDOW *dstwin, int sminrow,\fR
-      \fBint smincol, int dminrow, int dmincol, int dmaxrow,\fR
-      \fBint dmaxcol, int overlay);\fR
+\fBint copywin(const WINDOW *\fP\fIsrcwin\fP\fB, WINDOW *\fP\fIdstwin\fP\fB, int \fP\fIsminrow\fP\fB,\fR
+      \fBint \fP\fIsmincol\fP\fB, int \fP\fIdminrow\fP\fB, int \fP\fIdmincol\fP\fB, int \fP\fIdmaxrow\fP\fB,\fR
+      \fBint \fP\fIdmaxcol\fP\fB, int \fP\fIoverlay\fP\fB);\fR
 .SH DESCRIPTION
+.SS overlay, overwrite
 The \fBoverlay\fR and \fBoverwrite\fR routines overlay \fIsrcwin\fR on
 top of \fIdstwin\fR.
 \fIscrwin\fR and \fIdstwin\fR are not required
 to be the same size; only text where the two windows overlap is copied.
 The difference is that \fBoverlay\fR is non-destructive
 (blanks are not copied) whereas \fBoverwrite\fR is destructive.
+.SS copywin
 .PP
 The \fBcopywin\fR routine provides a finer granularity of control over the
 \fBoverlay\fR and \fBoverwrite\fR routines.

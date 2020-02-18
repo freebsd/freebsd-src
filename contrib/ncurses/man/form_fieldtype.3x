@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_fieldtype.3x,v 1.16 2010/12/04 18:40:45 tom Exp $
+.\" $Id: form_fieldtype.3x,v 1.19 2019/01/20 20:31:42 tom Exp $
 .TH form_fieldtype 3X ""
 .SH NAME
 \fBform_fieldtype\fR \- define validation-field types
@@ -56,7 +56,8 @@ FIELDTYPE *link_fieldtype(FIELDTYPE *type1,
 .br
 .SH DESCRIPTION
 The function \fBnew_fieldtype\fR creates a new field type usable for data
-validation.  You supply it with \fIfield_check\fR, a predicate to check the
+validation.
+You supply it with \fIfield_check\fR, a predicate to check the
 validity of an entered data string whenever the user attempts to leave a field.
 The (FIELD *) argument is passed in so the validation predicate can see the
 field's buffer, sizes and other attributes; the second argument is an
@@ -69,8 +70,8 @@ the character to be checked and a pointer to an argument-block structure.
 The function \fBfree_fieldtype\fR frees the space allocated for a given
 validation type.
 .PP
-The function \fBset_fieldtype_arg\fR associates three storage-management functions
-with a field type.
+The function \fBset_fieldtype_arg\fR associates
+three storage-management functions with a field type.
 The \fImake_arg\fR function is automatically applied to the
 list of arguments you give \fBset_field_type\fR when attaching validation
 to a field; its job is to bundle these into an allocated argument-block
@@ -124,7 +125,7 @@ The field is already connected to a form.
 The field is the current field.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).
 .SH NOTES
@@ -135,8 +136,9 @@ All of the \fB(char *)\fR arguments of these functions should actually be
 \fB(void *)\fR.  The type has been left uncorrected for strict compatibility
 with System V.
 .SH PORTABILITY
-These routines emulate the System V forms library.  They were not supported on
+These routines emulate the System V forms library.
+They were not supported on
 Version 7 or BSD versions.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

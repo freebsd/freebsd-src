@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,10 +26,15 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_termcap.3x,v 1.30 2013/01/19 15:58:48 tom Exp $
+.\" $Id: curs_termcap.3x,v 1.42 2019/11/30 21:01:40 tom Exp $
 .TH curs_termcap 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .de bP
-.IP \(bu 4
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
 ..
 .na
 .hy 0
@@ -62,11 +67,11 @@
 .sp
 \fBint tgetent(char *bp, const char *name);\fR
 .br
-\fBint tgetflag(char *id);\fR
+\fBint tgetflag(const char *id);\fR
 .br
-\fBint tgetnum(char *id);\fR
+\fBint tgetnum(const char *id);\fR
 .br
-\fBchar *tgetstr(char *id, char **area);\fR
+\fBchar *tgetstr(const char *id, char **area);\fR
 .br
 \fBchar *tgoto(const char *cap, int col, int row);\fR
 .br
@@ -74,8 +79,10 @@
 .br
 .SH DESCRIPTION
 These routines are included as a conversion aid for programs that use
-the \fItermcap\fR library.  Their parameters are the same and the
-routines are emulated using the \fIterminfo\fR database.  Thus, they
+the \fItermcap\fR library.
+Their parameters are the same and the
+routines are emulated using the \fIterminfo\fR database.
+Thus, they
 can only be used to query the capabilities of entries for which a
 terminfo entry has been compiled.
 .SS INITIALIZATION
@@ -121,9 +128,24 @@ or \-1 if it is not available.
 The \fBtgetstr\fR routine returns the string entry for \fIid\fR,
 or zero if it is not available.
 Use \fBtputs\fR to output the returned string.
-The return value will also be copied to the buffer pointed to by \fIarea\fR,
+The \fIarea\fP parameter is used as follows:
+.RS 3
+.bP
+It is assumed to be the address of a pointer to a buffer managed by the
+calling application.
+.bP
+However, ncurses checks to ensure that \fBarea\fP is not NULL,
+and also that the resulting buffer pointer is not NULL.
+If either check fails, the \fIarea\fP parameter is ignored.
+.bP
+If the checks succeed, ncurses also copies the return value to
+the buffer pointed to by \fIarea\fR,
 and the \fIarea\fR value will be updated to point past the null ending
 this value.
+.bP
+The return value itself is an address in the terminal description which
+is loaded into memory.
+.RE
 .PP
 Only the first two characters of the \fBid\fR parameter of
 \fBtgetflag\fR,
@@ -131,11 +153,33 @@ Only the first two characters of the \fBid\fR parameter of
 \fBtgetstr\fR are compared in lookups.
 .SS FORMATTING CAPABILITIES
 .PP
-The \fBtgoto\fR routine instantiates the parameters into the given capability.
-The output from this routine is to be passed to \fBtputs\fR.
+The \fBtgoto\fR routine expands the given capability using the parameters.
+.bP
+Because the capability may have padding characters,
+the output of \fBtgoto\fP should be passed to \fBtputs\fR
+rather than some other output function such as \fBprintf\fP.
+.bP
+While \fBtgoto\fP is assumed to be used for the two-parameter
+cursor positioning capability,
+termcap applications also use it for single-parameter capabilities.
+.IP
+Doing this shows a quirk in \fBtgoto\fP: most hardware
+terminals use cursor addressing with \fIrow\fP first,
+but the original developers of the termcap interface chose to
+put the \fIcolumn\fP parameter first.
+The \fBtgoto\fP function swaps the order of parameters.
+It does this also for calls requiring only a single parameter.
+In that case, the first parameter is merely a placeholder.
+.bP
+Normally the ncurses library is compiled with terminfo support.
+In that case, \fBtgoto\fP uses \fBtparm\fP(3X) (a more capable formatter).
+.IP
+However, \fBtparm\fP is not a \fItermcap\fP feature,
+and portable \fItermcap\fP applications should not rely upon its availability.
 .PP
 The \fBtputs\fR routine is described on the \fBcurs_terminfo\fR(3X) manual
-page.  It can retrieve capabilities by either termcap or terminfo name.
+page.
+It can retrieve capabilities by either termcap or terminfo name.
 .SS GLOBAL VARIABLES
 .PP
 The variables
@@ -163,7 +207,8 @@ Routines that return pointers return \fBNULL\fR on error.
 .SH BUGS
 If you call \fBtgetstr\fR to fetch \fBca\fR or any other parameterized string,
 be aware that it will be returned in terminfo notation, not the older and
-not-quite-compatible termcap notation.  This will not cause problems if all
+not-quite-compatible termcap notation.
+This will not cause problems if all
 you do with it is call \fBtgoto\fR or \fBtparm\fR, which both expand
 terminfo-style strings as terminfo.
 (The \fBtgoto\fR function, if configured to support termcap, will check
@@ -172,8 +217,9 @@ if the string is indeed terminfo-style by looking for "%p" parameters or
 appear to be terminfo).
 .PP
 Because terminfo conventions for representing padding in string capabilities
-differ from termcap's, \fBtputs("50");\fR will put out a literal "50" rather
-than busy-waiting for 50 milliseconds.  Cope with it.
+differ from termcap's, \fBtputs("50");\fR will put out a literal \*(``50\*('' rather
+than busy-waiting for 50 milliseconds.
+Cope with it.
 .PP
 Note that termcap has nothing analogous to terminfo's \fBsgr\fR string.
 One consequence of this is that termcap applications assume \fRme\fR
@@ -181,8 +227,15 @@ One consequence of this is that termcap applications assume \fRme\fR
 This implementation checks for, and modifies the data shown to the
 termcap interface to accommodate termcap's limitation in this respect.
 .SH PORTABILITY
-The XSI Curses standard, Issue 4 describes these functions.  However, they
+These functions are provided for supporting legacy applications,
+and should not be used in new programs:
+.bP
+The XSI Curses standard, Issue 4 describes these functions.
+However, they
 are marked TO BE WITHDRAWN and may be removed in future versions.
+.bP
+X/Open Curses, Issue 5 (December 2007) marked the termcap interface
+(along with \fBvwprintw\fP and \fBvwscanw\fP) as withdrawn.
 .PP
 Neither the XSI Curses standard nor the SVr4 man pages documented the return
 values of \fBtgetent\fR correctly, though all three were in fact returned ever
@@ -222,4 +275,4 @@ extended capability names which are longer than two characters.
 \fBterm_variables\fR(3X),
 \fBputc\fR(3).
 .sp
-http://invisible-island.net/ncurses/tctest.html
+https://invisible-island.net/ncurses/tctest.html

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2020 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,12 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_slk.3x,v 1.22 2010/12/04 18:38:55 tom Exp $
+.\" $Id: curs_slk.3x,v 1.35 2020/01/18 22:49:38 tom Exp $
 .TH curs_slk 3X ""
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .na
 .hy 0
 .SH NAME
@@ -47,46 +51,50 @@
 \fBslk_attr_set\fR,
 \fBslk_attr_off\fR,
 \fBslk_attr\fR,
-\fBslk_color\fR \- \fBcurses\fR soft label routines
+\fBslk_color\fR,
+\fBextended_slk_color\fR \- \fBcurses\fR soft label routines
 .ad
 .hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBint slk_init(int fmt);\fR
+\fBint slk_init(int \fP\fIfmt\fP\fB);\fR
+.sp
+\fBint slk_set(int \fP\fIlabnum\fP\fB, const char *\fP\fIlabel\fP\fB, int \fP\fIfmt\fP\fB);\fR
 .br
-\fBint slk_set(int labnum, const char *label, int fmt);\fR
-.br
+\fBint slk_wset(int \fP\fIlabnum\fP\fB, const wchar_t *\fP\fIlabel\fP\fB, int \fP\fIfmt\fP\fB);\fR
+.sp
+\fBchar *slk_label(int \fP\fIlabnum\fP\fB);\fR
+.sp
 \fBint slk_refresh(void);\fR
 .br
 \fBint slk_noutrefresh(void);\fR
-.br
-\fBchar *slk_label(int labnum);\fR
 .br
 \fBint slk_clear(void);\fR
 .br
 \fBint slk_restore(void);\fR
 .br
 \fBint slk_touch(void);\fR
+.sp
+\fBint slk_attron(const chtype \fP\fIattrs\fP\fB);\fR
 .br
-\fBint slk_attron(const chtype attrs);\fR
+\fBint slk_attroff(const chtype \fP\fIattrs\fP\fB);\fR
 .br
-\fBint slk_attroff(const chtype attrs);\fR
+\fBint slk_attrset(const chtype \fP\fIattrs\fP\fB);\fR
 .br
-\fBint slk_attrset(const chtype attrs);\fR
+\fBint slk_attr_on(attr_t \fP\fIattrs\fP\fB, void* \fP\fIopts\fP\fB);\fR
 .br
-\fBint slk_attr_on(attr_t attrs, void* opts);\fR
+\fBint slk_attr_off(const attr_t \fP\fIattrs\fP\fB, void * \fP\fIopts\fP\fB);\fR
 .br
-\fBint slk_attr_off(const attr_t attrs, void * opts);\fR
-.br
-\fBint slk_attr_set(const attr_t attrs, short color_pair, void* opts);\fR
-.br
+\fBint slk_attr_set(const attr_t \fP\fIattrs\fP\fB, short \fP\fIpair\fP\fB, void* \fP\fIopts\fP\fB);\fR
+.sp
 \fBattr_t slk_attr(void);\fR
+.sp
+\fBint slk_color(short \fP\fIpair\fP\fB);\fR
 .br
-\fBint slk_color(short color_pair);\fR
+/* extension */
 .br
-\fBint slk_wset(int labnum, const wchar_t *label, int fmt);\fR
-.br
+\fBint extended_slk_color(int \fP\fIpair\fP\fB);\fR
 .SH DESCRIPTION
 The slk* functions manipulate the set of soft function-key labels that exist on
 many terminals.
@@ -98,18 +106,19 @@ labels of up to eight characters each.
 In addition to this, the ncurses
 implementation supports a mode where it simulates 12 labels of up to five
 characters each.
-This is useful for today's PC-like enduser devices.
+This is useful for PC-like enduser devices.
 ncurses simulates this mode by taking over up to two lines at
 the bottom of the screen;
 it does not try to use any hardware support for this
 mode.
+.SS Initialization
 .PP
 The \fBslk_init\fR routine must be called before \fBinitscr\fR or \fBnewterm\fR
 is called.
 If \fBinitscr\fR eventually uses a line from \fBstdscr\fR to
 emulate the soft labels,
 then \fIfmt\fR determines how the labels are arranged on the screen:
-.RS
+.RS 3
 .TP 3
 .B 0
 indicates a 3\-2\-3 arrangement of
@@ -126,11 +135,12 @@ is again the PC-like 4\-4\-4 mode,
 but in addition an index line is generated, helping the user to
 identify the key numbers easily.
 .RE
+.SS Labels
 .PP
 The \fBslk_set\fR routine
 (and the \fBslk_wset\fR routine for the wide-character library)
 has three parameters:
-.RS
+.RS 3
 .TP 5
 .I labnum
 is the label number, from \fB1\fR to \fB8\fR
@@ -150,11 +160,12 @@ left-justified, centered, or right-justified, respectively, within the
 label.
 .RE
 .PP
-The \fBslk_refresh\fR and \fBslk_noutrefresh\fR routines correspond to
-the \fBwrefresh\fR and \fBwnoutrefresh\fR routines.
-.PP
 The \fBslk_label\fR routine returns the current label for label number
 \fIlabnum\fR, with leading and trailing blanks stripped.
+.SS Screen updates
+.PP
+The \fBslk_refresh\fR and \fBslk_noutrefresh\fR routines correspond to
+the \fBwrefresh\fR and \fBwnoutrefresh\fR routines.
 .PP
 The \fBslk_clear\fR routine clears the soft labels from the screen.
 .PP
@@ -163,25 +174,34 @@ after a \fBslk_clear\fR has been performed.
 .PP
 The \fBslk_touch\fR routine forces all the soft labels to be output
 the next time a \fBslk_noutrefresh\fR is performed.
+.SS Video attributes
 .PP
-The \fBslk_attron\fR, \fBslk_attrset\fR, \fBslk_attroff\fR and \fBslk_attr\fR
-routines correspond to \fBattron\fR, \fBattrset\fR, \fBattroff\fR and \fBattr_get\fR.
+The
+\fBslk_attron\fR, \fBslk_attrset\fR, \fBslk_attroff\fR and \fBslk_attr\fR
+routines correspond to
+\fBattron\fR, \fBattrset\fR, \fBattroff\fR and \fBattr_get\fR, respectively.
 They have an effect only if soft labels are simulated on the bottom line of
 the screen.
 The default highlight for soft keys is A_STANDOUT (as in
 System V curses, which does not document this fact).
+.SS Colors
 .PP
 The \fBslk_color\fR routine corresponds to \fBcolor_set\fR.
 It has an effect only
 if soft labels are simulated on the bottom line of the screen.
+.PP
+Because \fBslk_color\fR accepts only \fBshort\fP (signed 16-bit integer) values,
+this implementation provides 
+\fBextended_slk_color\fR which accepts an integer value, e.g., 32-bits.
 .
 .SH RETURN VALUE
-These routines return \fBERR\fR upon failure and OK (SVr4 specifies only "an
-integer value other than \fBERR\fR") upon successful completion.
+These routines return \fBERR\fR upon failure
+and \fBOK\fP (SVr4 specifies only "an integer value other than \fBERR\fR")
+upon successful completion.
 .PP
 X/Open defines no error conditions.
 In this implementation
-.RS
+.RS 3
 .TP 5
 \fBslk_attr\fR
 returns the attribute used for the soft keys.
@@ -201,8 +221,7 @@ if the terminal or the softkeys were not initialized.
 \fBslk_attr_set\fP
 returns an error
 if the terminal or the softkeys were not initialized, or
-the color pair is outside the range 0..COLOR_PAIRS\-1,
-or opts is not null.
+the color pair is outside the range 0..COLOR_PAIRS\-1.
 .TP 5
 \fBslk_color\fP
 returns an error
@@ -223,17 +242,73 @@ the \fIlabnum\fP parameter is outside the range of label counts, or
 if the format parameter is outside the range 0..2, or if
 memory for the labels cannot be allocated.
 .RE
+.SH HISTORY
+SVr3 introduced these functions:
+  slk_clear
+  slk_init
+  slk_label
+  slk_noutrefresh
+  slk_refresh
+  slk_restore
+  slk_set
+  slk_touch
+.PP
+SVr4 added these functions:
+  slk_attroff
+  slk_attron
+  slk_attrset
+  slk_start
+.PP
+X/Open Curses added these:
+  slk_attr_off
+  slk_attr_on
+  slk_attr_set
+  slk_color
+  slk_wset
+.SH EXTENSIONS
+.PP
+X/Open Curses documents the \fIopts\fP argument as reserved for future use,
+saying that it must be null.
+This implementation 
+uses that parameter in ABI 6 for the functions which have a color-pair
+parameter to support extended color pairs.
+.PP
+For  functions  which modify the color, e.g., \fBslk_attr_set\fP,
+if \fIopts\fP is set it is treated as a pointer to \fBint\fP,
+and used to  set  the  color pair instead of the \fBshort\fP pair parameter.
 .SH NOTES
 Most applications would use \fBslk_noutrefresh\fR because a
 \fBwrefresh\fR is likely to follow soon.
 .SH PORTABILITY
-The XSI Curses standard, Issue 4, describes these functions.
-It changes the
-argument type of the attribute-manipulation functions \fBslk_attron\fR,
-\fBslk_attroff\fR, \fBslk_attrset\fR to be \fBattr_t\fR, and adds \fBconst\fR
-qualifiers.
-The format codes \fB2\fR and \fB3\fR for \fBslk_init()\fR and the
+The XSI Curses standard, Issue 4, described the soft-key functions,
+with some differences from SVr4 curses:
+.bP
+It added functions like the SVr4
+attribute-manipulation functions \fBslk_attron\fR,
+\fBslk_attroff\fR, \fBslk_attrset\fR,
+but which use \fBattr_t\fR parameters (rather than \fBchtype\fP),
+along with a reserved \fIopts\fP parameter.
+.IP
+Two of these new functions (unlike the SVr4 functions) have no provision
+for color: \fBslk_attr_on\fP and \fBslk_attr_off\fP.
+.IP
+The third function (\fBslk_attr_set\fP) has a color-pair parameter.
+.bP
+It added \fBconst\fR qualifiers to parameters (unnecessarily), and
+.bP
+It added \fBslk_color\fP.
+.PP
+The format codes \fB2\fR and \fB3\fR for \fBslk_init\fR and the
 function \fBslk_attr\fR are specific to ncurses.
+.PP
+X/Open Curses does not specify a limit for the number of colors and
+color pairs which a terminal can support.
+However, in its use of \fBshort\fP for the parameters,
+it carries over SVr4's implementation detail for the compiled
+terminfo database, which uses signed 16-bit numbers.
+This implementation provides extended versions of those functions
+which use \fBshort\fP parameters,
+allowing applications to use larger color- and pair-numbers.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_attr\fR(3X),

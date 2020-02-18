@@ -1,7 +1,7 @@
 <!--
-  $Id: announce.html.in,v 1.89 2013/05/18 10:12:25 tom Exp $
+  $Id: announce.html.in,v 1.92 2018/01/27 02:09:18 tom Exp $
   ****************************************************************************
-  * Copyright (c) 1998-2011,2013 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2015,2018 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -39,383 +39,2921 @@
   <link rev="made" href="mailto:bug-ncurses@gnu.org">
   <meta http-equiv="Content-Type" content=
   "text/html; charset=us-ascii">
+  <style type="text/css">
+p,li { max-width:700px; }
+  dd { max-width:630px; }
+  *.main-name {
+        font-style: italic;
+        font-variant: small-caps;
+  }
+  *.part-name {
+        font-family: "Andale Mono", "Monotype.com", monospace;
+        font-size: 12pt;
+        font-weight: bold;
+  }
+  </style>
 </head>
 
 <body>
-  <h1>Announcing ncurses @VERSION@</h1>
+  <h1 class="no-header">Announcing ncurses @VERSION@</h1>
 
-  <p>The ncurses (new curses) library is a free software emulation
-  of curses in System V Release 4.0, and more. It uses terminfo
-  format, supports pads and color and multiple highlights and forms
-  characters and function-key mapping, and has all the other
-  SYSV-curses enhancements over BSD curses.</p>
+  <h2><a name="h2-overview" id="h2-overview">Overview</a></h2>
+
+  <p>The <span class="main-name">ncurses</span> (new curses)
+  library is a free software emulation of curses in System V
+  Release 4.0 (SVr4), and more. It uses terminfo format, supports
+  pads and color and multiple highlights and forms characters and
+  function-key mapping, and has all the other SVr4-curses
+  enhancements over BSD curses. SVr4 curses became the basis of
+  X/Open Curses.</p>
 
   <p>In mid-June 1995, the maintainer of 4.4BSD curses declared
   that he considered 4.4BSD curses obsolete, and encouraged the
-  keepers of Unix releases such as BSD/OS, FreeBSD and NetBSD to
-  switch over to ncurses.</p>
+  keepers of <span class="main-name">unix</span> releases such as
+  BSD/OS, FreeBSD and NetBSD to switch over to <span class=
+  "main-name">ncurses</span>.</p>
 
-  <p>The ncurses code was developed under GNU/Linux. It has been in
-  use for some time with OpenBSD as the system curses library, and
-  on FreeBSD and NetBSD as an external package. It should port
-  easily to any ANSI/POSIX-conforming UNIX. It has even been ported
-  to OS/2 Warp!</p>
+  <p>Since 1995, <span class="main-name">ncurses</span> has been
+  ported to many systems:</p>
+
+  <ul>
+    <li>It is used in almost every system based on the Linux kernel
+    (aside from some embedded applications).</li>
+
+    <li>It is used as the system curses library on OpenBSD, FreeBSD
+    and OSX.</li>
+
+    <li>It is used in environments such as Cygwin and MinGW. The
+    first of these was EMX on OS/2 Warp.</li>
+
+    <li>It is used (though usually not as the <em>system</em>
+    curses) on all of the vendor <span class=
+    "main-name">unix</span> systems, e.g., AIX, HP-UX, IRIX64, SCO,
+    Solaris, Tru64.</li>
+
+    <li>It should work readily on any ANSI/POSIX-conforming
+    <span class="main-name">unix</span>.</li>
+  </ul>
 
   <p>The distribution includes the library and support utilities,
-  including a terminfo compiler tic(1), a decompiler infocmp(1),
-  clear(1), tput(1), tset(1), and a termcap conversion tool
-  captoinfo(1). Full manual pages are provided for the library and
-  tools.</p>
-
-  <p>The ncurses distribution is available via anonymous FTP at the
-  GNU distribution site <a href=
-  "ftp://ftp.gnu.org/gnu/ncurses/">ftp://ftp.gnu.org/gnu/ncurses/</a>&nbsp;.<br>
-
-  It is also available at <a href=
-  "ftp://invisible-island.net/ncurses/">ftp://invisible-island.net/ncurses/</a>&nbsp;.</p>
-
-  <h1>Release Notes</h1>
-
-  <p>This release is designed to be upward compatible from ncurses
-  5.0 through 5.8; very few applications will require
-  recompilation, depending on the platform. These are the
-  highlights from the change-log since ncurses 5.8 release.</p>
-
-  <p>This is a bug-fix release, correcting a small number of urgent
-  problems in the ncurses library from the 5.8 release.</p>
-
-  <p>It also improves the Ada95 binding:</p>
+  including</p>
 
   <ul>
-    <li>fixes a longstanding portability problem with its use of
-    the <a href=
-    "http://invisible-island.net/ncurses/man/form_fieldtype.3x">set_field_type</a>
-    function. Because that function uses variable-length argument
-    lists, its interface with gnat does not work with certain
-    platforms.</li>
+    <li><a href=
+    "https://invisible-island.net/ncurses/man/captoinfo.1m.html"><span class="part-name">
+    captoinfo</span></a>, a termcap conversion tool</li>
 
-    <li>improves configurability and portability, particularly when
-    built separately from the main ncurses tree. The 5.8 release
-    introduced scripts which can be used to construct separate
-    tarballs for the Ada95 and ncurses examples.
+    <li><a href=
+    "https://invisible-island.net/ncurses/man/clear.1.html"><span class="part-name">
+    clear</span></a>, utility for clearing the screen</li>
 
-      <p>Those were a proof of concept. For the 5.9 release, those
-      scripts are augmented with rpm- and dpkg-scripts used in test
-      builds against a variety of gnat- and system ncurses versions
-      as old as gnat 3.15 and ncurses 5.4 (see snapshots and
-      systems tested <a href=
-      "http://invisible-island.net/ncurses/ncurses-Ada95.html">here</a>.</p>
+    <li><a href=
+    "https://invisible-island.net/ncurses/man/infocmp.1m.html"><span class="part-name">
+    infocmp</span></a>, the terminfo decompiler</li>
+
+    <li><a href=
+    "https://invisible-island.net/ncurses/man/tabs.1.html"><span class="part-name">
+    tabs</span></a>, set tabs on a terminal</li>
+
+    <li><a href=
+    "https://invisible-island.net/ncurses/man/tic.1m.html"><span class="part-name">
+    tic</span></a>, the terminfo compiler</li>
+
+    <li><a href=
+    "https://invisible-island.net/ncurses/man/toe.1m.html"><span class="part-name">
+    toe</span></a>, list (table of) terminfo entries</li>
+
+    <li><a href=
+    "https://invisible-island.net/ncurses/man/tput.1.html"><span class="part-name">
+    tput</span></a>, utility for retrieving terminal capabilities
+    in shell scripts</li>
+
+    <li><a href=
+    "https://invisible-island.net/ncurses/man/tset.1.html"><span class="part-name">
+    tset</span></a>, to initialize the terminal</li>
+  </ul>
+
+  <p>Full manual pages are provided for the library and tools.</p>
+
+  <p>The <span class="main-name">ncurses</span> distribution is
+  available at <span class="main-name">ncurses</span>' <a href=
+  "https://invisible-island.net/ncurses/">homepage</a>:</p>
+
+  <blockquote>
+    <p><a href=
+    "ftp://ftp.invisible-island.net/ncurses/">ftp://ftp.invisible-island.net/ncurses/</a>
+    or<br>
+    <a href=
+    "https://invisible-mirror.net/archives/ncurses/">https://invisible-mirror.net/archives/ncurses/</a>&nbsp;.</p>
+  </blockquote>
+
+  <p>It is also available via anonymous FTP at the GNU distribution
+  site</p>
+
+  <blockquote>
+    <p><a href=
+    "ftp://ftp.gnu.org/gnu/ncurses/">ftp://ftp.gnu.org/gnu/ncurses/</a>&nbsp;.</p>
+  </blockquote>
+
+  <h2><a name="h2-release-notes" id="h2-release-notes">Release
+  Notes</a></h2>
+
+  <p>These notes are for <span class="main-name">ncurses</span>
+  @VERSION@, released <strong>January 27, 2018</strong>.</p>
+
+  <p>This release is designed to be source-compatible with
+  <span class="main-name">ncurses</span> 5.0 through 6.0; providing
+  extensions to the application binary interface (ABI). Although
+  the source can still be configured to support the <span class=
+  "main-name">ncurses</span> 5 ABI, the intent of the release is to
+  provide extensions to the <span class="main-name">ncurses</span>
+  <strong>6</strong> ABI:</p>
+
+  <ul>
+    <li>
+      <p>improve integration of <span class="part-name">tput</span>
+      and <span class="part-name">tset</span></p>
     </li>
 
-    <li>additional improvements were made for portability of the
-    ncurses examples, adding rpm- and dpkg-scripts for test-builds.
-    See <a href=
-    "http://invisible-island.net/ncurses/ncurses-examples.html">this
-    page</a> for snapshots and other information.</li>
+    <li>
+      <p>provide support for extended numeric capabilities.</p>
+    </li>
   </ul>
 
-  <h1>Features of Ncurses</h1>
+  <p>There are, of course, numerous other improvements, listed in
+  this announcement.</p>
 
-  <p>The ncurses package is fully compatible with SVr4 (System V
-  Release 4) curses:</p>
+  <p>The release notes also mention some bug-fixes, but are focused
+  on new features and improvements to existing features since
+  <span class="main-name">ncurses</span> 6.0 release.</p>
+
+  <h3><a name="h3-library" id="h3-library">Library
+  improvements</a></h3>
+
+  <h4><a name="h4-new-library" id="h4-new-library">New
+  features</a></h4>
+
+  <p>The improved integration of <span class=
+  "part-name">tput</span> and <span class="part-name">tset</span>
+  made only small changes to the libraries. However, supporting
+  extended numeric capabilities required a few changes:</p>
 
   <ul>
-    <li>All 257 of the SVr4 calls have been implemented (and are
-    documented).</li>
+    <li>
+      <p>The <code>TERMINAL</code> structure in
+      <code>&lt;term.h&gt;</code> is now opaque. Doing that allowed
+      making the structure larger, to hold the extended numeric
+      data.</p>
 
-    <li>Full support for SVr4 curses features including keyboard
-    mapping, color, forms-drawing with ACS characters, and
-    automatic recognition of keypad and function keys.</li>
+      <p>A few applications required changes during development of
+      <span class="main-name">ncurses&nbsp;6.1</span> because those
+      applications misused the members of that structure, e.g.,
+      directly modifying it rather than using <a href=
+      "https://invisible-island.net/ncurses/man/curs_kernel.3x.html#h3-def_prog_mode_-def_shell_mode">
+      def_prog_mode</a>.</p>
+    </li>
 
-    <li>An emulation of the SVr4 panels library, supporting a stack
-    of windows with backing store, is included.</li>
+    <li>
+      <p>Having made <code>TERMINAL</code> opaque (and because none
+      of the library functions use anything except a pointer to
+      <code>TERMINAL</code>), it was possible to increase the size
+      of the structure, adding to the end.</p>
 
-    <li>An emulation of the SVr4 menus library, supporting a
-    uniform but flexible interface for menu programming, is
-    included.</li>
+      <p>Existing applications which were linked to the
+      <span class="part-name">ncurses&nbsp;6.0</span> high-level
+      (<em>ncurses</em>, <em>ncursesw</em>) and low-level
+      (<em>tinfo</em>, <em>tinfo</em>) libraries should not require
+      re-linking since the binary interface did not change, nor did
+      the structure offsets with <code>TERMINAL</code> change.</p>
 
-    <li>An emulation of the SVr4 form library, supporting data
-    collection through on-screen forms, is included.</li>
+      <p>A few applications use the inner <code>TERMTYPE</code>
+      structure's offsets to refer to terminfo capabilities within
+      that structure. Again, those do not require modification
+      because their offsets within <code>TERMINAL</code> did not
+      change.</p>
+    </li>
 
-    <li>Binary terminfo entries generated by the ncurses tic(1)
-    implementation are bit-for-bit-compatible with the entry format
-    SVr4 curses uses.</li>
+    <li>
+      <p>When configured for wide-characters, i.e.,
+      &ldquo;ncursesw&rdquo; the <code>TERMINAL</code> structure is
+      extended.</p>
 
-    <li>The utilities have options to allow you to filter terminfo
-    entries for use with less capable
-    <strong>curses</strong>/<strong>terminfo</strong> versions such
-    as the HP/UX and AIX ports.</li>
+      <p>The new data in <code>TERMINAL</code> holds the same
+      information as <code>TERMTYPE</code>, but with larger numbers
+      (&ldquo;int&rdquo; versus &ldquo;short&rdquo;). It is named
+      <code>TERMTYPE2</code>.</p>
+
+      <p>The library uses this structure internally in preference
+      to <code>TERMTYPE</code>, referring to <code>TERMTYPE</code>
+      only to initialize it for applications that use the
+      capabilities defined in <code>&lt;term.h&gt;</code></p>
+    </li>
+
+    <li>
+      <p>When configured for 8-bit (narrow) characters, the
+      <code>TERMTYPE2</code> structure is not used.</p>
+    </li>
+
+    <li>The updated application binary interface is 6.1.20171230
+    (used for new <a href=
+    "https://invisible-island.net/ncurses/ncurses-mapsyms.html">versioned
+    symbols</a>), although the interface changes were developed
+    several months previously.</li>
   </ul>
 
-  <p>The ncurses package also has many useful extensions over
-  SVr4:</p>
+  <p>The motivation for making this extension came from noticing
+  that <a href=
+  "https://invisible-island.net/ncurses/tctest.html#bsd42-numeric-caps">
+  termcap applications</a> could (though not <a href=
+  "https://invisible-island.net/ncurses/ncurses-slang.html#cause_numbers">
+  realistically</a>) use larger numbers than would fit in 16-bits,
+  and the fact that the number of color pairs for a 256-color xterm
+  could not be expressed in terminfo (i.e., 32767 versus 65536).
+  Also, a few terminals support direct-colors, which could use the
+  extension.</p>
+
+  <p>Generally speaking, applications that use internal details of
+  a library are unsupported. There was exactly one exception for
+  <span class="main-name">ncurses</span>: the <span class=
+  "main-name">tack</span> program <em>used</em> the internal
+  details of <code>TERMINAL</code>, because it provides an
+  ncurses-specific feature for interactively modifying a terminfo
+  description and writing the updated description to a text-file.
+  It was possible to not only separate <span class=
+  "main-name">tack</span> from these <a href=
+  "https://invisible-island.net/ncurses/tack.html#portable">internal
+  details of <span class="main-name">ncurses</span></a>, but to
+  generalize it so that the program works with Unix curses
+  (omitting the ncurses-specific feature). That was released as
+  <a href=
+  "https://invisible-island.net/ncurses/tack/CHANGES.html#index-t20170726">
+  <span class="main-name">tack</span>&nbsp;1.08</a> in July
+  2017.</p>
+
+  <p>While making changes to <span class="main-name">tack</span> to
+  eliminate its dependency upon <span class=
+  "main-name">ncurses</span> internals, the publicly-visible
+  details of those internals were reviewed, and some symbols were
+  moved to private header files, while others were marked
+  explicitly as <span class="main-name">ncurses</span> internals.
+  Future releases of <span class="main-name">ncurses</span> may
+  eliminate some of those symbols (such as those used by
+  <span class="main-name">tack</span>&nbsp;1.07) because they are
+  neither part of the API or the ABI.</p>
+
+  <p>Using the <code>TERMTYPE2</code> extended numeric
+  capabilities, it is possible to support both color pair values
+  and color values past 32767. Taking compatibility into account,
+  developers readily understand that neither function signatures
+  nor structure offsets change. Also, existing functions have to
+  operate with the extended numbers. Most of that work is internal
+  to the library. For the external interfaces, a hybrid approach
+  was used:</p>
 
   <ul>
-    <li>The API is 8-bit clean and base-level conformant with the
-    X/OPEN curses specification, XSI curses (that is, it implements
-    all BASE level features, and most EXTENDED features). It
-    includes many function calls not supported under SVr4 curses
-    (but portability of all calls is documented so you can use the
-    SVr4 subset only).</li>
+    <li>
+      <p>X/Open Curses defined function prototypes such as
+      <code>wattr_set</code> with an unused parameter, for
+      &ldquo;future&rdquo; use. After 25 years, the future is here:
+      <span class="main-name">ncurses</span> uses the parameter to
+      augment color pair values as described in the <a href=
+      "https://invisible-island.net/ncurses/man/curs_attr.3x.html#h2-EXTENSIONS">
+      manual page</a>.</p>
+    </li>
 
-    <li>Unlike SVr3 curses, ncurses can write to the
-    rightmost-bottommost corner of the screen if your terminal has
-    an insert-character capability.</li>
-
-    <li>Ada95 and C++ bindings.</li>
-
-    <li>Support for mouse event reporting with X Window xterm and
-    FreeBSD and OS/2 console windows.</li>
-
-    <li>Extended mouse support via Alessandro Rubini's gpm
-    package.</li>
-
-    <li>The function <code>wresize</code> allows you to resize
-    windows, preserving their data.</li>
-
-    <li>The function <code>use_default_colors</code> allows you to
-    use the terminal's default colors for the default color pair,
-    achieving the effect of transparent colors.</li>
-
-    <li>The functions <code>keyok</code> and
-    <code>define_key</code> allow you to better control the use of
-    function keys, e.g., disabling the ncurses KEY_MOUSE, or by
-    defining more than one control sequence to map to a given key
-    code.</li>
-
-    <li>Support for 256-color terminals, such as modern xterm, when
-    configured using the <code>--enable-ext-colors</code>
-    option.</li>
-
-    <li>Support for 16-color terminals, such as <em>aixterm</em>
-    and <em>modern xterm</em>.</li>
-
-    <li>Better cursor-movement optimization. The package now
-    features a cursor-local-movement computation more efficient
-    than either BSD's or System V's.</li>
-
-    <li>Super hardware scrolling support. The screen-update code
-    incorporates a novel, simple, and cheap algorithm that enables
-    it to make optimal use of hardware scrolling, line-insertion,
-    and line-deletion for screen-line movements. This algorithm is
-    more powerful than the 4.4BSD curses <code>quickch</code>
-    routine.</li>
-
-    <li>Real support for terminals with the magic-cookie glitch.
-    The screen-update code will refrain from drawing a highlight if
-    the magic- cookie unattributed spaces required just before the
-    beginning and after the end would step on a non-space
-    character. It will automatically shift highlight boundaries
-    when doing so would make it possible to draw the highlight
-    without changing the visual appearance of the screen.</li>
-
-    <li>It is possible to generate the library with a list of
-    pre-loaded fallback entries linked to it so that it can serve
-    those terminal types even when no terminfo tree or termcap file
-    is accessible (this may be useful for support of
-    screen-oriented programs that must run in single-user
-    mode).</li>
-
-    <li>The tic(1)/captoinfo utility provided with ncurses has the
-    ability to translate many termcaps from the XENIX, IBM and
-    AT&amp;T extension sets.</li>
-
-    <li>A BSD-like tset(1) utility is provided.</li>
-
-    <li>The ncurses library and utilities will automatically read
-    terminfo entries from $HOME/.terminfo if it exists, and compile
-    to that directory if it exists and the user has no write access
-    to the system directory. This feature makes it easier for users
-    to have personal terminfo entries without giving up access to
-    the system terminfo directory.</li>
-
-    <li>You may specify a path of directories to search for
-    compiled descriptions with the environment variable
-    TERMINFO_DIRS (this generalizes the feature provided by
-    TERMINFO under stock System V.)</li>
-
-    <li>In terminfo source files, use capabilities may refer not
-    just to other entries in the same source file (as in System V)
-    but also to compiled entries in either the system terminfo
-    directory or the user's $HOME/.terminfo directory.</li>
-
-    <li>A script (<strong>capconvert</strong>) is provided to help
-    BSD users transition from termcap to terminfo. It gathers the
-    information in a TERMCAP environment variable and/or a
-    ~/.termcap local entries file and converts it to an equivalent
-    local terminfo tree under $HOME/.terminfo.</li>
-
-    <li>Automatic fallback to the /etc/termcap file can be compiled
-    in when it is not possible to build a terminfo tree. This
-    feature is neither fast nor cheap, you don't want to use it
-    unless you have to, but it's there.</li>
-
-    <li>The table-of-entries utility <strong>toe</strong> makes it
-    easy for users to see exactly what terminal types are available
-    on the system.</li>
-
-    <li>The library meets the XSI requirement that every macro
-    entry point have a corresponding function which may be linked
-    (and will be prototype-checked) if the macro definition is
-    disabled with <code>#undef</code>.</li>
-
-    <li>An HTML "Introduction to Programming with NCURSES" document
-    provides a narrative introduction to the curses programming
-    interface.</li>
+    <li>
+      <p>Other functions such as those defining color pairs did not
+      have a corresponding <em>reserved</em> parameter. For those,
+      <span class="main-name">ncurses</span> defines extended
+      versions such as <code>init_extended_pair</code> (versus
+      <code>init_pair</code>), <code>init_extended_color</code>
+      (versus <code>init_color</code>).</p>
+    </li>
   </ul>
 
-  <h1>State of the Package</h1>
+  <p>Additionally, to improve performance other changes (and
+  extensions) are provided in this release:</p>
 
-  <p>Numerous bugs present in earlier versions have been fixed; the
-  library is far more reliable than it used to be. Bounds checking
-  in many `dangerous' entry points has been improved. The code is
-  now type-safe according to gcc -Wall. The library has been
-  checked for malloc leaks and arena corruption by the Purify
-  memory-allocation tester.</p>
+  <ul>
+    <li>
+      <p>Several new functions simplify management of large sets of
+      color pairs: <code>reset_color_pairs</code>,
+      <code>alloc_pair</code>, <code>find_pair</code> and
+      <code>free_pair</code>.</p>
+    </li>
 
-  <p>The ncurses code has been tested with a wide variety of
-  applications including (versions starting with those noted):</p>
+    <li>
+      <p>New "RGB" extension capability for direct-color support is
+      used to improve performance of
+      <code>color_content</code>.</p>
+    </li>
+
+    <li>
+      <p>The internal <code>colorpair_t</code> is now a struct,
+      eliminating an internal 8-bit limit on colors</p>
+    </li>
+
+    <li>
+      <p>Allocation for <code>SCREEN</code>'s color-pair table
+      starts small, grows on demand up to the limit given in the
+      terminal description.</p>
+    </li>
+
+    <li>
+      <p><code>setcchar</code> and <code>getcchar</code> now treat
+      a negative color-pair as an error.</p>
+    </li>
+  </ul>
+
+  <h4><a name="h4-fixes-library" id="h4-fixes-library">Other
+  improvements</a></h4>
+
+  <p>These are new or revised features:</p>
+
+  <ul>
+    <li>
+      <p>modify <code>c++/etip.h.in</code> to accommodate
+      deprecation of throw and throws in c++17</p>
+    </li>
+
+    <li>
+      <p>add new function <code>unfocus_current_field</code></p>
+    </li>
+
+    <li>
+      <p>add option to preserve leading whitespace in form
+      fields</p>
+    </li>
+
+    <li>
+      <p>add a macro for <code>is_linetouched</code> and adjust the
+      function's return value to make it possible for most
+      applications to check for an error-return.</p>
+    </li>
+
+    <li>
+      <p>add build-time utility <code>report_offsets</code> to help
+      show when the various configurations of tinfo library are
+      compatible or not.</p>
+    </li>
+  </ul>
+
+  <p>These were done to limit or ultimately deprecate features:</p>
+
+  <ul>
+    <li>
+      <p>drop two symbols obsoleted in 2004:
+      <code>_nc_check_termtype</code>, and
+      <code>_nc_resolve_uses</code></p>
+    </li>
+
+    <li>
+      <p>move <code>_nc_tracebits</code>, <code>_tracedump</code>
+      and <code>_tracemouse</code> to <code>curses.priv.h</code>,
+      since they are not part of the suggested ABI6.</p>
+    </li>
+
+    <li>
+      <p>mark some structs in form/menu/panel libraries as
+      potentially opaque without modifying API/ABI.</p>
+    </li>
+
+    <li>
+      <p>ifdef'd header-file definition of <code>mouse_trafo</code>
+      with <code>NCURSES_NOMACROS</code></p>
+    </li>
+
+    <li>
+      <p>remove initialization-check for calling <code>napms</code>
+      in the term-driver configuration; none is needed.</p>
+    </li>
+
+    <li>
+      <p>modify <code>trace</code> to avoid overwriting existing
+      file</p>
+    </li>
+  </ul>
+
+  <p>These are improvements to existing features:</p>
+
+  <ul>
+    <li>
+      <p>modify <code>make_hash</code> to allow building with
+      address-sanitizer, assuming that <code>--disable-leaks</code>
+      is configured.</p>
+    </li>
+
+    <li>
+      <p>move <code>SCREEN</code> field for <code>use_tioctl</code>
+      data before the ncursesw fields, and limit that to the
+      sp-funcs configuration to improve termlib compatibility</p>
+    </li>
+
+    <li>
+      <p>modify db-iterator:</p>
+
+      <ul>
+        <li>
+          <p>ignore zero-length files in db-iterator; these are
+          useful for instance to suppress
+          <code>$HOME/.terminfo</code> when not wanted.</p>
+        </li>
+
+        <li>
+          <p>modify <code>update_getenv</code> to ensure that
+          environment variables which are not initially set will be
+          checked later if an application happens to set them</p>
+        </li>
+      </ul>
+    </li>
+
+    <li>
+      <p>modify <code>_nc_outc_wrapper</code> to use the standard
+      output if the screen was not initialized, rather than
+      returning an error.</p>
+    </li>
+
+    <li>
+      <p>improve checks for low-level terminfo functions when the
+      terminal has not been initialized.</p>
+    </li>
+
+    <li>
+      <p>modify <code>set_curterm</code> to update
+      <code>ttytype[]</code> data used by longname/p&gt;</p>
+    </li>
+
+    <li>
+      <p>modify <code>_nc_get_screensize</code> to allow for
+      <code>use_env</code> and <code>use_tioctl</code> state to be
+      per-screen when sp-funcs are configured, better matching the
+      behavior when using the term-driver configuration.</p>
+    </li>
+
+    <li>
+      <p>remove an early-return from <code>_nc_do_color,</code>
+      which can interfere with data needed by <code>bkgd</code>
+      when <span class="main-name">ncurses</span> is configured
+      with extended colors</p>
+    </li>
+
+    <li>
+      <p>incorporate <code>A_COLOR</code> mask into
+      <code>COLOR_PAIR</code>, in case user application provides an
+      out-of-range pair number</p>
+    </li>
+
+    <li>
+      <p>modify logic for <code>endwin</code>-state to be able to
+      detect the case where the screen was never initialized, using
+      that to trigger a flush of <span class=
+      "main-name">ncurses'</span> buffer for <code>mvcur</code>,
+      e.g., in the sample program <span class=
+      "part-name">dots_mvcur</span> for the term-driver
+      configuration.</p>
+    </li>
+  </ul>
+
+  <p>These are corrections to existing features:</p>
+
+  <ul>
+    <li>
+      <p>fixes for writing extended color pairs in
+      <code>putwin</code>.</p>
+    </li>
+
+    <li>
+      <p>modify no-leaks code for <code>lib_cur_term.c</code> to
+      account for the <code>tgetent</code> cache.</p>
+    </li>
+
+    <li>
+      <p>amend handling of the <code>repeat_char</code> capability
+      in <code>EmitRange</code> to avoid scope creep: translate the
+      character to the alternate character set when the alternate
+      character set is enabled, and do not use
+      <code>repeat_char</code> for characters past 255.</p>
+    </li>
+
+    <li>
+      <p>improve wide-character implementation of
+      <code>myADDNSTR</code> in <code>frm_driver.c</code>, which
+      was inconsistent with the normal implementation.</p>
+    </li>
+
+    <li>
+      <p>modify <code>winnstr</code> and <code>winchnstr</code> to
+      return error if the output pointer is null, as well as adding
+      a null pointer check of the window pointer for better
+      compatibility with other implementations.</p>
+    </li>
+
+    <li>
+      <p>modify <code>setupterm</code> to save original tty-modes
+      so that <code>erasechar</code> works as expected. Also modify
+      <code>_nc_setupscreen</code> to avoid redundant calls to get
+      original tty-modes.</p>
+    </li>
+
+    <li>
+      <p>modify <code>wattr_set</code> and <code>wattr_get</code>
+      to return <code>ERR</code> if <em>win</em>-parameter is null,
+      as documented.</p>
+    </li>
+
+    <li>
+      <p>correct order of initialization for traces in
+      <code>use_env</code> and <code>use_tioctl</code> versus first
+      <code>_tracef</code> calls.</p>
+    </li>
+
+    <li>
+      <p>correct parameters for <code>copywin</code> call in
+      <code>_nc_Synchronize_Attributes</code></p>
+    </li>
+
+    <li>
+      <p>flush the standard output in <code>_nc_flush</code> for
+      the case where <code>SP</code> is zero, e.g., when called via
+      <code>putp</code>. This fixes a scenario where
+      &ldquo;tput&nbsp;flash&rdquo; did not work after changes in
+      20130112.</p>
+    </li>
+
+    <li>
+      <p>amend internal use of <code>tputs</code> to consistently
+      use the number of lines affected, e.g., for insert/delete
+      character operations. While merging terminfo source early in
+      1995, several descriptions used the
+      &ldquo;<code>*</code>&rdquo; proportional delay for these
+      operations, prompting a change in <code>doupdate</code>.</p>
+    </li>
+
+    <li>
+      <p>correct return-value of extended <code>putwin</code>.</p>
+    </li>
+
+    <li>
+      <p>double-width multibyte characters were not counted
+      properly in <code>winsnstr</code> and
+      <code>wins_nwstr</code>.</p>
+    </li>
+
+    <li>
+      <p>amend fix for <code>_nc_ripoffline</code> from 20091031 to
+      make <code>test/ditto.c</code> work in threaded
+      configuration.</p>
+    </li>
+
+    <li>
+      <p>modify <code>_nc_viscbuf2</code> and
+      <code>_tracecchar_t2</code> to trace wide-characters as a
+      whole rather than their multibyte equivalents.</p>
+    </li>
+
+    <li>
+      <p>minor fix in <code>wadd_wchnstr</code> to ensure that each
+      cell has nonzero width.</p>
+    </li>
+
+    <li>
+      <p>move <code>PUTC_INIT</code> calls next to
+      <code>wcrtomb</code> calls, to avoid carry-over of error
+      status when processing Unicode values which are not
+      mapped.</p>
+    </li>
+
+    <li>
+      <p>add missing assignment in <code>lib_getch.c</code> to make
+      <code>notimeout</code> work</p>
+    </li>
+  </ul>
+
+  <h3><a name="h3-programs" id="h3-programs">Program
+  improvements</a></h3>
+
+  <p>While reviewing user feedback, it became apparent that the
+  differences between <a href=
+  "https://invisible-island.net/ncurses/man/tset.1.html#h3-reset---reinitialization">
+  <span class="part-name">reset</span></a> (an alias for
+  <span class="part-name">tset</span>) and &ldquo;<span class=
+  "part-name">tput reset</span>&rdquo; were confusing:</p>
+
+  <ul>
+    <li>one (<a href=
+    "https://invisible-island.net/ncurses/man/tset.1.html">tset</a>)
+    updated the terminal modes, but used only part of the terminfo
+    capabilities for initialization, while</li>
+
+    <li>the other (<a href=
+    "https://invisible-island.net/ncurses/man/tput.1.html"><span class="part-name">tput</span></a>)
+    used all of the terminal capabilities while neglecting the
+    terminal modes.</li>
+  </ul>
+
+  <p>On further investigation, it turned out that the differences
+  were largely an accident due to the way those programs had
+  evolved.</p>
+
+  <p>This release eliminates the unnecessary differences, using the
+  same approach for <span class="part-name">tput</span>'s
+  <em>init</em> (initialization), <em>reset</em> and <em>clear</em>
+  operations as the separate <a href=
+  "https://invisible-island.net/ncurses/man/tset.1.html#h3-reset---reinitialization">
+  reset</a> and <a href=
+  "https://invisible-island.net/ncurses/man/clear.1.html"><span class="part-name">
+  clear</span></a> programs. Doing this does not change the
+  command-line options; existing scripts are unaffected.</p>
+
+  <p>These are the user-visible changes for the three programs
+  (<span class="part-name">tput</span>, <span class=
+  "part-name">tset</span> and <span class=
+  "part-name">clear</span>):</p>
+
+  <ul>
+    <li>
+      <p>add the terminal-mode parts of &ldquo;<span class=
+      "part-name">reset</span>&rdquo; (aka <span class=
+      "part-name">tset</span>) to the &ldquo;<code>tput
+      reset</code>&rdquo; command, making the two almost the same
+      except for window-size.</p>
+    </li>
+
+    <li>
+      <p>improve <span class="part-name">tput</span>'s check for
+      being called as &ldquo;init&rdquo; or &ldquo;reset&rdquo; to
+      allow for transformed names.</p>
+    </li>
+
+    <li>
+      <p>add &ldquo;clear&rdquo; as a possible link/alias to
+      <span class="part-name">tput</span>.</p>
+    </li>
+
+    <li>
+      <p>amend changes for <span class="part-name">tput</span> to
+      reset tty modes to &ldquo;sane&rdquo; if the program is run
+      as &ldquo;reset&rdquo;, like <span class=
+      "part-name">tset</span>. Likewise, ensure that <span class=
+      "part-name">tset</span> sends either reset- or
+      init-strings.</p>
+    </li>
+
+    <li>
+      <p>add <code>-x</code> option to <span class=
+      "part-name">clear</span>/<span class="part-name">tput</span>
+      to make the <code>E3</code> extension optional</p>
+    </li>
+
+    <li>
+      <p>add functionality of
+      &ldquo;<code>tset&nbsp;-w</code>&rdquo; to <span class=
+      "part-name">tput</span>, like the
+      &ldquo;<code>-c</code>&rdquo; feature this is not optional in
+      <span class="part-name">tput</span>.</p>
+    </li>
+
+    <li>
+      <p>add options <code>-T</code> and <code>-V</code> to
+      <span class="part-name">clear</span> command for
+      compatibility with <span class="part-name">tput</span>.</p>
+    </li>
+
+    <li>
+      <p>drop long-obsolete &ldquo;<code>-n</code>&rdquo; option
+      from <span class="part-name">tset</span>.</p>
+    </li>
+
+    <li>
+      <p>modify <span class="part-name">tset</span>'s assignment to
+      <code>TERM</code> in its output to reflect the name by which
+      the terminal description is found, rather than the primary
+      name. That was an unnecessary part from the initial
+      conversion of <span class="part-name">tset</span> from
+      termcap to terminfo. The termcap library in 4.3BSD did this
+      to avoid using the short 2-character name</p>
+    </li>
+
+    <li>
+      <p>remove a restriction in <span class=
+      "part-name">tput</span>'s support for termcap names which
+      omitted capabilities normally not shown in termcap
+      translations</p>
+    </li>
+
+    <li>
+      <p>add usage message to <span class="part-name">clear</span>
+      command</p>
+    </li>
+
+    <li>
+      <p>improve usage messages for <span class=
+      "part-name">tset</span> and <span class=
+      "part-name">tput</span>.</p>
+    </li>
+  </ul>
+
+  <p>Other user-visible improvements and new features include:</p>
+
+  <ul>
+    <li>
+      <p>modify <span class="part-name">tic</span>/<span class=
+      "part-name">infocmp</span> display of numeric values to use
+      hexadecimal when they are "close" to a power of two, making
+      the result more readable.</p>
+    </li>
+
+    <li>
+      <p>add &ldquo;<code>-W</code>&rdquo; option to <span class=
+      "part-name">tic</span>/<span class="part-name">infocmp</span>
+      to force long strings to wrap.</p>
+
+      <ul>
+        <li>
+          <p>This is in addition to the
+          &ldquo;<code>-w</code>&rdquo; option which attempts to
+          fit capabilities into a given line-length.</p>
+        </li>
+
+        <li>
+          <p>If &ldquo;<code>-f</code>&rdquo; option splits line,
+          do not further split it with
+          &ldquo;<code>-W</code>&rdquo;.</p>
+        </li>
+
+        <li>
+          <p>Begin a new line when adding
+          &ldquo;<code>use=</code>&rdquo; after a wrapped line.</p>
+        </li>
+      </ul>
+    </li>
+
+    <li>
+      <p>add &ldquo;<code>-q</code>&rdquo; option to <span class=
+      "part-name">infocmp</span> to suppress the
+      &ldquo;<code>Reconstructed from</code>&rdquo; comment from
+      the header, and a corresponding option to <span class=
+      "part-name">tic</span> to suppress all comments from the
+      &ldquo;<code>tic -I</code>&rdquo; output.</p>
+    </li>
+
+    <li>
+      <p>Sorted options in usage message for <span class=
+      "part-name">infocmp</span>, to make it simpler to see unused
+      letters.</p>
+    </li>
+
+    <li>
+      <p>Updated usage message for <span class=
+      "part-name">tic</span>, adding &ldquo;<code>-0</code>&rdquo;
+      option.</p>
+    </li>
+
+    <li>
+      <p>add <span class="part-name">infocmp</span>/<span class=
+      "part-name">tic</span> &ldquo;<code>-Q</code>&rdquo; option,
+      which allows one to dump the compiled form of the terminal
+      entry, in hexadecimal or base64:</p>
+
+      <ul>
+        <li>A &ldquo;<code>b64:</code>&rdquo; prefix in the
+        <code>TERMINFO</code> variable tells the terminfo reader to
+        use base64 according to RFC-3548 as well as RFC-4648
+        url/filename-safe format.</li>
+
+        <li>A &ldquo;<code>hex:</code>&rdquo; prefix tells the
+        terminfo reader to accept hexadecimal data as generated by
+        &ldquo;<code>infocmp -0qQ1</code>&rdquo;.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <p>Other less-visible improvements and new features include:</p>
+
+  <ul>
+    <li>
+      <p>modify utility headers such as <code>tic.h</code> to make
+      it clearer which are externals that are used by <span class=
+      "main-name">tack</span>.</p>
+    </li>
+
+    <li>
+      <p>add &ldquo;<code>reset</code>&rdquo; to list of programs
+      whose names might change in manpages due to
+      program-transformation configure options.</p>
+    </li>
+
+    <li>
+      <p>modify &ldquo;<code>-T</code>&rdquo; option of
+      <span class="part-name">clear</span> and <span class=
+      "part-name">tput</span> to call <code>use_tioctl</code> to
+      obtain the operating system's notion of the screensize if
+      possible.</p>
+    </li>
+
+    <li>
+      <p>add check in <span class="part-name">tput</span> for
+      init/reset operands to ensure those use a terminal.</p>
+    </li>
+
+    <li>
+      <p>modify programs <span class="part-name">clear</span>,
+      <span class="part-name">tabs</span>, <span class=
+      "part-name">tput</span> and <span class=
+      "part-name">tset</span> to pass the actual tty file
+      descriptor to setupterm rather than the standard output or
+      error, making padding work.</p>
+    </li>
+
+    <li>
+      <p>change <span class="part-name">tset</span>'s
+      initialization to allow it to get settings from the standard
+      input as well as <code>/dev/tty</code>, to be more effective
+      when output or error are redirected.</p>
+    </li>
+
+    <li>
+      <p>amend check in <span class="part-name">tput</span>,
+      <span class="part-name">tabs</span> and <span class=
+      "part-name">clear</span> to allow those to use the
+      database-only features in <span class="part-name">cron</span>
+      if a &ldquo;<code>-T</code>&rdquo; option gives a suitable
+      terminal name.</p>
+    </li>
+
+    <li>
+      <p>improve error message from <span class=
+      "part-name">tset</span>/<span class="part-name">reset</span>
+      when both stderr/stdout are redirected to a file or pipe.</p>
+    </li>
+  </ul>
+
+  <p>Several of the less apparent features deal with translation of
+  terminfo to termcap (and the reverse), with corresponding checks
+  by <span class="part-name">tic</span>:</p>
+
+  <ul>
+    <li>
+      <p>modify check in <code>fmt_entry</code> to handle a
+      cancelled reset string. Make similar fixes in other parts of
+      <code>dump_entry.c</code> and <code>tput.c</code></p>
+    </li>
+
+    <li>
+      <p>correct read of terminfo entry in which all strings are
+      absent or explicitly cancelled. Before this fix, the result
+      was that all were treated as only absent.</p>
+    </li>
+
+    <li>
+      <p>modify <span class="part-name">infocmp</span> to suppress
+      mixture of absent/cancelled capabilities that would only show
+      as &ldquo;<code>NULL, NULL</code>&rdquo;, unless the
+      &ldquo;<code>-q</code>&rdquo; option is used, e.g., to show
+      &ldquo;<code>-, @</code>&rdquo; or &ldquo;<code>@,
+      -</code>&rdquo;.</p>
+    </li>
+
+    <li>
+      <p>correct a warning from <span class="part-name">tic</span>
+      about keys which are the same, to skip over missing/cancelled
+      values.</p>
+    </li>
+
+    <li>
+      <p>add check in <span class="part-name">tic</span> for use of
+      bold, etc., video attributes in the color capabilities,
+      accounting whether the feature is listed in
+      <code>ncv</code>.</p>
+    </li>
+
+    <li>
+      <p>add check in <span class="part-name">tic</span> for
+      unnecessary use of &ldquo;<code>2</code>&rdquo; to denote a
+      shifted special key.</p>
+    </li>
+
+    <li>
+      <p>improve check in <span class="part-name">tic</span> for
+      delays by also warning about beep/flash when a delay is not
+      embedded, or if those use the VT100 reverse video escape
+      without using a delay.</p>
+    </li>
+
+    <li>
+      <p>improve checks in <code>trim_sgr0</code>, comp_parse.c and
+      parse_entry.c, for cancelled string capabilities.</p>
+    </li>
+
+    <li>
+      <p>add check in <span class="part-name">tic</span> for some
+      syntax errors of delays, as well as use of proportional
+      delays for non-line capabilities.</p>
+    </li>
+
+    <li>
+      <p>add check in <span class="part-name">tic</span> for
+      conflict between <code>ritm</code>, <code>rmso</code>,
+      <code>rmul</code> versus <code>sgr0</code>.</p>
+    </li>
+
+    <li>
+      <p>add check in <code>_nc_parse_entry</code> for invalid
+      entry name, setting the name to
+      &ldquo;<code>invalid</code>&rdquo; to avoid problems storing
+      entries.</p>
+    </li>
+
+    <li>
+      <p>improve <code>_nc_tparm_analyze</code>, using that to
+      extend the checks made by <span class="part-name">tic</span>
+      for reporting inconsistencies between the expected number of
+      parameters for a capability and the actual.</p>
+    </li>
+
+    <li>
+      <p>remove <span class="part-name">tic</span> warning about
+      &ldquo;<code>^?</code>&rdquo; in string capabilities, which
+      was marked as an extension; however all Unix implementations
+      support this and X/Open Curses does not address it. On the
+      other hand, <a href=
+      "https://invisible-island.net/ncurses/tctest.html#bsd42-ctl-question">
+      BSD termcap</a> did not support this feature (until the
+      <a href=
+      "https://invisible-island.net/ncurses/tctest.html#freebsd-ctl-question">
+      mid-1990s</a>).</p>
+
+      <p>in <code>_nc_infotocap</code>, added a check to ensure
+      that terminfo &ldquo;<code>^?</code>&rdquo; is not written to
+      termcap.</p>
+    </li>
+
+    <li>
+      <p>modify <code>sscanf</code> calls in
+      <code>_nc_infotocap</code> for patterns
+      &ldquo;<code>%{number}%+%c</code>&rdquo; and
+      &ldquo;<code>%'char'%+%c</code>&rdquo; to check that the
+      final character is really &ldquo;<code>c</code>&rdquo;,
+      avoiding a case in icl6404 which cannot be converted to
+      termcap.</p>
+    </li>
+
+    <li>
+      <p>in <code>_nc_tic_expand</code> and
+      <code>_nc_infotocap</code>, improved string-length check when
+      deciding whether to use &ldquo;<code>^X</code>&rdquo; or
+      &ldquo;<code>\xxx</code>&rdquo; format for control
+      characters, to make the output of <span class=
+      "part-name">tic</span>/<span class="part-name">infocmp</span>
+      more predictable.</p>
+    </li>
+
+    <li>
+      <p>limited termcap &ldquo;<code>%d</code>&rdquo; width to 2
+      digits on input, and use &ldquo;<code>%2</code>&rdquo; in
+      preference to &ldquo;<code>%02</code>&rdquo; on output.</p>
+    </li>
+
+    <li>
+      <p>correct terminfo/termcap conversion of
+      &ldquo;<code>%02</code>&rdquo; and
+      &ldquo;<code>%03</code>&rdquo; into
+      &ldquo;<code>%2</code>&rdquo; and
+      &ldquo;<code>%3</code>&rdquo;; the result repeated the last
+      character.</p>
+    </li>
+  </ul>
+
+  <h4><a name="h4-examples" id="h4-examples">Examples</a></h4>
+
+  <p>Along with the library and utilities, many improvements were
+  made to the <a href=
+  "https://invisible-island.net/ncurses/ncurses-examples.html">ncurses-examples</a>.</p>
+
+  <p>These changes were made to demonstrate new extensions in
+  <span class="main-name">ncurses</span>:</p>
+
+  <ul>
+    <li>
+      <p>add <span class="part-name">demo_new_pair</span> program,
+      to demonstrate <a href=
+      "https://invisible-island.net/ncurses/man/new_pair.3x.html#h3-alloc_pair">
+      <code>alloc_pair</code></a>, <a href=
+      "https://invisible-island.net/ncurses/man/new_pair.3x.html#h3-find_pair">
+      <code>find_pair</code></a> and <a href=
+      "https://invisible-island.net/ncurses/man/new_pair.3x.html#h3-free_pair">
+      <code>free_pair</code></a> functions.</p>
+
+      <p>This program iterates over the possible color
+      combinations, allocating or initializing color pairs. For
+      best results, choose screen-width dividing evenly into the
+      number of colors. e.g.,</p>
+
+      <blockquote>
+        <table summary="sample layouts for demo_new_pair">
+          <tr>
+            <td><code>32x64,32x128</code>&nbsp;&nbsp;</td>
+
+            <td>256 colors</td>
+          </tr>
+
+          <tr>
+            <td><code>24x44,24x88</code></td>
+
+            <td>88 colors</td>
+          </tr>
+
+          <tr>
+            <td><code>32x64,24x128</code></td>
+
+            <td>16 colors</td>
+          </tr>
+        </table>
+      </blockquote>
+    </li>
+
+    <li>
+      <p>add <span class="part-name">extended_color</span> program,
+      like the older <span class="part-name">color_set</span>
+      program, but using the extended color functions, with and
+      without the SP-functions interface.</p>
+    </li>
+
+    <li>
+      <p>add <span class="part-name">picsmap</span> program to fill
+      in some testing issues not met by <span class=
+      "part-name">dots</span>, using this as the third example in a
+      comparison of the <a href=
+      "https://invisible-island.net/ncurses/ncurses-slang.html#compare_picsmap">
+      ncurses versus slang</a> libraries.</p>
+
+      <p>The program can directly read X bitmap and pixmap files,
+      displaying a picture. It can read other image files using
+      <span class="part-name">ImageMagick</span>'s <span class=
+      "part-name">convert</span> program to translate the image
+      into text.</p>
+
+      <p>For 16-, 88- and 256-color terminal descriptions,
+      <span class="part-name">picsmap</span> can load a palette
+      file which tells it which color palette entries to use. For
+      direct-colors, the terminal descriptions use the
+      <code>RGB</code> extension capability.</p>
+    </li>
+  </ul>
+
+  <p>There are other new example programs and a few scripts:</p>
+
+  <ul>
+    <li>
+      <p>add <span class="part-name">dots_xcurses</span> program to
+      illustrate a different approach used for extended colors
+      which can be contrasted with <span class=
+      "part-name">dots_curses</span>.</p>
+    </li>
+
+    <li>
+      <p>add <span class="part-name">list_keys</span> program show
+      function keys for one or more terminal descriptions. It uses
+      <span class="main-name">ncurses'</span>s convention of
+      modifiers for special keys, based on xterm.</p>
+    </li>
+
+    <li>
+      <p>add <span class="part-name">padview</span> program, to
+      compare pads with direct updates in the <span class=
+      "part-name">view</span> program.</p>
+    </li>
+
+    <li>
+      <p>add <span class="part-name">sp_tinfo</span> program to
+      exercise the SP-functions extension of the low-level terminfo
+      library.</p>
+    </li>
+
+    <li>
+      <p>add test-programs for <code>termattrs</code> and
+      <code>term_attrs</code> functions.</p>
+    </li>
+
+    <li>
+      <p>add <span class="part-name">test_sgr</span> program to
+      exercise all combinations of the sgr capability.</p>
+    </li>
+
+    <li>
+      <p>add <span class="part-name">tput-colorcube</span> demo
+      script, imitating xterm's 88- and 256-color scripts using
+      <span class="part-name">tput</span>.</p>
+    </li>
+
+    <li>
+      <p>add <span class="part-name">tput-initc</span> script to
+      demonstrate how <span class="part-name">tput</span> may be
+      used to initialize a color palette from a data file.</p>
+    </li>
+  </ul>
+
+  <p>A variety of improvements were made to existing programs, both
+  new features as well as options added to make the set of programs
+  more consistent.</p>
+
+  <p>The <span class="part-name">ncurses</span> program is the
+  largest; a proportionately large number of changes were made to
+  it:</p>
+
+  <ul>
+    <li>
+      <p>modify a/A screens to make exiting on an escape character
+      depend on the start of keypad and timeout modes, to allow
+      better testing of function-keys.</p>
+
+      <p>add &ldquo;<code>t</code>&rdquo; toggle for
+      <code>notimeout</code> function.</p>
+    </li>
+
+    <li>
+      <p>modify layout of b/B screens to allow for additional
+      annotation on the right margin; some terminals with partial
+      support did not display well.</p>
+    </li>
+
+    <li>
+      <p>modify c/C screens to allow for extended color pairs.</p>
+
+      <p>add z/Z <em>zoom</em> feature to make extended color pairs
+      easier to test.</p>
+
+      <p>modify test-screens to take advantage of wide screens,
+      reducing the number of lines used for 88- and 256-colors.</p>
+    </li>
+
+    <li>
+      <p>modify &ldquo;<code>d</code>&rdquo; edit-color screen to
+      optionally read xterm color palette directly from terminal,
+      as well as handling <code>KEY_RESIZE</code> and
+      screen-repainting with control/L and control/R.</p>
+    </li>
+
+    <li>
+      <p>add examples to &ldquo;<code>F</code>&rdquo; screen for
+      <code>WACS_D_PLUS</code> and <code>WACS_T_PLUS</code>.</p>
+    </li>
+
+    <li>
+      <p>improve &ldquo;<code>g</code>&rdquo; screen, correcting
+      ifdef which made the legend not reflect changes to keypad-
+      and scroll-modes. Added check for return-value of
+      <code>putwin</code>.</p>
+    </li>
+
+    <li>
+      <p>make &ldquo;<code>s</code>&rdquo; test easier to
+      understand which subtests are available</p>
+
+      <p>add a corresponding &ldquo;<code>S</code>&rdquo;
+      wide-character overlap test-screen.</p>
+    </li>
+
+    <li>
+      <p>add &ldquo;<code>v</code>&rdquo; screen to show
+      <code>baudrate</code> and other values.</p>
+    </li>
+  </ul>
+
+  <p>These changes were made to the other examples:</p>
+
+  <ul>
+    <li>
+      <p>modify <span class="part-name">blue</span> program to use
+      Unicode values for card-glyphs when available, as well as
+      improving the check for CP437 and CP850.</p>
+    </li>
+
+    <li>
+      <p>improve <span class="part-name">demo_menus</span> program,
+      allowing mouse-click on the menu-headers to switch the active
+      menu. This requires a new extension option
+      <code>O_MOUSE_MENU</code> to tell the menu driver to put
+      mouse events which do not apply to the active menu back into
+      the queue so that the application can handle the event.</p>
+    </li>
+
+    <li>
+      <p>correct logic in <span class=
+      "part-name">demo_terminfo</span> program for
+      &ldquo;<code>-f</code>&rdquo; option</p>
+    </li>
+
+    <li>
+      <p>modify <span class="part-name">ditto</span> program to
+      allow <code>$XTERM_PROG</code> environment variable to
+      override "xterm" as the name of the program to run in the
+      threaded configuration.</p>
+    </li>
+
+    <li>
+      <p>add several options to the &ldquo;<em>dots</em>&rdquo;
+      test-programs.</p>
+    </li>
+
+    <li>
+      <p>modify <span class="part-name">filter</span> program:</p>
+
+      <ul>
+        <li>illustrate an alternative to <code>getnstr</code>, that
+        polls for input while updating a clock on the right margin
+        as well as responding to window size-changes.</li>
+
+        <li>adapt logic used in <a href=
+        "https://invisible-island.net/dialog/"><span class=
+        "main-name">dialog</span></a> <a href=
+        "https://invisible-island.net/dialog/manpage/dialog.html#h3-Common-Options">
+        &ldquo;<code>--keep-tite</code>&rdquo; option</a> for
+        <span class="part-name">filter</span> program as the "-a"
+        option. When set, <span class="part-name">filter</span>
+        attempts to suppress the alternate screen.</li>
+      </ul>
+    </li>
+
+    <li>
+      <p>modify <span class="part-name">knight</span> program to
+      provide the "slow" solution for small screens using
+      &ldquo;<code>R</code>&rdquo;, noting that Warnsdorf's method
+      is easily done with &ldquo;<code>a</code>&rdquo;.</p>
+    </li>
+
+    <li>
+      <p>modify the <span class="part-name">savescreen</span>
+      program to add test patterns that exercise 88-, 256-, etc.,
+      colors.</p>
+    </li>
+
+    <li>
+      <p>add options to <span class="part-name">test_arrays</span>,
+      for selecting termcap vs terminfo, etc.</p>
+    </li>
+
+    <li>
+      <p>modify the <span class="part-name">view</span>
+      program:</p>
+
+      <ul>
+        <li>expand tabs using the ncurses library rather than in
+        the test-program.</li>
+
+        <li>eliminate the &ldquo;<code>-n</code>&rdquo; option by
+        simply reading the whole file.</li>
+
+        <li>implement page up/down commands.</li>
+
+        <li>remove the very old <code>SIGWINCH</code> example; just
+        use <code>KEY_RESIZE</code>.</li>
+      </ul>
+    </li>
+
+    <li>
+      <p>improve animation in <span class="part-name">xmas</span>
+      program by adding a time-delay in <code>blinkit</code>.</p>
+    </li>
+
+    <li>
+      <p>modify several test-programs which call
+      <code>use_default_colors</code> to consistently do this only
+      if the &ldquo;<code>-d</code>&rdquo; option is given.</p>
+    </li>
+
+    <li>
+      <p>modify the install-rule for ncurses-examples to put the
+      data files in the data directory, e.g.,
+      <code>/usr/share/ncurses-examples</code>.</p>
+    </li>
+
+    <li>
+      <p>modify several test programs to use new
+      <code>popup_msgs</code> function, adapted from the
+      help-screen used in the <code>edit_field</code> program.</p>
+    </li>
+
+    <li>
+      <p>modify test data for xterm palettes to use the newer
+      color4/color12 values.</p>
+    </li>
+
+    <li>
+      <p>improve the <span class="part-name">tracemunch</span>
+      script:</p>
+
+      <ul>
+        <li>show screenXX pointers and thread identifiers as
+        names.</li>
+
+        <li>chang address-parameters of <code>add_wch</code>,
+        <code>color_content</code> and <code>pair_content</code> to
+        dummy parameters.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3><a name="h3-database" id="h3-database">Terminal
+  database</a></h3>
+
+  <p>There are several new terminal descriptions:</p>
+
+  <blockquote>
+    <p><code>dumb-emacs-ansi</code>, <code>dvtm</code>,
+    <code>dvtm-256color</code>, <code>fbterm</code>,
+    <code>iterm2</code>, <code>linux-m1</code> <em>minitel
+    entries</em>, <code>putty-noapp</code>, <code>viewdata</code>,
+    and <code>vt100+4bsd</code> <em>building-block</em>.</p>
+
+    <p><code>xterm+noalt</code>, <code>xterm+titlestack</code>,
+    <code>xterm+alt1049</code>, <code>xterm+alt+title</code>
+    <em>building blocks</em> and <code>xterm+direct</code>,
+    <code>xterm+indirect</code>, <code>xterm-direct</code>. from
+    <a href=
+    "https://invisible-island.net/xterm/xterm.log.html#xterm_331">xterm
+    patch #331</a>.</p>
+
+    <p>several other &ldquo;<code>-direct</code>&rdquo;
+    descriptions to address the differences of other terminal
+    emulators versus <code>xterm-direct</code>.</p>
+  </blockquote>
+
+  <p>There are many changes to existing terminal descriptions. Some
+  were updates to several descriptions:</p>
+
+  <ul>
+    <li>use <code>xterm+sm+1006</code> in several terminal
+    descriptions which were validated as supporting the extended
+    mouse feature for their respective terminal emulators.</li>
+
+    <li>corrected <em>sgr</em>/<em>sgr0</em> strings in a few cases
+    reported by <span class="part-name">tic</span>, making those
+    correspond to the non-<em>sgr</em> settings where they differ,
+    but otherwise use ECMA-48 consistently.</li>
+
+    <li>add 0.1sec mandatory delay to <em>flash</em> capabilities
+    using the VT100 reverse-video control</li>
+  </ul>
+
+  <p>while others affected specific descriptions. These were
+  retested, to take into account new/undocumented changes by their
+  developers:</p>
+
+  <blockquote>
+    <p><code>iterm</code>, <code>minitel</code>, <code>st</code>,
+    <code>viewdata</code>, <code>nsterm</code></p>
+  </blockquote>
+
+  <p>while these are specific fixes based on user reports, or
+  warnings from <span class="part-name">tic</span>:</p>
 
   <dl>
-    <dt>cdk</dt>
+    <dt><a href=
+    "https://invisible-island.net/ncurses/terminfo.src.html#toc-_A_N_S_I__S_Y_S__I_S_O_6429__E_C_M_A-48__Capabilities">
+    <code>ansi</code> <em>building blocks</em></a></dt>
 
-    <dd>Curses Development Kit<br>
-    <a href=
-    "http://invisible-island.net/cdk/">http://invisible-island.net/cdk/</a><br>
-
-    <a href=
-    "http://www.vexus.ca/products/CDK/">http://www.vexus.ca/products/CDK/</a></dd>
-
-    <dt>ded</dt>
-
-    <dd>directory-editor<br>
-    <a href=
-    "http://invisible-island.net/ded/">http://invisible-island.net/ded/</a></dd>
-
-    <dt>dialog</dt>
-
-    <dd>the underlying application used in Slackware's setup, and
-    the basis for similar applications on GNU/Linux.<br>
-    <a href=
-    "http://invisible-island.net/dialog/">http://invisible-island.net/dialog/</a></dd>
-
-    <dt>lynx</dt>
-
-    <dd>the character-screen WWW browser<br>
-    <a href=
-    "http://lynx.isc.org/release/">http://lynx.isc.org/release/</a></dd>
-
-    <dt>Midnight Commander</dt>
-
-    <dd>file manager<br>
-    <a href=
-    "http://www.midnight-commander.org/">http://www.midnight-commander.org/</a></dd>
-
-    <dt>mutt</dt>
-
-    <dd>mail utility<br>
-    <a href="http://www.mutt.org/">http://www.mutt.org/</a></dd>
-
-    <dt>ncftp</dt>
-
-    <dd>file-transfer utility<br>
-    <a href="http://www.ncftp.com/">http://www.ncftp.com/</a></dd>
-
-    <dt>nvi</dt>
-
-    <dd>New vi versions 1.50 are able to use ncurses versions 1.9.7
-    and later.<br>
-    <a href=
-    "https://sites.google.com/a/bostic.com/keithbostic/nvi">https://sites.google.com/a/bostic.com/keithbostic/nvi</a><br>
+    <dd>
+      <ul>
+        <li>restored <em>rmir</em>/<em>smir</em> in
+        <code>ansi+idc</code> to better match original
+        <code>ansiterm+idc</code>, add alias
+        <code>ansiterm</code></li>
+      </ul>
     </dd>
 
-    <dt>pinfo</dt>
+    <dt><a href=
+    "https://invisible-island.net/ncurses/terminfo.src.html#tic-icl6404">
+    <code>icl6402</code></a></dt>
 
-    <dd>Lynx-like info browser. <a href=
-    "https://alioth.debian.org/projects/pinfo/">https://alioth.debian.org/projects/pinfo/</a></dd>
+    <dd>
+      <ul>
+        <li>corrected missing comma-separator between string
+        capabilities in <code>icl6402</code> and
+        <code>m2-nam</code></li>
+      </ul>
+    </dd>
 
-    <dt>tin</dt>
+    <dt><a href=
+    "https://invisible-island.net/ncurses/terminfo.src.html#tic-interix">
+    <code>interix</code></a></dt>
 
-    <dd>newsreader, supporting color, MIME <a href=
-    "http://www.tin.org/">http://www.tin.org/</a></dd>
+    <dd>
+      <ul>
+        <li>updated using <span class="main-name">tack</span> and
+        SFU with Windows 7 Ultimate.</li>
+
+        <li>used <code>^?</code> for <em>kdch1</em></li>
+      </ul>
+    </dd>
+
+    <dt><a href=
+    "https://invisible-island.net/ncurses/terminfo.src.html#toc-_Linux_consoles">
+    <code>linux</code></a></dt>
+
+    <dd>
+      <ul>
+        <li>made <code>linux3.0</code> entry the default
+        <strong><code>linux</code></strong> entry</li>
+
+        <li>modify <code>linux2.6</code> entry to improve
+        line-drawing so that the <code>linux3.0</code> entry can be
+        used in non-UTF-8 mode</li>
+
+        <li>omitted selection of ISO-8859-1 for G0 in enacs
+        capability from linux2.6 entry, to avoid conflict with the
+        user-defined mapping. The reset feature uses ISO-8859-1 in
+        any case.</li>
+
+        <li>modify <em>flash</em> capability for <code>linux</code>
+        and <code>wyse</code> entries to put the delay between the
+        reverse/normal escapes rather than after</li>
+
+        <li>modify <code>linux-16color</code> to not mask dim,
+        standout or reverse with the <em>ncv</em> capability</li>
+      </ul>
+    </dd>
+
+    <dt><a href=
+    "https://invisible-island.net/ncurses/terminfo.src.html#toc-_Open_B_S_D_consoles">
+    <code>pccon</code> <em>entries</em></a></dt>
+
+    <dd>
+      <ul>
+        <li>fixed some inconsistencies in the
+        <code><em>pccon*</em></code> entries</li>
+
+        <li>add bold to <code>pccon+sgr+acs</code> and
+        <code>pccon-base</code></li>
+
+        <li>add keys f12-f124 to <code>pccon+keys</code></li>
+      </ul>
+    </dd>
+
+    <dt><a href=
+    "https://invisible-island.net/ncurses/terminfo.src.html#toc-_Tmux">
+    <code>tmux</code></a></dt>
+
+    <dd>
+      <ul>
+        <li>corrected <em>sgr</em> string, which used
+        <code>screen</code>'s "standout" code rather than the
+        standard code.</li>
+
+        <li>add settings corresponding to <code>xterm-keys</code>
+        option to reflect upcoming change to make that option
+        <em>"on"</em> by default</li>
+
+        <li>uncanceled <em>Ms</em></li>
+      </ul>
+    </dd>
+
+    <dt><a href=
+    "https://invisible-island.net/ncurses/terminfo.src.html#toc-_D_E_C__V_T100_and_compatibles">
+    <code>vt100</code></a></dt>
+
+    <dd>
+      <ul>
+        <li>modify <code>vt100</code> <em>rs2</em> string to reset
+        vt52 mode and scrolling regions</li>
+
+        <li>corrected <em>rs2</em> string for
+        <code>vt100-nam</code></li>
+
+        <li>made minor fixes for <code>vt100+4bsd</code>, e.g.,
+        delay in <em>sgr</em> for consistency</li>
+      </ul>
+    </dd>
+
+    <dt><a href=
+    "https://invisible-island.net/ncurses/terminfo.src.html#toc-_G_N_O_M_E__V_T_E_">
+    <code>vte</code></a></dt>
+
+    <dd>
+      <ul>
+        <li>moved SGR 24 and 27 from <code>vte-2014</code> to
+        <code>vte-2012</code></li>
+
+        <li>add a few capabilities fixed in recent <em>VTE</em>
+        development</li>
+      </ul>
+    </dd>
+
+    <dt><a href=
+    "https://invisible-island.net/ncurses/terminfo.src.html#toc-_X_T_E_R_M">
+    <code>xterm</code></a></dt>
+
+    <dd>
+      <ul>
+        <li>add <em>rep</em> to <code>xterm-new</code>, available
+        since <a href=
+        "https://invisible-island.net/xterm/xterm.log.html#xterm_32">
+        late 1996</a>.</li>
+
+        <li>modify <code>xterm+256color</code> and
+        <code>xterm+256setaf</code> to use correct number of color
+        pairs.</li>
+
+        <li>modify <em>rs1</em> for <code>xterm-16color</code>,
+        <code>xterm-88color</code> and <code>xterm-256color</code>
+        to reset palette using <em>oc</em> string as in
+        <code>linux</code> entry.</li>
+
+        <li>add <em>rs1</em> capability to
+        <code>xterm-256color</code></li>
+
+        <li>add <em>oc</em> capability to
+        <code>xterm+256color</code>, allowing palette reset for
+        <span class="main-name">xterm</span></li>
+
+        <li>add <em>op</em> to <code>xterm+256setaf</code></li>
+
+        <li>modify <code>xterm-r5</code>, <code>xterm-r6</code> and
+        <code>xterm-xf86-v32</code> to use <code>xterm+kbs</code>
+        to match <a href=
+        "https://invisible-island.net/xterm/xterm.log.html#xterm_272">
+        xterm #272</a>, reflecting packager's changes</li>
+
+        <li>used ANSI reply for <em>u8</em> in
+        <code>xterm-new</code>, to reflect vt220-style responses
+        that could be returned.</li>
+
+        <li>made <code>xterm-pcolor</code> <em>sgr</em> consistent
+        with other capabilities</li>
+      </ul>
+    </dd>
   </dl>
 
-  <p>as well as some that use ncurses for the terminfo support
-  alone:</p>
+  <p>A few entries use extensions (user-defined terminal
+  capabilities):</p>
 
-  <dl>
-    <dt>minicom</dt>
+  <ul>
+    <li>add <em>rmxx</em>/<em>smxx</em> ECMA-48 strikeout extension
+    to <code>tmux</code> and <code>xterm-basic</code></li>
 
-    <dd>terminal emulator<br>
+    <li>used <em>RGB</em> capability in new <em>*-direct</em>
+    entries to denote direct-color feature.</li>
+  </ul>
+
+  <h3><a name="h3-documentation" id=
+  "h3-documentation">Documentation</a></h3>
+
+  <p>As usual, this release</p>
+
+  <ul>
+    <li>
+      <p>improves documentation by describing new features,</p>
+    </li>
+
+    <li>
+      <p>attempts to improve the description of features which
+      users have found confusing</p>
+    </li>
+
+    <li>
+      <p>fills in overlooked descriptions of features which were
+      described in the <a href=
+      "https://invisible-island.net/ncurses/NEWS.html">NEWS</a>
+      file but treated sketchily in manual pages.</p>
+    </li>
+  </ul>
+
+  <p>In particular,</p>
+
+  <ul>
+    <li>
+      <p>Since the underlying features for <a href=
+      "https://invisible-island.net/ncurses/man/clear.1.html#h2-HISTORY">
+      <span class="part-name">tset</span></a>, <a href=
+      "https://invisible-island.net/ncurses/man/clear.1.html#h2-HISTORY">
+      <span class="part-name">tput</span></a>, and <a href=
+      "https://invisible-island.net/ncurses/man/clear.1.html#h2-HISTORY">
+      <span class="part-name">clear</span></a> have been better
+      integrated, the documentation now includes information on how
+      those tools evolved.</p>
+
+      <p>In addition to explaining the improved integration of the
+      tools, the manual pages made it easier to see how the tools
+      are similar and how they are different.</p>
+    </li>
+
+    <li>
+      <p>The <code>addch</code> manual page has additional
+      information on <a href=
+      "https://invisible-island.net/ncurses/man/curs_addch.3x.html#h2-PORTABILITY">
+      portability</a> and differences from other
+      implementations.</p>
+    </li>
+
+    <li>
+      <p>The discussion of color-pairs in the <em>attributes</em>
+      manual page is improved in its <a href=
+      "https://invisible-island.net/ncurses/man/curs_attr.3x.html#h2-HISTORY">
+      history section</a>.</p>
+    </li>
+
+    <li>
+      <p>The documentation of the <code>chtype</code>,
+      <code>cchar_t</code> types and the attribute values which can
+      be stored in those types, in particular the <a href=
+      "https://invisible-island.net/ncurses/man/curs_attr.3x.html#h2-HISTORY">
+      history</a> and <a href=
+      "https://invisible-island.net/ncurses/man/curs_attr.3x.html#h2-PORTABILITY">
+      portability</a> sections of the <em>attributes</em> manual
+      page, has been improved.</p>
+    </li>
+
+    <li>
+      <p>improve discussion of <a href=
+      "https://invisible-island.net/ncurses/man/curs_mouse.3x.html#h2-PORTABILITY">
+      portability</a> in the <em>mouse</em> manual.</p>
+    </li>
+
+    <li>
+      <p>The <em>pad</em> manual page has a section on the <a href=
+      "https://invisible-island.net/ncurses/man/curs_pad.3x.html#h2-PORTABILITY">
+      origin and portability</a> of pads.</p>
+    </li>
+
+    <li>
+      <p>Differences between SVr4 and X/Open Curses soft-keys are
+      discussed in a new section on <a href=
+      "https://invisible-island.net/ncurses/man/curs_slk.3x.html#h2-PORTABILITY">
+      portability</a>.</p>
+    </li>
+
+    <li>
+      <p>There are updated/improved notes on portability in the
+      <a href=
+      "https://invisible-island.net/ncurses/man/resizeterm.3x.html#h2-PORTABILITY">
+      resizeterm</a> and <a href=
+      "https://invisible-island.net/ncurses/man/wresize.3x.html#h2-PORTABILITY">
+      wresize</a> manual pages.</p>
+    </li>
+  </ul>
+
+  <p>In addition to providing background information to explain
+  these features and show how they evolved, there are corrections,
+  clarifications, etc.:</p>
+
+  <ul>
+    <li>
+      <p>add note in the <a href=
+      "https://invisible-island.net/ncurses/man/curs_addch.3x.html#h3-ACS-Symbols">
+      <em>addch</em></a> manual about line-drawing when it depends
+      upon UTF-8.</p>
+    </li>
+
+    <li>
+      <p>improve discussion of line-drawing characters in the
+      <a href=
+      "https://invisible-island.net/ncurses/man/curs_add_wch.3x.html">
+      <em>add_wch</em></a> manual.</p>
+    </li>
+
+    <li>
+      <p>explain in <a href=
+      "https://invisible-island.net/ncurses/man/clear.1.html#h2-DESCRIPTION">
+      <span class="part-name">clear</span></a>'s manual page that
+      it writes to the standard output.</p>
+    </li>
+
+    <li>
+      <p>improve description of <a href=
+      "https://invisible-island.net/ncurses/man/curs_initscr.3x.html#h3-endwin">
+      <em>endwin</em></a>.</p>
+    </li>
+
+    <li>
+      <p>improve discussion of field validation in the <a href=
+      "https://invisible-island.net/ncurses/man/form_driver.3x.html">
+      <em>form driver</em></a> manual page.</p>
+    </li>
+
+    <li>
+      <p>clarify the use of <code>wint_t</code> vs
+      <code>wchar_t</code> in <a href=
+      "https://invisible-island.net/ncurses/man/curs_get_wstr.3x.html#h2-RETURN-VALUE">
+      <em>get_wstr</em></a> manual page.</p>
+    </li>
+
+    <li>
+      <p>clarify in the <a href=
+      "https://invisible-island.net/ncurses/man/curs_getch.3x.html#h3-Predefined-key-codes">
+      <em>getch</em></a> manual that the keypad mode affects an
+      application's ability to read <code>KEY_MOUSE</code> codes,
+      but does not affect <code>KEY_RESIZE</code>.</p>
+
+      <p>trim some obsolete/incorrect wording about
+      <code>EINTR</code> from the <em>getch</em> manual page</p>
+
+      <p>improve manual pages for <a href=
+      "https://invisible-island.net/ncurses/man/curs_getch.3x.html#h3-Keypad-Mode">
+      <em>getch</em></a> and <a href=
+      "https://invisible-island.net/ncurses/man/curs_get_wch.3x.html#h2-DESCRIPTION">
+      <em>get_wch</em></a> to point out that they might return
+      user-defined values which have no predefined names in
+      <code>&lt;curses.h&gt;</code></p>
+    </li>
+
+    <li>
+      <p>improve description of the <code>-R</code> option in the
+      <a href=
+      "https://invisible-island.net/ncurses/man/infocmp.1m.html"><span class="part-name">
+      infocmp</span></a> manual page</p>
+    </li>
+
+    <li>
+      <p>clarify in the <a href=
+      "https://invisible-island.net/ncurses/man/resizeterm.3x.html#h2-NOTES">
+      <em>resizeterm</em></a> manual page how
+      <code>KEY_RESIZE</code> is pushed onto the input stream.</p>
+    </li>
+
+    <li>
+      <p>document return value of <a href=
+      "https://invisible-island.net/ncurses/man/curs_extend.3x#h2-RETURN-VALUE">
+      <code>use_extended_names</code></a></p>
+    </li>
+
+    <li>
+      <p>document differences in <a href=
+      "https://invisible-island.net/ncurses/man/curs_variables.3x.html#h2-PORTABILITY">
+      <code>ESCDELAY</code></a> versus AIX's implementation in the
+      <em>variables</em> manual page.</p>
+    </li>
+
+    <li>
+      <p>The <code>_nc_free_tinfo</code> function is now documented
+      in the <a href=
+      "https://invisible-island.net/ncurses/man/curs_memleaks.3x.html">
+      <em>memory-leaks</em></a> manual page, because it could be
+      used in <span class="main-name">tack</span> for memory-leak
+      checking.</p>
+    </li>
+
+    <li>
+      <p>add a note to the <a href=
+      "https://invisible-island.net/ncurses/man/tic.1m.html"><span class="part-name">
+      tic</span></a> manual page about -W versus -f options.</p>
+    </li>
+
+    <li>
+      <p>improve <em>terminfo manual</em> description of <a href=
+      "https://invisible-island.net/ncurses/man/terminfo.5.html#h3-Terminfo-Capabilities-Syntax">
+      terminfo syntax</a>.</p>
+
+      <p>improve terminfo manual page discussion of <a href=
+      "https://invisible-island.net/ncurses/man/terminfo.5.html#h3-Line-Graphics">
+      control- and graphics- characters</a>.</p>
+
+      <p>improve <a href=
+      "https://invisible-island.net/ncurses/man/terminfo.5.html#h3-Color-Handling">
+      color-handling</a> section in terminfo manual page</p>
+    </li>
+
+    <li>
+      <p>clarify description in <a href=
+      "https://invisible-island.net/ncurses/man/tput.1.html#h2-PORTABILITY">
+      <span class="part-name">tput</span></a> manual page regarding
+      support for termcap names</p>
+
+      <p>update <a href=
+      "https://invisible-island.net/ncurses/man/tput.1.html#h3-Aliases">
+      <span class="part-name">tput</span></a> manual page to
+      reflect changes to manipulate terminal modes by sharing
+      functions with <span class="part-name">tset</span>.</p>
+    </li>
+
+    <li>
+      <p>clarify in manual pages that the optional verbose option
+      level of <a href=
+      "https://invisible-island.net/ncurses/man/tic.1m.html#h2-OPTIONS">
+      <span class="part-name">tic</span></a> and <a href=
+      "https://invisible-island.net/ncurses/man/infocmp.1m.html#h3-Other-Options">
+      <span class="part-name">infocmp</span></a> is available only
+      when <span class="main-name">ncurses</span> is configured for
+      tracing.</p>
+    </li>
+
+    <li>
+      <p>improve manual page description of <a href=
+      "https://invisible-island.net/ncurses/man/tset.1.html"><em>tset/reset</em></a>
+      versus window-size.</p>
+    </li>
+
+    <li>
+      <p>improve description of <a href=
+      "https://invisible-island.net/ncurses/man/curs_termcap.3x.html#h3-FORMATTING-CAPABILITIES">
+      <em>tgoto</em></a> parameters</p>
+    </li>
+  </ul>
+
+  <p>There are new manual pages:</p>
+
+  <ul>
+    <li><a href=
+    "https://invisible-island.net/ncurses/man/user_caps.5.html"><em>
+    user_caps</em></a> documents the terminfo extensions used by
+    <span class="main-name">ncurses</span>.</li>
+
+    <li>
+      <p><a href=
+      "https://invisible-island.net/ncurses/man/scr_dump.5.html"><em>
+      scr_dump</em></a> documents the screen-dump format.</p>
+    </li>
+  </ul>
+
+  <p>Some of the improvements are more subtle, relating to the way
+  the information is presented:</p>
+
+  <ul>
+    <li>
+      <p>Made minor fixes to manpage <em>NAME/SYNOPSIS</em>
+      sections to consistently use rule that either all functions
+      which are prototyped in <em>SYNOPSIS</em> are listed in the
+      <em>NAME</em> section, or the manual-page name is the sole
+      item listed in the <em>NAME</em> section. The latter is used
+      to reduce clutter, e.g., for the top-level library manual
+      pages as well as for certain feature-pages such as <a href=
+      "https://invisible-island.net/ncurses/man/curs_sp_funcs.3x.html">
+      <em>SP-funcs</em></a> and <a href=
+      "https://invisible-island.net/ncurses/man/curs_threads.3x.html">
+      <em>threading</em></a>.</p>
+    </li>
+
+    <li>
+      <p>improve manual pages for utilities with respect to POSIX
+      versus X/Open Curses.</p>
+    </li>
+
+    <li>
+      <p>improve organization of the <a href=
+      "https://invisible-island.net/ncurses/man/curs_attr.3x.html"><em>
+      attributes</em></a> and <a href=
+      "/ncurses/man/curs_color.3x.html"><em>color</em></a> manual
+      pages.</p>
+    </li>
+  </ul>
+
+  <h3><a name="h3-bug-fixes" id="h3-bug-fixes">Interesting
+  bug-fixes</a></h3>
+
+  <ul>
+    <li>
+      <p>modify <span class="part-name">toe</span> to not exit if
+      unable to read a terminal description, e.g., if there is a
+      permission problem.</p>
+    </li>
+
+    <li>
+      <p>correct 20100515 change for weak signals versus
+      sigprocmask</p>
+    </li>
+
+    <li>work around Ada tool-breakage in Debian 9 and later by
+    invoking <code>gprconfig</code> to specify the C compiler to be
+    used by <code>gnatmake</code>, and conditionally suppressing
+    <code>Library_Options</code> line for static libraries.</li>
+
+    <li>
+      <p>There were, as well, several bug-fixes to handle illegal
+      input for <span class="part-name">tic</span>. Because those
+      did not correspond to useful terminal descriptions, most
+      users are unaffected.</p>
+    </li>
+  </ul>
+
+  <h3><a name="h3-config-config" id=
+  "h3-config-config">Configuration changes</a></h3>
+
+  <h4><a name="h4-config-major" id="h4-config-major">Major
+  changes</a></h4>
+
+  <p>This release provides a new binary format for terminal
+  descriptions that use extended numeric capabilities. Applications
+  built with the wide-character <em>ncursesw</em> library can use
+  these extended numbers.</p>
+
+  <ul>
+    <li>
+      <p>This includes utilities such as <span class=
+      "part-name">tic</span> and <span class=
+      "part-name">infocmp</span>, because (as noted in <a href=
+      "#h4-new-library"><em>New features</em></a>), the feature
+      relies upon an extension to the low-level <em>tinfo</em>
+      library.</p>
+    </li>
+
+    <li>
+      <p>A few software packagers use a configuration option of
+      <span class="main-name">ncurses</span> which allows the
+      low-level <em>tinfo</em> library to be shared between the
+      high-level <em>ncurses</em> and <em>ncursesw</em> libraries.
+      This new feature was designed to work in that configuration
+      as well.</p>
+    </li>
+  </ul>
+
+  <p>Other applications (i.e., using the 8-bit <em>ncurses</em>
+  library) which read the extended terminal descriptions see those
+  numeric capabilities set to the maximum value for a signed 16-bit
+  number.</p>
+
+  <p>Older versions of <span class="main-name">ncurses</span>'
+  <span class="part-name">tic</span> accept out-of-range numeric
+  capabilities, storing those as the maximum value for a signed
+  16-bit number. Other implementations of curses (mentioned in the
+  discussion of <a href=
+  "https://invisible-island.net/ncurses/ncurses-slang.html#compare_picsmap">
+  <span class="part-name">picsmap</span></a>) give zero for these
+  out-of-range capabilities.</p>
+
+  <h4><a name="h4-config-options" id=
+  "h4-config-options">Configuration options</a></h4>
+
+  <p>These changes provide support for <span class=
+  "main-name">tack</span> 1.08, released in <a href=
+  "https://invisible-island.net/ncurses/tack/CHANGES.html#index-t20170726">
+  July 2017</a>:</p>
+
+  <ul>
+    <li>
+      <p>add <code>--without-tack</code> configure option to refine
+      <code>--with-progs</code> configure option. Normally
+      <span class="main-name">tack</span> is built outside the
+      <span class="main-name">ncurses</span> tree, but a few
+      packagers combine it during the build. If
+      <code>term_entry.h</code> is installed, there is no advantage
+      to in-tree builds.</p>
+    </li>
+
+    <li>
+      <p>adjust configure-script to define
+      <code>HAVE_CURSES_DATA_BOOLNAMES</code> symbol needed for
+      <span class="main-name">tack</span> 1.08 when built in-tree.
+      Rather than relying upon internal "_nc_" functions,
+      <span class="main-name">tack</span> now uses the boolean,
+      number and string capability name-arrays provided by
+      <span class="main-name">ncurses</span> and SVr4 Unix curses.
+      It still uses <code>term_entry.h</code> for the definitions
+      of the extended capability arrays.</p>
+    </li>
+
+    <li>
+      <p>add dependency upon ncurses_cfg.h to <span class=
+      "part-name">tic</span>'s header-files; any program using
+      <span class="part-name">tic</span>-library will have to
+      supply this file. Legacy <span class="main-name">tack</span>
+      versions supply this file; ongoing <span class=
+      "main-name">tack</span> development has dropped the
+      dependency upon <span class="part-name">tic</span>-library
+      and new releases will not be affected.</p>
+    </li>
+  </ul>
+
+  <p>Other changes to the configure-script and generated files
+  include</p>
+
+  <ul>
+    <li>
+      <p>add configure options to disable checks for form, menu and
+      panel libraries so that ncurses-examples can be built with
+      non-SVr4 curses implementations.</p>
+    </li>
+
+    <li>
+      <p>add configure option <code>--enable-opaque-curses</code>
+      for <em>ncurses</em> library and similar options for the
+      other libraries.</p>
+    </li>
+
+    <li>
+      <p>add configure option <code>--disable-wattr-macros</code>
+      for use in cases where one wants to use the same headers for
+      ncurses5/ncurses6 development, by suppressing the
+      <em>wattr*</em> macros which differ due to the introduction
+      of extended colors</p>
+    </li>
+
+    <li>
+      <p>modify configure macro for shared-library rules to use
+      <code>-Wl,-rpath</code> rather than <code>-rpath</code> to
+      work around a bug in <span class="part-name">scons</span></p>
+    </li>
+
+    <li>
+      <p>improve ncurses-examples' configure script to define as
+      needed <code>NCURSES_WIDECHAR</code> for platforms where
+      <code>_XOPEN_SOURCE_EXTENDED</code> does not work. Also
+      modified the test program to ensure that if building with
+      <span class="main-name">ncurses</span>, that the
+      <code>cchar_t</code> type is checked, since that is normally
+      (since <a href=
+      "https://invisible-island.net/ncurses/NEWS.html#t20111030">20111030</a>)
+      ifdef'd depending on this test.</p>
+    </li>
+
+    <li>
+      <p>modify configure script to handle the case where
+      <span class="part-name">tic</span>-library is renamed, but
+      the <code>--with-debug</code> option is used by itself
+      without normal or shared libraries</p>
+    </li>
+
+    <li>
+      <p>modify editing script which generates resulting.map to
+      work with the clang configuration on recent FreeBSD, which
+      gives an error on an empty "local" section.</p>
+    </li>
+
+    <li>
+      <p>improve configure check for setting the
+      <code>WILDCARD_SYMS</code> variable; on ppc64 the variable is
+      in the <strong><em>Data</em></strong> section rather than
+      <strong><em>Text</em></strong>.</p>
+    </li>
+
+    <li>
+      <p>correct result of configure option
+      <code>--without-fallbacks</code>, which caused FALLBACK_LIST
+      to be set to "no"</p>
+    </li>
+
+    <li>
+      <p>modify <code>--with-pkg-config-libdir</code> option to
+      make it possible to install &ldquo;.pc&rdquo; files even if
+      <span class="part-name">pkg-config</span> is not found. Limit
+      this change, to suppress the actual install if it is not
+      overridden to a valid directory at install time.</p>
+    </li>
+
+    <li>
+      <p>disallow &ldquo;no&rdquo; as a possible value for
+      <code>--with-shlib-version</code> option, overlooked in
+      cleanup-changes for <a href=
+      "https://invisible-island.net/ncurses/NEWS.html#t20000708">20000708</a>.</p>
+    </li>
+  </ul>
+
+  <h3><a name="h3-portability" id=
+  "h3-portability">Portability</a></h3>
+
+  <p>Many of the portability changes are implemented via the
+  configure script:</p>
+
+  <ul>
+    <li>
+      <p>improve configure script's <code>CF_CC_ENV_FLAGS</code>
+      macro to allow for compiler wrappers such as <span class=
+      "part-name">ccache</span>. This change moves only the
+      preprocessor, optimization and warning flags to
+      <code>CPPFLAGS</code> and <code>CFLAGS</code>, leaving the
+      residue in <code>CC</code>. That happens to work for
+      <span class="part-name">gcc</span>'s various
+      &ldquo;model&rdquo; options, but may require tuning for other
+      compilers.</p>
+    </li>
+
+    <li>
+      <p>modify ncurses-examples' configure script to use
+      <span class="part-name">pkg-config</span> for the extra
+      form/menu/panel libraries, to be more consistent with the
+      handling of the curses/ncurses library.</p>
+    </li>
+
+    <li>
+      <p>add configuration checks to build with <a href=
+      "https://invisible-island.net/ncurses/ncurses-netbsd.html">NetBSD
+      curses</a>, which for example lacks <a href=
+      "https://invisible-island.net/ncurses/man/curs_util.3x.html#h3-use_env">
+      <code>use_env</code></a>.</p>
+    </li>
+
+    <li>
+      <p>change ncurses-examples to use <code>attr_t</code> vs
+      <code>chtype</code> to follow X/Open documentation more
+      closely since Solaris xpg4-curses uses different values for
+      <code>WA_<em>xxx</em></code> vs <code>A_<em>xxx</em></code>
+      that rely on attr_t being an unsigned short. Tru64 aka OSF1,
+      HPUX, AIX did as <span class="main-name">ncurses</span> does,
+      equating the two sets.</p>
+    </li>
+
+    <li>
+      <p>modify several test programs to reflect that <span class=
+      "main-name">ncurses</span> honors existing signal handlers in
+      initscr, while other implementations do not.</p>
+    </li>
+
+    <li>
+      <p>add configure check for <code>openpty</code> to
+      ncurses-examples' configure script, for <span class=
+      "part-name">ditto</span>.</p>
+    </li>
+
+    <li>
+      <p>improve check for working <code>poll</code> function by
+      using <code>posix_openpt</code> as a fallback in case there
+      is no valid terminal on the standard input</p>
+    </li>
+
+    <li>
+      <p>modify ncurses-examples' configure script to check for
+      <span class="part-name">pthread</span> dependency of
+      <em>ncursest</em> or <em>ncursestw</em> library when building
+      the <span class="main-name">ncurses</span> examples, e.g., in
+      case weak symbols are used.</p>
+    </li>
+
+    <li>
+      <p>add checks in ncurses-examples' configure script for some
+      functions neither in 4.3BSD curses, nor based on X/Open
+      Curses:</p>
+
+      <ul>
+        <li>
+          <p>modify a loop limit in firework.c to work around
+          absense of limit checks in some libraries.</p>
+        </li>
+
+        <li>
+          <p>fill the last row of a window with
+          &ldquo;<code>?</code>&rdquo; in firstlast if waddch does
+          not return <code>ERR</code> on the lower-right
+          corner.</p>
+        </li>
+      </ul>
+    </li>
+
+    <li>
+      <p>build-fixes for the Portland Group (PGI) compilers</p>
+
+      <ul>
+        <li>
+          <p>accept whitespace in <span class=
+          "part-name">sed</span> expression for generating
+          expanded.c</p>
+        </li>
+
+        <li>
+          <p>modify configure check that g++ compiler warnings are
+          not used.</p>
+        </li>
+
+        <li>
+          <p>add configure check for -fPIC option needed for shared
+          libraries.</p>
+        </li>
+      </ul>
+    </li>
+
+    <li>
+      <p>modify configure script for clang as used on FreeBSD, to
+      work around clang's differences in exit codes vs gcc.</p>
+    </li>
+
+    <li>
+      <p>fixes for configure/build using clang on OSX</p>
+
+      <ul>
+        <li>
+          <p>do not redefine &ldquo;inline&rdquo; in
+          <code>ncurses_cfg.h</code>; this was originally to solve
+          a problem with gcc/g++, but is aggravated by clang's
+          misuse of symbols to pretend it is gcc.</p>
+        </li>
+
+        <li>
+          <p>add braces to configure script to prevent unwanted
+          addition of &ldquo;<code>-lstdc++</code>&rdquo; option to
+          the <code>CXXLIBS</code> symbol.</p>
+        </li>
+
+        <li>
+          <p>improve/update test-program used for checking
+          existence of stdc++ library.</p>
+        </li>
+
+        <li>
+          <p>if <code>$CXXLIBS</code> is set, the linkage test uses
+          that in addition to <code>$LIBS</code>.</p>
+        </li>
+      </ul>
+    </li>
+
+    <li>
+      <p>fixes for OS/2:</p>
+
+      <ul>
+        <li>
+          <p>use button instead of <code>kbuf[0]</code> in
+          EMX-specific part of <code>lib_mouse.c</code></p>
+        </li>
+
+        <li>
+          <p>support building with <span class=
+          "part-name">libtool</span> on OS/2</p>
+        </li>
+
+        <li>
+          <p>use stdc++ library with OS/2 kLIBC</p>
+        </li>
+
+        <li>
+          <p>clear configure script's <code>cf_XOPEN_SOURCE</code>
+          for OS/2, to work with its header files</p>
+        </li>
+      </ul>
+    </li>
+
+    <li>
+      <p>add &ldquo;newer&rdquo; baudrate symbols to the <a href=
+      "https://invisible-island.net/ncurses/man/curs_termattrs.3x.html#h3-baudrate">
+      <code>baudrate</code></a> function in the ncurses library as
+      well as to a corresponding table in <span class=
+      "part-name">tset</span>.</p>
+    </li>
+
+    <li>
+      <p>modify ncurses-examples <span class=
+      "part-name">savescreen</span> to work with AIX and HPUX.</p>
+    </li>
+
+    <li>
+      <p>define <code>WIN32_LEAN_AND_MEAN</code> for MinGW port,
+      making builds faster.</p>
+    </li>
+
+    <li>
+      <p>add a configure check for <em>wcwidth</em> versus the
+      <span class="main-name">ncurses</span> line-drawing
+      characters, to use in special-casing systems such as Solaris.
+      Solaris, however, requires a special case that maps Unicode
+      line-drawing characters into the acsc string for non-Unicode
+      locales. Solaris also has a misconfigured wcwidth which marks
+      all of the line drawing characters as double-width.</p>
+    </li>
+
+    <li>
+      <p>string-hacks (non-standard):</p>
+
+      <ul>
+        <li>
+          <p>fix configure script to record when
+          <code>strlcat</code> is found on OpenBSD.</p>
+        </li>
+
+        <li>
+          <p>add <code>--enable-string-hacks</code> option to
+          ncurses-examples' configure script.</p>
+        </li>
+
+        <li>
+          <p>completed string-hacks for <em>sprintf</em>, etc.,
+          including the ncurses-examples programs.</p>
+        </li>
+
+        <li>
+          <p>make <code>--enable-string-hacks</code> option work
+          with Debian by checking for the "bsd" library and its
+          associated "&lt;bsd/string.h&gt;" header.</p>
+        </li>
+      </ul>
+    </li>
+
+    <li>
+      <p>workaround for Debian's antique/unmaintained version of
+      mawk:</p>
+
+      <ul>
+        <li>
+          <p>see Debian #65617, which was fixed in <span class=
+          "main-name">mawk</span>'s upstream releases in <a href=
+          "https://invisible-island.net/mawk/CHANGES.html#t20090727">
+          2009</a>.</p>
+        </li>
+
+        <li>
+          <p>related fixes when building link_test.</p>
+        </li>
+      </ul>
+    </li>
+  </ul>
+  <hr>
+
+  <h2><a name="h2-features" id="h2-features">Features of
+  <span class="main-name">ncurses</span></a></h2>
+
+  <p>The <span class="main-name">ncurses</span> package is fully
+  upward-compatible with SVr4 (System V Release 4) curses:</p>
+
+  <ul>
+    <li>
+      <p>All of the SVr4 calls have been implemented (and are
+      documented).</p>
+    </li>
+
+    <li>
+      <p><span class="main-name">ncurses</span> supports all of the
+      for SVr4 curses features including keyboard mapping, color,
+      forms-drawing with ACS characters, and automatic recognition
+      of keypad and function keys.</p>
+    </li>
+
+    <li>
+      <p><span class="main-name">ncurses</span> provides these SVr4
+      add-on libraries (not part of X/Open Curses):</p>
+
+      <ul>
+        <li>
+          <p>the panels library, supporting a stack of windows with
+          backing store.</p>
+        </li>
+
+        <li>
+          <p>the menus library, supporting a uniform but flexible
+          interface for menu programming.</p>
+        </li>
+
+        <li>
+          <p>the form library, supporting data collection through
+          on-screen forms.</p>
+        </li>
+      </ul>
+    </li>
+
+    <li>
+      <p><span class="main-name">ncurses</span>'s terminal database
+      is fully compatible with that used by SVr4 curses.</p>
+
+      <ul>
+        <li>
+          <p><span class="main-name">ncurses</span> supports
+          user-defined capabilities which it can see, but which are
+          hidden from SVr4 curses applications using the
+          <em>same</em> terminal database.</p>
+        </li>
+
+        <li>
+          <p>It can be optionally configured to match the format
+          used in related systems such as AIX and Tru64.</p>
+        </li>
+
+        <li>
+          <p>Alternatively, <span class="main-name">ncurses</span>
+          can be configured to use hashed databases rather than the
+          directory of files used by SVr4 curses.</p>
+        </li>
+      </ul>
+    </li>
+
+    <li>
+      <p>The <span class="main-name">ncurses</span> utilities have
+      options to allow you to filter terminfo entries for use with
+      less capable <em>curses</em>/<em>terminfo</em> versions such
+      as the HP/UX and AIX ports.</p>
+    </li>
+  </ul>
+
+  <p>The <span class="main-name">ncurses</span> package also has
+  many useful extensions over SVr4:</p>
+
+  <ul>
+    <li>
+      <p>The API is 8-bit clean and base-level conformant with the
+      X/OPEN curses specification, XSI curses (that is, it
+      implements all BASE level features, and most EXTENDED
+      features). It includes many function calls not supported
+      under SVr4 curses (but portability of all calls is documented
+      so you can use the SVr4 subset only).</p>
+    </li>
+
+    <li>
+      <p>Unlike SVr3 curses, <span class="main-name">ncurses</span>
+      can write to the rightmost-bottommost corner of the screen if
+      your terminal has an insert-character capability.</p>
+    </li>
+
+    <li>
+      <p>Ada95 and C++ bindings.</p>
+    </li>
+
+    <li>
+      <p>Support for mouse event reporting with X Window xterm and
+      FreeBSD and OS/2 console windows.</p>
+    </li>
+
+    <li>
+      <p>Extended mouse support via Alessandro Rubini's gpm
+      package.</p>
+    </li>
+
+    <li>
+      <p>The function <code>wresize</code> allows you to resize
+      windows, preserving their data.</p>
+    </li>
+
+    <li>
+      <p>The function <code>use_default_colors</code> allows you to
+      use the terminal's default colors for the default color pair,
+      achieving the effect of transparent colors.</p>
+    </li>
+
+    <li>
+      <p>The functions <code>keyok</code> and
+      <code>define_key</code> allow you to better control the use
+      of function keys, e.g., disabling the <span class=
+      "main-name">ncurses</span> KEY_MOUSE, or by defining more
+      than one control sequence to map to a given key code.</p>
+    </li>
+
+    <li>
+      <p>Support for 256-color terminals, such as modern xterm.</p>
+    </li>
+
+    <li>
+      <p>Support for 16-color terminals, such as <em>aixterm</em>
+      and <em>modern xterm</em>.</p>
+    </li>
+
+    <li>
+      <p>Better cursor-movement optimization. The package now
+      features a cursor-local-movement computation more efficient
+      than either BSD's or System V's.</p>
+    </li>
+
+    <li>
+      <p>Super hardware scrolling support. The screen-update code
+      incorporates a novel, simple, and cheap algorithm that
+      enables it to make optimal use of hardware scrolling,
+      line-insertion, and line-deletion for screen-line movements.
+      This algorithm is more powerful than the 4.4BSD curses
+      <code>quickch</code> routine.</p>
+    </li>
+
+    <li>
+      <p>Real support for terminals with the magic-cookie glitch.
+      The screen-update code will refrain from drawing a highlight
+      if the magic- cookie unattributed spaces required just before
+      the beginning and after the end would step on a non-space
+      character. It will automatically shift highlight boundaries
+      when doing so would make it possible to draw the highlight
+      without changing the visual appearance of the screen.</p>
+    </li>
+
+    <li>
+      <p>It is possible to generate the library with a list of
+      pre-loaded fallback entries linked to it so that it can serve
+      those terminal types even when no terminfo tree or termcap
+      file is accessible (this may be useful for support of
+      screen-oriented programs that must run in single-user
+      mode).</p>
+    </li>
+
+    <li>
+      <p>The <a href=
+      "https://invisible-island.net/ncurses/man/tic.1m.html"><span class="part-name">
+      tic</span></a>/<a href=
+      "https://invisible-island.net/ncurses/man/captoinfo.1m.html">captoinfo</a>
+      utility provided with <span class="main-name">ncurses</span>
+      has the ability to translate many termcaps from the XENIX,
+      IBM and AT&amp;T extension sets.</p>
+    </li>
+
+    <li>
+      <p>A BSD-like <a href=
+      "https://invisible-island.net/ncurses/man/tset.1.html"><span class="part-name">
+      tset</span></a> utility is provided.</p>
+    </li>
+
+    <li>
+      <p>The <span class="main-name">ncurses</span> library and
+      utilities will automatically read terminfo entries from
+      $HOME/.terminfo if it exists, and compile to that directory
+      if it exists and the user has no write access to the system
+      directory. This feature makes it easier for users to have
+      personal terminfo entries without giving up access to the
+      system terminfo directory.</p>
+    </li>
+
+    <li>
+      <p>You may specify a path of directories to search for
+      compiled descriptions with the environment variable
+      TERMINFO_DIRS (this generalizes the feature provided by
+      TERMINFO under stock System V.)</p>
+    </li>
+
+    <li>
+      <p>In terminfo source files, use capabilities may refer not
+      just to other entries in the same source file (as in System
+      V) but also to compiled entries in either the system terminfo
+      directory or the user's $HOME/.terminfo directory.</p>
+    </li>
+
+    <li>
+      <p>The table-of-entries utility <a href=
+      "https://invisible-island.net/ncurses/man/toe.1m.html"><span class="part-name">
+      toe</span></a> makes it easy for users to see exactly what
+      terminal types are available on the system.</p>
+    </li>
+
+    <li>
+      <p>The library meets the XSI requirement that every macro
+      entry point have a corresponding function which may be linked
+      (and will be prototype-checked) if the macro definition is
+      disabled with <code>#undef</code>.</p>
+    </li>
+
+    <li>
+      <p>Extensive documentation is provided (see the <em><a href=
+      "https://invisible-island.net/ncurses/ncurses.faq.html#additional_reading">
+      Additional Reading</a></em> section of the <em><a href=
+      "https://invisible-island.net/ncurses/ncurses.faq.html"><span class="main-name">
+      ncurses</span> FAQ</a></em> for online documentation).</p>
+    </li>
+  </ul>
+
+  <h2><a name="h2-who-uses" id="h2-who-uses">Applications using
+  <span class="main-name">ncurses</span></a></h2>
+
+  <p>The <span class="main-name">ncurses</span> distribution
+  includes a selection of test programs (including a few games).
+  These are available separately as <a href=
+  "https://invisible-island.net/ncurses/ncurses-examples.html">ncurses-examples</a></p>
+
+  <p>The ncurses library has been tested with a wide variety of
+  applications including:</p>
+
+  <blockquote>
+    <dl>
+      <dt><span class="part-name">aptitude</span></dt>
+
+      <dd>
+        <p>FrontEnd to Apt, the debian package manager</p>
+
+        <p><a href=
+        "https://wiki.debian.org/Aptitude">https://wiki.debian.org/Aptitude</a></p>
+      </dd>
+
+      <dt><span class="part-name">cdk</span></dt>
+
+      <dd>
+        <p>Curses Development Kit</p>
+
+        <p><a href=
+        "https://invisible-island.net/cdk/">https://invisible-island.net/cdk/</a><br>
+        </p>
+      </dd>
+
+      <dt><span class="part-name">ded</span></dt>
+
+      <dd>
+        <p>directory-editor</p>
+
+        <p><a href=
+        "https://invisible-island.net/ded/">https://invisible-island.net/ded/</a></p>
+      </dd>
+
+      <dt><span class="part-name">dialog</span></dt>
+
+      <dd>
+        <p>the underlying application used in Slackware's setup,
+        and the basis for similar install/configure applications on
+        many systems.</p>
+
+        <p><a href=
+        "https://invisible-island.net/dialog/">https://invisible-island.net/dialog/</a></p>
+      </dd>
+
+      <dt><span class="part-name">lynx</span></dt>
+
+      <dd>
+        <p>the text WWW browser</p>
+
+        <p><a href=
+        "https://lynx.invisible-island.net/">https://lynx.invisible-island.net/</a></p>
+      </dd>
+
+      <dt><span class="part-name">mutt</span></dt>
+
+      <dd>
+        <p>mail utility</p>
+
+        <p><a href=
+        "http://www.mutt.org/">http://www.mutt.org/</a></p>
+      </dd>
+
+      <dt><span class="part-name">ncftp</span></dt>
+
+      <dd>
+        <p>file-transfer utility</p>
+
+        <p><a href=
+        "https://www.ncftp.com/">https://www.ncftp.com/</a></p>
+      </dd>
+
+      <dt><span class="part-name">nvi</span></dt>
+
+      <dd>
+        <p>New vi uses ncurses.</p>
+
+        <p><a href=
+        "https://sites.google.com/a/bostic.com/keithbostic/vi">https://sites.google.com/a/bostic.com/keithbostic/vi</a><br>
+        </p>
+      </dd>
+
+      <dt><span class="part-name">ranger</span></dt>
+
+      <dd>
+        <p>A console file manager with VI key bindings in
+        <em>Python</em>.</p>
+
+        <p><a href=
+        "https://ranger.github.io/">https://ranger.github.io/</a></p>
+      </dd>
+
+      <dt><span class="part-name">tin</span></dt>
+
+      <dd>
+        <p>newsreader, supporting color, MIME</p>
+
+        <p><a href=
+        "http://www.tin.org/">http://www.tin.org/</a></p>
+      </dd>
+
+      <dt><span class="part-name">vifm</span></dt>
+
+      <dd>
+        <p>File manager with vi like keybindings</p>
+
+        <p><a href="https://vifm.info/">https://vifm.info/</a></p>
+      </dd>
+    </dl>
+  </blockquote>
+
+  <p>as well as some that use <span class=
+  "main-name">ncurses</span> for the terminfo support alone:</p>
+
+  <blockquote>
+    <dl>
+      <dt><span class="part-name">minicom</span></dt>
+
+      <dd>
+        <p>terminal emulator for serial modem connections</p>
+
+        <p><a href=
+        "https://alioth.debian.org/projects/minicom/">https://alioth.debian.org/projects/minicom/</a></p>
+      </dd>
+
+      <dt><span class="part-name">mosh</span></dt>
+
+      <dd>
+        <p>a replacement for <code>ssh</code>.</p>
+
+        <p><a href=
+        "https://mosh.mit.edu/">https://mosh.mit.edu/</a></p>
+      </dd>
+
+      <dt><span class="part-name">tack</span></dt>
+
+      <dd>
+        <p>terminfo action checker</p>
+
+        <p><a href=
+        "https://invisible-island.net/ncurses/tack.html">https://invisible-island.net/ncurses/tack.html</a></p>
+      </dd>
+
+      <dt><span class="part-name">tmux</span></dt>
+
+      <dd>
+        <p>terminal multiplexor</p>
+
+        <p><a href=
+        "https://github.com/tmux/tmux/wiki">https://github.com/tmux/tmux/wiki</a></p>
+      </dd>
+
+      <dt><span class="part-name">vile</span></dt>
+
+      <dd>
+        <p>vi-like-emacs may be built to use the terminfo, termcap
+        or curses interfaces.</p>
+
+        <p><a href=
+        "https://invisible-island.net/vile/">https://invisible-island.net/vile/</a></p>
+      </dd>
+    </dl>
+  </blockquote>
+
+  <p>and finally, those which use only the termcap interface:</p>
+
+  <blockquote>
+    <dl>
+      <dt><span class="part-name">emacs</span></dt>
+
+      <dd>
+        <p>text editor</p>
+
+        <p><a href=
+        "https://www.gnu.org/software/emacs/">https://www.gnu.org/software/emacs/</a></p>
+      </dd>
+
+      <dt><span class="part-name">less</span></dt>
+
+      <dd>
+        <p>The most commonly used <em>pager</em> (a program that
+        displays text files).</p>
+
+        <p><a href=
+        "http://www.greenwoodsoftware.com/less/">http://www.greenwoodsoftware.com/less/</a></p>
+      </dd>
+
+      <dt><span class="part-name">screen</span></dt>
+
+      <dd>
+        <p>terminal multiplexor</p>
+
+        <p><a href=
+        "https://www.gnu.org/software/screen/">https://www.gnu.org/software/screen/</a></p>
+      </dd>
+
+      <dt><span class="part-name">vim</span></dt>
+
+      <dd>
+        <p>text editor</p>
+
+        <p><a href=
+        "https://www.vim.org/">https://www.vim.org/</a></p>
+      </dd>
+    </dl>
+  </blockquote>
+
+  <h2><a name="h2-development" id="h2-development">Development
+  activities</a></h2>
+
+  <p>Zeyd Ben-Halim started <span class="main-name">ncurses</span>
+  from a previous package pcurses, written by Pavel Curtis. Eric S.
+  Raymond continued development. J&uuml;rgen Pfeifer wrote most of
+  the form and menu libraries. Ongoing development work is done by
+  <a href="mailto:dickey@invisible-island.net">Thomas Dickey</a>.
+  Thomas Dickey also acts as the maintainer for the Free Software
+  Foundation, which holds the <a href=
+  "https://invisible-island.net/ncurses/ncurses-license.html">copyright
+  on ncurses</a>.</p>
+
+  <p>Contact the current maintainers at</p>
+
+  <blockquote>
+    <a href="mailto:bug-ncurses@gnu.org">bug-ncurses@gnu.org</a>
+  </blockquote>
+
+  <p>To join the ncurses mailing list, please write email to</p>
+
+  <blockquote>
     <a href=
-    "http://alioth.debian.org/projects/minicom/">http://alioth.debian.org/projects/minicom/</a></dd>
+    "mailto:bug-ncurses-request@gnu.org">bug-ncurses-request@gnu.org</a>
+  </blockquote>containing the line:
 
-    <dt>vile</dt>
-
-    <dd>vi-like-emacs<br>
-    <a href=
-    "http://invisible-island.net/vile/">http://invisible-island.net/vile/</a></dd>
-  </dl>
-
-  <p>The ncurses distribution includes a selection of test programs
-  (including a few games).</p>
-
-  <h2>Who's Who and What's What</h2>
-
-  <p>Zeyd Ben-Halim started it from a previous package pcurses,
-  written by Pavel Curtis. Eric S. Raymond continued development.
-  J&uuml;rgen Pfeifer wrote most of the form and menu libraries.
-  Ongoing work is being done by <a href=
-  "mailto:dickey@invisible-island.net">Thomas Dickey</a>. Thomas
-  Dickey acts as the maintainer for the Free Software Foundation,
-  which holds the copyright on ncurses. Contact the current
-  maintainers at <a href=
-  "mailto:bug-ncurses@gnu.org">bug-ncurses@gnu.org</a>.</p>
-
-  <p>To join the ncurses mailing list, please write email to
-  <code>bug-ncurses-request@gnu.org</code> containing the line:</p>
-  <pre>
-             subscribe &lt;name&gt;@&lt;host.domain&gt;
-</pre>
+  <blockquote>
+    <p><code>subscribe</code>
+    <em>&lt;name&gt;@&lt;host.domain&gt;</em></p>
+  </blockquote>
 
   <p>This list is open to anyone interested in helping with the
   development and testing of this package.</p>
 
-  <p>Beta versions of ncurses and patches to the current release
-  are made available at <a href=
-  "ftp://invisible-island.net/ncurses/">ftp://invisible-island.net/ncurses/</a>&nbsp;.</p>
+  <p>Beta versions of <span class="main-name">ncurses</span> and
+  patches to the current release are made available at</p>
+
+  <blockquote>
+    <p><a href=
+    "ftp://ftp.invisible-island.net/ncurses/">ftp://ftp.invisible-island.net/ncurses/</a>
+    and<br>
+    <a href=
+    "https://invisible-mirror.net/archives/ncurses/">https://invisible-mirror.net/archives/ncurses/</a>&nbsp;.</p>
+  </blockquote>
 
   <p>There is an archive of the mailing list here:</p>
 
-  <p><a href=
-  "http://lists.gnu.org/archive/html/bug-ncurses">http://lists.gnu.org/archive/html/bug-ncurses</a>
-  (also <a href=
-  "https://lists.gnu.org/archive/html/bug-ncurses">https</a>)</p>
+  <blockquote>
+    <p><a href=
+    "http://lists.gnu.org/archive/html/bug-ncurses">http://lists.gnu.org/archive/html/bug-ncurses</a>
+    (also <a href=
+    "https://lists.gnu.org/archive/html/bug-ncurses">https</a>)</p>
+  </blockquote>
 
-  <h2>Future Plans</h2>
+  <h2><a name="h2-this-stuff" id="h2-this-stuff">Related
+  resources</a></h2>
+
+  <p>The release notes make scattered references to these pages,
+  which may be interesting by themselves:</p>
 
   <ul>
-    <li>Extended-level XPG4 conformance, with internationalization
-    support.</li>
+    <li><a href=
+    "https://invisible-island.net/ncurses/ncurses-license.html"><span class="main-name">
+    ncurses</span> licensing</a></li>
 
-    <li>Ports to more systems, including DOS and Windows.</li>
+    <li><a href=
+    "https://invisible-island.net/ncurses/ncurses-mapsyms.html">Symbol
+    versioning in <span class="main-name">ncurses</span></a></li>
+
+    <li><a href=
+    "https://invisible-island.net/ncurses/ncurses-slang.html">Comments
+    on <span class="main-name">ncurses</span> versus <span class=
+    "main-name">slang</span> (S-Lang)</a></li>
+
+    <li><a href=
+    "https://invisible-island.net/ncurses/tack.html">tack &ndash;
+    terminfo action checker</a></li>
+
+    <li><a href=
+    "https://invisible-island.net/ncurses/tctest.html">tctest
+    &ndash; termcap library checker</a></li>
+
+    <li><a href=
+    "https://invisible-island.net/ncurses/ncurses.html#download_database">
+    Terminal Database</a></li>
   </ul>
 
-  <p>We need people to help with these projects. If you are
-  interested in working on them, please join the ncurses list.</p>
-
-  <h2>Other Related Resources</h2>
+  <h2><a name="h2-other-stuff" id="h2-other-stuff">Other
+  resources</a></h2>
 
   <p>The distribution provides a newer version of the
   terminfo-format terminal description file once maintained by
   <a href="http://www.catb.org/~esr/terminfo/">Eric
   Raymond</a>&nbsp;. Unlike the older version, the termcap and
-  terminfo data are provided in the same file, and provides several
-  user-definable extensions beyond the X/Open specification.</p>
+  terminfo data are provided in the same file, which also provides
+  several user-definable extensions beyond the X/Open
+  specification.</p>
 
   <p>You can find lots of information on terminal-related topics
   not covered in the terminfo file at <a href=
   "http://web.archive.org/web/*/http://www.cs.utk.edu/~shuford/terminal">
   Richard Shuford's archive</a>&nbsp;.</p>
+
+  <div class="nav">
+    <ul>
+      <li><a href="#h2-overview">Overview</a></li>
+
+      <li>
+        <a href="#h2-release-notes">Release Notes</a>
+
+        <ul>
+          <li>
+            <a href="#h3-library">Library improvements</a>
+
+            <ul>
+              <li><a href="#h4-new-library">New features</a></li>
+
+              <li><a href="#h4-fixes-library">Other
+              improvements</a></li>
+            </ul>
+          </li>
+
+          <li>
+            <a href="#h3-programs">Program improvements</a>
+
+            <ul>
+              <li><a href="#h4-utilities">Utilities</a></li>
+
+              <li><a href="#h4-examples">Examples</a></li>
+            </ul>
+          </li>
+
+          <li><a href="#h3-database">Terminal database</a></li>
+
+          <li><a href="#h3-documentation">Documentation</a></li>
+
+          <li><a href="#h3-bug-fixes">Interesting
+          bug-fixes</a></li>
+
+          <li>
+            <a href="#h3-config-config">Configuration changes</a>
+
+            <ul>
+              <li><a href="#h4-config-major">Major changes</a></li>
+
+              <li><a href="#h4-config-options">Configuration
+              options</a></li>
+            </ul>
+          </li>
+
+          <li><a href="#h3-portability">Portability</a></li>
+        </ul>
+      </li>
+
+      <li><a href="#h2-features">Features of <span class=
+      "main-name">ncurses</span></a></li>
+
+      <li><a href="#h2-who-uses">Applications using <span class=
+      "main-name">ncurses</span></a></li>
+
+      <li><a href="#h2-development">Development activities</a></li>
+
+      <li><a href="#h2-this-stuff">Related resources</a></li>
+
+      <li><a href="#h2-other-stuff">Other resources</a></li>
+    </ul>
+  </div>
 </body>
 </html>

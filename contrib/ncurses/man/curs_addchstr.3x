@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,10 +26,15 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addchstr.3x,v 1.16 2012/11/03 22:54:43 tom Exp $
+.\" $Id: curs_addchstr.3x,v 1.18 2019/11/30 21:06:30 tom Exp $
 .TH curs_addchstr 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .de bP
-.IP \(bu 4
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
 ..
 .na
 .hy 0
@@ -95,7 +100,7 @@ X/Open does not define any error conditions.
 This implementation returns an error
 if the window pointer is null.
 .PP
-Functions with a "mv" prefix first perform a cursor movement using
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
 \fBwmove\fP, and return an error if the position is outside the window,
 or if the window pointer is null.
 .SH NOTES

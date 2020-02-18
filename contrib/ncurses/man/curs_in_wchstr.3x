@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002-2010,2012 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2002-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,12 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_in_wchstr.3x,v 1.9 2012/11/03 23:03:59 tom Exp $
+.\" $Id: curs_in_wchstr.3x,v 1.12 2019/11/30 21:06:30 tom Exp $
 .TH curs_in_wchstr 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .na
 .hy 0
 .SH NAME
@@ -92,7 +96,8 @@ with
 \fBmvwin_wchstr\fR
 or
 \fBwin_wchstr\fR
-causes undefined results. Therefore, the use of
+causes undefined results.
+Therefore, the use of
 \fBin_wchnstr\fR,
 \fBmvin_wchnstr\fR,
 \fBmvwin_wchnstr\fR, or
@@ -104,13 +109,13 @@ Upon successful completion, these functions return
 Otherwise, they return
 \fBERR\fR.
 .PP
-Functions with a "mv" prefix first perform a cursor movement using
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
 \fBwmove\fP, and return an error if the position is outside the window,
 or if the window pointer is null.
 .SH PORTABILITY
 The XSI Curses defines no error conditions.
 This implementation checks for null pointers,
-returning ERR in that case.
+returning \fBERR\fP in that case.
 .SH SEE ALSO
 Functions:
 \fBcurses\fR(3X),

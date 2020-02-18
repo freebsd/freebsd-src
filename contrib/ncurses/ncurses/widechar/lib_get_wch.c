@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2011,2016 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,16 +40,13 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_get_wch.c,v 1.23 2011/05/28 23:00:29 tom Exp $")
+MODULE_ID("$Id: lib_get_wch.c,v 1.24 2016/05/28 23:36:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 wget_wch(WINDOW *win, wint_t *result)
 {
     SCREEN *sp;
     int code;
-    char buffer[(MB_LEN_MAX * 9) + 1];	/* allow some redundant shifts */
-    int status;
-    size_t count = 0;
     int value = 0;
     wchar_t wch;
 #ifndef state_unused
@@ -64,8 +61,13 @@ wget_wch(WINDOW *win, wint_t *result)
      */
     _nc_lock_global(curses);
     sp = _nc_screen_of(win);
+
     if (sp != 0) {
+	size_t count = 0;
+
 	for (;;) {
+	    char buffer[(MB_LEN_MAX * 9) + 1];	/* allow some redundant shifts */
+
 	    T(("reading %d of %d", (int) count + 1, (int) sizeof(buffer)));
 	    code = _nc_wgetch(win, &value, TRUE EVENTLIST_2nd((_nc_eventlist
 							       *) 0));
@@ -89,6 +91,8 @@ wget_wch(WINDOW *win, wint_t *result)
 		code = ERR;
 		break;
 	    } else {
+		int status;
+
 		buffer[count++] = (char) UChar(value);
 		reset_mbytes(state);
 		status = count_mbytes(buffer, count, state);

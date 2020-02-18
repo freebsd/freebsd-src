@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,8 +27,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form.3x,v 1.24 2010/12/04 18:40:45 tom Exp $
+.\" $Id: form.3x,v 1.33 2019/11/30 20:51:36 tom Exp $
 .TH form 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .SH NAME
 \fBform\fR \- curses extension for programming forms
 .SH SYNOPSIS
@@ -36,7 +44,8 @@
 .br
 .SH DESCRIPTION
 The \fBform\fR library provides terminal-independent facilities for composing
-form screens on character-cell terminals.  The library includes: field
+form screens on character-cell terminals.
+The library includes: field
 routines, which create and modify form fields; and form routines, which group
 fields into forms, display forms on the screen, and handle interaction with the
 user.
@@ -56,10 +65,12 @@ before using any of these functions.
 .
 .SS Current Default Values for Field Attributes
 .
-The \fBform\fR library maintains a default value for field attributes.  You
+The \fBform\fR library maintains a default value for field attributes.
+You
 can get or set this default by calling the appropriate \fBset_\fR
 or retrieval
-routine with a \fBNULL\fR field pointer.  Changing this default with a
+routine with a \fBNULL\fR field pointer.
+Changing this default with a
 \fBset_\fR function affects future field creations, but does not change the
 rendering of fields already created.
 .
@@ -96,6 +107,7 @@ field_term	\fBform_hook\fR(3X)
 field_type	\fBform_field_validation\fR(3X)
 field_userptr	\fBform_field_userptr\fR(3X)
 form_driver	\fBform_driver\fR(3X)
+form_driver_w	\fBform_driver\fR(3X)*
 form_fields	\fBform_field\fR(3X)
 form_init	\fBform_hook\fR(3X)
 form_opts	\fBform_opts\fR(3X)
@@ -145,6 +157,7 @@ set_form_userptr	\fBform_userptr\fR(3X)
 set_form_win	\fBform_win\fR(3X)
 set_max_field	\fBform_field_buffer\fR(3X)
 set_new_page	\fBform_new_page\fR(3X)
+unfocus_current_field	\fBform_page\fR(3X)
 unpost_form	\fBform_post\fR(3X)
 .TE
 .SH RETURN VALUE
@@ -185,26 +198,44 @@ The form is already posted.
 The form driver could not process the request.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .TP 5
 .B E_UNKNOWN_COMMAND
 The form driver code saw an unknown request code.
-.SH SEE ALSO
-\fBcurses\fR(3X) and related pages whose names begin "form_" for detailed
-descriptions of the entry points.
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header files
 \fB<curses.h>\fR and \fB<eti.h>\fR.
 .PP
 In your library list, libform.a should be before libncurses.a; that is,
-you want to say `\-lform \-lncurses', not the other way around (which would
-give you a link error using most linkers).
+you want to say \*(``\-lform \-lncurses\*('', not the other way around
+(which would give you a link error when using static libraries).
 .SH PORTABILITY
-These routines emulate the System V forms library.  They were not supported on
+These routines emulate the System V forms library.
+They were not supported on
 Version 7 or BSD versions.
+.PP
+The menu facility was documented in SVr4.2 in
+\fICharacter User Interface Programming (UNIX SVR4.2)\fP.
+.PP
+It is not part of X/Open Curses.
+.PP
+Aside from ncurses, there are few implementations:
+.bP
+systems based on SVr4 source code, e.g., Solaris.
+.bP
+NetBSD curses.
+.PP
+A few functions in this implementation are extensions added for ncurses,
+but not provided by other implementations, e.g.,
+\fBform_driver_w\fP,
+\fBunfocus_current_field\fP.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for ncurses by Eric
+Juergen Pfeifer.
+Manual pages and adaptation for ncurses by Eric
 S. Raymond.
 .SH SEE ALSO
+\fBcurses\fR(3X) and related pages whose names begin \*(``form_\*('' for detailed
+descriptions of the entry points.
+.PP
 This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

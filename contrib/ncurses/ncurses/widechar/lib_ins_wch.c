@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_ins_wch.c,v 1.17 2011/10/22 16:34:50 tom Exp $")
+MODULE_ID("$Id: lib_ins_wch.c,v 1.23 2019/05/04 20:46:24 tom Exp $")
 
 /*
  * Insert the given character, updating the current location to simplify
@@ -48,8 +48,7 @@ MODULE_ID("$Id: lib_ins_wch.c,v 1.17 2011/10/22 16:34:50 tom Exp $")
 NCURSES_EXPORT(int)
 _nc_insert_wch(WINDOW *win, const cchar_t *wch)
 {
-    int cells = wcwidth(CharOf(CHDEREF(wch)));
-    int cell;
+    int cells = _nc_wacs_width(CharOf(CHDEREF(wch)));
     int code = OK;
 
     if (cells < 0) {
@@ -59,6 +58,7 @@ _nc_insert_wch(WINDOW *win, const cchar_t *wch)
 	    cells = 1;
 
 	if (win->_curx <= win->_maxx) {
+	    int cell;
 	    struct ldat *line = &(win->_line[win->_cury]);
 	    NCURSES_CH_T *end = &(line->text[win->_curx]);
 	    NCURSES_CH_T *temp1 = &(line->text[win->_maxx]);
@@ -73,7 +73,7 @@ _nc_insert_wch(WINDOW *win, const cchar_t *wch)
 		SetWidecExt(temp1[cell], cell);
 	    }
 
-	    win->_curx++;
+	    win->_curx = (NCURSES_SIZE_T) (win->_curx + cells);
 	}
     }
     return code;
@@ -82,15 +82,13 @@ _nc_insert_wch(WINDOW *win, const cchar_t *wch)
 NCURSES_EXPORT(int)
 wins_wch(WINDOW *win, const cchar_t *wch)
 {
-    NCURSES_SIZE_T oy;
-    NCURSES_SIZE_T ox;
     int code = ERR;
 
     T((T_CALLED("wins_wch(%p, %s)"), (void *) win, _tracecchar_t(wch)));
 
     if (win != 0) {
-	oy = win->_cury;
-	ox = win->_curx;
+	NCURSES_SIZE_T oy = win->_cury;
+	NCURSES_SIZE_T ox = win->_curx;
 
 	code = _nc_insert_wch(win, wch);
 
@@ -105,9 +103,6 @@ NCURSES_EXPORT(int)
 wins_nwstr(WINDOW *win, const wchar_t *wstr, int n)
 {
     int code = ERR;
-    NCURSES_SIZE_T oy;
-    NCURSES_SIZE_T ox;
-    const wchar_t *cp;
 
     T((T_CALLED("wins_nwstr(%p,%s,%d)"),
        (void *) win, _nc_viswbufn(wstr, n), n));
@@ -117,13 +112,15 @@ wins_nwstr(WINDOW *win, const wchar_t *wstr, int n)
 	if (n < 1)
 	    n = (int) wcslen(wstr);
 	code = OK;
-	if (n > 0) {
-	    SCREEN *sp = _nc_screen_of(win);
 
-	    oy = win->_cury;
-	    ox = win->_curx;
-	    for (cp = wstr; *cp && ((cp - wstr) < n); cp++) {
-		int len = wcwidth(*cp);
+	if (n > 0) {
+	    const wchar_t *cp;
+	    SCREEN *sp = _nc_screen_of(win);
+	    NCURSES_SIZE_T oy = win->_cury;
+	    NCURSES_SIZE_T ox = win->_curx;
+
+	    for (cp = wstr; ((cp - wstr) < n) && *cp; cp++) {
+		int len = _nc_wacs_width(*cp);
 
 		if ((len >= 0 && len != 1) || !is7bits(*cp)) {
 		    cchar_t tmp_cchar;

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_print.3x,v 1.10 2010/12/04 18:40:45 tom Exp $
+.\" $Id: curs_print.3x,v 1.13 2018/07/28 21:34:56 tom Exp $
 .TH curs_print 3X ""
 .SH NAME
 \fBmcprint\fR \- ship binary data to printer
@@ -39,16 +39,19 @@ This function uses the \fBmc5p\fR or \fBmc4\fR and \fBmc5\fR capabilities,
 if they are present, to ship given data to a printer attached to the terminal.
 .PP
 Note that the \fBmcprint\fR code has no way to do flow control with the printer
-or to know how much buffering it has.  Your application is responsible for
+or to know how much buffering it has.
+Your application is responsible for
 keeping the rate of writes to the printer below its continuous throughput rate
-(typically about half of its nominal cps rating).  Dot-matrix printers and
+(typically about half of its nominal cps rating).
+Dot-matrix printers and
 6-page-per-minute lasers can typically handle 80cps, so a good conservative
 rule of thumb is to sleep for a second after shipping each 80-character line.
 .
 .SH RETURN VALUE
 The \fBmcprint\fR function returns \fBERR\fR if the write operation aborted
-for some reason.  In this case, errno will contain either an error associated
-with \fBwrite(2)\fR or one of the following:
+for some reason.
+In this case, errno will contain either an error associated
+with \fBwrite\fP(2) or one of the following:
 .TP 5
 ENODEV
 Capabilities for printer redirection do not exist.
@@ -65,4 +68,4 @@ in SVr4 curses, 4.4BSD curses, or any other previous version of curses.
 Padding in the \fBmc5p\fR, \fBmc4\fR and \fBmc5\fR capabilities will not be
 interpreted.
 .SH SEE ALSO
-\fBcurses\fR(3X)\fR
+\fBcurses\fR(3X)

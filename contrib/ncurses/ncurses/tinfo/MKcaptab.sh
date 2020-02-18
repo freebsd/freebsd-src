@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 2007-2010,2011 Free Software Foundation, Inc.                #
+# Copyright (c) 2007-2011,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,11 +26,28 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKcaptab.sh,v 1.14 2011/10/22 16:34:50 tom Exp $
-AWK=${1-awk}
-OPT1=${2-0}
-OPT2=${3-tinfo/MKcaptab.awk}
-DATA=${4-../include/Caps}
+# $Id: MKcaptab.sh,v 1.15 2019/04/06 21:53:49 tom Exp $
+
+if test $# != 0
+then
+	AWK="$1"; shift 1
+else
+	AWK=awk
+fi
+
+if test $# != 0
+then
+	OPT1="$1"; shift 1
+else
+	OPT1="-0"
+fi
+
+if test $# != 0
+then
+	OPT2="$1"; shift 1
+else
+	OPT2="tinfo/MKcaptab.awk"
+fi
 
 cat <<EOF
 /*
@@ -52,12 +69,12 @@ cat <<'EOF'
 
 EOF
 
-make_hash 1 info $OPT1 <$DATA
-make_hash 3 cap  $OPT1 <$DATA
+cat "$@" |./make_hash 1 info $OPT1
+cat "$@" |./make_hash 3 cap  $OPT1
 
-$AWK -f $OPT2 bigstrings=$OPT1 tablename=capalias <$DATA
+cat "$@" |$AWK -f $OPT2 bigstrings=$OPT1 tablename=capalias
 
-$AWK -f $OPT2 bigstrings=$OPT1 tablename=infoalias <$DATA
+cat "$@" |$AWK -f $OPT2 bigstrings=$OPT1 tablename=infoalias
 
 cat <<EOF
 

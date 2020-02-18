@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2003-2005,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 2003-2008,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: charable.c,v 1.5 2008/07/05 20:51:41 tom Exp $")
+MODULE_ID("$Id: charable.c,v 1.7 2018/06/30 20:46:25 tom Exp $")
 
 NCURSES_EXPORT(bool) _nc_is_charable(wchar_t ch)
 {
@@ -57,6 +57,8 @@ NCURSES_EXPORT(int) _nc_to_char(wint_t ch)
 	result = UChar(temp[0]);
     else
 	result = -1;
+#else
+#error expected either wctob/wctomb
 #endif
     return result;
 }
@@ -75,6 +77,8 @@ NCURSES_EXPORT(wint_t) _nc_to_widechar(int ch)
 	result = convert;
     else
 	result = WEOF;
+#else
+#error expected either btowc/mbtowc
 #endif
     return result;
 }

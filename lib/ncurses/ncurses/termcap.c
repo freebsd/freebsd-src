@@ -100,7 +100,7 @@ char _nc_termcap[TBUFSIZ + 1]; /* Last getcap, provided to tgetent() emul */
  * file.
  */
 int
-_nc_read_termcap_entry(const char *const name, TERMTYPE *const tp)
+_nc_read_termcap_entry(const char *const name, TERMTYPE2 *const tp)
 {
 	ENTRY	*ep;
 	char *p;

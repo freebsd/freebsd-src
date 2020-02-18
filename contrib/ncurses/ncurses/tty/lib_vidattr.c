@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -69,17 +69,24 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_vidattr.c,v 1.67 2013/08/31 20:08:59 tom Exp $")
+MODULE_ID("$Id: lib_vidattr.c,v 1.74 2019/04/13 22:40:54 tom Exp $")
 
 #define doPut(mode) \
 	TPUTS_TRACE(#mode); \
 	NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx mode, 1, outc)
 
 #define TurnOn(mask, mode) \
-	if ((turn_on & mask) && mode) { doPut(mode); }
+	if ((turn_on & mask) && mode) { \
+	    TPUTS_TRACE(#mode); \
+	    NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx mode, 1, outc); \
+	}
 
 #define TurnOff(mask, mode) \
-	if ((turn_off & mask) && mode) { doPut(mode); turn_off &= ~mask; }
+	if ((turn_off & mask) && mode) { \
+	    TPUTS_TRACE(#mode); \
+	    NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx mode, 1, outc); \
+	    turn_off &= ~mask; \
+	}
 
 	/* if there is no current screen, assume we *can* do color */
 #define SetColorsIf(why, old_attr) \
@@ -117,7 +124,7 @@ NCURSES_SP_NAME(vidputs) (NCURSES_SP_DCLx
 
     T((T_CALLED("vidputs(%p,%s)"), (void *) SP_PARM, _traceattr(newmode)));
 
-    if (!IsTermInfo(SP_PARM))
+    if (!IsValidTIScreen(SP_PARM))
 	returnCode(ERR);
 
     /* this allows us to go on whether or not newterm() has been called */
@@ -213,7 +220,7 @@ NCURSES_SP_NAME(vidputs) (NCURSES_SP_DCLx
     }
 
     turn_off = (~newmode & PreviousAttr) & ALL_BUT_COLOR;
-    turn_on = (newmode & ~PreviousAttr) & ALL_BUT_COLOR;
+    turn_on = (newmode & ~(PreviousAttr & TPARM_ATTR)) & ALL_BUT_COLOR;
 
     SetColorsIf(((pair == 0) && !fix_pair0), PreviousAttr);
 
@@ -308,7 +315,7 @@ NCURSES_SP_NAME(vidputs) (NCURSES_SP_DCLx
 #if USE_ITALIC
 	TurnOn(A_ITALIC,	enter_italics_mode);
 #endif
-#if USE_WIDEC_SUPPORT
+#if USE_WIDEC_SUPPORT && defined(enter_horizontal_hl_mode)
 	TurnOn(A_HORIZONTAL,	enter_horizontal_hl_mode);
 	TurnOn(A_LEFT,		enter_left_hl_mode);
 	TurnOn(A_LOW,		enter_low_hl_mode);
@@ -368,7 +375,7 @@ NCURSES_SP_NAME(termattrs) (NCURSES_SP_DCL0)
 
     if (HasTerminal(SP_PARM)) {
 #ifdef USE_TERM_DRIVER
-	attrs = CallDriver(SP_PARM, conattr);
+	attrs = CallDriver(SP_PARM, td_conattr);
 #else /* ! USE_TERM_DRIVER */
 
 	if (enter_alt_charset_mode)

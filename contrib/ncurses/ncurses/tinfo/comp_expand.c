@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1998                        *
+ *  Author: Thomas E. Dickey                    1998                        *
  ****************************************************************************/
 
 #include <curses.priv.h>
@@ -35,7 +35,13 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: comp_expand.c,v 1.25 2012/03/24 18:37:17 tom Exp $")
+MODULE_ID("$Id: comp_expand.c,v 1.31 2017/04/20 08:55:08 tom Exp $")
+
+#if 0
+#define DEBUG_THIS(p) DEBUG(9, p)
+#else
+#define DEBUG_THIS(p)		/* nothing */
+#endif
 
 static int
 trailing_spaces(const char *src)
@@ -46,10 +52,9 @@ trailing_spaces(const char *src)
 }
 
 /* this deals with differences over whether 0x7f and 0x80..0x9f are controls */
-#define REALCTL(s) (UChar(*(s)) < 127 && iscntrl(UChar(*(s))))
 #define REALPRINT(s) (UChar(*(s)) < 127 && isprint(UChar(*(s))))
 
-#define P_LIMIT(p) (length - (size_t)(p))
+#define P_LIMIT(p)   (length - (size_t)(p))
 
 NCURSES_EXPORT(char *)
 _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
@@ -59,9 +64,13 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 
     int bufp;
     const char *str = VALID_STRING(srcp) ? srcp : "\0\0";
-    bool islong = (strlen(str) > 3);
     size_t need = (2 + strlen(str)) * 4;
     int ch;
+    int octals = 0;
+    struct {
+	int ch;
+	int offset;
+    } fixups[MAX_TC_FIXUPS];
 
     if (srcp == 0) {
 #if NO_LEAKS
@@ -77,6 +86,7 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 	      return 0;
     }
 
+    DEBUG_THIS(("_nc_tic_expand %s", _nc_visbuf(srcp)));
     bufp = 0;
     while ((ch = UChar(*str)) != 0) {
 	if (ch == '%' && REALPRINT(str + 1)) {
@@ -133,6 +143,8 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 		}
 		break;
 	    default:
+		if (*str == ',')	/* minitel1 uses this */
+		    buffer[bufp++] = '\\';
 		buffer[bufp++] = *str;
 		break;
 	    }
@@ -158,34 +170,28 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 		       && !(ch == '!' && !tic_format)
 		       && ch != '^'))
 	    buffer[bufp++] = (char) ch;
-#if 0				/* FIXME: this would be more readable (in fact the whole 'islong' logic should be removed) */
-	else if (ch == '\b') {
-	    buffer[bufp++] = '\\';
-	    buffer[bufp++] = 'b';
-	} else if (ch == '\f') {
-	    buffer[bufp++] = '\\';
-	    buffer[bufp++] = 'f';
-	} else if (ch == '\t' && islong) {
-	    buffer[bufp++] = '\\';
-	    buffer[bufp++] = 't';
-	}
-#endif
-	else if (ch == '\r' && (islong || (strlen(srcp) > 2 && str[1] == '\0'))) {
+	else if (ch == '\r') {
 	    buffer[bufp++] = '\\';
 	    buffer[bufp++] = 'r';
-	} else if (ch == '\n' && islong) {
+	} else if (ch == '\n') {
 	    buffer[bufp++] = '\\';
 	    buffer[bufp++] = 'n';
 	}
 #define UnCtl(c) ((c) + '@')
-	else if (REALCTL(str) && ch != '\\'
-		 && (!islong || isdigit(UChar(str[1])))) {
+	else if (UChar(ch) < 32
+		 && isdigit(UChar(str[1]))) {
 	    _nc_SPRINTF(&buffer[bufp], _nc_SLIMIT(P_LIMIT(bufp))
 			"^%c", UnCtl(ch));
 	    bufp += 2;
 	} else {
 	    _nc_SPRINTF(&buffer[bufp], _nc_SLIMIT(P_LIMIT(bufp))
 			"\\%03o", ch);
+	    if ((octals < MAX_TC_FIXUPS) &&
+		((tic_format && (ch == 127)) || ch < 32)) {
+		fixups[octals].ch = UChar(ch);
+		fixups[octals].offset = bufp;
+		++octals;
+	    }
 	    bufp += 4;
 	}
 
@@ -193,5 +199,26 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
     }
 
     buffer[bufp] = '\0';
+
+    /*
+     * If most of a short string is ASCII control characters, reformat the
+     * string to show those in up-arrow format.  For longer strings, it's
+     * more likely that the characters are just binary coding.
+     *
+     * If we're formatting termcap, just use the shorter format (up-arrows).
+     */
+    if (octals != 0 && (!tic_format || (bufp - (4 * octals)) < MIN_TC_FIXUPS)) {
+	while (--octals >= 0) {
+	    char *p = buffer + fixups[octals].offset;
+	    *p++ = '^';
+	    *p++ = (char) ((fixups[octals].ch == 127)
+			   ? '?'
+			   : (fixups[octals].ch + (int) '@'));
+	    while ((p[0] = p[2]) != 0) {
+		++p;
+	    }
+	}
+    }
+    DEBUG_THIS(("... %s", _nc_visbuf(buffer)));
     return (buffer);
 }

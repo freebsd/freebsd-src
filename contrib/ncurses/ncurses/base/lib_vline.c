@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,8 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
+ *     and: Sven Verdoolaege                        2001                    *
  ****************************************************************************/
 
 /*
@@ -40,22 +42,21 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_vline.c,v 1.12 2010/12/19 01:22:58 tom Exp $")
+MODULE_ID("$Id: lib_vline.c,v 1.14 2017/10/28 19:55:44 tom Exp $")
 
 NCURSES_EXPORT(int)
 wvline(WINDOW *win, chtype ch, int n)
 {
     int code = ERR;
-    int row, col;
-    int end;
 
     T((T_CALLED("wvline(%p,%s,%d)"), (void *) win, _tracechtype(ch), n));
 
     if (win) {
 	NCURSES_CH_T wch;
-	row = win->_cury;
-	col = win->_curx;
-	end = row + n - 1;
+	int row = win->_cury;
+	int col = win->_curx;
+	int end = row + n - 1;
+
 	if (end > win->_maxy)
 	    end = win->_maxy;
 
@@ -67,6 +68,14 @@ wvline(WINDOW *win, chtype ch, int n)
 
 	while (end >= row) {
 	    struct ldat *line = &(win->_line[end]);
+#if USE_WIDEC_SUPPORT
+	    if (col > 0 && isWidecExt(line->text[col])) {
+		SetChar2(line->text[col - 1], ' ');
+	    }
+	    if (col < win->_maxx && isWidecExt(line->text[col + 1])) {
+		SetChar2(line->text[col + 1], ' ');
+	    }
+#endif
 	    line->text[col] = wch;
 	    CHANGED_CELL(line, col);
 	    end--;

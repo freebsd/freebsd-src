@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2008-2010,2012 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2008-2015,2017 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,16 +26,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_threads.3x,v 1.19 2012/05/26 17:03:26 tom Exp $
+.\" $Id: curs_threads.3x,v 1.24 2017/11/18 23:56:00 tom Exp $
 .TH curs_threads 3X ""
 .de bP
-.IP \(bu 4
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
 ..
 .na
 .hy 0
 .SH NAME
-\fBuse_screen\fR,
-\fBuse_window\fR \- \fBcurses\fR thread support
+\fBcurs_threads\fR \- \fBcurses\fR thread support
 .ad
 .hy
 .SH SYNOPSIS
@@ -67,7 +67,7 @@ configuration which hide the mutex's needed to prevent concurrent
 use of the global variables when configured for threading.
 .PP
 In addition to forcing access to members of the \fBWINDOW\fP structure
-to be via functions (see \fBcurs_opaque\fP(3x)),
+to be via functions (see \fBcurs_opaque\fP(3X)),
 it makes functions of the common global variables,
 e.g.,
 COLORS,
@@ -540,6 +540,7 @@ wget_wch/screen (input-operation)
 wget_wstr/screen (input-operation)
 wgetbkgrnd/window
 wgetch/screen (input-operation)
+wgetdelay/window
 wgetn_wstr/screen (input-operation)
 wgetnstr/screen (input-operation)
 wgetparent/window
@@ -587,7 +588,7 @@ wvline_set/window
 .TE
 .\" ***************************************************************************
 .SH RETURN VALUE
-These functions all return TRUE or FALSE, except as noted.
+These functions all return \fBTRUE\fP or \fBFALSE\fP, except as noted.
 .SH NOTES
 Both a macro and a function are provided for each name.
 .SH PORTABILITY

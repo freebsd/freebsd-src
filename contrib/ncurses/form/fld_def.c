@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_def.c,v 1.40 2012/03/11 00:37:16 tom Exp $")
+MODULE_ID("$Id: fld_def.c,v 1.41 2014/07/26 21:08:55 tom Exp $")
 
 /* this can't be readonly */
 static FIELD default_field =
@@ -53,7 +53,7 @@ static FIELD default_field =
   (int)' ',			/* pad     */
   A_NORMAL,			/* fore    */
   A_NORMAL,			/* back    */
-  ALL_FIELD_OPTS,		/* opts    */
+  STD_FIELD_OPTS,		/* opts    */
   (FIELD *)0,			/* snext   */
   (FIELD *)0,			/* sprev   */
   (FIELD *)0,			/* link    */
@@ -294,14 +294,14 @@ new_field(int rows, int cols, int frow, int fcol, int nrow, int nbuf)
     {
       T((T_CREATE("field %p"), (void *)New_Field));
       *New_Field = default_field;
-      New_Field->rows = (short) rows;
-      New_Field->cols = (short) cols;
+      New_Field->rows = (short)rows;
+      New_Field->cols = (short)cols;
       New_Field->drows = rows + nrow;
       New_Field->dcols = cols;
-      New_Field->frow = (short) frow;
-      New_Field->fcol = (short) fcol;
+      New_Field->frow = (short)frow;
+      New_Field->fcol = (short)fcol;
       New_Field->nrow = nrow;
-      New_Field->nbuf = (short) nbuf;
+      New_Field->nbuf = (short)nbuf;
       New_Field->link = New_Field;
 
 #if USE_WIDEC_SUPPORT
