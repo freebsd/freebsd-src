@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- *     and: Thomas E. Dickey                        1996-2003               *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -45,14 +45,12 @@
 #include <sys/termio.h>		/* needed for ISC */
 #endif
 
-MODULE_ID("$Id: lib_initscr.c,v 1.39 2009/02/14 20:55:49 tom Exp $")
+MODULE_ID("$Id: lib_initscr.c,v 1.44 2019/06/22 00:02:01 tom Exp $")
 
 NCURSES_EXPORT(WINDOW *)
 initscr(void)
 {
     WINDOW *result;
-
-    NCURSES_CONST char *name;
 
     START_TRACE();
     T((T_CALLED("initscr()")));
@@ -62,11 +60,19 @@ initscr(void)
 
     /* Portable applications must not call initscr() more than once */
     if (!_nc_globals.init_screen) {
+	const char *env;
+	char *name;
+
 	_nc_globals.init_screen = TRUE;
 
-	if ((name = getenv("TERM")) == 0
-	    || *name == '\0')
-	    name = "unknown";
+	if ((env = getenv("TERM")) == 0
+	    || *env == '\0') {
+	    env = "unknown";
+	}
+	if ((name = strdup(env)) == NULL) {
+	    fprintf(stderr, "Error opening allocating $TERM.\n");
+	    ExitProgram(EXIT_FAILURE);
+	}
 #ifdef __CYGWIN__
 	/*
 	 * 2002/9/21
@@ -75,9 +81,9 @@ initscr(void)
 	 * core when attempting to write to stdout.  Opening /dev/tty
 	 * explicitly seems to fix the problem.
 	 */
-	if (isatty(fileno(stdout))) {
+	if (NC_ISATTY(fileno(stdout))) {
 	    FILE *fp = fopen("/dev/tty", "w");
-	    if (fp != 0 && isatty(fileno(fp))) {
+	    if (fp != 0 && NC_ISATTY(fileno(fp))) {
 		fclose(stdout);
 		dup2(fileno(fp), STDOUT_FILENO);
 		stdout = fdopen(STDOUT_FILENO, "w");
@@ -86,7 +92,7 @@ initscr(void)
 #endif
 	if (newterm(name, stdout, stdin) == 0) {
 	    fprintf(stderr, "Error opening terminal: %s.\n", name);
-	    exit(EXIT_FAILURE);
+	    ExitProgram(EXIT_FAILURE);
 	}
 
 	/* def_shell_mode - done in newterm/_nc_setupscreen */
@@ -95,6 +101,7 @@ initscr(void)
 #else
 	def_prog_mode();
 #endif
+	free(name);
     }
     result = stdscr;
     _nc_unlock_global(curses);

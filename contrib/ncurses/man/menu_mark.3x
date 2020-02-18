@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,9 +27,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_mark.3x,v 1.11 2010/12/04 18:40:45 tom Exp $
+.\" $Id: menu_mark.3x,v 1.14 2019/01/20 20:32:23 tom Exp $
 .TH menu_mark 3X ""
 .SH NAME
+\fBset_menu_mark\fP,
 \fBmenu_mark\fR \- get and set the menu mark string
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
@@ -48,7 +49,8 @@ Calling \fBset_menu_mark\fR with a null menu item will abolish the mark string.
 Note that changing the length of the mark string for a menu while the
 menu is posted is likely to produce unhelpful behavior.
 .PP
-The default string is "\-" (a dash). Calling \fBset_menu_mark\fR with
+The default string is "\-" (a dash).
+Calling \fBset_menu_mark\fR with
 a non-\fBNULL\fR menu argument will change this default.
 .PP
 The function \fBmenu_mark\fR returns the menu's mark string (or \fBNULL\fR if
@@ -66,15 +68,16 @@ The routine succeeded.
 Routine detected an incorrect or out-of-range argument.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).
 .SH NOTES
 The header file \fB<menu.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V menu library.  They were not supported on
+These routines emulate the System V menu library.
+They were not supported on
 Version 7 or BSD versions.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

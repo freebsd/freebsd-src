@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -28,17 +28,16 @@
 
 /****************************************************************************
  * Author: Juergen Pfeifer, 2008-on                                         * 
- *                                                                          *
  ****************************************************************************/
 
-/* $Id: ncurses_mingw.h,v 1.2 2011/06/25 20:51:00 tom Exp $ */
+/* $Id: ncurses_mingw.h,v 1.5 2018/06/24 00:07:35 tom Exp $ */
 
 /*
  * This is a placeholder up to now and describes what needs to be implemented
  * to support I/O to external terminals with ncurses on the Windows OS.
  */
 
-#if __MINGW32__
+#ifdef _WIN32
 #ifndef _NC_MINGWH
 #define _NC_MINGWH
 
@@ -47,28 +46,36 @@
 #undef  TERMIOS
 #define TERMIOS 1
 
-#define InvalidHandle ((TERM_HANDLE)-1)
-#define InvalidConsoleHandle(s) ((s)==InvalidHandle)
-
 typedef unsigned char cc_t;
-typedef unsigned int  speed_t;
 typedef unsigned int  tcflag_t;
+typedef unsigned int  speed_t;
+typedef unsigned short otcflag_t;
+typedef unsigned char ospeed_t;
 
-#define NCCS 32
+#define NCCS 18
 struct termios
 {
-  tcflag_t   c_iflag;     /* input mode         */
-  tcflag_t   c_oflag;     /* output mode        */
-  tcflag_t   c_cflag;     /* control mode       */
-  tcflag_t   c_lflag;     /* local mode         */
-  cc_t       c_line;      /* line discipline    */
-  cc_t       c_cc[NCCS];  /* control characters */
-  speed_t    c_ispeed;    /* input speed        */
-  speed_t    c_ospeed;    /* c_ospeed           */
+  tcflag_t	c_iflag;
+  tcflag_t	c_oflag;
+  tcflag_t	c_cflag;
+  tcflag_t	c_lflag;
+  char		c_line;
+  cc_t		c_cc[NCCS];
+  speed_t	c_ispeed;
+  speed_t	c_ospeed;
 };
 
-extern int _nc_mingw_ioctl(int fd, long int request, struct termios* arg);
-extern void _nc_set_term_driver(void* term);
+extern NCURSES_EXPORT(int)  _nc_mingw_tcsetattr(
+    int fd, 
+    int optional_actions, 
+    const struct termios* arg);
+extern NCURSES_EXPORT(int)  _nc_mingw_tcgetattr(
+    int fd, 
+    struct termios* arg);
+extern NCURSES_EXPORT(int)  _nc_mingw_tcflush(
+    int fd, 
+    int queue);
+extern NCURSES_EXPORT(void) _nc_set_term_driver(void* term);
 
 #endif /* _NC_MINGWH */
-#endif /* __MINGW32__ */
+#endif /* _WIN32 */

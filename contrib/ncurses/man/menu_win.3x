@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_win.3x,v 1.11 2010/12/04 18:38:55 tom Exp $
+.\" $Id: menu_win.3x,v 1.13 2019/01/20 20:32:23 tom Exp $
 .TH menu_win 3X ""
 .SH NAME
 \fBmenu_win\fR \- make and break menu window and subwindow associations
@@ -45,11 +45,13 @@ WINDOW *menu_sub(const MENU *menu);
 int scale_menu(const MENU *menu, int *rows, int *columns);
 .br
 .SH DESCRIPTION
-Every menu has an associated pair of \fBcurses\fR windows.  The menu window
+Every menu has an associated pair of \fBcurses\fR windows.
+The menu window
 displays any title and border associated with the window; the menu subwindow
 displays the items of the menu that are currently available for selection.
 .PP
-The first four functions get and set those windows.  It is not necessary to set
+The first four functions get and set those windows.
+It is not necessary to set
 either window; by default, the driver code uses \fBstdscr\fR for both.
 .PP
 In the \fBset_\fR functions, window argument of \fBNULL\fR is treated as though
@@ -59,14 +61,15 @@ to change the system default menu window or subwindow.
 The function \fBscale_menu\fR returns the minimum size required for the
 subwindow of \fImenu\fR.
 .SH RETURN VALUE
-Routines that return pointers return \fBNULL\fR on error.  Routines that return
+Routines that return pointers return \fBNULL\fR on error.
+Routines that return
 an integer return one of the following error codes:
 .TP 5
 .B E_OK
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .TP 5
 .B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
@@ -84,8 +87,9 @@ No items are connected to the menu.
 The header file \fB<menu.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V menu library.  They were not supported on
+These routines emulate the System V menu library.
+They were not supported on
 Version 7 or BSD versions.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

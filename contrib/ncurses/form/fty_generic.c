@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2008-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 2008-2018,2020 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_generic.c,v 1.6 2012/06/10 00:27:49 tom Exp $")
+MODULE_ID("$Id: fty_generic.c,v 1.9 2020/01/18 17:08:04 tom Exp $")
 
 /*
  * This is not a full implementation of a field type, but adds some
@@ -55,15 +55,15 @@ MODULE_ID("$Id: fty_generic.c,v 1.6 2012/06/10 00:27:49 tom Exp $")
  * fieldtype they register with the forms library using this call.
  *
  * For that purpose we have extended the fieldtype struc by a new element
- * that gets the arguments from a single struct passed by the caller. 
- * 
+ * that gets the arguments from a single struct passed by the caller.
+ *
  */
 #if NCURSES_INTEROP_FUNCS
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static void *Generic_This_Type( void * arg )
-|   
+|
 |   Description   :  We interpret the passed arg just as a handle the
 |                    calling language uses to keep track of its allocated
 |                    argument structures. We can simply copy it back.
@@ -89,7 +89,7 @@ Generic_This_Type(void *arg)
 |                    write a field_check and a char_check function and give
 |                    them as input to this call. A callback to allow the
 |                    release of the allocated memory must also be provided.
-|                    For generic field types, we provide some more 
+|                    For generic field types, we provide some more
 |                    information about the field as parameters.
 |
 |                    If an error occurs, errno is set to
@@ -109,8 +109,14 @@ _nc_generic_fieldtype(bool (*const field_check) (FORM *, FIELD *, const void *),
   int code = E_SYSTEM_ERROR;
   FIELDTYPE *res = (FIELDTYPE *)0;
 
-  T((T_CALLED("_nc_generic_fieldtype(%p,%p,%p,%p,%p)"),
-     field_check, char_check, next, prev, freecallback));
+  TR_FUNC_BFR(5);
+
+  T((T_CALLED("_nc_generic_fieldtype(%s,%s,%s,%s,%s)"),
+     TR_FUNC_ARG(0, field_check),
+     TR_FUNC_ARG(1, char_check),
+     TR_FUNC_ARG(2, next),
+     TR_FUNC_ARG(3, prev),
+     TR_FUNC_ARG(4, freecallback)));
 
   if (field_check || char_check)
     {
@@ -139,16 +145,16 @@ _nc_generic_fieldtype(bool (*const field_check) (FORM *, FIELD *, const void *),
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static TypeArgument *GenericArgument(
 |                      const FIELDTYPE* typ,
 |                      int (*argiterator)(void**),
 |                      int* err)
-|   
+|
 |   Description   :  The iterator callback must browse through all fieldtype
 |                    parameters that have an argument associated with the
 |                    type. The iterator returns 1 if the operation to get
-|                    the next element was successfull, 0 otherwise. If the
+|                    the next element was successful, 0 otherwise. If the
 |                    iterator could move to the next argument, it fills
 |                    the void* pointer representing the argument into the
 |                    location provided as argument to the iterator.
@@ -200,14 +206,14 @@ GenericArgument(const FIELDTYPE *typ,
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int _nc_set_generic_fieldtype(
 |                      FIELD* field,
 |                      FIELDTYPE* ftyp,
 |                      int (*argiterator)(void**))
-|   
+|
 |   Description   :  Assign the fieldtype to the field and use the iterator
-|                    mechanism to get the arguments when a check is 
+|                    mechanism to get the arguments when a check is
 |                    performed.
 |
 |   Return Values :  E_OK if all went well
@@ -258,11 +264,11 @@ _nc_set_generic_fieldtype(FIELD *field,
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  WINDOW* _nc_form_cursor(
 |                      FORM* form,
 |                      int *pRow, int *pCol)
-|   
+|
 |   Description   :  Get the current position of the form cursor position
 |                    We also return the field window
 |

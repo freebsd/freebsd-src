@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 #include <curses.priv.h>
 #include <stddef.h>
 
-MODULE_ID("$Id: lib_newwin.c,v 1.71 2011/05/28 21:32:51 tom Exp $")
+MODULE_ID("$Id: lib_newwin.c,v 1.74 2017/05/13 23:17:29 tom Exp $")
 
 #define window_is(name) ((sp)->_##name == win)
 
@@ -91,8 +91,6 @@ remove_window_from_screen(WINDOW *win)
 NCURSES_EXPORT(int)
 _nc_freewin(WINDOW *win)
 {
-    WINDOWLIST *p, *q;
-    int i;
     int result = ERR;
 #ifdef USE_SP_WINDOWLIST
     SCREEN *sp = _nc_screen_of(win);	/* pretend this is parameter */
@@ -101,17 +99,23 @@ _nc_freewin(WINDOW *win)
     T((T_CALLED("_nc_freewin(%p)"), (void *) win));
 
     if (win != 0) {
+
 	if (_nc_nonsp_try_global(curses) == 0) {
+	    WINDOWLIST *p, *q;
+
 	    q = 0;
-	    for (each_window(SP_PARM, p)) {
+	    for (each_window(sp, p)) {
+
 		if (&(p->win) == win) {
 		    remove_window_from_screen(win);
 		    if (q == 0)
-			WindowList(SP_PARM) = p->next;
+			WindowList(sp) = p->next;
 		    else
 			q->next = p->next;
 
 		    if (!(win->_flags & _SUBWIN)) {
+			int i;
+
 			for (i = 0; i <= win->_maxy; i++)
 			    FreeIfNeeded(win->_line[i].text);
 		    }
@@ -384,18 +388,18 @@ NCURSES_SP_NAME(_nc_makenew) (NCURSES_SP_DCLx
 NCURSES_EXPORT(WINDOW *)
 _nc_curscr_of(SCREEN *sp)
 {
-    return sp == 0 ? 0 : CurScreen(sp);
+    return (sp == 0) ? NULL : CurScreen(sp);
 }
 
 NCURSES_EXPORT(WINDOW *)
 _nc_newscr_of(SCREEN *sp)
 {
-    return sp == 0 ? 0 : NewScreen(sp);
+    return (sp == 0) ? NULL : NewScreen(sp);
 }
 
 NCURSES_EXPORT(WINDOW *)
 _nc_stdscr_of(SCREEN *sp)
 {
-    return sp == 0 ? 0 : StdScreen(sp);
+    return (sp == 0) ? NULL : StdScreen(sp);
 }
 #endif

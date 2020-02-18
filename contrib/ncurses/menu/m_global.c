@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2014,2020 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_global.c,v 1.27 2012/06/10 00:09:15 tom Exp $")
+MODULE_ID("$Id: m_global.c,v 1.29 2020/01/18 17:05:17 tom Exp $")
 
 static char mark[] = "-";
 /* *INDENT-OFF* */
@@ -53,7 +53,7 @@ NCURSES_EXPORT_VAR(MENU) _nc_Default_Menu = {
   0,				  /* length of widest description */
   1,				  /* length of mark */
   1,				  /* length of one item */
-  1,                              /* Spacing for descriptor */ 
+  1,                              /* Spacing for descriptor */
   1,                              /* Spacing for columns */
   1,                              /* Spacing for rows */
   (char *)0,			  /* buffer used to store match chars */
@@ -68,7 +68,7 @@ NCURSES_EXPORT_VAR(MENU) _nc_Default_Menu = {
   0,				  /* Top row of menu */
   (chtype)A_REVERSE,		  /* Attribute for selection */
   (chtype)A_NORMAL,		  /* Attribute for nonselection */
-  (chtype)A_UNDERLINE,		  /* Attribute for inactive */	
+  (chtype)A_UNDERLINE,		  /* Attribute for inactive */
   ' ',  			  /* Pad character */
   (Menu_Hook)0,			  /* Menu init */
   (Menu_Hook)0,			  /* Menu term */
@@ -77,7 +77,7 @@ NCURSES_EXPORT_VAR(MENU) _nc_Default_Menu = {
   (void *)0,			  /* userptr */
   mark,				  /* mark */
   ALL_MENU_OPTS,                  /* options */
-  0			          /* status */	    
+  0			          /* status */
 };
 
 NCURSES_EXPORT_VAR(ITEM) _nc_Default_Item = {
@@ -98,9 +98,9 @@ NCURSES_EXPORT_VAR(ITEM) _nc_Default_Item = {
 /* *INDENT-ON* */
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  static void ComputeMaximum_NameDesc_Lenths(MENU *menu)
-|   
+|
 |   Description   :  Calculates the maximum name and description lengths
 |                    of the items connected to the menu
 |
@@ -132,10 +132,10 @@ ComputeMaximum_NameDesc_Lengths(MENU * menu)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  static void ResetConnectionInfo(MENU *, ITEM **)
-|   
-|   Description   :  Reset all informations in the menu and the items in
+|
+|   Description   :  Reset all information in the menu and the items in
 |                    the item array that indicates a connection
 |
 |   Return Values :  -
@@ -160,7 +160,7 @@ ResetConnectionInfo(MENU * menu, ITEM ** items)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  bool _nc_Connect_Items(MENU *menu, ITEM **items)
 |
 |   Description   :  Connect the items in the item array to the menu.
@@ -218,16 +218,16 @@ _nc_Connect_Items(MENU * menu, ITEM ** items)
 	}
     }
 
-  /* If we fall through to this point, we have to reset all items connection 
+  /* If we fall through to this point, we have to reset all items connection
      and inform about a reject connection */
   ResetConnectionInfo(menu, items);
   return (FALSE);
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  void _nc_Disconnect_Items(MENU *menu)
-|   
+|
 |   Description   :  Disconnect the menus item array from the menu
 |
 |   Return Values :  -
@@ -240,9 +240,9 @@ _nc_Disconnect_Items(MENU * menu)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  int _nc_Calculate_Text_Width(const TEXT * item)
-|   
+|
 |   Description   :  Calculate the number of columns for a TEXT.
 |
 |   Return Values :  the width
@@ -328,9 +328,9 @@ calculate_actual_width(MENU * menu, bool name)
 #endif
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  void _nc_Calculate_Item_Length_and_Width(MENU *menu)
-|   
+|
 |   Description   :  Calculate the length of an item and the width of the
 |                    whole menu.
 |
@@ -366,9 +366,9 @@ _nc_Calculate_Item_Length_and_Width(MENU * menu)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  void _nc_Link_Item(MENU *menu)
-|   
+|
 |   Description   :  Statically calculate for every item its four neighbors.
 |                    This depends on the orientation of the menu. This
 |                    static approach simplifies navigation in the menu a lot.
@@ -495,9 +495,9 @@ _nc_Link_Items(MENU * menu)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  void _nc_Show_Menu(const MENU* menu)
-|   
+|
 |   Description   :  Update the window that is associated with the menu
 |
 |   Return Values :  -
@@ -530,12 +530,12 @@ _nc_Show_Menu(const MENU * menu)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  void _nc_New_TopRow_and_CurrentItem(
-|                            MENU *menu, 
-|                            int new_toprow, 
+|                            MENU *menu,
+|                            int new_toprow,
 |                            ITEM *new_current_item)
-|   
+|
 |   Description   :  Redisplay the menu so that the given row becomes the
 |                    top row and the given item becomes the new current
 |                    item.
@@ -568,7 +568,9 @@ _nc_New_TopRow_and_CurrentItem(
 
       cur_item = menu->curitem;
       assert(cur_item);
-      menu->toprow = (short)new_toprow;
+      menu->toprow = (short)(((menu->rows - menu->frows) >= 0)
+			     ? min(menu->rows - menu->frows, new_toprow)
+			     : 0);
       menu->curitem = new_current_item;
 
       if (mterm_called)
@@ -590,7 +592,9 @@ _nc_New_TopRow_and_CurrentItem(
     }
   else
     {				/* if we are not posted, this is quite simple */
-      menu->toprow = (short)new_toprow;
+      menu->toprow = (short)(((menu->rows - menu->frows) >= 0)
+			     ? min(menu->rows - menu->frows, new_toprow)
+			     : 0);
       menu->curitem = new_current_item;
     }
 }

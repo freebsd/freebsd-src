@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2014,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_dft_fgbg.c,v 1.26 2011/04/23 18:28:18 tom Exp $")
+MODULE_ID("$Id: lib_dft_fgbg.c,v 1.29 2017/03/25 21:00:49 tom Exp $")
 
 /*
  * Modify the behavior of color-pair 0 so that the library doesn't assume that
@@ -68,26 +68,27 @@ NCURSES_SP_NAME(assume_default_colors) (NCURSES_SP_DCLx int fg, int bg)
     int code = ERR;
 
     T((T_CALLED("assume_default_colors(%p,%d,%d)"), (void *) SP_PARM, fg, bg));
+    if (SP_PARM != 0) {
 #ifdef USE_TERM_DRIVER
-    if (sp != 0)
-	code = CallDriver_2(sp, defaultcolors, fg, bg);
+	code = CallDriver_2(SP_PARM, td_defaultcolors, fg, bg);
 #else
-    if ((orig_pair || orig_colors) && !initialize_pair) {
+	if ((orig_pair || orig_colors) && !initialize_pair) {
 
-	SP_PARM->_default_color = isDefaultColor(fg) || isDefaultColor(bg);
-	SP_PARM->_has_sgr_39_49 = (tigetflag("AX") == TRUE);
-	SP_PARM->_default_fg = isDefaultColor(fg) ? COLOR_DEFAULT : (fg & C_MASK);
-	SP_PARM->_default_bg = isDefaultColor(bg) ? COLOR_DEFAULT : (bg & C_MASK);
-	if (SP_PARM->_color_pairs != 0) {
-	    bool save = SP_PARM->_default_color;
-	    SP_PARM->_assumed_color = TRUE;
-	    SP_PARM->_default_color = TRUE;
-	    init_pair(0, (short) fg, (short) bg);
-	    SP_PARM->_default_color = save;
+	    SP_PARM->_default_color = isDefaultColor(fg) || isDefaultColor(bg);
+	    SP_PARM->_has_sgr_39_49 = (tigetflag("AX") == TRUE);
+	    SP_PARM->_default_fg = isDefaultColor(fg) ? COLOR_DEFAULT : fg;
+	    SP_PARM->_default_bg = isDefaultColor(bg) ? COLOR_DEFAULT : bg;
+	    if (SP_PARM->_color_pairs != 0) {
+		bool save = SP_PARM->_default_color;
+		SP_PARM->_assumed_color = TRUE;
+		SP_PARM->_default_color = TRUE;
+		init_pair(0, (short) fg, (short) bg);
+		SP_PARM->_default_color = save;
+	    }
+	    code = OK;
 	}
-	code = OK;
-    }
 #endif
+    }
     returnCode(code);
 }
 

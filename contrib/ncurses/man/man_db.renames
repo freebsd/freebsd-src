@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +25,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: man_db.renames,v 1.47 2010/09/18 15:43:20 tom Exp $
+# $Id: man_db.renames,v 1.55 2019/07/20 10:18:12 Sven.Joachim Exp $
 # Manual-page renamings for the man_db program
 #
 # Files:
@@ -149,11 +149,13 @@ mitem_userptr.3x		menu_userptr.3menu
 mitem_value.3x			menu_value.3menu
 mitem_visible.3x		menu_visible.3menu
 ncurses.3x			ncurses.3ncurses
+new_pair.3x			new_pair.3ncurses
 panel.3x			panel.3curses
 printf.3s			printf.3
 putc.3s 			putc.3
 resizeterm.3x			resizeterm.3ncurses
 scanf.3s			scanf.3
+scr_dump.5			scr_dump.5
 system.3s			system.3
 tabs.1				tabs.1
 term.5				term.5
@@ -165,7 +167,7 @@ tic.1m				tic.1
 toe.1m				toe.1
 tput.1				tput.1
 tset.1				tset.1
-vprintf.3s			vprintf.3
+user_caps.5			user_caps.5
 wresize.3x			wresize.3ncurses
 #
 # Other:
@@ -174,20 +176,24 @@ tack.1m				tack.1
 getty.1				getty.8
 scanf.3				scanf.3
 ttys.5				ttys.4
-termio.7			termios.3
 system.3			system.3
 regcomp.3x			regcomp.3
 regexec.3x			regexec.3
+vprintf.3			vprintf.3
 #
-# Generated:
+# The following are pages which may be generated depending on configuration:
 adacurses-config.1		adacurses-config.1
+adacurses5-config.1		adacurses5-config.1
+adacurses6-config.1		adacurses6-config.1
 #
 ncurses5-config.1		ncurses5-config.1
 ncursesw5-config.1		ncursesw5-config.1
+ncursest5-config.1		ncursest5-config.1
+ncursestw5-config.1		ncursestw5-config.1
 #
 ncurses6-config.1		ncurses6-config.1
 ncursesw6-config.1		ncursesw6-config.1
 ncursest6-config.1		ncursest6-config.1
-ncurseswt6-config.1		ncurseswt6-config.1
+ncursestw6-config.1		ncursestw6-config.1
 #
 # vile:cfgmode

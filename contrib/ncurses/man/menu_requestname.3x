@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2015,2018 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,11 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_requestname.3x,v 1.9 2010/12/04 18:40:45 tom Exp $
+.\" $Id: menu_requestname.3x,v 1.11 2018/07/28 21:34:06 tom Exp $
 .TH menu_requestname 3X ""
 .SH NAME
-\fBmenu_requestname\fR \- handle printable menu request names
+\fBmenu_request_by_name\fP,
+\fBmenu_request_name\fR \- handle printable menu request names
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
 .br
@@ -57,9 +58,11 @@ It does not set errno.
 The header file \fB<menu.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines are specific to ncurses.  They were not supported on
-Version 7, BSD or System V implementations.  It is recommended that
+These routines are specific to ncurses.
+They were not supported on
+Version 7, BSD or System V implementations.
+It is recommended that
 any code depending on them be conditioned using NCURSES_VERSION.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

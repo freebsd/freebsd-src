@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,11 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_post.3x,v 1.9 2010/12/04 18:40:45 tom Exp $
+.\" $Id: form_post.3x,v 1.13 2019/01/20 20:31:42 tom Exp $
 .TH form_post 3X ""
 .SH NAME
-\fBform_post\fR \- write or erase forms from associated subwindows
+\fBpost_form\fR,
+\fBunpost_form\fR \- write or erase forms from associated subwindows
 .SH SYNOPSIS
 \fB#include <form.h>\fR
 .br
@@ -39,8 +40,9 @@ int post_form(FORM *form);
 int unpost_form(FORM *form);
 .br
 .SH DESCRIPTION
-The function \fBpost_form\fR displays a form to its associated subwindow.  To
-trigger physical display of the subwindow, use \fBrefresh\fR or some equivalent
+The function \fBpost_form\fR displays a form to its associated subwindow.
+To trigger physical display of the subwindow,
+use \fBrefresh\fR(3X) or some equivalent
 \fBcurses\fR routine (the implicit \fBdoupdate\fR triggered by an \fBcurses\fR
 input request will do).
 .PP
@@ -70,7 +72,7 @@ Form is too large for its window.
 The form has already been posted.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).
@@ -78,8 +80,9 @@ System error occurred (see \fBerrno\fR).
 The header file \fB<form.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V forms library.  They were not supported on
+These routines emulate the System V forms library.
+They were not supported on
 Version 7 or BSD versions.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

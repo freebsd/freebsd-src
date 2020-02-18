@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
  *     and: Juergen Pfeifer                         1996-1999,2008          *
  ****************************************************************************/
 
-/* $Id: panel.h,v 1.11 2009/04/11 19:50:40 tom Exp $ */
+/* $Id: panel.h,v 1.12 2017/02/11 16:50:28 tom Exp $ */
 
 /* panel.h -- interface file for panels library */
 
@@ -42,12 +42,15 @@
 #include <curses.h>
 
 typedef struct panel
+#if !NCURSES_OPAQUE_PANEL
 {
   WINDOW *win;
   struct panel *below;
   struct panel *above;
   NCURSES_CONST void *user;
-} PANEL;
+}
+#endif /* !NCURSES_OPAQUE_PANEL */
+PANEL;
 
 #if	defined(__cplusplus)
 extern "C" {

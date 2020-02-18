@@ -1,4 +1,4 @@
-/* $Id: curses.tail,v 1.21 2011/10/29 20:03:22 tom Exp $ */
+/* $Id: curses.tail,v 1.25 2019/12/14 22:28:39 tom Exp $ */
 /*
  * vile:cmode:
  * This file is part of ncurses, designed to be appended after curses.h.in
@@ -111,7 +111,9 @@ extern NCURSES_EXPORT(mmask_t) NCURSES_SP_NAME(mousemask) (SCREEN*, mmask_t, mma
 extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(mouseinterval) (SCREEN*, int);
 #endif
 
+#ifndef NCURSES_NOMACROS
 #define mouse_trafo(y,x,to_screen) wmouse_trafo(stdscr,y,x,to_screen)
+#endif
 
 /* other non-XSI functions */
 
@@ -126,10 +128,8 @@ extern NCURSES_EXPORT(int) NCURSES_SP_NAME(mcprint) (SCREEN*, char *, int);	/* d
 /* Debugging : use with libncurses_g.a */
 
 extern NCURSES_EXPORT(void) _tracef (const char *, ...) GCC_PRINTFLIKE(1,2);
-extern NCURSES_EXPORT(void) _tracedump (const char *, WINDOW *);
 extern NCURSES_EXPORT(char *) _traceattr (attr_t);
 extern NCURSES_EXPORT(char *) _traceattr2 (int, chtype);
-extern NCURSES_EXPORT(char *) _nc_tracebits (void);
 extern NCURSES_EXPORT(char *) _tracechar (int);
 extern NCURSES_EXPORT(char *) _tracechtype (chtype);
 extern NCURSES_EXPORT(char *) _tracechtype2 (int, chtype);
@@ -142,8 +142,8 @@ extern NCURSES_EXPORT(char *) _tracecchar_t2 (int, const cchar_t *);
 #define _tracech_t		_tracechtype
 #define _tracech_t2		_tracechtype2
 #endif
-extern NCURSES_EXPORT(char *) _tracemouse (const MEVENT *);
-extern NCURSES_EXPORT(void) trace (const unsigned int);
+extern NCURSES_EXPORT(void) trace (const unsigned) GCC_DEPRECATED("use curses_trace");
+extern NCURSES_EXPORT(unsigned) curses_trace (const unsigned);
 
 /* trace masks */
 #define TRACE_DISABLE	0x0000	/* turn off tracing */
@@ -173,6 +173,8 @@ extern NCURSES_EXPORT(const char *) _nc_visbuf (const char *);
 #define OPTIMIZE_SCROLL		0x04	/* scroll optimization */
 #define OPTIMIZE_ALL		0xff	/* enable all optimizations (dflt) */
 #endif
+
+extern NCURSES_EXPORT(void) exit_curses (int) GCC_NORETURN;
 
 #include <unctrl.h>
 

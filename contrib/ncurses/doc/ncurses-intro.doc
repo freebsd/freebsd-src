@@ -132,20 +132,36 @@
 A Brief History of Curses
 
    Historically, the first ancestor of curses was the routines written to
-   provide   screen-handling   for   the   game  rogue;  these  used  the
-   already-existing  termcap  database  facility  for describing terminal
+   provide  screen-handling  for  the  vi  editor; these used the termcap
+   database  facility  (both  released  in  3BSD) for describing terminal
    capabilities. These routines were abstracted into a documented library
-   and first released with the early BSD UNIX versions.
+   and  first released with the early BSD UNIX versions. All of this work
+   was  done  by  students  at  the  University  of  California (Berkeley
+   campus).  The  curses  library  was  first published in 4.0BSD, a year
+   after 3BSD (i.e., late 1980).
 
-   System  III UNIX from Bell Labs featured a rewritten and much-improved
-   curses  library.  It introduced the terminfo format. Terminfo is based
-   on  Berkeley's termcap database, but contains a number of improvements
-   and  extensions.  Parameterized  capabilities strings were introduced,
-   making  it  possible to describe multiple video attributes, and colors
-   and  to  handle far more unusual terminals than possible with termcap.
-   In  the  later  AT&T  System  V  releases,  curses evolved to use more
-   facilities and offer more capabilities, going far beyond BSD curses in
-   power and flexibility.
+   After  graduation,  one  of  those  students went to work at AT&T Bell
+   Labs,  and  made  an  improved  termcap library called terminfo (i.e.,
+   "libterm"),  and  adapted  the  curses  library  to use this. That was
+   subsequently  released in System V Release 2 (early 1984). Thereafter,
+   other  developers  added  to  the  curses  and terminfo libraries. For
+   instance,  a  student at Cornell University wrote an improved terminfo
+   library  as well as a tool (tic) to compile the terminal descriptions.
+   As  a  general  rule,  AT&T  did  not  identify  the developers in the
+   source-code  or  documentation;  the  tic and infocmp programs are the
+   exceptions.
+
+   System  V  Release  3  (System  III  UNIX)  from  Bell Labs featured a
+   rewritten and much-improved curses library, along with the tic program
+   (late 1986).
+
+   To  recap,  terminfo  is  based  on  Berkeley's  termcap database, but
+   contains  a  number  of  improvements  and  extensions.  Parameterized
+   capabilities  strings  were introduced, making it possible to describe
+   multiple  video  attributes, and colors and to handle far more unusual
+   terminals  than  possible  with  termcap.  In  the later AT&T System V
+   releases,  curses  evolved  to  use  more  facilities  and  offer more
+   capabilities, going far beyond BSD curses in power and flexibility.
 
 Scope of This Document
 
@@ -153,7 +169,7 @@ Scope of This Document
    curses  API  with  some  clearly  marked  extensions.  It includes the
    following System V curses features:
      * Support  for  multiple  screen  highlights  (BSD curses could only
-       handle one `standout' highlight, usually reverse-video).
+       handle one "standout" highlight, usually reverse-video).
      * Support for line- and box-drawing using forms characters.
      * Recognition of function keys on input.
      * Color support.
@@ -164,7 +180,7 @@ Scope of This Document
    character  features  of  terminals  so equipped, and determines how to
    optimally  use  these  features  with  no help from the programmer. It
    allows  arbitrary  combinations  of  video attributes to be displayed,
-   even  on  terminals that leave ``magic cookies'' on the screen to mark
+   even  on  terminals  that  leave "magic cookies" on the screen to mark
    changes in attributes.
 
    The  ncurses  package  can  also  capture and use event reports from a
@@ -242,8 +258,8 @@ An Overview of Curses
    standard screen) is provided by default to make changes on.
 
    A  window is a purely internal representation. It is used to build and
-   store  a potential image of a portion of the terminal. It doesn't bear
-   any  necessary relation to what is really on the terminal screen; it's
+   store a potential image of a portion of the terminal. It does not bear
+   any necessary relation to what is really on the terminal screen; it is
    more like a scratchpad or write buffer.
 
    To  make  the  section  of  physical  screen corresponding to a window
@@ -253,7 +269,7 @@ An Overview of Curses
    A  given physical screen section may be within the scope of any number
    of  overlapping  windows.  Also, changes can be made to windows in any
    order,  without  regard  to  motion  efficiency.  Then,  at  will, the
-   programmer can effectively say ``make it look like this,'' and let the
+   programmer  can  effectively say "make it look like this," and let the
    package implementation determine the most efficient way to repaint the
    screen.
 
@@ -269,8 +285,8 @@ An Overview of Curses
    Many  functions  are  defined  to  use stdscr as a default screen. For
    example,  to  add  a  character  to stdscr, one calls addch() with the
    desired character as argument. To write to a different window. use the
-   routine  waddch()  (for  `w'indow-specific  addch()) is provided. This
-   convention of prepending function names with a `w' when they are to be
+   routine  waddch()  (for  window-specific  addch())  is  provided. This
+   convention of prepending function names with a "w" when they are to be
    applied  to specific windows is consistent. The only routines which do
    not follow it are those for which a window must always be specified.
 
@@ -278,7 +294,7 @@ An Overview of Curses
    another,  the routines move() and wmove() are provided. However, it is
    often  desirable to first move and then perform some I/O operation. In
    order  to  avoid  clumsiness, most I/O routines can be preceded by the
-   prefix  'mv'  and  the  desired  (y,  x)  coordinates prepended to the
+   prefix  "mv"  and  the  desired  (y,  x)  coordinates prepended to the
    arguments to the function. For example, the calls
           move(y, x);
           addch(ch);
@@ -310,13 +326,13 @@ An Overview of Curses
    general usefulness:
 
    bool
-          boolean type, actually a `char' (e.g., bool doneit;)
+          boolean type, actually a "char" (e.g., bool doneit;)
 
    TRUE
-          boolean `true' flag (1).
+          boolean "true" flag (1).
 
    FALSE
-          boolean `false' flag (0).
+          boolean "false" flag (0).
 
    ERR
           error flag returned by routines on a failure (-1).
@@ -332,7 +348,7 @@ Using the Library
    function names and parameters as mentioned above.
 
    Here is a sample program to motivate the discussion:
-#include <curses.h>
+#include <stdlib.h>
 #include <curses.h>
 #include <signal.h>
 
@@ -381,7 +397,7 @@ main(int argc, char *argv[])
         /* process the command keystroke */
     }
 
-    finish(0);               /* we're done */
+    finish(0);               /* we are done */
 }
 
 static void finish(int sig)
@@ -411,7 +427,7 @@ static void finish(int sig)
    Once  the  screen windows have been allocated, you can set them up for
    your  program.  If  you  want  to,  say, allow a screen to scroll, use
    scrollok().  If you want the cursor to be left in place after the last
-   change,  use  leaveok().  If  this isn't done, refresh() will move the
+   change,  use  leaveok().  If this is not done, refresh() will move the
    cursor to the window's current (y, x) coordinates after updating it.
 
    You  can  create new windows of your own using the functions newwin(),
@@ -454,8 +470,8 @@ static void finish(int sig)
    set, will call addch() to echo the character. Since the screen package
    needs  to know what is on the terminal at all times, if characters are
    to  be  echoed, the tty must be in raw or cbreak mode. Since initially
-   the  terminal  has echoing enabled and is in ordinary ``cooked'' mode,
-   one or the other has to changed before calling getch(); otherwise, the
+   the terminal has echoing enabled and is in ordinary "cooked" mode, one
+   or  the  other  has  to changed before calling getch(); otherwise, the
    program's output will be unpredictable.
 
    When you need to accept line-oriented input in a window, the functions
@@ -499,7 +515,7 @@ static void finish(int sig)
    of  the  highlights you want into the character argument of an addch()
    call, or any other output call that takes a chtype argument.
 
-   The other is to set the current-highlight value. This is logical-or'ed
+   The  other is to set the current-highlight value. This is logical-ORed
    with  any  highlight  you  specify the first way. You do this with the
    functions attron(), attroff(), and attrset(); see the manual pages for
    details.  Color  is  a special kind of highlight. The package actually
@@ -510,8 +526,8 @@ static void finish(int sig)
    range  of  eight  non-conflicting  values  could have been used as the
    first arguments of the init_pair() values.
 
-   Once you've done an init_pair() that creates color-pair N, you can use
-   COLOR_PAIR(N)  as  a  highlight  that  invokes  that  particular color
+   Once  you  have done an init_pair() that creates color-pair N, you can
+   use  COLOR_PAIR(N)  as  a highlight that invokes that particular color
    combination.  Note  that  COLOR_PAIR(N),  for  constant N, is itself a
    compile-time constant and can be used in initializers.
 
@@ -550,11 +566,11 @@ static void finish(int sig)
    otherwise  another  mouse  event  might come in and make the first one
    inaccessible).
 
-   Each call to getmouse() fills a structure (the address of which you'll
-   pass  it)  with mouse event data. The event data includes zero-origin,
-   screen-relative  character-cell  coordinates  of the mouse pointer. It
-   also  includes  an  event  mask.  Bits  in  this  mask  will  be  set,
-   corresponding to the event type being reported.
+   Each  call  to  getmouse() fills a structure (the address of which you
+   will  pass  it)  with  mouse  event  data.  The  event  data  includes
+   zero-origin,  screen-relative  character-cell coordinates of the mouse
+   pointer.  It  also  includes  an event mask. Bits in this mask will be
+   set, corresponding to the event type being reported.
 
    The  mouse  structure  contains  two  additional  fields  which may be
    significant  in  the  future  as  ncurses  interfaces  to new kinds of
@@ -567,7 +583,7 @@ static void finish(int sig)
    The   class  of  visible  events  may  be  changed  at  any  time  via
    mousemask().  Events  that  can be reported include presses, releases,
    single-,   double-   and   triple-clicks  (you  can  set  the  maximum
-   button-down  time  for clicks). If you don't make clicks visible, they
+   button-down  time for clicks). If you do not make clicks visible, they
    will  be  reported  as  press-release pairs. In some environments, the
    event  mask  may  include  bits reporting the state of shift, alt, and
    ctrl keys on the keyboard during the event.
@@ -701,7 +717,7 @@ Function Descriptions
           more  terminals  at  once.  Setupterm()  also  stores the names
           section  of  the  terminal  description in the global character
           array ttytype[]. Subsequent calls to setupterm() will overwrite
-          this array, so you'll have to save it yourself if need be.
+          this array, so you will have to save it yourself if need be.
 
   Debugging
 
@@ -710,7 +726,7 @@ Function Descriptions
    trace()
           This  function  can be used to explicitly set a trace level. If
           the  trace  level  is  nonzero,  execution of your program will
-          generate a file called `trace' in the current working directory
+          generate a file called "trace" in the current working directory
           containing  a  report  on  the  library's actions. Higher trace
           levels  enable  more  detailed  (and  verbose) reporting -- see
           comments  attached  to  TRACE_ defines in the curses.h file for
@@ -740,7 +756,7 @@ Hints, Tips, and Tricks
   Some Notes of Caution
 
    If  you  find yourself thinking you need to use noraw() or nocbreak(),
-   think  again  and  move  carefully. It's probably better design to use
+   think  again  and  move carefully. It is probably better design to use
    getstr()  or one of its relatives to simulate cooked mode. The noraw()
    and  nocbreak() functions try to restore cooked mode, but they may end
    up   clobbering   some  control  bits  set  before  you  started  your
@@ -748,7 +764,7 @@ Hints, Tips, and Tricks
    likely   to  hurt  your  application's  usability  with  other  curses
    libraries.
 
-   Bear  in  mind that refresh() is a synonym for wrefresh(stdscr). Don't
+   Bear  in mind that refresh() is a synonym for wrefresh(stdscr). Do not
    try  to  mix use of stdscr with use of windows declared by newwin(); a
    refresh()  call will blow them off the screen. The right way to handle
    this  is  to  use  subwin(),  or not touch stdscr at all and tile your
@@ -774,7 +790,7 @@ Hints, Tips, and Tricks
   Temporarily Leaving NCURSES Mode
 
    Sometimes  you  will  want  to write a program that spends most of its
-   time  in  screen  mode,  but occasionally returns to ordinary `cooked'
+   time  in  screen  mode,  but occasionally returns to ordinary "cooked"
    mode.  A common reason for this is to support shell-out. This behavior
    is simple to arrange in ncurses.
 
@@ -839,8 +855,8 @@ Hints, Tips, and Tricks
    tigetflag(), tigetnum(), and tigetstr() to do your testing.
 
    A  particularly  useful  case  of this often comes up when you want to
-   test  whether  a  given  terminal  type  should  be treated as `smart'
-   (cursor-addressable) or `stupid'. The right way to test this is to see
+   test  whether  a  given  terminal  type  should  be treated as "smart"
+   (cursor-addressable) or "stupid". The right way to test this is to see
    if the return value of tigetstr("cup") is non-NULL. Alternatively, you
    can  include  the  term.h  file  and  test  the  value  of  the  macro
    cursor_address.
@@ -848,8 +864,8 @@ Hints, Tips, and Tricks
   Tuning for Speed
 
    Use  the  addchstr()  family  of functions for fast screen-painting of
-   text  when  you  know the text doesn't contain any control characters.
-   Try  to  make  attribute changes infrequent on your screens. Don't use
+   text  when  you know the text does not contain any control characters.
+   Try  to  make attribute changes infrequent on your screens. Do not use
    the immedok() option!
 
   Special Features of NCURSES
@@ -913,7 +929,7 @@ Compatibility with Older Versions
    they  do  change  copy or entire copy. We know that System V release 3
    curses  has  logic in it that looks like an attempt to do change copy,
    but  the  surrounding  logic and data representations are sufficiently
-   complex,  and  our  knowledge sufficiently indirect, that it's hard to
+   complex,  and  our knowledge sufficiently indirect, that it is hard to
    know  whether  this  is  reliable.  It  is  not  clear  what  the SVr4
    documentation  and XSI standard intend. The XSI Curses standard barely
    mentions  wnoutrefresh();  the  SVr4  documents  seem to be describing
@@ -997,8 +1013,8 @@ Overview of Panels
    in  the proper order to resolve overlaps. The standard window, stdscr,
    is considered below all panels.
 
-   Details  on the panels functions are available in the man pages. We'll
-   just hit the highlights here.
+   Details  on  the  panels  functions are available in the man pages. We
+   will just hit the highlights here.
 
    You  create  a  panel from a window by calling new_panel() on a window
    pointer.  It  then  becomes the top of the deck. The panel's window is
@@ -1009,11 +1025,11 @@ Overview of Panels
    This  will  not  deallocate the associated window; you have to do that
    yourself.  You can replace a panel's window with a different window by
    calling  replace_window.  The new window may be of different size; the
-   panel code will re-compute all overlaps. This operation doesn't change
-   the panel's position in the deck.
+   panel  code  will  re-compute  all  overlaps.  This operation does not
+   change the panel's position in the deck.
 
    To  move  a  panel's window, use move_panel(). The mvwin() function on
-   the  panel's  window  isn't  sufficient  because it doesn't update the
+   the  panel's  window  is not sufficient because it does not update the
    panels  library's  representation  of  where  the  windows  are.  This
    operation leaves the panel's depth, contents, and size unchanged.
 
@@ -1028,12 +1044,12 @@ Overview of Panels
    Typically,  you  will want to call update_panels() and doupdate() just
    before accepting command input, once in each cycle of interaction with
    the  user.  If  you  call  update_panels()  after each and every panel
-   write,  you'll  generate  a  lot  of  unnecessary refresh activity and
+   write,  you  will  generate  a lot of unnecessary refresh activity and
    screen flicker.
 
 Panels, Input, and the Standard Screen
 
-   You  shouldn't mix wnoutrefresh() or wrefresh() operations with panels
+   You should not mix wnoutrefresh() or wrefresh() operations with panels
    code;  this will work only if the argument window is either in the top
    panel or unobscured by any other panels.
 
@@ -1051,7 +1067,7 @@ Panels, Input, and the Standard Screen
 
 Hiding Panels
 
-   It's  possible  to  remove  a  panel  from  the  deck temporarily; use
+   It  is  possible  to  remove  a  panel  from the deck temporarily; use
    hide_panel  for this. Use show_panel() to render it visible again. The
    predicate  function  panel_hidden  tests  whether  or  not  a panel is
    hidden.
@@ -1062,7 +1078,7 @@ Hiding Panels
 
 Miscellaneous Other Facilities
 
-   It's  possible  to navigate the deck using the functions panel_above()
+   It  is possible to navigate the deck using the functions panel_above()
    and  panel_below.  Handed a panel pointer, they return the panel above
    or  below  that  panel.  Handed  NULL,  they return the bottom-most or
    top-most panel.
@@ -1156,7 +1172,7 @@ Menu Display
 
    The actual menu page may be smaller than the format size. This depends
    on  the item number and size and whether O_ROWMAJOR is on. This option
-   (on  by  default) causes menu items to be displayed in a `raster-scan'
+   (on  by  default) causes menu items to be displayed in a "raster-scan"
    pattern, so that if more than one item will fit horizontally the first
    couple  of  items  are side-by-side in the top row. The alternative is
    column-major  display,  which  tries to put the first several items in
@@ -1222,7 +1238,7 @@ Processing Menu Input
    REQ_SCR_DPAGE, and REQ_SCR_UPAGE.
 
    The  REQ_TOGGLE_ITEM  selects or deselects the current item. It is for
-   use  in  multi-valued  menus; if you use it with O_ONEVALUE on, you'll
+   use  in multi-valued menus; if you use it with O_ONEVALUE on, you will
    get an error return (E_REQUEST_DENIED).
 
    Each  menu  has  an associated pattern buffer. The menu_driver() logic
@@ -1326,7 +1342,7 @@ Overview of Forms
    obviously  designed  to  resemble  that  of  the menu library wherever
    possible.
 
-   In  forms  programs,  however, the `process user requests' is somewhat
+   In  forms  programs,  however, the "process user requests" is somewhat
    more   complicated   than  for  menus.  Besides  menu-like  navigation
    operations, the menu driver loop has to support field editing and data
    validation.
@@ -1348,7 +1364,7 @@ FIELD *new_field(int height, int width,   /* new field size */
    the  screen  (the  third  and  fourth arguments, which must be zero or
    greater).  Note  that  these  coordinates  are  relative  to  the form
    subwindow,  which will coincide with stdscr by default but need not be
-   stdscr if you've done an explicit set_form_win() call.
+   stdscr if you have done an explicit set_form_win() call.
 
    The  fifth argument allows you to specify a number of off-screen rows.
    If  this  is zero, the entire field will always be displayed. If it is
@@ -1593,7 +1609,7 @@ int field_status(FIELD *field);         /* fetch mode of field */
    Calling  field_status()  on  a  field not currently selected for input
    will return a correct value. Calling field_status() on a field that is
    currently  selected for input may not necessarily give a correct field
-   status  value, because entered data isn't necessarily copied to buffer
+   status value, because entered data is not necessarily copied to buffer
    zero  before the exit validation check. To guarantee that the returned
    status  value  reflects reality, call field_status() either (1) in the
    field's  exit validation check routine, (2) from the field's or form's
@@ -1662,7 +1678,7 @@ Field Validation
    By  default,  a  field will accept any data that will fit in its input
    buffer.  However,  it  is  possible  to  attach a validation type to a
    field.  If  you  do  this,  any  attempt  to  leave the field while it
-   contains  data  that doesn't match the validation type will fail. Some
+   contains  data that does not match the validation type will fail. Some
    validation  types also have a character-validity check for each time a
    character is entered in the field.
 
@@ -1696,10 +1712,10 @@ int set_field_type(FIELD *field,          /* field to alter */
                    TYPE_ALPHA,            /* type to associate */
                    int width);            /* maximum width of field */
 
-   The width argument sets a minimum width of data. Typically you'll want
-   to  set this to the field width; if it's greater than the field width,
-   the  validation  check will always fail. A minimum width of zero makes
-   field completion optional.
+   The  width  argument  sets a minimum width of data. Typically you will
+   want  to  set this to the field width; if it is greater than the field
+   width,  the validation check will always fail. A minimum width of zero
+   makes field completion optional.
 
   TYPE_ALNUM
 
@@ -1711,9 +1727,9 @@ int set_field_type(FIELD *field,          /* field to alter */
                    int width);            /* maximum width of field */
 
    The  width  argument sets a minimum width of data. As with TYPE_ALPHA,
-   typically  you'll want to set this to the field width; if it's greater
-   than the field width, the validation check will always fail. A minimum
-   width of zero makes field completion optional.
+   typically  you  will  want  to  set  this to the field width; if it is
+   greater than the field width, the validation check will always fail. A
+   minimum width of zero makes field completion optional.
 
   TYPE_ENUM
 
@@ -1802,7 +1818,7 @@ char *field_buffer(FIELD *field,          /* field to query */
                    int bufindex);         /* number of buffer to query */
 
    Normally,  the state of the zero-numbered buffer for each field is set
-   by  the user's editing actions on that field. It's sometimes useful to
+   by the user's editing actions on that field. It is sometimes useful to
    be  able  to set the value of the zero-numbered (or some other) buffer
    from your application:
 int set_field_buffer(FIELD *field,        /* field to alter */
@@ -1817,7 +1833,7 @@ int set_field_buffer(FIELD *field,        /* field to alter */
    Calling  field_buffer()  on  a  field not currently selected for input
    will return a correct value. Calling field_buffer() on a field that is
    currently  selected for input may not necessarily give a correct field
-   buffer  value, because entered data isn't necessarily copied to buffer
+   buffer value, because entered data is not necessarily copied to buffer
    zero  before the exit validation check. To guarantee that the returned
    buffer  value  reflects  on-screen reality, call field_buffer() either
    (1) in the field's exit validation check routine, (2) from the field's
@@ -1877,7 +1893,7 @@ Control of Form Display
    erased at post/unpost time. The inner window or subwindow is where the
    current form page is actually displayed.
 
-   In  order  to declare your own frame window for a form, you'll need to
+   In order to declare your own frame window for a form, you will need to
    know  the  size  of  the  form's  bounding rectangle. You can get this
    information with:
 int scale_form(FORM *form,                /* form to query */
@@ -2389,12 +2405,11 @@ FIELD *link_fieldtype(FIELDTYPE *type1,
        entered.
      * A field-validation function to be applied on exit from the field.
 
-   Here's how you do that:
+   Here is how you do that:
 typedef int     (*HOOK)();       /* pointer to function returning int */
 
 FIELDTYPE *new_fieldtype(HOOK f_validate, /* field validator */
                          HOOK c_validate) /* character validator */
-
 
 int free_fieldtype(FIELDTYPE *ftype);     /* type to free */
 
@@ -2419,7 +2434,7 @@ int free_fieldtype(FIELDTYPE *ftype);     /* type to free */
 
    Your  field-  and  character-  validation  functions  will be passed a
    second  argument  as  well.  This  second argument is the address of a
-   structure   (which   we'll   call  a  pile)  built  from  any  of  the
+   structure  (which  we  will  call  a  pile)  built  from  any  of  the
    field-type-specific  arguments  passed to set_field_type(). If no such
    arguments  are  defined for the field type, this pile pointer argument
    will be NULL.
@@ -2469,7 +2484,7 @@ int set_fieldtype_arg(FIELDTYPE *type,    /* type to alter */
    Some  custom  field  types are simply ordered in the same well-defined
    way  that  TYPE_ENUM  is.  For  such  types,  it is possible to define
    successor and predecessor functions to support the REQ_NEXT_CHOICE and
-   REQ_PREV_CHOICE requests. Here's how:
+   REQ_PREV_CHOICE requests. Here is how:
 typedef int     (*INTHOOK)();     /* pointer to function returning int */
 
 int set_fieldtype_arg(FIELDTYPE *type,    /* type to alter */

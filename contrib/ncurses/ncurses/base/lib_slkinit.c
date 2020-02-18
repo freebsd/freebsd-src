@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkinit.c,v 1.13 2009/10/31 00:10:46 tom Exp $")
+MODULE_ID("$Id: lib_slkinit.c,v 1.14 2017/06/30 11:47:34 tom Exp $")
 
 #ifdef USE_SP_RIPOFF
 #define SoftkeyFormat SP_PARM->slk_format
@@ -75,6 +75,11 @@ NCURSES_SP_NAME(slk_init) (NCURSES_SP_DCLx int format)
 NCURSES_EXPORT(int)
 slk_init(int format)
 {
-    return NCURSES_SP_NAME(slk_init) (CURRENT_SCREEN_PRE, format);
+    int rc;
+    _nc_lock_global(prescreen);
+    START_TRACE();
+    rc = NCURSES_SP_NAME(slk_init) (CURRENT_SCREEN_PRE, format);
+    _nc_unlock_global(prescreen);
+    return rc;
 }
 #endif

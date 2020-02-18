@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_scroll.c,v 1.29 2011/10/22 16:34:50 tom Exp $")
+MODULE_ID("$Id: lib_scroll.c,v 1.31 2019/08/03 22:27:55 tom Exp $")
 
 NCURSES_EXPORT(void)
 _nc_scroll_window(WINDOW *win,
@@ -77,11 +77,13 @@ _nc_scroll_window(WINDOW *win,
      * setup cost.  So there is no point in trying to be excessively
      * clever -- esr.
      */
+#define BottomLimit(n) ((n) >= 0 && (n) >= top)
+#define TopLimit(n)    ((n) <= win->_maxy && (n) <= bottom)
 
     /* shift n lines downwards */
     if (n < 0) {
 	limit = top - n;
-	for (line = bottom; line >= limit && line >= 0; line--) {
+	for (line = bottom; line >= limit && BottomLimit(line); line--) {
 	    TR(TRACE_MOVE, ("...copying %d to %d", line + n, line));
 	    memcpy(win->_line[line].text,
 		   win->_line[line + n].text,
@@ -89,7 +91,7 @@ _nc_scroll_window(WINDOW *win,
 	    if_USE_SCROLL_HINTS(win->_line[line].oldindex =
 				win->_line[line + n].oldindex);
 	}
-	for (line = top; line < limit && line <= win->_maxy; line++) {
+	for (line = top; line < limit && TopLimit(line); line++) {
 	    TR(TRACE_MOVE, ("...filling %d", line));
 	    for (j = 0; j <= win->_maxx; j++)
 		win->_line[line].text[j] = blank;
@@ -100,14 +102,14 @@ _nc_scroll_window(WINDOW *win,
     /* shift n lines upwards */
     if (n > 0) {
 	limit = bottom - n;
-	for (line = top; line <= limit && line <= win->_maxy; line++) {
+	for (line = top; line <= limit && TopLimit(line); line++) {
 	    memcpy(win->_line[line].text,
 		   win->_line[line + n].text,
 		   to_copy);
 	    if_USE_SCROLL_HINTS(win->_line[line].oldindex =
 				win->_line[line + n].oldindex);
 	}
-	for (line = bottom; line > limit && line >= 0; line--) {
+	for (line = bottom; line > limit && BottomLimit(line); line--) {
 	    for (j = 0; j <= win->_maxx; j++)
 		win->_line[line].text[j] = blank;
 	    if_USE_SCROLL_HINTS(win->_line[line].oldindex = _NEWINDEX);
