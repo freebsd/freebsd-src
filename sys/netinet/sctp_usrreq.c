@@ -429,6 +429,7 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, getcred, CTLTYPE_OPAQUE | CTLFLAG_RW,
 static void
 sctp_abort(struct socket *so)
 {
+	struct epoch_tracker et;
 	struct sctp_inpcb *inp;
 	uint32_t flags;
 
@@ -437,6 +438,7 @@ sctp_abort(struct socket *so)
 		return;
 	}
 
+	NET_EPOCH_ENTER(et);
 sctp_must_try_again:
 	flags = inp->sctp_flags;
 #ifdef SCTP_LOG_CLOSING
@@ -466,6 +468,7 @@ sctp_must_try_again:
 			goto sctp_must_try_again;
 		}
 	}
+	NET_EPOCH_EXIT(et);
 	return;
 }
 
@@ -526,6 +529,7 @@ sctp_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 void
 sctp_close(struct socket *so)
 {
+	struct epoch_tracker et;
 	struct sctp_inpcb *inp;
 	uint32_t flags;
 
@@ -536,6 +540,7 @@ sctp_close(struct socket *so)
 	/*
 	 * Inform all the lower layer assoc that we are done.
 	 */
+	NET_EPOCH_ENTER(et);
 sctp_must_try_again:
 	flags = inp->sctp_flags;
 #ifdef SCTP_LOG_CLOSING
@@ -578,6 +583,7 @@ sctp_must_try_again:
 			goto sctp_must_try_again;
 		}
 	}
+	NET_EPOCH_EXIT(et);
 	return;
 }
 
@@ -660,9 +666,12 @@ connected_type:
 		 * definitions) but this is not advisable. This code is used
 		 * by FreeBSD when sending a file with sendfile() though.
 		 */
+		struct epoch_tracker et;
 		int ret;
 
+		NET_EPOCH_ENTER(et);
 		ret = sctp_output(inp, inp->pkt, addr, inp->control, p, flags);
+		NET_EPOCH_EXIT(et);
 		inp->pkt = NULL;
 		inp->control = NULL;
 		return (ret);
@@ -689,6 +698,7 @@ sctp_disconnect(struct socket *so)
 			SCTP_INP_RUNLOCK(inp);
 			return (0);
 		} else {
+			struct epoch_tracker et;
 			struct sctp_association *asoc;
 			struct sctp_tcb *stcb;
 
@@ -706,6 +716,7 @@ sctp_disconnect(struct socket *so)
 				SCTP_INP_RUNLOCK(inp);
 				return (0);
 			}
+			NET_EPOCH_ENTER(et);
 			if (((so->so_options & SO_LINGER) &&
 			    (so->so_linger == 0)) ||
 			    (so->so_rcv.sb_cc > 0)) {
@@ -725,6 +736,7 @@ sctp_disconnect(struct socket *so)
 				(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 				    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_3);
 				/* No unlock tcb assoc is gone */
+				NET_EPOCH_EXIT(et);
 				return (0);
 			}
 			if (TAILQ_EMPTY(&asoc->send_queue) &&
@@ -799,12 +811,14 @@ sctp_disconnect(struct socket *so)
 					SCTP_INP_RUNLOCK(inp);
 					(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 					    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_5);
+					NET_EPOCH_EXIT(et);
 					return (0);
 				} else {
 					sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CLOSING, SCTP_SO_LOCKED);
 				}
 			}
 			soisdisconnecting(so);
+			NET_EPOCH_EXIT(et);
 			SCTP_TCB_UNLOCK(stcb);
 			SCTP_INP_RUNLOCK(inp);
 			return (0);
@@ -896,6 +910,7 @@ sctp_shutdown(struct socket *so)
 		 * SHUT_WR or SHUT_RDWR. This means we put the shutdown flag
 		 * against it.
 		 */
+		struct epoch_tracker et;
 		struct sctp_tcb *stcb;
 		struct sctp_association *asoc;
 		struct sctp_nets *netp;
@@ -935,6 +950,7 @@ sctp_shutdown(struct socket *so)
 			SCTP_INP_RUNLOCK(inp);
 			return (0);
 		}
+		NET_EPOCH_ENTER(et);
 		if (stcb->asoc.alternate) {
 			netp = stcb->asoc.alternate;
 		} else {
@@ -974,6 +990,7 @@ sctp_shutdown(struct socket *so)
 				SCTP_INP_RUNLOCK(inp);
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
 				    op_err, SCTP_SO_LOCKED);
+				NET_EPOCH_EXIT(et);
 				return (0);
 			}
 		}
@@ -985,6 +1002,7 @@ sctp_shutdown(struct socket *so)
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CLOSING, SCTP_SO_LOCKED);
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_RUNLOCK(inp);
+		NET_EPOCH_EXIT(et);
 		return (0);
 	}
 }
@@ -6906,11 +6924,12 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 int
 sctp_ctloutput(struct socket *so, struct sockopt *sopt)
 {
-	void *optval = NULL;
-	size_t optsize = 0;
-	void *p;
-	int error = 0;
+	struct epoch_tracker et;
 	struct sctp_inpcb *inp;
+	void *optval = NULL;
+	void *p;
+	size_t optsize = 0;
+	int error = 0;
 
 	if ((sopt->sopt_level == SOL_SOCKET) &&
 	    (sopt->sopt_name == SO_SETFIB)) {
@@ -6957,7 +6976,9 @@ sctp_ctloutput(struct socket *so, struct sockopt *sopt)
 	}
 	p = (void *)sopt->sopt_td;
 	if (sopt->sopt_dir == SOPT_SET) {
+		NET_EPOCH_ENTER(et);
 		error = sctp_setopt(so, sopt->sopt_name, optval, optsize, p);
+		NET_EPOCH_EXIT(et);
 	} else if (sopt->sopt_dir == SOPT_GET) {
 		error = sctp_getopt(so, sopt->sopt_name, optval, &optsize, p);
 	} else {
@@ -6978,6 +6999,7 @@ out:
 static int
 sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 {
+	struct epoch_tracker et;
 	int error = 0;
 	int create_lock_on = 0;
 	uint32_t vrf_id;
@@ -7037,7 +7059,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	SCTP_INP_INCR_REF(inp);
 	SCTP_ASOC_CREATE_LOCK(inp);
 	create_lock_on = 1;
-
+	NET_EPOCH_ENTER(et);
 
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)) {
@@ -7122,10 +7144,10 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
 	SCTP_TCB_UNLOCK(stcb);
 out_now:
+	NET_EPOCH_EXIT(et);
 	if (create_lock_on) {
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 	}
-
 	SCTP_INP_DECR_REF(inp);
 	return (error);
 }
