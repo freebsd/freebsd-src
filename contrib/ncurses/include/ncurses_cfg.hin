@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,10 +27,13 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1997                        *
+ *  Author: Thomas E. Dickey      1997-on                                   *
  ****************************************************************************/
 /*
- * $Id: ncurses_cfg.hin,v 1.7 2005/01/02 01:26:58 tom Exp $
+ * $Id: ncurses_cfg.hin,v 1.11 2017/12/09 20:41:54 tom Exp $
+ *
+ * Both ncurses_cfg.h and ncurses_def.h are internal header-files used when
+ * building ncurses.
  *
  * This is a template-file used to generate the "ncurses_cfg.h" file.
  *
@@ -40,7 +43,7 @@
  *
  * See:
  *	http://invisible-island.net/autoconf/
- *	ftp://invisible-island.net/autoconf/
+ *	ftp://ftp.invisible-island.net/autoconf/
  */
 #ifndef NC_CONFIG_H
 #define NC_CONFIG_H
@@ -52,11 +55,6 @@
 #ifdef __cplusplus
 #undef const
 #undef inline
-#else
-#if defined(lint) || defined(TRACE)
-#undef inline
-#define inline /* nothing */
-#endif
 #endif
 
 	/* On HP-UX, the C compiler doesn't grok mbstate_t without
@@ -69,4 +67,7 @@
 #endif
 #endif
 
+/*
+ * vile:cmode
+ */
 #endif /* NC_CONFIG_H */

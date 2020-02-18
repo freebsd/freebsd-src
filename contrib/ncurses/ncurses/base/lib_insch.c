@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2013,2016 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_insch.c,v 1.35 2013/05/18 21:58:56 tom Exp $")
+MODULE_ID("$Id: lib_insch.c,v 1.36 2016/05/28 23:11:26 tom Exp $")
 
 /*
  * Insert the given character, updating the current location to simplify
@@ -56,7 +56,6 @@ _nc_insert_ch(SCREEN *sp, WINDOW *win, chtype ch)
     int ch8 = (int) ChCharOf(ch);
     NCURSES_CH_T wch;
     int count;
-    NCURSES_CONST char *s;
     int tabsize = (
 #if USE_REENTRANT
 		      sp->_TABSIZE
@@ -102,6 +101,7 @@ _nc_insert_ch(SCREEN *sp, WINDOW *win, chtype ch)
 		win->_curx++;
 	    }
 	} else if (iscntrl(ch8)) {
+	    NCURSES_CONST char *s;
 	    s = NCURSES_SP_NAME(unctrl) (NCURSES_SP_ARGx (chtype) ch8);
 	    while (*s != '\0') {
 		code = _nc_insert_ch(sp, win, ChAttrOf(ch) | UChar(*s));
@@ -121,6 +121,7 @@ _nc_insert_ch(SCREEN *sp, WINDOW *win, chtype ch)
 	    if (count > 0) {
 		code = _nc_insert_wch(win, &wch);
 	    } else if (count == -1) {
+		NCURSES_CONST char *s;
 		/* handle EILSEQ */
 		s = NCURSES_SP_NAME(unctrl) (NCURSES_SP_ARGx (chtype) ch8);
 		if (strlen(s) > 1) {
@@ -145,15 +146,13 @@ _nc_insert_ch(SCREEN *sp, WINDOW *win, chtype ch)
 NCURSES_EXPORT(int)
 winsch(WINDOW *win, chtype c)
 {
-    NCURSES_SIZE_T oy;
-    NCURSES_SIZE_T ox;
     int code = ERR;
 
     T((T_CALLED("winsch(%p, %s)"), (void *) win, _tracechtype(c)));
 
     if (win != 0) {
-	oy = win->_cury;
-	ox = win->_curx;
+	NCURSES_SIZE_T oy = win->_cury;
+	NCURSES_SIZE_T ox = win->_curx;
 
 	code = _nc_insert_ch(_nc_screen_of(win), win, c);
 

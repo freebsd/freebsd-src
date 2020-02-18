@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2010 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2010,2015 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey                    2010                        *
+ *  Author: Thomas E. Dickey       2010-on                                  *
  ****************************************************************************/
 /* LINTLIBRARY */
 
@@ -236,8 +236,6 @@ const char *item_description(
 		{ return(*(const char **)0); }
 
 /* ./m_item_new.c */
-
-#include <wctype.h>
 
 #undef new_item
 ITEM	*new_item(

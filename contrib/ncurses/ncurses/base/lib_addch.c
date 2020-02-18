@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_addch.c,v 1.128 2014/02/23 01:21:08 tom Exp $")
+MODULE_ID("$Id: lib_addch.c,v 1.133 2019/05/11 19:51:02 tom Exp $")
 
 static const NCURSES_CH_T blankchar = NewChar(BLANK_TEXT);
 
@@ -51,7 +51,7 @@ static const NCURSES_CH_T blankchar = NewChar(BLANK_TEXT);
  */
 
 /* Return bit mask for clearing color pair number if given ch has color */
-#define COLOR_MASK(ch) (~(attr_t)((ch) & A_COLOR ? A_COLOR : 0))
+#define COLOR_MASK(ch) (~(attr_t)(((ch) & A_COLOR) ? A_COLOR : 0))
 
 static NCURSES_INLINE NCURSES_CH_T
 render_char(WINDOW *win, NCURSES_CH_T ch)
@@ -117,14 +117,18 @@ _nc_render(WINDOW *win, NCURSES_CH_T ch)
 #endif
 
 static bool
-newline_forces_scroll(WINDOW *win, NCURSES_SIZE_T * ypos)
+newline_forces_scroll(WINDOW *win, NCURSES_SIZE_T *ypos)
 {
     bool result = FALSE;
 
-    if (*ypos >= win->_regtop && *ypos == win->_regbottom) {
-	*ypos = win->_regbottom;
-	result = TRUE;
-    } else {
+    if (*ypos >= win->_regtop && *ypos <= win->_regbottom) {
+	if (*ypos == win->_regbottom) {
+	    *ypos = win->_regbottom;
+	    result = TRUE;
+	} else if (*ypos < win->_maxy) {
+	    *ypos = (NCURSES_SIZE_T) (*ypos + 1);
+	}
+    } else if (*ypos < win->_maxy) {
 	*ypos = (NCURSES_SIZE_T) (*ypos + 1);
     }
     return result;
@@ -270,11 +274,11 @@ waddch_literal(WINDOW *win, NCURSES_CH_T ch)
 
 		/* handle EILSEQ (i.e., when len >= -1) */
 		if (len == -1 && is8bits(CharOf(ch))) {
-		    int rc = OK;
 		    const char *s = NCURSES_SP_NAME(unctrl)
 		      (NCURSES_SP_ARGx (chtype) CharOf(ch));
 
 		    if (s[1] != '\0') {
+			int rc = OK;
 			while (*s != '\0') {
 			    rc = waddch(win, UChar(*s) | attr);
 			    if (rc != OK)
@@ -299,7 +303,7 @@ waddch_literal(WINDOW *win, NCURSES_CH_T ch)
      * adjustments.
      */
     if_WIDEC({
-	int len = wcwidth(CharOf(ch));
+	int len = _nc_wacs_width(CharOf(ch));
 	int i;
 	int j;
 	wchar_t *chars;
@@ -339,6 +343,7 @@ waddch_literal(WINDOW *win, NCURSES_CH_T ch)
 		    return ERR;
 		x = win->_curx;
 		y = win->_cury;
+		CHECK_POSITION(win, x, y);
 		line = win->_line + y;
 	    }
 	    /*
@@ -427,7 +432,7 @@ waddch_nosync(WINDOW *win, const NCURSES_CH_T ch)
 	       s[1] == 0
 	)
 	|| (
-	       (isprint((int)t) && !iscntrl((int)t))
+	       (isprint((int) t) && !iscntrl((int) t))
 #if USE_WIDEC_SUPPORT
 	       || ((sp == 0 || !sp->_legacy_coding) &&
 		   (WINDOW_EXT(win, addch_used)
@@ -443,6 +448,7 @@ waddch_nosync(WINDOW *win, const NCURSES_CH_T ch)
      */
     x = win->_curx;
     y = win->_cury;
+    CHECK_POSITION(win, x, y);
 
     switch (t) {
     case '\t':
@@ -501,7 +507,7 @@ waddch_nosync(WINDOW *win, const NCURSES_CH_T ch)
     default:
 	while (*s) {
 	    NCURSES_CH_T sch;
-	    SetChar(sch, *s++, AttrOf(ch));
+	    SetChar(sch, UChar(*s++), AttrOf(ch));
 	    if_EXT_COLORS(SetPair(sch, GetPair(ch)));
 	    if (waddch_literal(win, sch) == ERR)
 		return ERR;

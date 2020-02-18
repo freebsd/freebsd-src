@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,30 +38,31 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkatr_set.c,v 1.15 2014/02/01 22:10:42 tom Exp $")
+MODULE_ID("$Id: lib_slkatr_set.c,v 1.16 2017/03/16 23:45:36 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(slk_attr_set) (NCURSES_SP_DCLx
 			       const attr_t attr,
-			       NCURSES_PAIRS_T color_pair_number,
+			       NCURSES_PAIRS_T pair_arg,
 			       void *opts)
 {
     int code = ERR;
+    int color_pair = pair_arg;
 
     T((T_CALLED("slk_attr_set(%p,%s,%d)"),
        (void *) SP_PARM,
        _traceattr(attr),
-       (int) color_pair_number));
+       color_pair));
 
+    set_extended_pair(opts, color_pair);
     if (SP_PARM != 0
 	&& SP_PARM->_slk != 0
-	&& !opts
-	&& color_pair_number >= 0
-	&& color_pair_number < SP_PARM->_pair_limit) {
+	&& color_pair >= 0
+	&& color_pair < SP_PARM->_pair_limit) {
 	TR(TRACE_ATTRS, ("... current %s", _tracech_t(CHREF(SP_PARM->_slk->attr))));
 	SetAttr(SP_PARM->_slk->attr, attr);
-	if (color_pair_number > 0) {
-	    SetPair(SP_PARM->_slk->attr, color_pair_number);
+	if (color_pair > 0) {
+	    SetPair(SP_PARM->_slk->attr, color_pair);
 	}
 	TR(TRACE_ATTRS, ("new attribute is %s", _tracech_t(CHREF(SP_PARM->_slk->attr))));
 	code = OK;
@@ -71,9 +72,9 @@ NCURSES_SP_NAME(slk_attr_set) (NCURSES_SP_DCLx
 
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
-slk_attr_set(const attr_t attr, NCURSES_COLOR_T color_pair_number, void *opts)
+slk_attr_set(const attr_t attr, NCURSES_COLOR_T pair_arg, void *opts)
 {
     return NCURSES_SP_NAME(slk_attr_set) (CURRENT_SCREEN, attr,
-					  color_pair_number, opts);
+					  pair_arg, opts);
 }
 #endif

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_bkgd.c,v 1.48 2012/12/09 01:01:19 tom Exp $")
+MODULE_ID("$Id: lib_bkgd.c,v 1.53 2019/08/17 20:59:41 tom Exp $")
 
 /*
  * Set the window's background information.
@@ -117,29 +117,98 @@ static NCURSES_INLINE int
 #endif
 wbkgrnd(WINDOW *win, const ARG_CH_T ch)
 {
+#undef  SP_PARM
+#define SP_PARM SP		/* to use Charable() */
     int code = ERR;
-    int x, y;
 
     T((T_CALLED("wbkgd(%p,%s)"), (void *) win, _tracech_t(ch)));
 
-    if (win) {
+    if (SP == 0) {
+	;
+    } else if (win) {
 	NCURSES_CH_T new_bkgd = CHDEREF(ch);
-	NCURSES_CH_T old_bkgrnd;
+	NCURSES_CH_T old_bkgd;
+	int y;
+	NCURSES_CH_T old_char;
+	attr_t old_attr;
+	int old_pair;
+	NCURSES_CH_T new_char;
+	attr_t new_attr;
+	int new_pair;
 
-	memset(&old_bkgrnd, 0, sizeof(old_bkgrnd));
-	wgetbkgrnd(win, &old_bkgrnd);
+	/* SVr4 trims color info if non-color terminal */
+	if (!SP->_pair_limit) {
+	    RemAttr(new_bkgd, A_COLOR);
+	    SetPair(new_bkgd, 0);
+	}
+
+	memset(&old_bkgd, 0, sizeof(old_bkgd));
+	(void) wgetbkgrnd(win, &old_bkgd);
+
+	if (!memcmp(&old_bkgd, &new_bkgd, sizeof(new_bkgd))) {
+	    T(("...unchanged"));
+	    returnCode(OK);
+	}
+
+	old_char = old_bkgd;
+	RemAttr(old_char, ~A_CHARTEXT);
+	old_attr = AttrOf(old_bkgd);
+	old_pair = GetPair(old_bkgd);
+
+	if (!(old_attr & A_COLOR)) {
+	    old_pair = 0;
+	}
+	T(("... old background char %s, attr %s, pair %d",
+	   _tracechar(CharOf(old_char)), _traceattr(old_attr), old_pair));
+
+	new_char = new_bkgd;
+	RemAttr(new_char, ~A_CHARTEXT);
+	new_attr = AttrOf(new_bkgd);
+	new_pair = GetPair(new_bkgd);
+
+	/* SVr4 limits background character to printable 7-bits */
+	if (!Charable(new_bkgd)) {
+	    new_char = old_char;
+	}
+	if (!(new_attr & A_COLOR)) {
+	    new_pair = 0;
+	}
+	T(("... new background char %s, attr %s, pair %d",
+	   _tracechar(CharOf(new_char)), _traceattr(new_attr), new_pair));
 
 	(void) wbkgrndset(win, CHREF(new_bkgd));
-	(void) wattrset(win, (int) AttrOf(win->_nc_bkgd));
+
+	/* SVr4 updates color pair if old/new match, otherwise just attrs */
+	if ((new_pair != 0) && (new_pair == old_pair)) {
+	    WINDOW_ATTRS(win) = new_attr;
+	    SET_WINDOW_PAIR(win, new_pair);
+	} else {
+	    WINDOW_ATTRS(win) = new_attr;
+	}
 
 	for (y = 0; y <= win->_maxy; y++) {
+	    int x;
+
 	    for (x = 0; x <= win->_maxx; x++) {
-		if (CharEq(win->_line[y].text[x], old_bkgrnd)) {
-		    win->_line[y].text[x] = win->_nc_bkgd;
+		NCURSES_CH_T *cp = &(win->_line[y].text[x]);
+		int tmp_pair = GetPair(*cp);
+		attr_t tmp_attr = AttrOf(*cp);
+
+		if (CharEq(*cp, old_bkgd)) {
+		    SetChar2(*cp, CharOf(new_char));
+		}
+		if (tmp_pair != 0) {
+		    if (tmp_pair == old_pair) {
+			SetAttr(*cp, (tmp_attr & ~old_attr) | new_attr);
+			SetPair(*cp, new_pair);
+		    } else {
+			SetAttr(*cp,
+				(tmp_attr & (~old_attr | A_COLOR))
+				| (new_attr & ALL_BUT_COLOR));
+		    }
 		} else {
-		    NCURSES_CH_T wch = win->_line[y].text[x];
-		    RemAttr(wch, (~(A_ALTCHARSET | A_CHARTEXT)));
-		    win->_line[y].text[x] = _nc_render(win, wch);
+		    SetAttr(*cp, (tmp_attr & ~old_attr) | new_attr);
+		    SetPair(*cp, new_pair);
 		}
 	    }
 	}

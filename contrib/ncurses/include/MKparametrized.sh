@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 1998-2000,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,15 +26,18 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKparametrized.sh,v 1.6 2006/04/22 21:36:16 tom Exp $
+# $Id: MKparametrized.sh,v 1.9 2019/04/13 20:36:24 tom Exp $
 #
 # MKparametrized.sh -- generate indirection vectors for various sort methods
 #
 # The output of this script is C source for an array specifying whether
 # termcap strings should undergo parameter and padding translation.
 #
-CAPS="${1-Caps}"
+[ $# = 0 ] && set - Caps
+
 cat <<EOF
+#ifndef PARAMETRIZED_H
+#define PARAMETRIZED_H 1
 /*
  * parametrized.h --- is a termcap capability parametrized?
  *
@@ -52,11 +55,20 @@ EOF
 # XENIX acs_* capabilities.  Maybe someday we'll dedicate a flag field for
 # this, that would be cleaner....
 
-${AWK-awk} <$CAPS '
-$3 != "str"	{next;}
-$1 ~ /^acs_/	{print "-1,\t/* ", $2, " */"; count++; next;}
-$0 ~ /#[0-9]/	{print "1,\t/* ", $2, " */"; count++; next;}
-		{print "0,\t/* ", $2, " */"; count++;}
-END		{printf("} /* %d entries */;\n\n", count);}
+cat "$@" | ${AWK-awk} '
+
+/^#/ { next ; }
+/^capalias/ { next ; }
+/^infoalias/ { next ; }
+/^used_by/ { next ; }
+/^userdef/ { next ; }
+
+$3 != "str"		{next;}
+$1 ~ /^acs_/		{print "-1,\t/* ", $2, " */"; count++; next;}
+$1 ~ /^label_format/	{print "-1,\t/* ", $2, " */"; count++; next;}
+$0 ~ /#[0-9]/		{print "1,\t/* ", $2, " */"; count++; next;}
+			{print "0,\t/* ", $2, " */"; count++;}
+END			{printf("} /* %d entries */;\n\n", count);}
 '
 
+echo "#endif /* PARAMETRIZED_H */"

@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.47 2013/08/04 20:23:20 tom Exp $
+# $Id: Makefile.in,v 1.49 2019/03/02 22:18:27 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2015,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -34,7 +34,7 @@
 # NOTE: When you add or rename a man page, make sure you update both
 # the top-level MANIFEST and any man/*.renames files!
 
-SHELL		= /bin/sh
+SHELL		= @SHELL@
 VPATH		= @srcdir@
 
 DESTDIR		= @DESTDIR@
@@ -62,15 +62,20 @@ $(DESTDIR)$(mandir) :
 EDITARGS = $(DESTDIR)$(mandir) $(srcdir) terminfo.5 *-config.1 $(srcdir)/*.[0-9]*
 
 install install.man : terminfo.5 $(DESTDIR)$(mandir)
-	sh ../edit_man.sh normal installing $(EDITARGS)
+	$(SHELL) ../edit_man.sh normal installing $(EDITARGS)
 
 uninstall uninstall.man :
-	-sh ../edit_man.sh normal removing $(EDITARGS)
+	-$(SHELL) ../edit_man.sh normal removing $(EDITARGS)
 
 # We compose terminfo.5 from the real sources...
-CAPLIST=$(srcdir)/../include/@TERMINFO_CAPS@
-terminfo.5: $(srcdir)/terminfo.head $(CAPLIST) $(srcdir)/terminfo.tail Makefile $(srcdir)/MKterminfo.sh
-	sh $(srcdir)/MKterminfo.sh $(srcdir)/terminfo.head $(CAPLIST) $(srcdir)/terminfo.tail >terminfo.5
+CAPLIST	= \
+	$(srcdir)/../include/@TERMINFO_CAPS@ \
+	$(srcdir)/../include/Caps-ncurses
+terminfo.5: $(srcdir)/terminfo.head \
+		$(CAPLIST) \
+		$(srcdir)/terminfo.tail \
+		Makefile $(srcdir)/MKterminfo.sh
+	$(SHELL) $(srcdir)/MKterminfo.sh $(srcdir)/terminfo.head $(CAPLIST) $(srcdir)/terminfo.tail >terminfo.5
 
 mostlyclean :
 	-rm -f core tags TAGS *~ *.bak *.ln *.atac trace
@@ -79,7 +84,7 @@ clean:	mostlyclean
 	rm -f terminfo.5
 
 ../edit_man.sed : make_sed.sh @MANPAGE_RENAMES@
-	sh $(srcdir)/make_sed.sh @MANPAGE_RENAMES@ >../edit_man.sed
+	$(SHELL) $(srcdir)/make_sed.sh @MANPAGE_RENAMES@ >../edit_man.sed
 
 distclean realclean: clean
 	rm -f Makefile *-config.1 ../edit_man.* ../man_alias.*

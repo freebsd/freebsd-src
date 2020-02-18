@@ -1,6 +1,6 @@
-# $Id: modules,v 1.120 2013/01/26 22:17:55 tom Exp $
+# $Id: modules,v 1.123 2019/03/09 21:36:58 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -44,7 +44,7 @@ lib_clear	lib		$(base)		$(HEADER_DEPS)
 lib_clearok	lib		$(base)		$(HEADER_DEPS)
 lib_clrbot	lib		$(base)		$(HEADER_DEPS)
 lib_clreol	lib		$(base)		$(HEADER_DEPS)
-lib_color	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_color	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h	$(srcdir)/new_pair.h
 lib_colorset	lib		$(base)		$(HEADER_DEPS)
 lib_delch	lib		$(base)		$(HEADER_DEPS)
 lib_delwin	lib		$(base)		$(HEADER_DEPS)
@@ -125,7 +125,7 @@ lib_freeall	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
 charable	lib		$(wide)		$(HEADER_DEPS)
 lib_add_wch	lib		$(wide)		$(HEADER_DEPS)
 lib_box_set	lib		$(wide)		$(HEADER_DEPS)
-lib_cchar	lib		$(wide)		$(HEADER_DEPS)
+lib_cchar	lib		$(wide)		$(HEADER_DEPS)	$(srcdir)/new_pair.h
 lib_erasewchar	lib		$(wide)		$(HEADER_DEPS)
 lib_get_wch	lib		$(wide)		$(HEADER_DEPS)
 lib_get_wstr	lib		$(wide)		$(HEADER_DEPS)
@@ -149,6 +149,7 @@ expanded	lib		.		$(HEADER_DEPS)
 legacy_coding	lib		$(base)		$(HEADER_DEPS)
 lib_dft_fgbg	lib		$(base)		$(HEADER_DEPS)
 lib_print	lib		$(tinfo)	$(HEADER_DEPS)
+new_pair	lib		$(base)		$(HEADER_DEPS)	$(srcdir)/new_pair.h
 resizeterm	lib		$(base)		$(HEADER_DEPS)
 trace_xnames	lib		$(trace)	$(HEADER_DEPS)
 use_screen	lib		$(tinfo)	$(HEADER_DEPS)
@@ -164,6 +165,7 @@ codes		lib		.		$(HEADER_DEPS)
 comp_captab	lib		.		$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/hashsize.h
 comp_error	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
 comp_hash	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/hashsize.h
+comp_userdefs	lib		.		$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/hashsize.h
 db_iterator	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
 doalloc		lib		$(tinfo)	$(HEADER_DEPS)
 entries		lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h

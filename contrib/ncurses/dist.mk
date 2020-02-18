@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2019,2020 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +25,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: dist.mk,v 1.973 2014/02/22 16:55:12 tom Exp $
+# $Id: dist.mk,v 1.1325 2020/01/18 10:27:03 tom Exp $
 # Makefile for creating ncurses distributions.
 #
 # This only needs to be used directly as a makefile by developers, but
@@ -35,9 +35,9 @@
 SHELL = /bin/sh
 
 # These define the major/minor/patch versions of ncurses.
-NCURSES_MAJOR = 5
-NCURSES_MINOR = 9
-NCURSES_PATCH = 20140222
+NCURSES_MAJOR = 6
+NCURSES_MINOR = 1
+NCURSES_PATCH = 20200118
 
 # We don't append the patch to the version, since this only applies to releases
 VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
@@ -47,19 +47,19 @@ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
 #	--without-manpage-renames
 # on Debian/testing.  The -scrollbar and -width options are used to make lynx
 # use 79 columns as it did in 2.8.5 and before.
-DUMP	= lynx -dump -scrollbar=0 -width=79
+DUMP	= lynx -dump -scrollbar=0 -width=79 -display_charset=US-ASCII
 DUMP2	= $(DUMP) -nolist
 
 # gcc's file is "gnathtml.pl"
 GNATHTML= gnathtml
 
-# man2html 3.0.1 is a Perl script which assumes that pages are fixed size.
+# man2html is a Perl script which assumes that pages are fixed size.
 # Not all man programs agree with this assumption; some use half-spacing, which
 # has the effect of lengthening the text portion of the page -- so man2html
 # would remove some text.  The man program on Redhat 6.1 appears to work with
 # man2html if we set the top/bottom margins to 6 (the default is 7).  Newer
 # versions of 'man' leave no margin (and make it harder to sync with pages).
-MAN2HTML= man2html -botm=0 -topm=0 -cgiurl '$$title.$$section$$subsection.html'
+MAN2HTML= man2html -botm=0 -topm=0 -cgiurl '$$title.$$section$$subsection.html' -index
 
 ALL	= ANNOUNCE doc/html/announce.html doc/ncurses-intro.doc doc/hackguide.doc manhtml adahtml
 
@@ -83,12 +83,6 @@ doc/ncurses-intro.doc: doc/html/ncurses-intro.html
 doc/hackguide.doc: doc/html/hackguide.html
 	$(DUMP2) doc/html/hackguide.html > $@
 
-# This is the original command:
-#	MANPROG	= tbl | nroff -man
-#
-# This happens to work for groff 1.18.1 on Debian.  At some point groff's
-# maintainer changed the line-length (we do not want/need that here).
-#
 # The distributed html files are formatted using
 #	configure --without-manpage-renames
 #
@@ -96,7 +90,7 @@ doc/hackguide.doc: doc/html/hackguide.html
 # If that conflicts with the --without-manpage-renames, you can install those
 # in a different location using the --with-install-prefix option of the
 # configure script.
-MANPROG	= tbl | nroff -mandoc -rLL=65n -rLT=71n -Tascii
+MANPROG	= tbl | nroff -mandoc -rLL=78n -rLT=78n -Tascii
 
 manhtml:
 	@for f in doc/html/man/*.html; do \
@@ -124,7 +118,7 @@ manhtml:
 	@echo 's/<\/I>/<\/EM>/g'     >> subst.tmp
 	@misc/csort < subst.tmp | uniq > subst.sed
 	@echo '/<\/TITLE>/a\' >> subst.sed
-	@echo '<link rev=made href="mailto:bug-ncurses@gnu.org">\' >> subst.sed
+	@echo '<link rel="author" href="mailto:bug-ncurses@gnu.org">\' >> subst.sed
 	@echo '<meta http-equiv="Content-Type" content="text\/html; charset=iso-8859-1">' >> subst.sed
 	@rm -f subst.tmp
 	@for f in man/*.[0-9]* ; do \
@@ -133,8 +127,7 @@ manhtml:
 	   g=$${m}.html ;\
 	   if [ -f doc/html/$$g ]; then chmod +w doc/html/$$g; fi;\
 	   echo "Converting $$m to HTML" ;\
-	   echo '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">' > doc/html/man/$$g ;\
-	   echo '<!-- ' >> doc/html/man/$$g ;\
+	   echo '<!-- ' > doc/html/man/$$g ;\
 	   egrep '^.\\"[^#]' $$f | \
 	   	sed	-e 's/\$$/@/g' \
 			-e 's/^.../  */' \

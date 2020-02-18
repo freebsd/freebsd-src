@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.56 2013/08/04 20:23:20 tom Exp $
+# $Id: Makefile.in,v 1.64 2018/01/15 19:28:45 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2015,2018 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -42,7 +42,7 @@
 # turn off _all_ suffix rules; we'll generate our own
 .SUFFIXES:
 
-SHELL		= /bin/sh
+SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
@@ -51,6 +51,7 @@ o		= .@OBJEXT@
 
 MODEL		= @DFT_LWR_MODEL@
 DESTDIR		= @DESTDIR@
+top_srcdir	= @top_srcdir@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
@@ -61,7 +62,10 @@ includesubdir	= @includesubdir@
 
 INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
 
+PACKAGE		= @PACKAGE@
+
 LIBTOOL		= @LIBTOOL@
+LIBTOOL_OPTS	= @LIBTOOL_OPTS@ @EXPORT_SYMS@
 LIBTOOL_CLEAN	= @LIB_CLEAN@
 LIBTOOL_COMPILE	= @LIB_COMPILE@
 LIBTOOL_LINK	= @LIB_LINK@
@@ -71,7 +75,7 @@ LT_UNDEF	= @LT_UNDEF@
 
 INSTALL		= @INSTALL@
 INSTALL_LIB	= @INSTALL@ @INSTALL_LIB@
-INSTALL_PROG	= @INSTALL_PROGRAM@
+INSTALL_PROG	= @INSTALL_PROGRAM@ @INSTALL_OPT_S@
 INSTALL_DATA	= @INSTALL_DATA@
 
 AR		= @AR@
@@ -87,7 +91,7 @@ CC		= @CC@
 CPP		= @CPP@
 CFLAGS		= @CFLAGS@
 
-CPPFLAGS	= -I@top_srcdir@/ncurses -DHAVE_CONFIG_H @CPPFLAGS@
+CPPFLAGS	= -I${top_srcdir}/ncurses -DHAVE_CONFIG_H @CPPFLAGS@
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 
@@ -103,9 +107,11 @@ LINK		= $(LIBTOOL_LINK)
 LDFLAGS		= @LDFLAGS@ @LD_MODEL@ @LIBS@
 
 SHLIB_DIRS	= -L../lib
-SHLIB_LIST	= $(SHLIB_DIRS) -lncurses@LIB_SUFFIX@ @SHLIB_LIST@
+SHLIB_LIST	= $(SHLIB_DIRS) -lncurses@USE_LIB_SUFFIX@ @SHLIB_LIST@
 
 RPATH_LIST	= @RPATH_LIST@
+RESULTING_SYMS	= @RESULTING_SYMS@
+VERSIONED_SYMS	= @VERSIONED_SYMS@
 MK_SHARED_LIB	= @MK_SHARED_LIB@
 
 NCURSES_MAJOR	= @NCURSES_MAJOR@
@@ -162,6 +168,7 @@ clean :: mostlyclean
 
 distclean :: clean
 	-rm -f Makefile
+	-rm -rf .libs *.dSYM
 
 realclean :: distclean
 

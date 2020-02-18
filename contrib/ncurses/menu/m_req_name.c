@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2015 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,27 +37,29 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_req_name.c,v 1.22 2012/07/21 23:27:32 tom Exp $")
+MODULE_ID("$Id: m_req_name.c,v 1.23 2015/04/04 18:00:23 tom Exp $")
 
-static const char *request_names[MAX_MENU_COMMAND - MIN_MENU_COMMAND + 1] =
+#define DATA(s) { s }
+
+static const char request_names[MAX_MENU_COMMAND - MIN_MENU_COMMAND + 1][14] =
 {
-  "LEFT_ITEM",
-  "RIGHT_ITEM",
-  "UP_ITEM",
-  "DOWN_ITEM",
-  "SCR_ULINE",
-  "SCR_DLINE",
-  "SCR_DPAGE",
-  "SCR_UPAGE",
-  "FIRST_ITEM",
-  "LAST_ITEM",
-  "NEXT_ITEM",
-  "PREV_ITEM",
-  "TOGGLE_ITEM",
-  "CLEAR_PATTERN",
-  "BACK_PATTERN",
-  "NEXT_MATCH",
-  "PREV_MATCH"
+  DATA("LEFT_ITEM"),
+  DATA("RIGHT_ITEM"),
+  DATA("UP_ITEM"),
+  DATA("DOWN_ITEM"),
+  DATA("SCR_ULINE"),
+  DATA("SCR_DLINE"),
+  DATA("SCR_DPAGE"),
+  DATA("SCR_UPAGE"),
+  DATA("FIRST_ITEM"),
+  DATA("LAST_ITEM"),
+  DATA("NEXT_ITEM"),
+  DATA("PREV_ITEM"),
+  DATA("TOGGLE_ITEM"),
+  DATA("CLEAR_PATTERN"),
+  DATA("BACK_PATTERN"),
+  DATA("NEXT_MATCH"),
+  DATA("PREV_MATCH")
 };
 
 #define A_SIZE (sizeof(request_names)/sizeof(request_names[0]))

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_data.c,v 1.66 2013/08/24 17:28:24 tom Exp $")
+MODULE_ID("$Id: lib_data.c,v 1.79 2018/09/01 19:36:39 tom Exp $")
 
 /*
  * OS/2's native linker complains if we don't initialize public data when
@@ -94,7 +94,9 @@ _nc_screen(void)
 NCURSES_EXPORT(int)
 _nc_alloc_screen(void)
 {
-    return ((my_screen = _nc_alloc_screen_sp()) != 0);
+    my_screen = _nc_alloc_screen_sp();
+    T(("_nc_alloc_screen_sp %p", my_screen));
+    return (my_screen != 0);
 }
 
 NCURSES_EXPORT(void)
@@ -137,6 +139,8 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
 
     0,				/* slk_format */
 
+    2048,			/* getstr_limit */
+
     NULL,			/* safeprint_buf */
     0,				/* safeprint_used */
 
@@ -149,6 +153,10 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     0,				/* dbd_size */
     0,				/* dbd_time */
     { { 0, 0 } },		/* dbd_vars */
+
+#ifdef USE_TERM_DRIVER
+    0,				/* term_driver */
+#endif
 
 #ifndef USE_SP_WINDOWLIST
     0,				/* _nc_windowlist */
@@ -163,15 +171,28 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     0,				/* safeprint_rows */
 #endif
 
-#ifdef USE_TERM_DRIVER
-    0,				/* term_driver */
+#ifdef USE_PTHREADS
+    PTHREAD_MUTEX_INITIALIZER,	/* mutex_curses */
+    PTHREAD_MUTEX_INITIALIZER,	/* mutex_prescreen */
+    PTHREAD_MUTEX_INITIALIZER,	/* mutex_screen */
+    PTHREAD_MUTEX_INITIALIZER,	/* mutex_update */
+    PTHREAD_MUTEX_INITIALIZER,	/* mutex_tst_tracef */
+    PTHREAD_MUTEX_INITIALIZER,	/* mutex_tracef */
+    0,				/* nested_tracef */
+    0,				/* use_pthreads */
+#if USE_PTHREADS_EINTR
+    0,				/* read_thread */
 #endif
-
+#endif
+#if USE_WIDEC_SUPPORT
+    CHARS_0s,			/* key_name */
+#endif
 #ifdef TRACE
-    FALSE,			/* init_trace */
+    FALSE,			/* trace_opened */
     CHARS_0s,			/* trace_fname */
     0,				/* trace_level */
     NULL,			/* trace_fp */
+    -1,				/* trace_fd */
 
     NULL,			/* tracearg_buf */
     0,				/* tracearg_used */
@@ -194,15 +215,8 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     0,				/* nested_tracef */
 #endif
 #endif /* TRACE */
-#ifdef USE_PTHREADS
-    PTHREAD_MUTEX_INITIALIZER,	/* mutex_curses */
-    PTHREAD_MUTEX_INITIALIZER,	/* mutex_tst_tracef */
-    PTHREAD_MUTEX_INITIALIZER,	/* mutex_tracef */
-    0,				/* nested_tracef */
-    0,				/* use_pthreads */
-#endif
-#if USE_PTHREADS_EINTR
-    0,				/* read_thread */
+#if NO_LEAKS
+    FALSE,			/* leak_checking */
 #endif
 };
 
@@ -214,17 +228,11 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
 #define RIPOFF_0s	{ RIPOFF_0 }
 
 NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
+    NULL,			/* allocated */
     TRUE,			/* use_env */
     FALSE,			/* filter_mode */
     A_NORMAL,			/* previous_attr */
-#ifndef USE_SP_RIPOFF
-    RIPOFF_0s,			/* ripoff */
-    NULL,			/* rsp */
-#endif
     {				/* tparm_state */
-#ifdef TRACE
-	NULL,			/* tname */
-#endif
 	NULL,			/* tparam_base */
 
 	STACK_FRAME_0s,		/* stack */
@@ -239,12 +247,20 @@ NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
 
 	NUM_VARS_0s,		/* dynamic_var */
 	NUM_VARS_0s,		/* static_vars */
+#ifdef TRACE
+	NULL,			/* tname */
+#endif
     },
     NULL,			/* saved_tty */
+    FALSE,			/* use_tioctl */
+    0,				/* _outch */
+#ifndef USE_SP_RIPOFF
+    RIPOFF_0s,			/* ripoff */
+    NULL,			/* rsp */
+#endif
 #if NCURSES_NO_PADDING
     FALSE,			/* flag to set if padding disabled  */
 #endif
-    0,				/* _outch */
 #if BROKEN_LINKER || USE_REENTRANT
     NULL,			/* real_acs_map */
     0,				/* LINES */
@@ -252,12 +268,13 @@ NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
     8,				/* TABSIZE */
     1000,			/* ESCDELAY */
     0,				/* cur_term */
+#endif
 #ifdef TRACE
+#if BROKEN_LINKER || USE_REENTRANT
     0L,				/* _outchars */
     NULL,			/* _tputs_trace */
 #endif
 #endif
-    FALSE,			/* use_tioctl */
 };
 /* *INDENT-ON* */
 
@@ -287,6 +304,9 @@ init_global_mutexes(void)
     if (!initialized) {
 	initialized = TRUE;
 	_nc_mutex_init(&_nc_globals.mutex_curses);
+	_nc_mutex_init(&_nc_globals.mutex_prescreen);
+	_nc_mutex_init(&_nc_globals.mutex_screen);
+	_nc_mutex_init(&_nc_globals.mutex_update);
 	_nc_mutex_init(&_nc_globals.mutex_tst_tracef);
 	_nc_mutex_init(&_nc_globals.mutex_tracef);
     }
@@ -371,7 +391,7 @@ _nc_sigprocmask(int how, const sigset_t * newmask, sigset_t * oldmask)
     if ((pthread_sigmask))
 	return pthread_sigmask(how, newmask, oldmask);
     else
-	return sigprocmask(how, newmask, oldmask);
+	return (sigprocmask) (how, newmask, oldmask);
 }
 #endif
 #endif /* USE_PTHREADS */

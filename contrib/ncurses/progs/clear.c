@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,14 +37,29 @@
  */
 
 #define USE_LIBTINFO
-#include <progs.priv.h>
+#include <clear_cmd.h>
+#include <tty_settings.h>
 
-MODULE_ID("$Id: clear.c,v 1.13 2013/06/22 22:20:54 tom Exp $")
+MODULE_ID("$Id: clear.c,v 1.22 2017/10/07 21:48:32 tom Exp $")
 
-static int
-putch(int c)
+const char *_nc_progname = "clear";
+
+static void
+usage(void)
 {
-    return putchar(c);
+#define KEEP(s) s "\n"
+    static const char msg[] =
+    {
+	KEEP("")
+	KEEP("Options:")
+	KEEP("  -T TERM     use this instead of $TERM")
+	KEEP("  -V          print curses-version")
+	KEEP("  -x          do not try to clear scrollback")
+    };
+#undef KEEP
+    (void) fprintf(stderr, "Usage: %s [options]\n", _nc_progname);
+    fputs(msg, stderr);
+    ExitProgram(EXIT_FAILURE);
 }
 
 int
@@ -52,16 +67,41 @@ main(
 	int argc GCC_UNUSED,
 	char *argv[]GCC_UNUSED)
 {
-    char *E3;
+    TTY tty_settings;
+    int fd;
+    int c;
+    char *term;
+    bool opt_x = FALSE;		/* clear scrollback if possible */
 
-    setupterm((char *) 0, STDOUT_FILENO, (int *) 0);
+    _nc_progname = _nc_rootname(argv[0]);
+    term = getenv("TERM");
 
-    /* Clear the scrollback buffer if possible. */
-    E3 = tigetstr("E3");
-    if (E3)
-	(void) tputs(E3, lines > 0 ? lines : 1, putch);
+    while ((c = getopt(argc, argv, "T:Vx")) != -1) {
+	switch (c) {
+	case 'T':
+	    use_env(FALSE);
+	    use_tioctl(TRUE);
+	    term = optarg;
+	    break;
+	case 'V':
+	    puts(curses_version());
+	    ExitProgram(EXIT_SUCCESS);
+	case 'x':		/* do not try to clear scrollback */
+	    opt_x = TRUE;
+	    break;
+	default:
+	    usage();
+	    /* NOTREACHED */
+	}
+    }
+    if (optind < argc)
+	usage();
 
-    ExitProgram((tputs(clear_screen, lines > 0 ? lines : 1, putch) == ERR)
+    fd = save_tty_settings(&tty_settings, FALSE);
+
+    setupterm(term, fd, (int *) 0);
+
+    ExitProgram((clear_cmd(opt_x) == ERR)
 		? EXIT_FAILURE
 		: EXIT_SUCCESS);
 }

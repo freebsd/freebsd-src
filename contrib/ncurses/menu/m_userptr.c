@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2020 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,14 +37,14 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_userptr.c,v 1.17 2010/01/23 21:20:10 tom Exp $")
+MODULE_ID("$Id: m_userptr.c,v 1.18 2020/01/18 17:04:37 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  int set_menu_userptr(MENU *menu, void *userptr)
-|   
+|
 |   Description   :  Set the pointer that is reserved in any menu to store
-|                    application relevant informations.
+|                    application relevant information.
 |
 |   Return Values :  E_OK         - success
 +--------------------------------------------------------------------------*/
@@ -57,11 +57,11 @@ set_menu_userptr(MENU * menu, void *userptr)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  void *menu_userptr(const MENU *menu)
-|   
+|
 |   Description   :  Return the pointer that is reserved in any menu to
-|                    store application relevant informations.
+|                    store application relevant information.
 |
 |   Return Values :  Value of the pointer. If no such pointer has been set,
 |                    NULL is returned

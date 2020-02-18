@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2013,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: getenv_num.c,v 1.6 2013/09/28 20:25:08 tom Exp $")
+MODULE_ID("$Id: getenv_num.c,v 1.7 2018/06/30 19:54:49 tom Exp $")
 
 NCURSES_EXPORT(int)
 _nc_getenv_num(const char *name)
@@ -68,6 +68,8 @@ _nc_setenv_num(const char *name, int value)
 	_nc_SPRINTF(buffer, _nc_SLIMIT(sizeof(buffer)) "%s=%d", name, value);
 	if ((s = strdup(buffer)) != 0)
 	    putenv(s);
+#else
+#error expected setenv/putenv functions
 #endif
     }
 }

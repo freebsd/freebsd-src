@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2012,2013 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2012-2013,2016 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,8 +35,12 @@
 
 #include <ncurses_cfg.h>
 
+#if HAVE_BSD_STRING_H
+#include <bsd/string.h>
+#endif
+
 /*
- * $Id: nc_string.h,v 1.4 2013/12/15 01:09:19 tom Exp $
+ * $Id: nc_string.h,v 1.7 2016/09/10 19:57:15 tom Exp $
  *
  * String-hacks.  Use these macros to stifle warnings on (presumably) correct
  * uses of strcat, strcpy and sprintf.
@@ -56,14 +60,18 @@
 
 #if USE_STRING_HACKS && HAVE_STRLCAT
 #define _nc_STRCAT(d,s,n)	NCURSES_VOID strlcat((d),(s),NCURSES_CAST(size_t,n))
+#define _nc_STRNCAT(d,s,m,n)	NCURSES_VOID strlcat((d),(s),NCURSES_CAST(size_t,m))
 #else
 #define _nc_STRCAT(d,s,n)	NCURSES_VOID strcat((d),(s))
+#define _nc_STRNCAT(d,s,m,n)	NCURSES_VOID strncat((d),(s),(n))
 #endif
 
 #if USE_STRING_HACKS && HAVE_STRLCPY
 #define _nc_STRCPY(d,s,n)	NCURSES_VOID strlcpy((d),(s),NCURSES_CAST(size_t,n))
+#define _nc_STRNCPY(d,s,n)	NCURSES_VOID strlcpy((d),(s),NCURSES_CAST(size_t,n))
 #else
 #define _nc_STRCPY(d,s,n)	NCURSES_VOID strcpy((d),(s))
+#define _nc_STRNCPY(d,s,n)	NCURSES_VOID strncpy((d),(s),(n))
 #endif
 
 #if USE_STRING_HACKS && HAVE_SNPRINTF

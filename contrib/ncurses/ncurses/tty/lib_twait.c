@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2016,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -70,12 +70,12 @@
 #  include <sys/select.h>
 # endif
 #endif
-#ifdef __MINGW32__
+#ifdef _WIN32
 #  include <sys/time.h>
 #endif
 #undef CUR
 
-MODULE_ID("$Id: lib_twait.c,v 1.67 2013/02/18 09:22:27 tom Exp $")
+MODULE_ID("$Id: lib_twait.c,v 1.73 2018/06/23 21:35:06 tom Exp $")
 
 static long
 _nc_gettime(TimeType * t0, int first)
@@ -102,7 +102,7 @@ _nc_gettime(TimeType * t0, int first)
     if (first) {
 	*t0 = t1;
     }
-    res = (t1 - *t0) * 1000;
+    res = (long) ((t1 - *t0) * 1000);
 #endif
     TR(TRACE_IEVENT, ("%s time: %ld msec", first ? "get" : "elapsed", res));
     return res;
@@ -113,15 +113,15 @@ NCURSES_EXPORT(int)
 _nc_eventlist_timeout(_nc_eventlist * evl)
 {
     int event_delay = -1;
-    int n;
 
     if (evl != 0) {
+	int n;
 
 	for (n = 0; n < evl->count; ++n) {
 	    _nc_event *ev = evl->events[n];
 
 	    if (ev->type == _NC_EVENT_TIMEOUT_MSEC) {
-		event_delay = ev->data.timeout_msec;
+		event_delay = (int) ev->data.timeout_msec;
 		if (event_delay < 0)
 		    event_delay = INT_MAX;	/* FIXME Is this defined? */
 	    }
@@ -197,6 +197,10 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
 
     long starttime, returntime;
 
+#ifdef NCURSES_WGETCH_EVENTS
+    (void) timeout_is_event;
+#endif
+
     TR(TRACE_IEVENT, ("start twait: %d milliseconds, mode: %d",
 		      milliseconds, mode));
 
@@ -230,7 +234,8 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
 
 #ifdef NCURSES_WGETCH_EVENTS
     if ((mode & TW_EVENT) && evl) {
-	fds = typeMalloc(struct pollfd, MIN_FDS + evl->count);
+	if (fds == fd_list)
+	    fds = typeMalloc(struct pollfd, MIN_FDS + evl->count);
 	if (fds == 0)
 	    return TW_NONE;
     }
