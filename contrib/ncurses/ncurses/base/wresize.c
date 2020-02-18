@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,13 +33,13 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wresize.c,v 1.35 2011/05/21 18:55:07 tom Exp $")
+MODULE_ID("$Id: wresize.c,v 1.38 2019/05/11 20:15:15 tom Exp $")
 
 static int
 cleanup_lines(struct ldat *data, int length)
 {
     while (--length >= 0)
-	free(data[length].text);
+	FreeAndNull(data[length].text);
     free(data);
     return ERR;
 }
@@ -65,15 +65,29 @@ repair_subwindows(WINDOW *cmp)
 
 	if (tst->_parent == cmp) {
 
-	    if (tst->_pary > cmp->_maxy)
-		tst->_pary = cmp->_maxy;
-	    if (tst->_parx > cmp->_maxx)
-		tst->_parx = cmp->_maxx;
+#define REPAIR1(field, limit) \
+	    if (tst->field > cmp->limit) \
+		tst->field = cmp->limit
 
-	    if (tst->_maxy + tst->_pary > cmp->_maxy)
-		tst->_maxy = (NCURSES_SIZE_T) (cmp->_maxy - tst->_pary);
-	    if (tst->_maxx + tst->_parx > cmp->_maxx)
-		tst->_maxx = (NCURSES_SIZE_T) (cmp->_maxx - tst->_parx);
+	    REPAIR1(_pary, _maxy);
+	    REPAIR1(_parx, _maxx);
+
+#define REPAIR2(field, limit) \
+	    if (tst->limit + tst->field > cmp->limit) \
+		tst->limit = (NCURSES_SIZE_T) (cmp->limit - tst->field)
+
+	    REPAIR2(_pary, _maxy);
+	    REPAIR2(_parx, _maxx);
+
+#define REPAIR3(field, limit) \
+	    if (tst->field > tst->limit) \
+		tst->field = tst->limit
+
+	    REPAIR3(_cury, _maxy);
+	    REPAIR3(_curx, _maxx);
+
+	    REPAIR3(_regtop, _maxy);
+	    REPAIR3(_regbottom, _maxy);
 
 	    for (row = 0; row <= tst->_maxy; ++row) {
 		tst->_line[row].text = &pline[tst->_pary + row].text[tst->_parx];
@@ -204,16 +218,16 @@ wresize(WINDOW *win, int ToLines, int ToCols)
     if (!(win->_flags & _SUBWIN)) {
 	if (ToCols == size_x) {
 	    for (row = ToLines + 1; row <= size_y; row++) {
-		free(win->_line[row].text);
+		FreeAndNull(win->_line[row].text);
 	    }
 	} else {
 	    for (row = 0; row <= size_y; row++) {
-		free(win->_line[row].text);
+		FreeAndNull(win->_line[row].text);
 	    }
 	}
     }
 
-    free(win->_line);
+    FreeAndNull(win->_line);
     win->_line = new_lines;
 
     /*

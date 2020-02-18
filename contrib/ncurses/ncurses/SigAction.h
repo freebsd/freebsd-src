@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: SigAction.h,v 1.8 2005/08/06 20:05:32 tom Exp $
+ * $Id: SigAction.h,v 1.9 2005/08/06 20:05:32 tom Exp $
  *
  * This file exists to handle non-POSIX systems which don't have <unistd.h>,
  * and usually no sigaction() nor <termios.h>

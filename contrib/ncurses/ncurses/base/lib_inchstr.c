@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_inchstr.c,v 1.12 2010/12/20 01:37:41 tom Exp $")
+MODULE_ID("$Id: lib_inchstr.c,v 1.16 2017/04/30 00:10:25 tom Exp $")
 
 NCURSES_EXPORT(int)
 winchnstr(WINDOW *win, chtype *str, int n)
@@ -50,16 +50,19 @@ winchnstr(WINDOW *win, chtype *str, int n)
 
     T((T_CALLED("winchnstr(%p,%p,%d)"), (void *) win, (void *) str, n));
 
-    if (!str)
-	returnCode(0);
+    if (!win || !str) {
+	i = ERR;
+    } else {
+	int row = win->_cury;
+	int col = win->_curx;
+	NCURSES_CH_T *text = win->_line[row].text;
 
-    if (win) {
-	for (; (n < 0 || (i < n)) && (win->_curx + i <= win->_maxx); i++)
-	    str[i] =
-		(chtype) CharOf(win->_line[win->_cury].text[win->_curx + i]) |
-		AttrOf(win->_line[win->_cury].text[win->_curx + i]);
+	for (; (n < 0 || (i < n)) && (col + i <= win->_maxx); i++) {
+	    str[i] = (((chtype) CharOf(text[col + i]) & A_CHARTEXT) |
+		      AttrOf(text[col + i]));
+	}
+	str[i] = (chtype) 0;
     }
-    str[i] = (chtype) 0;
 
     returnCode(i);
 }

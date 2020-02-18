@@ -1,6 +1,6 @@
-# $Id: MKkeyname.awk,v 1.48 2013/08/24 17:37:22 tom Exp $
+# $Id: MKkeyname.awk,v 1.50 2017/04/11 01:18:08 tom Exp $
 ##############################################################################
-# Copyright (c) 1999-2012,2013 Free Software Foundation, Inc.                #
+# Copyright (c) 1999-2016,2017 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -70,14 +70,13 @@ END {
 	print "NCURSES_EXPORT(NCURSES_CONST char *)"
 	print "safe_keyname (SCREEN *sp, int c)"
 	print "{"
-	print "	int i;"
 	print "	char name[20];"
-	print "	char *p;"
 	print "	NCURSES_CONST char *result = 0;"
 	print ""
 	print "	if (c == -1) {"
 	print "		result = \"-1\";"
 	print "	} else {"
+	print "		int i;"
 	if (bigstrings) {
 		print "		for (i = 0; _nc_key_names[i].offset != -1; i++) {"
 		print "			if (_nc_key_names[i].code == c) {"
@@ -114,7 +113,7 @@ END {
 	print "				/* create and cache result as needed */"
 	print "				if (MyTable[c] == 0) {"
 	print "					int cc = c;"
-	print "					p = name;"
+	print "					char *p = name;"
 	print "#define P_LIMIT (sizeof(name) - (size_t) (p - name))"
 	print "					if (cc >= 128 && m_prefix) {"
 	print "						_nc_STRCPY(p, \"M-\", P_LIMIT);"
@@ -135,7 +134,7 @@ END {
 	print "		} else if (result == 0 && HasTerminal(sp)) {"
 	print "			int j, k;"
 	print "			char * bound;"
-	print "			TERMTYPE *tp = &(TerminalOf(sp)->type);"
+	print "			TERMTYPE2 *tp = &TerminalType(TerminalOf(sp));"
 	print "			unsigned save_trace = _nc_tracing;"
 	print ""
 	print "			_nc_tracing = 0;	/* prevent recursion via keybound() */"
@@ -166,8 +165,8 @@ END {
 	print "#if NO_LEAKS"
 	print "void _nc_keyname_leaks(void)"
 	print "{"
-	print "	int j;"
 	print "	if (MyTable != 0) {"
+	print "		int j;"
 	print "		for (j = 0; j < SIZEOF_TABLE; ++j) {"
 	print "			FreeIfNeeded(MyTable[j]);"
 	print "		}"

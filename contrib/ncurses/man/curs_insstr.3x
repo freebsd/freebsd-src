@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,12 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_insstr.3x,v 1.21 2010/12/04 18:38:55 tom Exp $
+.\" $Id: curs_insstr.3x,v 1.23 2019/11/30 21:06:30 tom Exp $
 .TH curs_insstr 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .SH NAME
 \fBinsstr\fR,
 \fBinsnstr\fR,
@@ -70,16 +74,17 @@ If \fIn\fR<=0, then the entire string is inserted.
 .PP
 Special characters are handled as in \fBaddch\fP.
 .SH RETURN VALUE
-All routines that return an integer return \fBERR\fR upon failure and OK (SVr4
-specifies only "an integer value other than \fBERR\fR") upon successful
-completion, unless otherwise noted in the preceding routine descriptions.
+All routines that return an integer return \fBERR\fR upon failure and \fBOK\fP
+(SVr4 specifies only "an integer value other than \fBERR\fR")
+upon successful completion,
+unless otherwise noted in the preceding routine descriptions.
 .PP
 X/Open defines no error conditions.
 In this implementation,
 if the window parameter is null or the str parameter is null,
 an error is returned.
 .PP
-Functions with a "mv" prefix first perform a cursor movement using
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
 \fBwmove\fP, and return an error if the position is outside the window,
 or if the window pointer is null.
 .SH NOTES

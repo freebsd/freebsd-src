@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,13 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_opts.3x,v 1.16 2010/12/04 18:41:07 tom Exp $
+.\" $Id: form_field_opts.3x,v 1.24 2019/01/20 20:19:03 tom Exp $
 .TH form_field_opts 3X ""
 .SH NAME
-\fBform_field_opts\fR \- set and get field options
+\fBset_field_opts\fP,
+\fBfield_opts_on\fP,
+\fBfield_opts_off\fP,
+\fBfield_opts\fP \- set and get field options
 .SH SYNOPSIS
 \fB#include <form.h>\fR
 .br
@@ -54,42 +57,68 @@ others alone.
 .PP
 The function \fBfield_opts\fR returns the field's current option bits.
 .PP
-The following options are defined (all are on by default):
-.TP 5
-O_VISIBLE
-The field is displayed.  If this option is off, display of the field is
-suppressed.
+The following standard options are defined (all are on by default):
 .TP 5
 O_ACTIVE
-The field is visited during processing.  If this option is off, the field will
-not be reachable by navigation keys. Please notice that an invisible field
+The field is visited during processing.
+If this option is off, the field will
+not be reachable by navigation keys.
+Please notice that an invisible field
 appears to be inactive also.
-.TP 5
-O_PUBLIC
-The field contents are displayed as data is entered.
-.TP 5
-O_EDIT
-The field can be edited.
-.TP 5
-O_WRAP
-Words that do not fit on a line are wrapped to the next line.  Words are
-blank-separated.
-.TP 5
-O_BLANK
-The field is cleared whenever a character is entered at the first position.
 .TP 5
 O_AUTOSKIP
 Skip to the next field when this one fills.
 .TP 5
+O_BLANK
+The field is cleared whenever a character is entered at the first position.
+.TP 5
+O_EDIT
+The field can be edited.
+.TP 5
 O_NULLOK
 Allow a blank field.
+.TP 5
+O_PASSOK
+Validate field only if modified by user.
+.TP 5
+O_PUBLIC
+The field contents are displayed as data is entered.
 .TP 5
 O_STATIC
 Field buffers are fixed to field's original size.
 Turn this option off to create a dynamic field.
 .TP 5
-O_PASSOK
-Validate field only if modified by user.
+O_VISIBLE
+The field is displayed.
+If this option is off, display of the field is
+suppressed.
+.TP 5
+O_WRAP
+Words that do not fit on a line are wrapped to the next line.
+Words are
+blank-separated.
+.PP
+These extension options are defined (extensions are off by default):
+.TP 5
+O_DYNAMIC_JUSTIFY
+Permit dynamic fields to be justified, like static fields.
+.TP 5
+O_NO_LEFT_STRIP
+Preserve leading whitespace in the field buffer, which is normally discarded.
+.TP 5
+O_EDGE_INSERT_STAY
+When inserting into a field up to the boundary position,
+optionally delay the scrolling,
+so that the last inserted character remains visible,
+but advance the cursor to reflect the insertion.
+This allows the form library to display the
+inserted character in one-character fields
+as well as allowing the library to maintain consistent state.
+.TP 5
+O_INPUT_FIELD
+The \fBset_max_field\fP function checks for this extension,
+which allows a dynamic field to shrink if the new
+limit is smaller than the current field size.
 .SH RETURN VALUE
 Except for \fBfield_opts\fR, each routine returns one of the following:
 .TP 5
@@ -103,15 +132,18 @@ Routine detected an incorrect or out-of-range argument.
 The field is the current field.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBform\fR(3X).
+\fBcurses\fR(3X),
+\fBform\fR(3X).
+\fBform_field_just\fR(3X).
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V forms library.  They were not supported on
+These routines emulate the System V forms library.
+They were not supported on
 Version 7 or BSD versions.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_hook.3x,v 1.11 2010/12/04 18:40:45 tom Exp $
+.\" $Id: menu_hook.3x,v 1.13 2019/01/20 20:32:23 tom Exp $
 .TH menu_hook 3X ""
 .SH NAME
 \fBmenu_hook\fR \- set hooks for automatic invocation by applications
@@ -55,17 +55,20 @@ These functions make it possible to set hook functions to be called at various
 points in the automatic processing of input event codes by \fBmenu_driver\fR.
 .PP
 The function \fBset_item_init\fR sets a hook to be called at menu-post time and
-each time the selected item changes (after the change).  \fBitem_init\fR
+each time the selected item changes (after the change).
+\fBitem_init\fR
 returns the current item init hook, if any (\fBNULL\fR if there is no such
 hook).
 .PP
 The function \fBset_item_term\fR sets a hook to be called at menu-unpost time
-and each time the selected item changes (before the change).  \fBitem_term\fR
+and each time the selected item changes (before the change).
+\fBitem_term\fR
 returns the current item term hook, if any (\fBNULL\fR if there is no such
 hook).
 .PP
 The function \fBset_menu_init\fR sets a hook to be called at menu-post time and
-just after the top row on the menu changes once it is posted.  \fBmenu_init\fR
+just after the top row on the menu changes once it is posted.
+\fBmenu_init\fR
 returns the current menu init hook, if any (\fBNULL\fR if there is no such
 hook).
 .PP
@@ -74,22 +77,25 @@ and just before the top row on the menu changes once it is posted.
 \fBmenu_term\fR returns the current menu term hook, if any (\fBNULL\fR if there
 is no such hook).
 .SH RETURN VALUE
-Routines that return pointers return \fBNULL\fR on error.  Other routines
+Routines that return pointers return \fBNULL\fR on error.
+Other routines
 return one of the following:
 .TP 5
 .B E_OK
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).
 .SH NOTES
 The header file \fB<menu.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V menu library.  They were not supported on
+These routines emulate the System V menu library.
+They were not supported on
 Version 7 or BSD versions.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric
 S. Raymond.

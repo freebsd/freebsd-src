@@ -1,4 +1,4 @@
-/* $Id: curses.wide,v 1.46 2014/02/01 22:00:32 tom Exp $ */
+/* $Id: curses.wide,v 1.50 2017/03/26 16:05:21 tom Exp $ */
 /*
  * vile:cmode:
  * This file is part of ncurses, designed to be appended after curses.h.in
@@ -204,7 +204,7 @@ extern NCURSES_EXPORT(int) wecho_wchar (WINDOW *, const cchar_t *);	/* implement
 extern NCURSES_EXPORT(int) wget_wch (WINDOW *, wint_t *);		/* implemented */
 extern NCURSES_EXPORT(int) wget_wstr (WINDOW *, wint_t *);		/* generated:WIDEC */
 extern NCURSES_EXPORT(int) wgetbkgrnd (WINDOW *, cchar_t *);		/* generated:WIDEC */
-extern NCURSES_EXPORT(int) wgetn_wstr (WINDOW *,wint_t *, int);		/* implemented */
+extern NCURSES_EXPORT(int) wgetn_wstr (WINDOW *, wint_t *, int);	/* implemented */
 extern NCURSES_EXPORT(int) whline_set (WINDOW *, const cchar_t *, int);	/* implemented */
 extern NCURSES_EXPORT(int) win_wch (WINDOW *, cchar_t *);		/* implemented */
 extern NCURSES_EXPORT(int) win_wchnstr (WINDOW *, cchar_t *, int);	/* implemented */
@@ -261,7 +261,7 @@ extern NCURSES_EXPORT(int) NCURSES_SP_NAME(vid_puts) (SCREEN*, attr_t, NCURSES_P
 #define wins_wstr(w,t)			wins_nwstr((w),(t),-1)
 
 #if !NCURSES_OPAQUE
-#define wgetbkgrnd(win,wch)		((win) ? (*(wch) = (win)->_bkgrnd) : *(wch), OK)
+#define wgetbkgrnd(win,wch)		(NCURSES_OK_ADDR(wch) ? ((win) ? (*(wch) = (win)->_bkgrnd) : *(wch), OK) : ERR)
 #endif
 
 #define mvadd_wch(y,x,c)		mvwadd_wch(stdscr,(y),(x),(c))

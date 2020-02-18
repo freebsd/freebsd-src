@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,13 +34,13 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_num.c,v 1.29 2012/02/23 10:02:15 tom Exp $")
+MODULE_ID("$Id: fty_num.c,v 1.31 2019/03/30 21:20:04 tom Exp $")
 
 #if HAVE_LOCALE_H
 #include <locale.h>
 #endif
 
-#if HAVE_LOCALE_H
+#if HAVE_LOCALE_H && HAVE_LOCALECONV
 #define isDecimalPoint(c) ((c) == ((L && L->decimal_point) ? *(L->decimal_point) : '.'))
 #else
 #define isDecimalPoint(c) ((c) == '.')
@@ -96,7 +96,7 @@ Generic_This_Type(void *arg)
 	  argn->low = args->low;
 	  argn->high = args->high;
 
-#if HAVE_LOCALE_H
+#if HAVE_LOCALE_H && HAVE_LOCALECONV
 	  argn->L = localeconv();
 #else
 	  argn->L = NULL;

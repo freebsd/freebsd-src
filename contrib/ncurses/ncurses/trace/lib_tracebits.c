@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2015,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracebits.c,v 1.23 2012/06/09 19:55:46 tom Exp $")
+MODULE_ID("$Id: lib_tracebits.c,v 1.27 2019/02/16 22:12:08 tom Exp $")
 
 #if HAVE_SYS_TERMIO_H
 #include <sys/termio.h>		/* needed for ISC */
@@ -73,7 +73,7 @@ MODULE_ID("$Id: lib_tracebits.c,v 1.23 2012/06/09 19:55:46 tom Exp $")
 
 typedef struct {
     unsigned int val;
-    const char *name;
+    const char name[8];
 } BITNAMES;
 
 #define TRACE_BUF_SIZE(num) (_nc_globals.tracebuf_ptr[num].size)
@@ -85,7 +85,7 @@ lookup_bits(char *buf, const BITNAMES * table, const char *label, unsigned int v
 
     _nc_STRCAT(buf, label, TRACE_BUF_SIZE(0));
     _nc_STRCAT(buf, ": {", TRACE_BUF_SIZE(0));
-    for (sp = table; sp->name; sp++)
+    for (sp = table; sp->name[0]; sp++)
 	if (sp->val != 0
 	    && (val & sp->val) == sp->val) {
 	    _nc_STRCAT(buf, sp->name, TRACE_BUF_SIZE(0));
@@ -103,56 +103,59 @@ _nc_trace_ttymode(TTY * tty)
     char *buf;
 
 #ifdef TERMIOS
+#define DATA(name)        { name, { #name } }
+#define DATA2(name,name2) { name, { #name2 } }
+#define DATAX()           { 0,    { "" } }
     static const BITNAMES iflags[] =
     {
-	{BRKINT, "BRKINT"},
-	{IGNBRK, "IGNBRK"},
-	{IGNPAR, "IGNPAR"},
-	{PARMRK, "PARMRK"},
-	{INPCK, "INPCK"},
-	{ISTRIP, "ISTRIP"},
-	{INLCR, "INLCR"},
-	{IGNCR, "IGNC"},
-	{ICRNL, "ICRNL"},
-	{IXON, "IXON"},
-	{IXOFF, "IXOFF"},
-	{0, NULL}
+	DATA(BRKINT),
+	DATA(IGNBRK),
+	DATA(IGNPAR),
+	DATA(PARMRK),
+	DATA(INPCK),
+	DATA(ISTRIP),
+	DATA(INLCR),
+	DATA(IGNCR),
+	DATA(ICRNL),
+	DATA(IXON),
+	DATA(IXOFF),
+	DATAX()
 #define ALLIN	(BRKINT|IGNBRK|IGNPAR|PARMRK|INPCK|ISTRIP|INLCR|IGNCR|ICRNL|IXON|IXOFF)
     }, oflags[] =
     {
-	{OPOST, "OPOST"},
-	{OFLAGS_TABS, "XTABS"},
-	{ONLCR, "ONLCR"},
-	{OCRNL, "OCRNL"},
-	{ONOCR, "ONOCR"},
-	{ONLRET, "ONLRET"},
-	{0, NULL}
-#define ALLOUT	(OPOST|OFLAGS_TABS|ONLCR|OCRNL|ONOCR|ONLRET)
+	DATA(OPOST),
+	DATA2(OFLAGS_TABS, XTABS),
+	DATA(ONLCR),
+	DATA(OCRNL),
+	DATA(ONOCR),
+	DATA(ONLRET),
+	DATAX()
+#define ALLOUT	(OPOST|OFLAGS_TABS|ONLCR|OCRNL|ONOCR|ONLRET|OFLAGS_TABS)
     }, cflags[] =
     {
-	{CLOCAL, "CLOCAL"},
-	{CREAD, "CREAD"},
-	{CSTOPB, "CSTOPB"},
+	DATA(CLOCAL),
+	DATA(CREAD),
+	DATA(CSTOPB),
 #if !defined(CS5) || !defined(CS8)
-	{CSIZE, "CSIZE"},
+	DATA(CSIZE),
 #endif
-	{HUPCL, "HUPCL"},
-	{PARENB, "PARENB"},
-	{PARODD | PARENB, "PARODD"},	/* concession to readability */
-	{0, NULL}
+	DATA(HUPCL),
+	DATA(PARENB),
+	DATA2(PARODD | PARENB, PARODD),
+	DATAX()
 #define ALLCTRL	(CLOCAL|CREAD|CSIZE|CSTOPB|HUPCL|PARENB|PARODD)
     }, lflags[] =
     {
-	{ECHO, "ECHO"},
-	{ECHOE | ECHO, "ECHOE"},	/* concession to readability */
-	{ECHOK | ECHO, "ECHOK"},	/* concession to readability */
-	{ECHONL, "ECHONL"},
-	{ICANON, "ICANON"},
-	{ISIG, "ISIG"},
-	{NOFLSH, "NOFLSH"},
-	{TOSTOP, "TOSTOP"},
-	{IEXTEN, "IEXTEN"},
-	{0, NULL}
+	DATA(ECHO),
+	DATA2(ECHOE | ECHO, ECHOE),
+	DATA2(ECHOK | ECHO, ECHOK),
+	DATA(ECHONL),
+	DATA(ICANON),
+	DATA(ISIG),
+	DATA(NOFLSH),
+	DATA(TOSTOP),
+	DATA(IEXTEN),
+	DATAX()
 #define ALLLOCAL	(ECHO|ECHONL|ICANON|ISIG|NOFLSH|TOSTOP|IEXTEN)
     };
 
@@ -175,11 +178,11 @@ _nc_trace_ttymode(TTY * tty)
 
 #if defined(CS5) && defined(CS8)
 	{
-	    static struct {
+	    static const struct {
 		int value;
-		const char *name;
+		const char name[5];
 	    } csizes[] = {
-#define CS_DATA(name) { name, #name " " }
+#define CS_DATA(name) { name, { #name " " } }
 		CS_DATA(CS5),
 #ifdef CS6
 		    CS_DATA(CS6),
@@ -228,17 +231,17 @@ _nc_trace_ttymode(TTY * tty)
 
     static const BITNAMES cflags[] =
     {
-	{CBREAK, "CBREAK"},
-	{CRMOD, "CRMOD"},
-	{ECHO, "ECHO"},
-	{EVENP, "EVENP"},
-	{LCASE, "LCASE"},
-	{LLITOUT, "LLITOUT"},
-	{ODDP, "ODDP"},
-	{RAW, "RAW"},
-	{TANDEM, "TANDEM"},
-	{XTABS, "XTABS"},
-	{0, NULL}
+	DATA(CBREAK),
+	DATA(CRMOD),
+	DATA(ECHO),
+	DATA(EVENP),
+	DATA(LCASE),
+	DATA(LLITOUT),
+	DATA(ODDP),
+	DATA(RAW),
+	DATA(TANDEM),
+	DATA(XTABS),
+	DATAX()
 #define ALLCTRL	(CBREAK|CRMOD|ECHO|EVENP|LCASE|LLITOUT|ODDP|RAW|TANDEM|XTABS)
     };
 

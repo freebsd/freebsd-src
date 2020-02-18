@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002-2010,2012 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2002-2017,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,10 +26,15 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addwstr.3x,v 1.11 2012/11/03 22:57:31 tom Exp $
+.\" $Id: curs_addwstr.3x,v 1.13 2019/11/30 21:06:30 tom Exp $
 .TH curs_addwstr 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .de bP
-.IP \(bu 4
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
 ..
 .na
 .hy 0
@@ -91,7 +96,7 @@ if the string pointer is null or
 .bP
 if the corresponding calls to \fBwadd_wch\fP return an error.
 .PP
-Functions with a "mv" prefix first perform a cursor movement using
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
 \fBwmove\fP, and return an error if the position is outside the window,
 or if the window pointer is null.
 .SH NOTES

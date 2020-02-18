@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2019 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_slkset.c,v 1.24 2012/12/08 23:09:25 tom Exp $")
+MODULE_ID("$Id: lib_slkset.c,v 1.25 2019/05/04 20:46:24 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(slk_set) (NCURSES_SP_DCLx int i, const char *astr, int format)
@@ -89,9 +89,9 @@ NCURSES_SP_NAME(slk_set) (NCURSES_SP_DCLx int i, const char *astr, int format)
 	mbrtowc(&wc, p, need, &state);
 	if (!iswprint((wint_t) wc))
 	    break;
-	if (wcwidth(wc) + numcols > limit)
+	if (_nc_wacs_width(wc) + numcols > limit)
 	    break;
-	numcols += wcwidth(wc);
+	numcols += _nc_wacs_width(wc);
 	p += need;
     }
     numchrs = (int) (p - str);

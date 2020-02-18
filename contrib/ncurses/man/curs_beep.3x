@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2010,2018 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_beep.3x,v 1.12 2010/12/04 18:36:44 tom Exp $
+.\" $Id: curs_beep.3x,v 1.13 2018/07/28 21:34:06 tom Exp $
 .TH curs_beep 3X ""
 .SH NAME
 \fBbeep\fR, \fBflash\fR \- \fBcurses\fR bell and screen flash routines
@@ -40,9 +40,12 @@
 .SH DESCRIPTION
 The \fBbeep\fR and \fBflash\fR routines are used to alert the terminal user.
 The routine \fBbeep\fR sounds an audible alarm on the terminal, if possible;
-otherwise it flashes the screen (visible bell).  The routine \fBflash\fR
-flashes the screen, and if that is not possible, sounds the alert.  If neither
-alert is possible, nothing happens.  Nearly all terminals have an audible alert
+otherwise it flashes the screen (visible bell).
+The routine \fBflash\fR
+flashes the screen, and if that is not possible, sounds the alert.
+If neither
+alert is possible, nothing happens.
+Nearly all terminals have an audible alert
 (bell or beep), but only some can flash the screen.
 .SH RETURN VALUE
 These routines return \fBOK\fR if they succeed in beeping or flashing,

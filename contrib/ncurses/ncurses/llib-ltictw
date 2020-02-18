@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2012 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2012-2016,2017 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,18 +27,17 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey 2012                                           *
+ *  Author: Thomas E. Dickey       2012-on                                  *
  ****************************************************************************/
 /* LINTLIBRARY */
 
 /* ./tinfo/alloc_entry.c */
 
 #include <curses.priv.h>
-#include <tic.h>
 
 #undef _nc_init_entry
 void	_nc_init_entry(
-		TERMTYPE *const tp)
+		ENTRY	*const tp)
 		{ /* void */ }
 
 #undef _nc_copy_entry
@@ -59,13 +58,11 @@ void	_nc_wrap_entry(
 
 #undef _nc_merge_entry
 void	_nc_merge_entry(
-		TERMTYPE *const to, 
-		TERMTYPE *const from)
+		ENTRY	*const target, 
+		ENTRY	*const source)
 		{ /* void */ }
 
 /* ./tinfo/captoinfo.c */
-
-#include <ctype.h>
 
 #undef _nc_captoinfo
 char	*_nc_captoinfo(
@@ -94,11 +91,8 @@ char	*_nc_tic_expand(
 
 #undef _nc_check_termtype2
 void	(*_nc_check_termtype2)(
-		TERMTYPE *p1, 
+		TERMTYPE2 *p1, 
 		NCURSES_BOOL p2);
-#undef _nc_check_termtype
-void	(*_nc_check_termtype)(
-		TERMTYPE *p1);
 
 #undef _nc_entry_match
 NCURSES_BOOL _nc_entry_match(
@@ -120,11 +114,6 @@ void	_nc_read_entry_source(
 int	_nc_resolve_uses2(
 		NCURSES_BOOL fullresolve, 
 		NCURSES_BOOL literal)
-		{ return(*(int *)0); }
-
-#undef _nc_resolve_uses
-int	_nc_resolve_uses(
-		NCURSES_BOOL fullresolve)
 		{ return(*(int *)0); }
 
 /* ./tinfo/comp_scan.c */
@@ -177,7 +166,7 @@ void	_nc_panic_mode(
 
 #undef _nc_parse_entry
 int	_nc_parse_entry(
-		struct entry *entryp, 
+		ENTRY	*entryp, 
 		int	literal, 
 		NCURSES_BOOL silent)
 		{ return(*(int *)0); }
@@ -188,24 +177,25 @@ int	_nc_capcmp(
 		const char *t)
 		{ return(*(int *)0); }
 
-typedef struct {
-    const char *from;
-    const char *to;
-} assoc;
-
 /* ./tinfo/write_entry.c */
-
-#include <hashed_db.h>
 
 #undef _nc_set_writedir
 void	_nc_set_writedir(
-		char	*dir)
+		const char *dir)
 		{ /* void */ }
 
 #undef _nc_write_entry
 void	_nc_write_entry(
-		TERMTYPE *const tp)
+		TERMTYPE2 *const tp)
 		{ /* void */ }
+
+#undef _nc_write_object
+int	_nc_write_object(
+		TERMTYPE2 *tp, 
+		char	*buffer, 
+		unsigned *offset, 
+		unsigned limit)
+		{ return(*(int *)0); }
 
 #undef _nc_tic_written
 int	_nc_tic_written(void)

@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,8 +27,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu.3x,v 1.21 2010/12/04 18:40:45 tom Exp $
+.\" $Id: menu.3x,v 1.26 2019/01/20 20:32:23 tom Exp $
 .TH menu 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .SH NAME
 \fBmenu\fR \- curses extension for programming menus
 .SH SYNOPSIS
@@ -36,20 +44,24 @@
 .br
 .SH DESCRIPTION
 The \fBmenu\fR library provides terminal-independent facilities for composing
-menu systems on character-cell terminals.  The library includes: item routines,
+menu systems on character-cell terminals.
+The library includes: item routines,
 which create and modify menu items; and menu routines, which group items into
 menus, display menus on the screen, and handle interaction with the user.
 .PP
 The \fBmenu\fR library uses the \fBcurses\fR libraries, and a curses
 initialization routine such as \fBinitscr\fR must be called before using any of
-these functions.  To use the \fBmenu\fR library, link with the options
+these functions.
+To use the \fBmenu\fR library, link with the options
 \fB\-lmenu \-lcurses\fR.
 .
 .SS Current Default Values for Item Attributes
 .
-The \fBmenu\fR library maintains a default value for item attributes.  You can
+The \fBmenu\fR library maintains a default value for item attributes.
+You can
 get or set this default by calling the appropriate \fBget_\fR or \fBset_\fR
-routine with a \fBNULL\fR item pointer.  Changing this default with a
+routine with a \fBNULL\fR item pointer.
+Changing this default with a
 \fBset_\fR function affects future item creations, but does not change the
 rendering of items already created.
 .
@@ -128,7 +140,8 @@ top_row   	\fBmitem_current\fR(3X)
 unpost_menu	\fBmenu_post\fR(3X)
 .TE
 .SH RETURN VALUE
-Routines that return pointers return \fBNULL\fR on error.  Routines that return
+Routines that return pointers return \fBNULL\fR on error.
+Routines that return
 an integer return one of the following error codes:
 .TP 5
 .B E_OK
@@ -162,26 +175,38 @@ The menu is already posted.
 The menu driver could not process the request.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .TP 5
 .B E_UNKNOWN_COMMAND
 The menu driver code saw an unknown request code.
-.SH SEE ALSO
-\fBcurses\fR(3X) and related pages whose names begin "menu_" for detailed
-descriptions of the entry points.
 .SH NOTES
 The header file \fB<menu.h>\fR automatically includes the header files
 \fB<curses.h>\fR and \fB<eti.h>\fR.
 .PP
 In your library list, libmenu.a should be before libncurses.a; that is,
-you want to say `\-lmenu \-lncurses', not the other way around (which would
-usually give a link-error).
+you should say \*(``\-lmenu \-lncurses\*('', not the other way around
+(which would give a link-error when using static libraries).
 .SH PORTABILITY
-These routines emulate the System V menu library.  They were not supported on
+These routines emulate the System V menu library.
+They were not supported on
 Version 7 or BSD versions.
+.PP
+The menu facility was documented in SVr4.2 in
+\fICharacter User Interface Programming (UNIX SVR4.2)\fP.
+.PP
+It is not part of X/Open Curses.
+.PP
+Aside from ncurses, there are few implementations:
+.bP
+systems based on SVr4 source code, e.g., Solaris.
+.bP
+NetBSD curses.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for ncurses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for ncurses by Eric S. Raymond.
 .SH SEE ALSO
+\fBcurses\fR(3X) and related pages whose names begin \*(``menu_\*(''
+for detailed descriptions of the entry points.
+.PP
 This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

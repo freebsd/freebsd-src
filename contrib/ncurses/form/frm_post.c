@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2020 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,12 +32,12 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_post.c,v 1.11 2012/06/10 00:27:49 tom Exp $")
+MODULE_ID("$Id: frm_post.c,v 1.12 2020/01/18 17:05:03 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int post_form(FORM * form)
-|   
+|
 |   Description   :  Writes the form into its associated subwindow.
 |
 |   Return Values :  E_OK              - success
@@ -69,7 +69,7 @@ post_form(FORM *form)
   if ((form->cols > getmaxx(formwin)) || (form->rows > getmaxy(formwin)))
     RETURN(E_NO_ROOM);
 
-  /* reset form->curpage to an invald value. This forces Set_Form_Page
+  /* reset form->curpage to an invalid value. This forces Set_Form_Page
      to do the page initialization which is required by post_form.
    */
   page = form->curpage;
@@ -87,9 +87,9 @@ post_form(FORM *form)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int unpost_form(FORM * form)
-|   
+|
 |   Description   :  Erase form from its associated subwindow.
 |
 |   Return Values :  E_OK            - success

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2007 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2007,2017 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,9 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_key_name.c,v 1.3 2008/10/11 20:15:14 tom Exp $")
+MODULE_ID("$Id: lib_key_name.c,v 1.4 2017/01/07 19:50:17 tom Exp $")
+
+#define MyData _nc_globals.key_name
 
 NCURSES_EXPORT(NCURSES_CONST char *)
 key_name(wchar_t c)
@@ -44,19 +46,16 @@ key_name(wchar_t c)
     wchar_t *my_wchars;
     size_t len;
 
-    /* FIXME: move to _nc_globals */
-    static char result[MB_LEN_MAX + 1];
-
     memset(&my_cchar, 0, sizeof(my_cchar));
     my_cchar.chars[0] = c;
     my_cchar.chars[1] = L'\0';
 
     my_wchars = wunctrl(&my_cchar);
-    len = wcstombs(result, my_wchars, sizeof(result) - 1);
+    len = wcstombs(MyData, my_wchars, sizeof(MyData) - 1);
     if (isEILSEQ(len) || (len == 0)) {
 	return 0;
     }
 
-    result[len] = '\0';
-    return result;
+    MyData[len] = '\0';
+    return MyData;
 }

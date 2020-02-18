@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,15 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_buffer.3x,v 1.19 2010/12/04 18:38:55 tom Exp $
+.\" $Id: form_field_buffer.3x,v 1.24 2019/11/30 21:02:22 tom Exp $
 .TH form_field_buffer 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .de bP
-.IP \(bu 4
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
 ..
 .SH NAME
 \fBform_field_buffer\fR \- field buffer control
@@ -85,7 +90,8 @@ for long-term storage of form data.
 .RE
 .PP
 The function \fBset_field_status\fR sets the associated status flag of
-\fIfield\fR; \fBfield_status\fR gets the current value.  The status flag
+\fIfield\fR; \fBfield_status\fR gets the current value.
+The status flag
 is set to a nonzero value whenever the field changes.
 .PP
 The function \fBset_max_field\fR sets the maximum size for a dynamic field.
@@ -108,12 +114,12 @@ The remaining routines return one of the following:
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR).
+System error occurred (see \fBerrno\fR(3)).
 .TP 5
 .B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .SH SEE ALSO
-\fBcurses\fR(3X) and related pages whose names begin "form_" for detailed
+\fBcurses\fR(3X) and related pages whose names begin \*(``form_\*('' for detailed
 descriptions of the entry points.
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header file
@@ -125,8 +131,13 @@ It will be freed on the next call to \fBfield_buffer\fP to return the
 same buffer.
 \fB<curses.h>\fR.
 .SH PORTABILITY
-These routines emulate the System V forms library.  They were not supported on
+These routines emulate the System V forms library.
+They were not supported on
 Version 7 or BSD versions.
+.PP
+The \fBset_max_field\fP function checks for an ncurses extension
+\fBO_INPUT_FIELD\fP which allows a dynamic field to shrink if the new
+limit is smaller than the current field size.
 .SH AUTHORS
-Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
-S. Raymond.
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.

@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.38 2014/01/18 20:19:45 tom Exp $
+# $Id: Makefile.in,v 1.42 2019/01/06 00:35:11 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -31,7 +31,7 @@
 #
 # Master Makefile for ncurses library.
 
-SHELL = /bin/sh
+SHELL 		= @SHELL@
 VPATH		= @srcdir@
 
 DESTDIR=@DESTDIR@
@@ -57,6 +57,7 @@ includedir	= @includedir@
 includesubdir	= @includesubdir@
 libdir		= @libdir@
 mandir		= @mandir@
+pkgdir		= @PKG_CONFIG_LIBDIR@
 
 include_dir	= ${includedir}${includesubdir}
 
@@ -74,14 +75,16 @@ preinstall :
 	@ echo ''
 	@ echo '** Configuration summary for NCURSES $(NCURSES_MAJOR).$(NCURSES_MINOR) $(NCURSES_PATCH):'
 	@ echo ''
-	@ echo '     extended funcs: '`test @NCURSES_EXT_FUNCS@ != 0 && echo yes || echo no`
-	@ echo '     xterm terminfo: '@WHICH_XTERM@
+	@ echo '       extended funcs: '`test @NCURSES_EXT_FUNCS@ != 0 && echo yes || echo no`
+	@ echo '       xterm terminfo: '@WHICH_XTERM@
 	@ echo ''
-	@ echo '      bin directory: '$(bindir)
-	@ echo '      lib directory: '$(libdir)
-	@ echo '  include directory: '$(include_dir)
-	@ echo '      man directory: '$(mandir)
-@MAKE_TERMINFO@	@ echo ' terminfo directory: '$(ticdir)
+	@ echo '        bin directory: '$(bindir)
+	@ echo '        lib directory: '$(libdir)
+	@ echo '    include directory: '$(include_dir)
+	@ echo '        man directory: '$(mandir)
+@MAKE_TERMINFO@	@ echo '   terminfo directory: '$(ticdir)
+@USE_FALLBACKS@	@ echo '  using fallback-list: '@FALLBACK_LIST@
+@MAKE_PC_FILES@	@ echo ' pkg-config directory: '$(pkgdir)
 	@ echo ''
 	@ test "$(include_dir)" = "$(prefix)/include" || \
 		echo '** Include-directory is not in a standard location'
@@ -94,6 +97,9 @@ preinstall :
 
 distclean \
 realclean ::
+
+check:
+	@ echo The test-programs are interactive
 
 
 # Put the common rules here so that we can easily construct the list of

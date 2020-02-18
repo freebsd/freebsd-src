@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2016 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_window.c,v 1.29 2010/12/19 01:47:22 tom Exp $")
+MODULE_ID("$Id: lib_window.c,v 1.30 2016/05/28 23:11:26 tom Exp $")
 
 NCURSES_EXPORT(void)
 _nc_synchook(WINDOW *win)
@@ -56,7 +56,6 @@ mvderwin(WINDOW *win, int y, int x)
 /* move a derived window */
 {
     WINDOW *orig;
-    int i;
     int rc = ERR;
 
     T((T_CALLED("mvderwin(%p,%d,%d)"), (void *) win, y, x));
@@ -66,6 +65,8 @@ mvderwin(WINDOW *win, int y, int x)
 	&& (x >= 0 && y >= 0)
 	&& (x + getmaxx(win) <= getmaxx(orig))
 	&& (y + getmaxy(win) <= getmaxy(orig))) {
+	int i;
+
 	wsyncup(win);
 	win->_parx = x;
 	win->_pary = y;
@@ -177,8 +178,6 @@ dupwin(WINDOW *win)
 /* make an exact duplicate of the given window */
 {
     WINDOW *nwin = 0;
-    size_t linesize;
-    int i;
 
     T((T_CALLED("dupwin(%p)"), (void *) win));
 
@@ -200,6 +199,8 @@ dupwin(WINDOW *win)
 	}
 
 	if (nwin != 0) {
+	    int i;
+	    size_t linesize;
 
 	    nwin->_curx = win->_curx;
 	    nwin->_cury = win->_cury;

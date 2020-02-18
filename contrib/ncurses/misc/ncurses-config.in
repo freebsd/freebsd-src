@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: ncurses-config.in,v 1.30 2012/11/11 00:14:28 tom Exp $
+# $Id: ncurses-config.in,v 1.42 2019/12/25 00:54:55 tom Exp $
 ##############################################################################
-# Copyright (c) 2006-2011,2012 Free Software Foundation, Inc.                #
+# Copyright (c) 2006-2018,2019 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -45,14 +45,16 @@ datarootdir="@datarootdir@"
 datadir="@datadir@"
 mandir="@mandir@"
 
-THIS="@LIB_NAME@@DFT_ARG_SUFFIX@"
+THIS="@LIB_NAME@@USE_LIB_SUFFIX@"
 TINFO_LIB="@TINFO_ARG_SUFFIX@"
 RPATH_LIST="@RPATH_LIST@"
+
+includesubdir="@includedir@/${THIS}"
 
 # Ensure that RPATH_LIST contains only absolute pathnames, if it is nonempty.
 # We cannot filter it out within the build-process since the variable is used
 # in some special cases of installation using a relative path.
-if test -n "$RPATH_LIST"
+if [ -n "$RPATH_LIST" ]
 then
 	save_IFS="$IFS"
 	IFS='@PATH_SEPARATOR@'
@@ -63,7 +65,7 @@ then
 		./*|../*|*/..|*/../*)
 			;;
 		*)
-			test -n "$filtered" && filtered="${filtered}@PATH_SEPARATOR@"
+			[ -n "$filtered" ] && filtered="${filtered}@PATH_SEPARATOR@"
 			filtered="${filtered}${item}"
 			;;
 		esac
@@ -76,17 +78,64 @@ fi
 # with --disable-overwrite, we installed into a subdirectory, but transformed
 # the headers to include like this:
 #	<ncurses@LIB_SUFFIX@/curses.h>
-if test x@WITH_OVERWRITE@ = xno ; then
+if [ x@WITH_OVERWRITE@ = xno ]; then
 	case $includedir in
-	$prefix/include/ncurses@LIB_SUFFIX@)
+	$prefix/include/ncurses@LIB_SUFFIX@@EXTRA_SUFFIX@)
 		includedir=`echo "$includedir" | sed -e 's,/[^/]*$,,'`
 		;;
 	esac
 fi
 
-test $# = 0 && exec @SHELL@ $0 --error
+LIBS="@LIBS@"
+if [ "@TINFO_NAME@" = "@LIB_NAME@" ]; then
+	LIBS="-l${THIS} $LIBS"
+else
+	LIBS="-l${THIS} -l${TINFO_LIB} $LIBS"
+fi
 
-while test $# -gt 0; do
+# Ignore -L options which do not correspond to an actual directory, or which
+# are standard library directories (i.e., the linker is supposed to search
+# those directories).
+#
+# There is no portable way to find the list of standard library directories. 
+# Require a POSIX shell anyway, to keep this simple.
+lib_flags=
+for opt in -L$libdir @LDFLAGS@ @EXTRA_LDFLAGS@ $LIBS
+do
+	case $opt in
+	-specs*) # ignore linker specs-files which were used to build library
+		continue
+		;;
+	-Wl,-z,*) # ignore flags used to manipulate shared image
+		continue
+		;;
+	-L*)
+		[ -d ${opt##-L} ] || continue
+		case ${opt##-L} in
+		@LD_SEARCHPATH@) # skip standard libdir
+			continue
+			;;
+		*)
+			found=no
+			for check in $lib_flags
+			do
+				if [ "x$check" = "x$opt" ]
+				then
+					found=yes
+					break
+				fi
+			done
+			[ $found = yes ] && continue
+			;;
+		esac
+		;;
+	esac
+	lib_flags="$lib_flags $opt"
+done
+
+[ $# = 0 ] && exec @SHELL@ $0 --error
+
+while [ $# -gt 0 ]; do
 	case "$1" in
 	# basic configuration
 	--prefix)
@@ -97,11 +146,11 @@ while test $# -gt 0; do
 		;;
 	# compile/link
 	--cflags)
-		INCS=
-		if test "x@WITH_OVERWRITE@" = xno ; then
-			INCS="$INCS -I${includedir}/${THIS}"
+		INCS="@PKG_CFLAGS@"
+		if [ "x@WITH_OVERWRITE@" = xno ]; then
+			INCS="$INCS -I${includesubdir}"
 		fi
-		if test "${includedir}" != /usr/include ; then
+		if [ "${includedir}" != /usr/include ]; then
 			INCS="$INCS -I${includedir}"
 		fi
 		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
@@ -109,21 +158,54 @@ while test $# -gt 0; do
 ENDECHO
 		;;
 	--libs)
-		if test "$libdir" = /usr/lib
-		then
-			LIBDIR=
-		else
-			LIBDIR=-L$libdir
-		fi
-		if test @TINFO_NAME@ = @LIB_NAME@ ; then
-		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
-			$LIBDIR @EXTRA_LDFLAGS@ -l${THIS} @LIBS@
-ENDECHO
-		else
-		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
-			$LIBDIR @EXTRA_LDFLAGS@ -l${THIS} -l${TINFO_LIB} @LIBS@
-ENDECHO
-		fi
+		OPTS=
+		for opt in $lib_flags
+		do
+			[ -n "$OPTS" ] && OPTS="$OPTS "
+			OPTS="${OPTS}${opt}"
+		done
+		printf "%s\n" "$OPTS"
+		;;
+	--libs-only-L)
+		OPTS=
+		for opt in $lib_flags
+		do
+			case "x$opt" in
+			x-L*)
+				[ -n "$OPTS" ] && OPTS="$OPTS "
+				OPTS="${OPTS}${opt}"
+				;;
+			esac
+		done
+		printf "%s\n" "$OPTS"
+		;;
+	--libs-only-l)
+		OPTS=
+		for opt in $lib_flags
+		do
+			case "x$opt" in
+			x-l*)
+				[ -n "$OPTS" ] && OPTS="$OPTS "
+				OPTS="${OPTS}${opt}"
+				;;
+			esac
+		done
+		printf "%s\n" "$OPTS"
+		;;
+	--libs-only-other)
+		OPTS=
+		for opt in $lib_flags
+		do
+			case "x$opt" in
+			x-[lL]*)
+				;;
+			*)
+				[ -n "$OPTS" ] && OPTS="$OPTS "
+				OPTS="${OPTS}${opt}"
+				;;
+			esac
+		done
+		printf "%s\n" "$OPTS"
 		;;
 	# identification
 	--version)
@@ -143,7 +225,13 @@ ENDECHO
 		echo "${datadir}"
 		;;
 	--includedir)
-		echo "${includedir}"
+		INCS=
+		if [ "x@WITH_OVERWRITE@" = xno ]; then
+			INCS="${includesubdir}"
+		elif [ "${includedir}" != /usr/include ]; then
+			INCS="${includedir}"
+		fi
+		echo $INCS
 		;;
 	--libdir)
 		echo "${libdir}"
@@ -163,7 +251,7 @@ ENDECHO
 	# general info
 	--help)
 		cat <<ENDHELP
-Usage: ${THIS}-config [options]
+Usage: `basename $0` [options]
 
 Options:
   --prefix           echos the package-prefix of ${THIS}
@@ -171,6 +259,10 @@ Options:
 
   --cflags           echos the C compiler flags needed to compile with ${THIS}
   --libs             echos the libraries needed to link with ${THIS}
+
+  --libs-only-L      echos -L linker options (search path) for ${THIS}
+  --libs-only-l      echos -l linker options (libraries) for ${THIS}
+  --libs-only-other  echos linker options other than -L/-l
 
   --version          echos the release+patchdate version of ${THIS}
   --abi-version      echos the ABI version of ${THIS}

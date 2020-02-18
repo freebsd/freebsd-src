@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2011 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2011-2017,2018 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,10 +30,12 @@
  *  Author: Thomas E. Dickey                        2011                    *
  ****************************************************************************/
 
-/* $Id: nc_termios.h,v 1.2 2011/06/25 20:44:05 tom Exp $ */
+/* $Id: nc_termios.h,v 1.6 2018/06/24 00:06:37 tom Exp $ */
 
 #ifndef NC_TERMIOS_included
 #define NC_TERMIOS_included 1
+
+#include <ncurses_cfg.h>
 
 #if HAVE_TERMIOS_H && HAVE_TCGETATTR
 
@@ -69,101 +71,91 @@
 
 #else /* !HAVE_TERMIO_H */
 
-#if __MINGW32__
+#if _WIN32
 
-/* c_cc chars */
-#define VINTR     0
-#define VQUIT     1
-#define VERASE    2
-#define VKILL     3
-#define VEOF      4
-#define VTIME     5
-#define VMIN      6
+/* lflag bits */
+#define ISIG	0x0001
+#define ICANON	0x0002
+#define ECHO	0x0004
+#define ECHOE	0x0008
+#define ECHOK	0x0010
+#define ECHONL	0x0020
+#define NOFLSH	0x0040
+#define IEXTEN	0x0100
 
-/* c_iflag bits */
-#define ISTRIP	0000040
-#define INLCR	0000100
-#define IGNCR	0000200
-#define ICRNL	0000400
-#define BRKINT	0000002
-#define PARMRK	0000010
-#define IXON	0002000
-#define IGNBRK	0000001
-#define IGNPAR	0000004
-#define INPCK	0000020
-#define IXOFF	0010000
+#define VEOF	     4
+#define VERASE	     5
+#define VINTR	     6
+#define VKILL	     7
+#define VMIN	     9
+#define VQUIT	    10
+#define VTIME	    16
 
-/* c_oflag bits */
-#define OPOST	0000001
+/* iflag bits */
+#define IGNBRK	0x00001
+#define BRKINT	0x00002
+#define IGNPAR	0x00004
+#define INPCK	0x00010
+#define ISTRIP	0x00020
+#define INLCR	0x00040
+#define IGNCR	0x00080
+#define ICRNL	0x00100
+#define IXON	0x00400
+#define IXOFF	0x01000
+#define PARMRK	0x10000
 
-/* c_cflag bit meaning */
-#define CBAUD	   0010017
-#define CSIZE	   0000060
-#define CS8	   0000060
-#define B0	   0000000
-#define B50	   0000001
-#define B75	   0000002
-#define B110	   0000003
-#define B134	   0000004
-#define B150	   0000005
-#define B200	   0000006
-#define B300	   0000007
-#define B600	   0000010
-#define B1200	   0000011
-#define B1800	   0000012
-#define B2400	   0000013
-#define B4800	   0000014
-#define B9600	   0000015
-#define CLOCAL	   0004000
-#define CREAD	   0000200
-#define CSTOPB	   0000100
-#define HUPCL	   0002000
-#define PARENB	   0000400
-#define PARODD	   0001000
+/* oflag bits */
+#define OPOST	0x00001
 
-/* c_lflag bits */
-#define ECHO	0000010
-#define ECHONL	0000100
-#define ISIG	0000001
-#define IEXTEN	0100000
-#define ICANON	0000002
-#define NOFLSH	0000200
-#define ECHOE	0000020
-#define ECHOK	0000040
+/* cflag bits */
+#define CBAUD	 0x0100f
+#define B0	 0x00000
+#define B50	 0x00001
+#define B75	 0x00002
+#define B110	 0x00003
+#define B134	 0x00004
+#define B150	 0x00005
+#define B200	 0x00006
+#define B300	 0x00007
+#define B600	 0x00008
+#define B1200	 0x00009
+#define B1800	 0x0000a
+#define B2400	 0x0000b
+#define B4800	 0x0000c
+#define B9600	 0x0000d
 
-/* tcflush() */
-#define	TCIFLUSH	0
+#define CSIZE	 0x00030
+#define CS8	 0x00030
+#define CSTOPB	 0x00040
+#define CREAD	 0x00080
+#define PARENB	 0x00100
+#define PARODD	 0x00200
+#define HUPCL	 0x00400
+#define CLOCAL	 0x00800
 
-/* tcsetattr uses these */
-#define	TCSADRAIN	1
-
-/* ioctls */
-#define TCGETA		0x5405
-#define TCFLSH		0x540B
-#define TIOCGWINSZ	0x5413
+#define TCIFLUSH	0
+#define TCSADRAIN	3
 
 #ifndef cfgetospeed
 #define cfgetospeed(t) ((t)->c_cflag & CBAUD)
 #endif
 
 #ifndef tcsetattr
-#define tcsetattr(fd, cmd, arg) _nc_mingw_ioctl(fd, cmd, arg)
+#define tcsetattr(fd, opt, arg) _nc_mingw_tcsetattr(fd, opt, arg)
 #endif
 
 #ifndef tcgetattr
-#define tcgetattr(fd, arg) _nc_mingw_ioctl(fd, TCGETA, arg)
+#define tcgetattr(fd, arg) _nc_mingw_tcgetattr(fd, arg)
 #endif
 
 #ifndef tcflush
-#define tcflush(fd, arg) _nc_mingw_ioctl(fd, TCFLSH, arg)
+#define tcflush(fd, queue) _nc_mingw_tcflush(fd, queue)
 #endif
 
 #undef  ttyname
 #define ttyname(fd) NULL
 
-#else
-
-#endif /* __MINGW32__ */
+#endif /* _WIN32 */
 #endif /* HAVE_TERMIO_H */
 
 #endif /* HAVE_TERMIOS_H */

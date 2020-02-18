@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2012 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2016 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 /*
  * Common macros for lib_getch.c, lib_ungetch.c
  *
- * $Id: fifo_defs.h,v 1.7 2012/08/04 15:59:17 tom Exp $
+ * $Id: fifo_defs.h,v 1.8 2016/09/10 21:59:25 tom Exp $
  */
 
 #ifndef FIFO_DEFS_H
@@ -81,7 +81,5 @@
 
 #define cooked_key_in_fifo()	((head >= 0) && (peek != head))
 #define raw_key_in_fifo()	((head >= 0) && (peek != tail))
-
-#undef HIDE_EINTR
 
 #endif /* FIFO_DEFS_H */
