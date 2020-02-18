@@ -373,6 +373,8 @@ hme_config(struct hme_softc *sc)
 	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
 	ifp->if_hwassist |= sc->sc_csum_features;
 	ifp->if_capenable |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
+
+	gone_in_dev(sc->sc_dev, 13, "10/100 NIC almost exclusively for sparc64");
 	return (0);
 
 fail_txdesc:
