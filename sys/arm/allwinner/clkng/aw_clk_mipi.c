@@ -129,9 +129,9 @@ aw_clk_mipi_find_best(struct aw_clk_mipi_sc *sc, uint64_t fparent, uint64_t *fou
 	*factor_k = 0;
 	*factor_m = 0;
 
-	for (n = aw_clk_factor_get_min(&sc->n); n <= aw_clk_factor_get_max(&sc->n); ) {
-		for (k = aw_clk_factor_get_min(&sc->k); k <= aw_clk_factor_get_max(&sc->k); ) {
-			for (m = aw_clk_factor_get_min(&sc->m); m <= aw_clk_factor_get_max(&sc->m); ) {
+	for (n = aw_clk_factor_get_min(&sc->n); n <= aw_clk_factor_get_max(&sc->n); n++) {
+		for (k = aw_clk_factor_get_min(&sc->k); k <= aw_clk_factor_get_max(&sc->k); k++) {
+			for (m = aw_clk_factor_get_min(&sc->m); m <= aw_clk_factor_get_max(&sc->m); m++) {
 				cur = (fparent * n * k) / m;
 				if ((*fout - cur) < (*fout - best)) {
 					best = cur;
@@ -141,11 +141,8 @@ aw_clk_mipi_find_best(struct aw_clk_mipi_sc *sc, uint64_t fparent, uint64_t *fou
 				}
 				if (best == *fout)
 					return (best);
-					m++;
 			}
-				k++;
 		}
-			n++;
 	}
 
 	return best;
