@@ -38,6 +38,9 @@ CWARNEXTRA+=	-Wno-error-shift-negative-value
 .if ${COMPILER_VERSION} >= 40000
 CWARNEXTRA+=	-Wno-address-of-packed-member
 .endif
+.if ${COMPILER_VERSION} >= 100000
+NO_WMISLEADING_INDENTATION=	-Wno-misleading-indentation
+.endif
 
 CLANG_NO_IAS= -no-integrated-as
 .if ${COMPILER_VERSION} < 30500
