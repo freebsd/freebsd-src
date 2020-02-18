@@ -181,7 +181,9 @@ static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
     do {\
 	if (m) {\
 		if (!hdrsplit) \
-			panic("assumption failed: hdr not split"); \
+			panic("%s:%d: assumption failed: "\
+			    "hdr not split: hdrsplit %d exthdrs %p",\
+			    __func__, __LINE__, hdrsplit, &exthdrs);\
 		*mtod((m), u_char *) = *(p);\
 		*(p) = (i);\
 		p = mtod((m), u_char *);\
@@ -356,8 +358,9 @@ done:
 }
 
 /*
- * IP6 output. The packet in mbuf chain m contains a skeletal IP6
- * header (with pri, len, nxt, hlim, src, dst).
+ * IP6 output.
+ * The packet in mbuf chain m contains a skeletal IP6 header (with pri, len,
+ * nxt, hlim, src, dst).
  * This function may modify ver and hlim only.
  * The mbuf chain containing the packet will be freed.
  * The mbuf opt, if present, will not be freed.
@@ -365,9 +368,8 @@ done:
  * skipped and ro->ro_rt would be used. If ro is present but ro->ro_rt is NULL,
  * then result of route lookup is stored in ro->ro_rt.
  *
- * type of "mtu": rt_mtu is u_long, ifnet.ifr_mtu is int, and
- * nd_ifinfo.linkmtu is u_int32_t.  so we use u_long to hold largest one,
- * which is rt_mtu.
+ * Type of "mtu": rt_mtu is u_long, ifnet.ifr_mtu is int, and nd_ifinfo.linkmtu
+ * is uint32_t.  So we use u_long to hold largest one, which is rt_mtu.
  *
  * ifpp - XXX: just for statistics
  */
@@ -410,7 +412,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		INP_LOCK_ASSERT(inp);
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		if ((flags & IP_NODEFAULTFLOWID) == 0) {
-			/* unconditionally set flowid */
+			/* Unconditionally set flowid. */
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			M_HASHTYPE_SET(m, inp->inp_flowtype);
 		}
@@ -436,12 +438,12 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 
 	bzero(&exthdrs, sizeof(exthdrs));
 	if (opt) {
-		/* Hop-by-Hop options header */
+		/* Hop-by-Hop options header. */
 		MAKE_EXTHDR(opt->ip6po_hbh, &exthdrs.ip6e_hbh);
-		/* Destination options header(1st part) */
+		/* Destination options header (1st part). */
 		if (opt->ip6po_rthdr) {
 			/*
-			 * Destination options header(1st part)
+			 * Destination options header (1st part).
 			 * This only makes sense with a routing header.
 			 * See Section 9.2 of RFC 3542.
 			 * Disabling this part just for MIP6 convenience is
@@ -452,9 +454,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 			 */
 			MAKE_EXTHDR(opt->ip6po_dest1, &exthdrs.ip6e_dest1);
 		}
-		/* Routing header */
+		/* Routing header. */
 		MAKE_EXTHDR(opt->ip6po_rthdr, &exthdrs.ip6e_rthdr);
-		/* Destination options header(2nd part) */
+		/* Destination options header (2nd part). */
 		MAKE_EXTHDR(opt->ip6po_dest2, &exthdrs.ip6e_dest2);
 	}
 
@@ -471,7 +473,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		optlen += exthdrs.ip6e_rthdr->m_len;
 	unfragpartlen = optlen + sizeof(struct ip6_hdr);
 
-	/* NOTE: we don't add AH/ESP length here (done in ip6_ipsec_output) */
+	/* NOTE: we don't add AH/ESP length here (done in ip6_ipsec_output). */
 	if (exthdrs.ip6e_dest2)
 		optlen += exthdrs.ip6e_dest2->m_len;
 
@@ -490,7 +492,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	/* adjust mbuf packet header length */
+	/* Adjust mbuf packet header length. */
 	m->m_pkthdr.len += optlen;
 	plen = m->m_pkthdr.len - sizeof(*ip6);
 
@@ -504,7 +506,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 			m = exthdrs.ip6e_ip6;
 			hdrsplit++;
 		}
-		/* adjust pointer */
+		/* Adjust pointer. */
 		ip6 = mtod(m, struct ip6_hdr *);
 		if ((error = ip6_insert_jumboopt(&exthdrs, plen)) != 0)
 			goto freehdrs;
@@ -516,26 +518,29 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	 * Concatenate headers and fill in next header fields.
 	 * Here we have, on "m"
 	 *	IPv6 payload
-	 * and we insert headers accordingly.  Finally, we should be getting:
-	 *	IPv6 hbh dest1 rthdr ah* [esp* dest2 payload]
+	 * and we insert headers accordingly.
+	 * Finally, we should be getting:
+	 *	IPv6 hbh dest1 rthdr ah* [esp* dest2 payload].
 	 *
-	 * during the header composing process, "m" points to IPv6 header.
-	 * "mprev" points to an extension header prior to esp.
+	 * During the header composing process "m" points to IPv6
+	 * header.  "mprev" points to an extension header prior to esp.
 	 */
 	u_char *nexthdrp = &ip6->ip6_nxt;
 	mprev = m;
 
 	/*
-	 * we treat dest2 specially.  this makes IPsec processing
-	 * much easier.  the goal here is to make mprev point the
+	 * We treat dest2 specially.  This makes IPsec processing
+	 * much easier.  The goal here is to make mprev point the
 	 * mbuf prior to dest2.
 	 *
-	 * result: IPv6 dest2 payload
+	 * Result: IPv6 dest2 payload.
 	 * m and mprev will point to IPv6 header.
 	 */
 	if (exthdrs.ip6e_dest2) {
 		if (!hdrsplit)
-			panic("assumption failed: hdr not split");
+			panic("%s:%d: assumption failed: "
+			    "hdr not split: hdrsplit %d exthdrs %p",
+			    __func__, __LINE__, hdrsplit, &exthdrs);
 		exthdrs.ip6e_dest2->m_next = m->m_next;
 		m->m_next = exthdrs.ip6e_dest2;
 		*mtod(exthdrs.ip6e_dest2, u_char *) = ip6->ip6_nxt;
@@ -543,7 +548,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	}
 
 	/*
-	 * result: IPv6 hbh dest1 rthdr dest2 payload
+	 * Result: IPv6 hbh dest1 rthdr dest2 payload.
 	 * m will point to IPv6 header.  mprev will point to the
 	 * extension header prior to dest2 (rthdr in the above case).
 	 */
@@ -553,15 +558,13 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	MAKE_CHAIN(exthdrs.ip6e_rthdr, mprev, nexthdrp,
 		   IPPROTO_ROUTING);
 
-	/*
-	 * If there is a routing header, discard the packet.
-	 */
+	/* If there is a routing header, discard the packet. */
 	if (exthdrs.ip6e_rthdr) {
 		 error = EINVAL;
 		 goto bad;
 	}
 
-	/* Source address validation */
+	/* Source address validation. */
 	if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src) &&
 	    (flags & IPV6_UNSPECSRC) == 0) {
 		error = EOPNOTSUPP;
@@ -576,9 +579,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 
 	IP6STAT_INC(ip6s_localout);
 
-	/*
-	 * Route packet.
-	 */
+	/* Route packet. */
 	if (ro == NULL) {
 		ro = &ip6route;
 		bzero((caddr_t)ro, sizeof(*ro));
@@ -590,9 +591,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
 again:
 	/*
-	 * if specified, try to fill in the traffic class field.
-	 * do not override if a non-zero value is already set.
-	 * we check the diffserv field and the ecn field separately.
+	 * If specified, try to fill in the traffic class field.
+	 * Do not override if a non-zero value is already set.
+	 * We check the diffserv field and the ECN field separately.
 	 */
 	if (opt && opt->ip6po_tclass >= 0) {
 		int mask = 0;
@@ -605,7 +606,7 @@ again:
 			ip6->ip6_flow |= htonl((opt->ip6po_tclass & mask) << 20);
 	}
 
-	/* fill in or override the hop limit field, if necessary. */
+	/* Fill in or override the hop limit field, if necessary. */
 	if (opt && opt->ip6po_hlim != -1)
 		ip6->ip6_hlim = opt->ip6po_hlim & 0xff;
 	else if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
@@ -617,7 +618,7 @@ again:
 	/*
 	 * Validate route against routing table additions;
 	 * a better/more specific route might have been added.
-	 * Make sure address family is set in route.
+	 * Make sure that the address family is set in route.
 	 */
 	if (inp) {
 		ro->ro_dst.sin6_family = AF_INET6;
@@ -648,15 +649,13 @@ again:
 	}
 	if (rt == NULL) {
 		/*
-		 * If in6_selectroute() does not return a route entry,
+		 * If in6_selectroute() does not return a route entry
 		 * dst may not have been updated.
 		 */
 		*dst = dst_sa;	/* XXX */
 	}
 
-	/*
-	 * then rt (for unicast) and ifp must be non-NULL valid values.
-	 */
+	/* Then rt (for unicast) and ifp must be non-NULL valid values. */
 	if ((flags & IPV6_FORWARDING) == 0) {
 		/* XXX: the FORWARDING flag can be set for mrouting. */
 		in6_ifstat_inc(ifp, ifs6_out_request);
@@ -674,7 +673,7 @@ again:
 	src_sa.sin6_addr = ip6->ip6_src;
 
 	dst0 = ip6->ip6_dst;
-	/* re-initialize to be sure */
+	/* Re-initialize to be sure. */
 	bzero(&dst_sa, sizeof(dst_sa));
 	dst_sa.sin6_family = AF_INET6;
 	dst_sa.sin6_len = sizeof(dst_sa);
@@ -691,7 +690,7 @@ again:
 		 *
 		 * Because the loopback interface cannot receive
 		 * packets with a different scope ID than its own,
-		 * there is a trick is to pretend the outgoing packet
+		 * there is a trick to pretend the outgoing packet
 		 * was received by the real network interface, by
 		 * setting "origifp" different from "ifp". This is
 		 * only allowed when "ifp" is a loopback network
@@ -729,7 +728,6 @@ again:
 			error = EHOSTUNREACH; /* XXX */
 		goto bad;
 	}
-
 	/* All scope ID checks are successful. */
 
 	if (rt && !IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
@@ -746,13 +744,12 @@ again:
 	}
 
 	if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		m->m_flags &= ~(M_BCAST | M_MCAST); /* just in case */
+		m->m_flags &= ~(M_BCAST | M_MCAST); /* Just in case. */
 	} else {
 		m->m_flags = (m->m_flags & ~M_BCAST) | M_MCAST;
 		in6_ifstat_inc(ifp, ifs6_out_mcast);
-		/*
-		 * Confirm that the outgoing interface supports multicast.
-		 */
+
+		/* Confirm that the outgoing interface supports multicast. */
 		if (!(ifp->if_flags & IFF_MULTICAST)) {
 			IP6STAT_INC(ip6s_noroute);
 			in6_ifstat_inc(ifp, ifs6_out_discard);
@@ -847,8 +844,8 @@ again:
 	}
 
 	/*
-	 * clear embedded scope identifiers if necessary.
-	 * in6_clearscope will touch the addresses only when necessary.
+	 * Clear embedded scope identifiers if necessary.
+	 * in6_clearscope() will touch the addresses only when necessary.
 	 */
 	in6_clearscope(&ip6->ip6_src);
 	in6_clearscope(&ip6->ip6_dst);
@@ -878,7 +875,7 @@ again:
 		if (ip6_process_hopopts(m, (u_int8_t *)(hbh + 1),
 		    ((hbh->ip6h_len + 1) << 3) - sizeof(struct ip6_hbh),
 		    &dummy, &plen) < 0) {
-			/* m was already freed at this point */
+			/* m was already freed at this point. */
 			error = EINVAL;/* better error? */
 			goto done;
 		}
@@ -970,7 +967,7 @@ passout:
 	 * Send the packet to the outgoing interface.
 	 * If necessary, do IPv6 fragmentation before sending.
 	 *
-	 * the logic here is rather complex:
+	 * The logic here is rather complex:
 	 * 1: normal case (dontfrag == 0, alwaysfrag == 0)
 	 * 1-a:	send as is if tlen <= path mtu
 	 * 1-b:	fragment if tlen > path mtu
@@ -983,7 +980,7 @@ passout:
 	 *	always fragment
 	 *
 	 * 4: if dontfrag == 1 && alwaysfrag == 1
-	 *	error, as we cannot handle this conflicting request
+	 *	error, as we cannot handle this conflicting request.
 	 */
 	sw_csum = m->m_pkthdr.csum_flags;
 	if (!hdrsplit) {
@@ -1033,12 +1030,12 @@ passout:
 		dontfrag = 1;
 	else
 		dontfrag = 0;
-	if (dontfrag && alwaysfrag) {	/* case 4 */
-		/* conflicting request - can't transmit */
+	if (dontfrag && alwaysfrag) {	/* Case 4. */
+		/* Conflicting request - can't transmit. */
 		error = EMSGSIZE;
 		goto bad;
 	}
-	if (dontfrag && tlen > IN6_LINKMTU(ifp) && !tso) {	/* case 2-b */
+	if (dontfrag && tlen > IN6_LINKMTU(ifp) && !tso) {	/* Case 2-b. */
 		/*
 		 * Even if the DONTFRAG option is specified, we cannot send the
 		 * packet when the data length is larger than the MTU of the
@@ -1053,10 +1050,8 @@ passout:
 		goto bad;
 	}
 
-	/*
-	 * transmit packet without fragmentation
-	 */
-	if (dontfrag || (!alwaysfrag && tlen <= mtu)) {	/* case 1-a and 2-a */
+	/* Transmit packet without fragmentation. */
+	if (dontfrag || (!alwaysfrag && tlen <= mtu)) {	/* Cases 1-a and 2-a. */
 		struct in6_ifaddr *ia6;
 
 		ip6 = mtod(m, struct ip6_hdr *);
@@ -1072,16 +1067,14 @@ passout:
 		goto done;
 	}
 
-	/*
-	 * try to fragment the packet.  case 1-b and 3
-	 */
+	/* Try to fragment the packet.  Cases 1-b and 3. */
 	if (mtu < IPV6_MMTU) {
-		/* path MTU cannot be less than IPV6_MMTU */
+		/* Path MTU cannot be less than IPV6_MMTU. */
 		error = EMSGSIZE;
 		in6_ifstat_inc(ifp, ifs6_out_fragfail);
 		goto bad;
 	} else if (ip6->ip6_plen == 0) {
-		/* jumbo payload cannot be fragmented */
+		/* Jumbo payload cannot be fragmented. */
 		error = EMSGSIZE;
 		in6_ifstat_inc(ifp, ifs6_out_fragfail);
 		goto bad;
@@ -1162,9 +1155,7 @@ passout:
 		in6_ifstat_inc(ifp, ifs6_out_fragok);
 	}
 
-	/*
-	 * Remove leading garbages.
-	 */
+	/* Remove leading garbage. */
 sendorfree:
 	m = m0->m_nextpkt;
 	m0->m_nextpkt = 0;
@@ -1193,7 +1184,7 @@ done:
 	return (error);
 
 freehdrs:
-	m_freem(exthdrs.ip6e_hbh);	/* m_freem will check if mbuf is 0 */
+	m_freem(exthdrs.ip6e_hbh);	/* m_freem() checks if mbuf is NULL. */
 	m_freem(exthdrs.ip6e_dest1);
 	m_freem(exthdrs.ip6e_rthdr);
 	m_freem(exthdrs.ip6e_dest2);
