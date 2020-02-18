@@ -197,10 +197,11 @@ dev/bxe/57712_init_values.c     optional bxe pci
 dev/ce/ceddk.c			optional ce
 dev/ce/if_ce.c			optional ce
 dev/ce/tau32-ddk.c		optional ce \
-	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
+	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION} ${NO_WMISLEADING_INDENTATION}"
 dev/cm/if_cm_isa.c		optional cm isa
 dev/coretemp/coretemp.c		optional coretemp
-dev/cp/cpddk.c			optional cp
+dev/cp/cpddk.c			optional cp \
+	compile-with "${NORMAL_C} ${NO_WMISLEADING_INDENTATION}"
 dev/cp/if_cp.c			optional cp
 dev/cpuctl/cpuctl.c		optional cpuctl
 dev/ctau/ctau.c			optional ctau

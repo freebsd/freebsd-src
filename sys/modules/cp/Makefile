@@ -26,3 +26,5 @@ opt_ng_cronyx.h:
 .endif
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.cpddk.c+=	${NO_WMISLEADING_INDENTATION}
