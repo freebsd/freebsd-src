@@ -235,7 +235,7 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 		       	return -1;
 		
         	if(!mIsArray(pArray))
-			return -1;
+				return -1;
 
 			_vbus_p=pArray->pVBus;
 			pAdapter = (IAL_ADAPTER_T *)_vbus_p->OsExt;
