@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2020
+.Dd January 30, 2020
 .Dt LOGIN.ACCESS 5
 .Os
 .Sh NAME
@@ -34,6 +34,13 @@ character.
 .Pp
 The second field should be a list of one or more login names,
 group names, or ALL (always matches).
+Group names must be enclosed in
+parentheses if the pam module specification for
+.Pa pam_login_access
+specifies the
+.Pa nodefgroup
+option.
+Otherwise, group names will only match if no usernames match.
 .Pp
 The third field should be a list
 of one or more tty names (for non-networked logins), host names, domain
