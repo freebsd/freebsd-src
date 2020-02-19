@@ -25,12 +25,12 @@
  * $FreeBSD$
  */
 
+#ifndef FILTER_FORK_H
+#define FILTER_FORK_H
+
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-
-#ifndef FILTER_FORK_H
-#define FILTER_FORK_H
 
 pid_t
 __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout);

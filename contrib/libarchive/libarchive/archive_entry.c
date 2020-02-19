@@ -1699,7 +1699,7 @@ static const struct flag {
 	const wchar_t	*wname;
 	unsigned long	 set;
 	unsigned long	 clear;
-} flags[] = {
+} fileflags[] = {
 	/* Preferred (shorter) names per flag first, all prefixed by "no" */
 #ifdef SF_APPEND
 	{ "nosappnd",	L"nosappnd",		SF_APPEND,	0},
@@ -1876,7 +1876,7 @@ ae_fflagstostr(unsigned long bitset, unsigned long bitclear)
 
 	bits = bitset | bitclear;
 	length = 0;
-	for (flag = flags; flag->name != NULL; flag++)
+	for (flag = fileflags; flag->name != NULL; flag++)
 		if (bits & (flag->set | flag->clear)) {
 			length += strlen(flag->name) + 1;
 			bits &= ~(flag->set | flag->clear);
@@ -1889,7 +1889,7 @@ ae_fflagstostr(unsigned long bitset, unsigned long bitclear)
 		return (NULL);
 
 	dp = string;
-	for (flag = flags; flag->name != NULL; flag++) {
+	for (flag = fileflags; flag->name != NULL; flag++) {
 		if (bitset & flag->set || bitclear & flag->clear) {
 			sp = flag->name + 2;
 		} else if (bitset & flag->clear  ||  bitclear & flag->set) {
@@ -1941,7 +1941,7 @@ ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
 		    *end != ' '  &&  *end != ',')
 			end++;
 		length = end - start;
-		for (flag = flags; flag->name != NULL; flag++) {
+		for (flag = fileflags; flag->name != NULL; flag++) {
 			size_t flag_length = strlen(flag->name);
 			if (length == flag_length
 			    && memcmp(start, flag->name, length) == 0) {
@@ -2009,7 +2009,7 @@ ae_wcstofflags(const wchar_t *s, unsigned long *setp, unsigned long *clrp)
 		    *end != L' '  &&  *end != L',')
 			end++;
 		length = end - start;
-		for (flag = flags; flag->wname != NULL; flag++) {
+		for (flag = fileflags; flag->wname != NULL; flag++) {
 			size_t flag_length = wcslen(flag->wname);
 			if (length == flag_length
 			    && wmemcmp(start, flag->wname, length) == 0) {

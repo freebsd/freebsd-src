@@ -228,11 +228,6 @@ static int
 archive_write_lzop_open(struct archive_write_filter *f)
 {
 	struct write_lzop *data = (struct write_lzop *)f->data;
-	int ret;
-
-	ret = __archive_write_open_filter(f->next_filter);
-	if (ret != ARCHIVE_OK)
-		return (ret);
 
 	switch (data->compression_level) {
 	case 1:
@@ -439,10 +434,7 @@ archive_write_lzop_close(struct archive_write_filter *f)
 	}
 	/* Write a zero uncompressed size as the end mark of the series of
 	 * compressed block. */
-	r = __archive_write_filter(f->next_filter, &endmark, sizeof(endmark));
-	if (r != ARCHIVE_OK)
-		return (r);
-	return (__archive_write_close_filter(f->next_filter));
+	return __archive_write_filter(f->next_filter, &endmark, sizeof(endmark));
 }
 
 #else

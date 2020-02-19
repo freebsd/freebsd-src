@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
+#include "archive_write_set_format_private.h"
 
 static ssize_t	archive_write_newc_data(struct archive_write *,
 		    const void *buff, size_t s);

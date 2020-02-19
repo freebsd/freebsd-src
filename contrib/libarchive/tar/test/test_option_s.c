@@ -92,10 +92,8 @@ DEFINE_TEST(test_option_s)
 	 * Test 5: Name-switching substitutions when extracting archive.
 	 */
 	assertMakeDir("test5", 0755);
-	systemf("%s -cf test5.tar in/d1/foo in/d1/bar",
-	    testprog, testprog);
-	systemf("%s -xf test5.tar -s /foo/bar/ -s }bar}foo} -C test5",
-	    testprog, testprog);
+	systemf("%s -cf test5.tar in/d1/foo in/d1/bar", testprog);
+	systemf("%s -xf test5.tar -s /foo/bar/ -s }bar}foo} -C test5", testprog);
 	assertFileContents("foo", 3, "test5/in/d1/bar");
 	assertFileContents("bar", 3, "test5/in/d1/foo");
 
