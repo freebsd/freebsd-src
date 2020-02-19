@@ -185,7 +185,7 @@ vm_pager_bufferinit(void)
 	/* Main zone for paging bufs. */
 	pbuf_zone = uma_zcreate("pbuf", sizeof(struct buf),
 	    pbuf_ctor, pbuf_dtor, pbuf_init, NULL, UMA_ALIGN_CACHE,
-	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
+	    UMA_ZONE_NOFREE);
 	/* Few systems may still use this zone directly, so it needs a limit. */
 	nswbuf_max += uma_zone_set_max(pbuf_zone, NSWBUF_MIN);
 }
