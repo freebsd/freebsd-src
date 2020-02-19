@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 
 static void
 test_format_filter_by_ext(const char *output_file, 
-    int format_id, int filter_id, int dot_stored, char * def_ext)
+    int format_id, int filter_id, int dot_stored, const char * def_ext)
 {
 	struct archive_entry *ae;
 	struct archive *a;

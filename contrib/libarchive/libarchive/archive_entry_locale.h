@@ -25,12 +25,12 @@
  * $FreeBSD$
  */
 
+#ifndef ARCHIVE_ENTRY_LOCALE_H_INCLUDED
+#define ARCHIVE_ENTRY_LOCALE_H_INCLUDED
+
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-
-#ifndef ARCHIVE_ENTRY_LOCALE_H_INCLUDED
-#define	ARCHIVE_ENTRY_LOCALE_H_INCLUDED
 
 struct archive_entry;
 struct archive_string_conv;

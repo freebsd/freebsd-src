@@ -694,6 +694,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	struct tree *t = a->tree;
 	int r;
 	ssize_t bytes;
+	int64_t sparse_bytes;
 	size_t buffbytes;
 	int empty_sparse_region = 0;
 
@@ -728,27 +729,23 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		if ((t->flags & needsRestoreTimes) != 0 &&
 		    t->restore_time.noatime == 0)
 			flags |= O_NOATIME;
-		do {
 #endif
-			t->entry_fd = open_on_current_dir(t,
-			    tree_current_access_path(t), flags);
-			__archive_ensure_cloexec_flag(t->entry_fd);
+		t->entry_fd = open_on_current_dir(t,
+		    tree_current_access_path(t), flags);
+		__archive_ensure_cloexec_flag(t->entry_fd);
 #if defined(O_NOATIME)
-			/*
-			 * When we did open the file with O_NOATIME flag,
-			 * if successful, set 1 to t->restore_time.noatime
-			 * not to restore an atime of the file later.
-			 * if failed by EPERM, retry it without O_NOATIME flag.
-			 */
-			if (flags & O_NOATIME) {
-				if (t->entry_fd >= 0)
-					t->restore_time.noatime = 1;
-				else if (errno == EPERM) {
-					flags &= ~O_NOATIME;
-					continue;
-				}
-			}
-		} while (0);
+		/*
+		 * When we did open the file with O_NOATIME flag,
+		 * if successful, set 1 to t->restore_time.noatime
+		 * not to restore an atime of the file later.
+		 * if failed by EPERM, retry it without O_NOATIME flag.
+		 */
+		if (flags & O_NOATIME) {
+			if (t->entry_fd >= 0)
+				t->restore_time.noatime = 1;
+			else if (errno == EPERM)
+				flags &= ~O_NOATIME;
+		}
 #endif
 		if (t->entry_fd < 0) {
 			archive_set_error(&a->archive, errno,
@@ -792,9 +789,9 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 			a->archive.state = ARCHIVE_STATE_FATAL;
 			goto abort_read_data;
 		}
-		bytes = t->current_sparse->offset - t->entry_total;
-		t->entry_remaining_bytes -= bytes;
-		t->entry_total += bytes;
+		sparse_bytes = t->current_sparse->offset - t->entry_total;
+		t->entry_remaining_bytes -= sparse_bytes;
+		t->entry_total += sparse_bytes;
 	}
 
 	/*
@@ -1109,8 +1106,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 			    "%s", delayed_str.s);
 		}
 	}
-	if (!archive_string_empty(&delayed_str))
-		archive_string_free(&delayed_str);
+	archive_string_free(&delayed_str);
 
 	return (r);
 }
@@ -2172,7 +2168,7 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 #elif defined(O_SEARCH)
 	/* SunOS */
 	const int o_flag = O_SEARCH;
-#elif defined(O_EXEC)
+#elif defined(__FreeBSD__) && defined(O_EXEC)
 	/* FreeBSD */
 	const int o_flag = O_EXEC;
 #endif
@@ -2198,7 +2194,8 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	t->stack->flags = needsFirstVisit;
 	t->maxOpenCount = t->openCount = 1;
 	t->initial_dir_fd = open(".", O_RDONLY | O_CLOEXEC);
-#if defined(O_PATH) || defined(O_SEARCH) || defined(O_EXEC)
+#if defined(O_PATH) || defined(O_SEARCH) || \
+ (defined(__FreeBSD__) && defined(O_EXEC))
 	/*
 	 * Most likely reason to fail opening "." is that it's not readable,
 	 * so try again for execute. The consequences of not opening this are

@@ -1797,6 +1797,23 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 			    "lzma data error (error %d)", (int) lz_ret);
 			return (ARCHIVE_FATAL);
 
+		/* This case is optional in lzma alone format. It can happen,
+		 * but most of the files don't have it. (GitHub #1257) */
+		case LZMA_STREAM_END:
+			lzma_end(&zip->zipx_lzma_stream);
+			zip->zipx_lzma_valid = 0;
+			if((int64_t) zip->zipx_lzma_stream.total_in !=
+			    zip->entry_bytes_remaining)
+			{
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "lzma alone premature end of stream");
+				return (ARCHIVE_FATAL);
+			}
+
+			zip->end_of_entry = 1;
+			break;
+
 		case LZMA_OK:
 			break;
 

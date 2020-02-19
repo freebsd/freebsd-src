@@ -178,6 +178,40 @@ __archive_libsystem_md5final(archive_md5_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_MD5_MBEDTLS)
+
+static int
+__archive_mbedtls_md5init(archive_md5_ctx *ctx)
+{
+  mbedtls_md5_init(ctx);
+  if (mbedtls_md5_starts_ret(ctx) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_md5update(archive_md5_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  if (mbedtls_md5_update_ret(ctx, indata, insize) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_md5final(archive_md5_ctx *ctx, void *md)
+{
+  if (mbedtls_md5_finish_ret(ctx, md) == 0) {
+    mbedtls_md5_free(ctx);
+    return (ARCHIVE_OK);
+  } else {
+    mbedtls_md5_free(ctx);
+    return (ARCHIVE_FATAL);
+  }
+}
+
 #elif defined(ARCHIVE_CRYPTO_MD5_NETTLE)
 
 static int
@@ -335,6 +369,40 @@ __archive_libmd_ripemd160final(archive_rmd160_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_RMD160_MBEDTLS)
+
+static int
+__archive_mbedtls_ripemd160init(archive_rmd160_ctx *ctx)
+{
+  mbedtls_ripemd160_init(ctx);
+  if (mbedtls_ripemd160_starts_ret(ctx) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  if (mbedtls_ripemd160_update_ret(ctx, indata, insize) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_ripemd160final(archive_rmd160_ctx *ctx, void *md)
+{
+  if (mbedtls_ripemd160_finish_ret(ctx, md) == 0) {
+    mbedtls_ripemd160_free(ctx);
+    return (ARCHIVE_OK);
+  } else {
+    mbedtls_ripemd160_free(ctx);
+    return (ARCHIVE_FATAL);
+  }
+}
+
 #elif defined(ARCHIVE_CRYPTO_RMD160_NETTLE)
 
 static int
@@ -489,6 +557,40 @@ __archive_libsystem_sha1final(archive_sha1_ctx *ctx, void *md)
 {
   CC_SHA1_Final(md, ctx);
   return (ARCHIVE_OK);
+}
+
+#elif defined(ARCHIVE_CRYPTO_SHA1_MBEDTLS)
+
+static int
+__archive_mbedtls_sha1init(archive_sha1_ctx *ctx)
+{
+  mbedtls_sha1_init(ctx);
+  if (mbedtls_sha1_starts_ret(ctx) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_sha1update(archive_sha1_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  if (mbedtls_sha1_update_ret(ctx, indata, insize) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_sha1final(archive_sha1_ctx *ctx, void *md)
+{
+  if (mbedtls_sha1_finish_ret(ctx, md) == 0) {
+    mbedtls_sha1_free(ctx);
+    return (ARCHIVE_OK);
+  } else {
+    mbedtls_sha1_free(ctx);
+    return (ARCHIVE_FATAL);
+  }
 }
 
 #elif defined(ARCHIVE_CRYPTO_SHA1_NETTLE)
@@ -720,6 +822,40 @@ __archive_libsystem_sha256final(archive_sha256_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_SHA256_MBEDTLS)
+
+static int
+__archive_mbedtls_sha256init(archive_sha256_ctx *ctx)
+{
+  mbedtls_sha256_init(ctx);
+  if (mbedtls_sha256_starts_ret(ctx, 0) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_sha256update(archive_sha256_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  if (mbedtls_sha256_update_ret(ctx, indata, insize) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_sha256final(archive_sha256_ctx *ctx, void *md)
+{
+  if (mbedtls_sha256_finish_ret(ctx, md) == 0) {
+    mbedtls_sha256_free(ctx);
+    return (ARCHIVE_OK);
+  } else {
+    mbedtls_sha256_free(ctx);
+    return (ARCHIVE_FATAL);
+  }
+}
+
 #elif defined(ARCHIVE_CRYPTO_SHA256_NETTLE)
 
 static int
@@ -919,6 +1055,40 @@ __archive_libsystem_sha384final(archive_sha384_ctx *ctx, void *md)
 {
   CC_SHA384_Final(md, ctx);
   return (ARCHIVE_OK);
+}
+
+#elif defined(ARCHIVE_CRYPTO_SHA384_MBEDTLS)
+
+static int
+__archive_mbedtls_sha384init(archive_sha384_ctx *ctx)
+{
+  mbedtls_sha512_init(ctx);
+  if (mbedtls_sha512_starts_ret(ctx, 1) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_sha384update(archive_sha384_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  if (mbedtls_sha512_update_ret(ctx, indata, insize) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_sha384final(archive_sha384_ctx *ctx, void *md)
+{
+  if (mbedtls_sha512_finish_ret(ctx, md) == 0) {
+    mbedtls_sha512_free(ctx);
+    return (ARCHIVE_OK);
+  } else {
+    mbedtls_sha512_free(ctx);
+    return (ARCHIVE_FATAL);
+  }
 }
 
 #elif defined(ARCHIVE_CRYPTO_SHA384_NETTLE)
@@ -1146,6 +1316,40 @@ __archive_libsystem_sha512final(archive_sha512_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_SHA512_MBEDTLS)
+
+static int
+__archive_mbedtls_sha512init(archive_sha512_ctx *ctx)
+{
+  mbedtls_sha512_init(ctx);
+  if (mbedtls_sha512_starts_ret(ctx, 0) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_sha512update(archive_sha512_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  if (mbedtls_sha512_update_ret(ctx, indata, insize) == 0)
+    return (ARCHIVE_OK);
+  else
+    return (ARCHIVE_FATAL);
+}
+
+static int
+__archive_mbedtls_sha512final(archive_sha512_ctx *ctx, void *md)
+{
+  if (mbedtls_sha512_finish_ret(ctx, md) == 0) {
+    mbedtls_sha512_free(ctx);
+    return (ARCHIVE_OK);
+  } else {
+    mbedtls_sha512_free(ctx);
+    return (ARCHIVE_FATAL);
+  }
+}
+
 #elif defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
 
 static int
@@ -1276,6 +1480,10 @@ const struct archive_digest __archive_digest =
   &__archive_libsystem_md5init,
   &__archive_libsystem_md5update,
   &__archive_libsystem_md5final,
+#elif defined(ARCHIVE_CRYPTO_MD5_MBEDTLS)
+  &__archive_mbedtls_md5init,
+  &__archive_mbedtls_md5update,
+  &__archive_mbedtls_md5final,
 #elif defined(ARCHIVE_CRYPTO_MD5_NETTLE)
   &__archive_nettle_md5init,
   &__archive_nettle_md5update,
@@ -1303,6 +1511,10 @@ const struct archive_digest __archive_digest =
   &__archive_libmd_ripemd160init,
   &__archive_libmd_ripemd160update,
   &__archive_libmd_ripemd160final,
+#elif defined(ARCHIVE_CRYPTO_RMD160_MBEDTLS)
+  &__archive_mbedtls_ripemd160init,
+  &__archive_mbedtls_ripemd160update,
+  &__archive_mbedtls_ripemd160final,
 #elif defined(ARCHIVE_CRYPTO_RMD160_NETTLE)
   &__archive_nettle_ripemd160init,
   &__archive_nettle_ripemd160update,
@@ -1330,6 +1542,10 @@ const struct archive_digest __archive_digest =
   &__archive_libsystem_sha1init,
   &__archive_libsystem_sha1update,
   &__archive_libsystem_sha1final,
+#elif defined(ARCHIVE_CRYPTO_SHA1_MBEDTLS)
+  &__archive_mbedtls_sha1init,
+  &__archive_mbedtls_sha1update,
+  &__archive_mbedtls_sha1final,
 #elif defined(ARCHIVE_CRYPTO_SHA1_NETTLE)
   &__archive_nettle_sha1init,
   &__archive_nettle_sha1update,
@@ -1369,6 +1585,10 @@ const struct archive_digest __archive_digest =
   &__archive_libsystem_sha256init,
   &__archive_libsystem_sha256update,
   &__archive_libsystem_sha256final,
+#elif defined(ARCHIVE_CRYPTO_SHA256_MBEDTLS)
+  &__archive_mbedtls_sha256init,
+  &__archive_mbedtls_sha256update,
+  &__archive_mbedtls_sha256final,
 #elif defined(ARCHIVE_CRYPTO_SHA256_NETTLE)
   &__archive_nettle_sha256init,
   &__archive_nettle_sha256update,
@@ -1404,6 +1624,10 @@ const struct archive_digest __archive_digest =
   &__archive_libsystem_sha384init,
   &__archive_libsystem_sha384update,
   &__archive_libsystem_sha384final,
+#elif defined(ARCHIVE_CRYPTO_SHA384_MBEDTLS)
+  &__archive_mbedtls_sha384init,
+  &__archive_mbedtls_sha384update,
+  &__archive_mbedtls_sha384final,
 #elif defined(ARCHIVE_CRYPTO_SHA384_NETTLE)
   &__archive_nettle_sha384init,
   &__archive_nettle_sha384update,
@@ -1443,6 +1667,10 @@ const struct archive_digest __archive_digest =
   &__archive_libsystem_sha512init,
   &__archive_libsystem_sha512update,
   &__archive_libsystem_sha512final
+#elif defined(ARCHIVE_CRYPTO_SHA512_MBEDTLS)
+  &__archive_mbedtls_sha512init,
+  &__archive_mbedtls_sha512update,
+  &__archive_mbedtls_sha512final
 #elif defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
   &__archive_nettle_sha512init,
   &__archive_nettle_sha512update,

@@ -574,14 +574,13 @@ read_more:
 			while (l > 0) {
 				int n = 0;
 
-				if (l > 0) {
-					if (!uuchar[b[0]] || !uuchar[b[1]])
-						break;
-					n = UUDECODE(*b++) << 18;
-					n |= UUDECODE(*b++) << 12;
-					*out++ = n >> 16; total++;
-					--l;
-				}
+				if (!uuchar[b[0]] || !uuchar[b[1]])
+					break;
+				n = UUDECODE(*b++) << 18;
+				n |= UUDECODE(*b++) << 12;
+				*out++ = n >> 16; total++;
+				--l;
+
 				if (l > 0) {
 					if (!uuchar[b[0]])
 						break;
@@ -626,14 +625,13 @@ read_more:
 			while (l > 0) {
 				int n = 0;
 
-				if (l > 0) {
-					if (!base64[b[0]] || !base64[b[1]])
-						break;
-					n = base64num[*b++] << 18;
-					n |= base64num[*b++] << 12;
-					*out++ = n >> 16; total++;
-					l -= 2;
-				}
+				if (!base64[b[0]] || !base64[b[1]])
+					break;
+				n = base64num[*b++] << 18;
+				n |= base64num[*b++] << 12;
+				*out++ = n >> 16; total++;
+				l -= 2;
+
 				if (l > 0) {
 					if (*b == '=')
 						break;

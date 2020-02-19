@@ -1086,10 +1086,17 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				zip->bcj_state = 0;
 				break;
 			case _7Z_DELTA:
+				if (coder2->propertiesSize != 1) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Invalid Delta parameter");
+					return (ARCHIVE_FAILED);
+				}
 				filters[fi].id = LZMA_FILTER_DELTA;
 				memset(&delta_opt, 0, sizeof(delta_opt));
 				delta_opt.type = LZMA_DELTA_TYPE_BYTE;
-				delta_opt.dist = 1;
+				delta_opt.dist =
+				    (uint32_t)coder2->properties[0] + 1;
 				filters[fi].options = &delta_opt;
 				fi++;
 				break;
@@ -1787,7 +1794,7 @@ read_PackInfo(struct archive_read *a, struct _7z_pack_info *pi)
 		return (0);
 	}
 
-	if (*p != kSize)
+	if (*p != kCRC)
 		return (-1);
 
 	if (read_Digests(a, &(pi->digest), (size_t)pi->numPackStreams) < 0)

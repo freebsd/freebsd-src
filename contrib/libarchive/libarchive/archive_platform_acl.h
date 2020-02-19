@@ -30,6 +30,12 @@
 #ifndef ARCHIVE_PLATFORM_ACL_H_INCLUDED
 #define ARCHIVE_PLATFORM_ACL_H_INCLUDED
 
+#ifndef __LIBARCHIVE_BUILD
+#ifndef __LIBARCHIVE_TEST_COMMON
+#error This header is only to be used internally to libarchive.
+#endif
+#endif
+
 /*
  * Determine what ACL types are supported
  */
