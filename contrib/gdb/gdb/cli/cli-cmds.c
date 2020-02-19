@@ -21,7 +21,6 @@
 
 #include "defs.h"
 #include "readline/readline.h"
-#include "readline/tilde.h"
 #include "completer.h"
 #include "target.h"	 /* For baud_rate, remote_debug and remote_timeout */
 #include "gdb_wait.h"		/* For shell escape implementation */

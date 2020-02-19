@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include <defs.h>
 #include <readline/readline.h>
-#include <readline/tilde.h>
 #include <command.h>
 #include <exec.h>
 #include <frame-unwind.h>
