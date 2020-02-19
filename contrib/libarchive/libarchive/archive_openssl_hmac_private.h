@@ -22,8 +22,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #ifndef ARCHIVE_OPENSSL_HMAC_PRIVATE_H_INCLUDED
 #define ARCHIVE_OPENSSL_HMAC_PRIVATE_H_INCLUDED
+
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
 
 #include <openssl/hmac.h>
 #include <openssl/opensslv.h>

@@ -4,7 +4,7 @@
 LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=	3.4.0
+BSDTAR_VERSION_STRING=	3.4.2
 
 .PATH: ${LIBARCHIVEDIR}/tar
 SRCS=	bsdtar.c	\

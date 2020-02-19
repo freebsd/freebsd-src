@@ -279,6 +279,7 @@ DEFINE_TEST(test_write_format_xar)
 
 	/* Disable TOC checksum. */
 	test_xar("!toc-checksum");
+	test_xar("toc-checksum=none");
 	/* Specify TOC checksum type to sha1. */
 	test_xar("toc-checksum=sha1");
 	/* Specify TOC checksum type to md5. */
@@ -286,6 +287,7 @@ DEFINE_TEST(test_write_format_xar)
 
 	/* Disable file checksum. */
 	test_xar("!checksum");
+	test_xar("checksum=none");
 	/* Specify file checksum type to sha1. */
 	test_xar("checksum=sha1");
 	/* Specify file checksum type to md5. */
@@ -293,6 +295,7 @@ DEFINE_TEST(test_write_format_xar)
 
 	/* Disable compression. */
 	test_xar("!compression");
+	test_xar("compression=none");
 	/* Specify compression type to gzip. */
 	test_xar("compression=gzip");
 	test_xar("compression=gzip,compression-level=1");

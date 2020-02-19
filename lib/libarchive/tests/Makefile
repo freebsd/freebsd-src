@@ -96,6 +96,7 @@ TESTS_SRCS= \
 	test_open_file.c			\
 	test_open_filename.c			\
 	test_pax_filename_encoding.c		\
+	test_pax_xattr_header.c 		\
 	test_read_data_large.c			\
 	test_read_disk.c			\
 	test_read_disk_directory_traversals.c	\
@@ -115,6 +116,7 @@ TESTS_SRCS= \
 	test_read_format_7zip_encryption_header.c	\
 	test_read_format_7zip_encryption_partially.c	\
 	test_read_format_7zip_malformed.c	\
+	test_read_format_7zip_packinfo_digests.c 	\
 	test_read_format_ar.c			\
 	test_read_format_cab.c			\
 	test_read_format_cab_filename.c		\
@@ -155,6 +157,7 @@ TESTS_SRCS= \
 	test_read_format_lha.c			\
 	test_read_format_lha_bugfix_0.c		\
 	test_read_format_lha_filename.c		\
+	test_read_format_lha_filename_utf16.c	\
 	test_read_format_mtree.c		\
 	test_read_format_mtree_crash747.c	\
 	test_read_format_pax_bz2.c		\
@@ -384,6 +387,9 @@ FILES+=	test_fuzz.cab.uu
 FILES+=	test_fuzz.lzh.uu
 FILES+=	test_fuzz_1.iso.Z.uu
 FILES+=	test_pax_filename_encoding.tar.uu
+FILES+=	test_pax_xattr_header_all.tar.uu
+FILES+=	test_pax_xattr_header_libarchive.tar.uu
+FILES+=	test_pax_xattr_header_schily.tar.uu
 FILES+=	test_rar_multivolume_multiple_files.part1.rar.uu
 FILES+=	test_rar_multivolume_multiple_files.part2.rar.uu
 FILES+=	test_rar_multivolume_multiple_files.part3.rar.uu
@@ -427,6 +433,8 @@ FILES+=	test_read_format_7zip_copy_2.7z.uu
 FILES+=	test_read_format_7zip_deflate.7z.uu
 FILES+=	test_read_format_7zip_delta_lzma1.7z.uu
 FILES+=	test_read_format_7zip_delta_lzma2.7z.uu
+FILES+=	test_read_format_7zip_delta4_lzma1.7z.uu
+FILES+=	test_read_format_7zip_delta4_lzma2.7z.uu
 FILES+=	test_read_format_7zip_empty_archive.7z.uu
 FILES+=	test_read_format_7zip_empty_file.7z.uu
 FILES+=	test_read_format_7zip_encryption.7z.uu
@@ -438,6 +446,7 @@ FILES+=	test_read_format_7zip_lzma1_lzma2.7z.uu
 FILES+=	test_read_format_7zip_lzma2.7z.uu
 FILES+=	test_read_format_7zip_malformed.7z.uu
 FILES+=	test_read_format_7zip_malformed2.7z.uu
+FILES+=	test_read_format_7zip_packinfo_digests.7z.uu
 FILES+=	test_read_format_7zip_ppmd.7z.uu
 FILES+=	test_read_format_7zip_symbolic_name.7z.uu
 FILES+=	test_read_format_ar.ar.uu
@@ -479,6 +488,7 @@ FILES+=	test_read_format_iso_xorriso.iso.Z.uu
 FILES+=	test_read_format_iso_zisofs.iso.Z.uu
 FILES+=	test_read_format_lha_bugfix_0.lzh.uu
 FILES+=	test_read_format_lha_filename_cp932.lzh.uu
+FILES+=	test_read_format_lha_filename_utf16.lzh.uu
 FILES+=	test_read_format_lha_header0.lzh.uu
 FILES+=	test_read_format_lha_header1.lzh.uu
 FILES+=	test_read_format_lha_header2.lzh.uu
@@ -517,8 +527,11 @@ FILES+=	test_read_format_rar_windows.rar.uu
 FILES+=	test_read_format_rar5_arm.rar.uu
 FILES+=	test_read_format_rar5_arm_filter_on_window_boundary.rar.uu
 FILES+=	test_read_format_rar5_blake2.rar.uu
+FILES+=	test_read_format_rar5_block_size_is_too_small.rar.uu
 FILES+=	test_read_format_rar5_compressed.rar.uu
+FILES+=	test_read_format_rar5_different_solid_window_size.rar.uu
 FILES+=	test_read_format_rar5_different_window_size.rar.uu
+FILES+=	test_read_format_rar5_different_winsize_on_merge.rar.uu
 FILES+=	test_read_format_rar5_distance_overflow.rar.uu
 FILES+=	test_read_format_rar5_extra_field_version.rar.uu
 FILES+=	test_read_format_rar5_fileattr.rar.uu

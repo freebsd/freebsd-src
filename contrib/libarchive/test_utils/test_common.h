@@ -38,6 +38,9 @@
 #elif defined(__FreeBSD__)
 /* Building as part of FreeBSD system requires a pre-built config.h. */
 #include "config_freebsd.h"
+#elif defined(__NetBSD__)
+/* Building as part of NetBSD system requires a pre-built config.h. */
+#include "config_netbsd.h"
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 /* Win32 can't run the 'configure' script. */
 #include "config_windows.h"
@@ -112,6 +115,19 @@
 #pragma warn -8068	/* Constant out of range in comparison. */
 #endif
 
+
+#if defined(__GNUC__) && (__GNUC__ > 2 || \
+			  (__GNUC__ == 2 && __GNUC_MINOR__ >= 7))
+# ifdef __MINGW_PRINTF_FORMAT
+#  define __LA_PRINTF_FORMAT __MINGW_PRINTF_FORMAT
+# else
+#  define __LA_PRINTF_FORMAT __printf__
+# endif
+# define __LA_PRINTFLIKE(f,a)	__attribute__((__format__(__LA_PRINTF_FORMAT, f, a)))
+#else
+# define __LA_PRINTFLIKE(f,a)
+#endif
+
 /* Haiku OS and QNX */
 #if defined(__HAIKU__) || defined(__QNXNTO__)
 /* Haiku and QNX have typedefs in stdint.h (needed for int64_t) */
@@ -130,6 +146,10 @@
 
 #ifndef O_BINARY
 #define	O_BINARY 0
+#endif
+
+#ifndef __LIBARCHIVE_TEST_COMMON
+#define __LIBARCHIVE_TEST_COMMON
 #endif
 
 #include "archive_platform_acl.h"
@@ -259,7 +279,7 @@
   skipping_setup(__FILE__, __LINE__);test_skipping
 
 /* Function declarations.  These are defined in test_utility.c. */
-void failure(const char *fmt, ...);
+void failure(const char *fmt, ...) __LA_PRINTFLIKE(1, 2);
 int assertion_assert(const char *, int, int, const char *, void *);
 int assertion_chdir(const char *, int, const char *);
 int assertion_compare_fflags(const char *, int, const char *, const char *,
@@ -302,10 +322,10 @@ int assertion_utimes(const char *, int, const char *, long, long, long, long );
 int assertion_version(const char*, int, const char *, const char *);
 
 void skipping_setup(const char *, int);
-void test_skipping(const char *fmt, ...);
+void test_skipping(const char *fmt, ...) __LA_PRINTFLIKE(1, 2);
 
 /* Like sprintf, then system() */
-int systemf(const char * fmt, ...);
+int systemf(const char *fmt, ...) __LA_PRINTFLIKE(1, 2);
 
 /* Delay until time() returns a value after this. */
 void sleepUntilAfter(time_t);
@@ -368,7 +388,7 @@ void *sunacl_get(int cmd, int *aclcnt, int fd, const char *path);
 
 /* Suck file into string allocated via malloc(). Call free() when done. */
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */
-char *slurpfile(size_t *, const char *fmt, ...);
+char *slurpfile(size_t *, const char *fmt, ...) __LA_PRINTFLIKE(2, 3);
 
 /* Dump block of bytes to a file. */
 void dumpfile(const char *filename, void *, size_t);

@@ -83,7 +83,7 @@ test_truncation(const char *compression,
 	for (i = 0; i < 100; i++) {
 		sprintf(path, "%s%d", compression, i);
 		archive_entry_copy_pathname(ae, path);
-		failure(path);
+		failure("%s", path);
 		if (!assertEqualIntA(a, ARCHIVE_OK,
 		    archive_write_header(a, ae))) {
 			archive_write_free(a);
@@ -94,7 +94,7 @@ test_truncation(const char *compression,
 		for (j = 0; j < (int)datasize; ++j) {
 			data[j] = (char)(rand() % 256);
 		}
-		failure(path);
+		failure("%s", path);
 		if (!assertEqualIntA(a, datasize,
 		    archive_write_data(a, data, datasize))) {
 			archive_write_free(a);
