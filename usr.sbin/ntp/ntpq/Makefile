@@ -28,9 +28,6 @@ LIBADD+=	crypto
 LIBADD+=	md
 .endif
 
-CFLAGS+=	-DHAVE_LIBEDIT -DHAVE_READLINE_READLINE_H \
-		-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/edit
-
 CLEANFILES+= .version version.c
 
 version.c:
