@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2017-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -60,7 +61,7 @@
 
 #endif
 
-MODULE_ID("$Id: new_pair.c,v 1.18 2019/01/21 14:54:47 tom Exp $")
+MODULE_ID("$Id: new_pair.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
 
 #if NCURSES_EXT_COLORS
 

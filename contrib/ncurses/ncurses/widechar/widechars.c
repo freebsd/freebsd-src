@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2012-2013,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2012,2013 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +31,7 @@
 
 #if USE_WIDEC_SUPPORT
 
-MODULE_ID("$Id: widechars.c,v 1.6 2018/06/24 00:06:37 tom Exp $")
+MODULE_ID("$Id: widechars.c,v 1.7 2020/02/02 23:34:34 tom Exp $")
 
 #if defined(_WIN32)
 /*

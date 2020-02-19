@@ -1,6 +1,7 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 2004-2011,2012 Free Software Foundation, Inc.                #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2004-2011,2012 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -29,7 +30,7 @@
 #
 # Author: Thomas E. Dickey
 #
-# $Id: gen_edit.sh,v 1.5 2012/04/01 15:04:37 tom Exp $
+# $Id: gen_edit.sh,v 1.6 2020/02/02 23:34:34 tom Exp $
 # Generate a sed-script for converting the terminfo.src to the form which will
 # be installed.
 #

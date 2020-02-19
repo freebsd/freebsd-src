@@ -1,5 +1,6 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998-2019,2020 Free Software Foundation, Inc.              *
+dnl Copyright 2018-2019,2020 Thomas E. Dickey                                *
+dnl Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,7 +29,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey 1995-on
 dnl
-dnl $Id: configure.in,v 1.693 2020/01/11 23:27:16 tom Exp $
+dnl $Id: configure.in,v 1.697 2020/02/08 20:56:13 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl For additional information, see
@@ -37,7 +38,7 @@ dnl     https://invisible-island.net/autoconf/my-autoconf.html
 dnl
 dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.52.20200111)
-AC_REVISION($Revision: 1.693 $)
+AC_REVISION($Revision: 1.697 $)
 AC_INIT(ncurses/base/lib_initscr.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -856,27 +857,7 @@ test "x$with_links" = xyes && AC_DEFINE(USE_LINKS,1,[Define to 1 if hardlinks sh
 test "x$with_symlinks" = xyes && AC_DEFINE(USE_SYMLINKS,1,[Define to 1 if symbolic links should be used in terminfo database])
 
 ###   use option --enable-broken-linker to force on use of broken-linker support
-AC_MSG_CHECKING(if you want broken-linker support code)
-AC_ARG_ENABLE(broken_linker,
-	[  --enable-broken_linker  compile with broken-linker support code],
-	[with_broken_linker=$enableval],
-	[with_broken_linker=${BROKEN_LINKER:-no}])
-AC_MSG_RESULT($with_broken_linker)
-
-BROKEN_LINKER=0
-if test "x$with_broken_linker" = xyes ; then
-	AC_DEFINE(BROKEN_LINKER,1,[Define to 1 to work around linkers which cannot link data-only modules])
-	BROKEN_LINKER=1
-elif test "$DFT_LWR_MODEL" = shared ; then
-	case $cf_cv_system_name in
-	(cygwin*)
-		AC_DEFINE(BROKEN_LINKER,1,[Define to 1 to work around linkers which cannot link data-only modules])
-		BROKEN_LINKER=1
-		CF_VERBOSE(cygwin linker is broken anyway)
-		;;
-	esac
-fi
-AC_SUBST(BROKEN_LINKER)
+CF_ENABLE_BROKEN_LINKER
 
 ###   use option --enable-bsdpad to have tputs process BSD-style prefix padding
 AC_MSG_CHECKING(if tputs should process BSD-style prefix padding)
@@ -1069,7 +1050,7 @@ AC_ARG_WITH(ccharw-max,
 AC_MSG_RESULT($NCURSES_CCHARW_MAX)
 AC_SUBST(NCURSES_CCHARW_MAX)
 
-AC_CHECK_SIZEOF([signed char], 0)
+AC_CHECK_SIZEOF([signed char])
 if test "$ac_cv_sizeof_signed_char" = 1 ; then
 	NCURSES_SBOOL="signed char"
 else
@@ -1938,6 +1919,16 @@ fi
 # do this "late" to avoid conflict with header-checks
 if test "x$with_widec" = xyes ; then
 	AC_CHECK_SIZEOF(wchar_t)
+	# cross-compiling to mingw can run into the problem that attempting to
+	# link with the regex library fails, causing the test to not set this to
+	# a number.  "recent" autoconf does not address this problem either -TD
+	if test -z "$ac_cv_sizeof_wchar_t"
+	then
+		CF_VERBOSE(test failed (assume 2))
+		sed /SIZEOF_WCHAR_T/d confdefs.h >confdefs.tmp
+		mv confdefs.tmp confdefs.h
+		echo "#define SIZEOF_WCHAR_T 2" >>confdefs.h
+	fi
 fi
 
 ### Construct the ncurses library-subsets, if any, from this set of keywords:

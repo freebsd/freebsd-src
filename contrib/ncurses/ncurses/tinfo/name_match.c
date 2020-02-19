@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1999-2013,2016 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2013,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +34,7 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: name_match.c,v 1.24 2016/05/28 23:22:52 tom Exp $")
+MODULE_ID("$Id: name_match.c,v 1.25 2020/02/02 23:34:34 tom Exp $")
 
 #define FirstName _nc_globals.first_name
 

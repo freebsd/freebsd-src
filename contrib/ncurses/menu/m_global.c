@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2014,2020 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_global.c,v 1.29 2020/01/18 17:05:17 tom Exp $")
+MODULE_ID("$Id: m_global.c,v 1.30 2020/02/02 23:34:34 tom Exp $")
 
 static char mark[] = "-";
 /* *INDENT-OFF* */

@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +45,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: m_item_new.c,v 1.33 2012/06/09 23:55:15 tom Exp $")
+MODULE_ID("$Id: m_item_new.c,v 1.34 2020/02/02 23:34:34 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  

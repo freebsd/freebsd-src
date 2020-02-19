@@ -1,6 +1,7 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 2007-2011,2019 Free Software Foundation, Inc.                #
+# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2007-2010,2011 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKcaptab.sh,v 1.15 2019/04/06 21:53:49 tom Exp $
+# $Id: MKcaptab.sh,v 1.19 2020/02/02 23:34:34 tom Exp $
 
 if test $# != 0
 then
@@ -67,6 +68,7 @@ cat <<'EOF'
 #include <tic.h>
 #include <hashsize.h>
 
+/* *INDENT-OFF* */
 EOF
 
 cat "$@" |./make_hash 1 info $OPT1
@@ -77,6 +79,7 @@ cat "$@" |$AWK -f $OPT2 bigstrings=$OPT1 tablename=capalias
 cat "$@" |$AWK -f $OPT2 bigstrings=$OPT1 tablename=infoalias
 
 cat <<EOF
+/* *INDENT-ON* */
 
 #if $OPT1
 static void
@@ -87,7 +90,7 @@ next_string(const char *strings, unsigned *offset)
 
 static const struct name_table_entry *
 _nc_build_names(struct name_table_entry **actual,
-		const name_table_data *source,
+		const name_table_data * source,
 		const char *strings)
 {
     if (*actual == 0) {
@@ -114,7 +117,7 @@ _nc_build_names(struct name_table_entry **actual,
 
 static const struct alias *
 _nc_build_alias(struct alias **actual,
-		const alias_table_data *source,
+		const alias_table_data * source,
 		const char *strings,
 		size_t tablesize)
 {
@@ -144,20 +147,23 @@ _nc_build_alias(struct alias **actual,
 #define build_alias(root) _nc_ ## root ## alias_table
 #endif
 
-NCURSES_EXPORT(const struct name_table_entry *) _nc_get_table (bool termcap)
+NCURSES_EXPORT(const struct name_table_entry *)
+_nc_get_table(bool termcap)
 {
-    return termcap ? build_names(cap) : build_names(info) ;
+    return termcap ? build_names(cap) : build_names(info);
 }
 
-/* entrypoint used by tack (do not alter) */
-NCURSES_EXPORT(const HashValue *) _nc_get_hash_table (bool termcap)
+/* entrypoint used by tack 1.07 */
+NCURSES_EXPORT(const HashValue *)
+_nc_get_hash_table(bool termcap)
 {
-    return termcap ? _nc_cap_hash_table: _nc_info_hash_table ;
+    return termcap ? _nc_cap_hash_table : _nc_info_hash_table;
 }
 
-NCURSES_EXPORT(const struct alias *) _nc_get_alias_table (bool termcap)
+NCURSES_EXPORT(const struct alias *)
+_nc_get_alias_table(bool termcap)
 {
-    return termcap ? build_alias(cap) : build_alias(info) ;
+    return termcap ? build_alias(cap) : build_alias(info);
 }
 
 static HashValue
@@ -167,7 +173,7 @@ info_hash(const char *string)
 
     DEBUG(9, ("hashing %s", string));
     while (*string) {
-	sum += (long) (*string + (*(string + 1) << 8));
+	sum += (long) (UChar(*string) + (UChar(*(string + 1)) << 8));
 	string++;
     }
 
@@ -204,18 +210,21 @@ compare_info_names(const char *a, const char *b)
     return !strcmp(a, b);
 }
 
-static const HashData hash_data[2] = {
-    { HASHTABSIZE, _nc_info_hash_table, info_hash, compare_info_names },
-    { HASHTABSIZE, _nc_cap_hash_table, tcap_hash, compare_tcap_names }
+static const HashData hash_data[2] =
+{
+    {HASHTABSIZE, _nc_info_hash_table, info_hash, compare_info_names},
+    {HASHTABSIZE, _nc_cap_hash_table, tcap_hash, compare_tcap_names}
 };
 
-NCURSES_EXPORT(const HashData *) _nc_get_hash_info (bool termcap)
+NCURSES_EXPORT(const HashData *)
+_nc_get_hash_info(bool termcap)
 {
     return &hash_data[(termcap != FALSE)];
 }
 
 #if NO_LEAKS
-NCURSES_EXPORT(void) _nc_comp_captab_leaks(void)
+NCURSES_EXPORT(void)
+_nc_comp_captab_leaks(void)
 {
 #if $OPT1
     FreeIfNeeded(_nc_cap_table);

@@ -1,7 +1,8 @@
 #!/bin/sh
-# $Id: make_sed.sh,v 1.10 2017/08/12 12:22:06 tom Exp $
+# $Id: make_sed.sh,v 1.11 2020/02/02 23:34:34 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2005,2017 Free Software Foundation, Inc.                #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 1998-2005,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #

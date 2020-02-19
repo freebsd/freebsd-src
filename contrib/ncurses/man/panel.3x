@@ -1,5 +1,6 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
+.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,12 +27,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: panel.3x,v 1.27 2019/03/23 19:23:01 tom Exp $
+.\" $Id: panel.3x,v 1.39 2020/02/15 21:06:40 tom Exp $
 .TH panel 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
 .ie \n(.g .ds '' \(rq
 .el       .ds '' ''
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .SH NAME
 panel \- panel stack extension for curses
 .SH SYNOPSIS
@@ -39,35 +44,41 @@ panel \- panel stack extension for curses
 .P
 \fBcc [flags] sourcefiles \-lpanel \-lncurses\fR
 .P
-\fBPANEL *new_panel(WINDOW *win);\fR
+\fBPANEL *new_panel(WINDOW *\fIwin\fB);\fR
+.sp
+\fBint bottom_panel(PANEL *\fIpan\fB);\fR
 .br
-\fBint bottom_panel(PANEL *pan);\fR
+\fBint top_panel(PANEL *\fIpan\fB);\fR
 .br
-\fBint top_panel(PANEL *pan);\fR
-.br
-\fBint show_panel(PANEL *pan);\fR
+\fBint show_panel(PANEL *\fIpan\fB);\fR
 .br
 \fBvoid update_panels(void);\fR
 .br
-\fBint hide_panel(PANEL *pan);\fR
+\fBint hide_panel(PANEL *\fIpan\fB);\fR
+.sp
+\fBWINDOW *panel_window(const PANEL *\fIpan\fB);\fR
 .br
-\fBWINDOW *panel_window(const PANEL *pan);\fR
+\fBint replace_panel(PANEL *\fIpan\fB, WINDOW *\fIwindow\fB);\fR
 .br
-\fBint replace_panel(PANEL *pan, WINDOW *window);\fR
+\fBint move_panel(PANEL *\fIpan\fB, int \fIstarty\fB, int \fIstartx\fB);\fR
 .br
-\fBint move_panel(PANEL *pan, int starty, int startx);\fR
+\fBint panel_hidden(const PANEL *\fIpan\fB);\fR
+.sp
+\fBPANEL *panel_above(const PANEL *\fIpan\fB);\fR
 .br
-\fBint panel_hidden(const PANEL *pan);\fR
+\fBPANEL *panel_below(const PANEL *\fIpan\fB);\fR
+.sp
+\fBint set_panel_userptr(PANEL *\fIpan\fB, const void *\fIptr\fB);\fR
 .br
-\fBPANEL *panel_above(const PANEL *pan);\fR
+\fBconst void *panel_userptr(const PANEL *\fIpan\fB);\fR
+.sp
+\fBint del_panel(PANEL *\fIpan\fB);\fR
+.sp
+/* ncurses-extensions */
 .br
-\fBPANEL *panel_below(const PANEL *pan);\fR
+\fBPANEL *ground_panel(SCREEN *\fIsp\fB);\fR
 .br
-\fBint set_panel_userptr(PANEL *pan, const void *ptr);\fR
-.br
-\fBconst void *panel_userptr(const PANEL *pan);\fR
-.br
-\fBint del_panel(PANEL *pan);\fR
+\fBPANEL *ceiling_panel(SCREEN *\fIsp\fB);\fR
 .br
 .SH DESCRIPTION
 Panels are \fBcurses\fR(3X) windows with the added feature of
@@ -88,87 +99,113 @@ panel at any desired location in the stack.
 Panel routines are a functional layer added to \fBcurses\fR(3X), make only
 high-level curses calls, and work anywhere terminfo curses does.
 .SH FUNCTIONS
-.TP
-.B new_panel(win)
-allocates  a  \fBPANEL\fR structure, associates it with
-\fBwin\fR, places the panel on the top of the stack  (causes  it
-to  be  displayed above any other panel) and returns a
-pointer to the new panel.
-.TP
-.B update_panels
-refreshes the \fIvirtual screen\fP to reflect the relations between the
-panels in the stack, but does not call \fBdoupdate\fP to refresh the
-\fIphysical screen\fP.
-Use this function and not \fBwrefresh\fP or \fBwnoutrefresh\fP.
-.B update_panels
-may be called more than once before a call to
-\fBdoupdate\fP, but \fBdoupdate\fP is the function responsible for updating
-the \fIphysical screen\fP.
-.TP
-.B del_panel(pan)
-removes the given panel from the  stack and deallocates the
+.\" ---------
+.SS bottom_panel
+\fBbottom_panel(\fIpan\fB)\fR
+puts panel \fIpan\fP at the bottom of all panels.
+.\" ---------
+.SS ceiling_panel
+\fBceiling_panel(\fIsp\fB)\fR
+acts like \fBpanel_below(NULL)\fP, for the given \fBSCREEN\fP \fIsp\fP.
+.\" ---------
+.SS del_panel
+\fBdel_panel(\fIpan\fB)\fR
+removes the given panel \fIpan\fP from the  stack and deallocates the
 \fBPANEL\fR structure (but not its associated window).
-.TP
-.B hide_panel(pan)
-removes the given panel from the panel stack and thus hides it from
-view.
+.\" ---------
+.SS ground_panel
+\fBground_panel(\fIsp\fB)\fR
+acts like \fBpanel_above(NULL)\fP, for the given \fBSCREEN\fP \fIsp\fP.
+.\" ---------
+.SS hide_panel
+\fBhide_panel(\fIpan\fB)\fR
+removes the given panel \fIpan\fP from the panel stack
+and thus hides it from view.
 The \fBPANEL\fR structure is not lost, merely removed from the stack.
-.TP
-.B panel_hidden(pan)
-returns \fBTRUE\fP if the panel is in the panel stack,
-\fBFALSE\fP if it is not.
-If the panel is a null pointer, return \fBERR\fP.
-.TP
-.B show_panel(pan)
-makes a hidden panel visible by placing it on top of the panels in the
-panel stack.
-See COMPATIBILITY below.
-.TP
-.B top_panel(pan)
-puts the given visible panel on top of all panels in the stack.
-See
-COMPATIBILITY below.
-.TP
-.B bottom_panel(pan)
-puts panel at the bottom of all panels.
-.TP
-.B move_panel(pan,starty,startx)
-moves the given panel window so that its upper-left corner is at
-\fBstarty\fR, \fBstartx\fR.
-It does not change the position of the
-panel in the stack.
-Be sure to use this function, not \fBmvwin\fR,
-to move a panel window.
-.TP
-.B replace_panel(pan,window)
-replaces the current window of panel with \fBwindow\fR (useful, for
-example if you want to resize a panel; if you're using \fBncurses\fR,
-you can call \fBreplace_panel\fR on the output of \fBwresize\fR(3X)).
+.\" ---------
+.SS move_panel
+\fBmove_panel(\fIpan\fB,\fIstarty\fB,\fIstartx\fB)\fR
+moves the given panel \fIpan\fP's window so that its upper-left corner is at
+\fIstarty\fR, \fIstartx\fR.
 It does not change the position of the panel in the stack.
-.TP
-.B panel_above(pan)
-returns a pointer to the panel above pan.
+Be sure to use this function, not \fBmvwin\fR(3X), to move a panel window.
+.\" ---------
+.SS new_panel
+\fBnew_panel(\fIwin\fB)\fR allocates  a  \fBPANEL\fR structure,
+associates it with \fIwin\fR, places the panel on the top of the stack
+(causes  it to  be  displayed above any other panel) and returns a
+pointer to the new panel.
+.\" ---------
+.SS panel_above
+\fBpanel_above(\fIpan\fB)\fR
+returns a pointer to the panel above \fIpan\fP.
 If the panel argument is
 \fB(PANEL *)0\fR, it returns a pointer to the bottom panel in the stack.
-.TP
-.B panel_below(pan)
-returns a pointer to the panel just below pan.
+.\" ---------
+.SS panel_below
+\fBpanel_below(\fIpan\fB)\fR
+returns a pointer to the panel just below \fIpan\fP.
 If the panel argument
 is \fB(PANEL *)0\fR, it returns a pointer to the top panel in the stack.
-.TP
-.B set_panel_userptr(pan,ptr)
+.\" ---------
+.SS panel_hidden
+\fBpanel_hidden(\fIpan\fB)\fR
+returns \fBTRUE\fP if the panel \fIpan\fP is in the panel stack,
+\fBFALSE\fP if it is not.
+If the panel is a null pointer, return \fBERR\fP.
+.\" ---------
+.SS panel_userptr
+\fBpanel_userptr(\fIpan\fB)\fR
+returns the user pointer for a given panel \fIpan\fP.
+.\" ---------
+.SS panel_window
+\fBpanel_window(\fIpan\fB)\fR
+returns a pointer to the window of the given panel \fIpan\fP.
+.\" ---------
+.SS replace_panel
+\fBreplace_panel(\fIpan\fB,\fIwindow\fB)\fR
+replaces the current window of panel \fIpan\fP with \fIwindow\fR
+This is useful, for example if you want to resize a panel.
+In \fBncurses\fR, you can call \fBreplace_panel\fR
+to resize a panel using a window resized with \fBwresize\fR(3X).
+It does not change the position of the panel in the stack.
+.\" ---------
+.SS set_panel_userptr
+\fBset_panel_userptr(\fIpan\fB,\fIptr\fB)\fR
 sets the panel's user pointer.
-.TP
-.B panel_userptr(pan)
-returns the user pointer for a given panel.
-.TP
-.B panel_window(pan)
-returns a pointer to the window of the given panel.
+.\" ---------
+.SS show_panel
+\fBshow_panel(\fIpan\fB)\fR
+makes a hidden panel visible by placing it on top of the panels in the
+panel stack.
+See \fBCOMPATIBILITY\fP below.
+.\" ---------
+.SS top_panel
+\fBtop_panel(\fIpan\fB)\fR
+puts the given visible panel \fIpan\fP on top of all panels in the stack.
+See \fBCOMPATIBILITY\fP below.
+.\" ---------
+.SS update_panels
+\fBupdate_panels()\fR
+refreshes the \fIvirtual screen\fP to reflect the relations between the
+panels in the stack, but does not call \fBdoupdate\fP(3X) to refresh the
+\fIphysical screen\fP.
+Use this function and not \fBwrefresh\fP(3X) or \fBwnoutrefresh\fP(3X).
+.PP
+\fBupdate_panels\fP may be called more than once before a call to
+\fBdoupdate\fP, but \fBdoupdate\fP is the function responsible for updating
+the \fIphysical screen\fP.
 .SH DIAGNOSTICS
 Each routine that returns a pointer returns \fBNULL\fR if an error
 occurs.
 Each routine that returns an int value returns \fBOK\fR if it
 executes successfully and \fBERR\fR if not.
+.PP
+Except as noted, the \fIpan\fP and \fIwindow\fP parameters must be non-null.
+If those are null, an error is returned.
+.PP
+The \fBmove_panel\fP function uses \fBmvwin\fP(3X),
+and will return an error if \fBmvwin\fP returns an error.
 .SH COMPATIBILITY
 Reasonable care has been taken to  ensure  compatibility
 with  the  native  panel facility introduced in System V (inspection of
@@ -197,8 +234,27 @@ The panel facility was documented in SVr4.2 in
 .PP
 It is not part of X/Open Curses.
 .PP
-Aside from ncurses, only systems based on SVr4 source code,
-e.g., Solaris provide this library.
+A few implementations exist:
+.bP
+Systems based on SVr4 source code,
+e.g., Solaris, provide this library.
+.bP
+\fBncurses\fP (since version 0.6 in 1993)
+and \fBPDCurses\fP (since version 2.2 in 1995)
+provide a panel library whose common ancestor
+was a public domain implementation by Warren Tucker
+published in \fIu386mon\fP 2.20 (1990).
+.IP
+According to Tucker, the SystemV panel library
+was first released in SVr3.2 (1988),
+and his implementation helped with a port to SVr3.1 (1987).
+.IP
+Several developers have improved each of these;
+they are no longer the same as Tucker's implementation.
+.bP
+NetBSD 8 (2018)
+has a panel library begun by Valery Ushakov in 2015.
+This is based on the AT&T documentation.
 .SH FILES
 .P
 panel.h
@@ -213,7 +269,11 @@ the panels library itself
 This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
 .SH AUTHOR
+.PP
 Originally written by Warren Tucker <wht@n4hgf.mt-park.ga.us>,
-primarily to assist in porting u386mon to systems without a native
+primarily to assist in porting \fIu386mon\fP to systems without a native
 panels library.
+.PP
 Repackaged for ncurses by Zeyd ben-Halim.
+.PP
+Juergen Pfeifer and Thomas E. Dickey revised/improved the library.
