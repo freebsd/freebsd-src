@@ -69,9 +69,11 @@ _v=	${_ld_version:M[1-9]*.[0-9]*:[1]}
 .elif ${_ld_version:[1]} == "LLD"
 ${X_}LINKER_TYPE=	lld
 _v=	${_ld_version:[2]}
-${X_}LINKER_FREEBSD_VERSION!= \
-	${${ld}} --version | \
-	awk '$$3 ~ /FreeBSD/ {print substr($$4, 1, length($$4)-1)}'
+.if ${_ld_version:[3]} == "(FreeBSD"
+${X_}LINKER_FREEBSD_VERSION:=	${_ld_version:[4]:C/.*-(.*)\)/\1/}
+.else
+${X_}LINKER_FREEBSD_VERSION=	0
+.endif
 .else
 .warning Unknown linker from ${ld}=${${ld}}: ${_ld_version}, defaulting to bfd
 ${X_}LINKER_TYPE=	bfd
