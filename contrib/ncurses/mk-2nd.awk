@@ -1,6 +1,7 @@
-# $Id: mk-2nd.awk,v 1.19 2005/01/22 16:30:04 tom Exp $
+# $Id: mk-2nd.awk,v 1.20 2020/02/02 23:34:34 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.                #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 1998-2004,2005 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #

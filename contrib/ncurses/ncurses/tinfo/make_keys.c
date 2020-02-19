@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2015 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2011,2015 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +40,7 @@
 #define USE_TERMLIB 1
 #include <build.priv.h>
 
-MODULE_ID("$Id: make_keys.c,v 1.21 2015/07/16 01:10:03 tom Exp $")
+MODULE_ID("$Id: make_keys.c,v 1.22 2020/02/02 23:34:34 tom Exp $")
 
 #include <names.c>
 

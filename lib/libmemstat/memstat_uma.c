@@ -425,12 +425,13 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			    (unsigned long )uz.uz_frees);
 			mtp->mt_failures = kvm_counter_u64_fetch(kvm,
 			    (unsigned long )uz.uz_fails);
+			mtp->mt_xdomain = kvm_counter_u64_fetch(kvm,
+			    (unsigned long )uz.uz_xdomain);
 			mtp->mt_sleeps = uz.uz_sleeps;
 			/* See comment above in memstat_sysctl_uma(). */
 			if (mtp->mt_numallocs < mtp->mt_numfrees)
 				mtp->mt_numallocs = mtp->mt_numfrees;
 
-			mtp->mt_xdomain = uz.uz_xdomain;
 			if (kz.uk_flags & UMA_ZFLAG_INTERNAL)
 				goto skip_percpu;
 			for (i = 0; i < mp_maxid + 1; i++) {
@@ -454,8 +455,9 @@ skip_percpu:
 			mtp->mt_byteslimit = mtp->mt_countlimit * mtp->mt_size;
 			mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
 			for (i = 0; i < ndomains; i++) {
-				ret = kread(kvm, &uz.uz_domain[i], &uzd,
-				   sizeof(uzd), 0);
+				ret = kread(kvm,
+				    &uz.uz_cpu[mp_maxid + 1] + i * sizeof(uzd),
+				    &uzd, sizeof(uzd), 0);
 				if (ret != 0)
 					continue;
 				for (ubp =

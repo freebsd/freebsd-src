@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/event.h>
 #include <sys/ktrace.h>
+#include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -1248,7 +1249,12 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				break;
 #ifdef SYS_freebsd12_shm_open
 			case SYS_freebsd12_shm_open:
-				print_number(ip, narg, c);
+				if (ip[0] == (uintptr_t)SHM_ANON) {
+					printf("(SHM_ANON");
+					ip++;
+				} else {
+					print_number(ip, narg, c);
+				}
 				putchar(',');
 				print_mask_arg(sysdecode_open_flags, ip[0]);
 				putchar(',');
@@ -1257,6 +1263,22 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				narg -= 2;
 				break;
 #endif
+			case SYS_shm_open2:
+				if (ip[0] == (uintptr_t)SHM_ANON) {
+					printf("(SHM_ANON");
+					ip++;
+				} else {
+					print_number(ip, narg, c);
+				}
+				putchar(',');
+				print_mask_arg(sysdecode_open_flags, ip[0]);
+				putchar(',');
+				decode_filemode(ip[1]);
+				putchar(',');
+				print_mask_arg(sysdecode_shmflags, ip[2]);
+				ip += 3;
+				narg -= 3;
+				break;
 			case SYS_minherit:
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);

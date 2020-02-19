@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2010,2013 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_data.c,v 1.16 2013/08/24 22:44:05 tom Exp $")
+MODULE_ID("$Id: frm_data.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  

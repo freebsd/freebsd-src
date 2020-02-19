@@ -71,6 +71,19 @@ acpi_PkgInt32(ACPI_OBJECT *res, int idx, uint32_t *dst)
 }
 
 int
+acpi_PkgInt16(ACPI_OBJECT *res, int idx, uint16_t *dst)
+{
+    UINT64		tmp;
+    int			error;
+
+    error = acpi_PkgInt(res, idx, &tmp);
+    if (error == 0)
+	*dst = (uint16_t)tmp;
+
+    return (error);
+}
+
+int
 acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size)
 {
     ACPI_OBJECT		*obj;

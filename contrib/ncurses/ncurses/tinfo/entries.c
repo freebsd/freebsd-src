@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2006-2017,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2006-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +38,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: entries.c,v 1.29 2019/12/15 00:18:03 tom Exp $")
+MODULE_ID("$Id: entries.c,v 1.30 2020/02/02 23:34:34 tom Exp $")
 
 /****************************************************************************
  *

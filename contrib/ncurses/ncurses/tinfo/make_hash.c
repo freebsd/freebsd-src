@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2019,2020 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2009-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +44,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: make_hash.c,v 1.30 2020/01/18 17:02:38 tom Exp $")
+MODULE_ID("$Id: make_hash.c,v 1.33 2020/02/02 23:34:34 tom Exp $")
 
 /*
  *	_nc_make_hash_table()
@@ -100,12 +101,14 @@ hash_function(const char *string)
     long sum = 0;
 
     while (*string) {
-	sum += (long) (*string + (*(string + 1) << 8));
+	sum += (long) (UChar(*string) + (UChar(*(string + 1)) << 8));
 	string++;
     }
 
     return (int) (sum % HASHTABSIZE);
 }
+
+#define UNUSED -1
 
 static void
 _nc_make_hash_table(struct user_table_entry *table,
@@ -117,7 +120,7 @@ _nc_make_hash_table(struct user_table_entry *table,
     int collisions = 0;
 
     for (i = 0; i < HASHTABSIZE; i++) {
-	hash_table[i] = -1;
+	hash_table[i] = UNUSED;
     }
     for (i = 0; i < tablesize; i++) {
 	hashvalue = hash_function(table[i].ute_name);
@@ -125,8 +128,9 @@ _nc_make_hash_table(struct user_table_entry *table,
 	if (hash_table[hashvalue] >= 0)
 	    collisions++;
 
-	if (hash_table[hashvalue] != 0)
+	if (hash_table[hashvalue] != UNUSED) {
 	    table[i].ute_link = hash_table[hashvalue];
+	}
 	hash_table[hashvalue] = (HashValue) i;
     }
 

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 #
 # Copyright (c) 2020 The FreeBSD Foundation
-# All rights reserved.
 #
 # This software was developed by Kristof Provost under sponsorship
 # from the FreeBSD Foundation.

@@ -123,6 +123,7 @@
 ./Ada95/samples/sample-text_io_demo.ads
 ./Ada95/samples/sample.adb
 ./Ada95/samples/sample.ads
+./Ada95/samples/split-path.awk
 ./Ada95/samples/status.adb
 ./Ada95/samples/status.ads
 ./Ada95/samples/tour.adb
@@ -894,6 +895,7 @@
 ./ncurses/llib-ltinfow
 ./ncurses/modules
 ./ncurses/new_pair.h
+./ncurses/report_hashing.c
 ./ncurses/report_offsets.c
 ./ncurses/tinfo/MKcaptab.awk
 ./ncurses/tinfo/MKcaptab.sh

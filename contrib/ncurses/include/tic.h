@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 1998-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +34,7 @@
  ****************************************************************************/
 
 /*
- * $Id: tic.h,v 1.80 2019/12/07 16:05:22 tom Exp $
+ * $Id: tic.h,v 1.81 2020/02/02 23:34:34 tom Exp $
  *	tic.h - Global variables and structures for the terminfo compiler.
  */
 

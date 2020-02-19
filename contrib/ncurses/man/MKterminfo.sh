@@ -1,10 +1,11 @@
 #!/bin/sh
-# $Id: MKterminfo.sh,v 1.17 2019/03/02 22:18:27 tom Exp $
+# $Id: MKterminfo.sh,v 1.18 2020/02/02 23:34:34 tom Exp $
 #
 # MKterminfo.sh -- generate terminfo.5 from Caps tabular data
 #
 #***************************************************************************
-# Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
+# Copyright 2018-2019,2020 Thomas E. Dickey                                *
+# Copyright 1998-2003,2017 Free Software Foundation, Inc.                  *
 #                                                                          *
 # Permission is hereby granted, free of charge, to any person obtaining a  *
 # copy of this software and associated documentation files (the            *

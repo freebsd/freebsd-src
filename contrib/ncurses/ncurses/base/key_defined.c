@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2003-2006,2009 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2003-2006,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: key_defined.c,v 1.9 2009/10/24 22:15:47 tom Exp $")
+MODULE_ID("$Id: key_defined.c,v 1.10 2020/02/02 23:34:34 tom Exp $")
 
 static int
 find_definition(TRIES * tree, const char *str)

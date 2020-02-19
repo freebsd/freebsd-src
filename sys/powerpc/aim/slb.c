@@ -523,18 +523,12 @@ slb_uma_real_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
 static void
 slb_zone_init(void *dummy)
 {
-	uint32_t allocf_flags;
-
-	allocf_flags = 0;
-	if (platform_real_maxaddr() != VM_MAX_ADDRESS)
-		allocf_flags = UMA_ZONE_CONTIG;
-
 	slbt_zone = uma_zcreate("SLB tree node", sizeof(struct slbtnode),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    allocf_flags | UMA_ZONE_VM);
+	    UMA_ZONE_CONTIG | UMA_ZONE_VM);
 	slb_cache_zone = uma_zcreate("SLB cache",
 	    (n_slbs + 1)*sizeof(struct slb *), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, allocf_flags | UMA_ZONE_VM);
+	    UMA_ALIGN_PTR, UMA_ZONE_CONTIG | UMA_ZONE_VM);
 
 	if (platform_real_maxaddr() != VM_MAX_ADDRESS) {
 		uma_zone_set_allocf(slb_cache_zone, slb_uma_real_alloc);

@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +39,7 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkatron.c,v 1.12 2010/03/31 23:38:02 tom Exp $")
+MODULE_ID("$Id: lib_slkatron.c,v 1.13 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(slk_attron) (NCURSES_SP_DCLx const chtype attr)

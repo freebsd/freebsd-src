@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_format.c,v 1.18 2012/06/09 23:54:02 tom Exp $")
+MODULE_ID("$Id: m_format.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
 
 #define minimum(a,b) ((a)<(b) ? (a): (b))
 
