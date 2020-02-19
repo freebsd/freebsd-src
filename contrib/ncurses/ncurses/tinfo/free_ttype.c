@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1999-2011,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1999-2011,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +43,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: free_ttype.c,v 1.17 2017/04/13 01:06:04 tom Exp $")
+MODULE_ID("$Id: free_ttype.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
 
 static void
 really_free_termtype(TERMTYPE2 *ptr, bool freeStrings)
@@ -66,7 +67,7 @@ really_free_termtype(TERMTYPE2 *ptr, bool freeStrings)
 }
 
 /*
- * This entrypoint is used by tack.
+ * This entrypoint is used by tack 1.07
  */
 NCURSES_EXPORT(void)
 _nc_free_termtype(TERMTYPE *ptr)

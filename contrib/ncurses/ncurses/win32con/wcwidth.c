@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2010 Free Software Foundation, Inc.                        *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2010 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +28,7 @@
  ****************************************************************************/
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wcwidth.c,v 1.2 2010/08/07 20:52:43 tom Exp $")
+MODULE_ID("$Id: wcwidth.c,v 1.3 2020/02/02 23:34:34 tom Exp $")
 
 #if USE_WIDEC_SUPPORT
 #define mk_wcwidth(ucs)          _nc_wcwidth(ucs)

@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2009,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
  *     and: Juergen Pfeifer                         1996-1999,2008          *
  ****************************************************************************/
 
-/* $Id: panel.h,v 1.12 2017/02/11 16:50:28 tom Exp $ */
+/* $Id: panel.h,v 1.13 2020/02/02 23:34:34 tom Exp $ */
 
 /* panel.h -- interface file for panels library */
 

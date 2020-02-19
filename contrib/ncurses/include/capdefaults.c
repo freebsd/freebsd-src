@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2008 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2000,2008 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $Id: capdefaults.c,v 1.14 2008/11/16 00:19:59 juergen Exp $ */
+/* $Id: capdefaults.c,v 1.15 2020/02/02 23:34:34 tom Exp $ */
 
     /*
      * Compute obsolete capabilities.  The reason this is an include file is

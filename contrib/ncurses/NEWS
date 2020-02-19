@@ -1,5 +1,6 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2019,2020 Free Software Foundation, Inc.               --
+-- Copyright 2018-2019,2020 Thomas E. Dickey                                 --
+-- Copyright 1998-2017,2018 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: NEWS,v 1.3431 2020/01/19 02:02:44 tom Exp $
+-- $Id: NEWS,v 1.3450 2020/02/15 18:56:00 tom Exp $
 -------------------------------------------------------------------------------
 
 This is a log of changes that ncurses has gone through since Zeyd started
@@ -44,6 +45,39 @@ See the AUTHORS file for the corresponding full names.
 
 Changes through 1.9.9e did not credit all contributions;
 it is not possible to add this information.
+
+20200215
+	+ improve manual page for panel library, extending the portability
+	  section as well as documenting error-returns.
+	+ show tic's version when installing terminal database in run_tic.sh
+	+ correct check for gcc vs other compilers used in ncurses 6.0, from
+	  FreeBSD patch by Kyle Evans (cf: 20150725).
+	+ add notes for 6.2 to INSTALL.
+
+20200212 6.2 release for upload to ftp.gnu.org
+	+ update release notes
+	+ minor build-fixes, mostly to test-package scripts
+
+20200208
+	+ modify check for sizeof(wchar_t) to ensure it gives useful result
+	  when cross-compiling.
+	+ drop assumption in configure script that Cygwin's linker is broken.
+	+ define NCURSES_BROKEN_LINKER if the broken-linker feature is used,
+	  to simplify configure-checks for ncurses-examples.
+
+20200202
+	+ reassert copyright on ncurses, per discussion in ncurses FAQ:
+	  https://invisible-island.net/ncurses/ncurses.faq.html#relicensed
+
+20200201
+	+ modify comparison in make_hash.c to correct a special case in
+	  collision handling for Caps-hpux11
+	+ add testing utility report_hashing to check hash-tables used for
+	  terminfo and termcap names.
+	+ fix a missing prototype for _nc_free_and_exit().
+	+ update a few comments about tack 1.07
+	+ use an awk script to split too-long pathnames used in Ada95 sample
+	  programs for explain.txt
 
 20200118
 	+ expanded description of XM in user_caps.5

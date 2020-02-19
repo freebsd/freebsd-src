@@ -1,6 +1,7 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.                #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 1998-2019,2020 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKfallback.sh,v 1.22 2019/06/30 10:44:15 tom Exp $
+# $Id: MKfallback.sh,v 1.24 2020/02/08 21:52:37 tom Exp $
 #
 # MKfallback.sh -- create fallback table for entry reads
 #
@@ -144,7 +145,7 @@ cat <<EOF
 #undef _nc_fallback
 
 /*
- * This entrypoint is used by tack.
+ * This entrypoint is used by tack 1.07
  */
 NCURSES_EXPORT(const TERMTYPE *)
 _nc_fallback (const char *name)

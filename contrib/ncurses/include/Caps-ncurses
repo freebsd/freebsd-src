@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 2019 Free Software Foundation, Inc.                          #
+# Copyright 2019,2020 Thomas E. Dickey                                       #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,7 +28,7 @@
 #
 # Author: Thomas E. Dickey
 #
-# $Id: Caps-ncurses,v 1.7 2019/05/04 14:10:54 tom Exp $
+# $Id: Caps-ncurses,v 1.8 2020/02/02 23:34:34 tom Exp $
 #
 #############################################################################
 #

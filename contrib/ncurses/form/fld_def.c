@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2014 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_def.c,v 1.41 2014/07/26 21:08:55 tom Exp $")
+MODULE_ID("$Id: fld_def.c,v 1.42 2020/02/02 23:34:34 tom Exp $")
 
 /* this can't be readonly */
 static FIELD default_field =

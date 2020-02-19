@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2016-2017,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2016,2017 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +38,7 @@
 #define USE_LIBTINFO
 #include <clear_cmd.h>
 
-MODULE_ID("$Id: clear_cmd.c,v 1.4 2018/08/04 18:43:22 Nicholas.Marriott Exp $")
+MODULE_ID("$Id: clear_cmd.c,v 1.5 2020/02/02 23:34:34 tom Exp $")
 
 static int
 putch(int c)

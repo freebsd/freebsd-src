@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2008-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +31,7 @@
  * Author: Juergen Pfeifer, 2008-on                                         * 
  ****************************************************************************/
 
-/* $Id: ncurses_mingw.h,v 1.5 2018/06/24 00:07:35 tom Exp $ */
+/* $Id: ncurses_mingw.h,v 1.6 2020/02/02 23:34:34 tom Exp $ */
 
 /*
  * This is a placeholder up to now and describes what needs to be implemented

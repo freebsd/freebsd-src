@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1999-2011,2012 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1999-2011,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_tries.c,v 1.17 2012/10/27 20:50:50 tom Exp $")
+MODULE_ID("$Id: trace_tries.c,v 1.18 2020/02/02 23:34:34 tom Exp $")
 
 #ifdef TRACE
 #define my_buffer _nc_globals.tracetry_buf

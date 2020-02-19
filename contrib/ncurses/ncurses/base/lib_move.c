@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2009 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2004,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,7 +42,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_move.c,v 1.13 2009/10/24 22:34:07 tom Exp $")
+MODULE_ID("$Id: lib_move.c,v 1.14 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 wmove(WINDOW *win, int y, int x)

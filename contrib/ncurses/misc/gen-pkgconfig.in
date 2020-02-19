@@ -1,7 +1,8 @@
 #!@SHELL@
-# $Id: gen-pkgconfig.in,v 1.42 2019/12/25 23:09:13 tom Exp $
+# $Id: gen-pkgconfig.in,v 1.44 2020/02/12 00:09:26 tom Exp $
 ##############################################################################
-# Copyright (c) 2009-2018,2019 Free Software Foundation, Inc.                #
+# Copyright 2018-2019,2020 Thomas E. Dickey                                  #
+# Copyright 2009-2015,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -125,6 +126,15 @@ then
 	NEED_TINFO=yes
 fi
 
+# The "URL" feature came in pkg-config 0.17
+USEURL=""
+CFGVER=`pkg-config --version 2>/dev/null |head -n 1 | awk -F. '/0.[0-9][0-9]/{print $2;}'`
+# A missing version should simply fail, but some packagers insist on building
+# packages on machines which do not actually have the tools they depend on at
+# runtime.
+[ -z "$CFGVER" ] && CFGVER=30
+[ $CFGVER -ge 17 ] || USEURL="#"
+
 for name in @PC_MODULES_TO_MAKE@
 do
 	name="${name}"
@@ -178,7 +188,7 @@ version=@NCURSES_MAJOR@.@NCURSES_MINOR@.@NCURSES_PATCH@
 Name: ${name}${suffix}
 Description: $desc
 Version: \${version}
-URL: https://invisible-island.net/ncurses
+${USEURL}URL: https://invisible-island.net/ncurses
 Requires.private: $reqs
 Libs: $lib_flags $LIBS
 Libs.private: @LIBS@ $main_libs

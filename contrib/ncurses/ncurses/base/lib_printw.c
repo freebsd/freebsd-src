@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 1998-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_printw.c,v 1.27 2019/01/19 15:46:25 tom Exp $")
+MODULE_ID("$Id: lib_printw.c,v 1.28 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 printw(const char *fmt, ...)

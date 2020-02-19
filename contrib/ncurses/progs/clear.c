@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +41,7 @@
 #include <clear_cmd.h>
 #include <tty_settings.h>
 
-MODULE_ID("$Id: clear.c,v 1.22 2017/10/07 21:48:32 tom Exp $")
+MODULE_ID("$Id: clear.c,v 1.23 2020/02/02 23:34:34 tom Exp $")
 
 const char *_nc_progname = "clear";
 

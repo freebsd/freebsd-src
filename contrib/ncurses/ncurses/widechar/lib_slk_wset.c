@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2003-2011,2016 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2003-2011,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +41,7 @@
 #include <wctype.h>
 #endif
 
-MODULE_ID("$Id: lib_slk_wset.c,v 1.14 2016/05/28 23:36:34 tom Exp $")
+MODULE_ID("$Id: lib_slk_wset.c,v 1.15 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 slk_wset(int i, const wchar_t *astr, int format)
