@@ -4849,7 +4849,6 @@ OLD_FILES+=usr/share/man/man1/lldb.1.gz
 .endif
 
 .if ${MK_LOCALES} == no
-OLD_DIRS+=usr/share/locale
 OLD_DIRS+=usr/share/locale/af_ZA.ISO8859-15
 OLD_FILES+=usr/share/locale/af_ZA.ISO8859-15/LC_COLLATE
 OLD_FILES+=usr/share/locale/af_ZA.ISO8859-15/LC_CTYPE
