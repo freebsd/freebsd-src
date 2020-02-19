@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2011,2015 Free Software Foundation, Inc.                   *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2011,2015 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
 
 /*
     Version Control
-    $Id: ncurses_compat.c,v 1.3 2015/08/06 23:09:10 tom Exp $
+    $Id: ncurses_compat.c,v 1.4 2020/02/02 23:34:34 tom Exp $
   --------------------------------------------------------------------------*/
 
 /*

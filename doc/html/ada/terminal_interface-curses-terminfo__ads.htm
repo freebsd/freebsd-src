@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 2000,2003 Free Software Foundation, Inc.                   --</EM></span>
+<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
+<span class="comment"><EM>-- Copyright 2000-2002,2003 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,14 +53,14 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.4 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.5 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 
 <b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<span class="symbol"><A NAME="ref_44_35" HREF="terminal_interface-curses-terminfo__adb.htm#ref_48_40">Terminfo</A></span> <b>is</b>
-   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-terminfo__ads.htm#ref_44_35">Terminfo</A>);
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<span class="symbol"><A NAME="ref_45_35" HREF="terminal_interface-curses-terminfo__adb.htm#ref_49_40">Terminfo</A></span> <b>is</b>
+   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-terminfo__ads.htm#ref_45_35">Terminfo</A>);
 
    <span class="comment"><EM>--  |=====================================================================</EM></span>
    <span class="comment"><EM>--  | Man page curs_terminfo.3x</EM></span>
@@ -71,29 +72,29 @@
    <b>type</b> Terminfo_String <b>is</b> <b>new</b> String;
 
    <span class="comment"><EM>--  |</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_57_14" HREF="terminal_interface-curses-terminfo__adb.htm#ref_83_14">Get_String</A></span> (<span class="symbol"><A NAME="ref_57_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_83_26">Name</A></span>   : String;
-                         <span class="symbol"><A NAME="ref_58_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_84_26">Value</A></span>  : <b>out</b> Terminfo_String;
-                         <span class="symbol"><A NAME="ref_59_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_85_26">Result</A></span> : <b>out</b> Boolean);
-   <b>function</b> <span class="symbol"><A NAME="ref_60_13" HREF="terminal_interface-curses-terminfo__adb.htm#ref_106_13">Has_String</A></span> (<span class="symbol"><A NAME="ref_60_25" HREF="terminal_interface-curses-terminfo__adb.htm#ref_106_25">Name</A></span> : String) <b>return</b> Boolean;
+   <b>procedure</b> <span class="symbol"><A NAME="ref_58_14" HREF="terminal_interface-curses-terminfo__adb.htm#ref_84_14">Get_String</A></span> (<span class="symbol"><A NAME="ref_58_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_84_26">Name</A></span>   : String;
+                         <span class="symbol"><A NAME="ref_59_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_85_26">Value</A></span>  : <b>out</b> Terminfo_String;
+                         <span class="symbol"><A NAME="ref_60_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_86_26">Result</A></span> : <b>out</b> Boolean);
+   <b>function</b> <span class="symbol"><A NAME="ref_61_13" HREF="terminal_interface-curses-terminfo__adb.htm#ref_107_13">Has_String</A></span> (<span class="symbol"><A NAME="ref_61_25" HREF="terminal_interface-curses-terminfo__adb.htm#ref_107_25">Name</A></span> : String) <b>return</b> Boolean;
    <span class="comment"><EM>--  AKA: tigetstr()</EM></span>
 
    <span class="comment"><EM>--  |</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_64_13" HREF="terminal_interface-curses-terminfo__adb.htm#ref_67_13">Get_Flag</A></span> (<span class="symbol"><A NAME="ref_64_23" HREF="terminal_interface-curses-terminfo__adb.htm#ref_67_23">Name</A></span> : String) <b>return</b> Boolean;
+   <b>function</b> <span class="symbol"><A NAME="ref_65_13" HREF="terminal_interface-curses-terminfo__adb.htm#ref_68_13">Get_Flag</A></span> (<span class="symbol"><A NAME="ref_65_23" HREF="terminal_interface-curses-terminfo__adb.htm#ref_68_23">Name</A></span> : String) <b>return</b> Boolean;
    <span class="comment"><EM>--  AKA: tigetflag()</EM></span>
 
    <span class="comment"><EM>--  |</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_68_13" HREF="terminal_interface-curses-terminfo__adb.htm#ref_126_13">Get_Number</A></span> (<span class="symbol"><A NAME="ref_68_25" HREF="terminal_interface-curses-terminfo__adb.htm#ref_126_25">Name</A></span> : String) <b>return</b> Integer;
+   <b>function</b> <span class="symbol"><A NAME="ref_69_13" HREF="terminal_interface-curses-terminfo__adb.htm#ref_127_13">Get_Number</A></span> (<span class="symbol"><A NAME="ref_69_25" HREF="terminal_interface-curses-terminfo__adb.htm#ref_127_25">Name</A></span> : String) <b>return</b> Integer;
    <span class="comment"><EM>--  AKA: tigetnum()</EM></span>
 
-   <b>type</b> <span class="symbol"><A NAME="ref_71_9">putctype</A></span> <b>is</b> <b>access</b> <b>function</b> (<span class="symbol"><A NAME="ref_71_38" HREF="terminal_interface-curses-terminfo__ads.htm#ref_71_9">c</A></span> : <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int)
+   <b>type</b> <span class="symbol"><A NAME="ref_72_9">putctype</A></span> <b>is</b> <b>access</b> <b>function</b> (<span class="symbol"><A NAME="ref_72_38" HREF="terminal_interface-curses-terminfo__ads.htm#ref_72_9">c</A></span> : <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int)
                                     <b>return</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int;
-   <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_71_9">putctype</A>);
+   <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_72_9">putctype</A>);
 
    <span class="comment"><EM>--  |</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_76_14" HREF="terminal_interface-curses-terminfo__adb.htm#ref_137_14">Put_String</A></span> (<span class="symbol"><A NAME="ref_76_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_137_26">Str</A></span>    : Terminfo_String;
-                         <span class="symbol"><A NAME="ref_77_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_138_26">affcnt</A></span> : Natural := 1;
-                         <span class="symbol"><A NAME="ref_78_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_139_26">putc</A></span>   : <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_71_9">putctype</A> := <b>null</b>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_77_14" HREF="terminal_interface-curses-terminfo__adb.htm#ref_138_14">Put_String</A></span> (<span class="symbol"><A NAME="ref_77_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_138_26">Str</A></span>    : Terminfo_String;
+                         <span class="symbol"><A NAME="ref_78_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_139_26">affcnt</A></span> : Natural := 1;
+                         <span class="symbol"><A NAME="ref_79_26" HREF="terminal_interface-curses-terminfo__adb.htm#ref_140_26">putc</A></span>   : <A HREF="terminal_interface-curses-terminfo__ads.htm#ref_72_9">putctype</A> := <b>null</b>);
    <span class="comment"><EM>--  AKA: tputs()</EM></span>
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-terminfo__ads.htm#ref_44_35">Terminfo</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-terminfo__ads.htm#ref_45_35">Terminfo</A>;
 </PRE></BODY></HTML>

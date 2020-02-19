@@ -9,7 +9,8 @@ include(M4MACRO)----------------------------------------------------------------
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000,2014 Free Software Foundation, Inc.                   --
+-- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 2000,2014 Free Software Foundation, Inc.                       --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -37,7 +38,7 @@ include(M4MACRO)----------------------------------------------------------------
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control:
---  $Revision: 1.4 $
+--  $Revision: 1.5 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 

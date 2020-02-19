@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2006,2008 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: keynames.c,v 1.9 2008/10/11 20:22:37 tom Exp $
+ * $Id: keynames.c,v 1.10 2020/02/02 23:34:34 tom Exp $
  */
 
 #include <test.priv.h>

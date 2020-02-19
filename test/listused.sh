@@ -1,6 +1,7 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 2003-2006,2010 Free Software Foundation, Inc.                #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2003-2006,2010 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: listused.sh,v 1.8 2010/09/18 15:15:15 tom Exp $
+# $Id: listused.sh,v 1.9 2020/02/02 23:34:34 tom Exp $
 # A very simple script to list all entrypoints that are used by either a test
 # program, or within the libraries.  This relies on the output format of 'nm',
 # and assumes that the libraries are configured with TRACE defined, and using

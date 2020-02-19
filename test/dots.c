@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1999-2017,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1999-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 1999
  *
- * $Id: dots.c,v 1.35 2019/08/24 21:49:50 tom Exp $
+ * $Id: dots.c,v 1.36 2020/02/02 23:34:34 tom Exp $
  *
  * A simple demo of the terminfo interface.
  */

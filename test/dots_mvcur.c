@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2007-2017,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2007-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey - 2007
  *
- * $Id: dots_mvcur.c,v 1.21 2019/08/24 22:19:28 tom Exp $
+ * $Id: dots_mvcur.c,v 1.22 2020/02/02 23:34:34 tom Exp $
  *
  * A simple demo of the terminfo interface, and mvcur.
  */

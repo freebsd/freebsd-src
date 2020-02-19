@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2013-2014,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2013-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_vidputs.c,v 1.9 2017/10/11 08:17:07 tom Exp $
+ * $Id: test_vidputs.c,v 1.10 2020/02/02 23:34:34 tom Exp $
  *
  * Demonstrate the vidputs and vidattr functions.
  * Thomas Dickey - 2013/01/12

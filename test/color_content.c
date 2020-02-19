@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2018,2019 Free Software Foundation, Inc.                   *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: color_content.c,v 1.11 2019/08/17 21:29:13 tom Exp $
+ * $Id: color_content.c,v 1.12 2020/02/02 23:34:34 tom Exp $
  */
 
 #define NEED_TIME_H

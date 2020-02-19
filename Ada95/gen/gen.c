@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2014,2016 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2014,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
 
 /*
     Version Control
-    $Id: gen.c,v 1.70 2016/02/13 22:00:22 tom Exp $
+    $Id: gen.c,v 1.71 2020/02/02 23:34:34 tom Exp $
   --------------------------------------------------------------------------*/
 /*
   This program prints on its standard output the source for the

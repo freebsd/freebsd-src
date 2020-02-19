@@ -1,6 +1,7 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2013,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2007,2013 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +44,7 @@
 #define CPP_HAS_TRY_CATCH 0
 #endif
 
-MODULE_ID("$Id: cursesmain.cc,v 1.16 2019/12/14 22:48:23 tom Exp $")
+MODULE_ID("$Id: cursesmain.cc,v 1.17 2020/02/02 23:34:34 tom Exp $")
 
 #if HAVE_LOCALE_H
 #include <locale.h>

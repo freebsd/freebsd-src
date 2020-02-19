@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2007-2010,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2007-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_instr.c,v 1.9 2017/09/06 09:27:45 tom Exp $
+ * $Id: test_instr.c,v 1.10 2020/02/02 23:34:34 tom Exp $
  *
  * Author: Thomas E Dickey
  *

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2018 Free Software Foundation, Inc.                        *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: parse_rgb.h,v 1.4 2018/02/03 23:40:53 tom Exp $
+ * $Id: parse_rgb.h,v 1.5 2020/02/02 23:34:34 tom Exp $
  *
  * Sample implementation of ncurses RGB extension from user_caps(5).
  */

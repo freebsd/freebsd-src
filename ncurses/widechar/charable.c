@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2003-2008,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2003-2005,2008 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: charable.c,v 1.7 2018/06/30 20:46:25 tom Exp $")
+MODULE_ID("$Id: charable.c,v 1.8 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(bool) _nc_is_charable(wchar_t ch)
 {

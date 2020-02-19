@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2007-2011,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2007-2011,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_get_wstr.c,v 1.11 2017/09/28 23:10:54 tom Exp $
+ * $Id: test_get_wstr.c,v 1.12 2020/02/02 23:34:34 tom Exp $
  *
  * Author: Thomas E Dickey
  *

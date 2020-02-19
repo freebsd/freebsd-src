@@ -7,7 +7,8 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2014,2015 Free Software Foundation, Inc.              --
+-- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 2000-2014,2015 Free Software Foundation, Inc.                  --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +36,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.7 $
---  $Date: 2015/07/25 23:43:19 $
+--  $Revision: 1.8 $
+--  $Date: 2020/02/02 23:34:34 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with ncurses2.util; use ncurses2.util;

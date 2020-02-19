@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2013,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
  * This is an example written by Alexander V. Lukyanov <lav@yars.free.net>,
  * to demonstrate an inconsistency between ncurses and SVr4 curses.
  *
- * $Id: testaddch.c,v 1.12 2014/08/02 23:11:20 tom Exp $
+ * $Id: testaddch.c,v 1.13 2020/02/02 23:34:34 tom Exp $
  */
 #include <test.priv.h>
 

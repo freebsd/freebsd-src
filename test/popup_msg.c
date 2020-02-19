@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2017,2018 Free Software Foundation, Inc.                   *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: popup_msg.c,v 1.9 2018/05/12 15:08:45 tom Exp $
+ * $Id: popup_msg.c,v 1.10 2020/02/02 23:34:34 tom Exp $
  *
  * Show a multi-line message in a window which may extend beyond the screen.
  *

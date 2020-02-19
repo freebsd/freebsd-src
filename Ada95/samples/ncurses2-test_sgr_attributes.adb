@@ -7,7 +7,8 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000,2006 Free Software Foundation, Inc.                   --
+-- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 2000,2006 Free Software Foundation, Inc.                       --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +36,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.2 $
---  $Date: 2006/06/25 14:24:40 $
+--  $Revision: 1.3 $
+--  $Date: 2020/02/02 23:34:34 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Terminal_Interface.Curses; use Terminal_Interface.Curses;

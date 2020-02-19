@@ -1,6 +1,7 @@
-# $Id: MKkeyname.awk,v 1.50 2017/04/11 01:18:08 tom Exp $
+# $Id: MKkeyname.awk,v 1.51 2020/02/02 23:34:34 tom Exp $
 ##############################################################################
-# Copyright (c) 1999-2016,2017 Free Software Foundation, Inc.                #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 1998-2016,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #

@@ -1,6 +1,7 @@
-# $Id: mk-test.awk,v 1.22 2019/01/06 00:35:28 tom Exp $
+# $Id: mk-test.awk,v 1.23 2020/02/02 23:34:34 tom Exp $
 ##############################################################################
-# Copyright (c) 2006-2018,2019 Free Software Foundation, Inc.                #
+# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2006-2017,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #

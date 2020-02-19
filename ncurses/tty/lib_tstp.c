@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2014,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +43,7 @@
 
 #include <SigAction.h>
 
-MODULE_ID("$Id: lib_tstp.c,v 1.49 2017/07/22 23:29:58 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.50 2020/02/02 23:34:34 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1

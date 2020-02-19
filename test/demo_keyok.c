@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2002-2006,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2002-2006,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_keyok.c,v 1.6 2017/04/10 00:37:08 tom Exp $
+ * $Id: demo_keyok.c,v 1.7 2020/02/02 23:34:34 tom Exp $
  *
  * Demonstrate the keyok() function.
  * Thomas Dickey - 2002/11/23

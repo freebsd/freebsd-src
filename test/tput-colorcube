@@ -1,6 +1,7 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 2016 Free Software Foundation, Inc.                          #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2016 Free Software Foundation, Inc.                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: tput-colorcube,v 1.1 2016/12/17 23:37:37 tom Exp $
+# $Id: tput-colorcube,v 1.2 2020/02/02 23:34:34 tom Exp $
 # Use this script to print an xterm-style color cube, e.g., as done in
 # the xterm 88colors2.pl and 256colors2.pl scripts.
 

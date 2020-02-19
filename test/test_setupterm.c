@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2015,2016 Free Software Foundation, Inc.                   *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2015,2016 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: test_setupterm.c,v 1.9 2016/06/18 23:54:35 tom Exp $
+ * $Id: test_setupterm.c,v 1.10 2020/02/02 23:34:34 tom Exp $
  *
  * A simple demo of setupterm/restartterm.
  */

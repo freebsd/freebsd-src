@@ -1,7 +1,7 @@
 Summary: shared libraries for terminal handling
 Name: ncurses6
-Version: 6.1
-Release: 20200118
+Version: 6.2
+Release: 20200215
 License: X11
 Group: Development/Libraries
 Source: ncurses-%{version}-%{release}.tgz
@@ -27,7 +27,10 @@ This package is used for testing ABI %{MY_ABI}.
 %prep
 
 %global is_mandriva %(test -f /etc/mandriva-release && echo 1 || echo 0)
+%global is_fedora   %(test -f /usr/bin/dnf && echo 1 || echo 0)
+%global is_centos   %(test -f /etc/centos-release && echo 1 || echo 0)
 %global is_redhat   %(test -f /etc/redhat-release && echo 1 || echo 0)
+%global is_scilinux %(test -f /etc/sl-release && echo 1 || echo 0)
 %global is_suse     %(test -f /etc/SuSE-release && echo 1 || echo 0)
 
 %if %{is_redhat}
@@ -44,7 +47,7 @@ This package is used for testing ABI %{MY_ABI}.
 %define _disable_ld_build_id 1
 %endif
 
-%if %{is_redhat}
+%if %{is_fedora} || %{is_scilinux} || %{is_centos}
 # workaround for toolset breakage in Fedora 28
 %define _test_relink --enable-relink
 %else
@@ -111,9 +114,13 @@ make install.libs install.progs
 rm -f test/ncurses
 ( cd test && make ncurses LOCAL_LIBDIR=%{_libdir} && mv ncurses $RPM_BUILD_ROOT/%{_bindir}/ncurses%{MY_ABI} )
 
-%if %{is_redhat}
+%if %{is_mandriva}
+# check this first because Mageia has the /etc/redhat-release file...
+%else
+%if %{is_fedora}
 %ldconfig_scriptlets libs
 %ldconfig_scriptlets c++-libs
+%endif
 %endif
 
 %clean

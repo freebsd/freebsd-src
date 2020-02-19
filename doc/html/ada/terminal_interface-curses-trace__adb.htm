@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 B O D Y                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 2000-2009,2014 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
+<span class="comment"><EM>-- Copyright 2001-2011,2014 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,27 +53,27 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.11 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.12 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
 
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<span class="symbol"><A NAME="ref_43_40" HREF="terminal_interface-curses-trace__ads.htm#ref_42_35">Trace</A></span> <b>is</b>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<span class="symbol"><A NAME="ref_44_40" HREF="terminal_interface-curses-trace__ads.htm#ref_43_35">Trace</A></span> <b>is</b>
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_45_14" HREF="terminal_interface-curses-trace__ads.htm#ref_114_14">Trace_On</A></span> (<span class="symbol"><A NAME="ref_45_24" HREF="terminal_interface-curses-trace__ads.htm#ref_114_24">x</A></span> : <A HREF="terminal_interface-curses-trace__ads.htm#ref_45_9">Trace_Attribute_Set</A>) <b>is</b>
-      <b>procedure</b> <span class="symbol"><A NAME="ref_46_17">traceC</A></span> (<span class="symbol"><A NAME="ref_46_25" HREF="terminal_interface-curses-trace__adb.htm#ref_46_17">y</A></span> : <A HREF="terminal_interface-curses-trace__ads.htm#ref_45_9">Trace_Attribute_Set</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_46_14" HREF="terminal_interface-curses-trace__ads.htm#ref_115_14">Trace_On</A></span> (<span class="symbol"><A NAME="ref_46_24" HREF="terminal_interface-curses-trace__ads.htm#ref_115_24">x</A></span> : <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>) <b>is</b>
+      <b>procedure</b> <span class="symbol"><A NAME="ref_47_17">traceC</A></span> (<span class="symbol"><A NAME="ref_47_25" HREF="terminal_interface-curses-trace__adb.htm#ref_47_17">y</A></span> : <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>);
       <b>pragma</b> Import (C, traceC, "trace");
    <b>begin</b>
-      <A HREF="terminal_interface-curses-trace__adb.htm#ref_46_17">traceC</A> (<A HREF="terminal_interface-curses-trace__ads.htm#ref_114_24">x</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_114_14">Trace_On</A>;
+      <A HREF="terminal_interface-curses-trace__adb.htm#ref_47_17">traceC</A> (<A HREF="terminal_interface-curses-trace__ads.htm#ref_115_24">x</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_115_14">Trace_On</A>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_52_14" HREF="terminal_interface-curses-trace__ads.htm#ref_118_14">Trace_Put</A></span> (<span class="symbol"><A NAME="ref_52_25" HREF="terminal_interface-curses-trace__ads.htm#ref_118_25">str</A></span> : String) <b>is</b>
-      <b>procedure</b> <span class="symbol"><A NAME="ref_53_17">tracef</A></span> (<span class="symbol"><A NAME="ref_53_25" HREF="terminal_interface-curses-trace__adb.htm#ref_53_17">format</A></span> : char_array; <span class="symbol"><A NAME="ref_53_46" HREF="terminal_interface-curses-trace__adb.htm#ref_53_17">s</A></span> : char_array);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_53_14" HREF="terminal_interface-curses-trace__ads.htm#ref_119_14">Trace_Put</A></span> (<span class="symbol"><A NAME="ref_53_25" HREF="terminal_interface-curses-trace__ads.htm#ref_119_25">str</A></span> : String) <b>is</b>
+      <b>procedure</b> <span class="symbol"><A NAME="ref_54_17">tracef</A></span> (<span class="symbol"><A NAME="ref_54_25" HREF="terminal_interface-curses-trace__adb.htm#ref_54_17">format</A></span> : char_array; <span class="symbol"><A NAME="ref_54_46" HREF="terminal_interface-curses-trace__adb.htm#ref_54_17">s</A></span> : char_array);
       <b>pragma</b> Import (C, tracef, "_traces");
       <span class="comment"><EM>--  _traces() is defined in c_varargs_to_ada.h</EM></span>
    <b>begin</b>
-      <A HREF="terminal_interface-curses-trace__adb.htm#ref_53_17">tracef</A> (To_C ("%s"), To_C (<A HREF="terminal_interface-curses-trace__ads.htm#ref_118_25">str</A>));
-   <b>end</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_118_14">Trace_Put</A>;
+      <A HREF="terminal_interface-curses-trace__adb.htm#ref_54_17">tracef</A> (To_C ("%s"), To_C (<A HREF="terminal_interface-curses-trace__ads.htm#ref_119_25">str</A>));
+   <b>end</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_119_14">Trace_Put</A>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-trace__ads.htm#ref_42_35">Trace</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-trace__ads.htm#ref_43_35">Trace</A>;
 </PRE></BODY></HTML>

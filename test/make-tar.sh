@@ -1,7 +1,8 @@
 #!/bin/sh
-# $Id: make-tar.sh,v 1.15 2019/03/02 22:51:42 tom Exp $
+# $Id: make-tar.sh,v 1.16 2020/02/02 23:34:34 tom Exp $
 ##############################################################################
-# Copyright (c) 2010-2017,2019 Free Software Foundation, Inc.                #
+# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2010-2015,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #

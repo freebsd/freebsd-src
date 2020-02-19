@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2009,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: define_key.c,v 1.21 2014/03/08 20:32:59 tom Exp $")
+MODULE_ID("$Id: define_key.c,v 1.22 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(define_key) (NCURSES_SP_DCLx const char *str, int keycode)

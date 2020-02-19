@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2018 Free Software Foundation, Inc.                        *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: dump_window.h,v 1.1 2018/11/24 18:13:53 tom Exp $
+ * $Id: dump_window.h,v 1.2 2020/02/02 23:34:34 tom Exp $
  */
 #ifndef DUMP_WINDOW_H_incl
 #define DUMP_WINDOW_H_incl 1

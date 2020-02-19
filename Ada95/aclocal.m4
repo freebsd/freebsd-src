@@ -1,5 +1,6 @@
 dnl***************************************************************************
-dnl Copyright (c) 2010-2019,2020 Free Software Foundation, Inc.              *
+dnl Copyright 2018-2019,2020 Thomas E. Dickey                                *
+dnl Copyright 2010-2017,2018 Free Software Foundation, Inc.                  *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,7 +29,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey
 dnl
-dnl $Id: aclocal.m4,v 1.151 2020/01/11 23:42:04 tom Exp $
+dnl $Id: aclocal.m4,v 1.153 2020/02/08 21:04:00 tom Exp $
 dnl Macros used in NCURSES Ada95 auto-configuration script.
 dnl
 dnl These macros are maintained separately from NCURSES.  The copyright on
@@ -926,6 +927,28 @@ CF_ARG_DISABLE(gnat-projects,
 	[enable_gnat_projects=no],
 	[enable_gnat_projects=yes])
 AC_MSG_RESULT($enable_gnat_projects)
+])dnl
+dnl ---------------------------------------------------------------------------
+dnl CF_ENABLE_BROKEN_LINKER version: 1 updated: 2020/02/08 15:59:30
+dnl -----------------------
+dnl Some linkers cannot reference a data-only object.  Cygwin used to be one.
+dnl This usually follows CF_LINK_DATAONLY, but is not required in case we need
+dnl an unconditional feature.
+AC_DEFUN([CF_ENABLE_BROKEN_LINKER],[
+
+AC_MSG_CHECKING(if you want broken-linker support code)
+AC_ARG_ENABLE(broken_linker,
+	[  --enable-broken_linker  compile with broken-linker support code],
+	[with_broken_linker=$enableval],
+	[with_broken_linker=no])
+AC_MSG_RESULT($with_broken_linker)
+
+: ${BROKEN_LINKER:=0}
+if test "x$with_broken_linker" = xyes ; then
+	AC_DEFINE(BROKEN_LINKER,1,[Define to 1 to work around linkers which cannot link data-only modules])
+	BROKEN_LINKER=1
+fi
+AC_SUBST(BROKEN_LINKER)
 ])dnl
 dnl ---------------------------------------------------------------------------
 dnl CF_FIND_LIBRARY version: 9 updated: 2008/03/23 14:48:54
@@ -2191,7 +2214,7 @@ AC_DEFUN([CF_LIB_TYPE],
 	test -n "$LIB_SUFFIX" && $2="${LIB_SUFFIX}[$]{$2}"
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_LINK_DATAONLY version: 12 updated: 2017/07/23 17:46:07
+dnl CF_LINK_DATAONLY version: 13 updated: 2020/02/08 15:59:30
 dnl ----------------
 dnl Some systems have a non-ANSI linker that doesn't pull in modules that have
 dnl only data (i.e., no functions), for example NeXT.  On those systems we'll
@@ -2251,6 +2274,7 @@ if test "$cf_cv_link_dataonly" = no ; then
 	AC_DEFINE(BROKEN_LINKER,1,[if data-only library module does not link])
 	BROKEN_LINKER=1
 fi
+AC_SUBST(BROKEN_LINKER)
 
 ])dnl
 dnl ---------------------------------------------------------------------------

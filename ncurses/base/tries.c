@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: tries.c,v 1.30 2010/08/28 21:08:23 tom Exp $")
+MODULE_ID("$Id: tries.c,v 1.31 2020/02/02 23:34:34 tom Exp $")
 
 /*
  * Expand a keycode into the string that it corresponds to, returning null if

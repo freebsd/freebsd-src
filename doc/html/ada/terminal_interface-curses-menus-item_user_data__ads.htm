@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
+<span class="comment"><EM>-- Copyright 1998-2006,2009 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,16 +53,16 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.17 @</EM></span>
-<span class="comment"><EM>--  @Date: 2009/12/26 17:31:35 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.18 @</EM></span>
+<span class="comment"><EM>--  @Date: 2020/02/02 23:34:34 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 
 <b>generic</b>
-   <b>type</b> <span class="symbol"><A NAME="ref_44_9" HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_46_41">User</A></span> <b>is</b> <b>limited</b> <b>private</b>;
-   <b>type</b> <span class="symbol"><A NAME="ref_45_9" HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_46_41">User_Access</A></span> <b>is</b> <b>access</b> <A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_44_9">User</A>;
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-menus__ads.htm#ref_45_35">Menus</A>.<span class="symbol"><A NAME="ref_46_41" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_43_46">Item_User_Data</A></span> <b>is</b>
-   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-menus__ads.htm#ref_45_35">Menus</A>.<A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_46_41">Item_User_Data</A>);
+   <b>type</b> <span class="symbol"><A NAME="ref_45_9" HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_47_41">User</A></span> <b>is</b> <b>limited</b> <b>private</b>;
+   <b>type</b> <span class="symbol"><A NAME="ref_46_9" HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_47_41">User_Access</A></span> <b>is</b> <b>access</b> <A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_45_9">User</A>;
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-menus__ads.htm#ref_46_35">Menus</A>.<span class="symbol"><A NAME="ref_47_41" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_44_46">Item_User_Data</A></span> <b>is</b>
+   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-menus__ads.htm#ref_46_35">Menus</A>.<A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_47_41">Item_User_Data</A>);
 
    <span class="comment"><EM>--  The binding uses the same user pointer for menu items</EM></span>
    <span class="comment"><EM>--  as the low level C implementation. So you can safely</EM></span>
@@ -72,21 +73,21 @@
    <span class="comment"><EM>--  |=====================================================================</EM></span>
 
    <span class="comment"><EM>--  <A NAME="AFU_1">|</A></EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_58_14" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_45_14">Set_User_Data</A></span> (<span class="symbol"><A NAME="ref_58_29" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_45_29">Itm</A></span>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_51_9">Item</A>;
-                            <span class="symbol"><A NAME="ref_59_29" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_46_29">Data</A></span> : <A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_45_9">User_Access</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_59_14" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_46_14">Set_User_Data</A></span> (<span class="symbol"><A NAME="ref_59_29" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_46_29">Itm</A></span>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_52_9">Item</A>;
+                            <span class="symbol"><A NAME="ref_60_29" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_47_29">Data</A></span> : <A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_46_9">User_Access</A>);
    <span class="comment"><EM>--  AKA: <A HREF="../man/mitem_userptr.3x.html">set_item_userptr</A></EM></span>
-   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_58_14">Set_User_Data</A>);
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_59_14">Set_User_Data</A>);
 
    <span class="comment"><EM>--  <A NAME="AFU_2">|</A></EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_64_14" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_64_14">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_64_29" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_64_29">Itm</A></span>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_51_9">Item</A>;
-                            <span class="symbol"><A NAME="ref_65_29" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_65_29">Data</A></span> : <b>out</b> <A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_45_9">User_Access</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_65_14" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_65_14">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_65_29" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_65_29">Itm</A></span>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_52_9">Item</A>;
+                            <span class="symbol"><A NAME="ref_66_29" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_66_29">Data</A></span> : <b>out</b> <A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_46_9">User_Access</A>);
    <span class="comment"><EM>--  AKA: <A HREF="../man/mitem_userptr.3x.html">item_userptr</A></EM></span>
 
    <span class="comment"><EM>--  <A NAME="AFU_3">|</A></EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_69_13" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_56_13">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_69_28" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_56_28">Itm</A></span>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_51_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_45_9">User_Access</A>;
+   <b>function</b> <span class="symbol"><A NAME="ref_70_13" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_57_13">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_70_28" HREF="terminal_interface-curses-menus-item_user_data__adb.htm#ref_57_28">Itm</A></span>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_52_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_46_9">User_Access</A>;
    <span class="comment"><EM>--  AKA: <A HREF="../man/mitem_userptr.3x.html">item_userptr</A></EM></span>
    <span class="comment"><EM>--  Same as function</EM></span>
    <b>pragma</b> Inline (Get_User_Data);
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-menus__ads.htm#ref_45_35">Menus</A>.<A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_46_41">Item_User_Data</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-menus__ads.htm#ref_46_35">Menus</A>.<A HREF="terminal_interface-curses-menus-item_user_data__ads.htm#ref_47_41">Item_User_Data</A>;
 </PRE></BODY></HTML>

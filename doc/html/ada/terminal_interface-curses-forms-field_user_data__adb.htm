@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 B O D Y                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2014,2018 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright 2018,2020 Thomas E. Dickey                                     --</EM></span>
+<span class="comment"><EM>-- Copyright 1999-2009,2014 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,47 +53,47 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.16 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.17 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>; <b>use</b>  <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>;
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</A>; <b>use</b>  <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</A>;
 
 <span class="comment"><EM>--  |</EM></span>
 <span class="comment"><EM>--  |=====================================================================</EM></span>
 <span class="comment"><EM>--  | man page form_field_userptr.3x</EM></span>
 <span class="comment"><EM>--  |=====================================================================</EM></span>
 <span class="comment"><EM>--  |</EM></span>
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<span class="symbol"><A NAME="ref_48_46" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_41">Field_User_Data</A></span> <b>is</b>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<span class="symbol"><A NAME="ref_49_46" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_46_41">Field_User_Data</A></span> <b>is</b>
    <span class="comment"><EM>--  |</EM></span>
    <span class="comment"><EM>--  |</EM></span>
    <span class="comment"><EM>--  |</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_52_14" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_53_14">Set_User_Data</A></span> (<span class="symbol"><A NAME="ref_52_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_53_29">Fld</A></span>  : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>;
-                            <span class="symbol"><A NAME="ref_53_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_29">Data</A></span> : <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_44_9">User_Access</A>)
+   <b>procedure</b> <span class="symbol"><A NAME="ref_53_14" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_14">Set_User_Data</A></span> (<span class="symbol"><A NAME="ref_53_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_29">Fld</A></span>  : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
+                            <span class="symbol"><A NAME="ref_54_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_55_29">Data</A></span> : <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</A>)
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_55_16">Set_Field_Userptr</A></span> (<span class="symbol"><A NAME="ref_55_35" HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_55_16">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>;
-                                  <span class="symbol"><A NAME="ref_56_35" HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_55_16">Usr</A></span> : <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_44_9">User_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_69_9">Eti_Error</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_56_16">Set_Field_Userptr</A></span> (<span class="symbol"><A NAME="ref_56_35" HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_56_16">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
+                                  <span class="symbol"><A NAME="ref_57_35" HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_56_16">Usr</A></span> : <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_70_9">Eti_Error</A>;
       <b>pragma</b> Import (C, Set_Field_Userptr, "set_field_userptr");
 
    <b>begin</b>
-      <A HREF="terminal_interface-curses-aux__ads.htm#ref_86_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_55_16">Set_Field_Userptr</A> (<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_53_29">Fld</A>, <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_29">Data</A>));
-   <b>end</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_53_14">Set_User_Data</A>;
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_87_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_56_16">Set_Field_Userptr</A> (<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_29">Fld</A>, <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_55_29">Data</A>));
+   <b>end</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_14">Set_User_Data</A>;
    <span class="comment"><EM>--  |</EM></span>
    <span class="comment"><EM>--  |</EM></span>
    <span class="comment"><EM>--  |</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_65_13" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_64_13">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_65_28" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_64_28">Fld</A></span>  : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>) <b>return</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_44_9">User_Access</A>
+   <b>function</b> <span class="symbol"><A NAME="ref_66_13" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_13">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_66_28" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_28">Fld</A></span>  : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>) <b>return</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</A>
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_67_16">Field_Userptr</A></span> (<span class="symbol"><A NAME="ref_67_31" HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_67_16">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>) <b>return</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_44_9">User_Access</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_68_16">Field_Userptr</A></span> (<span class="symbol"><A NAME="ref_68_31" HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_68_16">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>) <b>return</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</A>;
       <b>pragma</b> Import (C, Field_Userptr, "field_userptr");
    <b>begin</b>
-      <b>return</b> <A HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_67_16">Field_Userptr</A> (<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_64_28">Fld</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_64_13">Get_User_Data</A>;
+      <b>return</b> <A HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_68_16">Field_Userptr</A> (<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_28">Fld</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_13">Get_User_Data</A>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_73_14" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_59_14">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_73_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_59_29">Fld</A></span>  : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>;
-                            <span class="symbol"><A NAME="ref_74_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_29">Data</A></span> : <b>out</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_44_9">User_Access</A>)
+   <b>procedure</b> <span class="symbol"><A NAME="ref_74_14" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_14">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_74_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_29">Fld</A></span>  : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
+                            <span class="symbol"><A NAME="ref_75_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_61_29">Data</A></span> : <b>out</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</A>)
    <b>is</b>
    <b>begin</b>
-      <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_29">Data</A> := <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_64_13">Get_User_Data</A> (<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_59_29">Fld</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_59_14">Get_User_Data</A>;
+      <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_61_29">Data</A> := <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_13">Get_User_Data</A> (<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_29">Fld</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_14">Get_User_Data</A>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_41">Field_User_Data</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_46_41">Field_User_Data</A>;
 </PRE></BODY></HTML>

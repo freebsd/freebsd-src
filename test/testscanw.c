@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2002,2006 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
  * Date:  1997/03/17
  * From:  bayern@morpheus.cis.yale.edu
  *
- * $Id: testscanw.c,v 1.12 2019/12/07 18:07:04 tom Exp $
+ * $Id: testscanw.c,v 1.13 2020/02/02 23:34:34 tom Exp $
  */
 #include <test.priv.h>
 

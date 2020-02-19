@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2019 Free Software Foundation, Inc.                        *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: demo_tabs.c,v 1.4 2019/02/24 00:38:13 tom Exp $
+ * $Id: demo_tabs.c,v 1.5 2020/02/02 23:34:34 tom Exp $
  *
  * A simple demo of tabs in curses.
  */

@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
+<span class="comment"><EM>-- Copyright 1999-2006,2009 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,22 +53,22 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.14 @</EM></span>
-<span class="comment"><EM>--  @Date: 2009/12/26 17:38:58 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.15 @</EM></span>
+<span class="comment"><EM>--  @Date: 2020/02/02 23:34:34 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<b>private</b> <b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<span class="symbol"><A NAME="ref_42_51" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_42_48">Aux</A></span> <b>is</b>
+<b>private</b> <b>package</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<span class="symbol"><A NAME="ref_43_51" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_43_48">Aux</A></span> <b>is</b>
    <span class="comment"><EM>--  pragma Preelaborate (Aux);</EM></span>
 
    <span class="comment"><EM>--  This routine is called from the Text_IO output routines for numeric</EM></span>
    <span class="comment"><EM>--  and enumeration types.</EM></span>
    <span class="comment"><EM>--</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_48_14" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_44_14">Put_Buf</A></span>
-     (<span class="symbol"><A NAME="ref_49_7" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_45_7">Win</A></span>    : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>;               <span class="comment"><EM>-- The output window</EM></span>
-      <span class="symbol"><A NAME="ref_50_7" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_46_7">Buf</A></span>    : String;               <span class="comment"><EM>-- The buffer containing the text</EM></span>
-      <span class="symbol"><A NAME="ref_51_7" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_47_7">Width</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A>;                <span class="comment"><EM>-- The width of the output field</EM></span>
-      <span class="symbol"><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_48_7">Signal</A></span> : Boolean := True;      <span class="comment"><EM>-- If true, we raise Layout_Error</EM></span>
-      <span class="symbol"><A NAME="ref_53_7" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_49_7">Ljust</A></span>  : Boolean := False);    <span class="comment"><EM>-- The Buf is left justified</EM></span>
+   <b>procedure</b> <span class="symbol"><A NAME="ref_49_14" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_45_14">Put_Buf</A></span>
+     (<span class="symbol"><A NAME="ref_50_7" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_46_7">Win</A></span>    : <A HREF="terminal_interface-curses__ads.htm#ref_56_9">Window</A>;               <span class="comment"><EM>-- The output window</EM></span>
+      <span class="symbol"><A NAME="ref_51_7" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_47_7">Buf</A></span>    : String;               <span class="comment"><EM>-- The buffer containing the text</EM></span>
+      <span class="symbol"><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_48_7">Width</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A>;                <span class="comment"><EM>-- The width of the output field</EM></span>
+      <span class="symbol"><A NAME="ref_53_7" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_49_7">Signal</A></span> : Boolean := True;      <span class="comment"><EM>-- If true, we raise Layout_Error</EM></span>
+      <span class="symbol"><A NAME="ref_54_7" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_50_7">Ljust</A></span>  : Boolean := False);    <span class="comment"><EM>-- The Buf is left justified</EM></span>
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_42_51">Aux</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_43_51">Aux</A>;
 </PRE></BODY></HTML>

@@ -1,7 +1,8 @@
 #! /bin/sh
-# $Id: MKncurses_def.sh,v 1.3 2003/10/25 16:19:46 tom Exp $
+# $Id: MKncurses_def.sh,v 1.4 2020/02/02 23:34:34 tom Exp $
 ##############################################################################
-# Copyright (c) 2000,2003 Free Software Foundation, Inc.                     #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2003 Free Software Foundation, Inc.                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #

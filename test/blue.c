@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +37,7 @@
  *****************************************************************************/
 
 /*
- * $Id: blue.c,v 1.52 2019/08/17 21:49:19 tom Exp $
+ * $Id: blue.c,v 1.53 2020/02/02 23:34:34 tom Exp $
  */
 
 #include <test.priv.h>

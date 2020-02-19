@@ -1,7 +1,8 @@
 #! /bin/sh
-# $Id: adacurses-config.in,v 1.13 2019/09/07 20:20:52 tom Exp $
+# $Id: adacurses-config.in,v 1.14 2020/02/02 23:34:34 tom Exp $
 ##############################################################################
-# Copyright (c) 2007-2016,2019 Free Software Foundation, Inc.                #
+# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2007-2014,2016 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #

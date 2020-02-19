@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2011-2014,2015 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2014,2015 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-/* $Id: c_threaded_variables.h,v 1.3 2015/08/06 23:09:47 tom Exp $ */
+/* $Id: c_threaded_variables.h,v 1.4 2020/02/02 23:34:34 tom Exp $ */
 
 #ifndef __C_THREADED_VARIABLES_H
 #define __C_THREADED_VARIABLES_H

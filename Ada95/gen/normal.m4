@@ -1,5 +1,6 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
+dnl Copyright 2020 Thomas E. Dickey                                          *
+dnl Copyright 1998,2006 Free Software Foundation, Inc.                       *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@ dnl sale, use or other dealings in this Software without prior written       *
 dnl authorization.                                                           *
 dnl***************************************************************************
 dnl
-dnl $Id: normal.m4,v 1.2 2006/04/22 23:16:14 tom Exp $
+dnl $Id: normal.m4,v 1.3 2020/02/02 23:34:34 tom Exp $
 define(`MANPAGE',`define(`MANPG',$1)dnl
 |=====================================================================
    --  | Man page MANPG

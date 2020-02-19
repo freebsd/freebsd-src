@@ -9,7 +9,8 @@ include(M4MACRO)----------------------------------------------------------------
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              --
+-- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 1998-2011,2014 Free Software Foundation, Inc.                  --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -37,8 +38,8 @@ include(M4MACRO)----------------------------------------------------------------
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.47 $
---  $Date: 2014/05/24 21:31:57 $
+--  $Revision: 1.48 $
+--  $Date: 2020/02/02 23:34:34 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with System.Storage_Elements;

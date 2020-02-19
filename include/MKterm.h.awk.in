@@ -26,7 +26,8 @@ BEGIN {
 	lcurl = "{";
 	rcurl = "}";
 	print  "/****************************************************************************"
-	print  " * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *"
+	print  " * Copyright 2018-2019,2020 Thomas E. Dickey                                *"
+	print  " * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *"
 	print  " *                                                                          *"
 	print  " * Permission is hereby granted, free of charge, to any person obtaining a  *"
 	print  " * copy of this software and associated documentation files (the            *"
@@ -59,7 +60,7 @@ BEGIN {
 	print  "/*    and: Thomas E. Dickey                        1995-on                  */"
 	print  "/****************************************************************************/"
 	print  ""
-	print  "/* $Id: MKterm.h.awk.in,v 1.73 2019/12/21 18:29:09 tom Exp $ */"
+	print  "/* $Id: MKterm.h.awk.in,v 1.74 2020/02/02 23:34:34 tom Exp $ */"
 	print  ""
 	print  "/*"
 	print  "**	term.h -- Definition of struct term"

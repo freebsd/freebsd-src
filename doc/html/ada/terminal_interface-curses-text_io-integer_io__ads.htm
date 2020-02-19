@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
+<span class="comment"><EM>-- Copyright 1999-2003,2009 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,30 +53,30 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.12 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.13 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <b>generic</b>
-   <b>type</b> <span class="symbol"><A NAME="ref_42_9" HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_44_43">Num</A></span> <b>is</b> <b>range</b> &lt;&gt;;
+   <b>type</b> <span class="symbol"><A NAME="ref_43_9" HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_45_43">Num</A></span> <b>is</b> <b>range</b> &lt;&gt;;
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<span class="symbol"><A NAME="ref_44_43" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_44_48">Integer_IO</A></span> <b>is</b>
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<span class="symbol"><A NAME="ref_45_43" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_45_48">Integer_IO</A></span> <b>is</b>
 
-   <span class="symbol"><A NAME="ref_46_4">Default_Width</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_42_9">Num</A>'Width;
-   <span class="symbol"><A NAME="ref_47_4">Default_Base</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Number_Base</A> := 10;
+   <span class="symbol"><A NAME="ref_47_4">Default_Width</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_43_9">Num</A>'Width;
+   <span class="symbol"><A NAME="ref_48_4">Default_Base</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_52_12">Number_Base</A> := 10;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_49_14" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_49_14">Put</A></span>
-     (<span class="symbol"><A NAME="ref_50_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_50_7">Win</A></span>   : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>;
-      <span class="symbol"><A NAME="ref_51_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_51_7">Item</A></span>  : <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_42_9">Num</A>;
-      <span class="symbol"><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_52_7">Width</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_46_4">Default_Width</A>;
-      <span class="symbol"><A NAME="ref_53_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_53_7">Base</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Number_Base</A> := <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_47_4">Default_Base</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_50_14" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_50_14">Put</A></span>
+     (<span class="symbol"><A NAME="ref_51_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_51_7">Win</A></span>   : <A HREF="terminal_interface-curses__ads.htm#ref_56_9">Window</A>;
+      <span class="symbol"><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_52_7">Item</A></span>  : <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_43_9">Num</A>;
+      <span class="symbol"><A NAME="ref_53_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_53_7">Width</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_47_4">Default_Width</A>;
+      <span class="symbol"><A NAME="ref_54_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_54_7">Base</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_52_12">Number_Base</A> := <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_48_4">Default_Base</A>);
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_55_14" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_61_14">Put</A></span>
-     (<span class="symbol"><A NAME="ref_56_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_62_7">Item</A></span>  : <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_42_9">Num</A>;
-      <span class="symbol"><A NAME="ref_57_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_63_7">Width</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_46_4">Default_Width</A>;
-      <span class="symbol"><A NAME="ref_58_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_64_7">Base</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Number_Base</A> := <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_47_4">Default_Base</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_56_14" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_62_14">Put</A></span>
+     (<span class="symbol"><A NAME="ref_57_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_63_7">Item</A></span>  : <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_43_9">Num</A>;
+      <span class="symbol"><A NAME="ref_58_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_64_7">Width</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_47_4">Default_Width</A>;
+      <span class="symbol"><A NAME="ref_59_7" HREF="terminal_interface-curses-text_io-integer_io__adb.htm#ref_65_7">Base</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_52_12">Number_Base</A> := <A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_48_4">Default_Base</A>);
 
 <b>private</b>
    <b>pragma</b> Inline (Put);
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_44_43">Integer_IO</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-integer_io__ads.htm#ref_45_43">Integer_IO</A>;
 </PRE></BODY></HTML>

@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2014,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2009,2014 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -25,7 +26,7 @@
  * sale, use or other dealings in this Software without prior written       *
  * authorization.                                                           *
  ****************************************************************************/
-/* $Id: ncurses_dll.h.in,v 1.11 2018/06/23 21:38:14 tom Exp $ */
+/* $Id: ncurses_dll.h.in,v 1.12 2020/02/02 23:34:34 tom Exp $ */
 
 #ifndef NCURSES_DLL_H_incl
 #define NCURSES_DLL_H_incl 1

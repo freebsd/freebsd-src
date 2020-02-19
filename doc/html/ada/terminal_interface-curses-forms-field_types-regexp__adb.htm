@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 B O D Y                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
+<span class="comment"><EM>-- Copyright 1999-2011,2014 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,25 +53,25 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.12 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.13 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_45_35">Aux</A>;
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</A>;
 
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<span class="symbol"><A NAME="ref_44_58" HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_41_53">RegExp</A></span> <b>is</b>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_45_41">Field_Types</A>.<span class="symbol"><A NAME="ref_45_58" HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_42_53">RegExp</A></span> <b>is</b>
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_46_14" HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_51_14">Set_Field_Type</A></span> (<span class="symbol"><A NAME="ref_46_30" HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_51_30">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>;
-                             <span class="symbol"><A NAME="ref_47_30" HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_52_30">Typ</A></span> : <A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_46_9">Regular_Expression_Field</A>)
+   <b>procedure</b> <span class="symbol"><A NAME="ref_47_14" HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_52_14">Set_Field_Type</A></span> (<span class="symbol"><A NAME="ref_47_30" HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_52_30">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
+                             <span class="symbol"><A NAME="ref_48_30" HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_53_30">Typ</A></span> : <A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_47_9">Regular_Expression_Field</A>)
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_49_16">Set_Ftyp</A></span> (<span class="symbol"><A NAME="ref_49_26" HREF="terminal_interface-curses-forms-field_types-regexp__adb.htm#ref_49_16">F</A></span>    : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A> := <A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_51_30">Fld</A>;
-                         <span class="symbol"><A NAME="ref_50_26" HREF="terminal_interface-curses-forms-field_types-regexp__adb.htm#ref_49_16">Arg1</A></span> : char_array) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_69_9">Eti_Error</A>;
+      <b>function</b> <span class="symbol"><A NAME="ref_50_16">Set_Ftyp</A></span> (<span class="symbol"><A NAME="ref_50_26" HREF="terminal_interface-curses-forms-field_types-regexp__adb.htm#ref_50_16">F</A></span>    : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A> := <A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_52_30">Fld</A>;
+                         <span class="symbol"><A NAME="ref_51_26" HREF="terminal_interface-curses-forms-field_types-regexp__adb.htm#ref_50_16">Arg1</A></span> : char_array) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_70_9">Eti_Error</A>;
       <b>pragma</b> Import (C, Set_Ftyp, "set_field_type_regexp");
 
    <b>begin</b>
-      <A HREF="terminal_interface-curses-aux__ads.htm#ref_86_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-forms-field_types-regexp__adb.htm#ref_49_16">Set_Ftyp</A> (<A HREF="terminal_interface-curses-forms-field_types-regexp__adb.htm#ref_50_26">Arg1</A> =&gt; To_C (<A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_52_30">Typ</A>.<A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_48_10">Regular_Expression</A>.<b>all</b>)));
-      <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_151_14">Wrap_Builtin</A> (<A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_51_30">Fld</A>, <A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_52_30">Typ</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_51_14">Set_Field_Type</A>;
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_87_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-forms-field_types-regexp__adb.htm#ref_50_16">Set_Ftyp</A> (<A HREF="terminal_interface-curses-forms-field_types-regexp__adb.htm#ref_51_26">Arg1</A> =&gt; To_C (<A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_53_30">Typ</A>.<A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_49_10">Regular_Expression</A>.<b>all</b>)));
+      <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_152_14">Wrap_Builtin</A> (<A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_52_30">Fld</A>, <A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_53_30">Typ</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_52_14">Set_Field_Type</A>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_41_53">RegExp</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_45_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-regexp__ads.htm#ref_42_53">RegExp</A>;
 </PRE></BODY></HTML>

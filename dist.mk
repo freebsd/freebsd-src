@@ -1,5 +1,6 @@
 ##############################################################################
-# Copyright (c) 1998-2019,2020 Free Software Foundation, Inc.                #
+# Copyright 2018-2019,2020 Thomas E. Dickey                                  #
+# Copyright 1998-2017,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: dist.mk,v 1.1325 2020/01/18 10:27:03 tom Exp $
+# $Id: dist.mk,v 1.1335 2020/02/15 09:30:48 tom Exp $
 # Makefile for creating ncurses distributions.
 #
 # This only needs to be used directly as a makefile by developers, but
@@ -36,11 +37,14 @@ SHELL = /bin/sh
 
 # These define the major/minor/patch versions of ncurses.
 NCURSES_MAJOR = 6
-NCURSES_MINOR = 1
-NCURSES_PATCH = 20200118
+NCURSES_MINOR = 2
+NCURSES_PATCH = 20200215
 
 # We don't append the patch to the version, since this only applies to releases
 VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+
+WEBSITE = https://invisible-island.net
+HOMEPAGE = $(WEBSITE)/ncurses
 
 # The most recent html files were generated with lynx 2.8.6 (or later), using
 # ncurses configured with
@@ -73,10 +77,13 @@ distclean:
 
 # Don't mess with announce.html.in unless you have lynx available!
 doc/html/announce.html: announce.html.in
-	sed 's,@VERSION@,$(VERSION),' <announce.html.in > $@
+	sed \
+		-e 's,@VERSION@,$(VERSION),g' \
+		-e 's,@WEBSITE@,$(WEBSITE),g' \
+		-e 's,@HOMEPAGE@,$(HOMEPAGE),g' <announce.html.in > $@
 
 ANNOUNCE : doc/html/announce.html
-	$(DUMP) doc/html/announce.html > $@
+	$(DUMP2) doc/html/announce.html > $@
 
 doc/ncurses-intro.doc: doc/html/ncurses-intro.html
 	$(DUMP2) doc/html/ncurses-intro.html > $@

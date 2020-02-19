@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: add_tries.c,v 1.11 2019/07/27 22:59:11 tom Exp $")
+MODULE_ID("$Id: add_tries.c,v 1.12 2020/02/02 23:34:34 tom Exp $")
 
 #define SET_TRY(dst,src) if ((dst->ch = *src++) == 128) dst->ch = '\0'
 #define CMP_TRY(a,b) ((a)? (a == b) : (b == 128))

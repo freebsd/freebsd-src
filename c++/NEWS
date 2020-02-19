@@ -1,5 +1,6 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998,2006 Free Software Foundation, Inc.                    --
+-- Copyright 2020 Thomas E. Dickey                                           --
+-- Copyright 1998-1999,2006 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: NEWS,v 1.4 2006/04/22 22:19:37 tom Exp $
+-- $Id: NEWS,v 1.5 2020/02/02 23:34:34 tom Exp $
 -------------------------------------------------------------------------------
 This is a log of changes that the ncurses C++ binding has gone
 through starting with the integration of menu and forms integration

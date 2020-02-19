@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
+<span class="comment"><EM>-- Copyright 1999-2003,2009 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,33 +53,33 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.12 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.13 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <b>generic</b>
-   <b>type</b> <span class="symbol"><A NAME="ref_42_9" HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_44_43">Num</A></span> <b>is</b> <b>digits</b> &lt;&gt;;
+   <b>type</b> <span class="symbol"><A NAME="ref_43_9" HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_45_43">Num</A></span> <b>is</b> <b>digits</b> &lt;&gt;;
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<span class="symbol"><A NAME="ref_44_43" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_44_48">Float_IO</A></span> <b>is</b>
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<span class="symbol"><A NAME="ref_45_43" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_45_48">Float_IO</A></span> <b>is</b>
 
-   <span class="symbol"><A NAME="ref_46_4">Default_Fore</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := 2;
-   <span class="symbol"><A NAME="ref_47_4">Default_Aft</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_42_9">Num</A>'<b>Digits</b> - 1;
-   <span class="symbol"><A NAME="ref_48_4">Default_Exp</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := 3;
+   <span class="symbol"><A NAME="ref_47_4">Default_Fore</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := 2;
+   <span class="symbol"><A NAME="ref_48_4">Default_Aft</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_43_9">Num</A>'<b>Digits</b> - 1;
+   <span class="symbol"><A NAME="ref_49_4">Default_Exp</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := 3;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_50_14" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_49_14">Put</A></span>
-     (<span class="symbol"><A NAME="ref_51_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_50_7">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>;
-      <span class="symbol"><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_51_7">Item</A></span> : <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_42_9">Num</A>;
-      <span class="symbol"><A NAME="ref_53_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_52_7">Fore</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_46_4">Default_Fore</A>;
-      <span class="symbol"><A NAME="ref_54_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_53_7">Aft</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_47_4">Default_Aft</A>;
-      <span class="symbol"><A NAME="ref_55_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_54_7">Exp</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_48_4">Default_Exp</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_51_14" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_50_14">Put</A></span>
+     (<span class="symbol"><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_51_7">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_56_9">Window</A>;
+      <span class="symbol"><A NAME="ref_53_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_52_7">Item</A></span> : <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_43_9">Num</A>;
+      <span class="symbol"><A NAME="ref_54_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_53_7">Fore</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_47_4">Default_Fore</A>;
+      <span class="symbol"><A NAME="ref_55_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_54_7">Aft</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_48_4">Default_Aft</A>;
+      <span class="symbol"><A NAME="ref_56_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_55_7">Exp</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_49_4">Default_Exp</A>);
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_57_14" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_66_14">Put</A></span>
-     (<span class="symbol"><A NAME="ref_58_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_67_7">Item</A></span> : <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_42_9">Num</A>;
-      <span class="symbol"><A NAME="ref_59_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_68_7">Fore</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_46_4">Default_Fore</A>;
-      <span class="symbol"><A NAME="ref_60_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_69_7">Aft</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_47_4">Default_Aft</A>;
-      <span class="symbol"><A NAME="ref_61_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_70_7">Exp</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_48_4">Default_Exp</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_58_14" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_67_14">Put</A></span>
+     (<span class="symbol"><A NAME="ref_59_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_68_7">Item</A></span> : <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_43_9">Num</A>;
+      <span class="symbol"><A NAME="ref_60_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_69_7">Fore</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_47_4">Default_Fore</A>;
+      <span class="symbol"><A NAME="ref_61_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_70_7">Aft</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_48_4">Default_Aft</A>;
+      <span class="symbol"><A NAME="ref_62_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_71_7">Exp</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_49_4">Default_Exp</A>);
 
 <b>private</b>
    <b>pragma</b> Inline (Put);
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_44_43">Float_IO</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_45_43">Float_IO</A>;
 </PRE></BODY></HTML>

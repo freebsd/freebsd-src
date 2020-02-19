@@ -1,5 +1,6 @@
 ##############################################################################
-# Copyright (c) 2004-2006,2016 Free Software Foundation, Inc.                #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2004-2006,2016 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: xterm-16color.dat,v 1.3 2016/12/10 22:34:58 tom Exp $
+# $Id: xterm-16color.dat,v 1.4 2020/02/08 21:38:22 tom Exp $
 # This illustrates the predefined colors for XFree86 xterm's "xterm-16color". 
 # If you set $TERM to "xterm-88color" (and have xterm compiled to support the
 # 88-color or 256-color feature), you can use the ncurses 'd' screen to

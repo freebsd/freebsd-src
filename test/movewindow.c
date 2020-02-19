@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2006-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2006-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: movewindow.c,v 1.50 2019/01/21 20:11:22 tom Exp $
+ * $Id: movewindow.c,v 1.51 2020/02/02 23:34:34 tom Exp $
  *
  * Demonstrate move functions for windows and derived windows from the curses
  * library.

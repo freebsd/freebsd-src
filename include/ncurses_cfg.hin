@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +31,7 @@
  *  Author: Thomas E. Dickey      1997-on                                   *
  ****************************************************************************/
 /*
- * $Id: ncurses_cfg.hin,v 1.11 2017/12/09 20:41:54 tom Exp $
+ * $Id: ncurses_cfg.hin,v 1.12 2020/02/02 23:34:34 tom Exp $
  *
  * Both ncurses_cfg.h and ncurses_def.h are internal header-files used when
  * building ncurses.

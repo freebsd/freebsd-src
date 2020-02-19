@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2017-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: extended_color.c,v 1.14 2019/08/24 23:09:18 tom Exp $
+ * $Id: extended_color.c,v 1.15 2020/02/02 23:34:34 tom Exp $
  */
 
 #include <test.priv.h>

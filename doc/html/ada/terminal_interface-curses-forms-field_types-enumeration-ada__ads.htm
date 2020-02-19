@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998,2003 Free Software Foundation, Inc.                   --</EM></span>
+<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
+<span class="comment"><EM>-- Copyright 1999-2002,2003 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,26 +53,26 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.11 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.12 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <b>generic</b>
-   <b>type</b> <span class="symbol"><A NAME="ref_42_9" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_44_65">T</A></span> <b>is</b> (&lt;&gt;);
+   <b>type</b> <span class="symbol"><A NAME="ref_43_9" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_45_65">T</A></span> <b>is</b> (&lt;&gt;);
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_43_53">Enumeration</A>.<span class="symbol"><A NAME="ref_44_65" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_44_70">Ada</A></span> <b>is</b>
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_45_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_44_53">Enumeration</A>.<span class="symbol"><A NAME="ref_45_65" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_45_70">Ada</A></span> <b>is</b>
    <b>pragma</b> Preelaborate
-     (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_43_53">Enumeration</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_44_65">Ada</A>);
+     (<A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_45_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_44_53">Enumeration</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_45_65">Ada</A>);
 
-   <b>function</b> <span class="symbol"><A NAME="ref_48_13" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_46_13">Create</A></span> (<span class="symbol"><A NAME="ref_48_21" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_46_21">Set</A></span>            : <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_50_9">Type_Set</A> := <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_50_46">Mixed_Case</A>;
-                    <span class="symbol"><A NAME="ref_49_21" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_47_21">Case_Sensitive</A></span> : Boolean  := False;
-                    <span class="symbol"><A NAME="ref_50_21" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_48_21">Must_Be_Unique</A></span> : Boolean  := False)
-                    <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_62_9">Enumeration_Field</A>;
+   <b>function</b> <span class="symbol"><A NAME="ref_49_13" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_47_13">Create</A></span> (<span class="symbol"><A NAME="ref_49_21" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_47_21">Set</A></span>            : <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_51_9">Type_Set</A> := <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_51_46">Mixed_Case</A>;
+                    <span class="symbol"><A NAME="ref_50_21" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_48_21">Case_Sensitive</A></span> : Boolean  := False;
+                    <span class="symbol"><A NAME="ref_51_21" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_49_21">Must_Be_Unique</A></span> : Boolean  := False)
+                    <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_63_9">Enumeration_Field</A>;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_53_13" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_74_13">Value</A></span> (<span class="symbol"><A NAME="ref_53_20" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_74_20">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>;
-                   <span class="symbol"><A NAME="ref_54_20" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_75_20">Buf</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_130_9">Buffer_Number</A> := <A HREF="terminal_interface-curses-forms__ads.htm#ref_130_9">Buffer_Number</A>'First) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_42_9">T</A>;
+   <b>function</b> <span class="symbol"><A NAME="ref_54_13" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_75_13">Value</A></span> (<span class="symbol"><A NAME="ref_54_20" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_75_20">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
+                   <span class="symbol"><A NAME="ref_55_20" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_76_20">Buf</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_131_9">Buffer_Number</A> := <A HREF="terminal_interface-curses-forms__ads.htm#ref_131_9">Buffer_Number</A>'First) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_43_9">T</A>;
    <span class="comment"><EM>--  Translate the content of the fields buffer - indicated by the</EM></span>
    <span class="comment"><EM>--  buffer number - into an enumeration value. If the buffer is empty</EM></span>
    <span class="comment"><EM>--  or the content is invalid, a Constraint_Error is raises.</EM></span>
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_43_53">Enumeration</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_44_65">Ada</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_45_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_44_53">Enumeration</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_45_65">Ada</A>;
 </PRE></BODY></HTML>

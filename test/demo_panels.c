@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2007-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2003-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_panels.c,v 1.44 2019/08/31 23:24:11 tom Exp $
+ * $Id: demo_panels.c,v 1.45 2020/02/02 23:34:34 tom Exp $
  *
  * Demonstrate a variety of functions from the panel library.
  */

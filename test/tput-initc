@@ -1,6 +1,7 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 2016 Free Software Foundation, Inc.                          #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2016 Free Software Foundation, Inc.                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: tput-initc,v 1.5 2016/12/17 22:35:05 tom Exp $
+# $Id: tput-initc,v 1.6 2020/02/02 23:34:34 tom Exp $
 # Some of the ".dat" files in ncurses' test-directory give r/g/b numbers for
 # default palettes of xterm and Linux console.  This script reads the numbers
 # and (assuming the same or compatible terminal) uses tput to (re)initialize

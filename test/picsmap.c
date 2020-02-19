@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2017-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2017,2018 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: picsmap.c,v 1.131 2019/12/14 23:51:39 tom Exp $
+ * $Id: picsmap.c,v 1.132 2020/02/02 23:34:34 tom Exp $
  *
  * Author: Thomas E. Dickey
  *

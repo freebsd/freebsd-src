@@ -1,6 +1,7 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 2016-2018,2019 Free Software Foundation, Inc.                #
+# Copyright 2018-2019,2020 Thomas E. Dickey                                  #
+# Copyright 2016,2018 Free Software Foundation, Inc.                         #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,7 +28,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# $Id: library-cfg.sh,v 1.6 2019/09/07 20:27:26 tom Exp $
+# $Id: library-cfg.sh,v 1.7 2020/02/02 23:34:34 tom Exp $
 #
 # Work around incompatible behavior introduced with gnat6, which causes
 # gnatmake to attempt to compile all of the C objects which might be part of

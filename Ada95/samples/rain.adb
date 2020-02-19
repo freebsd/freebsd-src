@@ -7,7 +7,8 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              --
+-- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 1998-2007,2008 Free Software Foundation, Inc.                  --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -36,8 +37,8 @@
 --  Author:  Laurent Pautet <pautet@gnat.com>
 --  Modified by:  Juergen Pfeifer, 1997
 --  Version Control
---  $Revision: 1.8 $
---  $Date: 2008/08/30 21:38:07 $
+--  $Revision: 1.9 $
+--  $Date: 2020/02/02 23:34:34 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 --                                                                          --

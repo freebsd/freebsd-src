@@ -1,6 +1,7 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.                #
+# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 1998-2014,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKparametrized.sh,v 1.9 2019/04/13 20:36:24 tom Exp $
+# $Id: MKparametrized.sh,v 1.10 2020/02/02 23:34:34 tom Exp $
 #
 # MKparametrized.sh -- generate indirection vectors for various sort methods
 #

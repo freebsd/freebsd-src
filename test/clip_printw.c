@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2008-2017,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2008-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: clip_printw.c,v 1.16 2019/08/17 21:49:40 tom Exp $
+ * $Id: clip_printw.c,v 1.17 2020/02/02 23:34:34 tom Exp $
  *
  * demonstrate how to use printw without wrapping.
  */

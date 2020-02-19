@@ -7,7 +7,8 @@
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2008,2011 Free Software Foundation, Inc.              --
+-- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 1999-2008,2011 Free Software Foundation, Inc.                  --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +36,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.14 $
---  $Date: 2011/03/19 12:27:47 $
+--  $Revision: 1.15 $
+--  $Date: 2020/02/02 23:34:34 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Interfaces.C;

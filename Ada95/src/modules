@@ -1,6 +1,7 @@
-# $Id: modules,v 1.3 2010/06/26 23:33:14 tom Exp $
+# $Id: modules,v 1.4 2020/02/02 23:34:34 tom Exp $
 ##############################################################################
-# Copyright (c) 2010 Free Software Foundation, Inc.                          #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2010 Free Software Foundation, Inc.                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #

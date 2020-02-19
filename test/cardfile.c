@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1999-2017,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1999-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: cardfile.c,v 1.46 2019/08/17 21:49:40 tom Exp $
+ * $Id: cardfile.c,v 1.47 2020/02/02 23:34:34 tom Exp $
  *
  * File format: text beginning in column 1 is a title; other text is content.
  */

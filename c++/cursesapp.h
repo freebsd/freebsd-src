@@ -1,6 +1,7 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2011,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2005,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +32,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesapp.h,v 1.13 2019/07/28 19:55:27 tom Exp $
+// $Id: cursesapp.h,v 1.14 2020/02/02 23:34:34 tom Exp $
 
 #ifndef NCURSES_CURSESAPP_H_incl
 #define NCURSES_CURSESAPP_H_incl

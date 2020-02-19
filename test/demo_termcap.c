@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2005-2017,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2005-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: demo_termcap.c,v 1.58 2019/08/24 21:47:19 tom Exp $
+ * $Id: demo_termcap.c,v 1.59 2020/02/02 23:34:34 tom Exp $
  *
  * A simple demo of the termcap interface.
  */

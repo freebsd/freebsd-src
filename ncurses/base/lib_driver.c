@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2008-2014,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2009-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_driver.c,v 1.7 2018/06/24 00:06:37 tom Exp $")
+MODULE_ID("$Id: lib_driver.c,v 1.8 2020/02/02 23:34:34 tom Exp $")
 
 typedef struct DriverEntry {
     const char *name;

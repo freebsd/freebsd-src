@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2006-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2006-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey, 2006
  *
- * $Id: foldkeys.c,v 1.8 2019/08/24 23:11:01 tom Exp $
+ * $Id: foldkeys.c,v 1.9 2020/02/02 23:34:34 tom Exp $
  *
  * Demonstrate a method for altering key definitions at runtime.
  *

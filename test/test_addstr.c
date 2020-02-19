@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2009-2016,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_addstr.c,v 1.15 2017/09/06 09:27:34 tom Exp $
+ * $Id: test_addstr.c,v 1.16 2020/02/02 23:34:34 tom Exp $
  *
  * Demonstrate the waddstr() and waddch functions.
  * Thomas Dickey - 2009/9/12

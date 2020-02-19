@@ -2,10 +2,11 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.62 2018/06/09 19:27:00 tom Exp $)
+# ($Id: MKlib_gen.sh,v 1.64 2020/02/15 14:58:02 tom Exp $)
 #
 ##############################################################################
-# Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.                #
+# Copyright 2018,2020 Thomas E. Dickey                                       #
+# Copyright 1998-2016,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -73,7 +74,7 @@ USE="$3"
 # determine if we are using gcc, and if so, what version because the proposed
 # solution uses a nonstandard option.
 PRG=`echo "$1" | $AWK '{ sub(/^[ 	]*/,""); sub(/[ 	].*$/, ""); print; }' || exit 0`
-FSF=`"$PRG" --version 2>/dev/null || exit 0 | fgrep "Free Software Foundation" | head -n 1`
+FSF=`("$PRG" --version 2>/dev/null || exit 0) | fgrep "Free Software Foundation" | head -n 1`
 ALL=`"$PRG" -dumpversion 2>/dev/null || exit 0`
 ONE=`echo "$ALL" | sed -e 's/\..*$//'`
 if test -n "$FSF" && test -n "$ALL" && test -n "$ONE" ; then

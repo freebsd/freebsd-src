@@ -1,5 +1,6 @@
 ##############################################################################
-# Copyright (c) 2007-2009,2019 Free Software Foundation, Inc.                #
+# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 1998-2008,2009 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKnames.awk,v 1.23 2019/03/09 16:49:06 tom Exp $
+# $Id: MKnames.awk,v 1.24 2020/02/02 23:34:34 tom Exp $
 function large_item(value) {
 	result = sprintf("%d,", offset);
 	offset = offset + length(value) + 1;

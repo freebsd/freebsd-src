@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 S P E C                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
+<span class="comment"><EM>-- Copyright 1999-2009,2011 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,40 +53,40 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.15 @</EM></span>
-<span class="comment"><EM>--  @Date: 2011/03/19 12:27:21 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.16 @</EM></span>
+<span class="comment"><EM>--  @Date: 2020/02/02 23:34:34 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<span class="symbol"><A NAME="ref_44_53" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_45_58">User</A></span> <b>is</b>
-   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_44_53">User</A>);
-   <b>subtype</b> <span class="symbol"><A NAME="ref_46_12">C_Int</A></span> <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int;
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_45_41">Field_Types</A>.<span class="symbol"><A NAME="ref_45_53" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_46_58">User</A></span> <b>is</b>
+   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_45_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_45_53">User</A>);
+   <b>subtype</b> <span class="symbol"><A NAME="ref_47_12">C_Int</A></span> <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int;
 
-   <b>type</b> <span class="symbol"><A NAME="ref_48_9">User_Defined_Field_Type</A></span> <b>is</b> <b>abstract</b> <b>new</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_52_9">Field_Type</A> <b>with</b> <b>null</b> <b>record</b>;
+   <b>type</b> <span class="symbol"><A NAME="ref_49_9">User_Defined_Field_Type</A></span> <b>is</b> <b>abstract</b> <b>new</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_53_9">Field_Type</A> <b>with</b> <b>null</b> <b>record</b>;
    <span class="comment"><EM>--  This is the root of the mechanism we use to create field types in</EM></span>
    <span class="comment"><EM>--  Ada95. You should your own type derive from this one and implement</EM></span>
    <span class="comment"><EM>--  the Field_Check and Character_Check functions for your own type.</EM></span>
 
-   <b>type</b> <span class="symbol"><A NAME="ref_53_9">User_Defined_Field_Type_Access</A></span> <b>is</b> <b>access</b> <b>all</b>
-     <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_48_9">User_Defined_Field_Type</A>'Class;
+   <b>type</b> <span class="symbol"><A NAME="ref_54_9">User_Defined_Field_Type_Access</A></span> <b>is</b> <b>access</b> <b>all</b>
+     <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_49_9">User_Defined_Field_Type</A>'Class;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_56_13">Field_Check</A></span>
-     (<span class="symbol"><A NAME="ref_57_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_56_13">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>;
-      <span class="symbol"><A NAME="ref_58_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_56_13">Typ</A></span> : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_48_9">User_Defined_Field_Type</A>) <b>return</b> Boolean
+   <b>function</b> <span class="symbol"><A NAME="ref_57_13">Field_Check</A></span>
+     (<span class="symbol"><A NAME="ref_58_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_57_13">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
+      <span class="symbol"><A NAME="ref_59_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_57_13">Typ</A></span> : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_49_9">User_Defined_Field_Type</A>) <b>return</b> Boolean
       <b>is</b> <b>abstract</b>;
    <span class="comment"><EM>--  If True is returned, the field is considered valid, otherwise it is</EM></span>
    <span class="comment"><EM>--  invalid.</EM></span>
 
-   <b>function</b> <span class="symbol"><A NAME="ref_63_13">Character_Check</A></span>
-     (<span class="symbol"><A NAME="ref_64_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_63_13">Ch</A></span>  : Character;
-      <span class="symbol"><A NAME="ref_65_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_63_13">Typ</A></span> : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_48_9">User_Defined_Field_Type</A>) <b>return</b> Boolean
+   <b>function</b> <span class="symbol"><A NAME="ref_64_13">Character_Check</A></span>
+     (<span class="symbol"><A NAME="ref_65_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_64_13">Ch</A></span>  : Character;
+      <span class="symbol"><A NAME="ref_66_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_64_13">Typ</A></span> : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_49_9">User_Defined_Field_Type</A>) <b>return</b> Boolean
       <b>is</b> <b>abstract</b>;
    <span class="comment"><EM>--  If True is returned, the character is considered as valid for the</EM></span>
    <span class="comment"><EM>--  field, otherwise as invalid.</EM></span>
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_70_14" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_47_14">Set_Field_Type</A></span> (<span class="symbol"><A NAME="ref_70_30" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_47_30">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>;
-                             <span class="symbol"><A NAME="ref_71_30" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_48_30">Typ</A></span> : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_48_9">User_Defined_Field_Type</A>);
+   <b>procedure</b> <span class="symbol"><A NAME="ref_71_14" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_48_14">Set_Field_Type</A></span> (<span class="symbol"><A NAME="ref_71_30" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_48_30">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
+                             <span class="symbol"><A NAME="ref_72_30" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_49_30">Typ</A></span> : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_49_9">User_Defined_Field_Type</A>);
    <span class="comment"><EM>--  This should work for all types derived from User_Defined_Field_Type.</EM></span>
    <span class="comment"><EM>--  No need to reimplement it for your derived type.</EM></span>
 
@@ -93,21 +94,21 @@
    <span class="comment"><EM>--  | Private Part.</EM></span>
    <span class="comment"><EM>--  | Used by the Choice child package.</EM></span>
 <b>private</b>
-   <b>function</b> <span class="symbol"><A NAME="ref_79_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_103_13">C_Generic_Type</A></span>   <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A>;
+   <b>function</b> <span class="symbol"><A NAME="ref_80_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_104_13">C_Generic_Type</A></span>   <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_133_9">C_Field_Type</A>;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_81_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_77_13">Generic_Field_Check</A></span> (<span class="symbol"><A NAME="ref_81_34" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_77_34">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_51_9">Field</A>;
-                                 <span class="symbol"><A NAME="ref_82_34" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_78_34">Usr</A></span> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_2098_9">Curses_Bool</A>;
-   <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_13">Generic_Field_Check</A>);
+   <b>function</b> <span class="symbol"><A NAME="ref_82_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_78_13">Generic_Field_Check</A></span> (<span class="symbol"><A NAME="ref_82_34" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_78_34">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
+                                 <span class="symbol"><A NAME="ref_83_34" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_79_34">Usr</A></span> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_2099_9">Curses_Bool</A>;
+   <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_82_13">Generic_Field_Check</A>);
    <span class="comment"><EM>--  This is the generic Field_Check_Function for the low-level fieldtype</EM></span>
    <span class="comment"><EM>--  representing all the User_Defined_Field_Type derivatives. It routes</EM></span>
    <span class="comment"><EM>--  the call to the Field_Check implementation for the type.</EM></span>
 
-   <b>function</b> <span class="symbol"><A NAME="ref_88_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_89_13">Generic_Char_Check</A></span> (<span class="symbol"><A NAME="ref_88_33" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_89_33">Ch</A></span>  : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>;
-                                <span class="symbol"><A NAME="ref_89_33" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_90_33">Usr</A></span> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_2098_9">Curses_Bool</A>;
-   <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_13">Generic_Char_Check</A>);
+   <b>function</b> <span class="symbol"><A NAME="ref_89_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_90_13">Generic_Char_Check</A></span> (<span class="symbol"><A NAME="ref_89_33" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_90_33">Ch</A></span>  : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_47_12">C_Int</A>;
+                                <span class="symbol"><A NAME="ref_90_33" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_91_33">Usr</A></span> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_2099_9">Curses_Bool</A>;
+   <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_89_13">Generic_Char_Check</A>);
    <span class="comment"><EM>--  This is the generic Char_Check_Function for the low-level fieldtype</EM></span>
    <span class="comment"><EM>--  representing all the User_Defined_Field_Type derivatives. It routes</EM></span>
    <span class="comment"><EM>--  the call to the Character_Check implementation for the type.</EM></span>
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_45_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_44_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_44_53">User</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_45_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_45_53">User</A>;
 </PRE></BODY></HTML>

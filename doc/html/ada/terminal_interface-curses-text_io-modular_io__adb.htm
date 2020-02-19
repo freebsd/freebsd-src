@@ -24,7 +24,8 @@
 <span class="comment"><EM>--                                 B O D Y                                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --</EM></span>
+<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
+<span class="comment"><EM>-- Copyright 1999-2003,2009 Free Software Foundation, Inc.                  --</EM></span>
 <span class="comment"><EM>--                                                                          --</EM></span>
 <span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
 <span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
@@ -52,37 +53,37 @@
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
 <span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.11 @</EM></span>
+<span class="comment"><EM>--  @Revision: 1.12 @</EM></span>
 <span class="comment"><EM>--  Binding Version 01.00</EM></span>
 <span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
 <b>with</b> Ada.Text_IO;
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_42_51">Aux</A>;
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_43_51">Aux</A>;
 
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<span class="symbol"><A NAME="ref_44_48" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_44_43">Modular_IO</A></span> <b>is</b>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<span class="symbol"><A NAME="ref_45_48" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_45_43">Modular_IO</A></span> <b>is</b>
 
-   <b>package</b> <span class="symbol"><A NAME="ref_46_12">Aux</A></span> <b>renames</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_42_51">Aux</A>;
-   <b>package</b> MIO <b>is</b> <b>new</b> Ada.Text_IO.Modular_IO (<A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_42_9">Num</A>);
+   <b>package</b> <span class="symbol"><A NAME="ref_47_12">Aux</A></span> <b>renames</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_43_51">Aux</A>;
+   <b>package</b> MIO <b>is</b> <b>new</b> Ada.Text_IO.Modular_IO (<A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_43_9">Num</A>);
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_49_14" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_49_14">Put</A></span>
-     (<span class="symbol"><A NAME="ref_50_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_50_7">Win</A></span>   : <A HREF="terminal_interface-curses__ads.htm#ref_55_9">Window</A>;
-      <span class="symbol"><A NAME="ref_51_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_51_7">Item</A></span>  : <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_42_9">Num</A>;
-      <span class="symbol"><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_52_7">Width</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_46_4">Default_Width</A>;
-      <span class="symbol"><A NAME="ref_53_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_53_7">Base</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Number_Base</A> := <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_47_4">Default_Base</A>)
+   <b>procedure</b> <span class="symbol"><A NAME="ref_50_14" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_50_14">Put</A></span>
+     (<span class="symbol"><A NAME="ref_51_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_51_7">Win</A></span>   : <A HREF="terminal_interface-curses__ads.htm#ref_56_9">Window</A>;
+      <span class="symbol"><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_52_7">Item</A></span>  : <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_43_9">Num</A>;
+      <span class="symbol"><A NAME="ref_53_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_53_7">Width</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_47_4">Default_Width</A>;
+      <span class="symbol"><A NAME="ref_54_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_54_7">Base</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_52_12">Number_Base</A> := <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_48_4">Default_Base</A>)
    <b>is</b>
-      <span class="symbol"><A NAME="ref_55_7">Buf</A></span> : String (1 .. <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A>'Last);
+      <span class="symbol"><A NAME="ref_56_7">Buf</A></span> : String (1 .. <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A>'Last);
    <b>begin</b>
-      MIO.Put (<A HREF="terminal_interface-curses-text_io-modular_io__adb.htm#ref_55_7">Buf</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_51_7">Item</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_53_7">Base</A>);
-      <A HREF="terminal_interface-curses-text_io-modular_io__adb.htm#ref_46_12">Aux</A>.<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_48_14">Put_Buf</A> (<A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_50_7">Win</A>, <A HREF="terminal_interface-curses-text_io-modular_io__adb.htm#ref_55_7">Buf</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_52_7">Width</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_49_14">Put</A>;
+      MIO.Put (<A HREF="terminal_interface-curses-text_io-modular_io__adb.htm#ref_56_7">Buf</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_52_7">Item</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_54_7">Base</A>);
+      <A HREF="terminal_interface-curses-text_io-modular_io__adb.htm#ref_47_12">Aux</A>.<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_49_14">Put_Buf</A> (<A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_51_7">Win</A>, <A HREF="terminal_interface-curses-text_io-modular_io__adb.htm#ref_56_7">Buf</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_53_7">Width</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_50_14">Put</A>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_61_14" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_55_14">Put</A></span>
-     (<span class="symbol"><A NAME="ref_62_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_56_7">Item</A></span>  : <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_42_9">Num</A>;
-      <span class="symbol"><A NAME="ref_63_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_57_7">Width</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_46_4">Default_Width</A>;
-      <span class="symbol"><A NAME="ref_64_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_58_7">Base</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Number_Base</A> := <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_47_4">Default_Base</A>)
+   <b>procedure</b> <span class="symbol"><A NAME="ref_62_14" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_56_14">Put</A></span>
+     (<span class="symbol"><A NAME="ref_63_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_57_7">Item</A></span>  : <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_43_9">Num</A>;
+      <span class="symbol"><A NAME="ref_64_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_58_7">Width</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_47_4">Default_Width</A>;
+      <span class="symbol"><A NAME="ref_65_7" HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_59_7">Base</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_52_12">Number_Base</A> := <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_48_4">Default_Base</A>)
    <b>is</b>
    <b>begin</b>
-      <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_49_14">Put</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_56_7">Item</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_57_7">Width</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_58_7">Base</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_55_14">Put</A>;
+      <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_50_14">Put</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_63_13">Get_Window</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_57_7">Item</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_58_7">Width</A>, <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_59_7">Base</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_56_14">Put</A>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_47_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_44_43">Modular_IO</A>;
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-modular_io__ads.htm#ref_45_43">Modular_IO</A>;
 </PRE></BODY></HTML>

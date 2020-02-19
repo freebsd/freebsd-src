@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2013-2014,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2013-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: form_driver_w.c,v 1.15 2017/04/15 20:41:35 tom Exp $
+ * $Id: form_driver_w.c,v 1.16 2020/02/02 23:34:34 tom Exp $
  *
  * Test form_driver_w (int, int, wchar_t), a wide char aware
  * replacement of form_driver.

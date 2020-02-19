@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2015,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2012,2015 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +35,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracebits.c,v 1.27 2019/02/16 22:12:08 tom Exp $")
+MODULE_ID("$Id: lib_tracebits.c,v 1.28 2020/02/02 23:34:34 tom Exp $")
 
 #if HAVE_SYS_TERMIO_H
 #include <sys/termio.h>		/* needed for ISC */

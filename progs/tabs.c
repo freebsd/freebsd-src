@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2008-2016,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2008-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +39,7 @@
 #include <progs.priv.h>
 #include <tty_settings.h>
 
-MODULE_ID("$Id: tabs.c,v 1.41 2017/10/12 22:42:08 tom Exp $")
+MODULE_ID("$Id: tabs.c,v 1.42 2020/02/02 23:34:34 tom Exp $")
 
 static void usage(void) GCC_NORETURN;
 

@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2002-2010,2016 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2002-2010,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_vline_set.c,v 1.5 2016/05/28 23:36:34 tom Exp $")
+MODULE_ID("$Id: lib_vline_set.c,v 1.6 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 wvline_set(WINDOW *win, const cchar_t *ch, int n)

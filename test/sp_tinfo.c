@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2017,2019 Free Software Foundation, Inc.                   *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +28,7 @@
  ****************************************************************************/
 
 /*
- * $Id: sp_tinfo.c,v 1.22 2019/04/06 20:42:57 tom Exp $
+ * $Id: sp_tinfo.c,v 1.23 2020/02/02 23:34:34 tom Exp $
  *
  * TOTO: add option for non-sp-funcs interface
  */

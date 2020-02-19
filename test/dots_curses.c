@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2014-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2014,2017 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: dots_curses.c,v 1.15 2019/08/24 21:50:35 tom Exp $
+ * $Id: dots_curses.c,v 1.16 2020/02/02 23:34:34 tom Exp $
  *
  * A simple demo of the curses interface used for comparison with termcap.
  */

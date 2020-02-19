@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2009-2012,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2009-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +28,7 @@
  ****************************************************************************/
 
 /*
- * $Id: linedata.h,v 1.7 2018/02/03 22:51:43 tom Exp $
+ * $Id: linedata.h,v 1.8 2020/02/02 23:34:34 tom Exp $
  *
  * Utility functions for reading a line of text from a file.
  */

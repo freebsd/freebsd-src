@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
  * This test was written by Alexander V. Lukyanov to demonstrate difference
  * between ncurses 4.1 and SVR4 curses
  *
- * $Id: firstlast.c,v 1.8 2017/09/06 01:07:39 tom Exp $
+ * $Id: firstlast.c,v 1.9 2020/02/02 23:34:34 tom Exp $
  */
 
 #include <test.priv.h>

@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2016,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,7 +42,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: comp_error.c,v 1.39 2019/01/20 02:31:22 tom Exp $")
+MODULE_ID("$Id: comp_error.c,v 1.40 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT_VAR(bool) _nc_suppress_warnings = FALSE;
 NCURSES_EXPORT_VAR(int) _nc_curr_line = 0; /* current line # in input */

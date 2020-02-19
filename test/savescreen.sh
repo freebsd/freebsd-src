@@ -1,6 +1,7 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 2007-2009,2018 Free Software Foundation, Inc.                #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2007-2009,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: savescreen.sh,v 1.5 2018/01/06 00:04:14 tom Exp $
+# $Id: savescreen.sh,v 1.6 2020/02/02 23:34:34 tom Exp $
 #
 # Use this script to exercise "savescreen".
 # It starts by generating a series of temporary-filenames, which are passed
