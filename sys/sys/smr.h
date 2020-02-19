@@ -120,7 +120,7 @@ typedef struct {							\
  */
 #define	smr_serialized_load(p, ex) ({					\
 	SMR_ASSERT(ex, "smr_serialized_load");				\
-	(__typeof((p)->__ptr))atomic_load_ptr((uintptr_t *)&(p)->__ptr);\
+	(__typeof((p)->__ptr))atomic_load_ptr(&(p)->__ptr);		\
 })
 
 /*
@@ -155,7 +155,7 @@ typedef struct {							\
  */
 #define	smr_unserialized_load(p, ex) ({					\
 	SMR_ASSERT(ex, "smr_unserialized_load");			\
-	(__typeof((p)->__ptr))atomic_load_ptr((uintptr_t *)&(p)->__ptr);\
+	(__typeof((p)->__ptr))atomic_load_ptr(&(p)->__ptr);		\
 })
 
 /*
