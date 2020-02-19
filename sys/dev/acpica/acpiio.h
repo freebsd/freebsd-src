@@ -48,9 +48,13 @@ struct acpi_battinfo {
     int	 rate;				/* emptying rate */
 };
 
+/*
+ * Battery Information object.  Note that this object is deprecated in
+ * ACPI 4.0
+ */
 #define ACPI_CMBAT_MAXSTRLEN 32
 struct acpi_bif {
-    uint32_t units;			/* Units (mW or mA). */
+    uint32_t units;			/* Power Unit (mW or mA). */
 #define ACPI_BIF_UNITS_MW	0	/* Capacity in mWh, rate in mW. */
 #define ACPI_BIF_UNITS_MA	1	/* Capacity in mAh, rate in mA. */
     uint32_t dcap;			/* Design Capacity */
@@ -66,6 +70,76 @@ struct acpi_bif {
     char type[ACPI_CMBAT_MAXSTRLEN];	/* Type */
     char oeminfo[ACPI_CMBAT_MAXSTRLEN];	/* OEM information */
 };
+
+/*
+ * Members in acpi_bix are reordered so that the first part is compatible
+ * with acpi_bif.
+ */
+struct acpi_bix {
+/* _BIF-compatible */
+    uint32_t units;			/* Power Unit (mW or mA). */
+#define ACPI_BIX_UNITS_MW	0	/* Capacity in mWh, rate in mW. */
+#define ACPI_BIX_UNITS_MA	1	/* Capacity in mAh, rate in mA. */
+    uint32_t dcap;			/* Design Capacity */
+    uint32_t lfcap;			/* Last Full capacity */
+    uint32_t btech;			/* Battery Technology */
+    uint32_t dvol;			/* Design voltage (mV) */
+    uint32_t wcap;			/* WARN capacity */
+    uint32_t lcap;			/* Low capacity */
+    uint32_t gra1;			/* Granularity 1 (Warn to Low) */
+    uint32_t gra2;			/* Granularity 2 (Full to Warn) */
+    char model[ACPI_CMBAT_MAXSTRLEN];	/* model identifier */
+    char serial[ACPI_CMBAT_MAXSTRLEN];	/* Serial number */
+    char type[ACPI_CMBAT_MAXSTRLEN];	/* Type */
+    char oeminfo[ACPI_CMBAT_MAXSTRLEN];	/* OEM information */
+    /* ACPI 4.0 or later */
+    uint16_t rev;			/* Revision */
+#define	ACPI_BIX_REV_0		0	/* ACPI 4.0 _BIX */
+#define	ACPI_BIX_REV_1		1	/* ACPI 6.0 _BIX */
+#define	ACPI_BIX_REV_BIF	0xffff	/* _BIF */
+#define	ACPI_BIX_REV_MIN_CHECK(x, min)	\
+	(((min) == ACPI_BIX_REV_BIF) ? ((x) == ACPI_BIX_REV_BIF) : \
+	    (((x) == ACPI_BIX_REV_BIF) ? 0 : ((x) >= (min))))
+    uint32_t cycles;			/* Cycle Count */
+    uint32_t accuracy;			/* Measurement Accuracy */
+    uint32_t stmax;			/* Max Sampling Time */
+    uint32_t stmin;			/* Min Sampling Time */
+    uint32_t aimax;			/* Max Average Interval */
+    uint32_t aimin;			/* Min Average Interval */
+    /* ACPI 6.0 or later */
+    uint32_t scap;			/* Battery Swapping Capability */
+#define	ACPI_BIX_SCAP_NO	0x00000000
+#define	ACPI_BIX_SCAP_COLD	0x00000001
+#define	ACPI_BIX_SCAP_HOT	0x00000010
+    uint8_t bix_reserved[58];		/* padding */
+};
+
+#if 0
+/* acpi_bix in the original order just for reference */
+struct acpi_bix {
+    uint16_t rev;			/* Revision */
+    uint32_t units;			/* Power Unit (mW or mA). */
+    uint32_t dcap;			/* Design Capacity */
+    uint32_t lfcap;			/* Last Full capacity */
+    uint32_t btech;			/* Battery Technology */
+    uint32_t dvol;			/* Design voltage (mV) */
+    uint32_t wcap;			/* Design Capacity of Warning */
+    uint32_t lcap;			/* Design Capacity of Low */
+    uint32_t cycles;			/* Cycle Count */
+    uint32_t accuracy;			/* Measurement Accuracy */
+    uint32_t stmax;			/* Max Sampling Time */
+    uint32_t stmin;			/* Min Sampling Time */
+    uint32_t aimax;			/* Max Average Interval */
+    uint32_t aimin;			/* Min Average Interval */
+    uint32_t gra1;			/* Granularity 1 (Warn to Low) */
+    uint32_t gra2;			/* Granularity 2 (Full to Warn) */
+    char model[ACPI_CMBAT_MAXSTRLEN];	/* model identifier */
+    char serial[ACPI_CMBAT_MAXSTRLEN];	/* Serial number */
+    char type[ACPI_CMBAT_MAXSTRLEN];	/* Type */
+    char oeminfo[ACPI_CMBAT_MAXSTRLEN];	/* OEM information */
+    uint32_t scap;			/* Battery Swapping Capability */
+};
+#endif
 
 struct acpi_bst {
     uint32_t state;			/* Battery State */
@@ -91,7 +165,8 @@ struct acpi_bst {
     (ACPI_BATT_STAT_INVALID | ACPI_BATT_STAT_CRITICAL)
 #define ACPI_BATT_STAT_NOT_PRESENT	ACPI_BATT_STAT_BST_MASK
 
-union acpi_battery_ioctl_arg {
+/* For backward compatibility */
+union acpi_battery_ioctl_arg_v1 {
     int			 unit;	/* Device unit or ACPI_BATTERY_ALL_UNITS. */
 
     struct acpi_battinfo battinfo;
@@ -99,15 +174,27 @@ union acpi_battery_ioctl_arg {
     struct acpi_bif	 bif;
     struct acpi_bst	 bst;
 };
+union acpi_battery_ioctl_arg {
+    int			 unit;	/* Device unit or ACPI_BATTERY_ALL_UNITS. */
+
+    struct acpi_battinfo battinfo;
+
+    struct acpi_bix	 bix;
+    struct acpi_bif	 bif;
+    struct acpi_bst	 bst;
+};
 
 #define ACPI_BATTERY_ALL_UNITS 	(-1)
-#define ACPI_BATT_UNKNOWN 	0xffffffff /* _BST or _BIF value unknown. */
+#define ACPI_BATT_UNKNOWN 	0xffffffff /* _BST or _BI[FX] value unknown. */
 
 /* Common battery ioctls */
 #define ACPIIO_BATT_GET_UNITS	  _IOR('B', 0x01, int)
 #define ACPIIO_BATT_GET_BATTINFO _IOWR('B', 0x03, union acpi_battery_ioctl_arg)
-#define ACPIIO_BATT_GET_BIF	 _IOWR('B', 0x10, union acpi_battery_ioctl_arg)
+#define ACPIIO_BATT_GET_BATTINFO_V1 _IOWR('B', 0x03, union acpi_battery_ioctl_arg_v1)
+#define ACPIIO_BATT_GET_BIF	 _IOWR('B', 0x10, union acpi_battery_ioctl_arg_v1)
+#define ACPIIO_BATT_GET_BIX	 _IOWR('B', 0x10, union acpi_battery_ioctl_arg)
 #define ACPIIO_BATT_GET_BST	 _IOWR('B', 0x11, union acpi_battery_ioctl_arg)
+#define ACPIIO_BATT_GET_BST_V1	 _IOWR('B', 0x11, union acpi_battery_ioctl_arg_v1)
 
 /* Control Method battery ioctls (deprecated) */
 #define ACPIIO_CMBAT_GET_BIF	 ACPIIO_BATT_GET_BIF
