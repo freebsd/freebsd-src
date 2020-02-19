@@ -342,10 +342,8 @@ vm_thread_stack_create(struct domainset *ds, vm_object_t *ksobjp, int pages)
 	VM_OBJECT_WLOCK(ksobj);
 	(void)vm_page_grab_pages(ksobj, 0, VM_ALLOC_NORMAL | VM_ALLOC_WIRED,
 	    ma, pages);
-	for (i = 0; i < pages; i++) {
+	for (i = 0; i < pages; i++)
 		vm_page_valid(ma[i]);
-		vm_page_xunbusy(ma[i]);
-	}
 	VM_OBJECT_WUNLOCK(ksobj);
 	pmap_qenter(ks, ma, pages);
 	*ksobjp = ksobj;
@@ -365,7 +363,7 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("%s: kstack already missing?", __func__);
-		vm_page_busy_acquire(m, 0);
+		vm_page_xbusy_claim(m);
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
 	}

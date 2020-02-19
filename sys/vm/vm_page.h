@@ -764,9 +764,14 @@ void vm_page_object_busy_assert(vm_page_t m);
 void vm_page_assert_pga_writeable(vm_page_t m, uint16_t bits);
 #define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)				\
 	vm_page_assert_pga_writeable(m, bits)
+#define	vm_page_xbusy_claim(m) do {					\
+	vm_page_assert_xbusied_unchecked((m));				\
+	(m)->busy_lock = VPB_CURTHREAD_EXCLUSIVE;			\
+} while (0)
 #else
 #define	VM_PAGE_OBJECT_BUSY_ASSERT(m)	(void)0
 #define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)	(void)0
+#define	vm_page_xbusy_claim(m)
 #endif
 
 #if BYTE_ORDER == BIG_ENDIAN
