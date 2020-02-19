@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +37,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_above.c,v 1.9 2012/03/10 23:43:41 tom Exp $")
+MODULE_ID("$Id: p_above.c,v 1.10 2020/02/02 23:34:34 tom Exp $")
 
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(PANEL *)

@@ -1,6 +1,7 @@
-# $Id: mk-hdr.awk,v 1.4 2013/08/03 23:09:42 tom Exp $
+# $Id: mk-hdr.awk,v 1.5 2020/02/02 23:34:34 tom Exp $
 ##############################################################################
-# Copyright (c) 2007-2010,2013 Free Software Foundation, Inc.                #
+# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2007-2010,2013 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #

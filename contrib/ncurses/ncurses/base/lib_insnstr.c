@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2004-2016,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2004-2009,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +41,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_insnstr.c,v 1.6 2018/03/10 20:13:59 Gyorgy.Jeney Exp $")
+MODULE_ID("$Id: lib_insnstr.c,v 1.7 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 winsnstr(WINDOW *win, const char *s, int n)

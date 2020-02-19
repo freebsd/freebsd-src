@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2014 Free Software Foundation, Inc.                        *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2014 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: tparm_type.h,v 1.1 2014/05/21 16:57:56 tom Exp $
+ * $Id: tparm_type.h,v 1.2 2020/02/02 23:34:34 tom Exp $
  *
  * determine expected/actual number of parameters to setup for tparm
  */

@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2002-2011,2016 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2002-2011,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +41,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_get_wch.c,v 1.24 2016/05/28 23:36:34 tom Exp $")
+MODULE_ID("$Id: lib_get_wch.c,v 1.25 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 wget_wch(WINDOW *win, wint_t *result)

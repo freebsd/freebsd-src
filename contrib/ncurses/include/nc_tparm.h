@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2006-2017,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2006-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +31,7 @@
  *  Author: Thomas E. Dickey                        2006                    *
  ****************************************************************************/
 
-/* $Id: nc_tparm.h,v 1.9 2018/03/17 19:19:58 tom Exp $ */
+/* $Id: nc_tparm.h,v 1.10 2020/02/02 23:34:34 tom Exp $ */
 
 #ifndef NC_TPARM_included
 #define NC_TPARM_included 1

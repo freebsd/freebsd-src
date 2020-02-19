@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2011,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getstr.c,v 1.33 2018/09/01 20:18:09 tom Exp $")
+MODULE_ID("$Id: lib_getstr.c,v 1.34 2020/02/02 23:34:34 tom Exp $")
 
 /*
  * This wipes out the last character, no matter whether it was a tab, control

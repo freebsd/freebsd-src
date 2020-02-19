@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2006-2017,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2006-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +44,7 @@
 #include <hashed_db.h>
 #endif
 
-MODULE_ID("$Id: db_iterator.c,v 1.47 2018/11/24 22:42:01 tom Exp $")
+MODULE_ID("$Id: db_iterator.c,v 1.48 2020/02/02 23:34:34 tom Exp $")
 
 #define HaveTicDirectory _nc_globals.have_tic_directory
 #define KeepTicDirectory _nc_globals.keep_tic_directory

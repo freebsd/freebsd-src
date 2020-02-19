@@ -1,7 +1,8 @@
 #!@SHELL@
-# $Id: run_tic.in,v 1.36 2019/06/30 16:29:23 tom Exp $
+# $Id: run_tic.in,v 1.38 2020/02/15 15:30:53 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.                #
+# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2000-2012,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -144,6 +145,7 @@ Running $TIC_PATH to install $TERMINFO ...
 	document, and install the terminfo without the -x option.
 
 EOF
+$TIC_PATH -V
 if ( $TIC_PATH -x -s -o "$TERMINFO" $source )
 then
 	echo "** built new $TERMINFO"
@@ -163,6 +165,7 @@ Running $TIC_PATH to install $TERMINFO ...
 	document, and install the terminfo without the -x option.
 
 EOF
+$TIC_PATH -V
 if ( $TIC_PATH -s -o "$TERMINFO" $source )
 then
 	echo "** built new $TERMINFO"

@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2011,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2010,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wresize.c,v 1.38 2019/05/11 20:15:15 tom Exp $")
+MODULE_ID("$Id: wresize.c,v 1.39 2020/02/02 23:34:34 tom Exp $")
 
 static int
 cleanup_lines(struct ldat *data, int length)

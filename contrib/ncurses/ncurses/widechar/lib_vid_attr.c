@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2002-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2002-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +37,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_vid_attr.c,v 1.27 2019/04/13 22:40:48 tom Exp $")
+MODULE_ID("$Id: lib_vid_attr.c,v 1.28 2020/02/02 23:34:34 tom Exp $")
 
 #define doPut(mode) \
 	TPUTS_TRACE(#mode); \

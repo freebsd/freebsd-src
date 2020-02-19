@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2008-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2008-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +31,7 @@
  * Author: Thomas Dickey, 2008-on                                           *
  ****************************************************************************/
 
-/* $Id: nc_mingw.h,v 1.6 2019/06/23 19:55:08 tom Exp $ */
+/* $Id: nc_mingw.h,v 1.7 2020/02/02 23:34:34 tom Exp $ */
 
 #ifndef NC_MINGW_H
 #define NC_MINGW_H 1

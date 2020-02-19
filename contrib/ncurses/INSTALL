@@ -1,5 +1,6 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2019,2020 Free Software Foundation, Inc.               --
+-- Copyright 2018-2019,2020 Thomas E. Dickey                                 --
+-- Copyright 1998-2017,2018 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: INSTALL,v 1.215 2020/01/18 17:02:13 tom Exp $
+-- $Id: INSTALL,v 1.217 2020/02/15 13:39:30 tom Exp $
 ---------------------------------------------------------------------
              How to install Ncurses/Terminfo on your system
 ---------------------------------------------------------------------
@@ -1341,6 +1342,43 @@ COMPATIBILITY WITH OLDER VERSIONS OF NCURSES:
     Here are some of the major interface changes, and related problems which
     you may encounter when building a system with different versions of
     ncurses:
+
+    6.2 (Feb 12, 2020)
+	Interface changes:
+
+	+ the terminal database must be compiled with ncurses 6.2 tic;
+	  older versions of tic/infocmp will not work.  Aside from that,
+	  the compiled database will work with older applications.
+
+	+ "*.pc" and "ncurses*-config" files give the same information.
+
+	+ vwprintw and vwscanw are deprecated.
+
+	Added extensions:
+
+	+ These make it simpler to substitute a debug-configuration of the
+	  library for non-debug:
+		curses_trace
+		exit_curses
+		exit_terminfo
+
+	Added internal functions (other than "_sp" variants):
+
+	+ These provide fast-lookup of common user-defined capabilities:
+		_nc_find_user_entry
+		_nc_get_userdefs_table
+		_nc_get_hash_user
+
+	+ This is added to work around compiler-warnings:
+		_nc_fmt_funcptr
+
+	Removed internal functions:
+
+	+ _nc_import_termtype
+
+	Modified internal functions:
+
+	+ _nc_reserve_pairs no longer returns a value
 
     6.1 (Jan 27, 2018)
 	Interface changes:

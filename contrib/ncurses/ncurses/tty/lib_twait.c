@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2016,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -75,7 +76,7 @@
 #endif
 #undef CUR
 
-MODULE_ID("$Id: lib_twait.c,v 1.73 2018/06/23 21:35:06 tom Exp $")
+MODULE_ID("$Id: lib_twait.c,v 1.74 2020/02/02 23:34:34 tom Exp $")
 
 static long
 _nc_gettime(TimeType * t0, int first)

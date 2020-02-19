@@ -1,6 +1,7 @@
-# $Id: mk-1st.awk,v 1.105 2018/08/18 16:03:51 tom Exp $
+# $Id: mk-1st.awk,v 1.106 2020/02/02 23:34:34 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.                #
+# Copyright 2018,2020 Thomas E. Dickey                                       #
+# Copyright 1998-2016,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #

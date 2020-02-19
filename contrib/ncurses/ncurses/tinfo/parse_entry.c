@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +48,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: parse_entry.c,v 1.98 2019/10/12 00:50:31 tom Exp $")
+MODULE_ID("$Id: parse_entry.c,v 1.99 2020/02/02 23:34:34 tom Exp $")
 
 #ifdef LINT
 static short const parametrized[] =

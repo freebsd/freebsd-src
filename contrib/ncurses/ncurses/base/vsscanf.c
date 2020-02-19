@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2012 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2004,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +39,7 @@
 
 #if !HAVE_VSSCANF
 
-MODULE_ID("$Id: vsscanf.c,v 1.20 2012/02/22 22:26:58 tom Exp $")
+MODULE_ID("$Id: vsscanf.c,v 1.21 2020/02/02 23:34:34 tom Exp $")
 
 #if !(HAVE_VFSCANF || HAVE__DOSCAN)
 

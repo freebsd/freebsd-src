@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -49,7 +50,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_raw.c,v 1.23 2017/04/15 22:24:45 tom Exp $")
+MODULE_ID("$Id: lib_raw.c,v 1.24 2020/02/02 23:34:34 tom Exp $")
 
 #if HAVE_SYS_TERMIO_H
 #include <sys/termio.h>		/* needed for ISC */

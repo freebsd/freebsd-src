@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2006-2013,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2006-2011,2013 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +37,7 @@
 
 #if USE_HASHED_DB
 
-MODULE_ID("$Id: hashed_db.c,v 1.18 2019/01/21 17:34:49 tom Exp $")
+MODULE_ID("$Id: hashed_db.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
 
 #if HASHED_DB_API >= 2
 static DBC *cursor;

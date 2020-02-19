@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +43,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_wattron.c,v 1.11 2010/03/31 23:38:02 tom Exp $")
+MODULE_ID("$Id: lib_wattron.c,v 1.12 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 wattr_on(WINDOW *win, attr_t at, void *opts GCC_UNUSED)

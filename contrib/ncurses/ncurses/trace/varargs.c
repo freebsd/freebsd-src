@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2001-2008,2012 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2001-2008,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +35,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: varargs.c,v 1.11 2012/10/27 21:03:28 tom Exp $")
+MODULE_ID("$Id: varargs.c,v 1.12 2020/02/02 23:34:34 tom Exp $")
 
 #ifdef TRACE
 
