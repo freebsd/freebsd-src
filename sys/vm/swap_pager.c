@@ -585,11 +585,11 @@ swap_pager_swap_init(void)
 	n = maxswzone != 0 ? maxswzone / sizeof(struct swblk) :
 	    vm_cnt.v_page_count / 2;
 	swpctrie_zone = uma_zcreate("swpctrie", pctrie_node_size(), NULL, NULL,
-	    pctrie_zone_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+	    pctrie_zone_init, NULL, UMA_ALIGN_PTR, 0);
 	if (swpctrie_zone == NULL)
 		panic("failed to create swap pctrie zone.");
 	swblk_zone = uma_zcreate("swblk", sizeof(struct swblk), NULL, NULL,
-	    NULL, NULL, _Alignof(struct swblk) - 1, UMA_ZONE_VM);
+	    NULL, NULL, _Alignof(struct swblk) - 1, 0);
 	if (swblk_zone == NULL)
 		panic("failed to create swap blk zone.");
 	n2 = n;

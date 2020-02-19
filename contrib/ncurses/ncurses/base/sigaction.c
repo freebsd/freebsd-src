@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2003 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2002,2003 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +36,7 @@
 /* This file provides sigaction() emulation using sigvec() */
 /* Use only if this is non POSIX system */
 
-MODULE_ID("$Id: sigaction.c,v 1.14 2003/12/07 01:06:52 tom Exp $")
+MODULE_ID("$Id: sigaction.c,v 1.15 2020/02/02 23:34:34 tom Exp $")
 
 static int
 _nc_sigaction(int sig, sigaction_t * sigact, sigaction_t * osigact)

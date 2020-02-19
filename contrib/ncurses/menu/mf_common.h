@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2012 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2005,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +31,7 @@
  *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
-/* $Id: mf_common.h,v 0.24 2012/06/10 00:06:54 tom Exp $ */
+/* $Id: mf_common.h,v 0.25 2020/02/02 23:34:34 tom Exp $ */
 
 /* Common internal header for menu and form library */
 

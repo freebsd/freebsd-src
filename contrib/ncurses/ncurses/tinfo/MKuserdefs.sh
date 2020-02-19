@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 2019 Free Software Foundation, Inc.                          #
+# Copyright 2019,2020 Thomas E. Dickey                                       #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKuserdefs.sh,v 1.9 2019/07/28 19:12:18 tom Exp $
+# $Id: MKuserdefs.sh,v 1.10 2020/02/02 23:34:34 tom Exp $
 AWK=${1-awk}; shift 1
 OPT1=${1-0}; shift 1
 

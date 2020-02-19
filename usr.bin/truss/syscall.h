@@ -122,6 +122,7 @@ enum Argtype {
 	Rtpriofunc,
 	RusageWho,
 	Schedpolicy,
+	ShmFlags,
 	Shutdown,
 	Signal,
 	Sigprocmask,

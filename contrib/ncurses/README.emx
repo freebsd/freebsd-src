@@ -1,5 +1,6 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2006,2018 Free Software Foundation, Inc.               --
+-- Copyright 2020 Thomas E. Dickey                                           --
+-- Copyright 1998-2006,2018 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: README.emx,v 1.10 2018/01/01 15:09:55 tom Exp $
+-- $Id: README.emx,v 1.11 2020/02/02 23:34:34 tom Exp $
 -- Author: Thomas Dickey
 -------------------------------------------------------------------------------
 

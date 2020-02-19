@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2002-2011,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2002-2009,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_get_wstr.c,v 1.15 2018/09/01 20:13:00 tom Exp $")
+MODULE_ID("$Id: lib_get_wstr.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
 
 static int
 wadd_wint(WINDOW *win, wint_t *src)

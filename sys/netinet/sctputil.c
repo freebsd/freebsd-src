@@ -1371,11 +1371,13 @@ sctp_expand_mapping_array(struct sctp_association *asoc, uint32_t needed)
 static void
 sctp_iterator_work(struct sctp_iterator *it)
 {
+	struct epoch_tracker et;
+	struct sctp_inpcb *tinp;
 	int iteration_count = 0;
 	int inp_skip = 0;
 	int first_in = 1;
-	struct sctp_inpcb *tinp;
 
+	NET_EPOCH_ENTER(et);
 	SCTP_INP_INFO_RLOCK();
 	SCTP_ITERATOR_LOCK();
 	sctp_it_ctl.cur_it = it;
@@ -1393,6 +1395,7 @@ done_with_iterator:
 			(*it->function_atend) (it->pointer, it->val);
 		}
 		SCTP_FREE(it, SCTP_M_ITER);
+		NET_EPOCH_EXIT(et);
 		return;
 	}
 select_a_new_ep:
@@ -1601,6 +1604,7 @@ sctp_handle_addr_wq(void)
 void
 sctp_timeout_handler(void *t)
 {
+	struct epoch_tracker et;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
 	struct sctp_nets *net;
@@ -1716,6 +1720,7 @@ sctp_timeout_handler(void *t)
 	/* record in stopped what t-o occurred */
 	tmr->stopped_from = type;
 
+	NET_EPOCH_ENTER(et);
 	/* mark as being serviced now */
 	if (SCTP_OS_TIMER_PENDING(&tmr->timer)) {
 		/*
@@ -1910,7 +1915,6 @@ sctp_timeout_handler(void *t)
 		sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		/* no need to unlock on tcb its gone */
 		goto out_decr;
-
 	case SCTP_TIMER_TYPE_STRRESET:
 		if ((stcb == NULL) || (inp == NULL)) {
 			break;
@@ -1943,7 +1947,6 @@ sctp_timeout_handler(void *t)
 		sctp_delete_prim_timer(inp, stcb, net);
 		SCTP_STAT_INCR(sctps_timodelprim);
 		break;
-
 	case SCTP_TIMER_TYPE_AUTOCLOSE:
 		if ((stcb == NULL) || (inp == NULL)) {
 			break;
@@ -2034,6 +2037,7 @@ out_decr:
 out_no_decr:
 	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer now complete (type = %d)\n", type);
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 }
 
 void
@@ -5184,6 +5188,7 @@ sctp_user_rcvd(struct sctp_tcb *stcb, uint32_t *freed_so_far, int hold_rlock,
     uint32_t rwnd_req)
 {
 	/* User pulled some data, do we need a rwnd update? */
+	struct epoch_tracker et;
 	int r_unlocked = 0;
 	uint32_t dif, rwnd;
 	struct socket *so = NULL;
@@ -5239,11 +5244,13 @@ sctp_user_rcvd(struct sctp_tcb *stcb, uint32_t *freed_so_far, int hold_rlock,
 			goto out;
 		}
 		SCTP_STAT_INCR(sctps_wu_sacks_sent);
+		NET_EPOCH_ENTER(et);
 		sctp_send_sack(stcb, SCTP_SO_LOCKED);
 
 		sctp_chunk_output(stcb->sctp_ep, stcb,
 		    SCTP_OUTPUT_FROM_USR_RCVD, SCTP_SO_LOCKED);
 		/* make sure no timer is running */
+		NET_EPOCH_EXIT(et);
 		sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, NULL,
 		    SCTP_FROM_SCTPUTIL + SCTP_LOC_6);
 		SCTP_TCB_UNLOCK(stcb);

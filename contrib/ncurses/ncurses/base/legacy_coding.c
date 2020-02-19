@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2005,2009 Free Software Foundation, Inc.                   *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2005,2009 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: legacy_coding.c,v 1.5 2009/10/24 22:15:00 tom Exp $")
+MODULE_ID("$Id: legacy_coding.c,v 1.6 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(use_legacy_coding) (NCURSES_SP_DCLx int level)

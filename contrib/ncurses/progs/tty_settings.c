@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2016,2017 Free Software Foundation, Inc.                   *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2016,2017 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +36,7 @@
 
 #include <fcntl.h>
 
-MODULE_ID("$Id: tty_settings.c,v 1.5 2017/10/07 20:55:57 tom Exp $")
+MODULE_ID("$Id: tty_settings.c,v 1.6 2020/02/02 23:34:34 tom Exp $")
 
 static int my_fd;
 static TTY original_settings;

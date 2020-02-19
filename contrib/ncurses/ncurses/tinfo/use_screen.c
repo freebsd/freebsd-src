@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 2007-2016,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2007-2009,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: use_screen.c,v 1.11 2018/12/15 23:53:26 tom Exp $")
+MODULE_ID("$Id: use_screen.c,v 1.12 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 use_screen(SCREEN *screen, NCURSES_SCREEN_CB func, void *data)

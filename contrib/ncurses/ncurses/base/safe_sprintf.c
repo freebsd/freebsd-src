@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2013,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2012,2013 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +34,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: safe_sprintf.c,v 1.32 2018/12/15 22:26:38 tom Exp $")
+MODULE_ID("$Id: safe_sprintf.c,v 1.33 2020/02/02 23:34:34 tom Exp $")
 
 #if USE_SAFE_SPRINTF
 

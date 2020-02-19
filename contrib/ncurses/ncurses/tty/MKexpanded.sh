@@ -1,6 +1,7 @@
 #! /bin/sh
 ##############################################################################
-# Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.                #
+# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 1998-2015,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -29,7 +30,7 @@
 #
 # Author: Thomas E. Dickey, 1997-on
 #
-# $Id: MKexpanded.sh,v 1.21 2019/03/02 22:47:55 tom Exp $
+# $Id: MKexpanded.sh,v 1.22 2020/02/02 23:34:34 tom Exp $
 #
 # Script to generate 'expanded.c', a dummy source that contains functions
 # corresponding to complex macros used in this library.  By making functions,

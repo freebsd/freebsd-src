@@ -20,6 +20,7 @@ scripts: {
 	# files being added or removed, we should use it instead to gate the
 	# rehash.
 	post-install = <<EOD
-	[ -x /usr/sbin/certctl ] && /usr/sbin/certctl rehash
+	[ -x /usr/sbin/certctl ] && env DESTDIR=${PKG_ROOTDIR} \
+	    /usr/sbin/certctl rehash
 EOD
 }

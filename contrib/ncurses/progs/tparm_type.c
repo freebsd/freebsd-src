@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2013,2015 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2014,2015 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
 
 #include <tparm_type.h>
 
-MODULE_ID("$Id: tparm_type.c,v 1.2 2015/04/04 15:01:13 tom Exp $")
+MODULE_ID("$Id: tparm_type.c,v 1.3 2020/02/02 23:34:34 tom Exp $")
 
 /*
  * Lookup the type of call we should make to tparm().  This ignores the actual

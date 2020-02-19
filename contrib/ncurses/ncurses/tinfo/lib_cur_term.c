@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +40,7 @@
 #include <curses.priv.h>
 #include <termcap.h>		/* ospeed */
 
-MODULE_ID("$Id: lib_cur_term.c,v 1.41 2017/06/17 22:21:35 tom Exp $")
+MODULE_ID("$Id: lib_cur_term.c,v 1.42 2020/02/02 23:34:34 tom Exp $")
 
 #undef CUR
 #define CUR TerminalType(termp).

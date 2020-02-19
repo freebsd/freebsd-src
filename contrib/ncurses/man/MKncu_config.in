@@ -1,5 +1,6 @@
 .\"***************************************************************************
-.\" Copyright (c) 2010 Free Software Foundation, Inc.                        *
+.\" Copyright 2020 Thomas E. Dickey                                          *
+.\" Copyright 2010 Free Software Foundation, Inc.                            *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: MKncu_config.in,v 1.3 2010/03/06 22:29:17 tom Exp $
+.\" $Id: MKncu_config.in,v 1.4 2020/02/02 23:34:34 tom Exp $
 .TH @LIB_NAME@@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config 1 ""
 .SH NAME
 @LIB_NAME@@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config \- helper script for ncurses libraries

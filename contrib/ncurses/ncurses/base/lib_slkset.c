@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2011,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +45,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_slkset.c,v 1.25 2019/05/04 20:46:24 tom Exp $")
+MODULE_ID("$Id: lib_slkset.c,v 1.26 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(slk_set) (NCURSES_SP_DCLx int i, const char *astr, int format)

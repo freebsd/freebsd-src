@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2017,2019 Free Software Foundation, Inc.              *
+ * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +30,7 @@
 /****************************************************************************
  *  Author: Thomas E. Dickey                    1996-on                     *
  ****************************************************************************/
-/* $Id: nc_alloc.h,v 1.24 2019/12/15 01:00:51 tom Exp $ */
+/* $Id: nc_alloc.h,v 1.26 2020/02/02 23:34:34 tom Exp $ */
 
 #ifndef NC_ALLOC_included
 #define NC_ALLOC_included 1
@@ -91,6 +92,8 @@ extern NCURSES_EXPORT(void) _nc_free_and_exit(int) GCC_NORETURN GCC_DEPRECATED("
 
 #define ExitProgram(code) exit_curses(code)
 
+#else
+extern NCURSES_EXPORT(void) _nc_free_and_exit(int) GCC_NORETURN GCC_DEPRECATED("use exit_curses");
 #endif /* NO_LEAKS, etc */
 
 #ifndef HAVE_NC_FREEALL

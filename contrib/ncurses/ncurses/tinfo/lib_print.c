@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2012,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2011,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +40,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_print.c,v 1.24 2018/06/24 00:06:37 tom Exp $")
+MODULE_ID("$Id: lib_print.c,v 1.25 2020/02/02 23:34:34 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(mcprint) (NCURSES_SP_DCLx char *data, int len)
