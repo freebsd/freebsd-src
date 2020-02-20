@@ -86,6 +86,12 @@ extern char end[];
 static void *heap_top;
 static void *heap_bottom;
 
+caddr_t
+ptov(uintptr_t x)
+{
+	return (PTOV(x));
+}
+
 int
 main(void)
 {
