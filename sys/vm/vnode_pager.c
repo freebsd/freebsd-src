@@ -1169,8 +1169,6 @@ vnode_pager_generic_getpages_done(struct buf *bp)
 			vm_page_readahead_finish(mt);
 	}
 	VM_OBJECT_RUNLOCK(object);
-	if (error != 0)
-		printf("%s: I/O read error %d\n", __func__, error);
 
 	return (error);
 }
