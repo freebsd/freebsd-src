@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/counter.h>
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
@@ -387,8 +388,12 @@ STATNODE_COUNTER(shrinking_skipped,
     "Number of times shrinking was already in progress");
 
 static void cache_zap_locked(struct namecache *ncp, bool neg_locked);
-static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
+static int vn_fullpath_hardlink(struct thread *td, struct nameidata *ndp, char **retbuf,
+    char **freebuf, size_t *buflen);
+static int vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, size_t *buflen);
+static int vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
+    char *buf, char **retbuf, size_t *len, bool slash_prefixed, size_t addend);
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
@@ -2201,7 +2206,7 @@ vn_getcwd(struct thread *td, char *buf, char **retbuf, size_t *buflen)
 	rdir = fdp->fd_rdir;
 	vrefact(rdir);
 	FILEDESC_SUNLOCK(fdp);
-	error = vn_fullpath1(td, cdir, rdir, buf, retbuf, buflen);
+	error = vn_fullpath_any(td, cdir, rdir, buf, retbuf, buflen);
 	vrele(rdir);
 	vrele(cdir);
 
@@ -2210,6 +2215,37 @@ vn_getcwd(struct thread *td, char *buf, char **retbuf, size_t *buflen)
 		ktrnamei(*retbuf);
 #endif
 	return (error);
+}
+
+static int
+kern___realpathat(struct thread *td, int fd, const char *path, char *buf,
+    size_t size, int flags, enum uio_seg pathseg)
+{
+	struct nameidata nd;
+	char *retbuf, *freebuf;
+	int error;
+
+	if (flags != 0)
+		return (EINVAL);
+	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | SAVENAME | WANTPARENT | AUDITVNODE1,
+	    pathseg, path, fd, &cap_fstat_rights, td);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	error = vn_fullpath_hardlink(td, &nd, &retbuf, &freebuf, &size);
+	if (error == 0) {
+		error = copyout(retbuf, buf, size);
+		free(freebuf, M_TEMP);
+	}
+	NDFREE(&nd, 0);
+	return (error);
+}
+
+int
+sys___realpathat(struct thread *td, struct __realpathat_args *uap)
+{
+
+	return (kern___realpathat(td, uap->fd, uap->path, uap->buf, uap->size,
+	    uap->flags, UIO_USERSPACE));
 }
 
 /*
@@ -2235,7 +2271,7 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	rdir = fdp->fd_rdir;
 	vrefact(rdir);
 	FILEDESC_SUNLOCK(fdp);
-	error = vn_fullpath1(td, vn, rdir, buf, retbuf, &buflen);
+	error = vn_fullpath_any(td, vn, rdir, buf, retbuf, &buflen);
 	vrele(rdir);
 
 	if (!error)
@@ -2263,7 +2299,7 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 		return (EINVAL);
 	buflen = MAXPATHLEN;
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
-	error = vn_fullpath1(td, vn, rootvnode, buf, retbuf, &buflen);
+	error = vn_fullpath_any(td, vn, rootvnode, buf, retbuf, &buflen);
 	if (!error)
 		*freebuf = buf;
 	else
@@ -2334,40 +2370,40 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 }
 
 /*
- * The magic behind vn_getcwd() and vn_fullpath().
+ * Resolve a directory to a pathname.
+ *
+ * The name of the directory can always be found in the namecache or fetched
+ * from the filesystem. There is also guaranteed to be only one parent, meaning
+ * we can just follow vnodes up until we find the root.
+ *
+ * The vnode must be referenced.
  */
 static int
-vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
-    char *buf, char **retbuf, size_t *len)
+vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
+    char *buf, char **retbuf, size_t *len, bool slash_prefixed, size_t addend)
 {
-	int error, slash_prefixed;
 #ifdef KDTRACE_HOOKS
 	struct vnode *startvp = vp;
 #endif
 	struct vnode *vp1;
 	size_t buflen;
+	int error;
+
+	VNPASS(vp->v_type == VDIR || VN_IS_DOOMED(vp), vp);
+	VNPASS(vp->v_usecount > 0, vp);
 
 	buflen = *len;
 
-	buflen--;
-	buf[buflen] = '\0';
+	if (!slash_prefixed) {
+		MPASS(*len >= 2);
+		buflen--;
+		buf[buflen] = '\0';
+	}
+
 	error = 0;
-	slash_prefixed = 0;
 
 	SDT_PROBE1(vfs, namecache, fullpath, entry, vp);
 	counter_u64_add(numfullpathcalls, 1);
-	vref(vp);
-	if (vp->v_type != VDIR) {
-		error = vn_vptocnp(&vp, td->td_ucred, buf, &buflen);
-		if (error)
-			return (error);
-		if (buflen == 0) {
-			vrele(vp);
-			return (ENOMEM);
-		}
-		buf[--buflen] = '/';
-		slash_prefixed = 1;
-	}
 	while (vp != rdir && vp != rootvnode) {
 		/*
 		 * The vp vnode must be already fully constructed,
@@ -2420,7 +2456,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			break;
 		}
 		buf[--buflen] = '/';
-		slash_prefixed = 1;
+		slash_prefixed = true;
 	}
 	if (error)
 		return (error);
@@ -2437,10 +2473,126 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	counter_u64_add(numfullpathfound, 1);
 	vrele(vp);
 
-	SDT_PROBE3(vfs, namecache, fullpath, return, 0, startvp, buf + buflen);
 	*retbuf = buf + buflen;
+	SDT_PROBE3(vfs, namecache, fullpath, return, 0, startvp, *retbuf);
 	*len -= buflen;
+	*len += addend;
 	return (0);
+}
+
+/*
+ * Resolve an arbitrary vnode to a pathname.
+ *
+ * Note 2 caveats:
+ * - hardlinks are not tracked, thus if the vnode is not a directory this can
+ *   resolve to a different path than the one used to find it
+ * - namecache is not mandatory, meaning names are not guaranteed to be added
+ *   (in which case resolving fails)
+ */
+static int
+vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
+    char *buf, char **retbuf, size_t *buflen)
+{
+	size_t orig_buflen;
+	bool slash_prefixed;
+	int error;
+
+	if (*buflen < 2)
+		return (EINVAL);
+
+	orig_buflen = *buflen;
+
+	vref(vp);
+	slash_prefixed = false;
+	if (vp->v_type != VDIR) {
+		*buflen -= 1;
+		buf[*buflen] = '\0';
+		error = vn_vptocnp(&vp, td->td_ucred, buf, buflen);
+		if (error)
+			return (error);
+		if (*buflen == 0) {
+			vrele(vp);
+			return (ENOMEM);
+		}
+		*buflen -= 1;
+		buf[*buflen] = '/';
+		slash_prefixed = true;
+	}
+
+	return (vn_fullpath_dir(td, vp, rdir, buf, retbuf, buflen, slash_prefixed,
+	    orig_buflen - *buflen));
+}
+
+/*
+ * Resolve an arbitrary vnode to a pathname (taking care of hardlinks).
+ *
+ * Since the namecache does not track handlings, the caller is expected to first
+ * look up the target vnode with SAVENAME | WANTPARENT flags passed to namei.
+ *
+ * Then we have 2 cases:
+ * - if the found vnode is a directory, the path can be constructed just by
+ *   fullowing names up the chain
+ * - otherwise we populate the buffer with the saved name and start resolving
+ *   from the parent
+ */
+static int
+vn_fullpath_hardlink(struct thread *td, struct nameidata *ndp, char **retbuf,
+    char **freebuf, size_t *buflen)
+{
+	char *buf, *tmpbuf;
+	struct filedesc *fdp;
+	struct vnode *rdir;
+	struct componentname *cnp;
+	struct vnode *vp;
+	size_t addend;
+	int error;
+	bool slash_prefixed;
+
+	if (*buflen < 2)
+		return (EINVAL);
+	if (*buflen > MAXPATHLEN)
+		*buflen = MAXPATHLEN;
+
+	slash_prefixed = false;
+
+	buf = malloc(*buflen, M_TEMP, M_WAITOK);
+	fdp = td->td_proc->p_fd;
+	FILEDESC_SLOCK(fdp);
+	rdir = fdp->fd_rdir;
+	vrefact(rdir);
+	FILEDESC_SUNLOCK(fdp);
+
+	addend = 0;
+	vp = ndp->ni_vp;
+	if (vp->v_type != VDIR) {
+		cnp = &ndp->ni_cnd;
+		addend = cnp->cn_namelen + 2;
+		if (*buflen < addend) {
+			error = ENOMEM;
+			goto out_bad;
+		}
+		*buflen -= addend;
+		tmpbuf = buf + *buflen;
+		tmpbuf[0] = '/';
+		memcpy(&tmpbuf[1], cnp->cn_nameptr, cnp->cn_namelen);
+		tmpbuf[addend - 1] = '\0';
+		slash_prefixed = true;
+		vp = ndp->ni_dvp;
+	}
+
+	vref(vp);
+	error = vn_fullpath_dir(td, vp, rdir, buf, retbuf, buflen, slash_prefixed, addend);
+	if (error != 0)
+		goto out_bad;
+
+	vrele(rdir);
+	*freebuf = buf;
+
+	return (0);
+out_bad:
+	vrele(rdir);
+	free(buf, M_TEMP);
+	return (error);
 }
 
 struct vnode *
