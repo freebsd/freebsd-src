@@ -28,16 +28,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
-#include <bootstrap.h>
 #include <sys/endian.h>
 
-#ifdef EFI
-/* In EFI, we don't need PTOV(). */
-#define PTOV(x)		(caddr_t)(x)
-#else
-#include "btxv86.h"
-#endif
-#include "smbios.h"
+#define PTOV(x)		ptov(x)
 
 /*
  * Detect SMBIOS and export information about the SMBIOS into the

@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "common/bootargs.h"
 #include "libi386/libi386.h"
-#include "libi386/smbios.h"
+#include <smbios.h>
 #include "btxv86.h"
 
 #ifdef LOADER_ZFS_SUPPORT
@@ -85,6 +85,12 @@ extern char end[];
 
 static void *heap_top;
 static void *heap_bottom;
+
+caddr_t
+ptov(uintptr_t x)
+{
+	return (PTOV(x));
+}
 
 int
 main(void)

@@ -452,4 +452,9 @@ const char *x86_hypervisor(void);
 #define reallocf(x, y)	Reallocf(x, y, NULL, 0)
 #endif
 
+/*
+ * va <-> pa routines. MD code must supply.
+ */
+caddr_t ptov(uintptr_t);
+
 #endif	/* STAND_H */
