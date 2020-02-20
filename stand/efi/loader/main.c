@@ -852,7 +852,11 @@ read_loader_env(const char *name, char *def_fn, bool once)
 	}
 }
 
-
+caddr_t
+ptov(uintptr_t x)
+{
+	return ((caddr_t)x);
+}
 
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
