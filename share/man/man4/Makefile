@@ -192,6 +192,7 @@ MAN=	aac.4 \
 	${_hv_vmbus.4} \
 	${_hv_vss.4} \
 	hwpmc.4 \
+	${_hwpstate_intel.4} \
 	iavf.4 \
 	ichsmb.4 \
 	${_ichwd.4} \
@@ -787,6 +788,7 @@ _hv_storvsc.4=	hv_storvsc.4
 _hv_utils.4=	hv_utils.4
 _hv_vmbus.4=	hv_vmbus.4
 _hv_vss.4=	hv_vss.4
+_hwpstate_intel.4=	hwpstate_intel.4
 _i8254.4=	i8254.4
 _ichwd.4=	ichwd.4
 _if_bxe.4=	if_bxe.4
