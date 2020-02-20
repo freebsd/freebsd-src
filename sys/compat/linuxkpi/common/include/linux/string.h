@@ -154,4 +154,13 @@ memchr_inv(const void *start, int c, size_t length)
 	return (NULL);
 }
 
+static inline size_t
+str_has_prefix(const char *str, const char *prefix)
+{
+	size_t len;
+
+	len = strlen(prefix);
+	return (strncmp(str, prefix, len) == 0 ? len : 0);
+}
+
 #endif					/* _LINUX_STRING_H_ */
