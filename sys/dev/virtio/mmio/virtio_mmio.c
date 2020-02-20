@@ -196,7 +196,7 @@ vtmmio_setup_intr(device_t dev, enum intr_type type)
 		return (ENXIO);
 	}
 
-	if (bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC | INTR_MPSAFE,
+	if (bus_setup_intr(dev, sc->res[1], type | INTR_MPSAFE,
 		NULL, vtmmio_vq_intr, sc, &sc->ih)) {
 		device_printf(dev, "Can't setup the interrupt\n");
 		return (ENXIO);
