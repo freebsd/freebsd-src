@@ -45,6 +45,7 @@ int	 netbe_set_cap(net_backend_t *be, uint64_t cap,
              unsigned vnet_hdr_len);
 size_t	netbe_get_vnet_hdr_len(net_backend_t *be);
 ssize_t	netbe_send(net_backend_t *be, const struct iovec *iov, int iovcnt);
+ssize_t	netbe_peek_recvlen(net_backend_t *be);
 ssize_t	netbe_recv(net_backend_t *be, const struct iovec *iov, int iovcnt);
 ssize_t	netbe_rx_discard(net_backend_t *be);
 void	netbe_rx_disable(net_backend_t *be);
