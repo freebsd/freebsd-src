@@ -414,4 +414,5 @@ MIASM =  \
 	__sysctlbyname.o \
 	shm_open2.o \
 	shm_rename.o \
-	sigfastblock.o
+	sigfastblock.o \
+	__realpathat.o
