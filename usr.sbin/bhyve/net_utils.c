@@ -35,6 +35,10 @@
 #include <stdio.h>
 #include <errno.h>
 
+#include "bhyverun.h"
+#include "debug.h"
+#include "net_utils.h"
+
 int
 net_parsemac(char *mac_str, uint8_t *mac_addr)
 {
@@ -49,7 +53,7 @@ net_parsemac(char *mac_str, uint8_t *mac_addr)
 
                 if (ea == NULL || ETHER_IS_MULTICAST(ea->octet) ||
                     memcmp(ea->octet, zero_addr, ETHER_ADDR_LEN) == 0) {
-			fprintf(stderr, "Invalid MAC %s\n", mac_str);
+			EPRINTLN("Invalid MAC %s", mac_str);
                         return (EINVAL);
                 } else
                         memcpy(mac_addr, ea->octet, ETHER_ADDR_LEN);

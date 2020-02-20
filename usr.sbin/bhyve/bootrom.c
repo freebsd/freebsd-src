@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 #include "bhyverun.h"
 #include "bootrom.h"
+#include "debug.h"
 
 #define	MAX_BOOTROM_SIZE	(16 * 1024 * 1024)	/* 16 MB */
 
@@ -60,13 +61,13 @@ bootrom_init(struct vmctx *ctx, const char *romfile)
 	rv = -1;
 	fd = open(romfile, O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "Error opening bootrom \"%s\": %s\n",
+		EPRINTLN("Error opening bootrom \"%s\": %s",
 		    romfile, strerror(errno));
 		goto done;
 	}
 
         if (fstat(fd, &sbuf) < 0) {
-		fprintf(stderr, "Could not fstat bootrom file \"%s\": %s\n",
+		EPRINTLN("Could not fstat bootrom file \"%s\": %s",
 		    romfile, strerror(errno));
 		goto done;
         }
@@ -76,13 +77,13 @@ bootrom_init(struct vmctx *ctx, const char *romfile)
 	 * MMIO space (e.g. APIC, HPET, MSI).
 	 */
 	if (sbuf.st_size > MAX_BOOTROM_SIZE || sbuf.st_size < PAGE_SIZE) {
-		fprintf(stderr, "Invalid bootrom size %ld\n", sbuf.st_size);
+		EPRINTLN("Invalid bootrom size %ld", sbuf.st_size);
 		goto done;
 	}
 
 	if (sbuf.st_size & PAGE_MASK) {
-		fprintf(stderr, "Bootrom size %ld is not a multiple of the "
-		    "page size\n", sbuf.st_size);
+		EPRINTLN("Bootrom size %ld is not a multiple of the "
+		    "page size", sbuf.st_size);
 		goto done;
 	}
 
@@ -100,8 +101,8 @@ bootrom_init(struct vmctx *ctx, const char *romfile)
 	for (i = 0; i < sbuf.st_size / PAGE_SIZE; i++) {
 		rlen = read(fd, ptr + i * PAGE_SIZE, PAGE_SIZE);
 		if (rlen != PAGE_SIZE) {
-			fprintf(stderr, "Incomplete read of page %d of bootrom "
-			    "file %s: %ld bytes\n", i, romfile, rlen);
+			EPRINTLN("Incomplete read of page %d of bootrom "
+			    "file %s: %ld bytes", i, romfile, rlen);
 			goto done;
 		}
 	}

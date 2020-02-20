@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include "mevent.h"
 #include "uart_emul.h"
+#include "debug.h"
 
 #define	COM1_BASE      	0x3F8
 #define	COM1_IRQ	4
@@ -152,6 +153,7 @@ ttyopen(struct ttyfd *tf)
 		tio_stdio_orig = orig;
 		atexit(ttyclose);
 	}
+	raw_stdio = 1;
 }
 
 static int
