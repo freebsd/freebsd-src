@@ -67,6 +67,8 @@ static int amdpm_debug = 0;
 #define AMDPM_DEVICEID_AMD768PM 0x7443
 #define AMDPM_DEVICEID_AMD8111PM 0x746B
 
+#define AMDPM_VENDORID_HYGON 0x1d94
+
 /* nVidia nForce chipset */
 #define AMDPM_VENDORID_NVIDIA 0x10de
 #define AMDPM_DEVICEID_NF_SMB 0x01b4
@@ -199,7 +201,8 @@ amdpm_attach(device_t dev)
 	pci_write_config(dev, AMDPCI_GEN_CONFIG_PM, val_b | AMDPCI_PMIOEN, 1);
 
 	/* Allocate I/O space */
-	if (pci_get_vendor(dev) == AMDPM_VENDORID_AMD)
+	if (pci_get_vendor(dev) == AMDPM_VENDORID_AMD ||
+	    pci_get_vendor(dev) == AMDPM_VENDORID_HYGON)
 		amdpm_sc->rid = AMDPCI_PMBASE;
 	else
 		amdpm_sc->rid = NFPCI_PMBASE;
