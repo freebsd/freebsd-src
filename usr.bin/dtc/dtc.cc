@@ -304,7 +304,10 @@ main(int argc, char **argv)
 			}
 			break;
 		default:
-			fprintf(stderr, "Unknown option %c\n", ch);
+			/* 
+			 * Since opterr is non-zero, getopt will have
+			 * already printed an error message.
+			 */
 			return EXIT_FAILURE;
 		}
 	}
