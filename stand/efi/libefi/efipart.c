@@ -363,6 +363,8 @@ efipart_inithandles(void)
 	status = BS->LocateHandle(ByProtocol, &blkio_guid, 0, &sz, hin);
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		hin = malloc(sz);
+		if (hin == NULL)
+			return (ENOMEM);
 		status = BS->LocateHandle(ByProtocol, &blkio_guid, 0, &sz,
 		    hin);
 		if (EFI_ERROR(status))
