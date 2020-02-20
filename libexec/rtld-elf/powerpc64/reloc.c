@@ -513,6 +513,13 @@ reloc_gnu_ifunc(Obj_Entry *obj __unused, int flags __unused,
 	return (0);
 }
 
+int
+reloc_iresolve_nonplt(Obj_Entry *obj __unused,
+    struct Struct_RtldLockState *lockstate __unused)
+{
+	return (0);
+}
+
 void
 init_pltgot(Obj_Entry *obj)
 {

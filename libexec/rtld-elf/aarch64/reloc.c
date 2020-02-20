@@ -258,27 +258,52 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 	return (0);
 }
 
+static void
+reloc_iresolve_one(Obj_Entry *obj, const Elf_Rela *rela,
+    RtldLockState *lockstate)
+{
+	Elf_Addr *where, target, *ptr;
+
+	ptr = (Elf_Addr *)(obj->relocbase + rela->r_addend);
+	where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+	lock_release(rtld_bind_lock, lockstate);
+	target = call_ifunc_resolver(ptr);
+	wlock_acquire(rtld_bind_lock, lockstate);
+	*where = target;
+}
+
 int
 reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
 {
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
-	Elf_Addr *where, target, *ptr;
 
 	if (!obj->irelative)
 		return (0);
-	relalim = (const Elf_Rela *)((const char *)obj->pltrela + obj->pltrelasize);
-	for (rela = obj->pltrela;  rela < relalim;  rela++) {
-		if (ELF_R_TYPE(rela->r_info) == R_AARCH64_IRELATIVE) {
-			ptr = (Elf_Addr *)(obj->relocbase + rela->r_addend);
-			where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
-			lock_release(rtld_bind_lock, lockstate);
-			target = call_ifunc_resolver(ptr);
-			wlock_acquire(rtld_bind_lock, lockstate);
-			*where = target;
-		}
-	}
 	obj->irelative = false;
+	relalim = (const Elf_Rela *)((const char *)obj->pltrela +
+	    obj->pltrelasize);
+	for (rela = obj->pltrela;  rela < relalim;  rela++) {
+		if (ELF_R_TYPE(rela->r_info) == R_AARCH64_IRELATIVE)
+			reloc_iresolve_one(obj, rela, lockstate);
+	}
+	return (0);
+}
+
+int
+reloc_iresolve_nonplt(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+	const Elf_Rela *relalim;
+	const Elf_Rela *rela;
+
+	if (!obj->irelative_nonplt)
+		return (0);
+	obj->irelative_nonplt = false;
+	relalim = (const Elf_Rela *)((const char *)obj->rela + obj->relasize);
+	for (rela = obj->rela;  rela < relalim;  rela++) {
+		if (ELF_R_TYPE(rela->r_info) == R_AARCH64_IRELATIVE)
+			reloc_iresolve_one(obj, rela, lockstate);
+	}
 	return (0);
 }
 
@@ -497,6 +522,9 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			*where = (Elf_Addr)(obj->relocbase + rela->r_addend);
 			break;
 		case R_AARCH64_NONE:
+			break;
+		case R_AARCH64_IRELATIVE:
+			obj->irelative_nonplt = true;
 			break;
 		default:
 			rtld_printf("%s: Unhandled relocation %lu\n",
