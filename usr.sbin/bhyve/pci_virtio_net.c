@@ -228,22 +228,34 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 	struct virtio_mrg_rxbuf_info info[VTNET_MAXSEGS];
 	struct iovec iov[VTNET_MAXSEGS + 1];
 	struct vqueue_info *vq;
-	uint32_t riov_bytes;
-	struct iovec *riov;
-	int riov_len;
-	uint32_t ulen;
-	int n_chains;
-	int len;
 
 	vq = &sc->vsc_queues[VTNET_RXQ];
 	for (;;) {
 		struct virtio_net_rxhdr *hdr;
+		uint32_t riov_bytes;
+		struct iovec *riov;
+		uint32_t ulen;
+		int riov_len;
+		int n_chains;
+		ssize_t rlen;
+		ssize_t plen;
+
+		plen = netbe_peek_recvlen(sc->vsc_be);
+		if (plen <= 0) {
+			/*
+			 * No more packets (plen == 0), or backend errored
+			 * (plen < 0). Interrupt if needed and stop.
+			 */
+			vq_endchains(vq, /*used_all_avail=*/0);
+			return;
+		}
+		plen += prepend_hdr_len;
 
 		/*
 		 * Get a descriptor chain to store the next ingress
 		 * packet. In case of mergeable rx buffers, get as
 		 * many chains as necessary in order to make room
-		 * for a maximum sized LRO packet.
+		 * for plen bytes.
 		 */
 		riov_bytes = 0;
 		riov_len = 0;
@@ -287,8 +299,7 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 			riov_bytes += info[n_chains].len;
 			riov += n;
 			n_chains++;
-		} while (riov_bytes < VTNET_MAX_PKT_LEN &&
-			    riov_len < VTNET_MAXSEGS);
+		} while (riov_bytes < plen && riov_len < VTNET_MAXSEGS);
 
 		riov = iov;
 		hdr = riov[0].iov_base;
@@ -312,21 +323,20 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 			memset(hdr, 0, prepend_hdr_len);
 		}
 
-		len = netbe_recv(sc->vsc_be, riov, riov_len);
-
-		if (len <= 0) {
+		rlen = netbe_recv(sc->vsc_be, riov, riov_len);
+		if (rlen != plen - prepend_hdr_len) {
 			/*
-			 * No more packets (len == 0), or backend errored
-			 * (err < 0). Return unused available buffers
-			 * and stop.
+			 * If this happens it means there is something
+			 * wrong with the backend (e.g., some other
+			 * process is stealing our packets).
 			 */
+			WPRINTF(("netbe_recv: expected %zd bytes, "
+				"got %zd", plen - prepend_hdr_len, rlen));
 			vq_retchains(vq, n_chains);
-			/* Interrupt if needed/appropriate and stop. */
-			vq_endchains(vq, /*used_all_avail=*/0);
-			return;
+			continue;
 		}
 
-		ulen = (uint32_t)(len + prepend_hdr_len);
+		ulen = (uint32_t)plen;
 
 		/*
 		 * Publish the used buffers to the guest, reporting the
@@ -346,12 +356,11 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 				vq_relchain_prepare(vq, info[i].idx, iolen);
 				ulen -= iolen;
 				i++;
-				assert(i <= n_chains);
 			} while (ulen > 0);
 
 			hdr->vrh_bufs = i;
 			vq_relchain_publish(vq);
-			vq_retchains(vq, n_chains - i);
+			assert(i == n_chains);
 		}
 	}
 
@@ -592,7 +601,8 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 			free(sc);
 			return (err);
 		}
-		sc->vsc_consts.vc_hv_caps |= netbe_get_cap(sc->vsc_be);
+		sc->vsc_consts.vc_hv_caps |= VIRTIO_NET_F_MRG_RXBUF |
+		    netbe_get_cap(sc->vsc_be);
 	}
 
 	if (!mac_provided) {
