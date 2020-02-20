@@ -347,7 +347,7 @@ vmm_init(void)
 	
 	if (vmm_is_intel())
 		ops = &vmm_ops_intel;
-	else if (vmm_is_amd())
+	else if (vmm_is_svm())
 		ops = &vmm_ops_amd;
 	else
 		return (ENXIO);
