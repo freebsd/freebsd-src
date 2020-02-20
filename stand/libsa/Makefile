@@ -137,6 +137,20 @@ CLEANFILES+= ${SAFE_INCS} ${STAND_H_INC} ${OTHER_INC}
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \
 	fstat.c close.c lseek.c open.c read.c write.c readdir.c
 
+# SMBios routines
+SRCS+=	smbios.c
+.if !defined(BOOT_HIDE_SERIAL_NUMBERS)
+# Export serial numbers, UUID, and asset tag from loader.
+CFLAGS.smbios.c+= -DSMBIOS_SERIAL_NUMBERS
+.if defined(BOOT_LITTLE_ENDIAN_UUID)
+# Use little-endian UUID format as defined in SMBIOS 2.6.
+CFLAGS.smbios.c+= -DSMBIOS_LITTLE_ENDIAN_UUID
+.elif defined(BOOT_NETWORK_ENDIAN_UUID)
+# Use network-endian UUID format for backward compatibility.
+CFLAGS.smbios.c+= -DSMBIOS_NETWORK_ENDIAN_UUID
+.endif
+.endif
+
 # network routines
 SRCS+=	arp.c ether.c ip.c inet_ntoa.c in_cksum.c net.c udp.c netif.c rpc.c
 
