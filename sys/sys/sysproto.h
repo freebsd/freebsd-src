@@ -1823,6 +1823,13 @@ struct sigfastblock_args {
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
 	char ptr_l_[PADL_(uint32_t *)]; uint32_t * ptr; char ptr_r_[PADR_(uint32_t *)];
 };
+struct __realpathat_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
+	char size_l_[PADL_(size_t)]; size_t size; char size_r_[PADR_(size_t)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2212,6 +2219,7 @@ int	sys___sysctlbyname(struct thread *, struct __sysctlbyname_args *);
 int	sys_shm_open2(struct thread *, struct shm_open2_args *);
 int	sys_shm_rename(struct thread *, struct shm_rename_args *);
 int	sys_sigfastblock(struct thread *, struct sigfastblock_args *);
+int	sys___realpathat(struct thread *, struct __realpathat_args *);
 
 #ifdef COMPAT_43
 
@@ -3136,6 +3144,7 @@ int	freebsd12_shm_open(struct thread *, struct freebsd12_shm_open_args *);
 #define	SYS_AUE_shm_open2	AUE_SHMOPEN
 #define	SYS_AUE_shm_rename	AUE_SHMRENAME
 #define	SYS_AUE_sigfastblock	AUE_NULL
+#define	SYS_AUE___realpathat	AUE_REALPATHAT
 
 #undef PAD_
 #undef PADL_

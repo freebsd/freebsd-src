@@ -13,7 +13,7 @@ MK_MAN=no
 .include "${.CURDIR:H}/config.mk"
 
 LIB=		ncurses${LIB_SUFFIX}
-SHLIB_MAJOR=	8
+SHLIB_MAJOR=	9
 
 NO_LINT=
 
@@ -292,7 +292,6 @@ CLEANFILES=	${GENSRCS} ${GENHDRS} keys.list make_hash term.h.new \
 		make_keys MKterm.h.awk comp_captab.c curses.head
 
 CFLAGS+=	-DFREEBSD_NATIVE -DTERMIOS
-CFLAGS.lib_freeall.c+=	-Wno-missing-prototypes
 
 # Installed
 HEADERS=	curses.h term.h termcap.h unctrl.h

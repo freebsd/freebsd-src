@@ -273,6 +273,12 @@ OLD_DIRS+=usr/lib/clang/9.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/9.0.1/lib
 OLD_DIRS+=usr/lib/clang/9.0.1
 
+# 20200220: Upgrade of ncurses, shlib bumped to version 9
+OLD_LIBS+=lib/libncurses.so.8
+OLD_LIBS+=lib/libncursesw.so.8
+OLD_LIBS+=usr/lib32/libncurses.so.8
+OLD_LIBS+=usr/lib32/libncursesw.so.8
+
 # 20200206: Remove elf2aout
 OLD_FILES+=usr/bin/elf2aout
 OLD_FILES+=usr/share/man/man1/elf2aout.1.gz

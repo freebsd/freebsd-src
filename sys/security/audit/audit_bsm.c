@@ -830,6 +830,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_UNLINK:
 	case AUE_UNLINKAT:
 	case AUE_UTIMES:
+	case AUE_REALPATHAT:
 		ATFD1_TOKENS(1);
 		UPATH1_VNODE1_TOKENS;
 		break;
