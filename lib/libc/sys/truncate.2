@@ -28,7 +28,7 @@
 .\"     @(#)truncate.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2015
+.Dd January 24, 2020
 .Dt TRUNCATE 2
 .Os
 .Sh NAME
@@ -160,6 +160,9 @@ system calls appeared in
 These calls should be generalized to allow ranges
 of bytes in a file to be discarded.
 .Pp
-Use of
+Historically, the use of
 .Fn truncate
-to extend a file is not portable.
+or
+.Fn ftruncate
+to extend a file was not portable, but this behavior became required in
+.St -p1003.1-2008 .
