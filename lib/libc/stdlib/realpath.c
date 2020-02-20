@@ -42,14 +42,19 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "un-namespace.h"
+#include "libc_private.h"
+
+extern int __realpathat(int fd, const char *path, char *buf, size_t size,
+    int flags);
 
 /*
  * Find the real name of path, by removing all ".", ".." and symlink
  * components.  Returns (resolved) on success, or (NULL) on failure,
  * in which case the path which caused trouble is left in (resolved).
  */
-static char *
+static char * __noinline
 realpath1(const char *path, char *resolved)
 {
 	struct stat sb;
@@ -222,6 +227,10 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		m = resolved = malloc(PATH_MAX);
 		if (resolved == NULL)
 			return (NULL);
+	}
+	if (__getosreldate() >= 1300080) {
+		if (__realpathat(AT_FDCWD, path, resolved, PATH_MAX, 0) == 0)
+			return (resolved);
 	}
 	res = realpath1(path, resolved);
 	if (res == NULL)
