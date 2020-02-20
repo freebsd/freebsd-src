@@ -132,11 +132,11 @@ syscallenter(struct thread *td)
 	}
 
 	/*
-	 * Fetch fast sigblock value at the time of syscall
-	 * entry because sleepqueue primitives might call
-	 * cursig().
+	 * Fetch fast sigblock value at the time of syscall entry to
+	 * handle sleepqueue primitives which might call cursig().
 	 */
-	fetch_sigfastblock(td);
+	if (__predict_false(sigfastblock_fetch_always))
+		(void)sigfastblock_fetch(td);
 
 	/* Let system calls set td_errno directly. */
 	td->td_pflags &= ~TDP_NERRNO;

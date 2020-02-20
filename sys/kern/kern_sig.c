@@ -157,6 +157,12 @@ static int	kern_lognosys = 0;
 SYSCTL_INT(_kern, OID_AUTO, lognosys, CTLFLAG_RWTUN, &kern_lognosys, 0,
     "Log invalid syscalls");
 
+__read_frequently bool sigfastblock_fetch_always = false;
+SYSCTL_BOOL(_kern, OID_AUTO, sigfastblock_fetch_always, CTLFLAG_RWTUN,
+    &sigfastblock_fetch_always, 0,
+    "Fetch sigfastblock word on each syscall entry for proper "
+    "blocking semantic");
+
 SYSINIT(signal, SI_SUB_P1003_1B, SI_ORDER_FIRST+3, sigqueue_start, NULL);
 
 /*
@@ -2005,6 +2011,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 	code = ksi->ksi_code;
 	KASSERT(_SIG_VALID(sig), ("invalid signal"));
 
+	sigfastblock_fetch(td);
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
@@ -3952,6 +3959,42 @@ sig_drop_caught(struct proc *p)
 	}
 }
 
+static void
+sigfastblock_failed(struct thread *td, bool sendsig, bool write)
+{
+	ksiginfo_t ksi;
+
+	/*
+	 * Prevent further fetches and SIGSEGVs, allowing thread to
+	 * issue syscalls despite corruption.
+	 */
+	sigfastblock_clear(td);
+
+	if (!sendsig)
+		return;
+	ksiginfo_init_trap(&ksi);
+	ksi.ksi_signo = SIGSEGV;
+	ksi.ksi_code = write ? SEGV_ACCERR : SEGV_MAPERR;
+	ksi.ksi_addr = td->td_sigblock_ptr;
+	trapsignal(td, &ksi);
+}
+
+static bool
+sigfastblock_fetch_sig(struct thread *td, bool sendsig, uint32_t *valp)
+{
+	uint32_t res;
+
+	if ((td->td_pflags & TDP_SIGFASTBLOCK) == 0)
+		return (true);
+	if (fueword32((void *)td->td_sigblock_ptr, &res) == -1) {
+		sigfastblock_failed(td, sendsig, false);
+		return (false);
+	}
+	*valp = res;
+	td->td_sigblock_val = res & ~SIGFASTBLOCK_FLAGS;
+	return (true);
+}
+
 int
 sys_sigfastblock(struct thread *td, struct sigfastblock_args *uap)
 {
@@ -3960,6 +4003,7 @@ sys_sigfastblock(struct thread *td, struct sigfastblock_args *uap)
 	uint32_t oldval;
 
 	error = 0;
+	p = td->td_proc;
 	switch (uap->cmd) {
 	case SIGFASTBLOCK_SETPTR:
 		if ((td->td_pflags & TDP_SIGFASTBLOCK) != 0) {
@@ -3975,18 +4019,22 @@ sys_sigfastblock(struct thread *td, struct sigfastblock_args *uap)
 		break;
 
 	case SIGFASTBLOCK_UNBLOCK:
-		if ((td->td_pflags & TDP_SIGFASTBLOCK) != 0) {
+		if ((td->td_pflags & TDP_SIGFASTBLOCK) == 0) {
 			error = EINVAL;
 			break;
 		}
-again:
-		res = casueword32(td->td_sigblock_ptr, SIGFASTBLOCK_PEND,
-		    &oldval, 0);
-		if (res == -1) {
-			error = EFAULT;
-			break;
-		}
-		if (res == 1) {
+
+		for (;;) {
+			res = casueword32(td->td_sigblock_ptr,
+			    SIGFASTBLOCK_PEND, &oldval, 0);
+			if (res == -1) {
+				error = EFAULT;
+				sigfastblock_failed(td, false, true);
+				break;
+			}
+			if (res == 0)
+				break;
+			MPASS(res == 1);
 			if (oldval != SIGFASTBLOCK_PEND) {
 				error = EBUSY;
 				break;
@@ -3994,8 +4042,22 @@ again:
 			error = thread_check_susp(td, false);
 			if (error != 0)
 				break;
-			goto again;
 		}
+		if (error != 0)
+			break;
+
+		/*
+		 * td_sigblock_val is cleared there, but not on a
+		 * syscall exit.  The end effect is that a single
+		 * interruptible sleep, while user sigblock word is
+		 * set, might return EINTR or ERESTART to usermode
+		 * without delivering signal.  All further sleeps,
+		 * until userspace clears the word and does
+		 * sigfastblock(UNBLOCK), observe current word and no
+		 * longer get interrupted.  It is slight
+		 * non-conformance, with alternative to have read the
+		 * sigblock word on each syscall entry.
+		 */
 		td->td_sigblock_val = 0;
 
 		/*
@@ -4003,7 +4065,6 @@ again:
 		 * signals to current thread.  But notify others about
 		 * fake unblock.
 		 */
-		p = td->td_proc;
 		if (error == 0 && p->p_numthreads != 1) {
 			PROC_LOCK(p);
 			reschedule_signals(p, td->td_sigmask, 0);
@@ -4016,8 +4077,7 @@ again:
 			error = EINVAL;
 			break;
 		}
-		res = fueword32(td->td_sigblock_ptr, &oldval);
-		if (res == -1) {
+		if (!sigfastblock_fetch_sig(td, false, &oldval)) {
 			error = EFAULT;
 			break;
 		}
@@ -4025,8 +4085,7 @@ again:
 			error = EBUSY;
 			break;
 		}
-		td->td_pflags &= ~TDP_SIGFASTBLOCK;
-		td->td_sigblock_val = 0;
+		sigfastblock_clear(td);
 		break;
 
 	default:
@@ -4037,32 +4096,59 @@ again:
 }
 
 void
-fetch_sigfastblock(struct thread *td)
+sigfastblock_clear(struct thread *td)
 {
+	struct proc *p;
+	bool resched;
 
 	if ((td->td_pflags & TDP_SIGFASTBLOCK) == 0)
 		return;
-	if (fueword32(td->td_sigblock_ptr, &td->td_sigblock_val) == -1) {
-		fetch_sigfastblock_failed(td, false);
-		return;
+	td->td_sigblock_val = 0;
+	resched = (td->td_pflags & TDP_SIGFASTPENDING) != 0;
+	td->td_pflags &= ~(TDP_SIGFASTBLOCK | TDP_SIGFASTPENDING);
+	if (resched) {
+		p = td->td_proc;
+		PROC_LOCK(p);
+		reschedule_signals(p, td->td_sigmask, 0);
+		PROC_UNLOCK(p);
 	}
-	td->td_sigblock_val &= ~SIGFASTBLOCK_FLAGS;
 }
 
 void
-fetch_sigfastblock_failed(struct thread *td, bool write)
+sigfastblock_fetch(struct thread *td)
 {
-	ksiginfo_t ksi;
+	uint32_t val;
 
-	/*
-	 * Prevent further fetches and SIGSEGVs, allowing thread to
-	 * issue syscalls despite corruption.
-	 */
-	td->td_pflags &= ~TDP_SIGFASTBLOCK;
+	(void)sigfastblock_fetch_sig(td, true, &val);
+}
 
-	ksiginfo_init_trap(&ksi);
-	ksi.ksi_signo = SIGSEGV;
-	ksi.ksi_code = write ? SEGV_ACCERR : SEGV_MAPERR;
-	ksi.ksi_addr = td->td_sigblock_ptr;
-	trapsignal(td, &ksi);
+void
+sigfastblock_setpend(struct thread *td)
+{
+	int res;
+	uint32_t oldval;
+
+	if ((td->td_pflags & TDP_SIGFASTBLOCK) == 0)
+		return;
+	res = fueword32((void *)td->td_sigblock_ptr, &oldval);
+	if (res == -1) {
+		sigfastblock_failed(td, true, false);
+		return;
+	}
+	for (;;) {
+		res = casueword32(td->td_sigblock_ptr, oldval, &oldval,
+		    oldval | SIGFASTBLOCK_PEND);
+		if (res == -1) {
+			sigfastblock_failed(td, true, true);
+			return;
+		}
+		if (res == 0) {
+			td->td_sigblock_val = oldval & ~SIGFASTBLOCK_FLAGS;
+			td->td_pflags &= ~TDP_SIGFASTPENDING;
+			break;
+		}
+		MPASS(res == 1);
+		if (thread_check_susp(td, false) != 0)
+			break;
+	}
 }
