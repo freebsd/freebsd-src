@@ -326,21 +326,23 @@ ast(struct trapframe *framep)
 	if (flags & TDF_NEEDSIGCHK || p->p_pendingcnt > 0 ||
 	    !SIGISEMPTY(p->p_siglist)) {
 		sigfastblock_fetch(td);
-		PROC_LOCK(p);
-		mtx_lock(&p->p_sigacts->ps_mtx);
 		if ((td->td_pflags & TDP_SIGFASTBLOCK) != 0 &&
 		    td->td_sigblock_val != 0) {
 			sigfastblock_setpend(td);
+			PROC_LOCK(p);
 			reschedule_signals(p, fastblock_mask,
-			    SIGPROCMASK_PS_LOCKED | SIGPROCMASK_FASTBLK);
+			    SIGPROCMASK_FASTBLK);
+			PROC_UNLOCK(p);
 		} else {
+			PROC_LOCK(p);
+			mtx_lock(&p->p_sigacts->ps_mtx);
 			while ((sig = cursig(td)) != 0) {
 				KASSERT(sig >= 0, ("sig %d", sig));
 				postsig(sig);
 			}
+			mtx_unlock(&p->p_sigacts->ps_mtx);
+			PROC_UNLOCK(p);
 		}
-		mtx_unlock(&p->p_sigacts->ps_mtx);
-		PROC_UNLOCK(p);
 	}
 
 	/*
