@@ -52,6 +52,8 @@ connect_controllers(EFI_GUID *filter)
         }
 
         handles = malloc(hsize);
+	if (handles == NULL)
+		return (EFI_OUT_OF_RESOURCES);
         nhandles = hsize / sizeof(EFI_HANDLE);
 
         status = BS->LocateHandle(ByProtocol, filter, NULL,
