@@ -86,9 +86,11 @@ insert_zfs(EFI_HANDLE handle, uint64_t guid)
         zfsinfo_t *zi;
 
         zi = malloc(sizeof(zfsinfo_t));
-        zi->zi_handle = handle;
-        zi->zi_pool_guid = guid;
-        STAILQ_INSERT_TAIL(&zfsinfo, zi, zi_link);
+	if (zi != NULL) {
+        	zi->zi_handle = handle;
+        	zi->zi_pool_guid = guid;
+        	STAILQ_INSERT_TAIL(&zfsinfo, zi, zi_link);
+	}
 }
 
 void
