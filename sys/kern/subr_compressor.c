@@ -117,6 +117,13 @@ gz_init(size_t maxiosize, int level)
 	s->gz_stream.next_in = Z_NULL;
 	s->gz_stream.avail_in = 0;
 
+	if (level != Z_DEFAULT_COMPRESSION) {
+		if (level < Z_BEST_SPEED)
+			level = Z_BEST_SPEED;
+		else if (level > Z_BEST_COMPRESSION)
+			level = Z_BEST_COMPRESSION;
+	}
+
 	error = deflateInit2(&s->gz_stream, level, Z_DEFLATED, -MAX_WBITS,
 	    DEF_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 	if (error != 0)
