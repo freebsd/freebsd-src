@@ -950,20 +950,35 @@ static struct {
 	uint16_t id;
 	const char *name;
 } ecap_names[] = {
+	{ PCIZ_AER, "AER" },
+	{ PCIZ_VC, "Virtual Channel" },
+	{ PCIZ_SERNUM, "Device Serial Number" },
 	{ PCIZ_PWRBDGT, "Power Budgeting" },
 	{ PCIZ_RCLINK_DCL, "Root Complex Link Declaration" },
 	{ PCIZ_RCLINK_CTL, "Root Complex Internal Link Control" },
 	{ PCIZ_RCEC_ASSOC, "Root Complex Event Collector ASsociation" },
 	{ PCIZ_MFVC, "MFVC" },
+	{ PCIZ_VC2, "Virtual Channel 2" },
 	{ PCIZ_RCRB, "RCRB" },
+	{ PCIZ_CAC, "Configuration Access Correction" },
 	{ PCIZ_ACS, "ACS" },
 	{ PCIZ_ARI, "ARI" },
 	{ PCIZ_ATS, "ATS" },
+	{ PCIZ_SRIOV, "SRIOV" },
+	{ PCIZ_MRIOV, "MRIOV" },
 	{ PCIZ_MULTICAST, "Multicast" },
+	{ PCIZ_PAGE_REQ, "Page Page Request" },
+	{ PCIZ_AMD, "AMD proprietary "},
 	{ PCIZ_RESIZE_BAR, "Resizable BAR" },
 	{ PCIZ_DPA, "DPA" },
 	{ PCIZ_TPH_REQ, "TPH Requester" },
 	{ PCIZ_LTR, "LTR" },
+	{ PCIZ_SEC_PCIE, "Secondary PCI Express" },
+	{ PCIZ_PMUX, "Protocol Multiplexing" },
+	{ PCIZ_PASID, "Process Address Space ID" },
+	{ PCIZ_LN_REQ, "LN Requester" },
+	{ PCIZ_DPC, "Downstream Port Containment" },
+	{ PCIZ_L1PM, "L1 PM Substates" },
 	{ 0, NULL }
 };
 
