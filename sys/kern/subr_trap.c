@@ -134,6 +134,7 @@ userret(struct thread *td, struct trapframe *frame)
 #ifdef KTRACE
 	KTRUSERRET(td);
 #endif
+
 	td_softdep_cleanup(td);
 	MPASS(td->td_su == NULL);
 
@@ -222,8 +223,7 @@ ast(struct trapframe *framep)
 {
 	struct thread *td;
 	struct proc *p;
-	uint32_t oldval;
-	int flags, sig, res;
+	int flags, sig;
 
 	td = curthread;
 	p = td->td_proc;
@@ -325,11 +325,12 @@ ast(struct trapframe *framep)
 	 */
 	if (flags & TDF_NEEDSIGCHK || p->p_pendingcnt > 0 ||
 	    !SIGISEMPTY(p->p_siglist)) {
-		fetch_sigfastblock(td);
+		sigfastblock_fetch(td);
 		PROC_LOCK(p);
 		mtx_lock(&p->p_sigacts->ps_mtx);
 		if ((td->td_pflags & TDP_SIGFASTBLOCK) != 0 &&
 		    td->td_sigblock_val != 0) {
+			sigfastblock_setpend(td);
 			reschedule_signals(p, fastblock_mask,
 			    SIGPROCMASK_PS_LOCKED | SIGPROCMASK_FASTBLK);
 		} else {
@@ -346,32 +347,8 @@ ast(struct trapframe *framep)
 	 * Handle deferred update of the fast sigblock value, after
 	 * the postsig() loop was performed.
 	 */
-	if (td->td_pflags & TDP_SIGFASTPENDING) {
-		td->td_pflags &= ~TDP_SIGFASTPENDING;
-		res = fueword32(td->td_sigblock_ptr, &oldval);
-		if (res == -1) {
-			fetch_sigfastblock_failed(td, false);
-		} else {
-			for (;;) {
-				oldval |= SIGFASTBLOCK_PEND;
-				res = casueword32(td->td_sigblock_ptr, oldval,
-				    &oldval, oldval | SIGFASTBLOCK_PEND);
-				if (res == -1) {
-					fetch_sigfastblock_failed(td, true);
-					break;
-				}
-				if (res == 0) {
-					td->td_sigblock_val = oldval &
-					    ~SIGFASTBLOCK_FLAGS;
-					break;
-				}
-				MPASS(res == 1);
-				res = thread_check_susp(td, false);
-				if (res != 0)
-					break;
-			}
-		}
-	}
+	if (td->td_pflags & TDP_SIGFASTPENDING)
+		sigfastblock_setpend(td);
 
 	/*
 	 * We need to check to see if we have to exit or wait due to a
