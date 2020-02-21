@@ -423,50 +423,34 @@ auditon_command_event(int cmd)
 void
 audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 {
-	struct vnode *cvnp, *rvnp;
+	struct vnode *vp;
 	char *rbuf, *fbuf, *copy;
 	struct filedesc *fdp;
 	struct sbuf sbf;
 	cap_rights_t rights;
-	int error, needslash;
+	int error;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
 	    __func__,  __FILE__, __LINE__);
 
 	copy = path;
-	rvnp = cvnp = NULL;
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
-	/*
-	 * Make sure that we handle the chroot(2) case.  If there is an
-	 * alternate root directory, prepend it to the audited pathname.
-	 */
-	if (fdp->fd_rdir != NULL && fdp->fd_rdir != rootvnode) {
-		rvnp = fdp->fd_rdir;
-		vrefact(rvnp);
-	}
-	/*
-	 * If the supplied path is relative, make sure we capture the current
-	 * working directory so we can prepend it to the supplied relative
-	 * path.
-	 */
-	if (*path != '/') {
+	if (*path == '/') {
+		vp = fdp->fd_rdir;
+		vrefact(vp);
+	} else {
 		if (dirfd == AT_FDCWD) {
-			cvnp = fdp->fd_cdir;
-			vrefact(cvnp);
+			vp = fdp->fd_cdir;
+			vrefact(vp);
 		} else {
-			error = fgetvp(td, dirfd, cap_rights_init(&rights), &cvnp);
-			if (error) {
+			error = fgetvp(td, dirfd, cap_rights_init(&rights), &vp);
+			if (error != 0) {
 				FILEDESC_SUNLOCK(fdp);
 				cpath[0] = '\0';
-				if (rvnp != NULL)
-					vrele(rvnp);
 				return;
 			}
 		}
-		needslash = (fdp->fd_rdir != cvnp);
-	} else {
-		needslash = 1;
 	}
 	FILEDESC_SUNLOCK(fdp);
 	/*
@@ -476,6 +460,8 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	(void) sbuf_new(&sbf, cpath, MAXPATHLEN, SBUF_FIXEDLEN);
 	/*
 	 * Strip leading forward slashes.
+	 *
+	 * Note this does nothing to fully canonicalize the path.
 	 */
 	while (*copy == '/')
 		copy++;
@@ -487,35 +473,26 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	 * on Darwin.  As a result, this may need some additional attention
 	 * in the future.
 	 */
-	if (rvnp != NULL) {
-		error = vn_fullpath_global(td, rvnp, &rbuf, &fbuf);
-		vrele(rvnp);
-		if (error) {
-			cpath[0] = '\0';
-			if (cvnp != NULL)
-				vrele(cvnp);
-			return;
-		}
-		(void) sbuf_cat(&sbf, rbuf);
-		free(fbuf, M_TEMP);
+	error = vn_fullpath_global(td, vp, &rbuf, &fbuf);
+	vrele(vp);
+	if (error) {
+		cpath[0] = '\0';
+		return;
 	}
-	if (cvnp != NULL) {
-		error = vn_fullpath(td, cvnp, &rbuf, &fbuf);
-		vrele(cvnp);
-		if (error) {
-			cpath[0] = '\0';
-			return;
-		}
-		(void) sbuf_cat(&sbf, rbuf);
-		free(fbuf, M_TEMP);
-	}
-	if (needslash)
+	(void) sbuf_cat(&sbf, rbuf);
+	/*
+	 * We are going to concatenate the resolved path with the passed path
+	 * with all slashes removed and we want them glued with a single slash.
+	 * However, if the directory is /, the slash is already there.
+	 */
+	if (rbuf[1] != '\0')
 		(void) sbuf_putc(&sbf, '/');
+	free(fbuf, M_TEMP);
 	/*
 	 * Now that we have processed any alternate root and relative path
 	 * names, add the supplied pathname.
 	 */
-        (void) sbuf_cat(&sbf, copy);
+	(void) sbuf_cat(&sbf, copy);
 	/*
 	 * One or more of the previous sbuf operations could have resulted in
 	 * the supplied buffer being overflowed.  Check to see if this is the
