@@ -60,7 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
 
-SYSCTL_NODE(_net, OID_AUTO, wlan, CTLFLAG_RD, 0, "IEEE 80211 parameters");
+SYSCTL_NODE(_net, OID_AUTO, wlan, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "IEEE 80211 parameters");
 
 #ifdef IEEE80211_DEBUG
 static int	ieee80211_debug = 0;
@@ -227,10 +228,10 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	sysctl_ctx_init(ctx);
 	snprintf(num, sizeof(num), "%u", ifp->if_dunit);
 	oid = SYSCTL_ADD_NODE(ctx, &SYSCTL_NODE_CHILDREN(_net, wlan),
-		OID_AUTO, num, CTLFLAG_RD, NULL, "");
+	    OID_AUTO, num, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"%parent", CTLTYPE_STRING | CTLFLAG_RD, vap->iv_ic, 0,
-		ieee80211_sysctl_parent, "A", "parent device");
+	    "%parent", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    vap->iv_ic, 0, ieee80211_sysctl_parent, "A", "parent device");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"driver_caps", CTLFLAG_RW, &vap->iv_caps, 0,
 		"driver capabilities");
@@ -245,21 +246,21 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 		"consecutive beacon misses before scanning");
 	/* XXX inherit from tunables */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"inact_run", CTLTYPE_INT | CTLFLAG_RW, &vap->iv_inact_run, 0,
-		ieee80211_sysctl_inact, "I",
-		"station inactivity timeout (sec)");
+	    "inact_run", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &vap->iv_inact_run, 0, ieee80211_sysctl_inact, "I",
+	    "station inactivity timeout (sec)");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"inact_probe", CTLTYPE_INT | CTLFLAG_RW, &vap->iv_inact_probe, 0,
-		ieee80211_sysctl_inact, "I",
-		"station inactivity probe timeout (sec)");
+	    "inact_probe", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &vap->iv_inact_probe, 0, ieee80211_sysctl_inact, "I",
+	    "station inactivity probe timeout (sec)");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"inact_auth", CTLTYPE_INT | CTLFLAG_RW, &vap->iv_inact_auth, 0,
-		ieee80211_sysctl_inact, "I",
-		"station authentication timeout (sec)");
+	    "inact_auth", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &vap->iv_inact_auth, 0, ieee80211_sysctl_inact, "I",
+	    "station authentication timeout (sec)");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"inact_init", CTLTYPE_INT | CTLFLAG_RW, &vap->iv_inact_init, 0,
-		ieee80211_sysctl_inact, "I",
-		"station initial state timeout (sec)");
+	    "inact_init", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &vap->iv_inact_init, 0, ieee80211_sysctl_inact, "I",
+	    "station initial state timeout (sec)");
 	if (vap->iv_htcaps & IEEE80211_HTC_HT) {
 		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 			"ampdu_mintraffic_bk", CTLFLAG_RW,
@@ -280,14 +281,14 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	}
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"force_restart", CTLTYPE_INT | CTLFLAG_RW, vap, 0,
-		ieee80211_sysctl_vap_restart, "I",
-		"force a VAP restart");
+	    "force_restart", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    vap, 0, ieee80211_sysctl_vap_restart, "I", "force a VAP restart");
 
 	if (vap->iv_caps & IEEE80211_C_DFS) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			"radar", CTLTYPE_INT | CTLFLAG_RW, vap->iv_ic, 0,
-			ieee80211_sysctl_radar, "I", "simulate radar event");
+		    "radar", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    vap->iv_ic, 0, ieee80211_sysctl_radar, "I",
+		    "simulate radar event");
 	}
 	vap->iv_sysctl = ctx;
 	vap->iv_oid = oid;

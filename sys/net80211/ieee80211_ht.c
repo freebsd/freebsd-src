@@ -139,22 +139,25 @@ const struct ieee80211_mcs_rates ieee80211_htrates[IEEE80211_HTRATE_MAXSIZE] = {
 };
 
 static	int ieee80211_ampdu_age = -1;	/* threshold for ampdu reorder q (ms) */
-SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_ampdu_age, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"AMPDU max reorder age (ms)");
+SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &ieee80211_ampdu_age, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "AMPDU max reorder age (ms)");
 
 static	int ieee80211_recv_bar_ena = 1;
 SYSCTL_INT(_net_wlan, OID_AUTO, recv_bar, CTLFLAG_RW, &ieee80211_recv_bar_ena,
 	    0, "BAR frame processing (ena/dis)");
 
 static	int ieee80211_addba_timeout = -1;/* timeout for ADDBA response */
-SYSCTL_PROC(_net_wlan, OID_AUTO, addba_timeout, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_addba_timeout, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"ADDBA request timeout (ms)");
+SYSCTL_PROC(_net_wlan, OID_AUTO, addba_timeout,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &ieee80211_addba_timeout, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "ADDBA request timeout (ms)");
 static	int ieee80211_addba_backoff = -1;/* backoff after max ADDBA requests */
-SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"ADDBA request backoff (ms)");
+SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "ADDBA request backoff (ms)");
 static	int ieee80211_addba_maxtries = 3;/* max ADDBA requests before backoff */
 SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLFLAG_RW,
 	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
