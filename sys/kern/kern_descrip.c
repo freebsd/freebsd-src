@@ -2792,7 +2792,7 @@ fget(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 }
 
 int
-fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
+fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, vm_prot_t *maxprotp,
     struct file **fpp)
 {
 	int error;

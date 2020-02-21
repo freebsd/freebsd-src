@@ -465,7 +465,7 @@ int	cap_check(const cap_rights_t *havep, const cap_rights_t *needp);
 /*
  * Convert capability rights into VM access flags.
  */
-u_char	cap_rights_to_vmprot(const cap_rights_t *havep);
+vm_prot_t	cap_rights_to_vmprot(const cap_rights_t *havep);
 
 /*
  * For the purposes of procstat(1) and similar tools, allow kern_descrip.c to
