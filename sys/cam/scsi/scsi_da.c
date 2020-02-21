@@ -342,7 +342,7 @@ struct da_softc {
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
 	int	 refcount;		/* Active xpt_action() calls */
 	da_state state;
-	da_flags flags;
+	u_int	 flags;
 	da_quirks quirks;
 	int	 minimum_cmd_size;
 	int	 error_inject;
@@ -2335,11 +2335,11 @@ dasysctlinit(void *context, int pending)
 	    "Flags for drive");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "rotating", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    &softc->flags, DA_FLAG_ROTATING, dabitsysctl, "I",
+	    &softc->flags, (u_int)DA_FLAG_ROTATING, dabitsysctl, "I",
 	    "Rotating media *DEPRECATED* gone in FreeBSD 14");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "unmapped_io", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    &softc->flags, DA_FLAG_UNMAPPEDIO, dabitsysctl, "I",
+	    &softc->flags, (u_int)DA_FLAG_UNMAPPEDIO, dabitsysctl, "I",
 	    "Unmapped I/O support *DEPRECATED* gone in FreeBSD 14");
 
 #ifdef CAM_TEST_FAILURE
@@ -2619,11 +2619,11 @@ dadeletemethodchoose(struct da_softc *softc, da_delete_methods default_method)
 static int
 dabitsysctl(SYSCTL_HANDLER_ARGS)
 {
-	int flags = (intptr_t)arg1;
-	int test = arg2;
+	u_int *flags = arg1;
+	u_int test = arg2;
 	int tmpout, error;
 
-	tmpout = !!(flags & test);
+	tmpout = !!(*flags & test);
 	error = SYSCTL_OUT(req, &tmpout, sizeof(tmpout));
 	if (error || !req->newptr)
 		return (error);
