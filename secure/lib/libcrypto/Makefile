@@ -11,9 +11,7 @@ VERSION_MAP=	${.CURDIR}/Version.map
 
 NO_LINT=
 
-.if exists(Makefile.man)
 .include "Makefile.man"
-.endif
 .include "Makefile.inc"
 
 SRCS=	cpt_err.c cryptlib.c ctype.c cversion.c ex_data.c getenv.c init.c
@@ -530,5 +528,4 @@ PICFLAG+=	-DOPENSSL_PIC
 	${LCRYPTO_SRC}/crypto/whrlpool \
 	${LCRYPTO_SRC}/crypto/x509 \
 	${LCRYPTO_SRC}/crypto/x509v3 \
-	${LCRYPTO_SRC}/include/openssl \
-	${.CURDIR}/man
+	${LCRYPTO_SRC}/include/openssl
