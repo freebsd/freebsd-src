@@ -421,38 +421,23 @@ auditon_command_event(int cmd)
  * leave the filename starting with '/' in the audit log in this case.
  */
 void
-audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
+audit_canon_path_vp(struct thread *td, struct vnode *rdir, struct vnode *cdir,
+    char *path, char *cpath)
 {
 	struct vnode *vp;
 	char *rbuf, *fbuf, *copy;
-	struct filedesc *fdp;
 	struct sbuf sbf;
-	cap_rights_t rights;
 	int error;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
 	    __func__,  __FILE__, __LINE__);
 
 	copy = path;
-	fdp = td->td_proc->p_fd;
-	FILEDESC_SLOCK(fdp);
-	if (*path == '/') {
-		vp = fdp->fd_rdir;
-		vrefact(vp);
-	} else {
-		if (dirfd == AT_FDCWD) {
-			vp = fdp->fd_cdir;
-			vrefact(vp);
-		} else {
-			error = fgetvp(td, dirfd, cap_rights_init(&rights), &vp);
-			if (error != 0) {
-				FILEDESC_SUNLOCK(fdp);
-				cpath[0] = '\0';
-				return;
-			}
-		}
-	}
-	FILEDESC_SUNLOCK(fdp);
+	if (*path == '/')
+		vp = rdir;
+	else
+		vp = cdir;
+	MPASS(vp != NULL);
 	/*
 	 * NB: We require that the supplied array be at least MAXPATHLEN bytes
 	 * long.  If this is not the case, then we can run into serious trouble.
@@ -474,7 +459,6 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	 * in the future.
 	 */
 	error = vn_fullpath_global(td, vp, &rbuf, &fbuf);
-	vrele(vp);
 	if (error) {
 		cpath[0] = '\0';
 		return;
@@ -503,4 +487,44 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 		return;
 	}
 	sbuf_finish(&sbf);
+}
+
+void
+audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
+{
+	struct vnode *cdir, *rdir;
+	struct filedesc *fdp;
+	cap_rights_t rights;
+	int error;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
+	    __func__,  __FILE__, __LINE__);
+
+	rdir = cdir = NULL;
+	fdp = td->td_proc->p_fd;
+	FILEDESC_SLOCK(fdp);
+	if (*path == '/') {
+		rdir = fdp->fd_rdir;
+		vrefact(rdir);
+	} else {
+		if (dirfd == AT_FDCWD) {
+			cdir = fdp->fd_cdir;
+			vrefact(cdir);
+		} else {
+			error = fgetvp(td, dirfd, cap_rights_init(&rights), &cdir);
+			if (error != 0) {
+				FILEDESC_SUNLOCK(fdp);
+				cpath[0] = '\0';
+				return;
+			}
+		}
+	}
+	FILEDESC_SUNLOCK(fdp);
+
+	audit_canon_path_vp(td, rdir, cdir, path, cpath);
+
+	if (rdir != NULL)
+		vrele(rdir);
+	if (cdir != NULL)
+		vrele(cdir);
 }
