@@ -443,7 +443,7 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	 */
 	if (fdp->fd_rdir != NULL && fdp->fd_rdir != rootvnode) {
 		rvnp = fdp->fd_rdir;
-		vhold(rvnp);
+		vrefact(rvnp);
 	}
 	/*
 	 * If the supplied path is relative, make sure we capture the current
@@ -453,19 +453,16 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	if (*path != '/') {
 		if (dirfd == AT_FDCWD) {
 			cvnp = fdp->fd_cdir;
-			vhold(cvnp);
+			vrefact(cvnp);
 		} else {
-			/* XXX: fgetvp() that vhold()s vnode instead of vref()ing it would be better */
 			error = fgetvp(td, dirfd, cap_rights_init(&rights), &cvnp);
 			if (error) {
 				FILEDESC_SUNLOCK(fdp);
 				cpath[0] = '\0';
 				if (rvnp != NULL)
-					vdrop(rvnp);
+					vrele(rvnp);
 				return;
 			}
-			vhold(cvnp);
-			vrele(cvnp);
 		}
 		needslash = (fdp->fd_rdir != cvnp);
 	} else {
@@ -492,11 +489,11 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	 */
 	if (rvnp != NULL) {
 		error = vn_fullpath_global(td, rvnp, &rbuf, &fbuf);
-		vdrop(rvnp);
+		vrele(rvnp);
 		if (error) {
 			cpath[0] = '\0';
 			if (cvnp != NULL)
-				vdrop(cvnp);
+				vrele(cvnp);
 			return;
 		}
 		(void) sbuf_cat(&sbf, rbuf);
@@ -504,7 +501,7 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	}
 	if (cvnp != NULL) {
 		error = vn_fullpath(td, cvnp, &rbuf, &fbuf);
-		vdrop(cvnp);
+		vrele(cvnp);
 		if (error) {
 			cpath[0] = '\0';
 			return;
