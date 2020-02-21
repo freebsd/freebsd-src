@@ -403,14 +403,6 @@ namei(struct nameidata *ndp)
 	ndp->ni_rootdir = fdp->fd_rdir;
 	ndp->ni_topdir = fdp->fd_jdir;
 
-	/*
-	 * If we are auditing the kernel pathname, save the user pathname.
-	 */
-	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG_UPATH1(td, ndp->ni_dirfd, cnp->cn_pnbuf);
-	if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG_UPATH2(td, ndp->ni_dirfd, cnp->cn_pnbuf);
-
 	startdir_used = 0;
 	dp = NULL;
 	cnp->cn_nameptr = cnp->cn_pnbuf;
@@ -505,6 +497,13 @@ namei(struct nameidata *ndp)
 			ndp->ni_lcf |= NI_LCF_LATCH;
 	}
 	FILEDESC_SUNLOCK(fdp);
+	/*
+	 * If we are auditing the kernel pathname, save the user pathname.
+	 */
+	if (cnp->cn_flags & AUDITVNODE1)
+		AUDIT_ARG_UPATH1_VP(td, ndp->ni_rootdir, dp, cnp->cn_pnbuf);
+	if (cnp->cn_flags & AUDITVNODE2)
+		AUDIT_ARG_UPATH2_VP(td, ndp->ni_rootdir, dp, cnp->cn_pnbuf);
 	if (ndp->ni_startdir != NULL && !startdir_used)
 		vrele(ndp->ni_startdir);
 	if (error != 0) {
