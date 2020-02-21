@@ -34,6 +34,7 @@
 
 #ifndef _FDT_HH_
 #define _FDT_HH_
+#include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
