@@ -67,7 +67,7 @@ __floatdisf(x)
 	 *
 	 * Using double here may be excessive paranoia.
 	 */
-	f = (double)u.ul[H] * ((1 << (LONG_BITS - 2)) * 4.0);
+	f = (double)u.ul[H] * ((1L << (LONG_BITS - 2)) * 4.0);
 	f += u.ul[L];
 
 	return (neg ? -f : f);
