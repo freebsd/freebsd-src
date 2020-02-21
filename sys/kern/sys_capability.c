@@ -178,10 +178,10 @@ cap_check(const cap_rights_t *havep, const cap_rights_t *needp)
 /*
  * Convert capability rights into VM access flags.
  */
-u_char
+vm_prot_t
 cap_rights_to_vmprot(cap_rights_t *havep)
 {
-	u_char maxprot;
+	vm_prot_t maxprot;
 
 	maxprot = VM_PROT_NONE;
 	if (cap_rights_is_set(havep, CAP_MMAP_R))
