@@ -219,7 +219,6 @@ static int
 ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 struct mbuf *control, struct thread *td)
 {
-	struct epoch_tracker et;
 	struct ngpcb *const pcbp = sotongpcb(so);
 	struct ngsock *const priv = NG_NODE_PRIVATE(pcbp->sockdata->node);
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
@@ -338,9 +337,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	item->apply = &apply;
 	priv->error = -1;
 
-	NET_EPOCH_ENTER(et);
 	error = ng_snd_item(item, 0);
-	NET_EPOCH_EXIT(et);
 
 	mtx_lock(&priv->mtx);
 	if (priv->error == -1)
