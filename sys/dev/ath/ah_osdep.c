@@ -93,8 +93,9 @@ extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
 #endif /* AH_DEBUG */
 
 /* NB: put this here instead of the driver to avoid circular references */
-SYSCTL_NODE(_hw, OID_AUTO, ath, CTLFLAG_RD, 0, "Atheros driver parameters");
-static SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0,
+SYSCTL_NODE(_hw, OID_AUTO, ath, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Atheros driver parameters");
+static SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Atheros HAL parameters");
 
 #ifdef AH_DEBUG
@@ -236,8 +237,10 @@ sysctl_hw_ath_hal_log(SYSCTL_HANDLER_ARGS)
 	else
 		return (ath_hal_setlogging(enable));
 }
-SYSCTL_PROC(_hw_ath_hal, OID_AUTO, alq, CTLTYPE_INT|CTLFLAG_RW,
-	0, 0, sysctl_hw_ath_hal_log, "I", "Enable HAL register logging");
+SYSCTL_PROC(_hw_ath_hal, OID_AUTO, alq,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, 0, sysctl_hw_ath_hal_log, "I",
+    "Enable HAL register logging");
 SYSCTL_INT(_hw_ath_hal, OID_AUTO, alq_size, CTLFLAG_RW,
 	&ath_hal_alq_qsize, 0, "In-memory log size (#records)");
 SYSCTL_INT(_hw_ath_hal, OID_AUTO, alq_lost, CTLFLAG_RW,
