@@ -410,6 +410,7 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
 	int	len, error;
 	hook_p  hook = NULL;
+	item_p	item;
 	char	hookname[NG_HOOKSIZ];
 
 	if ((pcbp == NULL) || (control != NULL)) {
@@ -462,8 +463,10 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	}
 
 	/* Send data. */
+	item = ng_package_data(m, NG_WAITOK);
+	m = NULL;
 	NET_EPOCH_ENTER(et);
-	NG_SEND_DATA_FLAGS(error, hook, m, NG_WAITOK);
+	NG_FWD_ITEM_HOOK(error, item, hook);
 	NET_EPOCH_EXIT(et);
 
 release:
