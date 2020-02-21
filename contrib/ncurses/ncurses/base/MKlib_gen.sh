@@ -73,7 +73,7 @@ USE="$3"
 # determine if we are using gcc, and if so, what version because the proposed
 # solution uses a nonstandard option.
 PRG=`echo "$1" | $AWK '{ sub(/^[[:space:]]*/,""); sub(/[[:space:]].*$/, ""); print; }' || exit 0`
-FSF=`"$PRG" --version 2>/dev/null || exit 0 | fgrep "Free Software Foundation" | head -n 1`
+FSF=`("$PRG" --version 2>/dev/null || exit 0) | fgrep "Free Software Foundation" | head -n 1`
 ALL=`"$PRG" -dumpversion 2>/dev/null || exit 0`
 ONE=`echo "$ALL" | sed -e 's/\..*$//'`
 if test -n "$FSF" && test -n "$ALL" && test -n "$ONE" ; then
