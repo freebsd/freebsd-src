@@ -53,7 +53,7 @@ __floatunsdidf(x)
 	union uu u;
 
 	u.uq = x;
-	d = (double)u.ul[H] * ((1 << (LONG_BITS - 2)) * 4.0);
+	d = (double)u.ul[H] * ((1L << (LONG_BITS - 2)) * 4.0);
 	d += u.ul[L];
 	return (d);
 }

@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include "quad.h"
 
-#define	B	(1 << HALF_BITS)	/* digit base */
+#define	B	(1L << HALF_BITS)	/* digit base */
 
 /* Combine two `digits' to make a single two-digit number. */
 #define	COMBINE(a, b) (((u_long)(a) << HALF_BITS) | (b))
