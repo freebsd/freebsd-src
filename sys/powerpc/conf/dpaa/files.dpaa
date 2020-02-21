@@ -74,7 +74,7 @@ contrib/ncsw/Peripherals/FM/fm_muram.c			optional dpaa	\
 contrib/ncsw/Peripherals/FM/fm_ncsw.c			optional dpaa	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
 contrib/ncsw/Peripherals/FM/fman_ncsw.c			optional dpaa	\
-	no-depend compile-with "${DPAA_COMPILE_CMD}"
+	no-depend compile-with "${DPAA_COMPILE_CMD} ${NO_WMISLEADING_INDENTATION}"
 contrib/ncsw/Peripherals/QM/qm.c			optional dpaa	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
 contrib/ncsw/Peripherals/QM/qm_portal_fqr.c		optional dpaa	\
