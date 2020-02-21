@@ -2385,7 +2385,7 @@ print_svm_info(void)
 	       "\022GMET"		/* Guest Mode Execute Trap */
 	       "\023<b18>"
 	       "\024<b19>"
-	       "\025<b20>"
+	       "\025GuesSpecCtl"	/* Guest Spec_ctl */
 	       "\026<b21>"
 	       "\027<b22>"
 	       "\030<b23>"
