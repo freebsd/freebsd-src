@@ -1589,9 +1589,12 @@ device_tree::parse_file(text_input_buffer &input,
 		{
 			input.parse_error("Expected size on /memreserve/ node.");
 		}
+		else
+		{
+			reservations.push_back(reservation(start, len));
+		}
 		input.next_token();
 		input.consume(';');
-		reservations.push_back(reservation(start, len));
 		input.next_token();
 	}
 	while (valid && !input.finished())
@@ -1661,7 +1664,7 @@ device_tree::write(int fd)
 		reservation_writer.write_comment(string("Reservation start"));
 		reservation_writer.write_data(i.first);
 		reservation_writer.write_comment(string("Reservation length"));
-		reservation_writer.write_data(i.first);
+		reservation_writer.write_data(i.second);
 	}
 	// Write n spare reserve map entries, plus the trailing 0.
 	for (uint32_t i=0 ; i<=spare_reserve_map_entries ; i++)
@@ -1747,10 +1750,11 @@ device_tree::write_dts(int fd)
 	if (!reservations.empty())
 	{
 		const char msg[] = "/memreserve/";
-		fwrite(msg, sizeof(msg), 1, file);
+		// Exclude the null byte when we're writing it out to the file.
+		fwrite(msg, sizeof(msg) - 1, 1, file);
 		for (auto &i : reservations)
 		{
-			fprintf(file, " %" PRIx64 " %" PRIx64, i.first, i.second);
+			fprintf(file, " 0x%" PRIx64 " 0x%" PRIx64, i.first, i.second);
 		}
 		fputs(";\n\n", file);
 	}
@@ -1793,6 +1797,10 @@ device_tree::parse_dtb(const string &fn, FILE *)
 			fprintf(stderr, "Failed to read memory reservation table\n");
 			valid = false;
 			return;
+		}
+		if (start != 0 || length != 0)
+		{
+			reservations.push_back(reservation(start, length));
 		}
 	} while (!((start == 0) && (length == 0)));
 	input_buffer struct_table =
