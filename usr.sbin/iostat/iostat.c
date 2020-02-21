@@ -929,7 +929,7 @@ devstats(int perf_select, long double etime, int havelast)
 			}
 			free(devicename);
 		} else if (oflag > 0) {
-			int msdig = (ms_per_transaction < 100.0) ? 1 : 0;
+			int msdig = (ms_per_transaction < 99.94) ? 1 : 0;
 
 			if (Iflag == 0)
 				printf("%4.0Lf%4.0Lf%5.*Lf ",
