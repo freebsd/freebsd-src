@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 /*
+ * Global Unbounded Sequences (GUS)
+ *
  * This is a novel safe memory reclamation technique inspired by
  * epoch based reclamation from Samy Al Bahra's concurrency kit which
  * in turn was based on work described in:
@@ -53,7 +55,8 @@ __FBSDID("$FreeBSD$");
  * This is not an implementation of hazard pointers or related
  * techniques.  The term safe memory reclamation is used as a
  * generic descriptor for algorithms that defer frees to avoid
- * use-after-free errors with lockless datastructures.
+ * use-after-free errors with lockless datastructures or as
+ * a mechanism to detect quiescence for writer synchronization.
  *
  * The basic approach is to maintain a monotonic write sequence
  * number that is updated on some application defined granularity.
@@ -67,7 +70,7 @@ __FBSDID("$FreeBSD$");
  * a global write clock that is used to mark memory on free.
  *
  * The write and read sequence numbers can be thought of as a two
- * handed clock with readers always advancing towards writers.  SMR
+ * handed clock with readers always advancing towards writers.  GUS 
  * maintains the invariant that all readers can safely access memory
  * that was visible at the time they loaded their copy of the sequence
  * number.  Periodically the read sequence or hand is polled and
@@ -80,9 +83,12 @@ __FBSDID("$FreeBSD$");
  * A stored sequence number that falls outside of this range has expired
  * and needs no scan to reclaim.
  *
- * A notable distinction between this SMR and Epoch, qsbr, rcu, etc. is
+ * A notable distinction between GUS and Epoch, qsbr, rcu, etc. is
  * that advancing the sequence number is decoupled from detecting its
- * observation.  This results in a more granular assignment of sequence
+ * observation.  That is to say, the delta between read and write
+ * sequence numbers is not bound.  This can be thought of as a more
+ * generalized form of epoch which requires them at most one step
+ * apart.  This results in a more granular assignment of sequence
  * numbers even as read latencies prohibit all or some expiration.
  * It also allows writers to advance the sequence number and save the
  * poll for expiration until a later time when it is likely to
@@ -164,31 +170,192 @@ static uma_zone_t smr_zone;
 #define	SMR_SEQ_MAX_ADVANCE	SMR_SEQ_MAX_DELTA / 2
 #endif
 
-static SYSCTL_NODE(_debug, OID_AUTO, smr, CTLFLAG_RW, NULL, "SMR Stats");
-static counter_u64_t advance = EARLY_COUNTER;
-SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance, CTLFLAG_RD, &advance, "");
-static counter_u64_t advance_wait = EARLY_COUNTER;
-SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance_wait, CTLFLAG_RD, &advance_wait, "");
-static counter_u64_t poll = EARLY_COUNTER;
-SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll, CTLFLAG_RD, &poll, "");
-static counter_u64_t poll_scan = EARLY_COUNTER;
-SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll_scan, CTLFLAG_RD, &poll_scan, "");
-
+/*
+ * The grace period for lazy (tick based) SMR.
+ *
+ * Hardclock is responsible for advancing ticks on a single CPU while every
+ * CPU receives a regular clock interrupt.  The clock interrupts are flushing
+ * the store buffers and any speculative loads that may violate our invariants.
+ * Because these interrupts are not synchronized we must wait one additional
+ * tick in the future to be certain that all processors have had their state
+ * synchronized by an interrupt.
+ *
+ * This assumes that the clock interrupt will only be delayed by other causes
+ * that will flush the store buffer or prevent access to the section protected
+ * data.  For example, an idle processor, or an system management interrupt,
+ * or a vm exit.
+ *
+ * We must wait one additional tick if we are around the wrap condition
+ * because the write seq will move forward by two with one interrupt.
+ */
+#define	SMR_LAZY_GRACE		2
+#define	SMR_LAZY_GRACE_MAX	(SMR_LAZY_GRACE + 1)
 
 /*
- * Advance the write sequence and return the new value for use as the
+ * The maximum sequence number ahead of wr_seq that may still be valid.  The
+ * sequence may not be advanced on write for lazy or deferred SMRs.  In this
+ * case poll needs to attempt to forward the sequence number if the goal is
+ * within wr_seq + SMR_SEQ_ADVANCE.
+ */
+#define	SMR_SEQ_ADVANCE		MAX(SMR_SEQ_INCR, SMR_LAZY_GRACE_MAX)
+
+static SYSCTL_NODE(_debug, OID_AUTO, smr, CTLFLAG_RW, NULL, "SMR Stats");
+static counter_u64_t advance = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance, CTLFLAG_RW, &advance, "");
+static counter_u64_t advance_wait = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance_wait, CTLFLAG_RW, &advance_wait, "");
+static counter_u64_t poll = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll, CTLFLAG_RW, &poll, "");
+static counter_u64_t poll_scan = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll_scan, CTLFLAG_RW, &poll_scan, "");
+static counter_u64_t poll_fail = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll_fail, CTLFLAG_RW, &poll_fail, "");
+
+/*
+ * Advance a lazy write sequence number.  These move forward at the rate of
+ * ticks.  Grace is two ticks in the future.  lazy write sequence numbers can
+ * be even but not SMR_SEQ_INVALID so we pause time for a tick when we wrap.
+ *
+ * This returns the _current_ write sequence number.  The lazy goal sequence
+ * number is SMR_LAZY_GRACE ticks ahead.
+ */
+static smr_seq_t
+smr_lazy_advance(smr_t smr, smr_shared_t s)
+{
+	smr_seq_t s_rd_seq, s_wr_seq, goal;
+	int t;
+
+	CRITICAL_ASSERT(curthread);
+
+	/*
+	 * Load s_wr_seq prior to ticks to ensure that the thread that
+	 * observes the largest value wins.
+	 */
+	s_wr_seq = atomic_load_acq_int(&s->s_wr_seq);
+
+	/*
+	 * We must not allow a zero tick value.  We go back in time one tick
+	 * and advance the grace period forward one tick around zero.
+	 */
+	t = ticks;
+	if (t == SMR_SEQ_INVALID)
+		t--;
+
+	/*
+	 * The most probable condition that the update already took place.
+	 */
+	if (__predict_true(t == s_wr_seq))
+		goto out;
+
+	/*
+	 * After long idle periods the read sequence may fall too far
+	 * behind write.  Prevent poll from ever seeing this condition
+	 * by updating the stale rd_seq.  This assumes that there can
+	 * be no valid section 2bn ticks old.  The rd_seq update must
+	 * be visible before wr_seq to avoid races with other advance
+	 * callers.
+	 */
+	s_rd_seq = atomic_load_int(&s->s_rd_seq);
+	if (SMR_SEQ_GT(s_rd_seq, t))
+		atomic_cmpset_rel_int(&s->s_rd_seq, s_rd_seq, t);
+
+	/*
+	 * Release to synchronize with the wr_seq load above.  Ignore
+	 * cmpset failures from simultaneous updates.
+	 */
+	atomic_cmpset_rel_int(&s->s_wr_seq, s_wr_seq, t);
+	counter_u64_add(advance, 1);
+	/* If we lost either update race another thread did it. */
+	s_wr_seq = t;
+out:
+	goal = s_wr_seq + SMR_LAZY_GRACE;
+	/* Skip over the SMR_SEQ_INVALID tick. */
+	if (goal < SMR_LAZY_GRACE)
+		goal++;
+	return (goal);
+}
+
+/*
+ * Increment the shared write sequence by 2.  Since it is initialized
+ * to 1 this means the only valid values are odd and an observed value
+ * of 0 in a particular CPU means it is not currently in a read section.
+ */
+static smr_seq_t
+smr_shared_advance(smr_shared_t s)
+{
+
+	return (atomic_fetchadd_int(&s->s_wr_seq, SMR_SEQ_INCR) + SMR_SEQ_INCR);
+}
+
+/*
+ * Advance the write sequence number for a normal smr section.  If the
+ * write sequence is too far behind the read sequence we have to poll
+ * to advance rd_seq and prevent undetectable wraps.
+ */
+static smr_seq_t
+smr_default_advance(smr_t smr, smr_shared_t s)
+{
+	smr_seq_t goal, s_rd_seq;
+
+	CRITICAL_ASSERT(curthread);
+	KASSERT((zpcpu_get(smr)->c_flags & SMR_LAZY) == 0,
+	    ("smr_default_advance: called with lazy smr."));
+
+	/*
+	 * Load the current read seq before incrementing the goal so
+	 * we are guaranteed it is always < goal.
+	 */
+	s_rd_seq = atomic_load_acq_int(&s->s_rd_seq);
+	goal = smr_shared_advance(s);
+
+	/*
+	 * Force a synchronization here if the goal is getting too
+	 * far ahead of the read sequence number.  This keeps the
+	 * wrap detecting arithmetic working in pathological cases.
+	 */
+	if (SMR_SEQ_DELTA(goal, s_rd_seq) >= SMR_SEQ_MAX_DELTA) {
+		counter_u64_add(advance_wait, 1);
+		smr_wait(smr, goal - SMR_SEQ_MAX_ADVANCE);
+	}
+	counter_u64_add(advance, 1);
+
+	return (goal);
+}
+
+/*
+ * Deferred SMRs conditionally update s_wr_seq based on an
+ * cpu local interval count.
+ */
+static smr_seq_t
+smr_deferred_advance(smr_t smr, smr_shared_t s, smr_t self)
+{
+
+	if (++self->c_deferred < self->c_limit)
+		return (smr_shared_current(s) + SMR_SEQ_INCR);
+	self->c_deferred = 0;
+	return (smr_default_advance(smr, s));
+}
+
+/*
+ * Advance the write sequence and return the value for use as the
  * wait goal.  This guarantees that any changes made by the calling
  * thread prior to this call will be visible to all threads after
  * rd_seq meets or exceeds the return value.
  *
  * This function may busy loop if the readers are roughly 1 billion
  * sequence numbers behind the writers.
+ *
+ * Lazy SMRs will not busy loop and the wrap happens every 49.6 days
+ * at 1khz and 119 hours at 10khz.  Readers can block for no longer
+ * than half of this for SMR_SEQ_ macros to continue working.
  */
 smr_seq_t
 smr_advance(smr_t smr)
 {
+	smr_t self;
 	smr_shared_t s;
-	smr_seq_t goal, s_rd_seq;
+	smr_seq_t goal;
+	int flags;
 
 	/*
 	 * It is illegal to enter while in an smr section.
@@ -201,55 +368,121 @@ smr_advance(smr_t smr)
 	 */
 	atomic_thread_fence_rel();
 
-	/*
-	 * Load the current read seq before incrementing the goal so
-	 * we are guaranteed it is always < goal.
-	 */
-	s = zpcpu_get(smr)->c_shared;
-	s_rd_seq = atomic_load_acq_int(&s->s_rd_seq);
-
-	/*
-	 * Increment the shared write sequence by 2.  Since it is
-	 * initialized to 1 this means the only valid values are
-	 * odd and an observed value of 0 in a particular CPU means
-	 * it is not currently in a read section.
-	 */
-	goal = atomic_fetchadd_int(&s->s_wr_seq, SMR_SEQ_INCR) + SMR_SEQ_INCR;
-	counter_u64_add(advance, 1);
-
-	/*
-	 * Force a synchronization here if the goal is getting too
-	 * far ahead of the read sequence number.  This keeps the
-	 * wrap detecting arithmetic working in pathological cases.
-	 */
-	if (SMR_SEQ_DELTA(goal, s_rd_seq) >= SMR_SEQ_MAX_DELTA) {
-		counter_u64_add(advance_wait, 1);
-		smr_wait(smr, goal - SMR_SEQ_MAX_ADVANCE);
-	}
+	critical_enter();
+	/* Try to touch the line once. */
+	self = zpcpu_get(smr);
+	s = self->c_shared;
+	flags = self->c_flags;
+	goal = SMR_SEQ_INVALID;
+	if ((flags & (SMR_LAZY | SMR_DEFERRED)) == 0)
+		goal = smr_default_advance(smr, s);
+	else if ((flags & SMR_LAZY) != 0)
+		goal = smr_lazy_advance(smr, s);
+	else if ((flags & SMR_DEFERRED) != 0)
+		goal = smr_deferred_advance(smr, s, self);
+	critical_exit();
 
 	return (goal);
 }
 
-smr_seq_t
-smr_advance_deferred(smr_t smr, int limit)
+/*
+ * Poll to determine the currently observed sequence number on a cpu
+ * and spinwait if the 'wait' argument is true.
+ */
+static smr_seq_t
+smr_poll_cpu(smr_t c, smr_seq_t s_rd_seq, smr_seq_t goal, bool wait)
 {
-	smr_seq_t goal;
-	smr_t csmr;
+	smr_seq_t c_seq;
 
-	SMR_ASSERT_NOT_ENTERED(smr);
+	c_seq = SMR_SEQ_INVALID;
+	for (;;) {
+		c_seq = atomic_load_int(&c->c_seq);
+		if (c_seq == SMR_SEQ_INVALID)
+			break;
 
-	critical_enter();
-	csmr = zpcpu_get(smr);
-	if (++csmr->c_deferred >= limit) {
-		goal = SMR_SEQ_INVALID;
-		csmr->c_deferred = 0;
-	} else
-		goal = smr_shared_current(csmr->c_shared) + SMR_SEQ_INCR;
-	critical_exit();
-	if (goal != SMR_SEQ_INVALID)
-		return (goal);
+		/*
+		 * There is a race described in smr.h:smr_enter that
+		 * can lead to a stale seq value but not stale data
+		 * access.  If we find a value out of range here we
+		 * pin it to the current min to prevent it from
+		 * advancing until that stale section has expired.
+		 *
+		 * The race is created when a cpu loads the s_wr_seq
+		 * value in a local register and then another thread
+		 * advances s_wr_seq and calls smr_poll() which will
+		 * oberve no value yet in c_seq and advance s_rd_seq
+		 * up to s_wr_seq which is beyond the register
+		 * cached value.  This is only likely to happen on
+		 * hypervisor or with a system management interrupt.
+		 */
+		if (SMR_SEQ_LT(c_seq, s_rd_seq))
+			c_seq = s_rd_seq;
 
-	return (smr_advance(smr));
+		/*
+		 * If the sequence number meets the goal we are done
+		 * with this cpu.
+		 */
+		if (SMR_SEQ_LEQ(goal, c_seq))
+			break;
+
+		if (!wait)
+			break;
+		cpu_spinwait();
+	}
+
+	return (c_seq);
+}
+
+/*
+ * Loop until all cores have observed the goal sequence or have
+ * gone inactive.  Returns the oldest sequence currently active;
+ *
+ * This function assumes a snapshot of sequence values has
+ * been obtained and validated by smr_poll().
+ */
+static smr_seq_t
+smr_poll_scan(smr_t smr, smr_shared_t s, smr_seq_t s_rd_seq,
+    smr_seq_t s_wr_seq, smr_seq_t goal, bool wait)
+{
+	smr_seq_t rd_seq, c_seq;
+	int i;
+
+	CRITICAL_ASSERT(curthread);
+	counter_u64_add_protected(poll_scan, 1);
+
+	/*
+	 * The read sequence can be no larger than the write sequence at
+	 * the start of the poll.
+	 */
+	rd_seq = s_wr_seq;
+	CPU_FOREACH(i) {
+		/*
+		 * Query the active sequence on this cpu.  If we're not
+		 * waiting and we don't meet the goal we will still scan
+		 * the rest of the cpus to update s_rd_seq before returning
+		 * failure.
+		 */
+		c_seq = smr_poll_cpu(zpcpu_get_cpu(smr, i), s_rd_seq, goal,
+		    wait);
+
+		/*
+		 * Limit the minimum observed rd_seq whether we met the goal
+		 * or not.
+		 */
+		if (c_seq != SMR_SEQ_INVALID)
+			rd_seq = SMR_SEQ_MIN(rd_seq, c_seq);
+	}
+
+	/*
+	 * Advance the rd_seq as long as we observed a more recent value.
+	 */
+	s_rd_seq = atomic_load_int(&s->s_rd_seq);
+	if (SMR_SEQ_GEQ(rd_seq, s_rd_seq)) {
+		atomic_cmpset_int(&s->s_rd_seq, s_rd_seq, rd_seq);
+		s_rd_seq = rd_seq;
+	}
+
+	return (s_rd_seq);
 }
 
 /*
@@ -268,9 +501,10 @@ bool
 smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 {
 	smr_shared_t s;
-	smr_t c;
-	smr_seq_t s_wr_seq, s_rd_seq, rd_seq, c_seq;
-	int i;
+	smr_t self;
+	smr_seq_t s_wr_seq, s_rd_seq;
+	smr_delta_t delta;
+	int flags;
 	bool success;
 
 	/*
@@ -278,6 +512,8 @@ smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 	 */
 	KASSERT(!wait || !SMR_ENTERED(smr),
 	    ("smr_poll: Blocking not allowed in a SMR section."));
+	KASSERT(!wait || (zpcpu_get(smr)->c_flags & SMR_LAZY) == 0,
+	    ("smr_poll: Blocking not allowed on lazy smrs."));
 
 	/*
 	 * Use a critical section so that we can avoid ABA races
@@ -285,8 +521,18 @@ smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 	 */
 	success = true;
 	critical_enter();
-	s = zpcpu_get(smr)->c_shared;
+	/* Attempt to load from self only once. */
+	self = zpcpu_get(smr);
+	s = self->c_shared;
+	flags = self->c_flags;
 	counter_u64_add_protected(poll, 1);
+
+	/*
+	 * Conditionally advance the lazy write clock on any writer
+	 * activity.  This may reset s_rd_seq.
+	 */
+	if ((flags & SMR_LAZY) != 0)
+		smr_lazy_advance(smr, s);
 
 	/*
 	 * Acquire barrier loads s_wr_seq after s_rd_seq so that we can not
@@ -295,106 +541,59 @@ smr_poll(smr_t smr, smr_seq_t goal, bool wait)
 	s_rd_seq = atomic_load_acq_int(&s->s_rd_seq);
 
 	/*
-	 * wr_seq must be loaded prior to any c_seq value so that a stale
-	 * c_seq can only reference time after this wr_seq.
+	 * If we have already observed the sequence number we can immediately
+	 * return success.  Most polls should meet this criterion.
+	 */
+	if (SMR_SEQ_LEQ(goal, s_rd_seq))
+		goto out;
+
+	/*
+	 * wr_seq must be loaded prior to any c_seq value so that a
+	 * stale c_seq can only reference time after this wr_seq.
 	 */
 	s_wr_seq = atomic_load_acq_int(&s->s_wr_seq);
 
 	/*
-	 * This may have come from a deferred advance.  Consider one
-	 * increment past the current wr_seq valid and make sure we
-	 * have advanced far enough to succeed.  We simply add to avoid
-	 * an additional fence.
+	 * This is the distance from s_wr_seq to goal.  Positive values
+	 * are in the future.
 	 */
-	if (goal == s_wr_seq + SMR_SEQ_INCR) {
-		atomic_add_int(&s->s_wr_seq, SMR_SEQ_INCR);
-		s_wr_seq = goal;
+	delta = SMR_SEQ_DELTA(goal, s_wr_seq);
+
+	/*
+	 * Detect a stale wr_seq.
+	 *
+	 * This goal may have come from a deferred advance or a lazy
+	 * smr.  If we are not blocking we can not succeed but the
+	 * sequence number is valid.
+	 */
+	if (delta > 0 && delta <= SMR_SEQ_MAX_ADVANCE &&
+	    (flags & (SMR_LAZY | SMR_DEFERRED)) != 0) {
+		if (!wait) {
+			success = false;
+			goto out;
+		}
+		/* LAZY is always !wait. */
+		s_wr_seq = smr_shared_advance(s);
+		delta = 0;
 	}
 
 	/*
-	 * Detect whether the goal is valid and has already been observed.
+	 * Detect an invalid goal.
 	 *
 	 * The goal must be in the range of s_wr_seq >= goal >= s_rd_seq for
 	 * it to be valid.  If it is not then the caller held on to it and
 	 * the integer wrapped.  If we wrapped back within range the caller
 	 * will harmlessly scan.
-	 *
-	 * A valid goal must be greater than s_rd_seq or we have not verified
-	 * that it has been observed and must fall through to polling.
 	 */
-	if (SMR_SEQ_GEQ(s_rd_seq, goal) || SMR_SEQ_LT(s_wr_seq, goal))
+	if (delta > 0)
 		goto out;
 
-	/*
-	 * Loop until all cores have observed the goal sequence or have
-	 * gone inactive.  Keep track of the oldest sequence currently
-	 * active as rd_seq.
-	 */
-	counter_u64_add_protected(poll_scan, 1);
-	rd_seq = s_wr_seq;
-	CPU_FOREACH(i) {
-		c = zpcpu_get_cpu(smr, i);
-		c_seq = SMR_SEQ_INVALID;
-		for (;;) {
-			c_seq = atomic_load_int(&c->c_seq);
-			if (c_seq == SMR_SEQ_INVALID)
-				break;
-
-			/*
-			 * There is a race described in smr.h:smr_enter that
-			 * can lead to a stale seq value but not stale data
-			 * access.  If we find a value out of range here we
-			 * pin it to the current min to prevent it from
-			 * advancing until that stale section has expired.
-			 *
-			 * The race is created when a cpu loads the s_wr_seq
-			 * value in a local register and then another thread
-			 * advances s_wr_seq and calls smr_poll() which will 
-			 * oberve no value yet in c_seq and advance s_rd_seq
-			 * up to s_wr_seq which is beyond the register
-			 * cached value.  This is only likely to happen on
-			 * hypervisor or with a system management interrupt.
-			 */
-			if (SMR_SEQ_LT(c_seq, s_rd_seq))
-				c_seq = s_rd_seq;
-
-			/*
-			 * If the sequence number meets the goal we are
-			 * done with this cpu.
-			 */
-			if (SMR_SEQ_GEQ(c_seq, goal))
-				break;
-
-			/*
-			 * If we're not waiting we will still scan the rest
-			 * of the cpus and update s_rd_seq before returning
-			 * an error.
-			 */
-			if (!wait) {
-				success = false;
-				break;
-			}
-			cpu_spinwait();
-		}
-
-		/*
-		 * Limit the minimum observed rd_seq whether we met the goal
-		 * or not.
-		 */
-		if (c_seq != SMR_SEQ_INVALID && SMR_SEQ_GT(rd_seq, c_seq))
-			rd_seq = c_seq;
-	}
-
-	/*
-	 * Advance the rd_seq as long as we observed the most recent one.
-	 */
-	s_rd_seq = atomic_load_int(&s->s_rd_seq);
-	do {
-		if (SMR_SEQ_LEQ(rd_seq, s_rd_seq))
-			goto out;
-	} while (atomic_fcmpset_int(&s->s_rd_seq, &s_rd_seq, rd_seq) == 0);
-
+	/* Determine the lowest visible sequence number. */
+	s_rd_seq = smr_poll_scan(smr, s, s_rd_seq, s_wr_seq, goal, wait);
+	success = SMR_SEQ_LEQ(goal, s_rd_seq);
 out:
+	if (!success)
+		counter_u64_add_protected(poll_fail, 1);
 	critical_exit();
 
 	/*
@@ -407,7 +606,7 @@ out:
 }
 
 smr_t
-smr_create(const char *name)
+smr_create(const char *name, int limit, int flags)
 {
 	smr_t smr, c;
 	smr_shared_t s;
@@ -417,13 +616,19 @@ smr_create(const char *name)
 	smr = uma_zalloc_pcpu(smr_zone, M_WAITOK);
 
 	s->s_name = name;
-	s->s_rd_seq = s->s_wr_seq = SMR_SEQ_INIT;
+	if ((flags & SMR_LAZY) == 0)
+		s->s_rd_seq = s->s_wr_seq = SMR_SEQ_INIT;
+	else
+		s->s_rd_seq = s->s_wr_seq = ticks;
 
 	/* Initialize all CPUS, not just those running. */
 	for (i = 0; i <= mp_maxid; i++) {
 		c = zpcpu_get_cpu(smr, i);
 		c->c_seq = SMR_SEQ_INVALID;
 		c->c_shared = s;
+		c->c_deferred = 0;
+		c->c_limit = limit;
+		c->c_flags = flags;
 	}
 	atomic_thread_fence_seq_cst();
 
@@ -460,5 +665,6 @@ smr_init_counters(void *unused)
 	advance_wait = counter_u64_alloc(M_WAITOK);
 	poll = counter_u64_alloc(M_WAITOK);
 	poll_scan = counter_u64_alloc(M_WAITOK);
+	poll_fail = counter_u64_alloc(M_WAITOK);
 }
 SYSINIT(smr_counters, SI_SUB_CPU, SI_ORDER_ANY, smr_init_counters, NULL);
