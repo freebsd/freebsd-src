@@ -95,6 +95,8 @@ static struct {
 #define NNAMES	(sizeof(namelist) / sizeof(*namelist))
 static struct nlist nl[NNAMES];
 
+#define	SIZEHDR	"Size"
+
 static int	humanflag;
 static int	usenumflag;
 static int	totalflag;
@@ -471,7 +473,12 @@ print_swap_header(void)
 	long blocksize;
 	const char *header;
 
-	header = getbsize(&hlen, &blocksize);
+	if (humanflag) {
+		header = SIZEHDR;
+		hlen = sizeof(SIZEHDR);
+	} else {
+		header = getbsize(&hlen, &blocksize);
+	}
 	if (totalflag == 0)
 		(void)printf("%-15s %*s %8s %8s %8s\n",
 		    "Device", hlen, header,
@@ -484,23 +491,30 @@ print_swap_line(const char *swdevname, intmax_t nblks, intmax_t bused,
 {
 	char usedbuf[5];
 	char availbuf[5];
+	char sizebuf[5];
 	int hlen, pagesize;
 	long blocksize;
 
 	pagesize = getpagesize();
 	getbsize(&hlen, &blocksize);
 
-	printf("%-15s %*jd ", swdevname, hlen, CONVERT(nblks));
+	printf("%-15s ", swdevname);
 	if (humanflag) {
+		humanize_number(sizebuf, sizeof(sizebuf),
+		    CONVERT_BLOCKS(nblks), "",
+		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 		humanize_number(usedbuf, sizeof(usedbuf),
 		    CONVERT_BLOCKS(bused), "",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 		humanize_number(availbuf, sizeof(availbuf),
 		    CONVERT_BLOCKS(bavail), "",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-		printf("%8s %8s %5.0f%%\n", usedbuf, availbuf, bpercent);
+		printf("%8s %8s %8s %5.0f%%\n", sizebuf,
+		    usedbuf, availbuf, bpercent);
 	} else {
-		printf("%8jd %8jd %5.0f%%\n", (intmax_t)CONVERT(bused),
+		printf("%*jd %8jd %8jd %5.0f%%\n", hlen,
+		    (intmax_t)CONVERT(nblks),
+		    (intmax_t)CONVERT(bused),
 		    (intmax_t)CONVERT(bavail), bpercent);
 	}
 }

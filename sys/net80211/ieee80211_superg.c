@@ -92,9 +92,10 @@ static	int ieee80211_ffppsmin = 2;	/* pps threshold for ff aggregation */
 SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLFLAG_RW,
 	&ieee80211_ffppsmin, 0, "min packet rate before fast-frame staging");
 static	int ieee80211_ffagemax = -1;	/* max time frames held on stage q */
-SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
-	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"max hold time for fast-frame staging (ms)");
+SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "max hold time for fast-frame staging (ms)");
 
 static void
 ff_age_all(void *arg, int npending)

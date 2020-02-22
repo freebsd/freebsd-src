@@ -705,11 +705,10 @@ ptbl_alloc(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx,
 
 	req = VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
 	while ((m = vm_page_alloc(NULL, pdir_idx, req)) == NULL) {
+		if (nosleep)
+			return (NULL);
 		PMAP_UNLOCK(pmap);
 		rw_wunlock(&pvh_global_lock);
-		if (nosleep) {
-			return (NULL);
-		}
 		vm_wait(NULL);
 		rw_wlock(&pvh_global_lock);
 		PMAP_LOCK(pmap);
@@ -905,8 +904,6 @@ ptbl_alloc(mmu_t mmu, pmap_t pmap, unsigned int pdir_idx, boolean_t nosleep)
 		pidx = (PTBL_PAGES * pdir_idx) + i;
 		while ((m = vm_page_alloc(NULL, pidx,
 		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
-			PMAP_UNLOCK(pmap);
-			rw_wunlock(&pvh_global_lock);
 			if (nosleep) {
 				ptbl_free_pmap_ptbl(pmap, ptbl);
 				for (j = 0; j < i; j++)
@@ -914,6 +911,8 @@ ptbl_alloc(mmu_t mmu, pmap_t pmap, unsigned int pdir_idx, boolean_t nosleep)
 				vm_wire_sub(i);
 				return (NULL);
 			}
+			PMAP_UNLOCK(pmap);
+			rw_wunlock(&pvh_global_lock);
 			vm_wait(NULL);
 			rw_wlock(&pvh_global_lock);
 			PMAP_LOCK(pmap);
@@ -2481,8 +2480,8 @@ mmu_booke_enter_object(mmu_t mmu, pmap_t pmap, vm_offset_t start,
 		    PMAP_ENTER_NOSLEEP | PMAP_ENTER_QUICK_LOCKED, 0);
 		m = TAILQ_NEXT(m, listq);
 	}
-	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
+	rw_wunlock(&pvh_global_lock);
 }
 
 static void
@@ -2495,8 +2494,8 @@ mmu_booke_enter_quick(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 	mmu_booke_enter_locked(mmu, pmap, va, m,
 	    prot & (VM_PROT_READ | VM_PROT_EXECUTE), PMAP_ENTER_NOSLEEP |
 	    PMAP_ENTER_QUICK_LOCKED, 0);
-	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
+	rw_wunlock(&pvh_global_lock);
 }
 
 /*

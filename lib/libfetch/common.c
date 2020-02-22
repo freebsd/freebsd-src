@@ -677,6 +677,7 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	if (sockshost)
 		if (!fetch_socks5_init(conn, host, port, verbose))
 			goto fail;
+	free(sockshost);
 	if (cais != NULL)
 		freeaddrinfo(cais);
 	if (sais != NULL)
@@ -686,7 +687,10 @@ syserr:
 	fetch_syserr();
 fail:
 	free(sockshost);
-	if (sd >= 0)
+	/* Fully close if it was opened; otherwise just don't leak the fd. */
+	if (conn != NULL)
+		fetch_close(conn);
+	else if (sd >= 0)
 		close(sd);
 	if (cais != NULL)
 		freeaddrinfo(cais);

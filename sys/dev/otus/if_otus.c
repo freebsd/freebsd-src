@@ -75,7 +75,8 @@ __FBSDID("$FreeBSD$");
 #include "if_otusreg.h"
 
 static int otus_debug = 0;
-static SYSCTL_NODE(_hw_usb, OID_AUTO, otus, CTLFLAG_RW, 0, "USB otus");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, otus, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB otus");
 SYSCTL_INT(_hw_usb_otus, OID_AUTO, debug, CTLFLAG_RWTUN, &otus_debug, 0,
     "Debug level");
 #define	OTUS_DEBUG_XMIT		0x00000001
