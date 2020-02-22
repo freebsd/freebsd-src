@@ -250,6 +250,7 @@ struct thread {
 	int		td_flags;	/* (t) TDF_* flags. */
 	int		td_inhibitors;	/* (t) Why can not run. */
 	int		td_pflags;	/* (k) Private thread (TDP_*) flags. */
+	int		td_pflags2;	/* (k) Private thread (TDP2_*) flags. */
 	int		td_dupfd;	/* (k) Ret value from fdopen. XXX */
 	int		td_sqqueue;	/* (t) Sleepqueue queue blocked on. */
 	const void	*td_wchan;	/* (t) Sleep address. */
@@ -1195,6 +1196,25 @@ curthread_pflags_restore(int save)
 {
 
 	curthread->td_pflags &= save;
+}
+
+static __inline int
+curthread_pflags2_set(int flags)
+{
+	struct thread *td;
+	int save;
+
+	td = curthread;
+	save = ~flags | (td->td_pflags2 & flags);
+	td->td_pflags2 |= flags;
+	return (save);
+}
+
+static __inline void
+curthread_pflags2_restore(int save)
+{
+
+	curthread->td_pflags2 &= save;
 }
 
 static __inline __pure2 struct td_sched *
