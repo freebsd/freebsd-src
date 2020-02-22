@@ -3014,8 +3014,8 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 
 /* See uma.h */
 uma_zone_t
-uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
-		    uma_init zinit, uma_fini zfini, uma_zone_t master)
+uma_zsecond_create(const char *name, uma_ctor ctor, uma_dtor dtor,
+    uma_init zinit, uma_fini zfini, uma_zone_t master)
 {
 	struct uma_zctor_args args;
 	uma_keg_t keg;
@@ -3042,9 +3042,9 @@ uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 
 /* See uma.h */
 uma_zone_t
-uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
-		    uma_init zinit, uma_fini zfini, uma_import zimport,
-		    uma_release zrelease, void *arg, int flags)
+uma_zcache_create(const char *name, int size, uma_ctor ctor, uma_dtor dtor,
+    uma_init zinit, uma_fini zfini, uma_import zimport, uma_release zrelease,
+    void *arg, int flags)
 {
 	struct uma_zctor_args args;
 

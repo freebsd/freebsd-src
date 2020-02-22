@@ -213,8 +213,8 @@ uma_zone_t uma_zcreate(const char *name, size_t size, uma_ctor ctor,
  *	A pointer to a structure which is intended to be opaque to users of
  *	the interface.  The value may be null if the wait flag is not set.
  */
-uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
-		    uma_init zinit, uma_fini zfini, uma_zone_t master);
+uma_zone_t uma_zsecond_create(const char *name, uma_ctor ctor, uma_dtor dtor,
+    uma_init zinit, uma_fini zfini, uma_zone_t master);
 
 /*
  * Create cache-only zones.
@@ -225,9 +225,9 @@ uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
  * zones.  The 'arg' parameter is passed to import/release and is caller
  * specific.
  */
-uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
-		    uma_init zinit, uma_fini zfini, uma_import zimport,
-		    uma_release zrelease, void *arg, int flags);
+uma_zone_t uma_zcache_create(const char *name, int size, uma_ctor ctor,
+    uma_dtor dtor, uma_init zinit, uma_fini zfini, uma_import zimport,
+    uma_release zrelease, void *arg, int flags);
 
 /*
  * Definitions for uma_zcreate flags
