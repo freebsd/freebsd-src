@@ -46,7 +46,11 @@
 #define	MACHINE		"riscv"
 #endif
 #ifndef MACHINE_ARCH
+#ifdef __riscv_float_abi_soft
+#define	MACHINE_ARCH	"riscv64sf"
+#else
 #define	MACHINE_ARCH	"riscv64"
+#endif
 #endif
 
 #ifdef SMP
