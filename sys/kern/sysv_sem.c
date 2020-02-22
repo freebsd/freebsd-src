@@ -550,8 +550,14 @@ sem_remove(int semidx, struct ucred *cred)
 	int i;
 
 	KASSERT(semidx >= 0 && semidx < seminfo.semmni,
-		("semidx out of bounds"));
+	    ("semidx out of bounds"));
+	mtx_assert(&sem_mtx, MA_OWNED);
 	semakptr = &sema[semidx];
+	KASSERT(semakptr->u.__sem_base - sem + semakptr->u.sem_nsems <= semtot,
+	    ("sem_remove: sema %d corrupted sem pointer %p %p %d %d",
+	    semidx, semakptr->u.__sem_base, sem, semakptr->u.sem_nsems,
+	    semtot));
+
 	semakptr->u.sem_perm.cuid = cred ? cred->cr_uid : 0;
 	semakptr->u.sem_perm.uid = cred ? cred->cr_uid : 0;
 	semakptr->u.sem_perm.mode = 0;
