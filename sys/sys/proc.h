@@ -515,6 +515,8 @@ do {									\
 #define	TDP_EXECVMSPC	0x40000000 /* Execve destroyed old vmspace */
 #define	TDP_SIGFASTPENDING 0x80000000 /* Pending signal due to sigfastblock */
 
+#define	TDP2_SBPAGES	0x00000001 /* Owns sbusy on some pages */
+
 /*
  * Reasons that the current thread can not be run yet.
  * More than one may apply.
