@@ -1140,7 +1140,6 @@ hash_free(struct uma_hash *hash)
  * Returns:
  *	Nothing
  */
-
 static void
 bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 {
@@ -1200,7 +1199,7 @@ cache_drain(uma_zone_t zone)
 	 */
 	seq = SMR_SEQ_INVALID;
 	if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
-		seq = smr_current(zone->uz_smr);
+		seq = smr_advance(zone->uz_smr);
 	CPU_FOREACH(cpu) {
 		cache = &zone->uz_cpu[cpu];
 		bucket = cache_bucket_unload_alloc(cache);
@@ -1329,7 +1328,7 @@ bucket_cache_reclaim(uma_zone_t zone, bool drain)
 		 * the item count.  Reclaim it individually here.
 		 */
 		zdom = ZDOM_GET(zone, i);
-		if ((zone->uz_flags & UMA_ZONE_SMR) == 0) {
+		if ((zone->uz_flags & UMA_ZONE_SMR) == 0 || drain) {
 			ZONE_CROSS_LOCK(zone);
 			bucket = zdom->uzd_cross;
 			zdom->uzd_cross = NULL;
@@ -2679,7 +2678,7 @@ out:
 
 	/* Caller requests a private SMR context. */
 	if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
-		zone->uz_smr = smr_create(zone->uz_name);
+		zone->uz_smr = smr_create(zone->uz_name, 0, 0);
 
 	KASSERT((arg->flags & (UMA_ZONE_MAXBUCKET | UMA_ZONE_NOBUCKET)) !=
 	    (UMA_ZONE_MAXBUCKET | UMA_ZONE_NOBUCKET),
@@ -4137,22 +4136,21 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 	    "uma_zfree: zone %s(%p) draining cross bucket %p",
 	    zone->uz_name, zone, bucket);
 
-	STAILQ_INIT(&fullbuckets);
-
-	/*
-	 * To avoid having ndomain * ndomain buckets for sorting we have a
-	 * lock on the current crossfree bucket.  A full matrix with
-	 * per-domain locking could be used if necessary.
-	 */
-	ZONE_CROSS_LOCK(zone);
-
 	/*
 	 * It is possible for buckets to arrive here out of order so we fetch
 	 * the current smr seq rather than accepting the bucket's.
 	 */
 	seq = SMR_SEQ_INVALID;
 	if ((zone->uz_flags & UMA_ZONE_SMR) != 0)
-		seq = smr_current(zone->uz_smr);
+		seq = smr_advance(zone->uz_smr);
+
+	/*
+	 * To avoid having ndomain * ndomain buckets for sorting we have a
+	 * lock on the current crossfree bucket.  A full matrix with
+	 * per-domain locking could be used if necessary.
+	 */
+	STAILQ_INIT(&fullbuckets);
+	ZONE_CROSS_LOCK(zone);
 	while (bucket->ub_cnt > 0) {
 		item = bucket->ub_bucket[bucket->ub_cnt - 1];
 		domain = _vm_phys_domain(pmap_kextract((vm_offset_t)item));

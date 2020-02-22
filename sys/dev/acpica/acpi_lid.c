@@ -124,13 +124,16 @@ acpi_lid_attach(device_t dev)
     if (acpi_parse_prw(sc->lid_handle, &prw) == 0)
 	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit);
 
+    /* Get the initial lid status, ignore failures */
+    (void) acpi_GetInteger(sc->lid_handle, "_LID", &sc->lid_status);
+
     /*
      * Export the lid status
      */
     SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	"state", CTLFLAG_RD, &sc->lid_status, 0,
-	"Device set to wake the system");
+	"Device state (0 = closed, 1 = open)");
 
     return (0);
 }
@@ -144,6 +147,13 @@ acpi_lid_suspend(device_t dev)
 static int
 acpi_lid_resume(device_t dev)
 {
+    struct acpi_lid_softc	*sc;
+
+    sc = device_get_softc(dev);
+
+    /* Get lid status after resume, ignore failures */
+    (void) acpi_GetInteger(sc->lid_handle, "_LID", &sc->lid_status);
+
     return (0);
 }
 

@@ -154,39 +154,46 @@ struct ieee80211_hwmp_state {
 	uint8_t			hs_maxhops;	/* max hop count */
 };
 
-static SYSCTL_NODE(_net_wlan, OID_AUTO, hwmp, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_net_wlan, OID_AUTO, hwmp, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "IEEE 802.11s HWMP parameters");
 static int	ieee80211_hwmp_targetonly = 0;
 SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, targetonly, CTLFLAG_RW,
     &ieee80211_hwmp_targetonly, 0, "Set TO bit on generated PREQs");
 static int	ieee80211_hwmp_pathtimeout = -1;
-SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, pathlifetime, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, pathlifetime,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &ieee80211_hwmp_pathtimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
     "path entry lifetime (ms)");
 static int	ieee80211_hwmp_maxpreq_retries = -1;
-SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, maxpreq_retries, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, maxpreq_retries,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &ieee80211_hwmp_maxpreq_retries, 0, ieee80211_sysctl_msecs_ticks, "I",
     "maximum number of preq retries");
 static int	ieee80211_hwmp_net_diameter_traversaltime = -1;
 SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, net_diameter_traversal_time,
-    CTLTYPE_INT | CTLFLAG_RW, &ieee80211_hwmp_net_diameter_traversaltime, 0,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &ieee80211_hwmp_net_diameter_traversaltime, 0,
     ieee80211_sysctl_msecs_ticks, "I",
     "estimate travelse time across the MBSS (ms)");
 static int	ieee80211_hwmp_roottimeout = -1;
-SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, roottimeout, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, roottimeout,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &ieee80211_hwmp_roottimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
     "root PREQ timeout (ms)");
 static int	ieee80211_hwmp_rootint = -1;
-SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rootint, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rootint,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &ieee80211_hwmp_rootint, 0, ieee80211_sysctl_msecs_ticks, "I",
     "root interval (ms)");
 static int	ieee80211_hwmp_rannint = -1;
-SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rannint, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rannint,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &ieee80211_hwmp_rannint, 0, ieee80211_sysctl_msecs_ticks, "I",
     "root announcement interval (ms)");
 static struct timeval ieee80211_hwmp_rootconfint = { 0, 0 };
 static int	ieee80211_hwmp_rootconfint_internal = -1;
-SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rootconfint, CTLTYPE_INT | CTLFLAG_RD,
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rootconfint,
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
     &ieee80211_hwmp_rootconfint_internal, 0, ieee80211_sysctl_msecs_ticks, "I",
     "root confirmation interval (ms) (read-only)");
 
@@ -205,9 +212,10 @@ static struct ieee80211_mesh_proto_path mesh_proto_hwmp = {
 	.mpp_newstate	= hwmp_newstate,
 	.mpp_privlen	= sizeof(struct ieee80211_hwmp_route),
 };
-SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, inact, CTLTYPE_INT | CTLFLAG_RW,
-	&mesh_proto_hwmp.mpp_inact, 0, ieee80211_sysctl_msecs_ticks, "I",
-	"mesh route inactivity timeout (ms)");
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, inact,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &mesh_proto_hwmp.mpp_inact, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "mesh route inactivity timeout (ms)");
 
 
 static void

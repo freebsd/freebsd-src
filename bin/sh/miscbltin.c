@@ -117,7 +117,7 @@ fdgetc(struct fdctx *fdc, char *c)
 static void
 fdctx_destroy(struct fdctx *fdc)
 {
-	size_t residue;
+	off_t residue;
 
 	if (fdc->buflen > 1) {
 	/*

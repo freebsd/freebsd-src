@@ -381,6 +381,7 @@ rssadapt_sysctlattach(struct ieee80211vap *vap,
 {
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "rssadapt_rate_interval", CTLTYPE_INT | CTLFLAG_RW, vap,
-	    0, rssadapt_sysctl_interval, "I", "rssadapt operation interval (ms)");
+	    "rssadapt_rate_interval",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, vap, 0,
+	    rssadapt_sysctl_interval, "I", "rssadapt operation interval (ms)");
 }

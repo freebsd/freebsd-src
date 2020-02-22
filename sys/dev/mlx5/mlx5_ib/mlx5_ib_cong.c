@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2020, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,7 +37,9 @@ static const char *mlx5_ib_cong_stats_desc[] = {
 	MLX5_IB_CONG_STATS(MLX5_IB_STATS_DESC)
 };
 
-#define	MLX5_IB_INDEX(field) (__offsetof(struct mlx5_ib_congestion, field) / sizeof(u64))
+#define	MLX5_IB_INDEX(field) ( \
+    (__offsetof(struct mlx5_ib_congestion, field) - \
+     __offsetof(struct mlx5_ib_congestion, arg[0])) / sizeof(u64))
 #define	MLX5_IB_FLD_MAX(type, field) ((1ULL << __mlx5_bit_sz(type, field)) - 1ULL)
 #define	MLX5_IB_SET_CLIPPED(type, ptr, field, var) do { \
   /* rangecheck */					\

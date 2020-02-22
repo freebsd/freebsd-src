@@ -421,57 +421,23 @@ auditon_command_event(int cmd)
  * leave the filename starting with '/' in the audit log in this case.
  */
 void
-audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
+audit_canon_path_vp(struct thread *td, struct vnode *rdir, struct vnode *cdir,
+    char *path, char *cpath)
 {
-	struct vnode *cvnp, *rvnp;
+	struct vnode *vp;
 	char *rbuf, *fbuf, *copy;
-	struct filedesc *fdp;
 	struct sbuf sbf;
-	cap_rights_t rights;
-	int error, needslash;
+	int error;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
 	    __func__,  __FILE__, __LINE__);
 
 	copy = path;
-	rvnp = cvnp = NULL;
-	fdp = td->td_proc->p_fd;
-	FILEDESC_SLOCK(fdp);
-	/*
-	 * Make sure that we handle the chroot(2) case.  If there is an
-	 * alternate root directory, prepend it to the audited pathname.
-	 */
-	if (fdp->fd_rdir != NULL && fdp->fd_rdir != rootvnode) {
-		rvnp = fdp->fd_rdir;
-		vhold(rvnp);
-	}
-	/*
-	 * If the supplied path is relative, make sure we capture the current
-	 * working directory so we can prepend it to the supplied relative
-	 * path.
-	 */
-	if (*path != '/') {
-		if (dirfd == AT_FDCWD) {
-			cvnp = fdp->fd_cdir;
-			vhold(cvnp);
-		} else {
-			/* XXX: fgetvp() that vhold()s vnode instead of vref()ing it would be better */
-			error = fgetvp(td, dirfd, cap_rights_init(&rights), &cvnp);
-			if (error) {
-				FILEDESC_SUNLOCK(fdp);
-				cpath[0] = '\0';
-				if (rvnp != NULL)
-					vdrop(rvnp);
-				return;
-			}
-			vhold(cvnp);
-			vrele(cvnp);
-		}
-		needslash = (fdp->fd_rdir != cvnp);
-	} else {
-		needslash = 1;
-	}
-	FILEDESC_SUNLOCK(fdp);
+	if (*path == '/')
+		vp = rdir;
+	else
+		vp = cdir;
+	MPASS(vp != NULL);
 	/*
 	 * NB: We require that the supplied array be at least MAXPATHLEN bytes
 	 * long.  If this is not the case, then we can run into serious trouble.
@@ -479,6 +445,8 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	(void) sbuf_new(&sbf, cpath, MAXPATHLEN, SBUF_FIXEDLEN);
 	/*
 	 * Strip leading forward slashes.
+	 *
+	 * Note this does nothing to fully canonicalize the path.
 	 */
 	while (*copy == '/')
 		copy++;
@@ -490,35 +458,25 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	 * on Darwin.  As a result, this may need some additional attention
 	 * in the future.
 	 */
-	if (rvnp != NULL) {
-		error = vn_fullpath_global(td, rvnp, &rbuf, &fbuf);
-		vdrop(rvnp);
-		if (error) {
-			cpath[0] = '\0';
-			if (cvnp != NULL)
-				vdrop(cvnp);
-			return;
-		}
-		(void) sbuf_cat(&sbf, rbuf);
-		free(fbuf, M_TEMP);
+	error = vn_fullpath_global(td, vp, &rbuf, &fbuf);
+	if (error) {
+		cpath[0] = '\0';
+		return;
 	}
-	if (cvnp != NULL) {
-		error = vn_fullpath(td, cvnp, &rbuf, &fbuf);
-		vdrop(cvnp);
-		if (error) {
-			cpath[0] = '\0';
-			return;
-		}
-		(void) sbuf_cat(&sbf, rbuf);
-		free(fbuf, M_TEMP);
-	}
-	if (needslash)
+	(void) sbuf_cat(&sbf, rbuf);
+	/*
+	 * We are going to concatenate the resolved path with the passed path
+	 * with all slashes removed and we want them glued with a single slash.
+	 * However, if the directory is /, the slash is already there.
+	 */
+	if (rbuf[1] != '\0')
 		(void) sbuf_putc(&sbf, '/');
+	free(fbuf, M_TEMP);
 	/*
 	 * Now that we have processed any alternate root and relative path
 	 * names, add the supplied pathname.
 	 */
-        (void) sbuf_cat(&sbf, copy);
+	(void) sbuf_cat(&sbf, copy);
 	/*
 	 * One or more of the previous sbuf operations could have resulted in
 	 * the supplied buffer being overflowed.  Check to see if this is the
@@ -529,4 +487,44 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 		return;
 	}
 	sbuf_finish(&sbf);
+}
+
+void
+audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
+{
+	struct vnode *cdir, *rdir;
+	struct filedesc *fdp;
+	cap_rights_t rights;
+	int error;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
+	    __func__,  __FILE__, __LINE__);
+
+	rdir = cdir = NULL;
+	fdp = td->td_proc->p_fd;
+	FILEDESC_SLOCK(fdp);
+	if (*path == '/') {
+		rdir = fdp->fd_rdir;
+		vrefact(rdir);
+	} else {
+		if (dirfd == AT_FDCWD) {
+			cdir = fdp->fd_cdir;
+			vrefact(cdir);
+		} else {
+			error = fgetvp(td, dirfd, cap_rights_init(&rights), &cdir);
+			if (error != 0) {
+				FILEDESC_SUNLOCK(fdp);
+				cpath[0] = '\0';
+				return;
+			}
+		}
+	}
+	FILEDESC_SUNLOCK(fdp);
+
+	audit_canon_path_vp(td, rdir, cdir, path, cpath);
+
+	if (rdir != NULL)
+		vrele(rdir);
+	if (cdir != NULL)
+		vrele(cdir);
 }

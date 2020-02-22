@@ -786,16 +786,17 @@ ath_sysctl_alq_attach(struct ath_softc *sc)
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "alq", CTLFLAG_RD,
-	    NULL, "Atheros ALQ logging parameters");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "alq",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "Atheros ALQ logging parameters");
 	child = SYSCTL_CHILDREN(tree);
 
 	SYSCTL_ADD_STRING(ctx, child, OID_AUTO, "filename",
 	    CTLFLAG_RW, sc->sc_alq.sc_alq_filename, 0, "ALQ filename");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"enable", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_alq_log, "I", "");
+	    "enable", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_alq_log, "I", "");
 
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debugmask", CTLFLAG_RW, &sc->sc_alq.sc_alq_debug, 0,
@@ -831,21 +832,21 @@ ath_sysctlattach(struct ath_softc *sc)
 		"control debugging KTR");
 #endif /* ATH_DEBUG_ALQ */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"slottime", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_slottime, "I", "802.11 slot time (us)");
+	    "slottime", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_slottime, "I", "802.11 slot time (us)");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"acktimeout", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_acktimeout, "I", "802.11 ACK timeout (us)");
+	    "acktimeout", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_acktimeout, "I", "802.11 ACK timeout (us)");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"ctstimeout", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_ctstimeout, "I", "802.11 CTS timeout (us)");
+	    "ctstimeout", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_ctstimeout, "I", "802.11 CTS timeout (us)");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"softled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_softled, "I", "enable/disable software LED support");
+	    "softled", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_softled, "I", "enable/disable software LED support");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"ledpin", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_ledpin, "I", "GPIO pin connected to LED");
+	    "ledpin", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_ledpin, "I", "GPIO pin connected to LED");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledon", CTLFLAG_RW, &sc->sc_ledon, 0,
 		"setting to turn LED on");
@@ -854,8 +855,8 @@ ath_sysctlattach(struct ath_softc *sc)
 		"idle time for inactivity LED (ticks)");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"hardled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_hardled, "I", "enable/disable hardware LED support");
+	    "hardled", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_hardled, "I", "enable/disable hardware LED support");
 	/* XXX Laziness - configure pins, then flip hardled off/on */
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"led_net_pin", CTLFLAG_RW, &sc->sc_led_net_pin, 0,
@@ -865,61 +866,61 @@ ath_sysctlattach(struct ath_softc *sc)
 		"MAC Power LED pin, or -1 to disable");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"txantenna", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_txantenna, "I", "antenna switch");
+	    "txantenna", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_txantenna, "I", "antenna switch");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"rxantenna", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_rxantenna, "I", "default/rx antenna");
+	    "rxantenna", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_rxantenna, "I", "default/rx antenna");
 	if (ath_hal_hasdiversity(ah))
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"diversity", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_diversity, "I", "antenna diversity");
+		    "diversity", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    sc, 0, ath_sysctl_diversity, "I", "antenna diversity");
 	sc->sc_txintrperiod = ATH_TXINTR_PERIOD;
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txintrperiod", CTLFLAG_RW, &sc->sc_txintrperiod, 0,
 		"tx descriptor batching");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"diag", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_diag, "I", "h/w diagnostic control");
+	    "diag", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_diag, "I", "h/w diagnostic control");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"tpscale", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_tpscale, "I", "tx power scaling");
+	    "tpscale", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_tpscale, "I", "tx power scaling");
 	if (ath_hal_hastpc(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"tpc", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_tpc, "I", "enable/disable per-packet TPC");
+		    "tpc", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+		    ath_sysctl_tpc, "I", "enable/disable per-packet TPC");
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"tpack", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_tpack, "I", "tx power for ack frames");
+		    "tpack", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+		    0, ath_sysctl_tpack, "I", "tx power for ack frames");
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"tpcts", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_tpcts, "I", "tx power for cts frames");
+		    "tpcts", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+		    0, ath_sysctl_tpcts, "I", "tx power for cts frames");
 	}
 	if (ath_hal_hasrfsilent(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"rfsilent", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_rfsilent, "I", "h/w RF silent config");
+		    "rfsilent", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    sc, 0, ath_sysctl_rfsilent, "I", "h/w RF silent config");
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"rfkill", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_rfkill, "I", "enable/disable RF kill switch");
+		    "rfkill", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+		    0, ath_sysctl_rfkill, "I", "enable/disable RF kill switch");
 	}
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"txagg", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_txagg, "I", "");
+	    "txagg", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_txagg, "I", "");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"forcebstuck", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_forcebstuck, "I", "");
+	    "forcebstuck", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+	    0, ath_sysctl_forcebstuck, "I", "");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"hangcheck", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_hangcheck, "I", "");
+	    "hangcheck", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ath_sysctl_hangcheck, "I", "");
 
 	if (ath_hal_hasintmit(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"intmit", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_intmit, "I", "interference mitigation");
+		    "intmit", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+		    0, ath_sysctl_intmit, "I", "interference mitigation");
 	}
 	sc->sc_monpass = HAL_RXERR_DECRYPT | HAL_RXERR_MIC;
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
@@ -989,8 +990,8 @@ ath_sysctlattach(struct ath_softc *sc)
 			"superframe", CTLFLAG_RD, &sc->sc_tdmabintval, 0,
 			"TDMA calculated super frame");
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"setcca", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_setcca, "I", "enable CCA control");
+		    "setcca", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    sc, 0, ath_sysctl_setcca, "I", "enable CCA control");
 	}
 #endif
 
@@ -1028,7 +1029,8 @@ ath_sysctl_stats_attach_rxphyerr(struct ath_softc *sc, struct sysctl_oid_list *p
 	int i;
 	char sn[8];
 
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx_phy_err", CTLFLAG_RD, NULL, "Per-code RX PHY Errors");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx_phy_err",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Per-code RX PHY Errors");
 	child = SYSCTL_CHILDREN(tree);
 	for (i = 0; i < 64; i++) {
 		snprintf(sn, sizeof(sn), "%d", i);
@@ -1047,7 +1049,7 @@ ath_sysctl_stats_attach_intr(struct ath_softc *sc,
 	char sn[8];
 
 	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "sync_intr",
-	    CTLFLAG_RD, NULL, "Sync interrupt statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Sync interrupt statistics");
 	child = SYSCTL_CHILDREN(tree);
 	for (i = 0; i < 32; i++) {
 		snprintf(sn, sizeof(sn), "%d", i);
@@ -1065,12 +1067,12 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
  
 	/* Create "clear" node */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "clear_stats", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-	    ath_sysctl_clearstats, "I", "clear stats");
+	    "clear_stats", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+	    0, ath_sysctl_clearstats, "I", "clear stats");
 
 	/* Create stats node */
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "Statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Statistics");
 	child = SYSCTL_CHILDREN(tree);
 
 	/* This was generated from if_athioctl.h */
@@ -1315,8 +1317,8 @@ ath_sysctl_hal_attach(struct ath_softc *sc)
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "hal", CTLFLAG_RD,
-	    NULL, "Atheros HAL parameters");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "hal",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Atheros HAL parameters");
 	child = SYSCTL_CHILDREN(tree);
 
 	sc->sc_ah->ah_config.ah_debug = 0;
