@@ -46,6 +46,8 @@ SYSTEM_LD= @${LD} -N -m ${LD_EMULATION} -Bdynamic -T ${LDSCRIPT} ${_LDFLAGS} \
 CFLAGS += -fno-omit-frame-pointer -fno-optimize-sibling-calls
 .endif
 
+CFLAGS += -DMACHINE_ARCH=\"${TARGET_ARCH}\"
+
 # hack because genassym.c includes sys/bus.h which includes these.
 genassym.o: bus_if.h device_if.h
 
