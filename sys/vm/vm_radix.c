@@ -208,8 +208,7 @@ vm_radix_node_load(smrnode_t *p, enum vm_radix_access access)
 	case SMR:
 		return (smr_entered_load(p, vm_radix_smr));
 	}
-	/* This is unreachable, silence gcc. */
-	panic("vm_radix_node_get: Unknown access type");
+	__unreachable();
 }
 
 static __inline void
