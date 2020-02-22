@@ -32,6 +32,7 @@
 #define	_SYS__SMR_H_
 
 typedef uint32_t	smr_seq_t;
+typedef int32_t		smr_delta_t;
 typedef struct smr 	*smr_t;
 
 #endif	/* __SYS_SMR_H_ */
