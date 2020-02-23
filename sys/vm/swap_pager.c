@@ -1464,7 +1464,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 
 		/* Get a block of swap of size up to size n. */
 		VM_OBJECT_WLOCK(object);
-		blk = swp_pager_getswapspace(&n, 4);
+		blk = swp_pager_getswapspace(&n, 1);
 		if (blk == SWAPBLK_NONE) {
 			VM_OBJECT_WUNLOCK(object);
 			mtx_lock(&swbuf_mtx);
