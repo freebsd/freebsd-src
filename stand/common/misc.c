@@ -149,6 +149,7 @@ alloc_pread(int fd, off_t off, size_t len)
 #ifdef DEBUG
 		printf("\nmalloc(%d) failed\n", (int)len);
 #endif
+		errno = ENOMEM;
 		return (NULL);
 	}
 	if (lseek(fd, off, SEEK_SET) == -1) {
