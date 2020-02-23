@@ -4040,7 +4040,7 @@ vcount(struct vnode *vp)
 /*
  * Print out a description of a vnode.
  */
-static char *typename[] =
+static const char * const typename[] =
 {"VNON", "VREG", "VDIR", "VBLK", "VCHR", "VLNK", "VSOCK", "VFIFO", "VBAD",
  "VMARKER"};
 

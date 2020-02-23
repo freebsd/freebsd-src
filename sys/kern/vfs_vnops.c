@@ -1566,7 +1566,8 @@ vn_poll(struct file *fp, int events, struct ucred *active_cred,
  * permits vn_lock to return doomed vnodes.
  */
 static int __noinline
-_vn_lock_fallback(struct vnode *vp, int flags, char *file, int line, int error)
+_vn_lock_fallback(struct vnode *vp, int flags, const char *file, int line,
+    int error)
 {
 
 	KASSERT((flags & LK_RETRY) == 0 || error == 0,
@@ -1602,7 +1603,7 @@ _vn_lock_fallback(struct vnode *vp, int flags, char *file, int line, int error)
 }
 
 int
-_vn_lock(struct vnode *vp, int flags, char *file, int line)
+_vn_lock(struct vnode *vp, int flags, const char *file, int line)
 {
 	int error;
 
