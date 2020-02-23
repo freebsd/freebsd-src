@@ -451,13 +451,14 @@ vm_page_domain_init(int domain)
 
 	vmd = VM_DOMAIN(domain);
 	bzero(vmd, sizeof(*vmd));
-	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_name) =
+	*__DECONST(const char **, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_name) =
 	    "vm inactive pagequeue";
-	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_name) =
+	*__DECONST(const char **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_name) =
 	    "vm active pagequeue";
-	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_name) =
+	*__DECONST(const char **, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_name) =
 	    "vm laundry pagequeue";
-	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_name) =
+	*__DECONST(const char **,
+	    &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_name) =
 	    "vm unswappable pagequeue";
 	vmd->vmd_domain = domain;
 	vmd->vmd_page_count = 0;

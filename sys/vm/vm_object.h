@@ -337,8 +337,8 @@ void vm_object_clear_flag(vm_object_t object, u_short bits);
 void vm_object_pip_add(vm_object_t object, short i);
 void vm_object_pip_wakeup(vm_object_t object);
 void vm_object_pip_wakeupn(vm_object_t object, short i);
-void vm_object_pip_wait(vm_object_t object, char *waitid);
-void vm_object_pip_wait_unlocked(vm_object_t object, char *waitid);
+void vm_object_pip_wait(vm_object_t object, const char *waitid);
+void vm_object_pip_wait_unlocked(vm_object_t object, const char *waitid);
 
 void vm_object_busy(vm_object_t object);
 void vm_object_unbusy(vm_object_t object);

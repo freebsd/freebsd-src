@@ -191,7 +191,7 @@ vm_pager_bufferinit(void)
 }
 
 uma_zone_t
-pbuf_zsecond_create(char *name, int max)
+pbuf_zsecond_create(const char *name, int max)
 {
 	uma_zone_t zone;
 

@@ -223,7 +223,7 @@ struct uma_kctor_args {
 
 struct uma_bucket_zone {
 	uma_zone_t	ubz_zone;
-	char		*ubz_name;
+	const char	*ubz_name;
 	int		ubz_entries;	/* Number of items it can hold. */
 	int		ubz_maxsize;	/* Maximum allocation size per-item. */
 };
