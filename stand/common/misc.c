@@ -149,6 +149,7 @@ alloc_pread(readin_handle_t fd, off_t off, size_t len)
 #ifdef DEBUG
 		printf("\nmalloc(%d) failed\n", (int)len);
 #endif
+		errno = ENOMEM;
 		return (NULL);
 	}
 	if (VECTX_LSEEK(fd, off, SEEK_SET) == -1) {
