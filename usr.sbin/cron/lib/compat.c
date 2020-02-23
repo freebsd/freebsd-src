@@ -35,18 +35,6 @@ static char rcsid[] = "$FreeBSD$";
 #include <paths.h>
 
 
-/* the code does not depend on any of vfork's
- * side-effects; it just uses it as a quick
- * fork-and-exec.
- */
-#ifdef NEED_VFORK
-PID_T
-vfork() {
-	return (fork());
-}
-#endif
-
-
 #ifdef NEED_STRDUP
 char *
 strdup(str)
