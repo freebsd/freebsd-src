@@ -76,10 +76,6 @@
 
 /*****************************************************************/
 
-#if !defined(BSD) && !defined(HPUX) && !defined(CONVEX) && !defined(__linux)
-# define NEED_VFORK
-#endif
-
 #if (!defined(BSD) || (BSD < 198902)) && !defined(__linux) && \
 	!defined(IRIX) && !defined(NeXT) && !defined(HPUX)
 # define NEED_STRCASECMP
