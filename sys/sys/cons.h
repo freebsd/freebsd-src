@@ -136,7 +136,7 @@ int	cncheckc(void);
 int	cngetc(void);
 void	cngets(char *, size_t, int);
 void	cnputc(int);
-void	cnputs(char *);
+void	cnputs(const char *);
 void	cnputsn(const char *, size_t);
 int	cnunavailable(void);
 void	constty_set(struct tty *tp);

@@ -374,7 +374,7 @@ int dump_append(struct dumperinfo *, void *, vm_offset_t, size_t);
 int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
 int dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh);
 void dump_init_header(const struct dumperinfo *di, struct kerneldumpheader *kdh,
-    char *magic, uint32_t archver, uint64_t dumplen);
+    const char *magic, uint32_t archver, uint64_t dumplen);
 
 #endif /* _KERNEL */
 

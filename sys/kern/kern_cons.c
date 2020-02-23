@@ -98,7 +98,7 @@ static char *consbuf;			/* buffer used by `consmsgbuf' */
 static struct callout conscallout;	/* callout for outputting to constty */
 struct msgbuf consmsgbuf;		/* message buffer for console tty */
 static u_char console_pausing;		/* pause after each line during probe */
-static char *console_pausestr=
+static const char console_pausestr[] =
 "<pause; press any key to proceed to next line or '.' to end pause mode>";
 struct tty *constty;			/* pointer to console "window" tty */
 static struct mtx cnputs_mtx;		/* Mutex for cnputs(). */
@@ -510,7 +510,7 @@ cnputc(int c)
 {
 	struct cn_device *cnd;
 	struct consdev *cn;
-	char *cp;
+	const char *cp;
 
 #ifdef EARLY_PRINTF
 	if (early_putc != NULL) {
@@ -571,7 +571,7 @@ cnputsn(const char *p, size_t n)
 }
 
 void
-cnputs(char *p)
+cnputs(const char *p)
 {
 	cnputsn(p, strlen(p));
 }
