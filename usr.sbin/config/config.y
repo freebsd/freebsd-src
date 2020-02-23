@@ -155,8 +155,11 @@ Config_spec:
 		machinearch = $2;
 	      } |
 	ARCH Save_id Save_id {
-		if (machinename != NULL &&
-		    !(eq($2, machinename) && eq($3, machinearch)))
+		/*
+		 * Allow the machinearch to change with a second machine directive,
+		 * but still enforce no changes to the machinename.
+		 */
+		if (machinename != NULL && !eq($2, machinename))
 		    errx(1, "%s:%d: only one machine directive is allowed",
 			yyfile, yyline);
 		machinename = $2;
