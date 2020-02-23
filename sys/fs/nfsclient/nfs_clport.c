@@ -597,7 +597,8 @@ ncl_pager_setsize(struct vnode *vp, u_quad_t *nsizep)
 	setnsize = false;
 
 	if (object != NULL && nsize != object->un_pager.vnp.vnp_size) {
-		if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
+		if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE &&
+		    (curthread->td_pflags2 & TDP2_SBPAGES) == 0)
 			setnsize = true;
 		else
 			np->n_flag |= NVNSETSZSKIP;

@@ -554,7 +554,7 @@ void	bufdone(struct buf *);
 void	bd_speedup(void);
 
 extern uma_zone_t pbuf_zone;
-uma_zone_t pbuf_zsecond_create(char *name, int max);
+uma_zone_t pbuf_zsecond_create(const char *name, int max);
 
 int	cluster_read(struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, long, int, int, struct buf **);

@@ -386,7 +386,7 @@ vm_object_pip_wakeupn(vm_object_t object, short i)
  * re-acquired on return.
  */
 static void
-vm_object_pip_sleep(vm_object_t object, char *waitid)
+vm_object_pip_sleep(vm_object_t object, const char *waitid)
 {
 
 	refcount_sleep_interlock(&object->paging_in_progress,
@@ -394,7 +394,7 @@ vm_object_pip_sleep(vm_object_t object, char *waitid)
 }
 
 void
-vm_object_pip_wait(vm_object_t object, char *waitid)
+vm_object_pip_wait(vm_object_t object, const char *waitid)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
@@ -406,7 +406,7 @@ vm_object_pip_wait(vm_object_t object, char *waitid)
 }
 
 void
-vm_object_pip_wait_unlocked(vm_object_t object, char *waitid)
+vm_object_pip_wait_unlocked(vm_object_t object, const char *waitid)
 {
 
 	VM_OBJECT_ASSERT_UNLOCKED(object);

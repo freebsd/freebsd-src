@@ -5108,7 +5108,7 @@ vm_map_print(vm_map_t map)
 		    (void *)entry, (void *)entry->start, (void *)entry->end,
 		    entry->eflags);
 		{
-			static char *inheritance_name[4] =
+			static const char * const inheritance_name[4] =
 			{"share", "copy", "none", "donate_copy"};
 
 			db_iprintf(" prot=%x/%x/%s",

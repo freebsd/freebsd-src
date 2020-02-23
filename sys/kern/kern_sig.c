@@ -3181,7 +3181,7 @@ proc_wkilled(struct proc *p)
  * Kill the current process for stated reason.
  */
 void
-killproc(struct proc *p, char *why)
+killproc(struct proc *p, const char *why)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
