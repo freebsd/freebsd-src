@@ -689,7 +689,7 @@ int	vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	    struct thread *fsize_td);
 int	vn_need_pageq_flush(struct vnode *vp);
 int	vn_isdisk(struct vnode *vp, int *errp);
-int	_vn_lock(struct vnode *vp, int flags, char *file, int line);
+int	_vn_lock(struct vnode *vp, int flags, const char *file, int line);
 #define vn_lock(vp, flags) _vn_lock(vp, flags, __FILE__, __LINE__)
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
