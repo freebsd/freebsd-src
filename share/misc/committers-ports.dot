@@ -238,6 +238,7 @@ rodrigo [label="Rodrigo Osorio\nrodrigo@FreeBSD.org\n2014/01/15"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
 rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2014/07/15"]
 sahil [label="Sahil Tandon\nsahil@FreeBSD.org\n2010/04/11"]
+salvadore [label="Lorenzo Salvadore\nsalvadore@FreeBSD.org\n2020/02/21"]
 samm [label="Alex Samorukov\nsamm@FreeBSD.org\n2019/10/09"]
 sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
 sbruno [label="Sean Bruno\nsbruno@FreeBSD.org\n2014/09/14"]
@@ -459,6 +460,8 @@ garga -> rnoland
 garga -> vd
 garga -> wxs
 garga -> xride
+
+gerald -> salvadore
 
 glarkin -> avl
 glarkin -> cs

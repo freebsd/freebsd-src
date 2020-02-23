@@ -78,7 +78,7 @@ typedef int b_sync_t(struct bufobj *, int waitfor);
 typedef void b_bdflush_t(struct bufobj *, struct buf *);
 
 struct buf_ops {
-	char		*bop_name;
+	const char	*bop_name;
 	b_write_t	*bop_write;
 	b_strategy_t	*bop_strategy;
 	b_sync_t	*bop_sync;

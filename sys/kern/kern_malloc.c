@@ -153,7 +153,7 @@ static int numzones = MALLOC_DEBUG_MAXZONES;
  */
 struct {
 	int kz_size;
-	char *kz_name;
+	const char *kz_name;
 	uma_zone_t kz_zone[MALLOC_DEBUG_MAXZONES];
 } kmemzones[] = {
 	{16, "16", },
@@ -1091,7 +1091,7 @@ mallocinit(void *dummy)
 	    UMA_ALIGN_PTR, UMA_ZONE_MALLOC);
 	for (i = 0, indx = 0; kmemzones[indx].kz_size != 0; indx++) {
 		int size = kmemzones[indx].kz_size;
-		char *name = kmemzones[indx].kz_name;
+		const char *name = kmemzones[indx].kz_name;
 		int subzone;
 
 		for (subzone = 0; subzone < numzones; subzone++) {
