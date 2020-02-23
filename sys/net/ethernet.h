@@ -6,7 +6,7 @@
  */
 
 #ifndef _NET_ETHERNET_H_
-#define _NET_ETHERNET_H_
+#define	_NET_ETHERNET_H_
 
 /*
  * Some basic Ethernet constants.
@@ -95,6 +95,11 @@ struct ether_vlan_header {
 	((((((pri) & 7) << 1) | ((cfi) & 1)) << 12) | ((vlid) & EVL_VLID_MASK))
 
 /*
+ * Ethernet protocol types.
+ *
+ * A public list is available from the IEEE Registration Authority:
+ *	https://standards.ieee.org/products-services/regauth/
+ *
  *  NOTE: 0x0000-0x05DC (0..1500) are generally IEEE 802.3 length fields.
  *  However, there are some conflicts.
  */
@@ -263,7 +268,7 @@ struct ether_vlan_header {
 #define	ETHERTYPE_AARP		0x80F3	/* AppleTalk AARP */
 		    /* 0x80F4 - 0x80F5	   Kinetics */
 #define	ETHERTYPE_APOLLO	0x80F7	/* Apollo Computer */
-#define ETHERTYPE_VLAN		0x8100	/* IEEE 802.1Q VLAN tagging (XXX conflicts) */
+#define	ETHERTYPE_VLAN		0x8100	/* IEEE 802.1Q VLAN tagging (XXX conflicts) */
 		    /* 0x80FF - 0x8101	   Wellfleet Communications (XXX conflicts) */
 #define	ETHERTYPE_BOFL		0x8102	/* Wellfleet; BOFL (Breath OF Life) pkts [every 5-10 secs.] */
 #define	ETHERTYPE_WELLFLEET	0x8103	/* Wellfleet Communications */
@@ -336,15 +341,24 @@ struct ether_vlan_header {
 #define	ETHERTYPE_SLOW		0x8809	/* 802.3ad link aggregation (LACP) */
 #define	ETHERTYPE_PPP		0x880B	/* PPP (obsolete by PPPoE) */
 #define	ETHERTYPE_HITACHI	0x8820	/* Hitachi Cable (Optoelectronic Systems Laboratory) */
-#define ETHERTYPE_TEST		0x8822  /* Network Conformance Testing */
+#define	ETHERTYPE_TEST		0x8822	/* Network Conformance Testing */
 #define	ETHERTYPE_MPLS		0x8847	/* MPLS Unicast */
 #define	ETHERTYPE_MPLS_MCAST	0x8848	/* MPLS Multicast */
 #define	ETHERTYPE_AXIS		0x8856	/* Axis Communications AB proprietary bootstrap/config */
 #define	ETHERTYPE_PPPOEDISC	0x8863	/* PPP Over Ethernet Discovery Stage */
 #define	ETHERTYPE_PPPOE		0x8864	/* PPP Over Ethernet Session Stage */
 #define	ETHERTYPE_LANPROBE	0x8888	/* HP LanProbe test? */
-#define	ETHERTYPE_PAE		0x888e	/* EAPOL PAE/802.1x */
+#define	ETHERTYPE_PAE		0x888E	/* EAPOL PAE/802.1x */
+#define	ETHERTYPE_PROFINET	0x8892	/* PROFINET RT Protocol */
+#define	ETHERTYPE_AOE		0x88A2	/* ATA Protocol */
+#define	ETHERTYPE_ETHERCAT	0x88A4	/* EtherCat Protocol */
 #define	ETHERTYPE_QINQ		0x88A8	/* 802.1ad VLAN stacking */
+#define	ETHERTYPE_POWERLINK	0x88AB	/* Ethernet Powerlink (EPL) */
+#define	ETHERTYPE_LLDP		0x88CC	/* Link Layer Discovery Protocol */
+#define	ETHERTYPE_SERCOS	0x88CD	/* SERCOS III Protocol */
+#define	ETHERTYPE_MACSEC	0x88E5	/* 802.1AE MAC Security */
+#define	ETHERTYPE_PBB		0x88E7	/* 802.1Q Provider Backbone Bridges */
+#define	ETHERTYPE_FCOE		0x8906	/* Fibre Channel over Ethernet */
 #define	ETHERTYPE_LOOPBACK	0x9000	/* Loopback: used to test interfaces */
 #define	ETHERTYPE_LBACK		ETHERTYPE_LOOPBACK	/* DEC MOP loopback */
 #define	ETHERTYPE_XNSSM		0x9001	/* 3Com (Formerly Bridge Communications), XNS Systems Management */
@@ -375,7 +389,7 @@ struct ether_vlan_header {
  * ether_vlan_mtap.  This function will re-insert VLAN tags for the duration
  * of the tap, so they show up properly for network analyzers.
  */
-#define ETHER_BPF_MTAP(_ifp, _m) do {					\
+#define	ETHER_BPF_MTAP(_ifp, _m) do {					\
 	if (bpf_peers_present((_ifp)->if_bpf)) {			\
 		M_ASSERTVALID(_m);					\
 		if (((_m)->m_flags & M_VLANTAG) != 0)			\
