@@ -384,7 +384,7 @@ sigallowstop(int prev)
 int	cursig(struct thread *td);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig, ksiginfo_t *ksi);
-void	killproc(struct proc *p, char *why);
+void	killproc(struct proc *p, const char *why);
 ksiginfo_t * ksiginfo_alloc(int wait);
 void	ksiginfo_free(ksiginfo_t *ksi);
 int	pksignal(struct proc *p, int sig, ksiginfo_t *ksi);
