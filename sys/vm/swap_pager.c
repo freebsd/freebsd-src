@@ -427,7 +427,7 @@ static int	swapoff_one(struct swdevt *sp, struct ucred *cred);
  * Swap bitmap functions
  */
 static void	swp_pager_freeswapspace(daddr_t blk, daddr_t npages);
-static daddr_t	swp_pager_getswapspace(int *npages, int limit);
+static daddr_t	swp_pager_getswapspace(int *npages);
 
 /*
  * Metadata functions
@@ -741,10 +741,9 @@ swap_pager_dealloc(vm_object_t object)
 /*
  * SWP_PAGER_GETSWAPSPACE() -	allocate raw swap space
  *
- *	Allocate swap for up to the requested number of pages, and at
- *	least a minimum number of pages.  The starting swap block number
- *	(a page index) is returned or SWAPBLK_NONE if the allocation
- *	failed.
+ *	Allocate swap for up to the requested number of pages.  The
+ *	starting swap block number (a page index) is returned or
+ *	SWAPBLK_NONE if the allocation failed.
  *
  *	Also has the side effect of advising that somebody made a mistake
  *	when they configured swap and didn't configure enough.
@@ -754,12 +753,14 @@ swap_pager_dealloc(vm_object_t object)
  *	We allocate in round-robin fashion from the configured devices.
  */
 static daddr_t
-swp_pager_getswapspace(int *io_npages, int limit)
+swp_pager_getswapspace(int *io_npages)
 {
 	daddr_t blk;
 	struct swdevt *sp;
 	int mpages, npages;
 
+	KASSERT(*io_npages >= 1,
+	    ("%s: npages not positive", __func__));
 	blk = SWAPBLK_NONE;
 	mpages = *io_npages;
 	npages = imin(BLIST_MAX_ALLOC, mpages);
@@ -774,7 +775,7 @@ swp_pager_getswapspace(int *io_npages, int limit)
 			break;
 		sp = TAILQ_NEXT(sp, sw_list);
 		if (swdevhd == sp) {
-			if (npages <= limit)
+			if (npages == 1)
 				break;
 			mpages = npages - 1;
 			npages >>= 1;
@@ -937,7 +938,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 	VM_OBJECT_WLOCK(object);
 	for (i = 0; i < size; i += n) {
 		n = size - i;
-		blk = swp_pager_getswapspace(&n, 1);
+		blk = swp_pager_getswapspace(&n);
 		if (blk == SWAPBLK_NONE) {
 			swp_pager_meta_free(object, start, i);
 			VM_OBJECT_WUNLOCK(object);
@@ -1464,7 +1465,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 
 		/* Get a block of swap of size up to size n. */
 		VM_OBJECT_WLOCK(object);
-		blk = swp_pager_getswapspace(&n, 1);
+		blk = swp_pager_getswapspace(&n);
 		if (blk == SWAPBLK_NONE) {
 			VM_OBJECT_WUNLOCK(object);
 			mtx_lock(&swbuf_mtx);
