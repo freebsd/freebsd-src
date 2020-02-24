@@ -650,9 +650,13 @@ struct mlx5_ib_congestion {
 	struct sysctl_ctx_list ctx;
 	struct sx lock;
 	struct delayed_work dwork;
-	u64	arg [0];
-	MLX5_IB_CONG_PARAMS(MLX5_IB_STATS_VAR)
-	MLX5_IB_CONG_STATS(MLX5_IB_STATS_VAR)
+	union {
+		u64	arg[1];
+		struct {
+			MLX5_IB_CONG_PARAMS(MLX5_IB_STATS_VAR)
+			MLX5_IB_CONG_STATS(MLX5_IB_STATS_VAR)
+		};
+	};
 };
 
 struct mlx5_ib_dev {
