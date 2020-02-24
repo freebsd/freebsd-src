@@ -186,9 +186,7 @@ static miibus_readreg_t smsc_miibus_readreg;
 static miibus_writereg_t smsc_miibus_writereg;
 static miibus_statchg_t smsc_miibus_statchg;
 
-#if __FreeBSD_version > 1000000
 static int smsc_attach_post_sub(struct usb_ether *ue);
-#endif
 static uether_fn_t smsc_attach_post;
 static uether_fn_t smsc_init;
 static uether_fn_t smsc_stop;
@@ -233,9 +231,7 @@ static const struct usb_config smsc_config[SMSC_N_TRANSFER] = {
 
 static const struct usb_ether_methods smsc_ue_methods = {
 	.ue_attach_post = smsc_attach_post,
-#if __FreeBSD_version > 1000000
 	.ue_attach_post_sub = smsc_attach_post_sub,
-#endif
 	.ue_start = smsc_start,
 	.ue_ioctl = smsc_ioctl,
 	.ue_init = smsc_init,
@@ -920,24 +916,6 @@ smsc_init(struct usb_ether *ue)
 	/* Cancel pending I/O */
 	smsc_stop(ue);
 
-#if __FreeBSD_version <= 1000000
-	/* On earlier versions this was the first place we could tell the system
-	 * that we supported h/w csuming, however this is only called after the
-	 * the interface has been brought up - not ideal.  
-	 */
-	if (!(ifp->if_capabilities & IFCAP_RXCSUM)) {
-		ifp->if_capabilities |= IFCAP_RXCSUM;
-		ifp->if_capenable |= IFCAP_RXCSUM;
-		ifp->if_hwassist = 0;
-	}
-	
-	/* TX checksuming is disabled for now
-	ifp->if_capabilities |= IFCAP_TXCSUM;
-	ifp->if_capenable |= IFCAP_TXCSUM;
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
-	*/
-#endif
-
 	/* Reset the ethernet interface. */
 	smsc_reset(sc);
 
@@ -1551,11 +1529,7 @@ smsc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		
 		SMSC_UNLOCK(sc);
 		if (reinit)
-#if __FreeBSD_version > 1000000
 			uether_init(ue);
-#else
-			ifp->if_init(ue);
-#endif
 
 	} else {
 		rc = uether_ioctl(ifp, cmd, data);
@@ -1637,7 +1611,6 @@ smsc_attach_post(struct usb_ether *ue)
  *	RETURNS:
  *	Returns 0 on success or a negative error code.
  */
-#if __FreeBSD_version > 1000000
 static int
 smsc_attach_post_sub(struct usb_ether *ue)
 {
@@ -1677,7 +1650,6 @@ smsc_attach_post_sub(struct usb_ether *ue)
 
 	return (error);
 }
-#endif /* __FreeBSD_version > 1000000 */
 
 
 /**
