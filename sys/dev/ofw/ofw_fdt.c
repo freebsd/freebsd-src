@@ -123,8 +123,8 @@ sysctl_register_fdt_oid(void *arg)
 		return;
 
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_fdt), OID_AUTO, "dtb",
-	    CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0, sysctl_handle_dtb, "",
-	    "Device Tree Blob");
+	    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+	    sysctl_handle_dtb, "", "Device Tree Blob");
 }
 SYSINIT(dtb_oid, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_register_fdt_oid, NULL);
 
