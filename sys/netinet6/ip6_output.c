@@ -210,6 +210,44 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 		*(u_short *)mtodo(m, offset) = csum;
 }
 
+static int
+ip6_output_delayed_csum(struct mbuf *m, struct ifnet *ifp, int csum_flags,
+    int plen, int optlen, bool frag)
+{
+
+	KASSERT((plen >= optlen), ("%s:%d: plen %d < optlen %d, m %p, ifp %p "
+	    "csum_flags %#x frag %d\n",
+	    __func__, __LINE__, plen, optlen, m, ifp, csum_flags, frag));
+
+	if ((csum_flags & CSUM_DELAY_DATA_IPV6) ||
+#ifdef SCTP
+	    (csum_flags & CSUM_SCTP_IPV6) ||
+#endif
+	    (!frag && (ifp->if_capenable & IFCAP_NOMAP) == 0)) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			if (frag)
+				in6_ifstat_inc(ifp, ifs6_out_fragfail);
+			else
+				IP6STAT_INC(ip6s_odropped);
+			return (ENOBUFS);
+		}
+		if (csum_flags & CSUM_DELAY_DATA_IPV6) {
+			in6_delayed_cksum(m, plen - optlen,
+			    sizeof(struct ip6_hdr) + optlen);
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+		}
+#ifdef SCTP
+		if (csum_flags & CSUM_SCTP_IPV6) {
+			sctp_delayed_cksum(m, sizeof(struct ip6_hdr) + optlen);
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+		}
+#endif
+	}
+
+	return (0);
+}
+
 int
 ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
     int fraglen , uint32_t id)
@@ -386,7 +424,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct ifnet *ifp, *origifp;
 	struct mbuf *m = m0;
 	struct mbuf *mprev;
-	int hlen, tlen, len;
+	int tlen, len;
 	struct route_in6 ip6route;
 	struct rtentry *rt = NULL;
 	struct sockaddr_in6 *dst, src_sa, dst_sa;
@@ -1007,36 +1045,10 @@ passout:
 	 * XXX-BZ  Need a framework to know when the NIC can handle it, even
 	 * with ext. hdrs.
 	 */
-	if (sw_csum & CSUM_DELAY_DATA_IPV6) {
-		sw_csum &= ~CSUM_DELAY_DATA_IPV6;
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
-			error = ENOBUFS;
-			IP6STAT_INC(ip6s_odropped);
-			goto bad;
-		}
-		in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
-	} else if ((ifp->if_capenable & IFCAP_NOMAP) == 0) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
-			error = ENOBUFS;
-			IP6STAT_INC(ip6s_odropped);
-			goto bad;
-		}
-	}
-#ifdef SCTP
-	if (sw_csum & CSUM_SCTP_IPV6) {
-		sw_csum &= ~CSUM_SCTP_IPV6;
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
-			error = ENOBUFS;
-			IP6STAT_INC(ip6s_odropped);
-			goto bad;
-		}
-		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
-	}
-#endif
-	m->m_pkthdr.csum_flags &= ifp->if_hwassist;
+	error = ip6_output_delayed_csum(m, ifp, sw_csum, plen, optlen, false);
+	if (error != 0)
+		goto bad;
+	/* XXX-BZ m->m_pkthdr.csum_flags &= ~ifp->if_hwassist; */
 	tlen = m->m_pkthdr.len;
 
 	if ((opt && (opt->ip6po_flags & IP6PO_DONTFRAG)) || tso)
@@ -1099,11 +1111,10 @@ passout:
 		 * fragment if possible.
 		 * Must be able to put at least 8 bytes per fragment.
 		 */
-		hlen = unfragpartlen;
 		if (mtu > IPV6_MAXPACKET)
 			mtu = IPV6_MAXPACKET;
 
-		len = (mtu - hlen - sizeof(struct ip6_frag)) & ~7;
+		len = (mtu - unfragpartlen - sizeof(struct ip6_frag)) & ~7;
 		if (len < 8) {
 			error = EMSGSIZE;
 			in6_ifstat_inc(ifp, ifs6_out_fragfail);
@@ -1115,28 +1126,11 @@ passout:
 		 * fragmented packets, then do it here.
 		 * XXX-BZ handle the hw offloading case.  Need flags.
 		 */
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
-			m = mb_unmapped_to_ext(m);
-			if (m == NULL) {
-				in6_ifstat_inc(ifp, ifs6_out_fragfail);
-				error = ENOBUFS;
-				goto bad;
-			}
-			in6_delayed_cksum(m, plen, hlen);
-			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
-		}
-#ifdef SCTP
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
-			m = mb_unmapped_to_ext(m);
-			if (m == NULL) {
-				in6_ifstat_inc(ifp, ifs6_out_fragfail);
-				error = ENOBUFS;
-				goto bad;
-			}
-			sctp_delayed_cksum(m, hlen);
-			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
-		}
-#endif
+		error = ip6_output_delayed_csum(m, ifp, m->m_pkthdr.csum_flags,
+		    plen, optlen, true);
+		if (error != 0)
+			goto bad;
+
 		/*
 		 * Change the next header field of the last header in the
 		 * unfragmentable part.
@@ -1151,6 +1145,7 @@ passout:
 			nextproto = *mtod(exthdrs.ip6e_hbh, u_char *);
 			*mtod(exthdrs.ip6e_hbh, u_char *) = IPPROTO_FRAGMENT;
 		} else {
+			ip6 = mtod(m, struct ip6_hdr *);
 			nextproto = ip6->ip6_nxt;
 			ip6->ip6_nxt = IPPROTO_FRAGMENT;
 		}
@@ -1162,7 +1157,8 @@ passout:
 		 */
 		m0 = m;
 		id = htonl(ip6_randomid());
-		if ((error = ip6_fragment(ifp, m, hlen, nextproto, len, id)))
+		error = ip6_fragment(ifp, m, unfragpartlen, nextproto,len, id);
+		if (error != 0)
 			goto sendorfree;
 
 		in6_ifstat_inc(ifp, ifs6_out_fragok);
