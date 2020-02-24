@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_PFSNODES, "pfs_nodes", "pseudofs nodes");
 
-SYSCTL_NODE(_vfs, OID_AUTO, pfs, CTLFLAG_RW, 0,
+SYSCTL_NODE(_vfs, OID_AUTO, pfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "pseudofs");
 
 #ifdef PSEUDOFS_TRACE
