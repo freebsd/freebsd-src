@@ -243,8 +243,7 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	ifp->if_baudrate =
 		(csr0 & 0x01 ? 500000 : 2000000) / (1 << flags.rate);
 
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSEPOCH;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 
 	mtx_init(&sc->lock, ifp->if_xname, MTX_NETWORK_LOCK, MTX_DEF);
 	callout_init_mtx(&sc->wch, &sc->lock, 0);

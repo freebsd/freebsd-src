@@ -551,8 +551,6 @@ if_alloc_domain(u_char type, int numa_domain)
 #ifdef VIMAGE
 	ifp->if_vnet = curvnet;
 #endif
-	/* XXX */
-	ifp->if_flags |= IFF_NEEDSEPOCH;
 	if (if_com_alloc[type] != NULL) {
 		ifp->if_l2com = if_com_alloc[type](type, ifp);
 		if (ifp->if_l2com == NULL) {
@@ -4167,8 +4165,8 @@ if_setdrvflags(if_t ifp, int flags)
 int
 if_setflags(if_t ifp, int flags)
 {
-	/* XXX Temporary */
-	((struct ifnet *)ifp)->if_flags = flags | IFF_NEEDSEPOCH;
+
+	ifp->if_flags = flags;
 	return (0);
 }
 

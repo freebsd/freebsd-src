@@ -802,6 +802,9 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct epoch_tracker et;
 	struct mbuf *mn;
+	bool needs_epoch;
+
+	needs_epoch = !(ifp->if_flags & IFF_KNOWSEPOCH);
 
 	/*
 	 * The drivers are allowed to pass in a chain of packets linked with
@@ -809,7 +812,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 * them up. This allows the drivers to amortize the receive lock.
 	 */
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	if (__predict_false(ifp->if_flags & IFF_NEEDSEPOCH))
+	if (__predict_false(needs_epoch))
 		NET_EPOCH_ENTER(et);
 	while (m) {
 		mn = m->m_nextpkt;
@@ -825,7 +828,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		netisr_dispatch(NETISR_ETHER, m);
 		m = mn;
 	}
-	if (__predict_false(ifp->if_flags & IFF_NEEDSEPOCH))
+	if (__predict_false(needs_epoch))
 		NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }

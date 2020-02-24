@@ -950,7 +950,8 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = IF_Gbps(10);	/* Approx. */
 	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_KNOWSEPOCH;
 	ifp->if_init = vtnet_init;
 	ifp->if_ioctl = vtnet_ioctl;
 	ifp->if_get_counter = vtnet_get_counter;
