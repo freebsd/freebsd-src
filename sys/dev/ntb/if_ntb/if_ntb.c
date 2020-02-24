@@ -172,8 +172,7 @@ ntb_net_attach(device_t dev)
 
 	if_setinitfn(ifp, ntb_net_init);
 	if_setsoftc(ifp, sc);
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSEPOCH);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setioctlfn(ifp, ntb_ioctl);
 	if_settransmitfn(ifp, ntb_transmit);
 	if_setqflushfn(ifp, ntb_qflush);

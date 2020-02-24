@@ -5400,7 +5400,8 @@ iflib_register(if_ctx_t ctx)
 	if_settransmitfn(ifp, iflib_if_transmit);
 #endif
 	if_setqflushfn(ifp, iflib_if_qflush);
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_KNOWSEPOCH);
 
 	ctx->ifc_vlan_attach_event =
 		EVENTHANDLER_REGISTER(vlan_config, iflib_vlan_register, ctx,
