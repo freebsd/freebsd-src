@@ -850,7 +850,7 @@ ixl_add_vsi_sysctls(device_t dev, struct ixl_vsi *vsi,
 	tree = device_get_sysctl_tree(dev);
 	child = SYSCTL_CHILDREN(tree);
 	vsi->vsi_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, sysctl_name,
-				   CTLFLAG_RD, NULL, "VSI Number");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "VSI Number");
 	vsi_list = SYSCTL_CHILDREN(vsi->vsi_node);
 
 	ixl_add_sysctls_eth_stats(ctx, vsi_list, &vsi->eth_stats);
@@ -911,7 +911,8 @@ ixl_add_queues_sysctls(device_t dev, struct ixl_vsi *vsi)
 		bzero(queue_namebuf, sizeof(queue_namebuf));
 		snprintf(queue_namebuf, QUEUE_NAME_LEN, "rxq%02d", q);
 		queue_node = SYSCTL_ADD_NODE(ctx, vsi_list,
-		    OID_AUTO, queue_namebuf, CTLFLAG_RD, NULL, "RX Queue #");
+		    OID_AUTO, queue_namebuf, CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    NULL, "RX Queue #");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		rx_que = &(vsi->rx_queues[q]);
@@ -938,7 +939,8 @@ ixl_add_queues_sysctls(device_t dev, struct ixl_vsi *vsi)
 		bzero(queue_namebuf, sizeof(queue_namebuf));
 		snprintf(queue_namebuf, QUEUE_NAME_LEN, "txq%02d", q);
 		queue_node = SYSCTL_ADD_NODE(ctx, vsi_list,
-		    OID_AUTO, queue_namebuf, CTLFLAG_RD, NULL, "TX Queue #");
+		    OID_AUTO, queue_namebuf, CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    NULL, "TX Queue #");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		tx_que = &(vsi->tx_queues[q]);
