@@ -283,7 +283,8 @@ corresponds to MACHINE_ARCH.
 .Pp
 A kernel configuration file may have only one
 .Ic machine
-directive.
+directive, unless the second one matches the
+machine argument in the first one exactly.
 .\" -------- MAKEOPTION --------
 .Pp
 .It Ic makeoption Ar options
