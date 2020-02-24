@@ -97,6 +97,7 @@ struct rk805_softc {
 	int			nregs;
 };
 
+static int rk805_regnode_status(struct regnode *regnode, int *status);
 static int rk805_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
     int max_uvolt, int *udelay);
 
@@ -351,6 +352,7 @@ rk805_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 static int
 rk805_write(device_t dev, uint8_t reg, uint8_t data)
 {
+
 	return (iicdev_writeto(dev, reg, &data, 1, IIC_INTRWAIT));
 }
 
@@ -359,7 +361,7 @@ rk805_regnode_init(struct regnode *regnode)
 {
 	struct rk805_reg_sc *sc;
 	struct regnode_std_param *param;
-	int rv, udelay;
+	int rv, udelay, status;
 
 	sc = regnode_get_softc(regnode);
 	param = regnode_get_stdparam(regnode);
@@ -367,13 +369,17 @@ rk805_regnode_init(struct regnode *regnode)
 		return (0);
 
 	/* 
-	 * Set the regulator at the correct voltage
+	 * Set the regulator at the correct voltage if it is not enabled.
 	 * Do not enable it, this is will be done either by a
 	 * consumer or by regnode_set_constraint if boot_on is true
 	 */
+	rv = rk805_regnode_status(regnode, &status);
+	if (rv != 0 || status == REGULATOR_STATUS_ENABLED)
+		return (rv);
+
 	rv = rk805_regnode_set_voltage(regnode, param->min_uvolt,
 	    param->max_uvolt, &udelay);
-	if (rv != 0)
+	if (udelay != 0)
 		DELAY(udelay);
 
 	return (rv);
