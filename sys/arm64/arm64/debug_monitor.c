@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/sysent.h>
 
 #include <machine/armreg.h>
 #include <machine/cpu.h>
@@ -534,7 +535,13 @@ dbg_monitor_exit(struct thread *thread, struct trapframe *frame)
 {
 	int i;
 
-	frame->tf_spsr |= PSR_D;
+	/*
+	 * PSR_D is an aarch64-only flag. On aarch32, it switches
+	 * the processor to big-endian, so avoid setting it for
+	 * 32bits binaries.
+	 */
+	if (!(SV_PROC_FLAG(thread->td_proc, SV_ILP32)))
+		frame->tf_spsr |= PSR_D;
 	if ((thread->td_pcb->pcb_dbg_regs.dbg_flags & DBGMON_ENABLED) != 0) {
 		/* Install the kernel version of the registers */
 		dbg_register_sync(&thread->td_pcb->pcb_dbg_regs);
