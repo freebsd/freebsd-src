@@ -201,7 +201,7 @@ static driver_t iavf_if_driver = {
 ** TUNEABLE PARAMETERS:
 */
 
-static SYSCTL_NODE(_hw, OID_AUTO, iavf, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, iavf, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "iavf driver parameters");
 
 /*
@@ -2049,23 +2049,27 @@ iavf_add_device_sysctls(struct iavf_sc *sc)
 	struct sysctl_oid_list *debug_list;
 
 	SYSCTL_ADD_PROC(ctx, ctx_list,
-	    OID_AUTO, "current_speed", CTLTYPE_STRING | CTLFLAG_RD,
+	    OID_AUTO, "current_speed",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    sc, 0, iavf_sysctl_current_speed, "A", "Current Port Speed");
 
 	SYSCTL_ADD_PROC(ctx, ctx_list,
-	    OID_AUTO, "tx_itr", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "tx_itr",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    sc, 0, iavf_sysctl_tx_itr, "I",
 	    "Immediately set TX ITR value for all queues");
 
 	SYSCTL_ADD_PROC(ctx, ctx_list,
-	    OID_AUTO, "rx_itr", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "rx_itr",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    sc, 0, iavf_sysctl_rx_itr, "I",
 	    "Immediately set RX ITR value for all queues");
 
 	/* Add sysctls meant to print debug information, but don't list them
 	 * in "sysctl -a" output. */
 	debug_node = SYSCTL_ADD_NODE(ctx, ctx_list,
-	    OID_AUTO, "debug", CTLFLAG_RD | CTLFLAG_SKIP, NULL, "Debug Sysctls");
+	    OID_AUTO, "debug", CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_NEEDGIANT,
+	    NULL, "Debug Sysctls");
 	debug_list = SYSCTL_CHILDREN(debug_node);
 
 	SYSCTL_ADD_UINT(ctx, debug_list,
@@ -2077,19 +2081,23 @@ iavf_add_device_sysctls(struct iavf_sc *sc)
 	    &sc->dbg_mask, 0, "Non-shared code debug message level");
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
-	    OID_AUTO, "filter_list", CTLTYPE_STRING | CTLFLAG_RD,
+	    OID_AUTO, "filter_list",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    sc, 0, iavf_sysctl_sw_filter_list, "A", "SW Filter List");
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
-	    OID_AUTO, "queue_interrupt_table", CTLTYPE_STRING | CTLFLAG_RD,
+	    OID_AUTO, "queue_interrupt_table",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    sc, 0, iavf_sysctl_queue_interrupt_table, "A", "View MSI-X indices for TX/RX queues");
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
-	    OID_AUTO, "do_vf_reset", CTLTYPE_INT | CTLFLAG_WR,
+	    OID_AUTO, "do_vf_reset",
+	    CTLTYPE_INT | CTLFLAG_WR | CTLFLAG_NEEDGIANT,
 	    sc, 0, iavf_sysctl_vf_reset, "A", "Request a VF reset from PF");
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
-	    OID_AUTO, "do_vflr_reset", CTLTYPE_INT | CTLFLAG_WR,
+	    OID_AUTO, "do_vflr_reset",
+	    CTLTYPE_INT | CTLFLAG_WR | CTLFLAG_NEEDGIANT,
 	    sc, 0, iavf_sysctl_vflr_reset, "A", "Request a VFLR reset from HW");
 
 	/* Add stats sysctls */

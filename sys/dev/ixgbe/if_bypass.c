@@ -746,50 +746,51 @@ ixgbe_bypass_init(struct adapter *adapter)
 	 */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "bypass_log", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "bypass_log",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_bp_log, "I", "Bypass Log");
 
 	/* All other setting are hung from the 'bypass' node */
 	bp_node = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "bypass", CTLFLAG_RD, NULL, "Bypass");
+	    OID_AUTO, "bypass", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Bypass");
 
 	bp_list = SYSCTL_CHILDREN(bp_node);
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), bp_list,
-	    OID_AUTO, "version", CTLTYPE_INT | CTLFLAG_RD,
+	    OID_AUTO, "version", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_bp_version, "I", "Bypass Version");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), bp_list,
-	    OID_AUTO, "state", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "state", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_bp_set_state, "I", "Bypass State");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), bp_list,
-	    OID_AUTO, "timeout", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "timeout", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_bp_timeout, "I", "Bypass Timeout");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), bp_list,
-	    OID_AUTO, "main_on", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "main_on", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_bp_main_on, "I", "Bypass Main On");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), bp_list,
-	    OID_AUTO, "main_off", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "main_off", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_bp_main_off, "I", "Bypass Main Off");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), bp_list,
-	    OID_AUTO, "aux_on", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "aux_on", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_bp_aux_on, "I", "Bypass Aux On");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), bp_list,
-	    OID_AUTO, "aux_off", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "aux_off", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_bp_aux_off, "I", "Bypass Aux Off");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), bp_list,
-	    OID_AUTO, "wd_set", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "wd_set", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_bp_wd_set, "I", "Set BP Watchdog");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), bp_list,
-	    OID_AUTO, "wd_reset", CTLTYPE_INT | CTLFLAG_WR,
+	    OID_AUTO, "wd_reset", CTLTYPE_INT | CTLFLAG_WR | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_bp_wd_reset, "S", "Bypass WD Reset");
 
 	adapter->feat_en |= IXGBE_FEATURE_BYPASS;
