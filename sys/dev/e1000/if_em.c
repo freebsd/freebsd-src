@@ -459,7 +459,8 @@ static driver_t igb_if_driver = {
 #define CSUM_TSO	0
 #endif
 
-static SYSCTL_NODE(_hw, OID_AUTO, em, CTLFLAG_RD, 0, "EM driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, em, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "EM driver parameters");
 
 static int em_disable_crc_stripping = 0;
 SYSCTL_INT(_hw_em, OID_AUTO, disable_crc_stripping, CTLFLAG_RDTUN,
@@ -785,27 +786,29 @@ em_if_attach_pre(if_ctx_t ctx)
 	/* SYSCTL stuff */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "nvm", CTLTYPE_INT|CTLFLAG_RW, adapter, 0,
-	    em_sysctl_nvm_info, "I", "NVM Information");
+	    OID_AUTO, "nvm", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    adapter, 0, em_sysctl_nvm_info, "I", "NVM Information");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "debug", CTLTYPE_INT|CTLFLAG_RW, adapter, 0,
-	    em_sysctl_debug_info, "I", "Debug Information");
+	    OID_AUTO, "debug", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    adapter, 0, em_sysctl_debug_info, "I", "Debug Information");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "fc", CTLTYPE_INT|CTLFLAG_RW, adapter, 0,
-	    em_set_flowcntl, "I", "Flow Control");
+	    OID_AUTO, "fc", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    adapter, 0, em_set_flowcntl, "I", "Flow Control");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "reg_dump", CTLTYPE_STRING | CTLFLAG_RD, adapter, 0,
+	    OID_AUTO, "reg_dump",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, adapter, 0,
 	    em_get_regs, "A", "Dump Registers");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "rs_dump", CTLTYPE_INT | CTLFLAG_RW, adapter, 0,
+	    OID_AUTO, "rs_dump",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, adapter, 0,
 	    em_get_rs, "I", "Dump RS indexes");
 
 	/* Determine hardware and mac info */
@@ -1020,7 +1023,8 @@ em_if_attach_pre(if_ctx_t ctx)
 	hw->dev_spec.ich8lan.eee_disable = eee_setting;
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "eee_control", CTLTYPE_INT|CTLFLAG_RW,
+	    OID_AUTO, "eee_control",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, em_sysctl_eee, "I",
 	    "Disable Energy Efficient Ethernet");
 
@@ -4081,13 +4085,13 @@ em_add_hw_stats(struct adapter *adapter)
 			CTLFLAG_RD, &adapter->watchdog_events,
 			"Watchdog timeouts");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "device_control",
-			CTLTYPE_UINT | CTLFLAG_RD, adapter, E1000_CTRL,
-			em_sysctl_reg_handler, "IU",
-			"Device Control Register");
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    adapter, E1000_CTRL, em_sysctl_reg_handler, "IU",
+	    "Device Control Register");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_control",
-			CTLTYPE_UINT | CTLFLAG_RD, adapter, E1000_RCTL,
-			em_sysctl_reg_handler, "IU",
-			"Receiver Control Register");
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    adapter, E1000_RCTL, em_sysctl_reg_handler, "IU",
+	    "Receiver Control Register");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "fc_high_water",
 			CTLFLAG_RD, &adapter->hw.fc.high_water, 0,
 			"Flow Control High Watermark");
@@ -4099,19 +4103,17 @@ em_add_hw_stats(struct adapter *adapter)
 		struct tx_ring *txr = &tx_que->txr;
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue_tx_%d", i);
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
-					    CTLFLAG_RD, NULL, "TX Queue Name");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head",
-				CTLTYPE_UINT | CTLFLAG_RD, adapter,
-				E1000_TDH(txr->me),
-				em_sysctl_reg_handler, "IU",
-				"Transmit Descriptor Head");
+		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, adapter,
+		    E1000_TDH(txr->me), em_sysctl_reg_handler, "IU",
+		    "Transmit Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail",
-				CTLTYPE_UINT | CTLFLAG_RD, adapter,
-				E1000_TDT(txr->me),
-				em_sysctl_reg_handler, "IU",
-				"Transmit Descriptor Tail");
+		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, adapter,
+		    E1000_TDT(txr->me), em_sysctl_reg_handler, "IU",
+		    "Transmit Descriptor Tail");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tx_irq",
 				CTLFLAG_RD, &txr->tx_irq,
 				"Queue MSI-X Transmit Interrupts");
@@ -4121,19 +4123,17 @@ em_add_hw_stats(struct adapter *adapter)
 		struct rx_ring *rxr = &rx_que->rxr;
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue_rx_%d", j);
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
-					    CTLFLAG_RD, NULL, "RX Queue Name");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "RX Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head",
-				CTLTYPE_UINT | CTLFLAG_RD, adapter,
-				E1000_RDH(rxr->me),
-				em_sysctl_reg_handler, "IU",
-				"Receive Descriptor Head");
+		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, adapter,
+		    E1000_RDH(rxr->me), em_sysctl_reg_handler, "IU",
+		    "Receive Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail",
-				CTLTYPE_UINT | CTLFLAG_RD, adapter,
-				E1000_RDT(rxr->me),
-				em_sysctl_reg_handler, "IU",
-				"Receive Descriptor Tail");
+		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, adapter,
+		    E1000_RDT(rxr->me), em_sysctl_reg_handler, "IU",
+		    "Receive Descriptor Tail");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "rx_irq",
 				CTLFLAG_RD, &rxr->rx_irq,
 				"Queue MSI-X Receive Interrupts");
@@ -4142,7 +4142,7 @@ em_add_hw_stats(struct adapter *adapter)
 	/* MAC stats get their own sub node */
 
 	stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac_stats",
-				    CTLFLAG_RD, NULL, "Statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Statistics");
 	stat_list = SYSCTL_CHILDREN(stat_node);
 
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "excess_coll",
@@ -4293,7 +4293,7 @@ em_add_hw_stats(struct adapter *adapter)
 	/* Interrupt Stats */
 
 	int_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "interrupts",
-				    CTLFLAG_RD, NULL, "Interrupt Statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Interrupt Statistics");
 	int_list = SYSCTL_CHILDREN(int_node);
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "asserts",
@@ -4435,7 +4435,7 @@ em_add_int_delay_sysctl(struct adapter *adapter, const char *name,
 	info->value = value;
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(adapter->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
-	    OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW,
+	    OID_AUTO, name, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    info, 0, em_sysctl_int_delay, "I", description);
 }
 

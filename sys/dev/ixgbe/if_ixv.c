@@ -418,8 +418,8 @@ ixv_if_attach_pre(if_ctx_t ctx)
 	/* SYSCTL APIs */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "debug",
-	    CTLTYPE_INT | CTLFLAG_RW, adapter, 0, ixv_sysctl_debug, "I",
-	    "Debug Info");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    adapter, 0, ixv_sysctl_debug, "I", "Debug Info");
 
 	/* Determine hardware revision */
 	ixv_identify_hardware(ctx);
@@ -1803,7 +1803,7 @@ ixv_add_stats_sysctls(struct adapter *adapter)
 		struct tx_ring *txr = &tx_que->txr;
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
-		    CTLFLAG_RD, NULL, "Queue Name");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tso_tx",
@@ -1816,7 +1816,7 @@ ixv_add_stats_sysctls(struct adapter *adapter)
 		struct rx_ring *rxr = &rx_que->rxr;
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
-		    CTLFLAG_RD, NULL, "Queue Name");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irqs",
@@ -1830,7 +1830,8 @@ ixv_add_stats_sysctls(struct adapter *adapter)
 	}
 
 	stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac",
-	    CTLFLAG_RD, NULL, "VF Statistics (read from HW registers)");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "VF Statistics (read from HW registers)");
 	stat_list = SYSCTL_CHILDREN(stat_node);
 
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_rcvd",
