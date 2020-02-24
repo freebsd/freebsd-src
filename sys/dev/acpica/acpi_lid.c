@@ -85,6 +85,27 @@ static devclass_t acpi_lid_devclass;
 DRIVER_MODULE(acpi_lid, acpi, acpi_lid_driver, acpi_lid_devclass, 0, 0);
 MODULE_DEPEND(acpi_lid, acpi, 1, 1, 1);
 
+static void
+acpi_lid_status_update(struct acpi_lid_softc *sc)
+{
+	ACPI_STATUS status;
+	int lid_status;
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+	/*
+	 * Evaluate _LID and check the return value, update lid status.
+	 *	Zero:		The lid is closed
+	 *	Non-zero:	The lid is open
+	 */
+	status = acpi_GetInteger(sc->lid_handle, "_LID", &lid_status);
+	if (ACPI_FAILURE(status))
+		lid_status = 1;		/* assume lid is opened */
+
+	/* range check value */
+	sc->lid_status = lid_status ? 1 : 0;
+}
+
 static int
 acpi_lid_probe(device_t dev)
 {
@@ -124,8 +145,8 @@ acpi_lid_attach(device_t dev)
     if (acpi_parse_prw(sc->lid_handle, &prw) == 0)
 	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit);
 
-    /* Get the initial lid status, ignore failures */
-    (void) acpi_GetInteger(sc->lid_handle, "_LID", &sc->lid_status);
+    /* Get the initial lid status */
+    acpi_lid_status_update(sc);
 
     /*
      * Export the lid status
@@ -151,8 +172,8 @@ acpi_lid_resume(device_t dev)
 
     sc = device_get_softc(dev);
 
-    /* Get lid status after resume, ignore failures */
-    (void) acpi_GetInteger(sc->lid_handle, "_LID", &sc->lid_status);
+    /* Update lid status, if any */
+    acpi_lid_status_update(sc);
 
     return (0);
 }
@@ -162,21 +183,14 @@ acpi_lid_notify_status_changed(void *arg)
 {
     struct acpi_lid_softc	*sc;
     struct acpi_softc		*acpi_sc;
-    ACPI_STATUS			status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     sc = (struct acpi_lid_softc *)arg;
     ACPI_SERIAL_BEGIN(lid);
 
-    /*
-     * Evaluate _LID and check the return value, update lid status.
-     *	Zero:		The lid is closed
-     *	Non-zero:	The lid is open
-     */
-    status = acpi_GetInteger(sc->lid_handle, "_LID", &sc->lid_status);
-    if (ACPI_FAILURE(status))
-	goto out;
+    /* Update lid status, if any */
+    acpi_lid_status_update(sc);
 
     acpi_sc = acpi_device_get_parent_softc(sc->lid_dev);
     if (acpi_sc == NULL)
