@@ -19,7 +19,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600012
+%VERSREQ=	600017
 
 .if !defined(S)
 S=	../../..

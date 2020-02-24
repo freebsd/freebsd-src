@@ -306,4 +306,5 @@ LD_EMULATION_powerpc= elf32ppc_fbsd
 LD_EMULATION_powerpcspe= elf32ppc_fbsd
 LD_EMULATION_powerpc64= elf64ppc_fbsd
 LD_EMULATION_riscv64= elf64lriscv
+LD_EMULATION_riscv64sf= elf64lriscv
 LD_EMULATION=${LD_EMULATION_${MACHINE_ARCH}}
