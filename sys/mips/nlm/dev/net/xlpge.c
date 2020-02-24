@@ -1052,8 +1052,7 @@ nlm_xlpge_ifinit(struct nlm_xlpge_softc *sc)
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSEPOCH;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	sc->if_flags = ifp->if_flags;
 	/*ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_HWTAGGING;*/
 	ifp->if_capabilities = 0;

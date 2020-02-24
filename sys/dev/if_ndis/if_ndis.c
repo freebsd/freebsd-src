@@ -967,8 +967,7 @@ ndis_ifattach(struct ndis_softc *sc)
 
 	if_initname(ifp, device_get_name(sc->ndis_dev),
 	    device_get_unit(sc->ndis_dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSEPOCH;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ndis_ifioctl;
 	ifp->if_start = ndis_ifstart;
 	ifp->if_init = ndis_init;
