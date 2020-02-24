@@ -472,9 +472,10 @@ out:
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet6_sctp6, OID_AUTO, getcred, CTLTYPE_OPAQUE | CTLFLAG_RW,
-    0, 0,
-    sctp6_getcred, "S,ucred", "Get the ucred of a SCTP6 connection");
+SYSCTL_PROC(_net_inet6_sctp6, OID_AUTO, getcred,
+    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    0, 0, sctp6_getcred, "S,ucred",
+    "Get the ucred of a SCTP6 connection");
 
 
 /* This is the same as the sctp_abort() could be made common */
