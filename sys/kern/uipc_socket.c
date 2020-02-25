@@ -1591,12 +1591,8 @@ restart:
 					    M_NOMAP |
 					    ((flags & MSG_EOR) ? M_EOR : 0));
 					if (top != NULL) {
-						error = ktls_frame(top, tls,
+						ktls_frame(top, tls,
 						    &tls_enq_cnt, tls_rtype);
-						if (error) {
-							m_freem(top);
-							goto release;
-						}
 					}
 					tls_rtype = TLS_RLTYPE_APP;
 				} else

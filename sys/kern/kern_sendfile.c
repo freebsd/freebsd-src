@@ -1046,12 +1046,8 @@ prepend_header:
 
 		CURVNET_SET(so->so_vnet);
 #ifdef KERN_TLS
-		if (tls != NULL) {
-			error = ktls_frame(m, tls, &tls_enq_cnt,
-			    TLS_RLTYPE_APP);
-			if (error != 0)
-				goto done;
-		}
+		if (tls != NULL)
+			ktls_frame(m, tls, &tls_enq_cnt, TLS_RLTYPE_APP);
 #endif
 		if (nios == 0) {
 			/*
