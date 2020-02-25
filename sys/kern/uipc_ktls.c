@@ -1231,7 +1231,7 @@ ktls_seq(struct sockbuf *sb, struct mbuf *m)
  * encryption.  The returned value should be passed to ktls_enqueue
  * when scheduling encryption of this chain of mbufs.
  */
-int
+void
 ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
     uint8_t record_type)
 {
@@ -1250,10 +1250,8 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		 * records whose payload does not exceed the maximum
 		 * frame length.
 		 */
-		if (m->m_len > maxlen || m->m_len == 0)
-			return (EINVAL);
-		tls_len = m->m_len;
-
+		KASSERT(m->m_len <= maxlen && m->m_len > 0,
+		    ("ktls_frame: m %p len %d\n", m, m->m_len));
 		/*
 		 * TLS frames require unmapped mbufs to store session
 		 * info.
@@ -1261,6 +1259,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		KASSERT((m->m_flags & M_NOMAP) != 0,
 		    ("ktls_frame: mapped mbuf %p (top = %p)\n", m, top));
 
+		tls_len = m->m_len;
 		pgs = m->m_ext.ext_pgs;
 
 		/* Save a reference to the session. */
@@ -1346,7 +1345,6 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 			*enq_cnt += pgs->npgs;
 		}
 	}
-	return (0);
 }
 
 void

@@ -177,7 +177,7 @@ int ktls_crypto_backend_register(struct ktls_crypto_backend *be);
 int ktls_crypto_backend_deregister(struct ktls_crypto_backend *be);
 int ktls_enable_tx(struct socket *so, struct tls_enable *en);
 void ktls_destroy(struct ktls_session *tls);
-int ktls_frame(struct mbuf *m, struct ktls_session *tls, int *enqueue_cnt,
+void ktls_frame(struct mbuf *m, struct ktls_session *tls, int *enqueue_cnt,
     uint8_t record_type);
 void ktls_seq(struct sockbuf *sb, struct mbuf *m);
 void ktls_enqueue(struct mbuf *m, struct socket *so, int page_count);
