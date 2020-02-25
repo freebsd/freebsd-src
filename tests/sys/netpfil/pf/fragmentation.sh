@@ -80,6 +80,10 @@ v6_head()
 
 v6_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/244393"
+	fi
+
 	pft_init
 
 	epair_send=$(vnet_mkepair)
