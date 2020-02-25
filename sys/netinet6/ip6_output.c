@@ -497,7 +497,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	 */
 	bzero(&exthdrs, sizeof(exthdrs));
 	optlen = 0;
-	unfragpartlen = 0;
+	unfragpartlen = sizeof(struct ip6_hdr);
 	if (opt) {
 		/* Hop-by-Hop options header. */
 		MAKE_EXTHDR(opt->ip6po_hbh, &exthdrs.ip6e_hbh, optlen);
@@ -535,7 +535,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		/* Routing header. */
 		MAKE_EXTHDR(opt->ip6po_rthdr, &exthdrs.ip6e_rthdr, optlen);
 
-		unfragpartlen = optlen + sizeof(struct ip6_hdr);
+		unfragpartlen += optlen;
 
 		/*
 		 * NOTE: we don't add AH/ESP length here (done in
