@@ -381,12 +381,16 @@ loadpoolfile(argc, argv, infile)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "dnuv")) != -1)
+	while ((c = getopt(argc, argv, "dnuvf:")) != -1)
 		switch (c)
 		{
 		case 'd' :
 			opts |= OPT_DEBUG;
 			ippool_yydebug++;
+			break;
+		case 'f' :
+			if (loadpoolfile(argc, argv, optarg) != 0)
+				return(-1);
 			break;
 		case 'n' :
 			opts |= OPT_DONOTHING|OPT_DONTOPEN;
