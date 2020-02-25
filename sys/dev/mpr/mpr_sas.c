@@ -559,7 +559,6 @@ mprsas_remove_device(struct mpr_softc *sc, struct mpr_command *tm)
 	MPI2_SCSI_TASK_MANAGE_REPLY *reply;
 	MPI2_SAS_IOUNIT_CONTROL_REQUEST *req;
 	struct mprsas_target *targ;
-	struct mpr_command *next_cm;
 	uint16_t handle;
 
 	MPR_FUNCTRACE(sc);
@@ -609,7 +608,18 @@ mprsas_remove_device(struct mpr_softc *sc, struct mpr_command *tm)
 	tm->cm_complete = mprsas_remove_complete;
 	tm->cm_complete_data = (void *)(uintptr_t)handle;
 
-	mpr_map_command(sc, tm);
+	/*
+	 * Wait to send the REMOVE_DEVICE until all the commands have cleared.
+	 * They should be aborted or time out and we'll kick thus off there
+	 * if so.
+	 */
+	if (TAILQ_FIRST(&targ->commands) == NULL) {
+		mpr_dprint(sc, MPR_INFO, "No pending commands: starting remove_device\n");
+		mpr_map_command(sc, tm);
+		targ->pending_remove_tm = NULL;
+	} else {
+		targ->pending_remove_tm = tm;
+	}
 
 	mpr_dprint(sc, MPR_INFO, "clearing target %u handle 0x%04x\n",
 	    targ->tid, handle);
@@ -617,15 +627,6 @@ mprsas_remove_device(struct mpr_softc *sc, struct mpr_command *tm)
 		mpr_dprint(sc, MPR_INFO, "At enclosure level %d, slot %d, "
 		    "connector name (%4s)\n", targ->encl_level, targ->encl_slot,
 		    targ->connector_name);
-	}
-	TAILQ_FOREACH_SAFE(tm, &targ->commands, cm_link, next_cm) {
-		union ccb *ccb;
-
-		mpr_dprint(sc, MPR_XINFO, "Completing missed command %p\n", tm);
-		ccb = tm->cm_complete_data;
-		mprsas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
-		tm->cm_state = MPR_CM_STATE_BUSY;
-		mprsas_scsiio_complete(sc, tm);
 	}
 }
 
@@ -641,6 +642,15 @@ mprsas_remove_complete(struct mpr_softc *sc, struct mpr_command *tm)
 
 	reply = (MPI2_SAS_IOUNIT_CONTROL_REPLY *)tm->cm_reply;
 	handle = (uint16_t)(uintptr_t)tm->cm_complete_data;
+
+	targ = tm->cm_targ;
+
+	/*
+	 * At this point, we should have no pending commands for the target.
+	 * The remove target has just completed.
+	 */
+	KASSERT(TAILQ_FIRST(&targ->commands) == NULL,
+	    ("%s: no commands should be pending\n", __func__));
 
 	/*
 	 * Currently there should be no way we can hit this case.  It only
@@ -674,7 +684,6 @@ mprsas_remove_complete(struct mpr_softc *sc, struct mpr_command *tm)
 	 */
 	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) ==
 	    MPI2_IOCSTATUS_SUCCESS) {
-		targ = tm->cm_targ;
 		targ->handle = 0x0;
 		targ->encl_handle = 0x0;
 		targ->encl_level_valid = 0x0;
@@ -1964,13 +1973,17 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 	/*
 	 * If devinfo is 0 this will be a volume.  In that case don't tell CAM
 	 * that the volume has timed out.  We want volumes to be enumerated
-	 * until they are deleted/removed, not just failed.
+	 * until they are deleted/removed, not just failed. In either event,
+	 * we're removing the target due to a firmware event telling us
+	 * the device is now gone (as opposed to some transient event). Since
+	 * we're opting to remove failed devices from the OS's view, we need
+	 * to propagate that status up the stack.
 	 */
 	if (targ->flags & MPRSAS_TARGET_INREMOVAL) {
 		if (targ->devinfo == 0)
 			mprsas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		else
-			mprsas_set_ccbstatus(ccb, CAM_SEL_TIMEOUT);
+			mprsas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		xpt_done(ccb);
 		return;
 	}
@@ -2844,15 +2857,22 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		 * potential risk of flagging false failures in the event
 		 * of a topology-related error (e.g. a SAS expander problem
 		 * causes a command addressed to a drive to fail), but
-		 * avoiding getting into an infinite retry loop.
+		 * avoiding getting into an infinite retry loop. However,
+		 * if we get them while were moving a device, we should
+		 * fail the request as 'not there' because the device
+		 * is effectively gone.
 		 */
-		mprsas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
+		if (cm->cm_targ->flags & MPRSAS_TARGET_INREMOVAL)
+			mprsas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
+		else
+			mprsas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		mpr_dprint(sc, MPR_INFO,
-		    "Controller reported %s tgt %u SMID %u loginfo %x\n",
+		    "Controller reported %s tgt %u SMID %u loginfo %x%s\n",
 		    mpr_describe_table(mpr_iocstatus_string,
 		    le16toh(rep->IOCStatus) & MPI2_IOCSTATUS_MASK),
 		    target_id, cm->cm_desc.Default.SMID,
-		    le32toh(rep->IOCLogInfo));
+		    le32toh(rep->IOCLogInfo),
+		    (cm->cm_targ->flags & MPRSAS_TARGET_INREMOVAL) ? " departing" : "");
 		mpr_dprint(sc, MPR_XINFO,
 		    "SCSIStatus %x SCSIState %x xfercount %u\n",
 		    rep->SCSIStatus, rep->SCSIState,
@@ -2898,6 +2918,21 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 	if (mprsas_get_ccbstatus(ccb) != CAM_REQ_CMP) {
 		ccb->ccb_h.status |= CAM_DEV_QFRZN;
 		xpt_freeze_devq(ccb->ccb_h.path, /*count*/ 1);
+	}
+
+	/*
+	 * Check to see if we're removing the device. If so, and this is the
+	 * last command on the queue, proceed with the deferred removal of the
+	 * device.  Note, for removing a volume, this won't trigger because
+	 * pending_remove_tm will be NULL.
+	 */
+	if (cm->cm_targ->flags & MPRSAS_TARGET_INREMOVAL) {
+		if (TAILQ_FIRST(&cm->cm_targ->commands) == NULL &&
+		    cm->cm_targ->pending_remove_tm != NULL) {
+			mpr_dprint(sc, MPR_INFO, "Last pending command complete: starting remove_device\n");
+			mpr_map_command(sc, cm->cm_targ->pending_remove_tm);
+			cm->cm_targ->pending_remove_tm = NULL;
+		}
 	}
 
 	mpr_free_command(sc, cm);
