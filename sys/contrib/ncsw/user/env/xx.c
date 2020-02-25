@@ -95,7 +95,6 @@ MTX_SYSINIT(XX_MallocTrackLockInit, &XX_MallocTrackLock,
 
 /* Interrupt info */
 #define XX_INTR_FLAG_PREALLOCATED	(1 << 0)
-#define XX_INTR_FLAG_FMAN_FIX		(1 << 1)
 
 struct XX_IntrInfo {
 	driver_intr_t	*handler;
@@ -295,23 +294,6 @@ XX_IsPortalIntr(uintptr_t irq)
 	return (0);
 }
 
-void
-XX_FmanFixIntr(int irq)
-{
-
-	XX_IntrInfo[irq].flags |= XX_INTR_FLAG_FMAN_FIX;
-}
-
-static bool
-XX_FmanNeedsIntrFix(int irq)
-{
-
-	if (XX_IntrInfo[irq].flags & XX_INTR_FLAG_FMAN_FIX)
-		return (1);
-
-	return (0);
-}
-
 static void
 XX_Dispatch(void *arg)
 {
@@ -398,21 +380,7 @@ XX_SetIntr(uintptr_t irq, t_Isr *f_Isr, t_Handle handle)
 
 	err = bus_setup_intr(dev, r, flags, NULL, f_Isr, handle,
 		    &XX_IntrInfo[irq].cookie);
-	if (err)
-		goto finish;
 
-	/*
-	 * XXX: Bind FMan IRQ to CPU0. Current interrupt subsystem directs each
-	 * interrupt to all CPUs. Race between an interrupt assertion and
-	 * masking may occur and interrupt handler may be called multiple times
-	 * per one interrupt. FMan doesn't support such a situation. Workaround
-	 * is to bind FMan interrupt to one CPU0 only.
-	 */
-#ifdef SMP
-	if (XX_FmanNeedsIntrFix(irq))
-		err = powerpc_bind_intr(irq, 0);
-#endif
-finish:
 	return (err);
 }
 

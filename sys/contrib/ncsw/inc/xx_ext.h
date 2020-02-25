@@ -794,5 +794,4 @@ t_Error XX_IpcSendMessage(t_Handle           h_Session,
 
 
 void XX_PortalSetInfo(device_t dev);
-void XX_FmanFixIntr(int irq);
 #endif /* __XX_EXT_H */
