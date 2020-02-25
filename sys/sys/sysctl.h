@@ -324,6 +324,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	SYSCTL_OID_RAW(sysctl___##name, &sysctl__children,	\
 	    nbr, #name, CTLTYPE_NODE|(access), NULL, 0,		\
 	    handler, "N", descr, NULL);				\
+	SYSCTL_ENFORCE_FLAGS(access);				\
 	CTASSERT(((access) & CTLTYPE) == 0 ||			\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_NODE)
 
