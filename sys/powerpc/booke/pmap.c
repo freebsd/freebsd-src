@@ -233,7 +233,7 @@ uint32_t tlb1_entries;
 #define	VM_MAPDEV_BASE		0x8000000000000000
 #define	VM_MAPDEV_PA_MAX	0x4000000000000000 /* Don't encroach on DMAP */
 #else
-#define	VM_MAPDEV_BASE	(VM_MAXUSER_ADDRESS + PAGE_SIZE)
+#define	VM_MAPDEV_BASE	((vm_offset_t)VM_MAXUSER_ADDRESS + PAGE_SIZE)
 #endif
 
 static vm_offset_t tlb1_map_base = VM_MAPDEV_BASE;
