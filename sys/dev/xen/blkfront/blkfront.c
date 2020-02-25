@@ -83,7 +83,8 @@ static void xbd_startio(struct xbd_softc *sc);
 static MALLOC_DEFINE(M_XENBLOCKFRONT, "xbd", "Xen Block Front driver data");
 
 static int xbd_enable_indirect = 1;
-SYSCTL_NODE(_hw, OID_AUTO, xbd, CTLFLAG_RD, 0, "xbd driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, xbd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "xbd driver parameters");
 SYSCTL_INT(_hw_xbd, OID_AUTO, xbd_enable_indirect, CTLFLAG_RDTUN,
     &xbd_enable_indirect, 0, "Enable xbd indirect segments");
 
@@ -926,8 +927,8 @@ xbd_setup_sysctl(struct xbd_softc *xbd)
 	    "communication channel pages (negotiated)");
 
 	SYSCTL_ADD_PROC(sysctl_ctx, children, OID_AUTO,
-	    "features", CTLTYPE_STRING|CTLFLAG_RD, xbd, 0,
-	    xbd_sysctl_features, "A", "protocol features (negotiated)");
+	    "features", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, xbd,
+	    0, xbd_sysctl_features, "A", "protocol features (negotiated)");
 }
 
 /*
