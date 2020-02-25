@@ -95,8 +95,7 @@ MTX_SYSINIT(XX_MallocTrackLockInit, &XX_MallocTrackLock,
 
 /* Interrupt info */
 #define XX_INTR_FLAG_PREALLOCATED	(1 << 0)
-#define XX_INTR_FLAG_BOUND		(1 << 1)
-#define XX_INTR_FLAG_FMAN_FIX		(1 << 2)
+#define XX_INTR_FLAG_FMAN_FIX		(1 << 1)
 
 struct XX_IntrInfo {
 	driver_intr_t	*handler;
@@ -320,16 +319,6 @@ XX_Dispatch(void *arg)
 
 	info = arg;
 
-	/* Bind this thread to proper CPU when SMP has been already started. */
-	if ((info->flags & XX_INTR_FLAG_BOUND) == 0 && smp_started &&
-	    info->cpu >= 0) {
-		thread_lock(curthread);
-		sched_bind(curthread, info->cpu);
-		thread_unlock(curthread);
-
-		info->flags |= XX_INTR_FLAG_BOUND;
-	}
-
 	if (info->handler == NULL) {
 		printf("%s(): IRQ handler is NULL!\n", __func__);
 		return;
@@ -339,7 +328,7 @@ XX_Dispatch(void *arg)
 }
 
 t_Error
-XX_PreallocAndBindIntr(uintptr_t irq, unsigned int cpu)
+XX_PreallocAndBindIntr(device_t dev, uintptr_t irq, unsigned int cpu)
 {
 	struct resource *r;
 	unsigned int inum;
@@ -349,6 +338,10 @@ XX_PreallocAndBindIntr(uintptr_t irq, unsigned int cpu)
 	inum = rman_get_start(r);
 
 	error = XX_SetIntr(irq, XX_Dispatch, &XX_IntrInfo[inum]);
+	if (error != 0)
+		return (error);
+
+	error = bus_bind_intr(dev, r, cpu);
 	if (error != 0)
 		return (error);
 
