@@ -205,7 +205,7 @@ uint32_t XX_DisableAllIntr(void);
 void XX_RestoreAllIntr(uint32_t flags);
 
 
-t_Error XX_PreallocAndBindIntr(uintptr_t irq, unsigned int cpu);
+t_Error XX_PreallocAndBindIntr(device_t dev, uintptr_t irq, unsigned int cpu);
 t_Error XX_DeallocIntr(uintptr_t irq);
 
 /**************************************************************************//**
