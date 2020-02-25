@@ -258,7 +258,7 @@ static void
 sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 {
 	struct sf_io *sfio = arg;
-	struct socket *so = sfio->so;
+	struct socket *so;
 
 	for (int i = 0; i < count; i++)
 		if (pg[i] != bogus_page)
@@ -272,12 +272,15 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 
 	vm_object_pip_wakeup(sfio->obj);
 
-	if (__predict_false(sfio->error && sfio->m == NULL)) {
+	if (sfio->m == NULL) {
 		/*
-		 * I/O operation failed, but pru_send hadn't been executed -
-		 * nothing had been sent to the socket.  The syscall has
-		 * returned error to the user.
+		 * Either I/O operation failed, or we failed to allocate
+		 * buffers, or we bailed out on first busy page, or we
+		 * succeeded filling the request without any I/Os. Anyway,
+		 * pru_send hadn't been executed - nothing had been sent
+		 * to the socket yet.
 		 */
+		MPASS((curthread->td_pflags & TDP_KTHREAD) == 0);
 		free(sfio, M_TEMP);
 		return;
 	}
@@ -291,6 +294,7 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 		KASSERT(sfio->tls == NULL,
 		    ("non-ext_pgs mbuf with TLS session"));
 #endif
+	so = sfio->so;
 	CURVNET_SET(so->so_vnet);
 	if (__predict_false(sfio->error)) {
 		/*
@@ -663,7 +667,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	for (off = offset; rem > 0; ) {
 		struct sf_io *sfio;
 		vm_page_t *pa;
-		struct mbuf *mtail;
+		struct mbuf *m0, *mtail;
 		int nios, space, npages, rhpages;
 
 		mtail = NULL;
@@ -819,11 +823,9 @@ retry_space:
 		sfio = malloc(sizeof(struct sf_io) +
 		    npages * sizeof(vm_page_t), M_TEMP, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
-		sfio->so = so;
 		sfio->obj = obj;
 		sfio->error = 0;
-		vm_object_pip_add(obj, 1);
-
+		sfio->m = NULL;
 #ifdef KERN_TLS
 		/*
 		 * This doesn't use ktls_hold() because sfio->m will
@@ -832,13 +834,12 @@ retry_space:
 		 */
 		sfio->tls = tls;
 #endif
-
+		vm_object_pip_add(obj, 1);
 		error = sendfile_swapin(obj, sfio, &nios, off, space, npages,
 		    rhpages, flags);
 		if (error != 0) {
 			if (vp != NULL)
 				VOP_UNLOCK(vp);
-			sfio->m = NULL;
 			sendfile_iodone(sfio, NULL, 0, error);
 			goto done;
 		}
@@ -876,8 +877,6 @@ retry_space:
 		}
 
 		for (int i = 0; i < npages; i++) {
-			struct mbuf *m0;
-
 			/*
 			 * If a page wasn't grabbed successfully, then
 			 * trim the array. Can happen only with SF_NODISKIO.
@@ -922,8 +921,6 @@ retry_space:
 						mtx_unlock(&sfs->mtx);
 					}
 					ext_pgs = m0->m_ext.ext_pgs;
-					if (i == 0)
-						sfio->m = m0;
 					ext_pgs_idx = 0;
 
 					/* Append to mbuf chain. */
@@ -1006,9 +1003,6 @@ retry_space:
 			    (vmoff(i, off) & PAGE_MASK);
 			m0->m_len = xfsize(i, npages, off, space);
 
-			if (i == 0)
-				sfio->m = m0;
-
 			/* Append to mbuf chain. */
 			if (mtail != NULL)
 				mtail->m_next = m0;
@@ -1024,18 +1018,22 @@ retry_space:
 		off += space;
 		rem -= space;
 
-		/* Prepend header, if any. */
+		/*
+		 * Prepend header, if any.  Save pointer to first mbuf
+		 * with a page.
+		 */
 		if (hdrlen) {
 prepend_header:
-			mhtail->m_next = m;
+			m0 = mhtail->m_next = m;
 			m = mh;
 			mh = NULL;
-		}
+		} else
+			m0 = m;
 
 		if (m == NULL) {
 			KASSERT(softerr, ("%s: m NULL, no error", __func__));
 			error = softerr;
-			free(sfio, M_TEMP);
+			sendfile_iodone(sfio, NULL, 0, 0);
 			goto done;
 		}
 
@@ -1052,14 +1050,13 @@ prepend_header:
 		if (nios == 0) {
 			/*
 			 * If sendfile_swapin() didn't initiate any I/Os,
-			 * which happens if all data is cached in VM, then
-			 * we can send data right now without the
-			 * PRUS_NOTREADY flag.
+			 * which happens if all data is cached in VM, or if
+			 * the header consumed all socket buffer space and
+			 * sfio is NULL, then we can send data right now
+			 * without the PRUS_NOTREADY flag.
 			 */
-			if (sfio != NULL) {
-				vm_object_pip_wakeup(sfio->obj);
-				free(sfio, M_TEMP);
-			}
+			if (sfio != NULL)
+				sendfile_iodone(sfio, NULL, 0, 0);
 #ifdef KERN_TLS
 			if (tls != NULL && tls->mode == TCP_TLS_MODE_SW) {
 				error = (*so->so_proto->pr_usrreqs->pru_send)
@@ -1071,6 +1068,8 @@ prepend_header:
 				error = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, NULL, NULL, td);
 		} else {
+			sfio->so = so;
+			sfio->m = m0;
 			sfio->npages = npages;
 			soref(so);
 			error = (*so->so_proto->pr_usrreqs->pru_send)
