@@ -462,7 +462,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 		 * Restore the valid page pointers.  They are already
 		 * unbusied, but still wired.
 		 */
-		for (j = i; j < i + count; j++)
+		for (j = i + 1; j < i + count - 1; j++)
 			if (pa[j] == bogus_page) {
 				pa[j] = vm_page_lookup(obj,
 				    OFF_TO_IDX(vmoff(j, off)));
