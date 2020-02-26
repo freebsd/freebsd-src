@@ -1047,20 +1047,16 @@ bus_probe(void)
 static void
 cache_setup(void)
 {
-	int dcache_line_shift, icache_line_shift, dczva_line_shift;
+	int dczva_line_shift;
 	uint32_t ctr_el0;
 	uint32_t dczid_el0;
 
 	ctr_el0 = READ_SPECIALREG(ctr_el0);
 
-	/* Read the log2 words in each D cache line */
-	dcache_line_shift = CTR_DLINE_SIZE(ctr_el0);
 	/* Get the D cache line size */
-	dcache_line_size = sizeof(int) << dcache_line_shift;
-
+	dcache_line_size = CTR_DLINE_SIZE(ctr_el0);
 	/* And the same for the I cache */
-	icache_line_shift = CTR_ILINE_SIZE(ctr_el0);
-	icache_line_size = sizeof(int) << icache_line_shift;
+	icache_line_size = CTR_ILINE_SIZE(ctr_el0);
 
 	idcache_line_size = MIN(dcache_line_size, icache_line_size);
 
