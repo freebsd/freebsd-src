@@ -28,7 +28,7 @@
 .\"	@(#)mprotect.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2019
+.Dd February 26, 2020
 .Dt MPROTECT 2
 .Os
 .Sh NAME
@@ -104,7 +104,7 @@ arguments is not valid.
 The
 .Fa prot
 argument contains unhandled bits.
-.It Bq Er EINVAL
+.It Bq Er ENOTSUP
 The
 .Fa prot
 argument contains permissions which are not a subset of the specified
