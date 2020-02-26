@@ -61,7 +61,7 @@
 struct mtx rawcb_mtx;
 VNET_DEFINE(struct rawcb_list_head, rawcb_list);
 
-static SYSCTL_NODE(_net, OID_AUTO, raw, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net, OID_AUTO, raw, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Raw socket infrastructure");
 
 static u_long	raw_sendspace = RAWSNDQ;

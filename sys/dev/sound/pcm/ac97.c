@@ -919,7 +919,8 @@ ac97_init_sysctl(struct ac97_info *codec)
 		return;
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(codec->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(codec->dev)),
-            OID_AUTO, "eapd", CTLTYPE_INT | CTLFLAG_RW,
+            OID_AUTO, "eapd",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    codec, sizeof(codec), sysctl_hw_snd_ac97_eapd,
 	    "I", "AC97 External Amplifier");
 }

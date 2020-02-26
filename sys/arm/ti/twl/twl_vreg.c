@@ -848,7 +848,7 @@ twl_vreg_add_regulator(struct twl_vreg_softc *sc, const char *name,
 
 	/* Add a sysctl entry for the voltage */
 	new->oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, name,
-	    CTLTYPE_INT | CTLFLAG_RD, sc, 0,
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
 	    twl_vreg_sysctl_voltage, "I", "voltage regulator");
 
 	/* Finally add the regulator to list of supported regulators */

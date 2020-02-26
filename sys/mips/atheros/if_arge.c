@@ -292,7 +292,7 @@ arge_attach_intr_sysctl(device_t dev, struct sysctl_oid_list *parent)
 	int i;
 
 	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "intr",
-	    CTLFLAG_RD, NULL, "Interrupt statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Interrupt statistics");
 	child = SYSCTL_CHILDREN(tree);
 	for (i = 0; i < 32; i++) {
 		snprintf(sn, sizeof(sn), "%d", i);

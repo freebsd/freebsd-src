@@ -44,7 +44,8 @@ __FBSDID("$FreeBSD$");
 int nvme_use_nvd = NVME_USE_NVD;
 bool nvme_verbose_cmd_dump = false;
 
-SYSCTL_NODE(_hw, OID_AUTO, nvme, CTLFLAG_RD, 0, "NVMe sysctl tunables");
+SYSCTL_NODE(_hw, OID_AUTO, nvme, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "NVMe sysctl tunables");
 SYSCTL_INT(_hw_nvme, OID_AUTO, use_nvd, CTLFLAG_RDTUN,
     &nvme_use_nvd, 1, "1 = Create NVD devices, 0 = Create NDA devices");
 SYSCTL_BOOL(_hw_nvme, OID_AUTO, verbose_cmd_dump, CTLFLAG_RWTUN,
@@ -288,8 +289,8 @@ nvme_sysctl_initialize_queue(struct nvme_qpair *qpair,
 	    "Number of commands ending in failure after all retries");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, que_list, OID_AUTO,
-	    "dump_debug", CTLTYPE_UINT | CTLFLAG_RW, qpair, 0,
-	    nvme_sysctl_dump_debug, "IU", "Dump debug data");
+	    "dump_debug", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    qpair, 0, nvme_sysctl_dump_debug, "IU", "Dump debug data");
 }
 
 void
@@ -311,55 +312,57 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	    "Number of I/O queue pairs");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "int_coal_time", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
-	    nvme_sysctl_int_coal_time, "IU",
+	    "int_coal_time", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    ctrlr, 0, nvme_sysctl_int_coal_time, "IU",
 	    "Interrupt coalescing timeout (in microseconds)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "int_coal_threshold", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
+	    "int_coal_threshold",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, ctrlr, 0,
 	    nvme_sysctl_int_coal_threshold, "IU",
 	    "Interrupt coalescing threshold");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "timeout_period", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
-	    nvme_sysctl_timeout_period, "IU",
+	    "timeout_period", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    ctrlr, 0, nvme_sysctl_timeout_period, "IU",
 	    "Timeout period (in seconds)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD,
+	    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    ctrlr, 0, nvme_sysctl_num_cmds, "IU",
 	    "Number of commands submitted");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "num_intr_handler_calls", CTLTYPE_S64 | CTLFLAG_RD,
-	    ctrlr, 0, nvme_sysctl_num_intr_handler_calls, "IU",
+	    "num_intr_handler_calls",
+	    CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT, ctrlr, 0,
+	    nvme_sysctl_num_intr_handler_calls, "IU",
 	    "Number of times interrupt handler was invoked (will "
 	    "typically be less than number of actual interrupts "
 	    "generated due to coalescing)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "num_retries", CTLTYPE_S64 | CTLFLAG_RD,
+	    "num_retries", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    ctrlr, 0, nvme_sysctl_num_retries, "IU",
 	    "Number of commands retried");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "num_failures", CTLTYPE_S64 | CTLFLAG_RD,
+	    "num_failures", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    ctrlr, 0, nvme_sysctl_num_failures, "IU",
 	    "Number of commands ending in failure after all retries");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "reset_stats", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
-	    nvme_sysctl_reset_stats, "IU", "Reset statistics to zero");
+	    "reset_stats", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, ctrlr,
+	    0, nvme_sysctl_reset_stats, "IU", "Reset statistics to zero");
 
 	que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO, "adminq",
-	    CTLFLAG_RD, NULL, "Admin Queue");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Admin Queue");
 
 	nvme_sysctl_initialize_queue(&ctrlr->adminq, ctrlr_ctx, que_tree);
 
 	for (i = 0; i < ctrlr->num_io_queues; i++) {
 		snprintf(queue_name, QUEUE_NAME_LENGTH, "ioq%d", i);
 		que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO,
-		    queue_name, CTLFLAG_RD, NULL, "IO Queue");
+		    queue_name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "IO Queue");
 		nvme_sysctl_initialize_queue(&ctrlr->ioq[i], ctrlr_ctx,
 		    que_tree);
 	}

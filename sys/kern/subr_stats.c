@@ -3890,11 +3890,12 @@ done:
 	return (err);
 }
 
-SYSCTL_NODE(_kern, OID_AUTO, stats, CTLFLAG_RW, NULL,
+SYSCTL_NODE(_kern, OID_AUTO, stats, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "stats(9) MIB");
 
-SYSCTL_PROC(_kern_stats, OID_AUTO, templates, CTLTYPE_STRING|CTLFLAG_RD,
-    NULL, 0, stats_tpl_list_available, "A",
+SYSCTL_PROC(_kern_stats, OID_AUTO, templates,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    stats_tpl_list_available, "A",
     "list the name/hash of all available stats(9) templates");
 
 #else /* ! _KERNEL */

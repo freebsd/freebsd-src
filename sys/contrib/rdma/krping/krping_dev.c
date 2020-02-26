@@ -30,7 +30,8 @@ __FBSDID("$FreeBSD$");
 
 #define BUFFERSIZE 512
 
-SYSCTL_NODE(_dev, OID_AUTO, krping, CTLFLAG_RW, 0, "kernel rping module");
+SYSCTL_NODE(_dev, OID_AUTO, krping, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "kernel rping module");
 
 int krping_debug = 0;
 SYSCTL_INT(_dev_krping, OID_AUTO, debug, CTLFLAG_RW, &krping_debug, 0 , "");

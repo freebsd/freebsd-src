@@ -1245,7 +1245,8 @@ bcm2835_cpufreq_init(void *arg)
 		ctx = device_get_sysctl_ctx(cpu);
 		SYSCTL_ADD_PROC(ctx,
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(cpu)), OID_AUTO,
-		    "temperature", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
+		    "temperature",
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
 		    sysctl_bcm2835_devcpu_temperature, "IK",
 		    "Current SoC temperature");
 	}
@@ -1312,57 +1313,67 @@ bcm2835_cpufreq_attach(device_t dev)
 		/* create node for hw.cpufreq */
 		oid = SYSCTL_ADD_NODE(&bcm2835_sysctl_ctx,
 		    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, "cpufreq",
-		    CTLFLAG_RD, NULL, "");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 
 		/* Frequency (Hz) */
 		SYSCTL_ADD_PROC(&bcm2835_sysctl_ctx, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "arm_freq", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		    OID_AUTO, "arm_freq",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 		    sysctl_bcm2835_cpufreq_arm_freq, "IU",
 		    "ARM frequency (Hz)");
 		SYSCTL_ADD_PROC(&bcm2835_sysctl_ctx, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "core_freq", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		    OID_AUTO, "core_freq",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 		    sysctl_bcm2835_cpufreq_core_freq, "IU",
 		    "Core frequency (Hz)");
 		SYSCTL_ADD_PROC(&bcm2835_sysctl_ctx, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "sdram_freq", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		    OID_AUTO, "sdram_freq",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 		    sysctl_bcm2835_cpufreq_sdram_freq, "IU",
 		    "SDRAM frequency (Hz)");
 
 		/* Turbo state */
 		SYSCTL_ADD_PROC(&bcm2835_sysctl_ctx, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "turbo", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		    OID_AUTO, "turbo",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 		    sysctl_bcm2835_cpufreq_turbo, "IU",
 		    "Disables dynamic clocking");
 
 		/* Voltage (offset from 1.2V in units of 0.025V) */
 		SYSCTL_ADD_PROC(&bcm2835_sysctl_ctx, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "voltage_core", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		    OID_AUTO, "voltage_core",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 		    sysctl_bcm2835_cpufreq_voltage_core, "I",
 		    "ARM/GPU core voltage"
 		    "(offset from 1.2V in units of 0.025V)");
 		SYSCTL_ADD_PROC(&bcm2835_sysctl_ctx, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "voltage_sdram", CTLTYPE_INT | CTLFLAG_WR, sc,
+		    OID_AUTO, "voltage_sdram",
+		    CTLTYPE_INT | CTLFLAG_WR | CTLFLAG_NEEDGIANT, sc,
 		    0, sysctl_bcm2835_cpufreq_voltage_sdram, "I",
 		    "SDRAM voltage (offset from 1.2V in units of 0.025V)");
 
 		/* Voltage individual SDRAM */
 		SYSCTL_ADD_PROC(&bcm2835_sysctl_ctx, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "voltage_sdram_c", CTLTYPE_INT | CTLFLAG_RW, sc,
+		    OID_AUTO, "voltage_sdram_c",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
 		    0, sysctl_bcm2835_cpufreq_voltage_sdram_c, "I",
 		    "SDRAM controller voltage"
 		    "(offset from 1.2V in units of 0.025V)");
 		SYSCTL_ADD_PROC(&bcm2835_sysctl_ctx, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "voltage_sdram_i", CTLTYPE_INT | CTLFLAG_RW, sc,
+		    OID_AUTO, "voltage_sdram_i",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
 		    0, sysctl_bcm2835_cpufreq_voltage_sdram_i, "I",
 		    "SDRAM I/O voltage (offset from 1.2V in units of 0.025V)");
 		SYSCTL_ADD_PROC(&bcm2835_sysctl_ctx, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "voltage_sdram_p", CTLTYPE_INT | CTLFLAG_RW, sc,
+		    OID_AUTO, "voltage_sdram_p",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
 		    0, sysctl_bcm2835_cpufreq_voltage_sdram_p, "I",
 		    "SDRAM phy voltage (offset from 1.2V in units of 0.025V)");
 
 		/* Temperature */
 		SYSCTL_ADD_PROC(&bcm2835_sysctl_ctx, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
+		    OID_AUTO, "temperature",
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
 		    sysctl_bcm2835_cpufreq_temperature, "I",
 		    "SoC temperature (thousandths of a degree C)");
 	}

@@ -1494,8 +1494,8 @@ cgem_add_sysctls(device_t dev)
 			&sc->txdefragfails, 0,
 			"Transmit m_defrag() failures");
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-			       NULL, "GEM statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "GEM statistics");
 	child = SYSCTL_CHILDREN(tree);
 
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_bytes", CTLFLAG_RD,

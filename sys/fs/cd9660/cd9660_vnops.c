@@ -844,7 +844,8 @@ cd9660_vptofh(ap)
 	return (0);
 }
 
-SYSCTL_NODE(_vfs, OID_AUTO, cd9660, CTLFLAG_RW, 0, "cd9660 filesystem");
+SYSCTL_NODE(_vfs, OID_AUTO, cd9660, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "cd9660 filesystem");
 static int use_buf_pager = 1;
 SYSCTL_INT(_vfs_cd9660, OID_AUTO, use_buf_pager, CTLFLAG_RWTUN,
     &use_buf_pager, 0,

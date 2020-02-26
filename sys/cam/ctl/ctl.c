@@ -406,7 +406,8 @@ const static struct scsi_cddvd_capabilities_page cddvd_page_changeable = {
 	/*num_speed_descr*/0,
 };
 
-SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
+SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "CAM Target Layer");
 static int worker_threads = -1;
 SYSCTL_INT(_kern_cam_ctl, OID_AUTO, worker_threads, CTLFLAG_RDTUN,
     &worker_threads, 1, "Number of worker threads");
@@ -1879,7 +1880,7 @@ ctl_init(void)
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam), OID_AUTO, "ctl",
-		CTLFLAG_RD, 0, "CAM Target Layer");
+		CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "CAM Target Layer");
 
 	if (softc->sysctl_tree == NULL) {
 		printf("%s: unable to allocate sysctl tree\n", __func__);
@@ -1986,7 +1987,8 @@ ctl_init(void)
 	}
 
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "ha_role", CTLTYPE_INT | CTLFLAG_RWTUN,
+	    OID_AUTO, "ha_role",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
 	    softc, 0, ctl_ha_role_sysctl, "I", "HA role for this head");
 
 	if (softc->is_single == 0) {

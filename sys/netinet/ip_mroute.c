@@ -237,7 +237,8 @@ VNET_PCPUSTAT_DEFINE_STATIC(struct pimstat, pimstat);
 VNET_PCPUSTAT_SYSINIT(pimstat);
 VNET_PCPUSTAT_SYSUNINIT(pimstat);
 
-SYSCTL_NODE(_net_inet, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
+SYSCTL_NODE(_net_inet, IPPROTO_PIM, pim, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "PIM");
 SYSCTL_VNET_PCPUSTAT(_net_inet_pim, PIMCTL_STATS, stats, struct pimstat,
     pimstat, "PIM Statistics (struct pimstat, netinet/pim_var.h)");
 
@@ -2797,8 +2798,9 @@ out_locked:
 	return (error);
 }
 
-static SYSCTL_NODE(_net_inet_ip, OID_AUTO, mfctable, CTLFLAG_RD,
-    sysctl_mfctable, "IPv4 Multicast Forwarding Table "
+static SYSCTL_NODE(_net_inet_ip, OID_AUTO, mfctable,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_mfctable,
+    "IPv4 Multicast Forwarding Table "
     "(struct *mfc[mfchashsize], netinet/ip_mroute.h)");
 
 static void

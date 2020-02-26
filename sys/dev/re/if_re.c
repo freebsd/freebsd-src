@@ -3969,14 +3969,15 @@ re_add_sysctls(struct rl_softc *sc)
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->rl_dev));
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "stats",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, re_sysctl_stats, "I",
-	    "Statistics Information");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    re_sysctl_stats, "I", "Statistics Information");
 	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0)
 		return;
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "int_rx_mod",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->rl_int_rx_mod, 0,
-	    sysctl_hw_re_int_mod, "I", "re RX interrupt moderation");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &sc->rl_int_rx_mod, 0, sysctl_hw_re_int_mod, "I",
+	    "re RX interrupt moderation");
 	/* Pull in device tunables. */
 	sc->rl_int_rx_mod = RL_TIMER_DEFAULT;
 	error = resource_int_value(device_get_name(sc->rl_dev),

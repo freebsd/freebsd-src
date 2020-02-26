@@ -935,8 +935,8 @@ t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 	struct sge_params *sp = &sc->params.sge;
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "buffer_sizes",
-	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0, sysctl_bufsizes, "A",
-	    "freelist buffer sizes");
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+	    sysctl_bufsizes, "A", "freelist buffer sizes");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pktshift", CTLFLAG_RD,
 	    NULL, sp->fl_pktshift, "payload DMA offset in rx buffer (bytes)");
@@ -1006,7 +1006,7 @@ t4_setup_adapter_queues(struct adapter *sc)
 	 * Control queues, one per port.
 	 */
 	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, "ctrlq",
-	    CTLFLAG_RD, NULL, "control queues");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "control queues");
 	for_each_port(sc, i) {
 		struct sge_wrq *ctrlq = &sc->sge.ctrlq[i];
 
@@ -1094,7 +1094,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 		 * doesn't set off any congestion signal in the chip.
 		 */
 		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "nm_rxq",
-		    CTLFLAG_RD, NULL, "rx queues");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queues");
 		for_each_nm_rxq(vi, i, nm_rxq) {
 			rc = alloc_nm_rxq(vi, nm_rxq, intr_idx, i, oid);
 			if (rc != 0)
@@ -1103,7 +1103,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 		}
 
 		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "nm_txq",
-		    CTLFLAG_RD, NULL, "tx queues");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "tx queues");
 		for_each_nm_txq(vi, i, nm_txq) {
 			iqidx = vi->first_nm_rxq + (i % vi->nnmrxq);
 			rc = alloc_nm_txq(vi, nm_txq, iqidx, i, oid);
@@ -1122,7 +1122,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 	 */
 	maxp = mtu_to_max_payload(sc, mtu);
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "rxq",
-	    CTLFLAG_RD, NULL, "rx queues");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queues");
 	for_each_rxq(vi, i, rxq) {
 
 		init_iq(&rxq->iq, sc, vi->tmr_idx, vi->pktc_idx, vi->qsize_rxq);
@@ -1143,7 +1143,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 #endif
 #ifdef TCP_OFFLOAD
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ofld_rxq",
-	    CTLFLAG_RD, NULL, "rx queues for offloaded TCP connections");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queues for offloaded TCP connections");
 	for_each_ofld_rxq(vi, i, ofld_rxq) {
 
 		init_iq(&ofld_rxq->iq, sc, vi->ofld_tmr_idx, vi->ofld_pktc_idx,
@@ -1164,8 +1164,8 @@ t4_setup_vi_queues(struct vi_info *vi)
 	/*
 	 * Now the tx queues.
 	 */
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "txq", CTLFLAG_RD,
-	    NULL, "tx queues");
+	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "txq",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "tx queues");
 	for_each_txq(vi, i, txq) {
 		iqidx = vi->first_rxq + (i % vi->nrxq);
 		snprintf(name, sizeof(name), "%s txq%d",
@@ -1179,7 +1179,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 	}
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ofld_txq",
-	    CTLFLAG_RD, NULL, "tx queues for TOE/ETHOFLD");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "tx queues for TOE/ETHOFLD");
 	for_each_ofld_txq(vi, i, ofld_txq) {
 		struct sysctl_oid *oid2;
 
@@ -1198,7 +1198,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 
 		snprintf(name, sizeof(name), "%d", i);
 		oid2 = SYSCTL_ADD_NODE(&vi->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		    name, CTLFLAG_RD, NULL, "offload tx queue");
+		    name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "offload tx queue");
 
 		rc = alloc_wrq(sc, vi, ofld_txq, oid2);
 		if (rc != 0)
@@ -3381,14 +3381,14 @@ add_iq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
 	    iq->qsize * IQ_ESIZE, "descriptor ring size in bytes");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &iq->abs_id, 0, sysctl_uint16, "I",
-	    "absolute id of the queue");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &iq->abs_id, 0,
+	    sysctl_uint16, "I", "absolute id of the queue");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &iq->cntxt_id, 0, sysctl_uint16, "I",
-	    "SGE context id of the queue");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &iq->cntxt_id, 0,
+	    sysctl_uint16, "I", "SGE context id of the queue");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &iq->cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &iq->cidx, 0,
+	    sysctl_uint16, "I", "consumer index");
 }
 
 static void
@@ -3397,8 +3397,8 @@ add_fl_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 {
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
-	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "fl", CTLFLAG_RD, NULL,
-	    "freelist");
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "fl",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "freelist");
 	children = SYSCTL_CHILDREN(oid);
 
 	SYSCTL_ADD_UAUTO(ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
@@ -3407,8 +3407,8 @@ add_fl_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 	    fl->sidx * EQ_ESIZE + sc->params.sge.spg_len,
 	    "desc ring size in bytes");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &fl->cntxt_id, 0, sysctl_uint16, "I",
-	    "SGE context id of the freelist");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &fl->cntxt_id, 0,
+	    sysctl_uint16, "I", "SGE context id of the freelist");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "padding", CTLFLAG_RD, NULL,
 	    fl_pad ? 1 : 0, "padding enabled");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "packing", CTLFLAG_RD, NULL,
@@ -3449,8 +3449,8 @@ alloc_fwq(struct adapter *sc)
 		return (rc);
 	}
 
-	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, "fwq", CTLFLAG_RD,
-	    NULL, "firmware event queue");
+	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, "fwq",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "firmware event queue");
 	add_iq_sysctls(&sc->ctx, oid, fwq);
 
 	return (0);
@@ -3477,8 +3477,8 @@ alloc_ctrlq(struct adapter *sc, struct sge_wrq *ctrlq, int idx,
 
 	children = SYSCTL_CHILDREN(oid);
 	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, name, CTLFLAG_RD,
-	    NULL, "ctrl queue");
+	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, name,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ctrl queue");
 	rc = alloc_wrq(sc, NULL, ctrlq, oid);
 
 	return (rc);
@@ -3542,8 +3542,8 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	children = SYSCTL_CHILDREN(oid);
 
 	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name, CTLFLAG_RD,
-	    NULL, "rx queue");
+	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queue");
 	children = SYSCTL_CHILDREN(oid);
 
 	add_iq_sysctls(&vi->ctx, oid, &rxq->iq);
@@ -3600,8 +3600,8 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq,
 	children = SYSCTL_CHILDREN(oid);
 
 	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name, CTLFLAG_RD,
-	    NULL, "rx queue");
+	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queue");
 	add_iq_sysctls(&vi->ctx, oid, &ofld_rxq->iq);
 	add_fl_sysctls(pi->adapter, &vi->ctx, oid, &ofld_rxq->fl);
 
@@ -3662,28 +3662,28 @@ alloc_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int intr_idx,
 	children = SYSCTL_CHILDREN(oid);
 
 	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name, CTLFLAG_RD, NULL,
-	    "rx queue");
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queue");
 	children = SYSCTL_CHILDREN(oid);
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &nm_rxq->iq_abs_id, 0, sysctl_uint16,
-	    "I", "absolute id of the queue");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &nm_rxq->iq_abs_id,
+	    0, sysctl_uint16, "I", "absolute id of the queue");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &nm_rxq->iq_cntxt_id, 0, sysctl_uint16,
-	    "I", "SGE context id of the queue");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &nm_rxq->iq_cntxt_id,
+	    0, sysctl_uint16, "I", "SGE context id of the queue");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &nm_rxq->iq_cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &nm_rxq->iq_cidx, 0,
+	    sysctl_uint16, "I", "consumer index");
 
 	children = SYSCTL_CHILDREN(oid);
-	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "fl", CTLFLAG_RD, NULL,
-	    "freelist");
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "fl",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "freelist");
 	children = SYSCTL_CHILDREN(oid);
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &nm_rxq->fl_cntxt_id, 0, sysctl_uint16,
-	    "I", "SGE context id of the freelist");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &nm_rxq->fl_cntxt_id,
+	    0, sysctl_uint16, "I", "SGE context id of the freelist");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
 	    &nm_rxq->fl_cidx, 0, "consumer index");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
@@ -3743,18 +3743,18 @@ alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
 	nm_txq->cntxt_id = INVALID_NM_TXQ_CNTXT_ID;
 
 	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name, CTLFLAG_RD,
-	    NULL, "netmap tx queue");
+	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "netmap tx queue");
 	children = SYSCTL_CHILDREN(oid);
 
 	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &nm_txq->cntxt_id, 0, "SGE context id of the queue");
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &nm_txq->cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &nm_txq->cidx, 0,
+	    sysctl_uint16, "I", "consumer index");
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "pidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &nm_txq->pidx, 0, sysctl_uint16, "I",
-	    "producer index");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &nm_txq->pidx, 0,
+	    sysctl_uint16, "I", "producer index");
 
 	return (rc);
 }
@@ -4071,11 +4071,11 @@ alloc_wrq(struct adapter *sc, struct vi_info *vi, struct sge_wrq *wrq,
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &wrq->eq.cntxt_id, 0, "SGE context id of the queue");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &wrq->eq.cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &wrq->eq.cidx, 0,
+	    sysctl_uint16, "I", "consumer index");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "pidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &wrq->eq.pidx, 0, sysctl_uint16, "I",
-	    "producer index");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &wrq->eq.pidx, 0,
+	    sysctl_uint16, "I", "producer index");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "sidx", CTLFLAG_RD, NULL,
 	    wrq->eq.sidx, "status page index");
 	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tx_wrs_direct", CTLFLAG_RD,
@@ -4151,8 +4151,8 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	    M_ZERO | M_WAITOK);
 
 	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name, CTLFLAG_RD,
-	    NULL, "tx queue");
+	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "tx queue");
 	children = SYSCTL_CHILDREN(oid);
 
 	SYSCTL_ADD_UAUTO(&vi->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
@@ -4165,17 +4165,17 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &eq->cntxt_id, 0, "SGE context id of the queue");
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &eq->cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &eq->cidx, 0,
+	    sysctl_uint16, "I", "consumer index");
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "pidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &eq->pidx, 0, sysctl_uint16, "I",
-	    "producer index");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &eq->pidx, 0,
+	    sysctl_uint16, "I", "producer index");
 	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "sidx", CTLFLAG_RD, NULL,
 	    eq->sidx, "status page index");
 
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "tc",
-	    CTLTYPE_INT | CTLFLAG_RW, vi, idx, sysctl_tc, "I",
-	    "traffic class (-1 means none)");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, vi, idx, sysctl_tc,
+	    "I", "traffic class (-1 means none)");
 
 	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txcsum", CTLFLAG_RD,
 	    &txq->txcsum, "# of times hardware assisted with checksum");

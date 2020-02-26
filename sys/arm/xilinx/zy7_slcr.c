@@ -80,7 +80,8 @@ extern void (*zynq7_cpu_reset);
 
 #define ZYNQ_DEFAULT_PS_CLK_FREQUENCY	33333333	/* 33.3 Mhz */
 
-SYSCTL_NODE(_hw, OID_AUTO, zynq, CTLFLAG_RD, 0, "Xilinx Zynq-7000");
+SYSCTL_NODE(_hw, OID_AUTO, zynq, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Xilinx Zynq-7000");
 
 static char zynq_bootmode[64];
 SYSCTL_STRING(_hw_zynq, OID_AUTO, bootmode, CTLFLAG_RD, zynq_bootmode, 0,

@@ -68,9 +68,10 @@ sysctl_hw_snd_latency(SYSCTL_HANDLER_ARGS)
 
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, latency, CTLTYPE_INT | CTLFLAG_RWTUN,
-	0, sizeof(int), sysctl_hw_snd_latency, "I",
-	"buffering latency (0=low ... 10=high)");
+SYSCTL_PROC(_hw_snd, OID_AUTO, latency,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    sysctl_hw_snd_latency, "I",
+    "buffering latency (0=low ... 10=high)");
 
 int chn_latency_profile = CHN_LATENCY_PROFILE_DEFAULT;
 
@@ -90,9 +91,10 @@ sysctl_hw_snd_latency_profile(SYSCTL_HANDLER_ARGS)
 
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, latency_profile, CTLTYPE_INT | CTLFLAG_RWTUN,
-	0, sizeof(int), sysctl_hw_snd_latency_profile, "I",
-	"buffering latency profile (0=aggressive 1=safe)");
+SYSCTL_PROC(_hw_snd, OID_AUTO, latency_profile,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    sysctl_hw_snd_latency_profile, "I",
+    "buffering latency profile (0=aggressive 1=safe)");
 
 static int chn_timeout = CHN_TIMEOUT;
 
@@ -112,9 +114,10 @@ sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
 
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, timeout, CTLTYPE_INT | CTLFLAG_RWTUN,
-	0, sizeof(int), sysctl_hw_snd_timeout, "I",
-	"interrupt timeout (1 - 10) seconds");
+SYSCTL_PROC(_hw_snd, OID_AUTO, timeout,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    sysctl_hw_snd_timeout, "I",
+    "interrupt timeout (1 - 10) seconds");
 
 static int chn_vpc_autoreset = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, vpc_autoreset, CTLFLAG_RWTUN,
@@ -166,9 +169,10 @@ sysctl_hw_snd_vpc_0db(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_0db, CTLTYPE_INT | CTLFLAG_RWTUN,
-	0, sizeof(int), sysctl_hw_snd_vpc_0db, "I",
-	"0db relative level");
+SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_0db,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    sysctl_hw_snd_vpc_0db, "I",
+    "0db relative level");
 
 static int
 sysctl_hw_snd_vpc_reset(SYSCTL_HANDLER_ARGS)
@@ -185,9 +189,10 @@ sysctl_hw_snd_vpc_reset(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_reset, CTLTYPE_INT | CTLFLAG_RW,
-	0, sizeof(int), sysctl_hw_snd_vpc_reset, "I",
-	"reset volume on all channels");
+SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_reset,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    sysctl_hw_snd_vpc_reset, "I",
+    "reset volume on all channels");
 
 static int chn_usefrags = 0;
 static int chn_syncdelay = -1;

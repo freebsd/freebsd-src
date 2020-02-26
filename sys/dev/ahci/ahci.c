@@ -904,8 +904,8 @@ ahci_ch_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 	tree = device_get_sysctl_tree(dev);
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "disable_phy",
-	    CTLFLAG_RW | CTLTYPE_UINT, ch, 0, ahci_ch_disablephy_proc, "IU",
-	    "Disable PHY");
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, ch,
+	    0, ahci_ch_disablephy_proc, "IU", "Disable PHY");
 	return (0);
 
 err3:

@@ -141,7 +141,8 @@ struct lock_class lock_class_mtx_spin = {
 
 #ifdef ADAPTIVE_MUTEXES
 #ifdef MUTEX_CUSTOM_BACKOFF
-static SYSCTL_NODE(_debug, OID_AUTO, mtx, CTLFLAG_RD, NULL, "mtx debugging");
+static SYSCTL_NODE(_debug, OID_AUTO, mtx, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "mtx debugging");
 
 static struct lock_delay_config __read_frequently mtx_delay;
 
@@ -157,7 +158,8 @@ LOCK_DELAY_SYSINIT_DEFAULT(mtx_delay);
 #endif
 
 #ifdef MUTEX_SPIN_CUSTOM_BACKOFF
-static SYSCTL_NODE(_debug, OID_AUTO, mtx_spin, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_debug, OID_AUTO, mtx_spin,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "mtx spin debugging");
 
 static struct lock_delay_config __read_frequently mtx_spin_delay;

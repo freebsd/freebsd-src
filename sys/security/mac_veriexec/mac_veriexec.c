@@ -76,7 +76,7 @@ static int sysctl_mac_veriexec_db(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, veriexec, CTLFLAG_RW, 0,
+SYSCTL_NODE(_security_mac, OID_AUTO, veriexec, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "MAC/veriexec policy controls");
 
 int	mac_veriexec_debug;
@@ -85,11 +85,13 @@ SYSCTL_INT(_security_mac_veriexec, OID_AUTO, debug, CTLFLAG_RW,
 
 static int	mac_veriexec_state;
 SYSCTL_PROC(_security_mac_veriexec, OID_AUTO, state,
-    CTLTYPE_STRING | CTLFLAG_RD, 0, 0, sysctl_mac_veriexec_state, "A",
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+    0, 0, sysctl_mac_veriexec_state, "A",
     "Verified execution subsystem state");
 
 SYSCTL_PROC(_security_mac_veriexec, OID_AUTO, db,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP, 0, 0, sysctl_mac_veriexec_db,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_NEEDGIANT,
+    0, 0, sysctl_mac_veriexec_db,
     "A", "Verified execution fingerprint database");
 
 static int mac_veriexec_slot;

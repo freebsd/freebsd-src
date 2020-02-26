@@ -618,8 +618,8 @@ static int sa_allow_io_split = SA_DEFAULT_IO_SPLIT;
  * is bad behavior, because it hides the true tape block size from the
  * application.
  */
-static SYSCTL_NODE(_kern_cam, OID_AUTO, sa, CTLFLAG_RD, 0,
-		  "CAM Sequential Access Tape Driver");
+static SYSCTL_NODE(_kern_cam, OID_AUTO, sa, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "CAM Sequential Access Tape Driver");
 SYSCTL_INT(_kern_cam_sa, OID_AUTO, allow_io_split, CTLFLAG_RDTUN,
     &sa_allow_io_split, 0, "Default I/O split value");
 
@@ -2314,7 +2314,7 @@ sasysctlinit(void *context, int pending)
 	softc->flags |= SA_FLAG_SCTX_INIT;
 	softc->sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&softc->sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_kern_cam_sa), OID_AUTO, tmpstr2,
-	    CTLFLAG_RD, 0, tmpstr, "device_index");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, tmpstr, "device_index");
 	if (softc->sysctl_tree == NULL)
 		goto bailout;
 

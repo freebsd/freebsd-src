@@ -75,7 +75,9 @@ dtrace_test_sdttest(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_debug, OID_AUTO, dtracetest, CTLFLAG_RD, 0, "");
+static SYSCTL_NODE(_debug, OID_AUTO, dtracetest,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "");
 
 SYSCTL_PROC(_debug_dtracetest, OID_AUTO, sdttest,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, dtrace_test_sdttest,

@@ -1596,7 +1596,8 @@ skc_attach(dev)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		OID_AUTO, "int_mod", CTLTYPE_INT|CTLFLAG_RW,
+		OID_AUTO, "int_mod",
+		CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 		&sc->sk_int_mod, 0, sysctl_hw_sk_int_mod, "I",
 		"SK interrupt moderation");
 

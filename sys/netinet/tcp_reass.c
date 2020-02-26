@@ -98,10 +98,12 @@ __FBSDID("$FreeBSD$");
 #define TCP_R_LOG_DUMP		10
 #define TCP_R_LOG_TRIM		11
 
-static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Segment Reassembly Queue");
 
-static SYSCTL_NODE(_net_inet_tcp_reass, OID_AUTO, stats, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_inet_tcp_reass, OID_AUTO, stats,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Segment Reassembly stats");
 
 

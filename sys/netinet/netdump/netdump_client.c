@@ -131,15 +131,17 @@ static eventhandler_tag nd_detach_cookie;
 
 FEATURE(netdump, "Netdump client support");
 
-static SYSCTL_NODE(_net, OID_AUTO, netdump, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_net, OID_AUTO, netdump, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "netdump parameters");
 
 static int nd_debug;
 SYSCTL_INT(_net_netdump, OID_AUTO, debug, CTLFLAG_RWTUN,
     &nd_debug, 0,
     "Debug message verbosity");
-SYSCTL_PROC(_net_netdump, OID_AUTO, enabled, CTLFLAG_RD | CTLTYPE_INT, NULL, 0,
-    netdump_enabled_sysctl, "I", "netdump configuration status");
+SYSCTL_PROC(_net_netdump, OID_AUTO, enabled,
+    CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_MPSAFE, NULL, 0,
+    netdump_enabled_sysctl, "I",
+    "netdump configuration status");
 static char nd_path[MAXPATHLEN];
 SYSCTL_STRING(_net_netdump, OID_AUTO, path, CTLFLAG_RW,
     nd_path, sizeof(nd_path),

@@ -98,8 +98,8 @@ fha_init(struct fha_params *softc)
 	    "single nfsd thread should be working on at any time");
 
 	SYSCTL_ADD_OID(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "fhe_stats", CTLTYPE_STRING | CTLFLAG_RD, 0, 0,
-	    softc->callbacks.fhe_stats_sysctl, "A", "");
+	    OID_AUTO, "fhe_stats", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    0, 0, softc->callbacks.fhe_stats_sysctl, "A", "");
 
 }
 

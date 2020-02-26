@@ -82,7 +82,8 @@ static uint32_t tcp_disable_all_bb_logs = 0;
 
 RB_PROTOTYPE_STATIC(tcp_log_id_tree, tcp_log_id_bucket, tlb_rb, tcp_log_id_cmp)
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, bb, CTLFLAG_RW, 0, "TCP Black Box controls");
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, bb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "TCP Black Box controls");
 
 SYSCTL_BOOL(_net_inet_tcp_bb, OID_AUTO, log_verbose, CTLFLAG_RW, &tcp_log_verbose,
     0, "Force verbose logging for TCP traces");

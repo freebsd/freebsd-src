@@ -102,7 +102,8 @@ static u_int poll_idle = DCONS_POLL_HZ * DCONS_POLL_IDLE;
 
 static struct dcons_softc sc[DCONS_NPORT];
 
-static SYSCTL_NODE(_kern, OID_AUTO, dcons, CTLFLAG_RD, 0, "Dumb Console");
+static SYSCTL_NODE(_kern, OID_AUTO, dcons, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Dumb Console");
 SYSCTL_INT(_kern_dcons, OID_AUTO, poll_hz, CTLFLAG_RW, &poll_hz, 0,
 				"dcons polling rate");
 

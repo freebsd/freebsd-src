@@ -1647,8 +1647,8 @@ es_init_sysctls(device_t dev)
 		   <861wujij2q.fsf@xps.des.no> */
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-		    "spdif_enabled", CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
-		    sysctl_es137x_spdif_enable, "I",
+		    "spdif_enabled", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    dev, sizeof(dev), sysctl_es137x_spdif_enable, "I",
 		    "Enable S/PDIF output on primary playback channel");
 	} else if (devid == ES1370_PCI_ID) {
 		/*
@@ -1663,7 +1663,8 @@ es_init_sysctls(device_t dev)
 		   <861wujij2q.fsf@xps.des.no> */
 			SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			    OID_AUTO, "fixed_rate", CTLTYPE_INT | CTLFLAG_RW,
+			    OID_AUTO, "fixed_rate",
+			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 			    dev, sizeof(dev), sysctl_es137x_fixed_rate, "I",
 			    "Enable fixed rate playback/recording");
 		}
@@ -1680,8 +1681,8 @@ es_init_sysctls(device_t dev)
 			SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 			    OID_AUTO, "single_pcm_mixer",
-			    CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
-			    sysctl_es137x_single_pcm_mixer, "I",
+			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev,
+			    sizeof(dev), sysctl_es137x_single_pcm_mixer, "I",
 			    "Single PCM mixer controller for both DAC1/DAC2");
 		}
 	}
@@ -1693,14 +1694,13 @@ es_init_sysctls(device_t dev)
 	   multimedia@ in msg-id <861wujij2q.fsf@xps.des.no> */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "latency_timer", CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
-	    sysctl_es137x_latency_timer, "I",
+	    "latency_timer", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    dev, sizeof(dev), sysctl_es137x_latency_timer, "I",
 	    "PCI Latency Timer configuration");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "polling", CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
-	    sysctl_es_polling, "I",
-	    "Enable polling mode");
+	    "polling", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev,
+	    sizeof(dev), sysctl_es_polling, "I", "Enable polling mode");
 }
 
 static int

@@ -146,7 +146,8 @@ struct lock_class lock_class_sx = {
 #ifdef SX_CUSTOM_BACKOFF
 static u_short __read_frequently asx_retries;
 static u_short __read_frequently asx_loops;
-static SYSCTL_NODE(_debug, OID_AUTO, sx, CTLFLAG_RD, NULL, "sxlock debugging");
+static SYSCTL_NODE(_debug, OID_AUTO, sx, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "sxlock debugging");
 SYSCTL_U16(_debug_sx, OID_AUTO, retries, CTLFLAG_RW, &asx_retries, 0, "");
 SYSCTL_U16(_debug_sx, OID_AUTO, loops, CTLFLAG_RW, &asx_loops, 0, "");
 

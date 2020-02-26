@@ -262,8 +262,10 @@ sysctl_machdep_cputime_clock(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, cputime_clock, CTLTYPE_INT | CTLFLAG_RW,
-	    0, sizeof(u_int), sysctl_machdep_cputime_clock, "I", "");
+SYSCTL_PROC(_machdep, OID_AUTO, cputime_clock,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(u_int),
+    sysctl_machdep_cputime_clock, "I",
+    "");
 
 /*
  * The start and stop routines need not be here since we turn off profiling

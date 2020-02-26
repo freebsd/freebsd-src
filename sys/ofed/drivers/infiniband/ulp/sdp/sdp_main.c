@@ -1881,10 +1881,12 @@ next:
 	return (error);
 }
 
-SYSCTL_NODE(_net_inet, -1,  sdp,    CTLFLAG_RW, 0,  "SDP");
+SYSCTL_NODE(_net_inet, -1, sdp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "SDP");
 
 SYSCTL_PROC(_net_inet_sdp, TCPCTL_PCBLIST, pcblist,
-    CTLFLAG_RD | CTLTYPE_STRUCT, 0, 0, sdp_pcblist, "S,xtcpcb",
+    CTLFLAG_RD | CTLTYPE_STRUCT | CTLFLAG_MPSAFE,
+    0, 0, sdp_pcblist, "S,xtcpcb",
     "List of active SDP connections");
 
 static void

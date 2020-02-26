@@ -562,10 +562,10 @@ ti_adc_sysctl_init(struct ti_adc_softc *sc)
 	tree_node = device_get_sysctl_tree(sc->sc_dev);
 	tree = SYSCTL_CHILDREN(tree_node);
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "clockdiv",
-	    CTLFLAG_RW | CTLTYPE_UINT,  sc, 0,
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,  sc, 0,
 	    ti_adc_clockdiv_proc, "IU", "ADC clock prescaler");
 	inp_node = SYSCTL_ADD_NODE(ctx, tree, OID_AUTO, "ain",
-	    CTLFLAG_RD, NULL, "ADC inputs");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ADC inputs");
 	inp_tree = SYSCTL_CHILDREN(inp_node);
 
 	for (i = 0; i < sc->sc_adc_nchannels; i++) {
@@ -573,17 +573,20 @@ ti_adc_sysctl_init(struct ti_adc_softc *sc)
 
 		snprintf(pinbuf, sizeof(pinbuf), "%d", ain);
 		inpN_node = SYSCTL_ADD_NODE(ctx, inp_tree, OID_AUTO, pinbuf,
-		    CTLFLAG_RD, NULL, "ADC input");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ADC input");
 		inpN_tree = SYSCTL_CHILDREN(inpN_node);
 
 		SYSCTL_ADD_PROC(ctx, inpN_tree, OID_AUTO, "enable",
-		    CTLFLAG_RW | CTLTYPE_UINT, &ti_adc_inputs[ain], 0,
+		    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
+		    &ti_adc_inputs[ain], 0,
 		    ti_adc_enable_proc, "IU", "Enable ADC input");
 		SYSCTL_ADD_PROC(ctx, inpN_tree, OID_AUTO, "open_delay",
-		    CTLFLAG_RW | CTLTYPE_UINT,  &ti_adc_inputs[ain], 0,
+		    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
+		    &ti_adc_inputs[ain], 0,
 		    ti_adc_open_delay_proc, "IU", "ADC open delay");
 		SYSCTL_ADD_PROC(ctx, inpN_tree, OID_AUTO, "samples_avg",
-		    CTLFLAG_RW | CTLTYPE_UINT,  &ti_adc_inputs[ain], 0,
+		    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
+		    &ti_adc_inputs[ain], 0,
 		    ti_adc_samples_avg_proc, "IU", "ADC samples average");
 		SYSCTL_ADD_INT(ctx, inpN_tree, OID_AUTO, "input",
 		    CTLFLAG_RD, &ti_adc_inputs[ain].value, 0,

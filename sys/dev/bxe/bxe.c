@@ -258,7 +258,8 @@ static int load_count[2][3] = { {0} }; /* per-path: 0-common, 1-port0, 2-port1 *
 
 /* Tunable device values... */
 
-SYSCTL_NODE(_hw, OID_AUTO, bxe, CTLFLAG_RD, 0, "bxe driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, bxe, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "bxe driver parameters");
 
 /* Debug */
 unsigned long bxe_debug = 0;
@@ -16163,44 +16164,41 @@ bxe_add_sysctls(struct bxe_softc *sc)
                     CTLFLAG_RW, &sc->rx_budget, 0,
                     "rx processing budget");
 
-   SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "pause_param",
-                    CTLTYPE_UINT | CTLFLAG_RW, sc, 0,
-                    bxe_sysctl_pauseparam, "IU",
-                    "need pause frames- DEF:0/TX:1/RX:2/BOTH:3/AUTO:4/AUTOTX:5/AUTORX:6/AUTORXTX:7/NONE:8");
+    SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "pause_param",
+        CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+        bxe_sysctl_pauseparam, "IU",
+        "need pause frames- DEF:0/TX:1/RX:2/BOTH:3/AUTO:4/AUTOTX:5/AUTORX:6/AUTORXTX:7/NONE:8");
 
 
     SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "state",
-                    CTLTYPE_UINT | CTLFLAG_RW, sc, 0,
-                    bxe_sysctl_state, "IU", "dump driver state");
+        CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+        bxe_sysctl_state, "IU", "dump driver state");
 
     for (i = 0; i < BXE_NUM_ETH_STATS; i++) {
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-                        bxe_eth_stats_arr[i].string,
-                        CTLTYPE_U64 | CTLFLAG_RD, sc, i,
-                        bxe_sysctl_eth_stat, "LU",
-                        bxe_eth_stats_arr[i].string);
+            bxe_eth_stats_arr[i].string,
+            CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, i,
+            bxe_sysctl_eth_stat, "LU", bxe_eth_stats_arr[i].string);
     }
 
     /* add a new parent node for all queues "dev.bxe.#.queue" */
     queue_top = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "queue",
-                                CTLFLAG_RD, NULL, "queue");
+        CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "queue");
     queue_top_children = SYSCTL_CHILDREN(queue_top);
 
     for (i = 0; i < sc->num_queues; i++) {
         /* add a new parent node for a single queue "dev.bxe.#.queue.#" */
         snprintf(queue_num_buf, sizeof(queue_num_buf), "%d", i);
         queue = SYSCTL_ADD_NODE(ctx, queue_top_children, OID_AUTO,
-                                queue_num_buf, CTLFLAG_RD, NULL,
-                                "single queue");
+            queue_num_buf, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "single queue");
         queue_children = SYSCTL_CHILDREN(queue);
 
         for (j = 0; j < BXE_NUM_ETH_Q_STATS; j++) {
             q_stat = ((i << 16) | j);
             SYSCTL_ADD_PROC(ctx, queue_children, OID_AUTO,
-                            bxe_eth_q_stats_arr[j].string,
-                            CTLTYPE_U64 | CTLFLAG_RD, sc, q_stat,
-                            bxe_sysctl_eth_q_stat, "LU",
-                            bxe_eth_q_stats_arr[j].string);
+                 bxe_eth_q_stats_arr[j].string,
+                 CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, q_stat,
+                 bxe_sysctl_eth_q_stat, "LU", bxe_eth_q_stats_arr[j].string);
         }
     }
 }

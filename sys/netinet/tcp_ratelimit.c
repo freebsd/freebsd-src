@@ -285,7 +285,7 @@ static struct mtx rs_mtx;
 uint32_t rs_number_alive;
 uint32_t rs_number_dead;
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, rl, CTLFLAG_RW, 0,
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, rl, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Ratelimit stats");
 SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, alive, CTLFLAG_RW,
     &rs_number_alive, 0,
@@ -359,7 +359,7 @@ rl_add_syctl_entries(struct sysctl_oid *rl_sysctl_root, struct tcp_rate_set *rs)
 					    SYSCTL_CHILDREN(rl_sysctl_root),
 					    OID_AUTO,
 					    "rate",
-					    CTLFLAG_RW, 0,
+					    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 					    "Ratelist");
 		for( i = 0; i < rs->rs_rate_cnt; i++) {
 			sprintf(rate_num, "%d", i);
@@ -367,7 +367,7 @@ rl_add_syctl_entries(struct sysctl_oid *rl_sysctl_root, struct tcp_rate_set *rs)
 					    SYSCTL_CHILDREN(rl_rates),
 					    OID_AUTO,
 					    rate_num,
-					    CTLFLAG_RW, 0,
+					    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 					    "Individual Rate");
 			SYSCTL_ADD_U32(&rs->sysctl_ctx,
 				       SYSCTL_CHILDREN(rl_rate_num),
@@ -565,7 +565,7 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		    SYSCTL_STATIC_CHILDREN(_net_inet_tcp_rl),
 		    OID_AUTO,
 		    rs->rs_ifp->if_xname,
-		    CTLFLAG_RW, 0,
+		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		    "");
 		rl_add_syctl_entries(rl_sysctl_root, rs);
 		mtx_lock(&rs_mtx);
@@ -583,7 +583,7 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		    SYSCTL_STATIC_CHILDREN(_net_inet_tcp_rl),
 		    OID_AUTO,
 		    rs->rs_ifp->if_xname,
-		    CTLFLAG_RW, 0,
+		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		    "");
 		rl_add_syctl_entries(rl_sysctl_root, rs);
 		mtx_lock(&rs_mtx);
@@ -744,7 +744,7 @@ handle_err:
 	    SYSCTL_STATIC_CHILDREN(_net_inet_tcp_rl),
 	    OID_AUTO,
 	    rs->rs_ifp->if_xname,
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "");
 	rl_add_syctl_entries(rl_sysctl_root, rs);
 	mtx_lock(&rs_mtx);

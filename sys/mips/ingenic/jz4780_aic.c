@@ -769,7 +769,8 @@ aic_attach(device_t dev)
 	/* Create device sysctl node. */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "internal_codec", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "internal_codec",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    scp, 0, sysctl_hw_pcm_internal_codec, "I",
 	    "use internal audio codec");
 

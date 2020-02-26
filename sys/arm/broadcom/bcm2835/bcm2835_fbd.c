@@ -199,7 +199,7 @@ bcm_fb_sysctl_init(struct bcmsc_softc *sc)
 	tree_node = device_get_sysctl_tree(sc->dev);
 	tree = SYSCTL_CHILDREN(tree_node);
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "resync",
-	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_fb_resync_sysctl, "IU", "Set to resync framebuffer with VC");
 }
 

@@ -51,7 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include "regdev_if.h"
 
-SYSCTL_NODE(_hw, OID_AUTO, regulator, CTLFLAG_RD, NULL, "Regulators");
+SYSCTL_NODE(_hw, OID_AUTO, regulator, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "Regulators");
 
 MALLOC_DEFINE(M_REGULATOR, "regulator", "Regulator framework");
 
@@ -402,7 +403,7 @@ regnode_create(device_t pdev, regnode_class_t regnode_class,
 	regnode_oid = SYSCTL_ADD_NODE(&regnode->sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_hw_regulator),
 	    OID_AUTO, regnode->name,
-	    CTLFLAG_RD, 0, "A regulator node");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "A regulator node");
 
 	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
 	    SYSCTL_CHILDREN(regnode_oid),
@@ -453,7 +454,7 @@ regnode_create(device_t pdev, regnode_class_t regnode_class,
 	SYSCTL_ADD_PROC(&regnode->sysctl_ctx,
 	    SYSCTL_CHILDREN(regnode_oid),
 	    OID_AUTO, "uvolt",
-	    CTLTYPE_INT | CTLFLAG_RD,
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    regnode, 0, regnode_uvolt_sysctl,
 	    "I",
 	    "Current voltage (in uV)");

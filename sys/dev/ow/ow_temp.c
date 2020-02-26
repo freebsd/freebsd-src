@@ -198,7 +198,8 @@ ow_temp_attach(device_t dev)
 	sc->type = ow_get_family(dev);
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "temperature", CTLFLAG_RD | CTLTYPE_INT,
+	    OID_AUTO, "temperature",
+	    CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_NEEDGIANT,
 	    &sc->temp, 0, sysctl_handle_int,
 	    "IK3", "Current Temperature");
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),

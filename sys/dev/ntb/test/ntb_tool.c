@@ -1379,8 +1379,8 @@ tool_setup_sysctl(struct tool_ctx *tc)
 	for (pidx = 0; pidx < tc->peer_cnt; pidx++) {
 		snprintf(buf, sizeof(buf), "peer%d", pidx);
 
-		peer = SYSCTL_ADD_NODE(clist, top, OID_AUTO, buf, CTLFLAG_RW, 0,
-		    buf);
+		peer = SYSCTL_ADD_NODE(clist, top, OID_AUTO, buf,
+		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0, buf);
 		peer_top = SYSCTL_CHILDREN(peer);
 
 		SYSCTL_ADD_PROC(clist, peer_top, OID_AUTO, "port",

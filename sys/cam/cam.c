@@ -108,7 +108,8 @@ const struct cam_status_entry cam_status_table[] = {
 };
 
 #ifdef _KERNEL
-SYSCTL_NODE(_kern, OID_AUTO, cam, CTLFLAG_RD, 0, "CAM Subsystem");
+SYSCTL_NODE(_kern, OID_AUTO, cam, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "CAM Subsystem");
 
 #ifndef CAM_DEFAULT_SORT_IO_QUEUES
 #define CAM_DEFAULT_SORT_IO_QUEUES 1

@@ -60,7 +60,8 @@ __FBSDID("$FreeBSD$");
 
 static int ofwfb_ignore_mmap_checks = 1;
 static int ofwfb_reset_on_switch = 1;
-static SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
+static SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "ofwfb");
 SYSCTL_INT(_hw_ofwfb, OID_AUTO, relax_mmap, CTLFLAG_RW,
     &ofwfb_ignore_mmap_checks, 0, "relaxed mmap bounds checking");
 SYSCTL_INT(_hw_ofwfb, OID_AUTO, reset_on_mode_switch, CTLFLAG_RW,

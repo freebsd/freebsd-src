@@ -330,8 +330,8 @@ adb_init_trackpad(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 	tree = device_get_sysctl_tree(dev);
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tapping",
-			CTLTYPE_INT | CTLFLAG_RW, sc, 0, adb_tapping_sysctl,
-			"I", "Tapping the pad causes button events");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    adb_tapping_sysctl, "I", "Tapping the pad causes button events");
 	return;
 }
 

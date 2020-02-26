@@ -170,9 +170,9 @@ acpi_acad_attach(device_t dev)
     if (device_get_unit(dev) == 0) {
 	acpi_sc = acpi_device_get_parent_softc(dev);
 	SYSCTL_ADD_PROC(&acpi_sc->acpi_sysctl_ctx,
-			SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
-			OID_AUTO, "acline", CTLTYPE_INT | CTLFLAG_RD,
-			&sc->status, 0, acpi_acad_sysctl, "I", "");
+	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO, "acline",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &sc->status, 0,
+	    acpi_acad_sysctl, "I", "");
     }
 
     /* Get initial status after whole system is up. */

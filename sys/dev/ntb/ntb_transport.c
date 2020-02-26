@@ -67,7 +67,9 @@ __FBSDID("$FreeBSD$");
 
 #define NTB_TRANSPORT_VERSION	4
 
-static SYSCTL_NODE(_hw, OID_AUTO, ntb_transport, CTLFLAG_RW, 0, "ntb_transport");
+static SYSCTL_NODE(_hw, OID_AUTO, ntb_transport,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "ntb_transport");
 
 static unsigned g_ntb_transport_debug_level;
 SYSCTL_UINT(_hw_ntb_transport, OID_AUTO, debug_level, CTLFLAG_RWTUN,

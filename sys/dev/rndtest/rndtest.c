@@ -72,8 +72,8 @@ static const struct rndtest_testfunc {
 
 #define	RNDTEST_NTESTS	nitems(rndtest_funcs)
 
-static SYSCTL_NODE(_kern, OID_AUTO, rndtest, CTLFLAG_RD, 0,
-	    "RNG test parameters");
+static SYSCTL_NODE(_kern, OID_AUTO, rndtest, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "RNG test parameters");
 static	int rndtest_retest = 120;		/* interval in seconds */
 SYSCTL_INT(_kern_rndtest, OID_AUTO, retest, CTLFLAG_RW, &rndtest_retest,
 	    0, "retest interval (seconds)");

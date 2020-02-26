@@ -54,7 +54,8 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_RAID, "raid_data", "GEOM_RAID Data");
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, raid, CTLFLAG_RW, 0, "GEOM_RAID stuff");
+SYSCTL_NODE(_kern_geom, OID_AUTO, raid, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "GEOM_RAID stuff");
 int g_raid_enable = 1;
 SYSCTL_INT(_kern_geom_raid, OID_AUTO, enable, CTLFLAG_RWTUN,
     &g_raid_enable, 0, "Enable on-disk metadata taste");
