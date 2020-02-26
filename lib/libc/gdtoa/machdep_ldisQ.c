@@ -34,7 +34,7 @@
 /*
  * Machine-dependent glue to integrate David Gay's gdtoa
  * package into libc for architectures where a long double
- * uses quad precision, such as sparc64.
+ * uses quad precision, such as aarch64 or riscv.
  */
 
 #include <sys/cdefs.h>
