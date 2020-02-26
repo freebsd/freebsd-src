@@ -111,13 +111,8 @@ CFLAGS += -mno-relax
 .SUFFIXES: .out .o .bc .ll .po .pico .nossppico .pieo .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
 
 .if !defined(PICFLAG)
-.if ${MACHINE_CPUARCH} == "sparc64"
-PICFLAG=-fPIC
-PIEFLAG=-fPIE
-.else
 PICFLAG=-fpic
 PIEFLAG=-fpie
-.endif
 .endif
 
 PO_FLAG=-pg
