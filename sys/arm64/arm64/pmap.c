@@ -283,19 +283,24 @@ static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
  * numbers and INT_MAX are reserved for special cases that are described
  * below.
  */
+struct asid_set {
+	int asid_bits;
+	bitstr_t *asid_set;
+	int asid_set_size;
+	int asid_next;
+	int asid_epoch;
+	struct mtx asid_set_mutex;
+};
+
+static struct asid_set asids;
+
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, asid, CTLFLAG_RD, 0, "ASID allocator");
-static int asid_bits;
-SYSCTL_INT(_vm_pmap_asid, OID_AUTO, bits, CTLFLAG_RD, &asid_bits, 0,
+SYSCTL_INT(_vm_pmap_asid, OID_AUTO, bits, CTLFLAG_RD, &asids.asid_bits, 0,
     "The number of bits in an ASID");
-static bitstr_t *asid_set;
-static int asid_set_size;
-static int asid_next;
-SYSCTL_INT(_vm_pmap_asid, OID_AUTO, next, CTLFLAG_RD, &asid_next, 0,
+SYSCTL_INT(_vm_pmap_asid, OID_AUTO, next, CTLFLAG_RD, &asids.asid_next, 0,
     "The last allocated ASID plus one");
-static int asid_epoch;
-SYSCTL_INT(_vm_pmap_asid, OID_AUTO, epoch, CTLFLAG_RD, &asid_epoch, 0,
+SYSCTL_INT(_vm_pmap_asid, OID_AUTO, epoch, CTLFLAG_RD, &asids.asid_epoch, 0,
     "The current epoch number");
-static struct mtx asid_set_mutex;
 
 /*
  * A pmap's cookie encodes an ASID and epoch number.  Cookies for reserved
@@ -349,7 +354,7 @@ static int pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
     pd_entry_t l1e, struct spglist *free, struct rwlock **lockp);
 static int pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t sva,
     pd_entry_t l2e, struct spglist *free, struct rwlock **lockp);
-static void pmap_reset_asid_set(void);
+static void pmap_reset_asid_set(pmap_t pmap);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m, struct rwlock **lockp);
 
@@ -849,6 +854,7 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	kernel_pmap->pm_l0_paddr = l0pt - kern_delta;
 	kernel_pmap->pm_cookie = COOKIE_FROM(-1, INT_MIN);
 	kernel_pmap->pm_stage = PM_STAGE1;
+	kernel_pmap->pm_asid_set = &asids;
 
 	/* Assume the address we were loaded to is a valid physical address */
 	min_pa = KERNBASE - kern_delta;
@@ -950,6 +956,26 @@ pmap_page_init(vm_page_t m)
 	m->md.pv_memattr = VM_MEMATTR_WRITE_BACK;
 }
 
+static void
+pmap_init_asids(struct asid_set *set, int bits)
+{
+	int i;
+
+	set->asid_bits = bits;
+
+	/*
+	 * We may be too early in the overall initialization process to use
+	 * bit_alloc().
+	 */
+	set->asid_set_size = 1 << set->asid_bits;
+	set->asid_set = (bitstr_t *)kmem_malloc(bitstr_size(set->asid_set_size),
+	    M_WAITOK | M_ZERO);
+	for (i = 0; i < ASID_FIRST_AVAILABLE; i++)
+		bit_set(set->asid_set, i);
+	set->asid_next = ASID_FIRST_AVAILABLE;
+	mtx_init(&set->asid_set_mutex, "asid set", NULL, MTX_SPIN);
+}
+
 /*
  *	Initialize the pmap module.
  *	Called by vm_init, to initialize any structures that the pmap
@@ -962,11 +988,6 @@ pmap_init(void)
 	int i, pv_npg;
 
 	/*
-	 * Determine whether an ASID is 8 or 16 bits in size.
-	 */
-	asid_bits = (READ_SPECIALREG(tcr_el1) & TCR_ASID_16) != 0 ? 16 : 8;
-
-	/*
 	 * Are large page mappings enabled?
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.superpages_enabled", &superpages_enabled);
@@ -977,16 +998,10 @@ pmap_init(void)
 	}
 
 	/*
-	 * Initialize the ASID allocator.  At this point, we are still too
-	 * early in the overall initialization process to use bit_alloc().
+	 * Initialize the ASID allocator.
 	 */
-	asid_set_size = 1 << asid_bits;
-	asid_set = (bitstr_t *)kmem_malloc(bitstr_size(asid_set_size),
-	    M_WAITOK | M_ZERO);
-	for (i = 0; i < ASID_FIRST_AVAILABLE; i++)
-		bit_set(asid_set, i);
-	asid_next = ASID_FIRST_AVAILABLE;
-	mtx_init(&asid_set_mutex, "asid set", NULL, MTX_SPIN);
+	pmap_init_asids(&asids,
+	    (READ_SPECIALREG(tcr_el1) & TCR_ASID_16) != 0 ? 16 : 8);
 
 	/*
 	 * Initialize the pv chunk list mutex.
@@ -1552,6 +1567,7 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_root.rt_root = 0;
 	pmap->pm_cookie = COOKIE_FROM(ASID_RESERVED_FOR_PID_0, INT_MIN);
 	pmap->pm_stage = PM_STAGE1;
+	pmap->pm_asid_set = &asids;
 
 	PCPU_SET(curpmap, pmap);
 }
@@ -1578,6 +1594,7 @@ pmap_pinit(pmap_t pmap)
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 	pmap->pm_cookie = COOKIE_FROM(-1, INT_MAX);
 	pmap->pm_stage = PM_STAGE1;
+	pmap->pm_asid_set = &asids;
 	/* XXX Temporarily disable deferred ASID allocation. */
 	pmap_alloc_asid(pmap);
 
@@ -1834,6 +1851,7 @@ retry:
 void
 pmap_release(pmap_t pmap)
 {
+	struct asid_set *set;
 	vm_page_t m;
 	int asid;
 
@@ -1844,14 +1862,18 @@ pmap_release(pmap_t pmap)
 	    ("pmap_release: pmap has reserved page table page(s)"));
 	PMAP_ASSERT_STAGE1(pmap);
 
-	mtx_lock_spin(&asid_set_mutex);
-	if (COOKIE_TO_EPOCH(pmap->pm_cookie) == asid_epoch) {
+	set = pmap->pm_asid_set;
+	KASSERT(set != NULL, ("%s: NULL asid set", __func__));
+
+	mtx_lock_spin(&set->asid_set_mutex);
+	if (COOKIE_TO_EPOCH(pmap->pm_cookie) == set->asid_epoch) {
 		asid = COOKIE_TO_ASID(pmap->pm_cookie);
-		KASSERT(asid >= ASID_FIRST_AVAILABLE && asid < asid_set_size,
+		KASSERT(asid >= ASID_FIRST_AVAILABLE &&
+		    asid < set->asid_set_size,
 		    ("pmap_release: pmap cookie has out-of-range asid"));
-		bit_clear(asid_set, asid);
+		bit_clear(set->asid_set, asid);
 	}
-	mtx_unlock_spin(&asid_set_mutex);
+	mtx_unlock_spin(&set->asid_set_mutex);
 
 	m = PHYS_TO_VM_PAGE(pmap->pm_l0_paddr);
 	vm_page_unwire_noq(m);
@@ -5839,35 +5861,41 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
  * reserved.
  */
 static void
-pmap_reset_asid_set(void)
+pmap_reset_asid_set(pmap_t pmap)
 {
-	pmap_t pmap;
+	pmap_t curpmap;
 	int asid, cpuid, epoch;
+	struct asid_set *set;
 
-	mtx_assert(&asid_set_mutex, MA_OWNED);
+	PMAP_ASSERT_STAGE1(pmap);
+
+	set = pmap->pm_asid_set;
+	KASSERT(set != NULL, ("%s: NULL asid set", __func__));
+	mtx_assert(&set->asid_set_mutex, MA_OWNED);
 
 	/*
 	 * Ensure that the store to asid_epoch is globally visible before the
 	 * loads from pc_curpmap are performed.
 	 */
-	epoch = asid_epoch + 1;
+	epoch = set->asid_epoch + 1;
 	if (epoch == INT_MAX)
 		epoch = 0;
-	asid_epoch = epoch;
+	set->asid_epoch = epoch;
 	dsb(ishst);
 	__asm __volatile("tlbi vmalle1is");
 	dsb(ish);
-	bit_nclear(asid_set, ASID_FIRST_AVAILABLE, asid_set_size - 1);
+	bit_nclear(set->asid_set, ASID_FIRST_AVAILABLE,
+	    set->asid_set_size - 1);
 	CPU_FOREACH(cpuid) {
 		if (cpuid == curcpu)
 			continue;
-		pmap = pcpu_find(cpuid)->pc_curpmap;
-		PMAP_ASSERT_STAGE1(pmap);
-		asid = COOKIE_TO_ASID(pmap->pm_cookie);
+		curpmap = pcpu_find(cpuid)->pc_curpmap;
+		KASSERT(curpmap->pm_asid_set == set, ("Incorrect set"));
+		asid = COOKIE_TO_ASID(curpmap->pm_cookie);
 		if (asid == -1)
 			continue;
-		bit_set(asid_set, asid);
-		pmap->pm_cookie = COOKIE_FROM(asid, epoch);
+		bit_set(set->asid_set, asid);
+		curpmap->pm_cookie = COOKIE_FROM(asid, epoch);
 	}
 }
 
@@ -5877,10 +5905,14 @@ pmap_reset_asid_set(void)
 static void
 pmap_alloc_asid(pmap_t pmap)
 {
+	struct asid_set *set;
 	int new_asid;
 
 	PMAP_ASSERT_STAGE1(pmap);
-	mtx_lock_spin(&asid_set_mutex);
+	set = pmap->pm_asid_set;
+	KASSERT(set != NULL, ("%s: NULL asid set", __func__));
+
+	mtx_lock_spin(&set->asid_set_mutex);
 
 	/*
 	 * While this processor was waiting to acquire the asid set mutex,
@@ -5888,25 +5920,26 @@ pmap_alloc_asid(pmap_t pmap)
 	 * updated this pmap's cookie to the current epoch.  In which case, we
 	 * don't need to allocate a new ASID.
 	 */
-	if (COOKIE_TO_EPOCH(pmap->pm_cookie) == asid_epoch)
+	if (COOKIE_TO_EPOCH(pmap->pm_cookie) == set->asid_epoch)
 		goto out;
 
-	bit_ffc_at(asid_set, asid_next, asid_set_size, &new_asid);
+	bit_ffc_at(set->asid_set, set->asid_next, set->asid_set_size,
+	    &new_asid);
 	if (new_asid == -1) {
-		bit_ffc_at(asid_set, ASID_FIRST_AVAILABLE, asid_next,
-		    &new_asid);
+		bit_ffc_at(set->asid_set, ASID_FIRST_AVAILABLE,
+		    set->asid_next, &new_asid);
 		if (new_asid == -1) {
-			pmap_reset_asid_set();
-			bit_ffc_at(asid_set, ASID_FIRST_AVAILABLE,
-			    asid_set_size, &new_asid);
+			pmap_reset_asid_set(pmap);
+			bit_ffc_at(set->asid_set, ASID_FIRST_AVAILABLE,
+			    set->asid_set_size, &new_asid);
 			KASSERT(new_asid != -1, ("ASID allocation failure"));
 		}
 	}
-	bit_set(asid_set, new_asid);
-	asid_next = new_asid + 1;
-	pmap->pm_cookie = COOKIE_FROM(new_asid, asid_epoch);
+	bit_set(set->asid_set, new_asid);
+	set->asid_next = new_asid + 1;
+	pmap->pm_cookie = COOKIE_FROM(new_asid, set->asid_epoch);
 out:
-	mtx_unlock_spin(&asid_set_mutex);
+	mtx_unlock_spin(&set->asid_set_mutex);
 }
 
 /*
@@ -5925,6 +5958,7 @@ pmap_to_ttbr0(pmap_t pmap)
 static bool
 pmap_activate_int(pmap_t pmap)
 {
+	struct asid_set *set;
 	int epoch;
 
 	PMAP_ASSERT_STAGE1(pmap);
@@ -5943,6 +5977,9 @@ pmap_activate_int(pmap_t pmap)
 		return (false);
 	}
 
+	set = pmap->pm_asid_set;
+	KASSERT(set != NULL, ("%s: NULL asid set", __func__));
+
 	/*
 	 * Ensure that the store to curpmap is globally visible before the
 	 * load from asid_epoch is performed.
@@ -5950,7 +5987,7 @@ pmap_activate_int(pmap_t pmap)
 	PCPU_SET(curpmap, pmap);
 	dsb(ish);
 	epoch = COOKIE_TO_EPOCH(pmap->pm_cookie);
-	if (epoch >= 0 && epoch != asid_epoch)
+	if (epoch >= 0 && epoch != set->asid_epoch)
 		pmap_alloc_asid(pmap);
 
 	set_ttbr0(pmap_to_ttbr0(pmap));

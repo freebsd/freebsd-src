@@ -90,6 +90,7 @@ struct pmap {
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	struct vm_radix		pm_root;	/* spare page table pages */
 	long			pm_cookie;	/* encodes the pmap's ASID */
+	struct asid_set		*pm_asid_set;	/* The ASID/VMID set to use */
 	enum pmap_stage		pm_stage;
 };
 typedef struct pmap *pmap_t;
