@@ -41,15 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
-
-#if __FreeBSD_version < 500000
-#include "opt_pci.h"
-#endif
-
-#if __FreeBSD_version > 500000
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#endif
 
 #include <dev/agp/agppriv.h>
 #include <dev/agp/agpreg.h>
