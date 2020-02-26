@@ -837,7 +837,7 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	return (0);
 }
 
-static SYSCTL_NODE(_compat, OID_AUTO, linux32, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_compat, OID_AUTO, linux32, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "32-bit Linux emulation");
 
 static u_long	linux32_maxdsiz = LINUX32_MAXDSIZ;

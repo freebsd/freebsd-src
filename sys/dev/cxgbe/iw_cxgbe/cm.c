@@ -1206,7 +1206,8 @@ process_socket_event(struct c4iw_ep *ep)
 
 }
 
-SYSCTL_NODE(_hw, OID_AUTO, iw_cxgbe, CTLFLAG_RD, 0, "iw_cxgbe driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, iw_cxgbe, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "iw_cxgbe driver parameters");
 
 static int dack_mode = 0;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, dack_mode, CTLFLAG_RWTUN, &dack_mode, 0,

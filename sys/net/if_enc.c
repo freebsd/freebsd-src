@@ -120,9 +120,12 @@ VNET_DEFINE_STATIC(int, bpf_mask_out) = IPSEC_ENC_BEFORE | IPSEC_ENC_AFTER;
 #define	V_filter_mask_out	VNET(filter_mask_out)
 #define	V_bpf_mask_out		VNET(bpf_mask_out)
 
-static SYSCTL_NODE(_net, OID_AUTO, enc, CTLFLAG_RW, 0, "enc sysctl");
-static SYSCTL_NODE(_net_enc, OID_AUTO, in, CTLFLAG_RW, 0, "enc input sysctl");
-static SYSCTL_NODE(_net_enc, OID_AUTO, out, CTLFLAG_RW, 0, "enc output sysctl");
+static SYSCTL_NODE(_net, OID_AUTO, enc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "enc sysctl");
+static SYSCTL_NODE(_net_enc, OID_AUTO, in, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "enc input sysctl");
+static SYSCTL_NODE(_net_enc, OID_AUTO, out, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "enc output sysctl");
 SYSCTL_INT(_net_enc_in, OID_AUTO, ipsec_filter_mask,
     CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(filter_mask_in), 0,
     "IPsec input firewall filter mask");

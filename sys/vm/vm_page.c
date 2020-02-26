@@ -127,7 +127,7 @@ static int vm_min_waiters;
 static int vm_severe_waiters;
 static int vm_pageproc_waiters;
 
-static SYSCTL_NODE(_vm_stats, OID_AUTO, page, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_vm_stats, OID_AUTO, page, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM page statistics");
 
 static counter_u64_t pqstate_commit_retries = EARLY_COUNTER;

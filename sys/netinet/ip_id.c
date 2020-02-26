@@ -137,14 +137,14 @@ static void	ipid_sysuninit(void);
 
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id,
-    CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_RW,
+    CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &VNET_NAME(ip_do_randomid), 0, sysctl_ip_randomid, "IU",
     "Assign random ip_id values");
 SYSCTL_INT(_net_inet_ip, OID_AUTO, rfc6864, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_rfc6864), 0,
     "Use constant IP ID for atomic datagrams");
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id_period,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_VNET,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_VNET | CTLFLAG_MPSAFE,
     &VNET_NAME(array_size), 0, sysctl_ip_id_change, "IU", "IP ID Array size");
 SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_collisions,
     CTLFLAG_RD | CTLFLAG_VNET,

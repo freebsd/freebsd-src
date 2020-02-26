@@ -1507,22 +1507,19 @@ mxge_add_sysctls(mxge_softc_t *sc)
 
 	/* performance related tunables */
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"intr_coal_delay",
-			CTLTYPE_INT|CTLFLAG_RW, sc,
-			0, mxge_change_intr_coal,
-			"I", "interrupt coalescing delay in usecs");
+	    "intr_coal_delay", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    sc, 0, mxge_change_intr_coal, "I",
+	    "interrupt coalescing delay in usecs");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"throttle",
-			CTLTYPE_INT|CTLFLAG_RW, sc,
-			0, mxge_change_throttle,
-			"I", "transmit throttling");
+	    "throttle", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    mxge_change_throttle, "I", "transmit throttling");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"flow_control_enabled",
-			CTLTYPE_INT|CTLFLAG_RW, sc,
-			0, mxge_change_flow_control,
-			"I", "interrupt coalescing delay in usecs");
+	    "flow_control_enabled",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    mxge_change_flow_control, "I",
+	    "interrupt coalescing delay in usecs");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "deassert_wait",
@@ -1532,77 +1529,61 @@ mxge_add_sysctls(mxge_softc_t *sc)
 	/* stats block from firmware is in network byte order.
 	   Need to swap it */
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"link_up",
-			CTLTYPE_INT|CTLFLAG_RD, &fw->link_up,
-			0, mxge_handle_be32,
-			"I", "link up");
+	    "link_up", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->link_up, 0, mxge_handle_be32, "I", "link up");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"rdma_tags_available",
-			CTLTYPE_INT|CTLFLAG_RD, &fw->rdma_tags_available,
-			0, mxge_handle_be32,
-			"I", "rdma_tags_available");
+	    "rdma_tags_available", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->rdma_tags_available, 0, mxge_handle_be32, "I",
+	    "rdma_tags_available");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_bad_crc32",
-			CTLTYPE_INT|CTLFLAG_RD,
-			&fw->dropped_bad_crc32,
-			0, mxge_handle_be32,
-			"I", "dropped_bad_crc32");
+	    "dropped_bad_crc32", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_bad_crc32, 0, mxge_handle_be32, "I",
+	    "dropped_bad_crc32");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_bad_phy",
-			CTLTYPE_INT|CTLFLAG_RD,
-			&fw->dropped_bad_phy,
-			0, mxge_handle_be32,
-			"I", "dropped_bad_phy");
+	    "dropped_bad_phy", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_bad_phy, 0, mxge_handle_be32, "I", "dropped_bad_phy");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_link_error_or_filtered",
-			CTLTYPE_INT|CTLFLAG_RD,
-			&fw->dropped_link_error_or_filtered,
-			0, mxge_handle_be32,
-			"I", "dropped_link_error_or_filtered");
+	    "dropped_link_error_or_filtered",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_link_error_or_filtered, 0, mxge_handle_be32, "I",
+	    "dropped_link_error_or_filtered");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_link_overflow",
-			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_link_overflow,
-			0, mxge_handle_be32,
-			"I", "dropped_link_overflow");
+	    "dropped_link_overflow",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_link_overflow, 0, mxge_handle_be32, "I",
+	    "dropped_link_overflow");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_multicast_filtered",
-			CTLTYPE_INT|CTLFLAG_RD,
-			&fw->dropped_multicast_filtered,
-			0, mxge_handle_be32,
-			"I", "dropped_multicast_filtered");
+	    "dropped_multicast_filtered",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_multicast_filtered, 0, mxge_handle_be32, "I",
+	    "dropped_multicast_filtered");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_no_big_buffer",
-			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_no_big_buffer,
-			0, mxge_handle_be32,
-			"I", "dropped_no_big_buffer");
+	    "dropped_no_big_buffer",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_no_big_buffer, 0, mxge_handle_be32, "I",
+	    "dropped_no_big_buffer");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_no_small_buffer",
-			CTLTYPE_INT|CTLFLAG_RD,
-			&fw->dropped_no_small_buffer,
-			0, mxge_handle_be32,
-			"I", "dropped_no_small_buffer");
+	    "dropped_no_small_buffer",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_no_small_buffer, 0, mxge_handle_be32, "I",
+	    "dropped_no_small_buffer");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_overrun",
-			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_overrun,
-			0, mxge_handle_be32,
-			"I", "dropped_overrun");
+	    "dropped_overrun",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_overrun, 0, mxge_handle_be32, "I",
+	    "dropped_overrun");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_pause",
-			CTLTYPE_INT|CTLFLAG_RD,
-			&fw->dropped_pause,
-			0, mxge_handle_be32,
-			"I", "dropped_pause");
+	    "dropped_pause", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_pause, 0, mxge_handle_be32, "I", "dropped_pause");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_runt",
-			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_runt,
-			0, mxge_handle_be32,
-			"I", "dropped_runt");
+	    "dropped_runt", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_runt, 0, mxge_handle_be32, "I", "dropped_runt");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-			"dropped_unicast_filtered",
-			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_unicast_filtered,
-			0, mxge_handle_be32,
-			"I", "dropped_unicast_filtered");
+	    "dropped_unicast_filtered",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &fw->dropped_unicast_filtered, 0, mxge_handle_be32, "I",
+	    "dropped_unicast_filtered");
 
 	/* verbose printing? */
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
@@ -1614,7 +1595,7 @@ mxge_add_sysctls(mxge_softc_t *sc)
 	sysctl_ctx_init(&sc->slice_sysctl_ctx);
 	sc->slice_sysctl_tree =
 		SYSCTL_ADD_NODE(&sc->slice_sysctl_ctx, children, OID_AUTO,
-				"slice", CTLFLAG_RD, 0, "");
+		    "slice", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 	for (slice = 0; slice < sc->num_slices; slice++) {
 		ss = &sc->ss[slice];
@@ -1624,7 +1605,7 @@ mxge_add_sysctls(mxge_softc_t *sc)
 		sprintf(slice_num, "%d", slice);
 		ss->sysctl_tree =
 			SYSCTL_ADD_NODE(ctx, children, OID_AUTO, slice_num,
-					CTLFLAG_RD, 0, "");
+			    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 		children = SYSCTL_CHILDREN(ss->sysctl_tree);
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "rx_small_cnt",

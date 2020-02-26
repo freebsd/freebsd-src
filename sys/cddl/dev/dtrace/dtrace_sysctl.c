@@ -73,13 +73,15 @@ sysctl_dtrace_providers(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_NODE(_debug, OID_AUTO, dtrace, CTLFLAG_RD, 0, "DTrace debug parameters");
+SYSCTL_NODE(_debug, OID_AUTO, dtrace, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "DTrace debug parameters");
 
 SYSCTL_PROC(_debug_dtrace, OID_AUTO, providers,
     CTLTYPE_STRING | CTLFLAG_MPSAFE | CTLFLAG_RD, 0, 0, sysctl_dtrace_providers,
     "A", "available DTrace providers");
 
-SYSCTL_NODE(_kern, OID_AUTO, dtrace, CTLFLAG_RD, 0, "DTrace parameters");
+SYSCTL_NODE(_kern, OID_AUTO, dtrace, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "DTrace parameters");
 
 SYSCTL_INT(_kern_dtrace, OID_AUTO, err_verbose, CTLFLAG_RW,
     &dtrace_err_verbose, 0,

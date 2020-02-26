@@ -39,7 +39,8 @@ __FBSDID("$FreeBSD$");
 #include "ntb.h"
 
 devclass_t ntb_hw_devclass;
-SYSCTL_NODE(_hw, OID_AUTO, ntb, CTLFLAG_RW, 0, "NTB sysctls");
+SYSCTL_NODE(_hw, OID_AUTO, ntb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "NTB sysctls");
 
 struct ntb_child {
 	device_t	dev;

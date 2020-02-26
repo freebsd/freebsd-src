@@ -93,7 +93,7 @@ static int wd_startup_countdown = 0; /* sec */
 static int wd_pretimeout_countdown = 120; /* sec */
 static int cycle_wait = 10; /* sec */
 
-static SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "IPMI driver parameters");
 SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RWTUN,
 	&on, 0, "");

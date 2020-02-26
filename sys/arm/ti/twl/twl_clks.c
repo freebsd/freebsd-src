@@ -471,7 +471,7 @@ twl_clks_add_clock(struct twl_clks_softc *sc, const char *name,
 
 	/* Add a sysctl entry for the clock */
 	new->oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, name,
-	    CTLTYPE_INT | CTLFLAG_RD, sc, 0,
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
 	    twl_clks_sysctl_clock, "I", "external clock");
 
 	/* Finally add the regulator to list of supported regulators */

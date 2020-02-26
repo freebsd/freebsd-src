@@ -1392,8 +1392,9 @@ vtblk_setup_sysctl(struct vtblk_softc *sc)
 	child = SYSCTL_CHILDREN(tree);
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "writecache_mode",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, vtblk_write_cache_sysctl,
-	    "I", "Write cache mode (writethrough (0) or writeback (1))");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    vtblk_write_cache_sysctl, "I",
+	    "Write cache mode (writethrough (0) or writeback (1))");
 }
 
 static int

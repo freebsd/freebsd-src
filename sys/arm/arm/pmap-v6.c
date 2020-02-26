@@ -1550,7 +1550,8 @@ pmap_pte2list_init(vm_offset_t *head, void *base, int npages)
  *
  *****************************************************************************/
 
-SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "VM/pmap parameters");
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_max, CTLFLAG_RD, &pv_entry_max, 0,
     "Max number of PV entries");
@@ -1572,7 +1573,7 @@ pmap_ps_enabled(pmap_t pmap __unused)
 	return (sp_enabled != 0);
 }
 
-static SYSCTL_NODE(_vm_pmap, OID_AUTO, pte1, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_vm_pmap, OID_AUTO, pte1, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "1MB page mapping counters");
 
 static u_long pmap_pte1_demotions;
@@ -2108,8 +2109,9 @@ kvm_size(SYSCTL_HANDLER_ARGS)
 
 	return (sysctl_handle_long(oidp, &ksize, 0, req));
 }
-SYSCTL_PROC(_vm, OID_AUTO, kvm_size, CTLTYPE_LONG|CTLFLAG_RD,
-    0, 0, kvm_size, "IU", "Size of KVM");
+SYSCTL_PROC(_vm, OID_AUTO, kvm_size,
+    CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_NEEDGIANT, 0, 0, kvm_size, "IU",
+    "Size of KVM");
 
 static int
 kvm_free(SYSCTL_HANDLER_ARGS)
@@ -2118,8 +2120,9 @@ kvm_free(SYSCTL_HANDLER_ARGS)
 
 	return (sysctl_handle_long(oidp, &kfree, 0, req));
 }
-SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG|CTLFLAG_RD,
-    0, 0, kvm_free, "IU", "Amount of KVM free");
+SYSCTL_PROC(_vm, OID_AUTO, kvm_free,
+    CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_NEEDGIANT, 0, 0, kvm_free, "IU",
+    "Amount of KVM free");
 
 /***********************************************
  *

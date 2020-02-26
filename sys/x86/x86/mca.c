@@ -102,7 +102,7 @@ static volatile int mca_count;	/* Number of records stored. */
 static int mca_banks;		/* Number of per-CPU register banks. */
 static int mca_maxcount = -1;	/* Limit on records stored. (-1 = unlimited) */
 
-static SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Machine Check Architecture");
 
 static int mca_enabled = 1;
@@ -1041,7 +1041,8 @@ mca_setup(uint64_t mcg_cap)
 	    0, sysctl_positive_int, "I",
 	    "Periodic interval in seconds to scan for machine checks");
 	SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
-	    "records", CTLFLAG_RD, sysctl_mca_records, "Machine check records");
+	    "records", CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_mca_records,
+	    "Machine check records");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "force_scan", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
 	    sysctl_mca_scan, "I", "Force an immediate scan for machine checks");

@@ -216,9 +216,8 @@ tws_attach(device_t dev)
     /* sysctl context setup */
     sysctl_ctx_init(&sc->tws_clist);
     sc->tws_oidp = SYSCTL_ADD_NODE(&sc->tws_clist,
-                                   SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
-                                   device_get_nameunit(dev), 
-                                   CTLFLAG_RD, 0, "");
+        SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
+	device_get_nameunit(dev), CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
     if ( sc->tws_oidp == NULL ) {
         tws_log(sc, SYSCTL_TREE_NODE_ADD);
         goto attach_fail_1;

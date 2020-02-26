@@ -130,7 +130,7 @@ static int pvscsi_get_tunable(struct pvscsi_softc *sc, char *name, int value);
 
 #ifdef PVSCSI_DEBUG_LOGGING
 static int pvscsi_log_level = 0;
-static SYSCTL_NODE(_hw, OID_AUTO, pvscsi, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, pvscsi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "PVSCSI driver parameters");
 SYSCTL_INT(_hw_pvscsi, OID_AUTO, log_level, CTLFLAG_RWTUN, &pvscsi_log_level,
     0, "PVSCSI debug log level");

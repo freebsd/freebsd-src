@@ -107,7 +107,8 @@ static MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node");
  */
 #define MPPE_MAX_REKEY		1000
 
-SYSCTL_NODE(_net_graph, OID_AUTO, mppe, CTLFLAG_RW, 0, "MPPE");
+SYSCTL_NODE(_net_graph, OID_AUTO, mppe, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "MPPE");
 
 static int mppe_block_on_max_rekey = 0;
 SYSCTL_INT(_net_graph_mppe, OID_AUTO, block_on_max_rekey, CTLFLAG_RWTUN,

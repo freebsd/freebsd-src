@@ -107,7 +107,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <x86/ifunc.h>
 
-static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "VM/pmap parameters");
 
 #include <machine/vmparam.h>
 #include <vm/vm.h>
@@ -164,7 +165,7 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, shpgperproc, CTLFLAG_RD,
     &shpgperproc, 0,
     "Page share factor per proc");
 
-static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "2/4MB page mapping counters");
 
 u_long pmap_pde_demotions;

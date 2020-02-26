@@ -436,11 +436,13 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
  * Sysctl entries for devstat.  The first one is a node that all the rest
  * hang off of. 
  */
-static SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Device Statistics");
 
-SYSCTL_PROC(_kern_devstat, OID_AUTO, all, CTLFLAG_RD|CTLTYPE_OPAQUE,
-    NULL, 0, sysctl_devstat, "S,devstat", "All devices in the devstat list");
+SYSCTL_PROC(_kern_devstat, OID_AUTO, all,
+    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_devstat, "S,devstat",
+    "All devices in the devstat list");
 /*
  * Export the number of devices in the system so that userland utilities
  * can determine how much memory to allocate to hold all the devices.

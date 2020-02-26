@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(debugnet, "Debugnet support");
 
-SYSCTL_NODE(_net, OID_AUTO, debugnet, CTLFLAG_RD, NULL,
+SYSCTL_NODE(_net, OID_AUTO, debugnet, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "debugnet parameters");
 
 unsigned debugnet_debug;

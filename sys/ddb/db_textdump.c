@@ -76,7 +76,8 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>
 
-static SYSCTL_NODE(_debug_ddb, OID_AUTO, textdump, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_debug_ddb, OID_AUTO, textdump,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "DDB textdump options");
 
 /*

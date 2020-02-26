@@ -1190,7 +1190,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_sysctl_root),
 	    OID_AUTO,
 	    "probertt",
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "");
 	SYSCTL_ADD_S32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_probertt),
@@ -1258,7 +1258,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_sysctl_root),
 	    OID_AUTO,
 	    "pacing",
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "");
 	SYSCTL_ADD_U32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_hptsi),
@@ -1360,7 +1360,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_sysctl_root),
 	    OID_AUTO,
 	    "measure",
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "Measurement controls");
 	SYSCTL_ADD_U32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_measure),
@@ -1427,7 +1427,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_sysctl_root),
 	    OID_AUTO,
 	    "states",
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "State controls");
 	SYSCTL_ADD_S32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_states),
@@ -1519,7 +1519,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_sysctl_root),
 	    OID_AUTO,
 	    "startup",
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "Startup controls");
 	SYSCTL_ADD_S32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_startup),
@@ -1556,7 +1556,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_sysctl_root),
 	    OID_AUTO,
 	    "cwnd",
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "Cwnd controls");
 	SYSCTL_ADD_S32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_cwnd),
@@ -1629,7 +1629,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_sysctl_root),
 	    OID_AUTO,
 	    "timeout",
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "Time out controls");
 	SYSCTL_ADD_S32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_timeout),
@@ -1701,7 +1701,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_sysctl_root),
 	    OID_AUTO,
 	    "policer",
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "Policer controls");
 	SYSCTL_ADD_S32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_policer),
@@ -15135,7 +15135,7 @@ tcp_addbbr(module_t mod, int32_t type, void *data)
 #else
 		    __XSTRING(STACKNAME),
 #endif
-		    CTLFLAG_RW, 0,
+		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		    "");
 		if (bbr_sysctl_root == NULL) {
 			printf("Failed to add sysctl node\n");

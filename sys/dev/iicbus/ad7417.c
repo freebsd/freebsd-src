@@ -416,7 +416,7 @@ ad7417_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 	sensroot_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "sensor",
-	    CTLFLAG_RD, 0, "AD7417 Sensor Information");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "AD7417 Sensor Information");
 
 	/* Now we can fill the properties into the allocated struct. */
 	sc->sc_nsensors = ad7417_fill_sensor_prop(dev);
@@ -432,9 +432,8 @@ ad7417_attach(device_t dev)
 		sysctl_name[j] = 0;
 
 		oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(sensroot_oid),
-				      OID_AUTO,
-				      sysctl_name, CTLFLAG_RD, 0,
-				      "Sensor Information");
+		    OID_AUTO, sysctl_name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+		    "Sensor Information");
 
 		if (sc->sc_sensors[i].type == ADC7417_TEMP_SENSOR) {
 			unit = "temp";
@@ -445,10 +444,10 @@ ad7417_attach(device_t dev)
 		}
 		/* I use i to pass the sensor id. */
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-				unit, CTLTYPE_INT | CTLFLAG_RD, dev,
-				i, ad7417_sensor_sysctl,
-				sc->sc_sensors[i].type == ADC7417_TEMP_SENSOR ?
-				"IK" : "I", desc);
+		    unit, CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, dev,
+		    i, ad7417_sensor_sysctl,
+		    sc->sc_sensors[i].type == ADC7417_TEMP_SENSOR ? "IK" : "I",
+		    desc);
 	}
 	/* Dump sensor location, ID & type. */
 	if (bootverbose) {

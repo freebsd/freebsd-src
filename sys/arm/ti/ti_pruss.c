@@ -542,10 +542,11 @@ ti_pruss_attach(device_t dev)
 
 	sc->sc_glob_irqen = false;
 	struct sysctl_oid *irq_root = SYSCTL_ADD_NODE(clist, SYSCTL_CHILDREN(poid),
-	    OID_AUTO, "irq", CTLFLAG_RD, 0,
+	    OID_AUTO, "irq", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 	    "PRUSS Host Interrupts");
 	SYSCTL_ADD_PROC(clist, SYSCTL_CHILDREN(poid), OID_AUTO,
-	    "global_interrupt_enable", CTLFLAG_RW | CTLTYPE_U8,
+	    "global_interrupt_enable",
+	    CTLFLAG_RW | CTLTYPE_U8 | CTLFLAG_NEEDGIANT,
 	    sc, 0, ti_pruss_global_interrupt_enable,
 	    "CU", "Global interrupt enable");
 
@@ -564,16 +565,19 @@ ti_pruss_attach(device_t dev)
 		snprintf(name, sizeof(name), "%d", i);
 
 		struct sysctl_oid *irq_nodes = SYSCTL_ADD_NODE(clist, SYSCTL_CHILDREN(irq_root),
-		    OID_AUTO, name, CTLFLAG_RD, 0,
+		    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 		    "PRUSS Interrupts");
 		SYSCTL_ADD_PROC(clist, SYSCTL_CHILDREN(irq_nodes), OID_AUTO,
-		    "channel", CTLFLAG_RW | CTLTYPE_STRING, sc, i, ti_pruss_channel_map,
+		    "channel", CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_NEEDGIANT,
+		    sc, i, ti_pruss_channel_map,
 		    "A", "Channel attached to this irq");
 		SYSCTL_ADD_PROC(clist, SYSCTL_CHILDREN(irq_nodes), OID_AUTO,
-		    "event", CTLFLAG_RW | CTLTYPE_STRING, sc, i, ti_pruss_event_map,
+		    "event", CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_NEEDGIANT,
+		    sc, i, ti_pruss_event_map,
 		    "A", "Event attached to this irq");
 		SYSCTL_ADD_PROC(clist, SYSCTL_CHILDREN(irq_nodes), OID_AUTO,
-		    "enable", CTLFLAG_RW | CTLTYPE_U8, sc, i, ti_pruss_interrupt_enable,
+		    "enable", CTLFLAG_RW | CTLTYPE_U8 | CTLFLAG_NEEDGIANT,
+		    sc, i, ti_pruss_interrupt_enable,
 		    "CU", "Enable/Disable interrupt");
 
 		sc->sc_irq_devs[i].event = -1;

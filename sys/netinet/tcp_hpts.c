@@ -203,7 +203,8 @@ static void tcp_init_hptsi(void *st);
 int32_t tcp_min_hptsi_time = DEFAULT_MIN_SLEEP;
 static int32_t tcp_hpts_callout_skip_swi = 0;
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hpts, CTLFLAG_RW, 0, "TCP Hpts controls");
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hpts, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "TCP Hpts controls");
 
 #define	timersub(tvp, uvp, vvp)						\
 	do {								\
@@ -293,7 +294,7 @@ sysctl_net_inet_tcp_hpts_max_sleep(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_tcp_hpts, OID_AUTO, maxsleep,
-    CTLTYPE_UINT | CTLFLAG_RW,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &hpts_sleep_max, 0,
     &sysctl_net_inet_tcp_hpts_max_sleep, "IU",
     "Maximum time hpts will sleep");
@@ -1903,7 +1904,7 @@ tcp_init_hptsi(void *st)
 		    SYSCTL_STATIC_CHILDREN(_net_inet_tcp_hpts),
 		    OID_AUTO,
 		    unit,
-		    CTLFLAG_RW, 0,
+		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		    "");
 		SYSCTL_ADD_INT(&hpts->hpts_ctx,
 		    SYSCTL_CHILDREN(hpts->hpts_root),

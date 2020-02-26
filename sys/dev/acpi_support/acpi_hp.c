@@ -593,13 +593,15 @@ acpi_hp_attach(device_t dev)
 		if (acpi_hp_sysctls[i].flag_rdonly != 0) {
 			SYSCTL_ADD_PROC(sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-			    acpi_hp_sysctls[i].name, CTLTYPE_INT | CTLFLAG_RD,
+			    acpi_hp_sysctls[i].name,
+			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 			    sc, i, acpi_hp_sysctl, "I",
 			    acpi_hp_sysctls[i].description);
 		} else {
 			SYSCTL_ADD_PROC(sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-			    acpi_hp_sysctls[i].name, CTLTYPE_INT | CTLFLAG_RW,
+			    acpi_hp_sysctls[i].name,
+			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 			    sc, i, acpi_hp_sysctl, "I",
 			    acpi_hp_sysctls[i].description);
 		}

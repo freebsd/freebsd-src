@@ -205,8 +205,9 @@ static int					ng_btsocket_rfcomm_curpps;
 
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_rfcomm_sockets);
-static SYSCTL_NODE(_net_bluetooth_rfcomm_sockets, OID_AUTO, stream, CTLFLAG_RW,
-	0, "Bluetooth STREAM RFCOMM sockets family");
+static SYSCTL_NODE(_net_bluetooth_rfcomm_sockets, OID_AUTO, stream,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Bluetooth STREAM RFCOMM sockets family");
 SYSCTL_UINT(_net_bluetooth_rfcomm_sockets_stream, OID_AUTO, debug_level,
 	CTLFLAG_RW,
 	&ng_btsocket_rfcomm_debug_level, NG_BTSOCKET_INFO_LEVEL,

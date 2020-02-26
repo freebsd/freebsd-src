@@ -3334,12 +3334,13 @@ iwi_sysctlattach(struct iwi_softc *sc)
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "radio",
-	    CTLTYPE_INT | CTLFLAG_RD, sc, 0, iwi_sysctl_radio, "I",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+	    iwi_sysctl_radio, "I",
 	    "radio transmitter switch state (0=off, 1=on)");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "stats",
-	    CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0, iwi_sysctl_stats, "S",
-	    "statistics");
+	    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+	    iwi_sysctl_stats, "S", "statistics");
 
 	sc->bluetooth = 0;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "bluetooth",
@@ -3513,8 +3514,8 @@ iwi_ledattach(struct iwi_softc *sc)
 	callout_init_mtx(&sc->sc_ledtimer, &sc->sc_mtx, 0);
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"softled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		iwi_sysctl_softled, "I", "enable/disable software LED support");
+	    "softled", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    iwi_sysctl_softled, "I", "enable/disable software LED support");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledpin", CTLFLAG_RW, &sc->sc_ledpin, 0,
 		"pin setting to turn activity LED on");

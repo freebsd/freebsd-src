@@ -158,8 +158,9 @@ sysctl_hw_snd_timestamp_precision(SYSCTL_HANDLER_ARGS)
 
 	return (err);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, timestamp_precision, CTLTYPE_INT | CTLFLAG_RW,
-    0, sizeof(int), sysctl_hw_snd_timestamp_precision, "I",
+SYSCTL_PROC(_hw_snd, OID_AUTO, timestamp_precision,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    sysctl_hw_snd_timestamp_precision, "I",
     "timestamp precision (0=s 1=hz 2=us 3=ns)");
 #endif
 

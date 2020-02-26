@@ -47,7 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx_wdogreg.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, imx, CTLFLAG_RW, NULL, "i.MX container");
+SYSCTL_NODE(_hw, OID_AUTO, imx, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    "i.MX container");
 
 static int last_reset_status;
 SYSCTL_UINT(_hw_imx, OID_AUTO, last_reset_status, CTLFLAG_RD, 

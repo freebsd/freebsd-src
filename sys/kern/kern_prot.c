@@ -84,7 +84,8 @@ FEATURE(regression,
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
-SYSCTL_NODE(_security, OID_AUTO, bsd, CTLFLAG_RW, 0, "BSD security policy");
+SYSCTL_NODE(_security, OID_AUTO, bsd, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "BSD security policy");
 
 static void crsetgroups_locked(struct ucred *cr, int ngrp,
     gid_t *groups);
@@ -1678,8 +1679,8 @@ sysctl_unprivileged_proc_debug(SYSCTL_HANDLER_ARGS)
  * systems.
  */
 SYSCTL_PROC(_security_bsd, OID_AUTO, unprivileged_proc_debug,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_SECURE, 0, 0,
-    sysctl_unprivileged_proc_debug, "I",
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_SECURE |
+    CTLFLAG_MPSAFE, 0, 0, sysctl_unprivileged_proc_debug, "I",
     "Unprivileged processes may use process debugging facilities");
 
 /*-

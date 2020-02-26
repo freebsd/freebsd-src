@@ -325,5 +325,7 @@ efi_time_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_debug, OID_AUTO, efi_time, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
-    efi_time_sysctl_handler, "I", "");
+SYSCTL_PROC(_debug, OID_AUTO, efi_time,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    efi_time_sysctl_handler, "I",
+    "");

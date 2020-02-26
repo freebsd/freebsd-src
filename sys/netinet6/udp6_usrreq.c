@@ -682,8 +682,10 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet6_udp6, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW, 0,
-    0, udp6_getcred, "S,xucred", "Get the xucred of a UDP6 connection");
+SYSCTL_PROC(_net_inet6_udp6, OID_AUTO, getcred,
+    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, 0, udp6_getcred, "S,xucred",
+    "Get the xucred of a UDP6 connection");
 
 static int
 udp6_output(struct socket *so, int flags_arg, struct mbuf *m,

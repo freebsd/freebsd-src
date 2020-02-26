@@ -401,7 +401,8 @@ static struct bstp_cb_ops bridge_ops = {
 };
 
 SYSCTL_DECL(_net_link);
-static SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
+static SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Bridge");
 
 /* only pass IP[46] packets when pfil is enabled */
 VNET_DEFINE_STATIC(int, pfil_onlyip) = 1;
@@ -663,7 +664,7 @@ sysctl_pfil_ipfw(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_net_link_bridge, OID_AUTO, ipfw,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_VNET,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_VNET | CTLFLAG_NEEDGIANT,
     &VNET_NAME(pfil_ipfw), 0, &sysctl_pfil_ipfw, "I",
     "Layer2 filter with IPFW");
 

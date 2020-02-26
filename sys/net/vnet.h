@@ -142,7 +142,8 @@ array##_sysctl(SYSCTL_HANDLER_ARGS)					\
 		    sizeof(type) / sizeof(uint64_t));			\
 	return (SYSCTL_OUT(req, &s, sizeof(type)));			\
 }									\
-SYSCTL_PROC(parent, nbr, name, CTLFLAG_VNET | CTLTYPE_OPAQUE | CTLFLAG_RW, \
+SYSCTL_PROC(parent, nbr, name,						\
+    CTLFLAG_VNET | CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_NEEDGIANT,	\
     NULL, 0, array ## _sysctl, "I", desc)
 #endif /* SYSCTL_OID */
 

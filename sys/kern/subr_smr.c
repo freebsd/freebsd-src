@@ -199,7 +199,8 @@ static uma_zone_t smr_zone;
  */
 #define	SMR_SEQ_ADVANCE		MAX(SMR_SEQ_INCR, SMR_LAZY_GRACE_MAX)
 
-static SYSCTL_NODE(_debug, OID_AUTO, smr, CTLFLAG_RW, NULL, "SMR Stats");
+static SYSCTL_NODE(_debug, OID_AUTO, smr, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    "SMR Stats");
 static counter_u64_t advance = EARLY_COUNTER;
 SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance, CTLFLAG_RW, &advance, "");
 static counter_u64_t advance_wait = EARLY_COUNTER;

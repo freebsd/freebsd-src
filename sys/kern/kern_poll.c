@@ -101,8 +101,8 @@ static uint32_t poll_burst = 5;
 static uint32_t poll_burst_max = 150;	/* good for 100Mbit net and HZ=1000 */
 static uint32_t poll_each_burst = 5;
 
-static SYSCTL_NODE(_kern, OID_AUTO, polling, CTLFLAG_RW, 0,
-	"Device polling parameters");
+static SYSCTL_NODE(_kern, OID_AUTO, polling, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Device polling parameters");
 
 SYSCTL_UINT(_kern_polling, OID_AUTO, burst, CTLFLAG_RD,
 	&poll_burst, 0, "Current polling burst size");
@@ -132,8 +132,10 @@ static int poll_burst_max_sysctl(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-SYSCTL_PROC(_kern_polling, OID_AUTO, burst_max, CTLTYPE_UINT | CTLFLAG_RW,
-	0, sizeof(uint32_t), poll_burst_max_sysctl, "I", "Max Polling burst size");
+SYSCTL_PROC(_kern_polling, OID_AUTO, burst_max,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(uint32_t),
+    poll_burst_max_sysctl, "I",
+    "Max Polling burst size");
 
 static int poll_each_burst_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -156,9 +158,10 @@ static int poll_each_burst_sysctl(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-SYSCTL_PROC(_kern_polling, OID_AUTO, each_burst, CTLTYPE_UINT | CTLFLAG_RW,
-	0, sizeof(uint32_t), poll_each_burst_sysctl, "I",
-	"Max size of each burst");
+SYSCTL_PROC(_kern_polling, OID_AUTO, each_burst,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(uint32_t),
+    poll_each_burst_sysctl, "I",
+    "Max size of each burst");
 
 static uint32_t poll_in_idle_loop=0;	/* do we poll in idle loop ? */
 SYSCTL_UINT(_kern_polling, OID_AUTO, idle_poll, CTLFLAG_RW,
@@ -182,9 +185,10 @@ static int user_frac_sysctl(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-SYSCTL_PROC(_kern_polling, OID_AUTO, user_frac, CTLTYPE_UINT | CTLFLAG_RW,
-	0, sizeof(uint32_t), user_frac_sysctl, "I",
-	"Desired user fraction of cpu time");
+SYSCTL_PROC(_kern_polling, OID_AUTO, user_frac,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(uint32_t),
+    user_frac_sysctl, "I",
+    "Desired user fraction of cpu time");
 
 static uint32_t reg_frac_count = 0;
 static uint32_t reg_frac = 20 ;
@@ -207,9 +211,10 @@ static int reg_frac_sysctl(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-SYSCTL_PROC(_kern_polling, OID_AUTO, reg_frac, CTLTYPE_UINT | CTLFLAG_RW,
-	0, sizeof(uint32_t), reg_frac_sysctl, "I",
-	"Every this many cycles check registers");
+SYSCTL_PROC(_kern_polling, OID_AUTO, reg_frac,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(uint32_t),
+    reg_frac_sysctl, "I",
+    "Every this many cycles check registers");
 
 static uint32_t short_ticks;
 SYSCTL_UINT(_kern_polling, OID_AUTO, short_ticks, CTLFLAG_RD,

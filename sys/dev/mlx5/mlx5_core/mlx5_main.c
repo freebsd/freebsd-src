@@ -56,7 +56,8 @@ MODULE_DEPEND(mlx5, mlxfw, 1, 1, 1);
 MODULE_DEPEND(mlx5, firmware, 1, 1, 1);
 MODULE_VERSION(mlx5, 1);
 
-SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "mlx5 hardware controls");
+SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "mlx5 hardware controls");
 
 int mlx5_core_debug_mask;
 SYSCTL_INT(_hw_mlx5, OID_AUTO, debug_mask, CTLFLAG_RWTUN,
@@ -1332,7 +1333,7 @@ static int init_one(struct pci_dev *pdev,
 
 	pme_sysctl_node = SYSCTL_ADD_NODE(&dev->sysctl_ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
-	    OID_AUTO, "pme_stats", CTLFLAG_RD, NULL,
+	    OID_AUTO, "pme_stats", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
 	    "Port module event statistics");
 	if (pme_sysctl_node == NULL) {
 		err = -ENOMEM;
@@ -1340,7 +1341,7 @@ static int init_one(struct pci_dev *pdev,
 	}
 	pme_err_sysctl_node = SYSCTL_ADD_NODE(&dev->sysctl_ctx,
 	    SYSCTL_CHILDREN(pme_sysctl_node),
-	    OID_AUTO, "errors", CTLFLAG_RD, NULL,
+	    OID_AUTO, "errors", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
 	    "Port module event error statistics");
 	if (pme_err_sysctl_node == NULL) {
 		err = -ENOMEM;

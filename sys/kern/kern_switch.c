@@ -80,7 +80,8 @@ SYSCTL_INT(_kern_sched, OID_AUTO, preemption, CTLFLAG_RD,
  * with SCHED_STAT_DEFINE().
  */
 #ifdef SCHED_STATS
-SYSCTL_NODE(_kern_sched, OID_AUTO, stats, CTLFLAG_RW, 0, "switch stats");
+SYSCTL_NODE(_kern_sched, OID_AUTO, stats, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "switch stats");
 
 /* Switch reasons from mi_switch(). */
 DPCPU_DEFINE(long, sched_switch_stats[SWT_COUNT]);
@@ -141,8 +142,10 @@ sysctl_stats_reset(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_PROC(_kern_sched_stats, OID_AUTO, reset, CTLTYPE_INT | CTLFLAG_WR, NULL,
-    0, sysctl_stats_reset, "I", "Reset scheduler statistics");
+SYSCTL_PROC(_kern_sched_stats, OID_AUTO, reset,
+    CTLTYPE_INT | CTLFLAG_WR | CTLFLAG_NEEDGIANT, NULL, 0,
+    sysctl_stats_reset, "I",
+    "Reset scheduler statistics");
 #endif
 
 /************************************************************************

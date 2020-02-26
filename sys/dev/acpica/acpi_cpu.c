@@ -391,7 +391,7 @@ acpi_cpu_attach(device_t dev)
 	sysctl_ctx_init(&cpu_sysctl_ctx);
 	cpu_sysctl_tree = SYSCTL_ADD_NODE(&cpu_sysctl_ctx,
 	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO, "cpu",
-	    CTLFLAG_RD, 0, "node for CPU children");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "node for CPU children");
     }
 
     /*
@@ -1023,7 +1023,7 @@ acpi_cpu_startup(void *arg)
 
     /* Add a sysctl handler to handle global Cx lowest setting */
     SYSCTL_ADD_PROC(&cpu_sysctl_ctx, SYSCTL_CHILDREN(cpu_sysctl_tree),
-	OID_AUTO, "cx_lowest", CTLTYPE_STRING | CTLFLAG_RW,
+	OID_AUTO, "cx_lowest", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	NULL, 0, acpi_cpu_global_cx_lowest_sysctl, "A",
 	"Global lowest Cx sleep state to use");
 
@@ -1067,26 +1067,25 @@ acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
 		      sc->cpu_cx_supported, 0,
 		      "Cx/microsecond values for supported Cx states");
     SYSCTL_ADD_PROC(&sc->cpu_sysctl_ctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)),
-		    OID_AUTO, "cx_lowest", CTLTYPE_STRING | CTLFLAG_RW,
-		    (void *)sc, 0, acpi_cpu_cx_lowest_sysctl, "A",
-		    "lowest Cx sleep state to use");
+        SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)), OID_AUTO,
+	"cx_lowest", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	(void *)sc, 0, acpi_cpu_cx_lowest_sysctl, "A",
+	"lowest Cx sleep state to use");
     SYSCTL_ADD_PROC(&sc->cpu_sysctl_ctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)),
-		    OID_AUTO, "cx_usage", CTLTYPE_STRING | CTLFLAG_RD,
-		    (void *)sc, 0, acpi_cpu_usage_sysctl, "A",
-		    "percent usage for each Cx state");
+        SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)), OID_AUTO,
+	"cx_usage", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	(void *)sc, 0, acpi_cpu_usage_sysctl, "A",
+	"percent usage for each Cx state");
     SYSCTL_ADD_PROC(&sc->cpu_sysctl_ctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)),
-		    OID_AUTO, "cx_usage_counters", CTLTYPE_STRING | CTLFLAG_RD,
-		    (void *)sc, 0, acpi_cpu_usage_counters_sysctl, "A",
-		    "Cx sleep state counters");
+        SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)), OID_AUTO,
+	"cx_usage_counters", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	(void *)sc, 0, acpi_cpu_usage_counters_sysctl, "A",
+	"Cx sleep state counters");
 #if defined(__i386__) || defined(__amd64__)
     SYSCTL_ADD_PROC(&sc->cpu_sysctl_ctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)),
-		    OID_AUTO, "cx_method", CTLTYPE_STRING | CTLFLAG_RD,
-		    (void *)sc, 0, acpi_cpu_method_sysctl, "A",
-		    "Cx entrance methods");
+        SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)), OID_AUTO,
+	"cx_method", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	(void *)sc, 0, acpi_cpu_method_sysctl, "A", "Cx entrance methods");
 #endif
 
     /* Signal platform that we can handle _CST notification. */

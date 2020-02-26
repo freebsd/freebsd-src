@@ -147,8 +147,9 @@ SYSCTL_UINT(_net_inet_ip, OID_AUTO, curfrags, CTLFLAG_RD,
 
 VNET_DEFINE_STATIC(uma_zone_t, ipq_zone);
 #define	V_ipq_zone	VNET(ipq_zone)
-SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLFLAG_VNET |
-    CTLTYPE_INT | CTLFLAG_RW, NULL, 0, sysctl_maxfragpackets, "I",
+SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    NULL, 0, sysctl_maxfragpackets, "I",
     "Maximum number of IPv4 fragment reassembly queue entries");
 SYSCTL_UMA_CUR(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_VNET,
     &VNET_NAME(ipq_zone),

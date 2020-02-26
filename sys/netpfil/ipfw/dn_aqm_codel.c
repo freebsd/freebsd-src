@@ -118,17 +118,20 @@ SYSBEGIN(f4)
 SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_ip_dummynet);
-static SYSCTL_NODE(_net_inet_ip_dummynet, OID_AUTO, 
-	codel, CTLFLAG_RW, 0, "CODEL");
+static SYSCTL_NODE(_net_inet_ip_dummynet, OID_AUTO, codel,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "CODEL");
 
 #ifdef SYSCTL_NODE
 SYSCTL_PROC(_net_inet_ip_dummynet_codel, OID_AUTO, target,
-	CTLTYPE_LONG | CTLFLAG_RW, NULL, 0,codel_sysctl_target_handler, "L",
-	"CoDel target in microsecond");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    NULL, 0,codel_sysctl_target_handler, "L",
+    "CoDel target in microsecond");
 
 SYSCTL_PROC(_net_inet_ip_dummynet_codel, OID_AUTO, interval,
-	CTLTYPE_LONG | CTLFLAG_RW, NULL, 0, codel_sysctl_interval_handler, "L",
-	"CoDel interval in microsecond");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    NULL, 0, codel_sysctl_interval_handler, "L",
+    "CoDel interval in microsecond");
 #endif
 
 /* This function computes codel_interval/sqrt(count) 

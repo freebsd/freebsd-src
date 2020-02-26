@@ -2532,13 +2532,13 @@ vge_sysctl_node(struct vge_softc *sc)
 	resource_int_value(device_get_name(sc->vge_dev),
 	    device_get_unit(sc->vge_dev), "tx_coal_pkt", &sc->vge_tx_coal_pkt);
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "VGE statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "VGE statistics");
 	parent = SYSCTL_CHILDREN(tree);
 
 	/* Rx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
-	    NULL, "RX MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "RX MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames",
 	    &stats->rx_frames, "frames");
@@ -2582,8 +2582,8 @@ vge_sysctl_node(struct vge_softc *sc)
 	    &stats->rx_lenerrs, "Frames with length mismatched");
 
 	/* Tx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "TX MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	VGE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
 	    &stats->tx_good_frames, "Good frames");

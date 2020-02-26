@@ -204,22 +204,22 @@ bcm_spi_sysctl_init(struct bcm_spi_softc *sc)
 	tree_node = device_get_sysctl_tree(sc->sc_dev);
 	tree = SYSCTL_CHILDREN(tree_node);
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "clock",
-	    CTLFLAG_RD | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_spi_clock_proc, "IU", "SPI BUS clock frequency");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "cpol",
-	    CTLFLAG_RD | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_spi_cpol_proc, "IU", "SPI BUS clock polarity");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "cpha",
-	    CTLFLAG_RD | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_spi_cpha_proc, "IU", "SPI BUS clock phase");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "cspol0",
-	    CTLFLAG_RD | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_spi_cspol0_proc, "IU", "SPI BUS chip select 0 polarity");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "cspol1",
-	    CTLFLAG_RD | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_spi_cspol1_proc, "IU", "SPI BUS chip select 1 polarity");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "cspol2",
-	    CTLFLAG_RD | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_spi_cspol2_proc, "IU", "SPI BUS chip select 2 polarity");
 }
 

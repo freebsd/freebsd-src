@@ -63,7 +63,8 @@ __FBSDID("$FreeBSD$");
 #define FDT_REG_CELLS	4
 #define FDT_RANGES_SIZE 48
 
-SYSCTL_NODE(_hw, OID_AUTO, fdt, CTLFLAG_RD, 0, "Flattened Device Tree");
+SYSCTL_NODE(_hw, OID_AUTO, fdt, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Flattened Device Tree");
 
 vm_paddr_t fdt_immr_pa;
 vm_offset_t fdt_immr_va;

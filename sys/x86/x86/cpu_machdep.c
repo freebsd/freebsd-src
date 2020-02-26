@@ -741,8 +741,10 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, idle_sysctl_available, "A", "list of available idle functions");
+SYSCTL_PROC(_machdep, OID_AUTO, idle_available,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+    0, 0, idle_sysctl_available, "A",
+    "list of available idle functions");
 
 static bool
 cpu_idle_selector(const char *new_idle_name)
@@ -786,8 +788,10 @@ cpu_idle_sysctl(SYSCTL_HANDLER_ARGS)
 	return (cpu_idle_selector(buf) ? 0 : EINVAL);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
-    cpu_idle_sysctl, "A", "currently selected idle function");
+SYSCTL_PROC(_machdep, OID_AUTO, idle,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    0, 0, cpu_idle_sysctl, "A",
+    "currently selected idle function");
 
 static void
 cpu_idle_tun(void *unused __unused)
@@ -878,7 +882,8 @@ int hw_ibrs_disable = 1;
 SYSCTL_INT(_hw, OID_AUTO, ibrs_active, CTLFLAG_RD, &hw_ibrs_active, 0,
     "Indirect Branch Restricted Speculation active");
 
-SYSCTL_NODE(_machdep_mitigations, OID_AUTO, ibrs, CTLFLAG_RW, 0,
+SYSCTL_NODE(_machdep_mitigations, OID_AUTO, ibrs,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Indirect Branch Restricted Speculation active");
 
 SYSCTL_INT(_machdep_mitigations_ibrs, OID_AUTO, active, CTLFLAG_RD,
@@ -929,7 +934,8 @@ SYSCTL_INT(_hw, OID_AUTO, spec_store_bypass_disable_active, CTLFLAG_RD,
     &hw_ssb_active, 0,
     "Speculative Store Bypass Disable active");
 
-SYSCTL_NODE(_machdep_mitigations, OID_AUTO, ssb, CTLFLAG_RW, 0,
+SYSCTL_NODE(_machdep_mitigations, OID_AUTO, ssb,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Speculative Store Bypass Disable active");
 
 SYSCTL_INT(_machdep_mitigations_ssb, OID_AUTO, active, CTLFLAG_RD,
@@ -1042,7 +1048,8 @@ SYSCTL_PROC(_hw, OID_AUTO, mds_disable_state,
     sysctl_hw_mds_disable_state_handler, "A",
     "Microarchitectural Data Sampling Mitigation state");
 
-SYSCTL_NODE(_machdep_mitigations, OID_AUTO, mds, CTLFLAG_RW, 0,
+SYSCTL_NODE(_machdep_mitigations, OID_AUTO, mds,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Microarchitectural Data Sampling Mitigation state");
 
 SYSCTL_PROC(_machdep_mitigations_mds, OID_AUTO, state,
@@ -1325,8 +1332,9 @@ taa_recalculate_boot(void * arg __unused)
 }
 SYSINIT(taa_recalc, SI_SUB_SMP, SI_ORDER_ANY, taa_recalculate_boot, NULL);
 
-SYSCTL_NODE(_machdep_mitigations, OID_AUTO, taa, CTLFLAG_RW, 0,
-	"TSX Asynchronous Abort Mitigation");
+SYSCTL_NODE(_machdep_mitigations, OID_AUTO, taa,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "TSX Asynchronous Abort Mitigation");
 
 static int
 sysctl_taa_handler(SYSCTL_HANDLER_ARGS)

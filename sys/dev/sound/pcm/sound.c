@@ -58,7 +58,8 @@ SYSCTL_INT(_hw_snd, OID_AUTO, default_auto, CTLFLAG_RWTUN,
 
 int snd_maxautovchans = 16;
 
-SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
+SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Sound driver");
 
 static void pcm_sysinit(device_t);
 
@@ -443,9 +444,9 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 }
 /* XXX: do we need a way to let the user change the default unit? */
 SYSCTL_PROC(_hw_snd, OID_AUTO, default_unit,
-	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_ANYBODY,
-	    0, sizeof(int), sysctl_hw_snd_default_unit, "I",
-	    "default sound device");
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_ANYBODY | CTLFLAG_NEEDGIANT, 0,
+    sizeof(int), sysctl_hw_snd_default_unit, "I",
+    "default sound device");
 
 static int
 sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
@@ -473,8 +474,10 @@ sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans, CTLTYPE_INT | CTLFLAG_RWTUN,
-            0, sizeof(int), sysctl_hw_snd_maxautovchans, "I", "maximum virtual channel");
+SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    sysctl_hw_snd_maxautovchans, "I",
+    "maximum virtual channel");
 
 struct pcm_channel *
 pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, int num, void *devinfo)
@@ -1007,8 +1010,9 @@ sysctl_hw_snd_clone_gc(SYSCTL_HANDLER_ARGS)
 
 	return (err);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, clone_gc, CTLTYPE_INT | CTLFLAG_RWTUN,
-    0, sizeof(int), sysctl_hw_snd_clone_gc, "I",
+SYSCTL_PROC(_hw_snd, OID_AUTO, clone_gc,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    sysctl_hw_snd_clone_gc, "I",
     "global clone garbage collector");
 #endif
 
@@ -1024,25 +1028,25 @@ pcm_sysinit(device_t dev)
             OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "allocated buffer size");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "bitperfect", CTLTYPE_INT | CTLFLAG_RWTUN, d, sizeof(d),
-	    sysctl_dev_pcm_bitperfect, "I",
+	    "bitperfect", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, d,
+	    sizeof(d), sysctl_dev_pcm_bitperfect, "I",
 	    "bit-perfect playback/recording (0=disable, 1=enable)");
 #ifdef SND_DEBUG
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_flags", CTLTYPE_UINT | CTLFLAG_RWTUN, d, sizeof(d),
-	    sysctl_dev_pcm_clone_flags, "IU",
+	    "clone_flags", CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+	    d, sizeof(d), sysctl_dev_pcm_clone_flags, "IU",
 	    "clone flags");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_deadline", CTLTYPE_INT | CTLFLAG_RWTUN, d, sizeof(d),
-	    sysctl_dev_pcm_clone_deadline, "I",
+	    "clone_deadline", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+	    d, sizeof(d), sysctl_dev_pcm_clone_deadline, "I",
 	    "clone expiration deadline (ms)");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_gc", CTLTYPE_INT | CTLFLAG_RWTUN, d, sizeof(d),
-	    sysctl_dev_pcm_clone_gc, "I",
-	    "clone garbage collector");
+	    "clone_gc",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, d, sizeof(d),
+	    sysctl_dev_pcm_clone_gc, "I", "clone garbage collector");
 #endif
 	if (d->flags & SD_F_AUTOVCHAN)
 		vchan_initsys(dev);
@@ -1126,11 +1130,11 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	sysctl_ctx_init(&d->play_sysctl_ctx);
 	d->play_sysctl_tree = SYSCTL_ADD_NODE(&d->play_sysctl_ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "play",
-	    CTLFLAG_RD, 0, "playback channels node");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "playback channels node");
 	sysctl_ctx_init(&d->rec_sysctl_ctx);
 	d->rec_sysctl_tree = SYSCTL_ADD_NODE(&d->rec_sysctl_ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "rec",
-	    CTLFLAG_RD, 0, "record channels node");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "record channels node");
 
 	if (numplay > 0 || numrec > 0)
 		d->flags |= SD_F_AUTOVCHAN;

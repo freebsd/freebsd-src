@@ -419,13 +419,13 @@ ae_init_tunables(ae_softc_t *sc)
 	ctx = device_get_sysctl_ctx(sc->dev);
 	root = device_get_sysctl_tree(sc->dev);
 	stats = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(root), OID_AUTO, "stats",
-	    CTLFLAG_RD, NULL, "ae statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ae statistics");
 
 	/*
 	 * Receiver statistcics.
 	 */
 	stats_rx = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(stats), OID_AUTO, "rx",
-	    CTLFLAG_RD, NULL, "Rx MAC statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Rx MAC statistics");
 	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "bcast",
 	    "broadcast frames", &ae_stats->rx_bcast);
 	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "mcast",
@@ -451,7 +451,7 @@ ae_init_tunables(ae_softc_t *sc)
 	 * Receiver statistcics.
 	 */
 	stats_tx = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(stats), OID_AUTO, "tx",
-	    CTLFLAG_RD, NULL, "Tx MAC statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Tx MAC statistics");
 	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "bcast",
 	    "broadcast frames", &ae_stats->tx_bcast);
 	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "mcast",

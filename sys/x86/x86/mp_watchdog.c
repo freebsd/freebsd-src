@@ -149,8 +149,10 @@ sysctl_watchdog(SYSCTL_HANDLER_ARGS)
 		watchdog_change(temp);
 	return (0);
 }
-SYSCTL_PROC(_debug, OID_AUTO, watchdog, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
-    sysctl_watchdog, "I", "");
+SYSCTL_PROC(_debug, OID_AUTO, watchdog,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    0, 0, sysctl_watchdog, "I",
+    "");
 
 /*
  * Drop into the debugger by sending an IPI NMI to the boot processor.

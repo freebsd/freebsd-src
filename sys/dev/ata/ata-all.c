@@ -78,7 +78,8 @@ devclass_t ata_devclass;
 int ata_dma_check_80pin = 1;
 
 /* sysctl vars */
-static SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "ATA driver parameters");
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma_check_80pin,
 	   CTLFLAG_RWTUN, &ata_dma_check_80pin, 0,
 	   "Check for 80pin cable before setting ATA DMA mode");

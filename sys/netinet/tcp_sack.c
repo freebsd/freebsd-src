@@ -128,7 +128,8 @@ __FBSDID("$FreeBSD$");
 VNET_DECLARE(struct uma_zone *, sack_hole_zone);
 #define	V_sack_hole_zone		VNET(sack_hole_zone)
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW, 0, "TCP SACK");
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "TCP SACK");
 VNET_DEFINE(int, tcp_do_sack) = 1;
 #define	V_tcp_do_sack			VNET(tcp_do_sack)
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,

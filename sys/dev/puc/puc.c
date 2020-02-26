@@ -73,7 +73,8 @@ const char puc_driver_name[] = "puc";
 
 static MALLOC_DEFINE(M_PUC, "PUC", "PUC driver");
 
-SYSCTL_NODE(_hw, OID_AUTO, puc, CTLFLAG_RD, 0, "puc(9) driver configuration");
+SYSCTL_NODE(_hw, OID_AUTO, puc, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "puc(9) driver configuration");
 
 struct puc_bar *
 puc_get_bar(struct puc_softc *sc, int rid)

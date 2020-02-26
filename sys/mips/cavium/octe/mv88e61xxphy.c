@@ -172,7 +172,7 @@ mv88e61xxphy_attach(device_t dev)
 	 * Add per-port sysctl tree/handlers.
 	 */
 	port_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "port",
-	    CTLFLAG_RD, NULL, "Switch Ports");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Switch Ports");
 	port_tree = SYSCTL_CHILDREN(port_node);
 	for (port = 0; port < MV88E61XX_PORTS; port++) {
 		struct mv88e61xxphy_port_softc *psc;
@@ -181,41 +181,41 @@ mv88e61xxphy_attach(device_t dev)
 
 		portbuf[0] = '0' + port;
 		portN_node = SYSCTL_ADD_NODE(ctx, port_tree, OID_AUTO, portbuf,
-		    CTLFLAG_RD, NULL, "Switch Port");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Switch Port");
 		portN_tree = SYSCTL_CHILDREN(portN_node);
 
 		SYSCTL_ADD_PROC(ctx, portN_tree, OID_AUTO, "duplex",
-		    CTLFLAG_RD | CTLTYPE_INT, psc,
+		    CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_NEEDGIANT, psc,
 		    MV88E61XXPHY_LINK_SYSCTL_DUPLEX,
 		    mv88e61xxphy_sysctl_link_proc, "IU",
 		    "Media duplex status (0 = half duplex; 1 = full duplex)");
 
 		SYSCTL_ADD_PROC(ctx, portN_tree, OID_AUTO, "link",
-		    CTLFLAG_RD | CTLTYPE_INT, psc,
+		    CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_NEEDGIANT, psc,
 		    MV88E61XXPHY_LINK_SYSCTL_LINK,
 		    mv88e61xxphy_sysctl_link_proc, "IU",
 		    "Link status (0 = down; 1 = up)");
 
 		SYSCTL_ADD_PROC(ctx, portN_tree, OID_AUTO, "media",
-		    CTLFLAG_RD | CTLTYPE_INT, psc,
+		    CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_NEEDGIANT, psc,
 		    MV88E61XXPHY_LINK_SYSCTL_MEDIA,
 		    mv88e61xxphy_sysctl_link_proc, "IU",
 		    "Media speed (0 = unknown; 10 = 10Mbps; 100 = 100Mbps; 1000 = 1Gbps)");
 
 		SYSCTL_ADD_PROC(ctx, portN_tree, OID_AUTO, "domain",
-		    CTLFLAG_RW | CTLTYPE_INT, psc,
+		    CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_NEEDGIANT, psc,
 		    MV88E61XXPHY_PORT_SYSCTL_DOMAIN,
 		    mv88e61xxphy_sysctl_port_proc, "IU",
 		    "Broadcast domain (ports can only talk to other ports in the same domain)");
 
 		SYSCTL_ADD_PROC(ctx, portN_tree, OID_AUTO, "vlan",
-		    CTLFLAG_RW | CTLTYPE_INT, psc,
+		    CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_NEEDGIANT, psc,
 		    MV88E61XXPHY_PORT_SYSCTL_VLAN,
 		    mv88e61xxphy_sysctl_port_proc, "IU",
 		    "Tag packets from/for this port with a given VLAN.");
 
 		SYSCTL_ADD_PROC(ctx, portN_tree, OID_AUTO, "priority",
-		    CTLFLAG_RW | CTLTYPE_INT, psc,
+		    CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_NEEDGIANT, psc,
 		    MV88E61XXPHY_PORT_SYSCTL_PRIORITY,
 		    mv88e61xxphy_sysctl_port_proc, "IU",
 		    "Default packet priority for this port.");

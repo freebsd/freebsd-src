@@ -1803,7 +1803,8 @@ msdosfs_bmap(struct vop_bmap_args *ap)
 	return (0);
 }
 
-SYSCTL_NODE(_vfs, OID_AUTO, msdosfs, CTLFLAG_RW, 0, "msdos filesystem");
+SYSCTL_NODE(_vfs, OID_AUTO, msdosfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "msdos filesystem");
 static int use_buf_pager = 1;
 SYSCTL_INT(_vfs_msdosfs, OID_AUTO, use_buf_pager, CTLFLAG_RWTUN,
     &use_buf_pager, 0,

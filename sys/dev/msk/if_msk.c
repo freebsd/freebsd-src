@@ -1798,7 +1798,8 @@ mskc_attach(device_t dev)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "process_limit", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "process_limit",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    &sc->msk_process_limit, 0, sysctl_hw_msk_proc_limit, "I",
 	    "max number of Rx events to process");
 
@@ -4480,11 +4481,13 @@ msk_sysctl_stat64(SYSCTL_HANDLER_ARGS)
 #undef MSK_READ_MIB64
 
 #define MSK_SYSCTL_STAT32(sc, c, o, p, n, d) 				\
-	SYSCTL_ADD_PROC(c, p, OID_AUTO, o, CTLTYPE_UINT | CTLFLAG_RD, 	\
+	SYSCTL_ADD_PROC(c, p, OID_AUTO, o,				\
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,	 	\
 	    sc, offsetof(struct msk_hw_stats, n), msk_sysctl_stat32,	\
 	    "IU", d)
 #define MSK_SYSCTL_STAT64(sc, c, o, p, n, d) 				\
-	SYSCTL_ADD_PROC(c, p, OID_AUTO, o, CTLTYPE_U64 | CTLFLAG_RD, 	\
+	SYSCTL_ADD_PROC(c, p, OID_AUTO, o,				\
+	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT,	 	\
 	    sc, offsetof(struct msk_hw_stats, n), msk_sysctl_stat64,	\
 	    "QU", d)
 
@@ -4498,11 +4501,11 @@ msk_sysctl_node(struct msk_if_softc *sc_if)
 	ctx = device_get_sysctl_ctx(sc_if->msk_if_dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc_if->msk_if_dev));
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "MSK Statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "MSK Statistics");
 	schild = SYSCTL_CHILDREN(tree);
-	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "rx", CTLFLAG_RD,
-	    NULL, "MSK RX Statistics");
+	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "MSK RX Statistics");
 	child = SYSCTL_CHILDREN(tree);
 	MSK_SYSCTL_STAT32(sc_if, ctx, "ucast_frames",
 	    child, rx_ucast_frames, "Good unicast frames");
@@ -4539,8 +4542,8 @@ msk_sysctl_node(struct msk_if_softc *sc_if)
 	MSK_SYSCTL_STAT32(sc_if, ctx, "overflows",
 	    child, rx_fifo_oflows, "FIFO overflows");
 
-	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "MSK TX Statistics");
+	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "MSK TX Statistics");
 	child = SYSCTL_CHILDREN(tree);
 	MSK_SYSCTL_STAT32(sc_if, ctx, "ucast_frames",
 	    child, tx_ucast_frames, "Unicast frames");

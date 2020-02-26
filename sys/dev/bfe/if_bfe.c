@@ -478,8 +478,8 @@ bfe_attach(device_t dev)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "stats", CTLTYPE_INT | CTLFLAG_RW, sc, 0, sysctl_bfe_stats,
-	    "I", "Statistics");
+	    "stats", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    sysctl_bfe_stats, "I", "Statistics");
 
 	/* Set up ifnet structure */
 	ifp = sc->bfe_ifp = if_alloc(IFT_ETHER);

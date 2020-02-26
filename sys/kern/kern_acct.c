@@ -187,8 +187,9 @@ sysctl_acct_chkfreq(SYSCTL_HANDLER_ARGS)
 	acctchkfreq = value;
 	return (0);
 }
-SYSCTL_PROC(_kern, OID_AUTO, acct_chkfreq, CTLTYPE_INT|CTLFLAG_RW,
-    &acctchkfreq, 0, sysctl_acct_chkfreq, "I",
+SYSCTL_PROC(_kern, OID_AUTO, acct_chkfreq,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &acctchkfreq, 0,
+    sysctl_acct_chkfreq, "I",
     "frequency for checking the free space");
 
 SYSCTL_INT(_kern, OID_AUTO, acct_configured, CTLFLAG_RD, &acct_configured, 0,

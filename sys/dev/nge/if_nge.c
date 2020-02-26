@@ -2652,8 +2652,8 @@ nge_sysctl_node(struct nge_softc *sc)
 	ctx = device_get_sysctl_ctx(sc->nge_dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->nge_dev));
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "int_holdoff",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->nge_int_holdoff, 0,
-	    sysctl_hw_nge_int_holdoff, "I", "NGE interrupt moderation");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->nge_int_holdoff,
+	    0, sysctl_hw_nge_int_holdoff, "I", "NGE interrupt moderation");
 	/* Pull in device tunables. */
 	sc->nge_int_holdoff = NGE_INT_HOLDOFF_DEFAULT;
 	error = resource_int_value(device_get_name(sc->nge_dev),
@@ -2671,13 +2671,13 @@ nge_sysctl_node(struct nge_softc *sc)
 	}
 
 	stats = &sc->nge_stats;
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "NGE statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "NGE statistics");
 	parent = SYSCTL_CHILDREN(tree);
 
 	/* Rx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
-	    NULL, "Rx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Rx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	NGE_SYSCTL_STAT_ADD32(ctx, child, "pkts_errs",
 	    &stats->rx_pkts_errs,
@@ -2701,8 +2701,8 @@ nge_sysctl_node(struct nge_softc *sc)
 	    &stats->rx_pause, "Pause frames");
 
 	/* Tx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "Tx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Tx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	NGE_SYSCTL_STAT_ADD32(ctx, child, "pause",
 	    &stats->tx_pause, "Pause frames");

@@ -2133,7 +2133,7 @@ vm_pageout_init_domain(int domain)
 	    vmd->vmd_free_target, PIDCTRL_BOUND,
 	    PIDCTRL_KPD, PIDCTRL_KID, PIDCTRL_KDD);
 	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(vmd->vmd_oid), OID_AUTO,
-	    "pidctrl", CTLFLAG_RD, NULL, "");
+	    "pidctrl", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	pidctrl_init_sysctl(&vmd->vmd_pid, SYSCTL_CHILDREN(oid));
 }
 

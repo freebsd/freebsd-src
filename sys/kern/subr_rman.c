@@ -1068,7 +1068,8 @@ found:
 	return (error);
 }
 
-static SYSCTL_NODE(_hw_bus, OID_AUTO, rman, CTLFLAG_RD, sysctl_rman,
+static SYSCTL_NODE(_hw_bus, OID_AUTO, rman, CTLFLAG_RD | CTLFLAG_MPSAFE,
+    sysctl_rman,
     "kernel resource manager");
 
 #ifdef DDB

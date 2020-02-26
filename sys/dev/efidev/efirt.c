@@ -109,7 +109,8 @@ efi_status_to_errno(efi_status status)
 }
 
 static struct mtx efi_lock;
-static SYSCTL_NODE(_hw, OID_AUTO, efi, CTLFLAG_RWTUN, NULL, "EFI");
+static SYSCTL_NODE(_hw, OID_AUTO, efi, CTLFLAG_RWTUN | CTLFLAG_MPSAFE, NULL,
+    "EFI");
 static bool efi_poweroff = true;
 SYSCTL_BOOL(_hw_efi, OID_AUTO, poweroff, CTLFLAG_RWTUN, &efi_poweroff, 0,
     "If true, use EFI runtime services to power off in preference to ACPI");

@@ -206,7 +206,7 @@ static char an_conf_cache[256];
 
 /* sysctl vars */
 
-static SYSCTL_NODE(_hw, OID_AUTO, an, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, an, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Wireless driver parameters");
 
 /* XXX violate ethernet/netgraph callback hooks */
@@ -266,8 +266,10 @@ sysctl_an_dump(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-SYSCTL_PROC(_hw_an, OID_AUTO, an_dump, CTLTYPE_STRING | CTLFLAG_RW,
-	    0, sizeof(an_conf), sysctl_an_dump, "A", "");
+SYSCTL_PROC(_hw_an, OID_AUTO, an_dump,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(an_conf),
+    sysctl_an_dump, "A",
+    "");
 
 static int
 sysctl_an_cache_mode(SYSCTL_HANDLER_ARGS)
@@ -302,8 +304,10 @@ sysctl_an_cache_mode(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-SYSCTL_PROC(_hw_an, OID_AUTO, an_cache_mode, CTLTYPE_STRING | CTLFLAG_RW,
-	    0, sizeof(an_conf_cache), sysctl_an_cache_mode, "A", "");
+SYSCTL_PROC(_hw_an, OID_AUTO, an_cache_mode,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(an_conf_cache),
+    sysctl_an_cache_mode, "A",
+    "");
 
 /*
  * We probe for an Aironet 4500/4800 card by attempting to

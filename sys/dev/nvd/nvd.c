@@ -101,7 +101,8 @@ static struct mtx			nvd_lock;
 static TAILQ_HEAD(, nvd_controller)	ctrlr_head;
 static TAILQ_HEAD(disk_list, nvd_disk)	disk_head;
 
-static SYSCTL_NODE(_hw, OID_AUTO, nvd, CTLFLAG_RD, 0, "nvd driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, nvd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "nvd driver parameters");
 /*
  * The NVMe specification does not define a maximum or optimal delete size, so
  *  technically max delete size is min(full size of the namespace, 2^32 - 1

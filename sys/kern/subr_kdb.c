@@ -86,33 +86,43 @@ static int kdb_sysctl_trap(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_stack_overflow(SYSCTL_HANDLER_ARGS);
 
-static SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW, NULL, "KDB nodes");
+static SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    "KDB nodes");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, available, CTLTYPE_STRING | CTLFLAG_RD, NULL,
-    0, kdb_sysctl_available, "A", "list of available KDB backends");
+SYSCTL_PROC(_debug_kdb, OID_AUTO, available,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    kdb_sysctl_available, "A",
+    "list of available KDB backends");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, current, CTLTYPE_STRING | CTLFLAG_RW, NULL,
-    0, kdb_sysctl_current, "A", "currently selected KDB backend");
+SYSCTL_PROC(_debug_kdb, OID_AUTO, current,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    kdb_sysctl_current, "A",
+    "currently selected KDB backend");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, enter,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
-    kdb_sysctl_enter, "I", "set to enter the debugger");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
+    kdb_sysctl_enter, "I",
+    "set to enter the debugger");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, panic,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
-    kdb_sysctl_panic, "I", "set to panic the kernel");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
+    kdb_sysctl_panic, "I",
+    "set to panic the kernel");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, trap,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
-    kdb_sysctl_trap, "I", "set to cause a page fault via data access");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
+    kdb_sysctl_trap, "I",
+    "set to cause a page fault via data access");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
-    kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
+    kdb_sysctl_trap_code, "I",
+    "set to cause a page fault via code access");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, stack_overflow,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
-    kdb_sysctl_stack_overflow, "I", "set to cause a stack overflow");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
+    kdb_sysctl_stack_overflow, "I",
+    "set to cause a stack overflow");
 
 SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger,
     CTLFLAG_RWTUN | CTLFLAG_SECURE,

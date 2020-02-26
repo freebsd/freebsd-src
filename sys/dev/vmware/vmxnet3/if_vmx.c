@@ -2168,16 +2168,16 @@ vmxnet3_setup_txq_sysctl(struct vmxnet3_txqueue *txq,
 	txstats = &txq->vxtxq_ts->stats;
 
 	snprintf(namebuf, sizeof(namebuf), "txq%d", txq->vxtxq_id);
-	node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, CTLFLAG_RD,
-	    NULL, "Transmit Queue");
+	node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Transmit Queue");
 	txq->vxtxq_sysctl = list = SYSCTL_CHILDREN(node);
 
 	/*
 	 * Add statistics reported by the host. These are updated by the
 	 * iflib txq timer on txq 0.
 	 */
-	txsnode = SYSCTL_ADD_NODE(ctx, list, OID_AUTO, "hstats", CTLFLAG_RD,
-	    NULL, "Host Statistics");
+	txsnode = SYSCTL_ADD_NODE(ctx, list, OID_AUTO, "hstats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Host Statistics");
 	txslist = SYSCTL_CHILDREN(txsnode);
 	SYSCTL_ADD_UQUAD(ctx, txslist, OID_AUTO, "tso_packets", CTLFLAG_RD,
 	    &txstats->TSO_packets, "TSO packets");
@@ -2209,16 +2209,16 @@ vmxnet3_setup_rxq_sysctl(struct vmxnet3_rxqueue *rxq,
 	rxstats = &rxq->vxrxq_rs->stats;
 
 	snprintf(namebuf, sizeof(namebuf), "rxq%d", rxq->vxrxq_id);
-	node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, CTLFLAG_RD,
-	    NULL, "Receive Queue");
+	node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Receive Queue");
 	rxq->vxrxq_sysctl = list = SYSCTL_CHILDREN(node);
 
 	/*
 	 * Add statistics reported by the host. These are updated by the
 	 * iflib txq timer on txq 0.
 	 */
-	rxsnode = SYSCTL_ADD_NODE(ctx, list, OID_AUTO, "hstats", CTLFLAG_RD,
-	    NULL, "Host Statistics");
+	rxsnode = SYSCTL_ADD_NODE(ctx, list, OID_AUTO, "hstats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Host Statistics");
 	rxslist = SYSCTL_CHILDREN(rxsnode);
 	SYSCTL_ADD_UQUAD(ctx, rxslist, OID_AUTO, "lro_packets", CTLFLAG_RD,
 	    &rxstats->LRO_packets, "LRO packets");
@@ -2257,7 +2257,7 @@ vmxnet3_setup_debug_sysctl(struct vmxnet3_softc *sc,
 		struct vmxnet3_txqueue *txq = &sc->vmx_txq[i];
 
 		node = SYSCTL_ADD_NODE(ctx, txq->vxtxq_sysctl, OID_AUTO,
-		    "debug", CTLFLAG_RD, NULL, "");
+		    "debug", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 		list = SYSCTL_CHILDREN(node);
 
 		SYSCTL_ADD_UINT(ctx, list, OID_AUTO, "cmd_next", CTLFLAG_RD,
@@ -2278,7 +2278,7 @@ vmxnet3_setup_debug_sysctl(struct vmxnet3_softc *sc,
 		struct vmxnet3_rxqueue *rxq = &sc->vmx_rxq[i];
 
 		node = SYSCTL_ADD_NODE(ctx, rxq->vxrxq_sysctl, OID_AUTO,
-		    "debug", CTLFLAG_RD, NULL, "");
+		    "debug", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 		list = SYSCTL_CHILDREN(node);
 
 		SYSCTL_ADD_UINT(ctx, list, OID_AUTO, "cmd0_ndesc", CTLFLAG_RD,

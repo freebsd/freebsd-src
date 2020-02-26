@@ -93,7 +93,8 @@
 
 SYSCTL_DECL(_security_mac);
 
-static SYSCTL_NODE(_security_mac, OID_AUTO, mls, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, mls,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD mac_mls policy controls");
 
 static int	mls_label_size = sizeof(struct mac_mls);

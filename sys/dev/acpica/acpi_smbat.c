@@ -62,7 +62,8 @@ static int	acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst);
 
 ACPI_SERIAL_DECL(smbat, "ACPI Smart Battery");
 
-static SYSCTL_NODE(_debug_acpi, OID_AUTO, batt, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_debug_acpi, OID_AUTO, batt,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Battery debugging");
 
 /* On some laptops with smart batteries, enabling battery monitoring

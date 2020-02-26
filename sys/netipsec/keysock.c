@@ -431,7 +431,8 @@ struct pr_usrreqs key_usrreqs = {
 };
 
 /* sysctl */
-SYSCTL_NODE(_net, PF_KEY, key, CTLFLAG_RW, 0, "Key Family");
+SYSCTL_NODE(_net, PF_KEY, key, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Key Family");
 
 /*
  * Definitions of protocols supported in the KEY domain.
