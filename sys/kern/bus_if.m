@@ -96,7 +96,7 @@ CODE {
  * This is called from system code which prints out a description of a
  * device. It should describe the attachment that the child has with
  * the parent. For instance the TurboLaser bus prints which node the
- * device is attached to. See bus_generic_print_child() for more 
+ * device is attached to. See bus_generic_print_child() for more
  * information.
  *
  * @param _dev		the device whose child is being printed
@@ -117,7 +117,7 @@ METHOD int print_child {
  *
  * @param _dev		the device whose child was being probed
  * @param _child	the child device which failed to probe
- */   
+ */
 METHOD void probe_nomatch {
         device_t _dev;
         device_t _child;
@@ -138,17 +138,17 @@ METHOD void probe_nomatch {
  *
  * This method copies the value of an instance variable to the
  * location specified by @p *_result.
- * 
+ *
  * @param _dev		the device whose child was being examined
  * @param _child	the child device whose instance variable is
  *			being read
  * @param _index	the instance variable to read
  * @param _result	a location to receive the instance variable
  *			value
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	no such instance variable is supported by @p
- *			_dev 
+ *			_dev
  */
 METHOD int read_ivar {
 	device_t _dev;
@@ -159,18 +159,18 @@ METHOD int read_ivar {
 
 /**
  * @brief Write the value of a bus-specific attribute of a device
- * 
+ *
  * This method sets the value of an instance variable to @p _value.
- * 
+ *
  * @param _dev		the device whose child was being updated
  * @param _child	the child device whose instance variable is
  *			being written
  * @param _index	the instance variable to write
  * @param _value	the value to write to that instance variable
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	no such instance variable is supported by @p
- *			_dev 
+ *			_dev
  * @retval EINVAL	the instance variable was recognised but
  *			contains a read-only value
  */
@@ -186,7 +186,7 @@ METHOD int write_ivar {
  *
  * Called at the beginning of device_delete_child() to allow the parent
  * to teardown any bus-specific state for the child.
- * 
+ *
  * @param _dev		the device whose child is being deleted
  * @param _child	the child device which is being deleted
  */
@@ -200,7 +200,7 @@ METHOD void child_deleted {
  *
  * Called after the child's DEVICE_DETACH() method to allow the parent
  * to reclaim any resources allocated on behalf of the child.
- * 
+ *
  * @param _dev		the device whose child changed state
  * @param _child	the child device which changed state
  */
@@ -211,11 +211,11 @@ METHOD void child_detached {
 
 /**
  * @brief Notify a bus that a new driver was added
- * 
+ *
  * Called when a new driver is added to the devclass which owns this
  * bus. The generic implementation of this method attempts to probe and
  * attach any un-matched children of the bus.
- * 
+ *
  * @param _dev		the device whose devclass had a new driver
  *			added to it
  * @param _driver	the new driver which was added
@@ -234,7 +234,7 @@ METHOD void driver_added {
  * existing child with the same order. Implementations of bus_add_child
  * call device_add_child_ordered to add the child and often add
  * a suitable ivar to the device specific to that bus.
- * 
+ *
  * @param _dev		the bus device which will be the parent of the
  *			new child device
  * @param _order	a value which is used to partially sort the
@@ -290,7 +290,7 @@ METHOD int rescan {
  * @param _flags	any extra flags to control the resource
  *			allocation - see @c RF_XXX flags in
  *			<sys/rman.h> for details
- * 
+ *
  * @returns		the resource which was allocated or @c NULL if no
  *			resource could be allocated
  */
@@ -378,7 +378,7 @@ METHOD int unmap_resource {
  * @brief Deactivate a resource
  *
  * Deactivate a resource previously allocated with
- * BUS_ALLOC_RESOURCE(). 
+ * BUS_ALLOC_RESOURCE().
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
@@ -465,7 +465,7 @@ METHOD int release_resource {
  * argument. The value returned in @p *_cookiep is used to cancel the
  * interrupt handler - the caller should save this value to use in a
  * future call to BUS_TEARDOWN_INTR().
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
  * @param _irq		the resource representing the interrupt
@@ -496,7 +496,7 @@ METHOD int setup_intr {
  * This method is used to disassociate an interrupt handler function
  * with an irq resource. The value of @p _cookie must be the value
  * returned from a previous call to BUS_SETUP_INTR().
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
  * @param _irq		the resource representing the interrupt
@@ -518,7 +518,7 @@ METHOD int teardown_intr {
  * for the, typically shared, interrupt.
  * The value of @p _irq must be the interrupt resource passed
  * to a previous call to BUS_SETUP_INTR().
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
  * @param _irq		the resource representing the interrupt
@@ -537,7 +537,7 @@ METHOD int suspend_intr {
  * again.
  * The value of @p _irq must be the interrupt resource passed
  * to a previous call to BUS_SETUP_INTR().
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
  * @param _irq		the resource representing the interrupt
@@ -557,7 +557,7 @@ METHOD int resume_intr {
  * allocate. The resource defined by @p _type and @p _rid is defined
  * to start at @p _start and to include @p _count indices in its
  * range.
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which owns the resource
  * @param _type		the type of resource
@@ -579,7 +579,7 @@ METHOD int set_resource {
  *
  * This method allows a driver to examine the range used for a given
  * resource without actually allocating it.
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which owns the resource
  * @param _type		the type of resource
@@ -600,10 +600,10 @@ METHOD int get_resource {
 
 /**
  * @brief Delete a resource.
- * 
+ *
  * Use this to delete a resource (possibly one previously added with
  * BUS_SET_RESOURCE()).
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which owns the resource
  * @param _type		the type of resource
@@ -622,7 +622,7 @@ METHOD void delete_resource {
  * Used by drivers which use bus_generic_rl_alloc_resource() etc. to
  * implement their resource handling. It should return the resource
  * list of the given child device.
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which owns the resource list
  */
@@ -642,7 +642,7 @@ METHOD struct resource_list * get_resource_list {
  * determining if it is there.  Buses are to try to avoid returning
  * errors, but newcard will return an error if the device fails to
  * implement this method.
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which is being examined
  */
@@ -663,7 +663,7 @@ METHOD int child_present {
  * non-whitespace characters.  Values containing whitespace can be
  * quoted with double quotes ('"').  Double quotes and backslashes in
  * quoted values can be escaped with backslashes ('\').
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which is being examined
  * @param _buf		the address of a buffer to receive the pnp
@@ -706,7 +706,7 @@ METHOD int child_location_str {
 /**
  * @brief Allow drivers to request that an interrupt be bound to a specific
  * CPU.
- * 
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
  * @param _irq		the resource representing the interrupt
@@ -722,7 +722,7 @@ METHOD int bind_intr {
 /**
  * @brief Allow (bus) drivers to specify the trigger mode and polarity
  * of the specified interrupt.
- * 
+ *
  * @param _dev		the bus device
  * @param _irq		the interrupt number to modify
  * @param _trig		the trigger mode required
