@@ -76,6 +76,11 @@ struct pv_addr {
 	vm_paddr_t	pv_pa;
 };
 
+enum pmap_stage {
+	PM_INVALID,
+	PM_STAGE1,
+	PM_STAGE2,
+};
 
 struct pmap {
 	struct mtx		pm_mtx;
@@ -85,6 +90,7 @@ struct pmap {
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	struct vm_radix		pm_root;	/* spare page table pages */
 	long			pm_cookie;	/* encodes the pmap's ASID */
+	enum pmap_stage		pm_stage;
 };
 typedef struct pmap *pmap_t;
 
