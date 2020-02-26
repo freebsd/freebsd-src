@@ -32,7 +32,7 @@
 .\"	@(#)stdarg.3	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 25, 2002
+.Dd February 25, 2020
 .Dt STDARG 3
 .Os
 .Sh NAME
@@ -216,6 +216,18 @@ The
 and
 .Fn va_end
 macros conform to
+.St -isoC-99 .
+.Sh HISTORY
+The
+.Fn va_start ,
+.Fn va_arg
+and
+.Fn va_end
+macros were introduced in
+.St -ansiC .
+The
+.Fn va_copy
+macro was introduced in
 .St -isoC-99 .
 .Sh BUGS
 Unlike the
