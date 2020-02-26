@@ -79,6 +79,7 @@ INTERPOSED = \
 	sendmsg \
 	sendto \
 	setcontext \
+	sigaction \
 	sigprocmask \
 	sigsuspend \
 	sigtimedwait \
@@ -89,13 +90,6 @@ INTERPOSED = \
 	wait6 \
 	write \
 	writev
-
-.if ${MACHINE_CPUARCH} == "sparc64"
-SRCS+=	sigaction.c
-NOASM+=	sigaction.o
-.else
-INTERPOSED+= sigaction
-.endif
 
 SRCS+=	${INTERPOSED:S/$/.c/}
 NOASM+=	${INTERPOSED:S/$/.o/}
