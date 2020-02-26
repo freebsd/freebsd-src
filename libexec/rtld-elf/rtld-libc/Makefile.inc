@@ -73,12 +73,6 @@ _libc_other_objects+=syncicache
 .if ${MACHINE_ARCH:Mmipsn32*} == "" && ${MACHINE_ARCH:Mmips64*} == ""
 _libc_other_objects+=umoddi3 udivdi3 qdivrem
 .endif
-.elif ${LIBC_ARCH} == "sparc64"
-# reloc.c uses __sparc_utrap which needs a lot of other object files
-_libc_other_objects+=__sparc_utrap __sparc_utrap_fp_disabled __sparc_utrap_gen \
-    __sparc_utrap_setup __sparc_utrap_align __sparc_utrap_emul kill getpid \
-    fpu fpu_explode fpu_div fpu_reg fpu_sqrt fpu_implode fpu_subr fpu_add \
-    fpu_compare fpu_mul
 .endif
 
 # Extract all the .o files from libc_nossp_pic.a. This ensures that
