@@ -103,6 +103,7 @@ __DEFAULT_YES_OPTIONS = \
     FTP \
     GAMES \
     GDB \
+    GDB_LIBEXEC \
     GNU_DIFF \
     GNU_GREP \
     GOOGLETEST \
@@ -271,9 +272,8 @@ __LLVM_TARGETS= \
 		mips \
 		powerpc \
 		riscv \
-		sparc \
 		x86
-__LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:S/sparc64/sparc/:S/arm64/aarch64/:S/powerpc64/powerpc/
+__LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:S/arm64/aarch64/:S/powerpc64/powerpc/
 .for __llt in ${__LLVM_TARGETS}
 # Default enable the given TARGET's LLVM_TARGET support
 .if ${__TT:${__LLVM_TARGET_FILT}} == ${__llt}
@@ -286,6 +286,8 @@ __DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_ARM/LLVM_TARGET_AARCH64
 __DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_${__llt:${__LLVM_TARGET_FILT}:tu}/LLVM_TARGET_ALL
 .endif
 .endfor
+# until we can unwind clang + sparc
+MK_LLVM_TARGET_SPARC:=no
 
 __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 
@@ -293,10 +295,10 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 # If the compiler is not C++11 capable, disable Clang.  External toolchain will
 # be required.
 
-.if ${COMPILER_FEATURES:Mc++11} && (${__TT} != "mips" && ${__TT} != "sparc64")
+.if ${COMPILER_FEATURES:Mc++11} && (${__TT} != "mips")
 # Clang is enabled, and will be installed as the default /usr/bin/cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
-.elif ${COMPILER_FEATURES:Mc++11} && ${__T} != "sparc64"
+.elif ${COMPILER_FEATURES:Mc++11}
 # If an external compiler that supports C++11 is used as ${CC} and Clang
 # supports the target, then Clang is enabled but we still require an external
 # toolchain.
@@ -319,8 +321,7 @@ __DEFAULT_NO_OPTIONS+=BINUTILS_BOOTSTRAP
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=OFED
 .endif
-.if ${__TT} != "mips" && ${__T} != "powerpc" && ${__T} != "powerpcspe" && \
-    ${__T} != "sparc64"
+.if ${__TT} != "mips" && ${__T} != "powerpc" && ${__T} != "powerpcspe"
 __DEFAULT_YES_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
 .else
 __DEFAULT_NO_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
@@ -329,13 +330,6 @@ __DEFAULT_NO_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
 __DEFAULT_YES_OPTIONS+=LLDB
 .else
 __DEFAULT_NO_OPTIONS+=LLDB
-.endif
-# GDB in base is generally less functional than GDB in ports.  Ports GDB
-# sparc64 kernel support has not been tested.
-.if ${__T} == "sparc64"
-__DEFAULT_NO_OPTIONS+=GDB_LIBEXEC
-.else
-__DEFAULT_YES_OPTIONS+=GDB_LIBEXEC
 .endif
 # LIB32 is supported on amd64, mips64, and powerpc64
 .if (${__T} == "amd64" || ${__T:Mmips64*} || ${__T} == "powerpc64")
@@ -355,23 +349,23 @@ BROKEN_OPTIONS+=LIBSOFT
 # marked no longer broken with the switch to LLVM.
 BROKEN_OPTIONS+=GOOGLETEST SSP
 .endif
-# EFI doesn't exist on mips, powerpc, sparc or riscv.
-.if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
+# EFI doesn't exist on mips, powerpc, or riscv.
+.if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Mriscv*}
 BROKEN_OPTIONS+=EFI
 .endif
-# OFW is only for powerpc and sparc64, exclude others
-.if ${__T:Mpowerpc*} == "" && ${__T:Msparc64} == ""
+# OFW is only for powerpc, exclude others
+.if ${__T:Mpowerpc*} == ""
 BROKEN_OPTIONS+=LOADER_OFW
 .endif
 # UBOOT is only for arm, mips and powerpc, exclude others
 .if ${__T:Marm*} == "" && ${__T:Mmips*} == "" && ${__T:Mpowerpc*} == ""
 BROKEN_OPTIONS+=LOADER_UBOOT
 .endif
-# GELI and Lua in loader currently cause boot failures on sparc64 and powerpc.
+# GELI and Lua in loader currently cause boot failures on powerpc.
 # Further debugging is required -- probably they are just broken on big
 # endian systems generically (they jump to null pointers or try to read
 # crazy high addresses, which is typical of endianness problems).
-.if ${__T} == "sparc64" || ${__T:Mpowerpc*}
+.if ${__T:Mpowerpc*}
 BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 .endif
 
@@ -380,7 +374,7 @@ BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 BROKEN_OPTIONS+=PROFILE
 .endif
 .if ${__T} != "aarch64" && ${__T} != "amd64" && ${__T} != "i386" && \
-    ${__T} != "powerpc64" && ${__T} != "sparc64"
+    ${__T} != "powerpc64"
 BROKEN_OPTIONS+=CXGBETOOL
 BROKEN_OPTIONS+=MLX5TOOL
 .endif
@@ -394,11 +388,6 @@ BROKEN_OPTIONS+=HYPERV
 .if ${__T} != "aarch64" && ${__T} != "amd64" && ${__T} != "i386" && \
     ${__T} != "powerpc64"
 BROKEN_OPTIONS+=NVME
-.endif
-
-.if ${__T:Msparc64}
-# PR 233405
-BROKEN_OPTIONS+=LLVM_LIBUNWIND
 .endif
 
 .if ${COMPILER_FEATURES:Mc++11} && \
@@ -482,7 +471,7 @@ MK_BSDINSTALL:=	no
 MK_SVNLITE:=	no
 .endif
 
-.if (${__TT} == "mips" || ${__TT} == "sparc64") && ${MK_GCC} == "no"
+.if ${__TT} == "mips" && ${MK_GCC} == "no"
 MK_BINUTILS_BOOTSTRAP:=	no
 .endif
 
