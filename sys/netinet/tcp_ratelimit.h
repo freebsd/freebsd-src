@@ -88,6 +88,9 @@ CK_LIST_HEAD(head_tcp_rate_set, tcp_rate_set);
 #define RS_PACING_SUB_OK	0x0010	/* If a rate can't be found get the
 					 * next best rate (highest or lowest). */
 #ifdef _KERNEL
+#ifndef ETHERNET_SEGMENT_SIZE
+#define ETHERNET_SEGMENT_SIZE 1514
+#endif
 #ifdef RATELIMIT
 #define DETAILED_RATELIMIT_SYSCTL 1	/*
 					 * Undefine this if you don't want
@@ -135,7 +138,18 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 {
 	return;
 }
-
 #endif
+/*
+ * Given a b/w and a segsiz, and optional hardware
+ * rate limit, return the ideal size to burst
+ * out at once. Note the parameter can_use_1mss
+ * dictates if the transport will tolerate a 1mss
+ * limit, if not it will bottom out at 2mss (think
+ * delayed ack).
+ */
+uint32_t
+tcp_get_pacing_burst_size(uint64_t bw, uint32_t segsiz, int can_use_1mss,
+   const struct tcp_hwrate_limit_table *te, int *err);
+
 #endif
 #endif
