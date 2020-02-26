@@ -92,7 +92,7 @@ static struct g_class g_disk_class = {
 };
 
 SYSCTL_DECL(_kern_geom);
-static SYSCTL_NODE(_kern_geom, OID_AUTO, disk, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom, OID_AUTO, disk, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_DISK stuff");
 
 DECLARE_GEOM_CLASS(g_disk_class, g_disk);
@@ -742,7 +742,7 @@ g_disk_create(void *arg, int flag)
 	snprintf(tmpstr, sizeof(tmpstr), "GEOM disk %s", gp->name);
 	sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_geom_disk), OID_AUTO, gp->name,
-		CTLFLAG_RD, 0, tmpstr);
+		CTLFLAG_RD | CTLFLAG_MPSAFE, 0, tmpstr);
 	if (sc->sysctl_tree != NULL) {
 		SYSCTL_ADD_STRING(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "led",
@@ -750,8 +750,8 @@ g_disk_create(void *arg, int flag)
 		    "LED name");
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "flags",
-		    CTLTYPE_STRING | CTLFLAG_RD, dp, 0, g_disk_sysctl_flags,
-		    "A", "Report disk flags");
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, dp, 0,
+		    g_disk_sysctl_flags, "A", "Report disk flags");
 	}
 	pp->private = sc;
 	dp->d_geom = gp;

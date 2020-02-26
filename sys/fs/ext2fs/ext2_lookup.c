@@ -85,7 +85,8 @@ static int dirchk = 1;
 static int dirchk = 0;
 #endif
 
-static SYSCTL_NODE(_vfs, OID_AUTO, e2fs, CTLFLAG_RD, 0, "EXT2FS filesystem");
+static SYSCTL_NODE(_vfs, OID_AUTO, e2fs, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "EXT2FS filesystem");
 SYSCTL_INT(_vfs_e2fs, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 
 /*

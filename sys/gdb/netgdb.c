@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <gdb/netgdb.h>
 
 FEATURE(netgdb, "NetGDB support");
-SYSCTL_NODE(_debug_gdb, OID_AUTO, netgdb, CTLFLAG_RD, NULL,
+SYSCTL_NODE(_debug_gdb, OID_AUTO, netgdb, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "NetGDB parameters");
 
 static unsigned netgdb_debug;

@@ -53,7 +53,8 @@ __FBSDID("$FreeBSD$");
 FEATURE(geom_multipath, "GEOM multipath support");
 
 SYSCTL_DECL(_kern_geom);
-static SYSCTL_NODE(_kern_geom, OID_AUTO, multipath, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom, OID_AUTO, multipath,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_MULTIPATH tunables");
 static u_int g_multipath_debug = 0;
 SYSCTL_UINT(_kern_geom_multipath, OID_AUTO, debug, CTLFLAG_RW,

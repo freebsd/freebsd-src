@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #define LV1_STORAGE_ATA_HDDOUT 		0x23
 
-static SYSCTL_NODE(_hw, OID_AUTO, ps3disk, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, ps3disk, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "PS3 Disk driver parameters");
 
 #ifdef PS3DISK_DEBUG
@@ -681,8 +681,8 @@ ps3disk_sysctlattach(struct ps3disk_softc *sc)
 	sc->sc_debug = ps3disk_debug;
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"debug", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ps3disk_sysctl_debug, "I", "control debugging printfs");
+	    "debug", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    ps3disk_sysctl_debug, "I", "control debugging printfs");
 #endif
 }
 

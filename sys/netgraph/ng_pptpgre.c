@@ -145,7 +145,8 @@ typedef u_int64_t		pptptime_t;
 #define SESSHASHSIZE		0x0020
 #define SESSHASH(x)		(((x) ^ ((x) >> 8)) & (SESSHASHSIZE - 1))
 
-SYSCTL_NODE(_net_graph, OID_AUTO, pptpgre, CTLFLAG_RW, 0, "PPTPGRE");
+SYSCTL_NODE(_net_graph, OID_AUTO, pptpgre, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "PPTPGRE");
 
 /*
  * Reorder queue maximum length. Zero disables reorder.

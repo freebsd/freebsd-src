@@ -56,9 +56,9 @@ struct cpuinfo cpuinfo =
 	.icache_line_mask = 31,
 };
 
-static SYSCTL_NODE(_hw, OID_AUTO, cpu, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, cpu, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "CPU");
-static SYSCTL_NODE(_hw_cpu, OID_AUTO, quirks, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw_cpu, OID_AUTO, quirks, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "CPU quirks");
 
 /*

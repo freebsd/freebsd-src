@@ -337,7 +337,8 @@ int g_raid_md_modevent(module_t, int, void *);
     DECLARE_MODULE(g_raid_md_##name, g_raid_md_##name##_mod,	\
 	SI_SUB_DRIVERS, SI_ORDER_SECOND);			\
     MODULE_DEPEND(g_raid_md_##name, geom_raid, 0, 0, 0);	\
-    SYSCTL_NODE(_kern_geom_raid, OID_AUTO, name, CTLFLAG_RD,	\
+    SYSCTL_NODE(_kern_geom_raid, OID_AUTO, name,		\
+        CTLFLAG_RD | CTLFLAG_MPSAFE,				\
 	NULL, label " metadata module");			\
     SYSCTL_INT(_kern_geom_raid_##name, OID_AUTO, enable,	\
 	CTLFLAG_RWTUN, &g_raid_md_##name##_class.mdc_enable, 0,	\
@@ -374,7 +375,8 @@ int g_raid_tr_modevent(module_t, int, void *);
     DECLARE_MODULE(g_raid_tr_##name, g_raid_tr_##name##_mod,	\
 	SI_SUB_DRIVERS, SI_ORDER_FIRST);			\
     MODULE_DEPEND(g_raid_tr_##name, geom_raid, 0, 0, 0);	\
-    SYSCTL_NODE(_kern_geom_raid, OID_AUTO, name, CTLFLAG_RD,	\
+    SYSCTL_NODE(_kern_geom_raid, OID_AUTO, name,		\
+        CTLFLAG_RD | CTLFLAG_MPSAFE,				\
 	NULL, label " transformation module");			\
     SYSCTL_INT(_kern_geom_raid_##name, OID_AUTO, enable,	\
 	CTLFLAG_RWTUN, &g_raid_tr_##name##_class.trc_enable, 0,	\

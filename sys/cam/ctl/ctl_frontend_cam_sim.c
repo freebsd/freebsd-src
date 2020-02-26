@@ -109,8 +109,8 @@ struct cfcs_softc cfcs_softc;
  */
 static int cfcs_max_sense = sizeof(struct scsi_sense_data);
 
-SYSCTL_NODE(_kern_cam, OID_AUTO, ctl2cam, CTLFLAG_RD, 0,
-	    "CAM Target Layer SIM frontend");
+SYSCTL_NODE(_kern_cam, OID_AUTO, ctl2cam, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "CAM Target Layer SIM frontend");
 SYSCTL_INT(_kern_cam_ctl2cam, OID_AUTO, max_sense, CTLFLAG_RW,
            &cfcs_max_sense, 0, "Maximum sense data size");
 

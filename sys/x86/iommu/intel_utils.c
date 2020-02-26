@@ -654,7 +654,8 @@ dmar_timeout_sysctl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_hw, OID_AUTO, dmar, CTLFLAG_RD, NULL, "");
+static SYSCTL_NODE(_hw, OID_AUTO, dmar, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "");
 SYSCTL_INT(_hw_dmar, OID_AUTO, tbl_pagecnt, CTLFLAG_RD,
     &dmar_tbl_pagecnt, 0,
     "Count of pages used for DMAR pagetables");

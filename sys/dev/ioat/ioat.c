@@ -114,7 +114,8 @@ static void ioat_drain_locked(struct ioat_softc *);
 } while (0)
 
 MALLOC_DEFINE(M_IOAT, "ioat", "ioat driver memory allocations");
-SYSCTL_NODE(_hw, OID_AUTO, ioat, CTLFLAG_RD, 0, "ioat node");
+SYSCTL_NODE(_hw, OID_AUTO, ioat, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "ioat node");
 
 static int g_force_legacy_interrupts;
 SYSCTL_INT(_hw_ioat, OID_AUTO, force_legacy_interrupts, CTLFLAG_RDTUN,
@@ -1932,8 +1933,8 @@ ioat_setup_sysctl(device_t device)
 	    &ioat->intrdelay_max, 0,
 	    "Maximum configurable INTRDELAY on this channel (microseconds)");
 
-	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "state", CTLFLAG_RD, NULL,
-	    "IOAT channel internal state");
+	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "state",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "IOAT channel internal state");
 	state = SYSCTL_CHILDREN(tmp);
 
 	SYSCTL_ADD_UINT(ctx, state, OID_AUTO, "ring_size_order", CTLFLAG_RD,
@@ -1951,23 +1952,24 @@ ioat_setup_sysctl(device_t device)
 	    "submitter processing");
 
 	SYSCTL_ADD_PROC(ctx, state, OID_AUTO, "chansts",
-	    CTLTYPE_STRING | CTLFLAG_RD, ioat, 0, sysctl_handle_chansts, "A",
-	    "String of the channel status");
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, ioat, 0,
+	    sysctl_handle_chansts, "A", "String of the channel status");
 
 	SYSCTL_ADD_U16(ctx, state, OID_AUTO, "intrdelay", CTLFLAG_RD,
 	    &ioat->cached_intrdelay, 0,
 	    "Current INTRDELAY on this channel (cached, microseconds)");
 
-	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "hammer", CTLFLAG_RD, NULL,
+	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "hammer",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
 	    "Big hammers (mostly for testing)");
 	hammer = SYSCTL_CHILDREN(tmp);
 
 	SYSCTL_ADD_PROC(ctx, hammer, OID_AUTO, "force_hw_reset",
-	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_reset, "I",
-	    "Set to non-zero to reset the hardware");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, ioat, 0,
+	    sysctl_handle_reset, "I", "Set to non-zero to reset the hardware");
 
-	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "stats", CTLFLAG_RD, NULL,
-	    "IOAT channel statistics");
+	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "IOAT channel statistics");
 	statpar = SYSCTL_CHILDREN(tmp);
 
 	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "interrupts",
@@ -1990,8 +1992,8 @@ ioat_setup_sysctl(device_t device)
 	    "The raw CHANERR when the channel was last halted");
 
 	SYSCTL_ADD_PROC(ctx, statpar, OID_AUTO, "desc_per_interrupt",
-	    CTLTYPE_STRING | CTLFLAG_RD, ioat, 0, sysctl_handle_dpi, "A",
-	    "Descriptors per interrupt");
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, ioat, 0,
+	    sysctl_handle_dpi, "A", "Descriptors per interrupt");
 }
 
 static void

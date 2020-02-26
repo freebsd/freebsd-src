@@ -916,8 +916,9 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist,
-    CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0,
-    udp_pcblist, "S,xinpcb", "List of active UDP sockets");
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    udp_pcblist, "S,xinpcb",
+    "List of active UDP sockets");
 
 #ifdef INET
 static int
@@ -957,8 +958,9 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_udp, OID_AUTO, getcred,
-    CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0,
-    udp_getcred, "S,xucred", "Get the xucred of a UDP connection");
+    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    0, 0, udp_getcred, "S,xucred",
+    "Get the xucred of a UDP connection");
 #endif /* INET */
 
 int

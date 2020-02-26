@@ -234,7 +234,8 @@ static int	vtnet_tunable_int(struct vtnet_softc *, const char *, int);
 DEBUGNET_DEFINE(vtnet);
 
 /* Tunables. */
-static SYSCTL_NODE(_hw, OID_AUTO, vtnet, CTLFLAG_RD, 0, "VNET driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, vtnet, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "VNET driver parameters");
 static int vtnet_csum_disable = 0;
 TUNABLE_INT("hw.vtnet.csum_disable", &vtnet_csum_disable);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, csum_disable, CTLFLAG_RDTUN,
@@ -3751,7 +3752,7 @@ vtnet_setup_rxq_sysctl(struct sysctl_ctx_list *ctx,
 
 	snprintf(namebuf, sizeof(namebuf), "rxq%d", rxq->vtnrx_id);
 	node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
-	    CTLFLAG_RD, NULL, "Receive Queue");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Receive Queue");
 	list = SYSCTL_CHILDREN(node);
 
 	stats = &rxq->vtnrx_stats;
@@ -3784,7 +3785,7 @@ vtnet_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 
 	snprintf(namebuf, sizeof(namebuf), "txq%d", txq->vtntx_id);
 	node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
-	    CTLFLAG_RD, NULL, "Transmit Queue");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Transmit Queue");
 	list = SYSCTL_CHILDREN(node);
 
 	stats = &txq->vtntx_stats;

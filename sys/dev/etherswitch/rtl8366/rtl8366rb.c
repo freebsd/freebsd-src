@@ -107,7 +107,8 @@ struct rtl8366rb_softc {
 static int callout_blocked = 0;
 static int iic_select_retries = 0;
 static int phy_access_retries = 0;
-static SYSCTL_NODE(_debug, OID_AUTO, rtl8366rb, CTLFLAG_RD, 0, "rtl8366rb");
+static SYSCTL_NODE(_debug, OID_AUTO, rtl8366rb, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "rtl8366rb");
 SYSCTL_INT(_debug_rtl8366rb, OID_AUTO, callout_blocked, CTLFLAG_RW, &callout_blocked, 0,
 	"number of times the callout couldn't acquire the bus");
 SYSCTL_INT(_debug_rtl8366rb, OID_AUTO, iic_select_retries, CTLFLAG_RW, &iic_select_retries, 0,

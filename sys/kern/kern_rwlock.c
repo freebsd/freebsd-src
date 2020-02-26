@@ -97,7 +97,8 @@ struct lock_class lock_class_rw = {
 #ifdef RWLOCK_CUSTOM_BACKOFF
 static u_short __read_frequently rowner_retries;
 static u_short __read_frequently rowner_loops;
-static SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_debug, OID_AUTO, rwlock,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "rwlock debugging");
 SYSCTL_U16(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
 SYSCTL_U16(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");

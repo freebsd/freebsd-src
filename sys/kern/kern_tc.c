@@ -104,11 +104,16 @@ volatile time_t time_second = 1;
 volatile time_t time_uptime = 1;
 
 static int sysctl_kern_boottime(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_kern, KERN_BOOTTIME, boottime, CTLTYPE_STRUCT|CTLFLAG_RD,
-    NULL, 0, sysctl_kern_boottime, "S,timeval", "System boottime");
+SYSCTL_PROC(_kern, KERN_BOOTTIME, boottime,
+    CTLTYPE_STRUCT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kern_boottime, "S,timeval",
+    "System boottime");
 
-SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
-static SYSCTL_NODE(_kern_timecounter, OID_AUTO, tc, CTLFLAG_RW, 0, "");
+SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "");
+static SYSCTL_NODE(_kern_timecounter, OID_AUTO, tc,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "");
 
 static int timestepwarnings;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
@@ -1169,16 +1174,19 @@ tc_init(struct timecounter *tc)
 	 */
 	tc_root = SYSCTL_ADD_NODE_WITH_LABEL(NULL,
 	    SYSCTL_STATIC_CHILDREN(_kern_timecounter_tc), OID_AUTO, tc->tc_name,
-	    CTLFLAG_RW, 0, "timecounter description", "timecounter");
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+	    "timecounter description", "timecounter");
 	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
 	    "mask", CTLFLAG_RD, &(tc->tc_counter_mask), 0,
 	    "mask for implemented bits");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
-	    "counter", CTLTYPE_UINT | CTLFLAG_RD, tc, sizeof(*tc),
-	    sysctl_kern_timecounter_get, "IU", "current timecounter value");
+	    "counter", CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, tc,
+	    sizeof(*tc), sysctl_kern_timecounter_get, "IU",
+	    "current timecounter value");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
-	    "frequency", CTLTYPE_U64 | CTLFLAG_RD, tc, sizeof(*tc),
-	     sysctl_kern_timecounter_freq, "QU", "timecounter frequency");
+	    "frequency", CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE, tc,
+	    sizeof(*tc), sysctl_kern_timecounter_freq, "QU",
+	    "timecounter frequency");
 	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
 	    "quality", CTLFLAG_RD, &(tc->tc_quality), 0,
 	    "goodness of time counter");
@@ -1478,8 +1486,9 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 	return (EINVAL);
 }
 
-SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
-    0, 0, sysctl_kern_timecounter_hardware, "A",
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_kern_timecounter_hardware, "A",
     "Timecounter hardware selected");
 
 /* Report the available timecounter hardware. */
@@ -1501,8 +1510,10 @@ sysctl_kern_timecounter_choice(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern_timecounter, OID_AUTO, choice, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, sysctl_kern_timecounter_choice, "A", "Timecounter hardware detected");
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, choice,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_kern_timecounter_choice, "A",
+    "Timecounter hardware detected");
 
 /*
  * RFC 2783 PPS-API implementation.

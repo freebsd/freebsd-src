@@ -90,7 +90,8 @@ __FBSDID("$FreeBSD$");
 #define AMR_DEFINE_TABLES
 #include <dev/amr/amr_tables.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, amr, CTLFLAG_RD, 0, "AMR driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, amr, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "AMR driver parameters");
 
 static d_open_t         amr_open;
 static d_close_t        amr_close;

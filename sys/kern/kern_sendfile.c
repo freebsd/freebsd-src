@@ -126,8 +126,10 @@ sfstat_sysctl(SYSCTL_HANDLER_ARGS)
 		COUNTER_ARRAY_ZERO(sfstat, sizeof(s) / sizeof(uint64_t));
 	return (SYSCTL_OUT(req, &s, sizeof(s)));
 }
-SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
-    NULL, 0, sfstat_sysctl, "I", "sendfile statistics");
+SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat,
+    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    sfstat_sysctl, "I",
+    "sendfile statistics");
 
 static void
 sendfile_free_mext(struct mbuf *m)

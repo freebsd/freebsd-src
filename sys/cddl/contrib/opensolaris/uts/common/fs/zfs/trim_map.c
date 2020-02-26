@@ -82,7 +82,8 @@ static u_int trim_max_interval = 1;	/* 1s delays between TRIMs */
 static u_int trim_vdev_max_pending = 10000; /* Keep up to 10K segments */
 
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_NODE(_vfs_zfs, OID_AUTO, trim, CTLFLAG_RD, 0, "ZFS TRIM");
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, trim, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "ZFS TRIM");
 
 SYSCTL_UINT(_vfs_zfs_trim, OID_AUTO, txg_delay, CTLFLAG_RWTUN, &trim_txg_delay,
     0, "Delay TRIMs by up to this many TXGs");

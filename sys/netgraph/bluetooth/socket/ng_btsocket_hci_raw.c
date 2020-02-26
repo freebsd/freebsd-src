@@ -128,8 +128,9 @@ static int					ng_btsocket_hci_raw_curpps;
  
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_hci_sockets);
-static SYSCTL_NODE(_net_bluetooth_hci_sockets, OID_AUTO, raw, CTLFLAG_RW,
-        0, "Bluetooth raw HCI sockets family");
+static SYSCTL_NODE(_net_bluetooth_hci_sockets, OID_AUTO, raw,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Bluetooth raw HCI sockets family");
 SYSCTL_UINT(_net_bluetooth_hci_sockets_raw, OID_AUTO, debug_level, CTLFLAG_RW,
         &ng_btsocket_hci_raw_debug_level, NG_BTSOCKET_WARN_LEVEL,
 	"Bluetooth raw HCI sockets debug level");

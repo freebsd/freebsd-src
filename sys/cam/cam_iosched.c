@@ -976,7 +976,7 @@ cam_iosched_iop_stats_sysctl_init(struct cam_iosched_softc *isc, struct iop_stat
 
 	ios->sysctl_tree = SYSCTL_ADD_NODE(&isc->sysctl_ctx,
 	    SYSCTL_CHILDREN(isc->sysctl_tree), OID_AUTO, name,
-	    CTLFLAG_RD, 0, name);
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, name);
 	n = SYSCTL_CHILDREN(ios->sysctl_tree);
 	ctx = &ios->sysctl_ctx;
 
@@ -1015,7 +1015,8 @@ cam_iosched_iop_stats_sysctl_init(struct cam_iosched_softc *isc, struct iop_stat
 	    "# of transactions completed with an error");
 
 	SYSCTL_ADD_PROC(ctx, n,
-	    OID_AUTO, "limiter", CTLTYPE_STRING | CTLFLAG_RW,
+	    OID_AUTO, "limiter",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    ios, 0, cam_iosched_limiter_sysctl, "A",
 	    "Current limiting type.");
 	SYSCTL_ADD_INT(ctx, n,
@@ -1032,7 +1033,8 @@ cam_iosched_iop_stats_sysctl_init(struct cam_iosched_softc *isc, struct iop_stat
 	    "current resource");
 
 	SYSCTL_ADD_PROC(ctx, n,
-	    OID_AUTO, "latencies", CTLTYPE_STRING | CTLFLAG_RD,
+	    OID_AUTO, "latencies",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    &ios->latencies, 0,
 	    cam_iosched_sysctl_latencies, "A",
 	    "Array of power of 2 latency from 1ms to 1.024s");
@@ -1056,24 +1058,28 @@ cam_iosched_cl_sysctl_init(struct cam_iosched_softc *isc)
 	clp = &isc->cl;
 	clp->sysctl_tree = SYSCTL_ADD_NODE(&isc->sysctl_ctx,
 	    SYSCTL_CHILDREN(isc->sysctl_tree), OID_AUTO, "control",
-	    CTLFLAG_RD, 0, "Control loop info");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Control loop info");
 	n = SYSCTL_CHILDREN(clp->sysctl_tree);
 	ctx = &clp->sysctl_ctx;
 
 	SYSCTL_ADD_PROC(ctx, n,
-	    OID_AUTO, "type", CTLTYPE_STRING | CTLFLAG_RW,
+	    OID_AUTO, "type",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    clp, 0, cam_iosched_control_type_sysctl, "A",
 	    "Control loop algorithm");
 	SYSCTL_ADD_PROC(ctx, n,
-	    OID_AUTO, "steer_interval", CTLTYPE_STRING | CTLFLAG_RW,
+	    OID_AUTO, "steer_interval",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    &clp->steer_interval, 0, cam_iosched_sbintime_sysctl, "A",
 	    "How often to steer (in us)");
 	SYSCTL_ADD_PROC(ctx, n,
-	    OID_AUTO, "lolat", CTLTYPE_STRING | CTLFLAG_RW,
+	    OID_AUTO, "lolat",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    &clp->lolat, 0, cam_iosched_sbintime_sysctl, "A",
 	    "Low water mark for Latency (in us)");
 	SYSCTL_ADD_PROC(ctx, n,
-	    OID_AUTO, "hilat", CTLTYPE_STRING | CTLFLAG_RW,
+	    OID_AUTO, "hilat",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    &clp->hilat, 0, cam_iosched_sbintime_sysctl, "A",
 	    "Hi water mark for Latency (in us)");
 	SYSCTL_ADD_INT(ctx, n,
@@ -1186,7 +1192,7 @@ void cam_iosched_sysctl_init(struct cam_iosched_softc *isc,
 
 	isc->sysctl_tree = SYSCTL_ADD_NODE(&isc->sysctl_ctx,
 	    SYSCTL_CHILDREN(node), OID_AUTO, "iosched",
-	    CTLFLAG_RD, 0, "I/O scheduler statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "I/O scheduler statistics");
 	n = SYSCTL_CHILDREN(isc->sysctl_tree);
 	ctx = &isc->sysctl_ctx;
 
@@ -1201,7 +1207,7 @@ void cam_iosched_sysctl_init(struct cam_iosched_softc *isc,
 	    "How biased towards read should we be independent of limits");
 
 	SYSCTL_ADD_PROC(ctx, n,
-	    OID_AUTO, "quanta", CTLTYPE_UINT | CTLFLAG_RW,
+	    OID_AUTO, "quanta", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    &isc->quanta, 0, cam_iosched_quanta_sysctl, "I",
 	    "How many quanta per second do we slice the I/O up into");
 

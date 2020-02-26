@@ -159,22 +159,22 @@ ahd_sysctl(struct ahd_softc *ahd)
 
 	ahd->sysctl_tree[AHD_SYSCTL_ROOT] =
 	    SYSCTL_ADD_NODE(&ahd->sysctl_ctx[AHD_SYSCTL_ROOT],
-			    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
-			    device_get_nameunit(ahd->dev_softc), CTLFLAG_RD, 0,
-			    ahd_sysctl_node_descriptions[AHD_SYSCTL_ROOT]);
+	        SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
+		device_get_nameunit(ahd->dev_softc),
+		CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+		ahd_sysctl_node_descriptions[AHD_SYSCTL_ROOT]);
 	    SYSCTL_ADD_PROC(&ahd->sysctl_ctx[AHD_SYSCTL_ROOT],
-			    SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_ROOT]),
-			    OID_AUTO, "clear", CTLTYPE_UINT | CTLFLAG_RW, ahd,
-			    0, ahd_clear_allcounters, "IU",
-			    "Clear all counters");
+	        SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_ROOT]), OID_AUTO,
+		"clear", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, ahd,
+		0, ahd_clear_allcounters, "IU", "Clear all counters");
 
 	for (i = AHD_SYSCTL_SUMMARY; i < AHD_SYSCTL_NUMBER; i++)
 		ahd->sysctl_tree[i] =
 		    SYSCTL_ADD_NODE(&ahd->sysctl_ctx[i],
-				    SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_ROOT]),
-				    OID_AUTO, ahd_sysctl_node_elements[i],
-				    CTLFLAG_RD, 0,
-				    ahd_sysctl_node_descriptions[i]);
+		        SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_ROOT]),
+			OID_AUTO, ahd_sysctl_node_elements[i],
+			CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+			ahd_sysctl_node_descriptions[i]);
 
 	for (i = AHD_ERRORS_CORRECTABLE; i < AHD_ERRORS_NUMBER; i++) {
 		SYSCTL_ADD_UINT(&ahd->sysctl_ctx[AHD_SYSCTL_SUMMARY],
@@ -183,11 +183,11 @@ ahd_sysctl(struct ahd_softc *ahd)
 				CTLFLAG_RD, &ahd->summerr[i], i,
 				ahd_sysctl_errors_descriptions[i]);
 		SYSCTL_ADD_PROC(&ahd->sysctl_ctx[AHD_SYSCTL_DEBUG],
-				SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_DEBUG]),
-				OID_AUTO, ahd_sysctl_errors_elements[i],
-				CTLFLAG_RW | CTLTYPE_UINT, ahd, i,
-				ahd_set_debugcounters, "IU",
-				ahd_sysctl_errors_descriptions[i]);
+		    SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_DEBUG]),
+		    OID_AUTO, ahd_sysctl_errors_elements[i],
+		    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, ahd, i,
+		    ahd_set_debugcounters, "IU",
+		    ahd_sysctl_errors_descriptions[i]);
 	}
 }
 

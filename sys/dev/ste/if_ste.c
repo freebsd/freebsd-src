@@ -2053,13 +2053,13 @@ ste_sysctl_node(struct ste_softc *sc)
 	resource_int_value(device_get_name(sc->ste_dev),
 	    device_get_unit(sc->ste_dev), "int_rx_mod", &sc->ste_int_rx_mod);
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "STE statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "STE statistics");
 	parent = SYSCTL_CHILDREN(tree);
 
 	/* Rx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
-	    NULL, "Rx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Rx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	STE_SYSCTL_STAT_ADD64(ctx, child, "good_octets",
 	    &stats->rx_bytes, "Good octets");
@@ -2073,8 +2073,8 @@ ste_sysctl_node(struct ste_softc *sc)
 	    &stats->rx_lost_frames, "Lost frames");
 
 	/* Tx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "Tx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Tx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	STE_SYSCTL_STAT_ADD64(ctx, child, "good_octets",
 	    &stats->tx_bytes, "Good octets");

@@ -957,7 +957,8 @@ ctl_ha_msg_init(struct ctl_softc *ctl_softc)
 	    ctl_ha_msg_shutdown, ctl_softc, SHUTDOWN_PRI_FIRST);
 	SYSCTL_ADD_PROC(&ctl_softc->sysctl_ctx,
 	    SYSCTL_CHILDREN(ctl_softc->sysctl_tree),
-	    OID_AUTO, "ha_peer", CTLTYPE_STRING | CTLFLAG_RWTUN,
+	    OID_AUTO, "ha_peer",
+	    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
 	    softc, 0, ctl_ha_peer_sysctl, "A", "HA peer connection method");
 
 	if (ctl_ha_msg_register(CTL_HA_CHAN_DATA, ctl_dt_event_handler)

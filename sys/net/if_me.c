@@ -124,7 +124,7 @@ static int	me_set_tunnel(struct me_softc *, in_addr_t, in_addr_t);
 static void	me_delete_tunnel(struct me_softc *);
 
 SYSCTL_DECL(_net_link);
-static SYSCTL_NODE(_net_link, IFT_TUNNEL, me, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link, IFT_TUNNEL, me, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Minimal Encapsulation for IP (RFC 2004)");
 #ifndef MAX_ME_NEST
 #define MAX_ME_NEST 1

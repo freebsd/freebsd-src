@@ -1025,7 +1025,7 @@ am335x_lcd_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(sc->sc_dev);
 	tree = device_get_sysctl_tree(sc->sc_dev);
 	sc->sc_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "backlight", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    "backlight", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 	    am335x_lcd_sysctl_backlight, "I", "LCD backlight");
 	sc->sc_backlight = 0;
 	/* Check if eCAS interface is available at this point */

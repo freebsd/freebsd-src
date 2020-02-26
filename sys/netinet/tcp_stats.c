@@ -79,7 +79,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, perconn_stats_enable,
     "Enable per-connection TCP stats gathering; 1 enables for all connections, "
     "2 enables random sampling across log id connection groups");
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, perconn_stats_sample_rates,
-    CTLTYPE_STRING | CTLFLAG_RW, tcp_stats_tpl_sr_cb,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, tcp_stats_tpl_sr_cb,
     sizeof(struct rm_priotracker), stats_tpl_sample_rates, "A",
     "TCP stats per template random sampling rates, in CSV tpl_spec=percent "
     "key-value pairs (see stats(9) for template spec details)");

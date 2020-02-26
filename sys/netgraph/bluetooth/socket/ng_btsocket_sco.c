@@ -112,8 +112,9 @@ static int					ng_btsocket_sco_curpps;
 
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_sco_sockets);
-static SYSCTL_NODE(_net_bluetooth_sco_sockets, OID_AUTO, seq, CTLFLAG_RW,
-	0, "Bluetooth SEQPACKET SCO sockets family");
+static SYSCTL_NODE(_net_bluetooth_sco_sockets, OID_AUTO, seq,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Bluetooth SEQPACKET SCO sockets family");
 SYSCTL_UINT(_net_bluetooth_sco_sockets_seq, OID_AUTO, debug_level,
 	CTLFLAG_RW,
 	&ng_btsocket_sco_debug_level, NG_BTSOCKET_WARN_LEVEL,

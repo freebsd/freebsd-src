@@ -325,7 +325,7 @@ static int sysctl_handle_uma_zone_items(SYSCTL_HANDLER_ARGS);
 
 static uint64_t uma_zone_get_allocs(uma_zone_t zone);
 
-static SYSCTL_NODE(_vm, OID_AUTO, debug, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_vm, OID_AUTO, debug, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Memory allocation debugging");
 
 #ifdef INVARIANTS
@@ -352,7 +352,8 @@ SYSCTL_COUNTER_U64(_vm_debug, OID_AUTO, skipped, CTLFLAG_RD,
 
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
 
-SYSCTL_NODE(_vm, OID_AUTO, uma, CTLFLAG_RW, 0, "Universal Memory Allocator");
+SYSCTL_NODE(_vm, OID_AUTO, uma, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Universal Memory Allocator");
 
 SYSCTL_PROC(_vm, OID_AUTO, zone_count, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLTYPE_INT,
     0, 0, sysctl_vm_zone_count, "I", "Number of UMA zones");
@@ -2373,7 +2374,7 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	 * Basic parameters at the root.
 	 */
 	zone->uz_oid = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_vm_uma),
-	    OID_AUTO, zone->uz_ctlname, CTLFLAG_RD, NULL, "");
+	    OID_AUTO, zone->uz_ctlname, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	oid = zone->uz_oid;
 	SYSCTL_ADD_U32(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "size", CTLFLAG_RD, &zone->uz_size, 0, "Allocation size");
@@ -2396,7 +2397,7 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	else
 		domains = 1;
 	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(zone->uz_oid), OID_AUTO,
-	    "keg", CTLFLAG_RD, NULL, "");
+	    "keg", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	keg = zone->uz_keg;
 	if ((zone->uz_flags & UMA_ZFLAG_CACHE) == 0) {
 		SYSCTL_ADD_CONST_STRING(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
@@ -2418,12 +2419,12 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 		    keg, 0, sysctl_handle_uma_slab_efficiency, "I",
 		    "Slab utilization (100 - internal fragmentation %)");
 		domainoid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(oid),
-		    OID_AUTO, "domain", CTLFLAG_RD, NULL, "");
+		    OID_AUTO, "domain", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 		for (i = 0; i < domains; i++) {
 			dom = &keg->uk_domain[i];
 			oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(domainoid),
-			    OID_AUTO, VM_DOMAIN(i)->vmd_name, CTLFLAG_RD,
-			    NULL, "");
+			    OID_AUTO, VM_DOMAIN(i)->vmd_name,
+			    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 			SYSCTL_ADD_U32(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 			    "pages", CTLFLAG_RD, &dom->ud_pages, 0,
 			    "Total pages currently allocated from VM");
@@ -2439,7 +2440,7 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	 * Information about zone limits.
 	 */
 	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(zone->uz_oid), OID_AUTO,
-	    "limit", CTLFLAG_RD, NULL, "");
+	    "limit", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "items", CTLFLAG_RD | CTLTYPE_U64 | CTLFLAG_MPSAFE,
 	    zone, 0, sysctl_handle_uma_zone_items, "QU",
@@ -2461,11 +2462,12 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	 * Per-domain zone information.
 	 */
 	domainoid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(zone->uz_oid),
-	    OID_AUTO, "domain", CTLFLAG_RD, NULL, "");
+	    OID_AUTO, "domain", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	for (i = 0; i < domains; i++) {
 		zdom = ZDOM_GET(zone, i);
 		oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(domainoid),
-		    OID_AUTO, VM_DOMAIN(i)->vmd_name, CTLFLAG_RD, NULL, "");
+		    OID_AUTO, VM_DOMAIN(i)->vmd_name,
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 		SYSCTL_ADD_LONG(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 		    "nitems", CTLFLAG_RD, &zdom->uzd_nitems,
 		    "number of items in this domain");
@@ -2484,7 +2486,7 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	 * General statistics.
 	 */
 	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(zone->uz_oid), OID_AUTO,
-	    "stats", CTLFLAG_RD, NULL, "");
+	    "stats", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "current", CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_MPSAFE,
 	    zone, 1, sysctl_handle_uma_zone_cur, "I",

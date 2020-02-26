@@ -309,8 +309,8 @@ twa_attach(device_t dev)
 
 	sysctl_ctx_init(&sc->sysctl_ctxt);
 	sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctxt,
-		SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
-		device_get_nameunit(dev), CTLFLAG_RD, 0, "");
+	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, device_get_nameunit(dev),
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 	if (sc->sysctl_tree == NULL) {
 		tw_osli_printf(sc, "error = %d",
 			TW_CL_SEVERITY_ERROR_STRING,

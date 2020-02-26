@@ -130,16 +130,19 @@ SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_ip_dummynet);
 static SYSCTL_NODE(_net_inet_ip_dummynet, OID_AUTO, fqcodel,
-	CTLFLAG_RW, 0, "FQ_CODEL");
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "FQ_CODEL");
 
 #ifdef SYSCTL_NODE
 	
 SYSCTL_PROC(_net_inet_ip_dummynet_fqcodel, OID_AUTO, target,
-	CTLTYPE_LONG | CTLFLAG_RW, NULL, 0, fqcodel_sysctl_target_handler, "L",
-	"FQ_CoDel target in microsecond");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    NULL, 0, fqcodel_sysctl_target_handler, "L",
+    "FQ_CoDel target in microsecond");
 SYSCTL_PROC(_net_inet_ip_dummynet_fqcodel, OID_AUTO, interval,
-	CTLTYPE_LONG | CTLFLAG_RW, NULL, 0, fqcodel_sysctl_interval_handler, "L",
-	"FQ_CoDel interval in microsecond");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    NULL, 0, fqcodel_sysctl_interval_handler, "L",
+    "FQ_CoDel interval in microsecond");
 	
 SYSCTL_UINT(_net_inet_ip_dummynet_fqcodel, OID_AUTO, quantum,
 	CTLFLAG_RW, &fq_codel_sysctl.quantum, 1514, "FQ_CoDel quantum");

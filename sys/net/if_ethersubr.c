@@ -1052,7 +1052,8 @@ ether_reassign(struct ifnet *ifp, struct vnet *new_vnet, char *unused __unused)
 #endif
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
+SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Ethernet");
 
 #if 0
 /*
@@ -1334,9 +1335,10 @@ ether_vlanencap(struct mbuf *m, uint16_t tag)
 	return (m);
 }
 
-static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "IEEE 802.1Q VLAN");
-static SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link_vlan, PF_LINK, link,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "for consistency");
 
 VNET_DEFINE_STATIC(int, soft_pad);

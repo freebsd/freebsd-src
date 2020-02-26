@@ -270,7 +270,8 @@ extern pt_entry_t pagetable_dmap[];
 static vm_paddr_t physmap[PHYSMAP_SIZE];
 static u_int physmap_idx;
 
-static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "VM/pmap parameters");
 
 /*
  * This ASID allocator uses a bit vector ("asid_set") to remember which ASIDs
@@ -294,7 +295,8 @@ struct asid_set {
 
 static struct asid_set asids;
 
-static SYSCTL_NODE(_vm_pmap, OID_AUTO, asid, CTLFLAG_RD, 0, "ASID allocator");
+static SYSCTL_NODE(_vm_pmap, OID_AUTO, asid, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "ASID allocator");
 SYSCTL_INT(_vm_pmap_asid, OID_AUTO, bits, CTLFLAG_RD, &asids.asid_bits, 0,
     "The number of bits in an ASID");
 SYSCTL_INT(_vm_pmap_asid, OID_AUTO, next, CTLFLAG_RD, &asids.asid_next, 0,
@@ -1032,7 +1034,7 @@ pmap_init(void)
 	vm_initialized = 1;
 }
 
-static SYSCTL_NODE(_vm_pmap, OID_AUTO, l2, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_vm_pmap, OID_AUTO, l2, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "2MB page mapping counters");
 
 static u_long pmap_l2_demotions;

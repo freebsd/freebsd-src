@@ -34,7 +34,8 @@ __FBSDID("$FreeBSD$");
 
 #include "qlnxr_def.h"
 
-SYSCTL_NODE(_dev, OID_AUTO, qnxr, CTLFLAG_RW, 0, "Qlogic RDMA module");
+SYSCTL_NODE(_dev, OID_AUTO, qnxr, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Qlogic RDMA module");
 
 uint32_t delayed_ack = 0;
 SYSCTL_UINT(_dev_qnxr, OID_AUTO, delayed_ack, CTLFLAG_RW, &delayed_ack, 1,

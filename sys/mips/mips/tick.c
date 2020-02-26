@@ -178,8 +178,9 @@ sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, counter_freq, CTLTYPE_U64 | CTLFLAG_RW,
-    NULL, 0, sysctl_machdep_counter_freq, "QU",
+SYSCTL_PROC(_machdep, OID_AUTO, counter_freq,
+    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    sysctl_machdep_counter_freq, "QU",
     "Timecounter frequency in Hz");
 
 static unsigned

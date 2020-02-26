@@ -93,7 +93,7 @@ static MALLOC_DEFINE(M_NETGRAPH_IFACE, "netgraph_iface", "netgraph iface node");
 #define M_NETGRAPH_IFACE M_NETGRAPH
 #endif
 
-static SYSCTL_NODE(_net_graph, OID_AUTO, iface, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_graph, OID_AUTO, iface, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Point to point netgraph interface");
 VNET_DEFINE_STATIC(int, ng_iface_max_nest) = 2;
 #define	V_ng_iface_max_nest	VNET(ng_iface_max_nest)

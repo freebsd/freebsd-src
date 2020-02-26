@@ -3121,8 +3121,8 @@ nfe_sysctl_node(struct nfe_softc *sc)
 	stats = &sc->nfe_stats;
 	ctx = device_get_sysctl_ctx(sc->nfe_dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->nfe_dev));
-	SYSCTL_ADD_PROC(ctx, child,
-	    OID_AUTO, "process_limit", CTLTYPE_INT | CTLFLAG_RW,
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "process_limit",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    &sc->nfe_process_limit, 0, sysctl_hw_nfe_proc_limit, "I",
 	    "max number of Rx events to process");
 
@@ -3143,13 +3143,13 @@ nfe_sysctl_node(struct nfe_softc *sc)
 	if ((sc->nfe_flags & (NFE_MIB_V1 | NFE_MIB_V2 | NFE_MIB_V3)) == 0)
 		return;
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "NFE statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "NFE statistics");
 	parent = SYSCTL_CHILDREN(tree);
 
 	/* Rx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
-	    NULL, "Rx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Rx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 
 	NFE_SYSCTL_STAT_ADD32(ctx, child, "frame_errors",
@@ -3186,8 +3186,8 @@ nfe_sysctl_node(struct nfe_softc *sc)
 	}
 
 	/* Tx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "Tx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Tx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	NFE_SYSCTL_STAT_ADD64(ctx, child, "octets",
 	    &stats->tx_octets, "Octets");

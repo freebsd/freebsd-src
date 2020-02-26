@@ -72,8 +72,10 @@ __FBSDID("$FreeBSD$");
 
 #include <ddb/ddb.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW, NULL, NULL);
-SYSCTL_ROOT_NODE(OID_AUTO, dev, CTLFLAG_RW, NULL, NULL);
+SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    NULL);
+SYSCTL_ROOT_NODE(OID_AUTO, dev, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    NULL);
 
 /*
  * Used to attach drivers to devclasses.
@@ -238,9 +240,10 @@ devclass_sysctl_init(devclass_t dc)
 	sysctl_ctx_init(&dc->sysctl_ctx);
 	dc->sysctl_tree = SYSCTL_ADD_NODE(&dc->sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_dev), OID_AUTO, dc->name,
-	    CTLFLAG_RD, NULL, "");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_PROC(&dc->sysctl_ctx, SYSCTL_CHILDREN(dc->sysctl_tree),
-	    OID_AUTO, "%parent", CTLTYPE_STRING | CTLFLAG_RD,
+	    OID_AUTO, "%parent",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    dc, DEVCLASS_SYSCTL_PARENT, devclass_sysctl_handler, "A",
 	    "parent class");
 }
@@ -302,25 +305,29 @@ device_sysctl_init(device_t dev)
 	dev->sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&dev->sysctl_ctx,
 	    SYSCTL_CHILDREN(dc->sysctl_tree), OID_AUTO,
 	    dev->nameunit + strlen(dc->name),
-	    CTLFLAG_RD, NULL, "", "device_index");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "", "device_index");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%desc", CTLTYPE_STRING | CTLFLAG_RD,
+	    OID_AUTO, "%desc", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    dev, DEVICE_SYSCTL_DESC, device_sysctl_handler, "A",
 	    "device description");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%driver", CTLTYPE_STRING | CTLFLAG_RD,
+	    OID_AUTO, "%driver",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    dev, DEVICE_SYSCTL_DRIVER, device_sysctl_handler, "A",
 	    "device driver name");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%location", CTLTYPE_STRING | CTLFLAG_RD,
+	    OID_AUTO, "%location",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    dev, DEVICE_SYSCTL_LOCATION, device_sysctl_handler, "A",
 	    "device location relative to parent");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%pnpinfo", CTLTYPE_STRING | CTLFLAG_RD,
+	    OID_AUTO, "%pnpinfo",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    dev, DEVICE_SYSCTL_PNPINFO, device_sysctl_handler, "A",
 	    "device identification");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%parent", CTLTYPE_STRING | CTLFLAG_RD,
+	    OID_AUTO, "%parent",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    dev, DEVICE_SYSCTL_PARENT, device_sysctl_handler, "A",
 	    "parent device");
 	if (bus_get_domain(dev, &domain) == 0)
@@ -5456,7 +5463,7 @@ sysctl_bus(SYSCTL_HANDLER_ARGS)
 
 	return (SYSCTL_OUT(req, &ubus, sizeof(ubus)));
 }
-SYSCTL_NODE(_hw_bus, OID_AUTO, info, CTLFLAG_RW, sysctl_bus,
+SYSCTL_NODE(_hw_bus, OID_AUTO, info, CTLFLAG_RW | CTLFLAG_NEEDGIANT, sysctl_bus,
     "bus-related data");
 
 static int
@@ -5531,7 +5538,8 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_NODE(_hw_bus, OID_AUTO, devices, CTLFLAG_RD, sysctl_devices,
+SYSCTL_NODE(_hw_bus, OID_AUTO, devices,
+    CTLFLAG_RD | CTLFLAG_NEEDGIANT, sysctl_devices,
     "system device tree");
 
 int

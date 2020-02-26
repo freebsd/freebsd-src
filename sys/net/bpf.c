@@ -214,7 +214,8 @@ static int	filt_bpfread(struct knote *, long);
 static void	bpf_drvinit(void *);
 static int	bpf_stats_sysctl(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_NODE(_net, OID_AUTO, bpf, CTLFLAG_RW, 0, "bpf sysctl");
+SYSCTL_NODE(_net, OID_AUTO, bpf, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "bpf sysctl");
 int bpf_maxinsns = BPF_MAXINSNS;
 SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
     &bpf_maxinsns, 0, "Maximum bpf program instructions");

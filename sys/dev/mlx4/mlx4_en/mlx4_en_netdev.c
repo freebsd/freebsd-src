@@ -2664,9 +2664,10 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
 
         sysctl_ctx_init(ctx);
         priv->conf_sysctl = SYSCTL_ADD_NODE(ctx, SYSCTL_STATIC_CHILDREN(_hw),
-            OID_AUTO, dev->if_xname, CTLFLAG_RD, 0, "mlx4 10gig ethernet");
+            OID_AUTO, dev->if_xname, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+	    "mlx4 10gig ethernet");
         node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(priv->conf_sysctl), OID_AUTO,
-            "conf", CTLFLAG_RD, NULL, "Configuration");
+            "conf", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Configuration");
         node_list = SYSCTL_CHILDREN(node);
 
         SYSCTL_ADD_UINT(ctx, node_list, OID_AUTO, "msg_enable",
@@ -2698,7 +2699,8 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
 	    "PCI device name");
         /* Add coalescer configuration. */
         coal = SYSCTL_ADD_NODE(ctx, node_list, OID_AUTO,
-            "coalesce", CTLFLAG_RD, NULL, "Interrupt coalesce configuration");
+            "coalesce", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "Interrupt coalesce configuration");
         coal_list = SYSCTL_CHILDREN(coal);
         SYSCTL_ADD_UINT(ctx, coal_list, OID_AUTO, "pkt_rate_low",
             CTLFLAG_RW, &priv->pkt_rate_low, 0,
@@ -2738,7 +2740,7 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 	ctx = &priv->stat_ctx;
 	sysctl_ctx_init(ctx);
 	priv->stat_sysctl = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(priv->conf_sysctl), OID_AUTO,
-	    "stat", CTLFLAG_RD, NULL, "Statistics");
+	    "stat", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Statistics");
 	node_list = SYSCTL_CHILDREN(priv->stat_sysctl);
 
 #ifdef MLX4_EN_PERF_STAT
@@ -2860,7 +2862,7 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 		tx_ring = priv->tx_ring[i];
 		snprintf(namebuf, sizeof(namebuf), "tx_ring%d", i);
 		ring_node = SYSCTL_ADD_NODE(ctx, node_list, OID_AUTO, namebuf,
-		    CTLFLAG_RD, NULL, "TX Ring");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX Ring");
 		ring_list = SYSCTL_CHILDREN(ring_node);
 		SYSCTL_ADD_U64(ctx, ring_list, OID_AUTO, "packets",
 		    CTLFLAG_RD, &tx_ring->packets, 0, "TX packets");
@@ -2877,7 +2879,7 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 		rx_ring = priv->rx_ring[i];
 		snprintf(namebuf, sizeof(namebuf), "rx_ring%d", i);
 		ring_node = SYSCTL_ADD_NODE(ctx, node_list, OID_AUTO, namebuf,
-		    CTLFLAG_RD, NULL, "RX Ring");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "RX Ring");
 		ring_list = SYSCTL_CHILDREN(ring_node);
 		SYSCTL_ADD_U64(ctx, ring_list, OID_AUTO, "packets",
 		    CTLFLAG_RD, &rx_ring->packets, 0, "RX packets");

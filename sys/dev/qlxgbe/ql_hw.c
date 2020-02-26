@@ -263,7 +263,7 @@ qlnx_add_hw_mac_stats_sysctls(qla_host_t *ha)
         children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
 
         ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_hw_mac",
-                        CTLFLAG_RD, NULL, "stats_hw_mac");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "stats_hw_mac");
         children = SYSCTL_CHILDREN(ctx_oid);
 
         SYSCTL_ADD_QUAD(ctx, children,
@@ -480,7 +480,7 @@ qlnx_add_hw_rcv_stats_sysctls(qla_host_t *ha)
         children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
 
         ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_hw_rcv",
-                        CTLFLAG_RD, NULL, "stats_hw_rcv");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "stats_hw_rcv");
         children = SYSCTL_CHILDREN(ctx_oid);
 
         SYSCTL_ADD_QUAD(ctx, children,
@@ -600,7 +600,7 @@ qlnx_add_hw_xmt_stats_sysctls(qla_host_t *ha)
         children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
 
         ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_hw_xmt",
-                        CTLFLAG_RD, NULL, "stats_hw_xmt");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "stats_hw_xmt");
         children = SYSCTL_CHILDREN(ctx_oid);
 
         for (i = 0; i < ha->hw.num_tx_rings; i++) {
@@ -609,7 +609,7 @@ qlnx_add_hw_xmt_stats_sysctls(qla_host_t *ha)
                 snprintf(name_str, sizeof(name_str), "%d", i);
 
                 ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name_str,
-                        CTLFLAG_RD, NULL, name_str);
+                    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, name_str);
                 node_children = SYSCTL_CHILDREN(ctx_oid);
 
                 /* Tx Related */
@@ -779,7 +779,7 @@ qlnx_add_drvr_sds_stats(qla_host_t *ha)
         children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
 
         ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_drvr_sds",
-                        CTLFLAG_RD, NULL, "stats_drvr_sds");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "stats_drvr_sds");
         children = SYSCTL_CHILDREN(ctx_oid);
 
         for (i = 0; i < ha->hw.num_sds_rings; i++) {
@@ -788,7 +788,7 @@ qlnx_add_drvr_sds_stats(qla_host_t *ha)
                 snprintf(name_str, sizeof(name_str), "%d", i);
 
                 ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name_str,
-                        CTLFLAG_RD, NULL, name_str);
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, name_str);
                 node_children = SYSCTL_CHILDREN(ctx_oid);
 
                 SYSCTL_ADD_QUAD(ctx, node_children,
@@ -818,7 +818,7 @@ qlnx_add_drvr_rds_stats(qla_host_t *ha)
         children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
 
         ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_drvr_rds",
-                        CTLFLAG_RD, NULL, "stats_drvr_rds");
+            CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "stats_drvr_rds");
         children = SYSCTL_CHILDREN(ctx_oid);
 
         for (i = 0; i < ha->hw.num_rds_rings; i++) {
@@ -827,7 +827,7 @@ qlnx_add_drvr_rds_stats(qla_host_t *ha)
                 snprintf(name_str, sizeof(name_str), "%d", i);
 
                 ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name_str,
-                        CTLFLAG_RD, NULL, name_str);
+                    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, name_str);
                 node_children = SYSCTL_CHILDREN(ctx_oid);
 
                 SYSCTL_ADD_QUAD(ctx, node_children,
@@ -863,7 +863,7 @@ qlnx_add_drvr_tx_stats(qla_host_t *ha)
         children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
 
         ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_drvr_xmt",
-                        CTLFLAG_RD, NULL, "stats_drvr_xmt");
+            CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "stats_drvr_xmt");
         children = SYSCTL_CHILDREN(ctx_oid);
 
         for (i = 0; i < ha->hw.num_tx_rings; i++) {
@@ -872,7 +872,7 @@ qlnx_add_drvr_tx_stats(qla_host_t *ha)
                 snprintf(name_str, sizeof(name_str), "%d", i);
 
                 ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name_str,
-                        CTLFLAG_RD, NULL, name_str);
+                    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, name_str);
                 node_children = SYSCTL_CHILDREN(ctx_oid);
 
                 SYSCTL_ADD_QUAD(ctx, node_children,
@@ -979,35 +979,32 @@ ql_hw_add_sysctls(qla_host_t *ha)
                 "\tto take effect \n");
 
         SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-                OID_AUTO, "port_cfg", CTLTYPE_INT | CTLFLAG_RW,
-                (void *)ha, 0,
-                qla_sysctl_port_cfg, "I",
-                        "Set Port Configuration if values below "
-                        "otherwise Get Port Configuration\n"
-                        "\tBits 0-3 ; 1 = DCBX Enable; 0 = DCBX Disable\n"
-                        "\tBits 4-7 : 0 = no pause; 1 = std ; 2 = ppm \n"
-                        "\tBits 8-11: std pause cfg; 0 = xmt and rcv;"
-                        " 1 = xmt only; 2 = rcv only;\n"
-                );
+            SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "port_cfg", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    (void *)ha, 0, qla_sysctl_port_cfg, "I",
+	    "Set Port Configuration if values below "
+	    "otherwise Get Port Configuration\n"
+	    "\tBits 0-3 ; 1 = DCBX Enable; 0 = DCBX Disable\n"
+	    "\tBits 4-7 : 0 = no pause; 1 = std ; 2 = ppm \n"
+	    "\tBits 8-11: std pause cfg; 0 = xmt and rcv;"
+	    " 1 = xmt only; 2 = rcv only;\n");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		OID_AUTO, "set_cam_search_mode", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)ha, 0,
-		qla_sysctl_set_cam_search_mode, "I",
-			"Set CAM Search Mode"
-			"\t 1 = search mode internal\n"
-			"\t 2 = search mode auto\n");
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "set_cam_search_mode", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    (void *)ha, 0, qla_sysctl_set_cam_search_mode, "I",
+	    "Set CAM Search Mode"
+	    "\t 1 = search mode internal\n"
+	    "\t 2 = search mode auto\n");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		OID_AUTO, "get_cam_search_mode", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)ha, 0,
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		"get_cam_search_mode",
+		CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, (void *)ha, 0,
 		qla_sysctl_get_cam_search_mode, "I",
-			"Get CAM Search Mode"
-			"\t 1 = search mode internal\n"
-			"\t 2 = search mode auto\n");
+		"Get CAM Search Mode"
+		"\t 1 = search mode internal\n"
+		"\t 2 = search mode auto\n");
 
         ha->hw.enable_9kb = 1;
 
@@ -1097,10 +1094,9 @@ ql_hw_add_sysctls(qla_host_t *ha)
 		"\t\t\t 16: tx_buf[next_prod_index].mbuf != NULL\n" );
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-                OID_AUTO, "peg_stop", CTLTYPE_INT | CTLFLAG_RW,
-                (void *)ha, 0,
-                qla_sysctl_stop_pegs, "I", "Peg Stop");
+            SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "peg_stop", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    (void *)ha, 0, qla_sysctl_stop_pegs, "I", "Peg Stop");
 
 #endif /* #ifdef QL_DBG */
 

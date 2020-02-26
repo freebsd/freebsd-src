@@ -792,11 +792,11 @@ ale_sysctl_node(struct ale_softc *sc)
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ale_dev));
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "int_rx_mod",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->ale_int_rx_mod, 0,
-	    sysctl_hw_ale_int_mod, "I", "ale Rx interrupt moderation");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->ale_int_rx_mod,
+	    0, sysctl_hw_ale_int_mod, "I", "ale Rx interrupt moderation");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "int_tx_mod",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->ale_int_tx_mod, 0,
-	    sysctl_hw_ale_int_mod, "I", "ale Tx interrupt moderation");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->ale_int_tx_mod,
+	    0, sysctl_hw_ale_int_mod, "I", "ale Tx interrupt moderation");
 	/* Pull in device tunables. */
 	sc->ale_int_rx_mod = ALE_IM_RX_TIMER_DEFAULT;
 	error = resource_int_value(device_get_name(sc->ale_dev),
@@ -823,8 +823,8 @@ ale_sysctl_node(struct ale_softc *sc)
 		}
 	}
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "process_limit",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->ale_process_limit, 0,
-	    sysctl_hw_ale_proc_limit, "I",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &sc->ale_process_limit, 0, sysctl_hw_ale_proc_limit, "I",
 	    "max number of Rx events to process");
 	/* Pull in device tunables. */
 	sc->ale_process_limit = ALE_PROC_DEFAULT;
@@ -846,13 +846,13 @@ ale_sysctl_node(struct ale_softc *sc)
 	    &stats->reset_brk_seq,
 	    "Controller resets due to broken Rx sequnce number");
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "ATE statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ATE statistics");
 	parent = SYSCTL_CHILDREN(tree);
 
 	/* Rx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
-	    NULL, "Rx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Rx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	ALE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
 	    &stats->rx_frames, "Good frames");
@@ -905,8 +905,8 @@ ale_sysctl_node(struct ale_softc *sc)
 	    "Frames dropped due to address filtering");
 
 	/* Tx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "Tx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Tx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	ALE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
 	    &stats->tx_frames, "Good frames");

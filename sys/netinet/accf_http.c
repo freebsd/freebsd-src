@@ -71,8 +71,9 @@ DECLARE_MODULE(accf_http, accf_http_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
 static int parse_http_version = 1;
 
-static SYSCTL_NODE(_net_inet_accf, OID_AUTO, http, CTLFLAG_RW, 0,
-"HTTP accept filter");
+static SYSCTL_NODE(_net_inet_accf, OID_AUTO, http,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "HTTP accept filter");
 SYSCTL_INT(_net_inet_accf_http, OID_AUTO, parsehttpversion, CTLFLAG_RW,
 &parse_http_version, 1,
 "Parse http version so that non 1.x requests work");

@@ -1591,8 +1591,10 @@ sysctl_intrnames(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_opaque(oidp, intrnames, sintrnames, req));
 }
 
-SYSCTL_PROC(_hw, OID_AUTO, intrnames, CTLTYPE_OPAQUE | CTLFLAG_RD,
-    NULL, 0, sysctl_intrnames, "", "Interrupt Names");
+SYSCTL_PROC(_hw, OID_AUTO, intrnames,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    sysctl_intrnames, "",
+    "Interrupt Names");
 
 static int
 sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
@@ -1618,8 +1620,10 @@ sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
 }
 
-SYSCTL_PROC(_hw, OID_AUTO, intrcnt, CTLTYPE_OPAQUE | CTLFLAG_RD,
-    NULL, 0, sysctl_intrcnt, "", "Interrupt Counts");
+SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    sysctl_intrcnt, "",
+    "Interrupt Counts");
 
 #ifdef DDB
 /*

@@ -103,7 +103,7 @@ SDT_PROBE_DEFINE1(mac, , policy, unregister,
 /*
  * Root sysctl node for all MAC and MAC policy controls.
  */
-SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW, 0,
+SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD MAC policy controls");
 
 /*

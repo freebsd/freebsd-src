@@ -423,12 +423,14 @@ mlx5_ib_init_congestion(struct mlx5_ib_dev *dev)
 		return (err);
 
 	parent = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(dev->ib_dev.dev.kobj.oidp),
-	    OID_AUTO, "cong", CTLFLAG_RW, NULL, "Congestion control");
+	    OID_AUTO, "cong", CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+	    "Congestion control");
 	if (parent == NULL)
 		return (-ENOMEM);
 
 	node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(parent),
-	    OID_AUTO, "conf", CTLFLAG_RW, NULL, "Configuration");
+	    OID_AUTO, "conf", CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+	    "Configuration");
 	if (node == NULL) {
 		sysctl_ctx_free(&dev->congestion.ctx);
 		return (-ENOMEM);
@@ -444,7 +446,8 @@ mlx5_ib_init_congestion(struct mlx5_ib_dev *dev)
 	}
 
 	node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(parent),
-	    OID_AUTO, "stats", CTLFLAG_RD, NULL, "Statistics");
+	    OID_AUTO, "stats", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "Statistics");
 	if (node == NULL) {
 		sysctl_ctx_free(&dev->congestion.ctx);
 		return (-ENOMEM);

@@ -994,24 +994,24 @@ jme_sysctl_node(struct jme_softc *sc)
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->jme_dev));
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_coal_to",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->jme_tx_coal_to, 0,
-	    sysctl_hw_jme_tx_coal_to, "I", "jme tx coalescing timeout");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->jme_tx_coal_to,
+	    0, sysctl_hw_jme_tx_coal_to, "I", "jme tx coalescing timeout");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_coal_pkt",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->jme_tx_coal_pkt, 0,
-	    sysctl_hw_jme_tx_coal_pkt, "I", "jme tx coalescing packet");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->jme_tx_coal_pkt,
+	    0, sysctl_hw_jme_tx_coal_pkt, "I", "jme tx coalescing packet");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_coal_to",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->jme_rx_coal_to, 0,
-	    sysctl_hw_jme_rx_coal_to, "I", "jme rx coalescing timeout");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->jme_rx_coal_to,
+	    0, sysctl_hw_jme_rx_coal_to, "I", "jme rx coalescing timeout");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_coal_pkt",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->jme_rx_coal_pkt, 0,
-	    sysctl_hw_jme_rx_coal_pkt, "I", "jme rx coalescing packet");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &sc->jme_rx_coal_pkt,
+	    0, sysctl_hw_jme_rx_coal_pkt, "I", "jme rx coalescing packet");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "process_limit",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->jme_process_limit, 0,
-	    sysctl_hw_jme_proc_limit, "I",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &sc->jme_process_limit, 0, sysctl_hw_jme_proc_limit, "I",
 	    "max number of Rx events to process");
 
 	/* Pull in device tunables. */
@@ -1084,13 +1084,13 @@ jme_sysctl_node(struct jme_softc *sc)
 	if ((sc->jme_flags & JME_FLAG_HWMIB) == 0)
 		return;
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "JME statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "JME statistics");
 	parent = SYSCTL_CHILDREN(tree);
 
 	/* Rx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
-	    NULL, "Rx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Rx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	JME_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
 	    &stats->rx_good_frames, "Good frames");
@@ -1106,8 +1106,8 @@ jme_sysctl_node(struct jme_softc *sc)
 	    &stats->rx_bad_frames, "Bad frames");
 
 	/* Tx statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "Tx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Tx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	JME_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
 	    &stats->tx_good_frames, "Good frames");

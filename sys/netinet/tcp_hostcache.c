@@ -125,7 +125,8 @@ static int sysctl_tcp_hc_purgenow(SYSCTL_HANDLER_ARGS);
 static void tcp_hc_purge_internal(int);
 static void tcp_hc_purge(void *);
 
-static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Host cache");
 
 VNET_DEFINE(int, tcp_use_hostcache) = 1;
@@ -163,12 +164,14 @@ SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, purge, CTLFLAG_VNET | CTLFLAG_RW,
     "Expire all entires on next purge run");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, list,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP, 0, 0,
-    sysctl_tcp_hc_list, "A", "List of all hostcache entries");
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE,
+    0, 0, sysctl_tcp_hc_list, "A",
+    "List of all hostcache entries");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, purgenow,
-    CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
-    sysctl_tcp_hc_purgenow, "I", "Immediately purge all entries");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_tcp_hc_purgenow, "I",
+    "Immediately purge all entries");
 
 static MALLOC_DEFINE(M_HOSTCACHE, "hostcache", "TCP hostcache");
 

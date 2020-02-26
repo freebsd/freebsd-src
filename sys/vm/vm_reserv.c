@@ -261,7 +261,8 @@ static struct vm_reserv_domain vm_rvd[MAXMEMDOM];
 #define	vm_reserv_domain_scan_lock(d)	mtx_lock(&vm_rvd[(d)].marker.lock)
 #define	vm_reserv_domain_scan_unlock(d)	mtx_unlock(&vm_rvd[(d)].marker.lock)
 
-static SYSCTL_NODE(_vm, OID_AUTO, reserv, CTLFLAG_RD, 0, "Reservation Info");
+static SYSCTL_NODE(_vm, OID_AUTO, reserv, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Reservation Info");
 
 static counter_u64_t vm_reserv_broken = EARLY_COUNTER;
 SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, broken, CTLFLAG_RD,
@@ -278,8 +279,10 @@ SYSCTL_PROC(_vm_reserv, OID_AUTO, fullpop, CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLA
 
 static int sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_OID(_vm_reserv, OID_AUTO, partpopq, CTLTYPE_STRING | CTLFLAG_RD, NULL, 0,
-    sysctl_vm_reserv_partpopq, "A", "Partially populated reservation queues");
+SYSCTL_OID(_vm_reserv, OID_AUTO, partpopq,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    sysctl_vm_reserv_partpopq, "A",
+    "Partially populated reservation queues");
 
 static counter_u64_t vm_reserv_reclaimed = EARLY_COUNTER;
 SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, reclaimed, CTLFLAG_RD,

@@ -109,7 +109,7 @@ ar5315_redboot_get_macaddr(void)
 }
 
 #if defined(SOC_VENDOR) || defined(SOC_MODEL) || defined(SOC_REV)
-static SYSCTL_NODE(_hw, OID_AUTO, soc, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, soc, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "System on Chip information");
 #endif
 #if defined(SOC_VENDOR)
@@ -129,7 +129,8 @@ SYSCTL_STRING(_hw_soc, OID_AUTO, revision, CTLFLAG_RD, hw_soc_revision, 0,
 #endif
 
 #if defined(DEVICE_VENDOR) || defined(DEVICE_MODEL) || defined(DEVICE_REV)
-static SYSCTL_NODE(_hw, OID_AUTO, device, CTLFLAG_RD, 0, "Board information");
+static SYSCTL_NODE(_hw, OID_AUTO, device, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Board information");
 #endif
 #if defined(DEVICE_VENDOR)
 static char hw_device_vendor[] = DEVICE_VENDOR;

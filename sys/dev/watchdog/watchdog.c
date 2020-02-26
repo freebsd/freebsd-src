@@ -70,7 +70,8 @@ static volatile u_int wd_last_u;    /* last timeout value set by kern_do_pat */
 static u_int wd_last_u_sysctl;    /* last timeout value set by kern_do_pat */
 static u_int wd_last_u_sysctl_secs;    /* wd_last_u in seconds */
 
-SYSCTL_NODE(_hw, OID_AUTO, watchdog, CTLFLAG_RD, 0, "Main watchdog device");
+SYSCTL_NODE(_hw, OID_AUTO, watchdog, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Main watchdog device");
 SYSCTL_UINT(_hw_watchdog, OID_AUTO, wd_last_u, CTLFLAG_RD,
     &wd_last_u_sysctl, 0, "Watchdog last update time");
 SYSCTL_UINT(_hw_watchdog, OID_AUTO, wd_last_u_secs, CTLFLAG_RD,

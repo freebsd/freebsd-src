@@ -220,7 +220,8 @@ tegra124_coretemp_attach(device_t dev)
 
 	oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(pdev)), OID_AUTO,
-	    "coretemp", CTLFLAG_RD, NULL, "Per-CPU thermal information");
+	    "coretemp", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "Per-CPU thermal information");
 
 	/*
 	 * Add the MIBs to dev.cpu.N and dev.cpu.N.coretemp.

@@ -731,7 +731,7 @@ acpi_asus_attach(device_t dev)
 	sysctl_ctx_init(&sc->sysctl_ctx);
 	sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
 	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
-	    OID_AUTO, "asus", CTLFLAG_RD, 0, "");
+	    OID_AUTO, "asus", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 	/* Hook up nodes */
 	for (int i = 0; acpi_asus_sysctls[i].name != NULL; i++) {
@@ -742,14 +742,14 @@ acpi_asus_attach(device_t dev)
 			SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 			    acpi_asus_sysctls[i].name,
-			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
-			    sc, i, acpi_asus_sysctl, "I",
+			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY |
+			    CTLFLAG_NEEDGIANT, sc, i, acpi_asus_sysctl, "I",
 			    acpi_asus_sysctls[i].description);
 		} else {
 			SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 			    acpi_asus_sysctls[i].name,
-			    CTLTYPE_INT | CTLFLAG_RW,
+			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 			    sc, i, acpi_asus_sysctl, "I",
 			    acpi_asus_sysctls[i].description);
 		}

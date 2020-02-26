@@ -360,8 +360,10 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, console, CTLTYPE_STRING|CTLFLAG_RW,
-	0, 0, sysctl_kern_console, "A", "Console device control");
+SYSCTL_PROC(_kern, OID_AUTO, console,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0,
+    sysctl_kern_console, "A",
+    "Console device control");
 
 /*
  * User has changed the state of the console muting.
@@ -378,9 +380,10 @@ sysctl_kern_consmute(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, consmute, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof(cn_mute), sysctl_kern_consmute, "I",
-	"State of the console muting");
+SYSCTL_PROC(_kern, OID_AUTO, consmute,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(cn_mute),
+    sysctl_kern_consmute, "I",
+    "State of the console muting");
 
 void
 cngrab()

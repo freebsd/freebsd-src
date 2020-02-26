@@ -81,7 +81,8 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 SYSCTL_DECL(_net_link);
-static SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW, 0, "epair sysctl");
+static SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "epair sysctl");
 
 #ifdef EPAIR_DEBUG
 static int epair_debug = 0;
@@ -132,8 +133,9 @@ sysctl_epair_netisr_maxqlen(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	return (netisr_setqlimit(&epair_nh, qlimit));
 }
-SYSCTL_PROC(_net_link_epair, OID_AUTO, netisr_maxqlen, CTLTYPE_INT|CTLFLAG_RW,
-    0, 0, sysctl_epair_netisr_maxqlen, "I",
+SYSCTL_PROC(_net_link_epair, OID_AUTO, netisr_maxqlen,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_epair_netisr_maxqlen, "I",
     "Maximum if_epair(4) netisr \"hw\" queue length");
 
 struct epair_softc {

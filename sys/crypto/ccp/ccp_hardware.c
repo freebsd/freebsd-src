@@ -80,7 +80,8 @@ static struct ccp_xts_unitsize_map_entry {
 	{ CCP_XTS_AES_UNIT_SIZE_4096, 4096 },
 };
 
-SYSCTL_NODE(_hw, OID_AUTO, ccp, CTLFLAG_RD, 0, "ccp node");
+SYSCTL_NODE(_hw, OID_AUTO, ccp, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "ccp node");
 
 unsigned g_ccp_ring_order = 11;
 SYSCTL_UINT(_hw_ccp, OID_AUTO, ring_order, CTLFLAG_RDTUN, &g_ccp_ring_order,

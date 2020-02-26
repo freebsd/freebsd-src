@@ -156,7 +156,8 @@ static u_long swap_reserved;
 static u_long swap_total;
 static int sysctl_page_shift(SYSCTL_HANDLER_ARGS);
 
-static SYSCTL_NODE(_vm_stats, OID_AUTO, swap, CTLFLAG_RD, 0, "VM swap stats");
+static SYSCTL_NODE(_vm_stats, OID_AUTO, swap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "VM swap stats");
 
 SYSCTL_PROC(_vm, OID_AUTO, swap_reserved, CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
     &swap_reserved, 0, sysctl_page_shift, "A", 

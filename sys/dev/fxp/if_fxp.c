@@ -3153,12 +3153,12 @@ fxp_sysctl_node(struct fxp_softc *sc)
 	ctx = device_get_sysctl_ctx(sc->dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
 
-	SYSCTL_ADD_PROC(ctx, child,
-	    OID_AUTO, "int_delay", CTLTYPE_INT | CTLFLAG_RW,
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "int_delay",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    &sc->tunable_int_delay, 0, sysctl_hw_fxp_int_delay, "I",
 	    "FXP driver receive interrupt microcode bundling delay");
-	SYSCTL_ADD_PROC(ctx, child,
-	    OID_AUTO, "bundle_max", CTLTYPE_INT | CTLFLAG_RW,
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "bundle_max",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    &sc->tunable_bundle_max, 0, sysctl_hw_fxp_bundle_max, "I",
 	    "FXP driver receive interrupt microcode bundle size limit");
 	SYSCTL_ADD_INT(ctx, child,OID_AUTO, "rnr", CTLFLAG_RD, &sc->rnr, 0,
@@ -3176,13 +3176,13 @@ fxp_sysctl_node(struct fxp_softc *sc)
 	sc->rnr = 0;
 
 	hsp = &sc->fxp_hwstats;
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "FXP statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "FXP statistics");
 	parent = SYSCTL_CHILDREN(tree);
 
 	/* Rx MAC statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
-	    NULL, "Rx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Rx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	FXP_SYSCTL_STAT_ADD(ctx, child, "good_frames",
 	    &hsp->rx_good, "Good frames");
@@ -3209,8 +3209,8 @@ fxp_sysctl_node(struct fxp_softc *sc)
 		    &hsp->rx_tco, "TCO frames");
 
 	/* Tx MAC statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "Tx MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Tx MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	FXP_SYSCTL_STAT_ADD(ctx, child, "good_frames",
 	    &hsp->tx_good, "Good frames");

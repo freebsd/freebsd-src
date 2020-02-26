@@ -86,8 +86,8 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
 
 
-SYSCTL_NODE(_hw, OID_AUTO, sfxge, CTLFLAG_RD, 0,
-	    "SFXGE driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, sfxge, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "SFXGE driver parameters");
 
 #define	SFXGE_PARAM_RX_RING	SFXGE_PARAM(rx_ring)
 static int sfxge_rx_ring_entries = SFXGE_NDESCS;
@@ -704,10 +704,9 @@ sfxge_create(struct sfxge_softc *sc)
 	TUNABLE_INT_FETCH(mcdi_log_param_name, &sc->mcdi_logging);
 #endif
 
-	sc->stats_node = SYSCTL_ADD_NODE(
-		device_get_sysctl_ctx(dev),
-		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		OID_AUTO, "stats", CTLFLAG_RD, NULL, "Statistics");
+	sc->stats_node = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Statistics");
 	if (sc->stats_node == NULL) {
 		error = ENOMEM;
 		goto fail;
@@ -970,10 +969,10 @@ sfxge_vpd_try_add(struct sfxge_softc *sc, struct sysctl_oid_list *list,
 	if (efx_vpd_get(sc->enp, sc->vpd_data, sc->vpd_size, &value) != 0)
 		return;
 
-	SYSCTL_ADD_PROC(
-		ctx, list, OID_AUTO, keyword, CTLTYPE_STRING|CTLFLAG_RD,
-		sc, tag << 16 | EFX_VPD_KEYWORD(keyword[0], keyword[1]),
-		sfxge_vpd_handler, "A", "");
+	SYSCTL_ADD_PROC(ctx, list, OID_AUTO, keyword,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    sc, tag << 16 | EFX_VPD_KEYWORD(keyword[0], keyword[1]),
+	    sfxge_vpd_handler, "A", "");
 }
 
 static int
@@ -1007,9 +1006,9 @@ sfxge_vpd_init(struct sfxge_softc *sc)
 		device_printf(sc->dev, "%s\n", value.evv_value);
 	}
 
-	vpd_node = SYSCTL_ADD_NODE(
-		ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
-		OID_AUTO, "vpd", CTLFLAG_RD, NULL, "Vital Product Data");
+	vpd_node = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO, "vpd",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Vital Product Data");
 	vpd_list = SYSCTL_CHILDREN(vpd_node);
 
 	/* Add sysctls for all expected and any vendor-defined keywords. */

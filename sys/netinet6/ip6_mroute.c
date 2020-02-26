@@ -155,7 +155,9 @@ VNET_DEFINE_STATIC(int, ip6_mrouter_ver) = 0;
 
 SYSCTL_DECL(_net_inet6);
 SYSCTL_DECL(_net_inet6_ip6);
-static SYSCTL_NODE(_net_inet6, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
+static SYSCTL_NODE(_net_inet6, IPPROTO_PIM, pim,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "PIM");
 
 static struct mrt6stat mrt6stat;
 SYSCTL_STRUCT(_net_inet6_ip6, OID_AUTO, mrt6stat, CTLFLAG_RW,
@@ -222,7 +224,8 @@ sysctl_mif6table(SYSCTL_HANDLER_ARGS)
 	free(out, M_TEMP);
 	return (error);
 }
-SYSCTL_PROC(_net_inet6_ip6, OID_AUTO, mif6table, CTLTYPE_OPAQUE | CTLFLAG_RD,
+SYSCTL_PROC(_net_inet6_ip6, OID_AUTO, mif6table,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
     NULL, 0, sysctl_mif6table, "S,mif6_sctl[MAXMIFS]",
     "IPv6 Multicast Interfaces (struct mif6_sctl[MAXMIFS], "
     "netinet6/ip6_mroute.h)");

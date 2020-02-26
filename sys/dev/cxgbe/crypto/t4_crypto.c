@@ -2082,8 +2082,8 @@ ccr_sysctls(struct ccr_softc *sc)
 	/*
 	 * dev.ccr.X.stats.
 	 */
-	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "statistics");
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "statistics");
 	children = SYSCTL_CHILDREN(oid);
 
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "hash", CTLFLAG_RD,

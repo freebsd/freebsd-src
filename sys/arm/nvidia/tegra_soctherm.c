@@ -511,7 +511,7 @@ soctherm_init_sysctl(struct soctherm_softc *sc)
 	/* create node for hw.temp */
 	oid = SYSCTL_ADD_NODE(&soctherm_sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, "temperature",
-	    CTLFLAG_RD, NULL, "");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	if (oid == NULL)
 		return (ENXIO);
 
@@ -519,7 +519,7 @@ soctherm_init_sysctl(struct soctherm_softc *sc)
 	for (i = sc->ntsensors  - 1; i >= 0; i--) {
 		tmp = SYSCTL_ADD_PROC(&soctherm_sysctl_ctx,
 		    SYSCTL_CHILDREN(oid), OID_AUTO, sc->tsensors[i].name,
-		    CTLTYPE_INT | CTLFLAG_RD, sc, i,
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, i,
 		    soctherm_sysctl_temperature, "IK", "SoC Temperature");
 		if (tmp == NULL)
 			return (ENXIO);

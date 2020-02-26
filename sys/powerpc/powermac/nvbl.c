@@ -144,8 +144,8 @@ nvbl_attach(device_t dev)
 	tree = device_get_sysctl_tree(dev);
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"level", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			nvbl_sysctl, "I", "Backlight level (0-100)");
+	    "level", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    nvbl_sysctl, "I", "Backlight level (0-100)");
 
 	return (0);
 }

@@ -54,7 +54,8 @@ __FBSDID("$FreeBSD$");
 static struct smb_connobj smb_vclist;
 static int smb_vcnext = 1;	/* next unique id for VC */
 
-SYSCTL_NODE(_net, OID_AUTO, smb, CTLFLAG_RW, NULL, "SMB protocol");
+SYSCTL_NODE(_net, OID_AUTO, smb, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    "SMB protocol");
 
 static MALLOC_DEFINE(M_SMBCONN, "smb_conn", "SMB connection");
 
@@ -69,8 +70,10 @@ static smb_co_gone_t smb_share_gone;
 
 static int  smb_sysctl_treedump(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_PROC(_net_smb, OID_AUTO, treedump, CTLFLAG_RD | CTLTYPE_OPAQUE,
-	    NULL, 0, smb_sysctl_treedump, "S,treedump", "Requester tree");
+SYSCTL_PROC(_net_smb, OID_AUTO, treedump,
+    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE,
+    NULL, 0, smb_sysctl_treedump, "S,treedump",
+    "Requester tree");
 
 int
 smb_sm_init(void)

@@ -185,9 +185,12 @@ epochtest_execute(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_NODE(_kern, OID_AUTO, epochtest, CTLFLAG_RW, 0, "Epoch Test Framework");
-SYSCTL_PROC(_kern_epochtest, OID_AUTO, runtest, (CTLTYPE_INT | CTLFLAG_RW),
-			0, 0, epochtest_execute, "I", "Execute an epoch test");
+SYSCTL_NODE(_kern, OID_AUTO, epochtest, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Epoch Test Framework");
+SYSCTL_PROC(_kern_epochtest, OID_AUTO, runtest,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, 0, epochtest_execute, "I",
+    "Execute an epoch test");
 
 static int
 epoch_test_module_event_handler(module_t mod, int what, void *arg __unused)

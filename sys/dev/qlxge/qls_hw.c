@@ -160,16 +160,16 @@ qls_hw_add_sysctls(qla_host_t *ha)
 		ha->num_tx_rings, "Number of Transmit Rings");
 
         SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-                OID_AUTO, "mpi_dump", CTLTYPE_INT | CTLFLAG_RW,
-                (void *)ha, 0,
-                qls_syctl_mpi_dump, "I", "MPI Dump");
+            SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+            OID_AUTO, "mpi_dump",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, (void *)ha, 0,
+	    qls_syctl_mpi_dump, "I", "MPI Dump");
 
         SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-                OID_AUTO, "link_status", CTLTYPE_INT | CTLFLAG_RW,
-                (void *)ha, 0,
-                qls_syctl_link_status, "I", "Link Status");
+            SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+            OID_AUTO, "link_status",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, (void *)ha, 0,
+	    qls_syctl_link_status, "I", "Link Status");
 }
 
 /*

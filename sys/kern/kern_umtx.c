@@ -247,7 +247,8 @@ static struct umtxq_chain	umtxq_chains[2][UMTX_CHAINS];
 static MALLOC_DEFINE(M_UMTX, "umtx", "UMTX queue memory");
 static int			umtx_pi_allocated;
 
-static SYSCTL_NODE(_debug, OID_AUTO, umtx, CTLFLAG_RW, 0, "umtx debug");
+static SYSCTL_NODE(_debug, OID_AUTO, umtx, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "umtx debug");
 SYSCTL_INT(_debug_umtx, OID_AUTO, umtx_pi_allocated, CTLFLAG_RD,
     &umtx_pi_allocated, 0, "Allocated umtx_pi");
 static int umtx_verbose_rb = 1;
@@ -258,7 +259,8 @@ SYSCTL_INT(_debug_umtx, OID_AUTO, robust_faults_verbose, CTLFLAG_RWTUN,
 #ifdef UMTX_PROFILING
 static long max_length;
 SYSCTL_LONG(_debug_umtx, OID_AUTO, max_length, CTLFLAG_RD, &max_length, 0, "max_length");
-static SYSCTL_NODE(_debug_umtx, OID_AUTO, chains, CTLFLAG_RD, 0, "umtx chain stats");
+static SYSCTL_NODE(_debug_umtx, OID_AUTO, chains, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "umtx chain stats");
 #endif
 
 static void abs_timeout_update(struct abs_timeout *timo);
@@ -302,7 +304,8 @@ umtx_init_profiling(void)
 		snprintf(chain_name, sizeof(chain_name), "%d", i);
 		chain_oid = SYSCTL_ADD_NODE(NULL,
 		    SYSCTL_STATIC_CHILDREN(_debug_umtx_chains), OID_AUTO,
-		    chain_name, CTLFLAG_RD, NULL, "umtx hash stats");
+		    chain_name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    "umtx hash stats");
 		SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
 		    "max_length0", CTLFLAG_RD, &umtxq_chains[0][i].max_length, 0, NULL);
 		SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
@@ -416,10 +419,12 @@ sysctl_debug_umtx_chains_clear(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_debug_umtx_chains, OID_AUTO, clear,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
-    sysctl_debug_umtx_chains_clear, "I", "Clear umtx chains statistics");
+    sysctl_debug_umtx_chains_clear, "I",
+    "Clear umtx chains statistics");
 SYSCTL_PROC(_debug_umtx_chains, OID_AUTO, peaks,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, 0, 0,
-    sysctl_debug_umtx_chains_peaks, "A", "Highest peaks in chains max length");
+    sysctl_debug_umtx_chains_peaks, "A",
+    "Highest peaks in chains max length");
 #endif
 
 static void

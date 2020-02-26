@@ -810,7 +810,7 @@ vchi_audio_sysctl_init(struct bcm2835_audio_info *sc)
 	tree_node = device_get_sysctl_tree(sc->dev);
 	tree = SYSCTL_CHILDREN(tree_node);
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "dest",
-	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    sysctl_bcm2835_audio_dest, "IU", "audio destination, "
 	    "0 - auto, 1 - headphones, 2 - HDMI");
 	SYSCTL_ADD_UQUAD(ctx, tree, OID_AUTO, "callbacks",

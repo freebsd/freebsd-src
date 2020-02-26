@@ -64,7 +64,8 @@ static int vdev_mirror_shift = 21;
 
 #ifdef _KERNEL
 SYSCTL_DECL(_vfs_zfs_vdev);
-static SYSCTL_NODE(_vfs_zfs_vdev, OID_AUTO, mirror, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_vfs_zfs_vdev, OID_AUTO, mirror,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "ZFS VDEV Mirror");
 #endif
 

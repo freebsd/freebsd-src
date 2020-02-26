@@ -140,7 +140,8 @@ VNET_DEFINE(int, tcp_v6mssdflt) = TCP6_MSS;
 
 #ifdef NETFLIX_EXP_DETECTION
 /*  Sack attack detection thresholds and such */
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack_attack, CTLFLAG_RW, 0,
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack_attack,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Sack Attack detection thresholds");
 int32_t tcp_force_detection = 0;
 SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, force_detection,
@@ -209,8 +210,8 @@ sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, &VNET_NAME(tcp_mssdflt), 0,
-    &sysctl_net_inet_tcp_mss_check, "I",
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &VNET_NAME(tcp_mssdflt), 0, &sysctl_net_inet_tcp_mss_check, "I",
     "Default TCP Maximum Segment Size");
 
 #ifdef INET6
@@ -231,8 +232,8 @@ sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, &VNET_NAME(tcp_v6mssdflt), 0,
-    &sysctl_net_inet_tcp_mss_v6_check, "I",
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &VNET_NAME(tcp_v6mssdflt), 0, &sysctl_net_inet_tcp_mss_v6_check, "I",
    "Default TCP Maximum Segment Size for IPv6");
 #endif /* INET6 */
 
@@ -311,7 +312,7 @@ sysctl_net_inet_tcp_map_limit_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, map_limit,
-    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &VNET_NAME(tcp_map_entries_limit), 0,
     &sysctl_net_inet_tcp_map_limit_check, "IU",
     "Total sendmap entries limit");
@@ -532,9 +533,9 @@ done:
 }
 
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, functions_default,
-	    CTLTYPE_STRING | CTLFLAG_RW,
-	    NULL, 0, sysctl_net_inet_default_tcp_functions, "A",
-	    "Set/get the default TCP functions");
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    NULL, 0, sysctl_net_inet_default_tcp_functions, "A",
+    "Set/get the default TCP functions");
 
 static int
 sysctl_net_inet_list_available(SYSCTL_HANDLER_ARGS)
@@ -588,9 +589,9 @@ sysctl_net_inet_list_available(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, functions_available,
-	    CTLTYPE_STRING|CTLFLAG_RD,
-	    NULL, 0, sysctl_net_inet_list_available, "A",
-	    "list available TCP Function sets");
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+    NULL, 0, sysctl_net_inet_list_available, "A",
+    "list available TCP Function sets");
 
 /*
  * Exports one (struct tcp_function_info) for each alias/name.
@@ -2315,8 +2316,9 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist,
-    CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0,
-    tcp_pcblist, "S,xtcpcb", "List of active TCP connections");
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+    NULL, 0, tcp_pcblist, "S,xtcpcb",
+    "List of active TCP connections");
 
 #ifdef INET
 static int
@@ -2354,8 +2356,9 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, getcred,
-    CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0,
-    tcp_getcred, "S,xucred", "Get the xucred of a TCP connection");
+    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_NEEDGIANT,
+    0, 0, tcp_getcred, "S,xucred",
+    "Get the xucred of a TCP connection");
 #endif /* INET */
 
 #ifdef INET6
@@ -2421,8 +2424,9 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet6_tcp6, OID_AUTO, getcred,
-    CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0,
-    tcp6_getcred, "S,xucred", "Get the xucred of a TCP6 connection");
+    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_NEEDGIANT,
+    0, 0, tcp6_getcred, "S,xucred",
+    "Get the xucred of a TCP6 connection");
 #endif /* INET6 */
 
 
@@ -3153,8 +3157,9 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
-    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP, NULL,
-    0, sysctl_drop, "", "Drop TCP connection");
+    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP |
+    CTLFLAG_NEEDGIANT, NULL, 0, sysctl_drop, "",
+    "Drop TCP connection");
 
 #ifdef KERN_TLS
 static int
@@ -3263,11 +3268,13 @@ sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, switch_to_sw_tls,
-    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP, NULL,
-    0, sysctl_switch_tls, "", "Switch TCP connection to SW TLS");
+    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP |
+    CTLFLAG_NEEDGIANT, NULL, 0, sysctl_switch_tls, "",
+    "Switch TCP connection to SW TLS");
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, switch_to_ifnet_tls,
-    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP, NULL,
-    1, sysctl_switch_tls, "", "Switch TCP connection to ifnet TLS");
+    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP |
+    CTLFLAG_NEEDGIANT, NULL, 1, sysctl_switch_tls, "",
+    "Switch TCP connection to ifnet TLS");
 #endif
 
 /*

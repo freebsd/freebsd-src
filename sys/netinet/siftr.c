@@ -300,16 +300,18 @@ static int siftr_sysctl_logfile_name_handler(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_DECL(_net_inet_siftr);
 
-SYSCTL_NODE(_net_inet, OID_AUTO, siftr, CTLFLAG_RW, NULL,
+SYSCTL_NODE(_net_inet, OID_AUTO, siftr, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "siftr related settings");
 
-SYSCTL_PROC(_net_inet_siftr, OID_AUTO, enabled, CTLTYPE_UINT|CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_siftr, OID_AUTO, enabled,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &siftr_enabled, 0, &siftr_sysctl_enabled_handler, "IU",
     "switch siftr module operations on/off");
 
-SYSCTL_PROC(_net_inet_siftr, OID_AUTO, logfile, CTLTYPE_STRING|CTLFLAG_RW,
-    &siftr_logfile_shadow, sizeof(siftr_logfile_shadow), &siftr_sysctl_logfile_name_handler,
-    "A", "file to save siftr log messages to");
+SYSCTL_PROC(_net_inet_siftr, OID_AUTO, logfile,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &siftr_logfile_shadow,
+    sizeof(siftr_logfile_shadow), &siftr_sysctl_logfile_name_handler, "A",
+    "file to save siftr log messages to");
 
 SYSCTL_UINT(_net_inet_siftr, OID_AUTO, ppl, CTLFLAG_RW,
     &siftr_pkts_per_log, 1,
