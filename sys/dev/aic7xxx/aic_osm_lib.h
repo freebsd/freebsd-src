@@ -36,9 +36,7 @@
  */
 
 /******************************** OS Includes *********************************/
-#if __FreeBSD_version >= 500000
 #include <sys/mutex.h>
-#endif
 
 /*************************** Library Symbol Mapping ***************************/
 #define	AIC_LIB_ENTRY_CONCAT(x, prefix)	prefix ## x
@@ -71,7 +69,6 @@
 #define	AIC_SHUTDOWN_RECOVERY		AIC_CONST_ENTRY(_SHUTDOWN_RECOVERY)
 
 /********************************* Byte Order *********************************/
-#if __FreeBSD_version >= 500000
 #define aic_htobe16(x) htobe16(x)
 #define aic_htobe32(x) htobe32(x)
 #define aic_htobe64(x) htobe64(x)
@@ -85,21 +82,6 @@
 #define aic_le16toh(x) le16toh(x)
 #define aic_le32toh(x) le32toh(x)
 #define aic_le64toh(x) le64toh(x)
-#else
-#define aic_htobe16(x) (x)
-#define aic_htobe32(x) (x)
-#define aic_htobe64(x) (x)
-#define aic_htole16(x) (x)
-#define aic_htole32(x) (x)
-#define aic_htole64(x) (x)
-
-#define aic_be16toh(x) (x)
-#define aic_be32toh(x) (x)
-#define aic_be64toh(x) (x)
-#define aic_le16toh(x) (x)
-#define aic_le32toh(x) (x)
-#define aic_le64toh(x) (x)
-#endif
 
 /************************* Forward Declarations *******************************/
 typedef device_t aic_dev_softc_t;
@@ -125,22 +107,11 @@ aic_wakeup_recovery_thread(struct aic_softc *aic)
 }
 
 /****************************** Kernel Threads ********************************/
-#if __FreeBSD_version > 500005
-#if __FreeBSD_version > 800001
 #define	aic_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
 	kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#else
-#define	aic_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-	kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#endif
-#else
-#define	aic_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-	kthread_create(func, farg, proc_ptr, fmtstr, arg)
-#endif
 
 /******************************* Bus Space/DMA ********************************/
 
-#if __FreeBSD_version >= 501102
 #define aic_dma_tag_create(aic, parent_tag, alignment, boundary,	\
 			   lowaddr, highaddr, filter, filterarg,	\
 			   maxsize, nsegments, maxsegsz, flags,		\
@@ -150,16 +121,6 @@ aic_wakeup_recovery_thread(struct aic_softc *aic)
 			   maxsize, nsegments, maxsegsz, flags,		\
 			   busdma_lock_mutex, &aic->platform_data->mtx,			\
 			   dma_tagp)
-#else
-#define aic_dma_tag_create(aic, parent_tag, alignment, boundary,	\
-			   lowaddr, highaddr, filter, filterarg,	\
-			   maxsize, nsegments, maxsegsz, flags,		\
-			   dma_tagp)					\
-	bus_dma_tag_create(parent_tag, alignment, boundary,		\
-			   lowaddr, highaddr, filter, filterarg,	\
-			   maxsize, nsegments, maxsegsz, flags,		\
-			   dma_tagp)
-#endif
 
 #define aic_dma_tag_destroy(aic, tag)					\
 	bus_dma_tag_destroy(tag)
@@ -191,11 +152,7 @@ aic_wakeup_recovery_thread(struct aic_softc *aic)
 #include AIC_CORE_INCLUDE
 
 /***************************** Timer Facilities *******************************/
-#if __FreeBSD_version >= 500000
 #define aic_timer_init(timer) callout_init(timer, /*mpsafe*/1)
-#else
-#define aic_timer_init callout_init
-#endif
 #define aic_timer_stop callout_stop
 
 static __inline void aic_timer_reset(aic_timer_t *, u_int,
