@@ -88,6 +88,12 @@ The
 .Fn mprotect
 system call will fail if:
 .Bl -tag -width Er
+.It Bq Er EACCES
+The calling process was not allowed to change
+the protection to the value specified by
+the
+.Fa prot
+argument.
 .It Bq Er EINVAL
 The virtual address range specified by the
 .Fa addr
@@ -103,12 +109,6 @@ The
 .Fa prot
 argument contains permissions which are not a subset of the specified
 maximum permissions.
-.It Bq Er EACCES
-The calling process was not allowed to change
-the protection to the value specified by
-the
-.Fa prot
-argument.
 .El
 .Sh SEE ALSO
 .Xr madvise 2 ,
