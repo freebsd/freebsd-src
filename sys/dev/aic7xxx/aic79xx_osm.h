@@ -43,9 +43,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>		/* For device_t */
-#if __FreeBSD_version >= 500000
 #include <sys/endian.h>
-#endif
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -60,13 +58,8 @@
 
 #include <sys/rman.h>
 
-#if __FreeBSD_version >= 500000
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#else
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-#endif
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
