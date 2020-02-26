@@ -165,11 +165,7 @@ mpr_diag_reset(struct mpr_softc *sc,int sleep_flag)
 	 * Force NO_SLEEP for threads prohibited to sleep
  	 * e.a Thread from interrupt handler are prohibited to sleep.
  	 */
-#if __FreeBSD_version >= 1000029
 	if (curthread->td_no_sleeping)
-#else //__FreeBSD_version < 1000029
-	if (curthread->td_pflags & TDP_NOSLEEPING)
-#endif //__FreeBSD_version >= 1000029
 		sleep_flag = NO_SLEEP;
 
 	mpr_dprint(sc, MPR_INIT, "sequence start, sleep_flag=%d\n", sleep_flag);
@@ -1005,11 +1001,7 @@ mpr_request_sync(struct mpr_softc *sc, void *req, MPI2_DEFAULT_REPLY *reply,
 	int i, count, ioc_sz, residual;
 	int sleep_flags = CAN_SLEEP;
 	
-#if __FreeBSD_version >= 1000029
 	if (curthread->td_no_sleeping)
-#else //__FreeBSD_version < 1000029
-	if (curthread->td_pflags & TDP_NOSLEEPING)
-#endif //__FreeBSD_version >= 1000029
 		sleep_flags = NO_SLEEP;
 
 	/* Step 1 */
@@ -3762,11 +3754,7 @@ mpr_wait_command(struct mpr_softc *sc, struct mpr_command **cmp, int timeout,
 	// Check for context and wait for 50 mSec at a time until time has
 	// expired or the command has finished.  If msleep can't be used, need
 	// to poll.
-#if __FreeBSD_version >= 1000029
 	if (curthread->td_no_sleeping)
-#else //__FreeBSD_version < 1000029
-	if (curthread->td_pflags & TDP_NOSLEEPING)
-#endif //__FreeBSD_version >= 1000029
 		sleep_flag = NO_SLEEP;
 	getmicrouptime(&start_time);
 	if (mtx_owned(&sc->mpr_mtx) && sleep_flag == CAN_SLEEP) {
