@@ -1119,9 +1119,9 @@ print_ctr_fields(struct sbuf *sb, uint64_t reg, void *arg)
 	sbuf_printf(sb, "%d byte CWG", CTR_CWG_SIZE(reg));
 	reg &= ~(CTR_ERG_MASK | CTR_CWG_MASK);
 
-	if (CTR_IDC_VAL(reg) == 0)
+	if (CTR_IDC_VAL(reg) != 0)
 		sbuf_printf(sb, ",IDC");
-	if (CTR_DIC_VAL(reg) == 0)
+	if (CTR_DIC_VAL(reg) != 0)
 		sbuf_printf(sb, ",DIC");
 	reg &= ~(CTR_IDC_MASK | CTR_DIC_MASK);
 	reg &= ~CTR_RES1;
