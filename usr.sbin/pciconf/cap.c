@@ -988,6 +988,20 @@ static struct {
 	{ PCIZ_LN_REQ, "LN Requester" },
 	{ PCIZ_DPC, "Downstream Port Containment" },
 	{ PCIZ_L1PM, "L1 PM Substates" },
+	{ PCIZ_PTM, "Precision Time Measurement" },
+	{ PCIZ_M_PCIE, "PCIe over M-PHY" },
+	{ PCIZ_FRS, "FRS Queuing" },
+	{ PCIZ_RTR, "Readiness Time Reporting" },
+	{ PCIZ_DVSEC, "Designated Vendor-Specific" },
+	{ PCIZ_VF_REBAR, "VF Resizable BAR" },
+	{ PCIZ_DLNK, "Data Link Feature" },
+	{ PCIZ_16GT, "Physical Layer 16.0 GT/s" },
+	{ PCIZ_LMR, "Lane Margining at Receiver" },
+	{ PCIZ_HIER_ID, "Hierarchy ID" },
+	{ PCIZ_NPEM, "Native PCIe Enclosure Management" },
+	{ PCIZ_PL32, "Physical Layer 32.0 GT/s" },
+	{ PCIZ_AP, "Alternate Protocol" },
+	{ PCIZ_SFI, "System Firmware Intermediary" },
 	{ 0, NULL }
 };
 
