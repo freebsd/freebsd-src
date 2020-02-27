@@ -205,11 +205,6 @@ struct vtscsi_request {
 #define VTSCSI_RESERVED_REQUESTS	10
 
 /*
- * Specification doesn't say, use traditional SCSI default.
- */
-#define VTSCSI_INITIATOR_ID	7
-
-/*
  * How to wait (or not) for request completion.
  */
 #define VTSCSI_EXECUTE_ASYNC	0
