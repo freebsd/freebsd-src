@@ -419,7 +419,14 @@ def AArch64fccmp     : SDNode<"AArch64ISD::FCCMP", SDT_AArch64FCCMP>;
 
 def AArch64threadpointer : SDNode<"AArch64ISD::THREAD_POINTER", SDTPtrLeaf>;
 
-def AArch64fcmp      : SDNode<"AArch64ISD::FCMP", SDT_AArch64FCmp>;
+def AArch64fcmp         : SDNode<"AArch64ISD::FCMP", SDT_AArch64FCmp>;
+def AArch64strict_fcmp  : SDNode<"AArch64ISD::STRICT_FCMP", SDT_AArch64FCmp,
+                                 [SDNPHasChain]>;
+def AArch64strict_fcmpe : SDNode<"AArch64ISD::STRICT_FCMPE", SDT_AArch64FCmp,
+                                 [SDNPHasChain]>;
+def AArch64any_fcmp     : PatFrags<(ops node:$lhs, node:$rhs),
+                                   [(AArch64strict_fcmp node:$lhs, node:$rhs),
+                                    (AArch64fcmp node:$lhs, node:$rhs)]>;
 
 def AArch64dup       : SDNode<"AArch64ISD::DUP", SDT_AArch64Dup>;
 def AArch64duplane8  : SDNode<"AArch64ISD::DUPLANE8", SDT_AArch64DupLane>;
@@ -3300,10 +3307,10 @@ defm FCVTNS : FPToIntegerUnscaled<0b00, 0b000, "fcvtns", int_aarch64_neon_fcvtns
 defm FCVTNU : FPToIntegerUnscaled<0b00, 0b001, "fcvtnu", int_aarch64_neon_fcvtnu>;
 defm FCVTPS : FPToIntegerUnscaled<0b01, 0b000, "fcvtps", int_aarch64_neon_fcvtps>;
 defm FCVTPU : FPToIntegerUnscaled<0b01, 0b001, "fcvtpu", int_aarch64_neon_fcvtpu>;
-defm FCVTZS : FPToIntegerUnscaled<0b11, 0b000, "fcvtzs", fp_to_sint>;
-defm FCVTZU : FPToIntegerUnscaled<0b11, 0b001, "fcvtzu", fp_to_uint>;
-defm FCVTZS : FPToIntegerScaled<0b11, 0b000, "fcvtzs", fp_to_sint>;
-defm FCVTZU : FPToIntegerScaled<0b11, 0b001, "fcvtzu", fp_to_uint>;
+defm FCVTZS : FPToIntegerUnscaled<0b11, 0b000, "fcvtzs", any_fp_to_sint>;
+defm FCVTZU : FPToIntegerUnscaled<0b11, 0b001, "fcvtzu", any_fp_to_uint>;
+defm FCVTZS : FPToIntegerScaled<0b11, 0b000, "fcvtzs", any_fp_to_sint>;
+defm FCVTZU : FPToIntegerScaled<0b11, 0b001, "fcvtzu", any_fp_to_uint>;
 
 multiclass FPToIntegerIntPats<Intrinsic round, string INST> {
   def : Pat<(i32 (round f16:$Rn)), (!cast<Instruction>(INST # UWHr) $Rn)>;
@@ -3375,8 +3382,8 @@ def : Pat<(i64 (llround f64:$Rn)),
 // Scaled integer to floating point conversion instructions.
 //===----------------------------------------------------------------------===//
 
-defm SCVTF : IntegerToFP<0, "scvtf", sint_to_fp>;
-defm UCVTF : IntegerToFP<1, "ucvtf", uint_to_fp>;
+defm SCVTF : IntegerToFP<0, "scvtf", any_sint_to_fp>;
+defm UCVTF : IntegerToFP<1, "ucvtf", any_uint_to_fp>;
 
 //===----------------------------------------------------------------------===//
 // Unscaled integer to floating point conversion instruction.
@@ -3541,8 +3548,8 @@ def : Pat<(f64 (fma FPR64:$Rn, (fneg FPR64:$Rm), (fneg FPR64:$Ra))),
 // Floating point comparison instructions.
 //===----------------------------------------------------------------------===//
 
-defm FCMPE : FPComparison<1, "fcmpe">;
-defm FCMP  : FPComparison<0, "fcmp", AArch64fcmp>;
+defm FCMPE : FPComparison<1, "fcmpe", AArch64strict_fcmpe>;
+defm FCMP  : FPComparison<0, "fcmp", AArch64any_fcmp>;
 
 //===----------------------------------------------------------------------===//
 // Floating point conditional comparison instructions.
