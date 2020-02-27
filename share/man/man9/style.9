@@ -25,7 +25,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2019
+.Dd January 10, 2020
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -893,6 +893,11 @@ Whenever possible, code should be run through a code checker
 (e.g., various static analyzers or
 .Nm cc Fl Wall )
 and produce minimal warnings.
+.Pp
+New code should use
+.Fn _Static_assert
+instead of the older
+.Fn CTASSERT .
 .Sh FILES
 .Bl -tag -width indent
 .It Pa /usr/src/tools/tools/editing/freebsd.el
