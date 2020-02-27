@@ -3110,7 +3110,7 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 		}
 
 #if defined(__FreeBSD__) && defined(_KERNEL)
-		 dsl_dataset_name(ds, oldname);
+		dsl_dataset_name(ds, oldname);
 #endif
 
 		/* move snap name entry */
