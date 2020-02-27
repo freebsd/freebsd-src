@@ -299,14 +299,14 @@ random_fortuna_init_alg(void *unused __unused)
 	fortuna_state.fs_lasttime = 0;
 	random_fortuna_o = SYSCTL_ADD_NODE(&random_clist,
 		SYSCTL_STATIC_CHILDREN(_kern_random),
-		OID_AUTO, "fortuna", CTLFLAG_RW, 0,
+		OID_AUTO, "fortuna", CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		"Fortuna Parameters");
 	SYSCTL_ADD_PROC(&random_clist,
-		SYSCTL_CHILDREN(random_fortuna_o), OID_AUTO,
-		"minpoolsize", CTLTYPE_UINT | CTLFLAG_RWTUN,
-		&fortuna_state.fs_minpoolsize, RANDOM_FORTUNA_DEFPOOLSIZE,
-		random_check_uint_fs_minpoolsize, "IU",
-		"Minimum pool size necessary to cause a reseed");
+	    SYSCTL_CHILDREN(random_fortuna_o), OID_AUTO, "minpoolsize",
+	    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &fortuna_state.fs_minpoolsize, RANDOM_FORTUNA_DEFPOOLSIZE,
+	    random_check_uint_fs_minpoolsize, "IU",
+	    "Minimum pool size necessary to cause a reseed");
 	KASSERT(fortuna_state.fs_minpoolsize > 0, ("random: Fortuna threshold must be > 0 at startup"));
 
 	SYSCTL_ADD_BOOL(&random_clist, SYSCTL_CHILDREN(random_fortuna_o),
