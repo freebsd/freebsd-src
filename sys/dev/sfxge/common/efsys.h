@@ -72,11 +72,6 @@ extern "C" {
 #endif
 #include "efx_types.h"
 
-/* Common code requires this */
-#if __FreeBSD_version < 800068
-#define	memmove(d, s, l) bcopy(s, d, l)
-#endif
-
 #ifndef B_FALSE
 #define	B_FALSE	FALSE
 #endif
@@ -88,7 +83,7 @@ extern "C" {
 #define	ISP2(x)			(((x) & ((x) - 1)) == 0)
 #endif
 
-#if defined(__x86_64__) && __FreeBSD_version >= 1000000
+#if defined(__x86_64__)
 
 #define	SFXGE_USE_BUS_SPACE_8		1
 
