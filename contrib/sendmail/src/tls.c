@@ -745,18 +745,15 @@ sm_RSA_generate_key(num, e)
 {
 	RSA *rsa = NULL;
         BIGNUM *bn_rsa_r4;
-	int rc;
 
 	bn_rsa_r4 = BN_new();
-        rc = BN_set_word(bn_rsa_r4, RSA_F4);
-	if ((bn_rsa_r4 != NULL) && BN_set_word(bn_rsa_r4, RSA_F4) && (rsa = RSA_new()) != NULL)
+	if ((bn_rsa_r4 != NULL) && BN_set_word(bn_rsa_r4, e) && (rsa = RSA_new()) != NULL)
 	{
-		if (!RSA_generate_key_ex(rsa, RSA_KEYLENGTH, bn_rsa_r4, NULL))
+		if (!RSA_generate_key_ex(rsa, num, bn_rsa_r4, NULL))
 		{
 			RSA_free(rsa);
 			rsa = NULL;
 		}
-		return NULL;
 	}
 	BN_free(bn_rsa_r4);
 	return rsa;
