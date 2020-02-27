@@ -744,7 +744,7 @@ sm_RSA_generate_key(num, e)
 	unsigned long e;
 {
 	RSA *rsa = NULL;
-        BIGNUM *bn_rsa_r4;
+	BIGNUM *bn_rsa_r4;
 
 	bn_rsa_r4 = BN_new();
 	if ((bn_rsa_r4 != NULL) && BN_set_word(bn_rsa_r4, e) && (rsa = RSA_new()) != NULL)
