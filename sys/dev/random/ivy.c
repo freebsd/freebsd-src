@@ -60,7 +60,7 @@ static struct random_source random_ivy = {
 	.rs_read = random_ivy_read
 };
 
-SYSCTL_NODE(_kern_random, OID_AUTO, rdrand, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern_random, OID_AUTO, rdrand, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "rdrand (ivy) entropy source");
 static bool acquire_independent_seed_samples = false;
 SYSCTL_BOOL(_kern_random_rdrand, OID_AUTO, rdrand_independent_seed,
