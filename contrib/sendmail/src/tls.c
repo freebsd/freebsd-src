@@ -92,6 +92,7 @@ get_dh512()
 	dhg_bn = BN_bin2bn(dh512_g, sizeof(dh512_g), NULL);
 	if ((dhp_bn == NULL) || (dhg_bn == NULL))
 	{
+		DH_free(dh);
 		BN_free(dhp_bn);
 		BN_free(dhg_bn);
 		return NULL;
@@ -155,6 +156,7 @@ get_dh2048()
 	dhg_bn = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
 	if ((dhp_bn == NULL) || (dhg_bn == NULL))
 	{
+		DH_free(dh);
 		BN_free(dhp_bn);
 		BN_free(dhg_bn);
 		return NULL;
