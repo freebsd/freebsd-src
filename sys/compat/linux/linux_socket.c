@@ -1451,9 +1451,12 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		name = -1;
 		break;
 	}
-	if (name == -1)
+	if (name == -1) {
+		linux_msg(curthread,
+		    "unsupported setsockopt level %d optname %d",
+		    args->level, args->optname);
 		return (ENOPROTOOPT);
-
+	}
 
 	if (name == IPV6_NEXTHOP) {
 		len = args->optlen;
@@ -1546,8 +1549,12 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		name = -1;
 		break;
 	}
-	if (name == -1)
+	if (name == -1) {
+		linux_msg(curthread,
+		    "unsupported getsockopt level %d optname %d",
+		    args->level, args->optname);
 		return (EINVAL);
+	}
 
 	if (name == IPV6_NEXTHOP) {
 		error = copyin(PTRIN(args->optlen), &len, sizeof(len));
