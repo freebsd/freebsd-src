@@ -56,9 +56,16 @@
 #define	SMR_SEQ_INVALID		0
 
 /* Shared SMR state. */
+union s_wr {
+	struct {
+		smr_seq_t	seq;	/* Current write sequence #. */
+		int		ticks;	/* tick of last update (LAZY) */
+	};
+	uint64_t	_pair;
+};
 struct smr_shared {
 	const char	*s_name;	/* Name for debugging/reporting. */
-	smr_seq_t	s_wr_seq;	/* Current write sequence #. */
+	union s_wr	s_wr;		/* Write sequence */
 	smr_seq_t	s_rd_seq;	/* Minimum observed read sequence. */
 };
 typedef struct smr_shared *smr_shared_t;
@@ -189,7 +196,7 @@ static inline smr_seq_t
 smr_shared_current(smr_shared_t s)
 {
 
-	return (atomic_load_int(&s->s_wr_seq));
+	return (atomic_load_int(&s->s_wr.seq));
 }
 
 static inline smr_seq_t
@@ -281,7 +288,7 @@ smr_lazy_enter(smr_t smr)
 	 * If we assign a stale wr_seq value due to interrupt we use the
 	 * same algorithm that renders smr_enter() safe.
 	 */
-	smr->c_seq = smr_shared_current(smr->c_shared);
+	atomic_store_int(&smr->c_seq, smr_shared_current(smr->c_shared));
 }
 
 /*
@@ -306,7 +313,7 @@ smr_lazy_exit(smr_t smr)
 	 * time and wait 1 tick longer.
 	 */
 	atomic_thread_fence_rel();
-	smr->c_seq = SMR_SEQ_INVALID;
+	atomic_store_int(&smr->c_seq, SMR_SEQ_INVALID);
 	critical_exit();
 }
 
