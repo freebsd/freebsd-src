@@ -393,21 +393,34 @@ acpi_cmbat_get_bix(void *arg)
 	} while (0)
 
 	if (ACPI_PKG_VALID_EQ(res, 21)) {	/* ACPI 6.0 _BIX */
-	    if (sc->bix.rev != ACPI_BIX_REV_1)
+	    /*
+	     * Some models have rev.0 _BIX with 21 members.
+	     * In that case, treat the first 20 members as rev.0 _BIX.
+	     */
+	    if (sc->bix.rev != ACPI_BIX_REV_0 &&
+	        sc->bix.rev != ACPI_BIX_REV_1)
 		ACPI_BIX_REV_MISMATCH_ERR(sc->bix.rev, ACPI_BIX_REV_1);
 	} else if (ACPI_PKG_VALID_EQ(res, 20)) {/* ACPI 4.0 _BIX */
 	    if (sc->bix.rev != ACPI_BIX_REV_0)
 		ACPI_BIX_REV_MISMATCH_ERR(sc->bix.rev, ACPI_BIX_REV_0);
-	} else if (ACPI_PKG_VALID(res, 22) &&
-	    ACPI_BIX_REV_MIN_CHECK(sc->bix.rev, ACPI_BIX_REV_1 + 1)) {
+	} else if (ACPI_PKG_VALID(res, 22)) {
+	    /* _BIX with 22 or more members. */
+	    if (ACPI_BIX_REV_MIN_CHECK(sc->bix.rev, ACPI_BIX_REV_1 + 1)) {
 		/*
-		 * Unknown _BIX with 22 or more members.
+		 * Unknown revision number.
 		 * Assume 21 members are compatible with 6.0 _BIX.
 		 */
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "Unknown _BIX revision(%u). "
 		    "Assuming compatible with revision %u.\n",
 		    sc->bix.rev, ACPI_BIX_REV_1);
+	    } else {
+		/*
+		 * Known revision number.  Ignore the extra members.
+		 */
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "Extra objects found in _BIX were ignored.\n");
+	    }
 	} else {
 		/* Invalid _BIX.  Ignore it. */
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
