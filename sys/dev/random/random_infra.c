@@ -38,9 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/randomdev.h>
 
 /* Set up the sysctl root node for the entropy device */
-SYSCTL_NODE(_kern, OID_AUTO, random, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern, OID_AUTO, random, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Cryptographically Secure Random Number Generator");
-SYSCTL_NODE(_kern_random, OID_AUTO, initial_seeding, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern_random, OID_AUTO, initial_seeding,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Initial seeding control and information");
 
 /*
