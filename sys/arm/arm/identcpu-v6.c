@@ -224,7 +224,7 @@ print_v7_cache(void )
 				printf(" WT");
 			if (val & CPUV7_CT_CTYPE_WB)
 				printf(" WB");
-				if (val & CPUV7_CT_CTYPE_RA)
+			if (val & CPUV7_CT_CTYPE_RA)
 				printf(" Read-Alloc");
 			if (val & CPUV7_CT_CTYPE_WA)
 				printf(" Write-Alloc");
