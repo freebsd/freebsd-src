@@ -83,18 +83,22 @@ static unsigned char dh512_g[] =
 static DH *
 get_dh512()
 {
-	DH *dh = NULL;
+	DH *dh;
 	BIGNUM *dhp_bn, *dhg_bn;
 
 	if ((dh = DH_new()) == NULL)
 		return NULL;
 	dhp_bn = BN_bin2bn(dh512_p, sizeof(dh512_p), NULL);
 	dhg_bn = BN_bin2bn(dh512_g, sizeof(dh512_g), NULL);
-	if ((dhp_bn == NULL) || (dhg_bn == NULL) || !DH_set0_pqg(dh, dhp_bn, NULL, dhg_bn))
+	if ((dhp_bn == NULL) || (dhg_bn == NULL))
 	{
-		DH_free(dh);
 		BN_free(dhp_bn);
 		BN_free(dhg_bn);
+		return NULL;
+	}
+	if (!DH_set0_pqg(dh, dhp_bn, NULL, dhg_bn))
+	{
+		DH_free(dh);
 		return NULL;
 	}
 	return dh;
@@ -149,11 +153,15 @@ get_dh2048()
 		return NULL;
 	dhp_bn = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
 	dhg_bn = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
-	if ((dhp_bn == NULL) || (dhg_bn == NULL) || !DH_set0_pqg(dh, dhp_bn, NULL, dhg_bn))
+	if ((dhp_bn == NULL) || (dhg_bn == NULL))
 	{
-		DH_free(dh);
 		BN_free(dhp_bn);
 		BN_free(dhg_bn);
+		return NULL;
+	}
+	if (!DH_set0_pqg(dh, dhp_bn, NULL, dhg_bn))
+	{
+		DH_free(dh);
 		return NULL;
 	}
 	return dh;
