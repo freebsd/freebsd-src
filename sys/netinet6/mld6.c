@@ -222,7 +222,7 @@ VNET_DEFINE_STATIC(int, current_state_timers_running6);
 
 SYSCTL_DECL(_net_inet6);	/* Note: Not in any common header. */
 
-SYSCTL_NODE(_net_inet6, OID_AUTO, mld, CTLFLAG_RW, 0,
+SYSCTL_NODE(_net_inet6, OID_AUTO, mld, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "IPv6 Multicast Listener Discovery");
 
 /*

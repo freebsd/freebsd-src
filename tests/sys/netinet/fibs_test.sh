@@ -626,9 +626,6 @@ udp_dontroute_head()
 
 udp_dontroute_body()
 {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/244172"
-	fi
 	# Configure the TAP interface to use an RFC5737 nonrouteable address
 	# and a non-default fib
 	ADDR0="192.0.2.2"
@@ -680,6 +677,9 @@ udp_dontroute6_head()
 
 udp_dontroute6_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/244172"
+	fi
 	# Configure the TAP interface to use an RFC3849 nonrouteable address
 	# and a non-default fib
 	ADDR0="2001:db8::2"

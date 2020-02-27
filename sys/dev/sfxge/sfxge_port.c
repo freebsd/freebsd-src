@@ -194,11 +194,9 @@ sfxge_mac_stat_init(struct sfxge_softc *sc)
 	/* Initialise the named stats */
 	for (id = 0; id < EFX_MAC_NSTATS; id++) {
 		name = efx_mac_stat_name(sc->enp, id);
-		SYSCTL_ADD_PROC(
-			ctx, stat_list,
-			OID_AUTO, name, CTLTYPE_U64|CTLFLAG_RD,
-			sc, id, sfxge_mac_stat_handler, "Q",
-			"");
+		SYSCTL_ADD_PROC(ctx, stat_list, OID_AUTO, name,
+		    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    sc, id, sfxge_mac_stat_handler, "Q", "");
 	}
 }
 
@@ -650,12 +648,10 @@ sfxge_phy_stat_init(struct sfxge_softc *sc)
 		if (!(stat_mask & ((uint64_t)1 << id)))
 			continue;
 		name = efx_phy_stat_name(sc->enp, id);
-		SYSCTL_ADD_PROC(
-			ctx, stat_list,
-			OID_AUTO, name, CTLTYPE_UINT|CTLFLAG_RD,
-			sc, id, sfxge_phy_stat_handler,
-			id == EFX_PHY_STAT_OUI ? "IX" : "IU",
-			"");
+		SYSCTL_ADD_PROC(ctx, stat_list, OID_AUTO, name,
+		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    sc, id, sfxge_phy_stat_handler,
+		    id == EFX_PHY_STAT_OUI ? "IX" : "IU", "");
 	}
 }
 
@@ -787,10 +783,10 @@ sfxge_port_init(struct sfxge_softc *sc)
 	 * ifmedia, provide sysctls for it. */
 	port->wanted_fc = EFX_FCNTL_RESPOND | EFX_FCNTL_GENERATE;
 	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "wanted_fc", CTLTYPE_UINT|CTLFLAG_RW, sc, 0,
+	    "wanted_fc", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    sfxge_port_wanted_fc_handler, "IU", "wanted flow control mode");
 	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "link_fc", CTLTYPE_UINT|CTLFLAG_RD, sc, 0,
+	    "link_fc", CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    sfxge_port_link_fc_handler, "IU", "link flow control mode");
 #endif
 
@@ -806,7 +802,8 @@ sfxge_port_init(struct sfxge_softc *sc)
 	sfxge_mac_stat_init(sc);
 
 	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "stats_update_period_ms", CTLTYPE_UINT|CTLFLAG_RW, sc, 0,
+	    "stats_update_period_ms",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    sfxge_port_stats_update_period_ms_handler, "IU",
 	    "interface statistics refresh period");
 

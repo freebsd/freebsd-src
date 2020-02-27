@@ -128,16 +128,16 @@ oce_add_sysctls(POCE_SOFTC sc)
 				0,"PVID");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "loop_back",
-		CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,
-		oce_sysctl_loopback, "I", "Loop Back Tests");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, (void *)sc, 0,
+	    oce_sysctl_loopback, "I", "Loop Back Tests");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "fw_upgrade",
-		CTLTYPE_STRING | CTLFLAG_RW, (void *)sc, 0,
-		oce_sys_fwupgrade, "A", "Firmware ufi file");
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, (void *)sc, 0,
+	    oce_sys_fwupgrade, "A", "Firmware ufi file");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "aic_enable",
-		CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 1,
-		oce_sys_aic_enable, "I", "aic flags");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, (void *)sc, 1,
+	    oce_sys_aic_enable, "I", "aic flags");
 
         /*
          *  Dumps Transceiver data
@@ -146,14 +146,14 @@ oce_add_sysctls(POCE_SOFTC sc)
          *  "sysctl -b dev.oce.0.sfp_vpd_dump_buffer > sfp.bin" for binary dump
          */
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "sfp_vpd_dump",
-			CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, oce_sysctl_sfp_vpd_dump,
-			"I", "Initiate a sfp_vpd_dump operation");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, (void *)sc, 0,
+	    oce_sysctl_sfp_vpd_dump, "I", "Initiate a sfp_vpd_dump operation");
 	SYSCTL_ADD_OPAQUE(ctx, child, OID_AUTO, "sfp_vpd_dump_buffer",
 			CTLFLAG_RD, sfp_vpd_dump_buffer,
 			TRANSCEIVER_DATA_SIZE, "IU", "Access sfp_vpd_dump buffer");
 
 	stats_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
-				CTLFLAG_RD, NULL, "Ethernet Statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Ethernet Statistics");
 
 	if (IS_BE(sc) || IS_SH(sc))
 		oce_add_stats_sysctls_be3(sc, ctx, stats_node);
@@ -720,9 +720,8 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 	stats = &sc->oce_stats_info;
 
 	rx_stats_node = SYSCTL_ADD_NODE(ctx,
-					SYSCTL_CHILDREN(stats_node), 
-					OID_AUTO,"rx", CTLFLAG_RD, 
-					NULL, "RX Ethernet Statistics");
+	    SYSCTL_CHILDREN(stats_node), OID_AUTO,"rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "RX Ethernet Statistics");
 	rx_stat_list = SYSCTL_CHILDREN(rx_stats_node);
 
 	
@@ -757,9 +756,8 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 	for (i = 0; i < sc->nrqs; i++) {
 		sprintf(prefix, "queue%d",i);
 		queue_stats_node = SYSCTL_ADD_NODE(ctx, 
-						SYSCTL_CHILDREN(rx_stats_node),
-						OID_AUTO, prefix, CTLFLAG_RD,
-						NULL, "Queue name");
+		    SYSCTL_CHILDREN(rx_stats_node), OID_AUTO, prefix,
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue name");
 		queue_stats_list = SYSCTL_CHILDREN(queue_stats_node);
 		
 		SYSCTL_ADD_QUAD(ctx, queue_stats_list, OID_AUTO, "rx_pkts",
@@ -790,9 +788,8 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 	}
 	
 	rx_stats_node = SYSCTL_ADD_NODE(ctx,
-					SYSCTL_CHILDREN(rx_stats_node),
-					OID_AUTO, "err", CTLFLAG_RD,
-					NULL, "Receive Error Stats");
+	    SYSCTL_CHILDREN(rx_stats_node), OID_AUTO, "err",
+	        CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Receive Error Stats");
 	rx_stat_list = SYSCTL_CHILDREN(rx_stats_node);
 	
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "crc_errs",
@@ -853,9 +850,9 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 			"Input FIFO Overflow Drop");
 
 	tx_stats_node = SYSCTL_ADD_NODE(ctx,
-					SYSCTL_CHILDREN(stats_node), OID_AUTO,
-					"tx",CTLFLAG_RD, NULL,
-					"TX Ethernet Statistics");
+	    SYSCTL_CHILDREN(stats_node), OID_AUTO,
+	        "tx", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		"TX Ethernet Statistics");
 	tx_stat_list = SYSCTL_CHILDREN(tx_stats_node);
 
 	SYSCTL_ADD_QUAD(ctx, tx_stat_list, OID_AUTO, "total_tx_pkts",
@@ -893,9 +890,8 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 	for (i = 0; i < sc->nwqs; i++) {
 		sprintf(prefix, "queue%d",i);
 		queue_stats_node = SYSCTL_ADD_NODE(ctx, 
-						SYSCTL_CHILDREN(tx_stats_node),
-						OID_AUTO, prefix, CTLFLAG_RD,
-						NULL, "Queue name");
+		    SYSCTL_CHILDREN(tx_stats_node), OID_AUTO, prefix,
+		        CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue name");
 		queue_stats_list = SYSCTL_CHILDREN(queue_stats_node);
 
 		SYSCTL_ADD_QUAD(ctx, queue_stats_list, OID_AUTO, "tx_pkts",
@@ -942,9 +938,9 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 	stats = &sc->oce_stats_info;
 
 	rx_stats_node = SYSCTL_ADD_NODE(ctx,
-					SYSCTL_CHILDREN(stats_node),
-					OID_AUTO, "rx", CTLFLAG_RD,
-					NULL, "RX Ethernet Statistics");
+	    SYSCTL_CHILDREN(stats_node), OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "RX Ethernet Statistics");
 	rx_stat_list = SYSCTL_CHILDREN(rx_stats_node);
 
 	
@@ -976,9 +972,8 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 	for (i = 0; i < sc->nrqs; i++) {
 		sprintf(prefix, "queue%d",i);
 		queue_stats_node = SYSCTL_ADD_NODE(ctx, 
-						SYSCTL_CHILDREN(rx_stats_node),
-						OID_AUTO, prefix, CTLFLAG_RD,
-						NULL, "Queue name");
+		    SYSCTL_CHILDREN(rx_stats_node), OID_AUTO, prefix,
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue name");
 		queue_stats_list = SYSCTL_CHILDREN(queue_stats_node);
 		
 		SYSCTL_ADD_QUAD(ctx, queue_stats_list, OID_AUTO, "rx_pkts",
@@ -1005,9 +1000,8 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 	}
 
 	rx_stats_node = SYSCTL_ADD_NODE(ctx,
-					SYSCTL_CHILDREN(rx_stats_node),
-					OID_AUTO, "err", CTLFLAG_RD,
-					NULL, "Receive Error Stats");
+	    SYSCTL_CHILDREN(rx_stats_node), OID_AUTO, "err",
+	        CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Receive Error Stats");
 	rx_stat_list = SYSCTL_CHILDREN(rx_stats_node);
 	
 	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "crc_errs",
@@ -1059,9 +1053,8 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 			"Input FIFO Overflow Drop");
 
 	tx_stats_node = SYSCTL_ADD_NODE(ctx,
-					SYSCTL_CHILDREN(stats_node),
-					OID_AUTO, "tx", CTLFLAG_RD,
-					NULL, "TX Ethernet Statistics");
+	    SYSCTL_CHILDREN(stats_node), OID_AUTO, "tx",
+	        CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX Ethernet Statistics");
 	tx_stat_list = SYSCTL_CHILDREN(tx_stats_node);
 
 	SYSCTL_ADD_QUAD(ctx, tx_stat_list, OID_AUTO, "total_tx_pkts",
@@ -1096,9 +1089,8 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 	for (i = 0; i < sc->nwqs; i++) {
 		sprintf(prefix, "queue%d",i);
 		queue_stats_node = SYSCTL_ADD_NODE(ctx, 
-						SYSCTL_CHILDREN(tx_stats_node),
-						OID_AUTO, prefix, CTLFLAG_RD,
-						NULL, "Queue name");
+		    SYSCTL_CHILDREN(tx_stats_node), OID_AUTO, prefix,
+		        CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue name");
 		queue_stats_list = SYSCTL_CHILDREN(queue_stats_node);
 
 		SYSCTL_ADD_QUAD(ctx, queue_stats_list, OID_AUTO, "tx_pkts",

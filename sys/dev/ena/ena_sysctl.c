@@ -38,7 +38,8 @@ static void	ena_sysctl_add_tuneables(struct ena_adapter *);
 static int	ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS);
 static int	ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS);
 
-static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD, 0, "ENA driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "ENA driver parameters");
 
 /*
  * Logging level for changing verbosity of the output
@@ -150,12 +151,12 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
 
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO,
-		    namebuf, CTLFLAG_RD, NULL, "Queue Name");
+		    namebuf, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		/* TX specific stats */
 		tx_node = SYSCTL_ADD_NODE(ctx, queue_list, OID_AUTO,
-		    "tx_ring", CTLFLAG_RD, NULL, "TX ring");
+		    "tx_ring", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX ring");
 		tx_list = SYSCTL_CHILDREN(tx_node);
 
 		tx_stats = &tx_ring->tx_stats;
@@ -203,7 +204,7 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 
 		/* RX specific stats */
 		rx_node = SYSCTL_ADD_NODE(ctx, queue_list, OID_AUTO,
-		    "rx_ring", CTLFLAG_RD, NULL, "RX ring");
+		    "rx_ring", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "RX ring");
 		rx_list = SYSCTL_CHILDREN(rx_node);
 
 		rx_stats = &rx_ring->rx_stats;
@@ -242,7 +243,7 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 
 	/* Stats read from device */
 	hw_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "hw_stats",
-	    CTLFLAG_RD, NULL, "Statistics from hardware");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Statistics from hardware");
 	hw_list = SYSCTL_CHILDREN(hw_node);
 
 	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "rx_packets", CTLFLAG_RD,
@@ -258,7 +259,7 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 
 	/* ENA Admin queue stats */
 	admin_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "admin_stats",
-	    CTLFLAG_RD, NULL, "ENA Admin Queue statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ENA Admin Queue statistics");
 	admin_list = SYSCTL_CHILDREN(admin_node);
 
 	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "aborted_cmd", CTLFLAG_RD,
@@ -289,15 +290,15 @@ ena_sysctl_add_tuneables(struct ena_adapter *adapter)
 	child = SYSCTL_CHILDREN(tree);
 
 	/* Tuneable number of buffers in the buf-ring (drbr) */
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "buf_ring_size", CTLTYPE_INT |
-	    CTLFLAG_RW, adapter, 0, ena_sysctl_buf_ring_size, "I",
-	    "Size of the bufring");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "buf_ring_size",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, adapter, 0,
+	    ena_sysctl_buf_ring_size, "I", "Size of the bufring");
 
 	/* Tuneable number of Rx ring size */
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_queue_size", CTLTYPE_INT |
-	    CTLFLAG_RW, adapter, 0, ena_sysctl_rx_queue_size, "I",
-	    "Size of the Rx ring. The size should be a power of 2. "
-	    "Max value is 8K");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_queue_size",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, adapter, 0,
+	    ena_sysctl_rx_queue_size, "I", "Size of the Rx ring. "
+	    "The size should be a power of 2. Max value is 8K");
 }
 
 

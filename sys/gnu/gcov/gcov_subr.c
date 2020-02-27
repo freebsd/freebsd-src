@@ -161,9 +161,13 @@ gcov_init(void *arg __unused)
 
 SYSINIT(gcov_init, SI_SUB_EVENTHANDLER, SI_ORDER_ANY, gcov_init, NULL);
 
-static SYSCTL_NODE(_debug, OID_AUTO, gcov, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_debug, OID_AUTO, gcov, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "gcov code coverage");
-SYSCTL_PROC(_debug_gcov, OID_AUTO, reset, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, gcov_stats_reset_sysctl, "I", "Reset all profiling counts");
-SYSCTL_PROC(_debug_gcov, OID_AUTO, enable, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, gcov_stats_enable_sysctl, "I", "Enable code coverage");
+SYSCTL_PROC(_debug_gcov, OID_AUTO, reset,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    gcov_stats_reset_sysctl, "I",
+    "Reset all profiling counts");
+SYSCTL_PROC(_debug_gcov, OID_AUTO, enable,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    gcov_stats_enable_sysctl, "I",
+    "Enable code coverage");

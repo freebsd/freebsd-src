@@ -68,7 +68,8 @@
 extern const char *freebsd32_syscallnames[];
 static void ppc32_fixlimit(struct rlimit *rl, int which);
 
-static SYSCTL_NODE(_compat, OID_AUTO, ppc32, CTLFLAG_RW, 0, "32-bit mode");
+static SYSCTL_NODE(_compat, OID_AUTO, ppc32, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "32-bit mode");
 
 #define PPC32_MAXDSIZ (1024*1024*1024)
 static u_long ppc32_maxdsiz = PPC32_MAXDSIZ;

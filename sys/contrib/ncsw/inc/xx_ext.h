@@ -205,7 +205,7 @@ uint32_t XX_DisableAllIntr(void);
 void XX_RestoreAllIntr(uint32_t flags);
 
 
-t_Error XX_PreallocAndBindIntr(uintptr_t irq, unsigned int cpu);
+t_Error XX_PreallocAndBindIntr(device_t dev, uintptr_t irq, unsigned int cpu);
 t_Error XX_DeallocIntr(uintptr_t irq);
 
 /**************************************************************************//**
@@ -794,5 +794,4 @@ t_Error XX_IpcSendMessage(t_Handle           h_Session,
 
 
 void XX_PortalSetInfo(device_t dev);
-void XX_FmanFixIntr(int irq);
 #endif /* __XX_EXT_H */

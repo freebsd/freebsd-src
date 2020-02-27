@@ -770,7 +770,7 @@ mlx5e_rl_init(struct mlx5e_priv *priv)
 	/* create root node */
 	node = SYSCTL_ADD_NODE(&rl->ctx,
 	    SYSCTL_CHILDREN(priv->sysctl_ifnet), OID_AUTO,
-	    "rate_limit", CTLFLAG_RW, NULL, "Rate limiting support");
+	    "rate_limit", CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "Rate limiting support");
 
 	if (node != NULL) {
 		/* create SYSCTLs */
@@ -782,7 +782,7 @@ mlx5e_rl_init(struct mlx5e_priv *priv)
 		}
 
 		stats = SYSCTL_ADD_NODE(&rl->ctx, SYSCTL_CHILDREN(node),
-		    OID_AUTO, "stats", CTLFLAG_RD, NULL,
+		    OID_AUTO, "stats", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
 		    "Rate limiting statistics");
 		if (stats != NULL) {
 			/* create SYSCTLs */

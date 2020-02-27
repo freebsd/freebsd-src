@@ -1268,7 +1268,7 @@ axp2xx_start(void *pdev)
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		    OID_AUTO, sc->sensors[i].name,
-		    CTLTYPE_INT | CTLFLAG_RD,
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 		    dev, sc->sensors[i].id, axp2xx_sysctl,
 		    sc->sensors[i].format,
 		    sc->sensors[i].desc);

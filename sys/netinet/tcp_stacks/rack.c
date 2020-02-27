@@ -668,7 +668,7 @@ rack_init_sysctls(void)
 	    SYSCTL_CHILDREN(rack_sysctl_root),
 	    OID_AUTO,
 	    "stats",
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "Rack Counters");
 	rack_badfr = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
@@ -874,7 +874,7 @@ rack_init_sysctls(void)
 	    SYSCTL_CHILDREN(rack_sysctl_root),
 	    OID_AUTO,
 	    "sack_attack",
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "Rack Sack Attack Counters and Controls");
 	SYSCTL_ADD_U32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_attack),
@@ -10512,7 +10512,7 @@ tcp_addrack(module_t mod, int32_t type, void *data)
 #else
 		    __XSTRING(STACKNAME),
 #endif
-		    CTLFLAG_RW, 0,
+		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		    "");
 		if (rack_sysctl_root == NULL) {
 			printf("Failed to add sysctl node\n");

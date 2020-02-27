@@ -230,7 +230,8 @@ sysctl_netinet_intr_queue_maxlen(SYSCTL_HANDLER_ARGS)
 	return (netisr_setqlimit(&ip_nh, qlimit));
 }
 SYSCTL_PROC(_net_inet_ip, IPCTL_INTRQMAXLEN, intr_queue_maxlen,
-    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_netinet_intr_queue_maxlen, "I",
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_netinet_intr_queue_maxlen, "I",
     "Maximum size of the IP input queue");
 
 static int
@@ -251,7 +252,8 @@ sysctl_netinet_intr_queue_drops(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops,
-    CTLTYPE_INT|CTLFLAG_RD, 0, 0, sysctl_netinet_intr_queue_drops, "I",
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    0, 0, sysctl_netinet_intr_queue_drops, "I",
     "Number of packets dropped from the IP input queue");
 
 #ifdef	RSS
@@ -269,7 +271,8 @@ sysctl_netinet_intr_direct_queue_maxlen(SYSCTL_HANDLER_ARGS)
 	return (netisr_setqlimit(&ip_direct_nh, qlimit));
 }
 SYSCTL_PROC(_net_inet_ip, IPCTL_INTRDQMAXLEN, intr_direct_queue_maxlen,
-    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_netinet_intr_direct_queue_maxlen,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, 0, sysctl_netinet_intr_direct_queue_maxlen,
     "I", "Maximum size of the IP direct input queue");
 
 static int
@@ -290,7 +293,8 @@ sysctl_netinet_intr_direct_queue_drops(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_ip, IPCTL_INTRDQDROPS, intr_direct_queue_drops,
-    CTLTYPE_INT|CTLFLAG_RD, 0, 0, sysctl_netinet_intr_direct_queue_drops, "I",
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_netinet_intr_direct_queue_drops, "I",
     "Number of packets dropped from the IP direct input queue");
 #endif	/* RSS */
 

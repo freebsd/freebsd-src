@@ -224,7 +224,8 @@ static struct cdevsw aacraid_cdevsw = {
 MALLOC_DEFINE(M_AACRAIDBUF, "aacraid_buf", "Buffers for the AACRAID driver");
 
 /* sysctl node */
-SYSCTL_NODE(_hw, OID_AUTO, aacraid, CTLFLAG_RD, 0, "AACRAID driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, aacraid, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "AACRAID driver parameters");
 
 /*
  * Device Interface

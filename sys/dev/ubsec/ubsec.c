@@ -173,7 +173,7 @@ static	int ubsec_ksigbits(struct crparam *);
 static	void ubsec_kshift_r(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 static	void ubsec_kshift_l(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 
-static SYSCTL_NODE(_hw, OID_AUTO, ubsec, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, ubsec, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Broadcom driver parameters");
 
 #ifdef UBSEC_DEBUG

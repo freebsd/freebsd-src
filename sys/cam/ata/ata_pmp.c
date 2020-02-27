@@ -139,8 +139,8 @@ static int pmp_retry_count = PMP_DEFAULT_RETRY;
 static int pmp_default_timeout = PMP_DEFAULT_TIMEOUT;
 static int pmp_hide_special = PMP_DEFAULT_HIDE_SPECIAL;
 
-static SYSCTL_NODE(_kern_cam, OID_AUTO, pmp, CTLFLAG_RD, 0,
-            "CAM Direct Access Disk driver");
+static SYSCTL_NODE(_kern_cam, OID_AUTO, pmp, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "CAM Direct Access Disk driver");
 SYSCTL_INT(_kern_cam_pmp, OID_AUTO, retry_count, CTLFLAG_RWTUN,
            &pmp_retry_count, 0, "Normal I/O retry count");
 SYSCTL_INT(_kern_cam_pmp, OID_AUTO, default_timeout, CTLFLAG_RWTUN,
@@ -354,7 +354,7 @@ pmpsysctlinit(void *context, int pending)
 	softc->flags |= PMP_FLAG_SCTX_INIT;
 	softc->sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_pmp), OID_AUTO, tmpstr2,
-		CTLFLAG_RD, 0, tmpstr, "device_index");
+		CTLFLAG_RD | CTLFLAG_MPSAFE, 0, tmpstr, "device_index");
 	if (softc->sysctl_tree == NULL) {
 		printf("pmpsysctlinit: unable to allocate sysctl tree\n");
 		cam_periph_release(periph);

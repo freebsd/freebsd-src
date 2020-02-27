@@ -102,7 +102,8 @@ static size_t vesa_bios_size;
 /* VESA video adapter */
 static video_adapter_t *vesa_adp;
 
-static SYSCTL_NODE(_debug, OID_AUTO, vesa, CTLFLAG_RD, NULL, "VESA debugging");
+static SYSCTL_NODE(_debug, OID_AUTO, vesa, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "VESA debugging");
 static int vesa_shadow_rom;
 SYSCTL_INT(_debug_vesa, OID_AUTO, shadow_rom, CTLFLAG_RDTUN, &vesa_shadow_rom,
     0, "Enable video BIOS shadow");

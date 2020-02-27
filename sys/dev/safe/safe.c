@@ -143,7 +143,7 @@ static	void safe_totalreset(struct safe_softc *);
 
 static	int safe_free_entry(struct safe_softc *, struct safe_ringentry *);
 
-static SYSCTL_NODE(_hw, OID_AUTO, safe, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, safe, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "SafeNet driver parameters");
 
 #ifdef SAFE_DEBUG
@@ -2162,6 +2162,8 @@ sysctl_hw_safe_dump(SYSCTL_HANDLER_ARGS)
 	}
 	return error;
 }
-SYSCTL_PROC(_hw_safe, OID_AUTO, dump, CTLTYPE_STRING | CTLFLAG_RW,
-	0, 0, sysctl_hw_safe_dump, "A", "Dump driver state");
+SYSCTL_PROC(_hw_safe, OID_AUTO, dump,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0,
+    sysctl_hw_safe_dump, "A",
+    "Dump driver state");
 #endif /* SAFE_DEBUG */

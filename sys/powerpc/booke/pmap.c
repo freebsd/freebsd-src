@@ -221,7 +221,22 @@ uint32_t tlb1_entries;
 
 #define TLB1_ENTRIES (tlb1_entries)
 
-static vm_offset_t tlb1_map_base = (vm_offset_t)VM_MAXUSER_ADDRESS + PAGE_SIZE;
+/*
+ * Base of the pmap_mapdev() region.  On 32-bit it immediately follows the
+ * userspace address range.  On On 64-bit it's far above, at (1 << 63), and
+ * ranges up to the DMAP, giving 62 bits of PA allowed.  This is far larger than
+ * the widest Book-E address bus, the e6500 has a 40-bit PA space.  This allows
+ * us to map akin to the DMAP, with addresses identical to the PA, offset by the
+ * base.
+ */
+#ifdef __powerpc64__
+#define	VM_MAPDEV_BASE		0x8000000000000000
+#define	VM_MAPDEV_PA_MAX	0x4000000000000000 /* Don't encroach on DMAP */
+#else
+#define	VM_MAPDEV_BASE	((vm_offset_t)VM_MAXUSER_ADDRESS + PAGE_SIZE)
+#endif
+
+static vm_offset_t tlb1_map_base = VM_MAPDEV_BASE;
 
 static tlbtid_t tid_alloc(struct pmap *);
 static void tid_flush(tlbtid_t tid);
@@ -3475,8 +3490,10 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	tlb_entry_t e;
 	vm_paddr_t tmppa;
-	void *res;
-	uintptr_t va, tmpva;
+#ifndef __powerpc64__
+	uintptr_t tmpva;
+#endif
+	uintptr_t va;
 	vm_size_t sz;
 	int i;
 	int wimge;
@@ -3512,6 +3529,11 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 
 	size = roundup(size, PAGE_SIZE);
 
+#ifdef __powerpc64__
+	KASSERT(pa < VM_MAPDEV_PA_MAX,
+	    ("Unsupported physical address! %lx", pa));
+	va = VM_MAPDEV_BASE + pa;
+#else
 	/*
 	 * The device mapping area is between VM_MAXUSER_ADDRESS and
 	 * VM_MIN_KERNEL_ADDRESS.  This gives 1GB of device addressing.
@@ -3534,24 +3556,15 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	    sz = ffsl((~((1 << flsl(size-1)) - 1)) & pa);
 	    sz = sz ? min(roundup(sz + 3, 4), flsl(size) - 1) : flsl(size) - 1;
 	    va = roundup(tlb1_map_base, 1 << sz) | (((1 << sz) - 1) & pa);
-#ifdef __powerpc64__
-	} while (!atomic_cmpset_long(&tlb1_map_base, tmpva, va + size));
-#else
 	} while (!atomic_cmpset_int(&tlb1_map_base, tmpva, va + size));
-#endif
-#else
-#ifdef __powerpc64__
-	va = atomic_fetchadd_long(&tlb1_map_base, size);
-#else
 	va = atomic_fetchadd_int(&tlb1_map_base, size);
 #endif
 #endif
-	res = (void *)va;
 
 	if (tlb1_mapin_region(va, pa, size, tlb_calc_wimg(pa, ma)) != size)
 		return (NULL);
 
-	return (res);
+	return ((void *)va);
 }
 
 /*

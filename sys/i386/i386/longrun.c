@@ -276,31 +276,34 @@ setup_tmx86_longrun(void *dummy __unused)
 
 	sysctl_ctx_init(&crusoe_sysctl_ctx);
 	crusoe_sysctl_tree = SYSCTL_ADD_NODE(&crusoe_sysctl_ctx,
-				SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
-				"crusoe", CTLFLAG_RD, 0,
-				"Transmeta Crusoe LongRun support");
+	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, "crusoe",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+	    "Transmeta Crusoe LongRun support");
 	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
-		OID_AUTO, "longrun", CTLTYPE_INT | CTLFLAG_RW,
-		&crusoe_longrun, 0, tmx86_longrun_sysctl, "I",
-		"LongRun mode [0-3]");
+	    OID_AUTO, "longrun", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &crusoe_longrun, 0, tmx86_longrun_sysctl, "I",
+	    "LongRun mode [0-3]");
 	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
-		OID_AUTO, "frequency", CTLTYPE_INT | CTLFLAG_RD,
-		&crusoe_frequency, 0, tmx86_status_sysctl, "I",
-		"Current frequency (MHz)");
+	    OID_AUTO, "frequency", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    &crusoe_frequency, 0, tmx86_status_sysctl, "I",
+	    "Current frequency (MHz)");
 	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
-		OID_AUTO, "voltage", CTLTYPE_INT | CTLFLAG_RD,
-		&crusoe_voltage, 0, tmx86_status_sysctl, "I",
-		"Current voltage (mV)");
+	    OID_AUTO, "voltage", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    &crusoe_voltage, 0, tmx86_status_sysctl, "I",
+	    "Current voltage (mV)");
 	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
-		OID_AUTO, "percentage", CTLTYPE_INT | CTLFLAG_RD,
-		&crusoe_percentage, 0, tmx86_status_sysctl, "I",
-		"Processing performance (%)");
+	    OID_AUTO, "percentage",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &crusoe_percentage,
+	    0, tmx86_status_sysctl, "I", "Processing performance (%)");
 	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
-		OID_AUTO, "performance_longrun", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW,
-		&crusoe_performance_longrun, 0, tmx86_longrun_profile_sysctl, "I", "");
+	    OID_AUTO, "performance_longrun",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &crusoe_performance_longrun, 0, tmx86_longrun_profile_sysctl, "I",
+	    "");
 	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
-		OID_AUTO, "economy_longrun", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW,
-		&crusoe_economy_longrun, 0, tmx86_longrun_profile_sysctl, "I", "");
+	    OID_AUTO, "economy_longrun",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &crusoe_economy_longrun, 0, tmx86_longrun_profile_sysctl, "I", "");
 
 	/* register performance profile change handler */
 	EVENTHANDLER_REGISTER(power_profile_change, tmx86_longrun_power_profile, NULL, 0);

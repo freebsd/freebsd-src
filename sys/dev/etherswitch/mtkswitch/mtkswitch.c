@@ -64,7 +64,8 @@
 #define DEBUG
 
 #if defined(DEBUG)
-static SYSCTL_NODE(_debug, OID_AUTO, mtkswitch, CTLFLAG_RD, 0, "mtkswitch");
+static SYSCTL_NODE(_debug, OID_AUTO, mtkswitch, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "mtkswitch");
 #endif
 
 static inline int mtkswitch_portforphy(int phy);

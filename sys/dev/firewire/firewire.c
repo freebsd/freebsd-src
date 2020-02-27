@@ -68,7 +68,8 @@ struct crom_src_buf {
 int firewire_debug = 0, try_bmr = 1, hold_count = 0;
 SYSCTL_INT(_debug, OID_AUTO, firewire_debug, CTLFLAG_RW, &firewire_debug, 0,
 	"FireWire driver debug flag");
-SYSCTL_NODE(_hw, OID_AUTO, firewire, CTLFLAG_RD, 0, "FireWire Subsystem");
+SYSCTL_NODE(_hw, OID_AUTO, firewire, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "FireWire Subsystem");
 SYSCTL_INT(_hw_firewire, OID_AUTO, try_bmr, CTLFLAG_RW, &try_bmr, 0,
 	"Try to be a bus manager");
 SYSCTL_INT(_hw_firewire, OID_AUTO, hold_count, CTLFLAG_RW, &hold_count, 0,

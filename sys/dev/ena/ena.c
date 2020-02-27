@@ -558,14 +558,9 @@ ena_release_all_tx_dmamap(struct ena_ring *tx_ring)
 			}
 		}
 #endif /* DEV_NETMAP */
-		if (tx_info->map_head != NULL) {
-			bus_dmamap_destroy(tx_tag, tx_info->map_head);
-			tx_info->map_head = NULL;
-		}
-
-		if (tx_info->map_seg != NULL) {
-			bus_dmamap_destroy(tx_tag, tx_info->map_seg);
-			tx_info->map_seg = NULL;
+		if (tx_info->dmamap != NULL) {
+			bus_dmamap_destroy(tx_tag, tx_info->dmamap);
+			tx_info->dmamap = NULL;
 		}
 	}
 }
@@ -627,24 +622,13 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	/* ... and create the buffer DMA maps */
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		err = bus_dmamap_create(adapter->tx_buf_tag, 0,
-		    &tx_ring->tx_buffer_info[i].map_head);
+		    &tx_ring->tx_buffer_info[i].dmamap);
 		if (unlikely(err != 0)) {
 			ena_trace(ENA_ALERT,
-			    "Unable to create Tx DMA map_head for buffer %d\n",
+			    "Unable to create Tx DMA map for buffer %d\n",
 			    i);
 			goto err_map_release;
 		}
-		tx_ring->tx_buffer_info[i].seg_mapped = false;
-
-		err = bus_dmamap_create(adapter->tx_buf_tag, 0,
-		    &tx_ring->tx_buffer_info[i].map_seg);
-		if (unlikely(err != 0)) {
-			ena_trace(ENA_ALERT,
-			    "Unable to create Tx DMA map_seg for buffer %d\n",
-			    i);
-			goto err_map_release;
-		}
-		tx_ring->tx_buffer_info[i].head_mapped = false;
 
 #ifdef DEV_NETMAP
 		if (adapter->ifp->if_capenable & IFCAP_NETMAP) {
@@ -720,27 +704,12 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 
 	/* Free buffer DMA maps, */
 	for (int i = 0; i < tx_ring->ring_size; i++) {
-		if (tx_ring->tx_buffer_info[i].head_mapped == true) {
-			bus_dmamap_sync(adapter->tx_buf_tag,
-			    tx_ring->tx_buffer_info[i].map_head,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(adapter->tx_buf_tag,
-			    tx_ring->tx_buffer_info[i].map_head);
-			tx_ring->tx_buffer_info[i].head_mapped = false;
-		}
+		bus_dmamap_sync(adapter->tx_buf_tag,
+		    tx_ring->tx_buffer_info[i].dmamap, BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(adapter->tx_buf_tag,
+		    tx_ring->tx_buffer_info[i].dmamap);
 		bus_dmamap_destroy(adapter->tx_buf_tag,
-		    tx_ring->tx_buffer_info[i].map_head);
-
-		if (tx_ring->tx_buffer_info[i].seg_mapped == true) {
-			bus_dmamap_sync(adapter->tx_buf_tag,
-			    tx_ring->tx_buffer_info[i].map_seg,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(adapter->tx_buf_tag,
-			    tx_ring->tx_buffer_info[i].map_seg);
-			tx_ring->tx_buffer_info[i].seg_mapped = false;
-		}
-		bus_dmamap_destroy(adapter->tx_buf_tag,
-		    tx_ring->tx_buffer_info[i].map_seg);
+		    tx_ring->tx_buffer_info[i].dmamap);
 
 #ifdef DEV_NETMAP
 		if (adapter->ifp->if_capenable & IFCAP_NETMAP) {
@@ -1209,21 +1178,9 @@ ena_free_tx_bufs(struct ena_adapter *adapter, unsigned int qid)
 			     qid, i);
 		}
 
-		if (tx_info->head_mapped == true) {
-			bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_head,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(adapter->tx_buf_tag,
-			    tx_info->map_head);
-			tx_info->head_mapped = false;
-		}
-
-		if (tx_info->seg_mapped == true) {
-			bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_seg,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(adapter->tx_buf_tag,
-			    tx_info->map_seg);
-			tx_info->seg_mapped = false;
-		}
+		bus_dmamap_sync(adapter->tx_buf_tag, tx_info->dmamap,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(adapter->tx_buf_tag, tx_info->dmamap);
 
 		m_free(tx_info->mbuf);
 		tx_info->mbuf = NULL;

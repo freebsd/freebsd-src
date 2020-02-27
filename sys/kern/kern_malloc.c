@@ -232,7 +232,7 @@ static int sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS);
 static time_t t_malloc_fail;
 
 #if defined(MALLOC_MAKE_FAILURES) || (MALLOC_DEBUG_MAXZONES > 1)
-static SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Kernel malloc debugging options");
 #endif
 
@@ -1266,8 +1266,9 @@ sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, malloc_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
-    0, 0, sysctl_kern_malloc_stats, "s,malloc_type_ustats",
+SYSCTL_PROC(_kern, OID_AUTO, malloc_stats,
+    CTLFLAG_RD | CTLTYPE_STRUCT | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_kern_malloc_stats, "s,malloc_type_ustats",
     "Return malloc types");
 
 SYSCTL_INT(_kern, OID_AUTO, malloc_count, CTLFLAG_RD, &kmemcount, 0,
@@ -1471,6 +1472,8 @@ sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_OID(_kern, OID_AUTO, mprof, CTLTYPE_STRING|CTLFLAG_RD,
-    NULL, 0, sysctl_kern_mprof, "A", "Malloc Profiling");
+SYSCTL_OID(_kern, OID_AUTO, mprof,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    sysctl_kern_mprof, "A",
+    "Malloc Profiling");
 #endif /* MALLOC_PROFILE */

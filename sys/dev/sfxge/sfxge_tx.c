@@ -1760,8 +1760,7 @@ sfxge_txq_stat_init(struct sfxge_txq *txq, struct sysctl_oid *txq_node)
 	unsigned int id;
 
 	stat_node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(txq_node), OID_AUTO,
-				    "stats", CTLFLAG_RD, NULL,
-				    "Tx queue statistics");
+	    "stats", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Tx queue statistics");
 	if (stat_node == NULL)
 		return (ENOMEM);
 
@@ -1872,7 +1871,7 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 
 	snprintf(name, sizeof(name), "%u", txq_index);
 	txq_node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(sc->txqs_node),
-				   OID_AUTO, name, CTLFLAG_RD, NULL, "");
+	    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	if (txq_node == NULL) {
 		rc = ENOMEM;
 		goto fail_txq_node;
@@ -1892,8 +1891,8 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	SFXGE_TXQ_LOCK_INIT(txq, device_get_nameunit(sc->dev), txq_index);
 
 	dpl_node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(txq_node), OID_AUTO,
-				   "dpl", CTLFLAG_RD, NULL,
-				   "Deferred packet list statistics");
+	    "dpl", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "Deferred packet list statistics");
 	if (dpl_node == NULL) {
 		rc = ENOMEM;
 		goto fail_dpl_node;
@@ -1966,12 +1965,10 @@ sfxge_tx_stat_init(struct sfxge_softc *sc)
 	stat_list = SYSCTL_CHILDREN(sc->stats_node);
 
 	for (id = 0; id < nitems(sfxge_tx_stats); id++) {
-		SYSCTL_ADD_PROC(
-			ctx, stat_list,
-			OID_AUTO, sfxge_tx_stats[id].name,
-			CTLTYPE_ULONG|CTLFLAG_RD,
-			sc, id, sfxge_tx_stat_handler, "LU",
-			"");
+		SYSCTL_ADD_PROC(ctx, stat_list, OID_AUTO,
+		    sfxge_tx_stats[id].name,
+		    CTLTYPE_ULONG | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+		    sc, id, sfxge_tx_stat_handler, "LU", "");
 	}
 }
 
@@ -2054,10 +2051,9 @@ sfxge_tx_init(struct sfxge_softc *sc)
 	    (!encp->enc_fw_assisted_tso_v2_enabled))
 		sc->tso_fw_assisted &= ~SFXGE_FATSOV2;
 
-	sc->txqs_node = SYSCTL_ADD_NODE(
-		device_get_sysctl_ctx(sc->dev),
-		SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
-		OID_AUTO, "txq", CTLFLAG_RD, NULL, "Tx queues");
+	sc->txqs_node = SYSCTL_ADD_NODE(device_get_sysctl_ctx(sc->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
+	    "txq", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Tx queues");
 	if (sc->txqs_node == NULL) {
 		rc = ENOMEM;
 		goto fail_txq_node;

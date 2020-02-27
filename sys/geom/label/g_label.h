@@ -56,7 +56,8 @@ extern u_int g_label_debug;
 SYSCTL_DECL(_kern_geom_label);
 
 #define	G_LABEL_INIT(kind, label, descr) 				\
-	SYSCTL_NODE(_kern_geom_label, OID_AUTO, kind, CTLFLAG_RD,	\
+	SYSCTL_NODE(_kern_geom_label, OID_AUTO, kind,			\
+	    CTLFLAG_RD | CTLFLAG_MPSAFE,				\
 	    NULL, "");							\
 	SYSCTL_INT(_kern_geom_label_##kind, OID_AUTO, enable, 		\
 	    CTLFLAG_RWTUN, &label.ld_enabled, 1, descr)

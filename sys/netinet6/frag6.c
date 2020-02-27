@@ -197,8 +197,8 @@ sysctl_ip6_maxfragpackets(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_net_inet6_ip6, IPV6CTL_MAXFRAGPACKETS, maxfragpackets,
-	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
-	sysctl_ip6_maxfragpackets, "I",
+	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	NULL, 0, sysctl_ip6_maxfragpackets, "I",
 	"Default maximum number of outstanding fragmented IPv6 packets. "
 	"A value of 0 means no fragmented packets will be accepted, while a "
 	"a value of -1 means no limit");

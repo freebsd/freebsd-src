@@ -124,8 +124,9 @@ out:
 	NFSUNLOCKIOD();	
 	return (0);
 }
-SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmin, CTLTYPE_UINT | CTLFLAG_RW, 0,
-    sizeof (nfs_iodmin), sysctl_iodmin, "IU",
+SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmin,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof (nfs_iodmin),
+    sysctl_iodmin, "IU",
     "Min number of nfsiod kthreads to keep as spares");
 
 static int
@@ -160,8 +161,9 @@ out:
 	NFSUNLOCKIOD();
 	return (0);
 }
-SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmax, CTLTYPE_UINT | CTLFLAG_RW, 0,
-    sizeof (ncl_iodmax), sysctl_iodmax, "IU",
+SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmax,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof (ncl_iodmax),
+    sysctl_iodmax, "IU",
     "Max number of nfsiod kthreads");
 
 static int

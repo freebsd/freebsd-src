@@ -1137,8 +1137,9 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_raw, OID_AUTO/*XXX*/, pcblist,
-    CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0,
-    rip_pcblist, "S,xinpcb", "List of active raw IP sockets");
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    rip_pcblist, "S,xinpcb",
+    "List of active raw IP sockets");
 
 #ifdef INET
 struct pr_usrreqs rip_usrreqs = {

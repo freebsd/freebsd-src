@@ -143,7 +143,7 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 
 	node = SYSCTL_ADD_NODE(&priv->sysctl_ctx,
 	    SYSCTL_CHILDREN(priv->sysctl_ifnet), OID_AUTO,
-	    "tls", CTLFLAG_RW, NULL, "Hardware TLS offload");
+	    "tls", CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "Hardware TLS offload");
 	if (node == NULL)
 		return (0);
 

@@ -637,14 +637,14 @@ isc_add_sysctls(isc_session_t *sp)
 			       SYSCTL_CHILDREN(sp->isc->oid),
 			       OID_AUTO,
 			       devtoname(sp->dev) + 5, // iscsi0
-			       CTLFLAG_RD,
+			       CTLFLAG_RD | CTLFLAG_MPSAFE,
 			       0,
 			       "initiator");
      SYSCTL_ADD_PROC(&sp->clist,
 		     SYSCTL_CHILDREN(sp->oid),
 		     OID_AUTO,
 		     "targetname",
-		     CTLTYPE_STRING | CTLFLAG_RD,
+		     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 		     (void *)&sp->opt.targetName, 0,
 		     sysctl_handle_string, "A", "target name");
 
@@ -652,7 +652,7 @@ isc_add_sysctls(isc_session_t *sp)
 		     SYSCTL_CHILDREN(sp->oid),
 		     OID_AUTO,
 		     "targeaddress",
-		     CTLTYPE_STRING | CTLFLAG_RD,
+		     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 		     (void *)&sp->opt.targetAddress, 0,
 		     sysctl_handle_string, "A", "target address");
 
@@ -660,7 +660,7 @@ isc_add_sysctls(isc_session_t *sp)
 		     SYSCTL_CHILDREN(sp->oid),
 		     OID_AUTO,
 		     "stats",
-		     CTLTYPE_STRING | CTLFLAG_RD,
+		     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 		     (void *)sp, 0,
 		     isc_dump_stats, "A", "statistics");
 

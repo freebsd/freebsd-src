@@ -103,7 +103,8 @@ TUNABLE_STR("kern.geom.uzip.noattach_to", g_uzip_noattach_to,
     sizeof(g_uzip_noattach_to));
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, uzip, CTLFLAG_RW, 0, "GEOM_UZIP stuff");
+SYSCTL_NODE(_kern_geom, OID_AUTO, uzip, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "GEOM_UZIP stuff");
 static u_int g_uzip_debug = GEOM_UZIP_DBG_DEFAULT;
 SYSCTL_UINT(_kern_geom_uzip, OID_AUTO, debug, CTLFLAG_RWTUN, &g_uzip_debug, 0,
     "Debug level (0-4)");

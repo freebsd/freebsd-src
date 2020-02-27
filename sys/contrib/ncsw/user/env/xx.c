@@ -95,8 +95,6 @@ MTX_SYSINIT(XX_MallocTrackLockInit, &XX_MallocTrackLock,
 
 /* Interrupt info */
 #define XX_INTR_FLAG_PREALLOCATED	(1 << 0)
-#define XX_INTR_FLAG_BOUND		(1 << 1)
-#define XX_INTR_FLAG_FMAN_FIX		(1 << 2)
 
 struct XX_IntrInfo {
 	driver_intr_t	*handler;
@@ -296,39 +294,12 @@ XX_IsPortalIntr(uintptr_t irq)
 	return (0);
 }
 
-void
-XX_FmanFixIntr(int irq)
-{
-
-	XX_IntrInfo[irq].flags |= XX_INTR_FLAG_FMAN_FIX;
-}
-
-static bool
-XX_FmanNeedsIntrFix(int irq)
-{
-
-	if (XX_IntrInfo[irq].flags & XX_INTR_FLAG_FMAN_FIX)
-		return (1);
-
-	return (0);
-}
-
 static void
 XX_Dispatch(void *arg)
 {
 	struct XX_IntrInfo *info;
 
 	info = arg;
-
-	/* Bind this thread to proper CPU when SMP has been already started. */
-	if ((info->flags & XX_INTR_FLAG_BOUND) == 0 && smp_started &&
-	    info->cpu >= 0) {
-		thread_lock(curthread);
-		sched_bind(curthread, info->cpu);
-		thread_unlock(curthread);
-
-		info->flags |= XX_INTR_FLAG_BOUND;
-	}
 
 	if (info->handler == NULL) {
 		printf("%s(): IRQ handler is NULL!\n", __func__);
@@ -339,7 +310,7 @@ XX_Dispatch(void *arg)
 }
 
 t_Error
-XX_PreallocAndBindIntr(uintptr_t irq, unsigned int cpu)
+XX_PreallocAndBindIntr(device_t dev, uintptr_t irq, unsigned int cpu)
 {
 	struct resource *r;
 	unsigned int inum;
@@ -349,6 +320,10 @@ XX_PreallocAndBindIntr(uintptr_t irq, unsigned int cpu)
 	inum = rman_get_start(r);
 
 	error = XX_SetIntr(irq, XX_Dispatch, &XX_IntrInfo[inum]);
+	if (error != 0)
+		return (error);
+
+	error = bus_bind_intr(dev, r, cpu);
 	if (error != 0)
 		return (error);
 
@@ -405,21 +380,7 @@ XX_SetIntr(uintptr_t irq, t_Isr *f_Isr, t_Handle handle)
 
 	err = bus_setup_intr(dev, r, flags, NULL, f_Isr, handle,
 		    &XX_IntrInfo[irq].cookie);
-	if (err)
-		goto finish;
 
-	/*
-	 * XXX: Bind FMan IRQ to CPU0. Current interrupt subsystem directs each
-	 * interrupt to all CPUs. Race between an interrupt assertion and
-	 * masking may occur and interrupt handler may be called multiple times
-	 * per one interrupt. FMan doesn't support such a situation. Workaround
-	 * is to bind FMan interrupt to one CPU0 only.
-	 */
-#ifdef SMP
-	if (XX_FmanNeedsIntrFix(irq))
-		err = powerpc_bind_intr(irq, 0);
-#endif
-finish:
 	return (err);
 }
 

@@ -1131,7 +1131,8 @@ parse_type(struct fail_point_entry *ent, char *beg)
 }
 
 /* The fail point sysctl tree. */
-SYSCTL_NODE(_debug, OID_AUTO, fail_point, CTLFLAG_RW, 0, "fail points");
+SYSCTL_NODE(_debug, OID_AUTO, fail_point, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "fail points");
 
 /* Debugging/testing stuff for fail point */
 static int
@@ -1142,5 +1143,6 @@ sysctl_test_fail_point(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_OID(_debug_fail_point, OID_AUTO, test_trigger_fail_point,
-        CTLTYPE_STRING | CTLFLAG_RD, NULL, 0, sysctl_test_fail_point, "A",
-        "Trigger test fail points");
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    sysctl_test_fail_point, "A",
+    "Trigger test fail points");

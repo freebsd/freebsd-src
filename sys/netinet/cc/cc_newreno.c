@@ -381,17 +381,18 @@ newreno_beta_handler(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_DECL(_net_inet_tcp_cc_newreno);
-SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, newreno, CTLFLAG_RW, NULL,
+SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, newreno,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "New Reno related settings");
 
 SYSCTL_PROC(_net_inet_tcp_cc_newreno, OID_AUTO, beta,
-	CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
-	&VNET_NAME(newreno_beta), 3, &newreno_beta_handler, "IU",
-	"New Reno beta, specified as number between 1 and 100");
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &VNET_NAME(newreno_beta), 3, &newreno_beta_handler, "IU",
+    "New Reno beta, specified as number between 1 and 100");
 
 SYSCTL_PROC(_net_inet_tcp_cc_newreno, OID_AUTO, beta_ecn,
-	CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
-	&VNET_NAME(newreno_beta_ecn), 3, &newreno_beta_handler, "IU",
-	"New Reno beta ecn, specified as number between 1 and 100");
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &VNET_NAME(newreno_beta_ecn), 3, &newreno_beta_handler, "IU",
+    "New Reno beta ecn, specified as number between 1 and 100");
 
 DECLARE_CC_MODULE(newreno, &newreno_cc_algo);

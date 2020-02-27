@@ -141,9 +141,10 @@ struct turnstile_chain {
 
 #ifdef TURNSTILE_PROFILING
 u_int turnstile_max_depth;
-static SYSCTL_NODE(_debug, OID_AUTO, turnstile, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_debug, OID_AUTO, turnstile, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "turnstile profiling");
-static SYSCTL_NODE(_debug_turnstile, OID_AUTO, chains, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_debug_turnstile, OID_AUTO, chains,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "turnstile chain stats");
 SYSCTL_UINT(_debug_turnstile, OID_AUTO, max_depth, CTLFLAG_RD,
     &turnstile_max_depth, 0, "maximum depth achieved of a single chain");
@@ -406,7 +407,8 @@ init_turnstile_profiling(void *arg)
 		snprintf(chain_name, sizeof(chain_name), "%d", i);
 		chain_oid = SYSCTL_ADD_NODE(NULL, 
 		    SYSCTL_STATIC_CHILDREN(_debug_turnstile_chains), OID_AUTO,
-		    chain_name, CTLFLAG_RD, NULL, "turnstile chain stats");
+		    chain_name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    "turnstile chain stats");
 		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
 		    "depth", CTLFLAG_RD, &turnstile_chains[i].tc_depth, 0,
 		    NULL);

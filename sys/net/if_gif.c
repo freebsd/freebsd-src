@@ -114,7 +114,7 @@ VNET_DEFINE_STATIC(struct if_clone *, gif_cloner);
 #define	V_gif_cloner	VNET(gif_cloner)
 
 SYSCTL_DECL(_net_link);
-static SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Generic Tunnel Interface");
 #ifndef MAX_GIF_NEST
 /*

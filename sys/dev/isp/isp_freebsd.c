@@ -203,7 +203,8 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		if (chan > 0) {
 			snprintf(name, sizeof(name), "chan%d", chan);
 			tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(tree),
-			    OID_AUTO, name, CTLFLAG_RW, 0, "Virtual channel");
+			    OID_AUTO, name, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+			    "Virtual channel");
 		}
 		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "wwnn", CTLFLAG_RD, &fcp->isp_wwnn,
@@ -223,8 +224,8 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		    "Cause a Lost Frame on a Read");
 #endif
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		    "role", CTLTYPE_INT | CTLFLAG_RW, isp, chan,
-		    isp_role_sysctl, "I", "Current role");
+		    "role", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    isp, chan, isp_role_sysctl, "I", "Current role");
 		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "speed", CTLFLAG_RD, &fcp->isp_gbspeed, 0,
 		    "Connection speed in gigabits");

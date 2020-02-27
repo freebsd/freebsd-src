@@ -215,10 +215,10 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 
 		printf("MAP %lx mode %x pages %lu\n", p->md_phys, mode, p->md_pages);
 
-		l3_attr = ATTR_DEFAULT | ATTR_IDX(mode) | ATTR_AP(ATTR_AP_RW) |
-		    ATTR_nG | L3_PAGE;
+		l3_attr = ATTR_DEFAULT | ATTR_S1_IDX(mode) |
+		    ATTR_S1_AP(ATTR_S1_AP_RW) | ATTR_S1_nG | L3_PAGE;
 		if (mode == VM_MEMATTR_DEVICE || p->md_attr & EFI_MD_ATTR_XP)
-			l3_attr |= ATTR_UXN | ATTR_PXN;
+			l3_attr |= ATTR_S1_XN;
 
 		VM_OBJECT_WLOCK(obj_1t1_pt);
 		for (va = p->md_phys, idx = 0; idx < p->md_pages; idx++,

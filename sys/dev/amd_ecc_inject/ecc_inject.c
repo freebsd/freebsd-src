@@ -125,24 +125,26 @@ sysctl_proc_inject(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static SYSCTL_NODE(_hw, OID_AUTO, error_injection, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_hw, OID_AUTO, error_injection,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Hardware error injection");
-static SYSCTL_NODE(_hw_error_injection, OID_AUTO, dram_ecc, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_hw_error_injection, OID_AUTO, dram_ecc,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "DRAM ECC error injection");
 SYSCTL_UINT(_hw_error_injection_dram_ecc, OID_AUTO, delay,
     CTLTYPE_UINT | CTLFLAG_RW, &delay_ms, 0,
     "Delay in milliseconds between error injections");
 SYSCTL_PROC(_hw_error_injection_dram_ecc, OID_AUTO, quadrant,
-    CTLTYPE_UINT | CTLFLAG_RW, &quadrant, QUADRANT_MASK,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &quadrant, QUADRANT_MASK,
     sysctl_int_with_max, "IU",
     "Index of 16-byte quadrant within 64-byte line where errors "
     "should be injected");
 SYSCTL_PROC(_hw_error_injection_dram_ecc, OID_AUTO, word_mask,
-    CTLTYPE_UINT | CTLFLAG_RW, &word_mask, INJ_WORD_MASK,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &word_mask, INJ_WORD_MASK,
     sysctl_nonzero_int_with_max, "IU",
     "9-bit mask of words where errors should be injected (8 data + 1 ECC)");
 SYSCTL_PROC(_hw_error_injection_dram_ecc, OID_AUTO, bit_mask,
-    CTLTYPE_UINT | CTLFLAG_RW, &bit_mask, INJ_VECTOR_MASK,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &bit_mask, INJ_VECTOR_MASK,
     sysctl_nonzero_int_with_max, "IU",
     "16-bit mask of bits within each selected word where errors "
     "should be injected");

@@ -111,7 +111,7 @@ struct random_sources {
 static CK_LIST_HEAD(sources_head, random_sources) source_list =
     CK_LIST_HEAD_INITIALIZER(source_list);
 
-SYSCTL_NODE(_kern_random, OID_AUTO, harvest, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern_random, OID_AUTO, harvest, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Entropy Device Parameters");
 
 /*
@@ -305,8 +305,10 @@ random_check_uint_harvestmask(SYSCTL_HANDLER_ARGS)
 	    (orig_value & user_immutable_mask);
 	return (0);
 }
-SYSCTL_PROC(_kern_random_harvest, OID_AUTO, mask, CTLTYPE_UINT | CTLFLAG_RW,
-    NULL, 0, random_check_uint_harvestmask, "IU", "Entropy harvesting mask");
+SYSCTL_PROC(_kern_random_harvest, OID_AUTO, mask,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    random_check_uint_harvestmask, "IU",
+    "Entropy harvesting mask");
 
 /* ARGSUSED */
 static int
@@ -326,7 +328,8 @@ random_print_harvestmask(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_random_harvest, OID_AUTO, mask_bin,
-    CTLTYPE_STRING | CTLFLAG_RD, NULL, 0, random_print_harvestmask, "A",
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    random_print_harvestmask, "A",
     "Entropy harvesting mask (printable)");
 
 static const char *random_source_descr[ENTROPYSOURCE] = {
@@ -387,8 +390,9 @@ random_print_harvestmask_symbolic(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_random_harvest, OID_AUTO, mask_symbolic,
-    CTLTYPE_STRING | CTLFLAG_RD, NULL, 0, random_print_harvestmask_symbolic,
-    "A", "Entropy harvesting mask (symbolic)");
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    random_print_harvestmask_symbolic, "A",
+    "Entropy harvesting mask (symbolic)");
 
 /* ARGSUSED */
 static void

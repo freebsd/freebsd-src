@@ -83,7 +83,8 @@
 
 SYSCTL_DECL(_security_mac);
 
-static SYSCTL_NODE(_security_mac, OID_AUTO, portacl, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, portacl,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD mac_portacl policy controls");
 
 static int	portacl_enabled = 1;
@@ -372,7 +373,9 @@ out:
 }
 
 SYSCTL_PROC(_security_mac_portacl, OID_AUTO, rules,
-       CTLTYPE_STRING|CTLFLAG_RW, 0, 0, sysctl_rules, "A", "Rules");
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, 0, sysctl_rules, "A",
+    "Rules");
 
 static int
 rules_check(struct ucred *cred, int family, int type, u_int16_t port)

@@ -137,8 +137,9 @@ SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &maxssiz
     "Maximum stack size");
 SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &sgrowsiz, 0,
     "Amount to grow stack on a stack fault");
-SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
-    NULL, 0, sysctl_kern_vm_guest, "A",
+SYSCTL_PROC(_kern, OID_AUTO, vm_guest,
+    CTLFLAG_RD | CTLTYPE_STRING | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kern_vm_guest, "A",
     "Virtual machine guest detected?");
 
 /*

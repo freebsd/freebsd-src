@@ -702,13 +702,15 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			} else if (id != sc->sc_id_loc_key[i]) {
 				continue;	/* invalid HID ID */
 			} else if (i == 0) {
-				offset = sc->sc_loc_key[0].count;
-				if (offset < 0 || offset > len)
-					offset = len;
-				while (offset--) {
+				struct hid_location tmp_loc = sc->sc_loc_key[0];
+				/* range check array size */
+				if (tmp_loc.count > UKBD_NKEYCODE)
+					tmp_loc.count = UKBD_NKEYCODE;
+				while (tmp_loc.count--) {
 					uint32_t key =
-					    hid_get_data(sc->sc_buffer + offset, len - offset,
-					    &sc->sc_loc_key[i]);
+					    hid_get_data_unsigned(sc->sc_buffer, len, &tmp_loc);
+					/* advance to next location */
+					tmp_loc.pos += tmp_loc.size;
 					if (modifiers & MOD_FN)
 						key = ukbd_apple_fn(key);
 					if (sc->sc_flags & UKBD_FLAG_APPLE_SWAP)

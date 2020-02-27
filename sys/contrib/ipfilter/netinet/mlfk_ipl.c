@@ -83,24 +83,30 @@ static	int	ipfwrite __P((dev_t, struct uio *, int));
 
 SYSCTL_DECL(_net_inet);
 #define SYSCTL_IPF(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|CTLFLAG_VNET|access, \
-		   ptr, val, sysctl_ipf_int, "I", descr)
+    SYSCTL_OID(parent, nbr, name, \
+        CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE | access, \
+        ptr, val, sysctl_ipf_int, "I", descr)
 #define SYSCTL_DYN_IPF_NAT(parent, nbr, name, access,ptr, val, descr) \
-	SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
-	CTLFLAG_DYN|CTLTYPE_INT|CTLFLAG_VNET|access, ptr, val, sysctl_ipf_int_nat, "I", descr)
+    SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
+        CTLFLAG_DYN | CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE |access, \
+        ptr, val, sysctl_ipf_int_nat, "I", descr)
 #define SYSCTL_DYN_IPF_STATE(parent, nbr, name, access,ptr, val, descr) \
-	SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
-	CTLFLAG_DYN|CTLTYPE_INT|CTLFLAG_VNET|access, ptr, val, sysctl_ipf_int_state, "I", descr)
+    SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
+        CTLFLAG_DYN | CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE | access, \
+        ptr, val, sysctl_ipf_int_state, "I", descr)
 #define SYSCTL_DYN_IPF_FRAG(parent, nbr, name, access,ptr, val, descr) \
-	SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
-	CTLFLAG_DYN|CTLTYPE_INT|CTLFLAG_VNET|access, ptr, val, sysctl_ipf_int_frag, "I", descr)
+    SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
+        CTLFLAG_DYN | CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE | access, \
+	ptr, val, sysctl_ipf_int_frag, "I", descr)
 #define SYSCTL_DYN_IPF_AUTH(parent, nbr, name, access,ptr, val, descr) \
-	SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
-	CTLFLAG_DYN|CTLTYPE_INT|CTLFLAG_VNET|access, ptr, val, sysctl_ipf_int_auth, "I", descr)
+    SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
+        CTLFLAG_DYN | CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE | access, \
+	ptr, val, sysctl_ipf_int_auth, "I", descr)
 static struct sysctl_ctx_list ipf_clist;
 #define	CTLFLAG_OFF	0x00800000	/* IPFilter must be disabled */
 #define	CTLFLAG_RWO	(CTLFLAG_RW|CTLFLAG_OFF)
-SYSCTL_NODE(_net_inet, OID_AUTO, ipf, CTLFLAG_RW, 0, "IPF");
+SYSCTL_NODE(_net_inet, OID_AUTO, ipf, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "IPF");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_flags, CTLFLAG_RW, &VNET_NAME(ipfmain.ipf_flags), 0, "IPF flags");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_pass, CTLFLAG_RW, &VNET_NAME(ipfmain.ipf_pass), 0, "default pass/block");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_active, CTLFLAG_RD, &VNET_NAME(ipfmain.ipf_active), 0, "IPF is active");
@@ -337,13 +343,14 @@ sysctl_ipf_int ( SYSCTL_HANDLER_ARGS )
 {
 	int error = 0;
 
+	WRITE_ENTER(&V_ipfmain.ipf_mutex);
 	if (arg1)
 		error = SYSCTL_OUT(req, arg1, sizeof(int));
 	else
 		error = SYSCTL_OUT(req, &arg2, sizeof(int));
 
 	if (error || !req->newptr)
-		return (error);
+		goto sysctl_error;
 
 	if (!arg1)
 		error = EPERM;
@@ -353,6 +360,9 @@ sysctl_ipf_int ( SYSCTL_HANDLER_ARGS )
 		else
 			error = SYSCTL_IN(req, arg1, sizeof(int));
 	}
+
+sysctl_error:
+	RWLOCK_EXIT(&V_ipfmain.ipf_mutex);
 	return (error);
 }
 

@@ -112,8 +112,8 @@ static int use_doorbell = 0;
 static int sbp_tags = 0;
 
 SYSCTL_DECL(_hw_firewire);
-static SYSCTL_NODE(_hw_firewire, OID_AUTO, sbp, CTLFLAG_RD, 0,
-	"SBP-II Subsystem");
+static SYSCTL_NODE(_hw_firewire, OID_AUTO, sbp, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "SBP-II Subsystem");
 SYSCTL_INT(_debug, OID_AUTO, sbp_debug, CTLFLAG_RWTUN, &debug, 0,
 	"SBP debug flag");
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, auto_login, CTLFLAG_RWTUN, &auto_login, 0,

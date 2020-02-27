@@ -320,25 +320,37 @@ struct domain inetdomain = {
 VNET_DOMAIN_SET(inet);
 #endif /* INET */
 
-SYSCTL_NODE(_net,      PF_INET,		inet,	CTLFLAG_RW, 0,
-	"Internet Family");
+SYSCTL_NODE(_net, PF_INET, inet, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Internet Family");
 
-SYSCTL_NODE(_net_inet, IPPROTO_IP,	ip,	CTLFLAG_RW, 0,	"IP");
-SYSCTL_NODE(_net_inet, IPPROTO_ICMP,	icmp,	CTLFLAG_RW, 0,	"ICMP");
-SYSCTL_NODE(_net_inet, IPPROTO_UDP,	udp,	CTLFLAG_RW, 0,	"UDP");
-SYSCTL_NODE(_net_inet, IPPROTO_TCP,	tcp,	CTLFLAG_RW, 0,	"TCP");
+SYSCTL_NODE(_net_inet, IPPROTO_IP, ip, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "IP");
+SYSCTL_NODE(_net_inet, IPPROTO_ICMP, icmp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "ICMP");
+SYSCTL_NODE(_net_inet, IPPROTO_UDP, udp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "UDP");
+SYSCTL_NODE(_net_inet, IPPROTO_TCP, tcp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "TCP");
 #ifdef SCTP
-SYSCTL_NODE(_net_inet, IPPROTO_SCTP,	sctp,	CTLFLAG_RW, 0,	"SCTP");
+SYSCTL_NODE(_net_inet, IPPROTO_SCTP, sctp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "SCTP");
 #endif
-SYSCTL_NODE(_net_inet, IPPROTO_IGMP,	igmp,	CTLFLAG_RW, 0,	"IGMP");
+SYSCTL_NODE(_net_inet, IPPROTO_IGMP, igmp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "IGMP");
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 /* XXX no protocol # to use, pick something "reserved" */
-SYSCTL_NODE(_net_inet, 253,		ipsec,	CTLFLAG_RW, 0,	"IPSEC");
-SYSCTL_NODE(_net_inet, IPPROTO_AH,	ah,	CTLFLAG_RW, 0,	"AH");
-SYSCTL_NODE(_net_inet, IPPROTO_ESP,	esp,	CTLFLAG_RW, 0,	"ESP");
-SYSCTL_NODE(_net_inet, IPPROTO_IPCOMP,	ipcomp,	CTLFLAG_RW, 0,	"IPCOMP");
-SYSCTL_NODE(_net_inet, IPPROTO_IPIP,	ipip,	CTLFLAG_RW, 0,	"IPIP");
+SYSCTL_NODE(_net_inet, 253, ipsec, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "IPSEC");
+SYSCTL_NODE(_net_inet, IPPROTO_AH, ah, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "AH");
+SYSCTL_NODE(_net_inet, IPPROTO_ESP, esp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "ESP");
+SYSCTL_NODE(_net_inet, IPPROTO_IPCOMP, ipcomp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "IPCOMP");
+SYSCTL_NODE(_net_inet, IPPROTO_IPIP, ipip, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "IPIP");
 #endif /* IPSEC */
-SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
-SYSCTL_NODE(_net_inet, OID_AUTO,	accf,	CTLFLAG_RW, 0,
+SYSCTL_NODE(_net_inet, IPPROTO_RAW, raw, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "RAW");
+SYSCTL_NODE(_net_inet, OID_AUTO, accf, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Accept filters");

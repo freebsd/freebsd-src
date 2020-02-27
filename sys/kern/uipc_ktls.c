@@ -87,9 +87,9 @@ static struct rmlock ktls_backends_lock;
 static uma_zone_t ktls_session_zone;
 static uint16_t ktls_cpuid_lookup[MAXCPU];
 
-SYSCTL_NODE(_kern_ipc, OID_AUTO, tls, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern_ipc, OID_AUTO, tls, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Kernel TLS offload");
-SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, stats, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, stats, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Kernel TLS offload stats");
 
 static int ktls_allow_unload;
@@ -162,12 +162,12 @@ static counter_u64_t ktls_switch_failed;
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, switch_failed, CTLFLAG_RD,
     &ktls_switch_failed, "TLS sessions unable to switch between SW and ifnet");
 
-SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, sw, CTLFLAG_RD, 0,
+SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, sw, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Software TLS session stats");
-SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, ifnet, CTLFLAG_RD, 0,
+SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, ifnet, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Hardware (ifnet) TLS session stats");
 #ifdef TCP_OFFLOAD
-SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, toe, CTLFLAG_RD, 0,
+SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, toe, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "TOE TLS session stats");
 #endif
 
@@ -1231,7 +1231,7 @@ ktls_seq(struct sockbuf *sb, struct mbuf *m)
  * encryption.  The returned value should be passed to ktls_enqueue
  * when scheduling encryption of this chain of mbufs.
  */
-int
+void
 ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
     uint8_t record_type)
 {
@@ -1250,10 +1250,8 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		 * records whose payload does not exceed the maximum
 		 * frame length.
 		 */
-		if (m->m_len > maxlen || m->m_len == 0)
-			return (EINVAL);
-		tls_len = m->m_len;
-
+		KASSERT(m->m_len <= maxlen && m->m_len > 0,
+		    ("ktls_frame: m %p len %d\n", m, m->m_len));
 		/*
 		 * TLS frames require unmapped mbufs to store session
 		 * info.
@@ -1261,6 +1259,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		KASSERT((m->m_flags & M_NOMAP) != 0,
 		    ("ktls_frame: mapped mbuf %p (top = %p)\n", m, top));
 
+		tls_len = m->m_len;
 		pgs = m->m_ext.ext_pgs;
 
 		/* Save a reference to the session. */
@@ -1346,7 +1345,6 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 			*enq_cnt += pgs->npgs;
 		}
 	}
-	return (0);
 }
 
 void

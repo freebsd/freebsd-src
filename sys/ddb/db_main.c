@@ -48,7 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_command.h>
 #include <ddb/db_sym.h>
 
-SYSCTL_NODE(_debug, OID_AUTO, ddb, CTLFLAG_RW, 0, "DDB settings");
+SYSCTL_NODE(_debug, OID_AUTO, ddb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "DDB settings");
 
 static dbbe_init_f db_init;
 static dbbe_trap_f db_trap;

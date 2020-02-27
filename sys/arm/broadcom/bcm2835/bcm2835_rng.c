@@ -403,14 +403,14 @@ bcm2835_rng_attach(device_t dev)
 	    "underrun", CTLFLAG_RD, &sc->sc_underrun,
 	    "Number of FIFO underruns");
 	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "2xspeed", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    "2xspeed", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 	    sysctl_bcm2835_rng_2xspeed, "I", "Enable RBG 2X SPEED");
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 	    "stall_count", CTLFLAG_RW, &sc->sc_stall_count,
 	    RNG_STALL_COUNT_DEFAULT, "Number of underruns to assume RNG stall");
 #ifdef BCM2835_RNG_DEBUG_REGISTERS
 	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "dumpregs", CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    "dumpregs", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
 	    sysctl_bcm2835_rng_dump, "S", "Dump RNG registers");
 #endif
 

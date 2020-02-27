@@ -263,13 +263,11 @@ oce_wq *oce_wq_init(POCE_SOFTC sc, uint32_t q_len, uint32_t wq_type)
 	LOCK_CREATE(&wq->tx_lock, "TX_lock");
 	LOCK_CREATE(&wq->tx_compl_lock, "WQ_HANDLER_LOCK");
 	
-#if __FreeBSD_version >= 800000
 	/* Allocate buf ring for multiqueue*/
 	wq->br = buf_ring_alloc(4096, M_DEVBUF,
 			M_WAITOK, &wq->tx_lock.mutex);
 	if (!wq->br)
 		goto free_wq;
-#endif
 	return wq;
 
 

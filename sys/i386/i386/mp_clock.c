@@ -81,8 +81,10 @@ sysctl_machdep_piix_freq(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, piix_freq, CTLTYPE_INT | CTLFLAG_RW,
-    0, sizeof(u_int), sysctl_machdep_piix_freq, "I", "");
+SYSCTL_PROC(_machdep, OID_AUTO, piix_freq,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(u_int),
+    sysctl_machdep_piix_freq, "I",
+    "");
 
 static unsigned
 piix_get_timecount(struct timecounter *tc)

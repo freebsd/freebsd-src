@@ -192,7 +192,7 @@ static void dumpresult(struct mwl_hal_priv *, int showresult);
 #endif /* MWLHAL_DEBUG */
 
 SYSCTL_DECL(_hw_mwl);
-static SYSCTL_NODE(_hw_mwl, OID_AUTO, hal, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw_mwl, OID_AUTO, hal, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Marvell HAL parameters");
 
 static __inline void

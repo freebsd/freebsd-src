@@ -66,45 +66,199 @@ __FBSDID("$FreeBSD$");
  * For the purposes of each send, what is the size
  * of an ethernet frame.
  */
-#ifndef ETHERNET_SEGMENT_SIZE
-#define ETHERNET_SEGMENT_SIZE 1500
-#endif
 MALLOC_DEFINE(M_TCPPACE, "tcp_hwpace", "TCP Hardware pacing memory");
 #ifdef RATELIMIT
 
+/*
+ * The following preferred table will seem weird to
+ * the casual viewer. Why do we not have any rates below
+ * 1Mbps? Why do we have a rate at 1.44Mbps called common?
+ * Why do the rates cluster in the 1-100Mbps range more
+ * than others? Why does the table jump around at the beginnign
+ * and then be more consistently raising?
+ *
+ * Let me try to answer those questions. A lot of
+ * this is dependant on the hardware. We have three basic
+ * supporters of rate limiting
+ *
+ * Chelsio - Supporting 16 configurable rates.
+ * Mlx  - c4 supporting 13 fixed rates.
+ * Mlx  - c5 & c6 supporting 127 configurable rates.
+ *
+ * The c4 is why we have a common rate that is available
+ * in all rate tables. This is a selected rate from the
+ * c4 table and we assure its available in all ratelimit
+ * tables. This way the tcp_ratelimit code has an assured
+ * rate it should always be able to get. This answers a
+ * couple of the questions above.
+ *
+ * So what about the rest, well the table is built to
+ * try to get the most out of a joint hardware/software
+ * pacing system.  The software pacer will always pick
+ * a rate higher than the b/w that it is estimating
+ *
+ * on the path. This is done for two reasons.
+ * a) So we can discover more b/w
+ * and
+ * b) So we can send a block of MSS's down and then
+ *    have the software timer go off after the previous
+ *    send is completely out of the hardware.
+ *
+ * But when we do <b> we don't want to have the delay
+ * between the last packet sent by the hardware be
+ * excessively long (to reach our desired rate).
+ *
+ * So let me give an example for clarity.
+ *
+ * Lets assume that the tcp stack sees that 29,110,000 bps is
+ * what the bw of the path is. The stack would select the
+ * rate 31Mbps. 31Mbps means that each send that is done
+ * by the hardware will cause a 390 micro-second gap between
+ * the packets sent at that rate. For 29,110,000 bps we
+ * would need 416 micro-seconds gap between each send.
+ *
+ * Note that are calculating a complete time for pacing
+ * which includes the ethernet, IP and TCP overhead. So
+ * a full 1514 bytes is used for the above calculations.
+ * My testing has shown that both cards are also using this
+ * as their basis i.e. full payload size of the ethernet frame.
+ * The TCP stack caller needs to be aware of this and make the
+ * appropriate overhead calculations be included in its choices.
+ *
+ * Now, continuing our example, we pick a MSS size based on the
+ * delta between the two rates (416 - 390) divided into the rate
+ * we really wish to send at rounded up.  That results in a MSS
+ * send of 17 mss's at once. The hardware then will
+ * run out of data in a single 17MSS send in 6,630 micro-seconds.
+ *
+ * On the other hand the software pacer will send more data
+ * in 7,072 micro-seconds. This means that we will refill
+ * the hardware 52 microseconds after it would have sent
+ * next if it had not ran out of data. This is a win since we are
+ * only sending every 7ms or so and yet all the packets are spaced on
+ * the wire with 94% of what they should be and only
+ * the last packet is delayed extra to make up for the
+ * difference.
+ *
+ * Note that the above formula has two important caveat.
+ * If we are above (b/w wise) over 100Mbps we double the result
+ * of the MSS calculation. The second caveat is if we are 500Mbps
+ * or more we just send the maximum MSS at once i.e. 45MSS. At
+ * the higher b/w's even the cards have limits to what times (timer granularity)
+ * they can insert between packets and start to send more than one
+ * packet at a time on the wire.
+ *
+ */
 #define COMMON_RATE 180500
-uint64_t desired_rates[] = {
-	62500,			/* 500Kbps */
-	180500,			/* 1.44Mpbs */
-	375000,			/* 3Mbps */
-	500000,			/* 4Mbps */
-	625000,			/* 5Mbps */
-	750000,			/* 6Mbps */
-	1000000,		/* 8Mbps */
-	1250000,		/* 10Mbps */
-	2500000,		/* 20Mbps */
-	3750000,		/* 30Mbps */
-	5000000,		/* 40Meg */
-	6250000,		/* 50Mbps */
-	12500000,		/* 100Mbps */
-	25000000,		/* 200Mbps */
-	50000000,		/* 400Mbps */
-	100000000,		/* 800Mbps */
-	12500,			/* 100kbps */
-	25000,			/* 200kbps */
-	875000,			/* 7Mbps */
-	1125000,		/* 9Mbps */
-	1875000,		/* 15Mbps */
-	3125000,		/* 25Mbps */
-	8125000,		/* 65Mbps */
-	10000000,		/* 80Mbps */
-	18750000,		/* 150Mbps */
-	20000000,		/* 250Mbps */
-	37500000,		/* 350Mbps */
-	62500000,		/* 500Mbps */
-	78125000,		/* 625Mbps */
-	125000000,		/* 1Gbps */
+const uint64_t desired_rates[] = {
+	122500,			/* 1Mbps  - rate 1 */
+	180500,			/* 1.44Mpbs - rate 2  common rate */
+	375000,			/* 3Mbps    - rate 3 */
+	625000,			/* 5Mbps    - rate 4 */
+	875000,			/* 7Mbps    - rate 5 */
+	1125000,		/* 9Mbps    - rate 6 */
+	1375000,		/* 11Mbps   - rate 7 */
+	1625000,	       	/* 13Mbps   - rate 8 */
+	2625000,		/* 21Mbps   - rate 9 */
+	3875000,		/* 31Mbps   - rate 10 */
+	5125000,		/* 41Meg    - rate 11 */
+	12500000,		/* 100Mbps  - rate 12 */
+	25000000,		/* 200Mbps  - rate 13 */
+	50000000,		/* 400Mbps  - rate 14 */
+	63750000,		/* 51Mbps   - rate 15 */
+	100000000,		/* 800Mbps  - rate 16 */
+	1875000,		/* 15Mbps   - rate 17 */
+	2125000,		/* 17Mbps   - rate 18 */
+	2375000,		/* 19Mbps   - rate 19 */
+	2875000,		/* 23Mbps   - rate 20 */
+	3125000,		/* 25Mbps   - rate 21 */
+	3375000,		/* 27Mbps   - rate 22 */
+	3625000,		/* 29Mbps   - rate 23 */
+	4125000,		/* 33Mbps   - rate 24 */
+	4375000,		/* 35Mbps   - rate 25 */
+	4625000,		/* 37Mbps   - rate 26 */
+	4875000,		/* 39Mbps   - rate 27 */
+	5375000,		/* 43Mbps   - rate 28 */
+	5625000,		/* 45Mbps   - rate 29 */
+	5875000,		/* 47Mbps   - rate 30 */
+	6125000,		/* 49Mbps   - rate 31 */
+	6625000,		/* 53Mbps   - rate 32 */
+	6875000,		/* 55Mbps   - rate 33 */
+	7125000,		/* 57Mbps   - rate 34 */
+	7375000,		/* 59Mbps   - rate 35 */
+	7625000,		/* 61Mbps   - rate 36 */
+	7875000,		/* 63Mbps   - rate 37 */
+	8125000,		/* 65Mbps   - rate 38 */
+	8375000,		/* 67Mbps   - rate 39 */
+	8625000,		/* 69Mbps   - rate 40 */
+	8875000,		/* 71Mbps   - rate 41 */
+	9125000,		/* 73Mbps   - rate 42 */
+	9375000,		/* 75Mbps   - rate 43 */
+	9625000,		/* 77Mbps   - rate 44 */
+	9875000,		/* 79Mbps   - rate 45 */
+	10125000,		/* 81Mbps   - rate 46 */
+	10375000,		/* 83Mbps   - rate 47 */
+	10625000,		/* 85Mbps   - rate 48 */
+	10875000,		/* 87Mbps   - rate 49 */
+	11125000,		/* 89Mbps   - rate 50 */
+	11375000,		/* 91Mbps   - rate 51 */
+	11625000,		/* 93Mbps   - rate 52 */
+	11875000,		/* 95Mbps   - rate 53 */
+	13125000,		/* 105Mbps  - rate 54 */
+	13750000,		/* 110Mbps  - rate 55 */
+	14375000,		/* 115Mbps  - rate 56 */
+	15000000,		/* 120Mbps  - rate 57 */
+	15625000,		/* 125Mbps  - rate 58 */
+	16250000,		/* 130Mbps  - rate 59 */
+	16875000,		/* 135Mbps  - rate 60 */
+	17500000,		/* 140Mbps  - rate 61 */
+	18125000,		/* 145Mbps  - rate 62 */
+	18750000,		/* 150Mbps  - rate 64 */
+	20000000,		/* 160Mbps  - rate 65 */
+	21250000,		/* 170Mbps  - rate 66 */
+	22500000,		/* 180Mbps  - rate 67 */
+	23750000,		/* 190Mbps  - rate 68 */
+	26250000,		/* 210Mbps  - rate 69 */
+	27500000,		/* 220Mbps  - rate 70 */
+	28750000,		/* 230Mbps  - rate 71 */
+	30000000,	       	/* 240Mbps  - rate 72 */
+	31250000,		/* 250Mbps  - rate 73 */
+	34375000,		/* 275Mbps  - rate 74 */
+	37500000,		/* 300Mbps  - rate 75 */
+	40625000,		/* 325Mbps  - rate 76 */
+	43750000,		/* 350Mbps  - rate 77 */
+	46875000,		/* 375Mbps  - rate 78 */
+	53125000,		/* 425Mbps  - rate 79 */
+	56250000,		/* 450Mbps  - rate 80 */
+	59375000,		/* 475Mbps  - rate 81 */
+	62500000,		/* 500Mbps  - rate 82 */
+	68750000,		/* 550Mbps  - rate 83 */
+	75000000,		/* 600Mbps  - rate 84 */
+	81250000,		/* 650Mbps  - rate 85 */
+	87500000,		/* 700Mbps  - rate 86 */
+	93750000,		/* 750Mbps  - rate 87 */
+	106250000,		/* 850Mbps  - rate 88 */
+	112500000,		/* 900Mbps  - rate 89 */
+	125000000,		/* 1Gbps    - rate 90 */
+	156250000,		/* 1.25Gps  - rate 91 */
+	187500000,		/* 1.5Gps   - rate 92 */
+	218750000,		/* 1.75Gps  - rate 93 */
+	250000000,		/* 2Gbps    - rate 94 */
+	281250000,		/* 2.25Gps  - rate 95 */
+	312500000,		/* 2.5Gbps  - rate 96 */
+	343750000,		/* 2.75Gbps - rate 97 */
+	375000000,		/* 3Gbps    - rate 98 */
+	500000000,		/* 4Gbps    - rate 99 */
+	625000000,		/* 5Gbps    - rate 100 */
+	750000000,		/* 6Gbps    - rate 101 */
+	875000000,		/* 7Gbps    - rate 102 */
+	1000000000,		/* 8Gbps    - rate 103 */
+	1125000000,		/* 9Gbps    - rate 104 */
+	1250000000,		/* 10Gbps   - rate 105 */
+	1875000000,		/* 15Gbps   - rate 106 */
+	2500000000		/* 20Gbps   - rate 107 */
 };
+
 #define MAX_HDWR_RATES (sizeof(desired_rates)/sizeof(uint64_t))
 #define RS_ORDERED_COUNT 16	/*
 				 * Number that are in order
@@ -131,7 +285,7 @@ static struct mtx rs_mtx;
 uint32_t rs_number_alive;
 uint32_t rs_number_dead;
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, rl, CTLFLAG_RW, 0,
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, rl, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Ratelimit stats");
 SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, alive, CTLFLAG_RW,
     &rs_number_alive, 0,
@@ -205,7 +359,7 @@ rl_add_syctl_entries(struct sysctl_oid *rl_sysctl_root, struct tcp_rate_set *rs)
 					    SYSCTL_CHILDREN(rl_sysctl_root),
 					    OID_AUTO,
 					    "rate",
-					    CTLFLAG_RW, 0,
+					    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 					    "Ratelist");
 		for( i = 0; i < rs->rs_rate_cnt; i++) {
 			sprintf(rate_num, "%d", i);
@@ -213,7 +367,7 @@ rl_add_syctl_entries(struct sysctl_oid *rl_sysctl_root, struct tcp_rate_set *rs)
 					    SYSCTL_CHILDREN(rl_rates),
 					    OID_AUTO,
 					    rate_num,
-					    CTLFLAG_RW, 0,
+					    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 					    "Individual Rate");
 			SYSCTL_ADD_U32(&rs->sysctl_ctx,
 				       SYSCTL_CHILDREN(rl_rate_num),
@@ -381,14 +535,18 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		 * We can do nothing if we cannot
 		 * get a query back from the driver.
 		 */
+		printf("Warning:No query functions for %s:%d-- failed\n",
+		       ifp->if_dname, ifp->if_dunit);
 		return (NULL);
 	}
 	rs = malloc(sizeof(struct tcp_rate_set), M_TCPPACE, M_NOWAIT | M_ZERO);
 	if (rs == NULL) {
 		if (error)
 			*error = ENOMEM;
+		printf("Warning:No memory for malloc of tcp_rate_set\n");
 		return (NULL);
 	}
+	memset(&rl, 0, sizeof(rl));
 	rl.flags = RT_NOSUPPORT;
 	ifp->if_ratelimit_query(ifp, &rl);
 	if (rl.flags & RT_IS_UNUSABLE) {
@@ -407,7 +565,7 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		    SYSCTL_STATIC_CHILDREN(_net_inet_tcp_rl),
 		    OID_AUTO,
 		    rs->rs_ifp->if_xname,
-		    CTLFLAG_RW, 0,
+		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		    "");
 		rl_add_syctl_entries(rl_sysctl_root, rs);
 		mtx_lock(&rs_mtx);
@@ -425,7 +583,7 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		    SYSCTL_STATIC_CHILDREN(_net_inet_tcp_rl),
 		    OID_AUTO,
 		    rs->rs_ifp->if_xname,
-		    CTLFLAG_RW, 0,
+		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		    "");
 		rl_add_syctl_entries(rl_sysctl_root, rs);
 		mtx_lock(&rs_mtx);
@@ -433,7 +591,7 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		mtx_unlock(&rs_mtx);
 		return (rs);
 	} else if ((rl.flags & RT_IS_FIXED_TABLE) == RT_IS_FIXED_TABLE) {
-		/* Mellanox most likely */
+		/* Mellanox C4 likely */
 		rs->rs_ifp = ifp;
 		rs->rs_if_dunit = ifp->if_dunit;
 		rs->rs_rate_cnt = rl.number_of_rates;
@@ -444,7 +602,7 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		rs->rs_disable = 0;
 		rate_table_act = rl.rate_table;
 	} else if ((rl.flags & RT_IS_SELECTABLE) == RT_IS_SELECTABLE) {
-		/* Chelsio */
+		/* Chelsio, C5 and C6 of Mellanox? */
 		rs->rs_ifp = ifp;
 		rs->rs_if_dunit = ifp->if_dunit;
 		rs->rs_rate_cnt = rl.number_of_rates;
@@ -467,9 +625,6 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		if (rs->rs_rate_cnt >= ALL_HARDWARE_RATES)
 			rs->rs_rate_cnt = ALL_HARDWARE_RATES;
 	} else {
-		printf("Interface:%s unit:%d not one known to have rate-limits\n",
-		    ifp->if_dname,
-		    ifp->if_dunit);
 		free(rs, M_TCPPACE);
 		return (NULL);
 	}
@@ -536,6 +691,14 @@ bail:
 			rs->rs_lowest_valid = i;
 		} else {
 			int err;
+
+			if ((rl.flags & RT_IS_SETUP_REQ)  &&
+			    (ifp->if_ratelimit_query)) {
+				err = ifp->if_ratelimit_setup(ifp,
+  				         rs->rs_rlt[i].rate, i);
+				if (err)
+					goto handle_err;
+			}
 #ifdef RSS
 			hash_type = M_HASHTYPE_RSS_TCP_IPV4;
 #else
@@ -547,6 +710,7 @@ bail:
 			    rs->rs_rlt[i].rate,
 			    &rs->rs_rlt[i].tag);
 			if (err) {
+handle_err:
 				if (i == (rs->rs_rate_cnt - 1)) {
 					/*
 					 * Huh - first rate and we can't get
@@ -580,7 +744,7 @@ bail:
 	    SYSCTL_STATIC_CHILDREN(_net_inet_tcp_rl),
 	    OID_AUTO,
 	    rs->rs_ifp->if_xname,
-	    CTLFLAG_RW, 0,
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "");
 	rl_add_syctl_entries(rl_sysctl_root, rs);
 	mtx_lock(&rs_mtx);
@@ -1087,6 +1251,7 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 			*error = EINVAL;
 		rte = NULL;
 	}
+	*error = 0;
 	return (rte);
 }
 
@@ -1194,6 +1359,120 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 		mtx_unlock(&rs_mtx);
 	}
 	in_pcbdetach_txrtlmt(tp->t_inpcb);
+}
+
+#define ONE_POINT_TWO_MEG 150000 /* 1.2 megabits in bytes */
+#define ONE_HUNDRED_MBPS 12500000	/* 100Mbps in bytes per second */
+#define FIVE_HUNDRED_MBPS 62500000	/* 500Mbps in bytes per second */
+#define MAX_MSS_SENT 43	/* 43 mss = 43 x 1500 = 64,500 bytes */
+
+
+uint32_t
+tcp_get_pacing_burst_size (uint64_t bw, uint32_t segsiz, int can_use_1mss,
+   const struct tcp_hwrate_limit_table *te, int *err)
+{
+	/*
+	 * We use the google formula to calculate the
+	 * TSO size. I.E.
+	 * bw < 24Meg
+	 *   tso = 2mss
+	 * else
+	 *   tso = min(bw/1000, 64k)
+	 *
+	 * Note for these calculations we ignore the
+	 * packet overhead (enet hdr, ip hdr and tcp hdr).
+	 */
+	uint64_t lentim, res, bytes;
+	uint32_t new_tso, min_tso_segs;
+
+	bytes = bw / 1000;
+	if (bytes > (64 * 1000))
+		bytes = 64 * 1000;
+	/* Round up */
+	new_tso = (bytes + segsiz - 1) / segsiz;
+	if (can_use_1mss && (bw < ONE_POINT_TWO_MEG))
+		min_tso_segs = 1;
+	else
+		min_tso_segs = 2;
+	if (new_tso < min_tso_segs)
+		new_tso = min_tso_segs;
+	if (new_tso > MAX_MSS_SENT)
+		new_tso = MAX_MSS_SENT;
+	new_tso *= segsiz;
+	/*
+	 * If we are not doing hardware pacing
+	 * then we are done.
+	 */
+	if (te == NULL) {
+		if (err)
+			*err = 0;
+		return(new_tso);
+	}
+	/*
+	 * For hardware pacing we look at the
+	 * rate you are sending at and compare
+	 * that to the rate you have in hardware.
+	 *
+	 * If the hardware rate is slower than your
+	 * software rate then you are in error and
+	 * we will build a queue in our hardware whic
+	 * is probably not desired, in such a case
+	 * just return the non-hardware TSO size.
+	 *
+	 * If the rate in hardware is faster (which
+	 * it should be) then look at how long it
+	 * takes to send one ethernet segment size at
+	 * your b/w and compare that to the time it
+	 * takes to send at the rate you had selected.
+	 *
+	 * If your time is greater (which we hope it is)
+	 * we get the delta between the two, and then
+	 * divide that into your pacing time. This tells
+	 * us how many MSS you can send down at once (rounded up).
+	 *
+	 * Note we also double this value if the b/w is over
+	 * 100Mbps. If its over 500meg we just set you to the
+	 * max (43 segments).
+	 */
+	if (te->rate > FIVE_HUNDRED_MBPS)
+		return (segsiz * MAX_MSS_SENT);
+	if (te->rate == bw) {
+		/* We are pacing at exactly the hdwr rate */
+		return (segsiz * MAX_MSS_SENT);
+	}
+	lentim = ETHERNET_SEGMENT_SIZE * USECS_IN_SECOND;
+	res = lentim / bw;
+	if (res > te->time_between) {
+		uint32_t delta, segs;
+
+		delta = res - te->time_between;
+		segs = (res + delta - 1)/delta;
+		if (te->rate > ONE_HUNDRED_MBPS)
+			segs *= 2;
+		if (segs < min_tso_segs)
+			segs = min_tso_segs;
+		if (segs > MAX_MSS_SENT)
+			segs = MAX_MSS_SENT;
+		segs *= segsiz;
+		if (err)
+			*err = 0;
+		if (segs < new_tso) {
+			/* unexpected ? */
+			return(new_tso);
+		} else {
+			return (segs);
+		}
+	} else {
+		/*
+		 * Your time is smaller which means
+		 * we will grow a queue on our
+		 * hardware. Send back the non-hardware
+		 * rate.
+		 */
+		if (err)
+			*err = -1;
+		return (new_tso);
+	}
 }
 
 static eventhandler_tag rl_ifnet_departs;

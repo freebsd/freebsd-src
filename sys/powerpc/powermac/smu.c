@@ -379,8 +379,8 @@ smu_attach(device_t dev)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
             SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "server_mode", CTLTYPE_INT | CTLFLAG_RW, dev, 0,
-	    smu_server_mode, "I", "Enable reboot after power failure");
+	    "server_mode", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, dev,
+	    0, smu_server_mode, "I", "Enable reboot after power failure");
 
 	/*
 	 * Set up doorbell interrupt.
@@ -1022,7 +1022,7 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 	ctx = device_get_sysctl_ctx(dev);
 	fanroot_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "fans",
-	    CTLFLAG_RD, 0, "SMU Fan Information");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "SMU Fan Information");
 
 	/* Add sysctls */
 	for (i = 0; i < sc->sc_nfans; i++) {
@@ -1035,9 +1035,9 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 		sysctl_name[j] = 0;
 		if (fan->type == SMU_FAN_RPM) {
 			oid = SYSCTL_ADD_NODE(ctx,
-					      SYSCTL_CHILDREN(fanroot_oid),
-					      OID_AUTO, sysctl_name,
-					      CTLFLAG_RD, 0, "Fan Information");
+			    SYSCTL_CHILDREN(fanroot_oid), OID_AUTO,
+			    sysctl_name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+			    "Fan Information");
 			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 				       "minrpm", CTLFLAG_RD,
 				       &fan->fan.min_rpm, 0,
@@ -1056,9 +1056,9 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 
 		} else {
 			oid = SYSCTL_ADD_NODE(ctx,
-					      SYSCTL_CHILDREN(fanroot_oid),
-					      OID_AUTO, sysctl_name,
-					      CTLFLAG_RD, 0, "Fan Information");
+			    SYSCTL_CHILDREN(fanroot_oid), OID_AUTO,
+			        sysctl_name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+				"Fan Information");
 			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 				       "minpwm", CTLFLAG_RD,
 				       &fan->fan.min_rpm, 0,
@@ -1205,7 +1205,7 @@ smu_attach_sensors(device_t dev, phandle_t sensroot)
 	ctx = device_get_sysctl_ctx(dev);
 	sensroot_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "sensors",
-	    CTLFLAG_RD, 0, "SMU Sensor Information");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "SMU Sensor Information");
 
 	for (child = OF_child(sensroot); child != 0; child = OF_peer(child)) {
 		char sysctl_name[40], sysctl_desc[40];

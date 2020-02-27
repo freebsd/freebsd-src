@@ -535,16 +535,17 @@ logl(long double x)
 	 * efficiency than is gained.
 	 */
 	/*
-	 * Use double precision operations wherever possible, since long
-	 * double operations are emulated and are very slow on the only
-	 * known machines that support ld128 (sparc64).  Also, don't try
-	 * to improve parallelism by increasing the number of operations,
-	 * since any parallelism on such machines is needed for the
-	 * emulation.  Horner's method is good for this, and is also good
-	 * for accuracy.  Horner's method doesn't handle the `lo' term
-	 * well, either for efficiency or accuracy.  However, for accuracy
-	 * we evaluate d * d * P2 separately to take advantage of
-	 * by P2 being exact, and this gives a good place to sum the 'lo'
+	 * Use double precision operations wherever possible, since
+	 * long double operations are emulated and were very slow on
+	 * the old sparc64 and unknown on the newer aarch64 and riscv
+	 * machines.  Also, don't try to improve parallelism by
+	 * increasing the number of operations, since any parallelism
+	 * on such machines is needed for the emulation.  Horner's
+	 * method is good for this, and is also good for accuracy.
+	 * Horner's method doesn't handle the `lo' term well, either
+	 * for efficiency or accuracy.  However, for accuracy we
+	 * evaluate d * d * P2 separately to take advantage of by P2
+	 * being exact, and this gives a good place to sum the 'lo'
 	 * term too.
 	 */
 	dd = (double)d;

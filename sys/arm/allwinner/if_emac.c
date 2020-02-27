@@ -923,7 +923,8 @@ emac_attach(device_t dev)
 	/* Create device sysctl node. */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "process_limit", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "process_limit",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    &sc->emac_rx_process_limit, 0, sysctl_hw_emac_proc_limit, "I",
 	    "max number of Rx events to process");
 

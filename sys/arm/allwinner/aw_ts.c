@@ -204,7 +204,8 @@ aw_ts_attach(device_t dev)
 	/* Add sysctl */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD,
+	    OID_AUTO, "temperature",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    &sc->temp_data, 0, sysctl_handle_int,
 	    "IK3", "CPU Temperature");
 

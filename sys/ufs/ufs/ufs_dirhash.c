@@ -90,7 +90,8 @@ SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_lowmemcount, CTLFLAG_RD,
 static int ufs_dirhashreclaimpercent = 10;
 static int ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vfs_ufs, OID_AUTO, dirhash_reclaimpercent,
-    CTLTYPE_INT | CTLFLAG_RW, 0, 0, ufsdirhash_set_reclaimpercent, "I",
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    0, 0, ufsdirhash_set_reclaimpercent, "I",
     "set percentage of dirhash cache to be removed in low VM events");
 
 

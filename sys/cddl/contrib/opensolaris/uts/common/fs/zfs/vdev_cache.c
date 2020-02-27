@@ -90,7 +90,8 @@ int zfs_vdev_cache_bshift = 16;
 #define	VCBS (1 << zfs_vdev_cache_bshift)	/* 64KB */
 
 SYSCTL_DECL(_vfs_zfs_vdev);
-SYSCTL_NODE(_vfs_zfs_vdev, OID_AUTO, cache, CTLFLAG_RW, 0, "ZFS VDEV Cache");
+SYSCTL_NODE(_vfs_zfs_vdev, OID_AUTO, cache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "ZFS VDEV Cache");
 SYSCTL_INT(_vfs_zfs_vdev_cache, OID_AUTO, max, CTLFLAG_RDTUN,
     &zfs_vdev_cache_max, 0, "Maximum I/O request size that increase read size");
 SYSCTL_INT(_vfs_zfs_vdev_cache, OID_AUTO, size, CTLFLAG_RDTUN,

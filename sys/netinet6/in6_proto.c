@@ -424,19 +424,25 @@ VNET_DEFINE(int, icmp6_nodeinfo_oldmcprefix) = 1;
 /*
  * sysctl related items.
  */
-SYSCTL_NODE(_net,	PF_INET6,	inet6,	CTLFLAG_RW,	0,
-	"Internet6 Family");
+SYSCTL_NODE(_net, PF_INET6, inet6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Internet6 Family");
 
 /* net.inet6 */
-SYSCTL_NODE(_net_inet6,	IPPROTO_IPV6,	ip6,	CTLFLAG_RW, 0,	"IP6");
-SYSCTL_NODE(_net_inet6,	IPPROTO_ICMPV6,	icmp6,	CTLFLAG_RW, 0,	"ICMP6");
-SYSCTL_NODE(_net_inet6,	IPPROTO_UDP,	udp6,	CTLFLAG_RW, 0,	"UDP6");
-SYSCTL_NODE(_net_inet6,	IPPROTO_TCP,	tcp6,	CTLFLAG_RW, 0,	"TCP6");
+SYSCTL_NODE(_net_inet6,	IPPROTO_IPV6, ip6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "IP6");
+SYSCTL_NODE(_net_inet6,	IPPROTO_ICMPV6, icmp6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "ICMP6");
+SYSCTL_NODE(_net_inet6,	IPPROTO_UDP, udp6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "UDP6");
+SYSCTL_NODE(_net_inet6,	IPPROTO_TCP, tcp6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "TCP6");
 #ifdef SCTP
-SYSCTL_NODE(_net_inet6,	IPPROTO_SCTP,	sctp6,	CTLFLAG_RW, 0,	"SCTP6");
+SYSCTL_NODE(_net_inet6,	IPPROTO_SCTP, sctp6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "SCTP6");
 #endif
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
-SYSCTL_NODE(_net_inet6,	IPPROTO_ESP,	ipsec6,	CTLFLAG_RW, 0,	"IPSEC6");
+SYSCTL_NODE(_net_inet6,	IPPROTO_ESP, ipsec6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "IPSEC6");
 #endif /* IPSEC */
 
 /* net.inet6.ip6 */
@@ -528,11 +534,11 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USETEMPADDR, use_tempaddr,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_use_tempaddr), 0,
 	"Create RFC3041 temporary addresses for autoconfigured addresses");
 SYSCTL_PROC(_net_inet6_ip6, IPV6CTL_TEMPPLTIME, temppltime,
-	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW,
+	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	NULL, 0, sysctl_ip6_temppltime, "I",
 	"Maximum preferred lifetime for temporary addresses");
 SYSCTL_PROC(_net_inet6_ip6, IPV6CTL_TEMPVLTIME, tempvltime,
-	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW,
+	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	NULL, 0, sysctl_ip6_tempvltime, "I",
 	"Maximum valid lifetime for temporary addresses");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_V6ONLY, v6only,

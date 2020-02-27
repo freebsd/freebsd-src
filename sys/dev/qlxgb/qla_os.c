@@ -151,10 +151,9 @@ qla_add_sysctls(qla_host_t *ha)
         device_t dev = ha->pci_dev;
 
         SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-                OID_AUTO, "stats", CTLTYPE_INT | CTLFLAG_RD,
-                (void *)ha, 0,
-                qla_sysctl_get_stats, "I", "Statistics");
+            SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+            OID_AUTO, "stats", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    (void *)ha, 0, qla_sysctl_get_stats, "I", "Statistics");
 
 	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),

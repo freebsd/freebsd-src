@@ -576,8 +576,9 @@ sysctl_enable_ioat_test(SYSCTL_HANDLER_ARGS)
 	enable_ioat_test(enabled);
 	return (0);
 }
-SYSCTL_PROC(_hw_ioat, OID_AUTO, enable_ioat_test, CTLTYPE_INT | CTLFLAG_RW,
-    0, 0, sysctl_enable_ioat_test, "I",
+SYSCTL_PROC(_hw_ioat, OID_AUTO, enable_ioat_test,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0,
+    sysctl_enable_ioat_test, "I",
     "Non-zero: Enable the /dev/ioat_test device");
 
 void

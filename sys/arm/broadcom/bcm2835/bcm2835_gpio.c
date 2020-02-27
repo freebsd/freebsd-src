@@ -594,14 +594,14 @@ bcm_gpio_sysctl_init(struct bcm_gpio_softc *sc)
  	tree_node = device_get_sysctl_tree(sc->sc_dev);
  	tree = SYSCTL_CHILDREN(tree_node);
 	pin_node = SYSCTL_ADD_NODE(ctx, tree, OID_AUTO, "pin",
-	    CTLFLAG_RD, NULL, "GPIO Pins");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "GPIO Pins");
 	pin_tree = SYSCTL_CHILDREN(pin_node);
 
 	for (i = 0; i < sc->sc_gpio_npins; i++) {
 
 		snprintf(pinbuf, sizeof(pinbuf), "%d", i);
 		pinN_node = SYSCTL_ADD_NODE(ctx, pin_tree, OID_AUTO, pinbuf,
-		    CTLFLAG_RD, NULL, "GPIO Pin");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "GPIO Pin");
 		pinN_tree = SYSCTL_CHILDREN(pinN_node);
 
 		sc->sc_sysctl[i].sc = sc;
@@ -609,7 +609,7 @@ bcm_gpio_sysctl_init(struct bcm_gpio_softc *sc)
 		sc_sysctl->sc = sc;
 		sc_sysctl->pin = sc->sc_gpio_pins[i].gp_pin;
 		SYSCTL_ADD_PROC(ctx, pinN_tree, OID_AUTO, "function",
-		    CTLFLAG_RW | CTLTYPE_STRING, sc_sysctl,
+		    CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_NEEDGIANT, sc_sysctl,
 		    sizeof(struct bcm_gpio_sysctl), bcm_gpio_func_proc,
 		    "A", "Pin Function");
 	}

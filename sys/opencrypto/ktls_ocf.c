@@ -60,7 +60,8 @@ static MALLOC_DEFINE(M_KTLS_OCF, "ktls_ocf", "OCF KTLS");
 SYSCTL_DECL(_kern_ipc_tls);
 SYSCTL_DECL(_kern_ipc_tls_stats);
 
-static SYSCTL_NODE(_kern_ipc_tls_stats, OID_AUTO, ocf, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_kern_ipc_tls_stats, OID_AUTO, ocf,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Kernel TLS offload via OCF stats");
 
 static counter_u64_t ocf_tls12_gcm_crypts;

@@ -613,7 +613,7 @@ vtbe_attach(device_t dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX |
-			 IFF_MULTICAST | IFF_PROMISC | IFF_NEEDSEPOCH);
+			 IFF_MULTICAST | IFF_PROMISC);
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_start = vtbe_txstart;

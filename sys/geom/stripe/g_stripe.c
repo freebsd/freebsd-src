@@ -71,7 +71,7 @@ struct g_class g_stripe_class = {
 };
 
 SYSCTL_DECL(_kern_geom);
-static SYSCTL_NODE(_kern_geom, OID_AUTO, stripe, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom, OID_AUTO, stripe, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_STRIPE stuff");
 static u_int g_stripe_debug = 0;
 SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RWTUN, &g_stripe_debug, 0,
@@ -88,8 +88,10 @@ g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
 		g_stripe_fast = fast;
 	return (error);
 }
-SYSCTL_PROC(_kern_geom_stripe, OID_AUTO, fast, CTLTYPE_INT | CTLFLAG_RWTUN,
-    NULL, 0, g_sysctl_stripe_fast, "I", "Fast, but memory-consuming, mode");
+SYSCTL_PROC(_kern_geom_stripe, OID_AUTO, fast,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, NULL, 0,
+    g_sysctl_stripe_fast, "I",
+    "Fast, but memory-consuming, mode");
 static u_int g_stripe_maxmem = MAXPHYS * 100;
 SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, maxmem, CTLFLAG_RDTUN, &g_stripe_maxmem,
     0, "Maximum memory that can be allocated in \"fast\" mode (in bytes)");

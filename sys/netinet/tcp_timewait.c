@@ -169,7 +169,8 @@ sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 

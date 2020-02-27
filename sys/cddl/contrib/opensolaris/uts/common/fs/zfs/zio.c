@@ -48,7 +48,8 @@
 #include <sys/cityhash.h>
 
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_NODE(_vfs_zfs, OID_AUTO, zio, CTLFLAG_RW, 0, "ZFS ZIO");
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, zio, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 
+    "ZFS ZIO");
 #if defined(__amd64__)
 static int zio_use_uma = 1;
 #else

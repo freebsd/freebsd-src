@@ -446,7 +446,7 @@ msr_onfault:
 	ret
 
 ENTRY(handle_ibrs_entry)
-	cmpb	$0,hw_ibrs_active
+	cmpb	$0,hw_ibrs_ibpb_active
 	je	1f
 	movl	$MSR_IA32_SPEC_CTRL,%ecx
 	rdmsr

@@ -166,9 +166,12 @@ kerntest_frwk_fini(void)
 
 static int kerntest_execute(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_NODE(_kern, OID_AUTO, testfrwk, CTLFLAG_RW, 0, "Kernel Test Framework");
-SYSCTL_PROC(_kern_testfrwk, OID_AUTO, runtest, (CTLTYPE_STRUCT | CTLFLAG_RW),
-    0, 0, kerntest_execute, "IU", "Execute a kernel test");
+SYSCTL_NODE(_kern, OID_AUTO, testfrwk, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Kernel Test Framework");
+SYSCTL_PROC(_kern_testfrwk, OID_AUTO, runtest,
+    CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    0, 0, kerntest_execute, "IU",
+    "Execute a kernel test");
 
 int
 kerntest_execute(SYSCTL_HANDLER_ARGS)

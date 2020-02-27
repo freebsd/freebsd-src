@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/malo/if_malo.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, malo, CTLFLAG_RD, 0,
+SYSCTL_NODE(_hw, OID_AUTO, malo, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Marvell 88w8335 driver parameters");
 
 static	int malo_txcoalesce = 8;	/* # tx pkts to q before poking f/w*/

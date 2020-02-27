@@ -238,7 +238,8 @@ static SLIST_HEAD(, uld_info) t3_uld_list;
  */
 static int msi_allowed = 2;
 
-SYSCTL_NODE(_hw, OID_AUTO, cxgb, CTLFLAG_RD, 0, "CXGB driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, cxgb, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "CXGB driver parameters");
 SYSCTL_INT(_hw_cxgb, OID_AUTO, msi_allowed, CTLFLAG_RDTUN, &msi_allowed, 0,
     "MSI-X, MSI, INTx selector");
 

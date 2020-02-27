@@ -68,7 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/usbd_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, ndisusb, CTLFLAG_RD, 0, "NDIS USB driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, ndisusb, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "NDIS USB driver parameters");
 
 MODULE_DEPEND(ndis, usb, 1, 1, 1);
 

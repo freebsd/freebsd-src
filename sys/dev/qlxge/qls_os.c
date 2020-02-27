@@ -280,10 +280,10 @@ qls_add_sysctls(qla_host_t *ha)
                 &qls_dbg_level, qls_dbg_level, "Debug Level");
 
         SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-                OID_AUTO, "drvr_stats", CTLTYPE_INT | CTLFLAG_RW,
-                (void *)ha, 0,
-                qls_sysctl_get_drvr_stats, "I", "Driver Maintained Statistics");
+            SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+            OID_AUTO, "drvr_stats",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, (void *)ha, 0,
+	    qls_sysctl_get_drvr_stats, "I", "Driver Maintained Statistics");
 
         return;
 }

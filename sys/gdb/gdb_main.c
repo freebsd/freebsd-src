@@ -44,7 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <gdb/gdb.h>
 #include <gdb/gdb_int.h>
 
-SYSCTL_NODE(_debug, OID_AUTO, gdb, CTLFLAG_RW, 0, "GDB settings");
+SYSCTL_NODE(_debug, OID_AUTO, gdb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "GDB settings");
 
 static dbbe_init_f gdb_init;
 static dbbe_trap_f gdb_trap;
