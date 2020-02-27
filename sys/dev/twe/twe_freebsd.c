@@ -202,7 +202,7 @@ twe_attach(device_t dev)
      */
     sysctl_tree = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 	SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
-	device_get_nameunit(dev), CTLFLAG_RD, 0, "");
+	device_get_nameunit(dev), CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
     if (sysctl_tree == NULL) {
 	twe_printf(sc, "cannot add sysctl tree node\n");
 	return (ENXIO);

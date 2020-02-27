@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-static SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Broadcom driver parameters");
 
 /*

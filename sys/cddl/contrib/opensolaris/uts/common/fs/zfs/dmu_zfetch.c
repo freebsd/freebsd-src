@@ -57,7 +57,8 @@ uint64_t	zfetch_array_rd_sz = 1024 * 1024;
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, prefetch_disable, CTLFLAG_RW,
     &zfs_prefetch_disable, 0, "Disable prefetch");
-SYSCTL_NODE(_vfs_zfs, OID_AUTO, zfetch, CTLFLAG_RW, 0, "ZFS ZFETCH");
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, zfetch, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "ZFS ZFETCH");
 SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, max_streams, CTLFLAG_RWTUN,
     &zfetch_max_streams, 0, "Max # of streams per zfetch");
 SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, min_sec_reap, CTLFLAG_RWTUN,

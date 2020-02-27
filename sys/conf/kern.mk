@@ -139,14 +139,23 @@ INLINE_LIMIT?=	8000
 
 #
 # For RISC-V we specify the soft-float ABI (lp64) to avoid the use of floating
-# point registers within the kernel. We also specify the "medium" code model,
-# which generates code suitable for a 2GiB addressing range located at any
-# offset, allowing modules to be located anywhere in the 64-bit address space.
-# Note that clang and GCC refer to this code model as "medium" and "medany"
-# respectively.
+# point registers within the kernel. However, for kernels supporting hardware
+# float (FPE), we have to include that in the march so we can have limited
+# floating point support in context switching needed for that. This is different
+# than userland where we use a hard-float ABI (lp64d).
+#
+# We also specify the "medium" code model, which generates code suitable for a
+# 2GiB addressing range located at any offset, allowing modules to be located
+# anywhere in the 64-bit address space.  Note that clang and GCC refer to this
+# code model as "medium" and "medany" respectively.
 #
 .if ${MACHINE_CPUARCH} == "riscv"
-CFLAGS+=	-march=rv64imafdc -mabi=lp64
+.if ${MACHINE_ARCH:Mriscv*sf}
+CFLAGS+=	-march=rv64imac
+.else
+CFLAGS+=	-march=rv64imafdc
+.endif
+CFLAGS+=	-mabi=lp64
 CFLAGS.clang+=	-mcmodel=medium
 CFLAGS.gcc+=	-mcmodel=medany
 INLINE_LIMIT?=	8000
@@ -306,4 +315,5 @@ LD_EMULATION_powerpc= elf32ppc_fbsd
 LD_EMULATION_powerpcspe= elf32ppc_fbsd
 LD_EMULATION_powerpc64= elf64ppc_fbsd
 LD_EMULATION_riscv64= elf64lriscv
+LD_EMULATION_riscv64sf= elf64lriscv
 LD_EMULATION=${LD_EMULATION_${MACHINE_ARCH}}

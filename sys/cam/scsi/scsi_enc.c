@@ -78,8 +78,8 @@ static  periph_dtor_t   enc_dtor;
 static void enc_async(void *, uint32_t, struct cam_path *, void *);
 static enctyp enc_type(struct ccb_getdev *);
 
-SYSCTL_NODE(_kern_cam, OID_AUTO, enc, CTLFLAG_RD, 0,
-            "CAM Enclosure Services driver");
+SYSCTL_NODE(_kern_cam, OID_AUTO, enc, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "CAM Enclosure Services driver");
 
 #if defined(DEBUG) || defined(ENC_DEBUG)
 int enc_verbose = 1;

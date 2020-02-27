@@ -496,11 +496,12 @@ amdtemp_attach(device_t dev)
 	    "Temperature sensor offset");
 	sysctlnode = SYSCTL_ADD_NODE(sysctlctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "core0", CTLFLAG_RD, 0, "Core 0");
+	    "core0", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Core 0");
 
 	SYSCTL_ADD_PROC(sysctlctx,
 	    SYSCTL_CHILDREN(sysctlnode),
-	    OID_AUTO, "sensor0", CTLTYPE_INT | CTLFLAG_RD,
+	    OID_AUTO, "sensor0",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    dev, CORE0_SENSOR0, amdtemp_sysctl, "IK",
 	    "Core 0 / Sensor 0 temperature");
 
@@ -509,24 +510,28 @@ amdtemp_attach(device_t dev)
 	else if (sc->sc_ntemps > 1) {
 		SYSCTL_ADD_PROC(sysctlctx,
 		    SYSCTL_CHILDREN(sysctlnode),
-		    OID_AUTO, "sensor1", CTLTYPE_INT | CTLFLAG_RD,
+		    OID_AUTO, "sensor1",
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 		    dev, CORE0_SENSOR1, amdtemp_sysctl, "IK",
 		    "Core 0 / Sensor 1 temperature");
 
 		if (sc->sc_ncores > 1) {
 			sysctlnode = SYSCTL_ADD_NODE(sysctlctx,
 			    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			    OID_AUTO, "core1", CTLFLAG_RD, 0, "Core 1");
+			    OID_AUTO, "core1", CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    0, "Core 1");
 
 			SYSCTL_ADD_PROC(sysctlctx,
 			    SYSCTL_CHILDREN(sysctlnode),
-			    OID_AUTO, "sensor0", CTLTYPE_INT | CTLFLAG_RD,
+			    OID_AUTO, "sensor0",
+			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 			    dev, CORE1_SENSOR0, amdtemp_sysctl, "IK",
 			    "Core 1 / Sensor 0 temperature");
 
 			SYSCTL_ADD_PROC(sysctlctx,
 			    SYSCTL_CHILDREN(sysctlnode),
-			    OID_AUTO, "sensor1", CTLTYPE_INT | CTLFLAG_RD,
+			    OID_AUTO, "sensor1",
+			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 			    dev, CORE1_SENSOR1, amdtemp_sysctl, "IK",
 			    "Core 1 / Sensor 1 temperature");
 		}
@@ -578,7 +583,8 @@ amdtemp_intrhook(void *arg)
 			    (i == 0 ? CORE0 : CORE1) : CORE0_SENSOR0;
 			sc->sc_sysctl_cpu[i] = SYSCTL_ADD_PROC(sysctlctx,
 			    SYSCTL_CHILDREN(device_get_sysctl_tree(cpu)),
-			    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD,
+			    OID_AUTO, "temperature",
+			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 			    dev, sensor, amdtemp_sysctl, "IK",
 			    "Current temparature");
 		}

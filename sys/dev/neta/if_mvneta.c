@@ -3479,10 +3479,10 @@ sysctl_mvneta_init(struct mvneta_softc *sc)
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
 
 	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "rx",
-	    CTLFLAG_RD, 0, "NETA RX");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "NETA RX");
 	rxchildren = SYSCTL_CHILDREN(tree);
 	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "mib",
-	    CTLFLAG_RD, 0, "NETA MIB");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "NETA MIB");
 	mchildren = SYSCTL_CHILDREN(tree);
 
 
@@ -3502,8 +3502,9 @@ sysctl_mvneta_init(struct mvneta_softc *sc)
 		mib_arg->index = i;
 		SYSCTL_ADD_PROC(ctx, mchildren, OID_AUTO,
 		    mvneta_mib_list[i].sysctl_name,
-		    CTLTYPE_U64|CTLFLAG_RD, (void *)mib_arg, 0,
-		    sysctl_read_mib, "I", mvneta_mib_list[i].desc);
+		    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+		    (void *)mib_arg, 0, sysctl_read_mib, "I",
+		    mvneta_mib_list[i].desc);
 	}
 	SYSCTL_ADD_UQUAD(ctx, mchildren, OID_AUTO, "rx_discard",
 	    CTLFLAG_RD, &sc->counter_pdfc, "Port Rx Discard Frame Counter");
@@ -3513,8 +3514,8 @@ sysctl_mvneta_init(struct mvneta_softc *sc)
 	    CTLFLAG_RD, &sc->counter_watchdog, 0, "TX Watchdog Counter");
 
 	SYSCTL_ADD_PROC(ctx, mchildren, OID_AUTO, "reset",
-	    CTLTYPE_INT|CTLFLAG_RW, (void *)sc, 0,
-	    sysctl_clear_mib, "I", "Reset MIB counters");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    (void *)sc, 0, sysctl_clear_mib, "I", "Reset MIB counters");
 
 	for (q = 0; q < MVNETA_RX_QNUM_MAX; q++) {
 		rxarg = &sc->sysctl_rx_queue[q];
@@ -3525,13 +3526,13 @@ sysctl_mvneta_init(struct mvneta_softc *sc)
 
 		/* hw.mvneta.mvneta[unit].rx.[queue] */
 		tree = SYSCTL_ADD_NODE(ctx, rxchildren, OID_AUTO,
-		    sysctl_queue_names[q], CTLFLAG_RD, 0,
+		    sysctl_queue_names[q], CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 		    sysctl_queue_descrs[q]);
 		qchildren = SYSCTL_CHILDREN(tree);
 
 		/* hw.mvneta.mvneta[unit].rx.[queue].threshold_timer_us */
 		SYSCTL_ADD_PROC(ctx, qchildren, OID_AUTO, "threshold_timer_us",
-		    CTLTYPE_UINT | CTLFLAG_RW, rxarg, 0,
+		    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, rxarg, 0,
 		    sysctl_set_queue_rxthtime, "I",
 		    "interrupt coalescing threshold timer [us]");
 	}

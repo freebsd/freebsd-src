@@ -55,7 +55,8 @@ __FBSDID("$FreeBSD$");
 FEATURE(geom_part_gpt, "GEOM partitioning class for GPT partitions support");
 
 SYSCTL_DECL(_kern_geom_part);
-static SYSCTL_NODE(_kern_geom_part, OID_AUTO, gpt, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom_part, OID_AUTO, gpt,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_PART_GPT GUID Partition Table");
 
 static u_int allow_nesting = 0;

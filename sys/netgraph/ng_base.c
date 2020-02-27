@@ -3250,7 +3250,8 @@ static moduledata_t netgraph_mod = {
 	(NULL)
 };
 DECLARE_MODULE(netgraph, netgraph_mod, SI_SUB_NETGRAPH, SI_ORDER_FIRST);
-SYSCTL_NODE(_net, OID_AUTO, graph, CTLFLAG_RW, 0, "netgraph Family");
+SYSCTL_NODE(_net, OID_AUTO, graph, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "netgraph Family");
 SYSCTL_INT(_net_graph, OID_AUTO, abi_version, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_ABI_VERSION,"");
 SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_VERSION, "");
 
@@ -3384,8 +3385,10 @@ sysctl_debug_ng_dump_items(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_PROC(_debug, OID_AUTO, ng_dump_items, CTLTYPE_INT | CTLFLAG_RW,
-    0, sizeof(int), sysctl_debug_ng_dump_items, "I", "Number of allocated items");
+SYSCTL_PROC(_debug, OID_AUTO, ng_dump_items,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    sysctl_debug_ng_dump_items, "I",
+    "Number of allocated items");
 #endif	/* NETGRAPH_DEBUG */
 
 /***********************************************************************

@@ -179,8 +179,10 @@ sysctl_my_fibnum(SYSCTL_HANDLER_ARGS)
         return (error);
 }
 
-SYSCTL_PROC(_net, OID_AUTO, my_fibnum, CTLTYPE_INT|CTLFLAG_RD,
-            NULL, 0, &sysctl_my_fibnum, "I", "default FIB of caller");
+SYSCTL_PROC(_net, OID_AUTO, my_fibnum,
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    &sysctl_my_fibnum, "I",
+    "default FIB of caller");
 
 static __inline struct rib_head **
 rt_tables_get_rnh_ptr(int table, int fam)

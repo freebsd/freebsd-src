@@ -248,16 +248,20 @@ bcm_bsc_sysctl_init(struct bcm_bsc_softc *sc)
 	tree_node = device_get_sysctl_tree(sc->sc_dev);
 	tree = SYSCTL_CHILDREN(tree_node);
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "frequency",
-	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
+	    sc, sizeof(*sc),
 	    bcm_bsc_clock_proc, "IU", "I2C BUS clock frequency");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "clock_stretch",
-	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
+	    sc, sizeof(*sc),
 	    bcm_bsc_clkt_proc, "IU", "I2C BUS clock stretch timeout");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "fall_edge_delay",
-	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
+	    sc, sizeof(*sc),
 	    bcm_bsc_fall_proc, "IU", "I2C BUS falling edge delay");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "rise_edge_delay",
-	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
+	    sc, sizeof(*sc),
 	    bcm_bsc_rise_proc, "IU", "I2C BUS rising edge delay");
 	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "debug",
 	    CTLFLAG_RWTUN, &sc->sc_debug, 0,

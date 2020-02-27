@@ -41,7 +41,7 @@
 
 #define DRV_MODULE_VER_MAJOR	2
 #define DRV_MODULE_VER_MINOR	1
-#define DRV_MODULE_VER_SUBMINOR 0
+#define DRV_MODULE_VER_SUBMINOR 1
 
 #define DRV_MODULE_NAME		"ena"
 
@@ -241,13 +241,8 @@ struct ena_tx_buffer {
 	unsigned int tx_descs;
 	/* # of buffers used by this mbuf */
 	unsigned int num_of_bufs;
-	bus_dmamap_t map_head;
-	bus_dmamap_t map_seg;
 
-	/* Indicate if segments of the mbuf were mapped */
-	bool seg_mapped;
-	/* Indicate if bufs[0] maps the linear data of the mbuf */
-	bool head_mapped;
+	bus_dmamap_t dmamap;
 
 	/* Used to detect missing tx packets */
 	struct bintime timestamp;

@@ -506,7 +506,7 @@ sysctl_kern_binmisc(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_NODE(_kern, OID_AUTO, binmisc, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern, OID_AUTO, binmisc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Image activator for miscellaneous binaries");
 
 SYSCTL_PROC(_kern_binmisc, OID_AUTO, add,

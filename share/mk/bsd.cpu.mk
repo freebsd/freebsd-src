@@ -20,8 +20,6 @@ MACHINE_CPU = mips
 MACHINE_CPU = aim
 . elif ${MACHINE_CPUARCH} == "riscv"
 MACHINE_CPU = riscv
-. elif ${MACHINE_CPUARCH} == "sparc64"
-MACHINE_CPU = ultrasparc
 . endif
 .else
 
@@ -74,12 +72,6 @@ CPUTYPE = pentium-mmx
 .   elif ${CPUTYPE} == "i586"
 CPUTYPE = pentium
 .   endif
-.  endif
-. elif ${MACHINE_ARCH} == "sparc64"
-.  if ${CPUTYPE} == "us"
-CPUTYPE = ultrasparc
-.  elif ${CPUTYPE} == "us3"
-CPUTYPE = ultrasparc3
 .  endif
 . endif
 
@@ -152,14 +144,6 @@ _CPUCFLAGS = -march=${CPUTYPE}
 #	sb1, xlp, xlr
 _CPUCFLAGS = -march=${CPUTYPE:S/^mips//}
 . endif
-. elif ${MACHINE_ARCH} == "sparc64"
-.  if ${CPUTYPE} == "v9"
-_CPUCFLAGS = -mcpu=v9
-.  elif ${CPUTYPE} == "ultrasparc"
-_CPUCFLAGS = -mcpu=ultrasparc
-.  elif ${CPUTYPE} == "ultrasparc3"
-_CPUCFLAGS = -mcpu=ultrasparc3
-.  endif
 . elif ${MACHINE_CPUARCH} == "aarch64"
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 . endif
@@ -298,15 +282,6 @@ MACHINE_CPU = booke softfp
 ########## riscv
 . elif ${MACHINE_CPUARCH} == "riscv"
 MACHINE_CPU = riscv
-########## sparc64
-. elif ${MACHINE_ARCH} == "sparc64"
-.  if ${CPUTYPE} == "v9"
-MACHINE_CPU = v9
-.  elif ${CPUTYPE} == "ultrasparc"
-MACHINE_CPU = v9 ultrasparc
-.  elif ${CPUTYPE} == "ultrasparc3"
-MACHINE_CPU = v9 ultrasparc ultrasparc3
-.  endif
 . endif
 .endif
 
@@ -353,7 +328,7 @@ MACHINE_CPU += softfp
 # when CPUTYPE has 'soft' in it, we use the soft-float ABI to allow building of
 # soft-float ABI libraries. In this case, we have to add the -mfloat-abi=softfp
 # to force that.
-.if ${MACHINE_ARCH:Marmv[67]*} && defined(CPUTYPE) && ${CPUTYPE:M*soft*} != ""
+. if ${MACHINE_ARCH:Marmv[67]*} && defined(CPUTYPE) && ${CPUTYPE:M*soft*} != ""
 # Needs to be CFLAGS not _CPUCFLAGS because it's needed for the ABI
 # not a nice optimization. Please note: softfp ABI uses hardware floating
 # instructions, but passes arguments to function calls in integer regsiters.
@@ -361,7 +336,7 @@ MACHINE_CPU += softfp
 # supported. softfp support in FreeBSD may disappear in FreeBSD 13.0 since
 # it was a transition tool from FreeBSD 10 to 11 and is a bit of an odd duck.
 CFLAGS += -mfloat-abi=softfp
-.endif
+. endif
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpcspe"

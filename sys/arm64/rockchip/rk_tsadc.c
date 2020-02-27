@@ -558,7 +558,7 @@ tsadc_init_sysctl(struct tsadc_softc *sc)
 	/* create node for hw.temp */
 	oid = SYSCTL_ADD_NODE(&tsadc_sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, "temperature",
-	    CTLFLAG_RD, NULL, "");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	if (oid == NULL)
 		return (ENXIO);
 
@@ -566,7 +566,7 @@ tsadc_init_sysctl(struct tsadc_softc *sc)
 	for (i = sc->conf->ntsensors  - 1; i >= 0; i--) {
 		tmp = SYSCTL_ADD_PROC(&tsadc_sysctl_ctx,
 		    SYSCTL_CHILDREN(oid), OID_AUTO, sc->conf->tsensors[i].name,
-		    CTLTYPE_INT | CTLFLAG_RD, sc, i,
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, i,
 		    tsadc_sysctl_temperature, "IK", "SoC Temperature");
 		if (tmp == NULL)
 			return (ENXIO);

@@ -399,7 +399,7 @@ static LIST_HEAD(, vxlan_socket) vxlan_socket_list;
 static eventhandler_tag vxlan_ifdetach_event_tag;
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, OID_AUTO, vxlan, CTLFLAG_RW, 0,
+SYSCTL_NODE(_net_link, OID_AUTO, vxlan, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Virtual eXtensible Local Area Network");
 
 static int vxlan_legacy_port = 0;
@@ -3060,10 +3060,10 @@ vxlan_sysctl_setup(struct vxlan_softc *sc)
 	sysctl_ctx_init(ctx);
 	sc->vxl_sysctl_node = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_STATIC_CHILDREN(_net_link_vxlan), OID_AUTO, namebuf,
-	    CTLFLAG_RD, NULL, "");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 
 	node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(sc->vxl_sysctl_node),
-	    OID_AUTO, "ftable", CTLFLAG_RD, NULL, "");
+	    OID_AUTO, "ftable", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(node), OID_AUTO, "count",
 	    CTLFLAG_RD, &sc->vxl_ftable_cnt, 0,
 	    "Number of entries in fowarding table");
@@ -3079,7 +3079,7 @@ vxlan_sysctl_setup(struct vxlan_softc *sc)
 	    "Dump the forwarding table entries");
 
 	node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(sc->vxl_sysctl_node),
-	    OID_AUTO, "stats", CTLFLAG_RD, NULL, "");
+	    OID_AUTO, "stats", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(node), OID_AUTO,
 	    "ftable_nospace", CTLFLAG_RD, &stats->ftable_nospace, 0,
 	    "Fowarding table reached maximum entries");

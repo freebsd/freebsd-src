@@ -446,22 +446,23 @@ dctcp_slowstart_handler(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_DECL(_net_inet_tcp_cc_dctcp);
-SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, dctcp, CTLFLAG_RW, NULL,
+SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, dctcp,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "dctcp congestion control related settings");
 
 SYSCTL_PROC(_net_inet_tcp_cc_dctcp, OID_AUTO, alpha,
-    CTLFLAG_VNET|CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(dctcp_alpha), 0,
-    &dctcp_alpha_handler,
-    "IU", "dctcp alpha parameter at start of session");
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &VNET_NAME(dctcp_alpha), 0, &dctcp_alpha_handler, "IU",
+    "dctcp alpha parameter at start of session");
 
 SYSCTL_PROC(_net_inet_tcp_cc_dctcp, OID_AUTO, shift_g,
-    CTLFLAG_VNET|CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(dctcp_shift_g), 4,
-    &dctcp_shift_g_handler,
-    "IU", "dctcp shift parameter");
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &VNET_NAME(dctcp_shift_g), 4, &dctcp_shift_g_handler, "IU",
+    "dctcp shift parameter");
 
 SYSCTL_PROC(_net_inet_tcp_cc_dctcp, OID_AUTO, slowstart,
-    CTLFLAG_VNET|CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(dctcp_slowstart), 0,
-    &dctcp_slowstart_handler,
-    "IU", "half CWND reduction after the first slow start");
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &VNET_NAME(dctcp_slowstart), 0, &dctcp_slowstart_handler, "IU",
+    "half CWND reduction after the first slow start");
 
 DECLARE_CC_MODULE(dctcp, &dctcp_cc_algo);

@@ -147,8 +147,10 @@ struct sleepqueue_chain {
 
 #ifdef SLEEPQUEUE_PROFILING
 u_int sleepq_max_depth;
-static SYSCTL_NODE(_debug, OID_AUTO, sleepq, CTLFLAG_RD, 0, "sleepq profiling");
-static SYSCTL_NODE(_debug_sleepq, OID_AUTO, chains, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_debug, OID_AUTO, sleepq, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "sleepq profiling");
+static SYSCTL_NODE(_debug_sleepq, OID_AUTO, chains,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "sleepq chain stats");
 SYSCTL_UINT(_debug_sleepq, OID_AUTO, max_depth, CTLFLAG_RD, &sleepq_max_depth,
     0, "maxmimum depth achieved of a single chain");
@@ -195,7 +197,8 @@ init_sleepqueue_profiling(void)
 		snprintf(chain_name, sizeof(chain_name), "%u", i);
 		chain_oid = SYSCTL_ADD_NODE(NULL,
 		    SYSCTL_STATIC_CHILDREN(_debug_sleepq_chains), OID_AUTO,
-		    chain_name, CTLFLAG_RD, NULL, "sleepq chain stats");
+		    chain_name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    "sleepq chain stats");
 		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
 		    "depth", CTLFLAG_RD, &sleepq_chains[i].sc_depth, 0, NULL);
 		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
@@ -1426,13 +1429,18 @@ dump_sleepq_prof_stats(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_debug_sleepq, OID_AUTO, stats, CTLTYPE_STRING | CTLFLAG_RD,
-    NULL, 0, dump_sleepq_prof_stats, "A", "Sleepqueue profiling statistics");
-SYSCTL_PROC(_debug_sleepq, OID_AUTO, reset, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, reset_sleepq_prof_stats, "I",
+SYSCTL_PROC(_debug_sleepq, OID_AUTO, stats,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    dump_sleepq_prof_stats, "A",
+    "Sleepqueue profiling statistics");
+SYSCTL_PROC(_debug_sleepq, OID_AUTO, reset,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    reset_sleepq_prof_stats, "I",
     "Reset sleepqueue profiling statistics");
-SYSCTL_PROC(_debug_sleepq, OID_AUTO, enable, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, enable_sleepq_prof, "I", "Enable sleepqueue profiling");
+SYSCTL_PROC(_debug_sleepq, OID_AUTO, enable,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    enable_sleepq_prof, "I",
+    "Enable sleepqueue profiling");
 #endif
 
 #ifdef DDB

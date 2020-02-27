@@ -46,6 +46,11 @@
 
     $ svn merge -cNNNNNN \^/vendor-crypto/openssh/dist .
 
+    A number of files have been deleted from FreeBSD's copy of ssh,
+    including rendered man pages (which have a .0 extension).  When
+    svn prompts for these deleted files during the merge, choose 'r'
+    (leaving them deleted).
+
 0A) Resolve conflicts.  Remember to bump the version addendum in
     version.h, and update the default value in ssh{,d}_config and
     ssh{,d}_config.5.

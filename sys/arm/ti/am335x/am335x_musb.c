@@ -115,7 +115,9 @@ static struct resource_spec am335x_musbotg_mem_spec[] = {
 #ifdef USB_DEBUG
 static int usbssdebug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, am335x_usbss, CTLFLAG_RW, 0, "AM335x USBSS");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, am335x_usbss,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "AM335x USBSS");
 SYSCTL_INT(_hw_usb_am335x_usbss, OID_AUTO, debug, CTLFLAG_RW,
     &usbssdebug, 0, "Debug level");
 #endif

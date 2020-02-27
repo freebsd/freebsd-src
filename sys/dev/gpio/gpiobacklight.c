@@ -131,7 +131,7 @@ gpiobacklight_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 	tree = device_get_sysctl_tree(dev);
 	sc->sc_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "brightness", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    "brightness", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 	    gpiobacklight_sysctl, "I", "backlight brightness");
 
 	return (0);

@@ -82,8 +82,9 @@ __FBSDID("$FreeBSD$");
 #ifdef NTOSKRNL_DEBUG_TIMERS
 static int sysctl_show_timers(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_PROC(_debug, OID_AUTO, ntoskrnl_timers, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, sysctl_show_timers, "I",
+SYSCTL_PROC(_debug, OID_AUTO, ntoskrnl_timers,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    sysctl_show_timers, "I",
     "Show ntoskrnl timer stats");
 #endif
 

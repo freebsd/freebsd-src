@@ -55,7 +55,8 @@
 #include <sys/vdev_initialize.h>
 
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_NODE(_vfs_zfs, OID_AUTO, vdev, CTLFLAG_RW, 0, "ZFS VDEV");
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, vdev, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "ZFS VDEV");
 
 /*
  * Virtual device management.

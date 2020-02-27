@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-static SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "thread allocation");
 
 static int max_threads_per_proc = 1500;

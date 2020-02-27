@@ -187,7 +187,8 @@ ext2_alloc_meta(struct inode *ip)
  * the previous block allocation will be used.
  */
 
-static SYSCTL_NODE(_vfs, OID_AUTO, ext2fs, CTLFLAG_RW, 0, "EXT2FS filesystem");
+static SYSCTL_NODE(_vfs, OID_AUTO, ext2fs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "EXT2FS filesystem");
 
 static int doasyncfree = 1;
 

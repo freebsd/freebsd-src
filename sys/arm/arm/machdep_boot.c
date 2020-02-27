@@ -88,7 +88,8 @@ static char linux_command_line[LBABI_MAX_COMMAND_LINE + 1];
 static char atags[LBABI_MAX_COMMAND_LINE * 2];
 #endif /* defined(LINUX_BOOT_ABI) */
 
-SYSCTL_NODE(_hw, OID_AUTO, board, CTLFLAG_RD, 0, "Board attributes");
+SYSCTL_NODE(_hw, OID_AUTO, board, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Board attributes");
 SYSCTL_UINT(_hw_board, OID_AUTO, revision, CTLFLAG_RD,
     &board_revision, 0, "Board revision");
 SYSCTL_STRING(_hw_board, OID_AUTO, serial, CTLFLAG_RD,

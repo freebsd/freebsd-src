@@ -19,7 +19,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600012
+%VERSREQ=	600017
 
 .if !defined(S)
 S=	../../..
@@ -45,10 +45,6 @@ SYSTEM_LD= @${LD} -N -m ${LD_EMULATION} -Bdynamic -T ${LDSCRIPT} ${_LDFLAGS} \
 .if !empty(DDB_ENABLED)
 CFLAGS += -fno-omit-frame-pointer -fno-optimize-sibling-calls
 .endif
-
-# Currently, the compile flags don't let the kernel know if this is a hard-float
-# ABI build or a soft-float ABI build. We need to pass in this information.
-CFLAGS += -DMACHINE_ARCH=\"${MACHINE_ARCH}\"
 
 # hack because genassym.c includes sys/bus.h which includes these.
 genassym.o: bus_if.h device_if.h

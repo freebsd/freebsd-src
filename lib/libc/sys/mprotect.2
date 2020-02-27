@@ -28,7 +28,7 @@
 .\"	@(#)mprotect.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2019
+.Dd February 26, 2020
 .Dt MPROTECT 2
 .Os
 .Sh NAME
@@ -88,6 +88,12 @@ The
 .Fn mprotect
 system call will fail if:
 .Bl -tag -width Er
+.It Bq Er EACCES
+The calling process was not allowed to change
+the protection to the value specified by
+the
+.Fa prot
+argument.
 .It Bq Er EINVAL
 The virtual address range specified by the
 .Fa addr
@@ -98,17 +104,11 @@ arguments is not valid.
 The
 .Fa prot
 argument contains unhandled bits.
-.It Bq Er EINVAL
+.It Bq Er ENOTSUP
 The
 .Fa prot
 argument contains permissions which are not a subset of the specified
 maximum permissions.
-.It Bq Er EACCES
-The calling process was not allowed to change
-the protection to the value specified by
-the
-.Fa prot
-argument.
 .El
 .Sh SEE ALSO
 .Xr madvise 2 ,

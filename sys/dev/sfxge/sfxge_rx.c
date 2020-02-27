@@ -73,8 +73,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef SFXGE_LRO
 
-SYSCTL_NODE(_hw_sfxge, OID_AUTO, lro, CTLFLAG_RD, NULL,
-	    "Large receive offload (LRO) parameters");
+SYSCTL_NODE(_hw_sfxge, OID_AUTO, lro, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "Large receive offload (LRO) parameters");
 
 #define	SFXGE_LRO_PARAM(_param)	SFXGE_PARAM(lro._param)
 
@@ -1356,12 +1356,10 @@ sfxge_rx_stat_init(struct sfxge_softc *sc)
 	stat_list = SYSCTL_CHILDREN(sc->stats_node);
 
 	for (id = 0; id < nitems(sfxge_rx_stats); id++) {
-		SYSCTL_ADD_PROC(
-			ctx, stat_list,
-			OID_AUTO, sfxge_rx_stats[id].name,
-			CTLTYPE_UINT|CTLFLAG_RD,
-			sc, id, sfxge_rx_stat_handler, "IU",
-			"");
+		SYSCTL_ADD_PROC(ctx, stat_list, OID_AUTO,
+		    sfxge_rx_stats[id].name,
+		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+		    sc, id, sfxge_rx_stat_handler, "IU", "");
 	}
 }
 

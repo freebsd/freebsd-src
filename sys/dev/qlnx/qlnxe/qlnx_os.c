@@ -276,7 +276,8 @@ char qlnx_name_str[NAME_SIZE];
 
 
 
-SYSCTL_NODE(_hw, OID_AUTO, qlnxe, CTLFLAG_RD, 0, "qlnxe driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, qlnxe, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "qlnxe driver parameters");
 
 /* Number of Queues: 0 (Auto) or 1 to 32 (fixed queue number) */
 static int qlnxe_queue_count = QLNX_DEFAULT_RSS;
@@ -1549,7 +1550,7 @@ qlnx_add_sp_stats_sysctls(qlnx_host_t *ha)
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
 
 	ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "spstat",
-			CTLFLAG_RD, NULL, "spstat");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "spstat");
         children = SYSCTL_CHILDREN(ctx_oid);
 
 	SYSCTL_ADD_QUAD(ctx, children,
@@ -1574,7 +1575,7 @@ qlnx_add_fp_stats_sysctls(qlnx_host_t *ha)
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
 
 	ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "fpstat",
-			CTLFLAG_RD, NULL, "fpstat");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "fpstat");
 	children = SYSCTL_CHILDREN(ctx_oid);
 
 	for (i = 0; i < ha->num_rss; i++) {
@@ -1583,7 +1584,7 @@ qlnx_add_fp_stats_sysctls(qlnx_host_t *ha)
 		snprintf(name_str, sizeof(name_str), "%d", i);
 
 		ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name_str,
-			CTLFLAG_RD, NULL, name_str);
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, name_str);
 		node_children = SYSCTL_CHILDREN(ctx_oid);
 
 		/* Tx Related */
@@ -1849,7 +1850,7 @@ qlnx_add_hw_stats_sysctls(qlnx_host_t *ha)
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
 
 	ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "hwstat",
-			CTLFLAG_RD, NULL, "hwstat");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "hwstat");
         children = SYSCTL_CHILDREN(ctx_oid);
 
 	SYSCTL_ADD_QUAD(ctx, children,
@@ -2310,23 +2311,21 @@ qlnx_add_sysctls(qlnx_host_t *ha)
 		"tx_coalesce_usecs");
 
 	SYSCTL_ADD_PROC(ctx, children,
-		OID_AUTO, "trigger_dump", (CTLTYPE_INT | CTLFLAG_RW),
-		(void *)ha, 0,
-		qlnx_trigger_dump_sysctl, "I", "trigger_dump");
+	    OID_AUTO, "trigger_dump",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    (void *)ha, 0, qlnx_trigger_dump_sysctl, "I", "trigger_dump");
 
 	SYSCTL_ADD_PROC(ctx, children,
-		OID_AUTO, "set_rx_coalesce_usecs",
-		(CTLTYPE_INT | CTLFLAG_RW),
-		(void *)ha, 0,
-		qlnx_set_rx_coalesce, "I",
-		"rx interrupt coalesce period microseconds");
+	    OID_AUTO, "set_rx_coalesce_usecs",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    (void *)ha, 0, qlnx_set_rx_coalesce, "I",
+	    "rx interrupt coalesce period microseconds");
 
 	SYSCTL_ADD_PROC(ctx, children,
-		OID_AUTO, "set_tx_coalesce_usecs",
-		(CTLTYPE_INT | CTLFLAG_RW),
-		(void *)ha, 0,
-		qlnx_set_tx_coalesce, "I",
-		"tx interrupt coalesce period microseconds");
+	    OID_AUTO, "set_tx_coalesce_usecs",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    (void *)ha, 0, qlnx_set_tx_coalesce, "I",
+	    "tx interrupt coalesce period microseconds");
 
 	ha->rx_pkt_threshold = 128;
         SYSCTL_ADD_UINT(ctx, children,

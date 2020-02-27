@@ -131,7 +131,8 @@ static int data_lengths[] = {
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
 
-static SYSCTL_NODE(_kern, OID_AUTO, ktrace, CTLFLAG_RD, 0, "KTRACE options");
+static SYSCTL_NODE(_kern, OID_AUTO, ktrace, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "KTRACE options");
 
 static u_int ktr_requestpool = KTRACE_REQUEST_POOL;
 TUNABLE_INT("kern.ktrace.request_pool", &ktr_requestpool);
@@ -233,8 +234,9 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 		return (ENOSPC);
 	return (0);
 }
-SYSCTL_PROC(_kern_ktrace, OID_AUTO, request_pool, CTLTYPE_UINT|CTLFLAG_RW,
-    &ktr_requestpool, 0, sysctl_kern_ktrace_request_pool, "IU",
+SYSCTL_PROC(_kern_ktrace, OID_AUTO, request_pool,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &ktr_requestpool, 0,
+    sysctl_kern_ktrace_request_pool, "IU",
     "Pool buffer size for ktrace(1)");
 
 static u_int

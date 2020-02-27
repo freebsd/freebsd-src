@@ -234,7 +234,7 @@ aibs_sensor_added(struct aibs_softc *sc, struct sysctl_oid *so,
 #endif
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->sc_dev),
 	    SYSCTL_CHILDREN(so), idx, sysctl_name,
-	    CTLTYPE_INT | CTLFLAG_RD, sc, (uintptr_t)sensor,
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, (uintptr_t)sensor,
 	    sc->sc_ggrp_method ? aibs_sysctl_ggrp : aibs_sysctl,
 	    sensor->t == AIBS_SENS_TYPE_TEMP ? "IK" : "I", descr);
 }
@@ -319,7 +319,8 @@ aibs_attach_ggrp(struct aibs_softc *sc)
 			/* sysctl subtree for sensors of this type */
 			*so = SYSCTL_ADD_NODE(device_get_sysctl_ctx(sc->sc_dev),
 			    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sc_dev)),
-			    sensor->t, name, CTLFLAG_RD, NULL, NULL);
+			    sensor->t, name, CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    NULL, NULL);
 		}
 		aibs_sensor_added(sc, *so, name, *s_idx, sensor, descr);
 		*s_idx += 1;
@@ -415,7 +416,7 @@ aibs_attach_sif(struct aibs_softc *sc, int st)
 	/* sysctl subtree for sensors of this type */
 	*so = SYSCTL_ADD_NODE(device_get_sysctl_ctx(sc->sc_dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sc_dev)), st,
-	    node, CTLFLAG_RD, NULL, NULL);
+	    node, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, NULL);
 
 	for (i = 0, o++; i < n; i++, o++) {
 		const char	*descr;

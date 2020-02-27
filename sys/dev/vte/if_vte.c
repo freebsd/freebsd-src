@@ -564,11 +564,13 @@ vte_sysctl_node(struct vte_softc *sc)
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->vte_dev));
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "int_rx_mod",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->vte_int_rx_mod, 0,
-	    sysctl_hw_vte_int_mod, "I", "vte RX interrupt moderation");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &sc->vte_int_rx_mod, 0, sysctl_hw_vte_int_mod, "I",
+	    "vte RX interrupt moderation");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "int_tx_mod",
-	    CTLTYPE_INT | CTLFLAG_RW, &sc->vte_int_tx_mod, 0,
-	    sysctl_hw_vte_int_mod, "I", "vte TX interrupt moderation");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    &sc->vte_int_tx_mod, 0, sysctl_hw_vte_int_mod, "I",
+	    "vte TX interrupt moderation");
 	/* Pull in device tunables. */
 	sc->vte_int_rx_mod = VTE_IM_RX_BUNDLE_DEFAULT;
 	error = resource_int_value(device_get_name(sc->vte_dev),
@@ -596,13 +598,13 @@ vte_sysctl_node(struct vte_softc *sc)
 		}
 	}
 
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "VTE statistics");
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "VTE statistics");
 	parent = SYSCTL_CHILDREN(tree);
 
 	/* RX statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
-	    NULL, "RX MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "RX MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	VTE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
 	    &stats->rx_frames, "Good frames");
@@ -625,8 +627,8 @@ vte_sysctl_node(struct vte_softc *sc)
 	    &stats->rx_pause_frames, "Pause control frames");
 
 	/* TX statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "TX MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX MAC statistics");
 	child = SYSCTL_CHILDREN(tree);
 	VTE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
 	    &stats->tx_frames, "Good frames");

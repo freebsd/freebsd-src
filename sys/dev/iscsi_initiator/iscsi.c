@@ -737,7 +737,7 @@ iscsi_start(void)
 			       SYSCTL_STATIC_CHILDREN(_net),
 			       OID_AUTO,
 			       "iscsi_initiator",
-			       CTLFLAG_RD,
+			       CTLFLAG_RD | CTLFLAG_MPSAFE,
 			       0,
 			       "iSCSI Subsystem");
 

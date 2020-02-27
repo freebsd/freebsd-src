@@ -62,7 +62,7 @@ FEATURE(geom_gate, "GEOM Gate module");
 static MALLOC_DEFINE(M_GATE, "gg_data", "GEOM Gate Data");
 
 SYSCTL_DECL(_kern_geom);
-static SYSCTL_NODE(_kern_geom, OID_AUTO, gate, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom, OID_AUTO, gate, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_GATE configuration");
 static int g_gate_debug = 0;
 SYSCTL_INT(_kern_geom_gate, OID_AUTO, debug, CTLFLAG_RWTUN, &g_gate_debug, 0,

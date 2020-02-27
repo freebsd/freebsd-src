@@ -25,7 +25,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2019
+.Dd January 10, 2020
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -301,11 +301,11 @@ is treated as
 #endif /* !COMPAT_43 */
 .Ed
 .Pp
-The project is slowly moving to use the
+The project prefers the use of
 .St -isoC-99
 unsigned integer identifiers of the form
 .Vt uintXX_t
-in preference to the older
+rather than the older
 .Bx Ns -style
 integer identifiers of the form
 .Vt u_intXX_t .
@@ -317,10 +317,10 @@ Like white-space commits, care should be taken in making
 .Vt uintXX_t
 only commits.
 .Pp
-Similarly, the project is slowly moving to use the
-.St -isoC-99
+Similarly, the project prefers the use of
+ISO C99
 .Vt bool
-in preference to the older
+rather than the older
 .Vt int
 or
 .Vt boolean_t .
@@ -341,8 +341,8 @@ Userspace code should include
 while kernel code should include
 .In sys/types.h .
 .Pp
-Likewise, the project is moving to using the
-.St -isoC-99
+Likewise, the project prefers
+ISO C99
 designated initializers when it makes sense to do so.
 .Pp
 Enumeration values are all uppercase.
@@ -893,6 +893,11 @@ Whenever possible, code should be run through a code checker
 (e.g., various static analyzers or
 .Nm cc Fl Wall )
 and produce minimal warnings.
+.Pp
+New code should use
+.Fn _Static_assert
+instead of the older
+.Fn CTASSERT .
 .Sh FILES
 .Bl -tag -width indent
 .It Pa /usr/src/tools/tools/editing/freebsd.el

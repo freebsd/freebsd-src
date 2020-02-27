@@ -419,7 +419,7 @@ vdev_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t bytes)
 
 	/* Return of partial sector data requires a bounce buffer. */
 	if ((head > 0) || do_tail_read) {
-		bouncebuf = zfs_alloc(secsz);
+		bouncebuf = malloc(secsz);
 		if (bouncebuf == NULL) {
 			printf("vdev_read: out of memory\n");
 			return (ENOMEM);
@@ -464,8 +464,7 @@ vdev_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t bytes)
 
 	ret = 0;
 error:
-	if (bouncebuf != NULL)
-		zfs_free(bouncebuf, secsz);
+	free(bouncebuf);
 	return (ret);
 }
 

@@ -82,12 +82,39 @@
 #define	CPACR_TTA		(0x1 << 28)
 
 /* CTR_EL0 - Cache Type Register */
+#define	CTR_RES1		(1 << 31)
+#define	CTR_TminLine_SHIFT	32
+#define	CTR_TminLine_MASK	(UL(0x3f) << CTR_TminLine_SHIFT)
+#define	CTR_TminLine_VAL(reg)	((reg) & CTR_TminLine_MASK)
+#define	CTR_DIC_SHIFT		29
+#define	CTR_DIC_MASK		(0x1 << CTR_DIC_SHIFT)
+#define	CTR_DIC_VAL(reg)	((reg) & CTR_DIC_MASK)
+#define	CTR_IDC_SHIFT		28
+#define	CTR_IDC_MASK		(0x1 << CTR_IDC_SHIFT)
+#define	CTR_IDC_VAL(reg)	((reg) & CTR_IDC_MASK)
+#define	CTR_CWG_SHIFT		24
+#define	CTR_CWG_MASK		(0xf << CTR_CWG_SHIFT)
+#define	CTR_CWG_VAL(reg)	((reg) & CTR_CWG_MASK)
+#define	CTR_CWG_SIZE(reg)	(4 << (CTR_CWG_VAL(reg) >> CTR_CWG_SHIFT))
+#define	CTR_ERG_SHIFT		20
+#define	CTR_ERG_MASK		(0xf << CTR_ERG_SHIFT)
+#define	CTR_ERG_VAL(reg)	((reg) & CTR_ERG_MASK)
+#define	CTR_ERG_SIZE(reg)	(4 << (CTR_ERG_VAL(reg) >> CTR_ERG_SHIFT))
 #define	CTR_DLINE_SHIFT		16
 #define	CTR_DLINE_MASK		(0xf << CTR_DLINE_SHIFT)
-#define	CTR_DLINE_SIZE(reg)	(((reg) & CTR_DLINE_MASK) >> CTR_DLINE_SHIFT)
+#define	CTR_DLINE_VAL(reg)	((reg) & CTR_DLINE_MASK)
+#define	CTR_DLINE_SIZE(reg)	(4 << (CTR_DLINE_VAL(reg) >> CTR_DLINE_SHIFT))
+#define	CTR_L1IP_SHIFT		14
+#define	CTR_L1IP_MASK		(0x3 << CTR_L1IP_SHIFT)
+#define	CTR_L1IP_VAL(reg)	((reg) & CTR_L1IP_MASK)
+#define	 CTR_L1IP_VPIPT		(0 << CTR_L1IP_SHIFT)
+#define	 CTR_L1IP_AIVIVT	(1 << CTR_L1IP_SHIFT)
+#define	 CTR_L1IP_VIVT		(2 << CTR_L1IP_SHIFT)
+#define	 CTR_L1IP_PIPT		(3 << CTR_L1IP_SHIFT)
 #define	CTR_ILINE_SHIFT		0
 #define	CTR_ILINE_MASK		(0xf << CTR_ILINE_SHIFT)
-#define	CTR_ILINE_SIZE(reg)	(((reg) & CTR_ILINE_MASK) >> CTR_ILINE_SHIFT)
+#define	CTR_ILINE_VAL(reg)	((reg) & CTR_ILINE_MASK)
+#define	CTR_ILINE_SIZE(reg)	(4 << (CTR_ILINE_VAL(reg) >> CTR_ILINE_SHIFT))
 
 /* DAIF - Interrupt Mask Bits */
 #define	DAIF_D_MASKED		(1 << 9)

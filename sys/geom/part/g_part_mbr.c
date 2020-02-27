@@ -52,7 +52,8 @@ __FBSDID("$FreeBSD$");
 FEATURE(geom_part_mbr, "GEOM partitioning class for MBR support");
 
 SYSCTL_DECL(_kern_geom_part);
-static SYSCTL_NODE(_kern_geom_part, OID_AUTO, mbr, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom_part, OID_AUTO, mbr,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_PART_MBR Master Boot Record");
 
 static u_int enforce_chs = 0;

@@ -75,7 +75,8 @@ __FBSDID("$FreeBSD$");
 				    CSUM_IP_CHECKED | CSUM_IP_VALID | \
 				    CSUM_SCTP_VALID)
 
-static SYSCTL_NODE(_hw, OID_AUTO, if_ntb, CTLFLAG_RW, 0, "if_ntb");
+static SYSCTL_NODE(_hw, OID_AUTO, if_ntb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "if_ntb");
 
 static unsigned g_if_ntb_num_queues = UINT_MAX;
 SYSCTL_UINT(_hw_if_ntb, OID_AUTO, num_queues, CTLFLAG_RWTUN,
@@ -172,8 +173,7 @@ ntb_net_attach(device_t dev)
 
 	if_setinitfn(ifp, ntb_net_init);
 	if_setsoftc(ifp, sc);
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSEPOCH);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setioctlfn(ifp, ntb_ioctl);
 	if_settransmitfn(ifp, ntb_transmit);
 	if_setqflushfn(ifp, ntb_qflush);

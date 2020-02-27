@@ -750,8 +750,10 @@ sysctl_hw_intrs(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(&sbuf);
 	return (error);
 }
-SYSCTL_PROC(_hw, OID_AUTO, intrs, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, sysctl_hw_intrs, "A", "interrupt:number @cpu: count");
+SYSCTL_PROC(_hw, OID_AUTO, intrs,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    0, 0, sysctl_hw_intrs, "A",
+    "interrupt:number @cpu: count");
 
 /*
  * Compare two, possibly NULL, entries in the interrupt source array

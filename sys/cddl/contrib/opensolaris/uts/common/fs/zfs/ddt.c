@@ -44,7 +44,8 @@
 int zfs_dedup_prefetch = 1;
 
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_NODE(_vfs_zfs, OID_AUTO, dedup, CTLFLAG_RW, 0, "ZFS DEDUP");
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, dedup, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "ZFS DEDUP");
 SYSCTL_INT(_vfs_zfs_dedup, OID_AUTO, prefetch, CTLFLAG_RWTUN, &zfs_dedup_prefetch,
     0, "Enable/disable prefetching of dedup-ed blocks which are going to be freed");
 

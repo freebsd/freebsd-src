@@ -386,7 +386,9 @@ sysctl_kern_prof(SYSCTL_HANDLER_ARGS)
 	/* NOTREACHED */
 }
 
-static SYSCTL_NODE(_kern, KERN_PROF, prof, CTLFLAG_RW, sysctl_kern_prof, "");
+static SYSCTL_NODE(_kern, KERN_PROF, prof,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, sysctl_kern_prof,
+    "");
 #endif /* GPROF */
 
 /*

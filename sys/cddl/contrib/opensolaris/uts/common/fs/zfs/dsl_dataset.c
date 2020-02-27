@@ -2528,16 +2528,16 @@ dsl_dataset_rename_snapshot_sync_impl(dsl_pool_t *dp,
 
 #ifdef __FreeBSD__
 #ifdef _KERNEL
-	oldname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
-	newname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
-	snprintf(oldname, MAXPATHLEN, "%s@%s", ddrsa->ddrsa_fsname,
-	    ddrsa->ddrsa_oldsnapname);
-	snprintf(newname, MAXPATHLEN, "%s@%s", ddrsa->ddrsa_fsname,
-	    ddrsa->ddrsa_newsnapname);
+	oldname = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
+	newname = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
+	snprintf(oldname, ZFS_MAX_DATASET_NAME_LEN, "%s@%s",
+	    ddrsa->ddrsa_fsname, ddrsa->ddrsa_oldsnapname);
+	snprintf(newname, ZFS_MAX_DATASET_NAME_LEN, "%s@%s",
+	    ddrsa->ddrsa_fsname, ddrsa->ddrsa_newsnapname);
 	zfsvfs_update_fromname(oldname, newname);
 	zvol_rename_minors(oldname, newname);
-	kmem_free(newname, MAXPATHLEN);
-	kmem_free(oldname, MAXPATHLEN);
+	kmem_free(newname, ZFS_MAX_DATASET_NAME_LEN);
+	kmem_free(oldname, ZFS_MAX_DATASET_NAME_LEN);
 #endif
 #endif
 	dsl_dataset_rele(ds, FTAG);
@@ -3090,8 +3090,8 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 	/* Take the spa_namespace_lock early so zvol renames don't deadlock. */
 	mutex_enter(&spa_namespace_lock);
 
-	oldname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
-	newname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
+	oldname = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
+	newname = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
 #endif
 
 	/* move snapshots to this dir */
@@ -3108,6 +3108,10 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 			dmu_objset_evict(ds->ds_objset);
 			ds->ds_objset = NULL;
 		}
+
+#if defined(__FreeBSD__) && defined(_KERNEL)
+		dsl_dataset_name(ds, oldname);
+#endif
 
 		/* move snap name entry */
 		VERIFY0(dsl_dataset_get_snapname(ds));
@@ -3175,8 +3179,8 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 #if defined(__FreeBSD__) && defined(_KERNEL)
 	mutex_exit(&spa_namespace_lock);
 
-	kmem_free(newname, MAXPATHLEN);
-	kmem_free(oldname, MAXPATHLEN);
+	kmem_free(newname, ZFS_MAX_DATASET_NAME_LEN);
+	kmem_free(oldname, ZFS_MAX_DATASET_NAME_LEN);
 #endif
 	/*
 	 * Change space accounting.

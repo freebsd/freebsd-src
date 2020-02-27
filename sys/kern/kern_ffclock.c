@@ -155,9 +155,9 @@ ffclock_difftime(ffcounter ffdelta, struct bintime *bt,
  * live under the ffclock subnode.
  */
 
-SYSCTL_NODE(_kern, OID_AUTO, sysclock, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern, OID_AUTO, sysclock, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "System clock related configuration");
-SYSCTL_NODE(_kern_sysclock, OID_AUTO, ffclock, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern_sysclock, OID_AUTO, ffclock, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Feed-forward clock configuration");
 
 static char *sysclocks[] = {"feedback", "feed-forward"};
@@ -191,8 +191,9 @@ sysctl_kern_sysclock_available(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern_sysclock, OID_AUTO, available, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, sysctl_kern_sysclock_available, "A",
+SYSCTL_PROC(_kern_sysclock, OID_AUTO, available,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, 0, 0,
+    sysctl_kern_sysclock_available, "A",
     "List of available system clocks");
 
 /*
@@ -231,8 +232,9 @@ done:
 	return (error);
 }
 
-SYSCTL_PROC(_kern_sysclock, OID_AUTO, active, CTLTYPE_STRING | CTLFLAG_RW,
-    0, 0, sysctl_kern_sysclock_active, "A",
+SYSCTL_PROC(_kern_sysclock, OID_AUTO, active,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0,
+    sysctl_kern_sysclock_active, "A",
     "Name of the active system clock which is currently serving time");
 
 static int sysctl_kern_ffclock_ffcounter_bypass = 0;

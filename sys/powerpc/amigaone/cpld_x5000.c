@@ -184,7 +184,7 @@ cpld_attach(device_t dev)
 	tree = device_get_sysctl_tree(dev);
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "cpu_fan", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
+	    "cpu_fan", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    cpld_fan_sysctl, "I", "CPU Fan speed in RPM");
 
 	make_dev_args_init(&mda);

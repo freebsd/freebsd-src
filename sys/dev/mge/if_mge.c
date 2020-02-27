@@ -2143,15 +2143,15 @@ mge_add_sysctls(struct mge_softc *sc)
 	ctx = device_get_sysctl_ctx(sc->dev);
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
 	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "int_coal",
-	    CTLFLAG_RD, 0, "MGE Interrupts coalescing");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "MGE Interrupts coalescing");
 	children = SYSCTL_CHILDREN(tree);
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rx_time",
-	    CTLTYPE_UINT | CTLFLAG_RW, sc, MGE_IC_RX, mge_sysctl_ic,
-	    "I", "IC RX time threshold");
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, MGE_IC_RX,
+	    mge_sysctl_ic, "I", "IC RX time threshold");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_time",
-	    CTLTYPE_UINT | CTLFLAG_RW, sc, MGE_IC_TX, mge_sysctl_ic,
-	    "I", "IC TX time threshold");
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, MGE_IC_TX,
+	    mge_sysctl_ic, "I", "IC TX time threshold");
 }
 
 static int

@@ -85,8 +85,8 @@ static int rx_queue_len = FWMAXQUEUE;
 static MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over FireWire interface");
 SYSCTL_INT(_debug, OID_AUTO, if_fwe_debug, CTLFLAG_RWTUN, &fwedebug, 0, "");
 SYSCTL_DECL(_hw_firewire);
-static SYSCTL_NODE(_hw_firewire, OID_AUTO, fwe, CTLFLAG_RD, 0,
-	"Ethernet emulation subsystem");
+static SYSCTL_NODE(_hw_firewire, OID_AUTO, fwe, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Ethernet emulation subsystem");
 SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, stream_ch, CTLFLAG_RWTUN, &stream_ch, 0,
 	"Stream channel to use");
 SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, tx_speed, CTLFLAG_RWTUN, &tx_speed, 0,

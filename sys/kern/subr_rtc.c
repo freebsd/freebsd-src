@@ -81,8 +81,8 @@ SYSCTL_INT(_debug, OID_AUTO, clock_show_io, CTLFLAG_RWTUN, &show_io, 0,
     "Enable debug printing of RTC clock I/O; 1=reads, 2=writes, 3=both.");
 
 static int sysctl_clock_do_io(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_debug, OID_AUTO, clock_do_io, CTLTYPE_INT | CTLFLAG_RW,
-    0, 0, sysctl_clock_do_io, "I",
+SYSCTL_PROC(_debug, OID_AUTO, clock_do_io,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0, sysctl_clock_do_io, "I",
     "Trigger one-time IO on RTC clocks; 1=read (and discard), 2=write");
 
 /* XXX: should be kern. now, it's no longer machdep.  */

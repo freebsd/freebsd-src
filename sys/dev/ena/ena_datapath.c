@@ -52,7 +52,6 @@ static inline void ena_rx_checksum(struct ena_ring *, struct ena_com_rx_ctx *,
 static void	ena_tx_csum(struct ena_com_tx_ctx *, struct mbuf *);
 static int	ena_check_and_collapse_mbuf(struct ena_ring *tx_ring,
     struct mbuf **mbuf);
-static void	ena_dmamap_llq(void *, bus_dma_segment_t *, int, int);
 static int	ena_xmit_mbuf(struct ena_ring *, struct mbuf **);
 static void	ena_start_xmit(struct ena_ring *);
 
@@ -263,21 +262,10 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		tx_info->mbuf = NULL;
 		bintime_clear(&tx_info->timestamp);
 
-		/* Map is no longer required */
-		if (tx_info->head_mapped == true) {
-			bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_head,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(adapter->tx_buf_tag,
-			    tx_info->map_head);
-			tx_info->head_mapped = false;
-		}
-		if (tx_info->seg_mapped == true) {
-			bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_seg,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(adapter->tx_buf_tag,
-			    tx_info->map_seg);
-			tx_info->seg_mapped = false;
-		}
+		bus_dmamap_sync(adapter->tx_buf_tag, tx_info->dmamap,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(adapter->tx_buf_tag,
+		    tx_info->dmamap);
 
 		ena_trace(ENA_DBG | ENA_TXPTH, "tx: q %d mbuf %p completed\n",
 		    tx_ring->qid, mbuf);
@@ -814,22 +802,6 @@ ena_check_and_collapse_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	return (0);
 }
 
-static void
-ena_dmamap_llq(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	struct ena_com_buf *ena_buf = arg;
-
-	if (unlikely(error != 0)) {
-		ena_buf->paddr = 0;
-		return;
-	}
-
-	KASSERT(nseg == 1, ("Invalid num of segments for LLQ dma"));
-
-	ena_buf->paddr = segs->ds_addr;
-	ena_buf->len = segs->ds_len;
-}
-
 static int
 ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
     struct mbuf *mbuf, void **push_hdr, u16 *header_len)
@@ -837,14 +809,28 @@ ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
 	struct ena_adapter *adapter = tx_ring->adapter;
 	struct ena_com_buf *ena_buf;
 	bus_dma_segment_t segs[ENA_BUS_DMA_SEGS];
+	size_t iseg = 0;
 	uint32_t mbuf_head_len, frag_len;
 	uint16_t push_len = 0;
 	uint16_t delta = 0;
-	int i, rc, nsegs;
+	int rc, nsegs;
 
 	mbuf_head_len = mbuf->m_len;
 	tx_info->mbuf = mbuf;
 	ena_buf = tx_info->bufs;
+
+	/*
+	 * For easier maintaining of the DMA map, map the whole mbuf even if
+	 * the LLQ is used. The descriptors will be filled using the segments.
+	 */
+	rc = bus_dmamap_load_mbuf_sg(adapter->tx_buf_tag, tx_info->dmamap, mbuf,
+	    segs, &nsegs, BUS_DMA_NOWAIT);
+	if (unlikely((rc != 0) || (nsegs == 0))) {
+		ena_trace(ENA_WARNING,
+		    "dmamap load failed! err: %d nsegs: %d\n", rc, nsegs);
+		goto dma_error;
+	}
+
 
 	if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
 		/*
@@ -885,19 +871,16 @@ ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
 		* in the first mbuf of the mbuf chain.
 		*/
 		if (mbuf_head_len > push_len) {
-			rc = bus_dmamap_load(adapter->tx_buf_tag,
-			    tx_info->map_head,
-			mbuf->m_data + push_len, mbuf_head_len - push_len,
-			ena_dmamap_llq, ena_buf, BUS_DMA_NOWAIT);
-			if (unlikely((rc != 0) || (ena_buf->paddr == 0)))
-				goto single_dma_error;
-
+			ena_buf->paddr = segs[iseg].ds_addr + push_len;
+			ena_buf->len = segs[iseg].ds_len - push_len;
 			ena_buf++;
 			tx_info->num_of_bufs++;
-
-			tx_info->head_mapped = true;
 		}
-		mbuf = mbuf->m_next;
+		/*
+		 * Advance the seg index as either the 1st mbuf was mapped or is
+		 * a part of push_hdr.
+		 */
+		iseg++;
 	} else {
 		*push_hdr = NULL;
 		/*
@@ -918,7 +901,7 @@ ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
 	 * If LLQ is not supported, the loop will be skipped.
 	 */
 	while (delta > 0) {
-		frag_len = mbuf->m_len;
+		frag_len = segs[iseg].ds_len;
 
 		/*
 		 * If whole segment contains header just move to the
@@ -931,50 +914,32 @@ ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
 			 * Map rest of the packet data that was contained in
 			 * the mbuf.
 			 */
-			rc = bus_dmamap_load(adapter->tx_buf_tag,
-			    tx_info->map_head, mbuf->m_data + delta,
-			    frag_len - delta, ena_dmamap_llq, ena_buf,
-			    BUS_DMA_NOWAIT);
-			if (unlikely((rc != 0) || (ena_buf->paddr == 0)))
-				goto single_dma_error;
-
+			ena_buf->paddr = segs[iseg].ds_addr + delta;
+			ena_buf->len = frag_len - delta;
 			ena_buf++;
 			tx_info->num_of_bufs++;
-			tx_info->head_mapped = true;
 
 			delta = 0;
 		}
-
-		mbuf = mbuf->m_next;
+		iseg++;
 	}
 
 	if (mbuf == NULL) {
 		return (0);
 	}
 
-	/* Map rest of the mbufs */
-	rc = bus_dmamap_load_mbuf_sg(adapter->tx_buf_tag, tx_info->map_seg, mbuf,
-	    segs, &nsegs, BUS_DMA_NOWAIT);
-	if (unlikely((rc != 0) || (nsegs == 0))) {
-		ena_trace(ENA_WARNING,
-		    "dmamap load failed! err: %d nsegs: %d\n", rc, nsegs);
-		goto dma_error;
-	}
-
-	for (i = 0; i < nsegs; i++) {
-		ena_buf->len = segs[i].ds_len;
-		ena_buf->paddr = segs[i].ds_addr;
+	/* Map rest of the mbuf */
+	while (iseg < nsegs) {
+		ena_buf->paddr = segs[iseg].ds_addr;
+		ena_buf->len = segs[iseg].ds_len;
 		ena_buf++;
+		iseg++;
+		tx_info->num_of_bufs++;
 	}
-	tx_info->num_of_bufs += nsegs;
-	tx_info->seg_mapped = true;
 
 	return (0);
 
 dma_error:
-	if (tx_info->head_mapped == true)
-		bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map_head);
-single_dma_error:
 	counter_u64_add(tx_ring->tx_stats.dma_mapping_err, 1);
 	tx_info->mbuf = NULL;
 	return (rc);
@@ -1100,25 +1065,14 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 		}
 	}
 
-	if (tx_info->head_mapped == true)
-		bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_head,
-		    BUS_DMASYNC_PREWRITE);
-	if (tx_info->seg_mapped == true)
-		bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_seg,
-		    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(adapter->tx_buf_tag, tx_info->dmamap,
+	    BUS_DMASYNC_PREWRITE);
 
 	return (0);
 
 dma_error:
 	tx_info->mbuf = NULL;
-	if (tx_info->seg_mapped == true) {
-		bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map_seg);
-		tx_info->seg_mapped = false;
-	}
-	if (tx_info->head_mapped == true) {
-		bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map_head);
-		tx_info->head_mapped = false;
-	}
+	bus_dmamap_unload(adapter->tx_buf_tag, tx_info->dmamap);
 
 	return (rc);
 }

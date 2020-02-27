@@ -150,7 +150,8 @@ ts_attach(device_t dev)
 	}
 	ctx = device_get_sysctl_ctx(dev);
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD, dev,
+	    OID_AUTO, "temperature",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, dev,
 	    0, ts_sysctl_handler, "IK", "Current Temperature");
 
 	return (0);

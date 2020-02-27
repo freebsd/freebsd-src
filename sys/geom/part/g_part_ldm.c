@@ -53,7 +53,8 @@ __FBSDID("$FreeBSD$");
 FEATURE(geom_part_ldm, "GEOM partitioning class for LDM support");
 
 SYSCTL_DECL(_kern_geom_part);
-static SYSCTL_NODE(_kern_geom_part, OID_AUTO, ldm, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom_part, OID_AUTO, ldm,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_PART_LDM Logical Disk Manager");
 
 static u_int ldm_debug = 0;

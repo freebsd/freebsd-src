@@ -461,7 +461,7 @@ common:
 	bl	link_l0_pagetable
 
 	/*
-	 * Build the TTBR0 maps.  As TTBR0 maps, they must specify ATTR_nG.
+	 * Build the TTBR0 maps.  As TTBR0 maps, they must specify ATTR_S1_nG.
 	 * They are only needed early on, so the VA = PA map is uncached.
 	 */
 	add	x27, x24, #PAGE_SIZE
@@ -469,7 +469,7 @@ common:
 	mov	x6, x27		/* The initial page table */
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create a table for the UART */
-	mov	x7, #(ATTR_nG | ATTR_IDX(VM_MEMATTR_DEVICE))
+	mov	x7, #(ATTR_S1_nG | ATTR_S1_IDX(VM_MEMATTR_DEVICE))
 	mov	x8, #(SOCDEV_VA)	/* VA start */
 	mov	x9, #(SOCDEV_PA)	/* PA start */
 	mov	x10, #1
@@ -481,7 +481,7 @@ common:
 	cbz	x19, 1f
 
 	/* Create the identity mapping for FDT data (2 MiB max) */
-	mov	x7, #(ATTR_nG | ATTR_IDX(VM_MEMATTR_UNCACHEABLE))
+	mov	x7, #(ATTR_S1_nG | ATTR_S1_IDX(VM_MEMATTR_UNCACHEABLE))
 	mov	x9, x0
 	mov	x8, x0		/* VA start (== PA start) */
 	mov	x10, #1
@@ -491,7 +491,7 @@ common:
 #endif
 
 	/* Create the VA = PA map */
-	mov	x7, #(ATTR_nG | ATTR_IDX(VM_MEMATTR_UNCACHEABLE))
+	mov	x7, #(ATTR_S1_nG | ATTR_S1_IDX(VM_MEMATTR_UNCACHEABLE))
 	mov	x9, x27
 	mov	x8, x9		/* VA start (== PA start) */
 	mov	x10, #1
@@ -639,7 +639,7 @@ build_l2_block_pagetable:
 	lsl	x12, x7, #2
 	orr	x12, x12, #L2_BLOCK
 	orr	x12, x12, #(ATTR_AF)
-	orr	x12, x12, #(ATTR_UXN)
+	orr	x12, x12, #(ATTR_S1_UXN)
 #ifdef SMP
 	orr	x12, x12, ATTR_SH(ATTR_SH_IS)
 #endif

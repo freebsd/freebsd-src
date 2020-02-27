@@ -118,11 +118,11 @@ ad7418_attach(device_t dev)
 	sx_init(&sc->sc_lock, "ad7418");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"temp", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
-		ad7418_sysctl_temp, "I", "operating temperature");
+	    "temp", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+	    ad7418_sysctl_temp, "I", "operating temperature");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"volt", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
-		ad7418_sysctl_voltage, "I", "input voltage");
+	    "volt", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+	    ad7418_sysctl_voltage, "I", "input voltage");
 
 	/* enable chip if configured in shutdown mode */
 	conf = ad7418_read_1(dev, AD7418_CONF);

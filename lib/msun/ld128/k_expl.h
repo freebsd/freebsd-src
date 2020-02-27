@@ -265,7 +265,8 @@ __k_expl(long double x, long double *hip, long double *lop, int *kp)
 /*
  * XXX: the rest of the functions are identical for ld80 and ld128.
  * However, we should use scalbnl() for ld128, since long double
- * multiplication is very slow on the only supported ld128 arch (sparc64).
+ * multiplication was very slow on sparc64 and no new evaluation has
+ * been made for aarch64 and/or riscv.
  */
 
 static inline void

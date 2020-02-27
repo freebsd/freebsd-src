@@ -178,7 +178,8 @@ mrsas_write_64bit_req_desc(struct mrsas_softc *sc, u_int32_t req_desc_lo,
     u_int32_t req_desc_hi);
 
 
-SYSCTL_NODE(_hw, OID_AUTO, mrsas, CTLFLAG_RD, 0, "MRSAS Driver Parameters");
+SYSCTL_NODE(_hw, OID_AUTO, mrsas, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "MRSAS Driver Parameters");
 
 /*
  * PCI device struct and table
@@ -429,7 +430,7 @@ mrsas_setup_sysctl(struct mrsas_softc *sc)
 		sysctl_ctx_init(&sc->sysctl_ctx);
 		sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
 		    SYSCTL_STATIC_CHILDREN(_hw_mrsas), OID_AUTO, tmpstr2,
-		    CTLFLAG_RD, 0, tmpstr);
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, tmpstr);
 		if (sc->sysctl_tree == NULL)
 			return;
 		sysctl_ctx = &sc->sysctl_ctx;

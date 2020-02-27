@@ -802,6 +802,9 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct epoch_tracker et;
 	struct mbuf *mn;
+	bool needs_epoch;
+
+	needs_epoch = !(ifp->if_flags & IFF_KNOWSEPOCH);
 
 	/*
 	 * The drivers are allowed to pass in a chain of packets linked with
@@ -809,7 +812,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 * them up. This allows the drivers to amortize the receive lock.
 	 */
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	if (__predict_false(ifp->if_flags & IFF_NEEDSEPOCH))
+	if (__predict_false(needs_epoch))
 		NET_EPOCH_ENTER(et);
 	while (m) {
 		mn = m->m_nextpkt;
@@ -825,7 +828,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		netisr_dispatch(NETISR_ETHER, m);
 		m = mn;
 	}
-	if (__predict_false(ifp->if_flags & IFF_NEEDSEPOCH))
+	if (__predict_false(needs_epoch))
 		NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }
@@ -1049,7 +1052,8 @@ ether_reassign(struct ifnet *ifp, struct vnet *new_vnet, char *unused __unused)
 #endif
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
+SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Ethernet");
 
 #if 0
 /*
@@ -1331,9 +1335,10 @@ ether_vlanencap(struct mbuf *m, uint16_t tag)
 	return (m);
 }
 
-static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "IEEE 802.1Q VLAN");
-static SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link_vlan, PF_LINK, link,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "for consistency");
 
 VNET_DEFINE_STATIC(int, soft_pad);

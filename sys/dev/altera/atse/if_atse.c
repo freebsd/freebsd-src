@@ -1237,7 +1237,8 @@ atse_sysctl_stats_attach(device_t dev)
 		}
 
 		SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO,
-		    atse_mac_stats_regs[i].name, CTLTYPE_UINT|CTLFLAG_RD,
+		    atse_mac_stats_regs[i].name,
+		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 		    sc, i, sysctl_atse_mac_stats_proc, "IU",
 		    atse_mac_stats_regs[i].descr);
 	}
@@ -1250,7 +1251,8 @@ atse_sysctl_stats_attach(device_t dev)
 		}
 
 		SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO,
-		    atse_rx_err_stats_regs[i].name, CTLTYPE_UINT|CTLFLAG_RD,
+		    atse_rx_err_stats_regs[i].name,
+		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 		    sc, i, sysctl_atse_rx_err_stats_proc, "IU",
 		    atse_rx_err_stats_regs[i].descr);
 	}

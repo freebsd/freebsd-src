@@ -46,10 +46,17 @@
 #define	MACHINE		"riscv"
 #endif
 #ifndef MACHINE_ARCH
-#ifdef __riscv_float_abi_soft
-#define	MACHINE_ARCH	"riscv64sf"
-#else
+/*
+ * Check to see if we're building with hardware floating instructions
+ * allowed. We check this instead of hard vs soft float ABI because we build the
+ * kernel with soft float ABI to avoid hard float instruction generation. If
+ * we ever allow a 'soft ABI but with hard floats' userland, then we'll need
+ * to rethink this.
+ */
+#ifdef __riscv_flen
 #define	MACHINE_ARCH	"riscv64"
+#else
+#define	MACHINE_ARCH	"riscv64sf"
 #endif
 #endif
 

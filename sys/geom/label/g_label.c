@@ -52,7 +52,8 @@ __FBSDID("$FreeBSD$");
 FEATURE(geom_label, "GEOM labeling support");
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, label, CTLFLAG_RW, 0, "GEOM_LABEL stuff");
+SYSCTL_NODE(_kern_geom, OID_AUTO, label, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "GEOM_LABEL stuff");
 u_int g_label_debug = 0;
 SYSCTL_UINT(_kern_geom_label, OID_AUTO, debug, CTLFLAG_RWTUN, &g_label_debug, 0,
     "Debug level");

@@ -370,7 +370,8 @@ adb_kbd_attach(device_t dev)
 		tree = device_get_sysctl_tree(dev);
 
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		    "fn_keys_function_as_primary", CTLTYPE_INT | CTLFLAG_RW, sc,
+		    "fn_keys_function_as_primary",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
 		    0, adb_fn_keys, "I",
 		    "Set the Fn keys to be their F-key type as default");
 	}

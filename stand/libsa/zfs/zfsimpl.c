@@ -138,9 +138,6 @@ static spa_list_t zfs_pools;
 static const dnode_phys_t *dnode_cache_obj;
 static uint64_t dnode_cache_bn;
 static char *dnode_cache_buf;
-static char *zfs_temp_buf, *zfs_temp_end, *zfs_temp_ptr;
-
-#define	TEMP_SIZE	(1024 * 1024)
 
 static int zio_read(const spa_t *spa, const blkptr_t *bp, void *buf);
 static int zfs_get_root(const spa_t *spa, uint64_t *objid);
@@ -167,36 +164,9 @@ zfs_init(void)
 	STAILQ_INIT(&zfs_vdevs);
 	STAILQ_INIT(&zfs_pools);
 
-	zfs_temp_buf = malloc(TEMP_SIZE);
-	zfs_temp_end = zfs_temp_buf + TEMP_SIZE;
-	zfs_temp_ptr = zfs_temp_buf;
 	dnode_cache_buf = malloc(SPA_MAXBLOCKSIZE);
 
 	zfs_init_crc();
-}
-
-static void *
-zfs_alloc(size_t size)
-{
-	char *ptr;
-
-	if (zfs_temp_ptr + size > zfs_temp_end) {
-		panic("ZFS: out of temporary buffer space");
-	}
-	ptr = zfs_temp_ptr;
-	zfs_temp_ptr += size;
-
-	return (ptr);
-}
-
-static void
-zfs_free(void *ptr, size_t size)
-{
-
-	zfs_temp_ptr -= size;
-	if (zfs_temp_ptr != ptr) {
-		panic("ZFS: zfs_alloc()/zfs_free() mismatch");
-	}
 }
 
 static int
@@ -2151,9 +2121,12 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 		ASSERT(size <= BPE_PAYLOAD_SIZE);
 
 		if (cpfunc != ZIO_COMPRESS_OFF)
-			pbuf = zfs_alloc(size);
+			pbuf = malloc(size);
 		else
 			pbuf = buf;
+
+		if (pbuf == NULL)
+			return (ENOMEM);
 
 		decode_embedded_bp_compressed(bp, pbuf);
 		error = 0;
@@ -2161,7 +2134,7 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 		if (cpfunc != ZIO_COMPRESS_OFF) {
 			error = zio_decompress_data(cpfunc, pbuf,
 			    size, buf, BP_GET_LSIZE(bp));
-			zfs_free(pbuf, size);
+			free(pbuf);
 		}
 		if (error != 0)
 			printf("ZFS: i/o error - unable to decompress "
@@ -2198,9 +2171,14 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 				size = P2ROUNDUP(size, align);
 		}
 		if (size != BP_GET_PSIZE(bp) || cpfunc != ZIO_COMPRESS_OFF)
-			pbuf = zfs_alloc(size);
+			pbuf = malloc(size);
 		else
 			pbuf = buf;
+
+		if (pbuf == NULL) {
+			error = ENOMEM;
+			break;
+		}
 
 		if (DVA_GET_GANG(dva))
 			error = zio_read_gang(spa, bp, pbuf);
@@ -2214,12 +2192,13 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 				bcopy(pbuf, buf, BP_GET_PSIZE(bp));
 		}
 		if (buf != pbuf)
-			zfs_free(pbuf, size);
+			free(pbuf);
 		if (error == 0)
 			break;
 	}
 	if (error != 0)
 		printf("ZFS: i/o error - all block copies unavailable\n");
+
 	return (error);
 }
 
@@ -3418,10 +3397,14 @@ zfs_dnode_stat(const spa_t *spa, dnode_phys_t *dn, struct stat *sb)
 				int error;
 
 				size = BP_GET_LSIZE(bp);
-				buf = zfs_alloc(size);
-				error = zio_read(spa, bp, buf);
+				buf = malloc(size);
+				if (buf == NULL)
+					error = ENOMEM;
+				else
+					error = zio_read(spa, bp, buf);
+
 				if (error != 0) {
-					zfs_free(buf, size);
+					free(buf);
 					return (error);
 				}
 				sahdrp = buf;
@@ -3438,8 +3421,7 @@ zfs_dnode_stat(const spa_t *spa, dnode_phys_t *dn, struct stat *sb)
 		    SA_GID_OFFSET);
 		sb->st_size = *(uint64_t *)((char *)sahdrp + hdrsize +
 		    SA_SIZE_OFFSET);
-		if (buf != NULL)
-			zfs_free(buf, size);
+		free(buf);
 	}
 
 	return (0);
@@ -3457,9 +3439,9 @@ zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
 		int hdrsize;
 		char *p;
 
-		if (dn->dn_bonuslen != 0)
+		if (dn->dn_bonuslen != 0) {
 			sahdrp = (sa_hdr_phys_t *)DN_BONUS(dn);
-		else {
+		} else {
 			blkptr_t *bp;
 
 			if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) == 0)
@@ -3467,10 +3449,13 @@ zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
 			bp = DN_SPILL_BLKPTR(dn);
 
 			size = BP_GET_LSIZE(bp);
-			buf = zfs_alloc(size);
-			rc = zio_read(spa, bp, buf);
+			buf = malloc(size);
+			if (buf == NULL)
+				rc = ENOMEM;
+			else
+				rc = zio_read(spa, bp, buf);
 			if (rc != 0) {
-				zfs_free(buf, size);
+				free(buf);
 				return (rc);
 			}
 			sahdrp = buf;
@@ -3478,8 +3463,7 @@ zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
 		hdrsize = SA_HDR_SIZE(sahdrp);
 		p = (char *)((uintptr_t)sahdrp + hdrsize + SA_SYMLINK_OFFSET);
 		memcpy(path, p, psize);
-		if (buf != NULL)
-			zfs_free(buf, size);
+		free(buf);
 		return (0);
 	}
 	/*

@@ -1291,11 +1291,7 @@ oce_tx_restart(POCE_SOFTC sc, struct oce_wq *wq)
 	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != IFF_DRV_RUNNING)
 		return;
 
-#if __FreeBSD_version >= 800000
 	if (!drbr_empty(sc->ifp, wq->br))
-#else
-	if (!IFQ_DRV_IS_EMPTY(&sc->ifp->if_snd))
-#endif
 		taskqueue_enqueue(taskqueue_swi, &wq->txtask);
 
 }
@@ -1378,7 +1374,6 @@ oce_tx_task(void *arg, int npending)
 	struct ifnet *ifp = sc->ifp;
 	int rc = 0;
 
-#if __FreeBSD_version >= 800000
 	LOCK(&wq->tx_lock);
 	rc = oce_multiq_transmit(ifp, NULL, wq);
 	if (rc) {
@@ -1386,10 +1381,6 @@ oce_tx_task(void *arg, int npending)
 				"TX[%d] restart failed\n", wq->queue_index);
 	}
 	UNLOCK(&wq->tx_lock);
-#else
-	oce_start(ifp);
-#endif
-
 }
 
 
@@ -1676,13 +1667,12 @@ oce_rx_lro(struct oce_rq *rq, struct nic_hwlro_singleton_cqe *cqe, struct nic_hw
 		}
 
 		m->m_pkthdr.rcvif = sc->ifp;
-#if __FreeBSD_version >= 800000
 		if (rq->queue_index)
 			m->m_pkthdr.flowid = (rq->queue_index - 1);
 		else
 			m->m_pkthdr.flowid = rq->queue_index;
 		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
-#endif
+
 		/* This deternies if vlan tag is Valid */
 		if (cq_info.vtp) {
 			if (sc->function_mode & FNM_FLEX10_MODE) {
@@ -1754,13 +1744,12 @@ oce_rx(struct oce_rq *rq, struct oce_nic_rx_cqe *cqe)
 
 	if (m) {
 		m->m_pkthdr.rcvif = sc->ifp;
-#if __FreeBSD_version >= 800000
 		if (rq->queue_index)
 			m->m_pkthdr.flowid = (rq->queue_index - 1);
 		else
 			m->m_pkthdr.flowid = rq->queue_index;
 		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
-#endif
+
 		/* This deternies if vlan tag is Valid */
 		if (oce_cqe_vtp_valid(sc, cqe)) { 
 			if (sc->function_mode & FNM_FLEX10_MODE) {
@@ -2182,10 +2171,8 @@ oce_attach_ifp(POCE_SOFTC sc)
 	sc->ifp->if_init = oce_init;
 	sc->ifp->if_mtu = ETHERMTU;
 	sc->ifp->if_softc = sc;
-#if __FreeBSD_version >= 800000
 	sc->ifp->if_transmit = oce_multiq_start;
 	sc->ifp->if_qflush = oce_multiq_flush;
-#endif
 
 	if_initname(sc->ifp,
 		    device_get_name(sc->dev), device_get_unit(sc->dev));
@@ -2211,11 +2198,9 @@ oce_attach_ifp(POCE_SOFTC sc)
 	sc->ifp->if_capenable = sc->ifp->if_capabilities;
 	sc->ifp->if_baudrate = IF_Gbps(10);
 
-#if __FreeBSD_version >= 1000000
 	sc->ifp->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 	sc->ifp->if_hw_tsomaxsegcount = OCE_MAX_TX_ELEMENTS;
 	sc->ifp->if_hw_tsomaxsegsize = 4096;
-#endif
 
 	ether_ifattach(sc->ifp, sc->macaddr.mac_addr);
 	

@@ -82,7 +82,8 @@ static int nfs_realign_count;
 static struct ext_nfsstats oldnfsstats;
 static struct nfsstatsov1 nfsstatsov1;
 
-SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW, 0, "NFS filesystem");
+SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "NFS filesystem");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test,
     0, "Number of realign tests done");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count,

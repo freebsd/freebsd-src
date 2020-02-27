@@ -79,7 +79,8 @@ bool __read_frequently racct_enable = false;
 bool __read_frequently racct_enable = true;
 #endif
 
-SYSCTL_NODE(_kern, OID_AUTO, racct, CTLFLAG_RW, 0, "Resource Accounting");
+SYSCTL_NODE(_kern, OID_AUTO, racct, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Resource Accounting");
 SYSCTL_BOOL(_kern_racct, OID_AUTO, enable, CTLFLAG_RDTUN, &racct_enable,
     0, "Enable RACCT/RCTL");
 SYSCTL_UINT(_kern_racct, OID_AUTO, pcpu_threshold, CTLFLAG_RW, &pcpu_threshold,

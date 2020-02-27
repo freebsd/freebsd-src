@@ -51,7 +51,7 @@ FEATURE(geom_cache, "GEOM cache module");
 static MALLOC_DEFINE(M_GCACHE, "gcache_data", "GEOM_CACHE Data");
 
 SYSCTL_DECL(_kern_geom);
-static SYSCTL_NODE(_kern_geom, OID_AUTO, cache, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom, OID_AUTO, cache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_CACHE stuff");
 static u_int g_cache_debug = 0;
 SYSCTL_UINT(_kern_geom_cache, OID_AUTO, debug, CTLFLAG_RW, &g_cache_debug, 0,
@@ -84,10 +84,14 @@ sysctl_handle_pct(SYSCTL_HANDLER_ARGS)
 	*(u_int *)arg1 = val;
 	return (0);
 }
-SYSCTL_PROC(_kern_geom_cache, OID_AUTO, used_lo, CTLTYPE_UINT|CTLFLAG_RW,
-	&g_cache_used_lo, 0, sysctl_handle_pct, "IU", "");
-SYSCTL_PROC(_kern_geom_cache, OID_AUTO, used_hi, CTLTYPE_UINT|CTLFLAG_RW,
-	&g_cache_used_hi, 0, sysctl_handle_pct, "IU", "");
+SYSCTL_PROC(_kern_geom_cache, OID_AUTO, used_lo,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &g_cache_used_lo, 0,
+    sysctl_handle_pct, "IU",
+    "");
+SYSCTL_PROC(_kern_geom_cache, OID_AUTO, used_hi,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &g_cache_used_hi, 0,
+    sysctl_handle_pct, "IU",
+    "");
 
 
 static int g_cache_destroy(struct g_cache_softc *sc, boolean_t force);

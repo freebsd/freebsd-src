@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 
 static struct mtx x86bios_lock;
 
-static SYSCTL_NODE(_debug, OID_AUTO, x86bios, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_debug, OID_AUTO, x86bios, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "x86bios debugging");
 static int x86bios_trace_call;
 SYSCTL_INT(_debug_x86bios, OID_AUTO, call, CTLFLAG_RWTUN, &x86bios_trace_call, 0,

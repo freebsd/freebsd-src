@@ -2450,10 +2450,11 @@ et_add_sysctls(struct et_softc * sc)
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rx_intr_npkts",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, et_sysctl_rx_intr_npkts, "I",
-	    "RX IM, # packets per RX interrupt");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    et_sysctl_rx_intr_npkts, "I", "RX IM, # packets per RX interrupt");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rx_intr_delay",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, et_sysctl_rx_intr_delay, "I",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    et_sysctl_rx_intr_delay, "I",
 	    "RX IM, RX interrupt delay (x10 usec)");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_intr_nsegs",
 	    CTLFLAG_RW, &sc->sc_tx_intr_nsegs, 0,
@@ -2461,8 +2462,8 @@ et_add_sysctls(struct et_softc * sc)
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "timer",
 	    CTLFLAG_RW, &sc->sc_timer, 0, "TX timer");
 
-	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "ET statistics");
+	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ET statistics");
         parent = SYSCTL_CHILDREN(tree);
 
 	/* TX/RX statistics. */
@@ -2483,8 +2484,8 @@ et_add_sysctls(struct et_softc * sc)
 	    "1519 to 1522 bytes frames");
 
 	/* RX statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
-	    NULL, "RX MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "RX MAC statistics");
 	children = SYSCTL_CHILDREN(tree);
 	ET_SYSCTL_STAT_ADD64(ctx, children, "bytes",
 	    &stats->rx_bytes, "Good bytes");
@@ -2522,8 +2523,8 @@ et_add_sysctls(struct et_softc * sc)
 	    &stats->rx_drop, "Dropped frames");
 
 	/* TX statistics. */
-	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
-	    NULL, "TX MAC statistics");
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX MAC statistics");
 	children = SYSCTL_CHILDREN(tree);
 	ET_SYSCTL_STAT_ADD64(ctx, children, "bytes",
 	    &stats->tx_bytes, "Good bytes");

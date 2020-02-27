@@ -385,7 +385,7 @@ acpi_fujitsu_init(struct acpi_fujitsu_softc *sc)
 	sysctl_ctx_init(&sc->sysctl_ctx);
 	sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
 	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
-	    OID_AUTO, "fujitsu", CTLFLAG_RD, 0, "");
+	    OID_AUTO, "fujitsu", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 	for (i = 0; sysctl_table[i].name != NULL; i++) {
 		switch(sysctl_table[i].method) {
@@ -418,8 +418,8 @@ acpi_fujitsu_init(struct acpi_fujitsu_softc *sc)
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 		    sysctl_table[i].name,
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
-		    sc, i, acpi_fujitsu_sysctl, "I",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY |
+		    CTLFLAG_NEEDGIANT, sc, i, acpi_fujitsu_sysctl, "I",
 		    sysctl_table[i].description);
 	}
 

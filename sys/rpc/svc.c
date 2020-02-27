@@ -128,15 +128,15 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 	sysctl_ctx_init(&pool->sp_sysctl);
 	if (sysctl_base) {
 		SYSCTL_ADD_PROC(&pool->sp_sysctl, sysctl_base, OID_AUTO,
-		    "minthreads", CTLTYPE_INT | CTLFLAG_RW,
+		    "minthreads", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		    pool, 0, svcpool_minthread_sysctl, "I",
 		    "Minimal number of threads");
 		SYSCTL_ADD_PROC(&pool->sp_sysctl, sysctl_base, OID_AUTO,
-		    "maxthreads", CTLTYPE_INT | CTLFLAG_RW,
+		    "maxthreads", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		    pool, 0, svcpool_maxthread_sysctl, "I",
 		    "Maximal number of threads");
 		SYSCTL_ADD_PROC(&pool->sp_sysctl, sysctl_base, OID_AUTO,
-		    "threads", CTLTYPE_INT | CTLFLAG_RD,
+		    "threads", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 		    pool, 0, svcpool_threads_sysctl, "I",
 		    "Current number of threads");
 		SYSCTL_ADD_INT(&pool->sp_sysctl, sysctl_base, OID_AUTO,

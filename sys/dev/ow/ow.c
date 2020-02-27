@@ -160,10 +160,11 @@ static struct ow_timing timing_overdrive = {
 	.t_lowr = 1,		/* 1 <= t < 2 */
 };
 
-SYSCTL_NODE(_hw, OID_AUTO, ow, CTLFLAG_RD, 0, "1-Wire protocol");
-SYSCTL_NODE(_hw_ow, OID_AUTO, regular, CTLFLAG_RD, 0,
+SYSCTL_NODE(_hw, OID_AUTO, ow, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "1-Wire protocol");
+SYSCTL_NODE(_hw_ow, OID_AUTO, regular, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Regular mode timings");
-SYSCTL_NODE(_hw_ow, OID_AUTO, overdrive, CTLFLAG_RD, 0,
+SYSCTL_NODE(_hw_ow, OID_AUTO, overdrive, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Overdrive mode timings");
 
 #define	_OW_TIMING_SYSCTL(mode, param)		\
@@ -183,7 +184,7 @@ SYSCTL_NODE(_hw_ow, OID_AUTO, overdrive, CTLFLAG_RD, 0,
 	    return (0); \
     } \
 SYSCTL_PROC(_hw_ow_ ## mode, OID_AUTO, param, \
-    CTLTYPE_INT | CTLFLAG_RWTUN, 0, sizeof(int), \
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int), \
     sysctl_ow_timing_ ## mode ## _ ## param, "I", \
     "1-Wire timing parameter in microseconds (-1 resets to default)")
 

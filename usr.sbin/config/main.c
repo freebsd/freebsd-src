@@ -116,6 +116,7 @@ main(int argc, char **argv)
 	char *kernfile;
 	struct includepath* ipath;
 	int printmachine;
+	bool cust_dest = false;
 
 	printmachine = 0;
 	kernfile = NULL;
@@ -140,6 +141,7 @@ main(int argc, char **argv)
 				strlcpy(destdir, optarg, sizeof(destdir));
 			else
 				errx(EXIT_FAILURE, "directory already set");
+			cust_dest = true;
 			break;
 		case 'g':
 			debugging++;
@@ -232,7 +234,14 @@ main(int argc, char **argv)
 		exit(0);
 	}
 
-	/* Make compile directory */
+	/*
+	 * Make CDIR directory, if doing a default destination. Some version
+	 * control systems delete empty directories and this seemlessly copes.
+	 */
+	if (!cust_dest && stat(CDIR, &buf))
+		if (mkdir(CDIR, 0777))
+			err(2, "%s", CDIR);
+	/* Create the compile directory */
 	p = path((char *)NULL);
 	if (stat(p, &buf)) {
 		if (mkdir(p, 0777))

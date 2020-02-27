@@ -192,8 +192,10 @@ union ifgroupreq_union {
 #endif
 };
 
-SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
-SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
+SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Link layers");
+SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Generic link-management");
 
 SYSCTL_INT(_net_link, OID_AUTO, ifqmaxlen, CTLFLAG_RDTUN,
     &ifqmaxlen, 0, "max send queue size");
@@ -551,8 +553,6 @@ if_alloc_domain(u_char type, int numa_domain)
 #ifdef VIMAGE
 	ifp->if_vnet = curvnet;
 #endif
-	/* XXX */
-	ifp->if_flags |= IFF_NEEDSEPOCH;
 	if (if_com_alloc[type] != NULL) {
 		ifp->if_l2com = if_com_alloc[type](type, ifp);
 		if (ifp->if_l2com == NULL) {
@@ -4167,8 +4167,8 @@ if_setdrvflags(if_t ifp, int flags)
 int
 if_setflags(if_t ifp, int flags)
 {
-	/* XXX Temporary */
-	((struct ifnet *)ifp)->if_flags = flags | IFF_NEEDSEPOCH;
+
+	ifp->if_flags = flags;
 	return (0);
 }
 

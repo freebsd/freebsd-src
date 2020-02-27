@@ -188,7 +188,8 @@ static int	mwl_getchannels(struct mwl_softc *);
 static void	mwl_sysctlattach(struct mwl_softc *);
 static void	mwl_announce(struct mwl_softc *);
 
-SYSCTL_NODE(_hw, OID_AUTO, mwl, CTLFLAG_RD, 0, "Marvell driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, mwl, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Marvell driver parameters");
 
 static	int mwl_rxdesc = MWL_RXDESC;		/* # rx desc's to allocate */
 SYSCTL_INT(_hw_mwl, OID_AUTO, rxdesc, CTLFLAG_RW, &mwl_rxdesc,
@@ -4787,9 +4788,9 @@ mwl_sysctlattach(struct mwl_softc *sc)
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 
 	sc->sc_debug = mwl_debug;
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"debug", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		mwl_sysctl_debug, "I", "control debugging printfs");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "debug",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    mwl_sysctl_debug, "I", "control debugging printfs");
 #endif
 }
 

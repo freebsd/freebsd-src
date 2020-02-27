@@ -6,11 +6,15 @@ OUTPUT_ARCH(powerpc:common)
 ENTRY(_start)
 SEARCH_DIR(/usr/lib);
 PROVIDE (__stack = 0);
+PHDRS
+{
+	text PT_LOAD;
+}
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
   . = 0x02c00000 + SIZEOF_HEADERS;
-  .interp     : { *(.interp) 	}
+  .interp     : { *(.interp) 	} :text
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
   .dynstr        : { *(.dynstr)		}

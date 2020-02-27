@@ -156,7 +156,8 @@ static const char *errmsg[] =
 	"NO MEMORY"
 };
 
-static SYSCTL_NODE(_hw, OID_AUTO, mmcsd, CTLFLAG_RD, NULL, "mmcsd driver");
+static SYSCTL_NODE(_hw, OID_AUTO, mmcsd, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "mmcsd driver");
 
 static int mmcsd_cache = 1;
 SYSCTL_INT(_hw_mmcsd, OID_AUTO, cache, CTLFLAG_RDTUN, &mmcsd_cache, 0,

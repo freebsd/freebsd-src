@@ -79,7 +79,7 @@ static int	llvm_textconf_decode_lv(char **, char *, struct g_llvm_vg *);
 static int	llvm_textconf_decode_sg(char **, char *, struct g_llvm_lv *);
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, linux_lvm, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern_geom, OID_AUTO, linux_lvm, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_LINUX_LVM stuff");
 static u_int g_llvm_debug = 0;
 SYSCTL_UINT(_kern_geom_linux_lvm, OID_AUTO, debug, CTLFLAG_RWTUN, &g_llvm_debug, 0,

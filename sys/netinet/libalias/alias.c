@@ -153,7 +153,8 @@ __FBSDID("$FreeBSD$");
 
 SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
-SYSCTL_NODE(_net_inet_ip, OID_AUTO, alias, CTLFLAG_RW, NULL, "Libalias sysctl API");
+SYSCTL_NODE(_net_inet_ip, OID_AUTO, alias, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    "Libalias sysctl API");
 
 #endif
 

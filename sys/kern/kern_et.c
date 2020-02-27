@@ -45,8 +45,11 @@ static struct et_eventtimers_list eventtimers = SLIST_HEAD_INITIALIZER(et_eventt
 struct mtx	et_eventtimers_mtx;
 MTX_SYSINIT(et_eventtimers_init, &et_eventtimers_mtx, "et_mtx", MTX_DEF);
 
-SYSCTL_NODE(_kern, OID_AUTO, eventtimer, CTLFLAG_RW, 0, "Event timers");
-static SYSCTL_NODE(_kern_eventtimer, OID_AUTO, et, CTLFLAG_RW, 0, "");
+SYSCTL_NODE(_kern, OID_AUTO, eventtimer, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Event timers");
+static SYSCTL_NODE(_kern_eventtimer, OID_AUTO, et,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "");
 
 /*
  * Register a new event timer hardware.
@@ -70,7 +73,8 @@ et_register(struct eventtimer *et)
 	KASSERT(et->et_start, ("et_register: timer has no start function"));
 	et->et_sysctl = SYSCTL_ADD_NODE_WITH_LABEL(NULL,
 	    SYSCTL_STATIC_CHILDREN(_kern_eventtimer_et), OID_AUTO, et->et_name,
-	    CTLFLAG_RW, 0, "event timer description", "eventtimer");
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+	    "event timer description", "eventtimer");
 	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
 	    "flags", CTLFLAG_RD, &(et->et_flags), 0,
 	    "Event timer capabilities");

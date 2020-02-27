@@ -543,13 +543,15 @@ acpi_ibm_attach(device_t dev)
 		if (acpi_ibm_sysctls[i].flag_rdonly != 0) {
 			SYSCTL_ADD_PROC(sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-			    acpi_ibm_sysctls[i].name, CTLTYPE_INT | CTLFLAG_RD,
+			    acpi_ibm_sysctls[i].name,
+			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 			    sc, i, acpi_ibm_sysctl, "I",
 			    acpi_ibm_sysctls[i].description);
 		} else {
 			SYSCTL_ADD_PROC(sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-			    acpi_ibm_sysctls[i].name, CTLTYPE_INT | CTLFLAG_RW,
+			    acpi_ibm_sysctls[i].name,
+			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 			    sc, i, acpi_ibm_sysctl, "I",
 			    acpi_ibm_sysctls[i].description);
 		}
@@ -559,15 +561,15 @@ acpi_ibm_attach(device_t dev)
 	if (acpi_ibm_sysctl_init(sc, ACPI_IBM_METHOD_THERMAL)) {
 		SYSCTL_ADD_PROC(sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "thermal",
-		    CTLTYPE_INT | CTLFLAG_RD, sc, 0, acpi_ibm_thermal_sysctl,
-		    "I", "Thermal zones");
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+		    acpi_ibm_thermal_sysctl, "I", "Thermal zones");
 	}
 
 	/* Hook up handlerevents node */
 	if (acpi_ibm_sysctl_init(sc, ACPI_IBM_METHOD_HANDLEREVENTS)) {
 		SYSCTL_ADD_PROC(sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "handlerevents",
-		    CTLTYPE_STRING | CTLFLAG_RW, sc, 0,
+		    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 		    acpi_ibm_handlerevents_sysctl, "I",
 		    "devd(8) events handled by acpi_ibm");
 	}

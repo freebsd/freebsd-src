@@ -58,7 +58,7 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 	ctx = device_get_sysctl_ctx(softc->dev);
 	softc->hw_stats_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
-	    "hwstats", CTLFLAG_RD, 0, "hardware statistics");
+	    "hwstats", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "hardware statistics");
 	if (!softc->hw_stats_oid) {
 		sysctl_ctx_free(&softc->hw_stats);
 		return ENOMEM;
@@ -68,7 +68,8 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 	ctx = device_get_sysctl_ctx(softc->dev);
 	softc->ver_info->ver_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
-	    "ver", CTLFLAG_RD, 0, "hardware/firmware version information");
+	    "ver", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+	    "hardware/firmware version information");
 	if (!softc->ver_info->ver_oid) {
 		sysctl_ctx_free(&softc->ver_info->ver_ctx);
 		return ENOMEM;
@@ -79,7 +80,8 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 		ctx = device_get_sysctl_ctx(softc->dev);
 		softc->nvm_info->nvm_oid = SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
-		    "nvram", CTLFLAG_RD, 0, "nvram information");
+		    "nvram", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+		    "nvram information");
 		if (!softc->nvm_info->nvm_oid) {
 			sysctl_ctx_free(&softc->nvm_info->nvm_ctx);
 			return ENOMEM;
@@ -90,7 +92,7 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 	ctx = device_get_sysctl_ctx(softc->dev);
 	softc->hw_lro_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
-	    "hw_lro", CTLFLAG_RD, 0, "hardware lro");
+	    "hw_lro", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "hardware lro");
 	if (!softc->hw_lro_oid) {
 		sysctl_ctx_free(&softc->hw_lro_ctx);
 		return ENOMEM;
@@ -100,7 +102,7 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 	ctx = device_get_sysctl_ctx(softc->dev);
 	softc->flow_ctrl_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
-	    "fc", CTLFLAG_RD, 0, "flow ctrl");
+	    "fc", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "flow ctrl");
 	if (!softc->flow_ctrl_oid) {
 		sysctl_ctx_free(&softc->flow_ctrl_ctx);
 		return ENOMEM;
@@ -166,8 +168,8 @@ bnxt_create_tx_sysctls(struct bnxt_softc *softc, int txr)
 	sprintf(name, "txq%d", txr);
 	sprintf(desc, "transmit queue %d", txr);
 	oid = SYSCTL_ADD_NODE(&softc->hw_stats,
-	    SYSCTL_CHILDREN(softc->hw_stats_oid), OID_AUTO, name, CTLFLAG_RD, 0,
-	    desc);
+	    SYSCTL_CHILDREN(softc->hw_stats_oid), OID_AUTO, name,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, desc);
 	if (!oid)
 		return ENOMEM;
 
@@ -210,8 +212,8 @@ bnxt_create_port_stats_sysctls(struct bnxt_softc *softc)
 	sprintf(name, "port_stats");
 	sprintf(desc, "Port Stats");
 	oid = SYSCTL_ADD_NODE(&softc->hw_stats,
-			SYSCTL_CHILDREN(softc->hw_stats_oid), OID_AUTO, name, CTLFLAG_RD, 0,
-			desc);
+	    SYSCTL_CHILDREN(softc->hw_stats_oid), OID_AUTO, name,
+	        CTLFLAG_RD | CTLFLAG_MPSAFE, 0, desc);
 	if (!oid)
 		return ENOMEM;
 
@@ -661,8 +663,8 @@ bnxt_create_rx_sysctls(struct bnxt_softc *softc, int rxr)
 	sprintf(name, "rxq%d", rxr);
 	sprintf(desc, "receive queue %d", rxr);
 	oid = SYSCTL_ADD_NODE(&softc->hw_stats,
-	    SYSCTL_CHILDREN(softc->hw_stats_oid), OID_AUTO, name, CTLFLAG_RD, 0,
-	    desc);
+	    SYSCTL_CHILDREN(softc->hw_stats_oid), OID_AUTO, name,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, desc);
 	if (!oid)
 		return ENOMEM;
 
@@ -861,12 +863,12 @@ bnxt_create_ver_sysctls(struct bnxt_softc *softc)
 	    bnxt_chip_type[MAX_CHIP_TYPE] : bnxt_chip_type[vi->chip_type], 0,
 	    "RoCE firmware name");
 	SYSCTL_ADD_PROC(&vi->ver_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "package_ver", CTLTYPE_STRING|CTLFLAG_RD, softc, 0,
-	    bnxt_package_ver_sysctl, "A",
+	    "package_ver", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    softc, 0, bnxt_package_ver_sysctl, "A",
 	    "currently installed package version");
 	SYSCTL_ADD_PROC(&vi->ver_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "hwrm_min_ver", CTLTYPE_STRING|CTLFLAG_RWTUN, softc, 0,
-	    bnxt_hwrm_min_ver_sysctl, "A",
+	    "hwrm_min_ver", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+	    softc, 0, bnxt_hwrm_min_ver_sysctl, "A",
 	    "minimum hwrm API vesion to support");
 
 	return 0;
@@ -1205,44 +1207,49 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));;
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rss_key",
-	    CTLTYPE_STRING|CTLFLAG_RWTUN, softc, 0, bnxt_rss_key_sysctl, "A",
-	    "RSS key");
+	    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_rss_key_sysctl, "A", "RSS key");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rss_type",
-	    CTLTYPE_STRING|CTLFLAG_RWTUN, softc, 0, bnxt_rss_type_sysctl, "A",
-	    "RSS type bits");
+	    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_rss_type_sysctl, "A", "RSS type bits");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rx_stall",
-	    CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_rx_stall_sysctl, "I",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_rx_stall_sysctl, "I",
 	    "buffer rx packets in hardware until the host posts new buffers");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "vlan_strip",
-	    CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_vlan_strip_sysctl, "I",
-	    "strip VLAN tag in the RX path");
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_vlan_strip_sysctl, "I", "strip VLAN tag in the RX path");
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "if_name", CTLFLAG_RD,
 		iflib_get_ifp(softc->ctx)->if_xname, 0, "interface name");
 
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs",
-                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_usecs,
-			"I", "interrupt coalescing Rx Usecs");
+            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_set_coal_rx_usecs, "I", "interrupt coalescing Rx Usecs");
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_frames",
-                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_frames,
-			"I", "interrupt coalescing Rx Frames");
+            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_set_coal_rx_frames, "I", "interrupt coalescing Rx Frames");
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs_irq",
-                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_usecs_irq,
-			"I", "interrupt coalescing Rx Usecs IRQ");
+            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_set_coal_rx_usecs_irq, "I",
+	    "interrupt coalescing Rx Usecs IRQ");
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_frames_irq",
-                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_frames_irq,
-			"I", "interrupt coalescing Rx Frames IRQ");
+            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_set_coal_rx_frames_irq, "I",
+	    "interrupt coalescing Rx Frames IRQ");
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs",
-                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_usecs,
-			"I", "interrupt coalescing Tx Usces");
+            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_set_coal_tx_usecs, "I", "interrupt coalescing Tx Usces");
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_frames",
-                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_frames,
-			"I", "interrupt coalescing Tx Frames"); 
+            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_set_coal_tx_frames, "I", "interrupt coalescing Tx Frames"); 
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs_irq",
-                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_usecs_irq,
-			"I", "interrupt coalescing Tx Usecs IRQ"); 
+            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_set_coal_tx_usecs_irq, "I",
+	    "interrupt coalescing Tx Usecs IRQ"); 
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_frames_irq",
-                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_frames_irq,
-			"I", "interrupt coalescing Tx Frames IRQ");
+            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_set_coal_tx_frames_irq, "I",
+	    "interrupt coalescing Tx Frames IRQ");
 
 	return 0;
 }
@@ -1317,19 +1324,17 @@ bnxt_create_pause_fc_sysctls(struct bnxt_softc *softc)
 		return ENOMEM;
 
 	SYSCTL_ADD_PROC(&softc->flow_ctrl_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			"tx", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
-			bnxt_flow_ctrl_tx, "A",
-			"Enable or Disable Tx Flow Ctrl: 0 / 1");
+	    "tx", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_flow_ctrl_tx, "A", "Enable or Disable Tx Flow Ctrl: 0 / 1");
 
 	SYSCTL_ADD_PROC(&softc->flow_ctrl_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			"rx", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
-			bnxt_flow_ctrl_rx, "A",
-			"Enable or Disable Tx Flow Ctrl: 0 / 1");
+	    "rx", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_flow_ctrl_rx, "A", "Enable or Disable Tx Flow Ctrl: 0 / 1");
 
 	SYSCTL_ADD_PROC(&softc->flow_ctrl_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			"autoneg", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
-			bnxt_flow_ctrl_autoneg, "A",
-			"Enable or Disable Autoneg Flow Ctrl: 0 / 1");
+	    "autoneg", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc,
+	    0, bnxt_flow_ctrl_autoneg, "A",
+	    "Enable or Disable Autoneg Flow Ctrl: 0 / 1");
 
 	return 0;
 }
@@ -1343,31 +1348,31 @@ bnxt_create_hw_lro_sysctls(struct bnxt_softc *softc)
 		return ENOMEM;
 
 	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			"enable", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
-			bnxt_hw_lro_enable_disable, "A",
-			"Enable or Disable HW LRO: 0 / 1");
+	    "enable", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc,
+	    0, bnxt_hw_lro_enable_disable, "A",
+	    "Enable or Disable HW LRO: 0 / 1");
 
 	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			"gro_mode", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
-			bnxt_hw_lro_set_mode, "A",
-			"Set mode: 1 = GRO mode, 0 = RSC mode");
+	    "gro_mode", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc,
+	    0, bnxt_hw_lro_set_mode, "A",
+	    "Set mode: 1 = GRO mode, 0 = RSC mode");
 
 	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			"max_agg_segs", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
-			bnxt_hw_lro_set_max_agg_segs, "A",
-			"Set Max Agg Seg Value (unit is Log2): "
-			"0 (= 1 seg) / 1 (= 2 segs) /  ... / 31 (= 2^31 segs)");
+	    "max_agg_segs", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+	    softc, 0, bnxt_hw_lro_set_max_agg_segs, "A",
+	    "Set Max Agg Seg Value (unit is Log2): "
+	    "0 (= 1 seg) / 1 (= 2 segs) /  ... / 31 (= 2^31 segs)");
 	
         SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			"max_aggs", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
-			bnxt_hw_lro_set_max_aggs, "A",
-			"Set Max Aggs Value (unit is Log2): "
-			"0 (= 1 agg) / 1 (= 2 aggs) /  ... / 7 (= 2^7 segs)"); 
+	    "max_aggs", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+	    softc, 0, bnxt_hw_lro_set_max_aggs, "A",
+	    "Set Max Aggs Value (unit is Log2): "
+	    "0 (= 1 agg) / 1 (= 2 aggs) /  ... / 7 (= 2^7 segs)"); 
 
 	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			"min_agg_len", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
-			bnxt_hw_lro_set_min_agg_len, "A",
-			"Min Agg Len: 1 to 9000");
+	    "min_agg_len", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+	    softc, 0, bnxt_hw_lro_set_min_agg_len, "A",
+	    "Min Agg Len: 1 to 9000");
 
 	return 0;
 }
@@ -1407,7 +1412,8 @@ bnxt_create_config_sysctls_post(struct bnxt_softc *softc)
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));;
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "vlan_only",
-	    CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_vlan_only_sysctl, "I",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    bnxt_vlan_only_sysctl, "I",
 	    "require vlan tag on received packets when vlan is enabled");
 
 	return 0;

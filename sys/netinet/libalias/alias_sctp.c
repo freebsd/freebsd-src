@@ -367,44 +367,68 @@ SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_ip_alias);
 
-static SYSCTL_NODE(_net_inet_ip_alias, OID_AUTO, sctp, CTLFLAG_RW, NULL,
+static SYSCTL_NODE(_net_inet_ip_alias, OID_AUTO, sctp,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "SCTP NAT");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, log_level, CTLTYPE_UINT | CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, log_level,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_log_level, 0, sysctl_chg_loglevel, "IU",
     "Level of detail (0 - default, 1 - event, 2 - info, 3 - detail, 4 - debug, 5 - max debug)");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, init_timer, CTLTYPE_UINT | CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, init_timer,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_init_timer, 0, sysctl_chg_timer, "IU",
     "Timeout value (s) while waiting for (INIT-ACK|AddIP-ACK)");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, up_timer, CTLTYPE_UINT | CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, up_timer,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_up_timer, 0, sysctl_chg_timer, "IU",
     "Timeout value (s) to keep an association up with no traffic");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, shutdown_timer, CTLTYPE_UINT | CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, shutdown_timer,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_shutdown_timer, 0, sysctl_chg_timer, "IU",
     "Timeout value (s) while waiting for SHUTDOWN-COMPLETE");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, holddown_timer, CTLTYPE_UINT | CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, holddown_timer,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_holddown_timer, 0, sysctl_chg_timer, "IU",
     "Hold association in table for this many seconds after receiving a SHUTDOWN-COMPLETE");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, hashtable_size, CTLTYPE_UINT | CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, hashtable_size,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_hashtable_size, 0, sysctl_chg_hashtable_size, "IU",
     "Size of hash tables used for NAT lookups (100 < prime_number > 1000001)");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, error_on_ootb, CTLTYPE_UINT | CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, error_on_ootb,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_error_on_ootb, 0, sysctl_chg_error_on_ootb, "IU",
-    "ErrorM sent on receipt of ootb packet:\n\t0 - none,\n\t1 - to local only,\n\t2 - to local and global if a partial association match,\n\t3 - to local and global (DoS risk)");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, accept_global_ootb_addip, CTLTYPE_UINT | CTLFLAG_RW,
+    "ErrorM sent on receipt of ootb packet:\n\t0 - none,\n"
+    "\t1 - to local only,\n"
+    "\t2 - to local and global if a partial association match,\n"
+    "\t3 - to local and global (DoS risk)");
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, accept_global_ootb_addip,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_accept_global_ootb_addip, 0, sysctl_chg_accept_global_ootb_addip, "IU",
-    "NAT response to receipt of global OOTB AddIP:\n\t0 - No response,\n\t1 - NAT will accept OOTB global AddIP messages for processing (Security risk)");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, initialising_chunk_proc_limit, CTLTYPE_UINT | CTLFLAG_RW,
-    &sysctl_initialising_chunk_proc_limit, 0, sysctl_chg_initialising_chunk_proc_limit, "IU",
-    "Number of chunks that should be processed if there is no current association found:\n\t > 0 (A high value is a DoS risk)");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, chunk_proc_limit, CTLTYPE_UINT | CTLFLAG_RW,
+    "NAT response to receipt of global OOTB AddIP:\n"
+    "\t0 - No response,\n"
+    "\t1 - NAT will accept OOTB global AddIP messages for processing (Security risk)");
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, initialising_chunk_proc_limit,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &sysctl_initialising_chunk_proc_limit, 0,
+    sysctl_chg_initialising_chunk_proc_limit, "IU",
+    "Number of chunks that should be processed if there is no current "
+    "association found:\n\t > 0 (A high value is a DoS risk)");
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, chunk_proc_limit,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_chunk_proc_limit, 0, sysctl_chg_chunk_proc_limit, "IU",
-    "Number of chunks that should be processed to find key chunk:\n\t>= initialising_chunk_proc_limit (A high value is a DoS risk)");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, param_proc_limit, CTLTYPE_UINT | CTLFLAG_RW,
+    "Number of chunks that should be processed to find key chunk:\n"
+    "\t>= initialising_chunk_proc_limit (A high value is a DoS risk)");
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, param_proc_limit,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_param_proc_limit, 0, sysctl_chg_param_proc_limit, "IU",
-    "Number of parameters (in a chunk) that should be processed to find key parameters:\n\t> 1 (A high value is a DoS risk)");
-SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, track_global_addresses, CTLTYPE_UINT | CTLFLAG_RW,
+    "Number of parameters (in a chunk) that should be processed to find key "
+    "parameters:\n\t> 1 (A high value is a DoS risk)");
+SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, track_global_addresses,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &sysctl_track_global_addresses, 0, sysctl_chg_track_global_addresses, "IU",
-    "Configures the global address tracking option within the NAT:\n\t0 - Global tracking is disabled,\n\t> 0 - enables tracking but limits the number of global IP addresses to this value");
+    "Configures the global address tracking option within the NAT:\n"
+    "\t0 - Global tracking is disabled,\n"
+    "\t> 0 - enables tracking but limits the number of global IP addresses to this value");
 
 #endif /* SYSCTL_NODE */
 

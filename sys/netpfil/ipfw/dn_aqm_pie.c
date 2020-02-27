@@ -162,36 +162,37 @@ SYSBEGIN(f4)
 SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_ip_dummynet);
-static SYSCTL_NODE(_net_inet_ip_dummynet, OID_AUTO, 
-	pie, CTLFLAG_RW, 0, "PIE");
+static SYSCTL_NODE(_net_inet_ip_dummynet, OID_AUTO, pie,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "PIE");
 
 #ifdef SYSCTL_NODE
 SYSCTL_PROC(_net_inet_ip_dummynet_pie, OID_AUTO, target,
-	CTLTYPE_LONG | CTLFLAG_RW, NULL, 0, 
-	pie_sysctl_target_tupdate_maxb_handler, "L",
-	"queue target in microsecond");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    pie_sysctl_target_tupdate_maxb_handler, "L",
+    "queue target in microsecond");
 SYSCTL_PROC(_net_inet_ip_dummynet_pie, OID_AUTO, tupdate,
-	CTLTYPE_LONG | CTLFLAG_RW, NULL, 0,
-	pie_sysctl_target_tupdate_maxb_handler, "L",
-	"the frequency of drop probability calculation in microsecond");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    pie_sysctl_target_tupdate_maxb_handler, "L",
+    "the frequency of drop probability calculation in microsecond");
 SYSCTL_PROC(_net_inet_ip_dummynet_pie, OID_AUTO, max_burst,
-	CTLTYPE_LONG | CTLFLAG_RW, NULL, 0,
-	pie_sysctl_target_tupdate_maxb_handler, "L",
-	"Burst allowance interval in microsecond");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    pie_sysctl_target_tupdate_maxb_handler, "L",
+    "Burst allowance interval in microsecond");
 
 SYSCTL_PROC(_net_inet_ip_dummynet_pie, OID_AUTO, max_ecnth,
-	CTLTYPE_LONG | CTLFLAG_RW, NULL, 0,
-	pie_sysctl_max_ecnth_handler, "L",
-	"ECN safeguard threshold scaled by 1000");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    pie_sysctl_max_ecnth_handler, "L",
+    "ECN safeguard threshold scaled by 1000");
 
 SYSCTL_PROC(_net_inet_ip_dummynet_pie, OID_AUTO, alpha,
-	CTLTYPE_LONG | CTLFLAG_RW, NULL, 0,
-	pie_sysctl_alpha_beta_handler, "L",
-	"PIE alpha scaled by 1000");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    pie_sysctl_alpha_beta_handler, "L",
+    "PIE alpha scaled by 1000");
 SYSCTL_PROC(_net_inet_ip_dummynet_pie, OID_AUTO, beta,
-	CTLTYPE_LONG | CTLFLAG_RW, NULL, 0,
-	pie_sysctl_alpha_beta_handler, "L",
-	"beta scaled by 1000");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    pie_sysctl_alpha_beta_handler, "L",
+    "beta scaled by 1000");
 #endif
 
 

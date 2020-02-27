@@ -670,7 +670,7 @@ VNET_SYSINIT(cdg_init_vnet, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST,
     cdg_init_vnet, NULL);
 
 SYSCTL_DECL(_net_inet_tcp_cc_cdg);
-SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, cdg, CTLFLAG_RW, NULL,
+SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, cdg, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "CAIA delay-gradient congestion control related settings");
 
 SYSCTL_STRING(_net_inet_tcp_cc_cdg, OID_AUTO, version,
@@ -683,19 +683,19 @@ SYSCTL_UINT(_net_inet_tcp_cc_cdg, OID_AUTO, alpha_inc,
     "alpha_inc RTTs during congestion avoidance mode.");
 
 SYSCTL_PROC(_net_inet_tcp_cc_cdg, OID_AUTO, beta_delay,
-    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW, &VNET_NAME(cdg_beta_delay), 70,
-    &cdg_beta_handler, "IU",
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &VNET_NAME(cdg_beta_delay), 70, &cdg_beta_handler, "IU",
     "Delay-based window decrease factor as a percentage "
     "(on delay-based backoff, w = w * beta_delay / 100)");
 
 SYSCTL_PROC(_net_inet_tcp_cc_cdg, OID_AUTO, beta_loss,
-    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW, &VNET_NAME(cdg_beta_loss), 50,
-    &cdg_beta_handler, "IU",
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &VNET_NAME(cdg_beta_loss), 50, &cdg_beta_handler, "IU",
     "Loss-based window decrease factor as a percentage "
     "(on loss-based backoff, w = w * beta_loss / 100)");
 
 SYSCTL_PROC(_net_inet_tcp_cc_cdg, OID_AUTO, exp_backoff_scale,
-    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &VNET_NAME(cdg_exp_backoff_scale), 2, &cdg_exp_backoff_scale_handler, "IU",
     "Scaling parameter for the probabilistic exponential backoff");
 

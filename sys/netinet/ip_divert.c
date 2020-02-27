@@ -737,10 +737,13 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 }
 
 #ifdef SYSCTL_NODE
-static SYSCTL_NODE(_net_inet, IPPROTO_DIVERT, divert, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_inet, IPPROTO_DIVERT, divert,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "IPDIVERT");
-SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist, CTLTYPE_OPAQUE | CTLFLAG_RD,
-    NULL, 0, div_pcblist, "S,xinpcb", "List of active divert sockets");
+SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist,
+   CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, div_pcblist, "S,xinpcb",
+    "List of active divert sockets");
 #endif
 
 struct pr_usrreqs div_usrreqs = {

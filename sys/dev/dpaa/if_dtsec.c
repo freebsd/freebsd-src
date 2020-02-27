@@ -688,7 +688,7 @@ dtsec_attach(device_t dev)
 
 	ifp->if_softc = sc;
 	ifp->if_mtu = ETHERMTU;	/* TODO: Configure */
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_NEEDSEPOCH;
+	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST;
 	ifp->if_init = dtsec_if_init;
 	ifp->if_start = dtsec_if_start;
 	ifp->if_ioctl = dtsec_if_ioctl;
