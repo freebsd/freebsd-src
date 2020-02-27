@@ -56,10 +56,10 @@ DH_set0_pqg(dh, p, q, g)
 	BIGNUM *q;
 	BIGNUM *g;
 {
-	dh->p=p;
+	dh->p = p;
 	if (q != NULL)
-		dh->q=q;
-	dh->g=g;
+		dh->q = q;
+	dh->g = g;
 	return 1; /* success */
 }
 # endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
@@ -95,7 +95,7 @@ get_dh512()
 		DH_free(dh);
 		BN_free(dhp_bn);
 		BN_free(dhg_bn);
-		return(NULL);
+		return NULL;
 	}
 	return dh;
 }
@@ -117,7 +117,7 @@ oK0jjSXgFyeU4/NfyA+zuNeWzUL6bHmigwIBAg==
 static DH *
 get_dh2048()
 {
-	static unsigned char dh2048_p[]={
+	static unsigned char dh2048_p[] = {
 		0xAC,0x37,0x20,0x70,0xBA,0x71,0x12,0x4B,0x10,0x1C,0xF9,0x68,
 		0x95,0x12,0x82,0x50,0x9D,0xAC,0xCC,0xA4,0x73,0x8A,0xC7,0x96,
 		0x57,0xD7,0x14,0x49,0x03,0x59,0x1B,0x1A,0x06,0xC3,0xB2,0xA4,
@@ -141,22 +141,22 @@ get_dh2048()
 		0xE3,0xF3,0x5F,0xC8,0x0F,0xB3,0xB8,0xD7,0x96,0xCD,0x42,0xFA,
 		0x6C,0x79,0xA2,0x83,
 		};
-	static unsigned char dh2048_g[]={ 0x02, };
+	static unsigned char dh2048_g[] = { 0x02, };
 	DH *dh;
 	BIGNUM *dhp_bn, *dhg_bn;
 
-	if ((dh=DH_new()) == NULL)
-		return(NULL);
-	dhp_bn = BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
-	dhg_bn = BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
+	if ((dh = DH_new()) == NULL)
+		return NULL;
+	dhp_bn = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
+	dhg_bn = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
 	if ((dhp_bn == NULL) || (dhg_bn == NULL) || !DH_set0_pqg(dh, dhp_bn, NULL, dhg_bn))
 	{
 		DH_free(dh);
 		BN_free(dhp_bn);
 		BN_free(dhg_bn);
-		return(NULL);
+		return NULL;
 	}
-	return(dh);
+	return dh;
 }
 # endif /* !NO_DH */
 
@@ -1260,7 +1260,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			if (tTd(96, 2))
 				sm_dprintf("inittls: Generating %d bit DH parameters\n", bits);
 
-			dsa=DSA_new();
+			dsa = DSA_new();
 			/* this takes a while! */
 			(void)DSA_generate_parameters_ex(dsa, bits, NULL, 0,
 							 NULL, NULL, NULL);
