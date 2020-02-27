@@ -584,10 +584,10 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 	 * In this case, we have selected devices before, but the device
 	 * list has changed since we last selected devices, so we need to
 	 * either enlarge or reduce the size of the device selection list.
+	 * But delay the resizing until after copying the data to old_dev_select
+	 * as to not lose any data in the case of reducing the size.
 	 */
 	} else if (*num_selections != numdevs) {
-		*dev_select = (struct device_selection *)reallocf(*dev_select,
-			numdevs * sizeof(struct device_selection));
 		*select_generation = current_generation;
 		init_selections = 1;
 	/*
@@ -643,6 +643,11 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 		old_num_selections = *num_selections;
 		bcopy(*dev_select, old_dev_select, 
 		    sizeof(struct device_selection) * *num_selections);
+	}
+
+	if (!changed && *num_selections != numdevs) {
+		*dev_select = (struct device_selection *)reallocf(*dev_select,
+			numdevs * sizeof(struct device_selection));
 	}
 
 	if (init_selections != 0) {
