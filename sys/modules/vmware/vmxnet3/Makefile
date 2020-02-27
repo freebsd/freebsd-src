@@ -28,6 +28,6 @@
 KMOD=	if_vmx
 SRCS=	if_vmx.c
 SRCS+=	bus_if.h device_if.h pci_if.h ifdi_if.h
-SRCS+=	opt_inet.h opt_inet6.h
+SRCS+=	opt_inet.h opt_inet6.h opt_rss.h
 
 .include <bsd.kmod.mk>

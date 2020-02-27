@@ -113,6 +113,8 @@ struct vmxnet3_softc {
 	struct vmxnet3_driver_shared	*vmx_ds;
 	uint32_t			 vmx_flags;
 #define VMXNET3_FLAG_RSS	0x0002
+#define VMXNET3_FLAG_SOFT_RSS	0x0004		/* Software RSS is enabled with
+						   compatible algorithm. */
 
 	struct vmxnet3_rxqueue		*vmx_rxq;
 	struct vmxnet3_txqueue		*vmx_txq;
