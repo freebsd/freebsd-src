@@ -564,26 +564,29 @@ zone_domain_lock(uma_zone_t zone, int domain)
 }
 
 /*
- * Search for the domain with the least cached items and return it, breaking
- * ties with a preferred domain by returning it.
+ * Search for the domain with the least cached items and return it if it
+ * is out of balance with the preferred domain.
  */
 static __noinline int
 zone_domain_lowest(uma_zone_t zone, int pref)
 {
-	long least, nitems;
+	long least, nitems, prefitems;
 	int domain;
 	int i;
 
-	least = LONG_MAX;
+	prefitems = least = LONG_MAX;
 	domain = 0;
 	for (i = 0; i < vm_ndomains; i++) {
 		nitems = ZDOM_GET(zone, i)->uzd_nitems;
 		if (nitems < least) {
 			domain = i;
 			least = nitems;
-		} else if (nitems == least && (i == pref || domain == pref))
-			domain = pref;
+		}
+		if (domain == pref)
+			prefitems = nitems;
 	}
+	if (prefitems < least * 2)
+		return (pref);
 
 	return (domain);
 }
@@ -4102,8 +4105,11 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 			bucket = &cache->uc_crossbucket;
 		} else
 #endif
-		if (bucket->ucb_cnt >= bucket->ucb_entries)
-			bucket = &cache->uc_freebucket;
+		if (bucket->ucb_cnt == bucket->ucb_entries &&
+		   cache->uc_freebucket.ucb_cnt <
+		   cache->uc_freebucket.ucb_entries)
+			cache_bucket_swap(&cache->uc_freebucket,
+			    &cache->uc_allocbucket);
 		if (__predict_true(bucket->ucb_cnt < bucket->ucb_entries)) {
 			cache_bucket_push(cache, bucket, item);
 			critical_exit();
