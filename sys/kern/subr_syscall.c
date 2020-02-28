@@ -141,7 +141,8 @@ syscallenter(struct thread *td)
 	/* Let system calls set td_errno directly. */
 	td->td_pflags &= ~TDP_NERRNO;
 
-	if (__predict_false(systrace_enabled || AUDIT_SYSCALL_ENTER(sa->code, td))) {
+	if (__predict_false(SYSTRACE_ENABLED() ||
+	    AUDIT_SYSCALL_ENTER(sa->code, td))) {
 #ifdef KDTRACE_HOOKS
 		/* Give the syscall:::entry DTrace probe a chance to fire. */
 		if (__predict_false(sa->callp->sy_entry != 0))
