@@ -14,4 +14,5 @@ arm/xilinx/zy7_ehci.c 				optional ehci
 arm/xilinx/uart_dev_cdnc.c			optional uart
 arm/xilinx/zy7_gpio.c				optional gpio
 arm/xilinx/zy7_qspi.c				optional zy7_qspi
+arm/xilinx/zy7_spi.c				optional zy7_spi
 
