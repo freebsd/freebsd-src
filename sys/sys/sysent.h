@@ -42,7 +42,6 @@ struct thread;
 struct ksiginfo;
 struct syscall_args;
 
-#ifdef _KERNEL
 enum systrace_probe_t {
 	SYSTRACE_ENTRY,
 	SYSTRACE_RETURN,
@@ -57,6 +56,7 @@ typedef	void	(*systrace_args_func_t)(int, void *, uint64_t *, int *);
 extern systrace_probe_func_t	systrace_probe_func;
 extern bool			systrace_enabled;
 
+#ifdef _KERNEL
 #ifdef KDTRACE_HOOKS
 #define	SYSTRACE_ENABLED()	(systrace_enabled)
 #else
