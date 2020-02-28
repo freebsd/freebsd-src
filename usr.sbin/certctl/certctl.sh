@@ -69,7 +69,7 @@ create_trusted_link()
 		return 1
 	fi
 	[ $VERBOSE -gt 0 ] && echo "Adding $hash.0 to trust store"
-	[ $NOOP -eq 0 ] && ln -fs $(realpath "$1") "$CERTDESTDIR/$hash.0"
+	[ $NOOP -eq 0 ] && install -lrs $(realpath "$1") "$CERTDESTDIR/$hash.0"
 }
 
 create_blacklisted()
@@ -88,7 +88,7 @@ create_blacklisted()
 		return
 	fi
 	[ $VERBOSE -gt 0 ] && echo "Adding $filename to blacklist"
-	[ $NOOP -eq 0 ] && ln -fs "$srcfile" "$BLACKLISTDESTDIR/$filename"
+	[ $NOOP -eq 0 ] && install -lrs "$srcfile" "$BLACKLISTDESTDIR/$filename"
 }
 
 do_scan()
