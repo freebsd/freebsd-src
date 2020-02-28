@@ -206,6 +206,23 @@
 			spi-clock = <50000000>;  // 50 Mhz
 		};
 
+		// SPI controllers
+		spi0: spi0@6000 {
+			compatible = "xlnx,zy7_spi";
+			status = "disabled";
+			reg = <0x6000 0x100>;
+			interrupts = <0 26 4>;
+			interrupt-parent = <&GIC>;
+		};
+
+		spi1: spi0@7000 {
+			compatible = "xlnx,zy7_spi";
+			status = "disabled";
+			reg = <0x7000 0x100>;
+			interrupts = <0 49 4>;
+			interrupt-parent = <&GIC>;
+		};
+
 		// SDIO controllers
 		sdhci0: sdhci@100000 {
 			compatible = "xlnx,zy7_sdhci";
