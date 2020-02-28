@@ -58,8 +58,10 @@ device		uart
 device		gpio
 
 device		spibus
+device		spigen
 device		mx25l
 device		zy7_qspi		# Xilinx Zynq QSPI controller
+device		zy7_spi			# Xilinx Zynq SPI controller
 
 device		md
 device		mmc			# mmc/sd bus
