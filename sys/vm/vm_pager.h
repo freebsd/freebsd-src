@@ -168,7 +168,7 @@ vm_pager_populate(vm_object_t object, vm_pindex_t pidx, int fault_type,
 
 	MPASS((object->flags & OBJ_POPULATE) != 0);
 	MPASS(pidx < object->size);
-	MPASS(object->paging_in_progress > 0);
+	MPASS(blockcount_read(&object->paging_in_progress) > 0);
 	return ((*pagertab[object->type]->pgo_populate)(object, pidx,
 	    fault_type, max_prot, first, last));
 }

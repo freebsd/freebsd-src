@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/blockcount.h>
 #include <sys/cpuset.h>
 #include <sys/lock.h>
 #include <sys/mman.h>
@@ -201,12 +202,11 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	    ("object %p has reservations",
 	    object));
 #endif
-	KASSERT(REFCOUNT_COUNT(object->paging_in_progress) == 0,
+	KASSERT(blockcount_read(&object->paging_in_progress) == 0,
 	    ("object %p paging_in_progress = %d",
-	    object, REFCOUNT_COUNT(object->paging_in_progress)));
-	KASSERT(object->busy == 0,
-	    ("object %p busy = %d",
-	    object, object->busy));
+	    object, blockcount_read(&object->paging_in_progress)));
+	KASSERT(!vm_object_busied(object),
+	    ("object %p busy = %d", object, blockcount_read(&object->busy)));
 	KASSERT(object->resident_page_count == 0,
 	    ("object %p resident_page_count = %d",
 	    object, object->resident_page_count));
@@ -231,8 +231,8 @@ vm_object_zinit(void *mem, int size, int flags)
 	object->type = OBJT_DEAD;
 	vm_radix_init(&object->rtree);
 	refcount_init(&object->ref_count, 0);
-	refcount_init(&object->paging_in_progress, 0);
-	refcount_init(&object->busy, 0);
+	blockcount_init(&object->paging_in_progress);
+	blockcount_init(&object->busy);
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
 	object->flags = OBJ_DEAD;
@@ -363,34 +363,36 @@ void
 vm_object_pip_add(vm_object_t object, short i)
 {
 
-	refcount_acquiren(&object->paging_in_progress, i);
+	if (i > 0)
+		blockcount_acquire(&object->paging_in_progress, i);
 }
 
 void
 vm_object_pip_wakeup(vm_object_t object)
 {
 
-	refcount_release(&object->paging_in_progress);
+	vm_object_pip_wakeupn(object, 1);
 }
 
 void
 vm_object_pip_wakeupn(vm_object_t object, short i)
 {
 
-	refcount_releasen(&object->paging_in_progress, i);
+	if (i > 0)
+		blockcount_release(&object->paging_in_progress, i);
 }
 
 /*
- * Atomically drop the interlock and wait for pip to drain.  This protects
- * from sleep/wakeup races due to identity changes.  The lock is not
- * re-acquired on return.
+ * Atomically drop the object lock and wait for pip to drain.  This protects
+ * from sleep/wakeup races due to identity changes.  The lock is not re-acquired
+ * on return.
  */
 static void
 vm_object_pip_sleep(vm_object_t object, const char *waitid)
 {
 
-	refcount_sleep_interlock(&object->paging_in_progress,
-	    &object->lock, waitid, PVM);
+	(void)blockcount_sleep(&object->paging_in_progress, &object->lock,
+	    waitid, PVM | PDROP);
 }
 
 void
@@ -399,10 +401,8 @@ vm_object_pip_wait(vm_object_t object, const char *waitid)
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
-	while (REFCOUNT_COUNT(object->paging_in_progress) > 0) {
-		vm_object_pip_sleep(object, waitid);
-		VM_OBJECT_WLOCK(object);
-	}
+	blockcount_wait(&object->paging_in_progress, &object->lock, waitid,
+	    PVM);
 }
 
 void
@@ -411,8 +411,7 @@ vm_object_pip_wait_unlocked(vm_object_t object, const char *waitid)
 
 	VM_OBJECT_ASSERT_UNLOCKED(object);
 
-	while (REFCOUNT_COUNT(object->paging_in_progress) > 0)
-		refcount_wait(&object->paging_in_progress, waitid, PVM);
+	blockcount_wait(&object->paging_in_progress, NULL, waitid, PVM);
 }
 
 /*
@@ -955,7 +954,7 @@ vm_object_terminate(vm_object_t object)
 	 */
 	vm_object_pip_wait(object, "objtrm");
 
-	KASSERT(!REFCOUNT_COUNT(object->paging_in_progress),
+	KASSERT(!blockcount_read(&object->paging_in_progress),
 	    ("vm_object_terminate: pageout in progress"));
 
 	KASSERT(object->ref_count == 0,
@@ -2458,7 +2457,7 @@ vm_object_busy(vm_object_t obj)
 
 	VM_OBJECT_ASSERT_LOCKED(obj);
 
-	refcount_acquire(&obj->busy);
+	blockcount_acquire(&obj->busy, 1);
 	/* The fence is required to order loads of page busy. */
 	atomic_thread_fence_acq_rel();
 }
@@ -2467,8 +2466,7 @@ void
 vm_object_unbusy(vm_object_t obj)
 {
 
-
-	refcount_release(&obj->busy);
+	blockcount_release(&obj->busy, 1);
 }
 
 void
@@ -2477,8 +2475,7 @@ vm_object_busy_wait(vm_object_t obj, const char *wmesg)
 
 	VM_OBJECT_ASSERT_UNLOCKED(obj);
 
-	if (obj->busy)
-		refcount_sleep(&obj->busy, wmesg, PVM);
+	(void)blockcount_sleep(&obj->busy, NULL, wmesg, PVM);
 }
 
 /*
