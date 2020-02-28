@@ -653,6 +653,7 @@ void vm_page_reference(vm_page_t m);
 #define	VPR_NOREUSE	0x02
 void vm_page_release(vm_page_t m, int flags);
 void vm_page_release_locked(vm_page_t m, int flags);
+vm_page_t vm_page_relookup(vm_object_t, vm_pindex_t);
 bool vm_page_remove(vm_page_t);
 bool vm_page_remove_xbusy(vm_page_t);
 int vm_page_rename(vm_page_t, vm_object_t, vm_pindex_t);

@@ -2878,11 +2878,8 @@ vfs_vmio_iodone(struct buf *bp)
 		 */
 		m = bp->b_pages[i];
 		if (m == bogus_page) {
-			if (bogus == false) {
-				bogus = true;
-				VM_OBJECT_RLOCK(obj);
-			}
-			m = vm_page_lookup(obj, OFF_TO_IDX(foff));
+			bogus = true;
+			m = vm_page_relookup(obj, OFF_TO_IDX(foff));
 			if (m == NULL)
 				panic("biodone: page disappeared!");
 			bp->b_pages[i] = m;
@@ -2905,8 +2902,6 @@ vfs_vmio_iodone(struct buf *bp)
 		foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		iosize -= resid;
 	}
-	if (bogus)
-		VM_OBJECT_RUNLOCK(obj);
 	vm_object_pip_wakeupn(obj, bp->b_npages);
 	if (bogus && buf_mapped(bp)) {
 		BUF_CHECK_MAPPED(bp);
@@ -4470,22 +4465,16 @@ vfs_unbusy_pages(struct buf *bp)
 	int i;
 	vm_object_t obj;
 	vm_page_t m;
-	bool bogus;
 
 	runningbufwakeup(bp);
 	if (!(bp->b_flags & B_VMIO))
 		return;
 
 	obj = bp->b_bufobj->bo_object;
-	bogus = false;
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		if (m == bogus_page) {
-			if (bogus == false) {
-				bogus = true;
-				VM_OBJECT_RLOCK(obj);
-			}
-			m = vm_page_lookup(obj, OFF_TO_IDX(bp->b_offset) + i);
+			m = vm_page_relookup(obj, OFF_TO_IDX(bp->b_offset) + i);
 			if (!m)
 				panic("vfs_unbusy_pages: page missing\n");
 			bp->b_pages[i] = m;
@@ -4498,8 +4487,6 @@ vfs_unbusy_pages(struct buf *bp)
 		}
 		vm_page_sunbusy(m);
 	}
-	if (bogus)
-		VM_OBJECT_RUNLOCK(obj);
 	vm_object_pip_wakeupn(obj, bp->b_npages);
 }
 

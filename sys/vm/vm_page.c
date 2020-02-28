@@ -1671,6 +1671,24 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 }
 
 /*
+ *	vm_page_relookup:
+ *
+ *	Returns a page that must already have been busied by
+ *	the caller.  Used for bogus page replacement.
+ */
+vm_page_t
+vm_page_relookup(vm_object_t object, vm_pindex_t pindex)
+{
+	vm_page_t m;
+
+	m = vm_radix_lookup_unlocked(&object->rtree, pindex);
+	KASSERT(m != NULL && vm_page_busied(m) &&
+	    m->object == object && m->pindex == pindex,
+	    ("vm_page_relookup: Invalid page %p", m));
+	return (m);
+}
+
+/*
  * This should only be used by lockless functions for releasing transient
  * incorrect acquires.  The page may have been freed after we acquired a
  * busy lock.  In this case busy_lock == VPB_FREED and we have nothing

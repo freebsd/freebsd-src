@@ -350,7 +350,6 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 {
 	vm_page_t *pa = sfio->pa;
 	int grabbed;
-	bool locked;
 
 	*nios = 0;
 	flags = (flags & SF_NODISKIO) ? VM_ALLOC_NOWAIT : 0;
@@ -359,8 +358,6 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 	 * First grab all the pages and wire them.  Note that we grab
 	 * only required pages.  Readahead pages are dealt with later.
 	 */
-	locked = false;
-
 	grabbed = vm_page_grab_pages_unlocked(obj, OFF_TO_IDX(off),
 	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | flags, pa, npages);
 	if (grabbed < npages) {
@@ -381,10 +378,6 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 			i++;
 			continue;
 		}
-		if (!locked) {
-			VM_OBJECT_WLOCK(obj);
-			locked = true;
-		}
 
 		/*
 		 * Next page is invalid.  Check if it belongs to pager.  It
@@ -396,8 +389,10 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 		 * stored in 'a', about how many pages we can pagein after
 		 * this page in a single I/O.
 		 */
+		VM_OBJECT_RLOCK(obj);
 		if (!vm_pager_has_page(obj, OFF_TO_IDX(vmoff(i, off)), NULL,
 		    &a)) {
+			VM_OBJECT_RUNLOCK(obj);
 			pmap_zero_page(pa[i]);
 			vm_page_valid(pa[i]);
 			MPASS(pa[i]->dirty == 0);
@@ -405,6 +400,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 			i++;
 			continue;
 		}
+		VM_OBJECT_RUNLOCK(obj);
 
 		/*
 		 * We want to pagein as many pages as possible, limited only
@@ -435,11 +431,9 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 			}
 
 		refcount_acquire(&sfio->nios);
-		VM_OBJECT_WUNLOCK(obj);
 		rv = vm_pager_get_pages_async(obj, pa + i, count, NULL,
 		    i + count == npages ? &rhpages : NULL,
 		    &sendfile_iodone, sfio);
-		VM_OBJECT_WLOCK(obj);
 		if (__predict_false(rv != VM_PAGER_OK)) {
 			/*
 			 * Perform full pages recovery before returning EIO.
@@ -451,7 +445,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 			for (j = 0; j < npages; j++) {
 				if (j > i && j < i + count - 1 &&
 				    pa[j] == bogus_page)
-					pa[j] = vm_page_lookup(obj,
+					pa[j] = vm_page_relookup(obj,
 					    OFF_TO_IDX(vmoff(j, off)));
 				else if (j >= i)
 					vm_page_xunbusy(pa[j]);
@@ -460,7 +454,6 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 				    __func__, pa, j));
 				vm_page_unwire(pa[j], PQ_INACTIVE);
 			}
-			VM_OBJECT_WUNLOCK(obj);
 			return (EIO);
 		}
 
@@ -475,7 +468,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 		 */
 		for (j = i + 1; j < i + count - 1; j++)
 			if (pa[j] == bogus_page) {
-				pa[j] = vm_page_lookup(obj,
+				pa[j] = vm_page_relookup(obj,
 				    OFF_TO_IDX(vmoff(j, off)));
 				KASSERT(pa[j], ("%s: page %p[%d] disappeared",
 				    __func__, pa, j));
@@ -484,9 +477,6 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 		i += count;
 		(*nios)++;
 	}
-
-	if (locked)
-		VM_OBJECT_WUNLOCK(obj);
 
 	if (*nios == 0 && npages != 0)
 		SFSTAT_INC(sf_noiocnt);
