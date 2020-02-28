@@ -2854,9 +2854,9 @@ vfs_vmio_iodone(struct buf *bp)
 	bool bogus;
 
 	obj = bp->b_bufobj->bo_object;
-	KASSERT(REFCOUNT_COUNT(obj->paging_in_progress) >= bp->b_npages,
+	KASSERT(blockcount_read(&obj->paging_in_progress) >= bp->b_npages,
 	    ("vfs_vmio_iodone: paging in progress(%d) < b_npages(%d)",
-	    REFCOUNT_COUNT(obj->paging_in_progress), bp->b_npages));
+	    blockcount_read(&obj->paging_in_progress), bp->b_npages));
 
 	vp = bp->b_vp;
 	VNPASS(vp->v_holdcnt > 0, vp);
