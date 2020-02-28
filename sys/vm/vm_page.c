@@ -4639,6 +4639,10 @@ vm_page_grab_valid_unlocked(vm_page_t *mp, vm_object_t object,
 		}
 		vm_page_busy_release(m);
 	}
+	if ((allocflags & VM_ALLOC_NOCREAT) != 0) {
+		*mp = NULL;
+		return (VM_PAGER_FAIL);
+	}
 	VM_OBJECT_WLOCK(object);
 	error = vm_page_grab_valid(mp, object, pindex, allocflags);
 	VM_OBJECT_WUNLOCK(object);
