@@ -1060,9 +1060,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	vm_object_pip_add(sc->object, 1);
 	for (i = bp->bio_offset / PAGE_SIZE; i <= lastp; i++) {
 		len = ((i == lastp) ? lastend : PAGE_SIZE) - offs;
-		VM_OBJECT_WLOCK(sc->object);
-		m = vm_page_grab(sc->object, i, VM_ALLOC_SYSTEM);
-		VM_OBJECT_WUNLOCK(sc->object);
+		m = vm_page_grab_unlocked(sc->object, i, VM_ALLOC_SYSTEM);
 		if (bp->bio_cmd == BIO_READ) {
 			if (vm_page_all_valid(m))
 				rv = VM_PAGER_OK;

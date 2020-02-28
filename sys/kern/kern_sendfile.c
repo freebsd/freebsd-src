@@ -350,6 +350,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 {
 	vm_page_t *pa = sfio->pa;
 	int grabbed;
+	bool locked;
 
 	*nios = 0;
 	flags = (flags & SF_NODISKIO) ? VM_ALLOC_NOWAIT : 0;
@@ -358,9 +359,9 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 	 * First grab all the pages and wire them.  Note that we grab
 	 * only required pages.  Readahead pages are dealt with later.
 	 */
-	VM_OBJECT_WLOCK(obj);
+	locked = false;
 
-	grabbed = vm_page_grab_pages(obj, OFF_TO_IDX(off),
+	grabbed = vm_page_grab_pages_unlocked(obj, OFF_TO_IDX(off),
 	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | flags, pa, npages);
 	if (grabbed < npages) {
 		for (int i = grabbed; i < npages; i++)
@@ -379,6 +380,10 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 			SFSTAT_INC(sf_pages_valid);
 			i++;
 			continue;
+		}
+		if (!locked) {
+			VM_OBJECT_WLOCK(obj);
+			locked = true;
 		}
 
 		/*
@@ -480,7 +485,8 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 		(*nios)++;
 	}
 
-	VM_OBJECT_WUNLOCK(obj);
+	if (locked)
+		VM_OBJECT_WUNLOCK(obj);
 
 	if (*nios == 0 && npages != 0)
 		SFSTAT_INC(sf_noiocnt);
