@@ -103,6 +103,13 @@ struct net_backend {
 	    int iovcnt);
 
 	/*
+	 * Get the length of the next packet that can be received from
+	 * the backend. If no packets are currently available, this
+	 * function returns 0.
+	 */
+	ssize_t (*peek_recvlen)(struct net_backend *be);
+
+	/*
 	 * Called to receive a packet from the backend. When the function
 	 * returns a positive value 'len', the scatter-gather vector
 	 * provided by the caller contains a packet with such length.
@@ -167,6 +174,13 @@ SET_DECLARE(net_backend_set, struct net_backend);
 
 struct tap_priv {
 	struct mevent *mevp;
+	/*
+	 * A bounce buffer that allows us to implement the peek_recvlen
+	 * callback. In the future we may get the same information from
+	 * the kevent data.
+	 */
+	char bbuf[1 << 16];
+	ssize_t bbuflen;
 };
 
 static void
@@ -223,6 +237,9 @@ tap_init(struct net_backend *be, const char *devname,
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
+	memset(priv->bbuf, 0, sizeof(priv->bbuf));
+	priv->bbuflen = 0;
+
 	priv->mevp = mevent_add_disabled(be->fd, EVF_READ, cb, param);
 	if (priv->mevp == NULL) {
 		WPRINTF(("Could not register event"));
@@ -246,15 +263,56 @@ tap_send(struct net_backend *be, const struct iovec *iov, int iovcnt)
 }
 
 static ssize_t
-tap_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
+tap_peek_recvlen(struct net_backend *be)
 {
+	struct tap_priv *priv = (struct tap_priv *)be->opaque;
 	ssize_t ret;
 
-	/* Should never be called without a valid tap fd */
-	assert(be->fd != -1);
+	if (priv->bbuflen > 0) {
+		/*
+		 * We already have a packet in the bounce buffer.
+		 * Just return its length.
+		 */
+		return priv->bbuflen;
+	}
+
+	/*
+	 * Read the next packet (if any) into the bounce buffer, so
+	 * that we get to know its length and we can return that
+	 * to the caller.
+	 */
+	ret = read(be->fd, priv->bbuf, sizeof(priv->bbuf));
+	if (ret < 0 && errno == EWOULDBLOCK) {
+		return (0);
+	}
+
+	if (ret > 0)
+		priv->bbuflen = ret;
+
+	return (ret);
+}
+
+static ssize_t
+tap_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
+{
+	struct tap_priv *priv = (struct tap_priv *)be->opaque;
+	ssize_t ret;
+
+	if (priv->bbuflen > 0) {
+		/*
+		 * A packet is available in the bounce buffer, so
+		 * we read it from there.
+		 */
+		ret = buf_to_iov(priv->bbuf, priv->bbuflen,
+		    iov, iovcnt, 0);
+
+		/* Mark the bounce buffer as empty. */
+		priv->bbuflen = 0;
+
+		return (ret);
+	}
 
 	ret = readv(be->fd, iov, iovcnt);
-
 	if (ret < 0 && errno == EWOULDBLOCK) {
 		return (0);
 	}
@@ -299,6 +357,7 @@ static struct net_backend tap_backend = {
 	.init = tap_init,
 	.cleanup = tap_cleanup,
 	.send = tap_send,
+	.peek_recvlen = tap_peek_recvlen,
 	.recv = tap_recv,
 	.recv_enable = tap_recv_enable,
 	.recv_disable = tap_recv_disable,
@@ -313,6 +372,7 @@ static struct net_backend vmnet_backend = {
 	.init = tap_init,
 	.cleanup = tap_cleanup,
 	.send = tap_send,
+	.peek_recvlen = tap_peek_recvlen,
 	.recv = tap_recv,
 	.recv_enable = tap_recv_enable,
 	.recv_disable = tap_recv_disable,
@@ -331,8 +391,7 @@ DATA_SET(net_backend_set, vmnet_backend);
 #define NETMAP_FEATURES (VIRTIO_NET_F_CSUM | VIRTIO_NET_F_HOST_TSO4 | \
 		VIRTIO_NET_F_HOST_TSO6 | VIRTIO_NET_F_HOST_UFO | \
 		VIRTIO_NET_F_GUEST_CSUM | VIRTIO_NET_F_GUEST_TSO4 | \
-		VIRTIO_NET_F_GUEST_TSO6 | VIRTIO_NET_F_GUEST_UFO | \
-		VIRTIO_NET_F_MRG_RXBUF)
+		VIRTIO_NET_F_GUEST_TSO6 | VIRTIO_NET_F_GUEST_UFO)
 
 struct netmap_priv {
 	char ifname[IFNAMSIZ];
@@ -540,6 +599,26 @@ txsync:
 }
 
 static ssize_t
+netmap_peek_recvlen(struct net_backend *be)
+{
+	struct netmap_priv *priv = (struct netmap_priv *)be->opaque;
+	struct netmap_ring *ring = priv->rx;
+	uint32_t head = ring->head;
+	ssize_t totlen = 0;
+
+	while (head != ring->tail) {
+		struct netmap_slot *slot = ring->slot + head;
+
+		totlen += slot->len;
+		if ((slot->flags & NS_MOREFRAG) == 0)
+			break;
+		head = nm_ring_next(ring, head);
+	}
+
+	return (totlen);
+}
+
+static ssize_t
 netmap_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
 {
 	struct netmap_priv *priv = (struct netmap_priv *)be->opaque;
@@ -628,6 +707,7 @@ static struct net_backend netmap_backend = {
 	.init = netmap_init,
 	.cleanup = netmap_cleanup,
 	.send = netmap_send,
+	.peek_recvlen = netmap_peek_recvlen,
 	.recv = netmap_recv,
 	.recv_enable = netmap_recv_enable,
 	.recv_disable = netmap_recv_disable,
@@ -642,6 +722,7 @@ static struct net_backend vale_backend = {
 	.init = netmap_init,
 	.cleanup = netmap_cleanup,
 	.send = netmap_send,
+	.peek_recvlen = netmap_peek_recvlen,
 	.recv = netmap_recv,
 	.recv_enable = netmap_recv_enable,
 	.recv_disable = netmap_recv_disable,
@@ -756,6 +837,13 @@ netbe_send(struct net_backend *be, const struct iovec *iov, int iovcnt)
 {
 
 	return (be->send(be, iov, iovcnt));
+}
+
+ssize_t
+netbe_peek_recvlen(struct net_backend *be)
+{
+
+	return (be->peek_recvlen(be));
 }
 
 /*
