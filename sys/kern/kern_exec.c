@@ -984,14 +984,16 @@ exec_map_first_page(struct image_params *imgp)
 	object = imgp->vp->v_object;
 	if (object == NULL)
 		return (EACCES);
-	VM_OBJECT_WLOCK(object);
 #if VM_NRESERVLEVEL > 0
-	vm_object_color(object, 0);
+	if ((object->flags & OBJ_COLORED) == 0) {
+		VM_OBJECT_WLOCK(object);
+		vm_object_color(object, 0);
+		VM_OBJECT_WUNLOCK(object);
+	}
 #endif
-	error = vm_page_grab_valid(&m, object, 0,
+	error = vm_page_grab_valid_unlocked(&m, object, 0,
 	    VM_ALLOC_COUNT(VM_INITIAL_PAGEIN) |
             VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
-	VM_OBJECT_WUNLOCK(object);
 
 	if (error != VM_PAGER_OK)
 		return (EIO);

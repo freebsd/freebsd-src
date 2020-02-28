@@ -3046,13 +3046,11 @@ vfs_vmio_extend(struct buf *bp, int desiredpages, int size)
 		 * deadlocks once allocbuf() is called after
 		 * pages are vfs_busy_pages().
 		 */
-		VM_OBJECT_WLOCK(obj);
-		(void)vm_page_grab_pages(obj,
+		(void)vm_page_grab_pages_unlocked(obj,
 		    OFF_TO_IDX(bp->b_offset) + bp->b_npages,
 		    VM_ALLOC_SYSTEM | VM_ALLOC_IGN_SBUSY |
 		    VM_ALLOC_NOBUSY | VM_ALLOC_WIRED,
 		    &bp->b_pages[bp->b_npages], desiredpages - bp->b_npages);
-		VM_OBJECT_WUNLOCK(obj);
 		bp->b_npages = desiredpages;
 	}
 
@@ -5237,11 +5235,13 @@ next_page:;
 	}
 end_pages:
 
-	VM_OBJECT_WLOCK(object);
 	redo = false;
 	for (i = 0; i < count; i++) {
-		vm_page_sunbusy(ma[i]);
-		ma[i] = vm_page_grab(object, ma[i]->pindex, VM_ALLOC_NORMAL);
+		if (vm_page_busy_tryupgrade(ma[i]) == 0) {
+			vm_page_sunbusy(ma[i]);
+			ma[i] = vm_page_grab_unlocked(object, ma[i]->pindex,
+			    VM_ALLOC_NORMAL);
+		}
 
 		/*
 		 * Since the pages were only sbusy while neither the
@@ -5259,7 +5259,6 @@ end_pages:
 		if (!vm_page_all_valid(ma[i]))
 			redo = true;
 	}
-	VM_OBJECT_WUNLOCK(object);
 	if (redo && error == 0)
 		goto again;
 	return (error != 0 ? VM_PAGER_ERROR : VM_PAGER_OK);
