@@ -809,6 +809,19 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_FUTIMESAT:
 	case AUE_GETATTRLIST:
 	case AUE_JAIL:
+		break;
+
+	/*
+	 * NB: We may want to verify that the appropriate
+	 * audit args are being processed here, but I think
+	 * a bit analysis is required.
+	 */
+	case AUE_JAIL_GET:
+	case AUE_JAIL_SET:
+	case AUE_JAIL_ATTACH:
+	case AUE_JAIL_REMOVE:
+		break;
+
 	case AUE_LUTIMES:
 	case AUE_NFS_GETFH:
 	case AUE_LGETFH:
@@ -1472,6 +1485,9 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			tok = au_to_text(ar->ar_arg_login);
 			kau_write(rec, tok);
 		}
+		break;
+
+	case AUE_SETLOGINCLASS:
 		break;
 
 	case AUE_SETPRIORITY:
