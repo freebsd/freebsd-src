@@ -87,7 +87,6 @@ X${COMPILER}?=	${${COMPILER}}
 # a cross compiler.
 .if ${XCC:N${CCACHE_BIN}:M/*}
 MK_CLANG_BOOTSTRAP=	no
-MK_GCC_BOOTSTRAP=	no
 .endif
 
 # Pull in compiler metadata from buildworld/toolchain if possible to avoid
@@ -207,8 +206,6 @@ _WANT_TOOLCHAIN_CROSS_VARS=	t
 # Which compiler is expected to be used?
 .if ${MK_CLANG_BOOTSTRAP} == "yes"
 WANT_COMPILER_TYPE=	clang
-.elif ${MK_GCC_BOOTSTRAP} == "yes"
-WANT_COMPILER_TYPE=	gcc
 .else
 WANT_COMPILER_TYPE=
 .endif
@@ -224,15 +221,6 @@ WANT_COMPILER_VERSION_FILE= lib/clang/include/clang/Basic/Version.inc
 WANT_COMPILER_VERSION!= \
 	awk '$$2 == "CLANG_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
 	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
-.elif ${WANT_COMPILER_TYPE} == "gcc"
-WANT_COMPILER_FREEBSD_VERSION_FILE= gnu/usr.bin/cc/cc_tools/freebsd-native.h
-WANT_COMPILER_FREEBSD_VERSION!= \
-	awk '$$2 == "FBSD_CC_VER" {printf("%d\n", $$3)}' \
-	${SRCDIR}/${WANT_COMPILER_FREEBSD_VERSION_FILE} || echo unknown
-WANT_COMPILER_VERSION_FILE= contrib/gcc/BASE-VER
-WANT_COMPILER_VERSION!= \
-	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3}' \
-	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
 .endif
 .export WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_VERSION
 .endif	# !defined(WANT_COMPILER_FREEBSD_VERSION)
@@ -243,7 +231,7 @@ WANT_COMPILER_VERSION!= \
 # TARGET_ARCH!=MACHINE_ARCH.
 .if ${MK_SYSTEM_COMPILER} == "yes" && \
     defined(WANT_COMPILER_FREEBSD_VERSION) && \
-    (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
+    ${MK_CLANG_BOOTSTRAP} == "yes" && \
     !make(xdev*) && \
     ${X_COMPILER_TYPE} == ${WANT_COMPILER_TYPE} && \
     (${X_COMPILER_TYPE} == "clang" || ${TARGET_ARCH} == ${MACHINE_ARCH}) && \
@@ -251,7 +239,6 @@ WANT_COMPILER_VERSION!= \
     ${X_COMPILER_FREEBSD_VERSION} == ${WANT_COMPILER_FREEBSD_VERSION}
 # Everything matches, disable the bootstrap compiler.
 MK_CLANG_BOOTSTRAP=	no
-MK_GCC_BOOTSTRAP=	no
 USING_SYSTEM_COMPILER=	yes
 .endif	# ${WANT_COMPILER_TYPE} == ${COMPILER_TYPE}
 
@@ -305,7 +292,7 @@ USING_SYSTEM_LINKER?=	no
 
 TEST_SYSTEM_COMPILER_VARS= \
 	USING_SYSTEM_COMPILER MK_SYSTEM_COMPILER \
-	MK_CROSS_COMPILER MK_CLANG_BOOTSTRAP MK_GCC_BOOTSTRAP \
+	MK_CROSS_COMPILER MK_CLANG_BOOTSTRAP \
 	WANT_COMPILER_TYPE WANT_COMPILER_VERSION WANT_COMPILER_VERSION_FILE \
 	WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_FREEBSD_VERSION_FILE \
 	CC COMPILER_TYPE COMPILER_FEATURES COMPILER_VERSION \
@@ -2128,10 +2115,6 @@ BOOTSTRAPPING_OSRELDATE:=	0
 _strfile=	usr.bin/fortune/strfile
 .endif
 
-.if ${MK_GCC} != "no" && ${MK_CXX} != "no"
-_gperf=		gnu/usr.bin/gperf
-.endif
-
 .if ${MK_VT} != "no"
 _vtfontcvt=	usr.bin/vtfontcvt
 .endif
@@ -2377,7 +2360,6 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
     ${_strfile} \
-    ${_gperf} \
     ${_dtc} \
     ${_cat} \
     ${_kbdcontrol} \
@@ -2419,10 +2401,6 @@ bootstrap-tools: ${_bt}-${_tool}
 _share=	share/syscons/scrnmaps
 .endif
 
-.if ${MK_GCC} != "no"
-_gcc_tools= gnu/usr.bin/cc/cc_tools
-.endif
-
 .if ${MK_RESCUE} != "no"
 # rescue includes programs that have build-tools targets
 _rescue=rescue/rescue
@@ -2460,8 +2438,7 @@ _bt_clean=	${CLEANDIR}
     ${_libmagic} \
     usr.bin/mkesdb_static \
     usr.bin/mkcsmapper_static \
-    usr.bin/vi/catalog \
-    ${_gcc_tools}
+    usr.bin/vi/catalog
 build-tools_${_tool}: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (${_bt_clean:D${_bt_clean},}obj,build-tools)"; \
 		cd ${.CURDIR}/${_tool}; \
@@ -2530,9 +2507,6 @@ _lld=		usr.bin/clang/lld
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_LLD_BOOTSTRAP} != "no"
 _clang_libs=	lib/clang
 .endif
-.if ${MK_GCC_BOOTSTRAP} != "no"
-_gcc=		gnu/usr.bin/cc
-.endif
 .if ${MK_USB} != "no"
 _usb_tools=	stand/usb/tools
 .endif
@@ -2551,7 +2525,6 @@ cross-tools: .MAKE .PHONY
     ${_binutils} \
     ${_elftctools} \
     ${_dtrace_tools} \
-    ${_gcc} \
     ${_btxld} \
     ${_usb_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
@@ -2647,9 +2620,6 @@ SUBDIR_DEPEND_usr.bin/clang=	lib/clang
 NXBDIRS+=	lib/clang
 NXBDIRS+=	usr.bin/clang
 .endif
-.if ${MK_GCC} != "no"
-NXBDIRS+=	gnu/usr.bin/cc
-.endif
 .if ${MK_BINUTILS} != "no"
 NXBDIRS+=	gnu/usr.bin/binutils
 .endif
@@ -2713,27 +2683,23 @@ NXBMAKE+=	${NXBMAKEENV} ${MAKE} -f Makefile.inc1 ${NXBMAKEARGS} \
 		TARGET=${NXB_TARGET} TARGET_ARCH=${NXB_TARGET_ARCH} \
 		TARGET_TRIPLE=${MACHINE_TRIPLE:Q}
 # NXBDIRS is improperly based on MACHINE rather than NXB_TARGET.  Need to
-# invoke a sub-make to reevaluate MK_GCC, etc, for NXBDIRS.
+# invoke a sub-make to reevaluate MK_CLANG, etc, for NXBDIRS.
 NXBMAKE+=	SUBDIR_OVERRIDE='$${NXBDIRS:M*}'
 # Need to avoid the -isystem logic when using clang as an external toolchain
 # even if the TARGET being built for wants GCC.
 NXBMAKE+=	WANT_COMPILER_TYPE='$${X_COMPILER_TYPE}'
 native-xtools: .PHONY
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _cleanobj MK_GCC=yes
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _cleanobj
 	# Build the bootstrap/host/cross tools that produce native binaries
-	# Pass along MK_GCC=yes to ensure GCC-needed build tools are built.
-	# We don't quite know what the NXB_TARGET wants so just build it.
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} kernel-toolchain MK_GCC=yes
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} kernel-toolchain
 	# Populate includes/libraries sysroot that produce native binaries.
 	# This is split out from 'toolchain' above mostly so that target LLVM
 	# libraries have a proper LLVM_DEFAULT_TARGET_TRIPLE without
 	# polluting the cross-compiler build.  The LLVM/GCC libs are skipped
 	# here to avoid the problem but are kept in 'toolchain' so that
 	# needed build tools are built.
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _includes MK_CLANG=no MK_GCC=no
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _libraries MK_CLANG=no MK_GCC=no
-	# Clean out improper TARGET=MACHINE files
-	${_+_}cd ${.CURDIR}/gnu/usr.bin/cc/cc_tools; ${NXBTMAKE} cleandir
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _includes MK_CLANG=no
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _libraries MK_CLANG=no
 .if !defined(NO_OBJWALK)
 	${_+_}cd ${.CURDIR}; ${NXBMAKE} _obj
 .endif
@@ -2831,12 +2797,6 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssl} \
 		${_lib_libldns} ${_secure_lib_libssh}
-
-.if ${MK_GNUCXX} != "no"
-_prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
-gnu/lib/libstdc++__L: lib/msun__L
-gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
-.endif
 
 .if ${MK_DIALOG} != "no"
 _prebuild_libs+= gnu/lib/libdialog
@@ -2995,12 +2955,8 @@ lib/libradius__L: lib/libmd__L
 
 lib/libproc__L: \
     ${_cddl_lib_libctf:D${_cddl_lib_libctf}__L} lib/libelf__L lib/librtld_db__L lib/libutil__L
-.if ${MK_CXX} != "no"
-.if ${MK_LIBCPLUSPLUS} != "no"
+.if ${MK_CXX} != "no" && ${MK_LIBCPLUSPLUS} != "no"
 lib/libproc__L: lib/libcxxrt__L
-.else # This implies MK_GNUCXX != "no"; see lib/libproc
-lib/libproc__L: gnu/lib/libsupc++__L
-.endif
 .endif
 
 .for _lib in ${_prereq_libs}
@@ -3358,7 +3314,6 @@ _xb-worldtmp: .PHONY
 _xb-bootstrap-tools: .PHONY
 .for _tool in \
     ${_clang_tblgen} \
-    ${_gperf} \
     ${_yacc}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 	cd ${.CURDIR}/${_tool}; \
@@ -3377,8 +3332,7 @@ XDEVDIRS= \
     ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
-    ${_clang} \
-    ${_gcc}
+    ${_clang}
 
 _xb-cross-tools: .PHONY
 .for _tool in ${XDEVDIRS}

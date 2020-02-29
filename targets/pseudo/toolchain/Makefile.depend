@@ -24,8 +24,5 @@ DIRDEPS= \
 .if ${MK_CLANG_BOOTSTRAP} == "yes"
 DIRDEPS+= targets/pseudo/clang
 .endif
-.if ${MK_GCC_BOOTSTRAP} == "yes"
-DIRDEPS+= targets/pseudo/gcc
-.endif
 
 .include <dirdeps.mk>
