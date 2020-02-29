@@ -464,6 +464,7 @@ bktr_attach( device_t dev )
 	}
 #endif
 
+	gone_in_dev(dev, 13, "bktr driver removed in FreeBSD 13.0\n");
 	return 0;
 
 fail:
