@@ -2233,12 +2233,6 @@ ${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
 ${_bt}-usr.bin/clang/lldb-tblgen: ${_bt}-lib/clang/libllvmminimal
 .endif
 
-# Build BSDL or GPL DTC depending on GPL_DTC option.
-_dtc= usr.bin/dtc
-.if ${MK_GPL_DTC} != "no"
-_dtc= gnu/usr.bin/dtc
-.endif
-
 .if ${MK_LOCALES} != "no"
 _localedef=	usr.bin/localedef
 .endif
@@ -2360,7 +2354,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
     ${_strfile} \
-    ${_dtc} \
+    usr.bin/dtc \
     ${_cat} \
     ${_kbdcontrol} \
     ${_elftoolchain_libs} \
