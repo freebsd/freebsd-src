@@ -130,27 +130,13 @@ __FBSDID("$FreeBSD$");
 **************************************************************************
 **************************************************************************
 */
-#if __FreeBSD_version >= 500005
-	#include <sys/selinfo.h>
-	#include <sys/mutex.h>
-	#include <sys/endian.h>
-	#include <dev/pci/pcivar.h>
-	#include <dev/pci/pcireg.h>
-#else
-	#include <sys/select.h>
-	#include <pci/pcivar.h>
-	#include <pci/pcireg.h>
-#endif
+#include <sys/selinfo.h>
+#include <sys/mutex.h>
+#include <sys/endian.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
-#if !defined(CAM_NEW_TRAN_CODE) && __FreeBSD_version >= 700025
-#define	CAM_NEW_TRAN_CODE	1
-#endif
-
-#if __FreeBSD_version > 500000
 #define arcmsr_callout_init(a)	callout_init(a, /*mpsafe*/1);
-#else
-#define arcmsr_callout_init(a)	callout_init(a);
-#endif
 
 #define ARCMSR_DRIVER_VERSION	"arcmsr version 1.40.00.01 2017-10-30"
 #include <dev/arcmsr/arcmsr.h>
@@ -220,12 +206,7 @@ static device_method_t arcmsr_methods[]={
 	DEVMETHOD(device_shutdown,	arcmsr_shutdown),
 	DEVMETHOD(device_suspend,	arcmsr_suspend),
 	DEVMETHOD(device_resume,	arcmsr_resume),
-
-#if __FreeBSD_version >= 803000
 	DEVMETHOD_END
-#else
-	{ 0, 0 }
-#endif
 };
 
 static driver_t arcmsr_driver={
@@ -239,59 +220,23 @@ MODULE_DEPEND(arcmsr, cam, 1, 1, 1);
 #ifndef BUS_DMA_COHERENT		
 	#define	BUS_DMA_COHERENT	0x04	/* hint: map memory in a coherent way */
 #endif
-#if __FreeBSD_version >= 501000
 static struct cdevsw arcmsr_cdevsw={
-	#if __FreeBSD_version >= 503000
 		.d_version = D_VERSION, 
-	#endif
-	#if (__FreeBSD_version>=503000 && __FreeBSD_version<600034)
-		.d_flags   = D_NEEDGIANT, 
-	#endif
 		.d_open    = arcmsr_open, 	/* open     */
 		.d_close   = arcmsr_close, 	/* close    */
 		.d_ioctl   = arcmsr_ioctl, 	/* ioctl    */
 		.d_name    = "arcmsr", 		/* name     */
 	};
-#else
-	#define ARCMSR_CDEV_MAJOR	180
-
-static struct cdevsw arcmsr_cdevsw = {
-		arcmsr_open,			/* open     */
-		arcmsr_close,			/* close    */
-		noread,				/* read     */
-		nowrite,			/* write    */
-		arcmsr_ioctl,			/* ioctl    */
-		nopoll,				/* poll     */
-		nommap,				/* mmap     */
-		nostrategy,			/* strategy */
-		"arcmsr",			/* name     */
-		ARCMSR_CDEV_MAJOR,		/* major    */
-		nodump,				/* dump     */
-		nopsize,			/* psize    */
-		0				/* flags    */
-	};
-#endif
 /*
 **************************************************************************
 **************************************************************************
 */
-#if	__FreeBSD_version < 500005
-	static int arcmsr_open(dev_t dev, int flags, int fmt, struct proc *proc)
-#else
-	#if	__FreeBSD_version < 503000
-	static int arcmsr_open(dev_t dev, int flags, int fmt, struct thread *proc)
-	#else
-	static int arcmsr_open(struct cdev *dev, int flags, int fmt, struct thread *proc)
-	#endif 
-#endif
+static int arcmsr_open(struct cdev *dev, int flags, int fmt, struct thread *proc)
 {
-	#if	__FreeBSD_version < 503000
-		struct AdapterControlBlock *acb = dev->si_drv1;
-	#else
-		int	unit = dev2unit(dev);
-		struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
-	#endif
-	if(acb == NULL) {
+	int	unit = dev2unit(dev);
+	struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
+
+	if (acb == NULL) {
 		return ENXIO;
 	}
 	return (0);
@@ -300,23 +245,12 @@ static struct cdevsw arcmsr_cdevsw = {
 **************************************************************************
 **************************************************************************
 */
-#if	__FreeBSD_version < 500005
-	static int arcmsr_close(dev_t dev, int flags, int fmt, struct proc *proc)
-#else
-	#if	__FreeBSD_version < 503000
-	static int arcmsr_close(dev_t dev, int flags, int fmt, struct thread *proc)
-	#else
-	static int arcmsr_close(struct cdev *dev, int flags, int fmt, struct thread *proc)
-	#endif 
-#endif
+static int arcmsr_close(struct cdev *dev, int flags, int fmt, struct thread *proc)
 {
-	#if	__FreeBSD_version < 503000
-		struct AdapterControlBlock *acb = dev->si_drv1;
-	#else
-		int	unit = dev2unit(dev);
-		struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
-	#endif
-	if(acb == NULL) {
+	int	unit = dev2unit(dev);
+	struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
+
+	if (acb == NULL) {
 		return ENXIO;
 	}
 	return 0;
@@ -325,24 +259,12 @@ static struct cdevsw arcmsr_cdevsw = {
 **************************************************************************
 **************************************************************************
 */
-#if	__FreeBSD_version < 500005
-	static int arcmsr_ioctl(dev_t dev, u_long ioctl_cmd, caddr_t arg, int flags, struct proc *proc)
-#else
-	#if	__FreeBSD_version < 503000
-	static int arcmsr_ioctl(dev_t dev, u_long ioctl_cmd, caddr_t arg, int flags, struct thread *proc)
-	#else
-	static int arcmsr_ioctl(struct cdev *dev, u_long ioctl_cmd, caddr_t arg, int flags, struct thread *proc)
-	#endif 
-#endif
+static int arcmsr_ioctl(struct cdev *dev, u_long ioctl_cmd, caddr_t arg, int flags, struct thread *proc)
 {
-	#if	__FreeBSD_version < 503000
-		struct AdapterControlBlock *acb = dev->si_drv1;
-	#else
-		int	unit = dev2unit(dev);
-		struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
-	#endif
+	int	unit = dev2unit(dev);
+	struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
 	
-	if(acb == NULL) {
+	if (acb == NULL) {
 		return ENXIO;
 	}
 	return (arcmsr_iop_ioctlcmd(acb, ioctl_cmd, arg));
@@ -3160,7 +3082,6 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 			strlcpy(cpi->hba_vid, "ARCMSR", HBA_IDLEN);
 			strlcpy(cpi->dev_name, cam_sim_name(psim), DEV_IDLEN);
 			cpi->unit_number = cam_sim_unit(psim);
-		#ifdef	CAM_NEW_TRAN_CODE
 			if(acb->adapter_bus_speed == ACB_BUS_SPEED_12G)
 				cpi->base_transfer_speed = 1200000;
 			else if(acb->adapter_bus_speed == ACB_BUS_SPEED_6G)
@@ -3183,7 +3104,6 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 				cpi->protocol_version = SCSI_REV_2;
 			}
 			cpi->protocol = PROTO_SCSI;
-		#endif
 			cpi->ccb_h.status |= CAM_REQ_CMP;
 			xpt_done(pccb);
 			break;
@@ -3241,7 +3161,6 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 				break;
 			}
 			cts = &pccb->cts;
-		#ifdef	CAM_NEW_TRAN_CODE
 			{
 				struct ccb_trans_settings_scsi *scsi;
 				struct ccb_trans_settings_spi *spi;
@@ -3288,22 +3207,6 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 						| CTS_SPI_VALID_BUS_WIDTH;
 				}
 			}
-		#else
-			{
-				cts->flags = (CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
-				if (acb->adapter_bus_speed == ACB_BUS_SPEED_6G)
-					cts->sync_period = 1;
-				else
-					cts->sync_period = 2;
-				cts->sync_offset = 32;
-				cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
-				cts->valid = CCB_TRANS_SYNC_RATE_VALID | 
-				CCB_TRANS_SYNC_OFFSET_VALID | 
-				CCB_TRANS_BUS_WIDTH_VALID | 
-				CCB_TRANS_DISC_VALID | 
-				CCB_TRANS_TQ_VALID;
-			}
-		#endif
 			pccb->ccb_h.status |= CAM_REQ_CMP;
 			xpt_done(pccb);
 			break;
@@ -3319,38 +3222,7 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 				xpt_done(pccb);
 				break;
 			}
-#if __FreeBSD_version >= 500000
 			cam_calc_geometry(&pccb->ccg, 1);
-#else
-			{
-			struct ccb_calc_geometry *ccg;
-			u_int32_t size_mb;
-			u_int32_t secs_per_cylinder;
-
-			ccg = &pccb->ccg;
-			if (ccg->block_size == 0) {
-				pccb->ccb_h.status = CAM_REQ_INVALID;
-				xpt_done(pccb);
-				break;
-			}
-			if(((1024L * 1024L)/ccg->block_size) < 0) {
-				pccb->ccb_h.status = CAM_REQ_INVALID;
-				xpt_done(pccb);
-				break;
-			}
-			size_mb = ccg->volume_size/((1024L * 1024L)/ccg->block_size);
-			if(size_mb > 1024 ) {
-				ccg->heads = 255;
-				ccg->secs_per_track = 63;
-			} else {
-				ccg->heads = 64;
-				ccg->secs_per_track = 32;
-			}
-			secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-			ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-			pccb->ccb_h.status |= CAM_REQ_CMP;
-			}
-#endif
 			xpt_done(pccb);
 			break;
 	default:
@@ -4480,11 +4352,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 			return ENOMEM;
 		}
 	}
-#if __FreeBSD_version >= 700000
 	if(bus_dma_tag_create(  /*PCI parent*/		bus_get_dma_tag(dev),
-#else
-	if(bus_dma_tag_create(  /*PCI parent*/		NULL,
-#endif
 				/*alignemnt*/		1,
 				/*boundary*/		0,
 				/*lowaddr*/		BUS_SPACE_MAXADDR,
@@ -4495,10 +4363,8 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				/*nsegments*/		BUS_SPACE_UNRESTRICTED,
 				/*maxsegsz*/		BUS_SPACE_MAXSIZE_32BIT,
 				/*flags*/		0,
-#if __FreeBSD_version >= 501102
 				/*lockfunc*/		NULL,
 				/*lockarg*/		NULL,
-#endif
 							&acb->parent_dmat) != 0)
 	{
 		printf("arcmsr%d: parent_dmat bus_dma_tag_create failure!\n", device_get_unit(dev));
@@ -4521,10 +4387,8 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				/*nsegments*/		ARCMSR_MAX_SG_ENTRIES,
 				/*maxsegsz*/		BUS_SPACE_MAXSIZE_32BIT,
 				/*flags*/		0,
-#if __FreeBSD_version >= 501102
 				/*lockfunc*/		busdma_lock_mutex,
 				/*lockarg*/		&acb->isr_lock,
-#endif
 							&acb->dm_segs_dmat) != 0)
 	{
 		bus_dma_tag_destroy(acb->parent_dmat);
@@ -4544,10 +4408,8 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				/*nsegments*/		1,
 				/*maxsegsz*/		BUS_SPACE_MAXSIZE_32BIT,
 				/*flags*/		0,
-#if __FreeBSD_version >= 501102
 				/*lockfunc*/		NULL,
 				/*lockarg*/		NULL,
-#endif
 							&acb->srb_dmat) != 0)
 	{
 		bus_dma_tag_destroy(acb->dm_segs_dmat);
@@ -4822,11 +4684,7 @@ static int arcmsr_attach(device_t dev)
 	acb->irq_id[0] = 0;
 	irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &acb->irq_id[0], RF_SHAREABLE | RF_ACTIVE);
 	if(irqres == NULL || 
-#if __FreeBSD_version >= 700025
 		bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY|INTR_MPSAFE, NULL, arcmsr_intr_handler, acb, &acb->ih[0])) {
-#else
-		bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY|INTR_MPSAFE, arcmsr_intr_handler, acb, &acb->ih[0])) {
-#endif
 		printf("arcmsr%d: unable to register interrupt handler!\n", unit);
 		goto setup_intr_failed;
 	}
@@ -4843,21 +4701,13 @@ irqx:
 		printf("arcmsr%d: cam_simq_alloc failure!\n", unit);
 		goto simq_alloc_failed;
 	}
-#if __FreeBSD_version >= 700025
 	acb->psim = cam_sim_alloc(arcmsr_action, arcmsr_poll, "arcmsr", acb, unit, &acb->isr_lock, 1, ARCMSR_MAX_OUTSTANDING_CMD, devq);
-#else
-	acb->psim = cam_sim_alloc(arcmsr_action, arcmsr_poll, "arcmsr", acb, unit, 1, ARCMSR_MAX_OUTSTANDING_CMD, devq);
-#endif
 	if(acb->psim == NULL) {
 		printf("arcmsr%d: cam_sim_alloc failure!\n", unit);
 		goto sim_alloc_failed;
 	}
 	ARCMSR_LOCK_ACQUIRE(&acb->isr_lock);
-#if __FreeBSD_version >= 700044
 	if(xpt_bus_register(acb->psim, dev, 0) != CAM_SUCCESS) {
-#else
-	if(xpt_bus_register(acb->psim, 0) != CAM_SUCCESS) {
-#endif
 		printf("arcmsr%d: xpt_bus_register failure!\n", unit);
 		goto xpt_bus_failed;
 	}
@@ -4878,12 +4728,7 @@ irqx:
 	/* Create the control device.  */
 	acb->ioctl_dev = make_dev(&arcmsr_cdevsw, unit, UID_ROOT, GID_WHEEL /* GID_OPERATOR */, S_IRUSR | S_IWUSR, "arcmsr%d", unit);
 		
-#if __FreeBSD_version < 503000
-	acb->ioctl_dev->si_drv1 = acb;
-#endif
-#if __FreeBSD_version > 500005
 	(void)make_dev_alias(acb->ioctl_dev, "arc%d", unit);
-#endif
 	arcmsr_callout_init(&acb->devmap_callout);
 	callout_reset(&acb->devmap_callout, 60 * hz, arcmsr_polling_devmap, acb);
 	return (0);

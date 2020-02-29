@@ -71,23 +71,13 @@
 	#define offsetof(type, member)  ((size_t)(&((type *)0)->member))
 #endif
 
-#if __FreeBSD_version >= 500005
-    #define ARCMSR_LOCK_INIT(l, s)	mtx_init(l, s, NULL, MTX_DEF)
-    #define ARCMSR_LOCK_DESTROY(l)	mtx_destroy(l)
-    #define ARCMSR_LOCK_ACQUIRE(l)	mtx_lock(l)
-    #define ARCMSR_LOCK_RELEASE(l)	mtx_unlock(l)
-    #define ARCMSR_LOCK_TRY(l)		mtx_trylock(l)
-    #define arcmsr_htole32(x)		htole32(x)
-    typedef struct mtx			arcmsr_lock_t;
-#else
-    #define ARCMSR_LOCK_INIT(l, s)	simple_lock_init(l)
-    #define ARCMSR_LOCK_DESTROY(l)
-    #define ARCMSR_LOCK_ACQUIRE(l)	simple_lock(l)
-    #define ARCMSR_LOCK_RELEASE(l)	simple_unlock(l)
-    #define ARCMSR_LOCK_TRY(l)		simple_lock_try(l)
-    #define arcmsr_htole32(x)		(x)
-    typedef struct simplelock		arcmsr_lock_t;
-#endif
+#define ARCMSR_LOCK_INIT(l, s)		mtx_init(l, s, NULL, MTX_DEF)
+#define ARCMSR_LOCK_DESTROY(l)		mtx_destroy(l)
+#define ARCMSR_LOCK_ACQUIRE(l)		mtx_lock(l)
+#define ARCMSR_LOCK_RELEASE(l)		mtx_unlock(l)
+#define ARCMSR_LOCK_TRY(l)		mtx_trylock(l)
+#define arcmsr_htole32(x)		htole32(x)
+typedef struct mtx			arcmsr_lock_t;
 
 /*
 **********************************************************************************
@@ -1253,11 +1243,7 @@ struct AdapterControlBlock {
 	bus_dma_tag_t		srb_dmat;		/* dmat for freesrb */
 	bus_dmamap_t		srb_dmamap;
 	device_t		pci_dev;
-#if __FreeBSD_version < 503000
-	dev_t			ioctl_dev;
-#else
 	struct cdev		*ioctl_dev;
-#endif
 	int			pci_unit;
 	
 	struct resource		*sys_res_arcmsr[2];
