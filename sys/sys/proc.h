@@ -368,6 +368,7 @@ struct thread {
 #ifdef __amd64__
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 #endif
+	int		td_pflags2;	/* (k) Private thread (TDP2_*) flags. */
 };
 
 struct thread0_storage {
@@ -1162,6 +1163,25 @@ curthread_pflags_restore(int save)
 {
 
 	curthread->td_pflags &= save;
+}
+
+static __inline int
+curthread_pflags2_set(int flags)
+{
+	struct thread *td;
+	int save;
+
+	td = curthread;
+	save = ~flags | (td->td_pflags2 & flags);
+	td->td_pflags2 |= flags;
+	return (save);
+}
+
+static __inline void
+curthread_pflags2_restore(int save)
+{
+
+	curthread->td_pflags2 &= save;
 }
 
 static __inline __pure2 struct td_sched *
