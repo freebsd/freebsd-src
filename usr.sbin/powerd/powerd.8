@@ -37,6 +37,7 @@
 .Op Fl i Ar percent
 .Op Fl m Ar freq
 .Op Fl M Ar freq
+.Op Fl N
 .Op Fl n Ar mode
 .Op Fl p Ar ival
 .Op Fl P Ar pidfile
@@ -102,6 +103,10 @@ The default is 50% or lower.
 Specifies the minimum frequency to throttle down to.
 .It Fl M Ar freq
 Specifies the maximum frequency to throttle up to.
+.It Fl N
+Treat "nice" time as idle for the purpose of load calculation;
+i.e. do not increase the CPU frequency if the CPU is only busy
+with "nice" processes.
 .It Fl n Ar mode
 Selects the
 .Ar mode
