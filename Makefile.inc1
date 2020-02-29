@@ -2747,7 +2747,7 @@ _prereq_libs+= lib/libssp_nonshared
 
 # These dependencies are not automatically generated:
 #
-# gnu/lib/libgcc, lib/csu and lib/libc must be built before
+# lib/csu and lib/libc must be built before
 # all shared libraries for ELF.
 #
 _startup_libs=	lib/csu
@@ -2757,7 +2757,6 @@ _startup_libs+=	lib/libc_nonshared
 _startup_libs+=	lib/libcxxrt
 .endif
 
-.if ${MK_LLVM_LIBUNWIND} != "no"
 _prereq_libs+=	lib/libgcc_eh lib/libgcc_s
 _startup_libs+=	lib/libgcc_eh lib/libgcc_s
 
@@ -2765,7 +2764,6 @@ lib/libgcc_s__L: lib/libc__L
 lib/libgcc_s__L: lib/libc_nonshared__L
 .if ${MK_LIBCPLUSPLUS} != "no"
 lib/libcxxrt__L: lib/libgcc_s__L
-.endif
 .endif
 
 _prebuild_libs=	${_kerberos5_lib_libasn1} \

@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20200229:
+	The WITHOUT_LLVM_LIBUNWIND option has been removed.  LLVM's libunwind
+	is used by all supported CPU architectures.
+
+20200229:
 	GCC 4.2.1 has been removed from the tree.  The WITH_GCC,
 	WITH_GCC_BOOTSTRAP, and WITH_GNUCXX options are no longer available.
 	Users who wish to build FreeBSD with GCC must use the external toolchain
