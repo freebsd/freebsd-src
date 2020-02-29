@@ -78,6 +78,7 @@ __DEFAULT_YES_OPTIONS = \
     CASPER \
     CCD \
     CDDL \
+    CLANG \
     CPP \
     CROSS_COMPILER \
     CRYPT \
@@ -126,6 +127,7 @@ __DEFAULT_YES_OPTIONS = \
     LEGACY_CONSOLE \
     LIBPTHREAD \
     LIBTHR \
+    LLD \
     LLVM_COV \
     LLVM_TARGET_ALL \
     LOADER_GELI \
@@ -287,22 +289,13 @@ MK_LLVM_TARGET_SPARC:=no
 __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 
 .include <bsd.compiler.mk>
-# If the compiler is not C++11 capable, disable Clang.  External toolchain will
-# be required.
 
-.if ${COMPILER_FEATURES:Mc++11} && (${__TT} != "mips")
-# Clang is enabled, and will be installed as the default /usr/bin/cc.
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
-.elif ${COMPILER_FEATURES:Mc++11}
-# If an external compiler that supports C++11 is used as ${CC} and Clang
-# supports the target, then Clang is enabled but we still require an external
-# toolchain.
-# default /usr/bin/cc.
-__DEFAULT_YES_OPTIONS+=CLANG LLD
-__DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
+.if ${__TT} != "mips"
+# Clang is installed as the default /usr/bin/cc.
+__DEFAULT_YES_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
 .else
-# Everything else disables Clang, and uses GCC instead.
-__DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
+# Clang is enabled but we still require an external toolchain.
+__DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
 .endif
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
