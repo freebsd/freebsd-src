@@ -4,6 +4,3 @@ Do not install links to the Clang C/C++ compiler as
 .Pa /usr/bin/c++
 and
 .Pa /usr/bin/cpp .
-If
-.Va WITH_GCC
-is set then links to the GCC C/C++ compiler will be installed instead.

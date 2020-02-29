@@ -172,8 +172,6 @@ DIRDEPS+= ${C_DIRDEPS}
 DIRDEPS+= ${C_DIRDEPS}
 .if ${MK_CLANG} == "yes"
 DIRDEPS+= lib/libc++ lib/libcxxrt
-.else
-DIRDEPS+= gnu/lib/libstdc++ gnu/lib/libsupc++
 .endif
 # XXX: Clang and GCC always adds -lm currently, even when not needed.
 DIRDEPS+= lib/msun

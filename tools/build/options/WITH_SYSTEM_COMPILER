@@ -7,6 +7,4 @@ This does not prevent a compiler from being built for installation though,
 only for building one for the build itself.
 The
 .Va WITHOUT_CLANG
-and
-.Va WITHOUT_GCC
-options control those.
+option controls that.
