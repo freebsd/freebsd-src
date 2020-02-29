@@ -63,6 +63,7 @@ int pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
 int pthread_mutex_isowned_np(pthread_mutex_t *mutex);
 void pthread_resume_all_np(void);
 int pthread_resume_np(pthread_t);
+int pthread_peekjoin_np(pthread_t, void **);
 void pthread_set_name_np(pthread_t, const char *);
 int pthread_setaffinity_np(pthread_t, size_t, const cpuset_t *);
 int pthread_single_np(void);
