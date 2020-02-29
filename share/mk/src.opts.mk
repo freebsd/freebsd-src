@@ -127,7 +127,6 @@ __DEFAULT_YES_OPTIONS = \
     LIBPTHREAD \
     LIBTHR \
     LLVM_COV \
-    LLVM_LIBUNWIND \
     LLVM_TARGET_ALL \
     LOADER_GELI \
     LOADER_LUA \
@@ -423,7 +422,6 @@ MK_${var}:=	no
 #
 .if !${COMPILER_FEATURES:Mc++11}
 MK_GOOGLETEST:=	no
-MK_LLVM_LIBUNWIND:=	no
 .endif
 
 .if ${MK_CAPSICUM} == "no"
