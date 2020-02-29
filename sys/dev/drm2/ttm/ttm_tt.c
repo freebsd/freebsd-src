@@ -285,24 +285,24 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 
 	obj = ttm->swap_storage;
 
-	VM_OBJECT_WLOCK(obj);
 	vm_object_pip_add(obj, 1);
 	for (i = 0; i < ttm->num_pages; ++i) {
-		rv = vm_page_grab_valid(&from_page, obj, i,
-		    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
+		rv = vm_page_grab_valid_unlocked(&from_page, obj, i,
+		    VM_ALLOC_NORMAL | VM_ALLOC_SBUSY | VM_ALLOC_IGN_SBUSY);
 		if (rv != VM_PAGER_OK) {
 			ret = -EIO;
 			goto err_ret;
 		}
 		to_page = ttm->pages[i];
 		if (unlikely(to_page == NULL)) {
+			vm_page_sunbusy(from_page);
 			ret = -ENOMEM;
 			goto err_ret;
 		}
 		pmap_copy_page(from_page, to_page);
+		vm_page_sunbusy(from_page);
 	}
 	vm_object_pip_wakeup(obj);
-	VM_OBJECT_WUNLOCK(obj);
 
 	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP))
 		vm_object_deallocate(obj);
@@ -312,7 +312,6 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 
 err_ret:
 	vm_object_pip_wakeup(obj);
-	VM_OBJECT_WUNLOCK(obj);
 	return (ret);
 }
 

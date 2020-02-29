@@ -9,7 +9,6 @@
 DIRDEPS = \
 	gnu/lib/libdialog \
 	gnu/lib/libgcov \
-	gnu/lib/libgomp \
 	gnu/lib/libregex/doc \
 	gnu/lib/libstdc++ \
 	gnu/lib/libsupc++ \
@@ -36,9 +35,6 @@ DIRDEPS = \
 
 .if ${MK_GPL_DTC} != "no"
 DIRDEPS+= gnu/usr.bin/dtc
-.endif
-
-.if ${MK_LLVM_LIBUNWIND} == "no"
 .endif
 
 .include <dirdeps.mk>

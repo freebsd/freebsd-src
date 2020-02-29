@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/blockcount.h>
 #include <sys/condvar.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -52,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/refcount.h>
 #include <sys/sched.h>
 #include <sys/sdt.h>
 #include <sys/signalvar.h>
@@ -337,81 +337,6 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 }
 
 /*
- * Potentially release the last reference for refcount.  Check for
- * unlikely conditions and signal the caller as to whether it was
- * the final ref.
- */
-bool
-refcount_release_last(volatile u_int *count, u_int n, u_int old)
-{
-	u_int waiter;
-
-	waiter = old & REFCOUNT_WAITER;
-	old = REFCOUNT_COUNT(old);
-	if (__predict_false(n > old || REFCOUNT_SATURATED(old))) {
-		/*
-		 * Avoid multiple destructor invocations if underflow occurred.
-		 * This is not perfect since the memory backing the containing
-		 * object may already have been reallocated.
-		 */
-		_refcount_update_saturated(count);
-		return (false);
-	}
-
-	/*
-	 * Attempt to atomically clear the waiter bit.  Wakeup waiters
-	 * if we are successful.
-	 */
-	if (waiter != 0 && atomic_cmpset_int(count, REFCOUNT_WAITER, 0))
-		wakeup(__DEVOLATILE(u_int *, count));
-
-	/*
-	 * Last reference.  Signal the user to call the destructor.
-	 *
-	 * Ensure that the destructor sees all updates. This synchronizes
-	 * with release fences from all routines which drop the count.
-	 */
-	atomic_thread_fence_acq();
-	return (true);
-}
-
-/*
- * Wait for a refcount wakeup.  This does not guarantee that the ref is still
- * zero on return and may be subject to transient wakeups.  Callers wanting
- * a precise answer should use refcount_wait().
- */
-void
-_refcount_sleep(volatile u_int *count, struct lock_object *lock,
-    const char *wmesg, int pri)
-{
-	void *wchan;
-	u_int old;
-
-	if (REFCOUNT_COUNT(*count) == 0) {
-		if (lock != NULL)
-			LOCK_CLASS(lock)->lc_unlock(lock);
-		return;
-	}
-	wchan = __DEVOLATILE(void *, count);
-	sleepq_lock(wchan);
-	if (lock != NULL)
-		LOCK_CLASS(lock)->lc_unlock(lock);
-	old = *count;
-	for (;;) {
-		if (REFCOUNT_COUNT(old) == 0) {
-			sleepq_release(wchan);
-			return;
-		}
-		if (old & REFCOUNT_WAITER)
-			break;
-		if (atomic_fcmpset_int(count, &old, old | REFCOUNT_WAITER))
-			break;
-	}
-	sleepq_add(wchan, NULL, wmesg, 0, 0);
-	sleepq_wait(wchan, pri);
-}
-
-/*
  * Make all threads sleeping on the specified identifier runnable.
  */
 void
@@ -457,6 +382,82 @@ wakeup_any(const void *ident)
 	sleepq_release(ident);
 	if (wakeup_swapper)
 		kick_proc0();
+}
+
+/*
+ * Signal sleeping waiters after the counter has reached zero.
+ */
+void
+_blockcount_wakeup(blockcount_t *bc, u_int old)
+{
+
+	KASSERT(_BLOCKCOUNT_WAITERS(old),
+	    ("%s: no waiters on %p", __func__, bc));
+
+	if (atomic_cmpset_int(&bc->__count, _BLOCKCOUNT_WAITERS_FLAG, 0))
+		wakeup(bc);
+}
+
+/*
+ * Wait for a wakeup.  This does not guarantee that the count is still zero on
+ * return and may be subject to transient wakeups.  Callers wanting a precise
+ * answer should use blockcount_wait() with an interlock.
+ *
+ * Return 0 if there is no work to wait for, and 1 if we slept waiting for work
+ * to complete.  In the latter case the counter value must be re-read.
+ */
+int
+_blockcount_sleep(blockcount_t *bc, struct lock_object *lock, const char *wmesg,
+    int prio)
+{
+	void *wchan;
+	uintptr_t lock_state;
+	u_int old;
+	int ret;
+
+	KASSERT(lock != &Giant.lock_object,
+	    ("%s: cannot use Giant as the interlock", __func__));
+
+	/*
+	 * Synchronize with the fence in blockcount_release().  If we end up
+	 * waiting, the sleepqueue lock acquisition will provide the required
+	 * side effects.
+	 *
+	 * If there is no work to wait for, but waiters are present, try to put
+	 * ourselves to sleep to avoid jumping ahead.
+	 */
+	if (atomic_load_acq_int(&bc->__count) == 0) {
+		if (lock != NULL && (prio & PDROP) != 0)
+			LOCK_CLASS(lock)->lc_unlock(lock);
+		return (0);
+	}
+	lock_state = 0;
+	wchan = bc;
+	sleepq_lock(wchan);
+	DROP_GIANT();
+	if (lock != NULL)
+		lock_state = LOCK_CLASS(lock)->lc_unlock(lock);
+	old = blockcount_read(bc);
+	do {
+		if (_BLOCKCOUNT_COUNT(old) == 0) {
+			sleepq_release(wchan);
+			ret = 0;
+			goto out;
+		}
+		if (_BLOCKCOUNT_WAITERS(old))
+			break;
+	} while (!atomic_fcmpset_int(&bc->__count, &old,
+	    old | _BLOCKCOUNT_WAITERS_FLAG));
+	sleepq_add(wchan, NULL, wmesg, 0, 0);
+	sleepq_wait(wchan, prio);
+	ret = 1;
+
+out:
+	PICKUP_GIANT();
+	if (lock != NULL && (prio & PDROP) == 0)
+		LOCK_CLASS(lock)->lc_lock(lock, lock_state);
+
+	return (ret);
 }
 
 static void

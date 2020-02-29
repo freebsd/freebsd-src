@@ -410,10 +410,10 @@ page_busy(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 	nbytes = end - off;
 
 	obj = vp->v_object;
-	zfs_vmobject_assert_wlocked(obj);
 
-	vm_page_grab_valid(&pp, obj, OFF_TO_IDX(start), VM_ALLOC_NOCREAT |
-	    VM_ALLOC_SBUSY | VM_ALLOC_NORMAL | VM_ALLOC_IGN_SBUSY);
+	vm_page_grab_valid_unlocked(&pp, obj, OFF_TO_IDX(start),
+	    VM_ALLOC_NOCREAT | VM_ALLOC_SBUSY | VM_ALLOC_NORMAL |
+	    VM_ALLOC_IGN_SBUSY);
 	if (pp != NULL) {
 		ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
 		vm_object_pip_add(obj, 1);
@@ -439,10 +439,9 @@ page_wire(vnode_t *vp, int64_t start)
 	vm_page_t m;
 
 	obj = vp->v_object;
-	zfs_vmobject_assert_wlocked(obj);
-
-	vm_page_grab_valid(&m, obj, OFF_TO_IDX(start), VM_ALLOC_NOCREAT |
-	    VM_ALLOC_WIRED | VM_ALLOC_IGN_SBUSY | VM_ALLOC_NOBUSY);
+	vm_page_grab_valid_unlocked(&m, obj, OFF_TO_IDX(start),
+	    VM_ALLOC_NOCREAT | VM_ALLOC_WIRED | VM_ALLOC_IGN_SBUSY |
+	    VM_ALLOC_NOBUSY);
 	return (m);
 }
 
@@ -475,28 +474,22 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 	ASSERT(obj != NULL);
 
 	off = start & PAGEOFFSET;
-	zfs_vmobject_wlock(obj);
 	vm_object_pip_add(obj, 1);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
 		vm_page_t pp;
 		int nbytes = imin(PAGESIZE - off, len);
 
 		if ((pp = page_busy(vp, start, off, nbytes)) != NULL) {
-			zfs_vmobject_wunlock(obj);
-
 			va = zfs_map_page(pp, &sf);
 			(void) dmu_read(os, oid, start+off, nbytes,
 			    va+off, DMU_READ_PREFETCH);;
 			zfs_unmap_page(sf);
-
-			zfs_vmobject_wlock(obj);
 			page_unbusy(pp);
 		}
 		len -= nbytes;
 		off = 0;
 	}
 	vm_object_pip_wakeup(obj);
-	zfs_vmobject_wunlock(obj);
 }
 
 /*
@@ -528,29 +521,31 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 	ASSERT(obj != NULL);
 	ASSERT((uio->uio_loffset & PAGEOFFSET) == 0);
 
-	zfs_vmobject_wlock(obj);
 	for (start = uio->uio_loffset; len > 0; start += PAGESIZE) {
 		int bytes = MIN(PAGESIZE, len);
 
-		pp = vm_page_grab(obj, OFF_TO_IDX(start), VM_ALLOC_SBUSY |
-		    VM_ALLOC_NORMAL | VM_ALLOC_IGN_SBUSY);
+		pp = vm_page_grab_unlocked(obj, OFF_TO_IDX(start),
+		    VM_ALLOC_SBUSY | VM_ALLOC_NORMAL | VM_ALLOC_IGN_SBUSY);
 		if (vm_page_none_valid(pp)) {
-			zfs_vmobject_wunlock(obj);
 			va = zfs_map_page(pp, &sf);
 			error = dmu_read(os, zp->z_id, start, bytes, va,
 			    DMU_READ_PREFETCH);
 			if (bytes != PAGESIZE && error == 0)
 				bzero(va + bytes, PAGESIZE - bytes);
 			zfs_unmap_page(sf);
-			zfs_vmobject_wlock(obj);
 			if (error == 0) {
 				vm_page_valid(pp);
 				vm_page_activate(pp);
+				vm_page_sunbusy(pp);
+			} else {
+				zfs_vmobject_wlock(obj);
+				if (!vm_page_wired(pp) && pp->valid == 0 &&
+				    vm_page_busy_tryupgrade(pp))
+					vm_page_free(pp);
+				else
+					vm_page_sunbusy(pp);
+				zfs_vmobject_wunlock(obj);
 			}
-			vm_page_sunbusy(pp);
-			if (error != 0 && !vm_page_wired(pp) &&
-			    pp->valid == 0 && vm_page_tryxbusy(pp))
-				vm_page_free(pp);
 		} else {
 			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
 			vm_page_sunbusy(pp);
@@ -561,7 +556,6 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 		uio->uio_offset += bytes;
 		len -= bytes;
 	}
-	zfs_vmobject_wunlock(obj);
 	return (error);
 }
 
@@ -592,7 +586,6 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 
 	start = uio->uio_loffset;
 	off = start & PAGEOFFSET;
-	zfs_vmobject_wlock(obj);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
 		vm_page_t pp;
 		uint64_t bytes = MIN(PAGESIZE - off, len);
@@ -601,7 +594,6 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 			struct sf_buf *sf;
 			caddr_t va;
 
-			zfs_vmobject_wunlock(obj);
 			va = zfs_map_page(pp, &sf);
 #ifdef illumos
 			error = uiomove(va + off, bytes, UIO_READ, uio);
@@ -609,20 +601,16 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 			error = vn_io_fault_uiomove(va + off, bytes, uio);
 #endif
 			zfs_unmap_page(sf);
-			zfs_vmobject_wlock(obj);
 			page_unwire(pp);
 		} else {
-			zfs_vmobject_wunlock(obj);
 			error = dmu_read_uio_dbuf(sa_get_db(zp->z_sa_hdl),
 			    uio, bytes);
-			zfs_vmobject_wlock(obj);
 		}
 		len -= bytes;
 		off = 0;
 		if (error)
 			break;
 	}
-	zfs_vmobject_wunlock(obj);
 	return (error);
 }
 

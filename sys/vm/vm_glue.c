@@ -222,10 +222,8 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 	vm_pindex_t pindex;
 
 	pindex = OFF_TO_IDX(offset);
-	VM_OBJECT_WLOCK(object);
-	(void)vm_page_grab_valid(&m, object, pindex,
+	(void)vm_page_grab_valid_unlocked(&m, object, pindex,
 	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
-	VM_OBJECT_WUNLOCK(object);
 	return (m);
 }
 

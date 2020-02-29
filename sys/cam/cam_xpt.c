@@ -2690,7 +2690,7 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_NVME_ADMIN:
 		/* FALLTHROUGH */
 	case XPT_MMC_IO:
-		/* XXX just like nmve_io? */
+		/* FALLTHROUGH */
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
 	case XPT_SMP_IO:

@@ -1105,7 +1105,7 @@ dt_vopen(int version, int flags, int *errp,
 	dt_provmod_open(&provmod, &df);
 
 	dtfd = open("/dev/dtrace/dtrace", O_RDWR | O_CLOEXEC);
-	err = errno; /* save errno from opening dtfd */
+	err = dtfd == -1 ? errno : 0; /* save errno from opening dtfd */
 #if defined(__FreeBSD__)
 	/*
 	 * Automatically load the 'dtraceall' module if we couldn't open the
