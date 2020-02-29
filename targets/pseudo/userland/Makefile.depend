@@ -188,6 +188,7 @@ DIRDEPS+= \
 	usr.bin/dirname \
 	usr.bin/dpv \
 	usr.bin/drill \
+	usr.bin/dtc \
 	usr.bin/du \
 	usr.bin/ee \
 	usr.bin/elf2aout \
@@ -853,10 +854,6 @@ DIRDEPS+= usr.sbin/cxgbetool
 
 .if ${MK_MLX5TOOL} != "no"
 DIRDEPS+= usr.sbin/mlx5tool
-.endif
-
-.if ${MK_GPL_DTC} != "yes"
-DIRDEPS+= usr.bin/dtc
 .endif
 
 DIRDEPS+= ${DIRDEPS.${MACHINE}:U}
