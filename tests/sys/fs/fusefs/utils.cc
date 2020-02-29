@@ -54,10 +54,9 @@ using namespace testing;
 
 /*
  * The default max_write is set to this formula in libfuse, though
- * individual filesystems can lower it.  The "- 4096" was added in
- * commit 154ffe2, with the commit message "fix".
+ * individual filesystems can lower it.
  */
-const uint32_t libfuse_max_write = 32 * getpagesize() + 0x1000 - 4096;
+const uint32_t libfuse_max_write = 32 * getpagesize();
 
 /* 
  * Set the default max_write to a distinct value from MAXPHYS to catch bugs
