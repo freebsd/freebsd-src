@@ -564,12 +564,9 @@ LIBOPENSMDIR=	${OBJTOP}/lib/ofed/libopensm
 LIBOSMVENDORDIR=${OBJTOP}/lib/ofed/libvendor
 
 LIBDIALOGDIR=	${OBJTOP}/gnu/lib/libdialog
-LIBGCOVDIR=	${OBJTOP}/gnu/lib/libgcov
-LIBGOMPDIR=	${OBJTOP}/gnu/lib/libgomp
 LIBGNUREGEXDIR=	${OBJTOP}/gnu/lib/libregex
 LIBSSPDIR=	${OBJTOP}/lib/libssp
 LIBSSP_NONSHAREDDIR=	${OBJTOP}/lib/libssp_nonshared
-LIBSUPCPLUSPLUSDIR=	${OBJTOP}/gnu/lib/libsupc++
 LIBASN1DIR=	${OBJTOP}/kerberos5/lib/libasn1
 LIBGSSAPI_KRB5DIR=	${OBJTOP}/kerberos5/lib/libgssapi_krb5
 LIBGSSAPI_NTLMDIR=	${OBJTOP}/kerberos5/lib/libgssapi_ntlm

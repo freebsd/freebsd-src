@@ -218,7 +218,7 @@ vm_swapout_object_deactivate(pmap_t pmap, vm_object_t first_object,
 			goto unlock_return;
 		VM_OBJECT_ASSERT_LOCKED(object);
 		if ((object->flags & OBJ_UNMANAGED) != 0 ||
-		    REFCOUNT_COUNT(object->paging_in_progress) > 0)
+		    blockcount_read(&object->paging_in_progress) > 0)
 			goto unlock_return;
 
 		unmap = true;

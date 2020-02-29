@@ -70,6 +70,7 @@
 #define	_VM_OBJECT_
 
 #include <sys/queue.h>
+#include <sys/_blockcount.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_pctrie.h>
@@ -113,8 +114,8 @@ struct vm_object {
 	objtype_t type;			/* type of pager */
 	u_short flags;			/* see below */
 	u_short pg_color;		/* (c) color of first page in obj */
-	volatile u_int paging_in_progress; /* Paging (in or out) so don't collapse or destroy */
-	volatile u_int busy;		/* (a) object is busy, disallow page busy. */
+	blockcount_t paging_in_progress; /* (a) Paging (in or out) so don't collapse or destroy */
+	blockcount_t busy;		/* (a) object is busy, disallow page busy. */
 	int resident_page_count;	/* number of resident pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
@@ -265,7 +266,7 @@ extern struct vm_object kernel_object_store;
 	lock_class_rw.lc_lock(&(object)->lock.lock_object, (state))
 
 #define	VM_OBJECT_ASSERT_PAGING(object)					\
-	KASSERT((object)->paging_in_progress != 0,			\
+	KASSERT(blockcount_read(&(object)->paging_in_progress) != 0,	\
 	    ("vm_object %p is not paging", object))
 #define	VM_OBJECT_ASSERT_REFERENCE(object)				\
 	KASSERT((object)->reference_count != 0,				\
@@ -348,7 +349,7 @@ static inline bool
 vm_object_busied(vm_object_t object)
 {
 
-	return (object->busy != 0);
+	return (blockcount_read(&object->busy) != 0);
 }
 #define	VM_OBJECT_ASSERT_BUSY(object)	MPASS(vm_object_busied((object)))
 

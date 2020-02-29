@@ -96,15 +96,16 @@ static void	rtwn_pci_attach_methods(struct rtwn_softc *);
 static const struct rtwn_pci_ident *
 rtwn_pci_probe_sub(device_t dev)
 {
-	const struct rtwn_pci_ident *ident;
-	int vendor_id, device_id;
+	int i, vendor_id, device_id;
 
 	vendor_id = pci_get_vendor(dev);
 	device_id = pci_get_device(dev);
 
-	for (ident = rtwn_pci_ident_table; ident->name != NULL; ident++)
-		if (vendor_id == ident->vendor && device_id == ident->device)
-			return (ident);
+	for (i = 0; i < nitems(rtwn_pci_ident_table); i++) {
+		if (vendor_id == rtwn_pci_ident_table[i].vendor &&
+		    device_id == rtwn_pci_ident_table[i].device)
+			return (&rtwn_pci_ident_table[i]);
+	}
 
 	return (NULL);
 }
@@ -788,6 +789,8 @@ static devclass_t rtwn_pci_devclass;
 
 DRIVER_MODULE(rtwn_pci, pci, rtwn_pci_driver, rtwn_pci_devclass, NULL, NULL);
 MODULE_VERSION(rtwn_pci, 1);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, rtwn, rtwn_pci_ident_table,
+    nitems(rtwn_pci_ident_table));
 MODULE_DEPEND(rtwn_pci, pci, 1, 1, 1);
 MODULE_DEPEND(rtwn_pci, wlan, 1, 1, 1);
 MODULE_DEPEND(rtwn_pci, rtwn, 2, 2, 2);

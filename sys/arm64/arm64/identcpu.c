@@ -1167,7 +1167,7 @@ print_id_fields(struct sbuf *sb, uint64_t reg, void *arg)
 
 			if (fv[j].desc[0] != '\0')
 				sbuf_printf(sb, "%s%s", SEP_STR, fv[j].desc);
-				break;
+			break;
 		}
 		if (fv[j].desc == NULL)
 			sbuf_printf(sb, "%sUnknown %s(%x)", SEP_STR,

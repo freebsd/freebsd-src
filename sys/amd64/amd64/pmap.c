@@ -714,8 +714,8 @@ pmap_di_load_invl(struct pmap_invl_gen *ptr, struct pmap_invl_gen *out)
 	old_low = new_low = 0;
 	old_high = new_high = (uintptr_t)0;
 
-	__asm volatile("lock;cmpxchg16b\t%1;sete\t%0"
-	    : "=r" (res), "+m" (*ptr), "+a" (old_low), "+d" (old_high)
+	__asm volatile("lock;cmpxchg16b\t%1"
+	    : "=@cce" (res), "+m" (*ptr), "+a" (old_low), "+d" (old_high)
 	    : "b"(new_low), "c" (new_high)
 	    : "memory", "cc");
 	if (res == 0) {
@@ -742,8 +742,8 @@ pmap_di_store_invl(struct pmap_invl_gen *ptr, struct pmap_invl_gen *old_val,
 	old_low = old_val->gen;
 	old_high = (uintptr_t)old_val->next;
 
-	__asm volatile("lock;cmpxchg16b\t%1;sete\t%0"
-	    : "=r" (res), "+m" (*ptr), "+a" (old_low), "+d" (old_high)
+	__asm volatile("lock;cmpxchg16b\t%1"
+	    : "=@cce" (res), "+m" (*ptr), "+a" (old_low), "+d" (old_high)
 	    : "b"(new_low), "c" (new_high)
 	    : "memory", "cc");
 	return (res);

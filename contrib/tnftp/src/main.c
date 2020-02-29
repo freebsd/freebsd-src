@@ -127,6 +127,9 @@ __RCSID(" NetBSD: main.c,v 1.117 2009/07/13 19:05:41 roy Exp  ");
 #include <locale.h>
 
 #endif	/* tnftp */
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#endif
 
 #define	GLOBAL		/* force GLOBAL decls in ftp_var.h to be declared */
 #include "ftp_var.h"
@@ -509,6 +512,13 @@ main(int volatile argc, char **volatile argv)
 	(void)xsignal(SIGUSR1, crankrate);
 	(void)xsignal(SIGUSR2, crankrate);
 	(void)xsignal(SIGWINCH, setttywidth);
+
+	auto_rcvbuf = ((sysctlbyname("net.inet.tcp.recvbuf_auto",
+	    &auto_rcvbuf, &(size_t []){[0] = sizeof(int)}[0], NULL, 0) == 0) &&
+	    auto_rcvbuf == 1);
+	auto_sndbuf = ((sysctlbyname("net.inet.tcp.sendbuf_auto",
+	    &auto_sndbuf, &(size_t []){[0] = sizeof(int)}[0], NULL, 0) == 0) &&
+	    auto_sndbuf == 1);
 
 	if (argc > 0) {
 		if (isupload) {
