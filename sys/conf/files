@@ -1335,13 +1335,6 @@ dev/bhnd/siba/siba_bhndb.c		optional siba bhnd bhndb
 dev/bhnd/siba/siba_erom.c		optional siba bhnd
 dev/bhnd/siba/siba_subr.c		optional siba bhnd
 #
-dev/bktr/bktr_audio.c		optional bktr pci
-dev/bktr/bktr_card.c		optional bktr pci
-dev/bktr/bktr_core.c		optional bktr pci
-dev/bktr/bktr_i2c.c		optional bktr pci smbus
-dev/bktr/bktr_os.c		optional bktr pci
-dev/bktr/bktr_tuner.c		optional bktr pci
-dev/bktr/msp34xx.c		optional bktr pci
 dev/bnxt/bnxt_hwrm.c		optional bnxt iflib pci
 dev/bnxt/bnxt_sysctl.c		optional bnxt iflib pci
 dev/bnxt/bnxt_txrx.c		optional bnxt iflib pci
