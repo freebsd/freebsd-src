@@ -1028,23 +1028,16 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 static int
 linprocfs_doproccwd(PFS_FILL_ARGS)
 {
-	struct filedesc *fdp;
-	struct vnode *vp;
+	struct pwd *pwd;
 	char *fullpath = "unknown";
 	char *freepath = NULL;
 
-	fdp = p->p_fd;
-	FILEDESC_SLOCK(fdp);
-	vp = fdp->fd_cdir;
-	if (vp != NULL)
-		VREF(vp);
-	FILEDESC_SUNLOCK(fdp);
-	vn_fullpath(td, vp, &fullpath, &freepath);
-	if (vp != NULL)
-		vrele(vp);
+	pwd = pwd_hold(td);
+	vn_fullpath(td, pwd->pwd_cdir, &fullpath, &freepath);
 	sbuf_printf(sb, "%s", fullpath);
 	if (freepath)
 		free(freepath, M_TEMP);
+	pwd_drop(pwd);
 	return (0);
 }
 
@@ -1054,23 +1047,18 @@ linprocfs_doproccwd(PFS_FILL_ARGS)
 static int
 linprocfs_doprocroot(PFS_FILL_ARGS)
 {
-	struct filedesc *fdp;
+	struct pwd *pwd;
 	struct vnode *vp;
 	char *fullpath = "unknown";
 	char *freepath = NULL;
 
-	fdp = p->p_fd;
-	FILEDESC_SLOCK(fdp);
-	vp = jailed(p->p_ucred) ? fdp->fd_jdir : fdp->fd_rdir;
-	if (vp != NULL)
-		VREF(vp);
-	FILEDESC_SUNLOCK(fdp);
+	pwd = pwd_hold(td);
+	vp = jailed(p->p_ucred) ? pwd->pwd_jdir : pwd->pwd_rdir;
 	vn_fullpath(td, vp, &fullpath, &freepath);
-	if (vp != NULL)
-		vrele(vp);
 	sbuf_printf(sb, "%s", fullpath);
 	if (freepath)
 		free(freepath, M_TEMP);
+	pwd_drop(pwd);
 	return (0);
 }
 

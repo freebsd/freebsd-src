@@ -237,27 +237,13 @@ root_mounted(void)
 static void
 set_rootvnode(void)
 {
-	struct proc *p;
 
 	if (VFS_ROOT(TAILQ_FIRST(&mountlist), LK_EXCLUSIVE, &rootvnode))
 		panic("set_rootvnode: Cannot find root vnode");
 
 	VOP_UNLOCK(rootvnode);
 
-	p = curthread->td_proc;
-	FILEDESC_XLOCK(p->p_fd);
-
-	if (p->p_fd->fd_cdir != NULL)
-		vrele(p->p_fd->fd_cdir);
-	p->p_fd->fd_cdir = rootvnode;
-	VREF(rootvnode);
-
-	if (p->p_fd->fd_rdir != NULL)
-		vrele(p->p_fd->fd_rdir);
-	p->p_fd->fd_rdir = rootvnode;
-	VREF(rootvnode);
-
-	FILEDESC_XUNLOCK(p->p_fd);
+	pwd_ensure_dirs();
 }
 
 static int
