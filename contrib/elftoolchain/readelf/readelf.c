@@ -3669,6 +3669,8 @@ dump_notes(struct readelf *re)
 
 static struct flag_desc note_feature_ctl_flags[] = {
 	{ NT_FREEBSD_FCTL_ASLR_DISABLE,		"ASLR_DISABLE" },
+	{ NT_FREEBSD_FCTL_PROTMAX_DISABLE,	"PROTMAX_DISABLE" },
+	{ NT_FREEBSD_FCTL_STKGAP_DISABLE,	"STKGAP_DISABLE" },
 	{ 0, NULL }
 };
 
