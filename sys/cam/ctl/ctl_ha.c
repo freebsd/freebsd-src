@@ -66,68 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_error.h>
 
-#if (__FreeBSD_version < 1100000)
-struct mbufq {
-	struct mbuf *head;
-	struct mbuf *tail;
-};
-
-static void
-mbufq_init(struct mbufq *q, int limit)
-{
-
-	q->head = q->tail = NULL;
-}
-
-static void
-mbufq_drain(struct mbufq *q)
-{
-	struct mbuf *m;
-
-	while ((m = q->head) != NULL) {
-		q->head = m->m_nextpkt;
-		m_freem(m);
-	}
-	q->tail = NULL;
-}
-
-static struct mbuf *
-mbufq_dequeue(struct mbufq *q)
-{
-	struct mbuf *m;
-
-	m = q->head;
-	if (m) {
-		if (q->tail == m)
-			q->tail = NULL;
-		q->head = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-	}
-	return (m);
-}
-
-static void
-mbufq_enqueue(struct mbufq *q, struct mbuf *m)
-{
-
-	m->m_nextpkt = NULL;
-	if (q->tail)
-		q->tail->m_nextpkt = m;
-	else
-		q->head = m;
-	q->tail = m;
-}
-
-static u_int
-sbavail(struct sockbuf *sb)
-{
-	return (sb->sb_cc);
-}
-
-#if (__FreeBSD_version < 1000000)
-#define	mtodo(m, o)	((void *)(((m)->m_data) + (o)))
-#endif
-#endif
 
 struct ha_msg_wire {
 	uint32_t	 channel;
