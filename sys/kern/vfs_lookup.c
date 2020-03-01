@@ -303,7 +303,6 @@ namei_handle_root(struct nameidata *ndp, struct vnode **dpp, u_int n)
 int
 namei(struct nameidata *ndp)
 {
-	struct filedesc *fdp;	/* pointer to file descriptor state */
 	char *cp;		/* pointer into pathname argument */
 	struct vnode *dp;	/* the directory we are searching */
 	struct iovec aiov;		/* uio for reading symbolic links */
@@ -311,6 +310,7 @@ namei(struct nameidata *ndp)
 	struct file *dfp;
 	struct thread *td;
 	struct proc *p;
+	struct pwd *pwd;
 	cap_rights_t rights;
 	struct filecaps dirfd_caps;
 	struct uio auio;
@@ -327,7 +327,6 @@ namei(struct nameidata *ndp)
 	    ("namei: flags contaminated with nameiops"));
 	MPASS(ndp->ni_startdir == NULL || ndp->ni_startdir->v_type == VDIR ||
 	    ndp->ni_startdir->v_type == VBAD);
-	fdp = p->p_fd;
 	TAILQ_INIT(&ndp->ni_cap_tracker);
 	ndp->ni_lcf = 0;
 
@@ -395,13 +394,13 @@ namei(struct nameidata *ndp)
 	/*
 	 * Get starting point for the translation.
 	 */
-	FILEDESC_SLOCK(fdp);
+	pwd = pwd_hold(td);
 	/*
 	 * The reference on ni_rootdir is acquired in the block below to avoid
 	 * back-to-back atomics for absolute lookups.
 	 */
-	ndp->ni_rootdir = fdp->fd_rdir;
-	ndp->ni_topdir = fdp->fd_jdir;
+	ndp->ni_rootdir = pwd->pwd_rdir;
+	ndp->ni_topdir = pwd->pwd_jdir;
 
 	startdir_used = 0;
 	dp = NULL;
@@ -422,7 +421,7 @@ namei(struct nameidata *ndp)
 			dp = ndp->ni_startdir;
 			startdir_used = 1;
 		} else if (ndp->ni_dirfd == AT_FDCWD) {
-			dp = fdp->fd_cdir;
+			dp = pwd->pwd_cdir;
 			if (dp == ndp->ni_rootdir) {
 				vrefactn(dp, 2);
 			} else {
@@ -442,7 +441,7 @@ namei(struct nameidata *ndp)
 			 * Effectively inlined fgetvp_rights, because we need to
 			 * inspect the file as well as grabbing the vnode.
 			 */
-			error = fget_cap_locked(fdp, ndp->ni_dirfd, &rights,
+			error = fget_cap(td, ndp->ni_dirfd, &rights,
 			    &dfp, &ndp->ni_filecaps);
 			if (error != 0) {
 				/*
@@ -450,16 +449,19 @@ namei(struct nameidata *ndp)
 				 * or capability-related, both of which can be
 				 * safely returned to the caller.
 				 */
-			} else if (dfp->f_ops == &badfileops) {
-				error = EBADF;
-			} else if (dfp->f_vnode == NULL) {
-				error = ENOTDIR;
 			} else {
-				dp = dfp->f_vnode;
-				vrefact(dp);
+				if (dfp->f_ops == &badfileops) {
+					error = EBADF;
+				} else if (dfp->f_vnode == NULL) {
+					error = ENOTDIR;
+				} else {
+					dp = dfp->f_vnode;
+					vrefact(dp);
 
-				if ((dfp->f_flag & FSEARCH) != 0)
-					cnp->cn_flags |= NOEXECCHECK;
+					if ((dfp->f_flag & FSEARCH) != 0)
+						cnp->cn_flags |= NOEXECCHECK;
+				}
+				fdrop(dfp, td);
 			}
 #ifdef CAPABILITIES
 			/*
@@ -481,7 +483,7 @@ namei(struct nameidata *ndp)
 	}
 	if (error == 0 && (cnp->cn_flags & BENEATH) != 0) {
 		if (ndp->ni_dirfd == AT_FDCWD) {
-			ndp->ni_beneath_latch = fdp->fd_cdir;
+			ndp->ni_beneath_latch = pwd->pwd_cdir;
 			vrefact(ndp->ni_beneath_latch);
 		} else {
 			rights = ndp->ni_rightsneeded;
@@ -496,7 +498,6 @@ namei(struct nameidata *ndp)
 		if (error == 0)
 			ndp->ni_lcf |= NI_LCF_LATCH;
 	}
-	FILEDESC_SUNLOCK(fdp);
 	/*
 	 * If we are auditing the kernel pathname, save the user pathname.
 	 */
@@ -542,6 +543,7 @@ namei(struct nameidata *ndp)
 			nameicap_cleanup(ndp, true);
 			SDT_PROBE2(vfs, namei, lookup, return, error,
 			    (error == 0 ? ndp->ni_vp : NULL));
+			pwd_drop(pwd);
 			return (error);
 		}
 		if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
@@ -617,6 +619,7 @@ out:
 	namei_cleanup_cnp(cnp);
 	nameicap_cleanup(ndp, true);
 	SDT_PROBE2(vfs, namei, lookup, return, error, NULL);
+	pwd_drop(pwd);
 	return (error);
 }
 
