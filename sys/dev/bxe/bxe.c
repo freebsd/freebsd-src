@@ -13261,8 +13261,8 @@ bxe_pcie_capability_read(struct bxe_softc *sc,
 static uint8_t
 bxe_is_pcie_pending(struct bxe_softc *sc)
 {
-    return (bxe_pcie_capability_read(sc, PCIR_EXPRESS_DEVICE_STA, 2) &
-            PCIM_EXP_STA_TRANSACTION_PND);
+    return (bxe_pcie_capability_read(sc, PCIER_DEVICE_STA, 2) &
+            PCIEM_STA_TRANSACTION_PND);
 }
 
 /*
@@ -13286,7 +13286,7 @@ bxe_probe_pci_caps(struct bxe_softc *sc)
         }
     }
 
-    link_status = bxe_pcie_capability_read(sc, PCIR_EXPRESS_LINK_STA, 2);
+    link_status = bxe_pcie_capability_read(sc, PCIER_LINK_STA, 2);
 
     /* handle PCIe 2.0 workarounds for 57710 */
     if (CHIP_IS_E1(sc)) {
@@ -13296,16 +13296,16 @@ bxe_probe_pci_caps(struct bxe_softc *sc)
 
         /* workaround for 57710 errata E4_57710_27488 */
         sc->devinfo.pcie_link_width =
-            ((link_status & PCIM_LINK_STA_WIDTH) >> 4);
+            ((link_status & PCIEM_LINK_STA_WIDTH) >> 4);
         if (sc->devinfo.pcie_link_speed > 1) {
             sc->devinfo.pcie_link_width =
-                ((link_status & PCIM_LINK_STA_WIDTH) >> 4) >> 1;
+                ((link_status & PCIEM_LINK_STA_WIDTH) >> 4) >> 1;
         }
     } else {
         sc->devinfo.pcie_link_speed =
-            (link_status & PCIM_LINK_STA_SPEED);
+            (link_status & PCIEM_LINK_STA_SPEED);
         sc->devinfo.pcie_link_width =
-            ((link_status & PCIM_LINK_STA_WIDTH) >> 4);
+            ((link_status & PCIEM_LINK_STA_WIDTH) >> 4);
     }
 
     BLOGD(sc, DBG_LOAD, "PCIe link speed=%d width=%d\n",
@@ -16746,14 +16746,14 @@ bxe_init_pxp(struct bxe_softc *sc)
     uint16_t devctl;
     int r_order, w_order;
 
-    devctl = bxe_pcie_capability_read(sc, PCIR_EXPRESS_DEVICE_CTL, 2);
+    devctl = bxe_pcie_capability_read(sc, PCIER_DEVICE_CTL, 2);
 
     BLOGD(sc, DBG_LOAD, "read 0x%08x from devctl\n", devctl);
 
-    w_order = ((devctl & PCIM_EXP_CTL_MAX_PAYLOAD) >> 5);
+    w_order = ((devctl & PCIEM_CTL_MAX_PAYLOAD) >> 5);
 
     if (sc->mrrs == -1) {
-        r_order = ((devctl & PCIM_EXP_CTL_MAX_READ_REQUEST) >> 12);
+        r_order = ((devctl & PCIEM_CTL_MAX_READ_REQUEST) >> 12);
     } else {
         BLOGD(sc, DBG_LOAD, "forcing read order to %d\n", sc->mrrs);
         r_order = sc->mrrs;
