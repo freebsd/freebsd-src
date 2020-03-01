@@ -273,7 +273,7 @@ print_features(void)
 
 	printf("Known features are:\n");
 	for (i = 0; i < nitems(featurelist); ++i)
-		printf("%s\t\t %s\n", featurelist[i].alias,
+		printf("%-16s%s\n", featurelist[i].alias,
 		    featurelist[i].desc);
 }
 
@@ -289,7 +289,7 @@ print_file_features(Elf *elf, int phcount, int fd, char *filename)
 
 	printf("File '%s' features:\n", filename);
 	for (i = 0; i < nitems(featurelist); ++i) {
-		printf("%s\t\t'%s' is ", featurelist[i].alias,
+		printf("%-16s'%s' is ", featurelist[i].alias,
 		    featurelist[i].desc);
 
 		if ((featurelist[i].value & features) == 0)
