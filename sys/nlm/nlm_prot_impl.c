@@ -40,9 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lockf.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#if __FreeBSD_version >= 700000
 #include <sys/priv.h>
-#endif
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -1688,11 +1686,7 @@ sys_nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
 {
 	int error;
 
-#if __FreeBSD_version >= 700000
 	error = priv_check(td, PRIV_NFS_LOCKD);
-#else
-	error = suser(td);
-#endif
 	if (error)
 		return (error);
 
@@ -1797,11 +1791,7 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 			goto out;
 	}
 
-#if __FreeBSD_version < 800011
-	VOP_UNLOCK(vs->vs_vp, 0, curthread);
-#else
 	VOP_UNLOCK(vs->vs_vp);
-#endif
 	vs->vs_vnlocked = FALSE;
 
 out:
