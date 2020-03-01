@@ -4659,6 +4659,9 @@ uma_zone_set_smr(uma_zone_t zone, smr_t smr)
 
 	ZONE_ASSERT_COLD(zone);
 
+	KASSERT(smr != NULL, ("Got NULL smr"));
+	KASSERT((zone->uz_flags & UMA_ZONE_SMR) == 0,
+	    ("zone %p (%s) already uses SMR", zone, zone->uz_name));
 	zone->uz_flags |= UMA_ZONE_SMR;
 	zone->uz_smr = smr;
 	zone_update_caches(zone);
