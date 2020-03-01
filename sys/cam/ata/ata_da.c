@@ -782,6 +782,11 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		/*quirks*/ADA_Q_SMR_DM
 	},
 	{
+		/* WD Green SSD */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WDS?????G0*", "*" },
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
 		/* Default */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
