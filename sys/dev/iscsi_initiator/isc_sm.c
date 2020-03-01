@@ -514,7 +514,7 @@ proc_out(isc_session_t *sp)
 		    if(pq->ccb) {
 			 xdebug("back to cam");
 			 pq->ccb->ccb_h.status |= CAM_REQUEUE_REQ; // some better error?
-			 xpt_done(sp, pq->ccb);
+			 xpt_done(pq->ccb);
 			 pdu_free(sp->isc, pq);
 		    }
 		    else
@@ -747,4 +747,4 @@ ism_start(isc_session_t *sp)
      debug(4, "starting ism_proc: sp->sid=%d", sp->sid);
 
      return kproc_create(ism_out, sp, &sp->stp, 0, 0, "isc_out %d", sp->sid);
-a}
+}
