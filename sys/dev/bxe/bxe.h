@@ -117,34 +117,6 @@ __FBSDID("$FreeBSD$");
 #define VF_MAC_CREDIT_CNT 0
 #define VF_VLAN_CREDIT_CNT (0)
 
-#if __FreeBSD_version < 800054
-#if defined(__i386__) || defined(__amd64__)
-#define mb()  __asm volatile("mfence;" : : : "memory")
-#define wmb() __asm volatile("sfence;" : : : "memory")
-#define rmb() __asm volatile("lfence;" : : : "memory")
-static __inline void prefetch(void *x)
-{
-    __asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
-}
-#else
-#define mb()
-#define rmb()
-#define wmb()
-#define prefetch(x)
-#endif
-#endif
-
-#if __FreeBSD_version >= 1000000
-#define PCIR_EXPRESS_DEVICE_STA        PCIER_DEVICE_STA
-#define PCIM_EXP_STA_TRANSACTION_PND   PCIEM_STA_TRANSACTION_PND
-#define PCIR_EXPRESS_LINK_STA          PCIER_LINK_STA
-#define PCIM_LINK_STA_WIDTH            PCIEM_LINK_STA_WIDTH
-#define PCIM_LINK_STA_SPEED            PCIEM_LINK_STA_SPEED
-#define PCIR_EXPRESS_DEVICE_CTL        PCIER_DEVICE_CTL
-#define PCIM_EXP_CTL_MAX_PAYLOAD       PCIEM_CTL_MAX_PAYLOAD
-#define PCIM_EXP_CTL_MAX_READ_REQUEST  PCIEM_CTL_MAX_READ_REQUEST
-#endif
-
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #endif
@@ -708,10 +680,8 @@ struct bxe_fastpath {
 
     //uint8_t segs;
 
-#if __FreeBSD_version >= 800000
 #define BXE_BR_SIZE 4096
     struct buf_ring *tx_br;
-#endif
 }; /* struct bxe_fastpath */
 
 /* sriov XXX */
@@ -2300,16 +2270,8 @@ void bxe_dump_mem(struct bxe_softc *sc, char *tag,
 void bxe_dump_mbuf_data(struct bxe_softc *sc, char *pTag,
                         struct mbuf *m, uint8_t contents);
 
-#if __FreeBSD_version >= 800000
-#if (__FreeBSD_version >= 1001513 && __FreeBSD_version < 1100000) ||\
-    __FreeBSD_version >= 1100048
 #define BXE_SET_FLOWID(m) M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE)
 #define BXE_VALID_FLOWID(m) (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
-#else
-#define BXE_VALID_FLOWID(m) ((m->m_flags & M_FLOWID) != 0)
-#define BXE_SET_FLOWID(m) m->m_flags |= M_FLOWID
-#endif
-#endif /* #if __FreeBSD_version >= 800000 */
 
 /***********/
 /* INLINES */
