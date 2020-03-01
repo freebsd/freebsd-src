@@ -493,38 +493,35 @@ void
 audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 {
 	struct vnode *cdir, *rdir;
-	struct filedesc *fdp;
+	struct pwd *pwd;
 	cap_rights_t rights;
 	int error;
+	bool vrele_cdir;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
 	    __func__,  __FILE__, __LINE__);
 
-	rdir = cdir = NULL;
-	fdp = td->td_proc->p_fd;
-	FILEDESC_SLOCK(fdp);
-	if (*path == '/') {
-		rdir = fdp->fd_rdir;
-		vrefact(rdir);
-	} else {
+	pwd = pwd_hold(td);
+	rdir = pwd->pwd_rdir;
+	cdir = NULL;
+	vrele_cdir = false;
+	if (*path != '/') {
 		if (dirfd == AT_FDCWD) {
-			cdir = fdp->fd_cdir;
-			vrefact(cdir);
+			cdir = pwd->pwd_cdir;
 		} else {
 			error = fgetvp(td, dirfd, cap_rights_init(&rights), &cdir);
 			if (error != 0) {
-				FILEDESC_SUNLOCK(fdp);
 				cpath[0] = '\0';
+				pwd_drop(pwd);
 				return;
 			}
+			vrele_cdir = true;
 		}
 	}
-	FILEDESC_SUNLOCK(fdp);
 
 	audit_canon_path_vp(td, rdir, cdir, path, cpath);
 
-	if (rdir != NULL)
-		vrele(rdir);
-	if (cdir != NULL)
+	pwd_drop(pwd);
+	if (vrele_cdir)
 		vrele(cdir);
 }

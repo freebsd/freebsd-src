@@ -459,6 +459,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 {
 	struct file file;
 	struct filedesc filed;
+	struct pwd pwd;
 	struct vm_map_entry vmentry;
 	struct vm_object object;
 	struct vmspace vmspace;
@@ -473,6 +474,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	int i, fflags;
 	int prot, type;
 	unsigned int nfiles;
+	bool haspwd;
 
 	assert(procstat);
 	kd = procstat->kd;
@@ -485,6 +487,15 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 		warnx("can't read filedesc at %p", (void *)kp->ki_fd);
 		return (NULL);
 	}
+	haspwd = false;
+	if (filed.fd_pwd != NULL) {
+		if (!kvm_read_all(kd, (unsigned long)filed.fd_pwd, &pwd,
+		    sizeof(pwd))) {
+			warnx("can't read fd_pwd at %p", (void *)filed.fd_pwd);
+			return (NULL);
+		}
+		haspwd = true;
+	}
 
 	/*
 	 * Allocate list head.
@@ -495,25 +506,27 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	STAILQ_INIT(head);
 
 	/* root directory vnode, if one. */
-	if (filed.fd_rdir) {
-		entry = filestat_new_entry(filed.fd_rdir, PS_FST_TYPE_VNODE, -1,
-		    PS_FST_FFLAG_READ, PS_FST_UFLAG_RDIR, 0, 0, NULL, NULL);
-		if (entry != NULL)
-			STAILQ_INSERT_TAIL(head, entry, next);
-	}
-	/* current working directory vnode. */
-	if (filed.fd_cdir) {
-		entry = filestat_new_entry(filed.fd_cdir, PS_FST_TYPE_VNODE, -1,
-		    PS_FST_FFLAG_READ, PS_FST_UFLAG_CDIR, 0, 0, NULL, NULL);
-		if (entry != NULL)
-			STAILQ_INSERT_TAIL(head, entry, next);
-	}
-	/* jail root, if any. */
-	if (filed.fd_jdir) {
-		entry = filestat_new_entry(filed.fd_jdir, PS_FST_TYPE_VNODE, -1,
-		    PS_FST_FFLAG_READ, PS_FST_UFLAG_JAIL, 0, 0, NULL, NULL);
-		if (entry != NULL)
-			STAILQ_INSERT_TAIL(head, entry, next);
+	if (haspwd) {
+		if (pwd.pwd_rdir) {
+			entry = filestat_new_entry(pwd.pwd_rdir, PS_FST_TYPE_VNODE, -1,
+			    PS_FST_FFLAG_READ, PS_FST_UFLAG_RDIR, 0, 0, NULL, NULL);
+			if (entry != NULL)
+				STAILQ_INSERT_TAIL(head, entry, next);
+		}
+		/* current working directory vnode. */
+		if (pwd.pwd_cdir) {
+			entry = filestat_new_entry(pwd.pwd_cdir, PS_FST_TYPE_VNODE, -1,
+			    PS_FST_FFLAG_READ, PS_FST_UFLAG_CDIR, 0, 0, NULL, NULL);
+			if (entry != NULL)
+				STAILQ_INSERT_TAIL(head, entry, next);
+		}
+		/* jail root, if any. */
+		if (pwd.pwd_jdir) {
+			entry = filestat_new_entry(pwd.pwd_jdir, PS_FST_TYPE_VNODE, -1,
+			    PS_FST_FFLAG_READ, PS_FST_UFLAG_JAIL, 0, 0, NULL, NULL);
+			if (entry != NULL)
+				STAILQ_INSERT_TAIL(head, entry, next);
+		}
 	}
 	/* ktrace vnode, if one */
 	if (kp->ki_tracep) {
