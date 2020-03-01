@@ -67,10 +67,6 @@ __FBSDID("$FreeBSD$");
 
 extern	u_long sb_max_adj;	/* not defined in socketvar.h */
 
-#if __FreeBSD_version < 700000
-#define strrchr rindex
-#endif
-
 /* Provide an entry point hook for the rpcsec_gss module. */
 struct rpc_gss_entries	rpc_gss_entries;
 
