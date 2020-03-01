@@ -1407,14 +1407,8 @@ bce_attach(device_t dev)
 		ifp->if_capabilities = BCE_IF_CAPABILITIES;
 	}
 
-#if __FreeBSD_version >= 800505
-	/*
-	 * Introducing IFCAP_LINKSTATE didn't bump __FreeBSD_version
-	 * so it's approximate value.
-	 */
 	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0)
 		ifp->if_capabilities |= IFCAP_LINKSTATE;
-#endif
 
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -1490,13 +1484,8 @@ bce_attach(device_t dev)
 	/* Attach to the Ethernet interface list. */
 	ether_ifattach(ifp, sc->eaddr);
 
-#if __FreeBSD_version < 500000
-	callout_init(&sc->bce_tick_callout);
-	callout_init(&sc->bce_pulse_callout);
-#else
 	callout_init_mtx(&sc->bce_tick_callout, &sc->bce_mtx, 0);
 	callout_init_mtx(&sc->bce_pulse_callout, &sc->bce_mtx, 0);
-#endif
 
 	/* Hookup IRQ last. */
 	rc = bus_setup_intr(dev, sc->bce_res_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -6801,14 +6790,9 @@ bce_rx_intr(struct bce_softc *sc)
 			DBRUN(sc->vlan_tagged_frames_rcvd++);
 			if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
 				DBRUN(sc->vlan_tagged_frames_stripped++);
-#if __FreeBSD_version < 700000
-				VLAN_INPUT_TAG(ifp, m0,
-				    l2fhdr->l2_fhdr_vlan_tag, continue);
-#else
 				m0->m_pkthdr.ether_vtag =
 				    l2fhdr->l2_fhdr_vlan_tag;
 				m0->m_flags |= M_VLANTAG;
-#endif
 			} else {
 				/*
 				 * bce(4) controllers can't disable VLAN
