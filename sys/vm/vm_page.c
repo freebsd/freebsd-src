@@ -4535,7 +4535,8 @@ vm_page_grab_valid(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex, int al
 	    (VM_ALLOC_NOWAIT | VM_ALLOC_WAITFAIL | VM_ALLOC_ZERO)) == 0,
 	    ("vm_page_grab_valid: Invalid flags 0x%X", allocflags));
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	pflags = allocflags & ~(VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY);
+	pflags = allocflags & ~(VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY |
+	    VM_ALLOC_WIRED);
 	pflags |= VM_ALLOC_WAITFAIL;
 
 retrylookup:
