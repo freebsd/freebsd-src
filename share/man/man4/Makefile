@@ -79,7 +79,6 @@ MAN=	aac.4 \
 	bhnd_pmu.4 \
 	bhndb.4 \
 	bhndb_pci.4 \
-	bktr.4 \
 	blackhole.4 \
 	bnxt.4 \
 	bpf.4 \
@@ -601,7 +600,6 @@ MLINKS+=axe.4 if_axe.4
 MLINKS+=bce.4 if_bce.4
 MLINKS+=bfe.4 if_bfe.4
 MLINKS+=bge.4 if_bge.4
-MLINKS+=bktr.4 brooktree.4
 MLINKS+=bnxt.4 if_bnxt.4
 MLINKS+=bridge.4 if_bridge.4
 MLINKS+=bwi.4 if_bwi.4
