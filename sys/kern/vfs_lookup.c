@@ -254,7 +254,7 @@ namei_cleanup_cnp(struct componentname *cnp)
 }
 
 static int
-namei_handle_root(struct nameidata *ndp, struct vnode **dpp, u_int n)
+namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
 {
 	struct componentname *cnp;
 
@@ -276,7 +276,7 @@ namei_handle_root(struct nameidata *ndp, struct vnode **dpp, u_int n)
 		ndp->ni_pathlen--;
 	}
 	*dpp = ndp->ni_rootdir;
-	vrefactn(*dpp, n);
+	vrefact(*dpp);
 	return (0);
 }
 
@@ -407,29 +407,15 @@ namei(struct nameidata *ndp)
 	cnp->cn_nameptr = cnp->cn_pnbuf;
 	if (cnp->cn_pnbuf[0] == '/') {
 		ndp->ni_resflags |= NIRES_ABS;
-		error = namei_handle_root(ndp, &dp, 2);
-		if (error != 0) {
-			/*
-			 * Simplify error handling, we should almost never be
-			 * here.
-			 */
-			vrefact(ndp->ni_rootdir);
-		}
+		error = namei_handle_root(ndp, &dp);
 	} else {
 		if (ndp->ni_startdir != NULL) {
-			vrefact(ndp->ni_rootdir);
 			dp = ndp->ni_startdir;
 			startdir_used = 1;
 		} else if (ndp->ni_dirfd == AT_FDCWD) {
 			dp = pwd->pwd_cdir;
-			if (dp == ndp->ni_rootdir) {
-				vrefactn(dp, 2);
-			} else {
-				vrefact(ndp->ni_rootdir);
-				vrefact(dp);
-			}
+			vrefact(dp);
 		} else {
-			vrefact(ndp->ni_rootdir);
 			rights = ndp->ni_rightsneeded;
 			cap_rights_set_one(&rights, CAP_LOOKUP);
 
@@ -530,7 +516,6 @@ namei(struct nameidata *ndp)
 		 * If not a symbolic link, we're done.
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
-			vrele(ndp->ni_rootdir);
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
 				namei_cleanup_cnp(cnp);
 			} else
@@ -605,7 +590,7 @@ namei(struct nameidata *ndp)
 		cnp->cn_nameptr = cnp->cn_pnbuf;
 		if (*(cnp->cn_nameptr) == '/') {
 			vrele(dp);
-			error = namei_handle_root(ndp, &dp, 1);
+			error = namei_handle_root(ndp, &dp);
 			if (error != 0)
 				goto out;
 		}
@@ -614,7 +599,6 @@ namei(struct nameidata *ndp)
 	ndp->ni_vp = NULL;
 	vrele(ndp->ni_dvp);
 out:
-	vrele(ndp->ni_rootdir);
 	MPASS(error != 0);
 	namei_cleanup_cnp(cnp);
 	nameicap_cleanup(ndp, true);
