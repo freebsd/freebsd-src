@@ -248,7 +248,7 @@ _scsi_done(isc_session_t *sp, u_int response, u_int status, union ccb *ccb, pduq
      }
      sdebug(5, "ccb_h->status=%x", ccb_h->status);
 
-     xpt_done(sp, ccb);
+     xpt_done(ccb);
 }
 
 /*
@@ -408,7 +408,7 @@ iscsi_reject(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
      debug_called(8);
      //XXX: check RFC 10.17.1 (page 176)
      ccb->ccb_h.status = CAM_REQ_ABORTED;
-     xpt_done(sp, ccb);
+     xpt_done(ccb);
  
      pdu_free(sp->isc, opq);
 }
