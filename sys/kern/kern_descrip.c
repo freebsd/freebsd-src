@@ -3028,13 +3028,11 @@ int
 fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
     struct filecaps *havecaps, struct vnode **vpp)
 {
-	struct filedesc *fdp;
 	struct filecaps caps;
 	struct file *fp;
 	int error;
 
-	fdp = td->td_proc->p_fd;
-	error = fget_cap_locked(fdp, fd, needrightsp, &fp, &caps);
+	error = fget_cap(td, fd, needrightsp, &fp, &caps);
 	if (error != 0)
 		return (error);
 	if (fp->f_ops == &badfileops) {
@@ -3049,10 +3047,12 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
 	*havecaps = caps;
 	*vpp = fp->f_vnode;
 	vrefact(*vpp);
+	fdrop(fp, td);
 
 	return (0);
 out:
 	filecaps_free(&caps);
+	fdrop(fp, td);
 	return (error);
 }
 
