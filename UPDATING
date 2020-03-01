@@ -26,6 +26,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200301:
+	Removed brooktree driver (bktr.4) from the tree.
+
 20200229:
 	The WITH_GPL_DTC option has been removed.  The BSD-licenced device tree
 	compiler in usr.bin/dtc is used on all architectures which use dtc, and
