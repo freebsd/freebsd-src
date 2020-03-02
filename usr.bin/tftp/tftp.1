@@ -28,7 +28,7 @@
 .\"     @(#)tftp.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd Aug 22, 2018
+.Dd March 2, 2020
 .Dt TFTP 1
 .Os
 .Sh NAME
@@ -216,6 +216,14 @@ Toggle packet tracing.
 .Pp
 .It Cm verbose
 Toggle verbose mode.
+.Pp
+.It Cm windowsize Op Ar size
+Sets the TFTP windowsize option in TFTP Read Request or Write Request packets to
+.Op Ar size
+blocks as specified in RFC 7440.
+Valid values are between 1 and 65535.
+If no windowsize is specified,
+then the default windowsize of 1 block will be used.
 .El
 .Sh SEE ALSO
 .Xr tftpd 8
@@ -235,6 +243,9 @@ The following RFC's are supported:
 .Re
 .Rs
 .%T RFC 3617: Uniform Resource Identifier (URI) Scheme and Applicability Statement for the Trivial File Transfer Protocol (TFTP)
+.Re
+.Rs
+.%T RFC 7440: TFTP Windowsize Option
 .Re
 .Pp
 The non-standard

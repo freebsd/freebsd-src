@@ -114,6 +114,7 @@ static void	setblocksize2(int, char **);
 static void	setoptions(int, char **);
 static void	setrollover(int, char **);
 static void	setpacketdrop(int, char **);
+static void	setwindowsize(int, char **);
 
 static void command(bool, EditLine *, History *, HistEvent *) __dead2;
 static const char *command_prompt(void);
@@ -158,6 +159,7 @@ static struct cmd cmdtab[] = {
 	  "enable or disable RFC2347 style options" },
 	{ "help",	help,		"print help information"	},
 	{ "packetdrop",	setpacketdrop,	"artificial packetloss feature"	},
+	{ "windowsize",	setwindowsize,	"set windowsize[*]"		},
 	{ "?",		help,		"print help information"	},
 	{ NULL,		NULL,		NULL				}
 };
@@ -1068,4 +1070,28 @@ setpacketdrop(int argc, char *argv[])
 
 	printf("Randomly %d in 100 packets will be dropped\n",
 	    packetdroppercentage);
+}
+
+static void
+setwindowsize(int argc, char *argv[])
+{
+
+	if (!options_rfc_enabled)
+		printf("RFC2347 style options are not enabled "
+		    "(but proceeding anyway)\n");
+
+	if (argc != 1) {
+		int size = atoi(argv[1]);
+
+		if (size < WINDOWSIZE_MIN || size > WINDOWSIZE_MAX) {
+			printf("Windowsize should be between %d and %d "
+			    "blocks.\n", WINDOWSIZE_MIN, WINDOWSIZE_MAX);
+			return;
+		} else {
+			asprintf(&options[OPT_WINDOWSIZE].o_request, "%d",
+			    size);
+		}
+	}
+	printf("Windowsize is now %s blocks.\n",
+	    options[OPT_WINDOWSIZE].o_request);
 }
