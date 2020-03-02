@@ -92,6 +92,7 @@ main(int argc, char **argv)
 	lflag = 0;
 	editfeatures = 0;
 	retval = 0;
+	features = NULL;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		errx(EXIT_FAILURE, "elf_version error");
