@@ -153,18 +153,18 @@ virtdone:
 	sub	x26, x26, x29
 	sub	x24, x24, x29
 
-	sub	sp, sp, #(64 * 4)
+	sub	sp, sp, #BOOTPARAMS_SIZE
 	mov	x0, sp
 
 	/* Degate the delda so it is VA -> PA */
 	neg	x29, x29
 
-	str	x1,  [x0]	/* modulep */
-	str	x26, [x0, 8]	/* kern_l1pt */
-	str	x29, [x0, 16]	/* kern_delta */
+	str	x1,  [x0, #BP_MODULEP]
+	str	x26, [x0, #BP_KERN_L1PT]
+	str	x29, [x0, #BP_KERN_DELTA]
 	adr	x25, initstack
-	str	x25, [x0, 24]	/* kern_stack */
-	str	x24, [x0, 32]	/* kern_l0pt */
+	str	x25, [x0, #BP_KERN_STACK]
+	str	x24, [x0, #BP_KERN_L0PT]
 
 	/* trace back starts here */
 	mov	fp, #0
