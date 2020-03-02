@@ -89,9 +89,6 @@
 				 (__NetBSD_Version__ > (x)))
 #define	NETBSD_LT_REV(x)	(defined(__NetBSD_Version__) && \
 				 (__NetBSD_Version__ < (x)))
-#define	BSD_GE_YEAR(x)		(defined(BSD) && (BSD >= (x)))
-#define	BSD_GT_YEAR(x)		(defined(BSD) && (BSD > (x)))
-#define	BSD_LT_YEAR(x)		(defined(BSD) && (BSD < (x)))
 
 
 /* ----------------------------------------------------------------------- */
@@ -439,7 +436,7 @@ extern	mb_t	*allocmbt(size_t);
  * On BSD's use quad_t as a guarantee for getting at least a 64bit sized
  * object.
  */
-#if !defined(__amd64__) && BSD_GT_YEAR(199306)
+#if !defined(__amd64__) && !SOLARIS
 # define	USE_QUAD_T
 # define	U_QUAD_T	unsigned long long
 # define	QUAD_T		long long
@@ -733,7 +730,7 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 #define	TCPF_ALL	(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG|\
 			 TH_ECN|TH_CWR)
 
-#if BSD_GE_YEAR(199306) && !defined(m_act)
+#if !SOLARIS && !defined(m_act)
 # define	m_act	m_nextpkt
 #endif
 
