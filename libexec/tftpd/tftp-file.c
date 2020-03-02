@@ -214,6 +214,20 @@ write_close(void)
 	return 0;
 }
 
+off_t
+tell_file(void)
+{
+
+	return ftello(file);
+}
+
+int
+seek_file(off_t offset)
+{
+
+	return fseeko(file, offset, SEEK_SET);
+}
+
 int
 read_init(int fd, FILE *f, const char *mode)
 {
