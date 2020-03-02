@@ -36,6 +36,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200302: calendar(1) removed
+OLD_DIRS+=usr/share/calendar
+OLD_FILES+=usr/bin/calendar
+OLD_FILES+=usr/share/man/man1/calendar.1.gz
+
 # 20200301: bktr removed
 OLD_DIRS+=usr/include/dev/bktr
 OLD_FILES+=usr/include/dev/bktr/ioctl_bktr.h
