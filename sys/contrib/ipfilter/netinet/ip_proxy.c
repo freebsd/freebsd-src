@@ -51,7 +51,7 @@
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if __FreeBSD_version >= 300000
+#ifdef __FreeBSD_version
 # include <sys/queue.h>
 #endif
 #include <net/if.h>
