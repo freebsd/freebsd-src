@@ -167,7 +167,8 @@ static int show_busybufs;
 static int show_busybufs = 1;
 #endif
 SYSCTL_INT(_kern_shutdown, OID_AUTO, show_busybufs, CTLFLAG_RW,
-	&show_busybufs, 0, "");
+    &show_busybufs, 0,
+    "Show busy buffers during shutdown");
 
 int suspend_blocked = 0;
 SYSCTL_INT(_kern, OID_AUTO, suspend_blocked, CTLFLAG_RW,

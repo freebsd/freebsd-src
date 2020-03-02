@@ -240,7 +240,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, umtx_vnode_persistent, CTLFLAG_RWTUN,
 static int umtx_max_rb = 1000;
 SYSCTL_INT(_kern_ipc, OID_AUTO, umtx_max_robust, CTLFLAG_RWTUN,
     &umtx_max_rb, 0,
-    "");
+    "Maximum number of robust mutexes allowed for each thread");
 
 static uma_zone_t		umtx_pi_zone;
 static struct umtxq_chain	umtxq_chains[2][UMTX_CHAINS];
