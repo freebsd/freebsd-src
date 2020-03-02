@@ -26,11 +26,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2019
-.Dt CONTROLELF 1
+.Dd March 1, 2020
+.Dt ELFCTL 1
 .Os
 .Sh NAME
-.Nm controlelf
+.Nm elfctl
 .Nd change an ELF binary's feature control note
 .Sh SYNOPSIS
 .Nm
@@ -79,8 +79,8 @@ of the
 .Nm
 command:
 .Bd -literal -offset indent
-controlelf file
-controlelf -e +aslr file
+elfctl file
+elfctl -e +aslr file
 .Ed
 .Sh HISTORY
 .Nm
