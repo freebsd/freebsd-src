@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_evdev.h"
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
@@ -43,6 +44,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#endif
+
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_BUTTON
 ACPI_MODULE_NAME("LID")
@@ -51,6 +57,9 @@ struct acpi_lid_softc {
     device_t	lid_dev;
     ACPI_HANDLE	lid_handle;
     int		lid_status;	/* open or closed */
+#ifdef EVDEV_SUPPORT
+    struct evdev_dev *lid_evdev;
+#endif
 };
 
 ACPI_HANDLE acpi_lid_handle;
@@ -104,6 +113,12 @@ acpi_lid_status_update(struct acpi_lid_softc *sc)
 
 	/* range check value */
 	sc->lid_status = lid_status ? 1 : 0;
+
+#ifdef EVDEV_SUPPORT
+	/* Notify evdev about lid status */
+	evdev_push_sw(sc->lid_evdev, SW_LID, lid_status ? 0 : 1);
+	evdev_sync(sc->lid_evdev);
+#endif
 }
 
 static int
@@ -131,6 +146,20 @@ acpi_lid_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->lid_dev = dev;
     acpi_lid_handle = sc->lid_handle = acpi_get_handle(dev);
+
+#ifdef EVDEV_SUPPORT
+    /* Register evdev device before initial status update */
+    sc->lid_evdev = evdev_alloc();
+    evdev_set_name(sc->lid_evdev, device_get_desc(dev));
+    evdev_set_phys(sc->lid_evdev, device_get_nameunit(dev));
+    evdev_set_id(sc->lid_evdev, BUS_HOST, 0, 0, 1);
+    evdev_support_event(sc->lid_evdev, EV_SYN);
+    evdev_support_event(sc->lid_evdev, EV_SW);
+    evdev_support_sw(sc->lid_evdev, SW_LID);
+
+    if (evdev_register(sc->lid_evdev))
+        return (ENXIO);
+#endif
 
     /*
      * If a system does not get lid events, it may make sense to change
