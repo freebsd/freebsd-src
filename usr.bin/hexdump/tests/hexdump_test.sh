@@ -26,6 +26,12 @@
 #
 # $FreeBSD$
 
+ENDIAN=el
+ret=$(echo I | tr -d "[:space:]" | od -to2 | head -n1 | awk '{print $2}' | cut -c6)
+if [ "$ret" = "0" ]; then
+        ENDIAN=eb
+fi
+
 atf_test_case b_flag
 b_flag_head()
 {
@@ -93,11 +99,11 @@ d_flag_head()
 }
 d_flag_body()
 {
-	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_dflag_a.out" \
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_dflag_a_$ENDIAN.out" \
 	    hexdump -d "$(atf_get_srcdir)/d_hexdump_a.in"
-	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_dflag_b.out" \
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_dflag_b_$ENDIAN.out" \
 	    hexdump -d "$(atf_get_srcdir)/d_hexdump_b.in"
-	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_dflag_c.out" \
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_dflag_c_$ENDIAN.out" \
 	    hexdump -d "$(atf_get_srcdir)/d_hexdump_c.in"
 }
 
@@ -120,11 +126,11 @@ o_flag_head()
 }
 o_flag_body()
 {
-	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_oflag_a.out" \
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_oflag_a_$ENDIAN.out" \
 	    hexdump -o "$(atf_get_srcdir)/d_hexdump_a.in"
-	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_oflag_b.out" \
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_oflag_b_$ENDIAN.out" \
 	    hexdump -o "$(atf_get_srcdir)/d_hexdump_b.in"
-	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_oflag_c.out" \
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_oflag_c_$ENDIAN.out" \
 	    hexdump -o "$(atf_get_srcdir)/d_hexdump_c.in"
 }
 
@@ -168,11 +174,11 @@ x_flag_head()
 }
 x_flag_body()
 {
-	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_xflag_a.out" \
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_xflag_a_$ENDIAN.out" \
 	    hexdump -x "$(atf_get_srcdir)/d_hexdump_a.in"
-	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_xflag_b.out" \
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_xflag_b_$ENDIAN.out" \
 	    hexdump -x "$(atf_get_srcdir)/d_hexdump_b.in"
-	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_xflag_c.out" \
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_xflag_c_$ENDIAN.out" \
 	    hexdump -x "$(atf_get_srcdir)/d_hexdump_c.in"
 }
 
