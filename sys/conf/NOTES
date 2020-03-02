@@ -2755,11 +2755,6 @@ options 	RACCT
 options 	RCTL
 
 # Yet more undocumented options for linting.
-# BKTR_ALLOC_PAGES has no effect except to cause warnings, and
-# BROOKTREE_ALLOC_PAGES hasn't actually been superseded by it, since the
-# driver still mostly spells this option BROOKTREE_ALLOC_PAGES.
-##options 	BKTR_ALLOC_PAGES=(217*4+1)
-options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
 # Random number generator
