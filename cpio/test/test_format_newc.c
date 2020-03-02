@@ -49,10 +49,11 @@ is_hex(const char *p, size_t l)
 	return (1);
 }
 
-static int
+/* Convert up to 8 hex characters to unsigned 32-bit decimal integer */
+static uint32_t
 from_hex(const char *p, size_t l)
 {
-	int r = 0;
+	uint32_t r = 0;
 
 	while (l > 0) {
 		r *= 16;
@@ -82,11 +83,11 @@ DEFINE_TEST(test_format_newc)
 {
 	FILE *list;
 	int r;
-	int devmajor, devminor, ino, gid;
-	int uid = -1;
+	uint32_t devmajor, devminor, ino, gid, uid;
 	time_t t, t2, now;
 	char *p, *e;
-	size_t s, fs, ns;
+	size_t s;
+	uint64_t fs, ns;
 	char result[1024];
 
 	assertUmask(0);
@@ -199,9 +200,11 @@ DEFINE_TEST(test_format_newc)
 #else
 	assertEqualInt(0x81a4, from_hex(e + 14, 8)); /* Mode */
 #endif	
-	if (uid < 0)
-		uid = from_hex(e + 22, 8);
+#if defined(_WIN32)
+	uid = from_hex(e + 22, 8);
+#else
 	assertEqualInt(from_hex(e + 22, 8), uid); /* uid */
+#endif
 	gid = from_hex(e + 30, 8); /* gid */
 	assertEqualMem(e + 38, "00000003", 8); /* nlink */
 	t = from_hex(e + 46, 8); /* mtime */
@@ -215,14 +218,14 @@ DEFINE_TEST(test_format_newc)
 	    "       first appearance should be empty, so this file size\n"
 	    "       field should be zero");
 	assertEqualInt(0, from_hex(e + 54, 8)); /* File size */
-	fs = from_hex(e + 54, 8);
+	fs = (uint64_t)from_hex(e + 54, 8);
 	fs += PAD(fs, 4);
 	devmajor = from_hex(e + 62, 8); /* devmajor */
 	devminor = from_hex(e + 70, 8); /* devminor */
 	assert(is_hex(e + 78, 8)); /* rdevmajor */
 	assert(is_hex(e + 86, 8)); /* rdevminor */
 	assertEqualMem(e + 94, "00000006", 8); /* Name size */
-	ns = from_hex(e + 94, 8);
+	ns = (uint64_t)from_hex(e + 94, 8);
 	ns += PAD(ns + 2, 4);
 	assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
 	assertEqualMem(e + 110, "file1\0", 6); /* Name contents */
@@ -249,14 +252,14 @@ DEFINE_TEST(test_format_newc)
 		    " at t2=%#08jx", (intmax_t)t, (intmax_t)t2);
 		assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
 		assertEqualMem(e + 54, "00000005", 8); /* File size */
-		fs = from_hex(e + 54, 8);
+		fs = (uint64_t)from_hex(e + 54, 8);
 		fs += PAD(fs, 4);
 		assertEqualInt(devmajor, from_hex(e + 62, 8)); /* devmajor */
 		assertEqualInt(devminor, from_hex(e + 70, 8)); /* devminor */
 		assert(is_hex(e + 78, 8)); /* rdevmajor */
 		assert(is_hex(e + 86, 8)); /* rdevminor */
 		assertEqualMem(e + 94, "00000008", 8); /* Name size */
-		ns = from_hex(e + 94, 8);
+		ns = (uint64_t)from_hex(e + 94, 8);
 		ns += PAD(ns + 2, 4);
 		assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
 		assertEqualMem(e + 110, "symlink\0\0\0", 10); /* Name contents */
@@ -285,14 +288,14 @@ DEFINE_TEST(test_format_newc)
 	    "t2=%#08jx", (intmax_t)t, (intmax_t)t2);
 	assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
 	assertEqualMem(e + 54, "00000000", 8); /* File size */
-	fs = from_hex(e + 54, 8);
+	fs = (uint64_t)from_hex(e + 54, 8);
 	fs += PAD(fs, 4);
 	assertEqualInt(devmajor, from_hex(e + 62, 8)); /* devmajor */
 	assertEqualInt(devminor, from_hex(e + 70, 8)); /* devminor */
 	assert(is_hex(e + 78, 8)); /* rdevmajor */
 	assert(is_hex(e + 86, 8)); /* rdevminor */
 	assertEqualMem(e + 94, "00000004", 8); /* Name size */
-	ns = from_hex(e + 94, 8);
+	ns = (uint64_t)from_hex(e + 94, 8);
 	ns += PAD(ns + 2, 4);
 	assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
 	assertEqualMem(e + 110, "dir\0\0\0", 6); /* Name contents */
@@ -319,14 +322,14 @@ DEFINE_TEST(test_format_newc)
 	    "t2=%#08jx", (intmax_t)t, (intmax_t)t2);
 	assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
 	assertEqualInt(10, from_hex(e + 54, 8)); /* File size */
-	fs = from_hex(e + 54, 8);
+	fs = (uint64_t)from_hex(e + 54, 8);
 	fs += PAD(fs, 4);
 	assertEqualInt(devmajor, from_hex(e + 62, 8)); /* devmajor */
 	assertEqualInt(devminor, from_hex(e + 70, 8)); /* devminor */
 	assert(is_hex(e + 78, 8)); /* rdevmajor */
 	assert(is_hex(e + 86, 8)); /* rdevminor */
 	assertEqualMem(e + 94, "00000009", 8); /* Name size */
-	ns = from_hex(e + 94, 8);
+	ns = (uint64_t)from_hex(e + 94, 8);
 	ns += PAD(ns + 2, 4);
 	assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
 	assertEqualMem(e + 110, "hardlink\0\0", 10); /* Name contents */

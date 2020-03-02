@@ -1654,6 +1654,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	int ret = ARCHIVE_OK;
+	int oerrno;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
@@ -1855,8 +1856,11 @@ finish_metadata:
 		a->fd = -1;
 		if (a->tmpname) {
 			if (rename(a->tmpname, a->name) == -1) {
+				oerrno = errno;
+				unlink(a->tmpname);
+				errno = oerrno;
 				archive_set_error(&a->archive, errno,
-				    "rename failed");
+				    "Failed to safe write");
 				ret = ARCHIVE_FATAL;
 			}
 			a->tmpname = NULL;

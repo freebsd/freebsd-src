@@ -737,7 +737,7 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 	 */
 	destpath = srcpath;
 	if (cpio->destdir) {
-		len = strlen(cpio->destdir) + strlen(srcpath) + 8;
+		len = cpio->destdir_len + strlen(srcpath) + 8;
 		if (len >= cpio->pass_destpath_alloc) {
 			while (len >= cpio->pass_destpath_alloc) {
 				cpio->pass_destpath_alloc += 512;
@@ -1228,15 +1228,14 @@ mode_pass(struct cpio *cpio, const char *destdir)
 	struct lafe_line_reader *lr;
 	const char *p;
 	int r;
-	size_t destdir_len;
 
 	/* Ensure target dir has a trailing '/' to simplify path surgery. */
-	destdir_len = strlen(destdir);
-	cpio->destdir = malloc(destdir_len + 8);
-	memcpy(cpio->destdir, destdir, destdir_len);
-	if (destdir_len == 0 || destdir[destdir_len - 1] != '/')
-		cpio->destdir[destdir_len++] = '/';
-	cpio->destdir[destdir_len++] = '\0';
+	cpio->destdir_len = strlen(destdir);
+	cpio->destdir = malloc(cpio->destdir_len + 8);
+	memcpy(cpio->destdir, destdir, cpio->destdir_len);
+	if (cpio->destdir_len == 0 || destdir[cpio->destdir_len - 1] != '/')
+		cpio->destdir[cpio->destdir_len++] = '/';
+	cpio->destdir[cpio->destdir_len] = '\0';
 
 	cpio->archive = archive_write_disk_new();
 	if (cpio->archive == NULL)

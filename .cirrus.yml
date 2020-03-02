@@ -26,27 +26,6 @@ FreeBSD_task:
   install_script:
   - ./build/ci/build.sh -a install
 
-Fedora_30_task:
-  container:
-    dockerfile: build/ci/cirrus_ci/Dockerfile.fc30
-  env:
-    matrix:
-      - BS: autotools
-      - BS: cmake
-    matrix:
-      - CRYPTO: mbedtls
-      - CRYPTO: nettle
-      - CRYPTO: openssl
-  configure_script:
-  - ./build/ci/build.sh -a autogen
-  - ./build/ci/build.sh -a configure
-  build_script:
-  - ./build/ci/build.sh -a build
-  test_script:
-  - ./build/ci/build.sh -a test
-  install_script:
-  - ./build/ci/build.sh -a install
-
 Windows_Cygwin_task:
   windows_container:
     image: cirrusci/windowsservercore:2019

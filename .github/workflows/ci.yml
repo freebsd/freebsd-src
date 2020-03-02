@@ -51,7 +51,7 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential cmake libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbz2-dev liblzma-dev libzip-dev liblz4-dev libzstd-dev lzop
+      run: sudo apt-get install -y build-essential cmake libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop
     - name: Autogen
       run: ./build/ci/build.sh -a autogen
       env:
@@ -87,7 +87,7 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential cmake libssl-dev libacl1-dev libbz2-dev liblzma-dev libzip-dev liblz4-dev libzstd-dev lzop groff ghostscript
+      run: sudo apt-get install -y build-essential cmake libssl-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop groff ghostscript
     - name: Autogen
       run: ./build/ci/build.sh -a autogen
     - name: Configure

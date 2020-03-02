@@ -1,0 +1,3 @@
+FROM fedora:31
+
+RUN dnf -y install make cmake gcc gcc-c++ kernel-devel automake libtool bison sharutils pkgconf libacl-devel libasan librichacl-devel bzip2-devel zlib-devel xz-devel lz4-devel libzstd-devel openssl-devel nettle-devel mbedtls-devel
