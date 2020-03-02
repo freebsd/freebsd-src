@@ -365,6 +365,7 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 		}
 		fd = _open_osfhandle((intptr_t)h, _O_BINARY | _O_RDWR);
 		if (fd == -1) {
+			la_dosmaperr(GetLastError());
 			CloseHandle(h);
 			goto exit_tmpfile;
 		} else
