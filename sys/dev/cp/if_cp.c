@@ -530,6 +530,7 @@ static int cp_attach (device_t dev)
 	adapter[unit] = b;
 	CP_UNLOCK (bd);
 	splx (s);
+	gone_in_dev(dev, 14, "sync serial (T1/E1) drivers");
 	return 0;
 }
 

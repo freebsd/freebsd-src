@@ -595,6 +595,7 @@ static int ce_attach (device_t dev)
 	CE_UNLOCK (bd);
 	splx (s);
 
+	gone_in_dev(dev, 14, "sync serial (T1/E1) drivers");
 	return 0;
 }
 
