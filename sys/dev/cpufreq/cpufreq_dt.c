@@ -81,6 +81,7 @@ struct cpufreq_dt_softc {
 	struct cpufreq_dt_opp *opp;
 	ssize_t nopp;
 
+	int cpu;
 	cpuset_t cpus;
 };
 
@@ -169,6 +170,13 @@ cpufreq_dt_set(device_t dev, const struct cf_setting *set)
 
 	sc = device_get_softc(dev);
 
+	DEBUG(dev, "Working on cpu %d\n", sc->cpu);
+	DEBUG(dev, "We have %d cpu on this dev\n", CPU_COUNT(&sc->cpus));
+	if (!CPU_ISSET(sc->cpu, &sc->cpus)) {
+		DEBUG(dev, "Not for this CPU\n");
+		return (0);
+	}
+
 	if (clk_get_freq(sc->clk, &freq) != 0) {
 		device_printf(dev, "Can't get current clk freq\n");
 		return (ENXIO);
@@ -190,7 +198,6 @@ cpufreq_dt_set(device_t dev, const struct cf_setting *set)
 			return (ENOENT);
 		}
 		uvolt = copp->uvolt_target;
-
 	}
 
 	opp = cpufreq_dt_find_opp(sc->dev, set->freq * 1000000);
@@ -449,14 +456,16 @@ cpufreq_dt_attach(device_t dev)
 	int cpu;
 	uint64_t freq;
 	int rv = 0;
+	char device_type[16];
 	enum opp_version version;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	node = ofw_bus_get_node(device_get_parent(dev));
-	cpu = device_get_unit(device_get_parent(dev));
+	sc->cpu = device_get_unit(device_get_parent(dev));
 
-	if (cpu >= mp_ncpus) {
+	DEBUG(dev, "cpu=%d\n", sc->cpu);
+	if (sc->cpu >= mp_ncpus) {
 		device_printf(dev, "Not attaching as cpu is not present\n");
 		return (ENXIO);
 	}
@@ -502,7 +511,18 @@ cpufreq_dt_attach(device_t dev)
 	 * Find all CPUs that share the same opp table
 	 */
 	CPU_ZERO(&sc->cpus);
-	for (cnode = node; cnode > 0; cnode = OF_peer(cnode), cpu++) {
+	cnode = OF_parent(node);
+	for (cpu = 0, cnode = OF_child(cnode); cnode > 0; cnode = OF_peer(cnode)) {
+		if (OF_getprop(cnode, "device_type", device_type, sizeof(device_type)) <= 0)
+			continue;
+		if (strcmp(device_type, "cpu") != 0)
+			continue;
+		if (cpu == sc->cpu) {
+			DEBUG(dev, "Skipping our cpu\n");
+			cpu++;
+			continue;
+		}
+		DEBUG(dev, "Testing CPU %d\n", cpu);
 		copp = -1;
 		if (version == OPP_V1)
 			OF_getencprop(cnode, "operating-points", &copp,
@@ -510,8 +530,11 @@ cpufreq_dt_attach(device_t dev)
 		else if (version == OPP_V2)
 			OF_getencprop(cnode, "operating-points-v2",
 			    &copp, sizeof(copp));
-		if (opp == copp)
+		if (opp == copp) {
+			DEBUG(dev, "CPU %d is using the same opp as this one (%d)\n", cpu, sc->cpu);
 			CPU_SET(cpu, &sc->cpus);
+		}
+		cpu++;
 	}
 
 	if (clk_get_freq(sc->clk, &freq) == 0)
