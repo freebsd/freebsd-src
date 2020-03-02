@@ -155,10 +155,10 @@ static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 
 /*
- * Make an extension header from option data.  hp is the source, and
- * mp is the destination.
+ * Make an extension header from option data.  hp is the source,
+ * mp is the destination, and _ol is the optlen.
  */
-#define MAKE_EXTHDR(hp, mp)						\
+#define	MAKE_EXTHDR(hp, mp, _ol)					\
     do {								\
 	if (hp) {							\
 		struct ip6_ext *eh = (struct ip6_ext *)(hp);		\
@@ -166,6 +166,7 @@ static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 		    ((eh)->ip6e_len + 1) << 3);				\
 		if (error)						\
 			goto freehdrs;					\
+		(_ol) += (*(mp))->m_len;				\
 	}								\
     } while (/*CONSTCOND*/ 0)
 
@@ -306,22 +307,23 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct ip6_hdr *ip6;
 	struct ifnet *ifp, *origifp;
 	struct mbuf *m = m0;
-	struct mbuf *mprev = NULL;
+	struct mbuf *mprev;
 	int hlen, tlen, len;
 	struct route_in6 ip6route;
 	struct rtentry *rt = NULL;
 	struct sockaddr_in6 *dst, src_sa, dst_sa;
 	struct in6_addr odst;
+	u_char *nexthdrp;
 	int error = 0;
 	struct in6_ifaddr *ia = NULL;
 	u_long mtu;
 	int alwaysfrag, dontfrag;
-	u_int32_t optlen = 0, plen = 0, unfragpartlen = 0;
+	u_int32_t optlen, plen = 0, unfragpartlen;
 	struct ip6_exthdrs exthdrs;
 	struct in6_addr src0, dst0;
 	u_int32_t zone;
 	struct route_in6 *ro_pmtu = NULL;
-	int hdrsplit = 0;
+	bool hdrsplit;
 	int sw_csum, tso;
 	int needfiblookup;
 	uint32_t fibnum;
@@ -353,12 +355,49 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	}
 #endif /* IPSEC */
 
+	/* Source address validation. */
+	ip6 = mtod(m, struct ip6_hdr *);
+	if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src) &&
+	    (flags & IPV6_UNSPECSRC) == 0) {
+		error = EOPNOTSUPP;
+		IP6STAT_INC(ip6s_badscope);
+		goto bad;
+	}
+	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_src)) {
+		error = EOPNOTSUPP;
+		IP6STAT_INC(ip6s_badscope);
+		goto bad;
+	}
+
+	/*
+	 * If we are given packet options to add extension headers prepare them.
+	 * Calculate the total length of the extension header chain.
+	 * Keep the length of the unfragmentable part for fragmentation.
+	 */
 	bzero(&exthdrs, sizeof(exthdrs));
+	optlen = 0;
+	unfragpartlen = sizeof(struct ip6_hdr);
 	if (opt) {
 		/* Hop-by-Hop options header. */
-		MAKE_EXTHDR(opt->ip6po_hbh, &exthdrs.ip6e_hbh);
+		MAKE_EXTHDR(opt->ip6po_hbh, &exthdrs.ip6e_hbh, optlen);
+
 		/* Destination options header (1st part). */
 		if (opt->ip6po_rthdr) {
+#ifndef RTHDR_SUPPORT_IMPLEMENTED
+			/*
+			 * If there is a routing header, discard the packet
+			 * right away here. RH0/1 are obsolete and we do not
+			 * currently support RH2/3/4.
+			 * People trying to use RH253/254 may want to disable
+			 * this check.
+			 * The moment we do support any routing header (again)
+			 * this block should check the routing type more
+			 * selectively.
+			 */
+			error = EINVAL;
+			goto bad;
+#endif
+
 			/*
 			 * Destination options header (1st part).
 			 * This only makes sense with a routing header.
@@ -369,45 +408,37 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 			 * options, which might automatically be inserted in
 			 * the kernel.
 			 */
-			MAKE_EXTHDR(opt->ip6po_dest1, &exthdrs.ip6e_dest1);
+			MAKE_EXTHDR(opt->ip6po_dest1, &exthdrs.ip6e_dest1,
+			    optlen);
 		}
 		/* Routing header. */
-		MAKE_EXTHDR(opt->ip6po_rthdr, &exthdrs.ip6e_rthdr);
+		MAKE_EXTHDR(opt->ip6po_rthdr, &exthdrs.ip6e_rthdr, optlen);
+
+		unfragpartlen += optlen;
+
+		/*
+		 * NOTE: we don't add AH/ESP length here (done in
+		 * ip6_ipsec_output()).
+		 */
+
 		/* Destination options header (2nd part). */
-		MAKE_EXTHDR(opt->ip6po_dest2, &exthdrs.ip6e_dest2);
+		MAKE_EXTHDR(opt->ip6po_dest2, &exthdrs.ip6e_dest2, optlen);
 	}
-
-	/*
-	 * Calculate the total length of the extension header chain.
-	 * Keep the length of the unfragmentable part for fragmentation.
-	 */
-	optlen = 0;
-	if (exthdrs.ip6e_hbh)
-		optlen += exthdrs.ip6e_hbh->m_len;
-	if (exthdrs.ip6e_dest1)
-		optlen += exthdrs.ip6e_dest1->m_len;
-	if (exthdrs.ip6e_rthdr)
-		optlen += exthdrs.ip6e_rthdr->m_len;
-	unfragpartlen = optlen + sizeof(struct ip6_hdr);
-
-	/* NOTE: we don't add AH/ESP length here (done in ip6_ipsec_output). */
-	if (exthdrs.ip6e_dest2)
-		optlen += exthdrs.ip6e_dest2->m_len;
 
 	/*
 	 * If there is at least one extension header,
 	 * separate IP6 header from the payload.
 	 */
-	if (optlen && !hdrsplit) {
+	hdrsplit = false;
+	if (optlen) {
 		if ((error = ip6_splithdr(m, &exthdrs)) != 0) {
 			m = NULL;
 			goto freehdrs;
 		}
 		m = exthdrs.ip6e_ip6;
-		hdrsplit++;
+		ip6 = mtod(m, struct ip6_hdr *);
+		hdrsplit = true;
 	}
-
-	ip6 = mtod(m, struct ip6_hdr *);
 
 	/* Adjust mbuf packet header length. */
 	m->m_pkthdr.len += optlen;
@@ -421,77 +452,59 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 				goto freehdrs;
 			}
 			m = exthdrs.ip6e_ip6;
-			hdrsplit++;
+			ip6 = mtod(m, struct ip6_hdr *);
+			hdrsplit = true;
 		}
-		/* Adjust pointer. */
-		ip6 = mtod(m, struct ip6_hdr *);
 		if ((error = ip6_insert_jumboopt(&exthdrs, plen)) != 0)
 			goto freehdrs;
 		ip6->ip6_plen = 0;
 	} else
 		ip6->ip6_plen = htons(plen);
+	nexthdrp = &ip6->ip6_nxt;
 
-	/*
-	 * Concatenate headers and fill in next header fields.
-	 * Here we have, on "m"
-	 *	IPv6 payload
-	 * and we insert headers accordingly.
-	 * Finally, we should be getting:
-	 *	IPv6 hbh dest1 rthdr ah* [esp* dest2 payload].
-	 *
-	 * During the header composing process "m" points to IPv6
-	 * header.  "mprev" points to an extension header prior to esp.
-	 */
-	u_char *nexthdrp = &ip6->ip6_nxt;
-	mprev = m;
+	if (optlen) {
+		/*
+		 * Concatenate headers and fill in next header fields.
+		 * Here we have, on "m"
+		 *	IPv6 payload
+		 * and we insert headers accordingly.
+		 * Finally, we should be getting:
+		 *	IPv6 hbh dest1 rthdr ah* [esp* dest2 payload].
+		 *
+		 * During the header composing process "m" points to IPv6
+		 * header.  "mprev" points to an extension header prior to esp.
+		 */
+		mprev = m;
 
-	/*
-	 * We treat dest2 specially.  This makes IPsec processing
-	 * much easier.  The goal here is to make mprev point the
-	 * mbuf prior to dest2.
-	 *
-	 * Result: IPv6 dest2 payload.
-	 * m and mprev will point to IPv6 header.
-	 */
-	if (exthdrs.ip6e_dest2) {
-		if (!hdrsplit)
-			panic("%s:%d: assumption failed: "
-			    "hdr not split: hdrsplit %d exthdrs %p",
-			    __func__, __LINE__, hdrsplit, &exthdrs);
-		exthdrs.ip6e_dest2->m_next = m->m_next;
-		m->m_next = exthdrs.ip6e_dest2;
-		*mtod(exthdrs.ip6e_dest2, u_char *) = ip6->ip6_nxt;
-		ip6->ip6_nxt = IPPROTO_DSTOPTS;
-	}
+		/*
+		 * We treat dest2 specially.  This makes IPsec processing
+		 * much easier.  The goal here is to make mprev point the
+		 * mbuf prior to dest2.
+		 *
+		 * Result: IPv6 dest2 payload.
+		 * m and mprev will point to IPv6 header.
+		 */
+		if (exthdrs.ip6e_dest2) {
+			if (!hdrsplit)
+				panic("%s:%d: assumption failed: "
+				    "hdr not split: hdrsplit %d exthdrs %p",
+				    __func__, __LINE__, hdrsplit, &exthdrs);
+			exthdrs.ip6e_dest2->m_next = m->m_next;
+			m->m_next = exthdrs.ip6e_dest2;
+			*mtod(exthdrs.ip6e_dest2, u_char *) = ip6->ip6_nxt;
+			ip6->ip6_nxt = IPPROTO_DSTOPTS;
+		}
 
-	/*
-	 * Result: IPv6 hbh dest1 rthdr dest2 payload.
-	 * m will point to IPv6 header.  mprev will point to the
-	 * extension header prior to dest2 (rthdr in the above case).
-	 */
-	MAKE_CHAIN(exthdrs.ip6e_hbh, mprev, nexthdrp, IPPROTO_HOPOPTS);
-	MAKE_CHAIN(exthdrs.ip6e_dest1, mprev, nexthdrp,
-		   IPPROTO_DSTOPTS);
-	MAKE_CHAIN(exthdrs.ip6e_rthdr, mprev, nexthdrp,
-		   IPPROTO_ROUTING);
-
-	/* If there is a routing header, discard the packet. */
-	if (exthdrs.ip6e_rthdr) {
-		 error = EINVAL;
-		 goto bad;
-	}
-
-	/* Source address validation. */
-	if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src) &&
-	    (flags & IPV6_UNSPECSRC) == 0) {
-		error = EOPNOTSUPP;
-		IP6STAT_INC(ip6s_badscope);
-		goto bad;
-	}
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_src)) {
-		error = EOPNOTSUPP;
-		IP6STAT_INC(ip6s_badscope);
-		goto bad;
+		/*
+		 * Result: IPv6 hbh dest1 rthdr dest2 payload.
+		 * m will point to IPv6 header.  mprev will point to the
+		 * extension header prior to dest2 (rthdr in the above case).
+		 */
+		MAKE_CHAIN(exthdrs.ip6e_hbh, mprev, nexthdrp, IPPROTO_HOPOPTS);
+		MAKE_CHAIN(exthdrs.ip6e_dest1, mprev, nexthdrp,
+			   IPPROTO_DSTOPTS);
+		MAKE_CHAIN(exthdrs.ip6e_rthdr, mprev, nexthdrp,
+			   IPPROTO_ROUTING);
 	}
 
 	IP6STAT_INC(ip6s_localout);
