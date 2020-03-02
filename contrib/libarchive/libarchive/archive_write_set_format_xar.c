@@ -681,7 +681,8 @@ xar_write_data(struct archive_write *a, const void *buff, size_t s)
 {
 	struct xar *xar;
 	enum la_zaction run;
-	size_t size, rsize;
+	size_t size = 0;
+	size_t rsize;
 	int r;
 
 	xar = (struct xar *)a->format_data;
