@@ -85,12 +85,12 @@ main(int argc, char **argv)
 	GElf_Ehdr ehdr;
 	Elf *elf;
 	Elf_Kind kind;
-	int ch, fd, editfeatures, retval;
+	int ch, fd, retval;
 	char *features;
-	bool lflag;
+	bool editfeatures, lflag;
 
 	lflag = 0;
-	editfeatures = 0;
+	editfeatures = false;
 	retval = 0;
 	features = NULL;
 
@@ -105,7 +105,7 @@ main(int argc, char **argv)
 			break;
 		case 'e':
 			features = optarg;
-			editfeatures = 1;
+			editfeatures = true;
 			break;
 		case 'h':
 		default:
