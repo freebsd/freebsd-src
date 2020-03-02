@@ -31,6 +31,7 @@ SUBDIR=	alias \
 	diff \
 	dirname \
 	du \
+	elfctl \
 	elfdump \
 	enigma \
 	env \
