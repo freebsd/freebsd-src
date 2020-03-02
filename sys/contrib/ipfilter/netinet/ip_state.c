@@ -82,7 +82,7 @@
 #ifdef	USE_INET6
 #include <netinet/icmp6.h>
 #endif
-#if FREEBSD_GE_REV(300000)
+#ifdef __FreeBSD_version
 # include <sys/malloc.h>
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
 #  include <sys/libkern.h>
@@ -307,7 +307,7 @@ ipf_state_seed_alloc(u_int state_size, u_int state_max)
 		/*
 		 * XXX - ipf_state_seed[X] should be a random number of sorts.
 		 */
-#if  FREEBSD_GE_REV(400000)
+#ifdef __FreeBSD_version
 		state_seed[i] = arc4random();
 #else
 		state_seed[i] = ((u_long)state_seed + i) * state_size;
