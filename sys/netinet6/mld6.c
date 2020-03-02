@@ -3124,6 +3124,7 @@ mld_dispatch_packet(struct mbuf *m)
 	mld = (struct mld_hdr *)(mtod(md, uint8_t *) + off);
 	type = mld->mld_type;
 
+	oifp = NULL;
 	error = ip6_output(m0, &mld_po, NULL, IPV6_UNSPECSRC, &im6o,
 	    &oifp, NULL);
 	if (error) {
