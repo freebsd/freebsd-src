@@ -915,6 +915,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_lzma.zipx.uu \
 	libarchive/test/test_read_format_zip_lzma_alone_leak.zipx.uu \
 	libarchive/test/test_read_format_zip_lzma_multi.zipx.uu \
+	libarchive/test/test_read_format_zip_lzma_stream_end.zipx.uu \
 	libarchive/test/test_read_format_zip_jar.jar.uu \
 	libarchive/test/test_read_format_zip_mac_metadata.zip.uu \
 	libarchive/test/test_read_format_zip_malformed1.zip.uu \
