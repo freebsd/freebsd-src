@@ -13,7 +13,7 @@
 .\" Cronyx Id: cp.4,v 1.1.2.5 2004/06/21 17:47:40 rik Exp $
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2021
+.Dd December 13, 2022
 .Dt CP 4 i386
 .Os
 .Sh NAME
@@ -34,6 +34,12 @@ module at boot time, place the following line in
 if_cp_load="YES"
 .Ed
 .Pp
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 14.0
+and later.
 .Sh DESCRIPTION
 The
 .Nm
