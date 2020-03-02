@@ -44,7 +44,7 @@ ASSYM(BP_MODULEP, offsetof(struct arm64_bootparams, modulep));
 ASSYM(BP_KERN_L1PT, offsetof(struct arm64_bootparams, kern_l1pt));
 ASSYM(BP_KERN_DELTA, offsetof(struct arm64_bootparams, kern_delta));
 ASSYM(BP_KERN_STACK, offsetof(struct arm64_bootparams, kern_stack));
-ASSYM(BP_KERN_L0PT, offsetof(struct arm64_bootparams,kern_l0pt));
+ASSYM(BP_KERN_L0PT, offsetof(struct arm64_bootparams, kern_l0pt));
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
