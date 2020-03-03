@@ -72,18 +72,18 @@ The
 .Fn mprotect
 system call will fail if:
 .Bl -tag -width Er
-.It Bq Er EINVAL
-The virtual address range specified by the
-.Fa addr
-and
-.Fa len
-arguments is not valid.
 .It Bq Er EACCES
 The calling process was not allowed to change
 the protection to the value specified by
 the
 .Fa prot
 argument.
+.It Bq Er EINVAL
+The virtual address range specified by the
+.Fa addr
+and
+.Fa len
+arguments is not valid.
 .El
 .Sh SEE ALSO
 .Xr madvise 2 ,
