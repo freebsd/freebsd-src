@@ -33,6 +33,10 @@ ACCTMODE=	${BINMODE}
 ACCTPACKAGE=	acct
 .endif
 
+.if ${MK_CALENDAR} != "no"
+CONFS+=	300.calendar
+.endif
+
 .if ${MK_MAIL} != "no"
 CONFS+=	130.clean-msgs
 .endif

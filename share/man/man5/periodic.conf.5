@@ -273,6 +273,13 @@ Set to
 if you want the
 .Pa /etc/mail/aliases
 file backed up and modifications to be displayed in your daily output.
+.It Va daily_calendar_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm calendar Fl a
+daily.
 .It Va daily_accounting_enable
 .Pq Vt bool
 Set to
@@ -963,6 +970,7 @@ is shared or distributed.
 .El
 .Sh SEE ALSO
 .Xr apropos 1 ,
+.Xr calendar 1 ,
 .Xr df 1 ,
 .Xr diff 1 ,
 .Xr gzip 1 ,
