@@ -2284,7 +2284,7 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
     sw_strategy_t *strategy, sw_close_t *close, dev_t dev, int flags)
 {
 	struct swdevt *sp, *tsp;
-	swblk_t dvbase;
+	daddr_t dvbase;
 	u_long mblocks;
 
 	/*
