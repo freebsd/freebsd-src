@@ -640,10 +640,10 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	if (dstsock->sin6_addr.s6_addr32[0] == 0 &&
 	    dstsock->sin6_addr.s6_addr32[1] == 0 &&
 	    !IN6_IS_ADDR_LOOPBACK(&dstsock->sin6_addr)) {
-		printf("in6_selectroute: strange destination %s\n",
+		printf("%s: strange destination %s\n", __func__,
 		       ip6_sprintf(ip6buf, &dstsock->sin6_addr));
 	} else {
-		printf("in6_selectroute: destination = %s%%%d\n",
+		printf("%s: destination = %s%%%d\n", __func__,
 		       ip6_sprintf(ip6buf, &dstsock->sin6_addr),
 		       dstsock->sin6_scope_id); /* for debug */
 	}
@@ -895,25 +895,9 @@ in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	return (0);
 }
 
-/*
- * Public wrapper function to selectroute().
- *
- * XXX-BZ in6_selectroute() should and will grow the FIB argument. The
- * in6_selectroute_fib() function is only there for backward compat on stable.
- */
+/* Public wrapper function to selectroute(). */
 int
 in6_selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
-    struct ip6_moptions *mopts, struct route_in6 *ro,
-    struct ifnet **retifp, struct rtentry **retrt)
-{
-
-	return (selectroute(dstsock, opts, mopts, ro, retifp,
-	    retrt, 0, RT_DEFAULT_FIB));
-}
-
-#ifndef BURN_BRIDGES
-int
-in6_selectroute_fib(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ip6_moptions *mopts, struct route_in6 *ro,
     struct ifnet **retifp, struct rtentry **retrt, u_int fibnum)
 {
@@ -921,7 +905,6 @@ in6_selectroute_fib(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	return (selectroute(dstsock, opts, mopts, ro, retifp,
 	    retrt, 0, fibnum));
 }
-#endif
 
 /*
  * Default hop limit selection. The precedence is as follows:
