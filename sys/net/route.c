@@ -632,7 +632,7 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	info.rti_info[RTAX_GATEWAY] = gateway;
 	info.rti_ifa = ifa;
 	info.rti_ifp = ifp;
-	info.rti_flags = flags | RTF_DYNAMIC;
+	info.rti_flags = flags | RTF_HOST | RTF_DYNAMIC;
 
 	/* Setup route metrics to define expire time. */
 	bzero(&rti_rmx, sizeof(rti_rmx));
