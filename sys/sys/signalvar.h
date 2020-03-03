@@ -282,20 +282,20 @@ extern bool sigfastblock_fetch_always;
 	 (!SIGISEMPTY((td)->td_proc->p_siglist) &&			\
 	    !sigsetmasked(&(td)->td_proc->p_siglist, &(td)->td_sigmask)))
 /*
- * Return the value of the pseudo-expression ((*set & ~*mask) != 0).  This
+ * Return the value of the pseudo-expression ((*set & ~*mask) == 0).  This
  * is an optimized version of SIGISEMPTY() on a temporary variable
  * containing SIGSETNAND(*set, *mask).
  */
-static __inline int
+static __inline bool
 sigsetmasked(sigset_t *set, sigset_t *mask)
 {
 	int i;
 
 	for (i = 0; i < _SIG_WORDS; i++) {
 		if (set->__bits[i] & ~mask->__bits[i])
-			return (0);
+			return (false);
 	}
-	return (1);
+	return (true);
 }
 
 #define	ksiginfo_init(ksi)			\
