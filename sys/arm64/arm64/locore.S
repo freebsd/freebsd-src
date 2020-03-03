@@ -165,6 +165,7 @@ virtdone:
 	adr	x25, initstack
 	str	x25, [x0, #BP_KERN_STACK]
 	str	x24, [x0, #BP_KERN_L0PT]
+	str	x23, [x0, #BP_BOOT_EL]
 
 	/* trace back starts here */
 	mov	fp, #0
@@ -227,9 +228,9 @@ END(mpentry)
  * registers and drop to EL1.
  */
 drop_to_el1:
-	mrs	x1, CurrentEL
-	lsr	x1, x1, #2
-	cmp	x1, #0x2
+	mrs	x23, CurrentEL
+	lsr	x23, x23, #2
+	cmp	x23, #0x2
 	b.eq	1f
 	ret
 1:

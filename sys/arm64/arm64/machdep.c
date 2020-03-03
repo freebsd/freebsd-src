@@ -109,6 +109,7 @@ static struct trapframe proc0_tf;
 
 int early_boot = 1;
 int cold = 1;
+static int boot_el;
 
 struct kva_md_info kmi;
 
@@ -160,6 +161,13 @@ pan_enable(void)
 		    READ_SPECIALREG(sctlr_el1) & ~SCTLR_SPAN);
 		__asm __volatile(".inst 0xd500409f | (0x1 << 8)");
 	}
+}
+
+bool
+has_hyp(void)
+{
+
+	return (boot_el == 2);
 }
 
 static void
@@ -1089,6 +1097,8 @@ initarm(struct arm64_bootparams *abp)
 	vm_offset_t lastaddr;
 	caddr_t kmdp;
 	bool valid;
+
+	boot_el = abp->boot_el;
 
 	/* Parse loader or FDT boot parametes. Determine last used address. */
 	lastaddr = parse_boot_param(abp);
