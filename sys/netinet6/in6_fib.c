@@ -115,9 +115,9 @@ fib6_rte_to_nh_basic(struct rtentry *rte, const struct in6_addr *dst,
 
 	pnh6->nh_mtu = min(rte->rt_mtu, IN6_LINKMTU(rte->rt_ifp));
 	if (rte->rt_flags & RTF_GATEWAY) {
+		/* Return address with embedded scope. */
 		gw = (struct sockaddr_in6 *)rte->rt_gateway;
 		pnh6->nh_addr = gw->sin6_addr;
-		in6_clearscope(&pnh6->nh_addr);
 	} else
 		pnh6->nh_addr = *dst;
 	/* Set flags */
@@ -143,9 +143,9 @@ fib6_rte_to_nh_extended(struct rtentry *rte, const struct in6_addr *dst,
 
 	pnh6->nh_mtu = min(rte->rt_mtu, IN6_LINKMTU(rte->rt_ifp));
 	if (rte->rt_flags & RTF_GATEWAY) {
+		/* Return address with embedded scope. */
 		gw = (struct sockaddr_in6 *)rte->rt_gateway;
 		pnh6->nh_addr = gw->sin6_addr;
-		in6_clearscope(&pnh6->nh_addr);
 	} else
 		pnh6->nh_addr = *dst;
 	/* Set flags */
