@@ -113,9 +113,6 @@ static int boot_el;
 
 struct kva_md_info kmi;
 
-int64_t dcache_line_size;	/* The minimum D cache line size */
-int64_t icache_line_size;	/* The minimum I cache line size */
-int64_t idcache_line_size;	/* The minimum cache line size */
 int64_t dczva_line_size;	/* The size of cache line the dc zva zeroes */
 int has_pan;
 
@@ -1056,17 +1053,9 @@ static void
 cache_setup(void)
 {
 	int dczva_line_shift;
-	uint32_t ctr_el0;
 	uint32_t dczid_el0;
 
-	ctr_el0 = READ_SPECIALREG(ctr_el0);
-
-	/* Get the D cache line size */
-	dcache_line_size = CTR_DLINE_SIZE(ctr_el0);
-	/* And the same for the I cache */
-	icache_line_size = CTR_ILINE_SIZE(ctr_el0);
-
-	idcache_line_size = MIN(dcache_line_size, icache_line_size);
+	identify_cache(READ_SPECIALREG(ctr_el0));
 
 	dczid_el0 = READ_SPECIALREG(dczid_el0);
 
