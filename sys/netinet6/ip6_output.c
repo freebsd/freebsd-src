@@ -709,7 +709,7 @@ again:
 				dst_sa.sin6_len = sizeof(dst_sa);
 				dst_sa.sin6_addr = ip6->ip6_dst;
 			}
-			error = in6_selectroute_fib(&dst_sa, opt, im6o, ro, &ifp,
+			error = in6_selectroute(&dst_sa, opt, im6o, ro, &ifp,
 			    &rt, fibnum);
 			if (error != 0) {
 				IP6STAT_INC(ip6s_noroute);
