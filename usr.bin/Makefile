@@ -195,6 +195,7 @@ SUBDIR.${MK_AT}+=	at
 SUBDIR.${MK_ATM}+=	atm
 SUBDIR.${MK_BLUETOOTH}+=	bluetooth
 SUBDIR.${MK_BSD_CPIO}+=	cpio
+SUBDIR.${MK_CALENDAR}+=	calendar
 SUBDIR.${MK_CLANG}+=	clang
 SUBDIR.${MK_DIALOG}+=	dpv
 SUBDIR.${MK_EE}+=	ee
