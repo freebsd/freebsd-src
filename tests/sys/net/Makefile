@@ -22,6 +22,8 @@ TEST_METADATA+=	is_exclusive=true
 MAN=
 PROGS+=		randsleep
 
+CFLAGS+=        -I${.CURDIR:H:H}
+
 WARNS?=		6
 
 .include <bsd.test.mk>
