@@ -2686,11 +2686,8 @@ xpt_action_default(union ccb *start_ccb)
 			start_ccb->ataio.resid = 0;
 		/* FALLTHROUGH */
 	case XPT_NVME_IO:
-		/* FALLTHROUGH */
 	case XPT_NVME_ADMIN:
-		/* FALLTHROUGH */
 	case XPT_MMC_IO:
-		/* FALLTHROUGH */
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
 	case XPT_SMP_IO:
