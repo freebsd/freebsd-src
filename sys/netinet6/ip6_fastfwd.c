@@ -274,14 +274,7 @@ passout:
 	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
 	IP_PROBE(send, NULL, NULL, ip6, nh.nh_ifp, NULL, ip6);
 
-	/*
-	 * XXX: we need to use destination address with embedded scope
-	 * zone id, because LLTABLE uses such form of addresses for lookup.
-	 */
 	dst.sin6_addr = nh.nh_addr;
-	if (IN6_IS_SCOPE_LINKLOCAL(&dst.sin6_addr))
-		dst.sin6_addr.s6_addr16[1] = htons(nh.nh_ifp->if_index & 0xffff);
-
 	error = (*nh.nh_ifp->if_output)(nh.nh_ifp, m,
 	    (struct sockaddr *)&dst, NULL);
 	if (error != 0) {
