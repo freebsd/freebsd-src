@@ -94,9 +94,9 @@ valid_redirect_body() {
 		--route ${dst_addr6} --gw ${new_rtr_ll_ip}  \
 		--iface ${epair}a 
 	
-	count=`jexec ${jname} route -n get -6 ${dst_addr6} | grep destination | grep -c ${dst_addr6}`
 	# Verify redirect got installed
-	atf_check_equal "1" "${count}"
+	atf_check -o match:"destination: ${dst_addr6}\$" jexec ${jname} route -n get -6 ${dst_addr6}
+	atf_check -o match:'flags: <UP,GATEWAY,HOST,DYNAMIC,DONE>' jexec ${jname} route -n get -6 ${dst_addr6}
 }
 
 valid_redirect_cleanup() {
