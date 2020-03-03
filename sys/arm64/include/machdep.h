@@ -35,6 +35,8 @@ struct arm64_bootparams {
 	uint64_t	kern_delta;
 	vm_offset_t	kern_stack;
 	vm_offset_t	kern_l0pt;	/* L1 page table for the kernel */
+	int		boot_el;	/* EL the kernel booted from */
+	int		pad;
 };
 
 enum arm64_bus {
@@ -46,6 +48,7 @@ enum arm64_bus {
 extern enum arm64_bus arm64_bus_method;
 
 void dbg_init(void);
+bool has_hyp(void);
 void initarm(struct arm64_bootparams *);
 vm_offset_t parse_boot_param(struct arm64_bootparams *abp);
 #ifdef FDT
