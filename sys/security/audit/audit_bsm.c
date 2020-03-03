@@ -803,25 +803,26 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		UPATH1_VNODE1_TOKENS;
 		break;
 
+	/*
+	 * NB: We may want to verify that the appropriate
+	 * audit args are being processed here, but I think
+	 * a bit analysis is required.
+	 *
+	 * Process AUE_JAIL_SET in the next block so we can pickup any path
+	 * related tokens that might exist.
+	 */
+	case AUE_JAIL_GET:
+	case AUE_JAIL_ATTACH:
+	case AUE_JAIL_REMOVE:
+		break;
+
+	case AUE_JAIL_SET:
 	case AUE_CHDIR:
 	case AUE_CHROOT:
 	case AUE_FSTATAT:
 	case AUE_FUTIMESAT:
 	case AUE_GETATTRLIST:
 	case AUE_JAIL:
-		break;
-
-	/*
-	 * NB: We may want to verify that the appropriate
-	 * audit args are being processed here, but I think
-	 * a bit analysis is required.
-	 */
-	case AUE_JAIL_GET:
-	case AUE_JAIL_SET:
-	case AUE_JAIL_ATTACH:
-	case AUE_JAIL_REMOVE:
-		break;
-
 	case AUE_LUTIMES:
 	case AUE_NFS_GETFH:
 	case AUE_LGETFH:
