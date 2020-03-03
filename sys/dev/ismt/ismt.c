@@ -717,6 +717,7 @@ fail:
 #define ID_INTEL_S1200_SMT0		0x0c598086
 #define ID_INTEL_S1200_SMT1		0x0c5a8086
 #define ID_INTEL_C2000_SMT		0x1f158086
+#define ID_INTEL_C3000_SMT		0x19ac8086
 
 static int
 ismt_probe(device_t dev)
@@ -732,6 +733,9 @@ ismt_probe(device_t dev)
 		break;
 	case ID_INTEL_C2000_SMT:
 		desc = "Atom Processor C2000 SMBus 2.0";
+		break;
+	case ID_INTEL_C3000_SMT:
+		desc = "Atom Processor C3000 SMBus 2.0";
 		break;
 	default:
 		return (ENXIO);
