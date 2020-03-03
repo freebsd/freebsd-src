@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2019
+.Dd March 3, 2020
 .Dt POWERD 8
 .Os
 .Sh NAME
@@ -35,12 +35,12 @@
 .Op Fl a Ar mode
 .Op Fl b Ar mode
 .Op Fl i Ar percent
-.Op Fl m Ar freq
 .Op Fl M Ar freq
+.Op Fl m Ar freq
 .Op Fl N
 .Op Fl n Ar mode
-.Op Fl p Ar ival
 .Op Fl P Ar pidfile
+.Op Fl p Ar ival
 .Op Fl r Ar percent
 .Op Fl s Ar source
 .Op Fl v
@@ -51,42 +51,42 @@ utility monitors the system state and sets various power control options
 accordingly.
 It offers power-saving modes that can be
 individually selected for operation on AC power or batteries.
-.Bl -tag -width ".Ar hiadaptive"
-.It Ar maximum
+.Bl -tag -width "hiadaptive"
+.It Cm maximum
 Choose the highest performance values.
 May be abbreviated as
-.Ar max .
-.It Ar minimum
+.Cm max .
+.It Cm minimum
 Choose the lowest performance values to get the most power savings.
 May be abbreviated as
-.Ar min .
-.It Ar adaptive
+.Cm min .
+.It Cm adaptive
 Attempt to strike a balance by degrading performance when the system
 appears idle and increasing it when the system is busy.
 It offers a good balance between a small performance loss for greatly
 increased power savings.
 May be abbreviated as
-.Ar adp .
-.It Ar hiadaptive
+.Cm adp .
+.It Cm hiadaptive
 Like
-.Ar adaptive
+.Cm adaptive
 mode, but tuned for systems where performance and interactivity are
 more important than power consumption.
 It increases frequency faster, reduces frequency less aggressively, and
 will maintain full frequency for longer.
 May be abbreviated as
-.Ar hadp .
+.Cm hadp .
 .El
 .Pp
 The default mode is
-.Ar adaptive
+.Cm adaptive
 for battery power and
-.Ar hiadaptive
+.Cm hiadaptive
 for the rest.
 .Pp
 .Nm
 recognizes these runtime options:
-.Bl -tag -width ".Fl r Ar percent"
+.Bl -tag -width "-r percent"
 .It Fl a Ar mode
 Selects the
 .Ar mode
@@ -99,26 +99,24 @@ to use while on battery power.
 Specifies the CPU load percent level when adaptive
 mode should begin to degrade performance to save power.
 The default is 50% or lower.
-.It Fl m Ar freq
-Specifies the minimum frequency to throttle down to.
 .It Fl M Ar freq
 Specifies the maximum frequency to throttle up to.
+.It Fl m Ar freq
+Specifies the minimum frequency to throttle down to.
 .It Fl N
 Treat "nice" time as idle for the purpose of load calculation;
-i.e. do not increase the CPU frequency if the CPU is only busy
+i.e., do not increase the CPU frequency if the CPU is only busy
 with "nice" processes.
 .It Fl n Ar mode
 Selects the
 .Ar mode
 to use normally when the AC line state is unknown.
+.It Fl P Ar pidfile
+Specifies an alternative file in which the process ID should be stored.
 .It Fl p Ar ival
 Specifies a different polling interval (in milliseconds) for AC line state
 and system idle levels.
 The default is 250 ms.
-.It Fl P Ar pidfile
-Specifies an alternative file in which the process ID should be stored.
-The default is
-.Pa /var/run/powerd.pid .
 .It Fl r Ar percent
 Specifies the CPU load percent level where adaptive
 mode should consider the CPU running and increase performance.
@@ -136,6 +134,11 @@ Verbose mode.
 Messages about power changes will be printed to stdout and
 .Nm
 will operate in the foreground.
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/powerd.pid"
+.It Pa /var/run/powerd.pid
+The default PID file.
 .El
 .Sh SEE ALSO
 .Xr acpi 4 ,
