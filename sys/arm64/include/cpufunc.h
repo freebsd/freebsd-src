@@ -199,7 +199,7 @@ invalidate_local_icache(void)
 	    "isb               \n");
 }
 
-extern bool icache_alising;
+extern bool icache_aliasing;
 extern bool icache_vmid;
 
 extern int64_t dcache_line_size;

@@ -965,7 +965,7 @@ update_user_regs(u_int cpu)
 extern u_long elf_hwcap;
 bool __read_frequently lse_supported = false;
 
-bool __read_frequently icache_alising = false;
+bool __read_frequently icache_aliasing = false;
 bool __read_frequently icache_vmid = false;
 
 int64_t dcache_line_size;	/* The minimum D cache line size */
@@ -1328,7 +1328,7 @@ identify_cache(uint64_t ctr)
 		break;
 	default:
 	case CTR_L1IP_VIPT:
-		icache_alising = true;
+		icache_aliasing = true;
 		break;
 	}
 
