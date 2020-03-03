@@ -536,8 +536,8 @@ cpuctl_do_eval_cpu_features(int cpu, struct thread *td)
 	set_cpu(cpu, td);
 	identify_cpu1();
 	identify_cpu2();
-	hw_ibrs_recalculate();
 	restore_cpu(oldcpu, is_bound, td);
+	hw_ibrs_recalculate(true);
 	hw_ssb_recalculate(true);
 #ifdef __amd64__
 	pmap_allow_2m_x_ept_recalculate();
