@@ -75,6 +75,8 @@ static void fib6_rte_to_nh_basic(struct rtentry *rte, const struct in6_addr *dst
 static struct ifnet *fib6_get_ifaifp(struct rtentry *rte);
 #define RNTORT(p)	((struct rtentry *)(p))
 
+#define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
+
 CHK_STRUCT_ROUTE_COMPAT(struct route_in6, ro_dst);
 
 /*
@@ -153,6 +155,7 @@ fib6_rte_to_nh_extended(struct rtentry *rte, const struct in6_addr *dst,
 	gw = (struct sockaddr_in6 *)rt_key(rte);
 	if (IN6_IS_ADDR_UNSPECIFIED(&gw->sin6_addr))
 		pnh6->nh_flags |= NHF_DEFAULT;
+	pnh6->nh_ia = ifatoia6(rte->rt_ifa);
 }
 
 /*
