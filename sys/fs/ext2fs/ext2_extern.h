@@ -64,6 +64,7 @@ e4fs_daddr_t	ext2_blkpref(struct inode *, e2fs_lbn_t, int, e2fs_daddr_t *,
 int	ext2_bmap(struct vop_bmap_args *);
 int	ext2_bmaparray(struct vnode *, daddr_t, daddr_t *, int *, int *);
 int	ext4_bmapext(struct vnode *, int32_t, int64_t *, int *, int *);
+int	ext2_bmap_seekdata(struct vnode *, off_t *);
 void	ext2_clusteracct(struct m_ext2fs *, char *, int, e4fs_daddr_t, int);
 void	ext2_dirbad(struct inode *ip, doff_t offset, char *how);
 int	ext2_ei2i(struct ext2fs_dinode *, struct inode *);
