@@ -517,6 +517,12 @@ powernv_node_numa_domain(platform_t platform, phandle_t node)
 	cell_t associativity[5];
 	int i, res;
 
+#ifndef NUMA
+	return (0);
+#endif
+	if (vm_ndomains == 1)
+		return (0);
+
 	res = OF_getencprop(node, "ibm,associativity",
 		associativity, sizeof(associativity));
 
