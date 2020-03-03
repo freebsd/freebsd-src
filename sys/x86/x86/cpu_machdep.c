@@ -855,23 +855,27 @@ nmi_handle_intr(u_int type, struct trapframe *frame)
 	nmi_call_kdb(PCPU_GET(cpuid), type, frame);
 }
 
-int hw_ibrs_active;
+static int hw_ibrs_active;
+int hw_ibrs_ibpb_active;
 int hw_ibrs_disable = 1;
 
 SYSCTL_INT(_hw, OID_AUTO, ibrs_active, CTLFLAG_RD, &hw_ibrs_active, 0,
     "Indirect Branch Restricted Speculation active");
 
 void
-hw_ibrs_recalculate(void)
+hw_ibrs_recalculate(bool for_all_cpus)
 {
 	if ((cpu_ia32_arch_caps & IA32_ARCH_CAP_IBRS_ALL) != 0) {
-		x86_msr_op(MSR_IA32_SPEC_CTRL, MSR_OP_LOCAL |
-		    (hw_ibrs_disable ? MSR_OP_ANDNOT : MSR_OP_OR),
+		x86_msr_op(MSR_IA32_SPEC_CTRL, (for_all_cpus ?
+		    MSR_OP_RENDEZVOUS : MSR_OP_LOCAL) |
+		    (hw_ibrs_disable != 0 ? MSR_OP_ANDNOT : MSR_OP_OR),
 		    IA32_SPEC_CTRL_IBRS);
-		return;
+		hw_ibrs_active = hw_ibrs_disable == 0;
+		hw_ibrs_ibpb_active = 0;
+	} else {
+		hw_ibrs_active = hw_ibrs_ibpb_active = (cpu_stdext_feature3 &
+		    CPUID_STDEXT3_IBPB) != 0 && !hw_ibrs_disable;
 	}
-	hw_ibrs_active = (cpu_stdext_feature3 & CPUID_STDEXT3_IBPB) != 0 &&
-	    !hw_ibrs_disable;
 }
 
 static int
@@ -884,7 +888,7 @@ hw_ibrs_disable_handler(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	hw_ibrs_disable = val != 0;
-	hw_ibrs_recalculate();
+	hw_ibrs_recalculate(true);
 	return (0);
 }
 SYSCTL_PROC(_hw, OID_AUTO, ibrs_disable, CTLTYPE_INT | CTLFLAG_RWTUN |

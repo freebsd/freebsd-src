@@ -255,7 +255,7 @@ initializecpu(void)
 		wrmsr(MSR_EFER, msr);
 		pg_nx = PG_NX;
 	}
-	hw_ibrs_recalculate();
+	hw_ibrs_recalculate(false);
 	hw_ssb_recalculate(false);
 	amd64_syscall_ret_flush_l1d_recalc();
 	switch (cpu_vendor_id) {

@@ -1547,7 +1547,7 @@ handle_ibrs_\l:
 
 /* all callers already saved %rax, %rdx, and %rcx */
 ENTRY(handle_ibrs_entry)
-	cmpb	$0,hw_ibrs_active(%rip)
+	cmpb	$0,hw_ibrs_ibpb_active(%rip)
 	je	1f
 	movl	$MSR_IA32_SPEC_CTRL,%ecx
 	rdmsr
