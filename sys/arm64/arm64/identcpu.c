@@ -1105,8 +1105,8 @@ print_ctr_fields(struct sbuf *sb, uint64_t reg, void *arg)
 	case CTR_L1IP_AIVIVT:
 		sbuf_printf(sb, "AIVIVT");
 		break;
-	case CTR_L1IP_VIVT:
-		sbuf_printf(sb, "VIVT");
+	case CTR_L1IP_VIPT:
+		sbuf_printf(sb, "VIPT");
 		break;
 	case CTR_L1IP_PIPT:
 		sbuf_printf(sb, "PIPT");
