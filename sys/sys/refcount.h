@@ -34,7 +34,6 @@
 
 #ifdef _KERNEL
 #include <sys/systm.h>
-#include <sys/_blockcount.h>
 #else
 #include <stdbool.h>
 #define	KASSERT(exp, msg)	/* */
