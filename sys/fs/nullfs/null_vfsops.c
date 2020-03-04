@@ -281,13 +281,10 @@ nullfs_root(mp, flags, vpp)
 	NULLFSDEBUG("nullfs_root(mp = %p, vp = %p)\n", mp,
 	    mntdata->nullm_lowerrootvp);
 
-	error = vget(mntdata->nullm_lowerrootvp, (flags & ~LK_TYPE_MASK) |
-	    LK_EXCLUSIVE, curthread);
+	error = vget(mntdata->nullm_lowerrootvp, flags, curthread);
 	if (error == 0) {
 		error = null_nodeget(mp, mntdata->nullm_lowerrootvp, &vp);
 		if (error == 0) {
-			if ((flags & LK_TYPE_MASK) == LK_SHARED)
-				vn_lock(vp, LK_DOWNGRADE | LK_RETRY);
 			*vpp = vp;
 		}
 	}
