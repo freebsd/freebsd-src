@@ -48,9 +48,9 @@
 
 __FBSDID("$FreeBSD$");
 
-static bool convert_to_feature_val(char *, u_int32_t *);
+static bool convert_to_feature_val(char *, uint32_t *);
 static bool edit_file_features(Elf *, int, int, char *);
-static bool get_file_features(Elf *, int, int, u_int32_t *, u_int64_t *);
+static bool get_file_features(Elf *, int, int, uint32_t *, uint64_t *);
 static void print_features(void);
 static bool print_file_features(Elf *, int, int, char *);
 static void usage(void);
@@ -206,11 +206,11 @@ usage(void)
 }
 
 static bool
-convert_to_feature_val(char *feature_str, u_int32_t *feature_val)
+convert_to_feature_val(char *feature_str, uint32_t *feature_val)
 {
 	char *feature;
 	int i, len;
-	u_int32_t input;
+	uint32_t input;
 	char operation;
 
 	input = 0;
@@ -247,8 +247,8 @@ convert_to_feature_val(char *feature_str, u_int32_t *feature_val)
 static bool
 edit_file_features(Elf *elf, int phcount, int fd, char *val)
 {
-	u_int32_t features;
-	u_int64_t off;
+	uint32_t features;
+	uint64_t off;
 
 	if (!get_file_features(elf, phcount, fd, &features, &off)) {
 		warnx("NT_FREEBSD_FEATURE_CTL note not found");
@@ -281,7 +281,7 @@ print_features(void)
 static bool
 print_file_features(Elf *elf, int phcount, int fd, char *filename)
 {
-	u_int32_t features;
+	uint32_t features;
 	unsigned long i;
 
 	if (!get_file_features(elf, phcount, fd, &features, NULL)) {
@@ -302,8 +302,8 @@ print_file_features(Elf *elf, int phcount, int fd, char *filename)
 }
 
 static bool
-get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features,
-    u_int64_t *off)
+get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
+    uint64_t *off)
 {
 	GElf_Phdr phdr;
 	Elf_Note note;
@@ -367,7 +367,7 @@ get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features,
 				continue;
 			}
 
-			if (note.n_descsz < sizeof(u_int32_t)) {
+			if (note.n_descsz < sizeof(uint32_t)) {
 				warnx("Feature descriptor can't "
 				    "be less than 4 bytes");
 				free(name);
@@ -378,9 +378,9 @@ get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features,
 			 * XXX: For now we look at only 4 bytes of the
 			 * 	descriptor. This should respect descsz.
 			 */
-			if (note.n_descsz > sizeof(u_int32_t))
+			if (note.n_descsz > sizeof(uint32_t))
 				warnx("Feature note is bigger than expected");
-			read(fd, features, sizeof(u_int32_t));
+			read(fd, features, sizeof(uint32_t));
 			if (off != NULL)
 				*off = phdr.p_offset + read_total;
 			free(name);
