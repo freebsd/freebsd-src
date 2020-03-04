@@ -153,16 +153,28 @@ htable_foreach_lle(struct lltable *llt, llt_foreach_cb_t *f, void *farg)
 	return (error);
 }
 
-static void
+/*
+ * The htable_[un]link_entry() functions return:
+ * 0 if the entry was (un)linked already and nothing changed,
+ * 1 if the entry was added/removed to/from the table, and
+ * -1 on error (e.g., not being able to add the entry due to limits reached).
+ * While the "unlink" operation should never error, callers of
+ * lltable_link_entry() need to check for errors and handle them.
+ */
+static int
 htable_link_entry(struct lltable *llt, struct llentry *lle)
 {
 	struct llentries *lleh;
 	uint32_t hashidx;
 
 	if ((lle->la_flags & LLE_LINKED) != 0)
-		return;
+		return (0);
 
 	IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
+
+	if (llt->llt_maxentries > 0 &&
+	    llt->llt_entries >= llt->llt_maxentries)
+		return (-1);
 
 	hashidx = llt->llt_hash(lle, llt->llt_hsize);
 	lleh = &llt->lle_head[hashidx];
@@ -171,22 +183,33 @@ htable_link_entry(struct lltable *llt, struct llentry *lle)
 	lle->lle_head = lleh;
 	lle->la_flags |= LLE_LINKED;
 	CK_LIST_INSERT_HEAD(lleh, lle, lle_next);
+	llt->llt_entries++;
+
+	return (1);
 }
 
-static void
+static int
 htable_unlink_entry(struct llentry *lle)
 {
+	struct lltable *llt;
 
 	if ((lle->la_flags & LLE_LINKED) == 0)
-		return;
+		return (0);
 
-	IF_AFDATA_WLOCK_ASSERT(lle->lle_tbl->llt_ifp);
+	llt = lle->lle_tbl;
+	IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
+	KASSERT(llt->llt_entries > 0, ("%s: lltable %p (%s) entries %d <= 0",
+	    __func__, llt, if_name(llt->llt_ifp), llt->llt_entries));
+
 	CK_LIST_REMOVE(lle, lle_next);
 	lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
 #if 0
 	lle->lle_tbl = NULL;
 	lle->lle_head = NULL;
 #endif
+	llt->llt_entries--;
+
+	return (1);
 }
 
 struct prefix_match_data {
@@ -483,6 +506,9 @@ lltable_free(struct lltable *llt)
 		llentry_free(lle);
 	}
 
+	KASSERT(llt->llt_entries == 0, ("%s: lltable %p (%s) entires not 0: %d",
+	    __func__, llt, llt->llt_ifp->if_xname, llt->llt_entries));
+
 	llt->llt_free_tbl(llt);
 }
 
@@ -608,18 +634,18 @@ lltable_free_entry(struct lltable *llt, struct llentry *lle)
 	llt->llt_free_entry(llt, lle);
 }
 
-void
+int
 lltable_link_entry(struct lltable *llt, struct llentry *lle)
 {
 
-	llt->llt_link_entry(llt, lle);
+	return (llt->llt_link_entry(llt, lle));
 }
 
-void
+int
 lltable_unlink_entry(struct lltable *llt, struct llentry *lle)
 {
 
-	llt->llt_unlink_entry(lle);
+	return (llt->llt_unlink_entry(lle));
 }
 
 void
