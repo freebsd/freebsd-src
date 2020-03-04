@@ -286,7 +286,7 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		default:				\
 			/* Drop packet and return. */	\
 			NG_FREE_ITEM(item);		\
-			++hinfo->stats.droped_pkts;	\
+			++hinfo->stats.dropped_pkts;	\
 			return (0);			\
 		}					\
 	} while (0)
@@ -730,7 +730,7 @@ ng_car_enqueue(struct hookinfo *hinfo, item_p item)
 	    (hinfo->te + len >= NG_CAR_QUEUE_SIZE)) {
 		/* Drop packet. */
 		++hinfo->stats.red_pkts;
-		++hinfo->stats.droped_pkts;
+		++hinfo->stats.dropped_pkts;
 		NG_FREE_M(m);
 
 		hinfo->te = 0;
