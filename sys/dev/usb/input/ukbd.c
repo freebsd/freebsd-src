@@ -522,15 +522,9 @@ ukbd_interrupt(struct ukbd_softc *sc)
 				if (ukbd_is_modifier_key(key))
 					continue;
 
-				/*
-				 * Check for first new key and set
-				 * initial delay and [re]start timer:
-				 */
-				if (sc->sc_repeat_key == 0) {
-					sc->sc_co_basetime = sbinuptime();
-					sc->sc_delay = sc->sc_kbd.kb_delay1;
-					ukbd_start_timer(sc);
-				}
+				sc->sc_co_basetime = sbinuptime();
+				sc->sc_delay = sc->sc_kbd.kb_delay1;
+				ukbd_start_timer(sc);
 
 				/* set repeat time for last key */
 				sc->sc_repeat_time = now + sc->sc_kbd.kb_delay1;
