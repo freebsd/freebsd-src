@@ -37,16 +37,16 @@ __FBSDID("$FreeBSD$");
 #include "diff.h"
 #include "xmalloc.h"
 
-int	 lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
-int	 diff_format, diff_context, status, ignore_file_case;
-int	 tabsize = 8;
+int	 lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag, Wflag;
+int	 diff_format, diff_context, status, ignore_file_case, suppress_common;
+int	 tabsize = 8, width = 130;
 char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
 char	*group_format = NULL;
 struct stat stb1, stb2;
 struct excludes *excludes_list;
 regex_t	 ignore_re;
 
-#define	OPTIONS	"0123456789aBbC:cdD:efHhI:iL:lnNPpqrS:sTtU:uwX:x:"
+#define	OPTIONS	"0123456789aBbC:cdD:efHhI:iL:lnNPpqrS:sTtU:uwW:X:x:y"
 enum {
 	OPT_TSIZE = CHAR_MAX + 1,
 	OPT_STRIPCR,
@@ -55,6 +55,7 @@ enum {
 	OPT_NORMAL,
 	OPT_HORIZON_LINES,
 	OPT_CHANGED_GROUP_FORMAT,
+	OPT_SUPPRESS_COMMON,
 };
 
 static struct option longopts[] = {
@@ -83,8 +84,10 @@ static struct option longopts[] = {
 	{ "initial-tab",		no_argument,		0,	'T' },
 	{ "unified",			optional_argument,	0,	'U' },
 	{ "ignore-all-space",		no_argument,		0,	'w' },
+	{ "width",			required_argument,	0,	'W' },
 	{ "exclude",			required_argument,	0,	'x' },
 	{ "exclude-from",		required_argument,	0,	'X' },
+	{ "side-by-side",		no_argument,		NULL,	'y' },
 	{ "ignore-file-name-case",	no_argument,		NULL,	OPT_IGN_FN_CASE },
 	{ "horizon-lines",		required_argument,	NULL,	OPT_HORIZON_LINES },
 	{ "no-ignore-file-name-case",	no_argument,		NULL,	OPT_NO_IGN_FN_CASE },
@@ -92,6 +95,7 @@ static struct option longopts[] = {
 	{ "strip-trailing-cr",		no_argument,		NULL,	OPT_STRIPCR },
 	{ "tabsize",			optional_argument,	NULL,	OPT_TSIZE },
 	{ "changed-group-format",	required_argument,	NULL,	OPT_CHANGED_GROUP_FORMAT},
+	{ "suppress-common-lines",	no_argument,		NULL,	OPT_SUPPRESS_COMMON },
 	{ NULL,				0,			0,	'\0'}
 };
 
@@ -230,11 +234,22 @@ main(int argc, char **argv)
 		case 'w':
 			dflags |= D_IGNOREBLANKS;
 			break;
+		case 'W':
+			Wflag = 1;
+			width = (int) strtonum(optarg, 1, INT_MAX, &errstr);
+			if (errstr) {
+				warnx("Invalid argument for width");
+				usage();
+			}
+			break;
 		case 'X':
 			read_excludes_file(optarg);
 			break;
 		case 'x':
 			push_excludes(optarg);
+			break;
+		case 'y':
+			diff_format = D_SIDEBYSIDE;
 			break;
 		case OPT_CHANGED_GROUP_FORMAT:
 			diff_format = D_GFORMAT;
@@ -260,6 +275,9 @@ main(int argc, char **argv)
 			break;
 		case OPT_STRIPCR:
 			dflags |= D_STRIPCR;
+			break;
+		case OPT_SUPPRESS_COMMON:
+			suppress_common = 1;
 			break;
 		default:
 			usage();
@@ -464,7 +482,12 @@ usage(void)
 	    "            -U number file1 file2\n"
 	    "       diff [-aBbdilNPprsTtw] [-c | -e | -f | -n | -q | -u] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--tabsize] [-I pattern] [-L label]\n"
-	    "            [-S name] [-X file] [-x pattern] dir1 dir2\n");
+	    "            [-S name] [-X file] [-x pattern] dir1 dir2\n"
+	    "       diff [-aBbditwW] [--expand-tabs] [--ignore-all-blanks]\n"
+            "            [--ignore-blank-lines] [--ignore-case] [--minimal]\n"
+            "            [--no-ignore-file-name-case] [--strip-trailing-cr]\n"
+            "            [--suppress-common-lines] [--tabsize] [--text] [--width]\n"
+            "            -y | --side-by-side file1 file2\n");
 
 	exit(2);
 }

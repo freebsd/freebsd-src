@@ -103,8 +103,6 @@ group_format_body()
 
 side_by_side_body()
 {
-	atf_expect_fail "--side-by-side not currently implemented (bug # 219933)"
-
 	atf_check -o save:A printf "A\nB\nC\n"
 	atf_check -o save:B printf "D\nB\nE\n"
 

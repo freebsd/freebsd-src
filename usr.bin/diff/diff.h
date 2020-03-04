@@ -48,6 +48,7 @@
 				   lines and no trailing . */
 #define	D_BRIEF		6	/* Say if the files differ */
 #define	D_GFORMAT	7	/* Diff with defined changed group format */
+#define D_SIDEBYSIDE    8	/* Side by side */
 
 /*
  * Output flags
@@ -85,9 +86,10 @@ struct excludes {
 	struct excludes *next;
 };
 
-extern int	lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
+extern int	lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag, Wflag;
 extern int	diff_format, diff_context, status, ignore_file_case;
-extern int	tabsize;
+extern int	suppress_common;
+extern int	tabsize, width;
 extern char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
 extern char	*group_format;
 extern struct	stat stb1, stb2;
