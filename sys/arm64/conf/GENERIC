@@ -258,6 +258,7 @@ device		rk_spi		# RockChip SPI controller
 # PWM
 device		pwm
 device		aw_pwm
+device		rk_pwm
 
 # Console
 device		vt
