@@ -359,6 +359,7 @@ struct peer {
 	l_fp	aorg;		/* origin timestamp */
 	l_fp	borg;		/* alternate origin timestamp */
 	l_fp	bxmt;		/* most recent broadcast transmit timestamp */
+	l_fp	nonce;		/* Value of nonce we sent as the xmt stamp */
 	double	offset;		/* peer clock offset */
 	double	delay;		/* peer roundtrip delay */
 	double	jitter;		/* peer jitter (squares) */
@@ -466,6 +467,7 @@ struct peer {
 # define FLAG_ASSOC	0x8000	/* autokey request */
 #endif /* OPENSSL */
 #define FLAG_TSTAMP_PPS	0x10000	/* PPS source provides absolute timestamp */
+#define FLAG_LOOPNONCE	0x20000	/* Use a nonce for the loopback test */
 
 /*
  * Definitions for the clear() routine.  We use memset() to clear
@@ -841,6 +843,7 @@ struct restrict_u_tag {
 	u_short		rflags;		/* restrict (accesslist) flags */
 	u_short		mflags;		/* match flags */
 	short		ippeerlimit;	/* IP peer limit */
+	int		srvfuzrftpoll;	/* server response: fuzz reftime */
 	u_long		expire;		/* valid until time */
 	union {				/* variant starting here */
 		res_addr4 v4;
@@ -885,13 +888,16 @@ char *build_rflags(u_short rflags);
 #define	RES_MSSNTP		0x1000	/* enable MS-SNTP authentication */
 #define	RES_FLAKE		0x2000	/* flakeway - drop 10% */
 #define	RES_NOMRULIST		0x4000	/* mode 6 mrulist denied */
-#define RES_UNUSED		0x8000	/* Unused flag bits */
+
+#define	RES_SRVRSPFUZ		0x8000	/* Server response: fuzz */
+
+#define RES_UNUSED		0x0000	/* Unused flag bits (none left) */
 
 #define	RES_ALLFLAGS		(RES_FLAGS | RES_NOQUERY |	\
 				 RES_NOMODIFY | RES_NOTRAP |	\
 				 RES_LPTRAP | RES_KOD |		\
 				 RES_MSSNTP | RES_FLAKE |	\
-				 RES_NOMRULIST)
+				 RES_NOMRULIST | RES_SRVRSPFUZ )
 
 /*
  * Match flags (mflags)

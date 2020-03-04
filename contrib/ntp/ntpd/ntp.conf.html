@@ -61,7 +61,7 @@ Next: <a href="#ntp_002econf-Description" accesskey="n" rel="next">ntp.conf Desc
 <p>This document describes the configuration file for the NTP Project&rsquo;s
 <code>ntpd</code> program.
 </p>
-<p>This document applies to version 4.2.8p13 of <code>ntp.conf</code>.
+<p>This document applies to version 4.2.8p14 of <code>ntp.conf</code>.
 </p>
 <a name="SEC_Overview"></a>
 <h2 class="shortcontents-heading">Short Table of Contents</h2>
@@ -257,8 +257,8 @@ qualifier forces DNS resolution to the IPv6 namespace.
 See IPv6 references for the
 equivalent classes for that address family.
 </p><dl compact="compact">
-<dt><code>pool</code> <kbd>address</kbd> <code>[<code>burst</code>]</code> <code>[<code>iburst</code>]</code> <code>[<code>version</code> <kbd>version</kbd>]</code> <code>[<code>prefer</code>]</code> <code>[<code>minpoll</code> <kbd>minpoll</kbd>]</code> <code>[<code>maxpoll</code> <kbd>maxpoll</kbd>]</code></dt>
-<dt><code>server</code> <kbd>address</kbd> <code>[<code>key</code> <kbd>key</kbd> <kbd>|</kbd> <code>autokey</code>]</code> <code>[<code>burst</code>]</code> <code>[<code>iburst</code>]</code> <code>[<code>version</code> <kbd>version</kbd>]</code> <code>[<code>prefer</code>]</code> <code>[<code>minpoll</code> <kbd>minpoll</kbd>]</code> <code>[<code>maxpoll</code> <kbd>maxpoll</kbd>]</code> <code>[<code>true</code>]</code></dt>
+<dt><code>pool</code> <kbd>address</kbd> <code>[<code>burst</code>]</code> <code>[<code>iburst</code>]</code> <code>[<code>version</code> <kbd>version</kbd>]</code> <code>[<code>prefer</code>]</code> <code>[<code>minpoll</code> <kbd>minpoll</kbd>]</code> <code>[<code>maxpoll</code> <kbd>maxpoll</kbd>]</code> <code>[<code>xmtnonce</code>]</code></dt>
+<dt><code>server</code> <kbd>address</kbd> <code>[<code>key</code> <kbd>key</kbd> <kbd>|</kbd> <code>autokey</code>]</code> <code>[<code>burst</code>]</code> <code>[<code>iburst</code>]</code> <code>[<code>version</code> <kbd>version</kbd>]</code> <code>[<code>prefer</code>]</code> <code>[<code>minpoll</code> <kbd>minpoll</kbd>]</code> <code>[<code>maxpoll</code> <kbd>maxpoll</kbd>]</code> <code>[<code>true</code>]</code> <code>[<code>xmtnonce</code>]</code></dt>
 <dt><code>peer</code> <kbd>address</kbd> <code>[<code>key</code> <kbd>key</kbd> <kbd>|</kbd> <code>autokey</code>]</code> <code>[<code>version</code> <kbd>version</kbd>]</code> <code>[<code>prefer</code>]</code> <code>[<code>minpoll</code> <kbd>minpoll</kbd>]</code> <code>[<code>maxpoll</code> <kbd>maxpoll</kbd>]</code> <code>[<code>true</code>]</code> <code>[<code>xleave</code>]</code></dt>
 <dt><code>broadcast</code> <kbd>address</kbd> <code>[<code>key</code> <kbd>key</kbd> <kbd>|</kbd> <code>autokey</code>]</code> <code>[<code>version</code> <kbd>version</kbd>]</code> <code>[<code>prefer</code>]</code> <code>[<code>minpoll</code> <kbd>minpoll</kbd>]</code> <code>[<code>ttl</code> <kbd>ttl</kbd>]</code> <code>[<code>xleave</code>]</code></dt>
 <dt><code>manycastclient</code> <kbd>address</kbd> <code>[<code>key</code> <kbd>key</kbd> <kbd>|</kbd> <code>autokey</code>]</code> <code>[<code>version</code> <kbd>version</kbd>]</code> <code>[<code>prefer</code>]</code> <code>[<code>minpoll</code> <kbd>minpoll</kbd>]</code> <code>[<code>maxpoll</code> <kbd>maxpoll</kbd>]</code> <code>[<code>ttl</code> <kbd>ttl</kbd>]</code></dt>
@@ -440,10 +440,6 @@ The server is discarded by the selection algroithm.
 <dt><code>preempt</code></dt>
 <dd><p>Says the association can be preempted.
 </p></dd>
-<dt><code>true</code></dt>
-<dd><p>Marks the server as a truechimer.
-Use this option only for testing.
-</p></dd>
 <dt><code>prefer</code></dt>
 <dd><p>Marks the server as preferred.
 All other things being equal,
@@ -458,7 +454,8 @@ provided in
 for further information.
 </p></dd>
 <dt><code>true</code></dt>
-<dd><p>Forces the association to always survive the selection and clustering algorithms.
+<dd><p>Marks the server as a truechimer,
+forcing the association to always survive the selection and clustering algorithms.
 This option should almost certainly
 <em>only</em>
 be used while testing an association.
@@ -490,6 +487,14 @@ and
 <code>broadcast</code>
 modes only, this flag enables interleave mode.
 </p></dd>
+<dt><code>xmtnonce</code></dt>
+<dd><p>Valid only for
+<code>server</code>
+and
+<code>pool</code>
+modes, this flag puts a random number in the packet&rsquo;s transmit timestamp.
+</p>
+</dd>
 </dl>
 <a name="Auxiliary-Commands"></a>
 <h4 class="subsubsection">1.1.1.2 Auxiliary Commands</h4>
@@ -1862,6 +1867,11 @@ The
 is considered more specific and
 is sorted later in the list.
 </p></dd>
+<dt><code>serverresponse fuzz</code></dt>
+<dd><p>When reponding to server requests,
+fuzz the low order bits of the
+<code>reftime</code>.
+</p></dd>
 <dt><code>version</code></dt>
 <dd><p>Deny packets that do not match the current NTP version.
 </p></dd>
@@ -3076,6 +3086,22 @@ For the JJY driver (type 40 mode 100 - 180), the argument is
 one telephone number used to dial the telephone JJY service.
 The Hayes command ATDT is normally prepended to the number.
 The number can contain other modem control codes as well.
+</p></dd>
+<dt><code>pollskewlist</code> <code>[<kbd>poll</kbd> <kbd>value</kbd> | <kbd>value</kbd>]</code> <kbd>...</kbd> <code>[<code>default</code> <kbd>value</kbd> | <kbd>value</kbd>]</code></dt>
+<dd><p>Enable skewing of our poll requests to our servers.
+<kbd>poll</kbd>
+is a number between 3 and 17 inclusive, identifying a specific poll interval.
+A poll interval is 2^n seconds in duration,
+so a poll value of 3 corresponds to 8 seconds
+and
+a poll interval of 17 corresponds to
+131,072 seconds, or about a day and a half.
+The next two numbers must be between 0 and one-half of the poll interval,
+inclusive.
+The first number specifies how early the poll may start,
+while
+the second number specifies how late the poll may be delayed.
+With no arguments, internally specified default values are chosen.
 </p></dd>
 <dt><code>reset</code> <code>[<code>allpeers</code>]</code> <code>[<code>auth</code>]</code> <code>[<code>ctl</code>]</code> <code>[<code>io</code>]</code> <code>[<code>mem</code>]</code> <code>[<code>sys</code>]</code> <code>[<code>timer</code>]</code></dt>
 <dd><p>Reset one or more groups of counters maintained by

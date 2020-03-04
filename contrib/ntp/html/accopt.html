@@ -55,8 +55,10 @@ the <a href="accopt.html">Access Control Support</a> page.</p>
     </dl>
   </dd>
   <dt id="restrict"><tt>restrict [-4 | -6] default [ippeerlimit <i>num</i>]
-      [<i>flag</i>][...]<br>  restrict source [ippeerlimit <i>num</i>]
-      [<i>flag</i>][...]<br>  restrict <i>address</i> [mask <i>mask</i>]
+      [<i>flag</i>][...]</tt></dt>
+  <dt><tt>restrict source [ippeerlimit <i>num</i>]
+      [<i>flag</i>][...]</tt></dt>
+  <dt><tt>restrict <i>address</i> [mask <i>mask</i>]
       [ippeerlimit <i>num</i>] [<i>flag</i>][...]</tt></dt>
   <dd>The <tt><i>address</i></tt> argument expressed in IPv4 or IPv6 numeric
     address form is the address of a host or network. Alternatively,
@@ -168,6 +170,9 @@ the <a href="accopt.html">Access Control Support</a> page.</p>
         UDP port (123). A restrict line containing <tt>ntpport</tt> is
         considered more specific than one with the same address and mask,
         but lacking <tt>ntpport</tt>.</dd>
+      <dt><tt>serverresponse fuzz</tt></dt>
+      <dd>When reponding to server requests, fuzz the low order bits of
+	the <tt>reftime</tt>.</dd>
       <dt><tt>version</tt></dt>
       <dd>Deny packets that do not match the current NTP version.</dd>
     </dl>

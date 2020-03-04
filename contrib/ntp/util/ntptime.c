@@ -53,8 +53,13 @@
  * a struct timeval to the microsecond (more or less).  This keeps
  * things neat.
  */
-#define	TS_MASK		0xfffff000	/* mask to usec, for time stamps */
-#define	TS_ROUNDBIT	0x00000800	/* round at this bit */
+#define	TS_MASK_US	0xfffff000	/* mask to usec, for time stamps */
+#define	TS_ROUNDBIT_US	0x00000800	/* round at this bit */
+#define	TS_DIGITS_US	6
+
+#define	TS_MASK_NS	0xfffffffc	/* 1/2^30, for nsec */
+#define	TS_ROUNDBIT_NS	0x00000002
+#define	TS_DIGITS_NS	9
 
 /*
  * Function prototypes
@@ -93,11 +98,12 @@ main(
 	struct timex ntx, _ntx;
 	int	times[20] = { 0 };
 	double ftemp, gtemp, htemp;
+	double nscale = 1.0;			/* assume usec scale for now */
 	long time_frac;				/* ntv.time.tv_frac_sec (us/ns) */
 	l_fp ts;
-	volatile unsigned ts_mask = TS_MASK;		/* defaults to 20 bits (us) */
-	volatile unsigned ts_roundbit = TS_ROUNDBIT;	/* defaults to 20 bits (us) */
-	volatile int fdigits = 6;			/* fractional digits for us */
+	volatile unsigned ts_mask = TS_MASK_US;		/* defaults to 20 bits (us) */
+	volatile unsigned ts_roundbit = TS_ROUNDBIT_US;	/* defaults to 20 bits (us) */
+	volatile int fdigits = TS_DIGITS_US;		/* fractional digits for us */
 	size_t c;
 	int ch;
 	int errflg	= 0;
@@ -118,13 +124,11 @@ main(
 			ntx.modes |= MOD_NANO;
 			break;
 #endif
-#ifdef NTP_API
-# if NTP_API > 3
+#if defined(NTP_API) && NTP_API > 3
 		case 'T':
 			ntx.modes = MOD_TAI;
 			ntx.constant = atoi(ntp_optarg);
 			break;
-# endif
 #endif
 		case 'c':
 			cost++;
@@ -226,22 +230,22 @@ main(
 	 */
 	pll_control = 1;
 #ifdef SIGSYS
-	if (sigsetjmp(env, 1) == 0) {
+	if (sigsetjmp(env, 1) == 0)
 #endif
+	{
 		status = syscall(BADCALL, &ntv); /* dummy parameter */
 		if ((status < 0) && (errno == ENOSYS))
 			--pll_control;
-#ifdef SIGSYS
 	}
-#endif
 	if (pll_control)
 	    printf("sigaction() failed to catch an invalid syscall\n");
 #endif /* BADCALL */
 
 	if (cost) {
 #ifdef SIGSYS
-		if (sigsetjmp(env, 1) == 0) {
+		if (sigsetjmp(env, 1) == 0)
 #endif
+		{
 			for (c = 0; c < COUNTOF(times); c++) {
 				status = ntp_gettime(&ntv);
 				if ((status < 0) && (errno == ENOSYS))
@@ -250,9 +254,7 @@ main(
 					break;
 				times[c] = ntv.time.tv_frac_sec;
 			}
-#ifdef SIGSYS
 		}
-#endif
 		if (pll_control >= 0) {
 			printf("[ us %06d:", times[0]);
 			for (c = 1; c < COUNTOF(times); c++)
@@ -261,25 +263,23 @@ main(
 		}
 	}
 #ifdef SIGSYS
-	if (sigsetjmp(env, 1) == 0) {
+	if (sigsetjmp(env, 1) == 0)
 #endif
+	{
 		status = ntp_gettime(&ntv);
 		if ((status < 0) && (errno == ENOSYS))
 			--pll_control;
-#ifdef SIGSYS
 	}
-#endif
 	_ntx.modes = 0;				/* Ensure nothing is set */
 #ifdef SIGSYS
-	if (sigsetjmp(env, 1) == 0) {
+	if (sigsetjmp(env, 1) == 0)
 #endif
+	{
 		status = ntp_adjtime(&_ntx);
 		if ((status < 0) && (errno == ENOSYS))
 			--pll_control;
 		flash = _ntx.status;
-#ifdef SIGSYS
 	}
-#endif
 	if (pll_control < 0) {
 		printf("NTP user interface routines are not configured in this kernel.\n");
 		goto lexit;
@@ -298,9 +298,9 @@ main(
 #ifdef STA_NANO
 		if (flash & STA_NANO) {
 			ntv.time.tv_frac_sec /= 1000;
-			ts_mask = 0xfffffffc;	/* 1/2^30 */
-			ts_roundbit = 0x00000002;
-			fdigits = 9;
+			ts_mask = TS_MASK_NS;
+			ts_roundbit = TS_ROUNDBIT_NS;
+			fdigits = TS_DIGITS_NS;
 		}
 #endif
 		tv.tv_sec = ntv.time.tv_sec;
@@ -311,15 +311,15 @@ main(
 		ts.l_uf &= ts_mask;
 		printf("  time %s, (.%0*d),\n",
 		       prettydate(&ts), fdigits, (int)time_frac);
-		printf("  maximum error %lu us, estimated error %lu us",
-		       (u_long)ntv.maxerror, (u_long)ntv.esterror);
+		printf("  maximum error %ld us, estimated error %ld us",
+		       ntv.maxerror, ntv.esterror);
 		if (rawtime)
 			printf("  ntptime=%x.%x unixtime=%x.%0*d %s",
 			       (u_int)ts.l_ui, (u_int)ts.l_uf,
 			       (int)ntv.time.tv_sec, fdigits,
 			       (int)time_frac,
 			       ctime((time_t *)&ntv.time.tv_sec));
-#if NTP_API > 3
+#if defined(NTP_API) && NTP_API > 3
 		printf(", TAI offset %ld\n", (long)ntv.tai);
 #else
 		printf("\n");
@@ -335,38 +335,33 @@ main(
 		printf("ntp_adjtime() returns code %d (%s)\n",
 		     status, timex_state(status));
 		printf("  modes %s,\n", sprintb(ntx.modes, TIMEX_MOD_BITS));
-		ftemp = (double)ntx.offset;
 #ifdef STA_NANO
 		if (flash & STA_NANO)
-			ftemp /= 1000.0;
+			nscale = 1e-3;
 #endif
+		ftemp = (double)ntx.offset * nscale;
 		printf("  offset %.3f", ftemp);
 		ftemp = (double)ntx.freq / SCALE_FREQ;
 		printf(" us, frequency %.3f ppm, interval %d s,\n",
-		     ftemp, 1 << ntx.shift);
-		printf("  maximum error %lu us, estimated error %lu us,\n",
-		     (u_long)ntx.maxerror, (u_long)ntx.esterror);
+		       ftemp, 1 << ntx.shift);
+		printf("  maximum error %ld us, estimated error %ld us,\n",
+		     ntx.maxerror, ntx.esterror);
 		printf("  status %s,\n", sprintb((u_int)ntx.status, TIMEX_STA_BITS));
 		ftemp = (double)ntx.tolerance / SCALE_FREQ;
-		gtemp = (double)ntx.precision;
+		gtemp = (double)ntx.precision * nscale;
 		printf(
-		    "  time constant %lu, precision %.3f us, tolerance %.0f ppm,\n",
-		    (u_long)ntx.constant, gtemp, ftemp);
+			"  time constant %lu, precision %.3f us, tolerance %.0f ppm,\n",
+			(u_long)ntx.constant, gtemp, ftemp);
 		if (ntx.shift == 0)
 			exit(0);
 		ftemp = (double)ntx.ppsfreq / SCALE_FREQ;
 		gtemp = (double)ntx.stabil / SCALE_FREQ;
-		htemp = (double)ntx.jitter;
-#ifdef STA_NANO
-		if (flash & STA_NANO)
-			htemp /= 1000.0;
-#endif
-		printf(
-		    "  pps frequency %.3f ppm, stability %.3f ppm, jitter %.3f us,\n",
-		    ftemp, gtemp, htemp);
+		htemp = (double)ntx.jitter * nscale;
+		printf("  pps frequency %.3f ppm, stability %.3f ppm, jitter %.3f us,\n",
+		       ftemp, gtemp, htemp);
 		printf("  intervals %lu, jitter exceeded %lu, stability exceeded %lu, errors %lu.\n",
-		    (u_long)ntx.calcnt, (u_long)ntx.jitcnt,
-		    (u_long)ntx.stbcnt, (u_long)ntx.errcnt);
+		       (u_long)ntx.calcnt, (u_long)ntx.jitcnt,
+		       (u_long)ntx.stbcnt, (u_long)ntx.errcnt);
 		return 0;
 	}
 

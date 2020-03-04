@@ -96,7 +96,7 @@ static	restrict_u	restrict_def6;
  * "restrict source ..." enabled knob and restriction bits.
  */
 static	int		restrict_source_enabled;
-static	u_short		restrict_source_rflags;
+static	u_int32		restrict_source_rflags;
 static	u_short		restrict_source_mflags;
 static	short		restrict_source_ippeerlimit;
 
@@ -141,7 +141,7 @@ dump_restrict(
 		inet_ntop(AF_INET, &sia, as, sizeof as);
 		inet_ntop(AF_INET, &sim, ms, sizeof ms);
 	}
-	mprintf("restrict node at %p: %s/%s count %d, rflags %05x, mflags %05x, ippeerlimit %d, expire %lu, next %p\n",
+	mprintf("restrict node at %p: %s/%s count %d, rflags %08x, mflags %04x, ippeerlimit %d, expire %lu, next %p\n",
 		res, as, ms, res->count, res->rflags, res->mflags,
 		res->ippeerlimit, res->expire, res->link);
 	return;
@@ -154,8 +154,6 @@ dump_restrict(
 void
 dump_restricts(void)
 {
-	int		defaultv4_done = 0;
-	int		defaultv6_done = 0;
 	restrict_u *	res;
 	restrict_u *	next;
 
@@ -570,6 +568,7 @@ restrictions(
 		r4a->rflags = match->rflags;
 		r4a->ippeerlimit = match->ippeerlimit;
 	}
+
 	return;
 }
 
@@ -795,8 +794,8 @@ restrict_source(
 		return;
 
 	hack_restrict(RESTRICT_FLAGS, addr, &onesmask,
-		      restrict_source_ippeerlimit, restrict_source_mflags,
-		      restrict_source_rflags, expire);
+		      restrict_source_ippeerlimit, 
+		      restrict_source_mflags, restrict_source_rflags, expire);
 	DPRINTF(1, ("restrict_source: %s host restriction added\n", 
 		    stoa(addr)));
 }

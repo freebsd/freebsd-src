@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpq-opts.c)
  *
- *  It has been AutoGen-ed  February 20, 2019 at 09:56:54 AM by AutoGen 5.18.5
+ *  It has been AutoGen-ed  March  3, 2020 at 05:41:14 PM by AutoGen 5.18.5
  *  From the definitions    ntpq-opts.def
  *  and the template file   options
  *
@@ -18,7 +18,7 @@
  * The ntpq program is copyrighted and licensed
  * under the following terms:
  *
- *  Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation, all rights reserved.
+ *  Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation, all rights reserved.
  *  This is free software. It is licensed for use, modification and
  *  redistribution under the terms of the NTP License, copies of which
  *  can be seen at:
@@ -69,8 +69,8 @@ extern FILE * option_usage_fp;
  *  static const strings for ntpq options
  */
 static char const ntpq_opt_strs[1977] =
-/*     0 */ "ntpq 4.2.8p13\n"
-            "Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation, all rights reserved.\n"
+/*     0 */ "ntpq 4.2.8p14\n"
+            "Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation, all rights reserved.\n"
             "This is free software. It is licensed for use, modification and\n"
             "redistribution under the terms of the NTP License, copies of which\n"
             "can be seen at:\n"
@@ -132,13 +132,13 @@ static char const ntpq_opt_strs[1977] =
 /*  1768 */ "no-load-opts\0"
 /*  1781 */ "no\0"
 /*  1784 */ "NTPQ\0"
-/*  1789 */ "ntpq - standard NTP query program - Ver. 4.2.8p13\n"
+/*  1789 */ "ntpq - standard NTP query program - Ver. 4.2.8p14\n"
             "Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... [ host ...]\n\0"
 /*  1909 */ "$HOME\0"
 /*  1915 */ ".\0"
 /*  1917 */ ".ntprc\0"
 /*  1924 */ "http://bugs.ntp.org, bugs@ntp.org\0"
-/*  1958 */ "ntpq 4.2.8p13\0"
+/*  1958 */ "ntpq 4.2.8p14\0"
 /*  1972 */ "hash";
 
 /**
@@ -841,8 +841,8 @@ static void bogus_function(void) {
      translate option names.
    */
   /* referenced via ntpqOptions.pzCopyright */
-  puts(_("ntpq 4.2.8p13\n\
-Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation, all rights reserved.\n\
+  puts(_("ntpq 4.2.8p14\n\
+Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation, all rights reserved.\n\
 This is free software. It is licensed for use, modification and\n\
 redistribution under the terms of the NTP License, copies of which\n\
 can be seen at:\n"));
@@ -910,11 +910,11 @@ implied warranty.\n"));
   puts(_("load options from a config file"));
 
   /* referenced via ntpqOptions.pzUsageTitle */
-  puts(_("ntpq - standard NTP query program - Ver. 4.2.8p13\n\
+  puts(_("ntpq - standard NTP query program - Ver. 4.2.8p14\n\
 Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... [ host ...]\n"));
 
   /* referenced via ntpqOptions.pzFullVersion */
-  puts(_("ntpq 4.2.8p13"));
+  puts(_("ntpq 4.2.8p14"));
 
   /* referenced via ntpqOptions.pzFullUsage */
   puts(_("<<<NOT-FOUND>>>"));
