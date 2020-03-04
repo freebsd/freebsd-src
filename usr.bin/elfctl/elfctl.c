@@ -66,6 +66,7 @@ static struct ControlFeatures featurelist[] = {
 	{ "protmax",	NT_FREEBSD_FCTL_PROTMAX_DISABLE,
 	    "Disable implicit PROT_MAX" },
 	{ "stackgap",	NT_FREEBSD_FCTL_STKGAP_DISABLE, "Disable stack gap" },
+	{ "wxneeded",	NT_FREEBSD_FCTL_WXNEEDED, "Requires W+X mappings" },
 };
 
 static struct option long_opts[] = {
