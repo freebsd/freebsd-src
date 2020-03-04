@@ -98,6 +98,10 @@ struct rk805_softc {
 	int			nregs;
 };
 
+static int rk805_regnode_status(struct regnode *regnode, int *status);
+static int rk805_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
+    int max_uvolt, int *udelay);
+
 static struct rk805_regdef rk805_regdefs[] = {
 	{
 		.id = RK805_DCDC1,
@@ -205,6 +209,7 @@ static struct rk805_regdef rk808_regdefs[] = {
 		.voltage_nstep = 64,
 	},
 	{
+		/* BUCK3 voltage is calculated based on external resistor */
 		.id = RK805_DCDC3,
 		.name = "DCDC_REG3",
 		.enable_reg = RK805_DCDC_EN,
@@ -323,12 +328,16 @@ static struct rk805_regdef rk808_regdefs[] = {
 		.name = "SWITCH_REG1",
 		.enable_reg = RK805_DCDC_EN,
 		.enable_mask = 0x20,
+		.voltage_min = 3000000,
+		.voltage_max = 3000000,
 	},
 	{
 		.id = RK808_SWITCH2,
 		.name = "SWITCH_REG2",
 		.enable_reg = RK805_DCDC_EN,
 		.enable_mask = 0x40,
+		.voltage_min = 3000000,
+		.voltage_max = 3000000,
 	},
 };
 
@@ -344,13 +353,37 @@ rk805_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 static int
 rk805_write(device_t dev, uint8_t reg, uint8_t data)
 {
+
 	return (iicdev_writeto(dev, reg, &data, 1, IIC_INTRWAIT));
 }
 
 static int
 rk805_regnode_init(struct regnode *regnode)
 {
-	return (0);
+	struct rk805_reg_sc *sc;
+	struct regnode_std_param *param;
+	int rv, udelay, status;
+
+	sc = regnode_get_softc(regnode);
+	param = regnode_get_stdparam(regnode);
+	if (param->min_uvolt == 0)
+		return (0);
+
+	/* 
+	 * Set the regulator at the correct voltage if it is not enabled.
+	 * Do not enable it, this is will be done either by a
+	 * consumer or by regnode_set_constraint if boot_on is true
+	 */
+	rv = rk805_regnode_status(regnode, &status);
+	if (rv != 0 || status == REGULATOR_STATUS_ENABLED)
+		return (rv);
+
+	rv = rk805_regnode_set_voltage(regnode, param->min_uvolt,
+	    param->max_uvolt, &udelay);
+	if (udelay != 0)
+		DELAY(udelay);
+
+	return (rv);
 }
 
 static int
@@ -409,6 +442,22 @@ rk805_regnode_voltage_to_reg(struct rk805_reg_sc *sc, int min_uvolt,
 }
 
 static int
+rk805_regnode_status(struct regnode *regnode, int *status)
+{
+	struct rk805_reg_sc *sc;
+	uint8_t val;
+
+	sc = regnode_get_softc(regnode);
+
+	*status = 0;
+	rk805_read(sc->base_dev, sc->def->enable_reg, &val, 1);
+	if (val & sc->def->enable_mask)
+		*status = REGULATOR_STATUS_ENABLED;
+
+	return (0);
+}
+
+static int
 rk805_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
     int max_uvolt, int *udelay)
 {
@@ -451,6 +500,11 @@ rk805_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 
 	sc = regnode_get_softc(regnode);
 
+	if (sc->def->voltage_min ==  sc->def->voltage_max) {
+		*uvolt = sc->def->voltage_min;
+		return (0);
+	}
+
 	if (!sc->def->voltage_step)
 		return (ENXIO);
 
@@ -468,6 +522,7 @@ static regnode_method_t rk805_regnode_methods[] = {
 	/* Regulator interface */
 	REGNODEMETHOD(regnode_init,		rk805_regnode_init),
 	REGNODEMETHOD(regnode_enable,		rk805_regnode_enable),
+	REGNODEMETHOD(regnode_status,		rk805_regnode_status),
 	REGNODEMETHOD(regnode_set_voltage,	rk805_regnode_set_voltage),
 	REGNODEMETHOD(regnode_get_voltage,	rk805_regnode_get_voltage),
 	REGNODEMETHOD(regnode_check_voltage,	regnode_method_check_voltage),
