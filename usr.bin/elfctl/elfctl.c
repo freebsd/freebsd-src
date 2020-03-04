@@ -310,7 +310,6 @@ get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
 	unsigned long read_total;
 	int namesz, descsz, i;
 	char *name;
-	ssize_t size;
 
 	/*
 	 * Go through each program header to find one that is of type PT_NOTE
@@ -332,9 +331,9 @@ get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
 
 		read_total = 0;
 		while (read_total < phdr.p_filesz) {
-			size = read(fd, &note, sizeof(note));
-			if (size < (ssize_t)sizeof(note)) {
-				warn("read() failed:");
+			if (read(fd, &note, sizeof(note)) <
+			    (ssize_t)sizeof(note)) {
+				warnx("elf note header too short");
 				return (false);
 			}
 			read_total += sizeof(note);
@@ -350,7 +349,10 @@ get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
 				return (false);
 			}
 			descsz = roundup2(note.n_descsz, 4);
-			size = read(fd, name, namesz);
+			if (read(fd, name, namesz) < namesz) {
+				warnx("elf note name too short");
+				return (false);
+			}
 			read_total += namesz;
 
 			if (note.n_namesz != 8 ||
@@ -380,7 +382,11 @@ get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
 			 */
 			if (note.n_descsz > sizeof(uint32_t))
 				warnx("Feature note is bigger than expected");
-			read(fd, features, sizeof(uint32_t));
+			if (read(fd, features, sizeof(uint32_t)) <
+			    (ssize_t)sizeof(uint32_t)) {
+				warnx("feature note data too short");
+				return (false);
+			}
 			if (off != NULL)
 				*off = phdr.p_offset + read_total;
 			free(name);
