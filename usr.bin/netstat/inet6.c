@@ -1055,6 +1055,14 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/bad router advertisement message%s}\n");
 	p(icp6s_badredirect, "\t{:bad-redirect/%ju} "
 	    "{N:/bad redirect message%s}\n");
+	p(icp6s_overflowdefrtr, "\t{:default-routers-overflows/%ju} "
+	    "{N:/default routers overflow%s}\n");
+	p(icp6s_overflowprfx, "\t{:prefixes-overflows/%ju} "
+	    "{N:/prefix overflow%s}\n");
+	p(icp6s_overflownndp, "\t{:neighbour-entries-overflows/%ju} "
+	    "{N:/neighbour entries overflow%s}\n");
+	p(icp6s_overflowredirect, "\t{:redirect-overflows/%ju} "
+	    "{N:/redirect overflow%s}\n");
 	xo_close_container("errors");
 	p(icp6s_pmtuchg, "\t{:path-mtu-changes/%ju} {N:/path MTU change%s}\n");
 #undef p
