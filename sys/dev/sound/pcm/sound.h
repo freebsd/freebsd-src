@@ -131,15 +131,8 @@ struct snd_mixer;
 #define SD_F_SIMPLEX		0x00000001
 #define SD_F_AUTOVCHAN		0x00000002
 #define SD_F_SOFTPCMVOL		0x00000004
-/*
- * Obsolete due to better matrixing
- */
-#if 0
-#define SD_F_PSWAPLR		0x00000008
-#define SD_F_RSWAPLR		0x00000010
-#endif
 #define SD_F_DYING		0x00000008
-#define SD_F_SUICIDE		0x00000010
+#define SD_F_DETACHING		0x00000010
 #define SD_F_BUSY		0x00000020
 #define SD_F_MPSAFE		0x00000040
 #define SD_F_REGISTERED		0x00000080
@@ -165,7 +158,7 @@ struct snd_mixer;
 				"\002AUTOVCHAN"				\
 				"\003SOFTPCMVOL"			\
 				"\004DYING"				\
-				"\005SUICIDE"				\
+				"\005DETACHING"				\
 				"\006BUSY"				\
 				"\007MPSAFE"				\
 				"\010REGISTERED"			\
@@ -183,6 +176,8 @@ struct snd_mixer;
 				 !((x)->flags & SD_F_DYING))
 #define PCM_REGISTERED(x)	(PCM_ALIVE(x) &&			\
 				 ((x)->flags & SD_F_REGISTERED))
+
+#define	PCM_DETACHING(x)	((x)->flags & SD_F_DETACHING)
 
 /* many variables should be reduced to a range. Here define a macro */
 #define RANGE(var, low, high) (var) = \
