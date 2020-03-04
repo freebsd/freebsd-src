@@ -15,7 +15,12 @@ case "@VER_SUFFIX@" in
  *) ConfStr="${ConfStr}-@VER_SUFFIX@" ;;
 esac
 
-ConfStr="$ConfStr `LC_TIME=C TZ=UTC date`"
+if [ -n "$SOURCE_DATE_EPOCH" ]; then
+   ConfStr="$ConfStr `LC_TIME=C TZ=UTC date -d@$SOURCE_DATE_EPOCH 2>/dev/null`" ||
+   ConfStr="$ConfStr `LC_TIME=C TZ=UTC date -r $SOURCE_DATE_EPOCH`"
+else
+   ConfStr="$ConfStr `LC_TIME=C TZ=UTC date`"
+fi
 
 if [ ! -f .version ]; then
   echo 0 > .version

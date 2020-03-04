@@ -40,7 +40,7 @@ static	int	check1item	(size_t, FILE *);
  */
 static	void	peerlist	(struct parse *, FILE *);
 static	void	peers		(struct parse *, FILE *);
-static void	doconfig	(struct parse *pcmd, FILE *fp, int mode, int refc);
+static	void	doconfig	(struct parse *pcmd, FILE *fp, int mode, int refc);
 static	void	dmpeers		(struct parse *, FILE *);
 static	void	dopeers		(struct parse *, FILE *, int);
 static	void	printpeer	(struct info_peer *, FILE *);
@@ -260,7 +260,7 @@ do {								\
 
 
 /*
- * SET_ADDRS - setup source and destination addresses for 
+ * SET_ADDRS - setup source and destination addresses for
  * v4/v6 as needed
  */
 #define SET_ADDRS(a1, a2, info, a1prefix, a2prefix)		\
@@ -359,9 +359,9 @@ peerlist(
 
 again:
 	res = doquery(impl_ver, REQ_PEER_LIST, 0, 0, 0, (char *)NULL, &items,
-		      &itemsize, (void *)&plist, 0, 
+		      &itemsize, (void *)&plist, 0,
 		      sizeof(struct info_peer_list));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -382,9 +382,16 @@ again:
 		if ((pcmd->nargs == 0) ||
 		    ((pcmd->argval->ival == 6) && (plist->v6_flag != 0)) ||
 		    ((pcmd->argval->ival == 4) && (plist->v6_flag == 0)))
-			(void) fprintf(fp, "%-9s %s\n",
-				modetoa(plist->hmode),
-				nntohost(&paddr));
+		{
+			const char *strhost = nntohost(&paddr);
+			const char *straddr = stoa(&paddr);
+			(void) fprintf(fp, "%-12s %s",
+				modetoa(plist->hmode), strhost);
+			if (strcmp(strhost,straddr))
+				(void) fprintf(fp, " (%s)\n", straddr);
+			else
+				(void) fprintf(fp, "\n");
+		}
 		plist++;
 		items--;
 	}
@@ -439,9 +446,9 @@ dopeers(
 
 again:
 	res = doquery(impl_ver, REQ_PEER_LIST_SUM, 0, 0, 0, (char *)NULL,
-		      &items, &itemsize, (void *)&plist, 0, 
+		      &items, &itemsize, (void *)&plist, 0,
 		      sizeof(struct info_peer_summary));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -588,22 +595,24 @@ printpeer(
 	register int i;
 	l_fp tempts;
 	sockaddr_u srcadr, dstadr;
-	
+
 	SET_ADDRS(dstadr, srcadr, pp, dstadr, srcadr);
-	
+
 	(void) fprintf(fp, "remote %s, local %s\n",
 		       stoa(&srcadr), stoa(&dstadr));
 	(void) fprintf(fp, "hmode %s, pmode %s, stratum %d, precision %d\n",
 		       modetoa(pp->hmode), modetoa(pp->pmode),
 		       pp->stratum, pp->precision);
-	
+
 	(void) fprintf(fp,
 		       "leap %c%c, refid [%s], rootdistance %s, rootdispersion %s\n",
 		       pp->leap & 0x2 ? '1' : '0',
 		       pp->leap & 0x1 ? '1' : '0',
-		       refid_string(pp->refid, pp->stratum), fptoa(NTOHS_FP(pp->rootdelay), 5),
+		       refid_string(pp->refid,
+				    (pp->flags & INFO_FLAG_REFCLOCK ? 0 : pp->stratum)),
+		       fptoa(NTOHS_FP(pp->rootdelay), 5),
 		       ufptoa(NTOHS_FP(pp->rootdispersion), 5));
-	
+
 	(void) fprintf(fp,
 		       "ppoll %d, hpoll %d, keyid %lu, version %d, association %u\n",
 		       pp->ppoll, pp->hpoll, (u_long)pp->keyid, pp->version, ntohs(pp->associd));
@@ -614,9 +623,9 @@ printpeer(
 
 	(void) fprintf(fp, "boffset %s, ttl/mode %d\n",
 		       fptoa(NTOHS_FP(pp->estbdelay), 5), pp->ttl);
-	
+
 	(void) fprintf(fp, "timer %lds, flags", (long)ntohl(pp->timer));
-	print_pflag(fp, pp->flags); 
+	print_pflag(fp, pp->flags);
 
 	NTOHL_FP(&pp->reftime, &tempts);
 	(void) fprintf(fp, "reference time:      %s\n",
@@ -630,7 +639,7 @@ printpeer(
 	NTOHL_FP(&pp->xmt, &tempts);
 	(void) fprintf(fp, "transmit timestamp:  %s\n",
 		       prettydate(&tempts));
-	
+
 	(void) fprintf(fp, "filter delay: ");
 	for (i = 0; i < NTP_SHIFT; i++) {
 		(void) fprintf(fp, " %-8.8s",
@@ -656,7 +665,7 @@ printpeer(
 		    (void) fprintf(fp, "\n              ");
 	}
 	(void) fprintf(fp, "\n");
-	
+
 
 	NTOHL_FP(&pp->offset, &tempts);
 	(void) fprintf(fp,
@@ -715,7 +724,7 @@ again:
 	res = doquery(impl_ver, REQ_PEER_INFO, 0, qitems,
 		      sendsize, (char *)plist, &items,
 		      &itemsize, (void *)&pp, 0, sizeof(struct info_peer));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -790,9 +799,9 @@ again:
 
 	res = doquery(impl_ver, REQ_PEER_STATS, 0, qitems,
 		      sendsize, (char *)plist, &items,
-		      &itemsize, (void *)&pp, 0, 
+		      &itemsize, (void *)&pp, 0,
 		      sizeof(struct info_peer_stats));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -890,9 +899,9 @@ loopinfo(
 
 again:
 	res = doquery(impl_ver, REQ_LOOP_INFO, 0, 0, 0, (char *)NULL,
-		      &items, &itemsize, (void *)&il, 0, 
+		      &items, &itemsize, (void *)&il, 0,
 		      sizeof(struct info_loop));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -955,7 +964,7 @@ again:
 	res = doquery(impl_ver, REQ_SYS_INFO, 0, 0, 0, (char *)NULL,
 		      &items, &itemsize, (void *)&is, 0,
 		      sizeof(struct info_sys));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -1041,9 +1050,9 @@ sysstats(
 
 again:
 	res = doquery(impl_ver, REQ_SYS_STATS, 0, 0, 0, (char *)NULL,
-		      &items, &itemsize, (void *)&ss, 0, 
+		      &items, &itemsize, (void *)&ss, 0,
 		      sizeof(struct info_sys_stats));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -1083,7 +1092,7 @@ again:
 		(u_long)ntohl(ss->badauth));
 	if (itemsize != sizeof(struct info_sys_stats))
 	    return;
-	
+
 	fprintf(fp, "rate exceeded:          %lu\n",
 	       (u_long)ntohl(ss->limitrejected));
 }
@@ -1108,7 +1117,7 @@ iostats(
 again:
 	res = doquery(impl_ver, REQ_IO_STATS, 0, 0, 0, NULL, &items,
 		      &itemsize, (void *)&io, 0, sizeof(*io));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -1169,7 +1178,7 @@ memstats(
 again:
 	res = doquery(impl_ver, REQ_MEM_STATS, 0, 0, 0, NULL, &items,
 		      &itemsize, (void *)&mem, 0, sizeof(*mem));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -1226,7 +1235,7 @@ timerstats(
 again:
 	res = doquery(impl_ver, REQ_TIMER_STATS, 0, 0, 0, NULL, &items,
 		      &itemsize, (void *)&tim, 0, sizeof(*tim));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -1412,13 +1421,13 @@ again:
 			version);
 		res = TRUE;
 	}
-	if (minpoll < NTP_MINPOLL || minpoll > NTP_MAXPOLL || 
-	    maxpoll < NTP_MINPOLL || maxpoll > NTP_MAXPOLL || 
+	if (minpoll < NTP_MINPOLL || minpoll > NTP_MAXPOLL ||
+	    maxpoll < NTP_MINPOLL || maxpoll > NTP_MAXPOLL ||
 	    minpoll > maxpoll) {
 		fprintf(fp, "***min/max-poll must be within %d..%d\n",
 			NTP_MINPOLL, NTP_MAXPOLL);
 		res = TRUE;
-	}					
+	}
 
 	if (res)
 		return;
@@ -1449,7 +1458,7 @@ again:
 	res = doquery(impl_ver, REQ_CONFIG, 1, 1,
 		      sendsize, (char *)&cpeer, &items,
 		      &itemsize, &dummy, 0, sizeof(struct conf_peer));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -1516,7 +1525,7 @@ again:
 	res = doquery(impl_ver, REQ_UNCONFIG, 1, qitems,
 		      sendsize, (char *)plist, &items,
 		      &itemsize, &dummy, 0, sizeof(struct conf_unpeer));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -1603,7 +1612,7 @@ again:
 	res = doquery(impl_ver, req, 1, 1,
 		      sizeof(struct conf_sys_flags), (char *)&sys, &items,
 		      &itemsize, &dummy, 0, sizeof(struct conf_sys_flags));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -1690,9 +1699,9 @@ reslist(
 
 again:
 	res = doquery(impl_ver, REQ_GET_RESTRICT, 0, 0, 0, (char *)NULL,
-		      &items, &itemsize, (void *)&rl, 0, 
+		      &items, &itemsize, (void *)&rl, 0,
 		      sizeof(struct info_restrict));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -1924,7 +1933,7 @@ again:
 
 	res = doquery(impl_ver, req_code, 1, 1, sendsize, (char *)&cres,
 		      &items, &itemsize, &dummy, 0, sizeof(cres));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -1965,7 +1974,7 @@ again:
 		      (version == 1 || version == -1) ? REQ_MON_GETLIST_1 :
 		      REQ_MON_GETLIST, 0, 0, 0, NULL,
 		      &items, &itemsize, &struct_star,
-		      (version < 0) ? (1 << INFO_ERR_REQ) : 0, 
+		      (version < 0) ? (1 << INFO_ERR_REQ) : 0,
 		      sizeof(struct info_monitor_1));
 
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
@@ -1973,11 +1982,11 @@ again:
 		goto again;
 	}
 
-	if (res == INFO_ERR_REQ && version < 0) 
+	if (res == INFO_ERR_REQ && version < 0)
 		res = doquery(impl_ver, REQ_MON_GETLIST, 0, 0, 0, NULL,
 			      &items, &itemsize, &struct_star, 0,
 			      sizeof(struct info_monitor));
-	
+
 	if (res != 0)
 		return;
 
@@ -1997,9 +2006,9 @@ again:
 			if ((pcmd->nargs == 0) ||
 			    ((pcmd->argval->ival == 6) && (m1->v6_flag != 0)) ||
 			    ((pcmd->argval->ival == 4) && (m1->v6_flag == 0)))
-				fprintf(fp, 
+				fprintf(fp,
 				    "%-22.22s %5d %-15s %8lu %1u %1u %6lx %6lu %7lu\n",
-				    nntohost(&addr), 
+				    nntohost(&addr),
 				    ntohs(m1->port),
 				    stoa(&dstadr),
 				    (u_long)ntohl(m1->count),
@@ -2124,7 +2133,7 @@ again:
 	res = doquery(impl_ver, REQ_RESET_STATS, 1, 1,
 		      sizeof(struct reset_flags), (char *)&rflags, &items,
 		      &itemsize, &dummy, 0, sizeof(struct reset_flags));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2184,7 +2193,7 @@ again:
 	res = doquery(impl_ver, REQ_RESET_PEER, 1, qitems,
 		      sendsize, (char *)plist, &items,
 		      &itemsize, &dummy, 0, sizeof(struct conf_unpeer));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2213,7 +2222,7 @@ readkeys(
 again:
 	res = doquery(impl_ver, REQ_REREAD_KEYS, 1, 0, 0, (char *)0,
 		      &items, &itemsize, &dummy, 0, sizeof(dummy));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2276,9 +2285,9 @@ do_trustkey(
 
 again:
 	res = doquery(impl_ver, req, 1, ritems, sizeof(u_long),
-		      (char *)keyids, &items, &itemsize, &dummy, 0, 
+		      (char *)keyids, &items, &itemsize, &dummy, 0,
 		      sizeof(dummy));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2309,7 +2318,7 @@ authinfo(
 again:
 	res = doquery(impl_ver, REQ_AUTHINFO, 0, 0, 0, NULL, &items,
 		      &itemsize, (void *)&ia, 0, sizeof(*ia));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2366,7 +2375,7 @@ traps(
 again:
 	res = doquery(impl_ver, REQ_TRAPS, 0, 0, 0, NULL, &items,
 		      &itemsize, (void *)&it, 0, sizeof(*it));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2399,7 +2408,7 @@ again:
 			fprintf(fp, "low priority\n");
 		else
 			fprintf(fp, "normal priority\n");
-		
+
 		fprintf(fp, "set for %ld secs, last set %ld secs ago\n",
 			(long)ntohl(it->origtime),
 			(long)ntohl(it->settime));
@@ -2492,9 +2501,9 @@ again:
 	}
 
 	res = doquery(impl_ver, req, 1, 1, sendsize,
-		      (char *)&ctrap, &items, &itemsize, &dummy, 0, 
+		      (char *)&ctrap, &items, &itemsize, &dummy, 0,
 		      sizeof(struct conf_trap));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2555,9 +2564,9 @@ do_changekey(
 
 again:
 	res = doquery(impl_ver, req, 1, 1, sizeof(u_int32),
-		      (char *)&key, &items, &itemsize, &dummy, 0, 
+		      (char *)&key, &items, &itemsize, &dummy, 0,
 		      sizeof(dummy));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2588,7 +2597,7 @@ ctlstats(
 again:
 	res = doquery(impl_ver, REQ_GET_CTLSTATS, 0, 0, 0, NULL, &items,
 		      &itemsize, (void *)&ic, 0, sizeof(*ic));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2664,7 +2673,7 @@ again:
 	res = doquery(impl_ver, REQ_GET_CLOCKINFO, 0, qitems,
 		      sizeof(u_int32), (char *)clist, &items,
 		      &itemsize, (void *)&cl, 0, sizeof(struct info_clock));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2847,7 +2856,7 @@ again:
 	res = doquery(impl_ver, REQ_GET_CLKBUGINFO, 0, qitems,
 		      sizeof(u_int32), (char *)clist, &items,
 		      &itemsize, (void *)&cl, 0, sizeof(struct info_clkbug));
-	
+
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
 		impl_ver = IMPL_XNTPD_OLD;
 		goto again;
@@ -2933,7 +2942,7 @@ kerninfo(
 
 again:
 	res = doquery(impl_ver, REQ_GET_KERNEL, 0, 0, 0, (char *)NULL,
-		      &items, &itemsize, (void *)&ik, 0, 
+		      &items, &itemsize, (void *)&ik, 0,
 		      sizeof(struct info_kernel));
 
 	if (res == INFO_ERR_IMPL && impl_ver == IMPL_XNTPD) {
@@ -3078,9 +3087,9 @@ iflist(
 
 	fprintf(fp, IF_LIST_FMT_STR, IF_LIST_LABELS);
 	fprintf(fp, IF_LIST_LINE);
-	
+
 	while (items > 0) {
-		SET_ADDR(saddr, ntohl(ifs->v6_flag), 
+		SET_ADDR(saddr, ntohl(ifs->v6_flag),
 			 ifs->unaddr.addr.s_addr, ifs->unaddr.addr6);
 		fprintf(fp, IF_LIST_FMT,
 			ntohl(ifs->ifnum),
@@ -3098,12 +3107,12 @@ iflist(
 			(u_long)ntohl(ifs->peercnt),
 			(u_long)ntohl(ifs->uptime));
 
-		SET_ADDR(saddr, ntohl(ifs->v6_flag), 
+		SET_ADDR(saddr, ntohl(ifs->v6_flag),
 			 ifs->unmask.addr.s_addr, ifs->unmask.addr6);
 		fprintf(fp, IF_LIST_AFMT_STR, stoa(&saddr), 'M');
 
 		if (!ntohl(ifs->v6_flag) && ntohl(ifs->flags) & (INT_BCASTOPEN)) {
-			SET_ADDR(saddr, ntohl(ifs->v6_flag), 
+			SET_ADDR(saddr, ntohl(ifs->v6_flag),
 				 ifs->unbcast.addr.s_addr, ifs->unbcast.addr6);
 			fprintf(fp, IF_LIST_AFMT_STR, stoa(&saddr), 'B');
 
@@ -3127,7 +3136,7 @@ get_if_stats(
 	int res;
 
 	res = doquery(impl_ver, REQ_IF_STATS, 1, 0, 0, (char *)NULL, &items,
-		      &itemsize, (void *)&ifs, 0, 
+		      &itemsize, (void *)&ifs, 0,
 		      sizeof(struct info_if_stats));
 	iflist(fp, ifs, items, itemsize, res);
 }
@@ -3145,7 +3154,7 @@ do_if_reload(
 	int res;
 
 	res = doquery(impl_ver, REQ_IF_RELOAD, 1, 0, 0, (char *)NULL, &items,
-		      &itemsize, (void *)&ifs, 0, 
+		      &itemsize, (void *)&ifs, 0,
 		      sizeof(struct info_if_stats));
 	iflist(fp, ifs, items, itemsize, res);
 }

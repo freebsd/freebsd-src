@@ -10,7 +10,7 @@ void test_keywordIncorrectToken(void)
 {
 	const char * temp = keyword(999);
 	//printf("%s\n",temp);
-	TEST_ASSERT_EQUAL_STRING("(keyword not found)",temp);
+	TEST_ASSERT_EQUAL_STRING("(keyword #999 not found)",temp);
 }
 
 extern void test_keywordServerToken(void);

@@ -344,8 +344,8 @@ typedef u_int32 u_fp;
 /*
  * Prototypes
  */
-extern	char *	dofptoa		(u_fp, int, short, int);
-extern	char *	dolfptoa	(u_int32, u_int32, int, short, int);
+extern	char *	dofptoa		(u_fp, char, short, int);
+extern	char *	dolfptoa	(u_int32, u_int32, char, short, int);
 
 extern	int	atolfp		(const char *, l_fp *);
 extern	int	buftvtots	(const char *, l_fp *);

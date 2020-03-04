@@ -248,6 +248,7 @@
     <ClCompile Include="..\..\..\..\libntp\msyslog.c" />
     <ClCompile Include="..\..\..\..\libntp\netof.c" />
     <ClCompile Include="..\..\..\..\libntp\ntp_calendar.c" />
+    <ClCompile Include="..\..\..\..\libntp\ntp_calgps.c" />
     <ClCompile Include="..\..\..\..\libntp\ntp_crypto_rnd.c" />
     <ClCompile Include="..\..\..\..\libntp\ntp_intres.c" />
     <ClCompile Include="..\..\..\..\libntp\ntp_libopts.c" />
@@ -273,6 +274,7 @@
     <ClCompile Include="..\..\..\..\libntp\systime.c" />
     <ClCompile Include="..\..\..\..\libntp\timetoa.c" />
     <ClCompile Include="..\..\..\..\libntp\timevalops.c" />
+    <ClCompile Include="..\..\..\..\libntp\timespecops.c" />
     <ClCompile Include="..\..\..\..\libntp\uglydate.c" />
     <ClCompile Include="..\..\..\..\libntp\vint64ops.c" />
     <ClCompile Include="..\..\..\..\libntp\work_fork.c" />
@@ -334,6 +336,7 @@
     <ClInclude Include="..\..\..\..\include\ntpd.h" />
     <ClInclude Include="..\..\..\..\include\ntp_assert.h" />
     <ClInclude Include="..\..\..\..\include\ntp_calendar.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_calgps.h" />
     <ClInclude Include="..\..\..\..\include\ntp_control.h" />
     <ClInclude Include="..\..\..\..\include\ntp_debug.h" />
     <ClInclude Include="..\..\..\..\include\ntp_fp.h" />

@@ -49,7 +49,9 @@ extern void test_AddrMatch_ipv6(void);
 //=======Suite Setup=====
 static void suite_setup(void)
 {
+extern int change_iobufs(int);
 extern int change_logfile(const char*, int);
+change_iobufs(1);
 change_logfile("stderr", 0);
 }
 

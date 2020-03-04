@@ -500,6 +500,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\..\libntp\ntp_calgps.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\..\libntp\ntp_crypto_rnd.c"
 				>
 			</File>
@@ -657,6 +661,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\..\lib\isc\tsmemcmp.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\..\libntp\timespecops.c"
 				>
 			</File>
 			<File
@@ -826,6 +834,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\..\include\ntp_calendar.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\..\include\ntp_calgps.h"
 				>
 			</File>
 			<File

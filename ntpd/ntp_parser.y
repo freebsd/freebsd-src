@@ -88,6 +88,7 @@
 %token	<Integer>	T_Burst
 %token	<Integer>	T_Calibrate
 %token	<Integer>	T_Ceiling
+%token	<Integer>	T_Checkhash
 %token	<Integer>	T_Clockstats
 %token	<Integer>	T_Cohort
 %token	<Integer>	T_ControlKey
@@ -120,11 +121,13 @@
 %token	<Integer>	T_Floor
 %token	<Integer>	T_Freq
 %token	<Integer>	T_Fudge
+%token	<Integer>	T_Fuzz
 %token	<Integer>	T_Host
 %token	<Integer>	T_Huffpuff
 %token	<Integer>	T_Iburst
 %token	<Integer>	T_Ident
 %token	<Integer>	T_Ignore
+%token	<Integer>	T_Ignorehash
 %token	<Integer>	T_Incalloc
 %token	<Integer>	T_Incmem
 %token	<Integer>	T_Initalloc
@@ -144,7 +147,6 @@
 %token	<Integer>	T_Keys
 %token	<Integer>	T_Keysdir
 %token	<Integer>	T_Kod
-%token	<Integer>	T_Mssntp
 %token	<Integer>	T_Leapfile
 %token	<Integer>	T_Leapsmearinterval
 %token	<Integer>	T_Limited
@@ -170,6 +172,7 @@
 %token	<Integer>	T_Mindepth
 %token	<Integer>	T_Mindist
 %token	<Integer>	T_Minimum
+%token	<Integer>	T_Minjitter
 %token	<Integer>	T_Minpoll
 %token	<Integer>	T_Minsane
 %token	<Integer>	T_Mode
@@ -177,6 +180,7 @@
 %token	<Integer>	T_Monitor
 %token	<Integer>	T_Month
 %token	<Integer>	T_Mru
+%token	<Integer>	T_Mssntp
 %token	<Integer>	T_Multicastclient
 %token	<Integer>	T_Nic
 %token	<Integer>	T_Nolink
@@ -203,6 +207,8 @@
 %token	<Integer>	T_Phone
 %token	<Integer>	T_Pid
 %token	<Integer>	T_Pidfile
+%token	<Integer>	T_Poll
+%token	<Integer>	T_PollSkewList
 %token	<Integer>	T_Pool
 %token	<Integer>	T_Port
 %token	<Integer>	T_Preempt
@@ -219,6 +225,8 @@
 %token	<Integer>	T_Rlimit
 %token	<Integer>	T_Saveconfigdir
 %token	<Integer>	T_Server
+%token	<Integer>	T_Serverresponse
+%token	<Integer>	T_ServerresponseFuzz	/* Not a token */
 %token	<Integer>	T_Setvar
 %token	<Integer>	T_Source
 %token	<Integer>	T_Stacksize
@@ -256,6 +264,7 @@
 %token	<Integer>	T_Week
 %token	<Integer>	T_Wildcard
 %token	<Integer>	T_Xleave
+%token	<Integer>	T_Xmtnonce
 %token	<Integer>	T_Year
 %token	<Integer>	T_Flag			/* Not a token */
 %token	<Integer>	T_EOC
@@ -277,7 +286,7 @@
 
 /*** NON-TERMINALS ***/
 %type	<Integer>	access_control_flag
-%type	<Int_fifo>	ac_flag_list
+%type	<Attr_val_fifo>	ac_flag_list
 %type	<Address_node>	address
 %type	<Integer>	address_fam
 %type	<Address_fifo>	address_list
@@ -321,6 +330,7 @@
 %type	<Attr_val_fifo>	mru_option_list
 %type	<Integer>	nic_rule_class
 %type	<Double>	number
+%type	<Integer>	opt_hash_check
 %type	<Attr_val>	option
 %type	<Attr_val>	option_flag
 %type	<Integer>	option_flag_keyword
@@ -329,6 +339,9 @@
 %type	<Integer>	option_int_keyword
 %type	<Attr_val>	option_str
 %type	<Integer>	option_str_keyword
+%type	<Attr_val_fifo>	pollskew_list
+%type	<Attr_val>	pollskew_cycle
+%type	<Attr_val>	pollskew_spec
 %type	<Integer>	reset_command
 %type	<Integer>	rlimit_option_keyword
 %type	<Attr_val>	rlimit_option
@@ -482,6 +495,7 @@ option_flag_keyword
 	|	T_Prefer
 	|	T_True
 	|	T_Xleave
+	|	T_Xmtnonce
 	;
 
 option_int
@@ -863,7 +877,7 @@ access_control_command
 		{
 			restrict_node *	rn;
 
-			APPEND_G_FIFO($4, create_int_node($2));
+			APPEND_G_FIFO($4, create_attr_ival($2, 1));
 			rn = create_restrict_node(
 				NULL, NULL, $3, $4, lex_current()->curpos.nline);
 			APPEND_G_FIFO(cfgt.restrict_opts, rn);
@@ -896,8 +910,19 @@ ac_flag_list
 			{ $$ = NULL; }
 	|	ac_flag_list access_control_flag
 		{
+			attr_val *av;
+
 			$$ = $1;
-			APPEND_G_FIFO($$, create_int_node($2));
+			av = create_attr_ival($2, 1);
+			APPEND_G_FIFO($$, av);
+		}
+	|	ac_flag_list T_Serverresponse T_Fuzz
+		{
+			attr_val *av;
+
+			$$ = $1;
+			av = create_attr_ival(T_ServerresponseFuzz, 1);
+			APPEND_G_FIFO($$, av);
 		}
 	;
 
@@ -906,9 +931,9 @@ access_control_flag
 	|	T_Flake
 	|	T_Ignore
 	|	T_Kod
-	|	T_Mssntp
 	|	T_Limited
 	|	T_Lowpriotrap
+	|	T_Mssntp
 	|	T_Noepeer
 	|	T_Nomodify
 	|	T_Nomrulist
@@ -1024,6 +1049,7 @@ fudge_factor
 fudge_factor_dbl_keyword
 	:	T_Time1
 	|	T_Time2
+	|	T_Minjitter
 	;
 
 fudge_factor_bool_keyword
@@ -1232,6 +1258,14 @@ miscellaneous_command
 			}
 			YYFREE($2); /* avoid leak */
 		}
+	|	T_Leapfile T_String opt_hash_check
+		{
+			attr_val *av;
+
+			av = create_attr_sval($1, $2);
+			av->flag = $3;
+			APPEND_G_FIFO(cfgt.vars, av);
+		}
 	|	T_End
 			{ lex_flush_stack(); }
 	|	T_Driftfile drift_parm
@@ -1240,6 +1274,8 @@ miscellaneous_command
 			{ CONCAT_G_FIFOS(cfgt.logconfig, $2); }
 	|	T_Phone string_list
 			{ CONCAT_G_FIFOS(cfgt.phone, $2); }
+	|	T_PollSkewList pollskew_list
+			{ CONCAT_G_FIFOS(cfgt.pollskewlist, $2); }
 	|	T_Setvar variable_assign
 			{ APPEND_G_FIFO(cfgt.setvar, $2); }
 	|	T_Trap ip_address trap_option_list
@@ -1272,9 +1308,17 @@ misc_cmd_int_keyword
 		}
 	;
 
+opt_hash_check
+	:	T_Ignorehash
+			{ $$ = FALSE; }
+	|	T_Checkhash
+			{ $$ = TRUE; }
+	|	/*EMPTY*/
+			{  $$ = TRUE; }
+	;
+
 misc_cmd_str_keyword
 	:	T_Ident
-	|	T_Leapfile
 	;
 
 misc_cmd_str_lcl_keyword
@@ -1323,6 +1367,45 @@ drift_parm
 			}
 		}
 	;
+
+pollskew_list
+	:	/* empty */
+			{ $$ = NULL; }
+	|	pollskew_list pollskew_spec
+			{ $$ = append_gen_fifo($1, $2); }
+	;
+
+pollskew_spec
+	:	pollskew_cycle T_Integer '|' T_Integer
+		{
+			if ($2 < 0 || $4 < 0) {
+				/* bad numbers */
+				yyerror("pollskewlist: skew values must be >=0");
+				destroy_attr_val($1);
+				$1 = NULL;
+			} else if ($1 == NULL) {
+				yyerror("pollskewlist: poll value must be 3-17, inclusive");
+			} else if ($1->attr <= 0) {
+				/* process default range */
+				$1->value.r.first = $2;
+				$1->value.r.last  = $4;
+			} else if ($2 < (1 << ($1->attr - 1)) && $4 < (1 << ($1->attr - 1))) {
+				$1->value.r.first = $2;
+				$1->value.r.last  = $4;
+			} else {
+				yyerror("pollskewlist: randomization limit must be <= half the poll interval");
+				destroy_attr_val($1);
+				$1 = NULL;
+			}
+			$$ = $1;
+		}
+	;
+
+pollskew_cycle
+	:	T_Integer { $$ = ($1 >= 3 && $1 <= 17) ? create_attr_rval($1, 0, 0) : NULL; }
+	|	T_Default { $$ = create_attr_rval(-1, 0, 0); }
+	;
+
 
 variable_assign
 	:	T_String '=' T_String t_default_or_zero
@@ -1496,7 +1579,7 @@ integer_list_range_elt
 
 integer_range
 	:	'(' T_Integer T_Ellipsis T_Integer ')'
-			{ $$ = create_attr_rangeval('-', $2, $4); }
+			{ $$ = create_attr_rval('-', $2, $4); }
 	;
 
 string_list

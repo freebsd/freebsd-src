@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.conf.texi)
 #
-# It has been AutoGen-ed  February 20, 2019 at 09:56:39 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  March  3, 2020 at 05:40:57 PM by AutoGen 5.18.5
 # From the definitions    ntp.conf.def
 # and the template file   agtexi-file.tpl
 @end ignore
@@ -134,8 +134,8 @@ qualifier forces DNS resolution to the IPv6 namespace.
 See IPv6 references for the
 equivalent classes for that address family.
 @table @asis
-@item @code{pool} @kbd{address} @code{[@code{burst}]} @code{[@code{iburst}]} @code{[@code{version} @kbd{version}]} @code{[@code{prefer}]} @code{[@code{minpoll} @kbd{minpoll}]} @code{[@code{maxpoll} @kbd{maxpoll}]}
-@item @code{server} @kbd{address} @code{[@code{key} @kbd{key} @kbd{|} @code{autokey}]} @code{[@code{burst}]} @code{[@code{iburst}]} @code{[@code{version} @kbd{version}]} @code{[@code{prefer}]} @code{[@code{minpoll} @kbd{minpoll}]} @code{[@code{maxpoll} @kbd{maxpoll}]} @code{[@code{true}]}
+@item @code{pool} @kbd{address} @code{[@code{burst}]} @code{[@code{iburst}]} @code{[@code{version} @kbd{version}]} @code{[@code{prefer}]} @code{[@code{minpoll} @kbd{minpoll}]} @code{[@code{maxpoll} @kbd{maxpoll}]} @code{[@code{xmtnonce}]}
+@item @code{server} @kbd{address} @code{[@code{key} @kbd{key} @kbd{|} @code{autokey}]} @code{[@code{burst}]} @code{[@code{iburst}]} @code{[@code{version} @kbd{version}]} @code{[@code{prefer}]} @code{[@code{minpoll} @kbd{minpoll}]} @code{[@code{maxpoll} @kbd{maxpoll}]} @code{[@code{true}]} @code{[@code{xmtnonce}]}
 @item @code{peer} @kbd{address} @code{[@code{key} @kbd{key} @kbd{|} @code{autokey}]} @code{[@code{version} @kbd{version}]} @code{[@code{prefer}]} @code{[@code{minpoll} @kbd{minpoll}]} @code{[@code{maxpoll} @kbd{maxpoll}]} @code{[@code{true}]} @code{[@code{xleave}]}
 @item @code{broadcast} @kbd{address} @code{[@code{key} @kbd{key} @kbd{|} @code{autokey}]} @code{[@code{version} @kbd{version}]} @code{[@code{prefer}]} @code{[@code{minpoll} @kbd{minpoll}]} @code{[@code{ttl} @kbd{ttl}]} @code{[@code{xleave}]}
 @item @code{manycastclient} @kbd{address} @code{[@code{key} @kbd{key} @kbd{|} @code{autokey}]} @code{[@code{version} @kbd{version}]} @code{[@code{prefer}]} @code{[@code{minpoll} @kbd{minpoll}]} @code{[@code{maxpoll} @kbd{maxpoll}]} @code{[@code{ttl} @kbd{ttl}]}
@@ -305,9 +305,6 @@ Marks the server as unused, except for display purposes.
 The server is discarded by the selection algroithm.
 @item @code{preempt}
 Says the association can be preempted.
-@item @code{true}
-Marks the server as a truechimer.
-Use this option only for testing.
 @item @code{prefer}
 Marks the server as preferred.
 All other things being equal,
@@ -321,7 +318,8 @@ provided in
 @file{/usr/share/doc/ntp})
 for further information.
 @item @code{true}
-Forces the association to always survive the selection and clustering algorithms.
+Marks the server as a truechimer,
+forcing the association to always survive the selection and clustering algorithms.
 This option should almost certainly
 @emph{only}
 be used while testing an association.
@@ -349,6 +347,13 @@ Valid in
 and
 @code{broadcast}
 modes only, this flag enables interleave mode.
+@item @code{xmtnonce}
+Valid only for
+@code{server}
+and
+@code{pool}
+modes, this flag puts a random number in the packet's transmit timestamp.
+
 @end table
 @subsubsection Auxiliary Commands
 @table @asis
@@ -1622,6 +1627,10 @@ The
 @code{ntpport}
 is considered more specific and
 is sorted later in the list.
+@item @code{serverresponse fuzz}
+When reponding to server requests,
+fuzz the low order bits of the
+@code{reftime}.
 @item @code{version}
 Deny packets that do not match the current NTP version.
 @end table
@@ -2766,6 +2775,21 @@ For the JJY driver (type 40 mode 100 - 180), the argument is
 one telephone number used to dial the telephone JJY service.
 The Hayes command ATDT is normally prepended to the number.
 The number can contain other modem control codes as well.
+@item @code{pollskewlist} @code{[@kbd{poll} @kbd{value} | @kbd{value}]} @kbd{...} @code{[@code{default} @kbd{value} | @kbd{value}]}
+Enable skewing of our poll requests to our servers.
+@kbd{poll}
+is a number between 3 and 17 inclusive, identifying a specific poll interval.
+A poll interval is 2^n seconds in duration,
+so a poll value of 3 corresponds to 8 seconds
+and
+a poll interval of 17 corresponds to
+131,072 seconds, or about a day and a half.
+The next two numbers must be between 0 and one-half of the poll interval,
+inclusive.
+The first number specifies how early the poll may start,
+while
+the second number specifies how late the poll may be delayed.
+With no arguments, internally specified default values are chosen.
 @item @code{reset} @code{[@code{allpeers}]} @code{[@code{auth}]} @code{[@code{ctl}]} @code{[@code{io}]} @code{[@code{mem}]} @code{[@code{sys}]} @code{[@code{timer}]}
 Reset one or more groups of counters maintained by
 @code{ntpd}
