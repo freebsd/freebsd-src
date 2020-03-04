@@ -1,7 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
- * Copyright 2018 Emmanuel Vadot <manu@FreeBSD.org>
+ * Copyright 2016 Michal Meloun <mmel@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,33 +26,22 @@
  * $FreeBSD$
  */
 
-#ifndef _RK_CLK_COMPOSITE_H_
-#define _RK_CLK_COMPOSITE_H_
+#ifndef _DEV_EXTRES_CLK_LINK_H_
+#define _DEV_EXTRES_CLK_LINK_H_
 
 #include <dev/extres/clk/clk.h>
 
-struct rk_clk_composite_def {
-	struct clknode_init_def	clkdef;
+/*
+ * A linked clock is used as placeholder for not yet available clock.
+ * It will be replaced by equally named clock from other domain, created
+ * in future stage of system initialization.
+*/
 
-	uint32_t	muxdiv_offset;
+struct clk_link_def {
+	struct clknode_init_def clkdef;
 
-	uint32_t	mux_shift;
-	uint32_t	mux_width;
-
-	uint32_t	div_shift;
-	uint32_t	div_width;
-
-	uint32_t	gate_offset;
-	uint32_t	gate_shift;
-
-	uint32_t	flags;
 };
 
-#define	RK_CLK_COMPOSITE_HAVE_MUX	0x0001
-#define	RK_CLK_COMPOSITE_HAVE_GATE	0x0002
-#define	RK_CLK_COMPOSITE_DIV_EXP	0x0004	/* Register   0, 1, 2, 2, ... */
-						/* Divider    1, 2, 4, 8, ... */
-int rk_clk_composite_register(struct clkdom *clkdom,
-    struct rk_clk_composite_def *clkdef);
+int clknode_link_register(struct clkdom *clkdom, struct clk_link_def *clkdef);
 
-#endif /* _RK_CLK_COMPOSITE_H_ */
+#endif /*_DEV_EXTRES_CLK_LINK_H_*/

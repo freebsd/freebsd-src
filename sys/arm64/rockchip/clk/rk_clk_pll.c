@@ -58,19 +58,23 @@ struct rk_clk_pll_sc {
 	bool			normal_mode;
 };
 
-#define	WRITE4(_clk, off, val)					\
+#define	WRITE4(_clk, off, val)						\
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	READ4(_clk, off, val)					\
+#define	READ4(_clk, off, val)						\
 	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	DEVICE_LOCK(_clk)					\
+#define	DEVICE_LOCK(_clk)						\
 	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)					\
+#define	DEVICE_UNLOCK(_clk)						\
 	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
 #define	RK_CLK_PLL_MASK_SHIFT	16
 
-/* #define	dprintf(format, arg...)	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg) */
+#if 0
+#define	dprintf(format, arg...)						\
+	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg)
+#else
 #define	dprintf(format, arg...)
+#endif
 
 static int
 rk_clk_pll_set_gate(struct clknode *clk, bool enable)
@@ -397,13 +401,18 @@ rk3399_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
 	dprintf("con2: %x\n", con3);
 	dprintf("con3: %x\n", con4);
 
-	fbdiv = (con1 & RK3399_CLK_PLL_FBDIV_MASK) >> RK3399_CLK_PLL_FBDIV_SHIFT;
+	fbdiv = (con1 & RK3399_CLK_PLL_FBDIV_MASK)
+	    >> RK3399_CLK_PLL_FBDIV_SHIFT;
 
-	postdiv1 = (con2 & RK3399_CLK_PLL_POSTDIV1_MASK) >> RK3399_CLK_PLL_POSTDIV1_SHIFT;
-	postdiv2 = (con2 & RK3399_CLK_PLL_POSTDIV2_MASK) >> RK3399_CLK_PLL_POSTDIV2_SHIFT;
-	refdiv = (con2 & RK3399_CLK_PLL_REFDIV_MASK) >> RK3399_CLK_PLL_REFDIV_SHIFT;
+	postdiv1 = (con2 & RK3399_CLK_PLL_POSTDIV1_MASK)
+	    >> RK3399_CLK_PLL_POSTDIV1_SHIFT;
+	postdiv2 = (con2 & RK3399_CLK_PLL_POSTDIV2_MASK)
+	    >> RK3399_CLK_PLL_POSTDIV2_SHIFT;
+	refdiv = (con2 & RK3399_CLK_PLL_REFDIV_MASK)
+	    >> RK3399_CLK_PLL_REFDIV_SHIFT;
 
-	fracdiv = (con3 & RK3399_CLK_PLL_FRAC_MASK) >> RK3399_CLK_PLL_FRAC_SHIFT;
+	fracdiv = (con3 & RK3399_CLK_PLL_FRAC_MASK)
+	    >> RK3399_CLK_PLL_FRAC_SHIFT;
 	fracdiv >>= 24;
 
 	dsmpd = (con4 & RK3399_CLK_PLL_DSMPD_MASK) >> RK3399_CLK_PLL_DSMPD_SHIFT;
@@ -415,7 +424,7 @@ rk3399_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
 	dprintf("fracdiv: %d\n", fracdiv);
 	dprintf("dsmpd: %d\n", dsmpd);
 
-	dprintf("parent freq=%lu\n", *freq);
+	dprintf("parent freq=%ju\n", *freq);
 
 	if (dsmpd == 0) {
 		/* Fractional mode */
@@ -424,10 +433,10 @@ rk3399_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
 		/* Integer mode */
 		foutvco = *freq / refdiv * fbdiv;
 	}
-	dprintf("foutvco: %lu\n", foutvco);
+	dprintf("foutvco: %ju\n", foutvco);
 
 	*freq = foutvco / postdiv1 / postdiv2;
-	dprintf("freq: %lu\n", *freq);
+	dprintf("freq: %ju\n", *freq);
 
 	return (0);
 }

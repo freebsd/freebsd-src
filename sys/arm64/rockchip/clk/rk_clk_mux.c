@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
 #define	MD4(_clk, off, clr, set )					\
 	CLKDEV_MODIFY_4(clknode_get_device(_clk), off, clr, set)
-#define	DEVICE_LOCK(_clk)							\
+#define	DEVICE_LOCK(_clk)						\
 	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
 #define	DEVICE_UNLOCK(_clk)						\
 	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))

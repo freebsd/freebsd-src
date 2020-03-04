@@ -31,11 +31,161 @@
 #ifndef __RK_CRU_H__
 #define __RK_CRU_H__
 
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/clk/clk_div.h>
+#include <dev/extres/clk/clk_gate.h>
+#include <dev/extres/clk/clk_fixed.h>
+#include <dev/extres/clk/clk_link.h>
+
 #include <arm64/rockchip/clk/rk_clk_armclk.h>
 #include <arm64/rockchip/clk/rk_clk_composite.h>
+#include <arm64/rockchip/clk/rk_clk_fract.h>
 #include <arm64/rockchip/clk/rk_clk_gate.h>
 #include <arm64/rockchip/clk/rk_clk_mux.h>
 #include <arm64/rockchip/clk/rk_clk_pll.h>
+
+/* Macro for defining various types of clocks. */
+/* Pure gate */
+#define	GATE(_idx, _clkname, _pname, _o, _s)				\
+{									\
+	.id = _idx,							\
+	.name = _clkname,						\
+	.parent_name = _pname,						\
+	.offset = CRU_CLKGATE_CON(_o),					\
+	.shift = _s,							\
+}
+
+/* Fixed rate clock. */
+#define	FRATE(_id, _name, _freq)					\
+{									\
+	.type = RK_CLK_FIXED,						\
+	.clk.fixed = &(struct clk_fixed_def) {				\
+		.clkdef.id = _id,					\
+		.clkdef.name = _name,					\
+		.clkdef.parent_names = NULL,				\
+		.clkdef.parent_cnt = 0,					\
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
+		.freq = _freq,						\
+	},								\
+}
+
+/* Fixed factor multipier/divider. */
+#define	FFACT(_id, _name, _pname, _mult, _div)				\
+{									\
+	.type = RK_CLK_FIXED,						\
+	.clk.fixed = &(struct clk_fixed_def) {				\
+		.clkdef.id = _id,					\
+		.clkdef.name = _name,					\
+		.clkdef.parent_names = (const char *[]){_pname},	\
+		.clkdef.parent_cnt = 1,					\
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
+		.mult = _mult,						\
+		.div = _div,						\
+	},								\
+}
+
+/* Linked clock. */
+#define	LINK(_name)							\
+{									\
+	.type = RK_CLK_LINK,						\
+	.clk.link = &(struct clk_link_def) {				\
+		.clkdef.id = 0,						\
+		.clkdef.name = _name,					\
+		.clkdef.parent_names = NULL,				\
+		.clkdef.parent_cnt = 0,					\
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
+	},								\
+}
+
+/* Complex clock fo ARM cores. */
+#define ARMDIV(_id, _name, _pn, _r, _o, _ds, _dw, _ms, _mw, _mp, _ap)	\
+{									\
+	.type = RK_CLK_ARMCLK,						\
+	.clk.armclk = &(struct rk_clk_armclk_def) {			\
+		.clkdef.id = _id,					\
+		.clkdef.name = _name,					\
+		.clkdef.parent_names = _pn,				\
+		.clkdef.parent_cnt = nitems(_pn),			\
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
+		.muxdiv_offset = CRU_CLKSEL_CON(_o),			\
+		.mux_shift = _ms,					\
+		.mux_width = _mw,					\
+		.div_shift = _ds,					\
+		.div_width = _dw,					\
+		.main_parent = _mp,					\
+		.alt_parent = _ap,					\
+		.rates = _r,						\
+		.nrates = nitems(_r),					\
+	},								\
+}
+
+/* Fractional rate multipier/divider. */
+#define	FRACT(_id, _name, _pname, _f, _o)				\
+{									\
+	.type = RK_CLK_FRACT,						\
+	.clk.fract = &(struct rk_clk_fract_def) {			\
+		.clkdef.id = _id,					\
+		.clkdef.name = _name,					\
+		.clkdef.parent_names = (const char *[]){_pname},	\
+		.clkdef.parent_cnt = 1,					\
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
+		.offset = CRU_CLKSEL_CON(_o),				\
+		.flags = _f,						\
+	},								\
+}
+
+/* Full composite clock. */
+#define COMP(_id, _name, _pnames, _f,  _o,  _ds, _dw,  _ms, _mw)	\
+{									\
+	.type = RK_CLK_COMPOSITE,					\
+	.clk.composite = &(struct rk_clk_composite_def) {		\
+		.clkdef.id = _id,					\
+		.clkdef.name = _name,					\
+		.clkdef.parent_names = _pnames,				\
+		.clkdef.parent_cnt = nitems(_pnames),			\
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
+		.muxdiv_offset = CRU_CLKSEL_CON(_o),			\
+		.mux_shift = _ms,					\
+		.mux_width = _mw,					\
+		.div_shift = _ds,					\
+		.div_width = _dw,					\
+		.flags = RK_CLK_COMPOSITE_HAVE_MUX | _f, 		\
+	},								\
+}
+
+/* Composite clock without mux (divider only). */
+#define CDIV(_id, _name, _pname, _f, _o, _ds, _dw)			\
+{									\
+	.type = RK_CLK_COMPOSITE,					\
+	.clk.composite = &(struct rk_clk_composite_def) {		\
+		.clkdef.id = _id,					\
+		.clkdef.name = _name,					\
+		.clkdef.parent_names = (const char *[]){_pname},	\
+		.clkdef.parent_cnt = 1,					\
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
+		.muxdiv_offset = CRU_CLKSEL_CON(_o),			\
+		.div_shift = _ds,					\
+		.div_width = _dw,					\
+		.flags =  _f,						\
+	},								\
+}
+
+/* Complex clock without divider (multiplexer only). */
+#define MUX(_id, _name, _pn, _f,  _mo, _ms, _mw)			\
+{									\
+	.type = RK_CLK_MUX,						\
+	.clk.mux = &(struct rk_clk_mux_def) {				\
+		.clkdef.id = _id,					\
+		.clkdef.name = _name,					\
+		.clkdef.parent_names = _pn,				\
+		.clkdef.parent_cnt = nitems(_pn),			\
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
+		.offset = CRU_CLKSEL_CON(_mo),				\
+		.shift = _ms,						\
+		.width = _mw,						\
+		.mux_flags = _f, 			\
+	},								\
+}
 
 struct rk_cru_gate {
 	const char	*name;
@@ -59,8 +209,11 @@ enum rk_clk_type {
 	RK3328_CLK_PLL,
 	RK3399_CLK_PLL,
 	RK_CLK_COMPOSITE,
+	RK_CLK_FIXED,
+	RK_CLK_FRACT,
 	RK_CLK_MUX,
 	RK_CLK_ARMCLK,
+	RK_CLK_LINK,
 };
 
 struct rk_clk {
@@ -70,6 +223,9 @@ struct rk_clk {
 		struct rk_clk_composite_def	*composite;
 		struct rk_clk_mux_def		*mux;
 		struct rk_clk_armclk_def	*armclk;
+		struct clk_fixed_def		*fixed;
+		struct rk_clk_fract_def		*fract;
+		struct clk_link_def		*link;
 	} clk;
 };
 

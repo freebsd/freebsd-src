@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright 2018 Emmanuel Vadot <manu@FreeBSD.org>
- * All rights reserved.
+ * Copyright 2019 Michal Meloun <mmel@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,33 +27,18 @@
  * $FreeBSD$
  */
 
-#ifndef _RK_CLK_COMPOSITE_H_
-#define _RK_CLK_COMPOSITE_H_
+#ifndef _RK_CLK_FRACT_H_
+#define _RK_CLK_FRACT_H_
 
 #include <dev/extres/clk/clk.h>
 
-struct rk_clk_composite_def {
-	struct clknode_init_def	clkdef;
-
-	uint32_t	muxdiv_offset;
-
-	uint32_t	mux_shift;
-	uint32_t	mux_width;
-
-	uint32_t	div_shift;
-	uint32_t	div_width;
-
-	uint32_t	gate_offset;
-	uint32_t	gate_shift;
-
-	uint32_t	flags;
+struct rk_clk_fract_def {
+	struct clknode_init_def clkdef;
+	uint32_t		offset;
+	uint32_t		flags;
 };
 
-#define	RK_CLK_COMPOSITE_HAVE_MUX	0x0001
-#define	RK_CLK_COMPOSITE_HAVE_GATE	0x0002
-#define	RK_CLK_COMPOSITE_DIV_EXP	0x0004	/* Register   0, 1, 2, 2, ... */
-						/* Divider    1, 2, 4, 8, ... */
-int rk_clk_composite_register(struct clkdom *clkdom,
-    struct rk_clk_composite_def *clkdef);
+int rk_clk_fract_register(struct clkdom *clkdom,
+    struct rk_clk_fract_def *clkdef);
 
-#endif /* _RK_CLK_COMPOSITE_H_ */
+#endif /* _RK_CLK_FRACT_H_ */

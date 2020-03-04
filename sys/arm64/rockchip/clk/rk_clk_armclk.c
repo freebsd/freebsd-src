@@ -67,15 +67,19 @@ struct rk_clk_armclk_sc {
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
 #define	READ4(_clk, off, val)						\
 	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	DEVICE_LOCK(_clk)							\
+#define	DEVICE_LOCK(_clk)						\
 	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
 #define	DEVICE_UNLOCK(_clk)						\
 	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
 #define	RK_ARMCLK_WRITE_MASK_SHIFT	16
 
-/* #define	dprintf(format, arg...)	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg) */
+#if 0
+#define	dprintf(format, arg...)						\
+	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg)
+#else
 #define	dprintf(format, arg...)
+#endif
 
 static int
 rk_clk_armclk_init(struct clknode *clk, device_t dev)
@@ -132,7 +136,7 @@ rk_clk_armclk_recalc(struct clknode *clk, uint64_t *freq)
 	DEVICE_UNLOCK(clk);
 
 	div = ((reg & sc->div_mask) >> sc->div_shift) + 1;
-	dprintf("parent_freq=%lu, div=%u\n", *freq, div);
+	dprintf("parent_freq=%ju, div=%u\n", *freq, div);
 
 	*freq = *freq / div;
 
@@ -152,7 +156,7 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 	sc = clknode_get_softc(clk);
 
-	dprintf("Finding best parent/div for target freq of %lu\n", *fout);
+	dprintf("Finding best parent/div for target freq of %ju\n", *fout);
 	p_names = clknode_get_parent_names(clk);
 	p_main = clknode_find_by_name(p_names[sc->main_parent]);
 
@@ -162,7 +166,7 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 			div = sc->rates[i].div;
 			best_p = best * div;
 			rate = i;
-			dprintf("Best parent %s (%d) with best freq at %lu\n",
+			dprintf("Best parent %s (%d) with best freq at %ju\n",
 			    clknode_get_name(p_main),
 			    sc->main_parent,
 			    best);
@@ -179,17 +183,18 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		return (0);
 	}
 
-	dprintf("Changing parent (%s) freq to %lu\n", clknode_get_name(p_main), best_p);
+	dprintf("Changing parent (%s) freq to %ju\n", clknode_get_name(p_main),
+	    best_p);
 	err = clknode_set_freq(p_main, best_p, 0, 1);
 	if (err != 0)
-		printf("Cannot set %s to %lu\n",
+		printf("Cannot set %s to %ju\n",
 		    clknode_get_name(p_main),
 		    best_p);
 
 	clknode_set_parent_by_idx(clk, sc->main_parent);
 
 	clknode_get_freq(p_main, &best_p);
-	dprintf("main parent freq at %lu\n", best_p);
+	dprintf("main parent freq at %ju\n", best_p);
 	DEVICE_LOCK(clk);
 	val |= (div - 1) << sc->div_shift;
 	val |= sc->div_mask << RK_ARMCLK_WRITE_MASK_SHIFT;
