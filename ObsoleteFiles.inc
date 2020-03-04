@@ -39,6 +39,7 @@
 # 20200301: bktr removed
 OLD_DIRS+=usr/include/dev/bktr
 OLD_FILES+=usr/include/dev/bktr/ioctl_bktr.h
+OLD_FILES+=usr/include/dev/bktr/ioctl_bt848.h
 OLD_FILES+=usr/include/dev/bktr/ioctl_meteor.h
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/ioctl_bktr.h
