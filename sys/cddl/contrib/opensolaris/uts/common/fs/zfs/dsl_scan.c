@@ -3662,8 +3662,6 @@ dsl_scan_scrub_done(zio_t *zio)
 
 	abd_free(zio->io_abd);
 
-	ASSERT3U(scn->scn_maxinflight_bytes, >, 0);
-
 	if (queue == NULL) {
 		mutex_enter(&spa->spa_scrub_lock);
 		ASSERT3U(spa->spa_scrub_inflight, >=, BP_GET_PSIZE(bp));
@@ -3700,6 +3698,8 @@ scan_exec_io(dsl_pool_t *dp, const blkptr_t *bp, int zio_flags,
 	size_t size = BP_GET_PSIZE(bp);
 	abd_t *data = abd_alloc_for_io(size, B_FALSE);
 	unsigned int scan_delay = 0;
+
+	ASSERT3U(scn->scn_maxinflight_bytes, >, 0);
 
 	if (queue == NULL) {
 		mutex_enter(&spa->spa_scrub_lock);
