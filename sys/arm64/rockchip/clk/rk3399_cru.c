@@ -692,7 +692,7 @@ static struct rk_clk_armclk_rates rk3399_cpu_b_rates[] = {
 
 
 /* Standard PLL. */
-#define PLL(_id, _name, _base,  _nm)					\
+#define PLL(_id, _name, _base)						\
 {									\
 	.type = RK3399_CLK_PLL,						\
 	.clk.pll = &(struct rk_clk_pll_def) {				\
@@ -703,7 +703,6 @@ static struct rk_clk_armclk_rates rk3399_cpu_b_rates[] = {
 		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
 		.base_offset = _base,					\
 		.rates = rk3399_pll_rates,				\
-		.normal_mode = _nm					\
 	},								\
 }
 
@@ -796,13 +795,13 @@ static struct rk_clk rk3399_clks[] = {
 	FFACT(0, "clk_ddrc_div2", "clk_ddrc", 1, 2),
 
 	/* PLLs */
-	PLL(PLL_APLLL, "lpll", 0x00, false),
-	PLL(PLL_APLLB, "bpll", 0x20, true),
-	PLL(PLL_DPLL,  "dpll", 0x40, false),
-	PLL(PLL_CPLL,  "cpll", 0x60, false),
-	PLL(PLL_GPLL,  "gpll", 0x80, false),
-	PLL(PLL_NPLL,  "npll", 0xA0, false),
-	PLL(PLL_VPLL,  "vpll", 0xC0, false),
+	PLL(PLL_APLLL, "lpll", 0x00),
+	PLL(PLL_APLLB, "bpll", 0x20),
+	PLL(PLL_DPLL,  "dpll", 0x40),
+	PLL(PLL_CPLL,  "cpll", 0x60),
+	PLL(PLL_GPLL,  "gpll", 0x80),
+	PLL(PLL_NPLL,  "npll", 0xA0),
+	PLL(PLL_VPLL,  "vpll", 0xC0),
 
 	/*  CRU_CLKSEL_CON0 */
 	CDIV(0, "aclkm_core_l_c", "armclkl", 0,
