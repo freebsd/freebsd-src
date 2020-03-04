@@ -1153,6 +1153,7 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_50G_PCIE:
 		case IFM_50G_CR2:
 		case IFM_50G_KR2:
+		case IFM_50G_KR4:
 		case IFM_50G_SR2:
 		case IFM_50G_LR2:
 		case IFM_50G_LAUI2_AC:
