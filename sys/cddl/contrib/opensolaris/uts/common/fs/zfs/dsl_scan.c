@@ -125,6 +125,7 @@ static boolean_t scan_ds_queue_contains(dsl_scan_t *scn, uint64_t dsobj,
 static void scan_ds_queue_insert(dsl_scan_t *scn, uint64_t dsobj, uint64_t txg);
 static void scan_ds_queue_remove(dsl_scan_t *scn, uint64_t dsobj);
 static void scan_ds_queue_sync(dsl_scan_t *scn, dmu_tx_t *tx);
+static uint64_t dsl_scan_count_leaves(vdev_t *vd);
 
 extern int zfs_vdev_async_write_active_min_dirty_percent;
 
@@ -438,6 +439,14 @@ dsl_scan_init(dsl_pool_t *dp, uint64_t txg)
 	ASSERT(!scn->scn_async_destroying);
 	scn->scn_async_destroying = spa_feature_is_active(dp->dp_spa,
 	    SPA_FEATURE_ASYNC_DESTROY);
+
+	/*
+	 * Calculate the max number of in-flight bytes for pool-wide
+	 * scanning operations (minimum 1MB). Limits for the issuing
+	 * phase are done per top-level vdev and are handled separately.
+	 */
+	scn->scn_maxinflight_bytes = MAX(zfs_scan_vdev_limit *
+	    dsl_scan_count_leaves(spa->spa_root_vdev), 1ULL << 20);
 
 	bcopy(&scn->scn_phys, &scn->scn_phys_cached, sizeof (scn->scn_phys));
 	avl_create(&scn->scn_queue, scan_ds_queue_compare, sizeof (scan_ds_t),
@@ -2350,7 +2359,7 @@ dsl_scan_ddt_entry(dsl_scan_t *scn, enum zio_checksum checksum,
 	zbookmark_phys_t zb = { 0 };
 	int p;
 
-	if (scn->scn_phys.scn_state != DSS_SCANNING)
+	if (!dsl_scan_is_running(scn))
 		return;
 
 	for (p = 0; p < DDT_PHYS_TYPES; p++, ddp++) {
@@ -3333,7 +3342,7 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 		uint64_t nr_leaves = dsl_scan_count_leaves(spa->spa_root_vdev);
 
 		/*
-		 * Calculate the max number of in-flight bytes for pool-wide
+		 * Recalculate the max number of in-flight bytes for pool-wide
 		 * scanning operations (minimum 1MB). Limits for the issuing
 		 * phase are done per top-level vdev and are handled separately.
 		 */
@@ -3652,6 +3661,8 @@ dsl_scan_scrub_done(zio_t *zio)
 	dsl_scan_io_queue_t *queue = zio->io_private;
 
 	abd_free(zio->io_abd);
+
+	ASSERT3U(scn->scn_maxinflight_bytes, >, 0);
 
 	if (queue == NULL) {
 		mutex_enter(&spa->spa_scrub_lock);
