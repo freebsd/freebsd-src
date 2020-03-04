@@ -171,6 +171,10 @@ static const struct media mlx5e_mode_table[MLX5E_LINK_SPEEDS_NUMBER][MLX5E_LINK_
 		.subtype = IFM_50G_KR2,
 		.baudrate = IF_Gbps(50ULL),
 	},
+	[MLX5E_50GBASE_KR4][MLX5E_KR4] = {
+		.subtype = IFM_50G_KR4,
+		.baudrate = IF_Gbps(50ULL),
+	},
 };
 
 static const struct media mlx5e_ext_mode_table[MLX5E_EXT_LINK_SPEEDS_NUMBER][MLX5E_LINK_MODES_NUMBER] = {
@@ -317,6 +321,10 @@ static const struct media mlx5e_ext_mode_table[MLX5E_EXT_LINK_SPEEDS_NUMBER][MLX
 	},
 	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_KR2] = {
 		.subtype = IFM_50G_KR2,
+		.baudrate = IF_Gbps(50ULL),
+	},
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_KR4] = {
+		.subtype = IFM_50G_KR4,
 		.baudrate = IF_Gbps(50ULL),
 	},
 	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_SR2] = {
