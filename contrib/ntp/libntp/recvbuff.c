@@ -226,7 +226,6 @@ get_full_recv_buffer(void)
 
 	LOCK();
 	
-#ifdef HAVE_SIGNALED_IO
 	/*
 	 * make sure there are free buffers when we
 	 * wander off to do lengthy packet processing with
@@ -241,7 +240,6 @@ get_full_recv_buffer(void)
 		 */
 		create_buffers(RECV_INC);
 	}
-#endif
 
 	/*
 	 * try to grab a full buffer

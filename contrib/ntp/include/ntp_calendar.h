@@ -19,6 +19,8 @@ struct calendar {
 	uint8_t  second;	/* second of minute */
 	uint8_t  weekday;	/* 0..7, 0=Sunday */
 };
+typedef struct calendar TCivilDate;
+typedef struct calendar const TcCivilDate;
 
 /* ISO week calendar date */
 struct isodate {
@@ -29,6 +31,8 @@ struct isodate {
 	uint8_t	 minute;	/* minute of hour */
 	uint8_t	 second;	/* second of minute */
 };
+typedef struct isodate TIsoDate;
+typedef struct isodate const TcIsoDate;
 
 /* general split representation */
 typedef struct {
@@ -109,6 +113,7 @@ extern systime_func_ptr ntpcal_set_timefunc(systime_func_ptr);
 extern	const char * const months[12];
 extern	const char * const daynames[7];
 
+extern	char *	 ntpcal_iso8601std(char*, size_t, struct calendar const*);
 extern	void	 caljulian	(uint32_t, struct calendar *);
 extern	uint32_t caltontp	(const struct calendar *);
 
@@ -152,11 +157,25 @@ extern ntpcal_split
 ntpcal_daysplit(const vint64 *);
 
 /*
+ * Split a time stamp in seconds into elapsed weeks and elapsed seconds
+ * since start of week.
+ */
+extern ntpcal_split
+ntpcal_weeksplit(const vint64 *);
+
+/*
  * Merge a number of days and a number of seconds into seconds,
  * expressed in 64 bits to avoid overflow.
  */
 extern vint64
 ntpcal_dayjoin(int32_t /* days */, int32_t /* seconds */);
+
+/*
+ * Merge a number of weeks and a number of seconds into seconds,
+ * expressed in 64 bits to avoid overflow.
+ */
+extern vint64
+ntpcal_weekjoin(int32_t /* weeks */, int32_t /* seconds */);
 
 /* Get the number of leap years since epoch for the number of elapsed
  * full years
@@ -431,7 +450,7 @@ basedate_expand_gpsweek(unsigned short weekno);
 /*
  * Start day of the GPS epoch. This is the Rata Die of 1980-01-06
  */
-#define DAY_GPS_STARTS 722819
+#define DAY_GPS_STARTS 722820
 
 /*
  * Difference between UN*X and NTP epoch (25567).
@@ -467,6 +486,56 @@ basedate_expand_gpsweek(unsigned short weekno);
  */
 #define	GREGORIAN_CYCLE_WEEKS (GREGORIAN_CYCLE_DAYS / 7)
 
-#define	is_leapyear(y)	(!((y) % 4) && !(!((y) % 100) && (y) % 400))
+/*
+ * Is a Greogorian calendar year a leap year? The obvious solution is to
+ * test the expression
+ *
+ * (y % 4 == 0) && ((y % 100 != 0) || (y % 400 == 0))
+ *
+ * This needs (in theory) 2 true divisions -- most compilers check the
+ * (mod 4) condition by doing a bit test. Some compilers have been
+ * even observed to partially fuse the (mod 100) and (mod 400) test,
+ * but there is an alternative formula that gives the compiler even
+ * better chances:
+ *
+ * (y % 4 == 0) && ((y % 16 == 0) || (y % 25 != 0))
+ *
+ * The order of checks is chosen so that the shorcut evaluation can fix
+ * the result as soon as possible. And the compiler has to do only one
+ * true division here -- the (mod 4) and (mod 16) can be done with
+ * direct bit tests. *If* the compiler chooses to do so.
+ *
+ * The deduction is as follows: rewrite the standard formula as
+ *  (y % 4 == 0) && ((y % 4*25 != 0) || (y % 16*25 == 0))
+ *
+ * then split the congruences:
+ *  (y % 4 == 0) && ((y % 4 != 0 || y % 25 != 0) || (y % 16 == 0 && y % 25 == 0))
+ *
+ * eliminate the 1st inner term, as it is provably false:
+ *  (y % 4 == 0) && (y % 25 != 0 || (y % 16 == 0 && y % 25 == 0))
+ *
+ * Use the distributive laws on the second major group:
+ *  (y % 4 == 0) && ((y % 25 != 0 || y % 16 == 0) && (y % 25 != 0 || y % 25 == 0))
+ *
+ * Eliminate the constant term, reorder, and voila: 
+ */
+
+static inline int
+is_leapyear(int32_t y) {
+	return !(y % 4) && (!(y % 16) || (y % 25));
+}
+/* The (mod 4) test eliminates 3/4 (or 12/16) of all values.
+ * The (mod 16) test eliminates another 1/16 of all values.
+ * 3/16 of all values reach the final division.
+ * Assuming that the true division is the most costly operation, this
+ * sequence should give most bang for the buck.
+ */
+
+/* misc */
+extern int      u32mod7(uint32_t x);
+extern int      i32mod7(int32_t x);
+extern uint32_t i32fmod(int32_t x, uint32_t d);
+
+extern int32_t ntpcal_expand_century(uint32_t y, uint32_t m, uint32_t d, uint32_t wd);
 
 #endif

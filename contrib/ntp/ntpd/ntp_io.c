@@ -177,7 +177,7 @@ endpt *	any_interface;		/* wildcard ipv4 interface */
 endpt *	any6_interface;		/* wildcard ipv6 interface */
 endpt *	loopback_interface;	/* loopback ipv4 interface */
 
-isc_boolean_t broadcast_client_enabled;	/* is broadcast client enabled */
+static isc_boolean_t broadcast_client_enabled;	/* is broadcast client enabled */
 u_int sys_ifnum;			/* next .ifnum to assign */
 int ninterfaces;			/* Total number of interfaces */
 
@@ -2011,10 +2011,7 @@ update_interfaces(
 	 */
 	refresh_all_peerinterfaces();
 
-	if (broadcast_client_enabled)
-		io_setbclient();
-
-	if (sys_bclient)
+	if (broadcast_client_enabled || sys_bclient)
 		io_setbclient();
 
 #ifdef MCAST
@@ -2343,11 +2340,12 @@ socket_broadcast_disable(
 /*
  * return the broadcast client flag value
  */
-isc_boolean_t
+/*isc_boolean_t
 get_broadcastclient_flag(void)
 {
 	return (broadcast_client_enabled);
 }
+*/
 
 /*
  * Check to see if the address is a multicast address
@@ -2605,32 +2603,38 @@ void
 io_setbclient(void)
 {
 #ifdef OPEN_BCAST_SOCKET
-	struct interface *	interf;
-	unsigned int		nif;
+	endpt *		ep;
+	unsigned int	nif, ni4, ni6;
 
-	nif = 0;
+	nif = ni4 = ni6 = 0;
 	set_reuseaddr(1);
 
-	for (interf = ep_list;
-	     interf != NULL;
-	     interf = interf->elink) {
-
-		if (interf->flags & (INT_WILDCARD | INT_LOOPBACK))
+	for (ep = ep_list; ep != NULL; ep = ep->elink) {
+		/* count IPv6 vs IPv4 interfaces. Needed later to decide
+		 * if we should log an error or not.
+		 */
+		switch (ep->family) {
+		case AF_INET : ++ni4; break;
+		case AF_INET6: ++ni6; break;
+		default      :        break;
+		}
+		
+		if (ep->flags & (INT_WILDCARD | INT_LOOPBACK))
 			continue;
 
 		/* use only allowed addresses */
-		if (interf->ignore_packets)
+		if (ep->ignore_packets)
 			continue;
 
 		/* Need a broadcast-capable interface */
-		if (!(interf->flags & INT_BROADCAST))
+		if (!(ep->flags & INT_BROADCAST))
 			continue;
 
 		/* Only IPv4 addresses are valid for broadcast */
-		REQUIRE(IS_IPV4(&interf->bcast));
+		REQUIRE(IS_IPV4(&ep->bcast));
 
 		/* Do we already have the broadcast address open? */
-		if (interf->flags & INT_BCASTOPEN) {
+		if (ep->flags & INT_BCASTOPEN) {
 			/*
 			 * account for already open interfaces to avoid
 			 * misleading warning below
@@ -2642,19 +2646,19 @@ io_setbclient(void)
 		/*
 		 * Try to open the broadcast address
 		 */
-		interf->family = AF_INET;
-		interf->bfd = open_socket(&interf->bcast, 1, 0, interf);
+		ep->family = AF_INET;
+		ep->bfd = open_socket(&ep->bcast, 1, 0, ep);
 
 		/*
 		 * If we succeeded then we use it otherwise enable
 		 * broadcast on the interface address
 		 */
-		if (interf->bfd != INVALID_SOCKET) {
+		if (ep->bfd != INVALID_SOCKET) {
 			nif++;
-			interf->flags |= INT_BCASTOPEN;
+			ep->flags |= INT_BCASTOPEN;
 			msyslog(LOG_INFO,
 				"Listen for broadcasts to %s on interface #%d %s",
-				stoa(&interf->bcast), interf->ifnum, interf->name);
+				stoa(&ep->bcast), ep->ifnum, ep->name);
 		} else switch (errno) {
 			/* Silently ignore EADDRINUSE as we probably
 			 * opened the socket already for an address in
@@ -2668,8 +2672,8 @@ io_setbclient(void)
 			 * regular socket, it's quite useless to try this
 			 * again.
 			 */
-			if (interf->fd != INVALID_SOCKET) {
-				interf->flags |= INT_BCASTOPEN;
+			if (ep->fd != INVALID_SOCKET) {
+				ep->flags |= INT_BCASTOPEN;
 				nif++;
 			}
 #		    endif
@@ -2678,7 +2682,7 @@ io_setbclient(void)
 		default:
 			msyslog(LOG_INFO,
 				"failed to listen for broadcasts to %s on interface #%d %s",
-				stoa(&interf->bcast), interf->ifnum, interf->name);
+				stoa(&ep->bcast), ep->ifnum, ep->name);
 			break;
 		}
 	}
@@ -2688,8 +2692,14 @@ io_setbclient(void)
 		DPRINTF(1, ("io_setbclient: listening to %d broadcast addresses\n", nif));
 	} else {
 		broadcast_client_enabled = ISC_FALSE;
-		msyslog(LOG_ERR,
-			"Unable to listen for broadcasts, no broadcast interfaces available");
+		/* This is expected when having only IPv6 interfaces
+		 * and no IPv4 interfaces at all. We suppress the error
+		 * log in that case... everything else should work!
+		 */
+		if (ni4 && !ni6) {
+			msyslog(LOG_ERR,
+				"Unable to listen for broadcasts, no broadcast interfaces available");
+		}
 	}
 #else
 	msyslog(LOG_ERR,
@@ -3134,7 +3144,8 @@ sendpkt(
 	int	rc;
 	u_char	cttl;
 	l_fp	fp_zero = { { 0 }, 0 };
-
+	l_fp	org, rec, xmt;
+	
 	ismcast = IS_MCAST(dest);
 	if (!ismcast)
 		src = ep;
@@ -3219,11 +3230,14 @@ sendpkt(
 	} while (ismcast && src != NULL);
 
 	/* HMS: pkt->rootdisp is usually random here */
+	NTOHL_FP(&pkt->org, &org);
+	NTOHL_FP(&pkt->rec, &rec);
+	NTOHL_FP(&pkt->xmt, &xmt);
 	record_raw_stats(src ? &src->sin : NULL, dest,
-			&pkt->org, &pkt->rec, &pkt->xmt, &fp_zero,
-			PKT_MODE(pkt->li_vn_mode),
-			PKT_VERSION(pkt->li_vn_mode),
+			&org, &rec, &xmt, &fp_zero,
 			PKT_LEAP(pkt->li_vn_mode),
+			PKT_VERSION(pkt->li_vn_mode),
+			PKT_MODE(pkt->li_vn_mode),
 			pkt->stratum,
 			pkt->ppoll, pkt->precision,
 			pkt->rootdelay, pkt->rootdisp, pkt->refid,
