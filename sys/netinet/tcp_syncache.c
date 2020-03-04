@@ -2224,7 +2224,8 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 #ifdef INET6
 	case INC_ISIPV6:
 		if (sotoinpcb(lso)->inp_flags & IN6P_AUTOFLOWLABEL)
-			sc->sc_flowlabel = sc->sc_iss & IPV6_FLOWLABEL_MASK;
+			sc->sc_flowlabel =
+			    htonl(sc->sc_iss) & IPV6_FLOWLABEL_MASK;
 		break;
 #endif
 	}
