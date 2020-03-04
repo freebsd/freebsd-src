@@ -154,6 +154,5 @@ void	wtap_suspend(struct wtap_softc *);
 void	wtap_shutdown(struct wtap_softc *);
 void	wtap_intr(struct wtap_softc *);
 void	wtap_inject(struct wtap_softc *, struct mbuf *);
-void	wtap_rx_deliver(struct wtap_softc *, struct mbuf *);
 
 #endif
