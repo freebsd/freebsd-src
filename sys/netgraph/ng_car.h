@@ -42,7 +42,7 @@
 /* Per hook statistics counters */
 struct ng_car_hookstats {
 	u_int64_t passed_pkts;	/* Counter for passed packets */
-	u_int64_t droped_pkts;	/* Counter for droped packets */
+	u_int64_t dropped_pkts;	/* Counter for dropped packets */
 	u_int64_t green_pkts;	/* Counter for green packets */
 	u_int64_t yellow_pkts;	/* Counter for yellow packets */
 	u_int64_t red_pkts;	/* Counter for red packets */
@@ -50,7 +50,7 @@ struct ng_car_hookstats {
 };
 #define NG_CAR_HOOKSTATS	{				\
 	  { "passed",		&ng_parse_uint64_type	},	\
-	  { "droped",		&ng_parse_uint64_type	},	\
+	  { "dropped",		&ng_parse_uint64_type	},	\
 	  { "green",		&ng_parse_uint64_type	},	\
 	  { "yellow",		&ng_parse_uint64_type	},	\
 	  { "red",		&ng_parse_uint64_type	},	\
