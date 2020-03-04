@@ -54,9 +54,18 @@ __FBSDID("$FreeBSD$");
 
 #define	SCLK_USB2PHY0_REF	123
 #define	SCLK_USB2PHY1_REF	124
+#define	SCLK_USB3OTG0_REF	129
+#define	SCLK_USB3OTG1_REF	130
+#define	SCLK_USB3OTG0_SUSPEND	131
+#define	SCLK_USB3OTG1_SUSPEND	132
 #define	ACLK_EMMC_CORE		241
 #define	ACLK_EMMC_NOC		242
 #define	ACLK_EMMC_GRF		243
+#define	ACLK_USB3_NOC		245
+#define	ACLK_USB3OTG0		246
+#define	ACLK_USB3OTG1		247
+#define	ACLK_USB3_RKSOC_AXI_PERF	248
+#define	ACLK_USB3_GRF		249
 #define	PCLK_GPIO2		336
 #define	PCLK_GPIO3		337
 #define	PCLK_GPIO4		338
@@ -66,6 +75,11 @@ __FBSDID("$FreeBSD$");
 #define	PCLK_I2C5		344
 #define	PCLK_I2C6		345
 #define	PCLK_I2C7		346
+#define	PCLK_SPI0		347
+#define	PCLK_SPI1		348
+#define	PCLK_SPI2		349
+#define	PCLK_SPI4		350
+#define	PCLK_SPI5		351
 #define	HCLK_HOST0		456
 #define	HCLK_HOST0_ARB		457
 #define	HCLK_HOST1		458
@@ -103,6 +117,12 @@ static struct rk_cru_gate rk3399_gates[] = {
 	CRU_GATE(0, "hclk_perilp1_cpll_src", "cpll", 0x320, 1)
 	CRU_GATE(0, "hclk_perilp1_gpll_src", "gpll", 0x320, 0)
 
+	/* CRU_CLKGATE_CON12 */
+	CRU_GATE(SCLK_USB3OTG0_REF, "sclk_usb3otg0_ref", "xin24m", 0x330, 1)
+	CRU_GATE(SCLK_USB3OTG1_REF, "sclk_usb3otg1_ref", "xin24m", 0x330, 2)
+	CRU_GATE(SCLK_USB3OTG0_SUSPEND, "sclk_usb3otg0_suspend", "xin24m", 0x330, 3)
+	CRU_GATE(SCLK_USB3OTG1_SUSPEND, "sclk_usb3otg1_suspend", "xin24m", 0x330, 4)
+
 	/* CRU_CLKGATE_CON20 */
 	CRU_GATE(HCLK_HOST0, "hclk_host0", "hclk_perihp", 0x350, 5)
 	CRU_GATE(HCLK_HOST0_ARB, "hclk_host0_arb", "hclk_perihp", 0x350, 6)
@@ -117,6 +137,19 @@ static struct rk_cru_gate rk3399_gates[] = {
 	CRU_GATE(PCLK_I2C2, "pclk_rki2c2", "pclk_perilp1", 0x358, 9)
 	CRU_GATE(PCLK_I2C3, "pclk_rki2c3", "pclk_perilp1", 0x358, 10)
 
+	/* CRU_CLKGATE_CON23 */
+	CRU_GATE(PCLK_SPI0, "pclk_spi0", "pclk_perilp1", 0x35C, 10)
+	CRU_GATE(PCLK_SPI1, "pclk_spi1", "pclk_perilp1", 0x35C, 11)
+	CRU_GATE(PCLK_SPI2, "pclk_spi2", "pclk_perilp1", 0x35C, 12)
+	CRU_GATE(PCLK_SPI4, "pclk_spi4", "pclk_perilp1", 0x35C, 13)
+
+	/* CRU_CLKGATE_CON30 */
+	CRU_GATE(ACLK_USB3_NOC, "aclk_usb3_noc", "aclk_usb3", 0x378, 0)
+	CRU_GATE(ACLK_USB3OTG0, "aclk_usb3otg0", "aclk_usb3", 0x378, 1)
+	CRU_GATE(ACLK_USB3OTG1, "aclk_usb3otg1", "aclk_usb3", 0x378, 2)
+	CRU_GATE(ACLK_USB3_RKSOC_AXI_PERF, "aclk_usb3_rksoc_axi_perf", "aclk_usb3", 0x378, 3)
+	CRU_GATE(ACLK_USB3_GRF, "aclk_usb3_grf", "aclk_usb3", 0x378, 4)
+
 	/* CRU_CLKGATE_CON31 */
 	CRU_GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_alive", 0x37c, 3)
 	CRU_GATE(PCLK_GPIO3, "pclk_gpio3", "pclk_alive", 0x37c, 4)
@@ -129,6 +162,9 @@ static struct rk_cru_gate rk3399_gates[] = {
 
 	/* CRU_CLKGATE_CON33 */
 	CRU_GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_sd", 0x384, 8)
+
+	/* CRU_CLKGATE_CON34 */
+	CRU_GATE(PCLK_SPI4, "pclk_spi5", "pclk_perilp1", 0x388, 5)
 };
 
 
@@ -1066,6 +1102,32 @@ static struct rk_clk_composite_def pclk_perilp1 = {
 	.flags = RK_CLK_COMPOSITE_HAVE_GATE,
 };
 
+/* USB3 clock */
+
+#define	ACLK_USB3	244
+static const char *aclk_usb3_parents[] = {"cpll", "gpll", "npll", "npll"};
+static struct rk_clk_composite_def aclk_usb3 = {
+	.clkdef = {
+		.id = ACLK_USB3,
+		.name = "aclk_usb3",
+		.parent_names = aclk_usb3_parents,
+		.parent_cnt = nitems(aclk_usb3_parents),
+	},
+	/* CRU_CLKSET_CON39 */
+	.muxdiv_offset = 0x19C,
+	.mux_shift = 6,
+	.mux_width = 2,
+
+	.div_shift = 0,
+	.div_width = 5,
+
+	/* CRU_CLKGATE_CON12 */
+	.gate_offset = 0x330,
+	.gate_shift = 0,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
 /*
  * i2c
  */
@@ -1206,6 +1268,235 @@ static struct rk_clk_composite_def i2c7 = {
 	/* CRU_CLKGATE_CON10 */
 	.gate_offset = 0x0328,
 	.gate_shift = 5,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+/* USB3 */
+
+#define	SCLK_UPHY0_TCPDPHY_REF	125
+#define	SCLK_UPHY0_TCPDCORE	126
+
+/* Missing xin32k exported by rk808 */
+static const char *uphy0_tcpdphy_ref_parents[] = {"xin24m"};
+
+static struct rk_clk_composite_def uphy0_tcpdphy_ref = {
+	.clkdef = {
+		.id = SCLK_UPHY0_TCPDPHY_REF,
+		.name = "uphy0_tcpdphy_ref",
+		.parent_names = uphy0_tcpdphy_ref_parents,
+		.parent_cnt = nitems(uphy0_tcpdphy_ref_parents),
+	},
+	/* CRU_CLKSET_CON64 */
+	.muxdiv_offset = 0x0200,
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 5,
+
+	/* CRU_CLKGATE_CON13 */
+	.gate_offset = 0x0334,
+	.gate_shift = 4,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+/* Missing xin32k exported by rk808 */
+static const char *uphy0_tcpdcore_parents[] = {"xin24m", "xin24m", "cpll", "gpll"};
+
+static struct rk_clk_composite_def uphy0_tcpdcore = {
+	.clkdef = {
+		.id = SCLK_UPHY0_TCPDCORE,
+		.name = "uphy0_tcpdcore",
+		.parent_names = uphy0_tcpdcore_parents,
+		.parent_cnt = nitems(uphy0_tcpdcore_parents),
+	},
+	/* CRU_CLKSET_CON64 */
+	.muxdiv_offset = 0x0200,
+	.mux_shift = 6,
+	.mux_width = 2,
+
+	.div_shift = 0,
+	.div_width = 5,
+
+	/* CRU_CLKGATE_CON13 */
+	.gate_offset = 0x0334,
+	.gate_shift = 5,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+#define	SCLK_UPHY1_TCPDPHY_REF	127
+#define	SCLK_UPHY1_TCPDCORE	128
+
+/* Missing xin32k exported by rk808 */
+static const char *uphy1_tcpdphy_ref_parents[] = {"xin24m"};
+
+static struct rk_clk_composite_def uphy1_tcpdphy_ref = {
+	.clkdef = {
+		.id = SCLK_UPHY1_TCPDPHY_REF,
+		.name = "uphy1_tcpdphy_ref",
+		.parent_names = uphy1_tcpdphy_ref_parents,
+		.parent_cnt = nitems(uphy1_tcpdphy_ref_parents),
+	},
+	/* CRU_CLKSET_CON65 */
+	.muxdiv_offset = 0x0204,
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 5,
+
+	/* CRU_CLKGATE_CON13 */
+	.gate_offset = 0x0334,
+	.gate_shift = 6,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+/* Missing xin32k exported by rk808 */
+static const char *uphy1_tcpdcore_parents[] = {"xin24m", "xin24m", "cpll", "gpll"};
+
+static struct rk_clk_composite_def uphy1_tcpdcore = {
+	.clkdef = {
+		.id = SCLK_UPHY1_TCPDCORE,
+		.name = "uphy1_tcpdcore",
+		.parent_names = uphy1_tcpdcore_parents,
+		.parent_cnt = nitems(uphy1_tcpdcore_parents),
+	},
+	/* CRU_CLKSET_CON65 */
+	.muxdiv_offset = 0x0204,
+	.mux_shift = 6,
+	.mux_width = 2,
+
+	.div_shift = 0,
+	.div_width = 5,
+
+	/* CRU_CLKGATE_CON13 */
+	.gate_offset = 0x0334,
+	.gate_shift = 7,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+/*
+ * spi
+ */
+static const char *spi_parents[] = {"cpll", "gpll"};
+
+#define	SCLK_SPI0	71
+#define	SCLK_SPI1	72
+#define	SCLK_SPI2	73
+#define	SCLK_SPI4	74
+#define	SCLK_SPI5	75
+
+static struct rk_clk_composite_def spi0 = {
+	.clkdef = {
+		.id = SCLK_SPI0,
+		.name = "clk_spi0",
+		.parent_names = spi_parents,
+		.parent_cnt = nitems(spi_parents),
+	},
+	/* CRU_CLKSEL_CON59 */
+	.muxdiv_offset = 0x01ec,
+	.mux_shift = 7,
+	.mux_width = 1,
+
+	.div_shift = 0,
+	.div_width = 7,
+
+	/* CRU_CLKGATE_CON9 */
+	.gate_offset = 0x0324,
+	.gate_shift = 12,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+static struct rk_clk_composite_def spi1 = {
+	.clkdef = {
+		.id = SCLK_SPI1,
+		.name = "clk_spi1",
+		.parent_names = spi_parents,
+		.parent_cnt = nitems(spi_parents),
+	},
+	/* CRU_CLKSEL_CON59 */
+	.muxdiv_offset = 0x01ec,
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 7,
+
+	/* CRU_CLKGATE_CON9 */
+	.gate_offset = 0x0324,
+	.gate_shift = 13,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+static struct rk_clk_composite_def spi2 = {
+	.clkdef = {
+		.id = SCLK_SPI2,
+		.name = "clk_spi2",
+		.parent_names = spi_parents,
+		.parent_cnt = nitems(spi_parents),
+	},
+	/* CRU_CLKSEL_CON60 */
+	.muxdiv_offset = 0x01f0,
+	.mux_shift = 7,
+	.mux_width = 1,
+
+	.div_shift = 0,
+	.div_width = 7,
+
+	/* CRU_CLKGATE_CON9 */
+	.gate_offset = 0x0324,
+	.gate_shift = 14,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+static struct rk_clk_composite_def spi4 = {
+	.clkdef = {
+		.id = SCLK_SPI4,
+		.name = "clk_spi4",
+		.parent_names = spi_parents,
+		.parent_cnt = nitems(spi_parents),
+	},
+	/* CRU_CLKSEL_CON60 */
+	.muxdiv_offset = 0x01f0,
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 7,
+
+	/* CRU_CLKGATE_CON9 */
+	.gate_offset = 0x0324,
+	.gate_shift = 15,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+static struct rk_clk_composite_def spi5 = {
+	.clkdef = {
+		.id = SCLK_SPI5,
+		.name = "clk_spi5",
+		.parent_names = spi_parents,
+		.parent_cnt = nitems(spi_parents),
+	},
+	/* CRU_CLKSEL_CON58 */
+	.muxdiv_offset = 0x01e8,
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 7,
+
+	/* CRU_CLKGATE_CON13 */
+	.gate_offset = 0x0334,
+	.gate_shift = 13,
 
 	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
 };
@@ -1593,6 +1884,10 @@ static struct rk_clk rk3399_clks[] = {
 	},
 	{
 		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &aclk_usb3,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &i2c1,
 	},
 	{
@@ -1614,6 +1909,43 @@ static struct rk_clk rk3399_clks[] = {
 	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &i2c7,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &uphy0_tcpdphy_ref,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &uphy0_tcpdcore,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &uphy1_tcpdphy_ref,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &uphy1_tcpdcore,
+	},
+
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &spi0,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &spi1,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &spi2,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &spi4,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &spi5,
 	},
 
 	{

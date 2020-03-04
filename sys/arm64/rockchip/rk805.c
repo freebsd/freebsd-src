@@ -468,9 +468,6 @@ rk805_attach(device_t dev)
 	if (config_intrhook_establish(&sc->intr_hook) != 0)
 		return (ENOMEM);
 
-	sc->regs = malloc(sizeof(struct rk805_reg_sc *) * sc->nregs,
-	    M_RK805_REG, M_WAITOK | M_ZERO);
-
 	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	switch (sc->type) {
 	case RK805:
@@ -481,7 +478,13 @@ rk805_attach(device_t dev)
 		regdefs = rk808_regdefs;
 		sc->nregs = nitems(rk808_regdefs);
 		break;
+	default:
+		device_printf(dev, "Unknown type %d\n", sc->type);
+		return (ENXIO);
 	}
+
+	sc->regs = malloc(sizeof(struct rk805_reg_sc *) * sc->nregs,
+	    M_RK805_REG, M_WAITOK | M_ZERO);
 
 	rnode = ofw_bus_find_child(ofw_bus_get_node(dev), "regulators");
 	if (rnode > 0) {

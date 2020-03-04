@@ -180,6 +180,7 @@ device		pl011
 # USB support
 device		aw_usbphy		# Allwinner USB PHY
 device		rk_usb2phy		# Rockchip USB2PHY
+device		rk_typec_phy		# Rockchip TypeC PHY
 device		dwcotg			# DWC OTG controller
 device		ohci			# OHCI USB interface
 device		ehci			# EHCI USB interface (USB 2.0)
@@ -251,6 +252,7 @@ device		mv_thermal	# Marvell Thermal Sensor Controller
 # SPI
 device		spibus
 device		bcm2835_spi	# Broadcom BCM283x SPI bus
+device		rk_spi		# RockChip SPI controller
 
 # PWM
 device		pwm
