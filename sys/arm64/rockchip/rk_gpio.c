@@ -196,7 +196,7 @@ rk_gpio_pin_max(device_t dev, int *maxpin)
 {
 
 	/* Each bank have always 32 pins */
-	*maxpin = 32;
+	*maxpin = 31;
 	return (0);
 }
 
