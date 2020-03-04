@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include "iicbus_if.h"
 
-#include "opt_soc.h"
-
 
 #define	RK_I2C_CON			0x00
 #define	 RK_I2C_CON_EN			(1 << 0)
@@ -61,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #define	 RK_I2C_CON_STOP		(1 << 4)
 #define	 RK_I2C_CON_LASTACK		(1 << 5)
 #define	 RK_I2C_CON_NAKSTOP		(1 << 6)
+#define	 RK_I2C_CON_CTRL_MASK		0xFF
 
 #define	RK_I2C_CLKDIV		0x04
 #define	 RK_I2C_CLKDIVL_MASK	0xFFFF
@@ -91,8 +90,7 @@ __FBSDID("$FreeBSD$");
 #define	 RK_I2C_IEN_STARTIEN	(1 << 4)
 #define	 RK_I2C_IEN_STOPIEN	(1 << 5)
 #define	 RK_I2C_IEN_NAKRCVIEN	(1 << 6)
-#define	 RK_I2C_IEN_ALL		(RK_I2C_IEN_BTFIEN | \
-	RK_I2C_IEN_BRFIEN | RK_I2C_IEN_MBTFIEN | RK_I2C_IEN_MBRFIEN | \
+#define	 RK_I2C_IEN_ALL		(RK_I2C_IEN_MBTFIEN | RK_I2C_IEN_MBRFIEN | \
 	RK_I2C_IEN_STARTIEN | RK_I2C_IEN_STOPIEN | RK_I2C_IEN_NAKRCVIEN)
 
 #define	RK_I2C_IPD		0x1C
@@ -103,8 +101,7 @@ __FBSDID("$FreeBSD$");
 #define	 RK_I2C_IPD_STARTIPD	(1 << 4)
 #define	 RK_I2C_IPD_STOPIPD	(1 << 5)
 #define	 RK_I2C_IPD_NAKRCVIPD	(1 << 6)
-#define	 RK_I2C_IPD_ALL		(RK_I2C_IPD_BTFIPD | \
-	RK_I2C_IPD_BRFIPD | RK_I2C_IPD_MBTFIPD | RK_I2C_IPD_MBRFIPD | \
+#define	 RK_I2C_IPD_ALL		(RK_I2C_IPD_MBTFIPD | RK_I2C_IPD_MBRFIPD | \
 	RK_I2C_IPD_STARTIPD | RK_I2C_IPD_STOPIPD | RK_I2C_IPD_NAKRCVIPD)
 
 #define	RK_I2C_FNCT		0x20
@@ -134,8 +131,10 @@ struct rk_i2c_softc {
 	uint32_t	ipd;
 	struct iic_msg	*msg;
 	size_t		cnt;
-	int		transfer_done;
-	int		nak_recv;
+	int		msg_len;
+	bool		transfer_done;
+	bool		nak_recv;
+	bool		tx_slave_addr;
 	uint8_t		mode;
 	uint8_t		state;
 
@@ -143,12 +142,9 @@ struct rk_i2c_softc {
 };
 
 static struct ofw_compat_data compat_data[] = {
-#ifdef SOC_ROCKCHIP_RK3328
+	{"rockchip,rk3288-i2c", 1},
 	{"rockchip,rk3328-i2c", 1},
-#endif
-#ifdef SOC_ROCKCHIP_RK3399
 	{"rockchip,rk3399-i2c", 1},
-#endif
 	{NULL,             0}
 };
 
@@ -169,7 +165,7 @@ static int rk_i2c_detach(device_t dev);
 #define	RK_I2C_WRITE(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
 
 static uint32_t
-rk_i2c_get_clkdiv(struct rk_i2c_softc *sc, uint64_t speed)
+rk_i2c_get_clkdiv(struct rk_i2c_softc *sc, uint32_t speed)
 {
 	uint64_t sclk_freq;
 	uint32_t clkdiv;
@@ -213,7 +209,7 @@ rk_i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	return (0);
 }
 
-static void
+static uint8_t
 rk_i2c_fill_tx(struct rk_i2c_softc *sc)
 {
 	uint32_t buf32;
@@ -221,7 +217,7 @@ rk_i2c_fill_tx(struct rk_i2c_softc *sc)
 	int i, j, len;
 
 	if (sc->msg == NULL || sc->msg->len == sc->cnt)
-		return;
+		return (0);
 
 	len = sc->msg->len - sc->cnt;
 	if (len > 8)
@@ -234,22 +230,23 @@ rk_i2c_fill_tx(struct rk_i2c_softc *sc)
 				break;
 
 			/* Fill the addr if needed */
-			if (sc->cnt == 0) {
+			if (sc->cnt == 0 && sc->tx_slave_addr) {
 				buf = sc->msg->slave;
+				sc->tx_slave_addr = false;
+			} else {
+				buf = sc->msg->buf[sc->cnt];
+				sc->cnt++;
 			}
-			else
-				buf = sc->msg->buf[sc->cnt - 1];
-
 			buf32 |= buf << (j * 8);
 
-			sc->cnt++;
 		}
-
 		RK_I2C_WRITE(sc, RK_I2C_TXDATA_BASE + 4 * i, buf32);
 
 		if (sc->cnt == sc->msg->len)
 			break;
 	}
+
+	return (uint8_t)len;
 }
 
 static void
@@ -274,26 +271,8 @@ rk_i2c_drain_rx(struct rk_i2c_softc *sc)
 			buf32 = RK_I2C_READ(sc, RK_I2C_RXDATA_BASE + (i / 4) * 4);
 
 		buf8 = (buf32 >> ((i % 4) * 8)) & 0xFF;
-
 		sc->msg->buf[sc->cnt++] = buf8;
 	}
-}
-
-static void
-rk_i2c_send_start(struct rk_i2c_softc *sc)
-{
-	uint32_t reg;
-
-	RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_STARTIEN);
-
-	sc->state = STATE_START;
-
-	reg = RK_I2C_READ(sc, RK_I2C_CON);
-	reg |= RK_I2C_CON_START;
-	reg |= RK_I2C_CON_EN;
-	reg &= ~RK_I2C_CON_MODE_MASK;
-	reg |= sc->mode << RK_I2C_CON_MODE_SHIFT;
-	RK_I2C_WRITE(sc, RK_I2C_CON, reg);
 }
 
 static void
@@ -311,17 +290,28 @@ rk_i2c_send_stop(struct rk_i2c_softc *sc)
 }
 
 static void
-rk_i2c_intr(void *arg)
+rk_i2c_intr_locked(struct rk_i2c_softc *sc)
 {
-	struct rk_i2c_softc *sc;
 	uint32_t reg;
 
-	sc = (struct rk_i2c_softc *)arg;
-
-	RK_I2C_LOCK(sc);
-
 	sc->ipd = RK_I2C_READ(sc, RK_I2C_IPD);
+
+	/* Something to handle? */
+	if ((sc->ipd & RK_I2C_IPD_ALL) == 0)
+		return;
+
 	RK_I2C_WRITE(sc, RK_I2C_IPD, sc->ipd);
+	sc->ipd &= RK_I2C_IPD_ALL;
+
+	if (sc->ipd & RK_I2C_IPD_NAKRCVIPD) {
+		/* NACK received */
+		sc->ipd &= ~RK_I2C_IPD_NAKRCVIPD;
+		sc->nak_recv = 1;
+		/* XXXX last byte !!!, signal error !!! */
+		sc->transfer_done = 1;
+		sc->state = STATE_IDLE;
+		goto err;
+	}
 
 	switch (sc->state) {
 	case STATE_START:
@@ -359,10 +349,12 @@ rk_i2c_intr(void *arg)
 
 		break;
 	case STATE_WRITE:
-		if (sc->cnt == sc->msg->len)
+		if (sc->cnt == sc->msg->len &&
+		     !(sc->msg->flags & IIC_M_NOSTOP)) {
 			rk_i2c_send_stop(sc);
-
-		break;
+			break;
+		}
+		/* passthru */
 	case STATE_STOP:
 		/* Disable stop bit */
 		reg = RK_I2C_READ(sc, RK_I2C_CON);
@@ -376,8 +368,70 @@ rk_i2c_intr(void *arg)
 		break;
 	}
 
+err:
 	wakeup(sc);
+}
+
+static void
+rk_i2c_intr(void *arg)
+{
+	struct rk_i2c_softc *sc;
+
+	sc = (struct rk_i2c_softc *)arg;
+
+	RK_I2C_LOCK(sc);
+	rk_i2c_intr_locked(sc);
 	RK_I2C_UNLOCK(sc);
+}
+
+static void
+rk_i2c_start_xfer(struct rk_i2c_softc *sc, struct iic_msg *msg, boolean_t last)
+{
+	uint32_t reg;
+	uint8_t len;
+
+	sc->transfer_done = false;
+	sc->nak_recv = false;
+	sc->tx_slave_addr = false;
+	sc->cnt = 0;
+	sc->state = STATE_IDLE;
+	sc->msg = msg;
+	sc->msg_len = sc->msg->len;
+
+	reg = RK_I2C_READ(sc, RK_I2C_CON) & ~RK_I2C_CON_CTRL_MASK;
+	if (!(sc->msg->flags & IIC_M_NOSTART)) {
+		/* Stadard message */
+		if (sc->mode == RK_I2C_CON_MODE_TX) {
+			sc->msg_len++;	/* Take slave address in account. */
+			sc->tx_slave_addr = true;
+		}
+		sc->state = STATE_START;
+		reg |= RK_I2C_CON_START;
+
+		RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_STARTIEN);
+	} else {
+		/* Continuation message */
+		if (sc->mode == RK_I2C_CON_MODE_RX) {
+			sc->state = STATE_READ;
+			if (last)
+				reg |= RK_I2C_CON_LASTACK;
+
+			RK_I2C_WRITE(sc, RK_I2C_MRXCNT, sc->msg->len);
+			RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_MBRFIEN |
+			    RK_I2C_IEN_NAKRCVIEN);
+		} else {
+			sc->state = STATE_WRITE;
+			len = rk_i2c_fill_tx(sc);
+
+			RK_I2C_WRITE(sc, RK_I2C_MTXCNT, len);
+
+			RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_MBTFIEN |
+			    RK_I2C_IEN_NAKRCVIEN);
+		}
+	}
+	reg |= sc->mode << RK_I2C_CON_MODE_SHIFT;
+	reg |= RK_I2C_CON_EN;
+	RK_I2C_WRITE(sc, RK_I2C_CON, reg);
 }
 
 static int
@@ -385,68 +439,106 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
 	struct rk_i2c_softc *sc;
 	uint32_t reg;
-	int i, j, msgskip, err = 0;
+	bool last_msg;
+	int i, j, timeout, err;
 
 	sc = device_get_softc(dev);
 
+	RK_I2C_LOCK(sc);
+
 	while (sc->busy)
 		mtx_sleep(sc, &sc->mtx, 0, "i2cbuswait", 0);
-
 	sc->busy = 1;
 
-	err = clk_enable(sc->pclk);
-	if (err != 0) {
-		device_printf(dev, "cannot enable pclk clock\n");
-		goto out;
-	}
-	err = clk_enable(sc->sclk);
-	if (err != 0) {
-		device_printf(dev, "cannot enable i2c clock\n");
-		goto out;
-	}
-
-	RK_I2C_LOCK(sc);
+	/* Disable the module and interrupts */
+	RK_I2C_WRITE(sc, RK_I2C_CON, 0);
+	RK_I2C_WRITE(sc, RK_I2C_IEN, 0);
 
 	/* Clean stale interrupts */
 	RK_I2C_WRITE(sc, RK_I2C_IPD, RK_I2C_IPD_ALL);
 
-	for (i = 0; i < nmsgs; i += msgskip) {
-		if (nmsgs - i >= 2 && !(msgs[i].flags & IIC_M_RD) &&
-		  msgs[i + 1].flags & IIC_M_RD && msgs[i].len <= 4) {
+	err = 0;
+	for (i = 0; i < nmsgs; i++) {
+		/* Validate parameters. */
+		if (msgs == NULL || msgs[i].buf == NULL ||
+		    msgs[i].len == 0) {
+			err = EINVAL;
+			break;
+		}
+		/*
+		 * If next message have NOSTART flag, then they both
+		 * should be same type (read/write) and same address.
+		 */
+		if (i < nmsgs - 1) {
+			if ((msgs[i + 1].flags & IIC_M_NOSTART) &&
+			    ((msgs[i].flags & IIC_M_RD) !=
+			    (msgs[i + 1].flags & IIC_M_RD) ||
+			    (msgs[i].slave !=  msgs[i + 1].slave))) {
+				err = EINVAL;
+				break;
+			}
+		}
+		/*
+		 * Detect simple register read case.
+		 * The first message should be IIC_M_WR | IIC_M_NOSTOP,
+		 * next pure IIC_M_RD (no other flags allowed). Both
+		 * messages should have same slave address.
+		 */
+
+		if (nmsgs - i >= 2 && msgs[i].len < 4 &&
+		    msgs[i].flags == (IIC_M_WR  | IIC_M_NOSTOP) &&
+		    msgs[i + 1].flags == IIC_M_RD &&
+		    (msgs[i].slave & ~LSB) == (msgs[i + 1].slave & ~LSB)) {
 			sc->mode = RK_I2C_CON_MODE_RRX;
-			msgskip = 2;
-			sc->msg = &msgs[i + 1];
 
 			/* Write slave address */
-			reg = msgs[i].slave | RK_I2C_MRXADDR_VALID(0);
+			reg = msgs[i].slave & ~LSB;
+			reg |= RK_I2C_MRXADDR_VALID(0);
 			RK_I2C_WRITE(sc, RK_I2C_MRXADDR, reg);
+
 			/* Write slave register address */
-			for (j = 0, reg = 0; j < msgs[i].len; j++) {
+			reg = 0;
+			for (j = 0; j < msgs[i].len ; j++) {
 				reg |= (msgs[i].buf[j] & 0xff) << (j * 8);
 				reg |= RK_I2C_MRXADDR_VALID(j);
 			}
-
 			RK_I2C_WRITE(sc, RK_I2C_MRXRADDR, reg);
+
+			i++;
 		} else {
 			if (msgs[i].flags & IIC_M_RD) {
-				sc->mode = RK_I2C_CON_MODE_RX;
-				msgs[i].slave |= LSB;
-			}
-			else {
+				if (msgs[i].flags & IIC_M_NOSTART) {
+					sc->mode = RK_I2C_CON_MODE_RX;
+				} else {
+					sc->mode = RK_I2C_CON_MODE_RRX;
+					reg = msgs[i].slave & LSB;
+					reg |= RK_I2C_MRXADDR_VALID(0);
+					RK_I2C_WRITE(sc, RK_I2C_MRXADDR, reg);
+					RK_I2C_WRITE(sc, RK_I2C_MRXRADDR, 0);
+				}
+			} else {
 				sc->mode = RK_I2C_CON_MODE_TX;
-				msgs[i].slave &= ~LSB;
 			}
-			msgskip = 1;
-			sc->msg = &msgs[i];
 		}
+		/* last message ? */
+		last_msg = (i > nmsgs - 1) ||
+		    !(msgs[i + 1].flags & IIC_M_NOSTART);
+		rk_i2c_start_xfer(sc, msgs + i, last_msg);
 
-		sc->transfer_done = 0;
-		sc->cnt = 0;
-		sc->state = STATE_IDLE;
-		rk_i2c_send_start(sc);
-
-		while (err == 0 && sc->transfer_done != 1) {
-			err = msleep(sc, &sc->mtx, 0, "rk_i2c", 10 * hz);
+		if (cold) {
+			for(timeout = 10000; timeout > 0; timeout--)  {
+				rk_i2c_intr_locked(sc);
+				if (sc->transfer_done != 0)
+					break;
+				DELAY(100);
+			}
+			if (timeout <= 0)
+				err = ETIMEDOUT;
+		} else {
+			while (err == 0 && sc->transfer_done != 1) {
+				err = msleep(sc, &sc->mtx, PZERO, "rk_i2c",
+				    10 * hz);
+			}
 		}
 	}
 
@@ -457,19 +549,6 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	sc->busy = 0;
 
 	RK_I2C_UNLOCK(sc);
-
-	err = clk_disable(sc->pclk);
-	if (err != 0) {
-		device_printf(dev, "cannot enable pclk clock\n");
-		goto out;
-	}
-	err = clk_disable(sc->sclk);
-	if (err != 0) {
-		device_printf(dev, "cannot enable i2c clock\n");
-		goto out;
-	}
-
-out:
 	return (err);
 }
 
@@ -519,10 +598,23 @@ rk_i2c_attach(device_t dev)
 		device_printf(dev, "cannot get i2c clock\n");
 		goto fail;
 	}
-	error = clk_get_by_ofw_name(dev, 0, "pclk", &sc->pclk);
+	error = clk_enable(sc->sclk);
 	if (error != 0) {
+		device_printf(dev, "cannot enable i2c clock\n");
+		goto fail;
+	}
+	/* pclk clock is optional. */
+	error = clk_get_by_ofw_name(dev, 0, "pclk", &sc->pclk);
+	if (error != 0 && error != ENOENT) {
 		device_printf(dev, "cannot get pclk clock\n");
 		goto fail;
+	}
+	if (sc->sclk != NULL) {
+		error = clk_enable(sc->sclk);
+		if (error != 0) {
+			device_printf(dev, "cannot enable pclk clock\n");
+			goto fail;
+		}
 	}
 
 	sc->iicbus = device_add_child(dev, "iicbus", -1);

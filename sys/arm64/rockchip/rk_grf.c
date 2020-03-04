@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/extres/syscon/syscon.h>
-#include <dev/extres/syscon/syscon_generic.h>
+#include <dev/fdt/simple_mfd.h>
 
 #include "opt_soc.h"
 
@@ -77,7 +77,7 @@ static device_method_t rk_grf_methods[] = {
 };
 
 DEFINE_CLASS_1(rk_grf, rk_grf_driver, rk_grf_methods,
-    sizeof(struct syscon_generic_softc), syscon_generic_driver);
+    sizeof(struct simple_mfd_softc), simple_mfd_driver);
 
 static devclass_t rk_grf_devclass;
 EARLY_DRIVER_MODULE(rk_grf, simplebus, rk_grf_driver, rk_grf_devclass,

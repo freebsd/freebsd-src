@@ -166,6 +166,7 @@ device		aw_mmc			# Allwinner SD/MMC controller
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 device		dwmmc
+device		rk_emmcphy
 
 # Serial (COM) ports
 device		uart		# Generic UART driver
