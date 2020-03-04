@@ -162,6 +162,7 @@
 #include "ntp_unixtime.h"
 #include "ntp_refclock.h"
 #include "ntp_calendar.h"
+#include "ntp_calgps.h"
 #include "ntp_stdlib.h"
 
 #include <stdio.h>
@@ -388,6 +389,7 @@ static	void	oncore_set_traim      (struct instance *);
 static	void	oncore_shmem_get_3D   (struct instance *);
 static	void	oncore_ss	      (struct instance *);
 static	int	oncore_wait_almanac   (struct instance *);
+static	void	oncore_feed_clockproc (struct instance *);
 
 static	void	oncore_msg_any	   (struct instance *, u_char *, size_t, int);
 static	void	oncore_msg_Adef    (struct instance *, u_char *, size_t);
@@ -1872,12 +1874,16 @@ oncore_get_timestamp(
 
 	/* and some things I dont understand (magic ntp things) */
 
+#if 1
+	oncore_feed_clockproc(instance);
+#else
 	if (!refclock_process(instance->pp)) {
-		refclock_report(instance->peer, CEVNT_BADTIME);
+		refclock_report(peer, CEVNT_BADTIME);
 		peer->flags &= ~FLAG_PPS;	/* problem - clear PPS FLAG */
 		return;
 	}
-
+#endif
+	
 	oncore_log(instance, LOG_INFO, Msg);	 /* this is long message above */
 	instance->pollcnt = 2;
 
@@ -4036,6 +4042,52 @@ oncore_wait_almanac(
 }
 
 
+static	void
+oncore_feed_clockproc(
+	struct instance * instance
+	)
+{
+	struct peer         * const peer = instance->peer;
+	struct refclockproc * const pp   = instance->pp;
+	
+	TCivilDate cd;	/* calendar date + time */
+	TGpsDatum  gd;	/* GPS datum, remapped into NTP epoch */
+	l_fp       fp;	/* the reference time in NTP format */
+
+	if (pp->year >= 1980) {
+		/* There are oncore receivers that run in a fixed
+		 * (possibly shifted) GPS era and fold back into that
+		 * era on every GPS week rollover.
+		 *
+		 * We do not trust the date we get and remap to a GPS
+		 * era defined by the GPS base date (derived from the
+		 * build time stamp or a 'tos basedate' config option.
+		 */
+		ZERO(fp);	/* has a zero to begin with */
+		ZERO(cd);	/* month == monthday == 0 -> use year+yearday */
+		cd.year    = pp->year;
+		cd.yearday = pp->day;
+		cd.hour    = pp->hour;
+		cd.minute  = pp->minute;
+		cd.second  = pp->second;
+		
+		/* the magic happens in the next line: */
+		gd = gpscal_from_calendar(&cd, fp); /* fp should be zero here */
+		
+		/* To avoid the trouble the day-of-year calculations in
+		 * 'refclock_process()' can cause we feed the time
+		 * stamps we have now directly. This also saves us two
+		 * full calendar calendar conversion cycles.
+		 */
+		fp = ntpfp_from_gpsdatum(&gd);
+		refclock_process_offset(pp, fp, pp->lastrec, pp->fudgetime1);
+	} else {
+		/* This is obviously a bad date/time... */
+		refclock_report(peer, CEVNT_BADDATE);
+		peer->flags &= ~FLAG_PPS;	/* problem - clear PPS FLAG */
+		return;
+	}
+}
 
 static void
 oncore_log (

@@ -32,7 +32,9 @@ compute_mac(
 	)
 {
 	u_int		len  = 0;
+#if defined(OPENSSL) && defined(ENABLE_CMAC)
 	size_t		slen = 0;
+#endif
 	int		key_type;
 	
 	INIT_SSL();

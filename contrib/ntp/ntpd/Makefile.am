@@ -25,7 +25,7 @@ if SAVECONFIG_ENABLED
 if NTP_CROSSCOMPILE
 CHECK_SAVECONFIG=
 else
-CHECK_SAVECONFIG= check-saveconfig
+CHECK_SAVECONFIG= check-saveconfig check-pslsaveconfig
 endif
 else !SAVECONFIG_ENABLED
 CHECK_SAVECONFIG=
@@ -110,9 +110,20 @@ DISTCLEANFILES =		\
 	$(NULL)
 
 CLEANFILES =			\
+	check-psl0		\
+	check-psl1		\
+	check-psl2		\
+	check-pslsaveconfig	\
 	check-saveconfig	\
 	compsave.conf		\
+	compsave.conf+		\
 	k-g-u-submake		\
+	psl0save.conf		\
+	psl0save.conf+		\
+	psl1save.conf		\
+	psl1save.conf+		\
+	psl2save.conf		\
+	psl2save.conf+		\
 	$(EXTRA_PROGRAMS)	\
 	$(NULL)
 
@@ -147,6 +158,9 @@ EXTRA_DIST =			\
 	ntpd.html		\
 	ntpd.texi		\
 	ntpdbase-opts.def	\
+	psl0.conf		\
+	psl1.conf		\
+	psl2.conf		\
 	refclock_msfees.c	\
 	$(B_S_DIST)		\
 	$(NULL)
@@ -345,13 +359,13 @@ $(srcdir)/invoke-ntp.keys.menu: $(srcdir)/invoke-ntp.keys.texi
 $(srcdir)/invoke-ntp.keys.texi: $(srcdir)/ntp.keys.def $(std_def_list)
 	$(run_ag) -Tagtexi-file.tpl -DLEVEL=section ntp.keys.def
 
-$(srcdir)/ntp.conf.html: $(srcdir)/ntp.conf.texi $(top_srcdir)/sntp/include/version.texi
+$(srcdir)/ntp.conf.html: $(srcdir)/ntp.conf.texi $(srcdir)/invoke-ntp.conf.texi $(top_srcdir)/sntp/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -o ntp.conf.html ntp.conf.texi || true )
 
-$(srcdir)/ntp.keys.html: $(srcdir)/ntp.keys.texi $(top_srcdir)/sntp/include/version.texi
+$(srcdir)/ntp.keys.html: $(srcdir)/ntp.keys.texi $(srcdir)/invoke-ntp.keys.texi $(top_srcdir)/sntp/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -o ntp.keys.html ntp.keys.texi || true )
 
-$(srcdir)/ntpd.html: $(srcdir)/ntpd.texi $(top_srcdir)/sntp/include/version.texi
+$(srcdir)/ntpd.html: $(srcdir)/ntpd.texi $(srcdir)/invoke-ntpd.texi $(top_srcdir)/sntp/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -o ntpd.html ntpd.texi || true )
 
 ###
@@ -413,12 +427,40 @@ $(srcdir)/invoke-ntpd.texi: $(srcdir)/ntpd-opts.def $(srcdir)/ntpdbase-opts.def 
 
 $(PROGRAMS): $(LDADD)
 
-compsave.conf: ntpd complete.conf
-	./ntpd --configfile complete.conf --saveconfigquit $@
-
 check-saveconfig: complete.conf compsave.conf
 	-diff -u complete.conf compsave.conf
 	cmp complete.conf compsave.conf && echo stamp > $@
+
+compsave.conf: ntpd complete.conf
+	./ntpd --configfile complete.conf --saveconfigquit $@+
+	grep -v '^#' $@+ > $@
+
+check-pslsaveconfig: check-psl0 check-psl1 check-psl2
+	echo stamp > $@
+
+check-psl0: psl0.conf psl0save.conf
+	-diff -u $< psl0save.conf
+	cmp $< psl0save.conf && echo stamp > $@
+
+psl0save.conf: psl0.conf ntpd
+	./ntpd --configfile $< --saveconfigquit $@+
+	grep -v '^#' $@+ > $@
+
+check-psl1: psl1.conf psl1save.conf
+	-diff -u $< psl1save.conf
+	cmp $< psl1save.conf && echo stamp > $@
+
+psl1save.conf: psl1.conf ntpd
+	./ntpd --configfile $< --saveconfigquit $@+
+	grep -v '^#' $@+ > $@
+
+check-psl2: psl2.conf psl2save.conf
+	-diff -u $< psl2save.conf
+	cmp $< psl2save.conf && echo stamp > $@
+
+psl2save.conf: psl2.conf ntpd
+	./ntpd --configfile $< --saveconfigquit $@+
+	grep -v '^#' $@+ > $@
 
 ../libntp/libntpsim.a:
 	cd ../libntp && $(MAKE) $(AM_MAKEFLAGS) libntpsim.a

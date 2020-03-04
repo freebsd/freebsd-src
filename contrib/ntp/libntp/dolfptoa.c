@@ -13,7 +13,7 @@ char *
 dolfptoa(
 	u_int32 fpi,
 	u_int32 fpv,
-	int neg,
+	char sign,
 	short ndec,
 	int msec
 	)
@@ -120,8 +120,8 @@ dolfptoa(
 		cp = cpdec - 1;
 
 	bp = buf;
-	if (neg)
-		*bp++ = '-';
+	if (sign)
+		*bp++ = sign;
 	while (cp < cpend) {
 		if (cp == cpdec)
 			*bp++ = '.';
@@ -150,7 +150,7 @@ mfptoa(
 		M_NEG(fpi, fpf);
 	}
 
-	return dolfptoa(fpi, fpf, isneg, ndec, FALSE);
+	return dolfptoa(fpi, fpf, (isneg?'-':'+'), ndec, FALSE);
 }
 
 
@@ -168,7 +168,7 @@ mfptoms(
 		M_NEG(fpi, fpf);
 	}
 
-	return dolfptoa(fpi, fpf, isneg, ndec, TRUE);
+	return dolfptoa(fpi, fpf, (isneg?'-':'+'), ndec, TRUE);
 }
 
 

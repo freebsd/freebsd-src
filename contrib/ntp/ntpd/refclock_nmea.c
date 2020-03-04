@@ -38,7 +38,7 @@
 #include "ntp_unixtime.h"
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
-#include "ntp_calendar.h"
+#include "ntp_calgps.h"
 #include "timespecops.h"
 
 #ifdef HAVE_PPSAPI
@@ -67,33 +67,34 @@
  * GPS sentences other than RMC (the default) may be enabled by setting
  * the relevent bits of 'mode' in the server configuration line
  * server 127.127.20.x mode X
- * 
+ *
  * bit 0 - enables RMC (1)
  * bit 1 - enables GGA (2)
  * bit 2 - enables GLL (4)
  * bit 3 - enables ZDA (8) - Standard Time & Date
- * bit 3 - enables ZDG (8) - Accord GPS Clock's custom sentence with GPS time 
+ * bit 3 - enables ZDG (8) - Accord GPS Clock's custom sentence with GPS time
  *			     very close to standard ZDA
- * 
+ *
  * Multiple sentences may be selected except when ZDG/ZDA is selected.
  *
  * bit 4/5/6 - selects the baudrate for serial port :
- *		0 for 4800 (default) 
- *		1 for 9600 
- *		2 for 19200 
- *		3 for 38400 
- *		4 for 57600 
- *		5 for 115200 
+ *		0 for 4800 (default)
+ *		1 for 9600
+ *		2 for 19200
+ *		3 for 38400
+ *		4 for 57600
+ *		5 for 115200
  */
 #define NMEA_MESSAGE_MASK	0x0000FF0FU
 #define NMEA_BAUDRATE_MASK	0x00000070U
 #define NMEA_BAUDRATE_SHIFT	4
 
-#define NMEA_DELAYMEAS_MASK	0x80
+#define NMEA_DELAYMEAS_MASK	0x00000080U
 #define NMEA_EXTLOG_MASK	0x00010000U
-#define NMEA_DATETRUST_MASK	0x02000000U
+#define NMEA_QUIETPPS_MASK	0x00020000U
+#define NMEA_DATETRUST_MASK	0x00040000U
 
-#define NMEA_PROTO_IDLEN	5	/* tag name must be at least 5 chars */
+#define NMEA_PROTO_IDLEN	4	/* tag name must be at least 4 chars */
 #define NMEA_PROTO_MINLEN	6	/* min chars in sentence, excluding CS */
 #define NMEA_PROTO_MAXLEN	80	/* max chars in sentence, excluding CS */
 #define NMEA_PROTO_FIELDS	32	/* not official; limit on fields per record */
@@ -110,24 +111,24 @@
  * $GPRMC,232418.19,A,3513.8386,S,14900.7853,E,00.0,000.0,121199,12.,E*77
  *
  * Defining GPZDA to support Standard Time & Date
- * sentence. The sentence has the following format 
- *  
+ * sentence. The sentence has the following format
+ *
  *  $--ZDA,HHMMSS.SS,DD,MM,YYYY,TH,TM,*CS<CR><LF>
  *
- *  Apart from the familiar fields, 
+ *  Apart from the familiar fields,
  *  'TH'    Time zone Hours
  *  'TM'    Time zone Minutes
  *
- * Defining GPZDG to support Accord GPS Clock's custom NMEA 
- * sentence. The sentence has the following format 
- *  
+ * Defining GPZDG to support Accord GPS Clock's custom NMEA
+ * sentence. The sentence has the following format
+ *
  *  $GPZDG,HHMMSS.S,DD,MM,YYYY,AA.BB,V*CS<CR><LF>
  *
  *  It contains the GPS timestamp valid for next PPS pulse.
- *  Apart from the familiar fields, 
- *  'AA.BB' denotes the signal strength( should be < 05.00 ) 
- *  'V'	    denotes the GPS sync status : 
- *	   '0' indicates INVALID time, 
+ *  Apart from the familiar fields,
+ *  'AA.BB' denotes the signal strength( should be < 05.00 )
+ *  'V'	    denotes the GPS sync status :
+ *	   '0' indicates INVALID time,
  *	   '1' indicates accuracy of +/-20 ms
  *	   '2' indicates accuracy of +/-100 ns
  *
@@ -151,6 +152,8 @@
 #define	SPEED232	B4800	/* uart speed (4800 bps) */
 #define	PRECISION	(-9)	/* precision assumed (about 2 ms) */
 #define	PPS_PRECISION	(-20)	/* precision assumed (about 1 us) */
+#define	DATE_HOLD	16	/* seconds to hold on provided GPS date */
+#define	DATE_HLIM	4	/* when do we take ANY date format */
 #define	REFID		"GPS\0"	/* reference id */
 #define	DESCRIPTION	"NMEA GPS Clock" /* who we are */
 #ifndef O_NOCTTY
@@ -181,7 +184,8 @@
  */
 #define NMEA_GPZDG	4
 #define NMEA_PGRMF	5
-#define NMEA_ARRAY_SIZE (NMEA_PGRMF + 1)
+#define NMEA_PUBX04	6
+#define NMEA_ARRAY_SIZE (NMEA_PUBX04 + 1)
 
 /*
  * Sentence selection mode bits
@@ -191,6 +195,7 @@
 #define USE_GPGLL		0x00000004u
 #define USE_GPZDA		0x00000008u
 #define USE_PGRMF		0x00000100u
+#define USE_PUBX04		0x00000200u
 
 /* mapping from sentence index to controlling mode bit */
 static const u_int32 sentence_mode[NMEA_ARRAY_SIZE] =
@@ -200,13 +205,23 @@ static const u_int32 sentence_mode[NMEA_ARRAY_SIZE] =
 	USE_GPGLL,
 	USE_GPZDA,
 	USE_GPZDA,
-	USE_PGRMF
+	USE_PGRMF,
+	USE_PUBX04
 };
 
 /* date formats we support */
 enum date_fmt {
 	DATE_1_DDMMYY,	/* use 1 field	with 2-digit year */
 	DATE_3_DDMMYYYY	/* use 3 fields with 4-digit year */
+};
+
+/* date type */
+enum date_type {
+	DTYP_NONE,
+	DTYP_Y2D,	/* 2-digit year */
+	DTYP_W10B,	/* 10-bit week in GPS epoch */
+	DTYP_Y4D,	/* 4-digit (full) year */
+	DTYP_WEXT	/* extended week in GPS epoch */
 };
 
 /* results for 'field_init()'
@@ -222,18 +237,22 @@ enum date_fmt {
 /*
  * Unit control structure
  */
+struct refclock_atom;
+typedef struct refclock_atom TAtomUnit;
 typedef struct {
-#ifdef HAVE_PPSAPI
-	struct refclock_atom atom; /* PPSAPI structure */
-	int	ppsapi_fd;	/* fd used with PPSAPI */
-	u_char	ppsapi_tried;	/* attempt PPSAPI once */
-	u_char	ppsapi_lit;	/* time_pps_create() worked */
-	u_char	ppsapi_gate;	/* system is on PPS */
-#endif /* HAVE_PPSAPI */
-	u_char  gps_time;	/* use GPS time, not UTC */
-	u_short century_cache;	/* cached current century */
-	l_fp	last_reftime;	/* last processed reference stamp */
-	short 	epoch_warp;	/* last epoch warp, for logging */
+#   ifdef HAVE_PPSAPI
+	TAtomUnit	atom;		/* PPSAPI structure */
+	int		ppsapi_fd;	/* fd used with PPSAPI */
+	u_char		ppsapi_tried;	/* attempt PPSAPI once */
+	u_char		ppsapi_lit;	/* time_pps_create() worked */
+#   endif /* HAVE_PPSAPI */
+	uint16_t	rcvtout;	/* one-shot for sample expiration */
+	u_char		ppsapi_gate;	/* system is on PPS */
+	u_char  	gps_time;	/* use GPS time, not UTC */
+	l_fp		last_reftime;	/* last processed reference stamp */
+	TNtpDatum	last_gpsdate;	/* last processed split date/time */
+	u_short		hold_gpsdate;	/* validity ticker for above */
+	u_short		type_gpsdate;	/* date info type for above */
 	/* tally stats, reset each poll cycle */
 	struct
 	{
@@ -243,10 +262,14 @@ typedef struct {
 		u_int malformed;  /* Bad checksum, invalid date or time */
 		u_int filtered;   /* mode bits, not GPZDG, same second */
 		u_int pps_used;
-	}	
+	}
 		tally;
 	/* per sentence checksum seen flag */
-	u_char	cksum_type[NMEA_ARRAY_SIZE];
+	u_char		cksum_type[NMEA_ARRAY_SIZE];
+
+	/* line assembly buffer (NMEAD support) */
+	u_short	lb_len;
+	char	lb_buf[BMAX];	/* assembly buffer */
 } nmea_unit;
 
 /*
@@ -260,34 +283,15 @@ typedef struct {
 } nmea_data;
 
 /*
- * NMEA gps week/time information
- * This record contains the number of weeks since 1980-01-06 modulo
- * 1024, the seconds elapsed since start of the week, and the number of
- * leap seconds that are the difference between GPS and UTC time scale.
- */
-typedef struct {
-	u_int32 wt_time;	/* seconds since weekstart */
-	u_short wt_week;	/* week number */
-	short	wt_leap;	/* leap seconds */
-} gps_weektm;
-
-/*
- * The GPS week time scale starts on Sunday, 1980-01-06. We need the
- * rata die number of this day.
- */
-#ifndef DAY_GPS_STARTS
-#define DAY_GPS_STARTS 722820
-#endif
-
-/*
  * Function prototypes
  */
-static	void	nmea_init	(void);
 static	int	nmea_start	(int, struct peer *);
 static	void	nmea_shutdown	(int, struct peer *);
 static	void	nmea_receive	(struct recvbuf *);
 static	void	nmea_poll	(int, struct peer *);
+static	void	nmea_procrec	(struct peer *, l_fp);
 #ifdef HAVE_PPSAPI
+static	double	tabsdiffd	(l_fp, l_fp);
 static	void	nmea_control	(int, const struct refclockstat *,
 				 struct refclockstat *, struct peer *);
 #define		NMEA_CONTROL	nmea_control
@@ -302,26 +306,17 @@ static char *	field_parse	(nmea_data * data, int fn);
 static void	field_wipe	(nmea_data * data, ...);
 static u_char	parse_qual	(nmea_data * data, int idx,
 				 char tag, int inv);
-static int	parse_time	(struct calendar * jd, long * nsec,
+static int	parse_time	(TCivilDate * jd, l_fp * fofs,
 				 nmea_data *, int idx);
-static int	parse_date	(struct calendar *jd, nmea_data*,
+static int	parse_date	(TCivilDate * jd, nmea_data *,
 				 int idx, enum date_fmt fmt);
-static int	parse_weekdata	(gps_weektm *, nmea_data *,
+static int	parse_gpsw	(TGpsDatum *, nmea_data *,
 				 int weekidx, int timeidx, int leapidx);
-/* calendar / date helpers */
-static int	unfold_day	(struct calendar * jd, u_int32 rec_ui);
-static int	unfold_century	(struct calendar * jd, u_int32 rec_ui);
-static int	gpsfix_century	(struct calendar * jd, const gps_weektm * wd,
-				 u_short * ccentury);
-static l_fp     eval_gps_time	(struct peer * peer, const struct calendar * gpst,
-				 const struct timespec * gpso, const l_fp * xrecv);
 
 static int	nmead_open	(const char * device);
-static void     save_ltc        (struct refclockproc * const, const char * const,
-				 size_t);
 
 /*
- * If we want the driver to ouput sentences, too: re-enable the send
+ * If we want the driver to output sentences, too: re-enable the send
  * support functions by defining NMEA_WRITE_SUPPORT to non-zero...
  */
 #if NMEA_WRITE_SUPPORT
@@ -335,9 +330,6 @@ extern int async_write(int, const void *, unsigned int);
 
 #endif /* NMEA_WRITE_SUPPORT */
 
-static int32_t g_gpsMinBase;
-static int32_t g_gpsMinYear;
-
 /*
  * -------------------------------------------------------------------
  * Transfer vector
@@ -348,45 +340,11 @@ struct refclock refclock_nmea = {
 	nmea_shutdown,		/* shut down driver */
 	nmea_poll,		/* transmit poll message */
 	NMEA_CONTROL,		/* fudge control */
-	nmea_init,		/* initialize driver */
+	noentry,		/* initialize driver */
 	noentry,		/* buginfo */
 	nmea_timer		/* called once per second */
 };
 
-/*
- * -------------------------------------------------------------------
- * nmea_init - initialise data
- *
- * calculates a few runtime constants that cannot be made compile time
- * constants.
- * -------------------------------------------------------------------
- */
-static void
-nmea_init(void)
-{
-	struct calendar date;
-
-	/* - calculate min. base value for GPS epoch & century unfolding 
-	 * This assumes that the build system was roughly in sync with
-	 * the world, and that really synchronising to a time before the
-	 * program was created would be unsafe or insane. If the build
-	 * date cannot be stablished, at least use the start of GPS
-	 * (1980-01-06) as minimum, because GPS can surely NOT
-	 * synchronise beyond it's own big bang. We add a little safety
-	 * margin for the fuzziness of the build date, which is in an
-	 * undefined time zone. */
-	if (ntpcal_get_build_date(&date))
-		g_gpsMinBase = ntpcal_date_to_rd(&date) - 2;
-	else
-		g_gpsMinBase = 0;
-
-	if (g_gpsMinBase < DAY_GPS_STARTS)
-		g_gpsMinBase = DAY_GPS_STARTS;
-
-	ntpcal_rd_to_date(&date, g_gpsMinBase);
-	g_gpsMinYear  = date.year;
-	g_gpsMinBase -= DAY_NTP_STARTS;
-}
 
 /*
  * -------------------------------------------------------------------
@@ -432,18 +390,18 @@ nmea_start(
 		baudrate = B38400;
 		baudtext = "38400";
 		break;
-#ifdef B57600
+#   ifdef B57600
 	case 4:
 		baudrate = B57600;
 		baudtext = "57600";
 		break;
-#endif
-#ifdef B115200
+#   endif
+#   ifdef B115200
 	case 5:
 		baudrate = B115200;
 		baudtext = "115200";
 		break;
-#endif
+#   endif
 	default:
 		baudrate = SPEED232;
 		baudtext = "4800 (fallback)";
@@ -458,11 +416,12 @@ nmea_start(
 	pp->io.datalen = 0;
 	/* force change detection on first valid message */
 	memset(&up->last_reftime, 0xFF, sizeof(up->last_reftime));
+	memset(&up->last_gpsdate, 0x00, sizeof(up->last_gpsdate));
 	/* force checksum on GPRMC, see below */
 	up->cksum_type[NMEA_GPRMC] = CHECK_CSVALID;
-#ifdef HAVE_PPSAPI
+#   ifdef HAVE_PPSAPI
 	up->ppsapi_fd = -1;
-#endif
+#   endif /* HAVE_PPSAPI */
 	ZERO(up->tally);
 
 	/* Initialize miscellaneous variables */
@@ -490,11 +449,10 @@ nmea_start(
 	return io_addclock(&pp->io) != 0;
 }
 
-
 /*
  * -------------------------------------------------------------------
  * nmea_shutdown - shut down a GPS clock
- * 
+ *
  * NOTE this routine is called after nmea_start() returns failure,
  * as well as during a normal shutdown due to ntpq :config unpeer.
  * -------------------------------------------------------------------
@@ -511,12 +469,12 @@ nmea_shutdown(
 	UNUSED_ARG(unit);
 
 	if (up != NULL) {
-#ifdef HAVE_PPSAPI
+#	    ifdef HAVE_PPSAPI
 		if (up->ppsapi_lit)
 			time_pps_destroy(up->atom.handle);
 		if (up->ppsapi_tried && up->ppsapi_fd != pp->io.fd)
 			close(up->ppsapi_fd);
-#endif
+#	    endif
 		free(up);
 	}
 	pp->unitptr = (caddr_t)NULL;
@@ -544,7 +502,7 @@ nmea_control(
 
 	char   device[32];
 	size_t devlen;
-	
+
 	UNUSED_ARG(in_st);
 	UNUSED_ARG(out_st);
 
@@ -570,7 +528,7 @@ nmea_control(
 				refnumtoa(&peer->srcadr));
 		}
 		if (-1 == up->ppsapi_fd)
-			up->ppsapi_fd = pp->io.fd;	
+			up->ppsapi_fd = pp->io.fd;
 		if (refclock_ppsapi(up->ppsapi_fd, &up->atom)) {
 			/* use the PPS API for our own purposes now. */
 			up->ppsapi_lit = refclock_params(
@@ -580,10 +538,10 @@ nmea_control(
 				time_pps_destroy(up->atom.handle);
 				msyslog(LOG_WARNING,
 					"%s set PPSAPI params fails",
-					refnumtoa(&peer->srcadr));				
+					refnumtoa(&peer->srcadr));
 			}
 			/* note: the PPS I/O handle remains valid until
-			 * flag1 is cleared or the clock is shut down. 
+			 * flag1 is cleared or the clock is shut down.
 			 */
 		} else {
 			msyslog(LOG_WARNING,
@@ -593,7 +551,7 @@ nmea_control(
 	}
 
 	/* shut down PPS API if activated */
-	if (!(CLK_FLAG1 & pp->sloppyclockflag) && up->ppsapi_tried) {
+	if ( !(CLK_FLAG1 & pp->sloppyclockflag) && up->ppsapi_tried) {
 		/* shutdown PPS API */
 		if (up->ppsapi_lit)
 			time_pps_destroy(up->atom.handle);
@@ -612,18 +570,20 @@ nmea_control(
 		peer->precision = PRECISION;
 	}
 }
-#endif	/* HAVE_PPSAPI */
+#endif /* HAVE_PPSAPI */
 
 /*
  * -------------------------------------------------------------------
  * nmea_timer - called once per second
- *		this only polls (older?) Oncore devices now
  *
  * Usually 'nmea_receive()' can get a timestamp every second, but at
  * least one Motorola unit needs prompting each time. Doing so in
  * 'nmea_poll()' gives only one sample per poll cycle, which actually
  * defeats the purpose of the median filter. Polling once per second
  * seems a much better idea.
+ *
+ * Also takes care of sample expiration if the receiver fails to
+ * provide new input data.
  * -------------------------------------------------------------------
  */
 static void
@@ -632,138 +592,36 @@ nmea_timer(
 	struct peer * peer
 	)
 {
-#if NMEA_WRITE_SUPPORT
-    
 	struct refclockproc * const pp = peer->procptr;
+	nmea_unit	    * const up = (nmea_unit *)pp->unitptr;
 
 	UNUSED_ARG(unit);
+
+#   if NMEA_WRITE_SUPPORT
 
 	if (-1 != pp->io.fd) /* any mode bits to evaluate here? */
 		gps_send(pp->io.fd, "$PMOTG,RMC,0000*1D\r\n", peer);
-#else
-	
-	UNUSED_ARG(unit);
-	UNUSED_ARG(peer);
-	
-#endif /* NMEA_WRITE_SUPPORT */
+
+#   endif /* NMEA_WRITE_SUPPORT */
+
+	/* receive timeout occurred? */
+	if (up->rcvtout) {
+		--up->rcvtout;
+	} else if (pp->codeproc != pp->coderecv) {
+		/* expire one (the oldest) sample, if any */
+		refclock_samples_expire(pp, 1);
+		/* reset message assembly buffer */
+		up->lb_buf[0] = '\0';
+		up->lb_len    = 0;
+	}
+
+	if (up->hold_gpsdate && (--up->hold_gpsdate < DATE_HLIM))
+		up->type_gpsdate = DTYP_NONE;
 }
-
-#ifdef HAVE_PPSAPI
-/*
- * -------------------------------------------------------------------
- * refclock_ppsrelate(...) -- correlate with PPS edge
- *
- * This function is used to correlate a receive time stamp and a
- * reference time with a PPS edge time stamp. It applies the necessary
- * fudges (fudge1 for PPS, fudge2 for receive time) and then tries to
- * move the receive time stamp to the corresponding edge. This can warp
- * into future, if a transmission delay of more than 500ms is not
- * compensated with a corresponding fudge time2 value, because then the
- * next PPS edge is nearer than the last. (Similiar to what the PPS ATOM
- * driver does, but we deal with full time stamps here, not just phase
- * shift information.) Likewise, a negative fudge time2 value must be
- * used if the reference time stamp correlates with the *following* PPS
- * pulse.
- *
- * Note that the receive time fudge value only needs to move the receive
- * stamp near a PPS edge but that close proximity is not required;
- * +/-100ms precision should be enough. But since the fudge value will
- * probably also be used to compensate the transmission delay when no
- * PPS edge can be related to the time stamp, it's best to get it as
- * close as possible.
- *
- * It should also be noted that the typical use case is matching to the
- * preceeding edge, as most units relate their sentences to the current
- * second.
- *
- * The function returns PPS_RELATE_NONE (0) if no PPS edge correlation
- * can be fixed; PPS_RELATE_EDGE (1) when a PPS edge could be fixed, but
- * the distance to the reference time stamp is too big (exceeds
- * +/-400ms) and the ATOM driver PLL cannot be used to fix the phase;
- * and PPS_RELATE_PHASE (2) when the ATOM driver PLL code can be used.
- *
- * On output, the receive time stamp is replaced with the corresponding
- * PPS edge time if a fix could be made; the PPS fudge is updated to
- * reflect the proper fudge time to apply. (This implies that
- * 'refclock_process_offset()' must be used!)
- * -------------------------------------------------------------------
- */
-#define PPS_RELATE_NONE	 0	/* no pps correlation possible	  */
-#define PPS_RELATE_EDGE	 1	/* recv time fixed, no phase lock */
-#define PPS_RELATE_PHASE 2	/* recv time fixed, phase lock ok */
-
-static int
-refclock_ppsrelate(
-	const struct refclockproc  * pp	    ,	/* for sanity	  */
-	const struct refclock_atom * ap	    ,	/* for PPS io	  */
-	const l_fp		   * reftime ,
-	l_fp			   * rd_stamp,	/* i/o read stamp */
-	double			     pp_fudge,	/* pps fudge	  */
-	double			   * rd_fudge	/* i/o read fudge */
-	)
-{
-	pps_info_t	pps_info;
-	struct timespec timeout;
-	l_fp		pp_stamp, pp_delta;
-	double		delta, idelta;
-
-	if (pp->leap == LEAP_NOTINSYNC)
-		return PPS_RELATE_NONE; /* clock is insane, no chance */
-
-	ZERO(timeout);
-	ZERO(pps_info);
-	if (time_pps_fetch(ap->handle, PPS_TSFMT_TSPEC,
-			   &pps_info, &timeout) < 0)
-		return PPS_RELATE_NONE; /* can't get time stamps */
-
-	/* get last active PPS edge before receive */
-	if (ap->pps_params.mode & PPS_CAPTUREASSERT)
-		timeout = pps_info.assert_timestamp;
-	else if (ap->pps_params.mode & PPS_CAPTURECLEAR)
-		timeout = pps_info.clear_timestamp;
-	else
-		return PPS_RELATE_NONE; /* WHICH edge, please?!? */
-
-	/* get delta between receive time and PPS time */
-	pp_stamp = tspec_stamp_to_lfp(timeout);
-	pp_delta = *rd_stamp;
-	L_SUB(&pp_delta, &pp_stamp);
-	LFPTOD(&pp_delta, delta);
-	delta += pp_fudge - *rd_fudge;
-	if (fabs(delta) > 1.5)
-		return PPS_RELATE_NONE; /* PPS timeout control */
-	
-	/* eventually warp edges, check phase */
-	idelta	  = floor(delta + 0.5);
-	pp_fudge -= idelta;
-	delta	 -= idelta;
-	if (fabs(delta) > 0.45)
-		return PPS_RELATE_NONE; /* dead band control */
-
-	/* we actually have a PPS edge to relate with! */
-	*rd_stamp = pp_stamp;
-	*rd_fudge = pp_fudge;
-
-	/* if whole system out-of-sync, do not try to PLL */
-	if (sys_leap == LEAP_NOTINSYNC)
-		return PPS_RELATE_EDGE; /* cannot PLL with atom code */
-
-	/* check against reftime if ATOM PLL can be used */
-	pp_delta = *reftime;
-	L_SUB(&pp_delta, &pp_stamp);
-	LFPTOD(&pp_delta, delta);
-	delta += pp_fudge;
-	if (fabs(delta) > 0.45)
-		return PPS_RELATE_EDGE; /* cannot PLL with atom code */
-
-	/* all checks passed, gets an AAA rating here! */
-	return PPS_RELATE_PHASE; /* can PLL with atom code */
-}
-#endif	/* HAVE_PPSAPI */
 
 /*
  * -------------------------------------------------------------------
- * nmea_receive - receive data from the serial interface
+ * nmea_procrec - receive data from the serial interface
  *
  * This is the workhorse for NMEA data evaluation:
  *
@@ -771,61 +629,64 @@ refclock_ppsrelate(
  *   NMEA sentences
  * + it checks whether a sentence is known and to be used
  * + it parses the time and date data from the NMEA data string and
- *   augments the missing bits. (century in dat, whole date, ...)
+ *   augments the missing bits. (century in date, whole date, ...)
  * + it rejects data that is not from the first accepted sentence in a
  *   burst
  * + it eventually replaces the receive time with the PPS edge time.
  * + it feeds the data to the internal processing stages.
+ *
+ * This function assumes a non-empty line in the unit line buffer.
  * -------------------------------------------------------------------
  */
 static void
-nmea_receive(
-	struct recvbuf * rbufp
+nmea_procrec(
+	struct peer * const	peer,
+	l_fp 	  		rd_timestamp
 	)
 {
-	/* declare & init control structure ptrs */
-	struct peer	    * const peer = rbufp->recv_peer;
+	/* declare & init control structure pointers */
 	struct refclockproc * const pp = peer->procptr;
 	nmea_unit	    * const up = (nmea_unit*)pp->unitptr;
 
 	/* Use these variables to hold data until we decide its worth keeping */
 	nmea_data rdata;
-	char 	  rd_lastcode[BMAX];
-	l_fp 	  rd_timestamp, rd_reftime;
-	int	  rd_lencode;
-	double	  rd_fudge;
+	l_fp 	  rd_reftime;
 
 	/* working stuff */
-	struct calendar date;	/* to keep & convert the time stamp */
-	struct timespec tofs;	/* offset to full-second reftime */
-	gps_weektm      gpsw;	/* week time storage */
+	TCivilDate	date;	/* to keep & convert the time stamp */
+	TGpsDatum	wgps;	/* week time storage */
+	TNtpDatum	dntp;
+	l_fp		tofs;	/* offset to full-second reftime */
 	/* results of sentence/date/time parsing */
 	u_char		sentence;	/* sentence tag */
 	int		checkres;
+	int		warp;		/* warp to GPS base date */
 	char *		cp;
-	int		rc_date;
-	int		rc_time;
+	int		rc_date, rc_time;
+	u_short		rc_dtyp;
+#   ifdef HAVE_PPSAPI
+	int		withpps = 0;
+#   endif /* HAVE_PPSAPI */
 
 	/* make sure data has defined pristine state */
 	ZERO(tofs);
 	ZERO(date);
-	ZERO(gpsw);
+	ZERO(wgps);
+	ZERO(dntp);
 
-	/* 
-	 * Read the timecode and timestamp, then initialise field
+	/*
+	 * Read the timecode and timestamp, then initialize field
 	 * processing. The <CR><LF> at the NMEA line end is translated
 	 * to <LF><LF> by the terminal input routines on most systems,
 	 * and this gives us one spurious empty read per record which we
 	 * better ignore silently.
 	 */
-	rd_lencode = refclock_gtlin(rbufp, rd_lastcode,
-				    sizeof(rd_lastcode), &rd_timestamp);
-	checkres = field_init(&rdata, rd_lastcode, rd_lencode);
+	checkres = field_init(&rdata, up->lb_buf, up->lb_len);
 	switch (checkres) {
 
 	case CHECK_INVALID:
 		DPRINTF(1, ("%s invalid data: '%s'\n",
-			refnumtoa(&peer->srcadr), rd_lastcode));
+			refnumtoa(&peer->srcadr), up->lb_buf));
 		refclock_report(peer, CEVNT_BADREPLY);
 		return;
 
@@ -834,13 +695,13 @@ nmea_receive(
 
 	default:
 		DPRINTF(1, ("%s gpsread: %d '%s'\n",
-			refnumtoa(&peer->srcadr), rd_lencode,
-			rd_lastcode));
+			refnumtoa(&peer->srcadr), up->lb_len,
+			up->lb_buf));
 		break;
 	}
 	up->tally.total++;
 
-	/* 
+	/*
 	 * --> below this point we have a valid NMEA sentence <--
 	 *
 	 * Check sentence name. Skip first 2 chars (talker ID) in most
@@ -859,8 +720,10 @@ nmea_receive(
 		sentence = NMEA_GPZDA;
 	else if (strncmp(cp + 2, "ZDG,", 4) == 0)
 		sentence = NMEA_GPZDG;
-	else if (strncmp(cp,   "PGRMF,", 6) == 0) 
+	else if (strncmp(cp,   "PGRMF,", 6) == 0)
 		sentence = NMEA_PGRMF;
+	else if (strncmp(cp,   "PUBX,04,", 8) == 0)
+		sentence = NMEA_PUBX04;
 	else
 		return;	/* not something we know about */
 
@@ -868,10 +731,10 @@ nmea_receive(
 	if (peer->ttl & NMEA_DELAYMEAS_MASK) {
 		mprintf_clock_stats(&peer->srcadr, "delay %0.6f %.*s",
 			 ldexp(rd_timestamp.l_uf, -32),
-			 (int)(strchr(rd_lastcode, ',') - rd_lastcode),
-			 rd_lastcode);
+			 (int)(strchr(up->lb_buf, ',') - up->lb_buf),
+			 up->lb_buf);
 	}
-	
+
 	/* See if I want to process this message type */
 	if ((peer->ttl & NMEA_MESSAGE_MASK) &&
 	    !(peer->ttl & sentence_mode[sentence])) {
@@ -879,7 +742,7 @@ nmea_receive(
 		return;
 	}
 
-	/* 
+	/*
 	 * make sure it came in clean
 	 *
 	 * Apparently, older NMEA specifications (which are expensive)
@@ -900,7 +763,7 @@ nmea_receive(
 		up->cksum_type[sentence] = (u_char)checkres;
 	} else {
 		DPRINTF(1, ("%s checksum missing: '%s'\n",
-			refnumtoa(&peer->srcadr), rd_lastcode));
+			refnumtoa(&peer->srcadr), up->lb_buf));
 		refclock_report(peer, CEVNT_BADREPLY);
 		up->tally.malformed++;
 		return;
@@ -910,185 +773,317 @@ nmea_receive(
 	 * $GPZDG provides GPS time not UTC, and the two mix poorly.
 	 * Once have processed a $GPZDG, do not process any further UTC
 	 * sentences (all but $GPZDG currently).
-	 */ 
-	if (up->gps_time && NMEA_GPZDG != sentence) {
-		up->tally.filtered++;
-		return;
+	 */
+	if (sentence == NMEA_GPZDG) {
+		if (!up->gps_time) {
+			msyslog(LOG_INFO,
+				"%s using GPS time as if it were UTC",
+				refnumtoa(&peer->srcadr));
+			up->gps_time = 1;
+		}
+	} else {
+		if (up->gps_time) {
+			up->tally.filtered++;
+			return;
+		}
 	}
 
 	DPRINTF(1, ("%s processing %d bytes, timecode '%s'\n",
-		refnumtoa(&peer->srcadr), rd_lencode, rd_lastcode));
+		refnumtoa(&peer->srcadr), up->lb_len, up->lb_buf));
 
 	/*
 	 * Grab fields depending on clock string type and possibly wipe
 	 * sensitive data from the last timecode.
 	 */
-	switch (sentence) {
+	rc_date = -1;	/* assume we have to do day-time mapping */
+	rc_dtyp = DTYP_NONE;
+       	switch (sentence) {
 
 	case NMEA_GPRMC:
 		/* Check quality byte, fetch data & time */
-		rc_time	 = parse_time(&date, &tofs.tv_nsec, &rdata, 1);
+		rc_time	 = parse_time(&date, &tofs, &rdata, 1);
 		pp->leap = parse_qual(&rdata, 2, 'A', 0);
-		rc_date	 = parse_date(&date, &rdata, 9, DATE_1_DDMMYY)
-			&& unfold_century(&date, rd_timestamp.l_ui);
-		if (CLK_FLAG4 & pp->sloppyclockflag)
+		if (up->type_gpsdate <= DTYP_Y2D) {
+			rc_date	= parse_date(&date, &rdata, 9, DATE_1_DDMMYY);
+			rc_dtyp = DTYP_Y2D;
+		}
+ 		if (CLK_FLAG4 & pp->sloppyclockflag)
 			field_wipe(&rdata, 3, 4, 5, 6, -1);
 		break;
 
 	case NMEA_GPGGA:
 		/* Check quality byte, fetch time only */
-		rc_time	 = parse_time(&date, &tofs.tv_nsec, &rdata, 1);
+		rc_time	 = parse_time(&date, &tofs, &rdata, 1);
 		pp->leap = parse_qual(&rdata, 6, '0', 1);
-		rc_date	 = unfold_day(&date, rd_timestamp.l_ui);
 		if (CLK_FLAG4 & pp->sloppyclockflag)
 			field_wipe(&rdata, 2, 4, -1);
 		break;
 
 	case NMEA_GPGLL:
 		/* Check quality byte, fetch time only */
-		rc_time	 = parse_time(&date, &tofs.tv_nsec, &rdata, 5);
+		rc_time	 = parse_time(&date, &tofs, &rdata, 5);
 		pp->leap = parse_qual(&rdata, 6, 'A', 0);
-		rc_date	 = unfold_day(&date, rd_timestamp.l_ui);
 		if (CLK_FLAG4 & pp->sloppyclockflag)
 			field_wipe(&rdata, 1, 3, -1);
 		break;
-	
+
 	case NMEA_GPZDA:
 		/* No quality.	Assume best, fetch time & full date */
-		pp->leap = LEAP_NOWARNING;
-		rc_time	 = parse_time(&date, &tofs.tv_nsec, &rdata, 1);
-		rc_date	 = parse_date(&date, &rdata, 2, DATE_3_DDMMYYYY);
+		rc_time	= parse_time(&date, &tofs, &rdata, 1);
+		if (up->type_gpsdate <= DTYP_Y4D) {
+			rc_date	= parse_date(&date, &rdata, 2, DATE_3_DDMMYYYY);
+			rc_dtyp = DTYP_Y4D;
+		}
 		break;
 
 	case NMEA_GPZDG:
 		/* Check quality byte, fetch time & full date */
-		rc_time	 = parse_time(&date, &tofs.tv_nsec, &rdata, 1);
-		rc_date	 = parse_date(&date, &rdata, 2, DATE_3_DDMMYYYY);
+		rc_time	 = parse_time(&date, &tofs, &rdata, 1);
 		pp->leap = parse_qual(&rdata, 4, '0', 1);
-		tofs.tv_sec = -1; /* GPZDG is following second */
+		--tofs.l_ui; /* GPZDG gives *following* second */
+		if (up->type_gpsdate <= DTYP_Y4D) {
+			rc_date	= parse_date(&date, &rdata, 2, DATE_3_DDMMYYYY);
+			rc_dtyp = DTYP_Y4D;
+		}
 		break;
 
 	case NMEA_PGRMF:
-		/* get date, time, qualifier and GPS weektime. We need
-		 * date and time-of-day for the century fix, so we read
-		 * them first.
-		 */
-		rc_date  = parse_weekdata(&gpsw, &rdata, 1, 2, 5)
-		        && parse_date(&date, &rdata, 3, DATE_1_DDMMYY);
-		rc_time  = parse_time(&date, &tofs.tv_nsec, &rdata, 4);
-		pp->leap = parse_qual(&rdata, 11, '0', 1);		
-		rc_date  = rc_date
-		        && gpsfix_century(&date, &gpsw, &up->century_cache);
+		/* get time, qualifier and GPS weektime. */
+		rc_time = parse_time(&date, &tofs, &rdata, 4);
+		if (up->type_gpsdate <= DTYP_W10B) {
+			rc_date = parse_gpsw(&wgps, &rdata, 1, 2, 5);
+			rc_dtyp = DTYP_W10B;
+		}
+		pp->leap = parse_qual(&rdata, 11, '0', 1);
 		if (CLK_FLAG4 & pp->sloppyclockflag)
 			field_wipe(&rdata, 6, 8, -1);
 		break;
-		
+
+	case NMEA_PUBX04:
+		/* PUBX,04 is peculiar. The UTC time-of-week is the *internal*
+		 * time base, which is not exactly on par with the fix time.
+		 */
+		rc_time = parse_time(&date, &tofs, &rdata, 2);
+		if (up->type_gpsdate <= DTYP_WEXT) {
+			rc_date = parse_gpsw(&wgps, &rdata, 5, 4, -1);
+			rc_dtyp = DTYP_WEXT;
+		}
+		break;
+
 	default:
 		INVARIANT(0);	/* Coverity 97123 */
 		return;
 	}
 
+	/* check clock sanity; [bug 2143] */
+	if (pp->leap == LEAP_NOTINSYNC) { /* no good status? */
+		checkres = CEVNT_PROP;
+		up->tally.rejected++;
+	}
 	/* Check sanity of time-of-day. */
-	if (rc_time == 0) {	/* no time or conversion error? */
+	else if (rc_time == 0) {	/* no time or conversion error? */
 		checkres = CEVNT_BADTIME;
 		up->tally.malformed++;
 	}
 	/* Check sanity of date. */
-	else if (rc_date == 0) {/* no date or conversion error? */
+	else if (rc_date == 0) {	/* no date or conversion error? */
 		checkres = CEVNT_BADDATE;
 		up->tally.malformed++;
 	}
-	/* check clock sanity; [bug 2143] */
-	else if (pp->leap == LEAP_NOTINSYNC) { /* no good status? */
-		checkres = CEVNT_BADREPLY;
-		up->tally.rejected++;
-	}
-	else
+	else {
 		checkres = -1;
+	}
 
 	if (checkres != -1) {
-		save_ltc(pp, rd_lastcode, rd_lencode);
+		refclock_save_lcode(pp, up->lb_buf, up->lb_len);
 		refclock_report(peer, checkres);
 		return;
 	}
 
-	DPRINTF(1, ("%s effective timecode: %04u-%02u-%02u %02d:%02d:%02d\n",
-		refnumtoa(&peer->srcadr),
-		date.year, date.month, date.monthday,
-		date.hour, date.minute, date.second));
+	/* See if we can augment the receive time stamp. If not, apply
+	 * fudge time 2 to the receive time stamp directly.
+	 */
+#   ifdef HAVE_PPSAPI
+	if (up->ppsapi_lit && pp->leap != LEAP_NOTINSYNC)
+		withpps = refclock_ppsaugment(
+			&up->atom, &rd_timestamp,
+			pp->fudgetime2, pp->fudgetime1);
+	else
+#   endif /* HAVE_PPSAPI */
+		rd_timestamp = ntpfp_with_fudge(
+			rd_timestamp, pp->fudgetime2);
 
-	/* Check if we must enter GPS time mode; log so if we do */
-	if (!up->gps_time && (sentence == NMEA_GPZDG)) {
-		msyslog(LOG_INFO, "%s using GPS time as if it were UTC",
-			refnumtoa(&peer->srcadr));
-		up->gps_time = 1;
+	/* set the GPS base date, if possible */
+	warp = !(peer->ttl & NMEA_DATETRUST_MASK);
+	if (rc_dtyp != DTYP_NONE) {
+		DPRINTF(1, ("%s saving date, type=%hu\n",
+			    refnumtoa(&peer->srcadr), rc_dtyp));
+		switch (rc_dtyp) {
+		case DTYP_W10B:
+			up->last_gpsdate = gpsntp_from_gpscal_ex(
+				&wgps, (warp = TRUE));
+			break;
+		case DTYP_WEXT:
+			up->last_gpsdate = gpsntp_from_gpscal_ex(
+				&wgps, warp);
+			break;
+		default:
+			up->last_gpsdate = gpsntp_from_calendar_ex(
+				&date, tofs, warp);
+			break;
+		}
+		up->type_gpsdate = rc_dtyp;
+		up->hold_gpsdate = DATE_HOLD;
 	}
-	
-	/*
-	 * Get the reference time stamp from the calendar buffer.
+	/* now convert and possibly extend/expand the time stamp. */
+	if (up->hold_gpsdate) {	/* time of day, based */
+		dntp = gpsntp_from_daytime2_ex(
+			&date, tofs, &up->last_gpsdate, warp);
+	} else {		/* time of day, floating */
+		dntp = gpsntp_from_daytime1_ex(
+			&date, tofs, rd_timestamp, warp);
+	}
+
+	if (debug) {
+		/* debug print time stamp */
+		gpsntp_to_calendar(&date, &dntp);
+#	    ifdef HAVE_PPSAPI
+		DPRINTF(1, ("%s effective timecode: %s (%s PPS)\n",
+			    refnumtoa(&peer->srcadr),
+			    ntpcal_iso8601std(NULL, 0, &date),
+			    (withpps ? "with" : "without")));
+#	    else /* ?HAVE_PPSAPI */
+		DPRINTF(1, ("%s effective timecode: %s\n",
+			    refnumtoa(&peer->srcadr),
+			    ntpcal_iso8601std(NULL, 0, &date)));
+#	    endif /* !HAVE_PPSAPI */
+	}
+
+	/* Get the reference time stamp from the calendar buffer.
 	 * Process the new sample in the median filter and determine the
 	 * timecode timestamp, but only if the PPS is not in control.
 	 * Discard sentence if reference time did not change.
 	 */
-	rd_reftime = eval_gps_time(peer, &date, &tofs, &rd_timestamp);
+	rd_reftime = ntpfp_from_ntpdatum(&dntp);
 	if (L_ISEQU(&up->last_reftime, &rd_reftime)) {
 		/* Do not touch pp->a_lastcode on purpose! */
 		up->tally.filtered++;
 		return;
 	}
 	up->last_reftime = rd_reftime;
-	rd_fudge = pp->fudgetime2;
 
 	DPRINTF(1, ("%s using '%s'\n",
-		    refnumtoa(&peer->srcadr), rd_lastcode));
+		    refnumtoa(&peer->srcadr), up->lb_buf));
 
 	/* Data will be accepted. Update stats & log data. */
 	up->tally.accepted++;
-	save_ltc(pp, rd_lastcode, rd_lencode);
+	refclock_save_lcode(pp, up->lb_buf, up->lb_len);
 	pp->lastrec = rd_timestamp;
 
-#ifdef HAVE_PPSAPI
-	/*
-	 * If we have PPS running, we try to associate the sentence
-	 * with the last active edge of the PPS signal.
+	/* If we have PPS augmented receive time, we *must* have a
+	 * working PPS source and we must set the flags accordingly.
 	 */
-	if (up->ppsapi_lit)
-		switch (refclock_ppsrelate(
-				pp, &up->atom, &rd_reftime, &rd_timestamp,
-				pp->fudgetime1,	&rd_fudge))
-		{
-		case PPS_RELATE_PHASE:
-			up->ppsapi_gate = TRUE;
-			peer->precision = PPS_PRECISION;
-			peer->flags |= FLAG_PPS;
+#   ifdef HAVE_PPSAPI
+	if (withpps) {
+		up->ppsapi_gate = TRUE;
+		peer->precision = PPS_PRECISION;
+		if (tabsdiffd(rd_reftime, rd_timestamp) < 0.5) {
+			if ( ! (peer->ttl & NMEA_QUIETPPS_MASK))
+				peer->flags |= FLAG_PPS;
 			DPRINTF(2, ("%s PPS_RELATE_PHASE\n",
 				    refnumtoa(&peer->srcadr)));
 			up->tally.pps_used++;
-			break;
-			
-		case PPS_RELATE_EDGE:
-			up->ppsapi_gate = TRUE;
-			peer->precision = PPS_PRECISION;
+		} else {
 			DPRINTF(2, ("%s PPS_RELATE_EDGE\n",
 				    refnumtoa(&peer->srcadr)));
-			break;
-			
-		case PPS_RELATE_NONE:
-		default:
-			/*
-			 * Resetting precision and PPS flag is done in
-			 * 'nmea_poll', since it might be a glitch. But
-			 * at the end of the poll cycle we know...
-			 */
-			DPRINTF(2, ("%s PPS_RELATE_NONE\n",
-				    refnumtoa(&peer->srcadr)));
-			break;
 		}
-#endif /* HAVE_PPSAPI */
-
-	refclock_process_offset(pp, rd_reftime, rd_timestamp, rd_fudge);
+		/* !Note! 'FLAG_PPS' is reset in 'nmea_poll()' */
+	}
+#   endif /* HAVE_PPSAPI */
+	/* Whether the receive time stamp is PPS-augmented or not,
+	 * the proper fudge offset is already applied. There's no
+	 * residual fudge to process.
+	 */
+	refclock_process_offset(pp, rd_reftime, rd_timestamp, 0.0);
+	up->rcvtout = 2;
 }
 
+/*
+ * -------------------------------------------------------------------
+ * nmea_receive - receive data from the serial interface
+ *
+ * With serial IO only, a single call to 'refclock_gtlin()' to get the
+ * string would suffice to get the NMEA data. When using NMEAD, this
+ * does unfortunately no longer hold, since TCP is stream oriented and
+ * not line oriented, and there's no one to do the line-splitting work
+ * of the TTY driver in line/cooked mode.
+ *
+ * So we have to do this manually here, and we have to live with the
+ * fact that there could be more than one sentence in a receive buffer.
+ * Likewise, there can be partial messages on either end. (Strictly
+ * speaking, a receive buffer could also contain just a single fragment,
+ * though that's unlikely.)
+ *
+ * We deal with that by scanning the input buffer, copying bytes from
+ * the receive buffer to the assembly buffer as we go and calling the
+ * record processor every time we hit a CR/LF, provided the resulting
+ * line is not empty. Any leftovers are kept for the next round.
+ *
+ * Note: When used with a serial data stream, there's no change to the
+ * previous line-oriented input: One line is copied to the buffer and
+ * processed per call. Only with NMEAD the behavior changes, and the
+ * timing is badly affected unless a PPS channel is also associated with
+ * the clock instance. TCP leaves us nothing to improve on here.
+ * -------------------------------------------------------------------
+ */
+static void
+nmea_receive(
+	struct recvbuf * rbufp
+	)
+{
+	/* declare & init control structure pointers */
+	struct peer	    * const peer = rbufp->recv_peer;
+	struct refclockproc * const pp = peer->procptr;
+	nmea_unit	    * const up = (nmea_unit*)pp->unitptr;
+
+	const char *sp, *se;
+	char	   *dp, *de;
+
+	/* paranoia check: */
+	if (up->lb_len >= sizeof(up->lb_buf))
+		up->lb_len = 0;
+
+	/* pick up last assembly position; leave room for NUL */
+	dp = up->lb_buf + up->lb_len;
+	de = up->lb_buf + sizeof(up->lb_buf) - 1;
+	/* set up input range */
+	sp = (const char *)rbufp->recv_buffer;
+	se = sp + rbufp->recv_length;
+
+	/* walk over the input data, dropping parity bits and control
+	 * chars as we go, and calling the record processor for each
+	 * complete non-empty line.
+	 */
+	while (sp != se) {
+		char ch = (*sp++ & 0x7f);
+		if (dp == up->lb_buf) {
+			if (ch == '$')
+				*dp++ = ch;
+		} else if (dp > de) {
+			dp = up->lb_buf;
+		} else if (ch == '\n' || ch == '\r') {
+			*dp = '\0';
+			up->lb_len = (int)(dp - up->lb_buf);
+			dp = up->lb_buf;
+			nmea_procrec(peer, rbufp->recv_time);
+		} else if (ch >= 0x20 && ch < 0x7f) {
+			*dp++ = ch;
+		}
+	}
+	/* update state to keep for next round */
+	*dp = '\0';
+	up->lb_len = (int)(dp - up->lb_buf);
+}
 
 /*
  * -------------------------------------------------------------------
@@ -1109,12 +1104,12 @@ nmea_poll(
 {
 	struct refclockproc * const pp = peer->procptr;
 	nmea_unit	    * const up = (nmea_unit *)pp->unitptr;
-	
+
 	/*
 	 * Process median filter samples. If none received, declare a
 	 * timeout and keep going.
 	 */
-#ifdef HAVE_PPSAPI
+#   ifdef HAVE_PPSAPI
 	/*
 	 * If we don't have PPS pulses and time stamps, turn PPS down
 	 * for now.
@@ -1125,20 +1120,25 @@ nmea_poll(
 	} else {
 		up->ppsapi_gate = FALSE;
 	}
-#endif /* HAVE_PPSAPI */
+#   endif /* HAVE_PPSAPI */
 
 	/*
 	 * If the median filter is empty, claim a timeout. Else process
 	 * the input data and keep the stats going.
 	 */
 	if (pp->coderecv == pp->codeproc) {
-		refclock_report(peer, CEVNT_TIMEOUT);
+		peer->flags &= ~FLAG_PPS;
+		if (pp->currentstatus < CEVNT_TIMEOUT)
+		    refclock_report(peer, CEVNT_TIMEOUT);
+		memset(&up->last_gpsdate, 0, sizeof(up->last_gpsdate));
 	} else {
 		pp->polls++;
 		pp->lastref = pp->lastrec;
 		refclock_receive(peer);
+		if (pp->currentstatus > CEVNT_NOMINAL)
+		    refclock_report(peer, CEVNT_NOMINAL);
 	}
-	
+
 	/*
 	 * If extended logging is required, write the tally stats to the
 	 * clockstats file; otherwise just do a normal clock stats
@@ -1159,26 +1159,6 @@ nmea_poll(
 	}
 	ZERO(up->tally);
 }
-
-/*
- * -------------------------------------------------------------------
- * Save the last timecode string, making sure it's properly truncated
- * if necessary and NUL terminated in any case.
- */
-static void
-save_ltc(
-	struct refclockproc * const pp,
-	const char * const          tc,
-	size_t                      len
-	)
-{
-	if (len >= sizeof(pp->a_lastcode))
-		len = sizeof(pp->a_lastcode) - 1;
-	pp->lencode = (u_short)len;
-	memcpy(pp->a_lastcode, tc, len);
-	pp->a_lastcode[len] = '\0';
-}
-
 
 #if NMEA_WRITE_SUPPORT
 /*
@@ -1257,8 +1237,8 @@ gps_send(
  *   $GPVTG,089.0,T,,,15.2,N,,*7F
  *
  * Some other constraints:
- * + The field name must at least 5 upcase characters or digits and must
- *   start with a character.
+ * + The field name must be at least 5 upcase characters or digits and
+ *   must start with a character.
  * + The checksum (if present) must be uppercase hex digits.
  * + The length of a sentence is limited to 80 characters (not including
  *   the final CR/LF nor the checksum, but including the leading '$')
@@ -1284,7 +1264,7 @@ field_init(
 	u_char cs_r;	/* checksum remote given	*/
 	char * eptr;	/* buffer end end pointer	*/
 	char   tmp;	/* char buffer 			*/
-	
+
 	cs_l = 0;
 	cs_r = 0;
 	/* some basic input constraints */
@@ -1292,8 +1272,8 @@ field_init(
 		dlen = 0;
 	eptr = cptr + dlen;
 	*eptr = '\0';
-	
-	/* load data context */	
+
+	/* load data context */
 	data->base = cptr;
 	data->cptr = cptr;
 	data->cidx = 0;
@@ -1315,7 +1295,7 @@ field_init(
 	data->base++;
 	data->cptr++;
 	data->blen--;
-	
+
 	/* -*- field name: '[A-Z][A-Z0-9]{4,},' */
 	if (*cptr < 'A' || *cptr > 'Z')
 		return CHECK_INVALID;
@@ -1330,7 +1310,7 @@ field_init(
 	/* -*- data: '[^*]*' */
 	while (*cptr && *cptr != '*')
 		cs_l ^= *cptr++;
-	
+
 	/* -*- checksum field: (\*[0-9A-F]{2})?$ */
 	if (*cptr == '\0')
 		return CHECK_VALID;
@@ -1386,7 +1366,7 @@ field_parse(
  * -------------------------------------------------------------------
  * Wipe (that is, overwrite with '_') data fields and the checksum in
  * the last timecode.  The list of field indices is given as integers
- * in a varargs list, preferrably in ascending order, in any case
+ * in a varargs list, preferably in ascending order, in any case
  * terminated by a negative field index.
  *
  * A maximum number of 8 fields can be overwritten at once to guard
@@ -1412,7 +1392,7 @@ field_wipe(
 	int	fcnt;		/* safeguard against runaway arglist */
 	int	fidx;		/* field to nuke, or -1 for checksum */
 	char  * cp;		/* overwrite destination */
-	
+
 	fcnt = 8;
 	cp = NULL;
 	va_start(va, data);
@@ -1429,14 +1409,205 @@ field_wipe(
 			if ('.' != *cp)
 				*cp = '_';
 	} while (fcnt-- && fidx >= 0);
-	va_end(va);	
+	va_end(va);
 }
 
 /*
  * -------------------------------------------------------------------
  * PARSING HELPERS
  * -------------------------------------------------------------------
+ */
+typedef unsigned char const UCC;
+
+static char const * const s_eof_chars = ",*\r\n";
+
+static int field_length(UCC *cp, unsigned int nfields)
+{
+	char const * ep = (char const*)cp;
+	ep = strpbrk(ep, s_eof_chars);
+	if (ep && nfields)
+		while (--nfields && ep && *ep == ',')
+			ep = strpbrk(ep + 1, s_eof_chars);
+	return (ep)
+	    ? (int)((UCC*)ep - cp)
+	    : (int)strlen((char const*)cp);
+}
+
+/* /[,*\r\n]/ --> skip */
+static int _parse_eof(UCC *cp, UCC ** ep)
+{
+	int rc = (strchr(s_eof_chars, *(char const*)cp) != NULL);
+	*ep = cp + rc;
+	return rc;
+}
+
+/* /,/ --> skip */
+static int _parse_sep(UCC *cp, UCC ** ep)
+{
+	int rc = (*cp == ',');
+	*ep = cp + rc;
+	return rc;
+}
+
+/* /[[:digit:]]{2}/ --> uint16_t */
+static int _parse_num2d(UCC *cp, UCC ** ep, uint16_t *into)
+{
+	int	rc = FALSE;
+
+	if (isdigit(cp[0]) && isdigit(cp[1])) {
+		*into = (cp[0] - '0') * 10 + (cp[1] - '0');
+		cp += 2;
+		rc = TRUE;
+	}
+	*ep = cp;
+	return rc;
+}
+
+/* /[[:digit:]]+/ --> uint16_t */
+static int _parse_u16(UCC *cp, UCC **ep, uint16_t *into, unsigned int ndig)
+{
+	uint16_t	num = 0;
+	int		rc  = FALSE;
+	if (isdigit(*cp) && ndig) {
+		rc = TRUE;
+		do
+			num = (num * 10) + (*cp - '0');
+		while (isdigit(*++cp) && --ndig);
+		*into = num;
+	}
+	*ep = cp;
+	return rc;
+}
+
+/* /[[:digit:]]+/ --> uint32_t */
+static int _parse_u32(UCC *cp, UCC **ep, uint32_t *into, unsigned int ndig)
+{
+	uint32_t	num = 0;
+	int		rc  = FALSE;
+	if (isdigit(*cp) && ndig) {
+		rc = TRUE;
+		do
+			num = (num * 10) + (*cp - '0');
+		while (isdigit(*++cp) && --ndig);
+		*into = num;
+	}
+	*ep = cp;
+	return rc;
+}
+
+/* /(\.[[:digit:]]*)?/ --> l_fp{0, f}
+ * read fractional seconds, convert to l_fp
  *
+ * Only the first 9 decimal digits are evaluated; any excess is parsed
+ * away but silently ignored. (--> truncation to 1 nanosecond)
+ */
+static int _parse_frac(UCC *cp, UCC **ep, l_fp *into)
+{
+	static const uint32_t powtab[10] = {
+		        0,
+		100000000, 10000000, 1000000,
+		   100000,    10000,    1000,
+		      100,       10,       1
+	};
+
+	struct timespec	ts;
+	ZERO(ts);
+	if (*cp == '.') {
+		uint32_t fval = 0;
+		UCC *    sp   = cp + 1;
+		if (_parse_u32(sp, &cp, &fval, 9))
+			ts.tv_nsec = fval * powtab[(size_t)(cp - sp)];
+		while (isdigit(*cp))
+			++cp;
+	}
+
+	*ep   = cp;
+	*into = tspec_intv_to_lfp(ts);
+	return TRUE;
+}
+
+/* /[[:digit:]]{6}/ --> time-of-day
+ * parses a number string representing 'HHMMSS'
+ */
+static int _parse_time(UCC *cp, UCC ** ep, TCivilDate *into)
+{
+	uint16_t	s, m, h;
+	int		rc;
+	UCC *		xp = cp;
+
+	rc =   _parse_num2d(cp, &cp, &h) && (h < 24)
+	    && _parse_num2d(cp, &cp, &m) && (m < 60)
+	    && _parse_num2d(cp, &cp, &s) && (s < 61); /* leap seconds! */
+
+	if (rc) {
+		into->hour   = (uint8_t)h;
+		into->minute = (uint8_t)m;
+		into->second = (uint8_t)s;
+		*ep = cp;
+	} else {
+		*ep = xp;
+		DPRINTF(1, ("nmea: invalid time code: '%.*s'\n",
+			    field_length(xp, 1), xp));
+	}
+	return rc;
+}
+
+/* /[[:digit:]]{6}/ --> civil date
+ * parses a number string representing 'ddmmyy'
+ */
+static int _parse_date1(UCC *cp, UCC **ep, TCivilDate *into)
+{
+	unsigned short	d, m, y;
+	int		rc;
+	UCC *		xp = cp;
+
+	rc =   _parse_num2d(cp, &cp, &d) && (d - 1 < 31)
+	    && _parse_num2d(cp, &cp, &m) && (m - 1 < 12)
+	    && _parse_num2d(cp, &cp, &y)
+	    && _parse_eof(cp, ep);
+	if (rc) {
+		into->monthday = (uint8_t )d;
+		into->month    = (uint8_t )m;
+		into->year     = (uint16_t)y;
+		*ep = cp;
+	} else {
+		*ep = xp;
+		DPRINTF(1, ("nmea: invalid date code: '%.*s'\n",
+			    field_length(xp, 1), xp));
+	}
+	return rc;
+}
+
+/* /[[:digit:]]+,[[:digit:]]+,[[:digit:]]+/ --> civil date
+ * parses three successive numeric fields as date: day,month,year
+ */
+static int _parse_date3(UCC *cp, UCC **ep, TCivilDate *into)
+{
+	uint16_t	d, m, y;
+	int		rc;
+	UCC *		xp = cp;
+
+	rc =   _parse_u16(cp, &cp, &d, 2) && (d - 1 < 31)
+	    && _parse_sep(cp, &cp)
+	    && _parse_u16(cp, &cp, &m, 2) && (m - 1 < 12)
+	    && _parse_sep(cp, &cp)
+	    && _parse_u16(cp, &cp, &y, 4) && (y > 1980)
+	    && _parse_eof(cp, ep);
+	if (rc) {
+		into->monthday = (uint8_t )d;
+		into->month    = (uint8_t )m;
+		into->year     = (uint16_t)y;
+		*ep = cp;
+	} else {
+		*ep = xp;
+		DPRINTF(1, ("nmea: invalid date code: '%.*s'\n",
+			    field_length(xp, 3), xp));
+	}
+	return rc;
+}
+
+/*
+ * -------------------------------------------------------------------
  * Check sync status
  *
  * If the character at the data field start matches the tag value,
@@ -1453,12 +1624,11 @@ parse_qual(
 	int         inv
 	)
 {
-	static const u_char table[2] =
-				{ LEAP_NOTINSYNC, LEAP_NOWARNING };
-	char * dp;
+	static const u_char table[2] = {
+		LEAP_NOTINSYNC, LEAP_NOWARNING };
 
-	dp = field_parse(rd, idx);
-	
+	char * dp = field_parse(rd, idx);
+
 	return table[ *dp && ((*dp == tag) == !inv) ];
 }
 
@@ -1472,48 +1642,16 @@ parse_qual(
 static int
 parse_time(
 	struct calendar * jd,	/* result calendar pointer */
-	long		* ns,	/* storage for nsec fraction */
+	l_fp		* fofs,	/* storage for nsec fraction */
 	nmea_data       * rd,
 	int		  idx
 	)
 {
-	static const unsigned long weight[4] = {
-		0, 100000000, 10000000, 1000000
-	};
+	UCC * 	dp = (UCC*)field_parse(rd, idx);
 
-	int	rc;
-	u_int	h;
-	u_int	m;
-	u_int	s;
-	int	p1;
-	int	p2;
-	u_long	f;
-	char  * dp;
-
-	dp = field_parse(rd, idx);
-	rc = sscanf(dp, "%2u%2u%2u%n.%3lu%n", &h, &m, &s, &p1, &f, &p2);
-	if (rc < 3 || p1 != 6) {
-		DPRINTF(1, ("nmea: invalid time code: '%.6s'\n", dp));
-		return FALSE;
-	}
-	
-	/* value sanity check */
-	if (h > 23 || m > 59 || s > 60) {
-		DPRINTF(1, ("nmea: invalid time spec %02u:%02u:%02u\n",
-			    h, m, s));
-		return FALSE;
-	}
-
-	jd->hour   = (u_char)h;
-	jd->minute = (u_char)m;
-	jd->second = (u_char)s;
-	/* if we have a fraction, scale it up to nanoseconds. */
-	if (rc == 4)
-		*ns = f * weight[p2 - p1 - 1];
-	else
-		*ns = 0;
-
-	return TRUE;
+	return _parse_time(dp, &dp, jd)
+	    && _parse_frac(dp, &dp, fofs)
+	    && _parse_eof (dp, &dp);
 }
 
 /*
@@ -1534,52 +1672,18 @@ parse_date(
 	enum date_fmt	  fmt
 	)
 {
-	int	rc;
-	u_int	y;
-	u_int	m;
-	u_int	d;
-	int	p;
-	char  * dp;
-	
-	dp = field_parse(rd, idx);
+	UCC  * dp = (UCC*)field_parse(rd, idx);
+
 	switch (fmt) {
-
 	case DATE_1_DDMMYY:
-		rc = sscanf(dp, "%2u%2u%2u%n", &d, &m, &y, &p);
-		if (rc != 3 || p != 6) {
-			DPRINTF(1, ("nmea: invalid date code: '%.6s'\n",
-				    dp));
-			return FALSE;
-		}
-		break;
-
+		return _parse_date1(dp, &dp, jd);
 	case DATE_3_DDMMYYYY:
-		rc = sscanf(dp, "%2u,%2u,%4u%n", &d, &m, &y, &p);
-		if (rc != 3 || p != 10) {
-			DPRINTF(1, ("nmea: invalid date code: '%.10s'\n",
-				    dp));
-			return FALSE;
-		}
-		break;
-
+		return _parse_date3(dp, &dp, jd);
 	default:
 		DPRINTF(1, ("nmea: invalid parse format: %d\n", fmt));
-		return FALSE;
+		break;
 	}
-
-	/* value sanity check */
-	if (d < 1 || d > 31 || m < 1 || m > 12) {
-		DPRINTF(1, ("nmea: invalid date spec (YMD) %04u:%02u:%02u\n",
-			    y, m, d));
-		return FALSE;
-	}
-	
-	/* store results */
-	jd->monthday = (u_char)d;
-	jd->month    = (u_char)m;
-	jd->year     = (u_short)y;
-
-	return TRUE;
+	return FALSE;
 }
 
 /*
@@ -1592,283 +1696,56 @@ parse_date(
  * -------------------------------------------------------------------
  */
 static int
-parse_weekdata(
-	gps_weektm * wd,
-	nmea_data  * rd,
+parse_gpsw(
+	TGpsDatum *  wd,
+	nmea_data *  rd,
 	int          weekidx,
 	int          timeidx,
 	int          leapidx
 	)
 {
-	u_long secs;
-	int    fcnt;
+	uint32_t	secs;
+	uint16_t	week, leap = 0;
+	l_fp		fofs;
+	int		rc;
 
-	/* parse fields and count success */
-	fcnt  = sscanf(field_parse(rd, weekidx), "%hu", &wd->wt_week);
-	fcnt += sscanf(field_parse(rd, timeidx), "%lu", &secs);
-	fcnt += sscanf(field_parse(rd, leapidx), "%hd", &wd->wt_leap);
-	if (fcnt != 3 || wd->wt_week >= 1024 || secs >= 7*SECSPERDAY) {
-		DPRINTF(1, ("nmea: parse_weekdata: invalid weektime spec\n"));
-		return FALSE;
+	UCC *	dpw = (UCC*)field_parse(rd, weekidx);
+	UCC *	dps = (UCC*)field_parse(rd, timeidx);
+
+	rc =   _parse_u16 (dpw, &dpw, &week, 5)
+	    && _parse_eof (dpw, &dpw)
+	    && _parse_u32 (dps, &dps, &secs, 9)
+	    && _parse_frac(dps, &dps, &fofs)
+	    && _parse_eof (dps, &dps)
+	    && (secs < 7*SECSPERDAY);
+	if (rc && leapidx > 0) {
+		UCC *	dpl = (UCC*)field_parse(rd, leapidx);
+		rc =   _parse_u16 (dpl, &dpl, &leap, 5)
+		    && _parse_eof (dpl, &dpl);
 	}
-	wd->wt_time = (u_int32)secs;
-
-	return TRUE;
+	if (rc) {
+		fofs.l_ui -= leap;
+		*wd = gpscal_from_gpsweek(week, secs, fofs);
+	} else {
+		DPRINTF(1, ("nmea: parse_gpsw: invalid weektime spec\n"));
+	}
+	return rc;
 }
 
-/*
- * -------------------------------------------------------------------
- * funny calendar-oriented stuff -- perhaps a bit hard to grok.
- * -------------------------------------------------------------------
- *
- * Unfold a time-of-day (seconds since midnight) around the current
- * system time in a manner that guarantees an absolute difference of
- * less than 12hrs.
- *
- * This function is used for NMEA sentences that contain no date
- * information. This requires the system clock to be in +/-12hrs
- * around the true time, or the clock will synchronize the system 1day
- * off if not augmented with a time sources that also provide the
- * necessary date information.
- *
- * The function updates the calendar structure it also uses as
- * input to fetch the time from.
- *
- * returns 1 on success, 0 on failure
- * -------------------------------------------------------------------
- */
-static int
-unfold_day(
-	struct calendar * jd,
-	u_int32		  rec_ui
+
+#ifdef HAVE_PPSAPI
+static double
+tabsdiffd(
+	l_fp	t1,
+	l_fp	t2
 	)
 {
-	vint64	     rec_qw;
-	ntpcal_split rec_ds;
-
-	/*
-	 * basically this is the peridiodic extension of the receive
-	 * time - 12hrs to the time-of-day with a period of 1 day.
-	 * But we would have to execute this in 64bit arithmetic, and we
-	 * cannot assume we can do this; therefore this is done
-	 * in split representation.
-	 */
-	rec_qw = ntpcal_ntp_to_ntp(rec_ui - SECSPERDAY/2, NULL);
-	rec_ds = ntpcal_daysplit(&rec_qw);
-	rec_ds.lo = ntpcal_periodic_extend(rec_ds.lo,
-					   ntpcal_date_to_daysec(jd),
-					   SECSPERDAY);
-	rec_ds.hi += ntpcal_daysec_to_date(jd, rec_ds.lo);
-	return (ntpcal_rd_to_date(jd, rec_ds.hi + DAY_NTP_STARTS) >= 0);
+	double	dd;
+	L_SUB(&t1, &t2);
+	LFPTOD(&t1, dd);
+	return fabs(dd);
 }
-
-/*
- * -------------------------------------------------------------------
- * A 2-digit year is expanded into full year spec around the year found
- * in 'jd->year'. This should be in +79/-19 years around the system time,
- * or the result will be off by 100 years.  The assymetric behaviour was
- * chosen to enable inital sync for systems that do not have a
- * battery-backup clock and start with a date that is typically years in
- * the past.
- *
- * Since the GPS epoch starts at 1980-01-06, the resulting year will be
- * not be before 1980 in any case.
- *
- * returns 1 on success, 0 on failure
- * -------------------------------------------------------------------
- */
-static int
-unfold_century(
-	struct calendar * jd,
-	u_int32		  rec_ui
-	)
-{
-	struct calendar rec;
-	int32		baseyear;
-
-	ntpcal_ntp_to_date(&rec, rec_ui, NULL);
-	baseyear = rec.year - 20;
-	if (baseyear < g_gpsMinYear)
-		baseyear = g_gpsMinYear;
-	jd->year = (u_short)ntpcal_periodic_extend(baseyear, jd->year,
-						   100);
-
-	return ((baseyear <= jd->year) && (baseyear + 100 > jd->year));
-}
-
-/*
- * -------------------------------------------------------------------
- * A 2-digit year is expanded into a full year spec by correlation with
- * a GPS week number and the current leap second count.
- *
- * The GPS week time scale counts weeks since Sunday, 1980-01-06, modulo
- * 1024 and seconds since start of the week. The GPS time scale is based
- * on international atomic time (TAI), so the leap second difference to
- * UTC is also needed for a proper conversion.
- *
- * A brute-force analysis (that is, test for every date) shows that a
- * wrong assignment of the century can not happen between the years 1900
- * to 2399 when comparing the week signatures for different
- * centuries. (I *think* that will not happen for 400*1024 years, but I
- * have no valid proof. -*-perlinger@ntp.org-*-)
- *
- * This function is bound to to work between years 1980 and 2399
- * (inclusive), which should suffice for now ;-)
- *
- * Note: This function needs a full date&time spec on input due to the
- * necessary leap second corrections!
- *
- * returns 1 on success, 0 on failure
- * -------------------------------------------------------------------
- */
-static int
-gpsfix_century(
-	struct calendar  * jd,
-	const gps_weektm * wd,
-	u_short          * century
-	) 
-{
-	int32	days;
-	int32	doff;
-	u_short week;
-	u_short year;
-	int     loop;
-
-	/* Get day offset. Assumes that the input time is in range and
-	 * that the leap seconds do not shift more than +/-1 day.
-	 */
-	doff = ntpcal_date_to_daysec(jd) + wd->wt_leap;
-	doff = (doff >= SECSPERDAY) - (doff < 0);
-
-	/*
-	 * Loop over centuries to get a match, starting with the last
-	 * successful one. (Or with the 19th century if the cached value
-	 * is out of range...)
-	 */
-	year = jd->year % 100;
-	for (loop = 5; loop > 0; loop--,(*century)++) {
-		if (*century < 19 || *century >= 24)
-			*century = 19;
-		/* Get days and week in GPS epoch */
-		jd->year = year + *century * 100;
-		days = ntpcal_date_to_rd(jd) - DAY_GPS_STARTS + doff;
-		week = (days / 7) % 1024;
-		if (days >= 0 && wd->wt_week == week)
-			return TRUE; /* matched... */
-	}
-
-	jd->year = year;
-	return FALSE; /* match failed... */
-}
-
-/*
- * -------------------------------------------------------------------
- * And now the final execise: Considering the fact that many (most?)
- * GPS receivers cannot handle a GPS epoch wrap well, we try to
- * compensate for that problem by unwrapping a GPS epoch around the
- * receive stamp. Another execise in periodic unfolding, of course,
- * but with enough points to take care of.
- *
- * Note: The integral part of 'tofs' is intended to handle small(!)
- * systematic offsets, as -1 for handling $GPZDG, which gives the
- * following second. (sigh...) The absolute value shall be less than a
- * day (86400 seconds).
- * -------------------------------------------------------------------
- */
-static l_fp
-eval_gps_time(
-	struct peer           * peer, /* for logging etc */
-	const struct calendar * gpst, /* GPS time stamp  */
-	const struct timespec * tofs, /* GPS frac second & offset */
-	const l_fp            * xrecv /* receive time stamp */
-	)
-{
-	struct refclockproc * const pp = peer->procptr;
-	nmea_unit	    * const up = (nmea_unit *)pp->unitptr;
-
-	l_fp    retv;
-
-	/* components of calculation */
-	int32_t rcv_sec, rcv_day; /* receive ToD and day */
-	int32_t gps_sec, gps_day; /* GPS ToD and day in NTP epoch */
-	int32_t adj_day, weeks;   /* adjusted GPS day and week shift */
-
-	/* some temporaries to shuffle data */
-	vint64       vi64;
-	ntpcal_split rs64;
-
-	/* evaluate time stamp from receiver. */
-	gps_sec = ntpcal_date_to_daysec(gpst);
-	gps_day = ntpcal_date_to_rd(gpst) - DAY_NTP_STARTS;
-
-	/* merge in fractional offset */
-	retv = tspec_intv_to_lfp(*tofs);
-	gps_sec += retv.l_i;
-
-	/* If we fully trust the GPS receiver, just combine days and
-	 * seconds and be done. */
-	if (peer->ttl & NMEA_DATETRUST_MASK) {
-		retv.l_ui = ntpcal_dayjoin(gps_day, gps_sec).D_s.lo;
-		return retv;
-	}
-
-	/* So we do not trust the GPS receiver to deliver a correct date
-	 * due to the GPS epoch changes. We map the date from the
-	 * receiver into the +/-512 week interval around the receive
-	 * time in that case. This would be a tad easier with 64bit
-	 * calculations, but again, we restrict the code to 32bit ops
-	 * when possible. */
-
-	/* - make sure the GPS fractional day is normalised
-	 * Applying the offset value might have put us slightly over the
-	 * edge of the allowed range for seconds-of-day. Doing a full
-	 * division with floor correction is overkill here; a simple
-	 * addition or subtraction step is sufficient. Using WHILE loops
-	 * gives the right result even if the offset exceeds one day,
-	 * which is NOT what it's intented for! */
-	while (gps_sec >= SECSPERDAY) {
-		gps_sec -= SECSPERDAY;
-		gps_day += 1;
-	}
-	while (gps_sec < 0) {
-		gps_sec += SECSPERDAY;
-		gps_day -= 1;
-	}
-
-	/* - get unfold base: day of full recv time - 512 weeks */
-	vi64 = ntpcal_ntp_to_ntp(xrecv->l_ui, NULL);
-	rs64 = ntpcal_daysplit(&vi64);
-	rcv_sec = rs64.lo;
-	rcv_day = rs64.hi - 512 * 7;
-
-	/* - take the fractional days into account
-	 * If the fractional day of the GPS time is smaller than the
-	 * fractional day of the receive time, we shift the base day for
-	 * the unfold by 1. */
-	if (   gps_sec  < rcv_sec
-	   || (gps_sec == rcv_sec && retv.l_uf < xrecv->l_uf))
-		rcv_day += 1;
-
-	/* - don't warp ahead of GPS invention! */
-	if (rcv_day < g_gpsMinBase)
-		rcv_day = g_gpsMinBase;
-
-	/* - let the magic happen: */
-	adj_day = ntpcal_periodic_extend(rcv_day, gps_day, 1024*7);
-
-	/* - check if we should log a GPS epoch warp */
-	weeks = (adj_day - gps_day) / 7;
-	if (weeks != up->epoch_warp) {
-		up->epoch_warp = weeks;
-		LOGIF(CLOCKINFO, (LOG_INFO,
-				  "%s Changed GPS epoch warp to %d weeks",
-				  refnumtoa(&peer->srcadr), weeks));
-	}
-
-	/* - build result and be done */
-	retv.l_ui = ntpcal_dayjoin(adj_day, gps_sec).D_s.lo;
-	return retv;
-}
+#endif /* HAVE_PPSAPI */
 
 /*
  * ===================================================================
@@ -1896,8 +1773,8 @@ nmead_open(
 	)
 {
 	int	fd = -1;		/* result file descriptor */
-	
-#ifdef HAVE_READLINK
+
+#   ifdef HAVE_READLINK
 	char	host[80];		/* link target buffer	*/
 	char  * port;			/* port name or number	*/
 	int	rc;			/* result code (several)*/
@@ -1907,7 +1784,7 @@ nmead_open(
 	struct addrinfo *ai;		/* result scan ptr	*/
 
 	fd = -1;
-	
+
 	/* try to read as link, make sure no overflow occurs */
 	rc = readlink(device, host, sizeof(host));
 	if ((size_t)rc >= sizeof(host))
@@ -1919,7 +1796,7 @@ nmead_open(
 	if (!port)
 		return fd; /* not 'host:port' syntax ? */
 	*port++ = '\0';	/* put in separator */
-	
+
 	/* get address infos and try to open socket
 	 *
 	 * This getaddrinfo() is naughty in ntpd's nonblocking main
@@ -1933,7 +1810,7 @@ nmead_open(
 	ai_hint.ai_socktype = SOCK_STREAM;
 	if (getaddrinfo(host, port, &ai_hint, &ai_list))
 		return fd;
-	
+
 	for (ai = ai_list; ai && (fd == -1); ai = ai->ai_next) {
 		sh = socket(ai->ai_family, ai->ai_socktype,
 			    ai->ai_protocol);
@@ -1946,9 +1823,11 @@ nmead_open(
 			close(sh);
 	}
 	freeaddrinfo(ai_list);
-#else
+	if (fd != -1)
+		make_socket_nonblocking(fd);
+#   else
 	fd = -1;
-#endif
+#   endif
 
 	return fd;
 }

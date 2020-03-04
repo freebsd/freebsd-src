@@ -553,7 +553,6 @@ noinst_HEADERS = ntpq.h
 noinst_LIBRARIES = libntpq.a
 libntpq_a_CFLAGS = $(AM_CFLAGS) -DNO_MAIN_ALLOWED -DBUILD_AS_LIB
 libntpq_a_CPPFLAGS = $(AM_CPPFLAGS)
-libntpq_a_LDFLAGS = $(AM_LDFLAGS)
 CLEANFILES = check-libopts check-libntp .deps-ver
 DISTCLEANFILES = .version version.c config.log $(man_MANS)
 ETAGS_ARGS = Makefile.am
