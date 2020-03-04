@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 #include "syscon_if.h"
+#include "fdt_pinctrl_if.h"
 
 struct rk_pinctrl_pin_drive {
 	uint32_t	bank;
@@ -102,6 +103,8 @@ struct rk_pinctrl_conf {
 	uint32_t	(*get_pd_offset)(struct rk_pinctrl_softc *, uint32_t);
 	struct syscon	*(*get_syscon)(struct rk_pinctrl_softc *, uint32_t);
 	int		(*parse_bias)(phandle_t, int);
+	int		(*resolv_bias_value)(int, int);
+	int		(*get_bias_value)(int, int);
 };
 
 struct rk_pinctrl_softc {
@@ -110,7 +113,12 @@ struct rk_pinctrl_softc {
 	struct syscon		*grf;
 	struct syscon		*pmu;
 	struct rk_pinctrl_conf	*conf;
+	struct mtx		mtx;
 };
+
+#define	RK_PINCTRL_LOCK(_sc)		mtx_lock_spin(&(_sc)->mtx)
+#define	RK_PINCTRL_UNLOCK(_sc)		mtx_unlock_spin(&(_sc)->mtx)
+#define	RK_PINCTRL_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
 
 #define	RK_IOMUX(_bank, _subbank, _offset, _nbits)			\
 {									\
@@ -385,6 +393,32 @@ rk3288_parse_bias(phandle_t node, int bank)
 	return (-1);
 }
 
+static int
+rk3288_resolv_bias_value(int bank, int bias)
+{
+	int rv = 0;
+
+	if (bias == 1)
+		rv = GPIO_PIN_PULLUP;
+	else if (bias == 2)
+		rv = GPIO_PIN_PULLDOWN;
+
+	return (rv);
+}
+
+static int
+rk3288_get_bias_value(int bank, int bias)
+{
+	int rv = 0;
+
+	if (bias & GPIO_PIN_PULLUP)
+		rv = 1;
+	else if (bias & GPIO_PIN_PULLDOWN)
+		rv = 2;
+
+	return (rv);
+}
+
 struct rk_pinctrl_conf rk3288_conf = {
 	.iomux_conf = rk3288_iomux_bank,
 	.iomux_nbanks = nitems(rk3288_iomux_bank),
@@ -397,6 +431,8 @@ struct rk_pinctrl_conf rk3288_conf = {
 	.get_pd_offset = rk3288_get_pd_offset,
 	.get_syscon = rk3288_get_syscon,
 	.parse_bias = rk3288_parse_bias,
+	.resolv_bias_value = rk3288_resolv_bias_value,
+	.get_bias_value = rk3288_get_bias_value,
 };
 
 static struct rk_pinctrl_gpio rk3328_gpio_bank[] = {
@@ -541,6 +577,8 @@ struct rk_pinctrl_conf rk3328_conf = {
 	.get_pd_offset = rk3328_get_pd_offset,
 	.get_syscon = rk3328_get_syscon,
 	.parse_bias = rk3288_parse_bias,
+	.resolv_bias_value = rk3288_resolv_bias_value,
+	.get_bias_value = rk3288_get_bias_value,
 };
 
 static struct rk_pinctrl_gpio rk3399_gpio_bank[] = {
@@ -664,6 +702,58 @@ rk3399_parse_bias(phandle_t node, int bank)
 	return (-1);
 }
 
+static int
+rk3399_resolv_bias_value(int bank, int bias)
+{
+	int rv = 0;
+
+	switch (bank) {
+	case 0:
+	case 2:
+		if (bias == 3)
+			rv = GPIO_PIN_PULLUP;
+		else if (bias == 1)
+			rv = GPIO_PIN_PULLDOWN;
+		break;
+	case 1:
+	case 3:
+	case 4:
+		if (bias == 1)
+			rv = GPIO_PIN_PULLUP;
+		else if (bias == 2)
+			rv = GPIO_PIN_PULLDOWN;
+		break;
+	}
+
+	return (rv);
+}
+
+static int
+rk3399_get_bias_value(int bank, int bias)
+{
+	int rv = 0;
+
+	switch (bank) {
+	case 0:
+	case 2:
+		if (bias & GPIO_PIN_PULLUP)
+			rv = 3;
+		else if (bias & GPIO_PIN_PULLDOWN)
+			rv = 1;
+		break;
+	case 1:
+	case 3:
+	case 4:
+		if (bias & GPIO_PIN_PULLUP)
+			rv = 1;
+		else if (bias & GPIO_PIN_PULLDOWN)
+			rv = 2;
+		break;
+	}
+
+	return (rv);
+}
+
 struct rk_pinctrl_conf rk3399_conf = {
 	.iomux_conf = rk3399_iomux_bank,
 	.iomux_nbanks = nitems(rk3399_iomux_bank),
@@ -676,6 +766,8 @@ struct rk_pinctrl_conf rk3399_conf = {
 	.get_pd_offset = rk3399_get_pd_offset,
 	.get_syscon = rk3399_get_syscon,
 	.parse_bias = rk3399_parse_bias,
+	.resolv_bias_value = rk3399_resolv_bias_value,
+	.get_bias_value = rk3399_get_bias_value,
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -921,6 +1013,187 @@ rk_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 	return (0);
 }
 
+static int
+rk_pinctrl_is_gpio_locked(struct rk_pinctrl_softc *sc, struct syscon *syscon,
+  int bank, uint32_t pin, bool *is_gpio)
+{
+	uint32_t subbank, bit, mask, reg;
+	uint32_t pinfunc;
+	int i;
+
+	RK_PINCTRL_LOCK_ASSERT(sc);
+
+	subbank = pin / 8;
+	*is_gpio = false;
+
+	for (i = 0; i < sc->conf->iomux_nbanks; i++)
+		if (sc->conf->iomux_conf[i].bank == bank &&
+		    sc->conf->iomux_conf[i].subbank == subbank)
+			break;
+
+	if (i == sc->conf->iomux_nbanks) {
+		device_printf(sc->dev, "Unknown pin %d in bank %d\n", pin,
+		    bank);
+		return (EINVAL);
+	}
+
+	syscon = sc->conf->get_syscon(sc, bank);
+
+	/* Parse pin function */
+	reg = sc->conf->iomux_conf[i].offset;
+	switch (sc->conf->iomux_conf[i].nbits) {
+	case 4:
+		if ((pin % 8) >= 4)
+			reg += 0x4;
+		bit = (pin % 4) * 4;
+		mask = (0xF << bit);
+		break;
+	case 3:
+		if ((pin % 8) >= 5)
+			reg += 4;
+		bit = (pin % 8 % 5) * 3;
+		mask = (0x7 << bit);
+		break;
+	case 2:
+		bit = (pin % 8) * 2;
+		mask = (0x3 << bit);
+		break;
+	default:
+		device_printf(sc->dev,
+		    "Unknown pin stride width %d in bank %d\n",
+		    sc->conf->iomux_conf[i].nbits, bank);
+		return (EINVAL);
+	}
+	rk_pinctrl_get_fixup(sc, bank, pin, &reg, &mask, &bit);
+
+	reg = SYSCON_READ_4(syscon, reg);
+	pinfunc = (reg & mask) >> bit;
+
+	/* Test if the pin is in gpio mode */
+	if (pinfunc == 0)
+		*is_gpio = true;
+
+	return (0);
+}
+
+static int
+rk_pinctrl_get_bank(struct rk_pinctrl_softc *sc, device_t gpio, int *bank)
+{
+	int i;
+
+	for (i = 0; i < sc->conf->ngpio_bank; i++) {
+		if (sc->conf->gpio_bank[i].gpio_dev == gpio)
+			break;
+	}
+	if (i == sc->conf->ngpio_bank)
+		return (EINVAL);
+
+	*bank = i;
+	return (0);
+}
+
+static int
+rk_pinctrl_is_gpio(device_t pinctrl, device_t gpio, uint32_t pin, bool *is_gpio)
+{
+	struct rk_pinctrl_softc *sc;
+	struct syscon *syscon;
+	int bank;
+	int rv;
+
+	sc = device_get_softc(pinctrl);
+	RK_PINCTRL_LOCK(sc);
+
+	rv = rk_pinctrl_get_bank(sc, gpio, &bank);
+	if (rv != 0)
+		goto done;
+	syscon = sc->conf->get_syscon(sc, bank);
+	rv = rk_pinctrl_is_gpio_locked(sc, syscon, bank, pin, is_gpio);
+
+done:
+	RK_PINCTRL_UNLOCK(sc);
+
+	return (rv);
+}
+
+static int
+rk_pinctrl_get_flags(device_t pinctrl, device_t gpio, uint32_t pin,
+    uint32_t *flags)
+{
+	struct rk_pinctrl_softc *sc;
+	struct syscon *syscon;
+	uint32_t reg, mask, bit;
+	uint32_t bias;
+	int bank;
+	int rv = 0;
+	bool is_gpio;
+
+	sc = device_get_softc(pinctrl);
+	RK_PINCTRL_LOCK(sc);
+
+	rv = rk_pinctrl_get_bank(sc, gpio, &bank);
+	if (rv != 0)
+		goto done;
+	syscon = sc->conf->get_syscon(sc, bank);
+	rv = rk_pinctrl_is_gpio_locked(sc, syscon, bank, pin, &is_gpio);
+	if (rv != 0)
+		goto done;
+	if (!is_gpio) {
+		rv = EINVAL;
+		goto done;
+	}
+	/* Get the pullup/pulldown configuration */
+	reg = sc->conf->get_pd_offset(sc, bank);
+	reg += bank * 0x10 + ((pin / 8) * 0x4);
+	bit = (pin % 8) * 2;
+	mask = (0x3 << bit) << 16;
+	reg = SYSCON_READ_4(syscon, reg);
+	reg = (reg >> bit) & 0x3;
+	bias = sc->conf->resolv_bias_value(bank, reg);
+	*flags = bias;
+
+done:
+	RK_PINCTRL_UNLOCK(sc);
+	return (rv);
+}
+
+static int
+rk_pinctrl_set_flags(device_t pinctrl, device_t gpio, uint32_t pin,
+    uint32_t flags)
+{
+	struct rk_pinctrl_softc *sc;
+	struct syscon *syscon;
+	uint32_t bit, mask, reg;
+	uint32_t bias;
+	int bank;
+	int rv = 0;
+	bool is_gpio;
+
+	sc = device_get_softc(pinctrl);
+	RK_PINCTRL_LOCK(sc);
+
+	rv = rk_pinctrl_get_bank(sc, gpio, &bank);
+	if (rv != 0)
+		goto done;
+	syscon = sc->conf->get_syscon(sc, bank);
+	rv = rk_pinctrl_is_gpio_locked(sc, syscon, bank, pin, &is_gpio);
+	if (rv != 0)
+		goto done;
+	if (!is_gpio) {
+		rv = EINVAL;
+		goto done;
+	}
+	/* Get the pullup/pulldown configuration */
+	reg = sc->conf->get_pd_offset(sc, bank);
+	reg += bank * 0x10 + ((pin / 8) * 0x4);
+	bit = (pin % 8) * 2;
+	mask = (0x3 << bit);
+	bias = sc->conf->get_bias_value(bank, flags);
+	SYSCON_MODIFY_4(syscon, reg, mask, bias << bit | (mask << 16));
+
+done:
+	RK_PINCTRL_UNLOCK(sc);
+	return (rv);
+}
 
 static int
 rk_pinctrl_register_gpio(struct rk_pinctrl_softc *sc, char *gpio_name,
@@ -982,6 +1255,8 @@ rk_pinctrl_attach(device_t dev)
 			return (ENXIO);
 		}
 	}
+
+	mtx_init(&sc->mtx, "rk pinctrl", "pinctrl", MTX_SPIN);
 
 	sc->conf = (struct rk_pinctrl_conf *)ofw_bus_search_compatible(dev,
 	    compat_data)->ocd_data;
@@ -1060,6 +1335,9 @@ static device_method_t rk_pinctrl_methods[] = {
 
         /* fdt_pinctrl interface */
 	DEVMETHOD(fdt_pinctrl_configure,	rk_pinctrl_configure_pins),
+	DEVMETHOD(fdt_pinctrl_is_gpio,		rk_pinctrl_is_gpio),
+	DEVMETHOD(fdt_pinctrl_get_flags,	rk_pinctrl_get_flags),
+	DEVMETHOD(fdt_pinctrl_set_flags,	rk_pinctrl_set_flags),
 
 	DEVMETHOD_END
 };

@@ -65,6 +65,14 @@ __FBSDID("$FreeBSD$");
 #define	RK3328_GRF_MACPHY_CON3		0x0B0C
 #define	RK3328_GRF_MACPHY_STATUS	0x0B10
 
+static struct ofw_compat_data compat_data[] = {
+	{"rockchip,rk3288-gmac", 1},
+	{"rockchip,rk3328-gmac", 1},
+	{"rockchip,rk3399-gmac", 1},
+	{NULL,			 0}
+};
+
+#ifdef notyet
 static void
 rk3328_set_delays(struct syscon *grf, phandle_t node)
 {
@@ -82,6 +90,7 @@ rk3328_set_delays(struct syscon *grf, phandle_t node)
 
 	SYSCON_WRITE_4(grf, RK3328_GRF_MAC_CON0, tx | rx | 0xFFFF0000);
 }
+#endif
 
 #define	RK3399_GRF_SOC_CON6		0xc218
 #define	 RK3399_GRF_SOC_CON6_TX_MASK	0x7F
@@ -89,6 +98,7 @@ rk3328_set_delays(struct syscon *grf, phandle_t node)
 #define	 RK3399_GRF_SOC_CON6_RX_MASK	0x7F
 #define	 RK3399_GRF_SOC_CON6_RX_SHIFT	8
 
+#ifdef notyet
 static void
 rk3399_set_delays(struct syscon *grf, phandle_t node)
 {
@@ -106,6 +116,7 @@ rk3399_set_delays(struct syscon *grf, phandle_t node)
 
 	SYSCON_WRITE_4(grf, RK3399_GRF_SOC_CON6, tx | rx | 0xFFFF0000);
 }
+#endif
 
 static int
 if_dwc_rk_probe(device_t dev)
@@ -113,8 +124,7 @@ if_dwc_rk_probe(device_t dev)
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	if (!(ofw_bus_is_compatible(dev, "rockchip,rk3328-gmac") ||
-	      ofw_bus_is_compatible(dev, "rockchip,rk3399-gmac")))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 	device_set_desc(dev, "Rockchip Gigabit Ethernet Controller");
 

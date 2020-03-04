@@ -251,6 +251,7 @@ WR4(struct bcm_sdhost_softc *sc, bus_size_t off, uint32_t val)
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, off, val);
 }
 
+#ifdef notyet
 static inline uint16_t
 RD2(struct bcm_sdhost_softc *sc, bus_size_t off)
 {
@@ -260,6 +261,7 @@ RD2(struct bcm_sdhost_softc *sc, bus_size_t off)
 
 	return ((val >> (off & 3)*8) & 0xffff);
 }
+#endif
 
 static inline uint8_t
 RD1(struct bcm_sdhost_softc *sc, bus_size_t off)

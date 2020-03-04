@@ -108,12 +108,16 @@ struct a10_timer_softc {
 	bus_write_4(sc->res[A10_TIMER_MEMRES], reg, val)
 
 static u_int	a10_timer_get_timecount(struct timecounter *);
+#if defined(__arm__)
 static int	a10_timer_timer_start(struct eventtimer *,
     sbintime_t first, sbintime_t period);
 static int	a10_timer_timer_stop(struct eventtimer *);
+#endif
 
 static uint64_t timer_read_counter64(struct a10_timer_softc *sc);
+#if defined(__arm__)
 static void a10_timer_eventtimer_setup(struct a10_timer_softc *sc);
+#endif
 
 static void a23_timer_timecounter_setup(struct a10_timer_softc *sc);
 static u_int a23_timer_get_timecount(struct timecounter *tc);
@@ -279,6 +283,7 @@ a10_timer_irq(void *arg)
  * Event timer function for A10 and A13
  */
 
+#if defined(__arm__)
 static void
 a10_timer_eventtimer_setup(struct a10_timer_softc *sc)
 {
@@ -363,6 +368,7 @@ a10_timer_timer_stop(struct eventtimer *et)
 
 	return (0);
 }
+#endif
 
 /*
  * Timecounter functions for A23 and above

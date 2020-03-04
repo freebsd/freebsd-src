@@ -36,6 +36,31 @@
 
 INTERFACE fdt_pinctrl;
 
+CODE {
+	static int
+	fdt_pinctrl_default_is_gpio(device_t pinctrl, device_t gpio, bool *is_gpio)
+	{
+
+		return (EOPNOTSUPP);
+	}
+
+	static int
+	fdt_pinctrl_default_set_flags(device_t pinctrl, device_t gpio, uint32_t pin,
+	    uint32_t flags)
+	{
+
+		return (EOPNOTSUPP);
+	}
+
+	static int
+	fdt_pinctrl_default_get_flags(device_t pinctrl, device_t gpio, uint32_t pin,
+	    uint32_t *flags)
+	{
+
+		return (EOPNOTSUPP);
+	}
+};
+
 # Needed for timestamping device probe/attach calls
 HEADER {
 	#include <sys/tslog.h>
@@ -57,3 +82,36 @@ METHOD int configure {
 	phandle_t	cfgxref;
 };
 
+
+#
+# Test if the pin is in gpio mode
+# Called from a gpio device
+#
+METHOD int is_gpio {
+	device_t pinctrl;
+	device_t gpio;
+	uint32_t pin;
+	bool *is_gpio;
+} DEFAULT fdt_pinctrl_default_is_gpio;
+
+#
+# Set the flags of a pin
+# Called from a gpio device
+#
+METHOD int set_flags {
+	device_t pinctrl;
+	device_t gpio;
+	uint32_t pin;
+	uint32_t flags;
+} DEFAULT fdt_pinctrl_default_set_flags;
+
+#
+# Get the flags of a pin
+# Called from a gpio device
+#
+METHOD int get_flags {
+	device_t pinctrl;
+	device_t gpio;
+	uint32_t pin;
+	uint32_t *flags;
+} DEFAULT fdt_pinctrl_default_get_flags;
