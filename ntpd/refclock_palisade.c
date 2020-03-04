@@ -65,6 +65,10 @@
  *
  * 30/08/09: Added support for Trimble Acutime Gold Receiver.
  *	     Fernando P. Hauscarriaga (fernandoph@iar.unlp.edu.ar)
+ *
+ * 21/04/18: Added support for Resolution devices.
+ *
+ * 03/09/19: Added support for ACE III & Copernicus II.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -114,6 +118,9 @@ static int decode_date(struct refclockproc *pp, const char *cp);
 #define CLK_THUNDERBOLT	2	/* Trimble Thunderbolt GPS Receiver */
 #define CLK_ACUTIME     3	/* Trimble Acutime Gold */
 #define CLK_ACUTIMEB    4	/* Trimble Actutime Gold Port B */
+#define CLK_RESOLUTION  5	/* Trimble Resolution Receivers */
+#define CLK_ACE		6	/* Trimble ACE III */
+#define CLK_COPERNICUS	7	/* Trimble Copernicus II */
 
 int praecis_msg;
 static void praecis_parse(struct recvbuf *rbufp, struct peer *peer);
@@ -122,7 +129,6 @@ static void praecis_parse(struct recvbuf *rbufp, struct peer *peer);
  * They are taken from Markus Prosch
  */
 
-#ifdef PALISADE_SENDCMD_RESURRECTED
 /*
  * sendcmd - Build data packet for sending
  */
@@ -136,7 +142,6 @@ sendcmd (
 	*(buffer->data + 1) = (unsigned char)c;
 	buffer->size = 2;
 }
-#endif	/* PALISADE_SENDCMD_RESURRECTED */
 
 /*
  * sendsupercmd - Build super data packet for sending
@@ -255,6 +260,37 @@ init_acutime (
 }
 
 /*
+ * init_resolution - Prepares Resolution receiver to be used with NTP
+ */
+static void
+init_resolution (
+	int fd
+	)
+{
+	struct packettx tx;
+	
+	tx.size = 0;
+	tx.data = (u_char *) emalloc(100);
+
+	/* set UTC time */
+	sendsupercmd (&tx, 0x8E, 0xA2);
+	sendbyte     (&tx, 0x3);
+	sendetx      (&tx, fd);
+
+	/* squelch PPS output unless locked to at least one satellite */
+	sendsupercmd (&tx, 0x8E, 0x4E);
+	sendbyte     (&tx, 0x3);
+	sendetx      (&tx, fd);
+	
+	/* activate packets 0x8F-AB and 0x8F-AC */
+	sendsupercmd (&tx, 0x8E, 0xA5);
+	sendint      (&tx, 0x5);
+	sendetx      (&tx, fd);
+
+	free(tx.data);
+}
+
+/*
  * palisade_start - open the devices and initialize data for processing
  */
 static int
@@ -274,7 +310,9 @@ palisade_start (
 	/*
 	 * Open serial port. 
 	 */
-	fd = refclock_open(gpsdev, SPEED232, LDISC_RAW);
+	u_int speed;
+	speed = (CLK_TYPE(peer) == CLK_COPERNICUS) ? SPEED232COP : SPEED232;
+	fd = refclock_open(gpsdev, speed, LDISC_RAW);
 	if (fd <= 0) {
 #ifdef DEBUG
 		printf("Palisade(%d) start: open %s failed\n", unit, gpsdev);
@@ -320,6 +358,25 @@ palisade_start (
 	    case CLK_ACUTIME:
 		msyslog(LOG_NOTICE, "Palisade(%d) Acutime Gold mode enabled"
 			,unit);
+		break;
+	    case CLK_RESOLUTION:
+		msyslog(LOG_NOTICE, "Palisade(%d) Resolution mode enabled"
+			,unit);
+		tio.c_cflag = (CS8|CLOCAL|CREAD|PARENB|PARODD);
+		break;
+	    case CLK_ACE:
+		msyslog(LOG_NOTICE, "Palisade(%d) ACE III mode enabled"
+			,unit);
+		tio.c_cflag = (CS8|CLOCAL|CREAD|PARENB|PARODD);
+		break;
+	    case CLK_COPERNICUS:
+		msyslog(LOG_NOTICE, "Palisade(%d) Copernicus II mode enabled"
+			,unit);
+		/* Must use ORing/ANDing to set/clear c_cflag bits otherwise
+		   CBAUD gets set back to 0. This ought to be an issue for
+		   the other modes above but it seems that the baud rate
+		   defaults to 9600 if CBAUD gets set to 0.                 */
+		tio.c_cflag &= ~(PARENB|PARODD);
 		break;
 	    default:
 		msyslog(LOG_NOTICE, "Palisade(%d) mode unknown",unit);
@@ -371,6 +428,8 @@ palisade_start (
 		init_thunderbolt(fd);
 	if (up->type == CLK_ACUTIME)
 		init_acutime(fd);
+	if (up->type == CLK_RESOLUTION)
+		init_resolution(fd);
 
 	return 1;
 }
@@ -483,6 +542,9 @@ TSIP_decode (
 	double secfrac;
 	unsigned short event = 0;
 	int mmday;
+	long tow;
+	uint16_t wn;
+	int GPS_UTC_Offset;
 	
 	struct palisade_unit *up;
 	struct refclockproc *pp;
@@ -496,7 +558,12 @@ TSIP_decode (
 	 * proper format, declare bad format and exit.
 	 */
 
-	if ((up->type != CLK_THUNDERBOLT) & (up->type != CLK_ACUTIME)){
+	if ((up->type != CLK_THUNDERBOLT) &&
+	    (up->type != CLK_ACUTIME    ) &&
+	    (up->type != CLK_RESOLUTION ) &&
+	    (up->type != CLK_ACE        ) &&
+	    (up->type != CLK_COPERNICUS )   )
+	{
 		if ((up->rpt_buf[0] == (char) 0x41) ||
 		    (up->rpt_buf[0] == (char) 0x46) ||
 		    (up->rpt_buf[0] == (char) 0x54) ||
@@ -513,7 +580,7 @@ TSIP_decode (
 	}
 
 	/*
-	 * We cast both to u_char to as 0x8f uses the sign bit on a char
+	 * We cast both to u_char as 0x8f uses the sign bit on a char
 	 */
 	if ((u_char) up->rpt_buf[0] == (u_char) 0x8f) {
 		/* 
@@ -525,8 +592,6 @@ TSIP_decode (
 			return 0;	   
 	
 		switch (mb(0) & 0xff) {
-			int GPS_UTC_Offset;
-			long tow;
 
 		    case PACKET_8F0B: 
 
@@ -839,9 +904,68 @@ TSIP_decode (
 #ifdef DEBUG
 		printf("GPS TOW: %ld\n", (long)getlong((u_char *) &mb(0)));
 		printf("GPS WN: %d\n", getint((u_char *) &mb(4)));
-		printf("GPS UTC-GPS Offser: %ld\n", (long)getlong((u_char *) &mb(6)));
+		printf("GPS UTC-GPS Offset: %ld\n", (long)getlong((u_char *) &mb(6)));
 #endif
 		return 0;
+	}
+
+	/* GPS time packet for ACE III or Copernicus II receiver */
+	else if ((up->rpt_buf[0] == PACKET_41) &&
+	         ((up->type == CLK_ACE) || (up->type == CLK_COPERNICUS))) {
+#ifdef DEBUG
+		if ((debug > 1) && (up->type == CLK_ACE))
+			printf("TSIP_decode: Packet 0x41 seen in ACE III mode\n");
+		if ((debug > 1) && (up->type == CLK_COPERNICUS))
+			printf("TSIP_decode: Packet 0x41 seen in Copernicus II mode\n");
+#endif
+		if (up->rpt_cnt != LENCODE_41) { /* check length */
+			refclock_report(peer, CEVNT_BADREPLY);
+			up->polled = -1;
+#ifdef DEBUG
+			printf("TSIP_decode: unit %d: bad packet %02x len %d\n", 
+				up->unit, up->rpt_buf[0] & 0xff, up->rpt_cnt);
+#endif
+			return 0;
+		}
+		if (up->polled  <= 0)
+			return 0;
+		tow = (long)getsingle((u_char *) &mb(0));
+		wn = (uint16_t)getint((u_char *) &mb(4));
+		GPS_UTC_Offset = (int)getsingle((u_char *) &mb(6));
+		if (GPS_UTC_Offset == 0){ /* Check UTC Offset */
+#ifdef DEBUG
+			printf("TSIP_decode: UTC Offset Unknown\n");
+#endif
+			refclock_report(peer, CEVNT_BADREPLY);
+			up->polled = -1;
+			return 0;
+		}
+		/* Get date & time from WN & ToW minus offset */
+		TCivilDate cd;
+		TGpsDatum wd;
+		l_fp ugo; /* UTC-GPS offset, negative number */
+		ugo.Ul_i.Xl_i = (int32_t)-GPS_UTC_Offset;
+		ugo.l_uf = 0;
+		wd = gpscal_from_gpsweek((wn % 1024), (int32_t)tow, ugo);
+		gpscal_to_calendar(&cd, &wd);
+		pp->year = cd.year;
+		pp->day = cd.yearday;
+		pp->hour = cd.hour;
+		pp->minute = cd.minute;
+		pp->second = cd.second;
+		pp->nsec = 0;
+		pp->leap = LEAP_NOWARNING;
+#ifdef DEBUG
+		if (debug > 1)	{
+			printf("GPS TOW: %ld\n", tow);
+			printf("GPS WN: %d\n", wn);
+			printf("GPS UTC-GPS Offset: %d\n", GPS_UTC_Offset);
+			printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%09ld %02d/%02d/%04d ",
+			       up->unit, mb(0) & 0xff, event, pp->hour, pp->minute, pp->second,
+			       pp->nsec, cd.month, cd.monthday, pp->year);
+		}
+#endif
+		return 1;
 	}
 
 	/* Health Status for Acutime Receiver */
@@ -854,7 +978,7 @@ TSIP_decode (
 				printf ("Doing Position Fixes\n");
 				break;
 			    case 0x01:
-				printf ("Do no have GPS time yet\n");
+				printf ("Do not have GPS time yet\n");
 				break;
 			    case 0x03:
 				printf ("PDOP is too high\n");
@@ -899,6 +1023,73 @@ TSIP_decode (
 		return 0;
 		}
 	}
+
+	/* Health Status for Copernicus II Receiver */
+	else if ((up->rpt_buf[0] == PACKET_46) && (up->type == CLK_COPERNICUS)) {
+#ifdef DEBUG
+		if (debug > 1)
+		/* Status Codes */
+			switch (mb(0)) {
+			    case 0x00:
+				printf ("Doing Position Fixes\n");
+				break;
+			    case 0x01:
+				printf ("Do not have GPS time yet\n");
+				break;
+			    case 0x03:
+				printf ("PDOP is too high\n");
+				break;
+			    case 0x04:
+				printf("The Chosen satellite is unusable\n");
+				break;
+			    case 0x08:
+				printf ("No usable satellites\n");
+				break;
+			    case 0x09:
+				printf ("Only 1 usable satellite\n");
+				break;
+			    case 0x0A:
+				printf ("Only 2 usable satellites\n");
+				break;
+			    case 0x0B:
+				printf ("Only 3 usable satellites\n");
+				break;
+			}
+#endif
+		/* Error Codes */
+		if ((mb(1) & 0x3E) != 0) {  /* Don't regard bits 0 and 6 as errors */
+			refclock_report(peer, CEVNT_BADTIME);
+			up->polled = -1;
+#ifdef DEBUG
+			if (debug > 1) {
+				if ((mb(1) & 0x18) == 0x08)
+					printf ("Antenna feed line fault (open)\n");
+				if ((mb(1) & 0x18) == 0x18)
+					printf ("Antenna feed line fault (short)\n");
+			}
+#endif
+		}
+		return 0;
+	}
+
+	/* Other packets output by ACE III & Copernicus II Receivers, dropped silently */
+	else if (((up->rpt_buf[0] == (char) 0x4A) ||
+		  (up->rpt_buf[0] == (char) 0x4B) ||
+		  (up->rpt_buf[0] == (char) 0x56) ||
+		  (up->rpt_buf[0] == (char) 0x5F) ||
+		  (up->rpt_buf[0] == (char) 0x6D) ||
+		  (up->rpt_buf[0] == (char) 0x82) ||
+		  (up->rpt_buf[0] == (char) 0x84)) &&
+		 ((up->type == CLK_ACE) || (up->type == CLK_COPERNICUS))) {
+#ifdef DEBUG
+		if ((debug > 1) && (up->type == CLK_ACE))
+			printf("TSIP_decode: Packet 0x%2x seen in ACE III mode\n", (up->rpt_buf[0] & 0XFF));
+		if ((debug > 1) && (up->type == CLK_COPERNICUS))
+			printf("TSIP_decode: Packet 0x%2x seen in Copernicus II mode\n", (up->rpt_buf[0] & 0XFF));
+#endif
+		return 0;
+	}
+
 	else if (up->rpt_buf[0] == 0x54)
 		return 0;
 
@@ -1188,8 +1379,18 @@ HW_poll (
 {	
 	int x;	/* state before & after RTS set */
 	struct palisade_unit *up;
+	struct packettx tx;
 
 	up = pp->unitptr;
+
+	if (up->type == CLK_ACE) {
+		/* Poll by sending a 0x21 command */
+		tx.size = 0;
+		tx.data = (u_char *) emalloc(100);
+		sendcmd (&tx, 0x21);
+		sendetx (&tx, pp->io.fd);
+		free(tx.data);
+	} else {
 
 	/* read the current status, so we put things back right */
 	if (ioctl(pp->io.fd, TIOCMGET, &x) < 0) {
@@ -1219,9 +1420,12 @@ HW_poll (
 
 	x &= ~TIOCM_RTS;        /* turn off RTS  */
 	
+	} /* (up->type != CLK_ACE) */
+
 	/* poll timestamp */
 	get_systime(&pp->lastrec);
 
+	if (up->type != CLK_ACE) {
 	if (ioctl(pp->io.fd, TIOCMSET, &x) == -1) {
 #ifdef DEBUG
 		if (debug)
@@ -1231,6 +1435,7 @@ HW_poll (
 			"Palisade(%d) HW_poll: ioctl(fd, UNSET, RTS_off): %m", 
 			up->unit);
 		return -1;
+	}
 	}
 
 	return 0;
@@ -1296,6 +1501,31 @@ getlong(
 
 	memcpy(&u32, bp, sizeof(u32));
 	return (int32)(u_int32)ntohl(u32);
+}
+
+/*
+ * copy/swap a big-endian 32-bit single-precision floating point into a host 32-bit int
+ */
+static int32
+getsingle(
+	u_char *bp
+	)
+{
+	u_int32 mantissa;
+	int8_t exponent;
+	uint8_t sign, exp_field;
+	int32 res;
+
+	memcpy(&mantissa, bp, sizeof(mantissa));
+	mantissa = ((u_int32)ntohl(mantissa) & 0x7FFFFF) | 0x800000;
+	exp_field = ((uint8_t)bp[0] << 1) + ((uint8_t)bp[1] >> 7);
+	exponent = (int8_t)exp_field - 127;
+	sign = ((uint8_t)bp[0] >> 7);
+	if (exponent > 23)
+		res = (int32)(mantissa << (exponent - 23));
+	else
+		res = (int32)(mantissa >> (23 - exponent));
+	return sign ? -res : res;
 }
 
 #else	/* REFCLOCK && CLOCK_PALISADE*/

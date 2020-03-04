@@ -164,9 +164,11 @@ parse: $(parsesolaris_OBJECTS) libparse_kernel.a ../libntp/libntp.a
 
 parsesolaris.o: sys/systm.h
 
+# [Bug3608] Solaris has inconsistent definitions of ffs() and fls(). Drop the
+# ones from 'systm.h'.
 sys/systm.h:
 	-mkdir sys
-	sed -e '/ffs(.*)/d' < /usr/include/sys/systm.h > sys/systm.h
+	sed -e '/f[fl]s(.*)/d' < /usr/include/sys/systm.h > sys/systm.h
 
 ## check-libparse is invoked by ntpd/Makefile.am
 check-libparse: $(noinst_LIBRARIES)

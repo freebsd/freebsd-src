@@ -62,7 +62,7 @@ test_IPv4AddressWithPort(void)
 void
 test_IPv6AddressOnly(void)
 {
-#ifdef ISC_PLATFORM_WANTIPV6
+#if defined(ISC_PLATFORM_HAVEIPV6) && defined(WANT_IPV6)
 
 	const struct in6_addr address = {
 		0x20, 0x01, 0x0d, 0xb8,
@@ -84,16 +84,16 @@ test_IPv6AddressOnly(void)
 
 #else
 	
-	TEST_IGNORE_MESSAGE("IPV6 disabled in build, skipping.");
+	TEST_IGNORE_MESSAGE("IPV6 disabled in build");
 	
-#endif /* ISC_PLATFORM_HAVEIPV6 */
+#endif
 }
 
 
 void
 test_IPv6AddressWithPort(void)
 {
-#ifdef ISC_PLATFORM_WANTIPV6
+#if defined(ISC_PLATFORM_HAVEIPV6) && defined(WANT_IPV6)
 
 	const struct in6_addr address = {
 		0x20, 0x01, 0x0d, 0xb8,
@@ -115,9 +115,9 @@ test_IPv6AddressWithPort(void)
 
 #else
 	
-	TEST_IGNORE_MESSAGE("IPV6 disabled in build, skipping.");
+	TEST_IGNORE_MESSAGE("IPV6 disabled in build");
 	
-#endif /* ISC_PLATFORM_HAVEIPV6 */
+#endif
 }
 
 

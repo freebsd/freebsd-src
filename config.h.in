@@ -1215,6 +1215,9 @@
 /* Define if C99-compliant `vsnprintf' is available. */
 #undef HAVE_VSNPRINTF
 
+/* Define to 1 if you have the `waitpid' function. */
+#undef HAVE_WAITPID
+
 /* Define to 1 if you have the <wchar.h> header file. */
 #undef HAVE_WCHAR_H
 

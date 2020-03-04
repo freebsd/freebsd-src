@@ -31,7 +31,13 @@ IsEqual(const sockaddr_u expected, const sockaddr_u actual) {
 				   sizeof( in )) == 0) {
 			return TRUE;
 		} else {
-			printf("IPv4 comparision failed, expected: %s(%s) but was: %s(%s)",inet_ntoa(expected.sa4.sin_addr), socktoa(&expected), inet_ntoa(actual.sa4.sin_addr),socktoa(&actual));
+			char buf[4][32];
+			strlcpy(buf[0], inet_ntoa(expected.sa4.sin_addr), sizeof(buf[0]));
+			strlcpy(buf[1], socktoa(&expected)              , sizeof(buf[1]));
+			strlcpy(buf[2], inet_ntoa(actual.sa4.sin_addr)  , sizeof(buf[2]));
+			strlcpy(buf[3], socktoa(&actual)                , sizeof(buf[3]));
+			printf("IPv4 comparision failed, expected: %s(%s) but was: %s(%s)",
+			       buf[0], buf[1], buf[2], buf[3]);
 			return FALSE;
 		}
 	} else if (actual.sa.sa_family == AF_INET6) { //IPv6

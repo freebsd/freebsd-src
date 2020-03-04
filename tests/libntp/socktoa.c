@@ -36,7 +36,7 @@ test_IPv4AddressWithPort(void)
 void 
 test_IPv6AddressWithPort(void)
 {
-#ifdef ISC_PLATFORM_WANTIPV6
+#if defined(ISC_PLATFORM_HAVEIPV6) && defined(WANT_IPV6)
 
 	const struct in6_addr address = {
 		0x20, 0x01, 0x0d, 0xb8,
@@ -61,16 +61,16 @@ test_IPv6AddressWithPort(void)
 
 #else
 
-	TEST_IGNORE_MESSAGE("IPV6 disabled in build, skipping.");
+	TEST_IGNORE_MESSAGE("IPV6 disabled in build");
 
-#endif /* ISC_PLATFORM_HAVEIPV6 */
+#endif
 }
 
 
 void 
 test_ScopedIPv6AddressWithPort(void)
 {
-#ifdef ISC_PLATFORM_HAVESCOPEID
+#if defined(ISC_PLATFORM_HAVESCOPEID) && defined(WANT_IPV6)
     
 	const struct in6_addr address = { { {
 		0xfe, 0x80, 0x00, 0x00,
@@ -95,7 +95,7 @@ test_ScopedIPv6AddressWithPort(void)
 	TEST_ASSERT_EQUAL_STRING(expected_port, sockporttoa(&input));
 #else
 	
-	TEST_IGNORE_MESSAGE("Skipping because ISC_PLATFORM does not have Scope ID");
+	TEST_IGNORE_MESSAGE("IPV6 scopes unavailable or IPV6 disabled in build");
 	
 #endif
 }
@@ -127,7 +127,7 @@ test_HashNotEqual(void)
 void 
 test_IgnoreIPv6Fields(void)
 {
-#ifdef ISC_PLATFORM_WANTIPV6
+#if defined(ISC_PLATFORM_HAVEIPV6) && defined(WANT_IPV6)
 
 	const struct in6_addr address = {
 		0x20, 0x01, 0x0d, 0xb8,
@@ -152,7 +152,7 @@ test_IgnoreIPv6Fields(void)
 
 #else
 
-	TEST_IGNORE_MESSAGE("IPV6 disabled in build, skipping.");
+	TEST_IGNORE_MESSAGE("IPV6 disabled in build");
 
-#endif /* ISC_PLATFORM_HAVEIPV6 */
+#endif
 }

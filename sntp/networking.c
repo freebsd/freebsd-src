@@ -26,7 +26,7 @@ sendpkt (
 	cc = sendto(rsock, (void *)pkt, len, 0, &dest->sa, 
 		    SOCKLEN(dest));
 	if (cc == SOCKET_ERROR) {
-		msyslog(LOG_ERR, "Send to %s failed, %m",
+		msyslog(LOG_ERR, "sendpkt: sendto(%s) failed: %m",
 			sptoa(dest));
 		return FALSE;
 	}
