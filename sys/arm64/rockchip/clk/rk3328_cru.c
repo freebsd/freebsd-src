@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #define	PCLK_I2C1		206
 #define	PCLK_I2C2		207
 #define	PCLK_I2C3		208
+#define	PCLK_TSADC		213
 #define	HCLK_SDMMC		317
 #define	HCLK_SDIO		318
 #define	HCLK_EMMC		319
@@ -91,6 +92,8 @@ static struct rk_cru_gate rk3328_gates[] = {
 	CRU_GATE(PCLK_I2C1, "pclk_i2c1", "pclk_bus", 0x23C, 0)
 	CRU_GATE(PCLK_I2C2, "pclk_i2c2", "pclk_bus", 0x23C, 1)
 	CRU_GATE(PCLK_I2C3, "pclk_i2c3", "pclk_bus", 0x23C, 2)
+	CRU_GATE(PCLK_TSADC, "pclk_tsadc", "pclk_bus", 0x23C, 14)
+
 	CRU_GATE(PCLK_GPIO0, "pclk_gpio0", "pclk_bus", 0x240, 7)
 	CRU_GATE(PCLK_GPIO1, "pclk_gpio1", "pclk_bus", 0x240, 8)
 	CRU_GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_bus", 0x240, 9)
@@ -731,6 +734,22 @@ static struct rk_clk_composite_def pclk_bus_pre = {
 	.flags = RK_CLK_COMPOSITE_HAVE_GATE,
 };
 
+/* CRU_CLKSEL_CON22 */
+
+#define SCLK_TSADC		36
+
+static const char *clk_tsadc_parents[] = {"xin24m"};
+static struct rk_clk_composite_def clk_tsadc = {
+	.clkdef = {
+		.id = SCLK_TSADC,
+		.name = "clk_tsadc",
+		.parent_names = clk_tsadc_parents,
+		.parent_cnt = nitems(clk_tsadc_parents),
+	},
+	.div_shift = 0,
+	.div_width = 9,
+};
+
 /* CRU_CLKSEL_CON28 */
 
 #define ACLK_PERI_PRE		137
@@ -1011,6 +1030,10 @@ static struct rk_clk rk3328_clks[] = {
 		.clk.armclk = &armclk,
 	},
 
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &clk_tsadc,
+	},
 	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &aclk_peri_pre,
