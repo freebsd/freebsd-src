@@ -154,13 +154,14 @@ am__libntp_a_SOURCES_DIST = systime.c a_md5encrypt.c adjtime.c \
 	hextoint.c hextolfp.c humandate.c icom.c iosignal.c \
 	is_ip_address.c lib_strbuf.c libssl_compat.c machines.c \
 	mktime.c modetoa.c mstolfp.c msyslog.c netof.c ntp_calendar.c \
-	ntp_crypto_rnd.c ntp_intres.c ntp_libopts.c ntp_lineedit.c \
-	ntp_random.c ntp_rfc2553.c ntp_worker.c numtoa.c numtohost.c \
-	octtoint.c prettydate.c refidsmear.c recvbuff.c refnumtoa.c \
-	snprintf.c socket.c socktoa.c socktohost.c ssl_init.c \
-	statestr.c strdup.c strl_obsd.c syssignal.c timetoa.c \
-	timevalops.c uglydate.c vint64ops.c work_fork.c work_thread.c \
-	xsbprintf.c ymd2yd.c $(srcdir)/../lib/isc/assertions.c \
+	ntp_calgps.c ntp_crypto_rnd.c ntp_intres.c ntp_libopts.c \
+	ntp_lineedit.c ntp_random.c ntp_rfc2553.c ntp_worker.c \
+	numtoa.c numtohost.c octtoint.c prettydate.c refidsmear.c \
+	recvbuff.c refnumtoa.c snprintf.c socket.c socktoa.c \
+	socktohost.c ssl_init.c statestr.c strdup.c strl_obsd.c \
+	syssignal.c timespecops.c timetoa.c timevalops.c timexsup.c \
+	uglydate.c vint64ops.c work_fork.c work_thread.c xsbprintf.c \
+	ymd2yd.c $(srcdir)/../lib/isc/assertions.c \
 	$(srcdir)/../lib/isc/buffer.c \
 	$(srcdir)/../lib/isc/backtrace-emptytbl.c \
 	$(srcdir)/../lib/isc/backtrace.c \
@@ -213,7 +214,7 @@ am__objects_4 = a_md5encrypt.$(OBJEXT) adjtime.$(OBJEXT) \
 	is_ip_address.$(OBJEXT) lib_strbuf.$(OBJEXT) \
 	libssl_compat.$(OBJEXT) machines.$(OBJEXT) mktime.$(OBJEXT) \
 	modetoa.$(OBJEXT) mstolfp.$(OBJEXT) msyslog.$(OBJEXT) \
-	netof.$(OBJEXT) ntp_calendar.$(OBJEXT) \
+	netof.$(OBJEXT) ntp_calendar.$(OBJEXT) ntp_calgps.$(OBJEXT) \
 	ntp_crypto_rnd.$(OBJEXT) ntp_intres.$(OBJEXT) \
 	ntp_libopts.$(OBJEXT) ntp_lineedit.$(OBJEXT) \
 	ntp_random.$(OBJEXT) ntp_rfc2553.$(OBJEXT) \
@@ -222,10 +223,11 @@ am__objects_4 = a_md5encrypt.$(OBJEXT) adjtime.$(OBJEXT) \
 	recvbuff.$(OBJEXT) refnumtoa.$(OBJEXT) snprintf.$(OBJEXT) \
 	socket.$(OBJEXT) socktoa.$(OBJEXT) socktohost.$(OBJEXT) \
 	ssl_init.$(OBJEXT) statestr.$(OBJEXT) strdup.$(OBJEXT) \
-	strl_obsd.$(OBJEXT) syssignal.$(OBJEXT) timetoa.$(OBJEXT) \
-	timevalops.$(OBJEXT) uglydate.$(OBJEXT) vint64ops.$(OBJEXT) \
-	work_fork.$(OBJEXT) work_thread.$(OBJEXT) xsbprintf.$(OBJEXT) \
-	ymd2yd.$(OBJEXT) $(am__objects_3) $(am__objects_1)
+	strl_obsd.$(OBJEXT) syssignal.$(OBJEXT) timespecops.$(OBJEXT) \
+	timetoa.$(OBJEXT) timevalops.$(OBJEXT) timexsup.$(OBJEXT) \
+	uglydate.$(OBJEXT) vint64ops.$(OBJEXT) work_fork.$(OBJEXT) \
+	work_thread.$(OBJEXT) xsbprintf.$(OBJEXT) ymd2yd.$(OBJEXT) \
+	$(am__objects_3) $(am__objects_1)
 am_libntp_a_OBJECTS = systime.$(OBJEXT) $(am__objects_4)
 libntp_a_OBJECTS = $(am_libntp_a_OBJECTS)
 libntpsim_a_AR = $(AR) $(ARFLAGS)
@@ -238,13 +240,14 @@ am__libntpsim_a_SOURCES_DIST = systime_s.c a_md5encrypt.c adjtime.c \
 	hextoint.c hextolfp.c humandate.c icom.c iosignal.c \
 	is_ip_address.c lib_strbuf.c libssl_compat.c machines.c \
 	mktime.c modetoa.c mstolfp.c msyslog.c netof.c ntp_calendar.c \
-	ntp_crypto_rnd.c ntp_intres.c ntp_libopts.c ntp_lineedit.c \
-	ntp_random.c ntp_rfc2553.c ntp_worker.c numtoa.c numtohost.c \
-	octtoint.c prettydate.c refidsmear.c recvbuff.c refnumtoa.c \
-	snprintf.c socket.c socktoa.c socktohost.c ssl_init.c \
-	statestr.c strdup.c strl_obsd.c syssignal.c timetoa.c \
-	timevalops.c uglydate.c vint64ops.c work_fork.c work_thread.c \
-	xsbprintf.c ymd2yd.c $(srcdir)/../lib/isc/assertions.c \
+	ntp_calgps.c ntp_crypto_rnd.c ntp_intres.c ntp_libopts.c \
+	ntp_lineedit.c ntp_random.c ntp_rfc2553.c ntp_worker.c \
+	numtoa.c numtohost.c octtoint.c prettydate.c refidsmear.c \
+	recvbuff.c refnumtoa.c snprintf.c socket.c socktoa.c \
+	socktohost.c ssl_init.c statestr.c strdup.c strl_obsd.c \
+	syssignal.c timespecops.c timetoa.c timevalops.c timexsup.c \
+	uglydate.c vint64ops.c work_fork.c work_thread.c xsbprintf.c \
+	ymd2yd.c $(srcdir)/../lib/isc/assertions.c \
 	$(srcdir)/../lib/isc/buffer.c \
 	$(srcdir)/../lib/isc/backtrace-emptytbl.c \
 	$(srcdir)/../lib/isc/backtrace.c \
@@ -675,6 +678,7 @@ libntp_a_SRCS = \
 	msyslog.c					\
 	netof.c						\
 	ntp_calendar.c					\
+	ntp_calgps.c					\
 	ntp_crypto_rnd.c				\
 	ntp_intres.c					\
 	ntp_libopts.c					\
@@ -698,8 +702,10 @@ libntp_a_SRCS = \
 	strdup.c					\
 	strl_obsd.c					\
 	syssignal.c					\
+	timespecops.c					\
 	timetoa.c					\
 	timevalops.c					\
+	timexsup.c					\
 	uglydate.c					\
 	vint64ops.c					\
 	work_fork.c					\
@@ -834,6 +840,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/netof.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/netscope.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp_calendar.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp_calgps.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp_crypto_rnd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp_intres.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp_libopts.Po@am__quote@
@@ -870,8 +877,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/task.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/thread.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/time.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timespecops.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timetoa.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timevalops.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timexsup.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tsmemcmp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uglydate.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vint64ops.Po@am__quote@

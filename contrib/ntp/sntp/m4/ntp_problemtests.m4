@@ -33,6 +33,10 @@ case "$ntp_ept:$cross:$host" in
  no:0:*-*-solaris*) ;;
  *) ntp_test_ntp_restrict="yes" ;;
 esac
+case "$ntp_cv_gc_sections_runs" in
+  no) ntp_test_ntp_restrict="no" ;;
+  * ) ;;
+esac
 AC_MSG_RESULT([$ntp_test_ntp_restrict])
 AM_CONDITIONAL([BUILD_TEST_NTP_RESTRICT], [test x$ntp_test_ntp_restrict = xyes])
 
@@ -43,6 +47,10 @@ case "$ntp_ept:$cross:$host" in
  no:0:*-*-solaris*) ;;
  *) ntp_test_ntp_scanner="yes" ;;
 esac
+case "$ntp_cv_gc_sections_runs" in
+  no) ntp_test_ntp_scanner="no" ;;
+  * ) ;;
+esac
 AC_MSG_RESULT([$ntp_test_ntp_scanner])
 AM_CONDITIONAL([BUILD_TEST_NTP_SCANNER], [test x$ntp_test_ntp_scanner = xyes])
 
@@ -52,6 +60,10 @@ case "$ntp_ept:$cross:$host" in
  no:0:*-*-freebsd6.4) ;;
  no:0:*-*-solaris*) ;;
  *) ntp_test_ntp_signd="yes" ;;
+esac
+case "$ntp_cv_gc_sections_runs" in
+  no) ntp_test_ntp_signd="no" ;;
+  * ) ;;
 esac
 AC_MSG_RESULT([$ntp_test_ntp_signd])
 AM_CONDITIONAL([BUILD_TEST_NTP_SIGND], [test x$ntp_test_ntp_signd = xyes])

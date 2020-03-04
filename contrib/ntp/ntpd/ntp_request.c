@@ -841,7 +841,7 @@ peer_info (
 		pp = findexistingpeer(&addr, NULL, NULL, -1, 0, NULL);
 		if (NULL == pp)
 			continue;
-		if (IS_IPV6(srcadr)) {
+		if (IS_IPV6(&pp->srcadr)) {
 			if (pp->dstadr)
 				ip->dstadr6 =
 				    (MDF_BCAST == pp->cast_flags)
@@ -1819,7 +1819,7 @@ do_restrict(
 	bad = 0;
 	while (items-- > 0 && !bad) {
 		memcpy(&cr, datap, item_sz);
-		cr.flags = ntohs(cr.flags);
+		cr.flags = ntohs(cr.flags);	/* XXX */
 		cr.mflags = ntohs(cr.mflags);
 		if (~RESM_NTPONLY & cr.mflags)
 			bad |= 1;
@@ -1854,7 +1854,7 @@ do_restrict(
 
 	while (items-- > 0) {
 		memcpy(&cr, datap, item_sz);
-		cr.flags = ntohs(cr.flags);
+		cr.flags = ntohs(cr.flags);	/* XXX: size */
 		cr.mflags = ntohs(cr.mflags);
 		cr.ippeerlimit = ntohs(cr.ippeerlimit);
 		if (client_v6_capable && cr.v6_flag) {
