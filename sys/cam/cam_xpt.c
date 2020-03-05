@@ -3156,6 +3156,10 @@ call_sim:
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(start_ccb);
 		break;
+	case XPT_ASYNC:
+		start_ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(start_ccb);
+		break;
 	default:
 	case XPT_SDEV_TYPE:
 	case XPT_TERM_IO:
@@ -4447,7 +4451,7 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 		xpt_freeze_devq(path, 1);
 	else
 		xpt_freeze_simq(path->bus->sim, 1);
-	xpt_done(ccb);
+	xpt_action(ccb);
 }
 
 static void
