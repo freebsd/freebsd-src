@@ -5326,14 +5326,13 @@ xptaction(struct cam_sim *sim, union ccb *work_ccb)
 		cpi->transport = XPORT_UNSPECIFIED;
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cpi->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(work_ccb);
 		break;
 	}
 	default:
 		work_ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(work_ccb);
 		break;
 	}
+	xpt_done(work_ccb);
 }
 
 /*
