@@ -648,7 +648,6 @@ OLD_FILES+=usr/lib32/libsupc++.so
 OLD_LIBS+=usr/lib32/libsupc++.so.1
 OLD_FILES+=usr/lib32/libsupc++_p.a
 .endif
-OLD_FILES+=usr/libexec/cc1plus
 OLD_LIBS+=usr/lib/libgomp.so.1
 OLD_FILES+=usr/lib/libgomp_p.a
 OLD_FILES+=usr/lib32/libgcov.a
