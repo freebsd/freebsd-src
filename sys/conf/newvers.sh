@@ -46,10 +46,7 @@
 
 TYPE="FreeBSD"
 REVISION="12.1"
-BRANCH="STABLE"
-if [ -n "${BRANCH_OVERRIDE}" ]; then
-	BRANCH=${BRANCH_OVERRIDE}
-fi
+BRANCH=${BRANCH_OVERRIDE:-STABLE}
 RELEASE="${REVISION}-${BRANCH}"
 VERSION="${TYPE} ${RELEASE}"
 
@@ -80,21 +77,16 @@ if [ -z "${SYSDIR}" ]; then
     SYSDIR=$(dirname $0)/..
 fi
 
-if [ -n "${PARAMFILE}" ]; then
-	RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' \
-		${PARAMFILE})
-else
-	RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' \
-		${SYSDIR}/sys/param.h)
-fi
+RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' \
+	      ${PARAMFILE:-${SYSDIR}/sys/param.h})
 
-b=share/examples/etc/bsd-style-copyright
 if [ -r "${SYSDIR}/../COPYRIGHT" ]; then
 	year=$(sed -Ee '/^Copyright .* The FreeBSD Project/!d;s/^.*1992-([0-9]*) .*$/\1/g' ${SYSDIR}/../COPYRIGHT)
 else
 	year=$(date +%Y)
 fi
 # look for copyright template
+b=share/examples/etc/bsd-style-copyright
 for bsd_copyright in ../$b ../../$b ../../../$b /usr/src/$b /usr/$b
 do
 	if [ -r "$bsd_copyright" ]; then
@@ -123,9 +115,7 @@ COPYRIGHT="$COPYRIGHT
 
 # VARS_ONLY means no files should be generated, this is just being
 # included.
-if [ -n "$VARS_ONLY" ]; then
-	return 0
-fi
+[ -n "$VARS_ONLY" ] && return 0
 
 LC_ALL=C; export LC_ALL
 if [ ! -r version ]
