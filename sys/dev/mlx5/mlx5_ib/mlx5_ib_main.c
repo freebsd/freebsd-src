@@ -199,6 +199,7 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 		break;
 	case MLX5E_PROT_MASK(MLX5E_50GBASE_CR2):
 	case MLX5E_PROT_MASK(MLX5E_50GBASE_KR2):
+	case MLX5E_PROT_MASK(MLX5E_50GBASE_KR4):
 	case MLX5E_PROT_MASK(MLX5E_50GBASE_SR2):
 		*active_width = IB_WIDTH_1X;
 		*active_speed = IB_SPEED_HDR;

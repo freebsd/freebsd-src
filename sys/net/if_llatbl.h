@@ -151,8 +151,8 @@ typedef int (llt_match_prefix_t)(const struct sockaddr *,
 typedef void (llt_free_entry_t)(struct lltable *, struct llentry *);
 typedef void (llt_fill_sa_entry_t)(const struct llentry *, struct sockaddr *);
 typedef void (llt_free_tbl_t)(struct lltable *);
-typedef void (llt_link_entry_t)(struct lltable *, struct llentry *);
-typedef void (llt_unlink_entry_t)(struct llentry *);
+typedef int (llt_link_entry_t)(struct lltable *, struct llentry *);
+typedef int (llt_unlink_entry_t)(struct llentry *);
 typedef void (llt_mark_used_t)(struct llentry *);
 
 typedef int (llt_foreach_cb_t)(struct lltable *, struct llentry *, void *);
@@ -162,6 +162,8 @@ struct lltable {
 	SLIST_ENTRY(lltable)	llt_link;
 	int			llt_af;
 	int			llt_hsize;
+	int			llt_entries;
+	int			llt_maxentries;
 	struct llentries	*lle_head;
 	struct ifnet		*llt_ifp;
 
@@ -230,8 +232,8 @@ struct llentry *lltable_alloc_entry(struct lltable *llt, u_int flags,
 void lltable_free_entry(struct lltable *llt, struct llentry *lle);
 int lltable_delete_addr(struct lltable *llt, u_int flags,
     const struct sockaddr *l3addr);
-void lltable_link_entry(struct lltable *llt, struct llentry *lle);
-void lltable_unlink_entry(struct lltable *llt, struct llentry *lle);
+int lltable_link_entry(struct lltable *llt, struct llentry *lle);
+int lltable_unlink_entry(struct lltable *llt, struct llentry *lle);
 void lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa);
 struct ifnet *lltable_get_ifp(const struct lltable *llt);
 int lltable_get_af(const struct lltable *llt);

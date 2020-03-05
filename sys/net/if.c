@@ -2414,7 +2414,7 @@ ifunit(const char *name)
 	return (ifp);
 }
 
-static void *
+void *
 ifr_buffer_get_buffer(void *data)
 {
 	union ifreq_union *ifrup;
@@ -2442,7 +2442,7 @@ ifr_buffer_set_buffer_null(void *data)
 		ifrup->ifr.ifr_ifru.ifru_buffer.buffer = NULL;
 }
 
-static size_t
+size_t
 ifr_buffer_get_length(void *data)
 {
 	union ifreq_union *ifrup;

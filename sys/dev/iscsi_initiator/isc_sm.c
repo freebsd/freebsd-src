@@ -514,7 +514,7 @@ proc_out(isc_session_t *sp)
 		    if(pq->ccb) {
 			 xdebug("back to cam");
 			 pq->ccb->ccb_h.status |= CAM_REQUEUE_REQ; // some better error?
-			 XPT_DONE(sp, pq->ccb);
+			 xpt_done(pq->ccb);
 			 pdu_free(sp->isc, pq);
 		    }
 		    else
@@ -571,17 +571,11 @@ ism_out(void *vp)
      wakeup(&sp->soc);
      wakeup(sp); // XXX: do we need this one?
 
-#if __FreeBSD_version >= 700000
      destroy_dev(sp->dev);
-#endif
 
      debug(3, "terminated sp=%p sp->sid=%d", sp, sp->sid);
 
-#if __FreeBSD_version >= 800000
      kproc_exit(0);
-#else
-     kthread_exit(0);
-#endif
 }
 
 #if 0
@@ -712,10 +706,6 @@ ism_stop(isc_session_t *sp)
      sc->nsess--;
      mtx_unlock(&sc->isc_mtx);
 
-#if __FreeBSD_version < 700000
-     destroy_dev(sp->dev);
-#endif
-
      mtx_destroy(&sp->rsp_mtx);
      mtx_destroy(&sp->rsv_mtx);
      mtx_destroy(&sp->hld_mtx);
@@ -756,9 +746,5 @@ ism_start(isc_session_t *sp)
 
      debug(4, "starting ism_proc: sp->sid=%d", sp->sid);
 
-#if __FreeBSD_version >= 800000
      return kproc_create(ism_out, sp, &sp->stp, 0, 0, "isc_out %d", sp->sid);
-#else
-     return kthread_create(ism_out, sp, &sp->stp, 0, 0, "isc_out %d", sp->sid);
-#endif
 }

@@ -203,11 +203,8 @@ check_size(int fd, const char *fn)
 		err(EX_OSERR, "can't get memory size");
 	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) != 0)
 		err(EX_OSERR, "%s: can't get size", fn);
-	if ((uintmax_t)mediasize < (uintmax_t)physmem) {
-		if (verbose)
-			printf("%s is smaller than physical memory\n", fn);
-		exit(EX_IOERR);
-	}
+	if ((uintmax_t)mediasize < (uintmax_t)physmem)
+		errx(EX_IOERR, "%s is smaller than physical memory", fn);
 }
 
 #ifdef HAVE_CRYPTO
@@ -495,7 +492,7 @@ main(int argc, char *argv[])
 		usage();
 
 	fd = opendumpdev(dev, dumpdev);
-	if (!netdump && !gzip && !rflag)
+	if (!netdump && !gzip && !zstd && !rflag)
 		check_size(fd, dumpdev);
 
 	kdap = &ndconf;

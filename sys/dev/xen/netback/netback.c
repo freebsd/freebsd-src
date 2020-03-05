@@ -67,9 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
-#if __FreeBSD_version >= 700000
 #include <netinet/tcp.h>
-#endif
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <machine/in_cksum.h>

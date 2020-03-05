@@ -4326,7 +4326,7 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		err = mxge_fetch_i2c(sc, &i2c);
 		mtx_unlock(&sc->driver_mtx);
 		if (err == 0)
-			err = copyout(&i2c, ifr->ifr_ifru.ifru_data,
+			err = copyout(&i2c, ifr_data_get_ptr(ifr),
 			    sizeof(i2c));
 		break;
 	default:

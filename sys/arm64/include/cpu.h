@@ -166,6 +166,7 @@ extern uint64_t __cpu_affinity[];
 void	cpu_halt(void) __dead2;
 void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
+void	identify_cache(uint64_t);
 void	identify_cpu(void);
 void	install_cpu_errata(void);
 void	swi_vm(void *v);

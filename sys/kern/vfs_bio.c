@@ -5187,6 +5187,10 @@ again:
 			    br_flags, &bp);
 			if (error != 0)
 				goto end_pages;
+			if (bp->b_rcred == curthread->td_ucred) {
+				crfree(bp->b_rcred);
+				bp->b_rcred = NOCRED;
+			}
 			if (LIST_EMPTY(&bp->b_dep)) {
 				/*
 				 * Invalidation clears m->valid, but

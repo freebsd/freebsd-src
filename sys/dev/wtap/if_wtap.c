@@ -448,44 +448,6 @@ wtap_inject(struct wtap_softc *sc, struct mbuf *m)
       mtx_unlock(&sc->sc_mtx);
 }
 
-void
-wtap_rx_deliver(struct wtap_softc *sc, struct mbuf *m)
-{
-	struct epoch_tracker et;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_node *ni;
-	int type;
-#if 0
-	DWTAP_PRINTF("%s\n", __func__);
-#endif
-
-	DWTAP_PRINTF("[%d] receiving m=%p\n", sc->id, m);
-	if (m == NULL) {		/* NB: shouldn't happen */
-		ic_printf(ic, "%s: no mbuf!\n", __func__);
-	}
-
-	ieee80211_dump_pkt(ic, mtod(m, caddr_t), 0,0,0);
-
-	/*
-	  * Locate the node for sender, track state, and then
-	  * pass the (referenced) node up to the 802.11 layer
-	  * for its use.
-	  */
-	ni = ieee80211_find_rxnode_withkey(ic,
-	    mtod(m, const struct ieee80211_frame_min *),IEEE80211_KEYIX_NONE);
-	NET_EPOCH_ENTER(et);
-	if (ni != NULL) {
-		/*
-		 * Sending station is known, dispatch directly.
-		 */
-		type = ieee80211_input(ni, m, 1<<7, 10);
-		ieee80211_free_node(ni);
-	} else {
-		type = ieee80211_input_all(ic, m, 1<<7, 10);
-	}
-	NET_EPOCH_EXIT(et);
-}
-
 static void
 wtap_rx_proc(void *arg, int npending)
 {

@@ -37,10 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/callout.h>
-#if __FreeBSD_version >= 700000
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 #include <sys/conf.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -93,16 +91,12 @@ static __inline int
 _scsi_encap(struct cam_sim *sim, union ccb *ccb)
 {
      int		ret;
-
-#if __FreeBSD_version < 700000
-     ret = scsi_encap(sim, ccb);
-#else
      isc_session_t	*sp = cam_sim_softc(sim);
 
      mtx_unlock(&sp->cam_mtx);
      ret = scsi_encap(sim, ccb);
      mtx_lock(&sp->cam_mtx);
-#endif
+
      return ret;
 }
 
@@ -260,11 +254,7 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	  ccb_h->status = CAM_REQ_INVALID;
 	  break;
      }
-#if __FreeBSD_version < 700000
-     XPT_DONE(sp, ccb);
-#else
      xpt_done(ccb);
-#endif
      return;
 }
 
@@ -297,7 +287,6 @@ ic_destroy(isc_session_t *sp )
      if(sp->cam_path != NULL) {
 	  sdebug(2, "name=%s unit=%d",
 		 cam_sim_name(sp->cam_sim), cam_sim_unit(sp->cam_sim));
-	  CAM_LOCK(sp);
 #if 0
 	  xpt_async(AC_LOST_DEVICE, sp->cam_path, NULL);
 #else
@@ -307,7 +296,6 @@ ic_destroy(isc_session_t *sp )
 	  xpt_bus_deregister(cam_sim_path(sp->cam_sim));
 	  cam_sim_free(sp->cam_sim, TRUE /*free_devq*/);
 
-	  CAM_UNLOCK(sp);
 	  sdebug(2, "done");
      }
 }
@@ -323,42 +311,28 @@ ic_init(isc_session_t *sp)
      if((devq = cam_simq_alloc(256)) == NULL)
 	  return ENOMEM;
 
-#if __FreeBSD_version >= 700000
      mtx_init(&sp->cam_mtx, "isc-cam", NULL, MTX_DEF);
-#else
-     isp->cam_mtx = Giant;
-#endif
      sim = cam_sim_alloc(ic_action,
 			 ic_poll,
 			 "iscsi",
 			 sp,
 			 sp->sid,	// unit
-#if __FreeBSD_version >= 700000
 			 &sp->cam_mtx,
-#endif
 			 1,		// max_dev_transactions
 			 0,		// max_tagged_dev_transactions
 			 devq);
      if(sim == NULL) {
 	  cam_simq_free(devq);
-#if __FreeBSD_version >= 700000
 	  mtx_destroy(&sp->cam_mtx);
-#endif
 	  return ENXIO;
      }
 
-     CAM_LOCK(sp);
      if(xpt_bus_register(sim,
-#if __FreeBSD_version >= 700000
 			 NULL,
-#endif
 			 0/*bus_number*/) != CAM_SUCCESS) {
 
 	  cam_sim_free(sim, /*free_devq*/TRUE);
-	  CAM_UNLOCK(sp);
-#if __FreeBSD_version >= 700000
 	  mtx_destroy(&sp->cam_mtx);
-#endif
 	  return ENXIO;
      }
      sp->cam_sim = sim;
@@ -366,13 +340,9 @@ ic_init(isc_session_t *sp)
 	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 	  xpt_bus_deregister(cam_sim_path(sp->cam_sim));
 	  cam_sim_free(sim, /*free_devq*/TRUE);
-	  CAM_UNLOCK(sp);
-#if __FreeBSD_version >= 700000
 	  mtx_destroy(&sp->cam_mtx);
-#endif
 	  return ENXIO;
      }
-     CAM_UNLOCK(sp);
 
      sdebug(1, "cam subsystem initialized");
 

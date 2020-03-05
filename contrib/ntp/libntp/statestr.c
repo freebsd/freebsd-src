@@ -181,16 +181,23 @@ static const struct codestring res_access_bits[] = {
 	{ RES_IGNORE,			"ignore",	0 },
 	{ RES_DONTSERVE,		"noserve",	"serve" },
 	{ RES_DONTTRUST,		"notrust",	"trust" },
-	{ RES_NOQUERY,			"noquery",	"query" },
-	{ RES_NOMODIFY,			"nomodify",	0 },
+	{ RES_VERSION,			"version",	0 },
 	{ RES_NOPEER,			"nopeer",	"peer" },
 	{ RES_NOEPEER,			"noepeer",	"epeer" },
+	{ RES_LIMITED,			"limited",	0 },
+
+	{ RES_NOQUERY,			"noquery",	"query" },
+	{ RES_NOMODIFY,			"nomodify",	0 },
 	{ RES_NOTRAP,			"notrap",	"trap" },
 	{ RES_LPTRAP,			"lptrap",	0 },
-	{ RES_LIMITED,			"limited",	0 },
-	{ RES_VERSION,			"version",	0 },
+
 	{ RES_KOD,			"kod",		0 },
+	{ RES_MSSNTP,			"mssntp",	0 },
 	{ RES_FLAKE,			"flake",	0 },
+	{ RES_NOMRULIST,		"nomrulist",	0 },
+
+	{ RES_SRVRSPFUZ,		"serverresponse fuzz",	0 },
+
 	/* not used with getcode(), no terminating entry needed */
 };
 
@@ -418,7 +425,7 @@ res_match_flags(
 
 const char *
 res_access_flags(
-	u_short af
+	u_int32 af
 	)
 {
 	return decode_bitflags(af, " ", res_access_bits,

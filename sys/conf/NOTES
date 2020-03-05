@@ -2172,72 +2172,10 @@ options		SND_OLDSTEREO
 #
 # Miscellaneous hardware:
 #
-# bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
 # cmx: OmniKey CardMan 4040 pccard smartcard reader
 
 device		cmx
 
-#
-# The 'bktr' device is a PCI video capture device using the Brooktree
-# bt848/bt848a/bt849a/bt878/bt879 chipset. When used with a TV Tuner it forms a
-# TV card, e.g. Miro PC/TV, Hauppauge WinCast/TV WinTV, VideoLogic Captivator,
-# Intel Smart Video III, AverMedia, IMS Turbo, FlyVideo.
-#
-# options 	OVERRIDE_CARD=xxx
-# options 	OVERRIDE_TUNER=xxx
-# options 	OVERRIDE_MSP=1
-# options 	OVERRIDE_DBX=1
-# These options can be used to override the auto detection
-# The current values for xxx are found in src/sys/dev/bktr/bktr_card.h
-# Using sysctl(8) run-time overrides on a per-card basis can be made
-#
-# options 	BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
-# or
-# options 	BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
-# Specifies the default video capture mode.
-# This is required for Dual Crystal (28&35MHz) boards where PAL is used
-# to prevent hangs during initialization, e.g. VideoLogic Captivator PCI.
-#
-# options 	BKTR_USE_PLL
-# This is required for PAL or SECAM boards with a 28MHz crystal and no 35MHz
-# crystal, e.g. some new Bt878 cards.
-#
-# options 	BKTR_GPIO_ACCESS
-# This enables IOCTLs which give user level access to the GPIO port.
-#
-# options 	BKTR_NO_MSP_RESET
-# Prevents the MSP34xx reset. Good if you initialize the MSP in another OS first
-#
-# options 	BKTR_430_FX_MODE
-# Switch Bt878/879 cards into Intel 430FX chipset compatibility mode.
-#
-# options 	BKTR_SIS_VIA_MODE
-# Switch Bt878/879 cards into SIS/VIA chipset compatibility mode which is
-# needed for some old SiS and VIA chipset motherboards.
-# This also allows Bt878/879 chips to work on old OPTi (<1997) chipset
-# motherboards and motherboards with bad or incomplete PCI 2.1 support.
-# As a rough guess, old = before 1998
-#
-# options 	BKTR_NEW_MSP34XX_DRIVER
-# Use new, more complete initialization scheme for the msp34* soundchip.
-# Should fix stereo autodetection if the old driver does only output
-# mono sound.
-
-#
-# options 	BKTR_USE_FREEBSD_SMBUS
-# Compile with FreeBSD SMBus implementation
-#
-# Brooktree driver has been ported to the new I2C framework. Thus,
-# you'll need to have the following 3 lines in the kernel config.
-#     device smbus
-#     device iicbus
-#     device iicbb
-#     device iicsmb
-# The iic and smb devices are only needed if you want to control other
-# I2C slaves connected to the external connector of some cards.
-#
-device		bktr
- 
 #
 # PC Card/PCMCIA and Cardbus
 #
@@ -2271,7 +2209,6 @@ device		sdhci
 #
 # Supported SMB interfaces:
 # iicsmb	I2C to SMB bridge with any iicbus interface
-# bktr		brooktree848 I2C hardware interface
 # intpm		Intel PIIX4 (82371AB, 82443MX) Power Management Unit
 # alpm		Acer Aladdin-IV/V/Pro2 Power Management Unit
 # ichsmb	Intel ICH SMBus controller chips (82801AA, 82801AB, 82801BA)
@@ -2312,11 +2249,8 @@ device		jedec_dimm
 # iicsmb i2c to smb bridge. Allow i2c i/o with smb commands.
 # iicoc simple polling driver for OpenCores I2C controller
 #
-# Supported interfaces:
-# bktr	brooktree848 I2C software interface
-#
 # Other:
-# iicbb	generic I2C bit-banging code (needed by lpbb, bktr)
+# iicbb	generic I2C bit-banging code (needed by lpbb)
 #
 device		iicbus		# Bus support, required for ic/iic/iicsmb below.
 device		iicbb		# bitbang driver; implements i2c on a pair of gpio pins
@@ -2821,11 +2755,6 @@ options 	RACCT
 options 	RCTL
 
 # Yet more undocumented options for linting.
-# BKTR_ALLOC_PAGES has no effect except to cause warnings, and
-# BROOKTREE_ALLOC_PAGES hasn't actually been superseded by it, since the
-# driver still mostly spells this option BROOKTREE_ALLOC_PAGES.
-##options 	BKTR_ALLOC_PAGES=(217*4+1)
-options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
 # Random number generator

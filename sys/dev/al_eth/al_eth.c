@@ -1639,10 +1639,8 @@ al_eth_rx_recv_work(void *arg, int pending)
 			al_eth_rx_checksum(rx_ring->adapter, hal_pkt, mbuf);
 		}
 
-#if __FreeBSD_version >= 800000
 		mbuf->m_pkthdr.flowid = qid;
 		M_HASHTYPE_SET(mbuf, M_HASHTYPE_OPAQUE);
-#endif
 
 		/*
 		 * LRO is only for IP/TCP packets and TCP checksum of the packet

@@ -28,7 +28,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_rss.h"
 #include "opt_tcpdebug.h"
+
 /**
  * Some notes about usage.
  *
@@ -151,6 +153,11 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
+#ifdef RSS
+#include <net/netisr.h>
+#include <net/rss_config.h>
+#endif
+
 #define TCPSTATES		/* for logging */
 
 #include <netinet/in.h>
@@ -180,7 +187,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 
-#include "opt_rss.h"
 
 MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
 #ifdef RSS
@@ -1151,9 +1157,10 @@ hpts_random_cpu(struct inpcb *inp){
 }
 
 static uint16_t
-hpts_cpuid(struct inpcb *inp){
+hpts_cpuid(struct inpcb *inp)
+{
 	u_int cpuid;
-#ifdef NUMA
+#if !defined(RSS) && defined(NUMA)
 	struct hpts_domain_info *di;
 #endif
 
@@ -1167,7 +1174,7 @@ hpts_cpuid(struct inpcb *inp){
 		return (inp->inp_hpts_cpu);
 	}
 	/* If one is set the other must be the same */
-#ifdef	RSS
+#ifdef RSS
 	cpuid = rss_hash2cpuid(inp->inp_flowid, inp->inp_flowtype);
 	if (cpuid == NETISR_CPUID_NONE)
 		return (hpts_random_cpu(inp));

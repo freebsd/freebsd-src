@@ -490,18 +490,6 @@ default: DBPRINT(sc, BCE_INSANE_PHY,					\
 #endif /* BCE_DEBUG */
 
 
-#if __FreeBSD_version < 800054
-#if defined(__i386__) || defined(__amd64__)
-#define mb()    __asm volatile("mfence" ::: "memory")
-#define wmb()   __asm volatile("sfence" ::: "memory")
-#define rmb()   __asm volatile("lfence" ::: "memory")
-#else
-#define mb()
-#define rmb()
-#define wmb()
-#endif
-#endif
-
 /****************************************************************************/
 /* Device identification definitions.                                       */
 /****************************************************************************/
@@ -577,7 +565,6 @@ struct bce_type {
 /****************************************************************************/
 /* Byte order conversions.                                                  */
 /****************************************************************************/
-#if __FreeBSD_version >= 500000
 #define bce_htobe16(x) htobe16(x)
 #define bce_htobe32(x) htobe32(x)
 #define bce_htobe64(x) htobe64(x)
@@ -591,22 +578,6 @@ struct bce_type {
 #define bce_le16toh(x) le16toh(x)
 #define bce_le32toh(x) le32toh(x)
 #define bce_le64toh(x) le64toh(x)
-#else
-#define bce_htobe16(x) (x)
-#define bce_htobe32(x) (x)
-#define bce_htobe64(x) (x)
-#define bce_htole16(x) (x)
-#define bce_htole32(x) (x)
-#define bce_htole64(x) (x)
-
-#define bce_be16toh(x) (x)
-#define bce_be32toh(x) (x)
-#define bce_be64toh(x) (x)
-#define bce_le16toh(x) (x)
-#define bce_le32toh(x) (x)
-#define bce_le64toh(x) (x)
-#endif
-
 
 /****************************************************************************/
 /* NVRAM Access                                                             */
@@ -6336,14 +6307,9 @@ struct fw_info {
 #define BCE_IF_HWASSIST	(CSUM_TCP | CSUM_UDP)
 #endif
 
-#if __FreeBSD_version < 700000
-#define BCE_IF_CAPABILITIES (IFCAP_VLAN_MTU | 			\
-    IFCAP_VLAN_HWTAGGING | IFCAP_HWCSUM | IFCAP_JUMBO_MTU)
-#else
 #define BCE_IF_CAPABILITIES (IFCAP_VLAN_MTU |			\
     IFCAP_VLAN_HWTAGGING | IFCAP_HWCSUM |			\
     IFCAP_JUMBO_MTU | IFCAP_VLAN_HWCSUM)
-#endif
 
 #define BCE_MIN_MTU			60
 #define BCE_MIN_ETHER_MTU		64

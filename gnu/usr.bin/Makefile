@@ -12,7 +12,6 @@ SUBDIR.${MK_GNU_DIFF}+=	diff3
 SUBDIR.${MK_GNU_GREP}+=	grep
 SUBDIR.${MK_GDB}+=	gdb
 SUBDIR_DEPEND_gdb=	binutils
-SUBDIR.${MK_GPL_DTC}+=	dtc
 SUBDIR.${MK_TESTS}+=	tests
 
 SUBDIR_PARALLEL=

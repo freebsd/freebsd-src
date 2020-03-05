@@ -12,6 +12,7 @@
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
 #include "ntp_assert.h"
+#include "timespecops.h"
 
 #include <stdio.h>
 
@@ -66,10 +67,81 @@ int	cal_enable;		/* enable refclock calibrate */
 /*
  * Forward declarations
  */
-static int refclock_cmpl_fp (const void *, const void *);
-static int refclock_sample (struct refclockproc *);
-static int refclock_ioctl(int, u_int);
+static int  refclock_cmpl_fp (const void *, const void *);
+static int  refclock_sample (struct refclockproc *);
+static int  refclock_ioctl(int, u_int);
+static void refclock_checkburst(struct peer *, struct refclockproc *);
 
+/* circular buffer functions
+ *
+ * circular buffer management comes in two flovours:
+ * for powers of two, and all others.
+ */
+
+#if MAXSTAGE & (MAXSTAGE - 1)
+
+static void clk_add_sample(
+	struct refclockproc * const	pp,
+	double				sv
+	)
+{
+	pp->coderecv = (pp->coderecv + 1) % MAXSTAGE;
+	if (pp->coderecv == pp->codeproc)
+		pp->codeproc = (pp->codeproc + 1) % MAXSTAGE;
+	pp->filter[pp->coderecv] = sv;
+}
+
+static double clk_pop_sample(
+	struct refclockproc * const	pp
+	)
+{
+	if (pp->coderecv == pp->codeproc)
+		return 0; /* Maybe a NaN would be better? */
+	pp->codeproc = (pp->codeproc + 1) % MAXSTAGE;
+	return pp->filter[pp->codeproc];
+}
+
+static inline u_int clk_cnt_sample(
+	struct refclockproc * const	pp
+	)
+{
+	u_int retv = pp->coderecv - pp->codeproc;
+	if (retv > MAXSTAGE)
+		retv += MAXSTAGE;
+	return retv;
+}
+
+#else
+
+static inline void clk_add_sample(
+	struct refclockproc * const	pp,
+	double				sv
+	)
+{
+	pp->coderecv  = (pp->coderecv + 1) & (MAXSTAGE - 1);
+	if (pp->coderecv == pp->codeproc)
+		pp->codeproc = (pp->codeproc + 1) & (MAXSTAGE - 1);
+	pp->filter[pp->coderecv] = sv;
+}
+
+static inline double clk_pop_sample(
+	struct refclockproc * const	pp
+	)
+{
+	if (pp->coderecv == pp->codeproc)
+		return 0; /* Maybe a NaN would be better? */
+	pp->codeproc = (pp->codeproc + 1) & (MAXSTAGE - 1);
+	return pp->filter[pp->codeproc];
+}
+
+static inline u_int clk_cnt_sample(
+	struct refclockproc * const	pp
+	)
+{
+	return (pp->coderecv - pp->codeproc) & (MAXSTAGE - 1);
+}
+
+#endif
 
 /*
  * refclock_report - note the occurance of an event
@@ -328,9 +400,10 @@ refclock_transmit(
 	} else {
 		peer->burst--;
 	}
+	peer->procptr->inpoll = TRUE;
 	if (refclock_conf[clktype]->clock_poll != noentry)
 		(refclock_conf[clktype]->clock_poll)(unit, peer);
-	poll_update(peer, peer->hpoll);
+	poll_update(peer, peer->hpoll, 0);
 }
 
 
@@ -353,6 +426,65 @@ refclock_cmpl_fp(
 	return 0;
 }
 
+/*
+ * Get number of available samples
+ */
+int
+refclock_samples_avail(
+	struct refclockproc const * pp
+	)
+{
+	u_int	na;
+	
+#   if MAXSTAGE & (MAXSTAGE - 1)
+	
+	na = pp->coderecv - pp->codeproc;
+	if (na > MAXSTAGE)
+		na += MAXSTAGE;
+	
+#   else
+	
+	na = (pp->coderecv - pp->codeproc) & (MAXSTAGE - 1);
+	
+#   endif
+	return na;
+}
+
+/*
+ * Expire (remove) samples from the tail (oldest samples removed)
+ *
+ * Returns number of samples deleted
+ */
+int
+refclock_samples_expire(
+	struct refclockproc * pp,
+	int                   nd
+	)
+{
+	u_int	na;
+	
+	if (nd <= 0)
+		return 0;
+
+#   if MAXSTAGE & (MAXSTAGE - 1)
+	
+	na = pp->coderecv - pp->codeproc;
+	if (na > MAXSTAGE)
+		na += MAXSTAGE;
+	if ((u_int)nd < na)
+		nd = na;	
+	pp->codeproc = (pp->codeproc + nd) % MAXSTAGE;
+	
+#   else
+	
+	na = (pp->coderecv - pp->codeproc) & (MAXSTAGE - 1);
+	if ((u_int)nd > na)
+		nd = (int)na;
+	pp->codeproc = (pp->codeproc + nd) & (MAXSTAGE - 1);
+	
+#   endif
+	return nd;
+}
 
 /*
  * refclock_process_offset - update median filter
@@ -376,7 +508,8 @@ refclock_process_offset(
 	lftemp = lasttim;
 	L_SUB(&lftemp, &lastrec);
 	LFPTOD(&lftemp, doffset);
-	SAMPLE(doffset + fudge);
+	clk_add_sample(pp, doffset + fudge);
+	refclock_checkburst(pp->io.srcclock, pp);
 }
 
 
@@ -388,7 +521,7 @@ refclock_process_offset(
  * seconds and milliseconds/microseconds to internal timestamp format,
  * then constructs a new entry in the median filter circular buffer.
  * Return success (1) if the data are correct and consistent with the
- * converntional calendar.
+ * conventional calendar.
  *
  * Important for PPS users: Normally, the pp->lastrec is set to the
  * system time when the on-time character is received and the pp->year,
@@ -409,7 +542,7 @@ refclock_process_f(
 	 * seconds and milliseconds/microseconds of the timecode. Use
 	 * clocktime() for the aggregate seconds and the msec/usec for
 	 * the fraction, when present. Note that this code relies on the
-	 * filesystem time for the years and does not use the years of
+	 * file system time for the years and does not use the years of
 	 * the timecode.
 	 */
 	if (!clocktime(pp->day, pp->hour, pp->minute, pp->second, GMT,
@@ -457,11 +590,8 @@ refclock_sample(
 	 * anything if the buffer is empty.
 	 */
 	n = 0;
-	while (pp->codeproc != pp->coderecv) {
-		pp->codeproc = (pp->codeproc + 1) % MAXSTAGE;
-		off[n] = pp->filter[pp->codeproc];
-		n++;
-	}
+	while (pp->codeproc != pp->coderecv)
+		off[n++] = clk_pop_sample(pp);
 	if (n == 0)
 		return (0);
 
@@ -494,6 +624,20 @@ refclock_sample(
 	}
 	pp->offset /= m;
 	pp->jitter = max(SQRT(pp->jitter / m), LOGTOD(sys_precision));
+
+	/*
+	 * If the source has a jitter that cannot be estimated, because
+	 * it is not statistic jitter, the source will be detected as
+	 * falseticker sooner or later.  Enforcing a minimal jitter value
+	 * avoids a too low estimation while still detecting higher jitter.
+	 *
+	 * Note that this changes the refclock samples and ends up in the
+	 * clock dispersion, not the clock jitter, despite being called
+	 * jitter.  To see the modified values, check the NTP clock variable
+	 * "filtdisp", not "jitter".
+	 */
+	pp->jitter = max(pp->jitter, pp->fudgeminjitter);
+
 #ifdef DEBUG
 	if (debug)
 		printf(
@@ -532,6 +676,7 @@ refclock_receive(
 	 * filter.
 	 */
 	pp = peer->procptr;
+	pp->inpoll = FALSE;
 	peer->leap = pp->leap;
 	if (peer->leap == LEAP_NOTINSYNC)
 		return;
@@ -542,7 +687,7 @@ refclock_receive(
 		report_event(PEVNT_REACH, peer, NULL);
 		peer->timereachable = current_time;
 	}
-	peer->reach |= 1;
+	peer->reach = (peer->reach << (peer->reach & 1)) | 1;
 	peer->reftime = pp->lastref;
 	peer->aorg = pp->lastrec;
 	peer->rootdisp = pp->disp;
@@ -1080,6 +1225,8 @@ refclock_control(
 			pp->sloppyclockflag &= ~CLK_FLAG4;
 			pp->sloppyclockflag |= in->flags & CLK_FLAG4;
 		}
+		if (in->haveflags & CLK_HAVEMINJIT)
+			pp->fudgeminjitter = in->fudgeminjitter;
 	}
 
 	/*
@@ -1104,6 +1251,9 @@ refclock_control(
 			out->haveflags |= CLK_HAVEFLAG3;
 		if (CLK_FLAG4 & out->flags)
 			out->haveflags |= CLK_HAVEFLAG4;
+		out->fudgeminjitter = pp->fudgeminjitter;
+		if (0.0 != out->fudgeminjitter)
+			out->haveflags |= CLK_HAVEMINJIT;
 
 		out->timereset = current_time - pp->timestarted;
 		out->polls = pp->polls;
@@ -1367,7 +1517,8 @@ refclock_pps(
 	 */
 	pp->lastrec.l_ui = (u_int32)ap->ts.tv_sec + JAN_1970;
 	pp->lastrec.l_uf = (u_int32)(dtemp * FRAC);
-	SAMPLE(dcorr);
+	clk_add_sample(pp, dcorr);
+	refclock_checkburst(peer, pp);
 	
 #ifdef DEBUG
 	if (debug > 1)
@@ -1377,4 +1528,245 @@ refclock_pps(
 	return (1);
 }
 #endif /* HAVE_PPSAPI */
+
+
+/*
+ * -------------------------------------------------------------------
+ * refclock_ppsaugment(...) -- correlate with PPS edge
+ *
+ * This function is used to correlate a receive time stamp with a PPS
+ * edge time stamp. It applies the necessary fudges and then tries to
+ * move the receive time stamp to the corresponding edge. This can warp
+ * into future, if a transmission delay of more than 500ms is not
+ * compensated with a corresponding fudge time2 value, because then the
+ * next PPS edge is nearer than the last. (Similiar to what the PPS ATOM
+ * driver does, but we deal with full time stamps here, not just phase
+ * shift information.) Likewise, a negative fudge time2 value must be
+ * used if the reference time stamp correlates with the *following* PPS
+ * pulse.
+ *
+ * Note that the receive time fudge value only needs to move the receive
+ * stamp near a PPS edge but that close proximity is not required;
+ * +/-100ms precision should be enough. But since the fudge value will
+ * probably also be used to compensate the transmission delay when no
+ * PPS edge can be related to the time stamp, it's best to get it as
+ * close as possible.
+ *
+ * It should also be noted that the typical use case is matching to the
+ * preceeding edge, as most units relate their sentences to the current
+ * second.
+ *
+ * The function returns FALSE if there is no correlation possible, TRUE
+ * otherwise.  Reason for failures are:
+ *
+ *  - no PPS/ATOM unit given
+ *  - PPS stamp is stale (that is, the difference between the PPS stamp
+ *    and the corrected time stamp would exceed two seconds)
+ *  - The phase difference is too close to 0.5, and the decision wether
+ *    to move up or down is too sensitive to noise.
+ *
+ * On output, the receive time stamp is updated with the 'fixed' receive
+ * time.
+ * -------------------------------------------------------------------
+ */
+
+int/*BOOL*/
+refclock_ppsaugment(
+	const struct refclock_atom * ap	    ,	/* for PPS io	  */
+	l_fp 			   * rcvtime ,
+	double			     rcvfudge,	/* i/o read fudge */
+	double			     ppsfudge	/* pps fudge	  */
+	)
+{
+	l_fp		delta[1];
+	
+#ifdef HAVE_PPSAPI
+
+	pps_info_t	pps_info;
+	struct timespec timeout;
+	l_fp		stamp[1];
+	uint32_t	phase;
+
+	static const uint32_t s_plim_hi = UINT32_C(1932735284);
+	static const uint32_t s_plim_lo = UINT32_C(2362232013);
+	
+	/* fixup receive time in case we have to bail out early */
+	DTOLFP(rcvfudge, delta);
+	L_SUB(rcvtime, delta);
+
+	if (NULL == ap)
+		return FALSE;
+	
+	ZERO(timeout);
+	ZERO(pps_info);
+
+	/* fetch PPS stamp from ATOM block */
+	if (time_pps_fetch(ap->handle, PPS_TSFMT_TSPEC,
+			   &pps_info, &timeout) < 0)
+		return FALSE; /* can't get time stamps */
+
+	/* get last active PPS edge before receive */
+	if (ap->pps_params.mode & PPS_CAPTUREASSERT)
+		timeout = pps_info.assert_timestamp;
+	else if (ap->pps_params.mode & PPS_CAPTURECLEAR)
+		timeout = pps_info.clear_timestamp;
+	else
+		return FALSE; /* WHICH edge, please?!? */
+
+	/* convert PPS stamp to l_fp and apply fudge */
+	*stamp = tspec_stamp_to_lfp(timeout);
+	DTOLFP(ppsfudge, delta);
+	L_SUB(stamp, delta);
+
+	/* Get difference between PPS stamp (--> yield) and receive time
+	 * (--> base)
+	 */
+	*delta = *stamp;
+	L_SUB(delta, rcvtime);
+
+	/* check if either the PPS or the STAMP is stale in relation
+	 * to each other. Bail if it is so...
+	 */
+	phase = delta->l_ui;
+	if (phase >= 2 && phase < (uint32_t)-2)
+		return FALSE; /* PPS is stale, don't use it */
+	
+	/* If the phase is too close to 0.5, the decision whether to
+	 * move up or down is becoming noise sensitive. That is, we
+	 * might amplify usec noise between samples into seconds with a
+	 * simple threshold. This can be solved by a Schmitt Trigger
+	 * characteristic, but that would also require additional state
+	 * where we could remember previous decisions.  Easier to play
+	 * dead duck and wait for the conditions to become clear.
+	 */
+	phase = delta->l_uf;
+	if (phase > s_plim_hi && phase < s_plim_lo)
+		return FALSE; /* we're in the noise lock gap */
+	
+	/* sign-extend fraction into seconds */
+	delta->l_ui = UINT32_C(0) - ((phase >> 31) & 1);
+	/* add it up now */
+	L_ADD(rcvtime, delta);
+	return TRUE;
+
+#   else /* have no PPS support at all */
+	
+	/* just fixup receive time and fail */
+	UNUSED_ARG(ap);
+	UNUSED_ARG(ppsfudge);
+
+	DTOLFP(rcvfudge, delta);
+	L_SUB(rcvtime, delta);
+	return FALSE;
+	
+#   endif
+}
+
+/*
+ * -------------------------------------------------------------------
+ * check if it makes sense to schedule an 'early' poll to get the clock
+ * up fast after start or longer signal dropout.
+ */
+static void
+refclock_checkburst(
+	struct peer *         peer,
+	struct refclockproc * pp
+	)
+{
+	uint32_t	limit;	/* when we should poll */
+	u_int		needs;	/* needed number of samples */
+
+	/* Paranoia: stop here if peer and clockproc don't match up.
+	 * And when a poll is actually pending, we don't have to do
+	 * anything, either. Likewise if the reach mask is full, of
+	 * course, and if the filter has stabilized.
+	 */
+	if (pp->inpoll || (peer->procptr != pp) ||
+	    ((peer->reach == 0xFF) && (peer->disp <= MAXDISTANCE)))
+		return;
+
+	/* If the next poll is soon enough, bail out, too: */
+	limit = current_time + 1;
+	if (peer->nextdate <= limit)
+		return;
+
+	/* Derive the number of samples needed from the popcount of the
+	 * reach mask.  With less samples available, we break away.
+	 */
+	needs  = peer->reach;
+	needs -= (needs >> 1) & 0x55; 
+	needs  = (needs & 0x33) + ((needs >> 2) & 0x33);
+	needs  = (needs + (needs >> 4)) & 0x0F;
+	if (needs > 6)
+		needs = 6;
+	else if (needs < 3)
+		needs = 3;
+	if (clk_cnt_sample(pp) < needs)
+		return;
+
+	/* Get serious. Reduce the poll to minimum and schedule early.
+	 * (Changing the peer poll is probably in vain, as it will be
+	 * re-adjusted, but maybe some time the hint will work...) 
+	 */
+	peer->hpoll = peer->minpoll;
+	peer->nextdate = limit;
+}
+
+/*
+ * -------------------------------------------------------------------
+ * Save the last timecode string, making sure it's properly truncated
+ * if necessary and NUL terminated in any case.
+ */
+void
+refclock_save_lcode(
+	struct refclockproc *	pp,
+	char const *		tc,
+	size_t			len
+	)
+{
+	if (len == (size_t)-1)
+		len = strnlen(tc,  sizeof(pp->a_lastcode) - 1);
+	else if (len >= sizeof(pp->a_lastcode))
+		len = sizeof(pp->a_lastcode) - 1;
+
+	pp->lencode = (u_short)len;
+	memcpy(pp->a_lastcode, tc, len);
+	pp->a_lastcode[len] = '\0';
+}
+
+/* format data into a_lastcode */
+void
+refclock_vformat_lcode(
+	struct refclockproc *	pp,
+	char const *		fmt,
+	va_list			va
+	)
+{
+	long len;
+
+	len = vsnprintf(pp->a_lastcode, sizeof(pp->a_lastcode), fmt, va);
+	if (len <= 0)
+		len = 0;
+	else if (len >= sizeof(pp->a_lastcode))
+		len = sizeof(pp->a_lastcode) - 1;
+	
+	pp->lencode = (u_short)len;
+	pp->a_lastcode[len] = '\0';
+	/* !note! the NUL byte is needed in case vsnprintf() really fails */
+}
+
+void
+refclock_format_lcode(
+	struct refclockproc *	pp,
+	char const *		fmt,
+	...
+	)
+{
+	va_list va;
+	
+	va_start(va, fmt);
+	refclock_vformat_lcode(pp, fmt, va);
+	va_end(va);	
+}
+
 #endif /* REFCLOCK */

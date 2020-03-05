@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsv4_errstr.h>
 
 #include <arpa/inet.h>
+#include <net/route.h>
+#include <net/if.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -505,6 +507,59 @@ sec_num_to_name(int flavor)
 	return (NULL);
 }
 
+/*
+ * Wait for RTM_IFINFO message with interface that is IFF_UP and with
+ * link on, or until timeout expires.  Returns seconds left.
+ */
+static time_t
+rtm_ifinfo_sleep(time_t sec)
+{
+	char buf[2048];
+	fd_set rfds;
+	struct timeval tv, start;
+	ssize_t nread;
+	int n, s;
+
+	s = socket(PF_ROUTE, SOCK_RAW, 0);
+	if (s < 0)
+		err(EX_OSERR, "socket");
+	(void)gettimeofday(&start, NULL);
+
+	for (tv.tv_sec = sec, tv.tv_usec = 0;
+	    tv.tv_sec > 0;
+	    (void)gettimeofday(&tv, NULL),
+	    tv.tv_sec = sec - (tv.tv_sec - start.tv_sec)) {
+		FD_ZERO(&rfds);
+		FD_SET(s, &rfds);
+		n = select(s + 1, &rfds, NULL, NULL, &tv);
+		if (n == 0)
+			continue;
+		if (n == -1) {
+			if (errno == EINTR)
+				continue;
+			else
+				err(EX_SOFTWARE, "select");
+		}
+		nread = read(s, buf, 2048);
+		if (nread < 0)
+			err(EX_OSERR, "read");
+		if ((size_t)nread >= sizeof(struct if_msghdr)) {
+			struct if_msghdr *ifm;
+
+			ifm = (struct if_msghdr *)buf;
+			if (ifm->ifm_version == RTM_VERSION &&
+			    ifm->ifm_type == RTM_IFINFO &&
+			    (ifm->ifm_flags & IFF_UP) &&
+			    ifm->ifm_data.ifi_link_state != LINK_STATE_DOWN)
+				break;
+		}
+	}
+
+	close(s);
+
+	return (tv.tv_sec);
+}
+
 static int
 getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 {
@@ -638,7 +693,12 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 			if (daemon(0, 0) != 0)
 				err(1, "daemon");
 		}
-		sleep(60);
+		/*
+		 * If rtm_ifinfo_sleep() returns non-zero, don't count
+		 * that as a retry attempt.
+		 */
+		if (rtm_ifinfo_sleep(60) && retrycnt != 0)
+			retrycnt++;
 	}
 	freeaddrinfo(ai_nfs);
 

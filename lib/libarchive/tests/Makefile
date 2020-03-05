@@ -598,6 +598,7 @@ ${PACKAGE}FILES+=	test_read_format_zip_length_at_end.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_lzma_alone_leak.zipx.uu
 ${PACKAGE}FILES+=	test_read_format_zip_lzma.zipx.uu
 ${PACKAGE}FILES+=	test_read_format_zip_lzma_multi.zipx.uu
+${PACKAGE}FILES+=	test_read_format_zip_lzma_stream_end.zipx.uu
 ${PACKAGE}FILES+=	test_read_format_zip_mac_metadata.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_malformed1.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_msdos.zip.uu

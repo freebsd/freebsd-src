@@ -331,6 +331,7 @@ proc_linkup(struct proc *p, struct thread *td)
 void
 threadinit(void)
 {
+	uint32_t flags;
 
 	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
 
@@ -340,9 +341,20 @@ threadinit(void)
 	 */
 	tid_unrhdr = new_unrhdr(PID_MAX + 2, INT_MAX, &tid_lock);
 
+	flags = UMA_ZONE_NOFREE;
+#ifdef __aarch64__
+	/*
+	 * Force thread structures to be allocated from the direct map.
+	 * Otherwise, superpage promotions and demotions may temporarily
+	 * invalidate thread structure mappings.  For most dynamically allocated
+	 * structures this is not a problem, but translation faults cannot be
+	 * handled without accessing curthread.
+	 */
+	flags |= UMA_ZONE_CONTIG;
+#endif
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
-	    32 - 1, UMA_ZONE_NOFREE);
+	    32 - 1, flags);
 	tidhashtbl = hashinit(maxproc / 2, M_TIDHASH, &tidhash);
 	rw_init(&tidhash_lock, "tidhash");
 }

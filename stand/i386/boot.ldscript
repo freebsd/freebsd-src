@@ -1,11 +1,17 @@
 /* $FreeBSD$ */
-/* Merge text, data and bss together almost no padding */
+/* Simplified linker script for the boot loaders. */
 OUTPUT_FORMAT("elf32-i386-freebsd")
 OUTPUT_ARCH(i386)
 ENTRY(_start)
 SECTIONS {
-  . = 0x08048000 + SIZEOF_HEADERS;
-  .text : { *(.text) } =0x90909090	/* Pad with nops, if needed */
-  .data : { *(.data) } _edata = .;
-  .bss  : { *(.bss) }  _end = .;
+  . = ORG;
+  .text : { *(.text .text.*) } =0xcccccccc	/* Pad with int3, if needed */
+  .rodata : { *(.rodata .rodata.*) }
+  .got : { *(.got) *(.igot) }
+  .got.plt : { *(.got.plt) *(.igot.plt) }
+  .data : { *(.data .data.*) }
+  _edata = .; PROVIDE (edata = .);
+  .bss : { *(.bss .bss.*) }
+  _end = .; PROVIDE (end = .);
+  /DISCARD/ : { *(.interp) }
 }

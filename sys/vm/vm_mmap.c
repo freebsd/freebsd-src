@@ -199,26 +199,39 @@ int
 kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
     int fd, off_t pos)
 {
+	struct mmap_req mr = {
+		.mr_hint = addr0,
+		.mr_len = len,
+		.mr_prot = prot,
+		.mr_flags = flags,
+		.mr_fd = fd,
+		.mr_pos = pos
+	};
 
-	return (kern_mmap_fpcheck(td, addr0, len, prot, flags, fd, pos, NULL));
+	return (kern_mmap_req(td, &mr));
 }
 
-/*
- * When mmap'ing a file, check_fp_fn may be used for the caller to do any
- * last-minute validation based on the referenced file in a non-racy way.
- */
 int
-kern_mmap_fpcheck(struct thread *td, uintptr_t addr0, size_t len, int prot,
-    int flags, int fd, off_t pos, mmap_check_fp_fn check_fp_fn)
+kern_mmap_req(struct thread *td, const struct mmap_req *mrp)
 {
 	struct vmspace *vms;
 	struct file *fp;
 	struct proc *p;
+	off_t pos;
 	vm_offset_t addr;
-	vm_size_t pageoff, size;
+	vm_size_t len, pageoff, size;
 	vm_prot_t cap_maxprot;
-	int align, error, max_prot;
+	int align, error, fd, flags, max_prot, prot;
 	cap_rights_t rights;
+	mmap_check_fp_fn check_fp_fn;
+
+	addr  = mrp->mr_hint;
+	len = mrp->mr_len;
+	prot = mrp->mr_prot;
+	flags = mrp->mr_flags;
+	fd = mrp->mr_fd;
+	pos = mrp->mr_pos;
+	check_fp_fn = mrp->mr_check_fp_fn;
 
 	if ((prot & ~(_PROT_ALL | PROT_MAX(_PROT_ALL))) != 0)
 		return (EINVAL);
@@ -239,7 +252,6 @@ kern_mmap_fpcheck(struct thread *td, uintptr_t addr0, size_t len, int prot,
 	vms = p->p_vmspace;
 	fp = NULL;
 	AUDIT_ARG_FD(fd);
-	addr = addr0;
 
 	/*
 	 * Ignore old flags that used to be defined but did not do anything.

@@ -42,7 +42,7 @@ tempdir_setup()
 	for dir in stand \
 	    lib/libc lib/libedit lib/ncurses \
 	    libexec/rtld-elf \
-	    bin/sh sbin/init sbin/shutdown; do
+	    bin/sh sbin/init sbin/shutdown sbin/sysctl; do
 		make -DNO_ROOT DESTDIR=${ROOTDIR} INSTALL="install -U" \
 		    WITHOUT_DEBUG_FILES= \
 		    WITHOUT_MAN= \
@@ -65,6 +65,7 @@ EOF
 #!/bin/sh
 
 echo "Hello world."
+/sbin/sysctl vm.stats.vm.v_wire_count
 /sbin/shutdown -p now
 EOF
 

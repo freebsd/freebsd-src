@@ -299,11 +299,11 @@ ktls_crypto_backend_deregister(struct ktls_crypto_backend *be)
 }
 
 #if defined(INET) || defined(INET6)
-static uint16_t
+static u_int
 ktls_get_cpu(struct socket *so)
 {
 	struct inpcb *inp;
-	uint16_t cpuid;
+	u_int cpuid;
 
 	inp = sotoinpcb(so);
 #ifdef RSS

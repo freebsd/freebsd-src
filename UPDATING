@@ -32,6 +32,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	information about prerequisites and upgrading, if you are not already
 	using clang 3.5.0 or higher.
 
+20200301:
+	Removed brooktree driver (bktr.4) from the tree.
+
+20200229:
+	The WITH_GPL_DTC option has been removed.  The BSD-licenced device tree
+	compiler in usr.bin/dtc is used on all architectures which use dtc, and
+	the GPL dtc is available (if needed) from the sysutils/dtc port.
+
 20200229:
 	The WITHOUT_LLVM_LIBUNWIND option has been removed.  LLVM's libunwind
 	is used by all supported CPU architectures.

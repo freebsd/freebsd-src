@@ -105,6 +105,8 @@ extern const char *linux_kplatform;
 #define	LINUX_SCHED_FIFO	1
 #define	LINUX_SCHED_RR		2
 
+#define	LINUX_MAX_RT_PRIO	100
+
 struct l_new_utsname {
 	char	sysname[LINUX_MAX_UTSNAME];
 	char	nodename[LINUX_MAX_UTSNAME];

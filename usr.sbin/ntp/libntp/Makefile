@@ -21,14 +21,17 @@ NTP_SRCS= systime.c	a_md5encrypt.c	adjtime.c	atoint.c \
 	libssl_compat.c \
 	machines.c	mktime.c	modetoa.c \
 	mstolfp.c	msyslog.c	netof.c		ntp_calendar.c \
+	ntp_calgps.c \
 	ntp_crypto_rnd.c		ntp_intres.c	ntp_libopts.c \
 	ntp_lineedit.c	ntp_random.c	ntp_rfc2553.c	ntp_worker.c \
 	numtoa.c	numtohost.c	octtoint.c	prettydate.c \
 	recvbuff.c	refidsmear.c	\
 	refnumtoa.c	snprintf.c	socket.c \
 	socktoa.c	socktohost.c	ssl_init.c	statestr.c \
-	strdup.c	strl_obsd.c	syssignal.c	timetoa.c \
-	timevalops.c	uglydate.c	vint64ops.c	work_fork.c \
+	strdup.c	strl_obsd.c	syssignal.c	timespecops.c \
+	timetoa.c \
+	timevalops.c	timexsup.c	\
+	uglydate.c	vint64ops.c	work_fork.c \
 	work_thread.c	xsbprintf.c	ymd2yd.c
 
 ISC_PTHREADS_SRCS= condition.c \

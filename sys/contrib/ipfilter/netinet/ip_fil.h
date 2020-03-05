@@ -1420,8 +1420,7 @@ typedef	struct	ipftune	{
 ** HPUX Port
 */
 
-#if !defined(CDEV_MAJOR) && defined (__FreeBSD_version) && \
-    (__FreeBSD_version >= 220000)
+#if !defined(CDEV_MAJOR) && defined (__FreeBSD_version)
 # define	CDEV_MAJOR	79
 #endif
 

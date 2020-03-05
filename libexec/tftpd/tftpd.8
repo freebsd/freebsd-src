@@ -28,7 +28,7 @@
 .\"	@(#)tftpd.8	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2011
+.Dd March 2, 2020
 .Dt TFTPD 8
 .Os
 .Sh NAME
@@ -245,6 +245,9 @@ The following RFC's are supported:
 .Rs
 .%T RFC 2349: TFTP Timeout Interval and Transfer Size Options
 .Re
+.Rs
+.%T RFC 7440: TFTP Windowsize Option
+.Re
 .Pp
 The non-standard
 .Cm rollover
@@ -291,6 +294,9 @@ Edwin Groothuis <edwin@FreeBSD.org> performed a major rewrite of the
 and
 .Xr tftp 1
 code to support RFC2348.
+.Pp
+Support for the windowsize option (RFC7440) was introduced in
+.Fx 13.0 .
 .Sh NOTES
 Files larger than 33,553,919 octets (65535 blocks, last one <512
 octets) cannot be correctly transferred without client and server

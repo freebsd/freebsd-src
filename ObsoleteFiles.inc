@@ -273,6 +273,16 @@ OLD_DIRS+=usr/lib/clang/9.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/9.0.1/lib
 OLD_DIRS+=usr/lib/clang/9.0.1
 
+# 20200301: bktr removed
+OLD_DIRS+=usr/include/dev/bktr
+OLD_FILES+=usr/include/dev/bktr/ioctl_bktr.h
+OLD_FILES+=usr/include/dev/bktr/ioctl_bt848.h
+OLD_FILES+=usr/include/dev/bktr/ioctl_meteor.h
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/ioctl_bktr.h
+OLD_FILES+=usr/include/machine/ioctl_meteor.h
+.endif
+OLD_FILES+=usr/share/man/man4/bktr.4.gz
 # 20200229: GCC 4.2.1 removed
 .if !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/g++
@@ -875,7 +885,6 @@ OLD_FILES+=usr/lib32/libsupc++.so
 OLD_LIBS+=usr/lib32/libsupc++.so.1
 OLD_FILES+=usr/lib32/libsupc++_p.a
 .endif
-OLD_FILES+=usr/libexec/cc1plus
 OLD_LIBS+=usr/lib/libgomp.so.1
 OLD_FILES+=usr/lib/libgomp_p.a
 OLD_FILES+=usr/lib32/libgcov.a

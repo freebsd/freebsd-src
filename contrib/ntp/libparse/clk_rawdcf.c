@@ -220,6 +220,58 @@ pcheck(
 	return psum;
 }
 
+static int/*BOOL*/
+zeller_expand(
+	clocktime_t     *clock_time,
+	unsigned int	wd
+	)
+{
+        unsigned int  y = (unsigned int)clock_time->year;
+        unsigned int  m = (unsigned int)clock_time->month - 1u;
+        unsigned int  d = (unsigned int)clock_time->day - 1u;
+	unsigned int  c;
+
+	/* Check basic constraints first. */
+        if ((y >= 100u) || (m >= 12u) || (d >= 31u) || (--wd >= 7u))
+		return FALSE;
+
+	/* Get weekday of date in 1st century by a variation on Zeller's
+	 * congruence. All operands are non-negative, and the month
+	 * formula is adjusted to use a divider of 32, so we can do a
+	 * shift instead of a 'true' division:
+	 */
+	if ((m += 10u) >= 12u)		/* shift base to 0000-03-01 */
+		m -= 12u;
+	else if (--y >= 100u)
+		y += 100;
+	d += y + (y >> 2) + 2u;		/* year-related share */
+	d += (m * 83u + 16u) >> 5;	/* month-related share */
+
+	/* The next step combines the exact division by modular inverse
+	 * with the (mod 7) step in such way that no true division and
+	 * only one multiplication is needed. The multiplier is
+	 *      M <- ceil((3*8)/7 * 2**29)
+	 * and combines multiplication by invmod(5, 7) -> 3 and modulus
+	 * by 7 transformation to (mod 8) in one step.
+	 *   Note that 252 == 0 (mod 7) and that 'd' is less than 185,
+	 * so the number to invert and reduce is strictly positive. In
+	 * the end, 'c' is number of centuries since start of a great
+	 * cycle and must be in [0..3] or we had bad input.
+	 */
+	c = (((252u + wd - d) * 0x6db6db6eU) >> 29) & 7u;
+	if (c >= 4)
+		return FALSE;	
+	/* undo calendar base shift now */
+	if ((m > 9u) && (++y >= 100u)) {
+		y -= 100u;
+		c = (c + 1u) & 3u;
+	}
+	/* combine year with centuries & map to [1970..2369] */
+	y += (c * 100u);
+	clock_time->year = (int)y + ((y < 370u) ? 2000 : 1600);
+	return TRUE;
+}
+
 static u_long
 convert_rawdcf(
 	       unsigned char   *buffer,
@@ -287,6 +339,9 @@ convert_rawdcf(
 		clock_time->month  = TIMES10(clock_time->month) + ext_bf(buffer, DCF_MO, dcfprm->zerobits);
 		clock_time->year   = ext_bf(buffer, DCF_Y10, dcfprm->zerobits);
 		clock_time->year   = TIMES10(clock_time->year) + ext_bf(buffer, DCF_Y1, dcfprm->zerobits);
+
+		if (!zeller_expand(clock_time, ext_bf(buffer, DCF_DW, dcfprm->zerobits)))
+		    return CVT_FAIL|CVT_BADFMT;
 
 		switch (ext_bf(buffer, DCF_Z, dcfprm->zerobits))
 		{

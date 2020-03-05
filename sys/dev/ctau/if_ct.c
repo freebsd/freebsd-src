@@ -748,6 +748,7 @@ static int ct_attach (device_t dev)
 	}
 	splx (s);
 	
+	gone_in_dev(dev, 13, "sync serial (T1/E1) ISA card drivers");
 	return 0;
 }
 

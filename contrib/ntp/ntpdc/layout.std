@@ -269,15 +269,17 @@ offsetof(unused1) = 20
 offsetof(addr6) = 24
 offsetof(mask6) = 40
 
-sizeof(struct conf_restrict) = 52
+sizeof(struct conf_restrict) = 60
 offsetof(addr) = 0
 offsetof(mask) = 4
 offsetof(ippeerlimit) = 8
-offsetof(flags) = 10
-offsetof(mflags) = 12
-offsetof(v6_flag) = 16
-offsetof(addr6) = 20
-offsetof(mask6) = 36
+offsetof(srvfuzrft) = 12
+offsetof(flags) = 16
+offsetof(mflags) = 18
+offsetof(unused1) = 20
+offsetof(v6_flag) = 24
+offsetof(addr6) = 28
+offsetof(mask6) = 44
 
 sizeof(struct info_monitor_1) = 72
 offsetof(avg_int) = 0

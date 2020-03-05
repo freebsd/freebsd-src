@@ -3190,6 +3190,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	struct inode *ip, *dp;
 	struct mount *mp;
 	struct fs *fs;
+	struct pwd *pwd;
 	ufs2_daddr_t blkno;
 	long blkcnt, blksize;
 	u_long key;
@@ -3448,11 +3449,11 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		/*
 		 * Now we get and lock the child directory containing "..".
 		 */
-		FILEDESC_SLOCK(td->td_proc->p_fd);
-		dvp = td->td_proc->p_fd->fd_cdir;
-		FILEDESC_SUNLOCK(td->td_proc->p_fd);
+		pwd = pwd_hold(td);
+		dvp = pwd->pwd_cdir;
 		if ((error = vget(dvp, LK_EXCLUSIVE, td)) != 0) {
 			vput(fdvp);
+			pwd_drop(pwd);
 			break;
 		}
 		dp = VTOI(dvp);
@@ -3463,6 +3464,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		cache_purge(dvp);
 		vput(dvp);
 		vput(fdvp);
+		pwd_drop(pwd);
 		break;
 
 	case FFS_UNLINK:
@@ -3607,7 +3609,7 @@ buffered_write(fp, uio, active_cred, flags, td)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
-	vp = fdp->fd_cdir;
+	vp = fdp->fd_pwd->pwd_cdir;
 	vref(vp);
 	FILEDESC_SUNLOCK(fdp);
 	vn_lock(vp, LK_SHARED | LK_RETRY);

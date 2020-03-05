@@ -46,8 +46,10 @@ HELP_FILES=	${.CURDIR}/help.i386
 
 CLEANFILES+=	${LOADER} ${LOADER}.bin
 
+ORG=		0x0
+
 CFLAGS+=	-Wall
-LDFLAGS+=	-static -Ttext 0x0 -Wl,--gc-sections
+LDFLAGS+=	-static ${LDFLAGS_ORG} -Wl,--gc-sections
 
 # i386 standalone support library
 LIBI386=	${BOOTOBJ}/i386/libi386/libi386.a

@@ -76,11 +76,16 @@ struct fdescenttbl {
  */
 #define NDSLOTTYPE	u_long
 
+struct pwd {
+	volatile u_int pwd_refcount;
+	struct	vnode *pwd_cdir;		/* current directory */
+	struct	vnode *pwd_rdir;		/* root directory */
+	struct	vnode *pwd_jdir;		/* jail root directory */
+};
+
 struct filedesc {
 	struct	fdescenttbl *fd_files;	/* open files table */
-	struct	vnode *fd_cdir;		/* current directory */
-	struct	vnode *fd_rdir;		/* root directory */
-	struct	vnode *fd_jdir;		/* jail root directory */
+	struct	pwd *fd_pwd;		/* directories */
 	NDSLOTTYPE *fd_map;		/* bitmap of free fds */
 	int	fd_lastfile;		/* high-water mark of fd_ofiles */
 	int	fd_freefile;		/* approx. next free file */
@@ -252,6 +257,17 @@ fd_modified(struct filedesc *fdp, int fd, seqc_t seqc)
 void	pwd_chdir(struct thread *td, struct vnode *vp);
 int	pwd_chroot(struct thread *td, struct vnode *vp);
 void	pwd_ensure_dirs(void);
+
+struct pwd *pwd_hold_filedesc(struct filedesc *fdp);
+struct pwd *pwd_hold(struct thread *td);
+void	pwd_drop(struct pwd *pwd);
+static inline void
+pwd_set(struct filedesc *fdp, struct pwd *newpwd)
+{
+
+	FILEDESC_XLOCK_ASSERT(fdp);
+	fdp->fd_pwd = newpwd;
+}
 
 #endif /* _KERNEL */
 
