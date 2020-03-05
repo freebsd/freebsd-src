@@ -71,6 +71,11 @@ int linux_preserve_vstatus = 0;
 SYSCTL_INT(_compat_linux, OID_AUTO, preserve_vstatus, CTLFLAG_RWTUN,
     &linux_preserve_vstatus, 0, "Preserve VSTATUS termios(4) flag");
 
+bool linux_map_sched_prio = true;
+SYSCTL_BOOL(_compat_linux, OID_AUTO, map_sched_prio, CTLFLAG_RDTUN,
+    &linux_map_sched_prio, 0, "Map scheduler priorities to Linux priorities "
+    "(not POSIX compliant)");
+
 static int	linux_set_osname(struct thread *td, char *osname);
 static int	linux_set_osrelease(struct thread *td, char *osrelease);
 static int	linux_set_oss_version(struct thread *td, int oss_version);
