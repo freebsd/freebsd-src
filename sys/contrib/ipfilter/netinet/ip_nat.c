@@ -1010,7 +1010,7 @@ ipf_nat_ioctl(softc, data, cmd, mode, uid, ctx)
 	ipnat_t natd;
 	SPL_INT(s);
 
-#if BSD_GE_YEAR(199306) && defined(_KERNEL)
+#if !SOLARIS && defined(_KERNEL)
 # if NETBSD_GE_REV(399002000)
 	if ((mode & FWRITE) &&
 	     kauth_authorize_network(curlwp->l_cred, KAUTH_NETWORK_FIREWALL,
