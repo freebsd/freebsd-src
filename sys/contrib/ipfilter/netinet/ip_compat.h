@@ -89,12 +89,6 @@
 				 (__NetBSD_Version__ > (x)))
 #define	NETBSD_LT_REV(x)	(defined(__NetBSD_Version__) && \
 				 (__NetBSD_Version__ < (x)))
-#define	FREEBSD_GE_REV(x)	(defined(__FreeBSD_version) && \
-				 (__FreeBSD_version >= (x)))
-#define	FREEBSD_GT_REV(x)	(defined(__FreeBSD_version) && \
-				 (__FreeBSD_version > (x)))
-#define	FREEBSD_LT_REV(x)	(defined(__FreeBSD_version) && \
-				 (__FreeBSD_version < (x)))
 #define	BSD_GE_YEAR(x)		(defined(BSD) && (BSD >= (x)))
 #define	BSD_GT_YEAR(x)		(defined(BSD) && (BSD > (x)))
 #define	BSD_LT_YEAR(x)		(defined(BSD) && (BSD < (x)))
