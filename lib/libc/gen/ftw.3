@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2004
+.Dd March 5, 2020
 .Dt FTW 3
 .Os
 .Sh NAME
@@ -157,6 +157,65 @@ and
 will stop processing the tree and return the value from
 .Fa fn .
 Both functions return \-1 if an error is detected.
+.Sh EXAMPLES
+Following there is an example that shows how
+.Nm nftw
+can be used.
+It traverses the file tree starting at the directory pointed
+by the only program argument and shows the complete path and a brief
+indicator about the file type.
+.Bd -literal -offset 2n
+#include <ftw.h>
+#include <stdio.h>
+#include <sysexits.h>
+
+int
+nftw_callback(const char *path, const struct stat *sb, int typeflag, struct FTW *ftw)
+{
+	char type;
+
+	switch(typeflag) {
+	case FTW_F:
+		type = 'F';
+		break;
+	case FTW_D:
+		type = 'D';
+		break;
+	case FTW_DNR:
+		type = '-';
+		break;
+	case FTW_DP:
+		type = 'd';
+		break;
+	case FTW_NS:
+		type = 'X';
+		break;
+	case FTW_SL:
+		type = 'S';
+		break;
+	case FTW_SLN:
+		type = 's';
+		break;
+	default:
+		type = '?';
+		break;
+	}
+
+	printf("[%c] %s\\n", type, path);
+
+	return (0);
+}
+
+int
+main(int argc, char **argv)
+{
+	if (argc != 2) {
+		printf("Usage %s <directory>\\n", argv[0]);
+		return (EX_USAGE);
+	} else
+		return (nftw(argv[1], nftw_callback, /* UNUSED */ 1, 0));
+}
+.Ed
 .Sh ERRORS
 The
 .Fn ftw

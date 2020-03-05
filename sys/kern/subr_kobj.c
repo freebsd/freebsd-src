@@ -67,7 +67,8 @@ static int kobj_next_id = 1;
 #define	KOBJ_ASSERT(what)	mtx_assert(&kobj_mtx, what);
 
 SYSCTL_INT(_kern, OID_AUTO, kobj_methodcount, CTLFLAG_RD,
-	   &kobj_next_id, 0, "");
+    &kobj_next_id, 0,
+    "Number of kernel object methods registered");
 
 static void
 kobj_init_mutex(void *arg)

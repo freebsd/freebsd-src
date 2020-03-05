@@ -1,4 +1,100 @@
 ---
+(4.2.8p14) 2020/03/03 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 3610] process_control() should bail earlier on short packets. stenn@
+  - Reported by Philippe Antoine
+* [Sec 3596] Highly predictable timestamp attack. <stenn@ntp.org>
+  - Reported by Miroslav Lichvar
+* [Sec 3592] DoS attack on client ntpd <perlinger@ntp.org>
+  - Reported by Miroslav Lichvar
+* [Bug 3637] Emit the version of ntpd in saveconfig.  stenn@
+* [Bug 3636] NMEA: combine time/date from multiple sentences <perlinger@ntp.org>
+* [Bug 3635] Make leapsecond file hash check optional <perlinger@ntp.org>
+* [Bug 3634] Typo in discipline.html, reported by Jason Harrison.  stenn@
+* [Bug 3628] raw DCF decoding - improve robustness with Zeller's congruence
+  - implement Zeller's congruence in libparse and libntp <perlinger@ntp.org>
+* [Bug 3627] SIGSEGV on FreeBSD-12 with stack limit and stack gap <perlinger@ntp.org>
+  - integrated patch by Cy Schubert
+* [Bug 3620] memory leak in ntpq sysinfo <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3619] Honour drefid setting in cooked mode and sysinfo <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3617] Add support for ACE III and Copernicus II receivers <perlinger@ntp.org>
+  - integrated patch by Richard Steedman
+* [Bug 3615] accelerate refclock startup <perlinger@ntp.org>
+* [Bug 3613] Propagate noselect to mobilized pool servers <stenn@ntp.org>
+  - Reported by Martin Burnicki
+* [Bug 3612] Use-of-uninitialized-value in receive function <perlinger@ntp.org>
+  - Reported by Philippe Antoine
+* [Bug 3611] NMEA time interpreted incorrectly <perlinger@ntp.org>
+  - officially document new "trust date" mode bit for NMEA driver
+  - restore the (previously undocumented) "trust date" feature lost with [bug 3577] 
+* [Bug 3609] Fixing wrong falseticker in case of non-statistic jitter <perlinger@ntp.org>
+  - mostly based on a patch by Michael Haardt, implementing 'fudge minjitter'
+* [Bug 3608] libparse fails to compile on S11.4SRU13 and later <perlinger@ntp.org>
+  - removed ffs() and fls() prototypes as per Brian Utterback
+* [Bug 3604] Wrong param byte order passing into record_raw_stats() in
+	ntp_io.c <perlinger@ntp.org>
+  - fixed byte and paramter order as suggested by wei6410@sina.com 
+* [Bug 3601] Tests fail to link on platforms with ntp_cv_gc_sections_runs=no <perlinger@ntp.org>
+* [Bug 3599] Build fails on linux-m68k due to alignment issues <perlinger@ntp.org>
+  - added padding as suggested by John Paul Adrian Glaubitz 
+* [Bug 3594] ntpd discards messages coming through nmead <perlinger@ntp.org>
+* [Bug 3593] ntpd discards silently nmea messages after the 5th string <perlinger@ntp.org>
+* [Bug 3590] Update refclock_oncore.c to the new GPS date API <perlinger@ntp.org>
+* [Bug 3585] Unity tests mix buffered and unbuffered output <perlinger@ntp.org>
+  - stdout+stderr are set to line buffered during test setup now
+* [Bug 3583] synchronization error <perlinger@ntp.org>
+  - set clock to base date if system time is before that limit
+* [Bug 3582] gpsdjson refclock fudgetime1 adjustment is doubled <perlinger@ntp.org>
+* [Bug 3580] Possible bug ntpq-subs (NULL dereference in dogetassoc) <perlinger@ntp.org>
+  - Reported by Paulo Neves
+* [Bug 3577] Update refclock_zyfer.c to the new GPS date API <perlinger@ntp.org>
+  - also updates for refclock_nmea.c and refclock_jupiter.c
+* [Bug 3576] New GPS date function API <perlinger@ntp.org>
+* [Bug 3573] nptdate: missleading error message <perlinger@ntp.org>
+* [Bug 3570] NMEA driver docs: talker ID not mentioned, typo <perlinger@ntp.org>
+* [Bug 3569] cleanup MOD_NANO/STA_NANO handling for 'ntpadjtimex()' <perlinger@ntp.org>
+  - sidekick: service port resolution in 'ntpdate'
+* [Bug 3550] Reproducible build: Respect SOURCE_DATE_EPOCH <perlinger@ntp.org>
+  - applied patch by Douglas Royds
+* [Bug 3542] ntpdc monlist parameters cannot be set <perlinger@ntp.org>
+* [Bug 3533] ntpdc peer_info ipv6 issues <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3531] make check: test-decodenetnum fails <perlinger@ntp.org>
+  - try to harden 'decodenetnum()' against 'getaddrinfo()' errors
+  - fix wrong cond-compile tests in unit tests
+* [Bug 3517] Reducing build noise <perlinger@ntp.org>
+* [Bug 3516] Require tooling from this decade <perlinger@ntp.org>
+  - patch by Philipp Prindeville
+* [Bug 3515] Refactor ntpdmain() dispatcher loop and group common code <perlinger@ntp.org>
+  - patch by Philipp Prindeville
+* [Bug 3511] Get rid of AC_LANG_SOURCE() warnings <perlinger@ntp.org>
+  - patch by Philipp Prindeville
+* [Bug 3510] Flatten out the #ifdef nesting in ntpdmain() <perlinger@ntp.org>
+  - partial application of patch by Philipp Prindeville
+* [Bug 3491] Signed values of LFP datatypes should always display a sign
+  - applied patch by Gerry Garvey & fixed unit tests <perlinger@ntp.org>
+* [Bug 3490] Patch to support Trimble Resolution Receivers <perlinger@ntp.org>
+  - applied (modified) patch by Richard Steedman
+* [Bug 3473] RefID of refclocks should always be text format <perlinger@ntp.org>
+  - applied patch by Gerry Garvey (with minor formatting changes)
+* [Bug 3132] Building 4.2.8p8 with disabled local libopts fails <perlinger@ntp.org>
+  - applied patch by Miroslav Lichvar
+* [Bug 3094] ntpd trying to listen for broadcasts on a completely ipv6 network
+  <perlinger@ntp.org>
+* [Bug 2420] ntpd doesn't run and exits with retval 0 when invalid user
+             is specified with -u <perlinger@ntp.org>
+  - monitor daemon child startup & propagate exit codes
+* [Bug 1433] runtime check whether the kernel really supports capabilities
+  - (modified) patch by Kurt Roeckx <perlinger@ntp.org>
+* Clean up sntp/networking.c:sendpkt() error message.  <stenn@ntp.org>
+* Provide more detail on unrecognized config file parser tokens. <stenn@ntp.org>
+* Startup log improvements. <stenn@ntp.org>
+* Update the copyright year.
+* html/confopt.html: cleanup. <stenn@ntp.org>
+
+---
 (4.2.8p13) 2019/03/07 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 3565] Crafted null dereference attack in authenticated

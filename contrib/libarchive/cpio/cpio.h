@@ -64,6 +64,7 @@ struct cpio {
 	int		  option_numeric_uid_gid; /* -n */
 	int		  option_rename; /* -r */
 	char		 *destdir;
+	size_t		  destdir_len;
 	size_t		  pass_destpath_alloc;
 	char		 *pass_destpath;
 	int		  uid_override;

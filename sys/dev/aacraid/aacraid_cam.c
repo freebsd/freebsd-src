@@ -1182,7 +1182,7 @@ aac_cam_complete(struct aac_command *cm)
 				    scsi_sense_len) ? scsi_sense_len :
 				    srbr->sense_len;
 				bcopy(&srbr->sense[0], &ccb->csio.sense_data,
-				    srbr->sense_len);
+				    sense_len);
 				ccb->csio.sense_len = sense_len;
 				ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 				// scsi_sense_print(&ccb->csio);

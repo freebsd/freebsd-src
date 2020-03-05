@@ -965,6 +965,13 @@ update_user_regs(u_int cpu)
 extern u_long elf_hwcap;
 bool __read_frequently lse_supported = false;
 
+bool __read_frequently icache_aliasing = false;
+bool __read_frequently icache_vmid = false;
+
+int64_t dcache_line_size;	/* The minimum D cache line size */
+int64_t icache_line_size;	/* The minimum I cache line size */
+int64_t idcache_line_size;	/* The minimum cache line size */
+
 static void
 identify_cpu_sysinit(void *dummy __unused)
 {
@@ -1105,8 +1112,8 @@ print_ctr_fields(struct sbuf *sb, uint64_t reg, void *arg)
 	case CTR_L1IP_AIVIVT:
 		sbuf_printf(sb, "AIVIVT");
 		break;
-	case CTR_L1IP_VIVT:
-		sbuf_printf(sb, "VIVT");
+	case CTR_L1IP_VIPT:
+		sbuf_printf(sb, "VIPT");
 		break;
 	case CTR_L1IP_PIPT:
 		sbuf_printf(sb, "PIPT");
@@ -1309,6 +1316,46 @@ print_cpu_features(u_int cpu)
 }
 
 void
+identify_cache(uint64_t ctr)
+{
+
+	/* Identify the L1 cache type */
+	switch (CTR_L1IP_VAL(ctr)) {
+	case CTR_L1IP_PIPT:
+		break;
+	case CTR_L1IP_VPIPT:
+		icache_vmid = true;
+		break;
+	default:
+	case CTR_L1IP_VIPT:
+		icache_aliasing = true;
+		break;
+	}
+
+	if (dcache_line_size == 0) {
+		KASSERT(icache_line_size == 0, ("%s: i-cacheline size set: %ld",
+		    __func__, icache_line_size));
+
+		/* Get the D cache line size */
+		dcache_line_size = CTR_DLINE_SIZE(ctr);
+		/* And the same for the I cache */
+		icache_line_size = CTR_ILINE_SIZE(ctr);
+
+		idcache_line_size = MIN(dcache_line_size, icache_line_size);
+	}
+
+	if (dcache_line_size != CTR_DLINE_SIZE(ctr)) {
+		printf("WARNING: D-cacheline size mismatch %ld != %d\n",
+		    dcache_line_size, CTR_DLINE_SIZE(ctr));
+	}
+
+	if (icache_line_size != CTR_ILINE_SIZE(ctr)) {
+		printf("WARNING: I-cacheline size mismatch %ld != %d\n",
+		    icache_line_size, CTR_ILINE_SIZE(ctr));
+	}
+}
+
+void
 identify_cpu(void)
 {
 	u_int midr;
@@ -1429,8 +1476,14 @@ identify_cpu(void)
 		if (cpu_desc[cpu].id_aa64pfr1 != cpu_desc[0].id_aa64pfr1)
 			cpu_print_regs |= PRINT_ID_AA64_PFR1;
 
-		if (cpu_desc[cpu].ctr != cpu_desc[0].ctr)
+		if (cpu_desc[cpu].ctr != cpu_desc[0].ctr) {
+			/*
+			 * If the cache type register is different we may
+			 * have a different l1 cache type.
+			 */
+			identify_cache(cpu_desc[cpu].ctr);
 			cpu_print_regs |= PRINT_CTR_EL0;
+		}
 
 		/* Wake up the other CPUs */
 		atomic_store_rel_int(&ident_lock, 0);

@@ -83,4 +83,7 @@ do {								\
 		msyslog msl_args;				\
 } while (FALSE)
 
+extern int change_iobufs(int how);
+/* how: 0->unbuffered, 1->linebuffer, 2->full */
+
 #endif /* NTP_SYSLOG_H */

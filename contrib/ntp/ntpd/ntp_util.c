@@ -58,6 +58,7 @@ static	char *key_file_name;		/* keys file name */
 static char	  *leapfile_name;		/* leapseconds file name */
 static struct stat leapfile_stat;	/* leapseconds file stat() buffer */
 static int /*BOOL*/have_leapfile = FALSE;
+static int /*BOOL*/chck_leaphash = TRUE;
 char	*stats_drift_file;		/* frequency file name */
 static	char *stats_temp_file;		/* temp frequency file name */
 static double wander_resid;		/* last frequency update */
@@ -87,7 +88,7 @@ static FILEGEN timingstats;
 
 /*
  * This controls whether stats are written to the fileset. Provided
- * so that ntpdc can turn off stats when the file system fills up. 
+ * so that ntpdc can turn off stats when the file system fills up.
  */
 int stats_control;
 
@@ -103,7 +104,7 @@ static	void	record_sys_stats(void);
 	void	ntpd_time_stepped(void);
 static  void	check_leap_expiration(int, uint32_t, const time_t*);
 
-/* 
+/*
  * Prototypes
  */
 #ifdef DEBUG
@@ -287,15 +288,15 @@ write_stats(void)
 		/* atomic */
 #ifdef SYS_WINNT
 		if (_unlink(stats_drift_file)) /* rename semantics differ under NT */
-			msyslog(LOG_WARNING, 
-				"Unable to remove prior drift file %s, %m", 
+			msyslog(LOG_WARNING,
+				"Unable to remove prior drift file %s, %m",
 				stats_drift_file);
 #endif /* SYS_WINNT */
 
 #ifndef NO_RENAME
 		if (rename(stats_temp_file, stats_drift_file))
-			msyslog(LOG_WARNING, 
-				"Unable to rename temp drift file %s to %s, %m", 
+			msyslog(LOG_WARNING,
+				"Unable to rename temp drift file %s to %s, %m",
 				stats_temp_file, stats_drift_file);
 #else
 		/* we have no rename NFS of ftp in use */
@@ -329,7 +330,8 @@ write_stats(void)
 void
 stats_config(
 	int item,
-	const char *invalue	/* only one type so far */
+	const char *invalue,	/* only one type so far */
+	int optflag
 	)
 {
 	FILE	*fp;
@@ -385,7 +387,7 @@ stats_config(
 	} else {
 		value = newvalue;
 	}
-#else	 
+#else
 	value = invalue;
 #endif /* SYS_WINNT */
 
@@ -399,7 +401,7 @@ stats_config(
 			break;
 
 		stats_drift_file = erealloc(stats_drift_file, len + 1);
-		stats_temp_file = erealloc(stats_temp_file, 
+		stats_temp_file = erealloc(stats_temp_file,
 		    len + sizeof(".TEMP"));
 		memcpy(stats_drift_file, value, (size_t)(len+1));
 		memcpy(stats_temp_file, value, (size_t)len);
@@ -414,7 +416,7 @@ stats_config(
 
 		if (fscanf(fp, "%lf", &old_drift) != 1) {
 			msyslog(LOG_ERR,
-				"format error frequency file %s", 
+				"format error frequency file %s",
 				stats_drift_file);
 			fclose(fp);
 			break;
@@ -483,9 +485,11 @@ stats_config(
 
 		leapfile_name = erealloc(leapfile_name, len + 1);
 		memcpy(leapfile_name, value, len + 1);
+		chck_leaphash = optflag;
 
 		if (leapsec_load_file(
-			    leapfile_name, &leapfile_stat, TRUE, TRUE))
+			    leapfile_name, &leapfile_stat,
+			    TRUE, TRUE, chck_leaphash))
 		{
 			leap_signature_t lsig;
 
@@ -892,11 +896,11 @@ check_leap_file(
 	/* just do nothing if there is no leap file */
 	if ( ! (leapfile_name && *leapfile_name))
 		return;
-	
+
 	/* try to load leapfile, force it if no leapfile loaded yet */
 	if (leapsec_load_file(
 		    leapfile_name, &leapfile_stat,
-		    !have_leapfile, is_daily_check))
+		    !have_leapfile, is_daily_check, chck_leaphash))
 		have_leapfile = TRUE;
 	else if (!have_leapfile)
 		return;
@@ -921,7 +925,7 @@ check_leap_expiration(
 	 * level and frequency (once/hour or once/day, depending on the
 	 * state.
 	 */
-	rc = leapsec_daystolive(ntptime, systime);	
+	rc = leapsec_daystolive(ntptime, systime);
 	if (rc == 0) {
 		msyslog(LOG_WARNING,
 			"%s ('%s'): will expire in less than one day",
@@ -929,7 +933,7 @@ check_leap_expiration(
 	} else if (is_daily_check && rc < 28) {
 		if (rc < 0)
 			msyslog(LOG_ERR,
-				"%s ('%s'): expired less than %d day%s ago",
+				"%s ('%s'): expired %d day%s ago",
 				logPrefix, leapfile_name, -rc, (rc == -1 ? "" : "s"));
 		else
 			msyslog(LOG_WARNING,
@@ -952,7 +956,7 @@ getauthkeys(
 	len = strlen(keyfile);
 	if (!len)
 		return;
-	
+
 #ifndef SYS_WINNT
 	key_file_name = erealloc(key_file_name, len + 1);
 	memcpy(key_file_name, keyfile, len + 1);

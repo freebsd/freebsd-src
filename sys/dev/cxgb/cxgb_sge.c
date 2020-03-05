@@ -559,7 +559,6 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 	use_16k = cxgb_use_16k_clusters != -1 ? cxgb_use_16k_clusters :
 	    is_offload(adap);
 
-#if __FreeBSD_version >= 700111
 	if (use_16k) {
 		jumbo_q_size = min(nmbjumbo16/(3*nqsets), JUMBO_Q_SIZE);
 		jumbo_buf_size = MJUM16BYTES;
@@ -567,10 +566,6 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 		jumbo_q_size = min(nmbjumbo9/(3*nqsets), JUMBO_Q_SIZE);
 		jumbo_buf_size = MJUM9BYTES;
 	}
-#else
-	jumbo_q_size = min(nmbjumbop/(3*nqsets), JUMBO_Q_SIZE);
-	jumbo_buf_size = MJUMPAGESIZE;
-#endif
 	while (!powerof2(jumbo_q_size))
 		jumbo_q_size--;
 

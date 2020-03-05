@@ -82,6 +82,7 @@
 #include "ntp_control.h"
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
+#include "ntp_calgps.h"
 #include "ntp_stdlib.h"
 
 /*
@@ -98,6 +99,7 @@
  */
 #define	DEVICE		"/dev/palisade%d" 	/* device name and unit */
 #define	SPEED232	B9600		  	/* uart speed (9600 baud) */
+#define	SPEED232COP	B38400		  	/* uart speed for Copernicus II (38400 baud) */
 
 /*
  * TSIP Report Definitions
@@ -107,6 +109,8 @@
 
 #define LENCODE_8FAC    68      /* Length of Thunderbolt 8F-AC Position Packet*/
 #define LENCODE_8FAB    17      /* Length of Thunderbolt Primary Timing Packet*/
+
+#define LENCODE_41      10      /* Length of Copernicus II GPS Time Packet*/
 
 /* Allowed Sub-Packet ID's */
 #define PACKET_8F0B	0x0B
@@ -187,11 +191,10 @@ long		HW_poll			(struct refclockproc *);
 static	double	getdbl 			(u_char *);
 static	short	getint 			(u_char *);
 static	int32	getlong			(u_char *);
+static  int32   getsingle		(u_char *);
 
 
-#ifdef PALISADE_SENDCMD_RESURRECTED
 static  void	sendcmd			(struct packettx *buffer, int c);
-#endif
 static  void	sendsupercmd		(struct packettx *buffer, int c1, int c2);
 static  void	sendbyte		(struct packettx *buffer, int b);
 static  void	sendint			(struct packettx *buffer, int a);

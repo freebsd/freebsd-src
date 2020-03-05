@@ -15,6 +15,7 @@
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
 #include "ntp_unixtime.h"
+#include "ntp_calgps.h"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -211,6 +212,10 @@ zyfer_receive(
 	int omode;		/* Operation mode */
 	u_char *p;
 
+	TCivilDate	tsdoy;
+	TNtpDatum	tsntp;
+	l_fp		tfrac;
+	
 	peer = rbufp->recv_peer;
 	pp = peer->procptr;
 	up = pp->unitptr;
@@ -283,10 +288,22 @@ zyfer_receive(
 		return;
 	}
 
-	if (!refclock_process(pp)) {
-		refclock_report(peer, CEVNT_BADTIME);
-		return;
-        }
+	/* treat GPS input as subject to era warps */
+	ZERO(tsdoy);
+	ZERO(tfrac);
+
+	tsdoy.year    = pp->year;
+	tsdoy.yearday = pp->day;
+	tsdoy.hour    = pp->hour;
+	tsdoy.minute  = pp->minute;
+	tsdoy.second  = pp->second;
+	
+	/* note: We kept 'month' and 'monthday' zero above. That forces
+	 * day-of-year based calculation now:
+	 */
+	tsntp = gpsntp_from_calendar(&tsdoy, tfrac);
+	tfrac = ntpfp_from_ntpdatum(&tsntp);
+	refclock_process_offset(pp, tfrac, pp->lastrec, pp->fudgetime1);
 
 	/*
 	 * Good place for record_clock_stats()

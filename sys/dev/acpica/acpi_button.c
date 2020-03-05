@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_evdev.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -39,6 +40,11 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/accommon.h>
 
 #include <dev/acpica/acpivar.h>
+
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#endif
 
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_BUTTON
@@ -51,6 +57,9 @@ struct acpi_button_softc {
 #define		ACPI_POWER_BUTTON	0
 #define		ACPI_SLEEP_BUTTON	1
     boolean_t	fixed;
+#ifdef EVDEV_SUPPORT
+    struct evdev_dev *button_evdev;
+#endif
 };
 
 #define		ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP	0x80
@@ -141,6 +150,20 @@ acpi_button_attach(device_t dev)
     sc->button_handle = acpi_get_handle(dev);
     event = (sc->button_type == ACPI_SLEEP_BUTTON) ?
 	    ACPI_EVENT_SLEEP_BUTTON : ACPI_EVENT_POWER_BUTTON;
+
+#ifdef EVDEV_SUPPORT
+    sc->button_evdev = evdev_alloc();
+    evdev_set_name(sc->button_evdev, device_get_desc(dev));
+    evdev_set_phys(sc->button_evdev, device_get_nameunit(dev));
+    evdev_set_id(sc->button_evdev, BUS_HOST, 0, 0, 1);
+    evdev_support_event(sc->button_evdev, EV_SYN);
+    evdev_support_event(sc->button_evdev, EV_KEY);
+    evdev_support_key(sc->button_evdev,
+	(sc->button_type == ACPI_SLEEP_BUTTON) ? KEY_SLEEP : KEY_POWER);
+
+    if (evdev_register(sc->button_evdev))
+        return (ENXIO);
+#endif
 
     /* 
      * Install the new handler.  We could remove any fixed handlers added
@@ -248,6 +271,9 @@ static void
 acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_button_softc	*sc;
+#ifdef EVDEV_SUPPORT
+    uint16_t key;
+#endif
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, notify);
 
@@ -263,6 +289,14 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 	device_printf(sc->button_dev, "unknown notify %#x\n", notify);
 	break;
     }
+
+#ifdef EVDEV_SUPPORT
+    key = (sc->button_type == ACPI_SLEEP_BUTTON) ? KEY_SLEEP : KEY_POWER;
+    evdev_push_key(sc->button_evdev, key, 1);
+    evdev_sync(sc->button_evdev);
+    evdev_push_key(sc->button_evdev, key, 0);
+    evdev_sync(sc->button_evdev);
+#endif
 }
 
 static ACPI_STATUS 

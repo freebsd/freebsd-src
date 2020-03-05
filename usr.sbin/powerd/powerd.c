@@ -86,7 +86,7 @@ static const char *modes[] = {
 #define DEVDPIPE	"/var/run/devd.pipe"
 #define DEVCTL_MAXBUF	1024
 
-static int	read_usage_times(int *load);
+static int	read_usage_times(int *load, int nonice);
 static int	read_freqs(int *numfreqs, int **freqs, int **power,
 		    int minfreq, int maxfreq);
 static int	set_freq(int freq);
@@ -135,15 +135,17 @@ static struct timeval tried_devd;
  * This function returns summary load of all CPUs.  It was made so
  * intentionally to not reduce performance in scenarios when several
  * threads are processing requests as a pipeline -- running one at
- * a time on different CPUs and waiting for each other.
+ * a time on different CPUs and waiting for each other.  If nonice
+ * is nonzero, only user+sys+intr time will be counted as load; any
+ * nice time will be treated as if idle.
  */
 static int
-read_usage_times(int *load)
+read_usage_times(int *load, int nonice)
 {
 	static long *cp_times = NULL, *cp_times_old = NULL;
 	static int ncpus = 0;
 	size_t cp_times_len;
-	int error, cpu, i, total;
+	int error, cpu, i, total, excl;
 
 	if (cp_times == NULL) {
 		cp_times_len = 0;
@@ -175,8 +177,12 @@ read_usage_times(int *load)
 			}
 			if (total == 0)
 				continue;
-			*load += 100 - (cp_times[cpu * CPUSTATES + CP_IDLE] -
-			    cp_times_old[cpu * CPUSTATES + CP_IDLE]) * 100 / total;
+			excl = cp_times[cpu * CPUSTATES + CP_IDLE] -
+			    cp_times_old[cpu * CPUSTATES + CP_IDLE];
+			if (nonice)
+				excl += cp_times[cpu * CPUSTATES + CP_NICE] -
+				    cp_times_old[cpu * CPUSTATES + CP_NICE];
+			*load += 100 - excl * 100 / total;
 		}
 	}
 
@@ -473,7 +479,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: powerd [-v] [-a mode] [-b mode] [-i %%] [-m freq] [-M freq] [-n mode] [-p ival] [-r %%] [-s source] [-P pidfile]\n");
+"usage: powerd [-v] [-a mode] [-b mode] [-i %%] [-m freq] [-M freq] [-N] [-n mode] [-p ival] [-r %%] [-s source] [-P pidfile]\n");
 	exit(1);
 }
 
@@ -490,6 +496,7 @@ main(int argc, char * argv[])
 	int ch, mode, mode_ac, mode_battery, mode_none, idle, to;
 	uint64_t mjoules_used;
 	size_t len;
+	int nonice;
 
 	/* Default mode for all AC states is adaptive. */
 	mode_ac = mode_none = MODE_HIADAPTIVE;
@@ -499,12 +506,13 @@ main(int argc, char * argv[])
 	poll_ival = DEFAULT_POLL_INTERVAL;
 	mjoules_used = 0;
 	vflag = 0;
+	nonice = 0;
 
 	/* User must be root to control frequencies. */
 	if (geteuid() != 0)
 		errx(1, "must be root to run");
 
-	while ((ch = getopt(argc, argv, "a:b:i:m:M:n:p:P:r:s:v")) != -1)
+	while ((ch = getopt(argc, argv, "a:b:i:m:M:Nn:p:P:r:s:v")) != -1)
 		switch (ch) {
 		case 'a':
 			parse_mode(optarg, &mode_ac, ch);
@@ -538,6 +546,9 @@ main(int argc, char * argv[])
 				    maxfreq);
 				usage();
 			}
+			break;
+		case 'N':
+			nonice = 1;
 			break;
 		case 'n':
 			parse_mode(optarg, &mode_none, ch);
@@ -584,7 +595,7 @@ main(int argc, char * argv[])
 		err(1, "lookup freq_levels");
 
 	/* Check if we can read the load and supported freqs. */
-	if (read_usage_times(NULL))
+	if (read_usage_times(NULL, nonice))
 		err(1, "read_usage_times");
 	if (read_freqs(&numfreqs, &freqs, &mwatts, minfreq, maxfreq))
 		err(1, "error reading supported CPU frequencies");
@@ -766,7 +777,7 @@ main(int argc, char * argv[])
 		}
 
 		/* Adaptive mode; get the current CPU usage times. */
-		if (read_usage_times(&load)) {
+		if (read_usage_times(&load, nonice)) {
 			if (vflag)
 				warn("read_usage_times() failed");
 			continue;

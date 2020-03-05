@@ -42,6 +42,7 @@ int	option_timeout(int peer);
 int	option_blksize(int peer);
 int	option_blksize2(int peer);
 int	option_rollover(int peer);
+int	option_windowsize(int peer);
 
 extern int options_extra_enabled;
 extern int options_rfc_enabled;
@@ -61,4 +62,5 @@ enum opt_enum {
 	OPT_BLKSIZE,
 	OPT_BLKSIZE2,
 	OPT_ROLLOVER,
+	OPT_WINDOWSIZE,
 };

@@ -45,6 +45,9 @@
 #ifdef HAVE_SYS_STAT_H
 # include <sys/stat.h>
 #endif
+#ifdef HAVE_SYS_WAIT_H
+# include <sys/wait.h>
+#endif
 #include <stdio.h>
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>
@@ -80,6 +83,10 @@
 #endif
 #if defined(HAVE_SYS_MMAN_H)
 # include <sys/mman.h>
+#endif
+
+#ifdef HAVE_SYSEXITS_H
+# include <sysexits.h>
 #endif
 
 #ifdef HAVE_TERMIOS_H
@@ -154,6 +161,21 @@
 DNSServiceRef mdns;
 #endif
 
+/* In case 'sysexits.h' is unavailable, define some exit codes here: */
+#ifndef EX_SOFTWARE
+# define EX_SOFTWARE	70
+#endif
+#ifndef EX_OSERR
+# define EX_OSERR	71
+#endif
+#ifndef EX_IOERR
+# define EX_IOERR	74
+#endif
+#ifndef EX_PROTOCOL
+#define EX_PROTOCOL	76
+#endif
+
+
 #ifdef HAVE_SETPGRP_0
 # define ntp_setpgrp(x, y)	setpgrp()
 #else
@@ -192,6 +214,10 @@ int mdnsreg = FALSE;
 int mdnstries = 5;
 #endif  /* HAVE_DNSREGISTRATION */
 
+#ifdef HAVE_LINUX_CAPABILITIES
+int have_caps;		/* runtime check whether capabilities work */
+#endif /* HAVE_LINUX_CAPABILITIES */
+
 #ifdef HAVE_DROPROOT
 int droproot;
 int root_dropped;
@@ -205,7 +231,7 @@ struct passwd *pw;
 #endif /* HAVE_DROPROOT */
 
 #ifdef HAVE_WORKING_FORK
-int	waitsync_fd_to_close = -1;	/* -w/--wait-sync */
+int	daemon_pipe[2] = { -1, -1 };
 #endif
 
 /*
@@ -235,7 +261,8 @@ static	RETSIGTYPE	finish		(int);
 #endif
 
 #if !defined(SIM) && defined(HAVE_WORKING_FORK)
-static int	wait_child_sync_if	(int, long);
+static int	wait_child_sync_if	(int, unsigned long);
+static int	wait_child_exit_if	(pid_t, int);
 #endif
 
 #if !defined(SIM) && !defined(SYS_WINNT)
@@ -402,18 +429,16 @@ main(
 
 	return ntpsim(argc, argv);
 }
-#else	/* !SIM follows */
-#ifdef NO_MAIN_ALLOWED
+#elif defined(NO_MAIN_ALLOWED)
 CALL(ntpd,"ntpd",ntpdmain);
-#else	/* !NO_MAIN_ALLOWED follows */
-#ifndef SYS_WINNT
+#elif !defined(SYS_WINNT)
 int
 main(
 	int argc,
 	char *argv[]
 	)
 {
-#ifdef __FreeBSD__
+#   ifdef __FreeBSD__
 	{
 		/*
 		 * We Must disable ASLR stack gap on FreeBSD to avoid a
@@ -424,12 +449,10 @@ main(
 		pid_t my_pid = getpid();
 		procctl(P_PID, my_pid, PROC_STACKGAP_CTL, &aslr_var); 
 	}
-#endif
+#   endif
 	return ntpdmain(argc, argv);
 }
 #endif /* !SYS_WINNT */
-#endif /* !NO_MAIN_ALLOWED */
-#endif /* !SIM */
 
 #ifdef _AIX
 /*
@@ -560,13 +583,13 @@ set_process_priority(void)
 # ifdef HAVE_WORKING_FORK
 static void
 detach_from_terminal(
-	int pipe_fds[2],
+	int pipe[2],
 	long wait_sync,
 	const char *logfilename
 	)
 {
-	int rc;
-	int exit_code;
+	pid_t	cpid;
+	int	exit_code;
 #  if !defined(HAVE_SETSID) && !defined (HAVE_SETPGID) && defined(TIOCNOTTY)
 	int		fid;
 #  endif
@@ -574,16 +597,28 @@ detach_from_terminal(
 	struct sigaction sa;
 #  endif
 
-	rc = fork();
-	if (-1 == rc) {
-		exit_code = (errno) ? errno : -1;
-		msyslog(LOG_ERR, "fork: %m");
-		exit(exit_code);
-	}
-	if (rc > 0) {
+	cpid = fork();
+	if (0 != cpid) {
 		/* parent */
-		exit_code = wait_child_sync_if(pipe_fds[0],
-					       wait_sync);
+		if (-1 == cpid) {
+			msyslog(LOG_ERR, "fork: %m");
+			exit_code = EX_OSERR;
+		} else {
+			close(pipe[1]);
+			pipe[1] = -1;
+			exit_code = wait_child_sync_if(
+					pipe[0], wait_sync);
+			DPRINTF(1, ("sync_if: rc=%d\n", exit_code));
+			if (exit_code <= 0) {
+				/* probe daemon exit code -- wait for
+				 * child process if we have an unexpected
+				 * EOF on the monitor pipe.
+				 */
+				exit_code = wait_child_exit_if(
+						cpid, (exit_code < 0));
+				DPRINTF(1, ("exit_if: rc=%d\n", exit_code));
+			}
+		}
 		exit(exit_code);
 	}
 
@@ -598,7 +633,8 @@ detach_from_terminal(
 		syslog_file = NULL;
 		syslogit = TRUE;
 	}
-	close_all_except(waitsync_fd_to_close);
+	close_all_except(pipe[1]);
+	pipe[0] = -1;
 	INSIST(0 == open("/dev/null", 0) && 1 == dup2(0, 1) \
 		&& 2 == dup2(0, 2));
 
@@ -805,9 +841,6 @@ ntpdmain(
 # endif
 # if defined(HAVE_WORKING_FORK)
 	long		wait_sync = 0;
-	int		pipe_fds[2];
-	int		rc;
-	int		exit_code;
 # endif	/* HAVE_WORKING_FORK*/
 # ifdef SCO5_CLOCK
 	int		fd;
@@ -873,8 +906,15 @@ ntpdmain(
 				" %s", saved_argv[i]);
 			cp += strlen(cp);
 		}
-		msyslog(LOG_INFO, "%s", buf);
+		msyslog(LOG_NOTICE, "%s", buf);
 	}
+
+	msyslog(LOG_NOTICE, "----------------------------------------------------");
+	msyslog(LOG_NOTICE, "ntp-4 is maintained by Network Time Foundation,");
+	msyslog(LOG_NOTICE, "Inc. (NTF), a non-profit 501(c)(3) public-benefit");
+	msyslog(LOG_NOTICE, "corporation.  Support and training for ntp-4 are");
+	msyslog(LOG_NOTICE, "available at https://www.nwtime.org/support");
+	msyslog(LOG_NOTICE, "----------------------------------------------------");
 
 	/*
 	 * Install trap handlers to log errors and assertion failures.
@@ -950,27 +990,24 @@ ntpdmain(
 # endif
 
 # ifdef HAVE_WORKING_FORK
-	/* make sure the FDs are initialised */
-	pipe_fds[0] = -1;
-	pipe_fds[1] = -1;
-	do {					/* 'loop' once */
-		if (!HAVE_OPT( WAIT_SYNC ))
-			break;
+	/* make sure the FDs are initialised
+	 *
+	 * note: if WAIT_SYNC is requested, we *have* to fork. This will
+	 * overide any '-n' (nofork) or '-d' (debug) option presented on
+	 * the command line!
+	 */
+	if (HAVE_OPT(WAIT_SYNC)) {
 		wait_sync = OPT_VALUE_WAIT_SYNC;
-		if (wait_sync <= 0) {
+		if (wait_sync <= 0)
 			wait_sync = 0;
-			break;
-		}
-		/* -w requires a fork() even with debug > 0 */
-		nofork = FALSE;
-		if (pipe(pipe_fds)) {
-			exit_code = (errno) ? errno : -1;
-			msyslog(LOG_ERR,
-				"Pipe creation failed for --wait-sync: %m");
-			exit(exit_code);
-		}
-		waitsync_fd_to_close = pipe_fds[1];
-	} while (0);				/* 'loop' once */
+		else
+			nofork = FALSE;
+	}
+	if ( !nofork && pipe(daemon_pipe)) {
+		msyslog(LOG_ERR,
+			"Pipe creation failed for --wait-sync/daemon: %m");
+		exit(EX_OSERR);
+	}
 # endif	/* HAVE_WORKING_FORK */
 
 	init_lib();
@@ -996,12 +1033,11 @@ ntpdmain(
 	/*
 	 * Detach us from the terminal.  May need an #ifndef GIZMO.
 	 */
-	if (!nofork) {
-
 # ifdef HAVE_WORKING_FORK
-		detach_from_terminal(pipe_fds, wait_sync, logfilename);
-# endif		/* HAVE_WORKING_FORK */
+	if (!nofork) {
+		detach_from_terminal(daemon_pipe, wait_sync, logfilename);
 	}
+# endif		/* HAVE_WORKING_FORK */
 
 # ifdef SCO5_CLOCK
 	/*
@@ -1146,12 +1182,33 @@ ntpdmain(
 	report_event(EVNT_SYSRESTART, NULL, NULL);
 	initializing = FALSE;
 
-# ifdef HAVE_DROPROOT
-	if (droproot) {
+# ifdef HAVE_LINUX_CAPABILITIES
+	{
+		/*  Check that setting capabilities actually works; we might be
+		 *  run on a kernel with disabled capabilities. We must not
+		 *  drop privileges in this case.
+		 */
+		cap_t caps;
+		caps = cap_from_text("cap_sys_time,cap_setuid,cap_setgid,cap_sys_chroot,cap_net_bind_service=pe");
+		if ( ! caps) {
+			msyslog( LOG_ERR, "cap_from_text() failed: %m" );
+			exit(-1);
+		}
+		have_caps = (cap_set_proc(caps) == 0);
+		cap_free(caps);	/* caps not NULL here! */
+	}
+# endif /* HAVE_LINUX_CAPABILITIES */
 
-#ifdef NEED_EARLY_FORK
+# ifdef HAVE_DROPROOT
+#  ifdef HAVE_LINUX_CAPABILITIES
+	if (droproot && have_caps) {
+#  else
+	if (droproot) {
+#  endif /*HAVE_LINUX_CAPABILITIES*/
+
+#  ifdef NEED_EARLY_FORK
 		fork_nonchroot_worker();
-#endif
+#  endif
 
 		/* Drop super-user privileges and chroot now if the OS supports this */
 
@@ -1387,28 +1444,28 @@ int scmp_sc[] = {
 	}
 #endif /* LIBSECCOMP and KERN_SECCOMP */
 
-#ifdef SYS_WINNT
+#if defined(SYS_WINNT)
 	ntservice_isup();
-#endif
+#elif defined(HAVE_WORKING_FORK)
+	if (daemon_pipe[1] != -1) {
+		write(daemon_pipe[1], "R\n", 2);
+	}
+#endif /* HAVE_WORKING_FORK */
 
-# ifdef HAVE_IO_COMPLETION_PORT
-
-	for (;;) {
-#if !defined(SIM) && defined(SIGDIE1)
-		if (signalled)
-			finish_safe(signo);
-#endif
-		GetReceivedBuffers();
-# else /* normal I/O */
-
+# ifndef HAVE_IO_COMPLETION_PORT
 	BLOCK_IO_AND_ALARM();
 	was_alarmed = FALSE;
+# endif
 
 	for (;;) {
 #if !defined(SIM) && defined(SIGDIE1)
 		if (signalled)
 			finish_safe(signo);
-#endif		
+#endif
+# ifdef HAVE_IO_COMPLETION_PORT
+		GetReceivedBuffers();
+
+# else /* normal I/O */
 		if (alarm_flag) {	/* alarmed? */
 			was_alarmed = TRUE;
 			alarm_flag = FALSE;
@@ -1573,26 +1630,30 @@ finish(
  * wait_child_sync_if - implements parent side of -w/--wait-sync
  */
 # ifdef HAVE_WORKING_FORK
+
 static int
 wait_child_sync_if(
-	int	pipe_read_fd,
-	long	wait_sync
+	int		pipe_read_fd,
+	unsigned long	wait_sync
 	)
 {
 	int	rc;
-	int	exit_code;
+	char	ch;
 	time_t	wait_end_time;
 	time_t	cur_time;
 	time_t	wait_rem;
 	fd_set	readset;
 	struct timeval wtimeout;
 
-	if (0 == wait_sync) 
-		return 0;
+	/* we wait a bit for the child in *any* case, because on failure
+	 * of the child we have to get and inspect the exit code!
+	 */
+	wait_end_time = time(NULL);
+	if (wait_sync)
+		wait_end_time += wait_sync;
+	else
+		wait_end_time += 30;
 
-	/* waitsync_fd_to_close used solely by child */
-	close(waitsync_fd_to_close);
-	wait_end_time = time(NULL) + wait_sync;
 	do {
 		cur_time = time(NULL);
 		wait_rem = (wait_end_time > cur_time)
@@ -1607,10 +1668,9 @@ wait_child_sync_if(
 		if (-1 == rc) {
 			if (EINTR == errno)
 				continue;
-			exit_code = (errno) ? errno : -1;
 			msyslog(LOG_ERR,
-				"--wait-sync select failed: %m");
-			return exit_code;
+				"daemon startup: select failed: %m");
+			return EX_IOERR;
 		}
 		if (0 == rc) {
 			/*
@@ -1627,16 +1687,70 @@ wait_child_sync_if(
 				    NULL, &wtimeout);
 			if (0 == rc)	/* select() timeout */
 				break;
-			else		/* readable */
+		}
+		rc = read(pipe_read_fd, &ch, 1);
+		if (rc == 0) {
+			DPRINTF(2, ("daemon control: got EOF\n"));
+			return -1;	/* unexpected EOF, check daemon */
+		} else if (rc == 1) {
+			DPRINTF(2, ("daemon control: got '%c'\n",
+				    (ch >= ' ' ? ch : '.')));
+			if (ch == 'R' && !wait_sync)
 				return 0;
-		} else			/* readable */
-			return 0;
+			if (ch == 'S' && wait_sync)
+				return 0;
+		} else {
+			DPRINTF(2, ("daemon control: read 1 char failed: %s\n",
+				    strerror(errno)));
+			return EX_IOERR;
+		}
 	} while (wait_rem > 0);
 
-	fprintf(stderr, "%s: -w/--wait-sync %ld timed out.\n",
-		progname, wait_sync);
-	return ETIMEDOUT;
+	if (wait_sync) {
+		fprintf(stderr, "%s: -w/--wait-sync %ld timed out.\n",
+			progname, wait_sync);
+		return EX_PROTOCOL;
+	} else {
+		fprintf(stderr, "%s: daemon startup monitoring timed out.\n",
+			progname);
+		return 0;
+	}
 }
+
+
+static int
+wait_child_exit_if(
+	pid_t	cpid,
+	int	blocking
+	)
+{
+#    ifdef HAVE_WAITPID
+	int	rc = 0;
+	int	wstatus;
+	if (cpid == waitpid(cpid, &wstatus, (blocking ? 0 : WNOHANG))) {
+		DPRINTF(1, ("child (pid=%d) dead now\n", cpid));
+		if (WIFEXITED(wstatus)) {
+			rc = WEXITSTATUS(wstatus);
+			msyslog(LOG_ERR, "daemon child exited with code %d",
+				rc);
+		} else if (WIFSIGNALED(wstatus)) {
+			rc = EX_SOFTWARE;
+			msyslog(LOG_ERR, "daemon child died with signal %d",
+				WTERMSIG(wstatus));
+		} else {
+			rc = EX_SOFTWARE;
+			msyslog(LOG_ERR, "daemon child died with unknown cause");
+		}
+	} else {
+		DPRINTF(1, ("child (pid=%d) still alive\n", cpid));
+	}
+	return rc;
+#    else
+	UNUSED_ARG(cpid);
+	return 0;
+#    endif
+}
+
 # endif	/* HAVE_WORKING_FORK */
 
 

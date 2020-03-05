@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-calc_tickadj.texi)
 #
-# It has been AutoGen-ed  February 20, 2019 at 09:57:25 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  March  3, 2020 at 05:41:54 PM by AutoGen 5.18.5
 # From the definitions    calc_tickadj-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -63,7 +63,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-calc_tickadj - Calculates "optimal" value for tick given ntp drift file. - Ver. 4.2.7p467
+calc_tickadj - Calculates "optimal" value for tick given ntp drift file. - Ver. 4.2.8p13
 USAGE: calc_tickadj [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... 
 
     -d, --drift-file=str         Ntp drift file to use

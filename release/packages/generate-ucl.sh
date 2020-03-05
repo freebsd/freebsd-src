@@ -71,11 +71,6 @@ main() {
 			_descr="32-bit Libraries, Debugging Symbols"
 			pkgdeps="${outname}"
 			;;
-		*_lib32_profile)
-			outname="${outname%%_lib32_profile}"
-			_descr="32-bit Libraries, Profiling"
-			pkgdeps="${outname}"
-			;;
 		*_lib32)
 			outname="${outname%%_lib32}"
 			_descr="32-bit Libraries"
@@ -84,11 +79,6 @@ main() {
 		*_development)
 			outname="${outname%%_development}"
 			_descr="Development Files"
-			pkgdeps="${outname}"
-			;;
-		*_profile)
-			outname="${outname%%_profile}"
-			_descr="Profiling Libraries"
 			pkgdeps="${outname}"
 			;;
 		*_debug)

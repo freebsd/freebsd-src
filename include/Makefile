@@ -43,7 +43,7 @@ LDIRS=	bsm cam geom net net80211 netgraph netinet netinet6 \
 	netipsec netsmb nfs nfsclient nfsserver sys vm
 
 LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
-	dev/acpica dev/agp dev/an dev/bktr dev/ciss dev/filemon dev/firewire \
+	dev/acpica dev/agp dev/an dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc dev/hyperv \
 	dev/ic dev/iicbus dev/io dev/mfi dev/mmc dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/pwm \
@@ -158,7 +158,7 @@ copies: .PHONY .META
 		done; \
 	fi
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/$i
@@ -171,9 +171,6 @@ copies: .PHONY .META
 	cd ${SRCTOP}/sys/dev/agp; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 agpreg.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/agp
-	cd ${SRCTOP}/sys/dev/bktr; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/bktr
 	cd ${SRCTOP}/sys/dev/evdev; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 input.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev; \
@@ -261,7 +258,7 @@ symlinks: .PHONY .META
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec}
 	cd ${SRCTOP}/sys/$i; \
 	for h in *.h; do \
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
@@ -276,11 +273,6 @@ symlinks: .PHONY .META
 	for h in agpreg.h; do \
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/agp/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/dev/agp; \
-	done
-	cd ${SRCTOP}/sys/dev/bktr; \
-	for h in ioctl_*.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/bktr/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/dev/bktr; \
 	done
 	cd ${SRCTOP}/sys/dev/evdev; \
 	for h in input.h input-event-codes.h uinput.h; do \

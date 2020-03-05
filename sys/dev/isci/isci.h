@@ -303,10 +303,8 @@ void isci_request_construct(struct ISCI_REQUEST *request,
 void isci_io_request_execute_scsi_io(union ccb *ccb,
     struct ISCI_CONTROLLER *controller);
 
-#if __FreeBSD_version >= 900026
 void isci_io_request_execute_smp_io(
     union ccb *ccb, struct ISCI_CONTROLLER *controller);
-#endif
 
 void isci_io_request_timeout(void *);
 

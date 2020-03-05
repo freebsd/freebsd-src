@@ -1,7 +1,8 @@
 saveconfigdir "/etc/ntp/conf"
-driftfile "/etc/ntp.drift" 1e-7
+driftfile "/etc/ntp.drift"
 logfile "/var/log/ntp.log"
-leapfile "/etc/ntp.leapseconds"
+leapfile "/etc/ntp.leapseconds" ignorehash
+leapfile "/etc/ntp.leapseconds" checkhash
 @HAVE_LEAPSMEARINTERVAL@
 nonvolatile 1e-7
 ident "udent"
@@ -31,14 +32,14 @@ rlimit@HAVE_RLIMIT_MEMLOCK@@HAVE_RLIMIT_STACK@
 tinker allan 1500 dispersion 15 freq 0 huffpuff 7200 panic 1000 step 0.128 stepout 900 tick 0.01
 broadcastclient
 server 127.127.1.0 mode 4294967295 prefer true
-fudge 127.127.1.0 time1 0 time2 1.1 stratum 7 refid Abcd
+fudge 127.127.1.0 time1 0 time2 1.1 stratum 7 refid Abcd minjitter 0.2
 pool 0.north-america.pool.ntp.org. iburst preempt
 server 1.north-america.pool.ntp.org. iburst
 server -4 2.north-america.pool.ntp.org. minpoll 6 maxpoll 10 iburst
 server -6 ntp.davehart.net. minpoll 6 maxpoll 10 version 5 burst iburst
 peer -6 davehart.broker.freenet6.net. ident "autokey-group" xleave autokey
 peer -4 192.168.192.168 key 1 noselect
-server [fe80::123%1]
+server [fe80::123%1] xmtnonce
 broadcast 192.168.192.255
 manycastclient 224.0.1.1
 manycastclient ff05::101
@@ -46,6 +47,7 @@ manycastserver 224.0.1.1 ff05::101
 multicastclient 224.0.1.1 ff05::101
 mru maxage 64 mindepth 600 initalloc 600 initmem 16 incalloc 99 incmem 4 maxdepth 1024 maxmem 4096
 discard minimum 1 average 3 monitor 3000
+pollskewlist 3 1|2 4 3|4 default 6|7
 restrict default ippeerlimit -1
 restrict default ippeerlimit 0 nomodify limited kod noserve nomrulist
 restrict source ippeerlimit 1
@@ -53,6 +55,7 @@ restrict source ippeerlimit 2 nomodify limited kod
 restrict trusted.host.name.example.com. ippeerlimit -1 nomodify
 restrict [fe80::1] mask [ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff] ippeerlimit -1
 restrict 127.0.0.1 mask 255.255.255.255 ippeerlimit -1
+restrict 127.0.0.2 ippeerlimit -1 serverresponse fuzz
 restrict ::1 ippeerlimit -1
 interface drop ipv6
 interface ignore ipv4

@@ -635,6 +635,10 @@ struct icmp6stat {
 	uint64_t icp6s_badrs;		/* bad router solicitation */
 	uint64_t icp6s_badra;		/* bad router advertisement */
 	uint64_t icp6s_badredirect;	/* bad redirect message */
+	uint64_t icp6s_overflowdefrtr;	/* Too many default routers. */
+	uint64_t icp6s_overflowprfx;	/* Too many prefixes. */
+	uint64_t icp6s_overflownndp;	/* Too many neighbour entries. */
+	uint64_t icp6s_overflowredirect;/* Too many redirects. */
 };
 
 #ifdef _KERNEL

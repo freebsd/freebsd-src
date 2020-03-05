@@ -64,6 +64,7 @@
 #define NTP_LFP		0x7	/* NTP timestamp */
 #define NTP_MODE	0x8	/* peer mode */
 #define NTP_2BIT	0x9	/* leap bits */
+#define NTP_REFID	0xA	/* RefID */
 
 /*
  * Arguments are returned in a union

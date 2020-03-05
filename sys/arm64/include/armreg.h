@@ -109,7 +109,7 @@
 #define	CTR_L1IP_VAL(reg)	((reg) & CTR_L1IP_MASK)
 #define	 CTR_L1IP_VPIPT		(0 << CTR_L1IP_SHIFT)
 #define	 CTR_L1IP_AIVIVT	(1 << CTR_L1IP_SHIFT)
-#define	 CTR_L1IP_VIVT		(2 << CTR_L1IP_SHIFT)
+#define	 CTR_L1IP_VIPT		(2 << CTR_L1IP_SHIFT)
 #define	 CTR_L1IP_PIPT		(3 << CTR_L1IP_SHIFT)
 #define	CTR_ILINE_SHIFT		0
 #define	CTR_ILINE_MASK		(0xf << CTR_ILINE_SHIFT)
