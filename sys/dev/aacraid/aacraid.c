@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/aac_ioctl.h>
 #include <dev/aacraid/aacraid_debug.h>
 #include <dev/aacraid/aacraid_var.h>
+#include <dev/aacraid/aacraid_endian.h>
 
 #ifndef FILTER_HANDLED
 #define FILTER_HANDLED	0x02
@@ -386,7 +387,7 @@ aac_daemon(void *arg)
 			AAC_FIBSTATE_ASYNC	 |
 			AAC_FIBSTATE_FAST_RESPONSE;
 		fib->Header.Command = SendHostTime;
-		*(uint32_t *)fib->data = tv.tv_sec;
+		*(uint32_t *)fib->data = htole32(tv.tv_sec);
 
 		aacraid_map_command_sg(cm, NULL, 0, 0);
 		aacraid_release_command(cm);
@@ -446,6 +447,7 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *sync_fib, int cid,
 		mi->Command = VM_NameServe;
 	mi->MntType = FT_FILESYS;
 	mi->MntCount = cid;
+	aac_mntinfo_tole(mi);
 
 	if (sync_fib) {
 		if (aac_sync_fib(sc, ContainerCommand, 0, fib,
@@ -476,6 +478,7 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *sync_fib, int cid,
 		}
 	}
 	bcopy(&fib->data[0], mir, sizeof(struct aac_mntinforesp));
+	aac_mntinforesp_toh(mir);
 
 	/* UID */
 	*uid = cid;
@@ -490,10 +493,12 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *sync_fib, int cid,
 		ccfg->Command = VM_ContainerConfig;
 		ccfg->CTCommand.command = CT_CID_TO_32BITS_UID;
 		ccfg->CTCommand.param[0] = cid;
+		aac_cnt_config_tole(ccfg);
 
 		if (sync_fib) {
 			rval = aac_sync_fib(sc, ContainerCommand, 0, fib,
 				sizeof(struct aac_cnt_config));
+			aac_cnt_config_toh(ccfg);
 			if (rval == 0 && ccfg->Command == ST_OK &&
 				ccfg->CTCommand.param[0] == CT_OK &&
 				mir->MntTable[0].VolType != CT_PASSTHRU)
@@ -512,6 +517,7 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *sync_fib, int cid,
 				AAC_FIBSTATE_FAST_RESPONSE;
 			fib->Header.Command = ContainerCommand;
 			rval = aacraid_wait_command(cm);
+			aac_cnt_config_toh(ccfg);
 			if (rval == 0 && ccfg->Command == ST_OK &&
 				ccfg->CTCommand.param[0] == CT_OK &&
 				mir->MntTable[0].VolType != CT_PASSTHRU)
@@ -804,8 +810,8 @@ aacraid_shutdown(device_t dev)
 	cc = (struct aac_close_command *)&fib->data[0];
 
 	bzero(cc, sizeof(struct aac_close_command));
-	cc->Command = VM_CloseAll;
-	cc->ContainerId = 0xfffffffe;
+	cc->Command = htole32(VM_CloseAll);
+	cc->ContainerId = htole32(0xfffffffe);
 	if (aac_sync_fib(sc, ContainerCommand, 0, fib,
 	    sizeof(struct aac_close_command)))
 		printf("FAILED.\n");
@@ -905,6 +911,8 @@ aacraid_new_intr_type1(void *arg)
 			cm = sc->aac_sync_cm;
 			aac_unmap_command(cm);
 			cm->cm_flags |= AAC_CMD_COMPLETED;
+			aac_fib_header_toh(&cm->cm_fib->Header);
+
 			/* is there a completion handler? */
 			if (cm->cm_complete != NULL) {
 				cm->cm_complete(cm);
@@ -931,7 +939,8 @@ aacraid_new_intr_type1(void *arg)
 		for (;;) {
 			isFastResponse = isAif = noMoreAif = 0;
 			/* remove toggle bit (31) */
-			handle = (sc->aac_common->ac_host_rrq[index] & 0x7fffffff);
+			handle = (le32toh(sc->aac_common->ac_host_rrq[index]) &
+			    0x7fffffff);
 			/* check fast response bit (30) */
 			if (handle & 0x40000000) 
 				isFastResponse = 1;
@@ -944,6 +953,7 @@ aacraid_new_intr_type1(void *arg)
 
 			cm = sc->aac_commands + (handle - 1);
 			fib = cm->cm_fib;
+			aac_fib_header_toh(&fib->Header);
 			sc->aac_rrq_outstanding[vector_no]--;
 			if (isAif) {
 				noMoreAif = (fib->Header.XferState & AAC_FIBSTATE_NOMOREAIF) ? 1:0;
@@ -954,7 +964,7 @@ aacraid_new_intr_type1(void *arg)
 			} else {
 				if (isFastResponse) {
 					fib->Header.XferState |= AAC_FIBSTATE_DONEADAP;
-					*((u_int32_t *)(fib->data)) = ST_OK;
+					*((u_int32_t *)(fib->data)) = htole32(ST_OK);
 					cm->cm_flags |= AAC_CMD_FASTRESP;
 				}
 				aac_remove_busy(cm);
@@ -1342,6 +1352,10 @@ aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 				raw->flags |= RIO2_SGL_CONFORMANT;
 			}
 
+			for (i = 0; i < nseg; i++)
+				aac_sge_ieee1212_tole(sg + i);
+			aac_raw_io2_tole(raw);
+
 			/* update the FIB size for the s/g count */
 			fib->Header.Size += nseg * 
 				sizeof(struct aac_sge_ieee1212);
@@ -1349,33 +1363,37 @@ aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 		} else if (fib->Header.Command == RawIo) {
 			struct aac_sg_tableraw *sg;
 			sg = (struct aac_sg_tableraw *)cm->cm_sgtable;
-			sg->SgCount = nseg;
+			sg->SgCount = htole32(nseg);
 			for (i = 0; i < nseg; i++) {
 				sg->SgEntryRaw[i].SgAddress = segs[i].ds_addr;
 				sg->SgEntryRaw[i].SgByteCount = segs[i].ds_len;
 				sg->SgEntryRaw[i].Next = 0;
 				sg->SgEntryRaw[i].Prev = 0;
 				sg->SgEntryRaw[i].Flags = 0;
+				aac_sg_entryraw_tole(&sg->SgEntryRaw[i]);
 			}
+			aac_raw_io_tole((struct aac_raw_io *)&fib->data[0]);
 			/* update the FIB size for the s/g count */
 			fib->Header.Size += nseg*sizeof(struct aac_sg_entryraw);
 		} else if ((cm->cm_sc->flags & AAC_FLAGS_SG_64BIT) == 0) {
 			struct aac_sg_table *sg;
 			sg = cm->cm_sgtable;
-			sg->SgCount = nseg;
+			sg->SgCount = htole32(nseg);
 			for (i = 0; i < nseg; i++) {
 				sg->SgEntry[i].SgAddress = segs[i].ds_addr;
 				sg->SgEntry[i].SgByteCount = segs[i].ds_len;
+				aac_sg_entry_tole(&sg->SgEntry[i]);
 			}
 			/* update the FIB size for the s/g count */
 			fib->Header.Size += nseg*sizeof(struct aac_sg_entry);
 		} else {
 			struct aac_sg_table64 *sg;
 			sg = (struct aac_sg_table64 *)cm->cm_sgtable;
-			sg->SgCount = nseg;
+			sg->SgCount = htole32(nseg);
 			for (i = 0; i < nseg; i++) {
 				sg->SgEntry64[i].SgAddress = segs[i].ds_addr;
 				sg->SgEntry64[i].SgByteCount = segs[i].ds_len;
+				aac_sg_entry64_tole(&sg->SgEntry64[i]);
 			}
 			/* update the FIB size for the s/g count */
 			fib->Header.Size += nseg*sizeof(struct aac_sg_entry64);
@@ -1405,11 +1423,13 @@ aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	cm->cm_flags |= AAC_CMD_MAPPED;
 
 	if (cm->cm_flags & AAC_CMD_WAIT) {
+		aac_fib_header_tole(&fib->Header);
 		aacraid_sync_command(sc, AAC_MONKER_SYNCFIB,
 			cm->cm_fibphys, 0, 0, 0, NULL, NULL);
 	} else if (sc->flags & AAC_FLAGS_SYNC_MODE) {
 		u_int32_t wait = 0;
 		sc->aac_sync_cm = cm;
+		aac_fib_header_tole(&fib->Header);
 		aacraid_sync_command(sc, AAC_MONKER_SYNCFIB,
 			cm->cm_fibphys, 0, 0, 0, &wait, NULL);
 	} else {
@@ -1788,6 +1808,8 @@ aac_init(struct aac_softc *sc)
 	ip->MaxIoSize = sc->aac_max_sectors << 9;
 	ip->MaxFibSize = sc->aac_max_fib_size;
 
+	aac_adapter_init_tole(ip);
+
 	/*
 	 * Do controller-type-specific initialisation
 	 */
@@ -1996,18 +2018,24 @@ aac_check_config(struct aac_softc *sc)
 	ccfg->CTCommand.command = CT_GET_CONFIG_STATUS;
 	ccfg->CTCommand.param[CNT_SIZE] = sizeof(struct aac_cf_status_hdr);
 
+	aac_cnt_config_tole(ccfg);
 	rval = aac_sync_fib(sc, ContainerCommand, 0, fib,
 		sizeof (struct aac_cnt_config));
+	aac_cnt_config_toh(ccfg);
+
 	cf_shdr = (struct aac_cf_status_hdr *)ccfg->CTCommand.data;
 	if (rval == 0 && ccfg->Command == ST_OK &&
 		ccfg->CTCommand.param[0] == CT_OK) {
-		if (cf_shdr->action <= CFACT_PAUSE) {
+		if (le32toh(cf_shdr->action) <= CFACT_PAUSE) {
 			bzero(ccfg, sizeof (*ccfg) - CT_PACKET_SIZE);
 			ccfg->Command = VM_ContainerConfig;
 			ccfg->CTCommand.command = CT_COMMIT_CONFIG;
 
+			aac_cnt_config_tole(ccfg);
 			rval = aac_sync_fib(sc, ContainerCommand, 0, fib,
 				sizeof (struct aac_cnt_config));
+			aac_cnt_config_toh(ccfg);
+
 			if (rval == 0 && ccfg->Command == ST_OK &&
 				ccfg->CTCommand.param[0] == CT_OK) {
 				/* successful completion */
@@ -2087,6 +2115,8 @@ static int
 aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
 		 struct aac_fib *fib, u_int16_t datasize)
 {
+	uint32_t ReceiverFibAddress;
+
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	mtx_assert(&sc->aac_io_lock, MA_OWNED);
 
@@ -2105,18 +2135,22 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
 	fib->Header.Size = sizeof(struct aac_fib_header) + datasize;
 	fib->Header.SenderSize = sizeof(struct aac_fib);
 	fib->Header.SenderFibAddress = 0;	/* Not needed */
-	fib->Header.u.ReceiverFibAddress = sc->aac_common_busaddr +
+	ReceiverFibAddress = sc->aac_common_busaddr +
 		offsetof(struct aac_common, ac_sync_fib);
+	fib->Header.u.ReceiverFibAddress = ReceiverFibAddress;
+	aac_fib_header_tole(&fib->Header);
 
 	/*
 	 * Give the FIB to the controller, wait for a response.
 	 */
 	if (aacraid_sync_command(sc, AAC_MONKER_SYNCFIB,
-		fib->Header.u.ReceiverFibAddress, 0, 0, 0, NULL, NULL)) {
+		ReceiverFibAddress, 0, 0, 0, NULL, NULL)) {
 		fwprintf(sc, HBA_FLAGS_DBG_ERROR_B, "IO error");
+		aac_fib_header_toh(&fib->Header);
 		return(EIO);
 	}
 
+	aac_fib_header_toh(&fib->Header);
 	return (0);
 }
 
@@ -2407,9 +2441,12 @@ aac_src_send_command(struct aac_softc *sc, struct aac_command *cm)
 		pFibX->Handle = cm->cm_fib->Header.Handle;
 		pFibX->HostAddress = cm->cm_fibphys;
 		pFibX->Size = cm->cm_fib->Header.Size;
+		aac_fib_xporthdr_tole(pFibX);
 		address = cm->cm_fibphys - sizeof(struct aac_fib_xporthdr);
 		high_addr = (u_int32_t)(address >> 32);
 	}
+
+	aac_fib_header_tole(&cm->cm_fib->Header);
 
 	if (fibsize > 31) 
 		fibsize = 31;
@@ -2468,8 +2505,8 @@ aac_describe_controller(struct aac_softc *sc)
 
 			supp_info = ((struct aac_supplement_adapter_info *)&fib->data[0]); 
 			adapter_type = (char *)supp_info->AdapterTypeText;
-			sc->aac_feature_bits = supp_info->FeatureBits;
-			sc->aac_support_opt2 = supp_info->SupportedOptions2;
+			sc->aac_feature_bits = le32toh(supp_info->FeatureBits);
+			sc->aac_support_opt2 = le32toh(supp_info->SupportedOptions2);
 		}
 	}
 	device_printf(sc->aac_dev, "%s, aacraid driver %d.%d.%d-%d\n",
@@ -2487,6 +2524,7 @@ aac_describe_controller(struct aac_softc *sc)
 
 	/* save the kernel revision structure for later use */
 	info = (struct aac_adapter_info *)&fib->data[0];
+	aac_adapter_info_toh(info);
 	sc->aac_revision = info->KernelRevision;
 
 	if (bootverbose) {
@@ -2720,6 +2758,18 @@ aac_ioctl_event(struct aac_softc *sc, struct aac_event *event, void *arg)
 
 /*
  * Send a FIB supplied from userspace
+ *
+ * Currently, sending a FIB from userspace in BE hosts is not supported.
+ * There are several things that need to be considered in order to
+ * support this, such as:
+ * - At least the FIB data part from userspace should already be in LE,
+ *   or else the kernel would need to know all FIB types to be able to
+ *   correctly convert it to BE.
+ * - SG tables are converted to BE by aacraid_map_command_sg(). This
+ *   conversion should be supressed if the FIB comes from userspace.
+ * - aacraid_wait_command() calls functions that convert the FIB header
+ *   to LE. But if the header is already in LE, the conversion should not
+ *   be performed.
  */
 static int
 aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
@@ -2961,6 +3011,8 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 		ScsiPortCommandU64 : ScsiPortCommand;
 	cm->cm_sgtable = (struct aac_sg_table *)&srbcmd->sg_map;
 
+	aac_srb_tole(srbcmd);
+
 	/* send command */
 	if (transfer_data) {
 		bus_dmamap_load(cm->cm_passthr_dmat,
@@ -2978,7 +3030,7 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 	mtx_unlock(&sc->aac_io_lock);
 
 	/* copy data */
-	if (transfer_data && (srbcmd->flags & AAC_SRB_FLAGS_DATA_IN)) {
+	if (transfer_data && (le32toh(srbcmd->flags) & AAC_SRB_FLAGS_DATA_IN)) {
 		if ((error = copyout(cm->cm_data,
 			(void *)(uintptr_t)srb_sg_address,
 			cm->cm_datalen)) != 0)
@@ -2989,6 +3041,7 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 	}
 
 	/* status */
+	aac_srb_response_toh((struct aac_srb_response *)fib->data);
 	error = copyout(fib->data, user_reply, sizeof(struct aac_srb_response));
 
 out:
@@ -3039,7 +3092,7 @@ aac_request_aif(struct aac_softc *sc)
 	/* set AIF marker */
 	fib->Header.Handle = 0x00800000;
 	fib->Header.Command = AifRequest;
-	((struct aac_aif_command *)fib->data)->command = AifReqEvent;
+	((struct aac_aif_command *)fib->data)->command = htole32(AifReqEvent);
 
 	aacraid_map_command_sg(cm, NULL, 0, 0);
 }
@@ -3080,9 +3133,9 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	aacraid_print_aif(sc, aif);
 
 	/* Is it an event that we should care about? */
-	switch (aif->command) {
+	switch (le32toh(aif->command)) {
 	case AifCmdEventNotify:
-		switch (aif->data.EN.type) {
+		switch (le32toh(aif->data.EN.type)) {
 		case AifEnAddContainer:
 		case AifEnDeleteContainer:
 			/*
@@ -3174,10 +3227,10 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 			break;
 
 		case AifEnEnclosureManagement:
-			switch (aif->data.EN.data.EEE.eventType) {
+			switch (le32toh(aif->data.EN.data.EEE.eventType)) {
 			case AIF_EM_DRIVE_INSERTION:
 			case AIF_EM_DRIVE_REMOVAL:
-				channel = aif->data.EN.data.EEE.unitID;
+				channel = le32toh(aif->data.EN.data.EEE.unitID);
 				if (sc->cam_rescan_cb != NULL)
 					sc->cam_rescan_cb(sc,
 					    ((channel>>24) & 0xF) + 1,
@@ -3189,7 +3242,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 		case AifEnAddJBOD:
 		case AifEnDeleteJBOD:
 		case AifRawDeviceRemove:
-			channel = aif->data.EN.data.ECE.container;
+			channel = le32toh(aif->data.EN.data.ECE.container);
 			if (sc->cam_rescan_cb != NULL)
 				sc->cam_rescan_cb(sc, ((channel>>24) & 0xF) + 1,
 				    AAC_CAM_TARGET_WILDCARD);
@@ -3209,6 +3262,8 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	if (next == 0)
 		sc->aifq_filled = 1;
 	bcopy(fib, &sc->aac_aifq[current], sizeof(struct aac_fib));
+	/* Make aifq's FIB header and data LE */
+	aac_fib_header_tole(&sc->aac_aifq[current].Header);
 	/* modify AIF contexts */
 	if (sc->aifq_filled) {
 		for (ctx = sc->fibctx; ctx; ctx = ctx->next) {
@@ -3602,6 +3657,7 @@ aac_get_bus_info(struct aac_softc *sc)
 	c_cmd->cmd = CT_GET_SCSI_METHOD;
 	c_cmd->param = 0;
 
+	aac_ctcfg_tole(c_cmd);
 	error = aac_sync_fib(sc, ContainerCommand, 0, fib,
 	    sizeof(struct aac_ctcfg));
 	if (error) {
@@ -3613,6 +3669,7 @@ aac_get_bus_info(struct aac_softc *sc)
 	}
 
 	c_resp = (struct aac_ctcfg_resp *)&fib->data[0];
+	aac_ctcfg_resp_toh(c_resp);
 	if (c_resp->Status != ST_OK) {
 		device_printf(sc->aac_dev, "VM_ContainerConfig returned 0x%x\n",
 		    c_resp->Status);
@@ -3632,6 +3689,7 @@ aac_get_bus_info(struct aac_softc *sc)
 	vmi->ObjId = 0;
 	vmi->IoctlCmd = GetBusInfo;
 
+	aac_vmioctl_tole(vmi);
 	error = aac_sync_fib(sc, ContainerCommand, 0, fib,
 	    sizeof(struct aac_vmi_businf_resp));
 	if (error) {
@@ -3643,6 +3701,7 @@ aac_get_bus_info(struct aac_softc *sc)
 	}
 
 	vmi_resp = (struct aac_vmi_businf_resp *)&fib->data[0];
+	aac_vmi_businf_resp_toh(vmi_resp);
 	if (vmi_resp->Status != ST_OK) {
 		device_printf(sc->aac_dev, "VM_Ioctl returned %d\n",
 		    vmi_resp->Status);
@@ -3814,6 +3873,7 @@ aac_reset_adapter(struct aac_softc *sc)
 				pc->Min = 1;
 				pc->NoRescan = 1;
 
+				aac_pause_command_tole(pc);
 				(void) aac_sync_fib(sc, ContainerCommand, 0,
 				    fib, sizeof (struct aac_pause_command));
 				aac_release_sync_fib(sc);
