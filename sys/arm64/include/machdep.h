@@ -29,6 +29,8 @@
 #ifndef _MACHINE_MACHDEP_H_
 #define	_MACHINE_MACHDEP_H_
 
+#ifdef _KERNEL
+
 struct arm64_bootparams {
 	vm_offset_t	modulep;
 	vm_offset_t	kern_l1pt;	/* L1 page table for the kernel */
@@ -55,5 +57,7 @@ vm_offset_t parse_boot_param(struct arm64_bootparams *abp);
 void parse_fdt_bootargs(void);
 #endif
 extern void (*pagezero)(void *);
+
+#endif /* _KERNEL */
 
 #endif /* _MACHINE_MACHDEP_H_ */
