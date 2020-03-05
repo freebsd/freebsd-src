@@ -126,7 +126,7 @@
  * There may be other, safe, kernels but this is not extensively tested yet.
  */
 #   define HAVE_M_PULLDOWN
-#  if !defined(IPFILTER_LKM) && (__FreeBSD_version >= 300000)
+#  if !defined(IPFILTER_LKM) && defined(__FreeBSD_version)
 #   include "opt_ipfilter.h"
 #  endif
 #  define	COPYIN(a,b,c)	copyin((caddr_t)(a), (caddr_t)(b), (c))

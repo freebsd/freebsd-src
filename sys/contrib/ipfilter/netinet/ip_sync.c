@@ -30,7 +30,7 @@
 #  include <sys/mbuf.h>
 # endif
 # include <sys/select.h>
-# if __FreeBSD_version >= 500000
+# ifdef __FreeBSD_version
 #  include <sys/selinfo.h>
 # endif
 #endif
