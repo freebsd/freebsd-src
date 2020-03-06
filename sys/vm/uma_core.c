@@ -716,9 +716,6 @@ zone_put_bucket(uma_zone_t zone, int domain, uma_bucket_t bucket, void *udata,
 		goto out;
 	zdom = zone_domain_lock(zone, domain);
 
-	KASSERT(!ws || zdom->uzd_nitems < zone->uz_bucket_max,
-	    ("%s: zone %p overflow", __func__, zone));
-
 	/*
 	 * Conditionally set the maximum number of items.
 	 */
