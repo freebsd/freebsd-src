@@ -1,5 +1,5 @@
 #
-# $FreeBSD: head/usr.sbin/bhyve/Makefile 349803 2019-07-07 12:15:24Z vmaffione $
+# $FreeBSD$
 #
 
 .include <src.opts.mk>

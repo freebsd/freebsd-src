@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: head/usr.sbin/bhyve/gdb.h 355724 2019-12-13 19:21:58Z jhb $
+ * $FreeBSD$
  */
 
 #ifndef __GDB_H__

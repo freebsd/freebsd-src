@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: head/usr.sbin/bhyve/virtio.h 354552 2019-11-08 17:57:03Z vmaffione $
+ * $FreeBSD$
  */
 
 #ifndef	_VIRTIO_H_

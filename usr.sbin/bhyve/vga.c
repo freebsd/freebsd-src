@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/usr.sbin/bhyve/vga.c 335025 2018-06-13 03:22:08Z araujo $");
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
