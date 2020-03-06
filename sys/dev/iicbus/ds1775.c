@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2010 Andreas Tobler
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -104,7 +103,7 @@ ds1775_read_2(device_t dev, uint32_t addr, uint8_t reg, uint16_t *data)
 
 	for (;;)
 	{
-		err = iicbus_transfer(dev, msg, 2);
+		err = iicbus_transfer(dev, msg, nitems(msg));
 		if (err != 0)
 			goto retry;
 
