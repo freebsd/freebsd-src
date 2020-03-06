@@ -73,6 +73,7 @@ enum {
 	TPF_SYNQE_EXPANDED = (1 << 9),	/* toepcb ready, tid context updated */
 	TPF_FORCE_CREDITS  = (1 << 10), /* always send credits */
 	TPF_KTLS           = (1 << 11), /* send TLS records from KTLS */
+	TPF_INITIALIZED    = (1 << 12), /* init_toepcb has been called */
 };
 
 enum {
