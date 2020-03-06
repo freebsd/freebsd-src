@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2010 Andreas Tobler
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -152,7 +151,7 @@ fcu_write(device_t dev, uint32_t addr, uint8_t reg, uint8_t *buff,
 
 	for (;;)
 	{
-		if (iicbus_transfer(dev, msg, 1) == 0)
+		if (iicbus_transfer(dev, msg, nitems(msg)) == 0)
 			return (0);
 
 		if (++try > 5) {
@@ -176,7 +175,7 @@ fcu_read_1(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data)
 
 	for (;;)
 	{
-		  err = iicbus_transfer(dev, msg, 2);
+		  err = iicbus_transfer(dev, msg, nitems(msg));
 		  if (err != 0)
 			  goto retry;
 
@@ -250,8 +249,8 @@ fcu_start(void *xdev)
 	sc = device_get_softc(dev);
 
 	/* Start the fcu device. */
-	fcu_write(sc->sc_dev, sc->sc_addr, 0xe, buf, 1);
-	fcu_write(sc->sc_dev, sc->sc_addr, 0x2e, buf, 1);
+	fcu_write(sc->sc_dev, sc->sc_addr, 0xe, buf, sizeof(buf));
+	fcu_write(sc->sc_dev, sc->sc_addr, 0x2e, buf, sizeof(buf));
 	fcu_read_1(sc->sc_dev, sc->sc_addr, 0, buf);
 	fcu_rpm_shift = (buf[0] == 1) ? 2 : 3;
 
@@ -290,7 +289,7 @@ fcu_fan_set_rpm(struct fcu_fan *fan, int rpm)
 	buf[0] = rpm >> (8 - fcu_rpm_shift);
 	buf[1] = rpm << fcu_rpm_shift;
 
-	if (fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 2) < 0)
+	if (fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, sizeof(buf)) < 0)
 		return (EIO);
 
 	return (0);
@@ -323,7 +322,7 @@ fcu_fan_get_rpm(struct fcu_fan *fan)
 			return (-1);
 		if ((fail & (1 << fan->id)) != 0) {
 			device_printf(fan->dev,
-			    "RPM Fan failed ID: %d\n", fan->id);
+			    "RPM Fan failed ID: %d %#x\n", fan->id, fail);
 			return (-1);
 		}
 		/* Check if fan is active. */
@@ -356,7 +355,7 @@ fcu_fan_set_pwm(struct fcu_fan *fan, int pwm)
 {
 	uint8_t reg;
 	struct fcu_softc *sc;
-	uint8_t buf[2];
+	uint8_t buf[1];
 
 	sc = device_get_softc(fan->dev);
 
@@ -378,7 +377,7 @@ fcu_fan_set_pwm(struct fcu_fan *fan, int pwm)
 
 	buf[0] = (pwm * 2550) / 1000;
 
-	if (fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 1) < 0)
+	if (fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, sizeof(buf)) < 0)
 		return (EIO);
 	return (0);
 }
@@ -632,8 +631,9 @@ fcu_attach_fans(device_t dev)
 				       "Maximum allowed RPM");
 			/* I use i to pass the fan id. */
 			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			    "rpm", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-			    dev, i, fcu_fanrpm_sysctl, "I", "Fan RPM");
+					"rpm", CTLTYPE_INT | CTLFLAG_RW |
+					CTLFLAG_MPSAFE, dev, i,
+					fcu_fanrpm_sysctl, "I", "Fan RPM");
 		} else {
 			fcu_fan_get_pwm(dev, &sc->sc_fans[i],
 					&sc->sc_fans[i].setpoint,
@@ -654,13 +654,14 @@ fcu_attach_fans(device_t dev)
 			 * of info I want to display/modify.
 			 */
 			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			    "pwm", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-			    dev, FCU_PWM_SYSCTL_PWM | i, fcu_fanrpm_sysctl, "I",
-			    "Fan PWM in %");
-			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-			    "rpm", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
-			    dev, FCU_PWM_SYSCTL_RPM | i, fcu_fanrpm_sysctl, "I",
-			    "Fan RPM");
+					"pwm", CTLTYPE_INT | CTLFLAG_RW |
+					CTLFLAG_MPSAFE, dev,
+					FCU_PWM_SYSCTL_PWM | i,
+					fcu_fanrpm_sysctl, "I", "Fan PWM in %");
+					"rpm", CTLTYPE_INT | CTLFLAG_RD |
+					CTLFLAG_MPSAFE, dev,
+					FCU_PWM_SYSCTL_RPM | i,
+					fcu_fanrpm_sysctl, "I", "Fan RPM");
 		}
 	}
 
