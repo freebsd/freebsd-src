@@ -298,9 +298,9 @@ systrace_destroy(void *arg, dtrace_id_t id, void *parg)
 	 * disabled.
 	 */
 	if (SYSTRACE_ISENTRY((uintptr_t)parg)) {
-		ASSERT(sysent[sysnum].sy_entry == 0);
+		ASSERT(sysent[sysnum].sy_entry == DTRACE_IDNONE);
 	} else {
-		ASSERT(sysent[sysnum].sy_return == 0);
+		ASSERT(sysent[sysnum].sy_return == DTRACE_IDNONE);
 	}
 #endif
 }
@@ -310,8 +310,7 @@ systrace_enable(void *arg, dtrace_id_t id, void *parg)
 {
 	int sysnum = SYSTRACE_SYSNUM((uintptr_t)parg);
 
-	if (SYSENT[sysnum].sy_systrace_args_func == NULL)
-		SYSENT[sysnum].sy_systrace_args_func = systrace_args;
+	SYSENT[sysnum].sy_systrace_args_func = systrace_args;
 
 	if (SYSTRACE_ISENTRY((uintptr_t)parg))
 		SYSENT[sysnum].sy_entry = id;
@@ -327,8 +326,9 @@ systrace_disable(void *arg, dtrace_id_t id, void *parg)
 {
 	int sysnum = SYSTRACE_SYSNUM((uintptr_t)parg);
 
-	SYSENT[sysnum].sy_entry = 0;
-	SYSENT[sysnum].sy_return = 0;
+	SYSENT[sysnum].sy_systrace_args_func = NULL;
+	SYSENT[sysnum].sy_entry = DTRACE_IDNONE;
+	SYSENT[sysnum].sy_return = DTRACE_IDNONE;
 	systrace_enabled_count--;
 	if (systrace_enabled_count == 0)
 		systrace_enabled = false;
