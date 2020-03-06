@@ -172,3 +172,21 @@ counter_ratecheck(struct counter_rate *cr, int64_t limit)
 
 	return (val);
 }
+
+void
+counter_u64_sysinit(void *arg)
+{
+	counter_u64_t *cp;
+
+	cp = arg;
+	*cp = counter_u64_alloc(M_WAITOK);
+}
+
+void
+counter_u64_sysuninit(void *arg)
+{
+	counter_u64_t *cp;
+
+	cp = arg;
+	counter_u64_free(*cp);
+}
