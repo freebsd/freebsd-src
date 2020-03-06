@@ -66,7 +66,7 @@ DEFINE_UIFUNC(, FN_RET, FN_NAME, FN_PARAMS)
 	 * Since POWER ISA 2.07B this is solved transparently
 	 * by the hardware
 	 */
-	if (cpu_features2 & PPC_FEATURE2_ARCH_2_07)
+	if (cpu_features2 & PPC_FEATURE_HAS_VSX)
 		return (FN_NAME_VSX);
 	else
 		return (FN_NAME_NOVSX);
