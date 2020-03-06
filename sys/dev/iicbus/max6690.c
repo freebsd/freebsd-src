@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2010 Andreas Tobler
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -124,7 +123,7 @@ max6690_read(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data)
 
 	for (;;)
 	{
-		err = iicbus_transfer(dev, msg, 4);
+		err = iicbus_transfer(dev, msg, nitems(msg));
 		if (err != 0)
 			goto retry;
 		if (busy[0] & 0x80)
@@ -302,8 +301,9 @@ max6690_start(void *xdev)
 		    "Sensor Information");
 		/* I use i to pass the sensor id. */
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "temp",
-		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, dev, i % 2,
-		    max6690_sensor_sysctl, "IK", sysctl_desc);
+				CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+				dev, i % 2,
+				max6690_sensor_sysctl, "IK", sysctl_desc);
 
 	}
 	/* Dump sensor location & ID. */
