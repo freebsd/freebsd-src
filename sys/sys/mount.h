@@ -940,6 +940,8 @@ extern	struct sx vfsconf_sx;
 #define	vfsconf_unlock()	sx_xunlock(&vfsconf_sx)
 #define	vfsconf_slock()		sx_slock(&vfsconf_sx)
 #define	vfsconf_sunlock()	sx_sunlock(&vfsconf_sx)
+struct vnode *mntfs_allocvp(struct mount *, struct vnode *);
+void   mntfs_freevp(struct vnode *);
 
 /*
  * Declarations for these vfs default operations are located in

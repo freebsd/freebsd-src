@@ -3594,6 +3594,7 @@ buffered_write(fp, uio, active_cred, flags, td)
 	struct inode *ip;
 	struct buf *bp;
 	struct fs *fs;
+	struct ufsmount *ump;
 	struct filedesc *fdp;
 	int error;
 	daddr_t lbn;
@@ -3622,10 +3623,12 @@ buffered_write(fp, uio, active_cred, flags, td)
 		return (EINVAL);
 	}
 	ip = VTOI(vp);
-	if (ITODEVVP(ip) != devvp) {
+	ump = ip->i_ump;
+	if (ump->um_odevvp != devvp) {
 		vput(vp);
 		return (EINVAL);
 	}
+	devvp = ump->um_devvp;
 	fs = ITOFS(ip);
 	vput(vp);
 	foffset_lock_uio(fp, uio, flags);
