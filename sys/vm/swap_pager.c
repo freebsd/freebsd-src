@@ -177,12 +177,12 @@ static unsigned long swap_maxpages;
 SYSCTL_ULONG(_vm, OID_AUTO, swap_maxpages, CTLFLAG_RD, &swap_maxpages, 0,
     "Maximum amount of swap supported");
 
-static counter_u64_t swap_free_deferred;
+static COUNTER_U64_DEFINE_EARLY(swap_free_deferred);
 SYSCTL_COUNTER_U64(_vm_stats_swap, OID_AUTO, free_deferred,
     CTLFLAG_RD, &swap_free_deferred,
     "Number of pages that deferred freeing swap space");
 
-static counter_u64_t swap_free_completed;
+static COUNTER_U64_DEFINE_EARLY(swap_free_completed);
 SYSCTL_COUNTER_U64(_vm_stats_swap, OID_AUTO, free_completed,
     CTLFLAG_RD, &swap_free_completed,
     "Number of deferred frees completed");
@@ -526,15 +526,6 @@ swap_pager_init(void)
 	sx_init(&sw_alloc_sx, "swspsx");
 	sx_init(&swdev_syscall_lock, "swsysc");
 }
-
-static void
-swap_pager_counters(void)
-{
-
-	swap_free_deferred = counter_u64_alloc(M_WAITOK);
-	swap_free_completed = counter_u64_alloc(M_WAITOK);
-}
-SYSINIT(swap_counters, SI_SUB_CPU, SI_ORDER_ANY, swap_pager_counters, NULL);
 
 /*
  * SWAP_PAGER_SWAP_INIT() - swap pager initialization from pageout process

@@ -198,15 +198,15 @@ static uma_zone_t smr_zone;
 
 static SYSCTL_NODE(_debug, OID_AUTO, smr, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "SMR Stats");
-static counter_u64_t advance = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(advance);
 SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance, CTLFLAG_RW, &advance, "");
-static counter_u64_t advance_wait = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(advance_wait);
 SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance_wait, CTLFLAG_RW, &advance_wait, "");
-static counter_u64_t poll = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(poll);
 SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll, CTLFLAG_RW, &poll, "");
-static counter_u64_t poll_scan = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(poll_scan);
 SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll_scan, CTLFLAG_RW, &poll_scan, "");
-static counter_u64_t poll_fail = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(poll_fail);
 SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll_fail, CTLFLAG_RW, &poll_fail, "");
 
 /*
@@ -631,15 +631,3 @@ smr_init(void)
 	smr_zone = uma_zcreate("SMR CPU", sizeof(struct smr),
 	    NULL, NULL, NULL, NULL, (CACHE_LINE_SIZE * 2) - 1, UMA_ZONE_PCPU);
 }
-
-static void
-smr_init_counters(void *unused)
-{
-
-	advance = counter_u64_alloc(M_WAITOK);
-	advance_wait = counter_u64_alloc(M_WAITOK);
-	poll = counter_u64_alloc(M_WAITOK);
-	poll_scan = counter_u64_alloc(M_WAITOK);
-	poll_fail = counter_u64_alloc(M_WAITOK);
-}
-SYSINIT(smr_counters, SI_SUB_CPU, SI_ORDER_ANY, smr_init_counters, NULL);

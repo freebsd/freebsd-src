@@ -130,30 +130,20 @@ static int vm_pageproc_waiters;
 static SYSCTL_NODE(_vm_stats, OID_AUTO, page, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM page statistics");
 
-static counter_u64_t pqstate_commit_retries = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(pqstate_commit_retries);
 SYSCTL_COUNTER_U64(_vm_stats_page, OID_AUTO, pqstate_commit_retries,
     CTLFLAG_RD, &pqstate_commit_retries,
     "Number of failed per-page atomic queue state updates");
 
-static counter_u64_t queue_ops = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(queue_ops);
 SYSCTL_COUNTER_U64(_vm_stats_page, OID_AUTO, queue_ops,
     CTLFLAG_RD, &queue_ops,
     "Number of batched queue operations");
 
-static counter_u64_t queue_nops = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(queue_nops);
 SYSCTL_COUNTER_U64(_vm_stats_page, OID_AUTO, queue_nops,
     CTLFLAG_RD, &queue_nops,
     "Number of batched queue operations with no effects");
-
-static void
-counter_startup(void)
-{
-
-	pqstate_commit_retries = counter_u64_alloc(M_WAITOK);
-	queue_ops = counter_u64_alloc(M_WAITOK);
-	queue_nops = counter_u64_alloc(M_WAITOK);
-}
-SYSINIT(page_counters, SI_SUB_CPU, SI_ORDER_ANY, counter_startup, NULL);
 
 /*
  * bogus page -- for I/O to/from partially complete buffers,
