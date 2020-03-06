@@ -26,11 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/pci_ahci.c 356523 2020-01-08 22:55:22Z vmaffione $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_ahci.c 356523 2020-01-08 22:55:22Z vmaffione $");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
@@ -134,7 +134,6 @@ struct ahci_ioreq {
 };
 
 struct ahci_port {
-	block_backend_t *be;
 	struct blockif_ctxt *bctx;
 	struct pci_ahci_softc *pr_sc;
 	uint8_t *cmd_lst;
@@ -493,7 +492,7 @@ ahci_port_stop(struct ahci_port *p)
 		/*
 		 * Try to cancel the outstanding blockif request.
 		 */
-		error = blockbe_cancel(p->be, &aior->io_req);
+		error = blockif_cancel(p->bctx, &aior->io_req);
 		if (error != 0)
 			continue;
 
@@ -640,7 +639,7 @@ ahci_build_iov(struct ahci_port *p, struct ahci_ioreq *aior,
 
 	/* If we got limited by IOV length, round I/O down to sector size. */
 	if (j == BLOCKIF_IOV_MAX) {
-		extra = todo % blockbe_sectsz(p->be);
+		extra = todo % blockif_sectsz(p->bctx);
 		todo -= extra;
 		assert(todo > 0);
 		while (extra > 0) {
@@ -713,8 +712,8 @@ ahci_handle_rw(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done)
 		if (!len)
 			len = 256;
 	}
-	lba *= blockbe_sectsz(p->be);
-	len *= blockbe_sectsz(p->be);
+	lba *= blockif_sectsz(p->bctx);
+	len *= blockif_sectsz(p->bctx);
 
 	/* Pull request off free list */
 	aior = STAILQ_FIRST(&p->iofhd);
@@ -739,9 +738,9 @@ ahci_handle_rw(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done)
 		ahci_write_fis_d2h_ncq(p, slot);
 
 	if (readop)
-		err = blockbe_read(p->be, breq);
+		err = blockif_read(p->bctx, breq);
 	else
-		err = blockbe_write(p->be, breq);
+		err = blockif_write(p->bctx, breq);
 	assert(err == 0);
 }
 
@@ -775,7 +774,7 @@ ahci_handle_flush(struct ahci_port *p, int slot, uint8_t *cfis)
 	 */
 	TAILQ_INSERT_HEAD(&p->iobhd, aior, io_blist);
 
-	err = blockbe_flush(p->be, breq);
+	err = blockif_flush(p->bctx, breq);
 	assert(err == 0);
 }
 
@@ -873,8 +872,8 @@ next:
 	aior->more = (len != done);
 
 	breq = &aior->io_req;
-	breq->br_offset = elba * blockbe_sectsz(p->be);
-	breq->br_resid = elen * blockbe_sectsz(p->be);
+	breq->br_offset = elba * blockif_sectsz(p->bctx);
+	breq->br_resid = elen * blockif_sectsz(p->bctx);
 
 	/*
 	 * Mark this command in-flight.
@@ -889,7 +888,7 @@ next:
 	if (ncq && first)
 		ahci_write_fis_d2h_ncq(p, slot);
 
-	err = blockbe_delete(p->be, breq);
+	err = blockif_delete(p->bctx, breq);
 	assert(err == 0);
 }
 
@@ -958,7 +957,7 @@ ahci_handle_read_log(struct ahci_port *p, int slot, uint8_t *cfis)
 		memcpy(buf8, p->err_cfis, sizeof(p->err_cfis));
 		ahci_checksum(buf8, sizeof(buf));
 	} else if (cfis[4] == 0x13) {	/* SATA NCQ Send and Receive Log */
-		if (blockbe_candelete(p->be) && !blockbe_is_ro(p->be)) {
+		if (blockif_candelete(p->bctx) && !blockif_is_ro(p->bctx)) {
 			buf[0x00] = 1;	/* SFQ DSM supported */
 			buf[0x01] = 1;	/* SFQ DSM TRIM supported */
 		}
@@ -990,12 +989,12 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		uint16_t cyl;
 		uint8_t sech, heads;
 
-		ro = blockbe_is_ro(p->be);
-		candelete = blockbe_candelete(p->be);
-		sectsz = blockbe_sectsz(p->be);
-		sectors = blockbe_size(p->be) / sectsz;
-		blockbe_chs(p->be, &cyl, &heads, &sech);
-		blockbe_psectsz(p->be, &psectsz, &psectoff);
+		ro = blockif_is_ro(p->bctx);
+		candelete = blockif_candelete(p->bctx);
+		sectsz = blockif_sectsz(p->bctx);
+		sectors = blockif_size(p->bctx) / sectsz;
+		blockif_chs(p->bctx, &cyl, &heads, &sech);
+		blockif_psectsz(p->bctx, &psectsz, &psectoff);
 		memset(buf, 0, sizeof(buf));
 		buf[0] = 0x0040;
 		buf[1] = cyl;
@@ -1182,7 +1181,7 @@ atapi_read_capacity(struct ahci_port *p, int slot, uint8_t *cfis)
 	uint8_t buf[8];
 	uint64_t sectors;
 
-	sectors = blockbe_size(p->be) / 2048;
+	sectors = blockif_size(p->bctx) / 2048;
 	be32enc(buf, sectors - 1);
 	be32enc(buf + 4, 2048);
 	cfis[4] = (cfis[4] & ~7) | ATA_I_CMD | ATA_I_IN;
@@ -1242,7 +1241,7 @@ atapi_read_toc(struct ahci_port *p, int slot, uint8_t *cfis)
 		*bp++ = 0x14;
 		*bp++ = 0xaa;
 		*bp++ = 0;
-		sectors = blockbe_size(p->be) / blockbe_sectsz(p->be);
+		sectors = blockif_size(p->bctx) / blockif_sectsz(p->bctx);
 		sectors >>= 2;
 		if (msf) {
 			*bp++ = 0;
@@ -1318,7 +1317,7 @@ atapi_read_toc(struct ahci_port *p, int slot, uint8_t *cfis)
 		*bp++ = 0;
 		*bp++ = 0;
 		*bp++ = 0;
-		sectors = blockbe_size(p->be) / blockbe_sectsz(p->be);
+		sectors = blockif_size(p->bctx) / blockif_sectsz(p->bctx);
 		sectors >>= 2;
 		if (msf) {
 			*bp++ = 0;
@@ -1431,7 +1430,7 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done)
 	/* Stuff request onto busy list. */
 	TAILQ_INSERT_HEAD(&p->iobhd, aior, io_blist);
 
-	err = blockbe_read(p->be, breq);
+	err = blockif_read(p->bctx, breq);
 	assert(err == 0);
 }
 
@@ -2021,7 +2020,7 @@ pci_ahci_ioreq_init(struct ahci_port *pr)
 	struct ahci_ioreq *vr;
 	int i;
 
-	pr->ioqsz = blockbe_queuesz(pr->be);
+	pr->ioqsz = blockif_queuesz(pr->bctx);
 	pr->ioreq = calloc(pr->ioqsz, sizeof(struct ahci_ioreq));
 	STAILQ_INIT(&pr->iofhd);
 
@@ -2359,19 +2358,12 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 		 */
 		snprintf(bident, sizeof(bident), "%d:%d:%d", pi->pi_slot,
 		    pi->pi_func, p);
-        
-		ret = blockbe_open(&(sc->port[p].be),opts, bident, "blk-local");
-		if (ret != 0) {
+		bctxt = blockif_open(opts, bident);
+		if (bctxt == NULL) {
 			sc->ports = p;
 			ret = 1;
 			goto open_fail;
 		}	
-       	bctxt = calloc(1, sizeof(struct locblk_ctxt));
-        if (bctxt == NULL) {
-            perror("calloc");
-            goto open_fail;
-        }
-       
 		sc->port[p].bctx = bctxt;
 		sc->port[p].pr_sc = sc;
 		sc->port[p].port = p;
@@ -2432,7 +2424,7 @@ open_fail:
 	if (ret) {
 		for (p = 0; p < sc->ports; p++) {
 			if (sc->port[p].bctx != NULL)
-				blockbe_close(sc->port[p].be);
+				blockif_close(sc->port[p].bctx);
 		}
 		free(sc);
 	}

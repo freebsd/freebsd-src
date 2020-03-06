@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/ps2kbd.c 356523 2020-01-08 22:55:22Z vmaffione $");
 
 #include <sys/types.h>
 

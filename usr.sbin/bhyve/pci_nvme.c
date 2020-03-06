@@ -55,7 +55,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_nvme.c 356523 2020-01-08 22:55:22Z vmaffione $");
 
 #include <sys/types.h>
 #include <net/ieee_oui.h>
@@ -169,7 +169,6 @@ enum nvme_storage_type {
 };
 
 struct pci_nvme_blockstore {
-    block_backend_t *be;
 	enum nvme_storage_type type;
 	void		*ctx;
 	uint64_t	size;
@@ -1172,10 +1171,10 @@ pci_nvme_append_iov_req(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req,
 				req->io_req.br_callback = pci_nvme_io_partial;
 
 				if (!do_write)
-					err = blockbe_read(sc->nvstore.be,
+					err = blockif_read(sc->nvstore.ctx,
 					                   &req->io_req);
 				else
-					err = blockbe_write(sc->nvstore.be,
+					err = blockif_write(sc->nvstore.ctx,
 					                    &req->io_req);
 
 				/* wait until req completes before cont */
@@ -1518,10 +1517,10 @@ iodone:
 		err = 0;
 		switch (cmd->opc) {
 		case NVME_OPC_READ:
-			err = blockbe_read(sc->nvstore.be, &req->io_req);
+			err = blockif_read(sc->nvstore.ctx, &req->io_req);
 			break;
 		case NVME_OPC_WRITE:
-			err = blockbe_write(sc->nvstore.be, &req->io_req);
+			err = blockif_write(sc->nvstore.ctx, &req->io_req);
 			break;
 		default:
 			WPRINTF(("%s unhandled io command 0x%x",
@@ -1843,10 +1842,10 @@ pci_nvme_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 static int
 pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 {
-	char pci_ident[sizeof("XX:X:X")];
+	char bident[sizeof("XX:X:X")];
 	char	*uopt, *xopts, *config;
 	uint32_t sectsz;
-	int optidx, res;
+	int optidx;
 
 	sc->max_queues = NVME_QUEUES;
 	sc->max_qentries = NVME_MAX_QENTRIES;
@@ -1898,21 +1897,16 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 		} else if (!strcmp("eui64", xopts)) {
 			sc->nvstore.eui64 = htobe64(strtoull(config, NULL, 0));
 		} else if (optidx == 0) {
-			snprintf(pci_ident, sizeof(pci_ident), "%d:%d",
+			snprintf(bident, sizeof(bident), "%d:%d",
 			         sc->nsc_pi->pi_slot, sc->nsc_pi->pi_func);
-			res = blockbe_open(&(sc->nvstore.be), xopts, pci_ident, "blk-local");
-			if (res != 0) {
+			sc->nvstore.ctx = blockif_open(xopts, bident);
+			if (sc->nvstore.ctx == NULL) {
 				perror("Could not open backing file");
 				free(uopt);
 				return (-1);
 			}
-           	sc->nvstore.ctx = calloc(1, sizeof(struct locblk_ctxt));
-            if ( sc->nvstore.ctx == NULL) {
-                perror("calloc");
-                return(-1);
-            }
 			sc->nvstore.type = NVME_STOR_BLOCKIF;
-			sc->nvstore.size = blockbe_size(sc->nvstore.be);
+			sc->nvstore.size = blockif_size(sc->nvstore.ctx);
 		} else {
 			EPRINTLN("Invalid option %s", xopts);
 			free(uopt);
@@ -1930,7 +1924,7 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 	if (sectsz == 512 || sectsz == 4096 || sectsz == 8192)
 		sc->nvstore.sectsz = sectsz;
 	else if (sc->nvstore.type != NVME_STOR_RAM)
-		sc->nvstore.sectsz = blockbe_sectsz(sc->nvstore.be);
+		sc->nvstore.sectsz = blockif_sectsz(sc->nvstore.ctx);
 	for (sc->nvstore.sectsz_bits = 9;
 	     (1 << sc->nvstore.sectsz_bits) < sc->nvstore.sectsz;
 	     sc->nvstore.sectsz_bits++);

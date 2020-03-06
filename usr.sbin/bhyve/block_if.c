@@ -46,6 +46,21 @@ blockif_open(const char *optstr, const char *ident)
 {
 	block_backend_t **bbe = NULL;
 	blockif_ctxt_t *ret = NULL;
+        char *optrest; 		/* if found, optstr without scheme: */
+
+	optrest = strchr(optstr, ':');
+	/* try the legacy style local reference */
+	if (optrest == NULL) {
+		if (( ret = blocklocal_backend.bb_open(optstr, ident)) != NULL) {
+			/* fill in the backend that is used to open this request */
+			ret->be = &blocklocal_backend;
+			return (ret);
+		} else {
+			return (NULL);
+		}
+        }
+	*optrest = '\0';
+	optrest++;
 
 	/*
 	 * Find the block device backend that matches the user-provided
@@ -53,10 +68,8 @@ blockif_open(const char *optstr, const char *ident)
 	 */
 	SET_FOREACH(bbe, block_backend_set) {
 		/*
-		 * How do we find the appropriate open for each backend?
-		 * We iterate over all block*_open() functions registered until one
-		 * returns true as an indication that it accepts the give descriptor
-		 * in opstr
+		 * We match the first part of optstr against the names of the 
+		 * backends until we have a match
 		 */
 		/*
 		 * Local access has a pattern like:
@@ -73,24 +86,17 @@ blockif_open(const char *optstr, const char *ident)
 		 * their bb_open() called. The first one returning a non-NULL backend pointer 
 		 * is a match and is used with the specification in optstr
 		 */
-		if (strstr(optstr, (*bbe)->bb_scheme) != NULL) {
-		        ret = (*bbe)->bb_open(optstr, ident);
+		if (strcmp(optstr, (*bbe)->bb_name) == 0) {
+		        ret = (*bbe)->bb_open(optrest, ident);
 			/* fill in the backend that is used to open this request */
-			ret->be = *bbe;
-			return (ret);
+			if (ret != NULL) {
+				ret->be = *bbe;
+				return (ret);
+			}
+			break;
 		}
 	
 	}
-	/* final attempt, try the legacy style local reference */
-	if (ret == NULL) {
-		char newoptstr[MAXPATHLEN] = "file:";
-		strcat(newoptstr, optstr);
-		if (( ret = (*bbe)->bb_open(newoptstr, ident)) != NULL) {
-			/* fill in the backend that is used to open this request */
-			ret->be = *bbe;
-			return (ret);
-		}
-        }
 	return (NULL);
 }
 

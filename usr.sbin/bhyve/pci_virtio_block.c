@@ -26,11 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/pci_virtio_block.c 356523 2020-01-08 22:55:22Z vmaffione $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_virtio_block.c 356523 2020-01-08 22:55:22Z vmaffione $");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
@@ -140,7 +140,6 @@ struct pci_vtblk_ioreq {
 struct pci_vtblk_softc {
 	struct virtio_softc vbsc_vs;
 	pthread_mutex_t vsc_mtx;
-	block_backend_t *vbsc_be;
 	struct vqueue_info vbsc_vq;
 	struct vtblk_config vbsc_cfg;
 	struct blockif_ctxt *bc;
@@ -260,14 +259,14 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 
 	switch (type) {
 	case VBH_OP_READ:
-		err = blockbe_read(sc->vbsc_be, &io->io_req);
+		err = blockif_read(sc->bc, &io->io_req);
 		break;
 	case VBH_OP_WRITE:
-		err = blockbe_write(sc->vbsc_be, &io->io_req);
+		err = blockif_write(sc->bc, &io->io_req);
 		break;
 	case VBH_OP_FLUSH:
 	case VBH_OP_FLUSH_OUT:
-		err = blockbe_flush(sc->vbsc_be, &io->io_req);
+		err = blockif_flush(sc->bc, &io->io_req);
 		break;
 	case VBH_OP_IDENT:
 		/* Assume a single buffer */
@@ -296,37 +295,35 @@ pci_vtblk_notify(void *vsc, struct vqueue_info *vq)
 static int
 pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
-	char pci_ident[sizeof("XX:X:X")];
-	char be_ident[16];
+	char bident[sizeof("XX:X:X")];
+	struct blockif_ctxt *bctxt;
 	MD5_CTX mdctx;
 	u_char digest[16];
 	struct pci_vtblk_softc *sc;
 	off_t size;
-	int i, res, sectsz, sts, sto;
+	int i, sectsz, sts, sto;
 
 	if (opts == NULL) {
 		WPRINTF(("virtio-block: backing device required"));
 		return (1);
 	}
-	sc = calloc(1, sizeof(struct pci_vtblk_softc));
-    
-	/* 
+
+	/*
 	 * The supplied backing file has to exist
 	 */
-	snprintf(pci_ident, sizeof(pci_ident), "%d:%d", pi->pi_slot, pi->pi_func);
-	snprintf(be_ident, sizeof(be_ident), "%s", "blk-local");
-	res = blockbe_open(&sc->vbsc_be, opts, pci_ident, be_ident);
-	if (res != 0) {
-		perror("virtio_block:_Could not open backing file");
+	snprintf(bident, sizeof(bident), "%d:%d", pi->pi_slot, pi->pi_func);
+	bctxt = blockif_open(opts, bident);
+	if (bctxt == NULL) {
+		perror("Could not open backing file");
 		return (1);
-		free(sc);
 	}
-    
-	size = blockbe_size(sc->vbsc_be);
-	sectsz = blockbe_sectsz(sc->vbsc_be);
-	blockbe_psectsz(sc->vbsc_be, &sts, &sto);
 
-	
+	size = blockif_size(bctxt);
+	sectsz = blockif_sectsz(bctxt);
+	blockif_psectsz(bctxt, &sts, &sto);
+
+	sc = calloc(1, sizeof(struct pci_vtblk_softc));
+	sc->bc = bctxt;
 	for (i = 0; i < VTBLK_RINGSZ; i++) {
 		struct pci_vtblk_ioreq *io = &sc->vbsc_ios[i];
 		io->io_req.br_callback = pci_vtblk_done;
@@ -391,7 +388,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_SUBVEND_0, VIRTIO_VENDOR);
 
 	if (vi_intr_init(&sc->vbsc_vs, 1, fbsdrun_virtio_msix())) {
-		blockbe_close(sc->vbsc_be);
+		blockif_close(sc->bc);
 		free(sc);
 		return (1);
 	}

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/mevent.h 354288 2019-11-03 19:02:32Z vmaffione $
  */
 
 #ifndef	_MEVENT_H_

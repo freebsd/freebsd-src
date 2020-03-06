@@ -44,9 +44,6 @@
 #include <sys/uio.h>
 #include <sys/unistd.h>
 
-/* Opaque type representing a block device backend. */
-typedef struct block_backend block_backend_t;
-
 /*
  * BLOCKIF_IOV_MAX is the maximum number of scatter/gather entries in
  * a single request.  BLOCKIF_RING_MAX is the maxmimum number of
@@ -95,12 +92,14 @@ struct blockif_elem {
 };
 typedef struct blockif_elem blockif_elem_t;
 
-/* Opaque type representing a block device backend. */
 typedef struct block_backend block_backend_t;
-
 struct blockif_ctxt {
         int                     bc_magic;
-        int                     bc_fd;
+        union {
+                int             bc_fd;
+        	/* For data specific for this instance of the backend*/
+	        void           *bc_desc;
+	} desc;
         int                     bc_ischr;
         int                     bc_isgeom;
         int                     bc_candelete;
@@ -114,7 +113,7 @@ struct blockif_ctxt {
         pthread_mutex_t         bc_mtx;
         pthread_cond_t          bc_cond;
 
-        block_backend_t	*be;
+        block_backend_t	       *be;
 
         /* Request elements and free/pending/busy queues */
         TAILQ_HEAD(, blockif_elem) bc_freeq;
@@ -144,9 +143,7 @@ int	blockif_close(struct blockif_ctxt *bc);
  * used to implement the net backends API.
  */
 struct block_backend {
-	const char *bb_prefix;	/* identifier used to set the thread info */
-	const char *bb_scheme;	/* identifier used parse the option string */
-				/* should terminate in a ':' */
+	const char *bb_name;		/* identifier used parse the option string */
 	/*
 	 * Routines used to initialize and cleanup the resources needed
 	 * by a backend. The init and cleanup function are used internally,
@@ -186,7 +183,10 @@ struct block_backend {
         int	(*bb_close)(blockif_ctxt_t *bc);
 
 	/* Room for backend-specific data. */
-	char *bb_opaque;
+	void *bb_opaque;
 };
+
+/* Cheating for legacy code were we need the blocklocal_backend block */
+block_backend_t blocklocal_backend;
 
 #endif /* _BLOCK_IF_H_ */

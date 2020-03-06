@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/hdac_reg.h 349361 2019-06-25 06:24:56Z araujo $
  */
 
 #ifndef _HDAC_REG_H_

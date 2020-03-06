@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/pci_xhci.h 335025 2018-06-13 03:22:08Z araujo $
  */
 
 #ifndef	_PCI_XHCI_H_

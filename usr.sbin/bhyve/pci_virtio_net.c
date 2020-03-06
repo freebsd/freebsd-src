@@ -25,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/pci_virtio_net.c 356523 2020-01-08 22:55:22Z vmaffione $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_virtio_net.c 356523 2020-01-08 22:55:22Z vmaffione $");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
@@ -117,9 +117,6 @@ struct pci_vtnet_softc {
 	pthread_cond_t	tx_cond;
 	int		tx_in_progress;
 
-	size_t		vhdrlen;
-	size_t		be_vhdrlen;
-
 	struct virtio_net_config vsc_config;
 	struct virtio_consts vsc_consts;
 };
@@ -183,38 +180,6 @@ pci_vtnet_reset(void *vsc)
 	pthread_mutex_unlock(&sc->rx_mtx);
 }
 
-static __inline struct iovec *
-iov_trim_hdr(struct iovec *iov, int *iovcnt, unsigned int hlen)
-{
-	struct iovec *riov;
-
-	if (iov[0].iov_len < hlen) {
-		/*
-		 * Not enough header space in the first fragment.
-		 * That's not ok for us.
-		 */
-		return NULL;
-	}
-
-	iov[0].iov_len -= hlen;
-	if (iov[0].iov_len == 0) {
-		*iovcnt -= 1;
-		if (*iovcnt == 0) {
-			/*
-			 * Only space for the header. That's not
-			 * enough for us.
-			 */
-			return NULL;
-		}
-		riov = &iov[1];
-	} else {
-		iov[0].iov_base = (void *)((uintptr_t)iov[0].iov_base + hlen);
-		riov = &iov[0];
-	}
-
-	return (riov);
-}
-
 struct virtio_mrg_rxbuf_info {
 	uint16_t idx;
 	uint16_t pad;
@@ -224,7 +189,6 @@ struct virtio_mrg_rxbuf_info {
 static void
 pci_vtnet_rx(struct pci_vtnet_softc *sc)
 {
-	int prepend_hdr_len = sc->vhdrlen - sc->be_vhdrlen;
 	struct virtio_mrg_rxbuf_info info[VTNET_MAXSEGS];
 	struct iovec iov[VTNET_MAXSEGS + 1];
 	struct vqueue_info *vq;
@@ -257,13 +221,13 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 		 * many chains as necessary in order to make room
 		 * for plen bytes.
 		 */
-		riov_bytes = 0;
-		riov_len = 0;
-		riov = iov;
+		cur_iov_bytes = 0;
+		cur_iov_len = 0;
+		cur_iov = iov;
 		n_chains = 0;
 		do {
-			int n = vq_getchain(vq, &info[n_chains].idx, riov,
-			    VTNET_MAXSEGS - riov_len, NULL);
+			int n = vq_getchain(vq, &info[n_chains].idx, cur_iov,
+			    VTNET_MAXSEGS - cur_iov_len, NULL);
 
 			if (n == 0) {
 				/*
@@ -289,15 +253,15 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 				vq_kick_disable(vq);
 				continue;
 			}
-			assert(n >= 1 && riov_len + n <= VTNET_MAXSEGS);
-			riov_len += n;
+			assert(n >= 1 && cur_iov_len + n <= VTNET_MAXSEGS);
+			cur_iov_len += n;
 			if (!sc->rx_merge) {
 				n_chains = 1;
 				break;
 			}
-			info[n_chains].len = (uint32_t)count_iov(riov, n);
-			riov_bytes += info[n_chains].len;
-			riov += n;
+			info[n_chains].len = (uint32_t)count_iov(cur_iov, n);
+			cur_iov_bytes += info[n_chains].len;
+			cur_iov += n;
 			n_chains++;
 		} while (riov_bytes < plen && riov_len < VTNET_MAXSEGS);
 
@@ -338,15 +302,15 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 
 		ulen = (uint32_t)plen;
 
-		/*
-		 * Publish the used buffers to the guest, reporting the
-		 * number of bytes that we wrote.
-		 */
+		/* Publish the used buffers to the guest. */
 		if (!sc->rx_merge) {
 			vq_relchain(vq, info[0].idx, ulen);
 		} else {
+			struct virtio_net_rxhdr *hdr = iov[0].iov_base;
 			uint32_t iolen;
 			int i = 0;
+
+			assert(iov[0].iov_len >= sizeof(*hdr));
 
 			do {
 				iolen = info[i].len;
@@ -402,7 +366,6 @@ static void
 pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 {
 	struct iovec iov[VTNET_MAXSEGS + 1];
-	struct iovec *siov = iov;
 	uint16_t idx;
 	ssize_t len;
 	int n;
@@ -414,34 +377,10 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 	n = vq_getchain(vq, &idx, iov, VTNET_MAXSEGS, NULL);
 	assert(n >= 1 && n <= VTNET_MAXSEGS);
 
-	if (sc->vhdrlen != sc->be_vhdrlen) {
-		/*
-		 * The frontend uses a virtio-net header, but the backend
-		 * does not. We simply strip the header and ignore it, as
-		 * it should be zero-filled.
-		 */
-		siov = iov_trim_hdr(siov, &n, sc->vhdrlen);
-	}
+	len = netbe_send(sc->vsc_be, iov, n);
 
-	if (siov == NULL) {
-		/* The chain is nonsensical. Just drop it. */
-		len = 0;
-	} else {
-		len = netbe_send(sc->vsc_be, siov, n);
-		if (len < 0) {
-			/*
-			 * If send failed, report that 0 bytes
-			 * were read.
-			 */
-			len = 0;
-		}
-	}
-
-	/*
-	 * Return the processed chain to the guest, reporting
-	 * the number of bytes that we read.
-	 */
-	vq_relchain(vq, idx, len);
+	/* chain is processed, release it and set len */
+	vq_relchain(vq, idx, len > 0 ? len : 0);
 }
 
 /* Called on TX kick. */
@@ -560,38 +499,19 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	if (opts != NULL) {
 		char *devname;
 		char *vtopts;
-		int err = 0;
+		int err;
 
-		/* Get the device name. */
 		devname = vtopts = strdup(opts);
 		(void) strsep(&vtopts, ",");
 
-		/*
-		 * Parse the list of options in the form
-		 *     key1=value1,...,keyN=valueN.
-		 */
-		while (vtopts != NULL) {
-			char *value = vtopts;
-			char *key;
-
-			key = strsep(&value, "=");
-			if (value == NULL)
-				break;
-			vtopts = value;
-			(void) strsep(&vtopts, ",");
-
-			if (strcmp(key, "mac") == 0) {
-				err = net_parsemac(value, sc->vsc_config.mac);
-				if (err)
-					break;
-				mac_provided = 1;
+		if (vtopts != NULL) {
+			err = net_parsemac(vtopts, sc->vsc_config.mac);
+			if (err != 0) {
+				free(devname);
+				free(sc);
+				return (err);
 			}
-		}
-
-		if (err) {
-			free(devname);
-			free(sc);
-			return (err);
+			mac_provided = 1;
 		}
 
 		err = netbe_init(&sc->vsc_be, devname, pci_vtnet_rx_callback,
@@ -634,7 +554,6 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->resetting = 0;
 
 	sc->rx_merge = 0;
-	sc->vhdrlen = sizeof(struct virtio_net_rxhdr) - 2;
 	pthread_mutex_init(&sc->rx_mtx, NULL); 
 
 	/* 
@@ -689,25 +608,24 @@ static void
 pci_vtnet_neg_features(void *vsc, uint64_t negotiated_features)
 {
 	struct pci_vtnet_softc *sc = vsc;
+	unsigned int rx_vhdrlen;
 
 	sc->vsc_features = negotiated_features;
 
 	if (negotiated_features & VIRTIO_NET_F_MRG_RXBUF) {
-		sc->vhdrlen = sizeof(struct virtio_net_rxhdr);
+		rx_vhdrlen = sizeof(struct virtio_net_rxhdr);
 		sc->rx_merge = 1;
 	} else {
 		/*
 		 * Without mergeable rx buffers, virtio-net header is 2
 		 * bytes shorter than sizeof(struct virtio_net_rxhdr).
 		 */
-		sc->vhdrlen = sizeof(struct virtio_net_rxhdr) - 2;
+		rx_vhdrlen = sizeof(struct virtio_net_rxhdr) - 2;
 		sc->rx_merge = 0;
 	}
 
 	/* Tell the backend to enable some capabilities it has advertised. */
-	netbe_set_cap(sc->vsc_be, negotiated_features, sc->vhdrlen);
-	sc->be_vhdrlen = netbe_get_vnet_hdr_len(sc->vsc_be);
-	assert(sc->be_vhdrlen == 0 || sc->be_vhdrlen == sc->vhdrlen);
+	netbe_set_cap(sc->vsc_be, negotiated_features, rx_vhdrlen);
 }
 
 static struct pci_devemu pci_de_vnet = {

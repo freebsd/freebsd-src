@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/ioapic.c 326276 2017-11-27 15:37:16Z pfg $");
 
 #include <sys/types.h>
 #include <stdio.h>

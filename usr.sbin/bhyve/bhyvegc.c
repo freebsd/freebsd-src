@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/bhyvegc.c 335027 2018-06-13 04:00:21Z araujo $");
 
 #include <sys/types.h>
 

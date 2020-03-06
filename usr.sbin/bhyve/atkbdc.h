@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/atkbdc.h 302332 2016-07-04 03:19:06Z grehan $
  */
 
 #ifndef _ATKBDC_H_

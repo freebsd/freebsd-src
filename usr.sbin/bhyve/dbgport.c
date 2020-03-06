@@ -25,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/dbgport.c 343068 2019-01-16 00:39:23Z araujo $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/dbgport.c 343068 2019-01-16 00:39:23Z araujo $");
 
 #include <sys/types.h>
 #ifndef WITHOUT_CAPSICUM

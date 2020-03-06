@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/uart_emul.h 326276 2017-11-27 15:37:16Z pfg $
  */
 
 #ifndef _UART_EMUL_H_

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/pci_emul.h 348779 2019-06-07 15:53:27Z jhb $
  */
 
 #ifndef _PCI_EMUL_H_

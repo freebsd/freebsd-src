@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/gdb.c 355724 2019-12-13 19:21:58Z jhb $");
 
 #include <sys/param.h>
 #ifndef WITHOUT_CAPSICUM

@@ -25,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/xmsr.c 356523 2020-01-08 22:55:22Z vmaffione $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/bhyve/xmsr.c 356523 2020-01-08 22:55:22Z vmaffione $");
 
 #include <sys/types.h>
 
@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "debug.h"
 #include "xmsr.h"
 
-static int cpu_vendor_intel, cpu_vendor_amd, cpu_vendor_hygon;
+static int cpu_vendor_intel, cpu_vendor_amd;
 
 int
 emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t val)
@@ -64,7 +64,7 @@ emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t val)
 		default:
 			break;
 		}
-	} else if (cpu_vendor_amd || cpu_vendor_hygon) {
+	} else if (cpu_vendor_amd) {
 		switch (num) {
 		case MSR_HWCR:
 			/*
@@ -128,7 +128,7 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 			error = -1;
 			break;
 		}
-	} else if (cpu_vendor_amd || cpu_vendor_hygon) {
+	} else if (cpu_vendor_amd) {
 		switch (num) {
 		case MSR_BIOS_SIGN:
 			*val = 0;
@@ -225,8 +225,6 @@ init_msr(void)
 	error = 0;
 	if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
 		cpu_vendor_amd = 1;
-	} else if (strcmp(cpu_vendor, "HygonGenuine") == 0) {
-		cpu_vendor_hygon = 1;
 	} else if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
 		cpu_vendor_intel = 1;
 	} else {
