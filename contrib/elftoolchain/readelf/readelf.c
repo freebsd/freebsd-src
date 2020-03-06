@@ -1283,6 +1283,7 @@ note_type_xen(unsigned int nt)
 	case 15: return "XEN_ELFNOTE_INIT_P2M";
 	case 16: return "XEN_ELFNOTE_MOD_START_PFN";
 	case 17: return "XEN_ELFNOTE_SUPPORTED_FEATURES";
+	case 18: return "XEN_ELFNOTE_PHYS32_ENTRY";
 	default: return (note_type_unknown(nt));
 	}
 }
