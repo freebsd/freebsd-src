@@ -187,6 +187,8 @@ init_toepcb(struct vi_info *vi, struct toepcb *toep)
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 		ddp_init_toep(toep);
 
+	toep->flags |= TPF_INITIALIZED;
+
 	return (0);
 }
 
@@ -210,9 +212,11 @@ free_toepcb(struct toepcb *toep)
 	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: CPL pending", __func__));
 
-	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
-		ddp_uninit_toep(toep);
-	tls_uninit_toep(toep);
+	if (toep->flags & TPF_INITIALIZED) {
+		if (ulp_mode(toep) == ULP_MODE_TCPDDP)
+			ddp_uninit_toep(toep);
+		tls_uninit_toep(toep);
+	}
 	free(toep, M_CXGBE);
 }
 
