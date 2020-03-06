@@ -66,13 +66,6 @@
 
 #define	UL(x)	UINT64_C(x)
 
-/* CNTHCTL_EL2 - Counter-timer Hypervisor Control register */
-#define	CNTHCTL_EVNTI_MASK	(0xf << 4) /* Bit to trigger event stream */
-#define	CNTHCTL_EVNTDIR		(1 << 3) /* Control transition trigger bit */
-#define	CNTHCTL_EVNTEN		(1 << 2) /* Enable event stream */
-#define	CNTHCTL_EL1PCEN		(1 << 1) /* Allow EL0/1 physical timer access */
-#define	CNTHCTL_EL1PCTEN	(1 << 0) /*Allow EL0/1 physical counter access*/
-
 /* CPACR_EL1 */
 #define	CPACR_FPEN_MASK		(0x3 << 20)
 #define	 CPACR_FPEN_TRAP_ALL1	(0x0 << 20) /* Traps from EL0 and EL1 */
@@ -219,10 +212,6 @@
 
 /* ICC_SRE_EL1 */
 #define	ICC_SRE_EL1_SRE		(1U << 0)
-
-/* ICC_SRE_EL2 */
-#define	ICC_SRE_EL2_SRE		(1U << 0)
-#define	ICC_SRE_EL2_EN		(1U << 3)
 
 /* ID_AA64DFR0_EL1 */
 #define	ID_AA64DFR0_EL1			MRS_REG(3, 0, 0, 5, 0)
