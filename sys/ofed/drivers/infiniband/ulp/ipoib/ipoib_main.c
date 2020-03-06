@@ -1760,12 +1760,12 @@ module_exit(ipoib_cleanup_module);
 static int
 ipoib_evhand(module_t mod, int event, void *arg)
 {
-	                return (0);
+	return (0);
 }
 
 static moduledata_t ipoib_mod = {
-	                .name = "ipoib",
-			                .evhand = ipoib_evhand,
+	.name = "ipoib",
+	.evhand = ipoib_evhand,
 };
 
 DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_LAST, SI_ORDER_ANY);
