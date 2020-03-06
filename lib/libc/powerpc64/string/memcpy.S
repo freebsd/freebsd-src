@@ -39,6 +39,11 @@ WEAK_REFERENCE(__memcpy, memcpy);
 #define BLOCK_BYTES			(1 << BLOCK_BITS)
 #define BLOCK_MASK			(BLOCK_BYTES - 1)
 
+/* Minimum 8 byte alignment, to avoid cache-inhibited alignment faults. */
+#ifndef ALIGN_MASK
+#define	ALIGN_MASK			0x7
+#endif
+
 /*
  * r3: dst
  * r4: src
@@ -48,6 +53,12 @@ ENTRY(FN_NAME)
 	cmpdi	%r5, 0			/* len == 0? nothing to do */
 	beqlr-
 
+	/* If src and dst are relatively misaligned, do byte copies. */
+	andi.	%r8, %r3, ALIGN_MASK
+	andi.	%r7, %r4, ALIGN_MASK
+	cmpd	%r8, %r7
+	mr	%r7, %r5
+	bne+	.Lcopy_remaining_fix_index_byte
 	mr	%r8, %r3		/* save dst */
 
 	/* align src */
