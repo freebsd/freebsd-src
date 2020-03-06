@@ -1123,20 +1123,22 @@ ixl_switch_config(struct ixl_pf *pf)
 	if (pf->dbg_mask & IXL_DBG_SWITCH_INFO) {
 		device_printf(dev,
 		    "Switch config: header reported: %d in structure, %d total\n",
-		    sw_config->header.num_reported, sw_config->header.num_total);
-		for (int i = 0; i < sw_config->header.num_reported; i++) {
+		    LE16_TO_CPU(sw_config->header.num_reported),
+		    LE16_TO_CPU(sw_config->header.num_total));
+		for (int i = 0;
+		    i < LE16_TO_CPU(sw_config->header.num_reported); i++) {
 			device_printf(dev,
 			    "-> %d: type=%d seid=%d uplink=%d downlink=%d\n", i,
 			    sw_config->element[i].element_type,
-			    sw_config->element[i].seid,
-			    sw_config->element[i].uplink_seid,
-			    sw_config->element[i].downlink_seid);
+			    LE16_TO_CPU(sw_config->element[i].seid),
+			    LE16_TO_CPU(sw_config->element[i].uplink_seid),
+			    LE16_TO_CPU(sw_config->element[i].downlink_seid));
 		}
 	}
 	/* Simplified due to a single VSI */
-	vsi->uplink_seid = sw_config->element[0].uplink_seid;
-	vsi->downlink_seid = sw_config->element[0].downlink_seid;
-	vsi->seid = sw_config->element[0].seid;
+	vsi->uplink_seid = LE16_TO_CPU(sw_config->element[0].uplink_seid);
+	vsi->downlink_seid = LE16_TO_CPU(sw_config->element[0].downlink_seid);
+	vsi->seid = LE16_TO_CPU(sw_config->element[0].seid);
 	return (ret);
 }
 
@@ -2058,12 +2060,14 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, int flags, int cnt)
 			bcopy(f->macaddr, b->mac_addr, ETHER_ADDR_LEN);
 			if (f->vlan == IXL_VLAN_ANY) {
 				b->vlan_tag = 0;
-				b->flags = I40E_AQC_MACVLAN_ADD_IGNORE_VLAN;
+				b->flags = CPU_TO_LE16(
+				    I40E_AQC_MACVLAN_ADD_IGNORE_VLAN);
 			} else {
-				b->vlan_tag = f->vlan;
+				b->vlan_tag = CPU_TO_LE16(f->vlan);
 				b->flags = 0;
 			}
-			b->flags |= I40E_AQC_MACVLAN_ADD_PERFECT_MATCH;
+			b->flags |= CPU_TO_LE16(
+			    I40E_AQC_MACVLAN_ADD_PERFECT_MATCH);
 			f->flags &= ~IXL_FILTER_ADD;
 			j++;
 
