@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2012 Andreas Tobler
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -135,7 +134,7 @@ ds1631_write(device_t dev, uint32_t addr, uint8_t reg, uint8_t *buff, int len)
 
 	for (;;)
 	{
-		if (iicbus_transfer(dev, msg, 1) == 0)
+		if (iicbus_transfer(dev, msg, nitems(msg)) == 0)
 			return (0);
 		if (++try > 5) {
 			device_printf(dev, "iicbus write failed\n");
@@ -158,7 +157,7 @@ ds1631_read_1(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data)
 
 	for (;;)
 	{
-		err = iicbus_transfer(dev, msg, 2);
+		err = iicbus_transfer(dev, msg, nitems(msg));
 		if (err != 0)
 			goto retry;
 
@@ -186,7 +185,7 @@ ds1631_read_2(device_t dev, uint32_t addr, uint8_t reg, uint16_t *data)
 
 	for (;;)
 	{
-		err = iicbus_transfer(dev, msg, 2);
+		err = iicbus_transfer(dev, msg, nitems(msg));
 		if (err != 0)
 			goto retry;
 
@@ -275,7 +274,7 @@ ds1631_init(device_t dev, uint32_t addr)
 	 */
 	conf = DS1631_CONTROL_10BIT;
 
-	err = ds1631_write(dev, addr, DS1631_CONTROL, &conf, 1);
+	err = ds1631_write(dev, addr, DS1631_CONTROL, &conf, sizeof(conf));
 	if (err < 0) {
 		device_printf(dev, "ds1631 write config failed: %x\n", err);
 		return (-1);
