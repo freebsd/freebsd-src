@@ -66,11 +66,6 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
 		return (NULL);
 
 	pa = VM_PAGE_TO_PHYS(m);
-
-	/* On book-e sizeof(void *) < sizeof(vm_paddr_t) */
-	if ((vm_offset_t)pa != pa)
-		return (NULL);
-
 #ifdef __powerpc64__
 	if ((wait & M_NODUMP) == 0)
 		dump_add_page(pa);
