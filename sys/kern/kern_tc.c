@@ -234,9 +234,11 @@ bintime_off(struct bintime *bt, u_int off)
 }
 #define	GETTHBINTIME(dst, member)					\
 do {									\
+/*									\
 	_Static_assert(_Generic(((struct timehands *)NULL)->member,	\
 	    struct bintime: 1, default: 0) == 1,			\
 	    "struct timehands member is not of struct bintime type");	\
+*/									\
 	bintime_off(dst, __offsetof(struct timehands, member));		\
 } while (0)
 
@@ -255,10 +257,12 @@ getthmember(void *out, size_t out_size, u_int off)
 }
 #define	GETTHMEMBER(dst, member)					\
 do {									\
+/*									\
 	_Static_assert(_Generic(*dst,					\
 	    __typeof(((struct timehands *)NULL)->member): 1,		\
 	    default: 0) == 1,						\
 	    "*dst and struct timehands member have different types");	\
+*/									\
 	getthmember(dst, sizeof(*dst), __offsetof(struct timehands,	\
 	    member));							\
 } while (0)
