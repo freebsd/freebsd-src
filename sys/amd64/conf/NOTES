@@ -417,10 +417,6 @@ device		aac
 device		aacp	# SCSI Passthrough interface (optional, CAM required)
 
 #
-# Adaptec by PMC RAID controllers, Series 6/7/8 and upcoming families
-device		aacraid		# Container interface, CAM required
-
-#
 # Highpoint RocketRAID 27xx.
 device		hpt27xx
 

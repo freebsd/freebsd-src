@@ -8,6 +8,9 @@ SUBDIR= aacraid_linux
 
 KMOD=	aacraid
 SRCS=	aacraid.c aacraid_pci.c aacraid_cam.c
+.if ${MACHINE_CPUARCH} == "powerpc"
+SRCS+=	aacraid_endian.c
+.endif
 SRCS+=	opt_scsi.h opt_cam.h opt_aacraid.h
 SRCS+=	device_if.h bus_if.h pci_if.h
 

@@ -398,10 +398,10 @@ ixl_if_attach_pre(if_ctx_t ctx)
 	enum i40e_status_code status;
 	int error = 0;
 
-	INIT_DBG_DEV(dev, "begin");
-
 	dev = iflib_get_dev(ctx);
 	pf = iflib_get_softc(ctx);
+
+	INIT_DBG_DEV(dev, "begin");
 
 	vsi = &pf->vsi;
 	vsi->back = pf;
@@ -588,10 +588,11 @@ ixl_if_attach_post(if_ctx_t ctx)
 	int error = 0;
 	enum i40e_status_code status;
 
-	INIT_DBG_DEV(dev, "begin");
-
 	dev = iflib_get_dev(ctx);
 	pf = iflib_get_softc(ctx);
+
+	INIT_DBG_DEV(dev, "begin");
+
 	vsi = &pf->vsi;
 	vsi->ifp = iflib_get_ifp(ctx);
 	hw = &pf->hw;

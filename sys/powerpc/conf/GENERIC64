@@ -136,6 +136,7 @@ options		NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
 device		nvd		# expose NVMe namespaces as disks, depends on nvme
 
 # SCSI Controllers
+device		aacraid		# Adaptec by PMC RAID
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 options 	AHC_ALLOW_MEMIO	# Attempt to use memory mapped I/O
 device		isp		# Qlogic family

@@ -1283,6 +1283,7 @@ note_type_xen(unsigned int nt)
 	case 15: return "XEN_ELFNOTE_INIT_P2M";
 	case 16: return "XEN_ELFNOTE_MOD_START_PFN";
 	case 17: return "XEN_ELFNOTE_SUPPORTED_FEATURES";
+	case 18: return "XEN_ELFNOTE_PHYS32_ENTRY";
 	default: return (note_type_unknown(nt));
 	}
 }
@@ -3676,6 +3677,33 @@ static struct flag_desc note_feature_ctl_flags[] = {
 };
 
 static void
+dump_note_string(const char *description, const char *s, size_t len)
+{
+	size_t i;
+	int printable = 1;
+
+	if (len == 0 || s[--len] != '\0') {
+		printable = 0;
+	} else {
+		for (i = 0; i < len; i++) {
+			if (!isprint(s[i])) {
+				printable = 0;
+				break;
+			}
+		}
+	}
+
+	if (printable) {
+		printf("   %s: %s\n", description, s);
+	} else {
+		printf("   description data:");
+		for (i = 0; i < len; i++)
+			printf(" %02x", (unsigned char)s[i]);
+		printf("\n");
+	}
+}
+
+static void
 dump_notes_data(struct readelf *re, const char *name, uint32_t type,
     const char *buf, size_t sz)
 {
@@ -3713,6 +3741,30 @@ dump_notes_data(struct readelf *re, const char *name, uint32_t type,
 		switch (type) {
 		case NT_GNU_PROPERTY_TYPE_0:
 			dump_gnu_property_type_0(re, buf, sz);
+			return;
+		}
+	} else if (strcmp(name, "Xen") == 0) {
+		switch (type) {
+		case 5:
+			dump_note_string("Xen version", buf, sz);
+			return;
+		case 6:
+			dump_note_string("Guest OS", buf, sz);
+			return;
+		case 7:
+			dump_note_string("Guest version", buf, sz);
+			return;
+		case 8:
+			dump_note_string("Loader", buf, sz);
+			return;
+		case 9:
+			dump_note_string("PAE mode", buf, sz);
+			return;
+		case 10:
+			dump_note_string("Features", buf, sz);
+			return;
+		case 11:
+			dump_note_string("BSD symtab", buf, sz);
 			return;
 		}
 	}
