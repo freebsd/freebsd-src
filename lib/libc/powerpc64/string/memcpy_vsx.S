@@ -30,6 +30,7 @@
 
 #define FN_NAME			__memcpy_vsx
 #define BLOCK_BITS		6
+#define	ALIGN_MASK		0xf
 
 /*
  * r5: bytes to copy (multiple of BLOCK_BYTES)

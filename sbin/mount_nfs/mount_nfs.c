@@ -514,7 +514,7 @@ sec_num_to_name(int flavor)
 static time_t
 rtm_ifinfo_sleep(time_t sec)
 {
-	char buf[2048];
+	char buf[2048] __aligned(__alignof(struct if_msghdr));
 	fd_set rfds;
 	struct timeval tv, start;
 	ssize_t nread;

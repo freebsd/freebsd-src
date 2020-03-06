@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/aac_ioctl.h>
 #include <dev/aacraid/aacraid_debug.h>
 #include <dev/aacraid/aacraid_var.h>
+#include <dev/aacraid/aacraid_endian.h>
 
 #ifndef	CAM_NEW_TRAN_CODE
 #define	CAM_NEW_TRAN_CODE	1
@@ -417,6 +418,7 @@ aac_container_rw_command(struct cam_sim *sim, union ccb *ccb, u_int8_t *cmdp)
 
 	if (sc->flags & AAC_FLAGS_NEW_COMM_TYPE2) {
 		struct aac_raw_io2 *raw;
+		/* NOTE: LE conversion handled at aacraid_map_command_sg() */
 		raw = (struct aac_raw_io2 *)&fib->data[0];
 		bzero(raw, sizeof(struct aac_raw_io2));
 		fib->Header.Command = RawIo2;
@@ -432,6 +434,7 @@ aac_container_rw_command(struct cam_sim *sim, union ccb *ccb, u_int8_t *cmdp)
 			raw->flags = RIO2_IO_TYPE_WRITE | RIO2_SG_FORMAT_IEEE1212;
 	} else if (sc->flags & AAC_FLAGS_RAW_IO) {
 		struct aac_raw_io *raw;
+		/* NOTE: LE conversion handled at aacraid_map_command_sg() */
 		raw = (struct aac_raw_io *)&fib->data[0];
 		bzero(raw, sizeof(struct aac_raw_io));
 		fib->Header.Command = RawIo;
@@ -452,6 +455,7 @@ aac_container_rw_command(struct cam_sim *sim, union ccb *ccb, u_int8_t *cmdp)
 			br->ContainerId = ccb->ccb_h.target_id;
 			br->BlockNumber = blockno;
 			br->ByteCount = cm->cm_datalen;
+			aac_blockread_tole(br);
 			fib->Header.Size += sizeof(struct aac_blockread);
 			cm->cm_sgtable = &br->SgMap;
 		} else {
@@ -462,6 +466,7 @@ aac_container_rw_command(struct cam_sim *sim, union ccb *ccb, u_int8_t *cmdp)
 			bw->BlockNumber = blockno;
 			bw->ByteCount = cm->cm_datalen;
 			bw->Stable = CUNSTABLE;
+			aac_blockwrite_tole(bw);
 			fib->Header.Size += sizeof(struct aac_blockwrite);
 			cm->cm_sgtable = &bw->SgMap;
 		}
@@ -476,6 +481,7 @@ aac_container_rw_command(struct cam_sim *sim, union ccb *ccb, u_int8_t *cmdp)
 			br->BlockNumber = blockno;
 			br->Pad = 0;
 			br->Flags = 0;
+			aac_blockread64_tole(br);
 			fib->Header.Size += sizeof(struct aac_blockread64);
 			cm->cm_sgtable = (struct aac_sg_table *)&br->SgMap64;
 		} else {
@@ -487,6 +493,7 @@ aac_container_rw_command(struct cam_sim *sim, union ccb *ccb, u_int8_t *cmdp)
 			bw->BlockNumber = blockno;
 			bw->Pad = 0;
 			bw->Flags = 0;
+			aac_blockwrite64_tole(bw);
 			fib->Header.Size += sizeof(struct aac_blockwrite64);
 			cm->cm_sgtable = (struct aac_sg_table *)&bw->SgMap64;
 		}
@@ -656,9 +663,10 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 				AAC_PM_DRIVERSUP_STOP_UNIT);
 			ccfg->CTCommand.param[1] = co->co_mntobj.ObjectId;
 			ccfg->CTCommand.param[2] = 0;	/* 1 - immediate */
+			aac_cnt_config_tole(ccfg);
 
 			if (aacraid_wait_command(cm) != 0 ||
-				*(u_int32_t *)&fib->data[0] != 0) {
+				le32toh(*(u_int32_t *)&fib->data[0]) != 0) {
 				printf("Power Management: Error start/stop container %d\n", 
 				co->co_mntobj.ObjectId);
 			}
@@ -930,6 +938,7 @@ aac_passthrough_command(struct cam_sim *sim, union ccb *ccb)
 	srb->lun = ccb->ccb_h.target_lun;
 	srb->timeout = ccb->ccb_h.timeout;	/* XXX */
 	srb->retry_limit = 0;
+	aac_srb_tole(srb);
 
 	cm->cm_complete = aac_cam_complete;
 	cm->cm_ccb = ccb;
@@ -1119,7 +1128,7 @@ aac_container_complete(struct aac_command *cm)
 
 	fwprintf(cm->cm_sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	ccb = cm->cm_ccb;
-	status = ((u_int32_t *)cm->cm_fib->data)[0];
+	status = le32toh(((u_int32_t *)cm->cm_fib->data)[0]);
 
 	if (cm->cm_flags & AAC_CMD_RESET) {
 		ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
@@ -1146,6 +1155,7 @@ aac_cam_complete(struct aac_command *cm)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	ccb = cm->cm_ccb;
 	srbr = (struct aac_srb_response *)&cm->cm_fib->data[0];
+	aac_srb_response_toh(srbr);
 
 	if (cm->cm_flags & AAC_CMD_FASTRESP) {
 		/* fast response */
@@ -1297,6 +1307,7 @@ aac_cam_reset_bus(struct cam_sim *sim, union ccb *ccb)
 
 	rbc = (struct aac_resetbus *)&vmi->IoctlBuf[0];
 	rbc->BusNumber = camsc->inf->BusNumber - 1;
+	aac_vmioctl_tole(vmi);
 
 	if (aacraid_wait_command(cm) != 0) {
 		device_printf(sc->aac_dev,"Error sending ResetBus command\n");

@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 
 #define RT_CHIPID_RT2880 0x2880
 #define RT_CHIPID_RT3050 0x3050
+#define RT_CHIPID_RT3883 0x3883
 #define RT_CHIPID_RT5350 0x5350
 #define RT_CHIPID_MT7620 0x7620
 #define RT_CHIPID_MT7621 0x7621
@@ -111,7 +112,7 @@ static const struct ofw_compat_data rt_compat_data[] = {
 	{ "ralink,rt2880-eth",		RT_CHIPID_RT2880 },
 	{ "ralink,rt3050-eth",		RT_CHIPID_RT3050 },
 	{ "ralink,rt3352-eth",		RT_CHIPID_RT3050 },
-	{ "ralink,rt3883-eth",		RT_CHIPID_RT3050 },
+	{ "ralink,rt3883-eth",		RT_CHIPID_RT3883 },
 	{ "ralink,rt5350-eth",		RT_CHIPID_RT5350 },
 	{ "ralink,mt7620a-eth",		RT_CHIPID_MT7620 },
 	{ "mediatek,mt7620-eth",	RT_CHIPID_MT7620 },
@@ -355,9 +356,17 @@ rt_attach(device_t dev)
 	struct rt_softc *sc;
 	struct ifnet *ifp;
 	int error, i;
+#ifdef FDT
+	phandle_t node;
+	char fdtval[32];
+#endif
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+
+#ifdef FDT
+	node = ofw_bus_get_node(sc->dev);
+#endif
 
 	mtx_init(&sc->lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -480,8 +489,16 @@ rt_attach(device_t dev)
 		GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* fwd Other to CPU */
 		));
 
-	if (sc->rt_chipid == RT_CHIPID_RT2880)
-		RT_WRITE(sc, MDIO_CFG, MDIO_2880_100T_INIT);
+#ifdef FDT
+	if (sc->rt_chipid == RT_CHIPID_RT2880 ||
+	    sc->rt_chipid == RT_CHIPID_RT3883) {
+		if (OF_getprop(node, "port-mode", fdtval, sizeof(fdtval)) > 0 &&
+		    strcmp(fdtval, "gigasw") == 0)
+			RT_WRITE(sc, MDIO_CFG, MDIO_2880_GIGA_INIT);
+		else
+			RT_WRITE(sc, MDIO_CFG, MDIO_2880_100T_INIT);
+	}
+#endif
 
 	/* allocate Tx and Rx rings */
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {
@@ -2912,7 +2929,7 @@ rtmdio_probe(device_t dev)
 	if (!ofw_bus_is_compatible(dev, "ralink,rt2880-mdio"))
 		return (ENXIO);
 
-	device_set_desc(dev, "FV built-in ethernet interface, MDIO controller");
+	device_set_desc(dev, "RT built-in ethernet interface, MDIO controller");
 	return(0);
 }
 
