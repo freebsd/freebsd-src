@@ -3742,6 +3742,12 @@ dump_notes_data(struct readelf *re, const char *name, uint32_t type,
 		case NT_GNU_PROPERTY_TYPE_0:
 			dump_gnu_property_type_0(re, buf, sz);
 			return;
+		case NT_GNU_BUILD_ID:
+			printf("   Build ID: ");
+			for (i = 0; i < sz; i++)
+				printf("%02x", (unsigned char)buf[i]);
+			printf("\n");
+			return;
 		}
 	} else if (strcmp(name, "Xen") == 0) {
 		switch (type) {

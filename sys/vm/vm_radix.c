@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/vmmeter.h>
 #include <sys/smr.h>
+#include <sys/smr_types.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>
@@ -101,7 +102,7 @@ __FBSDID("$FreeBSD$");
 enum vm_radix_access { SMR, LOCKED, UNSERIALIZED };
 
 struct vm_radix_node;
-SMR_TYPE_DECLARE(smrnode_t, struct vm_radix_node *);
+typedef SMR_POINTER(struct vm_radix_node *) smrnode_t;
 
 struct vm_radix_node {
 	vm_pindex_t	rn_owner;			/* Owner of record. */

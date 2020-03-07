@@ -153,30 +153,20 @@ struct vm_object kernel_object_store;
 static SYSCTL_NODE(_vm_stats, OID_AUTO, object, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM object stats");
 
-static counter_u64_t object_collapses = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(object_collapses);
 SYSCTL_COUNTER_U64(_vm_stats_object, OID_AUTO, collapses, CTLFLAG_RD,
     &object_collapses,
     "VM object collapses");
 
-static counter_u64_t object_bypasses = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(object_bypasses);
 SYSCTL_COUNTER_U64(_vm_stats_object, OID_AUTO, bypasses, CTLFLAG_RD,
     &object_bypasses,
     "VM object bypasses");
 
-static counter_u64_t object_collapse_waits = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(object_collapse_waits);
 SYSCTL_COUNTER_U64(_vm_stats_object, OID_AUTO, collapse_waits, CTLFLAG_RD,
     &object_collapse_waits,
     "Number of sleeps for collapse");
-
-static void
-counter_startup(void)
-{
-
-	object_collapses = counter_u64_alloc(M_WAITOK);
-	object_bypasses = counter_u64_alloc(M_WAITOK);
-	object_collapse_waits = counter_u64_alloc(M_WAITOK);
-}
-SYSINIT(object_counters, SI_SUB_CPU, SI_ORDER_ANY, counter_startup, NULL);
 
 static uma_zone_t obj_zone;
 

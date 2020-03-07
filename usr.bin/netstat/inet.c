@@ -1222,10 +1222,26 @@ void
 igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct igmpstat igmpstat;
+	int error, zflag0;
 
 	if (fetch_stats("net.inet.igmp.stats", 0, &igmpstat,
 	    sizeof(igmpstat), kread) != 0)
 		return;
+	/*
+	 * Reread net.inet.igmp.stats when zflag == 1.
+	 * This is because this MIB contains version number and
+	 * length of the structure which are not set when clearing
+	 * the counters.
+	 */
+	zflag0 = zflag;
+	if (zflag) {
+		zflag = 0;
+		error = fetch_stats("net.inet.igmp.stats", 0, &igmpstat,
+		    sizeof(igmpstat), kread);
+		zflag = zflag0;
+		if (error)
+			return;
+	}
 
 	if (igmpstat.igps_version != IGPS_VERSION_3) {
 		xo_warnx("%s: version mismatch (%d != %d)", __func__,

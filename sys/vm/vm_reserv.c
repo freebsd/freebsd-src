@@ -264,11 +264,11 @@ static struct vm_reserv_domain vm_rvd[MAXMEMDOM];
 static SYSCTL_NODE(_vm, OID_AUTO, reserv, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Reservation Info");
 
-static counter_u64_t vm_reserv_broken = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(vm_reserv_broken);
 SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, broken, CTLFLAG_RD,
     &vm_reserv_broken, "Cumulative number of broken reservations");
 
-static counter_u64_t vm_reserv_freed = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(vm_reserv_freed);
 SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, freed, CTLFLAG_RD,
     &vm_reserv_freed, "Cumulative number of freed reservations");
 
@@ -284,7 +284,7 @@ SYSCTL_OID(_vm_reserv, OID_AUTO, partpopq,
     sysctl_vm_reserv_partpopq, "A",
     "Partially populated reservation queues");
 
-static counter_u64_t vm_reserv_reclaimed = EARLY_COUNTER;
+static COUNTER_U64_DEFINE_EARLY(vm_reserv_reclaimed);
 SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, reclaimed, CTLFLAG_RD,
     &vm_reserv_reclaimed, "Cumulative number of reclaimed reservations");
 
@@ -1439,21 +1439,6 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end)
 	 */
 	return (new_end);
 }
-
-/*
- * Initializes the reservation management system.  Specifically, initializes
- * the reservation counters.
- */
-static void
-vm_reserv_counter_init(void *unused)
-{
-
-	vm_reserv_freed = counter_u64_alloc(M_WAITOK); 
-	vm_reserv_broken = counter_u64_alloc(M_WAITOK); 
-	vm_reserv_reclaimed = counter_u64_alloc(M_WAITOK); 
-}
-SYSINIT(vm_reserv_counter_init, SI_SUB_CPU, SI_ORDER_ANY,
-    vm_reserv_counter_init, NULL);
 
 /*
  * Returns the superpage containing the given page.

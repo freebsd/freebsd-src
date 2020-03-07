@@ -3479,6 +3479,7 @@ fs/fuse/fuse_main.c		optional fusefs
 fs/fuse/fuse_node.c		optional fusefs
 fs/fuse/fuse_vfsops.c		optional fusefs
 fs/fuse/fuse_vnops.c		optional fusefs
+fs/mntfs/mntfs_vnops.c		standard
 fs/msdosfs/msdosfs_conv.c	optional msdosfs
 fs/msdosfs/msdosfs_denode.c	optional msdosfs
 fs/msdosfs/msdosfs_fat.c	optional msdosfs
