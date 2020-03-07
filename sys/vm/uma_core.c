@@ -117,6 +117,16 @@ static uma_zone_t kegs;
 static uma_zone_t zones;
 
 /*
+ * On INVARIANTS builds, the slab contains a second bitset of the same size,
+ * "dbg_bits", which is laid out immediately after us_free.
+ */
+#ifdef INVARIANTS
+#define	SLAB_BITSETS	2
+#else
+#define	SLAB_BITSETS	1
+#endif
+
+/*
  * These are the two zones from which all offpage uma_slab_ts are allocated.
  *
  * One zone is for slab headers that can represent a larger number of items,
@@ -1898,7 +1908,7 @@ zero_init(void *mem, int size, int flags)
 }
 
 #ifdef INVARIANTS
-struct noslabbits *
+static struct noslabbits *
 slab_dbg_bits(uma_slab_t slab, uma_keg_t keg)
 {
 
@@ -1909,22 +1919,13 @@ slab_dbg_bits(uma_slab_t slab, uma_keg_t keg)
 /*
  * Actual size of embedded struct slab (!OFFPAGE).
  */
-size_t
+static size_t
 slab_sizeof(int nitems)
 {
 	size_t s;
 
 	s = sizeof(struct uma_slab) + BITSET_SIZE(nitems) * SLAB_BITSETS;
 	return (roundup(s, UMA_ALIGN_PTR + 1));
-}
-
-/*
- * Size of memory for embedded slabs (!OFFPAGE).
- */
-size_t
-slab_space(int nitems)
-{
-	return (UMA_SLAB_SIZE - slab_sizeof(nitems));
 }
 
 #define	UMA_FIXPT_SHIFT	31
@@ -1965,18 +1966,6 @@ slab_ipers_hdr(u_int size, u_int rsize, u_int slabsize, bool hdr)
 	}
 
 	return (ipers);
-}
-
-/*
- * Compute the number of items that will fit in a slab for a startup zone.
- */
-int
-slab_ipers(size_t size, int align)
-{
-	int rsize;
-
-	rsize = roundup(size, align + 1); /* Assume no CACHESPREAD */
-	return (slab_ipers_hdr(size, rsize, UMA_SLAB_SIZE, true));
 }
 
 struct keg_layout_result {
