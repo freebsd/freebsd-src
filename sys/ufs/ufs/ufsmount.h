@@ -83,7 +83,8 @@ struct ufsmount {
 	struct	cdev *um_dev;			/* (r) device mounted */
 	struct	g_consumer *um_cp;		/* (r) GEOM access point */
 	struct	bufobj *um_bo;			/* (r) Buffer cache object */
-	struct	vnode *um_devvp;		/* (r) blk dev mounted vnode */
+	struct	vnode *um_odevvp;		/* (r) devfs dev vnode */
+	struct	vnode *um_devvp;		/* (r) mntfs private vnode */
 	u_long	um_fstype;			/* (c) type of filesystem */
 	struct	fs *um_fs;			/* (r) pointer to superblock */
 	struct	ufs_extattr_per_mount um_extattr; /* (c) extended attrs */

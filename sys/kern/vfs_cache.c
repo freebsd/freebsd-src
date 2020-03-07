@@ -345,11 +345,12 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, namecache, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
  */
 static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Name cache statistics");
-#define STATNODE_ULONG(name, descr)	\
+#define STATNODE_ULONG(name, descr)					\
 	SYSCTL_ULONG(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, 0, descr);
-#define STATNODE_COUNTER(name, descr)	\
-	static counter_u64_t __read_mostly name; \
-	SYSCTL_COUNTER_U64(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, descr);
+#define STATNODE_COUNTER(name, descr)					\
+	static COUNTER_U64_DEFINE_EARLY(name);				\
+	SYSCTL_COUNTER_U64(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, \
+	    descr);
 STATNODE_ULONG(numneg, "Number of negative cache entries");
 STATNODE_ULONG(numcache, "Number of cache entries");
 STATNODE_COUNTER(numcachehv, "Number of namecache entries with vnodes held");
@@ -1936,26 +1937,6 @@ nchinit(void *dummy __unused)
 	TAILQ_INIT(&ncneg_hot.nl_list);
 
 	mtx_init(&ncneg_shrink_lock, "ncnegs", NULL, MTX_DEF);
-
-	numcachehv = counter_u64_alloc(M_WAITOK);
-	numcalls = counter_u64_alloc(M_WAITOK);
-	dothits = counter_u64_alloc(M_WAITOK);
-	dotdothits = counter_u64_alloc(M_WAITOK);
-	numchecks = counter_u64_alloc(M_WAITOK);
-	nummiss = counter_u64_alloc(M_WAITOK);
-	nummisszap = counter_u64_alloc(M_WAITOK);
-	numposzaps = counter_u64_alloc(M_WAITOK);
-	numposhits = counter_u64_alloc(M_WAITOK);
-	numnegzaps = counter_u64_alloc(M_WAITOK);
-	numneghits = counter_u64_alloc(M_WAITOK);
-	numfullpathcalls = counter_u64_alloc(M_WAITOK);
-	numfullpathfail1 = counter_u64_alloc(M_WAITOK);
-	numfullpathfail2 = counter_u64_alloc(M_WAITOK);
-	numfullpathfail4 = counter_u64_alloc(M_WAITOK);
-	numfullpathfound = counter_u64_alloc(M_WAITOK);
-	zap_and_exit_bucket_relock_success = counter_u64_alloc(M_WAITOK);
-	numneg_evicted = counter_u64_alloc(M_WAITOK);
-	shrinking_skipped = counter_u64_alloc(M_WAITOK);
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL);
 
