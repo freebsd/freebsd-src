@@ -35,4 +35,16 @@ typedef uint32_t	smr_seq_t;
 typedef int32_t		smr_delta_t;
 typedef struct smr 	*smr_t;
 
+#define	SMR_ENTERED(smr)						\
+    (curthread->td_critnest != 0 && zpcpu_get((smr))->c_seq != SMR_SEQ_INVALID)
+
+#define	SMR_ASSERT_ENTERED(smr)						\
+    KASSERT(SMR_ENTERED(smr), ("Not in smr section"))
+
+#define	SMR_ASSERT_NOT_ENTERED(smr)					\
+    KASSERT(!SMR_ENTERED(smr), ("In smr section."));
+
+#define SMR_ASSERT(ex, fn)						\
+    KASSERT((ex), (fn ": Assertion " #ex " failed at %s:%d", __FILE__, __LINE__))
+
 #endif	/* __SYS_SMR_H_ */
