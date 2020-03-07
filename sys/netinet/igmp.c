@@ -145,6 +145,7 @@ static void	igmp_v3_suppress_group_record(struct in_multi *);
 static int	sysctl_igmp_default_version(SYSCTL_HANDLER_ARGS);
 static int	sysctl_igmp_gsr(SYSCTL_HANDLER_ARGS);
 static int	sysctl_igmp_ifinfo(SYSCTL_HANDLER_ARGS);
+static int	sysctl_igmp_stat(SYSCTL_HANDLER_ARGS);
 
 static const struct netisr_handler igmp_nh = {
 	.nh_name = "igmp",
@@ -260,8 +261,9 @@ VNET_DEFINE_STATIC(int, igmp_default_version) = IGMP_VERSION_3;
 /*
  * Virtualized sysctls.
  */
-SYSCTL_STRUCT(_net_inet_igmp, IGMPCTL_STATS, stats, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(igmpstat), igmpstat, "");
+SYSCTL_PROC(_net_inet_igmp, IGMPCTL_STATS, stats,
+    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &VNET_NAME(igmpstat), 0, sysctl_igmp_stat, "S,igmpstat", "");
 SYSCTL_INT(_net_inet_igmp, OID_AUTO, recvifkludge, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_recvifkludge), 0,
     "Rewrite IGMPv1/v2 reports from 0.0.0.0 to contain subnet address");
@@ -333,6 +335,59 @@ igmp_restore_context(struct mbuf *m)
 #endif
 #endif
 	return (m->m_pkthdr.flowid);
+}
+
+/*
+ * IGMP statistics.
+ */
+static int
+sysctl_igmp_stat(SYSCTL_HANDLER_ARGS)
+{
+	struct igmpstat igps0;
+	int error;
+	char *p;
+
+	error = sysctl_wire_old_buffer(req, sizeof(V_igmpstat));
+	if (error)
+		return (error);
+
+	if (req->oldptr != NULL) {
+		if (req->oldlen < sizeof(V_igmpstat))
+			error = ENOMEM;
+		else 
+			error = SYSCTL_OUT(req, &V_igmpstat,
+			    sizeof(V_igmpstat));
+	} else
+		req->validlen = sizeof(V_igmpstat);
+	if (error)
+		goto out;
+	if (req->newptr != NULL) {
+		if (req->newlen < sizeof(V_igmpstat))
+			error = ENOMEM;
+		else
+			error = SYSCTL_IN(req, &igps0,
+			    sizeof(igps0));
+		if (error)
+			goto out;
+		/*
+		 * igps0 must be "all zero".
+		 */
+		p = (char *)&igps0;
+		while (*p == '\0' && p < (char *)&igps0 + sizeof(igps0))
+			p++;
+		if (p != (char *)&igps0 + sizeof(igps0)) {
+			error = EINVAL;
+			goto out;
+		}
+		/*
+		 * Avoid overwrite of the version and length field.
+		 */
+		igps0.igps_version = V_igmpstat.igps_version;
+		igps0.igps_len = V_igmpstat.igps_len;
+		bcopy(&igps0, &V_igmpstat, sizeof(V_igmpstat));
+	}
+out:
+	return (error);
 }
 
 /*
