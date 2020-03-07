@@ -649,7 +649,7 @@ cam_periph_invalidate(struct cam_periph *periph)
 
 	cam_periph_assert(periph, MA_OWNED);
 	/*
-	 * We only call this routine the first time a peripheral is
+	 * We only tear down the device the first time a peripheral is
 	 * invalidated.
 	 */
 	if ((periph->flags & CAM_PERIPH_INVALID) != 0)
