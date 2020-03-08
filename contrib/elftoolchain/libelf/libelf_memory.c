@@ -31,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_memory.c 3013 2014-03-23 06:16:59Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_memory.c 3738 2019-05-05 21:49:06Z jkoshy $");
 
 /*
  * Create an ELF descriptor for a memory image, optionally reporting
@@ -54,7 +54,7 @@ _libelf_memory(unsigned char *image, size_t sz, int reporterror)
 
 	e->e_cmd = ELF_C_READ;
 	e->e_rawfile = image;
-	e->e_rawsize = sz;
+	e->e_rawsize = (off_t) sz;
 
 #undef	LIBELF_IS_ELF
 #define	LIBELF_IS_ELF(P) ((P)[EI_MAG0] == ELFMAG0 && 		\
@@ -78,7 +78,7 @@ _libelf_memory(unsigned char *image, size_t sz, int reporterror)
 		if (error != ELF_E_NONE) {
 			if (reporterror) {
 				LIBELF_PRIVATE(error) = LIBELF_ERROR(error, 0);
-				(void) _libelf_release_elf(e);
+				_libelf_release_elf(e);
 				return (NULL);
 			}
 		} else {

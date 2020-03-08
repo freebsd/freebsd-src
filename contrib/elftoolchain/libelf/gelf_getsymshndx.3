@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: gelf_getsymshndx.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\" $Id: gelf_getsymshndx.3 3734 2019-04-22 14:10:49Z jkoshy $
 .\"
-.Dd November 5, 2006
+.Dd April 22, 2019
 .Dt GELF_GETSYMSHNDX 3
 .Os
 .Sh NAME
@@ -152,6 +152,14 @@ Data descriptor
 and
 .Ar xndxdata
 were associated with different ELF objects.
+.It Bq Er ELF_E_VERSION
+The
+.Vt Elf_Data
+descriptors denoted by arguments
+.Ar symdata
+and
+.Ar xndxdata
+are associated with an ELF object with an unsupported version.
 .El
 .Sh SEE ALSO
 .Xr elf 3 ,

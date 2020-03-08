@@ -34,7 +34,7 @@
 #include <sys/mman.h>
 #endif
 
-ELFTC_VCSID("$Id: elf_end.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: elf_end.c 3738 2019-05-05 21:49:06Z jkoshy $");
 
 int
 elf_end(Elf *e)
@@ -80,14 +80,14 @@ elf_end(Elf *e)
 				free(e->e_rawfile);
 #if	ELFTC_HAVE_MMAP
 			else if (e->e_flags & LIBELF_F_RAWFILE_MMAP)
-				(void) munmap(e->e_rawfile, e->e_rawsize);
+				(void) munmap(e->e_rawfile, (size_t) e->e_rawsize);
 #endif
 		}
 
 		sv = e;
 		if ((e = e->e_parent) != NULL)
 			e->e_u.e_ar.e_nchildren--;
-		sv = _libelf_release_elf(sv);
+		_libelf_release_elf(sv);
 	}
 
 	return (0);

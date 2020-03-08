@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libelf.h 3632 2018-10-10 21:12:43Z jkoshy $
+ * $Id: _libelf.h 3738 2019-05-05 21:49:06Z jkoshy $
  */
 
 #ifndef	__LIBELF_H_
@@ -94,7 +94,7 @@ struct _Elf {
 	Elf_Kind	e_kind;		/* ELF_K_* */
 	Elf		*e_parent; 	/* non-NULL for archive members */
 	unsigned char	*e_rawfile;	/* uninterpreted bytes */
-	size_t		e_rawsize;	/* size of uninterpreted bytes */
+	off_t		e_rawsize;	/* size of uninterpreted bytes */
 	unsigned int	e_version;	/* file version */
 
 	/*
@@ -233,7 +233,7 @@ Elf	*_libelf_open_object(int _fd, Elf_Cmd _c, int _reporterror);
 Elf64_Xword _libelf_mips64el_r_info_tof(Elf64_Xword r_info);
 Elf64_Xword _libelf_mips64el_r_info_tom(Elf64_Xword r_info);
 struct _Libelf_Data *_libelf_release_data(struct _Libelf_Data *_d);
-Elf	*_libelf_release_elf(Elf *_e);
+void	_libelf_release_elf(Elf *_e);
 Elf_Scn	*_libelf_release_scn(Elf_Scn *_s);
 int	_libelf_setphnum(Elf *_e, void *_eh, int _elfclass, size_t _phnum);
 int	_libelf_setshnum(Elf *_e, void *_eh, int _elfclass, size_t _shnum);

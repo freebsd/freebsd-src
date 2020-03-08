@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 3646 2018-10-27 02:25:39Z emaste $");
+ELFTC_VCSID("$Id: sections.c 3758 2019-06-28 01:16:50Z emaste $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);

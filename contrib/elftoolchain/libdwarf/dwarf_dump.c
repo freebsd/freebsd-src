@@ -27,7 +27,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_dump.c 3494 2016-09-20 17:16:13Z emaste $");
+ELFTC_VCSID("$Id: dwarf_dump.c 3749 2019-06-28 01:10:44Z emaste $");
 
 int
 dwarf_get_ACCESS_name(unsigned access, const char **s)
@@ -605,7 +605,7 @@ dwarf_get_DS_name(unsigned ds, const char **s)
 	case DW_DS_leading_separate:
 		*s = "DW_DS_leading_separate"; break;
 	case DW_DS_trailing_separate:
-		*s = "DW_DS_trailing_separate";
+		*s = "DW_DS_trailing_separate"; break;
 	default:
 		return (DW_DLV_NO_ENTRY);
 	}
