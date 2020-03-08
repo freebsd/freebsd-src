@@ -319,7 +319,7 @@ static const char *p_flags[] = {
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
 static const char *
 sh_types(uint64_t machine, uint64_t sht) {
-	static char unknown_buf[64]; 
+	static char unknown_buf[64];
 
 	if (sht < 0x60000000) {
 		switch (sht) {
@@ -1059,11 +1059,11 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
 	name = elf_get_word(e, sh, SH_NAME);
 	n = (char *)e + offset;
 	fprintf(out, "\nnote (%s):\n", shstrtab + name);
- 	while (n < ((char *)e + offset + size)) {
+	while (n < ((char *)e + offset + size)) {
 		namesz = elf_get_word(e, n, N_NAMESZ);
 		descsz = elf_get_word(e, n, N_DESCSZ);
- 		s = n + sizeof(Elf_Note);
- 		desc = elf_get_word(e, n + sizeof(Elf_Note) + namesz, 0);
+		s = n + sizeof(Elf_Note);
+		desc = elf_get_word(e, n + sizeof(Elf_Note) + namesz, 0);
 		fprintf(out, "\t%s %d\n", s, desc);
 		n += sizeof(Elf_Note) + namesz + descsz;
 	}
