@@ -73,6 +73,9 @@ SRCS+=	interp_simple.c
 
 .if ${MK_LOADER_VERIEXEC} != "no"
 CFLAGS+= -DLOADER_VERIEXEC -I${SRCTOP}/lib/libsecureboot/h
+.if ${MK_LOADER_VERIEXEC_VECTX} != "no"
+CFLAGS+= -DLOADER_VERIEXEC_VECTX
+.endif
 .endif
 
 .if ${MK_LOADER_VERIEXEC_PASS_MANIFEST} != "no"

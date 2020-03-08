@@ -133,7 +133,7 @@ ofw_copyout(const vm_offset_t src, void *dest, const size_t len)
 }
 
 ssize_t
-ofw_readin(const int fd, vm_offset_t dest, const size_t len)
+ofw_readin(readin_handle_t fd, vm_offset_t dest, const size_t len)
 {
 	void		*buf;
 	size_t		resid, chunk, get;
@@ -157,7 +157,7 @@ ofw_readin(const int fd, vm_offset_t dest, const size_t len)
 
 	for (resid = len; resid > 0; resid -= got, p += got) {
 		get = min(chunk, resid);
-		got = read(fd, buf, get);
+		got = VECTX_READ(fd, buf, get);
 
 		if (got <= 0) {
 			if (got < 0)

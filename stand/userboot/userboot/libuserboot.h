@@ -27,6 +27,7 @@
  */
 
 #include "userboot.h"
+#include <readin.h>
 
 extern struct loader_callbacks *callbacks;
 extern void *callbacks_arg;
@@ -54,7 +55,7 @@ extern void delay(int);
 extern int userboot_autoload(void);
 extern ssize_t userboot_copyin(const void *, vm_offset_t, size_t);
 extern ssize_t userboot_copyout(vm_offset_t, void *, size_t);
-extern ssize_t userboot_readin(int, vm_offset_t, size_t);
+extern ssize_t userboot_readin(readin_handle_t, vm_offset_t, size_t);
 extern int userboot_getdev(void **, const char *, const char **);
 char	*userboot_fmtdev(void *vdev);
 int	userboot_setcurrdev(struct env_var *ev, int flags, const void *value);

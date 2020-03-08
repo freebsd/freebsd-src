@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
  * define MANIFEST_SKIP to Skip - in tests/tvo.c so that
  * tvo can control the value we use in find_manifest()
  */
+extern char *Destdir;
+extern size_t DestdirLen;
 extern char *Skip;
 # undef MANIFEST_SKIP
 # define MANIFEST_SKIP Skip
@@ -167,12 +169,21 @@ load_manifest(const char *name, const char *prefix,
 		ve_utc_set(stp->st_mtime);
 		content = (char *)verify_signed(name, VEF_VERBOSE);
 		if (content) {
+#ifdef UNIT_TEST
+			if (DestdirLen > 0 &&
+			    strncmp(name, Destdir, DestdirLen) == 0) {
+				name += DestdirLen;
+				if (prefix &&
+				    strncmp(prefix, Destdir, DestdirLen) == 0)
+					prefix += DestdirLen;
+			}
+#endif
 			fingerprint_info_add(name, prefix, skip, content, stp);
 			add_verify_status(stp, VE_VERIFIED);
 			loaded_manifests = 1; /* we are verifying! */
 			DEBUG_PRINTF(3, ("loaded: %s %s %s\n",
 				name, prefix, skip));
-			rc = 0;
+			rc = VE_VERIFIED;
 		} else {
 			rc = VE_FINGERPRINT_WRONG;
 			add_verify_status(stp, rc);	/* remember */
@@ -245,13 +256,15 @@ severity_guess(const char *filename)
 	return (VE_WANT);
 }
 
+static int Verifying = -1;		/* 0 if not verifying */
+
 static void
 verify_tweak(int fd, off_t off, struct stat *stp,
     char *tweak, int *accept_no_fp,
-    int *verbose, int *verifying)
+    int *verbose)
 {
 	if (strcmp(tweak, "off") == 0) {
-		*verifying = 0;
+		Verifying = 0;
 	} else if (strcmp(tweak, "strict") == 0) {
 		/* anything caller wants verified must be */
 		*accept_no_fp = VE_WANT;
@@ -314,6 +327,58 @@ getenv_int(const char *var, int def)
 	return (int)val;
 }
 
+
+/**
+ * @brief prepare to verify an open file
+ *
+ * @param[in] fd
+ * 	open descriptor
+ *
+ * @param[in] filename
+ * 	path we opened and will use to lookup fingerprint
+ *
+ * @param[in] stp
+ *	stat pointer so we can check file type
+ */
+int
+verify_prep(int fd, const char *filename, off_t off, struct stat *stp,
+    const char *caller)
+{
+	int rc;
+
+	if (Verifying < 0) {
+		Verifying = ve_trust_init();
+#ifndef UNIT_TEST
+		ve_debug_set(getenv_int("VE_DEBUG_LEVEL", VE_DEBUG_LEVEL));
+#endif
+		/* initialize ve_status with default result */
+		rc = Verifying ? VE_NOT_CHECKED : VE_NOT_VERIFYING;
+		ve_status_set(0, rc);
+		ve_status_state = VE_STATUS_NONE;
+		if (Verifying) {
+			ve_self_tests();
+			ve_anchor_verbose_set(1);
+		}
+	}
+	if (!Verifying || fd < 0)
+		return (0);
+	if (stp) {
+		if (fstat(fd, stp) < 0 || !S_ISREG(stp->st_mode))
+			return (0);
+	}
+	DEBUG_PRINTF(2,
+	    ("caller=%s,fd=%d,name='%s',off=%lld,dev=%lld,ino=%lld\n",
+		caller, fd, filename, (long long)off, (long long)stp->st_dev,
+		(long long)stp->st_ino));
+	rc = is_verified(stp);
+	if (rc == VE_NOT_CHECKED) {
+		rc = find_manifest(filename);
+	} else {
+		ve_status_set(fd, rc);
+	}
+	return (rc);
+}
+
 /**
  * @brief verify an open file
  *
@@ -342,45 +407,26 @@ getenv_int(const char *var, int def)
  * @return >= 0 on success < 0 on failure
  */
 int
-verify_file(int fd, const char *filename, off_t off, int severity)
+verify_file(int fd, const char *filename, off_t off, int severity,
+    const char *caller)
 {
-	static int verifying = -1;
+	static int once;
 	static int accept_no_fp = ACCEPT_NO_FP_DEFAULT;
 	static int verbose = VE_VERBOSE_DEFAULT;
 	struct stat st;
 	char *cp;
 	int rc;
 
-	if (verifying < 0) {
-		verifying = ve_trust_init();
+	rc = verify_prep(fd, filename, off, &st, caller);
+
+	if (!rc)
+		return (0);
+
+	if (!once) {
+		once++;
 		verbose = getenv_int("VE_VERBOSE", VE_VERBOSE_DEFAULT);
-		ve_debug_set(getenv_int("VE_DEBUG_LEVEL", VE_DEBUG_LEVEL));
-		/* initialize ve_status with default result */
-		rc = verifying ? VE_NOT_CHECKED : VE_NOT_VERIFYING;
-		ve_status_set(0, rc);
-		ve_status_state = VE_STATUS_NONE;
-		if (verifying) {
-			ve_self_tests();
-			ve_anchor_verbose_set(1);
-		}
 	}
-	if (!verifying)
-		return (0);
 
-	if (fd < 0 || fstat(fd, &st) < 0 || !S_ISREG(st.st_mode))
-		return (0);
-
-	DEBUG_PRINTF(3, ("fd=%d,name='%s',off=%lld,dev=%lld,ino=%lld\n",
-		fd, filename, (long long)off, (long long)st.st_dev,
-		(long long)st.st_ino));
-    
-
-	rc = is_verified(&st);
-	if (rc != VE_NOT_CHECKED) {
-		ve_status_set(fd, rc);
-		return (rc);
-	}
-	rc = find_manifest(filename);
 	if (rc != VE_FINGERPRINT_WRONG && loaded_manifests) {
 		if (severity <= VE_GUESS)
 			severity = severity_guess(filename);
@@ -391,6 +437,12 @@ verify_file(int fd, const char *filename, off_t off, int severity)
 		 * order, which makes our pseudo pcr more useful.
 		 */
 		ve_pcr_updating_set((severity == VE_MUST));
+#endif
+#ifdef UNIT_TEST
+		if (DestdirLen > 0 &&
+		    strncmp(filename, Destdir, DestdirLen) == 0) {
+			filename += DestdirLen;
+		}
 #endif
 		if ((rc = verify_fd(fd, filename, off, &st)) >= 0) {
 			if (verbose || severity > VE_WANT) {
@@ -412,8 +464,7 @@ verify_file(int fd, const char *filename, off_t off, int severity)
 					if (strncmp(cp, "loader.ve.", 10) == 0) {
 						cp += 10;
 						verify_tweak(fd, off, &st, cp,
-						    &accept_no_fp, &verbose,
-						    &verifying);
+						    &accept_no_fp, &verbose);
 					}
 				}
 			}
