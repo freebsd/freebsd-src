@@ -116,10 +116,10 @@ kern_bzero(vm_offset_t dest, size_t len)
  * and it just returns 0 if successful.
  */
 int
-kern_pread(int fd, vm_offset_t dest, size_t len, off_t off)
+kern_pread(readin_handle_t fd, vm_offset_t dest, size_t len, off_t off)
 {
 
-	if (lseek(fd, off, SEEK_SET) == -1) {
+	if (VECTX_LSEEK(fd, off, SEEK_SET) == -1) {
 #ifdef DEBUG
 		printf("\nlseek failed\n");
 #endif
@@ -140,7 +140,7 @@ kern_pread(int fd, vm_offset_t dest, size_t len, off_t off)
  */
 /* coverity[ -tainted_data_return ] */
 void *
-alloc_pread(int fd, off_t off, size_t len)
+alloc_pread(readin_handle_t fd, off_t off, size_t len)
 {
 	void *buf;
 
@@ -152,14 +152,14 @@ alloc_pread(int fd, off_t off, size_t len)
 		errno = ENOMEM;
 		return (NULL);
 	}
-	if (lseek(fd, off, SEEK_SET) == -1) {
+	if (VECTX_LSEEK(fd, off, SEEK_SET) == -1) {
 #ifdef DEBUG
 		printf("\nlseek failed\n");
 #endif
 		free(buf);
 		return (NULL);
 	}
-	if ((size_t)read(fd, buf, len) != len) {
+	if ((size_t)VECTX_READ(fd, buf, len) != len) {
 #ifdef DEBUG
 		printf("\nread failed\n");
 #endif

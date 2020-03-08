@@ -69,12 +69,6 @@ void fingerprint_info_add(const char *, const char *, const char *,
 int ve_check_hash(br_hash_compat_context *, const br_hash_class *,
     const char *, const char *, size_t);
 
-struct vectx;
-struct vectx* vectx_open(int, const char *, off_t, struct stat *, int *);
-ssize_t vectx_read(struct vectx *, void *, size_t);
-off_t vectx_lseek(struct vectx *, off_t, int);
-int vectx_close(struct vectx *);
-
 char * hexdigest(char *, size_t, unsigned char *, size_t);
 int  verify_fd(int, const char *, off_t, struct stat *);
 int  verify_open(const char *, int);

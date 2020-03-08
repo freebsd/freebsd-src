@@ -160,7 +160,7 @@ uboot_copyout(const vm_offset_t src, void *dest, const size_t len)
 }
 
 ssize_t
-uboot_readin(const int fd, vm_offset_t dest, const size_t len)
+uboot_readin(readin_handle_t fd, vm_offset_t dest, const size_t len)
 {
-	return (read(fd, (void *)dest, len));
+	return (VECTX_READ(fd, (void *)dest, len));
 }
