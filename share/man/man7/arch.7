@@ -319,14 +319,6 @@ This table shows the default tool chain for each architecture.
 .El
 .Pp
 (1) External toolchain provided by ports/packages.
-.Pp
-Note that GCC 4.2.1 is deprecated, and scheduled for removal on 2020-03-31.
-Any CPU architectures not migrated by then
-(to either base system Clang or external toolchain)
-may be removed from the tree after that date.
-make universe will not build mips
-architectures unless the xtoolchain binaries have been installed for
-the architecture.
 .Ss MACHINE_ARCH vs MACHINE_CPUARCH vs MACHINE
 .Dv MACHINE_CPUARCH
 should be preferred in Makefiles when the generic
