@@ -3591,13 +3591,10 @@ xhci_roothub_exec(struct usb_device *udev,
 			i |= UPS_OVERCURRENT_INDICATOR;
 		if (v & XHCI_PS_PR)
 			i |= UPS_RESET;
-		if (v & XHCI_PS_PP) {
-			/*
-			 * The USB 3.0 RH is using the
-			 * USB 2.0's power bit
-			 */
-			i |= UPS_PORT_POWER;
-		}
+#if 0
+		if (v & XHCI_PS_PP)
+			/* XXX undefined */
+#endif
 		USETW(sc->sc_hub_desc.ps.wPortStatus, i);
 
 		i = 0;
