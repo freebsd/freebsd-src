@@ -1,0 +1,25 @@
+#
+# $FreeBSD$
+#
+
+PACKAGE=	lib${LIB}
+LIB=	block_rbd
+
+.include <src.opts.mk>
+
+SHLIB_MAJOR=    1
+
+SRCS=   block_rbd.c
+
+CFLAGS+=	-I${SRCTOP}/sys
+CFLAGS+=	-g -O0 -fPIC -rdynamic
+LDFLAGS+=	-Wl,-export-dynamic,-Bdynamic
+CFLAGS+=	-DWITHOUT_CAPSICUM
+
+LOCALBASE?=	/usr/local
+CFLAGS+=	-I${LOCALBASE}/include
+LDFLAGS+=	-L${LOCALBASE}/lib -lrados -lrbd
+
+WARNS?=	2
+
+.include <bsd.lib.mk>
