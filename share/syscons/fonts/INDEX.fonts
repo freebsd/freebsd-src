@@ -1,7 +1,7 @@
 #
 # $FreeBSD$
 #
-# database for vidfont(8) 
+# database for vidfont(8)
 #
 # Format <file>:<lang>:<description>
 #
@@ -25,21 +25,21 @@
 # ISO 8859-1 supports the following languages:
 # Afrikaans, Catalan, Danish, Dutch, English, Faroese, Finnish, French,
 # German, Galician, Irish, Icelandic, Italian, Norwegian, Portuguese,
-# Spanish and Swedish. 
-# 
+# Spanish and Swedish.
+#
 # (It has been called to my attention that Albanian can be written with
 # ISO 8859-1 also.  However, from a standards point of view, ISO 8859-2
 # is the appropriate character set for Balkan countries.)
-# 
+#
 # ISO 8859-1 is just one part of the ISO-8859 standard, which specifies
 # several character sets, e.g.:
 # 8859-1  Europe, Latin America
 # 8859-2  Eastern Europe
-# 8859-3  SE Europe/miscellaneous (Esperanto, Maltese, etc.) 
+# 8859-3  SE Europe/miscellaneous (Esperanto, Maltese, etc.)
 # 8859-4  Scandinavia/Baltic (mostly covered by 8859-1 also)
 # 8859-5  Cyrillic
 # 8859-6  Arabic
-# 8859-7  Greek 
+# 8859-7  Greek
 # 8859-8  Hebrew
 # 8859-9  Latin5, same as 8859-1 except for Turkish instead of Icelandic
 # 8859-10 Latin6, for Eskimo/Scandinavian languages
@@ -70,17 +70,17 @@ FONT:hy:armscii8-8x16.fnt
 #
 armscii8-8x16.fnt:hy:ARMSCII-8 Œ·π≥Ì·ÒŸ≥› ≥’·ıÎ€≥œ, 8x16
 armscii8-8x16.fnt:ru:Îœƒ…“œ◊À¡ ARMSCII-8, 8x16
-armscii8-8x16.fnt:en:ARMSCII-8 Character set, 8x16 
-armscii8-8x16.fnt:de:ARMSCII-8 Zeichensatz, 8x16 
+armscii8-8x16.fnt:en:ARMSCII-8 Character set, 8x16
+armscii8-8x16.fnt:de:ARMSCII-8 Zeichensatz, 8x16
 
 armscii8-8x14.fnt:hy:ARMSCII-8 Œ·π≥Ì·ÒŸ≥› ≥’·ıÎ€≥œ, 8x14
 armscii8-8x14.fnt:ru:Îœƒ…“œ◊À¡ ARMSCII-8, 8x14
-armscii8-8x14.fnt:en:ARMSCII-8 Character set, 8x14 
+armscii8-8x14.fnt:en:ARMSCII-8 Character set, 8x14
 armscii8-8x14.fnt:de:ARMSCII-8 Zeichensatz, 8x14
 
 armscii8-8x8.fnt:hy:ARMSCII-8 Œ·π≥Ì·ÒŸ≥› ≥’·ıÎ€≥œ, 8x8
 armscii8-8x8.fnt:ru:Îœƒ…“œ◊À¡ ARMSCII-8, 8x8
-armscii8-8x8.fnt:en:ARMSCII-8 Character set, 8x8 
+armscii8-8x8.fnt:en:ARMSCII-8 Character set, 8x8
 armscii8-8x8.fnt:de:ARMSCII-8 Zeichensatz, 8x8
 
 cp437-8x14.fnt:en:Codepage 437 English, 8x14
