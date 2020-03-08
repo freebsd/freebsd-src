@@ -542,6 +542,10 @@ typedef struct {
 #define	PT_LOPROC	0x70000000	/* First processor-specific type. */
 #define	PT_ARM_ARCHEXT	0x70000000	/* ARM arch compat information. */
 #define	PT_ARM_EXIDX	0x70000001	/* ARM exception unwind tables. */
+#define	PT_MIPS_REGINFO		0x70000000	/* MIPS register usage info */
+#define	PT_MIPS_RTPROC		0x70000001	/* MIPS runtime procedure tbl */
+#define	PT_MIPS_OPTIONS		0x70000002	/* MIPS e_flags value*/
+#define	PT_MIPS_ABIFLAGS	0x70000003	/* MIPS fp mode */
 #define	PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 
 #define	PT_OPENBSD_RANDOMIZE	0x65A3DBE6	/* OpenBSD random data segment */
