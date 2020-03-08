@@ -325,6 +325,9 @@ fetch_pctdecode(char *dst, const char *src, size_t dlen)
 		    (d2 = fetch_hexval(s[2])) >= 0 && (d1 > 0 || d2 > 0)) {
 			c = d1 << 4 | d2;
 			s += 2;
+		} else if (s[0] == '%') {
+			/* Invalid escape sequence. */
+			return (NULL);
 		} else {
 			c = *s;
 		}
