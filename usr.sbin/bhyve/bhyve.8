@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: head/usr.sbin/bhyve/bhyve.8 355724 2019-12-13 19:21:58Z jhb $
 .\"
 .Dd December 13, 2019
 .Dt BHYVE 8
@@ -274,10 +274,10 @@ The MAC address is an ASCII string in
 format.
 .El
 .Pp
-Block storage devices:
+Local block storage devices:
 .Bl -tag -width 10n
-.It Pa /filename Ns Oo , Ns Ar block-device-options Oc
-.It Pa /dev/xxx Ns Oo , Ns Ar block-device-options Oc
+.It Oo Ar Ns file: Oc Ns Ar /filename Ns Oo , Ns Ar block-device-options Oc
+.It Oo Ar Ns file: Oc Ns Ar /dev/xxx Ns Oo , Ns Ar block-device-options Oc
 .El
 .Pp
 The

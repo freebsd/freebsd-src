@@ -1,9 +1,10 @@
 #
-# $FreeBSD$
+# $FreeBSD: head/usr.sbin/bhyve/Makefile 349803 2019-07-07 12:15:24Z vmaffione $
 #
 
 .include <src.opts.mk>
 CFLAGS+=-I${SRCTOP}/sys
+CFLAGS+=-rdynamic -DWITHOUT_CAPSICUM
 .PATH:  ${SRCTOP}/sys/cam/ctl
 
 PROG=	bhyve
@@ -20,6 +21,7 @@ SRCS=	\
 	bhyvegc.c		\
 	bhyverun.c		\
 	block_if.c		\
+	block_local.c		\
 	bootrom.c		\
 	console.c		\
 	consport.c		\
