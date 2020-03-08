@@ -3590,6 +3590,7 @@ buffered_write(fp, uio, active_cred, flags, td)
 	int flags;
 	struct thread *td;
 {
+	struct pwd *pwd;
 	struct vnode *devvp, *vp;
 	struct inode *ip;
 	struct buf *bp;
@@ -3610,7 +3611,8 @@ buffered_write(fp, uio, active_cred, flags, td)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
-	vp = fdp->fd_pwd->pwd_cdir;
+	pwd = FILEDESC_LOCKED_LOAD_PWD(fdp);
+	vp = pwd->pwd_cdir;
 	vref(vp);
 	FILEDESC_SUNLOCK(fdp);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
