@@ -39,13 +39,21 @@
 
 struct stat;
 
-void    ve_debug_set(int);
-int     ve_status_get(int);
-void    ve_efi_init(void);
-int     load_manifest(const char *, const char *, const char *, struct stat *);
-int     pass_manifest(const char *, const char *);
-int     pass_manifest_export_envs(void);
-int     verify_file(int, const char *, off_t, int);
-void    verify_pcr_export(void);
+int	verify_prep(int, const char *, off_t, struct stat *, const char *);
+void	ve_debug_set(int);
+char	*ve_error_get(void);
+void	ve_efi_init(void);
+int	ve_status_get(int);
+int	load_manifest(const char *, const char *, const char *, struct stat *);
+int	pass_manifest(const char *, const char *);
+int	pass_manifest_export_envs(void);
+int	verify_file(int, const char *, off_t, int, const char *);
+void	verify_pcr_export(void);
+
+struct vectx;
+struct vectx* vectx_open(int, const char *, off_t, struct stat *, int *, const char *);
+ssize_t	vectx_read(struct vectx *, void *, size_t);
+off_t	vectx_lseek(struct vectx *, off_t, int);
+int	vectx_close(struct vectx *, int, const char *);
 
 #endif	/* _VERIFY_FILE_H_ */

@@ -284,7 +284,7 @@ bf_init(void)
 	/* try to load and run init file if present */
 	if ((fd = open("/boot/boot.4th", O_RDONLY)) != -1) {
 #ifdef LOADER_VERIEXEC
-		if (verify_file(fd, "/boot/boot.4th", 0, VE_GUESS) < 0) {
+		if (verify_file(fd, "/boot/boot.4th", 0, VE_GUESS, __func__) < 0) {
 			close(fd);
 			return;
 		}
@@ -386,7 +386,7 @@ interp_include(const char *filename)
 	}
 
 #ifdef LOADER_VERIEXEC
-	if (verify_file(fd, filename, 0, VE_GUESS) < 0) {
+	if (verify_file(fd, filename, 0, VE_GUESS, __func__) < 0) {
 		close(fd);
 		sprintf(command_errbuf,"can't verify '%s'", filename);
 		return(CMD_ERROR);

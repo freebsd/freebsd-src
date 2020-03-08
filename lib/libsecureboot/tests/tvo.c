@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <verify_file.h>
 
+size_t DestdirLen;
+char *Destdir;
 char *Skip;
 
 int
@@ -42,7 +44,10 @@ main(int argc, char *argv[])
 	int Vflag;
 	char *cp;
 	char *prefix;
+	char *destdir;
 
+	Destdir = NULL;
+	DestdirLen = 0;
 	prefix = NULL;
 	Skip = NULL;
 
@@ -50,8 +55,12 @@ main(int argc, char *argv[])
 	printf("Trust %d\n", n);
 	Vflag = 0;
 
-	while ((c = getopt(argc, argv, "dp:s:T:V")) != -1) {
+	while ((c = getopt(argc, argv, "D:dp:s:T:V")) != -1) {
 		switch (c) {
+		case 'D':
+			Destdir = optarg;
+			DestdirLen = strlen(optarg);
+			break;
 		case 'd':
 			DebugVe++;
 			break;
@@ -92,7 +101,7 @@ main(int argc, char *argv[])
 				 */
 				int x;
 
-				x = verify_file(fd, argv[optind], 0, VE_GUESS);
+				x = verify_file(fd, argv[optind], 0, VE_GUESS, __func__);
 				printf("verify_file(%s) = %d\n", argv[optind], x);
 				close(fd);
 			}
@@ -147,7 +156,7 @@ main(int argc, char *argv[])
 				lseek(fd, 0, SEEK_SET);
 				off = st.st_size % 512;
 				vp = vectx_open(fd, argv[optind], off,
-				    &st, &error);
+				    &st, &error, __func__);
 				if (!vp) {
 					printf("vectx_open(%s) failed: %d %s\n",
 					    argv[optind], error,
@@ -155,7 +164,8 @@ main(int argc, char *argv[])
 				} else {
 					off = vectx_lseek(vp,
 					    (st.st_size % 1024), SEEK_SET);
-
+					/* we can seek backwards! */
+					off = vectx_lseek(vp, off/2, SEEK_SET);
 					if (off < st.st_size) {
 						n = vectx_read(vp, buf,
 						    sizeof(buf));
@@ -165,7 +175,7 @@ main(int argc, char *argv[])
 					off = vectx_lseek(vp, 0, SEEK_END);
 					/* repeating that should be harmless */
 					off = vectx_lseek(vp, 0, SEEK_END);
-					error = vectx_close(vp);
+					error = vectx_close(vp, VE_MUST, __func__);
 					if (error) {
 						printf("vectx_close(%s) == %d %s\n",
 						    argv[optind], error,
