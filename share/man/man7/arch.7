@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2020
+.Dd March 8, 2020
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -69,7 +69,6 @@ and
 should be avoided.
 .Pp
 On some architectures, e.g.,
-.Dv sparc64 ,
 .Dv powerpc
 and AIM variants of
 .Dv powerpc64 ,
@@ -210,7 +209,6 @@ Machine-dependent type sizes:
 .It powerpc64   Ta 8 Ta  8 Ta 8
 .It riscv64     Ta 8 Ta 16 Ta 8
 .It riscv64sf   Ta 8 Ta 16 Ta 8
-.It sparc64     Ta 8 Ta 16 Ta 8
 .El
 .Pp
 .Sy time_t
@@ -237,7 +235,6 @@ is 8 bytes on all supported architectures except i386.
 .It powerpc64   Ta big    Ta unsigned
 .It riscv64     Ta little Ta   signed
 .It riscv64sf   Ta little Ta   signed
-.It sparc64     Ta big    Ta   signed
 .El
 .Ss Page Size
 .Bl -column -offset indent "Sy Architecture" "Sy Page Sizes"
@@ -261,7 +258,6 @@ is 8 bytes on all supported architectures except i386.
 .It powerpc64   Ta 4K
 .It riscv64     Ta 4K
 .It riscv64sf   Ta 4K
-.It sparc64     Ta 8K
 .El
 .Ss Floating Point
 .Bl -column -offset indent "Sy Architecture" "Sy float, double" "Sy long double"
@@ -285,7 +281,6 @@ is 8 bytes on all supported architectures except i386.
 .It powerpc64   Ta hard Ta hard, double precision
 .It riscv64     Ta hard Ta hard, double precision
 .It riscv64sf   Ta soft Ta soft, double precision
-.It sparc64     Ta hard Ta hard, quad precision
 .El
 .Ss Default Tool Chain
 .Fx uses a variety of tool chain components for the supported CPU
@@ -321,7 +316,6 @@ This table shows the default tool chain for each architecture.
 .It powerpc64   Ta Clang     Ta lld
 .It riscv64     Ta Clang     Ta lld
 .It riscv64sf   Ta Clang     Ta lld
-.It sparc64     Ta GCC(1)    Ta GNU ld(1)
 .El
 .Pp
 (1) External toolchain provided by ports/packages.
@@ -330,7 +324,7 @@ Note that GCC 4.2.1 is deprecated, and scheduled for removal on 2020-03-31.
 Any CPU architectures not migrated by then
 (to either base system Clang or external toolchain)
 may be removed from the tree after that date.
-make universe will not build mips or sparc64
+make universe will not build mips
 architectures unless the xtoolchain binaries have been installed for
 the architecture.
 .Ss MACHINE_ARCH vs MACHINE_CPUARCH vs MACHINE
@@ -353,7 +347,6 @@ or similar things like boot sequences.
 .It mips Ta mips Ta mips, mipsel, mips64, mips64el, mipshf, mipselhf, mips64elhf, mipsn32
 .It powerpc Ta powerpc Ta powerpc, powerpcspe, powerpc64
 .It riscv Ta riscv Ta riscv64, riscv64sf
-.It sparc64 Ta sparc64 Ta sparc64
 .El
 .Ss Predefined Macros
 The compiler provides a number of predefined macros.
@@ -399,7 +392,6 @@ Architecture-specific macros:
 .It powerpc64   Ta Dv __powerpc__, Dv __powerpc64__
 .It riscv64     Ta Dv __riscv, Dv __riscv_xlen == 64
 .It riscv64sf   Ta Dv __riscv, Dv __riscv_xlen == 64
-.It sparc64     Ta Dv __sparc64__
 .El
 .Pp
 Compilers may define additional variants of architecture-specific macros.
