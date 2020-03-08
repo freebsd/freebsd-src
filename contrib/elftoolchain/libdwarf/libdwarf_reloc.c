@@ -44,7 +44,7 @@ _dwarf_get_reloc_type(Dwarf_P_Debug dbg, int is64)
 	case DW_ISA_SPARC:
 		return (is64 ? R_SPARC_UA64 : R_SPARC_UA32);
 	case DW_ISA_PPC:
-		return (R_PPC_ADDR32);
+		return (is64 ? R_PPC64_ADDR64 : R_PPC_ADDR32);
 	case DW_ISA_ARM:
 		return (R_ARM_ABS32);
 	case DW_ISA_MIPS:
@@ -96,6 +96,12 @@ _dwarf_get_reloc_size(Dwarf_Debug dbg, Dwarf_Unsigned rel_type)
 	case EM_PPC:
 		if (rel_type == R_PPC_ADDR32)
 			return (4);
+		break;
+	case EM_PPC64:
+		if (rel_type == R_PPC_ADDR32)
+			return (4);
+		else if (rel_type == R_PPC64_ADDR64)
+			return (8);
 		break;
 	case EM_MIPS:
 		if (rel_type == R_MIPS_32)
