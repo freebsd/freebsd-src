@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/usr.sbin/bhyve/block_if.h 347033 2019-05-02 22:46:37Z jhb $
  */
 
 /*
@@ -38,6 +38,9 @@
 #ifndef _BLOCK_IF_H_
 #define _BLOCK_IF_H_
 
+#include <stdint.h>
+
+#include <sys/queue.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
 
@@ -49,6 +52,26 @@
 #define	BLOCKIF_IOV_MAX		128	/* not practical to be IOV_MAX */
 #define	BLOCKIF_RING_MAX	128
 
+#define BLOCKIF_SIG     0xb109b109
+
+#define BLOCKIF_NUMTHR  8
+#define BLOCKIF_MAXREQ  (BLOCKIF_RING_MAX + BLOCKIF_NUMTHR)
+
+enum blockop {
+        BOP_READ,
+        BOP_WRITE,
+        BOP_FLUSH,
+        BOP_DELETE
+};
+
+enum blockstat {
+        BST_FREE,
+        BST_BLOCK,
+        BST_PEND,
+        BST_BUSY,
+        BST_DONE
+};
+
 struct blockif_req {
 	int		br_iovcnt;
 	off_t		br_offset;
@@ -57,12 +80,52 @@ struct blockif_req {
 	void		*br_param;
 	struct iovec	br_iov[BLOCKIF_IOV_MAX];
 };
+typedef struct blockif_req blockif_req_t;
 
-struct blockif_ctxt;
-struct blockif_ctxt *blockif_open(const char *optstr, const char *ident);
+struct blockif_elem {
+        TAILQ_ENTRY(blockif_elem) be_link;
+        struct blockif_req  *be_req;
+        enum blockop         be_op;
+        enum blockstat       be_status;
+        pthread_t            be_tid;
+        off_t                be_block;
+};
+typedef struct blockif_elem blockif_elem_t;
+
+typedef struct block_backend block_backend_t;
+struct blockif_ctxt {
+        int                     bc_magic;
+        union {
+                int             bc_fd;
+        	/* For data specific for this instance of the backend*/
+	        void           *bc_desc;
+	} desc;
+        int                     bc_ischr;
+        int                     bc_isgeom;
+        int                     bc_candelete;
+        int                     bc_rdonly;
+        off_t                   bc_size;
+        int                     bc_sectsz;
+        int                     bc_psectsz;
+        int                     bc_psectoff;
+        int                     bc_closing;
+        pthread_t               bc_btid[BLOCKIF_NUMTHR];
+        pthread_mutex_t         bc_mtx;
+        pthread_cond_t          bc_cond;
+
+        block_backend_t	       *be;
+
+        /* Request elements and free/pending/busy queues */
+        TAILQ_HEAD(, blockif_elem) bc_freeq;
+        TAILQ_HEAD(, blockif_elem) bc_pendq;
+        TAILQ_HEAD(, blockif_elem) bc_busyq;
+        struct blockif_elem  bc_reqs[BLOCKIF_MAXREQ];
+};
+typedef struct blockif_ctxt blockif_ctxt_t;
+
+blockif_ctxt_t *blockif_open(const char *optstr, const char *ident);
 off_t	blockif_size(struct blockif_ctxt *bc);
-void	blockif_chs(struct blockif_ctxt *bc, uint16_t *c, uint8_t *h,
-    uint8_t *s);
+void	blockif_chs(struct blockif_ctxt *bc, uint16_t *c, uint8_t *h, uint8_t *s);
 int	blockif_sectsz(struct blockif_ctxt *bc);
 void	blockif_psectsz(struct blockif_ctxt *bc, int *size, int *off);
 int	blockif_queuesz(struct blockif_ctxt *bc);
@@ -74,5 +137,56 @@ int	blockif_flush(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_delete(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_cancel(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_close(struct blockif_ctxt *bc);
+
+/*
+ * Each block device backend registers a set of function pointers that are
+ * used to implement the net backends API.
+ */
+struct block_backend {
+	const char *bb_name;		/* identifier used parse the option string */
+	/*
+	 * Routines used to initialize and cleanup the resources needed
+	 * by a backend. The init and cleanup function are used internally,
+	 * and should not be called by the frontend.
+	 */
+	void	(*bb_init)(void);
+
+	void	(*bb_cleanup)(blockif_ctxt_t *bc);
+
+	blockif_ctxt_t * (*bb_open)(const char *optstr, const char *ident);
+
+        off_t	(*bb_size)(blockif_ctxt_t *bc);
+
+        void	(*bb_chs)(blockif_ctxt_t *bc, uint16_t *c, uint8_t *h, 
+ 		       uint8_t *s);
+
+	int	(*bb_sectsz)(blockif_ctxt_t *bc);
+
+        void	(*bb_psectsz)(blockif_ctxt_t *bc, int *size, int *off);
+
+        int	(*bb_queuesz)(blockif_ctxt_t *bc);
+
+        int	(*bb_is_ro)(blockif_ctxt_t *bc);
+
+        int	(*bb_candelete)(blockif_ctxt_t *bc);
+
+        int	(*bb_read)(blockif_ctxt_t *bc, blockif_req_t *breq);
+
+        int	(*bb_write)(blockif_ctxt_t *bc, blockif_req_t *breq);
+
+        int	(*bb_flush)(blockif_ctxt_t *bc, blockif_req_t *breq);
+
+        int	(*bb_delete)(blockif_ctxt_t *bc, blockif_req_t *breq);
+
+        int	(*bb_cancel)(blockif_ctxt_t *bc, blockif_req_t *breq);
+
+        int	(*bb_close)(blockif_ctxt_t *bc);
+
+	/* Room for backend-specific data. */
+	void *bb_opaque;
+};
+
+/* Cheating for legacy code were we need the blocklocal_backend block */
+block_backend_t blocklocal_backend;
 
 #endif /* _BLOCK_IF_H_ */
