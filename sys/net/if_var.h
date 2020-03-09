@@ -198,6 +198,7 @@ struct if_snd_tag_alloc_header {
 	uint32_t type;		/* send tag type, see IF_SND_TAG_XXX */
 	uint32_t flowid;	/* mbuf hash value */
 	uint32_t flowtype;	/* mbuf hash type */
+	uint8_t numa_domain;	/* numa domain of associated inp */
 };
 
 struct if_snd_tag_alloc_rate_limit {
