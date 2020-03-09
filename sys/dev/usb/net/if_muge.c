@@ -1259,7 +1259,7 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				 * Check if RX checksums are computed, and
 				 * offload them
 				 */
-				if ((ifp->if_capabilities & IFCAP_RXCSUM) &&
+				if ((ifp->if_capenable & IFCAP_RXCSUM) &&
 				    !(rx_cmd_a & RX_CMD_A_ICSM_)) {
 					struct ether_header *eh;
 					eh = mtod(m, struct ether_header *);
@@ -1971,7 +1971,7 @@ static int muge_sethwcsum(struct muge_softc *sc)
 
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
 
-	if (ifp->if_capabilities & IFCAP_RXCSUM) {
+	if (ifp->if_capenable & IFCAP_RXCSUM) {
 		sc->sc_rfe_ctl |= ETH_RFE_CTL_IGMP_COE_ | ETH_RFE_CTL_ICMP_COE_;
 		sc->sc_rfe_ctl |= ETH_RFE_CTL_TCPUDP_COE_ | ETH_RFE_CTL_IP_COE_;
 	} else {
