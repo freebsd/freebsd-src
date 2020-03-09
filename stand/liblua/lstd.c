@@ -83,7 +83,7 @@ fopen(const char *filename, const char *mode)
 #ifdef LOADER_VERIEXEC
 	/* only regular files and only reading makes sense */
 	if (S_ISREG(st.st_mode) && !(m & O_WRONLY)) {
-		if (verify_file(fd, filename, 0, VE_GUESS) < 0) {
+		if (verify_file(fd, filename, 0, VE_GUESS, __func__) < 0) {
 			free(f);
 			close(fd);
 			return (NULL);
