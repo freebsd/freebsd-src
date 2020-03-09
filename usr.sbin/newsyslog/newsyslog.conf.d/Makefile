@@ -6,10 +6,6 @@ CONFSDIR=	/etc/newsyslog.conf.d
 
 CONFS=
 
-.if ${MK_AMD} != "no"
-CONFS+=		amd.conf
-.endif
-
 .if ${MK_FTP} != "no"
 CONFS+=		ftp.conf
 .endif
