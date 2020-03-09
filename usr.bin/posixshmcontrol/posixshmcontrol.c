@@ -446,6 +446,7 @@ struct opmode {
 static const struct opmode opmodes[] = {
 	{ .cmd = "create",	.impl = create_shm},
 	{ .cmd = "rm",		.impl = delete_shm, },
+	{ .cmd = "list",	.impl = list_shm },
 	{ .cmd = "ls",		.impl = list_shm },
 	{ .cmd = "dump",	.impl = read_shm, },
 	{ .cmd = "stat",	.impl = stat_shm, },
