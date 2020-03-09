@@ -150,7 +150,6 @@ static ACPI_STATUS acpi_device_scan_cb(ACPI_HANDLE h, UINT32 level,
 		    void *context, void **retval);
 static ACPI_STATUS acpi_device_scan_children(device_t bus, device_t dev,
 		    int max_depth, acpi_scan_cb_t user_fn, void *arg);
-static int	acpi_set_powerstate(device_t child, int state);
 static int	acpi_isa_pnp_probe(device_t bus, device_t child,
 		    struct isa_pnp_id *ids);
 static void	acpi_probe_children(device_t bus);
@@ -162,7 +161,6 @@ static ACPI_STATUS acpi_sleep_disable(struct acpi_softc *sc);
 static ACPI_STATUS acpi_EnterSleepState(struct acpi_softc *sc, int state);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
-static BOOLEAN	acpi_has_hid(ACPI_HANDLE handle);
 static void	acpi_resync_clock(struct acpi_softc *sc);
 static int	acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_run_prep(ACPI_HANDLE handle, int sstate);
@@ -883,14 +881,12 @@ acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
 }
 
 /* PnP information for devctl(8) */
-static int
-acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
-    size_t buflen)
+int
+acpi_pnpinfo_str(ACPI_HANDLE handle, char *buf, size_t buflen)
 {
-    struct acpi_device *dinfo = device_get_ivars(child);
     ACPI_DEVICE_INFO *adinfo;
 
-    if (ACPI_FAILURE(AcpiGetObjectInfo(dinfo->ad_handle, &adinfo))) {
+    if (ACPI_FAILURE(AcpiGetObjectInfo(handle, &adinfo))) {
 	snprintf(buf, buflen, "unknown");
 	return (0);
     }
@@ -906,6 +902,15 @@ acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
     AcpiOsFree(adinfo);
 
     return (0);
+}
+
+static int
+acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
+    size_t buflen)
+{
+    struct acpi_device *dinfo = device_get_ivars(child);
+
+    return (acpi_pnpinfo_str(dinfo->ad_handle, buf, buflen));
 }
 
 /*
@@ -1840,7 +1845,7 @@ acpi_device_scan_children(device_t bus, device_t dev, int max_depth,
  * Even though ACPI devices are not PCI, we use the PCI approach for setting
  * device power states since it's close enough to ACPI.
  */
-static int
+int
 acpi_set_powerstate(device_t child, int state)
 {
     ACPI_HANDLE h;
@@ -2285,7 +2290,7 @@ acpi_BatteryIsPresent(device_t dev)
 /*
  * Returns true if a device has at least one valid device ID.
  */
-static BOOLEAN
+BOOLEAN
 acpi_has_hid(ACPI_HANDLE h)
 {
     ACPI_DEVICE_INFO	*devinfo;
