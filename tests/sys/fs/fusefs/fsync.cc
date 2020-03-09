@@ -52,7 +52,7 @@ using namespace testing;
 
 class Fsync: public FuseTest {
 public:
-void expect_fsync(uint64_t ino, uint32_t flags, int error)
+void expect_fsync(uint64_t ino, uint32_t flags, int error, int times = 1)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -67,12 +67,13 @@ void expect_fsync(uint64_t ino, uint32_t flags, int error)
 				in.body.fsync.fsync_flags == flags);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnErrno(error)));
+	).Times(times)
+	.WillRepeatedly(Invoke(ReturnErrno(error)));
 }
 
-void expect_lookup(const char *relpath, uint64_t ino)
+void expect_lookup(const char *relpath, uint64_t ino, int times = 1)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, times);
 }
 
 void expect_write(uint64_t ino, uint64_t size, const void *contents)
@@ -257,4 +258,30 @@ TEST_F(Fsync, fsync)
 	ASSERT_EQ(0, fsync(fd)) << strerror(errno);
 
 	leak(fd);
+}
+
+/* If multiple FUSE file handles are active, we must fsync them all */
+TEST_F(Fsync, two_handles)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	ssize_t bufsize = strlen(CONTENTS);
+	uint64_t ino = 42;
+	int fd1, fd2;
+
+	expect_lookup(RELPATH, ino, 2);
+	expect_open(ino, 0, 2);
+	expect_write(ino, bufsize, CONTENTS);
+	expect_fsync(ino, 0, 0, 2);
+
+	fd1 = open(FULLPATH, O_WRONLY);
+	ASSERT_LE(0, fd1) << strerror(errno);
+	fd2 = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd2) << strerror(errno);
+	ASSERT_EQ(bufsize, write(fd1, CONTENTS, bufsize)) << strerror(errno);
+	ASSERT_EQ(0, fsync(fd1)) << strerror(errno);
+
+	leak(fd1);
+	leak(fd2);
 }
