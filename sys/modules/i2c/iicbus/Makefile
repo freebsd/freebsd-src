@@ -15,6 +15,11 @@ SRCS=	\
 	iiconf.h \
 	opt_platform.h \
 
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
+SRCS+=	acpi_iicbus.c opt_acpi.h acpi_if.h
+.endif
+
 .if !empty(OPT_FDT)
 SRCS+=	ofw_iicbus.c ofw_bus_if.h
 .endif
