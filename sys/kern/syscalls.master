@@ -1164,7 +1164,7 @@
 ; XXX: see the comment for open
 499	AUE_OPENAT_RWTC	STD	{ int openat(int fd, _In_z_ char *path,  \
 				    int flag, mode_t mode); }
-500	AUE_READLINKAT	STD	{ int readlinkat(int fd, \
+500	AUE_READLINKAT	STD	{ ssize_t readlinkat(int fd, \
 				    _In_z_ char *path, \
 				    _Out_writes_bytes_(bufsize) char *buf, \
 				    size_t bufsize); }
