@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd March 23, 2017
+.Dd April 16, 2019
 .Dt IFLIBTXTX 9
 .Os
 .Sh NAME
@@ -19,19 +19,19 @@
 .Fa "uint16_t qid"
 .Fa "uint32_t _pidx_or_credits_"
 .Fc
-.Ft int *
+.Ft int
 .Fo isc_txd_credits_update
 .Fa "void *sc"
 .Fa "uint16_t qid"
-.Fa "uint32_t credits"
+.Fa "bool clear"
 .Fc
-.Ft int *
+.Ft int
 .Fo isc_rxd_available
 .Fa "void *sc"
 .Fa "uint16_t qsid"
 .Fa "uint32_t cidx"
 .Fc
-.Ft void *
+.Ft void
 .Fo isc_rxd_refill
 .Fa "void *sc"
 .Fa "uint16_t qsid"
@@ -41,7 +41,7 @@
 .Fa "caddr_t *vaddrs"
 .Fa "uint16_t count"
 .Fc
-.Ft void *
+.Ft void
 .Fo isc_rxd_flush
 .Fa "void *sc"
 .Fa "uint16_t qsid"
