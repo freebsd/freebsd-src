@@ -226,8 +226,8 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, piperesizeallowed, CTLFLAG_RW,
 static void pipeinit(void *dummy __unused);
 static void pipeclose(struct pipe *cpipe);
 static void pipe_free_kmem(struct pipe *cpipe);
-static void pipe_create(struct pipe *pipe, int backing);
-static void pipe_paircreate(struct thread *td, struct pipepair **p_pp);
+static int pipe_create(struct pipe *pipe, bool backing);
+static int pipe_paircreate(struct thread *td, struct pipepair **p_pp);
 static __inline int pipelock(struct pipe *cpipe, int catch);
 static __inline void pipeunlock(struct pipe *cpipe);
 #ifndef PIPE_NODIRECT
@@ -335,11 +335,12 @@ pipe_zone_fini(void *mem, int size)
 	mtx_destroy(&pp->pp_mtx);
 }
 
-static void
+static int
 pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 {
 	struct pipepair *pp;
 	struct pipe *rpipe, *wpipe;
+	int error;
 
 	*p_pp = pp = uma_zalloc(pipe_zone, M_WAITOK);
 #ifdef MAC
@@ -357,22 +358,44 @@ pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 	knlist_init_mtx(&rpipe->pipe_sel.si_note, PIPE_MTX(rpipe));
 	knlist_init_mtx(&wpipe->pipe_sel.si_note, PIPE_MTX(wpipe));
 
-	/* Only the forward direction pipe is backed by default */
-	pipe_create(rpipe, 1);
-	pipe_create(wpipe, 0);
+	/*
+	 * Only the forward direction pipe is backed by big buffer by
+	 * default.
+	 */
+	error = pipe_create(rpipe, true);
+	if (error != 0)
+		goto fail;
+	error = pipe_create(wpipe, false);
+	if (error != 0) {
+		pipe_free_kmem(rpipe);
+		goto fail;
+	}
 
 	rpipe->pipe_state |= PIPE_DIRECTOK;
 	wpipe->pipe_state |= PIPE_DIRECTOK;
+	return (0);
+
+fail:
+	knlist_destroy(&rpipe->pipe_sel.si_note);
+	knlist_destroy(&wpipe->pipe_sel.si_note);
+#ifdef MAC
+	mac_pipe_destroy(pp);
+#endif
+	return (error);
 }
 
-void
+int
 pipe_named_ctor(struct pipe **ppipe, struct thread *td)
 {
 	struct pipepair *pp;
+	int error;
 
-	pipe_paircreate(td, &pp);
+	error = pipe_paircreate(td, &pp);
+	if (error != 0)
+		return (error);
 	pp->pp_rpipe.pipe_state |= PIPE_NAMED;
 	*ppipe = &pp->pp_rpipe;
+	return (0);
 }
 
 void
@@ -402,7 +425,9 @@ kern_pipe(struct thread *td, int fildes[2], int flags, struct filecaps *fcaps1,
 	struct pipepair *pp;
 	int fd, fflags, error;
 
-	pipe_paircreate(td, &pp);
+	error = pipe_paircreate(td, &pp);
+	if (error != 0)
+		return (error);
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
 	error = falloc_caps(td, &rf, &fd, flags, fcaps1);
@@ -616,25 +641,16 @@ pipeselwakeup(struct pipe *cpipe)
  * Initialize and allocate VM and memory for pipe.  The structure
  * will start out zero'd from the ctor, so we just manage the kmem.
  */
-static void
-pipe_create(struct pipe *pipe, int backing)
+static int
+pipe_create(struct pipe *pipe, bool large_backing)
 {
+	int error;
 
-	if (backing) {
-		/*
-		 * Note that these functions can fail if pipe map is exhausted
-		 * (as a result of too many pipes created), but we ignore the
-		 * error as it is not fatal and could be provoked by
-		 * unprivileged users. The only consequence is worse performance
-		 * with given pipe.
-		 */
-		if (amountpipekva > maxpipekva / 2)
-			(void)pipespace_new(pipe, SMALL_PIPE_SIZE);
-		else
-			(void)pipespace_new(pipe, PIPE_SIZE);
-	}
-
-	pipe->pipe_ino = alloc_unr64(&pipeino_unr);
+	error = pipespace_new(pipe, !large_backing || amountpipekva >
+	    maxpipekva / 2 ? SMALL_PIPE_SIZE : PIPE_SIZE);
+	if (error == 0)
+		pipe->pipe_ino = alloc_unr64(&pipeino_unr);
+	return (error);
 }
 
 /* ARGSUSED */
@@ -1068,17 +1084,7 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		pipespace(wpipe, desiredsize);
 		PIPE_LOCK(wpipe);
 	}
-	if (wpipe->pipe_buffer.size == 0) {
-		/*
-		 * This can only happen for reverse direction use of pipes
-		 * in a complete OOM situation.
-		 */
-		error = ENOMEM;
-		--wpipe->pipe_busy;
-		pipeunlock(wpipe);
-		PIPE_UNLOCK(wpipe);
-		return (error);
-	}
+	MPASS(wpipe->pipe_buffer.size != 0);
 
 	pipeunlock(wpipe);
 
