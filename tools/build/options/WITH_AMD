@@ -1,7 +1,0 @@
-.\" $FreeBSD$
-Set to build the legacy
-.Xr amd 8
-automount daemon and related programs.
-Note that
-.Xr autofs 5
-is the preferred automount technique.
