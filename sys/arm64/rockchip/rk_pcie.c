@@ -895,7 +895,7 @@ rk_pcie_enable_resources(struct rk_pcie_softc *sc)
 
 	/* Set basic PCIe core mode (RC, lanes, gen1 or 2) */
 	val  = STRAP_CONF_GEN_2 << 16 |
-	    sc->link_is_gen2 ? STRAP_CONF_GEN_2: 0;
+	    (sc->link_is_gen2 ? STRAP_CONF_GEN_2: 0);
 	val |= STRAP_CONF_MODE_RC << 16 | STRAP_CONF_MODE_RC;
 	val |= STRAP_CONF_LANES(~0) << 16 | STRAP_CONF_LANES(sc->num_lanes);
 	val |= STRAP_CONF_ARI_EN << 16 | STRAP_CONF_ARI_EN;
