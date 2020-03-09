@@ -345,6 +345,7 @@ fuse_internal_fsync(struct vnode *vp,
 	 * which file handle the caller is really referring to.
 	 */
 	LIST_FOREACH(fufh, &fvdat->handles, next) {
+		fdi.iosize = sizeof(*ffsi);
 		if (ffsi == NULL)
 			fdisp_make_vp(&fdi, op, vp, td, NULL);
 		else
