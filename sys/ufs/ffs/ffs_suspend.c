@@ -196,10 +196,10 @@ ffs_susp_suspend(struct mount *mp)
 	 * device.  The permissions can change after we unlock the vnode;
 	 * it's harmless.
 	 */
-	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
-	error = VOP_ACCESS(ump->um_devvp, VREAD | VWRITE,
+	vn_lock(ump->um_odevvp, LK_EXCLUSIVE | LK_RETRY);
+	error = VOP_ACCESS(ump->um_odevvp, VREAD | VWRITE,
 	    curthread->td_ucred, curthread);
-	VOP_UNLOCK(ump->um_devvp);
+	VOP_UNLOCK(ump->um_odevvp);
 	if (error != 0)
 		return (error);
 #ifdef MAC
