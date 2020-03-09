@@ -519,7 +519,7 @@ cpufreq_dt_attach(device_t dev)
 			continue;
 		if (cpu == sc->cpu) {
 			DEBUG(dev, "Skipping our cpu\n");
-			cpu++;
+			CPU_SET(cpu++, &sc->cpus);
 			continue;
 		}
 		DEBUG(dev, "Testing CPU %d\n", cpu);
