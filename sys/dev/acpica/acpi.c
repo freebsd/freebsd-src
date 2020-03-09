@@ -121,6 +121,7 @@ static device_t	acpi_add_child(device_t bus, u_int order, const char *name,
 static int	acpi_print_child(device_t bus, device_t child);
 static void	acpi_probe_nomatch(device_t bus, device_t child);
 static void	acpi_driver_added(device_t dev, driver_t *driver);
+static void	acpi_child_deleted(device_t dev, device_t child);
 static int	acpi_read_ivar(device_t dev, device_t child, int index,
 			uintptr_t *result);
 static int	acpi_write_ivar(device_t dev, device_t child, int index,
@@ -199,6 +200,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_print_child,		acpi_print_child),
     DEVMETHOD(bus_probe_nomatch,	acpi_probe_nomatch),
     DEVMETHOD(bus_driver_added,		acpi_driver_added),
+    DEVMETHOD(bus_child_deleted,	acpi_child_deleted),
     DEVMETHOD(bus_read_ivar,		acpi_read_ivar),
     DEVMETHOD(bus_write_ivar,		acpi_write_ivar),
     DEVMETHOD(bus_get_resource_list,	acpi_get_rlist),
@@ -904,6 +906,18 @@ acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
     AcpiOsFree(adinfo);
 
     return (0);
+}
+
+/*
+ * Handle device deletion.
+ */
+static void
+acpi_child_deleted(device_t dev, device_t child)
+{
+    struct acpi_device *dinfo = device_get_ivars(child);
+
+    if (acpi_get_device(dinfo->ad_handle) == child)
+	AcpiDetachData(dinfo->ad_handle, acpi_fake_objhandler);
 }
 
 /*
@@ -1791,10 +1805,8 @@ acpi_device_scan_cb(ACPI_HANDLE h, UINT32 level, void *arg, void **retval)
 	return (status);
 
     /* Remove the old child and its connection to the handle. */
-    if (old_dev != NULL) {
+    if (old_dev != NULL)
 	device_delete_child(device_get_parent(old_dev), old_dev);
-	AcpiDetachData(h, acpi_fake_objhandler);
-    }
 
     /* Recreate the handle association if the user created a device. */
     if (dev != NULL)
