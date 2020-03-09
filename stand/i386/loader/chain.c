@@ -95,7 +95,7 @@ command_chain(int argc, char *argv[])
 	}
 #else
 #ifdef LOADER_VERIEXEC
-	if (verify_file(fd, argv[1], 0, VE_MUST) < 0) {
+	if (verify_file(fd, argv[1], 0, VE_MUST, __func__) < 0) {
 		sprintf(command_errbuf, "can't verify: %s", argv[1]);
 		close(fd);
 		return (CMD_ERROR);
