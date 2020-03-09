@@ -507,8 +507,8 @@ retry:
 	error = vm_map_find(pipe_map, NULL, 0, (vm_offset_t *)&buffer, size, 0,
 	    VMFS_ANY_SPACE, VM_PROT_RW, VM_PROT_RW, 0);
 	if (error != KERN_SUCCESS) {
-		if ((cpipe->pipe_buffer.buffer == NULL) &&
-			(size > SMALL_PIPE_SIZE)) {
+		if (cpipe->pipe_buffer.buffer == NULL &&
+		    size > SMALL_PIPE_SIZE) {
 			size = SMALL_PIPE_SIZE;
 			pipefragretry++;
 			goto retry;
@@ -555,7 +555,7 @@ pipespace(struct pipe *cpipe, int size)
 {
 
 	KASSERT(cpipe->pipe_state & PIPE_LOCKFL,
-		("Unlocked pipe passed to pipespace"));
+	    ("Unlocked pipe passed to pipespace"));
 	return (pipespace_new(cpipe, size));
 }
 
@@ -660,10 +660,10 @@ pipe_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		goto locked_error;
 #endif
 	if (amountpipekva > (3 * maxpipekva) / 4) {
-		if (!(rpipe->pipe_state & PIPE_DIRECTW) &&
-			(rpipe->pipe_buffer.size > SMALL_PIPE_SIZE) &&
-			(rpipe->pipe_buffer.cnt <= SMALL_PIPE_SIZE) &&
-			(piperesizeallowed == 1)) {
+		if ((rpipe->pipe_state & PIPE_DIRECTW) == 0 &&
+		    rpipe->pipe_buffer.size > SMALL_PIPE_SIZE &&
+		    rpipe->pipe_buffer.cnt <= SMALL_PIPE_SIZE &&
+		    piperesizeallowed == 1) {
 			PIPE_UNLOCK(rpipe);
 			pipespace(rpipe, SMALL_PIPE_SIZE);
 			PIPE_LOCK(rpipe);
@@ -1011,10 +1011,9 @@ static int
 pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
-	int error = 0;
-	int desiredsize;
-	ssize_t orig_resid;
 	struct pipe *wpipe, *rpipe;
+	ssize_t orig_resid;
+	int desiredsize, error;
 
 	rpipe = fp->f_data;
 	wpipe = PIPE_PEER(rpipe);
@@ -1056,15 +1055,15 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	}
 
 	/* Choose a smaller size if we're in a OOM situation */
-	if ((amountpipekva > (3 * maxpipekva) / 4) &&
-		(wpipe->pipe_buffer.size > SMALL_PIPE_SIZE) &&
-		(wpipe->pipe_buffer.cnt <= SMALL_PIPE_SIZE) &&
-		(piperesizeallowed == 1))
+	if (amountpipekva > (3 * maxpipekva) / 4 &&
+	    wpipe->pipe_buffer.size > SMALL_PIPE_SIZE &&
+	    wpipe->pipe_buffer.cnt <= SMALL_PIPE_SIZE &&
+	    piperesizeallowed == 1)
 		desiredsize = SMALL_PIPE_SIZE;
 
 	/* Resize if the above determined that a new size was necessary */
-	if ((desiredsize != wpipe->pipe_buffer.size) &&
-		((wpipe->pipe_state & PIPE_DIRECTW) == 0)) {
+	if (desiredsize != wpipe->pipe_buffer.size &&
+	    (wpipe->pipe_state & PIPE_DIRECTW) == 0) {
 		PIPE_UNLOCK(wpipe);
 		pipespace(wpipe, desiredsize);
 		PIPE_LOCK(wpipe);
