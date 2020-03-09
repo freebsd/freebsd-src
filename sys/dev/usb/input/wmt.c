@@ -655,9 +655,8 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 				thqa_cert_rid = hi.report_ID;
 				break;
 			}
-			if (hi.collevel == 1 && touch_coll &&
-			    WMT_HI_ABSOLUTE(hi) && hi.usage ==
-			      HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX)) {
+			if (hi.collevel == 1 && touch_coll && hi.usage ==
+			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX)) {
 				cont_count_max = hi.logical_maximum;
 				cont_max_rid = hi.report_ID;
 				if (sc != NULL)
