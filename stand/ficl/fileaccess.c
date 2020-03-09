@@ -69,7 +69,7 @@ static void ficlFopen(FICL_VM *pVM, char *writeMode) /* ( c-addr u fam -- fileid
     else
 #ifdef LOADER_VERIEXEC
 	if (*mode == 'r' &&
-	    verify_file(fileno(f), filename, 0, VE_GUESS) < 0) {
+	    verify_file(fileno(f), filename, 0, VE_GUESS, __func__) < 0) {
 	    fclose(f);
 	    stackPushPtr(pVM->pStack, NULL);
 	} else
