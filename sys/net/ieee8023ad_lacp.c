@@ -832,13 +832,12 @@ lacp_stop(struct lagg_softc *sc)
 }
 
 struct lagg_port *
-lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
+lacp_select_tx_port_by_hash(struct lagg_softc *sc, uint32_t hash, uint8_t numa_domain)
 {
 	struct lacp_softc *lsc = LACP_SOFTC(sc);
 	struct lacp_portmap *pm;
 	struct lacp_port *lp;
 	struct lacp_port **map;
-	uint32_t hash;
 	int count;
 
 	if (__predict_false(lsc->lsc_suppress_distributing)) {
@@ -854,10 +853,10 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 
 #ifdef NUMA
 	if ((sc->sc_opts & LAGG_OPT_USE_NUMA) &&
-	    pm->pm_num_dom > 1 && m->m_pkthdr.numa_domain < MAXMEMDOM) {
-		count = pm->pm_numa[m->m_pkthdr.numa_domain].count;
+	    pm->pm_num_dom > 1 && numa_domain < MAXMEMDOM) {
+		count = pm->pm_numa[numa_domain].count;
 		if (count > 0) {
-			map = pm->pm_numa[m->m_pkthdr.numa_domain].map;
+			map = pm->pm_numa[numa_domain].map;
 		} else {
 			/* No ports on this domain; use global hash. */
 			map = pm->pm_map;
@@ -869,11 +868,6 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 		map = pm->pm_map;
 		count = pm->pm_count;
 	}
-	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) &&
-	    M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
-		hash = m->m_pkthdr.flowid >> sc->flowid_shift;
-	else
-		hash = m_ether_tcpip_hash(sc->sc_flags, m, lsc->lsc_hashkey);
 
 	hash %= count;
 	lp = map[hash];
@@ -884,33 +878,22 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 	return (lp->lp_lagg);
 }
 
-#if defined(RATELIMIT) || defined(KERN_TLS)
 struct lagg_port *
-lacp_select_tx_port_by_hash(struct lagg_softc *sc, uint32_t flowid)
+lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 {
 	struct lacp_softc *lsc = LACP_SOFTC(sc);
-	struct lacp_portmap *pm;
-	struct lacp_port *lp;
 	uint32_t hash;
+	uint8_t numa_domain;
 
-	if (__predict_false(lsc->lsc_suppress_distributing)) {
-		LACP_DPRINTF((NULL, "%s: waiting transit\n", __func__));
-		return (NULL);
-	}
+	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) &&
+	    M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
+		hash = m->m_pkthdr.flowid >> sc->flowid_shift;
+	else
+		hash = m_ether_tcpip_hash(sc->sc_flags, m, lsc->lsc_hashkey);
 
-	pm = &lsc->lsc_pmap[lsc->lsc_activemap];
-	if (pm->pm_count == 0) {
-		LACP_DPRINTF((NULL, "%s: no active aggregator\n", __func__));
-		return (NULL);
-	}
-
-	hash = flowid >> sc->flowid_shift;
-	hash %= pm->pm_count;
-	lp = pm->pm_map[hash];
-
-	return (lp->lp_lagg);
+	numa_domain = m->m_pkthdr.numa_domain;
+	return (lacp_select_tx_port_by_hash(sc, hash, numa_domain));
 }
-#endif
 
 /*
  * lacp_suppress_distributing: drop transmit packets for a while

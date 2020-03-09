@@ -1609,12 +1609,13 @@ mst_to_lst(struct m_snd_tag *mst)
  * contents.
  */
 static struct lagg_port *
-lookup_snd_tag_port(struct ifnet *ifp, uint32_t flowid, uint32_t flowtype)
+lookup_snd_tag_port(struct ifnet *ifp, uint32_t flowid, uint32_t flowtype,
+    uint8_t numa_domain)
 {
 	struct lagg_softc *sc;
 	struct lagg_port *lp;
 	struct lagg_lb *lb;
-	uint32_t p;
+	uint32_t hash, p;
 
 	sc = ifp->if_softc;
 
@@ -1634,7 +1635,8 @@ lookup_snd_tag_port(struct ifnet *ifp, uint32_t flowid, uint32_t flowtype)
 		if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) == 0 ||
 		    flowtype == M_HASHTYPE_NONE)
 			return (NULL);
-		return (lacp_select_tx_port_by_hash(sc, flowid));
+		hash = flowid >> sc->flowid_shift;
+		return (lacp_select_tx_port_by_hash(sc, hash, numa_domain));
 	default:
 		return (NULL);
 	}
@@ -1654,7 +1656,8 @@ lagg_snd_tag_alloc(struct ifnet *ifp,
 	sc = ifp->if_softc;
 
 	LAGG_RLOCK();
-	lp = lookup_snd_tag_port(ifp, params->hdr.flowid, params->hdr.flowtype);
+	lp = lookup_snd_tag_port(ifp, params->hdr.flowid,
+	    params->hdr.flowtype, params->hdr.numa_domain);
 	if (lp == NULL) {
 		LAGG_RUNLOCK();
 		return (EOPNOTSUPP);

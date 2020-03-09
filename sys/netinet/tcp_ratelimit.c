@@ -1006,6 +1006,7 @@ rt_find_real_interface(struct ifnet *ifp, struct inpcb *inp, int *error)
 	union if_snd_tag_alloc_params params = {
 		.rate_limit.hdr.type = IF_SND_TAG_TYPE_RATE_LIMIT,
 		.rate_limit.hdr.flowid = 1,
+		.rate_limit.hdr.numa_domain = inp->inp_numa_domain,
 		.rate_limit.max_rate = COMMON_RATE,
 		.rate_limit.flags = M_NOWAIT,
 	};
