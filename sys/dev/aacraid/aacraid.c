@@ -899,7 +899,7 @@ aacraid_new_intr_type1(void *arg)
 			AAC_MEM0_SETREG4(sc, AAC_SRC_ODBR_C, bellbits);
 			if (bellbits_shifted & AAC_DB_AIF_PENDING)
 				mode |= AAC_INT_MODE_AIF;
-			else if (bellbits_shifted & AAC_DB_SYNC_COMMAND) 
+			if (bellbits_shifted & AAC_DB_SYNC_COMMAND)
 				mode |= AAC_INT_MODE_SYNC;
 		}
 		/* ODR readback, Prep #238630 */
@@ -923,7 +923,10 @@ aacraid_new_intr_type1(void *arg)
 			sc->flags &= ~AAC_QUEUE_FRZN;
 			sc->aac_sync_cm = NULL;
 		}
-		mode = 0;
+		if (mode & AAC_INT_MODE_INTX)
+			mode &= ~AAC_INT_MODE_SYNC;
+		else
+			mode = 0;
 	}
 
 	if (mode & AAC_INT_MODE_AIF) {
@@ -932,6 +935,9 @@ aacraid_new_intr_type1(void *arg)
 			mode = 0;
 		} 
 	}
+
+	if (sc->flags & AAC_FLAGS_SYNC_MODE)
+		mode = 0;
 
 	if (mode) {
 		/* handle async. status */
