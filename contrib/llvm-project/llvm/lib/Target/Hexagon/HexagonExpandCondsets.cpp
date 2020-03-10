@@ -106,6 +106,7 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/LaneBitmask.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
@@ -285,7 +286,7 @@ bool HexagonExpandCondsets::isCondset(const MachineInstr &MI) {
 }
 
 LaneBitmask HexagonExpandCondsets::getLaneMask(unsigned Reg, unsigned Sub) {
-  assert(TargetRegisterInfo::isVirtualRegister(Reg));
+  assert(Register::isVirtualRegister(Reg));
   return Sub != 0 ? TRI->getSubRegIndexLaneMask(Sub)
                   : MRI->getMaxLaneMaskForVReg(Reg);
 }
@@ -364,7 +365,7 @@ void HexagonExpandCondsets::updateKillFlags(unsigned Reg) {
 
 void HexagonExpandCondsets::updateDeadsInRange(unsigned Reg, LaneBitmask LM,
       LiveRange &Range) {
-  assert(TargetRegisterInfo::isVirtualRegister(Reg));
+  assert(Register::isVirtualRegister(Reg));
   if (Range.empty())
     return;
 
@@ -372,8 +373,8 @@ void HexagonExpandCondsets::updateDeadsInRange(unsigned Reg, LaneBitmask LM,
   auto IsRegDef = [this,Reg,LM] (MachineOperand &Op) -> std::pair<bool,bool> {
     if (!Op.isReg() || !Op.isDef())
       return { false, false };
-    unsigned DR = Op.getReg(), DSR = Op.getSubReg();
-    if (!TargetRegisterInfo::isVirtualRegister(DR) || DR != Reg)
+    Register DR = Op.getReg(), DSR = Op.getSubReg();
+    if (!Register::isVirtualRegister(DR) || DR != Reg)
       return { false, false };
     LaneBitmask SLM = getLaneMask(DR, DSR);
     LaneBitmask A = SLM & LM;
@@ -551,8 +552,8 @@ void HexagonExpandCondsets::updateLiveness(std::set<unsigned> &RegSet,
       bool Recalc, bool UpdateKills, bool UpdateDeads) {
   UpdateKills |= UpdateDeads;
   for (unsigned R : RegSet) {
-    if (!TargetRegisterInfo::isVirtualRegister(R)) {
-      assert(TargetRegisterInfo::isPhysicalRegister(R));
+    if (!Register::isVirtualRegister(R)) {
+      assert(Register::isPhysicalRegister(R));
       // There shouldn't be any physical registers as operands, except
       // possibly reserved registers.
       assert(MRI->isReserved(R));
@@ -579,17 +580,17 @@ unsigned HexagonExpandCondsets::getCondTfrOpcode(const MachineOperand &SO,
   using namespace Hexagon;
 
   if (SO.isReg()) {
-    unsigned PhysR;
+    Register PhysR;
     RegisterRef RS = SO;
-    if (TargetRegisterInfo::isVirtualRegister(RS.Reg)) {
+    if (Register::isVirtualRegister(RS.Reg)) {
       const TargetRegisterClass *VC = MRI->getRegClass(RS.Reg);
       assert(VC->begin() != VC->end() && "Empty register class");
       PhysR = *VC->begin();
     } else {
-      assert(TargetRegisterInfo::isPhysicalRegister(RS.Reg));
+      assert(Register::isPhysicalRegister(RS.Reg));
       PhysR = RS.Reg;
     }
-    unsigned PhysS = (RS.Sub == 0) ? PhysR : TRI->getSubReg(PhysR, RS.Sub);
+    Register PhysS = (RS.Sub == 0) ? PhysR : TRI->getSubReg(PhysR, RS.Sub);
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(PhysS);
     switch (TRI->getRegSizeInBits(*RC)) {
       case 32:
@@ -671,7 +672,7 @@ bool HexagonExpandCondsets::split(MachineInstr &MI,
   MachineOperand &MD = MI.getOperand(0);  // Definition
   MachineOperand &MP = MI.getOperand(1);  // Predicate register
   assert(MD.isDef());
-  unsigned DR = MD.getReg(), DSR = MD.getSubReg();
+  Register DR = MD.getReg(), DSR = MD.getSubReg();
   bool ReadUndef = MD.isUndef();
   MachineBasicBlock::iterator At = MI;
 
@@ -802,7 +803,7 @@ bool HexagonExpandCondsets::canMoveOver(MachineInstr &MI, ReferenceMap &Defs,
     // For physical register we would need to check register aliases, etc.
     // and we don't want to bother with that. It would be of little value
     // before the actual register rewriting (from virtual to physical).
-    if (!TargetRegisterInfo::isVirtualRegister(RR.Reg))
+    if (!Register::isVirtualRegister(RR.Reg))
       return false;
     // No redefs for any operand.
     if (isRefInMap(RR, Defs, Exec_Then))
@@ -954,7 +955,7 @@ bool HexagonExpandCondsets::predicate(MachineInstr &TfrI, bool Cond,
     return false;
 
   RegisterRef RT(MS);
-  unsigned PredR = MP.getReg();
+  Register PredR = MP.getReg();
   MachineInstr *DefI = getReachingDefForPred(RT, TfrI, PredR, Cond);
   if (!DefI || !isPredicable(DefI))
     return false;
@@ -999,7 +1000,7 @@ bool HexagonExpandCondsets::predicate(MachineInstr &TfrI, bool Cond,
       // subregisters are other physical registers, and we are not checking
       // that.
       RegisterRef RR = Op;
-      if (!TargetRegisterInfo::isVirtualRegister(RR.Reg))
+      if (!Register::isVirtualRegister(RR.Reg))
         return false;
 
       ReferenceMap &Map = Op.isDef() ? Defs : Uses;
@@ -1040,7 +1041,7 @@ bool HexagonExpandCondsets::predicate(MachineInstr &TfrI, bool Cond,
   bool CanDown = canMoveOver(*DefI, Defs, Uses);
   // The TfrI does not access memory, but DefI could. Check if it's safe
   // to move DefI down to TfrI.
-  if (DefI->mayLoad() || DefI->mayStore())
+  if (DefI->mayLoadOrStore())
     if (!canMoveMemTo(*DefI, TfrI, true))
       CanDown = false;
 
@@ -1091,7 +1092,7 @@ bool HexagonExpandCondsets::predicateInBlock(MachineBasicBlock &B,
 }
 
 bool HexagonExpandCondsets::isIntReg(RegisterRef RR, unsigned &BW) {
-  if (!TargetRegisterInfo::isVirtualRegister(RR.Reg))
+  if (!Register::isVirtualRegister(RR.Reg))
     return false;
   const TargetRegisterClass *RC = MRI->getRegClass(RR.Reg);
   if (RC == &Hexagon::IntRegsRegClass) {

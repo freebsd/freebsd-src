@@ -28,6 +28,7 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 
@@ -149,7 +150,9 @@ EmulateInstructionMIPS::EmulateInstructionMIPS(
   m_insn_info.reset(target->createMCInstrInfo());
   assert(m_insn_info.get());
 
-  m_asm_info.reset(target->createMCAsmInfo(*m_reg_info, triple.getTriple()));
+  llvm::MCTargetOptions MCOptions;
+  m_asm_info.reset(
+      target->createMCAsmInfo(*m_reg_info, triple.getTriple(), MCOptions));
   m_subtype_info.reset(
       target->createMCSubtargetInfo(triple.getTriple(), cpu, features));
   assert(m_asm_info.get() && m_subtype_info.get());
@@ -978,13 +981,11 @@ EmulateInstructionMIPS::GetSizeOfInstruction(lldb_private::DataExtractor &data,
   llvm::ArrayRef<uint8_t> raw_insn(data.GetDataStart(), data.GetByteSize());
 
   if (m_use_alt_disaasm)
-    decode_status =
-        m_alt_disasm->getInstruction(mc_insn, next_inst_size, raw_insn,
-                                     inst_addr, llvm::nulls(), llvm::nulls());
+    decode_status = m_alt_disasm->getInstruction(
+        mc_insn, next_inst_size, raw_insn, inst_addr, llvm::nulls());
   else
-    decode_status =
-        m_disasm->getInstruction(mc_insn, next_inst_size, raw_insn, inst_addr,
-                                 llvm::nulls(), llvm::nulls());
+    decode_status = m_disasm->getInstruction(mc_insn, next_inst_size, raw_insn,
+                                             inst_addr, llvm::nulls());
 
   if (decode_status != llvm::MCDisassembler::Success)
     return false;
@@ -1067,11 +1068,11 @@ bool EmulateInstructionMIPS::EvaluateInstruction(uint32_t evaluate_options) {
     llvm::MCDisassembler::DecodeStatus decode_status;
     llvm::ArrayRef<uint8_t> raw_insn(data.GetDataStart(), data.GetByteSize());
     if (m_use_alt_disaasm)
-      decode_status = m_alt_disasm->getInstruction(
-          mc_insn, insn_size, raw_insn, m_addr, llvm::nulls(), llvm::nulls());
+      decode_status = m_alt_disasm->getInstruction(mc_insn, insn_size, raw_insn,
+                                                   m_addr, llvm::nulls());
     else
-      decode_status = m_disasm->getInstruction(
-          mc_insn, insn_size, raw_insn, m_addr, llvm::nulls(), llvm::nulls());
+      decode_status = m_disasm->getInstruction(mc_insn, insn_size, raw_insn,
+                                               m_addr, llvm::nulls());
 
     if (decode_status != llvm::MCDisassembler::Success)
       return false;
@@ -1150,6 +1151,7 @@ bool EmulateInstructionMIPS::CreateFunctionEntryUnwind(
   unwind_plan.SetSourceName("EmulateInstructionMIPS");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolYes);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   unwind_plan.SetReturnAddressRegister(dwarf_ra_mips);
 
   return true;

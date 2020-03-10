@@ -37,15 +37,14 @@ using namespace llvm::support;
 using namespace llvm::support::endian;
 using namespace llvm::sys;
 
-using namespace lld;
-using namespace lld::elf;
-
-std::vector<InputSectionBase *> elf::inputSections;
-
+namespace lld {
 // Returns a string to construct an error message.
-std::string lld::toString(const InputSectionBase *sec) {
+std::string toString(const elf::InputSectionBase *sec) {
   return (toString(sec->file) + ":(" + sec->name + ")").str();
 }
+
+namespace elf {
+std::vector<InputSectionBase *> inputSections;
 
 template <class ELFT>
 static ArrayRef<uint8_t> getSectionContents(ObjFile<ELFT> &file,
@@ -73,7 +72,7 @@ InputSectionBase::InputSectionBase(InputFile *file, uint64_t flags,
   areRelocsRela = false;
 
   // The ELF spec states that a value of 0 means the section has
-  // no alignment constraits.
+  // no alignment constraints.
   uint32_t v = std::max<uint32_t>(alignment, 1);
   if (!isPowerOf2_64(v))
     fatal(toString(this) + ": sh_addralign is not a power of 2");
@@ -422,7 +421,7 @@ void InputSection::copyRelocations(uint8_t *buf, ArrayRef<RelTy> rels) {
       p->r_addend = getAddend<ELFT>(rel);
 
     // Output section VA is zero for -r, so r_offset is an offset within the
-    // section, but for --emit-relocs it is an virtual address.
+    // section, but for --emit-relocs it is a virtual address.
     p->r_offset = sec->getVA(rel.r_offset);
     p->setSymbolAndType(in.symTab->getSymbolIndex(&sym), type,
                         config->isMips64EL);
@@ -470,7 +469,7 @@ void InputSection::copyRelocations(uint8_t *buf, ArrayRef<RelTy> rels) {
           target->getRelExpr(type, sym, bufLoc) == R_MIPS_GOTREL) {
         // Some MIPS relocations depend on "gp" value. By default,
         // this value has 0x7ff0 offset from a .got section. But
-        // relocatable files produced by a complier or a linker
+        // relocatable files produced by a compiler or a linker
         // might redefine this default value and we must use it
         // for a calculation of the relocation result. When we
         // generate EXE or DSO it's trivial. Generating a relocatable
@@ -486,6 +485,14 @@ void InputSection::copyRelocations(uint8_t *buf, ArrayRef<RelTy> rels) {
         p->r_addend = sym.getVA(addend) - section->getOutputSection()->addr;
       else if (config->relocatable && type != target->noneRel)
         sec->relocations.push_back({R_ABS, type, rel.r_offset, addend, &sym});
+    } else if (config->emachine == EM_PPC && type == R_PPC_PLTREL24 &&
+               p->r_addend >= 0x8000) {
+      // Similar to R_MIPS_GPREL{16,32}. If the addend of R_PPC_PLTREL24
+      // indicates that r30 is relative to the input section .got2
+      // (r_addend>=0x8000), after linking, r30 should be relative to the output
+      // section .got2 . To compensate for the shift, adjust r_addend by
+      // ppc32Got2OutSecOff.
+      p->r_addend += sec->file->ppc32Got2OutSecOff;
     }
   }
 }
@@ -608,26 +615,40 @@ static int64_t getTlsTpOffset(const Symbol &s) {
   if (&s == ElfSym::tlsModuleBase)
     return 0;
 
+  // There are 2 TLS layouts. Among targets we support, x86 uses TLS Variant 2
+  // while most others use Variant 1. At run time TP will be aligned to p_align.
+
+  // Variant 1. TP will be followed by an optional gap (which is the size of 2
+  // pointers on ARM/AArch64, 0 on other targets), followed by alignment
+  // padding, then the static TLS blocks. The alignment padding is added so that
+  // (TP + gap + padding) is congruent to p_vaddr modulo p_align.
+  //
+  // Variant 2. Static TLS blocks, followed by alignment padding are placed
+  // before TP. The alignment padding is added so that (TP - padding -
+  // p_memsz) is congruent to p_vaddr modulo p_align.
+  PhdrEntry *tls = Out::tlsPhdr;
   switch (config->emachine) {
+    // Variant 1.
   case EM_ARM:
   case EM_AARCH64:
-    // Variant 1. The thread pointer points to a TCB with a fixed 2-word size,
-    // followed by a variable amount of alignment padding, followed by the TLS
-    // segment.
-    return s.getVA(0) + alignTo(config->wordsize * 2, Out::tlsPhdr->p_align);
-  case EM_386:
-  case EM_X86_64:
-    // Variant 2. The TLS segment is located just before the thread pointer.
-    return s.getVA(0) - alignTo(Out::tlsPhdr->p_memsz, Out::tlsPhdr->p_align);
+    return s.getVA(0) + config->wordsize * 2 +
+           ((tls->p_vaddr - config->wordsize * 2) & (tls->p_align - 1));
+  case EM_MIPS:
   case EM_PPC:
   case EM_PPC64:
-    // The thread pointer points to a fixed offset from the start of the
-    // executable's TLS segment. An offset of 0x7000 allows a signed 16-bit
-    // offset to reach 0x1000 of TCB/thread-library data and 0xf000 of the
-    // program's TLS segment.
-    return s.getVA(0) - 0x7000;
+    // Adjusted Variant 1. TP is placed with a displacement of 0x7000, which is
+    // to allow a signed 16-bit offset to reach 0x1000 of TCB/thread-library
+    // data and 0xf000 of the program's TLS segment.
+    return s.getVA(0) + (tls->p_vaddr & (tls->p_align - 1)) - 0x7000;
   case EM_RISCV:
-    return s.getVA(0);
+    return s.getVA(0) + (tls->p_vaddr & (tls->p_align - 1));
+
+    // Variant 2.
+  case EM_HEXAGON:
+  case EM_386:
+  case EM_X86_64:
+    return s.getVA(0) - tls->p_memsz -
+           ((-tls->p_vaddr - tls->p_memsz) & (tls->p_align - 1));
   default:
     llvm_unreachable("unhandled Config->EMachine");
   }
@@ -671,8 +692,6 @@ static uint64_t getRelocTargetVA(const InputFile *file, RelType type, int64_t a,
   case R_GOT_PC:
   case R_RELAX_TLS_GD_TO_IE:
     return sym.getGotVA() + a - p;
-  case R_HEXAGON_GOT:
-    return sym.getGotVA() - in.gotPlt->getVA();
   case R_MIPS_GOTREL:
     return sym.getVA(a) - in.mipsGot->getGp(file);
   case R_MIPS_GOT_GP:
@@ -747,7 +766,7 @@ static uint64_t getRelocTargetVA(const InputFile *file, RelType type, int64_t a,
   case R_PPC32_PLTREL:
     // R_PPC_PLTREL24 uses the addend (usually 0 or 0x8000) to indicate r30
     // stores _GLOBAL_OFFSET_TABLE_ or .got2+0x8000. The addend is ignored for
-    // target VA compuation.
+    // target VA computation.
     return sym.getPltVA() - p;
   case R_PPC64_CALL: {
     uint64_t symVA = sym.getVA(a);
@@ -815,7 +834,7 @@ static uint64_t getRelocTargetVA(const InputFile *file, RelType type, int64_t a,
 // Such sections are never mapped to memory at runtime. Debug sections are
 // an example. Relocations in non-alloc sections are much easier to
 // handle than in allocated sections because it will never need complex
-// treatement such as GOT or PLT (because at runtime no one refers them).
+// treatment such as GOT or PLT (because at runtime no one refers them).
 // So, we handle relocations for non-alloc sections directly in this
 // function as a performance optimization.
 template <class ELFT, class RelTy>
@@ -961,8 +980,16 @@ void InputSectionBase::relocateAlloc(uint8_t *buf, uint8_t *bufEnd) {
 
       // Patch a nop (0x60000000) to a ld.
       if (rel.sym->needsTocRestore) {
-        if (bufLoc + 8 > bufEnd || read32(bufLoc + 4) != 0x60000000) {
-          error(getErrorLocation(bufLoc) + "call lacks nop, can't restore toc");
+        // gcc/gfortran 5.4, 6.3 and earlier versions do not add nop for
+        // recursive calls even if the function is preemptible. This is not
+        // wrong in the common case where the function is not preempted at
+        // runtime. Just ignore.
+        if ((bufLoc + 8 > bufEnd || read32(bufLoc + 4) != 0x60000000) &&
+            rel.sym->file != file) {
+          // Use substr(6) to remove the "__plt_" prefix.
+          errorOrWarn(getErrorLocation(bufLoc) + "call to " +
+                      lld::toString(*rel.sym).substr(6) +
+                      " lacks nop, can't restore toc");
           break;
         }
         write32(bufLoc + 4, 0xe8410018); // ld %r2, 24(%r1)
@@ -1071,7 +1098,7 @@ void InputSectionBase::adjustSplitStackFunctionPrologues(uint8_t *buf,
                                                    end, f->stOther))
         continue;
       if (!getFile<ELFT>()->someNoSplitStack)
-        error(lld::toString(this) + ": " + f->getName() +
+        error(toString(this) + ": " + f->getName() +
               " (with -fsplit-stack) calls " + rel.sym->getName() +
               " (without -fsplit-stack), but couldn't adjust its prologue");
     }
@@ -1334,3 +1361,6 @@ template void EhInputSection::split<ELF32LE>();
 template void EhInputSection::split<ELF32BE>();
 template void EhInputSection::split<ELF64LE>();
 template void EhInputSection::split<ELF64BE>();
+
+} // namespace elf
+} // namespace lld

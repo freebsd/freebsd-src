@@ -12,7 +12,6 @@
 #include "lldb/Core/Section.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/SymbolFile.h"
-#include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Utility/Log.h"
 
@@ -45,8 +44,8 @@ void Block::GetDescription(Stream *s, Function *function,
     s->Printf(", range%s = ", num_ranges > 1 ? "s" : "");
     for (size_t i = 0; i < num_ranges; ++i) {
       const Range &range = m_ranges.GetEntryRef(i);
-      s->AddressRange(base_addr + range.GetRangeBase(),
-                      base_addr + range.GetRangeEnd(), 4);
+      DumpAddressRange(s->AsRawOstream(), base_addr + range.GetRangeBase(),
+                       base_addr + range.GetRangeEnd(), 4);
     }
   }
 
@@ -88,8 +87,8 @@ void Block::Dump(Stream *s, addr_t base_addr, int32_t depth,
         *s << '!';
       else
         *s << ' ';
-      s->AddressRange(base_addr + range.GetRangeBase(),
-                      base_addr + range.GetRangeEnd(), 4);
+      DumpAddressRange(s->AsRawOstream(), base_addr + range.GetRangeBase(),
+                       base_addr + range.GetRangeEnd(), 4);
     }
   }
   s->EOL();
@@ -161,8 +160,8 @@ void Block::DumpAddressRanges(Stream *s, lldb::addr_t base_addr) {
     size_t num_ranges = m_ranges.GetSize();
     for (size_t i = 0; i < num_ranges; ++i) {
       const Range &range = m_ranges.GetEntryRef(i);
-      s->AddressRange(base_addr + range.GetRangeBase(),
-                      base_addr + range.GetRangeEnd(), 4);
+      DumpAddressRange(s->AsRawOstream(), base_addr + range.GetRangeBase(),
+                       base_addr + range.GetRangeEnd(), 4);
     }
   }
 }
@@ -337,22 +336,24 @@ void Block::AddRange(const Range &range) {
 
       const Declaration &func_decl = func_type->GetDeclaration();
       if (func_decl.GetLine()) {
-        log->Printf("warning: %s:%u block {0x%8.8" PRIx64
-                    "} has range[%u] [0x%" PRIx64 " - 0x%" PRIx64
-                    ") which is not contained in parent block {0x%8.8" PRIx64
-                    "} in function {0x%8.8" PRIx64 "} from %s",
-                    func_decl.GetFile().GetPath().c_str(), func_decl.GetLine(),
-                    GetID(), (uint32_t)m_ranges.GetSize(), block_start_addr,
-                    block_end_addr, parent_block->GetID(), function->GetID(),
-                    module_sp->GetFileSpec().GetPath().c_str());
+        LLDB_LOGF(log,
+                  "warning: %s:%u block {0x%8.8" PRIx64
+                  "} has range[%u] [0x%" PRIx64 " - 0x%" PRIx64
+                  ") which is not contained in parent block {0x%8.8" PRIx64
+                  "} in function {0x%8.8" PRIx64 "} from %s",
+                  func_decl.GetFile().GetPath().c_str(), func_decl.GetLine(),
+                  GetID(), (uint32_t)m_ranges.GetSize(), block_start_addr,
+                  block_end_addr, parent_block->GetID(), function->GetID(),
+                  module_sp->GetFileSpec().GetPath().c_str());
       } else {
-        log->Printf("warning: block {0x%8.8" PRIx64
-                    "} has range[%u] [0x%" PRIx64 " - 0x%" PRIx64
-                    ") which is not contained in parent block {0x%8.8" PRIx64
-                    "} in function {0x%8.8" PRIx64 "} from %s",
-                    GetID(), (uint32_t)m_ranges.GetSize(), block_start_addr,
-                    block_end_addr, parent_block->GetID(), function->GetID(),
-                    module_sp->GetFileSpec().GetPath().c_str());
+        LLDB_LOGF(log,
+                  "warning: block {0x%8.8" PRIx64 "} has range[%u] [0x%" PRIx64
+                  " - 0x%" PRIx64
+                  ") which is not contained in parent block {0x%8.8" PRIx64
+                  "} in function {0x%8.8" PRIx64 "} from %s",
+                  GetID(), (uint32_t)m_ranges.GetSize(), block_start_addr,
+                  block_end_addr, parent_block->GetID(), function->GetID(),
+                  module_sp->GetFileSpec().GetPath().c_str());
       }
     }
     parent_block->AddRange(range);
@@ -391,7 +392,7 @@ VariableListSP Block::GetBlockVariableList(bool can_create) {
       SymbolContext sc;
       CalculateSymbolContext(&sc);
       assert(sc.module_sp);
-      sc.module_sp->GetSymbolVendor()->ParseVariablesForContext(sc);
+      sc.module_sp->GetSymbolFile()->ParseVariablesForContext(sc);
     }
   }
   return m_variable_list_sp;
@@ -405,11 +406,10 @@ Block::AppendBlockVariables(bool can_create, bool get_child_block_variables,
   uint32_t num_variables_added = 0;
   VariableList *block_var_list = GetBlockVariableList(can_create).get();
   if (block_var_list) {
-    for (size_t i = 0; i < block_var_list->GetSize(); ++i) {
-      VariableSP variable = block_var_list->GetVariableAtIndex(i);
-      if (filter(variable.get())) {
+    for (const VariableSP &var_sp : *block_var_list) {
+      if (filter(var_sp.get())) {
         num_variables_added++;
-        variable_list->AddVariable(variable);
+        variable_list->AddVariable(var_sp);
       }
     }
   }
@@ -462,8 +462,7 @@ uint32_t Block::AppendVariables(bool can_create, bool get_parent_variables,
 
 SymbolFile *Block::GetSymbolFile() {
   if (ModuleSP module_sp = CalculateSymbolContextModule())
-    if (SymbolVendor *sym_vendor = module_sp->GetSymbolVendor())
-      return sym_vendor->GetSymbolFile();
+    return module_sp->GetSymbolFile();
   return nullptr;
 }
 

@@ -35,6 +35,7 @@
 
 #include "X86InstrInfo.h"
 #include "X86Subtarget.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -45,6 +46,7 @@
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCInstrDesc.h"
 
 using namespace llvm;
@@ -82,13 +84,13 @@ public:
   }
 
 private:
-  MachineRegisterInfo *MRI;
-  const X86InstrInfo *TII;
-  const X86RegisterInfo *TRI;
+  MachineRegisterInfo *MRI = nullptr;
+  const X86InstrInfo *TII = nullptr;
+  const X86RegisterInfo *TRI = nullptr;
   SmallVector<std::pair<MachineInstr *, MachineInstr *>, 2>
       BlockedLoadsStoresPairs;
   SmallVector<MachineInstr *, 2> ForRemoval;
-  AliasAnalysis *AA;
+  AliasAnalysis *AA = nullptr;
 
   /// Returns couples of Load then Store to memory which look
   ///  like a memcpy.
@@ -390,7 +392,7 @@ void X86AvoidSFBPass::buildCopy(MachineInstr *LoadInst, unsigned NLoadOpcode,
   MachineMemOperand *LMMO = *LoadInst->memoperands_begin();
   MachineMemOperand *SMMO = *StoreInst->memoperands_begin();
 
-  unsigned Reg1 = MRI->createVirtualRegister(
+  Register Reg1 = MRI->createVirtualRegister(
       TII->getRegClass(TII->get(NLoadOpcode), 0, TRI, *(MBB->getParent())));
   MachineInstr *NewLoad =
       BuildMI(*MBB, LoadInst, LoadInst->getDebugLoc(), TII->get(NLoadOpcode),

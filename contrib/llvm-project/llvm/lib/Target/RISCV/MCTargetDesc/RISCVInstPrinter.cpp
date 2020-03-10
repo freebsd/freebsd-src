@@ -39,8 +39,33 @@ static cl::opt<bool>
               cl::desc("Disable the emission of assembler pseudo instructions"),
               cl::init(false), cl::Hidden);
 
-void RISCVInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                 StringRef Annot, const MCSubtargetInfo &STI) {
+static cl::opt<bool>
+    ArchRegNames("riscv-arch-reg-names",
+                 cl::desc("Print architectural register names rather than the "
+                          "ABI names (such as x2 instead of sp)"),
+                 cl::init(false), cl::Hidden);
+
+// The command-line flags above are used by llvm-mc and llc. They can be used by
+// `llvm-objdump`, but we override their values here to handle options passed to
+// `llvm-objdump` with `-M` (which matches GNU objdump). There did not seem to
+// be an easier way to allow these options in all these tools, without doing it
+// this way.
+bool RISCVInstPrinter::applyTargetSpecificCLOption(StringRef Opt) {
+  if (Opt == "no-aliases") {
+    NoAliases = true;
+    return true;
+  }
+  if (Opt == "numeric") {
+    ArchRegNames = true;
+    return true;
+  }
+
+  return false;
+}
+
+void RISCVInstPrinter::printInst(const MCInst *MI, uint64_t Address,
+                                 StringRef Annot, const MCSubtargetInfo &STI,
+                                 raw_ostream &O) {
   bool Res = false;
   const MCInst *NewMI = MI;
   MCInst UncompressedMI;
@@ -49,7 +74,7 @@ void RISCVInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
   if (Res)
     NewMI = const_cast<MCInst *>(&UncompressedMI);
   if (NoAliases || !printAliasInstr(NewMI, STI, O))
-    printInstruction(NewMI, STI, O);
+    printInstruction(NewMI, Address, STI, O);
   printAnnotation(O, Annot);
 }
 
@@ -123,4 +148,9 @@ void RISCVInstPrinter::printAtomicMemOp(const MCInst *MI, unsigned OpNo,
   printRegName(O, MO.getReg());
   O << ")";
   return;
+}
+
+const char *RISCVInstPrinter::getRegisterName(unsigned RegNo) {
+  return getRegisterName(RegNo, ArchRegNames ? RISCV::NoRegAltName
+                                             : RISCV::ABIRegAltName);
 }

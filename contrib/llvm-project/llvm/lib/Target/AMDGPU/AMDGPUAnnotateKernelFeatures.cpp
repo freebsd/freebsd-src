@@ -173,6 +173,9 @@ static StringRef intrinsicToAttrName(Intrinsic::ID ID,
   case Intrinsic::amdgcn_implicitarg_ptr:
     return "amdgpu-implicitarg-ptr";
   case Intrinsic::amdgcn_queue_ptr:
+  case Intrinsic::amdgcn_is_shared:
+  case Intrinsic::amdgcn_is_private:
+    // TODO: Does not require queue ptr on gfx9+
   case Intrinsic::trap:
   case Intrinsic::debugtrap:
     IsQueuePtr = true;
@@ -194,18 +197,12 @@ static bool handleAttr(Function &Parent, const Function &Callee,
 static void copyFeaturesToFunction(Function &Parent, const Function &Callee,
                                    bool &NeedQueuePtr) {
   // X ids unnecessarily propagated to kernels.
-  static const StringRef AttrNames[] = {
-    { "amdgpu-work-item-id-x" },
-    { "amdgpu-work-item-id-y" },
-    { "amdgpu-work-item-id-z" },
-    { "amdgpu-work-group-id-x" },
-    { "amdgpu-work-group-id-y" },
-    { "amdgpu-work-group-id-z" },
-    { "amdgpu-dispatch-ptr" },
-    { "amdgpu-dispatch-id" },
-    { "amdgpu-kernarg-segment-ptr" },
-    { "amdgpu-implicitarg-ptr" }
-  };
+  static constexpr StringLiteral AttrNames[] = {
+      "amdgpu-work-item-id-x",      "amdgpu-work-item-id-y",
+      "amdgpu-work-item-id-z",      "amdgpu-work-group-id-x",
+      "amdgpu-work-group-id-y",     "amdgpu-work-group-id-z",
+      "amdgpu-dispatch-ptr",        "amdgpu-dispatch-id",
+      "amdgpu-kernarg-segment-ptr", "amdgpu-implicitarg-ptr"};
 
   if (handleAttr(Parent, Callee, "amdgpu-queue-ptr"))
     NeedQueuePtr = true;

@@ -60,8 +60,8 @@ PPCSubtarget::PPCSubtarget(const Triple &TT, const std::string &CPU,
       InstrInfo(*this), TLInfo(TM, *this) {}
 
 void PPCSubtarget::initializeEnvironment() {
-  StackAlignment = 16;
-  DarwinDirective = PPC::DIR_NONE;
+  StackAlignment = Align(16);
+  CPUDirective = PPC::DIR_NONE;
   HasMFOCRF = false;
   Has64BitSupport = false;
   Use64BitRegs = false;
@@ -100,6 +100,7 @@ void PPCSubtarget::initializeEnvironment() {
   IsPPC6xx = false;
   IsE500 = false;
   FeatureMFTB = false;
+  AllowsUnalignedFPAccess = false;
   DeprecatedDST = false;
   HasLazyResolverStubs = false;
   HasICBT = false;
@@ -192,7 +193,7 @@ bool PPCSubtarget::hasLazyResolverStub(const GlobalValue *GV) const {
 bool PPCSubtarget::enableMachineScheduler() const { return true; }
 
 bool PPCSubtarget::enableMachinePipeliner() const {
-  return (DarwinDirective == PPC::DIR_PWR9) && EnableMachinePipeliner;
+  return (CPUDirective == PPC::DIR_PWR9) && EnableMachinePipeliner;
 }
 
 bool PPCSubtarget::useDFAforSMS() const { return false; }
@@ -231,18 +232,13 @@ bool PPCSubtarget::enableSubRegLiveness() const {
   return UseSubRegLiveness;
 }
 
-unsigned char
-PPCSubtarget::classifyGlobalReference(const GlobalValue *GV) const {
-  // Note that currently we don't generate non-pic references.
-  // If a caller wants that, this will have to be updated.
-
+bool PPCSubtarget::isGVIndirectSymbol(const GlobalValue *GV) const {
   // Large code model always uses the TOC even for local symbols.
   if (TM.getCodeModel() == CodeModel::Large)
-    return PPCII::MO_PIC_FLAG | PPCII::MO_NLP_FLAG;
-
+    return true;
   if (TM.shouldAssumeDSOLocal(*GV->getParent(), GV))
-    return PPCII::MO_PIC_FLAG;
-  return PPCII::MO_PIC_FLAG | PPCII::MO_NLP_FLAG;
+    return false;
+  return true;
 }
 
 bool PPCSubtarget::isELFv2ABI() const { return TM.isELFv2ABI(); }

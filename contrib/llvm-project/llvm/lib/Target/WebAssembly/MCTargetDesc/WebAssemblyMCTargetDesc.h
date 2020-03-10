@@ -38,7 +38,7 @@ MCCodeEmitter *createWebAssemblyMCCodeEmitter(const MCInstrInfo &MCII);
 MCAsmBackend *createWebAssemblyAsmBackend(const Triple &TT);
 
 std::unique_ptr<MCObjectTargetWriter>
-createWebAssemblyWasmObjectWriter(bool Is64Bit);
+createWebAssemblyWasmObjectWriter(bool Is64Bit, bool IsEmscripten);
 
 namespace WebAssembly {
 enum OperandType {
@@ -122,16 +122,22 @@ enum TOF {
 namespace llvm {
 namespace WebAssembly {
 
-/// This is used to indicate block signatures.
-enum class ExprType : unsigned {
+/// Used as immediate MachineOperands for block signatures
+enum class BlockType : unsigned {
+  Invalid = 0x00,
   Void = 0x40,
-  I32 = 0x7F,
-  I64 = 0x7E,
-  F32 = 0x7D,
-  F64 = 0x7C,
-  V128 = 0x7B,
-  Exnref = 0x68,
-  Invalid = 0x00
+  I32 = unsigned(wasm::ValType::I32),
+  I64 = unsigned(wasm::ValType::I64),
+  F32 = unsigned(wasm::ValType::F32),
+  F64 = unsigned(wasm::ValType::F64),
+  V128 = unsigned(wasm::ValType::V128),
+  Exnref = unsigned(wasm::ValType::EXNREF),
+  // Multivalue blocks (and other non-void blocks) are only emitted when the
+  // blocks will never be exited and are at the ends of functions (see
+  // WebAssemblyCFGStackify::fixEndsAtEndOfFunction). They also are never made
+  // to pop values off the stack, so the exact multivalue signature can always
+  // be inferred from the return type of the parent function in MCInstLower.
+  Multivalue = 0xffff,
 };
 
 /// Instruction opcodes emitted via means other than CodeGen.
@@ -191,6 +197,8 @@ inline unsigned GetDefaultP2AlignAny(unsigned Opc) {
   case WebAssembly::ATOMIC_RMW8_U_CMPXCHG_I32_S:
   case WebAssembly::ATOMIC_RMW8_U_CMPXCHG_I64:
   case WebAssembly::ATOMIC_RMW8_U_CMPXCHG_I64_S:
+  case WebAssembly::LOAD_SPLAT_v8x16:
+  case WebAssembly::LOAD_SPLAT_v8x16_S:
     return 0;
   case WebAssembly::LOAD16_S_I32:
   case WebAssembly::LOAD16_S_I32_S:
@@ -240,6 +248,8 @@ inline unsigned GetDefaultP2AlignAny(unsigned Opc) {
   case WebAssembly::ATOMIC_RMW16_U_CMPXCHG_I32_S:
   case WebAssembly::ATOMIC_RMW16_U_CMPXCHG_I64:
   case WebAssembly::ATOMIC_RMW16_U_CMPXCHG_I64_S:
+  case WebAssembly::LOAD_SPLAT_v16x8:
+  case WebAssembly::LOAD_SPLAT_v16x8_S:
     return 1;
   case WebAssembly::LOAD_I32:
   case WebAssembly::LOAD_I32_S:
@@ -295,6 +305,8 @@ inline unsigned GetDefaultP2AlignAny(unsigned Opc) {
   case WebAssembly::ATOMIC_NOTIFY_S:
   case WebAssembly::ATOMIC_WAIT_I32:
   case WebAssembly::ATOMIC_WAIT_I32_S:
+  case WebAssembly::LOAD_SPLAT_v32x4:
+  case WebAssembly::LOAD_SPLAT_v32x4_S:
     return 2;
   case WebAssembly::LOAD_I64:
   case WebAssembly::LOAD_I64_S:
@@ -324,31 +336,25 @@ inline unsigned GetDefaultP2AlignAny(unsigned Opc) {
   case WebAssembly::ATOMIC_RMW_CMPXCHG_I64_S:
   case WebAssembly::ATOMIC_WAIT_I64:
   case WebAssembly::ATOMIC_WAIT_I64_S:
+  case WebAssembly::LOAD_SPLAT_v64x2:
+  case WebAssembly::LOAD_SPLAT_v64x2_S:
+  case WebAssembly::LOAD_EXTEND_S_v8i16:
+  case WebAssembly::LOAD_EXTEND_S_v8i16_S:
+  case WebAssembly::LOAD_EXTEND_U_v8i16:
+  case WebAssembly::LOAD_EXTEND_U_v8i16_S:
+  case WebAssembly::LOAD_EXTEND_S_v4i32:
+  case WebAssembly::LOAD_EXTEND_S_v4i32_S:
+  case WebAssembly::LOAD_EXTEND_U_v4i32:
+  case WebAssembly::LOAD_EXTEND_U_v4i32_S:
+  case WebAssembly::LOAD_EXTEND_S_v2i64:
+  case WebAssembly::LOAD_EXTEND_S_v2i64_S:
+  case WebAssembly::LOAD_EXTEND_U_v2i64:
+  case WebAssembly::LOAD_EXTEND_U_v2i64_S:
     return 3;
-  case WebAssembly::LOAD_v16i8:
-  case WebAssembly::LOAD_v16i8_S:
-  case WebAssembly::LOAD_v8i16:
-  case WebAssembly::LOAD_v8i16_S:
-  case WebAssembly::LOAD_v4i32:
-  case WebAssembly::LOAD_v4i32_S:
-  case WebAssembly::LOAD_v2i64:
-  case WebAssembly::LOAD_v2i64_S:
-  case WebAssembly::LOAD_v4f32:
-  case WebAssembly::LOAD_v4f32_S:
-  case WebAssembly::LOAD_v2f64:
-  case WebAssembly::LOAD_v2f64_S:
-  case WebAssembly::STORE_v16i8:
-  case WebAssembly::STORE_v16i8_S:
-  case WebAssembly::STORE_v8i16:
-  case WebAssembly::STORE_v8i16_S:
-  case WebAssembly::STORE_v4i32:
-  case WebAssembly::STORE_v4i32_S:
-  case WebAssembly::STORE_v2i64:
-  case WebAssembly::STORE_v2i64_S:
-  case WebAssembly::STORE_v4f32:
-  case WebAssembly::STORE_v4f32_S:
-  case WebAssembly::STORE_v2f64:
-  case WebAssembly::STORE_v2f64_S:
+  case WebAssembly::LOAD_V128:
+  case WebAssembly::LOAD_V128_S:
+  case WebAssembly::STORE_V128:
+  case WebAssembly::STORE_V128_S:
     return 4;
   default:
     return -1;

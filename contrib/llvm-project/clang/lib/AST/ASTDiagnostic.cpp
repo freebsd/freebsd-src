@@ -154,7 +154,7 @@ Underlying = CTy->desugar(); \
 } \
 break; \
 }
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
     }
 
     // If it wasn't sugared, we're done.
@@ -300,8 +300,7 @@ ConvertTypeToDiagnosticString(ASTContext &Context, QualType Ty,
     // Give some additional info on vector types. These are either not desugared
     // or displaying complex __attribute__ expressions so add details of the
     // type and element count.
-    if (Ty->isVectorType()) {
-      const VectorType *VTy = Ty->getAs<VectorType>();
+    if (const auto *VTy = Ty->getAs<VectorType>()) {
       std::string DecoratedString;
       llvm::raw_string_ostream OS(DecoratedString);
       const char *Values = VTy->getNumElements() > 1 ? "values" : "value";
@@ -338,6 +337,21 @@ void clang::FormatASTNodeDiagnosticArgument(
 
   switch (Kind) {
     default: llvm_unreachable("unknown ArgumentKind");
+    case DiagnosticsEngine::ak_addrspace: {
+      assert(Modifier.empty() && Argument.empty() &&
+             "Invalid modifier for Qualfiers argument");
+
+      auto S = Qualifiers::getAddrSpaceAsString(static_cast<LangAS>(Val));
+      if (S.empty()) {
+        OS << (Context.getLangOpts().OpenCL ? "default" : "generic");
+        OS << " address space";
+      } else {
+        OS << "address space";
+        OS << " '" << S << "'";
+      }
+      NeedQuotes = false;
+      break;
+    }
     case DiagnosticsEngine::ak_qual: {
       assert(Modifier.empty() && Argument.empty() &&
              "Invalid modifier for Qualfiers argument");
@@ -348,7 +362,7 @@ void clang::FormatASTNodeDiagnosticArgument(
         OS << "unqualified";
         NeedQuotes = false;
       } else {
-        OS << Q.getAsString();
+        OS << S;
       }
       break;
     }
@@ -589,8 +603,7 @@ class TemplateDiff {
     unsigned ReadNode;
 
   public:
-    DiffTree() :
-        CurrentNode(0), NextFreeNode(1) {
+    DiffTree() : CurrentNode(0), NextFreeNode(1), ReadNode(0) {
       FlatTree.push_back(DiffNode());
     }
 

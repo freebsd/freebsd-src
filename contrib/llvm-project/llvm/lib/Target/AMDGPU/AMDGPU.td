@@ -10,6 +10,15 @@ include "llvm/TableGen/SearchableTable.td"
 include "llvm/Target/Target.td"
 include "AMDGPUFeatures.td"
 
+def p0 : PtrValueType<i64, 0>;
+def p1 : PtrValueType<i64, 1>;
+def p2 : PtrValueType<i32, 2>;
+def p3 : PtrValueType<i32, 3>;
+def p4 : PtrValueType<i64, 4>;
+def p5 : PtrValueType<i32, 5>;
+def p6 : PtrValueType<i32, 6>;
+
+
 class BoolToList<bit Value> {
   list<int> ret = !if(Value, [1]<int>, []<int>);
 }
@@ -143,6 +152,12 @@ def FeatureLdsMisalignedBug : SubtargetFeature<"lds-misaligned-bug",
   "LDSMisalignedBug",
   "true",
   "Some GFX10 bug with misaligned multi-dword LDS access in WGP mode"
+>;
+
+def FeatureMFMAInlineLiteralBug : SubtargetFeature<"mfma-inline-literal-bug",
+  "HasMFMAInlineLiteralBug",
+  "true",
+  "MFMA cannot use inline literal as SrcC"
 >;
 
 def FeatureVcmpxPermlaneHazard : SubtargetFeature<"vcmpx-permlane-hazard",
@@ -802,6 +817,7 @@ def FeatureISAVersion9_0_8 : FeatureSet<
    FeaturePkFmacF16Inst,
    FeatureAtomicFaddInsts,
    FeatureSRAMECC,
+   FeatureMFMAInlineLiteralBug,
    FeatureCodeObjectV3]>;
 
 def FeatureISAVersion9_0_9 : FeatureSet<

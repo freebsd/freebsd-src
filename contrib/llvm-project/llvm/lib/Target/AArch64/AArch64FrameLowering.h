@@ -13,6 +13,7 @@
 #ifndef LLVM_LIB_TARGET_AARCH64_AARCH64FRAMELOWERING_H
 #define LLVM_LIB_TARGET_AARCH64_AARCH64FRAMELOWERING_H
 
+#include "AArch64StackOffset.h"
 #include "llvm/CodeGen/TargetFrameLowering.h"
 
 namespace llvm {
@@ -20,7 +21,7 @@ namespace llvm {
 class AArch64FrameLowering : public TargetFrameLowering {
 public:
   explicit AArch64FrameLowering()
-      : TargetFrameLowering(StackGrowsDown, 16, 0, 16,
+      : TargetFrameLowering(StackGrowsDown, Align(16), 0, Align(16),
                             true /*StackRealignable*/) {}
 
   void emitCalleeSavedFrameMoves(MachineBasicBlock &MBB,
@@ -39,12 +40,13 @@ public:
 
   int getFrameIndexReference(const MachineFunction &MF, int FI,
                              unsigned &FrameReg) const override;
-  int resolveFrameIndexReference(const MachineFunction &MF, int FI,
-                                 unsigned &FrameReg, bool PreferFP,
-                                 bool ForSimm) const;
-  int resolveFrameOffsetReference(const MachineFunction &MF, int ObjectOffset,
-                                  bool isFixed, unsigned &FrameReg,
-                                  bool PreferFP, bool ForSimm) const;
+  StackOffset resolveFrameIndexReference(const MachineFunction &MF, int FI,
+                                         unsigned &FrameReg, bool PreferFP,
+                                         bool ForSimm) const;
+  StackOffset resolveFrameOffsetReference(const MachineFunction &MF,
+                                          int64_t ObjectOffset, bool isFixed,
+                                          bool isSVE, unsigned &FrameReg,
+                                          bool PreferFP, bool ForSimm) const;
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,
                                  const std::vector<CalleeSavedInfo> &CSI,
@@ -70,6 +72,7 @@ public:
   }
 
   bool enableStackSlotScavenging(const MachineFunction &MF) const override;
+  TargetStackID::Value getStackIDForScalableVectors() const override;
 
   void processFunctionBeforeFrameFinalized(MachineFunction &MF,
                                              RegScavenger *RS) const override;
@@ -85,9 +88,25 @@ public:
                                int FI) const override;
   int getSEHFrameIndexOffset(const MachineFunction &MF, int FI) const;
 
+  bool isSupportedStackID(TargetStackID::Value ID) const override {
+    switch (ID) {
+    default:
+      return false;
+    case TargetStackID::Default:
+    case TargetStackID::SVEVector:
+    case TargetStackID::NoAlloc:
+      return true;
+    }
+  }
+
 private:
   bool shouldCombineCSRLocalStackBump(MachineFunction &MF,
-                                      unsigned StackBumpBytes) const;
+                                      uint64_t StackBumpBytes) const;
+
+  int64_t estimateSVEStackObjectOffsets(MachineFrameInfo &MF) const;
+  int64_t assignSVEStackObjectOffsets(MachineFrameInfo &MF,
+                                      int &MinCSFrameIndex,
+                                      int &MaxCSFrameIndex) const;
 };
 
 } // End llvm namespace

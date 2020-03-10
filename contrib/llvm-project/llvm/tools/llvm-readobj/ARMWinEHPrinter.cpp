@@ -842,8 +842,10 @@ bool Decoder::dumpXDataRecord(const COFFObjectFile &COFF,
 
   if ((int64_t)(Contents.size() - Offset - 4 * HeaderWords(XData) -
                 (XData.E() ? 0 : XData.EpilogueCount() * 4) -
-                (XData.X() ? 8 : 0)) < (int64_t)ByteCodeLength)
+                (XData.X() ? 8 : 0)) < (int64_t)ByteCodeLength) {
+    SW.flush();
     report_fatal_error("Malformed unwind data");
+  }
 
   if (XData.E()) {
     ArrayRef<uint8_t> UC = XData.UnwindByteCode();
@@ -882,7 +884,7 @@ bool Decoder::dumpXDataRecord(const COFFObjectFile &COFF,
   }
 
   if (XData.X()) {
-    const uint32_t Address = XData.ExceptionHandlerRVA();
+    const uint64_t Address = COFF.getImageBase() + XData.ExceptionHandlerRVA();
     const uint32_t Parameter = XData.ExceptionHandlerParameter();
     const size_t HandlerOffset = HeaderWords(XData)
                                + (XData.E() ? 0 : XData.EpilogueCount())
@@ -894,7 +896,8 @@ bool Decoder::dumpXDataRecord(const COFFObjectFile &COFF,
       Symbol = getSymbol(COFF, Address, /*FunctionOnly=*/true);
     if (!Symbol) {
       ListScope EHS(SW, "ExceptionHandler");
-      SW.printString("Routine", "(null)");
+      SW.printHex("Routine", Address);
+      SW.printHex("Parameter", Parameter);
       return true;
     }
 
@@ -923,7 +926,8 @@ bool Decoder::dumpUnpackedEntry(const COFFObjectFile &COFF,
 
   ErrorOr<SymbolRef> Function = getRelocatedSymbol(COFF, Section, Offset);
   if (!Function)
-    Function = getSymbol(COFF, RF.BeginAddress, /*FunctionOnly=*/true);
+    Function = getSymbol(COFF, COFF.getImageBase() + RF.BeginAddress,
+                         /*FunctionOnly=*/true);
 
   ErrorOr<SymbolRef> XDataRecord = getRelocatedSymbol(COFF, Section, Offset + 4);
   if (!XDataRecord)
@@ -1039,10 +1043,7 @@ bool Decoder::dumpPackedEntry(const object::COFFObjectFile &COFF,
     }
     FunctionAddress = *FunctionAddressOrErr;
   } else {
-    const pe32_header *PEHeader;
-    if (COFF.getPE32Header(PEHeader))
-      return false;
-    FunctionAddress = PEHeader->ImageBase + RF.BeginAddress;
+    FunctionAddress = COFF.getPE32Header()->ImageBase + RF.BeginAddress;
   }
 
   SW.printString("Function", formatSymbol(FunctionName, FunctionAddress));

@@ -26,10 +26,11 @@
 using namespace llvm;
 using namespace llvm::AMDGPU;
 
-void AMDGPUInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
-                                  StringRef Annot, const MCSubtargetInfo &STI) {
+void AMDGPUInstPrinter::printInst(const MCInst *MI, uint64_t Address,
+                                  StringRef Annot, const MCSubtargetInfo &STI,
+                                  raw_ostream &OS) {
   OS.flush();
-  printInstruction(MI, STI, OS);
+  printInstruction(MI, Address, STI, OS);
   printAnnotation(OS, Annot);
 }
 
@@ -196,6 +197,10 @@ void AMDGPUInstPrinter::printSLC(const MCInst *MI, unsigned OpNo,
   printNamedBit(MI, OpNo, O, "slc");
 }
 
+void AMDGPUInstPrinter::printSWZ(const MCInst *MI, unsigned OpNo,
+                                 const MCSubtargetInfo &STI, raw_ostream &O) {
+}
+
 void AMDGPUInstPrinter::printTFE(const MCInst *MI, unsigned OpNo,
                                  const MCSubtargetInfo &STI, raw_ostream &O) {
   printNamedBit(MI, OpNo, O, "tfe");
@@ -292,35 +297,7 @@ void AMDGPUInstPrinter::printRegOperand(unsigned RegNo, raw_ostream &O,
   }
 #endif
 
-  unsigned AltName = AMDGPU::Reg32;
-
-  if (MRI.getRegClass(AMDGPU::VReg_64RegClassID).contains(RegNo) ||
-      MRI.getRegClass(AMDGPU::SGPR_64RegClassID).contains(RegNo) ||
-      MRI.getRegClass(AMDGPU::AReg_64RegClassID).contains(RegNo))
-    AltName = AMDGPU::Reg64;
-  else if (MRI.getRegClass(AMDGPU::VReg_128RegClassID).contains(RegNo) ||
-           MRI.getRegClass(AMDGPU::SGPR_128RegClassID).contains(RegNo) ||
-           MRI.getRegClass(AMDGPU::AReg_128RegClassID).contains(RegNo))
-    AltName = AMDGPU::Reg128;
-  else if (MRI.getRegClass(AMDGPU::VReg_96RegClassID).contains(RegNo) ||
-           MRI.getRegClass(AMDGPU::SReg_96RegClassID).contains(RegNo))
-    AltName = AMDGPU::Reg96;
-  else if (MRI.getRegClass(AMDGPU::VReg_160RegClassID).contains(RegNo) ||
-           MRI.getRegClass(AMDGPU::SReg_160RegClassID).contains(RegNo))
-    AltName = AMDGPU::Reg160;
-  else if (MRI.getRegClass(AMDGPU::VReg_256RegClassID).contains(RegNo) ||
-           MRI.getRegClass(AMDGPU::SGPR_256RegClassID).contains(RegNo))
-    AltName = AMDGPU::Reg256;
-  else if (MRI.getRegClass(AMDGPU::VReg_512RegClassID).contains(RegNo) ||
-           MRI.getRegClass(AMDGPU::SGPR_512RegClassID).contains(RegNo) ||
-           MRI.getRegClass(AMDGPU::AReg_512RegClassID).contains(RegNo))
-    AltName = AMDGPU::Reg512;
-  else if (MRI.getRegClass(AMDGPU::VReg_1024RegClassID).contains(RegNo) ||
-           MRI.getRegClass(AMDGPU::SReg_1024RegClassID).contains(RegNo) ||
-           MRI.getRegClass(AMDGPU::AReg_1024RegClassID).contains(RegNo))
-    AltName = AMDGPU::Reg1024;
-
-  O << getRegisterName(RegNo, AltName);
+  O << getRegisterName(RegNo);
 }
 
 void AMDGPUInstPrinter::printVOPDst(const MCInst *MI, unsigned OpNo,
@@ -623,9 +600,11 @@ void AMDGPUInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
   case AMDGPU::V_ADD_CO_CI_U32_e32_gfx10:
   case AMDGPU::V_SUB_CO_CI_U32_e32_gfx10:
   case AMDGPU::V_SUBREV_CO_CI_U32_e32_gfx10:
+  case AMDGPU::V_CNDMASK_B32_dpp_gfx10:
   case AMDGPU::V_ADD_CO_CI_U32_dpp_gfx10:
   case AMDGPU::V_SUB_CO_CI_U32_dpp_gfx10:
   case AMDGPU::V_SUBREV_CO_CI_U32_dpp_gfx10:
+  case AMDGPU::V_CNDMASK_B32_dpp8_gfx10:
   case AMDGPU::V_ADD_CO_CI_U32_dpp8_gfx10:
   case AMDGPU::V_SUB_CO_CI_U32_dpp8_gfx10:
   case AMDGPU::V_SUBREV_CO_CI_U32_dpp8_gfx10:
@@ -689,6 +668,7 @@ void AMDGPUInstPrinter::printOperandAndIntInputMods(const MCInst *MI,
   switch (MI->getOpcode()) {
   default: break;
 
+  case AMDGPU::V_CNDMASK_B32_sdwa_gfx10:
   case AMDGPU::V_ADD_CO_CI_U32_sdwa_gfx10:
   case AMDGPU::V_SUB_CO_CI_U32_sdwa_gfx10:
   case AMDGPU::V_SUBREV_CO_CI_U32_sdwa_gfx10:
@@ -1363,10 +1343,11 @@ void AMDGPUInstPrinter::printEndpgm(const MCInst *MI, unsigned OpNo,
 
 #include "AMDGPUGenAsmWriter.inc"
 
-void R600InstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                StringRef Annot, const MCSubtargetInfo &STI) {
+void R600InstPrinter::printInst(const MCInst *MI, uint64_t Address,
+                                StringRef Annot, const MCSubtargetInfo &STI,
+                                raw_ostream &O) {
   O.flush();
-  printInstruction(MI, O);
+  printInstruction(MI, Address, O);
   printAnnotation(O, Annot);
 }
 

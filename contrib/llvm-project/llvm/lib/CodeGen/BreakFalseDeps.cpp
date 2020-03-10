@@ -9,22 +9,22 @@
 /// \file Break False Dependency pass.
 ///
 /// Some instructions have false dependencies which cause unnecessary stalls.
-/// For exmaple, instructions that only write part of a register, and implicitly
-/// need to read the other parts of the register.  This may cause unwanted
+/// For example, instructions may write part of a register and implicitly
+/// need to read the other parts of the register. This may cause unwanted
 /// stalls preventing otherwise unrelated instructions from executing in
 /// parallel in an out-of-order CPU.
-/// This pass is aimed at identifying and avoiding these depepndencies when
-/// possible.
+/// This pass is aimed at identifying and avoiding these dependencies.
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/ReachingDefAnalysis.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
-
+#include "llvm/InitializePasses.h"
+#include "llvm/Support/Debug.h"
 
 using namespace llvm;
 
@@ -109,7 +109,7 @@ bool BreakFalseDeps::pickBestRegisterForUndef(MachineInstr *MI, unsigned OpIdx,
   MachineOperand &MO = MI->getOperand(OpIdx);
   assert(MO.isUndef() && "Expected undef machine operand");
 
-  unsigned OriginalReg = MO.getReg();
+  Register OriginalReg = MO.getReg();
 
   // Update only undef operands that have reg units that are mapped to one root.
   for (MCRegUnitIterator Unit(OriginalReg, TRI); Unit.isValid(); ++Unit) {
@@ -162,7 +162,7 @@ bool BreakFalseDeps::pickBestRegisterForUndef(MachineInstr *MI, unsigned OpIdx,
 
 bool BreakFalseDeps::shouldBreakDependence(MachineInstr *MI, unsigned OpIdx,
                                            unsigned Pref) {
-  unsigned reg = MI->getOperand(OpIdx).getReg();
+  Register reg = MI->getOperand(OpIdx).getReg();
   unsigned Clearance = RDA->getClearance(MI, reg);
   LLVM_DEBUG(dbgs() << "Clearance: " << Clearance << ", want " << Pref);
 
@@ -178,6 +178,7 @@ void BreakFalseDeps::processDefs(MachineInstr *MI) {
   assert(!MI->isDebugInstr() && "Won't process debug values");
 
   // Break dependence on undef uses. Do this before updating LiveRegs below.
+  // This can remove a false dependence with no additional instructions.
   unsigned OpNum;
   unsigned Pref = TII->getUndefRegClearance(*MI, OpNum, TRI);
   if (Pref) {
@@ -188,6 +189,11 @@ void BreakFalseDeps::processDefs(MachineInstr *MI) {
     if (!HadTrueDependency && shouldBreakDependence(MI, OpNum, Pref))
       UndefReads.push_back(std::make_pair(MI, OpNum));
   }
+
+  // The code below allows the target to create a new instruction to break the
+  // dependence. That opposes the goal of minimizing size, so bail out now.
+  if (MF->getFunction().hasMinSize())
+    return;
 
   const MCInstrDesc &MCID = MI->getDesc();
   for (unsigned i = 0,
@@ -207,6 +213,11 @@ void BreakFalseDeps::processDefs(MachineInstr *MI) {
 
 void BreakFalseDeps::processUndefReads(MachineBasicBlock *MBB) {
   if (UndefReads.empty())
+    return;
+
+  // The code below allows the target to create a new instruction to break the
+  // dependence. That opposes the goal of minimizing size, so bail out now.
+  if (MF->getFunction().hasMinSize())
     return;
 
   // Collect this block's live out register units.

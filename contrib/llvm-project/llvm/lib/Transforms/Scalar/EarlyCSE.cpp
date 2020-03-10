@@ -27,7 +27,6 @@
 #include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -45,6 +44,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/AtomicOrdering.h"
@@ -55,6 +55,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/GuardUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <cassert>
 #include <deque>
 #include <memory>
@@ -108,11 +109,12 @@ struct SimpleValue {
     // This can only handle non-void readnone functions.
     if (CallInst *CI = dyn_cast<CallInst>(Inst))
       return CI->doesNotAccessMemory() && !CI->getType()->isVoidTy();
-    return isa<CastInst>(Inst) || isa<BinaryOperator>(Inst) ||
-           isa<GetElementPtrInst>(Inst) || isa<CmpInst>(Inst) ||
-           isa<SelectInst>(Inst) || isa<ExtractElementInst>(Inst) ||
-           isa<InsertElementInst>(Inst) || isa<ShuffleVectorInst>(Inst) ||
-           isa<ExtractValueInst>(Inst) || isa<InsertValueInst>(Inst);
+    return isa<CastInst>(Inst) || isa<UnaryOperator>(Inst) ||
+           isa<BinaryOperator>(Inst) || isa<GetElementPtrInst>(Inst) ||
+           isa<CmpInst>(Inst) || isa<SelectInst>(Inst) ||
+           isa<ExtractElementInst>(Inst) || isa<InsertElementInst>(Inst) ||
+           isa<ShuffleVectorInst>(Inst) || isa<ExtractValueInst>(Inst) ||
+           isa<InsertValueInst>(Inst);
   }
 };
 
@@ -240,7 +242,7 @@ static unsigned getHashValueImpl(SimpleValue Val) {
 
   assert((isa<CallInst>(Inst) || isa<GetElementPtrInst>(Inst) ||
           isa<ExtractElementInst>(Inst) || isa<InsertElementInst>(Inst) ||
-          isa<ShuffleVectorInst>(Inst)) &&
+          isa<ShuffleVectorInst>(Inst) || isa<UnaryOperator>(Inst)) &&
          "Invalid/unknown instruction");
 
   // Mix in the opcode.
@@ -526,7 +528,7 @@ public:
            const TargetTransformInfo &TTI, DominatorTree &DT,
            AssumptionCache &AC, MemorySSA *MSSA)
       : TLI(TLI), TTI(TTI), DT(DT), AC(AC), SQ(DL, &TLI, &DT, &AC), MSSA(MSSA),
-        MSSAUpdater(llvm::make_unique<MemorySSAUpdater>(MSSA)) {}
+        MSSAUpdater(std::make_unique<MemorySSAUpdater>(MSSA)) {}
 
   bool run();
 
@@ -651,7 +653,7 @@ private:
 
     bool isInvariantLoad() const {
       if (auto *LI = dyn_cast<LoadInst>(Inst))
-        return LI->getMetadata(LLVMContext::MD_invariant_load) != nullptr;
+        return LI->hasMetadata(LLVMContext::MD_invariant_load);
       return false;
     }
 
@@ -790,7 +792,7 @@ bool EarlyCSE::isOperatingOnInvariantMemAt(Instruction *I, unsigned GenAt) {
   // A location loaded from with an invariant_load is assumed to *never* change
   // within the visible scope of the compilation.
   if (auto *LI = dyn_cast<LoadInst>(I))
-    if (LI->getMetadata(LLVMContext::MD_invariant_load))
+    if (LI->hasMetadata(LLVMContext::MD_invariant_load))
       return true;
 
   auto MemLocOpt = MemoryLocation::getOrNone(I);
@@ -905,8 +907,8 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
         LLVM_DEBUG(dbgs() << "Skipping due to debug counter\n");
         continue;
       }
-      if (!salvageDebugInfo(*Inst))
-        replaceDbgUsesWithUndef(Inst);
+
+      salvageDebugInfoOrMarkUndef(*Inst);
       removeMSSA(Inst);
       Inst->eraseFromParent();
       Changed = true;
@@ -1359,7 +1361,7 @@ public:
     if (skipFunction(F))
       return false;
 
-    auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+    auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
     auto &TTI = getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
     auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
     auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
@@ -1381,6 +1383,7 @@ public:
       AU.addPreserved<MemorySSAWrapperPass>();
     }
     AU.addPreserved<GlobalsAAWrapperPass>();
+    AU.addPreserved<AAResultsWrapperPass>();
     AU.setPreservesCFG();
   }
 };

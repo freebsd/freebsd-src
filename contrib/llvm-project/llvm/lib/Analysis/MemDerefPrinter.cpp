@@ -13,6 +13,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -55,8 +56,8 @@ bool MemDerefPrinter::runOnFunction(Function &F) {
       Value *PO = LI->getPointerOperand();
       if (isDereferenceablePointer(PO, LI->getType(), DL))
         Deref.push_back(PO);
-      if (isDereferenceableAndAlignedPointer(PO, LI->getType(),
-                                             LI->getAlignment(), DL))
+      if (isDereferenceableAndAlignedPointer(
+              PO, LI->getType(), MaybeAlign(LI->getAlignment()), DL))
         DerefAndAligned.insert(PO);
     }
   }

@@ -64,8 +64,6 @@ def err_fe_backend_unsupported : Error<"%0">, BackendInfo;
 
 def err_fe_invalid_code_complete_file : Error<
     "cannot locate code-completion file %0">, DefaultFatal;
-def err_fe_stdout_binary : Error<"unable to change standard output to binary">,
-  DefaultFatal;
 def err_fe_dependency_file_requires_MT : Error<
     "-dependency-file requires at least one -MT or -MQ option">;
 def err_fe_invalid_plugin_name : Error<
@@ -107,6 +105,9 @@ def err_fe_invalid_wchar_type
     : Error<"invalid wchar_t type '%0'; must be one of 'char', 'short', 'int'">;
 def err_fe_invalid_exception_model
    : Error<"invalid exception model '%0' for target '%1'">;
+def warn_fe_concepts_ts_flag : Warning<
+  "-fconcepts-ts is deprecated - use '-std=c++20' for Concepts support">,
+  InGroup<Deprecated>;
 
 def warn_fe_serialized_diag_merge_failure : Warning<
     "unable to merge a subprocess's serialized diagnostics">,
@@ -174,9 +175,9 @@ def note_incompatible_analyzer_plugin_api : Note<
 def err_module_build_requires_fmodules : Error<
   "module compilation requires '-fmodules'">;
 def err_module_interface_requires_cpp_modules : Error<
-  "module interface compilation requires '-std=c++2a' or '-fmodules-ts'">;
+  "module interface compilation requires '-std=c++20' or '-fmodules-ts'">;
 def err_header_module_requires_modules : Error<
-  "header module compilation requires '-fmodules', '-std=c++2a', or "
+  "header module compilation requires '-fmodules', '-std=c++20', or "
   "'-fmodules-ts'">;
 def warn_module_config_mismatch : Warning<
   "module file %0 cannot be loaded due to a configuration mismatch with the current "
@@ -217,10 +218,6 @@ def err_modules_embed_file_not_found :
   DefaultFatal;
 def err_module_header_file_not_found :
   Error<"module header file '%0' not found">, DefaultFatal;
-def err_module_header_file_invalid :
-  Error<"unexpected module header file input '%0'">, DefaultFatal;
-
-def err_interface_stubs : Error<"clang-ifs (-emit-iterface-stubs): %0">;
 
 def err_test_module_file_extension_version : Error<
   "test module file extension '%0' has different version (%1.%2) than expected "
@@ -275,7 +272,12 @@ def warn_profile_data_missing : Warning<
 def warn_profile_data_unprofiled : Warning<
   "no profile data available for file \"%0\"">,
   InGroup<ProfileInstrUnprofiled>;
-
+def warn_profile_data_misexpect : Warning<
+  "Potential performance regression from use of __builtin_expect(): "
+  "Annotation was correct on %0 of profiled executions.">,
+  BackendInfo,
+  InGroup<MisExpect>,
+  DefaultIgnore;
 } // end of instrumentation issue category
 
 }

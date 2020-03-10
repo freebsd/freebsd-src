@@ -9,7 +9,6 @@
 #ifndef liblldb_CommandReturnObject_h_
 #define liblldb_CommandReturnObject_h_
 
-#include "lldb/Core/STLUtils.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Utility/StreamString.h"
 #include "lldb/Utility/StreamTee.h"
@@ -62,13 +61,13 @@ public:
     return m_err_stream;
   }
 
-  void SetImmediateOutputFile(FILE *fh, bool transfer_fh_ownership = false) {
-    lldb::StreamSP stream_sp(new StreamFile(fh, transfer_fh_ownership));
+  void SetImmediateOutputFile(lldb::FileSP file_sp) {
+    lldb::StreamSP stream_sp(new StreamFile(file_sp));
     m_out_stream.SetStreamAtIndex(eImmediateStreamIndex, stream_sp);
   }
 
-  void SetImmediateErrorFile(FILE *fh, bool transfer_fh_ownership = false) {
-    lldb::StreamSP stream_sp(new StreamFile(fh, transfer_fh_ownership));
+  void SetImmediateErrorFile(lldb::FileSP file_sp) {
+    lldb::StreamSP stream_sp(new StreamFile(file_sp));
     m_err_stream.SetStreamAtIndex(eImmediateStreamIndex, stream_sp);
   }
 
@@ -144,14 +143,6 @@ public:
 
   void SetInteractive(bool b);
 
-  bool GetAbnormalStopWasExpected() const {
-    return m_abnormal_stop_was_expected;
-  }
-
-  void SetAbnormalStopWasExpected(bool signal_was_expected) {
-    m_abnormal_stop_was_expected = signal_was_expected;
-  }
-
 private:
   enum { eStreamStringIndex = 0, eImmediateStreamIndex = 1 };
 
@@ -162,14 +153,6 @@ private:
   bool m_did_change_process_state;
   bool m_interactive; // If true, then the input handle from the debugger will
                       // be hooked up
-  bool m_abnormal_stop_was_expected; // This is to support
-                                     // eHandleCommandFlagStopOnCrash vrs.
-                                     // attach.
-  // The attach command often ends up with the process stopped due to a signal.
-  // Normally that would mean stop on crash should halt batch execution, but we
-  // obviously don't want that for attach.  Using this flag, the attach command
-  // (and anything else for which this is relevant) can say that the signal is
-  // expected, and batch command execution can continue.
 };
 
 } // namespace lldb_private

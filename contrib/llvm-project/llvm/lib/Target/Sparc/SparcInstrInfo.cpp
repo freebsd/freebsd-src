@@ -304,8 +304,8 @@ bool SparcInstrInfo::reverseBranchCondition(
 
 void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator I,
-                                 const DebugLoc &DL, unsigned DestReg,
-                                 unsigned SrcReg, bool KillSrc) const {
+                                 const DebugLoc &DL, MCRegister DestReg,
+                                 MCRegister SrcReg, bool KillSrc) const {
   unsigned numSubRegs = 0;
   unsigned movOpc     = 0;
   const unsigned *subRegIdx = nullptr;
@@ -375,8 +375,8 @@ void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   MachineInstr *MovMI = nullptr;
 
   for (unsigned i = 0; i != numSubRegs; ++i) {
-    unsigned Dst = TRI->getSubReg(DestReg, subRegIdx[i]);
-    unsigned Src = TRI->getSubReg(SrcReg,  subRegIdx[i]);
+    Register Dst = TRI->getSubReg(DestReg, subRegIdx[i]);
+    Register Src = TRI->getSubReg(SrcReg, subRegIdx[i]);
     assert(Dst && Src && "Bad sub-register");
 
     MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(movOpc), Dst);

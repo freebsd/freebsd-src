@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/IR/DebugLoc.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
@@ -133,7 +134,7 @@ INITIALIZE_PASS_END(HexagonGenPredicate, "hexagon-gen-pred",
   "Hexagon generate predicate operations", false, false)
 
 bool HexagonGenPredicate::isPredReg(unsigned R) {
-  if (!TargetRegisterInfo::isVirtualRegister(R))
+  if (!Register::isVirtualRegister(R))
     return false;
   const TargetRegisterClass *RC = MRI->getRegClass(R);
   return RC == &Hexagon::PredRegsRegClass;
@@ -213,7 +214,7 @@ void HexagonGenPredicate::collectPredicateGPR(MachineFunction &MF) {
         case TargetOpcode::COPY:
           if (isPredReg(MI->getOperand(1).getReg())) {
             RegisterSubReg RD = MI->getOperand(0);
-            if (TargetRegisterInfo::isVirtualRegister(RD.R))
+            if (Register::isVirtualRegister(RD.R))
               PredGPRs.insert(RD);
           }
           break;
@@ -245,7 +246,7 @@ RegisterSubReg HexagonGenPredicate::getPredRegFor(const RegisterSubReg &Reg) {
   // Create a predicate register for a given Reg. The newly created register
   // will have its value copied from Reg, so that it can be later used as
   // an operand in other instructions.
-  assert(TargetRegisterInfo::isVirtualRegister(Reg.R));
+  assert(Register::isVirtualRegister(Reg.R));
   RegToRegMap::iterator F = G2P.find(Reg);
   if (F != G2P.end())
     return F->second;
@@ -265,7 +266,7 @@ RegisterSubReg HexagonGenPredicate::getPredRegFor(const RegisterSubReg &Reg) {
   MachineBasicBlock &B = *DefI->getParent();
   DebugLoc DL = DefI->getDebugLoc();
   const TargetRegisterClass *PredRC = &Hexagon::PredRegsRegClass;
-  unsigned NewPR = MRI->createVirtualRegister(PredRC);
+  Register NewPR = MRI->createVirtualRegister(PredRC);
 
   // For convertible instructions, do not modify them, so that they can
   // be converted later.  Generate a copy from Reg to NewPR.
@@ -432,7 +433,7 @@ bool HexagonGenPredicate::convertToPredForm(MachineInstr *MI) {
   // Generate a copy-out: NewGPR = NewPR, and replace all uses of OutR
   // with NewGPR.
   const TargetRegisterClass *RC = MRI->getRegClass(OutR.R);
-  unsigned NewOutR = MRI->createVirtualRegister(RC);
+  Register NewOutR = MRI->createVirtualRegister(RC);
   BuildMI(B, MI, DL, TII->get(TargetOpcode::COPY), NewOutR)
     .addReg(NewPR.R, 0, NewPR.S);
   MRI->replaceRegWith(OutR.R, NewOutR);
@@ -471,9 +472,9 @@ bool HexagonGenPredicate::eliminatePredCopies(MachineFunction &MF) {
         continue;
       RegisterSubReg DR = MI.getOperand(0);
       RegisterSubReg SR = MI.getOperand(1);
-      if (!TargetRegisterInfo::isVirtualRegister(DR.R))
+      if (!Register::isVirtualRegister(DR.R))
         continue;
-      if (!TargetRegisterInfo::isVirtualRegister(SR.R))
+      if (!Register::isVirtualRegister(SR.R))
         continue;
       if (MRI->getRegClass(DR.R) != PredRC)
         continue;

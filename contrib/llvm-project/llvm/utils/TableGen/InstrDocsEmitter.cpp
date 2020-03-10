@@ -138,6 +138,7 @@ void EmitInstrDocs(RecordKeeper &RK, raw_ostream &OS) {
     FLAG(isConvergent)
     FLAG(hasNoSchedulingInfo)
     FLAG(variadicOpsAreDefs)
+    FLAG(isAuthenticated)
     if (!FlagStrings.empty()) {
       OS << "Flags: ";
       bool IsFirst = true;
@@ -231,4 +232,4 @@ void EmitInstrDocs(RecordKeeper &RK, raw_ostream &OS) {
   }
 }
 
-} // end llvm namespace
+} // end namespace llvm

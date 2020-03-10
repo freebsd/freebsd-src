@@ -19,7 +19,7 @@
 #include <malloc.h>
 
 // The Windows.h header must be after LLVM and standard headers.
-#include "WindowsSupport.h"
+#include "llvm/Support/Windows/WindowsSupport.h"
 
 #include <direct.h>
 #include <io.h>
@@ -437,13 +437,6 @@ const char *Process::ResetColor() {
   if (UseANSI) return "\033[0m";
   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), defaultColors());
   return 0;
-}
-
-// Include GetLastError() in a fatal error message.
-static void ReportLastErrorFatal(const char *Msg) {
-  std::string ErrMsg;
-  MakeErrMsg(&ErrMsg, Msg);
-  report_fatal_error(ErrMsg);
 }
 
 unsigned Process::GetRandomNumber() {

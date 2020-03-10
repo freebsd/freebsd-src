@@ -35,23 +35,26 @@ public:
 
   /// Extracts a value and applies a relocation to the result if
   /// one exists for the given offset.
-  uint64_t getRelocatedValue(uint32_t Size, uint32_t *Off,
-                             uint64_t *SectionIndex = nullptr) const;
+  uint64_t getRelocatedValue(uint32_t Size, uint64_t *Off,
+                             uint64_t *SectionIndex = nullptr,
+                             Error *Err = nullptr) const;
 
   /// Extracts an address-sized value and applies a relocation to the result if
   /// one exists for the given offset.
-  uint64_t getRelocatedAddress(uint32_t *Off, uint64_t *SecIx = nullptr) const {
+  uint64_t getRelocatedAddress(uint64_t *Off, uint64_t *SecIx = nullptr) const {
     return getRelocatedValue(getAddressSize(), Off, SecIx);
+  }
+  uint64_t getRelocatedAddress(Cursor &C, uint64_t *SecIx = nullptr) const {
+    return getRelocatedValue(getAddressSize(), &getOffset(C), SecIx,
+                             &getError(C));
   }
 
   /// Extracts a DWARF-encoded pointer in \p Offset using \p Encoding.
   /// There is a DWARF encoding that uses a PC-relative adjustment.
   /// For these values, \p AbsPosOffset is used to fix them, which should
   /// reflect the absolute address of this pointer.
-  Optional<uint64_t> getEncodedPointer(uint32_t *Offset, uint8_t Encoding,
+  Optional<uint64_t> getEncodedPointer(uint64_t *Offset, uint8_t Encoding,
                                        uint64_t AbsPosOffset = 0) const;
-
-  size_t size() const { return Section == nullptr ? 0 : Section->Data.size(); }
 };
 
 } // end namespace llvm

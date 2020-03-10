@@ -21,6 +21,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/ProfileData/InstrProf.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include <string>
 #include <utility>
@@ -53,7 +54,7 @@ static cl::opt<unsigned>
                               "call callsite"));
 
 ICallPromotionAnalysis::ICallPromotionAnalysis() {
-  ValueDataArray = llvm::make_unique<InstrProfValueData[]>(MaxNumPromotions);
+  ValueDataArray = std::make_unique<InstrProfValueData[]>(MaxNumPromotions);
 }
 
 bool ICallPromotionAnalysis::isPromotionProfitable(uint64_t Count,

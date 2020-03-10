@@ -250,7 +250,13 @@ enum CondCode {  // Meaning (integer)          Meaning (floating-point)
   AL = 0xe,      // Always (unconditional)     Always (unconditional)
   NV = 0xf,      // Always (unconditional)     Always (unconditional)
   // Note the NV exists purely to disassemble 0b1111. Execution is "always".
-  Invalid
+  Invalid,
+
+  // Common aliases used for SVE.
+  ANY_ACTIVE   = NE, // (!Z)
+  FIRST_ACTIVE = MI, // ( N)
+  LAST_ACTIVE  = LO, // (!C)
+  NONE_ACTIVE  = EQ  // ( Z)
 };
 
 inline static const char *getCondCodeName(CondCode Code) {
@@ -313,9 +319,9 @@ struct SysAlias {
   uint16_t Encoding;
   FeatureBitset FeaturesRequired;
 
-  SysAlias (const char *N, uint16_t E) : Name(N), Encoding(E) {};
-  SysAlias (const char *N, uint16_t E, FeatureBitset F) :
-    Name(N), Encoding(E), FeaturesRequired(F) {};
+  constexpr SysAlias(const char *N, uint16_t E) : Name(N), Encoding(E) {}
+  constexpr SysAlias(const char *N, uint16_t E, FeatureBitset F)
+      : Name(N), Encoding(E), FeaturesRequired(F) {}
 
   bool haveFeatures(FeatureBitset ActiveFeatures) const {
     return (FeaturesRequired & ActiveFeatures) == FeaturesRequired;
@@ -326,9 +332,10 @@ struct SysAlias {
 
 struct SysAliasReg : SysAlias {
   bool NeedsReg;
-  SysAliasReg(const char *N, uint16_t E, bool R) : SysAlias(N, E), NeedsReg(R) {};
-  SysAliasReg(const char *N, uint16_t E, bool R, FeatureBitset F) : SysAlias(N, E, F),
-    NeedsReg(R) {};
+  constexpr SysAliasReg(const char *N, uint16_t E, bool R)
+      : SysAlias(N, E), NeedsReg(R) {}
+  constexpr SysAliasReg(const char *N, uint16_t E, bool R, FeatureBitset F)
+      : SysAlias(N, E, F), NeedsReg(R) {}
 };
 
 namespace AArch64AT{
@@ -627,9 +634,32 @@ namespace AArch64II {
     /// MO_S - Indicates that the bits of the symbol operand represented by
     /// MO_G0 etc are signed.
     MO_S = 0x100,
+
+    /// MO_PREL - Indicates that the bits of the symbol operand represented by
+    /// MO_G0 etc are PC relative.
+    MO_PREL = 0x200,
+
+    /// MO_TAGGED - With MO_PAGE, indicates that the page includes a memory tag
+    /// in bits 56-63.
+    /// On a FrameIndex operand, indicates that the underlying memory is tagged
+    /// with an unknown tag value (MTE); this needs to be lowered either to an
+    /// SP-relative load or store instruction (which do not check tags), or to
+    /// an LDG instruction to obtain the tag value.
+    MO_TAGGED = 0x400,
   };
 } // end namespace AArch64II
 
+namespace AArch64 {
+// The number of bits in a SVE register is architecturally defined
+// to be a multiple of this value.  If <M x t> has this number of bits,
+// a <n x M x t> vector can be stored in a SVE register without any
+// redundant bits.  If <M x t> has this number of bits divided by P,
+// a <n x M x t> vector is stored in a SVE register by placing index i
+// in index i*P of a <n x (M*P) x t> vector.  The other elements of the
+// <n x (M*P) x t> vector (such as index 1) are undefined.
+static constexpr unsigned SVEBitsPerBlock = 128;
+const unsigned NeonBitsPerVector = 128;
+} // end namespace AArch64
 } // end namespace llvm
 
 #endif

@@ -30,11 +30,14 @@ namespace lldb_private {
 /// implementations of LLVMUserExpression - which will be vended through the
 /// appropriate TypeSystem.
 class LLVMUserExpression : public UserExpression {
+  // LLVM RTTI support
+  static char ID;
+
 public:
-  /// LLVM-style RTTI support.
-  static bool classof(const Expression *E) {
-    return E->getKind() == eKindLLVMUserExpression;
+  bool isA(const void *ClassID) const override {
+    return ClassID == &ID || UserExpression::isA(ClassID);
   }
+  static bool classof(const Expression *obj) { return obj->isA(&ID); }
 
   // The IRPasses struct is filled in by a runtime after an expression is
   // compiled and can be used to to run fixups/analysis passes as required.
@@ -51,8 +54,7 @@ public:
   LLVMUserExpression(ExecutionContextScope &exe_scope, llvm::StringRef expr,
                      llvm::StringRef prefix, lldb::LanguageType language,
                      ResultType desired_type,
-                     const EvaluateExpressionOptions &options,
-                     ExpressionKind kind);
+                     const EvaluateExpressionOptions &options);
   ~LLVMUserExpression() override;
 
   bool FinalizeJITExecution(
@@ -62,6 +64,8 @@ public:
       lldb::addr_t function_stack_top = LLDB_INVALID_ADDRESS) override;
 
   bool CanInterpret() override { return m_can_interpret; }
+
+  Materializer *GetMaterializer() override { return m_materializer_up.get(); }
 
   /// Return the string that the parser should parse.  Must be a full
   /// translation unit.
@@ -103,22 +107,6 @@ protected:
                                                    /// when running the
                                                    /// expression.
   lldb::ModuleWP m_jit_module_wp;
-  bool m_enforce_valid_object; ///< True if the expression parser should enforce
-                               ///the presence of a valid class pointer
-  /// in order to generate the expression as a method.
-  bool m_in_cplusplus_method;  ///< True if the expression is compiled as a C++
-                               ///member function (true if it was parsed
-                               /// when exe_ctx was in a C++ method).
-  bool m_in_objectivec_method; ///< True if the expression is compiled as an
-                               ///Objective-C method (true if it was parsed
-                               /// when exe_ctx was in an Objective-C method).
-  bool m_in_static_method; ///< True if the expression is compiled as a static
-                           ///(or class) method (currently true if it
-  /// was parsed when exe_ctx was in an Objective-C class method).
-  bool m_needs_object_ptr; ///< True if "this" or "self" must be looked up and
-                           ///passed in.  False if the expression
-                           /// doesn't really use them and they can be NULL.
-  bool m_const_object;     ///< True if "this" is const.
   Target *m_target; ///< The target for storing persistent data like types and
                     ///variables.
 

@@ -48,6 +48,7 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -78,11 +79,8 @@ STATISTIC(NumNoRecurse, "Number of functions marked as norecurse");
 STATISTIC(NumNoUnwind, "Number of functions marked as nounwind");
 STATISTIC(NumNoFree, "Number of functions marked as nofree");
 
-// FIXME: This is disabled by default to avoid exposing security vulnerabilities
-// in C/C++ code compiled by clang:
-// http://lists.llvm.org/pipermail/cfe-dev/2017-January/052066.html
 static cl::opt<bool> EnableNonnullArgPropagation(
-    "enable-nonnull-arg-prop", cl::Hidden,
+    "enable-nonnull-arg-prop", cl::init(true), cl::Hidden,
     cl::desc("Try to propagate nonnull argument attributes from callsites to "
              "caller functions."));
 
@@ -664,6 +662,25 @@ static bool addArgumentAttrsFromCallsites(Function &F) {
   return Changed;
 }
 
+static bool addReadAttr(Argument *A, Attribute::AttrKind R) {
+  assert((R == Attribute::ReadOnly || R == Attribute::ReadNone)
+         && "Must be a Read attribute.");
+  assert(A && "Argument must not be null.");
+
+  // If the argument already has the attribute, nothing needs to be done.
+  if (A->hasAttribute(R))
+      return false;
+
+  // Otherwise, remove potentially conflicting attribute, add the new one,
+  // and update statistics.
+  A->removeAttr(Attribute::WriteOnly);
+  A->removeAttr(Attribute::ReadOnly);
+  A->removeAttr(Attribute::ReadNone);
+  A->addAttr(R);
+  R == Attribute::ReadOnly ? ++NumReadOnlyArg : ++NumReadNoneArg;
+  return true;
+}
+
 /// Deduce nocapture attributes for the SCC.
 static bool addArgumentAttrs(const SCCNodeSet &SCCNodes) {
   bool Changed = false;
@@ -732,11 +749,8 @@ static bool addArgumentAttrs(const SCCNodeSet &SCCNodes) {
         SmallPtrSet<Argument *, 8> Self;
         Self.insert(&*A);
         Attribute::AttrKind R = determinePointerReadAttrs(&*A, Self);
-        if (R != Attribute::None) {
-          A->addAttr(R);
-          Changed = true;
-          R == Attribute::ReadOnly ? ++NumReadOnlyArg : ++NumReadNoneArg;
-        }
+        if (R != Attribute::None)
+          Changed = addReadAttr(A, R);
       }
     }
   }
@@ -833,12 +847,7 @@ static bool addArgumentAttrs(const SCCNodeSet &SCCNodes) {
     if (ReadAttr != Attribute::None) {
       for (unsigned i = 0, e = ArgumentSCC.size(); i != e; ++i) {
         Argument *A = ArgumentSCC[i]->Definition;
-        // Clear out existing readonly/readnone attributes
-        A->removeAttr(Attribute::ReadOnly);
-        A->removeAttr(Attribute::ReadNone);
-        A->addAttr(ReadAttr);
-        ReadAttr == Attribute::ReadOnly ? ++NumReadOnlyArg : ++NumReadNoneArg;
-        Changed = true;
+        Changed = addReadAttr(A, ReadAttr);
       }
     }
   }

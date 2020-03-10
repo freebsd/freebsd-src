@@ -141,7 +141,7 @@ namespace {
                                         SmallVectorImpl<unsigned> &ResultOps);
     };
 
-} // end anon namespace.
+} // end anonymous namespace
 
 MatcherGen::MatcherGen(const PatternToMatch &pattern,
                        const CodeGenDAGPatterns &cgp)
@@ -867,9 +867,13 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
   if (isRoot && !PhysRegInputs.empty()) {
     // Emit all of the CopyToReg nodes for the input physical registers.  These
     // occur in patterns like (mul:i8 AL:i8, GR8:i8:$src).
-    for (unsigned i = 0, e = PhysRegInputs.size(); i != e; ++i)
+    for (unsigned i = 0, e = PhysRegInputs.size(); i != e; ++i) {
+      const CodeGenRegister *Reg =
+        CGP.getTargetInfo().getRegBank().getReg(PhysRegInputs[i].first);
       AddMatcher(new EmitCopyToRegMatcher(PhysRegInputs[i].second,
-                                          PhysRegInputs[i].first));
+                                          Reg));
+    }
+
     // Even if the node has no other glue inputs, the resultant node must be
     // glued to the CopyFromReg nodes we just generated.
     TreeHasInGlue = true;
@@ -1043,7 +1047,6 @@ void MatcherGen::EmitResultCode() {
     }
   }
 
-  assert(Ops.size() >= NumSrcResults && "Didn't provide enough results");
   SmallVector<unsigned, 8> Results(Ops);
 
   // Apply result permutation.

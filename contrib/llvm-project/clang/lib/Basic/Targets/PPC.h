@@ -43,9 +43,10 @@ class LLVM_LIBRARY_VISIBILITY PPCTargetInfo : public TargetInfo {
     ArchDefinePwr7 = 1 << 11,
     ArchDefinePwr8 = 1 << 12,
     ArchDefinePwr9 = 1 << 13,
-    ArchDefineA2 = 1 << 14,
-    ArchDefineA2q = 1 << 15,
-    ArchDefineE500 = 1 << 16
+    ArchDefineFuture = 1 << 14,
+    ArchDefineA2 = 1 << 15,
+    ArchDefineA2q = 1 << 16,
+    ArchDefineE500 = 1 << 17
   } ArchDefineTypes;
 
 
@@ -145,6 +146,11 @@ public:
                      ArchDefinePwr9 | ArchDefinePwr8 | ArchDefinePwr7 |
                          ArchDefinePwr6 | ArchDefinePwr5x | ArchDefinePwr5 |
                          ArchDefinePwr4 | ArchDefinePpcgr | ArchDefinePpcsq)
+              .Case("future",
+                    ArchDefineFuture | ArchDefinePwr9 | ArchDefinePwr8 |
+                        ArchDefinePwr7 | ArchDefinePwr6 | ArchDefinePwr5x |
+                        ArchDefinePwr5 | ArchDefinePwr4 | ArchDefinePpcgr |
+                        ArchDefinePpcsq)
               .Cases("8548", "e500", ArchDefineE500)
               .Default(ArchDefineNone);
     }
@@ -164,6 +170,8 @@ public:
   initFeatureMap(llvm::StringMap<bool> &Features, DiagnosticsEngine &Diags,
                  StringRef CPU,
                  const std::vector<std::string> &FeaturesVec) const override;
+
+  void addFutureSpecificFeatures(llvm::StringMap<bool> &Features) const;
 
   bool handleTargetFeatures(std::vector<std::string> &Features,
                             DiagnosticsEngine &Diags) override;
@@ -376,29 +384,12 @@ public:
     IntMaxType = SignedLong;
     Int64Type = SignedLong;
 
-    if (Triple.getEnvironment() != llvm::Triple::UnknownEnvironment) {
-      switch (Triple.getEnvironment()){
-        case llvm::Triple::ELFv1:
-          ABI = "elfv1";
-          break;
-	default:
-          ABI = "elfv2";
-	break;
-      }
-    } else {
-      if ((Triple.getOS() == llvm::Triple::FreeBSD) &&
-	      (Triple.getOSMajorVersion() < 13)) {
-        ABI = "elfv1";
-      } else {
-        ABI = "elfv2";
-      }
-    }
-
-
     if ((Triple.getArch() == llvm::Triple::ppc64le)) {
       resetDataLayout("e-m:e-i64:64-n32:64");
+      ABI = "elfv2";
     } else {
       resetDataLayout("E-m:e-i64:64-n32:64");
+      ABI = "elfv1";
     }
 
     if (Triple.getOS() == llvm::Triple::AIX)

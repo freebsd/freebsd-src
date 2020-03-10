@@ -31,6 +31,8 @@ extern cl::opt<bool> Demangle;
 
 typedef std::function<bool(llvm::object::SectionRef const &)> FilterPredicate;
 
+/// A filtered iterator for SectionRefs that skips sections based on some given
+/// predicate.
 class SectionFilterIterator {
 public:
   SectionFilterIterator(FilterPredicate P,
@@ -60,6 +62,8 @@ private:
   llvm::object::section_iterator End;
 };
 
+/// Creates an iterator range of SectionFilterIterators for a given Object and
+/// predicate.
 class SectionFilter {
 public:
   SectionFilter(FilterPredicate P, llvm::object::ObjectFile const &O)
@@ -79,7 +83,15 @@ private:
 };
 
 // Various helper functions.
-SectionFilter ToolSectionFilter(llvm::object::ObjectFile const &O);
+
+/// Creates a SectionFilter with a standard predicate that conditionally skips
+/// sections when the --section objdump flag is provided.
+///
+/// Idx is an optional output parameter that keeps track of which section index
+/// this is. This may be different than the actual section number, as some
+/// sections may be filtered (e.g. symbol tables).
+SectionFilter ToolSectionFilter(llvm::object::ObjectFile const &O,
+                                uint64_t *Idx = nullptr);
 
 Error getELFRelocationValueString(const object::ELFObjectFileBase *Obj,
                                   const object::RelocationRef &Rel,
@@ -96,8 +108,6 @@ Error getMachORelocationValueString(const object::MachOObjectFile *Obj,
 
 uint64_t getELFSectionLMA(const object::ELFSectionRef& Sec);
 
-void error(std::error_code ec);
-void error(Error E);
 bool isRelocAddressLess(object::RelocationRef A, object::RelocationRef B);
 void parseInputMachO(StringRef Filename);
 void parseInputMachO(object::MachOUniversalBinary *UB);
@@ -129,23 +139,21 @@ void printSectionHeaders(const object::ObjectFile *O);
 void printSectionContents(const object::ObjectFile *O);
 void printSymbolTable(const object::ObjectFile *O, StringRef ArchiveName,
                       StringRef ArchitectureName = StringRef());
-void warn(StringRef Message);
-LLVM_ATTRIBUTE_NORETURN void error(Twine Message);
-LLVM_ATTRIBUTE_NORETURN void report_error(StringRef File, Twine Message);
-LLVM_ATTRIBUTE_NORETURN void report_error(Error E, StringRef File);
-LLVM_ATTRIBUTE_NORETURN void
-report_error(Error E, StringRef FileName, StringRef ArchiveName,
-             StringRef ArchitectureName = StringRef());
-LLVM_ATTRIBUTE_NORETURN void
-report_error(Error E, StringRef ArchiveName, const object::Archive::Child &C,
-             StringRef ArchitectureName = StringRef());
+LLVM_ATTRIBUTE_NORETURN void reportError(StringRef File, Twine Message);
+LLVM_ATTRIBUTE_NORETURN void reportError(Error E, StringRef FileName,
+                                         StringRef ArchiveName = "",
+                                         StringRef ArchitectureName = "");
+void reportWarning(Twine Message, StringRef File);
 
 template <typename T, typename... Ts>
 T unwrapOrError(Expected<T> EO, Ts &&... Args) {
   if (EO)
     return std::move(*EO);
-  report_error(EO.takeError(), std::forward<Ts>(Args)...);
+  reportError(EO.takeError(), std::forward<Ts>(Args)...);
 }
+
+std::string getFileNameForError(const object::Archive::Child &C,
+                                unsigned Index);
 
 } // end namespace llvm
 

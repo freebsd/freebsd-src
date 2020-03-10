@@ -565,6 +565,13 @@ let isCall = 1,
                   4, IIC_Br,
                   [(ARMcall_nolink tGPR:$func)]>,
             Requires<[IsThumb, IsThumb1Only]>, Sched<[WriteBr]>;
+
+  // Also used for Thumb2
+  // push lr before the call
+  def tBL_PUSHLR : tPseudoInst<(outs), (ins GPRlr:$ra, pred:$p, thumb_bl_target:$func),
+                  4, IIC_Br,
+                  []>,
+             Requires<[IsThumb]>, Sched<[WriteBr]>;
 }
 
 let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
@@ -1361,6 +1368,12 @@ let hasPostISelHook = 1, Defs = [CPSR] in {
   def tRSBS   : tPseudoInst<(outs tGPR:$Rd), (ins tGPR:$Rn),
                             2, IIC_iALUr,
                             [(set tGPR:$Rd, CPSR, (ARMsubc 0, tGPR:$Rn))]>,
+                Requires<[IsThumb1Only]>,
+                Sched<[WriteALU]>;
+
+  def tLSLSri : tPseudoInst<(outs tGPR:$Rd), (ins tGPR:$Rn, imm0_31:$imm5),
+                            2, IIC_iALUr,
+                            [(set tGPR:$Rd, CPSR, (ARMlsls tGPR:$Rn, imm0_31:$imm5))]>,
                 Requires<[IsThumb1Only]>,
                 Sched<[WriteALU]>;
 }

@@ -56,6 +56,7 @@
 #include "WebAssembly.h"
 #include "WebAssemblySubtarget.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/Support/Debug.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "wasm-fix-irreducible-control-flow"
@@ -358,7 +359,7 @@ void WebAssemblyFixIrreducibleControlFlow::makeSingleEntryLoop(
   // Add the register which will be used to tell the jump table which block to
   // jump to.
   MachineRegisterInfo &MRI = MF.getRegInfo();
-  unsigned Reg = MRI.createVirtualRegister(&WebAssembly::I32RegClass);
+  Register Reg = MRI.createVirtualRegister(&WebAssembly::I32RegClass);
   MIB.addReg(Reg);
 
   // Compute the indices in the superheader, one for each bad block, and

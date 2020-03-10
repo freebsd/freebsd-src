@@ -40,32 +40,32 @@ metadataRecordType(const XRayFileHeader &Header, uint8_t T) {
                              "Invalid metadata record type: %d", T);
   switch (T) {
   case MetadataRecordKinds::NewBufferKind:
-    return make_unique<NewBufferRecord>();
+    return std::make_unique<NewBufferRecord>();
   case MetadataRecordKinds::EndOfBufferKind:
     if (Header.Version >= 2)
       return createStringError(
           std::make_error_code(std::errc::executable_format_error),
           "End of buffer records are no longer supported starting version "
           "2 of the log.");
-    return make_unique<EndBufferRecord>();
+    return std::make_unique<EndBufferRecord>();
   case MetadataRecordKinds::NewCPUIdKind:
-    return make_unique<NewCPUIDRecord>();
+    return std::make_unique<NewCPUIDRecord>();
   case MetadataRecordKinds::TSCWrapKind:
-    return make_unique<TSCWrapRecord>();
+    return std::make_unique<TSCWrapRecord>();
   case MetadataRecordKinds::WalltimeMarkerKind:
-    return make_unique<WallclockRecord>();
+    return std::make_unique<WallclockRecord>();
   case MetadataRecordKinds::CustomEventMarkerKind:
     if (Header.Version >= 5)
-      return make_unique<CustomEventRecordV5>();
-    return make_unique<CustomEventRecord>();
+      return std::make_unique<CustomEventRecordV5>();
+    return std::make_unique<CustomEventRecord>();
   case MetadataRecordKinds::CallArgumentKind:
-    return make_unique<CallArgRecord>();
+    return std::make_unique<CallArgRecord>();
   case MetadataRecordKinds::BufferExtentsKind:
-    return make_unique<BufferExtents>();
+    return std::make_unique<BufferExtents>();
   case MetadataRecordKinds::TypedEventMarkerKind:
-    return make_unique<TypedEventRecord>();
+    return std::make_unique<TypedEventRecord>();
   case MetadataRecordKinds::PidKind:
-    return make_unique<PIDRecord>();
+    return std::make_unique<PIDRecord>();
   case MetadataRecordKinds::EnumEndMarker:
     llvm_unreachable("Invalid MetadataRecordKind");
   }
@@ -89,7 +89,7 @@ FileBasedRecordProducer::findNextBufferExtent() {
     if (OffsetPtr == PreReadOffset)
       return createStringError(
           std::make_error_code(std::errc::executable_format_error),
-          "Failed reading one byte from offset %d.", OffsetPtr);
+          "Failed reading one byte from offset %" PRId64 ".", OffsetPtr);
 
     if (isMetadataIntroducer(FirstByte)) {
       auto LoadedType = FirstByte >> 1;
@@ -130,7 +130,7 @@ Expected<std::unique_ptr<Record>> FileBasedRecordProducer::produce() {
     R = std::move(BufferExtentsOrError.get());
     assert(R != nullptr);
     assert(isa<BufferExtents>(R.get()));
-    auto BE = dyn_cast<BufferExtents>(R.get());
+    auto BE = cast<BufferExtents>(R.get());
     CurrentBufferBytes = BE->size();
     return std::move(R);
   }
@@ -151,7 +151,7 @@ Expected<std::unique_ptr<Record>> FileBasedRecordProducer::produce() {
   if (OffsetPtr == PreReadOffset)
     return createStringError(
         std::make_error_code(std::errc::executable_format_error),
-        "Failed reading one byte from offset %d.", OffsetPtr);
+        "Failed reading one byte from offset %" PRId64 ".", OffsetPtr);
 
   // For metadata records, handle especially here.
   if (isMetadataIntroducer(FirstByte)) {
@@ -162,11 +162,12 @@ Expected<std::unique_ptr<Record>> FileBasedRecordProducer::produce() {
           MetadataRecordOrErr.takeError(),
           createStringError(
               std::make_error_code(std::errc::executable_format_error),
-              "Encountered an unsupported metadata record (%d) at offset %d.",
+              "Encountered an unsupported metadata record (%d) "
+              "at offset %" PRId64 ".",
               LoadedType, PreReadOffset));
     R = std::move(MetadataRecordOrErr.get());
   } else {
-    R = llvm::make_unique<FunctionRecord>();
+    R = std::make_unique<FunctionRecord>();
   }
   RecordInitializer RI(E, OffsetPtr);
 
@@ -182,8 +183,8 @@ Expected<std::unique_ptr<Record>> FileBasedRecordProducer::produce() {
     if (OffsetPtr - PreReadOffset > CurrentBufferBytes)
       return createStringError(
           std::make_error_code(std::errc::executable_format_error),
-          "Buffer over-read at offset %d (over-read by %d bytes); Record Type "
-          "= %s.",
+          "Buffer over-read at offset %" PRId64 " (over-read by %" PRId64
+          " bytes); Record Type = %s.",
           OffsetPtr, (OffsetPtr - PreReadOffset) - CurrentBufferBytes,
           Record::kindToString(R->getRecordType()).data());
 

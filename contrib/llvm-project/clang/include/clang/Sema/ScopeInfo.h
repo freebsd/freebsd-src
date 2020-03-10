@@ -22,6 +22,7 @@
 #include "clang/Basic/PartialDiagnostic.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Sema/CleanupInfo.h"
+#include "clang/Sema/DeclSpec.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/MapVector.h"
@@ -756,13 +757,16 @@ public:
   unsigned short CapRegionKind;
 
   unsigned short OpenMPLevel;
+  unsigned short OpenMPCaptureLevel;
 
   CapturedRegionScopeInfo(DiagnosticsEngine &Diag, Scope *S, CapturedDecl *CD,
                           RecordDecl *RD, ImplicitParamDecl *Context,
-                          CapturedRegionKind K, unsigned OpenMPLevel)
+                          CapturedRegionKind K, unsigned OpenMPLevel,
+                          unsigned OpenMPCaptureLevel)
       : CapturingScopeInfo(Diag, ImpCap_CapturedRegion),
         TheCapturedDecl(CD), TheRecordDecl(RD), TheScope(S),
-        ContextParam(Context), CapRegionKind(K), OpenMPLevel(OpenMPLevel) {
+        ContextParam(Context), CapRegionKind(K), OpenMPLevel(OpenMPLevel),
+        OpenMPCaptureLevel(OpenMPCaptureLevel) {
     Kind = SK_CapturedRegion;
   }
 
@@ -786,7 +790,8 @@ public:
   }
 };
 
-class LambdaScopeInfo final : public CapturingScopeInfo {
+class LambdaScopeInfo final :
+    public CapturingScopeInfo, public InventedTemplateParameterInfo {
 public:
   /// The class that describes the lambda.
   CXXRecordDecl *Lambda = nullptr;
@@ -817,24 +822,11 @@ public:
   /// Whether the lambda contains an unexpanded parameter pack.
   bool ContainsUnexpandedParameterPack = false;
 
-  /// If this is a generic lambda, use this as the depth of
-  /// each 'auto' parameter, during initial AST construction.
-  unsigned AutoTemplateParameterDepth = 0;
-
-  /// The number of parameters in the template parameter list that were
-  /// explicitly specified by the user, as opposed to being invented by use
-  /// of an auto parameter.
-  unsigned NumExplicitTemplateParams = 0;
+  /// Packs introduced by this lambda, if any.
+  SmallVector<NamedDecl*, 4> LocalPacks;
 
   /// Source range covering the explicit template parameter list (if it exists).
   SourceRange ExplicitTemplateParamsRange;
-
-  /// Store the list of the template parameters for a generic lambda.
-  /// If this is a generic lambda, this holds the explicit template parameters
-  /// followed by the auto parameters converted into TemplateTypeParmDecls.
-  /// It can be used to construct the generic lambda's template parameter list
-  /// during initial AST construction.
-  SmallVector<NamedDecl*, 4> TemplateParams;
 
   /// If this is a generic lambda, and the template parameter
   /// list has been created (from the TemplateParams) then store

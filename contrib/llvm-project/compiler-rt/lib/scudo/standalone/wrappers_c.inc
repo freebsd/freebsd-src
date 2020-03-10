@@ -17,6 +17,8 @@
 #define SCUDO_MALLOC_ALIGNMENT FIRST_32_SECOND_64(8U, 16U)
 #endif
 
+extern "C" {
+
 INTERFACE WEAK void *SCUDO_PREFIX(calloc)(size_t nmemb, size_t size) {
   scudo::uptr Product;
   if (UNLIKELY(scudo::checkForCallocOverflow(size, nmemb, &Product))) {
@@ -38,8 +40,17 @@ INTERFACE WEAK struct SCUDO_MALLINFO SCUDO_PREFIX(mallinfo)(void) {
   struct SCUDO_MALLINFO Info = {};
   scudo::StatCounters Stats;
   SCUDO_ALLOCATOR.getStats(Stats);
+  // Space allocated in mmapped regions (bytes)
+  Info.hblkhd = static_cast<__scudo_mallinfo_data_t>(Stats[scudo::StatMapped]);
+  // Maximum total allocated space (bytes)
+  Info.usmblks = Info.hblkhd;
+  // Space in freed fastbin blocks (bytes)
+  Info.fsmblks = static_cast<__scudo_mallinfo_data_t>(Stats[scudo::StatFree]);
+  // Total allocated space (bytes)
   Info.uordblks =
       static_cast<__scudo_mallinfo_data_t>(Stats[scudo::StatAllocated]);
+  // Total free space (bytes)
+  Info.fordblks = Info.fsmblks;
   return Info;
 }
 
@@ -125,26 +136,23 @@ INTERFACE WEAK void *SCUDO_PREFIX(valloc)(size_t size) {
       size, scudo::Chunk::Origin::Memalign, scudo::getPageSizeCached()));
 }
 
-// Bionic wants a function named PREFIX_iterate and not PREFIX_malloc_iterate
-// which is somewhat inconsistent with the rest, workaround that.
-#if SCUDO_ANDROID && _BIONIC
-#define SCUDO_ITERATE iterate
-#else
-#define SCUDO_ITERATE malloc_iterate
-#endif
-
-INTERFACE WEAK int SCUDO_PREFIX(SCUDO_ITERATE)(
+INTERFACE WEAK int SCUDO_PREFIX(malloc_iterate)(
     uintptr_t base, size_t size,
     void (*callback)(uintptr_t base, size_t size, void *arg), void *arg) {
   SCUDO_ALLOCATOR.iterateOverChunks(base, size, callback, arg);
   return 0;
 }
 
+INTERFACE WEAK void SCUDO_PREFIX(malloc_enable)() { SCUDO_ALLOCATOR.enable(); }
+
 INTERFACE WEAK void SCUDO_PREFIX(malloc_disable)() {
   SCUDO_ALLOCATOR.disable();
 }
 
-INTERFACE WEAK void SCUDO_PREFIX(malloc_enable)() { SCUDO_ALLOCATOR.enable(); }
+void SCUDO_PREFIX(malloc_postinit)() {
+  pthread_atfork(SCUDO_PREFIX(malloc_disable), SCUDO_PREFIX(malloc_enable),
+                 SCUDO_PREFIX(malloc_enable));
+}
 
 INTERFACE WEAK int SCUDO_PREFIX(mallopt)(int param, UNUSED int value) {
   if (param == M_DECAY_TIME) {
@@ -170,7 +178,10 @@ INTERFACE WEAK void *SCUDO_PREFIX(aligned_alloc)(size_t alignment,
       SCUDO_ALLOCATOR.allocate(size, scudo::Chunk::Origin::Malloc, alignment));
 }
 
-INTERFACE WEAK int SCUDO_PREFIX(malloc_info)(int, FILE *) {
-  errno = ENOTSUP;
-  return -1;
+INTERFACE WEAK int SCUDO_PREFIX(malloc_info)(UNUSED int options, FILE *stream) {
+  fputs("<malloc version=\"scudo-1\">", stream);
+  fputs("</malloc>", stream);
+  return 0;
 }
+
+} // extern "C"

@@ -39,7 +39,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar/GuardWidening.h"
-#include <functional>
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/Statistic.h"
@@ -53,11 +52,15 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/GuardUtils.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
+#include <functional>
 
 using namespace llvm;
 
@@ -65,22 +68,6 @@ using namespace llvm;
 
 STATISTIC(GuardsEliminated, "Number of eliminated guards");
 STATISTIC(CondBranchEliminated, "Number of eliminated conditional branches");
-
-static cl::opt<bool> WidenFrequentBranches(
-    "guard-widening-widen-frequent-branches", cl::Hidden,
-    cl::desc("Widen conditions of explicit branches into dominating guards in "
-             "case if their taken frequency exceeds threshold set by "
-             "guard-widening-frequent-branch-threshold option"),
-    cl::init(false));
-
-static cl::opt<unsigned> FrequentBranchThreshold(
-    "guard-widening-frequent-branch-threshold", cl::Hidden,
-    cl::desc("When WidenFrequentBranches is set to true, this option is used "
-             "to determine which branches are frequently taken. The criteria "
-             "that a branch is taken more often than "
-             "((FrequentBranchThreshold - 1) / FrequentBranchThreshold), then "
-             "it is considered frequently taken"),
-    cl::init(1000));
 
 static cl::opt<bool>
     WidenBranchGuards("guard-widening-widen-branch-guards", cl::Hidden,
@@ -97,15 +84,16 @@ static Value *getCondition(Instruction *I) {
            "Bad guard intrinsic?");
     return GI->getArgOperand(0);
   }
-  if (isGuardAsWidenableBranch(I)) {
-    auto *Cond = cast<BranchInst>(I)->getCondition();
-    return cast<BinaryOperator>(Cond)->getOperand(0);
-  }
+  Value *Cond, *WC;
+  BasicBlock *IfTrueBB, *IfFalseBB;
+  if (parseWidenableBranch(I, Cond, WC, IfTrueBB, IfFalseBB))
+    return Cond;
+
   return cast<BranchInst>(I)->getCondition();
 }
 
 // Set the condition for \p I to \p NewCond. \p I can either be a guard or a
-// conditional branch.
+// conditional branch.  
 static void setCondition(Instruction *I, Value *NewCond) {
   if (IntrinsicInst *GI = dyn_cast<IntrinsicInst>(I)) {
     assert(GI->getIntrinsicID() == Intrinsic::experimental_guard &&
@@ -126,7 +114,6 @@ class GuardWideningImpl {
   DominatorTree &DT;
   PostDominatorTree *PDT;
   LoopInfo &LI;
-  BranchProbabilityInfo *BPI;
 
   /// Together, these describe the region of interest.  This might be all of
   /// the blocks within a function, or only a given loop's blocks and preheader.
@@ -271,26 +258,22 @@ class GuardWideningImpl {
   void widenGuard(Instruction *ToWiden, Value *NewCondition,
                   bool InvertCondition) {
     Value *Result;
+    
     widenCondCommon(getCondition(ToWiden), NewCondition, ToWiden, Result,
                     InvertCondition);
-    Value *WidenableCondition = nullptr;
     if (isGuardAsWidenableBranch(ToWiden)) {
-      auto *Cond = cast<BranchInst>(ToWiden)->getCondition();
-      WidenableCondition = cast<BinaryOperator>(Cond)->getOperand(1);
+      setWidenableBranchCond(cast<BranchInst>(ToWiden), Result);
+      return;
     }
-    if (WidenableCondition)
-      Result = BinaryOperator::CreateAnd(Result, WidenableCondition,
-                                         "guard.chk", ToWiden);
     setCondition(ToWiden, Result);
   }
 
 public:
 
   explicit GuardWideningImpl(DominatorTree &DT, PostDominatorTree *PDT,
-                             LoopInfo &LI, BranchProbabilityInfo *BPI,
-                             DomTreeNode *Root,
+                             LoopInfo &LI, DomTreeNode *Root,
                              std::function<bool(BasicBlock*)> BlockFilter)
-    : DT(DT), PDT(PDT), LI(LI), BPI(BPI), Root(Root), BlockFilter(BlockFilter)
+    : DT(DT), PDT(PDT), LI(LI), Root(Root), BlockFilter(BlockFilter)
         {}
 
   /// The entry point for this pass.
@@ -309,13 +292,6 @@ static bool isSupportedGuardInstruction(const Instruction *Insn) {
 bool GuardWideningImpl::run() {
   DenseMap<BasicBlock *, SmallVector<Instruction *, 8>> GuardsInBlock;
   bool Changed = false;
-  Optional<BranchProbability> LikelyTaken = None;
-  if (WidenFrequentBranches && BPI) {
-    unsigned Threshold = FrequentBranchThreshold;
-    assert(Threshold > 0 && "Zero threshold makes no sense!");
-    LikelyTaken = BranchProbability(Threshold - 1, Threshold);
-  }
-
   for (auto DFI = df_begin(Root), DFE = df_end(Root);
        DFI != DFE; ++DFI) {
     auto *BB = (*DFI)->getBlock();
@@ -330,17 +306,6 @@ bool GuardWideningImpl::run() {
 
     for (auto *II : CurrentList)
       Changed |= eliminateInstrViaWidening(II, DFI, GuardsInBlock);
-    if (WidenFrequentBranches && BPI)
-      if (auto *BI = dyn_cast<BranchInst>(BB->getTerminator()))
-        if (BI->isConditional()) {
-          // If one of branches of a conditional is likely taken, try to
-          // eliminate it.
-          if (BPI->getEdgeProbability(BB, 0U) >= *LikelyTaken)
-            Changed |= eliminateInstrViaWidening(BI, DFI, GuardsInBlock);
-          else if (BPI->getEdgeProbability(BB, 1U) >= *LikelyTaken)
-            Changed |= eliminateInstrViaWidening(BI, DFI, GuardsInBlock,
-                                                 /*InvertCondition*/true);
-        }
   }
 
   assert(EliminatedGuardsAndBranches.empty() || Changed);
@@ -591,7 +556,7 @@ bool GuardWideningImpl::widenCondCommon(Value *Cond0, Value *Cond1,
           else
             Result = RC.getCheckInst();
         }
-
+        assert(Result && "Failed to find result value");
         Result->setName("wide.chk");
       }
       return true;
@@ -805,10 +770,7 @@ PreservedAnalyses GuardWideningPass::run(Function &F,
   auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
   auto &LI = AM.getResult<LoopAnalysis>(F);
   auto &PDT = AM.getResult<PostDominatorTreeAnalysis>(F);
-  BranchProbabilityInfo *BPI = nullptr;
-  if (WidenFrequentBranches)
-    BPI = AM.getCachedResult<BranchProbabilityAnalysis>(F);
-  if (!GuardWideningImpl(DT, &PDT, LI, BPI, DT.getRootNode(),
+  if (!GuardWideningImpl(DT, &PDT, LI, DT.getRootNode(),
                          [](BasicBlock*) { return true; } ).run())
     return PreservedAnalyses::all();
 
@@ -820,22 +782,13 @@ PreservedAnalyses GuardWideningPass::run(Function &F,
 PreservedAnalyses GuardWideningPass::run(Loop &L, LoopAnalysisManager &AM,
                                          LoopStandardAnalysisResults &AR,
                                          LPMUpdater &U) {
-
-  const auto &FAM =
-    AM.getResult<FunctionAnalysisManagerLoopProxy>(L, AR).getManager();
-  Function &F = *L.getHeader()->getParent();
-  BranchProbabilityInfo *BPI = nullptr;
-  if (WidenFrequentBranches)
-    BPI = FAM.getCachedResult<BranchProbabilityAnalysis>(F);
-
   BasicBlock *RootBB = L.getLoopPredecessor();
   if (!RootBB)
     RootBB = L.getHeader();
   auto BlockFilter = [&](BasicBlock *BB) {
     return BB == RootBB || L.contains(BB);
   };
-  if (!GuardWideningImpl(AR.DT, nullptr, AR.LI, BPI,
-                         AR.DT.getNode(RootBB),
+  if (!GuardWideningImpl(AR.DT, nullptr, AR.LI, AR.DT.getNode(RootBB),
                          BlockFilter).run())
     return PreservedAnalyses::all();
 
@@ -856,10 +809,7 @@ struct GuardWideningLegacyPass : public FunctionPass {
     auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
     auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
     auto &PDT = getAnalysis<PostDominatorTreeWrapperPass>().getPostDomTree();
-    BranchProbabilityInfo *BPI = nullptr;
-    if (WidenFrequentBranches)
-      BPI = &getAnalysis<BranchProbabilityInfoWrapperPass>().getBPI();
-    return GuardWideningImpl(DT, &PDT, LI, BPI, DT.getRootNode(),
+    return GuardWideningImpl(DT, &PDT, LI, DT.getRootNode(),
                          [](BasicBlock*) { return true; } ).run();
   }
 
@@ -868,8 +818,6 @@ struct GuardWideningLegacyPass : public FunctionPass {
     AU.addRequired<DominatorTreeWrapperPass>();
     AU.addRequired<PostDominatorTreeWrapperPass>();
     AU.addRequired<LoopInfoWrapperPass>();
-    if (WidenFrequentBranches)
-      AU.addRequired<BranchProbabilityInfoWrapperPass>();
   }
 };
 
@@ -895,16 +843,11 @@ struct LoopGuardWideningLegacyPass : public LoopPass {
     auto BlockFilter = [&](BasicBlock *BB) {
       return BB == RootBB || L->contains(BB);
     };
-    BranchProbabilityInfo *BPI = nullptr;
-    if (WidenFrequentBranches)
-      BPI = &getAnalysis<BranchProbabilityInfoWrapperPass>().getBPI();
-    return GuardWideningImpl(DT, PDT, LI, BPI,
+    return GuardWideningImpl(DT, PDT, LI,
                              DT.getNode(RootBB), BlockFilter).run();
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    if (WidenFrequentBranches)
-      AU.addRequired<BranchProbabilityInfoWrapperPass>();
     AU.setPreservesCFG();
     getLoopAnalysisUsage(AU);
     AU.addPreserved<PostDominatorTreeWrapperPass>();
@@ -920,8 +863,6 @@ INITIALIZE_PASS_BEGIN(GuardWideningLegacyPass, "guard-widening", "Widen guards",
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(PostDominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
-if (WidenFrequentBranches)
-  INITIALIZE_PASS_DEPENDENCY(BranchProbabilityInfoWrapperPass)
 INITIALIZE_PASS_END(GuardWideningLegacyPass, "guard-widening", "Widen guards",
                     false, false)
 
@@ -931,8 +872,6 @@ INITIALIZE_PASS_BEGIN(LoopGuardWideningLegacyPass, "loop-guard-widening",
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(PostDominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
-if (WidenFrequentBranches)
-  INITIALIZE_PASS_DEPENDENCY(BranchProbabilityInfoWrapperPass)
 INITIALIZE_PASS_END(LoopGuardWideningLegacyPass, "loop-guard-widening",
                     "Widen guards (within a single loop, as a loop pass)",
                     false, false)

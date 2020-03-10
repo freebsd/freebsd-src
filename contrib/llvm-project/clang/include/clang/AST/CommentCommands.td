@@ -81,12 +81,13 @@ class RecordLikeDeclarationVerbatimLineCommand<string name> :
 // InlineCommand
 //===----------------------------------------------------------------------===//
 
-def B  : InlineCommand<"b">;
-def C  : InlineCommand<"c">;
-def P  : InlineCommand<"p">;
-def A  : InlineCommand<"a">;
-def E  : InlineCommand<"e">;
-def Em : InlineCommand<"em">;
+def B      : InlineCommand<"b">;
+def C      : InlineCommand<"c">;
+def P      : InlineCommand<"p">;
+def A      : InlineCommand<"a">;
+def E      : InlineCommand<"e">;
+def Em     : InlineCommand<"em">;
+def Anchor : InlineCommand<"anchor">;
 
 //===----------------------------------------------------------------------===//
 // BlockCommand
@@ -139,6 +140,7 @@ def Post       : BlockCommand<"post">;
 def Pre        : BlockCommand<"pre">;
 def Remark     : BlockCommand<"remark">;
 def Remarks    : BlockCommand<"remarks">;
+def Retval     : BlockCommand<"retval">;
 def Sa         : BlockCommand<"sa">;
 def See        : BlockCommand<"see">;
 def Since      : BlockCommand<"since">;

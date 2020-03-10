@@ -62,7 +62,7 @@ int SystemZTTIImpl::getIntImmCost(const APInt &Imm, Type *Ty) {
   return 4 * TTI::TCC_Basic;
 }
 
-int SystemZTTIImpl::getIntImmCost(unsigned Opcode, unsigned Idx,
+int SystemZTTIImpl::getIntImmCostInst(unsigned Opcode, unsigned Idx,
                                   const APInt &Imm, Type *Ty) {
   assert(Ty->isIntegerTy());
 
@@ -180,8 +180,8 @@ int SystemZTTIImpl::getIntImmCost(unsigned Opcode, unsigned Idx,
   return SystemZTTIImpl::getIntImmCost(Imm, Ty);
 }
 
-int SystemZTTIImpl::getIntImmCost(Intrinsic::ID IID, unsigned Idx,
-                                  const APInt &Imm, Type *Ty) {
+int SystemZTTIImpl::getIntImmCostIntrin(Intrinsic::ID IID, unsigned Idx,
+                                        const APInt &Imm, Type *Ty) {
   assert(Ty->isIntegerTy());
 
   unsigned BitSize = Ty->getPrimitiveSizeInBits();
@@ -259,7 +259,7 @@ void SystemZTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
       }
       if (isa<StoreInst>(&I)) {
         Type *MemAccessTy = I.getOperand(0)->getType();
-        NumStores += getMemoryOpCost(Instruction::Store, MemAccessTy, 0, 0);
+        NumStores += getMemoryOpCost(Instruction::Store, MemAccessTy, None, 0);
       }
     }
 
@@ -304,7 +304,8 @@ bool SystemZTTIImpl::isLSRCostLess(TargetTransformInfo::LSRCost &C1,
              C2.ScaleCost, C2.SetupCost);
 }
 
-unsigned SystemZTTIImpl::getNumberOfRegisters(bool Vector) {
+unsigned SystemZTTIImpl::getNumberOfRegisters(unsigned ClassID) const {
+  bool Vector = (ClassID == 1);
   if (!Vector)
     // Discount the stack pointer.  Also leave out %r0, since it can't
     // be used in an address.
@@ -347,11 +348,10 @@ static unsigned getNumVectorRegs(Type *Ty) {
 }
 
 int SystemZTTIImpl::getArithmeticInstrCost(
-    unsigned Opcode, Type *Ty,
-    TTI::OperandValueKind Op1Info, TTI::OperandValueKind Op2Info,
-    TTI::OperandValueProperties Opd1PropInfo,
-    TTI::OperandValueProperties Opd2PropInfo,
-    ArrayRef<const Value *> Args) {
+    unsigned Opcode, Type *Ty, TTI::OperandValueKind Op1Info,
+    TTI::OperandValueKind Op2Info, TTI::OperandValueProperties Opd1PropInfo,
+    TTI::OperandValueProperties Opd2PropInfo, ArrayRef<const Value *> Args,
+    const Instruction *CxtI) {
 
   // TODO: return a good value for BB-VECTORIZER that includes the
   // immediate loads, which we do not want to count for the loop
@@ -507,7 +507,7 @@ int SystemZTTIImpl::getArithmeticInstrCost(
 
   // Fallback to the default implementation.
   return BaseT::getArithmeticInstrCost(Opcode, Ty, Op1Info, Op2Info,
-                                       Opd1PropInfo, Opd2PropInfo, Args);
+                                       Opd1PropInfo, Opd2PropInfo, Args, CxtI);
 }
 
 int SystemZTTIImpl::getShuffleCost(TTI::ShuffleKind Kind, Type *Tp, int Index,
@@ -707,7 +707,7 @@ int SystemZTTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src,
       // TODO: Fix base implementation which could simplify things a bit here
       // (seems to miss on differentiating on scalar/vector types).
 
-      // Only 64 bit vector conversions are natively supported before arch13.
+      // Only 64 bit vector conversions are natively supported before z15.
       if (DstScalarBits == 64 || ST->hasVectorEnhancements2()) {
         if (SrcScalarBits == DstScalarBits)
           return NumDstVectors;
@@ -994,7 +994,7 @@ static bool isBswapIntrinsicCall(const Value *V) {
 }
 
 int SystemZTTIImpl::getMemoryOpCost(unsigned Opcode, Type *Src,
-                                    unsigned Alignment, unsigned AddressSpace,
+                                    MaybeAlign Alignment, unsigned AddressSpace,
                                     const Instruction *I) {
   assert(!Src->isVoidTy() && "Invalid type");
 

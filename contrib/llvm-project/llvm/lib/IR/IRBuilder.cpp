@@ -49,7 +49,7 @@ GlobalVariable *IRBuilderBase::CreateGlobalString(StringRef Str,
                                 nullptr, GlobalVariable::NotThreadLocal,
                                 AddressSpace);
   GV->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-  GV->setAlignment(1);
+  GV->setAlignment(Align::None());
   return GV;
 }
 
@@ -96,10 +96,10 @@ static InvokeInst *createInvokeHelper(Function *Invokee, BasicBlock *NormalDest,
   return II;
 }
 
-CallInst *IRBuilderBase::
-CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
-             bool isVolatile, MDNode *TBAATag, MDNode *ScopeTag,
-             MDNode *NoAliasTag) {
+CallInst *IRBuilderBase::CreateMemSet(Value *Ptr, Value *Val, Value *Size,
+                                      MaybeAlign Align, bool isVolatile,
+                                      MDNode *TBAATag, MDNode *ScopeTag,
+                                      MDNode *NoAliasTag) {
   Ptr = getCastedInt8PtrValue(Ptr);
   Value *Ops[] = {Ptr, Val, Size, getInt1(isVolatile)};
   Type *Tys[] = { Ptr->getType(), Size->getType() };
@@ -108,8 +108,8 @@ CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
 
   CallInst *CI = createCallHelper(TheFn, Ops, this);
 
-  if (Align > 0)
-    cast<MemSetInst>(CI)->setDestAlignment(Align);
+  if (Align)
+    cast<MemSetInst>(CI)->setDestAlignment(Align->value());
 
   // Set the TBAA info if present.
   if (TBAATag)
@@ -125,10 +125,8 @@ CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
 }
 
 CallInst *IRBuilderBase::CreateElementUnorderedAtomicMemSet(
-    Value *Ptr, Value *Val, Value *Size, unsigned Align, uint32_t ElementSize,
+    Value *Ptr, Value *Val, Value *Size, Align Alignment, uint32_t ElementSize,
     MDNode *TBAATag, MDNode *ScopeTag, MDNode *NoAliasTag) {
-  assert(Align >= ElementSize &&
-         "Pointer alignment must be at least element size.");
 
   Ptr = getCastedInt8PtrValue(Ptr);
   Value *Ops[] = {Ptr, Val, Size, getInt32(ElementSize)};
@@ -139,7 +137,7 @@ CallInst *IRBuilderBase::CreateElementUnorderedAtomicMemSet(
 
   CallInst *CI = createCallHelper(TheFn, Ops, this);
 
-  cast<AtomicMemSetInst>(CI)->setDestAlignment(Align);
+  cast<AtomicMemSetInst>(CI)->setDestAlignment(Alignment);
 
   // Set the TBAA info if present.
   if (TBAATag)
@@ -154,12 +152,21 @@ CallInst *IRBuilderBase::CreateElementUnorderedAtomicMemSet(
   return CI;
 }
 
-CallInst *IRBuilderBase::
-CreateMemCpy(Value *Dst, unsigned DstAlign, Value *Src, unsigned SrcAlign,
-             Value *Size, bool isVolatile, MDNode *TBAATag,
-             MDNode *TBAAStructTag, MDNode *ScopeTag, MDNode *NoAliasTag) {
-  assert((DstAlign == 0 || isPowerOf2_32(DstAlign)) && "Must be 0 or a power of 2");
-  assert((SrcAlign == 0 || isPowerOf2_32(SrcAlign)) && "Must be 0 or a power of 2");
+CallInst *IRBuilderBase::CreateMemCpy(Value *Dst, unsigned DstAlign, Value *Src,
+                                      unsigned SrcAlign, Value *Size,
+                                      bool isVolatile, MDNode *TBAATag,
+                                      MDNode *TBAAStructTag, MDNode *ScopeTag,
+                                      MDNode *NoAliasTag) {
+  return CreateMemCpy(Dst, MaybeAlign(DstAlign), Src, MaybeAlign(SrcAlign),
+                      Size, isVolatile, TBAATag, TBAAStructTag, ScopeTag,
+                      NoAliasTag);
+}
+
+CallInst *IRBuilderBase::CreateMemCpy(Value *Dst, MaybeAlign DstAlign,
+                                      Value *Src, MaybeAlign SrcAlign,
+                                      Value *Size, bool isVolatile,
+                                      MDNode *TBAATag, MDNode *TBAAStructTag,
+                                      MDNode *ScopeTag, MDNode *NoAliasTag) {
   Dst = getCastedInt8PtrValue(Dst);
   Src = getCastedInt8PtrValue(Src);
 
@@ -171,10 +178,10 @@ CreateMemCpy(Value *Dst, unsigned DstAlign, Value *Src, unsigned SrcAlign,
   CallInst *CI = createCallHelper(TheFn, Ops, this);
 
   auto* MCI = cast<MemCpyInst>(CI);
-  if (DstAlign > 0)
-    MCI->setDestAlignment(DstAlign);
-  if (SrcAlign > 0)
-    MCI->setSourceAlignment(SrcAlign);
+  if (DstAlign)
+    MCI->setDestAlignment(*DstAlign);
+  if (SrcAlign)
+    MCI->setSourceAlignment(*SrcAlign);
 
   // Set the TBAA info if present.
   if (TBAATag)
@@ -234,12 +241,11 @@ CallInst *IRBuilderBase::CreateElementUnorderedAtomicMemCpy(
   return CI;
 }
 
-CallInst *IRBuilderBase::
-CreateMemMove(Value *Dst, unsigned DstAlign, Value *Src, unsigned SrcAlign,
-              Value *Size, bool isVolatile, MDNode *TBAATag, MDNode *ScopeTag,
-              MDNode *NoAliasTag) {
-  assert((DstAlign == 0 || isPowerOf2_32(DstAlign)) && "Must be 0 or a power of 2");
-  assert((SrcAlign == 0 || isPowerOf2_32(SrcAlign)) && "Must be 0 or a power of 2");
+CallInst *IRBuilderBase::CreateMemMove(Value *Dst, MaybeAlign DstAlign,
+                                       Value *Src, MaybeAlign SrcAlign,
+                                       Value *Size, bool isVolatile,
+                                       MDNode *TBAATag, MDNode *ScopeTag,
+                                       MDNode *NoAliasTag) {
   Dst = getCastedInt8PtrValue(Dst);
   Src = getCastedInt8PtrValue(Src);
 
@@ -251,10 +257,10 @@ CreateMemMove(Value *Dst, unsigned DstAlign, Value *Src, unsigned SrcAlign,
   CallInst *CI = createCallHelper(TheFn, Ops, this);
 
   auto *MMI = cast<MemMoveInst>(CI);
-  if (DstAlign > 0)
-    MMI->setDestAlignment(DstAlign);
-  if (SrcAlign > 0)
-    MMI->setSourceAlignment(SrcAlign);
+  if (DstAlign)
+    MMI->setDestAlignment(*DstAlign);
+  if (SrcAlign)
+    MMI->setSourceAlignment(*SrcAlign);
 
   // Set the TBAA info if present.
   if (TBAATag)
@@ -289,8 +295,10 @@ CallInst *IRBuilderBase::CreateElementUnorderedAtomicMemMove(
   CallInst *CI = createCallHelper(TheFn, Ops, this);
 
   // Set the alignment of the pointer args.
-  CI->addParamAttr(0, Attribute::getWithAlignment(CI->getContext(), DstAlign));
-  CI->addParamAttr(1, Attribute::getWithAlignment(CI->getContext(), SrcAlign));
+  CI->addParamAttr(
+      0, Attribute::getWithAlignment(CI->getContext(), Align(DstAlign)));
+  CI->addParamAttr(
+      1, Attribute::getWithAlignment(CI->getContext(), Align(SrcAlign)));
 
   // Set the TBAA info if present.
   if (TBAATag)

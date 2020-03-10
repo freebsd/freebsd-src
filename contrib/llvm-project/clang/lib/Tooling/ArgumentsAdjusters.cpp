@@ -13,23 +13,41 @@
 
 #include "clang/Tooling/ArgumentsAdjusters.h"
 #include "clang/Basic/LLVM.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include <cstddef>
+#include <vector>
 
 namespace clang {
 namespace tooling {
 
-/// Add -fsyntax-only option to the command line arguments.
+/// Add -fsyntax-only option and drop options that triggers output generation.
 ArgumentsAdjuster getClangSyntaxOnlyAdjuster() {
   return [](const CommandLineArguments &Args, StringRef /*unused*/) {
     CommandLineArguments AdjustedArgs;
     bool HasSyntaxOnly = false;
+    const std::vector<llvm::StringRef> OutputCommands = {
+        // FIXME: Add other options that generate output.
+        "-save-temps",
+        "--save-temps",
+    };
     for (size_t i = 0, e = Args.size(); i < e; ++i) {
       StringRef Arg = Args[i];
-      // FIXME: Remove options that generate output.
+      // Skip output commands.
+      if (llvm::any_of(OutputCommands, [&Arg](llvm::StringRef OutputCommand) {
+            return Arg.startswith(OutputCommand);
+          }))
+        continue;
+
       if (!Arg.startswith("-fcolor-diagnostics") &&
           !Arg.startswith("-fdiagnostics-color"))
         AdjustedArgs.push_back(Args[i]);
+      // If we strip a color option, make sure we strip any preceeding `-Xclang`
+      // option as well.
+      // FIXME: This should be added to most argument adjusters!
+      else if (!AdjustedArgs.empty() && AdjustedArgs.back() == "-Xclang")
+        AdjustedArgs.pop_back();
+
       if (Arg == "-fsyntax-only")
         HasSyntaxOnly = true;
     }
@@ -52,6 +70,22 @@ ArgumentsAdjuster getClangStripOutputAdjuster() {
         ++i;
       }
       // Else, the output is specified as -ofoo. Just do nothing.
+    }
+    return AdjustedArgs;
+  };
+}
+
+ArgumentsAdjuster getClangStripSerializeDiagnosticAdjuster() {
+  return [](const CommandLineArguments &Args, StringRef /*unused*/) {
+    CommandLineArguments AdjustedArgs;
+    for (size_t i = 0, e = Args.size(); i < e; ++i) {
+      StringRef Arg = Args[i];
+      if (Arg == "--serialize-diagnostics") {
+        // Skip the diagnostic output argument.
+        ++i;
+        continue;
+      }
+      AdjustedArgs.push_back(Args[i]);
     }
     return AdjustedArgs;
   };

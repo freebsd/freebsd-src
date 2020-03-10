@@ -20,6 +20,7 @@
 #include "lld/Common/Timer.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/BinaryStreamReader.h"
 #include "llvm/Support/Debug.h"
@@ -40,8 +41,9 @@ using namespace llvm::COFF;
 using namespace llvm::object;
 using namespace llvm::support;
 using namespace llvm::support::endian;
-using namespace lld;
-using namespace lld::coff;
+
+namespace lld {
+namespace coff {
 
 /* To re-generate DOSProgram:
 $ cat > /tmp/DOSProgram.asm
@@ -240,6 +242,8 @@ private:
   IdataContents idata;
   Chunk *importTableStart = nullptr;
   uint64_t importTableSize = 0;
+  Chunk *edataStart = nullptr;
+  Chunk *edataEnd = nullptr;
   Chunk *iatStart = nullptr;
   uint64_t iatSize = 0;
   DelayLoadContents delayIdata;
@@ -282,9 +286,6 @@ private:
   Chunk *lastPdata;
 };
 } // anonymous namespace
-
-namespace lld {
-namespace coff {
 
 static Timer codeLayoutTimer("Code Layout", Timer::root());
 static Timer diskCommitTimer("Commit Output File", Timer::root());
@@ -330,9 +331,6 @@ void OutputSection::writeHeaderTo(uint8_t *buf) {
 void OutputSection::addContributingPartialSection(PartialSection *sec) {
   contribSections.push_back(sec);
 }
-
-} // namespace coff
-} // namespace lld
 
 // Check whether the target address S is in range from a relocation
 // of type relType at address P.
@@ -741,7 +739,8 @@ void Writer::addSyntheticIdata() {
   add(".idata$2", idata.dirs);
   add(".idata$4", idata.lookups);
   add(".idata$5", idata.addresses);
-  add(".idata$6", idata.hints);
+  if (!idata.hints.empty())
+    add(".idata$6", idata.hints);
   add(".idata$7", idata.dllNames);
 }
 
@@ -840,6 +839,7 @@ void Writer::createSections() {
   }
 
   fixPartialSectionChars(".rsrc", data | r);
+  fixPartialSectionChars(".edata", data | r);
   // Even in non MinGW cases, we might need to link against GNU import
   // libraries.
   bool hasIdata = fixGnuImportChunks();
@@ -1014,10 +1014,19 @@ void Writer::appendImportThunks() {
 }
 
 void Writer::createExportTable() {
-  if (config->exports.empty())
-    return;
-  for (Chunk *c : edata.chunks)
-    edataSec->addChunk(c);
+  if (!edataSec->chunks.empty()) {
+    // Allow using a custom built export table from input object files, instead
+    // of having the linker synthesize the tables.
+    if (config->hadExplicitExports)
+      warn("literal .edata sections override exports");
+  } else if (!config->exports.empty()) {
+    for (Chunk *c : edata.chunks)
+      edataSec->addChunk(c);
+  }
+  if (!edataSec->chunks.empty()) {
+    edataStart = edataSec->chunks.front();
+    edataEnd = edataSec->chunks.back();
+  }
 }
 
 void Writer::removeUnusedSections() {
@@ -1140,6 +1149,11 @@ void Writer::createSymbolAndStringTable() {
       continue;
     if ((sec->header.Characteristics & IMAGE_SCN_MEM_DISCARDABLE) == 0)
       continue;
+    if (config->warnLongSectionNames) {
+      warn("section name " + sec->name +
+           " is longer than 8 characters and will use a non-standard string "
+           "table");
+    }
     sec->setStringTableOff(addEntryToStringTable(sec->name));
   }
 
@@ -1291,6 +1305,8 @@ template <typename PEHeaderTy> void Writer::writeHeader() {
     coff->Characteristics |= IMAGE_FILE_32BIT_MACHINE;
   if (config->dll)
     coff->Characteristics |= IMAGE_FILE_DLL;
+  if (config->driverUponly)
+    coff->Characteristics |= IMAGE_FILE_UP_SYSTEM_ONLY;
   if (!config->relocatable)
     coff->Characteristics |= IMAGE_FILE_RELOCS_STRIPPED;
   if (config->swaprunCD)
@@ -1338,6 +1354,8 @@ template <typename PEHeaderTy> void Writer::writeHeader() {
   pe->SizeOfHeapCommit = config->heapCommit;
   if (config->appContainer)
     pe->DLLCharacteristics |= IMAGE_DLL_CHARACTERISTICS_APPCONTAINER;
+  if (config->driverWdm)
+    pe->DLLCharacteristics |= IMAGE_DLL_CHARACTERISTICS_WDM_DRIVER;
   if (config->dynamicBase)
     pe->DLLCharacteristics |= IMAGE_DLL_CHARACTERISTICS_DYNAMIC_BASE;
   if (config->highEntropyVA)
@@ -1366,9 +1384,10 @@ template <typename PEHeaderTy> void Writer::writeHeader() {
   // Write data directory
   auto *dir = reinterpret_cast<data_directory *>(buf);
   buf += sizeof(*dir) * numberOfDataDirectory;
-  if (!config->exports.empty()) {
-    dir[EXPORT_TABLE].RelativeVirtualAddress = edata.getRVA();
-    dir[EXPORT_TABLE].Size = edata.getSize();
+  if (edataStart) {
+    dir[EXPORT_TABLE].RelativeVirtualAddress = edataStart->getRVA();
+    dir[EXPORT_TABLE].Size =
+        edataEnd->getRVA() + edataEnd->getSize() - edataStart->getRVA();
   }
   if (importTableStart) {
     dir[IMPORT_TABLE].RelativeVirtualAddress = importTableStart->getRVA();
@@ -1506,7 +1525,8 @@ static void maybeAddAddressTakenFunction(SymbolRVASet &addressTakenSyms,
     // Absolute is never code, synthetic generally isn't and usually isn't
     // determinable.
     break;
-  case Symbol::LazyKind:
+  case Symbol::LazyArchiveKind:
+  case Symbol::LazyObjectKind:
   case Symbol::UndefinedKind:
     // Undefined symbols resolve to zero, so they don't have an RVA. Lazy
     // symbols shouldn't have relocations.
@@ -1824,7 +1844,7 @@ void Writer::sortExceptionTable() {
         [](const Entry &a, const Entry &b) { return a.begin < b.begin; });
     return;
   }
-  errs() << "warning: don't know how to handle .pdata.\n";
+  lld::errs() << "warning: don't know how to handle .pdata.\n";
 }
 
 // The CRT section contains, among other things, the array of function
@@ -1930,3 +1950,6 @@ PartialSection *Writer::findPartialSection(StringRef name, uint32_t outChars) {
     return it->second;
   return nullptr;
 }
+
+} // namespace coff
+} // namespace lld
