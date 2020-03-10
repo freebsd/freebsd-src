@@ -4107,7 +4107,8 @@ sigfastblock_clear(struct thread *td)
 	if ((td->td_pflags & TDP_SIGFASTBLOCK) == 0)
 		return;
 	td->td_sigblock_val = 0;
-	resched = (td->td_pflags & TDP_SIGFASTPENDING) != 0;
+	resched = (td->td_pflags & TDP_SIGFASTPENDING) != 0 ||
+	    SIGPENDING(td);
 	td->td_pflags &= ~(TDP_SIGFASTBLOCK | TDP_SIGFASTPENDING);
 	if (resched) {
 		p = td->td_proc;
