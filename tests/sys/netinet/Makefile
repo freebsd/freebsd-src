@@ -9,7 +9,7 @@ ATF_TESTS_C=	ip_reass_test \
 		so_reuseport_lb_test \
 		socket_afinet
 
-ATF_TESTS_SH=	fibs_test redirect divert
+ATF_TESTS_SH=	fibs_test redirect divert forward
 
 PROGS=	udp_dontroute tcp_user_cookie
 
