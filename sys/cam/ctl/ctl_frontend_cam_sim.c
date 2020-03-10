@@ -88,8 +88,7 @@ struct cfcs_softc {
  * handle physical addresses yet.  That would require mapping things in
  * order to do the copy.
  */
-#define	CFCS_BAD_CCB_FLAGS (CAM_DATA_ISPHYS | CAM_MSG_BUF_PHYS |	\
-	CAM_SNS_BUF_PHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |		\
+#define	CFCS_BAD_CCB_FLAGS (CAM_DATA_ISPHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |		\
 	CAM_SENSE_PHYS)
 
 static int cfcs_init(void);
