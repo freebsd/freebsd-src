@@ -4382,10 +4382,12 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int n)
 		MPASS(sd->cl == NULL);
 		rxb = &sc->sge.rx_buf_info[fl->zidx];
 		cl = uma_zalloc(rxb->zone, M_NOWAIT);
-		if (__predict_false(cl == NULL) && fl->zidx != fl->safe_zidx) {
-			rxb = &sc->sge.rx_buf_info[fl->safe_zidx];
-			cl = uma_zalloc(rxb->zone, M_NOWAIT);
-			if (__predict_false(cl == NULL))
+		if (__predict_false(cl == NULL)) {
+			if (fl->zidx != fl->safe_zidx) {
+				rxb = &sc->sge.rx_buf_info[fl->safe_zidx];
+				cl = uma_zalloc(rxb->zone, M_NOWAIT);
+			}
+			if (cl == NULL)
 				break;
 		}
 		fl->cl_allocated++;
