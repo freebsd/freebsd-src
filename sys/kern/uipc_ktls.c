@@ -800,6 +800,7 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 	params.hdr.type = IF_SND_TAG_TYPE_TLS;
 	params.hdr.flowid = inp->inp_flowid;
 	params.hdr.flowtype = inp->inp_flowtype;
+	params.hdr.numa_domain = inp->inp_numa_domain;
 	params.tls.inp = inp;
 	params.tls.tls = tls;
 	INP_RUNLOCK(inp);

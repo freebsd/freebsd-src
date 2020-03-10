@@ -66,7 +66,8 @@ static __inline void
 seqc_write_end(seqc_t *seqcp)
 {
 
-	atomic_store_rel_int(seqcp, *seqcp + 1);
+	atomic_thread_fence_rel();
+	*seqcp += 1;
 	MPASS(!seqc_in_modify(*seqcp));
 	critical_exit();
 }
@@ -84,7 +85,7 @@ seqc_read(const seqc_t *seqcp)
 	seqc_t ret;
 
 	for (;;) {
-		ret = atomic_load_acq_int(__DECONST(seqc_t *, seqcp));
+		ret = seqc_read_any(seqcp);
 		if (__predict_false(seqc_in_modify(ret))) {
 			cpu_spinwait();
 			continue;

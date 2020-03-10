@@ -3258,6 +3258,7 @@ in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
 		    IF_SND_TAG_TYPE_UNLIMITED : IF_SND_TAG_TYPE_RATE_LIMIT,
 		.rate_limit.hdr.flowid = flowid,
 		.rate_limit.hdr.flowtype = flowtype,
+		.rate_limit.hdr.numa_domain = inp->inp_numa_domain,
 		.rate_limit.max_rate = max_pacing_rate,
 		.rate_limit.flags = M_NOWAIT,
 	};

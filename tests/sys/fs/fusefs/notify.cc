@@ -375,7 +375,7 @@ TEST_F(Notify, inval_inode_with_clean_cache)
 	pthread_join(th0, &thr0_value);
 	EXPECT_EQ(0, (intptr_t)thr0_value);
 
-	/* cache attributes were been purged; this will trigger a new GETATTR */
+	/* cache attributes were purged; this will trigger a new GETATTR */
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
 	EXPECT_EQ(uid, sb.st_uid);
 	EXPECT_EQ(size1, sb.st_size);

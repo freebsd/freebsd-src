@@ -348,10 +348,8 @@ fuspi_attach(device_t dev)
 
 	return (0);
 
-fail1:
-	bus_release_resources(dev, fuspi_spec, &sc->res);
-
 fail:
+	bus_release_resources(dev, fuspi_spec, &sc->res);
 	mtx_destroy(&sc->mtx);
 	return (error);
 }

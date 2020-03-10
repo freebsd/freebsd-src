@@ -660,7 +660,7 @@ repeat:
 		break;
 	case USB_SPEED_SUPER:
 		if (udev->parent_hub == NULL)
-			power_mask = UPS_PORT_POWER;
+			power_mask = 0;	/* XXX undefined */
 		else
 			power_mask = UPS_PORT_POWER_SS;
 		break;
@@ -668,7 +668,7 @@ repeat:
 		power_mask = 0;
 		break;
 	}
-	if (!(sc->sc_st.port_status & power_mask)) {
+	if ((sc->sc_st.port_status & power_mask) != power_mask) {
 		DPRINTF("WARNING: strange, connected port %d "
 		    "has no power\n", portno);
 	}

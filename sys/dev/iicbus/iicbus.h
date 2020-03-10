@@ -57,6 +57,7 @@ struct iicbus_ivar
 	struct resource_list	rl;
 };
 
+/* Value of 0x100 is reserved for ACPI_IVAR_HANDLE used by acpi_iicbus */
 enum {
 	IICBUS_IVAR_ADDR		/* Address or base address */
 };
@@ -79,9 +80,24 @@ IICBUS_ACCESSOR(addr,		ADDR,		uint32_t)
 int  iicbus_generic_intr(device_t dev, int event, char *buf);
 void iicbus_init_frequency(device_t dev, u_int bus_freq);
 
+int iicbus_attach_common(device_t dev, u_int bus_freq);
+device_t iicbus_add_child_common(device_t dev, u_int order, const char *name,
+    int unit, size_t ivars_size);
+int iicbus_detach(device_t dev);
+void iicbus_probe_nomatch(device_t bus, device_t child);
+int iicbus_read_ivar(device_t bus, device_t child, int which,
+    uintptr_t *result);
+int iicbus_write_ivar(device_t bus, device_t child, int which,
+    uintptr_t value);
+int iicbus_child_location_str(device_t bus, device_t child, char *buf,
+    size_t buflen);
+int iicbus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
+    size_t buflen);
+
 extern driver_t iicbus_driver;
 extern devclass_t iicbus_devclass;
 extern driver_t ofw_iicbus_driver;
 extern devclass_t ofw_iicbus_devclass;
+extern driver_t acpi_iicbus_driver;
 
 #endif

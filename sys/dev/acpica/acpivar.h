@@ -371,6 +371,7 @@ int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
 		    u_int flags);
 void		acpi_walk_subtables(void *first, void *end,
 		    acpi_subtable_handler *handler, void *arg);
+BOOLEAN		acpi_has_hid(ACPI_HANDLE handle);
 int		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 #define ACPI_MATCHHID_NOMATCH 0
 #define ACPI_MATCHHID_HID 1
@@ -434,6 +435,7 @@ ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);
 ACPI_STATUS	acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state);
 int		acpi_device_pwr_for_sleep(device_t bus, device_t dev,
 		    int *dstate);
+int		acpi_set_powerstate(device_t child, int state);
 
 /* APM emulation */
 void		acpi_apm_init(struct acpi_softc *);
@@ -468,6 +470,7 @@ int		acpi_wakeup_machdep(struct acpi_softc *sc, int state,
 		    int sleep_result, int intr_enabled);
 int		acpi_table_quirks(int *quirks);
 int		acpi_machdep_quirks(int *quirks);
+int		acpi_pnpinfo_str(ACPI_HANDLE handle, char *buf, size_t buflen);
 
 uint32_t	hpet_get_uid(device_t dev);
 

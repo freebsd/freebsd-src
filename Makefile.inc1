@@ -2284,11 +2284,6 @@ _basic_bootstrap_tools+=sbin/sysctl bin/chflags
 # mkfifo is used by sys/conf/newvers.sh
 _basic_bootstrap_tools+=usr.bin/mkfifo
 
-.if ${MK_AMD} != "no"
-# unifdef is only used by usr.sbin/amd/libamu/Makefile
-_basic_bootstrap_tools+=usr.bin/unifdef
-.endif
-
 .if ${MK_BOOT} != "no"
 _basic_bootstrap_tools+=bin/dd
 # xz/unxz is used by EFI

@@ -530,7 +530,7 @@ static void pfopen(FICL_VM *pVM)
     fd = open(name, mode);
 #ifdef LOADER_VERIEXEC
     if (fd >= 0) {
-	if (verify_file(fd, name, 0, VE_GUESS) < 0) {
+	if (verify_file(fd, name, 0, VE_GUESS, __func__) < 0) {
 	    /* not verified writing ok but reading is not */
 	    if ((mode & O_ACCMODE) != O_WRONLY) {
 		close(fd);

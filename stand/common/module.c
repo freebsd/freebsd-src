@@ -616,6 +616,14 @@ file_load_dependencies(struct preloaded_file *base_file)
 	return (error);
 }
 
+
+#ifdef LOADER_VERIEXEC_VECTX
+#define VECTX_HANDLE(fd) vctx
+#else
+#define VECTX_HANDLE(fd) fd
+#endif
+
+
 /*
  * We've been asked to load (fname) as (type), so just suck it in,
  * no arguments or anything.
@@ -627,6 +635,10 @@ file_loadraw(const char *fname, char *type, int insert)
 	char			*name;
 	int				fd, got;
 	vm_offset_t			laddr;
+#ifdef LOADER_VERIEXEC_VECTX
+	struct vectx		*vctx;
+	int			verror;
+#endif
 
 	/* We can't load first */
 	if ((file_findfile(NULL, NULL)) == NULL) {
@@ -649,13 +661,26 @@ file_loadraw(const char *fname, char *type, int insert)
 		return(NULL);
 	}
 
+#ifdef LOADER_VERIEXEC_VECTX
+	vctx = vectx_open(fd, name, 0L, NULL, &verror, __func__);
+	if (verror) {
+		sprintf(command_errbuf, "can't verify '%s': %s",
+		    name, ve_error_get());
+		free(name);
+		free(vctx);
+		close(fd);
+		return(NULL);
+	}
+#else
 #ifdef LOADER_VERIEXEC
-	if (verify_file(fd, name, 0, VE_MUST) < 0) {
-		sprintf(command_errbuf, "can't verify '%s'", name);
+	if (verify_file(fd, name, 0, VE_MUST, __func__) < 0) {
+		sprintf(command_errbuf, "can't verify '%s': %s",
+		    name, ve_error_get());
 		free(name);
 		close(fd);
 		return(NULL);
 	}
+#endif
 #endif
 
 	if (archsw.arch_loadaddr != NULL)
@@ -666,7 +691,7 @@ file_loadraw(const char *fname, char *type, int insert)
 	laddr = loadaddr;
 	for (;;) {
 		/* read in 4k chunks; size is not really important */
-		got = archsw.arch_readin(fd, laddr, 4096);
+		got = archsw.arch_readin(VECTX_HANDLE(fd), laddr, 4096);
 		if (got == 0)				/* end of file */
 			break;
 		if (got < 0) {				/* error */
@@ -674,12 +699,24 @@ file_loadraw(const char *fname, char *type, int insert)
 			  "error reading '%s': %s", name, strerror(errno));
 			free(name);
 			close(fd);
+#ifdef LOADER_VERIEXEC_VECTX
+			free(vctx);
+#endif
 			return(NULL);
 		}
 		laddr += got;
 	}
 
 	printf("size=%#jx\n", (uintmax_t)(laddr - loadaddr));
+#ifdef LOADER_VERIEXEC_VECTX
+	verror = vectx_close(vctx, VE_MUST, __func__);
+	if (verror) {
+		free(name);
+		close(fd);
+		free(vctx);
+		return(NULL);
+	}
+#endif
 
 	/* Looks OK so far; create & populate control structure */
 	fp = file_alloc();

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "libsecureboot-priv.h"
+#include <verify_file.h>
 
 /**
  * @file vectx.c
@@ -50,11 +51,13 @@ struct vectx {
 	const char	*vec_path;	/* path we are verifying */
 	const char	*vec_want;	/* hash value we want */
 	off_t		vec_off;	/* current offset */
+	off_t		vec_hashed;	/* where we have hashed to */
 	size_t		vec_size;	/* size of path */
 	size_t		vec_hashsz;	/* size of hash */
 	int		vec_fd;		/* file descriptor */
 	int		vec_status;	/* verification status */
 };
+
 
 /**
  * @brief
@@ -86,24 +89,31 @@ struct vectx {
  *	NULL is only returned for non-files or out-of-memory.
  */
 struct vectx *
-vectx_open(int fd, const char *path, off_t off, struct stat *stp, int *error)
+vectx_open(int fd, const char *path, off_t off, struct stat *stp,
+    int *error, const char *caller)
 {
 	struct vectx *ctx;
 	struct stat st;
 	size_t hashsz;
 	char *cp;
+	int rc;
 
-	if (!stp) {
-		if (fstat(fd, &st) == 0)
-			stp = &st;
-	}
+	if (!stp)
+	    stp = &st;
 
-	/* we *should* only get called for files */
-	if (stp && !S_ISREG(stp->st_mode)) {
-		*error = 0;
+	rc = verify_prep(fd, path, off, stp, __func__);
+
+	DEBUG_PRINTF(2,
+	    ("vectx_open: caller=%s,name='%s',prep_rc=%d\n",
+		caller,path, rc));
+
+	switch (rc) {
+	case VE_FINGERPRINT_NONE:
+	case VE_FINGERPRINT_UNKNOWN:
+	case VE_FINGERPRINT_WRONG:
+		*error = rc;
 		return (NULL);
 	}
-
 	ctx = malloc(sizeof(struct vectx));
 	if (!ctx)
 		goto enomem;
@@ -111,10 +121,16 @@ vectx_open(int fd, const char *path, off_t off, struct stat *stp, int *error)
 	ctx->vec_path = path;
 	ctx->vec_size = stp->st_size;
 	ctx->vec_off = 0;
+	ctx->vec_hashed = 0;
 	ctx->vec_want = NULL;
 	ctx->vec_status = 0;
-	hashsz = 0;
+	ctx->vec_hashsz = hashsz = 0;
 
+	if (rc == 0) {
+		/* we are not verifying this */
+		*error = 0;
+		return (ctx);
+	}
 	cp = fingerprint_info_lookup(fd, path);
 	if (!cp) {
 		ctx->vec_status = VE_FINGERPRINT_NONE;
@@ -161,6 +177,10 @@ vectx_open(int fd, const char *path, off_t off, struct stat *stp, int *error)
 			vectx_lseek(ctx, off, SEEK_SET);
 		}
 	}
+	DEBUG_PRINTF(2,
+	    ("vectx_open: caller=%s,name='%s',hashsz=%lu,status=%d\n",
+		caller, path, (unsigned long)ctx->vec_hashsz,
+		ctx->vec_status));
 	return (ctx);
 
 enomem:					/* unlikely */
@@ -175,6 +195,8 @@ enomem:					/* unlikely */
  *
  * It is critical that all file I/O comes through here.
  * We keep track of current offset.
+ * We also track what offset we have hashed to,
+ * so we won't replay data if we seek backwards.
  *
  * @param[in] pctx
  *	pointer to ctx
@@ -190,6 +212,8 @@ vectx_read(struct vectx *ctx, void *buf, size_t nbytes)
 {
 	unsigned char *bp = buf;
 	int n;
+	int delta;
+	int x;
 	size_t off;
 
 	if (ctx->vec_hashsz == 0)	/* nothing to do */
@@ -201,9 +225,20 @@ vectx_read(struct vectx *ctx, void *buf, size_t nbytes)
 		if (n < 0)
 			return (n);
 		if (n > 0) {
-			ctx->vec_md->update(&ctx->vec_ctx.vtable, &bp[off], n);
-			off += n;
-			ctx->vec_off += n;
+			/* we may have seeked backwards! */
+			delta = ctx->vec_hashed - ctx->vec_off;
+			if (delta > 0) {
+				x = MIN(delta, n);
+				off += x;
+				n -= x;
+				ctx->vec_off += x;
+			}
+			if (n > 0) {
+				ctx->vec_md->update(&ctx->vec_ctx.vtable, &bp[off], n);
+				off += n;
+				ctx->vec_off += n;
+				ctx->vec_hashed += n;
+			}
 		}
 	} while (n > 0 && off < nbytes);
 	return (off);
@@ -213,10 +248,10 @@ vectx_read(struct vectx *ctx, void *buf, size_t nbytes)
  * @brief
  * vectx equivalent of lseek
  *
- * We do not actually, seek, but call vectx_read
+ * When seeking forwards we actually call vectx_read
  * to reach the desired offset.
  *
- * We do not support seeking backwards.
+ * We support seeking backwards.
  *
  * @param[in] pctx
  *	pointer to ctx
@@ -225,6 +260,8 @@ vectx_read(struct vectx *ctx, void *buf, size_t nbytes)
  *	desired offset
  *
  * @param[in] whence
+ * 	We try to convert whence to ``SEEK_SET``.
+ *	We do not support ``SEEK_DATA`` or ``SEEK_HOLE``.
  *
  * @return offset or error.
  */
@@ -239,21 +276,25 @@ vectx_lseek(struct vectx *ctx, off_t off, int whence)
 		return (lseek(ctx->vec_fd, off, whence));
 
 	/*
-	 * Try to convert whence to SEEK_SET
-	 * but we cannot support seeking backwards!
-	 * Nor beyond end of file.
+	 * Convert whence to SEEK_SET
 	 */
 	if (whence == SEEK_END && off <= 0) {
 		whence = SEEK_SET;
 		off += ctx->vec_size;
-	} else if (whence == SEEK_CUR && off >= 0) {
+	} else if (whence == SEEK_CUR) {
 		whence = SEEK_SET;
 		off += ctx->vec_off;
 	}
-	if (whence != SEEK_SET || off < ctx->vec_off ||
+	if (whence != SEEK_SET ||
 	    (size_t)off > ctx->vec_size) {
-		printf("ERROR: %s: unsupported operation\n",  __func__);
+		printf("ERROR: %s: unsupported operation: whence=%d off=%lld -> %lld\n",
+		    __func__, whence, (long long)ctx->vec_off, (long long)off);
 		return (-1);
+	}
+	if (off < ctx->vec_hashed) {
+		/* seeking backwards! just do it */
+		ctx->vec_off = lseek(ctx->vec_fd, off, whence);
+		return (ctx->vec_off);
 	}
 	n = 0;
 	do {
@@ -281,16 +322,35 @@ vectx_lseek(struct vectx *ctx, off_t off, int whence)
  * @return 0 or an error.
  */
 int
-vectx_close(struct vectx *ctx)
+vectx_close(struct vectx *ctx, int severity, const char *caller)
 {
 	int rc;
 
 	if (ctx->vec_hashsz == 0) {
 		rc = ctx->vec_status;
 	} else {
+#ifdef VE_PCR_SUPPORT
+		/*
+		 * Only update pcr with things that must verify
+		 * these tend to be processed in a more deterministic
+		 * order, which makes our pseudo pcr more useful.
+		 */
+		ve_pcr_updating_set((severity == VE_MUST));
+#endif
 		rc = ve_check_hash(&ctx->vec_ctx, ctx->vec_md,
 		    ctx->vec_path, ctx->vec_want, ctx->vec_hashsz);
 	}
+	DEBUG_PRINTF(2,
+	    ("vectx_close: caller=%s,name='%s',rc=%d,severity=%d\n",
+		caller,ctx->vec_path, rc, severity));
+	if (severity > VE_WANT || rc == VE_FINGERPRINT_WRONG)
+		printf("%serified %s\n", (rc <= 0) ? "Unv" : "V",
+		    ctx->vec_path);
+#if !defined(UNIT_TEST) && !defined(DEBUG_VECTX)
+	/* we are generally called with VE_MUST */
+	if (severity > VE_WANT && rc == VE_FINGERPRINT_WRONG)
+		panic("cannot continue");
+#endif
 	free(ctx);
 	return ((rc < 0) ? rc : 0);
 }

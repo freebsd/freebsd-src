@@ -460,6 +460,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	struct file file;
 	struct filedesc filed;
 	struct pwd pwd;
+	unsigned long pwd_addr;
 	struct vm_map_entry vmentry;
 	struct vm_object object;
 	struct vmspace vmspace;
@@ -488,10 +489,10 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 		return (NULL);
 	}
 	haspwd = false;
-	if (filed.fd_pwd != NULL) {
-		if (!kvm_read_all(kd, (unsigned long)filed.fd_pwd, &pwd,
-		    sizeof(pwd))) {
-			warnx("can't read fd_pwd at %p", (void *)filed.fd_pwd);
+	pwd_addr = (unsigned long)(FILEDESC_KVM_LOAD_PWD(&filed));
+	if (pwd_addr != 0) {
+		if (!kvm_read_all(kd, pwd_addr, &pwd, sizeof(pwd))) {
+			warnx("can't read fd_pwd at %p", (void *)pwd_addr);
 			return (NULL);
 		}
 		haspwd = true;

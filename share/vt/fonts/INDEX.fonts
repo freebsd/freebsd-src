@@ -34,9 +34,9 @@ MENU:fr:Choisissez votre fonte écran
 FONT:en:vgarom-8x14.fnt
 #
 
-gallant.fnt:en:Gallant Character set, 8x16
-gallant.fnt:da:Gallant-tegnsæt, 8x16
-gallant.fnt:de:Gallant Zeichensatz, 8x16
+gallant.fnt:en:Gallant Character set, 12x22
+gallant.fnt:da:Gallant-tegnsæt, 12x22
+gallant.fnt:de:Gallant Zeichensatz, 12x22
 
 terminus-b32.fnt:en:Terminus BSD Console, size 32
 terminus-b32.fnt:da:Terminus BSD-konsol, størrelse 32
