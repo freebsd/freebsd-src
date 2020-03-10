@@ -3488,6 +3488,9 @@ linux_ioctl_fbsd_usb(struct thread *td, struct linux_ioctl_args *args)
 	case FBSD_LUSB_GET_POWER_USAGE:
 		args->cmd = USB_GET_POWER_USAGE;
 		break;
+	case FBSD_LUSB_DEVICESTATS:
+		args->cmd = USB_DEVICESTATS;
+		break;
 	default:
 		error = ENOIOCTL;
 	}
