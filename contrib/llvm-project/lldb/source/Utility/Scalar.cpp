@@ -74,7 +74,7 @@ Scalar::Scalar() : m_type(e_void), m_float(static_cast<float>(0)) {}
 bool Scalar::GetData(DataExtractor &data, size_t limit_byte_size) const {
   size_t byte_size = GetByteSize();
   if (byte_size > 0) {
-    const uint8_t *bytes = reinterpret_cast<const uint8_t *>(GetBytes());
+    const uint8_t *bytes = static_cast<const uint8_t *>(GetBytes());
 
     if (limit_byte_size < byte_size) {
       if (endian::InlHostByteOrder() == eByteOrderLittle) {
@@ -132,7 +132,7 @@ const void *Scalar::GetBytes() const {
       swapped_words[1] = apint_words[0];
       apint_words = swapped_words;
     }
-    return reinterpret_cast<const void *>(apint_words);
+    return static_cast<const void *>(apint_words);
   case e_sint256:
   case e_uint256:
     apint_words = m_integer.getRawData();
@@ -143,7 +143,7 @@ const void *Scalar::GetBytes() const {
       swapped_words[3] = apint_words[0];
       apint_words = swapped_words;
     }
-    return reinterpret_cast<const void *>(apint_words);
+    return static_cast<const void *>(apint_words);
   case e_sint512:
   case e_uint512:
     apint_words = m_integer.getRawData();
@@ -158,13 +158,13 @@ const void *Scalar::GetBytes() const {
       swapped_words[7] = apint_words[0];
       apint_words = swapped_words;
     }
-    return reinterpret_cast<const void *>(apint_words);
+    return static_cast<const void *>(apint_words);
   case e_float:
     flt_val = m_float.convertToFloat();
-    return reinterpret_cast<const void *>(&flt_val);
+    return static_cast<const void *>(&flt_val);
   case e_double:
     dbl_val = m_float.convertToDouble();
-    return reinterpret_cast<const void *>(&dbl_val);
+    return static_cast<const void *>(&dbl_val);
   case e_long_double:
     llvm::APInt ldbl_val = m_float.bitcastToAPInt();
     apint_words = ldbl_val.getRawData();
@@ -176,7 +176,7 @@ const void *Scalar::GetBytes() const {
       swapped_words[1] = apint_words[0];
       apint_words = swapped_words;
     }
-    return reinterpret_cast<const void *>(apint_words);
+    return static_cast<const void *>(apint_words);
   }
   return nullptr;
 }
@@ -305,15 +305,6 @@ const char *Scalar::GetTypeAsCString() const {
   return "<invalid Scalar type>";
 }
 
-Scalar &Scalar::operator=(const Scalar &rhs) {
-  if (this != &rhs) {
-    m_type = rhs.m_type;
-    m_integer = llvm::APInt(rhs.m_integer);
-    m_float = rhs.m_float;
-  }
-  return *this;
-}
-
 Scalar &Scalar::operator=(const int v) {
   m_type = e_sint;
   m_integer = llvm::APInt(sizeof(int) * 8, v, true);
@@ -415,6 +406,51 @@ Scalar &Scalar::operator=(llvm::APInt rhs) {
 }
 
 Scalar::~Scalar() = default;
+
+Scalar::Type Scalar::GetBestTypeForBitSize(size_t bit_size, bool sign) {
+  // Scalar types are always host types, hence the sizeof().
+  if (sign) {
+    if (bit_size <= sizeof(int)*8) return Scalar::e_sint;
+    if (bit_size <= sizeof(long)*8) return Scalar::e_slong;
+    if (bit_size <= sizeof(long long)*8) return Scalar::e_slonglong;
+    if (bit_size <= 128) return Scalar::e_sint128;
+    if (bit_size <= 256) return Scalar::e_sint256;
+    if (bit_size <= 512) return Scalar::e_sint512;
+  } else {
+    if (bit_size <= sizeof(unsigned int)*8) return Scalar::e_uint;
+    if (bit_size <= sizeof(unsigned long)*8) return Scalar::e_ulong;
+    if (bit_size <= sizeof(unsigned long long)*8) return Scalar::e_ulonglong;
+    if (bit_size <= 128) return Scalar::e_uint128;
+    if (bit_size <= 256) return Scalar::e_uint256;
+    if (bit_size <= 512) return Scalar::e_uint512;
+  }
+  return Scalar::e_void;
+}
+
+void Scalar::TruncOrExtendTo(Scalar::Type type, uint16_t bits) {
+  switch (type) {
+  case e_sint:
+  case e_slong:
+  case e_slonglong:
+  case e_sint128:
+  case e_sint256:
+  case e_sint512:
+    m_integer = m_integer.sextOrTrunc(bits);
+    break;
+  case e_uint:
+  case e_ulong:
+  case e_ulonglong:
+  case e_uint128:
+  case e_uint256:
+  case e_uint512:
+    m_integer = m_integer.zextOrTrunc(bits);
+    break;
+  default:
+    llvm_unreachable("Promoting a Scalar to a specific number of bits is only "
+                     "supported for integer types.");
+  }
+  m_type = type;
+}
 
 bool Scalar::Promote(Scalar::Type type) {
   bool success = false;

@@ -667,7 +667,7 @@ private:
     ArrayRef<uint8_t> SymbolBytes(SymbolMem.bytes_begin(), SymbolMem.size());
 
     MCDisassembler::DecodeStatus S =
-        Dis->getInstruction(Inst, Size, SymbolBytes, 0, nulls(), nulls());
+        Dis->getInstruction(Inst, Size, SymbolBytes, 0, nulls());
 
     return (S == MCDisassembler::Success);
   }
@@ -851,7 +851,7 @@ RuntimeDyldChecker::RuntimeDyldChecker(
     GetGOTInfoFunction GetGOTInfo, support::endianness Endianness,
     MCDisassembler *Disassembler, MCInstPrinter *InstPrinter,
     raw_ostream &ErrStream)
-    : Impl(::llvm::make_unique<RuntimeDyldCheckerImpl>(
+    : Impl(::std::make_unique<RuntimeDyldCheckerImpl>(
           std::move(IsSymbolValid), std::move(GetSymbolInfo),
           std::move(GetSectionInfo), std::move(GetStubInfo),
           std::move(GetGOTInfo), Endianness, Disassembler, InstPrinter,

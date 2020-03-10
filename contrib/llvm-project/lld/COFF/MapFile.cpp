@@ -29,14 +29,14 @@
 using namespace llvm;
 using namespace llvm::object;
 
-using namespace lld;
-using namespace lld::coff;
+namespace lld {
+namespace coff {
 
 using SymbolMapTy =
     DenseMap<const SectionChunk *, SmallVector<DefinedRegular *, 4>>;
 
-static const std::string indent8 = "        ";          // 8 spaces
-static const std::string indent16 = "                "; // 16 spaces
+static constexpr char indent8[] = "        ";          // 8 spaces
+static constexpr char indent16[] = "                "; // 16 spaces
 
 // Print out the first three columns of a line.
 static void writeHeader(raw_ostream &os, uint64_t addr, uint64_t size,
@@ -87,12 +87,12 @@ getSymbolStrings(ArrayRef<DefinedRegular *> syms) {
   return ret;
 }
 
-void coff::writeMapFile(ArrayRef<OutputSection *> outputSections) {
+void writeMapFile(ArrayRef<OutputSection *> outputSections) {
   if (config->mapFile.empty())
     return;
 
   std::error_code ec;
-  raw_fd_ostream os(config->mapFile, ec, sys::fs::F_None);
+  raw_fd_ostream os(config->mapFile, ec, sys::fs::OF_None);
   if (ec)
     fatal("cannot open " + config->mapFile + ": " + ec.message());
 
@@ -122,3 +122,6 @@ void coff::writeMapFile(ArrayRef<OutputSection *> outputSections) {
     }
   }
 }
+
+} // namespace coff
+} // namespace lld

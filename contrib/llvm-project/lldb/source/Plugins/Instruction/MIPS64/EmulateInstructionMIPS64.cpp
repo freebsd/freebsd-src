@@ -28,6 +28,7 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 
@@ -153,7 +154,9 @@ EmulateInstructionMIPS64::EmulateInstructionMIPS64(
   m_insn_info.reset(target->createMCInstrInfo());
   assert(m_insn_info.get());
 
-  m_asm_info.reset(target->createMCAsmInfo(*m_reg_info, triple.getTriple()));
+  llvm::MCTargetOptions MCOptions;
+  m_asm_info.reset(
+      target->createMCAsmInfo(*m_reg_info, triple.getTriple(), MCOptions));
   m_subtype_info.reset(
       target->createMCSubtargetInfo(triple.getTriple(), cpu, features));
   assert(m_asm_info.get() && m_subtype_info.get());
@@ -962,8 +965,8 @@ bool EmulateInstructionMIPS64::EvaluateInstruction(uint32_t evaluate_options) {
   if (m_opcode.GetData(data)) {
     llvm::MCDisassembler::DecodeStatus decode_status;
     llvm::ArrayRef<uint8_t> raw_insn(data.GetDataStart(), data.GetByteSize());
-    decode_status = m_disasm->getInstruction(
-        mc_insn, insn_size, raw_insn, m_addr, llvm::nulls(), llvm::nulls());
+    decode_status = m_disasm->getInstruction(mc_insn, insn_size, raw_insn,
+                                             m_addr, llvm::nulls());
     if (decode_status != llvm::MCDisassembler::Success)
       return false;
   }
@@ -1042,6 +1045,7 @@ bool EmulateInstructionMIPS64::CreateFunctionEntryUnwind(
   unwind_plan.SetSourceName("EmulateInstructionMIPS64");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolYes);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   unwind_plan.SetReturnAddressRegister(dwarf_ra_mips64);
 
   return true;
@@ -1359,7 +1363,7 @@ bool EmulateInstructionMIPS64::Emulate_BXX_3ops(llvm::MCInst &insn) {
   if (!success)
     return false;
 
-  if (!strcasecmp(op_name, "BEQ") || !strcasecmp(op_name, "BEQL") 
+  if (!strcasecmp(op_name, "BEQ") || !strcasecmp(op_name, "BEQL")
        || !strcasecmp(op_name, "BEQ64") ) {
     if (rs_val == rt_val)
       target = pc + offset;
@@ -1601,7 +1605,7 @@ bool EmulateInstructionMIPS64::Emulate_BXX_2ops(llvm::MCInst &insn) {
       target = pc + offset;
     else
       target = pc + 8;
-  } else if (!strcasecmp(op_name, "BLEZL") || !strcasecmp(op_name, "BLEZ") 
+  } else if (!strcasecmp(op_name, "BLEZL") || !strcasecmp(op_name, "BLEZ")
               || !strcasecmp(op_name, "BLEZ64")) {
     if (rs_val <= 0)
       target = pc + offset;

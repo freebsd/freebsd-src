@@ -7,8 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "CommandObjectStats.h"
-#include "lldb/Host/Host.h"
-#include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Target/Target.h"
 
@@ -26,15 +24,15 @@ public:
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    Target *target = GetSelectedOrDummyTarget();
+    Target &target = GetSelectedOrDummyTarget();
 
-    if (target->GetCollectingStats()) {
+    if (target.GetCollectingStats()) {
       result.AppendError("statistics already enabled");
       result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
-    target->SetCollectingStats(true);
+    target.SetCollectingStats(true);
     result.SetStatus(eReturnStatusSuccessFinishResult);
     return true;
   }
@@ -51,15 +49,15 @@ public:
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    Target *target = GetSelectedOrDummyTarget();
+    Target &target = GetSelectedOrDummyTarget();
 
-    if (!target->GetCollectingStats()) {
+    if (!target.GetCollectingStats()) {
       result.AppendError("need to enable statistics before disabling them");
       result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
-    target->SetCollectingStats(false);
+    target.SetCollectingStats(false);
     result.SetStatus(eReturnStatusSuccessFinishResult);
     return true;
   }
@@ -75,13 +73,14 @@ public:
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    Target *target = GetSelectedOrDummyTarget();
+    Target &target = GetSelectedOrDummyTarget();
 
     uint32_t i = 0;
-    for (auto &stat : target->GetStatistics()) {
+    for (auto &stat : target.GetStatistics()) {
       result.AppendMessageWithFormat(
           "%s : %u\n",
-          lldb_private::GetStatDescription(static_cast<lldb_private::StatisticKind>(i))
+          lldb_private::GetStatDescription(
+              static_cast<lldb_private::StatisticKind>(i))
               .c_str(),
           stat);
       i += 1;

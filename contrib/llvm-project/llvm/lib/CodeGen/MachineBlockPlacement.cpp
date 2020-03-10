@@ -33,6 +33,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/BlockFrequencyInfoImpl.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
@@ -41,6 +42,7 @@
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
+#include "llvm/CodeGen/MachineSizeOpts.h"
 #include "llvm/CodeGen/TailDuplicator.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetLowering.h"
@@ -48,6 +50,7 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/BlockFrequency.h"
@@ -79,16 +82,17 @@ STATISTIC(CondBranchTakenFreq,
 STATISTIC(UncondBranchTakenFreq,
           "Potential frequency of taking unconditional branches");
 
-static cl::opt<unsigned> AlignAllBlock("align-all-blocks",
-                                       cl::desc("Force the alignment of all "
-                                                "blocks in the function."),
-                                       cl::init(0), cl::Hidden);
+static cl::opt<unsigned> AlignAllBlock(
+    "align-all-blocks",
+    cl::desc("Force the alignment of all blocks in the function in log2 format "
+             "(e.g 4 means align on 16B boundaries)."),
+    cl::init(0), cl::Hidden);
 
 static cl::opt<unsigned> AlignAllNonFallThruBlocks(
     "align-all-nofallthru-blocks",
-    cl::desc("Force the alignment of all "
-             "blocks that have no fall-through predecessors (i.e. don't add "
-             "nops that are executed)."),
+    cl::desc("Force the alignment of all blocks that have no fall-through "
+             "predecessors (i.e. don't add nops that are executed). In log2 "
+             "format (e.g 4 means align on 16B boundaries)."),
     cl::init(0), cl::Hidden);
 
 // FIXME: Find a good default for this flag and remove the flag.
@@ -361,6 +365,8 @@ class MachineBlockPlacement : public MachineFunctionPass {
   /// A handle to the post dominator tree.
   MachinePostDominatorTree *MPDT;
 
+  ProfileSummaryInfo *PSI;
+
   /// Duplicator used to duplicate tails during placement.
   ///
   /// Placement decisions can open up new tail duplication opportunities, but
@@ -536,6 +542,7 @@ public:
     if (TailDupPlacement)
       AU.addRequired<MachinePostDominatorTree>();
     AU.addRequired<MachineLoopInfo>();
+    AU.addRequired<ProfileSummaryInfoWrapperPass>();
     AU.addRequired<TargetPassConfig>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
@@ -553,6 +560,7 @@ INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
 INITIALIZE_PASS_DEPENDENCY(MachineBlockFrequencyInfo)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(ProfileSummaryInfoWrapperPass)
 INITIALIZE_PASS_END(MachineBlockPlacement, DEBUG_TYPE,
                     "Branch Probability Basic Block Placement", false, false)
 
@@ -1072,6 +1080,11 @@ bool MachineBlockPlacement::canTailDuplicateUnplacedPreds(
   if (!shouldTailDuplicate(Succ))
     return false;
 
+  // The result of canTailDuplicate.
+  bool Duplicate = true;
+  // Number of possible duplication.
+  unsigned int NumDup = 0;
+
   // For CFG checking.
   SmallPtrSet<const MachineBasicBlock *, 4> Successors(BB->succ_begin(),
                                                        BB->succ_end());
@@ -1118,9 +1131,50 @@ bool MachineBlockPlacement::canTailDuplicateUnplacedPreds(
         // to trellises created by tail-duplication, so we just look for the
         // CFG.
         continue;
-      return false;
+      Duplicate = false;
+      continue;
     }
+    NumDup++;
   }
+
+  // No possible duplication in current filter set.
+  if (NumDup == 0)
+    return false;
+
+  // This is mainly for function exit BB.
+  // The integrated tail duplication is really designed for increasing
+  // fallthrough from predecessors from Succ to its successors. We may need
+  // other machanism to handle different cases.
+  if (Succ->succ_size() == 0)
+    return true;
+
+  // Plus the already placed predecessor.
+  NumDup++;
+
+  // If the duplication candidate has more unplaced predecessors than
+  // successors, the extra duplication can't bring more fallthrough.
+  //
+  //     Pred1 Pred2 Pred3
+  //         \   |   /
+  //          \  |  /
+  //           \ | /
+  //            Dup
+  //            / \
+  //           /   \
+  //       Succ1  Succ2
+  //
+  // In this example Dup has 2 successors and 3 predecessors, duplication of Dup
+  // can increase the fallthrough from Pred1 to Succ1 and from Pred2 to Succ2,
+  // but the duplication into Pred3 can't increase fallthrough.
+  //
+  // A small number of extra duplication may not hurt too much. We need a better
+  // heuristic to handle it.
+  //
+  // FIXME: we should selectively tail duplicate a BB into part of its
+  // predecessors.
+  if ((NumDup > Succ->succ_size()) || !Duplicate)
+    return false;
+
   return true;
 }
 
@@ -1416,9 +1470,10 @@ bool MachineBlockPlacement::hasBetterLayoutPredecessor(
   bool BadCFGConflict = false;
 
   for (MachineBasicBlock *Pred : Succ->predecessors()) {
-    if (Pred == Succ || BlockToChain[Pred] == &SuccChain ||
+    BlockChain *PredChain = BlockToChain[Pred];
+    if (Pred == Succ || PredChain == &SuccChain ||
         (BlockFilter && !BlockFilter->count(Pred)) ||
-        BlockToChain[Pred] == &Chain ||
+        PredChain == &Chain || Pred != *std::prev(PredChain->end()) ||
         // This check is redundant except for look ahead. This function is
         // called for lookahead by isProfitableToTailDup when BB hasn't been
         // placed yet.
@@ -1720,7 +1775,9 @@ void MachineBlockPlacement::buildChain(
     MachineBasicBlock* BestSucc = Result.BB;
     bool ShouldTailDup = Result.ShouldTailDup;
     if (allowTailDupPlacement())
-      ShouldTailDup |= (BestSucc && shouldTailDuplicate(BestSucc));
+      ShouldTailDup |= (BestSucc && canTailDuplicateUnplacedPreds(BB, BestSucc,
+                                                                  Chain,
+                                                                  BlockFilter));
 
     // If an immediate successor isn't available, look for the best viable
     // block among those we've identified as not violating the loop's CFG at
@@ -2024,7 +2081,10 @@ MachineBlockPlacement::findBestLoopTop(const MachineLoop &L,
   // i.e. when the layout predecessor does not fallthrough to the loop header.
   // In practice this never happens though: there always seems to be a preheader
   // that can fallthrough and that is also placed before the header.
-  if (F->getFunction().hasOptSize())
+  bool OptForSize = F->getFunction().hasOptSize() ||
+                    llvm::shouldOptimizeForSize(L.getHeader(), PSI,
+                                                &MBFI->getMBFI());
+  if (OptForSize)
     return L.getHeader();
 
   MachineBasicBlock *OldTop = nullptr;
@@ -2763,8 +2823,8 @@ void MachineBlockPlacement::alignBlocks() {
     if (!L)
       continue;
 
-    unsigned Align = TLI->getPrefLoopAlignment(L);
-    if (!Align)
+    const Align Align = TLI->getPrefLoopAlignment(L);
+    if (Align == 1)
       continue; // Don't care about loop alignment.
 
     // If the block is cold relative to the function entry don't waste space
@@ -2778,6 +2838,11 @@ void MachineBlockPlacement::alignBlocks() {
     MachineBasicBlock *LoopHeader = L->getHeader();
     BlockFrequency LoopHeaderFreq = MBFI->getBlockFreq(LoopHeader);
     if (Freq < (LoopHeaderFreq * ColdProb))
+      continue;
+
+    // If the global profiles indicates so, don't align it.
+    if (llvm::shouldOptimizeForSize(ChainBB, PSI, &MBFI->getMBFI()) &&
+        !TLI->alignLoopsWithOptSize())
       continue;
 
     // Check for the existence of a non-layout predecessor which would benefit
@@ -2981,12 +3046,13 @@ bool MachineBlockPlacement::runOnMachineFunction(MachineFunction &MF) {
 
   F = &MF;
   MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
-  MBFI = llvm::make_unique<BranchFolder::MBFIWrapper>(
+  MBFI = std::make_unique<BranchFolder::MBFIWrapper>(
       getAnalysis<MachineBlockFrequencyInfo>());
   MLI = &getAnalysis<MachineLoopInfo>();
   TII = MF.getSubtarget().getInstrInfo();
   TLI = MF.getSubtarget().getTargetLowering();
   MPDT = nullptr;
+  PSI = &getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
 
   // Initialize PreferredLoopExit to nullptr here since it may never be set if
   // there are no MachineLoops.
@@ -3017,10 +3083,13 @@ bool MachineBlockPlacement::runOnMachineFunction(MachineFunction &MF) {
 
   if (allowTailDupPlacement()) {
     MPDT = &getAnalysis<MachinePostDominatorTree>();
-    if (MF.getFunction().hasOptSize())
+    bool OptForSize = MF.getFunction().hasOptSize() ||
+                      llvm::shouldOptimizeForSize(&MF, PSI, &MBFI->getMBFI());
+    if (OptForSize)
       TailDupSize = 1;
     bool PreRegAlloc = false;
-    TailDup.initMF(MF, PreRegAlloc, MBPI, /* LayoutMode */ true, TailDupSize);
+    TailDup.initMF(MF, PreRegAlloc, MBPI, &MBFI->getMBFI(), PSI,
+                   /* LayoutMode */ true, TailDupSize);
     precomputeTriangleChains();
   }
 
@@ -3036,10 +3105,11 @@ bool MachineBlockPlacement::runOnMachineFunction(MachineFunction &MF) {
   if (MF.size() > 3 && EnableTailMerge) {
     unsigned TailMergeSize = TailDupSize + 1;
     BranchFolder BF(/*EnableTailMerge=*/true, /*CommonHoist=*/false, *MBFI,
-                    *MBPI, TailMergeSize);
+                    *MBPI, PSI, TailMergeSize);
 
+    auto *MMIWP = getAnalysisIfAvailable<MachineModuleInfoWrapperPass>();
     if (BF.OptimizeFunction(MF, TII, MF.getSubtarget().getRegisterInfo(),
-                            getAnalysisIfAvailable<MachineModuleInfo>(), MLI,
+                            MMIWP ? &MMIWP->getMMI() : nullptr, MLI,
                             /*AfterPlacement=*/true)) {
       // Redo the layout if tail merging creates/removes/moves blocks.
       BlockToChain.clear();
@@ -3062,14 +3132,14 @@ bool MachineBlockPlacement::runOnMachineFunction(MachineFunction &MF) {
   if (AlignAllBlock)
     // Align all of the blocks in the function to a specific alignment.
     for (MachineBasicBlock &MBB : MF)
-      MBB.setAlignment(AlignAllBlock);
+      MBB.setAlignment(Align(1ULL << AlignAllBlock));
   else if (AlignAllNonFallThruBlocks) {
     // Align all of the blocks that have no fall-through predecessors to a
     // specific alignment.
     for (auto MBI = std::next(MF.begin()), MBE = MF.end(); MBI != MBE; ++MBI) {
       auto LayoutPred = std::prev(MBI);
       if (!LayoutPred->isSuccessor(&*MBI))
-        MBI->setAlignment(AlignAllNonFallThruBlocks);
+        MBI->setAlignment(Align(1ULL << AlignAllNonFallThruBlocks));
     }
   }
   if (ViewBlockLayoutWithBFI != GVDT_None &&

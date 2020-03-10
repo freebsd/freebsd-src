@@ -185,7 +185,7 @@ GCNHazardRecognizer::getHazardType(SUnit *SU, int Stalls) {
   if (SIInstrInfo::isMAI(*MI) && checkMAIHazards(MI) > 0)
     return NoopHazard;
 
-  if ((MI->mayLoad() || MI->mayStore()) && checkMAILdStHazards(MI) > 0)
+  if (MI->mayLoadOrStore() && checkMAILdStHazards(MI) > 0)
     return NoopHazard;
 
   if (MI->isInlineAsm() && checkInlineAsmHazards(MI) > 0)
@@ -296,7 +296,7 @@ unsigned GCNHazardRecognizer::PreEmitNoopsCommon(MachineInstr *MI) {
   if (SIInstrInfo::isMAI(*MI))
     return std::max(WaitStates, checkMAIHazards(MI));
 
-  if (MI->mayLoad() || MI->mayStore())
+  if (MI->mayLoadOrStore())
     return std::max(WaitStates, checkMAILdStHazards(MI));
 
   return WaitStates;
@@ -726,7 +726,7 @@ int GCNHazardRecognizer::checkVALUHazardsHelper(const MachineOperand &Def,
 
   if (!TRI->isVGPR(MRI, Def.getReg()))
     return WaitStatesNeeded;
-  unsigned Reg = Def.getReg();
+  Register Reg = Def.getReg();
   auto IsHazardFn = [this, Reg, TRI] (MachineInstr *MI) {
     int DataIdx = createsVALUHazard(*MI);
     return DataIdx >= 0 &&
@@ -792,7 +792,7 @@ int GCNHazardRecognizer::checkRWLaneHazards(MachineInstr *RWLane) {
   if (!LaneSelectOp->isReg() || !TRI->isSGPRReg(MRI, LaneSelectOp->getReg()))
     return 0;
 
-  unsigned LaneSelectReg = LaneSelectOp->getReg();
+  Register LaneSelectReg = LaneSelectOp->getReg();
   auto IsHazardFn = [TII] (MachineInstr *MI) {
     return TII->isVALU(*MI);
   };
@@ -891,7 +891,7 @@ bool GCNHazardRecognizer::fixVcmpxPermlaneHazards(MachineInstr *MI) {
   // Use V_MOB_B32 v?, v?. Register must be alive so use src0 of V_PERMLANE*
   // which is always a VGPR and available.
   auto *Src0 = TII->getNamedOperand(*MI, AMDGPU::OpName::src0);
-  unsigned Reg = Src0->getReg();
+  Register Reg = Src0->getReg();
   bool IsUndef = Src0->isUndef();
   BuildMI(*MI->getParent(), MI, MI->getDebugLoc(),
           TII->get(AMDGPU::V_MOV_B32_e32))
@@ -977,7 +977,7 @@ bool GCNHazardRecognizer::fixSMEMtoVectorWriteHazards(MachineInstr *MI) {
   if (!SDST)
     return false;
 
-  const unsigned SDSTReg = SDST->getReg();
+  const Register SDSTReg = SDST->getReg();
   auto IsHazardFn = [SDSTReg, TRI] (MachineInstr *I) {
     return SIInstrInfo::isSMRD(*I) && I->readsRegister(SDSTReg, TRI);
   };
@@ -1252,14 +1252,14 @@ int GCNHazardRecognizer::checkMAIHazards(MachineInstr *MI) {
     const int MFMA16x16WritesAGPRAccVgprWriteWaitStates = 7;
     const int MFMA32x32WritesAGPRAccVgprWriteWaitStates = 15;
     const int MaxWaitStates = 18;
-    unsigned Reg = Op.getReg();
+    Register Reg = Op.getReg();
     unsigned HazardDefLatency = 0;
 
     auto IsOverlappedMFMAFn = [Reg, &IsMFMAFn, &HazardDefLatency, this]
                               (MachineInstr *MI) {
       if (!IsMFMAFn(MI))
         return false;
-      unsigned DstReg = MI->getOperand(0).getReg();
+      Register DstReg = MI->getOperand(0).getReg();
       if (DstReg == Reg)
         return false;
       HazardDefLatency = std::max(HazardDefLatency,
@@ -1305,7 +1305,7 @@ int GCNHazardRecognizer::checkMAIHazards(MachineInstr *MI) {
     auto IsAccVgprWriteFn = [Reg, this] (MachineInstr *MI) {
       if (MI->getOpcode() != AMDGPU::V_ACCVGPR_WRITE_B32)
         return false;
-      unsigned DstReg = MI->getOperand(0).getReg();
+      Register DstReg = MI->getOperand(0).getReg();
       return TRI.regsOverlap(Reg, DstReg);
     };
 
@@ -1331,14 +1331,14 @@ int GCNHazardRecognizer::checkMAIHazards(MachineInstr *MI) {
     const int MFMA16x16ReadSrcCAccVgprWriteWaitStates = 5;
     const int MFMA32x32ReadSrcCAccVgprWriteWaitStates = 13;
     const int MaxWaitStates = 13;
-    unsigned DstReg = MI->getOperand(0).getReg();
+    Register DstReg = MI->getOperand(0).getReg();
     unsigned HazardDefLatency = 0;
 
     auto IsSrcCMFMAFn = [DstReg, &IsMFMAFn, &HazardDefLatency, this]
                          (MachineInstr *MI) {
       if (!IsMFMAFn(MI))
         return false;
-      unsigned Reg = TII.getNamedOperand(*MI, AMDGPU::OpName::src2)->getReg();
+      Register Reg = TII.getNamedOperand(*MI, AMDGPU::OpName::src2)->getReg();
       HazardDefLatency = std::max(HazardDefLatency,
                                   TSchedModel.computeInstrLatency(MI));
       return TRI.regsOverlap(Reg, DstReg);
@@ -1377,7 +1377,7 @@ int GCNHazardRecognizer::checkMAILdStHazards(MachineInstr *MI) {
     if (!Op.isReg() || !TRI.isVGPR(MF.getRegInfo(), Op.getReg()))
       continue;
 
-    unsigned Reg = Op.getReg();
+    Register Reg = Op.getReg();
 
     const int AccVgprReadLdStWaitStates = 2;
     const int VALUWriteAccVgprReadLdStDepVALUWaitStates = 1;

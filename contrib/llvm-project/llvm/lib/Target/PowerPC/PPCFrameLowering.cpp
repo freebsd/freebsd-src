@@ -47,13 +47,15 @@ static const MCPhysReg VRRegNo[] = {
 };
 
 static unsigned computeReturnSaveOffset(const PPCSubtarget &STI) {
-  if (STI.isDarwinABI())
+  if (STI.isDarwinABI() || STI.isAIXABI())
     return STI.isPPC64() ? 16 : 8;
   // SVR4 ABI:
   return STI.isPPC64() ? 16 : 4;
 }
 
 static unsigned computeTOCSaveOffset(const PPCSubtarget &STI) {
+  if (STI.isAIXABI())
+    return STI.isPPC64() ? 40 : 20;
   return STI.isELFv2ABI() ? 24 : 40;
 }
 
@@ -88,6 +90,11 @@ static unsigned computeBasePointerSaveOffset(const PPCSubtarget &STI) {
              : STI.getTargetMachine().isPositionIndependent() ? -12U : -8U;
 }
 
+static unsigned computeCRSaveOffset() {
+  // The condition register save offset needs to be updated for AIX PPC32.
+  return 8;
+}
+
 PPCFrameLowering::PPCFrameLowering(const PPCSubtarget &STI)
     : TargetFrameLowering(TargetFrameLowering::StackGrowsDown,
                           STI.getPlatformStackAlignment(), 0),
@@ -95,7 +102,8 @@ PPCFrameLowering::PPCFrameLowering(const PPCSubtarget &STI)
       TOCSaveOffset(computeTOCSaveOffset(Subtarget)),
       FramePointerSaveOffset(computeFramePointerSaveOffset(Subtarget)),
       LinkageSize(computeLinkageSize(Subtarget)),
-      BasePointerSaveOffset(computeBasePointerSaveOffset(STI)) {}
+      BasePointerSaveOffset(computeBasePointerSaveOffset(Subtarget)),
+      CRSaveOffset(computeCRSaveOffset()) {}
 
 // With the SVR4 ABI, callee-saved registers have fixed offsets on the stack.
 const PPCFrameLowering::SpillSlot *PPCFrameLowering::getCalleeSavedSpillSlots(
@@ -370,8 +378,8 @@ static void HandleVRSaveUpdate(MachineInstr &MI, const TargetInstrInfo &TII) {
     return;
   }
 
-  unsigned SrcReg = MI.getOperand(1).getReg();
-  unsigned DstReg = MI.getOperand(0).getReg();
+  Register SrcReg = MI.getOperand(1).getReg();
+  Register DstReg = MI.getOperand(0).getReg();
 
   if ((UsedRegMask & 0xFFFF) == UsedRegMask) {
     if (DstReg != SrcReg)
@@ -774,22 +782,24 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
   MachineModuleInfo &MMI = MF.getMMI();
   const MCRegisterInfo *MRI = MMI.getContext().getRegisterInfo();
   DebugLoc dl;
-  bool needsCFI = MMI.hasDebugInfo() ||
-    MF.getFunction().needsUnwindTableEntry();
+  bool needsCFI = MF.needsFrameMoves();
 
   // Get processor type.
   bool isPPC64 = Subtarget.isPPC64();
   // Get the ABI.
   bool isSVR4ABI = Subtarget.isSVR4ABI();
+  bool isAIXABI = Subtarget.isAIXABI();
   bool isELFv2ABI = Subtarget.isELFv2ABI();
-  assert((Subtarget.isDarwinABI() || isSVR4ABI) &&
-         "Currently only Darwin and SVR4 ABIs are supported for PowerPC.");
+  assert((Subtarget.isDarwinABI() || isSVR4ABI || isAIXABI) &&
+         "Unsupported PPC ABI.");
 
   // Scan the prolog, looking for an UPDATE_VRSAVE instruction.  If we find it,
   // process it.
   if (!isSVR4ABI)
     for (unsigned i = 0; MBBI != MBB.end(); ++i, ++MBBI) {
       if (MBBI->getOpcode() == PPC::UPDATE_VRSAVE) {
+        if (isAIXABI)
+          report_fatal_error("UPDATE_VRSAVE is unexpected on AIX.");
         HandleVRSaveUpdate(*MBBI, TII);
         break;
       }
@@ -819,7 +829,7 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
   bool HasRedZone = isPPC64 || !isSVR4ABI;
 
   unsigned SPReg       = isPPC64 ? PPC::X1  : PPC::R1;
-  unsigned BPReg       = RegInfo->getBaseRegister(MF);
+  Register BPReg = RegInfo->getBaseRegister(MF);
   unsigned FPReg       = isPPC64 ? PPC::X31 : PPC::R31;
   unsigned LRReg       = isPPC64 ? PPC::LR8 : PPC::LR;
   unsigned TOCReg      = isPPC64 ? PPC::X2 :  PPC::R2;
@@ -908,6 +918,9 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
   assert((isPPC64 || !MustSaveCR) &&
          "Prologue CR saving supported only in 64-bit mode");
 
+  if (MustSaveCR && isAIXABI)
+    report_fatal_error("Prologue CR saving is unimplemented on AIX.");
+
   // Check if we can move the stack update instruction (stdu) down the prologue
   // past the callee saves. Hopefully this will avoid the situation where the
   // saves are waiting for the update on the store with update to complete.
@@ -966,7 +979,7 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
       MIB.addReg(MustSaveCRs[i], CrState);
     BuildMI(MBB, MBBI, dl, TII.get(PPC::STW8))
       .addReg(TempReg, getKillRegState(true))
-      .addImm(8)
+      .addImm(getCRSaveOffset())
       .addReg(SPReg);
   }
 
@@ -1020,7 +1033,7 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
     assert(HasRedZone && "A red zone is always available on PPC64");
     BuildMI(MBB, MBBI, dl, TII.get(PPC::STW8))
       .addReg(TempReg, getKillRegState(true))
-      .addImm(8)
+      .addImm(getCRSaveOffset())
       .addReg(SPReg);
   }
 
@@ -1324,7 +1337,7 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
         // actually saved gets its own CFI record.
         unsigned CRReg = isELFv2ABI? Reg : (unsigned) PPC::CR2;
         unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::createOffset(
-            nullptr, MRI->getDwarfRegNum(CRReg, true), 8));
+            nullptr, MRI->getDwarfRegNum(CRReg, true), getCRSaveOffset()));
         BuildMI(MBB, MBBI, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
             .addCFIIndex(CFIIndex);
         continue;
@@ -1387,7 +1400,7 @@ void PPCFrameLowering::emitEpilogue(MachineFunction &MF,
   bool HasRedZone = Subtarget.isPPC64() || !Subtarget.isSVR4ABI();
 
   unsigned SPReg      = isPPC64 ? PPC::X1  : PPC::R1;
-  unsigned BPReg      = RegInfo->getBaseRegister(MF);
+  Register BPReg = RegInfo->getBaseRegister(MF);
   unsigned FPReg      = isPPC64 ? PPC::X31 : PPC::R31;
   unsigned ScratchReg = 0;
   unsigned TempReg     = isPPC64 ? PPC::X12 : PPC::R12; // another scratch reg
@@ -1590,7 +1603,7 @@ void PPCFrameLowering::emitEpilogue(MachineFunction &MF,
     // is live here.
     assert(HasRedZone && "Expecting red zone");
     BuildMI(MBB, MBBI, dl, TII.get(PPC::LWZ8), TempReg)
-      .addImm(8)
+      .addImm(getCRSaveOffset())
       .addReg(SPReg);
     for (unsigned i = 0, e = MustSaveCRs.size(); i != e; ++i)
       BuildMI(MBB, MBBI, dl, TII.get(PPC::MTOCRF8), MustSaveCRs[i])
@@ -1614,7 +1627,7 @@ void PPCFrameLowering::emitEpilogue(MachineFunction &MF,
     assert(isPPC64 && "Expecting 64-bit mode");
     assert(RBReg == SPReg && "Should be using SP as a base register");
     BuildMI(MBB, MBBI, dl, TII.get(PPC::LWZ8), TempReg)
-      .addImm(8)
+      .addImm(getCRSaveOffset())
       .addReg(RBReg);
   }
 
@@ -1762,8 +1775,8 @@ void PPCFrameLowering::determineCalleeSaves(MachineFunction &MF,
 
   //  Save R31 if necessary
   int FPSI = FI->getFramePointerSaveIndex();
-  bool isPPC64 = Subtarget.isPPC64();
-  bool isDarwinABI  = Subtarget.isDarwinABI();
+  const bool isPPC64 = Subtarget.isPPC64();
+  const bool IsDarwinABI  = Subtarget.isDarwinABI();
   MachineFrameInfo &MFI = MF.getFrameInfo();
 
   // If the frame pointer save index hasn't been defined yet.
@@ -1812,7 +1825,7 @@ void PPCFrameLowering::determineCalleeSaves(MachineFunction &MF,
 
   // For 32-bit SVR4, allocate the nonvolatile CR spill slot iff the
   // function uses CR 2, 3, or 4.
-  if (!isPPC64 && !isDarwinABI &&
+  if (!isPPC64 && !IsDarwinABI &&
       (SavedRegs.test(PPC::CR2) ||
        SavedRegs.test(PPC::CR3) ||
        SavedRegs.test(PPC::CR4))) {
@@ -1872,8 +1885,7 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF,
     assert((!MF.getInfo<PPCFunctionInfo>()->mustSaveTOC() ||
             (Reg != PPC::X2 && Reg != PPC::R2)) &&
            "Not expecting to try to spill R2 in a function that must save TOC");
-    if (PPC::GPRCRegClass.contains(Reg) ||
-        PPC::SPE4RCRegClass.contains(Reg)) {
+    if (PPC::GPRCRegClass.contains(Reg)) {
       HasGPSaveArea = true;
 
       GPRegs.push_back(CSI[i]);
@@ -1967,7 +1979,7 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF,
     assert(FI && "No Base Pointer Save Slot!");
     MFI.setObjectOffset(FI, LowerBound + MFI.getObjectOffset(FI));
 
-    unsigned BP = RegInfo->getBaseRegister(MF);
+    Register BP = RegInfo->getBaseRegister(MF);
     if (PPC::G8RCRegClass.contains(BP)) {
       MinG8R = std::min<unsigned>(MinG8R, BP);
       HasG8SaveArea = true;
@@ -2426,6 +2438,22 @@ PPCFrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
   }
 
   return true;
+}
+
+unsigned PPCFrameLowering::getTOCSaveOffset() const {
+  return TOCSaveOffset;
+}
+
+unsigned PPCFrameLowering::getFramePointerSaveOffset() const {
+  if (Subtarget.isAIXABI())
+    report_fatal_error("FramePointer is not implemented on AIX yet.");
+  return FramePointerSaveOffset;
+}
+
+unsigned PPCFrameLowering::getBasePointerSaveOffset() const {
+  if (Subtarget.isAIXABI())
+    report_fatal_error("BasePointer is not implemented on AIX yet.");
+  return BasePointerSaveOffset;
 }
 
 bool PPCFrameLowering::enableShrinkWrapping(const MachineFunction &MF) const {

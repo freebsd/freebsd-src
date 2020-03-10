@@ -32,7 +32,7 @@ public:
   /// Get a REPL with an existing target (or, failing that, a debugger to use),
   /// and (optional) extra arguments for the compiler.
   ///
-  /// \param[out] error
+  /// \param[out] Status
   ///     If this language is supported but the REPL couldn't be created, this
   ///     error is populated with the reason.
   ///
@@ -103,10 +103,8 @@ public:
   void IOHandlerInputComplete(IOHandler &io_handler,
                               std::string &line) override;
 
-  int IOHandlerComplete(IOHandler &io_handler, const char *current_line,
-                        const char *cursor, const char *last_char,
-                        int skip_first_n_matches, int max_matches,
-                        StringList &matches, StringList &descriptions) override;
+  void IOHandlerComplete(IOHandler &io_handler,
+                         CompletionRequest &request) override;
 
 protected:
   static int CalculateActualIndentation(const StringList &lines);

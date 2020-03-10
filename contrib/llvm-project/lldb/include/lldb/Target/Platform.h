@@ -18,6 +18,7 @@
 
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Core/UserSettingsController.h"
+#include "lldb/Host/File.h"
 #include "lldb/Interpreter/Options.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/ConstString.h"
@@ -257,19 +258,6 @@ public:
 
   virtual bool SetRemoteWorkingDirectory(const FileSpec &working_dir);
 
-  /// Retrieve the system include directories on this platform for the
-  /// given language.
-  ///
-  /// \param[in] lang
-  ///     The language for which the include directories should be queried.
-  ///
-  /// \param[out] directories
-  ///     The include directories for this system.
-  virtual std::vector<std::string>
-  GetSystemIncludeDirectories(lldb::LanguageType lang) {
-    return {};
-  }
-
   virtual UserIDResolver &GetUserIDResolver() = 0;
 
   /// Locate a file for a platform.
@@ -391,9 +379,6 @@ public:
   /// subclass should return an appropriate ProcessSP subclass that is
   /// attached to the process, or an empty shared pointer with an appropriate
   /// error.
-  ///
-  /// \param[in] pid
-  ///     The process ID that we should attempt to attach to.
   ///
   /// \return
   ///     An appropriate ProcessSP containing a valid shared pointer
@@ -518,8 +503,9 @@ public:
   virtual Status SetFilePermissions(const FileSpec &file_spec,
                                     uint32_t file_permissions);
 
-  virtual lldb::user_id_t OpenFile(const FileSpec &file_spec, uint32_t flags,
-                                   uint32_t mode, Status &error) {
+  virtual lldb::user_id_t OpenFile(const FileSpec &file_spec,
+                                   File::OpenOptions flags, uint32_t mode,
+                                   Status &error) {
     return UINT64_MAX;
   }
 
@@ -788,7 +774,7 @@ public:
   ///     given an install name and a set (e.g. DYLD_LIBRARY_PATH provided) of
   ///     alternate paths.
   ///
-  /// \param[in] path_list
+  /// \param[in] paths
   ///     The list of paths to use to search for the library.  First
   ///     match wins.
   ///
@@ -799,7 +785,7 @@ public:
   /// \param[out] loaded_path
   ///      If non-null, the path to the dylib that was successfully loaded
   ///      is stored in this path.
-  /// 
+  ///
   /// \return
   ///     A token that represents the shared library which can be
   ///     passed to UnloadImage. A value of

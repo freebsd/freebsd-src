@@ -41,8 +41,12 @@ void SystemZInstPrinter::printAddress(unsigned Base, int64_t Disp,
 
 void SystemZInstPrinter::printOperand(const MCOperand &MO, const MCAsmInfo *MAI,
                                       raw_ostream &O) {
-  if (MO.isReg())
-    O << '%' << getRegisterName(MO.getReg());
+  if (MO.isReg()) {
+    if (!MO.getReg())
+      O << '0';
+    else
+      O << '%' << getRegisterName(MO.getReg());
+  }
   else if (MO.isImm())
     O << MO.getImm();
   else if (MO.isExpr())
@@ -51,10 +55,10 @@ void SystemZInstPrinter::printOperand(const MCOperand &MO, const MCAsmInfo *MAI,
     llvm_unreachable("Invalid operand");
 }
 
-void SystemZInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                   StringRef Annot,
-                                   const MCSubtargetInfo &STI) {
-  printInstruction(MI, O);
+void SystemZInstPrinter::printInst(const MCInst *MI, uint64_t Address,
+                                   StringRef Annot, const MCSubtargetInfo &STI,
+                                   raw_ostream &O) {
+  printInstruction(MI, Address, O);
   printAnnotation(O, Annot);
 }
 

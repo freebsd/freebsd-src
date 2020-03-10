@@ -81,7 +81,6 @@ void DAGTypeLegalizer::PerformExpensiveChecks() {
 
     for (unsigned i = 0, e = Node.getNumValues(); i != e; ++i) {
       SDValue Res(&Node, i);
-      EVT VT = Res.getValueType();
       bool Failed = false;
       // Don't create a value in map.
       auto ResId = (ValueToIdMap.count(Res)) ? ValueToIdMap[Res] : 0;
@@ -135,17 +134,13 @@ void DAGTypeLegalizer::PerformExpensiveChecks() {
           dbgs() << "Unprocessed value in a map!";
           Failed = true;
         }
-      } else if (isTypeLegal(VT) || IgnoreNodeResults(&Node)) {
+      } else if (isTypeLegal(Res.getValueType()) || IgnoreNodeResults(&Node)) {
         if (Mapped > 1) {
           dbgs() << "Value with legal type was transformed!";
           Failed = true;
         }
       } else {
-        // If the value can be kept in HW registers, softening machinery can
-        // leave it unchanged and don't put it to any map.
-        if (Mapped == 0 &&
-            !(getTypeAction(VT) == TargetLowering::TypeSoftenFloat &&
-              isLegalInHWReg(VT))) {
+        if (Mapped == 0) {
           dbgs() << "Processed value not in any map!";
           Failed = true;
         } else if (Mapped & (Mapped - 1)) {
@@ -209,7 +204,8 @@ bool DAGTypeLegalizer::run() {
   // non-leaves.
   for (SDNode &Node : DAG.allnodes()) {
     if (Node.getNumOperands() == 0) {
-      AddToWorklist(&Node);
+      Node.setNodeId(ReadyToProcess);
+      Worklist.push_back(&Node);
     } else {
       Node.setNodeId(Unanalyzed);
     }
@@ -257,13 +253,9 @@ bool DAGTypeLegalizer::run() {
         Changed = true;
         goto NodeDone;
       case TargetLowering::TypeSoftenFloat:
-        Changed = SoftenFloatResult(N, i);
-        if (Changed)
-          goto NodeDone;
-        // If not changed, the result type should be legally in register.
-        assert(isLegalInHWReg(ResultVT) &&
-               "Unchanged SoftenFloatResult should be legal in register!");
-        goto ScanOperands;
+        SoftenFloatResult(N, i);
+        Changed = true;
+        goto NodeDone;
       case TargetLowering::TypeExpandFloat:
         ExpandFloatResult(N, i);
         Changed = true;
@@ -439,15 +431,9 @@ NodeDone:
     bool Failed = false;
 
     // Check that all result types are legal.
-    // A value type is illegal if its TypeAction is not TypeLegal,
-    // and TLI.RegClassForVT does not have a register class for this type.
-    // For example, the x86_64 target has f128 that is not TypeLegal,
-    // to have softened operators, but it also has FR128 register class to
-    // pass and return f128 values. Hence a legalized node can have f128 type.
     if (!IgnoreNodeResults(&Node))
       for (unsigned i = 0, NumVals = Node.getNumValues(); i < NumVals; ++i)
-        if (!isTypeLegal(Node.getValueType(i)) &&
-            !TLI.isTypeLegal(Node.getValueType(i))) {
+        if (!isTypeLegal(Node.getValueType(i))) {
           dbgs() << "Result type " << i << " illegal: ";
           Node.dump(&DAG);
           Failed = true;
@@ -456,8 +442,7 @@ NodeDone:
     // Check that all operand types are legal.
     for (unsigned i = 0, NumOps = Node.getNumOperands(); i < NumOps; ++i)
       if (!IgnoreNodeResults(Node.getOperand(i).getNode()) &&
-          !isTypeLegal(Node.getOperand(i).getValueType()) &&
-          !TLI.isTypeLegal(Node.getOperand(i).getValueType())) {
+          !isTypeLegal(Node.getOperand(i).getValueType())) {
         dbgs() << "Operand type " << i << " illegal: ";
         Node.getOperand(i).dump(&DAG);
         Failed = true;
@@ -713,23 +698,13 @@ void DAGTypeLegalizer::SetPromotedInteger(SDValue Op, SDValue Result) {
 }
 
 void DAGTypeLegalizer::SetSoftenedFloat(SDValue Op, SDValue Result) {
-  // f128 of x86_64 could be kept in SSE registers,
-  // but sometimes softened to i128.
-  assert((Result.getValueType() ==
-          TLI.getTypeToTransformTo(*DAG.getContext(), Op.getValueType()) ||
-          Op.getValueType() ==
-          TLI.getTypeToTransformTo(*DAG.getContext(), Op.getValueType())) &&
+  assert(Result.getValueType() ==
+         TLI.getTypeToTransformTo(*DAG.getContext(), Op.getValueType()) &&
          "Invalid type for softened float");
   AnalyzeNewValue(Result);
 
   auto &OpIdEntry = SoftenedFloats[getTableId(Op)];
-  // Allow repeated calls to save f128 type nodes
-  // or any node with type that transforms to itself.
-  // Many operations on these types are not softened.
-  assert(((OpIdEntry == 0) ||
-          Op.getValueType() ==
-              TLI.getTypeToTransformTo(*DAG.getContext(), Op.getValueType())) &&
-         "Node is already converted to integer!");
+  assert((OpIdEntry == 0) && "Node is already converted to integer!");
   OpIdEntry = getTableId(Result);
 }
 
@@ -998,66 +973,6 @@ SDValue DAGTypeLegalizer::JoinIntegers(SDValue Lo, SDValue Hi) {
   Hi = DAG.getNode(ISD::SHL, dlHi, NVT, Hi,
                    DAG.getConstant(LVT.getSizeInBits(), dlHi, ShiftAmtVT));
   return DAG.getNode(ISD::OR, dlHi, NVT, Lo, Hi);
-}
-
-/// Convert the node into a libcall with the same prototype.
-SDValue DAGTypeLegalizer::LibCallify(RTLIB::Libcall LC, SDNode *N,
-                                     bool isSigned) {
-  unsigned NumOps = N->getNumOperands();
-  SDLoc dl(N);
-  if (NumOps == 0) {
-    return TLI.makeLibCall(DAG, LC, N->getValueType(0), None, isSigned,
-                           dl).first;
-  } else if (NumOps == 1) {
-    SDValue Op = N->getOperand(0);
-    return TLI.makeLibCall(DAG, LC, N->getValueType(0), Op, isSigned,
-                           dl).first;
-  } else if (NumOps == 2) {
-    SDValue Ops[2] = { N->getOperand(0), N->getOperand(1) };
-    return TLI.makeLibCall(DAG, LC, N->getValueType(0), Ops, isSigned,
-                           dl).first;
-  }
-  SmallVector<SDValue, 8> Ops(NumOps);
-  for (unsigned i = 0; i < NumOps; ++i)
-    Ops[i] = N->getOperand(i);
-
-  return TLI.makeLibCall(DAG, LC, N->getValueType(0), Ops, isSigned, dl).first;
-}
-
-/// Expand a node into a call to a libcall. Similar to ExpandLibCall except that
-/// the first operand is the in-chain.
-std::pair<SDValue, SDValue>
-DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC, SDNode *Node,
-                                     bool isSigned) {
-  SDValue InChain = Node->getOperand(0);
-
-  TargetLowering::ArgListTy Args;
-  TargetLowering::ArgListEntry Entry;
-  for (unsigned i = 1, e = Node->getNumOperands(); i != e; ++i) {
-    EVT ArgVT = Node->getOperand(i).getValueType();
-    Type *ArgTy = ArgVT.getTypeForEVT(*DAG.getContext());
-    Entry.Node = Node->getOperand(i);
-    Entry.Ty = ArgTy;
-    Entry.IsSExt = isSigned;
-    Entry.IsZExt = !isSigned;
-    Args.push_back(Entry);
-  }
-  SDValue Callee = DAG.getExternalSymbol(TLI.getLibcallName(LC),
-                                         TLI.getPointerTy(DAG.getDataLayout()));
-
-  Type *RetTy = Node->getValueType(0).getTypeForEVT(*DAG.getContext());
-
-  TargetLowering::CallLoweringInfo CLI(DAG);
-  CLI.setDebugLoc(SDLoc(Node))
-      .setChain(InChain)
-      .setLibCallee(TLI.getLibcallCallingConv(LC), RetTy, Callee,
-                    std::move(Args))
-      .setSExtResult(isSigned)
-      .setZExtResult(!isSigned);
-
-  std::pair<SDValue, SDValue> CallInfo = TLI.LowerCallTo(CLI);
-
-  return CallInfo;
 }
 
 /// Promote the given target boolean to a target boolean of the given type.

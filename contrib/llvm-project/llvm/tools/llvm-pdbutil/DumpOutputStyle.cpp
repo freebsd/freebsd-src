@@ -1369,9 +1369,10 @@ Error DumpOutputStyle::dumpTypesFromObjectFile() {
   LazyRandomTypeCollection Types(100);
 
   for (const auto &S : getObj().sections()) {
-    StringRef SectionName;
-    if (auto EC = S.getName(SectionName))
-      return errorCodeToError(EC);
+    Expected<StringRef> NameOrErr = S.getName();
+    if (!NameOrErr)
+      return NameOrErr.takeError();
+    StringRef SectionName = *NameOrErr;
 
     // .debug$T is a standard CodeView type section, while .debug$P is the same
     // format but used for MSVC precompiled header object files.
@@ -1406,7 +1407,7 @@ Error DumpOutputStyle::dumpTypesFromObjectFile() {
 
       P.formatLine("Local / Global hashes:");
       TypeIndex TI(TypeIndex::FirstNonSimpleIndex);
-      for (const auto &H : zip(LocalHashes, GlobalHashes)) {
+      for (auto H : zip(LocalHashes, GlobalHashes)) {
         AutoIndent Indent2(P);
         LocallyHashedType &L = std::get<0>(H);
         GloballyHashedType &G = std::get<1>(H);
@@ -1551,7 +1552,7 @@ Error DumpOutputStyle::dumpModuleSymsForObj() {
         Dumper.setSymbolGroup(&Strings);
         for (auto Symbol : Symbols) {
           if (auto EC = Visitor.visitSymbolRecord(Symbol)) {
-            SymbolError = llvm::make_unique<Error>(std::move(EC));
+            SymbolError = std::make_unique<Error>(std::move(EC));
             return;
           }
         }

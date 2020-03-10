@@ -268,6 +268,22 @@ ompt_try_start_tool(unsigned int omp_version, const char *runtime_version) {
     }
     __kmp_str_free(&libs);
   }
+  if (ret)
+    return ret;
+
+#if KMP_OS_UNIX
+  { // Non-standard: load archer tool if application is built with TSan
+    const char *fname = "libarcher.so";
+    void *h = dlopen(fname, RTLD_LAZY);
+    if (h) {
+      start_tool = (ompt_start_tool_t)dlsym(h, "ompt_start_tool");
+      if (start_tool)
+        ret = (*start_tool)(omp_version, runtime_version);
+      if (ret)
+        return ret;
+    }
+  }
+#endif
   return ret;
 }
 
@@ -430,10 +446,8 @@ OMPT_API_ROUTINE ompt_set_result_t ompt_set_callback(ompt_callbacks_t which,
 
 #define ompt_event_macro(event_name, callback_type, event_id)                  \
   case event_name:                                                             \
-    if (ompt_event_implementation_status(event_name)) {                        \
-      ompt_callbacks.ompt_callback(event_name) = (callback_type)callback;      \
-      ompt_enabled.event_name = (callback != 0);                               \
-    }                                                                          \
+    ompt_callbacks.ompt_callback(event_name) = (callback_type)callback;        \
+    ompt_enabled.event_name = (callback != 0);                                 \
     if (callback)                                                              \
       return ompt_event_implementation_status(event_name);                     \
     else                                                                       \
@@ -456,16 +470,15 @@ OMPT_API_ROUTINE int ompt_get_callback(ompt_callbacks_t which,
   switch (which) {
 
 #define ompt_event_macro(event_name, callback_type, event_id)                  \
-  case event_name:                                                             \
-    if (ompt_event_implementation_status(event_name)) {                        \
-      ompt_callback_t mycb =                                                   \
-          (ompt_callback_t)ompt_callbacks.ompt_callback(event_name);           \
-      if (ompt_enabled.event_name && mycb) {                                   \
-        *callback = mycb;                                                      \
-        return ompt_get_callback_success;                                      \
-      }                                                                        \
+  case event_name: {                                                           \
+    ompt_callback_t mycb =                                                     \
+        (ompt_callback_t)ompt_callbacks.ompt_callback(event_name);             \
+    if (ompt_enabled.event_name && mycb) {                                     \
+      *callback = mycb;                                                        \
+      return ompt_get_callback_success;                                        \
     }                                                                          \
-    return ompt_get_callback_failure;
+    return ompt_get_callback_failure;                                          \
+  }
 
     FOREACH_OMPT_EVENT(ompt_event_macro)
 

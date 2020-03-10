@@ -106,6 +106,7 @@ private:
                    Register ArgsReg, const EVT &VT) override;
 
   virtual void markPhysRegUsed(unsigned PhysReg) {
+    MIRBuilder.getMRI()->addLiveIn(PhysReg);
     MIRBuilder.getMBB().addLiveIn(PhysReg);
   }
 
@@ -298,7 +299,7 @@ Register OutgoingValueHandler::getStackAddress(const CCValAssign &VA,
   MIRBuilder.buildConstant(OffsetReg, Offset);
 
   Register AddrReg = MRI.createGenericVirtualRegister(p0);
-  MIRBuilder.buildGEP(AddrReg, SPReg, OffsetReg);
+  MIRBuilder.buildPtrAdd(AddrReg, SPReg, OffsetReg);
 
   MachinePointerInfo MPO =
       MachinePointerInfo::getStack(MIRBuilder.getMF(), Offset);
@@ -357,12 +358,24 @@ bool OutgoingValueHandler::handleSplit(SmallVectorImpl<Register> &VRegs,
   return true;
 }
 
-static bool isSupportedType(Type *T) {
+static bool isSupportedArgumentType(Type *T) {
   if (T->isIntegerTy())
     return true;
   if (T->isPointerTy())
     return true;
   if (T->isFloatingPointTy())
+    return true;
+  return false;
+}
+
+static bool isSupportedReturnType(Type *T) {
+  if (T->isIntegerTy())
+    return true;
+  if (T->isPointerTy())
+    return true;
+  if (T->isFloatingPointTy())
+    return true;
+  if (T->isAggregateType())
     return true;
   return false;
 }
@@ -403,7 +416,7 @@ bool MipsCallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
 
   MachineInstrBuilder Ret = MIRBuilder.buildInstrNoInsert(Mips::RetRA);
 
-  if (Val != nullptr && !isSupportedType(Val->getType()))
+  if (Val != nullptr && !isSupportedReturnType(Val->getType()))
     return false;
 
   if (!VRegs.empty()) {
@@ -411,21 +424,13 @@ bool MipsCallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
     const Function &F = MF.getFunction();
     const DataLayout &DL = MF.getDataLayout();
     const MipsTargetLowering &TLI = *getTLI<MipsTargetLowering>();
-    LLVMContext &Ctx = Val->getType()->getContext();
-
-    SmallVector<EVT, 4> SplitEVTs;
-    ComputeValueVTs(TLI, DL, Val->getType(), SplitEVTs);
-    assert(VRegs.size() == SplitEVTs.size() &&
-           "For each split Type there should be exactly one VReg.");
 
     SmallVector<ArgInfo, 8> RetInfos;
     SmallVector<unsigned, 8> OrigArgIndices;
 
-    for (unsigned i = 0; i < SplitEVTs.size(); ++i) {
-      ArgInfo CurArgInfo = ArgInfo{VRegs[i], SplitEVTs[i].getTypeForEVT(Ctx)};
-      setArgFlags(CurArgInfo, AttributeList::ReturnIndex, DL, F);
-      splitToValueTypes(CurArgInfo, 0, RetInfos, OrigArgIndices);
-    }
+    ArgInfo ArgRetInfo(VRegs, Val->getType());
+    setArgFlags(ArgRetInfo, AttributeList::ReturnIndex, DL, F);
+    splitToValueTypes(DL, ArgRetInfo, 0, RetInfos, OrigArgIndices);
 
     SmallVector<ISD::OutputArg, 8> Outs;
     subTargetRegTypeForCallingConv(F, RetInfos, OrigArgIndices, Outs);
@@ -453,12 +458,8 @@ bool MipsCallLowering::lowerFormalArguments(
   if (F.arg_empty())
     return true;
 
-  if (F.isVarArg()) {
-    return false;
-  }
-
   for (auto &Arg : F.args()) {
-    if (!isSupportedType(Arg.getType()))
+    if (!isSupportedArgumentType(Arg.getType()))
       return false;
   }
 
@@ -472,7 +473,8 @@ bool MipsCallLowering::lowerFormalArguments(
   for (auto &Arg : F.args()) {
     ArgInfo AInfo(VRegs[i], Arg.getType());
     setArgFlags(AInfo, i + AttributeList::FirstArgIndex, DL, F);
-    splitToValueTypes(AInfo, i, ArgInfos, OrigArgIndices);
+    ArgInfos.push_back(AInfo);
+    OrigArgIndices.push_back(i);
     ++i;
   }
 
@@ -495,30 +497,64 @@ bool MipsCallLowering::lowerFormalArguments(
   if (!Handler.handle(ArgLocs, ArgInfos))
     return false;
 
+  if (F.isVarArg()) {
+    ArrayRef<MCPhysReg> ArgRegs = ABI.GetVarArgRegs();
+    unsigned Idx = CCInfo.getFirstUnallocated(ArgRegs);
+
+    int VaArgOffset;
+    unsigned RegSize = 4;
+    if (ArgRegs.size() == Idx)
+      VaArgOffset = alignTo(CCInfo.getNextStackOffset(), RegSize);
+    else {
+      VaArgOffset =
+          (int)ABI.GetCalleeAllocdArgSizeInBytes(CCInfo.getCallingConv()) -
+          (int)(RegSize * (ArgRegs.size() - Idx));
+    }
+
+    MachineFrameInfo &MFI = MF.getFrameInfo();
+    int FI = MFI.CreateFixedObject(RegSize, VaArgOffset, true);
+    MF.getInfo<MipsFunctionInfo>()->setVarArgsFrameIndex(FI);
+
+    for (unsigned I = Idx; I < ArgRegs.size(); ++I, VaArgOffset += RegSize) {
+      MIRBuilder.getMBB().addLiveIn(ArgRegs[I]);
+
+      MachineInstrBuilder Copy =
+          MIRBuilder.buildCopy(LLT::scalar(RegSize * 8), Register(ArgRegs[I]));
+      FI = MFI.CreateFixedObject(RegSize, VaArgOffset, true);
+      MachinePointerInfo MPO = MachinePointerInfo::getFixedStack(MF, FI);
+      MachineInstrBuilder FrameIndex =
+          MIRBuilder.buildFrameIndex(LLT::pointer(MPO.getAddrSpace(), 32), FI);
+      MachineMemOperand *MMO =
+          MF.getMachineMemOperand(MPO, MachineMemOperand::MOStore, RegSize,
+                                  /* Alignment */ RegSize);
+      MIRBuilder.buildStore(Copy, FrameIndex, *MMO);
+    }
+  }
+
   return true;
 }
 
 bool MipsCallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
-                                 CallingConv::ID CallConv,
-                                 const MachineOperand &Callee,
-                                 const ArgInfo &OrigRet,
-                                 ArrayRef<ArgInfo> OrigArgs) const {
+                                 CallLoweringInfo &Info) const {
 
-  if (CallConv != CallingConv::C)
+  if (Info.CallConv != CallingConv::C)
     return false;
 
-  for (auto &Arg : OrigArgs) {
-    if (!isSupportedType(Arg.Ty))
+  for (auto &Arg : Info.OrigArgs) {
+    if (!isSupportedArgumentType(Arg.Ty))
       return false;
-    if (Arg.Flags.isByVal() || Arg.Flags.isSRet())
+    if (Arg.Flags[0].isByVal())
+      return false;
+    if (Arg.Flags[0].isSRet() && !Arg.Ty->isPointerTy())
       return false;
   }
 
-  if (OrigRet.Regs[0] && !isSupportedType(OrigRet.Ty))
+  if (!Info.OrigRet.Ty->isVoidTy() && !isSupportedReturnType(Info.OrigRet.Ty))
     return false;
 
   MachineFunction &MF = MIRBuilder.getMF();
   const Function &F = MF.getFunction();
+  const DataLayout &DL = MF.getDataLayout();
   const MipsTargetLowering &TLI = *getTLI<MipsTargetLowering>();
   const MipsTargetMachine &TM =
       static_cast<const MipsTargetMachine &>(MF.getTarget());
@@ -528,37 +564,38 @@ bool MipsCallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
       MIRBuilder.buildInstr(Mips::ADJCALLSTACKDOWN);
 
   const bool IsCalleeGlobalPIC =
-      Callee.isGlobal() && TM.isPositionIndependent();
+      Info.Callee.isGlobal() && TM.isPositionIndependent();
 
   MachineInstrBuilder MIB = MIRBuilder.buildInstrNoInsert(
-      Callee.isReg() || IsCalleeGlobalPIC ? Mips::JALRPseudo : Mips::JAL);
+      Info.Callee.isReg() || IsCalleeGlobalPIC ? Mips::JALRPseudo : Mips::JAL);
   MIB.addDef(Mips::SP, RegState::Implicit);
   if (IsCalleeGlobalPIC) {
     Register CalleeReg =
         MF.getRegInfo().createGenericVirtualRegister(LLT::pointer(0, 32));
     MachineInstr *CalleeGlobalValue =
-        MIRBuilder.buildGlobalValue(CalleeReg, Callee.getGlobal());
-    if (!Callee.getGlobal()->hasLocalLinkage())
+        MIRBuilder.buildGlobalValue(CalleeReg, Info.Callee.getGlobal());
+    if (!Info.Callee.getGlobal()->hasLocalLinkage())
       CalleeGlobalValue->getOperand(1).setTargetFlags(MipsII::MO_GOT_CALL);
     MIB.addUse(CalleeReg);
   } else
-    MIB.add(Callee);
+    MIB.add(Info.Callee);
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   MIB.addRegMask(TRI->getCallPreservedMask(MF, F.getCallingConv()));
 
   TargetLowering::ArgListTy FuncOrigArgs;
-  FuncOrigArgs.reserve(OrigArgs.size());
+  FuncOrigArgs.reserve(Info.OrigArgs.size());
 
   SmallVector<ArgInfo, 8> ArgInfos;
   SmallVector<unsigned, 8> OrigArgIndices;
   unsigned i = 0;
-  for (auto &Arg : OrigArgs) {
+  for (auto &Arg : Info.OrigArgs) {
 
     TargetLowering::ArgListEntry Entry;
     Entry.Ty = Arg.Ty;
     FuncOrigArgs.push_back(Entry);
 
-    splitToValueTypes(Arg, i, ArgInfos, OrigArgIndices);
+    ArgInfos.push_back(Arg);
+    OrigArgIndices.push_back(i);
     ++i;
   }
 
@@ -566,11 +603,17 @@ bool MipsCallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   subTargetRegTypeForCallingConv(F, ArgInfos, OrigArgIndices, Outs);
 
   SmallVector<CCValAssign, 8> ArgLocs;
-  MipsCCState CCInfo(F.getCallingConv(), F.isVarArg(), MF, ArgLocs,
+  bool IsCalleeVarArg = false;
+  if (Info.Callee.isGlobal()) {
+    const Function *CF = static_cast<const Function *>(Info.Callee.getGlobal());
+    IsCalleeVarArg = CF->isVarArg();
+  }
+  MipsCCState CCInfo(F.getCallingConv(), IsCalleeVarArg, MF, ArgLocs,
                      F.getContext());
 
-  CCInfo.AllocateStack(ABI.GetCalleeAllocdArgSizeInBytes(CallConv), 1);
-  const char *Call = Callee.isSymbol() ? Callee.getSymbolName() : nullptr;
+  CCInfo.AllocateStack(ABI.GetCalleeAllocdArgSizeInBytes(Info.CallConv), 1);
+  const char *Call =
+      Info.Callee.isSymbol() ? Info.Callee.getSymbolName() : nullptr;
   CCInfo.AnalyzeCallOperands(Outs, TLI.CCAssignFnForCall(), FuncOrigArgs, Call);
   setLocInfo(ArgLocs, Outs);
 
@@ -599,11 +642,11 @@ bool MipsCallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
                          *STI.getRegBankInfo());
   }
 
-  if (OrigRet.Regs[0]) {
+  if (!Info.OrigRet.Ty->isVoidTy()) {
     ArgInfos.clear();
     SmallVector<unsigned, 8> OrigRetIndices;
 
-    splitToValueTypes(OrigRet, 0, ArgInfos, OrigRetIndices);
+    splitToValueTypes(DL, Info.OrigRet, 0, ArgInfos, OrigRetIndices);
 
     SmallVector<ISD::InputArg, 8> Ins;
     subTargetRegTypeForCallingConv(F, ArgInfos, OrigRetIndices, Ins);
@@ -612,7 +655,8 @@ bool MipsCallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
     MipsCCState CCInfo(F.getCallingConv(), F.isVarArg(), MF, ArgLocs,
                        F.getContext());
 
-    CCInfo.AnalyzeCallResult(Ins, TLI.CCAssignFnForReturn(), OrigRet.Ty, Call);
+    CCInfo.AnalyzeCallResult(Ins, TLI.CCAssignFnForReturn(), Info.OrigRet.Ty,
+                             Call);
     setLocInfo(ArgLocs, Ins);
 
     CallReturnHandler Handler(MIRBuilder, MF.getRegInfo(), MIB);
@@ -642,12 +686,12 @@ void MipsCallLowering::subTargetRegTypeForCallingConv(
         F.getContext(), F.getCallingConv(), VT);
 
     for (unsigned i = 0; i < NumRegs; ++i) {
-      ISD::ArgFlagsTy Flags = Arg.Flags;
+      ISD::ArgFlagsTy Flags = Arg.Flags[0];
 
       if (i == 0)
         Flags.setOrigAlign(TLI.getABIAlignmentForCallingConv(Arg.Ty, DL));
       else
-        Flags.setOrigAlign(1);
+        Flags.setOrigAlign(Align::None());
 
       ISDArgs.emplace_back(Flags, RegisterVT, VT, true, OrigArgIndices[ArgNo],
                            0);
@@ -657,12 +701,21 @@ void MipsCallLowering::subTargetRegTypeForCallingConv(
 }
 
 void MipsCallLowering::splitToValueTypes(
-    const ArgInfo &OrigArg, unsigned OriginalIndex,
+    const DataLayout &DL, const ArgInfo &OrigArg, unsigned OriginalIndex,
     SmallVectorImpl<ArgInfo> &SplitArgs,
     SmallVectorImpl<unsigned> &SplitArgsOrigIndices) const {
 
-  // TODO : perform structure and array split. For now we only deal with
-  // types that pass isSupportedType check.
-  SplitArgs.push_back(OrigArg);
-  SplitArgsOrigIndices.push_back(OriginalIndex);
+  SmallVector<EVT, 4> SplitEVTs;
+  SmallVector<Register, 4> SplitVRegs;
+  const MipsTargetLowering &TLI = *getTLI<MipsTargetLowering>();
+  LLVMContext &Ctx = OrigArg.Ty->getContext();
+
+  ComputeValueVTs(TLI, DL, OrigArg.Ty, SplitEVTs);
+
+  for (unsigned i = 0; i < SplitEVTs.size(); ++i) {
+    ArgInfo Info = ArgInfo{OrigArg.Regs[i], SplitEVTs[i].getTypeForEVT(Ctx)};
+    Info.Flags = OrigArg.Flags;
+    SplitArgs.push_back(Info);
+    SplitArgsOrigIndices.push_back(OriginalIndex);
+  }
 }

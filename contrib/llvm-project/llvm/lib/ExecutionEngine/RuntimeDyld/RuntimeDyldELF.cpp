@@ -160,9 +160,13 @@ createRTDyldELFObject(MemoryBufferRef Buffer, const ObjectFile &SourceObject,
   // Iterate over all sections in the object.
   auto SI = SourceObject.section_begin();
   for (const auto &Sec : Obj->sections()) {
-    StringRef SectionName;
-    Sec.getName(SectionName);
-    if (SectionName != "") {
+    Expected<StringRef> NameOrErr = Sec.getName();
+    if (!NameOrErr) {
+      consumeError(NameOrErr.takeError());
+      continue;
+    }
+
+    if (*NameOrErr != "") {
       DataRefImpl ShdrRef = Sec.getRawDataRefImpl();
       Elf_Shdr *shdr = const_cast<Elf_Shdr *>(
           reinterpret_cast<const Elf_Shdr *>(ShdrRef.p));
@@ -238,19 +242,19 @@ llvm::RuntimeDyldELF::create(Triple::ArchType Arch,
                              JITSymbolResolver &Resolver) {
   switch (Arch) {
   default:
-    return make_unique<RuntimeDyldELF>(MemMgr, Resolver);
+    return std::make_unique<RuntimeDyldELF>(MemMgr, Resolver);
   case Triple::mips:
   case Triple::mipsel:
   case Triple::mips64:
   case Triple::mips64el:
-    return make_unique<RuntimeDyldELFMips>(MemMgr, Resolver);
+    return std::make_unique<RuntimeDyldELFMips>(MemMgr, Resolver);
   }
 }
 
 std::unique_ptr<RuntimeDyld::LoadedObjectInfo>
 RuntimeDyldELF::loadObject(const object::ObjectFile &O) {
   if (auto ObjSectionToIDOrErr = loadObjectImpl(O))
-    return llvm::make_unique<LoadedELFObjectInfo>(*this, *ObjSectionToIDOrErr);
+    return std::make_unique<LoadedELFObjectInfo>(*this, *ObjSectionToIDOrErr);
   else {
     HasError = true;
     raw_string_ostream ErrStream(ErrorStr);
@@ -567,10 +571,11 @@ Error RuntimeDyldELF::findPPC64TOCSection(const ELFObjectFileBase &Obj,
 
   // The TOC consists of sections .got, .toc, .tocbss, .plt in that
   // order. The TOC starts where the first of these sections starts.
-  for (auto &Section: Obj.sections()) {
-    StringRef SectionName;
-    if (auto EC = Section.getName(SectionName))
-      return errorCodeToError(EC);
+  for (auto &Section : Obj.sections()) {
+    Expected<StringRef> NameOrErr = Section.getName();
+    if (!NameOrErr)
+      return NameOrErr.takeError();
+    StringRef SectionName = *NameOrErr;
 
     if (SectionName == ".got"
         || SectionName == ".toc"
@@ -601,13 +606,19 @@ Error RuntimeDyldELF::findOPDEntrySection(const ELFObjectFileBase &Obj,
   // .opd entries
   for (section_iterator si = Obj.section_begin(), se = Obj.section_end();
        si != se; ++si) {
-    section_iterator RelSecI = si->getRelocatedSection();
+
+    Expected<section_iterator> RelSecOrErr = si->getRelocatedSection();
+    if (!RelSecOrErr)
+      report_fatal_error(toString(RelSecOrErr.takeError()));
+
+    section_iterator RelSecI = *RelSecOrErr;
     if (RelSecI == Obj.section_end())
       continue;
 
-    StringRef RelSectionName;
-    if (auto EC = RelSecI->getName(RelSectionName))
-      return errorCodeToError(EC);
+    Expected<StringRef> NameOrErr = RelSecI->getName();
+    if (!NameOrErr)
+      return NameOrErr.takeError();
+    StringRef RelSectionName = *NameOrErr;
 
     if (RelSectionName != ".opd")
       continue;
@@ -1865,7 +1876,12 @@ Error RuntimeDyldELF::finalizeLoad(const ObjectFile &Obj,
       for (section_iterator SI = Obj.section_begin(), SE = Obj.section_end();
            SI != SE; ++SI) {
         if (SI->relocation_begin() != SI->relocation_end()) {
-          section_iterator RelocatedSection = SI->getRelocatedSection();
+          Expected<section_iterator> RelSecOrErr = SI->getRelocatedSection();
+          if (!RelSecOrErr)
+            return make_error<RuntimeDyldError>(
+                toString(RelSecOrErr.takeError()));
+
+          section_iterator RelocatedSection = *RelSecOrErr;
           ObjSectionToIDMap::iterator i = SectionMap.find(*RelocatedSection);
           assert (i != SectionMap.end());
           SectionToGOTMap[i->second] = GOTSectionID;
@@ -1879,8 +1895,14 @@ Error RuntimeDyldELF::finalizeLoad(const ObjectFile &Obj,
   ObjSectionToIDMap::iterator i, e;
   for (i = SectionMap.begin(), e = SectionMap.end(); i != e; ++i) {
     const SectionRef &Section = i->first;
+
     StringRef Name;
-    Section.getName(Name);
+    Expected<StringRef> NameOrErr = Section.getName();
+    if (NameOrErr)
+      Name = *NameOrErr;
+    else
+      consumeError(NameOrErr.takeError());
+
     if (Name == ".eh_frame") {
       UnregisteredEHFrameSections.push_back(i->second);
       break;

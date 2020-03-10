@@ -775,14 +775,12 @@ ObjCMethodDecl *ObjCInterfaceDecl::lookupPrivateMethod(
 // ObjCMethodDecl
 //===----------------------------------------------------------------------===//
 
-ObjCMethodDecl::ObjCMethodDecl(SourceLocation beginLoc, SourceLocation endLoc,
-                               Selector SelInfo, QualType T,
-                               TypeSourceInfo *ReturnTInfo,
-                               DeclContext *contextDecl, bool isInstance,
-                               bool isVariadic, bool isPropertyAccessor,
-                               bool isImplicitlyDeclared, bool isDefined,
-                               ImplementationControl impControl,
-                               bool HasRelatedResultType)
+ObjCMethodDecl::ObjCMethodDecl(
+    SourceLocation beginLoc, SourceLocation endLoc, Selector SelInfo,
+    QualType T, TypeSourceInfo *ReturnTInfo, DeclContext *contextDecl,
+    bool isInstance, bool isVariadic, bool isPropertyAccessor,
+    bool isSynthesizedAccessorStub, bool isImplicitlyDeclared, bool isDefined,
+    ImplementationControl impControl, bool HasRelatedResultType)
     : NamedDecl(ObjCMethod, contextDecl, beginLoc, SelInfo),
       DeclContext(ObjCMethod), MethodDeclType(T), ReturnTInfo(ReturnTInfo),
       DeclEndLoc(endLoc) {
@@ -793,6 +791,7 @@ ObjCMethodDecl::ObjCMethodDecl(SourceLocation beginLoc, SourceLocation endLoc,
   setInstanceMethod(isInstance);
   setVariadic(isVariadic);
   setPropertyAccessor(isPropertyAccessor);
+  setSynthesizedAccessorStub(isSynthesizedAccessorStub);
   setDefined(isDefined);
   setIsRedeclaration(false);
   setHasRedeclaration(false);
@@ -810,17 +809,22 @@ ObjCMethodDecl *ObjCMethodDecl::Create(
     ASTContext &C, SourceLocation beginLoc, SourceLocation endLoc,
     Selector SelInfo, QualType T, TypeSourceInfo *ReturnTInfo,
     DeclContext *contextDecl, bool isInstance, bool isVariadic,
-    bool isPropertyAccessor, bool isImplicitlyDeclared, bool isDefined,
-    ImplementationControl impControl, bool HasRelatedResultType) {
+    bool isPropertyAccessor, bool isSynthesizedAccessorStub,
+    bool isImplicitlyDeclared, bool isDefined, ImplementationControl impControl,
+    bool HasRelatedResultType) {
   return new (C, contextDecl) ObjCMethodDecl(
       beginLoc, endLoc, SelInfo, T, ReturnTInfo, contextDecl, isInstance,
-      isVariadic, isPropertyAccessor, isImplicitlyDeclared, isDefined,
-      impControl, HasRelatedResultType);
+      isVariadic, isPropertyAccessor, isSynthesizedAccessorStub,
+      isImplicitlyDeclared, isDefined, impControl, HasRelatedResultType);
 }
 
 ObjCMethodDecl *ObjCMethodDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
   return new (C, ID) ObjCMethodDecl(SourceLocation(), SourceLocation(),
                                     Selector(), QualType(), nullptr, nullptr);
+}
+
+bool ObjCMethodDecl::isDirectMethod() const {
+  return hasAttr<ObjCDirectAttr>();
 }
 
 bool ObjCMethodDecl::isThisDeclarationADesignatedInitializer() const {
@@ -952,24 +956,32 @@ ObjCMethodDecl *ObjCMethodDecl::getNextRedeclarationImpl() {
 
 ObjCMethodDecl *ObjCMethodDecl::getCanonicalDecl() {
   auto *CtxD = cast<Decl>(getDeclContext());
+  const auto &Sel = getSelector();
 
   if (auto *ImplD = dyn_cast<ObjCImplementationDecl>(CtxD)) {
-    if (ObjCInterfaceDecl *IFD = ImplD->getClassInterface())
-      if (ObjCMethodDecl *MD = IFD->getMethod(getSelector(),
-                                              isInstanceMethod()))
+    if (ObjCInterfaceDecl *IFD = ImplD->getClassInterface()) {
+      // When the container is the ObjCImplementationDecl (the primary
+      // @implementation), then the canonical Decl is either in
+      // the class Interface, or in any of its extension.
+      //
+      // So when we don't find it in the ObjCInterfaceDecl,
+      // sift through extensions too.
+      if (ObjCMethodDecl *MD = IFD->getMethod(Sel, isInstanceMethod()))
         return MD;
+      for (auto *Ext : IFD->known_extensions())
+        if (ObjCMethodDecl *MD = Ext->getMethod(Sel, isInstanceMethod()))
+          return MD;
+    }
   } else if (auto *CImplD = dyn_cast<ObjCCategoryImplDecl>(CtxD)) {
     if (ObjCCategoryDecl *CatD = CImplD->getCategoryDecl())
-      if (ObjCMethodDecl *MD = CatD->getMethod(getSelector(),
-                                               isInstanceMethod()))
+      if (ObjCMethodDecl *MD = CatD->getMethod(Sel, isInstanceMethod()))
         return MD;
   }
 
   if (isRedeclaration()) {
     // It is possible that we have not done deserializing the ObjCMethod yet.
     ObjCMethodDecl *MD =
-        cast<ObjCContainerDecl>(CtxD)->getMethod(getSelector(),
-                                                 isInstanceMethod());
+        cast<ObjCContainerDecl>(CtxD)->getMethod(Sel, isInstanceMethod());
     return MD ? MD : this;
   }
 
@@ -1077,7 +1089,7 @@ ObjCMethodFamily ObjCMethodDecl::getMethodFamily() const {
 QualType ObjCMethodDecl::getSelfType(ASTContext &Context,
                                      const ObjCInterfaceDecl *OID,
                                      bool &selfIsPseudoStrong,
-                                     bool &selfIsConsumed) {
+                                     bool &selfIsConsumed) const {
   QualType selfTy;
   selfIsPseudoStrong = false;
   selfIsConsumed = false;
@@ -1306,6 +1318,11 @@ ObjCMethodDecl::findPropertyDecl(bool CheckOverrides) const {
 
   if (isPropertyAccessor()) {
     const auto *Container = cast<ObjCContainerDecl>(getParent());
+    // For accessor stubs, go back to the interface.
+    if (auto *ImplDecl = dyn_cast<ObjCImplDecl>(Container))
+      if (isSynthesizedAccessorStub())
+        Container = ImplDecl->getClassInterface();
+
     bool IsGetter = (NumArgs == 0);
     bool IsInstance = isInstanceMethod();
 
@@ -1356,6 +1373,15 @@ ObjCMethodDecl::findPropertyDecl(bool CheckOverrides) const {
         if (const auto *Found = findMatchingProperty(Ext))
           return Found;
       }
+    }
+
+    assert(isSynthesizedAccessorStub() && "expected an accessor stub");
+    for (const auto *Cat : ClassDecl->known_categories()) {
+      if (Cat == Container)
+        continue;
+
+      if (const auto *Found = findMatchingProperty(Cat))
+        return Found;
     }
 
     llvm_unreachable("Marked as a property accessor but no property found!");

@@ -23,6 +23,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -39,6 +40,7 @@
 #include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DebugLoc.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
@@ -74,6 +76,27 @@ static cl::opt<bool>
 HoistConstStores("hoist-const-stores",
                  cl::desc("Hoist invariant stores"),
                  cl::init(true), cl::Hidden);
+// The default threshold of 100 (i.e. if target block is 100 times hotter)
+// is based on empirical data on a single target and is subject to tuning.
+static cl::opt<unsigned>
+BlockFrequencyRatioThreshold("block-freq-ratio-threshold",
+                             cl::desc("Do not hoist instructions if target"
+                             "block is N times hotter than the source."),
+                             cl::init(100), cl::Hidden);
+
+enum class UseBFI { None, PGO, All };
+
+static cl::opt<UseBFI>
+DisableHoistingToHotterBlocks("disable-hoisting-to-hotter-blocks",
+                              cl::desc("Disable hoisting instructions to"
+                              " hotter blocks"),
+                              cl::init(UseBFI::None), cl::Hidden,
+                              cl::values(clEnumValN(UseBFI::None, "none",
+                              "disable the feature"),
+                              clEnumValN(UseBFI::PGO, "pgo",
+                              "enable the feature when using profile data"),
+                              clEnumValN(UseBFI::All, "all",
+                              "enable the feature with/wo profile data")));
 
 STATISTIC(NumHoisted,
           "Number of machine instructions hoisted out of loops");
@@ -87,6 +110,8 @@ STATISTIC(NumPostRAHoisted,
           "Number of machine instructions hoisted out of loops post regalloc");
 STATISTIC(NumStoreConst,
           "Number of stores of const phys reg hoisted out of loops");
+STATISTIC(NumNotHoistedDueToHotness,
+          "Number of instructions not hoisted due to block frequency");
 
 namespace {
 
@@ -98,9 +123,11 @@ namespace {
     MachineRegisterInfo *MRI;
     TargetSchedModel SchedModel;
     bool PreRegAlloc;
+    bool HasProfileData;
 
     // Various analyses that we use...
     AliasAnalysis        *AA;      // Alias analysis info.
+    MachineBlockFrequencyInfo *MBFI; // Machine block frequncy info
     MachineLoopInfo      *MLI;     // Current MachineLoopInfo
     MachineDominatorTree *DT;      // Machine dominator tree for the cur loop
 
@@ -150,10 +177,11 @@ namespace {
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequired<MachineLoopInfo>();
+      if (DisableHoistingToHotterBlocks != UseBFI::None)
+        AU.addRequired<MachineBlockFrequencyInfo>();
       AU.addRequired<MachineDominatorTree>();
       AU.addRequired<AAResultsWrapperPass>();
       AU.addPreserved<MachineLoopInfo>();
-      AU.addPreserved<MachineDominatorTree>();
       MachineFunctionPass::getAnalysisUsage(AU);
     }
 
@@ -246,6 +274,8 @@ namespace {
 
     void InitCSEMap(MachineBasicBlock *BB);
 
+    bool isTgtHotterThanSrc(MachineBasicBlock *SrcBlock,
+                            MachineBasicBlock *TgtBlock);
     MachineBasicBlock *getCurPreheader();
   };
 
@@ -276,6 +306,7 @@ char &llvm::EarlyMachineLICMID = EarlyMachineLICM::ID;
 INITIALIZE_PASS_BEGIN(MachineLICM, DEBUG_TYPE,
                       "Machine Loop Invariant Code Motion", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineBlockFrequencyInfo)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_END(MachineLICM, DEBUG_TYPE,
@@ -284,6 +315,7 @@ INITIALIZE_PASS_END(MachineLICM, DEBUG_TYPE,
 INITIALIZE_PASS_BEGIN(EarlyMachineLICM, "early-machinelicm",
                       "Early Machine Loop Invariant Code Motion", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineBlockFrequencyInfo)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_END(EarlyMachineLICM, "early-machinelicm",
@@ -316,6 +348,7 @@ bool MachineLICMBase::runOnMachineFunction(MachineFunction &MF) {
   SchedModel.init(&ST);
 
   PreRegAlloc = MRI->isSSA();
+  HasProfileData = MF.getFunction().hasProfileData();
 
   if (PreRegAlloc)
     LLVM_DEBUG(dbgs() << "******** Pre-regalloc Machine LICM: ");
@@ -334,6 +367,8 @@ bool MachineLICMBase::runOnMachineFunction(MachineFunction &MF) {
   }
 
   // Get our Loop information...
+  if (DisableHoistingToHotterBlocks != UseBFI::None)
+    MBFI = &getAnalysis<MachineBlockFrequencyInfo>();
   MLI = &getAnalysis<MachineLoopInfo>();
   DT  = &getAnalysis<MachineDominatorTree>();
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
@@ -424,10 +459,10 @@ void MachineLICMBase::ProcessMI(MachineInstr *MI,
 
     if (!MO.isReg())
       continue;
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (!Reg)
       continue;
-    assert(TargetRegisterInfo::isPhysicalRegister(Reg) &&
+    assert(Register::isPhysicalRegister(Reg) &&
            "Not expecting virtual register!");
 
     if (!MO.isDef()) {
@@ -526,7 +561,7 @@ void MachineLICMBase::HoistRegionPostRA() {
     for (const MachineOperand &MO : TI->operands()) {
       if (!MO.isReg())
         continue;
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       if (!Reg)
         continue;
       for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI)
@@ -554,7 +589,7 @@ void MachineLICMBase::HoistRegionPostRA() {
       for (const MachineOperand &MO : MI->operands()) {
         if (!MO.isReg() || MO.isDef() || !MO.getReg())
           continue;
-        unsigned Reg = MO.getReg();
+        Register Reg = MO.getReg();
         if (PhysRegDefs.test(Reg) ||
             PhysRegClobbers.test(Reg)) {
           // If it's using a non-loop-invariant register, then it's obviously
@@ -852,8 +887,8 @@ MachineLICMBase::calcRegisterCost(const MachineInstr *MI, bool ConsiderSeen,
     const MachineOperand &MO = MI->getOperand(i);
     if (!MO.isReg() || MO.isImplicit())
       continue;
-    unsigned Reg = MO.getReg();
-    if (!TargetRegisterInfo::isVirtualRegister(Reg))
+    Register Reg = MO.getReg();
+    if (!Register::isVirtualRegister(Reg))
       continue;
 
     // FIXME: It seems bad to use RegSeen only for some of these calculations.
@@ -922,12 +957,12 @@ static bool isInvariantStore(const MachineInstr &MI,
   // Check that all register operands are caller-preserved physical registers.
   for (const MachineOperand &MO : MI.operands()) {
     if (MO.isReg()) {
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       // If operand is a virtual register, check if it comes from a copy of a
       // physical register.
-      if (TargetRegisterInfo::isVirtualRegister(Reg))
+      if (Register::isVirtualRegister(Reg))
         Reg = TRI->lookThruCopyLike(MO.getReg(), MRI);
-      if (TargetRegisterInfo::isVirtualRegister(Reg))
+      if (Register::isVirtualRegister(Reg))
         return false;
       if (!TRI->isCallerPreservedPhysReg(Reg, *MI.getMF()))
         return false;
@@ -955,17 +990,17 @@ static bool isCopyFeedingInvariantStore(const MachineInstr &MI,
 
   const MachineFunction *MF = MI.getMF();
   // Check that we are copying a constant physical register.
-  unsigned CopySrcReg = MI.getOperand(1).getReg();
-  if (TargetRegisterInfo::isVirtualRegister(CopySrcReg))
+  Register CopySrcReg = MI.getOperand(1).getReg();
+  if (Register::isVirtualRegister(CopySrcReg))
     return false;
 
   if (!TRI->isCallerPreservedPhysReg(CopySrcReg, *MF))
     return false;
 
-  unsigned CopyDstReg = MI.getOperand(0).getReg();
+  Register CopyDstReg = MI.getOperand(0).getReg();
   // Check if any of the uses of the copy are invariant stores.
-  assert (TargetRegisterInfo::isVirtualRegister(CopyDstReg) &&
-          "copy dst is not a virtual reg");
+  assert(Register::isVirtualRegister(CopyDstReg) &&
+         "copy dst is not a virtual reg");
 
   for (MachineInstr &UseMI : MRI->use_instructions(CopyDstReg)) {
     if (UseMI.mayStore() && isInvariantStore(UseMI, TRI, MRI))
@@ -1010,11 +1045,11 @@ bool MachineLICMBase::IsLoopInvariantInst(MachineInstr &I) {
     if (!MO.isReg())
       continue;
 
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (Reg == 0) continue;
 
     // Don't hoist an instruction that uses or defines a physical register.
-    if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+    if (Register::isPhysicalRegister(Reg)) {
       if (MO.isUse()) {
         // If the physreg has no defs anywhere, it's just an ambient register
         // and we can freely move its uses. Alternatively, if it's allocatable,
@@ -1061,8 +1096,8 @@ bool MachineLICMBase::HasLoopPHIUse(const MachineInstr *MI) const {
     for (const MachineOperand &MO : MI->operands()) {
       if (!MO.isReg() || !MO.isDef())
         continue;
-      unsigned Reg = MO.getReg();
-      if (!TargetRegisterInfo::isVirtualRegister(Reg))
+      Register Reg = MO.getReg();
+      if (!Register::isVirtualRegister(Reg))
         continue;
       for (MachineInstr &UseMI : MRI->use_instructions(Reg)) {
         // A PHI may cause a copy to be inserted.
@@ -1104,7 +1139,7 @@ bool MachineLICMBase::HasHighOperandLatency(MachineInstr &MI,
       const MachineOperand &MO = UseMI.getOperand(i);
       if (!MO.isReg() || !MO.isUse())
         continue;
-      unsigned MOReg = MO.getReg();
+      Register MOReg = MO.getReg();
       if (MOReg != Reg)
         continue;
 
@@ -1132,8 +1167,8 @@ bool MachineLICMBase::IsCheapInstruction(MachineInstr &MI) const {
     if (!DefMO.isReg() || !DefMO.isDef())
       continue;
     --NumDefs;
-    unsigned Reg = DefMO.getReg();
-    if (TargetRegisterInfo::isPhysicalRegister(Reg))
+    Register Reg = DefMO.getReg();
+    if (Register::isPhysicalRegister(Reg))
       continue;
 
     if (!TII->hasLowDefLatency(SchedModel, MI, i))
@@ -1225,8 +1260,8 @@ bool MachineLICMBase::IsProfitableToHoist(MachineInstr &MI) {
     const MachineOperand &MO = MI.getOperand(i);
     if (!MO.isReg() || MO.isImplicit())
       continue;
-    unsigned Reg = MO.getReg();
-    if (!TargetRegisterInfo::isVirtualRegister(Reg))
+    Register Reg = MO.getReg();
+    if (!Register::isVirtualRegister(Reg))
       continue;
     if (MO.isDef() && HasHighOperandLatency(MI, i, Reg)) {
       LLVM_DEBUG(dbgs() << "Hoist High Latency: " << MI);
@@ -1304,7 +1339,7 @@ MachineInstr *MachineLICMBase::ExtractHoistableLoad(MachineInstr *MI) {
   MachineFunction &MF = *MI->getMF();
   const TargetRegisterClass *RC = TII->getRegClass(MID, LoadRegIndex, TRI, MF);
   // Ok, we're unfolding. Create a temporary register and do the unfold.
-  unsigned Reg = MRI->createVirtualRegister(RC);
+  Register Reg = MRI->createVirtualRegister(RC);
 
   SmallVector<MachineInstr *, 2> NewMIs;
   bool Success = TII->unfoldMemoryOperand(MF, *MI, Reg,
@@ -1378,20 +1413,20 @@ bool MachineLICMBase::EliminateCSE(MachineInstr *MI,
 
       // Physical registers may not differ here.
       assert((!MO.isReg() || MO.getReg() == 0 ||
-              !TargetRegisterInfo::isPhysicalRegister(MO.getReg()) ||
+              !Register::isPhysicalRegister(MO.getReg()) ||
               MO.getReg() == Dup->getOperand(i).getReg()) &&
              "Instructions with different phys regs are not identical!");
 
       if (MO.isReg() && MO.isDef() &&
-          !TargetRegisterInfo::isPhysicalRegister(MO.getReg()))
+          !Register::isPhysicalRegister(MO.getReg()))
         Defs.push_back(i);
     }
 
     SmallVector<const TargetRegisterClass*, 2> OrigRCs;
     for (unsigned i = 0, e = Defs.size(); i != e; ++i) {
       unsigned Idx = Defs[i];
-      unsigned Reg = MI->getOperand(Idx).getReg();
-      unsigned DupReg = Dup->getOperand(Idx).getReg();
+      Register Reg = MI->getOperand(Idx).getReg();
+      Register DupReg = Dup->getOperand(Idx).getReg();
       OrigRCs.push_back(MRI->getRegClass(DupReg));
 
       if (!MRI->constrainRegClass(DupReg, MRI->getRegClass(Reg))) {
@@ -1403,8 +1438,8 @@ bool MachineLICMBase::EliminateCSE(MachineInstr *MI,
     }
 
     for (unsigned Idx : Defs) {
-      unsigned Reg = MI->getOperand(Idx).getReg();
-      unsigned DupReg = Dup->getOperand(Idx).getReg();
+      Register Reg = MI->getOperand(Idx).getReg();
+      Register DupReg = Dup->getOperand(Idx).getReg();
       MRI->replaceRegWith(Reg, DupReg);
       MRI->clearKillFlags(DupReg);
     }
@@ -1434,6 +1469,15 @@ bool MachineLICMBase::MayCSE(MachineInstr *MI) {
 /// that are safe to hoist, this instruction is called to do the dirty work.
 /// It returns true if the instruction is hoisted.
 bool MachineLICMBase::Hoist(MachineInstr *MI, MachineBasicBlock *Preheader) {
+  MachineBasicBlock *SrcBlock = MI->getParent();
+
+  // Disable the instruction hoisting due to block hotness
+  if ((DisableHoistingToHotterBlocks == UseBFI::All ||
+      (DisableHoistingToHotterBlocks == UseBFI::PGO && HasProfileData)) &&
+      isTgtHotterThanSrc(SrcBlock, Preheader)) {
+    ++NumNotHoistedDueToHotness;
+    return false;
+  }
   // First check whether we should hoist this instruction.
   if (!IsLoopInvariantInst(*MI) || !IsProfitableToHoist(*MI)) {
     // If not, try unfolding a hoistable load.
@@ -1526,4 +1570,22 @@ MachineBasicBlock *MachineLICMBase::getCurPreheader() {
     }
   }
   return CurPreheader;
+}
+
+/// Is the target basic block at least "BlockFrequencyRatioThreshold"
+/// times hotter than the source basic block.
+bool MachineLICMBase::isTgtHotterThanSrc(MachineBasicBlock *SrcBlock,
+                                         MachineBasicBlock *TgtBlock) {
+  // Parse source and target basic block frequency from MBFI
+  uint64_t SrcBF = MBFI->getBlockFreq(SrcBlock).getFrequency();
+  uint64_t DstBF = MBFI->getBlockFreq(TgtBlock).getFrequency();
+
+  // Disable the hoisting if source block frequency is zero
+  if (!SrcBF)
+    return true;
+
+  double Ratio = (double)DstBF / SrcBF;
+
+  // Compare the block frequency ratio with the threshold
+  return Ratio > BlockFrequencyRatioThreshold;
 }

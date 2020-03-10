@@ -23,6 +23,7 @@
 #include <string>
 
 #include "llvm/ADT/BitmaskEnum.h"
+#include "llvm/ADT/FunctionExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 
@@ -40,6 +41,11 @@ class SymbolRef;
 using JITTargetAddress = uint64_t;
 
 /// Convert a JITTargetAddress to a pointer.
+///
+/// Note: This is a raw cast of the address bit pattern to the given pointer
+/// type. When casting to a function pointer in order to execute JIT'd code
+/// jitTargetAddressToFunction should be preferred, as it will also perform
+/// pointer signing on targets that require it.
 template <typename T> T jitTargetAddressToPointer(JITTargetAddress Addr) {
   static_assert(std::is_pointer<T>::value, "T must be a pointer type");
   uintptr_t IntPtr = static_cast<uintptr_t>(Addr);
@@ -47,6 +53,19 @@ template <typename T> T jitTargetAddressToPointer(JITTargetAddress Addr) {
   return reinterpret_cast<T>(IntPtr);
 }
 
+/// Convert a JITTargetAddress to a callable function pointer.
+///
+/// Casts the given address to a callable function pointer. This operation
+/// will perform pointer signing for platforms that require it (e.g. arm64e).
+template <typename T> T jitTargetAddressToFunction(JITTargetAddress Addr) {
+  static_assert(
+      std::is_pointer<T>::value &&
+          std::is_function<typename std::remove_pointer<T>::type>::value,
+      "T must be a function pointer type");
+  return jitTargetAddressToPointer<T>(Addr);
+}
+
+/// Convert a pointer to a JITTargetAddress.
 template <typename T> JITTargetAddress pointerToJITTargetAddress(T *Ptr) {
   return static_cast<JITTargetAddress>(reinterpret_cast<uintptr_t>(Ptr));
 }
@@ -217,7 +236,7 @@ private:
 /// Represents a symbol in the JIT.
 class JITSymbol {
 public:
-  using GetAddressFtor = std::function<Expected<JITTargetAddress>()>;
+  using GetAddressFtor = unique_function<Expected<JITTargetAddress>()>;
 
   /// Create a 'null' symbol, used to represent a "symbol not found"
   ///        result from a successful (non-erroneous) lookup.
@@ -325,7 +344,7 @@ class JITSymbolResolver {
 public:
   using LookupSet = std::set<StringRef>;
   using LookupResult = std::map<StringRef, JITEvaluatedSymbol>;
-  using OnResolvedFunction = std::function<void(Expected<LookupResult>)>;
+  using OnResolvedFunction = unique_function<void(Expected<LookupResult>)>;
 
   virtual ~JITSymbolResolver() = default;
 

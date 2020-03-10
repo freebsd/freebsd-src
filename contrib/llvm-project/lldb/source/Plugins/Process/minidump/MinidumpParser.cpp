@@ -174,6 +174,7 @@ ArchSpec MinidumpParser::GetArchitecture() {
     triple.setArch(llvm::Triple::ArchType::arm);
     break;
   case ProcessorArchitecture::ARM64:
+  case ProcessorArchitecture::BP_ARM64:
     triple.setArch(llvm::Triple::ArchType::aarch64);
     break;
   default:
@@ -188,6 +189,7 @@ ArchSpec MinidumpParser::GetArchitecture() {
   case OSPlatform::Win32NT:
   case OSPlatform::Win32CE:
     triple.setOS(llvm::Triple::OSType::Win32);
+    triple.setVendor(llvm::Triple::VendorType::PC);
     break;
   case OSPlatform::Linux:
     triple.setOS(llvm::Triple::OSType::Linux);
@@ -313,13 +315,15 @@ std::vector<const minidump::Module *> MinidumpParser::GetFilteredModuleList() {
   return filtered_modules;
 }
 
-const MinidumpExceptionStream *MinidumpParser::GetExceptionStream() {
-  llvm::ArrayRef<uint8_t> data = GetStream(StreamType::Exception);
+const minidump::ExceptionStream *MinidumpParser::GetExceptionStream() {
+  auto ExpectedStream = GetMinidumpFile().getExceptionStream();
+  if (ExpectedStream)
+    return &*ExpectedStream;
 
-  if (data.size() == 0)
-    return nullptr;
-
-  return MinidumpExceptionStream::Parse(data);
+  LLDB_LOG_ERROR(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS),
+                 ExpectedStream.takeError(),
+                 "Failed to read minidump exception stream: {0}");
+  return nullptr;
 }
 
 llvm::Optional<minidump::Range>
@@ -426,23 +430,35 @@ CreateRegionsCacheFromLinuxMaps(MinidumpParser &parser,
 static bool
 CreateRegionsCacheFromMemoryInfoList(MinidumpParser &parser,
                                      std::vector<MemoryRegionInfo> &regions) {
-  auto data = parser.GetStream(StreamType::MemoryInfoList);
-  if (data.empty())
+  Log *log = GetLogIfAnyCategoriesSet(LIBLLDB_LOG_MODULES);
+  auto ExpectedInfo = parser.GetMinidumpFile().getMemoryInfoList();
+  if (!ExpectedInfo) {
+    LLDB_LOG_ERROR(log, ExpectedInfo.takeError(),
+                   "Failed to read memory info list: {0}");
     return false;
-  auto mem_info_list = MinidumpMemoryInfo::ParseMemoryInfoList(data);
-  if (mem_info_list.empty())
-    return false;
+  }
   constexpr auto yes = MemoryRegionInfo::eYes;
   constexpr auto no = MemoryRegionInfo::eNo;
-  regions.reserve(mem_info_list.size());
-  for (const auto &entry : mem_info_list) {
+  for (const MemoryInfo &entry : *ExpectedInfo) {
     MemoryRegionInfo region;
-    region.GetRange().SetRangeBase(entry->base_address);
-    region.GetRange().SetByteSize(entry->region_size);
-    region.SetReadable(entry->isReadable() ? yes : no);
-    region.SetWritable(entry->isWritable() ? yes : no);
-    region.SetExecutable(entry->isExecutable() ? yes : no);
-    region.SetMapped(entry->isMapped() ? yes : no);
+    region.GetRange().SetRangeBase(entry.BaseAddress);
+    region.GetRange().SetByteSize(entry.RegionSize);
+
+    MemoryProtection prot = entry.Protect;
+    region.SetReadable(bool(prot & MemoryProtection::NoAccess) ? no : yes);
+    region.SetWritable(
+        bool(prot & (MemoryProtection::ReadWrite | MemoryProtection::WriteCopy |
+                     MemoryProtection::ExecuteReadWrite |
+                     MemoryProtection::ExeciteWriteCopy))
+            ? yes
+            : no);
+    region.SetExecutable(
+        bool(prot & (MemoryProtection::Execute | MemoryProtection::ExecuteRead |
+                     MemoryProtection::ExecuteReadWrite |
+                     MemoryProtection::ExeciteWriteCopy))
+            ? yes
+            : no);
+    region.SetMapped(entry.State != MemoryState::Free ? yes : no);
     regions.push_back(region);
   }
   return !regions.empty();
@@ -503,58 +519,26 @@ CreateRegionsCacheFromMemory64List(MinidumpParser &parser,
   return !regions.empty();
 }
 
-MemoryRegionInfo
-MinidumpParser::FindMemoryRegion(lldb::addr_t load_addr) const {
-  auto begin = m_regions.begin();
-  auto end = m_regions.end();
-  auto pos = std::lower_bound(begin, end, load_addr);
-  if (pos != end && pos->GetRange().Contains(load_addr))
-    return *pos;
-  
-  MemoryRegionInfo region;
-  if (pos == begin)
-    region.GetRange().SetRangeBase(0);
-  else {
-    auto prev = pos - 1;
-    if (prev->GetRange().Contains(load_addr))
-      return *prev;
-    region.GetRange().SetRangeBase(prev->GetRange().GetRangeEnd());
-  }
-  if (pos == end)
-    region.GetRange().SetRangeEnd(UINT64_MAX);
-  else
-    region.GetRange().SetRangeEnd(pos->GetRange().GetRangeBase());
-  region.SetReadable(MemoryRegionInfo::eNo);
-  region.SetWritable(MemoryRegionInfo::eNo);
-  region.SetExecutable(MemoryRegionInfo::eNo);
-  region.SetMapped(MemoryRegionInfo::eNo);
-  return region;
-}
-
-MemoryRegionInfo
-MinidumpParser::GetMemoryRegionInfo(lldb::addr_t load_addr) {
-  if (!m_parsed_regions)
-    GetMemoryRegions();
-  return FindMemoryRegion(load_addr);
-}
-
-const MemoryRegionInfos &MinidumpParser::GetMemoryRegions() {
-  if (!m_parsed_regions) {
-    m_parsed_regions = true;
-    // We haven't cached our memory regions yet we will create the region cache
-    // once. We create the region cache using the best source. We start with
-    // the linux maps since they are the most complete and have names for the
-    // regions. Next we try the MemoryInfoList since it has
-    // read/write/execute/map data, and then fall back to the MemoryList and
-    // Memory64List to just get a list of the memory that is mapped in this
-    // core file
-    if (!CreateRegionsCacheFromLinuxMaps(*this, m_regions))
-      if (!CreateRegionsCacheFromMemoryInfoList(*this, m_regions))
-        if (!CreateRegionsCacheFromMemoryList(*this, m_regions))
-          CreateRegionsCacheFromMemory64List(*this, m_regions);
-    llvm::sort(m_regions.begin(), m_regions.end());
-  }
-  return m_regions;
+std::pair<MemoryRegionInfos, bool> MinidumpParser::BuildMemoryRegions() {
+  // We create the region cache using the best source. We start with
+  // the linux maps since they are the most complete and have names for the
+  // regions. Next we try the MemoryInfoList since it has
+  // read/write/execute/map data, and then fall back to the MemoryList and
+  // Memory64List to just get a list of the memory that is mapped in this
+  // core file
+  MemoryRegionInfos result;
+  const auto &return_sorted = [&](bool is_complete) {
+    llvm::sort(result);
+    return std::make_pair(std::move(result), is_complete);
+  };
+  if (CreateRegionsCacheFromLinuxMaps(*this, result))
+    return return_sorted(true);
+  if (CreateRegionsCacheFromMemoryInfoList(*this, result))
+    return return_sorted(true);
+  if (CreateRegionsCacheFromMemoryList(*this, result))
+    return return_sorted(false);
+  CreateRegionsCacheFromMemory64List(*this, result);
+  return return_sorted(false);
 }
 
 #define ENUM_TO_CSTR(ST)                                                       \

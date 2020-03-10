@@ -48,8 +48,7 @@ public:
   /// Get the name looking up long names.
   Expected<StringRef> getName(uint64_t Size) const;
 
-  /// Members are not larger than 4GB.
-  Expected<uint32_t> getSize() const;
+  Expected<uint64_t> getSize() const;
 
   Expected<sys::fs::perms> getAccessMode() const;
   Expected<sys::TimePoint<std::chrono::seconds>> getLastModified() const;
@@ -136,6 +135,7 @@ public:
 
     Expected<StringRef> getBuffer() const;
     uint64_t getChildOffset() const;
+    uint64_t getDataOffset() const { return getChildOffset() + StartOfFile; }
 
     Expected<MemoryBufferRef> getMemoryBufferRef() const;
 
@@ -220,6 +220,9 @@ public:
 
   Archive(MemoryBufferRef Source, Error &Err);
   static Expected<std::unique_ptr<Archive>> create(MemoryBufferRef Source);
+
+  /// Size field is 10 decimal digits long
+  static const uint64_t MaxMemberSize = 9999999999;
 
   enum Kind {
     K_GNU,

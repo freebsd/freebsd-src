@@ -11,9 +11,14 @@
 namespace llvm {
 namespace orc {
 
+IRCompileLayer::IRCompiler::~IRCompiler() {}
+
 IRCompileLayer::IRCompileLayer(ExecutionSession &ES, ObjectLayer &BaseLayer,
-                                 CompileFunction Compile)
-    : IRLayer(ES), BaseLayer(BaseLayer), Compile(std::move(Compile)) {}
+                               std::unique_ptr<IRCompiler> Compile)
+    : IRLayer(ES, ManglingOpts), BaseLayer(BaseLayer),
+      Compile(std::move(Compile)) {
+  ManglingOpts = &this->Compile->getManglingOptions();
+}
 
 void IRCompileLayer::setNotifyCompiled(NotifyCompiledFunction NotifyCompiled) {
   std::lock_guard<std::mutex> Lock(IRLayerMutex);
@@ -22,9 +27,9 @@ void IRCompileLayer::setNotifyCompiled(NotifyCompiledFunction NotifyCompiled) {
 
 void IRCompileLayer::emit(MaterializationResponsibility R,
                           ThreadSafeModule TSM) {
-  assert(TSM.getModule() && "Module must not be null");
+  assert(TSM && "Module must not be null");
 
-  if (auto Obj = Compile(*TSM.getModule())) {
+  if (auto Obj = TSM.withModuleDo(*Compile)) {
     {
       std::lock_guard<std::mutex> Lock(IRLayerMutex);
       if (NotifyCompiled)

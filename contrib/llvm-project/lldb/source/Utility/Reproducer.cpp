@@ -25,6 +25,16 @@ llvm::Error Reproducer::Initialize(ReproducerMode mode,
   lldbassert(!InstanceImpl() && "Already initialized.");
   InstanceImpl().emplace();
 
+  // The environment can override the capture mode.
+  if (mode != ReproducerMode::Replay) {
+    std::string env =
+        llvm::StringRef(getenv("LLDB_CAPTURE_REPRODUCER")).lower();
+    if (env == "0" || env == "off")
+      mode = ReproducerMode::Off;
+    else if (env == "1" || env == "on")
+      mode = ReproducerMode::Capture;
+  }
+
   switch (mode) {
   case ReproducerMode::Capture: {
     if (!root) {
@@ -136,9 +146,21 @@ FileSpec Reproducer::GetReproducerPath() const {
   return {};
 }
 
-Generator::Generator(const FileSpec &root) : m_root(root), m_done(false) {}
+static FileSpec MakeAbsolute(FileSpec file_spec) {
+  SmallString<128> path;
+  file_spec.GetPath(path, false);
+  llvm::sys::fs::make_absolute(path);
+  return FileSpec(path, file_spec.GetPathStyle());
+}
 
-Generator::~Generator() {}
+Generator::Generator(FileSpec root) : m_root(MakeAbsolute(std::move(root))) {
+  GetOrCreate<repro::WorkingDirectoryProvider>();
+}
+
+Generator::~Generator() {
+  if (!m_done)
+    Discard();
+}
 
 ProviderBase *Generator::Register(std::unique_ptr<ProviderBase> provider) {
   std::lock_guard<std::mutex> lock(m_providers_mutex);
@@ -175,8 +197,8 @@ void Generator::AddProvidersToIndex() {
   index.AppendPathComponent("index.yaml");
 
   std::error_code EC;
-  auto strm = llvm::make_unique<raw_fd_ostream>(index.GetPath(), EC,
-                                                sys::fs::OpenFlags::F_None);
+  auto strm = std::make_unique<raw_fd_ostream>(index.GetPath(), EC,
+                                               sys::fs::OpenFlags::OF_None);
   yaml::Output yout(*strm);
 
   std::vector<std::string> files;
@@ -188,7 +210,8 @@ void Generator::AddProvidersToIndex() {
   yout << files;
 }
 
-Loader::Loader(const FileSpec &root) : m_root(root), m_loaded(false) {}
+Loader::Loader(FileSpec root)
+    : m_root(MakeAbsolute(std::move(root))), m_loaded(false) {}
 
 llvm::Error Loader::LoadIndex() {
   if (m_loaded)
@@ -223,7 +246,7 @@ bool Loader::HasFile(StringRef file) {
 llvm::Expected<std::unique_ptr<DataRecorder>>
 DataRecorder::Create(const FileSpec &filename) {
   std::error_code ec;
-  auto recorder = llvm::make_unique<DataRecorder>(std::move(filename), ec);
+  auto recorder = std::make_unique<DataRecorder>(std::move(filename), ec);
   if (ec)
     return llvm::errorCodeToError(ec);
   return std::move(recorder);
@@ -232,7 +255,7 @@ DataRecorder::Create(const FileSpec &filename) {
 DataRecorder *CommandProvider::GetNewDataRecorder() {
   std::size_t i = m_data_recorders.size() + 1;
   std::string filename = (llvm::Twine(Info::name) + llvm::Twine("-") +
-                          llvm::Twine(i) + llvm::Twine(".txt"))
+                          llvm::Twine(i) + llvm::Twine(".yaml"))
                              .str();
   auto recorder_or_error =
       DataRecorder::Create(GetRoot().CopyByAppendingPathComponent(filename));
@@ -254,7 +277,7 @@ void CommandProvider::Keep() {
 
   FileSpec file = GetRoot().CopyByAppendingPathComponent(Info::file);
   std::error_code ec;
-  llvm::raw_fd_ostream os(file.GetPath(), ec, llvm::sys::fs::F_Text);
+  llvm::raw_fd_ostream os(file.GetPath(), ec, llvm::sys::fs::OF_Text);
   if (ec)
     return;
   yaml::Output yout(os);
@@ -266,20 +289,32 @@ void CommandProvider::Discard() { m_data_recorders.clear(); }
 void VersionProvider::Keep() {
   FileSpec file = GetRoot().CopyByAppendingPathComponent(Info::file);
   std::error_code ec;
-  llvm::raw_fd_ostream os(file.GetPath(), ec, llvm::sys::fs::F_Text);
+  llvm::raw_fd_ostream os(file.GetPath(), ec, llvm::sys::fs::OF_Text);
   if (ec)
     return;
   os << m_version << "\n";
 }
 
+void WorkingDirectoryProvider::Keep() {
+  FileSpec file = GetRoot().CopyByAppendingPathComponent(Info::file);
+  std::error_code ec;
+  llvm::raw_fd_ostream os(file.GetPath(), ec, llvm::sys::fs::OF_Text);
+  if (ec)
+    return;
+  os << m_cwd << "\n";
+}
+
 void ProviderBase::anchor() {}
-char ProviderBase::ID = 0;
 char CommandProvider::ID = 0;
 char FileProvider::ID = 0;
+char ProviderBase::ID = 0;
 char VersionProvider::ID = 0;
+char WorkingDirectoryProvider::ID = 0;
 const char *CommandProvider::Info::file = "command-interpreter.yaml";
 const char *CommandProvider::Info::name = "command-interpreter";
 const char *FileProvider::Info::file = "files.yaml";
 const char *FileProvider::Info::name = "files";
 const char *VersionProvider::Info::file = "version.txt";
 const char *VersionProvider::Info::name = "version";
+const char *WorkingDirectoryProvider::Info::file = "cwd.txt";
+const char *WorkingDirectoryProvider::Info::name = "cwd";

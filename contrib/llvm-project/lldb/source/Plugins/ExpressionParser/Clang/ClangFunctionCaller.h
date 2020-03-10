@@ -59,11 +59,6 @@ class ClangExpressionParser;
 class ClangFunctionCaller : public FunctionCaller {
   friend class ASTStructExtractor;
 
-  /// LLVM-style RTTI support.
-  static bool classof(const Expression *E) {
-    return E->getKind() == eKindClangFunctionCaller;
-  }
-
   class ClangFunctionCallerHelper : public ClangExpressionHelper {
   public:
     ClangFunctionCallerHelper(ClangFunctionCaller &owner) : m_owner(owner) {}
@@ -91,18 +86,23 @@ class ClangFunctionCaller : public FunctionCaller {
                                                             ///layout.
   };
 
+  // LLVM RTTI support
+  static char ID;
+
 public:
+  bool isA(const void *ClassID) const override {
+    return ClassID == &ID || FunctionCaller::isA(ClassID);
+  }
+  static bool classof(const Expression *obj) { return obj->isA(&ID); }
+
   /// Constructor
   ///
   /// \param[in] exe_scope
   ///     An execution context scope that gets us at least a target and
   ///     process.
   ///
-  /// \param[in] ast_context
-  ///     The AST context to evaluate argument types in.
-  ///
-  /// \param[in] return_qualtype
-  ///     An opaque Clang QualType for the function result.  Should be
+  /// \param[in] return_type
+  ///     A compiler type for the function result.  Should be
   ///     defined in ast_context.
   ///
   /// \param[in] function_address

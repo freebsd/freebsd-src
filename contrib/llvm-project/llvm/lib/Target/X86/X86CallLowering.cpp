@@ -102,6 +102,8 @@ struct OutgoingValueHandler : public CallLowering::ValueHandler {
         DL(MIRBuilder.getMF().getDataLayout()),
         STI(MIRBuilder.getMF().getSubtarget<X86Subtarget>()) {}
 
+  bool isIncomingArgumentHandler() const override { return false; }
+
   Register getStackAddress(uint64_t Size, int64_t Offset,
                            MachinePointerInfo &MPO) override {
     LLT p0 = LLT::pointer(0, DL.getPointerSizeInBits(0));
@@ -113,7 +115,7 @@ struct OutgoingValueHandler : public CallLowering::ValueHandler {
     MIRBuilder.buildConstant(OffsetReg, Offset);
 
     Register AddrReg = MRI.createGenericVirtualRegister(p0);
-    MIRBuilder.buildGEP(AddrReg, SPReg, OffsetReg);
+    MIRBuilder.buildPtrAdd(AddrReg, SPReg, OffsetReg);
 
     MPO = MachinePointerInfo::getStack(MIRBuilder.getMF(), Offset);
     return AddrReg;
@@ -155,8 +157,9 @@ struct OutgoingValueHandler : public CallLowering::ValueHandler {
 
   bool assignArg(unsigned ValNo, MVT ValVT, MVT LocVT,
                  CCValAssign::LocInfo LocInfo,
-                 const CallLowering::ArgInfo &Info, CCState &State) override {
-    bool Res = AssignFn(ValNo, ValVT, LocVT, LocInfo, Info.Flags, State);
+                 const CallLowering::ArgInfo &Info, ISD::ArgFlagsTy Flags,
+                 CCState &State) override {
+    bool Res = AssignFn(ValNo, ValVT, LocVT, LocInfo, Flags, State);
     StackSize = State.getNextStackOffset();
 
     static const MCPhysReg XMMArgRegs[] = {X86::XMM0, X86::XMM1, X86::XMM2,
@@ -229,7 +232,7 @@ struct IncomingValueHandler : public CallLowering::ValueHandler {
       : ValueHandler(MIRBuilder, MRI, AssignFn),
         DL(MIRBuilder.getMF().getDataLayout()) {}
 
-  bool isArgumentHandler() const override { return true; }
+  bool isIncomingArgumentHandler() const override { return true; }
 
   Register getStackAddress(uint64_t Size, int64_t Offset,
                            MachinePointerInfo &MPO) override {
@@ -237,7 +240,7 @@ struct IncomingValueHandler : public CallLowering::ValueHandler {
     int FI = MFI.CreateFixedObject(Size, Offset, true);
     MPO = MachinePointerInfo::getFixedStack(MIRBuilder.getMF(), FI);
 
-    unsigned AddrReg = MRI.createGenericVirtualRegister(
+    Register AddrReg = MRI.createGenericVirtualRegister(
         LLT::pointer(0, DL.getPointerSizeInBits(0)));
     MIRBuilder.buildFrameIndex(AddrReg, FI);
     return AddrReg;
@@ -301,6 +304,7 @@ struct FormalArgHandler : public IncomingValueHandler {
       : IncomingValueHandler(MIRBuilder, MRI, AssignFn) {}
 
   void markPhysRegUsed(unsigned PhysReg) override {
+    MIRBuilder.getMRI()->addLiveIn(PhysReg);
     MIRBuilder.getMBB().addLiveIn(PhysReg);
   }
 };
@@ -372,10 +376,7 @@ bool X86CallLowering::lowerFormalArguments(
 }
 
 bool X86CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
-                                CallingConv::ID CallConv,
-                                const MachineOperand &Callee,
-                                const ArgInfo &OrigRet,
-                                ArrayRef<ArgInfo> OrigArgs) const {
+                                CallLoweringInfo &Info) const {
   MachineFunction &MF = MIRBuilder.getMF();
   const Function &F = MF.getFunction();
   MachineRegisterInfo &MRI = MF.getRegInfo();
@@ -385,8 +386,8 @@ bool X86CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   auto TRI = STI.getRegisterInfo();
 
   // Handle only Linux C, X86_64_SysV calling conventions for now.
-  if (!STI.isTargetLinux() ||
-      !(CallConv == CallingConv::C || CallConv == CallingConv::X86_64_SysV))
+  if (!STI.isTargetLinux() || !(Info.CallConv == CallingConv::C ||
+                                Info.CallConv == CallingConv::X86_64_SysV))
     return false;
 
   unsigned AdjStackDown = TII.getCallFrameSetupOpcode();
@@ -395,18 +396,19 @@ bool X86CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   // Create a temporarily-floating call instruction so we can add the implicit
   // uses of arg registers.
   bool Is64Bit = STI.is64Bit();
-  unsigned CallOpc = Callee.isReg()
+  unsigned CallOpc = Info.Callee.isReg()
                          ? (Is64Bit ? X86::CALL64r : X86::CALL32r)
                          : (Is64Bit ? X86::CALL64pcrel32 : X86::CALLpcrel32);
 
-  auto MIB = MIRBuilder.buildInstrNoInsert(CallOpc).add(Callee).addRegMask(
-      TRI->getCallPreservedMask(MF, CallConv));
+  auto MIB = MIRBuilder.buildInstrNoInsert(CallOpc)
+                 .add(Info.Callee)
+                 .addRegMask(TRI->getCallPreservedMask(MF, Info.CallConv));
 
   SmallVector<ArgInfo, 8> SplitArgs;
-  for (const auto &OrigArg : OrigArgs) {
+  for (const auto &OrigArg : Info.OrigArgs) {
 
     // TODO: handle not simple cases.
-    if (OrigArg.Flags.isByVal())
+    if (OrigArg.Flags[0].isByVal())
       return false;
 
     if (OrigArg.Regs.size() > 1)
@@ -423,8 +425,8 @@ bool X86CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   if (!handleAssignments(MIRBuilder, SplitArgs, Handler))
     return false;
 
-  bool IsFixed = OrigArgs.empty() ? true : OrigArgs.back().IsFixed;
-  if (STI.is64Bit() && !IsFixed && !STI.isCallingConvWin64(CallConv)) {
+  bool IsFixed = Info.OrigArgs.empty() ? true : Info.OrigArgs.back().IsFixed;
+  if (STI.is64Bit() && !IsFixed && !STI.isCallingConvWin64(Info.CallConv)) {
     // From AMD64 ABI document:
     // For calls that may call functions that use varargs or stdargs
     // (prototype-less calls or calls to functions containing ellipsis (...) in
@@ -445,23 +447,24 @@ bool X86CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   // If Callee is a reg, since it is used by a target specific
   // instruction, it must have a register class matching the
   // constraint of that instruction.
-  if (Callee.isReg())
+  if (Info.Callee.isReg())
     MIB->getOperand(0).setReg(constrainOperandRegClass(
         MF, *TRI, MRI, *MF.getSubtarget().getInstrInfo(),
-        *MF.getSubtarget().getRegBankInfo(), *MIB, MIB->getDesc(), Callee, 0));
+        *MF.getSubtarget().getRegBankInfo(), *MIB, MIB->getDesc(), Info.Callee,
+        0));
 
   // Finally we can copy the returned value back into its virtual-register. In
   // symmetry with the arguments, the physical register must be an
   // implicit-define of the call instruction.
 
-  if (!OrigRet.Ty->isVoidTy()) {
-    if (OrigRet.Regs.size() > 1)
+  if (!Info.OrigRet.Ty->isVoidTy()) {
+    if (Info.OrigRet.Regs.size() > 1)
       return false;
 
     SplitArgs.clear();
     SmallVector<Register, 8> NewRegs;
 
-    if (!splitToValueTypes(OrigRet, SplitArgs, DL, MRI,
+    if (!splitToValueTypes(Info.OrigRet, SplitArgs, DL, MRI,
                            [&](ArrayRef<Register> Regs) {
                              NewRegs.assign(Regs.begin(), Regs.end());
                            }))
@@ -472,7 +475,7 @@ bool X86CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
       return false;
 
     if (!NewRegs.empty())
-      MIRBuilder.buildMerge(OrigRet.Regs[0], NewRegs);
+      MIRBuilder.buildMerge(Info.OrigRet.Regs[0], NewRegs);
   }
 
   CallSeqStart.addImm(Handler.getStackSize())

@@ -1162,14 +1162,20 @@ bool MipsFastISel::processCallArgs(CallLoweringInfo &CLI,
       if (ArgVT == MVT::f32) {
         VA.convertToReg(Mips::F12);
       } else if (ArgVT == MVT::f64) {
-        VA.convertToReg(Mips::D6);
+        if (Subtarget->isFP64bit())
+          VA.convertToReg(Mips::D6_64);
+        else
+          VA.convertToReg(Mips::D6);
       }
     } else if (i == 1) {
       if ((firstMVT == MVT::f32) || (firstMVT == MVT::f64)) {
         if (ArgVT == MVT::f32) {
           VA.convertToReg(Mips::F14);
         } else if (ArgVT == MVT::f64) {
-          VA.convertToReg(Mips::D7);
+          if (Subtarget->isFP64bit())
+            VA.convertToReg(Mips::D7_64);
+          else
+            VA.convertToReg(Mips::D7);
         }
       }
     }
@@ -1722,7 +1728,7 @@ bool MipsFastISel::selectRet(const Instruction *I) {
       return false;
 
     unsigned SrcReg = Reg + VA.getValNo();
-    unsigned DestReg = VA.getLocReg();
+    Register DestReg = VA.getLocReg();
     // Avoid a cross-class copy. This is very unlikely.
     if (!MRI.getRegClass(SrcReg)->contains(DestReg))
       return false;

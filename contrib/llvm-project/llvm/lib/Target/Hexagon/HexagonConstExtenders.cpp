@@ -14,9 +14,11 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Register.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Pass.h"
 #include <map>
 #include <set>
 #include <utility>
@@ -235,24 +237,24 @@ namespace {
           Reg = Op.getReg();
           Sub = Op.getSubReg();
         } else if (Op.isFI()) {
-          Reg = TargetRegisterInfo::index2StackSlot(Op.getIndex());
+          Reg = llvm::Register::index2StackSlot(Op.getIndex());
         }
         return *this;
       }
       bool isVReg() const {
-        return Reg != 0 && !TargetRegisterInfo::isStackSlot(Reg) &&
-               TargetRegisterInfo::isVirtualRegister(Reg);
+        return Reg != 0 && !llvm::Register::isStackSlot(Reg) &&
+               llvm::Register::isVirtualRegister(Reg);
       }
       bool isSlot() const {
-        return Reg != 0 && TargetRegisterInfo::isStackSlot(Reg);
+        return Reg != 0 && llvm::Register::isStackSlot(Reg);
       }
       operator MachineOperand() const {
         if (isVReg())
           return MachineOperand::CreateReg(Reg, /*Def*/false, /*Imp*/false,
                           /*Kill*/false, /*Dead*/false, /*Undef*/false,
                           /*EarlyClobber*/false, Sub);
-        if (TargetRegisterInfo::isStackSlot(Reg)) {
-          int FI = TargetRegisterInfo::stackSlot2Index(Reg);
+        if (llvm::Register::isStackSlot(Reg)) {
+          int FI = llvm::Register::stackSlot2Index(Reg);
           return MachineOperand::CreateFI(FI);
         }
         llvm_unreachable("Cannot create MachineOperand");
@@ -553,7 +555,7 @@ namespace {
   LLVM_ATTRIBUTE_UNUSED
   raw_ostream &operator<< (raw_ostream &OS, const PrintIMap &P) {
     OS << "{\n";
-    for (const std::pair<HCE::ExtenderInit,HCE::IndexList> &Q : P.IMap) {
+    for (const std::pair<const HCE::ExtenderInit, HCE::IndexList> &Q : P.IMap) {
       OS << "  " << PrintInit(Q.first, P.HRI) << " -> {";
       for (unsigned I : Q.second)
         OS << ' ' << I;
@@ -1524,7 +1526,7 @@ void HCE::calculatePlacement(const ExtenderInit &ExtI, const IndexList &Refs,
 }
 
 HCE::Register HCE::insertInitializer(Loc DefL, const ExtenderInit &ExtI) {
-  unsigned DefR = MRI->createVirtualRegister(&Hexagon::IntRegsRegClass);
+  llvm::Register DefR = MRI->createVirtualRegister(&Hexagon::IntRegsRegClass);
   MachineBasicBlock &MBB = *DefL.Block;
   MachineBasicBlock::iterator At = DefL.At;
   DebugLoc dl = DefL.Block->findDebugLoc(DefL.At);
@@ -1637,7 +1639,7 @@ bool HCE::replaceInstrExact(const ExtDesc &ED, Register ExtR) {
     return true;
   }
 
-  if ((MI.mayLoad() || MI.mayStore()) && !isStoreImmediate(ExtOpc)) {
+  if (MI.mayLoadOrStore() && !isStoreImmediate(ExtOpc)) {
     // For memory instructions, there is an asymmetry in the addressing
     // modes. Addressing modes allowing extenders can be replaced with
     // addressing modes that use registers, but the order of operands
@@ -1792,7 +1794,7 @@ bool HCE::replaceInstrExpr(const ExtDesc &ED, const ExtenderInit &ExtI,
     return true;
   }
 
-  if (MI.mayLoad() || MI.mayStore()) {
+  if (MI.mayLoadOrStore()) {
     unsigned IdxOpc = getRegOffOpcode(ExtOpc);
     assert(IdxOpc && "Expecting indexed opcode");
     MachineInstrBuilder MIB = BuildMI(MBB, At, dl, HII->get(IdxOpc));
@@ -1842,7 +1844,7 @@ bool HCE::replaceInstr(unsigned Idx, Register ExtR, const ExtenderInit &ExtI) {
   // These two addressing modes must be converted into indexed forms
   // regardless of what the initializer looks like.
   bool IsAbs = false, IsAbsSet = false;
-  if (MI.mayLoad() || MI.mayStore()) {
+  if (MI.mayLoadOrStore()) {
     unsigned AM = HII->getAddrMode(MI);
     IsAbs = AM == HexagonII::Absolute;
     IsAbsSet = AM == HexagonII::AbsoluteSet;
@@ -1893,7 +1895,7 @@ bool HCE::replaceExtenders(const AssignmentMap &IMap) {
   LocDefList Defs;
   bool Changed = false;
 
-  for (const std::pair<ExtenderInit,IndexList> &P : IMap) {
+  for (const std::pair<const ExtenderInit, IndexList> &P : IMap) {
     const IndexList &Idxs = P.second;
     if (Idxs.size() < CountThreshold)
       continue;

@@ -13,7 +13,6 @@
 #include <string>
 #include <vector>
 
-#include "lldb/Core/ClangForward.h"
 #include "lldb/lldb-private.h"
 #include "llvm/ADT/APSInt.h"
 
@@ -21,25 +20,31 @@ namespace lldb_private {
 
 class DataExtractor;
 
-// A class that can carry around a clang ASTContext and a opaque clang
-// QualType. A clang::QualType can be easily reconstructed from an opaque clang
-// type and often the ASTContext is needed when doing various type related
-// tasks, so this class allows both items to travel in a single very
-// lightweight class that can be used. There are many static equivalents of the
-// member functions that allow the ASTContext and the opaque clang QualType to
-// be specified for ease of use and to avoid code duplication.
+/// Represents a generic type in a programming language.
+///
+/// This class serves as an abstraction for a type inside one of the TypeSystems
+/// implemented by the language plugins. It does not have any actual logic in it
+/// but only stores an opaque pointer and a pointer to the TypeSystem that
+/// gives meaning to this opaque pointer. All methods of this class should call
+/// their respective method in the TypeSystem interface and pass the opaque
+/// pointer along.
+///
+/// \see lldb_private::TypeSystem
 class CompilerType {
 public:
-  // Constructors and Destructors
-  CompilerType(TypeSystem *type_system, lldb::opaque_compiler_type_t type);
-  CompilerType(clang::ASTContext *ast_context, clang::QualType qual_type);
+  /// Creates a CompilerType with the given TypeSystem and opaque compiler type.
+  ///
+  /// This constructor should only be called from the respective TypeSystem
+  /// implementation.
+  ///
+  /// \see lldb_private::ClangASTContext::GetType(clang::QualType)
+  CompilerType(TypeSystem *type_system, lldb::opaque_compiler_type_t type)
+      : m_type(type), m_type_system(type_system) {}
 
   CompilerType(const CompilerType &rhs)
       : m_type(rhs.m_type), m_type_system(rhs.m_type_system) {}
 
-  CompilerType() : m_type(nullptr), m_type_system(nullptr) {}
-
-  ~CompilerType();
+  CompilerType() = default;
 
   // Operators
 
@@ -110,11 +115,6 @@ public:
 
   bool IsPolymorphicClass() const;
 
-  bool
-  IsPossibleCPlusPlusDynamicType(CompilerType *target_type = nullptr) const {
-    return IsPossibleDynamicType(target_type, true, false);
-  }
-
   bool IsPossibleDynamicType(CompilerType *target_type, // Can pass nullptr
                              bool check_cplusplus, bool check_objc) const;
 
@@ -168,8 +168,6 @@ public:
 
   void SetCompilerType(TypeSystem *type_system,
                        lldb::opaque_compiler_type_t type);
-
-  void SetCompilerType(clang::ASTContext *ast, clang::QualType qual_type);
 
   unsigned GetTypeQualifiers() const;
 
@@ -227,6 +225,11 @@ public:
   // an invalid type.
   CompilerType AddVolatileModifier() const;
 
+  // Return a new CompilerType that is the atomic type of this type. If this
+  // type is not valid or the type system doesn't support atomic types, this
+  // returns an invalid type.
+  CompilerType GetAtomicType() const;
+
   // Return a new CompilerType adds a restrict modifier to this type if this
   // type is valid and the type system supports restrict modifiers, else return
   // an invalid type.
@@ -257,7 +260,7 @@ public:
 
   lldb::Format GetFormat() const;
 
-  size_t GetTypeBitAlign() const;
+  llvm::Optional<size_t> GetTypeBitAlign(ExecutionContextScope *exe_scope) const;
 
   uint32_t GetNumChildren(bool omit_empty_base_classes,
                           const ExecutionContext *exe_ctx) const;
@@ -336,13 +339,6 @@ public:
 
   bool IsMeaninglessWithoutDynamicResolution() const;
 
-  // Pointers & References
-
-  // Converts "s" to a floating point value and place resulting floating point
-  // bytes in the "dst" buffer.
-  size_t ConvertStringToFloatValue(const char *s, uint8_t *dst,
-                                   size_t dst_size) const;
-
   // Dumping types
 
 #ifndef NDEBUG
@@ -373,22 +369,14 @@ public:
   bool GetValueAsScalar(const DataExtractor &data, lldb::offset_t data_offset,
                         size_t data_byte_size, Scalar &value) const;
 
-  bool SetValueFromScalar(const Scalar &value, Stream &strm);
-
-  bool ReadFromMemory(ExecutionContext *exe_ctx, lldb::addr_t addr,
-                      AddressType address_type, DataExtractor &data);
-
-  bool WriteToMemory(ExecutionContext *exe_ctx, lldb::addr_t addr,
-                     AddressType address_type, StreamString &new_value);
-
   void Clear() {
     m_type = nullptr;
     m_type_system = nullptr;
   }
 
 private:
-  lldb::opaque_compiler_type_t m_type;
-  TypeSystem *m_type_system;
+  lldb::opaque_compiler_type_t m_type = nullptr;
+  TypeSystem *m_type_system = nullptr;
 };
 
 bool operator==(const CompilerType &lhs, const CompilerType &rhs);

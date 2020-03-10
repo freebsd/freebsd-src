@@ -129,7 +129,7 @@ public:
   bool isUnaryOp() const { return isUnaryOp(getOpcode()); }
   bool isBinaryOp() const { return isBinaryOp(getOpcode()); }
   bool isIntDivRem() const { return isIntDivRem(getOpcode()); }
-  bool isShift() { return isShift(getOpcode()); }
+  bool isShift() const { return isShift(getOpcode()); }
   bool isCast() const { return isCast(getOpcode()); }
   bool isFuncletPad() const { return isFuncletPad(getOpcode()); }
   bool isExceptionalTerminator() const {
@@ -227,6 +227,16 @@ public:
   /// debug location.
   bool hasMetadataOtherThanDebugLoc() const {
     return hasMetadataHashEntry();
+  }
+
+  /// Return true if this instruction has the given type of metadata attached.
+  bool hasMetadata(unsigned KindID) const {
+    return getMetadata(KindID) != nullptr;
+  }
+
+  /// Return true if this instruction has the given type of metadata attached.
+  bool hasMetadata(StringRef Kind) const {
+    return getMetadata(Kind) != nullptr;
   }
 
   /// Get the metadata of given kind attached to this Instruction.

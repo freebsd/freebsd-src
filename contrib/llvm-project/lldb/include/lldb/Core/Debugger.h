@@ -17,6 +17,7 @@
 #include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/IOHandler.h"
 #include "lldb/Core/SourceManager.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/UserSettingsController.h"
 #include "lldb/Host/HostThread.h"
 #include "lldb/Host/Terminal.h"
@@ -113,20 +114,29 @@ public:
 
   void SetAsyncExecution(bool async);
 
-  lldb::StreamFileSP GetInputFile() { return m_input_file_sp; }
+  lldb::FileSP GetInputFileSP() { return m_input_file_sp; }
 
-  lldb::StreamFileSP GetOutputFile() { return m_output_file_sp; }
+  lldb::StreamFileSP GetOutputStreamSP() { return m_output_stream_sp; }
 
-  lldb::StreamFileSP GetErrorFile() { return m_error_file_sp; }
+  lldb::StreamFileSP GetErrorStreamSP() { return m_error_stream_sp; }
+
+  File &GetInputFile() { return *m_input_file_sp; }
+
+  File &GetOutputFile() { return m_output_stream_sp->GetFile(); }
+
+  File &GetErrorFile() { return m_error_stream_sp->GetFile(); }
+
+  StreamFile &GetOutputStream() { return *m_output_stream_sp; }
+
+  StreamFile &GetErrorStream() { return *m_error_stream_sp; }
 
   repro::DataRecorder *GetInputRecorder();
 
-  void SetInputFileHandle(FILE *fh, bool tranfer_ownership,
-                          repro::DataRecorder *recorder = nullptr);
+  void SetInputFile(lldb::FileSP file, repro::DataRecorder *recorder = nullptr);
 
-  void SetOutputFileHandle(FILE *fh, bool tranfer_ownership);
+  void SetOutputFile(lldb::FileSP file);
 
-  void SetErrorFileHandle(FILE *fh, bool tranfer_ownership);
+  void SetErrorFile(lldb::FileSP file);
 
   void SaveInputTerminalState();
 
@@ -141,7 +151,9 @@ public:
     return *m_command_interpreter_up;
   }
 
-  ScriptInterpreter *GetScriptInterpreter(bool can_create = true);
+  ScriptInterpreter *
+  GetScriptInterpreter(bool can_create = true,
+                       llvm::Optional<lldb::ScriptLanguage> language = {});
 
   lldb::ListenerSP GetListener() { return m_listener_sp; }
 
@@ -174,7 +186,7 @@ public:
 
   // If any of the streams are not set, set them to the in/out/err stream of
   // the top most input reader to ensure they at least have something
-  void AdoptTopIOHandlerFilesIfInvalid(lldb::StreamFileSP &in,
+  void AdoptTopIOHandlerFilesIfInvalid(lldb::FileSP &in,
                                        lldb::StreamFileSP &out,
                                        lldb::StreamFileSP &err);
 
@@ -311,7 +323,7 @@ public:
   // selected target, or if no target is present you want to prime the dummy
   // target with entities that will be copied over to new targets.
   Target *GetSelectedOrDummyTarget(bool prefer_dummy = false);
-  Target *GetDummyTarget();
+  Target *GetDummyTarget() { return m_dummy_target_sp.get(); }
 
   lldb::BroadcasterManagerSP GetBroadcasterManager() {
     return m_broadcaster_manager_sp;
@@ -345,9 +357,10 @@ protected:
 
   void HandleThreadEvent(const lldb::EventSP &event_sp);
 
-  size_t GetProcessSTDOUT(Process *process, Stream *stream);
-
-  size_t GetProcessSTDERR(Process *process, Stream *stream);
+  // Ensures two threads don't attempt to flush process output in parallel.
+  std::mutex m_output_flush_mutex;
+  void FlushProcessOutput(Process &process, bool flush_stdout,
+                          bool flush_stderr);
 
   SourceManager::SourceFileCache &GetSourceFileCache() {
     return m_source_file_cache;
@@ -355,9 +368,10 @@ protected:
 
   void InstanceInitialize();
 
-  lldb::StreamFileSP m_input_file_sp;
-  lldb::StreamFileSP m_output_file_sp;
-  lldb::StreamFileSP m_error_file_sp;
+  // these should never be NULL
+  lldb::FileSP m_input_file_sp;
+  lldb::StreamFileSP m_output_stream_sp;
+  lldb::StreamFileSP m_error_stream_sp;
 
   /// Used for shadowing the input file when capturing a reproducer.
   repro::DataRecorder *m_input_recorder;
@@ -384,8 +398,9 @@ protected:
                                                       // source file cache.
   std::unique_ptr<CommandInterpreter> m_command_interpreter_up;
 
-  lldb::ScriptInterpreterSP m_script_interpreter_sp;
   std::recursive_mutex m_script_interpreter_mutex;
+  std::array<lldb::ScriptInterpreterSP, lldb::eScriptLanguageUnknown>
+      m_script_interpreters;
 
   IOHandlerStack m_input_reader_stack;
   llvm::StringMap<std::weak_ptr<llvm::raw_ostream>> m_log_streams;
@@ -399,6 +414,7 @@ protected:
   Broadcaster m_sync_broadcaster;
   lldb::ListenerSP m_forward_listener_sp;
   llvm::once_flag m_clear_once;
+  lldb::TargetSP m_dummy_target_sp;
 
   // Events for m_sync_broadcaster
   enum {

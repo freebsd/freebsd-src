@@ -60,9 +60,37 @@ def UndefinedBoolConversion : DiagGroup<"undefined-bool-conversion">;
 def BoolConversion : DiagGroup<"bool-conversion", [PointerBoolConversion,
                                                    UndefinedBoolConversion]>;
 def IntConversion : DiagGroup<"int-conversion">;
-def EnumConversion : DiagGroup<"enum-conversion">;
-def ImplicitIntConversion : DiagGroup<"implicit-int-conversion">;
-def ImplicitFloatConversion : DiagGroup<"implicit-float-conversion">;
+def DeprecatedEnumCompareConditional :
+  DiagGroup<"deprecated-enum-compare-conditional">;
+def EnumCompareConditional : DiagGroup<"enum-compare-conditional",
+                                       [DeprecatedEnumCompareConditional]>;
+def EnumCompareSwitch : DiagGroup<"enum-compare-switch">;
+def DeprecatedEnumCompare : DiagGroup<"deprecated-enum-compare">;
+def EnumCompare : DiagGroup<"enum-compare", [EnumCompareSwitch,
+                                             DeprecatedEnumCompare]>;
+def DeprecatedAnonEnumEnumConversion : DiagGroup<"deprecated-anon-enum-enum-conversion">;
+def DeprecatedEnumEnumConversion : DiagGroup<"deprecated-enum-enum-conversion">;
+def DeprecatedEnumFloatConversion : DiagGroup<"deprecated-enum-float-conversion">;
+def AnonEnumEnumConversion : DiagGroup<"anon-enum-enum-conversion",
+                                   [DeprecatedAnonEnumEnumConversion]>;
+def EnumEnumConversion : DiagGroup<"enum-enum-conversion",
+                                   [DeprecatedEnumEnumConversion]>;
+def EnumFloatConversion : DiagGroup<"enum-float-conversion",
+                                    [DeprecatedEnumFloatConversion]>;
+def EnumConversion : DiagGroup<"enum-conversion",
+                               [EnumEnumConversion,
+                                EnumFloatConversion,
+                                EnumCompareConditional]>;
+def ObjCSignedCharBoolImplicitIntConversion :
+  DiagGroup<"objc-signed-char-bool-implicit-int-conversion">;
+def ImplicitIntConversion : DiagGroup<"implicit-int-conversion",
+                                     [ObjCSignedCharBoolImplicitIntConversion]>;
+def ImplicitIntFloatConversion : DiagGroup<"implicit-int-float-conversion">;
+def ObjCSignedCharBoolImplicitFloatConversion :
+  DiagGroup<"objc-signed-char-bool-implicit-float-conversion">;
+def ImplicitFloatConversion : DiagGroup<"implicit-float-conversion",
+  [ImplicitIntFloatConversion,
+   ObjCSignedCharBoolImplicitFloatConversion]>;
 def ImplicitFixedPointConversion : DiagGroup<"implicit-fixed-point-conversion">;
 
 def FloatOverflowConversion : DiagGroup<"float-overflow-conversion">;
@@ -99,13 +127,13 @@ def GNUComplexInteger : DiagGroup<"gnu-complex-integer">;
 def GNUConditionalOmittedOperand : DiagGroup<"gnu-conditional-omitted-operand">;
 def ConfigMacros : DiagGroup<"config-macros">;
 def : DiagGroup<"ctor-dtor-privacy">;
-def GNUDesignator : DiagGroup<"gnu-designator">;
 def GNUStringLiteralOperatorTemplate :
   DiagGroup<"gnu-string-literal-operator-template">;
 def UndefinedVarTemplate : DiagGroup<"undefined-var-template">;
 def UndefinedFuncTemplate : DiagGroup<"undefined-func-template">;
 def MissingNoEscape : DiagGroup<"missing-noescape">;
 
+def DefaultedFunctionDeleted : DiagGroup<"defaulted-function-deleted">;
 def DeleteIncomplete : DiagGroup<"delete-incomplete">;
 def DeleteNonAbstractNonVirtualDtor : DiagGroup<"delete-non-abstract-non-virtual-dtor">;
 def DeleteAbstractNonVirtualDtor : DiagGroup<"delete-abstract-non-virtual-dtor">;
@@ -113,11 +141,16 @@ def DeleteNonVirtualDtor : DiagGroup<"delete-non-virtual-dtor",
                                      [DeleteNonAbstractNonVirtualDtor,
                                       DeleteAbstractNonVirtualDtor]>;
 def AbstractFinalClass : DiagGroup<"abstract-final-class">;
+def FinalDtorNonFinalClass : DiagGroup<"final-dtor-non-final-class">;
 
 def CXX11CompatDeprecatedWritableStr :
   DiagGroup<"c++11-compat-deprecated-writable-strings">;
 
+def DeprecatedArrayCompare : DiagGroup<"deprecated-array-compare">;
 def DeprecatedAttributes : DiagGroup<"deprecated-attributes">;
+def DeprecatedCommaSubscript : DiagGroup<"deprecated-comma-subscript">;
+def DeprecatedCopy : DiagGroup<"deprecated-copy">;
+def DeprecatedCopyDtor : DiagGroup<"deprecated-copy-dtor">;
 def DeprecatedDeclarations : DiagGroup<"deprecated-declarations">;
 def UnavailableDeclarations : DiagGroup<"unavailable-declarations">;
 def UnguardedAvailabilityNew : DiagGroup<"unguarded-availability-new">;
@@ -131,17 +164,34 @@ def DeprecatedImplementations :DiagGroup<"deprecated-implementations">;
 def DeprecatedIncrementBool : DiagGroup<"deprecated-increment-bool">;
 def DeprecatedRegister : DiagGroup<"deprecated-register">;
 def DeprecatedThisCapture : DiagGroup<"deprecated-this-capture">;
+def DeprecatedVolatile : DiagGroup<"deprecated-volatile">;
 def DeprecatedWritableStr : DiagGroup<"deprecated-writable-strings",
                                       [CXX11CompatDeprecatedWritableStr]>;
 // FIXME: Why is DeprecatedImplementations not in this group?
-def Deprecated : DiagGroup<"deprecated", [DeprecatedAttributes,
+def Deprecated : DiagGroup<"deprecated", [DeprecatedAnonEnumEnumConversion,
+                                          DeprecatedArrayCompare,
+                                          DeprecatedAttributes,
+                                          DeprecatedCommaSubscript,
+                                          DeprecatedCopy,
+                                          DeprecatedCopyDtor,
                                           DeprecatedDeclarations,
                                           DeprecatedDynamicExceptionSpec,
+                                          DeprecatedEnumCompare,
+                                          DeprecatedEnumCompareConditional,
+                                          DeprecatedEnumEnumConversion,
+                                          DeprecatedEnumFloatConversion,
                                           DeprecatedIncrementBool,
                                           DeprecatedRegister,
                                           DeprecatedThisCapture,
+                                          DeprecatedVolatile,
                                           DeprecatedWritableStr]>,
                  DiagCategory<"Deprecations">;
+
+def CXX20Designator : DiagGroup<"c++20-designator">;
+// Allow -Wno-c99-designator to be used to turn off all warnings on valid C99
+// designators (including the warning controlled by -Wc++20-designator).
+def C99Designator : DiagGroup<"c99-designator", [CXX20Designator]>;
+def GNUDesignator : DiagGroup<"gnu-designator">;
 
 def DynamicExceptionSpec
     : DiagGroup<"dynamic-exception-spec", [DeprecatedDynamicExceptionSpec]>;
@@ -196,9 +246,9 @@ def CXXPre14CompatPedantic : DiagGroup<"c++98-c++11-compat-pedantic",
 def CXXPre17Compat : DiagGroup<"c++98-c++11-c++14-compat">;
 def CXXPre17CompatPedantic : DiagGroup<"c++98-c++11-c++14-compat-pedantic",
                                        [CXXPre17Compat]>;
-def CXXPre2aCompat : DiagGroup<"c++98-c++11-c++14-c++17-compat">;
-def CXXPre2aCompatPedantic : DiagGroup<"c++98-c++11-c++14-c++17-compat-pedantic",
-                                       [CXXPre2aCompat]>;
+def CXXPre20Compat : DiagGroup<"c++98-c++11-c++14-c++17-compat">;
+def CXXPre20CompatPedantic : DiagGroup<"c++98-c++11-c++14-c++17-compat-pedantic",
+                                       [CXXPre20Compat]>;
 
 def CXX98CompatBindToTemporaryCopy :
   DiagGroup<"c++98-compat-bind-to-temporary-copy">;
@@ -212,7 +262,7 @@ def CXX98Compat : DiagGroup<"c++98-compat",
                              CXX98CompatUnnamedTypeTemplateArgs,
                              CXXPre14Compat,
                              CXXPre17Compat,
-                             CXXPre2aCompat]>;
+                             CXXPre20Compat]>;
 // Warnings for C++11 features which are Extensions in C++98 mode.
 def CXX98CompatPedantic : DiagGroup<"c++98-compat-pedantic",
                                     [CXX98Compat,
@@ -220,7 +270,7 @@ def CXX98CompatPedantic : DiagGroup<"c++98-compat-pedantic",
                                      CXX98CompatExtraSemi,
                                      CXXPre14CompatPedantic,
                                      CXXPre17CompatPedantic,
-                                     CXXPre2aCompatPedantic]>;
+                                     CXXPre20CompatPedantic]>;
 
 def CXX11Narrowing : DiagGroup<"c++11-narrowing">;
 
@@ -246,38 +296,41 @@ def CXX11Compat : DiagGroup<"c++11-compat",
                              CXX11CompatDeprecatedWritableStr,
                              CXXPre14Compat,
                              CXXPre17Compat,
-                             CXXPre2aCompat]>;
+                             CXXPre20Compat]>;
 def : DiagGroup<"c++0x-compat", [CXX11Compat]>;
 def CXX11CompatPedantic : DiagGroup<"c++11-compat-pedantic",
                                     [CXX11Compat,
                                      CXXPre14CompatPedantic,
                                      CXXPre17CompatPedantic,
-                                     CXXPre2aCompatPedantic]>;
+                                     CXXPre20CompatPedantic]>;
 
 def CXX14Compat : DiagGroup<"c++14-compat", [CXXPre17Compat,
-                                             CXXPre2aCompat]>;
+                                             CXXPre20Compat]>;
 def CXX14CompatPedantic : DiagGroup<"c++14-compat-pedantic",
                                     [CXX14Compat,
                                      CXXPre17CompatPedantic,
-                                     CXXPre2aCompatPedantic]>;
+                                     CXXPre20CompatPedantic]>;
 
 def CXX17Compat : DiagGroup<"c++17-compat", [DeprecatedRegister,
                                              DeprecatedIncrementBool,
                                              CXX17CompatMangling,
-                                             CXXPre2aCompat]>;
+                                             CXXPre20Compat]>;
 def CXX17CompatPedantic : DiagGroup<"c++17-compat-pedantic",
                                     [CXX17Compat,
-                                     CXXPre2aCompatPedantic]>;
+                                     CXXPre20CompatPedantic]>;
 def : DiagGroup<"c++1z-compat", [CXX17Compat]>;
 
-def CXX2aCompat : DiagGroup<"c++2a-compat">;
-def CXX2aCompatPedantic : DiagGroup<"c++2a-compat-pedantic",
-                                    [CXX2aCompat]>;
+def CXX20Compat : DiagGroup<"c++20-compat">;
+def CXX20CompatPedantic : DiagGroup<"c++20-compat-pedantic",
+                                    [CXX20Compat]>;
+def : DiagGroup<"c++2a-compat", [CXX20Compat]>;
+def : DiagGroup<"c++2a-compat-pedantic", [CXX20CompatPedantic]>;
 
 def ExitTimeDestructors : DiagGroup<"exit-time-destructors">;
 def FlexibleArrayExtensions : DiagGroup<"flexible-array-extensions">;
 def FourByteMultiChar : DiagGroup<"four-char-constants">;
 def GlobalConstructors : DiagGroup<"global-constructors">;
+def BitwiseConditionalParentheses: DiagGroup<"bitwise-conditional-parentheses">;
 def BitwiseOpParentheses: DiagGroup<"bitwise-op-parentheses">;
 def LogicalOpParentheses: DiagGroup<"logical-op-parentheses">;
 def LogicalNotParentheses: DiagGroup<"logical-not-parentheses">;
@@ -286,9 +339,11 @@ def OverloadedShiftOpParentheses: DiagGroup<"overloaded-shift-op-parentheses">;
 def DanglingElse: DiagGroup<"dangling-else">;
 def DanglingField : DiagGroup<"dangling-field">;
 def DanglingInitializerList : DiagGroup<"dangling-initializer-list">;
+def DanglingGsl : DiagGroup<"dangling-gsl">;
 def ReturnStackAddress : DiagGroup<"return-stack-address">;
 def Dangling : DiagGroup<"dangling", [DanglingField,
                                       DanglingInitializerList,
+                                      DanglingGsl,
                                       ReturnStackAddress]>;
 def DistributedObjectModifiers : DiagGroup<"distributed-object-modifiers">;
 def ExpansionToDefined : DiagGroup<"expansion-to-defined">;
@@ -331,7 +386,10 @@ def GNULabelsAsValue : DiagGroup<"gnu-label-as-value">;
 def LiteralRange : DiagGroup<"literal-range">;
 def LocalTypeTemplateArgs : DiagGroup<"local-type-template-args",
                                       [CXX98CompatLocalTypeTemplateArgs]>;
-def RangeLoopAnalysis : DiagGroup<"range-loop-analysis">;
+def RangeLoopConstruct : DiagGroup<"range-loop-construct">;
+def RangeLoopBindReference : DiagGroup<"range-loop-bind-reference">;
+def RangeLoopAnalysis : DiagGroup<"range-loop-analysis",
+                                  [RangeLoopConstruct, RangeLoopBindReference]>;
 def ForLoopAnalysis : DiagGroup<"for-loop-analysis">;
 def LoopAnalysis : DiagGroup<"loop-analysis", [ForLoopAnalysis,
                                                RangeLoopAnalysis]>;
@@ -481,6 +539,7 @@ def StringCompare : DiagGroup<"string-compare">;
 def StringPlusInt : DiagGroup<"string-plus-int">;
 def StringPlusChar : DiagGroup<"string-plus-char">;
 def StrncatSize : DiagGroup<"strncat-size">;
+def IntInBoolContext : DiagGroup<"int-in-bool-context">;
 def TautologicalTypeLimitCompare : DiagGroup<"tautological-type-limit-compare">;
 def TautologicalUnsignedZeroCompare : DiagGroup<"tautological-unsigned-zero-compare">;
 def TautologicalUnsignedEnumZeroCompare : DiagGroup<"tautological-unsigned-enum-zero-compare">;
@@ -495,12 +554,14 @@ def TautologicalConstantCompare : DiagGroup<"tautological-constant-compare",
                                             [TautologicalOutOfRangeCompare]>;
 def TautologicalPointerCompare : DiagGroup<"tautological-pointer-compare">;
 def TautologicalOverlapCompare : DiagGroup<"tautological-overlap-compare">;
+def TautologicalBitwiseCompare : DiagGroup<"tautological-bitwise-compare">;
 def TautologicalUndefinedCompare : DiagGroup<"tautological-undefined-compare">;
 def TautologicalObjCBoolCompare : DiagGroup<"tautological-objc-bool-compare">;
 def TautologicalCompare : DiagGroup<"tautological-compare",
                                     [TautologicalConstantCompare,
                                      TautologicalPointerCompare,
                                      TautologicalOverlapCompare,
+                                     TautologicalBitwiseCompare,
                                      TautologicalUndefinedCompare,
                                      TautologicalObjCBoolCompare]>;
 def HeaderHygiene : DiagGroup<"header-hygiene">;
@@ -509,6 +570,7 @@ def CompareDistinctPointerType : DiagGroup<"compare-distinct-pointer-types">;
 def GNUUnionCast : DiagGroup<"gnu-union-cast">;
 def GNUVariableSizedTypeNotAtEnd : DiagGroup<"gnu-variable-sized-type-not-at-end">;
 def Varargs : DiagGroup<"varargs">;
+def XorUsedAsPow : DiagGroup<"xor-used-as-pow">;
 
 def Unsequenced : DiagGroup<"unsequenced">;
 // GCC name for -Wunsequenced
@@ -543,8 +605,6 @@ def CoveredSwitchDefault : DiagGroup<"covered-switch-default">;
 def SwitchBool     : DiagGroup<"switch-bool">;
 def SwitchEnum     : DiagGroup<"switch-enum">;
 def Switch         : DiagGroup<"switch">;
-def EnumCompareSwitch : DiagGroup<"enum-compare-switch">;
-def EnumCompare       : DiagGroup<"enum-compare", [EnumCompareSwitch]>;
 def ImplicitFallthroughPerFunction :
   DiagGroup<"implicit-fallthrough-per-function">;
 def ImplicitFallthrough  : DiagGroup<"implicit-fallthrough",
@@ -620,7 +680,9 @@ def UnusedGetterReturnValue : DiagGroup<"unused-getter-return-value">;
 def UsedButMarkedUnused : DiagGroup<"used-but-marked-unused">;
 def UserDefinedLiterals : DiagGroup<"user-defined-literals">;
 def UserDefinedWarnings : DiagGroup<"user-defined-warnings">;
-def Reorder : DiagGroup<"reorder">;
+def ReorderCtor : DiagGroup<"reorder-ctor">;
+def ReorderInitList : DiagGroup<"reorder-init-list">;
+def Reorder : DiagGroup<"reorder", [ReorderCtor, ReorderInitList]>;
 def UndeclaredSelector : DiagGroup<"undeclared-selector">;
 def ImplicitAtomic : DiagGroup<"implicit-atomic-properties">;
 def CustomAtomic : DiagGroup<"custom-atomic-properties">;
@@ -660,6 +722,7 @@ def ZeroLengthArray : DiagGroup<"zero-length-array">;
 def GNUZeroLineDirective : DiagGroup<"gnu-zero-line-directive">;
 def GNUZeroVariadicMacroArguments : DiagGroup<"gnu-zero-variadic-macro-arguments">;
 def Fallback : DiagGroup<"fallback">;
+def MisleadingIndentation : DiagGroup<"misleading-indentation">;
 
 // This covers both the deprecated case (in C++98)
 // and the extension case (in C++11 onwards).
@@ -710,6 +773,7 @@ def ParenthesesOnEquality : DiagGroup<"parentheses-equality">;
 def Parentheses : DiagGroup<"parentheses",
                             [LogicalOpParentheses,
                              LogicalNotParentheses,
+                             BitwiseConditionalParentheses,
                              BitwiseOpParentheses,
                              ShiftOpParentheses,
                              OverloadedShiftOpParentheses,
@@ -757,6 +821,7 @@ def FormatSecurity : DiagGroup<"format-security">;
 def FormatNonStandard : DiagGroup<"format-non-iso">;
 def FormatY2K : DiagGroup<"format-y2k">;
 def FormatPedantic : DiagGroup<"format-pedantic">;
+def FormatTypeConfusion : DiagGroup<"format-type-confusion">;
 def Format : DiagGroup<"format",
                        [FormatExtraArgs, FormatZeroLength, NonNull,
                         FormatSecurity, FormatY2K, FormatInvalidSpecifier]>,
@@ -781,6 +846,7 @@ def Move : DiagGroup<"move", [
   ]>;
 
 def Extra : DiagGroup<"extra", [
+    DeprecatedCopy,
     MissingFieldInitializers,
     IgnoredQualifiers,
     InitializerOverrides,
@@ -796,14 +862,16 @@ def Most : DiagGroup<"most", [
     CharSubscript,
     Comment,
     DeleteNonVirtualDtor,
-    ForLoopAnalysis,
     Format,
+    ForLoopAnalysis,
     Implicit,
     InfiniteRecursion,
+    IntInBoolContext,
     MismatchedTags,
     MissingBraces,
     Move,
     MultiChar,
+    RangeLoopConstruct,
     Reorder,
     ReturnType,
     SelfAssignment,
@@ -811,6 +879,7 @@ def Most : DiagGroup<"most", [
     SizeofArrayArgument,
     SizeofArrayDecay,
     StringPlusInt,
+    TautologicalCompare,
     Trigraphs,
     Uninitialized,
     UnknownPragmas,
@@ -846,7 +915,7 @@ def Consumed       : DiagGroup<"consumed">;
 // Note that putting warnings in -Wall will not disable them by default. If a
 // warning should be active _only_ when -Wall is passed in, mark it as
 // DefaultIgnore in addition to putting it here.
-def All : DiagGroup<"all", [Most, Parentheses, Switch, SwitchBool]>;
+def All : DiagGroup<"all", [Most, Parentheses, Switch, SwitchBool, MisleadingIndentation]>;
 
 // Warnings that should be in clang-cl /w4.
 def : DiagGroup<"CL4", [All, Extra]>;
@@ -888,13 +957,14 @@ def CXX14 : DiagGroup<"c++14-extensions", [CXX14BinaryLiteral]>;
 // earlier C++ versions.
 def CXX17 : DiagGroup<"c++17-extensions">;
 
-// A warning group for warnings about using C++2a features as extensions in
+// A warning group for warnings about using C++20 features as extensions in
 // earlier C++ versions.
-def CXX2a : DiagGroup<"c++2a-extensions">;
+def CXX20 : DiagGroup<"c++20-extensions", [CXX20Designator]>;
 
 def : DiagGroup<"c++0x-extensions", [CXX11]>;
 def : DiagGroup<"c++1y-extensions", [CXX14]>;
 def : DiagGroup<"c++1z-extensions", [CXX17]>;
+def : DiagGroup<"c++2a-extensions", [CXX20]>;
 
 def DelegatingCtorCycles :
   DiagGroup<"delegating-ctor-cycles">;
@@ -903,7 +973,7 @@ def DelegatingCtorCycles :
 def C11 : DiagGroup<"c11-extensions">;
 
 // A warning group for warnings about using C99 features as extensions.
-def C99 : DiagGroup<"c99-extensions">;
+def C99 : DiagGroup<"c99-extensions", [C99Designator]>;
 
 // A warning group for warnings about GCC extensions.
 def GNU : DiagGroup<"gnu", [GNUAlignofExpression, GNUAnonymousStruct,
@@ -944,7 +1014,8 @@ def MicrosoftExplicitConstructorCall : DiagGroup<
 def MicrosoftEnumValue : DiagGroup<"microsoft-enum-value">;
 def MicrosoftDefaultArgRedefinition :
     DiagGroup<"microsoft-default-arg-redefinition">;
-def MicrosoftTemplate : DiagGroup<"microsoft-template">;
+def MicrosoftTemplateShadow : DiagGroup<"microsoft-template-shadow">;
+def MicrosoftTemplate : DiagGroup<"microsoft-template", [MicrosoftTemplateShadow]>;
 def MicrosoftInconsistentDllImport : DiagGroup<"inconsistent-dllimport">;
 def MicrosoftRedeclareStatic : DiagGroup<"microsoft-redeclare-static">;
 def MicrosoftEnumForwardReference :
@@ -1001,6 +1072,12 @@ def ObjCLiteralComparison : DiagGroup<"objc-literal-compare", [
     ObjCStringComparison
   ]>;
 
+def ObjCSignedCharBool : DiagGroup<"objc-signed-char-bool",
+  [ObjCSignedCharBoolImplicitIntConversion,
+   ObjCSignedCharBoolImplicitFloatConversion,
+   ObjCBoolConstantConversion,
+   TautologicalObjCBoolCompare]>;
+
 // Inline ASM warnings.
 def ASMOperandWidths : DiagGroup<"asm-operand-widths">;
 def ASMIgnoredQualifier : DiagGroup<"asm-ignored-qualifier">;
@@ -1012,7 +1089,11 @@ def ASM : DiagGroup<"asm", [
 def SourceUsesOpenMP : DiagGroup<"source-uses-openmp">;
 def OpenMPClauses : DiagGroup<"openmp-clauses">;
 def OpenMPLoopForm : DiagGroup<"openmp-loop-form">;
-def OpenMPTarget : DiagGroup<"openmp-target">;
+def OpenMPMapping : DiagGroup<"openmp-mapping">;
+def OpenMPTarget : DiagGroup<"openmp-target", [OpenMPMapping]>;
+def OpenMP : DiagGroup<"openmp", [
+    SourceUsesOpenMP, OpenMPClauses, OpenMPLoopForm, OpenMPTarget, OpenMPMapping
+  ]>;
 
 // Backend warnings.
 def BackendInlineAsm : DiagGroup<"inline-asm">;
@@ -1028,6 +1109,7 @@ def BackendOptimizationFailure : DiagGroup<"pass-failed">;
 def ProfileInstrMissing : DiagGroup<"profile-instr-missing">;
 def ProfileInstrOutOfDate : DiagGroup<"profile-instr-out-of-date">;
 def ProfileInstrUnprofiled : DiagGroup<"profile-instr-unprofiled">;
+def MisExpect : DiagGroup<"misexpect">;
 
 // AddressSanitizer frontend instrumentation remarks.
 def SanitizeAddressRemarks : DiagGroup<"sanitize-address">;
@@ -1038,6 +1120,13 @@ def SerializedDiagnostics : DiagGroup<"serialized-diagnostics">;
 // A warning group for warnings about code that clang accepts when
 // compiling CUDA C/C++ but which is not compatible with the CUDA spec.
 def CudaCompat : DiagGroup<"cuda-compat">;
+
+// Warning about unknown CUDA SDK version.
+def CudaUnknownVersion: DiagGroup<"unknown-cuda-version">;
+
+// A warning group for warnings about features supported by HIP but
+// ignored by CUDA.
+def HIPOnly : DiagGroup<"hip-only">;
 
 // Warnings which cause linking of the runtime libraries like
 // libc and the CRT to be skipped.

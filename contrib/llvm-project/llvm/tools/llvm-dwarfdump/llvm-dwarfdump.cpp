@@ -271,7 +271,7 @@ static bool filterArch(ObjectFile &Obj) {
           return true;
 
       // Match as name.
-      if (MachO->getArchTriple().getArch() == Triple(Arch).getArch())
+      if (MachO->getArchTriple().getArchName() == Triple(Arch).getArchName())
         return true;
     }
   }
@@ -584,7 +584,7 @@ int main(int argc, char **argv) {
   }
 
   std::error_code EC;
-  ToolOutputFile OutputFile(OutputFilename, EC, sys::fs::OF_None);
+  ToolOutputFile OutputFile(OutputFilename, EC, sys::fs::OF_Text);
   error("Unable to open output file" + OutputFilename, EC);
   // Don't remove output file if we exit with an error.
   OutputFile.keep();

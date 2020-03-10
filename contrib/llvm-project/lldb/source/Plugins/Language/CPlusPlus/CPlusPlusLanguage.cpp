@@ -19,6 +19,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/ItaniumDemangle.h"
 
+#include "lldb/Core/Mangled.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/UniqueCStringMap.h"
 #include "lldb/DataFormatters/CXXFunctionPointer.h"
@@ -238,18 +239,16 @@ std::string CPlusPlusLanguage::MethodName::GetScopeQualifiedName() {
   return res;
 }
 
-bool CPlusPlusLanguage::IsCPPMangledName(const char *name) {
+bool CPlusPlusLanguage::IsCPPMangledName(llvm::StringRef name) {
   // FIXME!! we should really run through all the known C++ Language plugins
   // and ask each one if this is a C++ mangled name
 
-  if (name == nullptr)
+  Mangled::ManglingScheme scheme = Mangled::GetManglingScheme(name);
+
+  if (scheme == Mangled::eManglingSchemeNone)
     return false;
 
-  // MSVC style mangling
-  if (name[0] == '?')
-    return true;
-
-  return (name[0] != '\0' && name[0] == '_' && name[1] == 'Z');
+  return true;
 }
 
 bool CPlusPlusLanguage::ExtractContextAndIdentifier(
@@ -285,46 +284,34 @@ public:
   }
 };
 
-/// Given a mangled function `Mangled`, replace all the primitive function type
-/// arguments of `Search` with type `Replace`.
-class TypeSubstitutor
-    : public llvm::itanium_demangle::AbstractManglingParser<TypeSubstitutor,
+template <typename Derived>
+class ManglingSubstitutor
+    : public llvm::itanium_demangle::AbstractManglingParser<Derived,
                                                             NodeAllocator> {
-  /// Input character until which we have constructed the respective output
-  /// already
-  const char *Written;
+  using Base =
+      llvm::itanium_demangle::AbstractManglingParser<Derived, NodeAllocator>;
 
-  llvm::StringRef Search;
-  llvm::StringRef Replace;
-  llvm::SmallString<128> Result;
+public:
+  ManglingSubstitutor() : Base(nullptr, nullptr) {}
 
-  /// Whether we have performed any substitutions.
-  bool Substituted;
+  template<typename... Ts>
+  ConstString substitute(llvm::StringRef Mangled, Ts &&... Vals) {
+    this->getDerived().reset(Mangled, std::forward<Ts>(Vals)...);
+    return substituteImpl(Mangled);
+  }
 
-  void reset(llvm::StringRef Mangled, llvm::StringRef Search,
-             llvm::StringRef Replace) {
-    AbstractManglingParser::reset(Mangled.begin(), Mangled.end());
+
+protected:
+  void reset(llvm::StringRef Mangled) {
+    Base::reset(Mangled.begin(), Mangled.end());
     Written = Mangled.begin();
-    this->Search = Search;
-    this->Replace = Replace;
     Result.clear();
     Substituted = false;
   }
 
-  void appendUnchangedInput() {
-    Result += llvm::StringRef(Written, First - Written);
-    Written = First;
-  }
-
-public:
-  TypeSubstitutor() : AbstractManglingParser(nullptr, nullptr) {}
-
-  ConstString substitute(llvm::StringRef Mangled, llvm::StringRef From,
-                         llvm::StringRef To) {
+  ConstString substituteImpl(llvm::StringRef Mangled) {
     Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE);
-
-    reset(Mangled, From, To);
-    if (parse() == nullptr) {
+    if (this->parse() == nullptr) {
       LLDB_LOG(log, "Failed to substitute mangling in {0}", Mangled);
       return ConstString();
     }
@@ -337,20 +324,69 @@ public:
     return ConstString(Result);
   }
 
-  llvm::itanium_demangle::Node *parseType() {
-    if (llvm::StringRef(First, numLeft()).startswith(Search)) {
-      // We found a match. Append unmodified input up to this point.
-      appendUnchangedInput();
+  void trySubstitute(llvm::StringRef From, llvm::StringRef To) {
+    if (!llvm::StringRef(currentParserPos(), this->numLeft()).startswith(From))
+      return;
 
-      // And then perform the replacement.
-      Result += Replace;
-      Written += Search.size();
-      Substituted = true;
-    }
-    return AbstractManglingParser::parseType();
+    // We found a match. Append unmodified input up to this point.
+    appendUnchangedInput();
+
+    // And then perform the replacement.
+    Result += To;
+    Written += From.size();
+    Substituted = true;
+  }
+
+private:
+  /// Input character until which we have constructed the respective output
+  /// already.
+  const char *Written;
+
+  llvm::SmallString<128> Result;
+
+  /// Whether we have performed any substitutions.
+  bool Substituted;
+
+  const char *currentParserPos() const { return this->First; }
+
+  void appendUnchangedInput() {
+    Result +=
+        llvm::StringRef(Written, std::distance(Written, currentParserPos()));
+    Written = currentParserPos();
+  }
+
+};
+
+/// Given a mangled function `Mangled`, replace all the primitive function type
+/// arguments of `Search` with type `Replace`.
+class TypeSubstitutor : public ManglingSubstitutor<TypeSubstitutor> {
+  llvm::StringRef Search;
+  llvm::StringRef Replace;
+
+public:
+  void reset(llvm::StringRef Mangled, llvm::StringRef Search,
+             llvm::StringRef Replace) {
+    ManglingSubstitutor::reset(Mangled);
+    this->Search = Search;
+    this->Replace = Replace;
+  }
+
+  llvm::itanium_demangle::Node *parseType() {
+    trySubstitute(Search, Replace);
+    return ManglingSubstitutor::parseType();
   }
 };
-}
+
+class CtorDtorSubstitutor : public ManglingSubstitutor<CtorDtorSubstitutor> {
+public:
+  llvm::itanium_demangle::Node *
+  parseCtorDtorName(llvm::itanium_demangle::Node *&SoFar, NameState *State) {
+    trySubstitute("C1", "C2");
+    trySubstitute("D1", "D2");
+    return ManglingSubstitutor::parseCtorDtorName(SoFar, State);
+  }
+};
+} // namespace
 
 uint32_t CPlusPlusLanguage::FindAlternateFunctionManglings(
     const ConstString mangled_name, std::set<ConstString> &alternates) {
@@ -398,6 +434,10 @@ uint32_t CPlusPlusLanguage::FindAlternateFunctionManglings(
           TS.substitute(mangled_name.GetStringRef(), "y", "m"))
     alternates.insert(ulong_fixup);
 
+  if (ConstString ctor_fixup =
+          CtorDtorSubstitutor().substitute(mangled_name.GetStringRef()))
+    alternates.insert(ctor_fixup);
+
   return alternates.size() - start_size;
 }
 
@@ -425,6 +465,13 @@ static void LoadLibCxxFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
                 ConstString("^std::__[[:alnum:]]+::basic_string<char, "
                             "std::__[[:alnum:]]+::char_traits<char>, "
                             "std::__[[:alnum:]]+::allocator<char> >$"),
+                stl_summary_flags, true);
+  AddCXXSummary(cpp_category_sp,
+                lldb_private::formatters::LibcxxStringSummaryProviderASCII,
+                "std::string summary provider",
+                ConstString("^std::__[[:alnum:]]+::basic_string<unsigned char, "
+                            "std::__[[:alnum:]]+::char_traits<unsigned char>, "
+                            "std::__[[:alnum:]]+::allocator<unsigned char> >$"),
                 stl_summary_flags, true);
 
   AddCXXSummary(cpp_category_sp,
@@ -486,8 +533,11 @@ static void LoadLibCxxFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
       cpp_category_sp,
       lldb_private::formatters::LibcxxStdListSyntheticFrontEndCreator,
       "libc++ std::list synthetic children",
-      ConstString("^std::__[[:alnum:]]+::list<.+>(( )?&)?$"), stl_deref_flags,
-      true);
+      // A POSIX variant of: "^std::__(?!cxx11:)[[:alnum:]]+::list<.+>(( )?&)?$"
+      // so that it does not clash with: "^std::(__cxx11::)?list<.+>(( )?&)?$"
+      ConstString("^std::__([A-Zabd-z0-9]|cx?[A-Za-wyz0-9]|cxx1?[A-Za-z02-9]|"
+                  "cxx11[[:alnum:]])[[:alnum:]]*::list<.+>(( )?&)?$"),
+      stl_deref_flags, true);
   AddCXXSynthetic(
       cpp_category_sp,
       lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator,
@@ -547,8 +597,8 @@ static void LoadLibCxxFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
       ConstString("^std::__[[:alnum:]]+::atomic<.+>$"), stl_synth_flags, true);
 
   cpp_category_sp->GetRegexTypeSyntheticsContainer()->Add(
-      RegularExpressionSP(new RegularExpression(
-          llvm::StringRef("^(std::__[[:alnum:]]+::)deque<.+>(( )?&)?$"))),
+      RegularExpression(
+          llvm::StringRef("^(std::__[[:alnum:]]+::)deque<.+>(( )?&)?$")),
       SyntheticChildrenSP(new ScriptedSyntheticChildren(
           stl_synth_flags,
           "lldb.formatters.cpp.libcxx.stddeque_SynthProvider")));
@@ -565,12 +615,11 @@ static void LoadLibCxxFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
       "weak_ptr synthetic children",
       ConstString("^(std::__[[:alnum:]]+::)weak_ptr<.+>(( )?&)?$"),
       stl_synth_flags, true);
-
-  AddCXXSummary(
-      cpp_category_sp, lldb_private::formatters::LibcxxFunctionSummaryProvider,
-      "libc++ std::function summary provider",
-      ConstString("^std::__[[:alnum:]]+::function<.+>$"), stl_summary_flags,
-      true);
+  AddCXXSummary(cpp_category_sp,
+                lldb_private::formatters::LibcxxFunctionSummaryProvider,
+                "libc++ std::function summary provider",
+                ConstString("^std::__[[:alnum:]]+::function<.+>$"),
+                stl_summary_flags, true);
 
   stl_summary_flags.SetDontShowChildren(false);
   stl_summary_flags.SetSkipPointers(false);
@@ -589,11 +638,14 @@ static void LoadLibCxxFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
                 "libc++ std::list summary provider",
                 ConstString("^std::__[[:alnum:]]+::forward_list<.+>(( )?&)?$"),
                 stl_summary_flags, true);
-  AddCXXSummary(cpp_category_sp,
-                lldb_private::formatters::LibcxxContainerSummaryProvider,
-                "libc++ std::list summary provider",
-                ConstString("^std::__[[:alnum:]]+::list<.+>(( )?&)?$"),
-                stl_summary_flags, true);
+  AddCXXSummary(
+      cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider,
+      "libc++ std::list summary provider",
+      // A POSIX variant of: "^std::__(?!cxx11:)[[:alnum:]]+::list<.+>(( )?&)?$"
+      // so that it does not clash with: "^std::(__cxx11::)?list<.+>(( )?&)?$"
+      ConstString("^std::__([A-Zabd-z0-9]|cx?[A-Za-wyz0-9]|cxx1?[A-Za-z02-9]|"
+                  "cxx11[[:alnum:]])[[:alnum:]]*::list<.+>(( )?&)?$"),
+      stl_summary_flags, true);
   AddCXXSummary(cpp_category_sp,
                 lldb_private::formatters::LibcxxContainerSummaryProvider,
                 "libc++ std::map summary provider",
@@ -719,6 +771,10 @@ static void LoadLibStdcppFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
       ConstString("std::__cxx11::basic_string<char, std::char_traits<char>, "
                   "std::allocator<char> >"),
       cxx11_string_summary_sp);
+  cpp_category_sp->GetTypeSummariesContainer()->Add(
+      ConstString("std::__cxx11::basic_string<unsigned char, std::char_traits<unsigned char>, "
+                  "std::allocator<unsigned char> >"),
+      cxx11_string_summary_sp);
 
   // making sure we force-pick the summary for printing wstring (_M_p is a
   // wchar_t*)
@@ -750,38 +806,32 @@ static void LoadLibStdcppFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
       false);
 
   cpp_category_sp->GetRegexTypeSyntheticsContainer()->Add(
-      RegularExpressionSP(
-          new RegularExpression(llvm::StringRef("^std::vector<.+>(( )?&)?$"))),
+      RegularExpression(llvm::StringRef("^std::vector<.+>(( )?&)?$")),
       SyntheticChildrenSP(new ScriptedSyntheticChildren(
           stl_synth_flags,
           "lldb.formatters.cpp.gnu_libstdcpp.StdVectorSynthProvider")));
   cpp_category_sp->GetRegexTypeSyntheticsContainer()->Add(
-      RegularExpressionSP(
-          new RegularExpression(llvm::StringRef("^std::map<.+> >(( )?&)?$"))),
+      RegularExpression(llvm::StringRef("^std::map<.+> >(( )?&)?$")),
       SyntheticChildrenSP(new ScriptedSyntheticChildren(
           stl_synth_flags,
           "lldb.formatters.cpp.gnu_libstdcpp.StdMapSynthProvider")));
   cpp_category_sp->GetRegexTypeSyntheticsContainer()->Add(
-      RegularExpressionSP(new RegularExpression(
-          llvm::StringRef("^std::(__cxx11::)?list<.+>(( )?&)?$"))),
+      RegularExpression(llvm::StringRef("^std::(__cxx11::)?list<.+>(( )?&)?$")),
       SyntheticChildrenSP(new ScriptedSyntheticChildren(
           stl_synth_flags,
           "lldb.formatters.cpp.gnu_libstdcpp.StdListSynthProvider")));
   stl_summary_flags.SetDontShowChildren(false);
   stl_summary_flags.SetSkipPointers(true);
   cpp_category_sp->GetRegexTypeSummariesContainer()->Add(
-      RegularExpressionSP(
-          new RegularExpression(llvm::StringRef("^std::vector<.+>(( )?&)?$"))),
+      RegularExpression(llvm::StringRef("^std::vector<.+>(( )?&)?$")),
       TypeSummaryImplSP(
           new StringSummaryFormat(stl_summary_flags, "size=${svar%#}")));
   cpp_category_sp->GetRegexTypeSummariesContainer()->Add(
-      RegularExpressionSP(
-          new RegularExpression(llvm::StringRef("^std::map<.+> >(( )?&)?$"))),
+      RegularExpression(llvm::StringRef("^std::map<.+> >(( )?&)?$")),
       TypeSummaryImplSP(
           new StringSummaryFormat(stl_summary_flags, "size=${svar%#}")));
   cpp_category_sp->GetRegexTypeSummariesContainer()->Add(
-      RegularExpressionSP(new RegularExpression(
-          llvm::StringRef("^std::(__cxx11::)?list<.+>(( )?&)?$"))),
+      RegularExpression(llvm::StringRef("^std::(__cxx11::)?list<.+>(( )?&)?$")),
       TypeSummaryImplSP(
           new StringSummaryFormat(stl_summary_flags, "size=${svar%#}")));
 
@@ -860,6 +910,14 @@ static void LoadSystemFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
   // FIXME because of a bug in the FormattersContainer we need to add a summary
   // for both X* and const X* (<rdar://problem/12717717>)
   AddCXXSummary(
+      cpp_category_sp, lldb_private::formatters::Char8StringSummaryProvider,
+      "char8_t * summary provider", ConstString("char8_t *"), string_flags);
+  AddCXXSummary(cpp_category_sp,
+                lldb_private::formatters::Char8StringSummaryProvider,
+                "char8_t [] summary provider",
+                ConstString("char8_t \\[[0-9]+\\]"), string_array_flags, true);
+
+  AddCXXSummary(
       cpp_category_sp, lldb_private::formatters::Char16StringSummaryProvider,
       "char16_t * summary provider", ConstString("char16_t *"), string_flags);
   AddCXXSummary(cpp_category_sp,
@@ -896,6 +954,9 @@ static void LoadSystemFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
       .SetHideItemNames(true)
       .SetShowMembersOneLiner(false);
 
+  AddCXXSummary(cpp_category_sp, lldb_private::formatters::Char8SummaryProvider,
+                "char8_t summary provider", ConstString("char8_t"),
+                widechar_flags);
   AddCXXSummary(
       cpp_category_sp, lldb_private::formatters::Char16SummaryProvider,
       "char16_t summary provider", ConstString("char16_t"), widechar_flags);

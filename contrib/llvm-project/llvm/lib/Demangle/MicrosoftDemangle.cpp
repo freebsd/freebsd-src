@@ -783,8 +783,26 @@ SymbolNode *Demangler::demangleMD5Name(StringView &MangledName) {
   return S;
 }
 
+SymbolNode *Demangler::demangleTypeinfoName(StringView &MangledName) {
+  assert(MangledName.startsWith('.'));
+  MangledName.consumeFront('.');
+
+  TypeNode *T = demangleType(MangledName, QualifierMangleMode::Result);
+  if (Error || !MangledName.empty()) {
+    Error = true;
+    return nullptr;
+  }
+  return synthesizeVariable(Arena, T, "`RTTI Type Descriptor Name'");
+}
+
 // Parser entry point.
 SymbolNode *Demangler::parse(StringView &MangledName) {
+  // Typeinfo names are strings stored in RTTI data. They're not symbol names.
+  // It's still useful to demangle them. They're the only demangled entity
+  // that doesn't start with a "?" but a ".".
+  if (MangledName.startsWith('.'))
+    return demangleTypeinfoName(MangledName);
+
   if (MangledName.startsWith("??@"))
     return demangleMD5Name(MangledName);
 
@@ -2161,7 +2179,7 @@ NodeArrayNode *Demangler::demangleFunctionParameterList(StringView &MangledName,
 
 NodeArrayNode *
 Demangler::demangleTemplateParameterList(StringView &MangledName) {
-  NodeList *Head;
+  NodeList *Head = nullptr;
   NodeList **Current = &Head;
   size_t Count = 0;
 
@@ -2328,12 +2346,22 @@ char *llvm::microsoftDemangle(const char *MangledName, char *Buf, size_t *N,
   if (Flags & MSDF_DumpBackrefs)
     D.dumpBackReferences();
 
+  OutputFlags OF = OF_Default;
+  if (Flags & MSDF_NoCallingConvention)
+    OF = OutputFlags(OF | OF_NoCallingConvention);
+  if (Flags & MSDF_NoAccessSpecifier)
+    OF = OutputFlags(OF | OF_NoAccessSpecifier);
+  if (Flags & MSDF_NoReturnType)
+    OF = OutputFlags(OF | OF_NoReturnType);
+  if (Flags & MSDF_NoMemberType)
+    OF = OutputFlags(OF | OF_NoMemberType);
+
   if (D.Error)
     InternalStatus = demangle_invalid_mangled_name;
   else if (!initializeOutputStream(Buf, N, S, 1024))
     InternalStatus = demangle_memory_alloc_failure;
   else {
-    AST->output(S, OF_Default);
+    AST->output(S, OF);
     S += '\0';
     if (N != nullptr)
       *N = S.getCurrentPosition();

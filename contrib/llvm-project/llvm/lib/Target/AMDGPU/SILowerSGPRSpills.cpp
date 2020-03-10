@@ -27,6 +27,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/VirtRegMap.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
@@ -278,8 +279,8 @@ bool SILowerSGPRSpills::runOnMachineFunction(MachineFunction &MF) {
           unsigned FIOp = AMDGPU::getNamedOperandIdx(MI.getOpcode(),
                                                      AMDGPU::OpName::vaddr);
           int FI = MI.getOperand(FIOp).getIndex();
-          unsigned VReg = TII->getNamedOperand(MI, AMDGPU::OpName::vdata)
-            ->getReg();
+          Register VReg =
+              TII->getNamedOperand(MI, AMDGPU::OpName::vdata)->getReg();
           if (FuncInfo->allocateVGPRSpillToAGPR(MF, FI,
                                                 TRI->isAGPR(MRI, VReg))) {
             TRI->eliminateFrameIndex(MI, 0, FIOp, nullptr);

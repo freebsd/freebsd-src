@@ -24,7 +24,7 @@ namespace lldb_private {
 class BreakpointResolverFileRegex : public BreakpointResolver {
 public:
   BreakpointResolverFileRegex(
-      Breakpoint *bkpt, RegularExpression &regex,
+      Breakpoint *bkpt, RegularExpression regex,
       const std::unordered_set<std::string> &func_name_set, bool exact_match);
 
   static BreakpointResolver *
@@ -37,8 +37,8 @@ public:
   ~BreakpointResolverFileRegex() override;
 
   Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
-                                          SymbolContext &context, Address *addr,
-                                          bool containing) override;
+                                          SymbolContext &context,
+                                          Address *addr) override;
 
   lldb::SearchDepth GetDepth() override;
 

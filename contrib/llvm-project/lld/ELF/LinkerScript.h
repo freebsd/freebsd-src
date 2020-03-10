@@ -116,7 +116,7 @@ struct SymbolAssignment : BaseCommand {
   unsigned size;
 };
 
-// Linker scripts allow additional constraints to be put on ouput sections.
+// Linker scripts allow additional constraints to be put on output sections.
 // If an output section is marked as ONLY_IF_RO, the section is created
 // only if its input sections are read-only. Likewise, an output section
 // with ONLY_IF_RW is created if all input sections are RW.
@@ -168,6 +168,12 @@ struct InputSectionDescription : BaseCommand {
   // will be associated with this InputSectionDescription.
   std::vector<SectionPattern> sectionPatterns;
 
+  // Includes InputSections and MergeInputSections. Used temporarily during
+  // assignment of input sections to output sections.
+  std::vector<InputSectionBase *> sectionBases;
+
+  // Used after the finalizeInputSections() pass. MergeInputSections have been
+  // merged into MergeSyntheticSections.
   std::vector<InputSection *> sections;
 
   // Temporary record of synthetic ThunkSection instances and the pass that
@@ -226,10 +232,10 @@ class LinkerScript final {
   void expandOutputSection(uint64_t size);
   void expandMemoryRegions(uint64_t size);
 
-  std::vector<InputSection *>
+  std::vector<InputSectionBase *>
   computeInputSections(const InputSectionDescription *);
 
-  std::vector<InputSection *> createInputSectionList(OutputSection &cmd);
+  std::vector<InputSectionBase *> createInputSectionList(OutputSection &cmd);
 
   std::vector<size_t> getPhdrIndices(OutputSection *sec);
 
@@ -259,7 +265,7 @@ public:
 
   bool hasPhdrsCommands() { return !phdrsCommands.empty(); }
   uint64_t getDot() { return dot; }
-  void discard(ArrayRef<InputSection *> v);
+  void discard(InputSectionBase *s);
 
   ExprValue getSymbolValue(StringRef name, const Twine &loc);
 
@@ -271,9 +277,10 @@ public:
   bool needsInterpSection();
 
   bool shouldKeep(InputSectionBase *s);
-  void assignAddresses();
+  const Defined *assignAddresses();
   void allocateHeaders(std::vector<PhdrEntry *> &phdrs);
   void processSectionCommands();
+  void processSymbolAssignments();
   void declareSymbols();
 
   // Used to handle INSERT AFTER statements.

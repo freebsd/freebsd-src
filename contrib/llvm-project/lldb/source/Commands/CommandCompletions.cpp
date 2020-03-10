@@ -6,11 +6,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <sys/stat.h>
-#if defined(__APPLE__) || defined(__linux__)
-#include <pwd.h>
-#endif
-
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSet.h"
 
@@ -23,13 +18,10 @@
 #include "lldb/Interpreter/OptionValueProperties.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/Variable.h"
-#include "lldb/Target/Target.h"
-#include "lldb/Utility/Args.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/StreamString.h"
 #include "lldb/Utility/TildeExpressionResolver.h"
 
-#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 
@@ -71,10 +63,9 @@ bool CommandCompletions::InvokeCommonCompletionCallbacks(
   return handled;
 }
 
-int CommandCompletions::SourceFiles(CommandInterpreter &interpreter,
-                                    CompletionRequest &request,
-                                    SearchFilter *searcher) {
-  request.SetWordComplete(true);
+void CommandCompletions::SourceFiles(CommandInterpreter &interpreter,
+                                     CompletionRequest &request,
+                                     SearchFilter *searcher) {
   // Find some way to switch "include support files..."
   SourceFileCompleter completer(interpreter, false, request);
 
@@ -85,20 +76,18 @@ int CommandCompletions::SourceFiles(CommandInterpreter &interpreter,
   } else {
     completer.DoCompletion(searcher);
   }
-  return request.GetNumberOfMatches();
 }
 
-static int DiskFilesOrDirectories(const llvm::Twine &partial_name,
-                                  bool only_directories, StringList &matches,
-                                  TildeExpressionResolver &Resolver) {
-  matches.Clear();
-
+static void DiskFilesOrDirectories(const llvm::Twine &partial_name,
+                                   bool only_directories,
+                                   CompletionRequest &request,
+                                   TildeExpressionResolver &Resolver) {
   llvm::SmallString<256> CompletionBuffer;
   llvm::SmallString<256> Storage;
   partial_name.toVector(CompletionBuffer);
 
   if (CompletionBuffer.size() >= PATH_MAX)
-    return matches.GetSize();
+    return;
 
   namespace path = llvm::sys::path;
 
@@ -126,10 +115,10 @@ static int DiskFilesOrDirectories(const llvm::Twine &partial_name,
         for (const auto &S : MatchSet) {
           Resolved = S.getKey();
           path::append(Resolved, path::get_separator());
-          matches.AppendString(Resolved);
+          request.AddCompletion(Resolved, "", CompletionMode::Partial);
         }
       }
-      return matches.GetSize();
+      return;
     }
 
     // If there was no trailing slash, then we're done as soon as we resolve
@@ -138,8 +127,8 @@ static int DiskFilesOrDirectories(const llvm::Twine &partial_name,
     if (FirstSep == llvm::StringRef::npos) {
       // Make sure it ends with a separator.
       path::append(CompletionBuffer, path::get_separator());
-      matches.AppendString(CompletionBuffer);
-      return matches.GetSize();
+      request.AddCompletion(CompletionBuffer, "", CompletionMode::Partial);
+      return;
     }
 
     // We want to keep the form the user typed, so we special case this to
@@ -219,51 +208,56 @@ static int DiskFilesOrDirectories(const llvm::Twine &partial_name,
       path::append(CompletionBuffer, path::get_separator());
     }
 
-    matches.AppendString(CompletionBuffer);
+    CompletionMode mode =
+        is_dir ? CompletionMode::Partial : CompletionMode::Normal;
+    request.AddCompletion(CompletionBuffer, "", mode);
   }
-
-  return matches.GetSize();
 }
 
-static int DiskFilesOrDirectories(CompletionRequest &request,
-                                  bool only_directories) {
-  request.SetWordComplete(false);
+static void DiskFilesOrDirectories(const llvm::Twine &partial_name,
+                                   bool only_directories, StringList &matches,
+                                   TildeExpressionResolver &Resolver) {
+  CompletionResult result;
+  std::string partial_name_str = partial_name.str();
+  CompletionRequest request(partial_name_str, partial_name_str.size(), result);
+  DiskFilesOrDirectories(partial_name, only_directories, request, Resolver);
+  result.GetMatches(matches);
+}
+
+static void DiskFilesOrDirectories(CompletionRequest &request,
+                                   bool only_directories) {
   StandardTildeExpressionResolver resolver;
-  StringList matches;
   DiskFilesOrDirectories(request.GetCursorArgumentPrefix(), only_directories,
-                         matches, resolver);
-  request.AddCompletions(matches);
-  return request.GetNumberOfMatches();
+                         request, resolver);
 }
 
-int CommandCompletions::DiskFiles(CommandInterpreter &interpreter,
-                                  CompletionRequest &request,
-                                  SearchFilter *searcher) {
-  return DiskFilesOrDirectories(request, /*only_dirs*/ false);
+void CommandCompletions::DiskFiles(CommandInterpreter &interpreter,
+                                   CompletionRequest &request,
+                                   SearchFilter *searcher) {
+  DiskFilesOrDirectories(request, /*only_dirs*/ false);
 }
 
-int CommandCompletions::DiskFiles(const llvm::Twine &partial_file_name,
-                                  StringList &matches,
-                                  TildeExpressionResolver &Resolver) {
-  return DiskFilesOrDirectories(partial_file_name, false, matches, Resolver);
+void CommandCompletions::DiskFiles(const llvm::Twine &partial_file_name,
+                                   StringList &matches,
+                                   TildeExpressionResolver &Resolver) {
+  DiskFilesOrDirectories(partial_file_name, false, matches, Resolver);
 }
 
-int CommandCompletions::DiskDirectories(CommandInterpreter &interpreter,
-                                        CompletionRequest &request,
-                                        SearchFilter *searcher) {
-  return DiskFilesOrDirectories(request, /*only_dirs*/ true);
+void CommandCompletions::DiskDirectories(CommandInterpreter &interpreter,
+                                         CompletionRequest &request,
+                                         SearchFilter *searcher) {
+  DiskFilesOrDirectories(request, /*only_dirs*/ true);
 }
 
-int CommandCompletions::DiskDirectories(const llvm::Twine &partial_file_name,
-                                        StringList &matches,
-                                        TildeExpressionResolver &Resolver) {
-  return DiskFilesOrDirectories(partial_file_name, true, matches, Resolver);
+void CommandCompletions::DiskDirectories(const llvm::Twine &partial_file_name,
+                                         StringList &matches,
+                                         TildeExpressionResolver &Resolver) {
+  DiskFilesOrDirectories(partial_file_name, true, matches, Resolver);
 }
 
-int CommandCompletions::Modules(CommandInterpreter &interpreter,
-                                CompletionRequest &request,
-                                SearchFilter *searcher) {
-  request.SetWordComplete(true);
+void CommandCompletions::Modules(CommandInterpreter &interpreter,
+                                 CompletionRequest &request,
+                                 SearchFilter *searcher) {
   ModuleCompleter completer(interpreter, request);
 
   if (searcher == nullptr) {
@@ -273,13 +267,11 @@ int CommandCompletions::Modules(CommandInterpreter &interpreter,
   } else {
     completer.DoCompletion(searcher);
   }
-  return request.GetNumberOfMatches();
 }
 
-int CommandCompletions::Symbols(CommandInterpreter &interpreter,
-                                CompletionRequest &request,
-                                SearchFilter *searcher) {
-  request.SetWordComplete(true);
+void CommandCompletions::Symbols(CommandInterpreter &interpreter,
+                                 CompletionRequest &request,
+                                 SearchFilter *searcher) {
   SymbolCompleter completer(interpreter, request);
 
   if (searcher == nullptr) {
@@ -289,12 +281,11 @@ int CommandCompletions::Symbols(CommandInterpreter &interpreter,
   } else {
     completer.DoCompletion(searcher);
   }
-  return request.GetNumberOfMatches();
 }
 
-int CommandCompletions::SettingsNames(CommandInterpreter &interpreter,
-                                      CompletionRequest &request,
-                                      SearchFilter *searcher) {
+void CommandCompletions::SettingsNames(CommandInterpreter &interpreter,
+                                       CompletionRequest &request,
+                                       SearchFilter *searcher) {
   // Cache the full setting name list
   static StringList g_property_names;
   if (g_property_names.GetSize() == 0) {
@@ -309,38 +300,27 @@ int CommandCompletions::SettingsNames(CommandInterpreter &interpreter,
     }
   }
 
-  size_t exact_matches_idx = SIZE_MAX;
-  StringList matches;
-  g_property_names.AutoComplete(request.GetCursorArgumentPrefix(), matches,
-                                exact_matches_idx);
-  request.SetWordComplete(exact_matches_idx != SIZE_MAX);
-  request.AddCompletions(matches);
-  return request.GetNumberOfMatches();
+  for (const std::string &s : g_property_names)
+    request.TryCompleteCurrentArg(s);
 }
 
-int CommandCompletions::PlatformPluginNames(CommandInterpreter &interpreter,
-                                            CompletionRequest &request,
-                                            SearchFilter *searcher) {
-  StringList new_matches;
-  std::size_t num_matches = PluginManager::AutoCompletePlatformName(
-      request.GetCursorArgumentPrefix(), new_matches);
-  request.SetWordComplete(num_matches == 1);
-  request.AddCompletions(new_matches);
-  return request.GetNumberOfMatches();
+void CommandCompletions::PlatformPluginNames(CommandInterpreter &interpreter,
+                                             CompletionRequest &request,
+                                             SearchFilter *searcher) {
+  PluginManager::AutoCompletePlatformName(request.GetCursorArgumentPrefix(),
+                                          request);
 }
 
-int CommandCompletions::ArchitectureNames(CommandInterpreter &interpreter,
-                                          CompletionRequest &request,
-                                          SearchFilter *searcher) {
-  const uint32_t num_matches = ArchSpec::AutoComplete(request);
-  request.SetWordComplete(num_matches == 1);
-  return num_matches;
+void CommandCompletions::ArchitectureNames(CommandInterpreter &interpreter,
+                                           CompletionRequest &request,
+                                           SearchFilter *searcher) {
+  ArchSpec::AutoComplete(request);
 }
 
-int CommandCompletions::VariablePath(CommandInterpreter &interpreter,
-                                     CompletionRequest &request,
-                                     SearchFilter *searcher) {
-  return Variable::AutoComplete(interpreter.GetExecutionContext(), request);
+void CommandCompletions::VariablePath(CommandInterpreter &interpreter,
+                                      CompletionRequest &request,
+                                      SearchFilter *searcher) {
+  Variable::AutoComplete(interpreter.GetExecutionContext(), request);
 }
 
 CommandCompletions::Completer::Completer(CommandInterpreter &interpreter,
@@ -368,8 +348,7 @@ lldb::SearchDepth CommandCompletions::SourceFileCompleter::GetDepth() {
 Searcher::CallbackReturn
 CommandCompletions::SourceFileCompleter::SearchCallback(SearchFilter &filter,
                                                         SymbolContext &context,
-                                                        Address *addr,
-                                                        bool complete) {
+                                                        Address *addr) {
   if (context.comp_unit != nullptr) {
     if (m_include_support_files) {
       FileSpecList supporting_files = context.comp_unit->GetSupportFiles();
@@ -391,8 +370,10 @@ CommandCompletions::SourceFileCompleter::SearchCallback(SearchFilter &filter,
         }
       }
     } else {
-      const char *cur_file_name = context.comp_unit->GetFilename().GetCString();
-      const char *cur_dir_name = context.comp_unit->GetDirectory().GetCString();
+      const char *cur_file_name =
+          context.comp_unit->GetPrimaryFile().GetFilename().GetCString();
+      const char *cur_dir_name =
+          context.comp_unit->GetPrimaryFile().GetDirectory().GetCString();
 
       bool match = false;
       if (m_file_name && cur_file_name &&
@@ -404,31 +385,27 @@ CommandCompletions::SourceFileCompleter::SearchCallback(SearchFilter &filter,
         match = false;
 
       if (match) {
-        m_matching_files.AppendIfUnique(context.comp_unit);
+        m_matching_files.AppendIfUnique(context.comp_unit->GetPrimaryFile());
       }
     }
   }
   return Searcher::eCallbackReturnContinue;
 }
 
-size_t
-CommandCompletions::SourceFileCompleter::DoCompletion(SearchFilter *filter) {
+void CommandCompletions::SourceFileCompleter::DoCompletion(
+    SearchFilter *filter) {
   filter->Search(*this);
   // Now convert the filelist to completions:
   for (size_t i = 0; i < m_matching_files.GetSize(); i++) {
     m_request.AddCompletion(
         m_matching_files.GetFileSpecAtIndex(i).GetFilename().GetCString());
   }
-  return m_request.GetNumberOfMatches();
 }
 
 // SymbolCompleter
 
 static bool regex_chars(const char comp) {
-  return (comp == '[' || comp == ']' || comp == '(' || comp == ')' ||
-          comp == '{' || comp == '}' || comp == '+' || comp == '.' ||
-          comp == '*' || comp == '|' || comp == '^' || comp == '$' ||
-          comp == '\\' || comp == '?');
+  return llvm::StringRef("[](){}+.*|^$\\?").contains(comp);
 }
 
 CommandCompletions::SymbolCompleter::SymbolCompleter(
@@ -448,7 +425,7 @@ CommandCompletions::SymbolCompleter::SymbolCompleter(
     pos = regex_str.insert(pos, '\\');
     pos = find_if(pos + 2, regex_str.end(), regex_chars);
   }
-  m_regex.Compile(regex_str);
+  m_regex = RegularExpression(regex_str);
 }
 
 lldb::SearchDepth CommandCompletions::SymbolCompleter::GetDepth() {
@@ -456,22 +433,24 @@ lldb::SearchDepth CommandCompletions::SymbolCompleter::GetDepth() {
 }
 
 Searcher::CallbackReturn CommandCompletions::SymbolCompleter::SearchCallback(
-    SearchFilter &filter, SymbolContext &context, Address *addr,
-    bool complete) {
+    SearchFilter &filter, SymbolContext &context, Address *addr) {
   if (context.module_sp) {
     SymbolContextList sc_list;
     const bool include_symbols = true;
     const bool include_inlines = true;
-    const bool append = true;
     context.module_sp->FindFunctions(m_regex, include_symbols, include_inlines,
-                                     append, sc_list);
+                                     sc_list);
 
     SymbolContext sc;
     // Now add the functions & symbols to the list - only add if unique:
     for (uint32_t i = 0; i < sc_list.GetSize(); i++) {
       if (sc_list.GetContextAtIndex(i, sc)) {
         ConstString func_name = sc.GetFunctionName(Mangled::ePreferDemangled);
-        if (!func_name.IsEmpty())
+        // Ensure that the function name matches the regex. This is more than a
+        // sanity check. It is possible that the demangled function name does
+        // not start with the prefix, for example when it's in an anonymous
+        // namespace.
+        if (!func_name.IsEmpty() && m_regex.Execute(func_name.GetStringRef()))
           m_match_set.insert(func_name);
       }
     }
@@ -479,13 +458,11 @@ Searcher::CallbackReturn CommandCompletions::SymbolCompleter::SearchCallback(
   return Searcher::eCallbackReturnContinue;
 }
 
-size_t CommandCompletions::SymbolCompleter::DoCompletion(SearchFilter *filter) {
+void CommandCompletions::SymbolCompleter::DoCompletion(SearchFilter *filter) {
   filter->Search(*this);
   collection::iterator pos = m_match_set.begin(), end = m_match_set.end();
   for (pos = m_match_set.begin(); pos != end; pos++)
     m_request.AddCompletion((*pos).GetCString());
-
-  return m_request.GetNumberOfMatches();
 }
 
 // ModuleCompleter
@@ -502,8 +479,7 @@ lldb::SearchDepth CommandCompletions::ModuleCompleter::GetDepth() {
 }
 
 Searcher::CallbackReturn CommandCompletions::ModuleCompleter::SearchCallback(
-    SearchFilter &filter, SymbolContext &context, Address *addr,
-    bool complete) {
+    SearchFilter &filter, SymbolContext &context, Address *addr) {
   if (context.module_sp) {
     const char *cur_file_name =
         context.module_sp->GetFileSpec().GetFilename().GetCString();
@@ -526,7 +502,6 @@ Searcher::CallbackReturn CommandCompletions::ModuleCompleter::SearchCallback(
   return Searcher::eCallbackReturnContinue;
 }
 
-size_t CommandCompletions::ModuleCompleter::DoCompletion(SearchFilter *filter) {
+void CommandCompletions::ModuleCompleter::DoCompletion(SearchFilter *filter) {
   filter->Search(*this);
-  return m_request.GetNumberOfMatches();
 }

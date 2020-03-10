@@ -26,6 +26,8 @@ namespace MinidumpYAML {
 /// from Types to Kinds is fixed and given by the static getKind function.
 struct Stream {
   enum class StreamKind {
+    Exception,
+    MemoryInfoList,
     MemoryList,
     ModuleList,
     RawContent,
@@ -102,6 +104,45 @@ using ModuleListStream = detail::ListStream<detail::ParsedModule>;
 using ThreadListStream = detail::ListStream<detail::ParsedThread>;
 using MemoryListStream = detail::ListStream<detail::ParsedMemoryDescriptor>;
 
+/// ExceptionStream minidump stream.
+struct ExceptionStream : public Stream {
+  minidump::ExceptionStream MDExceptionStream;
+  yaml::BinaryRef ThreadContext;
+
+  ExceptionStream()
+      : Stream(StreamKind::Exception, minidump::StreamType::Exception),
+        MDExceptionStream({}) {}
+
+  explicit ExceptionStream(const minidump::ExceptionStream &MDExceptionStream,
+                           ArrayRef<uint8_t> ThreadContext)
+      : Stream(StreamKind::Exception, minidump::StreamType::Exception),
+        MDExceptionStream(MDExceptionStream), ThreadContext(ThreadContext) {}
+
+  static bool classof(const Stream *S) {
+    return S->Kind == StreamKind::Exception;
+  }
+};
+
+/// A structure containing the list of MemoryInfo entries comprising a
+/// MemoryInfoList stream.
+struct MemoryInfoListStream : public Stream {
+  std::vector<minidump::MemoryInfo> Infos;
+
+  MemoryInfoListStream()
+      : Stream(StreamKind::MemoryInfoList,
+               minidump::StreamType::MemoryInfoList) {}
+
+  explicit MemoryInfoListStream(
+      iterator_range<object::MinidumpFile::MemoryInfoIterator> Range)
+      : Stream(StreamKind::MemoryInfoList,
+               minidump::StreamType::MemoryInfoList),
+        Infos(Range.begin(), Range.end()) {}
+
+  static bool classof(const Stream *S) {
+    return S->Kind == StreamKind::MemoryInfoList;
+  }
+};
+
 /// A minidump stream represented as a sequence of hex bytes. This is used as a
 /// fallback when no other stream kind is suitable.
 struct RawContentStream : public Stream {
@@ -122,15 +163,15 @@ struct SystemInfoStream : public Stream {
   minidump::SystemInfo Info;
   std::string CSDVersion;
 
-  explicit SystemInfoStream(const minidump::SystemInfo &Info,
-                            std::string CSDVersion)
-      : Stream(StreamKind::SystemInfo, minidump::StreamType::SystemInfo),
-        Info(Info), CSDVersion(std::move(CSDVersion)) {}
-
   SystemInfoStream()
       : Stream(StreamKind::SystemInfo, minidump::StreamType::SystemInfo) {
     memset(&Info, 0, sizeof(Info));
   }
+
+  explicit SystemInfoStream(const minidump::SystemInfo &Info,
+                            std::string CSDVersion)
+      : Stream(StreamKind::SystemInfo, minidump::StreamType::SystemInfo),
+        Info(Info), CSDVersion(std::move(CSDVersion)) {}
 
   static bool classof(const Stream *S) {
     return S->Kind == StreamKind::SystemInfo;
@@ -177,12 +218,6 @@ struct Object {
   static Expected<Object> create(const object::MinidumpFile &File);
 };
 
-/// Serialize the minidump file represented by Obj to OS in binary form.
-void writeAsBinary(Object &Obj, raw_ostream &OS);
-
-/// Serialize the yaml string as a minidump file to OS in binary form.
-Error writeAsBinary(StringRef Yaml, raw_ostream &OS);
-
 } // namespace MinidumpYAML
 
 namespace yaml {
@@ -213,6 +248,10 @@ template <> struct MappingContextTraits<minidump::MemoryDescriptor, BinaryRef> {
 
 } // namespace llvm
 
+LLVM_YAML_DECLARE_BITSET_TRAITS(llvm::minidump::MemoryProtection)
+LLVM_YAML_DECLARE_BITSET_TRAITS(llvm::minidump::MemoryState)
+LLVM_YAML_DECLARE_BITSET_TRAITS(llvm::minidump::MemoryType)
+
 LLVM_YAML_DECLARE_ENUM_TRAITS(llvm::minidump::ProcessorArchitecture)
 LLVM_YAML_DECLARE_ENUM_TRAITS(llvm::minidump::OSPlatform)
 LLVM_YAML_DECLARE_ENUM_TRAITS(llvm::minidump::StreamType)
@@ -220,6 +259,8 @@ LLVM_YAML_DECLARE_ENUM_TRAITS(llvm::minidump::StreamType)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(llvm::minidump::CPUInfo::ArmInfo)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(llvm::minidump::CPUInfo::OtherInfo)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(llvm::minidump::CPUInfo::X86Info)
+LLVM_YAML_DECLARE_MAPPING_TRAITS(llvm::minidump::Exception)
+LLVM_YAML_DECLARE_MAPPING_TRAITS(llvm::minidump::MemoryInfo)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(llvm::minidump::VSFixedFileInfo)
 
 LLVM_YAML_DECLARE_MAPPING_TRAITS(
@@ -233,6 +274,7 @@ LLVM_YAML_IS_SEQUENCE_VECTOR(std::unique_ptr<llvm::MinidumpYAML::Stream>)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MinidumpYAML::MemoryListStream::entry_type)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MinidumpYAML::ModuleListStream::entry_type)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MinidumpYAML::ThreadListStream::entry_type)
+LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::minidump::MemoryInfo)
 
 LLVM_YAML_DECLARE_MAPPING_TRAITS(llvm::MinidumpYAML::Object)
 

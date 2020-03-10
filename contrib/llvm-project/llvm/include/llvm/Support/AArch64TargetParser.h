@@ -54,6 +54,7 @@ enum ArchExtKind : unsigned {
   AEK_SVE2SM4 =     1 << 25,
   AEK_SVE2SHA3 =    1 << 26,
   AEK_SVE2BITPERM = 1 << 27,
+  AEK_TME =         1 << 28,
 };
 
 enum class ArchKind {
@@ -121,6 +122,15 @@ ArchKind parseCPUArch(StringRef CPU);
 void fillValidCPUArchList(SmallVectorImpl<StringRef> &Values);
 
 bool isX18ReservedByDefault(const Triple &TT);
+
+struct ParsedBranchProtection {
+  StringRef Scope;
+  StringRef Key;
+  bool BranchTargetEnforcement;
+};
+
+bool parseBranchProtection(StringRef Spec, ParsedBranchProtection &PBP,
+                           StringRef &Err);
 
 } // namespace AArch64
 } // namespace llvm

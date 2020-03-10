@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/GlobalISel/CombinerInfo.h"
 #include "llvm/CodeGen/GlobalISel/MIPatternMatch.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/InitializePasses.h"
 
 #define DEBUG_TYPE "mips-prelegalizer-combiner"
 
@@ -27,7 +28,8 @@ class MipsPreLegalizerCombinerInfo : public CombinerInfo {
 public:
   MipsPreLegalizerCombinerInfo()
       : CombinerInfo(/*AllowIllegalOps*/ true, /*ShouldLegalizeIllegal*/ false,
-                     /*LegalizerInfo*/ nullptr) {}
+                     /*LegalizerInfo*/ nullptr, /*EnableOpt*/ false,
+                     /*EnableOptSize*/ false, /*EnableMinSize*/ false) {}
   virtual bool combine(GISelChangeObserver &Observer, MachineInstr &MI,
                        MachineIRBuilder &B) const override;
 };

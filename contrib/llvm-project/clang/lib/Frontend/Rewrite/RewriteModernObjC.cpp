@@ -505,7 +505,7 @@ namespace {
     /// otherwise.
     bool convertBlockPointerToFunctionPointer(QualType &T) {
       if (isTopLevelBlockPointerType(T)) {
-        const BlockPointerType *BPT = T->getAs<BlockPointerType>();
+        const auto *BPT = T->castAs<BlockPointerType>();
         T = Context->getPointerType(BPT->getPointeeType());
         return true;
       }
@@ -597,8 +597,8 @@ namespace {
 
     StringLiteral *getStringLiteral(StringRef Str) {
       QualType StrType = Context->getConstantArrayType(
-          Context->CharTy, llvm::APInt(32, Str.size() + 1), ArrayType::Normal,
-          0);
+          Context->CharTy, llvm::APInt(32, Str.size() + 1), nullptr,
+          ArrayType::Normal, 0);
       return StringLiteral::Create(*Context, Str, StringLiteral::Ascii,
                                    /*Pascal=*/false, StrType, SourceLocation());
     }
@@ -663,7 +663,7 @@ std::unique_ptr<ASTConsumer> clang::CreateModernObjCRewriter(
     const std::string &InFile, std::unique_ptr<raw_ostream> OS,
     DiagnosticsEngine &Diags, const LangOptions &LOpts,
     bool SilenceRewriteMacroWarning, bool LineInfo) {
-  return llvm::make_unique<RewriteModernObjC>(InFile, std::move(OS), Diags,
+  return std::make_unique<RewriteModernObjC>(InFile, std::move(OS), Diags,
                                               LOpts, SilenceRewriteMacroWarning,
                                               LineInfo);
 }
@@ -852,12 +852,11 @@ RewriteModernObjC::getIvarAccessString(ObjCIvarDecl *D) {
     IvarT = GetGroupRecordTypeForObjCIvarBitfield(D);
 
   if (!isa<TypedefType>(IvarT) && IvarT->isRecordType()) {
-    RecordDecl *RD = IvarT->getAs<RecordType>()->getDecl();
+    RecordDecl *RD = IvarT->castAs<RecordType>()->getDecl();
     RD = RD->getDefinition();
     if (RD && !RD->getDeclName().getAsIdentifierInfo()) {
       // decltype(((Foo_IMPL*)0)->bar) *
-      ObjCContainerDecl *CDecl =
-      dyn_cast<ObjCContainerDecl>(D->getDeclContext());
+      auto *CDecl = cast<ObjCContainerDecl>(D->getDeclContext());
       // ivar in class extensions requires special treatment.
       if (ObjCCategoryDecl *CatDecl = dyn_cast<ObjCCategoryDecl>(CDecl))
         CDecl = CatDecl->getClassInterface();
@@ -909,9 +908,9 @@ RewriteModernObjC::getIvarAccessString(ObjCIvarDecl *D) {
 static bool mustSynthesizeSetterGetterMethod(ObjCImplementationDecl *IMP,
                                              ObjCPropertyDecl *PD,
                                              bool getter) {
-  return getter ? !IMP->getInstanceMethod(PD->getGetterName())
-                : !IMP->getInstanceMethod(PD->getSetterName());
-
+  auto *OMD = IMP->getInstanceMethod(getter ? PD->getGetterName()
+                                            : PD->getSetterName());
+  return !OMD || OMD->isSynthesizedAccessorStub();
 }
 
 void RewriteModernObjC::RewritePropertyImplDecl(ObjCPropertyImplDecl *PID,
@@ -953,7 +952,7 @@ void RewriteModernObjC::RewritePropertyImplDecl(ObjCPropertyImplDecl *PID,
             "id objc_getProperty(id, SEL, long, bool);\n";
     }
     RewriteObjCMethodDecl(OID->getContainingInterface(),
-                          PD->getGetterMethodDecl(), Getr);
+                          PID->getGetterMethodDecl(), Getr);
     Getr += "{ ";
     // Synthesize an explicit cast to gain access to the ivar.
     // See objc-act.c:objc_synthesize_new_getter() for details.
@@ -961,7 +960,7 @@ void RewriteModernObjC::RewritePropertyImplDecl(ObjCPropertyImplDecl *PID,
       // return objc_getProperty(self, _cmd, offsetof(ClassDecl, OID), 1)
       Getr += "typedef ";
       const FunctionType *FPRetType = nullptr;
-      RewriteTypeIntoString(PD->getGetterMethodDecl()->getReturnType(), Getr,
+      RewriteTypeIntoString(PID->getGetterMethodDecl()->getReturnType(), Getr,
                             FPRetType);
       Getr += " _TYPE";
       if (FPRetType) {
@@ -1013,7 +1012,7 @@ void RewriteModernObjC::RewritePropertyImplDecl(ObjCPropertyImplDecl *PID,
   }
 
   RewriteObjCMethodDecl(OID->getContainingInterface(),
-                        PD->getSetterMethodDecl(), Setr);
+                        PID->getSetterMethodDecl(), Setr);
   Setr += "{ ";
   // Synthesize an explicit cast to initialize the ivar.
   // See objc-act.c:objc_synthesize_new_setter() for details.
@@ -1332,6 +1331,7 @@ void RewriteModernObjC::RewriteObjCMethodDecl(const ObjCInterfaceDecl *IDecl,
 void RewriteModernObjC::RewriteImplementationDecl(Decl *OID) {
   ObjCImplementationDecl *IMD = dyn_cast<ObjCImplementationDecl>(OID);
   ObjCCategoryImplDecl *CID = dyn_cast<ObjCCategoryImplDecl>(OID);
+  assert((IMD || CID) && "Unknown implementation type");
 
   if (IMD) {
     if (IMD->getIvarRBraceLoc().isValid()) {
@@ -1346,6 +1346,8 @@ void RewriteModernObjC::RewriteImplementationDecl(Decl *OID) {
     InsertText(CID->getBeginLoc(), "// ");
 
   for (auto *OMD : IMD ? IMD->instance_methods() : CID->instance_methods()) {
+    if (!OMD->getBody())
+      continue;
     std::string ResultStr;
     RewriteObjCMethodDecl(OMD->getClassInterface(), OMD, ResultStr);
     SourceLocation LocStart = OMD->getBeginLoc();
@@ -1357,6 +1359,8 @@ void RewriteModernObjC::RewriteImplementationDecl(Decl *OID) {
   }
 
   for (auto *OMD : IMD ? IMD->class_methods() : CID->class_methods()) {
+    if (!OMD->getBody())
+      continue;
     std::string ResultStr;
     RewriteObjCMethodDecl(OMD->getClassInterface(), OMD, ResultStr);
     SourceLocation LocStart = OMD->getBeginLoc();
@@ -2103,8 +2107,7 @@ RewriteModernObjC::SynthesizeCallToFunctionDecl(FunctionDecl *FD,
     ImplicitCastExpr::Create(*Context, pToFunc, CK_FunctionToPointerDecay,
                              DRE, nullptr, VK_RValue);
 
-  const FunctionType *FT = msgSendType->getAs<FunctionType>();
-
+  const auto *FT = msgSendType->castAs<FunctionType>();
   CallExpr *Exp = CallExpr::Create(
       *Context, ICE, Args, FT->getCallResultType(*Context), VK_RValue, EndLoc);
   return Exp;
@@ -2752,7 +2755,7 @@ Stmt *RewriteModernObjC::RewriteObjCArrayLiteralExpr(ObjCArrayLiteral *Exp) {
 
   // Create a call to objc_getClass("NSArray"). It will be th 1st argument.
   ObjCInterfaceDecl *Class =
-    expType->getPointeeType()->getAs<ObjCObjectType>()->getInterface();
+    expType->getPointeeType()->castAs<ObjCObjectType>()->getInterface();
 
   IdentifierInfo *clsName = Class->getIdentifier();
   ClsExprs.push_back(getStringLiteral(clsName->getName()));
@@ -2806,7 +2809,7 @@ Stmt *RewriteModernObjC::RewriteObjCArrayLiteralExpr(ObjCArrayLiteral *Exp) {
   // Don't forget the parens to enforce the proper binding.
   ParenExpr *PE = new (Context) ParenExpr(StartLoc, EndLoc, cast);
 
-  const FunctionType *FT = msgSendType->getAs<FunctionType>();
+  const FunctionType *FT = msgSendType->castAs<FunctionType>();
   CallExpr *CE = CallExpr::Create(*Context, PE, MsgExprs, FT->getReturnType(),
                                   VK_RValue, EndLoc);
   ReplaceStmt(Exp, CE);
@@ -2894,7 +2897,7 @@ Stmt *RewriteModernObjC::RewriteObjCDictionaryLiteralExpr(ObjCDictionaryLiteral 
 
   // Create a call to objc_getClass("NSArray"). It will be th 1st argument.
   ObjCInterfaceDecl *Class =
-  expType->getPointeeType()->getAs<ObjCObjectType>()->getInterface();
+  expType->getPointeeType()->castAs<ObjCObjectType>()->getInterface();
 
   IdentifierInfo *clsName = Class->getIdentifier();
   ClsExprs.push_back(getStringLiteral(clsName->getName()));
@@ -2957,7 +2960,7 @@ Stmt *RewriteModernObjC::RewriteObjCDictionaryLiteralExpr(ObjCDictionaryLiteral 
   // Don't forget the parens to enforce the proper binding.
   ParenExpr *PE = new (Context) ParenExpr(StartLoc, EndLoc, cast);
 
-  const FunctionType *FT = msgSendType->getAs<FunctionType>();
+  const FunctionType *FT = msgSendType->castAs<FunctionType>();
   CallExpr *CE = CallExpr::Create(*Context, PE, MsgExprs, FT->getReturnType(),
                                   VK_RValue, EndLoc);
   ReplaceStmt(Exp, CE);
@@ -3309,7 +3312,7 @@ Stmt *RewriteModernObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
   case ObjCMessageExpr::Class: {
     SmallVector<Expr*, 8> ClsExprs;
     ObjCInterfaceDecl *Class
-      = Exp->getClassReceiver()->getAs<ObjCObjectType>()->getInterface();
+      = Exp->getClassReceiver()->castAs<ObjCObjectType>()->getInterface();
     IdentifierInfo *clsName = Class->getIdentifier();
     ClsExprs.push_back(getStringLiteral(clsName->getName()));
     CallExpr *Cls = SynthesizeCallToFunctionDecl(GetClassFunctionDecl, ClsExprs,
@@ -3530,7 +3533,7 @@ Stmt *RewriteModernObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
   // Don't forget the parens to enforce the proper binding.
   ParenExpr *PE = new (Context) ParenExpr(StartLoc, EndLoc, cast);
 
-  const FunctionType *FT = msgSendType->getAs<FunctionType>();
+  const FunctionType *FT = msgSendType->castAs<FunctionType>();
   CallExpr *CE = CallExpr::Create(*Context, PE, MsgExprs, FT->getReturnType(),
                                   VK_RValue, EndLoc);
   Stmt *ReplacingStmt = CE;
@@ -3637,7 +3640,7 @@ bool RewriteModernObjC::RewriteObjCFieldDeclType(QualType &Type,
     return RewriteObjCFieldDeclType(ElemTy, Result);
   }
   else if (Type->isRecordType()) {
-    RecordDecl *RD = Type->getAs<RecordType>()->getDecl();
+    RecordDecl *RD = Type->castAs<RecordType>()->getDecl();
     if (RD->isCompleteDefinition()) {
       if (RD->isStruct())
         Result += "\n\tstruct ";
@@ -3660,7 +3663,7 @@ bool RewriteModernObjC::RewriteObjCFieldDeclType(QualType &Type,
     }
   }
   else if (Type->isEnumeralType()) {
-    EnumDecl *ED = Type->getAs<EnumType>()->getDecl();
+    EnumDecl *ED = Type->castAs<EnumType>()->getDecl();
     if (ED->isCompleteDefinition()) {
       Result += "\n\tenum ";
       Result += ED->getName();
@@ -3727,15 +3730,15 @@ void RewriteModernObjC::RewriteLocallyDefinedNamedAggregates(FieldDecl *fieldDec
     return;
   if (Type->isArrayType())
     Type = Context->getBaseElementType(Type);
-  ObjCContainerDecl *IDecl =
-    dyn_cast<ObjCContainerDecl>(fieldDecl->getDeclContext());
+
+  auto *IDecl = dyn_cast<ObjCContainerDecl>(fieldDecl->getDeclContext());
 
   TagDecl *TD = nullptr;
   if (Type->isRecordType()) {
-    TD = Type->getAs<RecordType>()->getDecl();
+    TD = Type->castAs<RecordType>()->getDecl();
   }
   else if (Type->isEnumeralType()) {
-    TD = Type->getAs<EnumType>()->getDecl();
+    TD = Type->castAs<EnumType>()->getDecl();
   }
 
   if (TD) {
@@ -5753,7 +5756,7 @@ void RewriteModernObjC::HandleDeclInMainFile(Decl *D) {
           }
         }
       } else if (VD->getType()->isRecordType()) {
-        RecordDecl *RD = VD->getType()->getAs<RecordType>()->getDecl();
+        RecordDecl *RD = VD->getType()->castAs<RecordType>()->getDecl();
         if (RD->isCompleteDefinition())
           RewriteRecordBody(RD);
       }
@@ -7032,12 +7035,12 @@ void RewriteModernObjC::RewriteObjCClassMetaData(ObjCImplementationDecl *IDecl,
     ObjCPropertyDecl *PD = Prop->getPropertyDecl();
     if (!PD)
       continue;
-    if (ObjCMethodDecl *Getter = PD->getGetterMethodDecl())
+    if (ObjCMethodDecl *Getter = Prop->getGetterMethodDecl())
       if (mustSynthesizeSetterGetterMethod(IDecl, PD, true /*getter*/))
         InstanceMethods.push_back(Getter);
     if (PD->isReadOnly())
       continue;
-    if (ObjCMethodDecl *Setter = PD->getSetterMethodDecl())
+    if (ObjCMethodDecl *Setter = Prop->getSetterMethodDecl())
       if (mustSynthesizeSetterGetterMethod(IDecl, PD, false /*setter*/))
         InstanceMethods.push_back(Setter);
   }
@@ -7282,11 +7285,11 @@ void RewriteModernObjC::RewriteObjCCategoryImplDecl(ObjCCategoryImplDecl *IDecl,
     ObjCPropertyDecl *PD = Prop->getPropertyDecl();
     if (!PD)
       continue;
-    if (ObjCMethodDecl *Getter = PD->getGetterMethodDecl())
+    if (ObjCMethodDecl *Getter = Prop->getGetterMethodDecl())
       InstanceMethods.push_back(Getter);
     if (PD->isReadOnly())
       continue;
-    if (ObjCMethodDecl *Setter = PD->getSetterMethodDecl())
+    if (ObjCMethodDecl *Setter = Prop->getSetterMethodDecl())
       InstanceMethods.push_back(Setter);
   }
 
@@ -7494,7 +7497,7 @@ Stmt *RewriteModernObjC::RewriteObjCIvarRefExpr(ObjCIvarRefExpr *IV) {
         IvarT = GetGroupRecordTypeForObjCIvarBitfield(D);
 
       if (!isa<TypedefType>(IvarT) && IvarT->isRecordType()) {
-        RecordDecl *RD = IvarT->getAs<RecordType>()->getDecl();
+        RecordDecl *RD = IvarT->castAs<RecordType>()->getDecl();
         RD = RD->getDefinition();
         if (RD && !RD->getDeclName().getAsIdentifierInfo()) {
           // decltype(((Foo_IMPL*)0)->bar) *

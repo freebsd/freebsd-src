@@ -41,15 +41,19 @@
 //  - `OptionalArg`: Sets the argument type and marks it as optional.
 //  - `Arg`: Sets the argument type and marks it as required.
 //  - `EnumArg`: Sets the argument type to an enum and marks it as required.
+//  - `OptionalEnumArg`: Same as EnumArg but marks it as optional.
 // See argument_type field for more info.
 ////////////////////////////////////////////////////////////////////////////////
 // Field: validator
 // Default value: 0 (No validator for option)
-// Set by: Nothing. This is currently only set after initialization in LLDB.
+// Set by:
+//  - `Validator`: Sets the value to a given validator (which has to exist in
+//                 the surrounding code.
 ////////////////////////////////////////////////////////////////////////////////
 // Field: enum_values
 // Default value: {} (No enum associated with this option)
 // Set by:
+//  - `OptionalEnumArg`:
 //  - `EnumArg`: Sets the argument type and assigns it a enum holding the valid
 //               values. The enum needs to be a variable in the including code.
 //               Marks the option as required (see option_has_arg).
@@ -82,12 +86,14 @@
 //           Example: def foo : Option<"foo", "f">, Arg<"Pid">;
 //                    Sets the argument type to eArgTypePid and marks option as
 //                    required (see option_has_arg).
+//  - `OptionalEnumArg`:
 //  - `EnumArg`: Sets the argument type and assigns it a enum holding the valid
 //               values. The enum needs to be a variable in the including code.
 //               Marks the option as required (see option_has_arg).
 //               Example: def foo : Option<"foo", "f">,
 //                          EnumArg<"SortOrder",
 //                          "OptionEnumValues(g_sort_option_enumeration)">;
+//               Use `OptionalEnumArg` for having an option enum argument.
 ////////////////////////////////////////////////////////////////////////////////
 // Field: usage_text
 // Default value: ""
@@ -150,6 +156,13 @@ class EnumArg<string type, string enum> {
   string ArgEnum = enum;
 }
 
+// Gives the option an required argument.
+class OptionalEnumArg<string type, string enum> {
+  string ArgType = type;
+  string ArgEnum = enum;
+  bit OptionalArg = 1;
+}
+
 // Sets the available completions for the given option.
 class Completions<list<string> completions> {
   list<string> Completions = completions;
@@ -157,4 +170,9 @@ class Completions<list<string> completions> {
 // Sets a single completion for the given option.
 class Completion<string completion> {
   list<string> Completions = [completion];
+}
+
+// Sets the validator for a given option.
+class Validator<string validator> {
+  string Validator = validator;
 }

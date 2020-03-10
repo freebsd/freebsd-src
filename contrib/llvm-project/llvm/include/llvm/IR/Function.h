@@ -43,7 +43,7 @@
 namespace llvm {
 
 namespace Intrinsic {
-enum ID : unsigned;
+typedef unsigned ID;
 }
 
 class AssemblyAnnotationWriter;
@@ -343,7 +343,10 @@ public:
   unsigned getFnStackAlignment() const {
     if (!hasFnAttribute(Attribute::StackAlignment))
       return 0;
-    return AttributeSets.getStackAlignment(AttributeList::FunctionIndex);
+    if (const auto MA =
+            AttributeSets.getStackAlignment(AttributeList::FunctionIndex))
+      return MA->value();
+    return 0;
   }
 
   /// hasGC/getGC/setGC/clearGC - The name of the garbage collection algorithm
@@ -432,7 +435,15 @@ public:
   void addDereferenceableOrNullParamAttr(unsigned ArgNo, uint64_t Bytes);
 
   /// Extract the alignment for a call or parameter (0=unknown).
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use getParamAlign() instead.
   unsigned getParamAlignment(unsigned ArgNo) const {
+    if (const auto MA = getParamAlign(ArgNo))
+      return MA->value();
+    return 0;
+  }
+
+  MaybeAlign getParamAlign(unsigned ArgNo) const {
     return AttributeSets.getParamAlignment(ArgNo);
   }
 
@@ -708,6 +719,12 @@ public:
   const_arg_iterator arg_end() const {
     CheckLazyArguments();
     return Arguments + NumArgs;
+  }
+
+  Argument* getArg(unsigned i) const {
+    assert (i < NumArgs && "getArg() out of range!");
+    CheckLazyArguments();
+    return Arguments + i;
   }
 
   iterator_range<arg_iterator> args() {

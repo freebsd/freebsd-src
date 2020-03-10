@@ -1014,7 +1014,8 @@ size_t ABISysV_hexagon::GetRedZoneSize() const { return 0; }
 ABISP
 ABISysV_hexagon::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch) {
   if (arch.GetTriple().getArch() == llvm::Triple::hexagon) {
-    return ABISP(new ABISysV_hexagon(process_sp));
+    return ABISP(
+        new ABISysV_hexagon(std::move(process_sp), MakeMCRegisterInfo(arch)));
   }
   return ABISP();
 }
@@ -1247,6 +1248,7 @@ bool ABISysV_hexagon::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
   unwind_plan.SetSourceName("hexagon default unwind plan");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolNo);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   return true;
 }
 

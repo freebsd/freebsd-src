@@ -10,21 +10,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-
+#include "clang/Serialization/GlobalModuleIndex.h"
 #include "ASTReaderInternals.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Serialization/ASTBitCodes.h"
-#include "clang/Serialization/GlobalModuleIndex.h"
-#include "clang/Serialization/Module.h"
+#include "clang/Serialization/ModuleFile.h"
 #include "clang/Serialization/PCHContainerOperations.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Bitstream/BitstreamReader.h"
 #include "llvm/Bitstream/BitstreamWriter.h"
 #include "llvm/Support/DJB.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/LockFileManager.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/OnDiskHashTable.h"
@@ -124,16 +125,17 @@ typedef llvm::OnDiskIterableChainedHashTable<IdentifierIndexReaderTrait>
 
 }
 
-GlobalModuleIndex::GlobalModuleIndex(std::unique_ptr<llvm::MemoryBuffer> Buffer,
-                                     llvm::BitstreamCursor Cursor)
-    : Buffer(std::move(Buffer)), IdentifierIndex(), NumIdentifierLookups(),
+GlobalModuleIndex::GlobalModuleIndex(
+    std::unique_ptr<llvm::MemoryBuffer> IndexBuffer,
+    llvm::BitstreamCursor Cursor)
+    : Buffer(std::move(IndexBuffer)), IdentifierIndex(), NumIdentifierLookups(),
       NumIdentifierLookupHits() {
-  auto Fail = [&Buffer](llvm::Error &&Err) {
+  auto Fail = [&](llvm::Error &&Err) {
     report_fatal_error("Module index '" + Buffer->getBufferIdentifier() +
                        "' failed: " + toString(std::move(Err)));
   };
 
-  llvm::TimeTraceScope TimeScope("Module LoadIndex", StringRef(""));
+  llvm::TimeTraceScope TimeScope("Module LoadIndex");
   // Read the global index.
   bool InGlobalIndexBlock = false;
   bool Done = false;
@@ -657,7 +659,7 @@ llvm::Error GlobalModuleIndexBuilder::loadModuleFile(const FileEntry *File) {
         Idx += Length;
 
         // Find the imported module file.
-        const FileEntry *DependsOnFile
+        auto DependsOnFile
           = FileMgr.getFile(ImportedFile, /*OpenFile=*/false,
                             /*CacheFailure=*/false);
 
@@ -669,11 +671,11 @@ llvm::Error GlobalModuleIndexBuilder::loadModuleFile(const FileEntry *File) {
         // Save the information in ImportedModuleFileInfo so we can verify after
         // loading all pcms.
         ImportedModuleFiles.insert(std::make_pair(
-            DependsOnFile, ImportedModuleFileInfo(StoredSize, StoredModTime,
-                                                  StoredSignature)));
+            *DependsOnFile, ImportedModuleFileInfo(StoredSize, StoredModTime,
+                                                   StoredSignature)));
 
         // Record the dependency.
-        unsigned DependsOnID = getModuleFileInfo(DependsOnFile).ID;
+        unsigned DependsOnID = getModuleFileInfo(*DependsOnFile).ID;
         getModuleFileInfo(File).Dependencies.push_back(DependsOnID);
       }
 
@@ -769,7 +771,7 @@ bool GlobalModuleIndexBuilder::writeIndex(llvm::BitstreamWriter &Stream) {
   }
 
   using namespace llvm;
-  llvm::TimeTraceScope TimeScope("Module WriteIndex", StringRef(""));
+  llvm::TimeTraceScope TimeScope("Module WriteIndex");
 
   // Emit the file header.
   Stream.Emit((unsigned)'B', 8);
@@ -894,12 +896,12 @@ GlobalModuleIndex::writeIndex(FileManager &FileMgr,
     }
 
     // If we can't find the module file, skip it.
-    const FileEntry *ModuleFile = FileMgr.getFile(D->path());
+    auto ModuleFile = FileMgr.getFile(D->path());
     if (!ModuleFile)
       continue;
 
     // Load this module file.
-    if (llvm::Error Err = Builder.loadModuleFile(ModuleFile))
+    if (llvm::Error Err = Builder.loadModuleFile(*ModuleFile))
       return Err;
   }
 
@@ -912,37 +914,9 @@ GlobalModuleIndex::writeIndex(FileManager &FileMgr,
                                      "failed writing index");
   }
 
-  // Write the global index file to a temporary file.
-  llvm::SmallString<128> IndexTmpPath;
-  int TmpFD;
-  if (llvm::sys::fs::createUniqueFile(IndexPath + "-%%%%%%%%", TmpFD,
-                                      IndexTmpPath))
-    return llvm::createStringError(std::errc::io_error,
-                                   "failed creating unique file");
-
-  // Open the temporary global index file for output.
-  llvm::raw_fd_ostream Out(TmpFD, true);
-  if (Out.has_error())
-    return llvm::createStringError(Out.error(), "failed outputting to stream");
-
-  // Write the index.
-  Out.write(OutputBuffer.data(), OutputBuffer.size());
-  Out.close();
-  if (Out.has_error())
-    return llvm::createStringError(Out.error(), "failed writing to stream");
-
-  // Remove the old index file. It isn't relevant any more.
-  llvm::sys::fs::remove(IndexPath);
-
-  // Rename the newly-written index file to the proper name.
-  if (std::error_code Err = llvm::sys::fs::rename(IndexTmpPath, IndexPath)) {
-    // Remove the file on failure, don't check whether removal succeeded.
-    llvm::sys::fs::remove(IndexTmpPath);
-    return llvm::createStringError(Err, "failed renaming file \"%s\" to \"%s\"",
-                                   IndexTmpPath.c_str(), IndexPath.c_str());
-  }
-
-  return llvm::Error::success();
+  return llvm::writeFileAtomically(
+      (IndexPath + "-%%%%%%%%").str(), IndexPath,
+      llvm::StringRef(OutputBuffer.data(), OutputBuffer.size()));
 }
 
 namespace {

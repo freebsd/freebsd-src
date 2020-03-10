@@ -60,6 +60,7 @@ StringRef AMDGPUTargetStreamer::getArchNameFromElfMach(unsigned ElfMach) {
   AMDGPU::GPUKind AK;
 
   switch (ElfMach) {
+  default: llvm_unreachable("Unhandled ELF::EF_AMDGPU type");
   case ELF::EF_AMDGPU_MACH_R600_R600:      AK = GK_R600;    break;
   case ELF::EF_AMDGPU_MACH_R600_R630:      AK = GK_R630;    break;
   case ELF::EF_AMDGPU_MACH_R600_RS880:     AK = GK_RS880;   break;
@@ -250,7 +251,7 @@ bool AMDGPUTargetAsmStreamer::EmitHSAMetadata(
 bool AMDGPUTargetAsmStreamer::EmitCodeEnd() {
   const uint32_t Encoded_s_code_end = 0xbf9f0000;
   OS << "\t.p2alignl 6, " << Encoded_s_code_end << '\n';
-  OS << "\t.fill 32, 4, " << Encoded_s_code_end << '\n';
+  OS << "\t.fill 48, 4, " << Encoded_s_code_end << '\n';
   return true;
 }
 
@@ -602,7 +603,7 @@ bool AMDGPUTargetELFStreamer::EmitCodeEnd() {
   MCStreamer &OS = getStreamer();
   OS.PushSection();
   OS.EmitValueToAlignment(64, Encoded_s_code_end, 4);
-  for (unsigned I = 0; I < 32; ++I)
+  for (unsigned I = 0; I < 48; ++I)
     OS.EmitIntValue(Encoded_s_code_end, 4);
   OS.PopSection();
   return true;

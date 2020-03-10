@@ -10,13 +10,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Sema/SemaInternal.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Analysis/DomainSpecific/CocoaConventions.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Edit/Commit.h"
 #include "clang/Edit/Rewriters.h"
 #include "clang/Lex/Preprocessor.h"
@@ -24,6 +24,7 @@
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/ConvertUTF.h"
 
@@ -67,7 +68,7 @@ ExprResult Sema::ParseObjCStringLiteral(SourceLocation *AtLocs,
     const ConstantArrayType *CAT = Context.getAsConstantArrayType(S->getType());
     assert(CAT && "String literal not of constant array type!");
     QualType StrTy = Context.getConstantArrayType(
-        CAT->getElementType(), llvm::APInt(32, StrBuf.size() + 1),
+        CAT->getElementType(), llvm::APInt(32, StrBuf.size() + 1), nullptr,
         CAT->getSizeModifier(), CAT->getIndexTypeCVRQualifiers());
     S = StringLiteral::Create(Context, StrBuf, StringLiteral::Ascii,
                               /*Pascal=*/false, StrTy, &StrLocs[0],
@@ -288,6 +289,7 @@ static ObjCMethodDecl *getNSNumberFactoryMethod(Sema &S, SourceLocation Loc,
                                S.NSNumberPointer, ReturnTInfo, S.NSNumberDecl,
                                /*isInstance=*/false, /*isVariadic=*/false,
                                /*isPropertyAccessor=*/false,
+                               /*isSynthesizedAccessorStub=*/false,
                                /*isImplicitlyDeclared=*/true,
                                /*isDefined=*/false, ObjCMethodDecl::Required,
                                /*HasRelatedResultType=*/false);
@@ -563,6 +565,7 @@ ExprResult Sema::BuildObjCBoxedExpr(SourceRange SR, Expr *ValueExpr) {
               NSStringPointer, ReturnTInfo, NSStringDecl,
               /*isInstance=*/false, /*isVariadic=*/false,
               /*isPropertyAccessor=*/false,
+              /*isSynthesizedAccessorStub=*/false,
               /*isImplicitlyDeclared=*/true,
               /*isDefined=*/false, ObjCMethodDecl::Required,
               /*HasRelatedResultType=*/false);
@@ -671,20 +674,15 @@ ExprResult Sema::BuildObjCBoxedExpr(SourceRange SR, Expr *ValueExpr) {
         // Debugger needs to work even if NSValue hasn't been defined.
         TypeSourceInfo *ReturnTInfo = nullptr;
         ObjCMethodDecl *M = ObjCMethodDecl::Create(
-                                               Context,
-                                               SourceLocation(),
-                                               SourceLocation(),
-                                               ValueWithBytesObjCType,
-                                               NSValuePointer,
-                                               ReturnTInfo,
-                                               NSValueDecl,
-                                               /*isInstance=*/false,
-                                               /*isVariadic=*/false,
-                                               /*isPropertyAccessor=*/false,
-                                               /*isImplicitlyDeclared=*/true,
-                                               /*isDefined=*/false,
-                                               ObjCMethodDecl::Required,
-                                               /*HasRelatedResultType=*/false);
+            Context, SourceLocation(), SourceLocation(), ValueWithBytesObjCType,
+            NSValuePointer, ReturnTInfo, NSValueDecl,
+            /*isInstance=*/false,
+            /*isVariadic=*/false,
+            /*isPropertyAccessor=*/false,
+            /*isSynthesizedAccessorStub=*/false,
+            /*isImplicitlyDeclared=*/true,
+            /*isDefined=*/false, ObjCMethodDecl::Required,
+            /*HasRelatedResultType=*/false);
 
         SmallVector<ParmVarDecl *, 2> Params;
 
@@ -815,7 +813,7 @@ ExprResult Sema::BuildObjCArrayLiteral(SourceRange SR, MultiExprArg Elements) {
           Context, SourceLocation(), SourceLocation(), Sel, IdT, ReturnTInfo,
           Context.getTranslationUnitDecl(), false /*Instance*/,
           false /*isVariadic*/,
-          /*isPropertyAccessor=*/false,
+          /*isPropertyAccessor=*/false, /*isSynthesizedAccessorStub=*/false,
           /*isImplicitlyDeclared=*/true, /*isDefined=*/false,
           ObjCMethodDecl::Required, false);
       SmallVector<ParmVarDecl *, 2> Params;
@@ -916,16 +914,14 @@ ExprResult Sema::BuildObjCDictionaryLiteral(SourceRange SR,
                                NSAPI::NSDict_dictionaryWithObjectsForKeysCount);
     ObjCMethodDecl *Method = NSDictionaryDecl->lookupClassMethod(Sel);
     if (!Method && getLangOpts().DebuggerObjCLiteral) {
-      Method = ObjCMethodDecl::Create(Context,
-                           SourceLocation(), SourceLocation(), Sel,
-                           IdT,
-                           nullptr /*TypeSourceInfo */,
-                           Context.getTranslationUnitDecl(),
-                           false /*Instance*/, false/*isVariadic*/,
-                           /*isPropertyAccessor=*/false,
-                           /*isImplicitlyDeclared=*/true, /*isDefined=*/false,
-                           ObjCMethodDecl::Required,
-                           false);
+      Method = ObjCMethodDecl::Create(
+          Context, SourceLocation(), SourceLocation(), Sel, IdT,
+          nullptr /*TypeSourceInfo */, Context.getTranslationUnitDecl(),
+          false /*Instance*/, false /*isVariadic*/,
+          /*isPropertyAccessor=*/false,
+          /*isSynthesizedAccessorStub=*/false,
+          /*isImplicitlyDeclared=*/true, /*isDefined=*/false,
+          ObjCMethodDecl::Required, false);
       SmallVector<ParmVarDecl *, 3> Params;
       ParmVarDecl *objects = ParmVarDecl::Create(Context, Method,
                                                  SourceLocation(),
@@ -1174,6 +1170,35 @@ static void DiagnoseMismatchedSelectors(Sema &S, SourceLocation AtLoc,
   }
 }
 
+static void HelperToDiagnoseDirectSelectorsExpr(Sema &S, SourceLocation AtLoc,
+                                                Selector Sel,
+                                                ObjCMethodList &MethList,
+                                                bool &onlyDirect) {
+  ObjCMethodList *M = &MethList;
+  for (M = M->getNext(); M; M = M->getNext()) {
+    ObjCMethodDecl *Method = M->getMethod();
+    if (Method->getSelector() != Sel)
+      continue;
+    if (!Method->isDirectMethod())
+      onlyDirect = false;
+  }
+}
+
+static void DiagnoseDirectSelectorsExpr(Sema &S, SourceLocation AtLoc,
+                                        Selector Sel, bool &onlyDirect) {
+  for (Sema::GlobalMethodPool::iterator b = S.MethodPool.begin(),
+       e = S.MethodPool.end(); b != e; b++) {
+    // first, instance methods
+    ObjCMethodList &InstMethList = b->second.first;
+    HelperToDiagnoseDirectSelectorsExpr(S, AtLoc, Sel, InstMethList,
+                                        onlyDirect);
+
+    // second, class methods
+    ObjCMethodList &ClsMethList = b->second.second;
+    HelperToDiagnoseDirectSelectorsExpr(S, AtLoc, Sel, ClsMethList, onlyDirect);
+  }
+}
+
 ExprResult Sema::ParseObjCSelectorExpression(Selector Sel,
                                              SourceLocation AtLoc,
                                              SourceLocation SelLoc,
@@ -1196,9 +1221,18 @@ ExprResult Sema::ParseObjCSelectorExpression(Selector Sel,
 
     } else
         Diag(SelLoc, diag::warn_undeclared_selector) << Sel;
-  } else
+  } else {
+    bool onlyDirect = Method->isDirectMethod();
+    DiagnoseDirectSelectorsExpr(*this, AtLoc, Sel, onlyDirect);
     DiagnoseMismatchedSelectors(*this, AtLoc, Method, LParenLoc, RParenLoc,
                                 WarnMultipleSelectors);
+    if (onlyDirect) {
+      Diag(AtLoc, diag::err_direct_selector_expression)
+          << Method->getSelector();
+      Diag(Method->getLocation(), diag::note_direct_method_declared_at)
+          << Method->getDeclName();
+    }
+  }
 
   if (Method &&
       Method->getImplementationControl() != ObjCMethodDecl::Optional &&
@@ -1608,15 +1642,14 @@ bool Sema::CheckMessageArgumentTypes(
           << Sel << isClassMessage << SourceRange(SelectorLocs.front(),
                                                 SelectorLocs.back());
       // Find the class to which we are sending this message.
-      if (ReceiverType->isObjCObjectPointerType()) {
-        if (ObjCInterfaceDecl *ThisClass =
-            ReceiverType->getAs<ObjCObjectPointerType>()->getInterfaceDecl()) {
+      if (auto *ObjPT = ReceiverType->getAs<ObjCObjectPointerType>()) {
+        if (ObjCInterfaceDecl *ThisClass = ObjPT->getInterfaceDecl()) {
           Diag(ThisClass->getLocation(), diag::note_receiver_class_declared);
           if (!RecRange.isInvalid())
             if (ThisClass->lookupClassMethod(Sel))
-              Diag(RecRange.getBegin(),diag::note_receiver_expr_here)
-                << FixItHint::CreateReplacement(RecRange,
-                                                ThisClass->getNameAsString());
+              Diag(RecRange.getBegin(), diag::note_receiver_expr_here)
+                  << FixItHint::CreateReplacement(RecRange,
+                                                  ThisClass->getNameAsString());
         }
       }
     }
@@ -2115,7 +2148,7 @@ class ObjCInterfaceOrSuperCCC final : public CorrectionCandidateCallback {
   }
 
   std::unique_ptr<CorrectionCandidateCallback> clone() override {
-    return llvm::make_unique<ObjCInterfaceOrSuperCCC>(*this);
+    return std::make_unique<ObjCInterfaceOrSuperCCC>(*this);
   }
 };
 
@@ -2365,7 +2398,6 @@ static void checkFoundationAPI(Sema &S, SourceLocation Loc,
     return;
   QualType Ret = ImpliedMethod->getReturnType();
   if (Ret->isRecordType() || Ret->isVectorType() || Ret->isExtVectorType()) {
-    QualType Ret = ImpliedMethod->getReturnType();
     S.Diag(Loc, diag::warn_objc_unsafe_perform_selector)
         << Method->getSelector()
         << (!Ret->isRecordType()
@@ -2771,9 +2803,6 @@ ExprResult Sema::BuildInstanceMessage(Expr *Receiver,
     }
   }
 
-  if (ReceiverType->isObjCIdType() && !isImplicit)
-    Diag(Receiver->getExprLoc(), diag::warn_messaging_unqualified_id);
-
   // There's a somewhat weird interaction here where we assume that we
   // won't actually have a method unless we also don't need to do some
   // of the more detailed type-checking on the receiver.
@@ -2974,6 +3003,30 @@ ExprResult Sema::BuildInstanceMessage(Expr *Receiver,
   FunctionScopeInfo *DIFunctionScopeInfo =
     (Method && Method->getMethodFamily() == OMF_init)
       ? getEnclosingFunction() : nullptr;
+
+  if (Method && Method->isDirectMethod()) {
+    if (ReceiverType->isObjCIdType() && !isImplicit) {
+      Diag(Receiver->getExprLoc(),
+           diag::err_messaging_unqualified_id_with_direct_method);
+      Diag(Method->getLocation(), diag::note_direct_method_declared_at)
+          << Method->getDeclName();
+    }
+
+    if (ReceiverType->isObjCClassType() && !isImplicit) {
+      Diag(Receiver->getExprLoc(),
+           diag::err_messaging_class_with_direct_method);
+      Diag(Method->getLocation(), diag::note_direct_method_declared_at)
+          << Method->getDeclName();
+    }
+
+    if (SuperLoc.isValid()) {
+      Diag(SuperLoc, diag::err_messaging_super_with_direct_method);
+      Diag(Method->getLocation(), diag::note_direct_method_declared_at)
+          << Method->getDeclName();
+    }
+  } else if (ReceiverType->isObjCIdType() && !isImplicit) {
+    Diag(Receiver->getExprLoc(), diag::warn_messaging_unqualified_id);
+  }
 
   if (DIFunctionScopeInfo &&
       DIFunctionScopeInfo->ObjCIsDesignatedInit &&
@@ -4358,7 +4411,7 @@ Expr *Sema::stripARCUnbridgedCast(Expr *e) {
     SmallVector<TypeSourceInfo *, 4> subTypes;
     subExprs.reserve(n);
     subTypes.reserve(n);
-    for (const GenericSelectionExpr::Association &assoc : gse->associations()) {
+    for (const GenericSelectionExpr::Association assoc : gse->associations()) {
       subTypes.push_back(assoc.getTypeSourceInfo());
       Expr *sub = assoc.getAssociationExpr();
       if (assoc.isSelected())

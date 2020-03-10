@@ -297,6 +297,7 @@ public:
   uint64_t getSectionAddress(DataRefImpl Sec) const override;
   uint64_t getSectionIndex(DataRefImpl Sec) const override;
   uint64_t getSectionSize(DataRefImpl Sec) const override;
+  ArrayRef<uint8_t> getSectionContents(uint32_t Offset, uint64_t Size) const;
   Expected<ArrayRef<uint8_t>>
   getSectionContents(DataRefImpl Sec) const override;
   uint64_t getSectionAlignment(DataRefImpl Sec) const override;
@@ -566,7 +567,7 @@ public:
   static StringRef guessLibraryShortName(StringRef Name, bool &isFramework,
                                          StringRef &Suffix);
 
-  static Triple::ArchType getArch(uint32_t CPUType);
+  static Triple::ArchType getArch(uint32_t CPUType, uint32_t CPUSubType);
   static Triple getArchTriple(uint32_t CPUType, uint32_t CPUSubType,
                               const char **McpuDefault = nullptr,
                               const char **ArchFlag = nullptr);

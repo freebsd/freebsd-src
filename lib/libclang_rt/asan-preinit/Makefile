@@ -4,6 +4,6 @@
 
 LIB=		clang_rt.asan-preinit-${CRTARCH}
 
-SRCS+=		asan/asan_preinit.cc
+SRCS+=		asan/asan_preinit.cpp
 
 .include <bsd.lib.mk>

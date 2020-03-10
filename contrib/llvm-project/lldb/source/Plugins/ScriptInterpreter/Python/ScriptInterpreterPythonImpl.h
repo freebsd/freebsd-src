@@ -6,11 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifdef LLDB_DISABLE_PYTHON
+#include "lldb/Host/Config.h"
 
-// Python is disabled in this build
-
-#else
+#if LLDB_ENABLE_PYTHON
 
 #include "lldb-python.h"
 
@@ -78,6 +76,8 @@ public:
 
   StructuredData::ObjectSP
   CreateScriptedThreadPlan(const char *class_name,
+                           StructuredDataImpl *args_data,
+                           std::string &error_str,
                            lldb::ThreadPlanSP thread_plan) override;
 
   bool ScriptedThreadPlanExplainsStop(StructuredData::ObjectSP implementor_sp,
@@ -177,8 +177,10 @@ public:
   Status GenerateFunction(const char *signature,
                           const StringList &input) override;
 
-  Status GenerateBreakpointCommandCallbackData(StringList &input,
-                                               std::string &output) override;
+  Status GenerateBreakpointCommandCallbackData(
+      StringList &input,
+      std::string &output,
+      bool has_extra_args) override;
 
   bool GenerateWatchpointCommandCallbackData(StringList &input,
                                              std::string &output) override;
@@ -187,8 +189,6 @@ public:
                           StructuredData::ObjectSP &callee_wrapper_sp,
                           const TypeSummaryOptions &options,
                           std::string &retval) override;
-
-  void Clear() override;
 
   bool GetDocumentationForItem(const char *item, std::string &dest) override;
 
@@ -224,7 +224,7 @@ public:
                               std::string &output, Status &error) override;
 
   bool
-  LoadScriptingModule(const char *filename, bool can_reload, bool init_session,
+  LoadScriptingModule(const char *filename, bool init_session,
                       lldb_private::Status &error,
                       StructuredData::ObjectSP *module_sp = nullptr) override;
 
@@ -244,19 +244,24 @@ public:
   Status SetBreakpointCommandCallback(BreakpointOptions *bp_options,
                                       const char *callback_body) override;
 
-  void SetBreakpointCommandCallbackFunction(BreakpointOptions *bp_options,
-                                            const char *function_name) override;
+  Status SetBreakpointCommandCallbackFunction(
+      BreakpointOptions *bp_options,
+      const char *function_name,
+      StructuredData::ObjectSP extra_args_sp) override;
 
   /// This one is for deserialization:
   Status SetBreakpointCommandCallback(
       BreakpointOptions *bp_options,
       std::unique_ptr<BreakpointOptions::CommandData> &data_up) override;
 
+  Status SetBreakpointCommandCallback(BreakpointOptions *bp_options,
+                                      const char *command_body_text,
+                                      StructuredData::ObjectSP extra_args_sp,
+                                      bool uses_extra_args);
+
   /// Set a one-liner as the callback for the watchpoint.
   void SetWatchpointCommandCallback(WatchpointOptions *wp_options,
                                     const char *oneliner) override;
-
-  void ResetOutputFileHandle(FILE *new_fh) override;
 
   const char *GetDictionaryName() { return m_dictionary_name.c_str(); }
 
@@ -296,17 +301,19 @@ public:
       TearDownSession = 0x0004
     };
 
-    Locker(ScriptInterpreterPythonImpl *py_interpreter = nullptr,
+    Locker(ScriptInterpreterPythonImpl *py_interpreter,
            uint16_t on_entry = AcquireLock | InitSession,
-           uint16_t on_leave = FreeLock | TearDownSession, FILE *in = nullptr,
-           FILE *out = nullptr, FILE *err = nullptr);
+           uint16_t on_leave = FreeLock | TearDownSession,
+           lldb::FileSP in = nullptr, lldb::FileSP out = nullptr,
+           lldb::FileSP err = nullptr);
 
     ~Locker() override;
 
   private:
     bool DoAcquireLock();
 
-    bool DoInitSession(uint16_t on_entry_flags, FILE *in, FILE *out, FILE *err);
+    bool DoInitSession(uint16_t on_entry_flags, lldb::FileSP in,
+                       lldb::FileSP out, lldb::FileSP err);
 
     bool DoFreeLock();
 
@@ -314,7 +321,6 @@ public:
 
     bool m_teardown_session;
     ScriptInterpreterPythonImpl *m_python_interpreter;
-    //    	FILE*                    m_tmp_fh;
     PyGILState_STATE m_GILState;
   };
 
@@ -343,13 +349,10 @@ public:
 
   static void AddToSysPath(AddLocation location, std::string path);
 
-  bool EnterSession(uint16_t on_entry_flags, FILE *in, FILE *out, FILE *err);
+  bool EnterSession(uint16_t on_entry_flags, lldb::FileSP in, lldb::FileSP out,
+                    lldb::FileSP err);
 
   void LeaveSession();
-
-  void SaveTerminalState(int fd);
-
-  void RestoreTerminalState();
 
   uint32_t IsExecutingPython() const { return m_lock_count > 0; }
 
@@ -367,27 +370,29 @@ public:
     eIOHandlerWatchpoint
   };
 
-  PythonObject &GetMainModule();
+  python::PythonModule &GetMainModule();
 
-  PythonDictionary &GetSessionDictionary();
+  python::PythonDictionary &GetSessionDictionary();
 
-  PythonDictionary &GetSysModuleDictionary();
+  python::PythonDictionary &GetSysModuleDictionary();
+
+  llvm::Expected<unsigned> GetMaxPositionalArgumentsForCallable(
+      const llvm::StringRef &callable_name) override;
 
   bool GetEmbeddedInterpreterModuleObjects();
 
-  bool SetStdHandle(File &file, const char *py_name, PythonFile &save_file,
-                    const char *mode);
+  bool SetStdHandle(lldb::FileSP file, const char *py_name,
+                    python::PythonObject &save_file, const char *mode);
 
-  PythonFile m_saved_stdin;
-  PythonFile m_saved_stdout;
-  PythonFile m_saved_stderr;
-  PythonObject m_main_module;
-  PythonDictionary m_session_dict;
-  PythonDictionary m_sys_module_dict;
-  PythonObject m_run_one_line_function;
-  PythonObject m_run_one_line_str_global;
+  python::PythonObject m_saved_stdin;
+  python::PythonObject m_saved_stdout;
+  python::PythonObject m_saved_stderr;
+  python::PythonModule m_main_module;
+  python::PythonDictionary m_session_dict;
+  python::PythonDictionary m_sys_module_dict;
+  python::PythonObject m_run_one_line_function;
+  python::PythonObject m_run_one_line_str_global;
   std::string m_dictionary_name;
-  TerminalState m_terminal_state;
   ActiveIOHandler m_active_io_handler;
   bool m_session_is_active;
   bool m_pty_slave_is_open;

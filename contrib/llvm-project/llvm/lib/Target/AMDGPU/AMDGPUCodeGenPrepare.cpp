@@ -38,6 +38,7 @@
 #include "llvm/IR/Operator.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include <cassert>
@@ -55,6 +56,12 @@ static cl::opt<bool> WidenLoads(
   cl::ReallyHidden,
   cl::init(true));
 
+static cl::opt<bool> UseMul24Intrin(
+  "amdgpu-codegenprepare-mul24",
+  cl::desc("Introduce mul24 intrinsics in AMDGPUCodeGenPrepare"),
+  cl::ReallyHidden,
+  cl::init(true));
+
 class AMDGPUCodeGenPrepare : public FunctionPass,
                              public InstVisitor<AMDGPUCodeGenPrepare, bool> {
   const GCNSubtarget *ST = nullptr;
@@ -63,6 +70,7 @@ class AMDGPUCodeGenPrepare : public FunctionPass,
   Module *Mod = nullptr;
   const DataLayout *DL = nullptr;
   bool HasUnsafeFPMath = false;
+  bool HasFP32Denormals = false;
 
   /// Copies exact/nsw/nuw flags (if any) from binary operation \p I to
   /// binary operation \p V.
@@ -509,7 +517,9 @@ bool AMDGPUCodeGenPrepare::replaceMulWithMul24(BinaryOperator &I) const {
     }
   }
 
-  I.replaceAllUsesWith(insertValues(Builder, Ty, ResultVals));
+  Value *NewVal = insertValues(Builder, Ty, ResultVals);
+  NewVal->takeName(&I);
+  I.replaceAllUsesWith(NewVal);
   I.eraseFromParent();
 
   return true;
@@ -566,7 +576,6 @@ bool AMDGPUCodeGenPrepare::visitFDiv(BinaryOperator &FDiv) {
 
   Value *NewFDiv = nullptr;
 
-  bool HasDenormals = ST->hasFP32Denormals();
   if (VectorType *VT = dyn_cast<VectorType>(Ty)) {
     NewFDiv = UndefValue::get(VT);
 
@@ -577,7 +586,7 @@ bool AMDGPUCodeGenPrepare::visitFDiv(BinaryOperator &FDiv) {
       Value *DenEltI = Builder.CreateExtractElement(Den, I);
       Value *NewElt;
 
-      if (shouldKeepFDivF32(NumEltI, UnsafeDiv, HasDenormals)) {
+      if (shouldKeepFDivF32(NumEltI, UnsafeDiv, HasFP32Denormals)) {
         NewElt = Builder.CreateFDiv(NumEltI, DenEltI);
       } else {
         NewElt = Builder.CreateCall(Decl, { NumEltI, DenEltI });
@@ -586,7 +595,7 @@ bool AMDGPUCodeGenPrepare::visitFDiv(BinaryOperator &FDiv) {
       NewFDiv = Builder.CreateInsertElement(NewFDiv, NewElt, I);
     }
   } else {
-    if (!shouldKeepFDivF32(Num, UnsafeDiv, HasDenormals))
+    if (!shouldKeepFDivF32(Num, UnsafeDiv, HasFP32Denormals))
       NewFDiv = Builder.CreateCall(Decl, { Num, Den });
   }
 
@@ -879,7 +888,7 @@ bool AMDGPUCodeGenPrepare::visitBinaryOperator(BinaryOperator &I) {
       DA->isUniform(&I) && promoteUniformOpToI32(I))
     return true;
 
-  if (replaceMulWithMul24(I))
+  if (UseMul24Intrin && replaceMulWithMul24(I))
     return true;
 
   bool Changed = false;
@@ -1025,6 +1034,7 @@ bool AMDGPUCodeGenPrepare::runOnFunction(Function &F) {
   AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
   DA = &getAnalysis<LegacyDivergenceAnalysis>();
   HasUnsafeFPMath = hasUnsafeFPMath(F);
+  HasFP32Denormals = ST->hasFP32Denormals(F);
 
   bool MadeChange = false;
 

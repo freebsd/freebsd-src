@@ -133,7 +133,7 @@ bool LanaiAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
       const MachineOperand &MO = MI->getOperand(RegOp);
       if (!MO.isReg())
         return true;
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       O << LanaiInstPrinter::getRegisterName(Reg);
       return false;
     }
@@ -237,6 +237,6 @@ bool LanaiAsmPrinter::isBlockOnlyReachableByFallthrough(
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeLanaiAsmPrinter() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeLanaiAsmPrinter() {
   RegisterAsmPrinter<LanaiAsmPrinter> X(getTheLanaiTarget());
 }

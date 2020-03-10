@@ -28,6 +28,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/ScheduleDAGMutation.h"
+#include "llvm/Support/Automaton.h"
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -45,64 +46,33 @@ class MCInstrDesc;
 class SUnit;
 class TargetInstrInfo;
 
-// --------------------------------------------------------------------
-// Definitions shared between DFAPacketizer.cpp and DFAPacketizerEmitter.cpp
-
-// DFA_MAX_RESTERMS * DFA_MAX_RESOURCES must fit within sizeof DFAInput.
-// This is verified in DFAPacketizer.cpp:DFAPacketizer::DFAPacketizer.
-//
-// e.g. terms x resource bit combinations that fit in uint32_t:
-//      4 terms x 8  bits = 32 bits
-//      3 terms x 10 bits = 30 bits
-//      2 terms x 16 bits = 32 bits
-//
-// e.g. terms x resource bit combinations that fit in uint64_t:
-//      8 terms x 8  bits = 64 bits
-//      7 terms x 9  bits = 63 bits
-//      6 terms x 10 bits = 60 bits
-//      5 terms x 12 bits = 60 bits
-//      4 terms x 16 bits = 64 bits <--- current
-//      3 terms x 21 bits = 63 bits
-//      2 terms x 32 bits = 64 bits
-//
-#define DFA_MAX_RESTERMS        4   // The max # of AND'ed resource terms.
-#define DFA_MAX_RESOURCES       16  // The max # of resource bits in one term.
-
-using DFAInput = uint64_t;
-using DFAStateInput = int64_t;
-
-#define DFA_TBLTYPE             "int64_t" // For generating DFAStateInputTable.
-// --------------------------------------------------------------------
-
 class DFAPacketizer {
 private:
-  using UnsignPair = std::pair<unsigned, DFAInput>;
-
   const InstrItineraryData *InstrItins;
-  int CurrentState = 0;
-  const DFAStateInput (*DFAStateInputTable)[2];
-  const unsigned *DFAStateEntryTable;
-
-  // CachedTable is a map from <FromState, Input> to ToState.
-  DenseMap<UnsignPair, unsigned> CachedTable;
-
-  // Read the DFA transition table and update CachedTable.
-  void ReadTable(unsigned state);
+  Automaton<uint64_t> A;
+  /// For every itinerary, an "action" to apply to the automaton. This removes
+  /// the redundancy in actions between itinerary classes.
+  ArrayRef<unsigned> ItinActions;
 
 public:
-  DFAPacketizer(const InstrItineraryData *I, const DFAStateInput (*SIT)[2],
-                const unsigned *SET);
+  DFAPacketizer(const InstrItineraryData *InstrItins, Automaton<uint64_t> a,
+                ArrayRef<unsigned> ItinActions)
+      : InstrItins(InstrItins), A(std::move(a)), ItinActions(ItinActions) {
+    // Start off with resource tracking disabled.
+    A.enableTranscription(false);
+  }
 
   // Reset the current state to make all resources available.
   void clearResources() {
-    CurrentState = 0;
+    A.reset();
   }
 
-  // Return the DFAInput for an instruction class.
-  DFAInput getInsnInput(unsigned InsnClass);
-
-  // Return the DFAInput for an instruction class input vector.
-  static DFAInput getInsnInput(const std::vector<unsigned> &InsnClass);
+  // Set whether this packetizer should track not just whether instructions
+  // can be packetized, but also which functional units each instruction ends up
+  // using after packetization.
+  void setTrackResources(bool Track) {
+    A.enableTranscription(Track);
+  }
 
   // Check if the resources occupied by a MCInstrDesc are available in
   // the current state.
@@ -120,6 +90,15 @@ public:
   // current state to reflect that change.
   void reserveResources(MachineInstr &MI);
 
+  // Return the resources used by the InstIdx'th instruction added to this
+  // packet. The resources are returned as a bitvector of functional units.
+  //
+  // Note that a bundle may be packed in multiple valid ways. This function
+  // returns one arbitary valid packing.
+  //
+  // Requires setTrackResources(true) to have been called.
+  unsigned getUsedResources(unsigned InstIdx);
+
   const InstrItineraryData *getInstrItins() const { return InstrItins; }
 };
 
@@ -134,7 +113,7 @@ class VLIWPacketizerList {
 protected:
   MachineFunction &MF;
   const TargetInstrInfo *TII;
-  AliasAnalysis *AA;
+  AAResults *AA;
 
   // The VLIW Scheduler.
   DefaultVLIWScheduler *VLIWScheduler;
@@ -146,9 +125,9 @@ protected:
   std::map<MachineInstr*, SUnit*> MIToSUnit;
 
 public:
-  // The AliasAnalysis parameter can be nullptr.
+  // The AAResults parameter can be nullptr.
   VLIWPacketizerList(MachineFunction &MF, MachineLoopInfo &MLI,
-                     AliasAnalysis *AA);
+                     AAResults *AA);
 
   virtual ~VLIWPacketizerList();
 

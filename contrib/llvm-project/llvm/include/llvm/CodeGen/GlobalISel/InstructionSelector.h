@@ -31,6 +31,7 @@ namespace llvm {
 
 class APInt;
 class APFloat;
+class GISelKnownBits;
 class MachineInstr;
 class MachineInstrBuilder;
 class MachineFunction;
@@ -148,6 +149,13 @@ enum {
   /// - AddrSpaceN+1 ...
   GIM_CheckMemoryAddressSpace,
 
+  /// Check the minimum alignment of the memory access for the given machine
+  /// memory operand.
+  /// - InsnID - Instruction ID
+  /// - MMOIdx - MMO index
+  /// - MinAlign - Minimum acceptable alignment
+  GIM_CheckMemoryAlignment,
+
   /// Check the size of the memory access for the given machine memory operand
   /// against the size of an operand.
   /// - InsnID - Instruction ID
@@ -201,10 +209,21 @@ enum {
   /// - Expected Intrinsic ID
   GIM_CheckIntrinsicID,
 
+  /// Check the operand is a specific predicate
+  /// - InsnID - Instruction ID
+  /// - OpIdx - Operand index
+  /// - Expected predicate
+  GIM_CheckCmpPredicate,
+
   /// Check the specified operand is an MBB
   /// - InsnID - Instruction ID
   /// - OpIdx - Operand index
   GIM_CheckIsMBB,
+
+  /// Check the specified operand is an Imm
+  /// - InsnID - Instruction ID
+  /// - OpIdx - Operand index
+  GIM_CheckIsImm,
 
   /// Check if the specified operand is safe to fold into the current
   /// instruction.
@@ -294,6 +313,14 @@ enum {
   /// - RendererFnID - Custom renderer function to call
   GIR_CustomRenderer,
 
+  /// Render operands to the specified instruction using a custom function,
+  /// reading from a specific operand.
+  /// - InsnID - Instruction ID to modify
+  /// - OldInsnID - Instruction ID to get the matched operand from
+  /// - OpIdx - Operand index in OldInsnID the render function should read from..
+  /// - RendererFnID - Custom renderer function to call
+  GIR_CustomOperandRenderer,
+
   /// Render a G_CONSTANT operator as a sign-extended immediate.
   /// - NewInsnID - Instruction ID to modify
   /// - OldInsnID - Instruction ID to copy from
@@ -365,7 +392,25 @@ public:
   ///   if returns true:
   ///     for I in all mutated/inserted instructions:
   ///       !isPreISelGenericOpcode(I.getOpcode())
-  virtual bool select(MachineInstr &I, CodeGenCoverage &CoverageInfo) const = 0;
+  virtual bool select(MachineInstr &I) = 0;
+
+  CodeGenCoverage *CoverageInfo = nullptr;
+  GISelKnownBits *KnownBits = nullptr;
+  MachineFunction *MF = nullptr;
+
+  virtual void setupGeneratedPerFunctionState(MachineFunction &MF) {
+    llvm_unreachable("TableGen should have emitted implementation");
+  }
+
+  /// Setup per-MF selector state.
+  virtual void setupMF(MachineFunction &mf,
+                       GISelKnownBits &KB,
+                       CodeGenCoverage &covinfo) {
+    CoverageInfo = &covinfo;
+    KnownBits = &KB;
+    MF = &mf;
+    setupGeneratedPerFunctionState(mf);
+  }
 
 protected:
   using ComplexRendererFns =
@@ -455,7 +500,7 @@ protected:
   bool isOperandImmEqual(const MachineOperand &MO, int64_t Value,
                          const MachineRegisterInfo &MRI) const;
 
-  /// Return true if the specified operand is a G_GEP with a G_CONSTANT on the
+  /// Return true if the specified operand is a G_PTR_ADD with a G_CONSTANT on the
   /// right-hand side. GlobalISel's separation of pointer and integer types
   /// means that we don't need to worry about G_OR with equivalent semantics.
   bool isBaseWithConstantOffset(const MachineOperand &Root,

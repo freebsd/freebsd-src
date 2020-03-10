@@ -13,6 +13,7 @@
 #include "CGCXXABI.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/CodeGenOptions.h"
@@ -157,7 +158,7 @@ CodeGenFunction::GenerateVarArgsThunk(llvm::Function *Fn,
                                       const CGFunctionInfo &FnInfo,
                                       GlobalDecl GD, const ThunkInfo &Thunk) {
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
-  const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
+  const FunctionProtoType *FPT = MD->getType()->castAs<FunctionProtoType>();
   QualType ResultType = FPT->getReturnType();
 
   // Get the original function
@@ -165,6 +166,15 @@ CodeGenFunction::GenerateVarArgsThunk(llvm::Function *Fn,
   llvm::Type *Ty = CGM.getTypes().GetFunctionType(FnInfo);
   llvm::Value *Callee = CGM.GetAddrOfFunction(GD, Ty, /*ForVTable=*/true);
   llvm::Function *BaseFn = cast<llvm::Function>(Callee);
+
+  // Cloning can't work if we don't have a definition. The Microsoft ABI may
+  // require thunks when a definition is not available. Emit an error in these
+  // cases.
+  if (!MD->isDefined()) {
+    CGM.ErrorUnsupported(MD, "return-adjusting thunk with variadic arguments");
+    return Fn;
+  }
+  assert(!BaseFn->isDeclaration() && "cannot clone undefined variadic method");
 
   // Clone to thunk.
   llvm::ValueToValueMapTy VMap;
@@ -201,6 +211,8 @@ CodeGenFunction::GenerateVarArgsThunk(llvm::Function *Fn,
   Builder.SetInsertPoint(&*ThisStore);
   llvm::Value *AdjustedThisPtr =
       CGM.getCXXABI().performThisAdjustment(*this, ThisPtr, Thunk.This);
+  AdjustedThisPtr = Builder.CreateBitCast(AdjustedThisPtr,
+                                          ThisStore->getOperand(0)->getType());
   ThisStore->setOperand(0, AdjustedThisPtr);
 
   if (!Thunk.Return.isEmpty()) {
@@ -231,7 +243,6 @@ void CodeGenFunction::StartThunk(llvm::Function *Fn, GlobalDecl GD,
   // Build FunctionArgs.
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
   QualType ThisType = MD->getThisType();
-  const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
   QualType ResultType;
   if (IsUnprototyped)
     ResultType = CGM.getContext().VoidTy;
@@ -240,7 +251,7 @@ void CodeGenFunction::StartThunk(llvm::Function *Fn, GlobalDecl GD,
   else if (CGM.getCXXABI().hasMostDerivedReturn(GD))
     ResultType = CGM.getContext().VoidPtrTy;
   else
-    ResultType = FPT->getReturnType();
+    ResultType = MD->getType()->castAs<FunctionProtoType>()->getReturnType();
   FunctionArgList FunctionArgs;
 
   // Create the implicit 'this' parameter declaration.
@@ -291,14 +302,17 @@ void CodeGenFunction::EmitCallAndReturnForThunk(llvm::FunctionCallee Callee,
                           *this, LoadCXXThisAddress(), Thunk->This)
           : LoadCXXThis();
 
-  if (CurFnInfo->usesInAlloca() || IsUnprototyped) {
-    // We don't handle return adjusting thunks, because they require us to call
-    // the copy constructor.  For now, fall through and pretend the return
-    // adjustment was empty so we don't crash.
+  // If perfect forwarding is required a variadic method, a method using
+  // inalloca, or an unprototyped thunk, use musttail. Emit an error if this
+  // thunk requires a return adjustment, since that is impossible with musttail.
+  if (CurFnInfo->usesInAlloca() || CurFnInfo->isVariadic() || IsUnprototyped) {
     if (Thunk && !Thunk->Return.isEmpty()) {
       if (IsUnprototyped)
         CGM.ErrorUnsupported(
             MD, "return-adjusting thunk with incomplete parameter type");
+      else if (CurFnInfo->isVariadic())
+        llvm_unreachable("shouldn't try to emit musttail return-adjusting "
+                         "thunks for variadic functions");
       else
         CGM.ErrorUnsupported(
             MD, "non-trivial argument copy for return-adjusting thunk");
@@ -322,7 +336,7 @@ void CodeGenFunction::EmitCallAndReturnForThunk(llvm::FunctionCallee Callee,
   for (const ParmVarDecl *PD : MD->parameters())
     EmitDelegateCallArg(CallArgs, PD, SourceLocation());
 
-  const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
+  const FunctionProtoType *FPT = MD->getType()->castAs<FunctionProtoType>();
 
 #ifndef NDEBUG
   const CGFunctionInfo &CallFnInfo = CGM.getTypes().arrangeCXXMethodCall(
@@ -549,16 +563,32 @@ llvm::Constant *CodeGenVTables::maybeEmitThunk(GlobalDecl GD,
 
   CGM.SetLLVMFunctionAttributesForDefinition(GD.getDecl(), ThunkFn);
 
+  // Thunks for variadic methods are special because in general variadic
+  // arguments cannot be perferctly forwarded. In the general case, clang
+  // implements such thunks by cloning the original function body. However, for
+  // thunks with no return adjustment on targets that support musttail, we can
+  // use musttail to perfectly forward the variadic arguments.
+  bool ShouldCloneVarArgs = false;
   if (!IsUnprototyped && ThunkFn->isVarArg()) {
-    // Varargs thunks are special; we can't just generate a call because
-    // we can't copy the varargs.  Our implementation is rather
-    // expensive/sucky at the moment, so don't generate the thunk unless
-    // we have to.
-    // FIXME: Do something better here; GenerateVarArgsThunk is extremely ugly.
+    ShouldCloneVarArgs = true;
+    if (TI.Return.isEmpty()) {
+      switch (CGM.getTriple().getArch()) {
+      case llvm::Triple::x86_64:
+      case llvm::Triple::x86:
+      case llvm::Triple::aarch64:
+        ShouldCloneVarArgs = false;
+        break;
+      default:
+        break;
+      }
+    }
+  }
+
+  if (ShouldCloneVarArgs) {
     if (UseAvailableExternallyLinkage)
       return ThunkFn;
-    ThunkFn = CodeGenFunction(CGM).GenerateVarArgsThunk(ThunkFn, FnInfo, GD,
-                                                        TI);
+    ThunkFn =
+        CodeGenFunction(CGM).GenerateVarArgsThunk(ThunkFn, FnInfo, GD, TI);
   } else {
     // Normal thunk body generation.
     CodeGenFunction(CGM).generateThunk(ThunkFn, FnInfo, GD, TI, IsUnprototyped);
@@ -646,7 +676,12 @@ void CodeGenVTables::addVTableComponent(
       // Method is acceptable, continue processing as usual.
     }
 
-    auto getSpecialVirtualFn = [&](StringRef name) {
+    auto getSpecialVirtualFn = [&](StringRef name) -> llvm::Constant * {
+      // For NVPTX devices in OpenMP emit special functon as null pointers,
+      // otherwise linking ends up with unresolved references.
+      if (CGM.getLangOpts().OpenMP && CGM.getLangOpts().OpenMPIsDevice &&
+          CGM.getTriple().isNVPTX())
+        return llvm::ConstantPointerNull::get(CGM.Int8PtrTy);
       llvm::FunctionType *fnTy =
           llvm::FunctionType::get(CGM.VoidTy, /*isVarArg=*/false);
       llvm::Constant *fn = cast<llvm::Constant>(
@@ -779,7 +814,7 @@ CodeGenVTables::GenerateConstructionVTable(const CXXRecordDecl *RD,
   assert(!VTable->isDeclaration() && "Shouldn't set properties on declaration");
   CGM.setGVProperties(VTable, RD);
 
-  CGM.EmitVTableTypeMetadata(VTable, *VTLayout.get());
+  CGM.EmitVTableTypeMetadata(RD, VTable, *VTLayout.get());
 
   return VTable;
 }
@@ -1010,7 +1045,32 @@ bool CodeGenModule::HasHiddenLTOVisibility(const CXXRecordDecl *RD) {
   return true;
 }
 
-void CodeGenModule::EmitVTableTypeMetadata(llvm::GlobalVariable *VTable,
+llvm::GlobalObject::VCallVisibility
+CodeGenModule::GetVCallVisibilityLevel(const CXXRecordDecl *RD) {
+  LinkageInfo LV = RD->getLinkageAndVisibility();
+  llvm::GlobalObject::VCallVisibility TypeVis;
+  if (!isExternallyVisible(LV.getLinkage()))
+    TypeVis = llvm::GlobalObject::VCallVisibilityTranslationUnit;
+  else if (HasHiddenLTOVisibility(RD))
+    TypeVis = llvm::GlobalObject::VCallVisibilityLinkageUnit;
+  else
+    TypeVis = llvm::GlobalObject::VCallVisibilityPublic;
+
+  for (auto B : RD->bases())
+    if (B.getType()->getAsCXXRecordDecl()->isDynamicClass())
+      TypeVis = std::min(TypeVis,
+                    GetVCallVisibilityLevel(B.getType()->getAsCXXRecordDecl()));
+
+  for (auto B : RD->vbases())
+    if (B.getType()->getAsCXXRecordDecl()->isDynamicClass())
+      TypeVis = std::min(TypeVis,
+                    GetVCallVisibilityLevel(B.getType()->getAsCXXRecordDecl()));
+
+  return TypeVis;
+}
+
+void CodeGenModule::EmitVTableTypeMetadata(const CXXRecordDecl *RD,
+                                           llvm::GlobalVariable *VTable,
                                            const VTableLayout &VTLayout) {
   if (!getCodeGenOpts().LTOUnit)
     return;
@@ -1069,5 +1129,11 @@ void CodeGenModule::EmitVTableTypeMetadata(llvm::GlobalVariable *VTable,
               Context.getRecordType(AP.first).getTypePtr()));
       VTable->addTypeMetadata((PointerWidth * I).getQuantity(), MD);
     }
+  }
+
+  if (getCodeGenOpts().VirtualFunctionElimination) {
+    llvm::GlobalObject::VCallVisibility TypeVis = GetVCallVisibilityLevel(RD);
+    if (TypeVis != llvm::GlobalObject::VCallVisibilityPublic)
+      VTable->addVCallVisibilityMetadata(TypeVis);
   }
 }

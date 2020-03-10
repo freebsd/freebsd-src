@@ -46,12 +46,20 @@ struct MCDwarfFrameInfo;
 class MCExpr;
 class MCInst;
 class MCInstPrinter;
+class MCRegister;
 class MCSection;
 class MCStreamer;
 class MCSymbolRefExpr;
 class MCSubtargetInfo;
 class raw_ostream;
 class Twine;
+
+namespace codeview {
+struct DefRangeRegisterRelHeader;
+struct DefRangeSubfieldRegisterHeader;
+struct DefRangeRegisterHeader;
+struct DefRangeFramePointerRelHeader;
+}
 
 using MCSectionSubPair = std::pair<MCSection *, const MCExpr *>;
 
@@ -95,8 +103,9 @@ public:
   // Allow a target to add behavior to the emitAssignment of MCStreamer.
   virtual void emitAssignment(MCSymbol *Symbol, const MCExpr *Value);
 
-  virtual void prettyPrintAsm(MCInstPrinter &InstPrinter, raw_ostream &OS,
-                              const MCInst &Inst, const MCSubtargetInfo &STI);
+  virtual void prettyPrintAsm(MCInstPrinter &InstPrinter, uint64_t Address,
+                              const MCInst &Inst, const MCSubtargetInfo &STI,
+                              raw_ostream &OS);
 
   virtual void emitDwarfFileDirective(StringRef Directive);
 
@@ -214,6 +223,13 @@ class MCStreamer {
 
   bool UseAssemblerInfoForParsing;
 
+  /// Is the assembler allowed to insert padding automatically?  For
+  /// correctness reasons, we sometimes need to ensure instructions aren't
+  /// seperated in unexpected ways.  At the moment, this feature is only
+  /// useable from an integrated assembler, but assembly syntax is under
+  /// discussion for future inclusion.
+  bool AllowAutoPadding = false;
+
 protected:
   MCStreamer(MCContext &Ctx);
 
@@ -257,6 +273,9 @@ public:
   MCTargetStreamer *getTargetStreamer() {
     return TargetStreamer.get();
   }
+
+  void setAllowAutoPadding(bool v) { AllowAutoPadding = v; }
+  bool getAllowAutoPadding() const { return AllowAutoPadding; }
 
   /// When emitting an object file, create and emit a real label. When emitting
   /// textual assembly, this should do nothing to avoid polluting our output.
@@ -535,6 +554,17 @@ public:
   ///
   /// \param Symbol - Symbol the image relative relocation should point to.
   virtual void EmitCOFFImgRel32(MCSymbol const *Symbol, int64_t Offset);
+
+  /// Emits an lcomm directive with XCOFF csect information.
+  ///
+  /// \param LabelSym - Label on the block of storage.
+  /// \param Size - The size of the block of storage.
+  /// \param CsectSym - Csect name for the block of storage.
+  /// \param ByteAlignment - The alignment of the symbol in bytes. Must be a
+  /// power of 2.
+  virtual void EmitXCOFFLocalCommonSymbol(MCSymbol *LabelSym, uint64_t Size,
+                                          MCSymbol *CsectSym,
+                                          unsigned ByteAlignment);
 
   /// Emit an ELF .size directive.
   ///
@@ -860,6 +890,22 @@ public:
       ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
       StringRef FixedSizePortion);
 
+  virtual void EmitCVDefRangeDirective(
+      ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
+      codeview::DefRangeRegisterRelHeader DRHdr);
+
+  virtual void EmitCVDefRangeDirective(
+      ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
+      codeview::DefRangeSubfieldRegisterHeader DRHdr);
+
+  virtual void EmitCVDefRangeDirective(
+      ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
+      codeview::DefRangeRegisterHeader DRHdr);
+
+  virtual void EmitCVDefRangeDirective(
+      ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
+      codeview::DefRangeFramePointerRelHeader DRHdr);
+
   /// This implements the CodeView '.cv_stringtable' assembler directive.
   virtual void EmitCVStringTableDirective() {}
 
@@ -917,13 +963,13 @@ public:
   virtual void EmitWinCFIFuncletOrFuncEnd(SMLoc Loc = SMLoc());
   virtual void EmitWinCFIStartChained(SMLoc Loc = SMLoc());
   virtual void EmitWinCFIEndChained(SMLoc Loc = SMLoc());
-  virtual void EmitWinCFIPushReg(unsigned Register, SMLoc Loc = SMLoc());
-  virtual void EmitWinCFISetFrame(unsigned Register, unsigned Offset,
+  virtual void EmitWinCFIPushReg(MCRegister Register, SMLoc Loc = SMLoc());
+  virtual void EmitWinCFISetFrame(MCRegister Register, unsigned Offset,
                                   SMLoc Loc = SMLoc());
   virtual void EmitWinCFIAllocStack(unsigned Size, SMLoc Loc = SMLoc());
-  virtual void EmitWinCFISaveReg(unsigned Register, unsigned Offset,
+  virtual void EmitWinCFISaveReg(MCRegister Register, unsigned Offset,
                                  SMLoc Loc = SMLoc());
-  virtual void EmitWinCFISaveXMM(unsigned Register, unsigned Offset,
+  virtual void EmitWinCFISaveXMM(MCRegister Register, unsigned Offset,
                                  SMLoc Loc = SMLoc());
   virtual void EmitWinCFIPushFrame(bool Code, SMLoc Loc = SMLoc());
   virtual void EmitWinCFIEndProlog(SMLoc Loc = SMLoc());

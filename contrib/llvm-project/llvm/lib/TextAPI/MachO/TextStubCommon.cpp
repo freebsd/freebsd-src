@@ -41,9 +41,21 @@ void ScalarEnumerationTraits<ObjCConstraintType>::enumeration(
   IO.enumCase(Constraint, "gc", ObjCConstraintType::GC);
 }
 
-void ScalarTraits<PlatformKind>::output(const PlatformKind &Value, void *,
-                                        raw_ostream &OS) {
-  switch (Value) {
+void ScalarTraits<PlatformSet>::output(const PlatformSet &Values, void *IO,
+                                       raw_ostream &OS) {
+
+  const auto *Ctx = reinterpret_cast<TextAPIContext *>(IO);
+  assert((!Ctx || Ctx->FileKind != FileType::Invalid) &&
+         "File type is not set in context");
+
+  if (Ctx && Ctx->FileKind == TBD_V3 && Values.count(PlatformKind::macOS) &&
+      Values.count(PlatformKind::macCatalyst)) {
+    OS << "zippered";
+    return;
+  }
+
+  assert(Values.size() == 1U);
+  switch (*Values.begin()) {
   default:
     llvm_unreachable("unexpected platform");
     break;
@@ -64,21 +76,44 @@ void ScalarTraits<PlatformKind>::output(const PlatformKind &Value, void *,
     break;
   }
 }
-StringRef ScalarTraits<PlatformKind>::input(StringRef Scalar, void *,
-                                            PlatformKind &Value) {
-  Value = StringSwitch<PlatformKind>(Scalar)
-              .Case("macosx", PlatformKind::macOS)
-              .Case("ios", PlatformKind::iOS)
-              .Case("watchos", PlatformKind::watchOS)
-              .Case("tvos", PlatformKind::tvOS)
-              .Case("bridgeos", PlatformKind::bridgeOS)
-              .Default(PlatformKind::unknown);
 
-  if (Value == PlatformKind::unknown)
+StringRef ScalarTraits<PlatformSet>::input(StringRef Scalar, void *IO,
+                                           PlatformSet &Values) {
+  const auto *Ctx = reinterpret_cast<TextAPIContext *>(IO);
+  assert((!Ctx || Ctx->FileKind != FileType::Invalid) &&
+         "File type is not set in context");
+
+  if (Scalar == "zippered") {
+    if (Ctx && Ctx->FileKind == FileType::TBD_V3) {
+      Values.insert(PlatformKind::macOS);
+      Values.insert(PlatformKind::macCatalyst);
+      return {};
+    }
+    return "invalid platform";
+  }
+
+  auto Platform = StringSwitch<PlatformKind>(Scalar)
+                      .Case("unknown", PlatformKind::unknown)
+                      .Case("macosx", PlatformKind::macOS)
+                      .Case("ios", PlatformKind::iOS)
+                      .Case("watchos", PlatformKind::watchOS)
+                      .Case("tvos", PlatformKind::tvOS)
+                      .Case("bridgeos", PlatformKind::bridgeOS)
+                      .Case("iosmac", PlatformKind::macCatalyst)
+                      .Default(PlatformKind::unknown);
+
+  if (Platform == PlatformKind::macCatalyst)
+    if (Ctx && Ctx->FileKind != FileType::TBD_V3)
+      return "invalid platform";
+
+  if (Platform == PlatformKind::unknown)
     return "unknown platform";
+
+  Values.insert(Platform);
   return {};
 }
-QuotingType ScalarTraits<PlatformKind>::mustQuote(StringRef) {
+
+QuotingType ScalarTraits<PlatformSet>::mustQuote(StringRef) {
   return QuotingType::None;
 }
 
@@ -137,14 +172,25 @@ void ScalarTraits<SwiftVersion>::output(const SwiftVersion &Value, void *,
     break;
   }
 }
-StringRef ScalarTraits<SwiftVersion>::input(StringRef Scalar, void *,
+StringRef ScalarTraits<SwiftVersion>::input(StringRef Scalar, void *IO,
                                             SwiftVersion &Value) {
-  Value = StringSwitch<SwiftVersion>(Scalar)
-              .Case("1.0", 1)
-              .Case("1.1", 2)
-              .Case("2.0", 3)
-              .Case("3.0", 4)
-              .Default(0);
+  const auto *Ctx = reinterpret_cast<TextAPIContext *>(IO);
+  assert((!Ctx || Ctx->FileKind != FileType::Invalid) &&
+         "File type is not set in context");
+
+  if (Ctx->FileKind == FileType::TBD_V4) {
+    if (Scalar.getAsInteger(10, Value))
+      return "invalid Swift ABI version.";
+    return {};
+  } else {
+    Value = StringSwitch<SwiftVersion>(Scalar)
+                .Case("1.0", 1)
+                .Case("1.1", 2)
+                .Case("2.0", 3)
+                .Case("3.0", 4)
+                .Default(0);
+  }
+
   if (Value != SwiftVersion(0))
     return {};
 
@@ -166,10 +212,11 @@ StringRef ScalarTraits<UUID>::input(StringRef Scalar, void *, UUID &Value) {
   auto UUID = Split.second.trim();
   if (UUID.empty())
     return "invalid uuid string pair";
-  Value.first = getArchitectureFromName(Arch);
   Value.second = UUID;
+  Value.first = Target{getArchitectureFromName(Arch), PlatformKind::unknown};
   return {};
 }
+
 QuotingType ScalarTraits<UUID>::mustQuote(StringRef) {
   return QuotingType::Single;
 }

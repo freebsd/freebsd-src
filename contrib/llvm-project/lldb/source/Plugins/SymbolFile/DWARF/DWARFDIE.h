@@ -22,10 +22,6 @@ public:
   bool IsMethod() const;
 
   // Accessors
-  lldb::ModuleSP GetContainingDWOModule() const;
-
-  DWARFDIE
-  GetContainingDWOModuleDIE() const;
 
   // Accessing information about a DIE
   const char *GetMangledName() const;
@@ -78,8 +74,8 @@ public:
 
   /// Return this DIE's decl context as it is needed to look up types
   /// in Clang's -gmodules debug info format.
-  void
-  GetDeclContext(std::vector<lldb_private::CompilerContext> &context) const;
+  void GetDeclContext(
+      llvm::SmallVectorImpl<lldb_private::CompilerContext> &context) const;
 
   // Getting attribute values from the DIE.
   //

@@ -73,6 +73,8 @@ bool Lowerer::lowerRemainingCoroIntrinsics(Function &F) {
         II->replaceAllUsesWith(ConstantInt::getTrue(Context));
         break;
       case Intrinsic::coro_id:
+      case Intrinsic::coro_id_retcon:
+      case Intrinsic::coro_id_retcon_once:
         II->replaceAllUsesWith(ConstantTokenNone::get(Context));
         break;
       case Intrinsic::coro_subfn_addr:
@@ -97,11 +99,11 @@ bool Lowerer::lowerRemainingCoroIntrinsics(Function &F) {
 
 namespace {
 
-struct CoroCleanup : FunctionPass {
+struct CoroCleanupLegacy : FunctionPass {
   static char ID; // Pass identification, replacement for typeid
 
-  CoroCleanup() : FunctionPass(ID) {
-    initializeCoroCleanupPass(*PassRegistry::getPassRegistry());
+  CoroCleanupLegacy() : FunctionPass(ID) {
+    initializeCoroCleanupLegacyPass(*PassRegistry::getPassRegistry());
   }
 
   std::unique_ptr<Lowerer> L;
@@ -111,8 +113,9 @@ struct CoroCleanup : FunctionPass {
   bool doInitialization(Module &M) override {
     if (coro::declaresIntrinsics(M, {"llvm.coro.alloc", "llvm.coro.begin",
                                      "llvm.coro.subfn.addr", "llvm.coro.free",
-                                     "llvm.coro.id"}))
-      L = llvm::make_unique<Lowerer>(M);
+                                     "llvm.coro.id", "llvm.coro.id.retcon",
+                                     "llvm.coro.id.retcon.once"}))
+      L = std::make_unique<Lowerer>(M);
     return false;
   }
 
@@ -129,8 +132,8 @@ struct CoroCleanup : FunctionPass {
 };
 }
 
-char CoroCleanup::ID = 0;
-INITIALIZE_PASS(CoroCleanup, "coro-cleanup",
+char CoroCleanupLegacy::ID = 0;
+INITIALIZE_PASS(CoroCleanupLegacy, "coro-cleanup",
                 "Lower all coroutine related intrinsics", false, false)
 
-Pass *llvm::createCoroCleanupPass() { return new CoroCleanup(); }
+Pass *llvm::createCoroCleanupLegacyPass() { return new CoroCleanupLegacy(); }

@@ -83,11 +83,24 @@ class CGDebugInfo {
   /// Cache of previously constructed Types.
   llvm::DenseMap<const void *, llvm::TrackingMDRef> TypeCache;
 
-  llvm::SmallDenseMap<llvm::StringRef, llvm::StringRef> DebugPrefixMap;
+  std::map<llvm::StringRef, llvm::StringRef, std::greater<llvm::StringRef>>
+      DebugPrefixMap;
 
   /// Cache that maps VLA types to size expressions for that type,
   /// represented by instantiated Metadata nodes.
   llvm::SmallDenseMap<QualType, llvm::Metadata *> SizeExprCache;
+
+  /// Callbacks to use when printing names and types.
+  class PrintingCallbacks final : public clang::PrintingCallbacks {
+    const CGDebugInfo &Self;
+
+  public:
+    PrintingCallbacks(const CGDebugInfo &Self) : Self(Self) {}
+    std::string remapPath(StringRef Path) const override {
+      return Self.remapDIPath(Path);
+    }
+  };
+  PrintingCallbacks PrintCB = {*this};
 
   struct ObjCInterfaceCacheEntry {
     const ObjCInterfaceType *Type;
@@ -102,7 +115,10 @@ class CGDebugInfo {
   llvm::SmallVector<ObjCInterfaceCacheEntry, 32> ObjCInterfaceCache;
 
   /// Cache of forward declarations for methods belonging to the interface.
-  llvm::DenseMap<const ObjCInterfaceDecl *, std::vector<llvm::DISubprogram *>>
+  /// The extra bit on the DISubprogram specifies whether a method is
+  /// "objc_direct".
+  llvm::DenseMap<const ObjCInterfaceDecl *,
+                 std::vector<llvm::PointerIntPair<llvm::DISubprogram *, 1>>>
       ObjCMethodCache;
 
   /// Cache of references to clang modules and precompiled headers.
@@ -134,10 +150,6 @@ class CGDebugInfo {
 
   llvm::DenseMap<const char *, llvm::TrackingMDRef> DIFileCache;
   llvm::DenseMap<const FunctionDecl *, llvm::TrackingMDRef> SPCache;
-  /// Cache function definitions relevant to use for parameters mutation
-  /// analysis.
-  llvm::DenseMap<const FunctionDecl *, llvm::TrackingMDRef> SPDefCache;
-  llvm::DenseMap<const ParmVarDecl *, llvm::TrackingMDRef> ParamCache;
   /// Cache declarations relevant to DW_TAG_imported_declarations (C++
   /// using declarations) that aren't covered by other more specific caches.
   llvm::DenseMap<const Decl *, llvm::TrackingMDRef> DeclCache;
@@ -466,6 +478,9 @@ public:
   /// Emit a constant global variable's debug info.
   void EmitGlobalVariable(const ValueDecl *VD, const APValue &Init);
 
+  /// Emit information about an external variable.
+  void EmitExternalVariable(llvm::GlobalVariable *GV, const VarDecl *Decl);
+
   /// Emit C++ using directive.
   void EmitUsingDirective(const UsingDirectiveDecl &UD);
 
@@ -601,6 +616,17 @@ private:
   /// declaration for the given method definition.
   llvm::DISubprogram *getFunctionDeclaration(const Decl *D);
 
+  /// \return          debug info descriptor to the describe method declaration
+  ///                  for the given method definition.
+  /// \param FnType    For Objective-C methods, their type.
+  /// \param LineNo    The declaration's line number.
+  /// \param Flags     The DIFlags for the method declaration.
+  /// \param SPFlags   The subprogram-spcific flags for the method declaration.
+  llvm::DISubprogram *
+  getObjCMethodDeclaration(const Decl *D, llvm::DISubroutineType *FnType,
+                           unsigned LineNo, llvm::DINode::DIFlags Flags,
+                           llvm::DISubprogram::DISPFlags SPFlags);
+
   /// \return debug info descriptor to describe in-class static data
   /// member declaration for the given out-of-class definition.  If D
   /// is an out-of-class definition of a static data member of a
@@ -725,6 +751,7 @@ public:
   ApplyDebugLocation(ApplyDebugLocation &&Other) : CGF(Other.CGF) {
     Other.CGF = nullptr;
   }
+  ApplyDebugLocation &operator=(ApplyDebugLocation &&) = default;
 
   ~ApplyDebugLocation();
 

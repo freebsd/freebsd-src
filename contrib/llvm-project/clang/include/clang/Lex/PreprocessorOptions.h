@@ -10,8 +10,11 @@
 #define LLVM_CLANG_LEX_PREPROCESSOROPTIONS_H_
 
 #include "clang/Basic/LLVM.h"
+#include "clang/Lex/PreprocessorExcludedConditionalDirectiveSkipMapping.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
+#include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -142,6 +145,9 @@ public:
   /// compiler invocation and its buffers will be reused.
   bool RetainRemappedFileBuffers = false;
 
+  /// When enabled, excluded conditional blocks retain in the main file.
+  bool RetainExcludedConditionalBlocks = false;
+
   /// The Objective-C++ ARC standard library that we should support,
   /// by providing appropriate definitions to retrofit the standard library
   /// with support for lifetime-qualified pointers.
@@ -168,6 +174,23 @@ public:
   /// other instances will see that the module has failed and won't try to
   /// build it again.
   std::shared_ptr<FailedModulesSet> FailedModules;
+
+  /// A prefix map for __FILE__ and __BASE_FILE__.
+  std::map<std::string, std::string, std::greater<std::string>> MacroPrefixMap;
+
+  /// Contains the currently active skipped range mappings for skipping excluded
+  /// conditional directives.
+  ///
+  /// The pointer is passed to the Preprocessor when it's constructed. The
+  /// pointer is unowned, the client is responsible for its lifetime.
+  ExcludedPreprocessorDirectiveSkipMapping
+      *ExcludedConditionalDirectiveSkipMappings = nullptr;
+
+  /// Set up preprocessor for RunAnalysis action.
+  bool SetUpStaticAnalyzer = false;
+
+  /// Prevents intended crashes when using #pragma clang __debug. For testing.
+  bool DisablePragmaDebugCrash = false;
 
 public:
   PreprocessorOptions() : PrecompiledPreambleBytes(0, false) {}
@@ -201,6 +224,7 @@ public:
     RetainRemappedFileBuffers = true;
     PrecompiledPreambleBytes.first = 0;
     PrecompiledPreambleBytes.second = false;
+    RetainExcludedConditionalBlocks = false;
   }
 };
 
