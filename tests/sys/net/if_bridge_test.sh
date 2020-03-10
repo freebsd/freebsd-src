@@ -135,8 +135,65 @@ stp_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "static" "cleanup"
+static_head()
+{
+	atf_set descr 'Bridge static address test'
+	atf_set require.user root
+}
+
+static_body()
+{
+	vnet_init
+
+	epair=$(vnet_mkepair)
+	bridge=$(vnet_mkbridge)
+
+	vnet_mkjail one ${bridge} ${epair}a
+
+	ifconfig ${epair}b up
+
+	jexec one ifconfig ${bridge} up
+	jexec one ifconfig ${epair}a up
+	jexec one ifconfig ${bridge} addm ${epair}a
+
+	# Wrong interface
+	atf_check -s exit:1 -o ignore -e ignore \
+	    jexec one ifconfig ${bridge} static ${epair}b 00:01:02:03:04:05
+
+	# Bad address format
+	atf_check -s exit:1 -o ignore -e ignore \
+	    jexec one ifconfig ${bridge} static ${epair}a 00:01:02:03:04
+
+	# Correct add
+	atf_check -s exit:0 -o ignore \
+	    jexec one ifconfig ${bridge} static ${epair}a 00:01:02:03:04:05
+
+	# List addresses
+	atf_check -s exit:0 -o ignore \
+	    jexec one ifconfig ${bridge} addr
+
+	# Delete with bad address format
+	atf_check -s exit:1 -o ignore -e ignore \
+	    jexec one ifconfig ${bridge} deladdr 00:01:02:03:04
+
+	# Delete with unlisted address
+	atf_check -s exit:1 -o ignore -e ignore \
+	    jexec one ifconfig ${bridge} deladdr 00:01:02:03:04:06
+
+	# Correct delete
+	atf_check -s exit:0 -o ignore \
+	    jexec one ifconfig ${bridge} deladdr 00:01:02:03:04:05
+}
+
+static_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
 	atf_add_test_case "stp"
+	atf_add_test_case "static"
 }
