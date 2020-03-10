@@ -28,7 +28,6 @@ public:
 
   virtual lldb::TypeSP ParseTypeFromDWARF(const lldb_private::SymbolContext &sc,
                                           const DWARFDIE &die,
-                                          lldb_private::Log *log,
                                           bool *type_is_new_ptr) = 0;
 
   virtual lldb_private::Function *
@@ -48,8 +47,8 @@ public:
   virtual lldb_private::CompilerDeclContext
   GetDeclContextContainingUIDFromDWARF(const DWARFDIE &die) = 0;
 
-  virtual std::vector<DWARFDIE>
-  GetDIEForDeclContext(lldb_private::CompilerDeclContext decl_context) = 0;
+  virtual void EnsureAllDIEsInDeclContextHaveBeenParsed(
+      lldb_private::CompilerDeclContext decl_context) = 0;
 
   static llvm::Optional<lldb_private::SymbolFile::ArrayInfo>
   ParseChildArrayInfo(const DWARFDIE &parent_die,

@@ -37,6 +37,11 @@ using namespace llvm;
 
 #define DEBUG_TYPE "msp430-lower"
 
+static cl::opt<bool>MSP430NoLegalImmediate(
+  "msp430-no-legal-immediate", cl::Hidden,
+  cl::desc("Enable non legal immediates (for testing purposes only)"),
+  cl::init(false));
+
 MSP430TargetLowering::MSP430TargetLowering(const TargetMachine &TM,
                                            const MSP430Subtarget &STI)
     : TargetLowering(TM) {
@@ -327,8 +332,8 @@ MSP430TargetLowering::MSP430TargetLowering(const TargetMachine &TM,
   setLibcallCallingConv(RTLIB::OGT_F64, CallingConv::MSP430_BUILTIN);
   // TODO: __mspabi_srall, __mspabi_srlll, __mspabi_sllll
 
-  setMinFunctionAlignment(1);
-  setPrefFunctionAlignment(1);
+  setMinFunctionAlignment(Align(2));
+  setPrefFunctionAlignment(Align(2));
 }
 
 SDValue MSP430TargetLowering::LowerOperation(SDValue Op,
@@ -351,6 +356,20 @@ SDValue MSP430TargetLowering::LowerOperation(SDValue Op,
   default:
     llvm_unreachable("unimplemented operand");
   }
+}
+
+// Define non profitable transforms into shifts
+bool MSP430TargetLowering::shouldAvoidTransformToShift(EVT VT,
+                                                       unsigned Amount) const {
+  return !(Amount == 8 || Amount == 9 || Amount<=2);
+}
+
+// Implemented to verify test case assertions in
+// tests/codegen/msp430/shift-amount-threshold-b.ll
+bool MSP430TargetLowering::isLegalICmpImmediate(int64_t Immed) const {
+  if (MSP430NoLegalImmediate)
+    return Immed >= -32 && Immed < 32;
+  return TargetLowering::isLegalICmpImmediate(Immed);
 }
 
 //===----------------------------------------------------------------------===//
@@ -632,7 +651,7 @@ SDValue MSP430TargetLowering::LowerCCCArguments(
           llvm_unreachable(nullptr);
         }
       case MVT::i16:
-        unsigned VReg = RegInfo.createVirtualRegister(&MSP430::GR16RegClass);
+        Register VReg = RegInfo.createVirtualRegister(&MSP430::GR16RegClass);
         RegInfo.addLiveIn(VA.getLocReg(), VReg);
         SDValue ArgValue = DAG.getCopyFromReg(Chain, dl, VReg, RegVT);
 
@@ -1446,8 +1465,8 @@ MSP430TargetLowering::EmitShiftInstr(MachineInstr &MI,
   case MSP430::Rrcl16: {
     BuildMI(*BB, MI, dl, TII.get(MSP430::BIC16rc), MSP430::SR)
       .addReg(MSP430::SR).addImm(1);
-    unsigned SrcReg = MI.getOperand(1).getReg();
-    unsigned DstReg = MI.getOperand(0).getReg();
+    Register SrcReg = MI.getOperand(1).getReg();
+    Register DstReg = MI.getOperand(0).getReg();
     unsigned RrcOpc = MI.getOpcode() == MSP430::Rrcl16
                     ? MSP430::RRC16r : MSP430::RRC8r;
     BuildMI(*BB, MI, dl, TII.get(RrcOpc), DstReg)
@@ -1479,13 +1498,13 @@ MSP430TargetLowering::EmitShiftInstr(MachineInstr &MI,
   LoopBB->addSuccessor(RemBB);
   LoopBB->addSuccessor(LoopBB);
 
-  unsigned ShiftAmtReg = RI.createVirtualRegister(&MSP430::GR8RegClass);
-  unsigned ShiftAmtReg2 = RI.createVirtualRegister(&MSP430::GR8RegClass);
-  unsigned ShiftReg = RI.createVirtualRegister(RC);
-  unsigned ShiftReg2 = RI.createVirtualRegister(RC);
-  unsigned ShiftAmtSrcReg = MI.getOperand(2).getReg();
-  unsigned SrcReg = MI.getOperand(1).getReg();
-  unsigned DstReg = MI.getOperand(0).getReg();
+  Register ShiftAmtReg = RI.createVirtualRegister(&MSP430::GR8RegClass);
+  Register ShiftAmtReg2 = RI.createVirtualRegister(&MSP430::GR8RegClass);
+  Register ShiftReg = RI.createVirtualRegister(RC);
+  Register ShiftReg2 = RI.createVirtualRegister(RC);
+  Register ShiftAmtSrcReg = MI.getOperand(2).getReg();
+  Register SrcReg = MI.getOperand(1).getReg();
+  Register DstReg = MI.getOperand(0).getReg();
 
   // BB:
   // cmp 0, N

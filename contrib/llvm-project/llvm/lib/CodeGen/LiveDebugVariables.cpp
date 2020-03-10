@@ -49,6 +49,7 @@
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
@@ -167,6 +168,10 @@ class UserValue {
   /// Map of slot indices where this value is live.
   LocMap locInts;
 
+  /// Set of interval start indexes that have been trimmed to the
+  /// lexical scope.
+  SmallSet<SlotIndex, 2> trimmedDefs;
+
   /// Insert a DBG_VALUE into MBB at Idx for LocNo.
   void insertDebugValue(MachineBasicBlock *MBB, SlotIndex StartIdx,
                         SlotIndex StopIdx, DbgValueLocation Loc, bool Spilled,
@@ -255,6 +260,25 @@ public:
       locations.back().setIsUse();
     }
     return locations.size() - 1;
+  }
+
+  /// Remove (recycle) a location number. If \p LocNo still is used by the
+  /// locInts nothing is done.
+  void removeLocationIfUnused(unsigned LocNo) {
+    // Bail out if LocNo still is used.
+    for (LocMap::const_iterator I = locInts.begin(); I.valid(); ++I) {
+      DbgValueLocation Loc = I.value();
+      if (Loc.locNo() == LocNo)
+        return;
+    }
+    // Remove the entry in the locations vector, and adjust all references to
+    // location numbers above the removed entry.
+    locations.erase(locations.begin() + LocNo);
+    for (LocMap::iterator I = locInts.begin(); I.valid(); ++I) {
+      DbgValueLocation Loc = I.value();
+      if (!Loc.isUndef() && Loc.locNo() > LocNo)
+        I.setValueUnchecked(Loc.changeLocNo(Loc.locNo() - 1));
+    }
   }
 
   /// Ensure that all virtual register locations are mapped.
@@ -489,7 +513,7 @@ static void printExtendedName(raw_ostream &OS, const DINode *Node,
                               const DILocation *DL) {
   const LLVMContext &Ctx = Node->getContext();
   StringRef Res;
-  unsigned Line;
+  unsigned Line = 0;
   if (const auto *V = dyn_cast<const DILocalVariable>(Node)) {
     Res = V->getName();
     Line = V->getLine();
@@ -554,7 +578,7 @@ void LDVImpl::print(raw_ostream &OS) {
 void UserValue::mapVirtRegs(LDVImpl *LDV) {
   for (unsigned i = 0, e = locations.size(); i != e; ++i)
     if (locations[i].isReg() &&
-        TargetRegisterInfo::isVirtualRegister(locations[i].getReg()))
+        Register::isVirtualRegister(locations[i].getReg()))
       LDV->mapVirtReg(locations[i].getReg(), this);
 }
 
@@ -570,14 +594,14 @@ UserValue *LDVImpl::getUserValue(const DILocalVariable *Var,
   }
 
   userValues.push_back(
-      llvm::make_unique<UserValue>(Var, Expr, DL, allocator));
+      std::make_unique<UserValue>(Var, Expr, DL, allocator));
   UserValue *UV = userValues.back().get();
   Leader = UserValue::merge(Leader, UV);
   return UV;
 }
 
 void LDVImpl::mapVirtReg(unsigned VirtReg, UserValue *EC) {
-  assert(TargetRegisterInfo::isVirtualRegister(VirtReg) && "Only map VirtRegs");
+  assert(Register::isVirtualRegister(VirtReg) && "Only map VirtRegs");
   UserValue *&Leader = virtRegToEqClass[VirtReg];
   Leader = UserValue::merge(Leader, EC);
 }
@@ -606,8 +630,8 @@ bool LDVImpl::handleDebugValue(MachineInstr &MI, SlotIndex Idx) {
   // could be removed or replaced by asserts.
   bool Discard = false;
   if (MI.getOperand(0).isReg() &&
-      TargetRegisterInfo::isVirtualRegister(MI.getOperand(0).getReg())) {
-    const unsigned Reg = MI.getOperand(0).getReg();
+      Register::isVirtualRegister(MI.getOperand(0).getReg())) {
+    const Register Reg = MI.getOperand(0).getReg();
     if (!LIS->hasInterval(Reg)) {
       // The DBG_VALUE is described by a virtual register that does not have a
       // live interval. Discard the DBG_VALUE.
@@ -666,7 +690,7 @@ bool LDVImpl::handleDebugLabel(MachineInstr &MI, SlotIndex Idx) {
     }
   }
   if (!Found)
-    userLabels.push_back(llvm::make_unique<UserLabel>(Label, DL, Idx));
+    userLabels.push_back(std::make_unique<UserLabel>(Label, DL, Idx));
 
   return true;
 }
@@ -758,7 +782,7 @@ void UserValue::addDefsFromCopies(
   if (Kills.empty())
     return;
   // Don't track copies from physregs, there are too many uses.
-  if (!TargetRegisterInfo::isVirtualRegister(LI->reg))
+  if (!Register::isVirtualRegister(LI->reg))
     return;
 
   // Collect all the (vreg, valno) pairs that are copies of LI.
@@ -768,13 +792,13 @@ void UserValue::addDefsFromCopies(
     // Copies of the full value.
     if (MO.getSubReg() || !MI->isCopy())
       continue;
-    unsigned DstReg = MI->getOperand(0).getReg();
+    Register DstReg = MI->getOperand(0).getReg();
 
     // Don't follow copies to physregs. These are usually setting up call
     // arguments, and the argument registers are always call clobbered. We are
     // better off in the source register which could be a callee-saved register,
     // or it could be spilled.
-    if (!TargetRegisterInfo::isVirtualRegister(DstReg))
+    if (!Register::isVirtualRegister(DstReg))
       continue;
 
     // Is LocNo extended to reach this copy? If not, another def may be blocking
@@ -845,7 +869,7 @@ void UserValue::computeIntervals(MachineRegisterInfo &MRI,
     }
 
     // Register locations are constrained to where the register value is live.
-    if (TargetRegisterInfo::isVirtualRegister(LocMO.getReg())) {
+    if (Register::isVirtualRegister(LocMO.getReg())) {
       LiveInterval *LI = nullptr;
       const VNInfo *VNI = nullptr;
       if (LIS.hasInterval(LocMO.getReg())) {
@@ -897,6 +921,11 @@ void UserValue::computeIntervals(MachineRegisterInfo &MRI,
     SlotIndex RStart = LIS.getInstructionIndex(*Range.first);
     SlotIndex REnd = LIS.getInstructionIndex(*Range.second);
 
+    // Variable locations at the first instruction of a block should be
+    // based on the block's SlotIndex, not the first instruction's index.
+    if (Range.first == Range.first->getParent()->begin())
+      RStart = LIS.getSlotIndexes()->getIndexBefore(*Range.first);
+
     // At the start of each iteration I has been advanced so that
     // I.stop() >= PrevEnd. Check for overlap.
     if (PrevEnd && I.start() < PrevEnd) {
@@ -909,7 +938,8 @@ void UserValue::computeIntervals(MachineRegisterInfo &MRI,
       ++I;
 
       // If the interval also overlaps the start of the "next" (i.e.
-      // current) range create a new interval for the remainder
+      // current) range create a new interval for the remainder (which
+      // may be further trimmed).
       if (RStart < IStop)
         I.insert(RStart, IStop, Loc);
     }
@@ -918,6 +948,13 @@ void UserValue::computeIntervals(MachineRegisterInfo &MRI,
     I.advanceTo(RStart);
     if (!I.valid())
       return;
+
+    if (I.start() < RStart) {
+      // Interval start overlaps range - trim to the scope range.
+      I.setStartUnchecked(RStart);
+      // Remember that this interval was trimmed.
+      trimmedDefs.insert(RStart);
+    }
 
     // The end of a lexical scope range is the last instruction in the
     // range. To convert to an interval we need the index of the
@@ -1080,23 +1117,14 @@ UserValue::splitLocation(unsigned OldLocNo, ArrayRef<unsigned> NewRegs,
     }
   }
 
-  // Finally, remove any remaining OldLocNo intervals and OldLocNo itself.
-  locations.erase(locations.begin() + OldLocNo);
-  LocMapI.goToBegin();
-  while (LocMapI.valid()) {
-    DbgValueLocation v = LocMapI.value();
-    if (v.locNo() == OldLocNo) {
-      LLVM_DEBUG(dbgs() << "Erasing [" << LocMapI.start() << ';'
-                        << LocMapI.stop() << ")\n");
-      LocMapI.erase();
-    } else {
-      // Undef values always have location number UndefLocNo, so don't change
-      // locNo in that case. See getLocationNo().
-      if (!v.isUndef() && v.locNo() > OldLocNo)
-        LocMapI.setValueUnchecked(v.changeLocNo(v.locNo() - 1));
-      ++LocMapI;
-    }
-  }
+  // Finally, remove OldLocNo unless it is still used by some interval in the
+  // locInts map. One case when OldLocNo still is in use is when the register
+  // has been spilled. In such situations the spilled register is kept as a
+  // location until rewriteLocations is called (VirtRegMap is mapping the old
+  // register to the spill slot). So for a while we can have locations that map
+  // to virtual registers that have been removed from both the MachineFunction
+  // and from LiveIntervals.
+  removeLocationIfUnused(OldLocNo);
 
   LLVM_DEBUG({
     dbgs() << "Split result: \t";
@@ -1161,10 +1189,10 @@ void UserValue::rewriteLocations(VirtRegMap &VRM, const MachineFunction &MF,
     MachineOperand Loc = locations[I];
     // Only virtual registers are rewritten.
     if (Loc.isReg() && Loc.getReg() &&
-        TargetRegisterInfo::isVirtualRegister(Loc.getReg())) {
-      unsigned VirtReg = Loc.getReg();
+        Register::isVirtualRegister(Loc.getReg())) {
+      Register VirtReg = Loc.getReg();
       if (VRM.isAssignedReg(VirtReg) &&
-          TargetRegisterInfo::isPhysicalRegister(VRM.getPhys(VirtReg))) {
+          Register::isPhysicalRegister(VRM.getPhys(VirtReg))) {
         // This can create a %noreg operand in rare cases when the sub-register
         // index is no longer available. That means the user value is in a
         // non-existent sub-register, and %noreg is exactly what we want.
@@ -1258,7 +1286,7 @@ findNextInsertLocation(MachineBasicBlock *MBB,
                        const TargetRegisterInfo &TRI) {
   if (!LocMO.isReg())
     return MBB->instr_end();
-  unsigned Reg = LocMO.getReg();
+  Register Reg = LocMO.getReg();
 
   // Find the next instruction in the MBB that define the register Reg.
   while (I != MBB->end() && !I->isTerminator()) {
@@ -1347,6 +1375,12 @@ void UserValue::emitDebugValues(VirtRegMap *VRM, LiveIntervals &LIS,
         !Loc.isUndef() ? SpillOffsets.find(Loc.locNo()) : SpillOffsets.end();
     bool Spilled = SpillIt != SpillOffsets.end();
     unsigned SpillOffset = Spilled ? SpillIt->second : 0;
+
+    // If the interval start was trimmed to the lexical scope insert the
+    // DBG_VALUE at the previous index (otherwise it appears after the
+    // first instruction in the range).
+    if (trimmedDefs.count(Start))
+      Start = Start.getPrevIndex();
 
     LLVM_DEBUG(dbgs() << "\t[" << Start << ';' << Stop << "):" << Loc.locNo());
     MachineFunction::iterator MBB = LIS.getMBBFromIndex(Start)->getIterator();

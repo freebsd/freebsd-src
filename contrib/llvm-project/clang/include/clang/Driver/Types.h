@@ -11,16 +11,18 @@
 
 #include "clang/Driver/Phases.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Option/ArgList.h"
 
 namespace llvm {
 class StringRef;
 }
 namespace clang {
 namespace driver {
+class Driver;
 namespace types {
   enum ID {
     TY_INVALID,
-#define TYPE(NAME, ID, PP_TYPE, TEMP_SUFFIX, FLAGS) TY_##ID,
+#define TYPE(NAME, ID, PP_TYPE, TEMP_SUFFIX, ...) TY_##ID,
 #include "clang/Driver/Types.def"
 #undef TYPE
     TY_LAST
@@ -82,6 +84,9 @@ namespace types {
   /// isObjC - Is this an "ObjC" input (Obj-C and Obj-C++ sources and headers).
   bool isObjC(ID Id);
 
+  /// isFortran - Is this a Fortran input.
+  bool isFortran(ID Id);
+
   /// isSrcFile - Is this a source file, i.e. something that still has to be
   /// preprocessed. The logic behind this is the same that decides if the first
   /// compilation phase is a preprocessing one.
@@ -100,6 +105,9 @@ namespace types {
   void getCompilationPhases(
     ID Id,
     llvm::SmallVectorImpl<phases::ID> &Phases);
+  void getCompilationPhases(const clang::driver::Driver &Driver,
+                            llvm::opt::DerivedArgList &DAL, ID Id,
+                            llvm::SmallVectorImpl<phases::ID> &Phases);
 
   /// lookupCXXTypeForCType - Lookup CXX input type that corresponds to given
   /// C type (used for clang++ emulation of g++ behaviour)

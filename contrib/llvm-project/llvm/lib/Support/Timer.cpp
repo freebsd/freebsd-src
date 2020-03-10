@@ -58,23 +58,23 @@ namespace {
 std::unique_ptr<raw_fd_ostream> llvm::CreateInfoOutputFile() {
   const std::string &OutputFilename = getLibSupportInfoOutputFilename();
   if (OutputFilename.empty())
-    return llvm::make_unique<raw_fd_ostream>(2, false); // stderr.
+    return std::make_unique<raw_fd_ostream>(2, false); // stderr.
   if (OutputFilename == "-")
-    return llvm::make_unique<raw_fd_ostream>(1, false); // stdout.
+    return std::make_unique<raw_fd_ostream>(1, false); // stdout.
 
   // Append mode is used because the info output file is opened and closed
   // each time -stats or -time-passes wants to print output to it. To
   // compensate for this, the test-suite Makefiles have code to delete the
   // info output file before running commands which write to it.
   std::error_code EC;
-  auto Result = llvm::make_unique<raw_fd_ostream>(
-      OutputFilename, EC, sys::fs::F_Append | sys::fs::F_Text);
+  auto Result = std::make_unique<raw_fd_ostream>(
+      OutputFilename, EC, sys::fs::OF_Append | sys::fs::OF_Text);
   if (!EC)
     return Result;
 
   errs() << "Error opening info-output-file '"
     << OutputFilename << " for appending!\n";
-  return llvm::make_unique<raw_fd_ostream>(2, false); // stderr.
+  return std::make_unique<raw_fd_ostream>(2, false); // stderr.
 }
 
 namespace {
@@ -91,14 +91,15 @@ static TimerGroup *getDefaultTimerGroup() { return &*DefaultTimerGroup; }
 // Timer Implementation
 //===----------------------------------------------------------------------===//
 
-void Timer::init(StringRef Name, StringRef Description) {
-  init(Name, Description, *getDefaultTimerGroup());
+void Timer::init(StringRef TimerName, StringRef TimerDescription) {
+  init(TimerName, TimerDescription, *getDefaultTimerGroup());
 }
 
-void Timer::init(StringRef Name, StringRef Description, TimerGroup &tg) {
+void Timer::init(StringRef TimerName, StringRef TimerDescription,
+                 TimerGroup &tg) {
   assert(!TG && "Timer already initialized");
-  this->Name.assign(Name.begin(), Name.end());
-  this->Description.assign(Description.begin(), Description.end());
+  Name.assign(TimerName.begin(), TimerName.end());
+  Description.assign(TimerDescription.begin(), TimerDescription.end());
   Running = Triggered = false;
   TG = &tg;
   TG->addTimer(*this);

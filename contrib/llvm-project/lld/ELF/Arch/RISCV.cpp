@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "InputFiles.h"
+#include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
 
@@ -14,8 +15,9 @@ using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::support::endian;
 using namespace llvm::ELF;
-using namespace lld;
-using namespace lld::elf;
+
+namespace lld {
+namespace elf {
 
 namespace {
 
@@ -26,8 +28,8 @@ public:
   void writeGotHeader(uint8_t *buf) const override;
   void writeGotPlt(uint8_t *buf, const Symbol &s) const override;
   void writePltHeader(uint8_t *buf) const override;
-  void writePlt(uint8_t *buf, uint64_t gotPltEntryAddr, uint64_t pltEntryAddr,
-                int32_t index, unsigned relOff) const override;
+  void writePlt(uint8_t *buf, const Symbol &sym,
+                uint64_t pltEntryAddr) const override;
   RelType getDynRel(RelType type) const override;
   RelExpr getRelExpr(RelType type, const Symbol &s,
                      const uint8_t *loc) const override;
@@ -94,8 +96,9 @@ RISCV::RISCV() {
   // .got.plt[0] = _dl_runtime_resolve, .got.plt[1] = link_map
   gotPltHeaderEntriesNum = 2;
 
-  pltEntrySize = 16;
   pltHeaderSize = 32;
+  pltEntrySize = 16;
+  ipltEntrySize = 16;
 }
 
 static uint32_t getEFlags(InputFile *f) {
@@ -164,14 +167,13 @@ void RISCV::writePltHeader(uint8_t *buf) const {
   write32le(buf + 28, itype(JALR, 0, X_T3, 0));
 }
 
-void RISCV::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
-                     uint64_t pltEntryAddr, int32_t index,
-                     unsigned relOff) const {
+void RISCV::writePlt(uint8_t *buf, const Symbol &sym,
+                     uint64_t pltEntryAddr) const {
   // 1: auipc t3, %pcrel_hi(f@.got.plt)
   // l[wd] t3, %pcrel_lo(1b)(t3)
   // jalr t1, t3
   // nop
-  uint32_t offset = gotPltEntryAddr - pltEntryAddr;
+  uint32_t offset = sym.getGotPltVA() - pltEntryAddr;
   write32le(buf + 0, utype(AUIPC, X_T3, hi20(offset)));
   write32le(buf + 4, itype(config->is64 ? LD : LW, X_T3, X_T3, lo12(offset)));
   write32le(buf + 8, itype(JALR, X_T1, X_T3, 0));
@@ -186,6 +188,15 @@ RelType RISCV::getDynRel(RelType type) const {
 RelExpr RISCV::getRelExpr(const RelType type, const Symbol &s,
                           const uint8_t *loc) const {
   switch (type) {
+  case R_RISCV_NONE:
+    return R_NONE;
+  case R_RISCV_32:
+  case R_RISCV_64:
+  case R_RISCV_HI20:
+  case R_RISCV_LO12_I:
+  case R_RISCV_LO12_S:
+  case R_RISCV_RVC_LUI:
+    return R_ABS;
   case R_RISCV_ADD8:
   case R_RISCV_ADD16:
   case R_RISCV_ADD32:
@@ -225,11 +236,19 @@ RelExpr RISCV::getRelExpr(const RelType type, const Symbol &s,
   case R_RISCV_TPREL_LO12_S:
     return R_TLS;
   case R_RISCV_RELAX:
-  case R_RISCV_ALIGN:
   case R_RISCV_TPREL_ADD:
-    return R_HINT;
+    return R_NONE;
+  case R_RISCV_ALIGN:
+    // Not just a hint; always padded to the worst-case number of NOPs, so may
+    // not currently be aligned, and without linker relaxation support we can't
+    // delete NOPs to realign.
+    errorOrWarn(getErrorLocation(loc) + "relocation R_RISCV_ALIGN requires "
+                "unimplemented linker relaxation; recompile with -mno-relax");
+    return R_NONE;
   default:
-    return R_ABS;
+    error(getErrorLocation(loc) + "unknown relocation (" + Twine(type) +
+          ") against symbol " + toString(s));
+    return R_NONE;
   }
 }
 
@@ -418,28 +437,18 @@ void RISCV::relocateOne(uint8_t *loc, const RelType type,
     write64le(loc, val - dtpOffset);
     break;
 
-  case R_RISCV_ALIGN:
   case R_RISCV_RELAX:
     return; // Ignored (for now)
-  case R_RISCV_NONE:
-    return; // Do nothing
 
-  // These are handled by the dynamic linker
-  case R_RISCV_RELATIVE:
-  case R_RISCV_COPY:
-  case R_RISCV_JUMP_SLOT:
-  // GP-relative relocations are only produced after relaxation, which
-  // we don't support for now
-  case R_RISCV_GPREL_I:
-  case R_RISCV_GPREL_S:
   default:
-    error(getErrorLocation(loc) +
-          "unimplemented relocation: " + toString(type));
-    return;
+    llvm_unreachable("unknown relocation");
   }
 }
 
-TargetInfo *elf::getRISCVTargetInfo() {
+TargetInfo *getRISCVTargetInfo() {
   static RISCV target;
   return &target;
 }
+
+} // namespace elf
+} // namespace lld

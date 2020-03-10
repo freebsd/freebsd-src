@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/ExecutionEngine/JITLink/JITLinkMemoryManager.h"
+#include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/OrcError.h"
 #include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
@@ -22,6 +24,26 @@ Error LLJITBuilderState::prepareForConstruction() {
       JTMB = std::move(*JTMBOrErr);
     else
       return JTMBOrErr.takeError();
+  }
+
+  // If the client didn't configure any linker options then auto-configure the
+  // JIT linker.
+  if (!CreateObjectLinkingLayer && JTMB->getCodeModel() == None &&
+      JTMB->getRelocationModel() == None) {
+
+    auto &TT = JTMB->getTargetTriple();
+    if (TT.isOSBinFormatMachO() &&
+        (TT.getArch() == Triple::aarch64 || TT.getArch() == Triple::x86_64)) {
+
+      JTMB->setRelocationModel(Reloc::PIC_);
+      JTMB->setCodeModel(CodeModel::Small);
+      CreateObjectLinkingLayer =
+          [](ExecutionSession &ES,
+             const Triple &) -> std::unique_ptr<ObjectLayer> {
+        return std::make_unique<ObjectLinkingLayer>(
+            ES, std::make_unique<jitlink::InProcessMemoryManager>());
+      };
+    }
   }
 
   return Error::success();
@@ -41,7 +63,8 @@ Error LLJIT::defineAbsolute(StringRef Name, JITEvaluatedSymbol Sym) {
 Error LLJIT::addIRModule(JITDylib &JD, ThreadSafeModule TSM) {
   assert(TSM && "Can not add null module");
 
-  if (auto Err = applyDataLayout(*TSM.getModule()))
+  if (auto Err =
+          TSM.withModuleDo([&](Module &M) { return applyDataLayout(M); }))
     return Err;
 
   return CompileLayer->add(JD, std::move(TSM), ES->allocateVModule());
@@ -50,12 +73,14 @@ Error LLJIT::addIRModule(JITDylib &JD, ThreadSafeModule TSM) {
 Error LLJIT::addObjectFile(JITDylib &JD, std::unique_ptr<MemoryBuffer> Obj) {
   assert(Obj && "Can not add null object");
 
-  return ObjLinkingLayer->add(JD, std::move(Obj), ES->allocateVModule());
+  return ObjTransformLayer.add(JD, std::move(Obj), ES->allocateVModule());
 }
 
 Expected<JITEvaluatedSymbol> LLJIT::lookupLinkerMangled(JITDylib &JD,
                                                         StringRef Name) {
-  return ES->lookup(JITDylibSearchList({{&JD, true}}), ES->intern(Name));
+  return ES->lookup(
+      makeJITDylibSearchOrder(&JD, JITDylibLookupFlags::MatchAllSymbols),
+      ES->intern(Name));
 }
 
 std::unique_ptr<ObjectLayer>
@@ -63,15 +88,26 @@ LLJIT::createObjectLinkingLayer(LLJITBuilderState &S, ExecutionSession &ES) {
 
   // If the config state provided an ObjectLinkingLayer factory then use it.
   if (S.CreateObjectLinkingLayer)
-    return S.CreateObjectLinkingLayer(ES);
+    return S.CreateObjectLinkingLayer(ES, S.JTMB->getTargetTriple());
 
   // Otherwise default to creating an RTDyldObjectLinkingLayer that constructs
   // a new SectionMemoryManager for each object.
-  auto GetMemMgr = []() { return llvm::make_unique<SectionMemoryManager>(); };
-  return llvm::make_unique<RTDyldObjectLinkingLayer>(ES, std::move(GetMemMgr));
+  auto GetMemMgr = []() { return std::make_unique<SectionMemoryManager>(); };
+  auto ObjLinkingLayer =
+      std::make_unique<RTDyldObjectLinkingLayer>(ES, std::move(GetMemMgr));
+
+  if (S.JTMB->getTargetTriple().isOSBinFormatCOFF()) {
+    ObjLinkingLayer->setOverrideObjectFlagsWithResponsibilityFlags(true);
+    ObjLinkingLayer->setAutoClaimResponsibilityForObjectSymbols(true);
+  }
+
+  // FIXME: Explicit conversion to std::unique_ptr<ObjectLayer> added to silence
+  //        errors from some GCC / libstdc++ bots. Remove this conversion (i.e.
+  //        just return ObjLinkingLayer) once those bots are upgraded.
+  return std::unique_ptr<ObjectLayer>(std::move(ObjLinkingLayer));
 }
 
-Expected<IRCompileLayer::CompileFunction>
+Expected<std::unique_ptr<IRCompileLayer::IRCompiler>>
 LLJIT::createCompileFunction(LLJITBuilderState &S,
                              JITTargetMachineBuilder JTMB) {
 
@@ -82,23 +118,23 @@ LLJIT::createCompileFunction(LLJITBuilderState &S,
   // Otherwise default to creating a SimpleCompiler, or ConcurrentIRCompiler,
   // depending on the number of threads requested.
   if (S.NumCompileThreads > 0)
-    return ConcurrentIRCompiler(std::move(JTMB));
+    return std::make_unique<ConcurrentIRCompiler>(std::move(JTMB));
 
   auto TM = JTMB.createTargetMachine();
   if (!TM)
     return TM.takeError();
 
-  return TMOwningSimpleCompiler(std::move(*TM));
+  return std::make_unique<TMOwningSimpleCompiler>(std::move(*TM));
 }
 
 LLJIT::LLJIT(LLJITBuilderState &S, Error &Err)
-    : ES(S.ES ? std::move(S.ES) : llvm::make_unique<ExecutionSession>()),
-      Main(this->ES->getMainJITDylib()), DL(""), CtorRunner(Main),
+    : ES(S.ES ? std::move(S.ES) : std::make_unique<ExecutionSession>()),
+      Main(this->ES->createJITDylib("<main>")), DL(""),
+      ObjLinkingLayer(createObjectLinkingLayer(S, *ES)),
+      ObjTransformLayer(*this->ES, *ObjLinkingLayer), CtorRunner(Main),
       DtorRunner(Main) {
 
   ErrorAsOutParameter _(&Err);
-
-  ObjLinkingLayer = createObjectLinkingLayer(S, *ES);
 
   if (auto DLOrErr = S.JTMB->getDefaultDataLayoutForTarget())
     DL = std::move(*DLOrErr);
@@ -113,13 +149,13 @@ LLJIT::LLJIT(LLJITBuilderState &S, Error &Err)
       Err = CompileFunction.takeError();
       return;
     }
-    CompileLayer = llvm::make_unique<IRCompileLayer>(
-        *ES, *ObjLinkingLayer, std::move(*CompileFunction));
+    CompileLayer = std::make_unique<IRCompileLayer>(
+        *ES, ObjTransformLayer, std::move(*CompileFunction));
   }
 
   if (S.NumCompileThreads > 0) {
     CompileLayer->setCloneToNewContextOnEmit(true);
-    CompileThreads = llvm::make_unique<ThreadPool>(S.NumCompileThreads);
+    CompileThreads = std::make_unique<ThreadPool>(S.NumCompileThreads);
     ES->setDispatchMaterialization(
         [this](JITDylib &JD, std::unique_ptr<MaterializationUnit> MU) {
           // FIXME: Switch to move capture once we have c++14.
@@ -166,10 +202,14 @@ Error LLLazyJITBuilderState::prepareForConstruction() {
 Error LLLazyJIT::addLazyIRModule(JITDylib &JD, ThreadSafeModule TSM) {
   assert(TSM && "Can not add null module");
 
-  if (auto Err = applyDataLayout(*TSM.getModule()))
-    return Err;
+  if (auto Err = TSM.withModuleDo([&](Module &M) -> Error {
+        if (auto Err = applyDataLayout(M))
+          return Err;
 
-  recordCtorDtors(*TSM.getModule());
+        recordCtorDtors(M);
+        return Error::success();
+      }))
+    return Err;
 
   return CODLayer->add(JD, std::move(TSM), ES->allocateVModule());
 }
@@ -212,10 +252,10 @@ LLLazyJIT::LLLazyJIT(LLLazyJITBuilderState &S, Error &Err) : LLJIT(S, Err) {
   }
 
   // Create the transform layer.
-  TransformLayer = llvm::make_unique<IRTransformLayer>(*ES, *CompileLayer);
+  TransformLayer = std::make_unique<IRTransformLayer>(*ES, *CompileLayer);
 
   // Create the COD layer.
-  CODLayer = llvm::make_unique<CompileOnDemandLayer>(
+  CODLayer = std::make_unique<CompileOnDemandLayer>(
       *ES, *TransformLayer, *LCTMgr, std::move(ISMBuilder));
 
   if (S.NumCompileThreads > 0)

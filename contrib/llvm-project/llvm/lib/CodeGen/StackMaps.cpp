@@ -113,7 +113,7 @@ StackMaps::parseOperand(MachineInstr::const_mop_iterator MOI,
       unsigned Size = DL.getPointerSizeInBits();
       assert((Size % 8) == 0 && "Need pointer size in bytes.");
       Size /= 8;
-      unsigned Reg = (++MOI)->getReg();
+      Register Reg = (++MOI)->getReg();
       int64_t Imm = (++MOI)->getImm();
       Locs.emplace_back(StackMaps::Location::Direct, Size,
                         getDwarfRegNum(Reg, TRI), Imm);
@@ -122,7 +122,7 @@ StackMaps::parseOperand(MachineInstr::const_mop_iterator MOI,
     case StackMaps::IndirectMemRefOp: {
       int64_t Size = (++MOI)->getImm();
       assert(Size > 0 && "Need a valid size for indirect memory locations.");
-      unsigned Reg = (++MOI)->getReg();
+      Register Reg = (++MOI)->getReg();
       int64_t Imm = (++MOI)->getImm();
       Locs.emplace_back(StackMaps::Location::Indirect, Size,
                         getDwarfRegNum(Reg, TRI), Imm);
@@ -148,14 +148,14 @@ StackMaps::parseOperand(MachineInstr::const_mop_iterator MOI,
     if (MOI->isImplicit())
       return ++MOI;
 
-    assert(TargetRegisterInfo::isPhysicalRegister(MOI->getReg()) &&
+    assert(Register::isPhysicalRegister(MOI->getReg()) &&
            "Virtreg operands should have been rewritten before now.");
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(MOI->getReg());
     assert(!MOI->getSubReg() && "Physical subreg still around.");
 
     unsigned Offset = 0;
     unsigned DwarfRegNum = getDwarfRegNum(MOI->getReg(), TRI);
-    unsigned LLVMRegNum = TRI->getLLVMRegNum(DwarfRegNum, false);
+    unsigned LLVMRegNum = *TRI->getLLVMRegNum(DwarfRegNum, false);
     unsigned SubRegIdx = TRI->getSubRegIndex(LLVMRegNum, MOI->getReg());
     if (SubRegIdx)
       Offset = TRI->getSubRegIdxOffset(SubRegIdx);
@@ -260,7 +260,7 @@ StackMaps::parseRegisterLiveOutMask(const uint32_t *Mask) const {
 
   // Create a LiveOutReg for each bit that is set in the register mask.
   for (unsigned Reg = 0, NumRegs = TRI->getNumRegs(); Reg != NumRegs; ++Reg)
-    if ((Mask[Reg / 32] >> Reg % 32) & 1)
+    if ((Mask[Reg / 32] >> (Reg % 32)) & 1)
       LiveOuts.push_back(createLiveOutReg(Reg, TRI));
 
   // We don't need to keep track of a register if its super-register is already
@@ -294,14 +294,13 @@ StackMaps::parseRegisterLiveOutMask(const uint32_t *Mask) const {
   return LiveOuts;
 }
 
-void StackMaps::recordStackMapOpers(const MachineInstr &MI, uint64_t ID,
+void StackMaps::recordStackMapOpers(const MCSymbol &MILabel,
+                                    const MachineInstr &MI, uint64_t ID,
                                     MachineInstr::const_mop_iterator MOI,
                                     MachineInstr::const_mop_iterator MOE,
                                     bool recordResult) {
   MCContext &OutContext = AP.OutStreamer->getContext();
-  MCSymbol *MILabel = OutContext.createTempSymbol();
-  AP.OutStreamer->EmitLabel(MILabel);
-
+  
   LocationVec Locations;
   LiveOutVec LiveOuts;
 
@@ -340,7 +339,7 @@ void StackMaps::recordStackMapOpers(const MachineInstr &MI, uint64_t ID,
   // Create an expression to calculate the offset of the callsite from function
   // entry.
   const MCExpr *CSOffsetExpr = MCBinaryExpr::createSub(
-      MCSymbolRefExpr::create(MILabel, OutContext),
+      MCSymbolRefExpr::create(&MILabel, OutContext),
       MCSymbolRefExpr::create(AP.CurrentFnSymForSize, OutContext), OutContext);
 
   CSInfos.emplace_back(CSOffsetExpr, ID, std::move(Locations),
@@ -360,22 +359,23 @@ void StackMaps::recordStackMapOpers(const MachineInstr &MI, uint64_t ID,
     FnInfos.insert(std::make_pair(AP.CurrentFnSym, FunctionInfo(FrameSize)));
 }
 
-void StackMaps::recordStackMap(const MachineInstr &MI) {
+void StackMaps::recordStackMap(const MCSymbol &L, const MachineInstr &MI) {
   assert(MI.getOpcode() == TargetOpcode::STACKMAP && "expected stackmap");
 
   StackMapOpers opers(&MI);
   const int64_t ID = MI.getOperand(PatchPointOpers::IDPos).getImm();
-  recordStackMapOpers(MI, ID, std::next(MI.operands_begin(), opers.getVarIdx()),
+  recordStackMapOpers(L, MI, ID, std::next(MI.operands_begin(),
+                                           opers.getVarIdx()),
                       MI.operands_end());
 }
 
-void StackMaps::recordPatchPoint(const MachineInstr &MI) {
+void StackMaps::recordPatchPoint(const MCSymbol &L, const MachineInstr &MI) {
   assert(MI.getOpcode() == TargetOpcode::PATCHPOINT && "expected patchpoint");
 
   PatchPointOpers opers(&MI);
   const int64_t ID = opers.getID();
   auto MOI = std::next(MI.operands_begin(), opers.getStackMapStartIdx());
-  recordStackMapOpers(MI, ID, MOI, MI.operands_end(),
+  recordStackMapOpers(L, MI, ID, MOI, MI.operands_end(),
                       opers.isAnyReg() && opers.hasDef());
 
 #ifndef NDEBUG
@@ -390,14 +390,14 @@ void StackMaps::recordPatchPoint(const MachineInstr &MI) {
 #endif
 }
 
-void StackMaps::recordStatepoint(const MachineInstr &MI) {
+void StackMaps::recordStatepoint(const MCSymbol &L, const MachineInstr &MI) {
   assert(MI.getOpcode() == TargetOpcode::STATEPOINT && "expected statepoint");
 
   StatepointOpers opers(&MI);
   // Record all the deopt and gc operands (they're contiguous and run from the
   // initial index to the end of the operand list)
   const unsigned StartIdx = opers.getVarIdx();
-  recordStackMapOpers(MI, opers.getID(), MI.operands_begin() + StartIdx,
+  recordStackMapOpers(L, MI, opers.getID(), MI.operands_begin() + StartIdx,
                       MI.operands_end(), false);
 }
 

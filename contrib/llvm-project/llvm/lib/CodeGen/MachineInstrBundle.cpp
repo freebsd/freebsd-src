@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Target/TargetMachine.h"
 #include <utility>
 using namespace llvm;
@@ -154,10 +155,10 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
         continue;
       }
 
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       if (!Reg)
         continue;
-      assert(TargetRegisterInfo::isPhysicalRegister(Reg));
+
       if (LocalDefSet.count(Reg)) {
         MO.setIsInternalRead();
         if (MO.isKill())
@@ -177,7 +178,7 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
 
     for (unsigned i = 0, e = Defs.size(); i != e; ++i) {
       MachineOperand &MO = *Defs[i];
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       if (!Reg)
         continue;
 
@@ -194,7 +195,7 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
           DeadDefSet.erase(Reg);
       }
 
-      if (!MO.isDead()) {
+      if (!MO.isDead() && Register::isPhysicalRegister(Reg)) {
         for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs) {
           unsigned SubReg = *SubRegs;
           if (LocalDefSet.insert(SubReg).second)
@@ -277,22 +278,18 @@ bool llvm::finalizeBundles(MachineFunction &MF) {
   return Changed;
 }
 
-//===----------------------------------------------------------------------===//
-// MachineOperand iterator
-//===----------------------------------------------------------------------===//
-
-MachineOperandIteratorBase::VirtRegInfo
-MachineOperandIteratorBase::analyzeVirtReg(unsigned Reg,
-                    SmallVectorImpl<std::pair<MachineInstr*, unsigned> > *Ops) {
-  VirtRegInfo RI = { false, false, false };
-  for(; isValid(); ++*this) {
-    MachineOperand &MO = deref();
+VirtRegInfo llvm::AnalyzeVirtRegInBundle(
+    MachineInstr &MI, unsigned Reg,
+    SmallVectorImpl<std::pair<MachineInstr *, unsigned>> *Ops) {
+  VirtRegInfo RI = {false, false, false};
+  for (MIBundleOperands O(MI); O.isValid(); ++O) {
+    MachineOperand &MO = *O;
     if (!MO.isReg() || MO.getReg() != Reg)
       continue;
 
     // Remember each (MI, OpNo) that refers to Reg.
     if (Ops)
-      Ops->push_back(std::make_pair(MO.getParent(), getOperandNo()));
+      Ops->push_back(std::make_pair(MO.getParent(), O.getOperandNo()));
 
     // Both defs and uses can read virtual registers.
     if (MO.readsReg()) {
@@ -304,22 +301,22 @@ MachineOperandIteratorBase::analyzeVirtReg(unsigned Reg,
     // Only defs can write.
     if (MO.isDef())
       RI.Writes = true;
-    else if (!RI.Tied && MO.getParent()->isRegTiedToDefOperand(getOperandNo()))
+    else if (!RI.Tied &&
+             MO.getParent()->isRegTiedToDefOperand(O.getOperandNo()))
       RI.Tied = true;
   }
   return RI;
 }
 
-MachineOperandIteratorBase::PhysRegInfo
-MachineOperandIteratorBase::analyzePhysReg(unsigned Reg,
-                                           const TargetRegisterInfo *TRI) {
+PhysRegInfo llvm::AnalyzePhysRegInBundle(const MachineInstr &MI, unsigned Reg,
+                                         const TargetRegisterInfo *TRI) {
   bool AllDefsDead = true;
   PhysRegInfo PRI = {false, false, false, false, false, false, false, false};
 
-  assert(TargetRegisterInfo::isPhysicalRegister(Reg) &&
+  assert(Register::isPhysicalRegister(Reg) &&
          "analyzePhysReg not given a physical register!");
-  for (; isValid(); ++*this) {
-    MachineOperand &MO = deref();
+  for (ConstMIBundleOperands O(MI); O.isValid(); ++O) {
+    const MachineOperand &MO = *O;
 
     if (MO.isRegMask() && MO.clobbersPhysReg(Reg)) {
       PRI.Clobbered = true;
@@ -329,8 +326,8 @@ MachineOperandIteratorBase::analyzePhysReg(unsigned Reg,
     if (!MO.isReg())
       continue;
 
-    unsigned MOReg = MO.getReg();
-    if (!MOReg || !TargetRegisterInfo::isPhysicalRegister(MOReg))
+    Register MOReg = MO.getReg();
+    if (!MOReg || !Register::isPhysicalRegister(MOReg))
       continue;
 
     if (!TRI->regsOverlap(MOReg, Reg))

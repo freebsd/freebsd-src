@@ -25,6 +25,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemStatCache.h"
 #include "clang/Basic/IdentifierTable.h"
@@ -53,9 +54,9 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/Capacity.h"
@@ -112,6 +113,8 @@ Preprocessor::Preprocessor(std::shared_ptr<PreprocessorOptions> PPOpts,
   // We haven't read anything from the external source.
   ReadMacrosFromExternalSource = false;
 
+  BuiltinInfo = std::make_unique<Builtin::Context>();
+
   // "Poison" __VA_ARGS__, __VA_OPT__ which can only appear in the expansion of
   // a macro. They get unpoisoned where it is allowed.
   (Ident__VA_ARGS__ = getIdentifierInfo("__VA_ARGS__"))->setIsPoisoned();
@@ -158,6 +161,11 @@ Preprocessor::Preprocessor(std::shared_ptr<PreprocessorOptions> PPOpts,
 
   if (this->PPOpts->GeneratePreamble)
     PreambleConditionalStack.startRecording();
+
+  ExcludedConditionalDirectiveSkipMappings =
+      this->PPOpts->ExcludedConditionalDirectiveSkipMappings;
+  if (ExcludedConditionalDirectiveSkipMappings)
+    ExcludedConditionalDirectiveSkipMappings->clear();
 }
 
 Preprocessor::~Preprocessor() {
@@ -197,7 +205,7 @@ void Preprocessor::Initialize(const TargetInfo &Target,
   this->AuxTarget = AuxTarget;
 
   // Initialize information about built-ins.
-  BuiltinInfo.InitializeTarget(Target, AuxTarget);
+  BuiltinInfo->InitializeTarget(Target, AuxTarget);
   HeaderInfo.setTarget(Target);
 
   // Populate the identifier table with info about keywords for the current language.
@@ -209,7 +217,7 @@ void Preprocessor::InitializeForModelFile() {
 
   // Reset pragmas
   PragmaHandlersBackup = std::move(PragmaHandlers);
-  PragmaHandlers = llvm::make_unique<PragmaNamespace>(StringRef());
+  PragmaHandlers = std::make_unique<PragmaNamespace>(StringRef());
   RegisterBuiltinPragmas();
 
   // Reset PredefinesFileID
@@ -563,7 +571,7 @@ void Preprocessor::EnterMainSourceFile() {
     // Lookup and save the FileID for the through header. If it isn't found
     // in the search path, it's a fatal error.
     const DirectoryLookup *CurDir;
-    const FileEntry *File = LookupFile(
+    Optional<FileEntryRef> File = LookupFile(
         SourceLocation(), PPOpts->PCHThroughHeader,
         /*isAngled=*/false, /*FromDir=*/nullptr, /*FromFile=*/nullptr, CurDir,
         /*SearchPath=*/nullptr, /*RelativePath=*/nullptr,
@@ -575,7 +583,7 @@ void Preprocessor::EnterMainSourceFile() {
       return;
     }
     setPCHThroughHeaderFileID(
-        SourceMgr.createFileID(File, SourceLocation(), SrcMgr::C_User));
+        SourceMgr.createFileID(*File, SourceLocation(), SrcMgr::C_User));
   }
 
   // Skip tokens from the Predefines and if needed the main file.
@@ -1129,7 +1137,7 @@ bool Preprocessor::LexAfterModuleImport(Token &Result) {
   // Allocate a holding buffer for a sequence of tokens and introduce it into
   // the token stream.
   auto EnterTokens = [this](ArrayRef<Token> Toks) {
-    auto ToksCopy = llvm::make_unique<Token[]>(Toks.size());
+    auto ToksCopy = std::make_unique<Token[]>(Toks.size());
     std::copy(Toks.begin(), Toks.end(), ToksCopy.get());
     EnterTokenStream(std::move(ToksCopy), Toks.size(),
                      /*DisableMacroExpansion*/ true, /*IsReinject*/ false);

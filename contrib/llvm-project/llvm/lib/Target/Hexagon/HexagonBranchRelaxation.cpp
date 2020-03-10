@@ -105,12 +105,11 @@ void HexagonBranchRelaxation::computeOffset(MachineFunction &MF,
   // offset of the current instruction from the start.
   unsigned InstOffset = 0;
   for (auto &B : MF) {
-    if (B.getAlignment()) {
+    if (B.getAlignment() != Align::None()) {
       // Although we don't know the exact layout of the final code, we need
       // to account for alignment padding somehow. This heuristic pads each
       // aligned basic block according to the alignment value.
-      int ByteAlign = (1u << B.getAlignment()) - 1;
-      InstOffset = (InstOffset + ByteAlign) & ~(ByteAlign);
+      InstOffset = alignTo(InstOffset, B.getAlignment());
     }
     OffsetMap[&B] = InstOffset;
     for (auto &MI : B.instrs()) {

@@ -342,7 +342,8 @@ void DWARFDIE::GetDWARFDeclContext(DWARFDeclContext &dwarf_decl_ctx) const {
   }
 }
 
-void DWARFDIE::GetDeclContext(std::vector<CompilerContext> &context) const {
+void DWARFDIE::GetDeclContext(
+    llvm::SmallVectorImpl<lldb_private::CompilerContext> &context) const {
   const dw_tag_t tag = Tag();
   if (tag == DW_TAG_compile_unit || tag == DW_TAG_partial_unit)
     return;
@@ -351,40 +352,33 @@ void DWARFDIE::GetDeclContext(std::vector<CompilerContext> &context) const {
     parent.GetDeclContext(context);
   switch (tag) {
   case DW_TAG_module:
-    context.push_back(
-        CompilerContext(CompilerContextKind::Module, ConstString(GetName())));
+    context.push_back({CompilerContextKind::Module, ConstString(GetName())});
     break;
   case DW_TAG_namespace:
-    context.push_back(CompilerContext(CompilerContextKind::Namespace,
-                                      ConstString(GetName())));
+    context.push_back({CompilerContextKind::Namespace, ConstString(GetName())});
     break;
   case DW_TAG_structure_type:
-    context.push_back(CompilerContext(CompilerContextKind::Structure,
-                                      ConstString(GetName())));
+    context.push_back({CompilerContextKind::Struct, ConstString(GetName())});
     break;
   case DW_TAG_union_type:
-    context.push_back(
-        CompilerContext(CompilerContextKind::Union, ConstString(GetName())));
+    context.push_back({CompilerContextKind::Union, ConstString(GetName())});
     break;
   case DW_TAG_class_type:
-    context.push_back(
-        CompilerContext(CompilerContextKind::Class, ConstString(GetName())));
+    context.push_back({CompilerContextKind::Class, ConstString(GetName())});
     break;
   case DW_TAG_enumeration_type:
-    context.push_back(CompilerContext(CompilerContextKind::Enumeration,
-                                      ConstString(GetName())));
+    context.push_back({CompilerContextKind::Enum, ConstString(GetName())});
     break;
   case DW_TAG_subprogram:
-    context.push_back(CompilerContext(CompilerContextKind::Function,
-                                      ConstString(GetPubname())));
+    context.push_back(
+        {CompilerContextKind::Function, ConstString(GetPubname())});
     break;
   case DW_TAG_variable:
-    context.push_back(CompilerContext(CompilerContextKind::Variable,
-                                      ConstString(GetPubname())));
+    context.push_back(
+        {CompilerContextKind::Variable, ConstString(GetPubname())});
     break;
   case DW_TAG_typedef:
-    context.push_back(
-        CompilerContext(CompilerContextKind::Typedef, ConstString(GetName())));
+    context.push_back({CompilerContextKind::Typedef, ConstString(GetName())});
     break;
   default:
     break;
@@ -410,39 +404,6 @@ bool DWARFDIE::IsMethod() const {
     if (d.GetParent().IsStructUnionOrClass())
       return true;
   return false;
-}
-
-DWARFDIE
-DWARFDIE::GetContainingDWOModuleDIE() const {
-  if (IsValid()) {
-    DWARFDIE top_module_die;
-    // Now make sure this DIE is scoped in a DW_TAG_module tag and return true
-    // if so
-    for (DWARFDIE parent = GetParent(); parent.IsValid();
-         parent = parent.GetParent()) {
-      const dw_tag_t tag = parent.Tag();
-      if (tag == DW_TAG_module)
-        top_module_die = parent;
-      else if (tag == DW_TAG_compile_unit || tag == DW_TAG_partial_unit)
-        break;
-    }
-
-    return top_module_die;
-  }
-  return DWARFDIE();
-}
-
-lldb::ModuleSP DWARFDIE::GetContainingDWOModule() const {
-  if (IsValid()) {
-    DWARFDIE dwo_module_die = GetContainingDWOModuleDIE();
-
-    if (dwo_module_die) {
-      const char *module_name = dwo_module_die.GetName();
-      if (module_name)
-        return GetDWARF()->GetDWOModule(lldb_private::ConstString(module_name));
-    }
-  }
-  return lldb::ModuleSP();
 }
 
 bool DWARFDIE::GetDIENamesAndRanges(

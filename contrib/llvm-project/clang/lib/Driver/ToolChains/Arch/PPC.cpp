@@ -13,6 +13,7 @@
 #include "clang/Driver/Options.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Option/ArgList.h"
+#include "llvm/Support/Host.h"
 
 using namespace clang::driver;
 using namespace clang::driver::tools;
@@ -69,6 +70,7 @@ std::string ppc::getPPCTargetCPU(const ArgList &Args) {
         .Case("power7", "pwr7")
         .Case("power8", "pwr8")
         .Case("power9", "pwr9")
+        .Case("future", "future")
         .Case("pwr3", "pwr3")
         .Case("pwr4", "pwr4")
         .Case("pwr5", "pwr5")

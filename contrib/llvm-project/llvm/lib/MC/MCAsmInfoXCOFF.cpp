@@ -15,4 +15,22 @@ void MCAsmInfoXCOFF::anchor() {}
 MCAsmInfoXCOFF::MCAsmInfoXCOFF() {
   IsLittleEndian = false;
   HasDotTypeDotSizeDirective = false;
+  COMMDirectiveAlignmentIsInBytes = false;
+  LCOMMDirectiveAlignmentType = LCOMM::Log2Alignment;
+  UseDotAlignForAlignment = true;
+  AsciiDirective = nullptr; // not supported
+  AscizDirective = nullptr; // not supported
+  NeedsFunctionDescriptors = true;
+  HasDotLGloblDirective = true;
+  Data64bitsDirective = "\t.llong\t";
+  SupportsQuotedNames = false;
+}
+
+bool MCAsmInfoXCOFF::isAcceptableChar(char C) const {
+  // QualName is allowed for a MCSymbolXCOFF, and
+  // QualName contains '[' and ']'.
+  if (C == '[' || C == ']')
+    return true;
+
+  return MCAsmInfo::isAcceptableChar(C);
 }

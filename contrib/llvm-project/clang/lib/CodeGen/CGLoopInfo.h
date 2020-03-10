@@ -51,6 +51,9 @@ struct LoopAttributes {
   /// Value for llvm.loop.unroll_and_jam.* metadata (enable, disable, or full).
   LVEnableState UnrollAndJamEnable;
 
+  /// Value for llvm.loop.vectorize.predicate metadata
+  LVEnableState VectorizePredicateEnable;
+
   /// Value for llvm.loop.vectorize.width metadata.
   unsigned VectorizeWidth;
 
@@ -237,6 +240,11 @@ public:
     StagedAttrs.UnrollEnable = State;
   }
 
+  /// Set the next pushed vectorize predicate state.
+  void setVectorizePredicateState(const LoopAttributes::LVEnableState &State) {
+    StagedAttrs.VectorizePredicateEnable = State;
+  }
+
   /// Set the next pushed loop unroll_and_jam state.
   void setUnrollAndJamState(const LoopAttributes::LVEnableState &State) {
     StagedAttrs.UnrollAndJamEnable = State;
@@ -267,11 +275,11 @@ private:
   bool hasInfo() const { return !Active.empty(); }
   /// Return the LoopInfo for the current loop. HasInfo should be called
   /// first to ensure LoopInfo is present.
-  const LoopInfo &getInfo() const { return Active.back(); }
+  const LoopInfo &getInfo() const { return *Active.back(); }
   /// The set of attributes that will be applied to the next pushed loop.
   LoopAttributes StagedAttrs;
   /// Stack of active loops.
-  llvm::SmallVector<LoopInfo, 4> Active;
+  llvm::SmallVector<std::unique_ptr<LoopInfo>, 4> Active;
 };
 
 } // end namespace CodeGen

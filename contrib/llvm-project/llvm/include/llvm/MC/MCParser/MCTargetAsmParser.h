@@ -35,6 +35,7 @@ enum AsmRewriteKind {
   AOK_Align,          // Rewrite align as .align.
   AOK_EVEN,           // Rewrite even as .even.
   AOK_Emit,           // Rewrite _emit as .byte.
+  AOK_CallInput,      // Rewrite in terms of ${N:P}.
   AOK_Input,          // Rewrite in terms of $N.
   AOK_Output,         // Rewrite in terms of $N.
   AOK_SizeDirective,  // Add a sizing directive (e.g., dword ptr).
@@ -49,6 +50,7 @@ const char AsmRewritePrecedence [] = {
   2, // AOK_EVEN
   2, // AOK_Emit
   3, // AOK_Input
+  3, // AOK_CallInput
   3, // AOK_Output
   5, // AOK_SizeDirective
   1, // AOK_Label
@@ -64,39 +66,27 @@ struct IntelExpr {
   int64_t Imm;
   StringRef BaseReg;
   StringRef IndexReg;
+  StringRef OffsetName;
   unsigned Scale;
 
-  IntelExpr(bool needBracs = false) : NeedBracs(needBracs), Imm(0),
-    BaseReg(StringRef()), IndexReg(StringRef()),
-    Scale(1) {}
-  // Compund immediate expression
-  IntelExpr(int64_t imm, bool needBracs) : IntelExpr(needBracs) {
-    Imm = imm;
-  }
-  // [Reg + ImmediateExpression]
-  // We don't bother to emit an immediate expression evaluated to zero
-  IntelExpr(StringRef reg, int64_t imm = 0, unsigned scale = 0,
-    bool needBracs = true) :
-    IntelExpr(imm, needBracs) {
-    IndexReg = reg;
+  IntelExpr()
+      : NeedBracs(false), Imm(0), BaseReg(StringRef()), IndexReg(StringRef()),
+        OffsetName(StringRef()), Scale(1) {}
+  // [BaseReg + IndexReg * ScaleExpression + OFFSET name + ImmediateExpression]
+  IntelExpr(StringRef baseReg, StringRef indexReg, unsigned scale,
+            StringRef offsetName, int64_t imm, bool needBracs)
+      : NeedBracs(needBracs), Imm(imm), BaseReg(baseReg), IndexReg(indexReg),
+        OffsetName(offsetName), Scale(1) {
     if (scale)
       Scale = scale;
   }
-  // [BaseReg + IndexReg * ScaleExpression + ImmediateExpression]
-  IntelExpr(StringRef baseReg, StringRef indexReg, unsigned scale = 0,
-    int64_t imm = 0, bool needBracs = true) :
-    IntelExpr(indexReg, imm, scale, needBracs) {
-    BaseReg = baseReg;
-  }
-  bool hasBaseReg() const {
-    return BaseReg.size();
-  }
-  bool hasIndexReg() const {
-    return IndexReg.size();
-  }
-  bool hasRegs() const {
-    return hasBaseReg() || hasIndexReg();
-  }
+  bool hasBaseReg() const { return !BaseReg.empty(); }
+  bool hasIndexReg() const { return !IndexReg.empty(); }
+  bool hasRegs() const { return hasBaseReg() || hasIndexReg(); }
+  bool hasOffset() const { return !OffsetName.empty(); }
+  // Normally we won't emit immediates unconditionally,
+  // unless we've got no other components
+  bool emitImm() const { return !(hasRegs() || hasOffset()); }
   bool isValid() const {
     return (Scale == 1) ||
            (hasIndexReg() && (Scale == 2 || Scale == 4 || Scale == 8));
@@ -107,13 +97,14 @@ struct AsmRewrite {
   AsmRewriteKind Kind;
   SMLoc Loc;
   unsigned Len;
+  bool Done;
   int64_t Val;
   StringRef Label;
   IntelExpr IntelExp;
 
 public:
   AsmRewrite(AsmRewriteKind kind, SMLoc loc, unsigned len = 0, int64_t val = 0)
-    : Kind(kind), Loc(loc), Len(len), Val(val) {}
+    : Kind(kind), Loc(loc), Len(len), Done(false), Val(val) {}
   AsmRewrite(AsmRewriteKind kind, SMLoc loc, unsigned len, StringRef label)
     : AsmRewrite(kind, loc, len) { Label = label; }
   AsmRewrite(SMLoc loc, unsigned len, IntelExpr exp)
@@ -174,6 +165,7 @@ struct DiagnosticPredicate {
                    : DiagnosticPredicateTy::NearMatch) {}
   DiagnosticPredicate(DiagnosticPredicateTy T) : Type(T) {}
   DiagnosticPredicate(const DiagnosticPredicate &) = default;
+  DiagnosticPredicate& operator=(const DiagnosticPredicate &) = default;
 
   operator bool() const { return Type == DiagnosticPredicateTy::Match; }
   bool isMatch() const { return Type == DiagnosticPredicateTy::Match; }

@@ -42,14 +42,14 @@ const char *ProcessInfo::GetName() const {
   return m_executable.GetFilename().GetCString();
 }
 
-size_t ProcessInfo::GetNameLength() const {
-  return m_executable.GetFilename().GetLength();
+llvm::StringRef ProcessInfo::GetNameAsStringRef() const {
+  return m_executable.GetFilename().GetStringRef();
 }
 
 void ProcessInfo::Dump(Stream &s, Platform *platform) const {
   s << "Executable: " << GetName() << "\n";
   s << "Triple: ";
-  m_arch.DumpTriple(s);
+  m_arch.DumpTriple(s.AsRawOstream());
   s << "\n";
 
   s << "Arguments:\n";
@@ -119,7 +119,7 @@ void ProcessInstanceInfo::Dump(Stream &s, UserIDResolver &resolver) const {
   if (m_executable) {
     s.Printf("   name = %s\n", m_executable.GetFilename().GetCString());
     s.PutCString("   file = ");
-    m_executable.Dump(&s);
+    m_executable.Dump(s.AsRawOstream());
     s.EOL();
   }
   const uint32_t argc = m_arguments.GetArgumentCount();
@@ -137,7 +137,7 @@ void ProcessInstanceInfo::Dump(Stream &s, UserIDResolver &resolver) const {
 
   if (m_arch.IsValid()) {
     s.Printf("   arch = ");
-    m_arch.DumpTriple(s);
+    m_arch.DumpTriple(s.AsRawOstream());
     s.EOL();
   }
 
@@ -169,13 +169,15 @@ void ProcessInstanceInfo::DumpTableHeader(Stream &s, bool show_args,
 
   if (verbose) {
     s.Printf("PID    PARENT USER       GROUP      EFF USER   EFF GROUP  TRIPLE "
-             "                  %s\n",
+             "                        %s\n",
              label);
-    s.PutCString("====== ====== ========== ========== ========== ========== "
-                 "======================== ============================\n");
+    s.PutCString(
+        "====== ====== ========== ========== ========== ========== "
+        "============================== ============================\n");
   } else {
-    s.Printf("PID    PARENT USER       TRIPLE                   %s\n", label);
-    s.PutCString("====== ====== ========== ======================== "
+    s.Printf("PID    PARENT USER       TRIPLE                         %s\n",
+             label);
+    s.PutCString("====== ====== ========== ============================== "
                  "============================\n");
   }
 }
@@ -187,36 +189,49 @@ void ProcessInstanceInfo::DumpAsTableRow(Stream &s, UserIDResolver &resolver,
 
     StreamString arch_strm;
     if (m_arch.IsValid())
-      m_arch.DumpTriple(arch_strm);
+      m_arch.DumpTriple(arch_strm.AsRawOstream());
 
-    auto print = [&](UserIDResolver::id_t id,
-                     llvm::Optional<llvm::StringRef> (UserIDResolver::*get)(
+    auto print = [&](bool (ProcessInstanceInfo::*isValid)() const,
+                     uint32_t (ProcessInstanceInfo::*getID)() const,
+                     llvm::Optional<llvm::StringRef> (UserIDResolver::*getName)(
                          UserIDResolver::id_t id)) {
-      if (auto name = (resolver.*get)(id))
-        s.Format("{0,-10} ", *name);
+      const char *format = "{0,-10} ";
+      if (!(this->*isValid)()) {
+        s.Format(format, "");
+        return;
+      }
+      uint32_t id = (this->*getID)();
+      if (auto name = (resolver.*getName)(id))
+        s.Format(format, *name);
       else
-        s.Format("{0,-10} ", id);
+        s.Format(format, id);
     };
     if (verbose) {
-      print(m_uid, &UserIDResolver::GetUserName);
-      print(m_gid, &UserIDResolver::GetGroupName);
-      print(m_euid, &UserIDResolver::GetUserName);
-      print(m_egid, &UserIDResolver::GetGroupName);
+      print(&ProcessInstanceInfo::UserIDIsValid,
+            &ProcessInstanceInfo::GetUserID, &UserIDResolver::GetUserName);
+      print(&ProcessInstanceInfo::GroupIDIsValid,
+            &ProcessInstanceInfo::GetGroupID, &UserIDResolver::GetGroupName);
+      print(&ProcessInstanceInfo::EffectiveUserIDIsValid,
+            &ProcessInstanceInfo::GetEffectiveUserID,
+            &UserIDResolver::GetUserName);
+      print(&ProcessInstanceInfo::EffectiveGroupIDIsValid,
+            &ProcessInstanceInfo::GetEffectiveGroupID,
+            &UserIDResolver::GetGroupName);
 
-      s.Printf("%-24s ", arch_strm.GetData());
+      s.Printf("%-30s ", arch_strm.GetData());
     } else {
-      print(m_euid, &UserIDResolver::GetUserName);
-      s.Printf(" %-24s ", arch_strm.GetData());
+      print(&ProcessInstanceInfo::EffectiveUserIDIsValid,
+            &ProcessInstanceInfo::GetEffectiveUserID,
+            &UserIDResolver::GetUserName);
+      s.Printf("%-30s ", arch_strm.GetData());
     }
 
     if (verbose || show_args) {
+      s.PutCString(m_arg0);
       const uint32_t argc = m_arguments.GetArgumentCount();
-      if (argc > 0) {
-        for (uint32_t i = 0; i < argc; i++) {
-          if (i > 0)
-            s.PutChar(' ');
-          s.PutCString(m_arguments.GetArgumentAtIndex(i));
-        }
+      for (uint32_t i = 0; i < argc; i++) {
+        s.PutChar(' ');
+        s.PutCString(m_arguments.GetArgumentAtIndex(i));
       }
     } else {
       s.PutCString(GetName());
@@ -226,8 +241,14 @@ void ProcessInstanceInfo::DumpAsTableRow(Stream &s, UserIDResolver &resolver,
   }
 }
 
+bool ProcessInstanceInfoMatch::ArchitectureMatches(
+    const ArchSpec &arch_spec) const {
+  return !m_match_info.GetArchitecture().IsValid() ||
+         m_match_info.GetArchitecture().IsCompatibleMatch(arch_spec);
+}
+
 bool ProcessInstanceInfoMatch::NameMatches(const char *process_name) const {
-  if (m_name_match_type == NameMatch::Ignore || process_name == nullptr)
+  if (m_name_match_type == NameMatch::Ignore)
     return true;
   const char *match_name = m_match_info.GetName();
   if (!match_name)
@@ -236,11 +257,8 @@ bool ProcessInstanceInfoMatch::NameMatches(const char *process_name) const {
   return lldb_private::NameMatches(process_name, m_name_match_type, match_name);
 }
 
-bool ProcessInstanceInfoMatch::Matches(
+bool ProcessInstanceInfoMatch::ProcessIDsMatch(
     const ProcessInstanceInfo &proc_info) const {
-  if (!NameMatches(proc_info.GetName()))
-    return false;
-
   if (m_match_info.ProcessIDIsValid() &&
       m_match_info.GetProcessID() != proc_info.GetProcessID())
     return false;
@@ -248,7 +266,11 @@ bool ProcessInstanceInfoMatch::Matches(
   if (m_match_info.ParentProcessIDIsValid() &&
       m_match_info.GetParentProcessID() != proc_info.GetParentProcessID())
     return false;
+  return true;
+}
 
+bool ProcessInstanceInfoMatch::UserIDsMatch(
+    const ProcessInstanceInfo &proc_info) const {
   if (m_match_info.UserIDIsValid() &&
       m_match_info.GetUserID() != proc_info.GetUserID())
     return false;
@@ -264,12 +286,13 @@ bool ProcessInstanceInfoMatch::Matches(
   if (m_match_info.EffectiveGroupIDIsValid() &&
       m_match_info.GetEffectiveGroupID() != proc_info.GetEffectiveGroupID())
     return false;
-
-  if (m_match_info.GetArchitecture().IsValid() &&
-      !m_match_info.GetArchitecture().IsCompatibleMatch(
-          proc_info.GetArchitecture()))
-    return false;
   return true;
+}
+bool ProcessInstanceInfoMatch::Matches(
+    const ProcessInstanceInfo &proc_info) const {
+  return ArchitectureMatches(proc_info.GetArchitecture()) &&
+         ProcessIDsMatch(proc_info) && UserIDsMatch(proc_info) &&
+         NameMatches(proc_info.GetName());
 }
 
 bool ProcessInstanceInfoMatch::MatchAllProcesses() const {

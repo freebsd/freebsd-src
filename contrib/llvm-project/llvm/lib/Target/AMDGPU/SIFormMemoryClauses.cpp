@@ -16,13 +16,14 @@
 #include "AMDGPU.h"
 #include "AMDGPUSubtarget.h"
 #include "GCNRegPressure.h"
+#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "SIInstrInfo.h"
 #include "SIMachineFunctionInfo.h"
 #include "SIRegisterInfo.h"
-#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -120,7 +121,7 @@ static bool isValidClauseInst(const MachineInstr &MI, bool IsVMEMClause) {
     return false;
   // If this is a load instruction where the result has been coalesced with an operand, then we cannot clause it.
   for (const MachineOperand &ResMO : MI.defs()) {
-    unsigned ResReg = ResMO.getReg();
+    Register ResReg = ResMO.getReg();
     for (const MachineOperand &MO : MI.uses()) {
       if (!MO.isReg() || MO.isDef())
         continue;
@@ -144,7 +145,7 @@ static unsigned getMopState(const MachineOperand &MO) {
     S |= RegState::Kill;
   if (MO.isEarlyClobber())
     S |= RegState::EarlyClobber;
-  if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()) && MO.isRenamable())
+  if (Register::isPhysicalRegister(MO.getReg()) && MO.isRenamable())
     S |= RegState::Renamable;
   return S;
 }
@@ -152,7 +153,7 @@ static unsigned getMopState(const MachineOperand &MO) {
 template <typename Callable>
 void SIFormMemoryClauses::forAllLanes(unsigned Reg, LaneBitmask LaneMask,
                                       Callable Func) const {
-  if (LaneMask.all() || TargetRegisterInfo::isPhysicalRegister(Reg) ||
+  if (LaneMask.all() || Register::isPhysicalRegister(Reg) ||
       LaneMask == MRI->getMaxLaneMaskForVReg(Reg)) {
     Func(0);
     return;
@@ -216,7 +217,7 @@ bool SIFormMemoryClauses::canBundle(const MachineInstr &MI,
     if (!MO.isReg())
       continue;
 
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
 
     // If it is tied we will need to write same register as we read.
     if (MO.isTied())
@@ -227,7 +228,7 @@ bool SIFormMemoryClauses::canBundle(const MachineInstr &MI,
     if (Conflict == Map.end())
       continue;
 
-    if (TargetRegisterInfo::isPhysicalRegister(Reg))
+    if (Register::isPhysicalRegister(Reg))
       return false;
 
     LaneBitmask Mask = TRI->getSubRegIndexLaneMask(MO.getSubReg());
@@ -265,13 +266,13 @@ void SIFormMemoryClauses::collectRegUses(const MachineInstr &MI,
   for (const MachineOperand &MO : MI.operands()) {
     if (!MO.isReg())
       continue;
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (!Reg)
       continue;
 
-    LaneBitmask Mask = TargetRegisterInfo::isVirtualRegister(Reg) ?
-                         TRI->getSubRegIndexLaneMask(MO.getSubReg()) :
-                         LaneBitmask::getAll();
+    LaneBitmask Mask = Register::isVirtualRegister(Reg)
+                           ? TRI->getSubRegIndexLaneMask(MO.getSubReg())
+                           : LaneBitmask::getAll();
     RegUse &Map = MO.isDef() ? Defs : Uses;
 
     auto Loc = Map.find(Reg);
@@ -389,7 +390,7 @@ bool SIFormMemoryClauses::runOnMachineFunction(MachineFunction &MF) {
       for (auto &&R : Defs) {
         unsigned Reg = R.first;
         Uses.erase(Reg);
-        if (TargetRegisterInfo::isPhysicalRegister(Reg))
+        if (Register::isPhysicalRegister(Reg))
           continue;
         LIS->removeInterval(Reg);
         LIS->createAndComputeVirtRegInterval(Reg);
@@ -397,7 +398,7 @@ bool SIFormMemoryClauses::runOnMachineFunction(MachineFunction &MF) {
 
       for (auto &&R : Uses) {
         unsigned Reg = R.first;
-        if (TargetRegisterInfo::isPhysicalRegister(Reg))
+        if (Register::isPhysicalRegister(Reg))
           continue;
         LIS->removeInterval(Reg);
         LIS->createAndComputeVirtRegInterval(Reg);

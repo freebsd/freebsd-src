@@ -114,6 +114,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -520,23 +521,20 @@ static const MDNode *getLeastCommonType(const MDNode *A, const MDNode *B) {
 }
 
 void Instruction::getAAMetadata(AAMDNodes &N, bool Merge) const {
-  if (Merge)
+  if (Merge) {
     N.TBAA =
         MDNode::getMostGenericTBAA(N.TBAA, getMetadata(LLVMContext::MD_tbaa));
-  else
-    N.TBAA = getMetadata(LLVMContext::MD_tbaa);
-
-  if (Merge)
+    N.TBAAStruct = nullptr;
     N.Scope = MDNode::getMostGenericAliasScope(
         N.Scope, getMetadata(LLVMContext::MD_alias_scope));
-  else
-    N.Scope = getMetadata(LLVMContext::MD_alias_scope);
-
-  if (Merge)
     N.NoAlias =
         MDNode::intersect(N.NoAlias, getMetadata(LLVMContext::MD_noalias));
-  else
+  } else {
+    N.TBAA = getMetadata(LLVMContext::MD_tbaa);
+    N.TBAAStruct = getMetadata(LLVMContext::MD_tbaa_struct);
+    N.Scope = getMetadata(LLVMContext::MD_alias_scope);
     N.NoAlias = getMetadata(LLVMContext::MD_noalias);
+  }
 }
 
 static const MDNode *createAccessTag(const MDNode *AccessType) {

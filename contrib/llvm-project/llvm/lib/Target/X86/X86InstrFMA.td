@@ -95,7 +95,8 @@ multiclass fma3p_rm_132<bits<8> opc, string OpcodeStr, RegisterClass RC,
                    Sched<[sched.Folded, sched.ReadAfterFold, sched.ReadAfterFold]>;
 }
 
-let Constraints = "$src1 = $dst", hasSideEffects = 0, isCommutable = 1 in
+let Constraints = "$src1 = $dst", hasSideEffects = 0, isCommutable = 1,
+    Uses = [MXCSR], mayRaiseFPException = 1 in
 multiclass fma3p_forms<bits<8> opc132, bits<8> opc213, bits<8> opc231,
                        string OpcodeStr, string PackTy, string Suff,
                        PatFrag MemFrag128, PatFrag MemFrag256,
@@ -122,7 +123,7 @@ multiclass fma3p_forms<bits<8> opc132, bits<8> opc213, bits<8> opc231,
 // Fused Multiply-Add
 let ExeDomain = SSEPackedSingle in {
   defm VFMADD    : fma3p_forms<0x98, 0xA8, 0xB8, "vfmadd", "ps", "PS",
-                               loadv4f32, loadv8f32, X86Fmadd, v4f32, v8f32,
+                               loadv4f32, loadv8f32, X86any_Fmadd, v4f32, v8f32,
                                SchedWriteFMA>;
   defm VFMSUB    : fma3p_forms<0x9A, 0xAA, 0xBA, "vfmsub", "ps", "PS",
                                loadv4f32, loadv8f32, X86Fmsub, v4f32, v8f32,
@@ -137,7 +138,7 @@ let ExeDomain = SSEPackedSingle in {
 
 let ExeDomain = SSEPackedDouble in {
   defm VFMADD    : fma3p_forms<0x98, 0xA8, 0xB8, "vfmadd", "pd", "PD",
-                               loadv2f64, loadv4f64, X86Fmadd, v2f64,
+                               loadv2f64, loadv4f64, X86any_Fmadd, v2f64,
                                v4f64, SchedWriteFMA>, VEX_W;
   defm VFMSUB    : fma3p_forms<0x9A, 0xAA, 0xBA, "vfmsub", "pd", "PD",
                                loadv2f64, loadv4f64, X86Fmsub, v2f64,
@@ -237,7 +238,7 @@ multiclass fma3s_rm_132<bits<8> opc, string OpcodeStr,
 }
 
 let Constraints = "$src1 = $dst", isCommutable = 1, isCodeGenOnly = 1,
-    hasSideEffects = 0 in
+    hasSideEffects = 0, Uses = [MXCSR], mayRaiseFPException = 1 in
 multiclass fma3s_forms<bits<8> opc132, bits<8> opc213, bits<8> opc231,
                        string OpStr, string PackTy, string Suff,
                        SDNode OpNode, RegisterClass RC,
@@ -263,7 +264,8 @@ multiclass fma3s_forms<bits<8> opc132, bits<8> opc213, bits<8> opc231,
 // the lowest element of the FMA*_Int instruction. Even though such analysis
 // may be not implemented yet we allow the routines doing the actual commute
 // transformation to decide if one or another instruction is commutable or not.
-let Constraints = "$src1 = $dst", isCommutable = 1, hasSideEffects = 0 in
+let Constraints = "$src1 = $dst", isCommutable = 1, hasSideEffects = 0,
+    Uses = [MXCSR], mayRaiseFPException = 1 in
 multiclass fma3s_rm_int<bits<8> opc, string OpcodeStr,
                         Operand memopr, RegisterClass RC,
                         X86FoldableSchedWrite sched> {
@@ -317,7 +319,7 @@ multiclass fma3s<bits<8> opc132, bits<8> opc213, bits<8> opc231,
                               VR128, sdmem, sched>, VEX_W;
 }
 
-defm VFMADD : fma3s<0x99, 0xA9, 0xB9, "vfmadd", X86Fmadd,
+defm VFMADD : fma3s<0x99, 0xA9, 0xB9, "vfmadd", X86any_Fmadd,
                     SchedWriteFMA.Scl>, VEX_LIG;
 defm VFMSUB : fma3s<0x9B, 0xAB, 0xBB, "vfmsub", X86Fmsub,
                     SchedWriteFMA.Scl>, VEX_LIG;
@@ -370,12 +372,12 @@ multiclass scalar_fma_patterns<SDNode Op, string Prefix, string Suffix,
   }
 }
 
-defm : scalar_fma_patterns<X86Fmadd, "VFMADD", "SS", X86Movss, v4f32, f32, FR32, loadf32>;
+defm : scalar_fma_patterns<X86any_Fmadd, "VFMADD", "SS", X86Movss, v4f32, f32, FR32, loadf32>;
 defm : scalar_fma_patterns<X86Fmsub, "VFMSUB", "SS", X86Movss, v4f32, f32, FR32, loadf32>;
 defm : scalar_fma_patterns<X86Fnmadd, "VFNMADD", "SS", X86Movss, v4f32, f32, FR32, loadf32>;
 defm : scalar_fma_patterns<X86Fnmsub, "VFNMSUB", "SS", X86Movss, v4f32, f32, FR32, loadf32>;
 
-defm : scalar_fma_patterns<X86Fmadd, "VFMADD", "SD", X86Movsd, v2f64, f64, FR64, loadf64>;
+defm : scalar_fma_patterns<X86any_Fmadd, "VFMADD", "SD", X86Movsd, v2f64, f64, FR64, loadf64>;
 defm : scalar_fma_patterns<X86Fmsub, "VFMSUB", "SD", X86Movsd, v2f64, f64, FR64, loadf64>;
 defm : scalar_fma_patterns<X86Fnmadd, "VFNMADD", "SD", X86Movsd, v2f64, f64, FR64, loadf64>;
 defm : scalar_fma_patterns<X86Fnmsub, "VFNMSUB", "SD", X86Movsd, v2f64, f64, FR64, loadf64>;
@@ -384,6 +386,7 @@ defm : scalar_fma_patterns<X86Fnmsub, "VFNMSUB", "SD", X86Movsd, v2f64, f64, FR6
 // FMA4 - AMD 4 operand Fused Multiply-Add instructions
 //===----------------------------------------------------------------------===//
 
+let Uses = [MXCSR], mayRaiseFPException = 1 in
 multiclass fma4s<bits<8> opc, string OpcodeStr, RegisterClass RC,
                  X86MemOperand x86memop, ValueType OpVT, SDNode OpNode,
                  PatFrag mem_frag, X86FoldableSchedWrite sched> {
@@ -425,7 +428,8 @@ let isCodeGenOnly = 1, ForceDisassemble = 1, hasSideEffects = 0 in
 
 multiclass fma4s_int<bits<8> opc, string OpcodeStr, Operand memop,
                      ValueType VT, X86FoldableSchedWrite sched> {
-let isCodeGenOnly = 1, hasSideEffects = 0 in {
+let isCodeGenOnly = 1, hasSideEffects = 0,
+    Uses = [MXCSR], mayRaiseFPException = 1 in {
   def rr_Int : FMA4S_Int<opc, MRMSrcRegOp4, (outs VR128:$dst),
                (ins VR128:$src1, VR128:$src2, VR128:$src3),
                !strconcat(OpcodeStr,
@@ -458,6 +462,7 @@ let isCodeGenOnly = 1, hasSideEffects = 0 in {
 } // isCodeGenOnly = 1
 }
 
+let Uses = [MXCSR], mayRaiseFPException = 1 in
 multiclass fma4p<bits<8> opc, string OpcodeStr, SDNode OpNode,
                  ValueType OpVT128, ValueType OpVT256,
                  PatFrag ld_frag128, PatFrag ld_frag256,
@@ -533,7 +538,7 @@ let isCodeGenOnly = 1, ForceDisassemble = 1, hasSideEffects = 0 in {
 
 let ExeDomain = SSEPackedSingle in {
   // Scalar Instructions
-  defm VFMADDSS4  : fma4s<0x6A, "vfmaddss", FR32, f32mem, f32, X86Fmadd, loadf32,
+  defm VFMADDSS4  : fma4s<0x6A, "vfmaddss", FR32, f32mem, f32, X86any_Fmadd, loadf32,
                           SchedWriteFMA.Scl>,
                     fma4s_int<0x6A, "vfmaddss", ssmem, v4f32,
                               SchedWriteFMA.Scl>;
@@ -550,7 +555,7 @@ let ExeDomain = SSEPackedSingle in {
                     fma4s_int<0x7E, "vfnmsubss", ssmem, v4f32,
                               SchedWriteFMA.Scl>;
   // Packed Instructions
-  defm VFMADDPS4    : fma4p<0x68, "vfmaddps", X86Fmadd, v4f32, v8f32,
+  defm VFMADDPS4    : fma4p<0x68, "vfmaddps", X86any_Fmadd, v4f32, v8f32,
                             loadv4f32, loadv8f32, SchedWriteFMA>;
   defm VFMSUBPS4    : fma4p<0x6C, "vfmsubps", X86Fmsub, v4f32, v8f32,
                             loadv4f32, loadv8f32, SchedWriteFMA>;
@@ -566,7 +571,7 @@ let ExeDomain = SSEPackedSingle in {
 
 let ExeDomain = SSEPackedDouble in {
   // Scalar Instructions
-  defm VFMADDSD4  : fma4s<0x6B, "vfmaddsd", FR64, f64mem, f64, X86Fmadd, loadf64,
+  defm VFMADDSD4  : fma4s<0x6B, "vfmaddsd", FR64, f64mem, f64, X86any_Fmadd, loadf64,
                           SchedWriteFMA.Scl>,
                     fma4s_int<0x6B, "vfmaddsd", sdmem, v2f64,
                               SchedWriteFMA.Scl>;
@@ -583,7 +588,7 @@ let ExeDomain = SSEPackedDouble in {
                     fma4s_int<0x7F, "vfnmsubsd", sdmem, v2f64,
                               SchedWriteFMA.Scl>;
   // Packed Instructions
-  defm VFMADDPD4    : fma4p<0x69, "vfmaddpd", X86Fmadd, v2f64, v4f64,
+  defm VFMADDPD4    : fma4p<0x69, "vfmaddpd", X86any_Fmadd, v2f64, v4f64,
                             loadv2f64, loadv4f64, SchedWriteFMA>;
   defm VFMSUBPD4    : fma4p<0x6D, "vfmsubpd", X86Fmsub, v2f64, v4f64,
                             loadv2f64, loadv4f64, SchedWriteFMA>;
@@ -624,12 +629,12 @@ multiclass scalar_fma4_patterns<SDNode Op, string Name,
   }
 }
 
-defm : scalar_fma4_patterns<X86Fmadd, "VFMADDSS4", v4f32, f32, FR32, loadf32>;
+defm : scalar_fma4_patterns<X86any_Fmadd, "VFMADDSS4", v4f32, f32, FR32, loadf32>;
 defm : scalar_fma4_patterns<X86Fmsub, "VFMSUBSS4", v4f32, f32, FR32, loadf32>;
 defm : scalar_fma4_patterns<X86Fnmadd, "VFNMADDSS4", v4f32, f32, FR32, loadf32>;
 defm : scalar_fma4_patterns<X86Fnmsub, "VFNMSUBSS4", v4f32, f32, FR32, loadf32>;
 
-defm : scalar_fma4_patterns<X86Fmadd, "VFMADDSD4", v2f64, f64, FR64, loadf64>;
+defm : scalar_fma4_patterns<X86any_Fmadd, "VFMADDSD4", v2f64, f64, FR64, loadf64>;
 defm : scalar_fma4_patterns<X86Fmsub, "VFMSUBSD4", v2f64, f64, FR64, loadf64>;
 defm : scalar_fma4_patterns<X86Fnmadd, "VFNMADDSD4", v2f64, f64, FR64, loadf64>;
 defm : scalar_fma4_patterns<X86Fnmsub, "VFNMSUBSD4", v2f64, f64, FR64, loadf64>;

@@ -31,7 +31,7 @@ public:
 
   // Creates a function breakpoint by regular expression.  Takes over control
   // of the lifespan of func_regex.
-  AddressResolverName(RegularExpression &func_regex);
+  AddressResolverName(RegularExpression func_regex);
 
   AddressResolverName(const char *class_name, const char *method,
                       AddressResolver::MatchType type);
@@ -39,8 +39,8 @@ public:
   ~AddressResolverName() override;
 
   Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
-                                          SymbolContext &context, Address *addr,
-                                          bool containing) override;
+                                          SymbolContext &context,
+                                          Address *addr) override;
 
   lldb::SearchDepth GetDepth() override;
 

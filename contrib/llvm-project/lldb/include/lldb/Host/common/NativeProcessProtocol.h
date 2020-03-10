@@ -32,6 +32,14 @@ namespace lldb_private {
 class MemoryRegionInfo;
 class ResumeActionList;
 
+struct SVR4LibraryInfo {
+  std::string name;
+  lldb::addr_t link_map;
+  lldb::addr_t base_addr;
+  lldb::addr_t ld_addr;
+  lldb::addr_t next;
+};
+
 // NativeProcessProtocol
 class NativeProcessProtocol {
 public:
@@ -76,6 +84,31 @@ public:
   Status ReadMemoryWithoutTrap(lldb::addr_t addr, void *buf, size_t size,
                                size_t &bytes_read);
 
+  /// Reads a null terminated string from memory.
+  ///
+  /// Reads up to \p max_size bytes of memory until it finds a '\0'.
+  /// If a '\0' is not found then it reads max_size-1 bytes as a string and a
+  /// '\0' is added as the last character of the \p buffer.
+  ///
+  /// \param[in] addr
+  ///     The address in memory to read from.
+  ///
+  /// \param[in] buffer
+  ///     An allocated buffer with at least \p max_size size.
+  ///
+  /// \param[in] max_size
+  ///     The maximum number of bytes to read from memory until it reads the
+  ///     string.
+  ///
+  /// \param[out] total_bytes_read
+  ///     The number of bytes read from memory into \p buffer.
+  ///
+  /// \return
+  ///     Returns a StringRef backed up by the \p buffer passed in.
+  llvm::Expected<llvm::StringRef>
+  ReadCStringFromMemory(lldb::addr_t addr, char *buffer, size_t max_size,
+                        size_t &total_bytes_read);
+
   virtual Status WriteMemory(lldb::addr_t addr, const void *buf, size_t size,
                              size_t &bytes_written) = 0;
 
@@ -85,6 +118,12 @@ public:
   virtual Status DeallocateMemory(lldb::addr_t addr) = 0;
 
   virtual lldb::addr_t GetSharedLibraryInfoAddress() = 0;
+
+  virtual llvm::Expected<std::vector<SVR4LibraryInfo>>
+  GetLoadedSVR4Libraries() {
+    return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                   "Not implemented");
+  }
 
   virtual bool IsAlive() const;
 
@@ -390,6 +429,8 @@ protected:
   // to, and then this function should be called.
   NativeProcessProtocol(lldb::pid_t pid, int terminal_fd,
                         NativeDelegate &delegate);
+
+  void SetID(lldb::pid_t pid) { m_pid = pid; }
 
   // interface for state handling
   void SetState(lldb::StateType state, bool notify_delegates = true);

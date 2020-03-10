@@ -60,10 +60,21 @@
 
 #ifdef _WIN32
 #include "llvm/Support/ConvertUTF.h"
-#include "Windows/WindowsSupport.h"
+#include "llvm/Support/Windows/WindowsSupport.h"
 #endif
 
 using namespace llvm;
+
+const raw_ostream::Colors raw_ostream::BLACK;
+const raw_ostream::Colors raw_ostream::RED;
+const raw_ostream::Colors raw_ostream::GREEN;
+const raw_ostream::Colors raw_ostream::YELLOW;
+const raw_ostream::Colors raw_ostream::BLUE;
+const raw_ostream::Colors raw_ostream::MAGENTA;
+const raw_ostream::Colors raw_ostream::CYAN;
+const raw_ostream::Colors raw_ostream::WHITE;
+const raw_ostream::Colors raw_ostream::SAVEDCOLOR;
+const raw_ostream::Colors raw_ostream::RESET;
 
 raw_ostream::~raw_ostream() {
   // raw_ostream's subclasses should take care to flush the buffer
@@ -71,7 +82,7 @@ raw_ostream::~raw_ostream() {
   assert(OutBufCur == OutBufStart &&
          "raw_ostream destructor called with non-empty buffer!");
 
-  if (BufferMode == InternalBuffer)
+  if (BufferMode == BufferKind::InternalBuffer)
     delete [] OutBufStart;
 }
 
@@ -91,14 +102,14 @@ void raw_ostream::SetBuffered() {
 
 void raw_ostream::SetBufferAndMode(char *BufferStart, size_t Size,
                                    BufferKind Mode) {
-  assert(((Mode == Unbuffered && !BufferStart && Size == 0) ||
-          (Mode != Unbuffered && BufferStart && Size != 0)) &&
+  assert(((Mode == BufferKind::Unbuffered && !BufferStart && Size == 0) ||
+          (Mode != BufferKind::Unbuffered && BufferStart && Size != 0)) &&
          "stream must be unbuffered or have at least one byte");
   // Make sure the current buffer is free of content (we can't flush here; the
   // child buffer management logic will be in write_impl).
   assert(GetNumBytesInBuffer() == 0 && "Current buffer is non-empty!");
 
-  if (BufferMode == InternalBuffer)
+  if (BufferMode == BufferKind::InternalBuffer)
     delete [] OutBufStart;
   OutBufStart = BufferStart;
   OutBufEnd = OutBufStart+Size;
@@ -130,6 +141,14 @@ raw_ostream &raw_ostream::operator<<(long long N) {
 
 raw_ostream &raw_ostream::write_hex(unsigned long long N) {
   llvm::write_hex(*this, N, HexPrintStyle::Lower);
+  return *this;
+}
+
+raw_ostream &raw_ostream::operator<<(Colors C) {
+  if (C == Colors::RESET)
+    resetColor();
+  else
+    changeColor(C);
   return *this;
 }
 
@@ -204,7 +223,7 @@ raw_ostream &raw_ostream::write(unsigned char C) {
   // Group exceptional cases into a single branch.
   if (LLVM_UNLIKELY(OutBufCur >= OutBufEnd)) {
     if (LLVM_UNLIKELY(!OutBufStart)) {
-      if (BufferMode == Unbuffered) {
+      if (BufferMode == BufferKind::Unbuffered) {
         write_impl(reinterpret_cast<char*>(&C), 1);
         return *this;
       }
@@ -224,7 +243,7 @@ raw_ostream &raw_ostream::write(const char *Ptr, size_t Size) {
   // Group exceptional cases into a single branch.
   if (LLVM_UNLIKELY(size_t(OutBufEnd - OutBufCur) < Size)) {
     if (LLVM_UNLIKELY(!OutBufStart)) {
-      if (BufferMode == Unbuffered) {
+      if (BufferMode == BufferKind::Unbuffered) {
         write_impl(Ptr, Size);
         return *this;
       }
@@ -784,11 +803,15 @@ size_t raw_fd_ostream::preferred_buffer_size() const {
 
 raw_ostream &raw_fd_ostream::changeColor(enum Colors colors, bool bold,
                                          bool bg) {
+  if (!ColorEnabled)
+    return *this;
+
   if (sys::Process::ColorNeedsFlush())
     flush();
   const char *colorcode =
-    (colors == SAVEDCOLOR) ? sys::Process::OutputBold(bg)
-    : sys::Process::OutputColor(colors, bold, bg);
+      (colors == SAVEDCOLOR)
+          ? sys::Process::OutputBold(bg)
+          : sys::Process::OutputColor(static_cast<char>(colors), bold, bg);
   if (colorcode) {
     size_t len = strlen(colorcode);
     write(colorcode, len);
@@ -799,6 +822,9 @@ raw_ostream &raw_fd_ostream::changeColor(enum Colors colors, bool bold,
 }
 
 raw_ostream &raw_fd_ostream::resetColor() {
+  if (!ColorEnabled)
+    return *this;
+
   if (sys::Process::ColorNeedsFlush())
     flush();
   const char *colorcode = sys::Process::ResetColor();
@@ -812,6 +838,9 @@ raw_ostream &raw_fd_ostream::resetColor() {
 }
 
 raw_ostream &raw_fd_ostream::reverseColor() {
+  if (!ColorEnabled)
+    return *this;
+
   if (sys::Process::ColorNeedsFlush())
     flush();
   const char *colorcode = sys::Process::OutputReverse();
@@ -843,7 +872,7 @@ void raw_fd_ostream::anchor() {}
 raw_ostream &llvm::outs() {
   // Set buffer settings to model stdout behavior.
   std::error_code EC;
-  static raw_fd_ostream S("-", EC, sys::fs::F_None);
+  static raw_fd_ostream S("-", EC, sys::fs::OF_None);
   assert(!EC);
   return S;
 }

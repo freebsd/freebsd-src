@@ -14,7 +14,7 @@
 // cost. If the constant can be folded into the instruction (the cost is
 // TCC_Free) or the cost is just a simple operation (TCC_BASIC), then we don't
 // consider it expensive and leave it alone. This is the default behavior and
-// the default implementation of getIntImmCost will always return TCC_Free.
+// the default implementation of getIntImmCostInst will always return TCC_Free.
 //
 // If the cost is more than TCC_BASIC, then the integer constant can't be folded
 // into the instruction and it might be beneficial to hoist the constant.
@@ -43,7 +43,6 @@
 #include "llvm/Analysis/BlockFrequencyInfo.h"
 #include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -54,6 +53,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/Casting.h"
@@ -61,6 +61,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SizeOpts.h"
 #include <algorithm>
 #include <cassert>
@@ -204,7 +205,7 @@ Instruction *ConstantHoistingPass::findMatInsertPt(Instruction *Inst,
 /// set found in \p BBs.
 static void findBestInsertionSet(DominatorTree &DT, BlockFrequencyInfo &BFI,
                                  BasicBlock *Entry,
-                                 SmallPtrSet<BasicBlock *, 8> &BBs) {
+                                 SetVector<BasicBlock *> &BBs) {
   assert(!BBs.count(Entry) && "Assume Entry is not in BBs");
   // Nodes on the current path to the root.
   SmallPtrSet<BasicBlock *, 8> Path;
@@ -257,7 +258,7 @@ static void findBestInsertionSet(DominatorTree &DT, BlockFrequencyInfo &BFI,
 
   // Visit Orders in bottom-up order.
   using InsertPtsCostPair =
-      std::pair<SmallPtrSet<BasicBlock *, 16>, BlockFrequency>;
+      std::pair<SetVector<BasicBlock *>, BlockFrequency>;
 
   // InsertPtsMap is a map from a BB to the best insertion points for the
   // subtree of BB (subtree not including the BB itself).
@@ -266,7 +267,7 @@ static void findBestInsertionSet(DominatorTree &DT, BlockFrequencyInfo &BFI,
   for (auto RIt = Orders.rbegin(); RIt != Orders.rend(); RIt++) {
     BasicBlock *Node = *RIt;
     bool NodeInBBs = BBs.count(Node);
-    SmallPtrSet<BasicBlock *, 16> &InsertPts = InsertPtsMap[Node].first;
+    auto &InsertPts = InsertPtsMap[Node].first;
     BlockFrequency &InsertPtsFreq = InsertPtsMap[Node].second;
 
     // Return the optimal insert points in BBs.
@@ -283,7 +284,7 @@ static void findBestInsertionSet(DominatorTree &DT, BlockFrequencyInfo &BFI,
     BasicBlock *Parent = DT.getNode(Node)->getIDom()->getBlock();
     // Initially, ParentInsertPts is empty and ParentPtsFreq is 0. Every child
     // will update its parent's ParentInsertPts and ParentPtsFreq.
-    SmallPtrSet<BasicBlock *, 16> &ParentInsertPts = InsertPtsMap[Parent].first;
+    auto &ParentInsertPts = InsertPtsMap[Parent].first;
     BlockFrequency &ParentPtsFreq = InsertPtsMap[Parent].second;
     // Choose to insert in Node or in subtree of Node.
     // Don't hoist to EHPad because we may not find a proper place to insert
@@ -305,12 +306,12 @@ static void findBestInsertionSet(DominatorTree &DT, BlockFrequencyInfo &BFI,
 }
 
 /// Find an insertion point that dominates all uses.
-SmallPtrSet<Instruction *, 8> ConstantHoistingPass::findConstantInsertionPoint(
+SetVector<Instruction *> ConstantHoistingPass::findConstantInsertionPoint(
     const ConstantInfo &ConstInfo) const {
   assert(!ConstInfo.RebasedConstants.empty() && "Invalid constant info entry.");
   // Collect all basic blocks.
-  SmallPtrSet<BasicBlock *, 8> BBs;
-  SmallPtrSet<Instruction *, 8> InsertPts;
+  SetVector<BasicBlock *> BBs;
+  SetVector<Instruction *> InsertPts;
   for (auto const &RCI : ConstInfo.RebasedConstants)
     for (auto const &U : RCI.Uses)
       BBs.insert(findMatInsertPt(U.Inst, U.OpndIdx)->getParent());
@@ -333,15 +334,13 @@ SmallPtrSet<Instruction *, 8> ConstantHoistingPass::findConstantInsertionPoint(
 
   while (BBs.size() >= 2) {
     BasicBlock *BB, *BB1, *BB2;
-    BB1 = *BBs.begin();
-    BB2 = *std::next(BBs.begin());
+    BB1 = BBs.pop_back_val();
+    BB2 = BBs.pop_back_val();
     BB = DT->findNearestCommonDominator(BB1, BB2);
     if (BB == Entry) {
       InsertPts.insert(&Entry->front());
       return InsertPts;
     }
-    BBs.erase(BB1);
-    BBs.erase(BB2);
     BBs.insert(BB);
   }
   assert((BBs.size() == 1) && "Expected only one element.");
@@ -363,11 +362,11 @@ void ConstantHoistingPass::collectConstantCandidates(
   // Ask the target about the cost of materializing the constant for the given
   // instruction and operand index.
   if (auto IntrInst = dyn_cast<IntrinsicInst>(Inst))
-    Cost = TTI->getIntImmCost(IntrInst->getIntrinsicID(), Idx,
-                              ConstInt->getValue(), ConstInt->getType());
+    Cost = TTI->getIntImmCostIntrin(IntrInst->getIntrinsicID(), Idx,
+                                    ConstInt->getValue(), ConstInt->getType());
   else
-    Cost = TTI->getIntImmCost(Inst->getOpcode(), Idx, ConstInt->getValue(),
-                              ConstInt->getType());
+    Cost = TTI->getIntImmCostInst(Inst->getOpcode(), Idx, ConstInt->getValue(),
+                                  ConstInt->getType());
 
   // Ignore cheap integer constants.
   if (Cost > TargetTransformInfo::TCC_Basic) {
@@ -403,7 +402,7 @@ void ConstantHoistingPass::collectConstantCandidates(
     return;
 
   // Get offset from the base GV.
-  PointerType *GVPtrTy = dyn_cast<PointerType>(BaseGV->getType());
+  PointerType *GVPtrTy = cast<PointerType>(BaseGV->getType());
   IntegerType *PtrIntTy = DL->getIntPtrType(*Ctx, GVPtrTy->getAddressSpace());
   APInt Offset(DL->getTypeSizeInBits(PtrIntTy), /*val*/0, /*isSigned*/true);
   auto *GEPO = cast<GEPOperator>(ConstExpr);
@@ -417,7 +416,7 @@ void ConstantHoistingPass::collectConstantCandidates(
   // usually lowered to a load from constant pool. Such operation is unlikely
   // to be cheaper than compute it by <Base + Offset>, which can be lowered to
   // an ADD instruction or folded into Load/Store instruction.
-  int Cost = TTI->getIntImmCost(Instruction::Add, 1, Offset, PtrIntTy);
+  int Cost = TTI->getIntImmCostInst(Instruction::Add, 1, Offset, PtrIntTy);
   ConstCandVecType &ExprCandVec = ConstGEPCandMap[BaseGV];
   ConstCandMapType::iterator Itr;
   bool Inserted;
@@ -488,9 +487,10 @@ void ConstantHoistingPass::collectConstantCandidates(
   // Scan all operands.
   for (unsigned Idx = 0, E = Inst->getNumOperands(); Idx != E; ++Idx) {
     // The cost of materializing the constants (defined in
-    // `TargetTransformInfo::getIntImmCost`) for instructions which only take
-    // constant variables is lower than `TargetTransformInfo::TCC_Basic`. So
-    // it's safe for us to collect constant candidates from all IntrinsicInsts.
+    // `TargetTransformInfo::getIntImmCostInst`) for instructions which only
+    // take constant variables is lower than `TargetTransformInfo::TCC_Basic`.
+    // So it's safe for us to collect constant candidates from all
+    // IntrinsicInsts.
     if (canReplaceOperandWithVariable(Inst, Idx) || isa<IntrinsicInst>(Inst)) {
       collectConstantCandidates(ConstCandMap, Inst, Idx);
     }
@@ -501,9 +501,13 @@ void ConstantHoistingPass::collectConstantCandidates(
 /// into an instruction itself.
 void ConstantHoistingPass::collectConstantCandidates(Function &Fn) {
   ConstCandMapType ConstCandMap;
-  for (BasicBlock &BB : Fn)
+  for (BasicBlock &BB : Fn) {
+    // Ignore unreachable basic blocks.
+    if (!DT->isReachableFromEntry(&BB))
+      continue;
     for (Instruction &Inst : BB)
       collectConstantCandidates(ConstCandMap, &Inst);
+  }
 }
 
 // This helper function is necessary to deal with values that have different
@@ -554,7 +558,8 @@ ConstantHoistingPass::maximizeConstantsInRange(ConstCandVecType::iterator S,
   unsigned NumUses = 0;
 
   bool OptForSize = Entry->getParent()->hasOptSize() ||
-                    llvm::shouldOptimizeForSize(Entry->getParent(), PSI, BFI);
+                    llvm::shouldOptimizeForSize(Entry->getParent(), PSI, BFI,
+                                                PGSOQueryType::IRPass);
   if (!OptForSize || std::distance(S,E) > 100) {
     for (auto ConstCand = S; ConstCand != E; ++ConstCand) {
       NumUses += ConstCand->Uses.size();
@@ -577,7 +582,7 @@ ConstantHoistingPass::maximizeConstantsInRange(ConstCandVecType::iterator S,
     for (auto User : ConstCand->Uses) {
       unsigned Opcode = User.Inst->getOpcode();
       unsigned OpndIdx = User.OpndIdx;
-      Cost += TTI->getIntImmCost(Opcode, OpndIdx, Value, Ty);
+      Cost += TTI->getIntImmCostInst(Opcode, OpndIdx, Value, Ty);
       LLVM_DEBUG(dbgs() << "Cost: " << Cost << "\n");
 
       for (auto C2 = S; C2 != E; ++C2) {
@@ -830,7 +835,7 @@ bool ConstantHoistingPass::emitBaseConstants(GlobalVariable *BaseGV) {
   SmallVectorImpl<consthoist::ConstantInfo> &ConstInfoVec =
       BaseGV ? ConstGEPInfoMap[BaseGV] : ConstIntInfoVec;
   for (auto const &ConstInfo : ConstInfoVec) {
-    SmallPtrSet<Instruction *, 8> IPSet = findConstantInsertionPoint(ConstInfo);
+    SetVector<Instruction *> IPSet = findConstantInsertionPoint(ConstInfo);
     // We can have an empty set if the function contains unreachable blocks.
     if (IPSet.empty())
       continue;

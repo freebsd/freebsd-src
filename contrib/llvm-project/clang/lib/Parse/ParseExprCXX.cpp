@@ -11,7 +11,9 @@
 //===----------------------------------------------------------------------===//
 #include "clang/Parse/Parser.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Decl.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/Basic/PrettyStackTrace.h"
 #include "clang/Lex/LiteralSupport.h"
 #include "clang/Parse/ParseDiagnostic.h"
@@ -142,6 +144,7 @@ void Parser::CheckForTemplateAndDigraph(Token &Next, ParsedType ObjectType,
 ///
 /// \param OnlyNamespace If true, only considers namespaces in lookup.
 ///
+///
 /// \returns true if there was an error parsing a scope specifier
 bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
                                             ParsedType ObjectType,
@@ -149,7 +152,8 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
                                             bool *MayBePseudoDestructor,
                                             bool IsTypename,
                                             IdentifierInfo **LastII,
-                                            bool OnlyNamespace) {
+                                            bool OnlyNamespace,
+                                            bool InUsingDeclaration) {
   assert(getLangOpts().CPlusPlus &&
          "Call sites of this function should be guarded by checking for C++");
 
@@ -161,13 +165,6 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
                                                  SS);
     ConsumeAnnotationToken();
     return false;
-  }
-
-  if (Tok.is(tok::annot_template_id)) {
-    // If the current token is an annotated template id, it may already have
-    // a scope specifier. Restore it.
-    TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
-    SS = TemplateId->SS;
   }
 
   // Has to happen before any "return false"s in this function.
@@ -240,7 +237,7 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
         // Code completion for a nested-name-specifier, where the code
         // completion token follows the '::'.
         Actions.CodeCompleteQualifiedId(getCurScope(), SS, EnteringContext,
-                                        ObjectType.get(),
+                                        InUsingDeclaration, ObjectType.get(),
                                         SavedType.get(SS.getBeginLoc()));
         // Include code completion token into the range of the scope otherwise
         // when we try to annotate the scope tokens the dangling code completion
@@ -479,6 +476,7 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
     // nested-name-specifier:
     //   type-name '<'
     if (Next.is(tok::less)) {
+
       TemplateTy Template;
       UnqualifiedId TemplateName;
       TemplateName.setIdentifier(&II, Tok.getLocation());
@@ -503,7 +501,8 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
         // template-id to be translated into a type annotation,
         // because some clients (e.g., the parsing of class template
         // specializations) still want to see the original template-id
-        // token.
+        // token, and it might not be a type at all (e.g. a concept name in a
+        // type-constraint).
         ConsumeToken();
         if (AnnotateTemplateIdToken(Template, TNK, SS, SourceLocation(),
                                     TemplateName, false))
@@ -555,27 +554,66 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
   return false;
 }
 
-ExprResult Parser::tryParseCXXIdExpression(CXXScopeSpec &SS, bool isAddressOfOperand,
+ExprResult Parser::tryParseCXXIdExpression(CXXScopeSpec &SS,
+                                           bool isAddressOfOperand,
                                            Token &Replacement) {
-  SourceLocation TemplateKWLoc;
-  UnqualifiedId Name;
-  if (ParseUnqualifiedId(SS,
-                         /*EnteringContext=*/false,
-                         /*AllowDestructorName=*/false,
-                         /*AllowConstructorName=*/false,
-                         /*AllowDeductionGuide=*/false,
-                         /*ObjectType=*/nullptr, &TemplateKWLoc, Name))
-    return ExprError();
+  ExprResult E;
 
-  // This is only the direct operand of an & operator if it is not
-  // followed by a postfix-expression suffix.
-  if (isAddressOfOperand && isPostfixExpressionSuffixStart())
-    isAddressOfOperand = false;
+  // We may have already annotated this id-expression.
+  switch (Tok.getKind()) {
+  case tok::annot_non_type: {
+    NamedDecl *ND = getNonTypeAnnotation(Tok);
+    SourceLocation Loc = ConsumeAnnotationToken();
+    E = Actions.ActOnNameClassifiedAsNonType(getCurScope(), SS, ND, Loc, Tok);
+    break;
+  }
 
-  ExprResult E = Actions.ActOnIdExpression(
-      getCurScope(), SS, TemplateKWLoc, Name, Tok.is(tok::l_paren),
-      isAddressOfOperand, /*CCC=*/nullptr, /*IsInlineAsmIdentifier=*/false,
-      &Replacement);
+  case tok::annot_non_type_dependent: {
+    IdentifierInfo *II = getIdentifierAnnotation(Tok);
+    SourceLocation Loc = ConsumeAnnotationToken();
+
+    // This is only the direct operand of an & operator if it is not
+    // followed by a postfix-expression suffix.
+    if (isAddressOfOperand && isPostfixExpressionSuffixStart())
+      isAddressOfOperand = false;
+
+    E = Actions.ActOnNameClassifiedAsDependentNonType(SS, II, Loc,
+                                                      isAddressOfOperand);
+    break;
+  }
+
+  case tok::annot_non_type_undeclared: {
+    assert(SS.isEmpty() &&
+           "undeclared non-type annotation should be unqualified");
+    IdentifierInfo *II = getIdentifierAnnotation(Tok);
+    SourceLocation Loc = ConsumeAnnotationToken();
+    E = Actions.ActOnNameClassifiedAsUndeclaredNonType(II, Loc);
+    break;
+  }
+
+  default:
+    SourceLocation TemplateKWLoc;
+    UnqualifiedId Name;
+    if (ParseUnqualifiedId(SS,
+                           /*EnteringContext=*/false,
+                           /*AllowDestructorName=*/false,
+                           /*AllowConstructorName=*/false,
+                           /*AllowDeductionGuide=*/false,
+                           /*ObjectType=*/nullptr, &TemplateKWLoc, Name))
+      return ExprError();
+
+    // This is only the direct operand of an & operator if it is not
+    // followed by a postfix-expression suffix.
+    if (isAddressOfOperand && isPostfixExpressionSuffixStart())
+      isAddressOfOperand = false;
+
+    E = Actions.ActOnIdExpression(
+        getCurScope(), SS, TemplateKWLoc, Name, Tok.is(tok::l_paren),
+        isAddressOfOperand, /*CCC=*/nullptr, /*IsInlineAsmIdentifier=*/false,
+        &Replacement);
+    break;
+  }
+
   if (!E.isInvalid() && !E.isUnset() && Tok.is(tok::less))
     checkPotentialAngleBracket(E);
   return E;
@@ -1214,7 +1252,7 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
             A.getKind() == ParsedAttr::AT_CUDAHost ||
             A.getKind() == ParsedAttr::AT_CUDAGlobal)
           Diag(A.getLoc(), diag::warn_cuda_attr_lambda_position)
-              << A.getName()->getName();
+              << A.getAttrName()->getName();
   };
 
   // FIXME: Consider allowing this as an extension for GCC compatibiblity.
@@ -1263,9 +1301,9 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
       Actions.RecordParsingTemplateParameterDepth(
           CurTemplateDepthTracker.getOriginalDepth());
 
-      ParseParameterDeclarationClause(D, Attr, ParamInfo, EllipsisLoc);
-
-      // For a generic lambda, each 'auto' within the parameter declaration
+      ParseParameterDeclarationClause(D.getContext(), Attr, ParamInfo,
+                                      EllipsisLoc);
+      // For a generic lambda, each 'auto' within the parameter declaration 
       // clause creates a template type parameter, so increment the depth.
       // If we've parsed any explicit template parameters, then the depth will
       // have already been incremented. So we make sure that at most a single
@@ -1316,6 +1354,13 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
     // Parse attribute-specifier[opt].
     MaybeParseCXX11Attributes(Attr, &DeclEndLoc);
 
+    // Parse OpenCL addr space attribute.
+    if (Tok.isOneOf(tok::kw___private, tok::kw___global, tok::kw___local,
+                    tok::kw___constant, tok::kw___generic)) {
+      ParseOpenCLQualifiers(DS.getAttributes());
+      ConsumeToken();
+    }
+
     SourceLocation FunLocalRangeEnd = DeclEndLoc;
 
     // Parse trailing-return-type[opt].
@@ -1327,10 +1372,6 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
       if (Range.getEnd().isValid())
         DeclEndLoc = Range.getEnd();
     }
-
-    PrototypeScope.Exit();
-
-    WarnIfHasCUDATargetAttr();
 
     SourceLocation NoLoc;
     D.AddTypeInfo(DeclaratorChunk::getFunction(
@@ -1344,21 +1385,38 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
                       NoexceptExpr.isUsable() ? NoexceptExpr.get() : nullptr,
                       /*ExceptionSpecTokens*/ nullptr,
                       /*DeclsInPrototype=*/None, LParenLoc, FunLocalRangeEnd, D,
-                      TrailingReturnType),
+                      TrailingReturnType, &DS),
                   std::move(Attr), DeclEndLoc);
+
+    // Parse requires-clause[opt].
+    if (Tok.is(tok::kw_requires))
+      ParseTrailingRequiresClause(D);
+
+    PrototypeScope.Exit();
+
+    WarnIfHasCUDATargetAttr();
   } else if (Tok.isOneOf(tok::kw_mutable, tok::arrow, tok::kw___attribute,
-                         tok::kw_constexpr, tok::kw_consteval) ||
+                         tok::kw_constexpr, tok::kw_consteval,
+                         tok::kw___private, tok::kw___global, tok::kw___local,
+                         tok::kw___constant, tok::kw___generic,
+                         tok::kw_requires) ||
              (Tok.is(tok::l_square) && NextToken().is(tok::l_square))) {
     // It's common to forget that one needs '()' before 'mutable', an attribute
-    // specifier, or the result type. Deal with this.
+    // specifier, the result type, or the requires clause. Deal with this.
     unsigned TokKind = 0;
     switch (Tok.getKind()) {
     case tok::kw_mutable: TokKind = 0; break;
     case tok::arrow: TokKind = 1; break;
     case tok::kw___attribute:
+    case tok::kw___private:
+    case tok::kw___global:
+    case tok::kw___local:
+    case tok::kw___constant:
+    case tok::kw___generic:
     case tok::l_square: TokKind = 2; break;
     case tok::kw_constexpr: TokKind = 3; break;
     case tok::kw_consteval: TokKind = 4; break;
+    case tok::kw_requires: TokKind = 5; break;
     default: llvm_unreachable("Unknown token kind");
     }
 
@@ -1390,8 +1448,6 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
         DeclEndLoc = Range.getEnd();
     }
 
-    WarnIfHasCUDATargetAttr();
-
     SourceLocation NoLoc;
     D.AddTypeInfo(DeclaratorChunk::getFunction(
                       /*HasProto=*/true,
@@ -1412,6 +1468,12 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
                       /*DeclsInPrototype=*/None, DeclLoc, DeclEndLoc, D,
                       TrailingReturnType),
                   std::move(Attr), DeclEndLoc);
+
+    // Parse the requires-clause, if present.
+    if (Tok.is(tok::kw_requires))
+      ParseTrailingRequiresClause(D);
+
+    WarnIfHasCUDATargetAttr();
   }
 
   // FIXME: Rename BlockScope -> ClosureScope if we decide to continue using
@@ -1812,9 +1874,11 @@ Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
     CommaLocsTy CommaLocs;
 
     auto RunSignatureHelp = [&]() {
-      QualType PreferredType = Actions.ProduceConstructorSignatureHelp(
-          getCurScope(), TypeRep.get()->getCanonicalTypeInternal(),
-          DS.getEndLoc(), Exprs, T.getOpenLocation());
+      QualType PreferredType;
+      if (TypeRep)
+        PreferredType = Actions.ProduceConstructorSignatureHelp(
+            getCurScope(), TypeRep.get()->getCanonicalTypeInternal(),
+            DS.getEndLoc(), Exprs, T.getOpenLocation());
       CalledSignatureHelp = true;
       return PreferredType;
     };
@@ -1965,7 +2029,7 @@ Sema::ConditionResult Parser::ParseCXXCondition(StmtResult *InitStmt,
   // simple-asm-expr[opt]
   if (Tok.is(tok::kw_asm)) {
     SourceLocation Loc;
-    ExprResult AsmLabel(ParseSimpleAsm(&Loc));
+    ExprResult AsmLabel(ParseSimpleAsm(/*ForAsmLabel*/ true, &Loc));
     if (AsmLabel.isInvalid()) {
       SkipUntil(tok::semi, StopAtSemi);
       return Sema::ConditionError();
@@ -2336,7 +2400,7 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
             : Id.OperatorFunctionId.Operator;
 
     TemplateIdAnnotation *TemplateId = TemplateIdAnnotation::Create(
-        SS, TemplateKWLoc, Id.StartLocation, TemplateII, OpKind, Template, TNK,
+        TemplateKWLoc, Id.StartLocation, TemplateII, OpKind, Template, TNK,
         LAngleLoc, RAngleLoc, TemplateArgs, TemplateIds);
 
     Id.setTemplateId(TemplateId);
@@ -2988,6 +3052,7 @@ Parser::ParseCXXNewExpression(bool UseGlobal, SourceLocation Start) {
       auto RunSignatureHelp = [&]() {
         ParsedType TypeRep =
             Actions.ActOnTypeName(getCurScope(), DeclaratorInfo).get();
+        assert(TypeRep && "invalid types should be handled before");
         QualType PreferredType = Actions.ProduceConstructorSignatureHelp(
             getCurScope(), TypeRep.get()->getCanonicalTypeInternal(),
             DeclaratorInfo.getEndLoc(), ConstructorArgs, ConstructorLParen);
@@ -3185,11 +3250,316 @@ Parser::ParseCXXDeleteExpression(bool UseGlobal, SourceLocation Start) {
       return ExprError();
   }
 
-  ExprResult Operand(ParseCastExpression(false));
+  ExprResult Operand(ParseCastExpression(AnyCastExpr));
   if (Operand.isInvalid())
     return Operand;
 
   return Actions.ActOnCXXDelete(Start, UseGlobal, ArrayDelete, Operand.get());
+}
+
+/// ParseRequiresExpression - Parse a C++2a requires-expression.
+/// C++2a [expr.prim.req]p1
+///     A requires-expression provides a concise way to express requirements on
+///     template arguments. A requirement is one that can be checked by name
+///     lookup (6.4) or by checking properties of types and expressions.
+///
+///     requires-expression:
+///         'requires' requirement-parameter-list[opt] requirement-body
+///
+///     requirement-parameter-list:
+///         '(' parameter-declaration-clause[opt] ')'
+///
+///     requirement-body:
+///         '{' requirement-seq '}'
+///
+///     requirement-seq:
+///         requirement
+///         requirement-seq requirement
+///
+///     requirement:
+///         simple-requirement
+///         type-requirement
+///         compound-requirement
+///         nested-requirement
+ExprResult Parser::ParseRequiresExpression() {
+  assert(Tok.is(tok::kw_requires) && "Expected 'requires' keyword");
+  SourceLocation RequiresKWLoc = ConsumeToken(); // Consume 'requires'
+
+  llvm::SmallVector<ParmVarDecl *, 2> LocalParameterDecls;
+  if (Tok.is(tok::l_paren)) {
+    // requirement parameter list is present.
+    ParseScope LocalParametersScope(this, Scope::FunctionPrototypeScope |
+                                    Scope::DeclScope);
+    BalancedDelimiterTracker Parens(*this, tok::l_paren);
+    Parens.consumeOpen();
+    if (!Tok.is(tok::r_paren)) {
+      ParsedAttributes FirstArgAttrs(getAttrFactory());
+      SourceLocation EllipsisLoc;
+      llvm::SmallVector<DeclaratorChunk::ParamInfo, 2> LocalParameters;
+      DiagnosticErrorTrap Trap(Diags);
+      ParseParameterDeclarationClause(DeclaratorContext::RequiresExprContext,
+                                      FirstArgAttrs, LocalParameters,
+                                      EllipsisLoc);
+      if (EllipsisLoc.isValid())
+        Diag(EllipsisLoc, diag::err_requires_expr_parameter_list_ellipsis);
+      for (auto &ParamInfo : LocalParameters)
+        LocalParameterDecls.push_back(cast<ParmVarDecl>(ParamInfo.Param));
+      if (Trap.hasErrorOccurred())
+        SkipUntil(tok::r_paren, StopBeforeMatch);
+    }
+    Parens.consumeClose();
+  }
+
+  BalancedDelimiterTracker Braces(*this, tok::l_brace);
+  if (Braces.expectAndConsume())
+    return ExprError();
+
+  // Start of requirement list
+  llvm::SmallVector<concepts::Requirement *, 2> Requirements;
+
+  // C++2a [expr.prim.req]p2
+  //   Expressions appearing within a requirement-body are unevaluated operands.
+  EnterExpressionEvaluationContext Ctx(
+      Actions, Sema::ExpressionEvaluationContext::Unevaluated);
+
+  ParseScope BodyScope(this, Scope::DeclScope);
+  RequiresExprBodyDecl *Body = Actions.ActOnStartRequiresExpr(
+      RequiresKWLoc, LocalParameterDecls, getCurScope());
+
+  if (Tok.is(tok::r_brace)) {
+    // Grammar does not allow an empty body.
+    // requirement-body:
+    //   { requirement-seq }
+    // requirement-seq:
+    //   requirement
+    //   requirement-seq requirement
+    Diag(Tok, diag::err_empty_requires_expr);
+    // Continue anyway and produce a requires expr with no requirements.
+  } else {
+    while (!Tok.is(tok::r_brace)) {
+      switch (Tok.getKind()) {
+      case tok::l_brace: {
+        // Compound requirement
+        // C++ [expr.prim.req.compound]
+        //     compound-requirement:
+        //         '{' expression '}' 'noexcept'[opt]
+        //             return-type-requirement[opt] ';'
+        //     return-type-requirement:
+        //         trailing-return-type
+        //         '->' cv-qualifier-seq[opt] constrained-parameter
+        //             cv-qualifier-seq[opt] abstract-declarator[opt]
+        BalancedDelimiterTracker ExprBraces(*this, tok::l_brace);
+        ExprBraces.consumeOpen();
+        ExprResult Expression =
+            Actions.CorrectDelayedTyposInExpr(ParseExpression());
+        if (!Expression.isUsable()) {
+          ExprBraces.skipToEnd();
+          SkipUntil(tok::semi, tok::r_brace, SkipUntilFlags::StopBeforeMatch);
+          break;
+        }
+        if (ExprBraces.consumeClose())
+          ExprBraces.skipToEnd();
+
+        concepts::Requirement *Req = nullptr;
+        SourceLocation NoexceptLoc;
+        TryConsumeToken(tok::kw_noexcept, NoexceptLoc);
+        if (Tok.is(tok::semi)) {
+          Req = Actions.ActOnCompoundRequirement(Expression.get(), NoexceptLoc);
+          if (Req)
+            Requirements.push_back(Req);
+          break;
+        }
+        if (!TryConsumeToken(tok::arrow))
+          // User probably forgot the arrow, remind them and try to continue.
+          Diag(Tok, diag::err_requires_expr_missing_arrow)
+              << FixItHint::CreateInsertion(Tok.getLocation(), "->");
+        // Try to parse a 'type-constraint'
+        if (TryAnnotateTypeConstraint()) {
+          SkipUntil(tok::semi, tok::r_brace, SkipUntilFlags::StopBeforeMatch);
+          break;
+        }
+        if (!isTypeConstraintAnnotation()) {
+          Diag(Tok, diag::err_requires_expr_expected_type_constraint);
+          SkipUntil(tok::semi, tok::r_brace, SkipUntilFlags::StopBeforeMatch);
+          break;
+        }
+        CXXScopeSpec SS;
+        if (Tok.is(tok::annot_cxxscope)) {
+          Actions.RestoreNestedNameSpecifierAnnotation(Tok.getAnnotationValue(),
+                                                       Tok.getAnnotationRange(),
+                                                       SS);
+          ConsumeAnnotationToken();
+        }
+
+        Req = Actions.ActOnCompoundRequirement(
+            Expression.get(), NoexceptLoc, SS, takeTemplateIdAnnotation(Tok),
+            TemplateParameterDepth);
+        ConsumeAnnotationToken();
+        if (Req)
+          Requirements.push_back(Req);
+        break;
+      }
+      default: {
+        bool PossibleRequiresExprInSimpleRequirement = false;
+        if (Tok.is(tok::kw_requires)) {
+          auto IsNestedRequirement = [&] {
+            RevertingTentativeParsingAction TPA(*this);
+            ConsumeToken(); // 'requires'
+            if (Tok.is(tok::l_brace))
+              // This is a requires expression
+              // requires (T t) {
+              //   requires { t++; };
+              //   ...      ^
+              // }
+              return false;
+            if (Tok.is(tok::l_paren)) {
+              // This might be the parameter list of a requires expression
+              ConsumeParen();
+              auto Res = TryParseParameterDeclarationClause();
+              if (Res != TPResult::False) {
+                // Skip to the closing parenthesis
+                // FIXME: Don't traverse these tokens twice (here and in
+                //  TryParseParameterDeclarationClause).
+                unsigned Depth = 1;
+                while (Depth != 0) {
+                  if (Tok.is(tok::l_paren))
+                    Depth++;
+                  else if (Tok.is(tok::r_paren))
+                    Depth--;
+                  ConsumeAnyToken();
+                }
+                // requires (T t) {
+                //   requires () ?
+                //   ...         ^
+                //   - OR -
+                //   requires (int x) ?
+                //   ...              ^
+                // }
+                if (Tok.is(tok::l_brace))
+                  // requires (...) {
+                  //                ^ - a requires expression as a
+                  //                    simple-requirement.
+                  return false;
+              }
+            }
+            return true;
+          };
+          if (IsNestedRequirement()) {
+            ConsumeToken();
+            // Nested requirement
+            // C++ [expr.prim.req.nested]
+            //     nested-requirement:
+            //         'requires' constraint-expression ';'
+            ExprResult ConstraintExpr =
+                Actions.CorrectDelayedTyposInExpr(ParseConstraintExpression());
+            if (ConstraintExpr.isInvalid() || !ConstraintExpr.isUsable()) {
+              SkipUntil(tok::semi, tok::r_brace,
+                        SkipUntilFlags::StopBeforeMatch);
+              break;
+            }
+            if (auto *Req =
+                    Actions.ActOnNestedRequirement(ConstraintExpr.get()))
+              Requirements.push_back(Req);
+            else {
+              SkipUntil(tok::semi, tok::r_brace,
+                        SkipUntilFlags::StopBeforeMatch);
+              break;
+            }
+            break;
+          } else
+            PossibleRequiresExprInSimpleRequirement = true;
+        } else if (Tok.is(tok::kw_typename)) {
+          // This might be 'typename T::value_type;' (a type requirement) or
+          // 'typename T::value_type{};' (a simple requirement).
+          TentativeParsingAction TPA(*this);
+
+          // We need to consume the typename to allow 'requires { typename a; }'
+          SourceLocation TypenameKWLoc = ConsumeToken();
+          if (TryAnnotateCXXScopeToken()) {
+            TPA.Commit();
+            SkipUntil(tok::semi, tok::r_brace, SkipUntilFlags::StopBeforeMatch);
+            break;
+          }
+          CXXScopeSpec SS;
+          if (Tok.is(tok::annot_cxxscope)) {
+            Actions.RestoreNestedNameSpecifierAnnotation(
+                Tok.getAnnotationValue(), Tok.getAnnotationRange(), SS);
+            ConsumeAnnotationToken();
+          }
+
+          if (Tok.isOneOf(tok::identifier, tok::annot_template_id) &&
+              !NextToken().isOneOf(tok::l_brace, tok::l_paren)) {
+            TPA.Commit();
+            SourceLocation NameLoc = Tok.getLocation();
+            IdentifierInfo *II = nullptr;
+            TemplateIdAnnotation *TemplateId = nullptr;
+            if (Tok.is(tok::identifier)) {
+              II = Tok.getIdentifierInfo();
+              ConsumeToken();
+            } else {
+              TemplateId = takeTemplateIdAnnotation(Tok);
+              ConsumeAnnotationToken();
+            }
+
+            if (auto *Req = Actions.ActOnTypeRequirement(TypenameKWLoc, SS,
+                                                         NameLoc, II,
+                                                         TemplateId)) {
+              Requirements.push_back(Req);
+            }
+            break;
+          }
+          TPA.Revert();
+        }
+        // Simple requirement
+        // C++ [expr.prim.req.simple]
+        //     simple-requirement:
+        //         expression ';'
+        SourceLocation StartLoc = Tok.getLocation();
+        ExprResult Expression =
+            Actions.CorrectDelayedTyposInExpr(ParseExpression());
+        if (!Expression.isUsable()) {
+          SkipUntil(tok::semi, tok::r_brace, SkipUntilFlags::StopBeforeMatch);
+          break;
+        }
+        if (!Expression.isInvalid() && PossibleRequiresExprInSimpleRequirement)
+          Diag(StartLoc, diag::warn_requires_expr_in_simple_requirement)
+              << FixItHint::CreateInsertion(StartLoc, "requires");
+        if (auto *Req = Actions.ActOnSimpleRequirement(Expression.get()))
+          Requirements.push_back(Req);
+        else {
+          SkipUntil(tok::semi, tok::r_brace, SkipUntilFlags::StopBeforeMatch);
+          break;
+        }
+        // User may have tried to put some compound requirement stuff here
+        if (Tok.is(tok::kw_noexcept)) {
+          Diag(Tok, diag::err_requires_expr_simple_requirement_noexcept)
+              << FixItHint::CreateInsertion(StartLoc, "{")
+              << FixItHint::CreateInsertion(Tok.getLocation(), "}");
+          SkipUntil(tok::semi, tok::r_brace, SkipUntilFlags::StopBeforeMatch);
+          break;
+        }
+        break;
+      }
+      }
+      if (ExpectAndConsumeSemi(diag::err_expected_semi_requirement)) {
+        SkipUntil(tok::semi, tok::r_brace, SkipUntilFlags::StopBeforeMatch);
+        TryConsumeToken(tok::semi);
+        break;
+      }
+    }
+    if (Requirements.empty()) {
+      // Don't emit an empty requires expr here to avoid confusing the user with
+      // other diagnostics quoting an empty requires expression they never
+      // wrote.
+      Braces.consumeClose();
+      Actions.ActOnFinishRequiresExpr();
+      return ExprError();
+    }
+  }
+  Braces.consumeClose();
+  Actions.ActOnFinishRequiresExpr();
+  return Actions.ActOnRequiresExpr(RequiresKWLoc, Body, LocalParameterDecls,
+                                   Requirements, Braces.getCloseLocation());
 }
 
 static TypeTrait TypeTraitFromTokKind(tok::TokenKind kind) {
@@ -3416,7 +3786,7 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
       // If it is not a cast-expression, NotCastExpr will be true and no token
       // will be consumed.
       ColonProt.restore();
-      Result = ParseCastExpression(false/*isUnaryExpression*/,
+      Result = ParseCastExpression(AnyCastExpr,
                                    false/*isAddressofOperand*/,
                                    NotCastExpr,
                                    // type-id has priority.

@@ -46,11 +46,16 @@ void fuchsia::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // handled somewhere else.
   Args.ClaimAllArgs(options::OPT_w);
 
+  CmdArgs.push_back("-z");
+  CmdArgs.push_back("now");
+
   const char *Exec = Args.MakeArgString(ToolChain.GetLinkerPath());
   if (llvm::sys::path::filename(Exec).equals_lower("ld.lld") ||
       llvm::sys::path::stem(Exec).equals_lower("ld.lld")) {
     CmdArgs.push_back("-z");
     CmdArgs.push_back("rodynamic");
+    CmdArgs.push_back("-z");
+    CmdArgs.push_back("separate-loadable-segments");
   }
 
   if (!D.SysRoot.empty())
@@ -154,7 +159,7 @@ void fuchsia::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-lc");
   }
 
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 /// Fuchsia - Fuchsia tool chain which can call as(1) and ld(1) directly.
@@ -222,7 +227,7 @@ Fuchsia::Fuchsia(const Driver &D, const llvm::Triple &Triple,
 std::string Fuchsia::ComputeEffectiveClangTriple(const ArgList &Args,
                                                  types::ID InputType) const {
   llvm::Triple Triple(ComputeLLVMTriple(Args, InputType));
-  return (Triple.getArchName() + "-" + Triple.getOSName()).str();
+  return Triple.str();
 }
 
 Tool *Fuchsia::buildLinker() const {
@@ -256,9 +261,9 @@ Fuchsia::GetCXXStdlibType(const ArgList &Args) const {
 void Fuchsia::addClangTargetOptions(const ArgList &DriverArgs,
                                     ArgStringList &CC1Args,
                                     Action::OffloadKind) const {
-  if (DriverArgs.hasFlag(options::OPT_fuse_init_array,
-                         options::OPT_fno_use_init_array, true))
-    CC1Args.push_back("-fuse-init-array");
+  if (!DriverArgs.hasFlag(options::OPT_fuse_init_array,
+                          options::OPT_fno_use_init_array, true))
+    CC1Args.push_back("-fno-use-init-array");
 }
 
 void Fuchsia::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
@@ -341,5 +346,17 @@ SanitizerMask Fuchsia::getSupportedSanitizers() const {
 }
 
 SanitizerMask Fuchsia::getDefaultSanitizers() const {
-  return SanitizerKind::SafeStack;
+  SanitizerMask Res;
+  switch (getTriple().getArch()) {
+  case llvm::Triple::aarch64:
+    Res |= SanitizerKind::ShadowCallStack;
+    break;
+  case llvm::Triple::x86_64:
+    Res |= SanitizerKind::SafeStack;
+    break;
+  default:
+    // TODO: Enable SafeStack on RISC-V once tested.
+    break;
+  }
+  return Res;
 }

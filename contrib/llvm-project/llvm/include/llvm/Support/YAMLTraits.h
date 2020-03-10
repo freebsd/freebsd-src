@@ -649,7 +649,8 @@ inline bool isBool(StringRef S) {
 inline QuotingType needsQuotes(StringRef S) {
   if (S.empty())
     return QuotingType::Single;
-  if (isspace(S.front()) || isspace(S.back()))
+  if (isspace(static_cast<unsigned char>(S.front())) ||
+      isspace(static_cast<unsigned char>(S.back())))
     return QuotingType::Single;
   if (isNull(S))
     return QuotingType::Single;
@@ -748,7 +749,7 @@ public:
   IO(void *Ctxt = nullptr);
   virtual ~IO();
 
-  virtual bool outputting() = 0;
+  virtual bool outputting() const = 0;
 
   virtual unsigned beginSequence() = 0;
   virtual bool preflightElement(unsigned, void *&) = 0;
@@ -842,7 +843,7 @@ public:
       Val = Val | ConstVal;
   }
 
-  void *getContext();
+  void *getContext() const;
   void setContext(void *);
 
   template <typename T> void mapRequired(const char *Key, T &Val) {
@@ -1402,7 +1403,7 @@ public:
   std::error_code error();
 
 private:
-  bool outputting() override;
+  bool outputting() const override;
   bool mapTag(StringRef, bool) override;
   void beginMapping() override;
   void endMapping() override;
@@ -1530,7 +1531,7 @@ private:
   document_iterator                   DocIterator;
   std::vector<bool>                   BitValuesUsed;
   HNode *CurrentNode = nullptr;
-  bool                                ScalarMatchFound;
+  bool                                ScalarMatchFound = false;
 };
 
 ///
@@ -1549,7 +1550,7 @@ public:
   /// anyway.
   void setWriteDefaultValues(bool Write) { WriteDefaultValues = Write; }
 
-  bool outputting() override;
+  bool outputting() const override;
   bool mapTag(StringRef, bool) override;
   void beginMapping() override;
   void endMapping() override;
@@ -2033,5 +2034,10 @@ template <typename T> struct StdMapStringCustomMappingTraitsImpl {
       : public StdMapStringCustomMappingTraitsImpl<_type> {};                  \
   }                                                                            \
   }
+
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex64)
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex32)
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex16)
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex8)
 
 #endif // LLVM_SUPPORT_YAMLTRAITS_H

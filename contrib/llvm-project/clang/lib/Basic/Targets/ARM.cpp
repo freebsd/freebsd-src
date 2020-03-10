@@ -309,8 +309,9 @@ ARMTargetInfo::ARMTargetInfo(const llvm::Triple &Triple,
   setAtomic();
 
   // Maximum alignment for ARM NEON data types should be 64-bits (AAPCS)
+  // as well the default alignment
   if (IsAAPCS && (Triple.getEnvironment() != llvm::Triple::Android))
-    MaxVectorAlign = 64;
+    DefaultAlignForAttributeAligned = MaxVectorAlign = 64;
 
   // Do force alignment of members that follow zero length bitfields.  If
   // the alignment of the zero-length bitfield is greater than the member
@@ -321,7 +322,7 @@ ARMTargetInfo::ARMTargetInfo(const llvm::Triple &Triple,
   if (Triple.getOS() == llvm::Triple::Linux ||
       Triple.getOS() == llvm::Triple::UnknownOS)
     this->MCountName = Opts.EABIVersion == llvm::EABI::GNU
-                           ? "\01__gnu_mcount_nc"
+                           ? "llvm.arm.gnu.eabi.mcount"
                            : "\01mcount";
 
   SoftFloatABI = llvm::is_contained(Opts.FeaturesAsWritten, "+soft-float-abi");
@@ -427,11 +428,10 @@ bool ARMTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   for (const auto &Feature : Features) {
     if (Feature == "+soft-float") {
       SoftFloat = true;
-    } else if (Feature == "+vfp2sp" || Feature == "+vfp2d16sp" ||
-               Feature == "+vfp2" || Feature == "+vfp2d16") {
+    } else if (Feature == "+vfp2sp" || Feature == "+vfp2") {
       FPU |= VFP2FPU;
       HW_FP |= HW_FP_SP;
-      if (Feature == "+vfp2" || Feature == "+vfp2d16")
+      if (Feature == "+vfp2")
           HW_FP |= HW_FP_DP;
     } else if (Feature == "+vfp3sp" || Feature == "+vfp3d16sp" ||
                Feature == "+vfp3" || Feature == "+vfp3d16") {
@@ -578,6 +578,13 @@ void ARMTargetInfo::getTargetDefinesARMV82A(const LangOptions &Opts,
                                             MacroBuilder &Builder) const {
   // Also include the ARMv8.1-A defines
   getTargetDefinesARMV81A(Opts, Builder);
+}
+
+void ARMTargetInfo::getTargetDefinesARMV83A(const LangOptions &Opts,
+                                            MacroBuilder &Builder) const {
+  // Also include the ARMv8.2-A defines
+  Builder.defineMacro("__ARM_FEATURE_COMPLEX", "1");
+  getTargetDefinesARMV82A(Opts, Builder);
 }
 
 void ARMTargetInfo::getTargetDefines(const LangOptions &Opts,
@@ -809,6 +816,11 @@ void ARMTargetInfo::getTargetDefines(const LangOptions &Opts,
   case llvm::ARM::ArchKind::ARMV8_2A:
     getTargetDefinesARMV82A(Opts, Builder);
     break;
+  case llvm::ARM::ArchKind::ARMV8_3A:
+  case llvm::ARM::ArchKind::ARMV8_4A:
+  case llvm::ARM::ArchKind::ARMV8_5A:
+    getTargetDefinesARMV83A(Opts, Builder);
+    break;
   }
 }
 
@@ -884,19 +896,102 @@ bool ARMTargetInfo::validateAsmConstraint(
   switch (*Name) {
   default:
     break;
-  case 'l': // r0-r7
-  case 'h': // r8-r15
-  case 't': // VFP Floating point register single precision
-  case 'w': // VFP Floating point register double precision
+  case 'l': // r0-r7 if thumb, r0-r15 if ARM
     Info.setAllowsRegister();
     return true;
-  case 'I':
-  case 'J':
-  case 'K':
-  case 'L':
-  case 'M':
-    // FIXME
+  case 'h': // r8-r15, thumb only
+    if (isThumb()) {
+      Info.setAllowsRegister();
+      return true;
+    }
+    break;
+  case 's': // An integer constant, but allowing only relocatable values.
     return true;
+  case 't': // s0-s31, d0-d31, or q0-q15
+  case 'w': // s0-s15, d0-d7, or q0-q3
+  case 'x': // s0-s31, d0-d15, or q0-q7
+    Info.setAllowsRegister();
+    return true;
+  case 'j': // An immediate integer between 0 and 65535 (valid for MOVW)
+    // only available in ARMv6T2 and above
+    if (CPUAttr.equals("6T2") || ArchVersion >= 7) {
+      Info.setRequiresImmediate(0, 65535);
+      return true;
+    }
+    break;
+  case 'I':
+    if (isThumb()) {
+      if (!supportsThumb2())
+        Info.setRequiresImmediate(0, 255);
+      else
+        // FIXME: should check if immediate value would be valid for a Thumb2
+        // data-processing instruction
+        Info.setRequiresImmediate();
+    } else
+      // FIXME: should check if immediate value would be valid for an ARM
+      // data-processing instruction
+      Info.setRequiresImmediate();
+    return true;
+  case 'J':
+    if (isThumb() && !supportsThumb2())
+      Info.setRequiresImmediate(-255, -1);
+    else
+      Info.setRequiresImmediate(-4095, 4095);
+    return true;
+  case 'K':
+    if (isThumb()) {
+      if (!supportsThumb2())
+        // FIXME: should check if immediate value can be obtained from shifting
+        // a value between 0 and 255 left by any amount
+        Info.setRequiresImmediate();
+      else
+        // FIXME: should check if immediate value would be valid for a Thumb2
+        // data-processing instruction when inverted
+        Info.setRequiresImmediate();
+    } else
+      // FIXME: should check if immediate value would be valid for an ARM
+      // data-processing instruction when inverted
+      Info.setRequiresImmediate();
+    return true;
+  case 'L':
+    if (isThumb()) {
+      if (!supportsThumb2())
+        Info.setRequiresImmediate(-7, 7);
+      else
+        // FIXME: should check if immediate value would be valid for a Thumb2
+        // data-processing instruction when negated
+        Info.setRequiresImmediate();
+    } else
+      // FIXME: should check if immediate value  would be valid for an ARM
+      // data-processing instruction when negated
+      Info.setRequiresImmediate();
+    return true;
+  case 'M':
+    if (isThumb() && !supportsThumb2())
+      // FIXME: should check if immediate value is a multiple of 4 between 0 and
+      // 1020
+      Info.setRequiresImmediate();
+    else
+      // FIXME: should check if immediate value is a power of two or a integer
+      // between 0 and 32
+      Info.setRequiresImmediate();
+    return true;
+  case 'N':
+    // Thumb1 only
+    if (isThumb() && !supportsThumb2()) {
+      Info.setRequiresImmediate(0, 31);
+      return true;
+    }
+    break;
+  case 'O':
+    // Thumb1 only
+    if (isThumb() && !supportsThumb2()) {
+      // FIXME: should check if immediate value is a multiple of 4 between -508
+      // and 508
+      Info.setRequiresImmediate();
+      return true;
+    }
+    break;
   case 'Q': // A memory address that is a single base register.
     Info.setAllowsMemory();
     return true;

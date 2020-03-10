@@ -73,6 +73,7 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
@@ -278,11 +279,10 @@ bool ShrinkWrap::useOrDefCSROrFI(const MachineInstr &MI,
       // Ignore instructions like DBG_VALUE which don't read/def the register.
       if (!MO.isDef() && !MO.readsReg())
         continue;
-      unsigned PhysReg = MO.getReg();
+      Register PhysReg = MO.getReg();
       if (!PhysReg)
         continue;
-      assert(TargetRegisterInfo::isPhysicalRegister(PhysReg) &&
-             "Unallocated register?!");
+      assert(Register::isPhysicalRegister(PhysReg) && "Unallocated register?!");
       // The stack pointer is not normally described as a callee-saved register
       // in calling convention definitions, so we need to watch for it
       // separately. An SP mentioned by a call instruction, we can ignore,

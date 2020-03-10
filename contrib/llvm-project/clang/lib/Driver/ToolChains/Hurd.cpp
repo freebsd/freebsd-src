@@ -27,9 +27,9 @@ using tools::addPathIfExists;
 /// a target-triple directory in the library and header search paths.
 /// Unfortunately, this triple does not align with the vanilla target triple,
 /// so we provide a rough mapping here.
-static std::string getMultiarchTriple(const Driver &D,
-                                      const llvm::Triple &TargetTriple,
-                                      StringRef SysRoot) {
+std::string Hurd::getMultiarchTriple(const Driver &D,
+                                     const llvm::Triple &TargetTriple,
+                                     StringRef SysRoot) const {
   if (TargetTriple.getArch() == llvm::Triple::x86) {
     // We use the existence of '/lib/<triple>' as a directory to detect some
     // common hurd triples that don't quite match the Clang triple for both
@@ -69,6 +69,10 @@ Hurd::Hurd(const Driver &D, const llvm::Triple &Triple,
 
   const std::string OSLibDir = getOSLibDir(Triple, Args);
   const std::string MultiarchTriple = getMultiarchTriple(D, Triple, SysRoot);
+
+#ifdef ENABLE_LINKER_BUILD_ID
+  ExtraOpts.push_back("--build-id");
+#endif
 
   // If we are currently running Clang inside of the requested system root, add
   // its parent library paths to those searched.

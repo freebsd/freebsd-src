@@ -322,7 +322,7 @@ public:
 
     if (!contents.empty()) {
       std::error_code ec;
-      raw_fd_ostream os(path, ec, sys::fs::F_None);
+      raw_fd_ostream os(path, ec, sys::fs::OF_None);
       if (ec)
         fatal("failed to open " + path + ": " + ec.message());
       os << contents;
@@ -410,7 +410,7 @@ static std::string createManifestXmlWithExternalMt(StringRef defaultXml) {
   // Create the default manifest file as a temporary file.
   TemporaryFile Default("defaultxml", "manifest");
   std::error_code ec;
-  raw_fd_ostream os(Default.path, ec, sys::fs::F_Text);
+  raw_fd_ostream os(Default.path, ec, sys::fs::OF_Text);
   if (ec)
     fatal("failed to open " + Default.path + ": " + ec.message());
   os << defaultXml;
@@ -511,7 +511,7 @@ void createSideBySideManifest() {
   if (path == "")
     path = config->outputFile + ".manifest";
   std::error_code ec;
-  raw_fd_ostream out(path, ec, sys::fs::F_Text);
+  raw_fd_ostream out(path, ec, sys::fs::OF_Text);
   if (ec)
     fatal("failed to create manifest: " + ec.message());
   out << createManifestXml();
@@ -700,25 +700,41 @@ void checkFailIfMismatch(StringRef arg, InputFile *source) {
 
 // Convert Windows resource files (.res files) to a .obj file.
 // Does what cvtres.exe does, but in-process and cross-platform.
-MemoryBufferRef convertResToCOFF(ArrayRef<MemoryBufferRef> mbs) {
-  object::WindowsResourceParser parser;
+MemoryBufferRef convertResToCOFF(ArrayRef<MemoryBufferRef> mbs,
+                                 ArrayRef<ObjFile *> objs) {
+  object::WindowsResourceParser parser(/* MinGW */ config->mingw);
 
+  std::vector<std::string> duplicates;
   for (MemoryBufferRef mb : mbs) {
     std::unique_ptr<object::Binary> bin = check(object::createBinary(mb));
     object::WindowsResource *rf = dyn_cast<object::WindowsResource>(bin.get());
     if (!rf)
       fatal("cannot compile non-resource file as resource");
 
-    std::vector<std::string> duplicates;
     if (auto ec = parser.parse(rf, duplicates))
       fatal(toString(std::move(ec)));
-
-    for (const auto &dupeDiag : duplicates)
-      if (config->forceMultipleRes)
-        warn(dupeDiag);
-      else
-        error(dupeDiag);
   }
+
+  // Note: This processes all .res files before all objs. Ideally they'd be
+  // handled in the same order they were linked (to keep the right one, if
+  // there are duplicates that are tolerated due to forceMultipleRes).
+  for (ObjFile *f : objs) {
+    object::ResourceSectionRef rsf;
+    if (auto ec = rsf.load(f->getCOFFObj()))
+      fatal(toString(f) + ": " + toString(std::move(ec)));
+
+    if (auto ec = parser.parse(rsf, f->getName(), duplicates))
+      fatal(toString(std::move(ec)));
+  }
+
+  if (config->mingw)
+    parser.cleanUpManifests(duplicates);
+
+  for (const auto &dupeDiag : duplicates)
+    if (config->forceMultipleRes)
+      warn(dupeDiag);
+    else
+      error(dupeDiag);
 
   Expected<std::unique_ptr<MemoryBuffer>> e =
       llvm::object::writeWindowsResourceCOFF(config->machine, parser,
@@ -757,15 +773,15 @@ static void handleColorDiagnostics(opt::InputArgList &args) {
   if (!arg)
     return;
   if (arg->getOption().getID() == OPT_color_diagnostics) {
-    errorHandler().colorDiagnostics = true;
+    lld::errs().enable_colors(true);
   } else if (arg->getOption().getID() == OPT_no_color_diagnostics) {
-    errorHandler().colorDiagnostics = false;
+    lld::errs().enable_colors(false);
   } else {
     StringRef s = arg->getValue();
     if (s == "always")
-      errorHandler().colorDiagnostics = true;
+      lld::errs().enable_colors(true);
     else if (s == "never")
-      errorHandler().colorDiagnostics = false;
+      lld::errs().enable_colors(false);
     else if (s != "auto")
       error("unknown option: --color-diagnostics=" + s);
   }
@@ -792,13 +808,17 @@ opt::InputArgList ArgParser::parse(ArrayRef<const char *> argv) {
 
   // We need to get the quoting style for response files before parsing all
   // options so we parse here before and ignore all the options but
-  // --rsp-quoting.
+  // --rsp-quoting and /lldignoreenv.
+  // (This means --rsp-quoting can't be added through %LINK%.)
   opt::InputArgList args = table.ParseArgs(argv, missingIndex, missingCount);
 
-  // Expand response files (arguments in the form of @<filename>)
-  // and then parse the argument again.
+
+  // Expand response files (arguments in the form of @<filename>) and insert
+  // flags from %LINK% and %_LINK_%, and then parse the argument again.
   SmallVector<const char *, 256> expandedArgv(argv.data(),
                                               argv.data() + argv.size());
+  if (!args.hasArg(OPT_lldignoreenv))
+    addLINK(expandedArgv);
   cl::ExpandResponseFiles(saver, getQuotingStyle(args), expandedArgv);
   args = table.ParseArgs(makeArrayRef(expandedArgv).drop_front(), missingIndex,
                          missingCount);
@@ -868,7 +888,7 @@ ArgParser::parseDirectives(StringRef s) {
 // link.exe has an interesting feature. If LINK or _LINK_ environment
 // variables exist, their contents are handled as command line strings.
 // So you can pass extra arguments using them.
-opt::InputArgList ArgParser::parseLINK(std::vector<const char *> argv) {
+void ArgParser::addLINK(SmallVector<const char *, 256> &argv) {
   // Concatenate LINK env and command line arguments, and then parse them.
   if (Optional<std::string> s = Process::GetEnv("LINK")) {
     std::vector<const char *> v = tokenize(*s);
@@ -878,7 +898,6 @@ opt::InputArgList ArgParser::parseLINK(std::vector<const char *> argv) {
     std::vector<const char *> v = tokenize(*s);
     argv.insert(std::next(argv.begin()), v.begin(), v.end());
   }
-  return parse(argv);
 }
 
 std::vector<const char *> ArgParser::tokenize(StringRef s) {
@@ -888,7 +907,7 @@ std::vector<const char *> ArgParser::tokenize(StringRef s) {
 }
 
 void printHelp(const char *argv0) {
-  COFFOptTable().PrintHelp(outs(),
+  COFFOptTable().PrintHelp(lld::outs(),
                            (std::string(argv0) + " [options] file...").c_str(),
                            "LLVM Linker", false);
 }

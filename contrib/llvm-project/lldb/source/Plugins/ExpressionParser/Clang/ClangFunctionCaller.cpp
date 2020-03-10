@@ -42,6 +42,8 @@
 
 using namespace lldb_private;
 
+char ClangFunctionCaller::ID;
+
 // ClangFunctionCaller constructor
 ClangFunctionCaller::ClangFunctionCaller(ExecutionContextScope &exe_scope,
                                          const CompilerType &return_type,
@@ -179,18 +181,17 @@ ClangFunctionCaller::CompileFunction(lldb::ThreadSP thread_to_use_sp,
   m_wrapper_function_text.append(");\n}\n");
 
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
-  if (log)
-    log->Printf("Expression: \n\n%s\n\n", m_wrapper_function_text.c_str());
+  LLDB_LOGF(log, "Expression: \n\n%s\n\n", m_wrapper_function_text.c_str());
 
   // Okay, now compile this expression
 
   lldb::ProcessSP jit_process_sp(m_jit_process_wp.lock());
   if (jit_process_sp) {
     const bool generate_debug_info = true;
-    m_parser.reset(new ClangExpressionParser(jit_process_sp.get(), *this,
-                                             generate_debug_info));
-
-    num_errors = m_parser->Parse(diagnostic_manager);
+    auto *clang_parser = new ClangExpressionParser(jit_process_sp.get(), *this,
+                                                   generate_debug_info);
+    num_errors = clang_parser->Parse(diagnostic_manager);
+    m_parser.reset(clang_parser);
   } else {
     diagnostic_manager.PutString(eDiagnosticSeverityError,
                                  "no process - unable to inject function");

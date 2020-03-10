@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -172,10 +173,10 @@ bool LiveRangeShrink::runOnMachineFunction(MachineFunction &MF) {
       for (const MachineOperand &MO : MI.operands()) {
         if (!MO.isReg() || MO.isDead() || MO.isDebug())
           continue;
-        unsigned Reg = MO.getReg();
+        Register Reg = MO.getReg();
         // Do not move the instruction if it def/uses a physical register,
         // unless it is a constant physical register or a noreg.
-        if (!TargetRegisterInfo::isVirtualRegister(Reg)) {
+        if (!Register::isVirtualRegister(Reg)) {
           if (!Reg || MRI.isConstantPhysReg(Reg))
             continue;
           Insert = nullptr;

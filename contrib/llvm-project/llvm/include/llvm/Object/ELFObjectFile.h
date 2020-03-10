@@ -41,7 +41,7 @@
 namespace llvm {
 namespace object {
 
-constexpr int NumElfSymbolTypes = 8;
+constexpr int NumElfSymbolTypes = 16;
 extern const llvm::EnumEntry<unsigned> ElfSymbolTypes[NumElfSymbolTypes];
 
 class elf_symbol_iterator;
@@ -239,6 +239,10 @@ public:
   using Elf_Rela = typename ELFT::Rela;
   using Elf_Dyn = typename ELFT::Dyn;
 
+  SectionRef toSectionRef(const Elf_Shdr *Sec) const {
+    return SectionRef(toDRI(Sec), this);
+  }
+
 private:
   ELFObjectFile(MemoryBufferRef Object, ELFFile<ELFT> EF,
                 const Elf_Shdr *DotDynSymSec, const Elf_Shdr *DotSymtabSec,
@@ -284,7 +288,8 @@ protected:
   relocation_iterator section_rel_begin(DataRefImpl Sec) const override;
   relocation_iterator section_rel_end(DataRefImpl Sec) const override;
   std::vector<SectionRef> dynamic_relocation_sections() const override;
-  section_iterator getRelocatedSection(DataRefImpl Sec) const override;
+  Expected<section_iterator>
+  getRelocatedSection(DataRefImpl Sec) const override;
 
   void moveRelocationNext(DataRefImpl &Rel) const override;
   uint64_t getRelocationOffset(DataRefImpl Rel) const override;
@@ -461,13 +466,15 @@ Expected<StringRef> ELFObjectFile<ELFT>::getSymbolName(DataRefImpl Sym) const {
   if (!SymStrTabOrErr)
     return SymStrTabOrErr.takeError();
   Expected<StringRef> Name = ESym->getName(*SymStrTabOrErr);
+  if (Name && !Name->empty())
+    return Name;
 
   // If the symbol name is empty use the section name.
-  if ((!Name || Name->empty()) && ESym->getType() == ELF::STT_SECTION) {
-    StringRef SecName;
-    Expected<section_iterator> Sec = getSymbolSection(Sym);
-    if (Sec && !(*Sec)->getName(SecName))
-      return SecName;
+  if (ESym->getType() == ELF::STT_SECTION) {
+    if (Expected<section_iterator> SecOrErr = getSymbolSection(Sym)) {
+      consumeError(Name.takeError());
+      return (*SecOrErr)->getName();
+    }
   }
   return Name;
 }
@@ -716,6 +723,8 @@ template <class ELFT>
 Expected<ArrayRef<uint8_t>>
 ELFObjectFile<ELFT>::getSectionContents(DataRefImpl Sec) const {
   const Elf_Shdr *EShdr = getSection(Sec);
+  if (EShdr->sh_type == ELF::SHT_NOBITS)
+    return makeArrayRef((const uint8_t *)base(), 0);
   if (std::error_code EC =
           checkOffset(getMemoryBufferRef(),
                       (uintptr_t)base() + EShdr->sh_offset, EShdr->sh_size))
@@ -835,7 +844,7 @@ ELFObjectFile<ELFT>::section_rel_end(DataRefImpl Sec) const {
 }
 
 template <class ELFT>
-section_iterator
+Expected<section_iterator>
 ELFObjectFile<ELFT>::getRelocatedSection(DataRefImpl Sec) const {
   if (EF.getHeader()->e_type != ELF::ET_REL)
     return section_end();
@@ -845,10 +854,10 @@ ELFObjectFile<ELFT>::getRelocatedSection(DataRefImpl Sec) const {
   if (Type != ELF::SHT_REL && Type != ELF::SHT_RELA)
     return section_end();
 
-  auto R = EF.getSection(EShdr->sh_info);
-  if (!R)
-    report_fatal_error(errorToErrorCode(R.takeError()).message());
-  return section_iterator(SectionRef(toDRI(*R), this));
+  Expected<const Elf_Shdr *> SecOrErr = EF.getSection(EShdr->sh_info);
+  if (!SecOrErr)
+    return SecOrErr.takeError();
+  return section_iterator(SectionRef(toDRI(*SecOrErr), this));
 }
 
 // Relocations

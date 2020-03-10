@@ -68,6 +68,8 @@ namespace HexagonISD {
       EH_RETURN,
       DCFETCH,
       READCYCLE,
+      PTRUE,
+      PFALSE,
       D2P,         // Convert 8-byte value to 8-bit predicate register. [*]
       P2D,         // Convert 8-bit predicate register to 8-byte value. [*]
       V2Q,         // Convert HVX vector to a vector predicate reg. [*]
@@ -127,13 +129,16 @@ namespace HexagonISD {
     bool isCheapToSpeculateCtlz() const override { return true; }
     bool isCtlzFast() const override { return true; }
 
+    bool hasBitTest(SDValue X, SDValue Y) const override;
+
     bool allowTruncateForTailCall(Type *Ty1, Type *Ty2) const override;
 
     /// Return true if an FMA operation is faster than a pair of mul and add
     /// instructions. fmuladd intrinsics will be expanded to FMAs when this
     /// method returns true (and FMAs are legal), otherwise fmuladd is
     /// expanded to mul + add.
-    bool isFMAFasterThanFMulAndFAdd(EVT) const override;
+    bool isFMAFasterThanFMulAndFAdd(const MachineFunction &,
+                                    EVT) const override;
 
     // Should we expand the build vector with shuffles?
     bool shouldExpandBuildVectorWithShuffles(EVT VT,
@@ -221,10 +226,12 @@ namespace HexagonISD {
                         const SmallVectorImpl<SDValue> &OutVals,
                         const SDLoc &dl, SelectionDAG &DAG) const override;
 
+    SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
+
     bool mayBeEmittedAsTailCall(const CallInst *CI) const override;
 
-    unsigned getRegisterByName(const char* RegName, EVT VT,
-                               SelectionDAG &DAG) const override;
+    Register getRegisterByName(const char* RegName, LLT VT,
+                               const MachineFunction &MF) const override;
 
     /// If a physical register, this returns the register that receives the
     /// exception address on entry to an EH pad.
@@ -299,7 +306,8 @@ namespace HexagonISD {
         const AttributeList &FuncAttributes) const override;
 
     bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AddrSpace,
-        unsigned Align, MachineMemOperand::Flags Flags, bool *Fast) const override;
+        unsigned Align, MachineMemOperand::Flags Flags, bool *Fast)
+        const override;
 
     /// Returns relocation base for the given PIC jumptable.
     SDValue getPICJumpTableRelocBase(SDValue Table, SelectionDAG &DAG)
@@ -456,6 +464,8 @@ namespace HexagonISD {
 
     bool isHvxOperation(SDValue Op) const;
     SDValue LowerHvxOperation(SDValue Op, SelectionDAG &DAG) const;
+
+    SDValue PerformHvxDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   };
 
 } // end namespace llvm

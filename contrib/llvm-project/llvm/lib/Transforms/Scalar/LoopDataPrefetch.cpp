@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar/LoopDataPrefetch.h"
+#include "llvm/InitializePasses.h"
 
 #define DEBUG_TYPE "loop-data-prefetch"
 #include "llvm/ADT/DepthFirstIterator.h"
@@ -312,8 +313,8 @@ bool LoopDataPrefetch::runOnLoop(Loop *L) {
       IRBuilder<> Builder(MemI);
       Module *M = BB->getParent()->getParent();
       Type *I32 = Type::getInt32Ty(BB->getContext());
-      Function *PrefetchFunc =
-          Intrinsic::getDeclaration(M, Intrinsic::prefetch);
+      Function *PrefetchFunc = Intrinsic::getDeclaration(
+          M, Intrinsic::prefetch, PrefPtrValue->getType());
       Builder.CreateCall(
           PrefetchFunc,
           {PrefPtrValue,

@@ -13,7 +13,7 @@
 // RHEL creates the PRIu64 format macro (for printing uint64_t's) only when this
 // macro is defined before including <inttypes.h>.
 #ifndef __STDC_FORMAT_MACROS
-  #define __STDC_FORMAT_MACROS 1
+#define __STDC_FORMAT_MACROS 1
 #endif
 
 #include <assert.h>
@@ -44,11 +44,12 @@ private:
   bool &Bool;
 };
 
-void defaultPrintStackTrace(uintptr_t *Trace, options::Printf_t Printf) {
-  if (Trace[0] == 0)
+void defaultPrintStackTrace(uintptr_t *Trace, size_t TraceLength,
+                            options::Printf_t Printf) {
+  if (TraceLength == 0)
     Printf("  <unknown (does your allocator support backtracing?)>\n");
 
-  for (size_t i = 0; Trace[i] != 0; ++i) {
+  for (size_t i = 0; i < TraceLength; ++i) {
     Printf("  #%zu 0x%zx in <unknown>\n", i, Trace[i]);
   }
   Printf("\n");
@@ -68,12 +69,18 @@ void GuardedPoolAllocator::AllocationMetadata::RecordAllocation(
   // TODO(hctim): Ask the caller to provide the thread ID, so we don't waste
   // other thread's time getting the thread ID under lock.
   AllocationTrace.ThreadID = getThreadID();
+  AllocationTrace.TraceSize = 0;
+  DeallocationTrace.TraceSize = 0;
   DeallocationTrace.ThreadID = kInvalidThreadID;
-  if (Backtrace)
-    Backtrace(AllocationTrace.Trace, kMaximumStackFrames);
-  else
-    AllocationTrace.Trace[0] = 0;
-  DeallocationTrace.Trace[0] = 0;
+
+  if (Backtrace) {
+    uintptr_t UncompressedBuffer[kMaxTraceLengthToCollect];
+    size_t BacktraceLength =
+        Backtrace(UncompressedBuffer, kMaxTraceLengthToCollect);
+    AllocationTrace.TraceSize = compression::pack(
+        UncompressedBuffer, BacktraceLength, AllocationTrace.CompressedTrace,
+        kStackFrameStorageBytes);
+  }
 }
 
 void GuardedPoolAllocator::AllocationMetadata::RecordDeallocation(
@@ -81,11 +88,16 @@ void GuardedPoolAllocator::AllocationMetadata::RecordDeallocation(
   IsDeallocated = true;
   // Ensure that the unwinder is not called if the recursive flag is set,
   // otherwise non-reentrant unwinders may deadlock.
+  DeallocationTrace.TraceSize = 0;
   if (Backtrace && !ThreadLocals.RecursiveGuard) {
     ScopedBoolean B(ThreadLocals.RecursiveGuard);
-    Backtrace(DeallocationTrace.Trace, kMaximumStackFrames);
-  } else {
-    DeallocationTrace.Trace[0] = 0;
+
+    uintptr_t UncompressedBuffer[kMaxTraceLengthToCollect];
+    size_t BacktraceLength =
+        Backtrace(UncompressedBuffer, kMaxTraceLengthToCollect);
+    DeallocationTrace.TraceSize = compression::pack(
+        UncompressedBuffer, BacktraceLength, DeallocationTrace.CompressedTrace,
+        kStackFrameStorageBytes);
   }
   DeallocationTrace.ThreadID = getThreadID();
 }
@@ -97,13 +109,6 @@ void GuardedPoolAllocator::init(const options::Options &Opts) {
   if (!Opts.Enabled || Opts.SampleRate == 0 ||
       Opts.MaxSimultaneousAllocations == 0)
     return;
-
-  // TODO(hctim): Add a death unit test for this.
-  if (SingletonPtr) {
-    (*SingletonPtr->Printf)(
-        "GWP-ASan Error: init() has already been called.\n");
-    exit(EXIT_FAILURE);
-  }
 
   if (Opts.SampleRate < 0) {
     Opts.Printf("GWP-ASan Error: SampleRate is < 0.\n");
@@ -161,7 +166,7 @@ void GuardedPoolAllocator::init(const options::Options &Opts) {
 
   // Ensure that signal handlers are installed as late as possible, as the class
   // is not thread-safe until init() is finished, and thus a SIGSEGV may cause a
-  // race to members if recieved during init().
+  // race to members if received during init().
   if (Opts.InstallSignalHandlers)
     installSignalHandlers();
 }
@@ -373,7 +378,7 @@ void printErrorType(Error E, uintptr_t AccessPtr, AllocationMetadata *Meta,
   case Error::UNKNOWN:
     ErrorString = "GWP-ASan couldn't automatically determine the source of "
                   "the memory error. It was likely caused by a wild memory "
-                  "access into the GWP-ASan pool. The error occured";
+                  "access into the GWP-ASan pool. The error occurred";
     break;
   case Error::USE_AFTER_FREE:
     ErrorString = "Use after free";
@@ -442,7 +447,13 @@ void printAllocDeallocTraces(uintptr_t AccessPtr, AllocationMetadata *Meta,
       Printf("0x%zx was deallocated by thread %zu here:\n", AccessPtr,
              Meta->DeallocationTrace.ThreadID);
 
-    PrintBacktrace(Meta->DeallocationTrace.Trace, Printf);
+    uintptr_t UncompressedTrace[AllocationMetadata::kMaxTraceLengthToCollect];
+    size_t UncompressedLength = compression::unpack(
+        Meta->DeallocationTrace.CompressedTrace,
+        Meta->DeallocationTrace.TraceSize, UncompressedTrace,
+        AllocationMetadata::kMaxTraceLengthToCollect);
+
+    PrintBacktrace(UncompressedTrace, UncompressedLength, Printf);
   }
 
   if (Meta->AllocationTrace.ThreadID == GuardedPoolAllocator::kInvalidThreadID)
@@ -451,7 +462,12 @@ void printAllocDeallocTraces(uintptr_t AccessPtr, AllocationMetadata *Meta,
     Printf("0x%zx was allocated by thread %zu here:\n", Meta->Addr,
            Meta->AllocationTrace.ThreadID);
 
-  PrintBacktrace(Meta->AllocationTrace.Trace, Printf);
+  uintptr_t UncompressedTrace[AllocationMetadata::kMaxTraceLengthToCollect];
+  size_t UncompressedLength = compression::unpack(
+      Meta->AllocationTrace.CompressedTrace, Meta->AllocationTrace.TraceSize,
+      UncompressedTrace, AllocationMetadata::kMaxTraceLengthToCollect);
+
+  PrintBacktrace(UncompressedTrace, UncompressedLength, Printf);
 }
 
 struct ScopedEndOfReportDecorator {
@@ -491,11 +507,11 @@ void GuardedPoolAllocator::reportErrorInternal(uintptr_t AccessPtr, Error E) {
   uint64_t ThreadID = getThreadID();
   printErrorType(E, AccessPtr, Meta, Printf, ThreadID);
   if (Backtrace) {
-    static constexpr unsigned kMaximumStackFramesForCrashTrace = 128;
+    static constexpr unsigned kMaximumStackFramesForCrashTrace = 512;
     uintptr_t Trace[kMaximumStackFramesForCrashTrace];
-    Backtrace(Trace, kMaximumStackFramesForCrashTrace);
+    size_t TraceLength = Backtrace(Trace, kMaximumStackFramesForCrashTrace);
 
-    PrintBacktrace(Trace, Printf);
+    PrintBacktrace(Trace, TraceLength, Printf);
   } else {
     Printf("  <unknown (does your allocator support backtracing?)>\n\n");
   }
@@ -504,7 +520,7 @@ void GuardedPoolAllocator::reportErrorInternal(uintptr_t AccessPtr, Error E) {
     printAllocDeallocTraces(AccessPtr, Meta, Printf, PrintBacktrace);
 }
 
-TLS_INITIAL_EXEC
+GWP_ASAN_TLS_INITIAL_EXEC
 GuardedPoolAllocator::ThreadLocalPackedVariables
     GuardedPoolAllocator::ThreadLocals;
 } // namespace gwp_asan

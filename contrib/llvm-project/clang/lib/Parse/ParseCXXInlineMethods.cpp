@@ -133,7 +133,9 @@ NamedDecl *Parser::ParseCXXInlineMethodDef(
 
   LexedMethod* LM = new LexedMethod(this, FnD);
   getCurrentClass().LateParsedDeclarations.push_back(LM);
-  LM->TemplateScope = getCurScope()->isTemplateParamScope();
+  LM->TemplateScope = getCurScope()->isTemplateParamScope() ||
+      (FnD && isa<FunctionTemplateDecl>(FnD) &&
+       cast<FunctionTemplateDecl>(FnD)->isAbbreviated());
   CachedTokens &Toks = LM->Toks;
 
   tok::TokenKind kind = Tok.getKind();
@@ -223,6 +225,7 @@ Parser::LateParsedDeclaration::~LateParsedDeclaration() {}
 void Parser::LateParsedDeclaration::ParseLexedMethodDeclarations() {}
 void Parser::LateParsedDeclaration::ParseLexedMemberInitializers() {}
 void Parser::LateParsedDeclaration::ParseLexedMethodDefs() {}
+void Parser::LateParsedDeclaration::ParseLexedPragmas() {}
 
 Parser::LateParsedClass::LateParsedClass(Parser *P, ParsingClass *C)
   : Self(P), Class(C) {}
@@ -243,6 +246,10 @@ void Parser::LateParsedClass::ParseLexedMethodDefs() {
   Self->ParseLexedMethodDefs(*Class);
 }
 
+void Parser::LateParsedClass::ParseLexedPragmas() {
+  Self->ParseLexedPragmas(*Class);
+}
+
 void Parser::LateParsedMethodDeclaration::ParseLexedMethodDeclarations() {
   Self->ParseLexedMethodDeclaration(*this);
 }
@@ -253,6 +260,10 @@ void Parser::LexedMethod::ParseLexedMethodDefs() {
 
 void Parser::LateParsedMemberInitializer::ParseLexedMemberInitializers() {
   Self->ParseLexedMemberInitializer(*this);
+}
+
+void Parser::LateParsedPragma::ParseLexedPragmas() {
+  Self->ParseLexedPragma(*this);
 }
 
 /// ParseLexedMethodDeclarations - We finished parsing the member
@@ -651,6 +662,43 @@ void Parser::ParseLexedMemberInitializer(LateParsedMemberInitializer &MI) {
     ConsumeAnyToken();
 }
 
+void Parser::ParseLexedPragmas(ParsingClass &Class) {
+  bool HasTemplateScope = !Class.TopLevelClass && Class.TemplateScope;
+  ParseScope ClassTemplateScope(this, Scope::TemplateParamScope,
+                                HasTemplateScope);
+  TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
+  if (HasTemplateScope) {
+    Actions.ActOnReenterTemplateScope(getCurScope(), Class.TagOrTemplate);
+    ++CurTemplateDepthTracker;
+  }
+  bool HasClassScope = !Class.TopLevelClass;
+  ParseScope ClassScope(this, Scope::ClassScope | Scope::DeclScope,
+                        HasClassScope);
+
+  for (LateParsedDeclaration *LPD : Class.LateParsedDeclarations)
+    LPD->ParseLexedPragmas();
+}
+
+void Parser::ParseLexedPragma(LateParsedPragma &LP) {
+  PP.EnterToken(Tok, /*IsReinject=*/true);
+  PP.EnterTokenStream(LP.toks(), /*DisableMacroExpansion=*/true,
+                      /*IsReinject=*/true);
+
+  // Consume the previously pushed token.
+  ConsumeAnyToken(/*ConsumeCodeCompletionTok=*/true);
+  assert(Tok.isAnnotation() && "Expected annotation token.");
+  switch (Tok.getKind()) {
+  case tok::annot_pragma_openmp: {
+    AccessSpecifier AS = LP.getAccessSpecifier();
+    ParsedAttributesWithRange Attrs(AttrFactory);
+    (void)ParseOpenMPDeclarativeDirectiveWithExtDecl(AS, Attrs);
+    break;
+  }
+  default:
+    llvm_unreachable("Unexpected token.");
+  }
+}
+
 /// ConsumeAndStoreUntil - Consume and store the token at the passed token
 /// container until the token 'T' is reached (which gets
 /// consumed/stored too, if ConsumeFinalToken).
@@ -986,7 +1034,7 @@ public:
     // Put back the original tokens.
     Self.SkipUntil(EndKind, StopAtSemi | StopBeforeMatch);
     if (Toks.size()) {
-      auto Buffer = llvm::make_unique<Token[]>(Toks.size());
+      auto Buffer = std::make_unique<Token[]>(Toks.size());
       std::copy(Toks.begin() + 1, Toks.end(), Buffer.get());
       Buffer[Toks.size() - 1] = Self.Tok;
       Self.PP.EnterTokenStream(std::move(Buffer), Toks.size(), true,

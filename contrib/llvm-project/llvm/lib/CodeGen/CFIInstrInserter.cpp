@@ -25,6 +25,7 @@
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
@@ -48,8 +49,7 @@ class CFIInstrInserter : public MachineFunctionPass {
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override {
-    if (!MF.getMMI().hasDebugInfo() &&
-        !MF.getFunction().needsUnwindTableEntry())
+    if (!MF.needsFrameMoves())
       return false;
 
     MBBVector.resize(MF.getNumBlockIDs());

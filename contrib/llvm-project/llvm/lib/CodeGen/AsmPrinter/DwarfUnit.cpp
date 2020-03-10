@@ -47,30 +47,41 @@ using namespace llvm;
 #define DEBUG_TYPE "dwarfdebug"
 
 DIEDwarfExpression::DIEDwarfExpression(const AsmPrinter &AP,
-                                       DwarfCompileUnit &CU,
-                                       DIELoc &DIE)
-    : DwarfExpression(AP.getDwarfVersion(), CU), AP(AP),
-      DIE(DIE) {}
+                                       DwarfCompileUnit &CU, DIELoc &DIE)
+    : DwarfExpression(AP.getDwarfVersion(), CU), AP(AP), OutDIE(DIE) {}
 
 void DIEDwarfExpression::emitOp(uint8_t Op, const char* Comment) {
-  CU.addUInt(DIE, dwarf::DW_FORM_data1, Op);
+  CU.addUInt(getActiveDIE(), dwarf::DW_FORM_data1, Op);
 }
 
 void DIEDwarfExpression::emitSigned(int64_t Value) {
-  CU.addSInt(DIE, dwarf::DW_FORM_sdata, Value);
+  CU.addSInt(getActiveDIE(), dwarf::DW_FORM_sdata, Value);
 }
 
 void DIEDwarfExpression::emitUnsigned(uint64_t Value) {
-  CU.addUInt(DIE, dwarf::DW_FORM_udata, Value);
+  CU.addUInt(getActiveDIE(), dwarf::DW_FORM_udata, Value);
 }
 
 void DIEDwarfExpression::emitData1(uint8_t Value) {
-  CU.addUInt(DIE, dwarf::DW_FORM_data1, Value);
+  CU.addUInt(getActiveDIE(), dwarf::DW_FORM_data1, Value);
 }
 
 void DIEDwarfExpression::emitBaseTypeRef(uint64_t Idx) {
-  CU.addBaseTypeRef(DIE, Idx);
+  CU.addBaseTypeRef(getActiveDIE(), Idx);
 }
+
+void DIEDwarfExpression::enableTemporaryBuffer() {
+  assert(!IsBuffering && "Already buffering?");
+  IsBuffering = true;
+}
+
+void DIEDwarfExpression::disableTemporaryBuffer() { IsBuffering = false; }
+
+unsigned DIEDwarfExpression::getTemporaryBufferSize() {
+  return TmpDIE.ComputeSize(&AP);
+}
+
+void DIEDwarfExpression::commitTemporaryBuffer() { OutDIE.takeValues(TmpDIE); }
 
 bool DIEDwarfExpression::isFrameRegister(const TargetRegisterInfo &TRI,
                                          unsigned MachineReg) {
@@ -203,6 +214,10 @@ void DwarfUnit::insertDIE(const DINode *Desc, DIE *D) {
     return;
   }
   MDNodeToDieMap.insert(std::make_pair(Desc, D));
+}
+
+void DwarfUnit::insertDIE(DIE *D) {
+  MDNodeToDieMap.insert(std::make_pair(nullptr, D));
 }
 
 void DwarfUnit::addFlag(DIE &Die, dwarf::Attribute Attribute) {
@@ -718,7 +733,7 @@ std::string DwarfUnit::getParentContextString(const DIScope *Context) const {
     return "";
 
   // FIXME: Decide whether to implement this for non-C++ languages.
-  if (getLanguage() != dwarf::DW_LANG_C_plus_plus)
+  if (!dwarf::isCPlusPlus((dwarf::SourceLanguage)getLanguage()))
     return "";
 
   std::string CS;
@@ -784,6 +799,15 @@ void DwarfUnit::constructTypeDIE(DIE &Buffer, const DIDerivedType *DTy) {
   // Add name if not anonymous or intermediate type.
   if (!Name.empty())
     addString(Buffer, dwarf::DW_AT_name, Name);
+
+  // If alignment is specified for a typedef , create and insert DW_AT_alignment
+  // attribute in DW_TAG_typedef DIE.
+  if (Tag == dwarf::DW_TAG_typedef && DD->getDwarfVersion() >= 5) {
+    uint32_t AlignInBytes = DTy->getAlignInBytes();
+    if (AlignInBytes > 0)
+      addUInt(Buffer, dwarf::DW_AT_alignment, dwarf::DW_FORM_udata,
+              AlignInBytes);
+  }
 
   // Add size if non-zero (derived types might be zero-sized.)
   if (Size && Tag != dwarf::DW_TAG_pointer_type
@@ -942,6 +966,9 @@ void DwarfUnit::constructTypeDIE(DIE &Buffer, const DICompositeType *CTy) {
     if (CTy->isAppleBlockExtension())
       addFlag(Buffer, dwarf::DW_AT_APPLE_block);
 
+    if (CTy->getExportSymbols())
+      addFlag(Buffer, dwarf::DW_AT_export_symbols);
+
     // This is outside the DWARF spec, but GDB expects a DW_AT_containing_type
     // inside C++ composite types to point to the base class with the vtable.
     // Rust uses DW_AT_containing_type to link a vtable to the type
@@ -1096,8 +1123,8 @@ DIE *DwarfUnit::getOrCreateModule(const DIModule *M) {
               M->getConfigurationMacros());
   if (!M->getIncludePath().empty())
     addString(MDie, dwarf::DW_AT_LLVM_include_path, M->getIncludePath());
-  if (!M->getISysRoot().empty())
-    addString(MDie, dwarf::DW_AT_LLVM_isysroot, M->getISysRoot());
+  if (!M->getSysRoot().empty())
+    addString(MDie, dwarf::DW_AT_LLVM_sysroot, M->getSysRoot());
 
   return &MDie;
 }
@@ -1206,6 +1233,9 @@ void DwarfUnit::applySubprogramAttributes(const DISubprogram *SP, DIE &SPDie,
        Language == dwarf::DW_LANG_ObjC))
     addFlag(SPDie, dwarf::DW_AT_prototyped);
 
+  if (SP->isObjCDirect())
+    addFlag(SPDie, dwarf::DW_AT_APPLE_objc_direct);
+
   unsigned CC = 0;
   DITypeRefArray Args;
   if (const DISubroutineType *SPTy = SP->getType()) {
@@ -1289,6 +1319,9 @@ void DwarfUnit::applySubprogramAttributes(const DISubprogram *SP, DIE &SPDie,
     addFlag(SPDie, dwarf::DW_AT_elemental);
   if (SP->isRecursive())
     addFlag(SPDie, dwarf::DW_AT_recursive);
+
+  if (DD->getDwarfVersion() >= 5 && SP->isDeleted())
+    addFlag(SPDie, dwarf::DW_AT_deleted);
 }
 
 void DwarfUnit::constructSubrangeDIE(DIE &Buffer, const DISubrange *SR,
@@ -1694,15 +1727,6 @@ void DwarfUnit::addRnglistsBase() {
   addSectionLabel(getUnitDie(), dwarf::DW_AT_rnglists_base,
                   DU->getRnglistsTableBaseSym(),
                   TLOF.getDwarfRnglistsSection()->getBeginSymbol());
-}
-
-void DwarfUnit::addLoclistsBase() {
-  assert(DD->getDwarfVersion() >= 5 &&
-         "DW_AT_loclists_base requires DWARF version 5 or later");
-  const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
-  addSectionLabel(getUnitDie(), dwarf::DW_AT_loclists_base,
-                  DU->getLoclistsTableBaseSym(),
-                  TLOF.getDwarfLoclistsSection()->getBeginSymbol());
 }
 
 void DwarfTypeUnit::finishNonUnitTypeDIE(DIE& D, const DICompositeType *CTy) {

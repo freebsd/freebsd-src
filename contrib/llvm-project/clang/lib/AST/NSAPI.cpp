@@ -75,17 +75,6 @@ Selector NSAPI::getNSStringSelector(NSStringMethodKind MK) const {
   return NSStringSelectors[MK];
 }
 
-Optional<NSAPI::NSStringMethodKind>
-NSAPI::getNSStringMethodKind(Selector Sel) const {
-  for (unsigned i = 0; i != NumNSStringMethods; ++i) {
-    NSStringMethodKind MK = NSStringMethodKind(i);
-    if (Sel == getNSStringSelector(MK))
-      return MK;
-  }
-
-  return None;
-}
-
 Selector NSAPI::getNSArraySelector(NSArrayMethodKind MK) const {
   if (NSArraySelectors[MK].isNull()) {
     Selector Sel;
@@ -482,6 +471,9 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
   case BuiltinType::OCLClkEvent:
   case BuiltinType::OCLQueue:
   case BuiltinType::OCLReserveID:
+#define SVE_TYPE(Name, Id, SingletonId) \
+  case BuiltinType::Id:
+#include "clang/Basic/AArch64SVEACLETypes.def"
   case BuiltinType::BoundMember:
   case BuiltinType::Dependent:
   case BuiltinType::Overload:

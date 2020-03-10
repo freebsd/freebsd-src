@@ -39,7 +39,7 @@ public:
   /// This contains information emitted to BLOCKINFO_BLOCK blocks. These
   /// describe abbreviations that all blocks of the specified ID inherit.
   struct BlockInfo {
-    unsigned BlockID;
+    unsigned BlockID = 0;
     std::vector<std::shared_ptr<BitCodeAbbrev>> Abbrevs;
     std::string Name;
     std::vector<std::pair<unsigned, std::string>> RecordNames;
@@ -379,6 +379,7 @@ public:
   using SimpleBitstreamCursor::ReadVBR;
   using SimpleBitstreamCursor::ReadVBR64;
   using SimpleBitstreamCursor::SizeInBytes;
+  using SimpleBitstreamCursor::skipToEnd;
 
   /// Return the number of bits used to encode an abbrev #.
   unsigned getAbbrevIDWidth() const { return CurCodeSize; }

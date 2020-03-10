@@ -1,4 +1,4 @@
-//===-- R600AsmPrinter.cpp - R600 Assebly printer  ------------------------===//
+//===-- R600AsmPrinter.cpp - R600 Assembly printer ------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -104,7 +104,7 @@ bool R600AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
 
 
   // Functions needs to be cacheline (256B) aligned.
-  MF.ensureAlignment(8);
+  MF.ensureAlignment(Align(256));
 
   SetupMachineFunction(MF);
 

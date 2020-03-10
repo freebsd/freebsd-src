@@ -53,8 +53,8 @@ public:
         ModifiedRegUnits.addRegsInMask(O->getRegMask());
       if (!O->isReg())
         continue;
-      unsigned Reg = O->getReg();
-      if (!TargetRegisterInfo::isPhysicalRegister(Reg))
+      Register Reg = O->getReg();
+      if (!Reg.isPhysical())
         continue;
       if (O->isDef()) {
         // Some architectures (e.g. AArch64 XZR/WZR) have registers that are
@@ -159,6 +159,19 @@ private:
   /// that are unused in the function.
   void addPristines(const MachineFunction &MF);
 };
+
+/// Returns an iterator range over all physical register and mask operands for
+/// \p MI and bundled instructions. This also skips any debug operands.
+inline iterator_range<filter_iterator<
+    ConstMIBundleOperands, std::function<bool(const MachineOperand &)>>>
+phys_regs_and_masks(const MachineInstr &MI) {
+  std::function<bool(const MachineOperand &)> Pred =
+      [](const MachineOperand &MOP) {
+        return MOP.isRegMask() || (MOP.isReg() && !MOP.isDebug() &&
+                                   Register::isPhysicalRegister(MOP.getReg()));
+      };
+  return make_filter_range(const_mi_bundle_ops(MI), Pred);
+}
 
 } // end namespace llvm
 

@@ -182,7 +182,7 @@ public:
     MachineBasicBlock *MBB = MI->getParent();
     auto &DL = MI->getDebugLoc();
 
-    unsigned Reg = MRI->createVirtualRegister(
+    Register Reg = MRI->createVirtualRegister(
         TII->getRegClass(TII->get(DstOpcode), 0, MRI->getTargetRegisterInfo(),
                          *MBB->getParent()));
     MachineInstrBuilder Bld = BuildMI(*MBB, MI, DL, TII->get(DstOpcode), Reg);
@@ -219,13 +219,13 @@ public:
 
     // Don't allow copies to/flow GR8/GR16 physical registers.
     // FIXME: Is there some better way to support this?
-    unsigned DstReg = MI->getOperand(0).getReg();
-    if (TargetRegisterInfo::isPhysicalRegister(DstReg) &&
+    Register DstReg = MI->getOperand(0).getReg();
+    if (Register::isPhysicalRegister(DstReg) &&
         (X86::GR8RegClass.contains(DstReg) ||
          X86::GR16RegClass.contains(DstReg)))
       return false;
-    unsigned SrcReg = MI->getOperand(1).getReg();
-    if (TargetRegisterInfo::isPhysicalRegister(SrcReg) &&
+    Register SrcReg = MI->getOperand(1).getReg();
+    if (Register::isPhysicalRegister(SrcReg) &&
         (X86::GR8RegClass.contains(SrcReg) ||
          X86::GR16RegClass.contains(SrcReg)))
       return false;
@@ -241,7 +241,7 @@ public:
       // Physical registers will not be converted. Assume that converting the
       // COPY to the destination domain will eventually result in a actual
       // instruction.
-      if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()))
+      if (Register::isPhysicalRegister(MO.getReg()))
         return 1;
 
       RegDomain OpDomain = getDomain(MRI->getRegClass(MO.getReg()),
@@ -373,9 +373,9 @@ public:
 };
 
 class X86DomainReassignment : public MachineFunctionPass {
-  const X86Subtarget *STI;
-  MachineRegisterInfo *MRI;
-  const X86InstrInfo *TII;
+  const X86Subtarget *STI = nullptr;
+  MachineRegisterInfo *MRI = nullptr;
+  const X86InstrInfo *TII = nullptr;
 
   /// All edges that are included in some closure
   DenseSet<unsigned> EnclosedEdges;
@@ -436,7 +436,7 @@ void X86DomainReassignment::visitRegister(Closure &C, unsigned Reg,
   if (EnclosedEdges.count(Reg))
     return;
 
-  if (!TargetRegisterInfo::isVirtualRegister(Reg))
+  if (!Register::isVirtualRegister(Reg))
     return;
 
   if (!MRI->hasOneDef(Reg))
@@ -593,8 +593,8 @@ void X86DomainReassignment::buildClosure(Closure &C, unsigned Reg) {
         if (!DefOp.isReg())
           continue;
 
-        unsigned DefReg = DefOp.getReg();
-        if (!TargetRegisterInfo::isVirtualRegister(DefReg)) {
+        Register DefReg = DefOp.getReg();
+        if (!Register::isVirtualRegister(DefReg)) {
           C.setAllIllegal();
           continue;
         }
@@ -751,7 +751,7 @@ bool X86DomainReassignment::runOnMachineFunction(MachineFunction &MF) {
   // Go over all virtual registers and calculate a closure.
   unsigned ClosureID = 0;
   for (unsigned Idx = 0; Idx < MRI->getNumVirtRegs(); ++Idx) {
-    unsigned Reg = TargetRegisterInfo::index2VirtReg(Idx);
+    unsigned Reg = Register::index2VirtReg(Idx);
 
     // GPR only current source domain supported.
     if (!isGPR(MRI->getRegClass(Reg)))

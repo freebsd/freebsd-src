@@ -129,9 +129,8 @@ DataExtractor::DataExtractor()
 DataExtractor::DataExtractor(const void *data, offset_t length,
                              ByteOrder endian, uint32_t addr_size,
                              uint32_t target_byte_size /*=1*/)
-    : m_start(const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(data))),
-      m_end(const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(data)) +
-            length),
+    : m_start(const_cast<uint8_t *>(static_cast<const uint8_t *>(data))),
+      m_end(const_cast<uint8_t *>(static_cast<const uint8_t *>(data)) + length),
       m_byte_order(endian), m_addr_size(addr_size), m_data_sp(),
       m_target_byte_size(target_byte_size) {
   assert(addr_size == 4 || addr_size == 8);
@@ -232,7 +231,7 @@ lldb::offset_t DataExtractor::SetData(const void *bytes, offset_t length,
     m_start = nullptr;
     m_end = nullptr;
   } else {
-    m_start = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(bytes));
+    m_start = const_cast<uint8_t *>(static_cast<const uint8_t *>(bytes));
     m_end = m_start + length;
   }
   return GetByteSize();
@@ -577,18 +576,28 @@ int64_t DataExtractor::GetMaxS64(offset_t *offset_ptr, size_t byte_size) const {
 uint64_t DataExtractor::GetMaxU64Bitfield(offset_t *offset_ptr, size_t size,
                                           uint32_t bitfield_bit_size,
                                           uint32_t bitfield_bit_offset) const {
+  assert(bitfield_bit_size <= 64);
   uint64_t uval64 = GetMaxU64(offset_ptr, size);
-  if (bitfield_bit_size > 0) {
-    int32_t lsbcount = bitfield_bit_offset;
-    if (m_byte_order == eByteOrderBig)
-      lsbcount = size * 8 - bitfield_bit_offset - bitfield_bit_size;
-    if (lsbcount > 0)
-      uval64 >>= lsbcount;
-    uint64_t bitfield_mask = ((1ul << bitfield_bit_size) - 1);
-    if (!bitfield_mask && bitfield_bit_offset == 0 && bitfield_bit_size == 64)
-      return uval64;
-    uval64 &= bitfield_mask;
-  }
+
+  if (bitfield_bit_size == 0)
+    return uval64;
+
+  int32_t lsbcount = bitfield_bit_offset;
+  if (m_byte_order == eByteOrderBig)
+    lsbcount = size * 8 - bitfield_bit_offset - bitfield_bit_size;
+
+  if (lsbcount > 0)
+    uval64 >>= lsbcount;
+
+  uint64_t bitfield_mask =
+      (bitfield_bit_size == 64
+           ? std::numeric_limits<uint64_t>::max()
+           : ((static_cast<uint64_t>(1) << bitfield_bit_size) - 1));
+  if (!bitfield_mask && bitfield_bit_offset == 0 && bitfield_bit_size == 64)
+    return uval64;
+
+  uval64 &= bitfield_mask;
+
   return uval64;
 }
 
@@ -816,26 +825,25 @@ DataExtractor::CopyByteOrderedData(offset_t src_offset, offset_t src_len,
 // non-zero and there aren't enough available bytes, nullptr will be returned
 // and "offset_ptr" will not be updated.
 const char *DataExtractor::GetCStr(offset_t *offset_ptr) const {
-  const char *cstr = reinterpret_cast<const char *>(PeekData(*offset_ptr, 1));
-  if (cstr) {
-    const char *cstr_end = cstr;
-    const char *end = reinterpret_cast<const char *>(m_end);
-    while (cstr_end < end && *cstr_end)
-      ++cstr_end;
+  const char *start = reinterpret_cast<const char *>(PeekData(*offset_ptr, 1));
+  // Already at the end of the data.
+  if (!start)
+    return nullptr;
 
-    // Now we are either at the end of the data or we point to the
-    // NULL C string terminator with cstr_end...
-    if (*cstr_end == '\0') {
-      // Advance the offset with one extra byte for the NULL terminator
-      *offset_ptr += (cstr_end - cstr + 1);
-      return cstr;
-    }
+  const char *end = reinterpret_cast<const char *>(m_end);
 
-    // We reached the end of the data without finding a NULL C string
-    // terminator. Fall through and return nullptr otherwise anyone that would
-    // have used the result as a C string can wander into unknown memory...
-  }
-  return nullptr;
+  // Check all bytes for a null terminator that terminates a C string.
+  const char *terminator_or_end = std::find(start, end, '\0');
+
+  // We didn't find a null terminator, so return nullptr to indicate that there
+  // is no valid C string at that offset.
+  if (terminator_or_end == end)
+    return nullptr;
+
+  // Update offset_ptr for the caller to point to the data behind the
+  // terminator (which is 1 byte long).
+  *offset_ptr += (terminator_or_end - start + 1UL);
+  return start;
 }
 
 // Extracts a NULL terminated C string from the fixed length field of length
@@ -976,8 +984,7 @@ uint32_t DataExtractor::Skip_LEB128(offset_t *offset_ptr) const {
 lldb::offset_t DataExtractor::PutToLog(Log *log, offset_t start_offset,
                                        offset_t length, uint64_t base_addr,
                                        uint32_t num_per_line,
-                                       DataExtractor::Type type,
-                                       const char *format) const {
+                                       DataExtractor::Type type) const {
   if (log == nullptr)
     return start_offset;
 
@@ -1001,29 +1008,29 @@ lldb::offset_t DataExtractor::PutToLog(Log *log, offset_t start_offset,
 
     switch (type) {
     case TypeUInt8:
-      sstr.Printf(format ? format : " %2.2x", GetU8(&offset));
+      sstr.Printf(" %2.2x", GetU8(&offset));
       break;
     case TypeChar: {
       char ch = GetU8(&offset);
-      sstr.Printf(format ? format : " %c", isprint(ch) ? ch : ' ');
+      sstr.Printf(" %c", isprint(ch) ? ch : ' ');
     } break;
     case TypeUInt16:
-      sstr.Printf(format ? format : " %4.4x", GetU16(&offset));
+      sstr.Printf(" %4.4x", GetU16(&offset));
       break;
     case TypeUInt32:
-      sstr.Printf(format ? format : " %8.8x", GetU32(&offset));
+      sstr.Printf(" %8.8x", GetU32(&offset));
       break;
     case TypeUInt64:
-      sstr.Printf(format ? format : " %16.16" PRIx64, GetU64(&offset));
+      sstr.Printf(" %16.16" PRIx64, GetU64(&offset));
       break;
     case TypePointer:
-      sstr.Printf(format ? format : " 0x%" PRIx64, GetAddress(&offset));
+      sstr.Printf(" 0x%" PRIx64, GetAddress(&offset));
       break;
     case TypeULEB128:
-      sstr.Printf(format ? format : " 0x%" PRIx64, GetULEB128(&offset));
+      sstr.Printf(" 0x%" PRIx64, GetULEB128(&offset));
       break;
     case TypeSLEB128:
-      sstr.Printf(format ? format : " %" PRId64, GetSLEB128(&offset));
+      sstr.Printf(" %" PRId64, GetSLEB128(&offset));
       break;
     }
   }

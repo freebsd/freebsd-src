@@ -304,7 +304,7 @@ private:
     // also probably be sorted by frequency.
     assert(personalities.size() <= 4);
 
-    // TODO: Find commmon encodings for use by compressed pages.
+    // TODO: Find common encodings for use by compressed pages.
     std::vector<uint32_t> commonEncodings;
 
     // Now sort the entries by final address and fixup the compact encoding to
@@ -573,7 +573,7 @@ private:
 
 void addCompactUnwindPass(PassManager &pm, const MachOLinkingContext &ctx) {
   assert(ctx.needsCompactUnwindPass());
-  pm.add(llvm::make_unique<CompactUnwindPass>(ctx));
+  pm.add(std::make_unique<CompactUnwindPass>(ctx));
 }
 
 } // end namesapce mach_o

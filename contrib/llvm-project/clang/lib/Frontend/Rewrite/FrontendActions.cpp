@@ -9,6 +9,7 @@
 #include "clang/Rewrite/Frontend/FrontendActions.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/Basic/CharInfo.h"
+#include "clang/Basic/LangStandard.h"
 #include "clang/Config/config.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendActions.h"
@@ -20,7 +21,7 @@
 #include "clang/Rewrite/Frontend/FixItRewriter.h"
 #include "clang/Rewrite/Frontend/Rewriters.h"
 #include "clang/Serialization/ASTReader.h"
-#include "clang/Serialization/Module.h"
+#include "clang/Serialization/ModuleFile.h"
 #include "clang/Serialization/ModuleManager.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/CrashRecoveryContext.h"
@@ -49,7 +50,7 @@ FixItAction::~FixItAction() {}
 
 std::unique_ptr<ASTConsumer>
 FixItAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
-  return llvm::make_unique<ASTConsumer>();
+  return std::make_unique<ASTConsumer>();
 }
 
 namespace {
@@ -211,16 +212,16 @@ public:
 
   void visitModuleFile(StringRef Filename,
                        serialization::ModuleKind Kind) override {
-    auto *File = CI.getFileManager().getFile(Filename);
+    auto File = CI.getFileManager().getFile(Filename);
     assert(File && "missing file for loaded module?");
 
     // Only rewrite each module file once.
-    if (!Rewritten.insert(File).second)
+    if (!Rewritten.insert(*File).second)
       return;
 
     serialization::ModuleFile *MF =
-        CI.getModuleManager()->getModuleManager().lookup(File);
-    assert(File && "missing module file for loaded module?");
+        CI.getASTReader()->getModuleManager().lookup(*File);
+    assert(MF && "missing module file for loaded module?");
 
     // Not interested in PCH / preambles.
     if (!MF->isModule())
@@ -250,7 +251,7 @@ public:
     Instance.getFrontendOpts().DisableFree = false;
     Instance.getFrontendOpts().Inputs.clear();
     Instance.getFrontendOpts().Inputs.emplace_back(
-        Filename, InputKind(InputKind::Unknown, InputKind::Precompiled));
+        Filename, InputKind(Language::Unknown, InputKind::Precompiled));
     Instance.getFrontendOpts().ModuleFiles.clear();
     Instance.getFrontendOpts().ModuleMapFiles.clear();
     // Don't recursively rewrite imports. We handle them all at the top level.
@@ -292,9 +293,9 @@ bool RewriteIncludesAction::BeginSourceFileAction(CompilerInstance &CI) {
   // If we're rewriting imports, set up a listener to track when we import
   // module files.
   if (CI.getPreprocessorOutputOpts().RewriteImports) {
-    CI.createModuleManager();
-    CI.getModuleManager()->addListener(
-        llvm::make_unique<RewriteImportsListener>(CI, OutputStream));
+    CI.createASTReader();
+    CI.getASTReader()->addListener(
+        std::make_unique<RewriteImportsListener>(CI, OutputStream));
   }
 
   return true;

@@ -150,12 +150,24 @@ static unsigned AdrImmBits(unsigned Value) {
   return (hi19 << 5) | (lo2 << 29);
 }
 
+static bool valueFitsIntoFixupKind(unsigned Kind, uint64_t Value) {
+  unsigned NumBits;
+  switch(Kind) {
+  case FK_Data_1: NumBits = 8; break;
+  case FK_Data_2: NumBits = 16; break;
+  case FK_Data_4: NumBits = 32; break;
+  case FK_Data_8: NumBits = 64; break;
+  default: return true;
+  }
+  return isUIntN(NumBits, Value) ||
+    isIntN(NumBits, static_cast<int64_t>(Value));
+}
+
 static uint64_t adjustFixupValue(const MCFixup &Fixup, const MCValue &Target,
                                  uint64_t Value, MCContext &Ctx,
                                  const Triple &TheTriple, bool IsResolved) {
-  unsigned Kind = Fixup.getKind();
   int64_t SignedValue = static_cast<int64_t>(Value);
-  switch (Kind) {
+  switch (Fixup.getTargetKind()) {
   default:
     llvm_unreachable("Unknown fixup kind!");
   case AArch64::fixup_aarch64_pcrel_adr_imm21:
@@ -310,11 +322,14 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, const MCValue &Target,
     if (Value & 0x3)
       Ctx.reportError(Fixup.getLoc(), "fixup not sufficiently aligned");
     return (Value >> 2) & 0x3ffffff;
-  case FK_NONE:
   case FK_Data_1:
   case FK_Data_2:
   case FK_Data_4:
   case FK_Data_8:
+    if (!valueFitsIntoFixupKind(Fixup.getTargetKind(), Value))
+      Ctx.reportError(Fixup.getLoc(), "fixup value too large for data type!");
+    LLVM_FALLTHROUGH;
+  case FK_NONE:
   case FK_SecRel_2:
   case FK_SecRel_4:
     return Value;
@@ -574,7 +589,7 @@ public:
       case MCCFIInstruction::OpDefCfa: {
         // Defines a frame pointer.
         unsigned XReg =
-            getXRegFromWReg(MRI.getLLVMRegNum(Inst.getRegister(), true));
+            getXRegFromWReg(*MRI.getLLVMRegNum(Inst.getRegister(), true));
 
         // Other CFA registers than FP are not supported by compact unwind.
         // Fallback on DWARF.
@@ -593,8 +608,8 @@ public:
         assert(FPPush.getOperation() == MCCFIInstruction::OpOffset &&
                "Frame pointer not pushed!");
 
-        unsigned LRReg = MRI.getLLVMRegNum(LRPush.getRegister(), true);
-        unsigned FPReg = MRI.getLLVMRegNum(FPPush.getRegister(), true);
+        unsigned LRReg = *MRI.getLLVMRegNum(LRPush.getRegister(), true);
+        unsigned FPReg = *MRI.getLLVMRegNum(FPPush.getRegister(), true);
 
         LRReg = getXRegFromWReg(LRReg);
         FPReg = getXRegFromWReg(FPReg);
@@ -615,14 +630,14 @@ public:
       case MCCFIInstruction::OpOffset: {
         // Registers are saved in pairs. We expect there to be two consecutive
         // `.cfi_offset' instructions with the appropriate registers specified.
-        unsigned Reg1 = MRI.getLLVMRegNum(Inst.getRegister(), true);
+        unsigned Reg1 = *MRI.getLLVMRegNum(Inst.getRegister(), true);
         if (i + 1 == e)
           return CU::UNWIND_ARM64_MODE_DWARF;
 
         const MCCFIInstruction &Inst2 = Instrs[++i];
         if (Inst2.getOperation() != MCCFIInstruction::OpOffset)
           return CU::UNWIND_ARM64_MODE_DWARF;
-        unsigned Reg2 = MRI.getLLVMRegNum(Inst2.getRegister(), true);
+        unsigned Reg2 = *MRI.getLLVMRegNum(Inst2.getRegister(), true);
 
         // N.B. The encodings must be in register number order, and the X
         // registers before the D registers.

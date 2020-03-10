@@ -126,6 +126,25 @@ ThreadPlanStepOut::ThreadPlanStepOut(
     if (m_return_addr == LLDB_INVALID_ADDRESS)
       return;
 
+    // Perform some additional validation on the return address.
+    uint32_t permissions = 0;
+    if (!m_thread.GetProcess()->GetLoadAddressPermissions(m_return_addr,
+                                                          permissions)) {
+      m_constructor_errors.Printf("Return address (0x%" PRIx64
+                                  ") permissions not found.",
+                                  m_return_addr);
+      LLDB_LOGF(log, "ThreadPlanStepOut(%p): %s", static_cast<void *>(this),
+                m_constructor_errors.GetData());
+      return;
+    } else if (!(permissions & ePermissionsExecutable)) {
+      m_constructor_errors.Printf("Return address (0x%" PRIx64
+                                  ") did not point to executable memory.",
+                                  m_return_addr);
+      LLDB_LOGF(log, "ThreadPlanStepOut(%p): %s", static_cast<void *>(this),
+                m_constructor_errors.GetData());
+      return;
+    }
+
     Breakpoint *return_bp = m_thread.CalculateTarget()
                                 ->CreateBreakpoint(m_return_addr, true, false)
                                 .get();
@@ -238,8 +257,13 @@ bool ThreadPlanStepOut::ValidatePlan(Stream *error) {
   }
 
   if (m_return_bp_id == LLDB_INVALID_BREAK_ID) {
-    if (error)
+    if (error) {
       error->PutCString("Could not create return address breakpoint.");
+      if (m_constructor_errors.GetSize() > 0) {
+        error->PutCString(" ");
+        error->PutCString(m_constructor_errors.GetString());
+      }
+    }
     return false;
   }
 
@@ -408,7 +432,7 @@ bool ThreadPlanStepOut::MischiefManaged() {
 
     Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
     if (log)
-      log->Printf("Completed step out plan.");
+      LLDB_LOGF(log, "Completed step out plan.");
     if (m_return_bp_id != LLDB_INVALID_BREAK_ID) {
       m_thread.CalculateTarget()->RemoveBreakpointByID(m_return_bp_id);
       m_return_bp_id = LLDB_INVALID_BREAK_ID;
@@ -433,7 +457,7 @@ bool ThreadPlanStepOut::QueueInlinedStepPlan(bool queue_now) {
   if (log) {
     StreamString s;
     immediate_return_from_sp->Dump(&s, true, false);
-    log->Printf("Queuing inlined frame to step past: %s.", s.GetData());
+    LLDB_LOGF(log, "Queuing inlined frame to step past: %s.", s.GetData());
   }
 
   Block *from_block = immediate_return_from_sp->GetFrameBlock();

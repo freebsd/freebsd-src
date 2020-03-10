@@ -569,6 +569,7 @@ const char *DeclSpec::getSpecifierName(ConstexprSpecKind C) {
   case CSK_unspecified: return "unspecified";
   case CSK_constexpr:   return "constexpr";
   case CSK_consteval:   return "consteval";
+  case CSK_constinit:   return "constinit";
   }
   llvm_unreachable("Unknown ConstexprSpecKind");
 }
@@ -781,6 +782,15 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation TagKwLoc,
   TSTNameLoc = TagNameLoc;
   TypeSpecOwned = Owned && Rep != nullptr;
   return false;
+}
+
+bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc, const char *&PrevSpec,
+                               unsigned &DiagID, TemplateIdAnnotation *Rep,
+                               const PrintingPolicy &Policy) {
+  assert(T == TST_auto || T == TST_decltype_auto);
+  ConstrainedAuto = true;
+  TemplateIdRep = Rep;
+  return SetTypeSpecType(T, Loc, PrevSpec, DiagID, Policy);
 }
 
 bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
@@ -1036,13 +1046,9 @@ bool DeclSpec::setModulePrivateSpec(SourceLocation Loc, const char *&PrevSpec,
 bool DeclSpec::SetConstexprSpec(ConstexprSpecKind ConstexprKind,
                                 SourceLocation Loc, const char *&PrevSpec,
                                 unsigned &DiagID) {
-  if (getConstexprSpecifier() != CSK_unspecified) {
-    if (getConstexprSpecifier() == CSK_consteval || ConstexprKind == CSK_consteval)
-      return BadSpecifier(ConstexprKind, getConstexprSpecifier(), PrevSpec, DiagID);
-    DiagID = diag::warn_duplicate_declspec;
-    PrevSpec = "constexpr";
-    return true;
-  }
+  if (getConstexprSpecifier() != CSK_unspecified)
+    return BadSpecifier(ConstexprKind, getConstexprSpecifier(), PrevSpec,
+                        DiagID);
   ConstexprSpecifier = ConstexprKind;
   ConstexprLoc = Loc;
   return false;
@@ -1291,8 +1297,10 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
       << (TypeSpecType == TST_char16 ? "char16_t" : "char32_t");
   if (getConstexprSpecifier() == CSK_constexpr)
     S.Diag(ConstexprLoc, diag::warn_cxx98_compat_constexpr);
-  if (getConstexprSpecifier() == CSK_consteval)
+  else if (getConstexprSpecifier() == CSK_consteval)
     S.Diag(ConstexprLoc, diag::warn_cxx20_compat_consteval);
+  else if (getConstexprSpecifier() == CSK_constinit)
+    S.Diag(ConstexprLoc, diag::warn_cxx20_compat_constinit);
   // C++ [class.friend]p6:
   //   No storage-class-specifier shall appear in the decl-specifier-seq
   //   of a friend declaration.

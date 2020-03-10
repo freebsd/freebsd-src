@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/CostTable.h"
 #include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/IntrinsicsAArch64.h"
 #include "llvm/Support/Debug.h"
 #include <algorithm>
 using namespace llvm;
@@ -80,8 +81,8 @@ int AArch64TTIImpl::getIntImmCost(const APInt &Imm, Type *Ty) {
   return std::max(1, Cost);
 }
 
-int AArch64TTIImpl::getIntImmCost(unsigned Opcode, unsigned Idx,
-                                  const APInt &Imm, Type *Ty) {
+int AArch64TTIImpl::getIntImmCostInst(unsigned Opcode, unsigned Idx,
+                                      const APInt &Imm, Type *Ty) {
   assert(Ty->isIntegerTy());
 
   unsigned BitSize = Ty->getPrimitiveSizeInBits();
@@ -146,8 +147,8 @@ int AArch64TTIImpl::getIntImmCost(unsigned Opcode, unsigned Idx,
   return AArch64TTIImpl::getIntImmCost(Imm, Ty);
 }
 
-int AArch64TTIImpl::getIntImmCost(Intrinsic::ID IID, unsigned Idx,
-                                  const APInt &Imm, Type *Ty) {
+int AArch64TTIImpl::getIntImmCostIntrin(Intrinsic::ID IID, unsigned Idx,
+                                        const APInt &Imm, Type *Ty) {
   assert(Ty->isIntegerTy());
 
   unsigned BitSize = Ty->getPrimitiveSizeInBits();
@@ -155,6 +156,12 @@ int AArch64TTIImpl::getIntImmCost(Intrinsic::ID IID, unsigned Idx,
   // here, so that constant hoisting will ignore this constant.
   if (BitSize == 0)
     return TTI::TCC_Free;
+
+  // Most (all?) AArch64 intrinsics do not support folding immediates into the
+  // selected instruction, so we compute the materialization cost for the
+  // immediate directly.
+  if (IID >= Intrinsic::aarch64_addg && IID <= Intrinsic::aarch64_udiv)
+    return AArch64TTIImpl::getIntImmCost(Imm, Ty);
 
   switch (IID) {
   default:
@@ -478,7 +485,8 @@ int AArch64TTIImpl::getVectorInstrCost(unsigned Opcode, Type *Val,
 int AArch64TTIImpl::getArithmeticInstrCost(
     unsigned Opcode, Type *Ty, TTI::OperandValueKind Opd1Info,
     TTI::OperandValueKind Opd2Info, TTI::OperandValueProperties Opd1PropInfo,
-    TTI::OperandValueProperties Opd2PropInfo, ArrayRef<const Value *> Args) {
+    TTI::OperandValueProperties Opd2PropInfo, ArrayRef<const Value *> Args,
+    const Instruction *CxtI) {
   // Legalize the type.
   std::pair<int, MVT> LT = TLI->getTypeLegalizationCost(DL, Ty);
 
@@ -632,12 +640,12 @@ AArch64TTIImpl::enableMemCmpExpansion(bool OptSize, bool IsZeroCmp) const {
 }
 
 int AArch64TTIImpl::getMemoryOpCost(unsigned Opcode, Type *Ty,
-                                    unsigned Alignment, unsigned AddressSpace,
+                                    MaybeAlign Alignment, unsigned AddressSpace,
                                     const Instruction *I) {
   auto LT = TLI->getTypeLegalizationCost(DL, Ty);
 
   if (ST->isMisaligned128StoreSlow() && Opcode == Instruction::Store &&
-      LT.second.is128BitVector() && Alignment < 16) {
+      LT.second.is128BitVector() && (!Alignment || *Alignment < Align(16))) {
     // Unaligned stores are extremely inefficient. We don't split all
     // unaligned 128-bit stores because the negative impact that has shown in
     // practice on inlined block copy code.
@@ -703,8 +711,8 @@ int AArch64TTIImpl::getCostOfKeepingLiveOverCall(ArrayRef<Type *> Tys) {
     if (!I->isVectorTy())
       continue;
     if (I->getScalarSizeInBits() * I->getVectorNumElements() == 128)
-      Cost += getMemoryOpCost(Instruction::Store, I, 128, 0) +
-        getMemoryOpCost(Instruction::Load, I, 128, 0);
+      Cost += getMemoryOpCost(Instruction::Store, I, Align(128), 0) +
+              getMemoryOpCost(Instruction::Load, I, Align(128), 0);
   }
   return Cost;
 }
@@ -890,22 +898,6 @@ bool AArch64TTIImpl::shouldConsiderAddressTypePromotion(
     }
   }
   return Considerable;
-}
-
-unsigned AArch64TTIImpl::getCacheLineSize() {
-  return ST->getCacheLineSize();
-}
-
-unsigned AArch64TTIImpl::getPrefetchDistance() {
-  return ST->getPrefetchDistance();
-}
-
-unsigned AArch64TTIImpl::getMinPrefetchStride() {
-  return ST->getMinPrefetchStride();
-}
-
-unsigned AArch64TTIImpl::getMaxPrefetchIterationsAhead() {
-  return ST->getMaxPrefetchIterationsAhead();
 }
 
 bool AArch64TTIImpl::useReductionIntrinsic(unsigned Opcode, Type *Ty,

@@ -212,8 +212,10 @@ SBType SBType::GetArrayElementType() {
 
   if (!IsValid())
     return LLDB_RECORD_RESULT(SBType());
-  return LLDB_RECORD_RESULT(SBType(TypeImplSP(
-      new TypeImpl(m_opaque_sp->GetCompilerType(true).GetArrayElementType()))));
+  CompilerType canonical_type =
+      m_opaque_sp->GetCompilerType(true).GetCanonicalType();
+  return LLDB_RECORD_RESULT(
+      SBType(TypeImplSP(new TypeImpl(canonical_type.GetArrayElementType()))));
 }
 
 SBType SBType::GetArrayType(uint64_t size) {
@@ -799,7 +801,7 @@ const char *SBTypeMemberFunction::GetDemangledName() {
   if (m_opaque_sp) {
     ConstString mangled_str = m_opaque_sp->GetMangledName();
     if (mangled_str) {
-      Mangled mangled(mangled_str, true);
+      Mangled mangled(mangled_str);
       return mangled.GetDemangledName(mangled.GuessLanguage()).GetCString();
     }
   }

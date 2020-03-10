@@ -52,8 +52,6 @@ void SetSignalHandler(const FuzzingOptions& Options);
 
 void SleepSeconds(int Seconds);
 
-bool Mprotect(void *Ptr, size_t Size, bool AllowReadWrite);
-
 unsigned long GetPid();
 
 size_t GetPeakRSSMb();
@@ -80,6 +78,8 @@ inline std::pair<std::string, std::string> SplitBefore(std::string X,
     return std::make_pair(S, "");
   return std::make_pair(S.substr(0, Pos), S.substr(Pos));
 }
+
+void DiscardOutput(int Fd);
 
 std::string DisassembleCmd(const std::string &FileName);
 

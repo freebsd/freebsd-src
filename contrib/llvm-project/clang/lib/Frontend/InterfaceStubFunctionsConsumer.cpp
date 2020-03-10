@@ -15,6 +15,7 @@
 
 using namespace clang;
 
+namespace {
 class InterfaceStubFunctionsConsumer : public ASTConsumer {
   CompilerInstance &Instance;
   StringRef InFile;
@@ -51,11 +52,16 @@ class InterfaceStubFunctionsConsumer : public ASTConsumer {
       if (!isVisible(ND))
         return true;
 
-      if (const VarDecl *VD = dyn_cast<VarDecl>(ND))
+      if (const VarDecl *VD = dyn_cast<VarDecl>(ND)) {
+        if (const auto *Parent = VD->getParentFunctionOrMethod())
+          if (isa<BlockDecl>(Parent) || isa<CXXMethodDecl>(Parent))
+            return true;
+
         if ((VD->getStorageClass() == StorageClass::SC_Extern) ||
             (VD->getStorageClass() == StorageClass::SC_Static &&
              VD->getParentFunctionOrMethod() == nullptr))
           return true;
+      }
 
       if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(ND)) {
         if (FD->isInlined() && !isa<CXXMethodDecl>(FD) &&
@@ -176,9 +182,41 @@ class InterfaceStubFunctionsConsumer : public ASTConsumer {
       HandleTemplateSpecializations(*cast<FunctionTemplateDecl>(ND), Symbols,
                                     RDO);
       return true;
+    case Decl::Kind::Record:
+    case Decl::Kind::Typedef:
+    case Decl::Kind::Enum:
+    case Decl::Kind::EnumConstant:
     case Decl::Kind::TemplateTypeParm:
+    case Decl::Kind::NonTypeTemplateParm:
+    case Decl::Kind::CXXConversion:
+    case Decl::Kind::UnresolvedUsingValue:
+    case Decl::Kind::Using:
+    case Decl::Kind::UsingShadow:
+    case Decl::Kind::TypeAliasTemplate:
+    case Decl::Kind::TypeAlias:
+    case Decl::Kind::VarTemplate:
+    case Decl::Kind::VarTemplateSpecialization:
+    case Decl::Kind::UsingDirective:
+    case Decl::Kind::TemplateTemplateParm:
+    case Decl::Kind::ClassTemplatePartialSpecialization:
+    case Decl::Kind::IndirectField:
+    case Decl::Kind::ConstructorUsingShadow:
+    case Decl::Kind::CXXDeductionGuide:
+    case Decl::Kind::NamespaceAlias:
+    case Decl::Kind::UnresolvedUsingTypename:
       return true;
-    case Decl::Kind::Var:
+    case Decl::Kind::Var: {
+      // Bail on any VarDecl that either has no named symbol.
+      if (!ND->getIdentifier())
+        return true;
+      const auto *VD = cast<VarDecl>(ND);
+      // Bail on any VarDecl that is a dependent or templated type.
+      if (VD->isTemplated() || VD->getType()->isDependentType())
+        return true;
+      if (WriteNamedDecl(ND, Symbols, RDO))
+        return true;
+      break;
+    }
     case Decl::Kind::ParmVar:
     case Decl::Kind::CXXMethod:
     case Decl::Kind::CXXConstructor:
@@ -246,92 +284,29 @@ public:
     for (const NamedDecl *ND : v.NamedDecls)
       HandleNamedDecl(ND, Symbols, FromTU);
 
-    auto writeIfoYaml = [this](const llvm::Triple &T,
-                               const MangledSymbols &Symbols,
-                               const ASTContext &context, StringRef Format,
-                               raw_ostream &OS) -> void {
+    auto writeIfsV1 = [this](const llvm::Triple &T,
+                             const MangledSymbols &Symbols,
+                             const ASTContext &context, StringRef Format,
+                             raw_ostream &OS) -> void {
       OS << "--- !" << Format << "\n";
-      OS << "FileHeader:\n";
-      OS << "  Class:           ELFCLASS";
-      OS << (T.isArch64Bit() ? "64" : "32");
-      OS << "\n";
-      OS << "  Data:            ELFDATA2";
-      OS << (T.isLittleEndian() ? "LSB" : "MSB");
-      OS << "\n";
-      OS << "  Type:            ET_REL\n";
-      OS << "  Machine:         "
-         << llvm::StringSwitch<llvm::StringRef>(T.getArchName())
-                .Case("x86_64", "EM_X86_64")
-                .Case("i386", "EM_386")
-                .Case("i686", "EM_386")
-                .Case("aarch64", "EM_AARCH64")
-                .Case("amdgcn", "EM_AMDGPU")
-                .Case("r600", "EM_AMDGPU")
-                .Case("arm", "EM_ARM")
-                .Case("thumb", "EM_ARM")
-                .Case("avr", "EM_AVR")
-                .Case("mips", "EM_MIPS")
-                .Case("mipsel", "EM_MIPS")
-                .Case("mips64", "EM_MIPS")
-                .Case("mips64el", "EM_MIPS")
-                .Case("msp430", "EM_MSP430")
-                .Case("ppc", "EM_PPC")
-                .Case("ppc64", "EM_PPC64")
-                .Case("ppc64le", "EM_PPC64")
-                .Case("x86", T.isOSIAMCU() ? "EM_IAMCU" : "EM_386")
-                .Case("x86_64", "EM_X86_64")
-                .Default("EM_NONE")
-         << "\nSymbols:\n";
-      for (const auto &E : Symbols) {
-        const MangledSymbol &Symbol = E.second;
-        for (auto Name : Symbol.Names) {
-          OS << "  - Name:            "
-             << (Symbol.ParentName.empty() || Instance.getLangOpts().CPlusPlus
-                     ? ""
-                     : (Symbol.ParentName + "."))
-             << Name << "\n"
-             << "    Type:            STT_";
-          switch (Symbol.Type) {
-          default:
-          case llvm::ELF::STT_NOTYPE:
-            OS << "NOTYPE";
-            break;
-          case llvm::ELF::STT_OBJECT:
-            OS << "OBJECT";
-            break;
-          case llvm::ELF::STT_FUNC:
-            OS << "FUNC";
-            break;
-          }
-          OS << "\n    Binding:         STB_"
-             << ((Symbol.Binding == llvm::ELF::STB_WEAK) ? "WEAK" : "GLOBAL")
-             << "\n";
-        }
-      }
-      OS << "...\n";
-      OS.flush();
-    };
-
-    auto writeIfoElfAbiYaml =
-        [this](const llvm::Triple &T, const MangledSymbols &Symbols,
-               const ASTContext &context, StringRef Format,
-               raw_ostream &OS) -> void {
-      OS << "--- !" << Format << "\n";
-      OS << "TbeVersion: 1.0\n";
-      OS << "Arch: " << T.getArchName() << "\n";
+      OS << "IfsVersion: 1.0\n";
+      OS << "Triple: " << T.str() << "\n";
+      OS << "ObjectFileFormat: "
+         << "ELF"
+         << "\n"; // TODO: For now, just ELF.
       OS << "Symbols:\n";
       for (const auto &E : Symbols) {
         const MangledSymbol &Symbol = E.second;
         for (auto Name : Symbol.Names) {
-          OS << "  "
+          OS << "  \""
              << (Symbol.ParentName.empty() || Instance.getLangOpts().CPlusPlus
                      ? ""
                      : (Symbol.ParentName + "."))
-             << Name << ": { Type: ";
+             << Name << "\" : { Type: ";
           switch (Symbol.Type) {
           default:
             llvm_unreachable(
-                "clang -emit-iterface-stubs: Unexpected symbol type.");
+                "clang -emit-interface-stubs: Unexpected symbol type.");
           case llvm::ELF::STT_NOTYPE:
             OS << "NoType";
             break;
@@ -354,25 +329,15 @@ public:
       OS.flush();
     };
 
-    if (Format == "experimental-yaml-elf-v1")
-      writeIfoYaml(Instance.getTarget().getTriple(), Symbols, context, Format,
-                   *OS);
-    else
-      writeIfoElfAbiYaml(Instance.getTarget().getTriple(), Symbols, context,
-                         Format, *OS);
+    assert(Format == "experimental-ifs-v1" && "Unexpected IFS Format.");
+    writeIfsV1(Instance.getTarget().getTriple(), Symbols, context, Format, *OS);
   }
 };
+} // namespace
 
 std::unique_ptr<ASTConsumer>
-GenerateInterfaceYAMLExpV1Action::CreateASTConsumer(CompilerInstance &CI,
-                                                    StringRef InFile) {
-  return llvm::make_unique<InterfaceStubFunctionsConsumer>(
-      CI, InFile, "experimental-yaml-elf-v1");
-}
-
-std::unique_ptr<ASTConsumer>
-GenerateInterfaceTBEExpV1Action::CreateASTConsumer(CompilerInstance &CI,
+GenerateInterfaceIfsExpV1Action::CreateASTConsumer(CompilerInstance &CI,
                                                    StringRef InFile) {
-  return llvm::make_unique<InterfaceStubFunctionsConsumer>(
-      CI, InFile, "experimental-tapi-elf-v1");
+  return std::make_unique<InterfaceStubFunctionsConsumer>(
+      CI, InFile, "experimental-ifs-v1");
 }

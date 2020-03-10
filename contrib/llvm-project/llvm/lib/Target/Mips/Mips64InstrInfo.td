@@ -16,6 +16,7 @@
 
 // shamt must fit in 6 bits.
 def immZExt6 : ImmLeaf<i32, [{return Imm == (Imm & 0x3f);}]>;
+def timmZExt6 : TImmLeaf<i32, [{return Imm == (Imm & 0x3f);}]>;
 
 // Node immediate fits as 10-bit sign extended on target immediate.
 // e.g. seqi, snei
@@ -82,6 +83,10 @@ let usesCustomInserter = 1 in {
   def ATOMIC_LOAD_NAND_I64 : Atomic2Ops<atomic_load_nand_64, GPR64>;
   def ATOMIC_SWAP_I64      : Atomic2Ops<atomic_swap_64, GPR64>;
   def ATOMIC_CMP_SWAP_I64  : AtomicCmpSwap<atomic_cmp_swap_64, GPR64>;
+  def ATOMIC_LOAD_MIN_I64  : Atomic2Ops<atomic_load_min_64, GPR64>;
+  def ATOMIC_LOAD_MAX_I64  : Atomic2Ops<atomic_load_max_64, GPR64>;
+  def ATOMIC_LOAD_UMIN_I64 : Atomic2Ops<atomic_load_umin_64, GPR64>;
+  def ATOMIC_LOAD_UMAX_I64 : Atomic2Ops<atomic_load_umax_64, GPR64>;
 }
 
 def ATOMIC_LOAD_ADD_I64_POSTRA  : Atomic2OpsPostRA<GPR64>;
@@ -94,6 +99,11 @@ def ATOMIC_LOAD_NAND_I64_POSTRA : Atomic2OpsPostRA<GPR64>;
 def ATOMIC_SWAP_I64_POSTRA      : Atomic2OpsPostRA<GPR64>;
 
 def ATOMIC_CMP_SWAP_I64_POSTRA  : AtomicCmpSwapPostRA<GPR64>;
+
+def ATOMIC_LOAD_MIN_I64_POSTRA  : Atomic2OpsPostRA<GPR64>;
+def ATOMIC_LOAD_MAX_I64_POSTRA  : Atomic2OpsPostRA<GPR64>;
+def ATOMIC_LOAD_UMIN_I64_POSTRA : Atomic2OpsPostRA<GPR64>;
+def ATOMIC_LOAD_UMAX_I64_POSTRA : Atomic2OpsPostRA<GPR64>;
 
 /// Pseudo instructions for loading and storing accumulator registers.
 let isPseudo = 1, isCodeGenOnly = 1, hasNoSchedulingInfo = 1 in {
@@ -394,11 +404,11 @@ let AdditionalPredicates = [NotInMicroMips] in {
 }
 
 let isCodeGenOnly = 1, AdditionalPredicates = [NotInMicroMips] in {
-  def DEXT64_32 : InstSE<(outs GPR64Opnd:$rt),
-                         (ins GPR32Opnd:$rs, uimm5_report_uimm6:$pos,
-                              uimm5_plus1:$size),
-                         "dext $rt, $rs, $pos, $size", [], II_EXT, FrmR, "dext">,
-                  EXT_FM<3>, ISA_MIPS64R2;
+  def DEXT64_32
+      : InstSE<(outs GPR64Opnd:$rt),
+               (ins GPR32Opnd:$rs, uimm5_report_uimm6:$pos, uimm5_plus1:$size),
+               "dext $rt, $rs, $pos, $size", [], II_EXT, FrmR, "dext">,
+        EXT_FM<3>, ISA_MIPS64R2;
 }
 
 let isCodeGenOnly = 1, rs = 0, shamt = 0 in {
@@ -669,6 +679,7 @@ def : MipsPat<(MipsTlsHi tglobaltlsaddr:$in), (LUi64 tglobaltlsaddr:$in)>,
 let AdditionalPredicates = [NotInMicroMips] in {
   def : MipsPat<(MipsJmpLink (i64 texternalsym:$dst)),
                 (JAL texternalsym:$dst)>, ISA_MIPS3, GPR_64, SYM_64;
+
   def : MipsPat<(MipsHighest (i64 tglobaladdr:$in)),
                 (LUi64 tglobaladdr:$in)>, ISA_MIPS3, GPR_64, SYM_64;
   def : MipsPat<(MipsHighest (i64 tblockaddress:$in)),
@@ -1043,8 +1054,10 @@ let AdditionalPredicates = [NotInMicroMips] in {
                       (DMTGC0 COP0Opnd:$rd, GPR64Opnd:$rt, 0), 0>,
                       ISA_MIPS64R5, ASE_VIRT;
 }
-def : MipsInstAlias<"dmfc2 $rt, $rd", (DMFC2 GPR64Opnd:$rt, COP2Opnd:$rd, 0), 0>;
-def : MipsInstAlias<"dmtc2 $rt, $rd", (DMTC2 COP2Opnd:$rd, GPR64Opnd:$rt, 0), 0>;
+def : MipsInstAlias<"dmfc2 $rt, $rd",
+                    (DMFC2 GPR64Opnd:$rt, COP2Opnd:$rd, 0), 0>;
+def : MipsInstAlias<"dmtc2 $rt, $rd",
+                    (DMTC2 COP2Opnd:$rd, GPR64Opnd:$rt, 0), 0>;
 
 def : MipsInstAlias<"synciobdma", (SYNC 0x2), 0>, ASE_MIPS64_CNMIPS;
 def : MipsInstAlias<"syncs", (SYNC 0x6), 0>, ASE_MIPS64_CNMIPS;

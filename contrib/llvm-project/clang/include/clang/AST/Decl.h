@@ -15,6 +15,7 @@
 
 #include "clang/AST/APValue.h"
 #include "clang/AST/ASTContextAllocate.h"
+#include "clang/AST/DeclAccessPair.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/ExternalASTSource.h"
@@ -59,6 +60,7 @@ class EnumDecl;
 class Expr;
 class FunctionTemplateDecl;
 class FunctionTemplateSpecializationInfo;
+class FunctionTypeLoc;
 class LabelStmt;
 class MemberSpecializationInfo;
 class Module;
@@ -75,33 +77,6 @@ class TypeAliasTemplateDecl;
 class TypeLoc;
 class UnresolvedSetImpl;
 class VarTemplateDecl;
-
-/// A container of type source information.
-///
-/// A client can read the relevant info using TypeLoc wrappers, e.g:
-/// @code
-/// TypeLoc TL = TypeSourceInfo->getTypeLoc();
-/// TL.getBeginLoc().print(OS, SrcMgr);
-/// @endcode
-class alignas(8) TypeSourceInfo {
-  // Contains a memory block after the class, used for type source information,
-  // allocated by ASTContext.
-  friend class ASTContext;
-
-  QualType Ty;
-
-  TypeSourceInfo(QualType ty) : Ty(ty) {}
-
-public:
-  /// Return the type wrapped by this type source info.
-  QualType getType() const { return Ty; }
-
-  /// Return the TypeLoc wrapper for the type source info.
-  TypeLoc getTypeLoc() const; // implemented in TypeLoc.h
-
-  /// Override the type stored in this TypeSourceInfo. Use with caution!
-  void overrideType(QualType T) { Ty = T; }
-};
 
 /// The top declaration context.
 class TranslationUnitDecl : public Decl, public DeclContext {
@@ -309,6 +284,14 @@ public:
   /// performance doesn't matter.
   void printQualifiedName(raw_ostream &OS) const;
   void printQualifiedName(raw_ostream &OS, const PrintingPolicy &Policy) const;
+
+  /// Print only the nested name specifier part of a fully-qualified name,
+  /// including the '::' at the end. E.g.
+  ///    when `printQualifiedName(D)` prints "A::B::i",
+  ///    this function prints "A::B::".
+  void printNestedNameSpecifier(raw_ostream &OS) const;
+  void printNestedNameSpecifier(raw_ostream &OS,
+                                const PrintingPolicy &Policy) const;
 
   // FIXME: Remove string version.
   std::string getQualifiedNameAsString() const;
@@ -686,10 +669,12 @@ struct QualifierInfo {
 /// Represents a ValueDecl that came out of a declarator.
 /// Contains type source information through TypeSourceInfo.
 class DeclaratorDecl : public ValueDecl {
-  // A struct representing both a TInfo and a syntactic qualifier,
-  // to be used for the (uncommon) case of out-of-line declarations.
+  // A struct representing a TInfo, a trailing requires-clause and a syntactic
+  // qualifier, to be used for the (uncommon) case of out-of-line declarations
+  // and constrained function decls.
   struct ExtInfo : public QualifierInfo {
     TypeSourceInfo *TInfo;
+    Expr *TrailingRequiresClause = nullptr;
   };
 
   llvm::PointerUnion<TypeSourceInfo *, ExtInfo *> DeclInfo;
@@ -756,6 +741,21 @@ public:
 
   void setQualifierInfo(NestedNameSpecifierLoc QualifierLoc);
 
+  /// \brief Get the constraint-expression introduced by the trailing
+  /// requires-clause in the function/member declaration, or null if no
+  /// requires-clause was provided.
+  Expr *getTrailingRequiresClause() {
+    return hasExtInfo() ? getExtInfo()->TrailingRequiresClause
+                        : nullptr;
+  }
+
+  const Expr *getTrailingRequiresClause() const {
+    return hasExtInfo() ? getExtInfo()->TrailingRequiresClause
+                        : nullptr;
+  }
+
+  void setTrailingRequiresClause(Expr *TrailingRequiresClause);
+
   unsigned getNumTemplateParameterLists() const {
     return hasExtInfo() ? getExtInfo()->NumTemplParamLists : 0;
   }
@@ -769,6 +769,7 @@ public:
                                      ArrayRef<TemplateParameterList *> TPLists);
 
   SourceLocation getTypeSpecStartLoc() const;
+  SourceLocation getTypeSpecEndLoc() const;
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -800,12 +801,19 @@ struct EvaluatedStmt {
   /// valid if CheckedICE is true.
   bool IsICE : 1;
 
+  /// Whether this variable is known to have constant destruction. That is,
+  /// whether running the destructor on the initial value is a side-effect
+  /// (and doesn't inspect any state that might have changed during program
+  /// execution). This is currently only computed if the destructor is
+  /// non-trivial.
+  bool HasConstantDestruction : 1;
+
   Stmt *Value;
   APValue Evaluated;
 
-  EvaluatedStmt() : WasEvaluated(false), IsEvaluating(false), CheckedICE(false),
-                    CheckingICE(false), IsICE(false) {}
-
+  EvaluatedStmt()
+      : WasEvaluated(false), IsEvaluating(false), CheckedICE(false),
+        CheckingICE(false), IsICE(false), HasConstantDestruction(false) {}
 };
 
 /// Represents a variable declaration or definition.
@@ -883,6 +891,8 @@ protected:
     DAK_Normal
   };
 
+  enum { NumScopeDepthOrObjCQualsBits = 7 };
+
   class ParmVarDeclBitfields {
     friend class ASTDeclReader;
     friend class ParmVarDecl;
@@ -909,7 +919,7 @@ protected:
     /// Otherwise, the number of function parameter scopes enclosing
     /// the function parameter scope in which this parameter was
     /// declared.
-    unsigned ScopeDepthOrObjCQuals : 7;
+    unsigned ScopeDepthOrObjCQuals : NumScopeDepthOrObjCQualsBits;
 
     /// The number of parameters preceding this parameter in the
     /// function parameter scope in which it was declared.
@@ -1226,6 +1236,14 @@ public:
 
   void setInit(Expr *I);
 
+  /// Get the initializing declaration of this variable, if any. This is
+  /// usually the definition, except that for a static data member it can be
+  /// the in-class declaration.
+  VarDecl *getInitializingDeclaration();
+  const VarDecl *getInitializingDeclaration() const {
+    return const_cast<VarDecl *>(this)->getInitializingDeclaration();
+  }
+
   /// Determine whether this variable's value might be usable in a
   /// constant expression, according to the relevant language standard.
   /// This only checks properties of the declaration, and does not check
@@ -1250,6 +1268,14 @@ public:
   /// initializer, or NULL if the value is not yet known. Returns pointer
   /// to untyped APValue if the value could not be evaluated.
   APValue *getEvaluatedValue() const;
+
+  /// Evaluate the destruction of this variable to determine if it constitutes
+  /// constant destruction.
+  ///
+  /// \pre isInitICE()
+  /// \return \c true if this variable has constant destruction, \c false if
+  ///         not.
+  bool evaluateDestruction(SmallVectorImpl<PartialDiagnosticAt> &Notes) const;
 
   /// Determines whether it is already known whether the
   /// initializer is an integral constant expression or not.
@@ -1489,8 +1515,13 @@ public:
   // has no definition within this source file.
   bool isKnownToBeDefined() const;
 
-  /// Do we need to emit an exit-time destructor for this variable?
+  /// Is destruction of this variable entirely suppressed? If so, the variable
+  /// need not have a usable destructor at all.
   bool isNoDestroy(const ASTContext &) const;
+
+  /// Would the destruction of this variable have any effect, and if so, what
+  /// kind?
+  QualType::DestructionKind needsDestruction(const ASTContext &Ctx) const;
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -1611,6 +1642,10 @@ public:
   unsigned getFunctionScopeDepth() const {
     if (ParmVarDeclBits.IsObjCMethodParam) return 0;
     return ParmVarDeclBits.ScopeDepthOrObjCQuals;
+  }
+
+  static constexpr unsigned getMaxFunctionScopeDepth() {
+    return (1u << NumScopeDepthOrObjCQualsBits) - 1;
   }
 
   /// Returns the index of this parameter in its prototype or method scope.
@@ -1769,13 +1804,37 @@ public:
     TK_DependentFunctionTemplateSpecialization
   };
 
+  /// Stashed information about a defaulted function definition whose body has
+  /// not yet been lazily generated.
+  class DefaultedFunctionInfo final
+      : llvm::TrailingObjects<DefaultedFunctionInfo, DeclAccessPair> {
+    friend TrailingObjects;
+    unsigned NumLookups;
+
+  public:
+    static DefaultedFunctionInfo *Create(ASTContext &Context,
+                                         ArrayRef<DeclAccessPair> Lookups);
+    /// Get the unqualified lookup results that should be used in this
+    /// defaulted function definition.
+    ArrayRef<DeclAccessPair> getUnqualifiedLookups() const {
+      return {getTrailingObjects<DeclAccessPair>(), NumLookups};
+    }
+  };
+
 private:
   /// A new[]'d array of pointers to VarDecls for the formal
   /// parameters of this function.  This is null if a prototype or if there are
   /// no formals.
   ParmVarDecl **ParamInfo = nullptr;
 
-  LazyDeclStmtPtr Body;
+  /// The active member of this union is determined by
+  /// FunctionDeclBits.HasDefaultedFunctionInfo.
+  union {
+    /// The body of the function.
+    LazyDeclStmtPtr Body;
+    /// Information about a future defaulted function definition.
+    DefaultedFunctionInfo *DefaultedInfo;
+  };
 
   unsigned ODRHash;
 
@@ -1800,10 +1859,10 @@ private:
   /// FunctionTemplateSpecializationInfo, which contains information about
   /// the template being specialized and the template arguments involved in
   /// that specialization.
-  llvm::PointerUnion4<FunctionTemplateDecl *,
-                      MemberSpecializationInfo *,
-                      FunctionTemplateSpecializationInfo *,
-                      DependentFunctionTemplateSpecializationInfo *>
+  llvm::PointerUnion<FunctionTemplateDecl *,
+                     MemberSpecializationInfo *,
+                     FunctionTemplateSpecializationInfo *,
+                     DependentFunctionTemplateSpecializationInfo *>
     TemplateOrSpecialization;
 
   /// Provides source/type location info for the declaration name embedded in
@@ -1861,7 +1920,8 @@ protected:
   FunctionDecl(Kind DK, ASTContext &C, DeclContext *DC, SourceLocation StartLoc,
                const DeclarationNameInfo &NameInfo, QualType T,
                TypeSourceInfo *TInfo, StorageClass S, bool isInlineSpecified,
-               ConstexprSpecKind ConstexprKind);
+               ConstexprSpecKind ConstexprKind,
+               Expr *TrailingRequiresClause = nullptr);
 
   using redeclarable_base = Redeclarable<FunctionDecl>;
 
@@ -1896,11 +1956,12 @@ public:
          SourceLocation NLoc, DeclarationName N, QualType T,
          TypeSourceInfo *TInfo, StorageClass SC, bool isInlineSpecified = false,
          bool hasWrittenPrototype = true,
-         ConstexprSpecKind ConstexprKind = CSK_unspecified) {
+         ConstexprSpecKind ConstexprKind = CSK_unspecified,
+         Expr *TrailingRequiresClause = nullptr) {
     DeclarationNameInfo NameInfo(N, NLoc);
     return FunctionDecl::Create(C, DC, StartLoc, NameInfo, T, TInfo, SC,
                                 isInlineSpecified, hasWrittenPrototype,
-                                ConstexprKind);
+                                ConstexprKind, TrailingRequiresClause);
   }
 
   static FunctionDecl *Create(ASTContext &C, DeclContext *DC,
@@ -1908,7 +1969,8 @@ public:
                               const DeclarationNameInfo &NameInfo, QualType T,
                               TypeSourceInfo *TInfo, StorageClass SC,
                               bool isInlineSpecified, bool hasWrittenPrototype,
-                              ConstexprSpecKind ConstexprKind);
+                              ConstexprSpecKind ConstexprKind,
+                              Expr *TrailingRequiresClause);
 
   static FunctionDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
@@ -1920,6 +1982,14 @@ public:
                             bool Qualified) const override;
 
   void setRangeEnd(SourceLocation E) { EndRangeLoc = E; }
+
+  /// Returns the location of the ellipsis of a variadic function.
+  SourceLocation getEllipsisLoc() const {
+    const auto *FPT = getType()->getAs<FunctionProtoType>();
+    if (FPT && FPT->isVariadic())
+      return FPT->getEllipsisLoc();
+    return SourceLocation();
+  }
 
   SourceRange getSourceRange() const override LLVM_READONLY;
 
@@ -1994,18 +2064,30 @@ public:
   ///
   /// This does not determine whether the function has been defined (e.g., in a
   /// previous definition); for that information, use isDefined.
+  ///
+  /// Note: the function declaration does not become a definition until the
+  /// parser reaches the definition, if called before, this function will return
+  /// `false`.
   bool isThisDeclarationADefinition() const {
-    return isDeletedAsWritten() || isDefaulted() || Body || hasSkippedBody() ||
-           isLateTemplateParsed() || willHaveBody() || hasDefiningAttr();
+    return isDeletedAsWritten() || isDefaulted() ||
+           doesThisDeclarationHaveABody() || hasSkippedBody() ||
+           willHaveBody() || hasDefiningAttr();
   }
 
   /// Returns whether this specific declaration of the function has a body.
   bool doesThisDeclarationHaveABody() const {
-    return Body || isLateTemplateParsed();
+    return (!FunctionDeclBits.HasDefaultedFunctionInfo && Body) ||
+           isLateTemplateParsed();
   }
 
   void setBody(Stmt *B);
-  void setLazyBody(uint64_t Offset) { Body = Offset; }
+  void setLazyBody(uint64_t Offset) {
+    FunctionDeclBits.HasDefaultedFunctionInfo = false;
+    Body = LazyDeclStmtPtr(Offset);
+  }
+
+  void setDefaultedFunctionInfo(DefaultedFunctionInfo *Info);
+  DefaultedFunctionInfo *getDefaultedFunctionInfo() const;
 
   /// Whether this function is variadic.
   bool isVariadic() const;
@@ -2058,6 +2140,16 @@ public:
   /// for special member functions.
   void setExplicitlyDefaulted(bool ED = true) {
     FunctionDeclBits.IsExplicitlyDefaulted = ED;
+  }
+
+  /// True if this method is user-declared and was not
+  /// deleted or defaulted on its first declaration.
+  bool isUserProvided() const {
+    auto *DeclAsWritten = this;
+    if (FunctionDecl *Pattern = getTemplateInstantiationPattern())
+      DeclAsWritten = Pattern;
+    return !(DeclAsWritten->isDeleted() ||
+             DeclAsWritten->getCanonicalDecl()->isDefaulted());
   }
 
   /// Whether falling off this function implicitly returns null/zero.
@@ -2141,6 +2233,10 @@ public:
   bool usesSEHTry() const { return FunctionDeclBits.UsesSEHTry; }
   void setUsesSEHTry(bool UST) { FunctionDeclBits.UsesSEHTry = UST; }
 
+  /// Indicates the function uses Floating Point constrained intrinsics
+  bool usesFPIntrin() const { return FunctionDeclBits.UsesFPIntrin; }
+  void setUsesFPIntrin(bool Val) { FunctionDeclBits.UsesFPIntrin = Val; }
+
   /// Whether this function has been deleted.
   ///
   /// A function that is "deleted" (via the C++0x "= delete" syntax)
@@ -2213,6 +2309,9 @@ public:
   /// true through IsAligned.
   bool isReplaceableGlobalAllocationFunction(bool *IsAligned = nullptr) const;
 
+  /// Determine if this function provides an inline implementation of a builtin.
+  bool isInlineBuiltinDeclaration() const;
+
   /// Determine whether this is a destroying operator delete.
   bool isDestroyingOperatorDelete() const;
 
@@ -2276,6 +2375,17 @@ public:
   /// the target functionality.
   bool isTargetMultiVersion() const;
 
+  /// \brief Get the associated-constraints of this function declaration.
+  /// Currently, this will either be a vector of size 1 containing the
+  /// trailing-requires-clause or an empty vector.
+  ///
+  /// Use this instead of getTrailingRequiresClause for concepts APIs that
+  /// accept an ArrayRef of constraint expressions.
+  void getAssociatedConstraints(SmallVectorImpl<const Expr *> &AC) const {
+    if (auto *TRC = getTrailingRequiresClause())
+      AC.push_back(TRC);
+  }
+
   void setPreviousDeclaration(FunctionDecl * PrevDecl);
 
   FunctionDecl *getCanonicalDecl() override;
@@ -2326,6 +2436,12 @@ public:
   /// parameters have default arguments (in C++).
   unsigned getMinRequiredArguments() const;
 
+  /// Find the source location information for how the type of this function
+  /// was written. May be absent (for example if the function was declared via
+  /// a typedef) and may contain a different type from that of the function
+  /// (for example if the function type was adjusted by an attribute).
+  FunctionTypeLoc getFunctionTypeLoc() const;
+
   QualType getReturnType() const {
     return getType()->castAs<FunctionType>()->getReturnType();
   }
@@ -2334,6 +2450,12 @@ public:
   /// function return type. This may omit qualifiers and other information with
   /// limited representation in the AST.
   SourceRange getReturnTypeSourceRange() const;
+
+  /// Attempt to compute an informative source range covering the
+  /// function parameters, including the ellipsis of a variadic function.
+  /// The source range excludes the parentheses, and is invalid if there are
+  /// no parameters and no ellipsis.
+  SourceRange getParametersSourceRange() const;
 
   /// Get the declared return type, which may differ from the actual return
   /// type if the return type is deduced.
@@ -4078,13 +4200,9 @@ public:
   void setCaptures(ASTContext &Context, ArrayRef<Capture> Captures,
                    bool CapturesCXXThis);
 
-   unsigned getBlockManglingNumber() const {
-     return ManglingNumber;
-   }
+  unsigned getBlockManglingNumber() const { return ManglingNumber; }
 
-   Decl *getBlockManglingContextDecl() const {
-     return ManglingContextDecl;
-   }
+  Decl *getBlockManglingContextDecl() const { return ManglingContextDecl; }
 
   void setBlockMangling(unsigned Number, Decl *Ctx) {
     ManglingNumber = Number;
