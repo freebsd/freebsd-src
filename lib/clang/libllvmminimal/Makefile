@@ -58,6 +58,7 @@ SRCS+=		Support/Unicode.cpp
 SRCS+=		Support/VirtualFileSystem.cpp
 SRCS+=		Support/Watchdog.cpp
 SRCS+=		Support/WithColor.cpp
+SRCS+=		Support/YAMLParser.cpp
 SRCS+=		Support/circular_raw_ostream.cpp
 SRCS+=		Support/raw_ostream.cpp
 SRCS+=		Support/regcomp.c
