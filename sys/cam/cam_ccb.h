@@ -61,8 +61,8 @@
 /* CAM CCB flags */
 typedef enum {
 	CAM_CDB_POINTER		= 0x00000001,/* The CDB field is a pointer    */
-	CAM_QUEUE_ENABLE	= 0x00000002,/* SIM queue actions are enabled */
-	CAM_CDB_LINKED		= 0x00000004,/* CCB contains a linked CDB     */
+	CAM_unused1		= 0x00000002,
+	CAM_unused2		= 0x00000004,
 	CAM_NEGOTIATE		= 0x00000008,/*
 					      * Perform transport negotiation
 					      * with this command.
@@ -80,8 +80,8 @@ typedef enum {
 	CAM_DATA_SG_PADDR	= 0x00040010,/* Data type (011:sglist phys)   */
 	CAM_DATA_BIO		= 0x00200000,/* Data type (100:bio)           */
 	CAM_DATA_MASK		= 0x00240010,/* Data type mask                */
-	CAM_SOFT_RST_OP		= 0x00000100,/* Use Soft reset alternative    */
-	CAM_ENG_SYNC		= 0x00000200,/* Flush resid bytes on complete */
+	CAM_unused3		= 0x00000100,
+	CAM_unused4		= 0x00000200,
 	CAM_DEV_QFRZDIS		= 0x00000400,/* Disable DEV Q freezing	      */
 	CAM_DEV_QFREEZE		= 0x00000800,/* Freeze DEV Q on execution     */
 	CAM_HIGH_POWER		= 0x00001000,/* Command takes a lot of power  */
@@ -90,24 +90,24 @@ typedef enum {
 	CAM_TAG_ACTION_VALID	= 0x00008000,/* Use the tag action in this ccb*/
 	CAM_PASS_ERR_RECOVER	= 0x00010000,/* Pass driver does err. recovery*/
 	CAM_DIS_DISCONNECT	= 0x00020000,/* Disable disconnect	      */
-	CAM_MSG_BUF_PHYS	= 0x00080000,/* Message buffer ptr is physical*/
-	CAM_SNS_BUF_PHYS	= 0x00100000,/* Autosense data ptr is physical*/
+	CAM_unused5		= 0x00080000,
+	CAM_unused6		= 0x00100000,
 	CAM_CDB_PHYS		= 0x00400000,/* CDB poiner is physical	      */
-	CAM_ENG_SGLIST		= 0x00800000,/* SG list is for the HBA engine */
+	CAM_unused7		= 0x00800000,
 
 /* Phase cognizant mode flags */
-	CAM_DIS_AUTOSRP		= 0x01000000,/* Disable autosave/restore ptrs */
-	CAM_DIS_AUTODISC	= 0x02000000,/* Disable auto disconnect	      */
-	CAM_TGT_CCB_AVAIL	= 0x04000000,/* Target CCB available	      */
-	CAM_TGT_PHASE_MODE	= 0x08000000,/* The SIM runs in phase mode    */
-	CAM_MSGB_VALID		= 0x10000000,/* Message buffer valid	      */
-	CAM_STATUS_VALID	= 0x20000000,/* Status buffer valid	      */
-	CAM_DATAB_VALID		= 0x40000000,/* Data buffer valid	      */
+	CAM_unused8		= 0x01000000,
+	CAM_unused9		= 0x02000000,
+	CAM_unused10		= 0x04000000,
+	CAM_unused11		= 0x08000000,
+	CAM_unused12		= 0x10000000,
+	CAM_unused13		= 0x20000000,
+	CAM_unused14		= 0x40000000,
 
 /* Host target Mode flags */
 	CAM_SEND_SENSE		= 0x08000000,/* Send sense data with status   */
-	CAM_TERM_IO		= 0x10000000,/* Terminate I/O Message sup.    */
-	CAM_DISCONNECT		= 0x20000000,/* Disconnects are mandatory     */
+	CAM_unused15		= 0x10000000,
+	CAM_unused16		= 0x20000000,
 	CAM_SEND_STATUS		= 0x40000000,/* Send status after data phase  */
 
 	CAM_UNLOCKED		= 0x80000000 /* Call callback without lock.   */
