@@ -74,6 +74,8 @@ void vlapic_post_intr(struct vlapic *vlapic, int hostcpu, int ipinum);
 void vlapic_fire_cmci(struct vlapic *vlapic);
 int vlapic_trigger_lvt(struct vlapic *vlapic, int vector);
 
+void vlapic_sync_tpr(struct vlapic *vlapic);
+
 uint64_t vlapic_get_apicbase(struct vlapic *vlapic);
 int vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);
 void vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state s);
