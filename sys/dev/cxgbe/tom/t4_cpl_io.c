@@ -135,11 +135,12 @@ send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 	FLOWC_PARAM(PORT, pi->tx_chan);
 	FLOWC_PARAM(IQID, toep->ofld_rxq->iq.abs_id);
 	FLOWC_PARAM(SNDBUF, toep->params.sndbuf);
-	FLOWC_PARAM(MSS, toep->params.emss);
 	if (tp) {
+		FLOWC_PARAM(MSS, toep->params.emss);
 		FLOWC_PARAM(SNDNXT, tp->snd_nxt);
 		FLOWC_PARAM(RCVNXT, tp->rcv_nxt);
-	}
+	} else
+		FLOWC_PARAM(MSS, 512);
 	CTR6(KTR_CXGBE,
 	    "%s: tid %u, mss %u, sndbuf %u, snd_nxt 0x%x, rcv_nxt 0x%x",
 	    __func__, toep->tid, toep->params.emss, toep->params.sndbuf,
