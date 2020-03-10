@@ -10,7 +10,8 @@ ATF_TESTS_SH=			\
 				mld \
 				scapyi386 \
 				redirect \
-				divert
+				divert \
+				forward6
 
 ${PACKAGE}FILES+=		exthdr.py
 ${PACKAGE}FILES+=		mld.py
