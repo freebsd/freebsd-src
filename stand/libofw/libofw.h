@@ -26,6 +26,7 @@
  */
 
 #include "openfirm.h"
+#include <readin.h>
 
 struct ofw_devdesc {
 	struct devdesc			dd;
@@ -51,7 +52,7 @@ int	ofwn_getunit(const char *);
 
 ssize_t	ofw_copyin(const void *src, vm_offset_t dest, const size_t len);
 ssize_t ofw_copyout(const vm_offset_t src, void *dest, const size_t len);
-ssize_t ofw_readin(const int fd, vm_offset_t dest, const size_t len);
+ssize_t ofw_readin(readin_handle_t fd, vm_offset_t dest, const size_t len);
 
 extern int	ofw_boot(void);
 extern int	ofw_autoload(void);

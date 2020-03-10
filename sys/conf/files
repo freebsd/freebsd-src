@@ -1773,6 +1773,7 @@ dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
 dev/ida/ida_disk.c		optional ida
 dev/ida/ida_pci.c		optional ida pci
+dev/iicbus/acpi_iicbus.c	optional acpi iicbus
 dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ads111x.c		optional ads111x
 dev/iicbus/ds1307.c		optional ds1307

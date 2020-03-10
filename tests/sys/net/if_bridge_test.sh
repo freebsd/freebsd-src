@@ -67,7 +67,133 @@ bridge_transmit_ipv4_unicast_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "stp" "cleanup"
+stp_head()
+{
+	atf_set descr 'Spanning tree test'
+	atf_set require.user root
+	atf_set require.progs jq
+}
+
+stp_body()
+{
+	vnet_init
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+	bridge_a=$(vnet_mkbridge)
+	bridge_b=$(vnet_mkbridge)
+
+	vnet_mkjail a ${bridge_a} ${epair_one}a ${epair_two}a
+	vnet_mkjail b ${bridge_b} ${epair_one}b ${epair_two}b
+
+	jexec a ifconfig ${bridge_a} up
+	jexec a ifconfig ${epair_one}a up
+	jexec a ifconfig ${epair_two}a up
+	jexec a ifconfig ${bridge_a} addm ${epair_one}a
+	jexec a ifconfig ${bridge_a} addm ${epair_two}a
+
+	jexec b ifconfig ${bridge_b} up
+	jexec b ifconfig ${epair_one}b up
+	jexec b ifconfig ${epair_two}b up
+	jexec b ifconfig ${bridge_b} addm ${epair_one}b
+	jexec b ifconfig ${bridge_b} addm ${epair_two}b
+
+	jexec a ifconfig ${bridge_a} 192.0.2.1/24
+
+	# Give the interfaces some time to come up and pass some traffic
+	sleep 5
+
+	# Confirm that there's looping traffic
+	nbr=$(jexec a netstat -I ${bridge_a} --libxo json \
+		| jq ".statistics.interface[0].\"received-packets\"")
+	if [ ${nbr} -lt 100 ]
+	then
+		atf_fail "Expected bridging loop, but found very few packets."
+	fi
+
+	# Enable spanning tree
+	jexec a ifconfig ${bridge_a} stp ${epair_one}a
+	jexec a ifconfig ${bridge_a} stp ${epair_two}a
+	jexec b ifconfig ${bridge_b} stp ${epair_one}b
+	jexec b ifconfig ${bridge_b} stp ${epair_two}b
+
+	# Give STP time to do its thing
+	sleep 5
+
+	a_discard=$(jexec a ifconfig ${bridge_a} | grep discarding)
+	b_discard=$(jexec b ifconfig ${bridge_b} | grep discarding)
+
+	if [ -z "${a_discard}" ] && [ -z "${b_discard}" ]
+	then
+		atf_fail "STP failed to detect bridging loop"
+	fi
+}
+
+stp_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "static" "cleanup"
+static_head()
+{
+	atf_set descr 'Bridge static address test'
+	atf_set require.user root
+}
+
+static_body()
+{
+	vnet_init
+
+	epair=$(vnet_mkepair)
+	bridge=$(vnet_mkbridge)
+
+	vnet_mkjail one ${bridge} ${epair}a
+
+	ifconfig ${epair}b up
+
+	jexec one ifconfig ${bridge} up
+	jexec one ifconfig ${epair}a up
+	jexec one ifconfig ${bridge} addm ${epair}a
+
+	# Wrong interface
+	atf_check -s exit:1 -o ignore -e ignore \
+	    jexec one ifconfig ${bridge} static ${epair}b 00:01:02:03:04:05
+
+	# Bad address format
+	atf_check -s exit:1 -o ignore -e ignore \
+	    jexec one ifconfig ${bridge} static ${epair}a 00:01:02:03:04
+
+	# Correct add
+	atf_check -s exit:0 -o ignore \
+	    jexec one ifconfig ${bridge} static ${epair}a 00:01:02:03:04:05
+
+	# List addresses
+	atf_check -s exit:0 -o ignore \
+	    jexec one ifconfig ${bridge} addr
+
+	# Delete with bad address format
+	atf_check -s exit:1 -o ignore -e ignore \
+	    jexec one ifconfig ${bridge} deladdr 00:01:02:03:04
+
+	# Delete with unlisted address
+	atf_check -s exit:1 -o ignore -e ignore \
+	    jexec one ifconfig ${bridge} deladdr 00:01:02:03:04:06
+
+	# Correct delete
+	atf_check -s exit:0 -o ignore \
+	    jexec one ifconfig ${bridge} deladdr 00:01:02:03:04:05
+}
+
+static_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
+	atf_add_test_case "stp"
+	atf_add_test_case "static"
 }

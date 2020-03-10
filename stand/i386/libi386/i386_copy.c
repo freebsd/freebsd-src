@@ -63,7 +63,7 @@ i386_copyout(const vm_offset_t src, void *dest, const size_t len)
 
 
 ssize_t
-i386_readin(const int fd, vm_offset_t dest, const size_t len)
+i386_readin(readin_handle_t fd, vm_offset_t dest, const size_t len)
 {
 
 	if (dest + len >= memtop_copyin) {
@@ -71,5 +71,5 @@ i386_readin(const int fd, vm_offset_t dest, const size_t len)
 		return (-1);
 	}
 
-	return (read(fd, PTOV(dest), len));
+	return (VECTX_READ(fd, PTOV(dest), len));
 }

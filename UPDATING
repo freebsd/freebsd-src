@@ -32,6 +32,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	information about prerequisites and upgrading, if you are not already
 	using clang 3.5.0 or higher.
 
+20200309:
+	The amd(8) automount daemon has been removed from the source tree.
+	As of FreeBSD 10.1 autofs(5) is the preferred tool for automounting.
+	amd is still available in the sysutils/am-utils port.
+
 20200301:
 	Removed brooktree driver (bktr.4) from the tree.
 

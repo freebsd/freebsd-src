@@ -142,6 +142,6 @@ struct pipepair {
 #define PIPE_LOCK_ASSERT(pipe, type)  mtx_assert(PIPE_MTX(pipe), (type))
 
 void	pipe_dtor(struct pipe *dpipe);
-void	pipe_named_ctor(struct pipe **ppipe, struct thread *td);
+int	pipe_named_ctor(struct pipe **ppipe, struct thread *td);
 void	pipeselwakeup(struct pipe *cpipe);
 #endif /* !_SYS_PIPE_H_ */
