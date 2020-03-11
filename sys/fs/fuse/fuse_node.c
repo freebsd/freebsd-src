@@ -450,7 +450,8 @@ fuse_vnode_size(struct vnode *vp, off_t *filesize, struct ucred *cred,
 	int error = 0;
 
 	if (!(fvdat->flag & FN_SIZECHANGE) &&
-		(VTOVA(vp) == NULL || fvdat->cached_attrs.va_size == VNOVAL)) 
+		(!fuse_vnode_attr_cache_valid(vp) ||
+		  fvdat->cached_attrs.va_size == VNOVAL)) 
 		error = fuse_internal_do_getattr(vp, NULL, cred, td);
 
 	if (!error)
