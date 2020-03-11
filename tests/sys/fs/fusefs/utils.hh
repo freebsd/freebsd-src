@@ -44,6 +44,14 @@ inline void nap()
 	usleep(NAP_NS / 1000);
 }
 
+enum cache_mode {
+	Uncached,
+	Writethrough,
+	Writeback,
+	WritebackAsync
+};
+
+const char *cache_mode_to_s(enum cache_mode cm);
 bool is_unsafe_aio_enabled(void);
 
 extern const uint32_t libfuse_max_write;
