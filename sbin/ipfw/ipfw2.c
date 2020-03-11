@@ -3717,10 +3717,11 @@ add_src(ipfw_insn *cmd, char *av, u_char proto, int cblen, struct tidx *tstate)
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
 	    inet_pton(AF_INET6, host, &a) == 1)
 		ret = add_srcip6(cmd, av, cblen, tstate);
-	else if (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
-	    inet_pton(AF_INET, host, &a) == 1)
+	/* XXX: should check for IPv4, not !IPv6 */
+	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
+	    inet_pton(AF_INET6, host, &a) != 1))
 		ret = add_srcip(cmd, av, cblen, tstate);
-	else if (ret == NULL && strcmp(av, "any") != 0)
+	if (ret == NULL && strcmp(av, "any") != 0)
 		ret = cmd;
 
 	return ret;
@@ -3747,10 +3748,11 @@ add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen, struct tidx *tstate)
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
 	    inet_pton(AF_INET6, host, &a) == 1)
 		ret = add_dstip6(cmd, av, cblen, tstate);
-	else if (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
-	    inet_pton(AF_INET, host, &a) == 1)
+	/* XXX: should check for IPv4, not !IPv6 */
+	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
+	    inet_pton(AF_INET6, host, &a) != 1))
 		ret = add_dstip(cmd, av, cblen, tstate);
-	else if (ret == NULL && strcmp(av, "any") != 0)
+	if (ret == NULL && strcmp(av, "any") != 0)
 		ret = cmd;
 
 	return ret;
