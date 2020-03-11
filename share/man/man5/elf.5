@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 2005
+.Dd March 11, 2020
 .Dt ELF 5
 .Os
 .Sh NAME
@@ -1276,6 +1276,26 @@ member.
 This member specifies a constant addend used to compute the value to be
 stored into the relocatable field.
 .El
+.Ss Note Section
+ELF note sections consist of entries with the following format.
+.Bl -column -offset indent "Sy Field" "Sy Size" "Sy Description"
+.It Sy Field Ta Sy Size Ta Sy Description
+.It namesz   Ta 32 bits Ta Size of "name"
+.It descsz   Ta 32 bits Ta Size of "desc"
+.It type     Ta 32 bits Ta OS-dependent note type
+.It name     Ta namesz  Ta Null-terminated originator name
+.It desc     Ta descsz  Ta OS-dependent note data
+.El
+.Pp
+The
+.Sy name
+and
+.Sy desc
+fields are padded to ensure 4-byte alignemnt.
+.Sy namesz
+and
+.Sy descsz
+specify the unpadded length.
 .Sh SEE ALSO
 .Xr as 1 ,
 .Xr gdb 1 ,
