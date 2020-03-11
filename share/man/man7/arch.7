@@ -87,7 +87,7 @@ This table shows the first
 release to support each architecture, and, for discontinued
 architectures, the final release.
 .Pp
-.Bl -column -offset indent "Sy Architecture" "Sy Initial Release" "Sy Final Release"
+.Bl -column -offset indent "Architecture" "Initial Release" "Final Release"
 .It Sy Architecture Ta Sy Initial Release Ta Sy Final Release
 .It aarch64     Ta 11.0
 .It alpha       Ta 3.2   Ta 6.4
@@ -150,7 +150,7 @@ execution environment is accompanied by the
 .Dv ILP32
 environment, which was the historical 32-bit predecessor for 64-bit evolution.
 Examples are:
-.Bl -column -offset indent "Dv powerpc64" "Sy ILP32 counterpart"
+.Bl -column -offset indent "powerpc64" "ILP32 counterpart"
 .It Sy LP64        Ta Sy ILP32 counterpart
 .It Dv amd64       Ta Dv i386
 .It Dv powerpc64   Ta Dv powerpc
@@ -188,7 +188,7 @@ Most ILP32 ABIs, except
 require only 4-byte alignment for 64-bit integers.
 .Pp
 Machine-dependent type sizes:
-.Bl -column -offset indent "Sy Architecture" "Sy void *" "Sy long double" "Sy time_t"
+.Bl -column -offset indent "Architecture" "void *" "long double" "time_t"
 .It Sy Architecture Ta Sy void * Ta Sy long double Ta Sy time_t
 .It aarch64     Ta 8 Ta 16 Ta 8
 .It amd64       Ta 8 Ta 16 Ta 8
@@ -214,7 +214,7 @@ Machine-dependent type sizes:
 .Sy time_t
 is 8 bytes on all supported architectures except i386.
 .Ss Endianness and Char Signedness
-.Bl -column -offset indent "Sy Architecture" "Sy Endianness" "Sy char Signedness"
+.Bl -column -offset indent "Architecture" "Endianness" "char Signedness"
 .It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
 .It aarch64     Ta little Ta unsigned
 .It amd64       Ta little Ta   signed
@@ -237,7 +237,7 @@ is 8 bytes on all supported architectures except i386.
 .It riscv64sf   Ta little Ta   signed
 .El
 .Ss Page Size
-.Bl -column -offset indent "Sy Architecture" "Sy Page Sizes"
+.Bl -column -offset indent "Architecture" "Page Sizes"
 .It Sy Architecture Ta Sy Page Sizes
 .It aarch64     Ta 4K, 2M, 1G
 .It amd64       Ta 4K, 2M, 1G
@@ -260,7 +260,7 @@ is 8 bytes on all supported architectures except i386.
 .It riscv64sf   Ta 4K
 .El
 .Ss Floating Point
-.Bl -column -offset indent "Sy Architecture" "Sy float, double" "Sy long double"
+.Bl -column -offset indent "Architecture" "float, double" "long double"
 .It Sy Architecture Ta Sy float, double Ta Sy long double
 .It aarch64     Ta hard Ta soft, quad precision
 .It amd64       Ta hard Ta hard, 80 bit
@@ -295,7 +295,7 @@ and Binutils
 .Xr ld 1 ,
 or an external toolchain compiler and linker provided by a port or package.
 This table shows the default tool chain for each architecture.
-.Bl -column -offset indent "Sy Architecture" "Sy Compiler" "Sy Linker"
+.Bl -column -offset indent "Architecture" "Compiler" "Linker"
 .It Sy Architecture Ta Sy Compiler Ta Sy Linker
 .It aarch64     Ta Clang     Ta lld
 .It amd64       Ta Clang     Ta lld
@@ -352,7 +352,7 @@ cc -x c -dM -E /dev/null
 .Ed
 .Pp
 Common type size and endianness macros:
-.Bl -column -offset indent "BYTE_ORDER" "Sy Meaning"
+.Bl -column -offset indent "BYTE_ORDER" "Meaning"
 .It Sy Macro Ta Sy Meaning
 .It Dv __LP64__ Ta 64-bit (8-byte) long and pointer, 32-bit (4-byte) int
 .It Dv __ILP32__ Ta 32-bit (4-byte) int, long and pointer
@@ -363,7 +363,7 @@ is not used on
 .El
 .Pp
 Architecture-specific macros:
-.Bl -column -offset indent "Sy Architecture" "Sy Predefined macros"
+.Bl -column -offset indent "Architecture" "Predefined macros"
 .It Sy Architecture Ta Sy Predefined macros
 .It aarch64     Ta Dv __aarch64__
 .It amd64       Ta Dv __amd64__, Dv __x86_64__
