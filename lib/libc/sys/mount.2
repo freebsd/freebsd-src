@@ -307,6 +307,10 @@ No space remains in the mount table.
 .It Bq Er EINVAL
 The super block for the file system had a bad magic
 number or an out of range block size.
+.It Bq Er EINTEGRITY
+The super block for the file system had a bad check hash.
+The check hash can usually be corrected by running
+.Xr fsck 8 .
 .It Bq Er ENOMEM
 Not enough memory was available to read the cylinder
 group information for the file system.
