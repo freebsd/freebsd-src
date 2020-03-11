@@ -15,4 +15,14 @@ licenses = [ ISCL ]
 desc = <<EOD
 %DESC%
 EOD
+scripts: {
+    post-install = <<EOD
+    sed -i "" 's+keyfile="/etc/ssh+mkdir -p /var/ssh; keyfile="/var/ssh+' ${PKG_ROOTDIR}/etc/rc.d/sshd
+    sed -i "" 's+^[#[:blank:]]*HostKey[[:blank:]]*/etc/ssh+HostKey /var/ssh+' ${PKG_ROOTDIR}/etc/ssh/sshd_config
+    sed -i "" 's+^[#[:blank:]]*PasswordAuthentication[[:blank:]].*+PasswordAuthentication no+' ${PKG_ROOTDIR}/etc/ssh/sshd_config
+    sed -i "" 's+^[#[:blank:]]*ChallengeResponseAuthentication[[:blank:]].*+ChallengeResponseAuthentication no+' ${PKG_ROOTDIR}/etc/ssh/sshd_config
+    sed -i "" 's+^[#[:blank:]]*PermitRootLogin[[:blank:]].*+PermitRootLogin yes+' ${PKG_ROOTDIR}/etc/ssh/sshd_config
+    sed -i "" 's+^[#[:blank:]]*AuthorizedKeysFile[[:blank:]].*+AuthorizedKeysFile /var/ssh/%u/authorized_keys+' ${PKG_ROOTDIR}/etc/ssh/sshd_config
+EOD
+}
 
