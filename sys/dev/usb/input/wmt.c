@@ -201,6 +201,7 @@ struct wmt_softc
 	uint32_t		caps;
 	uint32_t		isize;
 	uint32_t		nconts_max;
+	uint32_t		report_len;
 	uint8_t			report_id;
 
 	struct hid_location	cont_max_loc;
@@ -492,10 +493,11 @@ wmt_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(6, "sc=%p actlen=%d\n", sc, len);
 
-		if (len >= (int)sc->isize || (len > 0 && sc->report_id != 0)) {
+		if (len >= (int)sc->report_len ||
+		    (len > 0 && sc->report_id != 0)) {
 			/* Limit report length to the maximum */
-			if (len > (int)sc->isize)
-				len = sc->isize;
+			if (len > (int)sc->report_len)
+				len = sc->report_len;
 
 			usbd_copy_out(pc, 0, buf, len);
 
@@ -504,8 +506,8 @@ wmt_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				goto tr_ignore;
 
 			/* Make sure we don't process old data */
-			if (len < sc->isize)
-				bzero(buf + len, sc->isize - len);
+			if (len < sc->report_len)
+				bzero(buf + len, sc->report_len - len);
 
 			/* Strip leading "report ID" byte */
 			if (sc->report_id) {
@@ -521,7 +523,7 @@ tr_ignore:
 
 	case USB_ST_SETUP:
 tr_setup:
-		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_xfer_set_frame_len(xfer, 0, sc->isize);
 		usbd_transfer_submit(xfer);
 		break;
 	default:
@@ -807,7 +809,9 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 		sc->ai[WMT_ORIENTATION].max = 1;
 	}
 
-	sc->isize = wmt_hid_report_size(d_ptr, d_len, hid_input, report_id);
+	sc->isize = hid_report_size(d_ptr, d_len, hid_input, NULL);
+	sc->report_len = wmt_hid_report_size(d_ptr, d_len, hid_input,
+	    report_id);
 	sc->cont_max_rlen = wmt_hid_report_size(d_ptr, d_len, hid_feature,
 	    cont_max_rid);
 	if (thqa_cert_rid > 0)
