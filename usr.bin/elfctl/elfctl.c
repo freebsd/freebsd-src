@@ -352,6 +352,7 @@ get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
 			descsz = roundup2(note.n_descsz, 4);
 			if (read(fd, name, namesz) < namesz) {
 				warnx("elf note name too short");
+				free(name);
 				return (false);
 			}
 			read_total += namesz;
@@ -386,6 +387,7 @@ get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
 			if (read(fd, features, sizeof(uint32_t)) <
 			    (ssize_t)sizeof(uint32_t)) {
 				warnx("feature note data too short");
+				free(name);
 				return (false);
 			}
 			if (off != NULL)
