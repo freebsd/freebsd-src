@@ -153,7 +153,7 @@ mixer_set_softpcmvol(struct snd_mixer *m, struct snddev_info *d,
 	struct pcm_channel *c;
 	int dropmtx, acquiremtx;
 
-	if (!PCM_REGISTERED(d))
+	if (PCM_DETACHING(d) || !PCM_REGISTERED(d))
 		return (EINVAL);
 
 	if (mtx_owned(m->lock))
@@ -206,7 +206,7 @@ mixer_set_eq(struct snd_mixer *m, struct snddev_info *d,
 	else
 		return (EINVAL);
 
-	if (!PCM_REGISTERED(d))
+	if (PCM_DETACHING(d) || !PCM_REGISTERED(d))
 		return (EINVAL);
 
 	if (mtx_owned(m->lock))
@@ -1046,7 +1046,7 @@ mixer_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	m = i_dev->si_drv1;
 	d = device_get_softc(m->dev);
-	if (!PCM_REGISTERED(d))
+	if (PCM_DETACHING(d) || !PCM_REGISTERED(d))
 		return (EBADF);
 
 	/* XXX Need Giant magic entry ??? */
@@ -1202,7 +1202,7 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		return (EBADF);
 
 	d = device_get_softc(((struct snd_mixer *)i_dev->si_drv1)->dev);
-	if (!PCM_REGISTERED(d))
+	if (PCM_DETACHING(d) || !PCM_REGISTERED(d))
 		return (EBADF);
 
 	PCM_GIANT_ENTER(d);
@@ -1411,7 +1411,7 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
-		if (!PCM_REGISTERED(d))
+		if (PCM_DETACHING(d) || !PCM_REGISTERED(d))
 			continue;
 
 		/* XXX Need Giant magic entry */
