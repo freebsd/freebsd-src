@@ -58,8 +58,8 @@ ENTRY(FN_NAME)
 	andi.	%r7, %r4, ALIGN_MASK
 	cmpd	%r8, %r7
 	mr	%r7, %r5
-	bne	.Lcopy_remaining_fix_index_byte
 	mr	%r8, %r3		/* save dst */
+	bne	.Lcopy_remaining_fix_index_byte
 
 	/* align src */
 .Lalignment_loop:
