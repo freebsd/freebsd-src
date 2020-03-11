@@ -79,16 +79,6 @@ void		  cam_sim_release(struct cam_sim *sim);
 void	cam_sim_set_path(struct cam_sim *sim, u_int32_t path_id);
 
 
-
-/* Convenience routines for accessing sim attributes. */
-static __inline u_int32_t    cam_sim_path(const struct cam_sim *sim);
-static __inline const char * cam_sim_name(const struct cam_sim *sim);
-static __inline void *	     cam_sim_softc(const struct cam_sim *sim);
-static __inline u_int32_t    cam_sim_unit(const struct cam_sim *sim);
-static __inline u_int32_t    cam_sim_bus(const struct cam_sim *sim);
-
-
-
 /* Generically useful offsets into the sim private area */
 #define spriv_ptr0 sim_priv.entries[0].ptr
 #define spriv_ptr1 sim_priv.entries[1].ptr
