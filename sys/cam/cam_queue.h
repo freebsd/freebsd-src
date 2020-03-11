@@ -102,11 +102,6 @@ void		cam_ccbq_free(struct cam_ccbq *ccbq);
 void		cam_ccbq_fini(struct cam_ccbq *ccbq);
 
 /*
- * Allocate and initialize a cam_queue structure.
- */
-struct camq	*camq_alloc(int size);
-
-/*
  * Resize a cam queue
  */
 u_int32_t	camq_resize(struct camq *queue, int new_size);
@@ -115,13 +110,6 @@ u_int32_t	camq_resize(struct camq *queue, int new_size);
  * Initialize a camq structure.  Return 0 on success, 1 on failure.
  */
 int		camq_init(struct camq *camq, int size);
-
-/*
- * Free a cam_queue structure.  This should only be called if a controller
- * driver failes somehow during its attach routine or is unloaded and has
- * obtained a cam_queue structure.
- */
-void		camq_free(struct camq *queue);
 
 /*
  * Finialize any internal storage or state of a cam_queue.
