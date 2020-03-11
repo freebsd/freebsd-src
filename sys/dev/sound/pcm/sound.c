@@ -1156,6 +1156,8 @@ pcm_unregister(device_t dev)
 	PCM_LOCK(d);
 	PCM_WAIT(d);
 
+	d->flags |= SD_F_DETACHING;
+	
 	if (d->inprog != 0) {
 		device_printf(dev, "unregister: operation in progress\n");
 		PCM_UNLOCK(d);
