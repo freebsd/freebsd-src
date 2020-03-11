@@ -1672,7 +1672,7 @@ vm_page_relookup(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 
 	m = vm_radix_lookup_unlocked(&object->rtree, pindex);
-	KASSERT(m != NULL && vm_page_busied(m) &&
+	KASSERT(m != NULL && (vm_page_busied(m) || vm_page_wired(m)) &&
 	    m->object == object && m->pindex == pindex,
 	    ("vm_page_relookup: Invalid page %p", m));
 	return (m);
