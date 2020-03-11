@@ -4324,17 +4324,6 @@ int scsi_get_asc(struct scsi_sense_data *sense, u_int sense_len,
 		 int show_errors);
 int scsi_get_ascq(struct scsi_sense_data *sense, u_int sense_len,
 		  int show_errors);
-static __inline void scsi_ulto2b(u_int32_t val, u_int8_t *bytes);
-static __inline void scsi_ulto3b(u_int32_t val, u_int8_t *bytes);
-static __inline void scsi_ulto4b(u_int32_t val, u_int8_t *bytes);
-static __inline void scsi_u64to8b(u_int64_t val, u_int8_t *bytes);
-static __inline uint32_t scsi_2btoul(const uint8_t *bytes);
-static __inline uint32_t scsi_3btoul(const uint8_t *bytes);
-static __inline int32_t scsi_3btol(const uint8_t *bytes);
-static __inline uint32_t scsi_4btoul(const uint8_t *bytes);
-static __inline uint64_t scsi_8btou64(const uint8_t *bytes);
-static __inline void *find_mode_page_6(struct scsi_mode_header_6 *mode_header);
-static __inline void *find_mode_page_10(struct scsi_mode_header_10 *mode_header);
 
 static __inline void
 scsi_ulto2b(u_int32_t val, u_int8_t *bytes)
