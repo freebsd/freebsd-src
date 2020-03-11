@@ -416,7 +416,7 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 				return (0);
 			}
 			fs->fs_fmod = 0;
-			return (EINVAL);
+			return (EINTEGRITY);
 		}
 		/* Have to set for old filesystems that predate this field */
 		fs->fs_sblockactualloc = sblockloc;
