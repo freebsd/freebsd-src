@@ -251,7 +251,7 @@ static const struct usb_config wmt_config[WMT_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.flags = { .pipe_bof = 1, .short_xfer_ok = 1 },
-		.bufsize = 0,	/* use wMaxPacketSize */
+		.bufsize = WMT_BSIZE,
 		.callback = &wmt_intr_callback,
 	},
 };
