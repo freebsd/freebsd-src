@@ -4828,7 +4828,7 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 			nfree++;
 #endif
 		if (ps->ps_td != td ||
-		   ps->ps_nsamples == PMC_USER_CALLCHAIN_PENDING ||
+		   ps->ps_nsamples != PMC_USER_CALLCHAIN_PENDING ||
 		   ps->ps_pmc->pm_state != PMC_STATE_RUNNING)
 			continue;
 
