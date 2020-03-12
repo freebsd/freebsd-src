@@ -301,7 +301,7 @@ skip_vnet:
 			if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
 				m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
 				if (m == NULL) {
-					TCPSTAT_INC(tcps_rcvshort);
+					KMOD_TCPSTAT_INC(tcps_rcvshort);
 					m_freem(m);
 					goto skipped_pkt;
 				}
@@ -320,7 +320,7 @@ skip_vnet:
 			} else
 				th->th_sum = in6_cksum(m, IPPROTO_TCP, drop_hdrlen, tlen);
 			if (th->th_sum) {
-				TCPSTAT_INC(tcps_rcvbadsum);
+				KMOD_TCPSTAT_INC(tcps_rcvbadsum);
 				m_freem(m);
 				goto skipped_pkt;
 			}
@@ -347,7 +347,7 @@ skip_vnet:
 			if (m->m_len < sizeof (struct tcpiphdr)) {
 				if ((m = m_pullup(m, sizeof (struct tcpiphdr)))
 				    == NULL) {
-					TCPSTAT_INC(tcps_rcvshort);
+					KMOD_TCPSTAT_INC(tcps_rcvshort);
 					m_freem(m);
 					goto skipped_pkt;
 				}
@@ -385,7 +385,7 @@ skip_vnet:
 				ip->ip_hl = sizeof(*ip) >> 2;
 			}
 			if (th->th_sum) {
-				TCPSTAT_INC(tcps_rcvbadsum);
+				KMOD_TCPSTAT_INC(tcps_rcvbadsum);
 				m_freem(m);
 				goto skipped_pkt;
 			}
@@ -400,7 +400,7 @@ skip_vnet:
 
 		off = th->th_off << 2;
 		if (off < sizeof (struct tcphdr) || off > tlen) {
-			TCPSTAT_INC(tcps_rcvbadoff);
+			KMOD_TCPSTAT_INC(tcps_rcvbadoff);
 				m_freem(m);
 				goto skipped_pkt;
 		}
@@ -539,11 +539,11 @@ ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcp
 			 */
 			tp->t_flags |= TF_ACKNOW;
 			todrop = tlen;
-			TCPSTAT_INC(tcps_rcvduppack);
-			TCPSTAT_ADD(tcps_rcvdupbyte, todrop);
+			KMOD_TCPSTAT_INC(tcps_rcvduppack);
+			KMOD_TCPSTAT_ADD(tcps_rcvdupbyte, todrop);
 		} else {
-			TCPSTAT_INC(tcps_rcvpartduppack);
-			TCPSTAT_ADD(tcps_rcvpartdupbyte, todrop);
+			KMOD_TCPSTAT_INC(tcps_rcvpartduppack);
+			KMOD_TCPSTAT_ADD(tcps_rcvpartdupbyte, todrop);
 		}
 		/*
 		 * DSACK - add SACK block for dropped range
@@ -573,9 +573,9 @@ ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcp
 	 */
 	todrop = (th->th_seq + tlen) - (tp->rcv_nxt + tp->rcv_wnd);
 	if (todrop > 0) {
-		TCPSTAT_INC(tcps_rcvpackafterwin);
+		KMOD_TCPSTAT_INC(tcps_rcvpackafterwin);
 		if (todrop >= tlen) {
-			TCPSTAT_ADD(tcps_rcvbyteafterwin, tlen);
+			KMOD_TCPSTAT_ADD(tcps_rcvbyteafterwin, tlen);
 			/*
 			 * If window is closed can only take segments at
 			 * window edge, and have to drop data and PUSH from
@@ -585,13 +585,13 @@ ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcp
 			 */
 			if (tp->rcv_wnd == 0 && th->th_seq == tp->rcv_nxt) {
 				tp->t_flags |= TF_ACKNOW;
-				TCPSTAT_INC(tcps_rcvwinprobe);
+				KMOD_TCPSTAT_INC(tcps_rcvwinprobe);
 			} else {
 				ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
 				return (1);
 			}
 		} else
-			TCPSTAT_ADD(tcps_rcvbyteafterwin, todrop);
+			KMOD_TCPSTAT_ADD(tcps_rcvbyteafterwin, todrop);
 		m_adj(m, -todrop);
 		tlen -= todrop;
 		thflags &= ~(TH_PUSH | TH_FIN);
@@ -677,7 +677,7 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 		    (tp->last_ack_sent == th->th_seq) ||
 		    (tp->rcv_nxt == th->th_seq) ||
 		    ((tp->last_ack_sent - 1) == th->th_seq)) {
-			TCPSTAT_INC(tcps_drops);
+			KMOD_TCPSTAT_INC(tcps_drops);
 			/* Drop the connection. */
 			switch (tp->t_state) {
 			case TCPS_SYN_RECEIVED:
@@ -699,7 +699,7 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 			dropped = 1;
 			ctf_do_drop(m, tp);
 		} else {
-			TCPSTAT_INC(tcps_badrst);
+			KMOD_TCPSTAT_INC(tcps_badrst);
 			/* Send challenge ACK. */
 			tcp_respond(tp, mtod(m, void *), th, m,
 			    tp->rcv_nxt, tp->snd_nxt, TH_ACK);
@@ -723,7 +723,7 @@ ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t *
 
 	NET_EPOCH_ASSERT();
 
-	TCPSTAT_INC(tcps_badsyn);
+	KMOD_TCPSTAT_INC(tcps_badsyn);
 	if (V_tcp_insecure_syn &&
 	    SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
 	    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) {
@@ -766,9 +766,9 @@ ctf_ts_check(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 		 */
 		tp->ts_recent = 0;
 	} else {
-		TCPSTAT_INC(tcps_rcvduppack);
-		TCPSTAT_ADD(tcps_rcvdupbyte, tlen);
-		TCPSTAT_INC(tcps_pawsdrop);
+		KMOD_TCPSTAT_INC(tcps_rcvduppack);
+		KMOD_TCPSTAT_ADD(tcps_rcvdupbyte, tlen);
+		KMOD_TCPSTAT_INC(tcps_pawsdrop);
 		*ret_val = 0;
 		if (tlen) {
 			ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
