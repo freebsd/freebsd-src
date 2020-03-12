@@ -972,6 +972,7 @@ OLD_FILES+=usr/share/snmp/defs/mibII_tree.def
 OLD_FILES+=usr/share/snmp/defs/netgraph_tree.def
 OLD_FILES+=usr/share/snmp/defs/pf_tree.def
 OLD_FILES+=usr/share/snmp/defs/target_tree.def
+OLD_FILES+=usr/share/snmp/defs/tc.def
 OLD_FILES+=usr/share/snmp/defs/tree.def
 OLD_FILES+=usr/share/snmp/defs/usm_tree.def
 OLD_FILES+=usr/share/snmp/defs/vacm_tree.def
