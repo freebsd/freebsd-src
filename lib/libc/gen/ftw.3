@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2020
+.Dd March 12, 2020
 .Dt FTW 3
 .Os
 .Sh NAME
@@ -209,6 +209,7 @@ nftw_callback(const char *path, const struct stat *sb, int typeflag, struct FTW 
 int
 main(int argc, char **argv)
 {
+
 	if (argc != 2) {
 		printf("Usage %s <directory>\\n", argv[0]);
 		return (EX_USAGE);
