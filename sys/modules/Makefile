@@ -766,6 +766,7 @@ _virtio=	virtio
 
 .if ${MACHINE_ARCH} == "powerpc64"
 _ipmi=		ipmi
+_ixl=		ixl
 _nvram=		opal_nvram
 .endif
 .if ${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "powerpc"
