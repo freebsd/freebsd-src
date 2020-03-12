@@ -1866,7 +1866,7 @@ bbr_progress_timeout_check(struct tcp_bbr *bbr)
 			bbr_log_progress_event(bbr, bbr->rc_tp, ticks, PROGRESS_DROP, __LINE__);
 			BBR_STAT_INC(bbr_progress_drops);
 #ifdef NETFLIX_STATS
-			TCPSTAT_INC(tcps_progdrops);
+			KMOD_TCPSTAT_INC(tcps_progdrops);
 #endif
 			return (1);
 		}
@@ -4067,7 +4067,7 @@ bbr_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type, struct bbr_s
 		}
 		break;
 	case CC_RTO_ERR:
-		TCPSTAT_INC(tcps_sndrexmitbad);
+		KMOD_TCPSTAT_INC(tcps_sndrexmitbad);
 		/* RTO was unnecessary, so reset everything. */
 		bbr_reset_lt_bw_sampling(bbr, bbr->r_ctl.rc_rcvtime);
 		if (bbr->rc_bbr_state != BBR_STATE_PROBE_RTT) {
@@ -4808,7 +4808,7 @@ bbr_timeout_delack(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	bbr_log_to_event(bbr, cts, BBR_TO_FRM_DELACK);
 	tp->t_flags &= ~TF_DELACK;
 	tp->t_flags |= TF_ACKNOW;
-	TCPSTAT_INC(tcps_delack);
+	KMOD_TCPSTAT_INC(tcps_delack);
 	bbr->r_ctl.rc_hpts_flags &= ~PACE_TMR_DELACK;
 	return (0);
 }
@@ -4840,7 +4840,7 @@ bbr_timeout_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 */
 	bbr_log_to_event(bbr, cts, BBR_TO_FRM_PERSIST);
 	bbr->r_ctl.rc_hpts_flags &= ~PACE_TMR_PERSIT;
-	TCPSTAT_INC(tcps_persisttimeo);
+	KMOD_TCPSTAT_INC(tcps_persisttimeo);
 	/*
 	 * Have we exceeded the user specified progress time?
 	 */
@@ -4857,7 +4857,7 @@ bbr_timeout_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
 	    ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
-		TCPSTAT_INC(tcps_persistdrop);
+		KMOD_TCPSTAT_INC(tcps_persistdrop);
 		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
 		goto out;
 	}
@@ -4873,7 +4873,7 @@ bbr_timeout_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 */
 	if (tp->t_state > TCPS_CLOSE_WAIT &&
 	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
-		TCPSTAT_INC(tcps_persistdrop);
+		KMOD_TCPSTAT_INC(tcps_persistdrop);
 		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
 		goto out;
 	}
@@ -4916,7 +4916,7 @@ bbr_timeout_keepalive(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 * Keep-alive timer went off; send something or drop connection if
 	 * idle for too long.
 	 */
-	TCPSTAT_INC(tcps_keeptimeo);
+	KMOD_TCPSTAT_INC(tcps_keeptimeo);
 	if (tp->t_state < TCPS_ESTABLISHED)
 		goto dropit;
 	if ((V_tcp_always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
@@ -4933,7 +4933,7 @@ bbr_timeout_keepalive(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 		 * protocol spec, this requires the correspondent TCP to
 		 * respond.
 		 */
-		TCPSTAT_INC(tcps_keepprobe);
+		KMOD_TCPSTAT_INC(tcps_keepprobe);
 		t_template = tcpip_maketemplate(inp);
 		if (t_template) {
 			tcp_respond(tp, t_template->tt_ipgen,
@@ -4945,7 +4945,7 @@ bbr_timeout_keepalive(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	bbr_start_hpts_timer(bbr, tp, cts, 4, 0, 0);
 	return (1);
 dropit:
-	TCPSTAT_INC(tcps_keepdrops);
+	KMOD_TCPSTAT_INC(tcps_keepdrops);
 	tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
 	return (1);
 }
@@ -5074,7 +5074,7 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	}
 	if (tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
-		TCPSTAT_INC(tcps_timeoutdrop);
+		KMOD_TCPSTAT_INC(tcps_timeoutdrop);
 		retval = 1;
 		tcp_set_inp_to_drop(bbr->rc_inp,
 		    (tp->t_softerror ? (uint16_t) tp->t_softerror : ETIMEDOUT));
@@ -5111,7 +5111,7 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 		tp->snd_cwnd = tp->t_maxseg - bbr->rc_last_options;
 		tp->t_flags &= ~TF_PREVVALID;
 	}
-	TCPSTAT_INC(tcps_rexmttimeo);
+	KMOD_TCPSTAT_INC(tcps_rexmttimeo);
 	if ((tp->t_state == TCPS_SYN_SENT) ||
 	    (tp->t_state == TCPS_SYN_RECEIVED))
 		rexmt = USEC_2_TICKS(BBR_INITIAL_RTO) * tcp_backoff[tp->t_rxtshift];
@@ -5168,7 +5168,7 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 			    tp->t_maxseg > V_tcp_v6pmtud_blackhole_mss) {
 				/* Use the sysctl tuneable blackhole MSS. */
 				tp->t_maxseg = V_tcp_v6pmtud_blackhole_mss;
-				TCPSTAT_INC(tcps_pmtud_blackhole_activated);
+				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_activated);
 			} else if (isipv6) {
 				/* Use the default MSS. */
 				tp->t_maxseg = V_tcp_v6mssdflt;
@@ -5177,7 +5177,7 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 				 * to minmss.
 				 */
 				tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
-				TCPSTAT_INC(tcps_pmtud_blackhole_activated_min_mss);
+				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_activated_min_mss);
 			}
 #endif
 #if defined(INET6) && defined(INET)
@@ -5187,7 +5187,7 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 			if (tp->t_maxseg > V_tcp_pmtud_blackhole_mss) {
 				/* Use the sysctl tuneable blackhole MSS. */
 				tp->t_maxseg = V_tcp_pmtud_blackhole_mss;
-				TCPSTAT_INC(tcps_pmtud_blackhole_activated);
+				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_activated);
 			} else {
 				/* Use the default MSS. */
 				tp->t_maxseg = V_tcp_mssdflt;
@@ -5196,7 +5196,7 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 				 * to minmss.
 				 */
 				tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
-				TCPSTAT_INC(tcps_pmtud_blackhole_activated_min_mss);
+				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_activated_min_mss);
 			}
 #endif
 		} else {
@@ -5213,7 +5213,7 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
 				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
-				TCPSTAT_INC(tcps_pmtud_blackhole_failed);
+				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_failed);
 			}
 		}
 	}
@@ -6508,7 +6508,7 @@ tcp_bbr_xmit_timer_commit(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts)
 		tp->t_rttvar = rtt_ticks << (TCP_RTTVAR_SHIFT - 1);
 		tp->t_rttbest = tp->t_srtt + tp->t_rttvar;
 	}
-	TCPSTAT_INC(tcps_rttupdated);
+	KMOD_TCPSTAT_INC(tcps_rttupdated);
 	tp->t_rttupdated++;
 #ifdef STATS
 	stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_RTT, imax(0, rtt_ticks));
@@ -7973,8 +7973,8 @@ bbr_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	acked = BYTES_THIS_ACK(tp, th);
-	TCPSTAT_ADD(tcps_rcvackpack, (int)nsegs);
-	TCPSTAT_ADD(tcps_rcvackbyte, acked);
+	KMOD_TCPSTAT_ADD(tcps_rcvackpack, (int)nsegs);
+	KMOD_TCPSTAT_ADD(tcps_rcvackbyte, acked);
 
 	/*
 	 * If we just performed our first retransmit, and the ACK arrives
@@ -8336,7 +8336,7 @@ bbr_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		/* keep track of pure window updates */
 		if (tlen == 0 &&
 		    tp->snd_wl2 == th->th_ack && tiwin > tp->snd_wnd)
-			TCPSTAT_INC(tcps_rcvwinupd);
+			KMOD_TCPSTAT_INC(tcps_rcvwinupd);
 		tp->snd_wnd = tiwin;
 		tp->snd_wl1 = th->th_seq;
 		tp->snd_wl2 = th->th_ack;
@@ -8502,8 +8502,8 @@ dodata:				/* XXX */
 			}
 			tp->rcv_nxt += tlen;
 			thflags = th->th_flags & TH_FIN;
-			TCPSTAT_ADD(tcps_rcvpack, (int)nsegs);
-			TCPSTAT_ADD(tcps_rcvbyte, tlen);
+			KMOD_TCPSTAT_ADD(tcps_rcvpack, (int)nsegs);
+			KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				m_freem(m);
@@ -8715,7 +8715,7 @@ bbr_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/* Clean receiver SACK report if present */
 	if (tp->rcv_numsacks)
 		tcp_clean_sackreport(tp);
-	TCPSTAT_INC(tcps_preddat);
+	KMOD_TCPSTAT_INC(tcps_preddat);
 	tp->rcv_nxt += tlen;
 	/*
 	 * Pull snd_wl1 up to prevent seq wrap relative to th_seq.
@@ -8725,8 +8725,8 @@ bbr_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * Pull rcv_up up to prevent seq wrap relative to rcv_nxt.
 	 */
 	tp->rcv_up = tp->rcv_nxt;
-	TCPSTAT_ADD(tcps_rcvpack, (int)nsegs);
-	TCPSTAT_ADD(tcps_rcvbyte, tlen);
+	KMOD_TCPSTAT_ADD(tcps_rcvpack, (int)nsegs);
+	KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp,
@@ -8886,7 +8886,7 @@ bbr_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * This is a pure ack for outstanding data.
 	 */
-	TCPSTAT_INC(tcps_predack);
+	KMOD_TCPSTAT_INC(tcps_predack);
 
 	/*
 	 * "bad retransmit" recovery.
@@ -8911,8 +8911,8 @@ bbr_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	hhook_run_tcp_est_in(tp, th, to);
 #endif
 
-	TCPSTAT_ADD(tcps_rcvackpack, (int)nsegs);
-	TCPSTAT_ADD(tcps_rcvackbyte, acked);
+	KMOD_TCPSTAT_ADD(tcps_rcvackpack, (int)nsegs);
+	KMOD_TCPSTAT_ADD(tcps_rcvackbyte, acked);
 	sbdrop(&so->so_snd, acked);
 
 	if (SEQ_GT(th->th_ack, tp->snd_una))
@@ -9026,7 +9026,7 @@ bbr_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (thflags & TH_ACK) {
 		int tfo_partial = 0;
 
-		TCPSTAT_INC(tcps_connects);
+		KMOD_TCPSTAT_INC(tcps_connects);
 		soisconnected(so);
 #ifdef MAC
 		mac_socketpeer_set_from_mbuf(m, so);
@@ -9119,8 +9119,8 @@ bbr_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		m_adj(m, -todrop);
 		tlen = tp->rcv_wnd;
 		thflags &= ~TH_FIN;
-		TCPSTAT_INC(tcps_rcvpackafterwin);
-		TCPSTAT_ADD(tcps_rcvbyteafterwin, todrop);
+		KMOD_TCPSTAT_INC(tcps_rcvpackafterwin);
+		KMOD_TCPSTAT_ADD(tcps_rcvbyteafterwin, todrop);
 	}
 	tp->snd_wl1 = th->th_seq - 1;
 	tp->rcv_up = th->th_seq;
@@ -9287,7 +9287,7 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		return (bbr_process_data(m, th, so, tp, drop_hdrlen, tlen,
 					 tiwin, thflags, nxt_pkt));
 	}
-	TCPSTAT_INC(tcps_connects);
+	KMOD_TCPSTAT_INC(tcps_connects);
 	soisconnected(so);
 	/* Do window scaling? */
 	if ((tp->t_flags & (TF_RCVD_SCALE | TF_REQ_SCALE)) ==
@@ -9624,7 +9624,7 @@ bbr_check_data_after_close(struct mbuf *m, struct tcp_bbr *bbr,
 	if (bbr->rc_allow_data_af_clo == 0) {
 close_now:
 		tp = tcp_close(tp);
-		TCPSTAT_INC(tcps_rcvafterclose);
+		KMOD_TCPSTAT_INC(tcps_rcvafterclose);
 		ctf_do_dropwithreset(m, tp, th, BANDLIM_UNLIMITED, (*tlen));
 		return (1);
 	}
@@ -11948,8 +11948,8 @@ static inline void
 bbr_do_error_accounting(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap *rsm, int32_t len, int32_t error)
 {
 #ifdef NETFLIX_STATS
-	TCPSTAT_INC(tcps_sndpack_error);
-	TCPSTAT_ADD(tcps_sndbyte_error, len);
+	KMOD_TCPSTAT_INC(tcps_sndpack_error);
+	KMOD_TCPSTAT_ADD(tcps_sndbyte_error, len);
 #endif
 }
 
@@ -11962,7 +11962,7 @@ bbr_do_send_accounting(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap
 	}
 	if ((tp->t_flags & TF_FORCEDATA) && len == 1) {
 		/* Window probe */
-		TCPSTAT_INC(tcps_sndprobe);
+		KMOD_TCPSTAT_INC(tcps_sndprobe);
 #ifdef STATS
 		stats_voi_update_abs_u32(tp->t_stats,
 		    VOI_TCP_RETXPB, len);
@@ -11976,14 +11976,14 @@ bbr_do_send_accounting(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap
 #ifdef NETFLIX_STATS
 			tp->t_sndtlppack++;
 			tp->t_sndtlpbyte += len;
-			TCPSTAT_INC(tcps_tlpresends);
-			TCPSTAT_ADD(tcps_tlpresend_bytes, len);
+			KMOD_TCPSTAT_INC(tcps_tlpresends);
+			KMOD_TCPSTAT_ADD(tcps_tlpresend_bytes, len);
 #endif
 		} else {
 			/* Retransmit */
 			tp->t_sndrexmitpack++;
-			TCPSTAT_INC(tcps_sndrexmitpack);
-			TCPSTAT_ADD(tcps_sndrexmitbyte, len);
+			KMOD_TCPSTAT_INC(tcps_sndrexmitpack);
+			KMOD_TCPSTAT_ADD(tcps_sndrexmitbyte, len);
 #ifdef STATS
 			stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_RETXPB,
 			    len);
@@ -12015,8 +12015,8 @@ bbr_do_send_accounting(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap
 
 	} else {
 		/* New sends */
-		TCPSTAT_INC(tcps_sndpack);
-		TCPSTAT_ADD(tcps_sndbyte, len);
+		KMOD_TCPSTAT_INC(tcps_sndpack);
+		KMOD_TCPSTAT_ADD(tcps_sndbyte, len);
 		/* Place in 17's the total sent */
 		counter_u64_add(bbr_state_resend[17], len);
 		counter_u64_add(bbr_state_lost[17], len);
@@ -12480,8 +12480,8 @@ recheck_resend:
 		sb_offset = rsm->r_start - tp->snd_una;
 		if (len > 0) {
 			sack_rxmit = 1;
-			TCPSTAT_INC(tcps_sack_rexmits);
-			TCPSTAT_ADD(tcps_sack_rexmit_bytes,
+			KMOD_TCPSTAT_INC(tcps_sack_rexmits);
+			KMOD_TCPSTAT_ADD(tcps_sack_rexmit_bytes,
 			    min(len, maxseg));
 		} else {
 			/* I dont think this can happen */
@@ -13574,13 +13574,13 @@ send:
 	} else {
 		SOCKBUF_UNLOCK(sb);
 		if (tp->t_flags & TF_ACKNOW)
-			TCPSTAT_INC(tcps_sndacks);
+			KMOD_TCPSTAT_INC(tcps_sndacks);
 		else if (flags & (TH_SYN | TH_FIN | TH_RST))
-			TCPSTAT_INC(tcps_sndctrl);
+			KMOD_TCPSTAT_INC(tcps_sndctrl);
 		else if (SEQ_GT(tp->snd_up, tp->snd_una))
-			TCPSTAT_INC(tcps_sndurg);
+			KMOD_TCPSTAT_INC(tcps_sndurg);
 		else
-			TCPSTAT_INC(tcps_sndwinup);
+			KMOD_TCPSTAT_INC(tcps_sndwinup);
 
 		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL) {
@@ -14290,7 +14290,7 @@ nomore:
 		tp->t_flags |= TF_GPUTINPROG;
 #endif
 	}
-	TCPSTAT_INC(tcps_sndtotal);
+	KMOD_TCPSTAT_INC(tcps_sndtotal);
 	if ((bbr->bbr_hdw_pace_ena) &&
 	    (bbr->bbr_attempt_hdwr_pace == 0) &&
 	    (bbr->rc_past_init_win) &&

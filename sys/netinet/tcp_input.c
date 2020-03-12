@@ -266,14 +266,14 @@ VNET_SYSUNINIT(tcp_vnet_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
 #endif /* VIMAGE */
 
 /*
- * Kernel module interface for updating tcpstat.  The argument is an index
+ * Kernel module interface for updating tcpstat.  The first argument is an index
  * into tcpstat treated as an array.
  */
 void
-kmod_tcpstat_inc(int statnum)
+kmod_tcpstat_add(int statnum, int val)
 {
 
-	counter_u64_add(VNET(tcpstat)[statnum], 1);
+	counter_u64_add(VNET(tcpstat)[statnum], val);
 }
 
 #ifdef TCP_HHOOK

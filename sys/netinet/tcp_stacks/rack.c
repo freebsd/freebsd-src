@@ -1104,7 +1104,7 @@ rack_progress_timeout_check(struct tcpcb *tp)
 			rack = (struct tcp_rack *)tp->t_fb_ptr;
 			counter_u64_add(rack_progress_drops, 1);
 #ifdef NETFLIX_STATS
-			TCPSTAT_INC(tcps_progdrops);
+			KMOD_TCPSTAT_INC(tcps_progdrops);
 #endif
 			rack_log_progress_event(rack, tp, ticks, PROGRESS_DROP, __LINE__);
 			return (1);
@@ -1801,7 +1801,7 @@ rack_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 		break;
 	case CC_ECN:
 		if (!IN_CONGRECOVERY(tp->t_flags)) {
-			TCPSTAT_INC(tcps_ecn_rcwnd);
+			KMOD_TCPSTAT_INC(tcps_ecn_rcwnd);
 			tp->snd_recover = tp->snd_max;
 			if (tp->t_flags2 & TF2_ECN_PERMIT)
 				tp->t_flags2 |= TF2_ECN_SND_CWR;
@@ -1818,7 +1818,7 @@ rack_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 			tp->t_flags2 |= TF2_ECN_SND_CWR;
 		break;
 	case CC_RTO_ERR:
-		TCPSTAT_INC(tcps_sndrexmitbad);
+		KMOD_TCPSTAT_INC(tcps_sndrexmitbad);
 		/* RTO was unnecessary, so reset everything. */
 		tp->snd_cwnd = tp->snd_cwnd_prev;
 		tp->snd_ssthresh = tp->snd_ssthresh_prev;
@@ -1853,9 +1853,9 @@ rack_cc_after_idle(struct tcpcb *tp)
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 #ifdef NETFLIX_STATS
-	TCPSTAT_INC(tcps_idle_restarts);
+	KMOD_TCPSTAT_INC(tcps_idle_restarts);
 	if (tp->t_state == TCPS_ESTABLISHED)
-		TCPSTAT_INC(tcps_idle_estrestarts);
+		KMOD_TCPSTAT_INC(tcps_idle_estrestarts);
 #endif
 	if (CC_ALGO(tp)->after_idle != NULL)
 		CC_ALGO(tp)->after_idle(tp->ccv);
@@ -2915,7 +2915,7 @@ rack_timeout_delack(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	rack_log_to_event(rack, RACK_TO_FRM_DELACK, 0);
 	tp->t_flags &= ~TF_DELACK;
 	tp->t_flags |= TF_ACKNOW;
-	TCPSTAT_INC(tcps_delack);
+	KMOD_TCPSTAT_INC(tcps_delack);
 	rack->r_ctl.rc_hpts_flags &= ~PACE_TMR_DELACK;
 	return (0);
 }
@@ -2951,7 +2951,7 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	 * Persistence timer into zero window. Force a byte to be output, if
 	 * possible.
 	 */
-	TCPSTAT_INC(tcps_persisttimeo);
+	KMOD_TCPSTAT_INC(tcps_persisttimeo);
 	/*
 	 * Hack: if the peer is dead/unreachable, we do not time out if the
 	 * window is closed.  After a full backoff, drop the connection if
@@ -2961,7 +2961,7 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
 	    ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
-		TCPSTAT_INC(tcps_persistdrop);
+		KMOD_TCPSTAT_INC(tcps_persistdrop);
 		retval = 1;
 		tcp_set_inp_to_drop(rack->rc_inp, ETIMEDOUT);
 		goto out;
@@ -2977,7 +2977,7 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	if (tp->t_state > TCPS_CLOSE_WAIT &&
 	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
 		retval = 1;
-		TCPSTAT_INC(tcps_persistdrop);
+		KMOD_TCPSTAT_INC(tcps_persistdrop);
 		tcp_set_inp_to_drop(rack->rc_inp, ETIMEDOUT);
 		goto out;
 	}
@@ -3022,7 +3022,7 @@ rack_timeout_keepalive(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	 * Keep-alive timer went off; send something or drop connection if
 	 * idle for too long.
 	 */
-	TCPSTAT_INC(tcps_keeptimeo);
+	KMOD_TCPSTAT_INC(tcps_keeptimeo);
 	if (tp->t_state < TCPS_ESTABLISHED)
 		goto dropit;
 	if ((V_tcp_always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
@@ -3039,7 +3039,7 @@ rack_timeout_keepalive(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 		 * protocol spec, this requires the correspondent TCP to
 		 * respond.
 		 */
-		TCPSTAT_INC(tcps_keepprobe);
+		KMOD_TCPSTAT_INC(tcps_keepprobe);
 		t_template = tcpip_maketemplate(inp);
 		if (t_template) {
 			tcp_respond(tp, t_template->tt_ipgen,
@@ -3051,7 +3051,7 @@ rack_timeout_keepalive(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	rack_start_hpts_timer(rack, tp, cts, 0, 0, 0);
 	return (1);
 dropit:
-	TCPSTAT_INC(tcps_keepdrops);
+	KMOD_TCPSTAT_INC(tcps_keepdrops);
 	tcp_set_inp_to_drop(rack->rc_inp, ETIMEDOUT);
 	return (1);
 }
@@ -3156,7 +3156,7 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	}
 	if (tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
-		TCPSTAT_INC(tcps_timeoutdrop);
+		KMOD_TCPSTAT_INC(tcps_timeoutdrop);
 		retval = 1;
 		tcp_set_inp_to_drop(rack->rc_inp,
 		    (tp->t_softerror ? (uint16_t) tp->t_softerror : ETIMEDOUT));
@@ -3193,7 +3193,7 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 		tp->t_flags |= TF_PREVVALID;
 	} else
 		tp->t_flags &= ~TF_PREVVALID;
-	TCPSTAT_INC(tcps_rexmttimeo);
+	KMOD_TCPSTAT_INC(tcps_rexmttimeo);
 	if ((tp->t_state == TCPS_SYN_SENT) ||
 	    (tp->t_state == TCPS_SYN_RECEIVED))
 		rexmt = MSEC_2_TICKS(RACK_INITIAL_RTO * tcp_backoff[tp->t_rxtshift]);
@@ -3248,7 +3248,7 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 			    tp->t_maxseg > V_tcp_v6pmtud_blackhole_mss) {
 				/* Use the sysctl tuneable blackhole MSS. */
 				tp->t_maxseg = V_tcp_v6pmtud_blackhole_mss;
-				TCPSTAT_INC(tcps_pmtud_blackhole_activated);
+				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_activated);
 			} else if (isipv6) {
 				/* Use the default MSS. */
 				tp->t_maxseg = V_tcp_v6mssdflt;
@@ -3257,7 +3257,7 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 				 * to minmss.
 				 */
 				tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
-				TCPSTAT_INC(tcps_pmtud_blackhole_activated_min_mss);
+				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_activated_min_mss);
 			}
 #endif
 #if defined(INET6) && defined(INET)
@@ -3267,7 +3267,7 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 			if (tp->t_maxseg > V_tcp_pmtud_blackhole_mss) {
 				/* Use the sysctl tuneable blackhole MSS. */
 				tp->t_maxseg = V_tcp_pmtud_blackhole_mss;
-				TCPSTAT_INC(tcps_pmtud_blackhole_activated);
+				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_activated);
 			} else {
 				/* Use the default MSS. */
 				tp->t_maxseg = V_tcp_mssdflt;
@@ -3276,7 +3276,7 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 				 * to minmss.
 				 */
 				tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
-				TCPSTAT_INC(tcps_pmtud_blackhole_activated_min_mss);
+				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_activated_min_mss);
 			}
 #endif
 		} else {
@@ -3293,7 +3293,7 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
 				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
-				TCPSTAT_INC(tcps_pmtud_blackhole_failed);
+				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_failed);
 			}
 		}
 	}
@@ -3898,7 +3898,7 @@ tcp_rack_xmit_timer_commit(struct tcp_rack *rack, struct tcpcb *tp)
 		tp->t_rttvar = rtt << (TCP_RTTVAR_SHIFT - 1);
 		tp->t_rttbest = tp->t_srtt + tp->t_rttvar;
 	}
-	TCPSTAT_INC(tcps_rttupdated);
+	KMOD_TCPSTAT_INC(tcps_rttupdated);
 	rack_log_rtt_upd(tp, rack, rtt, o_srtt, o_var);
 	tp->t_rttupdated++;
 #ifdef STATS
@@ -5350,8 +5350,8 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	acked = BYTES_THIS_ACK(tp, th);
-	TCPSTAT_ADD(tcps_rcvackpack, nsegs);
-	TCPSTAT_ADD(tcps_rcvackbyte, acked);
+	KMOD_TCPSTAT_ADD(tcps_rcvackpack, nsegs);
+	KMOD_TCPSTAT_ADD(tcps_rcvackbyte, acked);
 
 	/*
 	 * If we just performed our first retransmit, and the ACK arrives
@@ -5581,7 +5581,7 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		/* keep track of pure window updates */
 		if (tlen == 0 &&
 		    tp->snd_wl2 == th->th_ack && tiwin > tp->snd_wnd)
-			TCPSTAT_INC(tcps_rcvwinupd);
+			KMOD_TCPSTAT_INC(tcps_rcvwinupd);
 		tp->snd_wnd = tiwin;
 		tp->snd_wl1 = th->th_seq;
 		tp->snd_wl2 = th->th_ack;
@@ -5748,8 +5748,8 @@ dodata:				/* XXX */
 			}
 			tp->rcv_nxt += tlen;
 			thflags = th->th_flags & TH_FIN;
-			TCPSTAT_ADD(tcps_rcvpack, nsegs);
-			TCPSTAT_ADD(tcps_rcvbyte, tlen);
+			KMOD_TCPSTAT_ADD(tcps_rcvpack, nsegs);
+			KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 				m_freem(m);
@@ -5963,7 +5963,7 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/* Clean receiver SACK report if present */
 	if (tp->rcv_numsacks)
 		tcp_clean_sackreport(tp);
-	TCPSTAT_INC(tcps_preddat);
+	KMOD_TCPSTAT_INC(tcps_preddat);
 	tp->rcv_nxt += tlen;
 	/*
 	 * Pull snd_wl1 up to prevent seq wrap relative to th_seq.
@@ -5973,8 +5973,8 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * Pull rcv_up up to prevent seq wrap relative to rcv_nxt.
 	 */
 	tp->rcv_up = tp->rcv_nxt;
-	TCPSTAT_ADD(tcps_rcvpack, nsegs);
-	TCPSTAT_ADD(tcps_rcvbyte, tlen);
+	KMOD_TCPSTAT_ADD(tcps_rcvpack, nsegs);
+	KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp,
@@ -6133,7 +6133,7 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * This is a pure ack for outstanding data.
 	 */
-	TCPSTAT_INC(tcps_predack);
+	KMOD_TCPSTAT_INC(tcps_predack);
 
 	/*
 	 * "bad retransmit" recovery.
@@ -6158,8 +6158,8 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	hhook_run_tcp_est_in(tp, th, to);
 #endif
 
-	TCPSTAT_ADD(tcps_rcvackpack, nsegs);
-	TCPSTAT_ADD(tcps_rcvackbyte, acked);
+	KMOD_TCPSTAT_ADD(tcps_rcvackpack, nsegs);
+	KMOD_TCPSTAT_ADD(tcps_rcvackbyte, acked);
 	sbdrop(&so->so_snd, acked);
 	/*
 	 * Let the congestion control algorithm update congestion control
@@ -6264,7 +6264,7 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (thflags & TH_ACK) {
 		int tfo_partial = 0;
 
-		TCPSTAT_INC(tcps_connects);
+		KMOD_TCPSTAT_INC(tcps_connects);
 		soisconnected(so);
 #ifdef MAC
 		mac_socketpeer_set_from_mbuf(m, so);
@@ -6301,7 +6301,7 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (((thflags & (TH_CWR | TH_ECE)) == TH_ECE) &&
 		    (V_tcp_do_ecn == 1)) {
 			tp->t_flags2 |= TF2_ECN_PERMIT;
-			TCPSTAT_INC(tcps_ecn_shs);
+			KMOD_TCPSTAT_INC(tcps_ecn_shs);
 		}
 		if (SEQ_GT(th->th_ack, tp->snd_una)) {
 			/*
@@ -6356,8 +6356,8 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		m_adj(m, -todrop);
 		tlen = tp->rcv_wnd;
 		thflags &= ~TH_FIN;
-		TCPSTAT_INC(tcps_rcvpackafterwin);
-		TCPSTAT_ADD(tcps_rcvbyteafterwin, todrop);
+		KMOD_TCPSTAT_INC(tcps_rcvpackafterwin);
+		KMOD_TCPSTAT_ADD(tcps_rcvbyteafterwin, todrop);
 	}
 	tp->snd_wl1 = th->th_seq - 1;
 	tp->rcv_up = th->th_seq;
@@ -6519,7 +6519,7 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
 		    tiwin, thflags, nxt_pkt));
 	}
-	TCPSTAT_INC(tcps_connects);
+	KMOD_TCPSTAT_INC(tcps_connects);
 	soisconnected(so);
 	/* Do window scaling? */
 	if ((tp->t_flags & (TF_RCVD_SCALE | TF_REQ_SCALE)) ==
@@ -6842,7 +6842,7 @@ rack_check_data_after_close(struct mbuf *m,
 	if (rack->rc_allow_data_af_clo == 0) {
 	close_now:
 		tp = tcp_close(tp);
-		TCPSTAT_INC(tcps_rcvafterclose);
+		KMOD_TCPSTAT_INC(tcps_rcvafterclose);
 		ctf_do_dropwithreset(m, tp, th, BANDLIM_UNLIMITED, (*tlen));
 		return (1);
 	}
@@ -7711,13 +7711,13 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		switch (iptos & IPTOS_ECN_MASK) {
 		case IPTOS_ECN_CE:
 			tp->t_flags2 |= TF2_ECN_SND_ECE;
-			TCPSTAT_INC(tcps_ecn_ce);
+			KMOD_TCPSTAT_INC(tcps_ecn_ce);
 			break;
 		case IPTOS_ECN_ECT0:
-			TCPSTAT_INC(tcps_ecn_ect0);
+			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
 			break;
 		case IPTOS_ECN_ECT1:
-			TCPSTAT_INC(tcps_ecn_ect1);
+			KMOD_TCPSTAT_INC(tcps_ecn_ect1);
 			break;
 		}
 
@@ -8379,8 +8379,8 @@ again:
 		if (len > 0) {
 			sub_from_prr = 1;
 			sack_rxmit = 1;
-			TCPSTAT_INC(tcps_sack_rexmits);
-			TCPSTAT_ADD(tcps_sack_rexmit_bytes,
+			KMOD_TCPSTAT_INC(tcps_sack_rexmits);
+			KMOD_TCPSTAT_ADD(tcps_sack_rexmit_bytes,
 			    min(len, ctf_fixed_maxseg(tp)));
 			counter_u64_add(rack_rtm_prr_retran, 1);
 		}
@@ -9318,7 +9318,7 @@ send:
 			}
 		}
 		if ((tp->t_flags & TF_FORCEDATA) && len == 1) {
-			TCPSTAT_INC(tcps_sndprobe);
+			KMOD_TCPSTAT_INC(tcps_sndprobe);
 #ifdef STATS
 			if (SEQ_LT(tp->snd_nxt, tp->snd_max))
 				stats_voi_update_abs_u32(tp->t_stats,
@@ -9337,16 +9337,16 @@ send:
 				counter_u64_add(rack_tlp_retran_bytes, len);
 			} else {
 				tp->t_sndrexmitpack++;
-				TCPSTAT_INC(tcps_sndrexmitpack);
-				TCPSTAT_ADD(tcps_sndrexmitbyte, len);
+				KMOD_TCPSTAT_INC(tcps_sndrexmitpack);
+				KMOD_TCPSTAT_ADD(tcps_sndrexmitbyte, len);
 			}
 #ifdef STATS
 			stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_RETXPB,
 			    len);
 #endif
 		} else {
-			TCPSTAT_INC(tcps_sndpack);
-			TCPSTAT_ADD(tcps_sndbyte, len);
+			KMOD_TCPSTAT_INC(tcps_sndpack);
+			KMOD_TCPSTAT_ADD(tcps_sndbyte, len);
 #ifdef STATS
 			stats_voi_update_abs_u64(tp->t_stats, VOI_TCP_TXPB,
 			    len);
@@ -9381,13 +9381,13 @@ send:
 	} else {
 		SOCKBUF_UNLOCK(sb);
 		if (tp->t_flags & TF_ACKNOW)
-			TCPSTAT_INC(tcps_sndacks);
+			KMOD_TCPSTAT_INC(tcps_sndacks);
 		else if (flags & (TH_SYN | TH_FIN | TH_RST))
-			TCPSTAT_INC(tcps_sndctrl);
+			KMOD_TCPSTAT_INC(tcps_sndctrl);
 		else if (SEQ_GT(tp->snd_up, tp->snd_una))
-			TCPSTAT_INC(tcps_sndurg);
+			KMOD_TCPSTAT_INC(tcps_sndurg);
 		else
-			TCPSTAT_INC(tcps_sndwinup);
+			KMOD_TCPSTAT_INC(tcps_sndwinup);
 
 		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL) {
@@ -9488,7 +9488,7 @@ send:
 			else
 #endif
 				ip->ip_tos |= IPTOS_ECN_ECT0;
-			TCPSTAT_INC(tcps_ecn_ect0);
+			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
 		}
 		/*
 		 * Reply with proper ECN notifications.
@@ -9929,7 +9929,7 @@ out:
 			if (tp->t_rtttime == 0) {
 				tp->t_rtttime = ticks;
 				tp->t_rtseq = startseq;
-				TCPSTAT_INC(tcps_segstimed);
+				KMOD_TCPSTAT_INC(tcps_segstimed);
 			}
 #ifdef STATS
 			if (!(tp->t_flags & TF_GPUTINPROG) && len) {
@@ -10043,7 +10043,7 @@ nomore:
 	} else {
 		rack->rc_enobuf = 0;
 	}
-	TCPSTAT_INC(tcps_sndtotal);
+	KMOD_TCPSTAT_INC(tcps_sndtotal);
 
 	/*
 	 * Data sent (as far as we can tell). If this advertises a larger
