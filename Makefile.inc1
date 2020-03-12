@@ -930,6 +930,7 @@ _cleanobj_fast_depend_hack: .PHONY
 	    egrep -qw '${f}\.c' ${OBJTOP}/lib/libomp/.depend.${f}.pico; then \
 		echo "Removing stale dependencies for ${f}"; \
 		rm -f ${OBJTOP}/lib/libomp/.depend.${f}.* \
+		   ${OBJTOP}/obj-lib32/lib/libomp/.depend.${f}.* \
 		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libomp/.depend.${f}.*}; \
 	fi
 .endfor
