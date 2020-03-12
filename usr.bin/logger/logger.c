@@ -44,10 +44,12 @@ static char sccsid[] = "@(#)logger.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capsicum.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <netdb.h>
@@ -56,6 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <libcasper.h>
+#include <casper/cap_syslog.h>
 
 #define	SYSLOG_NAMES
 #include <syslog.h>
@@ -76,6 +81,7 @@ static void	logmessage(int, const char *, const char *, const char *,
 		    struct socks *, ssize_t, const char *);
 static void	usage(void);
 
+static cap_channel_t *capsyslog;
 #ifdef INET6
 static int family = PF_UNSPEC;	/* protocol family (IPv4, IPv6 or both) */
 #else
@@ -92,12 +98,13 @@ static int send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
 int
 main(int argc, char *argv[])
 {
+	cap_channel_t *capcas;
 	struct socks *socks;
 	ssize_t nsock;
 	time_t now;
 	int ch, logflags, pri;
 	char *tag, *host, buf[1024], *timestamp, tbuf[26],
-	    *hostname, hbuf[MAXHOSTNAMELEN];
+	    *hostname, hbuf[MAXHOSTNAMELEN], *pristr;
 	const char *svcname, *src;
 
 	tag = NULL;
@@ -107,6 +114,7 @@ main(int argc, char *argv[])
 	src = NULL;
 	socks = NULL;
 	pri = LOG_USER | LOG_NOTICE;
+	pristr = NULL;
 	logflags = 0;
 	unsetenv("TZ");
 	while ((ch = getopt(argc, argv, "46Af:H:h:iP:p:S:st:")) != -1)
@@ -140,7 +148,7 @@ main(int argc, char *argv[])
 			svcname = optarg;
 			break;
 		case 'p':		/* priority */
-			pri = pencode(optarg);
+			pristr = optarg;
 			break;
 		case 's':		/* log to standard error */
 			logflags |= LOG_PERROR;
@@ -168,12 +176,25 @@ main(int argc, char *argv[])
 		nsock = 0;
 	}
 
+	capcas = cap_init();
+	if (capcas == NULL)
+		err(1, "Unable to contact Casper");
+	caph_cache_catpages();
+	caph_cache_tzdata();
+	if (caph_enter() < 0)
+		err(1, "Unable to enter capability mode");
+	capsyslog = cap_service_open(capcas, "system.syslog");
+	if (capsyslog == NULL)
+		err(1, "Unable to open system.syslog service");
+	cap_close(capcas);
+
+	if (pristr != NULL)
+		pri = pencode(pristr);
 	if (tag == NULL)
 		tag = getlogin();
 	/* setup for logging */
 	if (host == NULL)
-		openlog(tag, logflags, 0);
-	(void) fclose(stdout);
+		cap_openlog(capsyslog, tag, logflags, 0);
 
 	(void )time(&now);
 	(void )ctime_r(&now, tbuf);
@@ -349,7 +370,7 @@ logmessage(int pri, const char *timestamp, const char *hostname,
 	int len, i, lsent;
 
 	if (nsock == 0) {
-		syslog(pri, "%s", buf);
+		cap_syslog(capsyslog, pri, "%s", buf);
 		return;
 	}
 	if ((len = asprintf(&line, "<%d>%s %s %s: %s", pri, timestamp,

@@ -9,4 +9,10 @@ PROG=	logger
 CFLAGS+= -DINET6
 .endif
 
+.if ${MK_CASPER} != "no"
+LIBADD+=        casper
+LIBADD+=        cap_syslog
+CFLAGS+=-DWITH_CASPER
+.endif
+
 .include <bsd.prog.mk>
