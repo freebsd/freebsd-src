@@ -309,6 +309,8 @@ should look for the kernel and its modules.
 The default is to use the path of the running kernel obtained from the
 .Va kern.bootfile
 sysctl.
+Modules will also be searched for in /boot/modules if not found in
+.Ar kerneldir .
 .It Fl l Ar secs
 Set system-wide performance measurement duration for
 .Ar secs
