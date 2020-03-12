@@ -924,6 +924,15 @@ _sanity_check: .PHONY .MAKE
 _cleanobj_fast_depend_hack: .PHONY
 # Syscall stubs rewritten in C and obsolete MD assembly implementations
 # Date      SVN Rev  Syscalls/Changes
+# 20200310  r358851  rename of openmp's ittnotify_static.c to .cpp
+.for f in ittnotify_static
+	@if [ -e "${OBJTOP}/lib/libomp/.depend.${f}.pico" ] && \
+	    egrep -qw '${f}\.c' ${OBJTOP}/lib/libomp/.depend.${f}.pico; then \
+		echo "Removing stale dependencies for ${f}"; \
+		rm -f ${OBJTOP}/lib/libomp/.depend.${f}.* \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libomp/.depend.${f}.*}; \
+	fi
+.endfor
 # 20191009  r353340  removal of opensolaris_atomic.S (also r353381)
 .if ${MACHINE} != i386
 .for f in opensolaris_atomic
