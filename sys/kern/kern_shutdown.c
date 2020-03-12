@@ -1231,6 +1231,7 @@ dumper_insert(const struct dumperinfo *di_template, const char *devname,
 #endif
 	}
 	if (kda->kda_compression != KERNELDUMP_COMP_NONE) {
+#ifdef EKCD
 		/*
 		 * We can't support simultaneous unpadded block cipher
 		 * encryption and compression because there is no guarantee the
@@ -1241,6 +1242,7 @@ dumper_insert(const struct dumperinfo *di_template, const char *devname,
 			error = EOPNOTSUPP;
 			goto cleanup;
 		}
+#endif
 		newdi->kdcomp = kerneldumpcomp_create(newdi,
 		    kda->kda_compression);
 		if (newdi->kdcomp == NULL) {
