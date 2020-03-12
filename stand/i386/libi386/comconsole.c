@@ -330,6 +330,16 @@ comc_setup(int speed, int port)
 	if ((comconsole.c_flags & (C_ACTIVEIN | C_ACTIVEOUT)) == 0)
 		return;
 
+#define	COMC_TEST	0xbb
+	/*
+	 * Write byte to scratch register and read it out.
+	 */
+	outb(comc_port + com_scr, COMC_TEST);
+	if (inb(comc_port + com_scr) != COMC_TEST) {
+		comconsole.c_flags &= ~(C_PRESENTIN | C_PRESENTOUT);
+		return;
+	}
+
 	outb(comc_port + com_cfcr, CFCR_DLAB | COMC_FMT);
 	outb(comc_port + com_dlbl, COMC_BPS(speed) & 0xff);
 	outb(comc_port + com_dlbh, COMC_BPS(speed) >> 8);
