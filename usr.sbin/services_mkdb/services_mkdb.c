@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 static char tname[MAXPATHLEN];
 
 #define	PMASK		0xffff
-#define PROTOMAX	6
+#define	PROTOMAX	6
 
 static void	add(DB *, StringList *, size_t, const char *, size_t *, int);
 static StringList ***parseservices(const char *, StringList *);
