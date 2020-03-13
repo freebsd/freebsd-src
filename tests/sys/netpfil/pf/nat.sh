@@ -36,8 +36,7 @@ exhaust_head()
 
 exhaust_body()
 {
-	if [ "$(atf_config_get ci false)" = "true" ] && \
-		[ "$(uname -p)" = "amd64" ]; then
+	if [ "$(atf_config_get ci false)" = "true" ]; then
 		atf_skip "https://bugs.freebsd.org/244703"
 	fi
 
