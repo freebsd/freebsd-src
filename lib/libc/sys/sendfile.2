@@ -431,3 +431,12 @@ to
 .Er EFAULT ,
 if provided an invalid address for
 .Fa sbytes .
+The
+.Fn sendfile
+system call does not support SCTP sockets,
+it will return
+.Dv -1
+and set
+.Va errno
+to
+.Er EINVAL.
