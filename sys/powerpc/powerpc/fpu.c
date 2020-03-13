@@ -204,12 +204,7 @@ save_fpu(struct thread *td)
 void
 save_fpu_nodrop(struct thread *td)
 {
-	struct thread *ftd;
 
-	ftd = PCPU_GET(fputhread);
-	if (td != ftd) {
-		return;
-	}
-
-	save_fpu_int(td);
+	if (td == PCPU_GET(fputhread))
+		save_fpu_int(td);
 }
