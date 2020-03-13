@@ -241,6 +241,11 @@ main(int argc, char *argv[])
 		lrel = rrel = 0;
 		if (argc > 1) {
 			m = sscanf(argv[1], "%7[^:]:%7s", lstr, rstr);
+			if (m == EOF) {
+				warnx("invalid value: %s", argv[1]);
+				dusage = 1;
+				break;
+			}
 			if (m > 0) {
 				if (*lstr == '+' || *lstr == '-')
 					lrel = rrel = 1;
