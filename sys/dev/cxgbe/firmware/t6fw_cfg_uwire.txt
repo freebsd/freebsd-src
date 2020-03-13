@@ -95,12 +95,19 @@
 	sge_timer_value = 5, 10, 20, 50, 100, 200 # SGE_TIMER_VALUE* in usecs
 	reg[0x10c4] = 0x20000000/0x20000000 # GK_CONTROL, enable 5th thread
 
-	# Set the SGE Doorbell Queue Timer "tick" to 5us and initialize
+	# Set the SGE Doorbell Queue Timer "tick" to 50us and initialize
 	# the Timer Table to a default set of values (which are multiples
-	# of the Timer Tick).
+	# of the Timer Tick).  Note that the set of Tick Multipliers are
+	# NOT sorted.  The Host Drivers are expected to pick amongst them
+	# for (Tick * Multiplier[i]) values which most closely match the Host
+	# Drivers' needs.  Also, most Host Drivers will be default start
+	# start with (Tick * Multiplier[0]), so this gives us some flexibility
+	# in terms of picking a Tick and a default Multiplier somewhere in
+	# the middle of the achievable set of (Tick * Multiplier[i]) values.
+	# Thus, the below select for 150us by this default.
 	#
-	sge_dbq_timertick = 5
-	sge_dbq_timer = 1, 2, 3, 5, 7, 9, 12, 16
+	sge_dbq_timertick = 50
+	sge_dbq_timer = 3, 2, 1, 5, 7, 9, 12, 16
 
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
@@ -423,10 +430,10 @@
 	tp_l2t = 3072
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
-	tp_tls_key = 3
+	tp_tls_key = 2
 	tp_tls_mxrxsize = 17408    # 16384 + 1024, governs max rx data, pm max xfer len, rx coalesce sizes
 	tp_stag = 2
-	tp_pbl = 5
+	tp_pbl = 7
 	tp_rq = 7
 	tp_srq = 128
 
@@ -471,7 +478,7 @@
 	nhash = 2048
 	tp_l2t = 4
 	protocol = fcoe_initiator
-	tp_ddp = 2
+	tp_ddp = 1
 	fcoe_nfcf = 16
 	fcoe_nvnp = 32
 	fcoe_nssn = 1024
@@ -581,7 +588,7 @@
 
 [fini]
 	version = 0x1425001d
-	checksum = 0xdbff9437
+	checksum = 0x14a022cd
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

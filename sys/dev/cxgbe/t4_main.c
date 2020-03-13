@@ -4096,9 +4096,8 @@ set_params__pre_init(struct adapter *sc)
 		val = 1;
 		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 		/* firmwares < 1.20.1.0 do not have this param. */
-		if (rc == FW_EINVAL && sc->params.fw_vers <
-		    (V_FW_HDR_FW_VER_MAJOR(1) | V_FW_HDR_FW_VER_MINOR(20) |
-		    V_FW_HDR_FW_VER_MICRO(1) | V_FW_HDR_FW_VER_BUILD(0))) {
+		if (rc == FW_EINVAL &&
+		    sc->params.fw_vers < FW_VERSION32(1, 20, 1, 0)) {
 			rc = 0;
 		}
 		if (rc != 0) {
@@ -4263,9 +4262,7 @@ get_params__post_init(struct adapter *sc)
 			return (rc);
 		}
 		sc->tids.ntids = val[0];
-		if (sc->params.fw_vers <
-		    (V_FW_HDR_FW_VER_MAJOR(1) | V_FW_HDR_FW_VER_MINOR(20) |
-		    V_FW_HDR_FW_VER_MICRO(5) | V_FW_HDR_FW_VER_BUILD(0))) {
+		if (sc->params.fw_vers < FW_VERSION32(1, 20, 5, 0)) {
 			MPASS(sc->tids.ntids >= sc->tids.nhpftids);
 			sc->tids.ntids -= sc->tids.nhpftids;
 		}
@@ -4305,9 +4302,7 @@ get_params__post_init(struct adapter *sc)
 			return (rc);
 		}
 		sc->tids.ntids = val[0];
-		if (sc->params.fw_vers <
-		    (V_FW_HDR_FW_VER_MAJOR(1) | V_FW_HDR_FW_VER_MINOR(20) |
-		    V_FW_HDR_FW_VER_MICRO(5) | V_FW_HDR_FW_VER_BUILD(0))) {
+		if (sc->params.fw_vers < FW_VERSION32(1, 20, 5, 0)) {
 			MPASS(sc->tids.ntids >= sc->tids.nhpftids);
 			sc->tids.ntids -= sc->tids.nhpftids;
 		}
