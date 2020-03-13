@@ -183,14 +183,11 @@ save_vec(struct thread *td)
 void
 save_vec_nodrop(struct thread *td)
 {
-	struct thread *vtd;
 	struct pcb *pcb;
 	int i;
 
-	vtd = PCPU_GET(vecthread);
-	if (td == vtd) {
+	if (td == PCPU_GET(vecthread))
 		save_vec_int(td);
-	}
 
 	pcb = td->td_pcb;
 
