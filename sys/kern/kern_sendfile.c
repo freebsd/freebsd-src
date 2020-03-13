@@ -575,6 +575,12 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	*so = (*sock_fp)->f_data;
 	if ((*so)->so_type != SOCK_STREAM)
 		return (EINVAL);
+	/*
+	 * SCTP one-to-one style sockets currently don't work with
+	 * sendfile(). So indicate EINVAL for now.
+	 */
+	if ((*so)->so_proto->pr_protocol == IPPROTO_SCTP)
+		return (EINVAL);
 	if (SOLISTENING(*so))
 		return (ENOTCONN);
 	return (0);
