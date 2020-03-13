@@ -817,8 +817,6 @@
             ..
             link
             ..
-            mixer
-            ..
             mkdir
             ..
             mkfifo
@@ -1083,6 +1081,8 @@
         jail
         ..
         makefs
+        ..
+        mixer
         ..
         newsyslog
         ..
