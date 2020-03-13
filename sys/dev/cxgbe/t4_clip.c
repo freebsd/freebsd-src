@@ -273,8 +273,12 @@ update_clip_table(struct adapter *sc)
 
 				inet_ntop(AF_INET6, &ce->lip, &ip[0],
 				    sizeof(ip));
-				log(LOG_ERR, "%s: could not add %s (%d)\n",
-				    __func__, ip, rc);
+				if (sc->flags & KERN_TLS_OK ||
+				    sc->active_ulds != 0) {
+					log(LOG_ERR,
+					    "%s: could not add %s (%d)\n",
+					    __func__, ip, rc);
+				}
 				free(ce, M_CXGBE);
 			}
 next:
