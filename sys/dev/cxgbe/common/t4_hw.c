@@ -8548,7 +8548,7 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_cmd *p,
 
 		lc->supported = be32_to_cpu(p->u.info32.pcaps32);
 		lc->advertising = be32_to_cpu(p->u.info32.acaps32);
-		lc->lp_advertising = be16_to_cpu(p->u.info32.lpacaps32);
+		lc->lp_advertising = be32_to_cpu(p->u.info32.lpacaps32);
 		lc->link_ok = (stat & F_FW_PORT_CMD_LSTATUS32) != 0;
 		lc->link_down_rc = G_FW_PORT_CMD_LINKDNRC32(stat);
 
