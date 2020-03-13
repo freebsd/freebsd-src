@@ -221,7 +221,9 @@ file_open(struct archive *a, void *client_data)
 	struct read_file_data *mine = (struct read_file_data *)client_data;
 	void *buffer;
 	const char *filename = NULL;
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	const wchar_t *wfilename = NULL;
+#endif
 	int fd = -1;
 	int is_disk_like = 0;
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -281,10 +283,12 @@ file_open(struct archive *a, void *client_data)
 #endif
 	}
 	if (fstat(fd, &st) != 0) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		if (mine->filename_type == FNT_WCS)
 			archive_set_error(a, errno, "Can't stat '%S'",
 			    wfilename);
 		else
+#endif
 			archive_set_error(a, errno, "Can't stat '%s'",
 			    filename);
 		goto fail;
