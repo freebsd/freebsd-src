@@ -747,8 +747,9 @@ int		 linux_ifname(struct ifnet *, char *, size_t);
 #define	FBSD_LUSB_FS_OPEN_STREAM	0xffdf
 #define	FBSD_LUSB_GET_DEV_PORT_PATH	0xffde
 #define	FBSD_LUSB_GET_POWER_USAGE	0xffdd
+#define	FBSD_LUSB_DEVICESTATS		0xffdc
 
 #define	FBSD_LUSB_MAX			0xffff
-#define	FBSD_LUSB_MIN			0xffdd
+#define	FBSD_LUSB_MIN			0xffdc
 
 #endif /* !_LINUX_IOCTL_H_ */
