@@ -27,6 +27,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/stat.h>
+
+#include <errno.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <lua.h>
@@ -36,6 +40,28 @@ __FBSDID("$FreeBSD$");
 /*
  * Minimal implementation of luaposix needed for internal FreeBSD bits.
  */
+
+static int
+lua_chmod(lua_State *L)
+{
+	int n;
+	const char *path;
+	mode_t mode;
+
+	n = lua_gettop(L);
+	luaL_argcheck(L, n == 2, n > 2 ? 3 : n,
+	    "chmod takes exactly two arguments");
+	path = luaL_checkstring(L, 1);
+	mode = (mode_t)luaL_checkinteger(L, 2);
+	if (chmod(path, mode) == -1) {
+		lua_pushnil(L);
+		lua_pushstring(L, strerror(errno));
+		lua_pushinteger(L, errno);
+		return 3;
+	}
+	lua_pushinteger(L, 0);
+	return 1;
+}
 
 static int
 lua_getpid(lua_State *L)
@@ -49,11 +75,23 @@ lua_getpid(lua_State *L)
 }
 
 #define REG_SIMPLE(n)	{ #n, lua_ ## n }
+static const struct luaL_Reg sys_statlib[] = {
+	REG_SIMPLE(chmod),
+	{ NULL, NULL },
+};
+
 static const struct luaL_Reg unistdlib[] = {
 	REG_SIMPLE(getpid),
 	{ NULL, NULL },
 };
 #undef REG_SIMPLE
+
+int
+luaopen_posix_sys_stat(lua_State *L)
+{
+	luaL_newlib(L, sys_statlib);
+	return 1;
+}
 
 int
 luaopen_posix_unistd(lua_State *L)
