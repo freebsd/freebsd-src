@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2017
+.Dd March 6, 2020
 .Dt COUNTER 9
 .Os
 .Sh NAME
@@ -53,6 +53,8 @@
 .Fn counter_u64_zero "counter_u64_t c"
 .Ft int64_t
 .Fn counter_ratecheck "struct counter_rate *cr" "int64_t limit"
+.Fn COUNTER_U64_SYSINIT "counter_u64_t c"
+.Fn COUNTER_U64_DEFINE_EARLY "counter_u64_t c"
 .In sys/sysctl.h
 .Fn SYSCTL_COUNTER_U64 parent nbr name access ptr descr
 .Fn SYSCTL_ADD_COUNTER_U64 ctx parent nbr name access ptr descr
@@ -142,6 +144,20 @@ If the limit was reached on previous second, but was just reset back to zero,
 then
 .Fn counter_ratecheck
 returns number of events since previous reset.
+.It Fn COUNTER_U64_SYSINIT c
+Define a
+.Xr SYSINIT 9
+initializer for the global counter
+.Fa c .
+.It Fn COUNTER_U64_DEFINE_EARLY c
+Define and initialize a global counter
+.Fa c .
+It is always safe to increment
+.Fa c ,
+though updates prior to the
+.Dv SI_SUB_COUNTER
+.Xr SYSINIT 9
+event are lost.
 .It Fn SYSCTL_COUNTER_U64 parent nbr name access ptr descr
 Declare a static
 .Xr sysctl 9
@@ -245,6 +261,7 @@ SYSCTL_COUNTER_U64_ARRAY(_debug, OID_AUTO, counter_array, CTLFLAG_RW,
 .Xr malloc 9 ,
 .Xr ratecheck 9 ,
 .Xr sysctl 9 ,
+.Xr SYSINIT 9 ,
 .Xr uma 9
 .Sh HISTORY
 The
