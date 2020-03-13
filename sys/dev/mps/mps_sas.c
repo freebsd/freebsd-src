@@ -305,7 +305,7 @@ mpssas_log_command(struct mps_command *cm, u_int level, const char *fmt, ...)
 {
 	struct sbuf sb;
 	va_list ap;
-	char str[192];
+	char str[224];
 	char path_str[64];
 
 	if (cm == NULL)
