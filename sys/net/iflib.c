@@ -2550,7 +2550,8 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 	MPASS(fl->ifl_cidx == cidx);
 	bus_dmamap_sync(fl->ifl_buf_tag, map, BUS_DMASYNC_POSTREAD);
 
-	if (rxq->pfil != NULL && PFIL_HOOKED_IN(rxq->pfil) && pf_rv != NULL) {
+	if (rxq->pfil != NULL && PFIL_HOOKED_IN(rxq->pfil) && pf_rv != NULL &&
+	    irf->irf_len != 0) {
 		payload  = *sd->ifsd_cl;
 		payload +=  ri->iri_pad;
 		len = ri->iri_len - ri->iri_pad;
@@ -2587,7 +2588,7 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 		*pf_rv = PFIL_PASS;
 	}
 
-	if (unload)
+	if (unload && irf->irf_len != 0)
 		bus_dmamap_unload(fl->ifl_buf_tag, map);
 	fl->ifl_cidx = (fl->ifl_cidx + 1) & (fl->ifl_size-1);
 	if (__predict_false(fl->ifl_cidx == 0))
@@ -2672,6 +2673,7 @@ iflib_rxd_pkt_get(iflib_rxq_t rxq, if_rxd_info_t ri)
 
 	/* should I merge this back in now that the two paths are basically duplicated? */
 	if (ri->iri_nfrags == 1 &&
+	    ri->iri_frags[0].irf_len != 0 &&
 	    ri->iri_frags[0].irf_len <= MIN(IFLIB_RX_COPY_THRESH, MHLEN)) {
 		m = rxd_frag_to_sd(rxq, &ri->iri_frags[0], false, &sd,
 		    &pf_rv, ri);
@@ -2688,6 +2690,8 @@ iflib_rxd_pkt_get(iflib_rxq_t rxq, if_rxd_info_t ri)
 		}
 	} else {
 		m = assemble_segments(rxq, ri, &sd, &pf_rv);
+		if (m == NULL)
+			return (NULL);
 		if (pf_rv != PFIL_PASS && pf_rv != PFIL_REALLOCED)
 			return (m);
 	}
