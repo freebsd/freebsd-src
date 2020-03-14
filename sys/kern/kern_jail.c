@@ -865,8 +865,12 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			    "osrelease cannot be changed after creation");
 			goto done_errmsg;
 		}
-		if (len == 0 || len >= OSRELEASELEN) {
+		if (len == 0 || osrelstr[len - 1] != '\0') {
 			error = EINVAL;
+			goto done_free;
+		}
+		if (len >= OSRELEASELEN) {
+			error = ENAMETOOLONG;
 			vfs_opterror(opts,
 			    "osrelease string must be 1-%d bytes long",
 			    OSRELEASELEN - 1);
@@ -1241,9 +1245,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 		pr->pr_osreldate = osreldt ? osreldt : ppr->pr_osreldate;
 		if (osrelstr == NULL)
-		    strcpy(pr->pr_osrelease, ppr->pr_osrelease);
+			strlcpy(pr->pr_osrelease, ppr->pr_osrelease,
+			    sizeof(pr->pr_osrelease));
 		else
-		    strcpy(pr->pr_osrelease, osrelstr);
+			strlcpy(pr->pr_osrelease, osrelstr,
+			    sizeof(pr->pr_osrelease));
 
 		LIST_INIT(&pr->pr_children);
 		mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF | MTX_DUPOK);
