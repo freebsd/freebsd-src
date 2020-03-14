@@ -729,7 +729,9 @@ camperiphfree(struct cam_periph *periph)
 		periph->periph_dtor(periph);
 
 	/*
-	 * The peripheral list is protected by the topology lock.
+	 * The peripheral list is protected by the topology lock. We have to
+	 * remove the periph from the drv list before we call deferred_ac. The
+	 * AC_FOUND_DEVICE callback won't create a new periph if it's still there.
 	 */
 	xpt_lock_buses();
 
