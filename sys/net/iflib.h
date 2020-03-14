@@ -220,6 +220,9 @@ typedef struct if_softc_ctx {
 	uint32_t __spare2__;
 
 	iflib_intr_mode_t isc_intr;
+	uint16_t isc_rxd_buf_size[8]; /* set at init time by driver, 0
+				         means use iflib-calculated size
+				         based on isc_max_frame_size */
 	uint16_t isc_max_frame_size; /* set at init time by driver */
 	uint16_t isc_min_frame_size; /* set at init time by driver, only used if
 					IFLIB_NEED_ETHER_PAD is set. */

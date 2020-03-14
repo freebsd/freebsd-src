@@ -708,6 +708,7 @@ static int iflib_altq_if_transmit(if_t ifp, struct mbuf *m);
 static int iflib_register(if_ctx_t);
 static void iflib_deregister(if_ctx_t);
 static void iflib_unregister_vlan_handlers(if_ctx_t ctx);
+static uint16_t iflib_get_mbuf_size_for(unsigned int size);
 static void iflib_init_locked(if_ctx_t ctx);
 static void iflib_add_device_sysctl_pre(if_ctx_t ctx);
 static void iflib_add_device_sysctl_post(if_ctx_t ctx);
@@ -2163,6 +2164,8 @@ iflib_fl_setup(iflib_fl_t fl)
 {
 	iflib_rxq_t rxq = fl->ifl_rxq;
 	if_ctx_t ctx = rxq->ifr_ctx;
+	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
+	int qidx;
 
 	bit_nclear(fl->ifl_rx_bitmap, 0, fl->ifl_size - 1);
 	/*
@@ -2171,7 +2174,16 @@ iflib_fl_setup(iflib_fl_t fl)
 	iflib_fl_bufs_free(fl);
 	/* Now replenish the mbufs */
 	MPASS(fl->ifl_credits == 0);
-	fl->ifl_buf_size = ctx->ifc_rx_mbuf_sz;
+	qidx = rxq->ifr_fl_offset + fl->ifl_id;
+	if (scctx->isc_rxd_buf_size[qidx] != 0)
+		fl->ifl_buf_size = scctx->isc_rxd_buf_size[qidx];
+	else
+		fl->ifl_buf_size = ctx->ifc_rx_mbuf_sz;
+	/*
+	 * ifl_buf_size may be a driver-supplied value, so pull it up
+	 * to the selected mbuf size.
+	 */
+	fl->ifl_buf_size = iflib_get_mbuf_size_for(fl->ifl_buf_size);
 	if (fl->ifl_buf_size > ctx->ifc_max_fl_buf_size)
 		ctx->ifc_max_fl_buf_size = fl->ifl_buf_size;
 	fl->ifl_cltype = m_gettype(fl->ifl_buf_size);
@@ -2303,6 +2315,16 @@ iflib_timer(void *arg)
 	STATE_UNLOCK(ctx);
 }
 
+static uint16_t
+iflib_get_mbuf_size_for(unsigned int size)
+{
+
+	if (size <= MCLBYTES)
+		return (MCLBYTES);
+	else
+		return (MJUMPAGESIZE);
+}
+
 static void
 iflib_calc_rx_mbuf_sz(if_ctx_t ctx)
 {
@@ -2312,10 +2334,8 @@ iflib_calc_rx_mbuf_sz(if_ctx_t ctx)
 	 * XXX don't set the max_frame_size to larger
 	 * than the hardware can handle
 	 */
-	if (sctx->isc_max_frame_size <= MCLBYTES)
-		ctx->ifc_rx_mbuf_sz = MCLBYTES;
-	else
-		ctx->ifc_rx_mbuf_sz = MJUMPAGESIZE;
+	ctx->ifc_rx_mbuf_sz =
+	    iflib_get_mbuf_size_for(sctx->isc_max_frame_size);
 }
 
 uint32_t
@@ -6724,6 +6744,9 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 			SYSCTL_ADD_U16(ctx_list, fl_list, OID_AUTO, "credits",
 				       CTLFLAG_RD,
 				       &fl->ifl_credits, 1, "credits available");
+			SYSCTL_ADD_U16(ctx_list, fl_list, OID_AUTO, "buf_size",
+				       CTLFLAG_RD,
+				       &fl->ifl_buf_size, 1, "buffer size");
 #if MEMORY_LOGGING
 			SYSCTL_ADD_QUAD(ctx_list, fl_list, OID_AUTO, "fl_m_enqueued",
 					CTLFLAG_RD,
