@@ -1285,7 +1285,8 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 					 */
 					if (pktlen > ETHER_MIN_LEN) {
 						m->m_pkthdr.csum_flags |=
-						    CSUM_DATA_VALID;
+						    CSUM_DATA_VALID |
+						    CSUM_PSEUDO_HDR;
 
 						/*
 						 * Copy the checksum from the
@@ -1304,7 +1305,7 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 						 * be in host network order.
 						 */
 						m->m_pkthdr.csum_data =
-						   ntohs(m->m_pkthdr.csum_data);
+						   ntohs(0xffff);
 
 						muge_dbg_printf(sc,
 						    "RX checksum offloaded (0x%04x)\n",
