@@ -381,6 +381,12 @@ vmxnet3_attach_pre(if_ctx_t ctx)
 	scctx->isc_rxqsizes[2] =
 	    sizeof(struct vmxnet3_rxdesc) * scctx->isc_nrxd[2];
 
+	/*
+	 * Initialize the max frame size and descriptor queue buffer
+	 * sizes.
+	 */
+	vmxnet3_mtu_set(ctx, if_getmtu(sc->vmx_ifp));
+
 	scctx->isc_rss_table_size = UPT1_RSS_MAX_IND_TABLE_SIZE;
 
 	/* Map PCI BARs */
@@ -1943,13 +1949,8 @@ static void
 vmxnet3_init(if_ctx_t ctx)
 {
 	struct vmxnet3_softc *sc;
-	if_softc_ctx_t scctx;
 	
 	sc = iflib_get_softc(ctx);
-	scctx = sc->vmx_scctx;
-
-	scctx->isc_max_frame_size = if_getmtu(iflib_get_ifp(ctx)) +
-	    ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ETHER_CRC_LEN;
 
 	/* Use the current MAC address. */
 	bcopy(IF_LLADDR(sc->vmx_ifp), sc->vmx_lladdr, ETHER_ADDR_LEN);
@@ -1975,10 +1976,36 @@ vmxnet3_multi_set(if_ctx_t ctx)
 static int
 vmxnet3_mtu_set(if_ctx_t ctx, uint32_t mtu)
 {
+	struct vmxnet3_softc *sc;
+	if_softc_ctx_t scctx;
+
+	sc = iflib_get_softc(ctx);
+	scctx = sc->vmx_scctx;
 
 	if (mtu > VMXNET3_TX_MAXSIZE - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN +
 		ETHER_CRC_LEN))
 		return (EINVAL);
+
+	/*
+	 * Update the max frame size so that the rx mbuf size is
+	 * chosen based on the new mtu during the interface init that
+	 * will occur after this routine returns.
+	 */
+	scctx->isc_max_frame_size = mtu +
+		ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ETHER_CRC_LEN;
+	/* RX completion queue - n/a */
+	scctx->isc_rxd_buf_size[0] = 0;
+	/*
+	 * For header-type descriptors (used for first segment of
+	 * packet), let iflib determine the buffer size based on the
+	 * max frame size.
+	 */
+	scctx->isc_rxd_buf_size[1] = 0;
+	/*
+	 * For body-type descriptors (used for jumbo frames and LRO),
+	 * always use page-sized buffers.
+	 */
+	scctx->isc_rxd_buf_size[2] = MJUMPAGESIZE;
 
 	return (0);
 }
