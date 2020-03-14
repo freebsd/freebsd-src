@@ -2072,7 +2072,9 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 	bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	ctx->isc_rxd_flush(ctx->ifc_softc, fl->ifl_rxq->ifr_id, fl->ifl_id, pidx);
-	fl->ifl_fragidx = frag_idx;
+	fl->ifl_fragidx = frag_idx + 1;
+	if (fl->ifl_fragidx == fl->ifl_size)
+		fl->ifl_fragidx = 0;
 
 	return (n == -1 ? 0 : IFLIB_RXEOF_EMPTY);
 }
