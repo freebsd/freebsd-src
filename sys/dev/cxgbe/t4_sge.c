@@ -2047,7 +2047,9 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	}
 
 #if defined(INET) || defined(INET6)
-	if (iq->flags & IQ_LRO_ENABLED) {
+	if (iq->flags & IQ_LRO_ENABLED &&
+	    (M_HASHTYPE_GET(m0) == M_HASHTYPE_RSS_TCP_IPV4 ||
+	    M_HASHTYPE_GET(m0) == M_HASHTYPE_RSS_TCP_IPV6)) {
 		if (sort_before_lro(lro)) {
 			tcp_lro_queue_mbuf(lro, m0);
 			return (0); /* queued for sort, then LRO */
