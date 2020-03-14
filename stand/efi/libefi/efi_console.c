@@ -377,9 +377,22 @@ efi_cons_respond(void *s __unused, const void *buf __unused,
 {
 }
 
+/*
+ * Set up conin/conout/coninex to make sure we have input ready.
+ */
 static void
 efi_cons_probe(struct console *cp)
 {
+	EFI_STATUS status;
+
+	conout = ST->ConOut;
+	conin = ST->ConIn;
+
+	status = BS->OpenProtocol(ST->ConsoleInHandle, &simple_input_ex_guid,
+	    (void **)&coninex, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	if (status != EFI_SUCCESS)
+		coninex = NULL;
+
 	cp->c_flags |= C_PRESENTIN | C_PRESENTOUT;
 }
 
@@ -889,15 +902,7 @@ efi_cons_init(int arg)
 	if (conin != NULL)
 		return (0);
 
-	conout = ST->ConOut;
-	conin = ST->ConIn;
-
 	conout->EnableCursor(conout, TRUE);
-	status = BS->OpenProtocol(ST->ConsoleInHandle, &simple_input_ex_guid,
-	    (void **)&coninex, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
-	if (status != EFI_SUCCESS)
-		coninex = NULL;
-
 	if (efi_cons_update_mode())
 		return (0);
 
