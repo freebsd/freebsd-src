@@ -156,9 +156,6 @@ unpack_parse_header(int in, int out, char *pre, size_t prelen, off_t *bytes_in,
 	ssize_t bytesread;		/* Bytes read from the file */
 	int i, j, thisbyte;
 
-	if (prelen > sizeof hdr)
-		maybe_err("prelen too long");
-
 	/* Prepend the header buffer if we already read some data */
 	if (prelen != 0)
 		memcpy(hdr, pre, prelen);
