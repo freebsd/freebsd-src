@@ -4226,6 +4226,14 @@ get_params__post_init(struct adapter *sc)
 	else
 		sc->params.ulptx_memwrite_dsgl = false;
 
+	/* FW_RI_FR_NSMR_TPTE_WR support */
+	param[0] = FW_PARAM_DEV(RI_FR_NSMR_TPTE_WR);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+	if (rc == 0)
+		sc->params.fr_nsmr_tpte_wr_support = val[0] != 0;
+	else
+		sc->params.fr_nsmr_tpte_wr_support = false;
+
 	/* get capabilites */
 	bzero(&caps, sizeof(caps));
 	caps.op_to_write = htobe32(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
