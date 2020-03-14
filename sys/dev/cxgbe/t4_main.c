@@ -5875,7 +5875,7 @@ vi_refresh_stats(struct adapter *sc, struct vi_info *vi)
 static void
 cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
 {
-	u_int i, v, tnl_cong_drops, bg_map;
+	u_int i, v, tnl_cong_drops, chan_map;
 	struct timeval tv;
 	const struct timeval interval = {0, 250000};	/* 250ms */
 
@@ -5886,15 +5886,15 @@ cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
 
 	tnl_cong_drops = 0;
 	t4_get_port_stats(sc, pi->tx_chan, &pi->stats);
-	bg_map = pi->mps_bg_map;
-	while (bg_map) {
-		i = ffs(bg_map) - 1;
+	chan_map = pi->rx_e_chan_map;
+	while (chan_map) {
+		i = ffs(chan_map) - 1;
 		mtx_lock(&sc->reg_lock);
 		t4_read_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v, 1,
 		    A_TP_MIB_TNL_CNG_DROP_0 + i);
 		mtx_unlock(&sc->reg_lock);
 		tnl_cong_drops += v;
-		bg_map &= ~(1 << i);
+		chan_map &= ~(1 << i);
 	}
 	pi->tnl_cong_drops = tnl_cong_drops;
 	getmicrotime(&pi->last_refreshed);
@@ -10004,7 +10004,7 @@ read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
 static int
 clear_stats(struct adapter *sc, u_int port_id)
 {
-	int i, v, bg_map;
+	int i, v, chan_map;
 	struct port_info *pi;
 	struct vi_info *vi;
 	struct sge_rxq *rxq;
@@ -10029,13 +10029,13 @@ clear_stats(struct adapter *sc, u_int port_id)
 		if (vi->flags & VI_INIT_DONE)
 			t4_clr_vi_stats(sc, vi->vin);
 	}
-	bg_map = pi->mps_bg_map;
+	chan_map = pi->rx_e_chan_map;
 	v = 0;	/* reuse */
-	while (bg_map) {
-		i = ffs(bg_map) - 1;
+	while (chan_map) {
+		i = ffs(chan_map) - 1;
 		t4_write_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
 		    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
-		bg_map &= ~(1 << i);
+		chan_map &= ~(1 << i);
 	}
 	mtx_unlock(&sc->reg_lock);
 

@@ -6781,9 +6781,10 @@ static unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 static unsigned int t4_get_rx_e_chan_map(struct adapter *adap, int idx)
 {
 	u32 n = G_NUMPORTS(t4_read_reg(adap, A_MPS_CMN_CTL));
+	const u32 all_chan = (1 << adap->chip_params->nchan) - 1;
 
 	if (n == 0)
-		return idx == 0 ? 0xf : 0;
+		return idx == 0 ? all_chan : 0;
 	if (n == 1 && chip_id(adap) <= CHELSIO_T5)
 		return idx < 2 ? (3 << (2 * idx)) : 0;
 	return 1 << idx;
