@@ -584,6 +584,9 @@ t4_sge_extfree_refs(void)
 	return (refs - rels);
 }
 
+/* max 4096 */
+#define MAX_PACK_BOUNDARY 512
+
 static inline void
 setup_pad_and_pack_boundaries(struct adapter *sc)
 {
@@ -630,7 +633,10 @@ setup_pad_and_pack_boundaries(struct adapter *sc)
 	pack = fl_pack;
 	if (fl_pack < 16 || fl_pack == 32 || fl_pack > 4096 ||
 	    !powerof2(fl_pack)) {
-		pack = max(sc->params.pci.mps, CACHE_LINE_SIZE);
+		if (sc->params.pci.mps > MAX_PACK_BOUNDARY)
+			pack = MAX_PACK_BOUNDARY;
+		else
+			pack = max(sc->params.pci.mps, CACHE_LINE_SIZE);
 		MPASS(powerof2(pack));
 		if (pack < 16)
 			pack = 16;
