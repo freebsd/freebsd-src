@@ -17,4 +17,8 @@ SRCS=		stack_protector.c fortify_stubs.c
 
 CFLAGS.fortify_stubs.c=	-Wno-unused-parameter
 
+# Stack protection on libssp symbols should be considered harmful, as we may
+# be talking about, for example, the guard setup constructor.
+SSP_CFLAGS:=
+
 .include <bsd.lib.mk>
