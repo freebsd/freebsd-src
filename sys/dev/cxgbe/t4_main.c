@@ -642,6 +642,7 @@ static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_pause_settings(SYSCTL_HANDLER_ARGS);
 static int sysctl_fec(SYSCTL_HANDLER_ARGS);
+static int sysctl_module_fec(SYSCTL_HANDLER_ARGS);
 static int sysctl_autoneg(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
 static int sysctl_temperature(SYSCTL_HANDLER_ARGS);
@@ -2243,7 +2244,7 @@ cxgbe_media_change(struct ifnet *ifp)
 	PORT_LOCK(pi);
 	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO) {
 		/* ifconfig .. media autoselect */
-		if (!(lc->supported & FW_PORT_CAP32_ANEG)) {
+		if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
 			rc = ENOTSUP; /* AN not supported by transceiver */
 			goto done;
 		}
@@ -4547,7 +4548,7 @@ set_current_media(struct port_info *pi)
 
 	lc = &pi->link_cfg;
 	if (lc->requested_aneg != AUTONEG_DISABLE &&
-	    lc->supported & FW_PORT_CAP32_ANEG) {
+	    lc->pcaps & FW_PORT_CAP32_ANEG) {
 		ifmedia_set(ifm, IFM_ETHER | IFM_AUTO);
 		return;
 	}
@@ -4604,7 +4605,7 @@ build_medialist(struct port_info *pi)
 	ifm = &pi->media;
 	ifmedia_removeall(ifm);
 	lc = &pi->link_cfg;
-	ss = G_FW_PORT_CAP32_SPEED(lc->supported); /* Supported Speeds */
+	ss = G_FW_PORT_CAP32_SPEED(lc->pcaps); /* Supported Speeds */
 	if (__predict_false(ss == 0)) {	/* not supposed to happen. */
 		MPASS(ss != 0);
 no_media:
@@ -4630,7 +4631,7 @@ no_media:
 	}
 	if (unknown > 0) /* Add one unknown for all unknown media types. */
 		ifmedia_add4(ifm, IFM_ETHER | IFM_FDX | IFM_UNKNOWN);
-	if (lc->supported & FW_PORT_CAP32_ANEG)
+	if (lc->pcaps & FW_PORT_CAP32_ANEG)
 		ifmedia_add(ifm, IFM_ETHER | IFM_AUTO, 0, NULL);
 
 	set_current_media(pi);
@@ -4658,14 +4659,16 @@ init_link_config(struct port_info *pi)
 	lc->requested_fc = t4_pause_settings & (PAUSE_TX | PAUSE_RX |
 	    PAUSE_AUTONEG);
 
-	if (t4_fec == -1 || t4_fec & FEC_AUTO)
+	if (t4_fec & FEC_AUTO)
 		lc->requested_fec = FEC_AUTO;
-	else {
+	else if (t4_fec == 0)
 		lc->requested_fec = FEC_NONE;
-		if (t4_fec & FEC_RS)
-			lc->requested_fec |= FEC_RS;
-		if (t4_fec & FEC_BASER_RS)
-			lc->requested_fec |= FEC_BASER_RS;
+	else {
+		/* -1 is handled by the FEC_AUTO block above and not here. */
+		lc->requested_fec = t4_fec &
+		    (FEC_RS | FEC_BASER_RS | FEC_NONE | FEC_MODULE);
+		if (lc->requested_fec == 0)
+			lc->requested_fec = FEC_AUTO;
 	}
 }
 
@@ -4685,7 +4688,7 @@ fixup_link_config(struct port_info *pi)
 	/* Speed (when not autonegotiating) */
 	if (lc->requested_speed != 0) {
 		fwspeed = speed_to_fwcap(lc->requested_speed);
-		if ((fwspeed & lc->supported) == 0) {
+		if ((fwspeed & lc->pcaps) == 0) {
 			n++;
 			lc->requested_speed = 0;
 		}
@@ -4696,7 +4699,7 @@ fixup_link_config(struct port_info *pi)
 	    lc->requested_aneg == AUTONEG_DISABLE ||
 	    lc->requested_aneg == AUTONEG_AUTO);
 	if (lc->requested_aneg == AUTONEG_ENABLE &&
-	    !(lc->supported & FW_PORT_CAP32_ANEG)) {
+	    !(lc->pcaps & FW_PORT_CAP32_ANEG)) {
 		n++;
 		lc->requested_aneg = AUTONEG_AUTO;
 	}
@@ -4704,26 +4707,26 @@ fixup_link_config(struct port_info *pi)
 	/* Flow control */
 	MPASS((lc->requested_fc & ~(PAUSE_TX | PAUSE_RX | PAUSE_AUTONEG)) == 0);
 	if (lc->requested_fc & PAUSE_TX &&
-	    !(lc->supported & FW_PORT_CAP32_FC_TX)) {
+	    !(lc->pcaps & FW_PORT_CAP32_FC_TX)) {
 		n++;
 		lc->requested_fc &= ~PAUSE_TX;
 	}
 	if (lc->requested_fc & PAUSE_RX &&
-	    !(lc->supported & FW_PORT_CAP32_FC_RX)) {
+	    !(lc->pcaps & FW_PORT_CAP32_FC_RX)) {
 		n++;
 		lc->requested_fc &= ~PAUSE_RX;
 	}
 	if (!(lc->requested_fc & PAUSE_AUTONEG) &&
-	    !(lc->supported & FW_PORT_CAP32_FORCE_PAUSE)) {
+	    !(lc->pcaps & FW_PORT_CAP32_FORCE_PAUSE)) {
 		n++;
 		lc->requested_fc |= PAUSE_AUTONEG;
 	}
 
 	/* FEC */
 	if ((lc->requested_fec & FEC_RS &&
-	    !(lc->supported & FW_PORT_CAP32_FEC_RS)) ||
+	    !(lc->pcaps & FW_PORT_CAP32_FEC_RS)) ||
 	    (lc->requested_fec & FEC_BASER_RS &&
-	    !(lc->supported & FW_PORT_CAP32_FEC_BASER_RS))) {
+	    !(lc->pcaps & FW_PORT_CAP32_FEC_BASER_RS))) {
 		n++;
 		lc->requested_fec = FEC_AUTO;
 	}
@@ -4747,17 +4750,17 @@ apply_link_config(struct port_info *pi)
 	PORT_LOCK_ASSERT_OWNED(pi);
 
 	if (lc->requested_aneg == AUTONEG_ENABLE)
-		MPASS(lc->supported & FW_PORT_CAP32_ANEG);
+		MPASS(lc->pcaps & FW_PORT_CAP32_ANEG);
 	if (!(lc->requested_fc & PAUSE_AUTONEG))
-		MPASS(lc->supported & FW_PORT_CAP32_FORCE_PAUSE);
+		MPASS(lc->pcaps & FW_PORT_CAP32_FORCE_PAUSE);
 	if (lc->requested_fc & PAUSE_TX)
-		MPASS(lc->supported & FW_PORT_CAP32_FC_TX);
+		MPASS(lc->pcaps & FW_PORT_CAP32_FC_TX);
 	if (lc->requested_fc & PAUSE_RX)
-		MPASS(lc->supported & FW_PORT_CAP32_FC_RX);
+		MPASS(lc->pcaps & FW_PORT_CAP32_FC_RX);
 	if (lc->requested_fec & FEC_RS)
-		MPASS(lc->supported & FW_PORT_CAP32_FEC_RS);
+		MPASS(lc->pcaps & FW_PORT_CAP32_FEC_RS);
 	if (lc->requested_fec & FEC_BASER_RS)
-		MPASS(lc->supported & FW_PORT_CAP32_FEC_BASER_RS);
+		MPASS(lc->pcaps & FW_PORT_CAP32_FEC_BASER_RS);
 #endif
 	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 	if (rc != 0) {
@@ -6469,10 +6472,20 @@ cxgbe_sysctls(struct port_info *pi)
     "PAUSE settings (bit 0 = rx_pause, 1 = tx_pause, 2 = pause_autoneg)");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "fec",
 	    CTLTYPE_STRING | CTLFLAG_RW, pi, 0, sysctl_fec, "A",
-	    "Forward Error Correction (bit 0 = RS, bit 1 = BASER_RS)");
+	    "FECs to use (bit 0 = RS, 1 = FC, 2 = none, 5 = auto, 6 = module)");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "module_fec",
+	    CTLTYPE_STRING, pi, 0, sysctl_module_fec, "A",
+	    "FEC recommended by the cable/transceiver");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "autoneg",
 	    CTLTYPE_INT | CTLFLAG_RW, pi, 0, sysctl_autoneg, "I",
 	    "autonegotiation (-1 = not supported)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "pcaps", CTLFLAG_RD,
+	    &pi->link_cfg.pcaps, 0, "port capabilities");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "acaps", CTLFLAG_RD,
+	    &pi->link_cfg.acaps, 0, "advertised capabilities");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lpacaps", CTLFLAG_RD,
+	    &pi->link_cfg.lpacaps, 0, "link partner advertised capabilities");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "max_speed", CTLFLAG_RD, NULL,
 	    port_top_speed(pi), "max speed (in Gbps)");
@@ -6994,7 +7007,8 @@ sysctl_fec(SYSCTL_HANDLER_ARGS)
 
 	if (req->newptr == NULL) {
 		struct sbuf *sb;
-		static char *bits = "\20\1RS\2BASE-R\3RSVD1\4RSVD2\5RSVD3\6AUTO";
+		static char *bits = "\20\1RS-FEC\2FC-FEC\3NO-FEC\4RSVD2"
+		    "\5RSVD3\6auto\7module";
 
 		rc = sysctl_wire_old_buffer(req, 0);
 		if (rc != 0)
@@ -7010,19 +7024,20 @@ sysctl_fec(SYSCTL_HANDLER_ARGS)
 		 */
 		if (lc->link_ok) {
 			sbuf_printf(sb, "%b", (lc->fec & M_FW_PORT_CAP32_FEC) |
-			    (lc->requested_fec & FEC_AUTO), bits);
+			    (lc->requested_fec & (FEC_AUTO | FEC_MODULE)),
+			    bits);
 		} else {
 			sbuf_printf(sb, "%b", lc->requested_fec, bits);
 		}
 		rc = sbuf_finish(sb);
 		sbuf_delete(sb);
 	} else {
-		char s[3];
+		char s[8];
 		int n;
 
 		snprintf(s, sizeof(s), "%d",
 		    lc->requested_fec == FEC_AUTO ? -1 :
-		    lc->requested_fec & M_FW_PORT_CAP32_FEC);
+		    lc->requested_fec & (M_FW_PORT_CAP32_FEC | FEC_MODULE));
 
 		rc = sysctl_handle_string(oidp, s, sizeof(s), req);
 		if (rc != 0)
@@ -7031,12 +7046,8 @@ sysctl_fec(SYSCTL_HANDLER_ARGS)
 		n = strtol(&s[0], NULL, 0);
 		if (n < 0 || n & FEC_AUTO)
 			n = FEC_AUTO;
-		else {
-			if (n & ~M_FW_PORT_CAP32_FEC)
-				return (EINVAL);/* some other bit is set too */
-			if (!powerof2(n))
-				return (EINVAL);/* one bit can be set at most */
-		}
+		else if (n & ~(M_FW_PORT_CAP32_FEC | FEC_MODULE))
+			return (EINVAL);/* some other bit is set too */
 
 		rc = begin_synchronized_op(sc, &pi->vi[0], SLEEP_OK | INTR_OK,
 		    "t4fec");
@@ -7046,15 +7057,17 @@ sysctl_fec(SYSCTL_HANDLER_ARGS)
 		old = lc->requested_fec;
 		if (n == FEC_AUTO)
 			lc->requested_fec = FEC_AUTO;
-		else if (n == 0)
+		else if (n == 0 || n == FEC_NONE)
 			lc->requested_fec = FEC_NONE;
 		else {
-			if ((lc->supported | V_FW_PORT_CAP32_FEC(n)) !=
-			    lc->supported) {
+			if ((lc->pcaps |
+			    V_FW_PORT_CAP32_FEC(n & M_FW_PORT_CAP32_FEC)) !=
+			    lc->pcaps) {
 				rc = ENOTSUP;
 				goto done;
 			}
-			lc->requested_fec = n;
+			lc->requested_fec = n & (M_FW_PORT_CAP32_FEC |
+			    FEC_MODULE);
 		}
 		fixup_link_config(pi);
 		if (pi->up_vis > 0) {
@@ -7074,6 +7087,56 @@ done:
 }
 
 static int
+sysctl_module_fec(SYSCTL_HANDLER_ARGS)
+{
+	struct port_info *pi = arg1;
+	struct adapter *sc = pi->adapter;
+	struct link_config *lc = &pi->link_cfg;
+	int rc;
+	int8_t fec;
+	struct sbuf *sb;
+	static char *bits = "\20\1RS-FEC\2FC-FEC\3NO-FEC\4RSVD2\5RSVD3";
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	if (begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4mfec") != 0)
+		return (EBUSY);
+	PORT_LOCK(pi);
+	if (pi->up_vis == 0) {
+		/*
+		 * If all the interfaces are administratively down the firmware
+		 * does not report transceiver changes.  Refresh port info here.
+		 * This is the only reason we have a synchronized op in this
+		 * function.  Just PORT_LOCK would have been enough otherwise.
+		 */
+		t4_update_port_info(pi);
+	}
+
+	fec = lc->fec_hint;
+	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE ||
+	    !fec_supported(lc->pcaps)) {
+		sbuf_printf(sb, "n/a");
+	} else {
+		if (fec == 0)
+			fec = FEC_NONE;
+		sbuf_printf(sb, "%b", fec & M_FW_PORT_CAP32_FEC, bits);
+	}
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	PORT_UNLOCK(pi);
+	end_synchronized_op(sc, 0);
+
+	return (rc);
+}
+
+static int
 sysctl_autoneg(SYSCTL_HANDLER_ARGS)
 {
 	struct port_info *pi = arg1;
@@ -7081,7 +7144,7 @@ sysctl_autoneg(SYSCTL_HANDLER_ARGS)
 	struct link_config *lc = &pi->link_cfg;
 	int rc, val;
 
-	if (lc->supported & FW_PORT_CAP32_ANEG)
+	if (lc->pcaps & FW_PORT_CAP32_ANEG)
 		val = lc->requested_aneg == AUTONEG_DISABLE ? 0 : 1;
 	else
 		val = -1;
@@ -7100,7 +7163,7 @@ sysctl_autoneg(SYSCTL_HANDLER_ARGS)
 	if (rc)
 		return (rc);
 	PORT_LOCK(pi);
-	if (val == AUTONEG_ENABLE && !(lc->supported & FW_PORT_CAP32_ANEG)) {
+	if (val == AUTONEG_ENABLE && !(lc->pcaps & FW_PORT_CAP32_ANEG)) {
 		rc = ENOTSUP;
 		goto done;
 	}

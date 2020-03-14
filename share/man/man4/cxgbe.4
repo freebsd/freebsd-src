@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Oct 25, 2019
+.Dd Dec 10, 2019
 .Dt CXGBE 4
 .Os
 .Sh NAME
@@ -291,10 +291,14 @@ This tunable establishes the default PAUSE settings for all ports.
 Settings can be displayed and controlled on a per-port basis via the
 dev.<port>.X.pause_settings sysctl.
 .It Va hw.cxgbe.fec
-FEC (Forward Error Correction) settings.
+Forward Error Correction settings.
+-1 (default) means driver should automatically pick a value.
 0 disables FEC.
-Bit 0 enables RS FEC, bit 1 enables BASE-R FEC (aka Firecode FEC).
-The default is -1 which lets the driver pick a value.
+Finer grained control can be achieved by setting individual bits.
+Bit 0 enables RS FEC, bit 1 enables BASE-R FEC (aka Firecode FEC), bit
+2 enables NO FEC, and bit 6 enables the FEC that is recommended by the
+transceiver/cable that is plugged in.
+These bits can be set together in any combination.
 This tunable establishes the default FEC settings for all ports.
 Settings can be displayed and controlled on a per-port basis via the
 dev.<port>.X.fec sysctl.
