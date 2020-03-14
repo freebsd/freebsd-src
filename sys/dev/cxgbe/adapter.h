@@ -897,6 +897,7 @@ struct adapter {
 	int last_op_flags;
 
 	int swintr;
+	int sensor_resets;
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
