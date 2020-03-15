@@ -656,8 +656,8 @@ lan78xx_set_rx_max_frame_length(struct muge_softc *sc, int size)
  *	0 is returned.
  */
 static int
-lan78xx_miibus_readreg(device_t dev, int phy, int reg) {
-
+lan78xx_miibus_readreg(device_t dev, int phy, int reg)
+{
 	struct muge_softc *sc = device_get_softc(dev);
 	int locked;
 	uint32_t addr, val;
@@ -1178,7 +1178,6 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-
 		/*
 		 * There is always a zero length frame after bringing the
 		 * interface up.
@@ -1195,7 +1194,6 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		off = 0;
 
 		while (off < actlen) {
-
 			/* The frame header is aligned on a 4 byte boundary. */
 			off = ((off + 0x3) & ~0x3);
 
@@ -1206,14 +1204,12 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			off += (sizeof(rx_cmd_a));
 			rx_cmd_a = le32toh(rx_cmd_a);
 
-
 			/* Extract RX CMD B. */
 			if (off + sizeof(rx_cmd_b) > actlen)
 				goto tr_setup;
 			usbd_copy_out(pc, off, &rx_cmd_b, sizeof(rx_cmd_b));
 			off += (sizeof(rx_cmd_b));
 			rx_cmd_b = le32toh(rx_cmd_b);
-
 
 			/* Extract RX CMD C. */
 			if (off + sizeof(rx_cmd_c) > actlen)
@@ -1302,7 +1298,7 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 						 * be in host network order.
 						 */
 						m->m_pkthdr.csum_data =
-						   ntohs(0xffff);
+						    ntohs(0xffff);
 
 						muge_dbg_printf(sc,
 						    "RX checksum offloaded (0x%04x)\n",
@@ -1325,7 +1321,6 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			 */
 			off += pktlen;
 		}
-
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
@@ -1333,7 +1328,6 @@ tr_setup:
 		usbd_transfer_submit(xfer);
 		uether_rxflush(ue);
 		return;
-
 	default:
 		if (error != USB_ERR_CANCELLED) {
 			muge_warn_printf(sc, "bulk read error, %s\n",
@@ -1374,7 +1368,7 @@ muge_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		muge_dbg_printf(sc, "USB TRANSFER status: USB_ST_SETUP\n");
 tr_setup:
 		if ((sc->sc_flags & MUGE_FLAG_LINK) == 0 ||
-			(ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0) {
+		    (ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0) {
 			muge_dbg_printf(sc,
 			    "sc->sc_flags & MUGE_FLAG_LINK: %d\n",
 			    (sc->sc_flags & MUGE_FLAG_LINK));
@@ -1389,8 +1383,9 @@ tr_setup:
 			 */
 			return;
 		}
-		for (nframes = 0; nframes < 16 &&
-		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd); nframes++) {
+		for (nframes = 0;
+		     nframes < 16 && !IFQ_DRV_IS_EMPTY(&ifp->if_snd);
+		     nframes++) {
 			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 			if (m == NULL)
 				break;
@@ -1636,9 +1631,9 @@ muge_attach_post_sub(struct usb_ether *ue)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	mtx_lock(&Giant);
-	error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
-		uether_ifmedia_upd, ue->ue_methods->ue_mii_sts,
-		BMSR_DEFCAPMASK, sc->sc_phyno, MII_OFFSET_ANY, 0);
+	error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp, uether_ifmedia_upd,
+	    ue->ue_methods->ue_mii_sts, BMSR_DEFCAPMASK, sc->sc_phyno,
+	    MII_OFFSET_ANY, 0);
 	mtx_unlock(&Giant);
 
 	return (0);
@@ -1696,7 +1691,7 @@ muge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		/* Modify the RX CSUM enable bits. */
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-			(ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
 			ifp->if_capenable ^= IFCAP_RXCSUM;
 
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -1708,7 +1703,6 @@ muge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		MUGE_UNLOCK(sc);
 		if (reinit)
 			uether_init(ue);
-
 	} else {
 		rc = uether_ioctl(ifp, cmd, data);
 	}
@@ -1894,7 +1888,7 @@ muge_setmulti(struct usb_ether *ue)
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
 
 	sc->sc_rfe_ctl &= ~(ETH_RFE_CTL_UCAST_EN_ | ETH_RFE_CTL_MCAST_EN_ |
-		ETH_RFE_CTL_DA_PERFECT_ | ETH_RFE_CTL_MCAST_HASH_);
+	    ETH_RFE_CTL_DA_PERFECT_ | ETH_RFE_CTL_MCAST_HASH_);
 
 	/* Initialize hash filter table. */
 	for (i = 0; i < ETH_DP_SEL_VHF_HASH_LEN; i++)
@@ -1902,8 +1896,7 @@ muge_setmulti(struct usb_ether *ue)
 
 	/* Initialize perfect filter table. */
 	for (i = 1; i < MUGE_NUM_PFILTER_ADDRS_; i++) {
-		sc->sc_pfilter_table[i][0] =
-		sc->sc_pfilter_table[i][1] = 0;
+		sc->sc_pfilter_table[i][0] = sc->sc_pfilter_table[i][1] = 0;
 	}
 
 	sc->sc_rfe_ctl |= ETH_RFE_CTL_BCAST_EN_;
@@ -1911,7 +1904,7 @@ muge_setmulti(struct usb_ether *ue)
 	if (ifp->if_flags & IFF_PROMISC) {
 		muge_dbg_printf(sc, "promiscuous mode enabled\n");
 		sc->sc_rfe_ctl |= ETH_RFE_CTL_MCAST_EN_ | ETH_RFE_CTL_UCAST_EN_;
-	} else if (ifp->if_flags & IFF_ALLMULTI){
+	} else if (ifp->if_flags & IFF_ALLMULTI) {
 		muge_dbg_printf(sc, "receive all multicast enabled\n");
 		sc->sc_rfe_ctl |= ETH_RFE_CTL_MCAST_EN_;
 	} else {
@@ -1957,7 +1950,8 @@ muge_setpromisc(struct usb_ether *ue)
  *	RETURNS:
  *	Returns 0 on success or a negative error code.
  */
-static int muge_sethwcsum(struct muge_softc *sc)
+static int
+muge_sethwcsum(struct muge_softc *sc)
 {
 	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
 	int err;
