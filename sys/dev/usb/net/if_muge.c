@@ -127,7 +127,7 @@ SYSCTL_INT(_hw_usb_muge, OID_AUTO, debug, CTLFLAG_RWTUN, &muge_debug, 0,
 #endif
 
 #define MUGE_DEFAULT_TX_CSUM_ENABLE (false)
-#define MUGE_DEFAULT_TSO_CSUM_ENABLE (false)
+#define MUGE_DEFAULT_TSO_ENABLE (false)
 
 /* Supported Vendor and Product IDs. */
 static const struct usb_device_id lan78xx_devs[] = {
@@ -1623,7 +1623,7 @@ muge_attach_post_sub(struct usb_ether *ue)
 	 * here, that's something related to socket buffers used in Linux.
 	 * FreeBSD doesn't have that as an interface feature.
 	 */
-	if (MUGE_DEFAULT_TSO_CSUM_ENABLE)
+	if (MUGE_DEFAULT_TSO_ENABLE)
 		ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_TSO6;
 
 #if 0
