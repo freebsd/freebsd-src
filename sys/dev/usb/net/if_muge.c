@@ -54,9 +54,7 @@ __FBSDID("$FreeBSD$");
  * A number of features supported by the lan78xx are not yet implemented in
  * this driver:
  *
- * - RX/TX checksum offloading: Nothing has been implemented yet for
- *   TX checksumming. RX checksumming works with ICMP messages, but is broken
- *   for TCP/UDP packets.
+ * - TX checksum offloading: Nothing has been implemented yet.
  * - Direct address translation filtering: Implemented but untested.
  * - VLAN tag removal.
  * - Support for USB interrupt endpoints.
@@ -128,7 +126,6 @@ SYSCTL_INT(_hw_usb_muge, OID_AUTO, debug, CTLFLAG_RWTUN, &muge_debug, 0,
     "Debug level");
 #endif
 
-#define MUGE_DEFAULT_RX_CSUM_ENABLE (false)
 #define MUGE_DEFAULT_TX_CSUM_ENABLE (false)
 #define MUGE_DEFAULT_TSO_CSUM_ENABLE (false)
 
@@ -1616,8 +1613,7 @@ muge_attach_post_sub(struct usb_ether *ue)
 	 */
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_hwassist = 0;
-	if (MUGE_DEFAULT_RX_CSUM_ENABLE)
-		ifp->if_capabilities |= IFCAP_RXCSUM;
+	ifp->if_capabilities |= IFCAP_RXCSUM;
 
 	if (MUGE_DEFAULT_TX_CSUM_ENABLE)
 		ifp->if_capabilities |= IFCAP_TXCSUM;
