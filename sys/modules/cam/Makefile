@@ -2,7 +2,7 @@
 
 S=	${SRCTOP}/sys
 
-.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/cam/nvme $S/dev/nvme $S/${MACHINE}/${MACHINE}
+.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/cam/nvme $S/dev/nvme
 
 KMOD=	cam
 
