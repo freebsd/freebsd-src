@@ -367,6 +367,15 @@ pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 		goto fail;
 	error = pipe_create(wpipe, false);
 	if (error != 0) {
+		/*
+		 * This cleanup leaves the pipe inode number for rpipe
+		 * still allocated, but never used.  We do not free
+		 * inode numbers for opened pipes, which is required
+		 * for correctness because numbers must be unique.
+		 * But also it avoids any memory use by the unr
+		 * allocator, so stashing away the transient inode
+		 * number is reasonable.
+		 */
 		pipe_free_kmem(rpipe);
 		goto fail;
 	}
