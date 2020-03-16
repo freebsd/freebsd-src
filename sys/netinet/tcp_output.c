@@ -1907,7 +1907,7 @@ tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 	top = NULL;
 	pkthdrlen = NULL;
 #ifdef KERN_TLS
-	if (m->m_flags & M_NOMAP)
+	if (hw_tls && (m->m_flags & M_NOMAP))
 		tls = m->m_ext.ext_pgs->tls;
 	else
 		tls = NULL;
