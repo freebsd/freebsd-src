@@ -731,7 +731,6 @@ ipoib_unicast_send(struct mbuf *mb, struct ipoib_dev_priv *priv, struct ipoib_he
 			}
 
 			if (!path->query && path_rec_start(priv, path)) {
-				spin_unlock_irqrestore(&priv->lock, flags);
 				if (new_path)
 					ipoib_path_free(priv, path);
 				return;
