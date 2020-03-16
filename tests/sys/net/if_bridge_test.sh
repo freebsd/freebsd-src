@@ -191,9 +191,64 @@ static_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "span" "cleanup"
+span_head()
+{
+	atf_set descr 'Bridge span test'
+	atf_set require.user root
+}
+
+span_body()
+{
+	set -x
+	vnet_init
+
+	epair=$(vnet_mkepair)
+	epair_span=$(vnet_mkepair)
+	bridge=$(vnet_mkbridge)
+
+	vnet_mkjail one ${bridge} ${epair}a ${epair_span}a
+
+	ifconfig ${epair}b up
+	ifconfig ${epair_span}b up
+
+	jexec one ifconfig ${bridge} up
+	jexec one ifconfig ${epair}a up
+	jexec one ifconfig ${epair_span}a up
+	jexec one ifconfig ${bridge} addm ${epair}a
+
+	jexec one ifconfig ${bridge} span ${epair_span}a
+	jexec one ifconfig ${bridge} 192.0.2.1/24
+
+	# Send some traffic through the span
+	jexec one ping -c 1 -t 1 192.0.2.2
+
+	# Check that we see the traffic on the span interface
+	atf_check -s exit:0 \
+		$(atf_get_srcdir)/../netpfil/common/pft_ping.py \
+		--sendif ${epair}b \
+		--to 192.0.2.2 \
+		--recvif ${epair_span}b
+
+	jexec one ifconfig ${bridge} -span ${epair_span}a
+
+	# And no more traffic after we remove the span
+	atf_check -s exit:1 \
+		$(atf_get_srcdir)/../netpfil/common/pft_ping.py \
+		--sendif ${epair}b \
+		--to 192.0.2.2 \
+		--recvif ${epair_span}b
+}
+
+span_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
 	atf_add_test_case "stp"
 	atf_add_test_case "static"
+	atf_add_test_case "span"
 }
