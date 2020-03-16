@@ -2219,6 +2219,9 @@ atp_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	di = USB_GET_DRIVER_INFO(uaa);
+	sc->sc_family = DECODE_FAMILY_FROM_DRIVER_INFO(di);
+
 	/*
 	 * By default the touchpad behaves like an HID device, sending
 	 * packets with reportID = 2. Such reports contain only
@@ -2227,17 +2230,18 @@ atp_attach(device_t dev)
 	 * sensors. The device input mode can be switched from HID
 	 * reports to raw sensor data using vendor-specific USB
 	 * control commands.
+	 * FOUNTAIN devices will give an error when trying to switch
+	 * input mode, so we skip this command
 	 */
-	if ((err = atp_set_device_mode(sc, RAW_SENSOR_MODE)) != 0) {
+	if ((sc->sc_family == TRACKPAD_FAMILY_FOUNTAIN_GEYSER) &&
+		(DECODE_PRODUCT_FROM_DRIVER_INFO(di) == FOUNTAIN))
+		DPRINTF("device mode switch skipped: Fountain device\n");
+	else if ((err = atp_set_device_mode(sc, RAW_SENSOR_MODE)) != 0) {
 		DPRINTF("failed to set mode to 'RAW_SENSOR' (%d)\n", err);
 		return (ENXIO);
 	}
 
 	mtx_init(&sc->sc_mutex, "atpmtx", NULL, MTX_DEF | MTX_RECURSE);
-
-	di = USB_GET_DRIVER_INFO(uaa);
-
-	sc->sc_family = DECODE_FAMILY_FROM_DRIVER_INFO(di);
 
 	switch(sc->sc_family) {
 	case TRACKPAD_FAMILY_FOUNTAIN_GEYSER:
