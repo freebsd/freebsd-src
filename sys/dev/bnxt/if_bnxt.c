@@ -1636,25 +1636,26 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct ifreq_buffer *ifbuf = &ifr->ifr_ifru.ifru_buffer;
-	struct bnxt_ioctl_header *ioh =
-	    (struct bnxt_ioctl_header *)(ifbuf->buffer);
+	struct bnxt_ioctl_header *ioh;
+	size_t iol;
 	int rc = ENOTSUP;
-	struct bnxt_ioctl_data *iod = NULL;
+	struct bnxt_ioctl_data iod_storage, *iod = &iod_storage;
+
 
 	switch (command) {
 	case SIOCGPRIVATE_0:
 		if ((rc = priv_check(curthread, PRIV_DRIVER)) != 0)
 			goto exit;
 
-		iod = malloc(ifbuf->length, M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (!iod) {
-			rc = ENOMEM;
-			goto exit;
-		}
-		copyin(ioh, iod, ifbuf->length);
+		ioh = ifr_buffer_get_buffer(ifr);
+		iol = ifr_buffer_get_length(ifr);
+		if (iol > sizeof(iod_storage))
+			return (EINVAL);
 
-		switch (ioh->type) {
+		if ((rc = copyin(ioh, iod, iol)) != 0)
+			goto exit;
+
+		switch (iod->hdr.type) {
 		case BNXT_HWRM_NVM_FIND_DIR_ENTRY:
 		{
 			struct bnxt_ioctl_hwrm_nvm_find_dir_entry *find =
@@ -1672,7 +1673,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1712,7 +1713,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 				remain -= csize;
 			}
 			if (iod->hdr.rc == 0)
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 
 			iflib_dma_free(&dma_data);
 			rc = 0;
@@ -1732,7 +1733,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1752,7 +1753,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1774,7 +1775,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1793,7 +1794,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1813,7 +1814,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1840,7 +1841,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 				copyout(dma_data.idi_vaddr, get->data,
 				    get->entry_length * get->entries);
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 			iflib_dma_free(&dma_data);
 
@@ -1861,7 +1862,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1883,7 +1884,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1902,7 +1903,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1923,7 +1924,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1944,7 +1945,7 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, ifbuf->length);
+				copyout(iod, ioh, iol);
 			}
 
 			rc = 0;
@@ -1955,8 +1956,6 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 	}
 
 exit:
-	if (iod)
-		free(iod, M_DEVBUF);
 	return rc;
 }
 
