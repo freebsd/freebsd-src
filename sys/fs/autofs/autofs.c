@@ -468,8 +468,9 @@ autofs_trigger_one(struct autofs_node *anp,
 
 	request_error = ar->ar_error;
 	if (request_error != 0) {
-		AUTOFS_WARN("request for %s completed with error %d",
-		    ar->ar_path, request_error);
+		AUTOFS_WARN("request for %s completed with error %d, "
+		    "pid %d (%s)", ar->ar_path, request_error,
+		    curproc->p_pid, curproc->p_comm);
 	}
 
 	wildcards = ar->ar_wildcards;
