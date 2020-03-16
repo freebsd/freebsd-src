@@ -285,7 +285,6 @@ callout_callwheel_init(void *dummy)
 	 * XXX: Clip callout to result of previous function of maxusers
 	 * maximum 384.  This is still huge, but acceptable.
 	 */
-	memset(CC_CPU(curcpu), 0, sizeof(cc_cpu));
 	ncallout = imin(16 + maxproc + maxfiles, 18508);
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
 
