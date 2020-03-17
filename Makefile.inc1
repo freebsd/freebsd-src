@@ -922,6 +922,7 @@ _sanity_check: .PHONY .MAKE
 # tree changes, particularly with respect to removing source files and
 # replacing generated files.  Handle these cases here in an ad-hoc fashion.
 _cleanobj_fast_depend_hack: .PHONY
+	@echo ">>> Deleting stale dependencies...";
 # Date      SVN Rev  Syscalls/Changes
 # 20200310  r358851  rename of openmp's ittnotify_static.c to .cpp
 .for f in ittnotify_static
