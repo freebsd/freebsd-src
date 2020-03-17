@@ -311,6 +311,7 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 			return (0);
 		}
 		*type = TYPE_AOUT;
+		warnx("%s: aout support is deprecated", fname);
 		return (1);
 	}
 #endif
