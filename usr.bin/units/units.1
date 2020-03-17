@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd February 3, 2020
+.Dd March 17, 2020
 .Dt UNITS 1
 .Os
 .Sh NAME
@@ -232,7 +232,20 @@ The standard units file.
 .Ex -std
 .Sh EXAMPLES
 .Bl -tag -width 0n
-.It Sy Example 1 : No Interactive usage
+.It Sy Example 1 : No Simple conversion of units
+.Pp
+This example shows how to do simple conversions, for example from gigabytes
+to bytes:
+.Bd -literal -offset 2n
+.Li $ Ic units -o %0.f -t '4 gigabytes' bytes
+4294967296
+.Ed
+.Pp
+The
+.Fl o Cm %0.f
+part of the command is required to print the result in a non-scientific
+notation (e.g, 4294967296 instead of 4.29497e+09).
+.It Sy Example 2 : No Interactive usage
 .Pp
 Here is an example of an interactive session where the user is prompted for
 units:
@@ -261,7 +274,7 @@ units:
 .Li You want : Ic degC
         29.444444
 .Ed
-.It Sy Example 2 : No Difference between Do Ic \&| Dc No and Do Ic / Dc No division
+.It Sy Example 3 : No Difference between Do Ic \&| Dc No and Do Ic / Dc No division
 .Pp
 The following command shows how to convert half a meter to centimeters.
 .Bd -literal -offset 2n
@@ -293,7 +306,7 @@ as
 .Dq Ic 0.5/meter ,
 which is not conformable to
 .Dq Ic cm .
-.It Sy Example 3 : No Simple units file
+.It Sy Example 4 : No Simple units file
 Here is an example of a short units file that defines some basic
 units:
 .Pp
@@ -307,7 +320,7 @@ units:
 .It "ft	12 inches"
 .It "mile	5280 ft"
 .El
-.It Sy Example 4 : No Viewing units and conversions of the default units file
+.It Sy Example 5 : No Viewing units and conversions of the default units file
 The following shell one-liner allows the user to view the contents of the
 default units file:
 .Bd -literal -offset 2n
