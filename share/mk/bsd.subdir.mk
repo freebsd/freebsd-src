@@ -16,8 +16,8 @@
 #
 # SUBDIR	A list of subdirectories that should be built as well.
 #		Each of the targets will execute the same target in the
-#		subdirectories. SUBDIR.yes is automatically appended
-#		to this list.
+#		subdirectories. SUBDIR.yes and SUBDIR.yes.yes are
+#		automatically appended to this list.
 #
 # +++ targets +++
 #
@@ -122,8 +122,8 @@ install:	beforeinstall realinstall afterinstall
 # SUBDIR recursing may be disabled for MK_DIRDEPS_BUILD
 .if !target(_SUBDIR)
 
-.if defined(SUBDIR) || defined(SUBDIR.yes)
-SUBDIR:=${SUBDIR} ${SUBDIR.yes}
+.if defined(SUBDIR) || defined(SUBDIR.yes) || defined(SUBDIR.yes.yes)
+SUBDIR:=${SUBDIR} ${SUBDIR.yes} ${SUBDIR.yes.yes}
 SUBDIR:=${SUBDIR:u}
 .endif
 
