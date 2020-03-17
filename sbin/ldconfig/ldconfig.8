@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2018
+.Dd March 17, 2020
 .Dt LDCONFIG 8
 .Os
 .Sh NAME
@@ -111,6 +111,8 @@ Generate the hints for 32-bit ABI shared libraries
 on 64-bit systems that support running 32-bit binaries.
 .It Fl aout
 Generate the hints for a.out format shared libraries.
+This option is deprecated and is not present in
+.Fx 13 .
 .It Fl elf
 Generate the hints for ELF format shared libraries.
 .It Fl R
