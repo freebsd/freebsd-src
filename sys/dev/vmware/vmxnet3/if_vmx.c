@@ -321,6 +321,13 @@ vmxnet3_register(device_t dev)
 }
 
 static int
+trunc_powerof2(int val)
+{
+
+	return (1U << (fls(val) - 1));
+}
+
+static int
 vmxnet3_attach_pre(if_ctx_t ctx)
 {
 	device_t dev;
@@ -349,12 +356,16 @@ vmxnet3_attach_pre(if_ctx_t ctx)
 	/* If 0, the iflib tunable was not set, so set to the default */
 	if (scctx->isc_nrxqsets == 0)
 		scctx->isc_nrxqsets = VMXNET3_DEF_RX_QUEUES;
+	scctx->isc_nrxqsets = trunc_powerof2(scctx->isc_nrxqsets);
 	scctx->isc_nrxqsets_max = min(VMXNET3_MAX_RX_QUEUES, mp_ncpus);
+	scctx->isc_nrxqsets_max = trunc_powerof2(scctx->isc_nrxqsets_max);
 
 	/* If 0, the iflib tunable was not set, so set to the default */
 	if (scctx->isc_ntxqsets == 0)
 		scctx->isc_ntxqsets = VMXNET3_DEF_TX_QUEUES;
+	scctx->isc_ntxqsets = trunc_powerof2(scctx->isc_ntxqsets);
 	scctx->isc_ntxqsets_max = min(VMXNET3_MAX_TX_QUEUES, mp_ncpus);
+	scctx->isc_ntxqsets_max = trunc_powerof2(scctx->isc_ntxqsets_max);
 
 	/*
 	 * Enforce that the transmit completion queue descriptor count is
