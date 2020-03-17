@@ -1,0 +1,4 @@
+This directory contains forward includes for the public header files of
+Lutok.  These files are only necessary during the build of Lutok itself
+so that the compiler can locate the include files in a path that mimics
+the final installation location.
