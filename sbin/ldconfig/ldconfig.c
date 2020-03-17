@@ -118,6 +118,7 @@ main(int argc, char **argv)
 
 	while (argc > 1) {
 		if (strcmp(argv[1], "-aout") == 0) {
+			warnx("aout support is deprecated");
 			is_aout = 1;
 			argc--;
 			argv++;
