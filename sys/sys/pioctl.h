@@ -41,6 +41,10 @@
 #ifndef _SYS_PIOCTL_H
 # define _SYS_PIOCTL_H
 
+#ifndef _KERNEL
+#warning "<sys/pioctl.h> is deprecated, ptrace() should be used instead"
+#endif
+
 # include <sys/ioccom.h>
 
 struct procfs_status {
