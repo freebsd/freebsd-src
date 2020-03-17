@@ -408,11 +408,12 @@ static inline uint64_t CVMX_DPI_SLI_PRTX_ERR(unsigned long offset)
 		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
 
 			if (OCTEON_IS_MODEL(OCTEON_CN68XX_PASS1))
-			if ((offset <= 1))
-				return CVMX_ADD_IO_SEG(0x0001DF0000000928ull) + ((offset) & 1) * 8;
+				if ((offset <= 1))
+					return CVMX_ADD_IO_SEG(0x0001DF0000000928ull) + ((offset) & 1) * 8;
 			if (OCTEON_IS_MODEL(OCTEON_CN68XX_PASS2))
+				if ((offset <= 1))
+					return CVMX_ADD_IO_SEG(0x0001DF0000000920ull) + ((offset) & 1) * 8;
 			if ((offset <= 1))
-				return CVMX_ADD_IO_SEG(0x0001DF0000000920ull) + ((offset) & 1) * 8;			if ((offset <= 1))
 				return CVMX_ADD_IO_SEG(0x0001DF0000000920ull) + ((offset) & 1) * 8;
 			break;
 		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
