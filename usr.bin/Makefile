@@ -33,6 +33,7 @@ SUBDIR=	alias \
 	dirname \
 	du \
 	elf2aout \
+	elfctl \
 	elfdump \
 	enigma \
 	env \

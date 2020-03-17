@@ -48,9 +48,9 @@
 
 __FBSDID("$FreeBSD$");
 
-static bool convert_to_feature_val(char *, u_int32_t *);
+static bool convert_to_feature_val(char *, uint32_t *);
 static bool edit_file_features(Elf *, int, int, char *);
-static bool get_file_features(Elf *, int, int, u_int32_t *, u_int64_t *);
+static bool get_file_features(Elf *, int, int, uint32_t *, uint64_t *);
 static void print_features(void);
 static bool print_file_features(Elf *, int, int, char *);
 static void usage(void);
@@ -85,13 +85,14 @@ main(int argc, char **argv)
 	GElf_Ehdr ehdr;
 	Elf *elf;
 	Elf_Kind kind;
-	int ch, fd, editfeatures, retval;
+	int ch, fd, retval;
 	char *features;
-	bool lflag;
+	bool editfeatures, lflag;
 
 	lflag = 0;
-	editfeatures = 0;
+	editfeatures = false;
 	retval = 0;
+	features = NULL;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		errx(EXIT_FAILURE, "elf_version error");
@@ -104,7 +105,7 @@ main(int argc, char **argv)
 			break;
 		case 'e':
 			features = optarg;
-			editfeatures = 1;
+			editfeatures = true;
 			break;
 		case 'h':
 		default:
@@ -205,11 +206,11 @@ usage(void)
 }
 
 static bool
-convert_to_feature_val(char *feature_str, u_int32_t *feature_val)
+convert_to_feature_val(char *feature_str, uint32_t *feature_val)
 {
 	char *feature;
 	int i, len;
-	u_int32_t input;
+	uint32_t input;
 	char operation;
 
 	input = 0;
@@ -246,8 +247,8 @@ convert_to_feature_val(char *feature_str, u_int32_t *feature_val)
 static bool
 edit_file_features(Elf *elf, int phcount, int fd, char *val)
 {
-	u_int32_t features;
-	u_int64_t off;
+	uint32_t features;
+	uint64_t off;
 
 	if (!get_file_features(elf, phcount, fd, &features, &off)) {
 		warnx("NT_FREEBSD_FEATURE_CTL note not found");
@@ -280,7 +281,7 @@ print_features(void)
 static bool
 print_file_features(Elf *elf, int phcount, int fd, char *filename)
 {
-	u_int32_t features;
+	uint32_t features;
 	unsigned long i;
 
 	if (!get_file_features(elf, phcount, fd, &features, NULL)) {
@@ -301,15 +302,14 @@ print_file_features(Elf *elf, int phcount, int fd, char *filename)
 }
 
 static bool
-get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features,
-    u_int64_t *off)
+get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
+    uint64_t *off)
 {
 	GElf_Phdr phdr;
 	Elf_Note note;
 	unsigned long read_total;
 	int namesz, descsz, i;
 	char *name;
-	ssize_t size;
 
 	/*
 	 * Go through each program header to find one that is of type PT_NOTE
@@ -331,9 +331,9 @@ get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features,
 
 		read_total = 0;
 		while (read_total < phdr.p_filesz) {
-			size = read(fd, &note, sizeof(note));
-			if (size < (ssize_t)sizeof(note)) {
-				warn("read() failed:");
+			if (read(fd, &note, sizeof(note)) <
+			    (ssize_t)sizeof(note)) {
+				warnx("elf note header too short");
 				return (false);
 			}
 			read_total += sizeof(note);
@@ -349,7 +349,11 @@ get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features,
 				return (false);
 			}
 			descsz = roundup2(note.n_descsz, 4);
-			size = read(fd, name, namesz);
+			if (read(fd, name, namesz) < namesz) {
+				warnx("elf note name too short");
+				free(name);
+				return (false);
+			}
 			read_total += namesz;
 
 			if (note.n_namesz != 8 ||
@@ -366,7 +370,7 @@ get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features,
 				continue;
 			}
 
-			if (note.n_descsz < sizeof(u_int32_t)) {
+			if (note.n_descsz < sizeof(uint32_t)) {
 				warnx("Feature descriptor can't "
 				    "be less than 4 bytes");
 				free(name);
@@ -377,9 +381,14 @@ get_file_features(Elf *elf, int phcount, int fd, u_int32_t *features,
 			 * XXX: For now we look at only 4 bytes of the
 			 * 	descriptor. This should respect descsz.
 			 */
-			if (note.n_descsz > sizeof(u_int32_t))
+			if (note.n_descsz > sizeof(uint32_t))
 				warnx("Feature note is bigger than expected");
-			read(fd, features, sizeof(u_int32_t));
+			if (read(fd, features, sizeof(uint32_t)) <
+			    (ssize_t)sizeof(uint32_t)) {
+				warnx("feature note data too short");
+				free(name);
+				return (false);
+			}
 			if (off != NULL)
 				*off = phdr.p_offset + read_total;
 			free(name);
