@@ -2,14 +2,26 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd April 29, 2019
+.Dd March 17, 2020
 .Dt TUN 4
 .Os
 .Sh NAME
 .Nm tun
 .Nd tunnel software network interface
 .Sh SYNOPSIS
-.Cd device tuntap
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device tuntap"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_tuntap_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
