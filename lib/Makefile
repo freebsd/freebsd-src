@@ -61,6 +61,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libjail \
 	libkiconv \
 	libkvm \
+	liblua \
 	liblzma \
 	libmemstat \
 	libmd \
