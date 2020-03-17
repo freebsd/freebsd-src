@@ -448,6 +448,32 @@ SYSCTL_PROC(_kern, KERN_HOSTID, hostid,
     CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE | CTLFLAG_CAPRD,
     NULL, 0, sysctl_hostid, "LU", "Host ID");
 
+static struct mtx bootid_lk;
+MTX_SYSINIT(bootid_lock, &bootid_lk, "bootid generator lock", MTX_DEF);
+
+static int
+sysctl_bootid(SYSCTL_HANDLER_ARGS)
+{
+	static uint8_t boot_id[16];
+	static bool initialized = false;
+
+	mtx_lock(&bootid_lk);
+	if (!initialized) {
+		if (!is_random_seeded()) {
+			mtx_unlock(&bootid_lk);
+			return (ENXIO);
+		}
+		arc4random_buf(boot_id, sizeof(boot_id));
+		initialized = true;
+	}
+	mtx_unlock(&bootid_lk);
+
+	return (SYSCTL_OUT(req, boot_id, sizeof(boot_id)));
+}
+SYSCTL_PROC(_kern, OID_AUTO, boot_id,
+    CTLTYPE_STRUCT | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_CAPRD,
+    NULL, 0, sysctl_bootid, "", "Random boot ID");
+
 /*
  * The osrelease string is copied from the global (osrelease in vers.c) into
  * prison0 by a sysinit and is inherited by child jails if not changed at jail
