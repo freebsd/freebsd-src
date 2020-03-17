@@ -2165,7 +2165,8 @@ ${_bt}-lib/libdwarf: ${_bt_m4_depend}
 # 13.0-CURRENT cycle, thus needs to be built on -older releases and stable
 # branches.
 .if ${BOOTSTRAPPING} < 1300059
-_flua= libexec/flua
+${_bt}-libexec/flua: ${_bt}-lib/liblua
+_flua= lib/liblua libexec/flua
 .endif
 
 # r245440 mtree -N support added
