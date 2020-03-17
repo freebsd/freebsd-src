@@ -121,6 +121,9 @@ CFLAGS.gcc.ioctl.c+= -Wno-redundant-decls
 
 CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
+# Ignore deprecation warning in <sys/pioctl.h>
+CFLAGS.ioctl.c+= -Wno-\#warnings
+
 DEPENDOBJS+=	tables.h
 tables.h: mktables
 	sh ${.CURDIR}/mktables ${SYSROOT:U${DESTDIR}}${INCLUDEDIR} ${.TARGET}
