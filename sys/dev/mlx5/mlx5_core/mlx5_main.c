@@ -45,6 +45,11 @@
 #include <dev/mlx5/mlx5_lib/mlx5.h>
 #include "mlx5_core.h"
 #include "fs_core.h"
+#ifdef PCI_IOV
+#include <sys/nv.h>
+#include <dev/pci/pci_iov.h>
+#include <sys/iov_schema.h>
+#endif
 
 static const char mlx5_version[] = "Mellanox Core driver "
 	DRIVER_VERSION " (" DRIVER_RELDATE ")";
@@ -513,12 +518,13 @@ static int set_hca_ctrl(struct mlx5_core_dev *dev)
 	return err;
 }
 
-static int mlx5_core_enable_hca(struct mlx5_core_dev *dev)
+static int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id)
 {
 	u32 out[MLX5_ST_SZ_DW(enable_hca_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(enable_hca_in)] = {0};
 
 	MLX5_SET(enable_hca_in, in, opcode, MLX5_CMD_OP_ENABLE_HCA);
+	MLX5_SET(enable_hca_in, in, function_id, func_id);
 	return mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
 }
 
@@ -853,8 +859,11 @@ mlx5_firmware_update(struct mlx5_core_dev *dev)
 static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 {
 	struct pci_dev *pdev = dev->pdev;
-	int err = 0;
+	device_t bsddev;
+	int err;
 
+	pdev = dev->pdev;
+	bsddev = pdev->dev.bsddev;
 	pci_set_drvdata(dev->pdev, dev);
 	strncpy(priv->name, dev_name(&pdev->dev), MLX5_MAX_NAME_LEN);
 	priv->name[MLX5_MAX_NAME_LEN - 1] = 0;
@@ -905,6 +914,10 @@ err_dbg:
 
 static void mlx5_pci_close(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 {
+#ifdef PCI_IOV
+	if (MLX5_CAP_GEN(dev, eswitch_flow_table))
+		pci_iov_detach(dev->pdev->dev.bsddev);
+#endif
 	iounmap(dev->iseg);
 	release_bar(dev->pdev);
 	mlx5_pci_disable_device(dev);
@@ -1035,7 +1048,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_cmd_cleanup;
 	}
 
-	err = mlx5_core_enable_hca(dev);
+	err = mlx5_core_enable_hca(dev, 0);
 	if (err) {
 		mlx5_core_err(dev, "enable hca failed\n");
 		goto err_cmd_cleanup;
@@ -1295,6 +1308,9 @@ static int init_one(struct pci_dev *pdev,
 	struct mlx5_core_dev *dev;
 	struct mlx5_priv *priv;
 	device_t bsddev = pdev->dev.bsddev;
+#ifdef PCI_IOV
+	nvlist_t *pf_schema, *vf_schema;
+#endif
 	int i,err;
 	struct sysctl_oid *pme_sysctl_node;
 	struct sysctl_oid *pme_err_sysctl_node;
@@ -1578,6 +1594,19 @@ static int init_one(struct pci_dev *pdev,
 
 	mlx5_firmware_update(dev);
 
+#ifdef PCI_IOV
+	if (MLX5_CAP_GEN(dev, vport_group_manager)) {
+		pf_schema = pci_iov_schema_alloc_node();
+		vf_schema = pci_iov_schema_alloc_node();
+		err = pci_iov_attach(bsddev, pf_schema, vf_schema);
+		if (err != 0) {
+			device_printf(bsddev,
+			    "Failed to initialize SR-IOV support, error %d\n",
+			    err);
+		}
+	}
+#endif
+
 	pci_save_state(bsddev);
 	return 0;
 
@@ -1723,6 +1752,54 @@ static const struct pci_error_handlers mlx5_err_handler = {
 	.resume		= mlx5_pci_resume
 };
 
+#ifdef PCI_IOV
+static int
+mlx5_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *pf_config)
+{
+	struct pci_dev *pdev;
+	struct mlx5_core_dev *core_dev;
+	struct mlx5_priv *priv;
+
+	pdev = device_get_softc(dev);
+	core_dev = pci_get_drvdata(pdev);
+	priv = &core_dev->priv;
+
+	return (0);
+}
+
+static void
+mlx5_iov_uninit(device_t dev)
+{
+	struct pci_dev *pdev;
+	struct mlx5_core_dev *core_dev;
+	struct mlx5_priv *priv;
+
+	pdev = device_get_softc(dev);
+	core_dev = pci_get_drvdata(pdev);
+	priv = &core_dev->priv;
+}
+
+static int
+mlx5_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *vf_config)
+{
+	struct pci_dev *pdev;
+	struct mlx5_core_dev *core_dev;
+	struct mlx5_priv *priv;
+	int error;
+
+	pdev = device_get_softc(dev);
+	core_dev = pci_get_drvdata(pdev);
+	priv = &core_dev->priv;
+
+	error = -mlx5_core_enable_hca(core_dev, vfnum + 1);
+	if (error != 0) {
+		mlx5_core_err(core_dev, "enabling VF %d failed, error %d\n",
+		    vfnum, error);
+	}
+	return (error);
+}
+#endif
+
 static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 {
 	bool fast_teardown, force_teardown;
@@ -1857,7 +1934,12 @@ struct pci_driver mlx5_core_driver = {
 	.shutdown	= shutdown_one,
 	.probe          = init_one,
 	.remove         = remove_one,
-	.err_handler	= &mlx5_err_handler
+	.err_handler	= &mlx5_err_handler,
+#ifdef PCI_IOV
+	.bsd_iov_init	= mlx5_iov_init,
+	.bsd_iov_uninit	= mlx5_iov_uninit,
+	.bsd_iov_add_vf	= mlx5_iov_add_vf,
+#endif
 };
 
 static int __init init(void)
