@@ -2,7 +2,7 @@
 .PATH:  ${SRCTOP}/sys/ofed/drivers/infiniband/core
 
 KMOD=	ibcore
-SRCS=	vnode_if.h device_if.h bus_if.h pci_if.h \
+SRCS=	vnode_if.h device_if.h bus_if.h pci_if.h pci_iov_if.h \
 	opt_inet.h opt_inet6.h \
 	ib_addr.c \
 	ib_agent.c \
