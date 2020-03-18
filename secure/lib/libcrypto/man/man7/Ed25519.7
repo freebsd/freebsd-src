@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ED25519 7"
-.TH ED25519 7 "2019-09-10" "1.1.1d" "OpenSSL"
+.TH ED25519 7 "2020-03-17" "1.1.1e" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -145,7 +145,7 @@ Ed25519, Ed448 \&\- EVP_PKEY Ed25519 and Ed448 support
 The \fBEd25519\fR and \fBEd448\fR \s-1EVP_PKEY\s0 implementation supports key generation,
 one-shot digest sign and digest verify using PureEdDSA and \fBEd25519\fR or \fBEd448\fR
 (see \s-1RFC8032\s0). It has associated private and public key formats compatible with
-draft\-ietf\-curdle\-pkix\-04.
+\&\s-1RFC 8410.\s0
 .PP
 No additional parameters can be set during key generation, one-shot signing or
 verification. In particular, because PureEdDSA is used, a digest must \fB\s-1NOT\s0\fR be
@@ -213,7 +213,7 @@ output in \s-1PEM\s0 format:
 \&\fBEVP_DigestVerifyInit\fR\|(3),
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

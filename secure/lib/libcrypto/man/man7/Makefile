@@ -13,6 +13,7 @@ MAN+= evp.7
 MAN+= ossl_store-file.7
 MAN+= ossl_store.7
 MAN+= passphrase-encoding.7
+MAN+= proxy-certificates.7
 MAN+= scrypt.7
 MAN+= ssl.7
 MAN+= x509.7

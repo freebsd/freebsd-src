@@ -36,6 +36,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200317: OpenSSL 1.1.1e import
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_security_bits.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_size.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/X509_LOOKUP_get_method_data.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/X509_LOOKUP_get_store.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/X509_LOOKUP_set_method_data.3.gz
 # 20200310: new clang import which bumps version from 9.0.1 to 10.0.0.
 OLD_FILES+=usr/lib/clang/9.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/9.0.1/include/cuda_wrappers/complex

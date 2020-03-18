@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PASSPHRASE-ENCODING 7"
-.TH PASSPHRASE-ENCODING 7 "2019-09-10" "1.1.1d" "OpenSSL"
+.TH PASSPHRASE-ENCODING 7 "2020-03-17" "1.1.1e" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -188,7 +188,7 @@ A pass phrase encoded in \s-1ISO\-8859\-2\s0 could very well have a sequence suc
 0xC3 0xAF (which is the two characters \*(L"\s-1LATIN CAPITAL LETTER A WITH BREVE\*(R"\s0
 and \*(L"\s-1LATIN CAPITAL LETTER Z WITH DOT ABOVE\*(R"\s0 in \s-1ISO\-8859\-2\s0 encoding), but would
 be misinterpreted as the perfectly valid \s-1UTF\-8\s0 encoded code point U+00EF (\s-1LATIN
-SMALL LETTER I WITH DIARESIS\s0) \fIif the pass phrase doesn't contain anything that
+SMALL LETTER I WITH DIAERESIS\s0) \fIif the pass phrase doesn't contain anything that
 would be invalid \s-1UTF\-8\s0\fR.
 A pass phrase that contains this kind of byte sequence will give a different
 outcome in OpenSSL 1.1.0 and newer than in OpenSSL older than 1.1.0.
@@ -279,7 +279,7 @@ erroneous/non\-compliant encoding used by OpenSSL older than 1.1.0)
 \&\fBd2i_PKCS8PrivateKey_bio\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
