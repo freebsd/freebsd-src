@@ -61,12 +61,13 @@ ACPI_MODULE_NAME("BATTERY")
 
 #define	ACPI_BATTERY_BST_CHANGE	0x80
 #define	ACPI_BATTERY_BIF_CHANGE	0x81
+#define	ACPI_BATTERY_BIX_CHANGE	ACPI_BATTERY_BIF_CHANGE
 
 struct acpi_cmbat_softc {
     device_t	    dev;
     int		    flags;
 
-    struct acpi_bif bif;
+    struct acpi_bix bix;
     struct acpi_bst bst;
     struct timespec bst_lastupdated;
 };
@@ -82,10 +83,10 @@ static void		acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify,
 static int		acpi_cmbat_info_expired(struct timespec *lastupdated);
 static void		acpi_cmbat_info_updated(struct timespec *lastupdated);
 static void		acpi_cmbat_get_bst(void *arg);
-static void		acpi_cmbat_get_bif_task(void *arg);
-static void		acpi_cmbat_get_bif(void *arg);
-static int		acpi_cmbat_bst(device_t dev, struct acpi_bst *bstp);
-static int		acpi_cmbat_bif(device_t dev, struct acpi_bif *bifp);
+static void		acpi_cmbat_get_bix_task(void *arg);
+static void		acpi_cmbat_get_bix(void *arg);
+static int		acpi_cmbat_bst(device_t, struct acpi_bst *);
+static int		acpi_cmbat_bix(device_t, void *, size_t);
 static void		acpi_cmbat_init_battery(void *arg);
 
 static device_method_t acpi_cmbat_methods[] = {
@@ -96,7 +97,7 @@ static device_method_t acpi_cmbat_methods[] = {
     DEVMETHOD(device_resume,	acpi_cmbat_resume),
 
     /* ACPI battery interface */
-    DEVMETHOD(acpi_batt_get_info, acpi_cmbat_bif),
+    DEVMETHOD(acpi_batt_get_info, acpi_cmbat_bix),
     DEVMETHOD(acpi_batt_get_status, acpi_cmbat_bst),
 
     DEVMETHOD_END
@@ -204,12 +205,12 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 	timespecclear(&sc->bst_lastupdated);
 	break;
     case ACPI_NOTIFY_BUS_CHECK:
-    case ACPI_BATTERY_BIF_CHANGE:
+    case ACPI_BATTERY_BIX_CHANGE:
 	/*
 	 * Queue a callback to get the current battery info from thread
 	 * context.  It's not safe to block in a notify handler.
 	 */
-	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_cmbat_get_bif_task, dev);
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_cmbat_get_bix_task, dev);
 	break;
     }
 
@@ -268,15 +269,15 @@ acpi_cmbat_get_bst(void *arg)
     as = AcpiEvaluateObject(h, "_BST", NULL, &bst_buffer);
     if (ACPI_FAILURE(as)) {
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "error fetching current battery status -- %s\n",
-		    AcpiFormatException(as));
+	    "error fetching current battery status -- %s\n",
+	    AcpiFormatException(as));
 	goto end;
     }
 
     res = (ACPI_OBJECT *)bst_buffer.Pointer;
     if (!ACPI_PKG_VALID(res, 4)) {
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "battery status corrupted\n");
+	    "battery status corrupted\n");
 	goto end;
     }
 
@@ -306,89 +307,189 @@ acpi_cmbat_get_bst(void *arg)
 	sc->flags &= ~ACPI_BATT_STAT_CRITICAL;
 
 end:
-    if (bst_buffer.Pointer != NULL)
-	AcpiOsFree(bst_buffer.Pointer);
+    AcpiOsFree(bst_buffer.Pointer);
 }
 
 /* XXX There should be a cleaner way to do this locking. */
 static void
-acpi_cmbat_get_bif_task(void *arg)
+acpi_cmbat_get_bix_task(void *arg)
 {
 
     ACPI_SERIAL_BEGIN(cmbat);
-    acpi_cmbat_get_bif(arg);
+    acpi_cmbat_get_bix(arg);
     ACPI_SERIAL_END(cmbat);
 }
 
 static void
-acpi_cmbat_get_bif(void *arg)
+acpi_cmbat_get_bix(void *arg)
 {
     struct acpi_cmbat_softc *sc;
     ACPI_STATUS	as;
     ACPI_OBJECT	*res;
     ACPI_HANDLE	h;
-    ACPI_BUFFER	bif_buffer;
+    ACPI_BUFFER	bix_buffer;
     device_t dev;
+    int i, n;
+    const struct {
+	    enum { _BIX, _BIF } type;
+	    char *name;
+    } bobjs[] = {
+	    { _BIX, "_BIX"},
+	    { _BIF, "_BIF"},
+    };
 
     ACPI_SERIAL_ASSERT(cmbat);
 
     dev = arg;
     sc = device_get_softc(dev);
     h = acpi_get_handle(dev);
-    bif_buffer.Pointer = NULL;
-    bif_buffer.Length = ACPI_ALLOCATE_BUFFER;
+    bix_buffer.Pointer = NULL;
+    bix_buffer.Length = ACPI_ALLOCATE_BUFFER;
 
-    as = AcpiEvaluateObject(h, "_BIF", NULL, &bif_buffer);
-    if (ACPI_FAILURE(as)) {
+    for (n = 0; n < sizeof(bobjs); n++) {
+	as = AcpiEvaluateObject(h, bobjs[n].name, NULL, &bix_buffer);
+	if (!ACPI_FAILURE(as)) {
+	    res = (ACPI_OBJECT *)bix_buffer.Pointer;
+	    break;
+	}
+	AcpiOsFree(bix_buffer.Pointer);
+        bix_buffer.Pointer = NULL;
+        bix_buffer.Length = ACPI_ALLOCATE_BUFFER;
+    }
+    /* Both _BIF and _BIX were not found. */
+    if (n == sizeof(bobjs)) {
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "error fetching current battery info -- %s\n",
-		    AcpiFormatException(as));
+	    "error fetching current battery info -- %s\n",
+	    AcpiFormatException(as));
 	goto end;
     }
 
-    res = (ACPI_OBJECT *)bif_buffer.Pointer;
-    if (!ACPI_PKG_VALID(res, 13)) {
-	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "battery info corrupted\n");
-	goto end;
+    /*
+     * ACPI _BIX and _BIF revision mismatch check:
+     *
+     * 1. _BIF has no revision field.  The number of fields must be 13.
+     *
+     * 2. _BIX has a revision field.  As of ACPI 6.3 it must be "0" or
+     *    "1".  The number of fields will be checked---20 and 21,
+     *    respectively.
+     *
+     *    If the revision number is grater than "1" and the number of
+     *    fields is grater than 21, it will be treated as compatible with
+     *    ACPI 6.0 _BIX.  If not, it will be ignored.
+     */
+    i = 0;
+    switch (bobjs[n].type) {
+    case _BIX:
+	if (acpi_PkgInt16(res, i++, &sc->bix.rev) != 0) {
+	    ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		"_BIX revision error\n");
+	    goto end;
+	}
+#define	ACPI_BIX_REV_MISMATCH_ERR(x, r) do {			\
+	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),	\
+	    "_BIX revision mismatch (%u != %u)\n", x, r);	\
+	goto end;						\
+	} while (0)
+
+	if (ACPI_PKG_VALID_EQ(res, 21)) {	/* ACPI 6.0 _BIX */
+	    /*
+	     * Some models have rev.0 _BIX with 21 members.
+	     * In that case, treat the first 20 members as rev.0 _BIX.
+	     */
+	    if (sc->bix.rev != ACPI_BIX_REV_0 &&
+	        sc->bix.rev != ACPI_BIX_REV_1)
+		ACPI_BIX_REV_MISMATCH_ERR(sc->bix.rev, ACPI_BIX_REV_1);
+	} else if (ACPI_PKG_VALID_EQ(res, 20)) {/* ACPI 4.0 _BIX */
+	    if (sc->bix.rev != ACPI_BIX_REV_0)
+		ACPI_BIX_REV_MISMATCH_ERR(sc->bix.rev, ACPI_BIX_REV_0);
+	} else if (ACPI_PKG_VALID(res, 22)) {
+	    /* _BIX with 22 or more members. */
+	    if (ACPI_BIX_REV_MIN_CHECK(sc->bix.rev, ACPI_BIX_REV_1 + 1)) {
+		/*
+		 * Unknown revision number.
+		 * Assume 21 members are compatible with 6.0 _BIX.
+		 */
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "Unknown _BIX revision(%u). "
+		    "Assuming compatible with revision %u.\n",
+		    sc->bix.rev, ACPI_BIX_REV_1);
+	    } else {
+		/*
+		 * Known revision number.  Ignore the extra members.
+		 */
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "Extra objects found in _BIX were ignored.\n");
+	    }
+	} else {
+		/* Invalid _BIX.  Ignore it. */
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "Invalid _BIX found (rev=%u, count=%u).  Ignored.\n",
+		    sc->bix.rev, res->Package.Count);
+		goto end;
+	}
+	break;
+#undef	ACPI_BIX_REV_MISMATCH_ERR
+    case _BIF:
+	if (ACPI_PKG_VALID_EQ(res, 13))	/* _BIF */
+	    sc->bix.rev = ACPI_BIX_REV_BIF;
+	else {
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "Invalid _BIF found (count=%u).  Ignored.\n",
+		    res->Package.Count);
+		goto end;
+	}
+	break;
     }
 
-    if (acpi_PkgInt32(res, 0, &sc->bif.units) != 0)
-	goto end;
-    if (acpi_PkgInt32(res, 1, &sc->bif.dcap) != 0)
-	goto end;
-    if (acpi_PkgInt32(res, 2, &sc->bif.lfcap) != 0)
-	goto end;
-    if (acpi_PkgInt32(res, 3, &sc->bif.btech) != 0)
-	goto end;
-    if (acpi_PkgInt32(res, 4, &sc->bif.dvol) != 0)
-	goto end;
-    if (acpi_PkgInt32(res, 5, &sc->bif.wcap) != 0)
-	goto end;
-    if (acpi_PkgInt32(res, 6, &sc->bif.lcap) != 0)
-	goto end;
-    if (acpi_PkgInt32(res, 7, &sc->bif.gra1) != 0)
-	goto end;
-    if (acpi_PkgInt32(res, 8, &sc->bif.gra2) != 0)
-	goto end;
-    if (acpi_PkgStr(res,  9, sc->bif.model, ACPI_CMBAT_MAXSTRLEN) != 0)
-	goto end;
-    if (acpi_PkgStr(res, 10, sc->bif.serial, ACPI_CMBAT_MAXSTRLEN) != 0)
-	goto end;
-    if (acpi_PkgStr(res, 11, sc->bif.type, ACPI_CMBAT_MAXSTRLEN) != 0)
-	goto end;
-    if (acpi_PkgStr(res, 12, sc->bif.oeminfo, ACPI_CMBAT_MAXSTRLEN) != 0)
-	goto end;
+    ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+	"rev = %04x\n", sc->bix.rev);
+#define	BIX_GETU32(NAME)	do {			\
+    ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),	\
+	#NAME " = %u\n", sc->bix.NAME);			\
+    if (acpi_PkgInt32(res, i++, &sc->bix.NAME) != 0)	\
+	    goto end;					\
+    } while (0)
 
+    BIX_GETU32(units);
+    BIX_GETU32(dcap);
+    BIX_GETU32(lfcap);
+    BIX_GETU32(btech);
+    BIX_GETU32(dvol);
+    BIX_GETU32(wcap);
+    BIX_GETU32(lcap);
+    if (ACPI_BIX_REV_MIN_CHECK(sc->bix.rev, ACPI_BIX_REV_0)) {
+	    BIX_GETU32(cycles);
+	    BIX_GETU32(accuracy);
+	    BIX_GETU32(stmax);
+	    BIX_GETU32(stmin);
+	    BIX_GETU32(aimax);
+	    BIX_GETU32(aimin);
+    }
+    BIX_GETU32(gra1);
+    BIX_GETU32(gra2);
+    if (acpi_PkgStr(res, i++, sc->bix.model, ACPI_CMBAT_MAXSTRLEN) != 0)
+	    goto end;
+    if (acpi_PkgStr(res, i++, sc->bix.serial, ACPI_CMBAT_MAXSTRLEN) != 0)
+	    goto end;
+    if (acpi_PkgStr(res, i++, sc->bix.type, ACPI_CMBAT_MAXSTRLEN) != 0)
+	    goto end;
+    if (acpi_PkgStr(res, i++, sc->bix.oeminfo, ACPI_CMBAT_MAXSTRLEN) != 0)
+	    goto end;
+    if (ACPI_BIX_REV_MIN_CHECK(sc->bix.rev, ACPI_BIX_REV_1))
+	    BIX_GETU32(scap);
+#undef	BIX_GETU32
 end:
-    if (bif_buffer.Pointer != NULL)
-	AcpiOsFree(bif_buffer.Pointer);
+    AcpiOsFree(bix_buffer.Pointer);
 }
 
 static int
-acpi_cmbat_bif(device_t dev, struct acpi_bif *bifp)
+acpi_cmbat_bix(device_t dev, void *bix, size_t len)
 {
     struct acpi_cmbat_softc *sc;
+
+    if (len != sizeof(struct acpi_bix) &&
+	len != sizeof(struct acpi_bif))
+	    return (-1);
 
     sc = device_get_softc(dev);
 
@@ -396,29 +497,17 @@ acpi_cmbat_bif(device_t dev, struct acpi_bif *bifp)
      * Just copy the data.  The only value that should change is the
      * last-full capacity, so we only update when we get a notify that says
      * the info has changed.  Many systems apparently take a long time to
-     * process a _BIF call so we avoid it if possible.
+     * process a _BI[FX] call so we avoid it if possible.
      */
     ACPI_SERIAL_BEGIN(cmbat);
-    bifp->units = sc->bif.units;
-    bifp->dcap = sc->bif.dcap;
-    bifp->lfcap = sc->bif.lfcap;
-    bifp->btech = sc->bif.btech;
-    bifp->dvol = sc->bif.dvol;
-    bifp->wcap = sc->bif.wcap;
-    bifp->lcap = sc->bif.lcap;
-    bifp->gra1 = sc->bif.gra1;
-    bifp->gra2 = sc->bif.gra2;
-    strncpy(bifp->model, sc->bif.model, sizeof(sc->bif.model));
-    strncpy(bifp->serial, sc->bif.serial, sizeof(sc->bif.serial));
-    strncpy(bifp->type, sc->bif.type, sizeof(sc->bif.type));
-    strncpy(bifp->oeminfo, sc->bif.oeminfo, sizeof(sc->bif.oeminfo));
+    memcpy(bix, &sc->bix, len);
     ACPI_SERIAL_END(cmbat);
 
     return (0);
 }
 
 static int
-acpi_cmbat_bst(device_t dev, struct acpi_bst *bstp)
+acpi_cmbat_bst(device_t dev, struct acpi_bst *bst)
 {
     struct acpi_cmbat_softc *sc;
 
@@ -427,12 +516,9 @@ acpi_cmbat_bst(device_t dev, struct acpi_bst *bstp)
     ACPI_SERIAL_BEGIN(cmbat);
     if (acpi_BatteryIsPresent(dev)) {
 	acpi_cmbat_get_bst(dev);
-	bstp->state = sc->bst.state;
-	bstp->rate = sc->bst.rate;
-	bstp->cap = sc->bst.cap;
-	bstp->volt = sc->bst.volt;
+	memcpy(bst, &sc->bst, sizeof(*bst));
     } else
-	bstp->state = ACPI_BATT_STAT_NOT_PRESENT;
+	bst->state = ACPI_BATT_STAT_NOT_PRESENT;
     ACPI_SERIAL_END(cmbat);
 
     return (0);
@@ -447,7 +533,7 @@ acpi_cmbat_init_battery(void *arg)
 
     dev = (device_t)arg;
     ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		"battery initialization start\n");
+	"battery enitialization start\n");
 
     /*
      * Try repeatedly to get valid data from the battery.  Since the
@@ -486,11 +572,11 @@ acpi_cmbat_init_battery(void *arg)
 	    timespecclear(&sc->bst_lastupdated);
 	    acpi_cmbat_get_bst(dev);
 	}
-	if (retry == 0 || !acpi_battery_bif_valid(&sc->bif))
-	    acpi_cmbat_get_bif(dev);
+	if (retry == 0 || !acpi_battery_bix_valid(&sc->bix))
+	    acpi_cmbat_get_bix(dev);
 
 	valid = acpi_battery_bst_valid(&sc->bst) &&
-	    acpi_battery_bif_valid(&sc->bif);
+	    acpi_battery_bix_valid(&sc->bix);
 	ACPI_SERIAL_END(cmbat);
 
 	if (valid)
@@ -499,9 +585,9 @@ acpi_cmbat_init_battery(void *arg)
 
     if (retry == ACPI_CMBAT_RETRY_MAX) {
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "battery initialization failed, giving up\n");
+	    "battery initialization failed, giving up\n");
     } else {
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "battery initialization done, tried %d times\n", retry + 1);
+	    "battery initialization done, tried %d times\n", retry + 1);
     }
 }

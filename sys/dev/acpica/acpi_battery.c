@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 /* Default seconds before re-sampling the battery state. */
 #define	ACPI_BATTERY_INFO_EXPIRE	5
 
-static int	acpi_batteries_initted;
+static int	acpi_batteries_initialized;
 static int	acpi_battery_info_expire = ACPI_BATTERY_INFO_EXPIRE;
 static struct	acpi_battinfo	acpi_battery_battinfo;
 static struct	sysctl_ctx_list	acpi_battery_sysctl_ctx;
@@ -65,11 +65,10 @@ acpi_battery_register(device_t dev)
 {
     int error;
 
-    error = 0;
     ACPI_SERIAL_BEGIN(battery);
-    if (!acpi_batteries_initted)
-	error = acpi_battery_init();
+    error = acpi_battery_init();
     ACPI_SERIAL_END(battery);
+
     return (error);
 }
 
@@ -107,11 +106,12 @@ acpi_battery_bst_valid(struct acpi_bst *bst)
 	bst->cap != ACPI_BATT_UNKNOWN && bst->volt != ACPI_BATT_UNKNOWN);
 }
 
-/* Check _BIF results for validity. */
+/* Check _BI[FX] results for validity. */
 int
-acpi_battery_bif_valid(struct acpi_bif *bif)
+acpi_battery_bix_valid(struct acpi_bix *bix)
 {
-    return (bif->lfcap != 0);
+
+    return (bix->lfcap != 0);
 }
 
 /* Get info about one or all batteries. */
@@ -123,7 +123,7 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
     devclass_t batt_dc;
     device_t batt_dev;
     struct acpi_bst *bst;
-    struct acpi_bif *bif;
+    struct acpi_bix *bix;
     struct acpi_battinfo *bi;
 
     /*
@@ -139,11 +139,11 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 
     /*
      * Allocate storage for all _BST data, their derived battinfo data,
-     * and the current battery's _BIF data.
+     * and the current battery's _BIX (or _BIF) data.
      */
     bst = malloc(devcount * sizeof(*bst), M_TEMP, M_WAITOK | M_ZERO);
     bi = malloc(devcount * sizeof(*bi), M_TEMP, M_WAITOK | M_ZERO);
-    bif = malloc(sizeof(*bif), M_TEMP, M_WAITOK | M_ZERO);
+    bix = malloc(sizeof(*bix), M_TEMP, M_WAITOK | M_ZERO);
 
     /*
      * Pass 1:  for each battery that is present and valid, get its status,
@@ -176,12 +176,12 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 	 */
 	if (!acpi_BatteryIsPresent(batt_dev) ||
 	    ACPI_BATT_GET_STATUS(batt_dev, &bst[i]) != 0 ||
-	    ACPI_BATT_GET_INFO(batt_dev, bif) != 0)
+	    ACPI_BATT_GET_INFO(batt_dev, bix, sizeof(*bix)) != 0)
 	    continue;
 
 	/* If a battery is not installed, we sometimes get strange values. */
 	if (!acpi_battery_bst_valid(&bst[i]) ||
-	    !acpi_battery_bif_valid(bif))
+	    !acpi_battery_bix_valid(bix))
 	    continue;
 
 	/*
@@ -200,18 +200,18 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 	 * is 0 (due to some error reading the battery), skip this
 	 * conversion.
 	 */
-	if (bif->units == ACPI_BIF_UNITS_MA && bif->dvol != 0 && dev == NULL) {
-	    bst[i].rate = (bst[i].rate * bif->dvol) / 1000;
-	    bst[i].cap = (bst[i].cap * bif->dvol) / 1000;
-	    bif->lfcap = (bif->lfcap * bif->dvol) / 1000;
+	if (bix->units == ACPI_BIX_UNITS_MA && bix->dvol != 0 && dev == NULL) {
+	    bst[i].rate = (bst[i].rate * bix->dvol) / 1000;
+	    bst[i].cap = (bst[i].cap * bix->dvol) / 1000;
+	    bix->lfcap = (bix->lfcap * bix->dvol) / 1000;
 	}
 
 	/*
-	 * The calculation above may set bif->lfcap to zero. This was
+	 * The calculation above may set bix->lfcap to zero. This was
 	 * seen on a laptop with a broken battery. The result of the
 	 * division was rounded to zero.
 	 */
-	if (!acpi_battery_bif_valid(bif))
+	if (!acpi_battery_bix_valid(bix))
 	    continue;
 
 	/*
@@ -219,16 +219,16 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 	 * "real-capacity" when the battery is fully charged.  That breaks
 	 * the above arithmetic as it needs to be 100% maximum.
 	 */
-	if (bst[i].cap > bif->lfcap)
-	    bst[i].cap = bif->lfcap;
+	if (bst[i].cap > bix->lfcap)
+	    bst[i].cap = bix->lfcap;
 
 	/* Calculate percent capacity remaining. */
-	bi[i].cap = (100 * bst[i].cap) / bif->lfcap;
+	bi[i].cap = (100 * bst[i].cap) / bix->lfcap;
 
 	/* If this battery is not present, don't use its capacity. */
 	if (bi[i].cap != -1) {
 	    total_cap += bst[i].cap;
-	    total_lfcap += bif->lfcap;
+	    total_lfcap += bix->lfcap;
 	}
 
 	/*
@@ -294,12 +294,9 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
     error = 0;
 
 out:
-    if (bi)
-	free(bi, M_TEMP);
-    if (bif)
-	free(bif, M_TEMP);
-    if (bst)
-	free(bst, M_TEMP);
+    free(bi, M_TEMP);
+    free(bix, M_TEMP);
+    free(bst, M_TEMP);
     return (error);
 }
 
@@ -368,7 +365,8 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
     unit = 0;
     dev = NULL;
     ioctl_arg = NULL;
-    if (IOCPARM_LEN(cmd) == sizeof(*ioctl_arg)) {
+    if (IOCPARM_LEN(cmd) == sizeof(union acpi_battery_ioctl_arg) ||
+        IOCPARM_LEN(cmd) == sizeof(union acpi_battery_ioctl_arg_v1)) {
 	ioctl_arg = (union acpi_battery_ioctl_arg *)addr;
 	unit = ioctl_arg->unit;
 	if (unit != ACPI_BATTERY_ALL_UNITS)
@@ -379,12 +377,14 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
      * No security check required: information retrieval only.  If
      * new functions are added here, a check might be required.
      */
+    /* Unit check */
     switch (cmd) {
     case ACPIIO_BATT_GET_UNITS:
 	*(int *)addr = acpi_battery_get_units();
 	error = 0;
 	break;
     case ACPIIO_BATT_GET_BATTINFO:
+    case ACPIIO_BATT_GET_BATTINFO_V1:
 	if (dev != NULL || unit == ACPI_BATTERY_ALL_UNITS) {
 	    bzero(&ioctl_arg->battinfo, sizeof(ioctl_arg->battinfo));
 	    error = acpi_battery_get_battinfo(dev, &ioctl_arg->battinfo);
@@ -393,24 +393,19 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
     case ACPIIO_BATT_GET_BIF:
 	if (dev != NULL) {
 	    bzero(&ioctl_arg->bif, sizeof(ioctl_arg->bif));
-	    error = ACPI_BATT_GET_INFO(dev, &ioctl_arg->bif);
-
-	    /*
-	     * Remove invalid characters.  Perhaps this should be done
-	     * within a convenience function so all callers get the
-	     * benefit.
-	     */
-	    acpi_battery_clean_str(ioctl_arg->bif.model,
-		sizeof(ioctl_arg->bif.model));
-	    acpi_battery_clean_str(ioctl_arg->bif.serial,
-		sizeof(ioctl_arg->bif.serial));
-	    acpi_battery_clean_str(ioctl_arg->bif.type,
-		sizeof(ioctl_arg->bif.type));
-	    acpi_battery_clean_str(ioctl_arg->bif.oeminfo,
-		sizeof(ioctl_arg->bif.oeminfo));
+	    error = ACPI_BATT_GET_INFO(dev, &ioctl_arg->bif,
+		sizeof(ioctl_arg->bif));
+	}
+	break;
+    case ACPIIO_BATT_GET_BIX:
+	if (dev != NULL) {
+	    bzero(&ioctl_arg->bix, sizeof(ioctl_arg->bix));
+	    error = ACPI_BATT_GET_INFO(dev, &ioctl_arg->bix,
+		sizeof(ioctl_arg->bix));
 	}
 	break;
     case ACPIIO_BATT_GET_BST:
+    case ACPIIO_BATT_GET_BST_V1:
 	if (dev != NULL) {
 	    bzero(&ioctl_arg->bst, sizeof(ioctl_arg->bst));
 	    error = ACPI_BATT_GET_STATUS(dev, &ioctl_arg->bst);
@@ -419,6 +414,25 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
     default:
 	error = EINVAL;
     }
+
+    /* Sanitize the string members. */
+    switch (cmd) {
+    case ACPIIO_BATT_GET_BIX:
+    case ACPIIO_BATT_GET_BIF:
+	    /*
+	     * Remove invalid characters.  Perhaps this should be done
+	     * within a convenience function so all callers get the
+	     * benefit.
+	     */
+	    acpi_battery_clean_str(ioctl_arg->bix.model,
+		sizeof(ioctl_arg->bix.model));
+	    acpi_battery_clean_str(ioctl_arg->bix.serial,
+		sizeof(ioctl_arg->bix.serial));
+	    acpi_battery_clean_str(ioctl_arg->bix.type,
+		sizeof(ioctl_arg->bix.type));
+	    acpi_battery_clean_str(ioctl_arg->bix.oeminfo,
+		sizeof(ioctl_arg->bix.oeminfo));
+    };
 
     return (error);
 }
@@ -453,26 +467,29 @@ acpi_battery_init(void)
 
     ACPI_SERIAL_ASSERT(battery);
 
+    if (acpi_batteries_initialized)
+	    return(0);
+
     error = ENXIO;
     dev = devclass_get_device(devclass_find("acpi"), 0);
     if (dev == NULL)
 	goto out;
     sc = device_get_softc(dev);
 
-    error = acpi_register_ioctl(ACPIIO_BATT_GET_UNITS, acpi_battery_ioctl,
-	NULL);
-    if (error != 0)
-	goto out;
-    error = acpi_register_ioctl(ACPIIO_BATT_GET_BATTINFO, acpi_battery_ioctl,
-	NULL);
-    if (error != 0)
-	goto out;
-    error = acpi_register_ioctl(ACPIIO_BATT_GET_BIF, acpi_battery_ioctl, NULL);
-    if (error != 0)
-	goto out;
-    error = acpi_register_ioctl(ACPIIO_BATT_GET_BST, acpi_battery_ioctl, NULL);
-    if (error != 0)
-	goto out;
+#define	ACPI_REGISTER_IOCTL(a, b, c) do {	\
+    error = acpi_register_ioctl(a, b, c);	\
+    if (error)					\
+	goto out;				\
+    } while (0)
+
+    ACPI_REGISTER_IOCTL(ACPIIO_BATT_GET_UNITS, acpi_battery_ioctl, NULL);
+    ACPI_REGISTER_IOCTL(ACPIIO_BATT_GET_BATTINFO, acpi_battery_ioctl, NULL);
+    ACPI_REGISTER_IOCTL(ACPIIO_BATT_GET_BATTINFO_V1, acpi_battery_ioctl, NULL);
+    ACPI_REGISTER_IOCTL(ACPIIO_BATT_GET_BIF, acpi_battery_ioctl, NULL);
+    ACPI_REGISTER_IOCTL(ACPIIO_BATT_GET_BIX, acpi_battery_ioctl, NULL);
+    ACPI_REGISTER_IOCTL(ACPIIO_BATT_GET_BST, acpi_battery_ioctl, NULL);
+    ACPI_REGISTER_IOCTL(ACPIIO_BATT_GET_BST_V1, acpi_battery_ioctl, NULL);
+#undef	ACPI_REGISTER_IOCTL
 
     sysctl_ctx_init(&acpi_battery_sysctl_ctx);
     acpi_battery_sysctl_tree = SYSCTL_ADD_NODE(&acpi_battery_sysctl_ctx,
@@ -508,14 +525,17 @@ acpi_battery_init(void)
 	&acpi_battery_info_expire, 0,
 	"time in seconds until info is refreshed");
 
-    acpi_batteries_initted = TRUE;
+    acpi_batteries_initialized = TRUE;
 
 out:
-    if (error != 0) {
+    if (error) {
 	acpi_deregister_ioctl(ACPIIO_BATT_GET_UNITS, acpi_battery_ioctl);
 	acpi_deregister_ioctl(ACPIIO_BATT_GET_BATTINFO, acpi_battery_ioctl);
+	acpi_deregister_ioctl(ACPIIO_BATT_GET_BATTINFO_V1, acpi_battery_ioctl);
 	acpi_deregister_ioctl(ACPIIO_BATT_GET_BIF, acpi_battery_ioctl);
+	acpi_deregister_ioctl(ACPIIO_BATT_GET_BIX, acpi_battery_ioctl);
 	acpi_deregister_ioctl(ACPIIO_BATT_GET_BST, acpi_battery_ioctl);
+	acpi_deregister_ioctl(ACPIIO_BATT_GET_BST_V1, acpi_battery_ioctl);
     }
     return (error);
 }

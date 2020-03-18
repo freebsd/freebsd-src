@@ -46,9 +46,9 @@ struct acpi_smbat_softc {
 	uint8_t		sb_base_addr;
 	device_t	ec_dev;
 
-	struct acpi_bif	bif;
+	struct acpi_bix	bix;
 	struct acpi_bst	bst;
-	struct timespec	bif_lastupdated;
+	struct timespec	bix_lastupdated;
 	struct timespec	bst_lastupdated;
 };
 
@@ -57,7 +57,7 @@ static int	acpi_smbat_attach(device_t dev);
 static int	acpi_smbat_shutdown(device_t dev);
 static int	acpi_smbat_info_expired(struct timespec *lastupdated);
 static void	acpi_smbat_info_updated(struct timespec *lastupdated);
-static int	acpi_smbat_get_bif(device_t dev, struct acpi_bif *bif);
+static int	acpi_smbat_get_bix(device_t dev, void *, size_t);
 static int	acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst);
 
 ACPI_SERIAL_DECL(smbat, "ACPI Smart Battery");
@@ -87,7 +87,7 @@ static device_method_t acpi_smbat_methods[] = {
 
 	/* ACPI battery interface */
 	DEVMETHOD(acpi_batt_get_status, acpi_smbat_get_bst),
-	DEVMETHOD(acpi_batt_get_info, acpi_smbat_get_bif),
+	DEVMETHOD(acpi_batt_get_info, acpi_smbat_get_bix),
 
 	DEVMETHOD_END
 };
@@ -139,7 +139,7 @@ acpi_smbat_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	timespecclear(&sc->bif_lastupdated);
+	timespecclear(&sc->bix_lastupdated);
 	timespecclear(&sc->bst_lastupdated);
 
 	if (acpi_battery_register(dev) != 0) {
@@ -413,7 +413,7 @@ out:
 }
 
 static int
-acpi_smbat_get_bif(device_t dev, struct acpi_bif *bif)
+acpi_smbat_get_bix(device_t dev, void *bix, size_t len)
 {
 	struct acpi_smbat_softc *sc;
 	int error;
@@ -421,70 +421,76 @@ acpi_smbat_get_bif(device_t dev, struct acpi_bif *bif)
 	uint16_t val;
 	uint8_t addr;
 
+	if (len != sizeof(struct acpi_bix) &&
+	    len != sizeof(struct acpi_bif))
+		return (-1);
+
 	ACPI_SERIAL_BEGIN(smbat);
 
 	addr = SMBATT_ADDRESS;
 	error = ENXIO;
 	sc = device_get_softc(dev);
 
-	if (!acpi_smbat_info_expired(&sc->bif_lastupdated)) {
+	if (!acpi_smbat_info_expired(&sc->bix_lastupdated)) {
 		error = 0;
 		goto out;
 	}
+
+	sc->bix.rev = ACPI_BIX_REV_BIF;
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_BATTERY_MODE, &val))
 		goto out;
 	if (val & SMBATT_BM_CAPACITY_MODE) {
 		factor = 10;
-		sc->bif.units = ACPI_BIF_UNITS_MW;
+		sc->bix.units = ACPI_BIX_UNITS_MW;
 	} else {
 		factor = 1;
-		sc->bif.units = ACPI_BIF_UNITS_MA;
+		sc->bix.units = ACPI_BIX_UNITS_MA;
 	}
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_DESIGN_CAPACITY, &val))
 		goto out;
-	sc->bif.dcap = val * factor;
+	sc->bix.dcap = val * factor;
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_FULL_CHARGE_CAPACITY, &val))
 		goto out;
-	sc->bif.lfcap = val * factor;
-	sc->bif.btech = 1;		/* secondary (rechargeable) */
+	sc->bix.lfcap = val * factor;
+	sc->bix.btech = 1;		/* secondary (rechargeable) */
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_DESIGN_VOLTAGE, &val))
 		goto out;
-	sc->bif.dvol = val;
+	sc->bix.dvol = val;
 
-	sc->bif.wcap = sc->bif.dcap / 10;
-	sc->bif.lcap = sc->bif.dcap / 10;
+	sc->bix.wcap = sc->bix.dcap / 10;
+	sc->bix.lcap = sc->bix.dcap / 10;
 
-	sc->bif.gra1 = factor;	/* not supported */
-	sc->bif.gra2 = factor;	/* not supported */
+	sc->bix.gra1 = factor;	/* not supported */
+	sc->bix.gra2 = factor;	/* not supported */
 
 	if (acpi_smbus_read_multi_1(sc, addr, SMBATT_CMD_DEVICE_NAME,
-	    sc->bif.model, sizeof(sc->bif.model)))
+	    sc->bix.model, sizeof(sc->bix.model)))
 		goto out;
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_SERIAL_NUMBER, &val))
 		goto out;
-	snprintf(sc->bif.serial, sizeof(sc->bif.serial), "0x%04x", val);
+	snprintf(sc->bix.serial, sizeof(sc->bix.serial), "0x%04x", val);
 
 	if (acpi_smbus_read_multi_1(sc, addr, SMBATT_CMD_DEVICE_CHEMISTRY,
-	    sc->bif.type, sizeof(sc->bif.type)))
+	    sc->bix.type, sizeof(sc->bix.type)))
 		goto out;
 
 	if (acpi_smbus_read_multi_1(sc, addr, SMBATT_CMD_MANUFACTURER_DATA,
-	    sc->bif.oeminfo, sizeof(sc->bif.oeminfo)))
+	    sc->bix.oeminfo, sizeof(sc->bix.oeminfo)))
 		goto out;
 
 	/* XXX check if device was replugged during read? */
 
-	acpi_smbat_info_updated(&sc->bif_lastupdated);
+	acpi_smbat_info_updated(&sc->bix_lastupdated);
 	error = 0;
 
 out:
 	if (error == 0)
-		memcpy(bif, &sc->bif, sizeof(sc->bif));
+	    memcpy(bix, &sc->bix, len);
 	ACPI_SERIAL_END(smbat);
 	return (error);
 }
