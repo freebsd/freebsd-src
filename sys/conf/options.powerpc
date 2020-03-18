@@ -4,7 +4,6 @@
 AIM			opt_global.h
 BOOKE			opt_global.h
 BOOKE_E500		opt_global.h
-BOOKE_PPC4XX		opt_global.h
 CELL
 
 POWERPC

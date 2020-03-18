@@ -425,11 +425,7 @@ const struct specialreg sprregs[] = {
 	{ 0x019, "sdr1" },
 	{ 0x01a, "srr0" },
 	{ 0x01b, "srr1" },
-#ifdef BOOKE_PPC4XX
-	{ 0x100, "usprg0" },
-#else
 	{ 0x100, "vrsave" },
-#endif
 	{ 0x110, "sprg0" },
 	{ 0x111, "sprg1" },
 	{ 0x112, "sprg2" },
@@ -496,14 +492,6 @@ const struct specialreg sprregs[] = {
 	{ 0x3db, "pit" },
 	{ 0x3de, "srr2" },
 	{ 0x3df, "srr3" },
-#ifdef BOOKE_PPC4XX
-	{ 0x3f0, "dbsr" },
-	{ 0x3f2, "dbcr0" },
-	{ 0x3f4, "iac1" },
-	{ 0x3f5, "iac2" },
-	{ 0x3f6, "dac1" },
-	{ 0x3f7, "dac2" },
-#else
 	{ 0x3f0, "hid0" },
 	{ 0x3f1, "hid1" },
 	{ 0x3f2, "iabr" },
@@ -511,7 +499,6 @@ const struct specialreg sprregs[] = {
 	{ 0x3f5, "dabr" },
 	{ 0x3f6, "msscr0" },
 	{ 0x3f7, "msscr1" },
-#endif
 	{ 0x3f9, "l2cr" },
 	{ 0x3fa, "dccr" },
 	{ 0x3fb, "iccr" },

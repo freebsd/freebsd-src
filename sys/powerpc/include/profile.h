@@ -190,7 +190,7 @@ extern char interrupt_vector_base[];
 extern char interrupt_vector_top[];
 #define	__PROFILE_VECTOR_BASE	(uintfptr_t)interrupt_vector_base
 #define	__PROFILE_VECTOR_TOP	(uintfptr_t)interrupt_vector_top
-#endif	/* BOOKE_E500 || BOOKE_PPC4XX */
+#endif	/* BOOKE_E500 */
 
 #endif	/* !COMPILING_LINT */
 
