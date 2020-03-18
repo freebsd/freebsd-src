@@ -74,7 +74,6 @@ CONFS=	DAEMON \
 	nfsuserd \
 	nisdomain \
 	${_nscd} \
-	nsswitch \
 	ntpdate \
 	${_opensm} \
 	os-release \
