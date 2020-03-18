@@ -94,7 +94,7 @@ struct ioapic_intsrc {
 struct ioapic {
 	struct pic io_pic;
 	u_int io_id:8;			/* logical ID */
-	u_int io_apic_id:4;
+	u_int io_apic_id:8;
 	u_int io_intbase:8;		/* System Interrupt base */
 	u_int io_numintr:8;
 	u_int io_haseoi:1;
