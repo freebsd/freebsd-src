@@ -37,11 +37,13 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/nv.h>
 #include <sys/pciio.h>
 #include <sys/rman.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pci_private.h>
+#include <dev/pci/pci_iov.h>
 
 #include <machine/resource.h>
 
@@ -201,6 +203,11 @@ struct pci_driver {
 	struct device_driver		driver;
 	const struct pci_error_handlers       *err_handler;
 	bool				isdrm;
+	int  (*bsd_iov_init)(device_t dev, uint16_t num_vfs,
+	    const nvlist_t *pf_config);
+	void  (*bsd_iov_uninit)(device_t dev);
+	int  (*bsd_iov_add_vf)(device_t dev, uint16_t vfnum,
+	    const nvlist_t *vf_config);
 };
 
 struct pci_bus {
