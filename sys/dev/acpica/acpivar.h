@@ -475,7 +475,7 @@ int		acpi_battery_remove(device_t dev);
 int		acpi_battery_get_units(void);
 int		acpi_battery_get_info_expire(void);
 int		acpi_battery_bst_valid(struct acpi_bst *bst);
-int		acpi_battery_bif_valid(struct acpi_bif *bif);
+int		acpi_battery_bix_valid(struct acpi_bix *bix);
 int		acpi_battery_get_battinfo(device_t dev,
 		    struct acpi_battinfo *info);
 
@@ -489,8 +489,12 @@ int		acpi_acad_get_acline(int *);
 #define ACPI_PKG_VALID(pkg, size)				\
     ((pkg) != NULL && (pkg)->Type == ACPI_TYPE_PACKAGE &&	\
      (pkg)->Package.Count >= (size))
+#define	ACPI_PKG_VALID_EQ(pkg, size)				\
+    ((pkg) != NULL && (pkg)->Type == ACPI_TYPE_PACKAGE &&	\
+     (pkg)->Package.Count == (size))
 int		acpi_PkgInt(ACPI_OBJECT *res, int idx, UINT64 *dst);
 int		acpi_PkgInt32(ACPI_OBJECT *res, int idx, uint32_t *dst);
+int		acpi_PkgInt16(ACPI_OBJECT *res, int idx, uint16_t *dst);
 int		acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size);
 int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type,
 		    int *rid, struct resource **dst, u_int flags);
