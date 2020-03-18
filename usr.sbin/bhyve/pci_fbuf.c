@@ -135,7 +135,7 @@ pci_fbuf_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	sc = pi->pi_arg;
 
 	DPRINTF(DEBUG_VERBOSE,
-	    ("fbuf wr: offset 0x%lx, size: %d, value: 0x%lx\n",
+	    ("fbuf wr: offset 0x%lx, size: %d, value: 0x%lx",
 	    offset, size, value));
 
 	if (offset + size > DMEMSZ) {
@@ -217,7 +217,7 @@ pci_fbuf_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	}
 
 	DPRINTF(DEBUG_VERBOSE,
-	    ("fbuf rd: offset 0x%lx, size: %d, value: 0x%lx\n",
+	    ("fbuf rd: offset 0x%lx, size: %d, value: 0x%lx",
 	     offset, size, value));
 
 	return (value);
