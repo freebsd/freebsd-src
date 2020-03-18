@@ -39,7 +39,8 @@
 #define	MPFS_UNLOCK(dev) spin_unlock(&(dev)->mpfs.spinlock)
 
 int
-mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u32 *p_index, const u8 *mac)
+mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u32 *p_index, const u8 *mac,
+    u8 vlan_valid, u16 vlan)
 {
 	const u32 l2table_size = MIN(1U << MLX5_CAP_GEN(dev, log_max_l2_table),
 	    MLX5_MPFS_TABLE_MAX);
@@ -65,6 +66,8 @@ mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u32 *p_index, const u8 *mac)
 
 	MLX5_SET(set_l2_table_entry_in, in, opcode, MLX5_CMD_OP_SET_L2_TABLE_ENTRY);
 	MLX5_SET(set_l2_table_entry_in, in, table_index, index);
+	MLX5_SET(set_l2_table_entry_in, in, vlan_valid, vlan_valid);
+	MLX5_SET(set_l2_table_entry_in, in, vlan, vlan);
 
 	in_mac_addr = MLX5_ADDR_OF(set_l2_table_entry_in, in, mac_address);
 	ether_addr_copy(&in_mac_addr[2], mac);
