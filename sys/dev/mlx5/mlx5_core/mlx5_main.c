@@ -1298,6 +1298,9 @@ static int init_one(struct pci_dev *pdev,
 	int i,err;
 	struct sysctl_oid *pme_sysctl_node;
 	struct sysctl_oid *pme_err_sysctl_node;
+	struct sysctl_oid *cap_sysctl_node;
+	struct sysctl_oid *current_cap_sysctl_node;
+	struct sysctl_oid *max_cap_sysctl_node;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	priv = &dev->priv;
@@ -1365,6 +1368,186 @@ static int init_one(struct pci_dev *pdev,
 		    0, mlx5_pme_err_desc[2 * i + 1]);
 	}
 
+	cap_sysctl_node = SYSCTL_ADD_NODE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
+	    OID_AUTO, "caps", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "hardware capabilities raw bitstrings");
+	if (cap_sysctl_node == NULL) {
+		err = -ENOMEM;
+		goto clean_sysctl_ctx;
+	}
+	current_cap_sysctl_node = SYSCTL_ADD_NODE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(cap_sysctl_node),
+	    OID_AUTO, "current", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "");
+	if (current_cap_sysctl_node == NULL) {
+		err = -ENOMEM;
+		goto clean_sysctl_ctx;
+	}
+	max_cap_sysctl_node = SYSCTL_ADD_NODE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(cap_sysctl_node),
+	    OID_AUTO, "max", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "");
+	if (max_cap_sysctl_node == NULL) {
+		err = -ENOMEM;
+		goto clean_sysctl_ctx;
+	}
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "general", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_GENERAL],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "general", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_GENERAL],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "ether", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_ETHERNET_OFFLOADS],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "ether", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_ETHERNET_OFFLOADS],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "odp", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_ODP],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "odp", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_ODP],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "atomic", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_ATOMIC],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "atomic", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_ATOMIC],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "roce", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_ROCE],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "roce", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_ROCE],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "ipoib", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_IPOIB_OFFLOADS],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "ipoib", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_IPOIB_OFFLOADS],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "eoib", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_EOIB_OFFLOADS],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "eoib", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_EOIB_OFFLOADS],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "flow_table", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_FLOW_TABLE],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "flow_table", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_FLOW_TABLE],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "eswitch_flow_table", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_ESWITCH_FLOW_TABLE],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "eswitch_flow_table", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_ESWITCH_FLOW_TABLE],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "eswitch", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_ESWITCH],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "eswitch", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_ESWITCH],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "snapshot", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_SNAPSHOT],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "snapshot", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_SNAPSHOT],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "vector_calc", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_VECTOR_CALC],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "vector_calc", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_VECTOR_CALC],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "qos", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_QOS],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "qos", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_QOS],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(current_cap_sysctl_node),
+	    OID_AUTO, "debug", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_cur[MLX5_CAP_DEBUG],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(max_cap_sysctl_node),
+	    OID_AUTO, "debug", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->hca_caps_max[MLX5_CAP_DEBUG],
+	    MLX5_UN_SZ_DW(hca_cap_union) * sizeof(u32), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(cap_sysctl_node),
+	    OID_AUTO, "pcam", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->caps.pcam, sizeof(dev->caps.pcam), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(cap_sysctl_node),
+	    OID_AUTO, "mcam", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->caps.mcam, sizeof(dev->caps.mcam), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(cap_sysctl_node),
+	    OID_AUTO, "qcam", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->caps.qcam, sizeof(dev->caps.qcam), "IU", "");
+	SYSCTL_ADD_OPAQUE(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(cap_sysctl_node),
+	    OID_AUTO, "fpga", CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &dev->caps.fpga, sizeof(dev->caps.fpga), "IU", "");
 
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
