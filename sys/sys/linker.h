@@ -305,7 +305,7 @@ int	linker_ctf_get(linker_file_t, linker_ctf_t *);
 
 int elf_cpu_load_file(linker_file_t);
 int elf_cpu_unload_file(linker_file_t);
-int elf_cpu_parse_dynamic(linker_file_t, Elf_Dyn *);
+int elf_cpu_parse_dynamic(caddr_t, Elf_Dyn *);
 
 /* values for type */
 #define ELF_RELOC_REL	1
