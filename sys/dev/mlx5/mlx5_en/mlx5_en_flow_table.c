@@ -861,7 +861,8 @@ retry:
 		if (mlx5e_add_eth_addr_to_hash(priv->eth_addr.if_uc, hn) == 0)
 			continue;
 		if (hn->mpfs_index == -1U)
-			mlx5_mpfs_add_mac(priv->mdev, &hn->mpfs_index, hn->ai.addr);
+			mlx5_mpfs_add_mac(priv->mdev, &hn->mpfs_index,
+			    hn->ai.addr, 0, 0);
 	}
 
 	/* insert L2 multicast addresses into hash list */
