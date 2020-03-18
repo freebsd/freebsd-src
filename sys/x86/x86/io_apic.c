@@ -94,7 +94,8 @@ struct ioapic_intsrc {
 struct ioapic {
 	struct pic io_pic;
 	u_int io_id:8;			/* logical ID */
-	u_int io_apic_id:8;
+	u_int io_apic_id:8;		/* Id as enumerated by MADT */
+	u_int io_hw_apic_id:8;		/* Content of APIC ID register */
 	u_int io_intbase:8;		/* System Interrupt base */
 	u_int io_numintr:8;
 	u_int io_haseoi:1;
@@ -634,15 +635,12 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	io->pci_wnd = NULL;
 	mtx_lock_spin(&icu_lock);
 	io->io_id = next_id++;
-	io->io_apic_id = ioapic_read(apic, IOAPIC_ID) >> APIC_ID_SHIFT;
-	if (apic_id != -1 && io->io_apic_id != apic_id) {
-		ioapic_write(apic, IOAPIC_ID, apic_id << APIC_ID_SHIFT);
-		mtx_unlock_spin(&icu_lock);
-		io->io_apic_id = apic_id;
-		printf("ioapic%u: Changing APIC ID to %d\n", io->io_id,
-		    apic_id);
-	} else
-		mtx_unlock_spin(&icu_lock);
+	io->io_hw_apic_id = ioapic_read(apic, IOAPIC_ID) >> APIC_ID_SHIFT;
+	io->io_apic_id = apic_id == -1 ? io->io_hw_apic_id : apic_id;
+	mtx_unlock_spin(&icu_lock);
+	if (io->io_hw_apic_id != apic_id)
+		printf("ioapic%u: MADT APIC ID %d != hw id %d\n", io->io_id,
+		    apic_id, io->io_hw_apic_id);
 	if (intbase == -1) {
 		intbase = next_ioapic_base;
 		printf("ioapic%u: Assuming intbase of %d\n", io->io_id,
@@ -1017,14 +1015,14 @@ ioapic_pci_attach(device_t dev)
 	}
 	/* Then by apic id */
 	STAILQ_FOREACH(io, &ioapic_list, io_next) {
-		if (io->io_apic_id == apic_id)
+		if (io->io_hw_apic_id == apic_id)
 			goto found;
 	}
 	mtx_unlock_spin(&icu_lock);
 	if (bootverbose)
 		device_printf(dev,
-		    "cannot match pci bar apic id %d against MADT\n",
-		    apic_id);
+		    "cannot match pci bar apic id %d against MADT, BAR0 %#jx\n",
+		    apic_id, (uintmax_t)rman_get_start(res));
 fail:
 	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
 	return (ENXIO);
@@ -1037,13 +1035,13 @@ found:
 	io->pci_dev = dev;
 	io->pci_wnd = res;
 	if (bootverbose && (io->io_paddr != (vm_paddr_t)rman_get_start(res) ||
-	    io->io_apic_id != apic_id)) {
+	    io->io_hw_apic_id != apic_id)) {
 		device_printf(dev, "pci%d:%d:%d:%d pci BAR0@%jx id %d "
-		    "MADT id %d paddr@%jx\n",
+		    "MADT id %d hw id %d paddr@%jx\n",
 		    pci_get_domain(dev), pci_get_bus(dev),
 		    pci_get_slot(dev), pci_get_function(dev),
 		    (uintmax_t)rman_get_start(res), apic_id,
-		    io->io_apic_id, (uintmax_t)io->io_paddr);
+		    io->io_apic_id, io->io_hw_apic_id, (uintmax_t)io->io_paddr);
 	}
 	mtx_unlock_spin(&icu_lock);
 	return (0);
