@@ -1049,6 +1049,7 @@ rfb_init(char *hostname, int port, int wait, char *password)
 		pthread_mutex_lock(&rc->mtx);
 		pthread_cond_wait(&rc->cond, &rc->mtx);
 		pthread_mutex_unlock(&rc->mtx);
+		DPRINTF(("rfb client connected"));
 	}
 
 	freeaddrinfo(ai);
