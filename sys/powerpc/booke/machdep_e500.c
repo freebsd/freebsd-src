@@ -53,12 +53,6 @@ extern void l2cache_inval(void);
 extern void bpred_enable(void);
 
 void
-booke_init_tlb(vm_paddr_t fdt_immr_pa)
-{
-
-}
-
-void
 booke_enable_l1_cache(void)
 {
 	uint32_t csr;
