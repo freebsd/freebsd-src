@@ -105,6 +105,10 @@
 #include <dev/ciss/cissio.h>
 #include <dev/ciss/cissvar.h>
 
+#ifdef CISS_DEBUG
+#include "opt_ddb.h"
+#endif
+
 static MALLOC_DEFINE(CISS_MALLOC_CLASS, "ciss_data",
     "ciss internal data buffers");
 
@@ -195,7 +199,9 @@ static void	ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn);
 static void	ciss_notify_physical(struct ciss_softc *sc, struct ciss_notify *cn);
 
 /* debugging output */
+#ifdef DDB
 static void	ciss_print_request(struct ciss_request *cr);
+#endif
 static void	ciss_print_ldrive(struct ciss_softc *sc, struct ciss_ldrive *ld);
 static const char *ciss_name_ldrive_status(int status);
 static int	ciss_decode_ldrive_status(int status);
@@ -3806,8 +3812,9 @@ ciss_notify_abort(struct ciss_softc *sc)
     cnc->opcode = CISS_OPCODE_WRITE;
     cnc->command = CISS_COMMAND_ABORT_NOTIFY;
     cnc->length = htonl(CISS_NOTIFY_DATA_SIZE);
-
+#if 0
     ciss_print_request(cr);
+#endif
 
     /*
      * Submit the request and wait for it to complete.
@@ -4232,6 +4239,7 @@ ciss_kill_notify_thread(struct ciss_softc *sc)
 /************************************************************************
  * Print a request.
  */
+#ifdef DDB
 static void
 ciss_print_request(struct ciss_request *cr)
 {
@@ -4285,6 +4293,7 @@ ciss_print_request(struct ciss_request *cr)
 	}
     }
 }
+#endif
 
 /************************************************************************
  * Print information about the status of a logical drive.
@@ -4348,8 +4357,6 @@ ciss_print_ldrive(struct ciss_softc *sc, struct ciss_ldrive *ld)
     }
 }
 
-#ifdef CISS_DEBUG
-#include "opt_ddb.h"
 #ifdef DDB
 #include <ddb/ddb.h>
 /************************************************************************
@@ -4403,7 +4410,6 @@ DB_COMMAND(ciss_prt, db_ciss_prt)
 	ciss_print_adapter(sc);
     }
 }
-#endif
 #endif
 
 /************************************************************************
