@@ -1082,9 +1082,10 @@ _cleanobj:
 .if defined(_LIBCOMPAT)
 	${_+_}cd ${.CURDIR}; ${LIBCOMPATWMAKE} _NO_INCLUDE_COMPILERMK=t -f Makefile.inc1 ${CLEANDIR}
 .endif
-.else
-	${_+_}cd ${.CURDIR}; ${WMAKE} _NO_INCLUDE_COMPILERMK=t _cleanobj_fast_depend_hack
 .endif	# !defined(NO_CLEAN)
+	# XXX make cleandir left stale .depend files behind, so invoke the
+	# dependency cleanup hack unconditionally.
+	${_+_}cd ${.CURDIR}; ${WMAKE} _NO_INCLUDE_COMPILERMK=t _cleanobj_fast_depend_hack
 _obj:
 	@echo
 	@echo "--------------------------------------------------------------"
