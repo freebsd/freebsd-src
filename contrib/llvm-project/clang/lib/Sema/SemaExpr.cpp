@@ -13909,7 +13909,12 @@ void Sema::ActOnStmtExprError() {
 }
 
 ExprResult Sema::ActOnStmtExpr(Scope *S, SourceLocation LPLoc, Stmt *SubStmt,
-                               SourceLocation RPLoc) { // "({..})"
+                               SourceLocation RPLoc) {
+  return BuildStmtExpr(LPLoc, SubStmt, RPLoc, getTemplateDepth(S));
+}
+
+ExprResult Sema::BuildStmtExpr(SourceLocation LPLoc, Stmt *SubStmt,
+                               SourceLocation RPLoc, unsigned TemplateDepth) {
   assert(SubStmt && isa<CompoundStmt>(SubStmt) && "Invalid action invocation!");
   CompoundStmt *Compound = cast<CompoundStmt>(SubStmt);
 
@@ -13938,18 +13943,10 @@ ExprResult Sema::ActOnStmtExpr(Scope *S, SourceLocation LPLoc, Stmt *SubStmt,
     }
   }
 
-  bool IsDependentContext = false;
-  if (S)
-    IsDependentContext = S->getTemplateParamParent() != nullptr;
-  else
-    // FIXME: This is not correct when substituting inside a templated
-    // context that isn't a DeclContext (such as a variable template).
-    IsDependentContext = CurContext->isDependentContext();
-
   // FIXME: Check that expression type is complete/non-abstract; statement
   // expressions are not lvalues.
   Expr *ResStmtExpr =
-      new (Context) StmtExpr(Compound, Ty, LPLoc, RPLoc, IsDependentContext);
+      new (Context) StmtExpr(Compound, Ty, LPLoc, RPLoc, TemplateDepth);
   if (StmtExprMayBindToTemp)
     return MaybeBindToTemporary(ResStmtExpr);
   return ResStmtExpr;
