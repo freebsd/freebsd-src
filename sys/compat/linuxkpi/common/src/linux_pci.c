@@ -65,6 +65,9 @@ static device_detach_t linux_pci_detach;
 static device_suspend_t linux_pci_suspend;
 static device_resume_t linux_pci_resume;
 static device_shutdown_t linux_pci_shutdown;
+static pci_iov_init_t linux_pci_iov_init;
+static pci_iov_uninit_t linux_pci_iov_uninit;
+static pci_iov_add_vf_t linux_pci_iov_add_vf;
 
 static device_method_t pci_methods[] = {
 	DEVMETHOD(device_probe, linux_pci_probe),
@@ -73,6 +76,9 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(device_suspend, linux_pci_suspend),
 	DEVMETHOD(device_resume, linux_pci_resume),
 	DEVMETHOD(device_shutdown, linux_pci_shutdown),
+	DEVMETHOD(pci_iov_init, linux_pci_iov_init),
+	DEVMETHOD(pci_iov_uninit, linux_pci_iov_uninit),
+	DEVMETHOD(pci_iov_add_vf, linux_pci_iov_add_vf),
 	DEVMETHOD_END
 };
 
@@ -353,6 +359,47 @@ linux_pci_shutdown(device_t dev)
 	if (pdev->pdrv->shutdown != NULL)
 		pdev->pdrv->shutdown(pdev);
 	return (0);
+}
+
+static int
+linux_pci_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *pf_config)
+{
+	struct pci_dev *pdev;
+	int error;
+
+	linux_set_current(curthread);
+	pdev = device_get_softc(dev);
+	if (pdev->pdrv->bsd_iov_init != NULL)
+		error = pdev->pdrv->bsd_iov_init(dev, num_vfs, pf_config);
+	else
+		error = EINVAL;
+	return (error);
+}
+
+static void
+linux_pci_iov_uninit(device_t dev)
+{
+	struct pci_dev *pdev;
+
+	linux_set_current(curthread);
+	pdev = device_get_softc(dev);
+	if (pdev->pdrv->bsd_iov_uninit != NULL)
+		pdev->pdrv->bsd_iov_uninit(dev);
+}
+
+static int
+linux_pci_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *vf_config)
+{
+	struct pci_dev *pdev;
+	int error;
+
+	linux_set_current(curthread);
+	pdev = device_get_softc(dev);
+	if (pdev->pdrv->bsd_iov_add_vf != NULL)
+		error = pdev->pdrv->bsd_iov_add_vf(dev, vfnum, vf_config);
+	else
+		error = EINVAL;
+	return (error);
 }
 
 static int
