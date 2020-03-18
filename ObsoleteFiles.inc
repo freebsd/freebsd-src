@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200318: host.conf was deprecated a long time ago.
+OLD_FILES+=etc/host.conf
+OLD_FILES+=etc/rc.d/nsswitch
+
 # 20200310: new clang import which bumps version from 9.0.1 to 10.0.0.
 OLD_FILES+=usr/lib/clang/9.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/9.0.1/include/cuda_wrappers/complex
