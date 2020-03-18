@@ -1102,16 +1102,16 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 					break;
 				}
 				remain |= byte2 << 8;
-				if (remain > (0x7f*4 - vrs.off)) {
-					state = -1;
-					pci_printf(cfg,
-					    "invalid VPD data, remain %#x\n",
-					    remain);
-				}
 				name = byte & 0x7f;
 			} else {
 				remain = byte & 0x7;
 				name = (byte >> 3) & 0xf;
+			}
+			if (vrs.off + remain - vrs.bytesinval > 0x8000) {
+				pci_printf(cfg,
+				    "VPD data overflow, remain %#x\n", remain);
+				state = -1;
+				break;
 			}
 			switch (name) {
 			case 0x2:	/* String */
