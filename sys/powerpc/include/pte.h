@@ -241,24 +241,6 @@ typedef uint64_t pte_t;
 #define	PTE_PS_SHIFT	8
 #define	PTE_PS_4KB	(2 << PTE_PS_SHIFT)
 
-#elif defined(BOOKE_PPC4XX)
-
-#define PTE_WL1		TLB_WL1
-#define PTE_IL2I	TLB_IL2I
-#define PTE_IL2D	TLB_IL2D
-
-#define PTE_W		TLB_W
-#define PTE_I		TLB_I
-#define PTE_M		TLB_M
-#define PTE_G		TLB_G
-
-#define PTE_UX		TLB_UX
-#define PTE_SX		TLB_SX
-#define PTE_UW		TLB_UW
-#define PTE_SW		TLB_SW
-#define PTE_UR		TLB_UR
-#define PTE_SR		TLB_SR
-
 #endif
 
 /* Other PTE flags */

@@ -36,7 +36,6 @@ options 	KDTRACE_HOOKS
 # You must specify at least one CPU (the one you intend to run on).
 cpu		AIM
 #cpu		BOOKE_E500
-#cpu		BOOKE_PPC440
 
 options 	FPU_EMU
 
