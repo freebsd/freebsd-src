@@ -646,5 +646,6 @@ end
 
 hook.registerType("config.loaded")
 hook.registerType("config.reloaded")
+hook.registerType("kernel.loaded")
 hook.registerType("modules.loaded")
 return config
