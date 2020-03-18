@@ -149,7 +149,7 @@ cat <<!
 The new rules are now installed. The previous rules have been preserved in
 the file ${edit_file}.$DATE
 !
-diff -F "^# .*[A-Za-z]" -u ${edit_file}.$DATE ${edit_file} \
+diff -u ${edit_file}.$DATE ${edit_file} \
     | mail -s "`hostname` Firewall rule change" root
 rm ${TMPFILE}
 exit 0
