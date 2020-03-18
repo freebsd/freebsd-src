@@ -25,10 +25,11 @@ fsck_start()
 		trap : 3
 
 		check_startmsgs && echo "Starting file system checks:"
+		# Background fsck can only be run with -p
 		if checkyesno background_fsck; then
 			fsck -F -p
 		else
-			fsck -p
+			fsck ${fsck_flags}
 		fi
 
 		err=$?
@@ -37,10 +38,11 @@ fsck_start()
 			    "available; retrying"
 			root_hold_wait
 			check_startmsgs && echo "Restarting file system checks:"
+			# Background fsck can only be run with -p
 			if checkyesno background_fsck; then
 				fsck -F -p
 			else
-				fsck -p
+				fsck ${fsck_flags}
 			fi
 			err=$?
 		fi
