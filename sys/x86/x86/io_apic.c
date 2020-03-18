@@ -193,8 +193,11 @@ _ioapic_eoi_source(struct intsrc *isrc, int locked)
 		low1 |= IOART_TRGREDG | IOART_INTMSET;
 		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(src->io_intpin),
 		    low1);
+		low1 = src->io_lowreg;
+		if (src->io_masked != 0)
+			low1 |= IOART_INTMSET;
 		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(src->io_intpin),
-		    src->io_lowreg);
+		    low1);
 		if (!locked)
 			mtx_unlock_spin(&icu_lock);
 	}
