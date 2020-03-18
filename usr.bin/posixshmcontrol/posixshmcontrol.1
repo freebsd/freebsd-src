@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2019
+.Dd March 18, 2020
 .Dt POSIXSHMCONTROL 1
 .Os
 .Sh NAME
@@ -99,7 +99,7 @@ Argument to the
 .Fl s
 option specifies new length.
 The human-friendly 'k', 'm', 'g' suffixes can be used, see
-.Xr expand_number 3.
+.Xr expand_number 3 .
 If the option is not specified, assumed length is zero.
 .El
 .Pp
@@ -143,10 +143,12 @@ and then enlarge it to 1M, use the sequence of commands
 The
 .Nm
 command appeared in
-.Fx 13.0 .
+.Fx 12.1 .
 .Sh AUTHORS
 The
 .Nm
 command and this manual page were written by
 .An Konstantin Belousov Aq Mt kib@freebsd.org
-under sponsorship from The FreeBSD Foundation.
+under sponsorship from The
+.Fx
+Foundation.
