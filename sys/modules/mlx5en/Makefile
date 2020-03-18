@@ -13,7 +13,7 @@ mlx5_en_rx.c \
 mlx5_en_rl.c \
 mlx5_en_txrx.c \
 mlx5_en_port_buffer.c \
-device_if.h bus_if.h vnode_if.h pci_if.h \
+device_if.h bus_if.h vnode_if.h pci_if.h pci_iov_if.h \
 opt_inet.h opt_inet6.h opt_rss.h opt_ratelimit.h \
 opt_kern_tls.h
 
