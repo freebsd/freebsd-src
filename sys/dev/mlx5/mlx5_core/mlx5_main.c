@@ -1608,7 +1608,7 @@ static int init_one(struct pci_dev *pdev,
 			num_vfs = pci_read_config(bsddev, sriov_pos +
 			    PCIR_SRIOV_TOTAL_VFS, 2);
 		} else {
-			mlx5_core_err(dev, "cannot find SR-IOV PCIe cap\n");
+			mlx5_core_info(dev, "cannot find SR-IOV PCIe cap\n");
 			num_vfs = 0;
 		}
 		err = mlx5_eswitch_init(dev, 1 + num_vfs);
