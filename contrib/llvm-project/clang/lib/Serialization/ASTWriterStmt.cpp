@@ -429,6 +429,7 @@ void ASTStmtWriter::VisitConceptSpecializationExpr(
   Record.AddSourceLocation(E->getTemplateKWLoc());
   Record.AddDeclarationNameInfo(E->getConceptNameInfo());
   Record.AddDeclRef(E->getNamedConcept());
+  Record.AddDeclRef(E->getFoundDecl());
   Record.AddASTTemplateArgumentListInfo(E->getTemplateArgsAsWritten());
   for (const TemplateArgument &Arg : TemplateArgs)
     Record.AddTemplateArgument(Arg);
@@ -1068,6 +1069,7 @@ void ASTStmtWriter::VisitStmtExpr(StmtExpr *E) {
   Record.AddStmt(E->getSubStmt());
   Record.AddSourceLocation(E->getLParenLoc());
   Record.AddSourceLocation(E->getRParenLoc());
+  Record.push_back(E->getTemplateDepth());
   Code = serialization::EXPR_STMT;
 }
 

@@ -6802,7 +6802,7 @@ Stmt *Sema::MaybeCreateStmtWithCleanups(Stmt *SubStmt) {
       Context, SubStmt, SourceLocation(), SourceLocation());
   Expr *E = new (Context)
       StmtExpr(CompStmt, Context.VoidTy, SourceLocation(), SourceLocation(),
-               CurContext->isDependentContext());
+               /*FIXME TemplateDepth=*/0);
   return MaybeCreateExprWithCleanups(E);
 }
 
