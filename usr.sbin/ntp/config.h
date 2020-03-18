@@ -1468,7 +1468,7 @@
 #define PACKAGE_NAME "ntp"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ntp 4.2.8p12"
+#define PACKAGE_STRING "ntp 4.2.8p14"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "ntp"
