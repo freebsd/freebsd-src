@@ -39,11 +39,13 @@
 #include <dev/mlx5/qp.h>
 #include <dev/mlx5/srq.h>
 #include <dev/mlx5/mpfs.h>
+#include <dev/mlx5/vport.h>
 #include <linux/delay.h>
 #include <dev/mlx5/mlx5_ifc.h>
 #include <dev/mlx5/mlx5_fpga/core.h>
 #include <dev/mlx5/mlx5_lib/mlx5.h>
 #include "mlx5_core.h"
+#include "eswitch.h"
 #include "fs_core.h"
 #ifdef PCI_IOV
 #include <sys/nv.h>
@@ -175,6 +177,10 @@ static struct mlx5_profile profiles[] = {
 		.log_max_qp	= 17,
 	},
 };
+
+#ifdef PCI_IOV
+static const char iov_mac_addr_name[] = "mac-addr";
+#endif
 
 static int set_dma_caps(struct pci_dev *pdev)
 {
@@ -1236,6 +1242,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 
 	mlx5_unregister_device(dev);
 
+	mlx5_eswitch_cleanup(dev->priv.eswitch);
 	mlx5_fpga_device_stop(dev);
 	mlx5_mpfs_destroy(dev);
 	mlx5_cleanup_fs(dev);
@@ -1596,12 +1603,20 @@ static int init_one(struct pci_dev *pdev,
 
 #ifdef PCI_IOV
 	if (MLX5_CAP_GEN(dev, vport_group_manager)) {
-		pf_schema = pci_iov_schema_alloc_node();
-		vf_schema = pci_iov_schema_alloc_node();
-		err = pci_iov_attach(bsddev, pf_schema, vf_schema);
-		if (err != 0) {
-			device_printf(bsddev,
+		err = mlx5_eswitch_init(dev);
+		if (err == 0) {
+			pf_schema = pci_iov_schema_alloc_node();
+			vf_schema = pci_iov_schema_alloc_node();
+			pci_iov_schema_add_unicast_mac(vf_schema,
+			    iov_mac_addr_name, 0, NULL);
+			err = pci_iov_attach(bsddev, pf_schema, vf_schema);
+			if (err != 0) {
+				device_printf(bsddev,
 			    "Failed to initialize SR-IOV support, error %d\n",
+				    err);
+			}
+		} else {
+			mlx5_core_err(dev, "eswitch init failed, error %d\n",
 			    err);
 		}
 	}
@@ -1759,12 +1774,14 @@ mlx5_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *pf_config)
 	struct pci_dev *pdev;
 	struct mlx5_core_dev *core_dev;
 	struct mlx5_priv *priv;
+	int err;
 
 	pdev = device_get_softc(dev);
 	core_dev = pci_get_drvdata(pdev);
 	priv = &core_dev->priv;
 
-	return (0);
+	err = mlx5_eswitch_enable_sriov(priv->eswitch, num_vfs);
+	return (-err);
 }
 
 static void
@@ -1777,6 +1794,8 @@ mlx5_iov_uninit(device_t dev)
 	pdev = device_get_softc(dev);
 	core_dev = pci_get_drvdata(pdev);
 	priv = &core_dev->priv;
+
+	mlx5_eswitch_disable_sriov(priv->eswitch);
 }
 
 static int
@@ -1785,16 +1804,32 @@ mlx5_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *vf_config)
 	struct pci_dev *pdev;
 	struct mlx5_core_dev *core_dev;
 	struct mlx5_priv *priv;
+	const void *mac;
+	size_t mac_size;
 	int error;
 
 	pdev = device_get_softc(dev);
 	core_dev = pci_get_drvdata(pdev);
 	priv = &core_dev->priv;
 
+	if (nvlist_exists_binary(vf_config, iov_mac_addr_name)) {
+		mac = nvlist_get_binary(vf_config, iov_mac_addr_name,
+		    &mac_size);
+		error = -mlx5_eswitch_set_vport_mac(priv->eswitch,
+		    vfnum + 1, __DECONST(u8 *, mac));
+	}
+
+	error = -mlx5_eswitch_set_vport_state(priv->eswitch, vfnum + 1,
+	    VPORT_STATE_FOLLOW);
+	if (error != 0) {
+		mlx5_core_err(core_dev,
+		    "upping vport for VF %d failed, error %d\n",
+		    vfnum + 1, error);
+	}
 	error = -mlx5_core_enable_hca(core_dev, vfnum + 1);
 	if (error != 0) {
 		mlx5_core_err(core_dev, "enabling VF %d failed, error %d\n",
-		    vfnum, error);
+		    vfnum + 1, error);
 	}
 	return (error);
 }
