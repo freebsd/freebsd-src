@@ -66,9 +66,78 @@ __FBSDID("$FreeBSD$");
 
 #undef eflag
 
+#define	READ_BUFLEN	1024
+struct fdctx {
+	int	fd;
+	size_t	off;	/* offset in buf */
+	size_t	buflen;
+	char	*ep;	/* tail pointer */
+	char	buf[READ_BUFLEN];
+};
+
+static void fdctx_init(int, struct fdctx *);
+static void fdctx_destroy(struct fdctx *);
+static ssize_t fdgetc(struct fdctx *, char *);
 int readcmd(int, char **);
 int umaskcmd(int, char **);
 int ulimitcmd(int, char **);
+
+static void
+fdctx_init(int fd, struct fdctx *fdc)
+{
+	off_t cur;
+
+	/* Check if fd is seekable. */
+	cur = lseek(fd, 0, SEEK_CUR);
+	*fdc = (struct fdctx){
+		.fd = fd,
+		.buflen = (cur != -1) ? READ_BUFLEN : 1,
+		.ep = &fdc->buf[0],	/* No data */
+	};
+}
+
+static ssize_t
+fdgetc(struct fdctx *fdc, char *c)
+{
+	ssize_t nread;
+
+	if (&fdc->buf[fdc->off] == fdc->ep) {
+		nread = read(fdc->fd, fdc->buf, fdc->buflen);
+		if (nread > 0) {
+			fdc->off = 0;
+			fdc->ep = fdc->buf + nread;
+		} else
+			return (nread);
+	}
+	*c = fdc->buf[fdc->off++];
+
+	return (1);
+}
+
+static void
+fdctx_destroy(struct fdctx *fdc)
+{
+	off_t residue;
+
+	if (fdc->buflen > 1) {
+	/*
+	 * Reposition the file offset.  Here is the layout of buf:
+	 *
+	 *     | off
+	 *     v 
+	 * |*****************|-------|
+	 * buf               ep   buf+buflen
+	 *     |<- residue ->|
+	 *
+	 * off: current character
+	 * ep:  offset just after read(2)
+	 * residue: length for reposition
+	 */
+		residue = (fdc->ep - fdc->buf) - fdc->off;
+		if (residue > 0)
+			(void) lseek(fdc->fd, -residue, SEEK_CUR);
+	}
+}
 
 /*
  * The read builtin.  The -r option causes backslashes to be treated like
@@ -108,6 +177,7 @@ readcmd(int argc __unused, char **argv __unused)
 	fd_set ifds;
 	ssize_t nread;
 	int sig;
+	struct fdctx fdctx;
 
 	rflag = 0;
 	prompt = NULL;
@@ -173,8 +243,9 @@ readcmd(int argc __unused, char **argv __unused)
 	backslash = 0;
 	STARTSTACKSTR(p);
 	lastnonifs = lastnonifsws = -1;
+	fdctx_init(STDIN_FILENO, &fdctx);
 	for (;;) {
-		nread = read(STDIN_FILENO, &c, 1);
+		nread = fdgetc(&fdctx, &c);
 		if (nread == -1) {
 			if (errno == EINTR) {
 				sig = pendingsig;
@@ -260,6 +331,7 @@ readcmd(int argc __unused, char **argv __unused)
 		STARTSTACKSTR(p);
 		lastnonifs = lastnonifsws = -1;
 	}
+	fdctx_destroy(&fdctx);
 	STACKSTRNUL(p);
 
 	/*
