@@ -623,7 +623,7 @@ end
 function config.loadelf()
 	local xen_kernel = loader.getenv('xen_kernel')
 	local kernel = config.kernel_selected or config.kernel_loaded
-	local loaded, status
+	local status
 
 	if xen_kernel ~= nil then
 		print(MSG_XENKERNLOADING)
@@ -633,11 +633,10 @@ function config.loadelf()
 		end
 	end
 	print(MSG_KERNLOADING)
-	loaded = config.loadKernel(kernel)
-
-	if not loaded then
+	if not config.loadKernel(kernel) then
 		return false
 	end
+	hook.runAll("kernel.loaded")
 
 	print(MSG_MODLOADING)
 	status = loadModule(modules, not config.verbose)
