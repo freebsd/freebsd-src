@@ -1317,6 +1317,7 @@ static int init_one(struct pci_dev *pdev,
 	device_t bsddev = pdev->dev.bsddev;
 #ifdef PCI_IOV
 	nvlist_t *pf_schema, *vf_schema;
+	int num_vfs, sriov_pos;
 #endif
 	int i,err;
 	struct sysctl_oid *pme_sysctl_node;
@@ -1603,7 +1604,14 @@ static int init_one(struct pci_dev *pdev,
 
 #ifdef PCI_IOV
 	if (MLX5_CAP_GEN(dev, vport_group_manager)) {
-		err = mlx5_eswitch_init(dev);
+		if (pci_find_extcap(bsddev, PCIZ_SRIOV, &sriov_pos) == 0) {
+			num_vfs = pci_read_config(bsddev, sriov_pos +
+			    PCIR_SRIOV_TOTAL_VFS, 2);
+		} else {
+			mlx5_core_err(dev, "cannot find SR-IOV PCIe cap\n");
+			num_vfs = 0;
+		}
+		err = mlx5_eswitch_init(dev, 1 + num_vfs);
 		if (err == 0) {
 			pf_schema = pci_iov_schema_alloc_node();
 			vf_schema = pci_iov_schema_alloc_node();
@@ -1780,6 +1788,10 @@ mlx5_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *pf_config)
 	core_dev = pci_get_drvdata(pdev);
 	priv = &core_dev->priv;
 
+	if (priv->eswitch == NULL)
+		return (ENXIO);
+	if (priv->eswitch->total_vports < num_vfs + 1)
+		num_vfs = priv->eswitch->total_vports - 1;
 	err = mlx5_eswitch_enable_sriov(priv->eswitch, num_vfs);
 	return (-err);
 }
@@ -1811,6 +1823,9 @@ mlx5_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *vf_config)
 	pdev = device_get_softc(dev);
 	core_dev = pci_get_drvdata(pdev);
 	priv = &core_dev->priv;
+
+	if (vfnum + 1 >= priv->eswitch->total_vports)
+		return (ENXIO);
 
 	if (nvlist_exists_binary(vf_config, iov_mac_addr_name)) {
 		mac = nvlist_get_binary(vf_config, iov_mac_addr_name,

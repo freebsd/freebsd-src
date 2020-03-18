@@ -152,7 +152,7 @@ struct mlx5_esw_vport_info {
 };
 
 /* E-Switch API */
-int mlx5_eswitch_init(struct mlx5_core_dev *dev);
+int mlx5_eswitch_init(struct mlx5_core_dev *dev, int total_vports);
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
 void mlx5_eswitch_vport_event(struct mlx5_eswitch *esw, struct mlx5_eqe *eqe);
 int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs);
