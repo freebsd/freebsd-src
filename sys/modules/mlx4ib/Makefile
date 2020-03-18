@@ -2,7 +2,7 @@
 .PATH:  ${SRCTOP}/sys/dev/mlx4/mlx4_ib
 
 KMOD=	mlx4ib
-SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h \
+SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h pci_iov_if.h \
 	opt_inet.h opt_inet6.h \
 	mlx4_ib_alias_GUID.c \
 	mlx4_ib_mcg.c \
