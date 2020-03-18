@@ -35,7 +35,6 @@ struct rtwn_pci_ident {
 static const struct rtwn_pci_ident rtwn_pci_ident_table[] = {
 	{ 0x10ec, 0x8176, "Realtek RTL8188CE", RTWN_CHIP_RTL8192CE },
 	{ 0x10ec, 0x8179, "Realtek RTL8188EE", RTWN_CHIP_RTL8188EE },
-	{ 0, 0, NULL, RTWN_CHIP_MAX_PCI }
 };
 
 typedef void	(*chip_pci_attach)(struct rtwn_pci_softc *);
