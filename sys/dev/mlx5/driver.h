@@ -628,6 +628,8 @@ struct mlx5_priv {
 	struct mlx5_rl_table	rl_table;
 #endif
 	struct mlx5_pme_stats pme_stats;
+
+	struct mlx5_eswitch	*eswitch;
 };
 
 enum mlx5_device_state {
