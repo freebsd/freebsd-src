@@ -695,7 +695,7 @@ getchannels(struct ath_hal *ah,
 		else if (cm->flags & IEEE80211_CHAN_2GHZ)
 			rd = rd2GHz;
 		else {
-			ath_hal_printf(ah, "%s: Unkonwn HAL flags 0x%x\n",
+			ath_hal_printf(ah, "%s: Unknown HAL flags 0x%x\n",
 			    __func__, cm->flags);
 			return HAL_EINVAL;
 		}
