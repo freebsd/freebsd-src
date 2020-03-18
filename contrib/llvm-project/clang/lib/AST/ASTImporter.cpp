@@ -6726,7 +6726,7 @@ ExpectedStmt ASTNodeImporter::VisitStmtExpr(StmtExpr *E) {
 
   return new (Importer.getToContext())
       StmtExpr(ToSubStmt, ToType, ToLParenLoc, ToRParenLoc,
-               E->isInstantiationDependent());
+               E->getTemplateDepth());
 }
 
 ExpectedStmt ASTNodeImporter::VisitUnaryOperator(UnaryOperator *E) {
