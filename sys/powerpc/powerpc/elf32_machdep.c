@@ -403,7 +403,7 @@ ppc32_runtime_resolve()
 }
 
 int
-elf_cpu_parse_dynamic(linker_file_t lf, Elf_Dyn *dynamic)
+elf_cpu_parse_dynamic(caddr_t loadbase, Elf_Dyn *dynamic)
 {
 	Elf_Dyn *dp;
 	bool has_plt = false;
@@ -414,7 +414,7 @@ elf_cpu_parse_dynamic(linker_file_t lf, Elf_Dyn *dynamic)
 		switch (dp->d_tag) {
 		case DT_PPC_GOT:
 			secure_plt = true;
-			got = (Elf_Addr *)(lf->address + dp->d_un.d_ptr);
+			got = (Elf_Addr *)(loadbase + dp->d_un.d_ptr);
 			/* Install runtime resolver canary. */
 			got[1] = (Elf_Addr)ppc32_runtime_resolve;
 			got[2] = (Elf_Addr)0;
