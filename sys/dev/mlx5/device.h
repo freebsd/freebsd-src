@@ -839,6 +839,7 @@ static inline int mlx5_host_is_le(void)
 enum {
 	VPORT_STATE_DOWN		= 0x0,
 	VPORT_STATE_UP			= 0x1,
+	VPORT_STATE_FOLLOW		= 0x2,
 };
 
 enum {
