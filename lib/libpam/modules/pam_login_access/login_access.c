@@ -125,7 +125,7 @@ list_match(char *list, const char *item,
      */
 
     for (tok = strtok(list, sep); tok != NULL; tok = strtok((char *) 0, sep)) {
-	if (strcasecmp(tok, "EXCEPT") == 0)	/* EXCEPT: give up */
+	if (strcmp(tok, "EXCEPT") == 0)	/* EXCEPT: give up */
 	    break;
 	if ((match = (*match_fn)(tok, item)) != 0)	/* YES */
 	    break;
@@ -133,7 +133,7 @@ list_match(char *list, const char *item,
     /* Process exceptions to matches. */
 
     if (match != NO) {
-	while ((tok = strtok((char *) 0, sep)) && strcasecmp(tok, "EXCEPT"))
+	while ((tok = strtok((char *) 0, sep)) && strcmp(tok, "EXCEPT"))
 	     /* VOID */ ;
 	if (tok == NULL || list_match((char *) 0, item, match_fn) == NO)
 	    return (match);
@@ -219,7 +219,7 @@ from_match(const char *tok, const char *string)
 	if ((str_len = strlen(string)) > (tok_len = strlen(tok))
 	    && strcasecmp(tok, string + str_len - tok_len) == 0)
 	    return (YES);
-    } else if (strcasecmp(tok, "LOCAL") == 0) {	/* local: no dots */
+    } else if (strcmp(tok, "LOCAL") == 0) {	/* local: no dots */
 	if (strchr(string, '.') == NULL)
 	    return (YES);
     } else if (tok[(tok_len = strlen(tok)) - 1] == '.'	/* network */
@@ -240,7 +240,7 @@ string_match(const char *tok, const char *string)
      * Otherwise, return YES if the token fully matches the string.
      */
 
-    if (strcasecmp(tok, "ALL") == 0) {		/* all: always matches */
+    if (strcmp(tok, "ALL") == 0) {		/* all: always matches */
 	return (YES);
     } else if (strcasecmp(tok, string) == 0) {	/* try exact match */
 	return (YES);
