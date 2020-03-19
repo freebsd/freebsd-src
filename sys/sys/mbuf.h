@@ -519,6 +519,8 @@ struct mbuf {
 #define	CSUM_L5_VALID		0x20000000	/* checksum is correct */
 #define	CSUM_COALESCED		0x40000000	/* contains merged segments */
 
+#define	CSUM_SND_TAG		0x80000000	/* Packet header has send tag */
+
 /*
  * CSUM flag description for use with printf(9) %b identifier.
  */
@@ -528,7 +530,7 @@ struct mbuf {
     "\12CSUM_IP6_UDP\13CSUM_IP6_TCP\14CSUM_IP6_SCTP\15CSUM_IP6_TSO" \
     "\16CSUM_IP6_ISCSI" \
     "\31CSUM_L3_CALC\32CSUM_L3_VALID\33CSUM_L4_CALC\34CSUM_L4_VALID" \
-    "\35CSUM_L5_CALC\36CSUM_L5_VALID\37CSUM_COALESCED"
+    "\35CSUM_L5_CALC\36CSUM_L5_VALID\37CSUM_COALESCED\40CSUM_SND_TAG"
 
 /* CSUM flags compatibility mappings. */
 #define	CSUM_IP_CHECKED		CSUM_L3_CALC
