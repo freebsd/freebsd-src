@@ -193,7 +193,7 @@ struct mon_table mon_dispatch_proto20[] = {
 #endif
     {MONITOR_REQ_SIGN, MON_ONCE, mm_answer_sign},
 #ifdef HAVE_LOGIN_CAP
-    {MONITOR_REQ_GETPWCLASS, MON_AUTH, mm_answer_login_getpwclass},
+    {MONITOR_REQ_GETPWCLASS, MON_ISAUTH, mm_answer_login_getpwclass},
 #endif
     {MONITOR_REQ_PWNAM, MON_ONCE, mm_answer_pwnamallow},
     {MONITOR_REQ_AUTHSERV, MON_ONCE, mm_answer_authserv},
