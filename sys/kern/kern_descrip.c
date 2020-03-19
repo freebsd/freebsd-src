@@ -968,7 +968,6 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	newfde = &fdp->fd_ofiles[new];
 	delfp = newfde->fde_file;
 
-	oioctls = filecaps_free_prep(&newfde->fde_caps);
 	nioctls = filecaps_copy_prep(&oldfde->fde_caps);
 
 	/*
@@ -977,6 +976,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 #ifdef CAPABILITIES
 	seqc_write_begin(&newfde->fde_seqc);
 #endif
+	oioctls = filecaps_free_prep(&newfde->fde_caps);
 	memcpy(newfde, oldfde, fde_change_size);
 	filecaps_copy_finish(&oldfde->fde_caps, &newfde->fde_caps,
 	    nioctls);
