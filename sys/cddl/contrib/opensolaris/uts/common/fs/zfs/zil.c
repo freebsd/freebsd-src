@@ -1365,6 +1365,15 @@ struct {
 };
 
 /*
+ * Maximum block size used by the ZIL.  This is picked up when the ZIL is
+ * initialized.  Otherwise this should not be used directly; see
+ * zl_max_block_size instead.
+ */
+int zil_maxblocksize = SPA_OLD_MAXBLOCKSIZE;
+SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_maxblocksize, CTLFLAG_RWTUN,
+    &zil_maxblocksize, 0, "Limit in bytes of ZIL log block size");
+
+/*
  * Start a log block write and advance to the next log block.
  * Calls are serialized.
  */
@@ -1440,7 +1449,7 @@ zil_lwb_write_issue(zilog_t *zilog, lwb_t *lwb)
 	zil_blksz = zilog->zl_cur_used + sizeof (zil_chain_t);
 	for (i = 0; zil_blksz > zil_block_buckets[i].limit; i++)
 		continue;
-	zil_blksz = zil_block_buckets[i].blksz;
+	zil_blksz = MIN(zil_block_buckets[i].blksz, zilog->zl_max_block_size);
 	zilog->zl_prev_blks[zilog->zl_prev_rotor] = zil_blksz;
 	for (i = 0; i < ZIL_PREV_BLKS; i++)
 		zil_blksz = MAX(zil_blksz, zilog->zl_prev_blks[i]);
@@ -1497,13 +1506,47 @@ zil_lwb_write_issue(zilog_t *zilog, lwb_t *lwb)
 	return (nlwb);
 }
 
+/*
+ * Maximum amount of write data that can be put into single log block.
+ */
+uint64_t
+zil_max_log_data(zilog_t *zilog)
+{
+	return (zilog->zl_max_block_size -
+	    sizeof (zil_chain_t) - sizeof (lr_write_t));
+}
+
+/*
+ * Maximum amount of log space we agree to waste to reduce number of
+ * WR_NEED_COPY chunks to reduce zl_get_data() overhead (~12%).
+ */
+static inline uint64_t
+zil_max_waste_space(zilog_t *zilog)
+{
+	return (zil_max_log_data(zilog) / 8);
+}
+
+/*
+ * Maximum amount of write data for WR_COPIED.  For correctness, consumers
+ * must fall back to WR_NEED_COPY if we can't fit the entire record into one
+ * maximum sized log block, because each WR_COPIED record must fit in a
+ * single log block.  For space efficiency, we want to fit two records into a
+ * max-sized log block.
+ */
+uint64_t
+zil_max_copied_data(zilog_t *zilog)
+{
+	return ((zilog->zl_max_block_size - sizeof (zil_chain_t)) / 2 -
+	    sizeof (lr_write_t));
+}
+
 static lwb_t *
 zil_lwb_commit(zilog_t *zilog, itx_t *itx, lwb_t *lwb)
 {
 	lr_t *lrcb, *lrc;
 	lr_write_t *lrwb, *lrw;
 	char *lr_buf;
-	uint64_t dlen, dnow, lwb_sp, reclen, txg;
+	uint64_t dlen, dnow, lwb_sp, reclen, txg, max_log_data;
 
 	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 	ASSERT3P(lwb, !=, NULL);
@@ -1552,15 +1595,27 @@ cont:
 	 * For WR_NEED_COPY optimize layout for minimal number of chunks.
 	 */
 	lwb_sp = lwb->lwb_sz - lwb->lwb_nused;
+	max_log_data = zil_max_log_data(zilog);
 	if (reclen > lwb_sp || (reclen + dlen > lwb_sp &&
-	    lwb_sp < ZIL_MAX_WASTE_SPACE && (dlen % ZIL_MAX_LOG_DATA == 0 ||
-	    lwb_sp < reclen + dlen % ZIL_MAX_LOG_DATA))) {
+	    lwb_sp < zil_max_waste_space(zilog) &&
+	    (dlen % max_log_data == 0 ||
+	    lwb_sp < reclen + dlen % max_log_data))) {
 		lwb = zil_lwb_write_issue(zilog, lwb);
 		if (lwb == NULL)
 			return (NULL);
 		zil_lwb_write_open(zilog, lwb);
 		ASSERT(LWB_EMPTY(lwb));
 		lwb_sp = lwb->lwb_sz - lwb->lwb_nused;
+
+		/*
+		 * There must be enough space in the new, empty log block to
+		 * hold reclen.  For WR_COPIED, we need to fit the whole
+		 * record in one block, and reclen is the header size + the
+		 * data size. For WR_NEED_COPY, we can create multiple
+		 * records, splitting the data into multiple blocks, so we
+		 * only need to fit one word of data per block; in this case
+		 * reclen is just the header size (no data).
+		 */
 		ASSERT3U(reclen + MIN(dlen, sizeof (uint64_t)), <=, lwb_sp);
 	}
 
@@ -2992,6 +3047,7 @@ zil_alloc(objset_t *os, zil_header_t *zh_phys)
 	zilog->zl_dirty_max_txg = 0;
 	zilog->zl_last_lwb_opened = NULL;
 	zilog->zl_last_lwb_latency = 0;
+	zilog->zl_max_block_size = zil_maxblocksize;
 
 	mutex_init(&zilog->zl_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&zilog->zl_issuer_lock, NULL, MUTEX_DEFAULT, NULL);
