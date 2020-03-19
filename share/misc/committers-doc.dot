@@ -50,6 +50,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current doc committers go here. Try to keep things sorted.
 
+"0mp" [label="Mateusz Piotrowski\n0mp@FreeBSD.org\n2019/09/29"]
 ale [label="Alex Dupre\nale@FreeBSD.org\n2003/12/22"]
 allanjude [label="Allan Jude\nallanjude@FreeBSD.org\n2014/05/17"]
 bcr [label="Benedict Reuschling\nbcr@FreeBSD.org\n2009/12/24"]
@@ -113,6 +114,7 @@ bcr -> sevan
 bcr -> dexter
 bcr -> sg
 bcr -> carlavilla
+bcr -> "0mp"
 
 blackend -> ale
 
