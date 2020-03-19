@@ -22,13 +22,12 @@ CFLAGS+=	-I${BTXLIB}
 
 # compact binary with no padding between text, data, bss
 LDSCRIPT=	${BOOTSRC}/i386/boot.ldscript
-# LDFLAGS_BIN=-e start -Ttext ${ORG} -Wl,-T,${LDSCRIPT},-S,--oformat,binary
-# LD_FLAGS_BIN=-static -T ${LDSCRIPT} --gc-sections
-LDFLAGS_BIN=-e start -Ttext ${ORG} -Wl,-N,-S,--oformat,binary
+LDFLAGS_ORG=	-Wl,--defsym,ORG=${ORG},-T,${LDSCRIPT}
+LDFLAGS_BIN=	-e start ${LDFLAGS_ORG} -Wl,-N,-S,--oformat,binary
 .if ${LINKER_FEATURES:Mbuild-id} != ""
-LDFLAGS_BIN+=-Wl,--build-id=none
+LDFLAGS_BIN+=	-Wl,--build-id=none
 .endif
-LD_FLAGS_BIN=-static -N --gc-sections
+LD_FLAGS_BIN=	-static -N --gc-sections
 
 .if ${MACHINE_CPUARCH} == "amd64"
 DO32=1
