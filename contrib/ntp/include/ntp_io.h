@@ -84,7 +84,7 @@ typedef enum {
 
 extern int	qos;
 SOCKET		move_fd(SOCKET fd);
-isc_boolean_t	get_broadcastclient_flag(void);
+/*isc_boolean_t	get_broadcastclient_flag(void);*/
 extern void	sau_from_netaddr(sockaddr_u *, const isc_netaddr_t *);
 extern void	add_nic_rule(nic_rule_match match_type,
 			     const char *if_name, int prefixlen,

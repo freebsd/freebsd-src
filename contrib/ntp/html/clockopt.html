@@ -10,7 +10,7 @@
 <h3>Reference Clock Commands and Options</h3>
 <img src="pic/stack1a.jpg" alt="gif" align="left">Master Time Facility at the <a href="http://www.eecis.udel.edu/%7emills/lab.html">UDel Internet Research Laboratory</a>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->11-Sep-2010  05:55<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->26-Sep-2019  06:34<!-- #EndDate -->
   UTC</p>
 <br clear="left">
 <h4>Related Links</h4>
@@ -50,6 +50,22 @@
       <dd>Specifies an ASCII string of from one to four characters which defines the reference identifier used by the driver. This string overrides the default identifier ordinarily assigned by the driver itself.</dd>
       <dt><tt>flag1 flag2 flag3 flag4</tt></dt>
       <dd>These four flags are used for customizing the clock driver. The interpretation of these values, and whether they are used at all, is a function of the particular  driver. However, by convention <tt>flag4</tt> is used to enable recording monitoring data to the <tt>clockstats</tt> file configured with the <tt>filegen</tt> command. Additional information on the <tt>filegen</tt> command is on the <a href="monopt.html">Monitoring Options</a> page.</dd>
+      <dt><tt>minjitter <i>secs</i></tt></dt>
+      <dd>If the source has a jitter that cannot be sensibly estimated, because
+	it is not statistic jitter, the source will be detected as falseticker
+	sooner or later.  This has been observed e.g. with the serial data of
+	certain GPS receivers.  Enforcing a minimal jitter value avoids a too
+	low estimation, keeping the clock in the zoo while still detecting
+	higher jitter.
+      </dd><dd> Note: this changes the refclock samples and ends up in the
+	clock dispersion, not the clock jitter, despite being called jitter.  To
+	see the modified values, check the NTP clock variable "filtdisp", not
+	"jitter".
+      </dd><dd>The falseticker problem can also be avoided by increasing <tt>tos
+	mindist</tt>, which extends the intersection interval, but that affects
+	the root dispersion and is intended for the case of multiple reference
+	clocks with reliable jitter that do not intersect otherwise.
+      </dd>
     </dl>
   </dd>
 </dl>

@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5man "20 Feb 2019" "4.2.8p13" "File Formats"
+.TH ntp.conf 5man "03 Mar 2020" "4.2.8p14" "File Formats"
 .\"
 .\" EDIT THIS FILE WITH CAUTION (in-mem file)
 .\"
-.\" It has been AutoGen-ed February 20, 2019 at 09:56:43 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed March 3, 2020 at 05:41:02 PM by AutoGen 5.18.5
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -161,9 +161,9 @@ qualifier forces DNS resolution to the IPv6 namespace.
 See IPv6 references for the
 equivalent classes for that address family.
 .TP 7
-.NOP \f\*[B-Font]pool\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]burst\f[]] [\f\*[B-Font]iburst\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]]
+.NOP \f\*[B-Font]pool\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]burst\f[]] [\f\*[B-Font]iburst\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]] [\f\*[B-Font]xmtnonce\f[]]
 .TP 7
-.NOP \f\*[B-Font]server\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]key\f[] \f\*[I-Font]key\f[] \f\*[I-Font]\&|\f[] \f\*[B-Font]autokey\f[]] [\f\*[B-Font]burst\f[]] [\f\*[B-Font]iburst\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]] [\f\*[B-Font]true\f[]]
+.NOP \f\*[B-Font]server\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]key\f[] \f\*[I-Font]key\f[] \f\*[I-Font]\&|\f[] \f\*[B-Font]autokey\f[]] [\f\*[B-Font]burst\f[]] [\f\*[B-Font]iburst\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]] [\f\*[B-Font]true\f[]] [\f\*[B-Font]xmtnonce\f[]]
 .TP 7
 .NOP \f\*[B-Font]peer\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]key\f[] \f\*[I-Font]key\f[] \f\*[I-Font]\&|\f[] \f\*[B-Font]autokey\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]] [\f\*[B-Font]true\f[]] [\f\*[B-Font]xleave\f[]]
 .TP 7
@@ -352,10 +352,6 @@ The server is discarded by the selection algroithm.
 .NOP \f\*[B-Font]preempt\f[]
 Says the association can be preempted.
 .TP 7
-.NOP \f\*[B-Font]true\f[]
-Marks the server as a truechimer.
-Use this option only for testing.
-.TP 7
 .NOP \f\*[B-Font]prefer\f[]
 Marks the server as preferred.
 All other things being equal,
@@ -370,7 +366,8 @@ provided in
 for further information.
 .TP 7
 .NOP \f\*[B-Font]true\f[]
-Forces the association to always survive the selection and clustering algorithms.
+Marks the server as a truechimer,
+forcing the association to always survive the selection and clustering algorithms.
 This option should almost certainly
 \fIonly\f[]
 be used while testing an association.
@@ -401,6 +398,13 @@ Valid in
 and
 \f\*[B-Font]broadcast\f[]
 modes only, this flag enables interleave mode.
+.TP 7
+.NOP \f\*[B-Font]xmtnonce\f[]
+Valid only for
+\f\*[B-Font]server\f[]
+and
+\f\*[B-Font]pool\f[]
+modes, this flag puts a random number in the packet's transmit timestamp.
 .PP
 .SS Auxiliary Commands
 .TP 7
@@ -1838,6 +1842,11 @@ The
 is considered more specific and
 is sorted later in the list.
 .TP 7
+.NOP \f\*[B-Font]serverresponse fuzz\f[]
+When reponding to server requests,
+fuzz the low order bits of the
+\f\*[B-Font]reftime\f[].
+.TP 7
 .NOP \f\*[B-Font]version\f[]
 Deny packets that do not match the current NTP version.
 .RE
@@ -3092,6 +3101,22 @@ one telephone number used to dial the telephone JJY service.
 The Hayes command ATDT is normally prepended to the number.
 The number can contain other modem control codes as well.
 .TP 7
+.NOP \f\*[B-Font]pollskewlist\f[] [\f\*[I-Font]poll\f[] \f\*[I-Font]value\f[] | \f\*[I-Font]value\f[]] \f\*[I-Font]...\f[] [\f\*[B-Font]default\f[] \f\*[I-Font]value\f[] | \f\*[I-Font]value\f[]]
+Enable skewing of our poll requests to our servers.
+\f\*[I-Font]poll\f[]
+is a number between 3 and 17 inclusive, identifying a specific poll interval.
+A poll interval is 2^n seconds in duration,
+so a poll value of 3 corresponds to 8 seconds
+and
+a poll interval of 17 corresponds to
+131,072 seconds, or about a day and a half.
+The next two numbers must be between 0 and one-half of the poll interval,
+inclusive.
+The first number specifies how early the poll may start,
+while
+the second number specifies how late the poll may be delayed.
+With no arguments, internally specified default values are chosen.
+.TP 7
 .NOP \f\*[B-Font]reset\f[] [\f\*[B-Font]allpeers\f[]] [\f\*[B-Font]auth\f[]] [\f\*[B-Font]ctl\f[]] [\f\*[B-Font]io\f[]] [\f\*[B-Font]mem\f[]] [\f\*[B-Font]sys\f[]] [\f\*[B-Font]timer\f[]]
 Reset one or more groups of counters maintained by
 \f\*[B-Font]ntpd\f[]
@@ -3424,7 +3449,7 @@ RFC5905
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH BUGS
 The syntax checking is not picky; some combinations of

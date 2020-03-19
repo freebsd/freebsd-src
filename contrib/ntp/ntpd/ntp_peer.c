@@ -844,11 +844,13 @@ newpeer(
 		return NULL;
 	}
 
+#if 0
 DPRINTF(1, ("newpeer(%s) found no existing and %d other associations\n",
 		(hostname)
 		    ? hostname
 		    : stoa(srcadr),
 		ip_count));
+#endif
 
 	/* Check ippeerlimit wrt ip_count */
 	if (ippeerlimit > -1) {

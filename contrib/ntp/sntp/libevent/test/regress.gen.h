@@ -1,9 +1,9 @@
 /*
- * Automatically generated from ../../../sntp/libevent/test/regress.rpc
+ * Automatically generated from /ntpbuild/data/snaps/ntp-stable/sntp/libevent/test/regress.rpc
  */
 
-#ifndef EVENT_RPCOUT__________SNTP_LIBEVENT_TEST_REGRESS_RPC_
-#define EVENT_RPCOUT__________SNTP_LIBEVENT_TEST_REGRESS_RPC_
+#ifndef EVENT_RPCOUT__NTPBUILD_DATA_SNAPS_NTP_STABLE_SNTP_LIBEVENT_TEST_REGRESS_RPC_
+#define EVENT_RPCOUT__NTPBUILD_DATA_SNAPS_NTP_STABLE_SNTP_LIBEVENT_TEST_REGRESS_RPC_
 
 #include <event2/util.h> /* for ev_uint*_t */
 #include <event2/rpc.h>
@@ -204,4 +204,4 @@ int run_other_numbers_get(struct run *, int, ev_uint32_t *);
 ev_uint32_t * run_other_numbers_add(struct run *msg, const ev_uint32_t value);
 /* --- run done --- */
 
-#endif  /* EVENT_RPCOUT__________SNTP_LIBEVENT_TEST_REGRESS_RPC_ */
+#endif  /* EVENT_RPCOUT__NTPBUILD_DATA_SNAPS_NTP_STABLE_SNTP_LIBEVENT_TEST_REGRESS_RPC_ */
