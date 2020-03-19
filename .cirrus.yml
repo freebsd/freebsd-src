@@ -1,0 +1,18 @@
+# $FreeBSD$
+
+freebsd_instance:
+  image: freebsd-12-1-release-amd64
+  cpu: 8
+  memory: 24G
+
+env:
+  CIRRUS_CLONE_DEPTH: 1
+
+task:
+  timeout_in: 90m
+  install_script:
+  - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
+  script:
+  - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
+  test_script:
+  - sh tools/boot/ci-qemu-test.sh
