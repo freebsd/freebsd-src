@@ -1103,10 +1103,9 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 }
 
 int
-sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    struct sctp_nets *net)
+sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 {
-	struct sctp_nets *alt;
+	struct sctp_nets *alt, *net;
 	struct sctp_tmit_chunk *strrst = NULL, *chk = NULL;
 
 	if (stcb->asoc.stream_reset_outstanding == 0) {
@@ -1117,9 +1116,9 @@ sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (strrst == NULL) {
 		return (0);
 	}
+	net = strrst->whoTo;
 	/* do threshold management */
-	if (sctp_threshold_management(inp, stcb, strrst->whoTo,
-	    stcb->asoc.max_send_times)) {
+	if (sctp_threshold_management(inp, stcb, net, stcb->asoc.max_send_times)) {
 		/* Assoc is over */
 		return (1);
 	}
@@ -1127,9 +1126,8 @@ sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	 * Cleared threshold management, now lets backoff the address and
 	 * select an alternate
 	 */
-	sctp_backoff_on_timeout(stcb, strrst->whoTo, 1, 0, 0);
-	alt = sctp_find_alternate_net(stcb, strrst->whoTo, 0);
-	sctp_free_remote_addr(strrst->whoTo);
+	sctp_backoff_on_timeout(stcb, net, 1, 0, 0);
+	alt = sctp_find_alternate_net(stcb, net, 0);
 	strrst->whoTo = alt;
 	atomic_add_int(&alt->ref_count, 1);
 
@@ -1154,6 +1152,8 @@ sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 */
 		sctp_move_chunks_from_net(stcb, net);
 	}
+	sctp_free_remote_addr(net);
+
 	/* mark the retran info */
 	if (strrst->sent != SCTP_DATAGRAM_RESEND)
 		sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
@@ -1161,7 +1161,7 @@ sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	strrst->flags |= CHUNK_FLAGS_FRAGMENT_OK;
 
 	/* restart the timer */
-	sctp_timer_start(SCTP_TIMER_TYPE_STRRESET, inp, stcb, strrst->whoTo);
+	sctp_timer_start(SCTP_TIMER_TYPE_STRRESET, inp, stcb, alt);
 	return (0);
 }
 
@@ -1186,8 +1186,9 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		if (asconf == NULL) {
 			return (0);
 		}
+		net = asconf->whoTo;
 		/* do threshold management */
-		if (sctp_threshold_management(inp, stcb, asconf->whoTo,
+		if (sctp_threshold_management(inp, stcb, net,
 		    stcb->asoc.max_send_times)) {
 			/* Assoc is over */
 			return (1);
@@ -1208,10 +1209,9 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * cleared threshold management, so now backoff the net and
 		 * select an alternate
 		 */
-		sctp_backoff_on_timeout(stcb, asconf->whoTo, 1, 0, 0);
-		alt = sctp_find_alternate_net(stcb, asconf->whoTo, 0);
+		sctp_backoff_on_timeout(stcb, net, 1, 0, 0);
+		alt = sctp_find_alternate_net(stcb, net, 0);
 		if (asconf->whoTo != alt) {
-			sctp_free_remote_addr(asconf->whoTo);
 			asconf->whoTo = alt;
 			atomic_add_int(&alt->ref_count, 1);
 		}
@@ -1248,6 +1248,8 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			 */
 			sctp_move_chunks_from_net(stcb, net);
 		}
+		sctp_free_remote_addr(net);
+
 		/* mark the retran info */
 		if (asconf->sent != SCTP_DATAGRAM_RESEND)
 			sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);

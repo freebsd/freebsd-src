@@ -1939,7 +1939,7 @@ sctp_timeout_handler(void *t)
 		if ((stcb == NULL) || (inp == NULL)) {
 			break;
 		}
-		if (sctp_strreset_timer(inp, stcb, net)) {
+		if (sctp_strreset_timer(inp, stcb)) {
 			/* no need to unlock on tcb its gone */
 			goto out_decr;
 		}
