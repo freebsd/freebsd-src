@@ -139,6 +139,45 @@
 	<entry>28&nbsp;January&nbsp;2020</entry>
 	<entry><para>Kernel stack data disclosure</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:04.tcp.asc">FreeBSD-SA-20:04.tcp</link></entry>
+	<entry>18&nbsp;March&nbsp;2020</entry>
+	<entry><para>TCP IPv6 SYN cache kernel information
+	  disclosure</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:05.if_oce_ioctl.asc">FreeBSD-SA-20:05.if_oce_ioctl</link></entry>
+	<entry>18&nbsp;March&nbsp;2020</entry>
+	<entry><para>Insufficient &man.ioctl.2; privilege
+	  checking</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:07.epair.asc">FreeBSD-SA-20:07.epair</link></entry>
+	<entry>18&nbsp;March&nbsp;2020</entry>
+	<entry><para>Incorrect user-controlled pointer
+	  use</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:08.jail.asc">FreeBSD-SA-20:08.jail</link></entry>
+	<entry>18&nbsp;March&nbsp;2020</entry>
+	<entry><para>Kernel memory disclosure with nested
+	  jails</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:09.ntp.asc">FreeBSD-SA-20:09.ntp</link></entry>
+	<entry>18&nbsp;March&nbsp;2020</entry>
+	<entry><para>Multiple denial of service</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

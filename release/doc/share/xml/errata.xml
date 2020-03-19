@@ -69,6 +69,20 @@
 	<entry>28&nbsp;January&nbsp;2020</entry>
 	<entry><para>Invalid pointer dereference</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:04.pfctl.asc">FreeBSD-EN-20:04.pfctl</link></entry>
+	<entry>18&nbsp;March&nbsp;2020</entry>
+	<entry><para>Missing &man.pfctl.8; tunable</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:06.ipv6.asc">FreeBSD-EN-20:06.ipv6</link></entry>
+	<entry>18&nbsp;March&nbsp;2020</entry>
+	<entry><para>Incorrect checksum calculations</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
