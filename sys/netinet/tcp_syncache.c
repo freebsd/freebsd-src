@@ -1679,7 +1679,8 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
 		ip6->ip6_dst = sc->sc_inc.inc6_faddr;
 		ip6->ip6_plen = htons(tlen - hlen);
 		/* ip6_hlim is set after checksum */
-		ip6->ip6_flow &= ~IPV6_FLOWLABEL_MASK;
+		/* Zero out traffic class and flow label. */
+		ip6->ip6_flow &= ~IPV6_FLOWINFO_MASK;
 		ip6->ip6_flow |= sc->sc_flowlabel;
 
 		th = (struct tcphdr *)(ip6 + 1);
