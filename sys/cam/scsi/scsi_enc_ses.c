@@ -956,30 +956,38 @@ ses_paths_iter(enc_softc_t *enc, enc_element_t *elm,
 	if (addl->hdr == NULL)
 		return;
 
-	if (addl->proto_hdr.sas != NULL &&
-	    addl->proto_data.sasdev_phys != NULL) {
-		ses_path_iter_args_t args;
+	switch(ses_elm_addlstatus_proto(addl->hdr)) {
+	case SPSP_PROTO_SAS:
+		if (addl->proto_hdr.sas != NULL &&
+		    addl->proto_data.sasdev_phys != NULL) {
+			ses_path_iter_args_t args;
 
-		args.callback     = callback;
-		args.callback_arg = callback_arg;
-		ses_devids_iter(enc, elm, ses_path_iter_devid_callback, &args);
-	} else if (addl->proto_hdr.ata != NULL) {
-		struct cam_path *path;
-		struct ccb_getdev cgd;
+			args.callback     = callback;
+			args.callback_arg = callback_arg;
+			ses_devids_iter(enc, elm, ses_path_iter_devid_callback,
+			    &args);
+		}
+		break;
+	case SPSP_PROTO_ATA:
+		if (addl->proto_hdr.ata != NULL) {
+			struct cam_path *path;
+			struct ccb_getdev cgd;
 
-		if (xpt_create_path(&path, /*periph*/NULL,
-		    scsi_4btoul(addl->proto_hdr.ata->bus),
-		    scsi_4btoul(addl->proto_hdr.ata->target), 0)
-		     != CAM_REQ_CMP)
-			return;
+			if (xpt_create_path(&path, /*periph*/NULL,
+			    scsi_4btoul(addl->proto_hdr.ata->bus),
+			    scsi_4btoul(addl->proto_hdr.ata->target), 0)
+			     != CAM_REQ_CMP)
+				return;
 
-		xpt_setup_ccb(&cgd.ccb_h, path, CAM_PRIORITY_NORMAL);
-		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-		xpt_action((union ccb *)&cgd);
-		if (cgd.ccb_h.status == CAM_REQ_CMP)
-			callback(enc, elm, path, callback_arg);
+			xpt_setup_ccb(&cgd.ccb_h, path, CAM_PRIORITY_NORMAL);
+			cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+			xpt_action((union ccb *)&cgd);
+			if (cgd.ccb_h.status == CAM_REQ_CMP)
+				callback(enc, elm, path, callback_arg);
 
-		xpt_free_path(path);
+			xpt_free_path(path);
+		}
+		break;
 	}
 }
 
