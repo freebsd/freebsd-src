@@ -16,6 +16,28 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200319	p7	FreeBSD-EN-20:04.pfctl
+			FreeBSD-EN-20:06.ipv6
+			FreeBSD-SA-20:04.tcp
+			FreeBSD-SA-20:05.if_oce_ioctl
+			FreeBSD-SA-20:07.epair
+			FreeBSD-SA-20:08.jail
+			FreeBSD-SA-20:09.ntp
+
+        Fix missing pfctl(8) tunable [EN-20:04.pfctl]
+
+        Fix incorrect checksum calculations with IPv6 extension headers [EN-20:06.ipv6]
+
+	Fix TCP IPv6 SYN cache kernel information disclosure [SA-20:04.tcp]
+
+	Fix insufficient oce(4) ioctl(2) privilege checking [SA-20:05.if_oce_ioctl]
+
+	Fix incorrect user-controlled pointer use in epair [SA-20:07.epair]
+
+	Fix kernel memory disclosure with nested jails [SA-20:08.jail]
+
+	Fix multiple denial of service in ntpd [SA-20:09.ntp]
+
 20200128	p6	FreeBSD-EN-20:01.ssp
 			FreeBSD-EN-20:02.nmount
 			FreeBSD-SA-20:01.libfetch
