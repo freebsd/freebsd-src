@@ -67,144 +67,144 @@ static int	comc_port = COMPORT;
 static uint32_t	comc_locator;
 
 struct console comconsole = {
-    "comconsole",
-    "serial port",
-    0,
-    comc_probe,
-    comc_init,
-    comc_putchar,
-    comc_getchar,
-    comc_ischar
+	.c_name = "comconsole",
+	.c_desc = "serial port",
+	.c_flags = 0,
+	.c_probe = comc_probe,
+	.c_init = comc_init,
+	.c_out = comc_putchar,
+	.c_in = comc_getchar,
+	.c_ready = comc_ischar
 };
 
 static void
 comc_probe(struct console *cp)
 {
-    char intbuf[16];
-    char *cons, *env;
-    int speed, port;
-    uint32_t locator;
+	char intbuf[16];
+	char *cons, *env;
+	int speed, port;
+	uint32_t locator;
 
-    if (comc_curspeed == 0) {
-	comc_curspeed = COMSPEED;
-	/*
-	 * Assume that the speed was set by an earlier boot loader if
-	 * comconsole is already the preferred console.
-	 */
-	cons = getenv("console");
-	if ((cons != NULL && strcmp(cons, comconsole.c_name) == 0) ||
-	    getenv("boot_multicons") != NULL) {
-		comc_curspeed = comc_getspeed();
+	if (comc_curspeed == 0) {
+		comc_curspeed = COMSPEED;
+		/*
+		 * Assume that the speed was set by an earlier boot loader if
+		 * comconsole is already the preferred console.
+		 */
+		cons = getenv("console");
+		if ((cons != NULL && strcmp(cons, comconsole.c_name) == 0) ||
+		    getenv("boot_multicons") != NULL) {
+			comc_curspeed = comc_getspeed();
+		}
+
+		env = getenv("comconsole_speed");
+		if (env != NULL) {
+			speed = comc_parseint(env);
+			if (speed > 0)
+				comc_curspeed = speed;
+		}
+
+		sprintf(intbuf, "%d", comc_curspeed);
+		unsetenv("comconsole_speed");
+		env_setenv("comconsole_speed", EV_VOLATILE, intbuf,
+		    comc_speed_set, env_nounset);
+
+		env = getenv("comconsole_port");
+		if (env != NULL) {
+			port = comc_parseint(env);
+			if (port > 0)
+				comc_port = port;
+		}
+
+		sprintf(intbuf, "%d", comc_port);
+		unsetenv("comconsole_port");
+		env_setenv("comconsole_port", EV_VOLATILE, intbuf,
+		    comc_port_set, env_nounset);
+
+		env = getenv("comconsole_pcidev");
+		if (env != NULL) {
+			locator = comc_parse_pcidev(env);
+			if (locator != 0)
+				comc_pcidev_handle(locator);
+		}
+
+		unsetenv("comconsole_pcidev");
+		env_setenv("comconsole_pcidev", EV_VOLATILE, env,
+		    comc_pcidev_set, env_nounset);
 	}
-
-	env = getenv("comconsole_speed");
-	if (env != NULL) {
-	    speed = comc_parseint(env);
-	    if (speed > 0)
-		comc_curspeed = speed;
-	}
-
-	sprintf(intbuf, "%d", comc_curspeed);
-	unsetenv("comconsole_speed");
-	env_setenv("comconsole_speed", EV_VOLATILE, intbuf, comc_speed_set,
-	    env_nounset);
-
-	env = getenv("comconsole_port");
-	if (env != NULL) {
-	    port = comc_parseint(env);
-	    if (port > 0)
-		comc_port = port;
-	}
-
-	sprintf(intbuf, "%d", comc_port);
-	unsetenv("comconsole_port");
-	env_setenv("comconsole_port", EV_VOLATILE, intbuf, comc_port_set,
-	    env_nounset);
-
-	env = getenv("comconsole_pcidev");
-	if (env != NULL) {
-	    locator = comc_parse_pcidev(env);
-	    if (locator != 0)
-		    comc_pcidev_handle(locator);
-	}
-
-	unsetenv("comconsole_pcidev");
-	env_setenv("comconsole_pcidev", EV_VOLATILE, env, comc_pcidev_set,
-	    env_nounset);
-    }
-    comc_setup(comc_curspeed, comc_port);
+	comc_setup(comc_curspeed, comc_port);
 }
 
 static int
 comc_init(int arg)
 {
 
-    comc_setup(comc_curspeed, comc_port);
+	comc_setup(comc_curspeed, comc_port);
 
-    if ((comconsole.c_flags & (C_PRESENTIN | C_PRESENTOUT)) ==
-	(C_PRESENTIN | C_PRESENTOUT))
-	return (CMD_OK);
-    return (CMD_ERROR);
+	if ((comconsole.c_flags & (C_PRESENTIN | C_PRESENTOUT)) ==
+	    (C_PRESENTIN | C_PRESENTOUT))
+		return (CMD_OK);
+	return (CMD_ERROR);
 }
 
 static void
 comc_putchar(int c)
 {
-    int wait;
+	int wait;
 
-    for (wait = COMC_TXWAIT; wait > 0; wait--)
-        if (inb(comc_port + com_lsr) & LSR_TXRDY) {
-	    outb(comc_port + com_data, (u_char)c);
-	    break;
-	}
+	for (wait = COMC_TXWAIT; wait > 0; wait--)
+		if (inb(comc_port + com_lsr) & LSR_TXRDY) {
+			outb(comc_port + com_data, (u_char)c);
+			break;
+		}
 }
 
 static int
 comc_getchar(void)
 {
-    return (comc_ischar() ? inb(comc_port + com_data) : -1);
+	return (comc_ischar() ? inb(comc_port + com_data) : -1);
 }
 
 static int
 comc_ischar(void)
 {
-    return (inb(comc_port + com_lsr) & LSR_RXRDY);
+	return (inb(comc_port + com_lsr) & LSR_RXRDY);
 }
 
 static int
 comc_speed_set(struct env_var *ev, int flags, const void *value)
 {
-    int speed;
+	int speed;
 
-    if (value == NULL || (speed = comc_parseint(value)) <= 0) {
-	printf("Invalid speed\n");
-	return (CMD_ERROR);
-    }
+	if (value == NULL || (speed = comc_parseint(value)) <= 0) {
+		printf("Invalid speed\n");
+		return (CMD_ERROR);
+	}
 
-    if (comc_curspeed != speed)
-	comc_setup(speed, comc_port);
+	if (comc_curspeed != speed)
+		comc_setup(speed, comc_port);
 
-    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
+	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
 
-    return (CMD_OK);
+	return (CMD_OK);
 }
 
 static int
 comc_port_set(struct env_var *ev, int flags, const void *value)
 {
-    int port;
+	int port;
 
-    if (value == NULL || (port = comc_parseint(value)) <= 0) {
-	printf("Invalid port\n");
-	return (CMD_ERROR);
-    }
+	if (value == NULL || (port = comc_parseint(value)) <= 0) {
+		printf("Invalid port\n");
+		return (CMD_ERROR);
+	}
 
-    if (comc_port != port)
-	comc_setup(comc_curspeed, port);
+	if (comc_port != port)
+		comc_setup(comc_curspeed, port);
 
-    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
+	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
 
-    return (CMD_OK);
+	return (CMD_OK);
 }
 
 /*
@@ -214,7 +214,8 @@ comc_port_set(struct env_var *ev, int flags, const void *value)
 static uint32_t
 comc_parse_pcidev(const char *string)
 {
-#ifdef NO_PCI
+#ifdef EFI
+	/* We don't support PCI in EFI yet */
 	return (0);
 #else
 	char *p, *p1;
@@ -256,7 +257,8 @@ comc_parse_pcidev(const char *string)
 static int
 comc_pcidev_handle(uint32_t locator)
 {
-#ifdef NO_PCI
+#ifdef EFI
+	/* We don't support PCI in EFI yet */
 	return (CMD_ERROR);
 #else
 	char intbuf[64];
@@ -318,46 +320,56 @@ comc_pcidev_set(struct env_var *ev, int flags, const void *value)
 static void
 comc_setup(int speed, int port)
 {
-    static int TRY_COUNT = 1000000;
-    char intbuf[64];
-    int tries;
+	static int TRY_COUNT = 1000000;
+	char intbuf[64];
+	int tries;
 
-    unsetenv("hw.uart.console");
-    comc_curspeed = speed;
-    comc_port = port;
-    if ((comconsole.c_flags & (C_ACTIVEIN | C_ACTIVEOUT)) == 0)
-	return;
+	unsetenv("hw.uart.console");
+	comc_curspeed = speed;
+	comc_port = port;
+	if ((comconsole.c_flags & (C_ACTIVEIN | C_ACTIVEOUT)) == 0)
+		return;
 
-    outb(comc_port + com_cfcr, CFCR_DLAB | COMC_FMT);
-    outb(comc_port + com_dlbl, COMC_BPS(speed) & 0xff);
-    outb(comc_port + com_dlbh, COMC_BPS(speed) >> 8);
-    outb(comc_port + com_cfcr, COMC_FMT);
-    outb(comc_port + com_mcr, MCR_RTS | MCR_DTR);
+#define	COMC_TEST	0xbb
+	/*
+	 * Write byte to scratch register and read it out.
+	 */
+	outb(comc_port + com_scr, COMC_TEST);
+	if (inb(comc_port + com_scr) != COMC_TEST) {
+		comconsole.c_flags &= ~(C_PRESENTIN | C_PRESENTOUT);
+		return;
+	}
 
-    tries = 0;
-    do
-        inb(comc_port + com_data);
-    while (inb(comc_port + com_lsr) & LSR_RXRDY && ++tries < TRY_COUNT);
+	outb(comc_port + com_cfcr, CFCR_DLAB | COMC_FMT);
+	outb(comc_port + com_dlbl, COMC_BPS(speed) & 0xff);
+	outb(comc_port + com_dlbh, COMC_BPS(speed) >> 8);
+	outb(comc_port + com_cfcr, COMC_FMT);
+	outb(comc_port + com_mcr, MCR_RTS | MCR_DTR);
 
-    if (tries < TRY_COUNT) {
-	comconsole.c_flags |= (C_PRESENTIN | C_PRESENTOUT);
-	sprintf(intbuf, "io:%d,br:%d", comc_port, comc_curspeed);
-	env_setenv("hw.uart.console", EV_VOLATILE, intbuf, NULL, NULL);
-    } else
-	comconsole.c_flags &= ~(C_PRESENTIN | C_PRESENTOUT);
+	tries = 0;
+	do
+		inb(comc_port + com_data);
+	while (inb(comc_port + com_lsr) & LSR_RXRDY && ++tries < TRY_COUNT);
+
+	if (tries < TRY_COUNT) {
+		comconsole.c_flags |= (C_PRESENTIN | C_PRESENTOUT);
+		sprintf(intbuf, "io:%d,br:%d", comc_port, comc_curspeed);
+		env_setenv("hw.uart.console", EV_VOLATILE, intbuf, NULL, NULL);
+	} else
+		comconsole.c_flags &= ~(C_PRESENTIN | C_PRESENTOUT);
 }
 
 static int
 comc_parseint(const char *speedstr)
 {
-    char *p;
-    int speed;
+	char *p;
+	int speed;
 
-    speed = strtol(speedstr, &p, 0);
-    if (p == speedstr || *p != '\0' || speed <= 0)
-	return (-1);
+	speed = strtol(speedstr, &p, 0);
+	if (p == speedstr || *p != '\0' || speed <= 0)
+		return (-1);
 
-    return (speed);
+	return (speed);
 }
 
 static int
