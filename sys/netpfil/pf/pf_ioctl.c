@@ -86,8 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <net/altq/altq.h>
 #endif
 
-#define PF_TABLES_MAX_REQUEST   65535 /* Maximum tables per request. */
-
 static struct pf_pool	*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,
 			    u_int8_t, u_int8_t, u_int8_t);
 
@@ -214,6 +212,8 @@ pfsync_detach_ifnet_t *pfsync_detach_ifnet_ptr;
 
 /* pflog */
 pflog_packet_t			*pflog_packet_ptr = NULL;
+
+extern u_long	pf_ioctl_maxcount;
 
 static void
 pfattach_vnet(void)
@@ -2528,7 +2528,8 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 
-		if (io->pfrio_size < 0 || io->pfrio_size > PF_TABLES_MAX_REQUEST) {
+		if (io->pfrio_size < 0 || io->pfrio_size > pf_ioctl_maxcount ||
+		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_table))) {
 			error = ENOMEM;
 			break;
 		}
@@ -2559,7 +2560,8 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 
-		if (io->pfrio_size < 0 || io->pfrio_size > PF_TABLES_MAX_REQUEST) {
+		if (io->pfrio_size < 0 || io->pfrio_size > pf_ioctl_maxcount ||
+		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_table))) {
 			error = ENOMEM;
 			break;
 		}
@@ -2732,6 +2734,7 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		if (io->pfrio_size < 0 ||
+		    io->pfrio_size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
 			error = EINVAL;
 			break;
@@ -2769,6 +2772,7 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		if (io->pfrio_size < 0 ||
+		    io->pfrio_size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
 			error = EINVAL;
 			break;
@@ -2810,7 +2814,8 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		count = max(io->pfrio_size, io->pfrio_size2);
-		if (WOULD_OVERFLOW(count, sizeof(struct pfr_addr))) {
+		if (count > pf_ioctl_maxcount ||
+		    WOULD_OVERFLOW(count, sizeof(struct pfr_addr))) {
 			error = EINVAL;
 			break;
 		}
@@ -2848,6 +2853,7 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		if (io->pfrio_size < 0 ||
+		    io->pfrio_size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
 			error = EINVAL;
 			break;
@@ -2879,6 +2885,7 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		if (io->pfrio_size < 0 ||
+		    io->pfrio_size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_astats))) {
 			error = EINVAL;
 			break;
@@ -2910,6 +2917,7 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		if (io->pfrio_size < 0 ||
+		    io->pfrio_size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
 			error = EINVAL;
 			break;
@@ -2947,6 +2955,7 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		if (io->pfrio_size < 0 ||
+		    io->pfrio_size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
 			error = EINVAL;
 			break;
@@ -2984,6 +2993,7 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		if (io->pfrio_size < 0 ||
+		    io->pfrio_size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
 			error = EINVAL;
 			break;
@@ -3036,6 +3046,7 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		if (io->size < 0 ||
+		    io->size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->size, sizeof(struct pfioc_trans_e))) {
 			error = EINVAL;
 			break;
@@ -3112,6 +3123,7 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		if (io->size < 0 ||
+		    io->size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->size, sizeof(struct pfioc_trans_e))) {
 			error = EINVAL;
 			break;
@@ -3189,6 +3201,7 @@ DIOCCHANGEADDR_error:
 		}
 
 		if (io->size < 0 ||
+		    io->size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->size, sizeof(struct pfioc_trans_e))) {
 			error = EINVAL;
 			break;
@@ -3407,6 +3420,7 @@ DIOCCHANGEADDR_error:
 		}
 
 		if (io->pfiio_size < 0 ||
+		    io->pfiio_size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->pfiio_size, sizeof(struct pfi_kif))) {
 			error = EINVAL;
 			break;
