@@ -206,6 +206,36 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 		*(u_short *)mtodo(m, offset) = csum;
 }
 
+static int
+ip6_output_delayed_csum(struct mbuf *m, struct ifnet *ifp, int csum_flags,
+    int plen, int optlen, bool frag __unused)
+{
+
+	KASSERT((plen >= optlen), ("%s:%d: plen %d < optlen %d, m %p, ifp %p "
+	    "csum_flags %#x frag %d\n",
+	    __func__, __LINE__, plen, optlen, m, ifp, csum_flags, frag));
+
+	if ((csum_flags & CSUM_DELAY_DATA_IPV6) ||
+#ifdef SCTP
+	    (csum_flags & CSUM_SCTP_IPV6) ||
+#endif
+	    false) {
+		if (csum_flags & CSUM_DELAY_DATA_IPV6) {
+			in6_delayed_cksum(m, plen - optlen,
+			    sizeof(struct ip6_hdr) + optlen);
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+		}
+#ifdef SCTP
+		if (csum_flags & CSUM_SCTP_IPV6) {
+			sctp_delayed_cksum(m, sizeof(struct ip6_hdr) + optlen);
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+		}
+#endif
+	}
+
+	return (0);
+}
+
 int
 ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
     int mtu, uint32_t id)
@@ -908,17 +938,10 @@ passout:
 	 * XXX-BZ  Need a framework to know when the NIC can handle it, even
 	 * with ext. hdrs.
 	 */
-	if (sw_csum & CSUM_DELAY_DATA_IPV6) {
-		sw_csum &= ~CSUM_DELAY_DATA_IPV6;
-		in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
-	}
-#ifdef SCTP
-	if (sw_csum & CSUM_SCTP_IPV6) {
-		sw_csum &= ~CSUM_SCTP_IPV6;
-		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
-	}
-#endif
-	m->m_pkthdr.csum_flags &= ifp->if_hwassist;
+	error = ip6_output_delayed_csum(m, ifp, sw_csum, plen, optlen, false);
+	if (error != 0)
+		goto bad;
+	/* XXX-BZ m->m_pkthdr.csum_flags &= ~ifp->if_hwassist; */
 	tlen = m->m_pkthdr.len;
 
 	if ((opt && (opt->ip6po_flags & IP6PO_DONTFRAG)) || tso)
@@ -1002,16 +1025,11 @@ passout:
 		 * fragmented packets, then do it here.
 		 * XXX-BZ handle the hw offloading case.  Need flags.
 		 */
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
-			in6_delayed_cksum(m, plen, hlen);
-			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
-		}
-#ifdef SCTP
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
-			sctp_delayed_cksum(m, hlen);
-			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
-		}
-#endif
+		error = ip6_output_delayed_csum(m, ifp, m->m_pkthdr.csum_flags,
+		    plen, optlen, true);
+		if (error != 0)
+			goto bad;
+
 		/*
 		 * Change the next header field of the last header in the
 		 * unfragmentable part.
