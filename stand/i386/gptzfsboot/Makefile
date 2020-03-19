@@ -32,6 +32,7 @@ CFLAGS+=-DBOOTPROG=\"gptzfsboot\" \
 	-I${SYSDIR}/cddl/contrib/opensolaris/common/lz4 \
 	-I${BOOTSRC}/i386/btx/lib \
 	-I${BOOTSRC}/i386/boot2 \
+	-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib \
 	-Wall -Waggregate-return -Wbad-function-cast \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \

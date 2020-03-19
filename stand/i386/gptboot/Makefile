@@ -30,6 +30,7 @@ CFLAGS+=-DBOOTPROG=\"gptboot\" \
 	-I${LDRSRC} \
 	-I${BOOTSRC}/i386/common \
 	-I${BOOTSRC}/i386/boot2 \
+	-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \

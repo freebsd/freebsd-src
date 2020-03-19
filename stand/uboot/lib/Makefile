@@ -10,6 +10,8 @@ WARNS?=		2
 SRCS=	console.c copy.c devicename.c elf_freebsd.c glue.c
 SRCS+=	module.c net.c reboot.c time.c
 
+CFLAGS.glue.c+=	-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
+
 .if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
 SRCS+= disk.c
 .endif
