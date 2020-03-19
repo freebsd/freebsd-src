@@ -654,6 +654,7 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	int has_ext;
 #endif
 	table = NULL;
+	dp = NULL;
 	buf = malloc(sectorsize);
 	if (buf == NULL)
 		return (NULL);
@@ -708,7 +709,11 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 		goto out;
 	}
 	/* Check that we have PMBR. Also do some validation. */
-	dp = (struct dos_partition *)(buf + DOSPARTOFF);
+	dp = malloc(NDOSPART * sizeof(struct dos_partition));
+	if (dp == NULL)
+		goto out;
+	bcopy(buf + DOSPARTOFF, dp, NDOSPART * sizeof(struct dos_partition));
+
 	/*
 	 * In mac we can have PMBR partition in hybrid MBR;
 	 * that is, MBR partition which has DOSPTYP_PMBR entry defined as
@@ -770,6 +775,7 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 #endif /* LOADER_MBR_SUPPORT */
 #endif /* LOADER_MBR_SUPPORT || LOADER_GPT_SUPPORT */
 out:
+	free(dp);
 	free(buf);
 	return (table);
 }
