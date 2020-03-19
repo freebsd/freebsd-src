@@ -13647,7 +13647,9 @@ skip_out_eof:
 			/* a collision took us forward? */
 			queue_only = 0;
 		} else {
+			NET_EPOCH_ENTER(et);
 			sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+			NET_EPOCH_EXIT(et);
 			SCTP_SET_STATE(stcb, SCTP_STATE_COOKIE_WAIT);
 			queue_only = 1;
 		}
