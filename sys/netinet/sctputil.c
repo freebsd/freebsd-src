@@ -1875,7 +1875,7 @@ sctp_timeout_handler(void *t)
 				inp->sctp_ep.secret_key[secret][i] =
 				    sctp_select_initial_TSN(&inp->sctp_ep);
 			}
-			sctp_timer_start(SCTP_TIMER_TYPE_NEWCOOKIE, inp, stcb, net);
+			sctp_timer_start(SCTP_TIMER_TYPE_NEWCOOKIE, inp, NULL, NULL);
 		}
 		did_output = 0;
 		break;

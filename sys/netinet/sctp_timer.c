@@ -1202,7 +1202,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			 * and cleanup.
 			 */
 			SCTPDBG(SCTP_DEBUG_TIMER1, "asconf_timer: Peer has not responded to our repeated ASCONFs\n");
-			sctp_asconf_cleanup(stcb, net);
+			sctp_asconf_cleanup(stcb);
 			return (0);
 		}
 		/*
