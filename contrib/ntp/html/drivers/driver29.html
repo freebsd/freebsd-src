@@ -11,7 +11,7 @@
 	<body bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
 		<h1><font size="+2">Trimble Palisade and Thunderbolt Receivers</font>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->13-Sep-2019  08:07<!-- #EndDate -->
   UTC</p>
 			<hr>
 		</h1>
@@ -69,13 +69,28 @@
 				</td>
 				<td><b>9600 baud, 8-bits, 1-stop, no parity</b></td>
 			</tr>
+			<tr>
+			        <td>
+					<div align="right">
+						<tt><font size="+1">Serial I/O (Copernicus II):</font></tt></div>
+				</td>
+				<td><b>38400 baud, 8-bits, 1-stop, no parity</b></td>
+			</tr>
 		</table>
 		<h2><font size="+1">Description</font></h2>
 		The <b>refclock_palisade</b> driver supports <a href="http://www.trimble.com/products/ntp">Trimble Navigation's Palisade Smart Antenna GPS receiver</a>.<br>
 		Additional software and information about the Palisade GPS is available from: <a href="http://www.trimble.com/oem/ntp">http://www.trimble.com/oem/ntp</a>.<br>
 		Latest NTP driver source, executables and documentation is maintained at: <a href="ftp://ftp.trimble.com/pub/ntp">ftp://ftp.trimble.com/pub/ntp</a>
-		<p>This documentation describes version 7.12 of the GPS Firmware and version 2.46 (July 15, 1999) and later, of the driver source.<br>&nbsp;</p>
+		<p>This documentation describes version 7.12 of the GPS Firmware and version 2.46 (July 15, 1999) and later, of the driver source.</p>
 		<p>This documentation describes version 1 of the Thunderbolt Receiver Firmware, no tests have been made on further firmwares, please read "Notes on the Thunderbolt Receiver's Firmware" at the end of this documentation for more information.</p>
+		<p>This driver also supports the following receivers:</p>
+		<blockquote>
+			<p>Endrun Technologies Praecis NTP server with GPS</p>
+			<p>Trimble Acutime Gold smart antenna</p>
+			<p>Trimble Resolution family</p>
+			<p>Trimble ACE III</p>
+			<p>Trimble Copernicus II</p>
+		</blockquote>
 		<h2><font size="+1">Operating System Compatibility</font></h2>
 		The Palisade driver has been tested on the following software and hardware platforms:<br>&nbsp;
 		<center>
@@ -118,7 +133,7 @@
 				</tr>
 			</table>
 		</center><P>
-		<b>Attention</b>: Thunderbolt Receiver has not being tested on the previous software and hardware plataforms.
+		<b>Attention</b>: Other receiver types have not being tested on the previous software and hardware plataforms.
 		<h2><font size="+1">GPS Receiver</font></h2>
 		The Palisade GPS receiver is an 8-channel smart antenna, housing the GPS receiver, antenna and interface in a single unit, and is designed for rooftop deployment in static timing applications.
 		<p>Palisade generates a PPS synchronized to UTC within +/- 100 ns.&nbsp; The Palisade's external event input with 40 nanosecond resolution is utilized by the Palisade NTP driver for asynchronous precision time transfer.</p>
@@ -232,7 +247,41 @@
 		<tt># and set flag2 to turn off event polling.</tt><br>
 		<tt><a href="#flag2">fudge 127.127.29.0 flag2 1</a></tt><br>
 		<tt>#------------------------------------------------------------------------------</tt><br>&nbsp;</p>
-		Currently the Thunderbolt mode doesn't support event polling, the reasons are explained on the "Notes on the Thunderbolt Receiver's Firmware" section at the end of this documentation.
+		
+		<h4>Resolution NTP Configuration file</h4>
+		<tt>#------------------------------------------------------------------------------</tt>
+		<p>Configuration without event polling:<br>
+		<tt>#------------------------------------------------------------------------------</tt><br>
+		<tt># The Primary reference</tt><br>
+		<tt>server 127.127.29.0 mode 5 # Trimble Resolution GPS (Stratum 1).</tt><br>
+		<tt># Set packet delay</tt><br>
+		<tt><a href="#time1">fudge 127.127.29.0 time1 0.410</a></tt><br>
+		<tt># and set flag2 to turn off event polling.</tt><br>
+		<tt><a href="#flag2">fudge 127.127.29.0 flag2 1</a></tt><br>
+		<tt>#------------------------------------------------------------------------------</tt><br>&nbsp;</p>
+		
+		<h4>ACE III NTP Configuration file</h4>
+		<tt>#------------------------------------------------------------------------------</tt>
+		<p>Configuration with event polling:<br>
+		<tt>#------------------------------------------------------------------------------</tt><br>
+		<tt># The Primary reference</tt><br>
+		<tt>server 127.127.29.0 mode 6 # Trimble ACE III GPS (Stratum 1).</tt><br>
+		<tt># Set packet delay</tt><br>
+		<tt><a href="#time1">fudge 127.127.29.0 time1 0.720</a></tt><br>
+		<tt>#------------------------------------------------------------------------------</tt><br>&nbsp;</p>
+		
+		<h4>Copernicus II NTP Configuration file</h4>
+		<tt>#------------------------------------------------------------------------------</tt>
+		<p>Configuration without event polling:<br>
+		<tt>#------------------------------------------------------------------------------</tt><br>
+		<tt># The Primary reference</tt><br>
+		<tt>server 127.127.29.0 mode 7 # Trimble Copernicus II GPS (Stratum 1).</tt><br>
+		<tt># Set packet delay</tt><br>
+		<tt><a href="#time1">fudge 127.127.29.0 time1 0.240</a></tt><br>
+		<tt># and set flag2 to turn off event polling.</tt><br>
+		<tt><a href="#flag2">fudge 127.127.29.0 flag2 1</a></tt><br>
+		<tt>#------------------------------------------------------------------------------</tt><br>&nbsp;</p>
+		Currently the Thunderbolt mode doesn't support event polling, the reasons are explained on the "Notes on the Thunderbolt Receiver's Firmware" section at the end of this documentation.  The Resolution and Copernicus II modes require event polling to be disabled whereas the ACE III requires polling to be enabled.
 		<h2><a name="TimeTransfer"></a><font size="+1">Time Transfer and Polling</font></h2>
 		Time transfer to the NTP host is performed via the Palisade's comprehensive time packet output. The time packets are output once per second, and whenever an event timestamp is requested.
 		<p>The driver requests an event time stamp at the end of each polling interval, by pulsing the RTS (request to send) line on the serial port. The Palisade GPS responds with a time stamped event packet.</p>
@@ -269,7 +318,16 @@
 		<h2><font size="+1">Mode Parameter</font></h2>
 		<dl>
 			<dt><tt><font size="+1">mode <i>number</i></font></tt>
-			<dd>The mode parameter to the server command specifies the specific hardware this driver is for. The default is 0 for a normal Trimble Palisade. The other options are <b>1</b> for an <b>Endrun Praecis</b> in Trimble emulation mode, and <b>2</b> for the <b>Trimble Thunderbolt</b> GPS Disciplined Clock Receiver.
+			<dd>
+				The mode parameter to the server command specifies the specific hardware this driver is for. The default is 0 for a normal Trimble Palisade. The other options are:
+				<blockquote>
+					<p><b>1</b> for an <b>Endrun Praecis</b> in Trimble emulation mode</p>
+					<p><b>2</b> for the <b>Trimble Thunderbolt</b> GPS Disciplined Clock Receiver</p>
+					<p><b>3</b> for the <b>Acutime Gold</b> smart antenna</p>
+					<p><b>5</b> for <b>Trimble Resolution</b> devices</p>
+					<p><b>6</b> for the <b>Trimble ACE III</b> board</p>
+					<p><b>7</b> for the <b>Trimble Copernicus II</b> device</p>
+				</blockquote>
 		</dl>
 		<h2><font size="+1">DEFINEs</font></h2>
 		The following constants are defined in the driver source code. These defines may be modified to improve performance or adapt to new operating systems.<br>&nbsp;
@@ -291,14 +349,14 @@
 					<td>1 microsecond</td>
 				</tr>
 				<tr>
-					<td>CURRENT_UTC</td>
-					<td>Valid GPS - UTC offset</td>
-					<td>13</td>
-				</tr>
-				<tr>
 					<td>SPEED232</td>
 					<td>Host RS-232 baud rate</td>
 					<td>B9600</td>
+				</tr>
+				<tr>
+					<td>SPEED232COP</td>
+					<td>Host RS-232 baud rate (Copernicus II mode)</td>
+					<td>B38400</td>
 				</tr>
 				<tr>
 					<td>TRMB_MINPOLL&nbsp;</td>
