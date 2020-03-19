@@ -8,6 +8,10 @@
 # include <event2/thread.h>
 #endif
 
+#ifdef HAVE_SYSEXITS_H
+# include <sysexits.h>
+#endif
+
 #include "main.h"
 #include "ntp_libopts.h"
 #include "kod_management.h"

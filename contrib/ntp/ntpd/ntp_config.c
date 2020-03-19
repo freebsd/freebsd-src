@@ -29,6 +29,7 @@
 #ifdef HAVE_SYS_WAIT_H
 # include <sys/wait.h>
 #endif
+#include <time.h>
 
 #include <isc/net.h>
 #include <isc/result.h>
@@ -148,7 +149,7 @@ typedef struct peer_resolved_ctx_tag {
  */
 extern int yydebug;			/* ntp_parser.c (.y) */
 config_tree cfgt;			/* Parser output stored here */
-struct config_tree_tag *cfg_tree_history;	/* History of configs */
+config_tree *cfg_tree_history;		/* History of configs */
 char *	sys_phone[MAXPHONE] = {NULL};	/* ACTS phone numbers */
 char	default_keysdir[] = NTP_KEYSDIR;
 char *	keysdir = default_keysdir;	/* crypto keys directory */
@@ -324,6 +325,7 @@ static void config_ntpdsim(config_tree *);
 static void config_ntpd(config_tree *, int/*BOOL*/ input_from_file);
 static void config_other_modes(config_tree *);
 static void config_auth(config_tree *);
+static void attrtopsl(int poll, attr_val *avp);
 static void config_access(config_tree *);
 static void config_mdnstries(config_tree *);
 static void config_phone(config_tree *);
@@ -500,6 +502,13 @@ dump_all_config_trees(
 {
 	config_tree *	cfg_ptr;
 	int		return_value;
+	time_t		now = time(NULL);
+	struct tm	tm = *localtime(&now);
+
+	fprintf(df, "#NTF:D %04d%02d%02d@%02d:%02d:%02d\n",
+		tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+		tm.tm_hour, tm.tm_min, tm.tm_sec);
+	fprintf(df, "#NTF:V %s\n", Version);
 
 	return_value = 0;
 	for (cfg_ptr = cfg_tree_history;
@@ -531,7 +540,6 @@ dump_config_tree(
 	setvar_node *setv_node;
 	nic_rule_node *rule_node;
 	int_node *i_n;
-	int_node *flag_tok_fifo;
 	int_node *counter_set;
 	string_node *str_node;
 
@@ -591,6 +599,11 @@ dump_config_tree(
 				atrv = atrv->link;
 				fprintf(df, " %s\n",
 					normal_dtoa(atrv->value.d));
+			} else if (T_Leapfile == atrv->attr) {
+				fputs((atrv->flag
+				       ? " checkhash\n"
+				       : " ignorehash\n"),
+				      df);
 			} else {
 				fprintf(df, "\n");
 			}
@@ -925,6 +938,21 @@ dump_config_tree(
 		fprintf(df, "\n");
 	}
 
+	atrv = HEAD_PFIFO(ptree->pollskewlist);
+	if (atrv != NULL) {
+		fprintf(df, "pollskewlist");
+		for ( ; atrv != NULL; atrv = atrv->link) {
+			if (-1 == atrv->attr) {
+				fprintf(df, " default");
+			} else {
+				fprintf(df, " %d", atrv->attr);
+			}
+			fprintf(df, " %d|%d",
+				atrv->value.r.first, atrv->value.r.last);
+		}
+		fprintf(df, "\n");
+	}
+
 	for (rest_node = HEAD_PFIFO(ptree->restrict_opts);
 	     rest_node != NULL;
 	     rest_node = rest_node->link) {
@@ -933,9 +961,10 @@ dump_config_tree(
 		if (NULL == rest_node->addr) {
 			s = "default";
 			/* Don't need to set is_default=1 here */
-			flag_tok_fifo = HEAD_PFIFO(rest_node->flag_tok_fifo);
-			for ( ; flag_tok_fifo != NULL; flag_tok_fifo = flag_tok_fifo->link) {
-				if (T_Source == flag_tok_fifo->i) {
+			atrv = HEAD_PFIFO(rest_node->flag_tok_fifo);
+			for ( ; atrv != NULL; atrv = atrv->link) {
+				if (   T_Integer == atrv->type
+				    && T_Source == atrv->attr) {
 					s = "source";
 					break;
 				}
@@ -967,11 +996,34 @@ dump_config_tree(
 			fprintf(df, " mask %s",
 				rest_node->mask->address);
 		fprintf(df, " ippeerlimit %d", rest_node->ippeerlimit);
-		flag_tok_fifo = HEAD_PFIFO(rest_node->flag_tok_fifo);
-		for ( ; flag_tok_fifo != NULL; flag_tok_fifo = flag_tok_fifo->link)
-			if (T_Source != flag_tok_fifo->i)
-				fprintf(df, " %s", keyword(flag_tok_fifo->i));
-		fprintf(df, "\n");
+		atrv = HEAD_PFIFO(rest_node->flag_tok_fifo);
+		for ( ; atrv != NULL; atrv = atrv->link) {
+			if (   T_Integer == atrv->type
+			    && T_Source != atrv->attr) {
+				fprintf(df, " %s", keyword(atrv->attr));
+			}
+		}
+		fprintf(df, "\n");            
+/**/
+#if 0
+msyslog(LOG_INFO, "Dumping flag_tok_fifo:");
+atrv = HEAD_PFIFO(rest_node->flag_tok_fifo);
+for ( ; atrv != NULL; atrv = atrv->link) {
+	msyslog(LOG_INFO, "- flag_tok_fifo: flags: %08x", atrv->flag);
+	switch(atrv->type) {
+	    case T_Integer:
+		msyslog(LOG_INFO, "- T_Integer: attr <%s>/%d, value %d",
+			keyword(atrv->attr), atrv->attr, atrv->value.i);
+		break;
+	    default:
+		msyslog(LOG_INFO, "- Other: attr <%s>/%d, value ???",
+			keyword(atrv->attr), atrv->attr);
+		break;
+	    	
+	}
+}
+#endif
+/**/
 	}
 
 	rule_node = HEAD_PFIFO(ptree->nic_rules);
@@ -1051,7 +1103,6 @@ dump_config_tree(
 	return 0;
 }
 #endif	/* SAVECONFIG */
-
 
 
 /* generic fifo routines for structs linked by 1st member */
@@ -1191,7 +1242,7 @@ create_attr_uval(
 
 
 attr_val *
-create_attr_rangeval(
+create_attr_rval(
 	int	attr,
 	int	first,
 	int	last
@@ -1480,8 +1531,8 @@ create_restrict_node(
 	address_node *	addr,
 	address_node *	mask,
 	short		ippeerlimit,
-	int_fifo *	flag_tok_fifo,
-	int		line_no
+	attr_val_fifo *	flag_tok_fifo,
+	int		nline
 	)
 {
 	restrict_node *my_node;
@@ -1491,7 +1542,7 @@ create_restrict_node(
 	my_node->mask = mask;
 	my_node->ippeerlimit = ippeerlimit;
 	my_node->flag_tok_fifo = flag_tok_fifo;
-	my_node->line_no = line_no;
+	my_node->line_no = nline;
 
 	return my_node;
 }
@@ -1507,7 +1558,7 @@ destroy_restrict_node(
 	 */
 	destroy_address_node(my_node->addr);
 	destroy_address_node(my_node->mask);
-	destroy_int_fifo(my_node->flag_tok_fifo);
+	destroy_attr_val_fifo(my_node->flag_tok_fifo);
 	free(my_node);
 }
 
@@ -2307,7 +2358,7 @@ config_monitor(
 
 	/* Set the statistics directory */
 	if (ptree->stats_dir)
-		stats_config(STATS_STATSDIR, ptree->stats_dir);
+	    stats_config(STATS_STATSDIR, ptree->stats_dir, 0);
 
 	/* NOTE:
 	 * Calling filegen_get is brain dead. Doing a string
@@ -2472,7 +2523,6 @@ config_access(
 	static int		warned_signd;
 	attr_val *		my_opt;
 	restrict_node *		my_node;
-	int_node *		curr_tok_fifo;
 	sockaddr_u		addr;
 	sockaddr_u		mask;
 	struct addrinfo		hints;
@@ -2484,6 +2534,9 @@ config_access(
 	u_short			mflags;
 	short			ippeerlimit;
 	int			range_err;
+	psl_item		my_psl_item;
+	attr_val *		atrv;
+	attr_val *		dflt_psl_atr;
 	const char *		signd_warning =
 #ifdef HAVE_NTP_SIGND
 	    "MS-SNTP signd operations currently block ntpd degrading service to all clients.";
@@ -2599,25 +2652,24 @@ config_access(
 		}
 	}
 
-	/* Configure the restrict options */
+	/* Configure each line of restrict options */
 	my_node = HEAD_PFIFO(ptree->restrict_opts);
 
 	for (; my_node != NULL; my_node = my_node->link) {
+
 		/* Grab the ippeerlmit */
 		ippeerlimit = my_node->ippeerlimit;
-
-DPRINTF(1, ("config_access: top-level node %p: ippeerlimit %d\n", my_node, ippeerlimit));
 
 		/* Parse the flags */
 		rflags = 0;
 		mflags = 0;
 
-		curr_tok_fifo = HEAD_PFIFO(my_node->flag_tok_fifo);
-		for (; curr_tok_fifo != NULL; curr_tok_fifo = curr_tok_fifo->link) {
-			switch (curr_tok_fifo->i) {
+		my_opt = HEAD_PFIFO(my_node->flag_tok_fifo);
+		for (; my_opt != NULL; my_opt = my_opt->link) {
+			switch (my_opt->attr) {
 
 			default:
-				fatal_error("config_access: flag-type-token=%d", curr_tok_fifo->i);
+				fatal_error("config_access: Unknown flag-type-token=%s/%d", keyword(my_opt->attr), my_opt->attr);
 
 			case T_Ntpport:
 				mflags |= RESM_NTPONLY;
@@ -2639,16 +2691,16 @@ DPRINTF(1, ("config_access: top-level node %p: ippeerlimit %d\n", my_node, ippee
 				rflags |= RES_KOD;
 				break;
 
-			case T_Mssntp:
-				rflags |= RES_MSSNTP;
-				break;
-
 			case T_Limited:
 				rflags |= RES_LIMITED;
 				break;
 
 			case T_Lowpriotrap:
 				rflags |= RES_LPTRAP;
+				break;
+
+			case T_Mssntp:
+				rflags |= RES_MSSNTP;
 				break;
 
 			case T_Nomodify:
@@ -2681,6 +2733,10 @@ DPRINTF(1, ("config_access: top-level node %p: ippeerlimit %d\n", my_node, ippee
 
 			case T_Notrust:
 				rflags |= RES_DONTTRUST;
+				break;
+
+			case T_ServerresponseFuzz:
+				rflags |= RES_SRVRSPFUZ;
 				break;
 
 			case T_Version:
@@ -2822,8 +2878,169 @@ DPRINTF(1, ("config_access: top-level node %p: ippeerlimit %d\n", my_node, ippee
 		if (ai_list != NULL)
 			freeaddrinfo(ai_list);
 	}
+
+	/* Deal with the Poll Skew List */
+
+	ZERO(psl);
+	ZERO(my_psl_item);
+
+	/*
+	 * First, find the last default pollskewlist item.
+	 * There should only be one of these with the current grammar,
+	 * but better safe than sorry.
+	 */
+	dflt_psl_atr = NULL;
+	atrv = HEAD_PFIFO(ptree->pollskewlist);
+	for ( ; atrv != NULL; atrv = atrv->link) {
+		switch (atrv->attr) {
+		case -1:	/* default */
+			dflt_psl_atr = atrv;
+			break;
+
+		case 3:		/* Fall through */
+		case 4:		/* Fall through */
+		case 5:		/* Fall through */
+		case 6:		/* Fall through */
+		case 7:		/* Fall through */
+		case 8:		/* Fall through */
+		case 9:		/* Fall through */
+		case 10:	/* Fall through */
+		case 11:	/* Fall through */
+		case 12:	/* Fall through */
+		case 13:	/* Fall through */
+		case 14:	/* Fall through */
+		case 15:	/* Fall through */
+		case 16:	/* Fall through */
+		case 17:
+			/* ignore */
+			break;
+
+		default:
+			msyslog(LOG_ERR,
+				"config_access: default PSL scan: ignoring unexpected poll value %d",
+				atrv->attr);
+			break;
+		}
+	}
+
+	/* If we have a nonzero default, initialize the PSL */
+	if (   dflt_psl_atr
+	    && (   0 != dflt_psl_atr->value.r.first
+		|| 0 != dflt_psl_atr->value.r.last)) {
+		int i;
+
+		for (i = 3; i <= 17; ++i) {
+			attrtopsl(i, dflt_psl_atr);
+		}
+	}
+
+	/* Finally, update the PSL with any explicit entries */
+	atrv = HEAD_PFIFO(ptree->pollskewlist);
+	for ( ; atrv != NULL; atrv = atrv->link) {
+		switch (atrv->attr) {
+		case -1:	/* default */
+			/* Ignore */
+			break;
+
+		case 3:		/* Fall through */
+		case 4:		/* Fall through */
+		case 5:		/* Fall through */
+		case 6:		/* Fall through */
+		case 7:		/* Fall through */
+		case 8:		/* Fall through */
+		case 9:		/* Fall through */
+		case 10:	/* Fall through */
+		case 11:	/* Fall through */
+		case 12:	/* Fall through */
+		case 13:	/* Fall through */
+		case 14:	/* Fall through */
+		case 15:	/* Fall through */
+		case 16:	/* Fall through */
+		case 17:
+			attrtopsl(atrv->attr, atrv);
+			break;
+
+		default:
+			break;	/* Ignore - we reported this above */
+		}
+	}
+
+#if 0
+	int p;
+	msyslog(LOG_INFO, "Dumping PSL:");
+	for (p = 3; p <= 17; ++p) {
+		psl_item psi;
+
+		if (0 == get_pollskew(p, &psi)) {
+			msyslog(LOG_INFO, "poll %d: sub %d, qty %d, msk %d",
+				p, psi.sub, psi.qty, psi.msk);
+		} else {
+			msyslog(LOG_ERR, "Dumping PSL: get_pollskew(%d) failed!", p);
+		}
+	}
+#endif
 }
+
+
+void
+attrtopsl(int poll, attr_val *avp)
+{
+
+	DEBUG_INSIST((poll - 3) < sizeof psl);
+	if (poll < 3 || poll > 17) {
+		msyslog(LOG_ERR, "attrtopsl(%d, ...): Poll value is out of range - ignoring", poll);
+	} else {
+		int pao = poll - 3;		/* poll array offset */
+		int lower = avp->value.r.first;	/* a positive number */
+		int upper = avp->value.r.last;
+		int psmax = 1 << (poll - 1);
+		int qmsk;
+
+		if (lower > psmax) {
+			msyslog(LOG_WARNING, "attrtopsl: default: poll %d lower bound reduced from %d to %d",
+				poll, lower, psmax);
+			lower = psmax;
+		}
+		if (upper > psmax) {
+			msyslog(LOG_WARNING, "attrtopsl: default: poll %d upper bound reduced from %d to %d",
+				poll, upper, psmax);
+			upper = psmax;
+		}
+		psl[pao].sub = lower;
+		psl[pao].qty = lower + upper;
+
+		qmsk = 1;
+		while (qmsk < (lower + upper)) {
+			qmsk <<= 1;
+			qmsk |=  1;
+		};
+		psl[pao].msk = qmsk;
+	}
+
+	return;
+} 
 #endif	/* !SIM */
+
+
+int
+get_pollskew(
+	int p,
+	psl_item *rv
+	)
+{
+
+	DEBUG_INSIST(3 <= p && 17 >= p);
+	if (3 <= p && 17 >= p) {
+		*rv = psl[p - 3];
+
+		return 0;
+	} else {
+		msyslog(LOG_ERR, "get_pollskew(%d): poll is not between 3 and 17!", p);
+		return -1;
+	}
+
+	/* NOTREACHED */
+}
 
 
 #ifdef FREE_CFG_T
@@ -3644,6 +3861,13 @@ config_fudge(
 
 		/* Parse all the options to the fudge command */
 		ZERO(clock_stat);
+		/* some things are not necessarily cleared by ZERO...*/
+		clock_stat.fudgeminjitter = 0.0;
+		clock_stat.fudgetime1     = 0.0;
+		clock_stat.fudgetime2     = 0.0;
+		clock_stat.p_lastcode     = NULL;
+		clock_stat.clockdesc      = NULL;
+		clock_stat.kv_list        = NULL;
 		curr_opt = HEAD_PFIFO(curr_fudge->options);
 		for (; curr_opt != NULL; curr_opt = curr_opt->link) {
 			switch (curr_opt->attr) {
@@ -3665,10 +3889,9 @@ config_fudge(
 
 			case T_Refid:
 				clock_stat.haveflags |= CLK_HAVEVAL2;
-				clock_stat.fudgeval2 = 0;
-				memcpy(&clock_stat.fudgeval2,
-				       curr_opt->value.s,
-				       min(strlen(curr_opt->value.s), 4));
+				/* strncpy() does exactly what we want here: */
+				strncpy((char*)&clock_stat.fudgeval2,
+					curr_opt->value.s, 4);
 				break;
 
 			case T_Flag1:
@@ -3701,6 +3924,11 @@ config_fudge(
 					clock_stat.flags |= CLK_FLAG4;
 				else
 					clock_stat.flags &= ~CLK_FLAG4;
+				break;
+
+			case T_Minjitter:
+				clock_stat.haveflags |= CLK_HAVEMINJIT;
+				clock_stat.fudgeminjitter = curr_opt->value.d;
 				break;
 
 			default:
@@ -3757,7 +3985,7 @@ config_vars(
 				stats_drift_file = 0;
 				msyslog(LOG_INFO, "config: driftfile disabled");
 			} else
-				stats_config(STATS_FREQ_FILE, curr_var->value.s);
+			    stats_config(STATS_FREQ_FILE, curr_var->value.s, 0);
 			break;
 
 		case T_Dscp:
@@ -3775,7 +4003,7 @@ config_vars(
 			break;
 
 		case T_Leapfile:
-			stats_config(STATS_LEAP_FILE, curr_var->value.s);
+		    stats_config(STATS_LEAP_FILE, curr_var->value.s, curr_var->flag);
 			break;
 
 #ifdef LEAP_SMEAR
@@ -3786,7 +4014,7 @@ config_vars(
 #endif
 
 		case T_Pidfile:
-			stats_config(STATS_PID_FILE, curr_var->value.s);
+		    stats_config(STATS_PID_FILE, curr_var->value.s, 0);
 			break;
 
 		case T_Logfile:
@@ -3866,9 +4094,9 @@ is_sane_resolved_address(
 		return 0;
 	}
 	/*
-	 * Shouldn't be able to specify multicast
-	 * address for server/peer!
-	 * and unicast address for manycastclient!
+	 * Shouldn't be able to specify:
+	 * - multicast address for server/peer!
+	 * - unicast address for manycastclient!
 	 */
 	if ((T_Server == hmode || T_Peer == hmode || T_Pool == hmode)
 	    && IS_MCAST(peeraddr)) {
@@ -3928,9 +4156,12 @@ peerflag_bits(
 {
 	int peerflags;
 	attr_val *option;
+	int	hmode;
 
+	DEBUG_INSIST(pn);
 	/* translate peerflags options to bits */
 	peerflags = 0;
+	hmode = pn->host_mode;
 	option = HEAD_PFIFO(pn->peerflags);
 	for (; option != NULL; option = option->link) {
 		switch (option->value.i) {
@@ -3968,6 +4199,12 @@ peerflag_bits(
 
 		case T_Xleave:
 			peerflags |= FLAG_XLEAVE;
+			break;
+
+		case T_Xmtnonce:
+			if (   MODE_CLIENT == hmode ) {
+				peerflags |= FLAG_LOOPNONCE;
+			}
 			break;
 		}
 	}
@@ -5278,7 +5515,9 @@ ntp_rlimit(
 
 
 char *
-build_iflags(u_int32 iflags)
+build_iflags(
+	u_int32 iflags
+	)
 {
 	static char ifs[1024];
 
@@ -5351,7 +5590,9 @@ build_iflags(u_int32 iflags)
 
 
 char *
-build_mflags(u_short mflags)
+build_mflags(
+	u_short mflags
+	)
 {
 	static char mfs[1024];
 
@@ -5379,7 +5620,9 @@ build_mflags(u_short mflags)
 
 
 char *
-build_rflags(u_short rflags)
+build_rflags(
+	u_short rflags
+	)
 {
 	static char rfs[1024];
 
@@ -5453,6 +5696,11 @@ build_rflags(u_short rflags)
 	if (rflags & RES_DONTTRUST) {
 		rflags &= ~RES_DONTTRUST;
 		appendstr(rfs, sizeof rfs, "notrust");
+	}
+
+	if (rflags & RES_SRVRSPFUZ) {
+		rflags &= ~RES_SRVRSPFUZ;
+		appendstr(rfs, sizeof rfs, "srvrspfuz");
 	}
 
 	if (rflags & RES_VERSION) {

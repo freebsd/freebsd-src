@@ -176,8 +176,8 @@ static	l_fp delay_time;				/* delay time */
 static	char currenthost[LENHOSTNAME];			/* current host name */
 int showhostnames = 1;					/* show host names by default */
 
-static	int ai_fam_templ;				/* address family */
-static	int ai_fam_default;				/* default address family */
+static	int ai_fam_templ = AF_UNSPEC;		/* address family */
+static	int ai_fam_default = AF_UNSPEC;	/* default address family */
 static	SOCKET sockfd;					/* fd socket is opened on */
 static	int havehost = 0;				/* set to 1 when host open */
 int s_port = 0;
@@ -312,11 +312,11 @@ ntpdcmain(
 	}
 
 	if (HAVE_OPT(IPV4))
-		ai_fam_templ = AF_INET;
+		ai_fam_default = AF_INET;
 	else if (HAVE_OPT(IPV6))
-		ai_fam_templ = AF_INET6;
-	else
-		ai_fam_templ = ai_fam_default;
+		ai_fam_default = AF_INET6;
+
+	ai_fam_templ = ai_fam_default;
 
 	if (HAVE_OPT(COMMAND)) {
 		int		cmdct = STACKCT_OPT( COMMAND );
@@ -1382,18 +1382,14 @@ getarg(
 	arg_v *argp
 	)
 {
-	int isneg;
-	char *cp, *np;
-	static const char *digits = "0123456789";
-
 	ZERO(*argp);
 	argp->string = str;
 	argp->type   = code & ~OPT;
 
 	switch (argp->type) {
-	    case NTP_STR:
+	case NTP_STR:
 		break;
-	    case NTP_ADD:
+	case NTP_ADD:
 		if (!strcmp("-6", str)) {
 			ai_fam_templ = AF_INET6;
 			return -1;
@@ -1401,41 +1397,25 @@ getarg(
 			ai_fam_templ = AF_INET;
 			return -1;
 		}
-		if (!getnetnum(str, &(argp->netnum), (char *)0, 0)) {
+		if (!getnetnum(str, &(argp->netnum), (char *)0, ai_fam_templ)) {
 			return 0;
 		}
 		break;
-	    case NTP_INT:
-	    case NTP_UINT:
-		isneg = 0;
-		np = str;
-		if (*np == '-') {
-			np++;
-			isneg = 1;
-		}
-
-		argp->uval = 0;
-		do {
-			cp = strchr(digits, *np);
-			if (cp == NULL) {
-				(void) fprintf(stderr,
-					       "***Illegal integer value %s\n", str);
-				return 0;
-			}
-			argp->uval *= 10;
-			argp->uval += (u_long)(cp - digits);
-		} while (*(++np) != '\0');
-
-		if (isneg) {
-			if ((code & ~OPT) == NTP_UINT) {
-				(void) fprintf(stderr,
-					       "***Value %s should be unsigned\n", str);
-				return 0;
-			}
-			argp->ival = -argp->ival;
+	case NTP_UINT:
+		if (!atouint(str, &argp->uval)) {
+			fprintf(stderr, "***Illegal unsigned value %s\n",
+				str);
+			return 0;
 		}
 		break;
-	    case IP_VERSION:
+	case NTP_INT:
+		if (!atoint(str, &argp->ival)) {
+			fprintf(stderr, "***Illegal integer value %s\n",
+				str);
+			return 0;
+		}
+		break;
+	case IP_VERSION:
 		if (!strcmp("-6", str))
 			argp->ival = 6 ;
 		else if (!strcmp("-4", str))
@@ -1467,6 +1447,7 @@ getnetnum(
 	struct addrinfo hints, *ai = NULL;
 
 	ZERO(hints);
+	hints.ai_family = af;
 	hints.ai_flags = AI_CANONNAME;
 #ifdef AI_ADDRCONFIG
 	hints.ai_flags |= AI_ADDRCONFIG;
@@ -1668,7 +1649,7 @@ my_delay(
 	} else {
 		if (pcmd->argval[0].ival < 0) {
 			isneg = 1;
-			val = (u_long)(-pcmd->argval[0].ival);
+			val = ~(u_long)(pcmd->argval[0].ival) + 1UL;
 		} else {
 			isneg = 0;
 			val = (u_long)pcmd->argval[0].ival;

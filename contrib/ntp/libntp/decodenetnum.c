@@ -15,6 +15,19 @@
 #include "ntp_stdlib.h"
 #include "ntp_assert.h"
 
+#define PORTSTR(x) _PORTSTR(x)
+#define _PORTSTR(x) #x
+
+static int
+isnumstr(
+	const char *s
+	)
+{
+	while (*s >= '0' && *s <= '9')
+		++s;
+	return !*s;
+}
+
 /*
  * decodenetnum		convert text IP address and port to sockaddr_u
  *
@@ -26,22 +39,25 @@ decodenetnum(
 	sockaddr_u *netnum
 	)
 {
+	static const char * const servicename = "ntp";
+	static const char * const serviceport = PORTSTR(NTP_PORT);
+	
 	struct addrinfo hints, *ai = NULL;
 	int err;
-	u_short port;
-	const char *cp;
+	const char *host_str;
 	const char *port_str;
 	char *pp;
 	char *np;
-	char name[80];
+	char nbuf[80];
 
 	REQUIRE(num != NULL);
 
-	if (strlen(num) >= sizeof(name)) {
-		return 0;
+	if (strlen(num) >= sizeof(nbuf)) {
+		printf("length error\n");
+		return FALSE;
 	}
 
-	port_str = NULL;
+	port_str = servicename;
 	if ('[' != num[0]) {
 		/*
 		 * to distinguish IPv6 embedded colons from a port
@@ -50,37 +66,53 @@ decodenetnum(
 		 */
 		pp = strchr(num, ':');
 		if (NULL == pp)
-			cp = num;	/* no colons */
+			host_str = num;	/* no colons */
 		else if (NULL != strchr(pp + 1, ':'))
-			cp = num;	/* two or more colons */
+			host_str = num;	/* two or more colons */
 		else {			/* one colon */
-			strlcpy(name, num, sizeof(name));
-			cp = name;
-			pp = strchr(cp, ':');
+			strlcpy(nbuf, num, sizeof(nbuf));
+			host_str = nbuf;
+			pp = strchr(nbuf, ':');
 			*pp = '\0';
 			port_str = pp + 1;
 		}
 	} else {
-		cp = num + 1;
-		np = name; 
-		while (*cp && ']' != *cp)
-			*np++ = *cp++;
+		host_str = np = nbuf; 
+		while (*++num && ']' != *num)
+			*np++ = *num;
 		*np = 0;
-		if (']' == cp[0] && ':' == cp[1] && '\0' != cp[2])
-			port_str = &cp[2];
-		cp = name; 
+		if (']' == num[0] && ':' == num[1] && '\0' != num[2])
+			port_str = &num[2];
 	}
+	if ( ! *host_str)
+		return FALSE;
+	if ( ! *port_str)
+		port_str = servicename;
+	
 	ZERO(hints);
-	hints.ai_flags = Z_AI_NUMERICHOST;
-	err = getaddrinfo(cp, "ntp", &hints, &ai);
+	hints.ai_flags |= Z_AI_NUMERICHOST;
+	if (isnumstr(port_str))
+		hints.ai_flags |= Z_AI_NUMERICSERV;
+	err = getaddrinfo(host_str, port_str, &hints, &ai);
+	/* retry with default service name if the service lookup failed */ 
+	if (err == EAI_SERVICE && strcmp(port_str, servicename)) {
+		hints.ai_flags &= ~Z_AI_NUMERICSERV;
+		port_str = servicename;
+		err = getaddrinfo(host_str, port_str, &hints, &ai);
+	}
+	/* retry another time with default service port if the service lookup failed */ 
+	if (err == EAI_SERVICE && strcmp(port_str, serviceport)) {
+		hints.ai_flags |= Z_AI_NUMERICSERV;
+		port_str = serviceport;
+		err = getaddrinfo(host_str, port_str, &hints, &ai);
+	}
 	if (err != 0)
-		return 0;
+		return FALSE;
+
 	INSIST(ai->ai_addrlen <= sizeof(*netnum));
 	ZERO(*netnum);
 	memcpy(netnum, ai->ai_addr, ai->ai_addrlen);
 	freeaddrinfo(ai);
-	if (NULL == port_str || 1 != sscanf(port_str, "%hu", &port))
-		port = NTP_PORT;
-	SET_PORT(netnum, port);
-	return 1;
+
+	return TRUE;
 }
