@@ -3566,6 +3566,7 @@ ciss_disable_adapter(struct ciss_softc *sc)
     pci_disable_busmaster(sc->ciss_dev);
     sc->ciss_flags &= ~CISS_FLAG_RUNNING;
 
+    STAILQ_INIT(&qh);
     for (i = 1; i < sc->ciss_max_requests; i++) {
 	cr = &sc->ciss_request[i];
 	if ((cr->cr_flags & CISS_REQ_BUSY) == 0)
