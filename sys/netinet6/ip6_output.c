@@ -1694,8 +1694,10 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 				error = soopt_mcopyin(sopt, m); /* XXX */
 				if (error != 0)
 					break;
-				error = ip6_pcbopts(&inp->in6p_outputopts,
-						    m, so, sopt);
+				INP_WLOCK(inp);
+				error = ip6_pcbopts(&inp->in6p_outputopts, m,
+				    so, sopt);
+				INP_WUNLOCK(inp);
 				m_freem(m); /* XXX */
 				break;
 			}
@@ -2458,8 +2460,11 @@ ip6_pcbopts(struct ip6_pktopts **pktopt, struct mbuf *m,
 			printf("ip6_pcbopts: all specified options are cleared.\n");
 #endif
 		ip6_clearpktopts(opt, -1);
-	} else
-		opt = malloc(sizeof(*opt), M_IP6OPT, M_WAITOK);
+	} else {
+		opt = malloc(sizeof(*opt), M_IP6OPT, M_NOWAIT);
+		if (opt == NULL)
+			return (ENOMEM);
+	}
 	*pktopt = NULL;
 
 	if (!m || m->m_len == 0) {
