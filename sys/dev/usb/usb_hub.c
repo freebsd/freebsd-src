@@ -2571,6 +2571,50 @@ usb_bus_powerd(struct usb_bus *bus)
 }
 #endif
 
+static usb_error_t
+usbd_device_30_remote_wakeup(struct usb_device *udev, uint8_t bRequest)
+{
+	struct usb_device_request req = {};
+
+	req.bmRequestType = UT_WRITE_INTERFACE;
+	req.bRequest = bRequest;
+	USETW(req.wValue, USB_INTERFACE_FUNC_SUSPEND);
+	USETW(req.wIndex, USB_INTERFACE_FUNC_SUSPEND_LP |
+	    USB_INTERFACE_FUNC_SUSPEND_RW);
+
+	return (usbd_do_request(udev, NULL, &req, 0));
+}
+
+static usb_error_t
+usbd_clear_dev_wakeup(struct usb_device *udev)
+{
+	usb_error_t err;
+
+	if (usb_device_20_compatible(udev)) {
+		err = usbd_req_clear_device_feature(udev,
+		    NULL, UF_DEVICE_REMOTE_WAKEUP);
+	} else {
+		err = usbd_device_30_remote_wakeup(udev,
+		    UR_CLEAR_FEATURE);
+	}
+	return (err);
+}
+
+static usb_error_t
+usbd_set_dev_wakeup(struct usb_device *udev)
+{
+	usb_error_t err;
+
+	if (usb_device_20_compatible(udev)) {
+		err = usbd_req_set_device_feature(udev,
+		    NULL, UF_DEVICE_REMOTE_WAKEUP);
+	} else {
+		err = usbd_device_30_remote_wakeup(udev,
+		    UR_SET_FEATURE);
+	}
+	return (err);
+}
+
 /*------------------------------------------------------------------------*
  *	usb_dev_resume_peer
  *
@@ -2674,8 +2718,7 @@ usb_dev_resume_peer(struct usb_device *udev)
 	/* check if peer has wakeup capability */
 	if (usb_peer_can_wakeup(udev)) {
 		/* clear remote wakeup */
-		err = usbd_req_clear_device_feature(udev,
-		    NULL, UF_DEVICE_REMOTE_WAKEUP);
+		err = usbd_clear_dev_wakeup(udev);
 		if (err) {
 			DPRINTFN(0, "Clearing device "
 			    "remote wakeup failed: %s\n",
@@ -2740,8 +2783,7 @@ repeat:
 		 */
 
 		/* allow device to do remote wakeup */
-		err = usbd_req_set_device_feature(udev,
-		    NULL, UF_DEVICE_REMOTE_WAKEUP);
+		err = usbd_set_dev_wakeup(udev);
 		if (err) {
 			DPRINTFN(0, "Setting device "
 			    "remote wakeup failed\n");
@@ -2767,8 +2809,7 @@ repeat:
 	if (err != 0) {
 		if (usb_peer_can_wakeup(udev)) {
 			/* allow device to do remote wakeup */
-			err = usbd_req_clear_device_feature(udev,
-			    NULL, UF_DEVICE_REMOTE_WAKEUP);
+			err = usbd_clear_dev_wakeup(udev);
 			if (err) {
 				DPRINTFN(0, "Setting device "
 				    "remote wakeup failed\n");
