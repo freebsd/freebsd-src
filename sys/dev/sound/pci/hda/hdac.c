@@ -102,6 +102,7 @@ static const struct {
 	{ HDA_INTEL_KBLK,    "Intel Kaby Lake",	0, 0 },
 	{ HDA_INTEL_KBLKH,   "Intel Kaby Lake-H",	0, 0 },
 	{ HDA_INTEL_CFLK,    "Intel Coffee Lake",	0, 0 },
+	{ HDA_INTEL_CNLK,    "Intel Cannon Lake",	0, 0 },
 	{ HDA_INTEL_82801F,  "Intel 82801F",	0, 0 },
 	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB",	0, 0 },
 	{ HDA_INTEL_82801G,  "Intel 82801G",	0, 0 },
