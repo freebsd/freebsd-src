@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2019
+.Dd March 19, 2020
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -1012,6 +1012,35 @@ geli_da1s3a_keyfile_load="YES"
 geli_da1s3a_keyfile_type="da1s3a:geli_keyfile"
 geli_da1s3a_keyfile_name="/boot/keys/da1s3a.key"
 .Ed
+.Pp
+By convention, these loader variables are called
+.Sm off
+.Va geli_ No < Ar device No > Va _load .
+.Sm on
+However, the actual name prefix before
+.Va _load , _type ,
+or
+.Va _name
+does not matter.
+At boot time, the
+.Nm
+module searches through all
+.Sm off
+.No < Va prefix No > Va _type No -like
+.Sm on
+variables that have a value of
+.Sm off
+.Dq < Ar device No > :geli_keyfile .
+.Sm on
+The paths to keyfiles are then extracted from
+.Sm off
+.No < Ar prefix No > Va _name
+.Sm on
+variables.
+In the example above,
+.Ar prefix
+is
+.Dq Li geli_da1s3a_keyfile .
 .Pp
 Not only configure encryption, but also data integrity verification using
 .Nm HMAC/SHA256 .
