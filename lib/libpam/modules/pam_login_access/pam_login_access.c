@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #define _BSD_SOURCE
 
 #include <sys/param.h>
+#include <sys/types.h>
 
 #include <syslog.h>
 #include <unistd.h>
@@ -51,13 +52,25 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
+#include <security/openpam.h>
 
 #include "pam_login_access.h"
+
+#define OPT_ACCESSFILE		"accessfile"
+#define OPT_NOAUDIT		"noaudit"
+#define OPT_FIELDSEP		"fieldsep"
+#define OPT_LISTSEP		"listsep"
+#define OPT_NODEFGROUP		"nodefgroup"
+
+#define _PATH_LOGACCESS		"/etc/login.access"
+#define _FIELD_SEPARATOR	":"
+#define _LIST_SEPARATOR		", \t"
 
 PAM_EXTERN int
 pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
+	struct pam_login_access_options	login_access_opts;
 	const void *rhost, *tty, *user;
 	char hostname[MAXHOSTNAMELEN];
 	int pam_err;
@@ -80,25 +93,33 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 		return (pam_err);
 
 	gethostname(hostname, sizeof hostname);
+	login_access_opts.defgroup = openpam_get_option(pamh, OPT_NODEFGROUP) == NULL ? true : false;
+	login_access_opts.audit = openpam_get_option(pamh, OPT_NOAUDIT) == NULL ? true : false;
+	if ((login_access_opts.accessfile = openpam_get_option(pamh, OPT_ACCESSFILE)) == NULL)
+		login_access_opts.accessfile = _PATH_LOGACCESS;
+	if ((login_access_opts.fieldsep = openpam_get_option(pamh, OPT_FIELDSEP)) == NULL)
+		login_access_opts.fieldsep = _FIELD_SEPARATOR;
+	if ((login_access_opts.listsep = openpam_get_option(pamh, OPT_LISTSEP)) == NULL)
+		login_access_opts.listsep = _LIST_SEPARATOR;
 
 	if (rhost != NULL && *(const char *)rhost != '\0') {
 		PAM_LOG("Checking login.access for user %s from host %s",
 		    (const char *)user, (const char *)rhost);
-		if (login_access(user, rhost) != 0)
+		if (login_access(user, rhost, &login_access_opts) != 0)
 			return (PAM_SUCCESS);
 		PAM_VERBOSE_ERROR("%s is not allowed to log in from %s",
 		    (const char *)user, (const char *)rhost);
 	} else if (tty != NULL && *(const char *)tty != '\0') {
 		PAM_LOG("Checking login.access for user %s on tty %s",
 		    (const char *)user, (const char *)tty);
-		if (login_access(user, tty) != 0)
+		if (login_access(user, tty, &login_access_opts) != 0)
 			return (PAM_SUCCESS);
 		PAM_VERBOSE_ERROR("%s is not allowed to log in on %s",
 		    (const char *)user, (const char *)tty);
 	} else {
 		PAM_LOG("Checking login.access for user %s",
 		    (const char *)user);
-		if (login_access(user, "***unknown***") != 0)
+		if (login_access(user, "***unknown***", &login_access_opts) != 0)
 			return (PAM_SUCCESS);
 		PAM_VERBOSE_ERROR("%s is not allowed to log in",
 		    (const char *)user);
