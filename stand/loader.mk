@@ -28,6 +28,7 @@ SRCS+=	metadata.c
 .endif
 
 .if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
+CFLAGS.part.c+= -DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
 SRCS+=	disk.c part.c vdisk.c
 .endif
 
