@@ -815,9 +815,9 @@ ndaregister(struct cam_periph *periph, void *arg)
 	 *  the serial or model number strings.
 	 */
 	cam_strvis(disk->d_descr, cd->mn,
-	    sizeof(disk->d_descr), NVME_MODEL_NUMBER_LENGTH);
+	    NVME_MODEL_NUMBER_LENGTH, sizeof(disk->d_descr));
 	cam_strvis(disk->d_ident, cd->sn,
-	    sizeof(disk->d_ident), NVME_SERIAL_NUMBER_LENGTH);
+	    NVME_SERIAL_NUMBER_LENGTH, sizeof(disk->d_ident));
 	disk->d_hba_vendor = cpi.hba_vendor;
 	disk->d_hba_device = cpi.hba_device;
 	disk->d_hba_subvendor = cpi.hba_subvendor;
