@@ -31,29 +31,26 @@ __FBSDID("$FreeBSD$");
 
 #include "pam_login_access.h"
 
-#define _PATH_LOGACCESS		"/etc/login.access"
-
- /* Delimiters for fields and for lists of users, ttys or hosts. */
-
-static char fs[] = ":";			/* field separator */
-static char sep[] = ", \t";		/* list-element separator */
-
  /* Constants to be used in assignments only, not in comparisons... */
 
 #define YES             1
 #define NO              0
 
-static int	from_match(const char *, const char *);
+static int	from_match(const char *, const char *, struct pam_login_access_options *);
 static int	list_match(char *, const char *,
-				int (*)(const char *, const char *));
+				int (*)(const char *, const char *,
+				struct pam_login_access_options *),
+				struct pam_login_access_options *);
 static int	netgroup_match(const char *, const char *, const char *);
 static int	string_match(const char *, const char *);
-static int	user_match(const char *, const char *);
+static int	user_match(const char *, const char *, struct pam_login_access_options *);
+static int	group_match(const char *, const char *);
 
 /* login_access - match username/group and host/tty with access control file */
 
 int
-login_access(const char *user, const char *from)
+login_access(const char *user, const char *from,
+	struct pam_login_access_options *login_access_opts)
 {
     FILE   *fp;
     char    line[BUFSIZ];
@@ -63,6 +60,7 @@ login_access(const char *user, const char *from)
     int     match = NO;
     int     end;
     int     lineno = 0;			/* for diagnostics */
+    const char *fieldsep = login_access_opts->fieldsep;
 
     /*
      * Process the table one line at a time and stop at the first match.
@@ -72,12 +70,12 @@ login_access(const char *user, const char *from)
      * non-existing table means no access control.
      */
 
-    if ((fp = fopen(_PATH_LOGACCESS, "r")) != NULL) {
+    if ((fp = fopen(login_access_opts->accessfile, "r")) != NULL) {
 	while (!match && fgets(line, sizeof(line), fp)) {
 	    lineno++;
 	    if (line[end = strlen(line) - 1] != '\n') {
 		syslog(LOG_ERR, "%s: line %d: missing newline or line too long",
-		       _PATH_LOGACCESS, lineno);
+		       login_access_opts->accessfile, lineno);
 		continue;
 	    }
 	    if (line[0] == '#')
@@ -87,25 +85,25 @@ login_access(const char *user, const char *from)
 	    line[end] = 0;			/* strip trailing whitespace */
 	    if (line[0] == 0)			/* skip blank lines */
 		continue;
-	    if (!(perm = strtok(line, fs))
-		|| !(users = strtok((char *) 0, fs))
-		|| !(froms = strtok((char *) 0, fs))
-		|| strtok((char *) 0, fs)) {
-		syslog(LOG_ERR, "%s: line %d: bad field count", _PATH_LOGACCESS,
+	    if (!(perm = strtok(line, fieldsep))
+		|| !(users = strtok((char *) 0, fieldsep))
+		|| !(froms = strtok((char *) 0, fieldsep))
+		|| strtok((char *) 0, fieldsep)) {
+		syslog(LOG_ERR, "%s: line %d: bad field count", login_access_opts->accessfile,
 		       lineno);
 		continue;
 	    }
 	    if (perm[0] != '+' && perm[0] != '-') {
-		syslog(LOG_ERR, "%s: line %d: bad first field", _PATH_LOGACCESS,
+		syslog(LOG_ERR, "%s: line %d: bad first field", login_access_opts->accessfile,
 		       lineno);
 		continue;
 	    }
-	    match = (list_match(froms, from, from_match)
-		     && list_match(users, user, user_match));
+	    match = (list_match(froms, from, from_match, login_access_opts)
+		     && list_match(users, user, user_match, login_access_opts));
 	}
 	(void) fclose(fp);
     } else if (errno != ENOENT) {
-	syslog(LOG_ERR, "cannot open %s: %m", _PATH_LOGACCESS);
+	syslog(LOG_ERR, "cannot open %s: %m", login_access_opts->accessfile);
     }
     return (match == 0 || (line[0] == '+'));
 }
@@ -114,10 +112,12 @@ login_access(const char *user, const char *from)
 
 static int
 list_match(char *list, const char *item,
-    int (*match_fn)(const char *, const char *))
+    int (*match_fn)(const char *, const char *, struct pam_login_access_options *),
+    struct pam_login_access_options *login_access_opts)
 {
     char   *tok;
     int     match = NO;
+    const char *listsep = login_access_opts->listsep;
 
     /*
      * Process tokens one at a time. We have exhausted all possible matches
@@ -126,19 +126,22 @@ list_match(char *list, const char *item,
      * the match is affected by any exceptions.
      */
 
-    for (tok = strtok(list, sep); tok != NULL; tok = strtok((char *) 0, sep)) {
+    for (tok = strtok(list, listsep); tok != NULL; tok = strtok((char *) 0, listsep)) {
 	if (strcmp(tok, "EXCEPT") == 0)	/* EXCEPT: give up */
 	    break;
-	if ((match = (*match_fn)(tok, item)) != 0)	/* YES */
+	if ((match = (*match_fn)(tok, item, login_access_opts)) != 0)	/* YES */
 	    break;
     }
     /* Process exceptions to matches. */
 
     if (match != NO) {
-	while ((tok = strtok((char *) 0, sep)) && strcmp(tok, "EXCEPT"))
+	while ((tok = strtok((char *) 0, listsep)) && strcmp(tok, "EXCEPT")) {
 	     /* VOID */ ;
-	if (tok == NULL || list_match((char *) 0, item, match_fn) == NO)
-	    return (match);
+	    if (tok == NULL || list_match((char *) 0, item, match_fn,
+		login_access_opts) == NO) {
+		return (match);
+	    }
+	}
     }
     return (NO);
 }
@@ -170,16 +173,49 @@ netgroup_match(const char *group, const char *machine, const char *user)
     return (NO);
 }
 
-/* user_match - match a username against one token */
+/* group_match - match a group against one token */
 
-static int
-user_match(const char *tok, const char *string)
+int
+group_match(const char *tok, const char *username)
 {
     struct group *group;
     struct passwd *passwd;
     gid_t *grouplist;
-    int ngroups = NGROUPS;
-    int     i;
+    int i, ret, ngroups = NGROUPS;
+
+    if ((passwd = getpwnam(username)) == NULL)
+	return (NO);
+    errno = 0;
+    if ((group = getgrnam(tok)) == NULL) {
+	if (errno != 0)
+	    syslog(LOG_ERR, "getgrnam() failed for %s: %s", username, strerror(errno));
+	else
+	    syslog(LOG_NOTICE, "group not found: %s", username);
+	return (NO);
+    }
+    if ((grouplist = calloc(ngroups, sizeof(gid_t))) == NULL) {
+	syslog(LOG_ERR, "cannot allocate memory for grouplist: %s", username);
+	return (NO);
+    }
+    ret = NO;
+    if (getgrouplist(username, passwd->pw_gid, grouplist, &ngroups) != 0)
+	syslog(LOG_ERR, "getgrouplist() failed for %s", username);
+    for (i = 0; i < ngroups; i++)
+	if (grouplist[i] == group->gr_gid)
+	    ret = YES;
+    free(grouplist);
+    return (ret);
+}
+
+/* user_match - match a username against one token */
+
+static int
+user_match(const char *tok, const char *string,
+	struct pam_login_access_options *login_access_opts)
+{
+    size_t stringlen;
+    char *grpstr;
+    int rc;
 
     /*
      * If a token has the magic value "ALL" the match always succeeds.
@@ -189,39 +225,18 @@ user_match(const char *tok, const char *string)
 
     if (tok[0] == '@') {			/* netgroup */
 	return (netgroup_match(tok + 1, (char *) 0, string));
+    } else if (tok[0] == '(' && tok[(stringlen = strlen(&tok[1]))] == ')') {		/* group */
+	if ((grpstr = strndup(&tok[1], stringlen - 1)) == NULL) {
+	    syslog(LOG_ERR, "cannot allocate memory for %s", string);
+	    return (NO);
+	}
+	rc = group_match(grpstr, string);
+	free(grpstr);
+	return (rc);
     } else if (string_match(tok, string)) {	/* ALL or exact match */
 	return (YES);
-    } else {
-	if ((passwd = getpwnam(string)) == NULL)
-		return (NO);
-	errno = 0;
-	if ((group = getgrnam(tok)) == NULL) {/* try group membership */
-	    if (errno != 0) {
-		syslog(LOG_ERR, "getgrnam() failed for %s: %s", string, strerror(errno));
-	    } else {
-		syslog(LOG_NOTICE, "group not found: %s", string);
-	    }
-	    return (NO);
-	}
-	errno = 0;
-	if ((grouplist = calloc(ngroups, sizeof(gid_t))) == NULL) {
-	    if (errno == ENOMEM) {
-		syslog(LOG_ERR, "cannot allocate memory for grouplist: %s", string);
-	    }
-	    return (NO);
-	}
-	if (getgrouplist(string, passwd->pw_gid, grouplist, &ngroups) != 0) {
-	    syslog(LOG_ERR, "getgrouplist() failed for %s", string);
-	    free(grouplist);
-	    return (NO);
-	}
-	for (i = 0; i < ngroups; i++) {
-	    if (grouplist[i] == group->gr_gid) {
-		free(grouplist);
-		return (YES);
-	    }
-	}
-	free(grouplist);
+    } else if (login_access_opts->defgroup == true) {/* try group membership */
+	return (group_match(tok, string));
     }
     return (NO);
 }
@@ -229,7 +244,8 @@ user_match(const char *tok, const char *string)
 /* from_match - match a host or tty against a list of tokens */
 
 static int
-from_match(const char *tok, const char *string)
+from_match(const char *tok, const char *string,
+	struct pam_login_access_options *login_access_opts __unused)
 {
     int     tok_len;
     int     str_len;
