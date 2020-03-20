@@ -921,7 +921,7 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 		MPASS((n & 7) == 0);
 
 		IDXINCR(kring->nr_hwcur, n, kring->nkr_num_slots);
-		IDXINCR(nm_rxq->fl_pidx, n, nm_rxq->fl_sidx);
+		IDXINCR(nm_rxq->fl_pidx, n, nm_rxq->fl_sidx2);
 
 		while (n > 0) {
 			for (i = 0; i < 8; i++, fl_pidx++, slot++) {
@@ -929,10 +929,10 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 				MPASS(ba != 0);
 				nm_rxq->fl_desc[fl_pidx] = htobe64(ba | hwidx);
 				slot->flags &= ~NS_BUF_CHANGED;
-				MPASS(fl_pidx <= nm_rxq->fl_sidx);
+				MPASS(fl_pidx <= nm_rxq->fl_sidx2);
 			}
 			n -= 8;
-			if (fl_pidx == nm_rxq->fl_sidx) {
+			if (fl_pidx == nm_rxq->fl_sidx2) {
 				fl_pidx = 0;
 				slot = &ring->slot[0];
 			}
