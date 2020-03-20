@@ -22,7 +22,7 @@
 #include <openssl/objects.h>
 #include <crypto/cryptodev.h>
 
-#include "internal/engine.h"
+#include "crypto/engine.h"
 
 #if CRYPTO_ALGORITHM_MIN < CRYPTO_ALGORITHM_MAX
 # define CHECK_BSD_STYLE_MACROS
