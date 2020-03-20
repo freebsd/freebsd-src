@@ -2912,7 +2912,7 @@ again:
 		if (len <= 0)
 			goto clean;
 		if (!vector_str_push(&v.ext_name, ddata->cur, len))
-			return (0);
+			goto clean;
 		ddata->cur += len;
 		if (!vector_type_qualifier_push(&v, TYPE_EXT))
 			goto clean;
