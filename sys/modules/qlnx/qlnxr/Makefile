@@ -41,11 +41,12 @@ OFEDDIR=${SRCTOP}/sys
 ETHDRVR=${SRCTOP}/sys/dev/qlnx/qlnxe
 
 KMOD=   qlnxr
-SRCS=   device_if.h bus_if.h vnode_if.h pci_if.h \
-        opt_inet.h opt_inet6.h \
+SRCS=   \
         qlnxr_os.c\
 	qlnxr_cm.c\
 	qlnxr_verbs.c
+SRCS+=	${LINUXKPI_GENSRCS}
+SRCS+=	opt_inet.h opt_inet6.h
 
 .include <bsd.kmod.mk>
 

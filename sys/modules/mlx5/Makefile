@@ -33,9 +33,9 @@ mlx5_uar.c \
 mlx5_vport.c \
 mlx5_vsc.c \
 mlx5_wq.c \
-mlx5_gid.c \
-device_if.h bus_if.h vnode_if.h pci_if.h pci_iov_if.h \
-opt_inet.h opt_inet6.h opt_rss.h opt_ratelimit.h
+mlx5_gid.c
+SRCS+=	${LINUXKPI_GENSRCS}
+SRCS+=	opt_inet.h opt_inet6.h opt_rss.h opt_ratelimit.h
 
 CFLAGS+= -I${SRCTOP}/sys/ofed/include
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
