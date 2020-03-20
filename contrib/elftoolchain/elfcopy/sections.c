@@ -28,6 +28,7 @@
 #include <sys/stat.h>
 #include <err.h>
 #include <libgen.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -341,6 +342,7 @@ create_scn(struct elfcopy *ecp)
 	size_t		 indx;
 	uint64_t	 oldndx, newndx;
 	int		 elferr, sec_flags, reorder;
+	bool		 sections_added;
 
 	/*
 	 * Insert a pseudo section that contains the ELF header
@@ -364,6 +366,7 @@ create_scn(struct elfcopy *ecp)
 		errx(EXIT_FAILURE, "elf_getshstrndx failed: %s",
 		    elf_errmsg(-1));
 
+	sections_added = false;
 	reorder = 0;
 	is = NULL;
 	while ((is = elf_nextscn(ecp->ein, is)) != NULL) {
@@ -438,12 +441,14 @@ create_scn(struct elfcopy *ecp)
 		oldndx = newndx = SHN_UNDEF;
 		if (strcmp(name, ".symtab") != 0 &&
 		    strcmp(name, ".strtab") != 0) {
+			/* Add new sections before .shstrtab if we have one. */
 			if (!strcmp(name, ".shstrtab")) {
 				/*
 				 * Add sections specified by --add-section and
 				 * gnu debuglink. we want these sections have
 				 * smaller index than .shstrtab section.
 				 */
+				sections_added = true;
 				if (ecp->debuglink != NULL)
 					add_gnu_debuglink(ecp);
 				if (ecp->flags & SEC_ADD)
@@ -504,6 +509,12 @@ create_scn(struct elfcopy *ecp)
 			ecp->strtab = s;
 
 		insert_to_sec_list(ecp, s, 0);
+	}
+	if (!sections_added) {
+		if (ecp->debuglink != NULL)
+			add_gnu_debuglink(ecp);
+		if (ecp->flags & SEC_ADD)
+			insert_sections(ecp);
 	}
 	elferr = elf_errno();
 	if (elferr != 0)
