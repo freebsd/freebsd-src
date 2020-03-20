@@ -1465,18 +1465,14 @@ midi_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		retval = midi_load();
-#if 0
 		if (retval == 0)
 			retval = seq_modevent(mod, type, data);
-#endif
 		break;
 
 	case MOD_UNLOAD:
 		retval = midi_unload();
-#if 0
 		if (retval == 0)
 			retval = seq_modevent(mod, type, data);
-#endif
 		break;
 
 	default:
