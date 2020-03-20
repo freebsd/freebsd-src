@@ -299,6 +299,7 @@ OLD_FILES+=usr/share/man/man8/fsinfo.8.gz
 OLD_FILES+=usr/share/man/man8/hlfsd.8.gz
 OLD_FILES+=usr/share/man/man8/mk-amd-map.8.gz
 OLD_FILES+=usr/share/man/man8/wire-test.8.gz
+
 # 20200301: bktr removed
 OLD_DIRS+=usr/include/dev/bktr
 OLD_FILES+=usr/include/dev/bktr/ioctl_bktr.h
@@ -309,6 +310,7 @@ OLD_FILES+=usr/include/machine/ioctl_bktr.h
 OLD_FILES+=usr/include/machine/ioctl_meteor.h
 .endif
 OLD_FILES+=usr/share/man/man4/bktr.4.gz
+
 # 20200229: GCC 4.2.1 removed
 .if !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/g++
