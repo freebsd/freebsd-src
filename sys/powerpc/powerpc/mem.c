@@ -98,9 +98,11 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	struct vm_page m;
 	vm_page_t marr;
 	vm_size_t cnt;
+	ssize_t orig_resid;
 
 	cnt = 0;
 	error = 0;
+	orig_resid = uio->uio_resid;
 
 	while (uio->uio_resid > 0 && !error) {
 		iov = uio->uio_iov;
@@ -137,7 +139,8 @@ kmem_direct_mapped:	off = v & PAGE_MASK;
 		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			va = uio->uio_offset;
 
-			if ((va < VM_MIN_KERNEL_ADDRESS) || (va > virtual_end)) {
+			if (hw_direct_map &&
+			    ((va < VM_MIN_KERNEL_ADDRESS) || (va > virtual_end))) {
 				v = DMAP_TO_PHYS(va);
 				goto kmem_direct_mapped;
 			}
@@ -151,24 +154,34 @@ kmem_direct_mapped:	off = v & PAGE_MASK;
 			 * so that we don't create any zero-fill pages.
 			 */
 
-			for (; va < eva; va += PAGE_SIZE)
-				if (pmap_extract(kernel_pmap, va) == 0)
-					return (EFAULT);
+			for (; va < eva; va += PAGE_SIZE) {
+				if (pmap_extract(kernel_pmap, va) == 0) {
+					error = EFAULT;
+					break;
+				}
+			}
+			if (error != 0)
+				break;
 
 			prot = (uio->uio_rw == UIO_READ)
 			    ? VM_PROT_READ : VM_PROT_WRITE;
 
 			va = uio->uio_offset;
-			if (kernacc((void *) va, iov->iov_len, prot)
-			    == FALSE)
-				return (EFAULT);
+			if (((va >= VM_MIN_KERNEL_ADDRESS) && (va <= virtual_end)) &&
+			    !kernacc((void *) va, iov->iov_len, prot)) {
+				error = EFAULT;
+				break;
+			}
 
 			error = uiomove((void *)va, iov->iov_len, uio);
-
-			continue;
 		}
 	}
-
+	/*
+	 * Don't return error if any byte was written.  Read and write
+	 * can return error only if no i/o was performed.
+	 */
+	if (uio->uio_resid != orig_resid)
+		error = 0;
 	return (error);
 }
 
