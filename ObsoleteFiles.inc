@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200320: cx and ctau drivers retired
+OLD_FILES+=usr/share/man/man4/ctau.4.gz
+OLD_FILES+=usr/share/man/man4/cx.4.gz
+
 # 20200318: host.conf was deprecated a long time ago.
 OLD_FILES+=etc/host.conf
 OLD_FILES+=etc/rc.d/nsswitch
