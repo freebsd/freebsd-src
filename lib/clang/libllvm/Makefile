@@ -11,14 +11,13 @@ CFLAGS+=	-I${.OBJDIR}
 .if ${MK_LLVM_TARGET_AARCH64} == "no" && ${MK_LLVM_TARGET_ARM} == "no" && \
     ${MK_LLVM_TARGET_BPF} == "no" && ${MK_LLVM_TARGET_MIPS} == "no" && \
     ${MK_LLVM_TARGET_POWERPC} == "no" && ${MK_LLVM_TARGET_RISCV} == "no" && \
-    ${MK_LLVM_TARGET_SPARC} == "no" && ${MK_LLVM_TARGET_X86} == "no"
+    ${MK_LLVM_TARGET_X86} == "no"
 .error Please enable at least one of: MK_LLVM_TARGET_AARCH64,\
  MK_LLVM_TARGET_ARM, MK_LLVM_TARGET_BPF, MK_LLVM_TARGET_MIPS, \
- MK_LLVM_TARGET_POWERPC, MK_LLVM_TARGET_RISCV, MK_LLVM_TARGET_SPARC, \
- or MK_LLVM_TARGET_X86
+ MK_LLVM_TARGET_POWERPC, MK_LLVM_TARGET_RISCV, or MK_LLVM_TARGET_X86
 .endif
 
-.for arch in AArch64 ARM BPF Mips PowerPC RISCV Sparc X86
+.for arch in AArch64 ARM BPF Mips PowerPC RISCV X86
 . if ${MK_LLVM_TARGET_${arch:tu}} != "no"
 CFLAGS+=	-I${LLVM_SRCS}/lib/Target/${arch}
 . endif
@@ -1241,32 +1240,6 @@ SRCS_MIN+=	Target/RISCV/TargetInfo/RISCVTargetInfo.cpp
 SRCS_MIN+=	Target/RISCV/Utils/RISCVBaseInfo.cpp
 SRCS_MIN+=	Target/RISCV/Utils/RISCVMatInt.cpp
 .endif # MK_LLVM_TARGET_RISCV
-.if ${MK_LLVM_TARGET_SPARC} != "no"
-SRCS_MIN+=	Target/Sparc/AsmParser/SparcAsmParser.cpp
-SRCS_MIN+=	Target/Sparc/DelaySlotFiller.cpp
-SRCS_XDW+=	Target/Sparc/Disassembler/SparcDisassembler.cpp
-SRCS_MIN+=	Target/Sparc/LeonPasses.cpp
-SRCS_MIN+=	Target/Sparc/MCTargetDesc/SparcAsmBackend.cpp
-SRCS_MIN+=	Target/Sparc/MCTargetDesc/SparcELFObjectWriter.cpp
-SRCS_MIN+=	Target/Sparc/MCTargetDesc/SparcInstPrinter.cpp
-SRCS_MIN+=	Target/Sparc/MCTargetDesc/SparcMCAsmInfo.cpp
-SRCS_MIN+=	Target/Sparc/MCTargetDesc/SparcMCCodeEmitter.cpp
-SRCS_MIN+=	Target/Sparc/MCTargetDesc/SparcMCExpr.cpp
-SRCS_MIN+=	Target/Sparc/MCTargetDesc/SparcMCTargetDesc.cpp
-SRCS_MIN+=	Target/Sparc/MCTargetDesc/SparcTargetStreamer.cpp
-SRCS_MIN+=	Target/Sparc/SparcAsmPrinter.cpp
-SRCS_MIN+=	Target/Sparc/SparcFrameLowering.cpp
-SRCS_MIN+=	Target/Sparc/SparcISelDAGToDAG.cpp
-SRCS_MIN+=	Target/Sparc/SparcISelLowering.cpp
-SRCS_MIN+=	Target/Sparc/SparcInstrInfo.cpp
-SRCS_MIN+=	Target/Sparc/SparcMCInstLower.cpp
-SRCS_MIN+=	Target/Sparc/SparcMachineFunctionInfo.cpp
-SRCS_MIN+=	Target/Sparc/SparcRegisterInfo.cpp
-SRCS_MIN+=	Target/Sparc/SparcSubtarget.cpp
-SRCS_MIN+=	Target/Sparc/SparcTargetMachine.cpp
-SRCS_MIN+=	Target/Sparc/SparcTargetObjectFile.cpp
-SRCS_MIN+=	Target/Sparc/TargetInfo/SparcTargetInfo.cpp
-.endif # MK_LLVM_TARGET_SPARC
 SRCS_MIN+=	Target/Target.cpp
 SRCS_MIN+=	Target/TargetLoweringObjectFile.cpp
 SRCS_MIN+=	Target/TargetMachine.cpp
@@ -1689,8 +1662,8 @@ beforebuild:
 
 # Note: some rules are superfluous, not every combination is valid.
 .for arch in \
-	AArch64/AArch64 ARM/ARM BPF/BPF Mips/Mips PowerPC/PPC Sparc/Sparc \
-	RISCV/RISCV X86/X86
+	AArch64/AArch64 ARM/ARM BPF/BPF Mips/Mips PowerPC/PPC RISCV/RISCV \
+	X86/X86
 . for hdr in \
 	AsmMatcher/-gen-asm-matcher \
 	AsmWriter1/-gen-asm-writer,-asmwriternum=1 \
@@ -1808,17 +1781,6 @@ TGHDRS+=	RISCVGenRegisterInfo.inc
 TGHDRS+=	RISCVGenSubtargetInfo.inc
 TGHDRS+=	RISCVGenSystemOperands.inc
 .endif # MK_LLVM_TARGET_RISCV
-.if ${MK_LLVM_TARGET_SPARC} != "no"
-TGHDRS+=	SparcGenAsmMatcher.inc
-TGHDRS+=	SparcGenAsmWriter.inc
-TGHDRS+=	SparcGenCallingConv.inc
-TGHDRS+=	SparcGenDAGISel.inc
-TGHDRS+=	SparcGenDisassemblerTables.inc
-TGHDRS+=	SparcGenInstrInfo.inc
-TGHDRS+=	SparcGenMCCodeEmitter.inc
-TGHDRS+=	SparcGenRegisterInfo.inc
-TGHDRS+=	SparcGenSubtargetInfo.inc
-.endif # MK_LLVM_TARGET_SPARC
 .if ${MK_LLVM_TARGET_X86} != "no"
 TGHDRS+=	X86GenAsmMatcher.inc
 TGHDRS+=	X86GenAsmWriter.inc
