@@ -898,13 +898,15 @@ ecap_vendor(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	if ((ver < 1) || (cap_level <= 1))
 		return;
 	for (i = 0; i < len; i += 4) {
-		val = read_config(fd, &p->pc_sel, ptr + PCIR_VSEC_DATA + i, 4);
+		val = read_config(fd, &p->pc_sel, ptr + i, 4);
 		if ((i % 16) == 0)
 			printf("                 ");
-		printf("%02x %02x %02x %02x ", val & 0xff, (val >> 8) & 0xff,
+		printf("%02x %02x %02x %02x", val & 0xff, (val >> 8) & 0xff,
 		    (val >> 16) & 0xff, (val >> 24) & 0xff);
 		if ((((i + 4) % 16) == 0 ) || ((i + 4) >= len))
 			printf("\n");
+		else
+			printf(" ");
 	}
 }
 
