@@ -97,12 +97,6 @@ dev/ce/tau32-ddk.c		optional ce \
 dev/cp/cpddk.c			optional cp \
 	compile-with "${NORMAL_C} ${NO_WMISLEADING_INDENTATION}"
 dev/cp/if_cp.c			optional cp
-dev/ctau/ctau.c			optional ctau
-dev/ctau/ctddk.c		optional ctau
-dev/ctau/if_ct.c		optional ctau
-dev/cx/csigma.c			optional cx
-dev/cx/cxddk.c			optional cx
-dev/cx/if_cx.c			optional cx
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb

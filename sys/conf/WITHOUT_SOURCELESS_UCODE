@@ -16,7 +16,6 @@ nodevice	ti
 nodevice	txp
 nodevice	ce
 nodevice	cp
-nodevice	ctau
 nodevice	ipwfw
 nodevice	iwifw
 nodevice	iwmfw
