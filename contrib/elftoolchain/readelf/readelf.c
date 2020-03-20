@@ -7256,6 +7256,7 @@ dump_ar(struct readelf *re, int fd)
 				}
 				printf("Binary %s(%s) contains:\n",
 				    re->filename, arhdr->ar_name);
+				elf_end(e);
 			}
 			printf("\t%s\n", arsym[i].as_name);
 		}
