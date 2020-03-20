@@ -7112,7 +7112,7 @@ scsi_attrib_vendser_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
 	case SCSI_ATTR_OUTPUT_NONASCII_ESC:
 	default:
 		strvis_flags = CAM_STRVIS_FLAG_NONASCII_ESC;
-		break;;
+		break;
 	}
 	cam_strvis_sbuf(sb, vendser->vendor, sizeof(vendser->vendor),
 	    strvis_flags);

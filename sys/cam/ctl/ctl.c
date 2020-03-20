@@ -13265,7 +13265,7 @@ ctl_done_timer_wakeup(void *arg)
 void
 ctl_serseq_done(union ctl_io *io)
 {
-	struct ctl_lun *lun = CTL_LUN(io);;
+	struct ctl_lun *lun = CTL_LUN(io);
 
 	if (lun->be_lun == NULL ||
 	    lun->be_lun->serseq == CTL_LUN_SERSEQ_OFF)
