@@ -3973,7 +3973,7 @@ out:
 static void
 da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 {
-	struct da_softc *softc = (struct da_softc *)periph->softc;;
+	struct da_softc *softc = (struct da_softc *)periph->softc;
 	struct bio *bp1;
 	uint8_t *buf = softc->unmap_buf;
 	struct scsi_unmap_desc *d = (void *)&buf[UNMAP_HEAD_SIZE];
