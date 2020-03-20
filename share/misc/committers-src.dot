@@ -275,6 +275,7 @@ mw [label="Marcin Wojtas\nmw@FreeBSD.org\n2017/07/18"]
 neel [label="Neel Natu\nneel@FreeBSD.org\n2009/09/20"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2005/03/31"]
 ngie [label="Enji Cooper\nngie@FreeBSD.org\n2014/07/27"]
+nick [label="Nick O'Brien\nnick@FreeBSD.org\n2020/03/09"]
 nork [label="Norikatsu Shigemura\nnork@FreeBSD.org\n2009/06/09"]
 np [label="Navdeep Parhar\nnp@FreeBSD.org\n2009/06/05"]
 nwhitehorn [label="Nathan Whitehorn\nnwhitehorn@FreeBSD.org\n2008/07/03"]
@@ -699,6 +700,8 @@ kib -> zont
 
 kmacy -> lstewart
 
+kp -> nick
+
 marcel -> allanjude
 marcel -> art
 marcel -> arun
@@ -775,6 +778,7 @@ philip -> jls
 philip -> matteo
 philip -> uqs
 philip -> kp
+philip -> nick
 
 phk -> jkoshy
 phk -> mux
