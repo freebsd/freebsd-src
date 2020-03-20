@@ -408,6 +408,10 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |      *--NetBSD            |                    |
  |     v              |      |   9.0              |                    |
  |                    |      |                    |                    |
+ |                    |      |                    |            DragonFly 5.8
+ |                    |      |                    |                    |
+ |                    |      |                    |            DragonFly 5.6.3
+ |                    |      |                    |                    |
 FreeBSD 13 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |      |                    |                    |
  v                    v      v                    v                    v
@@ -800,6 +804,8 @@ macOS 10.15		2019-10-07 [APL]
 macOS 10.15.1		2019-10-29 [APL] (security/critical release)
 FreeBSD 12.1		2019-11-04 [FBD]
 NetBSD 9.0 		2020-02-14 [NBD]
+DragonFly 5.8 		2020-03-03 [DFB]
+DragonFly 5.6.3 	2020-03-11 [DFB]
 
 Bibliography
 ------------------------
