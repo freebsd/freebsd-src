@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filio.h>
+#include <sys/pciio.h>
 #include <sys/pctrie.h>
 #include <sys/rwlock.h>
 
@@ -45,6 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/stdarg.h>
+
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pci_private.h>
+#include <dev/pci/pci_iov.h>
 
 #include <linux/kobject.h>
 #include <linux/device.h>
