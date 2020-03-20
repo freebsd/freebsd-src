@@ -526,8 +526,6 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	unp->unp_socket = so;
 	so->so_pcb = unp;
 	unp->unp_refcount = 1;
-	if (so->so_listen != NULL)
-		unp->unp_flags |= UNP_NASCENT;
 
 	if ((locked = UNP_LINK_WOWNED()) == false)
 		UNP_LINK_WLOCK();
@@ -800,9 +798,6 @@ uipc_detach(struct socket *so)
 		UNP_PCB_UNLOCK(unp);
 		goto restart;
 	}
-	if ((unp->unp_flags & UNP_NASCENT) != 0) {
-		goto teardown;
-	}
 	if ((vp = unp->unp_vnode) != NULL) {
 		VOP_UNP_DETACH(vp);
 		unp->unp_vnode = NULL;
@@ -844,7 +839,6 @@ uipc_detach(struct socket *so)
 	freeunp = unp_pcb_rele(unp);
 	MPASS(freeunp == 0);
 	local_unp_rights = unp_rights;
-teardown:
 	unp->unp_socket->so_pcb = NULL;
 	saved_unp_addr = unp->unp_addr;
 	unp->unp_addr = NULL;
@@ -1685,7 +1679,6 @@ unp_connect2(struct socket *so, struct socket *so2, int req)
 
 	if (so2->so_type != so->so_type)
 		return (EPROTOTYPE);
-	unp2->unp_flags &= ~UNP_NASCENT;
 	unp->unp_conn = unp2;
 	unp_pcb_hold(unp2);
 	unp_pcb_hold(unp);
