@@ -20,7 +20,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/cx/machdep.h>
+#include <dev/cp/machdep.h>
 
 #define CPDDK_COBF_SAFE
 #include <dev/cp/cpddk.h>

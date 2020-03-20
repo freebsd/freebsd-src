@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #   define PP_CISCO IFF_LINK2
 #   include <net/bpf.h>
 #endif
-#include <dev/cx/machdep.h>
+#include <dev/cp/machdep.h>
 #include <dev/cp/cpddk.h>
 #include <machine/cserial.h>
 #include <machine/resource.h>
