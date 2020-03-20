@@ -110,7 +110,6 @@ struct unpcb {
  */
 #define	UNP_CONNECTING			0x010	/* Currently connecting. */
 #define	UNP_BINDING			0x020	/* Currently binding. */
-#define	UNP_NASCENT			0x040	/* Newborn child socket. */
 
 /*
  * Flags in unp_gcflag.
