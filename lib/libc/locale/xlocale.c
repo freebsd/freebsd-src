@@ -163,7 +163,7 @@ set_thread_locale(locale_t loc)
 	if (NULL != l) {
 		xlocale_retain((struct xlocale_refcounted*)l);
 	}
-	locale_t old = pthread_getspecific(locale_info_key);
+	locale_t old = get_thread_locale();
 	if ((NULL != old) && (l != old)) {
 		xlocale_release((struct xlocale_refcounted*)old);
 	}
