@@ -11,13 +11,9 @@ SRCS=	icl_iser.c
 SRCS+=	iser_initiator.c
 SRCS+=	iser_memory.c
 SRCS+=	iser_verbs.c
-SRCS+=	vnode_if.h
-SRCS+=	opt_inet.h
-SRCS+=	opt_inet6.h
-SRCS+=	opt_cam.h
-SRCS+=	bus_if.h
-SRCS+=	device_if.h
-SRCS+=	icl_conn_if.h
+
+SRCS+=	${LINUXKPI_GENSRCS}
+SRCS+=	opt_inet.h opt_inet6.h opt_cam.h icl_conn_if.h
 
 CFLAGS+= -I${SYSDIR}/
 CFLAGS+= -I${SYSDIR}/ofed/include

@@ -2,8 +2,7 @@
 .PATH:  ${SRCTOP}/sys/dev/mlx4/mlx4_ib
 
 KMOD=	mlx4ib
-SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h pci_iov_if.h \
-	opt_inet.h opt_inet6.h \
+SRCS= \
 	mlx4_ib_alias_GUID.c \
 	mlx4_ib_mcg.c \
 	mlx4_ib_sysfs.c \
@@ -17,6 +16,8 @@ SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h pci_iov_if.h \
 	mlx4_ib_srq.c \
 	mlx4_ib_wc.c \
 	mlx4_ib_cm.c
+SRCS+=	${LINUXKPI_GENSRCS}
+SRCS+=	opt_inet.h opt_inet6.h
 
 CFLAGS+= -I${SRCTOP}/sys/ofed/include
 CFLAGS+= -I${SRCTOP}/sys/ofed/include/uapi

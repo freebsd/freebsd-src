@@ -6,9 +6,8 @@ SRCS= \
 	mlx5fpga_tools_main.c \
 	mlx5fpga_tools_char.c
 
-SRCS+= \
-	device_if.h bus_if.h vnode_if.h pci_if.h pci_iov_if.h \
-	opt_inet.h opt_inet6.h opt_rss.h opt_ratelimit.h
+SRCS+=	${LINUXKPI_GENSRCS}
+SRCS+= 	opt_inet.h opt_inet6.h opt_rss.h opt_ratelimit.h
 
 CFLAGS+= -I${SRCTOP}/sys/ofed/include
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
