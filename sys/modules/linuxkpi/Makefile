@@ -21,14 +21,7 @@ SRCS=	linux_compat.c \
 	linux_usb.c \
 	linux_work.c
 
-SRCS+=	bus_if.h \
-	device_if.h \
-	pci_if.h \
-	pci_iov_if.h \
-	vnode_if.h \
-	usb_if.h \
-	opt_usb.h \
-	opt_stack.h
+SRCS+=	${LINUXKPI_GENSRCS}
 
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include

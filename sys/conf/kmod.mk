@@ -94,6 +94,16 @@ WERROR?=	-Wno-error
 WERROR?=	-Werror
 .endif
 
+LINUXKPI_GENSRCS+= \
+	bus_if.h \
+	device_if.h \
+	pci_if.h \
+	pci_iov_if.h \
+	vnode_if.h \
+	usb_if.h \
+	opt_usb.h \
+	opt_stack.h
+
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE

@@ -5,8 +5,8 @@ KMOD=mlxfw
 SRCS= \
 mlxfw_fsm.c \
 mlxfw_mfa2.c \
-mlxfw_mfa2_tlv_multi.c \
-device_if.h bus_if.h vnode_if.h pci_if.h
+mlxfw_mfa2_tlv_multi.c
+SRCS+=	${LINUXKPI_GENSRCS}
 
 CFLAGS+= \
 	-I${SRCTOP}/sys/ofed/include \
