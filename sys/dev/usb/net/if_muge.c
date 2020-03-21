@@ -389,9 +389,10 @@ lan78xx_eeprom_read_raw(struct muge_softc *sc, uint16_t off, uint8_t *buf,
 {
 	usb_ticks_t start_ticks;
 	const usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
-	int err, locked;
+	int err;
 	uint32_t val, saved;
 	uint16_t i;
+	bool locked;
 
 	locked = mtx_owned(&sc->sc_mtx); /* XXX */
 	if (!locked)
@@ -483,9 +484,10 @@ static int
 lan78xx_otp_read_raw(struct muge_softc *sc, uint16_t off, uint8_t *buf,
     uint16_t buflen)
 {
-	int locked, err;
+	int err;
 	uint32_t val;
 	uint16_t i;
+	bool locked;
 	locked = mtx_owned(&sc->sc_mtx);
 	if (!locked)
 		MUGE_LOCK(sc);
@@ -659,8 +661,8 @@ static int
 lan78xx_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct muge_softc *sc = device_get_softc(dev);
-	int locked;
 	uint32_t addr, val;
+	bool locked;
 
 	val = 0;
 	locked = mtx_owned(&sc->sc_mtx);
@@ -712,8 +714,8 @@ static int
 lan78xx_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct muge_softc *sc = device_get_softc(dev);
-	int locked;
 	uint32_t addr;
+	bool locked;
 
 	if (sc->sc_phyno != phy)
 		return (0);
@@ -760,10 +762,10 @@ lan78xx_miibus_statchg(device_t dev)
 	struct muge_softc *sc = device_get_softc(dev);
 	struct mii_data *mii = uether_getmii(&sc->sc_ue);
 	struct ifnet *ifp;
-	int locked;
 	int err;
 	uint32_t flow = 0;
 	uint32_t fct_flow = 0;
+	bool locked;
 
 	locked = mtx_owned(&sc->sc_mtx);
 	if (!locked)
