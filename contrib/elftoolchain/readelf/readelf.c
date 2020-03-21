@@ -3676,37 +3676,45 @@ static struct flag_desc note_feature_ctl_flags[] = {
 	{ 0, NULL }
 };
 
-static void
+static bool
 dump_note_string(const char *description, const char *s, size_t len)
 {
 	size_t i;
-	int printable = 1;
 
 	if (len == 0 || s[--len] != '\0') {
-		printable = 0;
+		return (false);
 	} else {
-		for (i = 0; i < len; i++) {
-			if (!isprint(s[i])) {
-				printable = 0;
-				break;
-			}
-		}
+		for (i = 0; i < len; i++)
+			if (!isprint(s[i]))
+				return (false);
 	}
 
-	if (printable) {
-		printf("   %s: %s\n", description, s);
-	} else {
-		printf("   description data:");
-		for (i = 0; i < len; i++)
-			printf(" %02x", (unsigned char)s[i]);
-		printf("\n");
-	}
+	printf("   %s: %s\n", description, s);
+	return (true);
 }
+
+struct note_desc {
+	uint32_t type;
+	const char *description;
+	bool (*fp)(const char *, const char *, size_t);
+};
+
+static struct note_desc xen_notes[] = {
+	{ 5, "Xen version", dump_note_string },
+	{ 6, "Guest OS", dump_note_string },
+	{ 7, "Guest version", dump_note_string },
+	{ 8, "Loader", dump_note_string },
+	{ 9, "PAE mode", dump_note_string },
+	{ 10, "Features", dump_note_string },
+	{ 11, "BSD symtab", dump_note_string },
+	{ 0, NULL, NULL }
+};
 
 static void
 dump_notes_data(struct readelf *re, const char *name, uint32_t type,
     const char *buf, size_t sz)
 {
+	struct note_desc *nd;
 	size_t i;
 	const uint32_t *ubuf;
 
@@ -3750,28 +3758,13 @@ dump_notes_data(struct readelf *re, const char *name, uint32_t type,
 			return;
 		}
 	} else if (strcmp(name, "Xen") == 0) {
-		switch (type) {
-		case 5:
-			dump_note_string("Xen version", buf, sz);
-			return;
-		case 6:
-			dump_note_string("Guest OS", buf, sz);
-			return;
-		case 7:
-			dump_note_string("Guest version", buf, sz);
-			return;
-		case 8:
-			dump_note_string("Loader", buf, sz);
-			return;
-		case 9:
-			dump_note_string("PAE mode", buf, sz);
-			return;
-		case 10:
-			dump_note_string("Features", buf, sz);
-			return;
-		case 11:
-			dump_note_string("BSD symtab", buf, sz);
-			return;
+		for (nd = xen_notes; nd->description != NULL; nd++) {
+			if (nd->type == type) {
+				if (nd->fp(nd->description, buf, sz))
+					return;
+				else
+					break;
+			}
 		}
 	}
 unknown:
