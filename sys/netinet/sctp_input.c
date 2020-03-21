@@ -703,8 +703,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 				sctp_move_chunks_from_net(stcb,
 				    stcb->asoc.deleted_primary);
 			}
-			sctp_delete_prim_timer(stcb->sctp_ep, stcb,
-			    stcb->asoc.deleted_primary);
+			sctp_delete_prim_timer(stcb->sctp_ep, stcb);
 		}
 	}
 }
