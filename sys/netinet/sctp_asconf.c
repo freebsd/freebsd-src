@@ -585,8 +585,7 @@ sctp_process_asconf_set_primary(struct sockaddr *src,
 				sctp_move_chunks_from_net(stcb,
 				    stcb->asoc.deleted_primary);
 			}
-			sctp_delete_prim_timer(stcb->sctp_ep, stcb,
-			    stcb->asoc.deleted_primary);
+			sctp_delete_prim_timer(stcb->sctp_ep, stcb);
 		}
 	} else {
 		/* couldn't set the requested primary address! */
