@@ -1931,7 +1931,7 @@ sctp_timeout_handler(void *t)
 			break;
 		}
 		SCTP_STAT_INCR(sctps_timoautoclose);
-		sctp_autoclose_timer(inp, stcb, net);
+		sctp_autoclose_timer(inp, stcb);
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_AUTOCLOSE_TMR, SCTP_SO_NOT_LOCKED);
 		did_output = 0;
 		break;
@@ -1997,7 +1997,7 @@ sctp_timeout_handler(void *t)
 		if ((stcb == NULL) || (inp == NULL)) {
 			break;
 		}
-		sctp_delete_prim_timer(inp, stcb, net);
+		sctp_delete_prim_timer(inp, stcb);
 		SCTP_STAT_INCR(sctps_timodelprim);
 		break;
 	default:

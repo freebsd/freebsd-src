@@ -1264,8 +1264,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 /* Mobility adaptation */
 void
-sctp_delete_prim_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    struct sctp_nets *net SCTP_UNUSED)
+sctp_delete_prim_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 {
 	if (stcb->asoc.deleted_primary == NULL) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "delete_prim_timer: deleted_primary is not stored...\n");
@@ -1521,9 +1520,7 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 }
 
 void
-sctp_autoclose_timer(struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb,
-    struct sctp_nets *net)
+sctp_autoclose_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 {
 	struct timeval tn, *tim_touse;
 	struct sctp_association *asoc;
@@ -1562,7 +1559,7 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 				 */
 				if (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_SENT) {
 					/* only send SHUTDOWN 1st time thru */
-					struct sctp_nets *netp;
+					struct sctp_nets *net;
 
 					if ((SCTP_GET_STATE(stcb) == SCTP_STATE_OPEN) ||
 					    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
@@ -1571,17 +1568,15 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 					SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
 					sctp_stop_timers_for_shutdown(stcb);
 					if (stcb->asoc.alternate) {
-						netp = stcb->asoc.alternate;
+						net = stcb->asoc.alternate;
 					} else {
-						netp = stcb->asoc.primary_destination;
+						net = stcb->asoc.primary_destination;
 					}
-					sctp_send_shutdown(stcb, netp);
+					sctp_send_shutdown(stcb, net);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
-					    stcb->sctp_ep, stcb,
-					    netp);
+					    stcb->sctp_ep, stcb, net);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
-					    stcb->sctp_ep, stcb,
-					    netp);
+					    stcb->sctp_ep, stcb, NULL);
 				}
 			}
 		} else {
@@ -1594,8 +1589,7 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 			/* fool the timer startup to use the time left */
 			tmp = asoc->sctp_autoclose_ticks;
 			asoc->sctp_autoclose_ticks -= ticks_gone_by;
-			sctp_timer_start(SCTP_TIMER_TYPE_AUTOCLOSE, inp, stcb,
-			    net);
+			sctp_timer_start(SCTP_TIMER_TYPE_AUTOCLOSE, inp, stcb, NULL);
 			/* restore the real tick value */
 			asoc->sctp_autoclose_ticks = tmp;
 		}
