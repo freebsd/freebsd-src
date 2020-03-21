@@ -118,7 +118,15 @@ simple_code(void *coder_ptr, const lzma_allocator *allocator,
 		// coder->pos and coder->size yet. This way the coder can be
 		// restarted if the next filter in the chain returns e.g.
 		// LZMA_MEM_ERROR.
-		memcpy(out + *out_pos, coder->buffer + coder->pos, buf_avail);
+		//
+		// Do the memcpy() conditionally because out can be NULL
+		// (in which case buf_avail is always 0). Calling memcpy()
+		// with a null-pointer is undefined even if the third
+		// argument is 0.
+		if (buf_avail > 0)
+			memcpy(out + *out_pos, coder->buffer + coder->pos,
+					buf_avail);
+
 		*out_pos += buf_avail;
 
 		// Copy/Encode/Decode more data to out[].

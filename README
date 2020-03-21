@@ -9,7 +9,7 @@ XZ Utils
        1.3. Documentation for liblzma
     2. Version numbering
     3. Reporting bugs
-    4. Translating the xz tool
+    4. Translations
     5. Other implementations of the .xz format
     6. Contact information
 
@@ -55,9 +55,11 @@ XZ Utils
     Similarly, it is possible that some day there is a filter that will
     compress better than LZMA2.
 
-    XZ Utils doesn't support multithreaded compression or decompression
-    yet. It has been planned though and taken into account when designing
-    the .xz file format.
+    XZ Utils supports multithreaded compression. XZ Utils doesn't support
+    multithreaded decompression yet. It has been planned though and taken
+    into account when designing the .xz file format. In the future, files
+    that were created in threaded mode can be decompressed in threaded
+    mode too.
 
 
 1. Documentation
@@ -103,14 +105,13 @@ XZ Utils
     and data type as Doxygen tags. These docs should be quite OK as
     a quick reference.
 
-    I have planned to write a bunch of very well documented example
-    programs, which (due to comments) should work as a tutorial to
-    various features of liblzma. No such example programs have been
-    written yet.
+    There are a few example/tutorial programs that should help in
+    getting started with liblzma. In the source package the examples
+    are in "doc/examples" and in binary packages they may be under
+    "examples" in the same directory as this README.
 
-    For now, if you have never used liblzma, libbzip2, or zlib, I
-    recommend learning the *basics* of the zlib API. Once you know that,
-    it should be easier to learn liblzma.
+    Since the liblzma API has similarities to the zlib API, some people
+    may find it useful to read the zlib docs and tutorial too:
 
         http://zlib.net/manual.html
         http://zlib.net/zlib_how.html
@@ -192,91 +193,18 @@ XZ Utils
     system.
 
 
-4. Translating the xz tool
---------------------------
+4. Translations
+---------------
 
-    The messages from the xz tool have been translated into a few
-    languages. Before starting to translate into a new language, ask
-    the author whether someone else hasn't already started working on it.
+    The xz command line tool and all man pages can be translated.
+    The translations are handled via the Translation Project. If you
+    wish to help translating xz, please join the Translation Project:
 
-    Test your translation. Testing includes comparing the translated
-    output to the original English version by running the same commands
-    in both your target locale and with LC_ALL=C. Ask someone to
-    proof-read and test the translation.
+        https://translationproject.org/html/translators.html
 
-    Testing can be done e.g. by installing xz into a temporary directory:
-
-        ./configure --disable-shared --prefix=/tmp/xz-test
-        # <Edit the .po file in the po directory.>
-        make -C po update-po
-        make install
-        bash debug/translation.bash | less
-        bash debug/translation.bash | less -S  # For --list outputs
-
-    Repeat the above as needed (no need to re-run configure though).
-
-    Note especially the following:
-
-      - The output of --help and --long-help must look nice on
-        an 80-column terminal. It's OK to add extra lines if needed.
-
-      - In contrast, don't add extra lines to error messages and such.
-        They are often preceded with e.g. a filename on the same line,
-        so you have no way to predict where to put a \n. Let the terminal
-        do the wrapping even if it looks ugly. Adding new lines will be
-        even uglier in the generic case even if it looks nice in a few
-        limited examples.
-
-      - Be careful with column alignment in tables and table-like output
-        (--list, --list --verbose --verbose, --info-memory, --help, and
-        --long-help):
-
-          * All descriptions of options in --help should start in the
-            same column (but it doesn't need to be the same column as
-            in the English messages; just be consistent if you change it).
-            Check that both --help and --long-help look OK, since they
-            share several strings.
-
-          * --list --verbose and --info-memory print lines that have
-            the format "Description:   %s". If you need a longer
-            description, you can put extra space between the colon
-            and %s. Then you may need to add extra space to other
-            strings too so that the result as a whole looks good (all
-            values start at the same column).
-
-          * The columns of the actual tables in --list --verbose --verbose
-            should be aligned properly. Abbreviate if necessary. It might
-            be good to keep at least 2 or 3 spaces between column headings
-            and avoid spaces in the headings so that the columns stand out
-            better, but this is a matter of opinion. Do what you think
-            looks best.
-
-      - Be careful to put a period at the end of a sentence when the
-        original version has it, and don't put it when the original
-        doesn't have it. Similarly, be careful with \n characters
-        at the beginning and end of the strings.
-
-      - Read the TRANSLATORS comments that have been extracted from the
-        source code and included in xz.pot. If they suggest testing the
-        translation with some type of command, do it. If testing needs
-        input files, use e.g. tests/files/good-*.xz.
-
-      - When updating the translation, read the fuzzy (modified) strings
-        carefully, and don't mark them as updated before you actually
-        have updated them. Reading through the unchanged messages can be
-        good too; sometimes you may find a better wording for them.
-
-      - If you find language problems in the original English strings,
-        feel free to suggest improvements. Ask if something is unclear.
-
-      - The translated messages should be understandable (sometimes this
-        may be a problem with the original English messages too). Don't
-        make a direct word-by-word translation from English especially if
-        the result doesn't sound good in your language.
-
-    In short, take your time and pay attention to the details. Making
-    a good translation is not a quick and trivial thing to do. The
-    translated xz should look as polished as the English version.
+    Several strings will change in a future version of xz so if you
+    wish to start a new translation, look at the code in the xz git
+    repostiory instead of a 5.2.x release.
 
 
 5. Other implementations of the .xz format

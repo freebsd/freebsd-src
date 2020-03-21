@@ -67,7 +67,7 @@ lzma_block_header_decode(lzma_block *block,
 	const size_t in_size = block->header_size - 4;
 
 	// Verify CRC32
-	if (lzma_crc32(in, in_size, 0) != unaligned_read32le(in + in_size))
+	if (lzma_crc32(in, in_size, 0) != read32le(in + in_size))
 		return LZMA_DATA_ERROR;
 
 	// Check for unsupported flags.
@@ -98,7 +98,7 @@ lzma_block_header_decode(lzma_block *block,
 		block->uncompressed_size = LZMA_VLI_UNKNOWN;
 
 	// Filter Flags
-	const size_t filter_count = (in[1] & 3) + 1;
+	const size_t filter_count = (in[1] & 3U) + 1;
 	for (size_t i = 0; i < filter_count; ++i) {
 		const lzma_ret ret = lzma_filter_flags_decode(
 				&block->filters[i], allocator,

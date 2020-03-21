@@ -700,7 +700,7 @@ stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
 				ret = coder->thread_error;
 				if (ret != LZMA_OK) {
 					assert(ret != LZMA_STREAM_END);
-					break;
+					break; // Break out of mythread_sync.
 				}
 
 				// Try to read compressed data to out[].
@@ -958,7 +958,7 @@ stream_encoder_mt_init(lzma_next_coder *next, const lzma_allocator *allocator,
 	// Validate the filter chain so that we can give an error in this
 	// function instead of delaying it to the first call to lzma_code().
 	// The memory usage calculation verifies the filter chain as
-	// a side effect so we take advatange of that.
+	// a side effect so we take advantage of that.
 	if (lzma_raw_encoder_memusage(filters) == UINT64_MAX)
 		return LZMA_OPTIONS_ERROR;
 
