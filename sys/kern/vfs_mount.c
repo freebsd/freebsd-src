@@ -900,7 +900,7 @@ vfs_domount_first(
 {
 	struct vattr va;
 	struct mount *mp;
-	struct vnode *newdp;
+	struct vnode *newdp, *rootvp;
 	int error, error1;
 
 	ASSERT_VOP_ELOCKED(vp, __func__);
@@ -967,6 +967,9 @@ vfs_domount_first(
 	    (error1 = VFS_ROOT(mp, LK_EXCLUSIVE, &newdp)) != 0) {
 		if (error1 != 0) {
 			error = error1;
+			rootvp = vfs_cache_root_clear(mp);
+			if (rootvp != NULL)
+				vrele(rootvp);
 			if ((error1 = VFS_UNMOUNT(mp, 0)) != 0)
 				printf("VFS_UNMOUNT returned %d\n", error1);
 		}
