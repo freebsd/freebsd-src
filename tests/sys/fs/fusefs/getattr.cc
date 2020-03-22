@@ -159,6 +159,7 @@ TEST_F(Getattr, blksize_zero)
 		out.body.attr.attr.mode = S_IFREG | 0644;
 		out.body.attr.attr.ino = ino;	// Must match nodeid
 		out.body.attr.attr.blksize = 0;
+		out.body.attr.attr.size = 1;
 	})));
 
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);

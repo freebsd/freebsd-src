@@ -90,6 +90,21 @@ void check_environment()
 		GTEST_SKIP() << "current user is not allowed to mount";
 }
 
+const char *cache_mode_to_s(enum cache_mode cm) {
+	switch (cm) {
+	case Uncached:
+		return "Uncached";
+	case Writethrough:
+		return "Writethrough";
+	case Writeback:
+		return "Writeback";
+	case WritebackAsync:
+		return "WritebackAsync";
+	default:
+		return "Unknown";
+	}
+}
+
 bool is_unsafe_aio_enabled(void) {
 	const char *node = "vfs.aio.enable_unsafe";
 	int val = 0;
