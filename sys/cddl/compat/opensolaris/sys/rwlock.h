@@ -87,8 +87,7 @@ typedef	struct sx	krwlock_t;
 #define	rw_write_held(lock)	sx_xlocked(lock)
 #define	rw_lock_held(lock)	(rw_read_held(lock) || rw_write_held(lock))
 #define	rw_iswriter(lock)	sx_xlocked(lock)
-/* TODO: Change to sx_xholder() once it is moved from kern_sx.c to sx.h. */
-#define	rw_owner(lock)		((lock)->sx_lock & SX_LOCK_SHARED ? NULL : (struct thread *)SX_OWNER((lock)->sx_lock))
+#define	rw_owner(lock)		sx_xholder(lock)
 
 #endif	/* defined(_KERNEL) */
 
