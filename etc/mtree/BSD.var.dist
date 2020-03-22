@@ -84,16 +84,12 @@
     rwho            gname=daemon mode=0775
     ..
     spool
-        clientmqueue    uname=smmsp gname=smmsp mode=0770 tags=package=sendmail
-        ..
         dma             uname=root gname=mail mode=0770 tags=package=dma
         ..
         lock            uname=uucp gname=dialer mode=0775
         ..
 /set gname=daemon
         lpd
-        ..
-        mqueue          tags=package=sendmail
         ..
         opielocks       mode=0700
         ..
