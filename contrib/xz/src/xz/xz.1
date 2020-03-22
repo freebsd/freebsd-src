@@ -5,7 +5,7 @@
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH XZ 1 "2017-04-19" "Tukaani" "XZ Utils"
+.TH XZ 1 "2020-02-01" "Tukaani" "XZ Utils"
 .
 .SH NAME
 xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
@@ -1071,7 +1071,7 @@ if using more threads would exceed the memory usage limit.
 Currently the only threading method is to split the input into
 blocks and compress them independently from each other.
 The default block size depends on the compression level and
-can be overriden with the
+can be overridden with the
 .BI \-\-block\-size= size
 option.
 .IP ""
@@ -1570,7 +1570,7 @@ The old BCJ filters will still be useful in embedded systems,
 because the decoder of the new filter will be bigger
 and use more memory.
 .IP ""
-Different instruction sets have have different alignment:
+Different instruction sets have different alignment:
 .RS
 .RS
 .PP

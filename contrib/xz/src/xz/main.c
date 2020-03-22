@@ -159,7 +159,7 @@ main(int argc, char **argv)
 	// Initialize handling of error/warning/other messages.
 	message_init();
 
-	// Set hardware-dependent default values. These can be overriden
+	// Set hardware-dependent default values. These can be overridden
 	// on the command line, thus this must be done before args_parse().
 	hardware_init();
 
@@ -326,5 +326,5 @@ main(int argc, char **argv)
 	if (es == E_WARNING && no_warn)
 		es = E_SUCCESS;
 
-	tuklib_exit(es, E_ERROR, message_verbosity_get() != V_SILENT);
+	tuklib_exit((int)es, E_ERROR, message_verbosity_get() != V_SILENT);
 }
