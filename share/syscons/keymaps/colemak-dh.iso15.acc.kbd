@@ -9,8 +9,8 @@
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
 # ------------------------------------------------------------------
-
-  041   '`'    '~'    nop    nop    dtil   '~'    nop    nop     O
+  000   nop    nop    nop    nop    nop    nop    nop    nop     O
+  001   esc    esc    esc    esc    esc    esc    debug  debug   O
   002   '1'    '!'    nop    nop    '¡'    '¹'    nop    nop     O
   003   '2'    '@'    nul    nul    'º'    '²'    nul    nul     O
   004   '3'    '#'    nop    nop    'ª'    '³'    nop    nop     O
@@ -23,7 +23,8 @@
   011   '0'    ')'    nop    nop    '~'    '~'    nop    nop     O
   012   '-'    '_'    us     us     '~'    '~'    us     us      O
   013   '='    '+'    nop    nop    '×'    '÷'    nop    nop     O
-
+  014   bs     bs     del    del    bs     bs     del    del     O
+  015   ht     btab   nscr   nscr   ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    'ä'    'Ä'    dc1    dc1     C
   017   'w'    'W'    etb    etb    'å'    'Å'    etb    etb     C
   018   'f'    'F'    ack    ack    'ã'    'Ã'    ack    ack     C
@@ -36,8 +37,8 @@
   025   ';'    ':'    nop    nop    'ö'    'Ö'    nop    nop     O
   026   '['    '{'    esc    esc    '«'    '~'    esc    esc     O
   027   ']'    '}'    gs     gs     '»'    '~'    gs     gs      O
-  043   '\'    '|'    fs     fs     '~'    '~'    fs     fs      O
-
+  028   cr     cr     nl     nl     cr     cr     nl     nl      O
+  029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
   030   'a'    'A'    soh    soh    'á'    'Á'    soh    soh     C
   031   'r'    'R'    dc2    dc2    dgra   '~'    dc2    dc2     C
   032   's'    'S'    dc3    dc3    'ß'    '~'    dc3    dc3     C
@@ -49,32 +50,24 @@
   038   'i'    'I'    ht     ht     'í'    'Í'    ht     ht      C
   039   'o'    'O'    si     si     'ó'    'Ó'    si     si      C
   040   '''    '"'    nop    nop    'õ'    'Õ'    nop    nop     O
-
+  041   '`'    '~'    nop    nop    dtil   '~'    nop    nop     O
+  042   lshift lshift lshift lshift lshift lshift lshift lshift  O
+  043   '\'    '|'    fs     fs     '~'    '~'    fs     fs      O
   044   'z'    'Z'    sub    sub    'æ'    'Æ'    sub    sub     C
   045   'x'    'X'    can    can    dcir   '~'    can    can     C
   046   'c'    'C'    etx    etx    'ç'    'Ç'    etx    etx     C
-  047   'd'    'D'    syn    syn    '½'    '¼'    syn    syn     C
+  047   'd'    'D'    eot    eot    '½'    '¼'    syn    syn     C
   048   'v'    'V'    stx    stx    '~'    '~'    stx    stx     C
   049   'm'    'M'    vt     vt     drin   '~'    vt     vt      C
   050   'h'    'H'    cr     cr     '~'    '~'    cr     cr      C
   051   ','    '<'    nop    nop    dced   '~'    nop    nop     O
   052   '.'    '>'    nop    nop    '~'    '~'    nop    nop     O
   053   '/'    '?'    nop    nop    '¿'    '~'    nop    nop     O
-
-  058   bs     bs     bs     bs     bs     bs     bs     bs      O
-  086   '-'    '_'    us     us     '~'    '~'    us     us      O
-  057   ' '    ' '    nul    nul    ' '    ' '    susp   susp    O
-
-  000   nop    nop    nop    nop    nop    nop    nop    nop     O
-  001   esc    esc    esc    esc    esc    esc    debug  debug   O
-  014   bs     bs     del    del    bs     bs     del    del     O
-  015   ht     btab   nscr   nscr   ht     btab   nop    nop     O
-  028   cr     cr     nl     nl     cr     cr     nl     nl      O
-  029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
-  042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
+  057   ' '    ' '    nul    nul    ' '    ' '    susp   susp    O
+  058   bs     bs     bs     bs     bs     bs     bs     bs      O
   059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
   060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O
   061   fkey03 fkey15 fkey27 fkey39 scr03  scr13  scr03  scr13   O
@@ -102,6 +95,7 @@
   083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
   084   nop    nop    nop    nop    nop    nop    nop    nop     O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
+  086   '-'    '_'    us     us     '~'    '~'    us     us      O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
   088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
   089   cr     cr     nl     nl     cr     cr     nl     nl      O
