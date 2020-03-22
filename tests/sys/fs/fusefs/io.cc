@@ -46,9 +46,6 @@ extern "C" {
 /* 
  * For testing I/O like fsx does, but deterministically and without a real
  * underlying file system
- *
- * TODO: after fusefs gains the options to select cache mode for each mount
- * point, run each of these tests for all cache modes.
  */
 
 using namespace testing;
