@@ -77,18 +77,16 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_pager.h>
 
-#include <machine/riscvreg.h>
 #include <machine/cpu.h>
+#include <machine/intr.h>
 #include <machine/kdb.h>
 #include <machine/machdep.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
+#include <machine/riscvreg.h>
+#include <machine/sbi.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
-#include <machine/intr.h>
-#include <machine/sbi.h>
-
-#include <machine/asm.h>
 
 #ifdef FPE
 #include <machine/fpe.h>
