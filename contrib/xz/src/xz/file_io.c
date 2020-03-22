@@ -170,8 +170,11 @@ static void
 io_sandbox_enter(int src_fd)
 {
 	if (!sandbox_allowed) {
-		message(V_DEBUG, _("Sandbox is disabled due "
-				"to incompatible command line arguments"));
+		// This message is more often annoying than useful so
+		// it's commented out. It can be useful when developing
+		// the sandboxing code.
+		//message(V_DEBUG, _("Sandbox is disabled due "
+		//		"to incompatible command line arguments"));
 		return;
 	}
 
@@ -213,7 +216,8 @@ io_sandbox_enter(int src_fd)
 #	error ENABLE_SANDBOX is defined but no sandboxing method was found.
 #endif
 
-	message(V_DEBUG, _("Sandbox was successfully enabled"));
+	// This message is annoying in xz -lvv.
+	//message(V_DEBUG, _("Sandbox was successfully enabled"));
 	return;
 
 error:
@@ -266,11 +270,8 @@ io_wait(file_pair *pair, int timeout, bool is_reading)
 			return IO_WAIT_ERROR;
 		}
 
-		if (ret == 0) {
-			assert(opt_flush_timeout != 0);
-			flush_needed = true;
+		if (ret == 0)
 			return IO_WAIT_TIMEOUT;
-		}
 
 		if (pfd[0].revents != 0)
 			return IO_WAIT_MORE;
@@ -360,13 +361,14 @@ io_copy_attrs(const file_pair *pair)
 	// Try changing the owner of the file. If we aren't root or the owner
 	// isn't already us, fchown() probably doesn't succeed. We warn
 	// about failing fchown() only if we are root.
-	if (fchown(pair->dest_fd, pair->src_st.st_uid, -1) && warn_fchown)
+	if (fchown(pair->dest_fd, pair->src_st.st_uid, (gid_t)(-1))
+			&& warn_fchown)
 		message_warning(_("%s: Cannot set the file owner: %s"),
 				pair->dest_name, strerror(errno));
 
 	mode_t mode;
 
-	if (fchown(pair->dest_fd, -1, pair->src_st.st_gid)) {
+	if (fchown(pair->dest_fd, (uid_t)(-1), pair->src_st.st_gid)) {
 		message_warning(_("%s: Cannot set the file group: %s"),
 				pair->dest_name, strerror(errno));
 		// We can still safely copy some additional permissions:
@@ -751,6 +753,8 @@ io_open_src(const char *src_name)
 		.src_fd = -1,
 		.dest_fd = -1,
 		.src_eof = false,
+		.src_has_seen_input = false,
+		.flush_needed = false,
 		.dest_try_sparse = false,
 		.dest_pending_sparse = 0,
 	};
@@ -1109,16 +1113,16 @@ io_fix_src_pos(file_pair *pair, size_t rewind_size)
 
 
 extern size_t
-io_read(file_pair *pair, io_buf *buf_union, size_t size)
+io_read(file_pair *pair, io_buf *buf, size_t size)
 {
 	// We use small buffers here.
 	assert(size < SSIZE_MAX);
 
-	uint8_t *buf = buf_union->u8;
-	size_t left = size;
+	size_t pos = 0;
 
-	while (left > 0) {
-		const ssize_t amount = read(pair->src_fd, buf, left);
+	while (pos < size) {
+		const ssize_t amount = read(
+				pair->src_fd, buf->u8 + pos, size - pos);
 
 		if (amount == 0) {
 			pair->src_eof = true;
@@ -1135,10 +1139,15 @@ io_read(file_pair *pair, io_buf *buf_union, size_t size)
 
 #ifndef TUKLIB_DOSLIKE
 			if (IS_EAGAIN_OR_EWOULDBLOCK(errno)) {
-				const io_wait_ret ret = io_wait(pair,
-						mytime_get_flush_timeout(),
-						true);
-				switch (ret) {
+				// Disable the flush-timeout if no input has
+				// been seen since the previous flush and thus
+				// there would be nothing to flush after the
+				// timeout expires (avoids busy waiting).
+				const int timeout = pair->src_has_seen_input
+						? mytime_get_flush_timeout()
+						: -1;
+
+				switch (io_wait(pair, timeout, true)) {
 				case IO_WAIT_MORE:
 					continue;
 
@@ -1146,7 +1155,8 @@ io_read(file_pair *pair, io_buf *buf_union, size_t size)
 					return SIZE_MAX;
 
 				case IO_WAIT_TIMEOUT:
-					return size - left;
+					pair->flush_needed = true;
+					return pos;
 
 				default:
 					message_bug();
@@ -1160,11 +1170,15 @@ io_read(file_pair *pair, io_buf *buf_union, size_t size)
 			return SIZE_MAX;
 		}
 
-		buf += (size_t)(amount);
-		left -= (size_t)(amount);
+		pos += (size_t)(amount);
+
+		if (!pair->src_has_seen_input) {
+			pair->src_has_seen_input = true;
+			mytime_set_flush_time();
+		}
 	}
 
-	return size - left;
+	return pos;
 }
 
 
@@ -1272,8 +1286,15 @@ io_write(file_pair *pair, const io_buf *buf, size_t size)
 		// if the file ends with sparse block, we must also return
 		// if size == 0 to avoid doing the lseek().
 		if (size == IO_BUFFER_SIZE) {
-			if (is_sparse(buf)) {
-				pair->dest_pending_sparse += size;
+			// Even if the block was sparse, treat it as non-sparse
+			// if the pending sparse amount is large compared to
+			// the size of off_t. In practice this only matters
+			// on 32-bit systems where off_t isn't always 64 bits.
+			const off_t pending_max
+				= (off_t)(1) << (sizeof(off_t) * CHAR_BIT - 2);
+			if (is_sparse(buf) && pair->dest_pending_sparse
+					< pending_max) {
+				pair->dest_pending_sparse += (off_t)(size);
 				return false;
 			}
 		} else if (size == 0) {

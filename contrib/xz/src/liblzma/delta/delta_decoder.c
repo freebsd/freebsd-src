@@ -70,7 +70,7 @@ lzma_delta_props_decode(void **options, const lzma_allocator *allocator,
 		return LZMA_MEM_ERROR;
 
 	opt->type = LZMA_DELTA_TYPE_BYTE;
-	opt->dist = props[0] + 1;
+	opt->dist = props[0] + 1U;
 
 	*options = opt;
 

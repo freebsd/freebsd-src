@@ -663,7 +663,7 @@ lzma_lzma_props_encode(const void *options, uint8_t *out)
 	if (lzma_lzma_lclppb_encode(opt, out))
 		return LZMA_PROG_ERROR;
 
-	unaligned_write32le(out + 1, opt->dict_size);
+	write32le(out + 1, opt->dict_size);
 
 	return LZMA_OK;
 }

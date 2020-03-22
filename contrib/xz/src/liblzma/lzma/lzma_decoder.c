@@ -398,7 +398,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 				// ("match byte") to "len" to minimize the
 				// number of variables we need to store
 				// between decoder calls.
-				len = dict_get(&dict, rep0) << 1;
+				len = (uint32_t)(dict_get(&dict, rep0)) << 1;
 
 				// The usage of "offset" allows omitting some
 				// branches, which should give tiny speed
@@ -569,7 +569,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 #ifdef HAVE_SMALL
 					do {
 						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
+							rep0 += 1U << offset,
 							SEQ_DIST_MODEL);
 					} while (++offset < limit);
 #else
@@ -577,25 +577,25 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 					case 5:
 						assert(offset == 0);
 						rc_bit(probs[symbol], ,
-							rep0 += 1,
+							rep0 += 1U,
 							SEQ_DIST_MODEL);
 						++offset;
 						--limit;
 					case 4:
 						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
+							rep0 += 1U << offset,
 							SEQ_DIST_MODEL);
 						++offset;
 						--limit;
 					case 3:
 						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
+							rep0 += 1U << offset,
 							SEQ_DIST_MODEL);
 						++offset;
 						--limit;
 					case 2:
 						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
+							rep0 += 1U << offset,
 							SEQ_DIST_MODEL);
 						++offset;
 						--limit;
@@ -607,7 +607,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 						// the unneeded updating of
 						// "symbol".
 						rc_bit_last(probs[symbol], ,
-							rep0 += 1 << offset,
+							rep0 += 1U << offset,
 							SEQ_DIST_MODEL);
 					}
 #endif
@@ -635,7 +635,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 					do {
 						rc_bit(coder->pos_align[
 								symbol], ,
-							rep0 += 1 << offset,
+							rep0 += 1U << offset,
 							SEQ_ALIGN);
 					} while (++offset < ALIGN_BITS);
 #else
@@ -1049,7 +1049,7 @@ lzma_lzma_props_decode(void **options, const lzma_allocator *allocator,
 	// All dictionary sizes are accepted, including zero. LZ decoder
 	// will automatically use a dictionary at least a few KiB even if
 	// a smaller dictionary is requested.
-	opt->dict_size = unaligned_read32le(props + 1);
+	opt->dict_size = read32le(props + 1);
 
 	opt->preset_dict = NULL;
 	opt->preset_dict_size = 0;

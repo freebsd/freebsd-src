@@ -105,7 +105,7 @@ typedef struct {
 
 
 typedef struct {
-	/// Every index_stream is a node in the tree of Sreams.
+	/// Every index_stream is a node in the tree of Streams.
 	index_tree_node node;
 
 	/// Number of this Stream (first one is 1)
@@ -166,7 +166,7 @@ struct lzma_index_s {
 	lzma_vli index_list_size;
 
 	/// How many Records to allocate at once in lzma_index_append().
-	/// This defaults to INDEX_GROUP_SIZE but can be overriden with
+	/// This defaults to INDEX_GROUP_SIZE but can be overridden with
 	/// lzma_index_prealloc().
 	size_t prealloc;
 
@@ -825,8 +825,8 @@ lzma_index_cat(lzma_index *restrict dest, lzma_index *restrict src,
 				s->groups.root = &newg->node;
 			}
 
-			if (s->groups.rightmost == &g->node)
-				s->groups.rightmost = &newg->node;
+			assert(s->groups.rightmost == &g->node);
+			s->groups.rightmost = &newg->node;
 
 			lzma_free(g, allocator);
 
