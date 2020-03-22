@@ -778,6 +778,7 @@ TEST_F(Read, cache_block)
 	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, contents1, bufsize));
 	leak(fd);
+	free(contents);
 }
 
 /* Reading with sendfile should work (though it obviously won't be 0-copy) */
@@ -899,6 +900,8 @@ TEST_P(ReadAhead, readahead) {
 	ASSERT_EQ(0, memcmp(rbuf, contents, bufsize));
 
 	leak(fd);
+	free(rbuf);
+	free(contents);
 }
 
 INSTANTIATE_TEST_CASE_P(RA, ReadAhead,

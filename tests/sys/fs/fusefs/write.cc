@@ -300,6 +300,8 @@ TEST_F(Write, append_to_cached)
 	/* Write the new data.  There should be no more read operations */
 	ASSERT_EQ(BUFSIZE, write(fd, CONTENTS, BUFSIZE)) << strerror(errno);
 	leak(fd);
+	free(oldbuf);
+	free(oldcontents);
 }
 
 TEST_F(Write, append_direct_io)
@@ -782,6 +784,8 @@ TEST_F(WriteCluster, clustering)
 			<< strerror(errno);
 	}
 	close(fd);
+	free(wbuf2x);
+	free(wbuf);
 }
 
 /* 
@@ -825,6 +829,7 @@ TEST_F(WriteCluster, DISABLED_cluster_write_err)
 			<< strerror(errno);
 	}
 	close(fd);
+	free(wbuf);
 }
 
 /*
