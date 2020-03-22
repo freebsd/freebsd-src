@@ -23,7 +23,7 @@ mips/nlm/dev/net/sgmii.c			optional xlpge
 mips/nlm/dev/net/xaui.c				optional xlpge
 mips/nlm/dev/net/xlpge.c			optional xlpge
 ucore_app.bin					optional xlpge	\
-	compile-with	"${CC} -EB -march=mips32 -mabi=32 -msoft-float -I. -I$S -O3 -funroll-loops -fomit-frame-pointer -Qunused-arguments -mno-branch-likely -fno-pic -mno-abicalls -ffunction-sections -fdata-sections -G0 -Wall -Werror -c $S/$M/nlm/dev/net/ucore/crt0_basic.S  $S/$M/nlm/dev/net/ucore/ucore_app.c && ${LD} -melf32btsmip_fbsd -d -warn-common -T$S/$M/nlm/dev/net/ucore/ld.ucore.S crt0_basic.o ucore_app.o -o ucore_app && ${OBJCOPY} -S -O binary -R .note -R .comment ucore_app ${.TARGET}" \
+	compile-with	"${CC} -EB -march=mips32 -mabi=32 -msoft-float -I. -I$S -O3 -funroll-loops -fomit-frame-pointer -Wno-unused-command-line-argument -mno-branch-likely -fno-pic -mno-abicalls -ffunction-sections -fdata-sections -G0 -Wall -Werror -c $S/$M/nlm/dev/net/ucore/crt0_basic.S  $S/$M/nlm/dev/net/ucore/ucore_app.c && ${LD} -melf32btsmip_fbsd -d -warn-common -T$S/$M/nlm/dev/net/ucore/ld.ucore.S crt0_basic.o ucore_app.o -o ucore_app && ${OBJCOPY} -S -O binary -R .note -R .comment ucore_app ${.TARGET}" \
 	no-obj no-implicit-rule	before-depend			\
 	clean		"crt0_basic.o ucore_app.o ucore_app ucore_app.bin"
 ucore_app_bin.h					optional xlpge	\
