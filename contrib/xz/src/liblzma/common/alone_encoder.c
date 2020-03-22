@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-/// \file       alone_decoder.c
-/// \brief      Decoder for LZMA_Alone files
+/// \file       alone_encoder.c
+/// \brief      Encoder for LZMA_Alone files
 //
 //  Author:     Lasse Collin
 //
@@ -31,8 +31,7 @@ typedef struct {
 
 
 static lzma_ret
-alone_encode(void *coder_ptr,
-		const lzma_allocator *allocator lzma_attribute((__unused__)),
+alone_encode(void *coder_ptr, const lzma_allocator *allocator,
 		const uint8_t *restrict in, size_t *restrict in_pos,
 		size_t in_size, uint8_t *restrict out,
 		size_t *restrict out_pos, size_t out_size,
@@ -122,7 +121,7 @@ alone_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 	if (d != UINT32_MAX)
 		++d;
 
-	unaligned_write32le(coder->header + 1, d);
+	write32le(coder->header + 1, d);
 
 	// - Uncompressed size (always unknown and using EOPM)
 	memset(coder->header + 1 + 4, 0xFF, 8);

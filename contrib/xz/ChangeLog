@@ -1,3 +1,1335 @@
+commit 2327a461e1afce862c22269b80d3517801103c1b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-17 16:27:42 +0200
+
+    Bump version and soname for 5.2.5.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 3be82d2f7dc882258caf0f0a69214e5916b2bdda
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-17 16:26:04 +0200
+
+    Update NEWS for 5.2.5.
+
+ NEWS | 105 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 105 insertions(+)
+
+commit ab3e57539c7337f0653b13b75dbc5d03ade9700e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-16 21:57:21 +0200
+
+    Translations: Rebuild cs.po to avoid incorrect fuzzy strings.
+    
+    "make dist" updates the .po files and the fuzzy strings would
+    result in multiple very wrong translations.
+
+ po/cs.po | 592 ++++++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 322 insertions(+), 270 deletions(-)
+
+commit 3a6f38309dc5d44d8a63ebb337b6b2028561c93e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-16 20:01:37 +0200
+
+    README: Update outdated sections.
+
+ README | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)
+
+commit 9cc0901798217e258e91c13cf6fda7ad42ba108c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-16 19:46:27 +0200
+
+    README: Mention that translatable strings will change after 5.2.x.
+
+ README | 74 +++---------------------------------------------------------------
+ 1 file changed, 3 insertions(+), 71 deletions(-)
+
+commit cc163574249f6a4a66f3dc09d6fe5a71bee24fab
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-16 19:39:45 +0200
+
+    README: Mention that man pages can be translated.
+
+ README | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+commit ca261994edc3f2d03d5589c037171c63471ee9dc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-16 17:30:39 +0200
+
+    Translations: Add partial Danish translation.
+    
+    I made a few minor white space changes without getting them
+    approved by the Danish translation team.
+
+ po/LINGUAS |   1 +
+ po/da.po   | 896 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 897 insertions(+)
+
+commit 51cd5d051fc730d61411dee292e863582784e189
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-16 16:43:29 +0200
+
+    Update INSTALL.generic from Automake 1.16.1.
+
+ INSTALL.generic | 321 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 162 insertions(+), 159 deletions(-)
+
+commit 69d694e5f1beae2bbfa3b6c348ec0ec5f14b5cd0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-15 15:27:22 +0200
+
+    Update INSTALL for Windows and DOS and add preliminary info for z/OS.
+
+ INSTALL | 51 +++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 41 insertions(+), 10 deletions(-)
+
+commit 2c3b1bb80a3ca7e09728fe4d7a1d8648a5cb9bca
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-15 15:26:20 +0200
+
+    Build: Update m4/ax_pthread.m4 from Autoconf Archive (again).
+
+ m4/ax_pthread.m4 | 219 +++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 117 insertions(+), 102 deletions(-)
+
+commit 74a5af180a6a6c4b8c90cefb37ee900d3fea7dc6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-11 21:15:35 +0200
+
+    xz: Never use thousand separators in DJGPP builds.
+    
+    DJGPP 2.05 added support for thousands separators but it's
+    broken at least under WinXP with Finnish locale that uses
+    a non-breaking space as the thousands separator. Workaround
+    by disabling thousands separators for DJGPP builds.
+
+ src/xz/util.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+commit ceba0d25e826bcdbf64bb4cb03385a2a66f8cbcb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-11 19:38:08 +0200
+
+    DOS: Update dos/Makefile for DJGPP 2.05.
+    
+    It doesn't need -fgnu89-inline like 2.04beta did.
+
+ dos/Makefile | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+commit 29e5bd71612253281fb22bbaa0a566990a74dcc3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-11 19:36:07 +0200
+
+    DOS: Update instructions in dos/INSTALL.txt.
+
+ dos/INSTALL.txt | 59 ++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 29 insertions(+), 30 deletions(-)
+
+commit 00a037ee9c8ee5a03cf9744e05570ae93d56b875
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-11 17:58:51 +0200
+
+    DOS: Update config.h.
+    
+    The added defines assume GCC >= 4.8.
+
+ dos/config.h | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+commit 4ec2feaefa310b4249eb41893caf526e5c51ee39
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-11 22:37:54 +0200
+
+    Translations: Add hu, zh_CN, and zh_TW.
+    
+    I made a few white space changes to these without getting them
+    approved by the translation teams. (I tried to contact the hu and
+    zh_TW teams but didn't succeed. I didn't contact the zh_CN team.)
+
+ po/LINGUAS  |   3 +
+ po/hu.po    | 985 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ po/zh_CN.po | 963 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ po/zh_TW.po | 956 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 2907 insertions(+)
+
+commit b6ed09729ae408be4533a0ddbc7df3d6f566846a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-11 14:33:30 +0200
+
+    Translations: Update vi.po to match the file from the TP.
+    
+    The translated strings haven't been updated but word wrapping
+    is different.
+
+ po/vi.po | 407 ++++++++++++++++++++++++++++-----------------------------------
+ 1 file changed, 179 insertions(+), 228 deletions(-)
+
+commit 7c85e8953ced204c858101872a15183e4639e9fb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-11 14:18:03 +0200
+
+    Translations: Add fi and pt_BR, and update de, fr, it, and pl.
+    
+    The German translation isn't identical to the file in
+    the Translation Project but the changes (white space changes
+    only) were approved by the translator Mario Blättermann.
+
+ po/LINGUAS  |    2 +
+ po/de.po    |  476 ++++++++++++++--------------
+ po/fi.po    |  974 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ po/fr.po    |  272 ++++++++--------
+ po/it.po    |  479 ++++++++++++----------------
+ po/pl.po    |  239 +++++++-------
+ po/pt_BR.po | 1001 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 2697 insertions(+), 746 deletions(-)
+
+commit 7da3ebc67fb5414034685ec16c7a29dad03dfa9b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-25 21:35:14 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 1acc48794364606c9091cae6fa56db75a1325114
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-11 13:05:29 +0200
+
+    Build: Add very limited experimental CMake support.
+    
+    This version matches CMake files in the master branch (commit
+    265daa873c0d871f5f23f9b56e133a6f20045a0a) except that this omits
+    two source files that aren't in v5.2 and in the beginning of
+    CMakeLists.txt the first paragraph in the comment is slightly
+    different to point out possible issues in building shared liblzma.
+
+ CMakeLists.txt              | 659 ++++++++++++++++++++++++++++++++++++++++++++
+ cmake/tuklib_common.cmake   |  49 ++++
+ cmake/tuklib_cpucores.cmake | 175 ++++++++++++
+ cmake/tuklib_integer.cmake  | 102 +++++++
+ cmake/tuklib_mbstr.cmake    |  20 ++
+ cmake/tuklib_physmem.cmake  | 150 ++++++++++
+ cmake/tuklib_progname.cmake |  19 ++
+ 7 files changed, 1174 insertions(+)
+
+commit 9acc6abea1552803c74c1486fbb10af119550772
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-27 20:24:27 +0200
+
+    Build: Add support for --no-po4a option to autogen.sh.
+    
+    Normally, if po4a isn't available, autogen.sh will return
+    with non-zero exit status. The option --no-po4a can be useful
+    when one knows that po4a isn't available but wants autogen.sh
+    to still return with zero exit status.
+
+ autogen.sh | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+commit c8853b31545db7bd0551be85949624b1261efd47
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-24 23:37:07 +0200
+
+    Update m4/.gitignore.
+
+ m4/.gitignore | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 901eb4a8c992354c3ea482f5bad60a1f8ad6fcc8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-24 23:01:00 +0200
+
+    liblzma: Remove unneeded <sys/types.h> from fastpos_tablegen.c.
+    
+    This file only generates fastpos_table.c.
+    It isn't built as a part of liblzma.
+
+ src/liblzma/lzma/fastpos_tablegen.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit ac35c9585fb734b7a19785d490c152e0b8cd4663
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-22 14:15:07 +0200
+
+    Use defined(__GNUC__) before __GNUC__ in preprocessor lines.
+    
+    This should silence the equivalent of -Wundef in compilers that
+    don't define __GNUC__.
+
+ src/common/sysdefs.h   | 3 ++-
+ src/liblzma/api/lzma.h | 5 +++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+commit fb9cada7cfade1156d6277717280e05b5cd342d6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-21 17:40:02 +0200
+
+    liblzma: Add more uses of lzma_memcmplen() to the normal mode of LZMA.
+    
+    This gives a tiny encoder speed improvement. This could have been done
+    in 2014 after the commit 544aaa3d13554e8640f9caf7db717a96360ec0f6 but
+    it was forgotten.
+
+ src/liblzma/lzma/lzma_encoder_optimum_normal.c | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
+
+commit 6117955af0b9cef5acde7859e86f773692b5f43c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-21 17:01:15 +0200
+
+    Build: Add visibility.m4 from gnulib.
+    
+    Appears that this file used to get included as a side effect of
+    gettext. After the change to gettext version requirements this file
+    no longer got copied to the package and so the build was broken.
+
+ m4/.gitignore    |  1 -
+ m4/visibility.m4 | 77 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 1 deletion(-)
+
+commit c2cc64d78c098834231f9cfd7d852c9cd8950d74
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-21 16:10:44 +0200
+
+    xz: Silence a warning when sig_atomic_t is long int.
+    
+    It can be true at least on z/OS.
+
+ src/xz/signals.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit b6314aa275b35c714e0a191d0b2e9b6106129ea9
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-21 15:59:26 +0200
+
+    xz: Avoid unneeded access of a volatile variable.
+
+ src/xz/signals.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit f772a1572f723e5dc7d2d32e1d4287ac7a0da55e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-21 01:24:18 +0200
+
+    tuklib_integer.m4: Optimize the check order.
+    
+    The __builtin byteswapping is the preferred one so check for it first.
+
+ m4/tuklib_integer.m4 | 56 +++++++++++++++++++++++++++-------------------------
+ 1 file changed, 29 insertions(+), 27 deletions(-)
+
+commit 641042e63f665f3231c2fd1241fd3dddda3fb313
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-20 18:54:04 +0200
+
+    tuklib_exit: Add missing header.
+    
+    strerror() needs <string.h> which happened to be included via
+    tuklib_common.h -> tuklib_config.h -> sysdefs.h if HAVE_CONFIG_H
+    was defined. This wasn't tested without config.h before so it
+    had worked fine.
+
+ src/common/tuklib_exit.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit dbd55a69e530fec9ae866aaf6c3ccc0b4daf1f1f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-16 11:18:28 +0200
+
+    sysdefs.h: Omit the conditionals around string.h and limits.h.
+    
+    string.h is used unconditionally elsewhere in the project and
+    configure has always stopped if limits.h is missing, so these
+    headers must have been always available even on the weirdest
+    systems.
+
+ src/common/sysdefs.h | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+commit 9294909861e6d22b32418467e0e988f953a82264
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-15 15:07:11 +0200
+
+    Build: Bump Autoconf and Libtool version requirements.
+    
+    There is no specific reason for this other than blocking
+    the most ancient versions. These are still old:
+    
+    Autoconf 2.69 (2012)
+    Automake 1.12 (2012)
+    gettext 0.19.6 (2015)
+    Libtool 2.4 (2010)
+
+ configure.ac | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit bd09081bbdf552f730030d2fd0e5e39ccb3936af
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-15 03:08:32 +0200
+
+    Build: Use AM_GNU_GETTEXT_REQUIRE_VERSION and require 0.19.6.
+    
+    This bumps the version requirement from 0.19 (from 2014) to
+    0.19.6 (2015).
+    
+    Using only the old AM_GNU_GETTEXT_VERSION results in old
+    gettext infrastructure being placed in the package. By using
+    both macros we get the latest gettext files while the other
+    programs in the Autotools family can still see the old macro.
+
+ configure.ac | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+commit 1e5e08d86534aec7ca957982c7f6e90203c19e9f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-14 20:42:06 +0200
+
+    Translations: Add German translation of the man pages.
+    
+    Thanks to Mario Blättermann.
+
+ po4a/de.po     | 5532 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ po4a/po4a.conf |    2 +-
+ 2 files changed, 5533 insertions(+), 1 deletion(-)
+
+commit 4b1447809ffbc0d77c0ad456bd6b3afcf0b8623e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-07 15:32:21 +0200
+
+    Build: Add support for translated man pages using po4a.
+    
+    The dependency on po4a is optional. It's never required to install
+    the translated man pages when xz is built from a release tarball.
+    If po4a is missing when building from xz.git, the translated man
+    pages won't be generated but otherwise the build will work normally.
+    
+    The translations are only updated automatically by autogen.sh and
+    by "make mydist". This makes it easy to keep po4a as an optional
+    dependency and ensures that I won't forget to put updated
+    translations to a release tarball.
+    
+    The translated man pages aren't installed if --disable-nls is used.
+    
+    The installation of translated man pages abuses Automake internals
+    by calling "install-man" with redefined dist_man_MANS and man_MANS.
+    This makes the hairy script code slightly less hairy. If it breaks
+    some day, this code needs to be fixed; don't blame Automake developers.
+    
+    Also, this adds more quotes to the existing shell script code in
+    the Makefile.am "-hook"s.
+
+ Makefile.am             |  4 ++++
+ autogen.sh              |  8 ++++---
+ po4a/.gitignore         |  2 ++
+ po4a/po4a.conf          | 14 +++++++++++
+ po4a/update-po          | 45 ++++++++++++++++++++++++++++++++++
+ src/scripts/Makefile.am | 64 +++++++++++++++++++++++++++++++++++++------------
+ src/xz/Makefile.am      | 50 +++++++++++++++++++++++++++-----------
+ src/xzdec/Makefile.am   | 55 ++++++++++++++++++++++++++++++++----------
+ 8 files changed, 197 insertions(+), 45 deletions(-)
+
+commit 882fcfdcd86525cc5c6f6d0bf0230d0089206d13
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-06 00:04:42 +0200
+
+    Update THANKS (sync with the master branch).
+
+ THANKS | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 134bb7765815d5f265eb0bc9e6ebacd9ae4a52bc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-05 22:35:06 +0200
+
+    Update tests/.gitignore.
+
+ .gitignore | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 6912472fafb656be8f4c5b4ac9ea28fea3065de4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-05 22:28:51 +0200
+
+    Update m4/.gitignore.
+
+ m4/.gitignore | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 68c60735bbb6e51d4205ba8a9fde307bcfb22f8c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-05 20:47:38 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit e1beaa74bc7cb5a409d59b55870e01ae7784ce3a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-05 20:33:50 +0200
+
+    xz: Comment out annoying sandboxing messages.
+
+ src/xz/file_io.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+commit 8238192652290df78bd728b20e3f6542d1a2819e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-05 19:33:37 +0200
+
+    Build: Workaround a POSIX shell detection problem on Solaris.
+    
+    I don't know if the problem is in gnulib's gl_POSIX_SHELL macro
+    or if xzgrep does something that isn't in POSIX. The workaround
+    adds a special case for Solaris: if /usr/xpg4/bin/sh exists and
+    gl_cv_posix_shell wasn't overriden on the configure command line,
+    use that shell for xzgrep and other scripts. That shell is known
+    to work and exists on most Solaris systems.
+
+ configure.ac | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+commit 93a1f61e892e145607dd938e3b30098af19a1672
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-03 22:03:50 +0200
+
+    Build: Update m4/ax_pthread.m4 from Autoconf Archive.
+
+ m4/ax_pthread.m4 | 398 ++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 279 insertions(+), 119 deletions(-)
+
+commit d0daa21792ff861e5423bbd82aaa6c8ba9fa0462
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-01 19:56:18 +0200
+
+    xz: Limit --memlimit-compress to at most 4020 MiB for 32-bit xz.
+    
+    See the code comment for reasoning. It's far from perfect but
+    hopefully good enough for certain cases while hopefully doing
+    nothing bad in other situations.
+    
+    At presets -5 ... -9, 4020 MiB vs. 4096 MiB makes no difference
+    on how xz scales down the number of threads.
+    
+    The limit has to be a few MiB below 4096 MiB because otherwise
+    things like "xz --lzma2=dict=500MiB" won't scale down the dict
+    size enough and xz cannot allocate enough memory. With
+    "ulimit -v $((4096 * 1024))" on x86-64, the limit in xz had
+    to be no more than 4085 MiB. Some safety margin is good though.
+    
+    This is hack but it should be useful when running 32-bit xz on
+    a 64-bit kernel that gives full 4 GiB address space to xz.
+    Hopefully this is enough to solve this:
+    
+    https://bugzilla.redhat.com/show_bug.cgi?id=1196786
+    
+    FreeBSD has a patch that limits the result in tuklib_physmem()
+    to SIZE_MAX on 32-bit systems. While I think it's not the way
+    to do it, the results on --memlimit-compress have been good. This
+    commit should achieve practically identical results for compression
+    while leaving decompression and tuklib_physmem() and thus
+    lzma_physmem() unaffected.
+
+ src/xz/hardware.c | 32 +++++++++++++++++++++++++++++++-
+ src/xz/xz.1       | 21 ++++++++++++++++++++-
+ 2 files changed, 51 insertions(+), 2 deletions(-)
+
+commit 4433c2dc5727ee6aef570e001a5a024e0d94e609
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-01-26 20:53:25 +0200
+
+    xz: Set the --flush-timeout deadline when the first input byte arrives.
+    
+    xz --flush-timeout=2000, old version:
+    
+      1. xz is started. The next flush will happen after two seconds.
+      2. No input for one second.
+      3. A burst of a few kilobytes of input.
+      4. No input for one second.
+      5. Two seconds have passed and flushing starts.
+    
+    The first second counted towards the flush-timeout even though
+    there was no pending data. This can cause flushing to occur more
+    often than needed.
+    
+    xz --flush-timeout=2000, after this commit:
+    
+      1. xz is started.
+      2. No input for one second.
+      3. A burst of a few kilobytes of input. The next flush will
+         happen after two seconds counted from the time when the
+         first bytes of the burst were read.
+      4. No input for one second.
+      5. No input for another second.
+      6. Two seconds have passed and flushing starts.
+
+ src/xz/coder.c   | 6 +-----
+ src/xz/file_io.c | 6 +++++-
+ src/xz/mytime.c  | 1 -
+ 3 files changed, 6 insertions(+), 7 deletions(-)
+
+commit acc0ef3ac80f18e349c6d0252177707105c0a29c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-01-26 20:19:19 +0200
+
+    xz: Move flush_needed from mytime.h to file_pair struct in file_io.h.
+
+ src/xz/coder.c   | 3 ++-
+ src/xz/file_io.c | 3 ++-
+ src/xz/file_io.h | 3 +++
+ src/xz/mytime.c  | 3 ---
+ src/xz/mytime.h  | 4 ----
+ 5 files changed, 7 insertions(+), 9 deletions(-)
+
+commit 4afe69d30b66812682a2016ee18441958019cbb2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-01-26 14:49:22 +0200
+
+    xz: coder.c: Make writing output a separate function.
+    
+    The same code sequence repeats so it's nicer as a separate function.
+    Note that in one case there was no test for opt_mode != MODE_TEST,
+    but that was only because that condition would always be true, so
+    this commit doesn't change the behavior there.
+
+ src/xz/coder.c | 30 +++++++++++++++++-------------
+ 1 file changed, 17 insertions(+), 13 deletions(-)
+
+commit ec26f3ace5f9b260ca91508030f07465ae2f9f78
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-01-26 14:13:42 +0200
+
+    xz: Fix semi-busy-waiting in xz --flush-timeout.
+    
+    When input blocked, xz --flush-timeout=1 would wake up every
+    millisecond and initiate flushing which would have nothing to
+    flush and thus would just waste CPU time. The fix disables the
+    timeout when no input has been seen since the previous flush.
+
+ src/xz/coder.c   |  4 ++++
+ src/xz/file_io.c | 15 +++++++++++----
+ src/xz/file_io.h |  4 ++++
+ 3 files changed, 19 insertions(+), 4 deletions(-)
+
+commit 38915703241e69a64f133ff9a02ec9100c6019c6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-01-26 13:47:31 +0200
+
+    xz: Refactor io_read() a bit.
+
+ src/xz/file_io.c | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
+
+commit f6d24245349cecfae6ec0d2366fa80716c9f6d37
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-01-26 13:37:08 +0200
+
+    xz: Update a comment in file_io.h.
+
+ src/xz/file_io.h | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+commit 15b55d5c63d27f81776edb1abc05872a751fc674
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-01-26 13:27:51 +0200
+
+    xz: Move the setting of flush_needed in file_io.c to a nicer location.
+
+ src/xz/file_io.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+commit 609c7067859146ffc62ac655f6ba53599c891801
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-02-05 19:56:09 +0200
+
+    xz: Enable Capsicum sandboxing by default if available.
+    
+    It has been enabled in FreeBSD for a while and reported to work fine.
+    
+    Thanks to Xin Li.
+
+ INSTALL      | 6 ------
+ configure.ac | 8 ++++----
+ 2 files changed, 4 insertions(+), 10 deletions(-)
+
+commit 00517d125cc26ecece0eebb84c1c3975cd19bee0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-12-31 22:41:45 +0200
+
+    Rename unaligned_read32ne to read32ne, and similarly for the others.
+
+ src/common/tuklib_integer.h               | 64 +++++++++++++++----------------
+ src/liblzma/common/alone_encoder.c        |  2 +-
+ src/liblzma/common/block_header_decoder.c |  2 +-
+ src/liblzma/common/block_header_encoder.c |  2 +-
+ src/liblzma/common/memcmplen.h            |  9 ++---
+ src/liblzma/common/stream_flags_decoder.c |  6 +--
+ src/liblzma/common/stream_flags_encoder.c |  8 ++--
+ src/liblzma/lz/lz_encoder_hash.h          |  2 +-
+ src/liblzma/lzma/lzma_decoder.c           |  2 +-
+ src/liblzma/lzma/lzma_encoder.c           |  2 +-
+ src/liblzma/lzma/lzma_encoder_private.h   |  3 +-
+ src/liblzma/simple/simple_decoder.c       |  2 +-
+ src/liblzma/simple/simple_encoder.c       |  2 +-
+ tests/test_block_header.c                 |  4 +-
+ tests/test_stream_flags.c                 |  6 +--
+ 15 files changed, 54 insertions(+), 62 deletions(-)
+
+commit 52d89d8443c4a31a69c0701062f2c7711d82bbed
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-12-31 00:29:48 +0200
+
+    Rename read32ne to aligned_read32ne, and similarly for the others.
+    
+    Using the aligned methods requires more care to ensure that
+    the address really is aligned, so it's nicer if the aligned
+    methods are prefixed. The next commit will remove the unaligned_
+    prefix from the unaligned methods which in liblzma are used in
+    more places than the aligned ones.
+
+ src/common/tuklib_integer.h    | 56 +++++++++++++++++++++---------------------
+ src/liblzma/check/crc32_fast.c |  4 +--
+ src/liblzma/check/crc64_fast.c |  4 +--
+ 3 files changed, 32 insertions(+), 32 deletions(-)
+
+commit 850620468b57d49f16093e5870d1050886fcb37a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-12-31 00:18:24 +0200
+
+    Revise tuklib_integer.h and .m4.
+    
+    Add a configure option --enable-unsafe-type-punning to get the
+    old non-conforming memory access methods. It can be useful with
+    old compilers or in some other less typical situations but
+    shouldn't normally be used.
+    
+    Omit the packed struct trick for unaligned access. While it's
+    best in some cases, this is simpler. If the memcpy trick doesn't
+    work, one can request unsafe type punning from configure.
+    
+    Because CRC32/CRC64 code needs fast aligned reads, if no very
+    safe way to do it is found, type punning is used as a fallback.
+    This sucks but since it currently works in practice, it seems to
+    be the least bad option. It's never needed with GCC >= 4.7 or
+    Clang >= 3.6 since these support __builtin_assume_aligned and
+    thus fast aligned access can be done with the memcpy trick.
+    
+    Other things:
+      - Support GCC/Clang __builtin_bswapXX
+      - Cleaner bswap fallback macros
+      - Minor cleanups
+
+ m4/tuklib_integer.m4        |  43 ++++
+ src/common/tuklib_integer.h | 488 ++++++++++++++++++++++++--------------------
+ 2 files changed, 314 insertions(+), 217 deletions(-)
+
+commit a45badf0342666462cc6a7107a071418570ab773
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-12-29 22:51:58 +0200
+
+    Tests: Hopefully fix test_check.c to work on EBCDIC systems.
+    
+    Thanks to Daniel Richard G.
+
+ tests/test_check.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+commit c9a8071e6690a8db8a485c075920df254e7c70ea
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-09-24 23:02:40 +0300
+
+    Scripts: Put /usr/xpg4/bin to the beginning of PATH on Solaris.
+    
+    This adds a configure option --enable-path-for-scripts=PREFIX
+    which defaults to empty except on Solaris it is /usr/xpg4/bin
+    to make POSIX grep and others available. The Solaris case had
+    been documented in INSTALL with a manual fix but it's better
+    to do this automatically since it is needed on most Solaris
+    systems anyway.
+    
+    Thanks to Daniel Richard G.
+
+ INSTALL               | 43 +++++++++++++++++++++++++++++++++++--------
+ configure.ac          | 26 ++++++++++++++++++++++++++
+ src/scripts/xzdiff.in |  1 +
+ src/scripts/xzgrep.in |  1 +
+ src/scripts/xzless.in |  1 +
+ src/scripts/xzmore.in |  1 +
+ 6 files changed, 65 insertions(+), 8 deletions(-)
+
+commit aba140e2df3ff63ad124ae997de16d517b98ca50
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-07-12 18:57:43 +0300
+
+    Fix comment typos in tuklib_mbstr* files.
+
+ src/common/tuklib_mbstr.h       | 2 +-
+ src/common/tuklib_mbstr_fw.c    | 2 +-
+ src/common/tuklib_mbstr_width.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+commit 710f5bd769a5d2bd8684256c2727d15350ee2ab8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-07-12 18:30:46 +0300
+
+    Add missing include to tuklib_mbstr_width.c.
+    
+    It didn't matter in XZ Utils because sysdefs.h
+    includes string.h anyway.
+
+ src/common/tuklib_mbstr_width.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 0e491aa8cd72e0100cd15c1b9469cd57fae500b0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-25 23:15:21 +0300
+
+    liblzma: Fix a buggy comment.
+
+ src/liblzma/lz/lz_encoder_mf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit bfc245569f340a75bd71ad32a6beba786712683b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-25 00:16:06 +0300
+
+    configure.ac: Fix a typo in a comment.
+
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit f18eee9d15a22c8449ef395a05f0eb637c4ad253
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-25 00:08:13 +0300
+
+    Tests: Silence warnings from clang -Wassign-enum.
+    
+    Also changed 999 to 99 so it fits even if lzma_check happened
+    to be 8 bits wide.
+
+ tests/test_block_header.c | 3 ++-
+ tests/test_stream_flags.c | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+commit 25f74554723e8deabc66fed1abf0ec27a4ed19d5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-24 23:52:17 +0300
+
+    liblzma: Add a comment.
+
+ src/liblzma/common/stream_encoder_mt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 44eb961f2a51d02420d017bc5ff470360663650c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-24 23:45:21 +0300
+
+    liblzma: Silence clang -Wmissing-variable-declarations.
+
+ src/liblzma/check/crc32_table.c | 3 +++
+ src/liblzma/check/crc64_table.c | 3 +++
+ 2 files changed, 6 insertions(+)
+
+commit 267afcd9955e668c1532b069230c21c348eb4f82
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-24 22:57:43 +0300
+
+    xz: Silence a warning from clang -Wsign-conversion in main.c.
+
+ src/xz/main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 0e3c4002f809311ecef239b05e556d9c462b5703
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-24 22:47:39 +0300
+
+    liblzma: Remove incorrect uses of lzma_attribute((__unused__)).
+    
+    Caught by clang -Wused-but-marked-unused.
+
+ src/liblzma/common/alone_decoder.c | 3 +--
+ src/liblzma/common/alone_encoder.c | 3 +--
+ src/liblzma/lz/lz_decoder.c        | 3 +--
+ 3 files changed, 3 insertions(+), 6 deletions(-)
+
+commit cb708e8fa3405ec13a0ebfebbbf2793f927deab1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-24 20:53:55 +0300
+
+    Tests: Silence a warning from -Wsign-conversion.
+
+ tests/create_compress_files.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+commit c8cace3d6e965c0fb537591372bf71b9357dd76c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-24 20:45:49 +0300
+
+    xz: Fix an integer overflow with 32-bit off_t.
+    
+    Or any off_t which isn't very big (like signed 64 bit integer
+    that most system have). A small off_t could overflow if the
+    file being decompressed had long enough run of zero bytes,
+    which would result in corrupt output.
+
+ src/xz/file_io.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+commit 65a42741e290fbcd85dfc5db8a62c4bce5f7712c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-24 00:57:23 +0300
+
+    Tests: Remove a duplicate branch from tests/tests.h.
+    
+    The duplication was introduced about eleven years ago and
+    should have been cleaned up back then already.
+    
+    This was caught by -Wduplicated-branches.
+
+ tests/tests.h | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)
+
+commit 5c4fb60e8df026e933afab0cfe0a8b55be20036c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-23 23:22:45 +0300
+
+    tuklib_mbstr_width: Fix a warning from -Wsign-conversion.
+
+ src/common/tuklib_mbstr_width.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 37df03ce52ce53710e1513387648763f8a744154
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-23 23:19:34 +0300
+
+    xz: Fix some of the warnings from -Wsign-conversion.
+
+ src/xz/args.c    | 4 ++--
+ src/xz/coder.c   | 4 ++--
+ src/xz/file_io.c | 5 +++--
+ src/xz/message.c | 4 ++--
+ src/xz/mytime.c  | 4 ++--
+ src/xz/options.c | 2 +-
+ src/xz/util.c    | 4 ++--
+ 7 files changed, 14 insertions(+), 13 deletions(-)
+
+commit 7c65ae0f5f2e2431f88621e8fe6d1dc7907e30c1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-23 22:27:45 +0300
+
+    tuklib_cpucores: Silence warnings from -Wsign-conversion.
+
+ src/common/tuklib_cpucores.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+commit a502dd1d000b598406637d452f535f4bbd43e2a4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-23 21:40:47 +0300
+
+    xzdec: Fix warnings from -Wsign-conversion.
+
+ src/xzdec/xzdec.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit a45d1a5374ceb22e23255b0b595b9e641e9860af
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-23 21:38:56 +0300
+
+    liblzma: Fix warnings from -Wsign-conversion.
+    
+    Also, more parentheses were added to the literal_subcoder
+    macro in lzma_comon.h (better style but no functional change
+    in the current usage).
+
+ src/liblzma/common/block_header_decoder.c |  2 +-
+ src/liblzma/delta/delta_decoder.c         |  2 +-
+ src/liblzma/lzma/fastpos.h                |  2 +-
+ src/liblzma/lzma/lzma2_decoder.c          |  8 ++++----
+ src/liblzma/lzma/lzma_common.h            |  3 ++-
+ src/liblzma/lzma/lzma_decoder.c           | 16 ++++++++--------
+ src/liblzma/simple/arm.c                  |  6 +++---
+ src/liblzma/simple/armthumb.c             |  8 ++++----
+ src/liblzma/simple/ia64.c                 |  2 +-
+ src/liblzma/simple/powerpc.c              |  9 +++++----
+ src/liblzma/simple/x86.c                  |  2 +-
+ 11 files changed, 31 insertions(+), 29 deletions(-)
+
+commit 4ff87ddf80ed7cb233444cddd86ab1940b5b55ec
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-23 19:33:55 +0300
+
+    tuklib_integer: Silence warnings from -Wsign-conversion.
+
+ src/common/tuklib_integer.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit ed1a9d33984a3a37ae9a775a46859850d98ea4d0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-20 19:40:30 +0300
+
+    tuklib_integer: Fix usage of conv macros.
+    
+    Use a temporary variable instead of e.g.
+    conv32le(unaligned_read32ne(buf)) because the macro can
+    evaluate its argument multiple times.
+
+ src/common/tuklib_integer.h | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+commit 612c88dfc08e2c572623954ecfde541d21c84882
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-03 20:44:19 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 85da31d8b882b8b9671ab3e3d74d88bd945cd0bb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-03 20:41:54 +0300
+
+    liblzma: Fix comments.
+    
+    Thanks to Bruce Stark.
+
+ src/liblzma/common/alone_encoder.c        | 4 ++--
+ src/liblzma/common/block_util.c           | 2 +-
+ src/liblzma/common/common.c               | 2 +-
+ src/liblzma/common/filter_common.h        | 2 +-
+ src/liblzma/common/filter_decoder.h       | 2 +-
+ src/liblzma/common/filter_flags_encoder.c | 2 +-
+ 6 files changed, 7 insertions(+), 7 deletions(-)
+
+commit 6a73a7889587aa394e236c7e9e4f870b44851036
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-02 00:50:59 +0300
+
+    liblzma: Fix one more unaligned read to use unaligned_read16ne().
+
+ src/liblzma/lz/lz_encoder_hash.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit ce59b34ec9ac344d62a57cad5f94f695f42cdaee
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-01 21:41:55 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 94aa3fb568fe41dd4925a961966ed5cf8213bd1f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-01 21:36:13 +0300
+
+    liblzma: memcmplen: Use ctz32() from tuklib_integer.h.
+    
+    The same compiler-specific #ifdefs are already in tuklib_integer.h
+
+ src/liblzma/common/memcmplen.h | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)
+
+commit 412791486dfb430219d8e30bcbebbfc57a99484a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-01 21:30:03 +0300
+
+    tuklib_integer: Cleanup MSVC-specific code.
+
+ src/common/tuklib_integer.h | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)
+
+commit efbf6e5f0932e6c1a4250f91ee99059f449f2470
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-01 19:01:21 +0300
+
+    liblzma: Use unaligned_readXXne functions instead of type punning.
+    
+    Now gcc -fsanitize=undefined should be clean.
+    
+    Thanks to Jeffrey Walton.
+
+ src/liblzma/common/memcmplen.h          | 12 ++++++------
+ src/liblzma/lzma/lzma_encoder_private.h |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+commit 29afef03486d461c23f57150ac5436684bff7811
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-06-01 18:41:16 +0300
+
+    tuklib_integer: Improve unaligned memory access.
+    
+    Now memcpy() or GNU C packed structs for unaligned access instead
+    of type punning. See the comment in this commit for details.
+    
+    Avoiding type punning with unaligned access is needed to
+    silence gcc -fsanitize=undefined.
+    
+    New functions: unaliged_readXXne and unaligned_writeXXne where
+    XX is 16, 32, or 64.
+
+ src/common/tuklib_integer.h | 180 +++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 168 insertions(+), 12 deletions(-)
+
+commit 596ed3de4485a4b1d83b5fe506ae9d0a172139b4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-05-13 20:05:17 +0300
+
+    liblzma: Avoid memcpy(NULL, foo, 0) because it is undefined behavior.
+    
+    I should have always known this but I didn't. Here is an example
+    as a reminder to myself:
+    
+        int mycopy(void *dest, void *src, size_t n)
+        {
+            memcpy(dest, src, n);
+            return dest == NULL;
+        }
+    
+    In the example, a compiler may assume that dest != NULL because
+    passing NULL to memcpy() would be undefined behavior. Testing
+    with GCC 8.2.1, mycopy(NULL, NULL, 0) returns 1 with -O0 and -O1.
+    With -O2 the return value is 0 because the compiler infers that
+    dest cannot be NULL because it was already used with memcpy()
+    and thus the test for NULL gets optimized out.
+    
+    In liblzma, if a null-pointer was passed to memcpy(), there were
+    no checks for NULL *after* the memcpy() call, so I cautiously
+    suspect that it shouldn't have caused bad behavior in practice,
+    but it's hard to be sure, and the problematic cases had to be
+    fixed anyway.
+    
+    Thanks to Jeffrey Walton.
+
+ src/liblzma/common/common.c       |  6 +++++-
+ src/liblzma/lz/lz_decoder.c       | 12 +++++++++---
+ src/liblzma/simple/simple_coder.c | 10 +++++++++-
+ 3 files changed, 23 insertions(+), 5 deletions(-)
+
+commit b4b83555c576e1d845a2b98a193b23c021437804
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-05-11 20:56:08 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 8d4906262b45557ed164cd74adb270e6ef7f6f03
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-05-11 20:54:12 +0300
+
+    xz: Update xz man page date.
+
+ src/xz/xz.1 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 0d318402f8a022f707622c72f8f1894ea476cf89
+Author: Antoine Cœur <antoine.coeur@ef.com>
+Date:   2019-05-08 13:30:57 +0800
+
+    spelling
+
+ Doxyfile.in                            | 2 +-
+ NEWS                                   | 2 +-
+ src/liblzma/api/lzma/block.h           | 2 +-
+ src/liblzma/api/lzma/hardware.h        | 2 +-
+ src/liblzma/api/lzma/lzma12.h          | 2 +-
+ src/liblzma/api/lzma/vli.h             | 2 +-
+ src/liblzma/common/hardware_physmem.c  | 2 +-
+ src/liblzma/common/index.c             | 4 ++--
+ src/liblzma/common/stream_encoder_mt.c | 2 +-
+ src/liblzma/common/vli_decoder.c       | 2 +-
+ src/liblzma/lz/lz_decoder.c            | 2 +-
+ src/scripts/xzgrep.in                  | 2 +-
+ src/xz/args.c                          | 2 +-
+ src/xz/coder.c                         | 4 ++--
+ src/xz/main.c                          | 2 +-
+ src/xz/mytime.h                        | 2 +-
+ src/xz/private.h                       | 2 +-
+ src/xz/xz.1                            | 2 +-
+ windows/build.bash                     | 2 +-
+ 19 files changed, 21 insertions(+), 21 deletions(-)
+
+commit aeb3be8ac4c4b06a745c3799b80b38159fb78b1a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-03-04 22:49:04 +0200
+
+    README: Update translation instructions.
+    
+    XZ Utils is now part of the Translation Project
+    <https://translationproject.org/>.
+
+ README | 32 +++++++++++++-------------------
+ 1 file changed, 13 insertions(+), 19 deletions(-)
+
+commit 0c238dc3feb0a3eea1e713feb8d338c8dfba9f74
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2018-12-20 20:42:29 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 3ca432d9cce4bf7e793de173dd22025b68611c42
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2018-12-14 20:34:30 +0200
+
+    xz: Fix a crash in progress indicator when in passthru mode.
+    
+    "xz -dcfv not_an_xz_file" crashed (all four options are
+    required to trigger it). It caused xz to call
+    lzma_get_progress(&strm, ...) when no coder was initialized
+    in strm. In this situation strm.internal is NULL which leads
+    to a crash in lzma_get_progress().
+    
+    The bug was introduced when xz started using lzma_get_progress()
+    to get progress info for multi-threaded compression, so the
+    bug is present in versions 5.1.3alpha and higher.
+    
+    Thanks to Filip Palian <Filip.Palian@pjwstk.edu.pl> for
+    the bug report.
+
+ src/xz/coder.c   | 11 +++++++----
+ src/xz/message.c | 18 ++++++++++++++++--
+ src/xz/message.h |  3 ++-
+ 3 files changed, 25 insertions(+), 7 deletions(-)
+
+commit fcc419e3c3f77a8b6fc5056a86b1b8abbe266e62
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2018-11-22 17:20:31 +0200
+
+    xz: Update man page timestamp.
+
+ src/xz/xz.1 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 5a2fc3cd0194e55df329dd29f805299aaca5f32f
+Author: Pavel Raiskup <praiskup@redhat.com>
+Date:   2018-11-22 15:14:34 +0100
+
+    'have have' typos
+
+ src/xz/signals.c | 2 +-
+ src/xz/xz.1      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 7143b04fe49390807f355b1dad686a3d8c4dbdcf
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2018-07-27 18:10:44 +0300
+
+    xzless: Rename unused variables to silence static analysers.
+    
+    In this particular case I don't see this affecting readability
+    of the code.
+    
+    Thanks to Pavel Raiskup.
+
+ src/scripts/xzless.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 273c33297bb69621045ed19665eaf8338bcf4a50
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2018-07-27 16:02:58 +0300
+
+    liblzma: Remove an always-true condition from lzma_index_cat().
+    
+    This should help static analysis tools to see that newg
+    isn't leaked.
+    
+    Thanks to Pavel Raiskup.
+
+ src/liblzma/common/index.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 65b4aba6d06d2cd24ba9ad01fa389c238ad8f352
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2018-05-19 21:23:25 +0300
+
+    liblzma: Improve lzma_properties_decode() API documentation.
+
+ src/liblzma/api/lzma/filter.h | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+commit 531e78e5a253a3e2c4d4dd1505acaccee48f4083
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-05-01 16:52:36 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 905de7e93528ca5a47039e7e1e5270163f9fc67e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-05-01 16:43:16 +0300
+
+    Windows: Update VS version in windows/vs2019/config.h.
+
+ windows/vs2019/config.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 0ffd30e172fd18cc619823b2a86448bf56a67e22
+Author: Julien Marrec <julien.marrec@gmail.com>
+Date:   2019-04-25 17:44:06 +0200
+
+    Windows: Upgrade solution itself
+
+ windows/vs2019/xz_win.sln | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+commit c2ef96685fc7ca36311649eeb2284b9808292040
+Author: Julien Marrec <julien.marrec@gmail.com>
+Date:   2019-04-25 17:40:24 +0200
+
+    Windows: Upgrade solution with VS2019
+
+ windows/vs2019/liblzma.vcxproj     | 15 ++++++++-------
+ windows/vs2019/liblzma_dll.vcxproj | 15 ++++++++-------
+ 2 files changed, 16 insertions(+), 14 deletions(-)
+
+commit 25fccaf00bea399d8aa026e5b8fa254ce196e6e0
+Author: Julien Marrec <julien.marrec@gmail.com>
+Date:   2019-04-25 17:39:32 +0200
+
+    Windows: Duplicate windows/vs2017 before upgrading
+
+ windows/vs2019/config.h            | 148 ++++++++++++++
+ windows/vs2019/liblzma.vcxproj     | 354 ++++++++++++++++++++++++++++++++++
+ windows/vs2019/liblzma_dll.vcxproj | 383 +++++++++++++++++++++++++++++++++++++
+ windows/vs2019/xz_win.sln          |  48 +++++
+ 4 files changed, 933 insertions(+)
+
+commit 1424078d6328291c7c524b64328ce9660617cb24
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2019-01-13 17:29:23 +0200
+
+    Windows/VS2017: Omit WindowsTargetPlatformVersion from project files.
+    
+    I understood that if a WTPV is specified, it's often wrong
+    because different VS installations have different SDK version
+    installed. Omitting the WTPV tag makes VS2017 default to
+    Windows SDK 8.1 which often is also missing, so in any case
+    people may need to specify the WTPV before building. But some
+    day in the future a missing WTPV tag will start to default to
+    the latest installed SDK which sounds reasonable:
+    
+    https://developercommunity.visualstudio.com/content/problem/140294/windowstargetplatformversion-makes-it-impossible-t.html
+    
+    Thanks to "dom".
+
+ windows/INSTALL-MSVC.txt           | 4 ++++
+ windows/vs2017/liblzma.vcxproj     | 1 -
+ windows/vs2017/liblzma_dll.vcxproj | 1 -
+ 3 files changed, 4 insertions(+), 2 deletions(-)
+
 commit b5be61cc06088bb07f488f9baf7d447ff47b37c1
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   2018-04-29 19:00:06 +0300

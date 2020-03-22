@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       private.h
-/// \brief      Common includes, definions, and prototypes
+/// \brief      Common includes, definitions, and prototypes
 //
 //  Author:     Lasse Collin
 //
