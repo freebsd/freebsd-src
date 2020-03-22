@@ -7,7 +7,10 @@
 .               nochange
     var             nochange
         spool           nochange tags=package=runtime
-            clientmqueue    uname=smmsp gname=smmsp mode=0770
+            clientmqueue    uname=smmsp gname=smmsp mode=0770 tags=package=sendmail
+            ..
+/set gname=daemon
+            mqueue          tags=package=sendmail
             ..
         ..
     ..
