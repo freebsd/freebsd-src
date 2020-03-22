@@ -10,8 +10,7 @@ SECTIONS {
 	. = KERNLOADADDR + SIZEOF_HEADERS;
 
 	.text : {
-	    	*(.text)
-		*(.dynamic)
+		*(.text)
 		etext = .;
 		_etext = .;
 		. = ALIGN(0x2000);
@@ -35,8 +34,10 @@ SECTIONS {
 	    	*(.data)
 		. = ALIGN(32);
 	}
-
-	_gp = (. + 0x8000);
+	.plt : { *(.plt) }
+	_gp = ALIGN(16) + 0x7ff0;
+	.got : { *(.got.plt) *(.got) }
+	.dynamic : { *(.dynamic) }
 
 	.sdata : {
                 _small_start = .;
