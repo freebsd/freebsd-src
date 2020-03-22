@@ -851,7 +851,8 @@ IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
 
 # When generating install media, do not allow user and group information from
 # the build host to affect the contents of the distribution.
-.if make(distributeworld) || make(distrib-dirs) || make(distribution)
+.if make(distributeworld) || make(distrib-dirs) || make(distribution) || \
+    make(stageworld)
 DB_FROM_SRC=	yes
 .endif
 
