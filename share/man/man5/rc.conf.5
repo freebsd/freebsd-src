@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2020
+.Dd March 23, 2020
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1183,11 +1183,12 @@ break some legitimate applications.
 .Pq Vt bool
 Set to
 .Dq Li AUTO
-by default.  This setting will be identical to
+by default.
+This setting will be identical to
 .Dq Li YES ,
 if a dynamicrouting daemon is enabled, because redirect processing may
-cause perfomance issues for large routing tables.  If no such service
-is enabled, this setting behaves like a
+cause perfomance issues for large routing tables.
+If no such service is enabled, this setting behaves like a
 .Dq Li NO .
 Setting to
 .Dq Li YES
@@ -1673,7 +1674,8 @@ This static setting may be overridden by commands
 started with dynamic interface configuration utilities
 like
 .Xr dhclient 8
-hooks. The description can be seen with
+hooks.
+The description can be seen with
 .Xr ifconfig 8
 command and it may be exported with
 .Xr bsnmpd 1
