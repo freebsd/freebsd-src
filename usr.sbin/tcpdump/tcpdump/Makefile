@@ -186,7 +186,7 @@ CFLAGS+=	-DINET6 -DHAVE_OS_IPV6_SUPPORT
 CFLAGS+=	-DLBL_ALIGN
 .endif
 
-LIBADD=	l pcap
+LIBADD=	pcap
 .if ${MK_CASPER} != "no"
 LIBADD+=	casper
 LIBADD+=	cap_dns
