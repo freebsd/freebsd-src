@@ -283,17 +283,17 @@ is 8 bytes on all supported architectures except i386.
 .It riscv64sf   Ta soft Ta soft, double precision
 .El
 .Ss Default Tool Chain
-.Fx uses a variety of tool chain components for the supported CPU
-architectures:
+.Fx
+uses
 .Xr clang 1
+as the default compiler on all supported CPU architectures,
+as well as ELF Tool Chain binary utilities such as
+.Xr objcopy 1
 and
+.Xr readelf 1 .
+Most supported CPU architectures also use LLVM's
 .Xr ld.lld 1
-provided by the base system,
-GNU
-.Xr gcc 1
-and Binutils
-.Xr ld 1 ,
-or an external toolchain compiler and linker provided by a port or package.
+as the linker.
 This table shows the default tool chain for each architecture.
 .Bl -column -offset indent "Architecture" "Compiler" "Linker"
 .It Sy Architecture Ta Sy Compiler Ta Sy Linker
