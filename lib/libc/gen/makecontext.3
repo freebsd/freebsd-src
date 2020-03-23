@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2018
+.Dd March 23, 2020
 .Dt MAKECONTEXT 3
 .Os
 .Sh NAME
@@ -123,3 +123,41 @@ to complete the operation.
 .Sh SEE ALSO
 .Xr setcontext 3 ,
 .Xr ucontext 3
+.Sh STANDARDS
+The
+.Fn makecontext
+and
+.Fn swapcontext
+functions conform to
+.St -xsh5
+and
+.St -p1003.1-2001 .
+.Pp
+The
+.St -p1003.1-2004
+revision marked the functions
+.Fn makecontext
+and
+.Fn swapcontext
+as obsolete, citing portability issues and recommending the use of
+.Tn POSIX
+threads instead.
+The
+.St -p1003.1-2008
+revision removed the functions from the specification.
+.Pp
+.Bf -symbolic
+The standard does not clearly define the type of integer arguments
+passed to
+.Fa func
+via
+.Fn makecontext ;
+portable applications should not rely on the implementation detail that
+it may be possible to pass pointer arguments to functions.
+.Sh HISTORY
+The
+.Fn makecontext
+and
+.Fn swapcontext
+functions first appeared in
+.At V.4 .
