@@ -67,10 +67,30 @@ home_not_a_dir_body() {
 	atf_check ${RPW} userdel foo -r
 }
 
+atf_test_case home_shared
+home_shared_body() {
+	populate_root_etc_skel
+	mkdir ${HOME}/shared
+	atf_check ${RPW} useradd -n testuser1 -d /shared
+	atf_check ${RPW} useradd -n testuser2 -d /shared
+	atf_check ${RPW} userdel -n testuser1 -r
+	test -d ${HOME}/shared || atf_fail "Shared home has been removed"
+}
+
+atf_test_case home_regular_dir
+home_regular_dir_body() {
+	populate_root_etc_skel
+	atf_check ${RPW} useradd -n foo -d /foo
+	atf_check ${RPW} userdel -n foo -r
+	[ ! -d ${HOME}/foo ] || atf_fail "Home has not been removed"
+}
+
 atf_init_test_cases() {
 	atf_add_test_case rmuser_seperate_group
 	atf_add_test_case user_do_not_try_to_delete_root_if_user_unknown
 	atf_add_test_case delete_files
 	atf_add_test_case delete_numeric_name
 	atf_add_test_case home_not_a_dir
+	atf_add_test_case home_shared
+	atf_add_test_case home_regular_dir
 }
