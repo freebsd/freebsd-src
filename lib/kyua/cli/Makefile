@@ -2,6 +2,7 @@
 
 KYUA_LIB=	cli
 INTERNALLIB=
+LIBADD=		kyua_drivers kyua_engine kyua_model kyua_store kyua_utils
 CFLAGS+=	-DKYUA_CONFDIR=\"${KYUA_CONFDIR}\"		\
 		-DKYUA_DOCDIR=\"${KYUA_CONFDIR}\"		\
 		-DKYUA_MISCDIR=\"${KYUA_MISCDIR}\"		\
