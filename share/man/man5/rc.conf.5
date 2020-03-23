@@ -1182,11 +1182,19 @@ break some legitimate applications.
 .It Va icmp_drop_redirect
 .Pq Vt bool
 Set to
-.Dq Li NO
-by default.
+.Dq Li AUTO
+by default.  This setting will be identical to
+.Dq Li YES ,
+if a dynamicrouting daemon is enabled, because redirect processing may
+cause perfomance issues for large routing tables.  If no such service
+is enabled, this setting behaves like a
+.Dq Li NO .
 Setting to
 .Dq Li YES
 will cause the kernel to ignore ICMP REDIRECT packets.
+Setting to
+.Dq Li NO
+will cause the kernel to process ICMP REDIRECT packets.
 Refer to
 .Xr icmp 4
 for more information.
