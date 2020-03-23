@@ -67,6 +67,8 @@ int parse(FILE **);
 int yyparse(void);
 %}
 
+%option noyywrap
+
 /* common section */
 nl		\n
 ws		[ \t]+
