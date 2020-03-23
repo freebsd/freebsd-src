@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 KYUA_LIB=	drivers
+LIBADD=		kyua_model kyua_engine kyua_store
 
 SRCS=	debug_test.cpp		\
 	list_tests.cpp		\
