@@ -37,7 +37,7 @@ WARNS?=	1
 CFLAGS+= -I${.CURDIR} -I${SRCTOP}/lib/libipsec
 YFLAGS=	-d
 
-LIBADD=	l y
+LIBADD=	l
 
 CLEANFILES=	y.tab.c y.tab.h key_test.o keytest
 
