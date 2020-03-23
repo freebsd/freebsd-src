@@ -3,7 +3,7 @@
 # $FreeBSD$
 #
 
-# PROVIDE: routed
+# PROVIDE: routed dynamicrouting
 # REQUIRE: netif routing
 # BEFORE: NETWORK
 # KEYWORD: nojailvnet

@@ -292,8 +292,29 @@ ropts_init()
 	fi
 }
 
+_check_dynamicrouting()
+{
+	local skip file name rcvar
+
+	# copied from /etc/rc
+	skip="-s nostart"
+	if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
+		skip="$skip -s nojail"
+	fi
+	[ -n "$local_startup" ] && find_local_scripts_new
+	
+	for file in $( rcorder ${skip} /etc/rc.d/* ${local_rc} 2>/dev/null |
+		       xargs grep -lE '^# PROVIDE:.*\<dynamicrouting\>' ); do
+		(set -- enabled; . $file) && return 0;
+	done
+
+	return 1
+}
+
 options_inet()
 {
+	local _icmp_drop_redirect
+
 	_ropts_initdone=
 	if checkyesno icmp_bmcastecho; then
 		ropts_init inet
@@ -303,7 +324,17 @@ options_inet()
 		${SYSCTL} net.inet.icmp.bmcastecho=0 > /dev/null
 	fi
 
-	if checkyesno icmp_drop_redirect; then
+	_icmp_drop_redirect="${icmp_drop_redirect}"
+	case "${_icmp_drop_redirect}" in
+	[Aa][Uu][Tt][Oo] | "")
+		if _check_dynamicrouting; then
+			_icmp_drop_redirect="yes"
+		else
+			_icmp_drop_redirect="no"
+		fi
+		;;
+	esac
+	if checkyesno _icmp_drop_redirect; then
 		ropts_init inet
 		echo -n ' ignore ICMP redirect=YES'
 		${SYSCTL} net.inet.icmp.drop_redirect=1 > /dev/null
