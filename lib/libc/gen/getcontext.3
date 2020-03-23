@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2013
+.Dd March 23, 2020
 .Dt GETCONTEXT 3
 .Os
 .Sh NAME
@@ -148,3 +148,35 @@ No memory was available to allocate for the context or some extended state.
 .Xr sigaltstack 2 ,
 .Xr makecontext 3 ,
 .Xr ucontext 3
+.Sh STANDARDS
+The
+.Fn getcontext
+and
+.Fn setcontext
+functions conform to
+.St -xsh5
+and
+.St -p1003.1-2001 .
+The
+.Va errno
+indications are an extension to the standard.
+.Pp
+The
+.St -p1003.1-2004
+revision marked the functions
+.Fn getcontext
+and
+.Fn setcontext
+as obsolete, citing portability issues and recommending the use of
+.Tn POSIX
+threads instead.
+The
+.St -p1003.1-2008
+revision removed the functions from the specification.
+.Sh HISTORY
+The
+.Fn getcontext
+and
+.Fn setcontext
+functions first appeared in
+.At V.4 .
