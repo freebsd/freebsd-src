@@ -1,0 +1,11 @@
+This directory contains the classes that form the data model of Kyua.
+
+The classes in this directory are intended to be pure data types without
+any complex logic.  As such, they are simple containers and support the
+common operations you would expect from them: in particular, comparisons
+and formatting for debugging purposes.
+
+All the classes in the data model have to have an on-disk representation
+provided by the store module; if they don't, they don't belong in the
+model.  Some of these classes may also have special behavior at run-time,
+and this is provided by the engine module.

@@ -1,0 +1,187 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!--
+  Copyright 2012 The Kyua Authors.
+  All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are
+  met:
+
+  * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+  * Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+  * Neither the name of Google Inc. nor the names of its contributors
+    may be used to endorse or promote products derived from this software
+    without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+
+<html>
+<head>
+  <title>Tests summary</title>
+  <link rel="stylesheet" type="text/css" href="%%css%%" />
+</head>
+
+<body>
+
+
+<h1>Summary of test results</h1>
+
+<p class="overall">Overall result:
+%if bad_tests_count
+  <font class="bad">%%bad_tests_count%% TESTS FAILING</font>
+%else
+  <font class="good">ALL TESTS PASSING</font>
+%endif
+</p>
+
+<table class="tests-count">
+  <thead>
+    <tr>
+      <td>Test case result</td>
+      <td>Count</td>
+    </tr>
+  </thead>
+
+  <tbody>
+%if length(broken_test_cases)
+    <tr class="bad">
+      <td><a href="#broken">Broken</a></td>
+      <td class="numeric">%%length(broken_test_cases)%%</td>
+    </tr>
+%else
+    <tr>
+      <td>Broken</td>
+      <td class="numeric">%%broken_tests_count%%</td>
+    </tr>
+%endif
+%if length(failed_test_cases)
+    <tr class="bad">
+      <td><a href="#failed">Failed</a></td>
+      <td class="numeric">%%length(failed_test_cases)%%</td>
+    </tr>
+%else
+    <tr>
+      <td>Failed</td>
+      <td class="numeric">%%failed_tests_count%%</td>
+    </tr>
+%endif
+    <tr>
+%if length(xfail_test_cases)
+      <td><a href="#xfail">Expected failures</a></td>
+%else
+      <td>Expected failures</td>
+%endif
+      <td class="numeric">%%xfail_tests_count%%</td>
+    </tr>
+    <tr>
+%if length(skipped_test_cases)
+      <td><a href="#skipped">Skipped</a></td>
+%else
+      <td>Skipped</td>
+%endif
+      <td class="numeric">%%skipped_tests_count%%</td>
+    </tr>
+    <tr>
+%if length(passed_test_cases)
+      <td><a href="#passed">Passed</a></td>
+%else
+      <td>Passed</td>
+%endif
+      <td class="numeric">%%passed_tests_count%%</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="context.html">Execution context</a></p>
+
+<p>Timing data:</p>
+
+<ul>
+  <li>Start time: %%start_time%%</li>
+  <li>End time: %%end_time%%</li>
+  <li>Duration: %%duration%%</li>
+</ul>
+
+
+%if length(broken_test_cases)
+<h2><a name="broken">Broken test cases</a></h2>
+
+<ul>
+%loop broken_test_cases iter
+  <li>
+    <a href="%%broken_test_cases_file(iter)%%">%%broken_test_cases(iter)%%</a>
+  </li>
+%endloop
+</ul>
+%endif
+
+
+%if length(failed_test_cases)
+<h2><a name="failed">Failed test cases</a></h2>
+
+<ul>
+%loop failed_test_cases iter
+  <li>
+    <a href="%%failed_test_cases_file(iter)%%">%%failed_test_cases(iter)%%</a>
+  </li>
+%endloop
+</ul>
+%endif
+
+
+%if length(xfail_test_cases)
+<h2><a name="xfail">Expected failures</a></h2>
+
+<ul>
+%loop xfail_test_cases iter
+  <li>
+    <a href="%%xfail_test_cases_file(iter)%%">%%xfail_test_cases(iter)%%</a>
+  </li>
+%endloop
+</ul>
+%endif
+
+
+%if length(skipped_test_cases)
+<h2><a name="skipped">Skipped test cases</a></h2>
+
+<ul>
+%loop skipped_test_cases iter
+  <li>
+    <a href="%%skipped_test_cases_file(iter)%%">%%skipped_test_cases(iter)%%</a>
+  </li>
+%endloop
+</ul>
+%endif
+
+
+%if length(passed_test_cases)
+<h2><a name="passed">Passed test cases</a></h2>
+
+<ul>
+%loop passed_test_cases iter
+  <li>
+    <a href="%%passed_test_cases_file(iter)%%">%%passed_test_cases(iter)%%</a>
+  </li>
+%endloop
+</ul>
+%endif
+
+
+</body>
+</html>
