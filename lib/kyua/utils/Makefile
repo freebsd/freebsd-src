@@ -1,0 +1,64 @@
+# $FreeBSD$
+
+KYUA_LIB=	utils
+
+CFLAGS+=	-I${SRCTOP}/contrib/sqlite3
+CFLAGS+=	-DGDB=\"/usr/local/bin/gdb\"
+
+SRCS=	datetime.cpp			\
+	env.cpp				\
+	memory.cpp			\
+	passwd.cpp			\
+	sanity.cpp			\
+	stacktrace.cpp			\
+	stream.cpp			\
+	units.cpp			\
+	cmdline/base_command.cpp	\
+	cmdline/exceptions.cpp		\
+	cmdline/globals.cpp		\
+	cmdline/options.cpp		\
+	cmdline/parser.cpp		\
+	cmdline/ui.cpp			\
+	cmdline/ui_mock.cpp		\
+	config/exceptions.cpp		\
+	config/keys.cpp			\
+	config/lua_module.cpp		\
+	config/nodes.cpp		\
+	config/parser.cpp		\
+	config/tree.cpp			\
+	format/exceptions.cpp		\
+	format/formatter.cpp		\
+	fs/auto_cleaners.cpp		\
+	fs/directory.cpp		\
+	fs/exceptions.cpp		\
+	fs/lua_module.cpp		\
+	fs/operations.cpp		\
+	fs/path.cpp			\
+	logging/operations.cpp		\
+	process/child.cpp		\
+	process/deadline_killer.cpp	\
+	process/exceptions.cpp		\
+	process/executor.cpp		\
+	process/fdstream.cpp		\
+	process/isolation.cpp		\
+	process/operations.cpp		\
+	process/status.cpp		\
+	process/system.cpp		\
+	process/systembuf.cpp		\
+	signals/exceptions.cpp		\
+	signals/interrupts.cpp		\
+	signals/misc.cpp		\
+	signals/programmer.cpp		\
+	signals/timer.cpp		\
+	sqlite/c_gate.cpp		\
+	sqlite/database.cpp		\
+	sqlite/exceptions.cpp		\
+	sqlite/statement.cpp		\
+	sqlite/transaction.cpp		\
+	text/exceptions.cpp		\
+	text/operations.cpp		\
+	text/regex.cpp			\
+	text/table.cpp			\
+	text/templates.cpp		\
+
+.include <bsd.lib.mk>

@@ -54,6 +54,8 @@
         ..
         gss
         ..
+        kyua
+        ..
         mail
         ..
         mtree
