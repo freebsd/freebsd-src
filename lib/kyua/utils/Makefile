@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 KYUA_LIB=	utils
+LIBADD=		lutok
 
 CFLAGS+=	-I${SRCTOP}/contrib/sqlite3
 CFLAGS+=	-DGDB=\"/usr/local/bin/gdb\"
