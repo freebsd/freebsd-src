@@ -57,7 +57,7 @@ CRUNCH_SRCDIRS+= bin
 # statically - and that ends very badly.
 CRUNCH_SHLIBS+=	-lc -lutil -lcrypt -lxo -lgpio
 CRUNCH_LIBS+= -lkvm -lmemstat -lnetgraph
-CRUNCH_LIBS+= -lcrypt -ledit -ll -ltermcapw
+CRUNCH_LIBS+= -lcrypt -ledit -ltermcapw
 
 ###################################################################
 # Programs from standard /sbin
