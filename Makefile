@@ -500,13 +500,13 @@ TARGET_ARCHES_riscv?=	riscv64 riscv64sf
 TARGET_ARCHES_${target}?= ${target}
 .endfor
 
-MAKE_PARAMS_mips?=	CROSS_TOOLCHAIN=mips-gcc6
-
-TOOLCHAINS_mips=	mips-gcc6
-
 # Remove architectures only supported by external toolchain from
 # universe if required toolchain packages are missing.
-.for target in mips
+# Note: We no longer have targets that require an external toolchain, but for
+# now keep this block in case a new non-LLVM architecture is added and to reuse
+# it for a future extenal GCC make universe variant.
+_external_toolchain_targets=
+.for target in ${_external_toolchain_targets}
 .if ${_UNIVERSE_TARGETS:M${target}}
 .for toolchain in ${TOOLCHAINS_${target}}
 .if !exists(/usr/local/share/toolchains/${toolchain}.mk)
