@@ -25,4 +25,5 @@ www:*:80:80::0:0:World Wide Web Owner:/nonexistent:/usr/sbin/nologin
 ntpd:*:123:123::0:0:NTP Daemon:/var/db/ntp:/usr/sbin/nologin
 _ypldap:*:160:160::0:0:YP LDAP unprivileged user:/var/empty:/usr/sbin/nologin
 hast:*:845:845::0:0:HAST unprivileged user:/var/empty:/usr/sbin/nologin
+tests:*:977:65534::0:0:Unprivileged user for tests:/nonexistent:/usr/sbin/nologin
 nobody:*:65534:65534::0:0:Unprivileged user:/nonexistent:/usr/sbin/nologin
