@@ -232,7 +232,7 @@ g_eli_auth_read_done(struct cryptop *crp)
 	bp->bio_driver2 = NULL;
 	if (bp->bio_error != 0) {
 		if (bp->bio_error == -1)
-			bp->bio_error = EINVAL;
+			bp->bio_error = EINTEGRITY;
 		else {
 			G_ELI_LOGREQ(0, bp,
 			    "Crypto READ request failed (error=%d).",
