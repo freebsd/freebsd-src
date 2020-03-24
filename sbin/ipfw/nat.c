@@ -939,6 +939,34 @@ ipfw_config_nat(int ac, char **av)
 	}
 }
 
+static void
+nat_fill_ntlv(ipfw_obj_ntlv *ntlv, int i)
+{
+
+	ntlv->head.type = IPFW_TLV_EACTION_NAME(1); /* it doesn't matter */
+	ntlv->head.length = sizeof(ipfw_obj_ntlv);
+	ntlv->idx = 1;
+	ntlv->set = 0; /* not yet */
+	snprintf(ntlv->name, sizeof(ntlv->name), "%d", i);
+}
+
+int
+ipfw_delete_nat(int i)
+{
+	ipfw_obj_header oh;
+	int ret;
+
+	memset(&oh, 0, sizeof(oh));
+	nat_fill_ntlv(&oh.ntlv, i);
+	ret = do_set3(IP_FW_NAT44_DESTROY, &oh.opheader, sizeof(oh));
+	if (ret == -1) {
+		if (!co.do_quiet)
+			warn("nat %u not available", i);
+		return (EX_UNAVAILABLE);
+	}
+	return (EX_OK);
+}
+
 struct nat_list_arg {
 	uint16_t	cmd;
 	int		is_all;
