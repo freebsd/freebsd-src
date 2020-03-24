@@ -301,14 +301,8 @@ ENTRY(mpentry)
 	beqz	t1, 1b
 
 	/* Setup stack pointer */
-	lla	t0, secondary_stacks
-	li	t1, (PAGE_SIZE * KSTACK_PAGES)
-	mulw	t2, t1, a0
-	add	t0, t0, t2
-	add	t0, t0, t1
-	sub	t0, t0, s9
-	li	t1, KERNBASE
-	add	sp, t0, t1
+	lla	t0, bootstack
+	ld	sp, 0(t0)
 
 	/* Setup supervisor trap vector */
 	lla	t0, mpva
