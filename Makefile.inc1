@@ -2650,6 +2650,7 @@ NXBMAKE+=	XCC="${NXBOBJTOP}/tmp/usr/bin/cc" \
 		XCPP="${NXBOBJTOP}/tmp/usr/bin/cpp"
 .endif
 NXBMAKE+=	${NXBMAKEENV} ${MAKE} -f Makefile.inc1 ${NXBMAKEARGS} \
+		MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH} \
 		TARGET=${NXB_TARGET} TARGET_ARCH=${NXB_TARGET_ARCH} \
 		TARGET_TRIPLE=${MACHINE_TRIPLE:Q}
 # NXBDIRS is improperly based on MACHINE rather than NXB_TARGET.  Need to
