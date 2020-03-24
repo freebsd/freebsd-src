@@ -2015,7 +2015,11 @@ sctp_timeout_handler(void *t)
 		sctp_delete_prim_timer(inp, stcb);
 		break;
 	default:
+#ifdef INVARIANTS
 		panic("Unknown timer type %d", type);
+#else
+		goto get_out;
+#endif
 	}
 #ifdef SCTP_AUDITING_ENABLED
 	sctp_audit_log(0xF1, (uint8_t)type);
@@ -2434,7 +2438,11 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
 		break;
 	default:
+#ifdef INVARIANTS
 		panic("Unknown timer type %d", t_type);
+#else
+		return;
+#endif
 	}
 	KASSERT(tmr != NULL, ("tmr is NULL for timer type %d", t_type));
 	KASSERT(to_ticks > 0, ("to_ticks == 0 for timer type %d", t_type));
@@ -2715,7 +2723,11 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		tmr = &stcb->asoc.delete_prim_timer;
 		break;
 	default:
+#ifdef INVARIANTS
 		panic("Unknown timer type %d", t_type);
+#else
+		return;
+#endif
 	}
 	KASSERT(tmr != NULL, ("tmr is NULL for timer type %d", t_type));
 	if ((tmr->type != SCTP_TIMER_TYPE_NONE) &&
