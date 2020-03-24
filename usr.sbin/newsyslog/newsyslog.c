@@ -1832,13 +1832,19 @@ do_rotate(const struct conf_entry *ent)
 			change_attrs(zfile2, ent);
 			if (ent->compress && !strlen(logfile_suffix)) {
 				/* compress old rotation */
-				struct zipwork_entry zwork;
+				struct zipwork_entry *zwork;
+				size_t tmpsiz;
 
-				memset(&zwork, 0, sizeof(zwork));
-				zwork.zw_conf = ent;
-				zwork.zw_fsize = sizefile(zfile2);
-				strcpy(zwork.zw_fname, zfile2);
-				do_zipwork(&zwork);
+				tmpsiz = sizeof(struct zipwork_entry) + strlen(zfile2) + 1;
+				zwork = calloc(1, tmpsiz);
+				if (zwork == NULL)
+					err(1, "calloc of zipwork_entry for %s", zfile2);
+
+				zwork->zw_conf = ent;
+				zwork->zw_fsize = sizefile(zfile2);
+				strcpy(zwork->zw_fname, zfile2);
+				do_zipwork(zwork);
+				free(zwork);
 			}
 		}
 	}
