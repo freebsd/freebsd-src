@@ -4735,9 +4735,25 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 	error = fget_read(td, infd, &cap_read_rights, &infp);
 	if (error != 0)
 		goto out;
+	if (infp->f_ops == &badfileops) {
+		error = EBADF;
+		goto out;
+	}
+	if (infp->f_vnode == NULL) {
+		error = EINVAL;
+		goto out;
+	}
 	error = fget_write(td, outfd, &cap_write_rights, &outfp);
 	if (error != 0)
 		goto out;
+	if (outfp->f_ops == &badfileops) {
+		error = EBADF;
+		goto out;
+	}
+	if (outfp->f_vnode == NULL) {
+		error = EINVAL;
+		goto out;
+	}
 
 	/* Set the offset pointers to the correct place. */
 	if (inoffp == NULL)
