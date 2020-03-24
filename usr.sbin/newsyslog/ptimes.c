@@ -147,18 +147,22 @@ parse8601(struct ptime_data *ptime, const char *s)
 	case 8:
 		tm.tm_year = ((l / 1000000) - 19) * 100;
 		l = l % 1000000;
+		/* FALLTHROUGH */
 	case 6:
 		ptime->tmspec |= TSPEC_YEAR;
 		tm.tm_year -= tm.tm_year % 100;
 		tm.tm_year += l / 10000;
 		l = l % 10000;
+		/* FALLTHROUGH */
 	case 4:
 		ptime->tmspec |= TSPEC_MONTHOFYEAR;
 		tm.tm_mon = (l / 100) - 1;
 		l = l % 100;
+		/* FALLTHROUGH */
 	case 2:
 		ptime->tmspec |= TSPEC_DAYOFMONTH;
 		tm.tm_mday = l;
+		/* FALLTHROUGH */
 	case 0:
 		break;
 	default:
@@ -180,12 +184,15 @@ parse8601(struct ptime_data *ptime, const char *s)
 		case 6:
 			tm.tm_sec = l % 100;
 			l /= 100;
+			/* FALLTHROUGH */
 		case 4:
 			tm.tm_min = l % 100;
 			l /= 100;
+			/* FALLTHROUGH */
 		case 2:
 			ptime->tmspec |= TSPEC_HOUROFDAY;
 			tm.tm_hour = l;
+			/* FALLTHROUGH */
 		case 0:
 			break;
 		default:
