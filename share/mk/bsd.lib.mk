@@ -489,10 +489,7 @@ _libinstall:
 .include <bsd.nls.mk>
 .include <bsd.confs.mk>
 .include <bsd.files.mk>
-#No need to install header for INTERNALLIB
-.if !defined(INTERNALLIB)
 .include <bsd.incs.mk>
-.endif
 .endif
 
 LINKOWN?=	${LIBOWN}
