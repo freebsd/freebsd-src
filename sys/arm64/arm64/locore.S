@@ -214,11 +214,10 @@ ENTRY(mpentry)
 	br	x15
 
 mp_virtdone:
-	ldr	x4, =secondary_stacks
-	mov	x5, #(PAGE_SIZE * KSTACK_PAGES)
-	mul	x5, x0, x5
-	add	sp, x4, x5
-
+	/* Start using the AP boot stack */
+	ldr	x4, =bootstack
+	ldr	x4, [x4]
+	mov	sp, x4
 	b	init_secondary
 END(mpentry)
 #endif
