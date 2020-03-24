@@ -297,6 +297,7 @@ static struct ichwd_device ichwd_devices[] = {
 static struct ichwd_device ichwd_smb_devices[] = {
 	{ DEVICEID_LEWISBURG_SMB, "Lewisburg watchdog timer",		10, 4 },
 	{ DEVICEID_SRPTLP_SMB,    "Sunrise Point-LP watchdog timer",	10, 4 },
+	{ DEVICEID_C3000,         "Intel Atom C3000 watchdog timer",	10, 4 },
 	{ 0, NULL, 0, 0 },
 };
 
