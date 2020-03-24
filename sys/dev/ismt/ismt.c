@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define ISMT_DESC_LPR	0x80	/* Large Packet Received */
 
 /* Macros */
-#define ISMT_DESC_ADDR_RW(addr, is_read) ((addr << 1) | (is_read))
+#define ISMT_DESC_ADDR_RW(addr, is_read) ((addr) | (is_read))
 
 /* iSMT General Register address offsets (SMBBAR + <addr>) */
 #define ISMT_GR_GCTRL		0x000	/* General Control */
