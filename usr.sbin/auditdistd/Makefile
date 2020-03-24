@@ -21,7 +21,7 @@ SRCS+=	sandbox.c sender.c subr.c
 SRCS+=	token.l trail.c
 MAN=	auditdistd.8 auditdistd.conf.5
 
-LIBADD+=	l pthread util crypto ssl
+LIBADD+=	pthread util crypto ssl
 
 YFLAGS+=-v
 
