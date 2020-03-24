@@ -1601,10 +1601,36 @@ sctp_handle_addr_wq(void)
 	}
 }
 
+/*-
+ * The following table shows which pointers for the inp, stcb, or net are
+ * stored for each timer after it was started.
+ *
+ *|Name                         |Timer                        |inp |stcb|net |
+ *|-----------------------------|-----------------------------|----|----|----|
+ *|SCTP_TIMER_TYPE_SEND         |net->rxt_timer               |Yes |Yes |Yes |
+ *|SCTP_TIMER_TYPE_INIT         |net->rxt_timer               |Yes |Yes |Yes |
+ *|SCTP_TIMER_TYPE_RECV         |stcb->asoc.dack_timer        |Yes |Yes |No  |
+ *|SCTP_TIMER_TYPE_SHUTDOWN     |net->rxt_timer               |Yes |Yes |Yes |
+ *|SCTP_TIMER_TYPE_HEARTBEAT    |net->hb_timer                |Yes |Yes |Yes |
+ *|SCTP_TIMER_TYPE_COOKIE       |net->rxt_timer               |Yes |Yes |Yes |
+ *|SCTP_TIMER_TYPE_NEWCOOKIE    |inp->sctp_ep.signature_change|Yes |No  |No  |
+ *|SCTP_TIMER_TYPE_PATHMTURAISE |net->pmtu_timer              |Yes |Yes |Yes |
+ *|SCTP_TIMER_TYPE_SHUTDOWNACK  |net->rxt_timer               |Yes |Yes |Yes |
+ *|SCTP_TIMER_TYPE_ASCONF       |stcb->asoc.asconf_timer      |Yes |Yes |Yes |
+ *|SCTP_TIMER_TYPE_SHUTDOWNGUARD|stcb->asoc.shut_guard_timer  |Yes |Yes |No  |
+ *|SCTP_TIMER_TYPE_AUTOCLOSE    |stcb->asoc.autoclose_timer   |Yes |Yes |No  |
+ *|SCTP_TIMER_TYPE_STRRESET     |stcb->asoc.strreset_timer    |Yes |Yes |No  |
+ *|SCTP_TIMER_TYPE_INPKILL      |inp->sctp_ep.signature_change|Yes |No  |No  |
+ *|SCTP_TIMER_TYPE_ASOCKILL     |stcb->asoc.strreset_timer    |Yes |Yes |No  |
+ *|SCTP_TIMER_TYPE_ADDR_WQ      |SCTP_BASE_INFO(addr_wq_timer)|No  |No  |No  |
+ *|SCTP_TIMER_TYPE_PRIM_DELETED |stcb->asoc.delete_prim_timer |Yes |Yes |No  |
+ */
+
 void
 sctp_timeout_handler(void *t)
 {
 	struct epoch_tracker et;
+	struct timeval tv;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
 	struct sctp_nets *net;
@@ -1615,6 +1641,7 @@ sctp_timeout_handler(void *t)
 #endif
 	int did_output;
 	int type;
+	int i, secret;
 
 	tmr = (struct sctp_timer *)t;
 	inp = (struct sctp_inpcb *)tmr->ep;
@@ -1629,48 +1656,31 @@ sctp_timeout_handler(void *t)
 #endif
 
 	/* sanity checks... */
-	if (tmr->self != (void *)tmr) {
-		/*
-		 * SCTP_PRINTF("Stale SCTP timer fired (%p), ignoring...\n",
-		 * (void *)tmr);
-		 */
-		CURVNET_RESTORE();
-		return;
-	}
+	KASSERT(tmr->self == tmr, ("tmr->self corrupted"));
+	KASSERT(SCTP_IS_TIMER_TYPE_VALID(tmr->type), ("Invalid timer type %d", tmr->type));
+	type = tmr->type;
 	tmr->stopped_from = 0xa001;
-	if (!SCTP_IS_TIMER_TYPE_VALID(tmr->type)) {
-		/*
-		 * SCTP_PRINTF("SCTP timer fired with invalid type: 0x%x\n",
-		 * tmr->type);
-		 */
-		CURVNET_RESTORE();
-		return;
-	}
-	tmr->stopped_from = 0xa002;
-	if ((tmr->type != SCTP_TIMER_TYPE_ADDR_WQ) && (inp == NULL)) {
-		CURVNET_RESTORE();
-		return;
-	}
-	/* if this is an iterator timeout, get the struct and clear inp */
-	tmr->stopped_from = 0xa003;
 	if (inp) {
 		SCTP_INP_INCR_REF(inp);
 		if ((inp->sctp_socket == NULL) &&
-		    ((tmr->type != SCTP_TIMER_TYPE_INPKILL) &&
-		    (tmr->type != SCTP_TIMER_TYPE_INIT) &&
-		    (tmr->type != SCTP_TIMER_TYPE_SEND) &&
-		    (tmr->type != SCTP_TIMER_TYPE_RECV) &&
-		    (tmr->type != SCTP_TIMER_TYPE_HEARTBEAT) &&
-		    (tmr->type != SCTP_TIMER_TYPE_SHUTDOWN) &&
-		    (tmr->type != SCTP_TIMER_TYPE_SHUTDOWNACK) &&
-		    (tmr->type != SCTP_TIMER_TYPE_SHUTDOWNGUARD) &&
-		    (tmr->type != SCTP_TIMER_TYPE_ASOCKILL))) {
+		    ((type != SCTP_TIMER_TYPE_INPKILL) &&
+		    (type != SCTP_TIMER_TYPE_INIT) &&
+		    (type != SCTP_TIMER_TYPE_SEND) &&
+		    (type != SCTP_TIMER_TYPE_RECV) &&
+		    (type != SCTP_TIMER_TYPE_HEARTBEAT) &&
+		    (type != SCTP_TIMER_TYPE_SHUTDOWN) &&
+		    (type != SCTP_TIMER_TYPE_SHUTDOWNACK) &&
+		    (type != SCTP_TIMER_TYPE_SHUTDOWNGUARD) &&
+		    (type != SCTP_TIMER_TYPE_ASOCKILL))) {
 			SCTP_INP_DECR_REF(inp);
 			CURVNET_RESTORE();
+			SCTPDBG(SCTP_DEBUG_TIMER2,
+			    "Timer type = %d handler exiting due to closed socket\n",
+			    type);
 			return;
 		}
 	}
-	tmr->stopped_from = 0xa004;
+	tmr->stopped_from = 0xa002;
 	if (stcb) {
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 		if (stcb->asoc.state == 0) {
@@ -1679,11 +1689,13 @@ sctp_timeout_handler(void *t)
 				SCTP_INP_DECR_REF(inp);
 			}
 			CURVNET_RESTORE();
+			SCTPDBG(SCTP_DEBUG_TIMER2,
+			    "Timer type = %d handler exiting due to CLOSED association\n",
+			    type);
 			return;
 		}
 	}
-	type = tmr->type;
-	tmr->stopped_from = 0xa005;
+	tmr->stopped_from = 0xa003;
 	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer type %d goes off\n", type);
 	if (!SCTP_OS_TIMER_ACTIVE(&tmr->timer)) {
 		if (inp) {
@@ -1693,9 +1705,12 @@ sctp_timeout_handler(void *t)
 			atomic_add_int(&stcb->asoc.refcnt, -1);
 		}
 		CURVNET_RESTORE();
+		SCTPDBG(SCTP_DEBUG_TIMER2,
+		    "Timer type = %d handler exiting due to not being active\n",
+		    type);
 		return;
 	}
-	tmr->stopped_from = 0xa006;
+	tmr->stopped_from = 0xa004;
 
 	if (stcb) {
 		SCTP_TCB_LOCK(stcb);
@@ -1708,12 +1723,13 @@ sctp_timeout_handler(void *t)
 				SCTP_INP_DECR_REF(inp);
 			}
 			CURVNET_RESTORE();
+			SCTPDBG(SCTP_DEBUG_TIMER2,
+			    "Timer type = %d handler exiting due to CLOSED association\n",
+			    type);
 			return;
 		}
 	} else if (inp != NULL) {
-		if (type != SCTP_TIMER_TYPE_INPKILL) {
-			SCTP_INP_WLOCK(inp);
-		}
+		SCTP_INP_WLOCK(inp);
 	} else {
 		SCTP_WQ_ADDR_LOCK();
 	}
@@ -1739,9 +1755,9 @@ sctp_timeout_handler(void *t)
 	/* call the handler for the appropriate timer type */
 	switch (type) {
 	case SCTP_TIMER_TYPE_SEND:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net != NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timodata);
 		stcb->asoc.timodata++;
 		stcb->asoc.num_send_timers_up--;
@@ -1775,9 +1791,9 @@ sctp_timeout_handler(void *t)
 		}
 		break;
 	case SCTP_TIMER_TYPE_INIT:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net != NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timoinit);
 		stcb->asoc.timoinit++;
 		if (sctp_t1init_timer(inp, stcb, net)) {
@@ -1788,36 +1804,36 @@ sctp_timeout_handler(void *t)
 		did_output = 0;
 		break;
 	case SCTP_TIMER_TYPE_RECV:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net == NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timosack);
 		stcb->asoc.timosack++;
 		sctp_send_sack(stcb, SCTP_SO_NOT_LOCKED);
 #ifdef SCTP_AUDITING_ENABLED
-		sctp_auditing(4, inp, stcb, net);
+		sctp_auditing(4, inp, stcb, NULL);
 #endif
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_SACK_TMR, SCTP_SO_NOT_LOCKED);
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWN:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net != NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
+		SCTP_STAT_INCR(sctps_timoshutdown);
+		stcb->asoc.timoshutdown++;
 		if (sctp_shutdown_timer(inp, stcb, net)) {
 			/* no need to unlock on tcb its gone */
 			goto out_decr;
 		}
-		SCTP_STAT_INCR(sctps_timoshutdown);
-		stcb->asoc.timoshutdown++;
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
 #endif
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_SHUT_TMR, SCTP_SO_NOT_LOCKED);
 		break;
 	case SCTP_TIMER_TYPE_HEARTBEAT:
-		if ((stcb == NULL) || (inp == NULL) || (net == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net != NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timoheartbeat);
 		stcb->asoc.timoheartbeat++;
 		if (sctp_heartbeat_timer(inp, stcb, net)) {
@@ -1833,16 +1849,15 @@ sctp_timeout_handler(void *t)
 		}
 		break;
 	case SCTP_TIMER_TYPE_COOKIE:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
-
+		KASSERT(inp != NULL && stcb != NULL && net != NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
+		SCTP_STAT_INCR(sctps_timocookie);
+		stcb->asoc.timocookie++;
 		if (sctp_cookie_timer(inp, stcb, net)) {
 			/* no need to unlock on tcb its gone */
 			goto out_decr;
 		}
-		SCTP_STAT_INCR(sctps_timocookie);
-		stcb->asoc.timocookie++;
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
 #endif
@@ -1853,44 +1868,39 @@ sctp_timeout_handler(void *t)
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_NOT_LOCKED);
 		break;
 	case SCTP_TIMER_TYPE_NEWCOOKIE:
-		{
-			struct timeval tv;
-			int i, secret;
-
-			if (inp == NULL) {
-				break;
-			}
-			SCTP_STAT_INCR(sctps_timosecret);
-			(void)SCTP_GETTIME_TIMEVAL(&tv);
-			inp->sctp_ep.time_of_secret_change = tv.tv_sec;
-			inp->sctp_ep.last_secret_number =
-			    inp->sctp_ep.current_secret_number;
-			inp->sctp_ep.current_secret_number++;
-			if (inp->sctp_ep.current_secret_number >=
-			    SCTP_HOW_MANY_SECRETS) {
-				inp->sctp_ep.current_secret_number = 0;
-			}
-			secret = (int)inp->sctp_ep.current_secret_number;
-			for (i = 0; i < SCTP_NUMBER_OF_SECRETS; i++) {
-				inp->sctp_ep.secret_key[secret][i] =
-				    sctp_select_initial_TSN(&inp->sctp_ep);
-			}
-			sctp_timer_start(SCTP_TIMER_TYPE_NEWCOOKIE, inp, NULL, NULL);
+		KASSERT(inp != NULL && stcb == NULL && net == NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
+		SCTP_STAT_INCR(sctps_timosecret);
+		(void)SCTP_GETTIME_TIMEVAL(&tv);
+		inp->sctp_ep.time_of_secret_change = tv.tv_sec;
+		inp->sctp_ep.last_secret_number =
+		    inp->sctp_ep.current_secret_number;
+		inp->sctp_ep.current_secret_number++;
+		if (inp->sctp_ep.current_secret_number >=
+		    SCTP_HOW_MANY_SECRETS) {
+			inp->sctp_ep.current_secret_number = 0;
 		}
+		secret = (int)inp->sctp_ep.current_secret_number;
+		for (i = 0; i < SCTP_NUMBER_OF_SECRETS; i++) {
+			inp->sctp_ep.secret_key[secret][i] =
+			    sctp_select_initial_TSN(&inp->sctp_ep);
+		}
+		sctp_timer_start(SCTP_TIMER_TYPE_NEWCOOKIE, inp, NULL, NULL);
 		did_output = 0;
 		break;
 	case SCTP_TIMER_TYPE_PATHMTURAISE:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net != NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timopathmtu);
 		sctp_pathmtu_timer(inp, stcb, net);
 		did_output = 0;
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWNACK:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net != NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		if (sctp_shutdownack_timer(inp, stcb, net)) {
 			/* no need to unlock on tcb its gone */
 			goto out_decr;
@@ -1903,23 +1913,23 @@ sctp_timeout_handler(void *t)
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_SHUT_ACK_TMR, SCTP_SO_NOT_LOCKED);
 		break;
 	case SCTP_TIMER_TYPE_ASCONF:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net != NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
+		SCTP_STAT_INCR(sctps_timoasconf);
 		if (sctp_asconf_timer(inp, stcb, net)) {
 			/* no need to unlock on tcb its gone */
 			goto out_decr;
 		}
-		SCTP_STAT_INCR(sctps_timoasconf);
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
 #endif
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_ASCONF_TMR, SCTP_SO_NOT_LOCKED);
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWNGUARD:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net == NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timoshutdownguard);
 		op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 		    "Shutdown guard timer expired");
@@ -1927,45 +1937,46 @@ sctp_timeout_handler(void *t)
 		/* no need to unlock on tcb its gone */
 		goto out_decr;
 	case SCTP_TIMER_TYPE_AUTOCLOSE:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net == NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timoautoclose);
 		sctp_autoclose_timer(inp, stcb);
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_AUTOCLOSE_TMR, SCTP_SO_NOT_LOCKED);
 		did_output = 0;
 		break;
 	case SCTP_TIMER_TYPE_STRRESET:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net == NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
+		SCTP_STAT_INCR(sctps_timostrmrst);
 		if (sctp_strreset_timer(inp, stcb)) {
 			/* no need to unlock on tcb its gone */
 			goto out_decr;
 		}
-		SCTP_STAT_INCR(sctps_timostrmrst);
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_STRRST_TMR, SCTP_SO_NOT_LOCKED);
 		break;
 	case SCTP_TIMER_TYPE_INPKILL:
+		KASSERT(inp != NULL && stcb == NULL && net == NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timoinpkill);
-		if (inp == NULL) {
-			break;
-		}
 		/*
 		 * special case, take away our increment since WE are the
 		 * killer
 		 */
-		SCTP_INP_DECR_REF(inp);
 		sctp_timer_stop(SCTP_TIMER_TYPE_INPKILL, inp, NULL, NULL,
 		    SCTP_FROM_SCTPUTIL + SCTP_LOC_3);
+		SCTP_INP_DECR_REF(inp);
+		SCTP_INP_WUNLOCK(inp);
 		sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
 		    SCTP_CALLED_FROM_INPKILL_TIMER);
 		inp = NULL;
 		goto out_no_decr;
 	case SCTP_TIMER_TYPE_ASOCKILL:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
+		KASSERT(inp != NULL && stcb != NULL && net == NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timoassockill);
 		/* Can we free it yet? */
 		SCTP_INP_DECR_REF(inp);
@@ -1991,19 +2002,20 @@ sctp_timeout_handler(void *t)
 		stcb = NULL;
 		goto out_no_decr;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
+		KASSERT(inp == NULL && stcb == NULL && net == NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		sctp_handle_addr_wq();
 		break;
 	case SCTP_TIMER_TYPE_PRIM_DELETED:
-		if ((stcb == NULL) || (inp == NULL)) {
-			break;
-		}
-		sctp_delete_prim_timer(inp, stcb);
+		KASSERT(inp != NULL && stcb != NULL && net == NULL,
+		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
+		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timodelprim);
+		sctp_delete_prim_timer(inp, stcb);
 		break;
 	default:
-		SCTPDBG(SCTP_DEBUG_TIMER1, "sctp_timeout_handler:unknown timer %d\n",
-		    type);
-		break;
+		panic("Unknown timer type %d", type);
 	}
 #ifdef SCTP_AUDITING_ENABLED
 	sctp_audit_log(0xF1, (uint8_t)type);
@@ -2035,54 +2047,105 @@ out_decr:
 	}
 
 out_no_decr:
-	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer now complete (type = %d)\n", type);
+	SCTPDBG(SCTP_DEBUG_TIMER2, "Timer type = %d handler finished\n", type);
 	CURVNET_RESTORE();
 	NET_EPOCH_EXIT(et);
 }
+
+/*-
+ * The following table shows which parameters must be provided
+ * when calling sctp_timer_start(). For parameters not being
+ * provided, NULL must be used.
+ *
+ * |Name                         |inp |stcb|net |
+ * |-----------------------------|----|----|----|
+ * |SCTP_TIMER_TYPE_SEND         |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_INIT         |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_RECV         |Yes |Yes |No  |
+ * |SCTP_TIMER_TYPE_SHUTDOWN     |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_HEARTBEAT    |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_COOKIE       |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_NEWCOOKIE    |Yes |No  |No  |
+ * |SCTP_TIMER_TYPE_PATHMTURAISE |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_SHUTDOWNACK  |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_ASCONF       |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_SHUTDOWNGUARD|Yes |Yes |No  |
+ * |SCTP_TIMER_TYPE_AUTOCLOSE    |Yes |Yes |No  |
+ * |SCTP_TIMER_TYPE_STRRESET     |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_INPKILL      |Yes |No  |No  |
+ * |SCTP_TIMER_TYPE_ASOCKILL     |Yes |Yes |No  |
+ * |SCTP_TIMER_TYPE_ADDR_WQ      |No  |No  |No  |
+ * |SCTP_TIMER_TYPE_PRIM_DELETED |Yes |Yes |No  |
+ *
+ */
 
 void
 sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
-	uint32_t to_ticks;
 	struct sctp_timer *tmr;
-
-	if ((t_type != SCTP_TIMER_TYPE_ADDR_WQ) && (inp == NULL))
-		return;
+	uint32_t to_ticks;
+	uint32_t rndval, jitter;
 
 	tmr = NULL;
-	if (stcb) {
+	to_ticks = 0;
+	if (stcb != NULL) {
 		SCTP_TCB_LOCK_ASSERT(stcb);
+	} else if (inp != NULL) {
+		SCTP_INP_WLOCK_ASSERT(inp);
+	} else {
+		SCTP_WQ_ADDR_LOCK_ASSERT();
 	}
-	/* Don't restart timer on net that's been removed. */
-	if (net != NULL && (net->dest_state & SCTP_ADDR_BEING_DELETED)) {
-		return;
+	if (stcb != NULL) {
+		/*
+		 * Don't restart timer on association that's about to be
+		 * killed.
+		 */
+		if ((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) &&
+		    (t_type != SCTP_TIMER_TYPE_ASOCKILL)) {
+			SCTPDBG(SCTP_DEBUG_TIMER2,
+			    "timer type %d not started: inp=%p, stcb=%p, net=%p (stcb deleted).\n",
+			    t_type, inp, stcb, net);
+			return;
+		}
+		/* Don't restart timer on net that's been removed. */
+		if (net != NULL && (net->dest_state & SCTP_ADDR_BEING_DELETED)) {
+			SCTPDBG(SCTP_DEBUG_TIMER2,
+			    "timer type %d not started: inp=%p, stcb=%p, net=%p (net deleted).\n",
+			    t_type, inp, stcb, net);
+			return;
+		}
 	}
 	switch (t_type) {
 	case SCTP_TIMER_TYPE_SEND:
-		/* Here we use the RTO timer */
-		{
-			int rto_val;
-
-			if ((stcb == NULL) || (net == NULL)) {
-				return;
-			}
-			tmr = &net->rxt_timer;
-			if (net->RTO == 0) {
-				rto_val = stcb->asoc.initial_rto;
-			} else {
-				rto_val = net->RTO;
-			}
-			to_ticks = MSEC_TO_TICKS(rto_val);
+		/* Here we use the RTO timer. */
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
+			return;
+#endif
+		}
+		tmr = &net->rxt_timer;
+		if (net->RTO == 0) {
+			to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
+		} else {
+			to_ticks = MSEC_TO_TICKS(net->RTO);
 		}
 		break;
 	case SCTP_TIMER_TYPE_INIT:
 		/*
 		 * Here we use the INIT timer default usually about 1
-		 * minute.
+		 * second.
 		 */
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &net->rxt_timer;
 		if (net->RTO == 0) {
@@ -2093,175 +2156,228 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		break;
 	case SCTP_TIMER_TYPE_RECV:
 		/*
-		 * Here we use the Delayed-Ack timer value from the inp
+		 * Here we use the Delayed-Ack timer value from the inp,
 		 * ususually about 200ms.
 		 */
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &stcb->asoc.dack_timer;
 		to_ticks = MSEC_TO_TICKS(stcb->asoc.delayed_ack);
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWN:
 		/* Here we use the RTO of the destination. */
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
+		tmr = &net->rxt_timer;
 		if (net->RTO == 0) {
 			to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
 		} else {
 			to_ticks = MSEC_TO_TICKS(net->RTO);
 		}
-		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_HEARTBEAT:
 		/*
-		 * the net is used here so that we can add in the RTO. Even
+		 * The net is used here so that we can add in the RTO. Even
 		 * though we use a different timer. We also add the HB timer
 		 * PLUS a random jitter.
 		 */
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
-		} else {
-			uint32_t rndval;
-			uint32_t jitter;
-
-			if ((net->dest_state & SCTP_ADDR_NOHB) &&
-			    !(net->dest_state & SCTP_ADDR_UNCONFIRMED)) {
-				return;
-			}
-			if (net->RTO == 0) {
-				to_ticks = stcb->asoc.initial_rto;
-			} else {
-				to_ticks = net->RTO;
-			}
-			rndval = sctp_select_initial_TSN(&inp->sctp_ep);
-			jitter = rndval % to_ticks;
-			if (jitter >= (to_ticks >> 1)) {
-				to_ticks = to_ticks + (jitter - (to_ticks >> 1));
-			} else {
-				to_ticks = to_ticks - jitter;
-			}
-			if (!(net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
-			    !(net->dest_state & SCTP_ADDR_PF)) {
-				to_ticks += net->heart_beat_delay;
-			}
-			/*
-			 * Now we must convert the to_ticks that are now in
-			 * ms to ticks.
-			 */
-			to_ticks = MSEC_TO_TICKS(to_ticks);
-			tmr = &net->hb_timer;
+#endif
 		}
+		if ((net->dest_state & SCTP_ADDR_NOHB) &&
+		    !(net->dest_state & SCTP_ADDR_UNCONFIRMED)) {
+			SCTPDBG(SCTP_DEBUG_TIMER2,
+			    "timer type %d not started: inp=%p, stcb=%p, net=%p.\n",
+			    t_type, inp, stcb, net);
+			return;
+		}
+		tmr = &net->hb_timer;
+		if (net->RTO == 0) {
+			to_ticks = stcb->asoc.initial_rto;
+		} else {
+			to_ticks = net->RTO;
+		}
+		rndval = sctp_select_initial_TSN(&inp->sctp_ep);
+		jitter = rndval % to_ticks;
+		if (jitter >= (to_ticks >> 1)) {
+			to_ticks = to_ticks + (jitter - (to_ticks >> 1));
+		} else {
+			to_ticks = to_ticks - jitter;
+		}
+		if (!(net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
+		    !(net->dest_state & SCTP_ADDR_PF)) {
+			to_ticks += net->heart_beat_delay;
+		}
+		/*
+		 * Now we must convert the to_ticks that are now in ms to
+		 * ticks.
+		 */
+		to_ticks = MSEC_TO_TICKS(to_ticks);
 		break;
 	case SCTP_TIMER_TYPE_COOKIE:
 		/*
 		 * Here we can use the RTO timer from the network since one
-		 * RTT was compelete. If a retran happened then we will be
-		 * using the RTO initial value.
+		 * RTT was complete. If a retransmission happened then we
+		 * will be using the RTO initial value.
 		 */
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
+		tmr = &net->rxt_timer;
 		if (net->RTO == 0) {
 			to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
 		} else {
 			to_ticks = MSEC_TO_TICKS(net->RTO);
 		}
-		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_NEWCOOKIE:
 		/*
-		 * nothing needed but the endpoint here ususually about 60
+		 * Nothing needed but the endpoint here ususually about 60
 		 * minutes.
 		 */
+		if ((inp == NULL) || (stcb != NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
+			return;
+#endif
+		}
 		tmr = &inp->sctp_ep.signature_change;
 		to_ticks = inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_SIGNATURE];
 		break;
 	case SCTP_TIMER_TYPE_PATHMTURAISE:
 		/*
-		 * Here we use the value found in the EP for PMTU ususually
-		 * about 10 minutes.
+		 * Here we use the value found in the EP for PMTUD,
+		 * ususually about 10 minutes.
 		 */
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		if (net->dest_state & SCTP_ADDR_NO_PMTUD) {
+			SCTPDBG(SCTP_DEBUG_TIMER2,
+			    "timer type %d not started: inp=%p, stcb=%p, net=%p.\n",
+			    t_type, inp, stcb, net);
 			return;
 		}
-		to_ticks = inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_PMTU];
 		tmr = &net->pmtu_timer;
+		to_ticks = inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_PMTU];
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWNACK:
-		/* Here we use the RTO of the destination */
-		if ((stcb == NULL) || (net == NULL)) {
+		/* Here we use the RTO of the destination. */
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
+		tmr = &net->rxt_timer;
 		if (net->RTO == 0) {
 			to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
 		} else {
 			to_ticks = MSEC_TO_TICKS(net->RTO);
 		}
-		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_ASCONF:
 		/*
 		 * Here the timer comes from the stcb but its value is from
 		 * the net's RTO.
 		 */
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
+		tmr = &stcb->asoc.asconf_timer;
 		if (net->RTO == 0) {
 			to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
 		} else {
 			to_ticks = MSEC_TO_TICKS(net->RTO);
 		}
-		tmr = &stcb->asoc.asconf_timer;
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWNGUARD:
 		/*
 		 * Here we use the endpoints shutdown guard timer usually
 		 * about 3 minutes.
 		 */
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
+		tmr = &stcb->asoc.shut_guard_timer;
 		if (inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_MAXSHUTDOWN] == 0) {
 			to_ticks = 5 * MSEC_TO_TICKS(stcb->asoc.maxrto);
 		} else {
 			to_ticks = inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_MAXSHUTDOWN];
 		}
-		tmr = &stcb->asoc.shut_guard_timer;
 		break;
 	case SCTP_TIMER_TYPE_AUTOCLOSE:
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
-		if (stcb->asoc.sctp_autoclose_ticks == 0) {
-			/*
-			 * Really an error since stcb is NOT set to
-			 * autoclose
-			 */
-			return;
-		}
-		to_ticks = stcb->asoc.sctp_autoclose_ticks;
 		tmr = &stcb->asoc.autoclose_timer;
+		to_ticks = stcb->asoc.sctp_autoclose_ticks;
 		break;
 	case SCTP_TIMER_TYPE_STRRESET:
 		/*
 		 * Here the timer comes from the stcb but its value is from
 		 * the net's RTO.
 		 */
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
+		tmr = &stcb->asoc.strreset_timer;
 		if (net->RTO == 0) {
 			to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
 		} else {
 			to_ticks = MSEC_TO_TICKS(net->RTO);
 		}
-		tmr = &stcb->asoc.strreset_timer;
 		break;
 	case SCTP_TIMER_TYPE_INPKILL:
 		/*
@@ -2269,47 +2385,70 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * timer since that has stopped and we are in the GONE
 		 * state.
 		 */
+		if ((inp == NULL) || (stcb != NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
+			return;
+#endif
+		}
 		tmr = &inp->sctp_ep.signature_change;
 		to_ticks = MSEC_TO_TICKS(SCTP_INP_KILL_TIMEOUT);
 		break;
 	case SCTP_TIMER_TYPE_ASOCKILL:
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &stcb->asoc.strreset_timer;
 		to_ticks = MSEC_TO_TICKS(SCTP_ASOC_KILL_TIMEOUT);
 		break;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
+		if ((inp != NULL) || (stcb != NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
+			return;
+#endif
+		}
 		/* Only 1 tick away :-) */
 		tmr = &SCTP_BASE_INFO(addr_wq_timer);
 		to_ticks = SCTP_ADDRESS_TICK_DELAY;
 		break;
 	case SCTP_TIMER_TYPE_PRIM_DELETED:
-		if ((stcb == NULL) || (net != NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_start of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
-		to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
 		tmr = &stcb->asoc.delete_prim_timer;
+		to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
 		break;
 	default:
-		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: Unknown timer type %d\n",
-		    __func__, t_type);
-		return;
-		break;
+		panic("Unknown timer type %d", t_type);
 	}
-	if ((to_ticks <= 0) || (tmr == NULL)) {
-		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: %d:software error to_ticks:%d tmr:%p not set ??\n",
-		    __func__, t_type, to_ticks, (void *)tmr);
-		return;
-	}
+	KASSERT(tmr != NULL, ("tmr is NULL for timer type %d", t_type));
+	KASSERT(to_ticks > 0, ("to_ticks == 0 for timer type %d", t_type));
 	if (SCTP_OS_TIMER_PENDING(&tmr->timer)) {
 		/*
-		 * we do NOT allow you to have it already running. if it is
-		 * we leave the current one up unchanged
+		 * We do NOT allow you to have it already running. If it is,
+		 * we leave the current one up unchanged.
 		 */
+		SCTPDBG(SCTP_DEBUG_TIMER2,
+		    "timer type %d already running: inp=%p, stcb=%p, net=%p.\n",
+		    t_type, inp, stcb, net);
 		return;
 	}
-	/* At this point we can proceed */
+	/* At this point we can proceed. */
 	if (t_type == SCTP_TIMER_TYPE_SEND) {
 		stcb->asoc.num_send_timers_up++;
 	}
@@ -2317,13 +2456,56 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	tmr->type = t_type;
 	tmr->ep = (void *)inp;
 	tmr->tcb = (void *)stcb;
-	tmr->net = (void *)net;
+	if (t_type == SCTP_TIMER_TYPE_STRRESET) {
+		tmr->net = NULL;
+	} else {
+		tmr->net = (void *)net;
+	}
 	tmr->self = (void *)tmr;
 	tmr->vnet = (void *)curvnet;
 	tmr->ticks = sctp_get_tick_count();
-	(void)SCTP_OS_TIMER_START(&tmr->timer, to_ticks, sctp_timeout_handler, tmr);
+	if (SCTP_OS_TIMER_START(&tmr->timer, to_ticks, sctp_timeout_handler, tmr) == 0) {
+		SCTPDBG(SCTP_DEBUG_TIMER2,
+		    "timer type %d started: ticks=%u, inp=%p, stcb=%p, net=%p.\n",
+		    t_type, to_ticks, inp, stcb, net);
+	} else {
+		/*
+		 * This should not happen, since we checked for pending
+		 * above.
+		 */
+		SCTPDBG(SCTP_DEBUG_TIMER2,
+		    "timer type %d restarted: ticks=%u, inp=%p, stcb=%p, net=%p.\n",
+		    t_type, to_ticks, inp, stcb, net);
+	}
 	return;
 }
+
+/*-
+ * The following table shows which parameters must be provided
+ * when calling sctp_timer_stop(). For parameters not being
+ * provided, NULL must be used.
+ *
+ * |Name                         |inp |stcb|net |
+ * |-----------------------------|----|----|----|
+ * |SCTP_TIMER_TYPE_SEND         |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_INIT         |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_RECV         |Yes |Yes |No  |
+ * |SCTP_TIMER_TYPE_SHUTDOWN     |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_HEARTBEAT    |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_COOKIE       |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_NEWCOOKIE    |Yes |No  |No  |
+ * |SCTP_TIMER_TYPE_PATHMTURAISE |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_SHUTDOWNACK  |Yes |Yes |Yes |
+ * |SCTP_TIMER_TYPE_ASCONF       |Yes |Yes |No  |
+ * |SCTP_TIMER_TYPE_SHUTDOWNGUARD|Yes |Yes |No  |
+ * |SCTP_TIMER_TYPE_AUTOCLOSE    |Yes |Yes |No  |
+ * |SCTP_TIMER_TYPE_STRRESET     |Yes |Yes |No  |
+ * |SCTP_TIMER_TYPE_INPKILL      |Yes |No  |No  |
+ * |SCTP_TIMER_TYPE_ASOCKILL     |Yes |Yes |No  |
+ * |SCTP_TIMER_TYPE_ADDR_WQ      |No  |No  |No  |
+ * |SCTP_TIMER_TYPE_PRIM_DELETED |Yes |Yes |No  |
+ *
+ */
 
 void
 sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
@@ -2331,92 +2513,155 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 {
 	struct sctp_timer *tmr;
 
-	if ((t_type != SCTP_TIMER_TYPE_ADDR_WQ) &&
-	    (inp == NULL))
-		return;
-
-	tmr = NULL;
-	if (stcb) {
+	if (stcb != NULL) {
 		SCTP_TCB_LOCK_ASSERT(stcb);
+	} else if (inp != NULL) {
+		SCTP_INP_WLOCK_ASSERT(inp);
+	} else {
+		SCTP_WQ_ADDR_LOCK_ASSERT();
 	}
+	tmr = NULL;
 	switch (t_type) {
 	case SCTP_TIMER_TYPE_SEND:
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_INIT:
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_RECV:
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &stcb->asoc.dack_timer;
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWN:
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_HEARTBEAT:
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &net->hb_timer;
 		break;
 	case SCTP_TIMER_TYPE_COOKIE:
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_NEWCOOKIE:
-		/* nothing needed but the endpoint here */
+		if ((inp == NULL) || (stcb != NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
+			return;
+#endif
+		}
 		tmr = &inp->sctp_ep.signature_change;
-		/*
-		 * We re-use the newcookie timer for the INP kill timer. We
-		 * must assure that we do not kill it by accident.
-		 */
 		break;
 	case SCTP_TIMER_TYPE_PATHMTURAISE:
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &net->pmtu_timer;
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWNACK:
-		if ((stcb == NULL) || (net == NULL)) {
+		if ((inp == NULL) || (stcb == NULL) || (net == NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &net->rxt_timer;
 		break;
 	case SCTP_TIMER_TYPE_ASCONF:
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &stcb->asoc.asconf_timer;
 		break;
 	case SCTP_TIMER_TYPE_SHUTDOWNGUARD:
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &stcb->asoc.shut_guard_timer;
 		break;
 	case SCTP_TIMER_TYPE_AUTOCLOSE:
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &stcb->asoc.autoclose_timer;
 		break;
 	case SCTP_TIMER_TYPE_STRRESET:
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &stcb->asoc.strreset_timer;
 		break;
@@ -2426,41 +2671,64 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * timer since that has stopped and we are in the GONE
 		 * state.
 		 */
+		if ((inp == NULL) || (stcb != NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
+			return;
+#endif
+		}
 		tmr = &inp->sctp_ep.signature_change;
 		break;
 	case SCTP_TIMER_TYPE_ASOCKILL:
-		/*
-		 * Stop the asoc kill timer.
-		 */
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &stcb->asoc.strreset_timer;
 		break;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
+		if ((inp != NULL) || (stcb != NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
+			return;
+#endif
+		}
 		tmr = &SCTP_BASE_INFO(addr_wq_timer);
 		break;
 	case SCTP_TIMER_TYPE_PRIM_DELETED:
-		if (stcb == NULL) {
+		if ((inp == NULL) || (stcb == NULL) || (net != NULL)) {
+#ifdef INVARIANTS
+			panic("sctp_timer_stop of type %d: inp = %p, stcb = %p, net = %p",
+			    t_type, inp, stcb, net);
+#else
 			return;
+#endif
 		}
 		tmr = &stcb->asoc.delete_prim_timer;
 		break;
 	default:
-		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: Unknown timer type %d\n",
-		    __func__, t_type);
-		break;
+		panic("Unknown timer type %d", t_type);
 	}
-	if (tmr == NULL) {
-		return;
-	}
-	if ((tmr->type != t_type) && tmr->type) {
+	KASSERT(tmr != NULL, ("tmr is NULL for timer type %d", t_type));
+	if ((tmr->type != SCTP_TIMER_TYPE_NONE) &&
+	    (tmr->type != t_type)) {
 		/*
 		 * Ok we have a timer that is under joint use. Cookie timer
 		 * per chance with the SEND timer. We therefore are NOT
 		 * running the timer that the caller wants stopped.  So just
 		 * return.
 		 */
+		SCTPDBG(SCTP_DEBUG_TIMER2,
+		    "shared timer type %d not running: inp=%p, stcb=%p, net=%p.\n",
+		    t_type, inp, stcb, net);
 		return;
 	}
 	if ((t_type == SCTP_TIMER_TYPE_SEND) && (stcb != NULL)) {
@@ -2471,7 +2739,28 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	}
 	tmr->self = NULL;
 	tmr->stopped_from = from;
-	(void)SCTP_OS_TIMER_STOP(&tmr->timer);
+	if (SCTP_OS_TIMER_STOP(&tmr->timer) == 1) {
+		KASSERT(tmr->ep == inp,
+		    ("sctp_timer_stop of type %d: inp = %p, tmr->inp = %p",
+		    t_type, inp, tmr->ep));
+		KASSERT(tmr->tcb == stcb,
+		    ("sctp_timer_stop of type %d: stcb = %p, tmr->stcb = %p",
+		    t_type, stcb, tmr->tcb));
+		KASSERT(((t_type == SCTP_TIMER_TYPE_ASCONF) && (tmr->net != NULL)) ||
+		    ((t_type != SCTP_TIMER_TYPE_ASCONF) && (tmr->net == net)),
+		    ("sctp_timer_stop of type %d: net = %p, tmr->net = %p",
+		    t_type, net, tmr->net));
+		SCTPDBG(SCTP_DEBUG_TIMER2,
+		    "timer type %d stopped: inp=%p, stcb=%p, net=%p.\n",
+		    t_type, inp, stcb, net);
+		tmr->ep = NULL;
+		tmr->tcb = NULL;
+		tmr->net = NULL;
+	} else {
+		SCTPDBG(SCTP_DEBUG_TIMER2,
+		    "timer type %d not stopped: inp=%p, stcb=%p, net=%p.\n",
+		    t_type, inp, stcb, net);
+	}
 	return;
 }
 
