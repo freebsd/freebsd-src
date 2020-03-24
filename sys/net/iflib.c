@@ -6197,7 +6197,8 @@ iflib_admin_intr_deferred(if_ctx_t ctx)
 	struct grouptask *gtask;
 
 	gtask = &ctx->ifc_admin_task;
-	MPASS(gtask != NULL && gtask->gt_taskqueue != NULL);
+	MPASS(gtask != NULL);
+	MPASS(gtask->gt_taskqueue != NULL);
 #endif
 
 	GROUPTASK_ENQUEUE(&ctx->ifc_admin_task);
