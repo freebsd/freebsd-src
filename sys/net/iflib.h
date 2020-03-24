@@ -173,8 +173,9 @@ typedef struct pci_vendor_info {
 #define PVID_OEM(vendor, devid, svid, sdevid, revid, name) {vendor, devid, svid, sdevid, revid, 0, name}
 #define PVID_END {0, 0, 0, 0, 0, 0, NULL}
 
-#define IFLIB_PNP_DESCR "U32:vendor;U32:device;U32:subvendor;U32:subdevice;" \
-    "U32:revision;U32:class;D:#"
+/* No drivers in tree currently match on anything except vendor:device. */
+#define IFLIB_PNP_DESCR "U32:vendor;U32:device;U32:#;U32:#;" \
+    "U32:#;U32:#;D:#"
 #define IFLIB_PNP_INFO(b, u, t) \
     MODULE_PNP_INFO(IFLIB_PNP_DESCR, b, u, t, nitems(t) - 1)
 
