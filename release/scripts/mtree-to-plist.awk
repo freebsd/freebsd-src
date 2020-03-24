@@ -28,9 +28,6 @@
 			tags=tags""_kernconf
 		}
 	}
-	if ($1 ~ /^\/boot\//) {
-		tags="package=bootloader"
-	}
 	if (length(tags) == 0)
 		next
 	if (tags ~ /package=/) {
@@ -39,6 +36,8 @@
 		for (i in a) {
 			if (a[i] ~ /^package=/) {
 				pkgname=a[i]
+				if ($1 ~ /^\/boot\//)
+					pkgname="bootloader"
 				gsub(/package=/, "", pkgname)
 			} else if (a[i] == "config") {
 				type="config"
