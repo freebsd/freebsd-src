@@ -1829,17 +1829,23 @@ do_rotate(const struct conf_entry *ent)
 		else {
 			/* XXX - Ought to be checking for failure! */
 			(void)rename(zfile1, zfile2);
-			change_attrs(zfile2, ent);
-			if (ent->compress && !strlen(logfile_suffix)) {
-				/* compress old rotation */
-				struct zipwork_entry zwork;
+		}
+		change_attrs(zfile2, ent);
+		if (ent->compress && strlen(logfile_suffix) == 0) {
+			/* compress old rotation */
+			struct zipwork_entry *zwork;
+			size_t sz;
 
-				memset(&zwork, 0, sizeof(zwork));
-				zwork.zw_conf = ent;
-				zwork.zw_fsize = sizefile(zfile2);
-				strcpy(zwork.zw_fname, zfile2);
-				do_zipwork(&zwork);
-			}
+			sz = sizeof(*zwork) + strlen(zfile2) + 1;
+			zwork = calloc(1, sz);
+			if (zwork == NULL)
+				err(1, "calloc");
+
+			zwork->zw_conf = ent;
+			zwork->zw_fsize = sizefile(zfile2);
+			strcpy(zwork->zw_fname, zfile2);
+			do_zipwork(zwork);
+			free(zwork);
 		}
 	}
 
