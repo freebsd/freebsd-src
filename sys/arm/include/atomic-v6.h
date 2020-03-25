@@ -245,6 +245,7 @@ atomic_fcmpset_8(volatile uint8_t *_ptr, uint8_t *_old, uint8_t _new)
 	ATOMIC_FCMPSET_CODE(ret, uint8_t, "b");
 	return (ret);
 }
+#define	atomic_fcmpset_8	atomic_fcmpset_8
 
 static __inline int
 atomic_fcmpset_acq_8(volatile uint8_t *_ptr, uint8_t *_old, uint8_t _new)
@@ -274,6 +275,7 @@ atomic_fcmpset_16(volatile uint16_t *_ptr, uint16_t *_old, uint16_t _new)
 	ATOMIC_FCMPSET_CODE(ret, uint16_t, "h");
 	return (ret);
 }
+#define	atomic_fcmpset_16	atomic_fcmpset_16
 
 static __inline int
 atomic_fcmpset_acq_16(volatile uint16_t *_ptr, uint16_t *_old, uint16_t _new)
@@ -429,6 +431,7 @@ atomic_cmpset_8(volatile uint8_t *_ptr, uint8_t _old, uint8_t _new)
 	ATOMIC_CMPSET_CODE(ret, "b");
 	return (ret);
 }
+#define	atomic_cmpset_8		atomic_cmpset_8
 
 static __inline int
 atomic_cmpset_acq_8(volatile uint8_t *_ptr, uint8_t _old, uint8_t _new)
@@ -458,6 +461,7 @@ atomic_cmpset_16(volatile uint16_t *_ptr, uint16_t _old, uint16_t _new)
 	ATOMIC_CMPSET_CODE(ret, "h");
 	return (ret);
 }
+#define	atomic_cmpset_16	atomic_cmpset_16
 
 static __inline int
 atomic_cmpset_acq_16(volatile uint16_t *_ptr, uint16_t _old, uint16_t _new)
@@ -899,6 +903,7 @@ atomic_testandclear_long(volatile u_long *p, u_int v)
 
 	return (atomic_testandclear_32((volatile uint32_t *)p, v));
 }
+#define	atomic_testandclear_long	atomic_testandclear_long
 
 static __inline int
 atomic_testandset_32(volatile uint32_t *ptr, u_int bit)
@@ -942,6 +947,7 @@ atomic_testandset_long(volatile u_long *p, u_int v)
 
 	return (atomic_testandset_32((volatile uint32_t *)p, v));
 }
+#define	atomic_testandset_long	atomic_testandset_long
 
 static __inline int
 atomic_testandset_64(volatile uint64_t *p, u_int v)

@@ -808,6 +808,7 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 
 #define	atomic_readandclear_int(p)	atomic_swap_int(p, 0)
 #define	atomic_readandclear_long(p)	atomic_swap_long(p, 0)
+#define	atomic_testandset_acq_long	atomic_testandset_long
 
 /* Operations on 8-bit bytes. */
 #define	atomic_set_8		atomic_set_char

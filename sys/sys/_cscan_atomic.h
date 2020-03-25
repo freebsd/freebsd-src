@@ -69,7 +69,8 @@
 	void kcsan_atomic_store_rel_##name(volatile type *, type)
 
 #define	KCSAN_ATOMIC_TEST(op, name, type)				\
-	int kcsan_atomic_##op##_##name(volatile type *, u_int)
+	int kcsan_atomic_##op##_##name(volatile type *, u_int);		\
+	int kcsan_atomic_##op##_acq_##name(volatile type *, u_int)
 
 #define	KCSAN_ATOMIC_FUNCS(name, type)					\
 	KCSAN_ATOMIC_FUNC_1(add, name, type);				\
@@ -156,6 +157,7 @@ void	kcsan_atomic_thread_fence_seq_cst(void);
 #define	atomic_swap_long		kcsan_atomic_swap_long
 #define	atomic_testandclear_long	kcsan_atomic_testandclear_long
 #define	atomic_testandset_long		kcsan_atomic_testandset_long
+#define	atomic_testandset_acq_long	kcsan_atomic_testandset_acq_long
 
 #define	atomic_add_ptr			kcsan_atomic_add_ptr
 #define	atomic_add_acq_ptr		kcsan_atomic_add_acq_ptr
