@@ -16,9 +16,10 @@ EVENT_ARCH="x86"
 EVENT_ARCH="powerpc"
 .endif
 
+CFLAGS+= -I${SRCTOP}/${RELDIR:H}/libpmcstat
+
 .if ${MK_DIRDEPS_BUILD} == "yes"
 # avoid circular dependency
-CFLAGS+= -I${SRCTOP}/${RELDIR:H}/libpmcstat
 GENDIRDEPS_FILTER+= N${RELDIR:H}/libpmcstat
 JEVENTS?= ${HOST_OBJTOP}/${RELDIR}/pmu-events/jevents
 .else
