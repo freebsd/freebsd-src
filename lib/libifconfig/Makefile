@@ -10,8 +10,9 @@ SRCS=		libifconfig.c libifconfig_carp.c libifconfig_inet.c
 SRCS+=		libifconfig_inet6.c libifconfig_internal.c libifconfig_lagg.c
 SRCS+=		libifconfig_media.c
 
-INCSDIR=	${INCLUDEDIR}
-INCS=		libifconfig.h
+# If libifconfig become public uncomment those two lines
+#INCSDIR=	${INCLUDEDIR}
+#INCS=		libifconfig.h
 
 #MAN=		libifconfig.3
 
