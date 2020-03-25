@@ -257,6 +257,11 @@ _ATOMIC_FCMPSET_PROTO(t, bar, )						\
 	_ATOMIC_CMPSET_IMPL(32, w,  , bar, a, l)			\
 	_ATOMIC_CMPSET_IMPL(64,  ,  , bar, a, l)
 
+#define	atomic_cmpset_8		atomic_cmpset_8
+#define	atomic_fcmpset_8	atomic_fcmpset_8
+#define	atomic_cmpset_16	atomic_cmpset_16
+#define	atomic_fcmpset_16	atomic_fcmpset_16
+
 _ATOMIC_CMPSET(    ,  , )
 _ATOMIC_CMPSET(acq_, a, )
 _ATOMIC_CMPSET(rel_,  ,l)
@@ -465,6 +470,8 @@ atomic_load_acq_##t(volatile uint##t##_t *p)				\
 	return (ret);							\
 }
 
+#define	atomic_load_acq_8	atomic_load_acq_8
+#define	atomic_load_acq_16	atomic_load_acq_16
 _ATOMIC_LOAD_ACQ_IMPL(8,  w, b)
 _ATOMIC_LOAD_ACQ_IMPL(16, w, h)
 _ATOMIC_LOAD_ACQ_IMPL(32, w,  )
@@ -595,6 +602,8 @@ atomic_thread_fence_seq_cst(void)
 
 	dmb(sy);
 }
+
+#include <sys/_atomic_subword.h>
 
 #endif /* KCSAN && !KCSAN_RUNTIME */
 #endif /* _MACHINE_ATOMIC_H_ */
