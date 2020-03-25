@@ -28,6 +28,7 @@
  * Copyright 2015, OmniTI Computer Consulting, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
+ * Copyright (c) 2018, loli10K <ezomori.nozomu@gmail.com>. All rights reserved.
  * Copyright (c) 2019 Datto Inc.
  */
 
@@ -3375,6 +3376,7 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 		 *  - we are resuming a failed receive.
 		 */
 		if (stream_wantsnewfs) {
+			boolean_t is_volume = drrb->drr_type == DMU_OST_ZVOL;
 			if (!flags->force) {
 				zcmd_free_nvlists(&zc);
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
@@ -3391,6 +3393,25 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 				    "must destroy them to overwrite it"),
 				    zc.zc_name);
 				return (zfs_error(hdl, EZFS_EXISTS, errbuf));
+			}
+			if (is_volume && strrchr(zc.zc_name, '/') == NULL) {
+				zcmd_free_nvlists(&zc);
+				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+				    "destination '%s' is the root dataset\n"
+				    "cannot overwrite with a ZVOL"),
+				    zc.zc_name);
+				return (zfs_error(hdl, EZFS_EXISTS, errbuf));
+			}
+			if (is_volume &&
+			    ioctl(hdl->libzfs_fd, ZFS_IOC_DATASET_LIST_NEXT,
+			    &zc) == 0) {
+				zcmd_free_nvlists(&zc);
+				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+				    "destination has children (eg. %s)\n"
+				    "cannot overwrite with a ZVOL"),
+				    zc.zc_name);
+				return (zfs_error(hdl, EZFS_WRONG_PARENT,
+				    errbuf));
 			}
 		}
 
@@ -3441,6 +3462,8 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 
 		zfs_close(zhp);
 	} else {
+		zfs_handle_t *zhp;
+
 		/*
 		 * Destination filesystem does not exist.  Therefore we better
 		 * be creating a new filesystem (either from a full backup, or
@@ -3467,6 +3490,21 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 			zcmd_free_nvlists(&zc);
 			return (zfs_error(hdl, EZFS_BADRESTORE, errbuf));
 		}
+
+		/* validate parent */
+		zhp = zfs_open(hdl, zc.zc_name, ZFS_TYPE_DATASET);
+		if (zhp == NULL) {
+			zcmd_free_nvlists(&zc);
+			return (zfs_error(hdl, EZFS_BADRESTORE, errbuf));
+		}
+		if (zfs_get_type(zhp) != ZFS_TYPE_FILESYSTEM) {
+			zcmd_free_nvlists(&zc);
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "parent '%s' is not a filesystem"), zc.zc_name);
+			zfs_close(zhp);
+			return (zfs_error(hdl, EZFS_WRONG_PARENT, errbuf));
+		}
+		zfs_close(zhp);
 
 		newfs = B_TRUE;
 	}
