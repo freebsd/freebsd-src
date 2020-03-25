@@ -239,7 +239,8 @@ ixl_netmap_txsync(struct netmap_kring *kring, int flags)
 			curr->cmd_type_offset_bsz = htole64(
 			    ((u64)len << I40E_TXD_QW1_TX_BUF_SZ_SHIFT) |
 			    flags |
-			    ((u64)I40E_TX_DESC_CMD_EOP << I40E_TXD_QW1_CMD_SHIFT)
+			    ((u64)I40E_TX_DESC_CMD_EOP << I40E_TXD_QW1_CMD_SHIFT) |
+			    ((u64)I40E_TX_DESC_CMD_ICRC << I40E_TXD_QW1_CMD_SHIFT)
 			  ); // XXX more ?
 
 			/* make sure changes to the buffer are synced */
