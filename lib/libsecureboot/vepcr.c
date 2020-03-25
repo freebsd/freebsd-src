@@ -25,6 +25,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/queue.h>
 #include "libsecureboot-priv.h"
 
 /*
@@ -43,7 +44,16 @@ __FBSDID("$FreeBSD$");
 static const br_hash_class *pcr_md = NULL;
 static br_hash_compat_context pcr_ctx;
 static size_t pcr_hlen = 0;
-static int pcr_updating;
+static int pcr_updating = -1;
+
+struct hashed_info {
+	const char *hi_path;
+	const char *hi_basename;
+	STAILQ_ENTRY(hashed_info) entries;
+};
+
+static STAILQ_HEAD(, hashed_info) hi_list;
+
 
 /**
  * @brief initialize pcr context
@@ -54,10 +64,13 @@ static int pcr_updating;
 void
 ve_pcr_init(void)
 {
-	pcr_updating = 0;
-	pcr_hlen = br_sha256_SIZE;
-	pcr_md = &br_sha256_vtable;
-	pcr_md->init(&pcr_ctx.vtable);
+	if (pcr_updating < 0) {
+		pcr_updating = 0;
+		pcr_hlen = br_sha256_SIZE;
+		pcr_md = &br_sha256_vtable;
+		pcr_md->init(&pcr_ctx.vtable);
+		STAILQ_INIT(&hi_list);
+	}
 }
 
 /**
@@ -82,10 +95,28 @@ ve_pcr_updating_set(int updating)
  * @brief update pcr context
  */
 void
-ve_pcr_update(unsigned char *data, size_t dlen)
+ve_pcr_update(const char *path, unsigned char *data, size_t dlen)
 {
-	if (pcr_updating != 0 && pcr_md != NULL)
+	struct hashed_info *hip;
+	
+	if (pcr_updating > 0 && pcr_md != NULL) {
 		pcr_md->update(&pcr_ctx.vtable, data, dlen);
+		/* if mallocs fail, measured boot will likely fail too */
+		if ((hip = malloc(sizeof(struct hashed_info)))) {
+			hip->hi_path = strdup(path);
+			if (!hip->hi_path) {
+			    free(hip);
+			    return;
+			}
+			hip->hi_basename = strrchr(hip->hi_path, '/');
+			if (hip->hi_basename) {
+				hip->hi_basename++;
+			} else {
+				hip->hi_basename = hip->hi_path;
+			}
+			STAILQ_INSERT_TAIL(&hi_list, hip, entries);
+		}
+	}
 }
 
 /**
@@ -102,3 +133,37 @@ ve_pcr_get(unsigned char *buf, size_t sz)
 	return (pcr_hlen);
 }
 
+/**
+ * @brief get list of paths in prc
+ */
+char *
+ve_pcr_hashed_get(int flags)
+{
+	const char *cp;
+	char *hinfo;
+	struct hashed_info *hip;
+	size_t nbytes;
+	size_t x;
+	int n;
+
+	n = 0;
+	nbytes = x = 0;
+	hinfo = NULL;
+	STAILQ_FOREACH(hip, &hi_list, entries) {
+		nbytes += 1 + strlen(flags ? hip->hi_basename : hip->hi_path);
+	}
+	if (nbytes > 1) {
+		hinfo = malloc(nbytes + 2);
+		if (hinfo) {
+			STAILQ_FOREACH(hip, &hi_list, entries) {
+				cp = flags ? hip->hi_basename : hip->hi_path;
+				n = snprintf(&hinfo[x], nbytes - x, "%s,", cp);
+				x += n;
+			}
+			if (x > 0) {
+				hinfo[x-1] = '\0';
+			}
+		}
+	}
+	return hinfo;
+}

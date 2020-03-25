@@ -224,15 +224,20 @@ test_seek(void *arg, void *h, uint64_t offset, int whence)
 }
 
 int
-test_stat(void *arg, void *h, int *mode_return, int *uid_return, int *gid_return,
-    uint64_t *size_return)
+test_stat(void *arg, void *h, struct stat *stp)
 {
 	struct test_file *tf = h;
 
-	*mode_return = tf->tf_stat.st_mode;
-	*uid_return = tf->tf_stat.st_uid;
-	*gid_return = tf->tf_stat.st_gid;
-	*size_return = tf->tf_stat.st_size;
+	if (!stp)
+		return (-1);
+	memset(stp, 0, sizeof(struct stat));
+	stp->st_mode = tf->tf_stat.st_mode;
+	stp->st_uid = tf->tf_stat.st_uid;
+	stp->st_gid = tf->tf_stat.st_gid;
+	stp->st_size = tf->tf_stat.st_size;
+	stp->st_ino = tf->tf_stat.st_ino;
+	stp->st_dev = tf->tf_stat.st_dev;
+	stp->st_mtime = tf->tf_stat.st_mtime;
 	return (0);
 }
 
