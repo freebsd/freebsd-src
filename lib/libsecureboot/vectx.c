@@ -104,8 +104,8 @@ vectx_open(int fd, const char *path, off_t off, struct stat *stp,
 	rc = verify_prep(fd, path, off, stp, __func__);
 
 	DEBUG_PRINTF(2,
-	    ("vectx_open: caller=%s,name='%s',prep_rc=%d\n",
-		caller,path, rc));
+	    ("vectx_open: caller=%s,fd=%d,name='%s',prep_rc=%d\n",
+		caller, fd, path, rc));
 
 	switch (rc) {
 	case VE_FINGERPRINT_NONE:
@@ -316,6 +316,9 @@ vectx_lseek(struct vectx *ctx, off_t off, int whence)
  * We have finished reading file, compare the hash with what
  * we wanted.
  *
+ * Be sure to call this before closing the file, since we may
+ * need to seek to the end to ensure hashing is complete.
+ *
  * @param[in] pctx
  *	pointer to ctx
  *
@@ -337,20 +340,25 @@ vectx_close(struct vectx *ctx, int severity, const char *caller)
 		 */
 		ve_pcr_updating_set((severity == VE_MUST));
 #endif
+		/* make sure we have hashed it all */
+		vectx_lseek(ctx, 0, SEEK_END);
 		rc = ve_check_hash(&ctx->vec_ctx, ctx->vec_md,
 		    ctx->vec_path, ctx->vec_want, ctx->vec_hashsz);
 	}
 	DEBUG_PRINTF(2,
 	    ("vectx_close: caller=%s,name='%s',rc=%d,severity=%d\n",
 		caller,ctx->vec_path, rc, severity));
-	if (severity > VE_WANT || rc == VE_FINGERPRINT_WRONG)
+	if (rc == VE_FINGERPRINT_WRONG) {
+		printf("Unverified: %s\n", ve_error_get());
+#if !defined(UNIT_TEST) && !defined(DEBUG_VECTX)
+		/* we are generally called with VE_MUST */
+		if (severity > VE_WANT)
+			panic("cannot continue");
+#endif
+	} else if (severity > VE_WANT) {
 		printf("%serified %s\n", (rc <= 0) ? "Unv" : "V",
 		    ctx->vec_path);
-#if !defined(UNIT_TEST) && !defined(DEBUG_VECTX)
-	/* we are generally called with VE_MUST */
-	if (severity > VE_WANT && rc == VE_FINGERPRINT_WRONG)
-		panic("cannot continue");
-#endif
+	}
 	free(ctx);
 	return ((rc < 0) ? rc : 0);
 }

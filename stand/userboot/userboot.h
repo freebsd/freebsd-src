@@ -119,8 +119,7 @@ struct loader_callbacks {
         /*
          * Return some stat(2) related information about the file
          */
-	int		(*stat)(void *arg, void *h, int *mode_return,
-            int *uid_return, int *gid_return, uint64_t *size_return);
+	int		(*stat)(void *arg, void *h, struct stat *stp);
 
 	/*
 	 * Disk image i/o
