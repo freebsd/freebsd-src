@@ -1659,28 +1659,10 @@ sctp_timeout_handler(void *t)
 	KASSERT(tmr->self == tmr, ("tmr->self corrupted"));
 	KASSERT(SCTP_IS_TIMER_TYPE_VALID(tmr->type), ("Invalid timer type %d", tmr->type));
 	type = tmr->type;
-	tmr->stopped_from = 0xa001;
 	if (inp) {
 		SCTP_INP_INCR_REF(inp);
-		if ((inp->sctp_socket == NULL) &&
-		    ((type != SCTP_TIMER_TYPE_INPKILL) &&
-		    (type != SCTP_TIMER_TYPE_INIT) &&
-		    (type != SCTP_TIMER_TYPE_SEND) &&
-		    (type != SCTP_TIMER_TYPE_RECV) &&
-		    (type != SCTP_TIMER_TYPE_HEARTBEAT) &&
-		    (type != SCTP_TIMER_TYPE_SHUTDOWN) &&
-		    (type != SCTP_TIMER_TYPE_SHUTDOWNACK) &&
-		    (type != SCTP_TIMER_TYPE_SHUTDOWNGUARD) &&
-		    (type != SCTP_TIMER_TYPE_ASOCKILL))) {
-			SCTP_INP_DECR_REF(inp);
-			SCTPDBG(SCTP_DEBUG_TIMER2,
-			    "Timer type %d handler exiting due to closed socket.\n",
-			    type);
-			CURVNET_RESTORE();
-			return;
-		}
 	}
-	tmr->stopped_from = 0xa002;
+	tmr->stopped_from = 0xa001;
 	if (stcb) {
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 		if (stcb->asoc.state == 0) {
@@ -1695,7 +1677,7 @@ sctp_timeout_handler(void *t)
 			return;
 		}
 	}
-	tmr->stopped_from = 0xa003;
+	tmr->stopped_from = 0xa002;
 	SCTPDBG(SCTP_DEBUG_TIMER2, "Timer type %d goes off.\n", type);
 	if (!SCTP_OS_TIMER_ACTIVE(&tmr->timer)) {
 		if (inp) {
@@ -1710,8 +1692,8 @@ sctp_timeout_handler(void *t)
 		CURVNET_RESTORE();
 		return;
 	}
-	tmr->stopped_from = 0xa004;
 
+	tmr->stopped_from = 0xa003;
 	if (stcb) {
 		SCTP_TCB_LOCK(stcb);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
