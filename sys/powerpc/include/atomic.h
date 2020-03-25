@@ -727,11 +727,15 @@ ATOMIC_CMPSET_ACQ_REL(int);
 ATOMIC_CMPSET_ACQ_REL(long);
 
 
+#ifdef ISA_206_ATOMICS
 #define	atomic_cmpset_8		atomic_cmpset_char
+#endif
 #define	atomic_cmpset_acq_8	atomic_cmpset_acq_char
 #define	atomic_cmpset_rel_8	atomic_cmpset_rel_char
 
+#ifdef ISA_206_ATOMICS
 #define	atomic_cmpset_16	atomic_cmpset_short
+#endif
 #define	atomic_cmpset_acq_16	atomic_cmpset_acq_short
 #define	atomic_cmpset_rel_16	atomic_cmpset_rel_short
 
@@ -894,11 +898,15 @@ atomic_fcmpset_long(volatile u_long *p, u_long *cmpval, u_long newval)
 ATOMIC_FCMPSET_ACQ_REL(int);
 ATOMIC_FCMPSET_ACQ_REL(long);
 
+#ifdef ISA_206_ATOMICS
 #define	atomic_fcmpset_8	atomic_fcmpset_char
+#endif
 #define	atomic_fcmpset_acq_8	atomic_fcmpset_acq_char
 #define	atomic_fcmpset_rel_8	atomic_fcmpset_rel_char
 
+#ifdef ISA_206_ATOMICS
 #define	atomic_fcmpset_16	atomic_fcmpset_short
+#endif
 #define	atomic_fcmpset_acq_16	atomic_fcmpset_acq_short
 #define	atomic_fcmpset_rel_16	atomic_fcmpset_rel_short
 
@@ -1018,6 +1026,10 @@ atomic_thread_fence_seq_cst(void)
 
 #ifndef ISA_206_ATOMICS
 #include <sys/_atomic_subword.h>
+#define	atomic_cmpset_char	atomic_cmpset_8
+#define	atomic_cmpset_short	atomic_cmpset_16
+#define	atomic_fcmpset_char	atomic_fcmpset_8
+#define	atomic_fcmpset_short	atomic_fcmpset_16
 #endif
 
 /* These need sys/_atomic_subword.h on non-ISA-2.06-atomic platforms. */

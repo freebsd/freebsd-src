@@ -521,8 +521,10 @@ atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
 #define atomic_fcmpset_rel_32	atomic_fcmpset_32
 #define atomic_fcmpset_acq_32	atomic_fcmpset_32
 #ifdef _KERNEL
+#define atomic_fcmpset_8	atomic_fcmpset_8
 #define atomic_fcmpset_rel_8	atomic_fcmpset_8
 #define atomic_fcmpset_acq_8	atomic_fcmpset_8
+#define atomic_fcmpset_16	atomic_fcmpset_16
 #define atomic_fcmpset_rel_16	atomic_fcmpset_16
 #define atomic_fcmpset_acq_16	atomic_fcmpset_16
 #define atomic_fcmpset_rel_64	atomic_fcmpset_64
@@ -533,8 +535,10 @@ atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
 #define atomic_cmpset_rel_32	atomic_cmpset_32
 #define atomic_cmpset_acq_32	atomic_cmpset_32
 #ifdef _KERNEL
+#define atomic_cmpset_8		atomic_cmpset_8
 #define atomic_cmpset_rel_8	atomic_cmpset_8
 #define atomic_cmpset_acq_8	atomic_cmpset_8
+#define atomic_cmpset_16	atomic_cmpset_16
 #define atomic_cmpset_rel_16	atomic_cmpset_16
 #define atomic_cmpset_acq_16	atomic_cmpset_16
 #define atomic_cmpset_rel_64	atomic_cmpset_64
