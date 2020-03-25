@@ -5,6 +5,8 @@ LIB=	pmc
 SRCS=	libpmc.c pmclog.c libpmc_pmu_util.c libpmc_json.cc
 INCS=	pmc.h pmclog.h pmcformat.h
 
+CFLAGS+= -I${SRCTOP}/${RELDIR:H}/libpmcstat
+
 .if ${MACHINE_ARCH} == "aarch64" || ${MACHINE_ARCH} == "amd64" || \
     ${MACHINE_ARCH} == "i386"
 
@@ -15,8 +17,6 @@ EVENT_ARCH="x86"
 .elif ${MACHINE_ARCH} == "powerpc"
 EVENT_ARCH="powerpc"
 .endif
-
-CFLAGS+= -I${SRCTOP}/${RELDIR:H}/libpmcstat
 
 .if ${MK_DIRDEPS_BUILD} == "yes"
 # avoid circular dependency
