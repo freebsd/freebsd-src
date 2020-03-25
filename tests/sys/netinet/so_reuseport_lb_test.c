@@ -108,7 +108,7 @@ lb_simple_accept_loop(int domain, const struct sockaddr *addr, int sds[],
 static int
 lb_listen_socket(int domain, int flags)
 {
-	size_t one;
+	int one;
 	int error, sd;
 
 	sd = socket(domain, SOCK_STREAM | flags, 0);
