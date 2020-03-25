@@ -265,6 +265,8 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_NO_INITIALIZE:
 		return (dgettext(TEXT_DOMAIN, "there is no active "
 		    "initialization"));
+	case EZFS_WRONG_PARENT:
+		return (dgettext(TEXT_DOMAIN, "invalid parent dataset"));
 	case EZFS_UNKNOWN:
 		return (dgettext(TEXT_DOMAIN, "unknown error"));
 	default:
@@ -536,6 +538,9 @@ zpool_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 		break;
 	case ZFS_ERR_VDEV_TOO_BIG:
 		zfs_verror(hdl, EZFS_VDEV_TOO_BIG, fmt, ap);
+		break;
+	case ZFS_ERR_WRONG_PARENT:
+		zfs_verror(hdl, EZFS_WRONG_PARENT, fmt, ap);
 		break;
 	default:
 		zfs_error_aux(hdl, strerror(error));
