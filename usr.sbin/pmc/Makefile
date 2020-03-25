@@ -9,6 +9,7 @@ WARNS?=	3
 CXXFLAGS+= -O0
 CXXSTD= c++14
 CWARNFLAGS.gcc+= -Wno-redundant-decls
+CFLAGS+= -I${SRCTOP}/lib/libpmcstat
 
 LIBADD=	kvm pmc m ncursesw pmcstat elf
 
