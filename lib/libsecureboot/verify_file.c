@@ -117,10 +117,12 @@ is_verified(struct stat *stp)
 {
 	struct verify_status *vsp;
 
-	for (vsp = verified_files; vsp != NULL; vsp = vsp->vs_next) {
-		if (stp->st_dev == vsp->vs_dev &&
-		    stp->st_ino == vsp->vs_ino)
-			return (vsp->vs_status);
+	if (stp->st_ino > 0) {
+		for (vsp = verified_files; vsp != NULL; vsp = vsp->vs_next) {
+			if (stp->st_dev == vsp->vs_dev &&
+			    stp->st_ino == vsp->vs_ino)
+				return (vsp->vs_status);
+		}
 	}
 	return (VE_NOT_CHECKED);
 }
@@ -367,10 +369,11 @@ verify_prep(int fd, const char *filename, off_t off, struct stat *stp,
 			return (0);
 	}
 	DEBUG_PRINTF(2,
-	    ("caller=%s,fd=%d,name='%s',off=%lld,dev=%lld,ino=%lld\n",
+	    ("verify_prep: caller=%s,fd=%d,name='%s',off=%lld,dev=%lld,ino=%lld\n",
 		caller, fd, filename, (long long)off, (long long)stp->st_dev,
 		(long long)stp->st_ino));
 	rc = is_verified(stp);
+	DEBUG_PRINTF(4,("verify_prep: is_verified()->%d\n", rc));
 	if (rc == VE_NOT_CHECKED) {
 		rc = find_manifest(filename);
 	} else {
@@ -458,7 +461,6 @@ verify_file(int fd, const char *filename, off_t off, int severity,
 #endif
 			}
 			if (severity < VE_MUST) { /* not a kernel or module */
-				
 				if ((cp = strrchr(filename, '/'))) {
 					cp++;
 					if (strncmp(cp, "loader.ve.", 10) == 0) {
@@ -511,6 +513,7 @@ verify_pcr_export(void)
 #ifdef VE_PCR_SUPPORT
 	char hexbuf[br_sha256_SIZE * 2 + 2];
 	unsigned char hbuf[br_sha256_SIZE];
+	char *hinfo;
 	char *hex;
 	ssize_t hlen;
 
@@ -520,6 +523,17 @@ verify_pcr_export(void)
 		if (hex) {
 			hex[hlen*2] = '\0'; /* clobber newline */
 			setenv("loader.ve.pcr", hex, 1);
+			DEBUG_PRINTF(1,
+			    ("%s: setenv(loader.ve.pcr, %s\n", __func__,
+				hex));
+			hinfo = ve_pcr_hashed_get(1);
+			if (hinfo) {
+				setenv("loader.ve.hashed", hinfo, 1);
+				DEBUG_PRINTF(1,
+				    ("%s: setenv(loader.ve.hashed, %s\n",
+					__func__, hinfo));
+				free(hinfo);
+			}
 		}
 	}
 #endif

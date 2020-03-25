@@ -78,10 +78,11 @@ unsigned char *verify_sig(const char *, int);
 unsigned char *verify_asc(const char *, int); /* OpenPGP */
 
 void ve_pcr_init(void);
-void ve_pcr_update(unsigned char *, size_t);
+void ve_pcr_update(const char *, unsigned char *, size_t);
 ssize_t ve_pcr_get(unsigned char *, size_t);
 int ve_pcr_updating_get(void);
 void ve_pcr_updating_set(int);
+char * ve_pcr_hashed_get(int);
 
 /* flags for verify_{asc,sig,signed} */
 #define VEF_VERBOSE		1

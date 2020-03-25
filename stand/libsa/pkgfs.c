@@ -46,6 +46,7 @@ static int   pkg_read(struct open_file *, void *, size_t, size_t *);
 static off_t pkg_seek(struct open_file *, off_t, int);
 static int   pkg_stat(struct open_file *, struct stat *);
 static int   pkg_readdir(struct open_file *, struct dirent *);
+static off_t pkg_atol(const char *, unsigned);
 
 struct fs_ops pkgfs_fsops = {
 	"pkg",
@@ -59,7 +60,7 @@ struct fs_ops pkgfs_fsops = {
 };
 
 #define PKG_BUFSIZE	512
-#define	PKG_MAXCACHESZ	4096
+#define	PKG_MAXCACHESZ	16384
 
 #define	PKG_FILEEXT	".tgz"
 
@@ -334,6 +335,7 @@ pkg_seek(struct open_file *f, off_t ofs, int whence)
 	char buf[512];
 	struct tarfile *tf;
 	off_t delta;
+	off_t nofs;
 	size_t sz, res;
 	int error;
 
@@ -359,6 +361,14 @@ pkg_seek(struct open_file *f, off_t ofs, int whence)
 	}
 
 	if (delta < 0) {
+		/* seeking backwards - ok if within cache */
+		if (tf->tf_cachesz > 0 && tf->tf_fp <= tf->tf_cachesz) {
+			nofs = tf->tf_fp + delta;
+			if (nofs >= 0) {
+				tf->tf_fp = nofs;
+				return (tf->tf_fp);
+			}
+		}
 		DBG(("%s: negative file seek (%jd)\n", __func__,
 		    (intmax_t)delta));
 		errno = ESPIPE;
@@ -388,8 +398,15 @@ pkg_stat(struct open_file *f, struct stat *sb)
 		return (EBADF);
 	memset(sb, 0, sizeof(*sb));
 	sb->st_mode = get_mode(tf);
+	if ((sb->st_mode & S_IFMT) == 0) {
+		/* tar file bug - assume regular file */
+		sb->st_mode |= S_IFREG;
+	}
 	sb->st_size = tf->tf_size;
 	sb->st_blocks = (tf->tf_size + 511) / 512;
+	sb->st_mtime = pkg_atol(tf->tf_hdr.ut_mtime, 12);
+	sb->st_dev = (off_t)tf->tf_pkg;
+	sb->st_ino = tf->tf_ofs;	/* unique per tf_pkg */
 	return (0);
 }
 
