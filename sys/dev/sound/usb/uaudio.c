@@ -5380,25 +5380,19 @@ uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int val)
 {
 	if (mc->type == MIX_ON_OFF) {
 		val = (val != 0);
-	} else if (mc->type == MIX_SELECTOR) {
-		if ((val < mc->minval) ||
-		    (val > mc->maxval)) {
-			val = mc->minval;
-		}
-	} else {
+	} else if (mc->type != MIX_SELECTOR) {
 
 		/* compute actual volume */
 		val = (val * mc->mul) / 100;
 
 		/* add lower offset */
 		val = val + mc->minval;
-
-		/* make sure we don't write a value out of range */
-		if (val > mc->maxval)
-			val = mc->maxval;
-		else if (val < mc->minval)
-			val = mc->minval;
 	}
+	/* make sure we don't write a value out of range */
+	if (val > mc->maxval)
+		val = mc->maxval;
+	else if (val < mc->minval)
+		val = mc->minval;
 
 	DPRINTFN(6, "type=0x%03x val=%d min=%d max=%d val=%d\n",
 	    mc->type, val, mc->minval, mc->maxval, val);
