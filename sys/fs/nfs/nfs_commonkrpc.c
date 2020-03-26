@@ -233,10 +233,8 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	saddr = NFSSOCKADDR(nrp->nr_nam, struct sockaddr *);
 	error = socreate(saddr->sa_family, &so, nrp->nr_sotype, 
 	    nrp->nr_soproto, td->td_ucred, td);
-	if (error) {
-		td->td_ucred = origcred;
+	if (error != 0)
 		goto out;
-	}
 	do {
 	    if (error != 0 && pktscale > 2) {
 		if (nmp != NULL && nrp->nr_sotype == SOCK_STREAM &&
@@ -272,10 +270,8 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 		    " rsize, wsize\n");
 	} while (error != 0 && pktscale > 2);
 	soclose(so);
-	if (error) {
-		td->td_ucred = origcred;
+	if (error != 0)
 		goto out;
-	}
 
 	client = clnt_reconnect_create(nconf, saddr, nrp->nr_prog,
 	    nrp->nr_vers, sndreserve, rcvreserve);
@@ -423,11 +419,10 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 			mtx_unlock(&nrp->nr_mtx);
 	}
 
-
+out:
 	/* Restore current thread's credentials. */
 	td->td_ucred = origcred;
 
-out:
 	NFSEXITCODE(error);
 	return (error);
 }
