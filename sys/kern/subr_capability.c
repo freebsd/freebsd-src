@@ -101,7 +101,7 @@ __read_mostly cap_rights_t cap_write_rights;
 __read_mostly cap_rights_t cap_no_rights;
 
 static void
-__cap_rights_sysinit1(void *arg)
+cap_rights_sysinit(void *arg)
 {
 	cap_rights_init_one(&cap_accept_rights, CAP_ACCEPT);
 	cap_rights_init_one(&cap_bind_rights, CAP_BIND);
@@ -149,8 +149,8 @@ __cap_rights_sysinit1(void *arg)
 	cap_rights_init_one(&cap_write_rights, CAP_WRITE);
 	cap_rights_init(&cap_no_rights);
 }
-SYSINIT(cap_rights1_sysinit, SI_SUB_COPYRIGHT, SI_ORDER_ANY,	\
-		    __cap_rights_sysinit1, NULL);
+SYSINIT(cap_rights_sysinit, SI_SUB_COPYRIGHT, SI_ORDER_ANY, cap_rights_sysinit,
+    NULL);
 
 #endif
 
@@ -246,16 +246,6 @@ cap_rights_is_vset(const cap_rights_t *rights, va_list ap)
 	}
 
 	return (true);
-}
-
-void
-__cap_rights_sysinit(void *arg)
-{
-	struct cap_rights_init_args *cria = arg;
-	cap_rights_t *rights = cria->cria_rights;
-
-	__cap_rights_init(CAP_RIGHTS_VERSION, rights, cria->cria_value1,
-       cria->cria_value2, cria->cria_value3, cria->cria_value4, 0ULL);
 }
 
 cap_rights_t *

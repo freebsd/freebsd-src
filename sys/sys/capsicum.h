@@ -342,7 +342,6 @@ bool __cap_rights_is_set(const cap_rights_t *rights, ...);
 bool cap_rights_is_valid(const cap_rights_t *rights);
 cap_rights_t *cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src);
 cap_rights_t *cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src);
-void __cap_rights_sysinit(void *arg);
 
 #ifdef _KERNEL
 /*
@@ -416,63 +415,6 @@ bool cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little);
 #endif
 
 __END_DECLS
-struct cap_rights_init_args {
-	cap_rights_t *cria_rights;
-	uint64_t cria_value1;
-	uint64_t cria_value2;
-	uint64_t cria_value3;
-	uint64_t cria_value4;
-	uint64_t cria_value5;
-};
-
-#define CAP_RIGHTS_SYSINIT0(name, rights)		   \
-		static struct cap_rights_init_args name##_args = { \
-			&(rights)										\
-		};																\
-		SYSINIT(name##_cap_rights_sysinit, SI_SUB_COPYRIGHT+1, SI_ORDER_ANY, \
-		    __cap_rights_sysinit, &name##_args);
-
-#define CAP_RIGHTS_SYSINIT1(name, rights, value1)		   \
-		static struct cap_rights_init_args name##_args = { \
-			&(rights),										\
-			(value1)										\
-		};																\
-		SYSINIT(name##_cap_rights_sysinit, SI_SUB_COPYRIGHT+1, SI_ORDER_ANY, \
-		    __cap_rights_sysinit, &name##_args);
-
-#define CAP_RIGHTS_SYSINIT2(name, rights, value1, value2)		   \
-		static struct cap_rights_init_args name##_args = { \
-			&(rights),										\
-			(value1),										\
-			(value2)													\
-		};																\
-		SYSINIT(name##_cap_rights_sysinit, SI_SUB_COPYRIGHT, SI_ORDER_ANY, \
-		    __cap_rights_sysinit, &name##_args);
-
-#define CAP_RIGHTS_SYSINIT3(name, rights, value1, value2, value3) \
-		static struct cap_rights_init_args name##_args = { \
-			&(rights),										\
-			(value1),										\
-			(value2),										\
-			(value3)													\
-		};																\
-		SYSINIT(name##_cap_rights_sysinit, SI_SUB_COPYRIGHT, SI_ORDER_ANY, \
-		    __cap_rights_sysinit, &name##_args);
-
-#define CAP_RIGHTS_SYSINIT4(name, rights, value1, value2, value3, value4)	\
-		static struct cap_rights_init_args name##_args = { \
-			&(rights),										\
-			(value1),										\
-			(value2),										\
-			(value3),										\
-			(value4)													\
-		};																\
-		SYSINIT(name##_cap_rights_sysinit, SI_SUB_COPYRIGHT, SI_ORDER_ANY, \
-		    __cap_rights_sysinit, &name##_args);
-
-#define CAP_RIGHTS_DEFINE1(name, value)								\
-	__read_mostly cap_rights_t name;					\
-	CAP_RIGHTS_SYSINIT1(name, name, value);
 
 #ifdef _KERNEL
 
