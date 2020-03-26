@@ -51,13 +51,98 @@ __FBSDID("$FreeBSD$");
 
 #include <powerpc/powernv/opal.h>
 
+/*
+ * OPAL_IPMI_DEBUG
+ *
+ * 0 - disabled
+ * 1 - enable error messages (EPRINTF)
+ * 2 - enable error and debug messages (DPRINTF)
+ */
+#define	OPAL_IPMI_DEBUG		0
+#if OPAL_IPMI_DEBUG >= 2
+/* debug printf */
+#define	DPRINTF(fmt, ...)	printf("ipmi: " fmt "\n", ## __VA_ARGS__)
+#else
+#define	DPRINTF(fmt, ...)	((void)0)
+#endif
+#if OPAL_IPMI_DEBUG >= 1
+/* error printf: to print messages only when something fails */
+#define	EPRINTF(fmt, ...)	printf("ipmi: " fmt "\n", ## __VA_ARGS__)
+#else
+#define	EPRINTF(fmt, ...)	((void)0)
+#endif
+
 struct opal_ipmi_softc {
 	struct ipmi_softc ipmi;
 	uint64_t sc_interface;
+	int sc_timedout;
 	struct opal_ipmi_msg *sc_msg; /* Protected by IPMI lock */
 };
 
 static MALLOC_DEFINE(M_IPMI, "ipmi", "OPAL IPMI");
+
+static int
+opal_ipmi_recv(struct opal_ipmi_softc *sc, uint64_t *msg_len, int timo)
+{
+	int err;
+
+	if (timo == 0)
+		timo = MAX_TIMEOUT;
+	timo *= 10; /* Timeout is in milliseconds, we delay in 100us */
+
+	for (;;) {
+		*msg_len = sizeof(struct opal_ipmi_msg) + IPMI_MAX_RX;
+		/* Crank the OPAL state machine while we poll for a reply. */
+		opal_call(OPAL_POLL_EVENTS, NULL);
+		err = opal_call(OPAL_IPMI_RECV, sc->sc_interface,
+		    vtophys(sc->sc_msg), vtophys(msg_len));
+		if (err != OPAL_EMPTY)
+			break;
+
+		DELAY(100);
+		if (timo-- <= 0) {
+			sc->sc_timedout = 1;
+			break;
+		}
+	}
+
+	if (err != OPAL_SUCCESS)
+		EPRINTF("RECV: error: %d", err);
+
+	switch (err) {
+	case OPAL_SUCCESS:
+		DPRINTF("RECV: rv=%02x len=%ld",
+		    sc->sc_msg->data[0], *msg_len);
+		return (0);
+	case OPAL_RESOURCE:
+		return (ENOMEM);
+	case OPAL_EMPTY:
+		return (EAGAIN);
+	default:
+		return (EIO);
+	}
+}
+
+static void
+opal_ipmi_discard_msgs(struct opal_ipmi_softc *sc)
+{
+	uint64_t msg_len;
+	int err, i = 0;
+
+	/* OPAL_IPMI_RECV fails when msg version is not set. */
+	sc->sc_msg->version = OPAL_IPMI_MSG_FORMAT_VERSION_1;
+
+	/* Wait up to 100ms for the 1st timedout message. */
+	err = opal_ipmi_recv(sc, &msg_len, 100);
+	while (err == 0) {
+		i++;
+		/* Wait only 10ms for the remaining messages. */
+		err = opal_ipmi_recv(sc, &msg_len, 10);
+	}
+	if (i > 0)
+		EPRINTF("Discarded %d message(s)", i);
+	sc->sc_timedout = 0;
+}
 
 static int
 opal_ipmi_polled_request(struct opal_ipmi_softc *sc, struct ipmi_request *req,
@@ -65,6 +150,13 @@ opal_ipmi_polled_request(struct opal_ipmi_softc *sc, struct ipmi_request *req,
 {
 	uint64_t msg_len;
 	int err;
+
+	/*
+	 * Discard timed out messages before sending a new one, to avoid
+	 * them being confused with the reply of the new message.
+	 */
+	if (sc->sc_timedout)
+		opal_ipmi_discard_msgs(sc);
 
 	/* Construct and send the message. */
 	sc->sc_msg->version = OPAL_IPMI_MSG_FORMAT_VERSION_1;
@@ -80,57 +172,38 @@ opal_ipmi_polled_request(struct opal_ipmi_softc *sc, struct ipmi_request *req,
 	msg_len = sizeof(*sc->sc_msg) + req->ir_requestlen;
 	err = opal_call(OPAL_IPMI_SEND, sc->sc_interface, vtophys(sc->sc_msg),
 	    msg_len);
+
+	DPRINTF("SEND: cmd=%02x netfn=%02x len=%ld -> %d",
+	    sc->sc_msg->cmd, sc->sc_msg->netfn, msg_len, err);
+
+	if (err != OPAL_SUCCESS)
+		EPRINTF("SEND: error: %d", err);
+
 	switch (err) {
 	case OPAL_SUCCESS:
 		break;
 	case OPAL_PARAMETER:
-		err = EINVAL;
-		goto out;
-	case OPAL_HARDWARE:
-		err = EIO;
-		goto out;
 	case OPAL_UNSUPPORTED:
 		err = EINVAL;
 		goto out;
 	case OPAL_RESOURCE:
 		err = ENOMEM;
 		goto out;
+	case OPAL_HARDWARE:
+	default:
+		err = EIO;
+		goto out;
 	}
 
-	timo *= 10; /* Timeout is in milliseconds, we delay in 100us */
-	do {
-		msg_len = sizeof(struct opal_ipmi_msg) + IPMI_MAX_RX;
-		/* Crank the OPAL state machine while we poll for a reply. */
-		opal_call(OPAL_POLL_EVENTS, NULL);
-		err = opal_call(OPAL_IPMI_RECV, sc->sc_interface,
-		    vtophys(sc->sc_msg), vtophys(&msg_len));
-		if (err != OPAL_EMPTY)
-			break;
-		DELAY(100);
-	} while (err == OPAL_EMPTY && timo-- != 0);
-
-	switch (err) {
-	case OPAL_SUCCESS:
+	if ((err = opal_ipmi_recv(sc, &msg_len, timo)) == 0) {
 		/* Subtract one extra for the completion code. */
 		req->ir_replylen = msg_len - sizeof(struct opal_ipmi_msg) - 1;
 		req->ir_replylen = min(req->ir_replylen, req->ir_replybuflen);
 		memcpy(req->ir_reply, &sc->sc_msg->data[1], req->ir_replylen);
 		req->ir_compcode = sc->sc_msg->data[0];
-		err = 0;
-		break;
-	case OPAL_RESOURCE:
-		err = ENOMEM;
-		break;
-	case OPAL_EMPTY:
-		err = EAGAIN;
-		break;
-	default:
-		err = EIO;
-		break;
 	}
 
 out:
-
 	return (err);
 }
 
@@ -150,21 +223,18 @@ opal_ipmi_loop(void *arg)
 {
 	struct opal_ipmi_softc *sc = arg;
 	struct ipmi_request *req;
-	int i, ok;
+	int i, err;
 
 	IPMI_LOCK(&sc->ipmi);
 	while ((req = ipmi_dequeue_request(&sc->ipmi)) != NULL) {
 		IPMI_UNLOCK(&sc->ipmi);
-		ok = 0;
-		for (i = 0; i < 3 && !ok; i++) {
+		err = EIO;
+		for (i = 0; i < 3 && err != 0; i++) {
 			IPMI_IO_LOCK(&sc->ipmi);
-			ok = opal_ipmi_polled_request(sc, req, MAX_TIMEOUT);
+			err = opal_ipmi_polled_request(sc, req, MAX_TIMEOUT);
 			IPMI_IO_UNLOCK(&sc->ipmi);
 		}
-		if (ok)
-			req->ir_error = 0;
-		else
-			req->ir_error = EIO;
+		req->ir_error = err == 0 ? 0 : EIO;
 		IPMI_LOCK(&sc->ipmi);
 		ipmi_complete_request(&sc->ipmi, req);
 	}
@@ -204,14 +274,16 @@ static int
 opal_ipmi_attach(device_t dev)
 {
 	struct opal_ipmi_softc *sc;
+	pcell_t ifid;
 
 	sc = device_get_softc(dev);
 
 	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,ipmi-interface-id",
-	    (pcell_t*)&sc->sc_interface, sizeof(sc->sc_interface)) < 0) {
+	    &ifid, sizeof(ifid)) < 0) {
 		device_printf(dev, "Missing interface id\n");
 		return (ENXIO);
 	}
+	sc->sc_interface = ifid;
 	sc->ipmi.ipmi_startup = opal_ipmi_startup;
 	sc->ipmi.ipmi_driver_request = opal_ipmi_driver_request;
 	sc->ipmi.ipmi_enqueue_request = ipmi_polled_enqueue_request;
@@ -220,6 +292,9 @@ opal_ipmi_attach(device_t dev)
 
 	sc->sc_msg = malloc(sizeof(struct opal_ipmi_msg) + IPMI_MAX_RX, M_IPMI,
 	    M_WAITOK | M_ZERO);
+
+	/* Discard old messages that may have remained in receive queue. */
+	opal_ipmi_discard_msgs(sc);
 
 	return (ipmi_attach(dev));
 }
