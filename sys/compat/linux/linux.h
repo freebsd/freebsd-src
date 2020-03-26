@@ -29,6 +29,8 @@
 #ifndef _LINUX_MI_H_
 #define _LINUX_MI_H_
 
+#include <sys/queue.h>
+
 #define	LINUX_IFHWADDRLEN	6
 #define	LINUX_IFNAMSIZ		16
 
