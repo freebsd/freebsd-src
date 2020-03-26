@@ -3579,7 +3579,7 @@ uaudio_mixer_add_feature(struct uaudio_softc *sc,
 		switch (ctl) {
 		case MUTE_CONTROL:
 			MIX(sc).type = MIX_ON_OFF;
-			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+			MIX(sc).ctl = SOUND_MIXER_MUTE;
 			MIX(sc).name = "mute";
 			break;
 
@@ -3694,7 +3694,7 @@ uaudio20_mixer_add_feature(struct uaudio_softc *sc,
 		switch (ctl) {
 		case (3 << 0):
 			MIX(sc).type = MIX_ON_OFF;
-			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+			MIX(sc).ctl = SOUND_MIXER_MUTE;
 			MIX(sc).name = "mute";
 			what = MUTE_CONTROL;
 			break;
