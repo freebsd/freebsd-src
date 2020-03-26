@@ -2039,9 +2039,9 @@ update: .PHONY
 #
 
 
-# libnv and libl are both requirements for config(8), which is an unconditional
+# libnv is a requirement for config(8), which is an unconditional
 # bootstrap-tool.
-_config_deps= lib/libnv usr.bin/lex/lib
+_config_deps= lib/libnv
 
 legacy: .PHONY
 .if ${BOOTSTRAPPING} < ${MINIMUM_SUPPORTED_OSREL} && ${BOOTSTRAPPING} != 0
@@ -2185,10 +2185,7 @@ _kbdcontrol=	usr.sbin/kbdcontrol
 _bootstrap_tools_links+=kbdcontrol
 .endif
 
-_yacc=		lib/liby \
-		usr.bin/yacc
-
-${_bt}-usr.bin/yacc: ${_bt}-lib/liby
+_yacc=		usr.bin/yacc
 
 .if ${MK_BSNMP} != "no"
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
@@ -2809,7 +2806,7 @@ lib/libcasper__L: lib/libnv__L
 lib/liblzma__L: lib/libthr__L
 lib/libzstd__L: lib/libthr__L
 
-_generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib
+_generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib}
 .if ${MK_IPFILTER} != "no"
 _generic_libs+=	sbin/ipf/libipf
 .endif
