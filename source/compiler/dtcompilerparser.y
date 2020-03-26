@@ -170,7 +170,6 @@ extern char                 *DtCompilerParsertext;
 extern DT_FIELD             *AslGbl_CurrentField;
 
 extern int                  DtLabelByteOffset;
-extern UINT64               DtCompilerParserResult; /* Expression return value */
 extern UINT64               DtCompilerParserlineno; /* Current line number */
 
 extern UINT32               DtTokenFirstLine;

@@ -461,7 +461,6 @@ DtCreateTableUnit (
 
 /* dtparser - lex/yacc files */
 
-UINT64                      DtCompilerParserResult; /* Expression return value */
 int
 DtCompilerParserparse (
     void);

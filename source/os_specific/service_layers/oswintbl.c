@@ -419,184 +419,184 @@ OslTableInitialize (
 
 static ACPI_STATUS
 WindowsGetTableFromRegistry (
-	char                    *Signature,
-	UINT32                  Instance,
-	ACPI_TABLE_HEADER       **Table,
-	ACPI_PHYSICAL_ADDRESS   *Address)
+    char                    *Signature,
+    UINT32                  Instance,
+    ACPI_TABLE_HEADER       **Table,
+    ACPI_PHYSICAL_ADDRESS   *Address)
 {
-	HKEY                    Handle = NULL;
-	LONG                    WinStatus;
-	ULONG                   Type;
-	ULONG                   NameSize;
-	ULONG                   DataSize;
-	HKEY                    SubKey;
-	ULONG                   i;
-	ACPI_TABLE_HEADER       *ReturnTable;
-	ACPI_STATUS             Status = AE_OK;
+    HKEY                    Handle = NULL;
+    LONG                    WinStatus;
+    ULONG                   Type;
+    ULONG                   NameSize;
+    ULONG                   DataSize;
+    HKEY                    SubKey;
+    ULONG                   i;
+    ACPI_TABLE_HEADER       *ReturnTable;
+    ACPI_STATUS             Status = AE_OK;
 
 
-	/* Get a handle to the table key */
+    /* Get a handle to the table key */
 
-	while (1)
-	{
-		strcpy(KeyBuffer, "HARDWARE\\ACPI\\");
-		if (AcpiUtSafeStrcat(KeyBuffer, sizeof(KeyBuffer), Signature))
-		{
-			return (AE_BUFFER_OVERFLOW);
-		}
+    while (1)
+    {
+        strcpy(KeyBuffer, "HARDWARE\\ACPI\\");
+        if (AcpiUtSafeStrcat(KeyBuffer, sizeof(KeyBuffer), Signature))
+        {
+            return (AE_BUFFER_OVERFLOW);
+        }
 
-		/*
-		 * Windows stores SSDT at SSDT, SSD1, ..., SSD9, SSDA, ..., SSDS, SSDT,
-		 * SSDU, ..., SSDY. If the first (0th) and the 29th tables have the same
-		 * OEM ID, Table ID and Revision, then the 29th entry will overwrite the
-		 * first entry... Let's hope that we do not have that many entries.
-		 */
-		if (Instance > 0 && ACPI_COMPARE_NAMESEG(Signature, ACPI_SIG_SSDT))
-		{
-			if (Instance < 10)
-			{
-				KeyBuffer[strlen(KeyBuffer) - 1] = '0' + (char)Instance;
-			}
-			else if (Instance < 29)
-			{
-				KeyBuffer[strlen(KeyBuffer) - 1] = 'A' + (char)(Instance - 10);
-			}
-			else
-			{
-				return (AE_LIMIT);
-			}
-		}
+        /*
+         * Windows stores SSDT at SSDT, SSD1, ..., SSD9, SSDA, ..., SSDS, SSDT,
+         * SSDU, ..., SSDY. If the first (0th) and the 29th tables have the same
+         * OEM ID, Table ID and Revision, then the 29th entry will overwrite the
+         * first entry... Let's hope that we do not have that many entries.
+         */
+        if (Instance > 0 && ACPI_COMPARE_NAMESEG(Signature, ACPI_SIG_SSDT))
+        {
+            if (Instance < 10)
+            {
+                KeyBuffer[strlen(KeyBuffer) - 1] = '0' + (char)Instance;
+            }
+            else if (Instance < 29)
+            {
+                KeyBuffer[strlen(KeyBuffer) - 1] = 'A' + (char)(Instance - 10);
+            }
+            else
+            {
+                return (AE_LIMIT);
+            }
+        }
 
-		WinStatus = RegOpenKeyEx(HKEY_LOCAL_MACHINE, KeyBuffer,
-			0L, KEY_READ, &Handle);
+        WinStatus = RegOpenKeyEx(HKEY_LOCAL_MACHINE, KeyBuffer,
+            0L, KEY_READ, &Handle);
 
-		if (WinStatus != ERROR_SUCCESS)
-		{
-			/*
-			 * Somewhere along the way, MS changed the registry entry for
-			 * the FADT from
-			 * HARDWARE/ACPI/FACP  to
-			 * HARDWARE/ACPI/FADT.
-			 *
-			 * This code allows for both.
-			 */
-			if (ACPI_COMPARE_NAMESEG(Signature, "FACP"))
-			{
-				Signature = "FADT";
-			}
-			else if (ACPI_COMPARE_NAMESEG(Signature, "XSDT"))
-			{
-				Signature = "RSDT";
-			}
-			else if (ACPI_COMPARE_NAMESEG(Signature, ACPI_SIG_SSDT))
-			{
-				/*
+        if (WinStatus != ERROR_SUCCESS)
+        {
+            /*
+             * Somewhere along the way, MS changed the registry entry for
+             * the FADT from
+             * HARDWARE/ACPI/FACP  to
+             * HARDWARE/ACPI/FADT.
+             *
+             * This code allows for both.
+             */
+            if (ACPI_COMPARE_NAMESEG(Signature, "FACP"))
+            {
+                Signature = "FADT";
+            }
+            else if (ACPI_COMPARE_NAMESEG(Signature, "XSDT"))
+            {
+                Signature = "RSDT";
+            }
+            else if (ACPI_COMPARE_NAMESEG(Signature, ACPI_SIG_SSDT))
+            {
+                /*
                  * SSDT may not be present on older Windows versions, but it is
-				 * also possible that the index is not found.
+                 * also possible that the index is not found.
                  */
-				return (AE_NOT_FOUND);
-			}
-			else
-			{
-				fprintf(stderr,
-					"Could not find %s in registry at %s: %s (WinStatus=0x%X)\n",
-					Signature, KeyBuffer, WindowsFormatException(WinStatus), WinStatus);
-				return (AE_NOT_FOUND);
-			}
-		}
-		else
-		{
-			break;
-		}
-	}
+                return (AE_NOT_FOUND);
+            }
+            else
+            {
+                fprintf(stderr,
+                    "Could not find %s in registry at %s: %s (WinStatus=0x%X)\n",
+                    Signature, KeyBuffer, WindowsFormatException(WinStatus), WinStatus);
+                return (AE_NOT_FOUND);
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
 
-	/* Actual data for the table is down a couple levels */
+    /* Actual data for the table is down a couple levels */
 
-	for (i = 0; ;)
-	{
-		WinStatus = RegEnumKey(Handle, i, KeyBuffer, sizeof(KeyBuffer));
-		i++;
-		if (WinStatus == ERROR_NO_MORE_ITEMS)
-		{
-			break;
-		}
+    for (i = 0; ;)
+    {
+        WinStatus = RegEnumKey(Handle, i, KeyBuffer, sizeof(KeyBuffer));
+        i++;
+        if (WinStatus == ERROR_NO_MORE_ITEMS)
+        {
+            break;
+        }
 
-		WinStatus = RegOpenKey(Handle, KeyBuffer, &SubKey);
-		if (WinStatus != ERROR_SUCCESS)
-		{
-			fprintf(stderr, "Could not open %s entry: %s\n",
-				Signature, WindowsFormatException(WinStatus));
-			Status = AE_ERROR;
-			goto Cleanup;
-		}
+        WinStatus = RegOpenKey(Handle, KeyBuffer, &SubKey);
+        if (WinStatus != ERROR_SUCCESS)
+        {
+            fprintf(stderr, "Could not open %s entry: %s\n",
+                Signature, WindowsFormatException(WinStatus));
+            Status = AE_ERROR;
+            goto Cleanup;
+        }
 
-		RegCloseKey(Handle);
-		Handle = SubKey;
-		i = 0;
-	}
+        RegCloseKey(Handle);
+        Handle = SubKey;
+        i = 0;
+    }
 
-	/* Find the (binary) table entry */
+    /* Find the (binary) table entry */
 
-	for (i = 0; ; i++)
-	{
-		NameSize = sizeof(KeyBuffer);
-		WinStatus = RegEnumValue(Handle, i, KeyBuffer, &NameSize, NULL,
-			&Type, NULL, 0);
-		if (WinStatus != ERROR_SUCCESS)
-		{
-			fprintf(stderr, "Could not get %s registry entry: %s\n",
-				Signature, WindowsFormatException(WinStatus));
-			Status = AE_ERROR;
-			goto Cleanup;
-		}
+    for (i = 0; ; i++)
+    {
+        NameSize = sizeof(KeyBuffer);
+        WinStatus = RegEnumValue(Handle, i, KeyBuffer, &NameSize, NULL,
+            &Type, NULL, 0);
+        if (WinStatus != ERROR_SUCCESS)
+        {
+            fprintf(stderr, "Could not get %s registry entry: %s\n",
+                Signature, WindowsFormatException(WinStatus));
+            Status = AE_ERROR;
+            goto Cleanup;
+        }
 
-		if (Type == REG_BINARY)
-		{
-			break;
-		}
-	}
+        if (Type == REG_BINARY)
+        {
+            break;
+        }
+    }
 
-	/* Get the size of the table */
+    /* Get the size of the table */
 
-	WinStatus = RegQueryValueEx(Handle, KeyBuffer, NULL, NULL,
-		NULL, &DataSize);
-	if (WinStatus != ERROR_SUCCESS)
-	{
-		fprintf(stderr, "Could not read the %s table size: %s\n",
-			Signature, WindowsFormatException(WinStatus));
-		Status = AE_ERROR;
-		goto Cleanup;
-	}
+    WinStatus = RegQueryValueEx(Handle, KeyBuffer, NULL, NULL,
+        NULL, &DataSize);
+    if (WinStatus != ERROR_SUCCESS)
+    {
+        fprintf(stderr, "Could not read the %s table size: %s\n",
+            Signature, WindowsFormatException(WinStatus));
+        Status = AE_ERROR;
+        goto Cleanup;
+    }
 
-	/* Allocate a new buffer for the table */
+    /* Allocate a new buffer for the table */
 
-	ReturnTable = malloc(DataSize);
-	if (!ReturnTable)
-	{
-		Status = AE_NO_MEMORY;
-		goto Cleanup;
-	}
+    ReturnTable = malloc(DataSize);
+    if (!ReturnTable)
+    {
+        Status = AE_NO_MEMORY;
+        goto Cleanup;
+    }
 
-	/* Get the actual table from the registry */
+    /* Get the actual table from the registry */
 
-	WinStatus = RegQueryValueEx(Handle, KeyBuffer, NULL, NULL,
-		(UCHAR *)ReturnTable, &DataSize);
+    WinStatus = RegQueryValueEx(Handle, KeyBuffer, NULL, NULL,
+        (UCHAR *)ReturnTable, &DataSize);
 
-	if (WinStatus != ERROR_SUCCESS)
-	{
-		fprintf(stderr, "Could not read %s data: %s\n",
-			Signature, WindowsFormatException(WinStatus));
-		free(ReturnTable);
-		Status = AE_ERROR;
-		goto Cleanup;
-	}
+    if (WinStatus != ERROR_SUCCESS)
+    {
+        fprintf(stderr, "Could not read %s data: %s\n",
+            Signature, WindowsFormatException(WinStatus));
+        free(ReturnTable);
+        Status = AE_ERROR;
+        goto Cleanup;
+    }
 
-	*Table = ReturnTable;
-	*Address = 0;
+    *Table = ReturnTable;
+    *Address = 0;
 
 Cleanup:
-	RegCloseKey(Handle);
-	return (Status);
+    RegCloseKey(Handle);
+    return (Status);
 }
 
 
@@ -626,59 +626,59 @@ Cleanup:
 
 ACPI_STATUS
 AcpiOsGetTableByName(
-	char                    *Signature,
-	UINT32                  Instance,
-	ACPI_TABLE_HEADER       **Table,
-	ACPI_PHYSICAL_ADDRESS   *Address)
+    char                    *Signature,
+    UINT32                  Instance,
+    ACPI_TABLE_HEADER       **Table,
+    ACPI_PHYSICAL_ADDRESS   *Address)
 {
-	LONG                    Result;
-	ACPI_STATUS             Status = AE_OK;
-	UINT32                  DataSize;
-	ACPI_TABLE_HEADER       *ReturnTable;
-	UINT32                  UIntSignature = 0;
+    LONG                    Result;
+    ACPI_STATUS             Status = AE_OK;
+    UINT32                  DataSize;
+    ACPI_TABLE_HEADER       *ReturnTable;
+    UINT32                  UIntSignature = 0;
 
 
     /* Multiple instances are only supported for SSDT tables. */
 
-	if (Instance > 0 && !ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_SSDT))
-	{
-		return (AE_LIMIT);
-	}
+    if (Instance > 0 && !ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_SSDT))
+    {
+        return (AE_LIMIT);
+    }
 
-	if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_SSDT))
-	{
-		Status = WindowsGetTableFromRegistry ("SSDT", Instance, Table, Address);
-		return (Status);
-	}
+    if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_SSDT))
+    {
+        Status = WindowsGetTableFromRegistry ("SSDT", Instance, Table, Address);
+        return (Status);
+    }
 
     /* GetSystemFirmwareTable requires the table signature to be UINT32 */
 
     UIntSignature = *ACPI_CAST_PTR (UINT32, Signature);
-	DataSize = GetSystemFirmwareTable('ACPI', UIntSignature, NULL, 0);
-	if (!DataSize)
-	{
-		fprintf(stderr, "The table signature %s does not exist.", Signature);
-		return (AE_ERROR);
-	}
+    DataSize = GetSystemFirmwareTable('ACPI', UIntSignature, NULL, 0);
+    if (!DataSize)
+    {
+        fprintf(stderr, "The table signature %s does not exist.", Signature);
+        return (AE_ERROR);
+    }
 
-	ReturnTable = malloc(DataSize);
-	if (!ReturnTable)
-	{
-		return (AE_NO_MEMORY);
-	}
+    ReturnTable = malloc(DataSize);
+    if (!ReturnTable)
+    {
+        return (AE_NO_MEMORY);
+    }
 
-	Result = GetSystemFirmwareTable('ACPI', UIntSignature, ReturnTable, DataSize);
-	if (Result > (LONG) DataSize)
-	{
+    Result = GetSystemFirmwareTable('ACPI', UIntSignature, ReturnTable, DataSize);
+    if (Result > (LONG) DataSize)
+    {
         /* Clean up */
 
-	    fprintf (stderr, "Could not read %s data\n", Signature);
-	    free (ReturnTable);
-	    return (AE_ERROR);
-	}
+        fprintf (stderr, "Could not read %s data\n", Signature);
+        free (ReturnTable);
+        return (AE_ERROR);
+    }
 
     *Table = ReturnTable;
-	return (Status);
+    return (Status);
 }
 
 

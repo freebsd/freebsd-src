@@ -420,6 +420,7 @@ ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_TableSignature, "NO
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_TableId, "NO_ID");
 ASL_EXTERN ASL_FILE_INFO            ASL_INIT_GLOBAL (*AslGbl_Files, NULL);
 ASL_EXTERN ASL_GLOBAL_FILE_NODE     ASL_INIT_GLOBAL (*AslGbl_FilesList, NULL);
+ASL_EXTERN ASL_EXPECTED_MSG_NODE    ASL_INIT_GLOBAL (*AslGbl_ExpectedErrorCodeList, NULL);
 
 /* Specific to the -q option */
 

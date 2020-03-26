@@ -153,7 +153,6 @@
 #include "aslcompiler.h"
 #include "dtcompilerparser.y.h"
 
-YYSTYPE DtCompilerlval;
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("dtcompilerscanner")

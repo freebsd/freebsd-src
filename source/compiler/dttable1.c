@@ -1967,9 +1967,14 @@ DtCompileIvrs (
 
         switch (IvrsHeader->Type)
         {
-        case ACPI_IVRS_TYPE_HARDWARE:
+        case ACPI_IVRS_TYPE_HARDWARE1:
 
             InfoTable = AcpiDmTableInfoIvrs0;
+            break;
+
+        case ACPI_IVRS_TYPE_HARDWARE2:
+
+            InfoTable = AcpiDmTableInfoIvrs01;
             break;
 
         case ACPI_IVRS_TYPE_MEMORY1:
@@ -1994,7 +1999,8 @@ DtCompileIvrs (
         ParentTable = DtPeekSubtable ();
         DtInsertSubtable (ParentTable, Subtable);
 
-        if (IvrsHeader->Type == ACPI_IVRS_TYPE_HARDWARE)
+        if (IvrsHeader->Type == ACPI_IVRS_TYPE_HARDWARE1 ||
+            IvrsHeader->Type == ACPI_IVRS_TYPE_HARDWARE2)
         {
             while (*PFieldList &&
                 !strcmp ((*PFieldList)->Name, "Entry Type"))

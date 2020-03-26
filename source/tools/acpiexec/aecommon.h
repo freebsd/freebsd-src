@@ -195,7 +195,9 @@ typedef struct ae_debug_regions
 typedef struct init_file_entry
 {
     char                    *Name;
+    char                    *Value;
     ACPI_OPERAND_OBJECT     *ObjDesc;
+    BOOLEAN                 IsUsed;
 
 } INIT_FILE_ENTRY;
 
@@ -346,18 +348,22 @@ int
 AeOpenInitializationFile (
     char                    *Filename);
 
-void
+ACPI_STATUS
 AeProcessInitFile (
     void);
-
-ACPI_STATUS
-AeSetupConfiguration (
-    void                    *RegionAddr);
 
 ACPI_STATUS
 AeLookupInitFileEntry (
     char                    *Pathname,
     ACPI_OPERAND_OBJECT     **ObjDesc);
+
+void
+AeDisplayUnusedInitFileItems (
+    void);
+
+void
+AeDeleteInitFileList (
+    void);
 
 /* aeexec */
 
@@ -375,6 +381,10 @@ AeGetDevices (
     UINT32                  NestingLevel,
     void                    *Context,
     void                    **ReturnValue);
+
+ACPI_STATUS
+AeSetupConfiguration (
+    void                    *RegionAddr);
 
 ACPI_STATUS
 ExecuteOSI (
