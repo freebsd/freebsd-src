@@ -4515,52 +4515,61 @@ static const struct uaudio_tt_to_feature uaudio_tt_to_feature[] = {
 	{UATF_MULTITRACK, SOUND_MIXER_VOLUME},
 	{0xffff, SOUND_MIXER_VOLUME},
 
-	/* default */
-	{0x0000, SOUND_MIXER_VOLUME},
+	/* end */
+	{}
 };
+
+static uint16_t
+uaudio_mixer_feature_name_sub(uint16_t terminal_type)
+{
+	const struct uaudio_tt_to_feature *uat = uaudio_tt_to_feature;
+	uint16_t retval;
+
+	while (1) {
+		if (uat->terminal_type == 0) {
+			switch (terminal_type >> 8) {
+			case UATI_UNDEFINED >> 8:
+				retval = SOUND_MIXER_RECLEV;
+				goto done;
+			case UATO_UNDEFINED >> 8:
+				retval = SOUND_MIXER_PCM;
+				goto done;
+			default:
+				retval = SOUND_MIXER_VOLUME;
+				goto done;
+			}
+		} else if (uat->terminal_type == terminal_type) {
+			retval = uat->feature;
+			goto done;
+		}
+		uat++;
+	}
+done:
+	DPRINTF("terminal_type=0x%04x -> %d\n",
+	    terminal_type, retval);
+	return (retval);
+}
 
 static uint16_t
 uaudio_mixer_feature_name(const struct uaudio_terminal_node *iot,
     struct uaudio_mixer_node *mix)
 {
-	const struct uaudio_tt_to_feature *uat = uaudio_tt_to_feature;
 	uint16_t terminal_type = uaudio_mixer_determine_class(iot, mix);
 
-	if ((mix->class == UAC_RECORD) && (terminal_type == 0)) {
+	if (mix->class == UAC_RECORD && terminal_type == 0)
 		return (SOUND_MIXER_IMIX);
-	}
-	while (uat->terminal_type) {
-		if (uat->terminal_type == terminal_type) {
-			break;
-		}
-		uat++;
-	}
-
-	DPRINTF("terminal_type=0x%04x -> %d\n",
-	    terminal_type, uat->feature);
-
-	return (uat->feature);
+	return (uaudio_mixer_feature_name_sub(terminal_type));
 }
 
 static uint16_t
 uaudio20_mixer_feature_name(const struct uaudio_terminal_node *iot,
     struct uaudio_mixer_node *mix)
 {
-	const struct uaudio_tt_to_feature *uat;
 	uint16_t terminal_type = uaudio20_mixer_determine_class(iot, mix);
 
-	if ((mix->class == UAC_RECORD) && (terminal_type == 0))
+	if (mix->class == UAC_RECORD && terminal_type == 0)
 		return (SOUND_MIXER_IMIX);
-	
-	for (uat = uaudio_tt_to_feature; uat->terminal_type != 0; uat++) {
-		if (uat->terminal_type == terminal_type)
-			break;
-	}
-
-	DPRINTF("terminal_type=0x%04x -> %d\n",
-	    terminal_type, uat->feature);
-
-	return (uat->feature);
+	return (uaudio_mixer_feature_name_sub(terminal_type));
 }
 
 static const struct uaudio_terminal_node *
