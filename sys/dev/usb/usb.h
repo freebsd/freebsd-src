@@ -274,6 +274,11 @@ typedef struct usb_device_request usb_device_request_t;
 #define	UHF_C_BH_PORT_RESET	29
 #define	UHF_FORCE_LINKPM_ACCEPT	30
 
+/* SuperSpeed suspend support */
+#define	USB_INTERFACE_FUNC_SUSPEND 0
+#define	USB_INTERFACE_FUNC_SUSPEND_LP	(1 << 8)
+#define	USB_INTERFACE_FUNC_SUSPEND_RW	(1 << 9)
+
 struct usb_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
