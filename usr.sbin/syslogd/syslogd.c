@@ -143,6 +143,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 #include <utmpx.h>
+#include <regex.h>
 
 #include "pathnames.h"
 #include "ttymsg.h"
@@ -217,6 +218,37 @@ struct logtime {
 #define	RFC3164_DATEFMT	"%b %e %H:%M:%S"
 
 /*
+ * This structure holds a property-based filter
+ */
+
+struct prop_filter {
+	uint8_t	prop_type;
+#define	PROP_TYPE_NOOP		0
+#define	PROP_TYPE_MSG		1
+#define	PROP_TYPE_HOSTNAME	2
+#define	PROP_TYPE_PROGNAME	3
+
+	uint8_t	cmp_type;
+#define	PROP_CMP_CONTAINS	1
+#define	PROP_CMP_EQUAL		2
+#define	PROP_CMP_STARTS		3
+#define	PROP_CMP_REGEX		4
+
+	uint16_t cmp_flags;
+#define	PROP_FLAG_EXCLUDE	(1 << 0)
+#define	PROP_FLAG_ICASE		(1 << 1)
+
+	union {
+		char *p_strval;
+		regex_t *p_re;
+	} pflt_uniptr;
+#define	pflt_strval	pflt_uniptr.p_strval
+#define	pflt_re		pflt_uniptr.p_re
+
+	size_t	pflt_strlen;
+};
+
+/*
  * This structure represents the files that will have log
  * copies printed.
  * We require f_file to be valid if f_type is F_FILE, F_CONSOLE, F_TTY
@@ -235,6 +267,7 @@ struct filed {
 #define PRI_EQ	0x2
 #define PRI_GT	0x4
 	char	*f_program;		/* program this applies to */
+	struct prop_filter *f_prop_filter; /* property-based filter */
 	union {
 		char	f_uname[MAXUNAMES][MAXLOGNAME];
 		struct {
@@ -381,7 +414,8 @@ static int	allowaddr(char *);
 static int	addfile(struct filed *);
 static int	addpeer(struct peer *);
 static int	addsock(struct addrinfo *, struct socklist *);
-static struct filed *cfline(const char *, const char *, const char *);
+static struct filed *cfline(const char *, const char *, const char *,
+    const char *);
 static const char *cvthname(struct sockaddr *);
 static void	deadq_enter(pid_t, const char *);
 static int	deadq_remove(struct deadq_entry *);
@@ -407,6 +441,10 @@ static int	socklist_recv_sock(struct socklist *);
 static int	socklist_recv_signal(struct socklist *);
 static void	sighandler(int);
 static int	skip_message(const char *, const char *, int);
+static int	evaluate_prop_filter(const struct prop_filter *filter,
+    const char *value);
+static int	prop_filter_compile(struct prop_filter *pfilter,
+    char *filterstr);
 static void	parsemsg(const char *, char *);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
@@ -1435,6 +1473,69 @@ skip_message(const char *name, const char *spec, int checkcase)
 }
 
 /*
+ * Match some property of the message against a filter.
+ * Return a non-0 value if the message must be ignored
+ * based on the filter.
+ */
+static int
+evaluate_prop_filter(const struct prop_filter *filter, const char *value)
+{
+	const char *s = NULL;
+	const int exclude = ((filter->cmp_flags & PROP_FLAG_EXCLUDE) > 0);
+	size_t valuelen;
+
+	if (value == NULL)
+		return (-1);
+
+	if (filter->cmp_type == PROP_CMP_REGEX) {
+		if (regexec(filter->pflt_re, value, 0, NULL, 0) == 0)
+			return (exclude);
+		else
+			return (!exclude);
+	}
+
+	valuelen = strlen(value);
+
+	/* a shortcut for equal with different length is always false */
+	if (filter->cmp_type == PROP_CMP_EQUAL &&
+	    valuelen != filter->pflt_strlen)
+		return (!exclude);
+
+	if (filter->cmp_flags & PROP_FLAG_ICASE)
+		s = strcasestr(value, filter->pflt_strval);
+	else
+		s = strstr(value, filter->pflt_strval);
+
+	/*
+	 * PROP_CMP_CONTAINS	true if s
+	 * PROP_CMP_STARTS	true if s && s == value
+	 * PROP_CMP_EQUAL	true if s && s == value &&
+	 *			    valuelen == filter->pflt_strlen
+	 *			    (and length match is checked
+	 *			     already)
+	 */
+
+	switch (filter->cmp_type) {
+	case PROP_CMP_STARTS:
+	case PROP_CMP_EQUAL:
+		if (s != value)
+			return (!exclude);
+	/* FALLTHROUGH */
+	case PROP_CMP_CONTAINS:
+		if (s)
+			return (exclude);
+		else
+			return (!exclude);
+		break;
+	default:
+		/* unknown cmp_type */
+		break;
+	}
+
+	return (-1);
+}
+
+/*
  * Logs a message to the appropriate log files, users, etc. based on the
  * priority. Log messages are always formatted according to RFC 3164,
  * even if they were in RFC 5424 format originally, The MSGID and
@@ -1524,6 +1625,30 @@ logmsg(int pri, const struct logtime *timestamp, const char *hostname,
 		if (skip_message(app_name == NULL ? "" : app_name,
 		    f->f_program, 1))
 			continue;
+
+		/* skip messages if a property does not match filter */
+		if (f->f_prop_filter != NULL &&
+		    f->f_prop_filter->prop_type != PROP_TYPE_NOOP) {
+			switch (f->f_prop_filter->prop_type) {
+			case PROP_TYPE_MSG:
+				if (evaluate_prop_filter(f->f_prop_filter,
+				    msg))
+					continue;
+				break;
+			case PROP_TYPE_HOSTNAME:
+				if (evaluate_prop_filter(f->f_prop_filter,
+				    hostname))
+					continue;
+				break;
+			case PROP_TYPE_PROGNAME:
+				if (evaluate_prop_filter(f->f_prop_filter,
+				    app_name == NULL ? "" : app_name))
+					continue;
+				break;
+			default:
+				continue;
+			}
+		}
 
 		/* skip message to console if it has already been printed */
 		if (f->f_type == F_CONSOLE && (flags & IGN_CONS))
@@ -2216,6 +2341,7 @@ readconfigfile(FILE *cf, int allow_includes)
 	char host[MAXHOSTNAMELEN];
 	char prog[LINE_MAX];
 	char file[MAXPATHLEN];
+	char pfilter[LINE_MAX];
 	char *p, *tmp;
 	int i, nents;
 	size_t include_len;
@@ -2226,6 +2352,7 @@ readconfigfile(FILE *cf, int allow_includes)
 	include_len = sizeof(include_str) -1;
 	(void)strlcpy(host, "*", sizeof(host));
 	(void)strlcpy(prog, "*", sizeof(prog));
+	(void)strlcpy(pfilter, "*", sizeof(pfilter));
 	while (fgets(cline, sizeof(cline), cf) != NULL) {
 		/*
 		 * check for end-of-section, comments, strip off trailing
@@ -2274,7 +2401,7 @@ readconfigfile(FILE *cf, int allow_includes)
 		}
 		if (*p == '#') {
 			p++;
-			if (*p != '!' && *p != '+' && *p != '-')
+			if (*p == '\0' || strchr("!+-:", *p) == NULL)
 				continue;
 		}
 		if (*p == '+' || *p == '-') {
@@ -2311,6 +2438,17 @@ readconfigfile(FILE *cf, int allow_includes)
 			prog[i] = 0;
 			continue;
 		}
+		if (*p == ':') {
+			p++;
+			while (isspace(*p))
+				p++;
+			if ((!*p) || (*p == '*')) {
+				(void)strlcpy(pfilter, "*", sizeof(pfilter));
+				continue;
+			}
+			(void)strlcpy(pfilter, p, sizeof(pfilter));
+			continue;
+		}
 		for (p = cline + 1; *p != '\0'; p++) {
 			if (*p != '#')
 				continue;
@@ -2324,7 +2462,7 @@ readconfigfile(FILE *cf, int allow_includes)
 		}
 		for (i = strlen(cline) - 1; i >= 0 && isspace(cline[i]); i--)
 			cline[i] = '\0';
-		f = cfline(cline, prog, host);
+		f = cfline(cline, prog, host, pfilter);
 		if (f != NULL)
 			addfile(f);
 		free(f);
@@ -2418,17 +2556,31 @@ init(int signo)
 		STAILQ_REMOVE_HEAD(&fhead, next);
 		free(f->f_program);
 		free(f->f_host);
+		if (f->f_prop_filter) {
+			switch (f->f_prop_filter->cmp_type) {
+			case PROP_CMP_REGEX:
+				regfree(f->f_prop_filter->pflt_re);
+				free(f->f_prop_filter->pflt_re);
+				break;
+			case PROP_CMP_CONTAINS:
+			case PROP_CMP_EQUAL:
+			case PROP_CMP_STARTS:
+				free(f->f_prop_filter->pflt_strval);
+				break;
+			}
+			free(f->f_prop_filter);
+		}
 		free(f);
 	}
 
 	/* open the configuration file */
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
 		dprintf("cannot open %s\n", ConfFile);
-		f = cfline("*.ERR\t/dev/console", "*", "*");
+		f = cfline("*.ERR\t/dev/console", "*", "*", "*");
 		if (f != NULL)
 			addfile(f);
 		free(f);
-		f = cfline("*.PANIC\t*", "*", "*");
+		f = cfline("*.PANIC\t*", "*", "*", "*");
 		if (f != NULL)
 			addfile(f);
 		free(f);
@@ -2529,19 +2681,165 @@ init(int signo)
 }
 
 /*
+ * Compile property-based filter.
+ * Returns 0 on success, -1 otherwise.
+ */
+static int
+prop_filter_compile(struct prop_filter *pfilter, char *filter)
+{
+	char *filter_endpos, *p;
+	char **ap, *argv[2] = {NULL, NULL};
+	int re_flags = REG_NOSUB;
+	int escaped;
+
+	bzero(pfilter, sizeof(struct prop_filter));
+
+	/*
+	 * Here's some filter examples mentioned in syslog.conf(5)
+	 * 'msg, contains, ".*Deny.*"'
+	 * 'processname, regex, "^bird6?$"'
+	 * 'hostname, icase_ereregex, "^server-(dcA|podB)-rack1[0-9]{2}\\..*"'
+	 */
+
+	/*
+	 * Split filter into 3 parts: property name (argv[0]),
+	 * cmp type (argv[1]) and lvalue for comparison (filter).
+	 */
+	for (ap = argv; (*ap = strsep(&filter, ", \t\n")) != NULL;) {
+		if (**ap != '\0')
+			if (++ap >= &argv[2])
+				break;
+	}
+
+	if (argv[0] == NULL || argv[1] == NULL) {
+		logerror("filter parse error");
+		return (-1);
+	}
+
+	/* fill in prop_type */
+	if (strcasecmp(argv[0], "msg") == 0)
+		pfilter->prop_type = PROP_TYPE_MSG;
+	else if(strcasecmp(argv[0], "hostname") == 0)
+		pfilter->prop_type = PROP_TYPE_HOSTNAME;
+	else if(strcasecmp(argv[0], "source") == 0)
+		pfilter->prop_type = PROP_TYPE_HOSTNAME;
+	else if(strcasecmp(argv[0], "programname") == 0)
+		pfilter->prop_type = PROP_TYPE_PROGNAME;
+	else {
+		logerror("unknown property");
+		return (-1);
+	}
+
+	/* full in cmp_flags (i.e. !contains, icase_regex, etc.) */
+	if (*argv[1] == '!') {
+		pfilter->cmp_flags |= PROP_FLAG_EXCLUDE;
+		argv[1]++;
+	}
+	if (strncasecmp(argv[1], "icase_", (sizeof("icase_") - 1)) == 0) {
+		pfilter->cmp_flags |= PROP_FLAG_ICASE;
+		argv[1] += sizeof("icase_") - 1;
+	}
+
+	/* fill in cmp_type */
+	if (strcasecmp(argv[1], "contains") == 0)
+		pfilter->cmp_type = PROP_CMP_CONTAINS;
+	else if (strcasecmp(argv[1], "isequal") == 0)
+		pfilter->cmp_type = PROP_CMP_EQUAL;
+	else if (strcasecmp(argv[1], "startswith") == 0)
+		pfilter->cmp_type = PROP_CMP_STARTS;
+	else if (strcasecmp(argv[1], "regex") == 0)
+		pfilter->cmp_type = PROP_CMP_REGEX;
+	else if (strcasecmp(argv[1], "ereregex") == 0) {
+		pfilter->cmp_type = PROP_CMP_REGEX;
+		re_flags |= REG_EXTENDED;
+	} else {
+		logerror("unknown cmp function");
+		return (-1);
+	}
+
+	/*
+	 * Handle filter value
+	 */
+
+	/* ' ".*Deny.*"' */
+	/* remove leading whitespace and check for '"' next character  */
+	filter += strspn(filter, ", \t\n");
+	if (*filter != '"' || strlen(filter) < 3) {
+		logerror("property value parse error");
+		return (-1);
+	}
+	filter++;
+
+	/* '.*Deny.*"' */
+	/* process possible backslash (\") escaping */
+	escaped = 0;
+	filter_endpos = filter;
+	for (p = filter; *p != '\0'; p++) {
+		if (*p == '\\' && !escaped) {
+			escaped = 1;
+			/* do not shift filter_endpos */
+			continue;
+		}
+		if (*p == '"' && !escaped) {
+			p++;
+			break;
+		}
+		/* we've seen some esc symbols, need to compress the line */
+		if (filter_endpos != p)
+			*filter_endpos = *p;
+
+		filter_endpos++;
+		escaped = 0;
+	}
+
+	*filter_endpos = '\0';
+	/* '.*Deny.*' */
+
+	/* We should not have anything but whitespace left after closing '"' */
+	if (*p != '\0' && strspn(p, " \t\n") != strlen(p)) {
+		logerror("property value parse error");
+		return (-1);
+	}
+
+	if (pfilter->cmp_type == PROP_CMP_REGEX) {
+		pfilter->pflt_re = calloc(1, sizeof(*pfilter->pflt_re));
+		if (pfilter->pflt_re == NULL) {
+			logerror("RE calloc() error");
+			free(pfilter->pflt_re);
+			return (-1);
+		}
+		if (pfilter->cmp_flags & PROP_FLAG_ICASE)
+			re_flags |= REG_ICASE;
+		if (regcomp(pfilter->pflt_re, filter, re_flags) != 0) {
+			logerror("RE compilation error");
+			free(pfilter->pflt_re);
+			return (-1);
+		}
+	} else {
+		pfilter->pflt_strval = strdup(filter);
+		pfilter->pflt_strlen = strlen(filter);
+	}
+
+	return (0);
+
+}
+
+/*
  * Crack a configuration file line
  */
 static struct filed *
-cfline(const char *line, const char *prog, const char *host)
+cfline(const char *line, const char *prog, const char *host,
+    const char *pfilter)
 {
 	struct filed *f;
 	struct addrinfo hints, *res;
 	int error, i, pri, syncfile;
 	const char *p, *q;
-	char *bp;
+	char *bp, *pfilter_dup;
 	char buf[MAXLINE], ebuf[100];
 
-	dprintf("cfline(\"%s\", f, \"%s\", \"%s\")\n", line, prog, host);
+	dprintf("cfline(\"%s\", f, \"%s\", \"%s\", \"%s\")\n", line, prog,
+	    host, pfilter);
 
 	f = calloc(1, sizeof(*f));
 	if (f == NULL) {
@@ -2578,6 +2876,27 @@ cfline(const char *line, const char *prog, const char *host)
 		if (f->f_program == NULL) {
 			logerror("strdup");
 			exit(1);
+		}
+	}
+
+	if (pfilter) {
+		f->f_prop_filter = calloc(1, sizeof(*(f->f_prop_filter)));
+		if (f->f_prop_filter == NULL) {
+			logerror("pfilter calloc");
+			exit(1);
+		}
+		if (*pfilter == '*')
+			f->f_prop_filter->prop_type = PROP_TYPE_NOOP;
+		else {
+			pfilter_dup = strdup(pfilter);
+			if (pfilter_dup == NULL) {
+				logerror("strdup");
+				exit(1);
+			}
+			if (prop_filter_compile(f->f_prop_filter, pfilter_dup)) {
+				logerror("filter compile error");
+				exit(1);
+			}
 		}
 	}
 

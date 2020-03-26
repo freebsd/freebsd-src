@@ -28,7 +28,7 @@
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2016
+.Dd March 26, 2020
 .Dt SYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -44,9 +44,10 @@ file is the configuration file for the
 program.
 It consists of
 blocks of lines separated by
-.Em program
-and
+.Em program ,
 .Em hostname
+or
+.Em property-based filter
 specifications (separations appear alone on their lines),
 with each line containing two fields: the
 .Em selector
@@ -154,14 +155,16 @@ values specified to the
 library routine.
 .Pp
 Each block of lines is separated from the previous block by a
-.Em program
-or
+.Em program ,
 .Em hostname
+or
+.Em property-based filter
 specification.
 A block will only log messages corresponding to the most recent
-.Em program
-and
+.Em program ,
 .Em hostname
+and
+.Em property-based filter
 specifications given.
 Thus, with a block which selects
 .Ql ppp
@@ -236,11 +239,24 @@ As for program specifications, multiple comma-separated
 values may be specified for hostname specifications.
 .Pp
 A
-.Em program
+.Em property-based filter
+specification is a line beginning with
+.Ql #:
 or
+.Ql \&:
+and the following blocks will be applied only when filter value
+matches given filter propertie's value. See
+.Sx PROPERTY-BASED FILTERS
+section for more details.
+.Pp
+A
+.Em program ,
 .Em hostname
-specification may be reset by giving the program or hostname as
-.Ql * .
+or
+.Em property-based filter
+specification may be reset by giving
+.Ql *
+as an argument.
 .Pp
 See
 .Xr syslog 3
@@ -434,6 +450,78 @@ in this case preceding
 is removed and
 .Ql #
 is treated as an ordinary character.
+.Sh PROPERTY-BASED FILTERS
+.Em program ,
+.Em hostname
+specifications performs exact match filtering against explicit field only.
+.Em Property-based filters
+feature substring and regular expressions (see
+.Xr re_format 7 )
+matching against various message attributes.
+Filter specification starts with
+.Ql #:
+or
+.Ql \&:
+followed by three comma-separated fields
+.Em property , operator , \&"value\&" .
+Value must be double-quoted. A double quote and backslash must be escaped by
+a blackslash.
+.Pp
+Following
+.Em properties
+are supported as test value:
+.Pp
+.Bl -bullet -compact
+.It
+.Ql msg
+- body of the message received.
+.It
+.Ql programname
+- program name sent the message
+.It
+.Ql hostname
+- hostname of message's originator
+.It
+.Ql source
+- an alias for hostname
+.El
+.Pp
+Operator specifies a comparison function between
+.Em propertie's
+ value against filter's value.
+Possible operators:
+.Pp
+.Bl -bullet -compact
+.It
+.Ql contains
+- true if filter value is found as a substring of
+.Em property
+.It
+.Ql isequal
+- true if filter value is equal to
+.Em property
+.It
+.Ql startswith
+- true if property starts with filter value
+.It
+.Ql regex
+- true if property matches basic regular expression defined in filter value
+.It
+.Ql ereregex
+- true if property matches extended regular expression defined in filter value
+.El
+.Pp
+Operator may be prefixed by
+.Pp
+.Bl -bullet -compact
+.It
+.Ql \&!
+- to invert compare logic
+.It
+.Ql icase_
+- to make comparison function case insensitive
+.El
+.Pp
 .Sh IMPLEMENTATION NOTES
 The
 .Dq kern
@@ -503,6 +591,21 @@ console.*						/var/log/console.log
 # Log ipfw messages without syncing after every message.
 !ipfw
 *.*							-/var/log/ipfw
+
+# Log ipfw messages with "Deny" in the message body.
+:msg, contains, ".*Deny.*"
+*.*							/var/log/ipfw.deny
+
+# Reset program name filtering
+!*
+
+# Log messages from bird or bird6 into one file
+:processname, regex, "^bird6?$"
+*.*							/var/log/bird-all.log
+
+# Log messages from servers in racks 10-19 in multiple locations, case insensitive
+:hostname, icase_ereregex, "^server-(dcA|podB|cdn)-rack1[0-9]{2}\\..*"
+*.*							/var/log/racks10..19.log
 .Ed
 .Sh SEE ALSO
 .Xr syslog 3 ,
