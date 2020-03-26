@@ -556,10 +556,7 @@ static void	uaudio_mixer_add_ctl(struct uaudio_softc *,
 		    struct uaudio_mixer_node *);
 static void	uaudio_mixer_fill_info(struct uaudio_softc *,
 		    struct usb_device *, void *);
-static void	uaudio_mixer_ctl_set(struct uaudio_softc *,
-		    struct uaudio_mixer_node *, uint8_t, int32_t val);
 static int	uaudio_mixer_signext(uint8_t, int);
-static int	uaudio_mixer_bsd2value(struct uaudio_mixer_node *, int32_t val);
 static void	uaudio_mixer_init(struct uaudio_softc *);
 static const struct uaudio_terminal_node *uaudio_mixer_get_input(
 		    const struct uaudio_terminal_node *, uint8_t);
@@ -5379,7 +5376,7 @@ uaudio_mixer_signext(uint8_t type, int val)
 }
 
 static int
-uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int32_t val)
+uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int val)
 {
 	if (mc->type == MIX_ON_OFF) {
 		val = (val != 0);
@@ -5391,7 +5388,7 @@ uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int32_t val)
 	} else {
 
 		/* compute actual volume */
-		val = (val * mc->mul) / 255;
+		val = (val * mc->mul) / 100;
 
 		/* add lower offset */
 		val = val + mc->minval;
@@ -5410,7 +5407,7 @@ uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int32_t val)
 
 static void
 uaudio_mixer_ctl_set(struct uaudio_softc *sc, struct uaudio_mixer_node *mc,
-    uint8_t chan, int32_t val)
+    uint8_t chan, int val)
 {
 	val = uaudio_mixer_bsd2value(mc, val);
 
@@ -5499,8 +5496,7 @@ uaudio_mixer_set(struct uaudio_softc *sc, unsigned type,
 		if (mc->ctl == type) {
 			for (chan = 0; chan < mc->nchan; chan++) {
 				uaudio_mixer_ctl_set(sc, mc, chan,
-				    (int)((chan == 0 ? left : right) *
-				    255) / 100);
+				    chan == 0 ? left : right);
 			}
 		}
 	}
