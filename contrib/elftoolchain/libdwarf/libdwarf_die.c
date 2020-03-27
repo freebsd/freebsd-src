@@ -70,8 +70,7 @@ _dwarf_die_add(Dwarf_CU cu, uint64_t offset, uint64_t abnum, Dwarf_Abbrev ab,
 	die->die_cu	= cu;
 	die->die_dbg	= cu->cu_dbg;
 
-	if (diep != NULL)
-		*diep = die;
+	*diep = die;
 
 	return (DW_DLE_NONE);
 }

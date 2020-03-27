@@ -5915,6 +5915,7 @@ dump_dwarf_frame_regtable(struct readelf *re, Dwarf_Fde fde, Dwarf_Addr pc,
 	for (; cur_pc < end_pc; cur_pc++) {
 		if (dwarf_get_fde_info_for_all_regs(fde, cur_pc, &rt, &row_pc,
 		    &de) != DW_DLV_OK) {
+			free(vec);
 			warnx("dwarf_get_fde_info_for_all_regs failed: %s\n",
 			    dwarf_errmsg(de));
 			return (-1);
@@ -7088,6 +7089,7 @@ dump_ar(struct readelf *re, int fd)
 				}
 				printf("Binary %s(%s) contains:\n",
 				    re->filename, arhdr->ar_name);
+				elf_end(e);
 			}
 			printf("\t%s\n", arsym[i].as_name);
 		}
