@@ -275,7 +275,7 @@ struct sctp_nets {
 	int lastsa;
 	int lastsv;
 	uint64_t rtt;		/* last measured rtt value in us */
-	unsigned int RTO;
+	uint32_t RTO;
 
 	/* This is used for SHUTDOWN/SHUTDOWN-ACK/SEND or INIT timers */
 	struct sctp_timer rxt_timer;
@@ -1071,7 +1071,7 @@ struct sctp_association {
 	unsigned int max_inbound_streams;
 
 	/* the cookie life I award for any cookie, in seconds */
-	unsigned int cookie_life;
+	uint32_t cookie_life;
 	/* time to delay acks for */
 	unsigned int delayed_ack;
 	unsigned int old_delayed_ack;
@@ -1080,10 +1080,10 @@ struct sctp_association {
 
 	unsigned int numduptsns;
 	int dup_tsns[SCTP_MAX_DUP_TSNS];
-	unsigned int initial_init_rto_max;	/* initial RTO for INIT's */
-	unsigned int initial_rto;	/* initial send RTO */
-	unsigned int minrto;	/* per assoc RTO-MIN */
-	unsigned int maxrto;	/* per assoc RTO-MAX */
+	uint32_t initial_init_rto_max;	/* initial RTO for INIT's */
+	uint32_t initial_rto;	/* initial send RTO */
+	uint32_t minrto;	/* per assoc RTO-MIN */
+	uint32_t maxrto;	/* per assoc RTO-MAX */
 
 	/* authentication fields */
 	sctp_auth_chklist_t *local_auth_chunks;
