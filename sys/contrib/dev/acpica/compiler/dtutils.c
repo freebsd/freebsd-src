@@ -189,7 +189,8 @@ DtError (
 
     /* Check if user wants to ignore this exception */
 
-    if (AslIsExceptionIgnored (Level, MessageId))
+    if (AslIsExceptionIgnored (AslGbl_Files[ASL_FILE_INPUT].Filename,
+        FieldObject->Line, Level, MessageId))
     {
         return;
     }

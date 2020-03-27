@@ -224,7 +224,7 @@ Identifier      [a-zA-Z][0-9a-zA-Z]*
 /*
  * Local support functions
  */
-YY_BUFFER_STATE         LexBuffer;
+static YY_BUFFER_STATE         LexBuffer;
 
 
 /******************************************************************************

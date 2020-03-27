@@ -1676,7 +1676,8 @@ AcpiDmDumpTable (
             Temp8 = *Target;
             switch (Temp8)
             {
-            case ACPI_IVRS_TYPE_HARDWARE:
+            case ACPI_IVRS_TYPE_HARDWARE1:
+            case ACPI_IVRS_TYPE_HARDWARE2:
 
                 Name = AcpiDmIvrsSubnames[0];
                 break;

@@ -208,7 +208,7 @@ NewLine         [\n]
 /*
  * Local support functions
  */
-YY_BUFFER_STATE         LexBuffer;
+static YY_BUFFER_STATE         LexBuffer;
 
 /******************************************************************************
  *

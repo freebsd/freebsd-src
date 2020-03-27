@@ -283,6 +283,7 @@ CmDoCompile (
 
     LsDumpParseTree ();
 
+    UtEndEvent (Event);
     UtEndEvent (FullCompile);
     return (AE_OK);
 
