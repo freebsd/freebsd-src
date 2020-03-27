@@ -54,7 +54,7 @@ int	ivhd_count;			/* Number of IVHD header. */
  * Cached IVHD header list.
  * Single entry for each IVHD, filtered the legacy one.
  */
-ACPI_IVRS_HARDWARE *ivhd_hdrs[10];	
+ACPI_IVRS_HARDWARE1 *ivhd_hdrs[10];	
 
 extern int amdvi_ptp_level;		/* Page table levels. */
 
@@ -161,7 +161,7 @@ ivrs_hdr_find_iter(ACPI_IVRS_HEADER * ivrs_hdr, void *args)
 	return (1);
 }
 
-static ACPI_IVRS_HARDWARE *
+static ACPI_IVRS_HARDWARE1 *
 ivhd_find_by_index(int idx)
 {
 	struct find_ivrs_hdr_args fi;
@@ -171,7 +171,7 @@ ivhd_find_by_index(int idx)
 
 	ivrs_hdr_iterate_tbl(ivrs_hdr_find_iter, &fi);
 
-	return ((ACPI_IVRS_HARDWARE *)fi.ptr);
+	return ((ACPI_IVRS_HARDWARE1 *)fi.ptr);
 }
 
 static void
@@ -195,7 +195,7 @@ ivhd_dev_add_entry(struct amdvi_softc *softc, uint32_t start_id,
  * Record device attributes as suggested by BIOS.
  */
 static int
-ivhd_dev_parse(ACPI_IVRS_HARDWARE* ivhd, struct amdvi_softc *softc)
+ivhd_dev_parse(ACPI_IVRS_HARDWARE1 *ivhd, struct amdvi_softc *softc)
 {
 	ACPI_IVRS_DE_HEADER *de;
 	uint8_t *p, *end;
@@ -209,12 +209,12 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE* ivhd, struct amdvi_softc *softc)
 
 	switch (ivhd->Header.Type) {
 		case IVRS_TYPE_HARDWARE_LEGACY:
-			p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE);
+			p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE1);
 			break;
 
 		case IVRS_TYPE_HARDWARE_EFR:
 		case IVRS_TYPE_HARDWARE_MIXED:
-			p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE_EFRSUP);
+			p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE2);
 			break;
 
 		default:
@@ -327,7 +327,7 @@ static void
 ivhd_identify(driver_t *driver, device_t parent)
 {
 	ACPI_TABLE_IVRS *ivrs;
-	ACPI_IVRS_HARDWARE *ivhd;
+	ACPI_IVRS_HARDWARE1 *ivhd;
 	ACPI_STATUS status;
 	int i, count = 0;
 	uint32_t ivrs_ivinfo;
@@ -408,7 +408,7 @@ ivhd_identify(driver_t *driver, device_t parent)
 static int
 ivhd_probe(device_t dev)
 {
-	ACPI_IVRS_HARDWARE *ivhd;
+	ACPI_IVRS_HARDWARE1 *ivhd;
 	int unit;
 
 	if (acpi_get_handle(dev) != NULL)
@@ -582,7 +582,7 @@ ivhd_print_ext_feature(device_t dev, uint64_t ext_feature)
 }
 
 static int
-ivhd_print_cap(struct amdvi_softc *softc, ACPI_IVRS_HARDWARE * ivhd)
+ivhd_print_cap(struct amdvi_softc *softc, ACPI_IVRS_HARDWARE1 * ivhd)
 {
 	device_t dev;
 	int max_ptp_level;
@@ -612,8 +612,8 @@ ivhd_print_cap(struct amdvi_softc *softc, ACPI_IVRS_HARDWARE * ivhd)
 static int
 ivhd_attach(device_t dev)
 {
-	ACPI_IVRS_HARDWARE *ivhd;
-	ACPI_IVRS_HARDWARE_EFRSUP *ivhd_efr;
+	ACPI_IVRS_HARDWARE1 *ivhd;
+	ACPI_IVRS_HARDWARE2 *ivhd_efr;
 	struct amdvi_softc *softc;
 	int status, unit;
 
@@ -637,7 +637,7 @@ ivhd_attach(device_t dev)
 	 * On lgeacy IVHD type(0x10), it is documented as feature
 	 * but in newer type it is attribute.
 	 */
-	softc->ivhd_feature = ivhd->Reserved;
+	softc->ivhd_feature = ivhd->FeatureReporting;
 	/* 
 	 * PCI capability has more capabilities that are not part of IVRS.
 	 */
@@ -648,12 +648,11 @@ ivhd_attach(device_t dev)
 	softc->event_msix = ivhd->Info & 0x1F;
 #endif
 	switch (ivhd->Header.Type) {
-		case IVRS_TYPE_HARDWARE_EFR:
-		case IVRS_TYPE_HARDWARE_MIXED:
-			ivhd_efr = (ACPI_IVRS_HARDWARE_EFRSUP *)ivhd;
-			softc->ext_feature = ivhd_efr->ExtFR;
-			break;
-
+	case IVRS_TYPE_HARDWARE_EFR:
+	case IVRS_TYPE_HARDWARE_MIXED:
+		ivhd_efr = (ACPI_IVRS_HARDWARE2 *)ivhd;
+		softc->ext_feature = ivhd_efr->EfrRegisterImage;
+		break;
 	}
 
 	softc->ctrl = (struct amdvi_ctrl *) PHYS_TO_DMAP(ivhd->BaseAddress);

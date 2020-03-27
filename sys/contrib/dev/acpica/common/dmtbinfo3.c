@@ -691,7 +691,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoWpbt0[] =
 
 /*******************************************************************************
  *
- * WSMT - Windows SMM Security Migrations Table
+ * WSMT - Windows SMM Security Mitigations Table
  *
  ******************************************************************************/
 

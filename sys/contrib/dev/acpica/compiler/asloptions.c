@@ -942,7 +942,7 @@ AslDoOptions (
                 return (-1);
             }
 
-            Status = AslExpectException (AcpiGbl_Optarg);
+            Status = AslLogExpectedException (AcpiGbl_Optarg);
             if (ACPI_FAILURE (Status))
             {
                 return (-1);
