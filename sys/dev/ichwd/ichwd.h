@@ -67,6 +67,7 @@ struct ichwd_softc {
 
 #define	VENDORID_INTEL		0x8086
 #define	DEVICEID_BAYTRAIL	0x0f1c
+#define	DEVICEID_C3000		0x19df
 #define	DEVICEID_CPT0		0x1c40
 #define	DEVICEID_CPT1		0x1c41
 #define	DEVICEID_CPT2		0x1c42
