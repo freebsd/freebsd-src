@@ -2,7 +2,7 @@
 .\" Public domain, July 3, 2005
 .\"
 .\" $FreeBSD$
-.Dd November 1, 2018
+.Dd March 13, 2020
 .Dt CMSG_DATA 3
 .Os
 .Sh NAME
@@ -142,7 +142,7 @@ main()
 			    cmsg->cmsg_level == SOL_SOCKET &&
 			    cmsg->cmsg_type == SCM_RIGHTS) {
 				hellofd[1] = *(int *)CMSG_DATA(cmsg);
-				printf("child: sending '%s'\n", buf);
+				printf("child: sending '%s'\\n", buf);
 				if (write(hellofd[1], buf, HELLOLEN) == -1)
 				    err(EX_IOERR, "failed to send 'hello'");
 			}
@@ -166,7 +166,7 @@ main()
 
 		if (read(hellofd[0], buf, HELLOLEN) == -1)
 			err(EX_IOERR, "faild to receive 'hello'");
-		printf("parent: received '%s'\n", buf);
+		printf("parent: received '%s'\\n", buf);
 		break;
 	}
 
