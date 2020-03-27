@@ -421,20 +421,21 @@ crc16(uint16_t crc, const void *buffer, unsigned int len)
 static void
 pci_nvme_init_nsdata(struct pci_nvme_softc *sc,
     struct nvme_namespace_data *nd, uint32_t nsid,
-    uint64_t eui64)
+    struct pci_nvme_blockstore *nvstore)
 {
 
-	nd->nsze = sc->nvstore.size / sc->nvstore.sectsz;
+	/* Get capacity and block size information from backing store */
+	nd->nsze = nvstore->size / nvstore->sectsz;
 	nd->ncap = nd->nsze;
 	nd->nuse = nd->nsze;
 
-	/* Get LBA and backstore information from backing store */
 	nd->nlbaf = 0; /* NLBAF is a 0's based value (i.e. 1 LBA Format) */
 	nd->flbas = 0;
 
 	/* Create an EUI-64 if user did not provide one */
-	if (eui64 == 0) {
+	if (nvstore->eui64 == 0) {
 		char *data = NULL;
+		uint64_t eui64 = nvstore->eui64;
 
 		asprintf(&data, "%s%u%u%u", vmname, sc->nsc_pi->pi_bus,
 		    sc->nsc_pi->pi_slot, sc->nsc_pi->pi_func);
@@ -443,12 +444,12 @@ pci_nvme_init_nsdata(struct pci_nvme_softc *sc,
 			eui64 = OUI_FREEBSD_NVME_LOW | crc16(0, data, strlen(data));
 			free(data);
 		}
-		eui64 = (eui64 << 16) | (nsid & 0xffff);
+		nvstore->eui64 = (eui64 << 16) | (nsid & 0xffff);
 	}
-	be64enc(nd->eui64, eui64);
+	be64enc(nd->eui64, nvstore->eui64);
 
 	/* LBA data-sz = 2^lbads */
-	nd->lbaf[0] = sc->nvstore.sectsz_bits << NVME_NS_DATA_LBAF_LBADS_SHIFT;
+	nd->lbaf[0] = nvstore->sectsz_bits << NVME_NS_DATA_LBAF_LBADS_SHIFT;
 }
 
 static void
@@ -2032,7 +2033,7 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	pci_nvme_reset(sc);
 	pci_nvme_init_ctrldata(sc);
-	pci_nvme_init_nsdata(sc, &sc->nsdata, 1, sc->nvstore.eui64);
+	pci_nvme_init_nsdata(sc, &sc->nsdata, 1, &sc->nvstore);
 	pci_nvme_init_logpages(sc);
 
 	pci_lintr_request(pi);
