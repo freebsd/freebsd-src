@@ -1100,7 +1100,8 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
-	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS} libraries
+	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS_SUPPORT} \
+	    libraries
 everything: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
