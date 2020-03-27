@@ -72,6 +72,12 @@ include /boot/check-password.4th
 
 only forth definitions
 
+: maybe-resetcons ( -- )
+  loader_color? if
+    ris
+  then
+;
+
 : bootmsg ( -- )
   loader_color? dup ( -- bool bool )
   if 7 fg 4 bg then

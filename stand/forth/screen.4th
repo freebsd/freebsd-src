@@ -39,6 +39,9 @@ marker task-screen.4th
 \ clear screen
 : clear ( -- ) ho cld ;
 
+\ reset to initial state
+: ris ( -- ) 27 emit [char] c emit ;
+
 \ move cursor to x rows, y cols (1-based coords) ( Esc-[%d;%dH )
 : at-xy ( x y -- ) escc .# [char] ; emit .# [char] H emit ;
 
