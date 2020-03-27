@@ -2,7 +2,6 @@
 Build and install GNU
 .Xr as 1
 on i386 and amd64,
-.Xr objdump 1 ,
 and
-.Xr ld.bfd 1
-on powerpc as part of the normal system build.
+.Xr objdump 1
+as part of the normal system build.
