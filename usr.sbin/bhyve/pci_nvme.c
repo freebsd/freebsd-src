@@ -180,6 +180,7 @@ struct pci_nvme_blockstore {
 	uint32_t	sectsz;
 	uint32_t	sectsz_bits;
 	uint64_t	eui64;
+	uint32_t	deallocate:1;
 };
 
 struct pci_nvme_ioreq {
@@ -207,6 +208,15 @@ struct pci_nvme_ioreq {
 
 	/* pad to fit up to 512 page descriptors from guest IO request */
 	struct iovec	iovpadding[NVME_MAX_BLOCKIOVS-BLOCKIF_IOV_MAX];
+};
+
+enum nvme_dsm_type {
+	/* Dataset Management bit in ONCS reflects backing storage capability */
+	NVME_DATASET_MANAGEMENT_AUTO,
+	/* Unconditionally set Dataset Management bit in ONCS */
+	NVME_DATASET_MANAGEMENT_ENABLE,
+	/* Unconditionally clear Dataset Management bit in ONCS */
+	NVME_DATASET_MANAGEMENT_DISABLE,
 };
 
 struct pci_nvme_softc {
@@ -246,6 +256,8 @@ struct pci_nvme_softc {
 	uint32_t	intr_coales_aggr_time;   /* 0x08: uS to delay intr */
 	uint32_t	intr_coales_aggr_thresh; /* 0x08: compl-Q entries */
 	uint32_t	async_ev_config;         /* 0x0B: async event config */
+
+	enum nvme_dsm_type dataset_management;
 };
 
 
@@ -284,6 +296,9 @@ static void pci_nvme_io_partial(struct blockif_req *br, int err);
 #define	NVME_STATUS_MASK \
 	((NVME_STATUS_SCT_MASK << NVME_STATUS_SCT_SHIFT) |\
 	 (NVME_STATUS_SC_MASK << NVME_STATUS_SC_SHIFT))
+
+#define NVME_ONCS_DSM	(NVME_CTRLR_DATA_ONCS_DSM_MASK << \
+	NVME_CTRLR_DATA_ONCS_DSM_SHIFT)
 
 static __inline void
 cpywithpad(char *dst, size_t dst_size, const char *src, char pad)
@@ -363,6 +378,19 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	    (4 << NVME_CTRLR_DATA_CQES_MIN_SHIFT);
 	cd->nn = 1;	/* number of namespaces */
 
+	cd->oncs = 0;
+	switch (sc->dataset_management) {
+	case NVME_DATASET_MANAGEMENT_AUTO:
+		if (sc->nvstore.deallocate)
+			cd->oncs |= NVME_ONCS_DSM;
+		break;
+	case NVME_DATASET_MANAGEMENT_ENABLE:
+		cd->oncs |= NVME_ONCS_DSM;
+		break;
+	default:
+		break;
+	}
+
 	cd->fna = 0x03;
 
 	cd->power_state[0].mp = 10;
@@ -428,6 +456,9 @@ pci_nvme_init_nsdata(struct pci_nvme_softc *sc,
 	nd->nsze = nvstore->size / nvstore->sectsz;
 	nd->ncap = nd->nsze;
 	nd->nuse = nd->nsze;
+
+	if (nvstore->type == NVME_STOR_BLOCKIF)
+		nvstore->deallocate = blockif_candelete(nvstore->ctx);
 
 	nd->nlbaf = 0; /* NLBAF is a 0's based value (i.e. 1 LBA Format) */
 	nd->flbas = 0;
@@ -1340,7 +1371,7 @@ pci_nvme_io_done(struct blockif_req *br, int err)
 	uint16_t code, status;
 
 	DPRINTF(("%s error %d %s", __func__, err, strerror(err)));
-	
+
 	/* TODO return correct error */
 	code = err ? NVME_SC_DATA_TRANSFER_ERROR : NVME_SC_SUCCESS;
 	pci_nvme_status_genc(&status, code);
@@ -1359,6 +1390,127 @@ pci_nvme_io_partial(struct blockif_req *br, int err)
 	pthread_cond_signal(&req->cv);
 }
 
+static void
+pci_nvme_dealloc_sm(struct blockif_req *br, int err)
+{
+	struct pci_nvme_ioreq *req = br->br_param;
+	struct pci_nvme_softc *sc = req->sc;
+	bool done = true;
+	uint16_t status;
+
+	if (err) {
+		pci_nvme_status_genc(&status, NVME_SC_INTERNAL_DEVICE_ERROR);
+	} else if ((req->prev_gpaddr + 1) == (req->prev_size)) {
+		pci_nvme_status_genc(&status, NVME_SC_SUCCESS);
+	} else {
+		struct iovec *iov = req->io_req.br_iov;
+
+		req->prev_gpaddr++;
+		iov += req->prev_gpaddr;
+
+		/* The iov_* values already include the sector size */
+		req->io_req.br_offset = (off_t)iov->iov_base;
+		req->io_req.br_resid = iov->iov_len;
+		if (blockif_delete(sc->nvstore.ctx, &req->io_req)) {
+			pci_nvme_status_genc(&status,
+			    NVME_SC_INTERNAL_DEVICE_ERROR);
+		} else
+			done = false;
+	}
+
+	if (done) {
+		pci_nvme_set_completion(sc, req->nvme_sq, req->sqid,
+		    req->cid, 0, status, 0);
+		pci_nvme_release_ioreq(sc, req);
+	}
+}
+
+static int
+nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
+    struct nvme_command *cmd,
+    struct pci_nvme_blockstore *nvstore,
+    struct pci_nvme_ioreq *req,
+    uint16_t *status)
+{
+	int err = -1;
+
+	if ((sc->ctrldata.oncs & NVME_ONCS_DSM) == 0) {
+		pci_nvme_status_genc(status, NVME_SC_INVALID_OPCODE);
+		goto out;
+	}
+
+	if (cmd->cdw11 & NVME_DSM_ATTR_DEALLOCATE) {
+		struct nvme_dsm_range *range;
+		uint32_t nr, r;
+		int sectsz = sc->nvstore.sectsz;
+
+		/*
+		 * DSM calls are advisory only, and compliant controllers
+		 * may choose to take no actions (i.e. return Success).
+		 */
+		if (!nvstore->deallocate) {
+			pci_nvme_status_genc(status, NVME_SC_SUCCESS);
+			goto out;
+		}
+
+		if (req == NULL) {
+			pci_nvme_status_genc(status, NVME_SC_INTERNAL_DEVICE_ERROR);
+			goto out;
+		}
+
+		/* copy locally because a range entry could straddle PRPs */
+		range = calloc(1, NVME_MAX_DSM_TRIM);
+		if (range == NULL) {
+			pci_nvme_status_genc(status, NVME_SC_INTERNAL_DEVICE_ERROR);
+			goto out;
+		}
+		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, cmd->prp1, cmd->prp2,
+		    (uint8_t *)range, NVME_MAX_DSM_TRIM, NVME_COPY_FROM_PRP);
+
+		req->opc = cmd->opc;
+		req->cid = cmd->cid;
+		req->nsid = cmd->nsid;
+		/*
+		 * If the request is for more than a single range, store
+		 * the ranges in the br_iov. Optimize for the common case
+		 * of a single range.
+		 *
+		 * Note that NVMe Number of Ranges is a zero based value
+		 */
+		nr = cmd->cdw10 & 0xff;
+
+		req->io_req.br_iovcnt = 0;
+		req->io_req.br_offset = range[0].starting_lba * sectsz;
+		req->io_req.br_resid = range[0].length * sectsz;
+
+		if (nr == 0) {
+			req->io_req.br_callback = pci_nvme_io_done;
+		} else {
+			struct iovec *iov = req->io_req.br_iov;
+
+			for (r = 0; r <= nr; r++) {
+				iov[r].iov_base = (void *)(range[r].starting_lba * sectsz);
+				iov[r].iov_len = range[r].length * sectsz;
+			}
+			req->io_req.br_callback = pci_nvme_dealloc_sm;
+
+			/*
+			 * Use prev_gpaddr to track the current entry and
+			 * prev_size to track the number of entries
+			 */
+			req->prev_gpaddr = 0;
+			req->prev_size = r;
+		}
+
+		err = blockif_delete(nvstore->ctx, &req->io_req);
+		if (err)
+			pci_nvme_status_genc(status, NVME_SC_INTERNAL_DEVICE_ERROR);
+
+		free(range);
+	}
+out:
+	return (err);
+}
 
 static void
 pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
@@ -1411,15 +1563,26 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 			continue;
 		}
 
-		nblocks = (cmd->cdw12 & 0xFFFF) + 1;
-
-		bytes = nblocks * sc->nvstore.sectsz;
-
 		if (sc->nvstore.type == NVME_STOR_BLOCKIF) {
 			req = pci_nvme_get_ioreq(sc);
 			req->nvme_sq = sq;
 			req->sqid = idx;
 		}
+
+		if (cmd->opc == NVME_OPC_DATASET_MANAGEMENT) {
+			if (nvme_opc_dataset_mgmt(sc, cmd, &sc->nvstore, req,
+			    &status)) {
+				pci_nvme_set_completion(sc, sq, idx, cmd->cid,
+				    0, status, 1);
+				if (req)
+					pci_nvme_release_ioreq(sc, req);
+			}
+			continue;
+		}
+
+		nblocks = (cmd->cdw12 & 0xFFFF) + 1;
+
+		bytes = nblocks * sc->nvstore.sectsz;
 
 		/*
 		 * If data starts mid-page and flows into the next page, then
@@ -1869,6 +2032,7 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 	sc->ioslots = NVME_IOSLOTS;
 	sc->num_squeues = sc->max_queues;
 	sc->num_cqueues = sc->max_queues;
+	sc->dataset_management = NVME_DATASET_MANAGEMENT_AUTO;
 	sectsz = 0;
 
 	uopt = strdup(opts);
@@ -1913,6 +2077,13 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 			}
 		} else if (!strcmp("eui64", xopts)) {
 			sc->nvstore.eui64 = htobe64(strtoull(config, NULL, 0));
+		} else if (!strcmp("dsm", xopts)) {
+			if (!strcmp("auto", config))
+				sc->dataset_management = NVME_DATASET_MANAGEMENT_AUTO;
+			else if (!strcmp("enable", config))
+				sc->dataset_management = NVME_DATASET_MANAGEMENT_ENABLE;
+			else if (!strcmp("disable", config))
+				sc->dataset_management = NVME_DATASET_MANAGEMENT_DISABLE;
 		} else if (optidx == 0) {
 			snprintf(bident, sizeof(bident), "%d:%d",
 			         sc->nsc_pi->pi_slot, sc->nsc_pi->pi_func);
@@ -2032,8 +2203,12 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sem_init(&sc->iosemlock, 0, sc->ioslots);
 
 	pci_nvme_reset(sc);
-	pci_nvme_init_ctrldata(sc);
+	/*
+	 * Controller data depends on Namespace data so initialize Namespace
+	 * data first.
+	 */
 	pci_nvme_init_nsdata(sc, &sc->nsdata, 1, &sc->nvstore);
+	pci_nvme_init_ctrldata(sc);
 	pci_nvme_init_logpages(sc);
 
 	pci_lintr_request(pi);
