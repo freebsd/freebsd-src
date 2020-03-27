@@ -14,6 +14,7 @@ try-include /boot/loader.rc.local
 start
 
 maybe-efi-resizecons
+maybe-resetcons
 
 \ Tests for password -- executes autoboot first if a password was defined
 check-password

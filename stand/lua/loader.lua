@@ -38,28 +38,21 @@ local color = require("color")
 local core = require("core")
 local config = require("config")
 local password = require("password")
--- The menu module will be brought in after config has loaded if we actually
--- need it.
-local menu
 
 config.load()
 
--- Our console may have been setup for a different color scheme before we get
--- here, so make sure we set the default.
-if color.isEnabled() then
-	printc(color.default())
-end
-try_include("local")
-if not core.isMenuSkipped() then
-	menu = require("menu")
-end
 if core.isUEFIBoot() then
 	loader.perform("efi-autoresizecons")
 end
+-- Our console may have been setup with different settings before we get
+-- here, so make sure we reset everything back to default.
+if color.isEnabled() then
+	printc(core.KEYSTR_RESET)
+end
+try_include("local")
 password.check()
--- menu might be disabled
-if menu ~= nil then
-	menu.run()
+if not core.isMenuSkipped() then
+	require("menu").run()
 else
 	-- Load kernel/modules before we go
 	config.loadelf()
