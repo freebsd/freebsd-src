@@ -320,7 +320,7 @@ struct sctp_pcb {
 
 	uint32_t def_cookie_life;
 	/* defaults to 0 */
-	int auto_close_time;
+	uint32_t auto_close_time;
 	uint32_t initial_sequence_debug;
 	uint32_t adaptation_layer_indicator;
 	uint8_t adaptation_layer_indicator_provided;
