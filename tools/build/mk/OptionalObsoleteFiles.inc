@@ -413,11 +413,8 @@ OLD_FILES+=usr/share/man/man7/ldint.7.gz
 OLD_FILES+=usr/share/man/man7/binutils.7.gz
 .endif
 .endif
-# powerpc64 still needs ld.bfd for 32-bit binaries/libraries
-.if !defined(WITH_PORT_BASE_BINUTILS) && ${TARGET_ARCH} != "powerpc64"
-.if ${MK_BINUTILS} == no || ${MK_LLD_IS_LD} == yes
+.if !defined(WITH_PORT_BASE_BINUTILS)
 OLD_FILES+=usr/bin/ld.bfd
-.endif
 .endif
 
 .if ${MK_BLACKLIST} == no
