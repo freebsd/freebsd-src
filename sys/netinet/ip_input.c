@@ -1167,7 +1167,7 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 	}
 	if (CHECK_SO_CT(inp->inp_socket, SO_TS_REALTIME_MICRO)) {
 		struct bintime boottimebin, bt1;
-		struct timespec ts1;;
+		struct timespec ts1;
 		struct timeval tv;
 
 		if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |

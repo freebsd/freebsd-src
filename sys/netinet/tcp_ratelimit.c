@@ -1485,7 +1485,7 @@ tcp_rs_init(void *st __unused)
 {
 	CK_LIST_INIT(&int_rs);
 	rs_number_alive = 0;
-	rs_number_dead = 0;;
+	rs_number_dead = 0;
 	mtx_init(&rs_mtx, "tcp_rs_mtx", "rsmtx", MTX_DEF);
 	rl_ifnet_departs = EVENTHANDLER_REGISTER(ifnet_departure_event,
 	    tcp_rl_ifnet_departure,
