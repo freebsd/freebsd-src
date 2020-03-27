@@ -52,15 +52,11 @@ LIB32CPUFLAGS=	-mcpu=${COMPAT_CPUTYPE}
 LIB32CPUFLAGS+=	-m32
 .else
 LIB32CPUFLAGS+=	-target powerpc-unknown-freebsd13.0
-
-# Use BFD to workaround ld.lld issues on PowerPC 32 bit 
-LIB32CPUFLAGS+= -fuse-ld=${LD_BFD}
 .endif
 
 LIB32_MACHINE=	powerpc
 LIB32_MACHINE_ARCH=	powerpc
-LIB32WMAKEFLAGS=	\
-		LD="${LD_BFD} -m elf32ppc_fbsd"
+LIB32WMAKEFLAGS=	-m elf32ppc_fbsd
 
 .elif ${COMPAT_ARCH:Mmips64*} != ""
 HAS_COMPAT=32
