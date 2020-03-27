@@ -3248,6 +3248,8 @@ main (int argc, char **argv)
 	}
     }
 
+  non_fatal (_("objdump 2.17.50 is deprecated in FreeBSD and will be removed"));
+
   if (show_version)
     print_version ("objdump");
 
