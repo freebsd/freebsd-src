@@ -56,7 +56,8 @@ LIB32CPUFLAGS+=	-target powerpc-unknown-freebsd13.0
 
 LIB32_MACHINE=	powerpc
 LIB32_MACHINE_ARCH=	powerpc
-LIB32WMAKEFLAGS=	-m elf32ppc_fbsd
+LIB32WMAKEFLAGS=	\
+		LD="${XLD} -m elf32ppc_fbsd"
 
 .elif ${COMPAT_ARCH:Mmips64*} != ""
 HAS_COMPAT=32
