@@ -287,9 +287,7 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
     struct thread *td)
 {
 	struct socket *so = fp->f_data;
-#ifdef MAC
 	int error;
-#endif
 
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
@@ -298,6 +296,7 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
+	SOCK_LOCK(so);
 	if (!SOLISTENING(so)) {
 		struct sockbuf *sb;
 
@@ -320,7 +319,9 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
 	}
 	ub->st_uid = so->so_cred->cr_uid;
 	ub->st_gid = so->so_cred->cr_gid;
-	return (*so->so_proto->pr_usrreqs->pru_sense)(so, ub);
+	error = so->so_proto->pr_usrreqs->pru_sense(so, ub);
+	SOCK_UNLOCK(so);
+	return (error);
 }
 
 /*
