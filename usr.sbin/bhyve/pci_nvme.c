@@ -185,7 +185,7 @@ struct pci_nvme_blockstore {
 
 struct pci_nvme_ioreq {
 	struct pci_nvme_softc *sc;
-	struct pci_nvme_ioreq *next;
+	STAILQ_ENTRY(pci_nvme_ioreq) link;
 	struct nvme_submission_queue *nvme_sq;
 	uint16_t	sqid;
 
@@ -240,7 +240,7 @@ struct pci_nvme_softc {
 	uint32_t	num_squeues;
 
 	struct pci_nvme_ioreq *ioreqs;
-	struct pci_nvme_ioreq *ioreqs_free; /* free list of ioreqs */
+	STAILQ_HEAD(, pci_nvme_ioreq) ioreqs_free; /* free list of ioreqs */
 	uint32_t	pending_ios;
 	uint32_t	ioslots;
 	sem_t		iosemlock;
@@ -1319,8 +1319,7 @@ pci_nvme_release_ioreq(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req)
 
 	pthread_mutex_lock(&sc->mtx);
 
-	req->next = sc->ioreqs_free;
-	sc->ioreqs_free = req;
+	STAILQ_INSERT_TAIL(&sc->ioreqs_free, req, link);
 	sc->pending_ios--;
 
 	/* when no more IO pending, can set to ready if device reset/enabled */
@@ -1341,12 +1340,10 @@ pci_nvme_get_ioreq(struct pci_nvme_softc *sc)
 	sem_wait(&sc->iosemlock);
 	pthread_mutex_lock(&sc->mtx);
 
-	req = sc->ioreqs_free;
+	req = STAILQ_FIRST(&sc->ioreqs_free);
 	assert(req != NULL);
+	STAILQ_REMOVE_HEAD(&sc->ioreqs_free, link);
 
-	sc->ioreqs_free = req->next;
-
-	req->next = NULL;
 	req->sc = sc;
 
 	sc->pending_ios++;
@@ -2151,14 +2148,13 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	else
 		error = 0;
 
+	STAILQ_INIT(&sc->ioreqs_free);
 	sc->ioreqs = calloc(sc->ioslots, sizeof(struct pci_nvme_ioreq));
 	for (int i = 0; i < sc->ioslots; i++) {
-		if (i < (sc->ioslots-1))
-			sc->ioreqs[i].next = &sc->ioreqs[i+1];
+		STAILQ_INSERT_TAIL(&sc->ioreqs_free, &sc->ioreqs[i], link);
 		pthread_mutex_init(&sc->ioreqs[i].mtx, NULL);
 		pthread_cond_init(&sc->ioreqs[i].cv, NULL);
 	}
-	sc->ioreqs_free = sc->ioreqs;
 	sc->intr_coales_aggr_thresh = 1;
 
 	pci_set_cfgdata16(pi, PCIR_DEVICE, 0x0A0A);
