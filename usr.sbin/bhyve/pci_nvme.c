@@ -1082,12 +1082,12 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 	struct nvme_command *cmd;
 	struct nvme_submission_queue *sq;
 	struct nvme_completion_queue *cq;
-	int do_intr = 0;
 	uint16_t sqhead;
 
 	DPRINTF(("%s index %u", __func__, (uint32_t)value));
 
 	sq = &sc->submit_queues[0];
+	cq = &sc->compl_queues[0];
 
 	sqhead = atomic_load_acq_short(&sq->head);
 
@@ -1107,44 +1107,44 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 		switch (cmd->opc) {
 		case NVME_OPC_DELETE_IO_SQ:
 			DPRINTF(("%s command DELETE_IO_SQ", __func__));
-			do_intr |= nvme_opc_delete_io_sq(sc, cmd, &compl);
+			nvme_opc_delete_io_sq(sc, cmd, &compl);
 			break;
 		case NVME_OPC_CREATE_IO_SQ:
 			DPRINTF(("%s command CREATE_IO_SQ", __func__));
-			do_intr |= nvme_opc_create_io_sq(sc, cmd, &compl);
+			nvme_opc_create_io_sq(sc, cmd, &compl);
 			break;
 		case NVME_OPC_DELETE_IO_CQ:
 			DPRINTF(("%s command DELETE_IO_CQ", __func__));
-			do_intr |= nvme_opc_delete_io_cq(sc, cmd, &compl);
+			nvme_opc_delete_io_cq(sc, cmd, &compl);
 			break;
 		case NVME_OPC_CREATE_IO_CQ:
 			DPRINTF(("%s command CREATE_IO_CQ", __func__));
-			do_intr |= nvme_opc_create_io_cq(sc, cmd, &compl);
+			nvme_opc_create_io_cq(sc, cmd, &compl);
 			break;
 		case NVME_OPC_GET_LOG_PAGE:
 			DPRINTF(("%s command GET_LOG_PAGE", __func__));
-			do_intr |= nvme_opc_get_log_page(sc, cmd, &compl);
+			nvme_opc_get_log_page(sc, cmd, &compl);
 			break;
 		case NVME_OPC_IDENTIFY:
 			DPRINTF(("%s command IDENTIFY", __func__));
-			do_intr |= nvme_opc_identify(sc, cmd, &compl);
+			nvme_opc_identify(sc, cmd, &compl);
 			break;
 		case NVME_OPC_ABORT:
 			DPRINTF(("%s command ABORT", __func__));
-			do_intr |= nvme_opc_abort(sc, cmd, &compl);
+			nvme_opc_abort(sc, cmd, &compl);
 			break;
 		case NVME_OPC_SET_FEATURES:
 			DPRINTF(("%s command SET_FEATURES", __func__));
-			do_intr |= nvme_opc_set_features(sc, cmd, &compl);
+			nvme_opc_set_features(sc, cmd, &compl);
 			break;
 		case NVME_OPC_GET_FEATURES:
 			DPRINTF(("%s command GET_FEATURES", __func__));
-			do_intr |= nvme_opc_get_features(sc, cmd, &compl);
+			nvme_opc_get_features(sc, cmd, &compl);
 			break;
 		case NVME_OPC_ASYNC_EVENT_REQUEST:
 			DPRINTF(("%s command ASYNC_EVENT_REQ", __func__));
 			/* XXX dont care, unhandled for now
-			do_intr |= nvme_opc_async_event_req(sc, cmd, &compl);
+			nvme_opc_async_event_req(sc, cmd, &compl);
 			*/
 			compl.status = NVME_NO_STATUS;
 			break;
@@ -1152,14 +1152,11 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			WPRINTF(("0x%x command is not implemented",
 			    cmd->opc));
 			pci_nvme_status_genc(&compl.status, NVME_SC_INVALID_OPCODE);
-			do_intr |= 1;
 		}
 	
 		if (NVME_COMPLETION_VALID(compl)) {
 			struct nvme_completion *cp;
 			int phase;
-
-			cq = &sc->compl_queues[0];
 
 			cp = &(cq->qbase)[cq->tail];
 			cp->cdw0 = compl.cdw0;
@@ -1180,7 +1177,7 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 	atomic_store_short(&sq->head, sqhead);
 	atomic_store_int(&sq->busy, 0);
 
-	if (do_intr)
+	if (cq->head != cq->tail)
 		pci_generate_msix(sc->nsc_pi, 0);
 
 }
@@ -1276,7 +1273,6 @@ pci_nvme_set_completion(struct pci_nvme_softc *sc,
 {
 	struct nvme_completion_queue *cq = &sc->compl_queues[sq->cqid];
 	struct nvme_completion *compl;
-	int do_intr = 0;
 	int phase;
 
 	DPRINTF(("%s sqid %d cqid %u cid %u status: 0x%x 0x%x",
@@ -1300,14 +1296,16 @@ pci_nvme_set_completion(struct pci_nvme_softc *sc,
 
 	cq->tail = (cq->tail + 1) % cq->size;
 
-	if (cq->intr_en & NVME_CQ_INTEN)
-		do_intr = 1;
-
 	pthread_mutex_unlock(&cq->mtx);
 
-	if (ignore_busy || !atomic_load_acq_int(&sq->busy))
-		if (do_intr)
+	if (cq->head != cq->tail) {
+		if (cq->intr_en & NVME_CQ_INTEN) {
 			pci_generate_msix(sc->nsc_pi, cq->intr_vec);
+		} else {
+			DPRINTF(("%s: CQ%u interrupt disabled\n",
+						__func__, sq->cqid));
+		}
+	}
 }
 
 static void
