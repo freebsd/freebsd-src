@@ -51,10 +51,7 @@ SRCS+=ecore_vf.c
 SRCS+=qlnx_ioctl.c
 SRCS+=qlnx_os.c
 
-SRCS+= device_if.h
-SRCS+= bus_if.h
-SRCS+= pci_if.h
-SRCS+= pci_iov_if.h
+SRCS+=	${LINUXKPI_GENSRCS}
 
 .include <bsd.kmod.mk>
 
