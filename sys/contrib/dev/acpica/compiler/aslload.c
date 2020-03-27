@@ -1022,6 +1022,74 @@ FinishNode:
  *
  * FUNCTION:    LdAnalyzeExternals
  *
+ * PARAMETERS:  Type1
+ *              Type2
+ *
+ * RETURN:      BOOLEAN
+ *
+ * DESCRIPTION: Match Type1 and Type2 with the assumption that one might be
+ *              using external types and another might be using local types.
+ *              This should be used to compare the types found in external
+ *              declarations with types found in other external declarations or
+ *              named object declaration. This should not be used to match two
+ *              object type declarations.
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+LdTypesMatchExternType (
+    ACPI_OBJECT_TYPE        Type1,
+    ACPI_OBJECT_TYPE        Type2)
+{
+    BOOLEAN                 Type1IsLocal = Type1 > ACPI_TYPE_EXTERNAL_MAX;
+    BOOLEAN                 Type2IsLocal = Type2 > ACPI_TYPE_EXTERNAL_MAX;
+    ACPI_OBJECT_TYPE        ExternalType;
+    ACPI_OBJECT_TYPE        LocalType;
+
+
+    /*
+     * The inputs could represent types that are local to ACPICA or types that
+     * are known externally. Some local types, such as the OperationRegion
+     * field units, are defined with more granularity than ACPICA local types.
+     *
+     * Therefore, map the local types to the external types before matching.
+     */
+    if (Type1IsLocal && !Type2IsLocal)
+    {
+        LocalType = Type1;
+        ExternalType = Type2;
+    }
+    else if (!Type1IsLocal && Type2IsLocal)
+    {
+        LocalType = Type2;
+        ExternalType = Type1;
+    }
+    else
+    {
+        return (Type1 == Type2);
+    }
+
+    switch (LocalType)
+    {
+        case ACPI_TYPE_LOCAL_REGION_FIELD:
+        case ACPI_TYPE_LOCAL_BANK_FIELD:
+        case ACPI_TYPE_LOCAL_INDEX_FIELD:
+
+            LocalType = ACPI_TYPE_FIELD_UNIT;
+            break;
+
+        default:
+            break;
+    }
+
+    return (LocalType == ExternalType);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    LdAnalyzeExternals
+ *
  * PARAMETERS:  Node            - Node that represents the named object
  *              Op              - Named object declaring this named object
  *              ExternalOpType  - Type of ExternalOp
@@ -1072,12 +1140,12 @@ LdAnalyzeExternals (
 
     if ((ActualOpType != ACPI_TYPE_ANY) &&
         (ActualExternalOpType != ACPI_TYPE_ANY) &&
-        (ActualExternalOpType != ActualOpType))
+        !LdTypesMatchExternType (ActualExternalOpType, ActualOpType))
     {
         if (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL &&
             Node->Op->Asl.ParseOpcode == PARSEOP_EXTERNAL)
         {
-            AslDualParseOpError (ASL_ERROR,
+            AslDualParseOpError (ASL_WARNING,
                 ASL_MSG_DUPLICATE_EXTERN_MISMATCH, Op, NULL,
                 ASL_MSG_DUPLICATE_EXTERN_FOUND_HERE, Node->Op, NULL);
         }
@@ -1094,7 +1162,7 @@ LdAnalyzeExternals (
                 ExternalOp = Node->Op;
                 ActualOp = Op;
             }
-            AslDualParseOpError (ASL_ERROR,
+            AslDualParseOpError (ASL_WARNING,
                 ASL_MSG_DECLARATION_TYPE_MISMATCH, ExternalOp, NULL,
                 ASL_MSG_TYPE_MISMATCH_FOUND_HERE, ActualOp, NULL);
         }
@@ -1139,18 +1207,8 @@ LdAnalyzeExternals (
     {
         /* Allow update of externals of unknown type. */
 
-        if (AcpiNsOpensScope (ExternalOpType))
-        {
-            Node->Type = (UINT8) ExternalOpType;
-            Status = AE_OK;
-        }
-        else
-        {
-            sprintf (AslGbl_MsgBuffer, "%s [%s]", Op->Asl.ExternalName,
-                AcpiUtGetTypeName (Node->Type));
-            AslError (ASL_ERROR, ASL_MSG_SCOPE_TYPE, Op, AslGbl_MsgBuffer);
-            Status = AE_ERROR;
-        }
+        Node->Type = (UINT8) ExternalOpType;
+        Status = AE_OK;
     }
 
     return (Status);
