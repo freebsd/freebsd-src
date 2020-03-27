@@ -388,10 +388,18 @@ efi_cons_probe(struct console *cp)
 	conout = ST->ConOut;
 	conin = ST->ConIn;
 
-	status = BS->OpenProtocol(ST->ConsoleInHandle, &simple_input_ex_guid,
-	    (void **)&coninex, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
-	if (status != EFI_SUCCESS)
-		coninex = NULL;
+	/*
+	 * Call SetMode to work around buggy firmware.
+	 */
+	status = conout->SetMode(conout, conout->Mode->Mode);
+
+	if (coninex == NULL) {
+		status = BS->OpenProtocol(ST->ConsoleInHandle,
+		    &simple_input_ex_guid, (void **)&coninex,
+		    IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+		if (status != EFI_SUCCESS)
+			coninex = NULL;
+	}
 
 	cp->c_flags |= C_PRESENTIN | C_PRESENTOUT;
 }
@@ -824,7 +832,7 @@ efi_cons_update_mode(void)
 	char env[8];
 
 	status = conout->QueryMode(conout, conout->Mode->Mode, &cols, &rows);
-	if (EFI_ERROR(status)) {
+	if (EFI_ERROR(status) || cols * rows == 0) {
 		cols = 80;
 		rows = 24;
 	}
