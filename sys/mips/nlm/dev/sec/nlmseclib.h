@@ -91,7 +91,6 @@ extern unsigned int creditleft;
 
 struct xlp_sec_command {
 	struct cryptop *crp;
-	struct cryptodesc *enccrd, *maccrd;
 	struct xlp_sec_session *ses;
 	struct nlm_crypto_pkt_ctrl *ctrlp;
 	struct nlm_crypto_pkt_param *paramp;
@@ -116,8 +115,6 @@ struct xlp_sec_command {
 
 struct xlp_sec_session {
 	int hs_mlen;
-	uint8_t ses_iv[EALG_MAX_BLOCK_LEN];
-	struct xlp_sec_command cmd;
 };
 
 /*
@@ -135,17 +132,22 @@ struct xlp_sec_softc {
 
 #ifdef NLM_SEC_DEBUG
 void	print_crypto_params(struct xlp_sec_command *cmd, struct nlm_fmn_msg m);
-void	xlp_sec_print_data(struct cryptop *crp);
 void	print_cmd(struct xlp_sec_command *cmd);
 #endif
-int	nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd);
+int	nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd,
+	    const struct crypto_session_params *csp);
 int	nlm_crypto_do_cipher(struct xlp_sec_softc *sc,
-	    struct xlp_sec_command *cmd);
+	    struct xlp_sec_command *cmd,
+	    const struct crypto_session_params *csp);
 int	nlm_crypto_do_digest(struct xlp_sec_softc *sc,
-	    struct xlp_sec_command *cmd);
+	    struct xlp_sec_command *cmd,
+	    const struct crypto_session_params *csp);
 int	nlm_crypto_do_cipher_digest(struct xlp_sec_softc *sc,
-	    struct xlp_sec_command *cmd);
-int	nlm_get_digest_param(struct xlp_sec_command *cmd);
-int	nlm_get_cipher_param(struct xlp_sec_command *cmd);
+	    struct xlp_sec_command *cmd,
+	    const struct crypto_session_params *csp);
+int	nlm_get_digest_param(struct xlp_sec_command *cmd,
+	    const struct crypto_session_params *csp);
+int	nlm_get_cipher_param(struct xlp_sec_command *cmd,
+	    const struct crypto_session_params *csp);
 
 #endif /* _NLMSECLIB_H_ */

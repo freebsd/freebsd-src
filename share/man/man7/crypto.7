@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2015
+.Dd March 27, 2020
 .Dt CRYPTO 7
 .Os
 .Sh NAME
@@ -68,19 +68,13 @@ This algorithm implements Cipher-block chaining.
 .El
 .Pp
 This algorithm implements Galois/Counter Mode.
-This is the cipher part of an AEAD
+This cipher uses AEAD
 .Pq Authenticated Encryption with Associated Data
 mode.
-This requires use of the use of a proper authentication mode, one of
-.Dv CRYPTO_AES_128_NIST_GMAC ,
-.Dv CRYPTO_AES_192_NIST_GMAC
-or
-.Dv CRYPTO_AES_256_NIST_GMAC ,
-that corresponds with the number of bits in the key that you are using.
 .Pp
-The associated data (if any) must be provided by the authentication mode op.
-The authentication tag will be read/written from/to the offset crd_inject
-specified in the descriptor for the authentication mode.
+The authentication tag will be read/written from/to the offset
+.Va crp_digest_start
+specified in the request.
 .Pp
 Note: You must provide an IV on every call.
 .It Dv CRYPTO_AES_ICM
@@ -117,22 +111,6 @@ as defined in NIST SP 800-38E.
 .Pp
 NOTE: The ciphertext stealing part is not implemented which is why this cipher
 is listed as having a block size of 16 instead of 1.
-.El
-.Pp
-Authentication algorithms:
-.Bl -tag -width ".Dv CRYPTO_AES_256_NIST_GMAC"
-.It CRYPTO_AES_128_NIST_GMAC
-See
-.Dv CRYPTO_AES_NIST_GCM_16
-in the cipher mode section.
-.It CRYPTO_AES_192_NIST_GMAC
-See
-.Dv CRYPTO_AES_NIST_GCM_16
-in the cipher mode section.
-.It CRYPTO_AES_256_NIST_GMAC
-See
-.Dv CRYPTO_AES_NIST_GCM_16
-in the cipher mode section.
 .El
 .Sh SEE ALSO
 .Xr crypto 4 ,

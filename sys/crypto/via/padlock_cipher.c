@@ -98,7 +98,7 @@ padlock_cbc(void *in, void *out, size_t count, void *key, union padlock_cw *cw,
 }
 
 static void
-padlock_cipher_key_setup(struct padlock_session *ses, caddr_t key, int klen)
+padlock_cipher_key_setup(struct padlock_session *ses, const void *key, int klen)
 {
 	union padlock_cw *cw;
 	int i;
@@ -106,8 +106,8 @@ padlock_cipher_key_setup(struct padlock_session *ses, caddr_t key, int klen)
 	cw = &ses->ses_cw;
 	if (cw->cw_key_generation == PADLOCK_KEY_GENERATION_SW) {
 		/* Build expanded keys for both directions */
-		rijndaelKeySetupEnc(ses->ses_ekey, key, klen);
-		rijndaelKeySetupDec(ses->ses_dkey, key, klen);
+		rijndaelKeySetupEnc(ses->ses_ekey, key, klen * 8);
+		rijndaelKeySetupDec(ses->ses_dkey, key, klen * 8);
 		for (i = 0; i < 4 * (RIJNDAEL_MAXNR + 1); i++) {
 			ses->ses_ekey[i] = ntohl(ses->ses_ekey[i]);
 			ses->ses_dkey[i] = ntohl(ses->ses_dkey[i]);
@@ -119,12 +119,13 @@ padlock_cipher_key_setup(struct padlock_session *ses, caddr_t key, int klen)
 }
 
 int
-padlock_cipher_setup(struct padlock_session *ses, struct cryptoini *encini)
+padlock_cipher_setup(struct padlock_session *ses,
+    const struct crypto_session_params *csp)
 {
 	union padlock_cw *cw;
 
-	if (encini->cri_klen != 128 && encini->cri_klen != 192 &&
-	    encini->cri_klen != 256) {
+	if (csp->csp_cipher_klen != 16 && csp->csp_cipher_klen != 25 &&
+	    csp->csp_cipher_klen != 32) {
 		return (EINVAL);
 	}
 
@@ -133,7 +134,7 @@ padlock_cipher_setup(struct padlock_session *ses, struct cryptoini *encini)
 	cw->cw_algorithm_type = PADLOCK_ALGORITHM_TYPE_AES;
 	cw->cw_key_generation = PADLOCK_KEY_GENERATION_SW;
 	cw->cw_intermediate = 0;
-	switch (encini->cri_klen) {
+	switch (csp->csp_cipher_klen * 8) {
 	case 128:
 		cw->cw_round_count = PADLOCK_ROUND_COUNT_AES128;
 		cw->cw_key_size = PADLOCK_KEY_SIZE_128;
@@ -151,12 +152,10 @@ padlock_cipher_setup(struct padlock_session *ses, struct cryptoini *encini)
 		cw->cw_key_size = PADLOCK_KEY_SIZE_256;
 		break;
 	}
-	if (encini->cri_key != NULL) {
-		padlock_cipher_key_setup(ses, encini->cri_key,
-		    encini->cri_klen);
+	if (csp->csp_cipher_key != NULL) {
+		padlock_cipher_key_setup(ses, csp->csp_cipher_key,
+		    csp->csp_cipher_klen);
 	}
-
-	arc4rand(ses->ses_iv, sizeof(ses->ses_iv), 0);
 	return (0);
 }
 
@@ -166,56 +165,60 @@ padlock_cipher_setup(struct padlock_session *ses, struct cryptoini *encini)
  * If it isn't, new buffer is allocated.
  */
 static u_char *
-padlock_cipher_alloc(struct cryptodesc *enccrd, struct cryptop *crp,
-    int *allocated)
+padlock_cipher_alloc(struct cryptop *crp, int *allocated)
 {
 	u_char *addr;
 
-	if (crp->crp_flags & CRYPTO_F_IMBUF)
-		goto alloc;
-	else {
-		if (crp->crp_flags & CRYPTO_F_IOV) {
-			struct uio *uio;
-			struct iovec *iov;
+	switch (crp->crp_buf_type) {
+	case CRYPTO_BUF_MBUF:
+		break;
+	case CRYPTO_BUF_UIO: {
+		struct uio *uio;
+		struct iovec *iov;
 
-			uio = (struct uio *)crp->crp_buf;
-			if (uio->uio_iovcnt != 1)
-				goto alloc;
-			iov = uio->uio_iov;
-			addr = (u_char *)iov->iov_base + enccrd->crd_skip;
-		} else {
-			addr = (u_char *)crp->crp_buf;
-		}
+		uio = crp->crp_uio;
+		if (uio->uio_iovcnt != 1)
+			break;
+		iov = uio->uio_iov;
+		addr = (u_char *)iov->iov_base + crp->crp_payload_start;
 		if (((uintptr_t)addr & 0xf) != 0) /* 16 bytes aligned? */
-			goto alloc;
+			break;
 		*allocated = 0;
 		return (addr);
 	}
-alloc:
+	case CRYPTO_BUF_CONTIG:
+		addr = (u_char *)crp->crp_buf + crp->crp_payload_start;
+		if (((uintptr_t)addr & 0xf) != 0) /* 16 bytes aligned? */
+			break;
+		*allocated = 0;
+		return (addr);
+	}
+
 	*allocated = 1;
-	addr = malloc(enccrd->crd_len + 16, M_PADLOCK, M_NOWAIT);
+	addr = malloc(crp->crp_payload_length + 16, M_PADLOCK, M_NOWAIT);
 	return (addr);
 }
 
 int
-padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
-    struct cryptop *crp)
+padlock_cipher_process(struct padlock_session *ses, struct cryptop *crp,
+    const struct crypto_session_params *csp)
 {
 	union padlock_cw *cw;
 	struct thread *td;
 	u_char *buf, *abuf;
 	uint32_t *key;
+	uint8_t iv[AES_BLOCK_LEN] __aligned(16);
 	int allocated;
 
-	buf = padlock_cipher_alloc(enccrd, crp, &allocated);
+	buf = padlock_cipher_alloc(crp, &allocated);
 	if (buf == NULL)
 		return (ENOMEM);
 	/* Buffer has to be 16 bytes aligned. */
 	abuf = PADLOCK_ALIGN(buf);
 
-	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
-		padlock_cipher_key_setup(ses, enccrd->crd_key,
-		    enccrd->crd_klen);
+	if (crp->crp_cipher_key != NULL) {
+		padlock_cipher_key_setup(ses, crp->crp_cipher_key,
+		    csp->csp_cipher_klen);
 	}
 
 	cw = &ses->ses_cw;
@@ -223,52 +226,39 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 	cw->cw_filler1 = 0;
 	cw->cw_filler2 = 0;
 	cw->cw_filler3 = 0;
-	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0) {
+
+	if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
+		arc4rand(iv, AES_BLOCK_LEN, 0);
+		crypto_copyback(crp, crp->crp_iv_start, AES_BLOCK_LEN, iv);
+	} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+		memcpy(iv, crp->crp_iv, AES_BLOCK_LEN);
+	else
+		crypto_copydata(crp, crp->crp_iv_start, AES_BLOCK_LEN, iv);
+
+	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
 		cw->cw_direction = PADLOCK_DIRECTION_ENCRYPT;
 		key = ses->ses_ekey;
-		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
-			bcopy(enccrd->crd_iv, ses->ses_iv, AES_BLOCK_LEN);
-
-		if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0) {
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    enccrd->crd_inject, AES_BLOCK_LEN, ses->ses_iv);
-		}
 	} else {
 		cw->cw_direction = PADLOCK_DIRECTION_DECRYPT;
 		key = ses->ses_dkey;
-		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
-			bcopy(enccrd->crd_iv, ses->ses_iv, AES_BLOCK_LEN);
-		else {
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    enccrd->crd_inject, AES_BLOCK_LEN, ses->ses_iv);
-		}
 	}
 
 	if (allocated) {
-		crypto_copydata(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
-		    enccrd->crd_len, abuf);
+		crypto_copydata(crp, crp->crp_payload_start,
+		    crp->crp_payload_length, abuf);
 	}
 
 	td = curthread;
 	fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL | FPU_KERN_KTHR);
-	padlock_cbc(abuf, abuf, enccrd->crd_len / AES_BLOCK_LEN, key, cw,
-	    ses->ses_iv);
+	padlock_cbc(abuf, abuf, crp->crp_payload_length / AES_BLOCK_LEN, key,
+	    cw, iv);
 	fpu_kern_leave(td, ses->ses_fpu_ctx);
 
 	if (allocated) {
-		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
-		    enccrd->crd_len, abuf);
-	}
+		crypto_copyback(crp, crp->crp_payload_start,
+		    crp->crp_payload_length, abuf);
 
-	/* copy out last block for use as next session IV */
-	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0) {
-		crypto_copydata(crp->crp_flags, crp->crp_buf,
-		    enccrd->crd_skip + enccrd->crd_len - AES_BLOCK_LEN,
-		    AES_BLOCK_LEN, ses->ses_iv);
-	}
-
-	if (allocated) {
-		bzero(buf, enccrd->crd_len + 16);
+		explicit_bzero(buf, crp->crp_payload_length + 16);
 		free(buf, M_PADLOCK);
 	}
 	return (0);

@@ -128,9 +128,7 @@ xform_ah_authsize(const struct auth_hash *esph)
 		alen = esph->hashsize / 2;	/* RFC4868 2.3 */
 		break;
 
-	case CRYPTO_AES_128_NIST_GMAC:
-	case CRYPTO_AES_192_NIST_GMAC:
-	case CRYPTO_AES_256_NIST_GMAC:
+	case CRYPTO_AES_NIST_GMAC:
 		alen = esph->hashsize;
 		break;
 
@@ -174,7 +172,8 @@ ah_hdrsiz(struct secasvar *sav)
  * NB: public for use by esp_init.
  */
 int
-ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
+ah_init0(struct secasvar *sav, struct xformsw *xsp,
+    struct crypto_session_params *csp)
 {
 	const struct auth_hash *thash;
 	int keylen;
@@ -235,11 +234,10 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 	sav->tdb_authalgxform = thash;
 
 	/* Initialize crypto session. */
-	bzero(cria, sizeof (*cria));
-	cria->cri_alg = sav->tdb_authalgxform->type;
-	cria->cri_klen = _KEYBITS(sav->key_auth);
-	cria->cri_key = sav->key_auth->key_data;
-	cria->cri_mlen = AUTHSIZE(sav);
+	csp->csp_auth_alg = sav->tdb_authalgxform->type;
+	csp->csp_auth_klen = _KEYBITS(sav->key_auth) / 8;
+	csp->csp_auth_key = sav->key_auth->key_data;
+	csp->csp_auth_mlen = AUTHSIZE(sav);
 
 	return 0;
 }
@@ -250,12 +248,14 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 static int
 ah_init(struct secasvar *sav, struct xformsw *xsp)
 {
-	struct cryptoini cria;
+	struct crypto_session_params csp;
 	int error;
 
-	error = ah_init0(sav, xsp, &cria);
+	memset(&csp, 0, sizeof(csp));
+	csp.csp_mode = CSP_MODE_DIGEST;
+	error = ah_init0(sav, xsp, &csp);
 	return error ? error :
-		 crypto_newsession(&sav->tdb_cryptoid, &cria, V_crypto_support);
+		 crypto_newsession(&sav->tdb_cryptoid, &csp, V_crypto_support);
 }
 
 /*
@@ -560,7 +560,6 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
 	IPSEC_DEBUG_DECLARE(char buf[128]);
 	const struct auth_hash *ahx;
-	struct cryptodesc *crda;
 	struct cryptop *crp;
 	struct xform_data *xd;
 	struct newah *ah;
@@ -628,7 +627,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	AHSTAT_ADD(ahs_ibytes, m->m_pkthdr.len - skip - hl);
 
 	/* Get crypto descriptors. */
-	crp = crypto_getreq(1);
+	crp = crypto_getreq(cryptoid, M_NOWAIT);
 	if (crp == NULL) {
 		DPRINTF(("%s: failed to acquire crypto descriptor\n",
 		    __func__));
@@ -637,17 +636,9 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		goto bad;
 	}
 
-	crda = crp->crp_desc;
-	IPSEC_ASSERT(crda != NULL, ("null crypto descriptor"));
-
-	crda->crd_skip = 0;
-	crda->crd_len = m->m_pkthdr.len;
-	crda->crd_inject = skip + rplen;
-
-	/* Authentication operation. */
-	crda->crd_alg = ahx->type;
-	crda->crd_klen = _KEYBITS(sav->key_auth);
-	crda->crd_key = sav->key_auth->key_data;
+	crp->crp_payload_start = 0;
+	crp->crp_payload_length = m->m_pkthdr.len;
+	crp->crp_digest_start = skip + rplen;
 
 	/* Allocate IPsec-specific opaque crypto info. */
 	xd = malloc(sizeof(*xd) + skip + rplen + authsize, M_XDATA,
@@ -686,13 +677,14 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 
 	/* Crypto operation descriptor. */
 	crp->crp_ilen = m->m_pkthdr.len; /* Total input length. */
-	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
+	crp->crp_op = CRYPTO_OP_COMPUTE_DIGEST;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC;
 	if (V_async_crypto)
 		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
-	crp->crp_buf = (caddr_t) m;
+	crp->crp_mbuf = m;
+	crp->crp_buf_type = CRYPTO_BUF_MBUF;
 	crp->crp_callback = ah_input_cb;
-	crp->crp_session = cryptoid;
-	crp->crp_opaque = (caddr_t) xd;
+	crp->crp_opaque = xd;
 
 	/* These are passed as-is to the callback. */
 	xd->sav = sav;
@@ -725,8 +717,8 @@ ah_input_cb(struct cryptop *crp)
 	int authsize, rplen, ahsize, error, skip, protoff;
 	uint8_t nxt;
 
-	m = (struct mbuf *) crp->crp_buf;
-	xd = (struct xform_data *) crp->crp_opaque;
+	m = crp->crp_mbuf;
+	xd = crp->crp_opaque;
 	CURVNET_SET(xd->vnet);
 	sav = xd->sav;
 	skip = xd->skip;
@@ -866,7 +858,6 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 {
 	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
 	const struct auth_hash *ahx;
-	struct cryptodesc *crda;
 	struct xform_data *xd;
 	struct mbuf *mi;
 	struct cryptop *crp;
@@ -988,7 +979,7 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	SECASVAR_UNLOCK(sav);
 
 	/* Get crypto descriptors. */
-	crp = crypto_getreq(1);
+	crp = crypto_getreq(cryptoid, M_NOWAIT);
 	if (crp == NULL) {
 		DPRINTF(("%s: failed to acquire crypto descriptors\n",
 			__func__));
@@ -997,15 +988,9 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		goto bad;
 	}
 
-	crda = crp->crp_desc;
-	crda->crd_skip = 0;
-	crda->crd_inject = skip + rplen;
-	crda->crd_len = m->m_pkthdr.len;
-
-	/* Authentication operation. */
-	crda->crd_alg = ahx->type;
-	crda->crd_key = sav->key_auth->key_data;
-	crda->crd_klen = _KEYBITS(sav->key_auth);
+	crp->crp_payload_start = 0;
+	crp->crp_payload_length = m->m_pkthdr.len;
+	crp->crp_digest_start = skip + rplen;
 
 	/* Allocate IPsec-specific opaque crypto info. */
 	xd =  malloc(sizeof(struct xform_data) + skip, M_XDATA,
@@ -1069,13 +1054,14 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 
 	/* Crypto operation descriptor. */
 	crp->crp_ilen = m->m_pkthdr.len; /* Total input length. */
-	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
+	crp->crp_op = CRYPTO_OP_COMPUTE_DIGEST;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC;
 	if (V_async_crypto)
 		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
-	crp->crp_buf = (caddr_t) m;
+	crp->crp_mbuf = m;
+	crp->crp_buf_type = CRYPTO_BUF_MBUF;
 	crp->crp_callback = ah_output_cb;
-	crp->crp_session = cryptoid;
-	crp->crp_opaque = (caddr_t) xd;
+	crp->crp_opaque = xd;
 
 	/* These are passed as-is to the callback. */
 	xd->sp = sp;

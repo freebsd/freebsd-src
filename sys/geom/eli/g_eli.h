@@ -163,6 +163,7 @@ extern u_int g_eli_batch;
 struct g_eli_worker {
 	struct g_eli_softc	*w_softc;
 	struct proc		*w_proc;
+	void			*w_first_key;
 	u_int			 w_number;
 	crypto_session_t	 w_sid;
 	boolean_t		 w_active;
@@ -571,6 +572,25 @@ g_eli_keylen(u_int algo, u_int keylen)
 	default:
 		return (0);
 	}
+}
+
+static __inline u_int
+g_eli_ivlen(u_int algo)
+{
+
+	switch (algo) {
+	case CRYPTO_AES_XTS:
+		return (AES_XTS_IV_LEN);
+	case CRYPTO_AES_CBC:
+		return (AES_BLOCK_LEN);
+	case CRYPTO_BLF_CBC:
+		return (BLOWFISH_BLOCK_LEN);
+	case CRYPTO_CAMELLIA_CBC:
+		return (CAMELLIA_BLOCK_LEN);
+	case CRYPTO_3DES_CBC:
+		return (DES3_BLOCK_LEN);
+	}
+	return (0);
 }
 
 static __inline u_int

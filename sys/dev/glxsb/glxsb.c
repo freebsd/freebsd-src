@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <opencrypto/cryptodev.h>
-#include <opencrypto/cryptosoft.h>
 #include <opencrypto/xform.h>
 
 #include "cryptodev_if.h"
@@ -172,8 +171,6 @@ struct glxsb_dma_map {
 struct glxsb_taskop {
 	struct glxsb_session	*to_ses;	/* crypto session */
 	struct cryptop		*to_crp;	/* cryptop to perfom */
-	struct cryptodesc	*to_enccrd;	/* enccrd to perform */
-	struct cryptodesc	*to_maccrd;	/* maccrd to perform */
 };
 
 struct glxsb_softc {
@@ -204,13 +201,16 @@ static void glxsb_dma_free(struct glxsb_softc *, struct glxsb_dma_map *);
 
 static void glxsb_rnd(void *);
 static int  glxsb_crypto_setup(struct glxsb_softc *);
-static int  glxsb_crypto_newsession(device_t, crypto_session_t, struct cryptoini *);
+static int  glxsb_crypto_probesession(device_t,
+	const struct crypto_session_params *);
+static int  glxsb_crypto_newsession(device_t, crypto_session_t,
+	const struct crypto_session_params *);
 static void glxsb_crypto_freesession(device_t, crypto_session_t);
 static int  glxsb_aes(struct glxsb_softc *, uint32_t, uint32_t,
-	uint32_t, void *, int, void *);
+	uint32_t, const void *, int, const void *);
 
-static int  glxsb_crypto_encdec(struct cryptop *, struct cryptodesc *,
-	struct glxsb_session *, struct glxsb_softc *);
+static int  glxsb_crypto_encdec(struct cryptop *, struct glxsb_session *,
+	struct glxsb_softc *);
 
 static void glxsb_crypto_task(void *, int);
 static int  glxsb_crypto_process(device_t, struct cryptop *, int);
@@ -222,6 +222,7 @@ static device_method_t glxsb_methods[] = {
 	DEVMETHOD(device_detach,	glxsb_detach),
 
 	/* crypto device methods */
+	DEVMETHOD(cryptodev_probesession,	glxsb_crypto_probesession),
 	DEVMETHOD(cryptodev_newsession,		glxsb_crypto_newsession),
 	DEVMETHOD(cryptodev_freesession,	glxsb_crypto_freesession),
 	DEVMETHOD(cryptodev_process,		glxsb_crypto_process),
@@ -477,47 +478,24 @@ glxsb_crypto_setup(struct glxsb_softc *sc)
 
 	mtx_init(&sc->sc_task_mtx, "glxsb_crypto_mtx", NULL, MTX_DEF);
 
-	if (crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0) != 0)
-		goto crypto_fail;
-	if (crypto_register(sc->sc_cid, CRYPTO_NULL_HMAC, 0, 0) != 0)
-		goto crypto_fail;
-	if (crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0) != 0)
-		goto crypto_fail;
-	if (crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0) != 0)
-		goto crypto_fail;
-	if (crypto_register(sc->sc_cid, CRYPTO_RIPEMD160_HMAC, 0, 0) != 0)
-		goto crypto_fail;
-	if (crypto_register(sc->sc_cid, CRYPTO_SHA2_256_HMAC, 0, 0) != 0)
-		goto crypto_fail;
-	if (crypto_register(sc->sc_cid, CRYPTO_SHA2_384_HMAC, 0, 0) != 0)
-		goto crypto_fail;
-	if (crypto_register(sc->sc_cid, CRYPTO_SHA2_512_HMAC, 0, 0) != 0)
-		goto crypto_fail;
-
 	return (0);
-
-crypto_fail:
-	device_printf(sc->sc_dev, "cannot register crypto\n");
-	crypto_unregister_all(sc->sc_cid);
-	mtx_destroy(&sc->sc_task_mtx);
-	return (ENOMEM);
 }
 
 static int
-glxsb_crypto_newsession(device_t dev, crypto_session_t cses,
-    struct cryptoini *cri)
+glxsb_crypto_probesession(device_t dev, const struct crypto_session_params *csp)
 {
-	struct glxsb_softc *sc = device_get_softc(dev);
-	struct glxsb_session *ses;
-	struct cryptoini *encini, *macini;
-	int error;
 
-	if (sc == NULL || cri == NULL)
+	if (csp->csp_flags != 0)
 		return (EINVAL);
 
-	encini = macini = NULL;
-	for (; cri != NULL; cri = cri->cri_next) {
-		switch(cri->cri_alg) {
+	/*
+	 * We only support HMAC algorithms to be able to work with
+	 * ipsec(4), so if we are asked only for authentication without
+	 * encryption, don't pretend we can accelerate it.
+	 */
+	switch (csp->csp_mode) {
+	case CSP_MODE_ETA:
+		switch (csp->csp_auth_alg) {
 		case CRYPTO_NULL_HMAC:
 		case CRYPTO_MD5_HMAC:
 		case CRYPTO_SHA1_HMAC:
@@ -525,43 +503,42 @@ glxsb_crypto_newsession(device_t dev, crypto_session_t cses,
 		case CRYPTO_SHA2_256_HMAC:
 		case CRYPTO_SHA2_384_HMAC:
 		case CRYPTO_SHA2_512_HMAC:
-			if (macini != NULL)
-				return (EINVAL);
-			macini = cri;
-			break;
-		case CRYPTO_AES_CBC:
-			if (encini != NULL)
-				return (EINVAL);
-			encini = cri;
 			break;
 		default:
 			return (EINVAL);
 		}
-	}
-
-	/*
-	 * We only support HMAC algorithms to be able to work with
-	 * ipsec(4), so if we are asked only for authentication without
-	 * encryption, don't pretend we can accellerate it.
-	 */
-	if (encini == NULL)
-		return (EINVAL);
-
-	ses = crypto_get_driver_session(cses);
-	if (encini->cri_alg == CRYPTO_AES_CBC) {
-		if (encini->cri_klen != 128) {
-			glxsb_crypto_freesession(sc->sc_dev, cses);
+		/* FALLTHROUGH */
+	case CSP_MODE_CIPHER:
+		switch (csp->csp_cipher_alg) {
+		case CRYPTO_AES_CBC:
+			if (csp->csp_cipher_klen * 8 != 128)
+				return (EINVAL);
+			break;
+		default:
 			return (EINVAL);
 		}
-		arc4rand(ses->ses_iv, sizeof(ses->ses_iv), 0);
-		ses->ses_klen = encini->cri_klen;
-
-		/* Copy the key (Geode LX wants the primary key only) */
-		bcopy(encini->cri_key, ses->ses_key, sizeof(ses->ses_key));
+	default:
+		return (EINVAL);
 	}
+	return (CRYPTODEV_PROBE_HARDWARE);
+}
 
-	if (macini != NULL) {
-		error = glxsb_hash_setup(ses, macini);
+static int
+glxsb_crypto_newsession(device_t dev, crypto_session_t cses,
+    const struct crypto_session_params *csp)
+{
+	struct glxsb_softc *sc = device_get_softc(dev);
+	struct glxsb_session *ses;
+	int error;
+
+	ses = crypto_get_driver_session(cses);
+
+	/* Copy the key (Geode LX wants the primary key only) */
+	if (csp->csp_cipher_key != NULL)
+		bcopy(csp->csp_cipher_key, ses->ses_key, sizeof(ses->ses_key));
+
+	if (csp->csp_auth_alg != 0) {
+		error = glxsb_hash_setup(ses, csp);
 		if (error != 0) {
 			glxsb_crypto_freesession(sc->sc_dev, cses);
 			return (error);
@@ -574,11 +551,7 @@ glxsb_crypto_newsession(device_t dev, crypto_session_t cses,
 static void
 glxsb_crypto_freesession(device_t dev, crypto_session_t cses)
 {
-	struct glxsb_softc *sc = device_get_softc(dev);
 	struct glxsb_session *ses;
-
-	if (sc == NULL)
-		return;
 
 	ses = crypto_get_driver_session(cses);
 	glxsb_hash_free(ses);
@@ -586,7 +559,7 @@ glxsb_crypto_freesession(device_t dev, crypto_session_t cses)
 
 static int
 glxsb_aes(struct glxsb_softc *sc, uint32_t control, uint32_t psrc,
-    uint32_t pdst, void *key, int len, void *iv)
+    uint32_t pdst, const void *key, int len, const void *iv)
 {
 	uint32_t status;
 	int i;
@@ -652,23 +625,24 @@ glxsb_aes(struct glxsb_softc *sc, uint32_t control, uint32_t psrc,
 }
 
 static int
-glxsb_crypto_encdec(struct cryptop *crp, struct cryptodesc *crd,
-    struct glxsb_session *ses, struct glxsb_softc *sc)
+glxsb_crypto_encdec(struct cryptop *crp, struct glxsb_session *ses,
+    struct glxsb_softc *sc)
 {
 	char *op_src, *op_dst;
+	const void *key;
 	uint32_t op_psrc, op_pdst;
-	uint8_t op_iv[SB_AES_BLOCK_SIZE], *piv;
+	uint8_t op_iv[SB_AES_BLOCK_SIZE];
 	int error;
 	int len, tlen, xlen;
 	int offset;
 	uint32_t control;
 
-	if (crd == NULL || (crd->crd_len % SB_AES_BLOCK_SIZE) != 0)
+	if ((crp->crp_payload_length % SB_AES_BLOCK_SIZE) != 0)
 		return (EINVAL);
 
 	/* How much of our buffer will we need to use? */
-	xlen = crd->crd_len > GLXSB_MAX_AES_LEN ?
-	    GLXSB_MAX_AES_LEN : crd->crd_len;
+	xlen = crp->crp_payload_length > GLXSB_MAX_AES_LEN ?
+	    GLXSB_MAX_AES_LEN : crp->crp_payload_length;
 
 	/*
 	 * XXX Check if we can have input == output on Geode LX.
@@ -680,73 +654,57 @@ glxsb_crypto_encdec(struct cryptop *crp, struct cryptodesc *crd,
 	op_psrc = sc->sc_dma.dma_paddr;
 	op_pdst = sc->sc_dma.dma_paddr + xlen;
 
-	if (crd->crd_flags & CRD_F_ENCRYPT) {
+	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
 		control = SB_CTL_ENC;
-		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
-			bcopy(crd->crd_iv, op_iv, sizeof(op_iv));
-		else
-			bcopy(ses->ses_iv, op_iv, sizeof(op_iv));
-
-		if ((crd->crd_flags & CRD_F_IV_PRESENT) == 0) {
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    crd->crd_inject, sizeof(op_iv), op_iv);
-		}
-	} else {
+	else
 		control = SB_CTL_DEC;
-		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
-			bcopy(crd->crd_iv, op_iv, sizeof(op_iv));
-		else {
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crd->crd_inject, sizeof(op_iv), op_iv);
-		}
-	}
 
+	if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
+		arc4rand(op_iv, sizeof(op_iv), 0);
+		crypto_copyback(crp, crp->crp_iv_start, sizeof(op_iv), op_iv);
+	} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+		memcpy(op_iv, crp->crp_iv, sizeof(op_iv));
+	else
+		crypto_copydata(crp, crp->crp_iv_start, sizeof(op_iv), op_iv);
+	
 	offset = 0;
-	tlen = crd->crd_len;
-	piv = op_iv;
+	tlen = crp->crp_payload_length;
+
+	if (crp->crp_cipher_key != NULL)
+		key = crp->crp_cipher_key;
+	else
+		key = ses->ses_key;
 
 	/* Process the data in GLXSB_MAX_AES_LEN chunks */
 	while (tlen > 0) {
 		len = (tlen > GLXSB_MAX_AES_LEN) ? GLXSB_MAX_AES_LEN : tlen;
-		crypto_copydata(crp->crp_flags, crp->crp_buf,
-		    crd->crd_skip + offset, len, op_src);
+		crypto_copydata(crp, crp->crp_payload_start + offset, len,
+		    op_src);
 
 		glxsb_dma_pre_op(sc, &sc->sc_dma);
 
-		error = glxsb_aes(sc, control, op_psrc, op_pdst, ses->ses_key,
-		    len, op_iv);
+		error = glxsb_aes(sc, control, op_psrc, op_pdst, key, len,
+		    op_iv);
 
 		glxsb_dma_post_op(sc, &sc->sc_dma);
 		if (error != 0)
 			return (error);
 
-		crypto_copyback(crp->crp_flags, crp->crp_buf,
-		    crd->crd_skip + offset, len, op_dst);
+		crypto_copyback(crp, crp->crp_payload_start + offset, len,
+		    op_dst);
 
 		offset += len;
 		tlen -= len;
 
-		if (tlen <= 0) {	/* Ideally, just == 0 */
-			/* Finished - put the IV in session IV */
-			piv = ses->ses_iv;
-		}
-
 		/*
-		 * Copy out last block for use as next iteration/session IV.
-		 *
-		 * piv is set to op_iv[] before the loop starts, but is
-		 * set to ses->ses_iv if we're going to exit the loop this
-		 * time.
+		 * Copy out last block for use as next iteration IV.
 		 */
-		if (crd->crd_flags & CRD_F_ENCRYPT)
-			bcopy(op_dst + len - sizeof(op_iv), piv, sizeof(op_iv));
-		else {
-			/* Decryption, only need this if another iteration */
-			if (tlen > 0) {
-				bcopy(op_src + len - sizeof(op_iv), piv,
-				    sizeof(op_iv));
-			}
-		}
+		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
+			bcopy(op_dst + len - sizeof(op_iv), op_iv,
+			    sizeof(op_iv));
+		else
+			bcopy(op_src + len - sizeof(op_iv), op_iv,
+			    sizeof(op_iv));
 	} /* while */
 
 	/* All AES processing has now been done. */
@@ -759,30 +717,31 @@ static void
 glxsb_crypto_task(void *arg, int pending)
 {
 	struct glxsb_softc *sc = arg;
+	const struct crypto_session_params *csp;
 	struct glxsb_session *ses;
 	struct cryptop *crp;
-	struct cryptodesc *enccrd, *maccrd;
 	int error;
 
-	maccrd = sc->sc_to.to_maccrd;
-	enccrd = sc->sc_to.to_enccrd;
 	crp = sc->sc_to.to_crp;
 	ses = sc->sc_to.to_ses;
+	csp = crypto_get_params(crp->crp_session);
 
 	/* Perform data authentication if requested before encryption */
-	if (maccrd != NULL && maccrd->crd_next == enccrd) {
-		error = glxsb_hash_process(ses, maccrd, crp);
+	if (csp->csp_mode == CSP_MODE_ETA &&
+	    !CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		error = glxsb_hash_process(ses, csp, crp);
 		if (error != 0)
 			goto out;
 	}
 
-	error = glxsb_crypto_encdec(crp, enccrd, ses, sc);
+	error = glxsb_crypto_encdec(crp, ses, sc);
 	if (error != 0)
 		goto out;
 
 	/* Perform data authentication if requested after encryption */
-	if (maccrd != NULL && enccrd->crd_next == maccrd) {
-		error = glxsb_hash_process(ses, maccrd, crp);
+	if (csp->csp_mode == CSP_MODE_ETA &&
+	    CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		error = glxsb_hash_process(ses, csp, crp);
 		if (error != 0)
 			goto out;
 	}
@@ -801,52 +760,6 @@ glxsb_crypto_process(device_t dev, struct cryptop *crp, int hint)
 {
 	struct glxsb_softc *sc = device_get_softc(dev);
 	struct glxsb_session *ses;
-	struct cryptodesc *crd, *enccrd, *maccrd;
-	int error = 0;
-
-	enccrd = maccrd = NULL;
-
-	/* Sanity check. */
-	if (crp == NULL)
-		return (EINVAL);
-
-	if (crp->crp_callback == NULL || crp->crp_desc == NULL) {
-		error = EINVAL;
-		goto fail;
-	}
-
-	for (crd = crp->crp_desc; crd != NULL; crd = crd->crd_next) {
-		switch (crd->crd_alg) {
-		case CRYPTO_NULL_HMAC:
-		case CRYPTO_MD5_HMAC:
-		case CRYPTO_SHA1_HMAC:
-		case CRYPTO_RIPEMD160_HMAC:
-		case CRYPTO_SHA2_256_HMAC:
-		case CRYPTO_SHA2_384_HMAC:
-		case CRYPTO_SHA2_512_HMAC:
-			if (maccrd != NULL) {
-				error = EINVAL;
-				goto fail;
-			}
-			maccrd = crd;
-			break;
-		case CRYPTO_AES_CBC:
-			if (enccrd != NULL) {
-				error = EINVAL;
-				goto fail;
-			}
-			enccrd = crd;
-			break;
-		default:
-			error = EINVAL;
-			goto fail;
-		}
-	}
-
-	if (enccrd == NULL || enccrd->crd_len % AES_BLOCK_LEN != 0) {
-		error = EINVAL;
-		goto fail;
-	}
 
 	ses = crypto_get_driver_session(crp->crp_session);
 
@@ -857,17 +770,10 @@ glxsb_crypto_process(device_t dev, struct cryptop *crp, int hint)
 	}
 	sc->sc_task_count++;
 
-	sc->sc_to.to_maccrd = maccrd;
-	sc->sc_to.to_enccrd = enccrd;
 	sc->sc_to.to_crp = crp;
 	sc->sc_to.to_ses = ses;
 	mtx_unlock(&sc->sc_task_mtx);
 
 	taskqueue_enqueue(sc->sc_tq, &sc->sc_cryptotask);
 	return(0);
-
-fail:
-	crp->crp_etype = error;
-	crypto_done(crp);
-	return (error);
 }

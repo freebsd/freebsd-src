@@ -96,22 +96,28 @@ ccp_populate_sglist(struct sglist *sg, struct cryptop *crp)
 	int error;
 
 	sglist_reset(sg);
-	if (crp->crp_flags & CRYPTO_F_IMBUF)
+	switch (crp->crp_buf_type) {
+	case CRYPTO_BUF_MBUF:
 		error = sglist_append_mbuf(sg, crp->crp_mbuf);
-	else if (crp->crp_flags & CRYPTO_F_IOV)
+		break;
+	case CRYPTO_BUF_UIO:
 		error = sglist_append_uio(sg, crp->crp_uio);
-	else
+		break;
+	case CRYPTO_BUF_CONTIG:
 		error = sglist_append(sg, crp->crp_buf, crp->crp_ilen);
+		break;
+	default:
+		error = EINVAL;
+	}
 	return (error);
 }
 
 /*
  * Handle a GCM request with an empty payload by performing the
- * operation in software.  Derived from swcr_authenc().
+ * operation in software.
  */
 static void
-ccp_gcm_soft(struct ccp_session *s, struct cryptop *crp,
-    struct cryptodesc *crda, struct cryptodesc *crde)
+ccp_gcm_soft(struct ccp_session *s, struct cryptop *crp)
 {
 	struct aes_gmac_ctx gmac_ctx;
 	char block[GMAC_BLOCK_LEN];
@@ -123,21 +129,11 @@ ccp_gcm_soft(struct ccp_session *s, struct cryptop *crp,
 	 * This assumes a 12-byte IV from the crp.  See longer comment
 	 * above in ccp_gcm() for more details.
 	 */
-	if (crde->crd_flags & CRD_F_ENCRYPT) {
-		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
-			memcpy(iv, crde->crd_iv, 12);
-		else
-			arc4rand(iv, 12, 0);
-		if ((crde->crd_flags & CRD_F_IV_PRESENT) == 0)
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    crde->crd_inject, 12, iv);
-	} else {
-		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
-			memcpy(iv, crde->crd_iv, 12);
-		else
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crde->crd_inject, 12, iv);
+	if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0) {
+		crp->crp_etype = EINVAL;
+		goto out;
 	}
+	memcpy(iv, crp->crp_iv, 12);
 	*(uint32_t *)&iv[12] = htobe32(1);
 
 	/* Initialize the MAC. */
@@ -146,34 +142,34 @@ ccp_gcm_soft(struct ccp_session *s, struct cryptop *crp,
 	AES_GMAC_Reinit(&gmac_ctx, iv, sizeof(iv));
 
 	/* MAC the AAD. */
-	for (i = 0; i < crda->crd_len; i += sizeof(block)) {
-		len = imin(crda->crd_len - i, sizeof(block));
-		crypto_copydata(crp->crp_flags, crp->crp_buf, crda->crd_skip +
-		    i, len, block);
+	for (i = 0; i < crp->crp_aad_length; i += sizeof(block)) {
+		len = imin(crp->crp_aad_length - i, sizeof(block));
+		crypto_copydata(crp, crp->crp_aad_start + i, len, block);
 		bzero(block + len, sizeof(block) - len);
 		AES_GMAC_Update(&gmac_ctx, block, sizeof(block));
 	}
 
 	/* Length block. */
 	bzero(block, sizeof(block));
-	((uint32_t *)block)[1] = htobe32(crda->crd_len * 8);
+	((uint32_t *)block)[1] = htobe32(crp->crp_aad_length * 8);
 	AES_GMAC_Update(&gmac_ctx, block, sizeof(block));
 	AES_GMAC_Final(digest, &gmac_ctx);
 
-	if (crde->crd_flags & CRD_F_ENCRYPT) {
-		crypto_copyback(crp->crp_flags, crp->crp_buf, crda->crd_inject,
-		    sizeof(digest), digest);
+	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		crypto_copyback(crp, crp->crp_digest_start, sizeof(digest),
+		    digest);
 		crp->crp_etype = 0;
 	} else {
 		char digest2[GMAC_DIGEST_LEN];
 
-		crypto_copydata(crp->crp_flags, crp->crp_buf, crda->crd_inject,
-		    sizeof(digest2), digest2);
+		crypto_copydata(crp, crp->crp_digest_start, sizeof(digest2),
+		    digest2);
 		if (timingsafe_bcmp(digest, digest2, sizeof(digest)) == 0)
 			crp->crp_etype = 0;
 		else
 			crp->crp_etype = EBADMSG;
 	}
+out:
 	crypto_done(crp);
 }
 
@@ -259,22 +255,6 @@ ccp_attach(device_t dev)
 			random_source_register(&random_ccp);
 	}
 
-	if ((sc->hw_features & VERSION_CAP_AES) != 0) {
-		crypto_register(sc->cid, CRYPTO_AES_CBC, 0, 0);
-		crypto_register(sc->cid, CRYPTO_AES_ICM, 0, 0);
-		crypto_register(sc->cid, CRYPTO_AES_NIST_GCM_16, 0, 0);
-		crypto_register(sc->cid, CRYPTO_AES_128_NIST_GMAC, 0, 0);
-		crypto_register(sc->cid, CRYPTO_AES_192_NIST_GMAC, 0, 0);
-		crypto_register(sc->cid, CRYPTO_AES_256_NIST_GMAC, 0, 0);
-		crypto_register(sc->cid, CRYPTO_AES_XTS, 0, 0);
-	}
-	if ((sc->hw_features & VERSION_CAP_SHA) != 0) {
-		crypto_register(sc->cid, CRYPTO_SHA1_HMAC, 0, 0);
-		crypto_register(sc->cid, CRYPTO_SHA2_256_HMAC, 0, 0);
-		crypto_register(sc->cid, CRYPTO_SHA2_384_HMAC, 0, 0);
-		crypto_register(sc->cid, CRYPTO_SHA2_512_HMAC, 0, 0);
-	}
-
 	return (0);
 }
 
@@ -304,8 +284,7 @@ ccp_detach(device_t dev)
 }
 
 static void
-ccp_init_hmac_digest(struct ccp_session *s, int cri_alg, char *key,
-    int klen)
+ccp_init_hmac_digest(struct ccp_session *s, const char *key, int klen)
 {
 	union authctx auth_ctx;
 	struct auth_hash *axf;
@@ -316,7 +295,6 @@ ccp_init_hmac_digest(struct ccp_session *s, int cri_alg, char *key,
 	 * the key as the key instead.
 	 */
 	axf = s->hmac.auth_hash;
-	klen /= 8;
 	if (klen > axf->blocksize) {
 		axf->Init(&auth_ctx);
 		axf->Update(&auth_ctx, key, klen);
@@ -335,26 +313,26 @@ ccp_init_hmac_digest(struct ccp_session *s, int cri_alg, char *key,
 	}
 }
 
-static int
+static bool
 ccp_aes_check_keylen(int alg, int klen)
 {
 
-	switch (klen) {
+	switch (klen * 8) {
 	case 128:
 	case 192:
 		if (alg == CRYPTO_AES_XTS)
-			return (EINVAL);
+			return (false);
 		break;
 	case 256:
 		break;
 	case 512:
 		if (alg != CRYPTO_AES_XTS)
-			return (EINVAL);
+			return (false);
 		break;
 	default:
-		return (EINVAL);
+		return (false);
 	}
-	return (0);
+	return (true);
 }
 
 static void
@@ -363,9 +341,9 @@ ccp_aes_setkey(struct ccp_session *s, int alg, const void *key, int klen)
 	unsigned kbits;
 
 	if (alg == CRYPTO_AES_XTS)
-		kbits = klen / 2;
+		kbits = (klen / 2) * 8;
 	else
-		kbits = klen;
+		kbits = klen * 8;
 
 	switch (kbits) {
 	case 128:
@@ -381,123 +359,154 @@ ccp_aes_setkey(struct ccp_session *s, int alg, const void *key, int klen)
 		panic("should not get here");
 	}
 
-	s->blkcipher.key_len = klen / 8;
+	s->blkcipher.key_len = klen;
 	memcpy(s->blkcipher.enckey, key, s->blkcipher.key_len);
 }
 
+static bool
+ccp_auth_supported(struct ccp_softc *sc,
+    const struct crypto_session_params *csp)
+{
+	
+	if ((sc->hw_features & VERSION_CAP_SHA) == 0)
+		return (false);
+	switch (csp->csp_auth_alg) {
+	case CRYPTO_SHA1_HMAC:
+	case CRYPTO_SHA2_256_HMAC:
+	case CRYPTO_SHA2_384_HMAC:
+	case CRYPTO_SHA2_512_HMAC:
+		if (csp->csp_auth_key == NULL)
+			return (false);
+		break;
+	default:
+		return (false);
+	}
+	return (true);
+}
+
+static bool
+ccp_cipher_supported(struct ccp_softc *sc,
+    const struct crypto_session_params *csp)
+{
+
+	if ((sc->hw_features & VERSION_CAP_AES) == 0)
+		return (false);
+	switch (csp->csp_cipher_alg) {
+	case CRYPTO_AES_CBC:
+		if (csp->csp_ivlen != AES_BLOCK_LEN)
+			return (false);
+		break;
+	case CRYPTO_AES_ICM:
+		if (csp->csp_ivlen != AES_BLOCK_LEN)
+			return (false);
+		break;
+	case CRYPTO_AES_XTS:
+		if (csp->csp_ivlen != AES_XTS_IV_LEN)
+			return (false);
+		break;
+	default:
+		return (false);
+	}
+	return (ccp_aes_check_keylen(csp->csp_cipher_alg,
+	    csp->csp_cipher_klen));
+}
+
 static int
-ccp_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
+ccp_probesession(device_t dev, const struct crypto_session_params *csp)
 {
 	struct ccp_softc *sc;
-	struct ccp_session *s;
-	struct auth_hash *auth_hash;
-	struct cryptoini *c, *hash, *cipher;
-	enum ccp_aes_mode cipher_mode;
-	unsigned auth_mode, iv_len;
-	unsigned partial_digest_len;
-	unsigned q;
-	int error;
-	bool gcm_hash;
 
-	if (cri == NULL)
+	if (csp->csp_flags != 0)
 		return (EINVAL);
-
-	s = crypto_get_driver_session(cses);
-
-	gcm_hash = false;
-	cipher = NULL;
-	hash = NULL;
-	auth_hash = NULL;
-	/* XXX reconcile auth_mode with use by ccp_sha */
-	auth_mode = 0;
-	cipher_mode = CCP_AES_MODE_ECB;
-	iv_len = 0;
-	partial_digest_len = 0;
-	for (c = cri; c != NULL; c = c->cri_next) {
-		switch (c->cri_alg) {
-		case CRYPTO_SHA1_HMAC:
-		case CRYPTO_SHA2_256_HMAC:
-		case CRYPTO_SHA2_384_HMAC:
-		case CRYPTO_SHA2_512_HMAC:
-		case CRYPTO_AES_128_NIST_GMAC:
-		case CRYPTO_AES_192_NIST_GMAC:
-		case CRYPTO_AES_256_NIST_GMAC:
-			if (hash)
-				return (EINVAL);
-			hash = c;
-			switch (c->cri_alg) {
-			case CRYPTO_SHA1_HMAC:
-				auth_hash = &auth_hash_hmac_sha1;
-				auth_mode = SHA1;
-				partial_digest_len = SHA1_HASH_LEN;
-				break;
-			case CRYPTO_SHA2_256_HMAC:
-				auth_hash = &auth_hash_hmac_sha2_256;
-				auth_mode = SHA2_256;
-				partial_digest_len = SHA2_256_HASH_LEN;
-				break;
-			case CRYPTO_SHA2_384_HMAC:
-				auth_hash = &auth_hash_hmac_sha2_384;
-				auth_mode = SHA2_384;
-				partial_digest_len = SHA2_512_HASH_LEN;
-				break;
-			case CRYPTO_SHA2_512_HMAC:
-				auth_hash = &auth_hash_hmac_sha2_512;
-				auth_mode = SHA2_512;
-				partial_digest_len = SHA2_512_HASH_LEN;
-				break;
-			case CRYPTO_AES_128_NIST_GMAC:
-			case CRYPTO_AES_192_NIST_GMAC:
-			case CRYPTO_AES_256_NIST_GMAC:
-				gcm_hash = true;
-#if 0
-				auth_mode = CHCR_SCMD_AUTH_MODE_GHASH;
-#endif
-				break;
-			}
-			break;
-		case CRYPTO_AES_CBC:
-		case CRYPTO_AES_ICM:
+	sc = device_get_softc(dev);
+	switch (csp->csp_mode) {
+	case CSP_MODE_DIGEST:
+		if (!ccp_auth_supported(sc, csp))
+			return (EINVAL);
+		break;
+	case CSP_MODE_CIPHER:
+		if (!ccp_cipher_supported(sc, csp))
+			return (EINVAL);
+		break;
+	case CSP_MODE_AEAD:
+		switch (csp->csp_cipher_alg) {
 		case CRYPTO_AES_NIST_GCM_16:
-		case CRYPTO_AES_XTS:
-			if (cipher)
+			if (csp->csp_ivlen != AES_GCM_IV_LEN)
 				return (EINVAL);
-			cipher = c;
-			switch (c->cri_alg) {
-			case CRYPTO_AES_CBC:
-				cipher_mode = CCP_AES_MODE_CBC;
-				iv_len = AES_BLOCK_LEN;
-				break;
-			case CRYPTO_AES_ICM:
-				cipher_mode = CCP_AES_MODE_CTR;
-				iv_len = AES_BLOCK_LEN;
-				break;
-			case CRYPTO_AES_NIST_GCM_16:
-				cipher_mode = CCP_AES_MODE_GCTR;
-				iv_len = AES_GCM_IV_LEN;
-				break;
-			case CRYPTO_AES_XTS:
-				cipher_mode = CCP_AES_MODE_XTS;
-				iv_len = AES_BLOCK_LEN;
-				break;
-			}
-			if (c->cri_key != NULL) {
-				error = ccp_aes_check_keylen(c->cri_alg,
-				    c->cri_klen);
-				if (error != 0)
-					return (error);
-			}
+			if (csp->csp_auth_mlen < 0 ||
+			    csp->csp_auth_mlen > AES_GMAC_HASH_LEN)
+				return (EINVAL);
+			if ((sc->hw_features & VERSION_CAP_AES) == 0)
+				return (EINVAL);
 			break;
 		default:
 			return (EINVAL);
 		}
+		break;
+	case CSP_MODE_ETA:
+		if (!ccp_auth_supported(sc, csp) ||
+		    !ccp_cipher_supported(sc, csp))
+			return (EINVAL);
+		break;
+	default:
+		return (EINVAL);
 	}
-	if (gcm_hash != (cipher_mode == CCP_AES_MODE_GCTR))
-		return (EINVAL);
-	if (hash == NULL && cipher == NULL)
-		return (EINVAL);
-	if (hash != NULL && hash->cri_key == NULL)
-		return (EINVAL);
+
+	return (CRYPTODEV_PROBE_HARDWARE);
+}
+
+static int
+ccp_newsession(device_t dev, crypto_session_t cses,
+    const struct crypto_session_params *csp)
+{
+	struct ccp_softc *sc;
+	struct ccp_session *s;
+	struct auth_hash *auth_hash;
+	enum ccp_aes_mode cipher_mode;
+	unsigned auth_mode;
+	unsigned q;
+
+	/* XXX reconcile auth_mode with use by ccp_sha */
+	switch (csp->csp_auth_alg) {
+	case CRYPTO_SHA1_HMAC:
+		auth_hash = &auth_hash_hmac_sha1;
+		auth_mode = SHA1;
+		break;
+	case CRYPTO_SHA2_256_HMAC:
+		auth_hash = &auth_hash_hmac_sha2_256;
+		auth_mode = SHA2_256;
+		break;
+	case CRYPTO_SHA2_384_HMAC:
+		auth_hash = &auth_hash_hmac_sha2_384;
+		auth_mode = SHA2_384;
+		break;
+	case CRYPTO_SHA2_512_HMAC:
+		auth_hash = &auth_hash_hmac_sha2_512;
+		auth_mode = SHA2_512;
+		break;
+	default:
+		auth_hash = NULL;
+		auth_mode = 0;
+		break;
+	}
+
+	switch (csp->csp_cipher_alg) {
+	case CRYPTO_AES_CBC:
+		cipher_mode = CCP_AES_MODE_CBC;
+		break;
+	case CRYPTO_AES_ICM:
+		cipher_mode = CCP_AES_MODE_CTR;
+		break;
+	case CRYPTO_AES_NIST_GCM_16:
+		cipher_mode = CCP_AES_MODE_GCTR;
+		break;
+	case CRYPTO_AES_XTS:
+		cipher_mode = CCP_AES_MODE_XTS;
+		break;
+	default:
+		cipher_mode = CCP_AES_MODE_ECB;
+		break;
+	}
 
 	sc = device_get_softc(dev);
 	mtx_lock(&sc->lock);
@@ -505,6 +514,8 @@ ccp_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 		mtx_unlock(&sc->lock);
 		return (ENXIO);
 	}
+
+	s = crypto_get_driver_session(cses);
 
 	/* Just grab the first usable queue for now. */
 	for (q = 0; q < nitems(sc->queues); q++)
@@ -516,38 +527,40 @@ ccp_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 	}
 	s->queue = q;
 
-	if (gcm_hash)
+	switch (csp->csp_mode) {
+	case CSP_MODE_AEAD:
 		s->mode = GCM;
-	else if (hash != NULL && cipher != NULL)
+		break;
+	case CSP_MODE_ETA:
 		s->mode = AUTHENC;
-	else if (hash != NULL)
+		break;
+	case CSP_MODE_DIGEST:
 		s->mode = HMAC;
-	else {
-		MPASS(cipher != NULL);
+		break;
+	case CSP_MODE_CIPHER:
 		s->mode = BLKCIPHER;
+		break;
 	}
-	if (gcm_hash) {
-		if (hash->cri_mlen == 0)
+
+	if (s->mode == GCM) {
+		if (csp->csp_auth_mlen == 0)
 			s->gmac.hash_len = AES_GMAC_HASH_LEN;
 		else
-			s->gmac.hash_len = hash->cri_mlen;
-	} else if (hash != NULL) {
+			s->gmac.hash_len = csp->csp_auth_mlen;
+	} else if (auth_hash != NULL) {
 		s->hmac.auth_hash = auth_hash;
 		s->hmac.auth_mode = auth_mode;
-		s->hmac.partial_digest_len = partial_digest_len;
-		if (hash->cri_mlen == 0)
+		if (csp->csp_auth_mlen == 0)
 			s->hmac.hash_len = auth_hash->hashsize;
 		else
-			s->hmac.hash_len = hash->cri_mlen;
-		ccp_init_hmac_digest(s, hash->cri_alg, hash->cri_key,
-		    hash->cri_klen);
+			s->hmac.hash_len = csp->csp_auth_mlen;
+		ccp_init_hmac_digest(s, csp->csp_auth_key, csp->csp_auth_klen);
 	}
-	if (cipher != NULL) {
+	if (cipher_mode != CCP_AES_MODE_ECB) {
 		s->blkcipher.cipher_mode = cipher_mode;
-		s->blkcipher.iv_len = iv_len;
-		if (cipher->cri_key != NULL)
-			ccp_aes_setkey(s, cipher->cri_alg, cipher->cri_key,
-			    cipher->cri_klen);
+		if (csp->csp_cipher_key != NULL)
+			ccp_aes_setkey(s, csp->csp_cipher_alg,
+			    csp->csp_cipher_key, csp->csp_cipher_klen);
 	}
 
 	s->active = true;
@@ -573,19 +586,17 @@ ccp_freesession(device_t dev, crypto_session_t cses)
 static int
 ccp_process(device_t dev, struct cryptop *crp, int hint)
 {
+	const struct crypto_session_params *csp;
 	struct ccp_softc *sc;
 	struct ccp_queue *qp;
 	struct ccp_session *s;
-	struct cryptodesc *crd, *crda, *crde;
 	int error;
 	bool qpheld;
 
 	qpheld = false;
 	qp = NULL;
-	if (crp == NULL)
-		return (EINVAL);
 
-	crd = crp->crp_desc;
+	csp = crypto_get_params(crp->crp_session);
 	s = crypto_get_driver_session(crp->crp_session);
 	sc = device_get_softc(dev);
 	mtx_lock(&sc->lock);
@@ -600,89 +611,47 @@ ccp_process(device_t dev, struct cryptop *crp, int hint)
 	if (error != 0)
 		goto out;
 
+	if (crp->crp_auth_key != NULL) {
+		KASSERT(s->hmac.auth_hash != NULL, ("auth key without HMAC"));
+		ccp_init_hmac_digest(s, crp->crp_auth_key, csp->csp_auth_klen);
+	}
+	if (crp->crp_cipher_key != NULL)
+		ccp_aes_setkey(s, csp->csp_cipher_alg, crp->crp_cipher_key,
+		    csp->csp_cipher_klen);
+
 	switch (s->mode) {
 	case HMAC:
-		if (crd->crd_flags & CRD_F_KEY_EXPLICIT)
-			ccp_init_hmac_digest(s, crd->crd_alg, crd->crd_key,
-			    crd->crd_klen);
+		if (s->pending != 0) {
+			error = EAGAIN;
+			break;
+		}
 		error = ccp_hmac(qp, s, crp);
 		break;
 	case BLKCIPHER:
-		if (crd->crd_flags & CRD_F_KEY_EXPLICIT) {
-			error = ccp_aes_check_keylen(crd->crd_alg,
-			    crd->crd_klen);
-			if (error != 0)
-				break;
-			ccp_aes_setkey(s, crd->crd_alg, crd->crd_key,
-			    crd->crd_klen);
+		if (s->pending != 0) {
+			error = EAGAIN;
+			break;
 		}
 		error = ccp_blkcipher(qp, s, crp);
 		break;
 	case AUTHENC:
-		error = 0;
-		switch (crd->crd_alg) {
-		case CRYPTO_AES_CBC:
-		case CRYPTO_AES_ICM:
-		case CRYPTO_AES_XTS:
-			/* Only encrypt-then-authenticate supported. */
-			crde = crd;
-			crda = crd->crd_next;
-			if (!(crde->crd_flags & CRD_F_ENCRYPT)) {
-				error = EINVAL;
-				break;
-			}
-			s->cipher_first = true;
-			break;
-		default:
-			crda = crd;
-			crde = crd->crd_next;
-			if (crde->crd_flags & CRD_F_ENCRYPT) {
-				error = EINVAL;
-				break;
-			}
-			s->cipher_first = false;
+		if (s->pending != 0) {
+			error = EAGAIN;
 			break;
 		}
-		if (error != 0)
-			break;
-		if (crda->crd_flags & CRD_F_KEY_EXPLICIT)
-			ccp_init_hmac_digest(s, crda->crd_alg, crda->crd_key,
-			    crda->crd_klen);
-		if (crde->crd_flags & CRD_F_KEY_EXPLICIT) {
-			error = ccp_aes_check_keylen(crde->crd_alg,
-			    crde->crd_klen);
-			if (error != 0)
-				break;
-			ccp_aes_setkey(s, crde->crd_alg, crde->crd_key,
-			    crde->crd_klen);
-		}
-		error = ccp_authenc(qp, s, crp, crda, crde);
+		error = ccp_authenc(qp, s, crp);
 		break;
 	case GCM:
-		error = 0;
-		if (crd->crd_alg == CRYPTO_AES_NIST_GCM_16) {
-			crde = crd;
-			crda = crd->crd_next;
-			s->cipher_first = true;
-		} else {
-			crda = crd;
-			crde = crd->crd_next;
-			s->cipher_first = false;
-		}
-		if (crde->crd_flags & CRD_F_KEY_EXPLICIT) {
-			error = ccp_aes_check_keylen(crde->crd_alg,
-			    crde->crd_klen);
-			if (error != 0)
-				break;
-			ccp_aes_setkey(s, crde->crd_alg, crde->crd_key,
-			    crde->crd_klen);
-		}
-		if (crde->crd_len == 0) {
+		if (crp->crp_payload_length == 0) {
 			mtx_unlock(&qp->cq_lock);
-			ccp_gcm_soft(s, crp, crda, crde);
+			ccp_gcm_soft(s, crp);
 			return (0);
 		}
-		error = ccp_gcm(qp, s, crp, crda, crde);
+		if (s->pending != 0) {
+			error = EAGAIN;
+			break;
+		}
+		error = ccp_gcm(qp, s, crp);
 		break;
 	}
 
@@ -716,6 +685,7 @@ static device_method_t ccp_methods[] = {
 	DEVMETHOD(device_attach,	ccp_attach),
 	DEVMETHOD(device_detach,	ccp_detach),
 
+	DEVMETHOD(cryptodev_probesession, ccp_probesession),
 	DEVMETHOD(cryptodev_newsession,	ccp_newsession),
 	DEVMETHOD(cryptodev_freesession, ccp_freesession),
 	DEVMETHOD(cryptodev_process,	ccp_process),

@@ -488,41 +488,44 @@ static int
 g_eli_newsession(struct g_eli_worker *wr)
 {
 	struct g_eli_softc *sc;
-	struct cryptoini crie, cria;
+	struct crypto_session_params csp;
 	int error;
+	void *key;
 
 	sc = wr->w_softc;
 
-	bzero(&crie, sizeof(crie));
-	crie.cri_alg = sc->sc_ealgo;
-	crie.cri_klen = sc->sc_ekeylen;
+	memset(&csp, 0, sizeof(csp));
+	csp.csp_mode = CSP_MODE_CIPHER;
+	csp.csp_cipher_alg = sc->sc_ealgo;
+	csp.csp_ivlen = g_eli_ivlen(sc->sc_ealgo);
+	csp.csp_cipher_klen = sc->sc_ekeylen / 8;
 	if (sc->sc_ealgo == CRYPTO_AES_XTS)
-		crie.cri_klen <<= 1;
+		csp.csp_cipher_klen <<= 1;
 	if ((sc->sc_flags & G_ELI_FLAG_FIRST_KEY) != 0) {
-		crie.cri_key = g_eli_key_hold(sc, 0,
+		key = g_eli_key_hold(sc, 0,
 		    LIST_FIRST(&sc->sc_geom->consumer)->provider->sectorsize);
+		csp.csp_cipher_key = key;
 	} else {
-		crie.cri_key = sc->sc_ekey;
+		key = NULL;
+		csp.csp_cipher_key = sc->sc_ekey;
 	}
 	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
-		bzero(&cria, sizeof(cria));
-		cria.cri_alg = sc->sc_aalgo;
-		cria.cri_klen = sc->sc_akeylen;
-		cria.cri_key = sc->sc_akey;
-		crie.cri_next = &cria;
+		csp.csp_mode = CSP_MODE_ETA;
+		csp.csp_auth_alg = sc->sc_aalgo;
+		csp.csp_auth_klen = G_ELI_AUTH_SECKEYLEN;
 	}
 
 	switch (sc->sc_crypto) {
 	case G_ELI_CRYPTO_SW:
-		error = crypto_newsession(&wr->w_sid, &crie,
+		error = crypto_newsession(&wr->w_sid, &csp,
 		    CRYPTOCAP_F_SOFTWARE);
 		break;
 	case G_ELI_CRYPTO_HW:
-		error = crypto_newsession(&wr->w_sid, &crie,
+		error = crypto_newsession(&wr->w_sid, &csp,
 		    CRYPTOCAP_F_HARDWARE);
 		break;
 	case G_ELI_CRYPTO_UNKNOWN:
-		error = crypto_newsession(&wr->w_sid, &crie,
+		error = crypto_newsession(&wr->w_sid, &csp,
 		    CRYPTOCAP_F_HARDWARE);
 		if (error == 0) {
 			mtx_lock(&sc->sc_queue_mtx);
@@ -530,7 +533,7 @@ g_eli_newsession(struct g_eli_worker *wr)
 				sc->sc_crypto = G_ELI_CRYPTO_HW;
 			mtx_unlock(&sc->sc_queue_mtx);
 		} else {
-			error = crypto_newsession(&wr->w_sid, &crie,
+			error = crypto_newsession(&wr->w_sid, &csp,
 			    CRYPTOCAP_F_SOFTWARE);
 			mtx_lock(&sc->sc_queue_mtx);
 			if (sc->sc_crypto == G_ELI_CRYPTO_UNKNOWN)
@@ -542,8 +545,12 @@ g_eli_newsession(struct g_eli_worker *wr)
 		panic("%s: invalid condition", __func__);
 	}
 
-	if ((sc->sc_flags & G_ELI_FLAG_FIRST_KEY) != 0)
-		g_eli_key_drop(sc, crie.cri_key);
+	if ((sc->sc_flags & G_ELI_FLAG_FIRST_KEY) != 0) {
+		if (error)
+			g_eli_key_drop(sc, key);
+		else
+			wr->w_first_key = key;
+	}
 
 	return (error);
 }
@@ -551,8 +558,14 @@ g_eli_newsession(struct g_eli_worker *wr)
 static void
 g_eli_freesession(struct g_eli_worker *wr)
 {
+	struct g_eli_softc *sc;
 
 	crypto_freesession(wr->w_sid);
+	if (wr->w_first_key != NULL) {
+		sc = wr->w_softc;
+		g_eli_key_drop(sc, wr->w_first_key);
+		wr->w_first_key = NULL;
+	}
 }
 
 static void

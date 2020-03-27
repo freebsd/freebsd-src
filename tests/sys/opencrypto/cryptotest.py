@@ -90,10 +90,6 @@ def GenTestCase(cname):
             for i in katg('gcmtestvectors', 'gcmDecrypt*'):
                 self.runGCM(i, 'DECRYPT')
 
-        _gmacsizes = { 32: cryptodev.CRYPTO_AES_256_NIST_GMAC,
-            24: cryptodev.CRYPTO_AES_192_NIST_GMAC,
-            16: cryptodev.CRYPTO_AES_128_NIST_GMAC,
-        }
         def runGCM(self, fname, mode):
             curfun = None
             if mode == 'ENCRYPT':
@@ -127,9 +123,7 @@ def GenTestCase(cname):
 
                     try:
                         c = Crypto(cryptodev.CRYPTO_AES_NIST_GCM_16,
-                            cipherkey,
-                            mac=self._gmacsizes[len(cipherkey)],
-                            mackey=cipherkey, crid=crid,
+                            cipherkey, crid=crid,
                             maclen=16)
                     except EnvironmentError as e:
                         # Can't test algorithms the driver does not support.

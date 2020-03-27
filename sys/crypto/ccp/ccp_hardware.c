@@ -895,7 +895,7 @@ ccp_passthrough_sgl(struct ccp_queue *qp, bus_addr_t lsb_addr, bool tolsb,
 	remain = len;
 	for (i = 0; i < sgl->sg_nseg && remain != 0; i++) {
 		seg = &sgl->sg_segs[i];
-		/* crd_len is int, so 32-bit min() is ok. */
+		/* crp lengths are int, so 32-bit min() is ok. */
 		nb = min(remain, seg->ss_len);
 
 		if (tolsb)
@@ -1116,7 +1116,7 @@ ccp_sha(struct ccp_queue *qp, enum sha_version version, struct sglist *sgl_src,
 	lsbaddr = ccp_queue_lsb_address(qp, LSB_ENTRY_SHA);
 	for (i = 0; i < sgl_dst->sg_nseg; i++) {
 		seg = &sgl_dst->sg_segs[i];
-		/* crd_len is int, so 32-bit min() is ok. */
+		/* crp lengths are int, so 32-bit min() is ok. */
 		nb = min(remaining, seg->ss_len);
 
 		error = ccp_passthrough(qp, seg->ss_paddr, CCP_MEMTYPE_SYSTEM,
@@ -1202,7 +1202,7 @@ ccp_sha_copy_result(char *output, char *buffer, enum sha_version version)
 
 static void
 ccp_do_hmac_done(struct ccp_queue *qp, struct ccp_session *s,
-    struct cryptop *crp, struct cryptodesc *crd, int error)
+    struct cryptop *crp, int error)
 {
 	char ihash[SHA2_512_HASH_LEN /* max hash len */];
 	union authctx auth_ctx;
@@ -1220,21 +1220,26 @@ ccp_do_hmac_done(struct ccp_queue *qp, struct ccp_session *s,
 	/* Do remaining outer hash over small inner hash in software */
 	axf->Init(&auth_ctx);
 	axf->Update(&auth_ctx, s->hmac.opad, axf->blocksize);
-	ccp_sha_copy_result(ihash, s->hmac.ipad, s->hmac.auth_mode);
+	ccp_sha_copy_result(ihash, s->hmac.res, s->hmac.auth_mode);
 #if 0
 	INSECURE_DEBUG(dev, "%s sha intermediate=%64D\n", __func__,
 	    (u_char *)ihash, " ");
 #endif
 	axf->Update(&auth_ctx, ihash, axf->hashsize);
-	axf->Final(s->hmac.ipad, &auth_ctx);
+	axf->Final(s->hmac.res, &auth_ctx);
 
-	crypto_copyback(crp->crp_flags, crp->crp_buf, crd->crd_inject,
-	    s->hmac.hash_len, s->hmac.ipad);
+	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+		crypto_copydata(crp, crp->crp_digest_start, s->hmac.hash_len,
+		    ihash);
+		if (timingsafe_bcmp(s->hmac.res, ihash, s->hmac.hash_len) != 0)
+			crp->crp_etype = EBADMSG;
+	} else
+		crypto_copyback(crp, crp->crp_digest_start, s->hmac.hash_len,
+		    s->hmac.res);
 
 	/* Avoid leaking key material */
 	explicit_bzero(&auth_ctx, sizeof(auth_ctx));
-	explicit_bzero(s->hmac.ipad, sizeof(s->hmac.ipad));
-	explicit_bzero(s->hmac.opad, sizeof(s->hmac.opad));
+	explicit_bzero(s->hmac.res, sizeof(s->hmac.res));
 
 out:
 	crypto_done(crp);
@@ -1244,17 +1249,15 @@ static void
 ccp_hmac_done(struct ccp_queue *qp, struct ccp_session *s, void *vcrp,
     int error)
 {
-	struct cryptodesc *crd;
 	struct cryptop *crp;
 
 	crp = vcrp;
-	crd = crp->crp_desc;
-	ccp_do_hmac_done(qp, s, crp, crd, error);
+	ccp_do_hmac_done(qp, s, crp, error);
 }
 
 static int __must_check
 ccp_do_hmac(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
-    struct cryptodesc *crd, const struct ccp_completion_ctx *cctx)
+    const struct ccp_completion_ctx *cctx)
 {
 	device_t dev;
 	struct auth_hash *axf;
@@ -1272,15 +1275,21 @@ ccp_do_hmac(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 	error = sglist_append(qp->cq_sg_ulptx, s->hmac.ipad, axf->blocksize);
 	if (error != 0)
 		return (error);
+	if (crp->crp_aad_length != 0) {
+		error = sglist_append_sglist(qp->cq_sg_ulptx, qp->cq_sg_crp,
+		    crp->crp_aad_start, crp->crp_aad_length);
+		if (error != 0)
+			return (error);
+	}
 	error = sglist_append_sglist(qp->cq_sg_ulptx, qp->cq_sg_crp,
-	    crd->crd_skip, crd->crd_len);
+	    crp->crp_payload_start, crp->crp_payload_length);
 	if (error != 0) {
 		DPRINTF(dev, "%s: sglist too short\n", __func__);
 		return (error);
 	}
-	/* Populate SGL for output -- just reuse hmac.ipad buffer. */
+	/* Populate SGL for output -- use hmac.res buffer. */
 	sglist_reset(qp->cq_sg_dst);
-	error = sglist_append(qp->cq_sg_dst, s->hmac.ipad,
+	error = sglist_append(qp->cq_sg_dst, s->hmac.res,
 	    roundup2(axf->hashsize, LSB_ENTRY_SIZE));
 	if (error != 0)
 		return (error);
@@ -1298,15 +1307,12 @@ int __must_check
 ccp_hmac(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp)
 {
 	struct ccp_completion_ctx ctx;
-	struct cryptodesc *crd;
-
-	crd = crp->crp_desc;
 
 	ctx.callback_fn = ccp_hmac_done;
 	ctx.callback_arg = crp;
 	ctx.session = s;
 
-	return (ccp_do_hmac(qp, s, crp, crd, &ctx));
+	return (ccp_do_hmac(qp, s, crp, &ctx));
 }
 
 static void
@@ -1329,7 +1335,7 @@ ccp_blkcipher_done(struct ccp_queue *qp, struct ccp_session *s, void *vcrp,
 {
 	struct cryptop *crp;
 
-	explicit_bzero(&s->blkcipher, sizeof(s->blkcipher));
+	explicit_bzero(&s->blkcipher.iv, sizeof(s->blkcipher.iv));
 
 	crp = vcrp;
 
@@ -1343,57 +1349,39 @@ ccp_blkcipher_done(struct ccp_queue *qp, struct ccp_session *s, void *vcrp,
 }
 
 static void
-ccp_collect_iv(struct ccp_session *s, struct cryptop *crp,
-    struct cryptodesc *crd)
-{
+ccp_collect_iv(struct cryptop *crp, const struct crypto_session_params *csp,
+    char *iv)
+{	
 
-	if (crd->crd_flags & CRD_F_ENCRYPT) {
-		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
-			memcpy(s->blkcipher.iv, crd->crd_iv,
-			    s->blkcipher.iv_len);
-		else
-			arc4rand(s->blkcipher.iv, s->blkcipher.iv_len, 0);
-		if ((crd->crd_flags & CRD_F_IV_PRESENT) == 0)
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    crd->crd_inject, s->blkcipher.iv_len,
-			    s->blkcipher.iv);
-	} else {
-		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
-			memcpy(s->blkcipher.iv, crd->crd_iv,
-			    s->blkcipher.iv_len);
-		else
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crd->crd_inject, s->blkcipher.iv_len,
-			    s->blkcipher.iv);
-	}
+	if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
+		arc4rand(iv, csp->csp_ivlen, 0);
+		crypto_copyback(crp, crp->crp_iv_start, csp->csp_ivlen, iv);
+	} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+		memcpy(iv, crp->crp_iv, csp->csp_ivlen);
+	else
+		crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen, iv);
 
 	/*
 	 * If the input IV is 12 bytes, append an explicit counter of 1.
 	 */
-	if (crd->crd_alg == CRYPTO_AES_NIST_GCM_16 &&
-	    s->blkcipher.iv_len == 12) {
-		*(uint32_t *)&s->blkcipher.iv[12] = htobe32(1);
-		s->blkcipher.iv_len = AES_BLOCK_LEN;
-	}
+	if (csp->csp_cipher_alg == CRYPTO_AES_NIST_GCM_16 &&
+	    csp->csp_ivlen == 12)
+		*(uint32_t *)&iv[12] = htobe32(1);
 
-	if (crd->crd_alg == CRYPTO_AES_XTS && s->blkcipher.iv_len != AES_BLOCK_LEN) {
-		DPRINTF(NULL, "got ivlen != 16: %u\n", s->blkcipher.iv_len);
-		if (s->blkcipher.iv_len < AES_BLOCK_LEN)
-			memset(&s->blkcipher.iv[s->blkcipher.iv_len], 0,
-			    AES_BLOCK_LEN - s->blkcipher.iv_len);
-		s->blkcipher.iv_len = AES_BLOCK_LEN;
-	}
+	if (csp->csp_cipher_alg == CRYPTO_AES_XTS &&
+	    csp->csp_ivlen < AES_BLOCK_LEN)
+		memset(&iv[csp->csp_ivlen], 0, AES_BLOCK_LEN - csp->csp_ivlen);
 
 	/* Reverse order of IV material for HW */
-	INSECURE_DEBUG(NULL, "%s: IV: %16D len: %u\n", __func__,
-	    s->blkcipher.iv, " ", s->blkcipher.iv_len);
+	INSECURE_DEBUG(NULL, "%s: IV: %16D len: %u\n", __func__, iv, " ",
+	    csp->csp_ivlen);
 
 	/*
 	 * For unknown reasons, XTS mode expects the IV in the reverse byte
 	 * order to every other AES mode.
 	 */
-	if (crd->crd_alg != CRYPTO_AES_XTS)
-		ccp_byteswap(s->blkcipher.iv, s->blkcipher.iv_len);
+	if (csp->csp_cipher_alg != CRYPTO_AES_XTS)
+		ccp_byteswap(iv, AES_BLOCK_LEN);
 }
 
 static int __must_check
@@ -1414,8 +1402,7 @@ ccp_do_pst_to_lsb(struct ccp_queue *qp, uint32_t lsbaddr, const void *src,
 
 static int __must_check
 ccp_do_xts(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
-    struct cryptodesc *crd, enum ccp_cipher_dir dir,
-    const struct ccp_completion_ctx *cctx)
+    enum ccp_cipher_dir dir, const struct ccp_completion_ctx *cctx)
 {
 	struct ccp_desc *desc;
 	device_t dev;
@@ -1427,7 +1414,8 @@ ccp_do_xts(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 	dev = qp->cq_softc->dev;
 
 	for (i = 0; i < nitems(ccp_xts_unitsize_map); i++)
-		if (ccp_xts_unitsize_map[i].cxu_size == crd->crd_len) {
+		if (ccp_xts_unitsize_map[i].cxu_size ==
+		    crp->crp_payload_length) {
 			usize = ccp_xts_unitsize_map[i].cxu_id;
 			break;
 		}
@@ -1484,25 +1472,26 @@ ccp_do_xts(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 
 static int __must_check
 ccp_do_blkcipher(struct ccp_queue *qp, struct ccp_session *s,
-    struct cryptop *crp, struct cryptodesc *crd,
-    const struct ccp_completion_ctx *cctx)
+    struct cryptop *crp, const struct ccp_completion_ctx *cctx)
 {
+	const struct crypto_session_params *csp;
 	struct ccp_desc *desc;
 	char *keydata;
 	device_t dev;
 	enum ccp_cipher_dir dir;
-	int error;
+	int error, iv_len;
 	size_t keydata_len;
 	unsigned i, j;
 
 	dev = qp->cq_softc->dev;
 
-	if (s->blkcipher.key_len == 0 || crd->crd_len == 0) {
+	if (s->blkcipher.key_len == 0 || crp->crp_payload_length == 0) {
 		DPRINTF(dev, "%s: empty\n", __func__);
 		return (EINVAL);
 	}
-	if ((crd->crd_len % AES_BLOCK_LEN) != 0) {
-		DPRINTF(dev, "%s: len modulo: %d\n", __func__, crd->crd_len);
+	if ((crp->crp_payload_length % AES_BLOCK_LEN) != 0) {
+		DPRINTF(dev, "%s: len modulo: %d\n", __func__,
+		    crp->crp_payload_length);
 		return (EINVAL);
 	}
 
@@ -1519,16 +1508,20 @@ ccp_do_blkcipher(struct ccp_queue *qp, struct ccp_session *s,
 		}
 
 	/* Gather IV/nonce data */
-	ccp_collect_iv(s, crp, crd);
+	csp = crypto_get_params(crp->crp_session);
+	ccp_collect_iv(crp, csp, s->blkcipher.iv);
+	iv_len = csp->csp_ivlen;
+	if (csp->csp_cipher_alg == CRYPTO_AES_XTS)
+		iv_len = AES_BLOCK_LEN;
 
-	if ((crd->crd_flags & CRD_F_ENCRYPT) != 0)
+	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
 		dir = CCP_CIPHER_DIR_ENCRYPT;
 	else
 		dir = CCP_CIPHER_DIR_DECRYPT;
 
 	/* Set up passthrough op(s) to copy IV into LSB */
 	error = ccp_do_pst_to_lsb(qp, ccp_queue_lsb_address(qp, LSB_ENTRY_IV),
-	    s->blkcipher.iv, s->blkcipher.iv_len);
+	    s->blkcipher.iv, iv_len);
 	if (error != 0)
 		return (error);
 
@@ -1539,15 +1532,16 @@ ccp_do_blkcipher(struct ccp_queue *qp, struct ccp_session *s,
 	keydata_len = 0;
 	keydata = NULL;
 
-	switch (crd->crd_alg) {
+	switch (csp->csp_cipher_alg) {
 	case CRYPTO_AES_XTS:
 		for (j = 0; j < nitems(ccp_xts_unitsize_map); j++)
-			if (ccp_xts_unitsize_map[j].cxu_size == crd->crd_len)
+			if (ccp_xts_unitsize_map[j].cxu_size ==
+			    crp->crp_payload_length)
 				break;
 		/* Input buffer must be a supported UnitSize */
 		if (j >= nitems(ccp_xts_unitsize_map)) {
 			device_printf(dev, "%s: rejected block size: %u\n",
-			    __func__, crd->crd_len);
+			    __func__, crp->crp_payload_length);
 			return (EOPNOTSUPP);
 		}
 		/* FALLTHROUGH */
@@ -1560,14 +1554,14 @@ ccp_do_blkcipher(struct ccp_queue *qp, struct ccp_session *s,
 
 	INSECURE_DEBUG(dev, "%s: KEY(%zu): %16D\n", __func__, keydata_len,
 	    keydata, " ");
-	if (crd->crd_alg == CRYPTO_AES_XTS)
+	if (csp->csp_cipher_alg == CRYPTO_AES_XTS)
 		INSECURE_DEBUG(dev, "%s: KEY(XTS): %64D\n", __func__, keydata, " ");
 
 	/* Reverse order of key material for HW */
 	ccp_byteswap(keydata, keydata_len);
 
 	/* Store key material into LSB to avoid page boundaries */
-	if (crd->crd_alg == CRYPTO_AES_XTS) {
+	if (csp->csp_cipher_alg == CRYPTO_AES_XTS) {
 		/*
 		 * XTS mode uses 2 256-bit vectors for the primary key and the
 		 * tweak key.  For 128-bit keys, the vectors are zero-padded.
@@ -1611,7 +1605,7 @@ ccp_do_blkcipher(struct ccp_queue *qp, struct ccp_session *s,
 	 */
 	sglist_reset(qp->cq_sg_ulptx);
 	error = sglist_append_sglist(qp->cq_sg_ulptx, qp->cq_sg_crp,
-	    crd->crd_skip, crd->crd_len);
+	    crp->crp_payload_start, crp->crp_payload_length);
 	if (error != 0)
 		return (error);
 
@@ -1623,8 +1617,8 @@ ccp_do_blkcipher(struct ccp_queue *qp, struct ccp_session *s,
 	if (ccp_queue_get_ring_space(qp) < qp->cq_sg_ulptx->sg_nseg)
 		return (EAGAIN);
 
-	if (crd->crd_alg == CRYPTO_AES_XTS)
-		return (ccp_do_xts(qp, s, crp, crd, dir, cctx));
+	if (csp->csp_cipher_alg == CRYPTO_AES_XTS)
+		return (ccp_do_xts(qp, s, crp, dir, cctx));
 
 	for (i = 0; i < qp->cq_sg_ulptx->sg_nseg; i++) {
 		struct sglist_seg *seg;
@@ -1647,7 +1641,7 @@ ccp_do_blkcipher(struct ccp_queue *qp, struct ccp_session *s,
 		desc->aes.encrypt = dir;
 		desc->aes.mode = s->blkcipher.cipher_mode;
 		desc->aes.type = s->blkcipher.cipher_type;
-		if (crd->crd_alg == CRYPTO_AES_ICM)
+		if (csp->csp_cipher_alg == CRYPTO_AES_ICM)
 			/*
 			 * Size of CTR value in bits, - 1.  ICM mode uses all
 			 * 128 bits as counter.
@@ -1684,38 +1678,29 @@ int __must_check
 ccp_blkcipher(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp)
 {
 	struct ccp_completion_ctx ctx;
-	struct cryptodesc *crd;
-
-	crd = crp->crp_desc;
 
 	ctx.callback_fn = ccp_blkcipher_done;
 	ctx.session = s;
 	ctx.callback_arg = crp;
 
-	return (ccp_do_blkcipher(qp, s, crp, crd, &ctx));
+	return (ccp_do_blkcipher(qp, s, crp, &ctx));
 }
 
 static void
 ccp_authenc_done(struct ccp_queue *qp, struct ccp_session *s, void *vcrp,
     int error)
 {
-	struct cryptodesc *crda;
 	struct cryptop *crp;
 
-	explicit_bzero(&s->blkcipher, sizeof(s->blkcipher));
+	explicit_bzero(&s->blkcipher.iv, sizeof(s->blkcipher.iv));
 
 	crp = vcrp;
-	if (s->cipher_first)
-		crda = crp->crp_desc->crd_next;
-	else
-		crda = crp->crp_desc;
 
-	ccp_do_hmac_done(qp, s, crp, crda, error);
+	ccp_do_hmac_done(qp, s, crp, error);
 }
 
 int __must_check
-ccp_authenc(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
-    struct cryptodesc *crda, struct cryptodesc *crde)
+ccp_authenc(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp)
 {
 	struct ccp_completion_ctx ctx;
 	int error;
@@ -1725,18 +1710,18 @@ ccp_authenc(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 	ctx.callback_arg = crp;
 
 	/* Perform first operation */
-	if (s->cipher_first)
-		error = ccp_do_blkcipher(qp, s, crp, crde, NULL);
+	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
+		error = ccp_do_blkcipher(qp, s, crp, NULL);
 	else
-		error = ccp_do_hmac(qp, s, crp, crda, NULL);
+		error = ccp_do_hmac(qp, s, crp, NULL);
 	if (error != 0)
 		return (error);
 
 	/* Perform second operation */
-	if (s->cipher_first)
-		error = ccp_do_hmac(qp, s, crp, crda, &ctx);
+	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
+		error = ccp_do_hmac(qp, s, crp, &ctx);
 	else
-		error = ccp_do_blkcipher(qp, s, crp, crde, &ctx);
+		error = ccp_do_blkcipher(qp, s, crp, &ctx);
 	return (error);
 }
 
@@ -1853,17 +1838,9 @@ ccp_gcm_done(struct ccp_queue *qp, struct ccp_session *s, void *vcrp,
     int error)
 {
 	char tag[GMAC_DIGEST_LEN];
-	struct cryptodesc *crde, *crda;
 	struct cryptop *crp;
 
 	crp = vcrp;
-	if (s->cipher_first) {
-		crde = crp->crp_desc;
-		crda = crp->crp_desc->crd_next;
-	} else {
-		crde = crp->crp_desc->crd_next;
-		crda = crp->crp_desc;
-	}
 
 	s->pending--;
 
@@ -1873,27 +1850,26 @@ ccp_gcm_done(struct ccp_queue *qp, struct ccp_session *s, void *vcrp,
 	}
 
 	/* Encrypt is done.  Decrypt needs to verify tag. */
-	if ((crde->crd_flags & CRD_F_ENCRYPT) != 0)
+	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
 		goto out;
 
 	/* Copy in message tag. */
-	crypto_copydata(crp->crp_flags, crp->crp_buf, crda->crd_inject,
-	    sizeof(tag), tag);
+	crypto_copydata(crp, crp->crp_digest_start, s->gmac.hash_len, tag);
 
 	/* Verify tag against computed GMAC */
 	if (timingsafe_bcmp(tag, s->gmac.final_block, s->gmac.hash_len) != 0)
 		crp->crp_etype = EBADMSG;
 
 out:
-	explicit_bzero(&s->blkcipher, sizeof(s->blkcipher));
-	explicit_bzero(&s->gmac, sizeof(s->gmac));
+	explicit_bzero(&s->blkcipher.iv, sizeof(s->blkcipher.iv));
+	explicit_bzero(&s->gmac.final_block, sizeof(s->gmac.final_block));
 	crypto_done(crp);
 }
 
 int __must_check
-ccp_gcm(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
-    struct cryptodesc *crda, struct cryptodesc *crde)
+ccp_gcm(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp)
 {
+	const struct crypto_session_params *csp;
 	struct ccp_completion_ctx ctx;
 	enum ccp_cipher_dir dir;
 	device_t dev;
@@ -1903,16 +1879,9 @@ ccp_gcm(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 	if (s->blkcipher.key_len == 0)
 		return (EINVAL);
 
-	/*
-	 * AAD is only permitted before the cipher/plain text, not
-	 * after.
-	 */
-	if (crda->crd_len + crda->crd_skip > crde->crd_len + crde->crd_skip)
-		return (EINVAL);
-
 	dev = qp->cq_softc->dev;
 
-	if ((crde->crd_flags & CRD_F_ENCRYPT) != 0)
+	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
 		dir = CCP_CIPHER_DIR_ENCRYPT;
 	else
 		dir = CCP_CIPHER_DIR_DECRYPT;
@@ -1921,14 +1890,15 @@ ccp_gcm(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 	memset(s->blkcipher.iv, 0, sizeof(s->blkcipher.iv));
 
 	/* Gather IV data */
-	ccp_collect_iv(s, crp, crde);
+	csp = crypto_get_params(crp->crp_session);
+	ccp_collect_iv(crp, csp, s->blkcipher.iv);
 
 	/* Reverse order of key material for HW */
 	ccp_byteswap(s->blkcipher.enckey, s->blkcipher.key_len);
 
 	/* Prepare input buffer of concatenated lengths for final GHASH */
-	be64enc(s->gmac.final_block, (uint64_t)crda->crd_len * 8);
-	be64enc(&s->gmac.final_block[8], (uint64_t)crde->crd_len * 8);
+	be64enc(s->gmac.final_block, (uint64_t)crp->crp_aad_length * 8);
+	be64enc(&s->gmac.final_block[8], (uint64_t)crp->crp_payload_length * 8);
 
 	/* Send IV + initial zero GHASH, key data, and lengths buffer to LSB */
 	error = ccp_do_pst_to_lsb(qp, ccp_queue_lsb_address(qp, LSB_ENTRY_IV),
@@ -1946,10 +1916,10 @@ ccp_gcm(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 		return (error);
 
 	/* First step - compute GHASH over AAD */
-	if (crda->crd_len != 0) {
+	if (crp->crp_aad_length != 0) {
 		sglist_reset(qp->cq_sg_ulptx);
 		error = sglist_append_sglist(qp->cq_sg_ulptx, qp->cq_sg_crp,
-		    crda->crd_skip, crda->crd_len);
+		    crp->crp_aad_start, crp->crp_aad_length);
 		if (error != 0)
 			return (error);
 
@@ -1971,7 +1941,7 @@ ccp_gcm(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 	/* Feed data piece by piece into GCTR */
 	sglist_reset(qp->cq_sg_ulptx);
 	error = sglist_append_sglist(qp->cq_sg_ulptx, qp->cq_sg_crp,
-	    crde->crd_skip, crde->crd_len);
+	    crp->crp_payload_start, crp->crp_payload_length);
 	if (error != 0)
 		return (error);
 
@@ -1997,7 +1967,7 @@ ccp_gcm(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 
 		seg = &qp->cq_sg_ulptx->sg_segs[i];
 		error = ccp_do_gctr(qp, s, dir, seg,
-		    (i == 0 && crda->crd_len == 0),
+		    (i == 0 && crp->crp_aad_length == 0),
 		    i == (qp->cq_sg_ulptx->sg_nseg - 1));
 		if (error != 0)
 			return (error);
@@ -2005,7 +1975,7 @@ ccp_gcm(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 
 	/* Send just initial IV (not GHASH!) to LSB again */
 	error = ccp_do_pst_to_lsb(qp, ccp_queue_lsb_address(qp, LSB_ENTRY_IV),
-	    s->blkcipher.iv, s->blkcipher.iv_len);
+	    s->blkcipher.iv, AES_BLOCK_LEN);
 	if (error != 0)
 		return (error);
 
@@ -2022,7 +1992,7 @@ ccp_gcm(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
 	sglist_reset(qp->cq_sg_ulptx);
 	if (dir == CCP_CIPHER_DIR_ENCRYPT)
 		error = sglist_append_sglist(qp->cq_sg_ulptx, qp->cq_sg_crp,
-		    crda->crd_inject, s->gmac.hash_len);
+		    crp->crp_digest_start, s->gmac.hash_len);
 	else
 		/*
 		 * For decrypting, copy the computed tag out to our session

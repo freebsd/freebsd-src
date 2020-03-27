@@ -82,7 +82,7 @@ g_eli_crypto_read_done(struct cryptop *crp)
 	if (crp->crp_etype == 0) {
 		G_ELI_DEBUG(3, "Crypto READ request done (%d/%d).",
 		    bp->bio_inbed, bp->bio_children);
-		bp->bio_completed += crp->crp_olen;
+		bp->bio_completed += crp->crp_ilen;
 	} else {
 		G_ELI_DEBUG(1, "Crypto READ request failed (%d/%d) error=%d.",
 		    bp->bio_inbed, bp->bio_children, crp->crp_etype);
@@ -90,8 +90,9 @@ g_eli_crypto_read_done(struct cryptop *crp)
 			bp->bio_error = crp->crp_etype;
 	}
 	sc = bp->bio_to->geom->softc;
-	if (sc != NULL)
-		g_eli_key_drop(sc, crp->crp_desc->crd_key);
+	if (sc != NULL && crp->crp_cipher_key != NULL)
+		g_eli_key_drop(sc, __DECONST(void *, crp->crp_cipher_key));
+	crypto_freereq(crp);
 	/*
 	 * Do we have all sectors already?
 	 */
@@ -143,7 +144,9 @@ g_eli_crypto_write_done(struct cryptop *crp)
 	}
 	gp = bp->bio_to->geom;
 	sc = gp->softc;
-	g_eli_key_drop(sc, crp->crp_desc->crd_key);
+	if (crp->crp_cipher_key != NULL)
+		g_eli_key_drop(sc, __DECONST(void *, crp->crp_cipher_key));
+	crypto_freereq(crp);
 	/*
 	 * All sectors are already encrypted?
 	 */
@@ -233,11 +236,9 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 {
 	struct g_eli_softc *sc;
 	struct cryptop *crp;
-	struct cryptodesc *crd;
 	u_int i, nsec, secsize;
 	off_t dstoff;
-	size_t size;
-	u_char *p, *data;
+	u_char *data;
 	int error;
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
@@ -247,71 +248,49 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	secsize = LIST_FIRST(&sc->sc_geom->provider)->sectorsize;
 	nsec = bp->bio_length / secsize;
 
-	/*
-	 * Calculate how much memory do we need.
-	 * We need separate crypto operation for every single sector.
-	 * It is much faster to calculate total amount of needed memory here and
-	 * do the allocation once instead of allocating memory in pieces (many,
-	 * many pieces).
-	 */
-	size = sizeof(*crp) * nsec;
-	size += sizeof(*crd) * nsec;
+	bp->bio_inbed = 0;
+	bp->bio_children = nsec;
+
 	/*
 	 * If we write the data we cannot destroy current bio_data content,
 	 * so we need to allocate more memory for encrypted data.
 	 */
-	if (bp->bio_cmd == BIO_WRITE)
-		size += bp->bio_length;
-	p = malloc(size, M_ELI, M_WAITOK);
-
-	bp->bio_inbed = 0;
-	bp->bio_children = nsec;
-	bp->bio_driver2 = p;
-
-	if (bp->bio_cmd == BIO_READ)
-		data = bp->bio_data;
-	else {
-		data = p;
-		p += bp->bio_length;
+	if (bp->bio_cmd == BIO_WRITE) {
+		data = malloc(bp->bio_length, M_ELI, M_WAITOK);
+		bp->bio_driver2 = data;
 		bcopy(bp->bio_data, data, bp->bio_length);
-	}
+	} else
+		data = bp->bio_data;
 
 	for (i = 0, dstoff = bp->bio_offset; i < nsec; i++, dstoff += secsize) {
-		crp = (struct cryptop *)p;	p += sizeof(*crp);
-		crd = (struct cryptodesc *)p;	p += sizeof(*crd);
+		crp = crypto_getreq(wr->w_sid, M_WAITOK);
 
-		crp->crp_session = wr->w_sid;
 		crp->crp_ilen = secsize;
-		crp->crp_olen = secsize;
 		crp->crp_opaque = (void *)bp;
+		crp->crp_buf_type = CRYPTO_BUF_CONTIG;
 		crp->crp_buf = (void *)data;
 		data += secsize;
-		if (bp->bio_cmd == BIO_WRITE)
+		if (bp->bio_cmd == BIO_WRITE) {
+			crp->crp_op = CRYPTO_OP_ENCRYPT;
 			crp->crp_callback = g_eli_crypto_write_done;
-		else /* if (bp->bio_cmd == BIO_READ) */
+		} else /* if (bp->bio_cmd == BIO_READ) */ {
+			crp->crp_op = CRYPTO_OP_DECRYPT;
 			crp->crp_callback = g_eli_crypto_read_done;
+		}
 		crp->crp_flags = CRYPTO_F_CBIFSYNC;
 		if (g_eli_batch)
 			crp->crp_flags |= CRYPTO_F_BATCH;
-		crp->crp_desc = crd;
 
-		crd->crd_skip = 0;
-		crd->crd_len = secsize;
-		crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
-		if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0)
-			crd->crd_flags |= CRD_F_KEY_EXPLICIT;
-		if (bp->bio_cmd == BIO_WRITE)
-			crd->crd_flags |= CRD_F_ENCRYPT;
-		crd->crd_alg = sc->sc_ealgo;
-		crd->crd_key = g_eli_key_hold(sc, dstoff, secsize);
-		crd->crd_klen = sc->sc_ekeylen;
-		if (sc->sc_ealgo == CRYPTO_AES_XTS)
-			crd->crd_klen <<= 1;
-		g_eli_crypto_ivgen(sc, dstoff, crd->crd_iv,
-		    sizeof(crd->crd_iv));
-		crd->crd_next = NULL;
+		crp->crp_payload_start = 0;
+		crp->crp_payload_length = secsize;
+		crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
+		if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0) {
+			crp->crp_cipher_key = g_eli_key_hold(sc, dstoff,
+			    secsize);
+		}
+		g_eli_crypto_ivgen(sc, dstoff, crp->crp_iv,
+		    sizeof(crp->crp_iv));
 
-		crp->crp_etype = 0;
 		error = crypto_dispatch(crp);
 		KASSERT(error == 0, ("crypto_dispatch() failed (error=%d)",
 		    error));

@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 struct ocf_session {
 	crypto_session_t sid;
-	int crda_alg;
 	struct mtx lock;
 };
 
@@ -100,8 +99,6 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 {
 	struct uio uio;
 	struct tls_aead_data ad;
-	struct tls_nonce_data nd;
-	struct cryptodesc *crde, *crda;
 	struct cryptop *crp;
 	struct ocf_session *os;
 	struct ocf_operation *oo;
@@ -116,19 +113,15 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 	oo->os = os;
 	iov = oo->iov;
 
-	crp = crypto_getreq(2);
-	if (crp == NULL) {
-		free(oo, M_KTLS_OCF);
-		return (ENOMEM);
-	}
+	crp = crypto_getreq(os->sid, M_WAITOK);
 
 	/* Setup the IV. */
-	memcpy(nd.fixed, tls->params.iv, TLS_AEAD_GCM_LEN);
-	memcpy(&nd.seq, hdr + 1, sizeof(nd.seq));
+	memcpy(crp->crp_iv, tls->params.iv, TLS_AEAD_GCM_LEN);
+	memcpy(crp->crp_iv + TLS_AEAD_GCM_LEN, hdr + 1, sizeof(uint64_t));
 
 	/* Setup the AAD. */
 	tls_comp_len = ntohs(hdr->tls_length) -
-	    (AES_GMAC_HASH_LEN + sizeof(nd.seq));
+	    (AES_GMAC_HASH_LEN + sizeof(uint64_t));
 	ad.seq = htobe64(seqno);
 	ad.type = hdr->tls_type;
 	ad.tls_vmajor = hdr->tls_vmajor;
@@ -160,26 +153,20 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_td = curthread;
 
-	crp->crp_session = os->sid;
-	crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIMM;
+	crp->crp_op = CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST;
+	crp->crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
+	crp->crp_buf_type = CRYPTO_BUF_UIO;
 	crp->crp_uio = &uio;
 	crp->crp_ilen = uio.uio_resid;
 	crp->crp_opaque = oo;
 	crp->crp_callback = ktls_ocf_callback;
 
-	crde = crp->crp_desc;
-	crda = crde->crd_next;
-
-	crda->crd_alg = os->crda_alg;
-	crda->crd_skip = 0;
-	crda->crd_len = sizeof(ad);
-	crda->crd_inject = crp->crp_ilen - AES_GMAC_HASH_LEN;
-
-	crde->crd_alg = CRYPTO_AES_NIST_GCM_16;
-	crde->crd_skip = sizeof(ad);
-	crde->crd_len = crp->crp_ilen - (sizeof(ad) + AES_GMAC_HASH_LEN);
-	crde->crd_flags = CRD_F_ENCRYPT | CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
-	memcpy(crde->crd_iv, &nd, sizeof(nd));
+	crp->crp_aad_start = 0;
+	crp->crp_aad_length = sizeof(ad);
+	crp->crp_payload_start = sizeof(ad);
+	crp->crp_payload_length = crp->crp_ilen -
+	    (sizeof(ad) + AES_GMAC_HASH_LEN);
+	crp->crp_digest_start = crp->crp_ilen - AES_GMAC_HASH_LEN;
 
 	counter_u64_add(ocf_tls12_gcm_crypts, 1);
 	for (;;) {
@@ -216,7 +203,6 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 	struct uio uio;
 	struct tls_aead_data_13 ad;
 	char nonce[12];
-	struct cryptodesc *crde, *crda;
 	struct cryptop *crp;
 	struct ocf_session *os;
 	struct ocf_operation *oo;
@@ -230,11 +216,7 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 	oo->os = os;
 	iov = oo->iov;
 
-	crp = crypto_getreq(2);
-	if (crp == NULL) {
-		free(oo, M_KTLS_OCF);
-		return (ENOMEM);
-	}
+	crp = crypto_getreq(os->sid, M_WAITOK);
 
 	/* Setup the nonce. */
 	memcpy(nonce, tls->params.iv, tls->params.iv_len);
@@ -272,26 +254,21 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_td = curthread;
 
-	crp->crp_session = os->sid;
-	crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIMM;
+	crp->crp_op = CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST;
+	crp->crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
+	crp->crp_buf_type = CRYPTO_BUF_UIO;
 	crp->crp_uio = &uio;
 	crp->crp_ilen = uio.uio_resid;
 	crp->crp_opaque = oo;
 	crp->crp_callback = ktls_ocf_callback;
 
-	crde = crp->crp_desc;
-	crda = crde->crd_next;
-
-	crda->crd_alg = os->crda_alg;
-	crda->crd_skip = 0;
-	crda->crd_len = sizeof(ad);
-	crda->crd_inject = crp->crp_ilen - AES_GMAC_HASH_LEN;
-
-	crde->crd_alg = CRYPTO_AES_NIST_GCM_16;
-	crde->crd_skip = sizeof(ad);
-	crde->crd_len = crp->crp_ilen - (sizeof(ad) + AES_GMAC_HASH_LEN);
-	crde->crd_flags = CRD_F_ENCRYPT | CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
-	memcpy(crde->crd_iv, nonce, sizeof(nonce));
+	crp->crp_aad_start = 0;
+	crp->crp_aad_length = sizeof(ad);
+	crp->crp_payload_start = sizeof(ad);
+	crp->crp_payload_length = crp->crp_ilen -
+	    (sizeof(ad) + AES_GMAC_HASH_LEN);
+	crp->crp_digest_start = crp->crp_ilen - AES_GMAC_HASH_LEN;
+	memcpy(crp->crp_iv, nonce, sizeof(nonce));
 
 	counter_u64_add(ocf_tls13_gcm_crypts, 1);
 	for (;;) {
@@ -326,6 +303,7 @@ ktls_ocf_free(struct ktls_session *tls)
 	struct ocf_session *os;
 
 	os = tls->cipher;
+	crypto_freesession(os->sid);
 	mtx_destroy(&os->lock);
 	explicit_bzero(os, sizeof(*os));
 	free(os, M_KTLS_OCF);
@@ -334,27 +312,26 @@ ktls_ocf_free(struct ktls_session *tls)
 static int
 ktls_ocf_try(struct socket *so, struct ktls_session *tls)
 {
-	struct cryptoini cria, crie;
+	struct crypto_session_params csp;
 	struct ocf_session *os;
 	int error;
 
-	memset(&cria, 0, sizeof(cria));
-	memset(&crie, 0, sizeof(crie));
+	memset(&csp, 0, sizeof(csp));
 
 	switch (tls->params.cipher_algorithm) {
 	case CRYPTO_AES_NIST_GCM_16:
 		switch (tls->params.cipher_key_len) {
 		case 128 / 8:
-			cria.cri_alg = CRYPTO_AES_128_NIST_GMAC;
-			break;
 		case 256 / 8:
-			cria.cri_alg = CRYPTO_AES_256_NIST_GMAC;
 			break;
 		default:
 			return (EINVAL);
 		}
-		cria.cri_key = tls->params.cipher_key;
-		cria.cri_klen = tls->params.cipher_key_len * 8;
+		csp.csp_mode = CSP_MODE_AEAD;
+		csp.csp_cipher_alg = CRYPTO_AES_NIST_GCM_16;
+		csp.csp_cipher_key = tls->params.cipher_key;
+		csp.csp_cipher_klen = tls->params.cipher_key_len;
+		csp.csp_ivlen = AES_GCM_IV_LEN;
 		break;
 	default:
 		return (EPROTONOSUPPORT);
@@ -370,19 +347,13 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls)
 	if (os == NULL)
 		return (ENOMEM);
 
-	crie.cri_alg = tls->params.cipher_algorithm;
-	crie.cri_key = tls->params.cipher_key;
-	crie.cri_klen = tls->params.cipher_key_len * 8;
-
-	crie.cri_next = &cria;
-	error = crypto_newsession(&os->sid, &crie,
+	error = crypto_newsession(&os->sid, &csp,
 	    CRYPTO_FLAG_HARDWARE | CRYPTO_FLAG_SOFTWARE);
 	if (error) {
 		free(os, M_KTLS_OCF);
 		return (error);
 	}
 
-	os->crda_alg = cria.cri_alg;
 	mtx_init(&os->lock, "ktls_ocf", NULL, MTX_DEF);
 	tls->cipher = os;
 	if (tls->params.tls_vminor == TLS_MINOR_VER_THREE)

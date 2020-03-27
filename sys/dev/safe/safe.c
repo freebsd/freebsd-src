@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -56,10 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <crypto/sha1.h>
 #include <opencrypto/cryptodev.h>
-#include <opencrypto/cryptosoft.h>
-#include <sys/md5.h>
+#include <opencrypto/xform_auth.h>
 #include <sys/random.h>
 #include <sys/kobj.h>
 
@@ -88,7 +87,9 @@ static	int safe_suspend(device_t);
 static	int safe_resume(device_t);
 static	int safe_shutdown(device_t);
 
-static	int safe_newsession(device_t, crypto_session_t, struct cryptoini *);
+static	int safe_probesession(device_t, const struct crypto_session_params *);
+static	int safe_newsession(device_t, crypto_session_t,
+	    const struct crypto_session_params *);
 static	int safe_process(device_t, struct cryptop *, int);
 
 static device_method_t safe_methods[] = {
@@ -101,6 +102,7 @@ static device_method_t safe_methods[] = {
 	DEVMETHOD(device_shutdown,	safe_shutdown),
 
 	/* crypto device methods */
+	DEVMETHOD(cryptodev_probesession, safe_probesession),
 	DEVMETHOD(cryptodev_newsession,	safe_newsession),
 	DEVMETHOD(cryptodev_process,	safe_process),
 
@@ -221,7 +223,7 @@ safe_attach(device_t dev)
 {
 	struct safe_softc *sc = device_get_softc(dev);
 	u_int32_t raddr;
-	u_int32_t i, devinfo;
+	u_int32_t i;
 	int rid;
 
 	bzero(sc, sizeof (*sc));
@@ -374,12 +376,12 @@ safe_attach(device_t dev)
 
 	device_printf(sc->sc_dev, "%s", safe_partname(sc));
 
-	devinfo = READ_REG(sc, SAFE_DEVINFO);
-	if (devinfo & SAFE_DEVINFO_RNG) {
+	sc->sc_devinfo = READ_REG(sc, SAFE_DEVINFO);
+	if (sc->sc_devinfo & SAFE_DEVINFO_RNG) {
 		sc->sc_flags |= SAFE_FLAGS_RNG;
 		printf(" rng");
 	}
-	if (devinfo & SAFE_DEVINFO_PKEY) {
+	if (sc->sc_devinfo & SAFE_DEVINFO_PKEY) {
 #if 0
 		printf(" key");
 		sc->sc_flags |= SAFE_FLAGS_KEY;
@@ -387,26 +389,18 @@ safe_attach(device_t dev)
 		crypto_kregister(sc->sc_cid, CRK_MOD_EXP_CRT, 0);
 #endif
 	}
-	if (devinfo & SAFE_DEVINFO_DES) {
+	if (sc->sc_devinfo & SAFE_DEVINFO_DES) {
 		printf(" des/3des");
-		crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0);
-		crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0);
 	}
-	if (devinfo & SAFE_DEVINFO_AES) {
+	if (sc->sc_devinfo & SAFE_DEVINFO_AES) {
 		printf(" aes");
-		crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0);
 	}
-	if (devinfo & SAFE_DEVINFO_MD5) {
+	if (sc->sc_devinfo & SAFE_DEVINFO_MD5) {
 		printf(" md5");
-		crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
 	}
-	if (devinfo & SAFE_DEVINFO_SHA1) {
+	if (sc->sc_devinfo & SAFE_DEVINFO_SHA1) {
 		printf(" sha1");
-		crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
 	}
-	printf(" null");
-	crypto_register(sc->sc_cid, CRYPTO_NULL_CBC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_NULL_HMAC, 0, 0);
 	/* XXX other supported algorithms */
 	printf("\n");
 
@@ -629,11 +623,11 @@ safe_feed(struct safe_softc *sc, struct safe_ringentry *re)
 
 #define	N(a)	(sizeof(a) / sizeof (a[0]))
 static void
-safe_setup_enckey(struct safe_session *ses, caddr_t key)
+safe_setup_enckey(struct safe_session *ses, const void *key)
 {
 	int i;
 
-	bcopy(key, ses->ses_key, ses->ses_klen / 8);
+	bcopy(key, ses->ses_key, ses->ses_klen);
 
 	/* PE is little-endian, insure proper byte order */
 	for (i = 0; i < N(ses->ses_key); i++)
@@ -641,47 +635,30 @@ safe_setup_enckey(struct safe_session *ses, caddr_t key)
 }
 
 static void
-safe_setup_mackey(struct safe_session *ses, int algo, caddr_t key, int klen)
+safe_setup_mackey(struct safe_session *ses, int algo, const uint8_t *key,
+    int klen)
 {
 	MD5_CTX md5ctx;
 	SHA1_CTX sha1ctx;
 	int i;
 
-
-	for (i = 0; i < klen; i++)
-		key[i] ^= HMAC_IPAD_VAL;
-
 	if (algo == CRYPTO_MD5_HMAC) {
-		MD5Init(&md5ctx);
-		MD5Update(&md5ctx, key, klen);
-		MD5Update(&md5ctx, hmac_ipad_buffer, MD5_BLOCK_LEN - klen);
+		hmac_init_ipad(&auth_hash_hmac_md5, key, klen, &md5ctx);
 		bcopy(md5ctx.state, ses->ses_hminner, sizeof(md5ctx.state));
-	} else {
-		SHA1Init(&sha1ctx);
-		SHA1Update(&sha1ctx, key, klen);
-		SHA1Update(&sha1ctx, hmac_ipad_buffer,
-		    SHA1_BLOCK_LEN - klen);
-		bcopy(sha1ctx.h.b32, ses->ses_hminner, sizeof(sha1ctx.h.b32));
-	}
 
-	for (i = 0; i < klen; i++)
-		key[i] ^= (HMAC_IPAD_VAL ^ HMAC_OPAD_VAL);
-
-	if (algo == CRYPTO_MD5_HMAC) {
-		MD5Init(&md5ctx);
-		MD5Update(&md5ctx, key, klen);
-		MD5Update(&md5ctx, hmac_opad_buffer, MD5_BLOCK_LEN - klen);
+		hmac_init_opad(&auth_hash_hmac_md5, key, klen, &md5ctx);
 		bcopy(md5ctx.state, ses->ses_hmouter, sizeof(md5ctx.state));
-	} else {
-		SHA1Init(&sha1ctx);
-		SHA1Update(&sha1ctx, key, klen);
-		SHA1Update(&sha1ctx, hmac_opad_buffer,
-		    SHA1_BLOCK_LEN - klen);
-		bcopy(sha1ctx.h.b32, ses->ses_hmouter, sizeof(sha1ctx.h.b32));
-	}
 
-	for (i = 0; i < klen; i++)
-		key[i] ^= HMAC_OPAD_VAL;
+		explicit_bzero(&md5ctx, sizeof(md5ctx));
+	} else {
+		hmac_init_ipad(&auth_hash_hmac_sha1, key, klen, &sha1ctx);
+		bcopy(sha1ctx.h.b32, ses->ses_hminner, sizeof(sha1ctx.h.b32));
+
+		hmac_init_opad(&auth_hash_hmac_sha1, key, klen, &sha1ctx);
+		bcopy(sha1ctx.h.b32, ses->ses_hmouter, sizeof(sha1ctx.h.b32));
+
+		explicit_bzero(&sha1ctx, sizeof(sha1ctx));
+	}
 
 	/* PE is little-endian, insure proper byte order */
 	for (i = 0; i < N(ses->ses_hminner); i++) {
@@ -691,98 +668,147 @@ safe_setup_mackey(struct safe_session *ses, int algo, caddr_t key, int klen)
 }
 #undef N
 
-/*
- * Allocate a new 'session' and return an encoded session id.  'sidp'
- * contains our registration id, and should contain an encoded session
- * id on successful allocation.
- */
+static bool
+safe_auth_supported(struct safe_softc *sc,
+    const struct crypto_session_params *csp)
+{
+
+	switch (csp->csp_auth_alg) {
+	case CRYPTO_MD5_HMAC:
+		if ((sc->sc_devinfo & SAFE_DEVINFO_MD5) == 0)
+			return (false);
+		break;
+	case CRYPTO_SHA1_HMAC:
+		if ((sc->sc_devinfo & SAFE_DEVINFO_SHA1) == 0)
+			return (false);
+		break;
+	default:
+		return (false);
+	}
+	return (true);
+}
+
+static bool
+safe_cipher_supported(struct safe_softc *sc,
+    const struct crypto_session_params *csp)
+{
+
+	switch (csp->csp_cipher_alg) {
+	case CRYPTO_DES_CBC:
+	case CRYPTO_3DES_CBC:
+		if ((sc->sc_devinfo & SAFE_DEVINFO_DES) == 0)
+			return (false);
+		if (csp->csp_ivlen != 8)
+			return (false);
+		if (csp->csp_cipher_alg == CRYPTO_DES_CBC) {
+			if (csp->csp_cipher_klen != 8)
+				return (false);
+		} else {
+			if (csp->csp_cipher_klen != 24)
+				return (false);
+		}
+		break;
+	case CRYPTO_AES_CBC:
+		if ((sc->sc_devinfo & SAFE_DEVINFO_AES) == 0)
+			return (false);
+		if (csp->csp_ivlen != 16)
+			return (false);
+		if (csp->csp_cipher_klen != 16 &&
+		    csp->csp_cipher_klen != 24 &&
+		    csp->csp_cipher_klen != 32)
+			return (false);
+		break;
+	}
+	return (true);
+}
+
 static int
-safe_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
+safe_probesession(device_t dev, const struct crypto_session_params *csp)
 {
 	struct safe_softc *sc = device_get_softc(dev);
-	struct cryptoini *c, *encini = NULL, *macini = NULL;
-	struct safe_session *ses = NULL;
 
-	if (cri == NULL || sc == NULL)
+	if (csp->csp_flags != 0)
 		return (EINVAL);
-
-	for (c = cri; c != NULL; c = c->cri_next) {
-		if (c->cri_alg == CRYPTO_MD5_HMAC ||
-		    c->cri_alg == CRYPTO_SHA1_HMAC ||
-		    c->cri_alg == CRYPTO_NULL_HMAC) {
-			if (macini)
-				return (EINVAL);
-			macini = c;
-		} else if (c->cri_alg == CRYPTO_DES_CBC ||
-		    c->cri_alg == CRYPTO_3DES_CBC ||
-		    c->cri_alg == CRYPTO_AES_CBC ||
-		    c->cri_alg == CRYPTO_NULL_CBC) {
-			if (encini)
-				return (EINVAL);
-			encini = c;
-		} else
+	switch (csp->csp_mode) {
+	case CSP_MODE_DIGEST:
+		if (!safe_auth_supported(sc, csp))
 			return (EINVAL);
-	}
-	if (encini == NULL && macini == NULL)
+		break;
+	case CSP_MODE_CIPHER:
+		if (!safe_cipher_supported(sc, csp))
+			return (EINVAL);
+		break;
+	case CSP_MODE_ETA:
+		if (!safe_auth_supported(sc, csp) ||
+		    !safe_cipher_supported(sc, csp))
+			return (EINVAL);
+		break;
+	default:
 		return (EINVAL);
-	if (encini) {			/* validate key length */
-		switch (encini->cri_alg) {
-		case CRYPTO_DES_CBC:
-			if (encini->cri_klen != 64)
-				return (EINVAL);
-			break;
-		case CRYPTO_3DES_CBC:
-			if (encini->cri_klen != 192)
-				return (EINVAL);
-			break;
-		case CRYPTO_AES_CBC:
-			if (encini->cri_klen != 128 &&
-			    encini->cri_klen != 192 &&
-			    encini->cri_klen != 256)
-				return (EINVAL);
-			break;
-		}
 	}
+
+	return (CRYPTODEV_PROBE_HARDWARE);
+}
+
+/*
+ * Allocate a new 'session'.
+ */
+static int
+safe_newsession(device_t dev, crypto_session_t cses,
+    const struct crypto_session_params *csp)
+{
+	struct safe_session *ses;
 
 	ses = crypto_get_driver_session(cses);
-	if (encini) {
-		/* get an IV */
-		/* XXX may read fewer than requested */
-		read_random(ses->ses_iv, sizeof(ses->ses_iv));
-
-		ses->ses_klen = encini->cri_klen;
-		if (encini->cri_key != NULL)
-			safe_setup_enckey(ses, encini->cri_key);
+	if (csp->csp_cipher_alg != 0) {
+		ses->ses_klen = csp->csp_cipher_klen;
+		if (csp->csp_cipher_key != NULL)
+			safe_setup_enckey(ses, csp->csp_cipher_key);
 	}
 
-	if (macini) {
-		ses->ses_mlen = macini->cri_mlen;
+	if (csp->csp_auth_alg != 0) {
+		ses->ses_mlen = csp->csp_auth_mlen;
 		if (ses->ses_mlen == 0) {
-			if (macini->cri_alg == CRYPTO_MD5_HMAC)
+			if (csp->csp_auth_alg == CRYPTO_MD5_HMAC)
 				ses->ses_mlen = MD5_HASH_LEN;
 			else
 				ses->ses_mlen = SHA1_HASH_LEN;
 		}
 
-		if (macini->cri_key != NULL) {
-			safe_setup_mackey(ses, macini->cri_alg, macini->cri_key,
-			    macini->cri_klen / 8);
+		if (csp->csp_auth_key != NULL) {
+			safe_setup_mackey(ses, csp->csp_auth_alg,
+			    csp->csp_auth_key, csp->csp_auth_klen);
 		}
 	}
 
 	return (0);
 }
 
+static bus_size_t
+safe_crp_length(struct cryptop *crp)
+{
+
+	switch (crp->crp_buf_type) {
+	case CRYPTO_BUF_MBUF:
+		return (crp->crp_mbuf->m_pkthdr.len);
+	case CRYPTO_BUF_UIO:
+		return (crp->crp_uio->uio_resid);
+	case CRYPTO_BUF_CONTIG:
+		return (crp->crp_ilen);
+	default:
+		panic("bad crp buffer type");
+	}
+}
+
 static void
-safe_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, int error)
+safe_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, int error)
 {
 	struct safe_operand *op = arg;
 
-	DPRINTF(("%s: mapsize %u nsegs %d error %d\n", __func__,
-		(u_int) mapsize, nsegs, error));
+	DPRINTF(("%s: nsegs %d error %d\n", __func__,
+		nsegs, error));
 	if (error != 0)
 		return;
-	op->mapsize = mapsize;
 	op->nsegs = nsegs;
 	bcopy(seg, op->segs, nsegs * sizeof (seg[0]));
 }
@@ -790,22 +816,16 @@ safe_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, int
 static int
 safe_process(device_t dev, struct cryptop *crp, int hint)
 {
-	struct safe_softc *sc = device_get_softc(dev);
+	struct safe_softc *sc = device_get_softc(dev);	
+	const struct crypto_session_params *csp;
 	int err = 0, i, nicealign, uniform;
-	struct cryptodesc *crd1, *crd2, *maccrd, *enccrd;
-	int bypass, oplen, ivsize;
-	caddr_t iv;
+	int bypass, oplen;
 	int16_t coffset;
 	struct safe_session *ses;
 	struct safe_ringentry *re;
 	struct safe_sarec *sa;
 	struct safe_pdesc *pd;
 	u_int32_t cmd0, cmd1, staterec;
-
-	if (crp == NULL || crp->crp_callback == NULL || sc == NULL) {
-		safestats.st_invalid++;
-		return (EINVAL);
-	}
 
 	mtx_lock(&sc->sc_ringmtx);
 	if (sc->sc_front == sc->sc_back && sc->sc_nqchip != 0) {
@@ -823,104 +843,46 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 
 	re->re_crp = crp;
 
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		re->re_src_m = (struct mbuf *)crp->crp_buf;
-		re->re_dst_m = (struct mbuf *)crp->crp_buf;
-	} else if (crp->crp_flags & CRYPTO_F_IOV) {
-		re->re_src_io = (struct uio *)crp->crp_buf;
-		re->re_dst_io = (struct uio *)crp->crp_buf;
-	} else {
-		safestats.st_badflags++;
-		err = EINVAL;
-		goto errout;	/* XXX we don't handle contiguous blocks! */
-	}
-
 	sa = &re->re_sa;
 	ses = crypto_get_driver_session(crp->crp_session);
-
-	crd1 = crp->crp_desc;
-	if (crd1 == NULL) {
-		safestats.st_nodesc++;
-		err = EINVAL;
-		goto errout;
-	}
-	crd2 = crd1->crd_next;
+	csp = crypto_get_params(crp->crp_session);
 
 	cmd0 = SAFE_SA_CMD0_BASIC;		/* basic group operation */
 	cmd1 = 0;
-	if (crd2 == NULL) {
-		if (crd1->crd_alg == CRYPTO_MD5_HMAC ||
-		    crd1->crd_alg == CRYPTO_SHA1_HMAC ||
-		    crd1->crd_alg == CRYPTO_NULL_HMAC) {
-			maccrd = crd1;
-			enccrd = NULL;
-			cmd0 |= SAFE_SA_CMD0_OP_HASH;
-		} else if (crd1->crd_alg == CRYPTO_DES_CBC ||
-		    crd1->crd_alg == CRYPTO_3DES_CBC ||
-		    crd1->crd_alg == CRYPTO_AES_CBC ||
-		    crd1->crd_alg == CRYPTO_NULL_CBC) {
-			maccrd = NULL;
-			enccrd = crd1;
-			cmd0 |= SAFE_SA_CMD0_OP_CRYPT;
-		} else {
-			safestats.st_badalg++;
-			err = EINVAL;
-			goto errout;
-		}
-	} else {
-		if ((crd1->crd_alg == CRYPTO_MD5_HMAC ||
-		    crd1->crd_alg == CRYPTO_SHA1_HMAC ||
-		    crd1->crd_alg == CRYPTO_NULL_HMAC) &&
-		    (crd2->crd_alg == CRYPTO_DES_CBC ||
-			crd2->crd_alg == CRYPTO_3DES_CBC ||
-		        crd2->crd_alg == CRYPTO_AES_CBC ||
-		        crd2->crd_alg == CRYPTO_NULL_CBC) &&
-		    ((crd2->crd_flags & CRD_F_ENCRYPT) == 0)) {
-			maccrd = crd1;
-			enccrd = crd2;
-		} else if ((crd1->crd_alg == CRYPTO_DES_CBC ||
-		    crd1->crd_alg == CRYPTO_3DES_CBC ||
-		    crd1->crd_alg == CRYPTO_AES_CBC ||
-		    crd1->crd_alg == CRYPTO_NULL_CBC) &&
-		    (crd2->crd_alg == CRYPTO_MD5_HMAC ||
-			crd2->crd_alg == CRYPTO_SHA1_HMAC ||
-			crd2->crd_alg == CRYPTO_NULL_HMAC) &&
-		    (crd1->crd_flags & CRD_F_ENCRYPT)) {
-			enccrd = crd1;
-			maccrd = crd2;
-		} else {
-			safestats.st_badalg++;
-			err = EINVAL;
-			goto errout;
-		}
+	switch (csp->csp_mode) {
+	case CSP_MODE_DIGEST:
+		cmd0 |= SAFE_SA_CMD0_OP_HASH;
+		break;
+	case CSP_MODE_CIPHER:
+		cmd0 |= SAFE_SA_CMD0_OP_CRYPT;
+		break;
+	case CSP_MODE_ETA:
 		cmd0 |= SAFE_SA_CMD0_OP_BOTH;
+		break;
 	}
 
-	if (enccrd) {
-		if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT)
-			safe_setup_enckey(ses, enccrd->crd_key);
+	if (csp->csp_cipher_alg != 0) {
+		if (crp->crp_cipher_key != NULL)
+			safe_setup_enckey(ses, crp->crp_cipher_key);
 
-		if (enccrd->crd_alg == CRYPTO_DES_CBC) {
+		switch (csp->csp_cipher_alg) {
+		case CRYPTO_DES_CBC:
 			cmd0 |= SAFE_SA_CMD0_DES;
 			cmd1 |= SAFE_SA_CMD1_CBC;
-			ivsize = 2*sizeof(u_int32_t);
-		} else if (enccrd->crd_alg == CRYPTO_3DES_CBC) {
+			break;
+		case CRYPTO_3DES_CBC:
 			cmd0 |= SAFE_SA_CMD0_3DES;
 			cmd1 |= SAFE_SA_CMD1_CBC;
-			ivsize = 2*sizeof(u_int32_t);
-		} else if (enccrd->crd_alg == CRYPTO_AES_CBC) {
+			break;
+		case CRYPTO_AES_CBC:
 			cmd0 |= SAFE_SA_CMD0_AES;
 			cmd1 |= SAFE_SA_CMD1_CBC;
-			if (ses->ses_klen == 128)
+			if (ses->ses_klen * 8 == 128)
 			     cmd1 |=  SAFE_SA_CMD1_AES128;
-			else if (ses->ses_klen == 192)
+			else if (ses->ses_klen * 8 == 192)
 			     cmd1 |=  SAFE_SA_CMD1_AES192;
 			else
 			     cmd1 |=  SAFE_SA_CMD1_AES256;
-			ivsize = 4*sizeof(u_int32_t);
-		} else {
-			cmd0 |= SAFE_SA_CMD0_CRYPT_NULL;
-			ivsize = 0;
 		}
 
 		/*
@@ -932,32 +894,28 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		 * in the state record and set the hash/crypt offset to
 		 * copy both the header+IV.
 		 */
-		if (enccrd->crd_flags & CRD_F_ENCRYPT) {
+		if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
+			arc4rand(re->re_sastate.sa_saved_iv, csp->csp_ivlen, 0);
+			crypto_copyback(crp, crp->crp_iv_start, csp->csp_ivlen,
+			    re->re_sastate.sa_saved_iv);
+		} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+			memcpy(re->re_sastate.sa_saved_iv, crp->crp_iv,
+			    csp->csp_ivlen);
+		else
+			crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen,
+			    re->re_sastate.sa_saved_iv);
+		cmd0 |= SAFE_SA_CMD0_IVLD_STATE;
+
+		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
 			cmd0 |= SAFE_SA_CMD0_OUTBOUND;
 
-			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
-				iv = enccrd->crd_iv;
-			else
-				iv = (caddr_t) ses->ses_iv;
-			if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0) {
-				crypto_copyback(crp->crp_flags, crp->crp_buf,
-				    enccrd->crd_inject, ivsize, iv);
-			}
-			bcopy(iv, re->re_sastate.sa_saved_iv, ivsize);
-			cmd0 |= SAFE_SA_CMD0_IVLD_STATE | SAFE_SA_CMD0_SAVEIV;
-			re->re_flags |= SAFE_QFLAGS_COPYOUTIV;
+			/*
+			 * XXX: I suspect we don't need this since we
+			 * don't save the returned IV.
+			 */
+			cmd0 |= SAFE_SA_CMD0_SAVEIV;
 		} else {
 			cmd0 |= SAFE_SA_CMD0_INBOUND;
-
-			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT) {
-				bcopy(enccrd->crd_iv,
-					re->re_sastate.sa_saved_iv, ivsize);
-			} else {
-				crypto_copydata(crp->crp_flags, crp->crp_buf,
-				    enccrd->crd_inject, ivsize,
-				    (caddr_t)re->re_sastate.sa_saved_iv);
-			}
-			cmd0 |= SAFE_SA_CMD0_IVLD_STATE;
 		}
 		/*
 		 * For basic encryption use the zero pad algorithm.
@@ -973,21 +931,23 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		bcopy(ses->ses_key, sa->sa_key, sizeof(sa->sa_key));
 	}
 
-	if (maccrd) {
-		if (maccrd->crd_flags & CRD_F_KEY_EXPLICIT) {
-			safe_setup_mackey(ses, maccrd->crd_alg,
-			    maccrd->crd_key, maccrd->crd_klen / 8);
+	if (csp->csp_auth_alg != 0) {
+		if (crp->crp_auth_key != NULL) {
+			safe_setup_mackey(ses, csp->csp_auth_alg,
+			    crp->crp_auth_key, csp->csp_auth_klen);
 		}
 
-		if (maccrd->crd_alg == CRYPTO_MD5_HMAC) {
+		switch (csp->csp_auth_alg) {
+		case CRYPTO_MD5_HMAC:
 			cmd0 |= SAFE_SA_CMD0_MD5;
 			cmd1 |= SAFE_SA_CMD1_HMAC;	/* NB: enable HMAC */
-		} else if (maccrd->crd_alg == CRYPTO_SHA1_HMAC) {
+			break;
+		case CRYPTO_SHA1_HMAC:
 			cmd0 |= SAFE_SA_CMD0_SHA1;
 			cmd1 |= SAFE_SA_CMD1_HMAC;	/* NB: enable HMAC */
-		} else {
-			cmd0 |= SAFE_SA_CMD0_HASH_NULL;
+			break;
 		}
+
 		/*
 		 * Digest data is loaded from the SA and the hash
 		 * result is saved to the state block where we
@@ -1003,38 +963,32 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		re->re_flags |= SAFE_QFLAGS_COPYOUTICV;
 	}
 
-	if (enccrd && maccrd) {
+	if (csp->csp_mode == CSP_MODE_ETA) {
 		/*
-		 * The offset from hash data to the start of
-		 * crypt data is the difference in the skips.
+		 * The driver only supports ETA requests where there
+		 * is no gap between the AAD and payload.
 		 */
-		bypass = maccrd->crd_skip;
-		coffset = enccrd->crd_skip - maccrd->crd_skip;
-		if (coffset < 0) {
-			DPRINTF(("%s: hash does not precede crypt; "
-				"mac skip %u enc skip %u\n",
-				__func__, maccrd->crd_skip, enccrd->crd_skip));
-			safestats.st_skipmismatch++;
-			err = EINVAL;
-			goto errout;
-		}
-		oplen = enccrd->crd_skip + enccrd->crd_len;
-		if (maccrd->crd_skip + maccrd->crd_len != oplen) {
-			DPRINTF(("%s: hash amount %u != crypt amount %u\n",
-				__func__, maccrd->crd_skip + maccrd->crd_len,
-				oplen));
+		if (crp->crp_aad_length != 0 &&
+		    crp->crp_aad_start + crp->crp_aad_length !=
+		    crp->crp_payload_start) {
 			safestats.st_lenmismatch++;
 			err = EINVAL;
 			goto errout;
 		}
+		if (crp->crp_aad_length != 0)
+			bypass = crp->crp_aad_start;
+		else
+			bypass = crp->crp_payload_start;
+		coffset = crp->crp_aad_length;
+		oplen = crp->crp_payload_start + crp->crp_payload_length;
 #ifdef SAFE_DEBUG
 		if (safe_debug) {
-			printf("mac: skip %d, len %d, inject %d\n",
-			    maccrd->crd_skip, maccrd->crd_len,
-			    maccrd->crd_inject);
-			printf("enc: skip %d, len %d, inject %d\n",
-			    enccrd->crd_skip, enccrd->crd_len,
-			    enccrd->crd_inject);
+			printf("AAD: skip %d, len %d, digest %d\n",
+			    crp->crp_aad_start, crp->crp_aad_length,
+			    crp->crp_digest_start);
+			printf("payload: skip %d, len %d, IV %d\n",
+			    crp->crp_payload_start, crp->crp_payload_length,
+			    crp->crp_iv_start);
 			printf("bypass %d coffset %d oplen %d\n",
 				bypass, coffset, oplen);
 		}
@@ -1070,13 +1024,8 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		 */
 		cmd1 |= SAFE_SA_CMD1_MUTABLE;
 	} else {
-		if (enccrd) {
-			bypass = enccrd->crd_skip;
-			oplen = bypass + enccrd->crd_len;
-		} else {
-			bypass = maccrd->crd_skip;
-			oplen = bypass + maccrd->crd_len;
-		}
+		bypass = crp->crp_payload_start;
+		oplen = bypass + crp->crp_payload_length;
 		coffset = 0;
 	}
 	/* XXX verify multiple of 4 when using s/g */
@@ -1092,27 +1041,15 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		err = ENOMEM;
 		goto errout;
 	}
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		if (bus_dmamap_load_mbuf(sc->sc_srcdmat, re->re_src_map,
-		    re->re_src_m, safe_op_cb,
-		    &re->re_src, BUS_DMA_NOWAIT) != 0) {
-			bus_dmamap_destroy(sc->sc_srcdmat, re->re_src_map);
-			re->re_src_map = NULL;
-			safestats.st_noload++;
-			err = ENOMEM;
-			goto errout;
-		}
-	} else if (crp->crp_flags & CRYPTO_F_IOV) {
-		if (bus_dmamap_load_uio(sc->sc_srcdmat, re->re_src_map,
-		    re->re_src_io, safe_op_cb,
-		    &re->re_src, BUS_DMA_NOWAIT) != 0) {
-			bus_dmamap_destroy(sc->sc_srcdmat, re->re_src_map);
-			re->re_src_map = NULL;
-			safestats.st_noload++;
-			err = ENOMEM;
-			goto errout;
-		}
+	if (bus_dmamap_load_crp(sc->sc_srcdmat, re->re_src_map, crp, safe_op_cb,
+	    &re->re_src, BUS_DMA_NOWAIT) != 0) {
+		bus_dmamap_destroy(sc->sc_srcdmat, re->re_src_map);
+		re->re_src_map = NULL;
+		safestats.st_noload++;
+		err = ENOMEM;
+		goto errout;
 	}
+	re->re_src_mapsize = safe_crp_length(crp);
 	nicealign = safe_dmamap_aligned(&re->re_src);
 	uniform = safe_dmamap_uniform(&re->re_src);
 
@@ -1143,211 +1080,175 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		re->re_desc.d_src = re->re_src_segs[0].ds_addr;
 	}
 
-	if (enccrd == NULL && maccrd != NULL) {
+	if (csp->csp_mode == CSP_MODE_DIGEST) {
 		/*
 		 * Hash op; no destination needed.
 		 */
 	} else {
-		if (crp->crp_flags & CRYPTO_F_IOV) {
-			if (!nicealign) {
-				safestats.st_iovmisaligned++;
-				err = EINVAL;
+		if (nicealign && uniform == 1) {
+			/*
+			 * Source layout is suitable for direct
+			 * sharing of the DMA map and segment list.
+			 */
+			re->re_dst = re->re_src;
+		} else if (nicealign && uniform == 2) {
+			/*
+			 * The source is properly aligned but requires a
+			 * different particle list to handle DMA of the
+			 * result.  Create a new map and do the load to
+			 * create the segment list.  The particle
+			 * descriptor setup code below will handle the
+			 * rest.
+			 */
+			if (bus_dmamap_create(sc->sc_dstdmat, BUS_DMA_NOWAIT,
+			    &re->re_dst_map)) {
+				safestats.st_nomap++;
+				err = ENOMEM;
 				goto errout;
 			}
-			if (uniform != 1) {
-				/*
-				 * Source is not suitable for direct use as
-				 * the destination.  Create a new scatter/gather
-				 * list based on the destination requirements
-				 * and check if that's ok.
-				 */
-				if (bus_dmamap_create(sc->sc_dstdmat,
-				    BUS_DMA_NOWAIT, &re->re_dst_map)) {
-					safestats.st_nomap++;
-					err = ENOMEM;
-					goto errout;
-				}
-				if (bus_dmamap_load_uio(sc->sc_dstdmat,
-				    re->re_dst_map, re->re_dst_io,
-				    safe_op_cb, &re->re_dst,
-				    BUS_DMA_NOWAIT) != 0) {
-					bus_dmamap_destroy(sc->sc_dstdmat,
-						re->re_dst_map);
-					re->re_dst_map = NULL;
-					safestats.st_noload++;
-					err = ENOMEM;
-					goto errout;
-				}
-				uniform = safe_dmamap_uniform(&re->re_dst);
-				if (!uniform) {
-					/*
-					 * There's no way to handle the DMA
-					 * requirements with this uio.  We
-					 * could create a separate DMA area for
-					 * the result and then copy it back,
-					 * but for now we just bail and return
-					 * an error.  Note that uio requests
-					 * > SAFE_MAX_DSIZE are handled because
-					 * the DMA map and segment list for the
-					 * destination wil result in a
-					 * destination particle list that does
-					 * the necessary scatter DMA.
-					 */ 
-					safestats.st_iovnotuniform++;
-					err = EINVAL;
-					goto errout;
-				}
-			} else
-				re->re_dst = re->re_src;
-		} else if (crp->crp_flags & CRYPTO_F_IMBUF) {
-			if (nicealign && uniform == 1) {
-				/*
-				 * Source layout is suitable for direct
-				 * sharing of the DMA map and segment list.
-				 */
-				re->re_dst = re->re_src;
-			} else if (nicealign && uniform == 2) {
-				/*
-				 * The source is properly aligned but requires a
-				 * different particle list to handle DMA of the
-				 * result.  Create a new map and do the load to
-				 * create the segment list.  The particle
-				 * descriptor setup code below will handle the
-				 * rest.
-				 */
-				if (bus_dmamap_create(sc->sc_dstdmat,
-				    BUS_DMA_NOWAIT, &re->re_dst_map)) {
-					safestats.st_nomap++;
-					err = ENOMEM;
-					goto errout;
-				}
-				if (bus_dmamap_load_mbuf(sc->sc_dstdmat,
-				    re->re_dst_map, re->re_dst_m,
-				    safe_op_cb, &re->re_dst,
-				    BUS_DMA_NOWAIT) != 0) {
-					bus_dmamap_destroy(sc->sc_dstdmat,
-						re->re_dst_map);
-					re->re_dst_map = NULL;
-					safestats.st_noload++;
-					err = ENOMEM;
-					goto errout;
-				}
-			} else {		/* !(aligned and/or uniform) */
-				int totlen, len;
-				struct mbuf *m, *top, **mp;
+			if (bus_dmamap_load_crp(sc->sc_dstdmat, re->re_dst_map,
+			    crp, safe_op_cb, &re->re_dst, BUS_DMA_NOWAIT) !=
+			    0) {
+				bus_dmamap_destroy(sc->sc_dstdmat,
+				    re->re_dst_map);
+				re->re_dst_map = NULL;
+				safestats.st_noload++;
+				err = ENOMEM;
+				goto errout;
+			}
+		} else if (crp->crp_buf_type == CRYPTO_BUF_MBUF) {
+			int totlen, len;
+			struct mbuf *m, *top, **mp;
 
-				/*
-				 * DMA constraints require that we allocate a
-				 * new mbuf chain for the destination.  We
-				 * allocate an entire new set of mbufs of
-				 * optimal/required size and then tell the
-				 * hardware to copy any bits that are not
-				 * created as a byproduct of the operation.
-				 */
-				if (!nicealign)
-					safestats.st_unaligned++;
-				if (!uniform)
-					safestats.st_notuniform++;
-				totlen = re->re_src_mapsize;
-				if (re->re_src_m->m_flags & M_PKTHDR) {
-					len = MHLEN;
-					MGETHDR(m, M_NOWAIT, MT_DATA);
-					if (m && !m_dup_pkthdr(m, re->re_src_m,
-					    M_NOWAIT)) {
-						m_free(m);
-						m = NULL;
-					}
-				} else {
-					len = MLEN;
-					MGET(m, M_NOWAIT, MT_DATA);
+			/*
+			 * DMA constraints require that we allocate a
+			 * new mbuf chain for the destination.  We
+			 * allocate an entire new set of mbufs of
+			 * optimal/required size and then tell the
+			 * hardware to copy any bits that are not
+			 * created as a byproduct of the operation.
+			 */
+			if (!nicealign)
+				safestats.st_unaligned++;
+			if (!uniform)
+				safestats.st_notuniform++;
+			totlen = re->re_src_mapsize;
+			if (crp->crp_mbuf->m_flags & M_PKTHDR) {
+				len = MHLEN;
+				MGETHDR(m, M_NOWAIT, MT_DATA);
+				if (m && !m_dup_pkthdr(m, crp->crp_mbuf,
+				    M_NOWAIT)) {
+					m_free(m);
+					m = NULL;
 				}
-				if (m == NULL) {
-					safestats.st_nombuf++;
-					err = sc->sc_nqchip ? ERESTART : ENOMEM;
+			} else {
+				len = MLEN;
+				MGET(m, M_NOWAIT, MT_DATA);
+			}
+			if (m == NULL) {
+				safestats.st_nombuf++;
+				err = sc->sc_nqchip ? ERESTART : ENOMEM;
+				goto errout;
+			}
+			if (totlen >= MINCLSIZE) {
+				if (!(MCLGET(m, M_NOWAIT))) {
+					m_free(m);
+					safestats.st_nomcl++;
+					err = sc->sc_nqchip ?
+					    ERESTART : ENOMEM;
 					goto errout;
 				}
-				if (totlen >= MINCLSIZE) {
+				len = MCLBYTES;
+			}
+			m->m_len = len;
+			top = NULL;
+			mp = &top;
+
+			while (totlen > 0) {
+				if (top) {
+					MGET(m, M_NOWAIT, MT_DATA);
+					if (m == NULL) {
+						m_freem(top);
+						safestats.st_nombuf++;
+						err = sc->sc_nqchip ?
+						    ERESTART : ENOMEM;
+						goto errout;
+					}
+					len = MLEN;
+				}
+				if (top && totlen >= MINCLSIZE) {
 					if (!(MCLGET(m, M_NOWAIT))) {
-						m_free(m);
+						*mp = m;
+						m_freem(top);
 						safestats.st_nomcl++;
 						err = sc->sc_nqchip ?
-							ERESTART : ENOMEM;
+						    ERESTART : ENOMEM;
 						goto errout;
 					}
 					len = MCLBYTES;
 				}
-				m->m_len = len;
-				top = NULL;
-				mp = &top;
-
-				while (totlen > 0) {
-					if (top) {
-						MGET(m, M_NOWAIT, MT_DATA);
-						if (m == NULL) {
-							m_freem(top);
-							safestats.st_nombuf++;
-							err = sc->sc_nqchip ?
-							    ERESTART : ENOMEM;
-							goto errout;
-						}
-						len = MLEN;
-					}
-					if (top && totlen >= MINCLSIZE) {
-						if (!(MCLGET(m, M_NOWAIT))) {
-							*mp = m;
-							m_freem(top);
-							safestats.st_nomcl++;
-							err = sc->sc_nqchip ?
-							    ERESTART : ENOMEM;
-							goto errout;
-						}
-						len = MCLBYTES;
-					}
-					m->m_len = len = min(totlen, len);
-					totlen -= len;
-					*mp = m;
-					mp = &m->m_next;
-				}
-				re->re_dst_m = top;
-				if (bus_dmamap_create(sc->sc_dstdmat, 
-				    BUS_DMA_NOWAIT, &re->re_dst_map) != 0) {
-					safestats.st_nomap++;
-					err = ENOMEM;
-					goto errout;
-				}
-				if (bus_dmamap_load_mbuf(sc->sc_dstdmat,
-				    re->re_dst_map, re->re_dst_m,
-				    safe_op_cb, &re->re_dst,
-				    BUS_DMA_NOWAIT) != 0) {
-					bus_dmamap_destroy(sc->sc_dstdmat,
-					re->re_dst_map);
-					re->re_dst_map = NULL;
-					safestats.st_noload++;
-					err = ENOMEM;
-					goto errout;
-				}
-				if (re->re_src.mapsize > oplen) {
-					/*
-					 * There's data following what the
-					 * hardware will copy for us.  If this
-					 * isn't just the ICV (that's going to
-					 * be written on completion), copy it
-					 * to the new mbufs
-					 */
-					if (!(maccrd &&
-					    (re->re_src.mapsize-oplen) == 12 &&
-					    maccrd->crd_inject == oplen))
-						safe_mcopy(re->re_src_m,
-							   re->re_dst_m,
-							   oplen);
-					else
-						safestats.st_noicvcopy++;
-				}
+				m->m_len = len = min(totlen, len);
+				totlen -= len;
+				*mp = m;
+				mp = &m->m_next;
+			}
+			re->re_dst_m = top;
+			if (bus_dmamap_create(sc->sc_dstdmat,
+			    BUS_DMA_NOWAIT, &re->re_dst_map) != 0) {
+				safestats.st_nomap++;
+				err = ENOMEM;
+				goto errout;
+			}
+			if (bus_dmamap_load_mbuf_sg(sc->sc_dstdmat,
+			    re->re_dst_map, top, re->re_dst_segs,
+			    &re->re_dst_nsegs, 0) != 0) {
+				bus_dmamap_destroy(sc->sc_dstdmat,
+				    re->re_dst_map);
+				re->re_dst_map = NULL;
+				safestats.st_noload++;
+				err = ENOMEM;
+				goto errout;
+			}
+			re->re_dst_mapsize = re->re_src_mapsize;
+			if (re->re_src.mapsize > oplen) {
+				/*
+				 * There's data following what the
+				 * hardware will copy for us.  If this
+				 * isn't just the ICV (that's going to
+				 * be written on completion), copy it
+				 * to the new mbufs
+				 */
+				if (!(csp->csp_mode == CSP_MODE_ETA &&
+				    (re->re_src.mapsize-oplen) == ses->ses_mlen &&
+				    crp->crp_digest_start == oplen))
+					safe_mcopy(crp->crp_mbuf, re->re_dst_m,
+					    oplen);
+				else
+					safestats.st_noicvcopy++;
 			}
 		} else {
-			safestats.st_badflags++;
-			err = EINVAL;
-			goto errout;
+			if (!nicealign) {
+				safestats.st_iovmisaligned++;
+				err = EINVAL;
+				goto errout;
+			} else {
+				/*
+				 * There's no way to handle the DMA
+				 * requirements with this uio.  We
+				 * could create a separate DMA area for
+				 * the result and then copy it back,
+				 * but for now we just bail and return
+				 * an error.  Note that uio requests
+				 * > SAFE_MAX_DSIZE are handled because
+				 * the DMA map and segment list for the
+				 * destination wil result in a
+				 * destination particle list that does
+				 * the necessary scatter DMA.
+				 */
+				safestats.st_iovnotuniform++;
+				err = EINVAL;
+				goto errout;
+			}
 		}
 
 		if (re->re_dst.nsegs > 1) {
@@ -1393,7 +1294,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 	 * ready for processing.
 	 */
 	re->re_desc.d_csr = SAFE_PE_CSR_READY | SAFE_PE_CSR_SAPCI;
-	if (maccrd)
+	if (csp->csp_auth_alg != 0)
 		re->re_desc.d_csr |= SAFE_PE_CSR_LOADSA | SAFE_PE_CSR_HASHFINAL;
 	re->re_desc.d_len = oplen
 			  | SAFE_PE_LEN_READY
@@ -1412,7 +1313,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 	return (0);
 
 errout:
-	if ((re->re_dst_m != NULL) && (re->re_src_m != re->re_dst_m))
+	if (re->re_dst_m != NULL)
 		m_freem(re->re_dst_m);
 
 	if (re->re_dst_map != NULL && re->re_dst_map != re->re_src_map) {
@@ -1436,11 +1337,13 @@ errout:
 static void
 safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 {
+	const struct crypto_session_params *csp;
 	struct cryptop *crp = (struct cryptop *)re->re_crp;
 	struct safe_session *ses;
-	struct cryptodesc *crd;
+	uint8_t hash[HASH_MAX_LEN];
 
 	ses = crypto_get_driver_session(crp->crp_session);
+	csp = crypto_get_params(crp->crp_session);
 
 	safestats.st_opackets++;
 	safestats.st_obytes += re->re_dst.mapsize;
@@ -1454,6 +1357,9 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 		safestats.st_peoperr++;
 		crp->crp_etype = EIO;		/* something more meaningful? */
 	}
+
+	/* XXX: Should crp_mbuf be updated to re->re_dst_m if it is non-NULL? */
+
 	if (re->re_dst_map != NULL && re->re_dst_map != re->re_src_map) {
 		bus_dmamap_sync(sc->sc_dstdmat, re->re_dst_map,
 		    BUS_DMASYNC_POSTREAD);
@@ -1464,58 +1370,29 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 	bus_dmamap_unload(sc->sc_srcdmat, re->re_src_map);
 	bus_dmamap_destroy(sc->sc_srcdmat, re->re_src_map);
 
-	/* 
-	 * If result was written to a differet mbuf chain, swap
-	 * it in as the return value and reclaim the original.
-	 */
-	if ((crp->crp_flags & CRYPTO_F_IMBUF) && re->re_src_m != re->re_dst_m) {
-		m_freem(re->re_src_m);
-		crp->crp_buf = (caddr_t)re->re_dst_m;
-	}
-
-	if (re->re_flags & SAFE_QFLAGS_COPYOUTIV) {
-		/* copy out IV for future use */
-		for (crd = crp->crp_desc; crd; crd = crd->crd_next) {
-			int ivsize;
-
-			if (crd->crd_alg == CRYPTO_DES_CBC ||
-			    crd->crd_alg == CRYPTO_3DES_CBC) {
-				ivsize = 2*sizeof(u_int32_t);
-			} else if (crd->crd_alg == CRYPTO_AES_CBC) {
-				ivsize = 4*sizeof(u_int32_t);
-			} else
-				continue;
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crd->crd_skip + crd->crd_len - ivsize, ivsize,
-			    (caddr_t)ses->ses_iv);
-			break;
-		}
-	}
-
 	if (re->re_flags & SAFE_QFLAGS_COPYOUTICV) {
-		/* copy out ICV result */
-		for (crd = crp->crp_desc; crd; crd = crd->crd_next) {
-			if (!(crd->crd_alg == CRYPTO_MD5_HMAC ||
-			    crd->crd_alg == CRYPTO_SHA1_HMAC ||
-			    crd->crd_alg == CRYPTO_NULL_HMAC))
-				continue;
-			if (crd->crd_alg == CRYPTO_SHA1_HMAC) {
-				/*
-				 * SHA-1 ICV's are byte-swapped; fix 'em up
-				 * before copy them to their destination.
-				 */
-				re->re_sastate.sa_saved_indigest[0] =
-				    bswap32(re->re_sastate.sa_saved_indigest[0]);
-				re->re_sastate.sa_saved_indigest[1] =
-				    bswap32(re->re_sastate.sa_saved_indigest[1]);
-				re->re_sastate.sa_saved_indigest[2] =
-				    bswap32(re->re_sastate.sa_saved_indigest[2]);
-			}
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    crd->crd_inject, ses->ses_mlen,
-			    (caddr_t)re->re_sastate.sa_saved_indigest);
-			break;
+		if (csp->csp_auth_alg == CRYPTO_SHA1_HMAC) {
+			/*
+			 * SHA-1 ICV's are byte-swapped; fix 'em up
+			 * before copying them to their destination.
+			 */
+			re->re_sastate.sa_saved_indigest[0] =
+			    bswap32(re->re_sastate.sa_saved_indigest[0]);
+			re->re_sastate.sa_saved_indigest[1] =
+			    bswap32(re->re_sastate.sa_saved_indigest[1]);
+			re->re_sastate.sa_saved_indigest[2] =
+			    bswap32(re->re_sastate.sa_saved_indigest[2]);
 		}
+
+		if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+			crypto_copydata(crp, crp->crp_digest_start,
+			    ses->ses_mlen, hash);
+			if (timingsafe_bcmp(re->re_sastate.sa_saved_indigest,
+			    hash, ses->ses_mlen) != 0)
+				crp->crp_etype = EBADMSG;
+		} else
+			crypto_copyback(crp, crp->crp_digest_start,
+			    ses->ses_mlen, re->re_sastate.sa_saved_indigest);
 	}
 	crypto_done(crp);
 }
@@ -1921,7 +1798,7 @@ safe_free_entry(struct safe_softc *sc, struct safe_ringentry *re)
 	/*
 	 * Free header MCR
 	 */
-	if ((re->re_dst_m != NULL) && (re->re_src_m != re->re_dst_m))
+	if (re->re_dst_m != NULL)
 		m_freem(re->re_dst_m);
 
 	crp = (struct cryptop *)re->re_crp;
