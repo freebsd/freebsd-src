@@ -1062,7 +1062,7 @@ struct sctp_association {
 	uint32_t heart_beat_delay;
 
 	/* autoclose */
-	unsigned int sctp_autoclose_ticks;
+	uint32_t sctp_autoclose_ticks;
 
 	/* how many preopen streams we have */
 	unsigned int pre_open_streams;
