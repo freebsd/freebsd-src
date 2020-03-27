@@ -1,0 +1,178 @@
+.\" Copyright (c) 2020, Chelsio Inc
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Chelsio Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2020
+.Dt CRYPTO_ASYM 9
+.Os
+.Sh NAME
+.Nm crypto_asym
+.Nd asymmetric cryptographic operations
+.Sh SYNOPSIS
+.In opencrypto/cryptodev.h
+.Ft int
+.Fn crypto_kdispatch "struct cryptkop *krp"
+.Ft void
+.Fn crypto_kdone "struct cryptkop *krp"
+.Ft int
+.Fn crypto_kregister "uint32_t driverid" "int kalg" "uint32_t flags"
+.Ft int
+.Fn CRYPTODEV_KPROCESS "device_t dev" "struct cryptop *krp" "int flags"
+.Sh DESCRIPTION
+The in-kernel cryptographic kernel framework supports asymmetric
+requests (keying requests) in addition to symmetric operations.
+There are currently no in-kernel users of these requests,
+but applications can make requests of hardware drivers via the
+.Pa /dev/crypto
+device .
+.Pp
+Some APIs are shared with the framework's symmetric request support.
+This manual describes the APIs and data structures unique to
+asymmetric requests.
+.Pp
+.Ss Request Objects
+A request is described by a
+.Vt struct cryptkop
+containing the following fields:
+.Bl -tag -width "krp_callback"
+.It Fa krp_op
+Operation to perform.
+Available operations include
+.Dv CRK_MOD_EXP ,
+.Dv CRK_MOD_EXP_CRT ,
+.Dv CRK_DSA_SIGN ,
+.Dv CRK_DSA_VERIFY ,
+and
+.Dv CRK_DH_COMPUTE_KEY .
+.It Fa krp_status
+Error status.
+Either zero on success,
+or an error if an operation fails.
+Set by drivers prior to completing a request via
+.Fn crypto_kdone .
+.It Fa krp_iparams
+Count of input parameters.
+.It Fa krp_oparams
+Count of output parameters.
+.It Fa krp_crid
+Requested device.
+.It Fa krp_hid
+Device used to complete the request.
+.It Fa krp_param
+Array of parameters.
+The array contains the input parameters first followed by the output
+parameters.
+Each parameter is stored as a bignum.
+Each bignum is described by a
+.Vt struct crparam
+containing the following fields:
+.Bl -tag -width "crp_nbits"
+.It Fa crp_p
+Pointer to array of packed bytes.
+.It Fa crp_nbits
+Size of bignum in bits.
+.El
+.It Fa krp_callback
+Callback function.
+This must point to a callback function of type
+.Vt void (*)(struct cryptkop *) .
+The callback function should inspect
+.Fa krp_status
+to determine the status of the completed operation.
+.El
+.Pp
+New requests should be initialized to zero before setting fields to
+appropriate values.
+Once the request has been populated,
+it should be passed to
+.Fn crypto_kdispatch .
+.Pp
+.Fn crypto_kdispatch
+will choose a device driver to perform the operation described by
+.Fa krp
+and invoke that driver's
+.Fn CRYPTO_KPROCESS
+method.
+.Ss Driver API
+Drivers register support for asymmetric operations by calling
+.Fn crypto_kregister
+for each supported algorithm.
+.Fa driverid
+should be the value returned by an earlier call to
+.Fn crypto_get_driverid .
+.Fa kalg
+should list one of the operations that can be set in
+.Fa krp_op .
+.Fa flags
+is a bitmask of zero or more of the following values:
+.Bl -tag -width "CRYPTO_ALG_FLAG_RNG_ENABLE"
+.It Dv CRYPTO_ALG_FLAG_RNG_ENABLE
+Device has a hardware RNG for DH/DSA.
+.It Dv CRYPTO_ALG_FLAG_DSA_SHA
+Device can compute a SHA digest of a message.
+.El
+.Pp
+Drivers unregister with the framework via
+.Fn crypto_unregister_all .
+.Pp
+Similar to
+.Fn CRYPTO_PROCESS ,
+.Fn CRYPTO_KPROCESS
+should complete the request or schedule it for asynchronous
+completion.
+If this method is not able to complete a request due to insufficient
+resources,
+it can defer the request (and future asymmetric requests) by returning
+.Dv ERESTART .
+Once resources are available,
+the driver should invoke
+.Fn crypto_unblock
+with
+.Dv CRYPTO_ASYMQ
+to resume processing of asymmetric requests.
+.Pp
+Once a request is completed,
+the driver should set
+.Fa krp_status
+and then call
+.Fn crypto_kdone .
+.Sh RETURN VALUES
+.Fn crypto_kdispatch ,
+.Fn crypto_kregister ,
+and
+.Fn CRYPTODEV_KPROCESS
+return zero on success or an error on failure.
+.Sh SEE ALSO
+.Xr crypto 7 ,
+.Xr crypto 9 ,
+.Xr crypto_driver 9 ,
+.Xr crypto_request 9 ,
+.Xr crypto_session 9

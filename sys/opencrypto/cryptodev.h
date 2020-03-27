@@ -71,7 +71,6 @@
 
 /* Some initial values */
 #define CRYPTO_DRIVERS_INITIAL	4
-#define CRYPTO_SW_SESSIONS	32
 
 /* Hash values */
 #define	NULL_HASH_LEN		16
@@ -189,11 +188,13 @@
 #define	CRYPTO_CAMELLIA_CBC	21
 #define	CRYPTO_AES_XTS		22
 #define	CRYPTO_AES_ICM		23 /* commonly known as CTR mode */
-#define	CRYPTO_AES_NIST_GMAC	24 /* cipher side */
+#define	CRYPTO_AES_NIST_GMAC	24 /* GMAC only */
 #define	CRYPTO_AES_NIST_GCM_16	25 /* 16 byte ICV */
+#ifdef _KERNEL
 #define	CRYPTO_AES_128_NIST_GMAC 26 /* auth side */
 #define	CRYPTO_AES_192_NIST_GMAC 27 /* auth side */
 #define	CRYPTO_AES_256_NIST_GMAC 28 /* auth side */
+#endif
 #define	CRYPTO_BLAKE2B		29 /* Blake2b hash */
 #define	CRYPTO_BLAKE2S		30 /* Blake2s hash */
 #define	CRYPTO_CHACHA20		31 /* Chacha20 stream cipher */
@@ -378,6 +379,13 @@ struct cryptostats {
 
 #ifdef _KERNEL
 
+/*
+ * Return values for cryptodev_probesession methods.
+ */
+#define	CRYPTODEV_PROBE_HARDWARE	(-100)
+#define	CRYPTODEV_PROBE_ACCEL_SOFTWARE	(-200)
+#define	CRYPTODEV_PROBE_SOFTWARE	(-500)
+
 #if 0
 #define CRYPTDEB(s, ...) do {						\
 	printf("%s:%d: " s "\n", __FILE__, __LINE__, ## __VA_ARGS__);	\
@@ -386,40 +394,29 @@ struct cryptostats {
 #define CRYPTDEB(...)	do { } while (0)
 #endif
 
-/* Standard initialization structure beginning */
-struct cryptoini {
-	int		cri_alg;	/* Algorithm to use */
-	int		cri_klen;	/* Key length, in bits */
-	int		cri_mlen;	/* Number of bytes we want from the
-					   entire hash. 0 means all. */
-	caddr_t		cri_key;	/* key to use */
-	u_int8_t	cri_iv[EALG_MAX_BLOCK_LEN];	/* IV to use */
-	struct cryptoini *cri_next;
-};
+struct crypto_session_params {
+	int		csp_mode;	/* Type of operations to perform. */
 
-/* Describe boundaries of a single crypto operation */
-struct cryptodesc {
-	int		crd_skip;	/* How many bytes to ignore from start */
-	int		crd_len;	/* How many bytes to process */
-	int		crd_inject;	/* Where to inject results, if applicable */
-	int		crd_flags;
+#define	CSP_MODE_NONE		0
+#define	CSP_MODE_COMPRESS	1	/* Compression/decompression. */
+#define	CSP_MODE_CIPHER		2	/* Encrypt/decrypt. */
+#define	CSP_MODE_DIGEST		3	/* Compute/verify digest. */
+#define	CSP_MODE_AEAD		4	/* Combined auth/encryption. */
+#define	CSP_MODE_ETA		5	/* IPsec style encrypt-then-auth */
 
-#define	CRD_F_ENCRYPT		0x01	/* Set when doing encryption */
-#define	CRD_F_IV_PRESENT	0x02	/* When encrypting, IV is already in
-					   place, so don't copy. */
-#define	CRD_F_IV_EXPLICIT	0x04	/* IV explicitly provided */
-#define	CRD_F_DSA_SHA_NEEDED	0x08	/* Compute SHA-1 of buffer for DSA */
-#define	CRD_F_COMP		0x0f    /* Set when doing compression */
-#define	CRD_F_KEY_EXPLICIT	0x10	/* Key explicitly provided */
+	int		csp_flags;
 
-	struct cryptoini	CRD_INI; /* Initialization/context data */
-#define	crd_esn		CRD_INI.cri_esn
-#define	crd_iv		CRD_INI.cri_iv
-#define	crd_key		CRD_INI.cri_key
-#define	crd_alg		CRD_INI.cri_alg
-#define	crd_klen	CRD_INI.cri_klen
+	int		csp_ivlen;	 /* IV length in bytes. */
 
-	struct cryptodesc *crd_next;
+	int		csp_cipher_alg;
+	int		csp_cipher_klen; /* Key length in bytes. */
+	const void	*csp_cipher_key;
+
+	int		csp_auth_alg;
+	int		csp_auth_klen;	/* Key length in bytes. */
+	const void	*csp_auth_key;
+	int		csp_auth_mlen;	/* Number of digest bytes to use.
+					   0 means all. */
 };
 
 /* Structure describing complete operation */
@@ -444,8 +441,6 @@ struct cryptop {
 					 */
 	int		crp_flags;
 
-#define	CRYPTO_F_IMBUF		0x0001	/* Input/output are mbuf chains */
-#define	CRYPTO_F_IOV		0x0002	/* Input/output are uio */
 #define	CRYPTO_F_BATCH		0x0008	/* Batch op if possible */
 #define	CRYPTO_F_CBIMM		0x0010	/* Do callback immediately */
 #define	CRYPTO_F_DONE		0x0020	/* Operation completed */
@@ -458,14 +453,35 @@ struct cryptop {
 					 * order there are submitted. Applied only
 					 * if CRYPTO_F_ASYNC flags is set
 					 */
+#define	CRYPTO_F_IV_SEPARATE	0x0200	/* Use crp_iv[] as IV. */
+#define	CRYPTO_F_IV_GENERATE	0x0400	/* Generate a random IV and store. */
+
+	int		crp_op;
 
 	union {
 		caddr_t		crp_buf;	/* Data to be processed */
 		struct mbuf	*crp_mbuf;
 		struct uio	*crp_uio;
 	};
-	void *		crp_opaque;	/* Opaque pointer, passed along */
-	struct cryptodesc *crp_desc;	/* Linked list of processing descriptors */
+	int		crp_buf_type;	/* Which union member describes data. */
+
+	int		crp_aad_start;	/* Location of AAD. */
+	int		crp_aad_length;	/* 0 => no AAD. */
+	int		crp_iv_start;	/* Location of IV.  IV length is from
+					 * the session.
+					 */
+	int		crp_payload_start; /* Location of ciphertext. */
+	int		crp_payload_length;
+	int		crp_digest_start; /* Location of MAC/tag.  Length is
+					   * from the session.
+					   */
+
+	uint8_t		crp_iv[EALG_MAX_BLOCK_LEN]; /* IV if IV_SEPARATE. */
+
+	const void	*crp_cipher_key; /* New cipher key if non-NULL. */
+	const void	*crp_auth_key;	/* New auth key if non-NULL. */
+
+	void		*crp_opaque;	/* Opaque pointer, passed along */
 
 	int (*crp_callback)(struct cryptop *); /* Callback function */
 
@@ -485,11 +501,18 @@ struct cryptop {
 	(crp)->crp_flags & CRYPTO_F_ASYNC_KEEPORDER)
 
 #define	CRYPTO_BUF_CONTIG	0x0
-#define	CRYPTO_BUF_IOV		0x1
+#define	CRYPTO_BUF_UIO		0x1
 #define	CRYPTO_BUF_MBUF		0x2
 
-#define	CRYPTO_OP_DECRYPT	0x0
-#define	CRYPTO_OP_ENCRYPT	0x1
+/* Flags in crp_op. */
+#define	CRYPTO_OP_DECRYPT		0x0
+#define	CRYPTO_OP_ENCRYPT		0x1
+#define	CRYPTO_OP_IS_ENCRYPT(op)	((op) & CRYPTO_OP_ENCRYPT)
+#define	CRYPTO_OP_COMPUTE_DIGEST	0x0
+#define	CRYPTO_OP_VERIFY_DIGEST		0x2
+#define	CRYPTO_OP_DECOMPRESS		CRYPTO_OP_DECRYPT
+#define	CRYPTO_OP_COMPRESS		CRYPTO_OP_ENCRYPT
+#define	CRYPTO_OP_IS_COMPRESS(op)	((op) & CRYPTO_OP_COMPRESS)
 
 /*
  * Hints passed to process methods.
@@ -504,18 +527,24 @@ struct cryptkop {
 	u_short		krp_iparams;	/* # of input parameters */
 	u_short		krp_oparams;	/* # of output parameters */
 	u_int		krp_crid;	/* desired device, etc. */
-	u_int32_t	krp_hid;
+	uint32_t	krp_hid;	/* device used */
 	struct crparam	krp_param[CRK_MAXPARAM];	/* kvm */
-	int		(*krp_callback)(struct cryptkop *);
+	void		(*krp_callback)(struct cryptkop *);
+	struct cryptocap *krp_cap;
 };
 
 uint32_t crypto_ses2hid(crypto_session_t crypto_session);
 uint32_t crypto_ses2caps(crypto_session_t crypto_session);
 void *crypto_get_driver_session(crypto_session_t crypto_session);
+const struct crypto_session_params *crypto_get_params(
+    crypto_session_t crypto_session);
+struct auth_hash *crypto_auth_hash(const struct crypto_session_params *csp);
+struct enc_xform *crypto_cipher(const struct crypto_session_params *csp);
 
 MALLOC_DECLARE(M_CRYPTO_DATA);
 
-extern	int crypto_newsession(crypto_session_t *cses, struct cryptoini *cri, int hard);
+extern	int crypto_newsession(crypto_session_t *cses,
+    const struct crypto_session_params *params, int hard);
 extern	void crypto_freesession(crypto_session_t cses);
 #define	CRYPTOCAP_F_HARDWARE	CRYPTO_FLAG_HARDWARE
 #define	CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
@@ -525,10 +554,7 @@ extern	int32_t crypto_get_driverid(device_t dev, size_t session_size,
 extern	int crypto_find_driver(const char *);
 extern	device_t crypto_find_device_byhid(int hid);
 extern	int crypto_getcaps(int hid);
-extern	int crypto_register(u_int32_t driverid, int alg, u_int16_t maxoplen,
-	    u_int32_t flags);
 extern	int crypto_kregister(u_int32_t, int, u_int32_t);
-extern	int crypto_unregister(u_int32_t driverid, int alg);
 extern	int crypto_unregister_all(u_int32_t driverid);
 extern	int crypto_dispatch(struct cryptop *crp);
 extern	int crypto_kdispatch(struct cryptkop *);
@@ -540,17 +566,30 @@ extern	void crypto_kdone(struct cryptkop *);
 extern	int crypto_getfeat(int *);
 
 extern	void crypto_freereq(struct cryptop *crp);
-extern	struct cryptop *crypto_getreq(int num);
+extern	struct cryptop *crypto_getreq(crypto_session_t cses, int how);
 
 extern	int crypto_usercrypto;		/* userland may do crypto requests */
 extern	int crypto_userasymcrypto;	/* userland may do asym crypto reqs */
 extern	int crypto_devallowsoft;	/* only use hardware crypto */
+
+/* Helper routines for drivers to initialize auth contexts for HMAC. */
+struct auth_hash;
+
+void	hmac_init_ipad(struct auth_hash *axf, const char *key, int klen,
+    void *auth_ctx);
+void	hmac_init_opad(struct auth_hash *axf, const char *key, int klen,
+    void *auth_ctx);
 
 /*
  * Crypto-related utility routines used mainly by drivers.
  *
  * XXX these don't really belong here; but for now they're
  *     kept apart from the rest of the system.
+ *
+ * Similar to m_copyback/data, *_copyback copy data from the 'src'
+ * buffer into the crypto request's data buffer while *_copydata copy
+ * data from the crypto request's data buffer into the the 'dst'
+ * buffer.
  */
 struct uio;
 extern	void cuio_copydata(struct uio* uio, int off, int len, caddr_t cp);
@@ -564,14 +603,13 @@ struct iovec;
 extern	int crypto_mbuftoiov(struct mbuf *mbuf, struct iovec **iovptr,
 	    int *cnt, int *allocated);
 
-extern	void crypto_copyback(int flags, caddr_t buf, int off, int size,
-	    c_caddr_t in);
-extern	void crypto_copydata(int flags, caddr_t buf, int off, int size,
-	    caddr_t out);
-extern	int crypto_apply(int flags, caddr_t buf, int off, int len,
+void	crypto_copyback(struct cryptop *crp, int off, int size,
+	    const void *src);
+void	crypto_copydata(struct cryptop *crp, int off, int size, void *dst);
+int	crypto_apply(struct cryptop *crp, int off, int len,
 	    int (*f)(void *, void *, u_int), void *arg);
-
-extern void *crypto_contiguous_subsegment(int, void *, size_t, size_t);
+void	*crypto_contiguous_subsegment(struct cryptop *crp, size_t skip,
+	    size_t len);
 
 #endif /* _KERNEL */
 #endif /* _CRYPTO_CRYPTO_H_ */

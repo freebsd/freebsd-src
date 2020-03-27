@@ -58,14 +58,18 @@ enum sha_version {
 	SHA2_256, SHA2_384, SHA2_512
 };
 
+/*
+ * XXX: The hmac.res, gmac.final_block, and blkcipher.iv fields are
+ * used by individual requests meaning that sessions cannot have more
+ * than a single request in flight at a time.
+ */
 struct ccp_session_hmac {
 	struct auth_hash *auth_hash;
 	int hash_len;
-	unsigned int partial_digest_len;
 	unsigned int auth_mode;
-	unsigned int mk_size;
 	char ipad[CCP_HASH_MAX_BLOCK_SIZE];
 	char opad[CCP_HASH_MAX_BLOCK_SIZE];
+	char res[CCP_HASH_MAX_BLOCK_SIZE];
 };
 
 struct ccp_session_gmac {
@@ -77,14 +81,12 @@ struct ccp_session_blkcipher {
 	unsigned cipher_mode;
 	unsigned cipher_type;
 	unsigned key_len;
-	unsigned iv_len;
 	char enckey[CCP_AES_MAX_KEY_LEN];
 	char iv[CCP_MAX_CRYPTO_IV_LEN];
 };
 
 struct ccp_session {
-	bool active : 1;
-	bool cipher_first : 1;
+	bool active;
 	int pending;
 	enum { HMAC, BLKCIPHER, AUTHENC, GCM } mode;
 	unsigned queue;
@@ -217,12 +219,11 @@ void db_ccp_show_queue_hw(struct ccp_queue *qp);
  * Internal hardware crypt-op submission routines.
  */
 int ccp_authenc(struct ccp_queue *sc, struct ccp_session *s,
-    struct cryptop *crp, struct cryptodesc *crda, struct cryptodesc *crde)
-    __must_check;
+    struct cryptop *crp) __must_check;
 int ccp_blkcipher(struct ccp_queue *sc, struct ccp_session *s,
     struct cryptop *crp) __must_check;
-int ccp_gcm(struct ccp_queue *sc, struct ccp_session *s, struct cryptop *crp,
-    struct cryptodesc *crda, struct cryptodesc *crde) __must_check;
+int ccp_gcm(struct ccp_queue *sc, struct ccp_session *s, struct cryptop *crp)
+    __must_check;
 int ccp_hmac(struct ccp_queue *sc, struct ccp_session *s, struct cryptop *crp)
     __must_check;
 

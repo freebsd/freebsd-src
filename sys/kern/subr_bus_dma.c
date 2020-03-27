@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 
+#include <opencrypto/cryptodev.h>
+
 #include <machine/bus.h>
 
 /*
@@ -609,6 +611,55 @@ bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 		break;
 	case MEMDESC_CCB:
 		error = _bus_dmamap_load_ccb(dmat, map, mem->u.md_ccb, &nsegs,
+		    flags);
+		break;
+	}
+	nsegs++;
+
+	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, flags, error, nsegs);
+
+	if (error == EINPROGRESS)
+		return (error);
+
+	segs = _bus_dmamap_complete(dmat, map, NULL, nsegs, error);
+	if (error)
+		(*callback)(callback_arg, segs, 0, error);
+	else
+		(*callback)(callback_arg, segs, nsegs, 0);
+
+	/*
+	 * Return ENOMEM to the caller so that it can pass it up the stack.
+	 * This error only happens when NOWAIT is set, so deferral is disabled.
+	 */
+	if (error == ENOMEM)
+		return (error);
+
+	return (0);
+}
+
+int
+bus_dmamap_load_crp(bus_dma_tag_t dmat, bus_dmamap_t map, struct cryptop *crp,
+    bus_dmamap_callback_t *callback, void *callback_arg, int flags)
+{
+	bus_dma_segment_t *segs;
+	int error;
+	int nsegs;
+
+	flags |= BUS_DMA_NOWAIT;
+	nsegs = -1;
+	error = 0;
+	switch (crp->crp_buf_type) {
+	case CRYPTO_BUF_CONTIG:
+		error = _bus_dmamap_load_buffer(dmat, map, crp->crp_buf,
+		    crp->crp_ilen, kernel_pmap, flags, NULL, &nsegs);
+		break;
+	case CRYPTO_BUF_MBUF:
+		error = _bus_dmamap_load_mbuf_sg(dmat, map, crp->crp_mbuf,
+		    NULL, &nsegs, flags);
+		break;
+	case CRYPTO_BUF_UIO:
+		error = _bus_dmamap_load_uio(dmat, map, crp->crp_uio, &nsegs,
 		    flags);
 		break;
 	}

@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2019
+.Dd March 27, 2020
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -25,120 +25,50 @@
 .Nd API for cryptographic services in the kernel
 .Sh SYNOPSIS
 .In opencrypto/cryptodev.h
-.Ft int32_t
-.Fn crypto_get_driverid "device_t dev" "size_t session_size" "int flags"
-.Ft int
-.Fn crypto_register "uint32_t driverid" "int alg" "uint16_t maxoplen" "uint32_t flags"
-.Ft int
-.Fn crypto_kregister "uint32_t driverid" "int kalg" "uint32_t flags"
-.Ft int
-.Fn crypto_unregister "uint32_t driverid" "int alg"
-.Ft int
-.Fn crypto_unregister_all "uint32_t driverid"
-.Ft void
-.Fn crypto_done "struct cryptop *crp"
-.Ft void
-.Fn crypto_kdone "struct cryptkop *krp"
-.Ft int
-.Fn crypto_find_driver "const char *match"
-.Ft int
-.Fn crypto_newsession "crypto_session_t *cses" "struct cryptoini *cri" "int crid"
-.Ft int
-.Fn crypto_freesession "crypto_session_t cses"
-.Ft int
-.Fn crypto_dispatch "struct cryptop *crp"
-.Ft int
-.Fn crypto_kdispatch "struct cryptkop *krp"
-.Ft int
-.Fn crypto_unblock "uint32_t driverid" "int what"
-.Ft "struct cryptop *"
-.Fn crypto_getreq "int num"
-.Ft void
-.Fn crypto_freereq "struct cryptop *crp"
-.Bd -literal
-#define	CRYPTO_SYMQ	0x1
-#define	CRYPTO_ASYMQ	0x2
-
-#define EALG_MAX_BLOCK_LEN      16
-
-struct cryptoini {
-	int                cri_alg;
-	int                cri_klen;
-	int                cri_mlen;
-	caddr_t            cri_key;
-	uint8_t            cri_iv[EALG_MAX_BLOCK_LEN];
-	struct cryptoini  *cri_next;
-};
-
-struct cryptodesc {
-	int                crd_skip;
-	int                crd_len;
-	int                crd_inject;
-	int                crd_flags;
-	struct cryptoini   CRD_INI;
-#define crd_iv          CRD_INI.cri_iv
-#define crd_key         CRD_INI.cri_key
-#define crd_alg         CRD_INI.cri_alg
-#define crd_klen        CRD_INI.cri_klen
-	struct cryptodesc *crd_next;
-};
-
-struct cryptop {
-	TAILQ_ENTRY(cryptop) crp_next;
-	crypto_session_t   crp_session;
-	int                crp_ilen;
-	int                crp_olen;
-	int                crp_etype;
-	int                crp_flags;
-	caddr_t            crp_buf;
-	caddr_t            crp_opaque;
-	struct cryptodesc *crp_desc;
-	int              (*crp_callback) (struct cryptop *);
-	caddr_t            crp_mac;
-};
-
-struct crparam {
-        caddr_t         crp_p;
-        u_int           crp_nbits;
-};
-
-#define CRK_MAXPARAM    8
-
-struct cryptkop {
-        TAILQ_ENTRY(cryptkop) krp_next;
-        u_int              krp_op;         /* ie. CRK_MOD_EXP or other */
-        u_int              krp_status;     /* return status */
-        u_short            krp_iparams;    /* # of input parameters */
-        u_short            krp_oparams;    /* # of output parameters */
-        uint32_t           krp_hid;
-        struct crparam     krp_param[CRK_MAXPARAM];
-        int               (*krp_callback)(struct cryptkop *);
-};
-.Ed
 .Sh DESCRIPTION
 .Nm
-is a framework for drivers of cryptographic hardware to register with
-the kernel so
-.Dq consumers
-(other kernel subsystems, and
-users through the
+is a framework for in-kernel cryptography.
+It permits in-kernel consumers to encrypt and decrypt data
+and also enables userland applications to use cryptographic hardware
+through the
 .Pa /dev/crypto
-device) are able to make use of it.
-Drivers register with the framework the algorithms they support,
-and provide entry points (functions) the framework may call to
-establish, use, and tear down sessions.
-Sessions are used to cache cryptographic information in a particular driver
-(or associated hardware), so initialization is not needed with every request.
-Consumers of cryptographic services pass a set of
-descriptors that instruct the framework (and the drivers registered
-with it) of the operations that should be applied on the data (more
-than one cryptographic operation can be requested).
+device.
 .Pp
-Keying operations are supported as well.
-Unlike the symmetric operators described above,
-these sessionless commands perform mathematical operations using
-input and output parameters.
+.Nm
+supports two modes of operation:
+one mode for symmetric-keyed cryptographic requests and digest,
+and a second mode for asymmetric-key requests and modular arithmetic.
+.Ss Symmetric-Key Mode
+Symmetric-key operations include encryption and decryption operations
+using block and stream ciphers as well as computation and verification
+of message authentication codes (MACs).
+In this mode,
+consumers allocate sessions to describe a transform as discussed in
+.Xr crypto_session 9 .
+Consumers then allocate request objects to describe each transformation
+such as encrypting a network packet or decrypting a disk sector.
+Requests are described in
+.Xr crypto_request 9 .
 .Pp
+Device drivers are responsible for processing requests submitted by
+consumers.
+.Xr crypto_driver 9
+describes the interfaces drivers use to register with the framework,
+helper routines the framework provides to faciliate request processing,
+and the interfaces drivers are required to provide.
+.Ss Asymmetric-Key Mode
+Assymteric-key operations do not use sessions.
+Instead,
+these operations perform individual mathematical operations using a set
+of input and output parameters.
+These operations are described in
+.Xr crypto_asym 9 .
+Drivers that support asymmetric operations use additional interfaces
+described in
+.Xr crypto_asym 9
+in addition to the base interfaces described in
+.Xr crypto_driver 9 .
+.Ss Callbacks
 Since the consumers may not be associated with a process, drivers may
 not
 .Xr sleep 9 .
@@ -148,88 +78,38 @@ to notify a consumer that a request has been completed (the
 callback is specified by the consumer on a per-request basis).
 The callback is invoked by the framework whether the request was
 successfully completed or not.
-An error indication is provided in the latter case.
-A specific error code,
+Errors are reported to the callback function.
+.Pp
+Session initialization does not use callbacks and returns errors
+synchronously.
+.Ss Session Migration
+For symmetric-key operations,
+a specific error code,
 .Er EAGAIN ,
 is used to indicate that a session handle has changed and that the
 request may be re-submitted immediately with the new session.
-Errors are only returned to the invoking function if not
-enough information to call the callback is available (meaning, there
-was a fatal error in verifying the arguments).
-For session initialization and teardown no callback mechanism is used.
+The consumer should update its saved copy of the session handle
+to the value of
+.Fa crp_session
+so that future requests use the new session.
+.Ss Supported Algorithms
+More details on some algorithms may be found in
+.Xr crypto 7 .
+These algorithms are used for symmetric-mode operations.
+Asymmetric-mode operations support operations described in
+.Xr crypto_asym 9 .
 .Pp
-The
-.Fn crypto_find_driver
-returns the driver id of the device whose name matches
-.Fa match .
-.Fa match
-can either be the exact name of a device including the unit
-or the driver name without a unit.
-In the latter case,
-the id of the first device with the matching driver name is returned.
-If no matching device is found,
-the value -1 is returned.
+The following authentication algorithms are supported:
 .Pp
-The
-.Fn crypto_newsession
-routine is called by consumers of cryptographic services (such as the
-.Xr ipsec 4
-stack) that wish to establish a new session with the framework.
-The
-.Fa cri
-argument points to a
-.Vt cryptoini
-structure containing all the necessary information for
-the driver to establish the session.
-The
-.Fa crid
-argument is either a specific driver id or a bitmask of flags.
-The flags are
-.Dv CRYPTOCAP_F_HARDWARE ,
-to select hardware devices,
-or
-.Dv CRYPTOCAP_F_SOFTWARE ,
-to select software devices.
-If both are specified, hardware devices are preferred over software
-devices.
-On success, the opaque session handle of the new session will be stored in
-.Fa *cses .
-The
-.Vt cryptoini
-structure pointed to by
-.Fa cri
-contains these fields:
-.Bl -tag -width ".Va cri_next"
-.It Va cri_alg
-An algorithm identifier.
-Currently supported algorithms are:
-.Pp
-.Bl -tag -width ".Dv CRYPTO_RIPEMD160_HMAC" -compact
-.It Dv CRYPTO_AES_128_NIST_GMAC
-.It Dv CRYPTO_AES_192_NIST_GMAC
-.It Dv CRYPTO_AES_256_NIST_GMAC
-.It Dv CRYPTO_AES_CBC
-.It Dv CRYPTO_AES_CCM_16
+.Bl -tag -offset indent -width CRYPTO_AES_CCM_CBC_MAC -compact
 .It Dv CRYPTO_AES_CCM_CBC_MAC
-.It Dv CRYPTO_AES_ICM
-.It Dv CRYPTO_AES_NIST_GCM_16
 .It Dv CRYPTO_AES_NIST_GMAC
-.It Dv CRYPTO_AES_XTS
-.It Dv CRYPTO_ARC4
 .It Dv CRYPTO_BLAKE2B
 .It Dv CRYPTO_BLAKE2S
-.It Dv CRYPTO_BLF_CBC
-.It Dv CRYPTO_CAMELLIA_CBC
-.It Dv CRYPTO_CAST_CBC
-.It Dv CRYPTO_CHACHA20
-.It Dv CRYPTO_DEFLATE_COMP
-.It Dv CRYPTO_DES_CBC
-.It Dv CRYPTO_3DES_CBC
 .It Dv CRYPTO_MD5
 .It Dv CRYPTO_MD5_HMAC
 .It Dv CRYPTO_MD5_KPDK
 .It Dv CRYPTO_NULL_HMAC
-.It Dv CRYPTO_NULL_CBC
 .It Dv CRYPTO_POLY1305
 .It Dv CRYPTO_RIPEMD160
 .It Dv CRYPTO_RIPEMD160_HMAC
@@ -244,488 +124,38 @@ Currently supported algorithms are:
 .It Dv CRYPTO_SHA2_384_HMAC
 .It Dv CRYPTO_SHA2_512
 .It Dv CRYPTO_SHA2_512_HMAC
+.El
+.Pp
+The following encryption algorithms are supported:
+.Pp
+.Bl -tag -offset indent -width CRYPTO_CAMELLIA_CBC -compact
+.It Dv CRYPTO_AES_CBC
+.It Dv CRYPTO_AES_ICM
+.It Dv CRYPTO_AES_XTS
+.It Dv CRYPTO_ARC4
+.It Dv CRYPTO_BLF_CBC
+.It Dv CRYPTO_CAMELLIA_CBC
+.It Dv CRYPTO_CAST_CBC
+.It Dv CRYPTO_CHACHA20
+.It Dv CRYPTO_DES_CBC
+.It Dv CRYPTO_3DES_CBC
+.It Dv CRYPTO_NULL_CBC
 .It Dv CRYPTO_SKIPJACK_CBC
 .El
-.It Va cri_klen
-For variable-size key algorithms, the length of the key in bits.
-.It Va cri_mlen
-If non-zero, truncate the calculated hash to this many bytes.
-.It Va cri_key
-The key to be used.
-.It Va cri_iv
-An explicit initialization vector if it does not prefix
-the data.
-This field is ignored during initialization
-.Pq Nm crypto_newsession .
-If no IV is explicitly passed (see below on details), a random IV is used
-by the device driver processing the request.
-.It Va cri_next
-Pointer to another
-.Vt cryptoini
-structure.
-This is used to establish dual-algorithm sessions, such as combining a
-cipher with a MAC.
+.Pp
+The following authenticated encryption with additional data (AEAD)
+algorithms are supported:
+.Pp
+.Bl -tag -offset indent -width CRYPTO_AES_NIST_GCM_16 -compact
+.It Dv CRYPTO_AES_CCM_16
+.It Dv CRYPTO_AES_NIST_GCM_16
 .El
 .Pp
-The
-.Vt cryptoini
-structure and its contents will not be modified or referenced by the
-framework or any cryptographic drivers.
-The memory associated with
-.Fa cri
-can be released once
-.Fn crypto_newsession
-returns.
+The following compression algorithms are supported:
 .Pp
-.Fn crypto_freesession
-is called with the session handle returned by
-.Fn crypto_newsession
-to free the session.
-.Pp
-.Fn crypto_dispatch
-is called to process a request.
-The various fields in the
-.Vt cryptop
-structure are:
-.Bl -tag -width ".Va crp_callback"
-.It Va crp_session
-The session handle.
-.It Va crp_ilen
-The total length in bytes of the buffer to be processed.
-.It Va crp_olen
-On return, contains the total length of the result.
-For symmetric crypto operations, this will be the same as the input length.
-This will be used if the framework needs to allocate a new
-buffer for the result (or for re-formatting the input).
-.It Va crp_callback
-Callback routine invoked when a request is completed via
-.Fn crypto_done .
-The callback routine should inspect the
-.Va crp_etype
-to determine if the request was successfully completed.
-.It Va crp_etype
-The error type, if any errors were encountered, or zero if
-the request was successfully processed.
-If the
-.Er EAGAIN
-error code is returned, the session handle has changed (and has been recorded
-in the
-.Va crp_session
-field).
-The consumer should record the new session handle and use it in all subsequent
-requests.
-In this case, the request may be re-submitted immediately.
-This mechanism is used by the framework to perform
-session migration (move a session from one driver to another, because
-of availability, performance, or other considerations).
-.Pp
-This field is only valid in the context of the callback routine specified by
-.Va crp_callback .
-Errors are returned to the invoker of
-.Fn crypto_process
-only when enough information is not present to call the callback
-routine (i.e., if the pointer passed is
-.Dv NULL
-or if no callback routine was specified).
-.It Va crp_flags
-A bitmask of flags associated with this request.
-Currently defined flags are:
-.Bl -tag -width ".Dv CRYPTO_F_CBIFSYNC"
-.It Dv CRYPTO_F_IMBUF
-The buffer is an mbuf chain pointed to by
-.Va crp_mbuf .
-.It Dv CRYPTO_F_IOV
-The buffer is a
-.Vt uio
-structure pointed to by
-.Va crp_uio .
-.It Dv CRYPTO_F_BATCH
-Batch operation if possible.
-.It Dv CRYPTO_F_CBIMM
-Do callback immediately instead of doing it from a dedicated kernel thread.
-.It Dv CRYPTO_F_DONE
-Operation completed.
-.It Dv CRYPTO_F_CBIFSYNC
-Do callback immediately if operation is synchronous (that the driver
-specified the
-.Dv CRYPTOCAP_F_SYNC
-flag).
-.It Dv CRYPTO_F_ASYNC
-Try to do the crypto operation in a pool of workers
-if the operation is synchronous (that is, if the driver specified the
-.Dv CRYPTOCAP_F_SYNC
-flag).
-It aims to speed up processing by dispatching crypto operations
-on different processors.
-.It Dv CRYPTO_F_ASYNC_KEEPORDER
-Dispatch callbacks in the same order they are posted.
-Only relevant if the
-.Dv CRYPTO_F_ASYNC
-flag is set and if the operation is synchronous.
+.Bl -tag -offset indent -width CRYPTO_DEFLATE_COMP -compact
+.It Dv CRYPTO_DEFLATE_COMP
 .El
-.It Va crp_buf
-Data buffer unless
-.Dv CRYPTO_F_IMBUF
-or
-.Dv CRYPTO_F_IOV
-is set in
-.Va crp_flags .
-The length in bytes is set in
-.Va crp_ilen .
-.It Va crp_mbuf
-Data buffer mbuf chain when
-.Dv CRYPTO_F_IMBUF
-is set in
-.Va crp_flags .
-.It Va crp_uio
-.Vt struct uio
-data buffer when
-.Dv CRYPTO_F_IOV
-is set in
-.Va crp_flags .
-.It Va crp_opaque
-Cookie passed through the crypto framework untouched.
-It is
-intended for the invoking application's use.
-.It Va crp_desc
-A linked list of descriptors.
-Each descriptor provides
-information about what type of cryptographic operation should be done
-on the input buffer.
-The various fields are:
-.Bl -tag -width ".Va crd_inject"
-.It Va crd_iv
-When the flag
-.Dv CRD_F_IV_EXPLICIT
-is set, this field contains the IV.
-.It Va crd_key
-When the
-.Dv CRD_F_KEY_EXPLICIT
-flag is set, the
-.Va crd_key
-points to a buffer with encryption or authentication key.
-.It Va crd_alg
-An algorithm to use.
-Must be the same as the one given at newsession time.
-.It Va crd_klen
-The
-.Va crd_key
-key length.
-.It Va crd_skip
-The offset in the input buffer where processing should start.
-.It Va crd_len
-How many bytes, after
-.Va crd_skip ,
-should be processed.
-.It Va crd_inject
-The
-.Va crd_inject
-field specifies an offset in bytes from the beginning of the buffer.
-For encryption algorithms, this may be where the IV will be inserted
-when encrypting or where the IV may be found for
-decryption (subject to
-.Va crd_flags ) .
-For MAC algorithms, this is where the result of the keyed hash will be
-inserted.
-.It Va crd_flags
-The following flags are defined:
-.Bl -tag -width 3n
-.It Dv CRD_F_ENCRYPT
-For encryption algorithms, this bit is set when encryption is required
-(when not set, decryption is performed).
-.It Dv CRD_F_IV_PRESENT
-.\" This flag name has nothing to do w/ it's behavior, fix the name.
-For encryption, if this bit is not set the IV used to encrypt the packet
-will be written at the location pointed to by
-.Va crd_inject .
-The IV length is assumed to be equal to the blocksize of the
-encryption algorithm.
-For encryption, if this bit is set, nothing is done.
-For decryption, this flag has no meaning.
-Applications that do special
-.Dq "IV cooking" ,
-such as the half-IV mode in
-.Xr ipsec 4 ,
-can use this flag to indicate that the IV should not be written on the packet.
-This flag is typically used in conjunction with the
-.Dv CRD_F_IV_EXPLICIT
-flag.
-.It Dv CRD_F_IV_EXPLICIT
-This bit is set when the IV is explicitly
-provided by the consumer in the
-.Va crd_iv
-field.
-Otherwise, for encryption operations the IV is provided for by
-the driver used to perform the operation, whereas for decryption
-operations the offset of the IV is provided by the
-.Va crd_inject
-field.
-This flag is typically used when the IV is calculated
-.Dq "on the fly"
-by the consumer, and does not precede the data.
-.It Dv CRD_F_KEY_EXPLICIT
-For encryption and authentication (MAC) algorithms, this bit is set when the key
-is explicitly provided by the consumer in the
-.Va crd_key
-field for the given operation.
-Otherwise, the key is taken at newsession time from the
-.Va cri_key
-field.
-As calculating the key schedule may take a while, it is recommended that often
-used keys are given their own session.
-.It Dv CRD_F_COMP
-For compression algorithms, this bit is set when compression is required (when
-not set, decompression is performed).
-.El
-.It Va CRD_INI
-This
-.Vt cryptoini
-structure will not be modified by the framework or the device drivers.
-Since this information accompanies every cryptographic
-operation request, drivers may re-initialize state on-demand
-(typically an expensive operation).
-Furthermore, the cryptographic
-framework may re-route requests as a result of full queues or hardware
-failure, as described above.
-.It Va crd_next
-Point to the next descriptor.
-Linked operations are useful in protocols such as
-.Xr ipsec 4 ,
-where multiple cryptographic transforms may be applied on the same
-block of data.
-.El
-.El
-.Pp
-.Fn crypto_getreq
-allocates a
-.Vt cryptop
-structure with a linked list of
-.Fa num
-.Vt cryptodesc
-structures.
-.Pp
-.Fn crypto_freereq
-deallocates a structure
-.Vt cryptop
-and any
-.Vt cryptodesc
-structures linked to it.
-Note that it is the responsibility of the
-callback routine to do the necessary cleanups associated with the
-opaque field in the
-.Vt cryptop
-structure.
-.Pp
-.Fn crypto_kdispatch
-is called to perform a keying operation.
-The various fields in the
-.Vt cryptkop
-structure are:
-.Bl -tag -width ".Va krp_callback"
-.It Va krp_op
-Operation code, such as
-.Dv CRK_MOD_EXP .
-.It Va krp_status
-Return code.
-This
-.Va errno Ns -style
-variable indicates whether lower level reasons
-for operation failure.
-.It Va krp_iparams
-Number of input parameters to the specified operation.
-Note that each operation has a (typically hardwired) number of such parameters.
-.It Va krp_oparams
-Number of output parameters from the specified operation.
-Note that each operation has a (typically hardwired) number of such parameters.
-.It Va krp_kvp
-An array of kernel memory blocks containing the parameters.
-.It Va krp_hid
-Identifier specifying which low-level driver is being used.
-.It Va krp_callback
-Callback called on completion of a keying operation.
-.El
-.Sh DRIVER-SIDE API
-The
-.Fn crypto_get_driverid ,
-.Fn crypto_get_driver_session ,
-.Fn crypto_register ,
-.Fn crypto_kregister ,
-.Fn crypto_unregister ,
-.Fn crypto_unblock ,
-and
-.Fn crypto_done
-routines are used by drivers that provide support for cryptographic
-primitives to register and unregister with the kernel crypto services
-framework.
-.Pp
-Drivers must first use the
-.Fn crypto_get_driverid
-function to acquire a driver identifier, specifying the
-.Fa flags
-as an argument.
-One of
-.Dv CRYPTOCAP_F_SOFTWARE
-or
-.Dv CRYPTOCAP_F_HARDWARE
-must be specified.
-The
-.Dv CRYPTOCAP_F_SYNC
-may also be specified, and should be specified if the driver does all of
-it's operations synchronously.
-Drivers must pass the size of their session structure as the second argument.
-An appropriately sized memory will be allocated by the framework, zeroed, and
-passed to the driver's
-.Fn newsession
-method.
-.Pp
-For each algorithm the driver supports, it must then call
-.Fn crypto_register .
-The first two arguments are the driver and algorithm identifiers.
-The next two arguments specify the largest possible operator length (in bits,
-important for public key operations) and flags for this algorithm.
-.Pp
-.Fn crypto_unregister
-is called by drivers that wish to withdraw support for an algorithm.
-The two arguments are the driver and algorithm identifiers, respectively.
-Typically, drivers for
-PCMCIA
-crypto cards that are being ejected will invoke this routine for all
-algorithms supported by the card.
-.Fn crypto_unregister_all
-will unregister all algorithms registered by a driver
-and the driver will be disabled (no new sessions will be allocated on
-that driver, and any existing sessions will be migrated to other
-drivers).
-The same will be done if all algorithms associated with a driver are
-unregistered one by one.
-After a call to
-.Fn crypto_unregister_all
-there will be no threads in either the newsession or freesession function
-of the driver.
-.Pp
-The calling convention for the driver-supplied routines are:
-.Pp
-.Bl -item -compact
-.It
-.Ft int
-.Fn \*[lp]*newsession\*[rp] "device_t" "crypto_session_t" "struct cryptoini *" ;
-.It
-.Ft void
-.Fn \*[lp]*freesession\*[rp] "device_t" "crypto_session_t" ;
-.It
-.Ft int
-.Fn \*[lp]*process\*[rp] "device_t" "struct cryptop *" "int" ;
-.It
-.Ft int
-.Fn \*[lp]*kprocess\*[rp] "device_t" "struct cryptkop *" "int" ;
-.El
-.Pp
-On invocation, the first argument to
-all routines is the
-.Fa device_t
-that was provided to
-.Fn crypto_get_driverid .
-The second argument to
-.Fn newsession
-is the opaque session handle for the new session.
-The third argument is identical to that of
-.Fn crypto_newsession .
-.Pp
-Drivers obtain a pointer to their session memory by invoking
-.Fn crypto_get_driver_session
-on the opaque
-.Vt crypto_session_t
-handle.
-.Pp
-The
-.Fn freesession
-routine takes as arguments the opaque data value and the session handle.
-It should clear any context associated with the session (clear hardware
-registers, memory, etc.).
-If no resources need to be released other than the contents of session memory,
-the method is optional.
-The
-.Nm
-framework will zero and release the allocated session memory (after running the
-.Fn freesession
-method, if one exists).
-.Pp
-The
-.Fn process
-routine is invoked with a request to perform crypto processing.
-This routine must not block or sleep, but should queue the request and return
-immediately or process the request to completion.
-In case of an unrecoverable error, the error indication must be placed in the
-.Va crp_etype
-field of the
-.Vt cryptop
-structure.
-When the request is completed, or an error is detected, the
-.Fn process
-routine must invoke
-.Fn crypto_done .
-Session migration may be performed, as mentioned previously.
-.Pp
-In case of a temporary resource exhaustion, the
-.Fn process
-routine may return
-.Er ERESTART
-in which case the crypto services will requeue the request, mark the driver
-as
-.Dq blocked ,
-and stop submitting requests for processing.
-The driver is then responsible for notifying the crypto services
-when it is again able to process requests through the
-.Fn crypto_unblock
-routine.
-This simple flow control mechanism should only be used for short-lived
-resource exhaustion as it causes operations to be queued in the crypto
-layer.
-Doing so is preferable to returning an error in such cases as
-it can cause network protocols to degrade performance by treating the
-failure much like a lost packet.
-.Pp
-The
-.Fn kprocess
-routine is invoked with a request to perform crypto key processing.
-This routine must not block, but should queue the request and return
-immediately.
-Upon processing the request, the callback routine should be invoked.
-In case of an unrecoverable error, the error indication must be placed in the
-.Va krp_status
-field of the
-.Vt cryptkop
-structure.
-When the request is completed, or an error is detected, the
-.Fn kprocess
-routine should invoked
-.Fn crypto_kdone .
-.Sh RETURN VALUES
-.Fn crypto_register ,
-.Fn crypto_kregister ,
-.Fn crypto_unregister ,
-.Fn crypto_newsession ,
-.Fn crypto_freesession ,
-and
-.Fn crypto_unblock
-return 0 on success, or an error code on failure.
-.Fn crypto_get_driverid
-returns a non-negative value on error, and \-1 on failure.
-.Fn crypto_getreq
-returns a pointer to a
-.Vt cryptop
-structure and
-.Dv NULL
-on failure.
-.Fn crypto_dispatch
-returns
-.Er EINVAL
-if its argument or the callback function was
-.Dv NULL ,
-and 0 otherwise.
-The callback is provided with an error code in case of failure, in the
-.Va crp_etype
-field.
 .Sh FILES
 .Bl -tag -width ".Pa sys/opencrypto/crypto.c"
 .It Pa sys/opencrypto/crypto.c
@@ -735,7 +165,10 @@ most of the framework code
 .Xr crypto 4 ,
 .Xr ipsec 4 ,
 .Xr crypto 7 ,
-.Xr malloc 9 ,
+.Xr crypto_asym 9 ,
+.Xr crypto_driver 9 ,
+.Xr crypto_request 9 ,
+.Xr crypto_session 9 ,
 .Xr sleep 9
 .Sh HISTORY
 The cryptographic framework first appeared in
@@ -743,14 +176,6 @@ The cryptographic framework first appeared in
 and was written by
 .An Angelos D. Keromytis Aq Mt angelos@openbsd.org .
 .Sh BUGS
-The framework currently assumes that all the algorithms in a
-.Fn crypto_newsession
-operation must be available by the same driver.
-If that is not the case, session initialization will fail.
-.Pp
-The framework also needs a mechanism for determining which driver is
+The framework needs a mechanism for determining which driver is
 best for a specific set of algorithms associated with a session.
 Some type of benchmarking is in order here.
-.Pp
-Multiple instances of the same algorithm in the same session are not
-supported.

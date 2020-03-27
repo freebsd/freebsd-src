@@ -61,50 +61,40 @@ static int
 g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
     const u_char *key, size_t keysize)
 {
-	struct cryptoini cri;
+	struct crypto_session_params csp;
 	struct cryptop *crp;
-	struct cryptodesc *crd;
 	crypto_session_t sid;
-	u_char *p;
 	int error;
 
 	KASSERT(algo != CRYPTO_AES_XTS,
 	    ("%s: CRYPTO_AES_XTS unexpected here", __func__));
 
-	bzero(&cri, sizeof(cri));
-	cri.cri_alg = algo;
-	cri.cri_key = __DECONST(void *, key);
-	cri.cri_klen = keysize;
-	error = crypto_newsession(&sid, &cri, CRYPTOCAP_F_SOFTWARE);
+	memset(&csp, 0, sizeof(csp));
+	csp.csp_mode = CSP_MODE_CIPHER;
+	csp.csp_cipher_alg = algo;
+	csp.csp_ivlen = g_eli_ivlen(algo);
+	csp.csp_cipher_key = key;
+	csp.csp_cipher_klen = keysize / 8;
+	error = crypto_newsession(&sid, &csp, CRYPTOCAP_F_SOFTWARE);
 	if (error != 0)
 		return (error);
-	p = malloc(sizeof(*crp) + sizeof(*crd), M_ELI, M_NOWAIT | M_ZERO);
-	if (p == NULL) {
+	crp = crypto_getreq(sid, M_NOWAIT);
+	if (crp == NULL) {
 		crypto_freesession(sid);
 		return (ENOMEM);
 	}
-	crp = (struct cryptop *)p;	p += sizeof(*crp);
-	crd = (struct cryptodesc *)p;	p += sizeof(*crd);
 
-	crd->crd_skip = 0;
-	crd->crd_len = datasize;
-	crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
-	if (enc)
-		crd->crd_flags |= CRD_F_ENCRYPT;
-	crd->crd_alg = algo;
-	crd->crd_key = __DECONST(void *, key);
-	crd->crd_klen = keysize;
-	bzero(crd->crd_iv, sizeof(crd->crd_iv));
-	crd->crd_next = NULL;
+	crp->crp_payload_start = 0;
+	crp->crp_payload_length = datasize;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC | CRYPTO_F_IV_SEPARATE;
+	crp->crp_op = enc ? CRYPTO_OP_ENCRYPT : CRYPTO_OP_DECRYPT;
+	memset(crp->crp_iv, 0, sizeof(crp->crp_iv));
 
-	crp->crp_session = sid;
-	crp->crp_ilen = datasize;
-	crp->crp_olen = datasize;
 	crp->crp_opaque = NULL;
 	crp->crp_callback = g_eli_crypto_done;
+	crp->crp_buf_type = CRYPTO_BUF_CONTIG;
+	crp->crp_ilen = datasize;
 	crp->crp_buf = (void *)data;
-	crp->crp_flags = CRYPTO_F_CBIFSYNC;
-	crp->crp_desc = crd;
 
 	error = crypto_dispatch(crp);
 	if (error == 0) {
@@ -113,7 +103,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 		error = crp->crp_etype;
 	}
 
-	free(crp, M_ELI);
+	crypto_freereq(crp);
 	crypto_freesession(sid);
 	return (error);
 }

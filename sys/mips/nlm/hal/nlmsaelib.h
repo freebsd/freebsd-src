@@ -462,8 +462,8 @@ static __inline__ int
 nlm_crypto_fill_pkt_ctrl(struct nlm_crypto_pkt_ctrl *ctrl, unsigned int hmac,
     enum nlm_hash_algo hashalg, enum nlm_hash_mode hashmode,
     enum nlm_cipher_algo cipheralg, enum nlm_cipher_mode ciphermode,
-    unsigned char *cipherkey, unsigned int cipherkeylen,
-    unsigned char *hashkey, unsigned int hashkeylen)
+    const unsigned char *cipherkey, unsigned int cipherkeylen,
+    const unsigned char *hashkey, unsigned int hashkeylen)
 {
 	unsigned int taglen = 0, hklen = 0;
 

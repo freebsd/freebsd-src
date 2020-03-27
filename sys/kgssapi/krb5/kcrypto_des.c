@@ -78,25 +78,24 @@ des1_destroy(struct krb5_key_state *ks)
 static void
 des1_set_key(struct krb5_key_state *ks, const void *in)
 {
+	struct crypto_session_params csp;
 	void *kp = ks->ks_key;
 	struct des1_state *ds = ks->ks_priv;
-	struct cryptoini cri[1];
-
-	if (kp != in)
-		bcopy(in, kp, ks->ks_class->ec_keylen);
 
 	if (ds->ds_session)
 		crypto_freesession(ds->ds_session);
 
-	bzero(cri, sizeof(cri));
+	if (kp != in)
+		bcopy(in, kp, ks->ks_class->ec_keylen);
 
-	cri[0].cri_alg = CRYPTO_DES_CBC;
-	cri[0].cri_klen = 64;
-	cri[0].cri_mlen = 0;
-	cri[0].cri_key = ks->ks_key;
-	cri[0].cri_next = NULL;
+	memset(&csp, 0, sizeof(csp));
+	csp.csp_mode = CSP_MODE_CIPHER;
+	csp.csp_ivlen = 8;
+	csp.csp_cipher_alg = CRYPTO_DES_CBC;
+	csp.csp_cipher_klen = 8;
+	csp.csp_cipher_key = ks->ks_key;
 
-	crypto_newsession(&ds->ds_session, cri,
+	crypto_newsession(&ds->ds_session, &csp,
 	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE);
 }
 
@@ -163,32 +162,27 @@ des1_crypto_cb(struct cryptop *crp)
 }
 
 static void
-des1_encrypt_1(const struct krb5_key_state *ks, int buftype, void *buf,
-    size_t skip, size_t len, void *ivec, int encdec)
+des1_encrypt_1(const struct krb5_key_state *ks, int buf_type, void *buf,
+    size_t skip, size_t len, void *ivec, bool encrypt)
 {
 	struct des1_state *ds = ks->ks_priv;
 	struct cryptop *crp;
-	struct cryptodesc *crd;
 	int error;
 
-	crp = crypto_getreq(1);
-	crd = crp->crp_desc;
+	crp = crypto_getreq(ds->ds_session, M_WAITOK);
 
-	crd->crd_skip = skip;
-	crd->crd_len = len;
-	crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT | encdec;
+	crp->crp_payload_start = skip;
+	crp->crp_payload_length = len;
+	crp->crp_op = encrypt ? CRYPTO_OP_ENCRYPT : CRYPTO_OP_DECRYPT;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC | CRYPTO_F_IV_SEPARATE;
 	if (ivec) {
-		bcopy(ivec, crd->crd_iv, 8);
+		memcpy(crp->crp_iv, ivec, 8);
 	} else {
-		bzero(crd->crd_iv, 8);
+		memset(crp->crp_iv, 0, 8);
 	}
-	crd->crd_next = NULL;
-	crd->crd_alg = CRYPTO_DES_CBC;
-
-	crp->crp_session = ds->ds_session;
-	crp->crp_flags = buftype | CRYPTO_F_CBIFSYNC;
+	crp->crp_buf_type = buf_type;
 	crp->crp_buf = buf;
-	crp->crp_opaque = (void *) ds;
+	crp->crp_opaque = ds;
 	crp->crp_callback = des1_crypto_cb;
 
 	error = crypto_dispatch(crp);
@@ -208,8 +202,7 @@ des1_encrypt(const struct krb5_key_state *ks, struct mbuf *inout,
     size_t skip, size_t len, void *ivec, size_t ivlen)
 {
 
-	des1_encrypt_1(ks, CRYPTO_F_IMBUF, inout, skip, len, ivec,
-	    CRD_F_ENCRYPT);
+	des1_encrypt_1(ks, CRYPTO_BUF_MBUF, inout, skip, len, ivec, true);
 }
 
 static void
@@ -217,7 +210,7 @@ des1_decrypt(const struct krb5_key_state *ks, struct mbuf *inout,
     size_t skip, size_t len, void *ivec, size_t ivlen)
 {
 
-	des1_encrypt_1(ks, CRYPTO_F_IMBUF, inout, skip, len, ivec, 0);
+	des1_encrypt_1(ks, CRYPTO_BUF_MBUF, inout, skip, len, ivec, false);
 }
 
 static int
@@ -244,7 +237,7 @@ des1_checksum(const struct krb5_key_state *ks, int usage,
 	m_apply(inout, skip, inlen, MD5Update_int, &md5);
 	MD5Final(hash, &md5);
 
-	des1_encrypt_1(ks, 0, hash, 0, 16, NULL, CRD_F_ENCRYPT);
+	des1_encrypt_1(ks, CRYPTO_BUF_CONTIG, hash, 0, 16, NULL, true);
 	m_copyback(inout, skip + inlen, outlen, hash + 8);
 }
 

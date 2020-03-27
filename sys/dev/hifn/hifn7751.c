@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -71,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <opencrypto/cryptodev.h>
+#include <opencrypto/xform_auth.h>
 #include <sys/random.h>
 #include <sys/kobj.h>
 
@@ -102,7 +104,9 @@ static	int hifn_suspend(device_t);
 static	int hifn_resume(device_t);
 static	int hifn_shutdown(device_t);
 
-static	int hifn_newsession(device_t, crypto_session_t, struct cryptoini *);
+static	int hifn_probesession(device_t, const struct crypto_session_params *);
+static	int hifn_newsession(device_t, crypto_session_t,
+    const struct crypto_session_params *);
 static	int hifn_process(device_t, struct cryptop *, int);
 
 static device_method_t hifn_methods[] = {
@@ -115,6 +119,7 @@ static device_method_t hifn_methods[] = {
 	DEVMETHOD(device_shutdown,	hifn_shutdown),
 
 	/* crypto device methods */
+	DEVMETHOD(cryptodev_probesession, hifn_probesession),
 	DEVMETHOD(cryptodev_newsession,	hifn_newsession),
 	DEVMETHOD(cryptodev_process,	hifn_process),
 
@@ -356,7 +361,7 @@ hifn_attach(device_t dev)
 	caddr_t kva;
 	int rseg, rid;
 	char rbase;
-	u_int16_t ena, rev;
+	uint16_t rev;
 
 	sc->sc_dev = dev;
 
@@ -558,33 +563,22 @@ hifn_attach(device_t dev)
 			2 + 2*((sc->sc_pllconfig & HIFN_PLL_ND) >> 11));
 	printf("\n");
 
-	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct hifn_session),
-	    CRYPTOCAP_F_HARDWARE);
-	if (sc->sc_cid < 0) {
-		device_printf(dev, "could not get crypto driver id\n");
-		goto fail_intr;
-	}
-
 	WRITE_REG_0(sc, HIFN_0_PUCNFG,
 	    READ_REG_0(sc, HIFN_0_PUCNFG) | HIFN_PUCNFG_CHIPID);
-	ena = READ_REG_0(sc, HIFN_0_PUSTAT) & HIFN_PUSTAT_CHIPENA;
+	sc->sc_ena = READ_REG_0(sc, HIFN_0_PUSTAT) & HIFN_PUSTAT_CHIPENA;
 
-	switch (ena) {
+	switch (sc->sc_ena) {
 	case HIFN_PUSTAT_ENA_2:
-		crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0);
-		crypto_register(sc->sc_cid, CRYPTO_ARC4, 0, 0);
-		if (sc->sc_flags & HIFN_HAS_AES)
-			crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0);
-		/*FALLTHROUGH*/
 	case HIFN_PUSTAT_ENA_1:
-		crypto_register(sc->sc_cid, CRYPTO_MD5, 0, 0);
-		crypto_register(sc->sc_cid, CRYPTO_SHA1, 0, 0);
-		crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
-		crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
-		crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0);
+		sc->sc_cid = crypto_get_driverid(dev,
+		    sizeof(struct hifn_session), CRYPTOCAP_F_HARDWARE);
+		if (sc->sc_cid < 0) {
+			device_printf(dev, "could not get crypto driver id\n");
+			goto fail_intr;
+		}
 		break;
 	}
-
+		
 	bus_dmamap_sync(sc->sc_dmat, sc->sc_dmamap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
@@ -1547,6 +1541,7 @@ hifn_init_dma(struct hifn_softc *sc)
 static u_int
 hifn_write_command(struct hifn_command *cmd, u_int8_t *buf)
 {
+	struct cryptop *crp;
 	u_int8_t *buf_pos;
 	hifn_base_command_t *base_cmd;
 	hifn_mac_command_t *mac_cmd;
@@ -1554,6 +1549,7 @@ hifn_write_command(struct hifn_command *cmd, u_int8_t *buf)
 	int using_mac, using_crypt, len, ivlen;
 	u_int32_t dlen, slen;
 
+	crp = cmd->crp;
 	buf_pos = buf;
 	using_mac = cmd->base_masks & HIFN_BASE_CMD_MAC;
 	using_crypt = cmd->base_masks & HIFN_BASE_CMD_CRYPT;
@@ -1576,24 +1572,27 @@ hifn_write_command(struct hifn_command *cmd, u_int8_t *buf)
 
 	if (using_mac) {
 		mac_cmd = (hifn_mac_command_t *)buf_pos;
-		dlen = cmd->maccrd->crd_len;
+		dlen = crp->crp_aad_length + crp->crp_payload_length;
 		mac_cmd->source_count = htole16(dlen & 0xffff);
 		dlen >>= 16;
 		mac_cmd->masks = htole16(cmd->mac_masks |
 		    ((dlen << HIFN_MAC_CMD_SRCLEN_S) & HIFN_MAC_CMD_SRCLEN_M));
-		mac_cmd->header_skip = htole16(cmd->maccrd->crd_skip);
+		if (crp->crp_aad_length != 0)
+			mac_cmd->header_skip = htole16(crp->crp_aad_start);
+		else
+			mac_cmd->header_skip = htole16(crp->crp_payload_start);
 		mac_cmd->reserved = 0;
 		buf_pos += sizeof(hifn_mac_command_t);
 	}
 
 	if (using_crypt) {
 		cry_cmd = (hifn_crypt_command_t *)buf_pos;
-		dlen = cmd->enccrd->crd_len;
+		dlen = crp->crp_payload_length;
 		cry_cmd->source_count = htole16(dlen & 0xffff);
 		dlen >>= 16;
 		cry_cmd->masks = htole16(cmd->cry_masks |
 		    ((dlen << HIFN_CRYPT_CMD_SRCLEN_S) & HIFN_CRYPT_CMD_SRCLEN_M));
-		cry_cmd->header_skip = htole16(cmd->enccrd->crd_skip);
+		cry_cmd->header_skip = htole16(crp->crp_payload_length);
 		cry_cmd->reserved = 0;
 		buf_pos += sizeof(hifn_crypt_command_t);
 	}
@@ -1782,15 +1781,30 @@ hifn_dmamap_load_src(struct hifn_softc *sc, struct hifn_command *cmd)
 	return (idx);
 } 
 
+static bus_size_t
+hifn_crp_length(struct cryptop *crp)
+{
+
+	switch (crp->crp_buf_type) {
+	case CRYPTO_BUF_MBUF:
+		return (crp->crp_mbuf->m_pkthdr.len);
+	case CRYPTO_BUF_UIO:
+		return (crp->crp_uio->uio_resid);
+	case CRYPTO_BUF_CONTIG:
+		return (crp->crp_ilen);
+	default:
+		panic("bad crp buffer type");
+	}
+}
+
 static void
-hifn_op_cb(void* arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, int error)
+hifn_op_cb(void* arg, bus_dma_segment_t *seg, int nsegs, int error)
 {
 	struct hifn_operand *op = arg;
 
 	KASSERT(nsegs <= MAX_SCATTER,
 		("hifn_op_cb: too many DMA segments (%u > %u) "
 		 "returned when mapping operand", nsegs, MAX_SCATTER));
-	op->mapsize = mapsize;
 	op->nsegs = nsegs;
 	bcopy(seg, op->segs, nsegs * sizeof (seg[0]));
 }
@@ -1832,130 +1846,110 @@ hifn_crypto(
 		return (ENOMEM);
 	}
 
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		if (bus_dmamap_load_mbuf(sc->sc_dmat, cmd->src_map,
-		    cmd->src_m, hifn_op_cb, &cmd->src, BUS_DMA_NOWAIT)) {
-			hifnstats.hst_nomem_load++;
-			err = ENOMEM;
-			goto err_srcmap1;
-		}
-	} else if (crp->crp_flags & CRYPTO_F_IOV) {
-		if (bus_dmamap_load_uio(sc->sc_dmat, cmd->src_map,
-		    cmd->src_io, hifn_op_cb, &cmd->src, BUS_DMA_NOWAIT)) {
-			hifnstats.hst_nomem_load++;
-			err = ENOMEM;
-			goto err_srcmap1;
-		}
-	} else {
-		err = EINVAL;
+	if (bus_dmamap_load_crp(sc->sc_dmat, cmd->src_map, crp, hifn_op_cb,
+	    &cmd->src, BUS_DMA_NOWAIT)) {
+		hifnstats.hst_nomem_load++;
+		err = ENOMEM;
 		goto err_srcmap1;
 	}
+	cmd->src_mapsize = hifn_crp_length(crp);
 
 	if (hifn_dmamap_aligned(&cmd->src)) {
 		cmd->sloplen = cmd->src_mapsize & 3;
 		cmd->dst = cmd->src;
-	} else {
-		if (crp->crp_flags & CRYPTO_F_IOV) {
-			err = EINVAL;
-			goto err_srcmap;
-		} else if (crp->crp_flags & CRYPTO_F_IMBUF) {
-			int totlen, len;
-			struct mbuf *m, *m0, *mlast;
+	} else if (crp->crp_buf_type == CRYPTO_BUF_MBUF) {
+		int totlen, len;
+		struct mbuf *m, *m0, *mlast;
 
-			KASSERT(cmd->dst_m == cmd->src_m,
-				("hifn_crypto: dst_m initialized improperly"));
-			hifnstats.hst_unaligned++;
-			/*
-			 * Source is not aligned on a longword boundary.
-			 * Copy the data to insure alignment.  If we fail
-			 * to allocate mbufs or clusters while doing this
-			 * we return ERESTART so the operation is requeued
-			 * at the crypto later, but only if there are
-			 * ops already posted to the hardware; otherwise we
-			 * have no guarantee that we'll be re-entered.
-			 */
-			totlen = cmd->src_mapsize;
-			if (cmd->src_m->m_flags & M_PKTHDR) {
-				len = MHLEN;
-				MGETHDR(m0, M_NOWAIT, MT_DATA);
-				if (m0 && !m_dup_pkthdr(m0, cmd->src_m, M_NOWAIT)) {
-					m_free(m0);
-					m0 = NULL;
-				}
-			} else {
-				len = MLEN;
-				MGET(m0, M_NOWAIT, MT_DATA);
+		KASSERT(cmd->dst_m == NULL,
+		    ("hifn_crypto: dst_m initialized improperly"));
+		hifnstats.hst_unaligned++;
+
+		/*
+		 * Source is not aligned on a longword boundary.
+		 * Copy the data to insure alignment.  If we fail
+		 * to allocate mbufs or clusters while doing this
+		 * we return ERESTART so the operation is requeued
+		 * at the crypto later, but only if there are
+		 * ops already posted to the hardware; otherwise we
+		 * have no guarantee that we'll be re-entered.
+		 */
+		totlen = cmd->src_mapsize;
+		if (crp->crp_mbuf->m_flags & M_PKTHDR) {
+			len = MHLEN;
+			MGETHDR(m0, M_NOWAIT, MT_DATA);
+			if (m0 && !m_dup_pkthdr(m0, crp->crp_mbuf, M_NOWAIT)) {
+				m_free(m0);
+				m0 = NULL;
 			}
-			if (m0 == NULL) {
-				hifnstats.hst_nomem_mbuf++;
+		} else {
+			len = MLEN;
+			MGET(m0, M_NOWAIT, MT_DATA);
+		}
+		if (m0 == NULL) {
+			hifnstats.hst_nomem_mbuf++;
+			err = sc->sc_cmdu ? ERESTART : ENOMEM;
+			goto err_srcmap;
+		}
+		if (totlen >= MINCLSIZE) {
+			if (!(MCLGET(m0, M_NOWAIT))) {
+				hifnstats.hst_nomem_mcl++;
 				err = sc->sc_cmdu ? ERESTART : ENOMEM;
+				m_freem(m0);
 				goto err_srcmap;
 			}
+			len = MCLBYTES;
+		}
+		totlen -= len;
+		m0->m_pkthdr.len = m0->m_len = len;
+		mlast = m0;
+
+		while (totlen > 0) {
+			MGET(m, M_NOWAIT, MT_DATA);
+			if (m == NULL) {
+				hifnstats.hst_nomem_mbuf++;
+				err = sc->sc_cmdu ? ERESTART : ENOMEM;
+				m_freem(m0);
+				goto err_srcmap;
+			}
+			len = MLEN;
 			if (totlen >= MINCLSIZE) {
-				if (!(MCLGET(m0, M_NOWAIT))) {
+				if (!(MCLGET(m, M_NOWAIT))) {
 					hifnstats.hst_nomem_mcl++;
 					err = sc->sc_cmdu ? ERESTART : ENOMEM;
+					mlast->m_next = m;
 					m_freem(m0);
 					goto err_srcmap;
 				}
 				len = MCLBYTES;
 			}
+
+			m->m_len = len;
+			m0->m_pkthdr.len += len;
 			totlen -= len;
-			m0->m_pkthdr.len = m0->m_len = len;
-			mlast = m0;
 
-			while (totlen > 0) {
-				MGET(m, M_NOWAIT, MT_DATA);
-				if (m == NULL) {
-					hifnstats.hst_nomem_mbuf++;
-					err = sc->sc_cmdu ? ERESTART : ENOMEM;
-					m_freem(m0);
-					goto err_srcmap;
-				}
-				len = MLEN;
-				if (totlen >= MINCLSIZE) {
-					if (!(MCLGET(m, M_NOWAIT))) {
-						hifnstats.hst_nomem_mcl++;
-						err = sc->sc_cmdu ? ERESTART : ENOMEM;
-						mlast->m_next = m;
-						m_freem(m0);
-						goto err_srcmap;
-					}
-					len = MCLBYTES;
-				}
-
-				m->m_len = len;
-				m0->m_pkthdr.len += len;
-				totlen -= len;
-
-				mlast->m_next = m;
-				mlast = m;
-			}
-			cmd->dst_m = m0;
+			mlast->m_next = m;
+			mlast = m;
 		}
-	}
+		cmd->dst_m = m0;
 
-	if (cmd->dst_map == NULL) {
-		if (bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT, &cmd->dst_map)) {
+		if (bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
+		    &cmd->dst_map)) {
 			hifnstats.hst_nomem_map++;
 			err = ENOMEM;
 			goto err_srcmap;
 		}
-		if (crp->crp_flags & CRYPTO_F_IMBUF) {
-			if (bus_dmamap_load_mbuf(sc->sc_dmat, cmd->dst_map,
-			    cmd->dst_m, hifn_op_cb, &cmd->dst, BUS_DMA_NOWAIT)) {
-				hifnstats.hst_nomem_map++;
-				err = ENOMEM;
-				goto err_dstmap1;
-			}
-		} else if (crp->crp_flags & CRYPTO_F_IOV) {
-			if (bus_dmamap_load_uio(sc->sc_dmat, cmd->dst_map,
-			    cmd->dst_io, hifn_op_cb, &cmd->dst, BUS_DMA_NOWAIT)) {
-				hifnstats.hst_nomem_load++;
-				err = ENOMEM;
-				goto err_dstmap1;
-			}
+
+		if (bus_dmamap_load_mbuf_sg(sc->sc_dmat, cmd->dst_map, m0,
+		    cmd->dst_segs, &cmd->dst_nsegs, 0)) {
+			hifnstats.hst_nomem_map++;
+			err = ENOMEM;
+			goto err_dstmap1;
 		}
+		cmd->dst_mapsize = m0->m_pkthdr.len;
+	} else {
+		err = EINVAL;
+		goto err_srcmap;
 	}
 
 #ifdef HIFN_DEBUG
@@ -2111,8 +2105,8 @@ err_dstmap1:
 	if (cmd->src_map != cmd->dst_map)
 		bus_dmamap_destroy(sc->sc_dmat, cmd->dst_map);
 err_srcmap:
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		if (cmd->src_m != cmd->dst_m)
+	if (crp->crp_buf_type == CRYPTO_BUF_MBUF) {
+		if (cmd->dst_m != NULL)
 			m_freem(cmd->dst_m);
 	}
 	bus_dmamap_unload(sc->sc_dmat, cmd->src_map);
@@ -2307,67 +2301,121 @@ hifn_intr(void *arg)
 	}
 }
 
+static bool
+hifn_auth_supported(struct hifn_softc *sc,
+    const struct crypto_session_params *csp)
+{
+
+	switch (sc->sc_ena) {
+	case HIFN_PUSTAT_ENA_2:
+	case HIFN_PUSTAT_ENA_1:
+		break;
+	default:
+		return (false);
+	}
+		
+	switch (csp->csp_auth_alg) {
+	case CRYPTO_MD5:
+	case CRYPTO_SHA1:
+		break;
+	case CRYPTO_MD5_HMAC:
+	case CRYPTO_SHA1_HMAC:
+		if (csp->csp_auth_klen > HIFN_MAC_KEY_LENGTH)
+			return (false);
+		break;
+	default:
+		return (false);
+	}
+
+	return (true);	
+}
+
+static bool
+hifn_cipher_supported(struct hifn_softc *sc,
+    const struct crypto_session_params *csp)
+{
+
+	if (csp->csp_cipher_klen == 0)
+		return (false);
+	if (csp->csp_ivlen > HIFN_MAX_IV_LENGTH)
+		return (false);
+	switch (sc->sc_ena) {
+	case HIFN_PUSTAT_ENA_2:
+		switch (csp->csp_cipher_alg) {
+		case CRYPTO_3DES_CBC:
+		case CRYPTO_ARC4:
+			break;
+		case CRYPTO_AES_CBC:
+			if ((sc->sc_flags & HIFN_HAS_AES) == 0)
+				return (false);
+			switch (csp->csp_cipher_klen) {
+			case 128:
+			case 192:
+			case 256:
+				break;
+			default:
+				return (false);
+			}
+			return (true);
+		}
+		/*FALLTHROUGH*/
+	case HIFN_PUSTAT_ENA_1:
+		switch (csp->csp_cipher_alg) {
+		case CRYPTO_DES_CBC:
+			return (true);
+		}
+		break;
+	}
+	return (false);
+}
+
+static int
+hifn_probesession(device_t dev, const struct crypto_session_params *csp)
+{
+	struct hifn_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (csp->csp_flags != 0)
+		return (EINVAL);
+	switch (csp->csp_mode) {
+	case CSP_MODE_DIGEST:
+		if (!hifn_auth_supported(sc, csp))
+			return (EINVAL);
+		break;
+	case CSP_MODE_CIPHER:
+		if (!hifn_cipher_supported(sc, csp))
+			return (EINVAL);
+		break;
+	case CSP_MODE_ETA:
+		if (!hifn_auth_supported(sc, csp) ||
+		    !hifn_cipher_supported(sc, csp))
+			return (EINVAL);
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (CRYPTODEV_PROBE_HARDWARE);
+}
+
 /*
- * Allocate a new 'session' and return an encoded session id.  'sidp'
- * contains our registration id, and should contain an encoded session
- * id on successful allocation.
+ * Allocate a new 'session'.
  */
 static int
-hifn_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
+hifn_newsession(device_t dev, crypto_session_t cses,
+    const struct crypto_session_params *csp)
 {
-	struct hifn_softc *sc = device_get_softc(dev);
-	struct cryptoini *c;
-	int mac = 0, cry = 0;
 	struct hifn_session *ses;
-
-	KASSERT(sc != NULL, ("hifn_newsession: null softc"));
-	if (cri == NULL || sc == NULL)
-		return (EINVAL);
 
 	ses = crypto_get_driver_session(cses);
 
-	for (c = cri; c != NULL; c = c->cri_next) {
-		switch (c->cri_alg) {
-		case CRYPTO_MD5:
-		case CRYPTO_SHA1:
-		case CRYPTO_MD5_HMAC:
-		case CRYPTO_SHA1_HMAC:
-			if (mac)
-				return (EINVAL);
-			mac = 1;
-			ses->hs_mlen = c->cri_mlen;
-			if (ses->hs_mlen == 0) {
-				switch (c->cri_alg) {
-				case CRYPTO_MD5:
-				case CRYPTO_MD5_HMAC:
-					ses->hs_mlen = 16;
-					break;
-				case CRYPTO_SHA1:
-				case CRYPTO_SHA1_HMAC:
-					ses->hs_mlen = 20;
-					break;
-				}
-			}
-			break;
-		case CRYPTO_DES_CBC:
-		case CRYPTO_3DES_CBC:
-		case CRYPTO_AES_CBC:
-			/* XXX this may read fewer, does it matter? */
-			read_random(ses->hs_iv,
-				c->cri_alg == CRYPTO_AES_CBC ?
-					HIFN_AES_IV_LENGTH : HIFN_IV_LENGTH);
-			/*FALLTHROUGH*/
-		case CRYPTO_ARC4:
-			if (cry)
-				return (EINVAL);
-			cry = 1;
-			break;
-		default:
-			return (EINVAL);
-		}
+	if (csp->csp_auth_alg != 0) {
+		if (csp->csp_auth_mlen == 0)
+			ses->hs_mlen = crypto_auth_hash(csp)->hashsize;
+		else
+			ses->hs_mlen = csp->csp_auth_mlen;
 	}
-	if (mac == 0 && cry == 0)
-		return (EINVAL);
+
 	return (0);
 }
 
@@ -2379,18 +2427,15 @@ hifn_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 static int
 hifn_process(device_t dev, struct cryptop *crp, int hint)
 {
+	const struct crypto_session_params *csp;
 	struct hifn_softc *sc = device_get_softc(dev);
 	struct hifn_command *cmd = NULL;
-	int err, ivlen;
-	struct cryptodesc *crd1, *crd2, *maccrd, *enccrd;
+	const void *mackey;
+	int err, ivlen, keylen;
 	struct hifn_session *ses;
 
-	if (crp == NULL || crp->crp_callback == NULL) {
-		hifnstats.hst_invalid++;
-		return (EINVAL);
-	}
-
 	ses = crypto_get_driver_session(crp->crp_session);
+
 	cmd = malloc(sizeof(struct hifn_command), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (cmd == NULL) {
 		hifnstats.hst_nomem++;
@@ -2398,80 +2443,26 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 		goto errout;
 	}
 
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		cmd->src_m = (struct mbuf *)crp->crp_buf;
-		cmd->dst_m = (struct mbuf *)crp->crp_buf;
-	} else if (crp->crp_flags & CRYPTO_F_IOV) {
-		cmd->src_io = (struct uio *)crp->crp_buf;
-		cmd->dst_io = (struct uio *)crp->crp_buf;
-	} else {
-		err = EINVAL;
-		goto errout;	/* XXX we don't handle contiguous buffers! */
-	}
+	csp = crypto_get_params(crp->crp_session);
 
-	crd1 = crp->crp_desc;
-	if (crd1 == NULL) {
+	/*
+	 * The driver only supports ETA requests where there is no
+	 * gap between the AAD and payload.
+	 */
+	if (csp->csp_mode == CSP_MODE_ETA && crp->crp_aad_length != 0 &&
+	    crp->crp_aad_start + crp->crp_aad_length !=
+	    crp->crp_payload_start) {
 		err = EINVAL;
 		goto errout;
 	}
-	crd2 = crd1->crd_next;
 
-	if (crd2 == NULL) {
-		if (crd1->crd_alg == CRYPTO_MD5_HMAC ||
-		    crd1->crd_alg == CRYPTO_SHA1_HMAC ||
-		    crd1->crd_alg == CRYPTO_SHA1 ||
-		    crd1->crd_alg == CRYPTO_MD5) {
-			maccrd = crd1;
-			enccrd = NULL;
-		} else if (crd1->crd_alg == CRYPTO_DES_CBC ||
-		    crd1->crd_alg == CRYPTO_3DES_CBC ||
-		    crd1->crd_alg == CRYPTO_AES_CBC ||
-		    crd1->crd_alg == CRYPTO_ARC4) {
-			if ((crd1->crd_flags & CRD_F_ENCRYPT) == 0)
-				cmd->base_masks |= HIFN_BASE_CMD_DECODE;
-			maccrd = NULL;
-			enccrd = crd1;
-		} else {
-			err = EINVAL;
-			goto errout;
-		}
-	} else {
-		if ((crd1->crd_alg == CRYPTO_MD5_HMAC ||
-                     crd1->crd_alg == CRYPTO_SHA1_HMAC ||
-                     crd1->crd_alg == CRYPTO_MD5 ||
-                     crd1->crd_alg == CRYPTO_SHA1) &&
-		    (crd2->crd_alg == CRYPTO_DES_CBC ||
-		     crd2->crd_alg == CRYPTO_3DES_CBC ||
-		     crd2->crd_alg == CRYPTO_AES_CBC ||
-		     crd2->crd_alg == CRYPTO_ARC4) &&
-		    ((crd2->crd_flags & CRD_F_ENCRYPT) == 0)) {
-			cmd->base_masks = HIFN_BASE_CMD_DECODE;
-			maccrd = crd1;
-			enccrd = crd2;
-		} else if ((crd1->crd_alg == CRYPTO_DES_CBC ||
-		     crd1->crd_alg == CRYPTO_ARC4 ||
-		     crd1->crd_alg == CRYPTO_3DES_CBC ||
-		     crd1->crd_alg == CRYPTO_AES_CBC) &&
-		    (crd2->crd_alg == CRYPTO_MD5_HMAC ||
-                     crd2->crd_alg == CRYPTO_SHA1_HMAC ||
-                     crd2->crd_alg == CRYPTO_MD5 ||
-                     crd2->crd_alg == CRYPTO_SHA1) &&
-		    (crd1->crd_flags & CRD_F_ENCRYPT)) {
-			enccrd = crd1;
-			maccrd = crd2;
-		} else {
-			/*
-			 * We cannot order the 7751 as requested
-			 */
-			err = EINVAL;
-			goto errout;
-		}
-	}
-
-	if (enccrd) {
-		cmd->enccrd = enccrd;
+	switch (csp->csp_mode) {
+	case CSP_MODE_CIPHER:
+	case CSP_MODE_ETA:
+		if (!CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
+			cmd->base_masks |= HIFN_BASE_CMD_DECODE;
 		cmd->base_masks |= HIFN_BASE_CMD_CRYPT;
-		switch (enccrd->crd_alg) {
+		switch (csp->csp_cipher_alg) {
 		case CRYPTO_ARC4:
 			cmd->cry_masks |= HIFN_CRYPT_CMD_ALG_RC4;
 			break;
@@ -2494,36 +2485,24 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 			err = EINVAL;
 			goto errout;
 		}
-		if (enccrd->crd_alg != CRYPTO_ARC4) {
-			ivlen = ((enccrd->crd_alg == CRYPTO_AES_CBC) ?
-				HIFN_AES_IV_LENGTH : HIFN_IV_LENGTH);
-			if (enccrd->crd_flags & CRD_F_ENCRYPT) {
-				if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
-					bcopy(enccrd->crd_iv, cmd->iv, ivlen);
-				else
-					bcopy(ses->hs_iv, cmd->iv, ivlen);
-
-				if ((enccrd->crd_flags & CRD_F_IV_PRESENT)
-				    == 0) {
-					crypto_copyback(crp->crp_flags,
-					    crp->crp_buf, enccrd->crd_inject,
-					    ivlen, cmd->iv);
-				}
-			} else {
-				if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
-					bcopy(enccrd->crd_iv, cmd->iv, ivlen);
-				else {
-					crypto_copydata(crp->crp_flags,
-					    crp->crp_buf, enccrd->crd_inject,
-					    ivlen, cmd->iv);
-				}
-			}
+		if (csp->csp_cipher_alg != CRYPTO_ARC4) {
+			ivlen = csp->csp_ivlen;
+			if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
+				arc4rand(cmd->iv, ivlen, 0);
+				crypto_copyback(crp, crp->crp_iv_start, ivlen,
+				    cmd->iv);
+			} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+				memcpy(cmd->iv, crp->crp_iv, ivlen);
+			else
+				crypto_copydata(crp, crp->crp_iv_start, ivlen,
+				    cmd->iv);
 		}
 
-		if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT)
-			cmd->cry_masks |= HIFN_CRYPT_CMD_NEW_KEY;
-		cmd->ck = enccrd->crd_key;
-		cmd->cklen = enccrd->crd_klen >> 3;
+		if (crp->crp_cipher_key != NULL)
+			cmd->ck = crp->crp_cipher_key;
+		else
+			cmd->ck = csp->csp_cipher_key;
+		cmd->cklen = csp->csp_cipher_klen;
 		cmd->cry_masks |= HIFN_CRYPT_CMD_NEW_KEY;
 
 		/* 
@@ -2546,13 +2525,15 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 				goto errout;
 			}
 		}
+		break;
 	}
 
-	if (maccrd) {
-		cmd->maccrd = maccrd;
+	switch (csp->csp_mode) {
+	case CSP_MODE_DIGEST:
+	case CSP_MODE_ETA:
 		cmd->base_masks |= HIFN_BASE_CMD_MAC;
 
-		switch (maccrd->crd_alg) {
+		switch (csp->csp_auth_alg) {
 		case CRYPTO_MD5:
 			cmd->mac_masks |= HIFN_MAC_CMD_ALG_MD5 |
 			    HIFN_MAC_CMD_RESULT | HIFN_MAC_CMD_MODE_HASH |
@@ -2575,12 +2556,16 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 			break;
 		}
 
-		if (maccrd->crd_alg == CRYPTO_SHA1_HMAC ||
-		     maccrd->crd_alg == CRYPTO_MD5_HMAC) {
+		if (csp->csp_auth_alg == CRYPTO_SHA1_HMAC ||
+		    csp->csp_auth_alg == CRYPTO_MD5_HMAC) {
 			cmd->mac_masks |= HIFN_MAC_CMD_NEW_KEY;
-			bcopy(maccrd->crd_key, cmd->mac, maccrd->crd_klen >> 3);
-			bzero(cmd->mac + (maccrd->crd_klen >> 3),
-			    HIFN_MAC_KEY_LENGTH - (maccrd->crd_klen >> 3));
+			if (crp->crp_auth_key != NULL)
+				mackey = crp->crp_auth_key;
+			else
+				mackey = csp->csp_auth_key;
+			keylen = csp->csp_auth_klen;
+			bcopy(mackey, cmd->mac, keylen);
+			bzero(cmd->mac + keylen, HIFN_MAC_KEY_LENGTH - keylen);
 		}
 	}
 
@@ -2655,9 +2640,8 @@ hifn_abort(struct hifn_softc *sc)
 				    BUS_DMASYNC_POSTREAD);
 			}
 
-			if (cmd->src_m != cmd->dst_m) {
-				m_freem(cmd->src_m);
-				crp->crp_buf = (caddr_t)cmd->dst_m;
+			if (cmd->dst_m != NULL) {
+				m_freem(cmd->dst_m);
 			}
 
 			/* non-shared buffers cannot be restarted */
@@ -2696,9 +2680,9 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 {
 	struct hifn_dma *dma = sc->sc_dma;
 	struct cryptop *crp = cmd->crp;
-	struct cryptodesc *crd;
+	uint8_t macbuf2[SHA1_HASH_LEN];
 	struct mbuf *m;
-	int totlen, i, u, ivlen;
+	int totlen, i, u;
 
 	if (cmd->src_map == cmd->dst_map) {
 		bus_dmamap_sync(sc->sc_dmat, cmd->src_map,
@@ -2710,9 +2694,8 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 		    BUS_DMASYNC_POSTREAD);
 	}
 
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		if (cmd->src_m != cmd->dst_m) {
-			crp->crp_buf = (caddr_t)cmd->dst_m;
+	if (crp->crp_buf_type == CRYPTO_BUF_MBUF) {
+		if (cmd->dst_m != NULL) {
 			totlen = cmd->src_mapsize;
 			for (m = cmd->dst_m; m != NULL; m = m->m_next) {
 				if (totlen < m->m_len) {
@@ -2721,15 +2704,15 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 				} else
 					totlen -= m->m_len;
 			}
-			cmd->dst_m->m_pkthdr.len = cmd->src_m->m_pkthdr.len;
-			m_freem(cmd->src_m);
+			cmd->dst_m->m_pkthdr.len = crp->crp_mbuf->m_pkthdr.len;
+			m_freem(crp->crp_mbuf);
+			crp->crp_mbuf = cmd->dst_m;
 		}
 	}
 
 	if (cmd->sloplen != 0) {
-		crypto_copyback(crp->crp_flags, crp->crp_buf,
-		    cmd->src_mapsize - cmd->sloplen, cmd->sloplen,
-		    (caddr_t)&dma->slop[cmd->slopidx]);
+		crypto_copyback(crp, cmd->src_mapsize - cmd->sloplen,
+		    cmd->sloplen, &dma->slop[cmd->slopidx]);
 	}
 
 	i = sc->sc_dstk; u = sc->sc_dstu;
@@ -2749,37 +2732,16 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 
 	hifnstats.hst_obytes += cmd->dst_mapsize;
 
-	if ((cmd->base_masks & (HIFN_BASE_CMD_CRYPT | HIFN_BASE_CMD_DECODE)) ==
-	    HIFN_BASE_CMD_CRYPT) {
-		for (crd = crp->crp_desc; crd; crd = crd->crd_next) {
-			if (crd->crd_alg != CRYPTO_DES_CBC &&
-			    crd->crd_alg != CRYPTO_3DES_CBC &&
-			    crd->crd_alg != CRYPTO_AES_CBC)
-				continue;
-			ivlen = ((crd->crd_alg == CRYPTO_AES_CBC) ?
-				HIFN_AES_IV_LENGTH : HIFN_IV_LENGTH);
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crd->crd_skip + crd->crd_len - ivlen, ivlen,
-			    cmd->session->hs_iv);
-			break;
-		}
-	}
-
 	if (macbuf != NULL) {
-		for (crd = crp->crp_desc; crd; crd = crd->crd_next) {
-                        int len;
-
-			if (crd->crd_alg != CRYPTO_MD5 &&
-			    crd->crd_alg != CRYPTO_SHA1 &&
-			    crd->crd_alg != CRYPTO_MD5_HMAC &&
-			    crd->crd_alg != CRYPTO_SHA1_HMAC) {
-				continue;
-			}
-			len = cmd->session->hs_mlen;
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    crd->crd_inject, len, macbuf);
-			break;
-		}
+		if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+			crypto_copydata(crp, crp->crp_digest_start,
+			    cmd->session->hs_mlen, macbuf2);
+			if (timingsafe_bcmp(macbuf, macbuf2,
+			    cmd->session->hs_mlen) != 0)
+				crp->crp_etype = EBADMSG;
+		} else
+			crypto_copyback(crp, crp->crp_digest_start,
+			    cmd->session->hs_mlen, macbuf);
 	}
 
 	if (cmd->src_map != cmd->dst_map) {

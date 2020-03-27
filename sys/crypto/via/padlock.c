@@ -60,7 +60,9 @@ struct padlock_softc {
 	int32_t		sc_cid;
 };
 
-static int padlock_newsession(device_t, crypto_session_t cses, struct cryptoini *cri);
+static int padlock_probesession(device_t, const struct crypto_session_params *);
+static int padlock_newsession(device_t, crypto_session_t cses,
+    const struct crypto_session_params *);
 static void padlock_freesession(device_t, crypto_session_t cses);
 static void padlock_freesession_one(struct padlock_softc *sc,
     struct padlock_session *ses);
@@ -123,13 +125,6 @@ padlock_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_RIPEMD160_HMAC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_SHA2_256_HMAC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_SHA2_384_HMAC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_SHA2_512_HMAC, 0, 0);
 	return (0);
 }
 
@@ -143,63 +138,65 @@ padlock_detach(device_t dev)
 }
 
 static int
-padlock_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
+padlock_probesession(device_t dev, const struct crypto_session_params *csp)
 {
-	struct padlock_softc *sc = device_get_softc(dev);
-	struct padlock_session *ses = NULL;
-	struct cryptoini *encini, *macini;
-	struct thread *td;
-	int error;
 
-	if (cri == NULL)
+	if (csp->csp_flags != 0)
 		return (EINVAL);
-
-	encini = macini = NULL;
-	for (; cri != NULL; cri = cri->cri_next) {
-		switch (cri->cri_alg) {
-		case CRYPTO_NULL_HMAC:
-		case CRYPTO_MD5_HMAC:
-		case CRYPTO_SHA1_HMAC:
-		case CRYPTO_RIPEMD160_HMAC:
-		case CRYPTO_SHA2_256_HMAC:
-		case CRYPTO_SHA2_384_HMAC:
-		case CRYPTO_SHA2_512_HMAC:
-			if (macini != NULL)
-				return (EINVAL);
-			macini = cri;
-			break;
-		case CRYPTO_AES_CBC:
-			if (encini != NULL)
-				return (EINVAL);
-			encini = cri;
-			break;
-		default:
-			return (EINVAL);
-		}
-	}
 
 	/*
 	 * We only support HMAC algorithms to be able to work with
 	 * ipsec(4), so if we are asked only for authentication without
-	 * encryption, don't pretend we can accellerate it.
+	 * encryption, don't pretend we can accelerate it.
+	 *
+	 * XXX: For CPUs with SHA instructions we should probably
+	 * permit CSP_MODE_DIGEST so that those can be tested.
 	 */
-	if (encini == NULL)
+	switch (csp->csp_mode) {
+	case CSP_MODE_ETA:
+		if (!padlock_hash_check(csp))
+			return (EINVAL);
+		/* FALLTHROUGH */
+	case CSP_MODE_CIPHER:
+		switch (csp->csp_cipher_alg) {
+		case CRYPTO_AES_CBC:
+			if (csp->csp_ivlen != AES_BLOCK_LEN)
+				return (EINVAL);
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
+	default:
 		return (EINVAL);
+	}
+
+	return (CRYPTODEV_PROBE_ACCEL_SOFTWARE);
+}
+
+static int
+padlock_newsession(device_t dev, crypto_session_t cses,
+    const struct crypto_session_params *csp)
+{
+	struct padlock_softc *sc = device_get_softc(dev);
+	struct padlock_session *ses = NULL;
+	struct thread *td;
+	int error;
 
 	ses = crypto_get_driver_session(cses);
 	ses->ses_fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NORMAL);
 
-	error = padlock_cipher_setup(ses, encini);
+	error = padlock_cipher_setup(ses, csp);
 	if (error != 0) {
 		padlock_freesession_one(sc, ses);
 		return (error);
 	}
 
-	if (macini != NULL) {
+	if (csp->csp_mode == CSP_MODE_ETA) {
 		td = curthread;
 		fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL |
 		    FPU_KERN_KTHR);
-		error = padlock_hash_setup(ses, macini);
+		error = padlock_hash_setup(ses, csp);
 		fpu_kern_leave(td, ses->ses_fpu_ctx);
 		if (error != 0) {
 			padlock_freesession_one(sc, ses);
@@ -231,68 +228,34 @@ padlock_freesession(device_t dev, crypto_session_t cses)
 static int
 padlock_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
-	struct padlock_session *ses = NULL;
-	struct cryptodesc *crd, *enccrd, *maccrd;
-	int error = 0;
+	const struct crypto_session_params *csp;
+	struct padlock_session *ses;
+	int error;
 
-	enccrd = maccrd = NULL;
-
-	/* Sanity check. */
-	if (crp == NULL)
-		return (EINVAL);
-
-	if (crp->crp_callback == NULL || crp->crp_desc == NULL) {
-		error = EINVAL;
-		goto out;
-	}
-
-	for (crd = crp->crp_desc; crd != NULL; crd = crd->crd_next) {
-		switch (crd->crd_alg) {
-		case CRYPTO_NULL_HMAC:
-		case CRYPTO_MD5_HMAC:
-		case CRYPTO_SHA1_HMAC:
-		case CRYPTO_RIPEMD160_HMAC:
-		case CRYPTO_SHA2_256_HMAC:
-		case CRYPTO_SHA2_384_HMAC:
-		case CRYPTO_SHA2_512_HMAC:
-			if (maccrd != NULL) {
-				error = EINVAL;
-				goto out;
-			}
-			maccrd = crd;
-			break;
-		case CRYPTO_AES_CBC:
-			if (enccrd != NULL) {
-				error = EINVAL;
-				goto out;
-			}
-			enccrd = crd;
-			break;
-		default:
-			return (EINVAL);
-		}
-	}
-	if (enccrd == NULL || (enccrd->crd_len % AES_BLOCK_LEN) != 0) {
+	if ((crp->crp_payload_length % AES_BLOCK_LEN) != 0) {
 		error = EINVAL;
 		goto out;
 	}
 
 	ses = crypto_get_driver_session(crp->crp_session);
+	csp = crypto_get_params(crp->crp_session);
 
-	/* Perform data authentication if requested before encryption. */
-	if (maccrd != NULL && maccrd->crd_next == enccrd) {
-		error = padlock_hash_process(ses, maccrd, crp);
+	/* Perform data authentication if requested before decryption. */
+	if (csp->csp_mode == CSP_MODE_ETA &&
+	    !CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		error = padlock_hash_process(ses, crp, csp);
 		if (error != 0)
 			goto out;
 	}
 
-	error = padlock_cipher_process(ses, enccrd, crp);
+	error = padlock_cipher_process(ses, crp, csp);
 	if (error != 0)
 		goto out;
 
 	/* Perform data authentication if requested after encryption. */
-	if (maccrd != NULL && enccrd->crd_next == maccrd) {
-		error = padlock_hash_process(ses, maccrd, crp);
+	if (csp->csp_mode == CSP_MODE_ETA &&
+	    CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		error = padlock_hash_process(ses, crp, csp);
 		if (error != 0)
 			goto out;
 	}
@@ -320,6 +283,7 @@ static device_method_t padlock_methods[] = {
 	DEVMETHOD(device_attach,	padlock_attach),
 	DEVMETHOD(device_detach,	padlock_detach),
 
+	DEVMETHOD(cryptodev_probesession, padlock_probesession),
 	DEVMETHOD(cryptodev_newsession,	padlock_newsession),
 	DEVMETHOD(cryptodev_freesession,padlock_freesession),
 	DEVMETHOD(cryptodev_process,	padlock_process),

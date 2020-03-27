@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -70,10 +71,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <crypto/sha1.h>
 #include <opencrypto/cryptodev.h>
-#include <opencrypto/cryptosoft.h>
-#include <sys/md5.h>
+#include <opencrypto/xform_auth.h>
 #include <sys/random.h>
 #include <sys/kobj.h>
 
@@ -111,7 +110,9 @@ static	int ubsec_suspend(device_t);
 static	int ubsec_resume(device_t);
 static	int ubsec_shutdown(device_t);
 
-static	int ubsec_newsession(device_t, crypto_session_t, struct cryptoini *);
+static	int ubsec_probesession(device_t, const struct crypto_session_params *);
+static	int ubsec_newsession(device_t, crypto_session_t,
+	    const struct crypto_session_params *);
 static	int ubsec_process(device_t, struct cryptop *, int);
 static	int ubsec_kprocess(device_t, struct cryptkop *, int);
 
@@ -125,6 +126,7 @@ static device_method_t ubsec_methods[] = {
 	DEVMETHOD(device_shutdown,	ubsec_shutdown),
 
 	/* crypto device methods */
+	DEVMETHOD(cryptodev_probesession, ubsec_probesession),
 	DEVMETHOD(cryptodev_newsession,	ubsec_newsession),
 	DEVMETHOD(cryptodev_process,	ubsec_process),
 	DEVMETHOD(cryptodev_kprocess,	ubsec_kprocess),
@@ -348,13 +350,6 @@ ubsec_attach(device_t dev)
 		goto bad2;
 	}
 
-	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct ubsec_session),
-	    CRYPTOCAP_F_HARDWARE);
-	if (sc->sc_cid < 0) {
-		device_printf(dev, "could not get crypto driver id\n");
-		goto bad3;
-	}
-
 	/*
 	 * Setup DMA descriptor area.
 	 */
@@ -370,7 +365,7 @@ ubsec_attach(device_t dev)
 			       NULL, NULL,		/* lockfunc, lockarg */
 			       &sc->sc_dmat)) {
 		device_printf(dev, "cannot allocate DMA tag\n");
-		goto bad4;
+		goto bad3;
 	}
 	SIMPLEQ_INIT(&sc->sc_freequeue);
 	dmap = sc->sc_dmaa;
@@ -404,11 +399,6 @@ ubsec_attach(device_t dev)
 
 	device_printf(sc->sc_dev, "%s\n", ubsec_partname(sc));
 
-	crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
-
 	/*
 	 * Reset Broadcom chip
 	 */
@@ -423,6 +413,13 @@ ubsec_attach(device_t dev)
 	 * Init Broadcom chip
 	 */
 	ubsec_init_board(sc);
+
+	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct ubsec_session),
+	    CRYPTOCAP_F_HARDWARE);
+	if (sc->sc_cid < 0) {
+		device_printf(dev, "could not get crypto driver id\n");
+		goto bad4;
+	}
 
 #ifndef UBSEC_NO_RNG
 	if (sc->sc_flags & UBS_FLAGS_RNG) {
@@ -477,7 +474,15 @@ skip_rng:
 	}
 	return (0);
 bad4:
-	crypto_unregister_all(sc->sc_cid);
+	while (!SIMPLEQ_EMPTY(&sc->sc_freequeue)) {
+		struct ubsec_q *q;
+
+		q = SIMPLEQ_FIRST(&sc->sc_freequeue);
+		SIMPLEQ_REMOVE_HEAD(&sc->sc_freequeue, q_next);
+		ubsec_dma_free(sc, &q->q_dma->d_alloc);
+		free(q, M_DEVBUF);
+	}
+	bus_dma_tag_destroy(sc->sc_dmat);
 bad3:
 	bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
 bad2:
@@ -498,13 +503,14 @@ ubsec_detach(device_t dev)
 
 	/* XXX wait/abort active ops */
 
+	crypto_unregister_all(sc->sc_cid);
+
 	/* disable interrupts */
 	WRITE_REG(sc, BS_CTRL, READ_REG(sc, BS_CTRL) &~
 		(BS_CTRL_MCR2INT | BS_CTRL_MCR1INT | BS_CTRL_DMAERR));
 
 	callout_stop(&sc->sc_rngto);
-
-	crypto_unregister_all(sc->sc_cid);
+	bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
 
 #ifdef UBSEC_RNDTEST
 	if (sc->sc_rndtest)
@@ -531,7 +537,6 @@ ubsec_detach(device_t dev)
 	mtx_destroy(&sc->sc_mcr2lock);
 
 	bus_generic_detach(dev);
-	bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq);
 
 	bus_dma_tag_destroy(sc->sc_dmat);
@@ -826,7 +831,7 @@ feed1:
 }
 
 static void
-ubsec_setup_enckey(struct ubsec_session *ses, int algo, caddr_t key)
+ubsec_setup_enckey(struct ubsec_session *ses, int algo, const void *key)
 {
 
 	/* Go ahead and compute key in ubsec's byte order */
@@ -846,112 +851,134 @@ ubsec_setup_enckey(struct ubsec_session *ses, int algo, caddr_t key)
 }
 
 static void
-ubsec_setup_mackey(struct ubsec_session *ses, int algo, caddr_t key, int klen)
+ubsec_setup_mackey(struct ubsec_session *ses, int algo, const char *key,
+    int klen)
 {
 	MD5_CTX md5ctx;
 	SHA1_CTX sha1ctx;
-	int i;
-
-	for (i = 0; i < klen; i++)
-		key[i] ^= HMAC_IPAD_VAL;
 
 	if (algo == CRYPTO_MD5_HMAC) {
-		MD5Init(&md5ctx);
-		MD5Update(&md5ctx, key, klen);
-		MD5Update(&md5ctx, hmac_ipad_buffer, MD5_BLOCK_LEN - klen);
+		hmac_init_ipad(&auth_hash_hmac_md5, key, klen, &md5ctx);
 		bcopy(md5ctx.state, ses->ses_hminner, sizeof(md5ctx.state));
-	} else {
-		SHA1Init(&sha1ctx);
-		SHA1Update(&sha1ctx, key, klen);
-		SHA1Update(&sha1ctx, hmac_ipad_buffer,
-		    SHA1_BLOCK_LEN - klen);
-		bcopy(sha1ctx.h.b32, ses->ses_hminner, sizeof(sha1ctx.h.b32));
-	}
 
-	for (i = 0; i < klen; i++)
-		key[i] ^= (HMAC_IPAD_VAL ^ HMAC_OPAD_VAL);
-
-	if (algo == CRYPTO_MD5_HMAC) {
-		MD5Init(&md5ctx);
-		MD5Update(&md5ctx, key, klen);
-		MD5Update(&md5ctx, hmac_opad_buffer, MD5_BLOCK_LEN - klen);
+		hmac_init_opad(&auth_hash_hmac_md5, key, klen, &md5ctx);
 		bcopy(md5ctx.state, ses->ses_hmouter, sizeof(md5ctx.state));
+
+		explicit_bzero(&md5ctx, sizeof(md5ctx));
 	} else {
-		SHA1Init(&sha1ctx);
-		SHA1Update(&sha1ctx, key, klen);
-		SHA1Update(&sha1ctx, hmac_opad_buffer,
-		    SHA1_BLOCK_LEN - klen);
+		hmac_init_ipad(&auth_hash_hmac_sha1, key, klen, &sha1ctx);
+		bcopy(sha1ctx.h.b32, ses->ses_hminner, sizeof(sha1ctx.h.b32));
+
+		hmac_init_opad(&auth_hash_hmac_sha1, key, klen, &sha1ctx);
 		bcopy(sha1ctx.h.b32, ses->ses_hmouter, sizeof(sha1ctx.h.b32));
+
+		explicit_bzero(&sha1ctx, sizeof(sha1ctx));
+	}
+}
+
+static bool
+ubsec_auth_supported(const struct crypto_session_params *csp)
+{
+
+	switch (csp->csp_auth_alg) {
+	case CRYPTO_MD5_HMAC:
+	case CRYPTO_SHA1_HMAC:
+		return (true);
+	default:
+		return (false);
+	}
+}
+
+static bool
+ubsec_cipher_supported(const struct crypto_session_params *csp)
+{
+
+	switch (csp->csp_cipher_alg) {
+	case CRYPTO_DES_CBC:
+	case CRYPTO_3DES_CBC:
+		return (csp->csp_ivlen == 8);
+	default:
+		return (false);
+	}
+}
+
+static int
+ubsec_probesession(device_t dev, const struct crypto_session_params *csp)
+{
+
+	if (csp->csp_flags != 0)
+		return (EINVAL);
+	switch (csp->csp_mode) {
+	case CSP_MODE_DIGEST:
+		if (!ubsec_auth_supported(csp))
+			return (EINVAL);
+		break;
+	case CSP_MODE_CIPHER:
+		if (!ubsec_cipher_supported(csp))
+			return (EINVAL);
+		break;
+	case CSP_MODE_ETA:
+		if (!ubsec_auth_supported(csp) ||
+		    !ubsec_cipher_supported(csp))
+			return (EINVAL);
+		break;
+	default:
+		return (EINVAL);
 	}
 
-	for (i = 0; i < klen; i++)
-		key[i] ^= HMAC_OPAD_VAL;
+	return (CRYPTODEV_PROBE_HARDWARE);
 }
 
 /*
- * Allocate a new 'session' and return an encoded session id.  'sidp'
- * contains our registration id, and should contain an encoded session
- * id on successful allocation.
+ * Allocate a new 'session'.
  */
 static int
-ubsec_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
+ubsec_newsession(device_t dev, crypto_session_t cses,
+    const struct crypto_session_params *csp)
 {
-	struct ubsec_softc *sc = device_get_softc(dev);
-	struct cryptoini *c, *encini = NULL, *macini = NULL;
-	struct ubsec_session *ses = NULL;
-
-	if (cri == NULL || sc == NULL)
-		return (EINVAL);
-
-	for (c = cri; c != NULL; c = c->cri_next) {
-		if (c->cri_alg == CRYPTO_MD5_HMAC ||
-		    c->cri_alg == CRYPTO_SHA1_HMAC) {
-			if (macini)
-				return (EINVAL);
-			macini = c;
-		} else if (c->cri_alg == CRYPTO_DES_CBC ||
-		    c->cri_alg == CRYPTO_3DES_CBC) {
-			if (encini)
-				return (EINVAL);
-			encini = c;
-		} else
-			return (EINVAL);
-	}
-	if (encini == NULL && macini == NULL)
-		return (EINVAL);
+	struct ubsec_session *ses;
 
 	ses = crypto_get_driver_session(cses);
-	if (encini) {
-		/* get an IV, network byte order */
-		/* XXX may read fewer than requested */
-		read_random(ses->ses_iv, sizeof(ses->ses_iv));
+	if (csp->csp_cipher_alg != 0 && csp->csp_cipher_key != NULL)
+		ubsec_setup_enckey(ses, csp->csp_cipher_alg,
+		    csp->csp_cipher_key);
 
-		if (encini->cri_key != NULL) {
-			ubsec_setup_enckey(ses, encini->cri_alg,
-			    encini->cri_key);
-		}
-	}
-
-	if (macini) {
-		ses->ses_mlen = macini->cri_mlen;
+	if (csp->csp_auth_alg != 0) {
+		ses->ses_mlen = csp->csp_auth_mlen;
 		if (ses->ses_mlen == 0) {
-			if (macini->cri_alg == CRYPTO_MD5_HMAC)
+			if (csp->csp_auth_alg == CRYPTO_MD5_HMAC)
 				ses->ses_mlen = MD5_HASH_LEN;
 			else
 				ses->ses_mlen = SHA1_HASH_LEN;
 		}
 
-		if (macini->cri_key != NULL) {
-			ubsec_setup_mackey(ses, macini->cri_alg,
-			    macini->cri_key, macini->cri_klen / 8);
+		if (csp->csp_auth_key != NULL) {
+			ubsec_setup_mackey(ses, csp->csp_auth_alg,
+			    csp->csp_auth_key, csp->csp_auth_klen);
 		}
 	}
 
 	return (0);
 }
 
+static bus_size_t
+ubsec_crp_length(struct cryptop *crp)
+{
+
+	switch (crp->crp_buf_type) {
+	case CRYPTO_BUF_MBUF:
+		return (crp->crp_mbuf->m_pkthdr.len);
+	case CRYPTO_BUF_UIO:
+		return (crp->crp_uio->uio_resid);
+	case CRYPTO_BUF_CONTIG:
+		return (crp->crp_ilen);
+	default:
+		panic("bad crp buffer type");
+	}
+}
+
 static void
-ubsec_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, int error)
+ubsec_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, int error)
 {
 	struct ubsec_operand *op = arg;
 
@@ -959,12 +986,11 @@ ubsec_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, in
 		("Too many DMA segments returned when mapping operand"));
 #ifdef UBSEC_DEBUG
 	if (ubsec_debug)
-		printf("ubsec_op_cb: mapsize %u nsegs %d error %d\n",
-			(u_int) mapsize, nsegs, error);
+		printf("ubsec_op_cb: nsegs %d error %d\n",
+			nsegs, error);
 #endif
 	if (error != 0)
 		return;
-	op->mapsize = mapsize;
 	op->nsegs = nsegs;
 	bcopy(seg, op->segs, nsegs * sizeof (seg[0]));
 }
@@ -972,21 +998,16 @@ ubsec_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, in
 static int
 ubsec_process(device_t dev, struct cryptop *crp, int hint)
 {
+	const struct crypto_session_params *csp;
 	struct ubsec_softc *sc = device_get_softc(dev);
 	struct ubsec_q *q = NULL;
 	int err = 0, i, j, nicealign;
-	struct cryptodesc *crd1, *crd2, *maccrd, *enccrd;
-	int encoffset = 0, macoffset = 0, cpskip, cpoffset;
+	int cpskip, cpoffset;
 	int sskip, dskip, stheend, dtheend;
 	int16_t coffset;
 	struct ubsec_session *ses;
 	struct ubsec_pktctx ctx;
 	struct ubsec_dma *dmap = NULL;
-
-	if (crp == NULL || crp->crp_callback == NULL || sc == NULL) {
-		ubsecstats.hst_invalid++;
-		return (EINVAL);
-	}
 
 	mtx_lock(&sc->sc_freeqlock);
 	if (SIMPLEQ_EMPTY(&sc->sc_freequeue)) {
@@ -1006,103 +1027,34 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 	q->q_dma = dmap;
 	ses = crypto_get_driver_session(crp->crp_session);
 
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		q->q_src_m = (struct mbuf *)crp->crp_buf;
-		q->q_dst_m = (struct mbuf *)crp->crp_buf;
-	} else if (crp->crp_flags & CRYPTO_F_IOV) {
-		q->q_src_io = (struct uio *)crp->crp_buf;
-		q->q_dst_io = (struct uio *)crp->crp_buf;
-	} else {
-		ubsecstats.hst_badflags++;
-		err = EINVAL;
-		goto errout;	/* XXX we don't handle contiguous blocks! */
-	}
-
 	bzero(&dmap->d_dma->d_mcr, sizeof(struct ubsec_mcr));
 
 	dmap->d_dma->d_mcr.mcr_pkts = htole16(1);
 	dmap->d_dma->d_mcr.mcr_flags = 0;
 	q->q_crp = crp;
 
-	crd1 = crp->crp_desc;
-	if (crd1 == NULL) {
-		ubsecstats.hst_nodesc++;
-		err = EINVAL;
-		goto errout;
-	}
-	crd2 = crd1->crd_next;
+	csp = crypto_get_params(crp->crp_session);
 
-	if (crd2 == NULL) {
-		if (crd1->crd_alg == CRYPTO_MD5_HMAC ||
-		    crd1->crd_alg == CRYPTO_SHA1_HMAC) {
-			maccrd = crd1;
-			enccrd = NULL;
-		} else if (crd1->crd_alg == CRYPTO_DES_CBC ||
-		    crd1->crd_alg == CRYPTO_3DES_CBC) {
-			maccrd = NULL;
-			enccrd = crd1;
-		} else {
-			ubsecstats.hst_badalg++;
-			err = EINVAL;
-			goto errout;
-		}
-	} else {
-		if ((crd1->crd_alg == CRYPTO_MD5_HMAC ||
-		    crd1->crd_alg == CRYPTO_SHA1_HMAC) &&
-		    (crd2->crd_alg == CRYPTO_DES_CBC ||
-			crd2->crd_alg == CRYPTO_3DES_CBC) &&
-		    ((crd2->crd_flags & CRD_F_ENCRYPT) == 0)) {
-			maccrd = crd1;
-			enccrd = crd2;
-		} else if ((crd1->crd_alg == CRYPTO_DES_CBC ||
-		    crd1->crd_alg == CRYPTO_3DES_CBC) &&
-		    (crd2->crd_alg == CRYPTO_MD5_HMAC ||
-			crd2->crd_alg == CRYPTO_SHA1_HMAC) &&
-		    (crd1->crd_flags & CRD_F_ENCRYPT)) {
-			enccrd = crd1;
-			maccrd = crd2;
-		} else {
-			/*
-			 * We cannot order the ubsec as requested
-			 */
-			ubsecstats.hst_badalg++;
-			err = EINVAL;
-			goto errout;
-		}
-	}
-
-	if (enccrd) {
-		if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT) {
-			ubsec_setup_enckey(ses, enccrd->crd_alg,
-			    enccrd->crd_key);
+	if (csp->csp_cipher_alg != 0) {
+		if (crp->crp_cipher_key != NULL) {
+			ubsec_setup_enckey(ses, csp->csp_cipher_alg,
+			    crp->crp_cipher_key);
 		}
 
-		encoffset = enccrd->crd_skip;
 		ctx.pc_flags |= htole16(UBS_PKTCTX_ENC_3DES);
 
-		if (enccrd->crd_flags & CRD_F_ENCRYPT) {
-			q->q_flags |= UBSEC_QFLAGS_COPYOUTIV;
+		if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
+			arc4rand(ctx.pc_iv, csp->csp_ivlen, 0);
+			crypto_copyback(crp, crp->crp_iv_start,
+			    csp->csp_ivlen, ctx.pc_iv);
+		} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+			memcpy(ctx.pc_iv, crp->crp_iv, csp->csp_ivlen);
+		else
+			crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen,
+			    ctx.pc_iv);
 
-			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
-				bcopy(enccrd->crd_iv, ctx.pc_iv, 8);
-			else {
-				ctx.pc_iv[0] = ses->ses_iv[0];
-				ctx.pc_iv[1] = ses->ses_iv[1];
-			}
-
-			if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0) {
-				crypto_copyback(crp->crp_flags, crp->crp_buf,
-				    enccrd->crd_inject, 8, (caddr_t)ctx.pc_iv);
-			}
-		} else {
+		if (!CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
 			ctx.pc_flags |= htole16(UBS_PKTCTX_INBOUND);
-
-			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
-				bcopy(enccrd->crd_iv, ctx.pc_iv, 8);
-			else {
-				crypto_copydata(crp->crp_flags, crp->crp_buf,
-				    enccrd->crd_inject, 8, (caddr_t)ctx.pc_iv);
-			}
 		}
 
 		ctx.pc_deskey[0] = ses->ses_deskey[0];
@@ -1115,15 +1067,13 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 		SWAP32(ctx.pc_iv[1]);
 	}
 
-	if (maccrd) {
-		if (maccrd->crd_flags & CRD_F_KEY_EXPLICIT) {
-			ubsec_setup_mackey(ses, maccrd->crd_alg,
-			    maccrd->crd_key, maccrd->crd_klen / 8);
+	if (csp->csp_auth_alg != 0) {
+		if (crp->crp_auth_key != NULL) {
+			ubsec_setup_mackey(ses, csp->csp_auth_alg,
+			    crp->crp_auth_key, csp->csp_auth_klen);
 		}
 
-		macoffset = maccrd->crd_skip;
-
-		if (maccrd->crd_alg == CRYPTO_MD5_HMAC)
+		if (csp->csp_auth_alg == CRYPTO_MD5_HMAC)
 			ctx.pc_flags |= htole16(UBS_PKTCTX_AUTH_MD5);
 		else
 			ctx.pc_flags |= htole16(UBS_PKTCTX_AUTH_SHA1);
@@ -1137,35 +1087,37 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 		}
 	}
 
-	if (enccrd && maccrd) {
+	if (csp->csp_mode == CSP_MODE_ETA) {
 		/*
-		 * ubsec cannot handle packets where the end of encryption
-		 * and authentication are not the same, or where the
-		 * encrypted part begins before the authenticated part.
+		 * ubsec only supports ETA requests where there is no
+		 * gap between the AAD and payload.
 		 */
-		if ((encoffset + enccrd->crd_len) !=
-		    (macoffset + maccrd->crd_len)) {
+		if (crp->crp_aad_length != 0 &&
+		    crp->crp_aad_start + crp->crp_aad_length !=
+		    crp->crp_payload_start) {
 			ubsecstats.hst_lenmismatch++;
 			err = EINVAL;
 			goto errout;
 		}
-		if (enccrd->crd_skip < maccrd->crd_skip) {
-			ubsecstats.hst_skipmismatch++;
-			err = EINVAL;
-			goto errout;
+
+		if (crp->crp_aad_length != 0) {
+			sskip = crp->crp_aad_start;
+		} else {
+			sskip = crp->crp_payload_start;
 		}
-		sskip = maccrd->crd_skip;
-		cpskip = dskip = enccrd->crd_skip;
-		stheend = maccrd->crd_len;
-		dtheend = enccrd->crd_len;
-		coffset = enccrd->crd_skip - maccrd->crd_skip;
+		cpskip = dskip = crp->crp_payload_start;
+		stheend = crp->crp_aad_length + crp->crp_payload_length;
+		dtheend = crp->crp_payload_length;
+		coffset = crp->crp_aad_length;
 		cpoffset = cpskip + dtheend;
 #ifdef UBSEC_DEBUG
 		if (ubsec_debug) {
-			printf("mac: skip %d, len %d, inject %d\n",
-			    maccrd->crd_skip, maccrd->crd_len, maccrd->crd_inject);
-			printf("enc: skip %d, len %d, inject %d\n",
-			    enccrd->crd_skip, enccrd->crd_len, enccrd->crd_inject);
+			printf("AAD: start %d, len %d, digest %d\n",
+			    crp->crp_aad_start, crp->crp_aad_length,
+			    crp->crp_digest_start);
+			printf("payload: start %d, len %d, IV %d\n",
+			    crp->crp_payload_start, crp->crp_payload_length,
+			    crp->crp_iv_start);
 			printf("src: skip %d, len %d\n", sskip, stheend);
 			printf("dst: skip %d, len %d\n", dskip, dtheend);
 			printf("ubs: coffset %d, pktlen %d, cpskip %d, cpoffset %d\n",
@@ -1173,8 +1125,8 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 		}
 #endif
 	} else {
-		cpskip = dskip = sskip = macoffset + encoffset;
-		dtheend = stheend = (enccrd)?enccrd->crd_len:maccrd->crd_len;
+		cpskip = dskip = sskip = crp->crp_payload_start;
+		dtheend = stheend = crp->crp_payload_length;
 		cpoffset = cpskip + dtheend;
 		coffset = 0;
 	}
@@ -1185,25 +1137,15 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 		err = ENOMEM;
 		goto errout;
 	}
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		if (bus_dmamap_load_mbuf(sc->sc_dmat, q->q_src_map,
-		    q->q_src_m, ubsec_op_cb, &q->q_src, BUS_DMA_NOWAIT) != 0) {
-			bus_dmamap_destroy(sc->sc_dmat, q->q_src_map);
-			q->q_src_map = NULL;
-			ubsecstats.hst_noload++;
-			err = ENOMEM;
-			goto errout;
-		}
-	} else if (crp->crp_flags & CRYPTO_F_IOV) {
-		if (bus_dmamap_load_uio(sc->sc_dmat, q->q_src_map,
-		    q->q_src_io, ubsec_op_cb, &q->q_src, BUS_DMA_NOWAIT) != 0) {
-			bus_dmamap_destroy(sc->sc_dmat, q->q_src_map);
-			q->q_src_map = NULL;
-			ubsecstats.hst_noload++;
-			err = ENOMEM;
-			goto errout;
-		}
+	if (bus_dmamap_load_crp(sc->sc_dmat, q->q_src_map, crp, ubsec_op_cb,
+	    &q->q_src, BUS_DMA_NOWAIT) != 0) {
+		bus_dmamap_destroy(sc->sc_dmat, q->q_src_map);
+		q->q_src_map = NULL;
+		ubsecstats.hst_noload++;
+		err = ENOMEM;
+		goto errout;
 	}
+	q->q_src_mapsize = ubsec_crp_length(crp);
 	nicealign = ubsec_dmamap_aligned(&q->q_src);
 
 	dmap->d_dma->d_mcr.mcr_pktlen = htole16(stheend);
@@ -1257,7 +1199,7 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 		j++;
 	}
 
-	if (enccrd == NULL && maccrd != NULL) {
+	if (csp->csp_mode == CSP_MODE_DIGEST) {
 		dmap->d_dma->d_mcr.mcr_opktbuf.pb_addr = 0;
 		dmap->d_dma->d_mcr.mcr_opktbuf.pb_len = 0;
 		dmap->d_dma->d_mcr.mcr_opktbuf.pb_next = htole32(dmap->d_alloc.dma_paddr +
@@ -1270,104 +1212,79 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 			    dmap->d_dma->d_mcr.mcr_opktbuf.pb_next);
 #endif
 	} else {
-		if (crp->crp_flags & CRYPTO_F_IOV) {
-			if (!nicealign) {
-				ubsecstats.hst_iovmisaligned++;
-				err = EINVAL;
-				goto errout;
-			}
-			if (bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
-			     &q->q_dst_map)) {
-				ubsecstats.hst_nomap++;
-				err = ENOMEM;
-				goto errout;
-			}
-			if (bus_dmamap_load_uio(sc->sc_dmat, q->q_dst_map,
-			    q->q_dst_io, ubsec_op_cb, &q->q_dst, BUS_DMA_NOWAIT) != 0) {
-				bus_dmamap_destroy(sc->sc_dmat, q->q_dst_map);
-				q->q_dst_map = NULL;
-				ubsecstats.hst_noload++;
-				err = ENOMEM;
-				goto errout;
-			}
-		} else if (crp->crp_flags & CRYPTO_F_IMBUF) {
-			if (nicealign) {
-				q->q_dst = q->q_src;
-			} else {
-				int totlen, len;
-				struct mbuf *m, *top, **mp;
+		if (nicealign) {
+			q->q_dst = q->q_src;
+		} else if (crp->crp_buf_type == CRYPTO_BUF_MBUF) {
+			int totlen, len;
+			struct mbuf *m, *top, **mp;
 
-				ubsecstats.hst_unaligned++;
-				totlen = q->q_src_mapsize;
+			ubsecstats.hst_unaligned++;
+			totlen = q->q_src_mapsize;
+			if (totlen >= MINCLSIZE) {
+				m = m_getcl(M_NOWAIT, MT_DATA,
+				    crp->crp_mbuf->m_flags & M_PKTHDR);
+				len = MCLBYTES;
+			} else if (crp->crp_mbuf->m_flags & M_PKTHDR) {
+				m = m_gethdr(M_NOWAIT, MT_DATA);
+				len = MHLEN;
+			} else {
+				m = m_get(M_NOWAIT, MT_DATA);
+				len = MLEN;
+			}
+			if (m && crp->crp_mbuf->m_flags & M_PKTHDR &&
+			    !m_dup_pkthdr(m, crp->crp_mbuf, M_NOWAIT)) {
+				m_free(m);
+				m = NULL;
+			}
+			if (m == NULL) {
+				ubsecstats.hst_nombuf++;
+				err = sc->sc_nqueue ? ERESTART : ENOMEM;
+				goto errout;
+			}
+			m->m_len = len = min(totlen, len);
+			totlen -= len;
+			top = m;
+			mp = &top;
+
+			while (totlen > 0) {
 				if (totlen >= MINCLSIZE) {
-					m = m_getcl(M_NOWAIT, MT_DATA,
-					    q->q_src_m->m_flags & M_PKTHDR);
+					m = m_getcl(M_NOWAIT, MT_DATA, 0);
 					len = MCLBYTES;
-				} else if (q->q_src_m->m_flags & M_PKTHDR) {
-					m = m_gethdr(M_NOWAIT, MT_DATA);
-					len = MHLEN;
 				} else {
 					m = m_get(M_NOWAIT, MT_DATA);
 					len = MLEN;
 				}
-				if (m && q->q_src_m->m_flags & M_PKTHDR &&
-				    !m_dup_pkthdr(m, q->q_src_m, M_NOWAIT)) {
-					m_free(m);
-					m = NULL;
-				}
 				if (m == NULL) {
+					m_freem(top);
 					ubsecstats.hst_nombuf++;
 					err = sc->sc_nqueue ? ERESTART : ENOMEM;
 					goto errout;
 				}
 				m->m_len = len = min(totlen, len);
 				totlen -= len;
-				top = m;
-				mp = &top;
-
-				while (totlen > 0) {
-					if (totlen >= MINCLSIZE) {
-						m = m_getcl(M_NOWAIT,
-						    MT_DATA, 0);
-						len = MCLBYTES;
-					} else {
-						m = m_get(M_NOWAIT, MT_DATA);
-						len = MLEN;
-					}
-					if (m == NULL) {
-						m_freem(top);
-						ubsecstats.hst_nombuf++;
-						err = sc->sc_nqueue ? ERESTART : ENOMEM;
-						goto errout;
-					}
-					m->m_len = len = min(totlen, len);
-					totlen -= len;
-					*mp = m;
-					mp = &m->m_next;
-				}
-				q->q_dst_m = top;
-				ubsec_mcopy(q->q_src_m, q->q_dst_m,
-				    cpskip, cpoffset);
-				if (bus_dmamap_create(sc->sc_dmat,
-				    BUS_DMA_NOWAIT, &q->q_dst_map) != 0) {
-					ubsecstats.hst_nomap++;
-					err = ENOMEM;
-					goto errout;
-				}
-				if (bus_dmamap_load_mbuf(sc->sc_dmat,
-				    q->q_dst_map, q->q_dst_m,
-				    ubsec_op_cb, &q->q_dst,
-				    BUS_DMA_NOWAIT) != 0) {
-					bus_dmamap_destroy(sc->sc_dmat,
-					q->q_dst_map);
-					q->q_dst_map = NULL;
-					ubsecstats.hst_noload++;
-					err = ENOMEM;
-					goto errout;
-				}
+				*mp = m;
+				mp = &m->m_next;
 			}
+			q->q_dst_m = top;
+			ubsec_mcopy(crp->crp_mbuf, q->q_dst_m, cpskip, cpoffset);
+			if (bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
+			    &q->q_dst_map) != 0) {
+				ubsecstats.hst_nomap++;
+				err = ENOMEM;
+				goto errout;
+			}
+			if (bus_dmamap_load_mbuf_sg(sc->sc_dmat,
+			    q->q_dst_map, q->q_dst_m, q->q_dst_segs,
+			    &q->q_dst_nsegs, 0) != 0) {
+				bus_dmamap_destroy(sc->sc_dmat, q->q_dst_map);
+				q->q_dst_map = NULL;
+				ubsecstats.hst_noload++;
+				err = ENOMEM;
+				goto errout;
+			}
+			q->q_dst_mapsize = q->q_src_mapsize;
 		} else {
-			ubsecstats.hst_badflags++;
+			ubsecstats.hst_iovmisaligned++;
 			err = EINVAL;
 			goto errout;
 		}
@@ -1414,7 +1331,7 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 				pb->pb_len = htole32(packl);
 
 			if ((i + 1) == q->q_dst_nsegs) {
-				if (maccrd)
+				if (csp->csp_auth_alg != 0)
 					pb->pb_next = htole32(dmap->d_alloc.dma_paddr +
 					    offsetof(struct ubsec_dmachunk, d_macbuf[0]));
 				else
@@ -1465,7 +1382,7 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 
 errout:
 	if (q != NULL) {
-		if ((q->q_dst_m != NULL) && (q->q_src_m != q->q_dst_m))
+		if (q->q_dst_m != NULL)
 			m_freem(q->q_dst_m);
 
 		if (q->q_dst_map != NULL && q->q_dst_map != q->q_src_map) {
@@ -1495,12 +1412,14 @@ errout:
 static void
 ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 {
+	const struct crypto_session_params *csp;
 	struct cryptop *crp = (struct cryptop *)q->q_crp;
 	struct ubsec_session *ses;
-	struct cryptodesc *crd;
 	struct ubsec_dma *dmap = q->q_dma;
+	char hash[SHA1_HASH_LEN];
 
 	ses = crypto_get_driver_session(crp->crp_session);
+	csp = crypto_get_params(crp->crp_session);
 
 	ubsecstats.hst_opackets++;
 	ubsecstats.hst_obytes += dmap->d_alloc.dma_size;
@@ -1517,31 +1436,21 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 	bus_dmamap_unload(sc->sc_dmat, q->q_src_map);
 	bus_dmamap_destroy(sc->sc_dmat, q->q_src_map);
 
-	if ((crp->crp_flags & CRYPTO_F_IMBUF) && (q->q_src_m != q->q_dst_m)) {
-		m_freem(q->q_src_m);
-		crp->crp_buf = (caddr_t)q->q_dst_m;
+	if (q->q_dst_m != NULL) {
+		m_freem(crp->crp_mbuf);
+		crp->crp_mbuf = q->q_dst_m;
 	}
 
-	/* copy out IV for future use */
-	if (q->q_flags & UBSEC_QFLAGS_COPYOUTIV) {
-		for (crd = crp->crp_desc; crd; crd = crd->crd_next) {
-			if (crd->crd_alg != CRYPTO_DES_CBC &&
-			    crd->crd_alg != CRYPTO_3DES_CBC)
-				continue;
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crd->crd_skip + crd->crd_len - 8, 8,
-			    (caddr_t)ses->ses_iv);
-			break;
-		}
-	}
-
-	for (crd = crp->crp_desc; crd; crd = crd->crd_next) {
-		if (crd->crd_alg != CRYPTO_MD5_HMAC &&
-		    crd->crd_alg != CRYPTO_SHA1_HMAC)
-			continue;
-		crypto_copyback(crp->crp_flags, crp->crp_buf, crd->crd_inject,
-		    ses->ses_mlen, (caddr_t)dmap->d_dma->d_macbuf);
-		break;
+	if (csp->csp_auth_alg != 0) {
+		if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+			crypto_copydata(crp, crp->crp_digest_start,
+			    ses->ses_mlen, hash);
+			if (timingsafe_bcmp(dmap->d_dma->d_macbuf, hash,
+			    ses->ses_mlen) != 0)
+				crp->crp_etype = EBADMSG;
+		} else
+			crypto_copyback(crp, crp->crp_digest_start,
+			    ses->ses_mlen, dmap->d_dma->d_macbuf);
 	}
 	mtx_lock(&sc->sc_freeqlock);
 	SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q, q_next);
@@ -1942,7 +1851,7 @@ ubsec_free_q(struct ubsec_softc *sc, struct ubsec_q *q)
 		if(q->q_stacked_mcr[i]) {
 			q2 = q->q_stacked_mcr[i];
 
-			if ((q2->q_dst_m != NULL) && (q2->q_src_m != q2->q_dst_m))
+			if (q2->q_dst_m != NULL)
 				m_freem(q2->q_dst_m);
 
 			crp = (struct cryptop *)q2->q_crp;
@@ -1959,7 +1868,7 @@ ubsec_free_q(struct ubsec_softc *sc, struct ubsec_q *q)
 	/*
 	 * Free header MCR
 	 */
-	if ((q->q_dst_m != NULL) && (q->q_src_m != q->q_dst_m))
+	if (q->q_dst_m != NULL)
 		m_freem(q->q_dst_m);
 
 	crp = (struct cryptop *)q->q_crp;

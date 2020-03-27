@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2019
+.Dd March 27, 2020
 .Dt CRYPTO 4
 .Os
 .Sh NAME
@@ -156,7 +156,7 @@ file desriptor.
 The symmetric-key operation mode provides a context-based API
 to traditional symmetric-key encryption (or privacy) algorithms,
 or to keyed and unkeyed one-way hash (HMAC and MAC) algorithms.
-The symmetric-key mode also permits fused operation,
+The symmetric-key mode also permits encrypt-then-authenticate fused operation,
 where the hardware performs both a privacy algorithm and an integrity-check
 algorithm in a single pass over the data: either a fused
 encrypt/HMAC-generate operation, or a fused HMAC-verify/decrypt operation.
@@ -314,16 +314,14 @@ supplies the length of the input buffer; the fields
 .Fa cr_op-\*[Gt]iv
 supply the addresses of the input buffer, output buffer,
 one-way hash, and initialization vector, respectively.
-If a session is using both a privacy algorithm and a hash algorithm,
-the request will generate a hash of the input buffer before
-generating the output buffer by default.
-If the
-.Dv COP_F_CIPHER_FIRST
-flag is included in the
-.Fa cr_op-\*[Gt]flags
-field,
-then the request will generate a hash of the output buffer after
-executing the privacy algorithm.
+.Pp
+If a session is using either fused encrypt-then-authenticate or
+an AEAD algorithm,
+decryption operations require the associated hash as an input.
+If the hash is incorrect, the
+operation will fail with
+.Dv EBADMSG
+and the output buffer will remain unchanged.
 .It Dv CIOCCRYPTAEAD Fa struct crypt_aead *cr_aead
 .Bd -literal
 struct crypt_aead {

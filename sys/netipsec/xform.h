@@ -107,10 +107,11 @@ void xform_attach(void *);
 void xform_detach(void *);
 int xform_init(struct secasvar *, u_short);
 
-struct cryptoini;
+struct crypto_session_params;
 /* XF_AH */
 int xform_ah_authsize(const struct auth_hash *);
-extern int ah_init0(struct secasvar *, struct xformsw *, struct cryptoini *);
+int ah_init0(struct secasvar *, struct xformsw *,
+    struct crypto_session_params *);
 extern int ah_zeroize(struct secasvar *sav);
 extern size_t ah_hdrsiz(struct secasvar *);
 

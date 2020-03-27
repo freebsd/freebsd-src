@@ -437,9 +437,12 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		 */
 		switch (en->auth_algorithm) {
 		case 0:
+#ifdef COMPAT_FREEBSD12
+		/* XXX: Really 13.0-current COMPAT. */
 		case CRYPTO_AES_128_NIST_GMAC:
 		case CRYPTO_AES_192_NIST_GMAC:
 		case CRYPTO_AES_256_NIST_GMAC:
+#endif
 			break;
 		default:
 			return (EINVAL);

@@ -137,7 +137,7 @@ static int
 esp_init(struct secasvar *sav, struct xformsw *xsp)
 {
 	const struct enc_xform *txform;
-	struct cryptoini cria, crie;
+	struct crypto_session_params csp;
 	int keylen;
 	int error;
 
@@ -193,11 +193,13 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	else
 		sav->ivlen = txform->ivsize;
 
+	memset(&csp, 0, sizeof(csp));
+
 	/*
 	 * Setup AH-related state.
 	 */
 	if (sav->alg_auth != 0) {
-		error = ah_init0(sav, xsp, &cria);
+		error = ah_init0(sav, xsp, &csp);
 		if (error)
 			return error;
 	}
@@ -231,35 +233,20 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 				 keylen, txform->name));
 			return EINVAL;
 		}
-		bzero(&cria, sizeof(cria));
-		cria.cri_alg = sav->tdb_authalgxform->type;
-		cria.cri_key = sav->key_enc->key_data;
-		cria.cri_klen = _KEYBITS(sav->key_enc) - SAV_ISGCM(sav) * 32;
-	}
+		csp.csp_mode = CSP_MODE_AEAD;
+	} else if (sav->alg_auth != 0)
+		csp.csp_mode = CSP_MODE_ETA;
+	else
+		csp.csp_mode = CSP_MODE_CIPHER;
 
 	/* Initialize crypto session. */
-	bzero(&crie, sizeof(crie));
-	crie.cri_alg = sav->tdb_encalgxform->type;
-	crie.cri_key = sav->key_enc->key_data;
-	crie.cri_klen = _KEYBITS(sav->key_enc) - SAV_ISCTRORGCM(sav) * 32;
+	csp.csp_cipher_alg = sav->tdb_encalgxform->type;
+	csp.csp_cipher_key = sav->key_enc->key_data;
+	csp.csp_cipher_klen = _KEYBITS(sav->key_enc) / 8 -
+	    SAV_ISCTRORGCM(sav) * 4;
+	csp.csp_ivlen = txform->ivsize;
 
-	if (sav->tdb_authalgxform && sav->tdb_encalgxform) {
-		/* init both auth & enc */
-		crie.cri_next = &cria;
-		error = crypto_newsession(&sav->tdb_cryptoid,
-					  &crie, V_crypto_support);
-	} else if (sav->tdb_encalgxform) {
-		error = crypto_newsession(&sav->tdb_cryptoid,
-					  &crie, V_crypto_support);
-	} else if (sav->tdb_authalgxform) {
-		error = crypto_newsession(&sav->tdb_cryptoid,
-					  &cria, V_crypto_support);
-	} else {
-		/* XXX cannot happen? */
-		DPRINTF(("%s: no encoding OR authentication xform!\n",
-			__func__));
-		error = EINVAL;
-	}
+	error = crypto_newsession(&sav->tdb_cryptoid, &csp, V_crypto_support);
 	return error;
 }
 
@@ -289,7 +276,6 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	const struct auth_hash *esph;
 	const struct enc_xform *espx;
 	struct xform_data *xd;
-	struct cryptodesc *crde;
 	struct cryptop *crp;
 	struct newesp *esp;
 	uint8_t *ivp;
@@ -369,7 +355,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	ESPSTAT_ADD(esps_ibytes, m->m_pkthdr.len - (skip + hlen + alen));
 
 	/* Get crypto descriptors */
-	crp = crypto_getreq(esph && espx ? 2 : 1);
+	crp = crypto_getreq(cryptoid, M_NOWAIT);
 	if (crp == NULL) {
 		DPRINTF(("%s: failed to acquire crypto descriptors\n",
 			__func__));
@@ -379,7 +365,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	}
 
 	/* Get IPsec-specific opaque pointer */
-	xd = malloc(sizeof(*xd) + alen, M_XDATA, M_NOWAIT | M_ZERO);
+	xd = malloc(sizeof(*xd), M_XDATA, M_NOWAIT | M_ZERO);
 	if (xd == NULL) {
 		DPRINTF(("%s: failed to allocate xform_data\n", __func__));
 		ESPSTAT_INC(esps_crypto);
@@ -389,39 +375,24 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	}
 
 	if (esph != NULL) {
-		struct cryptodesc *crda = crp->crp_desc;
-
-		IPSEC_ASSERT(crda != NULL, ("null ah crypto descriptor"));
-
-		/* Authentication descriptor */
-		crda->crd_skip = skip;
+		crp->crp_op = CRYPTO_OP_VERIFY_DIGEST;
+		crp->crp_aad_start = skip;
 		if (SAV_ISGCM(sav))
-			crda->crd_len = 8;	/* RFC4106 5, SPI + SN */
+			crp->crp_aad_length = 8; /* RFC4106 5, SPI + SN */
 		else
-			crda->crd_len = m->m_pkthdr.len - (skip + alen);
-		crda->crd_inject = m->m_pkthdr.len - alen;
-
-		crda->crd_alg = esph->type;
-
-		/* Copy the authenticator */
-		m_copydata(m, m->m_pkthdr.len - alen, alen,
-		    (caddr_t) (xd + 1));
-
-		/* Chain authentication request */
-		crde = crda->crd_next;
-	} else {
-		crde = crp->crp_desc;
+			crp->crp_aad_length = hlen;
+		crp->crp_digest_start = m->m_pkthdr.len - alen;
 	}
 
 	/* Crypto operation descriptor */
 	crp->crp_ilen = m->m_pkthdr.len; /* Total input length */
-	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC;
 	if (V_async_crypto)
 		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
-	crp->crp_buf = (caddr_t) m;
+	crp->crp_mbuf = m;
+	crp->crp_buf_type = CRYPTO_BUF_MBUF;
 	crp->crp_callback = esp_input_cb;
-	crp->crp_session = cryptoid;
-	crp->crp_opaque = (caddr_t) xd;
+	crp->crp_opaque = xd;
 
 	/* These are passed as-is to the callback */
 	xd->sav = sav;
@@ -431,13 +402,12 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	xd->vnet = curvnet;
 
 	/* Decryption descriptor */
-	IPSEC_ASSERT(crde != NULL, ("null esp crypto descriptor"));
-	crde->crd_skip = skip + hlen;
-	crde->crd_len = m->m_pkthdr.len - (skip + hlen + alen);
-	crde->crd_inject = skip + hlen - sav->ivlen;
+	crp->crp_op |= CRYPTO_OP_DECRYPT;
+	crp->crp_payload_start = skip + hlen;
+	crp->crp_payload_length = m->m_pkthdr.len - (skip + hlen + alen);
 
 	if (SAV_ISCTRORGCM(sav)) {
-		ivp = &crde->crd_iv[0];
+		ivp = &crp->crp_iv[0];
 
 		/* GCM IV Format: RFC4106 4 */
 		/* CTR IV Format: RFC3686 4 */
@@ -452,10 +422,9 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		}
 
 		m_copydata(m, skip + hlen - sav->ivlen, sav->ivlen, &ivp[4]);
-		crde->crd_flags |= CRD_F_IV_EXPLICIT;
-	}
-
-	crde->crd_alg = espx->type;
+		crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
+	} else if (sav->ivlen != 0)
+		crp->crp_iv_start = skip + hlen - sav->ivlen;
 
 	return (crypto_dispatch(crp));
 bad:
@@ -471,22 +440,17 @@ static int
 esp_input_cb(struct cryptop *crp)
 {
 	IPSEC_DEBUG_DECLARE(char buf[128]);
-	u_int8_t lastthree[3], aalg[AH_HMAC_MAXHASHLEN];
+	uint8_t lastthree[3];
 	const struct auth_hash *esph;
 	struct mbuf *m;
-	struct cryptodesc *crd;
 	struct xform_data *xd;
 	struct secasvar *sav;
 	struct secasindex *saidx;
-	caddr_t ptr;
 	crypto_session_t cryptoid;
 	int hlen, skip, protoff, error, alen;
 
-	crd = crp->crp_desc;
-	IPSEC_ASSERT(crd != NULL, ("null crypto descriptor!"));
-
-	m = (struct mbuf *) crp->crp_buf;
-	xd = (struct xform_data *) crp->crp_opaque;
+	m = crp->crp_mbuf;
+	xd = crp->crp_opaque;
 	CURVNET_SET(xd->vnet);
 	sav = xd->sav;
 	skip = xd->skip;
@@ -505,10 +469,15 @@ esp_input_cb(struct cryptop *crp)
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}
-		ESPSTAT_INC(esps_noxform);
-		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
-		error = crp->crp_etype;
-		goto bad;
+
+		/* EBADMSG indicates authentication failure. */
+		if (!(crp->crp_etype == EBADMSG && esph != NULL)) {
+			ESPSTAT_INC(esps_noxform);
+			DPRINTF(("%s: crypto error %d\n", __func__,
+				crp->crp_etype));
+			error = crp->crp_etype;
+			goto bad;
+		}
 	}
 
 	/* Shouldn't happen... */
@@ -524,12 +493,7 @@ esp_input_cb(struct cryptop *crp)
 	if (esph != NULL) {
 		alen = xform_ah_authsize(esph);
 		AHSTAT_INC(ahs_hist[sav->alg_auth]);
-		/* Copy the authenticator from the packet */
-		m_copydata(m, m->m_pkthdr.len - alen, alen, aalg);
-		ptr = (caddr_t) (xd + 1);
-
-		/* Verify authenticator */
-		if (timingsafe_bcmp(ptr, aalg, alen) != 0) {
+		if (crp->crp_etype == EBADMSG) {
 			DPRINTF(("%s: authentication hash mismatch for "
 			    "packet in SA %s/%08lx\n", __func__,
 			    ipsec_address(&saidx->dst, buf, sizeof(buf)),
@@ -666,7 +630,6 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
     u_int idx, int skip, int protoff)
 {
 	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
-	struct cryptodesc *crde = NULL, *crda = NULL;
 	struct cryptop *crp;
 	const struct auth_hash *esph;
 	const struct enc_xform *espx;
@@ -825,10 +788,10 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	prot = IPPROTO_ESP;
 	m_copyback(m, protoff, sizeof(u_int8_t), (u_char *) &prot);
 
-	/* Get crypto descriptors. */
-	crp = crypto_getreq(esph != NULL ? 2 : 1);
+	/* Get crypto descriptor. */
+	crp = crypto_getreq(cryptoid, M_NOWAIT);
 	if (crp == NULL) {
-		DPRINTF(("%s: failed to acquire crypto descriptors\n",
+		DPRINTF(("%s: failed to acquire crypto descriptor\n",
 			__func__));
 		ESPSTAT_INC(esps_crypto);
 		error = ENOBUFS;
@@ -845,19 +808,14 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		goto bad;
 	}
 
-	crde = crp->crp_desc;
-	crda = crde->crd_next;
-
 	/* Encryption descriptor. */
-	crde->crd_skip = skip + hlen;
-	crde->crd_len = m->m_pkthdr.len - (skip + hlen + alen);
-	crde->crd_flags = CRD_F_ENCRYPT;
-	crde->crd_inject = skip + hlen - sav->ivlen;
+	crp->crp_payload_start = skip + hlen;
+	crp->crp_payload_length = m->m_pkthdr.len - (skip + hlen + alen);
+	crp->crp_op = CRYPTO_OP_ENCRYPT;
 
 	/* Encryption operation. */
-	crde->crd_alg = espx->type;
 	if (SAV_ISCTRORGCM(sav)) {
-		ivp = &crde->crd_iv[0];
+		ivp = &crp->crp_iv[0];
 
 		/* GCM IV Format: RFC4106 4 */
 		/* CTR IV Format: RFC3686 4 */
@@ -873,7 +831,10 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		}
 
 		m_copyback(m, skip + hlen - sav->ivlen, sav->ivlen, &ivp[4]);
-		crde->crd_flags |= CRD_F_IV_EXPLICIT|CRD_F_IV_PRESENT;
+		crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
+	} else if (sav->ivlen != 0) {
+		crp->crp_iv_start = skip + hlen - sav->ivlen;
+		crp->crp_flags |= CRYPTO_F_IV_GENERATE;
 	}
 
 	/* Callback parameters */
@@ -885,23 +846,23 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 
 	/* Crypto operation descriptor. */
 	crp->crp_ilen = m->m_pkthdr.len; /* Total input length. */
-	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
+	crp->crp_flags |= CRYPTO_F_CBIFSYNC;
 	if (V_async_crypto)
 		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
-	crp->crp_buf = (caddr_t) m;
+	crp->crp_mbuf = m;
+	crp->crp_buf_type = CRYPTO_BUF_MBUF;
 	crp->crp_callback = esp_output_cb;
-	crp->crp_opaque = (caddr_t) xd;
-	crp->crp_session = cryptoid;
+	crp->crp_opaque = xd;
 
 	if (esph) {
 		/* Authentication descriptor. */
-		crda->crd_alg = esph->type;
-		crda->crd_skip = skip;
+		crp->crp_op |= CRYPTO_OP_COMPUTE_DIGEST;
+		crp->crp_aad_start = skip;
 		if (SAV_ISGCM(sav))
-			crda->crd_len = 8;	/* RFC4106 5, SPI + SN */
+			crp->crp_aad_length = 8; /* RFC4106 5, SPI + SN */
 		else
-			crda->crd_len = m->m_pkthdr.len - (skip + alen);
-		crda->crd_inject = m->m_pkthdr.len - alen;
+			crp->crp_aad_length = hlen;
+		crp->crp_digest_start = m->m_pkthdr.len - alen;
 	}
 
 	return crypto_dispatch(crp);
