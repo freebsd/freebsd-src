@@ -279,11 +279,11 @@ is treated as
 #endif /* !COMPAT_43 */
 .Ed
 .Pp
-The project is slowly moving to use the
+The project prefers the use of
 .St -isoC-99
 unsigned integer identifiers of the form
 .Vt uintXX_t
-in preference to the older
+rather than the older
 .Bx Ns -style
 integer identifiers of the form
 .Vt u_intXX_t .
@@ -295,10 +295,10 @@ Like white-space commits, care should be taken in making
 .Vt uintXX_t
 only commits.
 .Pp
-Similarly, the project is slowly moving to use the
-.St -isoC-99
+Similarly, the project prefers the use of
+ISO C99
 .Vt bool
-in preference to the older
+rather than the older
 .Vt int
 or
 .Vt boolean_t .
@@ -319,8 +319,8 @@ Userspace code should include
 while kernel code should include
 .In sys/types.h .
 .Pp
-Likewise, the project is moving to using the
-.St -isoC-99
+Likewise, the project prefers
+ISO C99
 designated initializers when it makes sense to do so.
 .Pp
 Enumeration values are all uppercase.
