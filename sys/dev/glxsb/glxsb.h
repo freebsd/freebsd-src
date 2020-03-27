@@ -37,8 +37,6 @@
 
 struct glxsb_session {
 	uint32_t	ses_key[4];		/* key */
-	uint8_t		ses_iv[SB_AES_BLOCK_SIZE]; /* initialization vector */
-	int		ses_klen;		/* key len */
 	struct auth_hash *ses_axf;
 	uint8_t		*ses_ictx;
 	uint8_t		*ses_octx;
@@ -46,10 +44,10 @@ struct glxsb_session {
 };
 
 int glxsb_hash_setup(struct glxsb_session *ses,
-	    struct cryptoini *macini);
+    const struct crypto_session_params *csp);
 
 int glxsb_hash_process(struct glxsb_session *ses,
-	    struct cryptodesc *maccrd, struct cryptop *crp);
+    const struct crypto_session_params *csp, struct cryptop *crp);
 
 void glxsb_hash_free(struct glxsb_session *ses);
 

@@ -892,7 +892,7 @@ init_ktls_key_context(struct ktls_session *tls, struct tls_key_context *k_ctx)
 		k_ctx->tx_key_info_size += GMAC_BLOCK_LEN;
 		memcpy(k_ctx->tx.salt, tls->params.iv, SALT_SIZE);
 		t4_init_gmac_hash(tls->params.cipher_key,
-		    tls->params.cipher_key_len * 8, hash);
+		    tls->params.cipher_key_len, hash);
 	} else {
 		switch (tls->params.auth_algorithm) {
 		case CRYPTO_SHA1_HMAC:
@@ -920,7 +920,7 @@ init_ktls_key_context(struct ktls_session *tls, struct tls_key_context *k_ctx)
 		k_ctx->tx_key_info_size += roundup2(mac_key_size, 16) * 2;
 		k_ctx->mac_secret_size = mac_key_size;
 		t4_init_hmac_digest(axf, mac_key_size, tls->params.auth_key,
-		    tls->params.auth_key_len * 8, hash);
+		    tls->params.auth_key_len, hash);
 	}
 
 	k_ctx->frag_size = tls->params.max_frame_len;

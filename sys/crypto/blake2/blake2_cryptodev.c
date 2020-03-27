@@ -50,10 +50,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 struct blake2_session {
-	int algo;
-	size_t klen;
 	size_t mlen;
-	uint8_t key[BLAKE2B_KEYBYTES];
 };
 CTASSERT((size_t)BLAKE2B_KEYBYTES > (size_t)BLAKE2S_KEYBYTES);
 
@@ -79,10 +76,8 @@ static struct fpu_kern_ctx **ctx_fpu;
 		(ctx) = NULL;					\
 	} while (0)
 
-static int blake2_newsession(device_t, crypto_session_t cses,
-    struct cryptoini *cri);
 static int blake2_cipher_setup(struct blake2_session *ses,
-    struct cryptoini *authini);
+    const struct crypto_session_params *csp);
 static int blake2_cipher_process(struct blake2_session *ses,
     struct cryptop *crp);
 
@@ -134,7 +129,7 @@ blake2_attach(device_t dev)
 	sc->dying = false;
 
 	sc->cid = crypto_get_driverid(dev, sizeof(struct blake2_session),
-	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SYNC);
+	    CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC);
 	if (sc->cid < 0) {
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
@@ -152,8 +147,6 @@ blake2_attach(device_t dev)
 
 	rw_init(&sc->lock, "blake2_lock");
 
-	crypto_register(sc->cid, CRYPTO_BLAKE2B, 0, 0);
-	crypto_register(sc->cid, CRYPTO_BLAKE2S, 0, 0);
 	return (0);
 }
 
@@ -177,52 +170,47 @@ blake2_detach(device_t dev)
 }
 
 static int
-blake2_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
+blake2_probesession(device_t dev, const struct crypto_session_params *csp)
+{
+
+	if (csp->csp_flags != 0)
+		return (EINVAL);
+	switch (csp->csp_mode) {
+	case CSP_MODE_DIGEST:
+		switch (csp->csp_auth_alg) {
+		case CRYPTO_BLAKE2B:
+		case CRYPTO_BLAKE2S:
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (CRYPTODEV_PROBE_ACCEL_SOFTWARE);
+}
+
+static int
+blake2_newsession(device_t dev, crypto_session_t cses,
+    const struct crypto_session_params *csp)
 {
 	struct blake2_softc *sc;
 	struct blake2_session *ses;
-	struct cryptoini *authini;
 	int error;
-
-	if (cri == NULL) {
-		CRYPTDEB("no cri");
-		return (EINVAL);
-	}
 
 	sc = device_get_softc(dev);
 
-	authini = NULL;
-	for (; cri != NULL; cri = cri->cri_next) {
-		switch (cri->cri_alg) {
-		case CRYPTO_BLAKE2B:
-		case CRYPTO_BLAKE2S:
-			if (authini != NULL) {
-				CRYPTDEB("authini already set");
-				return (EINVAL);
-			}
-			authini = cri;
-			break;
-		default:
-			CRYPTDEB("unhandled algorithm");
-			return (EINVAL);
-		}
-	}
-	if (authini == NULL) {
-		CRYPTDEB("no cipher");
-		return (EINVAL);
-	}
-
-	rw_wlock(&sc->lock);
-	if (sc->dying) {
-		rw_wunlock(&sc->lock);
-		return (EINVAL);
-	}
-	rw_wunlock(&sc->lock);
-
 	ses = crypto_get_driver_session(cses);
 
-	ses->algo = authini->cri_alg;
-	error = blake2_cipher_setup(ses, authini);
+	rw_rlock(&sc->lock);
+	if (sc->dying) {
+		rw_runlock(&sc->lock);
+		return (EINVAL);
+	}
+	rw_runlock(&sc->lock);
+
+	error = blake2_cipher_setup(ses, csp);
 	if (error != 0) {
 		CRYPTDEB("setup failed");
 		return (error);
@@ -235,48 +223,14 @@ static int
 blake2_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
 	struct blake2_session *ses;
-	struct cryptodesc *crd, *authcrd;
 	int error;
-
-	ses = NULL;
-	error = 0;
-	authcrd = NULL;
-
-	/* Sanity check. */
-	if (crp == NULL)
-		return (EINVAL);
-
-	if (crp->crp_callback == NULL || crp->crp_desc == NULL) {
-		error = EINVAL;
-		goto out;
-	}
-
-	for (crd = crp->crp_desc; crd != NULL; crd = crd->crd_next) {
-		switch (crd->crd_alg) {
-		case CRYPTO_BLAKE2B:
-		case CRYPTO_BLAKE2S:
-			if (authcrd != NULL) {
-				error = EINVAL;
-				goto out;
-			}
-			authcrd = crd;
-			break;
-
-		default:
-			error = EINVAL;
-			goto out;
-		}
-	}
 
 	ses = crypto_get_driver_session(crp->crp_session);
 	error = blake2_cipher_process(ses, crp);
-	if (error != 0)
-		goto out;
 
-out:
 	crp->crp_etype = error;
 	crypto_done(crp);
-	return (error);
+	return (0);
 }
 
 static device_method_t blake2_methods[] = {
@@ -285,6 +239,7 @@ static device_method_t blake2_methods[] = {
 	DEVMETHOD(device_attach, blake2_attach),
 	DEVMETHOD(device_detach, blake2_detach),
 
+	DEVMETHOD(cryptodev_probesession, blake2_probesession),
 	DEVMETHOD(cryptodev_newsession, blake2_newsession),
 	DEVMETHOD(cryptodev_process, blake2_process),
 
@@ -302,37 +257,48 @@ DRIVER_MODULE(blake2, nexus, blake2_driver, blake2_devclass, 0, 0);
 MODULE_VERSION(blake2, 1);
 MODULE_DEPEND(blake2, crypto, 1, 1, 1);
 
-static int
-blake2_cipher_setup(struct blake2_session *ses, struct cryptoini *authini)
+static bool
+blake2_check_klen(const struct crypto_session_params *csp, unsigned klen)
 {
-	int keylen;
+
+	if (csp->csp_auth_alg == CRYPTO_BLAKE2S)
+		return (klen <= BLAKE2S_KEYBYTES);
+	else
+		return (klen <= BLAKE2B_KEYBYTES);
+}
+
+static int
+blake2_cipher_setup(struct blake2_session *ses,
+    const struct crypto_session_params *csp)
+{
+	int hashlen;
 
 	CTASSERT((size_t)BLAKE2S_OUTBYTES <= (size_t)BLAKE2B_OUTBYTES);
 
-	if (authini->cri_mlen < 0)
+	if (!blake2_check_klen(csp, csp->csp_auth_klen))
 		return (EINVAL);
 
-	switch (ses->algo) {
-	case CRYPTO_BLAKE2S:
-		if (authini->cri_mlen != 0 &&
-		    authini->cri_mlen > BLAKE2S_OUTBYTES)
-			return (EINVAL);
-		/* FALLTHROUGH */
-	case CRYPTO_BLAKE2B:
-		if (authini->cri_mlen != 0 &&
-		    authini->cri_mlen > BLAKE2B_OUTBYTES)
-			return (EINVAL);
+	if (csp->csp_auth_mlen < 0)
+		return (EINVAL);
 
-		if (authini->cri_klen % 8 != 0)
-			return (EINVAL);
-		keylen = authini->cri_klen / 8;
-		if (keylen > sizeof(ses->key) ||
-		    (ses->algo == CRYPTO_BLAKE2S && keylen > BLAKE2S_KEYBYTES))
-			return (EINVAL);
-		ses->klen = keylen;
-		memcpy(ses->key, authini->cri_key, keylen);
-		ses->mlen = authini->cri_mlen;
+	switch (csp->csp_auth_alg) {
+	case CRYPTO_BLAKE2S:
+		hashlen = BLAKE2S_OUTBYTES;
+		break;
+	case CRYPTO_BLAKE2B:
+		hashlen = BLAKE2B_OUTBYTES;
+		break;
+	default:
+		return (EINVAL);
 	}
+
+	if (csp->csp_auth_mlen > hashlen)
+		return (EINVAL);
+
+	if (csp->csp_auth_mlen == 0)
+		ses->mlen = hashlen;
+	else
+		ses->mlen = csp->csp_auth_mlen;
 	return (0);
 }
 
@@ -365,15 +331,15 @@ blake2_cipher_process(struct blake2_session *ses, struct cryptop *crp)
 		blake2b_state sb;
 		blake2s_state ss;
 	} bctx;
-	char res[BLAKE2B_OUTBYTES];
+	char res[BLAKE2B_OUTBYTES], res2[BLAKE2B_OUTBYTES];
+	const struct crypto_session_params *csp;
 	struct fpu_kern_ctx *ctx;
+	const void *key;
 	int ctxidx;
 	bool kt;
-	struct cryptodesc *crd;
 	int error, rc;
-	size_t hashlen;
+	unsigned klen;
 
-	crd = crp->crp_desc;
 	ctx = NULL;
 	ctxidx = 0;
 	error = EINVAL;
@@ -385,47 +351,42 @@ blake2_cipher_process(struct blake2_session *ses, struct cryptop *crp)
 		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
 	}
 
-	if (crd->crd_flags != 0)
-		goto out;
-
-	switch (ses->algo) {
+	csp = crypto_get_params(crp->crp_session);
+	if (crp->crp_auth_key != NULL)
+		key = crp->crp_auth_key;
+	else
+		key = csp->csp_auth_key;
+	klen = csp->csp_auth_klen;
+	switch (csp->csp_auth_alg) {
 	case CRYPTO_BLAKE2B:
-		if (ses->mlen != 0)
-			hashlen = ses->mlen;
+		if (klen > 0)
+			rc = blake2b_init_key(&bctx.sb, ses->mlen, key, klen);
 		else
-			hashlen = BLAKE2B_OUTBYTES;
-		if (ses->klen > 0)
-			rc = blake2b_init_key(&bctx.sb, hashlen, ses->key, ses->klen);
-		else
-			rc = blake2b_init(&bctx.sb, hashlen);
+			rc = blake2b_init(&bctx.sb, ses->mlen);
 		if (rc != 0)
 			goto out;
-		error = crypto_apply(crp->crp_flags, crp->crp_buf, crd->crd_skip,
-		    crd->crd_len, blake2b_applicator, &bctx.sb);
+		error = crypto_apply(crp, crp->crp_payload_start,
+		    crp->crp_payload_length, blake2b_applicator, &bctx.sb);
 		if (error != 0)
 			goto out;
-		rc = blake2b_final(&bctx.sb, res, hashlen);
+		rc = blake2b_final(&bctx.sb, res, ses->mlen);
 		if (rc != 0) {
 			error = EINVAL;
 			goto out;
 		}
 		break;
 	case CRYPTO_BLAKE2S:
-		if (ses->mlen != 0)
-			hashlen = ses->mlen;
+		if (klen > 0)
+			rc = blake2s_init_key(&bctx.ss, ses->mlen, key, klen);
 		else
-			hashlen = BLAKE2S_OUTBYTES;
-		if (ses->klen > 0)
-			rc = blake2s_init_key(&bctx.ss, hashlen, ses->key, ses->klen);
-		else
-			rc = blake2s_init(&bctx.ss, hashlen);
+			rc = blake2s_init(&bctx.ss, ses->mlen);
 		if (rc != 0)
 			goto out;
-		error = crypto_apply(crp->crp_flags, crp->crp_buf, crd->crd_skip,
-		    crd->crd_len, blake2s_applicator, &bctx.ss);
+		error = crypto_apply(crp, crp->crp_payload_start,
+		    crp->crp_payload_length, blake2s_applicator, &bctx.ss);
 		if (error != 0)
 			goto out;
-		rc = blake2s_final(&bctx.ss, res, hashlen);
+		rc = blake2s_final(&bctx.ss, res, ses->mlen);
 		if (rc != 0) {
 			error = EINVAL;
 			goto out;
@@ -435,8 +396,12 @@ blake2_cipher_process(struct blake2_session *ses, struct cryptop *crp)
 		panic("unreachable");
 	}
 
-	crypto_copyback(crp->crp_flags, crp->crp_buf, crd->crd_inject, hashlen,
-	    (void *)res);
+	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+		crypto_copydata(crp, crp->crp_digest_start, ses->mlen, res2);
+		if (timingsafe_bcmp(res, res2, ses->mlen) != 0)
+			return (EBADMSG);
+	} else
+		crypto_copyback(crp, crp->crp_digest_start, ses->mlen, res);
 
 out:
 	if (!kt) {

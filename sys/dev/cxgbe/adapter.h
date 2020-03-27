@@ -1204,7 +1204,7 @@ union authctx;
 void t4_aes_getdeckey(void *, const void *, unsigned int);
 void t4_copy_partial_hash(int, union authctx *, void *);
 void t4_init_gmac_hash(const char *, int, char *);
-void t4_init_hmac_digest(struct auth_hash *, u_int, char *, int, char *);
+void t4_init_hmac_digest(struct auth_hash *, u_int, const char *, int, char *);
 
 #ifdef DEV_NETMAP
 /* t4_netmap.c */

@@ -56,16 +56,16 @@ struct aesni_session {
 	uint8_t enc_schedule[AES_SCHED_LEN] __aligned(16);
 	uint8_t dec_schedule[AES_SCHED_LEN] __aligned(16);
 	uint8_t xts_schedule[AES_SCHED_LEN] __aligned(16);
-	/* Same as the SHA256 Blocksize. */
-	uint8_t hmac_key[SHA1_BLOCK_LEN] __aligned(16);
-	int algo;
 	int rounds;
 	/* uint8_t *ses_ictx; */
 	/* uint8_t *ses_octx; */
-	/* int ses_mlen; */
 	int used;
-	int auth_algo;
 	int mlen;
+	int hash_len;
+	void (*hash_init)(void *);
+	void (*hash_update)(void *, const void *, unsigned);
+	void (*hash_finalize)(void *, void *);
+	bool hmac;
 };
 
 /*
@@ -120,7 +120,7 @@ int AES_CCM_decrypt(const unsigned char *in, unsigned char *out,
     const unsigned char *addt, const unsigned char *ivec,
     const unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
     const unsigned char *key, int nr);
-int aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
-    int keylen);
+void aesni_cipher_setup_common(struct aesni_session *ses,
+    const struct crypto_session_params *csp, const uint8_t *key, int keylen);
 
 #endif /* _AESNI_H_ */

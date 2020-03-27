@@ -76,7 +76,6 @@ static	void print_krp_params(struct cryptkop *krp);
 #endif
 
 static	int xlp_rsa_init(struct xlp_rsa_softc *sc, int node);
-static	int xlp_rsa_newsession(device_t , crypto_session_t, struct cryptoini *);
 static	int xlp_rsa_kprocess(device_t , struct cryptkop *, int);
 static	int xlp_get_rsa_opsize(struct xlp_rsa_command *cmd, unsigned int bits);
 static	void xlp_free_cmd_params(struct xlp_rsa_command *cmd);
@@ -98,7 +97,6 @@ static device_method_t xlp_rsa_methods[] = {
 	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 
 	/* crypto device methods */
-	DEVMETHOD(cryptodev_newsession, xlp_rsa_newsession),
 	DEVMETHOD(cryptodev_kprocess,   xlp_rsa_kprocess),
 
 	DEVMETHOD_END
@@ -310,20 +308,6 @@ error_exit:
 static int
 xlp_rsa_detach(device_t dev)
 {
-	return (0);
-}
-
-/*
- * Allocate a new 'session' (unused).
- */
-static int
-xlp_rsa_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
-{
-	struct xlp_rsa_softc *sc = device_get_softc(dev);
-
-	if (cri == NULL || sc == NULL)
-		return (EINVAL);
-
 	return (0);
 }
 

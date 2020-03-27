@@ -73,7 +73,7 @@ t4_init_gmac_hash(const char *key, int klen, char *ghash)
 	uint32_t keysched[4 * (RIJNDAEL_MAXNR + 1)];
 	int rounds;
 
-	rounds = rijndaelKeySetupEnc(keysched, key, klen);
+	rounds = rijndaelKeySetupEnc(keysched, key, klen * 8);
 	rijndaelEncrypt(keysched, rounds, zeroes, ghash);
 }
 
@@ -118,45 +118,19 @@ t4_copy_partial_hash(int alg, union authctx *auth_ctx, void *dst)
 
 void
 t4_init_hmac_digest(struct auth_hash *axf, u_int partial_digest_len,
-    char *key, int klen, char *dst)
+    const char *key, int klen, char *dst)
 {
 	union authctx auth_ctx;
-	char ipad[SHA2_512_BLOCK_LEN], opad[SHA2_512_BLOCK_LEN];
-	u_int i;
 
-	/*
-	 * If the key is larger than the block size, use the digest of
-	 * the key as the key instead.
-	 */
-	klen /= 8;
-	if (klen > axf->blocksize) {
-		axf->Init(&auth_ctx);
-		axf->Update(&auth_ctx, key, klen);
-		axf->Final(ipad, &auth_ctx);
-		klen = axf->hashsize;
-	} else
-		memcpy(ipad, key, klen);
-
-	memset(ipad + klen, 0, axf->blocksize - klen);
-	memcpy(opad, ipad, axf->blocksize);
-
-	for (i = 0; i < axf->blocksize; i++) {
-		ipad[i] ^= HMAC_IPAD_VAL;
-		opad[i] ^= HMAC_OPAD_VAL;
-	}
-
-	/*
-	 * Hash the raw ipad and opad and store the partial results in
-	 * the key context.
-	 */
-	axf->Init(&auth_ctx);
-	axf->Update(&auth_ctx, ipad, axf->blocksize);
+	hmac_init_ipad(axf, key, klen, &auth_ctx);
 	t4_copy_partial_hash(axf->type, &auth_ctx, dst);
 
 	dst += roundup2(partial_digest_len, 16);
-	axf->Init(&auth_ctx);
-	axf->Update(&auth_ctx, opad, axf->blocksize);
+
+	hmac_init_opad(axf, key, klen, &auth_ctx);
 	t4_copy_partial_hash(axf->type, &auth_ctx, dst);
+
+	explicit_bzero(&auth_ctx, sizeof(auth_ctx));
 }
 
 /*

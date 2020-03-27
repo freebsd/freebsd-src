@@ -40,32 +40,138 @@ CODE {
 };
 
 /**
- * Crypto driver method to initialize a new session object with the given
- * initialization parameters (cryptoini).  The driver's session memory object
- * is already allocated and zeroed, like driver softcs.  It is accessed with
+ * @brief Probe to see if a crypto driver supports a session.
+ *
+ * The crypto framework invokes this method on each crypto driver when
+ * creating a session for symmetric crypto operations to determine if
+ * the driver supports the algorithms and mode requested by the
+ * session.
+ *
+ * If the driver does not support a session with the requested
+ * parameters, this function should fail with an error.
+ *
+ * If the driver does support a session with the requested parameters,
+ * this function should return a negative value indicating the
+ * priority of this driver.  These negative values should be derived
+ * from one of the CRYPTODEV_PROBE_* constants in
+ * <opencrypto/cryptodev.h>.
+ *
+ * This function's return value is similar to that used by
+ * DEVICE_PROBE(9).  However, a return value of zero is not supported
+ * and should not be used.
+ *
+ * @param dev		the crypto driver device
+ * @param csp		crypto session parameters
+ *
+ * @retval negative	if the driver supports this session - the
+ *			least negative value is used to select the
+ *			driver for the session
+ * @retval EINVAL	if the driver does not support the session
+ * @retval positive	if some other error occurs
+ */
+METHOD int probesession {
+	device_t	dev;
+	const struct crypto_session_params *csp;
+};
+
+/**
+ * @brief Initialize a new crypto session object
+ *
+ * Invoked by the crypto framework to initialize driver-specific data
+ * for a crypto session.  The framework allocates and zeroes the
+ * driver's per-session memory object prior to invoking this method.
+ * The driver is able to access it's per-session memory object via
  * crypto_get_driver_session().
+ *
+ * @param dev		the crypto driver device
+ * @param crypto_session session being initialized
+ * @param csp		crypto session parameters
+ *
+ * @retval 0		success
+ * @retval non-zero	if some kind of error occurred
  */
 METHOD int newsession {
 	device_t	dev;
 	crypto_session_t crypto_session;
-	struct cryptoini *cri;
+	const struct crypto_session_params *csp;
 };
 
 /**
- * Optional crypto driver method to release any additional allocations.  OCF
- * owns session memory itself; it is zeroed before release.
+ * @brief Destroy a crypto session object
+ *
+ * The crypto framework invokes this method when tearing down a crypto
+ * session.  After this callback returns, the frame will explicitly
+ * zero and free the drvier's per-session memory object.  If the
+ * driver requires additional actions to destroy a session, it should
+ * perform those in this method.  If the driver does not require
+ * additional actions it does not need to provide an implementation of
+ * this method.
+ *
+ * @param dev		the crypto driver device
+ * @param crypto_session session being destroyed
  */
 METHOD void freesession {
 	device_t	dev;
 	crypto_session_t crypto_session;
 } DEFAULT null_freesession;
 
+/**
+ * @brief Perform a symmetric crypto operation
+ *
+ * The crypto framework invokes this method for each symmetric crypto
+ * operation performed on a session.  A reference to the containing
+ * session is stored as a member of 'struct cryptop'.  This routine
+ * should not block, but queue the operation if necessary.
+ *
+ * This method may return ERESTART to indicate that any internal
+ * queues are full so the operation should be queued in the crypto
+ * framework and retried in the future.
+ *
+ * To report errors with a crypto operation, 'crp_etype' should be set
+ * and the operation completed by calling 'crypto_done'.  This method
+ * should then return zero.
+ *
+ * @param dev		the crypto driver device
+ * @param op		crypto operation to perform
+ * @param flags		set to CRYPTO_HINT_MORE if additional symmetric
+ *			crypto operations are queued for this driver;
+ *			otherwise set to zero.
+ *
+ * @retval 0		success
+ * @retval ERESTART	internal queue is full
+ */
 METHOD int process {
 	device_t	dev;
 	struct cryptop	*op;
 	int		flags;
 };
 
+/**
+ * @brief Perform an asymmetric crypto operation
+ *
+ * The crypto framework invokes this method for each asymmetric crypto
+ * operation.  Each asymmetric crypto operation should be
+ * self-contained and is not assicated with any persistent session.
+ * This routine should not block, but queue the operation if
+ * necessary.
+ *
+ * This method may return ERESTART to indicate that any internal
+ * queues are full so the operation should be queued in the crypto
+ * framework and retried in the future.
+ *
+ * To report errors with a crypto operation, 'krp_status' should be set
+ * and the operation completed by calling 'crypto_kdone'.  This method
+ * should then return zero.
+ *
+ * @param dev		the crypto driver device
+ * @param op		crypto operation to perform
+ * @param flags		set to CRYPTO_HINT_MORE if additional asymmetric
+ *			crypto operations are queued for this driver;
+ *			otherwise set to zero.
+ *
+ * @retval 0		success
+ * @retval ERESTART	internal queue is full
+ */
 METHOD int kprocess {
 	device_t	dev;
 	struct cryptkop	*op;

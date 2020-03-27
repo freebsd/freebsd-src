@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 
 #include <opencrypto/cryptodev.h>
-#include <opencrypto/cryptosoft.h> /* for hmac_ipad_buffer and hmac_opad_buffer */
 #include <opencrypto/xform.h>
 
 #include <crypto/via/padlock.h>
@@ -249,12 +248,11 @@ padlock_free_ctx(struct auth_hash *axf, void *ctx)
 }
 
 static void
-padlock_hash_key_setup(struct padlock_session *ses, caddr_t key, int klen)
+padlock_hash_key_setup(struct padlock_session *ses, const uint8_t *key,
+    int klen)
 {
 	struct auth_hash *axf;
-	int i;
 
-	klen /= 8;
 	axf = ses->ses_axf;
 
 	/*
@@ -265,32 +263,17 @@ padlock_hash_key_setup(struct padlock_session *ses, caddr_t key, int klen)
 	padlock_free_ctx(axf, ses->ses_ictx);
 	padlock_free_ctx(axf, ses->ses_octx);
 
-	for (i = 0; i < klen; i++)
-		key[i] ^= HMAC_IPAD_VAL;
-
-	axf->Init(ses->ses_ictx);
-	axf->Update(ses->ses_ictx, key, klen);
-	axf->Update(ses->ses_ictx, hmac_ipad_buffer, axf->blocksize - klen);
-
-	for (i = 0; i < klen; i++)
-		key[i] ^= (HMAC_IPAD_VAL ^ HMAC_OPAD_VAL);
-
-	axf->Init(ses->ses_octx);
-	axf->Update(ses->ses_octx, key, klen);
-	axf->Update(ses->ses_octx, hmac_opad_buffer, axf->blocksize - klen);
-
-	for (i = 0; i < klen; i++)
-		key[i] ^= HMAC_OPAD_VAL;
+	hmac_init_ipad(axf, key, klen, ses->ses_ictx);
+	hmac_init_opad(axf, key, klen, ses->ses_octx);
 }
 
 /*
  * Compute keyed-hash authenticator.
  */
 static int
-padlock_authcompute(struct padlock_session *ses, struct cryptodesc *crd,
-    caddr_t buf, int flags)
+padlock_authcompute(struct padlock_session *ses, struct cryptop *crp)
 {
-	u_char hash[HASH_MAX_LEN];
+	u_char hash[HASH_MAX_LEN], hash2[HASH_MAX_LEN];
 	struct auth_hash *axf;
 	union authctx ctx;
 	int error;
@@ -298,7 +281,14 @@ padlock_authcompute(struct padlock_session *ses, struct cryptodesc *crd,
 	axf = ses->ses_axf;
 
 	padlock_copy_ctx(axf, ses->ses_ictx, &ctx);
-	error = crypto_apply(flags, buf, crd->crd_skip, crd->crd_len,
+	error = crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
+	    (int (*)(void *, void *, unsigned int))axf->Update, (caddr_t)&ctx);
+	if (error != 0) {
+		padlock_free_ctx(axf, &ctx);
+		return (error);
+	}
+	error = crypto_apply(crp, crp->crp_payload_start,
+	    crp->crp_payload_length,
 	    (int (*)(void *, void *, unsigned int))axf->Update, (caddr_t)&ctx);
 	if (error != 0) {
 		padlock_free_ctx(axf, &ctx);
@@ -310,48 +300,75 @@ padlock_authcompute(struct padlock_session *ses, struct cryptodesc *crd,
 	axf->Update(&ctx, hash, axf->hashsize);
 	axf->Final(hash, &ctx);
 
-	/* Inject the authentication data */
-	crypto_copyback(flags, buf, crd->crd_inject,
-	    ses->ses_mlen == 0 ? axf->hashsize : ses->ses_mlen, hash);
+	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+		crypto_copydata(crp, crp->crp_digest_start, ses->ses_mlen,
+		    hash2);
+		if (timingsafe_bcmp(hash, hash2, ses->ses_mlen) != 0)
+			return (EBADMSG);
+	} else
+		crypto_copyback(crp, crp->crp_digest_start, ses->ses_mlen,
+		    hash);
 	return (0);
 }
 
-int
-padlock_hash_setup(struct padlock_session *ses, struct cryptoini *macini)
+/* Find software structure which describes HMAC algorithm. */
+static struct auth_hash *
+padlock_hash_lookup(int alg)
 {
+	struct auth_hash *axf;
 
-	ses->ses_mlen = macini->cri_mlen;
-
-	/* Find software structure which describes HMAC algorithm. */
-	switch (macini->cri_alg) {
+	switch (alg) {
 	case CRYPTO_NULL_HMAC:
-		ses->ses_axf = &auth_hash_null;
+		axf = &auth_hash_null;
 		break;
 	case CRYPTO_MD5_HMAC:
-		ses->ses_axf = &auth_hash_hmac_md5;
+		axf = &auth_hash_hmac_md5;
 		break;
 	case CRYPTO_SHA1_HMAC:
 		if ((via_feature_xcrypt & VIA_HAS_SHA) != 0)
-			ses->ses_axf = &padlock_hmac_sha1;
+			axf = &padlock_hmac_sha1;
 		else
-			ses->ses_axf = &auth_hash_hmac_sha1;
+			axf = &auth_hash_hmac_sha1;
 		break;
 	case CRYPTO_RIPEMD160_HMAC:
-		ses->ses_axf = &auth_hash_hmac_ripemd_160;
+		axf = &auth_hash_hmac_ripemd_160;
 		break;
 	case CRYPTO_SHA2_256_HMAC:
 		if ((via_feature_xcrypt & VIA_HAS_SHA) != 0)
-			ses->ses_axf = &padlock_hmac_sha256;
+			axf = &padlock_hmac_sha256;
 		else
-			ses->ses_axf = &auth_hash_hmac_sha2_256;
+			axf = &auth_hash_hmac_sha2_256;
 		break;
 	case CRYPTO_SHA2_384_HMAC:
-		ses->ses_axf = &auth_hash_hmac_sha2_384;
+		axf = &auth_hash_hmac_sha2_384;
 		break;
 	case CRYPTO_SHA2_512_HMAC:
-		ses->ses_axf = &auth_hash_hmac_sha2_512;
+		axf = &auth_hash_hmac_sha2_512;
+		break;
+	default:
+		axf = NULL;
 		break;
 	}
+	return (axf);
+}
+
+bool
+padlock_hash_check(const struct crypto_session_params *csp)
+{
+
+	return (padlock_hash_lookup(csp->csp_auth_alg) != NULL);
+}
+
+int
+padlock_hash_setup(struct padlock_session *ses,
+    const struct crypto_session_params *csp)
+{
+
+	ses->ses_axf = padlock_hash_lookup(csp->csp_auth_alg);
+	if (csp->csp_auth_mlen == 0)
+		ses->ses_mlen = ses->ses_axf->hashsize;
+	else
+		ses->ses_mlen = csp->csp_auth_mlen;
 
 	/* Allocate memory for HMAC inner and outer contexts. */
 	ses->ses_ictx = malloc(ses->ses_axf->ctxsize, M_PADLOCK,
@@ -362,26 +379,27 @@ padlock_hash_setup(struct padlock_session *ses, struct cryptoini *macini)
 		return (ENOMEM);
 
 	/* Setup key if given. */
-	if (macini->cri_key != NULL) {
-		padlock_hash_key_setup(ses, macini->cri_key,
-		    macini->cri_klen);
+	if (csp->csp_auth_key != NULL) {
+		padlock_hash_key_setup(ses, csp->csp_auth_key,
+		    csp->csp_auth_klen);
 	}
 	return (0);
 }
 
 int
-padlock_hash_process(struct padlock_session *ses, struct cryptodesc *maccrd,
-    struct cryptop *crp)
+padlock_hash_process(struct padlock_session *ses, struct cryptop *crp,
+    const struct crypto_session_params *csp)
 {
 	struct thread *td;
 	int error;
 
 	td = curthread;
 	fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL | FPU_KERN_KTHR);
-	if ((maccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0)
-		padlock_hash_key_setup(ses, maccrd->crd_key, maccrd->crd_klen);
+	if (crp->crp_auth_key != NULL)
+		padlock_hash_key_setup(ses, crp->crp_auth_key,
+		    csp->csp_auth_klen);
 
-	error = padlock_authcompute(ses, maccrd, crp->crp_buf, crp->crp_flags);
+	error = padlock_authcompute(ses, crp);
 	fpu_kern_leave(td, ses->ses_fpu_ctx);
 	return (error);
 }

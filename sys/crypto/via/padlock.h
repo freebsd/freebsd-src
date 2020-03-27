@@ -68,7 +68,6 @@ struct padlock_session {
 	union padlock_cw ses_cw __aligned(16);
 	uint32_t	ses_ekey[4 * (RIJNDAEL_MAXNR + 1) + 4] __aligned(16);	/* 128 bit aligned */
 	uint32_t	ses_dkey[4 * (RIJNDAEL_MAXNR + 1) + 4] __aligned(16);	/* 128 bit aligned */
-	uint8_t		ses_iv[16] __aligned(16);			/* 128 bit aligned */
 	struct auth_hash *ses_axf;
 	uint8_t		*ses_ictx;
 	uint8_t		*ses_octx;
@@ -79,13 +78,14 @@ struct padlock_session {
 #define	PADLOCK_ALIGN(p)	(void *)(roundup2((uintptr_t)(p), 16))
 
 int	padlock_cipher_setup(struct padlock_session *ses,
-	    struct cryptoini *encini);
+	    const struct crypto_session_params *csp);
 int	padlock_cipher_process(struct padlock_session *ses,
-	    struct cryptodesc *enccrd, struct cryptop *crp);
+	    struct cryptop *crp, const struct crypto_session_params *csp);
+bool	padlock_hash_check(const struct crypto_session_params *csp);
 int	padlock_hash_setup(struct padlock_session *ses,
-	    struct cryptoini *macini);
+	    const struct crypto_session_params *csp);
 int	padlock_hash_process(struct padlock_session *ses,
-	    struct cryptodesc *maccrd, struct cryptop *crp);
+	    struct cryptop *crp, const struct crypto_session_params *csp);
 void	padlock_hash_free(struct padlock_session *ses);
 
 #endif	/* !_PADLOCK_H_ */

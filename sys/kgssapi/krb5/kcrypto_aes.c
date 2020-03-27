@@ -77,7 +77,7 @@ aes_set_key(struct krb5_key_state *ks, const void *in)
 {
 	void *kp = ks->ks_key;
 	struct aes_state *as = ks->ks_priv;
-	struct cryptoini cri;
+	struct crypto_session_params csp;
 
 	if (kp != in)
 		bcopy(in, kp, ks->ks_class->ec_keylen);
@@ -90,22 +90,22 @@ aes_set_key(struct krb5_key_state *ks, const void *in)
 	/*
 	 * We only want the first 96 bits of the HMAC.
 	 */
-	bzero(&cri, sizeof(cri));
-	cri.cri_alg = CRYPTO_SHA1_HMAC;
-	cri.cri_klen = ks->ks_class->ec_keybits;
-	cri.cri_mlen = 12;
-	cri.cri_key = ks->ks_key;
-	cri.cri_next = NULL;
-	crypto_newsession(&as->as_session_sha1, &cri,
+	memset(&csp, 0, sizeof(csp));
+	csp.csp_mode = CSP_MODE_DIGEST;
+	csp.csp_auth_alg = CRYPTO_SHA1_HMAC;
+	csp.csp_auth_klen = ks->ks_class->ec_keybits / 8;
+	csp.csp_auth_mlen = 12;
+	csp.csp_auth_key = ks->ks_key;
+	crypto_newsession(&as->as_session_sha1, &csp,
 	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE);
 
-	bzero(&cri, sizeof(cri));
-	cri.cri_alg = CRYPTO_AES_CBC;
-	cri.cri_klen = ks->ks_class->ec_keybits;
-	cri.cri_mlen = 0;
-	cri.cri_key = ks->ks_key;
-	cri.cri_next = NULL;
-	crypto_newsession(&as->as_session_aes, &cri,
+	memset(&csp, 0, sizeof(csp));
+	csp.csp_mode = CSP_MODE_CIPHER;
+	csp.csp_cipher_alg = CRYPTO_AES_CBC;
+	csp.csp_cipher_klen = ks->ks_class->ec_keybits / 8;
+	csp.csp_cipher_key = ks->ks_key;
+	csp.csp_ivlen = 16;
+	crypto_newsession(&as->as_session_aes, &csp,
 	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE);
 }
 
@@ -138,31 +138,27 @@ aes_crypto_cb(struct cryptop *crp)
 
 static void
 aes_encrypt_1(const struct krb5_key_state *ks, int buftype, void *buf,
-    size_t skip, size_t len, void *ivec, int encdec)
+    size_t skip, size_t len, void *ivec, bool encrypt)
 {
 	struct aes_state *as = ks->ks_priv;
 	struct cryptop *crp;
-	struct cryptodesc *crd;
 	int error;
 
-	crp = crypto_getreq(1);
-	crd = crp->crp_desc;
+	crp = crypto_getreq(as->as_session_aes, M_WAITOK);
 
-	crd->crd_skip = skip;
-	crd->crd_len = len;
-	crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT | encdec;
+	crp->crp_payload_start = skip;
+	crp->crp_payload_length = len;
+	crp->crp_op = encrypt ? CRYPTO_OP_ENCRYPT : CRYPTO_OP_DECRYPT;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC | CRYPTO_F_IV_SEPARATE;
 	if (ivec) {
-		bcopy(ivec, crd->crd_iv, 16);
+		memcpy(crp->crp_iv, ivec, 16);
 	} else {
-		bzero(crd->crd_iv, 16);
+		memset(crp->crp_iv, 0, 16);
 	}
-	crd->crd_next = NULL;
-	crd->crd_alg = CRYPTO_AES_CBC;
 
-	crp->crp_session = as->as_session_aes;
-	crp->crp_flags = buftype | CRYPTO_F_CBIFSYNC;
+	crp->crp_buf_type = buftype;
 	crp->crp_buf = buf;
-	crp->crp_opaque = (void *) as;
+	crp->crp_opaque = as;
 	crp->crp_callback = aes_crypto_cb;
 
 	error = crypto_dispatch(crp);
@@ -204,16 +200,16 @@ aes_encrypt(const struct krb5_key_state *ks, struct mbuf *inout,
 		/*
 		 * Note: caller will ensure len >= blocklen.
 		 */
-		aes_encrypt_1(ks, CRYPTO_F_IMBUF, inout, skip, len, ivec,
-		    CRD_F_ENCRYPT);
+		aes_encrypt_1(ks, CRYPTO_BUF_MBUF, inout, skip, len, ivec,
+		    true);
 	} else if (plen == 0) {
 		/*
 		 * This is equivalent to CBC mode followed by swapping
 		 * the last two blocks. We assume that neither of the
 		 * last two blocks cross iov boundaries.
 		 */
-		aes_encrypt_1(ks, CRYPTO_F_IMBUF, inout, skip, len, ivec,
-		    CRD_F_ENCRYPT);
+		aes_encrypt_1(ks, CRYPTO_BUF_MBUF, inout, skip, len, ivec,
+		    true);
 		off = skip + len - 2 * blocklen;
 		m_copydata(inout, off, 2 * blocklen, (void*) &last2);
 		m_copyback(inout, off, blocklen, last2.cn);
@@ -227,8 +223,8 @@ aes_encrypt(const struct krb5_key_state *ks, struct mbuf *inout,
 		 * the encrypted versions of the last two blocks, we
 		 * reshuffle to create the final result.
 		 */
-		aes_encrypt_1(ks, CRYPTO_F_IMBUF, inout, skip, len - plen,
-		    ivec, CRD_F_ENCRYPT);
+		aes_encrypt_1(ks, CRYPTO_BUF_MBUF, inout, skip, len - plen,
+		    ivec, true);
 
 		/*
 		 * Copy out the last two blocks, pad the last block
@@ -241,8 +237,8 @@ aes_encrypt(const struct krb5_key_state *ks, struct mbuf *inout,
 		m_copydata(inout, off, blocklen + plen, (void*) &last2);
 		for (i = plen; i < blocklen; i++)
 			last2.cn[i] = 0;
-		aes_encrypt_1(ks, 0, last2.cn, 0, blocklen, last2.cn_1,
-		    CRD_F_ENCRYPT);
+		aes_encrypt_1(ks, CRYPTO_BUF_CONTIG, last2.cn, 0, blocklen,
+		    last2.cn_1, true);
 		m_copyback(inout, off, blocklen, last2.cn);
 		m_copyback(inout, off + blocklen, plen, last2.cn_1);
 	}
@@ -274,7 +270,8 @@ aes_decrypt(const struct krb5_key_state *ks, struct mbuf *inout,
 		/*
 		 * Note: caller will ensure len >= blocklen.
 		 */
-		aes_encrypt_1(ks, CRYPTO_F_IMBUF, inout, skip, len, ivec, 0);
+		aes_encrypt_1(ks, CRYPTO_BUF_MBUF, inout, skip, len, ivec,
+		    false);
 	} else if (plen == 0) {
 		/*
 		 * This is equivalent to CBC mode followed by swapping
@@ -284,7 +281,8 @@ aes_decrypt(const struct krb5_key_state *ks, struct mbuf *inout,
 		m_copydata(inout, off, 2 * blocklen, (void*) &last2);
 		m_copyback(inout, off, blocklen, last2.cn);
 		m_copyback(inout, off + blocklen, blocklen, last2.cn_1);
-		aes_encrypt_1(ks, CRYPTO_F_IMBUF, inout, skip, len, ivec, 0);
+		aes_encrypt_1(ks, CRYPTO_BUF_MBUF, inout, skip, len, ivec,
+		    false);
 	} else {
 		/*
 		 * This is the difficult case. We first decrypt the
@@ -298,8 +296,8 @@ aes_decrypt(const struct krb5_key_state *ks, struct mbuf *inout,
 		 * decrypted with the rest in CBC mode.
 		 */
 		off = skip + len - plen - blocklen;
-		aes_encrypt_1(ks, CRYPTO_F_IMBUF, inout, off, blocklen,
-		    NULL, 0);
+		aes_encrypt_1(ks, CRYPTO_BUF_MBUF, inout, off, blocklen,
+		    NULL, false);
 		m_copydata(inout, off, blocklen + plen, (void*) &last2);
 
 		for (i = 0; i < plen; i++) {
@@ -309,8 +307,8 @@ aes_decrypt(const struct krb5_key_state *ks, struct mbuf *inout,
 		}
 
 		m_copyback(inout, off, blocklen + plen, (void*) &last2);
-		aes_encrypt_1(ks, CRYPTO_F_IMBUF, inout, skip, len - plen,
-		    ivec, 0);
+		aes_encrypt_1(ks, CRYPTO_BUF_MBUF, inout, skip, len - plen,
+		    ivec, false);
 	}
 
 }
@@ -321,26 +319,17 @@ aes_checksum(const struct krb5_key_state *ks, int usage,
 {
 	struct aes_state *as = ks->ks_priv;
 	struct cryptop *crp;
-	struct cryptodesc *crd;
 	int error;
 
-	crp = crypto_getreq(1);
-	crd = crp->crp_desc;
+	crp = crypto_getreq(as->as_session_sha1, M_WAITOK);
 
-	crd->crd_skip = skip;
-	crd->crd_len = inlen;
-	crd->crd_inject = skip + inlen;
-	crd->crd_flags = 0;
-	crd->crd_next = NULL;
-	crd->crd_alg = CRYPTO_SHA1_HMAC;
-
-	crp->crp_session = as->as_session_sha1;
-	crp->crp_ilen = inlen;
-	crp->crp_olen = 12;
-	crp->crp_etype = 0;
-	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
-	crp->crp_buf = (void *) inout;
-	crp->crp_opaque = (void *) as;
+	crp->crp_payload_start = skip;
+	crp->crp_payload_length = inlen;
+	crp->crp_digest_start = skip + inlen;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC;
+	crp->crp_buf_type = CRYPTO_BUF_MBUF;
+	crp->crp_mbuf = inout;
+	crp->crp_opaque = as;
 	crp->crp_callback = aes_crypto_cb;
 
 	error = crypto_dispatch(crp);

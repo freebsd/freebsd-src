@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <opencrypto/cryptodev.h>
+#include <opencrypto/xform_auth.h>
 
 #include "cryptodev_if.h"
 
@@ -71,13 +72,14 @@ __FBSDID("$FreeBSD$");
 
 unsigned int creditleft;
 
-void xlp_sec_print_data(struct cryptop *crp);
-
 static	int xlp_sec_init(struct xlp_sec_softc *sc);
-static	int xlp_sec_newsession(device_t , crypto_session_t, struct cryptoini *);
+static	int xlp_sec_probesession(device_t,
+    const struct crypto_session_params *);
+static	int xlp_sec_newsession(device_t , crypto_session_t,
+    const struct crypto_session_params *);
 static	int xlp_sec_process(device_t , struct cryptop *, int);
-static  int xlp_copyiv(struct xlp_sec_softc *, struct xlp_sec_command *,
-    struct cryptodesc *enccrd);
+static void xlp_copyiv(struct xlp_sec_softc *, struct xlp_sec_command *,
+    const struct crypto_session_params *);
 static int xlp_get_nsegs(struct cryptop *, unsigned int *);
 static int xlp_alloc_cmd_params(struct xlp_sec_command *, unsigned int);
 static void  xlp_free_cmd_params(struct xlp_sec_command *);
@@ -97,6 +99,7 @@ static device_method_t xlp_sec_methods[] = {
 	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 
 	/* crypto device methods */
+	DEVMETHOD(cryptodev_probesession, xlp_sec_probesession),
 	DEVMETHOD(cryptodev_newsession, xlp_sec_newsession),
 	DEVMETHOD(cryptodev_process,    xlp_sec_process),
 
@@ -198,46 +201,6 @@ print_crypto_params(struct xlp_sec_command *cmd, struct nlm_fmn_msg m)
 }
 
 void
-xlp_sec_print_data(struct cryptop *crp)
-{
-	int i, key_len;
-	struct cryptodesc *crp_desc;
-
-	printf("session = %p, crp_ilen = %d, crp_olen=%d \n", crp->crp_session,
-	    crp->crp_ilen, crp->crp_olen);
-
-	printf("crp_flags = 0x%x\n", crp->crp_flags);
-
-	printf("crp buf:\n");
-	for (i = 0; i < crp->crp_ilen; i++) {
-		printf("%c  ", crp->crp_buf[i]);
-		if (i % 10 == 0)
-			printf("\n");
-	}
-
-	printf("\n");
-	printf("****************** desc ****************\n");
-	crp_desc = crp->crp_desc;
-	printf("crd_skip=%d, crd_len=%d, crd_flags=0x%x, crd_alg=%d\n",
-	    crp_desc->crd_skip, crp_desc->crd_len, crp_desc->crd_flags,
-	    crp_desc->crd_alg);
-
-	key_len = crp_desc->crd_klen / 8;
-	printf("key(%d) :\n", key_len);
-	for (i = 0; i < key_len; i++)
-		printf("%d", crp_desc->crd_key[i]);
-	printf("\n");
-
-	printf(" IV : \n");
-	for (i = 0; i < EALG_MAX_BLOCK_LEN; i++)
-		printf("%d", crp_desc->crd_iv[i]);
-	printf("\n");
-
-	printf("crd_next=%p\n", crp_desc->crd_next);
-	return;
-}
-
-void
 print_cmd(struct xlp_sec_command *cmd)
 {
 	printf("session_num		:%d\n",cmd->session_num);
@@ -289,8 +252,7 @@ nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id,
 {
 	struct xlp_sec_command *cmd = NULL;
 	struct xlp_sec_softc *sc = NULL;
-	struct cryptodesc *crd = NULL;
-	unsigned int ivlen = 0;
+	uint8_t hash[HASH_MAX_LEN];
 
 	KASSERT(code == FMN_SWCODE_CRYPTO,
 	    ("%s: bad code = %d, expected code = %d\n", __FUNCTION__,
@@ -310,23 +272,6 @@ nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id,
 	    (unsigned long long)msg->msg[0], (unsigned long long)msg->msg[1],
 	    (int)CRYPTO_ERROR(msg->msg[1])));
 
-	crd = cmd->enccrd;
-	/* Copy the last 8 or 16 bytes to the session iv, so that in few
-	 * cases this will be used as IV for the next request
-	 */
-	if (crd != NULL) {
-		if ((crd->crd_alg == CRYPTO_DES_CBC ||
-		    crd->crd_alg == CRYPTO_3DES_CBC ||
-		    crd->crd_alg == CRYPTO_AES_CBC) &&
-		    (crd->crd_flags & CRD_F_ENCRYPT)) {
-			ivlen = ((crd->crd_alg == CRYPTO_AES_CBC) ?
-			    XLP_SEC_AES_IV_LENGTH : XLP_SEC_DES_IV_LENGTH);
-			crypto_copydata(cmd->crp->crp_flags, cmd->crp->crp_buf,
-			    crd->crd_skip + crd->crd_len - ivlen, ivlen,
-			    cmd->ses->ses_iv);
-		}
-	}
-
 	/* If there are not enough credits to send, then send request
 	 * will fail with ERESTART and the driver will be blocked until it is
 	 * unblocked here after knowing that there are sufficient credits to
@@ -339,10 +284,16 @@ nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id,
 			sc->sc_needwakeup &= (~(CRYPTO_SYMQ | CRYPTO_ASYMQ));
 		}
 	}
-	if(cmd->maccrd) {
-		crypto_copyback(cmd->crp->crp_flags,
-		    cmd->crp->crp_buf, cmd->maccrd->crd_inject,
-		    cmd->hash_dst_len, cmd->hashdest);
+	if (cmd->hash_dst_len != 0) {
+		if (cmd->crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+			crypto_copydata(cmd->crp, cmd->crp->crp_digest_start,
+			    cmd->hash_dst_len, hash);
+			if (timingsafe_bcmp(cmd->hashdest, hash,
+			    cmd->hash_dst_len) != 0)
+				cmd->crp->crp_etype = EBADMSG;
+		} else
+			crypto_copyback(cmd->crp, cmd->crp->crp_digest_start,
+			    cmd->hash_dst_len, cmd->hashdest);
 	}
 
 	/* This indicates completion of the crypto operation */
@@ -392,29 +343,6 @@ xlp_sec_attach(device_t dev)
 			    " id\n");
 			goto error_exit;
 		}
-		if (crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0) != 0)
-			printf("register failed for CRYPTO_DES_CBC\n");
-
-		if (crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0) != 0)
-			printf("register failed for CRYPTO_3DES_CBC\n");
-
-		if (crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0) != 0)
-			printf("register failed for CRYPTO_AES_CBC\n");
-
-		if (crypto_register(sc->sc_cid, CRYPTO_ARC4, 0, 0) != 0)
-			printf("register failed for CRYPTO_ARC4\n");
-
-		if (crypto_register(sc->sc_cid, CRYPTO_MD5, 0, 0) != 0)
-			printf("register failed for CRYPTO_MD5\n");
-
-		if (crypto_register(sc->sc_cid, CRYPTO_SHA1, 0, 0) != 0)
-			printf("register failed for CRYPTO_SHA1\n");
-
-		if (crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0) != 0)
-			printf("register failed for CRYPTO_MD5_HMAC\n");
-
-		if (crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0) != 0)
-			printf("register failed for CRYPTO_SHA1_HMAC\n");
 
 		base = nlm_get_sec_pcibase(node);
 		qstart = nlm_qidstart(base);
@@ -443,65 +371,88 @@ xlp_sec_detach(device_t dev)
 	return (0);
 }
 
-static int
-xlp_sec_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
+static bool
+xlp_sec_auth_supported(const struct crypto_session_params *csp)
 {
-	struct cryptoini *c;
-	struct xlp_sec_softc *sc = device_get_softc(dev);
-	int mac = 0, cry = 0;
-	struct xlp_sec_session *ses;
-	struct xlp_sec_command *cmd = NULL;
 
-	if (cri == NULL || sc == NULL)
+	switch (csp->csp_auth_alg) {
+	case CRYPTO_MD5:
+	case CRYPTO_SHA1:
+	case CRYPTO_MD5_HMAC:
+	case CRYPTO_SHA1_HMAC:
+		break;
+	default:
+		return (false);
+	}
+	return (true);
+}
+
+static bool
+xlp_sec_cipher_supported(const struct crypto_session_params *csp)
+{
+
+	switch (csp->csp_cipher_alg) {
+	case CRYPTO_DES_CBC:
+	case CRYPTO_3DES_CBC:
+		if (csp->csp_ivlen != XLP_SEC_DES_IV_LENGTH)
+			return (false);
+		break;
+	case CRYPTO_AES_CBC:
+		if (csp->csp_ivlen != XLP_SEC_AES_IV_LENGTH)
+			return (false);
+		break;
+	case CRYPTO_ARC4:
+		if (csp->csp_ivlen != XLP_SEC_ARC4_IV_LENGTH)
+			return (false);
+		break;
+	default:
+		return (false);
+	}
+
+	return (true);
+}
+
+static int
+xlp_sec_probesession(device_t dev, const struct crypto_session_params *csp)
+{
+
+	if (csp->csp_flags != 0)
 		return (EINVAL);
+	switch (csp->csp_mode) {
+	case CSP_MODE_DIGEST:
+		if (!xlp_sec_auth_supported(csp))
+			return (EINVAL);
+		break;
+	case CSP_MODE_CIPHER:
+		if (!xlp_sec_cipher_supported(csp))
+			return (EINVAL);
+		break;
+	case CSP_MODE_ETA:
+		if (!xlp_sec_auth_supported(csp) ||
+		    !xlp_sec_cipher_supported(csp))
+			return (EINVAL);
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (CRYPTODEV_PROBE_HARDWARE);
+}
+
+static int
+xlp_sec_newsession(device_t dev, crypto_session_t cses,
+    const struct crypto_session_params *csp)
+{
+	struct xlp_sec_session *ses;
 
 	ses = crypto_get_driver_session(cses);
-	cmd = &ses->cmd;
 
-	for (c = cri; c != NULL; c = c->cri_next) {
-		switch (c->cri_alg) {
-		case CRYPTO_MD5:
-		case CRYPTO_SHA1:
-		case CRYPTO_MD5_HMAC:
-		case CRYPTO_SHA1_HMAC:
-			if (mac)
-				return (EINVAL);
-			mac = 1;
-			ses->hs_mlen = c->cri_mlen;
-			if (ses->hs_mlen == 0) {
-				switch (c->cri_alg) {
-				case CRYPTO_MD5:
-				case CRYPTO_MD5_HMAC:
-					ses->hs_mlen = 16;
-					break;
-				case CRYPTO_SHA1:
-				case CRYPTO_SHA1_HMAC:
-					ses->hs_mlen = 20;
-					break;
-				}
-			}
-			break;
-		case CRYPTO_DES_CBC:
-		case CRYPTO_3DES_CBC:
-		case CRYPTO_AES_CBC:
-			/* XXX this may read fewer, does it matter? */
-			read_random(ses->ses_iv, c->cri_alg ==
-			    CRYPTO_AES_CBC ? XLP_SEC_AES_IV_LENGTH :
-			    XLP_SEC_DES_IV_LENGTH);
-			/* FALLTHROUGH */
-		case CRYPTO_ARC4:
-			if (cry)
-				return (EINVAL);
-			cry = 1;
-			break;
-		default:
-			return (EINVAL);
-		}
+	if (csp->csp_auth_alg != 0) {
+		if (csp->csp_auth_mlen == 0)
+			ses->hs_mlen = crypto_auth_hash(csp)->hashsize;
+		else
+			ses->hs_mlen = csp->csp_auth_mlen;
 	}
-	if (mac == 0 && cry == 0)
-		return (EINVAL);
 
-	cmd->hash_dst_len = ses->hs_mlen;
 	return (0);
 }
 
@@ -510,54 +461,42 @@ xlp_sec_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
  * ram.  to blow away any keys already stored there.
  */
 
-static int
+static void
 xlp_copyiv(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd,
-    struct cryptodesc *enccrd)
+    const struct crypto_session_params *csp)
 {
-	unsigned int ivlen = 0;
 	struct cryptop *crp = NULL;
 
 	crp = cmd->crp;
 
-	if (enccrd->crd_alg != CRYPTO_ARC4) {
-		ivlen = ((enccrd->crd_alg == CRYPTO_AES_CBC) ?
-		    XLP_SEC_AES_IV_LENGTH : XLP_SEC_DES_IV_LENGTH);
-		if (enccrd->crd_flags & CRD_F_ENCRYPT) {
-			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT) {
-				bcopy(enccrd->crd_iv, cmd->iv, ivlen);
-			} else {
-				bcopy(cmd->ses->ses_iv, cmd->iv, ivlen);
-			}
-			if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0) {
-				crypto_copyback(crp->crp_flags,
-				    crp->crp_buf, enccrd->crd_inject,
-				    ivlen, cmd->iv);
-			}
-		} else {
-			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT) {
-				bcopy(enccrd->crd_iv, cmd->iv, ivlen);
-			} else {
-				crypto_copydata(crp->crp_flags, crp->crp_buf,
-				    enccrd->crd_inject, ivlen, cmd->iv);
-			}
-		}
+	if (csp->csp_cipher_alg != CRYPTO_ARC4) {
+		if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
+			arc4rand(cmd->iv, csp->csp_ivlen, 0);
+			crypto_copyback(crp, crp->crp_iv_start, csp->csp_ivlen,
+			    cmd->iv);
+		} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+			memcpy(cmd->iv, crp->crp_iv, csp->csp_ivlen);
 	}
-	return (0);
 }
 
 static int
 xlp_get_nsegs(struct cryptop *crp, unsigned int *nsegs)
 {
 
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
+	switch (crp->crp_buf_type) {
+	case CRYPTO_BUF_MBUF:
+	{
 		struct mbuf *m = NULL;
 
-		m = (struct mbuf *)crp->crp_buf;
+		m = crp->crp_mbuf;
 		while (m != NULL) {
 			*nsegs += NLM_CRYPTO_NUM_SEGS_REQD(m->m_len);
 			m = m->m_next;
 		}
-	} else if (crp->crp_flags & CRYPTO_F_IOV) {
+		break;
+	}
+	case CRYPTO_BUF_UIO:
+	{
 		struct uio *uio = NULL;
 		struct iovec *iov = NULL;
 		int iol = 0;
@@ -570,8 +509,13 @@ xlp_get_nsegs(struct cryptop *crp, unsigned int *nsegs)
 			iol--;
 			iov++;
 		}
-	} else {
+		break;
+	}
+	case CRYPTO_BUF_CONTIG:
 		*nsegs = NLM_CRYPTO_NUM_SEGS_REQD(crp->crp_ilen);
+		break;
+	default:
+		return (EINVAL);
 	}
 	return (0);
 }
@@ -638,20 +582,24 @@ static int
 xlp_sec_process(device_t dev, struct cryptop *crp, int hint)
 {
 	struct xlp_sec_softc *sc = device_get_softc(dev);
+	const struct crypto_session_params *csp;
 	struct xlp_sec_command *cmd = NULL;
 	int err = -1, ret = 0;
-	struct cryptodesc *crd1, *crd2;
 	struct xlp_sec_session *ses;
 	unsigned int nsegs = 0;
 
-	if (crp == NULL || crp->crp_callback == NULL) {
-		return (EINVAL);
-	}
-	if (sc == NULL) {
-		err = EINVAL;
+	ses = crypto_get_driver_session(crp->crp_session);
+	csp = crypto_get_params(crp->crp_session);
+
+	/*
+	 * This device only support AAD requests where the AAD is
+	 * adjacent to the payload.
+	 */
+	if (crp->crp_aad_length != 0 && crp->crp_payload_start !=
+	    crp->crp_aad_start + crp->crp_aad_length) {
+		err = EFBIG;
 		goto errout;
 	}
-	ses = crypto_get_driver_session(crp->crp_session);
 
 	if ((cmd = malloc(sizeof(struct xlp_sec_command), M_DEVBUF,
 	    M_NOWAIT | M_ZERO)) == NULL) {
@@ -663,18 +611,12 @@ xlp_sec_process(device_t dev, struct cryptop *crp, int hint)
 	cmd->ses = ses;
 	cmd->hash_dst_len = ses->hs_mlen;
 
-	if ((crd1 = crp->crp_desc) == NULL) {
-		err = EINVAL;
-		goto errout;
-	}
-	crd2 = crd1->crd_next;
-
 	if ((ret = xlp_get_nsegs(crp, &nsegs)) != 0) {
 		err = EINVAL;
 		goto errout;
 	}
-	if (((crd1 != NULL) && (crd1->crd_flags & CRD_F_IV_EXPLICIT)) ||
-	    ((crd2 != NULL) && (crd2->crd_flags & CRD_F_IV_EXPLICIT))) {
+
+	if (crp->crp_flags & CRYPTO_F_IV_SEPARATE) {
 		/* Since IV is given as separate segment to avoid copy */
 		nsegs += 1;
 	}
@@ -683,98 +625,70 @@ xlp_sec_process(device_t dev, struct cryptop *crp, int hint)
 	if ((err = xlp_alloc_cmd_params(cmd, nsegs)) != 0)
 		goto errout;
 
-	if ((crd1 != NULL) && (crd2 == NULL)) {
-		if (crd1->crd_alg == CRYPTO_DES_CBC ||
-		    crd1->crd_alg == CRYPTO_3DES_CBC ||
-		    crd1->crd_alg == CRYPTO_AES_CBC ||
-		    crd1->crd_alg == CRYPTO_ARC4) {
-			cmd->enccrd = crd1;
-			cmd->maccrd = NULL;
-			if ((ret = nlm_get_cipher_param(cmd)) != 0) {
-				err = EINVAL;
-				goto errout;
-			}
-			if (crd1->crd_flags & CRD_F_IV_EXPLICIT)
-				cmd->cipheroff = cmd->ivlen;
-			else
-				cmd->cipheroff = cmd->enccrd->crd_skip;
-			cmd->cipherlen = cmd->enccrd->crd_len;
-			if (crd1->crd_flags & CRD_F_IV_PRESENT)
-				cmd->ivoff  = 0;
-			else
-				cmd->ivoff  = cmd->enccrd->crd_inject;
-			if ((err = xlp_copyiv(sc, cmd, cmd->enccrd)) != 0)
-				goto errout;
-			if ((err = nlm_crypto_do_cipher(sc, cmd)) != 0)
-				goto errout;
-		} else if (crd1->crd_alg == CRYPTO_MD5_HMAC ||
-		    crd1->crd_alg == CRYPTO_SHA1_HMAC ||
-		    crd1->crd_alg == CRYPTO_SHA1 ||
-		    crd1->crd_alg == CRYPTO_MD5) {
-			cmd->enccrd = NULL;
-			cmd->maccrd = crd1;
-			if ((ret = nlm_get_digest_param(cmd)) != 0) {
-				err = EINVAL;
-				goto errout;
-			}
-			cmd->hashoff = cmd->maccrd->crd_skip;
-			cmd->hashlen = cmd->maccrd->crd_len;
-			cmd->hmacpad = 0;
-			cmd->hashsrc = 0;
-			if ((err = nlm_crypto_do_digest(sc, cmd)) != 0)
-				goto errout;
-		} else {
+	switch (csp->csp_mode) {
+	case CSP_MODE_CIPHER:
+		if ((ret = nlm_get_cipher_param(cmd, csp)) != 0) {
 			err = EINVAL;
 			goto errout;
 		}
-	} else if( (crd1 != NULL) && (crd2 != NULL) ) {
-		if ((crd1->crd_alg == CRYPTO_MD5_HMAC ||
-		    crd1->crd_alg == CRYPTO_SHA1_HMAC ||
-		    crd1->crd_alg == CRYPTO_MD5 ||
-		    crd1->crd_alg == CRYPTO_SHA1) &&
-		    (crd2->crd_alg == CRYPTO_DES_CBC ||
-		    crd2->crd_alg == CRYPTO_3DES_CBC ||
-		    crd2->crd_alg == CRYPTO_AES_CBC ||
-		    crd2->crd_alg == CRYPTO_ARC4)) {
-			cmd->maccrd = crd1;
-			cmd->enccrd = crd2;
-		} else if ((crd1->crd_alg == CRYPTO_DES_CBC ||
-		    crd1->crd_alg == CRYPTO_ARC4 ||
-		    crd1->crd_alg == CRYPTO_3DES_CBC ||
-		    crd1->crd_alg == CRYPTO_AES_CBC) &&
-		    (crd2->crd_alg == CRYPTO_MD5_HMAC ||
-		    crd2->crd_alg == CRYPTO_SHA1_HMAC ||
-		    crd2->crd_alg == CRYPTO_MD5 ||
-		    crd2->crd_alg == CRYPTO_SHA1)) {
-			cmd->enccrd = crd1;
-			cmd->maccrd = crd2;
-		} else {
+		cmd->cipheroff = crp->crp_payload_start;
+		cmd->cipherlen = crp->crp_payload_length;
+		if (crp->crp_flags & CRYPTO_F_IV_SEPARATE) {
+			cmd->cipheroff += cmd->ivlen;
+			cmd->ivoff = 0;
+		} else
+			cmd->ivoff = crp->crp_iv_start;
+		xlp_copyiv(sc, cmd, csp);
+		if ((err = nlm_crypto_do_cipher(sc, cmd, csp)) != 0)
+			goto errout;
+		break;
+	case CSP_MODE_DIGEST:
+		if ((ret = nlm_get_digest_param(cmd, csp)) != 0) {
 			err = EINVAL;
 			goto errout;
 		}
-		if ((ret = nlm_get_cipher_param(cmd)) != 0) {
-			err = EINVAL;
-			goto errout;
-		}
-		if ((ret = nlm_get_digest_param(cmd)) != 0) {
-			err = EINVAL;
-			goto errout;
-		}
-		cmd->ivoff  = cmd->enccrd->crd_inject;
-		cmd->hashoff = cmd->maccrd->crd_skip;
-		cmd->hashlen = cmd->maccrd->crd_len;
+		cmd->hashoff = crp->crp_payload_start;
+		cmd->hashlen = crp->crp_payload_length;
 		cmd->hmacpad = 0;
-		if (cmd->enccrd->crd_flags & CRD_F_ENCRYPT)
+		cmd->hashsrc = 0;
+		if ((err = nlm_crypto_do_digest(sc, cmd, csp)) != 0)
+			goto errout;
+		break;
+	case CSP_MODE_ETA:
+		if ((ret = nlm_get_cipher_param(cmd, csp)) != 0) {
+			err = EINVAL;
+			goto errout;
+		}
+		if ((ret = nlm_get_digest_param(cmd, csp)) != 0) {
+			err = EINVAL;
+			goto errout;
+		}
+		if (crp->crp_aad_length != 0) {
+			cmd->hashoff = crp->crp_aad_start;
+			cmd->hashlen = crp->crp_aad_length +
+			    crp->crp_payload_length;
+		} else {
+			cmd->hashoff = crp->crp_payload_start;
+			cmd->hashlen = crp->crp_payload_length;
+		}
+		cmd->hmacpad = 0;
+		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
 			cmd->hashsrc = 1;
 		else
 			cmd->hashsrc = 0;
-		cmd->cipheroff = cmd->enccrd->crd_skip;
-		cmd->cipherlen = cmd->enccrd->crd_len;
-		if ((err = xlp_copyiv(sc, cmd, cmd->enccrd)) != 0)
+		cmd->cipheroff = crp->crp_payload_start;
+		cmd->cipherlen = crp->crp_payload_length;
+		if (crp->crp_flags & CRYPTO_F_IV_SEPARATE) {
+			cmd->hashoff += cmd->ivlen;
+			cmd->cipheroff += cmd->ivlen;
+			cmd->ivoff = 0;
+		} else
+			cmd->ivoff = crp->crp_iv_start;
+		xlp_copyiv(sc, cmd, csp);
+		if ((err = nlm_crypto_do_cipher_digest(sc, cmd, csp)) != 0)
 			goto errout;
-		if ((err = nlm_crypto_do_cipher_digest(sc, cmd)) != 0)
-			goto errout;
-	} else {
+		break;
+	default:
 		err = EINVAL;
 		goto errout;
 	}

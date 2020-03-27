@@ -48,7 +48,8 @@ __FBSDID("$FreeBSD$");
 
 struct des3_state {
 	struct mtx	ds_lock;
-	crypto_session_t ds_session;
+	crypto_session_t ds_cipher_session;
+	crypto_session_t ds_hmac_session;
 };
 
 static void
@@ -69,8 +70,10 @@ des3_destroy(struct krb5_key_state *ks)
 {
 	struct des3_state *ds = ks->ks_priv;
 
-	if (ds->ds_session)
-		crypto_freesession(ds->ds_session);
+	if (ds->ds_cipher_session) {
+		crypto_freesession(ds->ds_cipher_session);
+		crypto_freesession(ds->ds_hmac_session);
+	}
 	mtx_destroy(&ds->ds_lock);
 	free(ks->ks_priv, M_GSSAPI);
 }
@@ -78,31 +81,35 @@ des3_destroy(struct krb5_key_state *ks)
 static void
 des3_set_key(struct krb5_key_state *ks, const void *in)
 {
+	struct crypto_session_params csp;
 	void *kp = ks->ks_key;
 	struct des3_state *ds = ks->ks_priv;
-	struct cryptoini cri[2];
+
+	if (ds->ds_cipher_session) {
+		crypto_freesession(ds->ds_cipher_session);
+		crypto_freesession(ds->ds_hmac_session);
+	}
 
 	if (kp != in)
 		bcopy(in, kp, ks->ks_class->ec_keylen);
 
-	if (ds->ds_session)
-		crypto_freesession(ds->ds_session);
+	memset(&csp, 0, sizeof(csp));
+	csp.csp_mode = CSP_MODE_DIGEST;
+	csp.csp_auth_alg = CRYPTO_SHA1_HMAC;
+	csp.csp_auth_klen = 24;
+	csp.csp_auth_key = ks->ks_key;
 
-	bzero(cri, sizeof(cri));
+	crypto_newsession(&ds->ds_hmac_session, &csp,
+	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE);
 
-	cri[0].cri_alg = CRYPTO_SHA1_HMAC;
-	cri[0].cri_klen = 192;
-	cri[0].cri_mlen = 0;
-	cri[0].cri_key = ks->ks_key;
-	cri[0].cri_next = &cri[1];
+	memset(&csp, 0, sizeof(csp));
+	csp.csp_mode = CSP_MODE_CIPHER;
+	csp.csp_cipher_alg = CRYPTO_3DES_CBC;
+	csp.csp_cipher_klen = 24;
+	csp.csp_cipher_key = ks->ks_key;
+	csp.csp_ivlen = 8;
 
-	cri[1].cri_alg = CRYPTO_3DES_CBC;
-	cri[1].cri_klen = 192;
-	cri[1].cri_mlen = 0;
-	cri[1].cri_key = ks->ks_key;
-	cri[1].cri_next = NULL;
-
-	crypto_newsession(&ds->ds_session, cri,
+	crypto_newsession(&ds->ds_cipher_session, &csp,
 	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE);
 }
 
@@ -158,7 +165,7 @@ des3_crypto_cb(struct cryptop *crp)
 	int error;
 	struct des3_state *ds = (struct des3_state *) crp->crp_opaque;
 	
-	if (crypto_ses2caps(ds->ds_session) & CRYPTOCAP_F_SYNC)
+	if (crypto_ses2caps(crp->crp_session) & CRYPTOCAP_F_SYNC)
 		return (0);
 
 	error = crp->crp_etype;
@@ -174,36 +181,31 @@ des3_crypto_cb(struct cryptop *crp)
 
 static void
 des3_encrypt_1(const struct krb5_key_state *ks, struct mbuf *inout,
-    size_t skip, size_t len, void *ivec, int encdec)
+    size_t skip, size_t len, void *ivec, bool encrypt)
 {
 	struct des3_state *ds = ks->ks_priv;
 	struct cryptop *crp;
-	struct cryptodesc *crd;
 	int error;
 
-	crp = crypto_getreq(1);
-	crd = crp->crp_desc;
+	crp = crypto_getreq(ds->ds_cipher_session, M_WAITOK);
 
-	crd->crd_skip = skip;
-	crd->crd_len = len;
-	crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT | encdec;
+	crp->crp_payload_start = skip;
+	crp->crp_payload_length = len;
+	crp->crp_op = encrypt ? CRYPTO_OP_ENCRYPT : CRYPTO_OP_DECRYPT;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC | CRYPTO_F_IV_SEPARATE;
 	if (ivec) {
-		bcopy(ivec, crd->crd_iv, 8);
+		memcpy(crp->crp_iv, ivec, 8);
 	} else {
-		bzero(crd->crd_iv, 8);
+		memset(crp->crp_iv, 0, 8);
 	}
-	crd->crd_next = NULL;
-	crd->crd_alg = CRYPTO_3DES_CBC;
-
-	crp->crp_session = ds->ds_session;
-	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
-	crp->crp_buf = (void *) inout;
-	crp->crp_opaque = (void *) ds;
+	crp->crp_buf_type = CRYPTO_BUF_MBUF;
+	crp->crp_mbuf = inout;
+	crp->crp_opaque = ds;
 	crp->crp_callback = des3_crypto_cb;
 
 	error = crypto_dispatch(crp);
 
-	if ((crypto_ses2caps(ds->ds_session) & CRYPTOCAP_F_SYNC) == 0) {
+	if ((crypto_ses2caps(ds->ds_cipher_session) & CRYPTOCAP_F_SYNC) == 0) {
 		mtx_lock(&ds->ds_lock);
 		if (!error && !(crp->crp_flags & CRYPTO_F_DONE))
 			error = msleep(crp, &ds->ds_lock, 0, "gssdes3", 0);
@@ -218,7 +220,7 @@ des3_encrypt(const struct krb5_key_state *ks, struct mbuf *inout,
     size_t skip, size_t len, void *ivec, size_t ivlen)
 {
 
-	des3_encrypt_1(ks, inout, skip, len, ivec, CRD_F_ENCRYPT);
+	des3_encrypt_1(ks, inout, skip, len, ivec, true);
 }
 
 static void
@@ -226,7 +228,7 @@ des3_decrypt(const struct krb5_key_state *ks, struct mbuf *inout,
     size_t skip, size_t len, void *ivec, size_t ivlen)
 {
 
-	des3_encrypt_1(ks, inout, skip, len, ivec, 0);
+	des3_encrypt_1(ks, inout, skip, len, ivec, false);
 }
 
 static void
@@ -235,31 +237,23 @@ des3_checksum(const struct krb5_key_state *ks, int usage,
 {
 	struct des3_state *ds = ks->ks_priv;
 	struct cryptop *crp;
-	struct cryptodesc *crd;
 	int error;
 
-	crp = crypto_getreq(1);
-	crd = crp->crp_desc;
+	crp = crypto_getreq(ds->ds_hmac_session, M_WAITOK);
 
-	crd->crd_skip = skip;
-	crd->crd_len = inlen;
-	crd->crd_inject = skip + inlen;
-	crd->crd_flags = 0;
-	crd->crd_next = NULL;
-	crd->crd_alg = CRYPTO_SHA1_HMAC;
-
-	crp->crp_session = ds->ds_session;
-	crp->crp_ilen = inlen;
-	crp->crp_olen = 20;
-	crp->crp_etype = 0;
-	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
-	crp->crp_buf = (void *) inout;
-	crp->crp_opaque = (void *) ds;
+	crp->crp_payload_start = skip;
+	crp->crp_payload_length = inlen;
+	crp->crp_digest_start = skip + inlen;
+	crp->crp_op = CRYPTO_OP_COMPUTE_DIGEST;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC;
+	crp->crp_buf_type = CRYPTO_BUF_MBUF;
+	crp->crp_mbuf = inout;
+	crp->crp_opaque = ds;
 	crp->crp_callback = des3_crypto_cb;
 
 	error = crypto_dispatch(crp);
 
-	if ((crypto_ses2caps(ds->ds_session) & CRYPTOCAP_F_SYNC) == 0) {
+	if ((crypto_ses2caps(ds->ds_hmac_session) & CRYPTOCAP_F_SYNC) == 0) {
 		mtx_lock(&ds->ds_lock);
 		if (!error && !(crp->crp_flags & CRYPTO_F_DONE))
 			error = msleep(crp, &ds->ds_lock, 0, "gssdes3", 0);

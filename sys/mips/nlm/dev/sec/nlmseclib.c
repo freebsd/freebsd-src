@@ -92,18 +92,17 @@ nlm_crypto_complete_sec_request(struct xlp_sec_softc *sc,
 }
 
 int
-nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd)
+nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd,
+    const struct crypto_session_params *csp)
 {
 	unsigned int srcseg = 0, dstseg = 0;
-	struct cryptodesc *cipdesc = NULL;
 	struct cryptop *crp = NULL;
 
 	crp = cmd->crp;
-	cipdesc = cmd->enccrd;
 
-	if (cipdesc != NULL) {
+	if (csp->csp_mode != CSP_MODE_DIGEST) {
 		/* IV is given as ONE segment to avoid copy */
-		if (cipdesc->crd_flags & CRD_F_IV_EXPLICIT) {
+		if (crp->crp_flags & CRYPTO_F_IV_SEPARATE) {
 			srcseg = nlm_crypto_fill_src_seg(cmd->paramp, srcseg,
 			    cmd->iv, cmd->ivlen);
 			dstseg = nlm_crypto_fill_dst_seg(cmd->paramp, dstseg,
@@ -111,32 +110,37 @@ nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd)
 		}
 	}
 
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
+	switch (crp->crp_buf_type) {
+	case CRYPTO_BUF_MBUF:
+	{
 		struct mbuf *m = NULL;
 
-		m  = (struct mbuf *)crp->crp_buf;
+		m = crp->crp_mbuf;
 		while (m != NULL) {
 			srcseg = nlm_crypto_fill_src_seg(cmd->paramp, srcseg,
 			    mtod(m,caddr_t), m->m_len);
-			if (cipdesc != NULL) {
+			if (csp->csp_mode != CSP_MODE_DIGEST) {
 				dstseg = nlm_crypto_fill_dst_seg(cmd->paramp,
 				    dstseg, mtod(m,caddr_t), m->m_len);
 			}
 			m = m->m_next;
 		}
-	} else if (crp->crp_flags & CRYPTO_F_IOV) {
+		break;
+	}
+	case CRYPTO_BUF_UIO:
+	{
 		struct uio *uio = NULL;
 		struct iovec *iov = NULL;
 	        int iol = 0;
 
-		uio = (struct uio *)crp->crp_buf;
-		iov = (struct iovec *)uio->uio_iov;
+		uio = crp->crp_uio;
+		iov = uio->uio_iov;
 		iol = uio->uio_iovcnt;
 
 		while (iol > 0) {
 			srcseg = nlm_crypto_fill_src_seg(cmd->paramp, srcseg,
 			    (caddr_t)iov->iov_base, iov->iov_len);
-			if (cipdesc != NULL) {
+			if (csp->csp_mode != CSP_MODE_DIGEST) {
 				dstseg = nlm_crypto_fill_dst_seg(cmd->paramp,
 				    dstseg, (caddr_t)iov->iov_base,
 				    iov->iov_len);
@@ -144,67 +148,75 @@ nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd)
 			iov++;
 			iol--;
 		}
-	} else {
+	}
+	case CRYPTO_BUF_CONTIG:
 		srcseg = nlm_crypto_fill_src_seg(cmd->paramp, srcseg,
 		    ((caddr_t)crp->crp_buf), crp->crp_ilen);
-		if (cipdesc != NULL) {
+		if (csp->csp_mode != CSP_MODE_DIGEST) {
 			dstseg = nlm_crypto_fill_dst_seg(cmd->paramp, dstseg,
 			    ((caddr_t)crp->crp_buf), crp->crp_ilen);
 		}
+		break;
 	}
 	return (0);
 }
 
 int
-nlm_crypto_do_cipher(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd)
+nlm_crypto_do_cipher(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd,
+    const struct crypto_session_params *csp)
 {
-	struct cryptodesc *cipdesc = NULL;
-	unsigned char *cipkey = NULL;
+	const unsigned char *cipkey = NULL;
 	int ret = 0;
 
-	cipdesc = cmd->enccrd;
-	cipkey = (unsigned char *)cipdesc->crd_key;
+	if (cmd->crp->crp_cipher_key != NULL)
+		cipkey = cmd->crp->crp_cipher_key;
+	else
+		cipkey = csp->csp_cipher_key;
 	if (cmd->cipheralg == NLM_CIPHER_3DES) {
-		if (!(cipdesc->crd_flags & CRD_F_ENCRYPT)) {
-                        uint64_t *k, *tkey;
-			k = (uint64_t *)cipdesc->crd_key;
+		if (!CRYPTO_OP_IS_ENCRYPT(cmd->crp->crp_op)) {
+                        const uint64_t *k;
+                        uint64_t *tkey;
+			k = (const uint64_t *)cipkey;
 			tkey = (uint64_t *)cmd->des3key;
 			tkey[2] = k[0];
 			tkey[1] = k[1];
 			tkey[0] = k[2];
-			cipkey = (unsigned char *)tkey;
+			cipkey = (const unsigned char *)tkey;
 		}
 	}
 	nlm_crypto_fill_pkt_ctrl(cmd->ctrlp, 0, NLM_HASH_BYPASS, 0,
 	    cmd->cipheralg, cmd->ciphermode, cipkey,
-	    (cipdesc->crd_klen >> 3), NULL, 0);
+	    csp->csp_cipher_klen, NULL, 0);
 
 	nlm_crypto_fill_cipher_pkt_param(cmd->ctrlp, cmd->paramp,
-	    (cipdesc->crd_flags & CRD_F_ENCRYPT) ? 1 : 0, cmd->ivoff,
+	    CRYPTO_OP_IS_ENCRYPT(cmd->crp->crp_op) ? 1 : 0, cmd->ivoff,
 	    cmd->ivlen, cmd->cipheroff, cmd->cipherlen);
-	nlm_crypto_form_srcdst_segs(cmd);
+	nlm_crypto_form_srcdst_segs(cmd, csp);
 
 	ret = nlm_crypto_complete_sec_request(sc, cmd);
 	return (ret);
 }
 
 int
-nlm_crypto_do_digest(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd)
+nlm_crypto_do_digest(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd,
+    const struct crypto_session_params *csp)
 {
-	struct cryptodesc *digdesc = NULL;
+	const char *key;
 	int ret=0;
 
-	digdesc = cmd->maccrd;
-
-	nlm_crypto_fill_pkt_ctrl(cmd->ctrlp, (digdesc->crd_klen) ? 1 : 0,
+	if (cmd->crp->crp_auth_key != NULL)
+		key = cmd->crp->crp_auth_key;
+	else
+		key = csp->csp_auth_key;
+	nlm_crypto_fill_pkt_ctrl(cmd->ctrlp, csp->csp_auth_klen ? 1 : 0,
 	    cmd->hashalg, cmd->hashmode, NLM_CIPHER_BYPASS, 0,
-	    NULL, 0, digdesc->crd_key, digdesc->crd_klen >> 3);
+	    NULL, 0, key, csp->csp_auth_klen);
 
 	nlm_crypto_fill_auth_pkt_param(cmd->ctrlp, cmd->paramp,
 	    cmd->hashoff, cmd->hashlen, cmd->hmacpad,
 	    (unsigned char *)cmd->hashdest);
 
-	nlm_crypto_form_srcdst_segs(cmd);
+	nlm_crypto_form_srcdst_segs(cmd, csp);
 
 	ret = nlm_crypto_complete_sec_request(sc, cmd);
 
@@ -213,48 +225,54 @@ nlm_crypto_do_digest(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd)
 
 int
 nlm_crypto_do_cipher_digest(struct xlp_sec_softc *sc,
-    struct xlp_sec_command *cmd)
+    struct xlp_sec_command *cmd, const struct crypto_session_params *csp)
 {
-	struct cryptodesc *cipdesc=NULL, *digdesc=NULL;
-	unsigned char *cipkey = NULL;
+	const unsigned char *cipkey = NULL;
+	const char *authkey;
 	int ret=0;
 
-	cipdesc = cmd->enccrd;
-	digdesc = cmd->maccrd;
-
-	cipkey = (unsigned char *)cipdesc->crd_key;
+	if (cmd->crp->crp_cipher_key != NULL)
+		cipkey = cmd->crp->crp_cipher_key;
+	else
+		cipkey = csp->csp_cipher_key;
+	if (cmd->crp->crp_auth_key != NULL)
+		authkey = cmd->crp->crp_auth_key;
+	else
+		authkey = csp->csp_auth_key;
 	if (cmd->cipheralg == NLM_CIPHER_3DES) {
-		if (!(cipdesc->crd_flags & CRD_F_ENCRYPT)) {
-			uint64_t *k, *tkey;
-			k = (uint64_t *)cipdesc->crd_key;
+		if (!CRYPTO_OP_IS_ENCRYPT(cmd->crp->crp_op)) {
+			const uint64_t *k;
+			uint64_t *tkey;
+			k = (const uint64_t *)cipkey;
 			tkey = (uint64_t *)cmd->des3key;
 			tkey[2] = k[0];
 			tkey[1] = k[1];
 			tkey[0] = k[2];
-			cipkey = (unsigned char *)tkey;
+			cipkey = (const unsigned char *)tkey;
 		}
 	}
-	nlm_crypto_fill_pkt_ctrl(cmd->ctrlp, (digdesc->crd_klen) ? 1 : 0,
+	nlm_crypto_fill_pkt_ctrl(cmd->ctrlp, csp->csp_auth_klen ? 1 : 0,
 	    cmd->hashalg, cmd->hashmode, cmd->cipheralg, cmd->ciphermode,
-	    cipkey, (cipdesc->crd_klen >> 3),
-	    digdesc->crd_key, (digdesc->crd_klen >> 3));
+	    cipkey, csp->csp_cipher_klen,
+	    authkey, csp->csp_auth_klen);
 
 	nlm_crypto_fill_cipher_auth_pkt_param(cmd->ctrlp, cmd->paramp,
-	    (cipdesc->crd_flags & CRD_F_ENCRYPT) ? 1 : 0, cmd->hashsrc,
+	    CRYPTO_OP_IS_ENCRYPT(cmd->crp->crp_op) ? 1 : 0, cmd->hashsrc,
 	    cmd->ivoff, cmd->ivlen, cmd->hashoff, cmd->hashlen,
 	    cmd->hmacpad, cmd->cipheroff, cmd->cipherlen,
 	    (unsigned char *)cmd->hashdest);
 
-	nlm_crypto_form_srcdst_segs(cmd);
+	nlm_crypto_form_srcdst_segs(cmd, csp);
 
 	ret = nlm_crypto_complete_sec_request(sc, cmd);
 	return (ret);
 }
 
 int
-nlm_get_digest_param(struct xlp_sec_command *cmd)
+nlm_get_digest_param(struct xlp_sec_command *cmd,
+    const struct crypto_session_params *csp)
 {
-	switch(cmd->maccrd->crd_alg) {
+	switch(csp->csp_auth_alg) {
 	case CRYPTO_MD5:
 		cmd->hashalg  = NLM_HASH_MD5;
 		cmd->hashmode = NLM_HASH_MODE_SHA1;
@@ -278,9 +296,10 @@ nlm_get_digest_param(struct xlp_sec_command *cmd)
 	return (0);
 }
 int
-nlm_get_cipher_param(struct xlp_sec_command *cmd)
+nlm_get_cipher_param(struct xlp_sec_command *cmd,
+    const struct crypto_session_params *csp)
 {
-	switch(cmd->enccrd->crd_alg) {
+	switch(csp->csp_cipher_alg) {
 	case CRYPTO_DES_CBC:
 		cmd->cipheralg  = NLM_CIPHER_DES;
 		cmd->ciphermode = NLM_CIPHER_MODE_CBC;
