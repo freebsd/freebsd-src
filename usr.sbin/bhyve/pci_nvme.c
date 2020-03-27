@@ -1153,7 +1153,8 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			    cmd->opc));
 			pci_nvme_status_genc(&compl.status, NVME_SC_INVALID_OPCODE);
 		}
-	
+		sqhead = (sqhead + 1) % sq->size;
+
 		if (NVME_COMPLETION_VALID(compl)) {
 			struct nvme_completion *cp;
 			int phase;
@@ -1170,7 +1171,6 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 
 			cq->tail = (cq->tail + 1) % cq->size;
 		}
-		sqhead = (sqhead + 1) % sq->size;
 	}
 
 	DPRINTF(("setting sqhead %u", sqhead));
@@ -1285,8 +1285,9 @@ pci_nvme_set_completion(struct pci_nvme_softc *sc,
 
 	compl = &cq->qbase[cq->tail];
 
-	compl->sqhd = atomic_load_acq_short(&sq->head);
+	compl->cdw0 = cdw0;
 	compl->sqid = sqid;
+	compl->sqhd = atomic_load_acq_short(&sq->head);
 	compl->cid = cid;
 
 	// toggle phase
