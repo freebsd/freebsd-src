@@ -140,6 +140,11 @@ enum nvme_cmd_cdw11 {
 	NVME_CMD_CDW11_IV  = 0xFFFF0000,
 };
 
+enum nvme_copy_dir {
+	NVME_COPY_TO_PRP,
+	NVME_COPY_FROM_PRP,
+};
+
 #define	NVME_CQ_INTEN	0x01
 #define	NVME_CQ_INTCOAL	0x02
 
@@ -545,10 +550,10 @@ pci_nvme_init_controller(struct vmctx *ctx, struct pci_nvme_softc *sc)
 }
 
 static int
-nvme_prp_memcpy(struct vmctx *ctx, uint64_t prp1, uint64_t prp2, uint8_t *src,
-	size_t len)
+nvme_prp_memcpy(struct vmctx *ctx, uint64_t prp1, uint64_t prp2, uint8_t *b,
+	size_t len, enum nvme_copy_dir dir)
 {
-	uint8_t *dst;
+	uint8_t *p;
 	size_t bytes;
 
 	if (len > (8 * 1024)) {
@@ -559,14 +564,17 @@ nvme_prp_memcpy(struct vmctx *ctx, uint64_t prp1, uint64_t prp2, uint8_t *src,
 	bytes = PAGE_SIZE - (prp1 & PAGE_MASK);
 	bytes = MIN(bytes, len);
 
-	dst = vm_map_gpa(ctx, prp1, bytes);
-	if (dst == NULL) {
+	p = vm_map_gpa(ctx, prp1, bytes);
+	if (p == NULL) {
 		return (-1);
 	}
 
-	memcpy(dst, src, bytes);
+	if (dir == NVME_COPY_TO_PRP)
+		memcpy(p, b, bytes);
+	else
+		memcpy(b, p, bytes);
 
-	src += bytes;
+	b += bytes;
 
 	len -= bytes;
 	if (len == 0) {
@@ -575,12 +583,15 @@ nvme_prp_memcpy(struct vmctx *ctx, uint64_t prp1, uint64_t prp2, uint8_t *src,
 
 	len = MIN(len, PAGE_SIZE);
 
-	dst = vm_map_gpa(ctx, prp2, len);
-	if (dst == NULL) {
+	p = vm_map_gpa(ctx, prp2, len);
+	if (p == NULL) {
 		return (-1);
 	}
 
-	memcpy(dst, src, len);
+	if (dir == NVME_COPY_TO_PRP)
+		memcpy(p, b, len);
+	else
+		memcpy(b, p, len);
 
 	return (0);
 }
@@ -726,16 +737,19 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 	switch (logpage) {
 	case NVME_LOG_ERROR:
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->err_log, logsize);
+		    command->prp2, (uint8_t *)&sc->err_log, logsize,
+		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_HEALTH_INFORMATION:
 		/* TODO: present some smart info */
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->health_log, logsize);
+		    command->prp2, (uint8_t *)&sc->health_log, logsize,
+		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_FIRMWARE_SLOT:
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->fw_log, logsize);
+		    command->prp2, (uint8_t *)&sc->fw_log, logsize,
+		    NVME_COPY_TO_PRP);
 		break;
 	default:
 		WPRINTF(("%s get log page %x command not supported",
@@ -760,12 +774,14 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 	switch (command->cdw10 & 0xFF) {
 	case 0x00: /* return Identify Namespace data structure */
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->nsdata, sizeof(sc->nsdata));
+		    command->prp2, (uint8_t *)&sc->nsdata, sizeof(sc->nsdata),
+		    NVME_COPY_TO_PRP);
 		break;
 	case 0x01: /* return Identify Controller data structure */
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->ctrldata,
-		    sizeof(sc->ctrldata));
+		    sizeof(sc->ctrldata),
+		    NVME_COPY_TO_PRP);
 		break;
 	case 0x02: /* list of 1024 active NSIDs > CDW1.NSID */
 		dest = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
