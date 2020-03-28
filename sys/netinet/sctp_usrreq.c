@@ -2658,8 +2658,8 @@ flags_out:
 			net = stcb->asoc.primary_destination;
 			if (net != NULL) {
 				memcpy(&sstat->sstat_primary.spinfo_address,
-				    &stcb->asoc.primary_destination->ro._l_addr,
-				    ((struct sockaddr *)(&stcb->asoc.primary_destination->ro._l_addr))->sa_len);
+				    &net->ro._l_addr,
+				    ((struct sockaddr *)(&net->ro._l_addr))->sa_len);
 				((struct sockaddr_in *)&sstat->sstat_primary.spinfo_address)->sin_port = stcb->rport;
 				/*
 				 * Again the user can get info from
