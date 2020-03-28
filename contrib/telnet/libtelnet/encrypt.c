@@ -69,13 +69,6 @@ static const char sccsid[] = "@(#)encrypt.c	8.2 (Berkeley) 5/30/95";
 #include "encrypt.h"
 #include "misc.h"
 
-/*
- * These functions pointers point to the current routines
- * for encrypting and decrypting data.
- */
-void	(*encrypt_output)(unsigned char *, int);
-int	(*decrypt_input)(int);
-
 int EncryptType(char *type, char *mode);
 int EncryptStart(char *mode);
 int EncryptStop(char *mode);
