@@ -92,7 +92,7 @@ static int	zfs_env_count;
 SLIST_HEAD(zfs_be_list, zfs_be_entry) zfs_be_head = SLIST_HEAD_INITIALIZER(zfs_be_head);
 struct zfs_be_list *zfs_be_headp;
 struct zfs_be_entry {
-	cha *name;
+	char *name;
 	SLIST_ENTRY(zfs_be_entry) entries;
 } *zfs_be, *zfs_be_tmp;
 
