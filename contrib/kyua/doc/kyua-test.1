@@ -1,0 +1,498 @@
+.\" Copyright 2012 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd October 13, 2014
+.Dt KYUA-TEST 1
+.Os
+.Sh NAME
+.Nm "kyua test"
+.Nd Runs tests
+.Sh SYNOPSIS
+.Nm
+.Op Fl -build-root Ar path
+.Op Fl -kyuafile Ar file
+.Op Fl -results-file Ar file
+.Op Ar test_filter1 .. test_filterN
+.Sh DESCRIPTION
+The
+.Nm
+command loads a test suite definition from a
+.Xr kyuafile 5 ,
+runs the tests defined in it, and records the results into a new results
+file.
+By default, all tests in the test suite are executed but the optional
+arguments to
+.Nm
+can be used to select which test programs or test cases to run.
+These are filters and are described below in
+.Sx Test filters .
+.Pp
+Every test executed by
+.Nm
+is run under a controlled environment as described in
+.Sx Test isolation .
+.Pp
+The following subcommand options are recognized:
+.Bl -tag -width XX
+.It Fl -build-root Ar path
+Specifies the build root in which to find the test programs referenced by
+the Kyuafile, if different from the Kyuafile's directory.
+See
+.Sx Build directories
+below for more information.
+.It Fl -kyuafile Ar path , Fl k Ar path
+Specifies the Kyuafile to process.
+Defaults to a
+.Pa Kyuafile
+file in the current directory.
+.It Fl -results-file Ar path , Fl s Ar path
+.\" Copyright 2014 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Specifies the results file to create.
+Defaults to
+.Sq LATEST ,
+which causes
+.Nm
+to automatically generate a new results file for the test run.
+.Pp
+The following values are accepted:
+.Bl -tag -width XX
+.It Sq NEW
+Requests the automatic generation of a new results filename based on the test
+suite being run and the current time.
+.It Explicit filename (aka everything else)
+Store the results file where indicated.
+.El
+.Pp
+See
+.Sx Results files
+for more details.
+.El
+.Pp
+You can later inspect the results of the test run in more detail by using
+.Xr kyua-report 1
+or you can execute a single test case with debugging functionality by using
+.Xr kyua-debug 1 .
+.Ss Build directories
+.\" Copyright 2012 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Em Build directories
+(or object directories, target directories, product directories, etc.) is
+the concept that allows a developer to keep the source tree clean from
+build products by asking the build system to place such build products
+under a separate subtree.
+.Pp
+Most build systems today support build directories.
+For example, the GNU Automake/Autoconf build system exposes such concept when
+invoked as follows:
+.Bd -literal -offset indent
+$ cd my-project-1.0
+$ mkdir build
+$ cd build
+$ ../configure
+$ make
+.Ed
+.Pp
+Under such invocation, all the results of the build are left in the
+.Pa my-project-1.0/build/
+subdirectory while maintaining the contents of
+.Pa my-project-1.0/
+intact.
+.Pp
+Because build directories are an integral part of most build systems, and
+because they are a tool that developers use frequently,
+.Nm
+supports build directories too.
+This manifests in the form of
+.Nm
+being able to run tests from build directories while reading the (often
+immutable) test suite definition from the source tree.
+.Pp
+One important property of build directories is that they follow (or need to
+follow) the exact same layout as the source tree.
+For example, consider the following directory listings:
+.Bd -literal -offset indent
+src/Kyuafile
+src/bin/ls/
+src/bin/ls/Kyuafile
+src/bin/ls/ls.c
+src/bin/ls/ls_test.c
+src/sbin/su/
+src/sbin/su/Kyuafile
+src/sbin/su/su.c
+src/sbin/su/su_test.c
+
+obj/bin/ls/
+obj/bin/ls/ls*
+obj/bin/ls/ls_test*
+obj/sbin/su/
+obj/sbin/su/su*
+obj/sbin/su/su_test*
+.Ed
+.Pp
+Note how the directory layout within
+.Pa src/
+matches that of
+.Pa obj/ .
+The
+.Pa src/
+directory contains only source files and the definition of the test suite
+(the Kyuafiles), while the
+.Pa obj/
+directory contains only the binaries generated during a build.
+.Pp
+All commands that deal with the workspace support the
+.Fl -build-root Ar path
+option.
+When this option is provided, the directory specified by the
+option is considered to be the root of the build directory.
+For example, considering our previous fake tree layout, we could invoke
+.Nm
+as any of the following:
+.Bd -literal -offset indent
+$ kyua test --kyuafile=src/Kyuafile --build-root=obj
+$ cd src && kyua test --build-root=../obj
+.Ed
+.Ss Results files
+.\" Copyright 2014 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Results files contain, as their name implies, the results of the execution of a
+test suite.
+Each test suite executed by
+.Xr kyua-test 1
+generates a new results file, and such results files can be loaded later on by
+inspection commands such as
+.Xr kyua-report 1
+to analyze their contents.
+.Pp
+Results files support identifier-based lookups and also path name lookups.
+The differences between the two are described below.
+.Pp
+The default naming scheme for the results files provides simple support for
+identifier-based lookups and historical recording of test suite runs.
+Each results file is given an identifier derived from the test suite that
+generated it and the time the test suite was run.
+Kyua can later look up results files by these fields.
+.Pp
+The identifier follows this pattern:
+.Bd -literal -offset indent
+\*(Lttest_suite\*(Gt.\*(LtYYYYMMDD\*(Gt-\*(LtHHMMSS\*(Gt-\*(Ltuuuuuu\*(Gt
+.Ed
+.Pp
+where
+.Sq test_suite
+is the path to the root of the test suite that was run with all slashes replaced
+by underscores and
+.Sq YYYYMMDD-HHMMSS-uuuuuu
+is a timestamp with microsecond resolution.
+.Pp
+When using the default naming scheme, results files are stored in the
+.Pa ~/.kyua/store/
+subdirectory and each file holds a name of the form:
+.Bd -literal -offset indent
+~/.kyua/store/results.\*(Ltidentifier\*(Gt.db
+.Ed
+.Pp
+Results files are simple SQLite databases with the schema described in the
+.Pa /usr/share/kyua/store/schema_v?.sql
+files.
+For details on the schema, please refer to the heavily commented SQL file.
+.Ss Test filters
+.\" Copyright 2012 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+A
+.Em test filter
+is a string that is used to match test cases or test programs in a test suite.
+Filters have the following form:
+.Bd -literal -offset indent
+test_program_name[:test_case_name]
+.Ed
+.Pp
+Where
+.Sq test_program_name
+is the name of a test program or a subdirectory in the test suite, and
+.Sq test_case_name
+is the name of a test case.
+.Ss Test isolation
+.\" Copyright 2014 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+The test programs and test cases run by
+.Nm
+are all executed in a deterministic environment.
+This known, clean environment serves to make the test execution as
+reproducible as possible and also to prevent clashes between tests that may,
+for example, create auxiliary files with overlapping names.
+.Pp
+For plain test programs and for TAP test programs, the whole test program
+is run under a single instance of the environment described in this page.
+For ATF test programs (see
+.Xr atf 7 ) ,
+each individual test case
+.Em and
+test cleanup routine are executed in separate environments.
+.Bl -tag -width XX
+.It Process space
+Each test is executed in an independent processes.
+Corollary: the test can do whatever it wants to the current process (such
+as modify global variables) without having to undo such changes.
+.It Session and process group
+The test is executed in its own session and its own process group.
+There is no controlling terminal attached to the session.
+.Pp
+Should the test spawn any children, the children should maintain the same
+session and process group.
+Modifying any of these settings prevents
+.Nm
+from being able to kill any stray subprocess as part of the cleanup phase.
+If modifying these settings is necessary, or if any subprocess started by
+the test decides to use a different process group or session, it is the
+responsibility of the test to ensure those subprocesses are forcibly
+terminated during cleanup.
+.It Work directory
+The test is executed in a temporary directory automatically created by the
+runtime engine.
+Corollary: the test can write to its current directory
+without needing to clean any files and/or directories it creates.
+The runtime engine takes care to recursively delete the temporary directories
+after the execution of a test case.
+Any file systems mounted within the temporary directory are also unmounted.
+.It Home directory
+The
+.Va HOME
+environment variable is set to the absolute path of the work directory.
+.It Umask
+The value of the umask is set to 0022.
+.It Environment
+The
+.Va LANG ,
+.Va LC_ALL ,
+.Va LC_COLLATE ,
+.Va LC_CTYPE ,
+.Va LC_MESSAGES ,
+.Va LC_MONETARY ,
+.Va LC_NUMERIC
+and
+.Va LC_TIME
+variables are unset.
+.Pp
+The
+.Va TZ
+variable is set to
+.Sq UTC .
+.Pp
+The
+.Va TMPDIR
+variable is set to the absolute path of the work directory.
+This is to prevent the test from mistakenly using a temporary directory
+outside of the automatically-managed work directory, should the test use the
+.Xr mktemp 3
+familiy of functions.
+.It Process limits
+The maximum soft core size limit is raised to its corresponding hard limit.
+This is a simple, best-effort attempt at allowing tests to dump core for
+further diagnostic purposes.
+.It Configuration varibles
+The test engine may pass run-time configuration variables to the test program
+via the environment.
+The name of the configuration variable is prefixed with
+.Sq TEST_ENV_
+so that a configuration variable of the form
+.Sq foo=bar
+becomes accessible in the environment as
+.Sq TEST_ENV_foo=bar .
+.El
+.Sh EXIT STATUS
+The
+.Nm
+command returns 0 if all executed test cases pass or 1 if any of the
+executed test cases fails or if any of the given test case filters does not
+match any test case.
+.Pp
+Additional exit codes may be returned as described in
+.Xr kyua 1 .
+.Sh EXAMPLES
+.Ss Workflow with results files
+If one runs the following command twice in a row:
+.Bd -literal -offset indent
+kyua test -k /usr/tests/Kyuafile
+.Ed
+.Pp
+the two executions will generate two different files with names like:
+.Bd -literal -offset indent
+~/.kyua/store/results.usr_tests.20140731-150500-196784.db
+~/.kyua/store/results.usr_tests.20140731-151730-997451.db
+.Ed
+.Pp
+Taking advantage of the default naming scheme, the following commands would all
+generate a report for the results of the
+.Em latest
+execution of the test suite:
+.Bd -literal -offset indent
+cd /usr/tests && kyua report
+cd /usr/tests && kyua report --results-file=LATEST
+kyua report --results-file=/usr/tests
+kyua report --results-file=usr_tests
+kyua report --results-file=usr_tests.20140731-151730-997451
+.Ed
+.Pp
+But it is also possible to explicitly load data for older runs or from
+explicitly-named files:
+.Bd -literal -offset indent
+kyua report \\
+    --results-file=usr_tests.20140731-150500-196784
+kyua report \\
+    --results-file=~/.kyua/store/results.usr_tests.20140731-150500-196784.db
+.Ed
+.Sh SEE ALSO
+.Xr kyua 1 ,
+.Xr kyua-report 1 ,
+.Xr kyuafile 5
