@@ -2,7 +2,7 @@
 
 .include "${SRCTOP}/lib/kyua/Makefile.kyua"
 
-.PATH: ${.CURDIR} ${.OBJDIR} ${KYUA_SRCDIR}
+.PATH: ${KYUA_SRCDIR}
 
 PROG_CXX=	kyua
 SRCS=		main.cpp
