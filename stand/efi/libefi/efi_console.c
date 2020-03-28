@@ -828,8 +828,9 @@ efi_cons_update_mode(void)
 {
 	UINTN cols, rows;
 	const teken_attr_t *a;
+	teken_attr_t attr;
 	EFI_STATUS status;
-	char env[8];
+	char env[8], *ptr;
 
 	status = conout->QueryMode(conout, conout->Mode->Mode, &cols, &rows);
 	if (EFI_ERROR(status) || cols * rows == 0) {
@@ -866,18 +867,35 @@ efi_cons_update_mode(void)
 		if (buffer != NULL) {
 			teken_set_winsize(&teken, &tp);
 			a = teken_get_defattr(&teken);
+			attr = *a;
 
-			snprintf(env, sizeof(env), "%d", a->ta_fgcolor);
-			env_setenv("teken.fg_color", EV_VOLATILE, env,
-			    efi_set_colors, env_nounset);
-			snprintf(env, sizeof(env), "%d", a->ta_bgcolor);
-			env_setenv("teken.bg_color", EV_VOLATILE, env,
-			    efi_set_colors, env_nounset);
+			/*
+			 * On first run, we set up the efi_set_colors()
+			 * callback. If the env is already set, we
+			 * pick up fg and bg color values from the environment.
+			 */
+			ptr = getenv("teken.fg_color");
+			if (ptr != NULL) {
+				attr.ta_fgcolor = strtol(ptr, NULL, 10);
+				ptr = getenv("teken.bg_color");
+				attr.ta_bgcolor = strtol(ptr, NULL, 10);
+
+				teken_set_defattr(&teken, &attr);
+			} else {
+				snprintf(env, sizeof(env), "%d",
+				    attr.ta_fgcolor);
+				env_setenv("teken.fg_color", EV_VOLATILE, env,
+				    efi_set_colors, env_nounset);
+				snprintf(env, sizeof(env), "%d",
+				    attr.ta_bgcolor);
+				env_setenv("teken.bg_color", EV_VOLATILE, env,
+				    efi_set_colors, env_nounset);
+			}
 
 			for (int row = 0; row < rows; row++) {
 				for (int col = 0; col < cols; col++) {
 					buffer[col + row * tp.tp_col].c = ' ';
-					buffer[col + row * tp.tp_col].a = *a;
+					buffer[col + row * tp.tp_col].a = attr;
 				}
 			}
 		}
@@ -907,9 +925,6 @@ static int
 efi_cons_init(int arg)
 {
 	EFI_STATUS status;
-
-	if (conin != NULL)
-		return (0);
 
 	conout->EnableCursor(conout, TRUE);
 	if (efi_cons_update_mode())
