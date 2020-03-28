@@ -1,0 +1,232 @@
+.\" Copyright 2012 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd October 13, 2014
+.Dt KYUA-LIST 1
+.Os
+.Sh NAME
+.Nm "kyua list"
+.Nd Lists test cases and their metadata
+.Sh SYNOPSIS
+.Nm
+.Op Fl -build-root Ar path
+.Op Fl -kyuafile Ar file
+.Op Fl -verbose
+.Ar test_case1 Op Ar .. test_caseN
+.Sh DESCRIPTION
+The
+.Nm
+command scans all the test programs and test cases in a test suite (as
+defined by a
+.Xr kyuafile 5 )
+and prints a list of all their names, optionally accompanied by any metadata
+properties they have.
+.Pp
+The optional arguments to
+.Nm
+are used to select which test programs or test cases to run.
+These are filters and are described below in
+.Sx Test filters .
+.Pp
+This command must be run within a test suite or a test suite must be
+provided with the
+.Fl -kyuafile
+flag.
+.Pp
+The following subcommand options are recognized:
+.Bl -tag -width XX
+.It Fl -build-root Ar path
+Specifies the build root in which to find the test programs referenced
+by the Kyuafile, if different from the Kyuafile's directory.
+See
+.Sx Build directories
+below for more information.
+.It Fl -kyuafile Ar path , Fl k Ar path
+Specifies the Kyuafile to process.
+Defaults to a
+.Pa Kyuafile
+file in the current directory.
+.It Fl -verbose , Fl v
+Prints metadata properties for every test case.
+.El
+.Ss Build directories
+.\" Copyright 2012 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Em Build directories
+(or object directories, target directories, product directories, etc.) is
+the concept that allows a developer to keep the source tree clean from
+build products by asking the build system to place such build products
+under a separate subtree.
+.Pp
+Most build systems today support build directories.
+For example, the GNU Automake/Autoconf build system exposes such concept when
+invoked as follows:
+.Bd -literal -offset indent
+$ cd my-project-1.0
+$ mkdir build
+$ cd build
+$ ../configure
+$ make
+.Ed
+.Pp
+Under such invocation, all the results of the build are left in the
+.Pa my-project-1.0/build/
+subdirectory while maintaining the contents of
+.Pa my-project-1.0/
+intact.
+.Pp
+Because build directories are an integral part of most build systems, and
+because they are a tool that developers use frequently,
+.Nm
+supports build directories too.
+This manifests in the form of
+.Nm
+being able to run tests from build directories while reading the (often
+immutable) test suite definition from the source tree.
+.Pp
+One important property of build directories is that they follow (or need to
+follow) the exact same layout as the source tree.
+For example, consider the following directory listings:
+.Bd -literal -offset indent
+src/Kyuafile
+src/bin/ls/
+src/bin/ls/Kyuafile
+src/bin/ls/ls.c
+src/bin/ls/ls_test.c
+src/sbin/su/
+src/sbin/su/Kyuafile
+src/sbin/su/su.c
+src/sbin/su/su_test.c
+
+obj/bin/ls/
+obj/bin/ls/ls*
+obj/bin/ls/ls_test*
+obj/sbin/su/
+obj/sbin/su/su*
+obj/sbin/su/su_test*
+.Ed
+.Pp
+Note how the directory layout within
+.Pa src/
+matches that of
+.Pa obj/ .
+The
+.Pa src/
+directory contains only source files and the definition of the test suite
+(the Kyuafiles), while the
+.Pa obj/
+directory contains only the binaries generated during a build.
+.Pp
+All commands that deal with the workspace support the
+.Fl -build-root Ar path
+option.
+When this option is provided, the directory specified by the
+option is considered to be the root of the build directory.
+For example, considering our previous fake tree layout, we could invoke
+.Nm
+as any of the following:
+.Bd -literal -offset indent
+$ kyua list --kyuafile=src/Kyuafile --build-root=obj
+$ cd src && kyua list --build-root=../obj
+.Ed
+.Ss Test filters
+.\" Copyright 2012 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+A
+.Em test filter
+is a string that is used to match test cases or test programs in a test suite.
+Filters have the following form:
+.Bd -literal -offset indent
+test_program_name[:test_case_name]
+.Ed
+.Pp
+Where
+.Sq test_program_name
+is the name of a test program or a subdirectory in the test suite, and
+.Sq test_case_name
+is the name of a test case.
+.Sh EXIT STATUS
+The
+.Nm
+command returns 0 on success or 1 if any of the given test case filters
+does not match any test case.
+.Pp
+Additional exit codes may be returned as described in
+.Xr kyua 1 .
+.Sh SEE ALSO
+.Xr kyua 1 ,
+.Xr kyuafile 5
