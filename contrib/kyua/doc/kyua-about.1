@@ -1,0 +1,95 @@
+.\" Copyright 2012 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd May 20, 2015
+.Dt KYUA-ABOUT 1
+.Os
+.Sh NAME
+.Nm "kyua about"
+.Nd Shows detailed authors, license, and version information
+.Sh SYNOPSIS
+.Nm
+.Op Ar authors | license | version
+.Sh DESCRIPTION
+The
+.Sq about
+command provides generic information about the
+.Xr kyua 1
+tool.
+In the default synopsis form (no arguments), the information printed
+includes:
+.Bl -enum
+.It
+The name of the package, which is
+.Sq kyua .
+.It
+The version number, which is
+.Sq 0.13 .
+.It
+License information.
+.It
+Authors information.
+.It
+A link to the project web site.
+.El
+.Pp
+You can customize the information printed by this command by specifying
+the desired topic as the single argument to the command.
+This can be one of:
+.Bl -tag -width authorsXX
+.It Ar authors
+Displays the list of authors and contributors only.
+.It Ar license
+Displays the license information and the list of copyrights.
+.It Ar version
+Displays the package name and the version number in a format that is
+compatible with the output of GNU tools that support a
+.Fl -version
+flag.
+Use this whenever you have to query the version number of the package.
+.El
+.Sh FILES
+The following files are read by the
+.Nm
+command:
+.Bl -tag -width XX
+.It Pa /usr/share/doc/kyua/AUTHORS
+List of authors (aka copyright holders).
+.It Pa /usr/share/doc/kyua/CONTRIBUTORS
+List of contributors (aka individuals that have contributed to the project).
+.It Pa /usr/share/doc/kyua/LICENSE
+License information.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+command always returns 0.
+.Pp
+Additional exit codes may be returned as described in
+.Xr kyua 1 .
+.Sh SEE ALSO
+.Xr kyua 1

@@ -1,0 +1,407 @@
+.\" Copyright 2012 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd July 3, 2015
+.Dt KYUAFILE 5
+.Os
+.Sh NAME
+.Nm Kyuafile
+.Nd Test suite description files
+.Sh SYNOPSIS
+.Fn atf_test_program "string name" "[string metadata]"
+.Fn current_kyuafile
+.Fn fs.basename "string path"
+.Fn fs.dirname "string path"
+.Fn fs.exists "string path"
+.Fn fs.files "string path"
+.Fn fs.is_absolute "string path"
+.Fn fs.join "string path" "string path"
+.Fn include "string path"
+.Fn plain_test_program "string name" "[string metadata]"
+.Fn syntax "int version"
+.Fn tap_test_program "string name" "[string metadata]"
+.Fn test_suite "string name"
+.Sh DESCRIPTION
+A test suite is a collection of test programs and is represented by a
+hierarchical layout of test binaries on the file system.
+Any subtree of the file system can represent a test suite, provided that it
+includes one or more
+.Nm Ns s ,
+which are the test suite definition files.
+.Pp
+A
+.Nm
+is a Lua script whose purpose is to describe the structure of the test
+suite it belongs to.
+To do so, the script has access to a collection of special functions provided
+by
+.Xr kyua 1
+as described in
+.Sx Helper functions .
+.Ss File versioning
+Every
+.Nm
+file starts with a call to
+.Fn syntax "int version" .
+This call determines the specific schema used by the file so that future
+backwards-incompatible modifications to the file can be introduced.
+.Pp
+Any new
+.Nm
+file should set
+.Fa version
+to
+.Sq 2 .
+.Ss Test suite definition
+If the
+.Nm
+registers any test programs,
+the
+.Nm
+must define the name of the test suite the test programs belong to by using the
+.Fn test_suite
+function at the very beginning of the file.
+.Pp
+The test suite name provided in the
+.Fn test_suite
+call tells
+.Xr kyua 1
+which set of configuration variables from
+.Xr kyua.conf 5
+to pass to the test programs at run time.
+.Ss Test program registration
+A
+.Nm
+can register test programs by means of a variety of
+.Fn *_test_program
+functions, all of which take the name of a test program and a set of
+optional metadata properties that describe such test program.
+.Pp
+The test programs to be registered must live in the current directory; in
+other words, the various
+.Fn *_test_program
+calls cannot reference test programs in other directories.
+The rationale for this is to force all
+.Nm
+files to be self-contained, and to simplify their internal representation.
+.Pp
+.Em ATF test programs
+are those that use the
+.Xr atf 7
+libraries.
+They can be registered with the
+.Fn atf_test_program
+table constructor.
+This function takes the
+.Fa name
+of the test program and a collection of optional metadata settings for all
+the test cases in the test program.
+Any metadata properties defined by the test cases themselves override the
+metadata values defined here.
+.Pp
+.Em Plain test programs
+are those that return 0 on success and non-0 on failure; in general, most test
+programs (even those that use fancy unit-testing libraries) behave this way and
+thus also qualify as plain test programs.
+They can be registered with the
+.Fn plain_test_program
+table constructor.
+This function takes the
+.Fa name
+of the test program, an optional
+.Fa test_suite
+name that overrides the global test suite name, and a collection of optional
+metadata settings for the test program.
+.Pp
+.Em TAP test programs
+are those that implement the Test Anything Protocol.
+They can be registered with the
+.Fn tap_test_program
+table constructor.
+This function takes the
+.Fa name
+of the test program and a collection of optional metadata settings for the
+test program.
+.Pp
+The following metadata properties can be passed to any test program definition:
+.Bl -tag -width XX -offset indent
+.It Va allowed_architectures
+Whitespace-separated list of machine architecture names allowed by the test.
+If empty or not defined, the test is allowed to run on any machine
+architecture.
+.It Va allowed_platforms
+Whitespace-separated list of machine platform names allowed by the test.
+If empty or not defined, the test is allowed to run on any machine
+platform.
+.It Va custom.NAME
+Custom variable defined by the test where
+.Sq NAME
+denotes the name of the variable.
+These variables are useful to tag your tests with information specific to
+your project.
+The values of such variables are propagated all the way from the tests to the
+results files and later to any generated reports.
+.Pp
+Note that if the name happens to have dashes or any other special characters
+in it, you will have to use a special Lua syntax to define the property.
+Refer to the
+.Sx EXAMPLES
+section below for clarification.
+.It Va description
+Textual description of the test.
+.It Va is_exclusive
+If true, indicates that this test program cannot be executed along any other
+programs at the same time.
+Test programs that affect global system state, such as those that modify the
+value of a
+.Xr sysctl 8
+setting, must set themselves as exclusive to prevent failures due to race
+conditions.
+Defaults to false.
+.It Va required_configs
+Whitespace-separated list of configuration variables that the test requires
+to be defined before it can run.
+.It Va required_disk_space
+Amount of available disk space that the test needs to run successfully.
+.It Va required_files
+Whitespace-separated list of paths that the test requires to exist before
+it can run.
+.It Va required_memory
+Amount of physical memory that the test needs to run successfully.
+.It Va required_programs
+Whitespace-separated list of basenames or absolute paths pointing to executable
+binaries that the test requires to exist before it can run.
+.It Va required_user
+If empty, the test has no restrictions on the calling user for it to run.
+If set to
+.Sq unprivileged ,
+the test needs to not run as root.
+If set to
+.Sq root ,
+the test must run as root.
+.It Va timeout
+Amount of seconds that the test is allowed to execute before being killed.
+.El
+.Ss Recursion
+To reference test programs in another subdirectory, a different
+.Nm
+must be created in that directory and it must be included into the original
+.Nm
+by means of the
+.Fn include
+function.
+.Pp
+.Fn include
+may only be called with a relative path and with at most one directory
+component.
+This is by design: Kyua uses the file system structure as the layout of the
+test suite definition.
+Therefore, each subdirectory in a test suite must include its own
+.Nm
+and each
+.Nm
+can only descend into the
+.Nm Ns s
+of immediate subdirectories.
+.Pp
+If you need to source a
+.Nm
+located in disjoint parts of your file system namespace, you will have to
+create a
+.Sq shadow tree
+using symbolic links and possibly helper
+.Nm Ns s
+to plug the various subdirectories together.
+See the
+.Sx EXAMPLES
+section below for details.
+.Pp
+Note that each file is processed in its own Lua environment: there is no
+mechanism to pass state from one file to the other.
+The reason for this is that there is no such thing as a
+.Dq top-level
+.Nm
+in a test suite: the user has to be able to run the test suite from any
+directory in a given hierarchy, and this execution must not depend on files
+that live in parent directories.
+.Ss Top-level Kyuafile
+Every system has a top directory into which test suites get installed.
+The default is
+.Pa /usr/tests .
+Within this directory live test suites, each of which is in an independent
+subdirectory.
+Each subdirectory can be provided separately by independent third-party
+packages.
+.Pp
+Kyua allows running all the installed test suites at once in order to
+provide comprehensive cross-component reports.
+In order to do this, there is a special file in the top directory that knows
+how to inspect the subdirectories in search for other Kyuafiles and include
+them.
+.Pp
+The
+.Sx FILES
+section includes more details on where this file lives.
+.Ss Helper functions
+The
+.Sq base ,
+.Sq string ,
+and
+.Sq table
+Lua modules are fully available in the context of a
+.Nm .
+.Pp
+The following extra functions are provided by Kyua:
+.Bl -tag -width XX -offset indent
+.It Ft string Fn current_kyuafile
+Returns the absolute path to the current
+.Nm .
+.It Ft string Fn fs.basename "string path"
+Returns the last component of the given path.
+.It Ft string Fn fs.dirname "string path"
+Returns the given path without its last component or a dot if the path has
+a single component.
+.It Ft bool Fn fs.exists "string path"
+Checks if the given path exists.
+If the path is not absolute, it is relative to the directory containing the
+.Nm
+in which the call to this function occurs.
+.It Ft iterator Fn fs.files "string path"
+Opens a directory for scanning of its entries.
+The returned iterator yields an entry on each call, and the entry is simply
+the filename.
+If the path is not absolute, it is relative to the directory containing the
+.Nm
+in which the call to this function occurs.
+.It Ft is_absolute Fn fs.is_absolute "string path"
+Returns true if the given path is absolute; false otherwise.
+.It Ft join Fn fs.join "string path" "string path"
+Concatenates the two paths.
+The second path cannot be absolute.
+.El
+.Sh FILES
+.Bl -tag -width XX
+.It Pa /usr/tests/Kyuafile .
+Top-level
+.Nm
+for the current system.
+.It Pa /usr/share/examples/kyua/Kyuafile.top .
+Sample file to serve as a top-level
+.Nm .
+.El
+.Sh EXAMPLES
+The following
+.Nm
+is the simplest you can define.
+It provides a test suite definition and registers a couple of different test
+programs using different interfaces:
+.Bd -literal -offset indent
+syntax(2)
+
+test_suite('first')
+
+atf_test_program{name='integration_test'}
+plain_test_program{name='legacy_test'}
+.Ed
+.Pp
+The following example is a bit more elaborate.
+It introduces some metadata properties to the test program definitions and
+recurses into a couple of subdirectories:
+.Bd -literal -offset indent
+syntax(2)
+
+test_suite('second')
+
+plain_test_program{name='legacy_test',
+                   allowed_architectures='amd64 i386',
+                   required_files='/bin/ls',
+                   timeout=30}
+
+tap_test_program{name='privileged_test',
+                 required_user='root'}
+
+include('module-1/Kyuafile')
+include('module-2/Kyuafile')
+.Ed
+.Pp
+The syntax to define custom properties may be not obvious if their names
+have any characters that make the property name not be a valid Lua identifier.
+Dashes are just one example.
+To set such properties, do something like this:
+.Bd -literal -offset indent
+syntax(2)
+
+test_suite('FreeBSD')
+
+plain_test_program{name='the_test',
+                   ['custom.FreeBSD-Bug-Id']='category/12345'}
+.Ed
+.Ss Connecting disjoint test suites
+Now suppose you had various test suites on your file system and you would
+like to connect them together so that they could be executed and treated as
+a single unit.
+The test suites we would like to connect live under
+.Pa /usr/tests ,
+.Pa /usr/local/tests
+and
+.Pa ~/local/tests .
+.Pp
+We cannot create a
+.Nm
+that references these because the
+.Fn include
+directive does not support absolute paths.
+Instead, what we can do is create a shadow tree using symbolic links:
+.Bd -literal -offset indent
+$ mkdir ~/everything
+$ ln -s /usr/tests ~/everything/system-tests
+$ ln -s /usr/local/tests ~/everything/local-tests
+$ ln -s ~/local/tests ~/everything/home-tests
+.Ed
+.Pp
+And then we create an
+.Pa ~/everything/Kyuafile
+file to drive the execution of the integrated test suite:
+.Bd -literal -offset indent
+syntax(2)
+
+test_suite('test-all-the-things')
+
+include('system-tests/Kyuafile')
+include('local-tests/Kyuafile')
+include('home-tests/Kyuafile')
+.Ed
+.Pp
+Or, simply, you could reuse the sample top-level
+.Nm
+to avoid having to manually craft the list of directories into which to
+recurse:
+.Bd -literal -offset indent
+$ cp /usr/share/examples/kyua/Kyuafile.top ~/everything/Kyuafile
+.Ed
+.Sh SEE ALSO
+.Xr kyua 1
