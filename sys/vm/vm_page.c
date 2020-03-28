@@ -5453,7 +5453,7 @@ DB_SHOW_COMMAND(pginfo, vm_page_print_pginfo)
 	else
 		m = (vm_page_t)addr;
 	db_printf(
-    "page %p obj %p pidx 0x%jx phys 0x%jx q %d ref %u\n"
+    "page %p obj %p pidx 0x%jx phys 0x%jx q %d ref 0x%x\n"
     "  af 0x%x of 0x%x f 0x%x act %d busy %x valid 0x%x dirty 0x%x\n",
 	    m, m->object, (uintmax_t)m->pindex, (uintmax_t)m->phys_addr,
 	    m->a.queue, m->ref_count, m->a.flags, m->oflags,
