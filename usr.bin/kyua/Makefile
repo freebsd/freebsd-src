@@ -2,7 +2,7 @@
 
 .include "${SRCTOP}/lib/kyua/Makefile.kyua"
 
-.PATH: ${KYUA_SRCDIR}
+.PATH: ${.CURDIR} ${.OBJDIR} ${KYUA_SRCDIR}
 
 PROG_CXX=	kyua
 SRCS=		main.cpp
@@ -48,20 +48,6 @@ STORE=		migrate_v1_v2.sql migrate_v2_v3.sql schema_v3.sql
 STOREDIR=	${KYUA_STOREDIR}
 .PATH:		${KYUA_SRCDIR}/store
 
-CLEANFILES+=	${MAN}
 .PATH: ${KYUA_SRCDIR}/doc
-.for man in ${MAN}
-${man}: ${man}.in
-	${SH} ${KYUA_SRCDIR}/doc/manbuild.sh \
-	    -v "CONFDIR=${KYUA_CONFDIR}" \
-	    -v "DOCDIR=${KYUA_DOCDIR}" \
-	    -v "EGDIR=${KYUA_EGDIR}" \
-	    -v "MISCDIR=${KYUA_MISCDIR}" \
-	    -v "PACKAGE=kyua" \
-	    -v "STOREDIR=${KYUA_STOREDIR}" \
-	    -v "TESTSDIR=${TESTSBASE}" \
-	    -v "VERSION=${KYUA_VERSION}" \
-	    ${.ALLSRC} ${.TARGET}
-.endfor
 
 .include <bsd.prog.mk>
