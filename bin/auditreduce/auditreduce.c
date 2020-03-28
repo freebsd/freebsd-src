@@ -62,6 +62,7 @@
 #include <bsm/libbsm.h>
 
 #include <err.h>
+#include <fnmatch.h>
 #include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -94,6 +95,7 @@ static int		 p_egid;	/* Effective group id. */
 static int		 p_rgid;	/* Real group id. */ 
 static int		 p_ruid;	/* Real user id. */ 
 static int		 p_subid;	/* Subject id. */
+static const char	*p_zone;	/* Zone. */
 
 /*
  * Maintain a dynamically sized array of events for -m
@@ -113,6 +115,8 @@ static char	*p_shmobj = NULL;
 static char	*p_sockobj = NULL; 
 
 static uint32_t opttochk = 0;
+
+static int	select_zone(const char *zone, uint32_t *optchkd);
 
 static void
 parse_regexp(char *re_string)
@@ -186,6 +190,7 @@ usage(const char *msg)
 	fprintf(stderr, "\t-r <uid|name> : real user\n");
 	fprintf(stderr, "\t-u <uid|name> : audit user\n");
 	fprintf(stderr, "\t-v : select non-matching records\n");
+	fprintf(stderr, "\t-z <zone> : zone name\n");
 	exit(EX_USAGE);
 }
 
@@ -493,6 +498,21 @@ select_subj32(tokenstr_t tok, uint32_t *optchkd)
 }
 
 /*
+ * Check if the given zone matches the selection criteria.
+  */
+static int
+select_zone(const char *zone, uint32_t *optchkd)
+{
+
+	SETOPT((*optchkd), OPT_z);
+	if (ISOPTSET(opttochk, OPT_z) && p_zone != NULL) {
+		if (fnmatch(p_zone, zone, FNM_PATHNAME) != 0)
+			return (0);
+	}
+	return (1);
+}
+
+/*
  * Read each record from the audit trail.  Check if it is selected after
  * passing through each of the options 
  */
@@ -557,6 +577,10 @@ select_records(FILE *fp)
 			case AUT_RETURN32:
 				selected = select_return32(tok,
 				    tok_hdr32_copy, &optchkd);
+				break;
+
+			case AUT_ZONENAME:
+				selected = select_zone(tok.tt.zonename.zonename, &optchkd);
 				break;
 
 			default:
@@ -629,7 +653,7 @@ main(int argc, char **argv)
 
 	converr = NULL;
 
-	while ((ch = getopt(argc, argv, "Aa:b:c:d:e:f:g:j:m:o:r:u:v")) != -1) {
+	while ((ch = getopt(argc, argv, "Aa:b:c:d:e:f:g:j:m:o:r:u:vz:")) != -1) {
 		switch(ch) {
 		case 'A':
 			SETOPT(opttochk, OPT_A);
@@ -781,6 +805,11 @@ main(int argc, char **argv)
 
 		case 'v':
 			SETOPT(opttochk, OPT_v);
+			break;
+
+		case 'z':
+			p_zone = optarg;
+			SETOPT(opttochk, OPT_z);
 			break;
 
 		case '?':
