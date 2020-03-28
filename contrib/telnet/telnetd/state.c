@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <libtelnet/encrypt.h>
 #endif
 
+char	*terminaltype;
+
 unsigned char	doopt[] = { IAC, DO, '%', 'c', 0 };
 unsigned char	dont[] = { IAC, DONT, '%', 'c', 0 };
 unsigned char	will[] = { IAC, WILL, '%', 'c', 0 };
