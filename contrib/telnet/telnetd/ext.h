@@ -58,7 +58,7 @@ extern int	auth_level;
 
 extern slcfun	slctab[NSLC + 1];	/* slc mapping table */
 
-extern char	*terminaltype;
+char	*terminaltype;
 
 /*
  * I/O data buffers, pointers, and counters.
@@ -175,10 +175,6 @@ void	output_datalen(const char *, int);
 void	startslave(char *, int, char *);
 
 #ifdef	ENCRYPTION
-/*
- * These functions pointers point to the current routines
- * for encrypting and decrypting data.
- */
 extern void	(*encrypt_output)(unsigned char *, int);
 extern int	(*decrypt_input)(int);
 extern char	*nclearto;
