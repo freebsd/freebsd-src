@@ -1413,21 +1413,11 @@ hdac_poll_reinit(struct hdac_softc *sc)
 		pollticks >>= 1;
 		if (pollticks > hz)
 			pollticks = hz;
-		if (pollticks < 1) {
-			HDA_BOOTVERBOSE(
-				device_printf(sc->dev,
-				    "poll interval < 1 tick !\n");
-			);
+		if (pollticks < 1)
 			pollticks = 1;
-		}
 		if (min > pollticks)
 			min = pollticks;
 	}
-	HDA_BOOTVERBOSE(
-		device_printf(sc->dev,
-		    "poll interval %d -> %d ticks\n",
-		    sc->poll_ival, min);
-	);
 	sc->poll_ival = min;
 	if (min == 1000000)
 		callout_stop(&sc->poll_callout);
