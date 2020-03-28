@@ -1539,7 +1539,7 @@ sctp_autoclose_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 			tim_touse = &asoc->time_last_sent;
 		}
 		/* Now has long enough transpired to autoclose? */
-		ticks_gone_by = SEC_TO_TICKS((uint32_t)(tn.tv_sec - tim_touse->tv_sec));
+		ticks_gone_by = sctp_secs_to_ticks((uint32_t)(tn.tv_sec - tim_touse->tv_sec));
 		if (ticks_gone_by >= asoc->sctp_autoclose_ticks) {
 			/*
 			 * autoclose time has hit, call the output routine,
