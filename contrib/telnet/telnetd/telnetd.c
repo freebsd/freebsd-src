@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef	AUTHENTICATION
 #include <libtelnet/auth.h>
+int	auth_level = 0;
 #endif
 #ifdef	ENCRYPTION
 #include <libtelnet/encrypt.h>
