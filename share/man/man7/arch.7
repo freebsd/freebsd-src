@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2020
+.Dd March 28, 2020
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -287,36 +287,13 @@ is 8 bytes on all supported architectures except i386.
 uses
 .Xr clang 1
 as the default compiler on all supported CPU architectures,
-as well as ELF Tool Chain binary utilities such as
+LLVM's
+.Xr ld.lld 1
+as the default linker, and
+ELF Tool Chain binary utilities such as
 .Xr objcopy 1
 and
 .Xr readelf 1 .
-Most supported CPU architectures also use LLVM's
-.Xr ld.lld 1
-as the linker.
-This table shows the default tool chain for each architecture.
-.Bl -column -offset indent "Architecture" "Compiler" "Linker"
-.It Sy Architecture Ta Sy Compiler Ta Sy Linker
-.It aarch64     Ta Clang     Ta lld
-.It amd64       Ta Clang     Ta lld
-.It armv6       Ta Clang     Ta lld
-.It armv7       Ta Clang     Ta lld
-.It i386        Ta Clang     Ta lld
-.It mips        Ta Clang     Ta lld
-.It mipsel      Ta Clang     Ta lld
-.It mipselhf    Ta Clang     Ta lld
-.It mipshf      Ta Clang     Ta lld
-.It mipsn32     Ta Clang     Ta lld
-.It mips64      Ta Clang     Ta lld
-.It mips64el    Ta Clang     Ta lld
-.It mips64elhf  Ta Clang     Ta lld
-.It mips64hf    Ta Clang     Ta lld
-.It powerpc     Ta Clang     Ta lld
-.It powerpcspe  Ta Clang     Ta lld
-.It powerpc64   Ta Clang     Ta lld
-.It riscv64     Ta Clang     Ta lld
-.It riscv64sf   Ta Clang     Ta lld
-.El
 .Ss MACHINE_ARCH vs MACHINE_CPUARCH vs MACHINE
 .Dv MACHINE_CPUARCH
 should be preferred in Makefiles when the generic
