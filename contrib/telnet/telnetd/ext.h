@@ -30,53 +30,57 @@
  * $FreeBSD$
  */
 
+#ifndef EXTERN
+#define	EXTERN	extern
+#endif
+
 /*
  * Telnet server variable declarations
  */
-extern char	options[256];
-extern char	do_dont_resp[256];
-extern char	will_wont_resp[256];
-extern int	linemode;	/* linemode on/off */
+EXTERN char	options[256];
+EXTERN char	do_dont_resp[256];
+EXTERN char	will_wont_resp[256];
+EXTERN int	linemode;	/* linemode on/off */
 #ifdef	LINEMODE
-extern int	uselinemode;	/* what linemode to use (on/off) */
-extern int	editmode;	/* edit modes in use */
-extern int	useeditmode;	/* edit modes to use */
-extern int	alwayslinemode;	/* command line option */
-extern int	lmodetype;	/* Client support for linemode */
+EXTERN int	uselinemode;	/* what linemode to use (on/off) */
+EXTERN int	editmode;	/* edit modes in use */
+EXTERN int	useeditmode;	/* edit modes to use */
+EXTERN int	alwayslinemode;	/* command line option */
+EXTERN int	lmodetype;	/* Client support for linemode */
 #endif	/* LINEMODE */
-extern int	flowmode;	/* current flow control state */
-extern int	restartany;	/* restart output on any character state */
+EXTERN int	flowmode;	/* current flow control state */
+EXTERN int	restartany;	/* restart output on any character state */
 #ifdef DIAGNOSTICS
-extern int	diagnostic;	/* telnet diagnostic capabilities */
+EXTERN int	diagnostic;	/* telnet diagnostic capabilities */
 #endif /* DIAGNOSTICS */
 #ifdef BFTPDAEMON
-extern int	bftpd;		/* behave as bftp daemon */
+EXTERN int	bftpd;		/* behave as bftp daemon */
 #endif /* BFTPDAEMON */
 #ifdef	AUTHENTICATION
-extern int	auth_level;
+EXTERN int	auth_level;
 #endif
 
-extern slcfun	slctab[NSLC + 1];	/* slc mapping table */
+EXTERN slcfun	slctab[NSLC + 1];	/* slc mapping table */
 
-char	*terminaltype;
+EXTERN char	*terminaltype;
 
 /*
  * I/O data buffers, pointers, and counters.
  */
-extern char	ptyobuf[BUFSIZ+NETSLOP], *pfrontp, *pbackp;
+EXTERN char	ptyobuf[BUFSIZ+NETSLOP], *pfrontp, *pbackp;
 
-extern char	netibuf[BUFSIZ], *netip;
+EXTERN char	netibuf[BUFSIZ], *netip;
 
-extern char	netobuf[BUFSIZ], *nfrontp, *nbackp;
-extern char	*neturg;		/* one past last bye of urgent data */
+EXTERN char	netobuf[BUFSIZ], *nfrontp, *nbackp;
+EXTERN char	*neturg;		/* one past last bye of urgent data */
 
-extern int	pcc, ncc;
+EXTERN int	pcc, ncc;
 
-extern int	pty, net;
-extern char	line[32];
-extern int	SYNCHing;		/* we are in TELNET SYNCH mode */
+EXTERN int	pty, net;
+EXTERN char	line[32];
+EXTERN int	SYNCHing;		/* we are in TELNET SYNCH mode */
 
-extern void
+EXTERN void
 	_termstat(void),
 	add_slc(char, char, cc_t),
 	check_slc(void),
@@ -133,7 +137,7 @@ extern void
 	tty_binaryin(int),
 	tty_binaryout(int);
 
-extern int
+EXTERN int
 	end_slc(unsigned char **),
 	getnpty(void),
 #ifndef convex
@@ -158,7 +162,7 @@ extern int
 	tty_istrapsig(void),
 	tty_linemode(void);
 
-extern void
+EXTERN void
 	tty_rspeed(int),
 	tty_setecho(int),
 	tty_setedit(int),
@@ -177,7 +181,7 @@ void	startslave(char *, int, char *);
 #ifdef	ENCRYPTION
 extern void	(*encrypt_output)(unsigned char *, int);
 extern int	(*decrypt_input)(int);
-extern char	*nclearto;
+EXTERN char	*nclearto;
 #endif	/* ENCRYPTION */
 
 
@@ -186,7 +190,7 @@ extern char	*nclearto;
  * the relationship between various variables.
  */
 
-extern struct {
+EXTERN struct {
     int
 	system,			/* what the current time is */
 	echotoggle,		/* last time user entered echo character */
