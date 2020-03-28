@@ -376,8 +376,6 @@ spcset(int func, cc_t *valp, cc_t **valpp)
  *
  * Returns the file descriptor of the opened pty.
  */
-char line[32];
-
 int
 getpty(int *ptynum __unused)
 {
