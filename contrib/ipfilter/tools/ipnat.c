@@ -60,7 +60,6 @@ static const char rcsid[] = "@(#)$Id$";
 #define	bzero(a,b)	memset(a,0,b)
 #endif
 int	use_inet6 = 0;
-char	thishost[MAXHOSTNAMELEN];
 
 extern	char	*optarg;
 

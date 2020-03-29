@@ -191,7 +191,7 @@ typedef	int	(* addfunc_t) __P((int, ioctlfunc_t, void *));
 typedef	int	(* copyfunc_t) __P((void *, void *, size_t));
 
 
-extern	char	thishost[];
+extern	char	thishost[MAXHOSTNAMELEN];
 extern	char	flagset[];
 extern	u_char	flags[];
 extern	struct ipopt_names ionames[];
