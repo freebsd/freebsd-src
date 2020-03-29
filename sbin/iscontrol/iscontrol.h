@@ -149,8 +149,8 @@ int	recvpdu(isess_t *sess, pdu_t *pp);
 
 int	lookup(token_t *tbl, char *m);
 
-int	vflag;
-char	*iscsidev;
+extern int	vflag;
+extern char	*iscsidev;
 
 void	parseArgs(int nargs, char **args, isc_opt_t *op);
 void	parseConfig(FILE *fd, char *key, isc_opt_t *op);
