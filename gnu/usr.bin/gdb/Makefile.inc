@@ -47,6 +47,11 @@ CFLAGS+= -I${CNTRB_GDB}/include
 CFLAGS+= -I${CNTRB_BU}/bfd
 CFLAGS+= -I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/edit
 
+# Some bits here currently rely on some of the linker-merging magic that happens
+# with -fcommon.  While this is the default right now, explicitly set -fcommon
+# so that it continues to build when the default flips.
+CFLAGS+= -fcommon
+
 GENSRCS+= nm.h tm.h
 
 .if defined(GDB_CROSS_DEBUGGER)
