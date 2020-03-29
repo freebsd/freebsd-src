@@ -70,9 +70,6 @@ usage(void)
 	exit(1);
 }
 
-int returntosingle;
-char nflag;
-
 /*
  * We suck in lots of fsck code, and just pick & choose the stuff we want.
  *

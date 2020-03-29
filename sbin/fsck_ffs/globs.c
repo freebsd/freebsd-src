@@ -117,6 +117,10 @@ volatile sig_atomic_t	got_sigalarm;	/* received a SIGALRM */
 struct	ufs1_dinode ufs1_zino;
 struct	ufs2_dinode ufs2_zino;
 
+struct dups *duplist;
+struct dups *muldup;
+struct inostatlist *inostathead;
+
 void
 fsckinit(void)
 {
