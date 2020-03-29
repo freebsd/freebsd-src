@@ -95,7 +95,6 @@ static struct djswitch {
 	{"IT", "Italy",         {1582, 10,  4}},
 	{"JP", "Japan",         {1918, 12, 18}},
 	{"LI", "Lithuania",     {1918,  2,  1}},
-	{"LN", "Latin",         {9999, 05, 31}},
 	{"LU", "Luxembourg",    {1582, 12, 14}},
 	{"LV", "Latvia",        {1918,  2,  1}},
 	{"NL", "Netherlands",   {1582, 12, 14}},
@@ -580,7 +579,7 @@ printeaster(int y, int julian, int orthodox)
 			(y)++;		\
 		}
 #define	M2Y(m)	((m) / 12)
-#define	M2M(m)	(1 + (m) % 12) 
+#define	M2M(m)	(1 + (m) % 12)
 
 /* Print all months for the period in the range [ before .. y-m .. after ]. */
 static void
@@ -925,7 +924,7 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 	for (i = 0; i != 6; i++) {
 		l = 0;
 		for (j = firsts + 7 * i, k = 0; j < last && k != dw * 7;
-		    j++, k += dw) { 
+		    j++, k += dw) {
 			if (j >= first) {
 				if (jd_flag)
 					dt.d = j - jan1 + 1;
