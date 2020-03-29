@@ -65,7 +65,7 @@
    define TOLOWER(ch)	  tolower(ch)
 #else
 
-u_char myctype[UCHAR_MAX + 1];
+extern u_char myctype[UCHAR_MAX + 1];
 #define TOLOWER(ch)	(myctype[ch])
 #endif
 
