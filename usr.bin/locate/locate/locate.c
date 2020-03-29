@@ -116,6 +116,7 @@ int f_limit;            /* limit number of output lines, 0 == infinite */
 u_int counter;          /* counter for matches [-c] */
 char separator='\n';	/* line separator */
 
+u_char myctype[UCHAR_MAX + 1];
 
 void    usage(void);
 void    statistic(FILE *, char *);
