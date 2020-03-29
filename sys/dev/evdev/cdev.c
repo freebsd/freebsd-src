@@ -217,6 +217,8 @@ evdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 				client->ec_blocked = true;
 				ret = mtx_sleep(client, &client->ec_buffer_mtx,
 				    PCATCH, "evread", 0);
+				if (ret == 0 && client->ec_revoked)
+					ret = ENODEV;
 			}
 		}
 	}
