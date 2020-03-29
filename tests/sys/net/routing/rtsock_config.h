@@ -30,6 +30,8 @@
 #ifndef _NET_ROUTING_RTSOCK_CONFIG_H_
 #define _NET_ROUTING_RTSOCK_CONFIG_H_
 
+#include "params.h"
+
 struct rtsock_test_config {
 	int ifindex;
 	char net4_str[INET_ADDRSTRLEN];
@@ -121,8 +123,8 @@ config_setup(const atf_tc_t *tc)
 	inet_ntop(AF_INET6, &c->net6.sin6_addr, c->net6_str, INET6_ADDRSTRLEN);
 	inet_ntop(AF_INET6, &c->addr6.sin6_addr, c->addr6_str, INET6_ADDRSTRLEN);
 
-	c->ifname = strdup(atf_tc_get_config_var_wd(tc, "rtsock.ifname", "tap4242"));
-	c->autocreated_interface = atf_tc_get_config_var_as_bool_wd(tc, "rtsock.create_interface", true);
+	c->ifname = strdup("epair");
+	c->autocreated_interface = true;
 
 	if (c->autocreated_interface && (if_nametoindex(c->ifname) == 0))
        	{
@@ -130,8 +132,15 @@ config_setup(const atf_tc_t *tc)
 		char new_ifname[IFNAMSIZ];
 		strlcpy(new_ifname, c->ifname, sizeof(new_ifname));
 		int ret = iface_create_cloned(new_ifname);
-		ATF_REQUIRE_MSG(ret != 0, "tap interface creation failed: %s", strerror(errno));
+		ATF_REQUIRE_MSG(ret != 0, "%s interface creation failed: %s", new_ifname,
+		    strerror(errno));
 		c->ifname = strdup(new_ifname);
+		file_append_line(IFACES_FNAME, new_ifname);
+		if (strstr(new_ifname, "epair") == new_ifname) {
+			/* call returned epairXXXa, need to add epairXXXb */
+			new_ifname[strlen(new_ifname) - 1] = 'b';
+			file_append_line(IFACES_FNAME, new_ifname);
+		}
 	}
 	c->ifindex = if_nametoindex(c->ifname);
 	ATF_REQUIRE_MSG(c->ifindex != 0, "inteface %s not found", c->ifname);
@@ -143,13 +152,18 @@ config_setup(const atf_tc_t *tc)
 }
 
 void
-config_generic_cleanup(struct rtsock_test_config *c)
+config_generic_cleanup(const atf_tc_t *tc)
 {
-	if (c->ifname != NULL && c->autocreated_interface) {
-		iface_destroy(c->ifname);
-		free(c->ifname);
-		c->ifname = NULL;
-	}
+	const char *srcdir = atf_tc_get_config_var(tc, "srcdir");
+	char cmd[512];
+	int ret;
+
+	/* XXX: sleep 100ms to avoid epair qflush panic */
+	usleep(1000 * 100);
+	snprintf(cmd, sizeof(cmd), "%s/generic_cleanup.sh", srcdir);
+	ret = system(cmd);
+	if (ret != 0)
+		RLOG("'%s' failed, error %d", cmd, ret);
 }
 
 void
