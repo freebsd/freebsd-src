@@ -443,7 +443,7 @@ extern void *calloc(size_t, size_t);
 extern void free(void *);
 extern void *realloc(void *, size_t);
 extern void *reallocf(void *, size_t);
-#elif DEBUG_MALLOC
+#elif defined(DEBUG_MALLOC)
 #define malloc(x)	Malloc(x, __FILE__, __LINE__)
 #define memalign(x, y)	Memalign(x, y, __FILE__, __LINE__)
 #define calloc(x, y)	Calloc(x, y, __FILE__, __LINE__)
