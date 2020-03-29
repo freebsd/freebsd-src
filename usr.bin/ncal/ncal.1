@@ -179,6 +179,24 @@ Highlighting of dates is disabled if stdout is not a tty.
 .Sh SEE ALSO
 .Xr calendar 3 ,
 .Xr strftime 3
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+X/Open System Interfaces option of the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl 3hyJeopw ,
+as well as the ability to specify a month name as a single argument,
+are extensions to that specification.
+.Pp
+The week number computed by
+.Fl w
+is compliant with the
+.St -iso8601
+specification.
 .Sh HISTORY
 A
 .Nm
