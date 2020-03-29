@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/jail.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/route.h>
@@ -64,6 +65,7 @@
 #include <atf-c.h>
 
 #include "rtsock_print.h"
+#include "params.h"
 
 void rtsock_update_rtm_len(struct rt_msghdr *rtm);
 void rtsock_validate_message(char *buffer, ssize_t len);
@@ -316,6 +318,84 @@ iface_enable_ipv6(char *ifname)
 
 	return (0);
 }
+
+void
+file_append_line(char *fname, char *text)
+{
+	FILE *f;
+
+	f = fopen(fname, "a");
+	fputs(text, f);
+	fputs("\n", f);
+	fclose(f);
+}
+
+static int
+vnet_wait_interface(char *vnet_name, char *ifname)
+{
+	char buf[512], cmd[512], *line, *token;
+	FILE *fp;
+	int i;
+
+	snprintf(cmd, sizeof(cmd), "/usr/sbin/jexec %s /sbin/ifconfig -l", vnet_name);
+	for (int i = 0; i < 50; i++) {
+		fp = popen(cmd, "r");
+		line = fgets(buf, sizeof(buf), fp);
+		/* cut last\n */
+		if (line[0])
+			line[strlen(line)-1] = '\0';
+		while ((token = strsep(&line, " ")) != NULL) {
+			if (strcmp(token, ifname) == 0)
+				return (1);
+		}
+
+		/* sleep 100ms */
+		usleep(1000 * 100);
+	}
+
+	return (0);
+}
+
+void
+vnet_switch(char *vnet_name, char *ifname)
+{
+	char buf[512], cmd[512], *line;
+	FILE *fp;
+	int jid, ret;
+
+	RLOG("switching to vnet %s with interface %s", vnet_name, ifname);
+	snprintf(cmd, sizeof(cmd),
+	    "/usr/sbin/jail -i -c name=%s persist vnet vnet.interface=%s",
+	    vnet_name, ifname);
+	RLOG("jail cmd: \"%s\"\n", cmd);
+
+	fp = popen(cmd, "r");
+	if (fp == NULL)
+		atf_tc_fail("jail creation failed");
+	line = fgets(buf, sizeof(buf), fp);
+	if (line == NULL)
+		atf_tc_fail("empty output from jail(8)");
+	jid = strtol(line, NULL, 10);
+	if (jid <= 0) {
+		atf_tc_fail("invalid jail output: %s", line);
+	}
+
+	RLOG("created jail jid=%d", jid);
+	file_append_line(JAILS_FNAME, vnet_name);
+
+	/* Wait while interface appearsh inside vnet */
+	if (!vnet_wait_interface(vnet_name, ifname)) {
+		atf_tc_fail("unable to move interface %s to jail %s", ifname, vnet_name);
+	}
+
+	if (jail_attach(jid) == -1) {
+		RLOG_ERRNO("jail %s attach failed: ret=%d", vnet_name, errno);
+		atf_tc_fail("jail attach failed");
+	}
+
+	RLOG("attached to the jail");
+}
+
 
 #define	SA_F_IGNORE_IFNAME	0x01
 #define	SA_F_IGNORE_IFTYPE	0x02
