@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2019
+.Dd March 29, 2020
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -632,7 +632,12 @@ Turn on automatic path MTU blackhole detection.
 In case of retransmits OS will
 lower the MSS to check if it's MTU problem.
 If current MSS is greater than
-configured value to try, it will be set to configured value, otherwise,
+configured value to try
+.Po Va net.inet.tcp.pmtud_blackhole_mss
+and
+.Va net.inet.tcp.v6pmtud_blackhole_mss
+.Pc ,
+it will be set to this value, otherwise,
 MSS will be set to default values
 .Po Va net.inet.tcp.mssdflt
 and
@@ -642,13 +647,6 @@ and
 MSS to try for IPv4 if PMTU blackhole detection is turned on.
 .It Va v6pmtud_blackhole_mss
 MSS to try for IPv6 if PMTU blackhole detection is turned on.
-.It Va pmtud_blackhole_activated
-Number of times configured values were used in an attempt to downshift.
-.It Va pmtud_blackhole_activated_min_mss
-Number of times default MSS was used in an attempt to downshift.
-.It Va pmtud_blackhole_failed
-Number of connections for which retransmits continued even after MSS
-downshift.
 .It Va functions_available
 List of available TCP function blocks (TCP stacks).
 .It Va functions_default
