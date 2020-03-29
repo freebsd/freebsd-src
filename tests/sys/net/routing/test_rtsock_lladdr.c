@@ -30,6 +30,20 @@
 #include "rtsock_common.h"
 #include "rtsock_config.h"
 
+static void
+jump_vnet(struct rtsock_test_config *c, const atf_tc_t *tc)
+{
+	char vnet_name[512];
+
+	snprintf(vnet_name, sizeof(vnet_name), "vt-%s", atf_tc_get_ident(tc));
+	RLOG("jumping to %s", vnet_name);
+
+	vnet_switch(vnet_name, c->ifname);
+
+	/* Update ifindex cache */
+	c->ifindex = if_nametoindex(c->ifname);
+}
+
 static inline struct rtsock_test_config *
 presetup_ipv6(const atf_tc_t *tc)
 {
@@ -37,6 +51,8 @@ presetup_ipv6(const atf_tc_t *tc)
 	int ret;
 
 	c = config_setup(tc);
+
+	jump_vnet(c, tc);
 
 	ret = iface_turn_up(c->ifname);
 	ATF_REQUIRE_MSG(ret == 0, "Unable to turn up %s", c->ifname);
@@ -56,15 +72,11 @@ presetup_ipv4(const atf_tc_t *tc)
 
 	c = config_setup(tc);
 
+	jump_vnet(c, tc);
+
 	/* assumes ifconfig doing IFF_UP */
 	ret = iface_setup_addr(c->ifname, c->addr4_str, c->plen4);
 	ATF_REQUIRE_MSG(ret == 0, "ifconfig failed");
-
-	/* Actually open interface, so kernel writes won't fail */
-	if (c->autocreated_interface) {
-		ret = iface_open(c->ifname);
-		ATF_REQUIRE_MSG(ret >= 0, "unable to open interface %s", c->ifname);
-	}
 
 	c->rtsock_fd = rtsock_setup_socket();
 
@@ -96,7 +108,7 @@ prepare_route_message(struct rt_msghdr *rtm, int cmd, struct sockaddr *dst,
 								\
 
 #define	DESCRIBE_ROOT_TEST(_msg)	config_describe_root_test(tc, _msg)
-#define	CLEANUP_AFTER_TEST	config_generic_cleanup(config_setup(tc))
+#define	CLEANUP_AFTER_TEST	config_generic_cleanup(tc)
 
 #define	RTM_DECLARE_ROOT_TEST(_name, _descr)			\
 ATF_TC_WITH_CLEANUP(_name);					\
