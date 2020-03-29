@@ -196,7 +196,7 @@ ATOMIC_ACQ_REL_LONG(clear)
                                                               \
 	__asm __volatile(                                     \
 	    "1: ldrex" SUF "   %[tmp], [%[ptr]]          \n"  \
-	    "   ldr            %[ret], [%[oldv]]         \n"  \
+	    "   ldr" SUF "     %[ret], [%[oldv]]         \n"  \
 	    "   teq            %[tmp], %[ret]            \n"  \
 	    "   ittee          ne                        \n"  \
 	    "   str" SUF "ne   %[tmp], [%[oldv]]         \n"  \
