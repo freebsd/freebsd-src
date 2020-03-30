@@ -1757,7 +1757,7 @@ osGLOBAL void ossaHwCB(
     {
       TI_DBG1(("ossaHwCB: OSSA_HW_EVENT_PHY_STOP_STATUS, SUCCESS\n"));
       agContext = (agsaContext_t *)eventParm2;
-      onePortContext  = (tdsaPortContext_t *)agContext->osData;;
+      onePortContext  = (tdsaPortContext_t *)agContext->osData;
       if (onePortContext == agNULL)
       {
         TI_DBG1(("ossaHwCB: onePortContext is null, wrong!!!\n"));
@@ -3716,7 +3716,7 @@ ossaIntCoalesceInitCB(
   tiIntCoalesceContext_t    *tiIntCoalesceCxt;
   tdsaIntCoalesceContext_t  *tdsaIntCoalCxt;
   tdsaIntCoalesceContext_t  *tdsaIntCoalCxtHead
-    = (tdsaIntCoalesceContext_t *)tdsaAllShared->IntCoalesce;;
+    = (tdsaIntCoalesceContext_t *)tdsaAllShared->IntCoalesce;
   bit32                     tiStatus;
 
   TI_DBG2(("ossaIntCoalesceInitCB: start\n"));

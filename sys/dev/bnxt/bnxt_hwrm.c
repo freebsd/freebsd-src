@@ -861,7 +861,7 @@ bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt_softc *softc,
 	struct hwrm_cfa_l2_set_rx_mask_input req = {0};
 	struct bnxt_vlan_tag *tag;
 	uint32_t *tags;
-	uint32_t num_vlan_tags = 0;;
+	uint32_t num_vlan_tags = 0;
 	uint32_t i;
 	uint32_t mask = vnic->rx_mask;
 	int rc;

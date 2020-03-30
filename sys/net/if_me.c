@@ -194,7 +194,7 @@ me_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ME2IFP(sc)->if_softc = sc;
 	if_initname(ME2IFP(sc), mename, unit);
 
-	ME2IFP(sc)->if_mtu = MEMTU;;
+	ME2IFP(sc)->if_mtu = MEMTU;
 	ME2IFP(sc)->if_flags = IFF_POINTOPOINT|IFF_MULTICAST;
 	ME2IFP(sc)->if_output = me_output;
 	ME2IFP(sc)->if_ioctl = me_ioctl;

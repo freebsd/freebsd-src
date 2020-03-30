@@ -1790,9 +1790,9 @@ tdsaSASDownStreamDiscovering(
   }
   else
   {
-    TDLIST_DEQUEUE_FROM_HEAD(&ExpanderList, &(onePortContext->discovery.discoveringExpanderList));;
+    TDLIST_DEQUEUE_FROM_HEAD(&ExpanderList, &(onePortContext->discovery.discoveringExpanderList));
     NextExpander = TDLIST_OBJECT_BASE(tdsaExpander_t, linkNode, ExpanderList);
-    TDLIST_ENQUEUE_AT_HEAD(&(NextExpander->linkNode), &(onePortContext->discovery.discoveringExpanderList));;
+    TDLIST_ENQUEUE_AT_HEAD(&(NextExpander->linkNode), &(onePortContext->discovery.discoveringExpanderList));
     tdsaSingleThreadedLeave(tiRoot, TD_DISC_LOCK);
     TI_DBG3(("tdssSASDiscoveringExpander tdsaSASDownStreamDiscovering: dequeue head\n"));
     TI_DBG3(("tdsaSASDownStreamDiscovering: expander id %d\n", NextExpander->id));

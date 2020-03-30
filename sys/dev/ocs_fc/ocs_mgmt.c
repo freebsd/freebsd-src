@@ -912,7 +912,7 @@ static int32_t
 ocs_mgmt_get_sfp(ocs_t *ocs, uint16_t page, void *buf, uint32_t buf_len)
 {
 	int rc = 0;
-	ocs_mgmt_sfp_result_t *result = ocs_malloc(ocs, sizeof(ocs_mgmt_sfp_result_t),  OCS_M_ZERO | OCS_M_NOWAIT);;
+	ocs_mgmt_sfp_result_t *result = ocs_malloc(ocs, sizeof(ocs_mgmt_sfp_result_t),  OCS_M_ZERO | OCS_M_NOWAIT);
 
 	ocs_sem_init(&(result->semaphore), 0, "get_sfp");
 	ocs_lock_init(ocs, &(result->cb_lock), "get_sfp");

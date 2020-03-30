@@ -15939,7 +15939,7 @@ static void bxe_force_link_reset(struct bxe_softc *sc)
 static int
 bxe_sysctl_pauseparam(SYSCTL_HANDLER_ARGS)
 {
-        struct bxe_softc *sc = (struct bxe_softc *)arg1;;
+        struct bxe_softc *sc = (struct bxe_softc *)arg1;
         uint32_t cfg_idx = bxe_get_link_cfg_idx(sc);
         int rc = 0;
         int error;

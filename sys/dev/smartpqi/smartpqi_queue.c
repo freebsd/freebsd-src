@@ -282,7 +282,7 @@ void pqisrc_print_adminq_config(pqisrc_softstate_t *softs)
  */
 int pqisrc_create_admin_queue(pqisrc_softstate_t *softs)
 {
-	int ret = PQI_STATUS_SUCCESS;;
+	int ret = PQI_STATUS_SUCCESS;
 	uint32_t admin_q_param = 0;
 
 	DBG_FUNC("IN\n");
@@ -527,7 +527,7 @@ int pqisrc_destroy_admin_queue(pqisrc_softstate_t *softs)
 int pqisrc_change_op_ibq_queue_prop(pqisrc_softstate_t *softs,
 			ib_queue_t *op_ib_q, uint32_t prop)
 {
-	int ret = PQI_STATUS_SUCCESS;;
+	int ret = PQI_STATUS_SUCCESS;
 	gen_adm_req_iu_t admin_req;
 	gen_adm_resp_iu_t admin_resp;
 
@@ -552,7 +552,7 @@ int pqisrc_change_op_ibq_queue_prop(pqisrc_softstate_t *softs,
 int pqisrc_create_op_obq(pqisrc_softstate_t *softs,
 			ob_queue_t *op_ob_q)
 {
-	int ret = PQI_STATUS_SUCCESS;;
+	int ret = PQI_STATUS_SUCCESS;
 	gen_adm_req_iu_t admin_req;
 	gen_adm_resp_iu_t admin_resp;
 
@@ -596,7 +596,7 @@ int pqisrc_create_op_obq(pqisrc_softstate_t *softs,
 int pqisrc_create_op_ibq(pqisrc_softstate_t *softs,
 			ib_queue_t *op_ib_q)
 {
-	int ret = PQI_STATUS_SUCCESS;;
+	int ret = PQI_STATUS_SUCCESS;
 	gen_adm_req_iu_t admin_req;
 	gen_adm_resp_iu_t admin_resp;
 
@@ -656,7 +656,7 @@ int pqisrc_create_op_aio_ibq(pqisrc_softstate_t *softs,
 int pqisrc_create_op_raid_ibq(pqisrc_softstate_t *softs,
 			ib_queue_t *op_raid_ib_q)
 {
-	int ret = PQI_STATUS_SUCCESS;;
+	int ret = PQI_STATUS_SUCCESS;
 	
 	DBG_FUNC("IN\n");
 	

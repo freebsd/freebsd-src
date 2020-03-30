@@ -4317,7 +4317,7 @@ ql_iscsi_pdu(qla_host_t *ha, struct mbuf *mp)
 			offset = hdrlen + 4;
 	
 			if (mp->m_len >= offset) {
-				th = (struct tcphdr *)(mp->m_data + hdrlen);;
+				th = (struct tcphdr *)(mp->m_data + hdrlen);
 			} else {
                                 m_copydata(mp, hdrlen, 4, buf);
 				th = (struct tcphdr *)buf;
@@ -4341,7 +4341,7 @@ ql_iscsi_pdu(qla_host_t *ha, struct mbuf *mp)
 			offset = hdrlen + 4;
 
 			if (mp->m_len >= offset) {
-				th = (struct tcphdr *)(mp->m_data + hdrlen);;
+				th = (struct tcphdr *)(mp->m_data + hdrlen);
 			} else {
 				m_copydata(mp, hdrlen, 4, buf);
 				th = (struct tcphdr *)buf;
