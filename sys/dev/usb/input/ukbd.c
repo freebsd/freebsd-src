@@ -499,6 +499,21 @@ ukbd_interrupt(struct ukbd_softc *sc)
 
 	UKBD_LOCK_ASSERT();
 
+	/* Check for modifier key changes first */
+	for (key = 0xe0; key != 0xe8; key++) {
+		const uint64_t mask = 1ULL << (key % 64);
+		const uint64_t delta =
+		    sc->sc_odata.bitmap[key / 64] ^
+		    sc->sc_ndata.bitmap[key / 64];
+
+		if (delta & mask) {
+			if (sc->sc_odata.bitmap[key / 64] & mask)
+				ukbd_put_key(sc, key | KEY_RELEASE);
+			else
+				ukbd_put_key(sc, key | KEY_PRESS);
+		}
+	}
+
 	/* Check for key changes */
 	for (key = 0; key != UKBD_NKEYCODE; key++) {
 		const uint64_t mask = 1ULL << (key % 64);
@@ -509,6 +524,8 @@ ukbd_interrupt(struct ukbd_softc *sc)
 		if (mask == 1 && delta == 0) {
 			key += 63;
 			continue;	/* skip empty areas */
+		} else if (ukbd_is_modifier_key(key)) {
+			continue;
 		} else if (delta & mask) {
 			if (sc->sc_odata.bitmap[key / 64] & mask) {
 				ukbd_put_key(sc, key | KEY_RELEASE);
@@ -518,9 +535,6 @@ ukbd_interrupt(struct ukbd_softc *sc)
 					sc->sc_repeat_key = 0;
 			} else {
 				ukbd_put_key(sc, key | KEY_PRESS);
-
-				if (ukbd_is_modifier_key(key))
-					continue;
 
 				sc->sc_co_basetime = sbinuptime();
 				sc->sc_delay = sc->sc_kbd.kb_delay1;
