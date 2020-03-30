@@ -464,7 +464,7 @@ extern pid_t	myPid;
  *	There is one bit per module.  It is up to the module what debug
  *	information to print.
  */
-FILE *debug_file;		/* Output written here - default stdout */
+extern FILE *debug_file;	/* Output written here - default stdout */
 extern int debug;
 #define	DEBUG_ARCH	0x00001
 #define	DEBUG_COND	0x00002
