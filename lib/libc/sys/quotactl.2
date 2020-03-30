@@ -31,7 +31,7 @@
 .\"	@(#)quotactl.2	8.2 (Berkeley) 3/10/95
 .\" $FreeBSD$
 .\"
-.Dd March 5, 1999
+.Dd March 30, 2020
 .Dt QUOTACTL 2
 .Os
 .Sh NAME
@@ -228,6 +228,8 @@ An
 .Tn I/O
 error occurred while reading from or writing
 to a file containing quotas.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er EFAULT
 An invalid
 .Fa addr

@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2020
+.Dd March 30, 2020
 .Dt POSIX_FALLOCATE 2
 .Os
 .Sh NAME
@@ -112,6 +112,8 @@ argument was less than zero,
 or the operation is not supported by the file system.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to a file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er ENODEV
 The
 .Fa fd

@@ -28,7 +28,7 @@
 .\"     @(#)unlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2019
+.Dd March 30, 2020
 .Dt UNLINK 2
 .Os
 .Sh NAME
@@ -175,6 +175,8 @@ are owned by the effective user ID.
 .It Bq Er EIO
 An I/O error occurred while deleting the directory entry
 or deallocating the inode.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er EROFS
 The named file resides on a read-only file system.
 .It Bq Er EFAULT

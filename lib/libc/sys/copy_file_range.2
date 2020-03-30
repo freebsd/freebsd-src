@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2019
+.Dd March 30, 2020
 .Dt COPY_FILE_RANGE 2
 .Os
 .Sh NAME
@@ -180,6 +180,8 @@ flags
 is not zero.
 .It Bq Er EIO
 An I/O error occurred while reading/writing the files.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from a file system.
 .It Bq Er EISDIR
 If either
 .Fa infd

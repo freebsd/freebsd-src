@@ -28,7 +28,7 @@
 .\"	@(#)statfs.2	8.5 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2017
+.Dd March 30, 2020
 .Dt STATFS 2
 .Os
 .Sh NAME
@@ -204,6 +204,8 @@ points to an invalid address.
 An
 .Tn I/O
 error occurred while reading from or writing to the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .El
 .Pp
 The
@@ -225,6 +227,8 @@ points to an invalid address.
 An
 .Tn I/O
 error occurred while reading from or writing to the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .El
 .Sh SEE ALSO
 .Xr fhstatfs 2 ,
