@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.104 2018/02/12 21:38:09 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.105 2020/03/30 02:41:06 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
