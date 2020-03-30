@@ -205,7 +205,7 @@ ocs_node_find(ocs_sport_t *sport, uint32_t port_id)
 ocs_node_t *
 ocs_node_find_wwpn(ocs_sport_t *sport, uint64_t wwpn)
 {
-	ocs_node_t *node = NULL;;
+	ocs_node_t *node = NULL;
 
 	ocs_assert(sport, NULL);
 

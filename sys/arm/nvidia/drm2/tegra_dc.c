@@ -384,7 +384,7 @@ dc_setup_window(struct dc_softc *sc, unsigned int index, struct dc_window *win)
 		v_size = win->src_w;
 	}
 
-	h_offset = win->src_x * bpp;;
+	h_offset = win->src_x * bpp;
 	v_offset = win->src_y;
 	if (win->flip_x) {
 		h_offset += win->src_w * bpp - 1;

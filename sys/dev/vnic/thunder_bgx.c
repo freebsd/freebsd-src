@@ -1052,7 +1052,7 @@ bgx_init_hw(struct bgx *bgx)
 static void
 bgx_get_qlm_mode(struct bgx *bgx)
 {
-	device_t dev = bgx->dev;;
+	device_t dev = bgx->dev;
 	int lmac_type;
 	int train_en;
 

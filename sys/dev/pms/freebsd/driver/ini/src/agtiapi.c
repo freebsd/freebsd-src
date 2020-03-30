@@ -3540,7 +3540,7 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
                     "not supported\n" );
     ccb->ccb_h.status = CAM_REQ_INVALID;
     xpt_done(ccb);
-    return tiReject;;
+    return tiReject;
   }
 
   if (ccbh->flags & CAM_SCATTER_VALID)
@@ -3556,7 +3556,7 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
                       "not supported\n" );
       ccb->ccb_h.status = CAM_REQ_INVALID;
       xpt_done(ccb);
-      return tiReject;;
+      return tiReject;
     }
     if ( csmpio->smp_request_sglist_cnt != 0 )
     {

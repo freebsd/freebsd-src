@@ -1599,7 +1599,7 @@ tiCOMPassthroughCmndStart(
         break;
         
       case tiConfigureRteInfo:
-        SMPFn = SMP_CONFIGURE_ROUTING_INFORMATION;;
+        SMPFn = SMP_CONFIGURE_ROUTING_INFORMATION;
         if (tdPTCmndBody->protocol.SMP.IT == SMP_INITIATOR)
         {
           SMPFrameLen = sizeof(SmpReqConfigureRouteInformation_t);

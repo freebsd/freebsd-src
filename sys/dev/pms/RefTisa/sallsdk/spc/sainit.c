@@ -1765,7 +1765,7 @@ GLOBAL bit32 siConfiguration(
     for( i = 0; i < queueConfig->numInboundQueues; i ++ )
     {
       mpiConfig->inboundQueues[i].numElements   = (bit16)queueConfig->inboundQueues[i].elementCount;
-      mpiConfig->inboundQueues[i].elementSize   = (bit16)queueConfig->inboundQueues[i].elementSize;;
+      mpiConfig->inboundQueues[i].elementSize   = (bit16)queueConfig->inboundQueues[i].elementSize;
       mpiConfig->inboundQueues[i].priority      = queueConfig->inboundQueues[i].priority;
 
       SA_DBG2(("siConfiguration: IBQ%d:elementCount=%d elementSize=%d priority=%d Total Size 0x%X\n",

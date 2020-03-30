@@ -341,7 +341,7 @@ static void
 avi_setup_infoframe(struct hdmi_softc *sc, struct drm_display_mode *mode)
 {
 	struct hdmi_avi_infoframe frame;
-	uint8_t buf[17], *hdr, *pb;;
+	uint8_t buf[17], *hdr, *pb;
 	ssize_t rv;
 
 	rv = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);

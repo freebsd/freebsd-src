@@ -548,7 +548,7 @@ int pqisrc_send_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
 			return PQI_STATUS_FAILURE;
 	/* Check for write to non-RAID-0. */
 	if (is_write && device->raid_level != SA_RAID_0)
-		return PQI_STATUS_FAILURE;;
+		return PQI_STATUS_FAILURE;
 
 	if(blk_cnt == 0) 
 		return PQI_STATUS_FAILURE;
