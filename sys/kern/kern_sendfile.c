@@ -36,16 +36,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/kernel.h>
-#include <netinet/in.h>
 #include <sys/lock.h>
 #include <sys/ktls.h>
 #include <sys/mutex.h>
-#include <sys/sysproto.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/rwlock.h>
 #include <sys/sf_buf.h>
@@ -53,9 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+#include <sys/sysproto.h>
 #include <sys/vnode.h>
 
 #include <net/vnet.h>
+#include <netinet/in.h>
 #include <netinet/tcp.h>
 
 #include <security/audit/audit.h>
