@@ -36,6 +36,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200330: GDB_LIBEXEC option retired (always true)
+OLD_FILES+=usr/bin/gdb
+OLD_FILES+=usr/bin/gdbserver
+OLD_FILES+=usr/bin/kgdb
+OLD_FILES+=usr/share/man/man1/gdb.1.gz
+OLD_FILES+=usr/share/man/man1/gdbserver.1.gz
+OLD_FILES+=usr/share/man/man1/kgdb.1.gz
+
 # 20200327: OCF refactoring
 OLD_FILES+=usr/share/man/man9/crypto_find_driver.9
 OLD_FILES+=usr/share/man/man9/crypto_register.9
