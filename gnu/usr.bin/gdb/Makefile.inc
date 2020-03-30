@@ -58,7 +58,7 @@ GENSRCS+= nm.h tm.h
 CFLAGS+= -DCROSS_DEBUGGER -I${BMAKE_ROOT:H:H}
 GDB_SUFFIX= -${TARGET_ARCH}
 MAN=
-.elif ${MK_GDB_LIBEXEC} != "no"
+.else
 BINDIR?=	/usr/libexec
 MAN=
 .endif
