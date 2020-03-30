@@ -469,7 +469,6 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 				    __func__, pa, j));
 				vm_page_unwire(pa[j], PQ_INACTIVE);
 			}
-			refcount_release(&sfio->nios);
 			return (EIO);
 		}
 
