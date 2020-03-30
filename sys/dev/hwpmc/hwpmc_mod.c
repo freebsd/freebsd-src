@@ -36,9 +36,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/domainset.h>
 #include <sys/eventhandler.h>
-#include <sys/gtaskqueue.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/syslog.h>
-#include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
 #include <sys/linker.h>		/* needs to be after <sys/malloc.h> */
@@ -187,7 +187,7 @@ static int pmc_threadfreelist_entries=0;
 /*
  * Task to free thread descriptors
  */
-static struct grouptask free_gtask;
+static struct task free_task;
 
 /*
  * A map of row indices to classdep structures.
@@ -2413,15 +2413,15 @@ pmc_thread_descriptor_pool_free(struct pmc_thread *pt)
 	LIST_INSERT_HEAD(&pmc_threadfreelist, pt, pt_next);
 	pmc_threadfreelist_entries++;
 	if (pmc_threadfreelist_entries > pmc_threadfreelist_max)
-		GROUPTASK_ENQUEUE(&free_gtask);
+		taskqueue_enqueue(taskqueue_fast, &free_task);
 	mtx_unlock_spin(&pmc_threadfreelist_mtx);
 }
 
 /*
- * A callout to manage the free list.
+ * An asynchronous task to manage the free list.
  */
 static void
-pmc_thread_descriptor_pool_free_task(void *arg __unused)
+pmc_thread_descriptor_pool_free_task(void *arg __unused, int pending __unused)
 {
 	struct pmc_thread *pt;
 	LIST_HEAD(, pmc_thread) tmplist;
@@ -5717,11 +5717,8 @@ pmc_initialize(void)
 	mtx_init(&pmc_threadfreelist_mtx, "pmc-threadfreelist", "pmc-leaf",
 	    MTX_SPIN);
 
-	/*
-	 * Initialize the callout to monitor the thread free list.
-	 * This callout will also handle the initial population of the list.
-	 */
-	taskqgroup_config_gtask_init(NULL, &free_gtask, pmc_thread_descriptor_pool_free_task, "thread descriptor pool free task");
+	/* Initialize the task to prune the thread free list. */
+	TASK_INIT(&free_task, 0, pmc_thread_descriptor_pool_free_task, NULL);
 
 	/* register process {exit,fork,exec} handlers */
 	pmc_exit_tag = EVENTHANDLER_REGISTER(process_exit,
@@ -5820,6 +5817,7 @@ pmc_cleanup(void)
 		}
 
 	/* reclaim allocated data structures */
+	taskqueue_drain(taskqueue_fast, &free_task);
 	mtx_destroy(&pmc_threadfreelist_mtx);
 	pmc_thread_descriptor_pool_drain();
 
@@ -5827,7 +5825,6 @@ pmc_cleanup(void)
 		mtx_pool_destroy(&pmc_mtxpool);
 
 	mtx_destroy(&pmc_processhash_mtx);
-	taskqgroup_config_gtask_deinit(&free_gtask);
 	if (pmc_processhash) {
 #ifdef	HWPMC_DEBUG
 		struct pmc_process *pp;

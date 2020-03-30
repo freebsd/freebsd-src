@@ -80,9 +80,6 @@ void	taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask);
 struct taskqgroup *taskqgroup_create(const char *name, int cnt, int stride);
 void	taskqgroup_destroy(struct taskqgroup *qgroup);
 void	taskqgroup_bind(struct taskqgroup *qgroup);
-void	taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask,
-	    gtask_fn_t *fn, const char *name);
-void	taskqgroup_config_gtask_deinit(struct grouptask *gtask);
 
 #define	GTASK_INIT(gtask, flags, priority, func, context) do {	\
 	(gtask)->ta_flags = flags;				\
