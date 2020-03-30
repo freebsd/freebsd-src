@@ -1988,7 +1988,7 @@ sign-packages:	_pkgbootstrap .PHONY
 # Run test suite on installed world.
 #
 checkworld: .PHONY
-	@if [ ! -x "${LOCALBASE}/bin/kyua" ]; then \
+	@if [ ! -x "${LOCALBASE}/bin/kyua" ] && [ ! -x "/usr/bin/kyua" ]; then \
 		echo "You need kyua (devel/kyua) to run the test suite." | /usr/bin/fmt; \
 		exit 1; \
 	fi
