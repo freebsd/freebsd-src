@@ -256,6 +256,17 @@ fixspace(int old, int new, off_t off, int *space)
 }
 
 /*
+ * Wait for all in-flight ios to complete, we must not unwire pages
+ * under them.
+ */
+static void
+sendfile_iowait(struct sf_io *sfio, const char *wmesg)
+{
+	while (atomic_load_int(&sfio->nios) != 1)
+		pause(wmesg, 1);
+}
+
+/*
  * I/O completion callback.
  */
 static void
@@ -437,6 +448,8 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 		    i + count == npages ? &rhpages : NULL,
 		    &sendfile_iodone, sfio);
 		if (__predict_false(rv != VM_PAGER_OK)) {
+			sendfile_iowait(sfio, "sferrio");
+
 			/*
 			 * Perform full pages recovery before returning EIO.
 			 * Pages from 0 to npages are wired.
@@ -967,6 +980,7 @@ retry_space:
 			    m != NULL ? SFB_NOWAIT : SFB_CATCH);
 			if (sf == NULL) {
 				SFSTAT_INC(sf_allocfail);
+				sendfile_iowait(sfio, "sfnosf");
 				for (int j = i; j < npages; j++)
 					vm_page_unwire(pa[j], PQ_INACTIVE);
 				if (m == NULL)
