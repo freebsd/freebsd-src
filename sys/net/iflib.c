@@ -1410,38 +1410,12 @@ iflib_dma_free_multi(iflib_dma_info_t *dmalist, int count)
 		iflib_dma_free(*dmaiter);
 }
 
-#ifdef EARLY_AP_STARTUP
-static const int iflib_started = 1;
-#else
-/*
- * We used to abuse the smp_started flag to decide if the queues have been
- * fully initialized (by late taskqgroup_adjust() calls in a SYSINIT()).
- * That gave bad races, since the SYSINIT() runs strictly after smp_started
- * is set.  Run a SYSINIT() strictly after that to just set a usable
- * completion flag.
- */
-
-static int iflib_started;
-
-static void
-iflib_record_started(void *arg)
-{
-	iflib_started = 1;
-}
-
-SYSINIT(iflib_record_started, SI_SUB_SMP + 1, SI_ORDER_FIRST,
-	iflib_record_started, NULL);
-#endif
-
 static int
 iflib_fast_intr(void *arg)
 {
 	iflib_filter_info_t info = arg;
 	struct grouptask *gtask = info->ifi_task;
 	int result;
-
-	if (!iflib_started)
-		return (FILTER_STRAY);
 
 	DBG_COUNTER_INC(fast_intrs);
 	if (info->ifi_filter != NULL) {
@@ -1466,9 +1440,6 @@ iflib_fast_intr_rxtx(void *arg)
 	int i, cidx, result;
 	qidx_t txqid;
 	bool intr_enable, intr_legacy;
-
-	if (!iflib_started)
-		return (FILTER_STRAY);
 
 	DBG_COUNTER_INC(fast_intrs);
 	if (info->ifi_filter != NULL) {
@@ -1521,9 +1492,6 @@ iflib_fast_intr_ctx(void *arg)
 	iflib_filter_info_t info = arg;
 	struct grouptask *gtask = info->ifi_task;
 	int result;
-
-	if (!iflib_started)
-		return (FILTER_STRAY);
 
 	DBG_COUNTER_INC(fast_intrs);
 	if (info->ifi_filter != NULL) {
@@ -4745,18 +4713,6 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	 * Now that we know how many queues there are, get the core offset.
 	 */
 	ctx->ifc_sysctl_core_offset = get_ctx_core_offset(ctx);
-
-	/*
-	 * Group taskqueues aren't properly set up until SMP is started,
-	 * so we disable interrupts until we can handle them post
-	 * SI_SUB_SMP.
-	 *
-	 * XXX: disabling interrupts doesn't actually work, at least for
-	 * the non-MSI case.  When they occur before SI_SUB_SMP completes,
-	 * we do null handling and depend on this not causing too large an
-	 * interrupt storm.
-	 */
-	IFDI_INTR_DISABLE(ctx);
 
 	if (msix > 1) {
 		/*
