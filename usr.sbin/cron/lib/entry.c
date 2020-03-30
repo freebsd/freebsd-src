@@ -369,7 +369,8 @@ load_entry(file, error_func, pw, envp)
 	e->gid = pw->pw_gid;
 
 	/* copy and fix up environment.  some variables are just defaults and
-	 * others are overrides.
+	 * others are overrides; we process only the overrides here, defaults
+	 * are handled in do_command after login.conf is processed.
 	 */
 	e->envp = env_copy(envp);
 	if (e->envp == NULL) {
@@ -388,6 +389,10 @@ load_entry(file, error_func, pw, envp)
 			goto eof;
 		}
 	}
+	/* If LOGIN_CAP, this is deferred to do_command where the login class
+	 * is processed. If !LOGIN_CAP, do it here.
+	 */
+#ifndef LOGIN_CAP
 	if (!env_get("HOME", e->envp)) {
 		prev_env = e->envp;
 		sprintf(envstr, "HOME=%s", pw->pw_dir);
@@ -399,17 +404,7 @@ load_entry(file, error_func, pw, envp)
 			goto eof;
 		}
 	}
-	if (!env_get("PATH", e->envp)) {
-		prev_env = e->envp;
-		sprintf(envstr, "PATH=%s", _PATH_DEFPATH);
-		e->envp = env_set(e->envp, envstr);
-		if (e->envp == NULL) {
-			warn("env_set(%s)", envstr);
-			env_free(prev_env);
-			ecode = e_mem;
-			goto eof;
-		}
-	}
+#endif
 	prev_env = e->envp;
 	sprintf(envstr, "%s=%s", "LOGNAME", pw->pw_name);
 	e->envp = env_set(e->envp, envstr);
