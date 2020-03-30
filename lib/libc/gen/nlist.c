@@ -47,12 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
-#define _NLIST_DO_ELF
-
-#ifdef _NLIST_DO_ELF
 #include <machine/elf.h>
 #include <elf-hints.h>
-#endif
 
 int __fdnlist(int, struct nlist *);
 int __elf_fdnlist(int, struct nlist *);
@@ -74,9 +70,7 @@ nlist(const char *name, struct nlist *list)
 static struct nlist_handlers {
 	int	(*fn)(int fd, struct nlist *list);
 } nlist_fn[] = {
-#ifdef _NLIST_DO_ELF
 	{ __elf_fdnlist },
-#endif
 };
 
 int
@@ -95,7 +89,6 @@ __fdnlist(int fd, struct nlist *list)
 
 #define	ISLAST(p)	(p->n_un.n_name == 0 || p->n_un.n_name[0] == 0)
 
-#ifdef _NLIST_DO_ELF
 static void elf_sym_to_nlist(struct nlist *, Elf_Sym *, Elf_Shdr *, int);
 
 /*
@@ -299,4 +292,3 @@ elf_sym_to_nlist(struct nlist *nl, Elf_Sym *s, Elf_Shdr *shdr, int shnum)
 	    ELF_ST_BIND(s->st_info) == STB_WEAK)
 		nl->n_type |= N_EXT;
 }
-#endif /* _NLIST_DO_ELF */
