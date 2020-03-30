@@ -1625,7 +1625,7 @@ ocs_hw_qtop_parse(ocs_hw_t *hw, const char *qtop_string)
 	/* Parse the tokens */
 	for (s = qtop_string; (tokarray.inuse_count < tokarray.alloc_count) &&
 	     ((s = tokenize(s, &tokarray.tokens[tokarray.inuse_count]))) != NULL; ) {
-		tokarray.inuse_count++;;
+		tokarray.inuse_count++;
 	}
 
 	/* Allocate a queue topology structure */

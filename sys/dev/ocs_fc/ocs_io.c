@@ -110,7 +110,7 @@ ocs_io_pool_create(ocs_t *ocs, uint32_t num_io, uint32_t num_sgl)
 	io_pool = ocs_malloc(ocs, sizeof(*io_pool), OCS_M_ZERO | OCS_M_NOWAIT);
 	if (io_pool == NULL) {
 		ocs_log_err(ocs, "allocate of IO pool failed\n");
-		return NULL;;
+		return NULL;
 	}
 
 	io_pool->ocs = ocs;
