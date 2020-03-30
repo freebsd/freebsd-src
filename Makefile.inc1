@@ -924,17 +924,8 @@ _sanity_check: .PHONY .MAKE
 # replacing generated files.  Handle these cases here in an ad-hoc fashion.
 _cleanobj_fast_depend_hack: .PHONY
 	@echo ">>> Deleting stale dependencies...";
+	sh ${.CURDIR}/tools/build/depend-cleanup.sh ${OBJTOP}
 # Date      SVN Rev  Syscalls/Changes
-# 20200310  r358851  rename of openmp's ittnotify_static.c to .cpp
-.for f in ittnotify_static
-	@if [ -e "${OBJTOP}/lib/libomp/.depend.${f}.pico" ] && \
-	    egrep -qw '${f}\.c' ${OBJTOP}/lib/libomp/.depend.${f}.pico; then \
-		echo "Removing stale dependencies for ${f}"; \
-		rm -f ${OBJTOP}/lib/libomp/.depend.${f}.* \
-		   ${OBJTOP}/obj-lib32/lib/libomp/.depend.${f}.* \
-		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libomp/.depend.${f}.*}; \
-	fi
-.endfor
 # Syscall stubs rewritten in C and obsolete MD assembly implementations
 # 20191009  r353340  removal of opensolaris_atomic.S (also r353381)
 .if ${MACHINE} != i386
