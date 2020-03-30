@@ -1032,6 +1032,14 @@ mix_get_type(struct snd_mixer *m)
 	return (m->type);
 }
 
+device_t
+mix_get_dev(struct snd_mixer *m)
+{
+	KASSERT(m != NULL, ("NULL snd_mixer"));
+
+	return (m->dev);
+}
+
 /* ----------------------------------------------------------------------- */
 
 static int
