@@ -1597,9 +1597,7 @@ mmu_booke_remove_all(mmu_t mmu, vm_page_t m)
 	uint8_t hold_flag;
 
 	rw_wlock(&pvh_global_lock);
-	for (pv = TAILQ_FIRST(&m->md.pv_list); pv != NULL; pv = pvn) {
-		pvn = TAILQ_NEXT(pv, pv_link);
-
+	TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_link, pvn) {
 		PMAP_LOCK(pv->pv_pmap);
 		hold_flag = PTBL_HOLD_FLAG(pv->pv_pmap);
 		pte_remove(mmu, pv->pv_pmap, pv->pv_va, hold_flag);
