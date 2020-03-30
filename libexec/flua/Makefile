@@ -24,4 +24,9 @@ SRCS+=	lfs.c lposix.c
 CFLAGS+=	-I${SRCTOP}/lib/liblua -I${.CURDIR}/modules -I${LUASRC}
 CFLAGS+=	-DLUA_PROGNAME="\"${PROG}\""
 
+# readline bits
+CFLAGS+=	-DLUA_USE_READLINE
+CFLAGS+=	-I${SRCTOP}/lib/libedit -I${SRCTOP}/contrib/libedit
+LIBADD+=	edit
+
 .include <bsd.prog.mk>
