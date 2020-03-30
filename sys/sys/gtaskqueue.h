@@ -77,9 +77,9 @@ int	taskqgroup_attach_cpu(struct taskqgroup *qgroup,
 	    struct grouptask *grptask, void *uniq, int cpu, device_t dev,
 	    struct resource *irq, const char *name);
 void	taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask);
-struct taskqgroup *taskqgroup_create(const char *name);
+struct taskqgroup *taskqgroup_create(const char *name, int cnt, int stride);
 void	taskqgroup_destroy(struct taskqgroup *qgroup);
-int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
+void	taskqgroup_bind(struct taskqgroup *qgroup);
 void	taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask,
 	    gtask_fn_t *fn, const char *name);
 void	taskqgroup_config_gtask_deinit(struct grouptask *gtask);
@@ -107,22 +107,19 @@ struct taskqgroup *qgroup_##name;					\
 static void								\
 taskqgroup_define_##name(void *arg)					\
 {									\
-	qgroup_##name = taskqgroup_create(#name);			\
+	qgroup_##name = taskqgroup_create(#name, (cnt), (stride));	\
 }									\
-									\
 SYSINIT(taskqgroup_##name, SI_SUB_TASKQ, SI_ORDER_FIRST,		\
-	taskqgroup_define_##name, NULL);				\
+    taskqgroup_define_##name, NULL);					\
 									\
 static void								\
-taskqgroup_adjust_##name(void *arg)					\
+taskqgroup_bind_##name(void *arg)					\
 {									\
-	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
+	taskqgroup_bind(qgroup_##name);					\
 }									\
-									\
-SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
-	taskqgroup_adjust_##name, NULL)
+SYSINIT(taskqgroup_bind_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
+    taskqgroup_bind_##name, NULL)
 
-TASKQGROUP_DECLARE(net);
 TASKQGROUP_DECLARE(softirq);
 
 #endif /* !_SYS_GTASKQUEUE_H_ */
