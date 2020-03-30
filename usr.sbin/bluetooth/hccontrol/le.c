@@ -306,7 +306,7 @@ int le_enable(int s, int argc, char *argv[])
 		set_event_mask(s, NG_HCI_EVENT_MASK_DEFAULT |
 			       NG_HCI_EVENT_MASK_LE);
 		set_le_event_mask(s, NG_HCI_LE_EVENT_MASK_ALL);
-	} else if (strcasecmp(argv[0], "disble") == 0)
+	} else if (strcasecmp(argv[0], "disable") == 0)
 		set_event_mask(s, NG_HCI_EVENT_MASK_DEFAULT);
 	else
 		return USAGE;
