@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 
+static MALLOC_DEFINE(M_SENDFILE, "sendfile", "sendfile dynamic memory");
+
 #define	EXT_FLAG_SYNC		EXT_FLAG_VENDOR1
 #define	EXT_FLAG_NOCACHE	EXT_FLAG_VENDOR2
 #define	EXT_FLAG_CACHE_LAST	EXT_FLAG_VENDOR3
@@ -283,7 +285,7 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 		 * to the socket yet.
 		 */
 		MPASS((curthread->td_pflags & TDP_KTHREAD) == 0);
-		free(sfio, M_TEMP);
+		free(sfio, M_SENDFILE);
 		return;
 	}
 
@@ -338,7 +340,7 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 out_with_ref:
 #endif
 	CURVNET_RESTORE();
-	free(sfio, M_TEMP);
+	free(sfio, M_SENDFILE);
 }
 
 /*
@@ -640,7 +642,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	SFSTAT_ADD(sf_rhpages_requested, SF_READAHEAD(flags));
 
 	if (flags & SF_SYNC) {
-		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK | M_ZERO);
+		sfs = malloc(sizeof(*sfs), M_SENDFILE, M_WAITOK | M_ZERO);
 		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 		cv_init(&sfs->cv, "sendfile");
 	}
@@ -826,7 +828,7 @@ retry_space:
 		    npages, rhpages);
 
 		sfio = malloc(sizeof(struct sf_io) +
-		    npages * sizeof(vm_page_t), M_TEMP, M_WAITOK);
+		    npages * sizeof(vm_page_t), M_SENDFILE, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
 		sfio->obj = obj;
 		sfio->error = 0;
@@ -1135,7 +1137,7 @@ out:
 		KASSERT(sfs->count == 0, ("sendfile sync still busy"));
 		cv_destroy(&sfs->cv);
 		mtx_destroy(&sfs->mtx);
-		free(sfs, M_TEMP);
+		free(sfs, M_SENDFILE);
 	}
 #ifdef KERN_TLS
 	if (tls != NULL)
