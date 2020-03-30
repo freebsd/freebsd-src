@@ -28,7 +28,7 @@
 .\"     @(#)truncate.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2020
+.Dd March 30, 2020
 .Dt TRUNCATE 2
 .Os
 .Sh NAME
@@ -117,6 +117,8 @@ The
 argument was less than 0.
 .It Bq Er EIO
 An I/O error occurred updating the inode.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er EFAULT
 The
 .Fa path

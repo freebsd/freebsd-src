@@ -28,7 +28,7 @@
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2018
+.Dd March 30, 2020
 .Dt CHFLAGS 2
 .Os
 .Sh NAME
@@ -264,6 +264,8 @@ points outside the process's allocated address space.
 An
 .Tn I/O
 error occurred while reading from or writing to the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er EOPNOTSUPP
 The underlying file system does not support file flags, or
 does not support all of the flags set in
@@ -306,6 +308,8 @@ The file resides on a read-only file system.
 An
 .Tn I/O
 error occurred while reading from or writing to the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er EOPNOTSUPP
 The underlying file system does not support file flags, or
 does not support all of the flags set in

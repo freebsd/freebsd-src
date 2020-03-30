@@ -28,7 +28,7 @@
 .\"     @(#)read.2	8.4 (Berkeley) 2/26/94
 .\" $FreeBSD$
 .\"
-.Dd July 6, 2019
+.Dd March 30, 2020
 .Dt READ 2
 .Os
 .Sh NAME
@@ -182,6 +182,8 @@ argument
 points outside the allocated address space.
 .It Bq Er EIO
 An I/O error occurred while reading from the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er EBUSY
 Failed to read from a file, e.g. /proc/<pid>/regs while <pid> is not stopped
 .It Bq Er EINTR

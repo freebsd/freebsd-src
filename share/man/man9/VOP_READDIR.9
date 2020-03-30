@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd March 30, 2020
 .Dt VOP_READDIR 9
 .Os
 .Sh NAME
@@ -100,6 +100,8 @@ Memory for the cookies should be allocated using:
 An attempt was made to read from an illegal offset in the directory.
 .It Bq Er EIO
 A read error occurred while reading the directory.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading the directory.
 .El
 .Sh SEE ALSO
 .Xr vnode 9

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2019
+.Dd March 30, 2020
 .Dt VOP_COPY_FILE_RANGE 9
 .Os
 .Sh NAME
@@ -133,6 +133,8 @@ reside on.
 A signal interrupted the VOP call before it could be completed.
 .It Bq Er EIO
 An I/O error occurred while reading/writing the files.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading/writing the files.
 .It Bq Er ENOSPC
 The file system is full.
 .El

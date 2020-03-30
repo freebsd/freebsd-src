@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2020
+.Dd March 30, 2020
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -510,6 +510,8 @@ which the file is being created has been exhausted.
 An I/O error occurred while making the directory entry or
 allocating the inode for
 .Dv O_CREAT .
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er ETXTBSY
 The file is a pure procedure (shared text) file that is being
 executed and the

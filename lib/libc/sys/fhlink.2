@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2018
+.Dd March 30, 2020
 .Dt FHLINK 2
 .Os
 .Sh NAME
@@ -219,6 +219,8 @@ containing the directory has been exhausted.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to
 the file system to make the directory entry.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er EROFS
 The requested link requires writing in a directory on a read-only file
 system.

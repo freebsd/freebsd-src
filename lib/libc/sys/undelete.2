@@ -29,7 +29,7 @@
 .\"     @(#)undelete.2	8.4 (Berkeley) 10/18/94
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2006
+.Dd March 30, 2020
 .Dt UNDELETE 2
 .Os
 .Sh NAME
@@ -87,6 +87,8 @@ The last component of the path is
 .Ql .. .
 .It Bq Er EIO
 An I/O error occurred while updating the directory entry.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er EROFS
 The name resides on a read-only file system.
 .It Bq Er EFAULT
