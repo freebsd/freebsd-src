@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2020
+.Dd March 29, 2020
 .Dt CRONTAB 5
 .Os
 .Sh NAME
@@ -72,9 +72,6 @@ daemon.
 .Ev SHELL
 is set to
 .Pa /bin/sh ,
-.Ev PATH
-is set to
-.Pa /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin ,
 and
 .Ev LOGNAME
 and
@@ -83,12 +80,22 @@ are set from the
 .Pa /etc/passwd
 line of the crontab's owner.
 In addition, the environment variables of the
-user's login class, with the exception of
-.Ev PATH ,
-will be set from
+user's login class will be set from
 .Pa /etc/login.conf.db
 and
 .Pa ~/.login_conf .
+(A setting of
+.Ev HOME
+in the login class will override the value from
+.Pa /etc/passwd ,
+but will not change the current directory when the command is
+invoked, which can only be overridden with an explicit setting of
+.Ev HOME
+within the crontab file itself.)
+If
+.Ev PATH
+is not set by any other means, it is defaulted to
+.Pa /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin .
 .Ev HOME ,
 .Ev PATH
 and
@@ -109,17 +116,11 @@ On these systems,
 .Ev USER
 will be set also).
 .Pp
-In addition to
-.Ev LOGNAME ,
-.Ev HOME ,
-.Ev PATH ,
-and
-.Ev SHELL ,
+If
 .Xr cron 8
-will look at
-.Ev MAILTO
-if it has any reason to send mail as a result of running
-commands in ``this'' crontab.
+has any reason to send mail as a result of running commands in
+``this'' crontab, it will respect the following settings which may be
+defined in the crontab (but which are not taken from the login class).
 If
 .Ev MAILTO
 is defined (and non-empty), mail is
