@@ -765,7 +765,8 @@ vop_stdgetpages_async(struct vop_getpages_async_args *ap)
 
 	error = VOP_GETPAGES(ap->a_vp, ap->a_m, ap->a_count, ap->a_rbehind,
 	    ap->a_rahead);
-	ap->a_iodone(ap->a_arg, ap->a_m, ap->a_count, error);
+	if (ap->a_iodone != NULL)
+		ap->a_iodone(ap->a_arg, ap->a_m, ap->a_count, error);
 	return (error);
 }
 

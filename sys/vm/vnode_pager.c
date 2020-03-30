@@ -776,9 +776,13 @@ vnode_pager_local_getpages(struct vop_getpages_args *ap)
 int
 vnode_pager_local_getpages_async(struct vop_getpages_async_args *ap)
 {
+	int error;
 
-	return (vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
-	    ap->a_rbehind, ap->a_rahead, ap->a_iodone, ap->a_arg));
+	error = vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
+	    ap->a_rbehind, ap->a_rahead, ap->a_iodone, ap->a_arg);
+	if (error != 0 && ap->a_iodone != NULL)
+		ap->a_iodone(ap->a_arg, ap->a_m, ap->a_count, error);
+	return (error);
 }
 
 /*

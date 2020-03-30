@@ -1780,18 +1780,25 @@ ffs_getpages_async(struct vop_getpages_async_args *ap)
 {
 	struct vnode *vp;
 	struct ufsmount *um;
+	bool do_iodone;
 	int error;
 
 	vp = ap->a_vp;
 	um = VFSTOUFS(vp->v_mount);
+	do_iodone = true;
 
-	if (um->um_devvp->v_bufobj.bo_bsize <= PAGE_SIZE)
-		return (vnode_pager_generic_getpages(vp, ap->a_m, ap->a_count,
-		    ap->a_rbehind, ap->a_rahead, ap->a_iodone, ap->a_arg));
-
-	error = vfs_bio_getpages(vp, ap->a_m, ap->a_count, ap->a_rbehind,
-	    ap->a_rahead, ffs_gbp_getblkno, ffs_gbp_getblksz);
-	ap->a_iodone(ap->a_arg, ap->a_m, ap->a_count, error);
+	if (um->um_devvp->v_bufobj.bo_bsize <= PAGE_SIZE) {
+		error = vnode_pager_generic_getpages(vp, ap->a_m, ap->a_count,
+		    ap->a_rbehind, ap->a_rahead, ap->a_iodone, ap->a_arg);
+		if (error == 0)
+			do_iodone = false;
+	} else {
+		error = vfs_bio_getpages(vp, ap->a_m, ap->a_count,
+		    ap->a_rbehind, ap->a_rahead, ffs_gbp_getblkno,
+		    ffs_gbp_getblksz);
+	}
+	if (do_iodone && ap->a_iodone != NULL)
+		ap->a_iodone(ap->a_arg, ap->a_m, ap->a_count, error);
 
 	return (error);
 }
