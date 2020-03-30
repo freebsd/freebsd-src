@@ -1746,6 +1746,9 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_CAP_GETMODE:
 		break;
 
+	case AUE_THR_NEW:
+		break;
+
 	case AUE_NULL:
 	default:
 		printf("BSM conversion requested for unknown event %d\n",
