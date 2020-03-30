@@ -1277,24 +1277,24 @@ This member specifies a constant addend used to compute the value to be
 stored into the relocatable field.
 .El
 .Ss Note Section
-ELF note sections consist of entries with the following format.
-.Bl -column -offset indent "Field" "Size" "Description"
-.It Sy Field Ta Sy Size Ta Sy Description
-.It namesz   Ta 32 bits Ta Size of "name"
-.It descsz   Ta 32 bits Ta Size of "desc"
-.It type     Ta 32 bits Ta OS-dependent note type
-.It name     Ta namesz  Ta Null-terminated originator name
-.It desc     Ta descsz  Ta OS-dependent note data
+ELF note sections consist of entries with the following format:
+.Bl -column -offset indent "namesz" "32 bits" "Null-terminated originator name"
+.Sy Field       Ta Sy Size    Ta Sy Description
+.It Va namesz   Ta 32 bits    Ta Size of "name"
+.It Va descsz   Ta 32 bits    Ta Size of "desc"
+.It Va type     Ta 32 bits    Ta OS-dependent note type
+.It Va name     Ta Va namesz  Ta Null-terminated originator name
+.It Va desc     Ta Va descsz  Ta OS-dependent note data
 .El
 .Pp
 The
-.Sy name
+.Va name
 and
-.Sy desc
+.Va desc
 fields are padded to ensure 4-byte alignemnt.
-.Sy namesz
+.Va namesz
 and
-.Sy descsz
+.Va descsz
 specify the unpadded length.
 .Sh SEE ALSO
 .Xr as 1 ,
