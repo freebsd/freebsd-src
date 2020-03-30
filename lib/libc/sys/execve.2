@@ -28,7 +28,7 @@
 .\"     @(#)execve.2	8.5 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2010
+.Dd March 30, 2020
 .Dt EXECVE 2
 .Os
 .Sh NAME
@@ -304,6 +304,8 @@ point
 to an illegal address.
 .It Bq Er EIO
 An I/O error occurred while reading from the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .El
 .Pp
 In addition, the

@@ -28,7 +28,7 @@
 .\"	@(#)mkfifo.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd March 30, 2020
 .Dt MKFIFO 2
 .Os
 .Sh NAME
@@ -134,6 +134,8 @@ error occurred while making the directory entry or allocating the inode.
 An
 .Tn I/O
 error occurred while reading from or writing to the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .It Bq Er EFAULT
 The
 .Fa path
