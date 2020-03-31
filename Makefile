@@ -494,19 +494,20 @@ worlds: .PHONY
 .if make(universe) || make(universe_kernels) || make(tinderbox) || \
     make(targets) || make(universe-toolchain)
 #
-# Don't build rarely used architectures unless requested.
+# Don't build rarely used, semi-supported architectures unless requested.
 #
 .if defined(EXTRA_TARGETS)
 EXTRA_ARCHES_mips=	mipsel mipshf mipselhf mips64el mips64hf mips64elhf
 EXTRA_ARCHES_mips+=	mipsn32
+# powerpcspe excluded from main list until clang fixed
+EXTRA_ARCHES_powerpc=	powerpcspe
 .endif
 TARGETS?=amd64 arm arm64 i386 mips powerpc riscv
 _UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mips mips64 ${EXTRA_ARCHES_mips}
-# powerpcspe excluded until clang fixed
-TARGET_ARCHES_powerpc?=	powerpc powerpc64
+TARGET_ARCHES_powerpc?=	powerpc powerpc64 ${EXTRA_ARCHES_powerpc}
 TARGET_ARCHES_riscv?=	riscv64 riscv64sf
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
