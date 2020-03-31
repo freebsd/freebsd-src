@@ -289,6 +289,18 @@ for all kernels for that architecture,
 including
 .Pa LINT .
 This command takes a long time.
+.It Cm kernels
+Like
+.Cm universe
+with
+.Va WITHOUT_WORLDS
+defined so only the kernels for each architecture are built.
+.It Cm worlds
+Like
+.Cm universe
+with
+.Va WITHOUT_KERNELS
+defined so only the worlds for each architecture are built.
 .It Cm update
 Get updated sources as configured in
 .Xr make.conf 5 .
@@ -761,7 +773,7 @@ The default action is to build documentation for all languages.
 .Pp
 Builds using the
 .Cm universe
-target are influenced by the following
+and related targets are influenced by the following
 .Xr make 1
 variables:
 .Bl -tag -width ".Va MAKE_JUST_KERNELS"
@@ -786,6 +798,15 @@ target for each supported architecture instead of the default action of
 building a world and one or more kernels.
 This variable implies
 .Va WITHOUT_KERNELS .
+.It Va TARGETS
+Only build the listed targets instead of each supported architecture.
+.It Va EXTRA_TARGETS
+In addition to the supported architectures, build the semi-supported
+architectures.
+A semi-supported architecture has build support in the
+.Fx
+tree, but receives significantly less testing and is generally for
+fringe uses that do not have a wide appeal.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
