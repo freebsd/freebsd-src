@@ -72,6 +72,10 @@
 #  define LG_SIZEOF_PTR		3
 #endif
 
+#if LG_VADDR > 32
+#  define JEMALLOC_RETAIN
+#endif
+
 #ifndef JEMALLOC_TLS_MODEL
 #  define JEMALLOC_TLS_MODEL	/* Default. */
 #endif
