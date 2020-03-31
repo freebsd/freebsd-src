@@ -5,10 +5,12 @@
 #
 # universe            - *Really* build *everything* (buildworld and
 #                       all kernels on all architectures).  Define
-#                       MAKE_JUST_KERNELS to only build kernels,
-#                       MAKE_JUST_WORLDS to only build userland.
+#                       MAKE_JUST_KERNELS or WITHOUT_WORLDS to only build kernels,
+#                       MAKE_JUST_WORLDS or WITHOUT_KERNELS to only build userland.
 # tinderbox           - Same as universe, but presents a list of failed build
 #                       targets and exits with an error if there were any.
+# worlds	      - Same as universe, except just makes the worlds.
+# kernels	      - Same as universe, except just makes the kernels.
 # buildworld          - Rebuild *everything*, including glue to help do
 #                       upgrades.
 # installworld        - Install everything built by "buildworld".
@@ -103,6 +105,15 @@
 #
 # For more information, see the build(7) manual page.
 #
+
+.if defined(UNIVERSE_TARGET) || defined(MAKE_JUST_WORLDS) || defined(WITHOUT_KERNELS)
+__DO_KERNELS=no
+.endif
+.if defined(MAKE_JUST_KERNELS) || defined(WITHOUT_WORLDS)
+__DO_WORLDS=no
+.endif
+__DO_WORLDS?=yes
+__DO_KERNELS?=yes
 
 # This is included so CC is set to ccache for -V, and COMPILER_TYPE/VERSION
 # can be cached for sub-makes. We can't do this while still running on the
@@ -521,11 +532,7 @@ universe_${toolchain}_skip: universe_prologue .PHONY
 .endif
 .endfor
 
-.if defined(UNIVERSE_TARGET)
-MAKE_JUST_WORLDS=	YES
-.else
 UNIVERSE_TARGET?=	buildworld
-.endif
 KERNSRCDIR?=		${.CURDIR}/sys
 
 targets:	.PHONY
@@ -634,7 +641,7 @@ MAKE_PARAMS_${target}+= \
 .endfor
 .endif	# !make(targets)
 
-.if !defined(MAKE_JUST_KERNELS)
+.if ${__DO_WORLDS} == "yes"
 universe_${target}_done: universe_${target}_worlds .PHONY
 .for target_arch in ${TARGET_ARCHES_${target}}
 universe_${target}_worlds: universe_${target}_${target_arch} .PHONY
@@ -658,9 +665,9 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE .PHONY
 	    ${MAKEFAIL}))
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} completed on `LC_ALL=C date`"
 .endfor
-.endif # !MAKE_JUST_KERNELS
+.endif # ${__DO_WORLDS} == "yes"
 
-.if !defined(MAKE_JUST_WORLDS)
+.if ${__DO_KERNELS} == "yes"
 universe_${target}_done: universe_${target}_kernels .PHONY
 universe_${target}_kernels: universe_${target}_worlds .PHONY
 universe_${target}_kernels: universe_${target}_prologue .MAKE .PHONY
@@ -673,7 +680,7 @@ universe_${target}_kernels: universe_${target}_prologue .MAKE .PHONY
 	fi
 	@cd ${.CURDIR}; ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
 	    universe_kernels
-.endif # !MAKE_JUST_WORLDS
+.endif # ${__DO_KERNELS} == "yes"
 
 # Tell the user the worlds and kernels have completed
 universe_${target}: universe_${target}_done
