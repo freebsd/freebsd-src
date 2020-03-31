@@ -404,6 +404,7 @@ MAN=	aac.4 \
 	pccard.4 \
 	pccbb.4 \
 	pcf.4 \
+	${_pchtherm.4} \
 	pci.4 \
 	pcib.4 \
 	pcic.4 \
@@ -815,6 +816,7 @@ _nvd.4=		nvd.4
 _nvme.4=	nvme.4
 _nvram.4=	nvram.4
 _padlock.4=	padlock.4
+_pchtherm.4=	pchtherm.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4
