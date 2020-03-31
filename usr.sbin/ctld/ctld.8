@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2018
+.Dd March 31, 2020
 .Dt CTLD 8
 .Os
 .Sh NAME
@@ -36,6 +36,10 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
+.Op Fl f Ar config-file
+.Op Fl u
+.Nm
+.Fl t
 .Op Fl f Ar config-file
 .Op Fl u
 .Sh DESCRIPTION
@@ -90,6 +94,8 @@ The daemon sends verbose debug output to standard error, and does not
 put itself in the background.
 The daemon will also not fork and will exit after processing one connection.
 This option is only intended for debugging the target.
+.It Fl t
+Test the configuration file for validity and exit.
 .It Fl u
 Use UCL configuration file format instead of the traditional non-UCL format.
 .El

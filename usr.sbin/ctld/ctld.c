@@ -69,6 +69,7 @@ usage(void)
 {
 
 	fprintf(stderr, "usage: ctld [-d][-u][-f config-file]\n");
+	fprintf(stderr, "       ctld -t [-u][-f config-file]\n");
 	exit(1);
 }
 
@@ -2663,13 +2664,17 @@ main(int argc, char **argv)
 	const char *config_path = DEFAULT_CONFIG_PATH;
 	int debug = 0, ch, error;
 	bool dont_daemonize = false;
+	bool test_config = false;
 	bool use_ucl = false;
 
-	while ((ch = getopt(argc, argv, "duf:R")) != -1) {
+	while ((ch = getopt(argc, argv, "dtuf:R")) != -1) {
 		switch (ch) {
 		case 'd':
 			dont_daemonize = true;
 			debug++;
+			break;
+		case 't':
+			test_config = true;
 			break;
 		case 'u':
 			use_ucl = true;
@@ -2701,6 +2706,10 @@ main(int argc, char **argv)
 
 	if (newconf == NULL)
 		log_errx(1, "configuration error; exiting");
+
+	if (test_config)
+		return (0);
+
 	if (debug > 0) {
 		oldconf->conf_debug = debug;
 		newconf->conf_debug = debug;
