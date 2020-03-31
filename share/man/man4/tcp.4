@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2020
+.Dd March 31, 2020
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -628,21 +628,31 @@ specific connection.
 This is needed to help with connection establishment
 when a broken firewall is in the network path.
 .It Va pmtud_blackhole_detection
-Turn on automatic path MTU blackhole detection.
-In case of retransmits OS will
-lower the MSS to check if it's MTU problem.
-If current MSS is greater than
-configured value to try
+Enable automatic path MTU blackhole detection.
+In case of retransmits of MSS sized segments,
+the OS will lower the MSS to check if it's an MTU problem.
+If the current MSS is greater than the configured value to try
 .Po Va net.inet.tcp.pmtud_blackhole_mss
 and
 .Va net.inet.tcp.v6pmtud_blackhole_mss
 .Pc ,
 it will be set to this value, otherwise,
-MSS will be set to default values
+the MSS will be set to the default values
 .Po Va net.inet.tcp.mssdflt
 and
 .Va net.inet.tcp.v6mssdflt
 .Pc .
+Settings:
+.Bl -tag -compact
+.It 0
+Disable path MTU blackhole detection.
+.It 1
+Enable path MTU blackhole detection for IPv4 and IPv6.
+.It 2
+Enable path MTU blackhole detection only for IPv4.
+.It 3
+Enable path MTU blackhole detection only for IPv6.
+.El
 .It Va pmtud_blackhole_mss
 MSS to try for IPv4 if PMTU blackhole detection is turned on.
 .It Va v6pmtud_blackhole_mss
