@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_GET_ERROR 3"
-.TH SSL_GET_ERROR 3 "2020-03-17" "1.1.1e" "OpenSSL"
+.TH SSL_GET_ERROR 3 "2020-03-31" "1.1.1f" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -276,6 +276,17 @@ A non-recoverable, fatal error in the \s-1SSL\s0 library occurred, usually a pro
 error.  The OpenSSL error queue contains more information on the error. If this
 error occurs then no further I/O operations should be performed on the
 connection and \fBSSL_shutdown()\fR must not be called.
+.SH "BUGS"
+.IX Header "BUGS"
+The \fB\s-1SSL_ERROR_SYSCALL\s0\fR with \fBerrno\fR value of 0 indicates unexpected \s-1EOF\s0 from
+the peer. This will be properly reported as \fB\s-1SSL_ERROR_SSL\s0\fR with reason
+code \fB\s-1SSL_R_UNEXPECTED_EOF_WHILE_READING\s0\fR in the OpenSSL 3.0 release because
+it is truly a \s-1TLS\s0 protocol error to terminate the connection without
+a \fBSSL_shutdown()\fR.
+.PP
+The issue is kept unfixed in OpenSSL 1.1.1 releases because many applications
+which choose to ignore this protocol error depend on the existing way of
+reporting the error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7)
@@ -285,7 +296,7 @@ The \s-1SSL_ERROR_WANT_ASYNC\s0 error code was added in OpenSSL 1.1.0.
 The \s-1SSL_ERROR_WANT_CLIENT_HELLO_CB\s0 error code was added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

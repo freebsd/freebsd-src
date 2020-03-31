@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_GET_EXTENSION_FLAGS 3"
-.TH X509_GET_EXTENSION_FLAGS 3 "2020-03-17" "1.1.1e" "OpenSSL"
+.TH X509_GET_EXTENSION_FLAGS 3 "2020-03-31" "1.1.1f" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -196,6 +196,16 @@ The certificate contains an unhandled critical extension.
 .IX Item "EXFLAG_INVALID"
 Some certificate extension values are invalid or inconsistent. The
 certificate should be rejected.
+This bit may also be raised after an out-of-memory error while
+processing the X509 object, so it may not be related to the processed
+\&\s-1ASN1\s0 object itself.
+.IP "\fB\s-1EXFLAG_INVALID_POLICY\s0\fR" 4
+.IX Item "EXFLAG_INVALID_POLICY"
+The NID_certificate_policies certificate extension is invalid or
+inconsistent. The certificate should be rejected.
+This bit may also be raised after an out-of-memory error while
+processing the X509 object, so it may not be related to the processed
+\&\s-1ASN1\s0 object itself.
 .IP "\fB\s-1EXFLAG_KUSAGE\s0\fR" 4
 .IX Item "EXFLAG_KUSAGE"
 The certificate contains a key usage extension. The value can be retrieved
@@ -290,7 +300,7 @@ certificate is a proxy one and has a path length set, and \-1 otherwise.
 \&\fBX509_get_proxy_pathlen()\fR were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
