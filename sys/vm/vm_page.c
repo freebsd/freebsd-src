@@ -2048,8 +2048,6 @@ again:
 	if (vm_object_reserv(object) &&
 	    (m = vm_reserv_alloc_page(object, pindex, domain, req, mpred)) !=
 	    NULL) {
-		domain = vm_phys_domain(m);
-		vmd = VM_DOMAIN(domain);
 		goto found;
 	}
 #endif
@@ -2248,8 +2246,6 @@ again:
 	if (vm_object_reserv(object) &&
 	    (m_ret = vm_reserv_alloc_contig(object, pindex, domain, req,
 	    mpred, npages, low, high, alignment, boundary)) != NULL) {
-		domain = vm_phys_domain(m_ret);
-		vmd = VM_DOMAIN(domain);
 		goto found;
 	}
 #endif
