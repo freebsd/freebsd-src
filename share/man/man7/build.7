@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2018
+.Dd March 29, 2020
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -775,11 +775,17 @@ while still building each architecture serially.
 Only build kernels for each supported architecture.
 .It Va MAKE_JUST_WORLDS
 Only build worlds for each supported architecture.
+.It Va WITHOUT_WORLDS
+Only build kernels for each supported architecture.
+.It Va WITHOUT_KERNELS
+Only build worlds for each supported architecture.
 .It Va UNIVERSE_TARGET
 Execute the specified
 .Xr make 1
 target for each supported architecture instead of the default action of
 building a world and one or more kernels.
+This variable implies
+.Va WITHOUT_KERNELS .
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
