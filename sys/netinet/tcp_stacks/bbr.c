@@ -5041,6 +5041,7 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 {
 	int32_t rexmt;
 	int32_t retval = 0;
+	bool isipv6;
 
 	bbr->r_ctl.rc_hpts_flags &= ~PACE_TMR_RXT;
 	if (bbr->rc_all_timers_stopped) {
@@ -5127,11 +5128,16 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 * of packets and process straight to FIN. In that case we won't
 	 * catch ESTABLISHED state.
 	 */
-	if (V_tcp_pmtud_blackhole_detect && (((tp->t_state == TCPS_ESTABLISHED))
-	    || (tp->t_state == TCPS_FIN_WAIT_1))) {
 #ifdef INET6
-		int32_t isipv6;
+	isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) ? true : false;
+#else
+	isipv6 = false;
 #endif
+	if (((V_tcp_pmtud_blackhole_detect == 1) ||
+	    (V_tcp_pmtud_blackhole_detect == 2 && !isipv6) ||
+	    (V_tcp_pmtud_blackhole_detect == 3 && isipv6)) &&
+	    ((tp->t_state == TCPS_ESTABLISHED) ||
+	    (tp->t_state == TCPS_FIN_WAIT_1))) {
 
 		/*
 		 * Idea here is that at each stage of mtu probe (usually,
