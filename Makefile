@@ -479,7 +479,7 @@ kernel-toolchains: .PHONY
 	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=kernel-toolchain universe
 
 kernels: .PHONY
-	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=buildkernel universe
+	@cd ${.CURDIR}; ${SUB_MAKE} universe -DWITHOUT_WORLDS
 
 worlds: .PHONY
 	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=buildworld universe
