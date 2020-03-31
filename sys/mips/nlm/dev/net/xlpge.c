@@ -30,10 +30,11 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
-#include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
