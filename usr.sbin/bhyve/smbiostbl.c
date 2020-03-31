@@ -255,7 +255,7 @@ struct smbios_table_type17 {
 	uint16_t		errhand;	/* handle of mem error data */
 	uint16_t		twidth;		/* total width in bits */
 	uint16_t		dwidth;		/* data width in bits */
-	uint16_t		size;		/* size in bytes */
+	uint16_t		size;		/* size in kb or mb */
 	uint8_t			form;		/* form factor */
 	uint8_t			set;		/* set */
 	uint8_t			dloc;		/* device locator string */
@@ -268,7 +268,7 @@ struct smbios_table_type17 {
 	uint8_t			asset;		/* asset tag string */
 	uint8_t			part;		/* part number string */
 	uint8_t			attributes;	/* attributes */
-	uint32_t		xsize;		/* extended size in mbs */
+	uint32_t		xsize;		/* extended size in mb */
 	uint16_t		curspeed;	/* current speed in mhz */
 	uint16_t		minvoltage;	/* minimum voltage */
 	uint16_t		maxvoltage;	/* maximum voltage */
@@ -444,7 +444,7 @@ struct smbios_table_type17 smbios_type17_template = {
 	-1,		/* handle of memory error data */
 	64,		/* total width in bits including ecc */
 	64,		/* data width in bits */
-	0x7fff,		/* size in bytes (0x7fff=use extended)*/
+	0,		/* size in kb or mb (0x7fff=use extended)*/
 	SMBIOS_MDFF_UNKNOWN,
 	0,		/* set (0x00=none, 0xff=unknown) */
 	1,		/* device locator string */
@@ -695,20 +695,39 @@ smbios_type17_initializer(struct smbios_structure *template_entry,
     uint16_t *n, uint16_t *size)
 {
 	struct smbios_table_type17 *type17;
+	uint64_t memsize, size_KB, size_MB;
 
 	smbios_generic_initializer(template_entry, template_strings,
 	    curaddr, endaddr, n, size);
 	type17 = (struct smbios_table_type17 *)curaddr;
 	type17->arrayhand = type16_handle;
-	type17->xsize = guest_lomem;
 
-	if (guest_himem > 0) {
-		curaddr = *endaddr;
-		smbios_generic_initializer(template_entry, template_strings,
-		    curaddr, endaddr, n, size);
-		type17 = (struct smbios_table_type17 *)curaddr;
-		type17->arrayhand = type16_handle;
-		type17->xsize = guest_himem;
+	memsize = guest_lomem + guest_himem;
+	size_KB = memsize / 1024;
+	size_MB = memsize / MB;
+
+	/* A single Type 17 entry can't represent more than ~2PB RAM */
+	if (size_MB > 0x7FFFFFFF) {
+		printf("Warning: guest memory too big for SMBIOS Type 17 table: "
+			"%luMB greater than max supported 2147483647MB\n", size_MB);
+
+		size_MB = 0x7FFFFFFF;
+	}
+
+	/* See SMBIOS 2.7.0 section 7.18 - Memory Device (Type 17) */
+	if (size_KB <= 0x7FFF) {
+		/* Can represent up to 32767KB with the top bit set */
+		type17->size = size_KB | (1 << 15);
+	} else if (size_MB < 0x7FFF) {
+		/* Can represent up to 32766MB with the top bit unset */
+		type17->size = size_MB & 0x7FFF;
+	} else {
+		type17->size = 0x7FFF;
+		/*
+		 * Can represent up to 2147483647MB (~2PB)
+		 * The top bit is reserved
+		 */
+		type17->xsize = size_MB & 0x7FFFFFFF;
 	}
 
 	return (0);
