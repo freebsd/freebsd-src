@@ -42,7 +42,6 @@
 #include "asn1.h"
 #include "snmp.h"
 #include "snmpmod.h"
-#include "lib/snmptc.h"
 
 #define	SNMPTREE_TYPES
 #include "vacm_tree.h"
@@ -1014,9 +1013,10 @@ vacm_dump(void)
 		    "excluded":"included");
 }
 
-const char vacm_comment[] = \
+static const char vacm_comment[] =
 "This module implements SNMP View-based Access Control Model defined in RFC 3415.";
 
+extern const struct snmp_module config;
 const struct snmp_module config = {
 	.comment =	vacm_comment,
 	.init =		vacm_init,

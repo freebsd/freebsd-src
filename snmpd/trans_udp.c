@@ -67,7 +67,8 @@ const struct transport_def udp_trans = {
 	udp_close_port,
 	udp_init_port,
 	udp_send,
-	udp_recv
+	udp_recv,
+	NULL
 };
 static struct transport *my_trans;
 

@@ -42,7 +42,6 @@
 #include "asn1.h"
 #include "snmp.h"
 #include "snmpmod.h"
-#include "lib/snmptc.h"
 
 #define SNMPTREE_TYPES
 #include "target_tree.h"
@@ -828,9 +827,10 @@ target_dump(void)
 	/* XXX: dump the module stats & list of mgmt targets */
 }
 
-const char target_comment[] = \
+static const char target_comment[] = \
 "This module implements SNMP Management Target MIB Module defined in RFC 3413.";
 
+extern const struct snmp_module config;
 const struct snmp_module config = {
 	.comment =	target_comment,
 	.init =		target_init,
