@@ -510,14 +510,19 @@ in6m_release(struct in6_multi *inm)
 	}
 }
 
-static struct task free_task;
+/*
+ * Interface detach can happen in a taskqueue thread context, so we must use a
+ * dedicated thread to avoid deadlocks when draining in6m_release tasks.
+ */
+TASKQUEUE_DEFINE_THREAD(in6m_free);
+static struct task in6m_free_task;
 static struct in6_multi_head in6m_free_list = SLIST_HEAD_INITIALIZER();
 static void in6m_release_task(void *arg __unused, int pending __unused);
 
 static void
 in6m_init(void)
 {
-	TASK_INIT(&free_task, 0, in6m_release_task, NULL);
+	TASK_INIT(&in6m_free_task, 0, in6m_release_task, NULL);
 }
 SYSINIT(in6m_init, SI_SUB_TASKQ, SI_ORDER_ANY, in6m_init, NULL);
 
@@ -529,13 +534,13 @@ in6m_release_list_deferred(struct in6_multi_head *inmh)
 	mtx_lock(&in6_multi_free_mtx);
 	SLIST_CONCAT(&in6m_free_list, inmh, in6_multi, in6m_nrele);
 	mtx_unlock(&in6_multi_free_mtx);
-	taskqueue_enqueue(taskqueue_thread, &free_task);
+	taskqueue_enqueue(taskqueue_in6m_free, &in6m_free_task);
 }
 
 void
 in6m_release_wait(void)
 {
-	taskqueue_drain_all(taskqueue_thread);
+	taskqueue_drain_all(taskqueue_in6m_free);
 }
 
 void
