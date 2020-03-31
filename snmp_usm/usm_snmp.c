@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2010,2018 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Shteryana Sotirova Shopova under
@@ -42,9 +42,8 @@
 #include "asn1.h"
 #include "snmp.h"
 #include "snmpmod.h"
-#include "lib/snmptc.h"
 
-#define	SNMP_TREETYPES
+#define	SNMPTREE_TYPES
 #include "usm_tree.h"
 #include "usm_oid.h"
 
@@ -606,9 +605,10 @@ usm_dump(void)
 		    privstr[uuser->suser.priv_proto]);
 }
 
-const char usm_comment[] = \
+static const char usm_comment[] =
 "This module implements SNMP User-based Security Model defined in RFC 3414.";
 
+extern const struct snmp_module config;
 const struct snmp_module config = {
 	.comment =	usm_comment,
 	.init =		usm_init,

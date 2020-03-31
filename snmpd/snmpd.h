@@ -174,7 +174,7 @@ TAILQ_HEAD(tport_list, tport);
 
 int snmpd_input(struct port_input *, struct tport *);
 void snmpd_input_close(struct port_input *);
-
+void snmpd_input_init(struct port_input *);
 
 /*
  * Transport domain
@@ -194,6 +194,10 @@ struct transport_def {
 	ssize_t		(*send)(struct tport *, const u_char *, size_t,
 			    const struct sockaddr *, size_t);
 	ssize_t         (*recv)(struct tport *, struct port_input *);
+
+	/** send via a multi-socket port */
+	ssize_t		(*send2)(struct tport *, const u_char *, size_t,
+			    struct port_input *);
 };
 struct transport {
 	struct asn_oid	index;		/* transport table index */

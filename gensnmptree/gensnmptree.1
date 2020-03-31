@@ -2,7 +2,7 @@
 .\" Copyright (c) 2001-2005
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
-.\" Copyright (c) 2006
+.\" Copyright (c) 2006,2018
 .\"	Hartmut Brandt
 .\"	All rights reserved.
 .\"
@@ -31,7 +31,7 @@
 .\"
 .\" $Begemot: gensnmptree.1 383 2006-05-30 07:40:49Z brandt_h $
 .\"
-.Dd May 26, 2006
+.Dd April 2, 2019
 .Dt GENSNMPTREE 1
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Nd "generate C and header files from a MIB description file"
 .Sh SYNOPSIS
 .Nm
-.Op Fl dEehlt
+.Op Fl dEeFfhlt
 .Op Fl I Ar directory
 .Op Fl i Ar infile
 .Op Fl p Ar prefix
@@ -99,6 +99,12 @@ is the length of the OID.
 .It Va OID_ Ns Ar name
 is the last component of the OID.
 .El
+.It Fl F
+emit definitions for C-functions includeable in a C-file that do some basic
+stuff on enums like value checking and conversion between value and strings.
+.It Fl f
+emit definitions for inline C-functions that do some basic
+stuff on enums like value checking and conversion between value and strings.
 .It Fl h
 Print a short help page.
 .It Fl I Ar directory

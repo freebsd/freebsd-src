@@ -57,8 +57,9 @@
 #include "snmp_mibII.h"
 #include "mibII_tree.h"
 
-/* maximum size of the interface alias */
+/* maximum size of interface alias unless overridden with net.ifdescr_maxlen */
 #define	MIBIF_ALIAS_SIZE	(64 + 1)
+#define	MIBIF_ALIAS_SIZE_MAX	1024
 
 /*
  * Interface list and flags.
@@ -80,9 +81,6 @@ struct mibif_private {
 	uint64_t	hc_opackets;
 	uint64_t	hc_imcasts;
 	uint64_t	hc_ipackets;
-
-	/* this should be made public */
-	char		alias[MIBIF_ALIAS_SIZE];
 };
 #define	MIBIF_PRIV(IFP) ((struct mibif_private *)((IFP)->private))
 

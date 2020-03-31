@@ -56,6 +56,48 @@
  * ordering can be done either on an integer/unsigned field, an asn_oid
  * or an ordering function.
  */
+
+/*
+ * First set of macros is used when the link is embedded into sub-struct
+ * and links these sub-structs. The sub-struct must be the first field.
+ *
+ * The list is a list of the subfield types.
+ */
+#define INSERT_OBJECT_OID_LINK_INDEX_TYPE(PTR, LIST, LINK, INDEX, SUBF) do {\
+	typedef __typeof ((PTR)->SUBF) _subf_type;			\
+	_subf_type *_lelem;						\
+									\
+	TAILQ_FOREACH(_lelem, (LIST), LINK)				\
+		if (asn_compare_oid(&_lelem->INDEX, &(PTR)->SUBF.INDEX) > 0)\
+			break;						\
+	if (_lelem == NULL)						\
+		TAILQ_INSERT_TAIL((LIST), &(PTR)->SUBF, LINK);		\
+	else								\
+		TAILQ_INSERT_BEFORE(_lelem, &(PTR)->SUBF, LINK);	\
+    } while (0)
+
+#define NEXT_OBJECT_OID_LINK_INDEX_TYPE(LIST, OID, SUB, LINK, INDEX, TYPE) ({\
+	__typeof (TAILQ_FIRST((LIST))) _lelem;				\
+									\
+	TAILQ_FOREACH(_lelem, (LIST), LINK)				\
+		if (index_compare(OID, SUB, &_lelem->INDEX) < 0)	\
+			break;						\
+	(TYPE *)(_lelem);						\
+    })
+
+#define FIND_OBJECT_OID_LINK_INDEX_TYPE(LIST, OID, SUB, LINK, INDEX, TYPE) ({\
+	__typeof (TAILQ_FIRST((LIST))) _lelem;				\
+									\
+	TAILQ_FOREACH(_lelem, (LIST), LINK)				\
+		if (index_compare(OID, SUB, &_lelem->INDEX) == 0)	\
+			break;						\
+	(TYPE *)(_lelem);						\
+    })
+
+/*
+ * This set of macros allows specification of the link and index name.
+ * The index is an OID.
+ */
 #define INSERT_OBJECT_OID_LINK_INDEX(PTR, LIST, LINK, INDEX) do {	\
 	__typeof (PTR) _lelem;						\
 									\

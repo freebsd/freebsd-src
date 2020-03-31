@@ -1,6 +1,7 @@
-/*-
- * Copyright (c) 2018 The FreeBSD Foundation
- * 	All rights reserved.
+/*
+ * Copyright (c) 2018
+ *	Hartmut Brandt.
+ *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
  *
@@ -24,42 +25,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
-#ifndef snmptc_h_1529923773
-#define snmptc_h_1529923773
+#ifndef trans_inet_h_1530971397
+#define trans_inet_h_1530971397
 
-@tc@
-
-/**
- * Check whether a row status is ok.
- *
- * \param s	row status
- *
- * \return true if value is ok, false otherwise
- */
-static inline int
-isok_RowStatus(enum RowStatus s)
-{
-	return s >= RowStatus_active && s <= RowStatus_destroy;
-}
-
-/**
- * Make string out of a row status.
- *
- * \param s	row status
- *
- * \return string version; if the value is not a legal status
- * return "RowStatus???"
- */
-static inline const char *
-tostr_RowStatus(enum RowStatus s)
-{
-	static const char *vals[] = { STRING_RowStatus };
-
-	if (isok_RowStatus(s))
-		return vals[(int)s - STROFF_RowStatus];
-	return ("RowStatus???");
-}
+/* transport declaration */
+extern const struct transport_def inet_trans;
 
 #endif
