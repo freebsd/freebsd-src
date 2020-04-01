@@ -222,18 +222,18 @@ _LIBRARIES+= \
 .endif
 
 .if ${MK_BEARSSL} == "yes"
-_INTERNALLIBS+= \
+_LIBRARIES+= \
 		bearssl \
 		secureboot \
 
-LIBBEARSSL?=	${LIBBEARSSLDIR}/libbearssl${PIE_SUFFIX}.a
-LIBSECUREBOOT?=	${LIBSECUREBOOTDIR}/libsecureboot${PIE_SUFFIX}.a
+LIBBEARSSL?=	${LIBBEARSSLDIR}/libbearssl.a
+LIBSECUREBOOT?=	${LIBSECUREBOOTDIR}/libsecureboot.a
 .endif
 
 .if ${MK_VERIEXEC} == "yes"
-_INTERNALLIBS+= veriexec
+_LIBRARIES+= veriexec
 
-LIBVERIEXEC?=	${LIBVERIEXECDIR}/libveriexec${PIE_SUFFIX}.a
+LIBVERIEXEC?=	${LIBVERIEXECDIR}/libveriexec.a
 .endif
 
 # Each library's LIBADD needs to be duplicated here for static linkage of
