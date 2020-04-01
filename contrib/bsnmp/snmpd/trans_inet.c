@@ -858,6 +858,7 @@ ipv6_parse_ctrl(struct port_sock *sock, const struct msghdr *msg)
 			sock->ret_source.a6.ipi6_ifindex =
 			    !IN6_IS_ADDR_LINKLOCAL(&info->ipi6_addr) ? 0:
 			    info->ipi6_ifindex;
+
 		} else if (cmsg->cmsg_level == SOL_SOCKET &&
 		    cmsg->cmsg_type == SCM_CREDS) {
 			cred = (struct sockcred *)(void *)CMSG_DATA(cmsg);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2005,2018
+ * Copyright (c) 2004-2005,2018-2019
  *	Hartmut Brandt.
  *	All rights reserved.
  * Copyright (c) 2001-2003
@@ -930,7 +930,7 @@ open_client_udp(const char *host, const char *port)
 	/* open connection */
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_CANONNAME;
-	hints.ai_family = snmp_client.trans == SNMP_TRANS_UDP ? AF_INET:
+	hints.ai_family = snmp_client.trans == SNMP_TRANS_UDP ? AF_INET :
 	    AF_INET6;
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_protocol = 0;
@@ -1884,7 +1884,8 @@ static const char *const trans_list[] = {
 /**
  * Try to get a transport identifier which is a leading alphanumeric string
  * terminated by a double colon. The string may not be empty. The transport
- * identifier is optional.
+ * identifier is optional. Unknown transport identifiers are reject.
+ * Be careful: a double colon can also occur in a numeric IPv6 address.
  *
  * \param sc	client struct to set errors
  * \param strp	possible start of transport; updated to point to
@@ -1899,8 +1900,6 @@ get_transp(struct snmp_client *sc, const char **strp)
 	size_t i;
 
 	for (i = 0; i < nitems(trans_list); i++) {
-		if (trans_list[i] == NULL || *trans_list[i] == '\0')
-			continue;
 		p = strstr(*strp, trans_list[i]);
 		if (p == *strp) {
 			*strp += strlen(trans_list[i]);
@@ -1908,13 +1907,23 @@ get_transp(struct snmp_client *sc, const char **strp)
 		}
 	}
 
-	p = *strp;
-	if (p[0] == ':' && p[1] == ':') {
+	p = strstr(*strp, "::");
+	if (p == *strp) {
 		seterr(sc, "empty transport specifier");
 		return (-1);
 	}
-	/* by default assume UDP */
-	return (SNMP_TRANS_UDP);
+	if (p == NULL)
+		/* by default assume UDP */
+		return (SNMP_TRANS_UDP);
+
+	/* ignore :: after [ */
+	const char *ob = strchr(*strp, '[');
+	if (ob != NULL && p > ob)
+		/* by default assume UDP */
+		return (SNMP_TRANS_UDP);
+
+	seterr(sc, "unknown transport specifier '%.*s'", p - *strp, *strp);
+	return (-1);
 }
 
 /**
@@ -2153,12 +2162,14 @@ int
 snmp_parse_server(struct snmp_client *sc, const char *str)
 {
 	const char *const orig = str;
+
 	/* parse input */
-	int i, trans = get_transp(sc, &str);
+	int def_trans = 0, trans = get_transp(sc, &str);
 	if (trans < 0)
 		return (-1);
 	/* choose automatically */
-	i = orig == str ? -1: trans;
+	if (orig == str)
+		def_trans = 1;
 
 	const char *const comm[2] = {
 		str,
@@ -2204,7 +2215,7 @@ snmp_parse_server(struct snmp_client *sc, const char *str)
 	}
 
 #if DEBUG_PARSE
-	printf("transp: %u\n", trans);
+	printf("transp: %d (def=%d)\n", trans, def_trans);
 	printf("comm:   %zu %zu\n", comm[0] - orig, comm[1] - orig);
 	printf("ipv6:   %zu %zu\n", ipv6[0] - orig, ipv6[1] - orig);
 	printf("ipv4:   %zu %zu\n", ipv4[0] - orig, ipv4[1] - orig);
@@ -2218,18 +2229,19 @@ snmp_parse_server(struct snmp_client *sc, const char *str)
 	if (ipv6[0] != ipv6[1]) {
 		if ((chost = save_str(sc, ipv6)) == NULL)
 			return (-1);
-		if (i == -1 || trans == SNMP_TRANS_UDP)
+		if (def_trans || trans == SNMP_TRANS_UDP)
+			/* assume the user meant udp6:: */
 			trans = SNMP_TRANS_UDP6;
 	} else if (ipv4[0] != ipv4[1]) {
 		if ((chost = save_str(sc, ipv4)) == NULL)
 			return (-1);
-		if (i == -1)
+		if (def_trans)
 			trans = SNMP_TRANS_UDP;
 	} else {
 		if ((chost = save_str(sc, host)) == NULL)
 			return (-1);
 
-		if (i == -1) {
+		if (def_trans) {
 			/*
 			 * Default transport is UDP unless the host contains
 			 * a slash in which case we default to DGRAM.
@@ -2258,6 +2270,7 @@ snmp_parse_server(struct snmp_client *sc, const char *str)
 
 	/* commit */
 	sc->trans = trans;
+
 	/*
 	 * If community string was specified and it is empty, overwrite it.
 	 * If it was not specified, use default.
@@ -2276,7 +2289,7 @@ snmp_parse_server(struct snmp_client *sc, const char *str)
 
 #if DEBUG_PARSE
 	printf("Committed values:\n");
-	printf("trans:	%u\n", sc->trans);
+	printf("trans:	%d\n", sc->trans);
 	printf("comm:   '%s'/'%s'\n", sc->read_community, sc->write_community);
 	printf("host:   '%s'\n", sc->chost);
 	printf("port:   '%s'\n", sc->cport);
