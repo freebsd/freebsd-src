@@ -30,6 +30,7 @@
 #include <dev/mlx5/mlx5_ifc.h>
 #include <dev/mlx5/vport.h>
 #include <dev/mlx5/fs.h>
+#include <dev/mlx5/mpfs.h>
 #include "mlx5_core.h"
 #include "eswitch.h"
 
@@ -212,81 +213,6 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 	return modify_esw_vport_context_cmd(dev, vport, in, sizeof(in));
 }
 
-/* HW L2 Table (MPFS) management */
-static int set_l2_table_entry_cmd(struct mlx5_core_dev *dev, u32 index,
-				  u8 *mac, u8 vlan_valid, u16 vlan)
-{
-	u32 in[MLX5_ST_SZ_DW(set_l2_table_entry_in)] = {0};
-	u32 out[MLX5_ST_SZ_DW(set_l2_table_entry_out)] = {0};
-	u8 *in_mac_addr;
-
-	MLX5_SET(set_l2_table_entry_in, in, opcode,
-		 MLX5_CMD_OP_SET_L2_TABLE_ENTRY);
-	MLX5_SET(set_l2_table_entry_in, in, table_index, index);
-	MLX5_SET(set_l2_table_entry_in, in, vlan_valid, vlan_valid);
-	MLX5_SET(set_l2_table_entry_in, in, vlan, vlan);
-
-	in_mac_addr = MLX5_ADDR_OF(set_l2_table_entry_in, in, mac_address);
-	ether_addr_copy(&in_mac_addr[2], mac);
-
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-}
-
-static int del_l2_table_entry_cmd(struct mlx5_core_dev *dev, u32 index)
-{
-	u32 in[MLX5_ST_SZ_DW(delete_l2_table_entry_in)] = {0};
-	u32 out[MLX5_ST_SZ_DW(delete_l2_table_entry_out)] = {0};
-
-	MLX5_SET(delete_l2_table_entry_in, in, opcode,
-		 MLX5_CMD_OP_DELETE_L2_TABLE_ENTRY);
-	MLX5_SET(delete_l2_table_entry_in, in, table_index, index);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-}
-
-static int alloc_l2_table_index(struct mlx5_l2_table *l2_table, u32 *ix)
-{
-	int err = 0;
-
-	*ix = find_first_zero_bit(l2_table->bitmap, l2_table->size);
-	if (*ix >= l2_table->size)
-		err = -ENOSPC;
-	else
-		__set_bit(*ix, l2_table->bitmap);
-
-	return err;
-}
-
-static void free_l2_table_index(struct mlx5_l2_table *l2_table, u32 ix)
-{
-	__clear_bit(ix, l2_table->bitmap);
-}
-
-static int set_l2_table_entry(struct mlx5_core_dev *dev, u8 *mac,
-			      u8 vlan_valid, u16 vlan,
-			      u32 *index)
-{
-	struct mlx5_l2_table *l2_table = &dev->priv.eswitch->l2_table;
-	int err;
-
-	err = alloc_l2_table_index(l2_table, index);
-	if (err)
-		return err;
-
-	err = set_l2_table_entry_cmd(dev, *index, mac, vlan_valid, vlan);
-	if (err)
-		free_l2_table_index(l2_table, *index);
-
-	return err;
-}
-
-static void del_l2_table_entry(struct mlx5_core_dev *dev, u32 index)
-{
-	struct mlx5_l2_table *l2_table = &dev->priv.eswitch->l2_table;
-
-	del_l2_table_entry_cmd(dev, index);
-	free_l2_table_index(l2_table, index);
-}
-
 /* E-Switch FDB */
 static struct mlx5_flow_rule *
 esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
@@ -435,7 +361,7 @@ static int esw_add_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 		return -ENOMEM;
 	esw_uc->vport = vport;
 
-	err = set_l2_table_entry(esw->dev, mac, 0, 0, &esw_uc->table_index);
+	err = mlx5_mpfs_add_mac(esw->dev, &esw_uc->table_index, mac, 0, 0);
 	if (err)
 		goto abort;
 
@@ -467,7 +393,7 @@ static int esw_del_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	esw_debug(esw->dev, "\tDELETE UC MAC: vport[%d] %pM index:%d fr(%p)\n",
 		  vport, mac, esw_uc->table_index, vaddr->flow_rule);
 
-	del_l2_table_entry(esw->dev, esw_uc->table_index);
+	mlx5_mpfs_del_mac(esw->dev, esw_uc->table_index);
 
 	if (vaddr->flow_rule)
 		mlx5_del_flow_rule(vaddr->flow_rule);
