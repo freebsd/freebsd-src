@@ -13,7 +13,6 @@ YFLAGS+=	-v
 LFLAGS+=	-i
 CLEANFILES=	y.tab.c y.tab.h y.output
 
-WARNS=		6
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
 .include <bsd.prog.mk>
