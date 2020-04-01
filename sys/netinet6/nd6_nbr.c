@@ -754,6 +754,12 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		goto freeit;
 	}
 
+	/*
+	 * Do not try to override static entry.
+	 */
+	if (ln->la_flags & LLE_STATIC)
+		goto freeit;
+
 	if (ln->ln_state == ND6_LLINFO_INCOMPLETE) {
 		/*
 		 * If the link-layer has address, and no lladdr option came,
