@@ -158,6 +158,7 @@ aes_encrypt_1(const struct krb5_key_state *ks, int buftype, void *buf,
 
 	crp->crp_buf_type = buftype;
 	crp->crp_buf = buf;
+	crp->crp_ilen = skip + len;
 	crp->crp_opaque = as;
 	crp->crp_callback = aes_crypto_cb;
 
@@ -329,6 +330,7 @@ aes_checksum(const struct krb5_key_state *ks, int usage,
 	crp->crp_flags = CRYPTO_F_CBIFSYNC;
 	crp->crp_buf_type = CRYPTO_BUF_MBUF;
 	crp->crp_mbuf = inout;
+	crp->crp_ilen = skip + inlen + 12;
 	crp->crp_opaque = as;
 	crp->crp_callback = aes_crypto_cb;
 
