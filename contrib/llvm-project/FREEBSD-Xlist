@@ -264,7 +264,6 @@ lldb/.clang-format
 lldb/.gitignore
 lldb/CMakeLists.txt
 lldb/CODE_OWNERS.txt
-lldb/bindings/
 lldb/cmake/
 lldb/docs/.htaccess
 lldb/docs/CMakeLists.txt
