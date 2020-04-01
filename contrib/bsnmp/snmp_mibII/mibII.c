@@ -447,7 +447,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 	void *newmib;
 	struct ifmibdata oldmib = ifp->mib;
 	struct ifreq irr;
-	unsigned int alias_maxlen = MIBIF_ALIAS_SIZE_MAX;
+	u_int alias_maxlen = MIBIF_ALIAS_SIZE_MAX;
 
 	if (fetch_generic_mib(ifp, &oldmib) == -1)
 		return (-1);
@@ -519,7 +519,6 @@ mib_fetch_ifmib(struct mibif *ifp)
 	}
 
   out:
-
 	/*
 	 * Find sysctl mib for net.ifdescr_maxlen (one time).
 	 * kmib[0] == -1 at first call to mib_fetch_ifmib().
@@ -581,7 +580,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 			ifp->alias = realloc(ifp->alias, ifp->alias_size);
 	}
 
-fin:
+  fin:
 	ifp->mibtick = get_ticks();
 	return (0);
 }

@@ -1013,7 +1013,7 @@ vacm_dump(void)
 		    "excluded":"included");
 }
 
-static const char vacm_comment[] = \
+static const char vacm_comment[] =
 "This module implements SNMP View-based Access Control Model defined in RFC 3415.";
 
 extern const struct snmp_module config;

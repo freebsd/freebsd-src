@@ -31,7 +31,7 @@
 .\"
 .\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.12 2005/10/04 08:46:50 brandt_h Exp $
 .\"
-.Dd December 31, 2016
+.Dd March 31, 2020
 .Dt BSNMPCLIENT 3
 .Os
 .Sh NAME
@@ -177,7 +177,9 @@ If it is
 a local stream socket is used.
 For
 .Dv SNMP_TRANS_UDP
-a UDP socket is created.
+a UDPv4 socket and for
+.Dv SNMP_TRANS_UDP6
+a UDPv6 socket is created.
 It uses the
 .Va chost
 field as the path to the server's socket for local sockets.
@@ -675,7 +677,12 @@ The syntax of a server specification is
 .Pp
 where
 .Va trans
-is the transport name (one of udp, stream or dgram),
+is the transport name (one of
+.Qq udp ,
+.Qq udp6 ,
+.Qq stream
+or
+.Qq dgram ) ,
 .Va community
 is the string to be used for both the read and the write community,
 .Va server
@@ -685,13 +692,51 @@ of a local socket, and
 is the port in case of UDP transport.
 The function returns 0 in the case of success and return -1 and sets
 the error string in case of an error.
+.Pp
+The function
+.Fn snmp_parse_serverr
+fills the transport, the port number and the community strings with
+reasonable default values when they are not specified.
+The default transport
+is
+.Dv SNMP_TRANS_UDP .
+If the host name contains a slash the default is modified to
+.Dv SNMP_TRANS_LOC_DGRAM .
+If the host name looks like a numeric IPv6 address the default is
+.Dv SNMP_TRANS_UDP6 .
+For numeric IPv6 addresses the transport name udp is automatically
+translated as
+.Dv SNMP_TRANS_UDP6 .
+The default port number (for
+.Dv udp
+or
+.Dv udp6 )
+is
+.Qq snmp .
+The default read community is
+.Qq public
+and the default write community
+.Qq private .
+.Pp
+.Fn snmp_parse_server
+recognizes path names, host names and numerical IPv4 and IPv6 addresses.
+A string consisting of digits and periods is assumed to be an IPv4 address
+and must be parseable by
+.Fn inet_aton 3 .
+An IPv6 address is any string enclosed in square brackets.
+It must be parseable with
+.Fn gethostinfo 3 .
+.Pp
+The port number for
+.Fn snmp_parse_server
+can be specified numerically or symbolically.
+It is ignored for local sockets.
 .Sh DIAGNOSTICS
-If an error occurs in any of the function an error indication as described
+If an error occurs in any of the functions an error indication as described
 above is returned.
-Additionally the function sets a printable error string
-in the
+Additionally the function sets a printable error string in the
 .Va error
-filed of
+field of
 .Va snmp_client .
 .Sh SEE ALSO
 .Xr gensnmptree 1 ,

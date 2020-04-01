@@ -65,8 +65,8 @@ asn_get_header(struct asn_buf *b, u_char *type, asn_len_t *len)
 		return (ASN_ERR_EOBUF);
 	}
 	*type = *b->asn_cptr;
-	if ((*type & ASN_TYPE_MASK) > 0x30) {
-		asn_error(b, "types > 0x30 not supported (%u)",
+	if ((*type & ASN_TYPE_MASK) > 0x1e) {
+		asn_error(b, "tags > 0x1e not supported (%#x)",
 		    *type & ASN_TYPE_MASK);
 		return (ASN_ERR_FAILED);
 	}
@@ -100,11 +100,19 @@ asn_get_header(struct asn_buf *b, u_char *type, asn_len_t *len)
 		*len = *b->asn_cptr++;
 		b->asn_len--;
 	}
+
+#ifdef	BOGUS_CVE_2019_5610_FIX
+	/*
+	 * This is the fix from CVE-2019-5610.
+	 *
+	 * This is the wrong place. Each of the asn functions should check
+	 * that it has enough info for its own work.
+	 */
 	if (*len > b->asn_len) {
-		asn_error(b, "len %u exceeding asn_len %u", *len, b->asn_len);
+		asn_error(b, "lenen %u exceeding asn_len %u", *len, b->asn_len);
 		return (ASN_ERR_EOBUF);
 	}
-	
+#endif
 	return (ASN_ERR_OK);
 }
 
@@ -147,7 +155,7 @@ asn_put_len(u_char *ptr, asn_len_t len)
 
 /*
  * Write a header (tag and length fields).
- * Tags are restricted to one byte tags (value <= 0x30) and the
+ * Tags are restricted to one byte tags (value <= 0x1e) and the
  * lenght field to 16-bit. All errors stop the encoding.
  */
 enum asn_err
@@ -156,8 +164,8 @@ asn_put_header(struct asn_buf *b, u_char type, asn_len_t len)
 	u_int lenlen;
 
 	/* tag field */
-	if ((type & ASN_TYPE_MASK) > 0x30) {
-		asn_error(NULL, "types > 0x30 not supported (%u)",
+	if ((type & ASN_TYPE_MASK) > 0x1e) {
+		asn_error(NULL, "types > 0x1e not supported (%#x)",
 		    type & ASN_TYPE_MASK);
 		return (ASN_ERR_FAILED);
 	}
@@ -251,9 +259,10 @@ asn_get_real_integer(struct asn_buf *b, asn_len_t len, int64_t *vp)
 		return (ASN_ERR_BADLEN);
 	}
 	err = ASN_ERR_OK;
-	if (len > 8)
+	if (len > 8) {
+		asn_error(b, "integer too long");
 		err = ASN_ERR_RANGE;
-	else if (len > 1 &&
+	} else if (len > 1 &&
 	    ((*b->asn_cptr == 0x00 && (b->asn_cptr[1] & 0x80) == 0) ||
 	    (*b->asn_cptr == 0xff && (b->asn_cptr[1] & 0x80) == 0x80))) {
 		asn_error(b, "non-minimal integer");
@@ -331,27 +340,35 @@ asn_put_real_integer(struct asn_buf *b, u_char type, int64_t ival)
 static enum asn_err
 asn_get_real_unsigned(struct asn_buf *b, asn_len_t len, uint64_t *vp)
 {
-	enum asn_err err;
-
+	*vp = 0;
 	if (b->asn_len < len) {
 		asn_error(b, "truncated integer");
 		return (ASN_ERR_EOBUF);
 	}
 	if (len == 0) {
+		/* X.690: 8.3.1 */
 		asn_error(b, "zero-length integer");
-		*vp = 0;
 		return (ASN_ERR_BADLEN);
 	}
-	err = ASN_ERR_OK;
-	*vp = 0;
-	if ((*b->asn_cptr & 0x80) || (len == 9 && *b->asn_cptr != 0)) {
+	if (len > 1 && *b->asn_cptr == 0x00 && (b->asn_cptr[1] & 0x80) == 0) {
+		/* X.690: 8.3.2 */
+		asn_error(b, "non-minimal unsigned");
+		b->asn_cptr += len;
+		b->asn_len -= len;
+		return (ASN_ERR_BADLEN);
+		
+	}
+
+	enum asn_err err = ASN_ERR_OK;
+
+	if ((*b->asn_cptr & 0x80) || len > 9 ||
+	    (len == 9 && *b->asn_cptr != 0)) {
 		/* negative integer or too larger */
 		*vp = 0xffffffffffffffffULL;
-		err = ASN_ERR_RANGE;
-	} else if (len > 1 &&
-	    *b->asn_cptr == 0x00 && (b->asn_cptr[1] & 0x80) == 0) {
-		asn_error(b, "non-minimal unsigned");
-		err = ASN_ERR_BADLEN;
+		asn_error(b, "unsigned too large or negative");
+		b->asn_cptr += len;
+		b->asn_len -= len;
+		return (ASN_ERR_RANGE);
 	}
 
 	while (len--) {
@@ -405,11 +422,14 @@ asn_get_integer_raw(struct asn_buf *b, asn_len_t len, int32_t *vp)
 	enum asn_err ret;
 
 	if ((ret = asn_get_real_integer(b, len, &val)) == ASN_ERR_OK) {
-		if (len > 4)
+		if (len > 4) {
+			asn_error(b, "integer too long");
 			ret = ASN_ERR_BADLEN;
-		else if (val > INT32_MAX || val < INT32_MIN)
+		} else if (val > INT32_MAX || val < INT32_MIN) {
 			/* may not happen */
+			asn_error(b, "integer out of range");
 			ret = ASN_ERR_RANGE;
+		}
 		*vp = (int32_t)val;
 	}
 	return (ret);
@@ -589,7 +609,7 @@ asn_get_objid_raw(struct asn_buf *b, asn_len_t len, struct asn_oid *oid)
 				return (ASN_ERR_EOBUF);
 			}
 			if (subid > (ASN_MAXID >> 7)) {
-				asn_error(b, "OBID subid too larger");
+				asn_error(b, "OID subid too larger");
 				err = ASN_ERR_RANGE;
 			}
 			subid = (subid << 7) | (*b->asn_cptr & 0x7f);
@@ -645,7 +665,7 @@ asn_put_objid(struct asn_buf *b, const struct asn_oid *oid)
 		oidlen = 2;
 	} else if (oid->len == 1) {
 		/* illegal */
-		asn_error(b, "short oid");
+		asn_error(NULL, "short oid");
 		if (oid->subs[0] > 2)
 			asn_error(NULL, "oid[0] too large (%u)", oid->subs[0]);
 		err = ASN_ERR_RANGE;
@@ -657,7 +677,8 @@ asn_put_objid(struct asn_buf *b, const struct asn_oid *oid)
 			err = ASN_ERR_RANGE;
 		}
 		if (oid->subs[0] > 2 ||
-		    (oid->subs[0] < 2 && oid->subs[1] >= 40)) {
+		    (oid->subs[0] < 2 && oid->subs[1] >= 40) ||
+		    (oid->subs[0] == 2 && oid->subs[1] > ASN_MAXID - 2 * 40)) {
 			asn_error(NULL, "oid out of range (%u,%u)",
 			    oid->subs[0], oid->subs[1]);
 			err = ASN_ERR_RANGE;
@@ -814,10 +835,7 @@ asn_get_uint32_raw(struct asn_buf *b, asn_len_t len, uint32_t *vp)
 	enum asn_err err;
 
 	if ((err = asn_get_real_unsigned(b, len, &v)) == ASN_ERR_OK) {
-		if (len > 5) {
-			asn_error(b, "uint32 too long %u", len);
-			err = ASN_ERR_BADLEN;
-		} else if (v > UINT32_MAX) {
+		if (v > UINT32_MAX) {
 			asn_error(b, "uint32 too large %llu", v);
 			err = ASN_ERR_RANGE;
 		}
