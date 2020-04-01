@@ -606,6 +606,8 @@ struct mlx5_priv {
 	spinlock_t              ctx_lock;
 	unsigned long		pci_dev_data;
 	struct mlx5_pme_stats pme_stats;
+
+	struct mlx5_eswitch	*eswitch;
 };
 
 enum mlx5_device_state {

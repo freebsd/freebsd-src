@@ -10,6 +10,7 @@ mlx5_cmd.c \
 mlx5_cq.c \
 mlx5_diagnostics.c \
 mlx5_eq.c \
+mlx5_eswitch.c \
 mlx5_fs_cmd.c \
 mlx5_fs_tree.c \
 mlx5_fw.c \
