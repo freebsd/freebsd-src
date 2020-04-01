@@ -31,6 +31,7 @@
 #include <dev/mlx5/mlx5_ifc.h>
 #include <dev/mlx5/mlx5_fpga/core.h>
 #include "mlx5_core.h"
+#include "eswitch.h"
 
 #include "opt_rss.h"
 
@@ -65,7 +66,8 @@ enum {
 			       (1ull << MLX5_EVENT_TYPE_PORT_CHANGE)	    | \
 			       (1ull << MLX5_EVENT_TYPE_SRQ_CATAS_ERROR)    | \
 			       (1ull << MLX5_EVENT_TYPE_SRQ_LAST_WQE)	    | \
-			       (1ull << MLX5_EVENT_TYPE_SRQ_RQ_LIMIT))
+			       (1ull << MLX5_EVENT_TYPE_SRQ_RQ_LIMIT)	    | \
+			       (1ull << MLX5_EVENT_TYPE_NIC_VPORT_CHANGE))
 
 struct map_eq_in {
 	u64	mask;
@@ -353,6 +355,9 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 					     MLX5_DEV_EVENT_VPORT_CHANGE,
 					     (unsigned long)vport_num);
 			}
+			if (dev->priv.eswitch != NULL)
+				mlx5_eswitch_vport_event(dev->priv.eswitch,
+				    eqe);
 			break;
 
 		case MLX5_EVENT_TYPE_FPGA_ERROR:
