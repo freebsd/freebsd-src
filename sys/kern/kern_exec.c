@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
-#include <sys/pioctl.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
@@ -912,12 +911,6 @@ exec_fail_dealloc:
 				td->td_dbgflags |= TDB_EXEC;
 			PROC_UNLOCK(p);
 		}
-
-		/*
-		 * Stop the process here if its stop event mask has
-		 * the S_EXEC bit set.
-		 */
-		STOPEVENT(p, S_EXEC, 0);
 	} else {
 exec_fail:
 		/* we're done here, clear P_INEXEC */

@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200401: Remove procfs-based process debugging
+OLD_FILES+=usr/include/sys/pioctl.h
+
 # 20200330: GDB_LIBEXEC option retired (always true)
 OLD_FILES+=usr/bin/gdb
 OLD_FILES+=usr/bin/gdbserver
