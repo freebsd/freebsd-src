@@ -1308,10 +1308,11 @@ ABI version
 .Po i.e.,
 .Dv __FreeBSD_version Pc .
 .It Dv NT_FREEBSD_NOINIT_TAG Pq Value: 2
-Indicates that crt does not call init.
+Indicates that the C Runtime (crt) does not call init.
 .Va desc
 is ignored.
 .It Dv NT_FREEBSD_ARCH_TAG Pq Value: 3
+Contains the MACHINE_ARCH that the executable was built for.
 .It Dv NT_FREEBSD_FEATURE_CTL Pq Value: 4
 Contains a bitmask of mitigations and features to enable:
 .Bl -column "NT_FREEBSD_FCTL_PROTMAX_DISABLE" "0x00" "Disable implicit PROT_MAX"
