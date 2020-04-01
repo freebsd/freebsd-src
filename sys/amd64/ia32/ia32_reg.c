@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/mman.h>
 #include <sys/namei.h>
-#include <sys/pioctl.h>
 #include <sys/proc.h>
 #include <sys/procfs.h>
 #include <sys/resourcevar.h>

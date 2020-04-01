@@ -53,8 +53,6 @@ int	 procfs_doprocregs(PFS_FILL_ARGS);
 int	 procfs_doprocrlimit(PFS_FILL_ARGS);
 int	 procfs_doprocstatus(PFS_FILL_ARGS);
 int	 procfs_doproctype(PFS_FILL_ARGS);
-int	 procfs_ioctl(PFS_IOCTL_ARGS);
-int	 procfs_close(PFS_CLOSE_ARGS);
 
 /* Attributes */
 int	 procfs_attr_w(PFS_ATTR_ARGS);
