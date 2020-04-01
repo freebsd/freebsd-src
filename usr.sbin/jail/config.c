@@ -596,8 +596,8 @@ check_intparams(struct cfjail *j)
 			if (cs || defif)
 				add_param(j, NULL, IP__IP4_IFADDR, s->s);
 			if (cs) {
-				strcpy(s->s, cs + 1);
 				s->len -= cs + 1 - s->s;
+				memmove(s->s, cs + 1, s->len + 1);
 			}
 			if ((cs = strchr(s->s, '/')) != NULL) {
 				*cs = '\0';
@@ -617,8 +617,8 @@ check_intparams(struct cfjail *j)
 			if (cs || defif)
 				add_param(j, NULL, IP__IP6_IFADDR, s->s);
 			if (cs) {
-				strcpy(s->s, cs + 1);
 				s->len -= cs + 1 - s->s;
+				memmove(s->s, cs + 1, s->len + 1);
 			}
 			if ((cs = strchr(s->s, '/')) != NULL) {
 				*cs = '\0';
