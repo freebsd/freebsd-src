@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/pioctl.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
@@ -1524,26 +1523,3 @@ fail:
 }
 #undef PROC_READ
 #undef PROC_WRITE
-
-/*
- * Stop a process because of a debugging event;
- * stay stopped until p->p_step is cleared
- * (cleared by PIOCCONT in procfs).
- */
-void
-stopevent(struct proc *p, unsigned int event, unsigned int val)
-{
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	p->p_step = 1;
-	CTR3(KTR_PTRACE, "stopevent: pid %d event %u val %u", p->p_pid, event,
-	    val);
-	do {
-		if (event != S_EXIT)
-			p->p_xsig = val;
-		p->p_xthread = NULL;
-		p->p_stype = event;	/* Which event caused the stop? */
-		wakeup(&p->p_stype);	/* Wake up any PIOCWAIT'ing procs */
-		msleep(&p->p_step, &p->p_mtx, PWAIT, "stopevent", 0);
-	} while (p->p_step);
-}

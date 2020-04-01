@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/jail.h>
-#include <sys/pioctl.h>
 #include <sys/racct.h>
 #include <sys/rctl.h>
 #include <sys/resourcevar.h>
@@ -2192,8 +2191,6 @@ setsugid(struct proc *p)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_flag |= P_SUGID;
-	if (!(p->p_pfsflags & PF_ISUGID))
-		p->p_stops = 0;
 }
 
 /*-

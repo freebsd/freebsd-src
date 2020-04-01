@@ -92,7 +92,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/signalvar.h>
 #include <sys/ptrace.h>
-#include <sys/pioctl.h>
 
 #include <machine/frame.h>
 
