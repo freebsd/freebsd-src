@@ -205,8 +205,9 @@ deadlres_td_on_lock(struct proc *p, struct thread *td, int blkticks)
 		 * Accordingly with provided thresholds, this thread is stuck
 		 * for too long on a turnstile.
 		 */
-		panic("%s: possible deadlock detected for %p, "
-		    "blocked for %d ticks\n", __func__, td, tticks);
+		panic("%s: possible deadlock detected for %p (%s), "
+		    "blocked for %d ticks\n", __func__,
+		    td, sched_tdname(td), tticks);
 }
 
 static void
@@ -239,8 +240,9 @@ deadlres_td_sleep_q(struct proc *p, struct thread *td, int slpticks)
 			if (!strcmp(blessed[i], td->td_wmesg))
 				return;
 
-		panic("%s: possible deadlock detected for %p, "
-		    "blocked for %d ticks\n", __func__, td, tticks);
+		panic("%s: possible deadlock detected for %p (%s), "
+		    "blocked for %d ticks\n", __func__,
+		    td, sched_tdname(td), tticks);
 	}
 }
 
