@@ -1081,10 +1081,9 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
 }
 
-int mlx5_eswitch_init(struct mlx5_core_dev *dev)
+int mlx5_eswitch_init(struct mlx5_core_dev *dev, int total_vports)
 {
 	int l2_table_size = 1 << MLX5_CAP_GEN(dev, log_max_l2_table);
-	int total_vports = 1;
 	struct mlx5_eswitch *esw;
 	int vport_num;
 	int err;
