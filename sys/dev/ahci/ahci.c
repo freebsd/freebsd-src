@@ -141,7 +141,27 @@ int
 ahci_ctlr_reset(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
+	uint32_t v;
 	int timeout;
+
+	/* BIOS/OS Handoff */
+	if ((ATA_INL(ctlr->r_mem, AHCI_VS) >= 0x00010200) &&
+	    (ATA_INL(ctlr->r_mem, AHCI_CAP2) & AHCI_CAP2_BOH) &&
+	    ((v = ATA_INL(ctlr->r_mem, AHCI_BOHC)) & AHCI_BOHC_OOS) == 0) {
+
+		/* Request OS ownership. */
+		ATA_OUTL(ctlr->r_mem, AHCI_BOHC, v | AHCI_BOHC_OOS);
+
+		/* Wait up to 2s for BIOS ownership release. */
+		for (timeout = 0; timeout < 80; timeout++) {
+			DELAY(25000);
+			v = ATA_INL(ctlr->r_mem, AHCI_BOHC);
+			if ((v & AHCI_BOHC_BOS) == 0)
+				break;
+			if ((v & AHCI_BOHC_BB) == 0)
+				break;
+		}
+	}
 
 	/* Enable AHCI mode */
 	ATA_OUTL(ctlr->r_mem, AHCI_GHC, AHCI_GHC_AE);
