@@ -6,7 +6,6 @@
 .include <src.opts.mk>
 
 PACKAGE=runtime
-TAGS+=	development
 CLEANFILES= osreldate.h version
 SUBDIR= arpa protocols rpcsvc rpc xlocale
 SUBDIR_PARALLEL=
