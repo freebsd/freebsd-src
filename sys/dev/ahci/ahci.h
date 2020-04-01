@@ -214,6 +214,13 @@
 #define		AHCI_CAP2_SADM	0x00000010
 #define		AHCI_CAP2_DESO	0x00000020
 
+#define AHCI_BOHC                   0x28
+#define		AHCI_BOHC_BOS	0x00000001
+#define		AHCI_BOHC_OOS	0x00000002
+#define		AHCI_BOHC_SOOE	0x00000004
+#define		AHCI_BOHC_OOC	0x00000008
+#define		AHCI_BOHC_BB	0x00000010
+
 #define AHCI_VSCAP                  0xa4
 #define AHCI_OFFSET                 0x100
 #define AHCI_STEP                   0x80
