@@ -223,6 +223,7 @@ kern_cap_rights_limit(struct thread *td, int fd, cap_rights_t *rights)
 {
 	struct filedesc *fdp;
 	struct filedescent *fdep;
+	u_long *ioctls;
 	int error;
 
 	fdp = td->td_proc->p_fd;
@@ -232,18 +233,22 @@ kern_cap_rights_limit(struct thread *td, int fd, cap_rights_t *rights)
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
+	ioctls = NULL;
 	error = _cap_check(cap_rights(fdp, fd), rights, CAPFAIL_INCREASE);
 	if (error == 0) {
+		seq_write_begin(&fdep->fde_seq);
 		fdep->fde_rights = *rights;
 		if (!cap_rights_is_set(rights, CAP_IOCTL)) {
-			free(fdep->fde_ioctls, M_FILECAPS);
+			ioctls = fdep->fde_ioctls;
 			fdep->fde_ioctls = NULL;
 			fdep->fde_nioctls = 0;
 		}
 		if (!cap_rights_is_set(rights, CAP_FCNTL))
 			fdep->fde_fcntls = 0;
+		seq_write_end(&fdep->fde_seq);
 	}
 	FILEDESC_XUNLOCK(fdp);
+	free(ioctls, M_FILECAPS);
 	return (error);
 }
 
@@ -428,8 +433,10 @@ kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds, size_t ncmds)
 		goto out;
 
 	ocmds = fdep->fde_ioctls;
+	seq_write_begin(&fdep->fde_seq);
 	fdep->fde_ioctls = cmds;
 	fdep->fde_nioctls = ncmds;
+	seq_write_end(&fdep->fde_seq);
 
 	cmds = ocmds;
 	error = 0;
@@ -586,7 +593,9 @@ sys_cap_fcntls_limit(struct thread *td, struct cap_fcntls_limit_args *uap)
 		return (ENOTCAPABLE);
 	}
 
+	seq_write_begin(&fdep->fde_seq);
 	fdep->fde_fcntls = fcntlrights;
+	seq_write_end(&fdep->fde_seq);
 	FILEDESC_XUNLOCK(fdp);
 
 	return (0);
