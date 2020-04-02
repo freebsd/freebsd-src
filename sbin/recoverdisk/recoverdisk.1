@@ -35,6 +35,8 @@
 .Op Fl b Ar bigsize
 .Op Fl r Ar readlist
 .Op Fl s Ar interval
+.Op Fl u Ar pattern
+.Op Fl v
 .Op Fl w Ar writelist
 .Ar source
 .Op Ar destination
@@ -68,6 +70,13 @@ Read the list of blocks and block sizes to read from the specified file.
 How often we should update the writelist file while things go OK.
 The default is 60 and the unit is "progress messages" so if things
 go well, this is the same as once per minute.
+.It Fl u Ar pattern
+By default blocks which encounter read errors will be filled with
+the pattern "_UNREAD_" in the output file.  This option can be
+used to specify another pattern.  Nothing gets written if the string
+is empty.
+.It Fl v
+Enables nicer status report using ANSI escapes and UTF-8.
 .It Fl w Ar writelist
 Write the list of remaining blocks to read to the specified file if
 .Nm
