@@ -1308,7 +1308,9 @@ ABI version
 .Po i.e.,
 .Dv __FreeBSD_version Pc .
 .It Dv NT_FREEBSD_NOINIT_TAG Pq Value: 2
-Indicates that the C Runtime (crt) does not call init.
+Indicates that the C startup does not call initialization routines, and thus
+.Xr rtld 1
+must do so.
 .Va desc
 is ignored.
 .It Dv NT_FREEBSD_ARCH_TAG Pq Value: 3
