@@ -381,17 +381,20 @@ le_advertizing_report(ng_hci_unit_p unit, struct mbuf *event)
 	ng_hci_neighbor_p		 n = NULL;
 	bdaddr_t			 bdaddr;
 	int				 error = 0;
+	int				 num_reports = 0;
 	u_int8_t event_type;
 	u_int8_t addr_type;
-
+	
 	NG_HCI_M_PULLUP(event, sizeof(*ep));
 	if (event == NULL)
 		return (ENOBUFS);
 
 	ep = mtod(event, ng_hci_le_advertising_report_ep *);
+	num_reports = ep->num_reports;
 	m_adj(event, sizeof(*ep));
-
-	for (; ep->num_reports > 0; ep->num_reports --) {
+	ep = NULL;
+	
+	for (; num_reports > 0; num_reports --) {
 		/* Get remote unit address */
 		NG_HCI_M_PULLUP(event, sizeof(u_int8_t));
 		event_type = *mtod(event, u_int8_t *);
