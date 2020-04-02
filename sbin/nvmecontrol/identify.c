@@ -94,7 +94,7 @@ print_namespace(struct nvme_namespace_data *nsdata)
 	     NVME_NS_DATA_DPC_PIT3_MASK) ? "Type 3, " : "",
 	    ((nsdata->dpc >> NVME_NS_DATA_DPC_PIT2_SHIFT) &
 	     NVME_NS_DATA_DPC_PIT2_MASK) ? "Type 2, " : "",
-	    ((nsdata->dpc >> NVME_NS_DATA_DPC_PIT2_MASK) &
+	    ((nsdata->dpc >> NVME_NS_DATA_DPC_PIT1_SHIFT) &
 	     NVME_NS_DATA_DPC_PIT1_MASK) ? "Type 1" : "");
 	printf("Data Protection Settings:    ");
 	ptype = (nsdata->dps >> NVME_NS_DATA_DPS_PIT_SHIFT) &
@@ -238,7 +238,8 @@ identify(const struct cmd *f, int argc, char *argv[])
 	int		fd;
 	uint32_t	nsid;
 
-	arg_parse(argc, argv, f);
+	if (arg_parse(argc, argv, f))
+		return;
 
 	open_dev(opt.dev, &fd, 1, 1);
 	get_nsid(fd, &path, &nsid);

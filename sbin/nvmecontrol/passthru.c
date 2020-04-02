@@ -158,10 +158,12 @@ static void
 passthru(const struct cmd *f, int argc, char *argv[])
 {
 	int	fd = -1, ifd = -1;
+	size_t	bytes_read;
 	void	*data = NULL, *metadata = NULL;
 	struct nvme_pt_command	pt;
 
-	arg_parse(argc, argv, f);
+	if (arg_parse(argc, argv, f))
+		return;
 	open_dev(argv[optind], &fd, 1, 1);
 
 	if (opt.read && opt.write)
@@ -189,8 +191,12 @@ passthru(const struct cmd *f, int argc, char *argv[])
 			goto cleanup;
 		}
 		memset(data, opt.prefill, opt.data_len);
-		if (opt.write && read(ifd, data, opt.data_len) < 0) {
-			warn("read %s", *opt.ifn ? opt.ifn : "stdin");
+		if (opt.write &&
+		    (bytes_read = read(ifd, data, opt.data_len)) !=
+		    opt.data_len) {
+			warn("read %s; expected %u bytes; got %zd",
+			     *opt.ifn ? opt.ifn : "stdin",
+			     opt.data_len, bytes_read);
 			goto cleanup;
 		}
 	}
@@ -249,6 +255,10 @@ passthru(const struct cmd *f, int argc, char *argv[])
 		}
 	}
 cleanup:
+	free(data);
+	close(fd);
+	if (ifd > -1)
+		close(ifd);
 	if (errno)
 		exit(1);
 }

@@ -145,7 +145,8 @@ power(const struct cmd *f, int argc, char *argv[])
 	struct nvme_controller_data	cdata;
 	int				fd;
 
-	arg_parse(argc, argv, f);
+	if (arg_parse(argc, argv, f))
+		return;
 
 	if (opt.list && opt.power != POWER_NONE) {
 		fprintf(stderr, "Can't set power and list power states\n");
