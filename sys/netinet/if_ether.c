@@ -1044,7 +1044,11 @@ reply:
 		(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
 		(void)memcpy(ar_sha(ah), enaddr, ah->ar_hln);
 	} else {
-		struct llentry *lle = NULL;
+		/*
+		 * Destination address is not ours. Check if
+		 * proxyarp entry exists or proxyarp is turned on globally.
+		 */
+		struct llentry *lle;
 
 		sin.sin_addr = itaddr;
 		lle = lla_lookup(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
@@ -1061,8 +1065,8 @@ reply:
 			if (!V_arp_proxyall)
 				goto drop;
 
-			/* XXX MRT use table 0 for arp reply  */
-			if (fib4_lookup_nh_basic(0, itaddr, 0, 0, &nh4) != 0)
+			if (fib4_lookup_nh_basic(ifp->if_fib, itaddr, 0, 0,
+			    &nh4) != 0)
 				goto drop;
 
 			/*
@@ -1083,8 +1087,8 @@ reply:
 			 * wrong network.
 			 */
 
-			/* XXX MRT use table 0 for arp checks */
-			if (fib4_lookup_nh_basic(0, isaddr, 0, 0, &nh4) != 0)
+			if (fib4_lookup_nh_basic(ifp->if_fib, isaddr, 0, 0,
+			    &nh4) != 0)
 				goto drop;
 			if (nh4.nh_ifp != ifp) {
 				ARP_LOG(LOG_INFO, "proxy: ignoring request"
