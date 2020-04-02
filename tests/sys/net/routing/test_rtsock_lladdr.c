@@ -38,7 +38,7 @@ jump_vnet(struct rtsock_test_config *c, const atf_tc_t *tc)
 	snprintf(vnet_name, sizeof(vnet_name), "vt-%s", atf_tc_get_ident(tc));
 	RLOG("jumping to %s", vnet_name);
 
-	vnet_switch(vnet_name, c->ifname);
+	vnet_switch_one(vnet_name, c->ifname);
 
 	/* Update ifindex cache */
 	c->ifindex = if_nametoindex(c->ifname);
@@ -50,7 +50,7 @@ presetup_ipv6(const atf_tc_t *tc)
 	struct rtsock_test_config *c;
 	int ret;
 
-	c = config_setup(tc);
+	c = config_setup(tc, NULL);
 
 	jump_vnet(c, tc);
 
@@ -70,7 +70,7 @@ presetup_ipv4(const atf_tc_t *tc)
 	struct rtsock_test_config *c;
 	int ret;
 
-	c = config_setup(tc);
+	c = config_setup(tc, NULL);
 
 	jump_vnet(c, tc);
 

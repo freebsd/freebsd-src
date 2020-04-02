@@ -32,6 +32,10 @@
 
 #include "params.h"
 
+struct rtsock_config_options {
+	int num_interfaces;	/* number of interfaces to create */
+};
+
 struct rtsock_test_config {
 	int ifindex;
 	char net4_str[INET_ADDRSTRLEN];
@@ -48,30 +52,29 @@ struct rtsock_test_config {
 	int plen6;
 	char *remote_lladdr;
 	char *ifname;
+	char **ifnames;
 	bool autocreated_interface;
 	int rtsock_fd;
+	int num_interfaces;
 };
 
 struct rtsock_test_config *
-config_setup_base(const atf_tc_t *tc)
+config_setup(const atf_tc_t *tc, struct rtsock_config_options *co)
 {
-	struct rtsock_test_config *c;
-
-	c = calloc(1, sizeof(struct rtsock_test_config));
-	c->rtsock_fd = -1;
-
-	return c;
-}
-
-struct rtsock_test_config *
-config_setup(const atf_tc_t *tc)
-{
+	struct rtsock_config_options default_co;
 	struct rtsock_test_config *c;
 	char buf[64], *s;
 	const char *key;
 	int mask;
 
-	c = config_setup_base(tc);
+	if (co == NULL) {
+		bzero(&default_co, sizeof(default_co));
+		co = &default_co;
+		co->num_interfaces = 1;
+	}
+
+	c = calloc(1, sizeof(struct rtsock_test_config));
+	c->rtsock_fd = -1;
 
 	key = atf_tc_get_config_var_wd(tc, "rtsock.v4prefix", "192.0.2.0/24");
 	strlcpy(buf, key, sizeof(buf));
@@ -123,27 +126,17 @@ config_setup(const atf_tc_t *tc)
 	inet_ntop(AF_INET6, &c->net6.sin6_addr, c->net6_str, INET6_ADDRSTRLEN);
 	inet_ntop(AF_INET6, &c->addr6.sin6_addr, c->addr6_str, INET6_ADDRSTRLEN);
 
-	c->ifname = strdup("epair");
-	c->autocreated_interface = true;
+	if (co->num_interfaces > 0) {
+		c->ifnames = calloc(co->num_interfaces, sizeof(char *));
+		for (int i = 0; i < co->num_interfaces; i++)
+			c->ifnames[i] = iface_create("epair");
 
-	if (c->autocreated_interface && (if_nametoindex(c->ifname) == 0))
-       	{
-		/* create our own interface */
-		char new_ifname[IFNAMSIZ];
-		strlcpy(new_ifname, c->ifname, sizeof(new_ifname));
-		int ret = iface_create_cloned(new_ifname);
-		ATF_REQUIRE_MSG(ret != 0, "%s interface creation failed: %s", new_ifname,
-		    strerror(errno));
-		c->ifname = strdup(new_ifname);
-		file_append_line(IFACES_FNAME, new_ifname);
-		if (strstr(new_ifname, "epair") == new_ifname) {
-			/* call returned epairXXXa, need to add epairXXXb */
-			new_ifname[strlen(new_ifname) - 1] = 'b';
-			file_append_line(IFACES_FNAME, new_ifname);
-		}
+		c->ifname = c->ifnames[0];
+		c->ifindex = if_nametoindex(c->ifname);
+		ATF_REQUIRE_MSG(c->ifindex != 0, "interface %s not found",
+		    c->ifname);
 	}
-	c->ifindex = if_nametoindex(c->ifname);
-	ATF_REQUIRE_MSG(c->ifindex != 0, "inteface %s not found", c->ifname);
+	c->num_interfaces = co->num_interfaces;
 
 	c->remote_lladdr = strdup(atf_tc_get_config_var_wd(tc,
 	    "rtsock.remote_lladdr", "00:00:5E:00:53:42"));
