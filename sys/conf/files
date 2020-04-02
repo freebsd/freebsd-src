@@ -1351,6 +1351,7 @@ dev/bwn/if_bwn_phy_g.c		optional bwn bhnd
 dev/bwn/if_bwn_phy_lp.c		optional bwn bhnd
 dev/bwn/if_bwn_phy_n.c		optional bwn bhnd
 dev/bwn/if_bwn_util.c		optional bwn bhnd
+dev/cadence/if_cgem.c		optional cgem fdt
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
