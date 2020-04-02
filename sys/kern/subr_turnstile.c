@@ -1180,17 +1180,21 @@ print_lockchain(struct thread *td, const char *prefix)
 	 * blocked on a lock that has an owner.
 	 */
 	while (!db_pager_quit) {
-		db_printf("%sthread %d (pid %d, %s) ", prefix, td->td_tid,
+		if (td == (void *)LK_KERNPROC) {
+			db_printf("%sdisowned (LK_KERNPROC)\n", prefix);
+			return;
+		}
+		db_printf("%sthread %d (pid %d, %s) is ", prefix, td->td_tid,
 		    td->td_proc->p_pid, td->td_name);
 		switch (td->td_state) {
 		case TDS_INACTIVE:
-			db_printf("is inactive\n");
+			db_printf("inactive\n");
 			return;
 		case TDS_CAN_RUN:
-			db_printf("can run\n");
+			db_printf("runnable\n");
 			return;
 		case TDS_RUNQ:
-			db_printf("is on a run queue\n");
+			db_printf("on a run queue\n");
 			return;
 		case TDS_RUNNING:
 			db_printf("running on CPU %d\n", td->td_oncpu);
@@ -1218,7 +1222,7 @@ print_lockchain(struct thread *td, const char *prefix)
 				td = owner;
 				break;
 			}
-			db_printf("inhibited\n");
+			db_printf("inhibited: %s\n", KTDSTATE(td));
 			return;
 		default:
 			db_printf("??? (%#x)\n", td->td_state);
