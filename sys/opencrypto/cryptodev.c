@@ -915,8 +915,7 @@ cryptodev_op(
 
 	if (cop->mac && cse->hashsize == 0) {
 		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
-		error = EINVAL;
-		goto bail;
+		return (EINVAL);
 	}
 
 	/*
@@ -1091,10 +1090,8 @@ again:
 	}
 
 bail:
-	if (crp)
-		crypto_freereq(crp);
-	if (cod)
-		cod_free(cod);
+	crypto_freereq(crp);
+	cod_free(cod);
 
 	return (error);
 }
@@ -1285,8 +1282,7 @@ again:
 
 bail:
 	crypto_freereq(crp);
-	if (cod)
-		cod_free(cod);
+	cod_free(cod);
 
 	return (error);
 }
