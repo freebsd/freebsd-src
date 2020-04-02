@@ -70,7 +70,8 @@ gnsid(const struct cmd *f, int argc, char *argv[])
 	int		fd;
 	uint32_t	nsid;
 
-	arg_parse(argc, argv, f);
+	if (arg_parse(argc, argv, f))
+		return;
 
 	open_dev(nsid_opt.dev, &fd, 1, 1);
 	get_nsid(fd, &path, &nsid);

@@ -275,7 +275,7 @@ print_hgst_info_subpage_gen(void *buf, uint16_t subtype __unused, uint32_t size,
 		wsp++;			/* Flags, just ignore */
 		plen = *wsp++;
 		param = 0;
-		for (i = 0; i < plen; i++)
+		for (i = 0; i < plen && wsp < esp; i++)
 			param |= (uint64_t)*wsp++ << (i * 8);
 		printf("  %-30s: %jd\n", kv_lookup(kv, kv_count, ptype), (uintmax_t)param);
 	}

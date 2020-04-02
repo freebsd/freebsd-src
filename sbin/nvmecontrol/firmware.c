@@ -151,6 +151,7 @@ read_image_file(const char *path, void **buf, int32_t *size)
 		errx(1,
 		    "error reading '%s' (read %d bytes, requested %d bytes)",
 		    path, *size, filesize);
+	close(fd);
 }
 
 static void
@@ -188,6 +189,7 @@ update_firmware(int fd, uint8_t *payload, int32_t payload_size)
 		resid -= size;
 		off += size;
 	}
+	free(chunk);
 }
 
 static int
