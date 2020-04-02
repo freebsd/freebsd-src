@@ -722,8 +722,6 @@ alg_is_digest(int alg)
 		return (true);
 	if (alg >= CRYPTO_SHA2_256_HMAC && alg <= CRYPTO_SHA2_512_HMAC)
 		return (true);
-	if (alg >= CRYPTO_SHA2_256_HMAC && alg <= CRYPTO_SHA2_512_HMAC)
-		return (true);
 	if (alg == CRYPTO_AES_NIST_GMAC)
 		return (true);
 	if (alg >= CRYPTO_BLAKE2B && alg <= CRYPTO_BLAKE2S)
