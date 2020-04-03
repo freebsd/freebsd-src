@@ -325,9 +325,9 @@
 				    l_sigset_t *newset, \
 				    l_size_t sigsetsize); }
 180	AUE_PREAD	STD	{ int linux_pread(l_uint fd, char *buf, \
-				    l_size_t nbyte, l_loff_t offset); }
+				    l_size_t nbyte, uint32_t offset1, uint32_t offset2); }
 181	AUE_PWRITE	STD	{ int linux_pwrite(l_uint fd, char *buf, \
-				    l_size_t nbyte, l_loff_t offset); }
+				    l_size_t nbyte, uint32_t offset1, uint32_t offset2); }
 182	AUE_CHOWN	STD	{ int linux_chown16(char *path, \
 				    l_uid16_t uid, l_gid16_t gid); }
 183	AUE_GETCWD	STD	{ int linux_getcwd(char *buf, \
@@ -349,9 +349,9 @@
 				    l_ulong prot, l_ulong flags, l_ulong fd, \
 				    l_ulong pgoff); }
 193	AUE_TRUNCATE	STD	{ int linux_truncate64(char *path, \
-				    l_loff_t length); }
+				    uint32_t length1, uint32_t length2); }
 194	AUE_FTRUNCATE	STD	{ int linux_ftruncate64(l_uint fd, \
-				    l_loff_t length); }
+				    uint32_t length1, uint32_t length2); }
 195	AUE_STAT	STD	{ int linux_stat64(const char *filename, \
 				    struct l_stat64 *statbuf); }
 196	AUE_LSTAT	STD	{ int linux_lstat64(const char *filename, \
@@ -426,7 +426,7 @@
 247	AUE_NULL	UNIMPL	linux_io_getevents
 248	AUE_NULL	UNIMPL	linux_io_submit
 249	AUE_NULL	UNIMPL	linux_io_cancel
-250	AUE_NULL	STD	{ int linux_fadvise64(int fd, l_loff_t offset, \
+250	AUE_NULL	STD	{ int linux_fadvise64(int fd, uint32_t offset1, uint32_t offset2, \
 					l_size_t len, int advice); }
 251	AUE_NULL	UNIMPL
 252	AUE_EXIT	STD	{ int linux_exit_group(int error_code); }
@@ -456,7 +456,8 @@
 271	AUE_UTIMES	STD	{ int linux_utimes(char *fname, \
 					struct l_timeval *tptr); }
 272	AUE_NULL	STD	{ int linux_fadvise64_64(int fd, \
-					l_loff_t offset, l_loff_t len, \
+					uint32_t offset1, uint32_t offset2, \
+					uint32_t len1, uint32_t len2, \
 					int advice); }
 273	AUE_NULL	UNIMPL	vserver
 274	AUE_NULL	STD	{ int linux_mbind(void); }
@@ -524,8 +525,9 @@
 312	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, \
 				    struct linux_robust_list_head **head, l_size_t *len); }
 313	AUE_NULL	STD	{ int linux_splice(void); }
-314	AUE_NULL	STD	{ int linux_sync_file_range(l_int fd, l_loff_t offset,
-				    l_loff_t nbytes, unsigned int flags); }
+314	AUE_NULL	STD	{ int linux_sync_file_range(l_int fd, uint32_t offset1,
+				    uint32_t offset2, uint32_t nbytes1, uint32_t nbytes2,
+				    unsigned int flags); }
 315	AUE_NULL	STD	{ int linux_tee(void); }
 316	AUE_NULL	STD	{ int linux_vmsplice(void); }
 ; Linux 2.6.18:
@@ -543,7 +545,8 @@
 323	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }
 ; Linux 2.6.23:
 324	AUE_NULL	STD	{ int linux_fallocate(l_int fd, l_int mode, \
-				    l_loff_t offset, l_loff_t len); }
+				    uint32_t offset1, uint32_t offset2, uint32_t len1,
+				    uint32_t len2); }
 ; Linux 2.6.25:
 325	AUE_NULL	STD	{ int linux_timerfd_settime(l_int fd, l_int flags,	\
 				    const struct l_itimerspec *new_value,		\

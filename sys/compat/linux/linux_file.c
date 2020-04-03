@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #ifdef COMPAT_LINUX32
+#include <compat/freebsd32/freebsd32_misc.h>
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
 #else
@@ -66,7 +67,6 @@ __FBSDID("$FreeBSD$");
 
 static int	linux_common_open(struct thread *, int, char *, int, int);
 static int	linux_getdents_error(struct thread *, int, int);
-
 
 #ifdef LINUX_LEGACY_SYSCALLS
 int
@@ -898,7 +898,6 @@ linux_truncate(struct thread *td, struct linux_truncate_args *args)
 	int error;
 
 	LCONVPATHEXIST(td, args->path, &path);
-
 #ifdef DEBUG
 	if (ldebug(truncate))
 		printf(ARGS(truncate, "%s, %ld"), path, (long)args->length);
@@ -914,7 +913,14 @@ int
 linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 {
 	char *path;
+	off_t length;
 	int error;
+
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
+	length = PAIR32TO64(off_t, args->length);
+#else
+	length = args->length;
+#endif
 
 	LCONVPATHEXIST(td, args->path, &path);
 
@@ -923,7 +929,7 @@ linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 		printf(ARGS(truncate64, "%s, %jd"), path, args->length);
 #endif
 
-	error = kern_truncate(td, path, UIO_SYSSPACE, args->length);
+	error = kern_truncate(td, path, UIO_SYSSPACE, length);
 	LFREEPATH(path);
 	return (error);
 }
@@ -935,6 +941,22 @@ linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 
 	return (kern_ftruncate(td, args->fd, args->length));
 }
+
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_ftruncate64(struct thread *td, struct linux_ftruncate64_args *args)
+{
+	off_t length;
+
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
+	length = PAIR32TO64(off_t, args->length);
+#else
+	length = args->length;
+#endif
+
+	return (kern_ftruncate(td, args->fd, length));
+}
+#endif
 
 #ifdef LINUX_LEGACY_SYSCALLS
 int
@@ -1006,8 +1028,17 @@ linux_fdatasync(struct thread *td, struct linux_fdatasync_args *uap)
 int
 linux_sync_file_range(struct thread *td, struct linux_sync_file_range_args *uap)
 {
+	off_t nbytes, offset;
 
-	if (uap->offset < 0 || uap->nbytes < 0 ||
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
+	nbytes = PAIR32TO64(off_t, uap->nbytes);
+	offset = PAIR32TO64(off_t, uap->offset);
+#else
+	nbytes = uap->nbytes;
+	offset = uap->offset;
+#endif
+
+	if (offset < 0 || nbytes < 0 ||
 	    (uap->flags & ~(LINUX_SYNC_FILE_RANGE_WAIT_BEFORE |
 	    LINUX_SYNC_FILE_RANGE_WRITE |
 	    LINUX_SYNC_FILE_RANGE_WAIT_AFTER)) != 0) {
@@ -1021,18 +1052,23 @@ int
 linux_pread(struct thread *td, struct linux_pread_args *uap)
 {
 	struct vnode *vp;
+	off_t offset;
 	int error;
 
-	error = kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset);
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
+	offset = PAIR32TO64(off_t, uap->offset);
+#else
+	offset = uap->offset;
+#endif
+
+	error = kern_pread(td, uap->fd, uap->buf, uap->nbyte, offset);
 	if (error == 0) {
 		/* This seems to violate POSIX but Linux does it. */
 		error = fgetvp(td, uap->fd, &cap_pread_rights, &vp);
 		if (error != 0)
 			return (error);
-		if (vp->v_type == VDIR) {
-			vrele(vp);
-			return (EISDIR);
-		}
+		if (vp->v_type == VDIR)
+			error = EISDIR;
 		vrele(vp);
 	}
 	return (error);
@@ -1041,8 +1077,15 @@ linux_pread(struct thread *td, struct linux_pread_args *uap)
 int
 linux_pwrite(struct thread *td, struct linux_pwrite_args *uap)
 {
+	off_t offset;
 
-	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
+	offset = PAIR32TO64(off_t, uap->offset);
+#else
+	offset = uap->offset;
+#endif
+
+	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, offset));
 }
 
 int
@@ -1586,26 +1629,40 @@ convert_fadvice(int advice)
 int
 linux_fadvise64(struct thread *td, struct linux_fadvise64_args *args)
 {
+	off_t offset;
 	int advice;
+
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
+	offset = PAIR32TO64(off_t, args->offset);
+#else
+	offset = args->offset;
+#endif
 
 	advice = convert_fadvice(args->advice);
 	if (advice == -1)
 		return (EINVAL);
-	return (kern_posix_fadvise(td, args->fd, args->offset, args->len,
-	    advice));
+	return (kern_posix_fadvise(td, args->fd, offset, args->len, advice));
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_fadvise64_64(struct thread *td, struct linux_fadvise64_64_args *args)
 {
+	off_t len, offset;
 	int advice;
+
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
+	len = PAIR32TO64(off_t, args->len);
+	offset = PAIR32TO64(off_t, args->offset);
+#else
+	len = args->len;
+	offset = args->offset;
+#endif
 
 	advice = convert_fadvice(args->advice);
 	if (advice == -1)
 		return (EINVAL);
-	return (kern_posix_fadvise(td, args->fd, args->offset, args->len,
-	    advice));
+	return (kern_posix_fadvise(td, args->fd, offset, len, advice));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
@@ -1689,6 +1746,7 @@ linux_dup3(struct thread *td, struct linux_dup3_args *args)
 int
 linux_fallocate(struct thread *td, struct linux_fallocate_args *args)
 {
+	off_t len, offset;
 
 	/*
 	 * We emulate only posix_fallocate system call for which
@@ -1697,6 +1755,13 @@ linux_fallocate(struct thread *td, struct linux_fallocate_args *args)
 	if (args->mode != 0)
 		return (ENOSYS);
 
-	return (kern_posix_fallocate(td, args->fd, args->offset,
-	    args->len));
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
+	len = PAIR32TO64(off_t, args->len);
+	offset = PAIR32TO64(off_t, args->offset);
+#else
+	len = args->len;
+	offset = args->offset;
+#endif
+
+	return (kern_posix_fallocate(td, args->fd, offset, len));
 }

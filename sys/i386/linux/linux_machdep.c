@@ -616,19 +616,6 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 }
 
 int
-linux_ftruncate64(struct thread *td, struct linux_ftruncate64_args *args)
-{
-
-#ifdef DEBUG
-	if (ldebug(ftruncate64))
-		printf(ARGS(ftruncate64, "%u, %jd"), args->fd,
-		    (intmax_t)args->length);
-#endif
-
-	return (kern_ftruncate(td, args->fd, args->length));
-}
-
-int
 linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args)
 {
 	struct l_user_desc info;
