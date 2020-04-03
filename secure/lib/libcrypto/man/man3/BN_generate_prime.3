@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_GENERATE_PRIME 3"
-.TH BN_GENERATE_PRIME 3 "2020-03-17" "1.1.1e" "OpenSSL"
+.TH BN_GENERATE_PRIME 3 "2020-03-31" "1.1.1f" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -188,7 +188,9 @@ Deprecated:
 .IX Header "DESCRIPTION"
 \&\fBBN_generate_prime_ex()\fR generates a pseudo-random prime number of
 at least bit length \fBbits\fR. The returned number is probably prime
-with a negligible error.
+with a negligible error. If \fBadd\fR is \fB\s-1NULL\s0\fR the returned prime
+number will have exact bit length \fBbits\fR with the top most two
+bits set.
 .PP
 If \fBret\fR is not \fB\s-1NULL\s0\fR, it will be used to store the number.
 .PP
@@ -213,7 +215,9 @@ If \fBadd\fR is not \fB\s-1NULL\s0\fR, the prime will fulfill the condition p % 
 generator.
 .PP
 If \fBsafe\fR is true, it will be a safe prime (i.e. a prime p so
-that (p\-1)/2 is also prime).
+that (p\-1)/2 is also prime). If \fBsafe\fR is true, and \fBrem\fR == \fB\s-1NULL\s0\fR
+the condition will be p % \fBadd\fR == 3.
+It is recommended that \fBadd\fR is a multiple of 4.
 .PP
 The random generator must be seeded prior to calling \fBBN_generate_prime_ex()\fR.
 If the automatic seeding or reseeding of the OpenSSL \s-1CSPRNG\s0 fails due to
@@ -329,7 +333,7 @@ The \fBBN_GENCB_new()\fR, \fBBN_GENCB_free()\fR,
 and \fBBN_GENCB_get_arg()\fR functions were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
