@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd April 3, 2020
 .Dt RECOVERDISK 1
 .Os
 .Sh NAME
@@ -72,9 +72,12 @@ The default is 60 and the unit is "progress messages" so if things
 go well, this is the same as once per minute.
 .It Fl u Ar pattern
 By default blocks which encounter read errors will be filled with
-the pattern "_UNREAD_" in the output file.  This option can be
-used to specify another pattern.  Nothing gets written if the string
-is empty.
+the pattern
+.Ql _UNREAD_
+in the output file.
+This option can be
+used to specify another pattern.
+Nothing gets written if the string is empty.
 .It Fl v
 Enables nicer status report using ANSI escapes and UTF-8.
 .It Fl w Ar writelist
@@ -164,7 +167,7 @@ This is harmless and can be avoided by setting
 to no more than 128kB.
 .Pp
 .Nm
-needs to know about read errors as fast as possible, i.e. retries by lower
+needs to know about read errors as fast as possible, i.e., retries by lower
 layers will usually slow down the operation.
 When using
 .Xr cam 4
