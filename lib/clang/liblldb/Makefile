@@ -13,6 +13,8 @@ CFLAGS+=	-I${LLDB_SRCS}/source/Plugins/Process/Utility
 CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
 CFLAGS+=	-I${OBJTOP}/lib/clang/libclang
 CFLAGS+=	-I${OBJTOP}/lib/clang/liblldb
+CFLAGS+=	-I${SRCTOP}/contrib/lua/src
+CFLAGS+=	-I${SRCTOP}/lib/liblua
 
 SRCS+=		API/SBAddress.cpp
 SRCS+=		API/SBAttachInfo.cpp
@@ -462,6 +464,8 @@ SRCS+=		Plugins/Process/gdb-remote/GDBRemoteRegisterContext.cpp
 SRCS+=		Plugins/Process/gdb-remote/ProcessGDBRemote.cpp
 SRCS+=		Plugins/Process/gdb-remote/ProcessGDBRemoteLog.cpp
 SRCS+=		Plugins/Process/gdb-remote/ThreadGDBRemote.cpp
+SRCS+=		Plugins/ScriptInterpreter/Lua/Lua.cpp
+SRCS+=		Plugins/ScriptInterpreter/Lua/ScriptInterpreterLua.cpp
 SRCS+=		Plugins/ScriptInterpreter/None/ScriptInterpreterNone.cpp
 SRCS+=		Plugins/SymbolFile/Breakpad/SymbolFileBreakpad.cpp
 SRCS+=		Plugins/SymbolFile/DWARF/AppleDWARFIndex.cpp
@@ -642,6 +646,7 @@ SRCS+=		Utility/UserID.cpp
 SRCS+=		Utility/UserIDResolver.cpp
 SRCS+=		Utility/VASprintf.cpp
 SRCS+=		Utility/VMRange.cpp
+SRCS+=		LLDBWrapLua.cpp
 SRCS+=		lldb.cpp
 
 LLDB_TBLGEN?=	lldb-tblgen
