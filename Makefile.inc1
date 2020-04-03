@@ -1509,7 +1509,8 @@ distrib-dirs distribution: .MAKE .PHONY
 .if make(distribution)
 	${_+_}cd ${.CURDIR}; ${CROSSENV} PATH=${TMPPATH} \
 		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} \
-		METALOG=${METALOG} MK_TESTS=no installconfig
+		METALOG=${METALOG} MK_TESTS=no \
+		MK_TESTS_SUPPORT=${MK_TESTS_SUPPORT} installconfig
 .endif
 
 #
