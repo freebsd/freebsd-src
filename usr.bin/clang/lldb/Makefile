@@ -36,6 +36,7 @@ CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LIBADD+=	edit
 LIBADD+=	execinfo
+LIBADD+=	lua
 LIBADD+=	lzma
 LIBADD+=	ncursesw
 LIBADD+=	panel
