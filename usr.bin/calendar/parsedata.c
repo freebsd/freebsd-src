@@ -578,7 +578,9 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		/* Every dayofweek of the year */
 		if (lflags == (F_DAYOFWEEK | F_VARIABLE)) {
 			dow = first_dayofweek_of_year(year);
-			d = (idayofweek - dow + 8) % 7;
+			if (dow < 0)
+				continue;
+			d = (idayofweek - dow + 7) % 7 + 1;
 			while (d <= 366) {
 				if (remember_yd(year, d, &rm, &rd))
 					remember(&remindex,
@@ -616,7 +618,9 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		    (F_MONTH | F_DAYOFWEEK | F_MODIFIERINDEX | F_VARIABLE)) {
 			offset = indextooffset(modifierindex);
 			dow = first_dayofweek_of_month(year, imonth);
-			d = (idayofweek - dow + 8) % 7;
+			if (dow < 0)
+				continue;
+			d = (idayofweek - dow + 7) % 7 + 1;
 
 			if (offset > 0) {
 				while (d <= yearinfo->monthdays[imonth]) {
@@ -650,7 +654,9 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		/* Every dayofweek of the month */
 		if (lflags == (F_DAYOFWEEK | F_MONTH | F_VARIABLE)) {
 			dow = first_dayofweek_of_month(year, imonth);
-			d = (idayofweek - dow + 8) % 7;
+			if (dow < 0)
+				continue;
+			d = (idayofweek - dow + 7) % 7 + 1;
 			while (d <= yearinfo->monthdays[imonth]) {
 				if (remember_ymd(year, imonth, d))
 					remember(&remindex,
