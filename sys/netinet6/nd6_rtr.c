@@ -51,6 +51,7 @@
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/queue.h>
+#include <sys/random.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -77,6 +78,7 @@ static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
 static int prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
     struct mbuf *, int);
 static int nd6_prefix_onlink(struct nd_prefix *);
+static int in6_get_tmp_ifid(struct in6_aliasreq *);
 
 TAILQ_HEAD(nd6_drhead, nd_defrouter);
 VNET_DEFINE_STATIC(struct nd6_drhead, nd6_defrouter);
@@ -2226,6 +2228,54 @@ restart:
 }
 
 /*
+ * Get a randomized interface identifier for a temporary address
+ * <draft-ietf-6man-rfc4941bis-08.txt>, Section 3.3.1.
+ */
+static int
+in6_get_tmp_ifid(struct in6_aliasreq *ifra)
+{
+	struct in6_addr *addr;
+
+	if(!is_random_seeded()){
+		return 1;
+	}
+
+	addr = &(ifra->ifra_addr.sin6_addr);
+regen:
+	ifra->ifra_addr.sin6_addr.s6_addr32[2] |=
+	    (arc4random() & ~(ifra->ifra_prefixmask.sin6_addr.s6_addr32[2]));
+	ifra->ifra_addr.sin6_addr.s6_addr32[3] |=
+	    (arc4random() & ~(ifra->ifra_prefixmask.sin6_addr.s6_addr32[3]));
+
+	/*
+	 * Check if generated address is not inappropriate:
+	 *
+	 * - Reserved IPv6 Interface aIdentifers
+	 *   (https://www.iana.org/assignments/ipv6-interface-ids/)
+	 */
+
+	/* Subnet-router anycast: 0000:0000:0000:0000 */
+	if (!(addr->s6_addr32[2] | addr->s6_addr32[3]))
+		goto regen;
+
+	/*
+	 * IANA Ethernet block: 0200:5EFF:FE00:0000-0200:5EFF:FE00:5212
+	 * Proxy Mobile IPv6:   0200:5EFF:FE00:5213
+	 * IANA Ethernet block: 0200:5EFF:FE00:5214-0200:5EFF:FEFF:FFFF
+	 */
+	if (ntohl(addr->s6_addr32[2]) == 0x02005eff &&
+	    (ntohl(addr->s6_addr32[3]) & 0Xff000000) == 0xfe000000)
+		goto regen;
+
+	/* Reserved subnet anycast addresses */
+	if (ntohl(addr->s6_addr32[2]) == 0xfdffffff &&
+	    ntohl(addr->s6_addr32[3]) >= 0Xffffff80)
+		goto regen;
+
+	return 0;
+}
+
+/*
  * ia0 - corresponding public address
  */
 int
@@ -2237,7 +2287,6 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	int error;
 	int trylimit = 3;	/* XXX: adhoc value */
 	int updateflags;
-	u_int32_t randid[2];
 	time_t vltime0, pltime0;
 
 	in6_prepare_ifra(&ifra, &ia0->ia_addr.sin6_addr,
@@ -2249,16 +2298,11 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	    &ifra.ifra_prefixmask.sin6_addr);
 
   again:
-	if (in6_get_tmpifid(ifp, (u_int8_t *)randid,
-	    (const u_int8_t *)&ia0->ia_addr.sin6_addr.s6_addr[8], forcegen)) {
+	if (in6_get_tmp_ifid(&ifra) != 0) {
 		nd6log((LOG_NOTICE, "%s: failed to find a good random IFID\n",
 		    __func__));
 		return (EINVAL);
 	}
-	ifra.ifra_addr.sin6_addr.s6_addr32[2] |=
-	    (randid[0] & ~(ifra.ifra_prefixmask.sin6_addr.s6_addr32[2]));
-	ifra.ifra_addr.sin6_addr.s6_addr32[3] |=
-	    (randid[1] & ~(ifra.ifra_prefixmask.sin6_addr.s6_addr32[3]));
 
 	/*
 	 * in6_get_tmpifid() quite likely provided a unique interface ID.
