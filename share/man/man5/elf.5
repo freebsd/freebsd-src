@@ -1317,12 +1317,24 @@ is ignored.
 Contains the MACHINE_ARCH that the executable was built for.
 .It Dv NT_FREEBSD_FEATURE_CTL Pq Value: 4
 Contains a bitmask of mitigations and features to enable:
-.Bl -column "NT_FREEBSD_FCTL_PROTMAX_DISABLE" "0x00" "Disable implicit PROT_MAX"
-.Sy Name                         Ta Sy Value Ta Sy Description
-.It NT_FREEBSD_FCTL_ASLR_DISABLE    Ta 0x01     Ta Disable ASLR
-.It NT_FREEBSD_FCTL_PROTMAX_DISABLE Ta 0x02     Ta Disable implicit PROT_MAX
-.It NT_FREEBSD_FCTL_STKGAP_DISABLE  Ta 0x04     Ta Disable stack gap
-.It NT_FREEBSD_FCTL_WXNEEDED        Ta 0x08     Ta Binary makes W+X mappings
+.Bl -tag -width 4n
+.\" .Bl -column "NT_FREEBSD_FCTL_PROTMAX_DISABLE" "0x00" "Disable implicit PROT_MAX"
+.\" .Sy Name                         Ta Sy Value Ta Sy Description
+.It NT_FREEBSD_FCTL_ASLR_DISABLE Pq Value: 0x01
+Request that address randomization (ASLR) not be performed.
+See
+.Xr security 7 .
+.It NT_FREEBSD_FCTL_PROTMAX_DISABLE Pq Value: 0x02
+Request that 
+.Xr mmap 2
+calls not set PROT_MAX to the initial value of the
+.Fa prot
+argument.
+.It NT_FREEBSD_FCTL_STKGAP_DISABLE Pq Value: 0x04
+Disable stack gap.
+.It NT_FREEBSD_FCTL_WXNEEDED Pq Value: 0x08
+Indicate that the binary requires mappings that are simultaneously
+writeable and executable.
 .El
 .El
 .Sh SEE ALSO
