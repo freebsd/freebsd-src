@@ -650,7 +650,7 @@ waitchildren(const char *name, int waitall)
 		if (childerr != 0 && cause_exit == 0) {
 			errno = childerr;
 			waitall = 1;
-			cause_exit = ENOENT ? 127 : 126;
+			cause_exit = errno == ENOENT ? 127 : 126;
 			warn("%s", name);
 		} else if (WIFSIGNALED(status)) {
 			waitall = cause_exit = 1;
