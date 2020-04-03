@@ -140,7 +140,8 @@ powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
 powerpc/amigaone/platform_amigaone.c	optional	amigaone
-powerpc/amigaone/cpld_x5000.c		optional	powerpc amigaone | powerpc64 amigaone
+powerpc/amigaone/cpld_a1222.c	optional	powerpc amigaone | powerpcspe amigaone
+powerpc/amigaone/cpld_x5000.c	optional	powerpc amigaone | powerpc64 amigaone
 powerpc/booke/locore.S		optional	booke no-obj
 powerpc/booke/booke_machdep.c	optional	booke
 powerpc/booke/machdep_e500.c	optional	booke_e500
