@@ -997,10 +997,22 @@ linux_linkat(struct thread *td, struct linux_linkat_args *args)
 }
 
 int
-linux_fdatasync(td, uap)
-	struct thread *td;
-	struct linux_fdatasync_args *uap;
+linux_fdatasync(struct thread *td, struct linux_fdatasync_args *uap)
 {
+
+	return (kern_fsync(td, uap->fd, false));
+}
+
+int
+linux_sync_file_range(struct thread *td, struct linux_sync_file_range_args *uap)
+{
+
+	if (uap->offset < 0 || uap->nbytes < 0 ||
+	    (uap->flags & ~(LINUX_SYNC_FILE_RANGE_WAIT_BEFORE |
+	    LINUX_SYNC_FILE_RANGE_WRITE |
+	    LINUX_SYNC_FILE_RANGE_WAIT_AFTER)) != 0) {
+		return (EINVAL);
+	}
 
 	return (kern_fsync(td, uap->fd, false));
 }

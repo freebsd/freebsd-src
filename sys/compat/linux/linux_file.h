@@ -127,4 +127,11 @@
 #define	LINUX_F_UNLCK		2
 #endif
 
+/*
+ * sync_file_range flags
+ */
+#define	LINUX_SYNC_FILE_RANGE_WAIT_BEFORE	1
+#define	LINUX_SYNC_FILE_RANGE_WRITE		2
+#define	LINUX_SYNC_FILE_RANGE_WAIT_AFTER	4
+
 #endif	/* !_LINUX_FILE_H_ */

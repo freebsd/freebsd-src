@@ -102,7 +102,6 @@ DUMMY(unshare);
 /* Linux 2.6.17: */
 DUMMY(splice);
 DUMMY(tee);
-DUMMY(sync_file_range);
 DUMMY(vmsplice);
 /* Linux 2.6.18: */
 DUMMY(move_pages);
