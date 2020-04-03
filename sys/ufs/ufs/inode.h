@@ -230,10 +230,11 @@ struct indir {
 #define	ITOV(ip)	((ip)->i_vnode)
 
 /* Determine if soft dependencies are being done */
-#define	DOINGSOFTDEP(vp)   ((vp)->v_mount->mnt_flag & (MNT_SOFTDEP | MNT_SUJ))
-#define	MOUNTEDSOFTDEP(mp) ((mp)->mnt_flag & (MNT_SOFTDEP | MNT_SUJ))
-#define	DOINGSUJ(vp)	   ((vp)->v_mount->mnt_flag & MNT_SUJ)
-#define	MOUNTEDSUJ(mp)	   ((mp)->mnt_flag & MNT_SUJ)
+#define	DOINGSOFTDEP(vp)   \
+	(((vp)->v_mount->mnt_flag & (MNT_SOFTDEP | MNT_SUJ)) != 0)
+#define	MOUNTEDSOFTDEP(mp) (((mp)->mnt_flag & (MNT_SOFTDEP | MNT_SUJ)) != 0)
+#define	DOINGSUJ(vp)	   (((vp)->v_mount->mnt_flag & MNT_SUJ) != 0)
+#define	MOUNTEDSUJ(mp)	   (((mp)->mnt_flag & MNT_SUJ) != 0)
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {
