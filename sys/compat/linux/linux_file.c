@@ -926,7 +926,7 @@ linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 
 #ifdef DEBUG
 	if (ldebug(truncate64))
-		printf(ARGS(truncate64, "%s, %jd"), path, args->length);
+		printf(ARGS(truncate64, "%s, %jd"), path, length);
 #endif
 
 	error = kern_truncate(td, path, UIO_SYSSPACE, length);
