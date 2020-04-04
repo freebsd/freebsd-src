@@ -234,18 +234,21 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 
 		if (hostnamewidth < (int)strlen(wd->wd_hostname))
 			hostnamewidth = (int)strlen(wd->wd_hostname);
-		for (i = 0; i < 3; i++) {
-			w = iwidth(wd->wd_loadav[i] / 100) + 3;
-			if (loadavwidth[i] < w)
-				loadavwidth[i] = w;
+
+		if (!ISDOWN(hsp)) {
+			for (i = 0; i < 3; i++) {
+				w = iwidth(wd->wd_loadav[i] / 100) + 3;
+				if (loadavwidth[i] < w)
+					loadavwidth[i] = w;
+			}
+			for (hsp->hs_nusers = 0, we = &wd->wd_we[0];
+			     (char *)(we + 1) <= (char *)wd + cc; we++)
+				if (aflg || we->we_idle < 3600)
+					++hsp->hs_nusers;
+			if (userswidth < iwidth(hsp->hs_nusers))
+				userswidth = iwidth(hsp->hs_nusers);
 		}
 
-		for (hsp->hs_nusers = 0, we = &wd->wd_we[0];
-		    (char *)(we + 1) <= (char *)wd + cc; we++)
-			if (aflg || we->we_idle < 3600)
-				++hsp->hs_nusers;
-		if (userswidth < iwidth(hsp->hs_nusers))
-			userswidth = iwidth(hsp->hs_nusers);
 		++hsp;
 		++nhosts;
 	}
