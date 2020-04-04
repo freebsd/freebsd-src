@@ -80,7 +80,6 @@ static	void rmtgets(char *, int);
 static	int rmtreply(const char *);
 
 static	int errfd = -1;
-extern	int ntrec;		/* blocking factor on tape */
 
 int
 rmthost(const char *host)

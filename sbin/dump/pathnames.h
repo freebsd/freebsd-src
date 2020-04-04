@@ -35,7 +35,6 @@
 #include <paths.h>
 
 #define	_PATH_DEFTAPE	"/dev/sa0"
-#define	_PATH_DTMP	"/etc/dtmp"
 #define	_PATH_DUMPDATES	"/etc/dumpdates"
 #define	_PATH_LOCK	"/tmp/dumplockXXXXXX"
 #define	_PATH_RMT	"/etc/rmt"		/* path on remote host */

@@ -103,7 +103,7 @@ struct entry {
 /*
  * The entry describes the next file available on the tape
  */
-struct context {
+extern struct context {
 	short	action;		/* action being taken on this file */
 	mode_t	mode;		/* mode of file */
 	ino_t	ino;		/* inumber of file */
