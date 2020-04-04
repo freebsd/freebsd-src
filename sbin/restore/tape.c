@@ -94,6 +94,8 @@ static char	*map;
 static char	lnkbuf[MAXPATHLEN + 1];
 static int	pathlen;
 
+struct context	curfile;	/* describes next file available on the tape */
+union u_spcl	u_spcl;		/* mapping of variables in a control block */
 int		Bcvt;		/* Swap Bytes */
 int		oldinofmt;	/* FreeBSD 1 inode format needs cvt */
 

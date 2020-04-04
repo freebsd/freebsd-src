@@ -76,7 +76,7 @@
  */
 typedef uint32_t dump_ino_t;
 
-union u_spcl {
+extern union u_spcl {
 	char dummy[TP_BSIZE];
 	struct	s_spcl {
 		int32_t	c_type;		    /* record type (see below) */
