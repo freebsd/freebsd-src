@@ -163,6 +163,7 @@ typedef struct Struct_Obj_Entry {
     size_t tlssize;		/* Size of TLS block for this module */
     size_t tlsoffset;		/* Offset of static TLS block for this module */
     size_t tlsalign;		/* Alignment of static TLS block */
+    size_t tlspoffset;		/* p_offset of the static TLS block */
 
     caddr_t relro_page;
     size_t relro_size;
@@ -361,7 +362,7 @@ Obj_Entry *map_object(int, const char *, const struct stat *);
 void *xcalloc(size_t, size_t);
 void *xmalloc(size_t);
 char *xstrdup(const char *);
-void *malloc_aligned(size_t size, size_t align);
+void *malloc_aligned(size_t size, size_t align, size_t offset);
 void free_aligned(void *ptr);
 extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 extern Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
