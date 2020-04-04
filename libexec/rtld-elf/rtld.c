@@ -1501,6 +1501,7 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    obj->tlsalign = ph->p_align;
 	    obj->tlsinitsize = ph->p_filesz;
 	    obj->tlsinit = (void*)(ph->p_vaddr + obj->relocbase);
+	    obj->tlspoffset = ph->p_offset;
 	    break;
 
 	case PT_GNU_STACK:
@@ -4868,7 +4869,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
     Elf_Addr addr;
     Elf_Addr i;
     size_t extra_size, maxalign, post_size, pre_size, tls_block_size;
-    size_t tls_init_align;
+    size_t tls_init_align, tls_init_offset;
 
     if (oldtcb != NULL && tcbsize == TLS_TCB_SIZE)
 	return (oldtcb);
@@ -4885,7 +4886,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
     tls_block_size += pre_size + tls_static_space - TLS_TCB_SIZE - post_size;
 
     /* Allocate whole TLS block */
-    tls_block = malloc_aligned(tls_block_size, maxalign);
+    tls_block = malloc_aligned(tls_block_size, maxalign, 0);
     tcb = (Elf_Addr **)(tls_block + pre_size + extra_size);
 
     if (oldtcb != NULL) {
@@ -4909,15 +4910,21 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 
 	for (obj = globallist_curr(objs); obj != NULL;
 	  obj = globallist_next(obj)) {
-	    if (obj->tlsoffset > 0) {
-		addr = (Elf_Addr)tcb + obj->tlsoffset;
-		if (obj->tlsinitsize > 0)
-		    memcpy((void*) addr, obj->tlsinit, obj->tlsinitsize);
-		if (obj->tlssize > obj->tlsinitsize)
-		    memset((void*)(addr + obj->tlsinitsize), 0,
-			   obj->tlssize - obj->tlsinitsize);
-		dtv[obj->tlsindex + 1] = addr;
+	    if (obj->tlsoffset == 0)
+		continue;
+	    tls_init_offset = obj->tlspoffset & (obj->tlsalign - 1);
+	    addr = (Elf_Addr)tcb + obj->tlsoffset;
+	    if (tls_init_offset > 0)
+		memset((void *)addr, 0, tls_init_offset);
+	    if (obj->tlsinitsize > 0) {
+		memcpy((void *)(addr + tls_init_offset), obj->tlsinit,
+		    obj->tlsinitsize);
 	    }
+	    if (obj->tlssize > obj->tlsinitsize) {
+		memset((void *)(addr + tls_init_offset + obj->tlsinitsize),
+		    0, obj->tlssize - obj->tlsinitsize - tls_init_offset);
+	    }
+	    dtv[obj->tlsindex + 1] = addr;
 	}
     }
 
@@ -4975,7 +4982,7 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
     size = round(tls_static_space, ralign) + round(tcbsize, ralign);
 
     assert(tcbsize >= 2*sizeof(Elf_Addr));
-    tls = malloc_aligned(size, ralign);
+    tls = malloc_aligned(size, ralign, 0 /* XXX */);
     dtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
 
     segbase = (Elf_Addr)(tls + round(tls_static_space, ralign));
@@ -5068,25 +5075,24 @@ free_tls(void *tls, size_t tcbsize  __unused, size_t tcbalign)
 void *
 allocate_module_tls(int index)
 {
-    Obj_Entry* obj;
-    char* p;
+	Obj_Entry *obj;
+	char *p;
 
-    TAILQ_FOREACH(obj, &obj_list, next) {
-	if (obj->marker)
-	    continue;
-	if (obj->tlsindex == index)
-	    break;
-    }
-    if (!obj) {
-	_rtld_error("Can't find module with TLS index %d", index);
-	rtld_die();
-    }
+	TAILQ_FOREACH(obj, &obj_list, next) {
+		if (obj->marker)
+			continue;
+		if (obj->tlsindex == index)
+			break;
+	}
+	if (obj == NULL) {
+		_rtld_error("Can't find module with TLS index %d", index);
+		rtld_die();
+	}
 
-    p = malloc_aligned(obj->tlssize, obj->tlsalign);
-    memcpy(p, obj->tlsinit, obj->tlsinitsize);
-    memset(p + obj->tlsinitsize, 0, obj->tlssize - obj->tlsinitsize);
-
-    return p;
+	p = malloc_aligned(obj->tlssize, obj->tlsalign, obj->tlspoffset);
+	memcpy(p, obj->tlsinit, obj->tlsinitsize);
+	memset(p + obj->tlsinitsize, 0, obj->tlssize - obj->tlsinitsize);
+	return (p);
 }
 
 bool
