@@ -314,7 +314,9 @@
 
 /* Define to 1 if the GNU C extension __builtin_assume_aligned is supported.
    */
+#if defined(__clang__) && defined(__FreeBSD__)
 #define HAVE___BUILTIN_ASSUME_ALIGNED 1
+#endif
 
 /* Define to 1 if the GNU C extensions __builtin_bswap16/32/64 are supported.
    */
