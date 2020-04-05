@@ -104,7 +104,7 @@ __inline void
 ebpf_epoch_call(ebpf_epoch_context *ctx,
 		void (*callback)(ebpf_epoch_context *))
 {
-	epoch_call(ebpf_epoch, ctx, callback);
+	epoch_call(ebpf_epoch, callback, ctx);
 }
 
 __inline void

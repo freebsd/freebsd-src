@@ -47,7 +47,7 @@ typedef struct epoch_context ebpf_epoch_context;
 typedef struct mtx ebpf_mtx;
 typedef struct mtx ebpf_spinmtx;
 
-#define ebpf_assert(expr) KASSERT(expr, "")
+#define ebpf_assert(expr) MPASS(expr)
 
 #define EBPF_EPOCH_LIST_ENTRY(_type) CK_LIST_ENTRY(_type)
 #define EBPF_EPOCH_LIST_EMPTY(_type) CK_LIST_EMPTY(_type)
