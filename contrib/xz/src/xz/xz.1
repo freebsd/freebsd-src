@@ -1005,6 +1005,25 @@ instead of
 until the details have been decided.
 .RE
 .IP ""
+For 32-bit
+.BR xz
+there is a special case: if the
+.I limit
+would be over
+.BR "4020\ MiB" ,
+the
+.I limit
+is set to
+.BR "4020\ MiB" .
+(The values
+.B 0
+and
+.B max
+aren't affected by this.
+A similar feature doesn't exist for decompression.)
+This can be helpful when a 32-bit executable has access
+to 4\ GiB address space while hopefully doing no harm in other situations.
+.IP ""
 See also the section
 .BR "Memory usage" .
 .TP
