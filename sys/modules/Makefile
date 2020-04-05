@@ -106,6 +106,7 @@ SUBDIR=	\
 	dcons_crom \
 	${_dpms} \
 	dummynet \
+	ebpf \
 	${_efirt} \
 	${_em} \
 	${_ena} \
