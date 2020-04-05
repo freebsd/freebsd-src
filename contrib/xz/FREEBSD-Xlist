@@ -31,6 +31,7 @@ m4/
 macosx/
 makefile.am
 po/
+po4a/
 src/*/*.rc
 src/scripts/
 tests/

@@ -612,6 +612,20 @@ split_block(uint64_t *block_remaining,
 }
 
 
+static bool
+coder_write_output(file_pair *pair)
+{
+	if (opt_mode != MODE_TEST) {
+		if (io_write(pair, &out_buf, IO_BUFFER_SIZE - strm.avail_out))
+			return true;
+	}
+
+	strm.next_out = out_buf.u8;
+	strm.avail_out = IO_BUFFER_SIZE;
+	return false;
+}
+
+
 /// Compress or decompress using liblzma.
 static bool
 coder_normal(file_pair *pair)
@@ -635,7 +649,7 @@ coder_normal(file_pair *pair)
 	// only a single block is created.
 	uint64_t block_remaining = UINT64_MAX;
 
-	// next_block_remining for when we are in single-threaded mode and
+	// next_block_remaining for when we are in single-threaded mode and
 	// the Block in --block-list is larger than the --block-size=SIZE.
 	uint64_t next_block_remaining = 0;
 
@@ -697,7 +711,7 @@ coder_normal(file_pair *pair)
 					action = LZMA_FULL_BARRIER;
 			}
 
-			if (action == LZMA_RUN && flush_needed)
+			if (action == LZMA_RUN && pair->flush_needed)
 				action = LZMA_SYNC_FLUSH;
 		}
 
@@ -706,29 +720,23 @@ coder_normal(file_pair *pair)
 
 		// Write out if the output buffer became full.
 		if (strm.avail_out == 0) {
-			if (opt_mode != MODE_TEST && io_write(pair, &out_buf,
-					IO_BUFFER_SIZE - strm.avail_out))
+			if (coder_write_output(pair))
 				break;
-
-			strm.next_out = out_buf.u8;
-			strm.avail_out = IO_BUFFER_SIZE;
 		}
 
 		if (ret == LZMA_STREAM_END && (action == LZMA_SYNC_FLUSH
 				|| action == LZMA_FULL_BARRIER)) {
 			if (action == LZMA_SYNC_FLUSH) {
 				// Flushing completed. Write the pending data
-				// out immediatelly so that the reading side
+				// out immediately so that the reading side
 				// can decompress everything compressed so far.
-				if (io_write(pair, &out_buf, IO_BUFFER_SIZE
-						- strm.avail_out))
+				if (coder_write_output(pair))
 					break;
 
-				strm.next_out = out_buf.u8;
-				strm.avail_out = IO_BUFFER_SIZE;
-
-				// Set the time of the most recent flushing.
-				mytime_set_flush_time();
+				// Mark that we haven't seen any new input
+				// since the previous flush.
+				pair->src_has_seen_input = false;
+				pair->flush_needed = false;
 			} else {
 				// Start a new Block after LZMA_FULL_BARRIER.
 				if (opt_block_list == NULL) {
@@ -758,9 +766,7 @@ coder_normal(file_pair *pair)
 				// as much data as possible, which can be good
 				// when trying to get at least some useful
 				// data out of damaged files.
-				if (opt_mode != MODE_TEST && io_write(pair,
-						&out_buf, IO_BUFFER_SIZE
-							- strm.avail_out))
+				if (coder_write_output(pair))
 					break;
 			}
 
@@ -897,21 +903,23 @@ coder_run(const char *filename)
 			// is used.
 			if (opt_mode == MODE_TEST || !io_open_dest(pair)) {
 				// Remember the current time. It is needed
-				// for progress indicator and for timed
-				// flushing.
+				// for progress indicator.
 				mytime_set_start_time();
 
 				// Initialize the progress indicator.
+				const bool is_passthru = init_ret
+						== CODER_INIT_PASSTHRU;
 				const uint64_t in_size
-						= pair->src_st.st_size <= 0
-						? 0 : pair->src_st.st_size;
-				message_progress_start(&strm, in_size);
+					= pair->src_st.st_size <= 0
+					? 0 : (uint64_t)(pair->src_st.st_size);
+				message_progress_start(&strm,
+						is_passthru, in_size);
 
 				// Do the actual coding or passthru.
-				if (init_ret == CODER_INIT_NORMAL)
-					success = coder_normal(pair);
-				else
+				if (is_passthru)
 					success = coder_passthru(pair);
+				else
+					success = coder_normal(pair);
 
 				message_progress_end(success);
 			}

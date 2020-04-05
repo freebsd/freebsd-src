@@ -56,6 +56,11 @@ static bool progress_active = false;
 /// Pointer to lzma_stream used to do the encoding or decoding.
 static lzma_stream *progress_strm;
 
+/// This is true if we are in passthru mode (not actually compressing or
+/// decompressing) and thus cannot use lzma_get_progress(progress_strm, ...).
+/// That is, we are using coder_passthru() in coder.c.
+static bool progress_is_from_passthru;
+
 /// Expected size of the input stream is needed to show completion percentage
 /// and estimate remaining time.
 static uint64_t expected_in_size;
@@ -241,11 +246,12 @@ message_filename(const char *src_name)
 
 
 extern void
-message_progress_start(lzma_stream *strm, uint64_t in_size)
+message_progress_start(lzma_stream *strm, bool is_passthru, uint64_t in_size)
 {
 	// Store the pointer to the lzma_stream used to do the coding.
 	// It is needed to find out the position in the stream.
 	progress_strm = strm;
+	progress_is_from_passthru = is_passthru;
 
 	// Store the expected size of the file. If we aren't printing any
 	// statistics, then is will be unused. But since it is possible
@@ -434,8 +440,8 @@ progress_remaining(uint64_t in_pos, uint64_t elapsed)
 	// Calculate the estimate. Don't give an estimate of zero seconds,
 	// since it is possible that all the input has been already passed
 	// to the library, but there is still quite a bit of output pending.
-	uint32_t remaining = (double)(expected_in_size - in_pos)
-			* ((double)(elapsed) / 1000.0) / (double)(in_pos);
+	uint32_t remaining = (uint32_t)((double)(expected_in_size - in_pos)
+			* ((double)(elapsed) / 1000.0) / (double)(in_pos));
 	if (remaining < 1)
 		remaining = 1;
 
@@ -507,7 +513,15 @@ progress_pos(uint64_t *in_pos,
 		uint64_t *compressed_pos, uint64_t *uncompressed_pos)
 {
 	uint64_t out_pos;
-	lzma_get_progress(progress_strm, in_pos, &out_pos);
+	if (progress_is_from_passthru) {
+		// In passthru mode the progress info is in total_in/out but
+		// the *progress_strm itself isn't initialized and thus we
+		// cannot use lzma_get_progress().
+		*in_pos = progress_strm->total_in;
+		out_pos = progress_strm->total_out;
+	} else {
+		lzma_get_progress(progress_strm, in_pos, &out_pos);
+	}
 
 	// It cannot have processed more input than it has been given.
 	assert(*in_pos <= progress_strm->total_in);
