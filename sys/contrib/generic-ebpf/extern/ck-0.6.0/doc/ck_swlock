@@ -1,0 +1,138 @@
+.\"
+.\" Copyright 2014 Samy Al Bahra.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd April 22, 2014.
+.Dt ck_swlock 3
+.Sh NAME
+.Nm ck_swlock_init ,
+.Nm ck_swlock_write_latch ,
+.Nm ck_swlock_write_unlatch ,
+.Nm ck_swlock_write_lock ,
+.Nm ck_swlock_write_unlock ,
+.Nm ck_swlock_write_trylock ,
+.Nm ck_swlock_write_downgrade ,
+.Nm ck_swlock_locked_writer ,
+.Nm ck_swlock_read_lock ,
+.Nm ck_swlock_read_trylock ,
+.Nm ck_swlock_read_unlock ,
+.Nm ck_swlock_locked_reader
+.Nd centralized copy-safe write-biased single-writer read-write locks
+.Sh LIBRARY
+Concurrency Kit (libck, \-lck)
+.Sh SYNOPSIS
+.In ck_swlock.h
+.Pp
+.Dv ck_swlock_t lock = CK_SWLOCK_INITIALIZER;
+.Pp
+.Ft void
+.Fn ck_swlock_init "ck_swlock_t *lock"
+.Ft void
+.Fn ck_swlock_write_lock "ck_swlock_t *lock"
+.Ft void
+.Fn ck_swlock_write_unlock "ck_swlock_t *lock"
+.Ft void
+.Fn ck_swlatch_write_latch "ck_swlatch_t *latch"
+.Ft void
+.Fn ck_swlatch_write_unlatch "ck_swlatch_t *latch"
+.Ft bool
+.Fn ck_swlock_write_trylock "ck_swlock_t *lock"
+.Ft bool
+.Fn ck_swlock_write_downgrade "ck_swlock_t *lock"
+.Ft bool
+.Fn ck_swlock_locked_writer "ck_swlock_t *lock"
+.Ft void
+.Fn ck_swlock_read_lock "ck_swlock_t *lock"
+.Ft bool
+.Fn ck_swlock_read_trylock "ck_swlock_t *lock"
+.Ft void
+.Fn ck_swlock_read_unlock "ck_swlock_t *lock"
+.Ft bool
+.Fn ck_swlock_locked_reader "ck_swlock_t *lock"
+.Sh DESCRIPTION
+This is a centralized write-biased single-writer reader-writer lock. It
+requires half the space that ck_rwlock does and has a low latency
+fast path. The lock supports latch and unlatch operations that
+allow it to be used in a copy-safe manner (reader-bits may be
+over-written safely).
+.Sh EXAMPLE
+.Bd -literal -offset indent
+#include <ck_swlock.h>
+
+static ck_swlock_t lock = CK_SWLOCK_INITIALIZER;
+
+static void
+reader(void)
+{
+
+	for (;;) {
+		ck_swlock_read_lock(&lock);
+		/* Read-side critical section. */
+		ck_swlock_read_unlock(&lock);
+
+		if (ck_swlock_read_trylock(&lock) == true) {
+			/* Read-side critical section. */
+			ck_swlock_read_unlock(&lock);
+		}
+	}
+
+	return;
+}
+
+static void
+writer(void)
+{
+	ck_swlock_t contrived;
+
+	for (;;) {
+		ck_swlock_write_lock(&lock);
+		/* Write-side critical section. */
+		ck_swlock_write_unlock(&lock);
+
+		if (ck_swlock_write_trylock(&lock) == true) {
+			/* Write-side critical section. */
+			ck_swlock_write_unlock(&lock);
+		}
+
+		ck_swlock_write_latch(&lock);
+		/* Write-side critical section. */
+
+		/* This is safe to do with-in a latch. */
+		contrived = lock;
+		lock = contrived;
+		ck_swlock_write_unlatch(&lock);
+	}
+
+	return;
+}
+.Ed
+.Sh SEE ALSO
+.Xr ck_brlock 3 ,
+.Xr ck_elide 3 ,
+.Xr ck_pflock 3 ,
+.Xr ck_rwlock 3 ,
+.Xr ck_tflock 3
+.Pp
+Additional information available at http://concurrencykit.org/

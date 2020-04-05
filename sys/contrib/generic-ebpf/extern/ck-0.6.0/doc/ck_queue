@@ -1,0 +1,147 @@
+.\"
+.\" Copyright 2013 Samy Al Bahra.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd July 28, 2013.
+.Dt ck_queue 3
+.Sh NAME
+.Nm CK_LIST_EMPTY ,
+.Nm CK_LIST_ENTRY ,
+.Nm CK_LIST_FIRST ,
+.Nm CK_LIST_FOREACH ,
+.Nm CK_LIST_FOREACH_SAFE ,
+.Nm CK_LIST_HEAD ,
+.Nm CK_LIST_HEAD_INITIALIZER ,
+.Nm CK_LIST_INIT ,
+.Nm CK_LIST_INSERT_AFTER ,
+.Nm CK_LIST_INSERT_BEFORE ,
+.Nm CK_LIST_INSERT_HEAD ,
+.Nm CK_LIST_MOVE ,
+.Nm CK_LIST_NEXT ,
+.Nm CK_LIST_REMOVE ,
+.Nm CK_LIST_SWAP ,
+.Nm CK_SLIST_EMPTY ,
+.Nm CK_SLIST_ENTRY ,
+.Nm CK_SLIST_FIRST ,
+.Nm CK_SLIST_FOREACH ,
+.Nm CK_SLIST_FOREACH_PREVPTR ,
+.Nm CK_SLIST_FOREACH_SAFE ,
+.Nm CK_SLIST_HEAD ,
+.Nm CK_SLIST_HEAD_INITIALIZER ,
+.Nm CK_SLIST_INIT ,
+.Nm CK_SLIST_INSERT_AFTER ,
+.Nm CK_SLIST_INSERT_HEAD ,
+.Nm CK_SLIST_MOVE ,
+.Nm CK_SLIST_NEXT ,
+.Nm CK_SLIST_REMOVE ,
+.Nm CK_SLIST_REMOVE_AFTER ,
+.Nm CK_SLIST_REMOVE_HEAD ,
+.Nm CK_SLIST_SWAP ,
+.Nm CK_STAILQ_CONCAT ,
+.Nm CK_STAILQ_EMPTY ,
+.Nm CK_STAILQ_ENTRY ,
+.Nm CK_STAILQ_FIRST ,
+.Nm CK_STAILQ_FOREACH ,
+.Nm CK_STAILQ_FOREACH_SAFE ,
+.Nm CK_STAILQ_HEAD ,
+.Nm CK_STAILQ_HEAD_INITIALIZER ,
+.Nm CK_STAILQ_INIT ,
+.Nm CK_STAILQ_INSERT_AFTER ,
+.Nm CK_STAILQ_INSERT_HEAD ,
+.Nm CK_STAILQ_INSERT_TAIL ,
+.Nm CK_STAILQ_MOVE ,
+.Nm CK_STAILQ_NEXT ,
+.Nm CK_STAILQ_REMOVE ,
+.Nm CK_STAILQ_REMOVE_AFTER ,
+.Nm CK_STAILQ_REMOVE_HEAD ,
+.Nm CK_STAILQ_SWAP
+.Nd multi-reader single-writer singly-linked lists, singly-linked tail queues and lists
+.Sh LIBRARY
+Concurrency Kit (libck, \-lck)
+.Sh SYNOPSIS
+.In ck_queue.h
+.Fn CK_LIST_EMPTY
+.Fn CK_LIST_ENTRY
+.Fn CK_LIST_FIRST
+.Fn CK_LIST_FOREACH
+.Fn CK_LIST_FOREACH_SAFE
+.Fn CK_LIST_HEAD
+.Fn CK_LIST_HEAD_INITIALIZER
+.Fn CK_LIST_INIT
+.Fn CK_LIST_INSERT_AFTER
+.Fn CK_LIST_INSERT_BEFORE
+.Fn CK_LIST_INSERT_HEAD
+.Fn CK_LIST_MOVE
+.Fn CK_LIST_NEXT
+.Fn CK_LIST_REMOVE
+.Fn CK_LIST_SWAP
+.Fn CK_SLIST_EMPTY
+.Fn CK_SLIST_ENTRY
+.Fn CK_SLIST_FIRST
+.Fn CK_SLIST_FOREACH
+.Fn CK_SLIST_FOREACH_PREVPTR
+.Fn CK_SLIST_FOREACH_SAFE
+.Fn CK_SLIST_HEAD
+.Fn CK_SLIST_HEAD_INITIALIZER
+.Fn CK_SLIST_INIT
+.Fn CK_SLIST_INSERT_AFTER
+.Fn CK_SLIST_INSERT_HEAD
+.Fn CK_SLIST_MOVE
+.Fn CK_SLIST_NEXT
+.Fn CK_SLIST_REMOVE
+.Fn CK_SLIST_REMOVE_AFTER
+.Fn CK_SLIST_REMOVE_HEAD
+.Fn CK_SLIST_SWAP
+.Fn CK_STAILQ_CONCAT
+.Fn CK_STAILQ_EMPTY
+.Fn CK_STAILQ_ENTRY
+.Fn CK_STAILQ_FIRST
+.Fn CK_STAILQ_FOREACH
+.Fn CK_STAILQ_FOREACH_SAFE
+.Fn CK_STAILQ_HEAD
+.Fn CK_STAILQ_HEAD_INITIALIZER
+.Fn CK_STAILQ_INIT
+.Fn CK_STAILQ_INSERT_AFTER
+.Fn CK_STAILQ_INSERT_HEAD
+.Fn CK_STAILQ_INSERT_TAIL
+.Fn CK_STAILQ_MOVE
+.Fn CK_STAILQ_NEXT
+.Fn CK_STAILQ_REMOVE
+.Fn CK_STAILQ_REMOVE_AFTER
+.Fn CK_STAILQ_REMOVE_HEAD
+.Fn CK_STAILQ_SWAP
+.Sh DESCRIPTION
+See your system's manual page for
+.Xr queue
+for additional information. ck_queue is a queue.h-compatible
+implementation of many-reader-single-writer queues. It allows
+for safe concurrent iteration, peeking and read-side access
+in the presence of a single concurrent writer without any
+usage of locks. In many cases, adoption of ck_queue will
+simply require prefixing all queue operations with CK_.
+.Sh SEE ALSO
+.Xr queue
+.Pp
+Additional information available at http://concurrencykit.org/

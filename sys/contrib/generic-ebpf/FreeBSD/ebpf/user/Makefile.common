@@ -1,0 +1,42 @@
+ebpf-src+=	ebpf_allocator.c
+ebpf-src+=	ebpf_env.c
+ebpf-src+=	ebpf_epoch.c
+ebpf-src+=	ebpf_freebsd_user.c
+ebpf-src+=	ebpf_map.c
+ebpf-src+=	ebpf_map_array.c
+ebpf-src+=	ebpf_map_hashtable.c
+ebpf-src+=	ebpf_obj.c
+ebpf-src+=	ebpf_prog.c
+
+SRCS=	${ebpf-src} ${JITSRC}
+OBJS=	$(CKOBJS) $(SRCS:%.c=%.o)
+
+CPPFLAGS= \
+	-Ofast \
+	-fPIC \
+	-I $(BASE)/dev/ebpf \
+	-I $(BASE)/sys \
+	-I $(BASE) \
+	-I $(CKPATH)/include \
+	-I $(.CURDIR) \
+	-Wall \
+	-Wno-declaration-after-statement \
+	-std=c99
+CFLAGS+=${CPPFLAGS}
+LIBS=	-lpthread
+
+all: libebpf.so libebpf.a
+
+libebpf.so: $(OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -shared -o $@ ${OBJS} ${LIBS}
+
+libebpf.a: $(OBJS)
+	ar rc libebpf.a $(OBJS)
+
+install:
+	cp libebpf.so libebpf.a $(DESTDIR)
+
+CLEANFILES=	libebpf.so libebpf.a ${OBJS}
+
+.PATH:	${BASE}/sys/dev/ebpf ${BASE}/sys/${MACHINE}/${MACHINE_ARCH}
+VPATH=	${BASE}/sys/dev/ebpf ${BASE}/sys/${MACHINE}/${MACHINE_ARCH}

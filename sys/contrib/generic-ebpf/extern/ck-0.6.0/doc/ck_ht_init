@@ -1,0 +1,188 @@
+.\"
+.\" Copyright 2012-2013 Samy Al Bahra.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd March 28, 2012
+.Dt CK_HT_INIT 3
+.Sh NAME
+.Nm ck_ht_init
+.Nd initialize a hash table
+.Sh LIBRARY
+Concurrency Kit (libck, \-lck)
+.Sh SYNOPSIS
+.In ck_ht.h
+.Ft typedef void
+.Fn ck_ht_hash_cb_t "ck_ht_hash_t *h" "const void *key" "size_t key_length" "uint64_t seed"
+.Ft bool
+.Fn ck_ht_init "ck_ht_t *ht" "enum ck_ht_mode mode" "ck_ht_hash_cb_t *hash_function" "struct ck_malloc *allocator" "uint64_t capacity" "uint64_t seed"
+.Sh DESCRIPTION
+The
+.Fn ck_ht_init
+function initializes the hash table pointed to by the
+.Fa ht
+pointer.
+.Pp
+The argument
+.Fa mode
+specifies the type of key-value pairs to be stored in the
+hash table. The value of
+.Fa mode
+may be one of:
+.Bl -tag -width indent
+.It CK_HT_MODE_BYTESTRING
+The hash table is meant to store key-value pointers where
+key is a region of memory that is up to 65536 bytes long.
+This pointer will be dereferenced during hash table operations
+for key comparison. Entries of this hash table are expected
+to be interacted with using the
+.Xr ck_ht_entry_empty 3 ,
+.Xr ck_ht_entry_key 3 ,
+.Xr ck_ht_entry_key_length 3 ,
+.Xr ck_ht_entry_value 3 ,
+and
+.Xr ck_ht_entry_set 3
+functions. Attempting a hash table operation with a key of value
+NULL or (void *)UINTPTR_MAX will result in undefined behavior.
+.It CK_HT_MODE_DIRECT
+The hash table is meant to store key-value pointers where
+the key is of fixed width field compatible with the
+.Tn uintptr_t
+type. The key will be directly compared with other keys for
+equality. Entries of this hash table are expected to be interacted
+with using the
+.Xr ck_ht_entry_empty 3 ,
+.Xr ck_ht_entry_key_direct 3 ,
+.Xr ck_ht_entry_value_direct 3
+and
+.Xr ck_ht_entry_set_direct 3
+functions. Attempting a hash table operation with a key of value of 0 or
+UINTPTR_MAX will result in undefined behavior.
+.El
+.Pp
+In addition to this, the user may bitwise OR the mode flag with
+CK_HT_WORKLOAD_DELETE to indicate that the hash table will
+have to handle a delete heavy workload, in which case stronger
+bounds on latency can be provided at the cost of approximately
+13% higher memory usage.
+The argument
+.Fa hash_function
+is a pointer to a user-specified hash function. It is optional,
+if
+.Dv NULL
+is specified, then the default hash function implementation will be
+used (
+.Xr ck_ht_hash 3 ).
+A user-specified hash function takes four arguments. The
+.Fa h
+argument is a pointer to a hash value object. The hash function
+is expected to update the
+.Fa value
+object of type
+.Fa uint64_t
+contained with-in the object pointed to by
+.Fa h .
+The
+.Fa key
+argument is a pointer to a key, the
+.Fa key_length
+argument is the length of the key and the
+.Fa seed
+argument is the initial seed associated with the hash table.
+This initial seed is specified by the user in
+.Xr ck_ht_init 3 .
+.Pp
+The
+.Fa allocator
+argument is a pointer to a structure containing
+.Fa malloc
+and
+.Fa free
+function pointers which respectively define the memory allocation and
+destruction functions to be used by the hash table being initialized.
+.Pp
+The argument
+.Fa capacity
+represents the initial number of key-value pairs the hash
+table is expected to contain. This argument is simply a hint
+and the underlying implementation is free to allocate more
+or less memory than necessary to contain the number of entries
+.Fa capacity
+specifies.
+.Pp
+The argument
+.Fa seed
+specifies the initial seed used by the underlying hash function.
+The user is free to choose a value of their choice.
+.Pp
+The hash table is safe to access by multiple readers in the presence
+of one concurrent writer. Behavior is undefined in the presence of
+concurrent writers.
+.Sh RETURN VALUES
+Upon successful completion
+.Fn ck_ht_init
+returns a value of
+.Dv true
+and otherwise returns a value of
+.Dv false
+to indicate an error.
+.Sh ERRORS
+.Bl -tag -width Er
+.Pp
+The behavior of
+.Fn ck_ht_init
+is undefined if
+.Fa ht
+is not a pointer to a
+.Tn ck_ht_t
+object.
+.El
+.Sh SEE ALSO
+.Xr ck_ht_stat 3 ,
+.Xr ck_ht_destroy 3 ,
+.Xr ck_ht_hash 3 ,
+.Xr ck_ht_hash_direct 3 ,
+.Xr ck_ht_set_spmc 3 ,
+.Xr ck_ht_put_spmc 3 ,
+.Xr ck_ht_gc 3 ,
+.Xr ck_ht_get_spmc 3 ,
+.Xr ck_ht_grow_spmc 3 ,
+.Xr ck_ht_remove_spmc 3 ,
+.Xr ck_ht_reset_spmc 3 ,
+.Xr ck_ht_reset_size_spmc 3 ,
+.Xr ck_ht_count 3 ,
+.Xr ck_ht_entry_empty 3 ,
+.Xr ck_ht_entry_key_set 3 ,
+.Xr ck_ht_entry_key_set_direct 3 ,
+.Xr ck_ht_entry_key 3 ,
+.Xr ck_ht_entry_key_length 3 ,
+.Xr ck_ht_entry_value 3 ,
+.Xr ck_ht_entry_set 3 ,
+.Xr ck_ht_entry_set_direct 3 ,
+.Xr ck_ht_entry_key_direct 3 ,
+.Xr ck_ht_entry_value_direct 3 ,
+.Xr ck_ht_iterator_init 3 ,
+.Xr ck_ht_next 3
+.Pp
+Additional information available at http://concurrencykit.org/

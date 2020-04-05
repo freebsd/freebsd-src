@@ -1,0 +1,47 @@
+PROG=	all_tests
+OBJS=	$(map_tests) $(GTESTALL)
+CXXFLAGS+= \
+	-I $(BASE)/sys \
+	-I $(LIBEBPFDIR) \
+	-I $(GTESTPATH)/googletest/include \
+	-I $(CKPATH)/include \
+	-Wno-unused-command-line-argument \
+	-Wno-unused-variable \
+	-Wno-sign-compare \
+	-O0 \
+	$(LDFLAGS)
+LDFLAGS+=-coverage
+LIBS=	-lpthread -lebpf -L${LIBEBPFDIR}
+
+map_tests = \
+	map_create_test.o \
+	map_lookup_test.o \
+	map_update_test.o \
+	map_delete_test.o \
+	map_get_next_key_test.o \
+	array_map_delete_test.o \
+	array_map_get_next_key_test.o \
+	array_map_lookup_test.o \
+	array_map_update_test.o \
+	percpu_array_map_delete_test.o \
+	percpu_array_map_get_next_key_test.o \
+	percpu_array_map_lookup_test.o \
+	percpu_array_map_update_test.o \
+	hashtable_map_delete_test.o \
+	hashtable_map_get_next_key_test.o \
+	hashtable_map_lookup_test.o \
+	hashtable_map_update_test.o \
+	percpu_hashtable_map_delete_test.o \
+	percpu_hashtable_map_get_next_key_test.o \
+	percpu_hashtable_map_lookup_test.o \
+	percpu_hashtable_map_update_test.o \
+	ebpf_gtest_main.o
+
+all: $(PROG)
+$(PROG): $(OBJS) ${LIBEBPF}
+	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+
+check:
+	-$(SHLIB_VAL)=$(LIBEBPFDIR) ./$(PROG)
+
+CLEANFILES=	$(PROG) $(OBJS) *.gcda *.gcno

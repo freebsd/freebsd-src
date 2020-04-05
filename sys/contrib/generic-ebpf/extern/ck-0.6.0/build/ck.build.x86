@@ -1,0 +1,2 @@
+CFLAGS+=-m32 -D__x86__ -msse -msse2
+LDFLAGS+=-m32

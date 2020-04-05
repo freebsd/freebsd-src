@@ -1,0 +1,39 @@
+MAKE_ENV+=	UNAME_s="${UNAME_s}"
+MAKE_ARGS+=	DESTDIR="${CURDIR}"
+
+SUBDIR=		$(SUBDIR_$(UNAME_s))
+SUBDIR_FreeBSD=	${LIBEBPFDIR} \
+		${EBPFKMODDIR} \
+		${TESTDIR}
+SUBDIR_Linux=	${LIBEBPFDIR} \
+		${EBPFKMODDIR} \
+		${TESTDIR}
+SUBDIR_Darwin=	${LIBEBPFDIR} \
+		${TESTDIR}
+
+all:
+	for D in ${SUBDIR}; do \
+		(cd $$D && ${MAKE_CMD} && ${MAKE_CMD} install); \
+	done
+CLEANFILES=	libebpf${SHLIB} libebpf.a ebpf.ko
+
+user:
+	cd ${UNAME_s}/ebpf/user && ${MAKE_CMD} && ${MAKE_CMD} install
+
+tests:
+	cd tests && ${MAKE_CMD} all
+tests-clean:
+	cd tests && ${MAKE_CMD} clean
+check check-kern:
+	cd ${TESTDIR} && ${MAKE_CMD} $@
+load::
+	${KMODLOAD} ${CURDIR}/ebpf.ko
+
+unload::
+	${KMODUNLOAD} ebpf
+
+reload::
+	-${KMODUNLOAD} ebpf
+	${KMODLOAD} ${CURDIR}/ebpf.ko
+
+.PHONY: default tests check check-kern

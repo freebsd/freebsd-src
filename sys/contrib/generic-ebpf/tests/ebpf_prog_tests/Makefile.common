@@ -1,0 +1,26 @@
+PROG=	all_tests
+SRCS=	prog_load_test.c
+OBJS=	prog_load_test.o \
+	ebpf_gtest_main.o \
+	${GTESTALL}
+CXXFLAGS+= \
+	-I $(BASE)/sys \
+	-I $(LIBEBPFDIR) \
+	-I $(GTESTPATH)/googletest/include \
+	-I $(CKPATH)/include \
+	-Wno-unused-command-line-argument \
+	-Wno-unused-variable \
+	-Wno-sign-compare \
+	-O0 \
+	$(LDFLAGS)
+LDFLAGS+=-coverage
+LIBS=	-lpthread -lebpf -L${LIBEBPFDIR}
+
+all: $(PROG)
+$(PROG): $(OBJS) ${LIBEBPF}
+	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+
+check:
+	-$(SHLIB_VAL)=$(LIBEBPFDIR) ./$(PROG)
+
+CLEANFILES=	$(PROG) $(OBJS) *.gcda *.gcno

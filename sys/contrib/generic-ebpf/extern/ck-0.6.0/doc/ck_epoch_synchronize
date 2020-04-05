@@ -1,0 +1,119 @@
+.\"
+.\" Copyright 2012-2013 Samy Al Bahra.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd September 2, 2012
+.Dt CK_EPOCH_SYNCHRONIZE 3
+.Sh NAME
+.Nm ck_epoch_synchronize
+.Nd block until a grace period has been detected
+.Sh LIBRARY
+Concurrency Kit (libck, \-lck)
+.Sh SYNOPSIS
+.In ck_epoch.h
+.Ft void
+.Fn ck_epoch_synchronize "ck_epoch_record_t *record"
+.Sh DESCRIPTION
+The
+.Fn ck_epoch_synchronize 3
+function will block the caller until a grace period has been
+detected, according to the semantics of epoch reclamation.
+Any objects requiring safe memory reclamation which are logically
+deleted are safe for physical deletion following a call to
+.Fn ck_epoch_synchronize 3 .
+If you require that all callbacks be dispatched, then it is suggested
+that you use
+.Fn ck_epoch_barrier 3
+instead or follow a call of
+.Fn ck_epoch_synchronize 3
+with
+.Fn ck_epoch_reclaim 3 .
+.Sh EXAMPLE
+.Bd -literal -offset indent
+
+#include <ck_epoch.h>
+#include <ck_stack.h>
+#include <stdlib.h>
+
+/*
+ * epoch was previously initialized with ck_epoch_init.
+ * stack was previously initialized with ck_stack_init.
+ */
+ck_epoch_t *epoch;
+ck_stack_t *stack;
+
+void
+function(void)
+{
+	ck_epoch_record_t *record;
+	ck_stack_entry_t *s;
+
+	record = malloc(sizeof *record);
+	ck_epoch_register(&epoch, record);
+
+	/*
+	 * We are using an epoch section here to guarantee no
+	 * nodes in the stack are deleted while we are dereferencing
+	 * them. This is needed here because there are multiple writers.
+	 * If there was only one thread popping from the this stack,
+	 * then there is no need to ck_epoch_begin/ck_epoch_end.
+	 */
+	ck_epoch_begin(record);
+
+	/* Logically delete an object. */
+	s = ck_stack_pop_upmc(stack);
+
+	ck_epoch_end(record);
+
+	/*
+	 * Wait until no threads could possibly have a reference to the
+	 * object we just popped (assume all threads are simply executing
+	 * ck_stack_pop_upmc).
+	 */
+	ck_epoch_synchronize(record);
+
+	/* It is now safe to physically delete the object. */
+	free(s);
+	return;
+}
+.Ed
+.Sh RETURN VALUES
+This function has no return value.
+.Sh ERRORS
+The object pointed to by .Fa record must have been previously registered via
+.Fn ck_epoch_register 3 .
+.Sh SEE ALSO
+.Xr ck_epoch_init 3 ,
+.Xr ck_epoch_register 3 ,
+.Xr ck_epoch_unregister 3 ,
+.Xr ck_epoch_recycle 3 ,
+.Xr ck_epoch_poll 3 ,
+.Xr ck_epoch_reclaim 3 ,
+.Xr ck_epoch_barrier 3 ,
+.Xr ck_epoch_call 3 ,
+.Xr ck_epoch_begin 3 ,
+.Xr ck_epoch_end 3
+.Pp
+Additional information available at http://concurrencykit.org/
