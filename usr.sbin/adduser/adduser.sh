@@ -733,10 +733,10 @@ input_interactive() {
 					trap 'stty echo; exit' 0 1 2 3 15
 					stty -echo
 					echo -n "Enter password: "
-					read -r upass
+					IFS= read -r upass
 					echo''
 					echo -n "Enter password again: "
-					read -r _passconfirm
+					IFS= read -r _passconfirm
 					echo ''
 					stty echo
 					# if user entered a blank password
