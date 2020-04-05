@@ -33,6 +33,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#ifdef HAVE_LIBUTIL_H
+#include <libutil.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -126,15 +129,38 @@ checkfilesys(const char *fname)
 			mod |= FSERROR;
 	}
 
+#ifdef HAVE_LIBUTIL_H
+	char freestr[7], badstr[7];
+
+	int64_t freebytes = boot.NumFree * boot.ClusterSize;
+	humanize_number(freestr, sizeof(freestr), freebytes, "",
+	    HN_AUTOSCALE, HN_DECIMAL | HN_IEC_PREFIXES);
+	if (boot.NumBad) {
+		int64_t badbytes = boot.NumBad * boot.ClusterSize;
+
+		humanize_number(badstr, sizeof(badstr), badbytes, "",
+		    HN_AUTOSCALE, HN_B | HN_DECIMAL | HN_IEC_PREFIXES);
+
+		pwarn("%d files, %sB free (%d clusters), %sB bad (%d clusters)\n",
+		      boot.NumFiles,
+		      freestr, boot.NumFree,
+		      badstr, boot.NumBad);
+	} else {
+		pwarn("%d files, %sB free (%d clusters)\n",
+		      boot.NumFiles,
+		      freestr, boot.NumFree);
+	}
+#else
 	if (boot.NumBad)
-		pwarn("%d files, %d free (%d clusters), %d bad (%d clusters)\n",
+		pwarn("%d files, %d KiB free (%d clusters), %d KiB bad (%d clusters)\n",
 		      boot.NumFiles,
 		      boot.NumFree * boot.ClusterSize / 1024, boot.NumFree,
 		      boot.NumBad * boot.ClusterSize / 1024, boot.NumBad);
 	else
-		pwarn("%d files, %d free (%d clusters)\n",
+		pwarn("%d files, %d KiB free (%d clusters)\n",
 		      boot.NumFiles,
 		      boot.NumFree * boot.ClusterSize / 1024, boot.NumFree);
+#endif
 
 	if (mod && (mod & FSERROR) == 0) {
 		if (mod & FSDIRTY) {
