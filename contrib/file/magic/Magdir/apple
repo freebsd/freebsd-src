@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: apple,v 1.43 2019/04/19 00:42:27 christos Exp $
+# $File: apple,v 1.44 2019/10/18 15:21:02 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
 0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
@@ -75,33 +75,45 @@
 >>>>0xb06	pstring x		\b, Volume %s:
 >>>>0xb0e	leshort x		\b, %u Blocks
 >>>>0xb10	leshort x		\b, %u Files
+#
+# Diversi Dos boot loader?
+0		string	\x01\xA8\xAD\x81\xC0\xEE\x09\x08\xAD
+>0x11001	string	\x11\x0F\x03	Apple Diversi Dos Image
+>>0x11006	byte	x		\b, Volume %u
+>>0x11034	byte	x		\b, %u Tracks
+>>0x11035	byte	x		\b, %u Sectors
+>>0x11036	leshort	x		\b, %u bytes per sector
 
 # Type: Apple Emulator 2IMG format
 # From: Radek Vokal <rvokal@redhat.com>
 # Update: Greg Wildman <greg@apple2.org.za>
-0	string		2IMG		Apple ][ 2IMG Disk Image
->4	clear		x
->4	string		XGS!		\b, XGS
->4	string		CTKG		\b, Catakig
->4	string		ShIm		\b, Sheppy's ImageMaker
->4	string		SHEP		\b, Sheppy's ImageMaker
->4	string		WOOF		\b, Sweet 16
->4	string		B2TR		\b, Bernie ][ the Rescue
->4	string		\!nfc		\b, ASIMOV2
->4	string		\>BD\<		\b, Brutal Deluxe's Cadius
->4	string		CdrP		\b, CiderPress
->4	string		Vi][		\b, Virtual ][
->4	string		PRFS		\b, ProFUSE
->4	string		FISH		\b, FishWings
->4	string		RVLW		\b, Revival for Windows
->4	default		x
->>4	string		x		\b, Creator tag "%-4.4s"
->0xc	byte		00		\b, DOS 3.3 sector order
->>0x10	byte		00		\b, Volume 254
->>0x10	byte&0x7f	x		\b, Volume %u
->0xc	byte		01		\b, ProDOS sector order
->>0x14	short		x		\b, %u Blocks
->0xc	byte		02		\b, NIB data
+0		string	2IMG		Apple ][ 2IMG Disk Image
+>4		clear	x
+>4		string	XGS!		\b, XGS
+>4		string	CTKG		\b, Catakig
+>4		string	ShIm		\b, Sheppy's ImageMaker
+>4		string	SHEP		\b, Sheppy's ImageMaker
+>4		string	WOOF		\b, Sweet 16
+>4		string	B2TR		\b, Bernie ][ the Rescue
+>4		string	\!nfc		\b, ASIMOV2
+>4		string	\>BD\<		\b, Brutal Deluxe's Cadius
+>4		string	CdrP		\b, CiderPress
+>4		string	Vi][		\b, Virtual ][
+>4		string	PRFS		\b, ProFUSE
+>4		string	FISH		\b, FishWings
+>4		string	RVLW		\b, Revival for Windows
+>4		default	x
+>>4		string	x		\b, Creator tag "%-4.4s"
+>0xc		byte	00		\b, DOS 3.3 sector order
+>>0x10		byte	00		\b, Volume 254
+>>0x10		byte&0x7f x		\b, Volume %u
+>0xc		byte	01		\b, ProDOS sector order
+# Detect Volume Directory block ($02) + 2mg header offset
+>>0x440		string	\x00\x00\x03\x00
+>>>0x444	byte	&0xF0
+>>>>0x445	string	x		\b, Volume /%s
+>>>>0x469	leshort	x		\b, %u Blocks
+>0xc		byte	02		\b, NIB data
 
 # magic for Newton PDA package formats
 # from Ruda Moura <ruda@helllabs.org>

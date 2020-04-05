@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.104 2019/05/07 02:27:11 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.108 2019/11/09 00:35:46 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -277,6 +277,17 @@ file_buffer(struct magic_set *ms, int fd, struct stat *st,
 		m = file_is_json(ms, &b);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try json %d]\n", m);
+		if (m) {
+			if (checkdone(ms, &rv))
+				goto done;
+		}
+	}
+
+	/* Check if we have a CSV file */
+	if ((ms->flags & MAGIC_NO_CHECK_CSV) == 0) {
+		m = file_is_csv(ms, &b, looks_text);
+		if ((ms->flags & MAGIC_DEBUG) != 0)
+			(void)fprintf(stderr, "[try csv %d]\n", m);
 		if (m) {
 			if (checkdone(ms, &rv))
 				goto done;
@@ -545,7 +556,11 @@ file_regcomp(file_regex_t *rx, const char *pat, int flags)
 	rx->old_lc_ctype = uselocale(rx->c_lc_ctype);
 	assert(rx->old_lc_ctype != NULL);
 #else
-	rx->old_lc_ctype = setlocale(LC_CTYPE, "C");
+	rx->old_lc_ctype = setlocale(LC_CTYPE, NULL);
+	assert(rx->old_lc_ctype != NULL);
+	rx->old_lc_ctype = strdup(rx->old_lc_ctype);
+	assert(rx->old_lc_ctype != NULL);
+	(void)setlocale(LC_CTYPE, "C");
 #endif
 	rx->pat = pat;
 
@@ -558,7 +573,8 @@ file_regexec(file_regex_t *rx, const char *str, size_t nmatch,
 {
 	assert(rx->rc == 0);
 	/* XXX: force initialization because glibc does not always do this */
-	memset(pmatch, 0, nmatch * sizeof(*pmatch));
+	if (nmatch != 0)
+		memset(pmatch, 0, nmatch * sizeof(*pmatch));
 	return regexec(&rx->rx, str, nmatch, pmatch, eflags);
 }
 
@@ -572,6 +588,7 @@ file_regfree(file_regex_t *rx)
 	freelocale(rx->c_lc_ctype);
 #else
 	(void)setlocale(LC_CTYPE, rx->old_lc_ctype);
+	free(rx->old_lc_ctype);
 #endif
 }
 

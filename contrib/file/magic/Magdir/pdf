@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: pdf,v 1.10 2018/05/23 22:21:01 christos Exp $
+# $File: pdf,v 1.11 2019/09/12 15:53:49 christos Exp $
 # pdf:  file(1) magic for Portable Document Format
 #
 
@@ -11,6 +11,12 @@
 >7	byte		x		\b.%c
 
 0	string		\012%PDF-	PDF document
+!:mime	application/pdf
+!:strength +60
+>6	byte		x		\b, version %c
+>8	byte		x		\b.%c
+
+0	string		\xef\xbb\xbf%PDF-	PDF document (UTF-8)
 !:mime	application/pdf
 !:strength +60
 >6	byte		x		\b, version %c

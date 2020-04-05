@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: android,v 1.12 2019/04/19 00:42:27 christos Exp $
+# $File: android,v 1.16 2019/11/15 21:03:14 christos Exp $
 # Various android related magic entries
 #------------------------------------------------------------
 
@@ -18,8 +18,11 @@
 # Android bootimg format
 # From https://android.googlesource.com/\
 # platform/system/core/+/master/mkbootimg/bootimg.h
+# https://github.com/djrbliss/loki/blob/master/loki.h#L43
 0		string	ANDROID!	Android bootimg
->1024	string	LOKI\01		\b, LOKI'd
+>1024	string	LOKI		\b, LOKI'd
+>>1028	lelong	0			\b (boot)
+>>1028	lelong	1			\b (recovery)
 >8		lelong	>0			\b, kernel
 >>12	lelong	>0			\b (0x%x)
 >16		lelong	>0			\b, ramdisk
@@ -47,7 +50,7 @@
 0	string/b	ANDROID\ BACKUP\n	Android Backup
 # maybe look for some more characteristics like linefeed '\n' or version
 #>16	string		\n			
-# No mime-type defined offically
+# No mime-type defined officially
 !:mime	application/x-google-ab
 !:ext	ab
 # on 2nd line version (often 1, 2 on kitkat 4.4.3+, 4 on 7.1.2)
@@ -178,3 +181,10 @@
 # RES_XML_TYPE = 0x0003 followed by the size of the header (ResXMLTree_header),
 # which is 8 bytes (2 bytes type + 2 bytes header size + 4 bytes size).
 0	lelong	0x00080003	Android binary XML
+
+# Android cryptfs footer
+# From https://android.googlesource.com/\
+# platform/system/vold/+/refs/heads/master/cryptfs.h
+0	lelong	0xd0b5b1c4	Android cryptfs footer
+>4	leshort	x	\b, version: %d
+>6	leshort	x	\b.%d

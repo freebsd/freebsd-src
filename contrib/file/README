@@ -1,6 +1,6 @@
 ## README for file(1) Command and the libmagic(3) library ##
 
-    @(#) $File: README,v 1.57 2019/02/06 00:20:56 christos Exp $
+    @(#) $File: README,v 1.59 2019/09/19 01:04:01 christos Exp $
 
 Mailing List: file@astron.com
 Mailing List archives: http://mailman.astron.com/pipermail/file/
@@ -23,6 +23,10 @@ You can download the latest version of the original sources for file from:
 A public read-only git repository of the same sources is available at:
 
 	https://github.com/file/file
+
+We are continuously being fuzzed by OSS-FUZZ:
+
+	https://bugs.chromium.org/p/oss-fuzz/issues/list?sort=-opened&can=1&q=proj:file
 
 The major changes for 5.x are CDF file parsing, indirect magic, name/use
 (recursion) and overhaul in mime and ascii encoding handling.
@@ -91,6 +95,7 @@ src/funcs.c - utilility functions
 src/getline.c - replacement for OS's that don't have it.
 src/getopt_long.c - replacement for OS's that don't have it.
 src/gmtime_r.c - replacement for OS's that don't have it.
+src/is_csv.c - knows about Comma Separated Value file format (RFC 4180).
 src/is_json.c - knows about JavaScript Object Notation format (RFC 8259).
 src/is_tar.c, tar.h - knows about Tape ARchive format (courtesy John Gilmore).
 src/localtime_r.c - replacement for OS's that don't have it.

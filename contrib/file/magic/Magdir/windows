@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.26 2019/05/01 17:55:25 christos Exp $
+# $File: windows,v 1.29 2019/11/18 03:11:20 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -118,6 +118,94 @@
 >>>>(0x450.l)	indirect	x
 # 3rd BLOB
 >>0x480		string		>\0		\b, type %-3.8s
+
+# Summary:	Windows boot status log BOOTSTAT.DAT
+# From:		Joerg Jenderek
+# Reference:	https://www.geoffchappell.com/notes/windows/boot/bsd.htm
+# Note:		mainly refers to older Windows Vista, sometimes
+#		BOOTSTAT.DAT only contains nulls or invalid data
+# checking for valid version below 5
+0		ulelong		<5
+# skip many ISO images by checking for valid 64 KiB file size
+>8		ulelong		=0x00010000
+>>0		use		bootstat-dat
+# display information of BOOTSTAT.DAT
+0	name		bootstat-dat
+>0		ulelong		x		Windows boot log
+#!:mime	application/octet-stream
+!:mime	application/x-ms-dat
+# BOOTSTAT.DAT in BOOT subdirectory
+!:ext	dat
+# apparently a version number: 2 for older like Vista, 3, 4 Windows 10
+>0		ulelong		>2		\b, version %u
+# apparently the size of the header: often 10h in older Windows, 14h, 18h
+>4		ulelong		!0x10		\b, header size 0x%x
+#>4		ulelong		!0x10		\b, header size %u
+# apparently the size of the file: always 0x00010000~64KiB
+# the file is acceptable to BOOTMGR only if it is exactly 64 KiB
+>8		ulelong		!0x00010000	\b, file size 0x%x
+# size of valid data, in bytes: C8h 50h 172h 5D5Ch
+>0xc		ulelong		x		\b, 0x%x valid bytes
+# skip header and jump to first bootstat entry and display information
+>(0x4.l-1)	ubyte		x
+>>&0		use		bootstat-entry
+# jump to first entry again because pointer are bad after "use"
+>(0x4.l-1)	ubyte		x
+# by 1st entry size jump to 2nd entry and display information
+>>&(&0x18.l-1)	ubyte		x
+>>>&0		use		bootstat-entry
+# jump to possible 3rd boot entry and display information
+# >(0x4.l-1)	ubyte		x
+# >>&(&0x18.l-1)	ubyte		x
+# >>>&(&0x18.l-1)	ubyte		x
+# >>>>&0		use		bootstat-entry
+#	display BOOTSTAT.DAT entry
+0	name		bootstat-entry
+#>0x00		ubequad		x		\b, ENTRY %16.16llx
+# size of entry, in bytes: 40h(init) 78h(launced) 9Ch
+#>0x18		ulelong		x		\b; entry size %u
+>0x18		ulelong		x		\b; entry size 0x%x
+# time stamp, in seconds 
+>0x00		ulelong		x		\b, 0x%x seconds
+# always zero, significance unknown
+>0x04		ulelong		!0		\b, not null %u
+# GUID of event source; but empty if event source is BOOTMGR 
+>0x08		ubequad		!0		\b, GUID 0x%16.16llx
+>>0x10		ubequad		x		\b%16.16llx
+# severity code: 1~informational 3~errors
+>0x1C		ulelong		!1		\b, severity 0x%x
+# apparently a version number: 2 
+>0x20		ulelong		!2		\b, version %u
+# event identifier 1~log file initialised 11h~boot application launched 
+#>0x24		ulelong		x		\b, event 0x%x
+>0x24		ulelong		!1
+>>0x24		ulelong		!0x11		\b, event 0x%x
+# entry data; size depends on event identifier  
+#>0x28		ubequad		x		\b, data 0x%16.16llx
+>0x24		ulelong		=0x1		\b, Init
+# always 0, significance unknown 
+>>0x34		uleshort	!0		\b, not null %u
+# always 7, significance unknown 
+>>0x36		uleshort	!7		\b, not seven %u
+# year
+>>0x28		uleshort	x		%u
+# month
+>>0x2A		uleshort	x		\b-%u
+# day
+>>0x2C		uleshort	x		\b-%u
+# hour
+>>0x2E		uleshort	x		%u
+# minute
+>>0x30		uleshort	x		\b:%u
+# second
+>>0x32		uleshort	x		\b:%u
+# boot application launched
+>0x24		ulelong		=0x11		\b, launched
+# type of start: 0 normally, 1 or 2 maybe in a recovery sequence
+>>0x38		uleshort	!0		\b, type %u
+# pathname of boot application, as null-terminated Unicode string; typically
+# \Windows\system32\winload.exe \Windows\system32\winload.efi
+>>0x3C		lestring16	x		%s
 
 # Summary:	Windows Error Report text files
 # URL:		https://en.wikipedia.org/wiki/Windows_Error_Reporting
@@ -275,7 +363,7 @@
 !:apple	????TEXT
 !:ext	cnt
 #
-# Windows creates an full text search from hlp file, if the user clicks the "Find" tab and enables keyword indexing
+# Windows creates a full text search from hlp file, if the user clicks the "Find" tab and enables keyword indexing
 0	string		tfMR			MS Windows help Full Text Search index
 !:mime application/x-winhelp-fts
 !:ext	fts
@@ -477,8 +565,8 @@
 # https://en.wikipedia.org/wiki/CONFIG.SYS
 >>&0	regex/c		\^(menu)]					MS-DOS CONFIG.SYS
 # @CONFIG.UI configuration file of previous DOS version saved by Caldera OPENDOS INSTALL.EXE
-# CONFIG.PSS saved version of file CONFIG.SYS created by %WINDIR%\SYTEM\MSCONFIG.EXE
-# CONFIG.TSH renamed file CONFIG.SYS.BAT by %WINDIR%\SYTEM\MSCONFIG.EXE
+# CONFIG.PSS saved version of file CONFIG.SYS created by %WINDIR%\SYSTEM\MSCONFIG.EXE
+# CONFIG.TSH renamed file CONFIG.SYS.BAT by %WINDIR%\SYSTEM\MSCONFIG.EXE
 # dos and w40 used in dual booting scene
 !:ext	sys/dos/w40
 # https://support.microsoft.com/kb/118579/
@@ -757,7 +845,7 @@
 >0x1c	string		>\0				\b%.7s
 # AppName[0x80] like "Minimal SYStem", ClamWin Free Antivirus , ...
 >0xc0	string		x				%s
-# AppId[0x80] is simliar to AppName or
+# AppId[0x80] is similar to AppName or
 # GUID like {4BB0DCDC-BC24-49EC-8937-72956C33A470} start with left brace
 >0x40	ubyte		0x7b
 >>0x40	string		x				%-.38s
@@ -878,4 +966,28 @@
 # Unused[60]
 #>148	ubequad		!0			\b,unused 0x%16.16llx
 #
+
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Windows_Easy_Transfer
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mig.trid.xml
+# Note:		called "Windows Easy Transfer migration data" by TrID,
+#		"Migration Store" or "EasyTransfer file" by Microsoft
+0		string		1giM	Windows Easy Transfer migration data
+#!:mime		application/octet-stream
+!:mime		application/x-ms-mig
+!:ext		mig
+>0x18		string		=MRTS	without password
+# data offset with 1 space at end
+>>0x1c		ulelong+0x38	x	\b, at 0x%x 
+# look for zlib compressed data by ./compress
+>>(0x1c.l+0x38)	ubyte		x
+>>>&-1	indirect	x
+# in password protected examples MRTS comes some bytes further
+>0x18		string		!MRTS	with password
+# look for first MRTS tag
+>0x18		search/29/b	MRTS
+# probably first file name length like 178, ...
+#>>&0		ulelong		x	\b, 1st length %u
+# URL like File\C:\Users\nutzer\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\desktop.ini
+>>&20		lestring16	x	\b, 1st %-s
 

@@ -1,13 +1,46 @@
 
 #------------------------------------------------------------------------------
-# $File: macintosh,v 1.29 2019/04/19 00:42:27 christos Exp $
+# $File: macintosh,v 1.30 2019/12/14 20:40:26 christos Exp $
 # macintosh description
 #
 # BinHex is the Macintosh ASCII-encoded file format (see also "apple")
 # Daniel Quinlan, quinlan@yggdrasil.com
-11	string	must\ be\ converted\ with\ BinHex	BinHex binary text
+# Update:	Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/BinHex
+# Reference:	http://fileformats.archiveteam.org/wiki/BinHex
+# Note:		only tested with version 4.0 and hqx extension
+# Any text/binary before the characteristic comment sentence is to be ignored like in
+# http://ftp.vim.org/pub/ftp/ftp/infomac/disk/mac-update-40b7.hqx
+0	search/1602	(This\ file\ 
+>&0	use		binhex
+# http://ftp.vim.org/pub/ftp/ftp/infomac/_Disk_&_File/zap-res-forks-101.hqx
+0	search/2652/b	(This\ file\ 
+>&0	use		binhex
+0	name				binhex
+# keep splitted search string format similar like in version 5.37
+>0	string	must\ be\ converted\ with\ BinHex\ 	BinHex binary text, version
+# http://www.macdisk.com/binhexen.php3
+!:apple	BNHQTEXT
+# http://www.faqs.org/faqs/macintosh/comm-faq/part1/
+>>&0	string	1.0					1.0
+!:mime	application/mac-binhex
+!:ext	hex
+>>&0	string	2.0					2.0
+!:mime	application/mac-binhex
+!:ext	hcx
+# BinHex	3.0 never existed
+>>&0	string	4.0					4.0
 !:mime	application/mac-binhex40
->41	string	x					\b, version %.3s
+!:ext	hqx
+# BinHex	5.0 also MacBinary I
+>>&0	string	5.0					5.0
+!:mime	application/mac-binhex40
+!:ext	hqx
+# this should never happen
+>>&0	default	x					
+>>>&0	string	x					%.3s
+!:mime	application/mac-binhex
+!:ext	hqx
 
 # Stuffit archives are the de facto standard of compression for Macintosh
 # files obtained from most archives. (franklsm@tuns.ca)

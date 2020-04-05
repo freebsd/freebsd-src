@@ -96,7 +96,7 @@ the buffer can have a shorter length. But what? If you really need to write
 HUGE string, don't use printf!
 During the process, some other memory is allocated (1024 bytes minimum)
 to handle the output of partial sprintf() calls. If you have only 10000 bytes
-free in memory, you *may* not be able to nprintf() a 8000 bytes-long text.
+free in memory, you *may* not be able to nprintf() an 8000 bytes-long text.
 
 note: if a buffer overflow occurs, exit() is called. This situation should
 never appear ... but if you want to be *really* sure, you have to modify the
@@ -108,7 +108,7 @@ you use strange formats.
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: vasprintf.c,v 1.16 2018/10/01 18:45:39 christos Exp $")
+FILE_RCSID("@(#)$File: vasprintf.c,v 1.17 2019/11/15 21:03:14 christos Exp $")
 #endif	/* lint */
 
 #include <assert.h>

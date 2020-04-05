@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: linux,v 1.67 2019/04/19 00:42:27 christos Exp $
+# $File: linux,v 1.68 2019/09/11 21:20:56 christos Exp $
 # linux:  file(1) magic for Linux files
 #
 # Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
@@ -494,3 +494,8 @@
 >207		string		>\0		\b, version %s
 >272		string		>\0		\b, machine %s
 >337		string		>\0		\b, domain %s
+
+# Device Tree files
+0		search/1024	/dts-v1/	Device Tree File (v1)
+# beat c code
+!:strength +14

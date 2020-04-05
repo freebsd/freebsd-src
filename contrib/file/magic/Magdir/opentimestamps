@@ -1,0 +1,16 @@
+
+#------------------------------------------------------------
+# $File: opentimestamps,v 1.1 2019/05/27 01:27:31 christos Exp $
+# OpenTimestamps related magic entries 
+# https://opentimestamps.org/
+# https://en.wikipedia.org/wiki/OpenTimestamps
+# "Emanuele Cisbani" <emanuele.cisbani@gmail.com>
+#------------------------------------------------------------
+
+# OpenTimestamps Proof .ots format. 
+# Magic is defined here:
+# https://github.com/opentimestamps/python-opentimestamps/\
+# blob/master/opentimestamps/core/timestamp.py#L273
+
+0	string	\x00\x4f\x70\x65\x6e\x54\x69\x6d\x65\x73\x74\x61\x6d\x70\x73\x00 OpenTimestamps
+>16	string	\x00\x50\x72\x6f\x6f\x66\x00\xbf\x89\xe2\xe8\x84\xe8\x92\x94\x01 Proof

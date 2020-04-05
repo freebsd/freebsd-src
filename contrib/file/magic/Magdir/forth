@@ -1,0 +1,80 @@
+
+#------------------------------------------------------------------------------
+# $File: forth,v 1.1 2019/06/06 19:14:20 christos Exp $
+# forth:  file(1) magic for various Forth environments
+# From: Lubomir Rintel <lkundrak@v3.sk>
+#
+
+# Has a FORTH stack diagram and something that looks very much like a FORTH
+# multi-line word definition. Probably a FORTH source.
+0       regex   \[[:space:]]\\(([[:space:]].*)?\ --\ (.*[[:space:]])?\\)
+>0      regex   \^:\[[:space:]]
+>>0     regex   \^;$				FORTH program
+!:mime  text/x-forth
+
+# Inline word definition complete with a stack diagram
+0       regex   \^:[[:space:]].*[[:space:]]\\(([[:space:]].*)?\ --\ (.*[[:space:]])?\\)[[:space:]].*[[:space:]];$	FORTH program
+!:mime  text/x-forth
+
+# Various dictionary images used by OpenFirware FORTH environent
+
+0	lelong	0xe1a00000
+>8	lelong	0xe1a00000	ARM OpenFirmware FORTH Dictionary,
+>>24	lelong	x		Text length: %d bytes,
+>>28	lelong	x		Data length: %d bytes,
+>>32	lelong	x		Text Relocation Table length: %d bytes,
+>>36	lelong	x		Data Relocation Table length: %d bytes,
+>>40	lelong	x		Entry Point: 0x%08X,
+>>44	lelong	x		BSS length: %d bytes
+
+0	string	MP
+>28	lelong	1		x86 OpenFirmware FORTH Dictionary,
+>>4	leshort	x		%d blocks
+>>2	leshort	x		+ %d bytes,
+>>6	leshort	x		%d relocations,
+>>8	leshort	x		Header length: %d paragraphs,
+>>10	leshort	x		Data Size: %d
+>>12	leshort	x		- %d 4K pages,
+>>14	lelong	x		Initial Stack Pointer: 0x%08X,
+>>20	lelong	x		Entry Point: 0x%08X,
+>>24	lelong	x		First Relocation Item: %d,
+>>26	lelong	x		Overlay Number: %d,
+>>18	leshort	x		Checksum: 0x%08X
+
+0	belong	0x48000020	PowerPC OpenFirmware FORTH Dictionary,
+>4	belong	x		Text length: %d bytes,
+>8	belong	x		Data length: %d bytes,
+>12	belong	x		BSS length: %d bytes,
+>16	belong	x		Symbol Table length: %d bytes,
+>20	belong	x		Entry Point: 0x%08X,
+>24	belong	x		Text Relocation Table length: %d bytes,
+>28	belong	x		Data Relocation Table length: %d bytes
+
+0	lelong	0x10000007	MIPS OpenFirmware FORTH Dictionary,
+>4	lelong	x		Text length: %d bytes,
+>8	lelong	x		Data length: %d bytes,
+>12	lelong	x		BSS length: %d bytes,
+>16	lelong	x		Symbol Table length: %d bytes,
+>20	lelong	x		Entry Point: 0x%08X,
+>24	lelong	x		Text Relocation Table length: %d bytes,
+>28	lelong	x		Data Relocation Table length: %d bytes
+
+# Dictionary images used by minimal C FORTH environments, any platform,
+# using native byte order.
+
+# Weak.
+#0	short	0x5820		cForth 16-bit Dictionary,
+#>2	short	x		Serial: 0x%08X,
+#>4	short	x		Dictionary Start: 0x%08X,
+#>6	short	x		Dictionary Size: %d bytes,
+#>8	short	x		User Area Start: 0x%08X,
+#>10	short	x		User Area Size: %d bytes,
+#>12	short	x		Entry Point: 0x%08X
+
+0	long	0x581120	cForth 32-bit Dictionary,
+>4	long	x		Serial: 0x%08X,
+>8	long	x		Dictionary Start: 0x%08X,
+>12	long	x		Dictionary Size: %d bytes,
+>16	long	x		User Area Start: 0x%08X,
+>20	long	x		User Area Size: %d bytes,
+>24	long	x		Entry Point: 0x%08X

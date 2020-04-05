@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.128 2019/04/19 00:42:27 christos Exp $
+# $File: msdos,v 1.134 2019/10/18 15:16:18 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -61,28 +61,24 @@
 #>>0x18	leshort	0x1c	(Borland compiler)
 #>>0x18	leshort	0x1e	(MS compiler)
 
-# If the relocation table is 0x40 or more bytes into the file, it's definitely
-# not a DOS EXE.
->0x18  leshort >0x3f
-
 # Maybe it's a PE?
->>(0x3c.l) string PE\0\0 PE
+>(0x3c.l)	string		PE\0\0	PE
 !:mime	application/x-dosexec
->>>(0x3c.l+24)	leshort		0x010b	\b32 executable
->>>(0x3c.l+24)	leshort		0x020b	\b32+ executable
->>>(0x3c.l+24)	leshort		0x0107	ROM image
->>>(0x3c.l+24)	default		x	Unknown PE signature
->>>>&0 		leshort		x	0x%x
->>>(0x3c.l+22)	leshort&0x2000	>0	(DLL)
->>>(0x3c.l+92)	leshort		1
+>>(0x3c.l+24)	leshort		0x010b	\b32 executable
+>>(0x3c.l+24)	leshort		0x020b	\b32+ executable
+>>(0x3c.l+24)	leshort		0x0107	ROM image
+>>(0x3c.l+24)	default		x	Unknown PE signature
+>>>&0 		leshort		x	0x%x
+>>(0x3c.l+22)	leshort&0x2000	>0	(DLL)
+>>(0x3c.l+92)	leshort		1
 # Native PEs include ntoskrnl.exe, hal.dll, smss.exe, autochk.exe, and all the
 # drivers in Windows/System32/drivers/*.sys.
->>>>(0x3c.l+22)	leshort&0x2000	>0	(native)
+>>>(0x3c.l+22)	leshort&0x2000	>0	(native)
 !:ext	dll/sys
->>>>(0x3c.l+22)	leshort&0x2000	0	(native)
+>>>(0x3c.l+22)	leshort&0x2000	0	(native)
 !:ext	exe/sys
->>>(0x3c.l+92)	leshort		2
->>>>(0x3c.l+22)	leshort&0x2000	>0	(GUI)
+>>(0x3c.l+92)	leshort		2
+>>>(0x3c.l+22)	leshort&0x2000	>0	(GUI)
 # These could probably be at least partially distinguished from one another by
 # looking for specific exported functions.
 # CPL: Control Panel item
@@ -92,80 +88,95 @@
 # AX: DirectShow source filter
 # IME: Input method editor
 !:ext	dll/cpl/tlb/ocx/acm/ax/ime
->>>>(0x3c.l+22)	leshort&0x2000	0	(GUI)
+>>>(0x3c.l+22)	leshort&0x2000	0	(GUI)
 # Screen savers typically include code from the scrnsave.lib static library, but
 # that's not guaranteed.
 !:ext	exe/scr
->>>(0x3c.l+92)	leshort		3
->>>>(0x3c.l+22)	leshort&0x2000	>0	(console)
+>>(0x3c.l+92)	leshort		3
+>>>(0x3c.l+22)	leshort&0x2000	>0	(console)
 !:ext	dll/cpl/tlb/ocx/acm/ax/ime
->>>>(0x3c.l+22)	leshort&0x2000	0	(console)
+>>>(0x3c.l+22)	leshort&0x2000	0	(console)
 !:ext	exe/com
->>>(0x3c.l+92)	leshort		7	(POSIX)
->>>(0x3c.l+92)	leshort		9	(Windows CE)
->>>(0x3c.l+92)	leshort		10	(EFI application)
->>>(0x3c.l+92)	leshort		11	(EFI boot service driver)
->>>(0x3c.l+92)	leshort		12	(EFI runtime driver)
->>>(0x3c.l+92)	leshort		13	(EFI ROM)
->>>(0x3c.l+92)	leshort		14	(XBOX)
->>>(0x3c.l+92)	leshort		15	(Windows boot application)
->>>(0x3c.l+92)	default		x	(Unknown subsystem
->>>>&0		leshort		x	0x%x)
->>>(0x3c.l+4)	leshort		0x14c	Intel 80386
->>>(0x3c.l+4)	leshort		0x166	MIPS R4000
->>>(0x3c.l+4)	leshort		0x168	MIPS R10000
->>>(0x3c.l+4)	leshort		0x184	Alpha
->>>(0x3c.l+4)	leshort		0x1a2	Hitachi SH3
->>>(0x3c.l+4)	leshort		0x1a6	Hitachi SH4
->>>(0x3c.l+4)	leshort		0x1c0	ARM
->>>(0x3c.l+4)	leshort		0x1c2	ARM Thumb
->>>(0x3c.l+4)	leshort		0x1c4	ARMv7 Thumb
->>>(0x3c.l+4)	leshort		0x1f0	PowerPC
->>>(0x3c.l+4)	leshort		0x200	Intel Itanium
->>>(0x3c.l+4)	leshort		0x266	MIPS16
->>>(0x3c.l+4)	leshort		0x268	Motorola 68000
->>>(0x3c.l+4)	leshort		0x290	PA-RISC
->>>(0x3c.l+4)	leshort		0x366	MIPSIV
->>>(0x3c.l+4)	leshort		0x466	MIPS16 with FPU
->>>(0x3c.l+4)	leshort		0xebc	EFI byte code
->>>(0x3c.l+4)	leshort		0x8664	x86-64
->>>(0x3c.l+4)	leshort		0xc0ee	MSIL
->>>(0x3c.l+4)	default		x	Unknown processor type
->>>>&0		leshort		x	0x%x
->>>(0x3c.l+22)	leshort&0x0200	>0	(stripped to external PDB)
->>>(0x3c.l+22)	leshort&0x1000	>0	system file
->>>(0x3c.l+24)	leshort		0x010b
->>>>(0x3c.l+232) lelong	>0	Mono/.Net assembly
->>>(0x3c.l+24)	leshort		0x020b
->>>>(0x3c.l+248) lelong	>0	Mono/.Net assembly
+# https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
+>>(0x3c.l+92)	leshort		7	(POSIX)
+>>(0x3c.l+92)	leshort		9	(Windows CE)
+>>(0x3c.l+92)	leshort		10	(EFI application)
+>>(0x3c.l+92)	leshort		11	(EFI boot service driver)
+>>(0x3c.l+92)	leshort		12	(EFI runtime driver)
+>>(0x3c.l+92)	leshort		13	(EFI ROM)
+>>(0x3c.l+92)	leshort		14	(XBOX)
+>>(0x3c.l+92)	leshort		15	(Windows boot application)
+>>(0x3c.l+92)	default		x	(Unknown subsystem
+>>>&0		leshort		x	0x%x)
+>>(0x3c.l+4)	leshort		0x14c	Intel 80386
+>>(0x3c.l+4)	leshort		0x166	MIPS R4000
+>>(0x3c.l+4)	leshort		0x168	MIPS R10000
+>>(0x3c.l+4)	leshort		0x184	Alpha
+>>(0x3c.l+4)	leshort		0x1a2	Hitachi SH3
+>>(0x3c.l+4)	leshort		0x1a3	Hitachi SH3 DSP
+>>(0x3c.l+4)	leshort		0x1a8	Hitachi SH5
+>>(0x3c.l+4)	leshort		0x169	MIPS WCE v2
+>>(0x3c.l+4)	leshort		0x1a6	Hitachi SH4
+>>(0x3c.l+4)	leshort		0x1c0	ARM
+>>(0x3c.l+4)	leshort		0x1c2	ARM Thumb
+>>(0x3c.l+4)	leshort		0x1c4	ARMv7 Thumb
+>>(0x3c.l+4)	leshort		0x1d3	Matsushita AM33
+>>(0x3c.l+4)	leshort		0x1f0	PowerPC
+>>(0x3c.l+4)	leshort		0x1f1	PowerPC with FPU
+>>(0x3c.l+4)	leshort		0x200	Intel Itanium
+>>(0x3c.l+4)	leshort		0x266	MIPS16
+>>(0x3c.l+4)	leshort		0x268	Motorola 68000
+>>(0x3c.l+4)	leshort		0x290	PA-RISC
+>>(0x3c.l+4)	leshort		0x366	MIPSIV
+>>(0x3c.l+4)	leshort		0x466	MIPS16 with FPU
+>>(0x3c.l+4)	leshort		0xebc	EFI byte code
+>>(0x3c.l+4)	leshort		0x5032	RISC-V 32-bit
+>>(0x3c.l+4)	leshort		0x5064	RISC-V 64-bit
+>>(0x3c.l+4)	leshort		0x5128	RISC-V 128-bit
+>>(0x3c.l+4)	leshort		0x9041	Mitsubishi M32R
+>>(0x3c.l+4)	leshort		0x8664	x86-64
+>>(0x3c.l+4)	leshort		0xaa64	Aarch64
+>>(0x3c.l+4)	leshort		0xc0ee	MSIL
+>>(0x3c.l+4)	default		x	Unknown processor type
+>>>&0		leshort		x	0x%x
+>>(0x3c.l+22)	leshort&0x0200	>0	(stripped to external PDB)
+>>(0x3c.l+22)	leshort&0x1000	>0	system file
+>>(0x3c.l+24)	leshort		0x010b
+>>>(0x3c.l+232) lelong	>0	Mono/.Net assembly
+>>(0x3c.l+24)	leshort		0x020b
+>>>(0x3c.l+248) lelong	>0	Mono/.Net assembly
 
 # hooray, there's a DOS extender using the PE format, with a valid PE
 # executable inside (which just prints a message and exits if run in win)
->>>(8.s*16)		string		32STUB	\b, 32rtm DOS extender
->>>(8.s*16)		string		!32STUB	\b, for MS Windows
->>>(0x3c.l+0xf8)	string		UPX0 \b, UPX compressed
->>>(0x3c.l+0xf8)	search/0x140	PEC2 \b, PECompact2 compressed
->>>(0x3c.l+0xf8)	search/0x140	UPX2
->>>>(&0x10.l+(-4))	string		PK\3\4 \b, ZIP self-extracting archive (Info-Zip)
->>>(0x3c.l+0xf8)	search/0x140	.idata
->>>>(&0xe.l+(-4))	string		PK\3\4 \b, ZIP self-extracting archive (Info-Zip)
->>>>(&0xe.l+(-4))	string		ZZ0 \b, ZZip self-extracting archive
->>>>(&0xe.l+(-4))	string		ZZ1 \b, ZZip self-extracting archive
->>>(0x3c.l+0xf8)	search/0x140	.rsrc
->>>>(&0x0f.l+(-4))	string		a\\\4\5 \b, WinHKI self-extracting archive
->>>>(&0x0f.l+(-4))	string		Rar! \b, RAR self-extracting archive
->>>>(&0x0f.l+(-4))	search/0x3000	MSCF \b, InstallShield self-extracting archive
->>>>(&0x0f.l+(-4))	search/32	Nullsoft \b, Nullsoft Installer self-extracting archive
->>>(0x3c.l+0xf8)	search/0x140	.data
->>>>(&0x0f.l)		string		WEXTRACT \b, MS CAB-Installer self-extracting archive
->>>(0x3c.l+0xf8)	search/0x140	.petite\0 \b, Petite compressed
->>>>(0x3c.l+0xf7)	byte		x
->>>>>(&0x104.l+(-4))	string		=!sfx! \b, ACE self-extracting archive
->>>(0x3c.l+0xf8)	search/0x140	.WISE \b, WISE installer self-extracting archive
->>>(0x3c.l+0xf8)	search/0x140	.dz\0\0\0 \b, Dzip self-extracting archive
->>>&(0x3c.l+0xf8)	search/0x100	_winzip_ \b, ZIP self-extracting archive (WinZip)
->>>&(0x3c.l+0xf8)	search/0x100	SharedD \b, Microsoft Installer self-extracting archive
->>>0x30			string		Inno \b, InnoSetup self-extracting archive
+>>(8.s*16)		string		32STUB	\b, 32rtm DOS extender
+>>(8.s*16)		string		!32STUB	\b, for MS Windows
+>>(0x3c.l+0xf8)		string		UPX0 \b, UPX compressed
+>>(0x3c.l+0xf8)		search/0x140	PEC2 \b, PECompact2 compressed
+>>(0x3c.l+0xf8)		search/0x140	UPX2
+>>>(&0x10.l+(-4))	string		PK\3\4 \b, ZIP self-extracting archive (Info-Zip)
+>>(0x3c.l+0xf8)		search/0x140	.idata
+>>>(&0xe.l+(-4))	string		PK\3\4 \b, ZIP self-extracting archive (Info-Zip)
+>>>(&0xe.l+(-4))	string		ZZ0 \b, ZZip self-extracting archive
+>>>(&0xe.l+(-4))	string		ZZ1 \b, ZZip self-extracting archive
+>>(0x3c.l+0xf8)		search/0x140	.rsrc
+>>>(&0x0f.l+(-4))	string		a\\\4\5 \b, WinHKI self-extracting archive
+>>>(&0x0f.l+(-4))	string		Rar! \b, RAR self-extracting archive
+>>>(&0x0f.l+(-4))	search/0x3000	MSCF \b, InstallShield self-extracting archive
+>>>(&0x0f.l+(-4))	search/32	Nullsoft \b, Nullsoft Installer self-extracting archive
+>>(0x3c.l+0xf8)		search/0x140	.data
+>>>(&0x0f.l)		string		WEXTRACT \b, MS CAB-Installer self-extracting archive
+>>(0x3c.l+0xf8)		search/0x140	.petite\0 \b, Petite compressed
+>>>(0x3c.l+0xf7)	byte		x
+>>>>(&0x104.l+(-4))	string		=!sfx! \b, ACE self-extracting archive
+>>(0x3c.l+0xf8)		search/0x140	.WISE \b, WISE installer self-extracting archive
+>>(0x3c.l+0xf8)		search/0x140	.dz\0\0\0 \b, Dzip self-extracting archive
+>>&(0x3c.l+0xf8)	search/0x100	_winzip_ \b, ZIP self-extracting archive (WinZip)
+>>&(0x3c.l+0xf8)	search/0x100	SharedD \b, Microsoft Installer self-extracting archive
+>>0x30			string		Inno \b, InnoSetup self-extracting archive
+
+# If the relocation table is 0x40 or more bytes into the file, it's definitely
+# not a DOS EXE.
+>0x18  leshort >0x3f
 
 # Hmm, not a PE but the relocation table is too high for a traditional DOS exe,
 # must be one of the unusual subformats.
@@ -647,16 +658,84 @@
 >30	byte	12		(4kB sectors)
 
 # Popular applications
-2080	string	Microsoft\ Word\ 6.0\ Document	%s
-!:mime	application/msword
-2080	string	Documento\ Microsoft\ Word\ 6 Spanish Microsoft Word 6 document data
-!:mime	application/msword
-# Pawel Wiecek <coven@i17linuxb.ists.pwr.wroc.pl> (for polish Word)
-2112	string	MSWordDoc			Microsoft Word document data
-!:mime	application/msword
 #
-0	belong	0x31be0000			Microsoft Word Document
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/DOC
+# Reference:	https://web.archive.org/web/20170206041048/
+#		http://www.msxnet.org/word2rtf/formats/ffh-dosword5
+# wIdent+dty
+0	belong	0x31be0000
+# skip droid skeleton like x-fmt-274-signature-id-488.doc
+>128	ubyte		>0  			Microsoft
+>>96	uleshort	=0			Word
 !:mime	application/msword
+!:apple	MSWDWDBN
+# DCX is used in the Unix version.
+!:ext	doc/dcx
+>>>0x6E	ulequad		=0			1.0-4.0
+>>>0x6E	ulequad		!0			5.0-6.0
+>>>0x6E	ulequad		x			(DOS) Document
+# https://web.archive.org/web/20130831064118/http://msxnet.org/word2rtf/formats/write.txt
+>>96	uleshort	!0			Write 3.0 (Windows) Document
+!:mime	application/x-mswrite
+!:apple	MSWDWDBN
+# sometimes also doc like in splitter.doc srchtest.doc
+!:ext	wri/doc
+# wTool must be 0125400 octal
+#>>4	uleshort	!0xAB00			\b, wTool %o
+# reserved; must be zero
+#>>6	ulelong		!0			\b, reserved %u
+# block pointer to the block containing optional file manager information
+#>>0x1C	uleshort	x			\b, at 0x%x info block
+# jump to File manager information block
+>>(0x1C.s*128)	uleshort x
+# test for valid information start; maybe also 0012h
+>>>&-2		uleshort	=0x0014
+# Document ASCIIZ name
+>>>>&0x12	string		x		%s
+# author name
+>>>>>&1		string		x		\b, author %s
+# reviser name
+>>>>>>&1	string		x		\b, reviser %s
+# keywords
+>>>>>>>&1	string		x		\b, keywords %s
+# comment
+>>>>>>>>&1	string		x		\b, comment %s
+# version number
+>>>>>>>>>&1	string		x		\b, version %s
+# date of last change MM/DD/YY
+>>>>>>>>>>&1	string		x		\b, %-.8s
+# creation date MM/DD/YY
+>>>>>>>>>>&9	string		x		created %-.8s
+# file name of print format like NORMAL.STY
+>>0x1E	string		>0			\b, formatted by %-.66s
+# count of pages in whole file for write variant; maybe some times wrong
+>>96	uleshort	>0			\b, %u pages
+# name of the printer driver like HPLASMS
+>>0x62	string		>0			\b, %-.8s printer
+# number of blocks used in the file; seems to be 0 for Word 4.0 and Write 3.0
+>>0x6A	uleshort	>0			\b, %u blocks
+# bit field for corrected text areas
+#>>0x6C	uleshort	x			\b, 0x%x bit field
+# text of document; some times start with 4 non printable characters like CR LF
+>>128	ubyte		x			\b,
+>>>128		ubyte	>0x1F
+>>>>128		string	x			%s
+>>>128		ubyte	<0x20
+>>>>129		ubyte	>0x1F
+>>>>>129	string	x			%s
+>>>>129		ubyte	<0x20
+>>>>>130	ubyte	>0x1F
+>>>>>>130	string	x			%s
+>>>>>130	ubyte	<0x20
+>>>>>>131	ubyte	>0x1F
+>>>>>>>131	string	x			%s
+>>>>>>131	ubyte	<0x20
+>>>>>>>132	ubyte	>0x1F
+>>>>>>>>132	string	x			%s
+>>>>>>>132	ubyte	<0x20
+>>>>>>>>133	ubyte	>0x1F
+>>>>>>>>>133	string	x			%s
 #
 0	string/b	PO^Q`				Microsoft Word 6.0 Document
 !:mime	application/msword
@@ -686,23 +765,15 @@
 0	string/b	\xDB\xA5\x2D\x00		Microsoft WinWord 2.0 Document
 !:mime application/msword
 #
-2080	string	Microsoft\ Excel\ 5.0\ Worksheet	%s
-!:mime	application/vnd.ms-excel
-#
 0	string/b	\xDB\xA5\x2D\x00		Microsoft WinWord 2.0 Document
 !:mime application/msword
 
-2080	string	Foglio\ di\ lavoro\ Microsoft\ Exce	%s
-!:mime	application/vnd.ms-excel
 #
-# Pawel Wiecek <coven@i17linuxb.ists.pwr.wroc.pl> (for polish Excel)
-2114	string	Biff5		Microsoft Excel 5.0 Worksheet
-!:mime	application/vnd.ms-excel
-# Italian MS-Excel
-2121	string	Biff5		Microsoft Excel 5.0 Worksheet
-!:mime	application/vnd.ms-excel
 0	string/b	\x09\x04\x06\x00\x00\x00\x10\x00	Microsoft Excel Worksheet
 !:mime	application/vnd.ms-excel
+# https://www.macdisk.com/macsigen.php
+!:apple	XCELXLS4
+!:ext	xls
 #
 # Update: Joerg Jenderek
 # URL: https://en.wikipedia.org/wiki/Lotus_1-2-3
@@ -900,10 +971,6 @@
 
 # windows zips files .dmf
 0	string/b	MDIF\032\000\010\000\000\000\372\046\100\175\001\000\001\036\001\000 MS Windows special zipped file
-
-
-#ico files
-0	string/b	\102\101\050\000\000\000\056\000\000\000\000\000\000\000	Icon for MS Windows
 
 # Windows icons
 # Update: Joerg Jenderek
@@ -1395,9 +1462,6 @@
 
 
 0	string/b	\224\246\056		Microsoft Word Document
-!:mime	application/msword
-
-512	string	R\0o\0o\0t\0\ \0E\0n\0t\0r\0y	Microsoft Word Document
 !:mime	application/msword
 
 # From: "Nelson A. de Oliveira" <naoliv@gmail.com>

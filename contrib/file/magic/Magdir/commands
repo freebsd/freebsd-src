@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: commands,v 1.60 2019/04/19 00:42:27 christos Exp $
+# $File: commands,v 1.61 2019/10/30 03:16:43 christos Exp $
 # commands:  file(1) magic for various shells and interpreters
 #
 #0	string/w	:			shell archive or script for antique kernel text
@@ -35,6 +35,9 @@
 !:mime	text/x-shellscript
 0	string/wt	#!\ /usr/local/bin/zsh	Paul Falstad's zsh script text executable
 !:mime	text/x-shellscript
+0	search/1	#!/usr/bin/env\ zsh	Paul Falstad's zsh script text executable
+!:mime	text/x-shellscript
+
 0	string/wt	#!\ /usr/local/bin/ash	Neil Brown's ash script text executable
 !:mime	text/x-shellscript
 0	string/wt	#!\ /usr/local/bin/ae	Neil Brown's ae script text executable

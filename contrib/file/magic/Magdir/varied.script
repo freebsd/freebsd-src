@@ -1,30 +1,38 @@
 #------------------------------------------------------------------------------
-# $File: varied.script,v 1.12 2019/04/19 00:42:27 christos Exp $
+# $File: varied.script,v 1.13 2019/10/11 14:35:29 christos Exp $
 # varied.script:  file(1) magic for various interpreter scripts
 
 0	string/t		#!\ /			a
 >3	string		>\0			%s script text executable
+!:strength / 2
 
 0	string/b		#!\ /			a
 >3	string		>\0			%s script executable (binary data)
+!:strength / 2
 
 0	string/t		#!\t/			a
 >3	string		>\0			%s script text executable
+!:strength / 2
 
 0	string/b		#!\t/			a
 >3	string		>\0			%s script executable (binary data)
+!:strength / 2
 
 0	string/t		#!/			a
 >2	string		>\0			%s script text executable
+!:strength / 2
 
 0	string/b		#!/			a
 >2	string		>\0			%s script executable (binary data)
+!:strength / 2
 
 0	string/t		#!\ 			script text executable
 >3	string		>\0			for %s
+!:strength / 2
 
 0	string/b		#!\ 			script executable
 >3	string		>\0			for %s (binary data)
+!:strength / 2
 
 # using env
 0	string/t	#!/usr/bin/env		a

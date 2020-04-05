@@ -1,7 +1,7 @@
 
 
 #------------------------------------------------------------------------------
-# $File: map,v 1.7 2019/04/30 04:02:04 christos Exp $
+# $File: map,v 1.8 2019/12/01 22:46:23 christos Exp $
 # map:  file(1) magic for Map data
 #
 
@@ -315,6 +315,83 @@
 # Header length; GMP:31h 35h 3Dh,MDR:11Eh 238h 2C4h 310h,NOD:3Fh 7Fh,NET:64h,
 # LBL:2A9h,SRT:1Dh 25h 27h,TRE:CFh 135h,TRF:5Ah,TYP:5Bh 6Eh 7Ch AEh,RGN:7Dh
 >>0	uleshort	x		\b, header length 0x%x
+
+# URL:		https://www.memotech.franken.de/FileFormats/
+# Reference:	https://www.memotech.franken.de/FileFormats/Garmin_RGN_Format.pdf
+# From:		Joerg Jenderek
+0	string		KpGr		Garmin update
+# format version like: 0064h~1.0
+>0x4	uleshort	!0x0064
+>>4	uleshort/100	x		\b, version %u
+>>4	uleshort%100	x		\b.%u
+# 1st Garmin entry
+>6	use	garmin-entry
+# 2nd Garmin entry
+>(0x6.l+10)	ubyte		x
+>>&0		use		garmin-entry
+# 3rd entry
+>(0x6.l+10)	ubyte		x
+>>&(&0.l+4)	ubyte		x
+>>>&0		use		garmin-entry
+# look again at version to use default clause
+>0x4	uleshort	x
+# test for region content by looking for
+# Garmin *.srf by ./images with normal builder name "SQA" or longer "hales"
+# 1 space after equal sign
+>>0x3a	search/5/s	GARMIN\ BITMAP	\b= 
+!:mime	image/x-garmin-exe
+!:ext	exe
+>>>&0	indirect	x
+# if not bitmap *.srf then region; 1 space after equal sign
+>>0x3a	default		x		\b= 
+!:mime	application/x-garmin-rgn
+!:ext	rgn
+# recursiv embedded
+>>>0x3a	search/5/s	KpGrd
+>>>>&0	indirect	x
+# look for ZIP or JAR archive by ./archive and ./zip
+>>>0x3a	search/5/s	PK\003\004
+>>>>&0	indirect	x
+# TODO: other garmin RGN record content like foo
+#>>0x3a	search/5/s	bar		BAR
+#		display information of Garmin RGN record
+0	name	garmin-entry
+# record length: 2 for Data, for Application often 1Bh sometimes 1Dh, "big" for Region
+#>0	ulelong		x		\b, length 0x%x
+# data record (ID='D') with version content like 0064h~1.0
+>4	ubyte		=0x44
+>>5	uleshort	!0x0064		\b; Data
+>>>5	uleshort/100	x		\b, version %u
+>>>5	uleshort%100	x		\b.%u
+# Application Record (ID='A')
+>4	ubyte		=0x41		\b; App
+# version content like 00c8h~2.0
+>>5	uleshort	!0x00C8
+>>>5	uleshort/100	x		\b, version %u
+>>>5	uleshort%100	x		\b.%u
+# builder name like: SQA sqa build hales
+>>7	string		x		\b, build by %s
+# build date like: Oct 25 1999, Oct 1 2008, Feb 23 2009, Dec 15 2009
+>>>&1	string		x		%s
+# build time like: 11:26:12, 11:45:54, 14:16:13, 18:23:01
+>>>>&1	string		x		%s
+# region record (ID='R')
+>4	ubyte		=0x52		\b; Region
+# region ID:14~fw_all.bin: 78~ZIP, RGN or SRF bitmap; 148~ZIP or JAR; 249~display firmware; 251~WiFi or GCD firmware; 255~ZIP
+>>5	uleshort	x		ID=%u
+# delay in ms: like 0, 500
+>>7	ulelong		!0		\b, %u ms
+# region size (is record length - 10)
+#>>11	ulelong		x		\b, length 0x%x
+# region content like:
+# "KpGr"~recursiv embedded,"GARMIN BITMAP"~Garmin Bitmap *.srf, "PK"~ZIP archive
+#>>15	string		x		\b, content "%s"
+>>15	ubequad		x		\b, content 0x%llx...
+# This does NOT WORK!
+#>>15	indirect	x		\b; contains 
+>4	default		x		\b; other
+# garmin Record ID Identifies the record content like: D A R
+>>4	ubyte		x		ID '%c'
 
 # TOM TOM GPS watches ttbin files:
 # https://github.com/ryanbinns/ttwatch/tree/master/ttbin

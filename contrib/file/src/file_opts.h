@@ -4,7 +4,10 @@
  * The first column specifies the short name, if any, or 0 if none.
  * The second column specifies the long name.
  * The third column specifies whether it takes a parameter.
- * The fourth column is the documentation.
+ * The fourth colums specifies whether is is marked as "default"
+ *      if POSIXLY_CORRECT is defined: 1,
+ *      if POSIXLY_CORRECT is not defined: 2.
+ * The fifth column is the documentation.
  *
  * N.B. The long options' order must correspond to the code in file.c,
  * and OPTSTRING must be kept up-to-date with the short options.
@@ -54,8 +57,6 @@ OPT('P', "parameter", 1, 0, "            set file engine parameter limits\n"
 OPT('r', "raw", 0, 0, "                  don't translate unprintable chars to \\ooo\n")
 OPT('s', "special-files", 0, 0, "        treat special (block/char devices) files as\n"
     "                             ordinary ones\n")
-#ifdef HAVE_LIBSECCOMP
 OPT('S', "no-sandbox", 0, 0, "           disable system call sandboxing\n")
-#endif
 OPT('C', "compile", 0, 0, "              compile file specified by -m\n")
 OPT('d', "debug", 0, 0, "                print debugging messages\n")

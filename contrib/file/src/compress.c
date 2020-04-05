@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.121 2019/05/07 02:27:11 christos Exp $")
+FILE_RCSID("@(#)$File: compress.c,v 1.124 2019/07/21 11:42:09 christos Exp $")
 #endif
 
 #include "magic.h"
@@ -66,9 +66,14 @@ typedef void (*sig_t)(int);
 #include <zlib.h>
 #endif
 
-#if defined(HAVE_BZLIB_H)
+#if defined(HAVE_BZLIB_H) || defined(BZLIBSUPPORT)
 #define BUILTIN_BZLIB
 #include <bzlib.h>
+#endif
+
+#if defined(HAVE_XZLIB_H) || defined(XZLIBSUPPORT)
+#define BUILTIN_XZLIB
+#include <lzma.h>
 #endif
 
 #ifdef DEBUG
@@ -113,6 +118,16 @@ zlibcmp(const unsigned char *buf)
 }
 #endif
 
+static int
+lzmacmp(const unsigned char *buf)
+{
+	if (buf[0] != 0x5d || buf[1] || buf[2])
+		return 0;
+	if (buf[12] && buf[12] != 0xff)
+		return 0;
+	return 1;
+}
+
 #define gzip_flags "-cd"
 #define lrzip_flags "-do"
 #define lzip_flags gzip_flags
@@ -147,29 +162,35 @@ static const char *zstd_args[] = {
 
 private const struct {
 	const void *magic;
-	size_t maglen;
+	int maglen;
 	const char **argv;
 	void *unused;
 } compr[] = {
-	{ "\037\235",	2, gzip_args, NULL },		/* compressed */
+#define METH_FROZEN	2
+#define METH_BZIP	7
+#define METH_XZ		9
+#define METH_LZMA	13
+#define METH_ZLIB	14
+	{ "\037\235",	2, gzip_args, NULL },		/* 0, compressed */
 	/* Uncompress can get stuck; so use gzip first if we have it
 	 * Idea from Damien Clark, thanks! */
-	{ "\037\235",	2, uncompress_args, NULL },	/* compressed */
-	{ "\037\213",	2, gzip_args, do_zlib },	/* gzipped */
-	{ "\037\236",	2, gzip_args, NULL },		/* frozen */
-	{ "\037\240",	2, gzip_args, NULL },		/* SCO LZH */
+	{ "\037\235",	2, uncompress_args, NULL },	/* 1, compressed */
+	{ "\037\213",	2, gzip_args, do_zlib },	/* 2, gzipped */
+	{ "\037\236",	2, gzip_args, NULL },		/* 3, frozen */
+	{ "\037\240",	2, gzip_args, NULL },		/* 4, SCO LZH */
 	/* the standard pack utilities do not accept standard input */
-	{ "\037\036",	2, gzip_args, NULL },		/* packed */
-	{ "PK\3\4",	4, gzip_args, NULL },		/* pkzipped, */
+	{ "\037\036",	2, gzip_args, NULL },		/* 5, packed */
+	{ "PK\3\4",	4, gzip_args, NULL },		/* 6, pkzipped, */
 	/* ...only first file examined */
-	{ "BZh",	3, bzip2_args, do_bzlib },	/* bzip2-ed */
-	{ "LZIP",	4, lzip_args, NULL },		/* lzip-ed */
- 	{ "\3757zXZ\0",	6, xz_args, NULL },		/* XZ Utils */
- 	{ "LRZI",	4, lrzip_args, NULL },	/* LRZIP */
- 	{ "\004\"M\030",4, lz4_args, NULL },		/* LZ4 */
- 	{ "\x28\xB5\x2F\xFD", 4, zstd_args, NULL },	/* zstd */
+	{ "BZh",	3, bzip2_args, do_bzlib },	/* 7, bzip2-ed */
+	{ "LZIP",	4, lzip_args, NULL },		/* 8, lzip-ed */
+ 	{ "\3757zXZ\0",	6, xz_args, NULL },		/* 9, XZ Utils */
+ 	{ "LRZI",	4, lrzip_args, NULL },	/* 10, LRZIP */
+ 	{ "\004\"M\030",4, lz4_args, NULL },		/* 11, LZ4 */
+ 	{ "\x28\xB5\x2F\xFD", 4, zstd_args, NULL },	/* 12, zstd */
+	{ RCAST(const void *, lzmacmp),	-13, xz_args, NULL },	/* 13, lzma */
 #ifdef ZLIBSUPPORT
-	{ RCAST(const void *, zlibcmp),	0, zlib_args, NULL },	/* zlib */
+	{ RCAST(const void *, zlibcmp),	-2, zlib_args, NULL },	/* 14, zlib */
 #endif
 };
 
@@ -190,7 +211,11 @@ private int uncompressgzipped(const unsigned char *, unsigned char **, size_t,
 #endif
 #ifdef BUILTIN_BZLIB
 private int uncompressbzlib(const unsigned char *, unsigned char **, size_t,
-    size_t *, int);
+    size_t *);
+#endif
+#ifdef BUILTIN_XZLIB
+private int uncompressxzlib(const unsigned char *, unsigned char **, size_t,
+    size_t *);
 #endif
 
 static int makeerror(unsigned char **, size_t *, const char *, ...)
@@ -234,15 +259,15 @@ file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 
 	for (i = 0; i < ncompr; i++) {
 		int zm;
-		if (nbytes < compr[i].maglen)
+		if (nbytes < CAST(size_t, abs(compr[i].maglen)))
 			continue;
-#ifdef ZLIBSUPPORT
-		if (compr[i].maglen == 0)
+		if (compr[i].maglen < 0) {
 			zm = (RCAST(int (*)(const unsigned char *),
 			    CCAST(void *, compr[i].magic)))(buf);
-		else
-#endif
-			zm = memcmp(buf, compr[i].magic, compr[i].maglen) == 0;
+		} else {
+			zm = memcmp(buf, compr[i].magic,
+			    CAST(size_t, compr[i].maglen)) == 0;
+		}
 
 		if (!zm)
 			continue;
@@ -570,6 +595,90 @@ err:
 }
 #endif
 
+#ifdef BUILTIN_BZLIB
+private int
+uncompressbzlib(const unsigned char *old, unsigned char **newch,
+    size_t bytes_max, size_t *n)
+{
+	int rc;
+	bz_stream bz;
+
+	memset(&bz, 0, sizeof(bz));
+	rc = BZ2_bzDecompressInit(&bz, 0, 0);
+	if (rc != BZ_OK)
+		goto err;
+
+	if ((*newch = CAST(unsigned char *, malloc(bytes_max + 1))) == NULL)
+		return makeerror(newch, n, "No buffer, %s", strerror(errno));
+
+	bz.next_in = CCAST(char *, RCAST(const char *, old));
+	bz.avail_in = CAST(uint32_t, *n);
+	bz.next_out = RCAST(char *, *newch);
+	bz.avail_out = CAST(unsigned int, bytes_max);
+
+	rc = BZ2_bzDecompress(&bz);
+	if (rc != BZ_OK && rc != BZ_STREAM_END)
+		goto err;
+
+	/* Assume byte_max is within 32bit */
+	/* assert(bz.total_out_hi32 == 0); */
+	*n = CAST(size_t, bz.total_out_lo32);
+	rc = BZ2_bzDecompressEnd(&bz);
+	if (rc != BZ_OK)
+		goto err;
+
+	/* let's keep the nul-terminate tradition */
+	(*newch)[*n] = '\0';
+
+	return OKDATA;
+err:
+	snprintf(RCAST(char *, *newch), bytes_max, "bunzip error %d", rc);
+	*n = strlen(RCAST(char *, *newch));
+	return ERRDATA;
+}
+#endif
+
+#ifdef BUILTIN_XZLIB
+private int
+uncompressxzlib(const unsigned char *old, unsigned char **newch,
+    size_t bytes_max, size_t *n)
+{
+	int rc;
+	lzma_stream xz;
+
+	memset(&xz, 0, sizeof(xz));
+	rc = lzma_auto_decoder(&xz, UINT64_MAX, 0);
+	if (rc != LZMA_OK)
+		goto err;
+
+	if ((*newch = CAST(unsigned char *, malloc(bytes_max + 1))) == NULL)
+		return makeerror(newch, n, "No buffer, %s", strerror(errno));
+
+	xz.next_in = CCAST(const uint8_t *, old);
+	xz.avail_in = CAST(uint32_t, *n);
+	xz.next_out = RCAST(uint8_t *, *newch);
+	xz.avail_out = CAST(unsigned int, bytes_max);
+
+	rc = lzma_code(&xz, LZMA_RUN);
+	if (rc != LZMA_OK && rc != LZMA_STREAM_END)
+		goto err;
+
+	*n = CAST(size_t, xz.total_out);
+
+	lzma_end(&xz);
+
+	/* let's keep the nul-terminate tradition */
+	(*newch)[*n] = '\0';
+
+	return OKDATA;
+err:
+	snprintf(RCAST(char *, *newch), bytes_max, "unxz error %d", rc);
+	*n = strlen(RCAST(char *, *newch));
+	return ERRDATA;
+}
+#endif
+
+
 static int
 makeerror(unsigned char **buf, size_t *len, const char *fmt, ...)
 {
@@ -676,12 +785,24 @@ filter_error(unsigned char *ubuf, ssize_t n)
 private const char *
 methodname(size_t method)
 {
+	switch (method) {
 #ifdef BUILTIN_DECOMPRESS
-        /* FIXME: This doesn't cope with bzip2 */
-	if (method == 2 || compr[method].maglen == 0)
-	    return "zlib";
+	case METH_FROZEN:
+	case METH_ZLIB:
+		return "zlib";
 #endif
-	return compr[method].argv[0];
+#ifdef BUILTIN_BZLIB
+	case METH_BZIP:
+		return "bzlib";
+#endif
+#ifdef BUILTIN_XZLIB
+	case METH_XZ:
+	case METH_LZMA:
+		return "xzlib";
+#endif
+	default:
+		return compr[method].argv[0];
+	}
 }
 
 private int
@@ -695,13 +816,26 @@ uncompressbuf(int fd, size_t bytes_max, size_t method, const unsigned char *old,
 	size_t i;
 	ssize_t r;
 
+	switch (method) {
 #ifdef BUILTIN_DECOMPRESS
-        /* FIXME: This doesn't cope with bzip2 */
-	if (method == 2)
+	case METH_FROZEN:
 		return uncompressgzipped(old, newch, bytes_max, n);
-	if (compr[method].maglen == 0)
+	case METH_ZLIB:
 		return uncompresszlib(old, newch, bytes_max, n, 1);
 #endif
+#ifdef BUILTIN_BZLIB
+	case METH_BZIP:
+		return uncompressbzlib(old, newch, bytes_max, n);
+#endif
+#ifdef BUILTIN_XZLIB
+	case METH_XZ:
+	case METH_LZMA:
+		return uncompressxzlib(old, newch, bytes_max, n);
+#endif
+	default:
+		break;
+	}
+
 	(void)fflush(stdout);
 	(void)fflush(stderr);
 

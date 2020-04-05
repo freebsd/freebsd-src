@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.160 2019/04/19 00:42:27 christos Exp $
+# $File: images,v 1.171 2019/11/23 16:19:47 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -498,7 +498,31 @@
 >12	lelong		>0		%d-bit
 
 # Magick Image File Format
-0	string		id=ImageMagick	MIFF image data
+# URL:		https://imagemagick.org/script/miff.php
+# Reference:	http://fileformats.archiveteam.org/wiki/MIFF
+# Update:	Joerg Jenderek
+# http://www.nationalarchives.gov.uk/pronom/fmt/930
+0	search/256/bc	id=imagemagick
+# skip bad ASCII text by following new line~0x0A or space~0x20 character
+#>&0	ubyte		x		\b, next character 0x%x
+# called by TriD ImageMagick Machine independent File Format bitmap
+>&0	ubyte&0xD5	0		MIFF image data
+# https://reposcope.com/mimetype/image/miff
+#!:mime	image/miff
+!:mime	image/x-miff
+!:ext	miff/mif
+# examples with standard file(1) magic
+#>>0	string		=id=ImageMagick	with standard magic
+# examples with unusual file(1) magic like 
+>>0	string		!id=ImageMagick	starting with
+# start with comment (brace) like http://samples.fileformat.info/.../AQUARIUM.MIF
+>>>0	ubyte		=0x7b		comment
+# skip second character which is often a newline and show comment
+>>>>2	string		x		"%s"
+# does not start with comment, probably letters with other case like Id=ImageMagick
+# ImageMagick-7.0.9-2/Magick++/demo/smile_anim.miff
+>>>0	ubyte		!0x7b
+>>>>0	string		>\0		'%-.14s'
 
 # Artisan
 0	long		1123028772	Artisan image data
@@ -572,20 +596,115 @@
 # PC bitmaps (OS/2, Windows BMP files)  (Greg Roelofs, newt@uchicago.edu)
 # https://en.wikipedia.org/wiki/BMP_file_format#DIB_header_.\
 # 28bitmap_information_header.29
+# Note:	variant starting direct with DIB header see
+#	http://fileformats.archiveteam.org/wiki/BMP
+#	verified by ImageMagick version 6.8.9-8 command `identify *.dib`
+0	leshort		40
+# skip bad samples like GAME by looking for valid number of color planes
+>12	uleshort	1		Device independent bitmap graphic
+!:mime	image/bmp
+!:apple	????BMPp
+!:ext	dib
+>>4	lelong		x		\b, %d x
+>>8	lelong		x		%d x
+>>14	leshort		x		%d
+# number of color planes (must be 1) 
+#>>12	uleshort	>1		\b, %u color planes
+# compression method: 0~no 1~RLE 8-bit/pixel 3~Huffman 1D
+#>>16	ulelong		3		\b, Huffman 1D compression
+>>16	ulelong		>0		\b, %u compression
+# image size is the size of raw bitmap; a dummy 0 can be given for BI_RGB bitmaps
+>>20	ulelong		x		\b, image size %u
+# horizontal and vertical resolution of the image (pixel per metre, signed integer) 
+>>24	lelong		>0		\b, resolution %d x
+>>>28	lelong		x		%d px/m
+# number of colors in palette, or 0 to default to 2**n
+#>>32	ulelong		>0		\b, %u colors
+# number of important colors used, or 0 when every color is important
+>>36	ulelong		>0		\b, %u important colors
 0	string		BM
 >14	leshort		12		PC bitmap, OS/2 1.x format
 !:mime	image/x-ms-bmp
 >>18	leshort		x		\b, %d x
 >>20	leshort		x		%d
 >14	leshort		64		PC bitmap, OS/2 2.x format
-!:mime	image/x-ms-bmp
->>18	leshort		x		\b, %d x
->>20	leshort		x		%d
->14	leshort		40		PC bitmap, Windows 3.x format
-!:mime	image/x-ms-bmp
+!:mime	image/bmp
+!:apple	????BMPp
+!:ext	bmp
+# image width and height fields are unsigned integers for OS/2
+>>18	ulelong		x		\b, %u x
+>>22	ulelong		x		%u
+# number of bits per pixel (color depth); found 1 4 8
+>>28	uleshort	>1		x %u
+# x, y coordinates of the hotspot
+>>6	uleshort	>0		\b, hotspot %ux
+>>>8	uleshort	x		\b%u
+>>26	uleshort	>1		\b, %u color planes
+# cbSize; size of file or headers
+>>2	ulelong		x		\b, cbSize %u
+#>>2	ulelong		x		\b, cbSize 0x%x
+# offBits; offset to bitmap data like 56h 5Eh 8Eh 43Eh
+>>10	ulelong			x	\b, bits offset %u
+#>>10	ulelong			x	\b, bits offset 0x%x
+#>>(10.l) ubequad		!0	\b, bits 0x%16.16llx
+# BITMAPV2INFOHEADER	adds RGB bit masks
+>14	leshort		52		PC bitmap, Adobe Photoshop
+!:mime	image/bmp
+!:apple	????BMPp
+!:ext	bmp
 >>18	lelong		x		\b, %d x
 >>22	lelong		x		%d x
 >>28	leshort		x		%d
+# BITMAPV3INFOHEADER	adds alpha channel bit mask
+>14	leshort		56		PC bitmap, Adobe Photoshop with alpha channel mask
+!:mime	image/bmp
+!:apple	????BMPp
+!:ext	bmp
+>>18	lelong		x		\b, %d x
+>>22	lelong		x		%d x
+>>28	leshort		x		%d
+>14	leshort		40
+# jump 4 bytes before end of file/header to skip fmt-116-signature-id-118.dib
+>>(2.l-4)	ulong	x		PC bitmap, Windows 3.x format
+!:mime	image/bmp
+!:apple	????BMPp
+>>>18	lelong		x		\b, %d x
+>>>22	lelong		x		%d
+# 320 x 400		https://en.wikipedia.org/wiki/LOGO.SYS
+>>>18	ulequad		=0x0000019000000140	x
+!:ext	bmp/sys
+>>>18	ulequad		!0x0000019000000140
+# compression method 2~RLE 4-bit/pixel implies also extension rle
+>>>>30	ulelong		2		x
+!:ext	bmp/rle
+>>>>30	default		x		x
+!:ext	bmp
+# number of bits per pixel (color depth); found 1 2 4 8 16 24 32
+>>>28	leshort		x		%d
+# x, y coordinates of the hotspot; there is no hotspot in bitmaps, so values 0
+#>>>6	uleshort	>0		\b, hotspot %ux
+#>>>>8	uleshort	x		\b%u
+# number of color planes (must be 1), except badplanes.bmp for testing
+#>>>26	uleshort	>1		\b, %u color planes
+# compression method: 0~no 1~RLE 8-bit/pixel 2~RLE 4-bit/pixel 3~Huffman 1D 6~RGBA bit field masks
+#>>>30	ulelong		3		\b, Huffman 1D compression
+>>>30	ulelong		>0		\b, %u compression
+# image size is the size of raw bitmap; a dummy 0 can be given for BI_RGB bitmaps
+>>>34	ulelong		>0		\b, image size %u
+# horizontal and vertical resolution of the image (pixel per metre, signed integer) 
+>>>38	lelong		>0		\b, resolution %d x
+>>>>42	lelong		x		%d px/m
+# number of colors in palette 16 256, or 0 to default to 2**n
+#>>>46	ulelong		>0		\b, %u colors
+# number of important colors used, or 0 when every color is important
+>>>50	ulelong		>0		\b, %u important colors
+# cbSize; often size of file
+>>>2	ulelong		x		\b, cbSize %u
+#>>>2	ulelong		x		\b, cbSize 0x%x
+# offBits; offset to bitmap data like 36h 76h BEh 236h 406h 436h 4E6h
+>>>10	ulelong			x	\b, bits offset %u
+#>>>10	ulelong			x	\b, bits offset 0x%x
+#>>>(10.l) ubequad		!0	\b, bits 0x%16.16llxd
 >14	leshort		124		PC bitmap, Windows 98/2000 and newer format
 !:mime	image/x-ms-bmp
 >>18	lelong		x		\b, %d x
@@ -601,13 +720,143 @@
 >>18	lelong		x		\b, %d x
 >>22	lelong		x		%d x
 >>28	leshort		x		%d
-# Too simple - MPi
-#0	string		IC		PC icon data
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/OS/2_Icon
+# Reference:	http://www.fileformat.info
+#		/format/os2bmp/spec/902d5c253f2a43ada39c2b81034f27fd/view.htm
+# Note: verified by command like `deark -l -d3 OS2MEMU.ICO`
+0	string			IC
+# skip Lotus smart icon *.smi by looking for valid hotspot coordinates
+>6	ulelong&0xFF00FF00	=0	OS/2 icon
+# jump 4 bytes before end of header/file and test for accessibility
+#>>(2.l-4) ubelong		x	End of header is OK!
+!:mime	image/x-os2-ico
+!:ext	ico
+# cbSize; size of header or file in bytes like 1ah 120h 420h
+>>2	ulelong			x	\b, cbSize %u
+# xHotspot, yHotspot; coordinates of the hotspot for icons like 16 32
+>>6	uleshort		x	\b, hotspot %ux
+>>8	uleshort		x	\b%u
+# offBits; offset in bytes to the beginning of the bit-map pel data like 20h
+>>10	ulelong			x	\b, bits offset %u
+#>>(10.l) ubequad		x	\b, bits 0x%16.16llx
 #0	string		PI		PC pointer image data
 #0	string		CI		PC color icon data
+0	string		CI
+# test also for valid dib header sizes 12 or 64
+>14	ulelong		<65		OS/2
+# test also for valid hotspot coordinates
+#>>6	ulelong&0xFE00FE00	=0	OS/2
+!:mime	image/x-os2-ico
+!:ext	ico
+>>14	ulelong		12		1.x color icon
+# image width and height fields are unsigned integers for OS/2
+>>>18	uleshort	x		%u x
+# stored height = 2 * real height
+>>>20	uleshort/2	x		%u
+# number of bits per pixel (color depth). Typical 32 24 16 8 4 but only 1 found
+>>>24	uleshort	>1		x %u
+# color planes; must be 1
+#>>>22	uleshort	>1		\b, %u color planes
+>>14	ulelong		64		2.x color icon
+# image width and height
+>>>18	ulelong		x		%u x
+# stored height = 2 * real height
+>>>22	ulelong/2	x		%u
+# number of bits per pixel (color depth). only 1 found
+>>>28	uleshort	>1		x %u
+#>>>26	uleshort	>1		\b, %u color planes
+# compression method: 0~no 3~Huffman 1D
+>>>30	ulelong		3		\b, Huffman 1D compression
+#>>>30	ulelong		>0		\b, %u compression
+# xHotspot, yHotspot; coordinates of the hotspot like 0 1 16 20 32 33 63 64
+>>6	uleshort		x	\b, hotspot %ux
+>>8	uleshort		x	\b%u
+# cbSize; size of header or maybe file in bytes like 1Ah 4Eh 84Eh
+>>2	ulelong			x	\b, cbSize %u
+#>>2	ulelong			x	\b, cbSize %x
+# offBits; offset to bitmap data (pixel array) like E4h 3Ah 66h 6Ah 33Ah 4A4h
+>>10	ulelong			x	\b, bits offset %u
+#>>10	ulelong			x	\b, bits offset 0x%x
+#>>(10.l) ubequad		!0	\b, bits 0x%16.16llx
+# dib header size: 12~Ch~OS/2 1.x 64~40h~OS/2 2.x
+#>>14	ulelong		x		\b, dib header size %u
 #0	string		CP		PC color pointer image data
+# URL:		http://fileformats.archiveteam.org/wiki/OS/2_Pointer
+# Reference:	http://www.fileformat.info/format/os2bmp/egff.htm
+0	string		CP
+# skip CPU-Z Report by checking for valid dib header sizes 12 or 64
+>14	ulelong		<65		OS/2
+# http://extension.nirsoft.net/PTR
+!:mime	image/x-ibm-pointer
+!:ext	ptr
+>>14	ulelong		12		1.x color pointer
+# image width and height fields are unsigned integers for OS/2
+>>>18	uleshort	x		%u x
+# stored height = 2 * real height
+>>>20	uleshort/2	x		%u
+# number of bits per pixel (color depth). Typical 32 24 16 8 4 but only 1 found
+>>>24	uleshort	>1		x %u
+# color planes; must be 1
+#>>>22	uleshort	>1		\b, %u color planes
+>>14	ulelong		64		2.x color pointer
+# image width and height
+>>>18	ulelong		x		%u x
+# stored height = 2 * real height
+>>>22	ulelong/2	x		%u
+# number of bits per pixel (color depth). only 1 found
+>>>28	uleshort	>1		x %u
+#>>>26	uleshort	>1		\b, %u color planes
+# compression method: 0~no 3~Huffman 1D
+>>>30	ulelong		3		\b, Huffman 1D compression
+#>>>30	ulelong		>0		\b, %u compression
+# xHotspot, yHotspot; coordinates of the hotspot like 0 3 4 8 15 16 23 27 31
+>>6	uleshort		x	\b, hotspot %ux
+>>8	uleshort		x	\b%u
+# cbSize; size of header or maybe file in bytes like 1Ah 4Eh
+>>2	ulelong			x	\b, cbSize %u
+#>>2	ulelong			x	\b, cbSize %x
+# offBits; offset to bitmap data (pixel array) like 6Ah A4h E4h 4A4h
+>>10	ulelong			x	\b, bits offset %u
+#>>10	ulelong			x	\b, bits offset 0x%x
+#>>(10.l) ubequad		!0	\b, bits 0x%16.16llx
+# dib header size: 12~Ch~OS/2 1.x 64~40h~OS/2 2.x
+#>>14	ulelong		x		\b, dib header size %u
 # Conflicts with other entries [BABYL]
+# URL:	http://fileformats.archiveteam.org/wiki/BMP#OS.2F2_Bitmap_Array
+# Note:	container for OS/2 icon "IC", color icon "CI", color pointer "CP" or bitmap "BM"
 #0	string		BA		PC bitmap array data
+0	string		BA
+# skip old Emacs RMAIL BABYL ./mail.news by checking for low header size
+>2	ulelong		<0x004c5942	OS/2 graphic array
+!:mime	image/x-os2-graphics
+#!:apple	????BMPf
+# cbSize; size of header like 28h 5Ch
+>>2	ulelong			x	\b, cbSize %u
+#>>2	ulelong			x	\b, cbSize 0x%x
+# offNext; offset to data like 0 48h F2h 4Eh 64h C6h D2h D6h DAh E6h EAh 348h
+>>6	ulelong			>0	\b, data offset %u
+#>>6	ulelong			>0	\b, data offset 0x%x
+#>>(6.l) ubequad		!0	\b, data 0x%16.16llx
+# dimensions of the intended device like 640 x 480 for VGA or 1024 x 768
+>>10	uleshort	>0		\b, display %u
+>>>12	uleshort	>0		x %u
+# usType of first array element
+#>>14	string		x		\b, usType %2.2s
+# 1 space char after "1st"
+# no *.bga examples found https://www.openwith.org/file-extensions/bga/1342
+>>14	string		BM	\b; 1st 
+!:ext	bmp/bga
+>>14	string		CI	\b; 1st 
+!:ext	ico
+>>14	string		CP	\b; 1st 
+!:ext	ico
+>>14	string		IC	\b; 1st 
+!:ext	ico
+# no white-black pointer found
+#>>14	string		PT	\b; 1st 
+#!:ext	
+>>14	indirect	x	
 
 # XPM icons (Greg Roelofs, newt@uchicago.edu)
 0	search/1	/*\ XPM\ */	X pixmap image text
@@ -1960,3 +2209,26 @@
 0	string		XPR0	Microsoft Xbox XPR0 texture
 >0x19	byte	x	\b, format:
 >>0x19	use	xbox-xpr-pixel-format
+
+# ILDA Image Data Transfer Format
+# https://www.ilda.com/resources/StandardsDocs/ILDA_IDTF14_rev011.pdf
+#
+# Updated by Chuck Hein (laser@geekdude.com)
+#
+0	string	ILDA	ILDA Image Data Transfer Format
+>7	byte	0x00	3D Coordinates with Indexed Color
+>7	byte	0x01	2D Coordinates with Indexed Color
+>7	byte	0x02	Color Palette
+>7	byte	0x04	3D Coordinates with True Color
+>7	byte	0x05	2D Coordinates with True Color
+>8	string	>0	\b, palette %s
+>16	string	>0	\b, company %s
+>24	beshort	>0	\b, number of records %d
+>>26	beshort	x	\b, palette number %d
+>>28	beshort	>0	\b, number of frames %d
+>>30	byte	>0	\b, projector number %d
+
+# Dropbox "lepton" compressed jpeg format
+# https://github.com/dropbox/lepton
+0	belong&0xfffff0ff	0xcf84005a	Lepton image file
+>2	byte			x		(version %d)
