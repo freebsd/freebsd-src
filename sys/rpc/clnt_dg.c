@@ -94,6 +94,8 @@ static struct clnt_ops clnt_dg_ops = {
 	.cl_control =	clnt_dg_control
 };
 
+static volatile uint32_t rpc_xid = 0;
+
 /*
  * A pending RPC request which awaits a reply. Requests which have
  * received their reply will have cr_xid set to zero and cr_mrep to
@@ -193,6 +195,7 @@ clnt_dg_create(
 	struct __rpc_sockinfo si;
 	XDR xdrs;
 	int error;
+	uint32_t newxid;
 
 	if (svcaddr == NULL) {
 		rpc_createerr.cf_stat = RPC_UNKNOWNADDR;
@@ -245,8 +248,10 @@ clnt_dg_create(
 	cu->cu_sent = 0;
 	cu->cu_cwnd_wait = FALSE;
 	(void) getmicrotime(&now);
-	cu->cu_xid = __RPC_GETXID(&now);
-	call_msg.rm_xid = cu->cu_xid;
+	/* Clip at 28bits so that it will not wrap around. */
+	newxid = __RPC_GETXID(&now) & 0xfffffff;
+	atomic_cmpset_32(&rpc_xid, 0, newxid);
+	call_msg.rm_xid = atomic_fetchadd_32(&rpc_xid, 1);
 	call_msg.rm_call.cb_prog = program;
 	call_msg.rm_call.cb_vers = version;
 	xdrmem_create(&xdrs, cu->cu_mcallc, MCALL_MSG_SIZE, XDR_ENCODE);
@@ -418,8 +423,7 @@ clnt_dg_call(
 call_again:
 	mtx_assert(&cs->cs_lock, MA_OWNED);
 
-	cu->cu_xid++;
-	xid = cu->cu_xid;
+	xid = atomic_fetchadd_32(&rpc_xid, 1);
 
 send_again:
 	mtx_unlock(&cs->cs_lock);
@@ -865,13 +869,13 @@ clnt_dg_control(CLIENT *cl, u_int request, void *info)
 		(void) memcpy(&cu->cu_raddr, addr, addr->sa_len);
 		break;
 	case CLGET_XID:
-		*(uint32_t *)info = cu->cu_xid;
+		*(uint32_t *)info = atomic_load_32(&rpc_xid);
 		break;
 
 	case CLSET_XID:
 		/* This will set the xid of the NEXT call */
 		/* decrement by 1 as clnt_dg_call() increments once */
-		cu->cu_xid = *(uint32_t *)info - 1;
+		atomic_store_32(&rpc_xid, *(uint32_t *)info - 1);
 		break;
 
 	case CLGET_VERS:
