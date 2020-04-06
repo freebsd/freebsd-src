@@ -627,6 +627,7 @@ struct mlx5e_rq_stats {
   m(+1, u64, csum_offload_none, "csum_offload_none", "Transmitted packets")	\
   m(+1, u64, defragged, "defragged", "Transmitted packets")		\
   m(+1, u64, dropped, "dropped", "Transmitted packets")			\
+  m(+1, u64, enobuf, "enobuf", "Transmitted packets")			\
   m(+1, u64, nop, "nop", "Transmitted packets")
 
 #define	MLX5E_SQ_STATS_NUM (0 MLX5E_SQ_STATS(MLX5E_STATS_COUNT))
