@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 
+static MALLOC_DEFINE(M_SENDFILE, "sendfile", "sendfile dynamic memory");
+
 #define	EXT_FLAG_SYNC		EXT_FLAG_VENDOR1
 #define	EXT_FLAG_NOCACHE	EXT_FLAG_VENDOR2
 
@@ -255,7 +257,7 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 	SOCK_LOCK(so);
 	sorele(so);
 	CURVNET_RESTORE();
-	free(sfio, M_TEMP);
+	free(sfio, M_SENDFILE);
 }
 
 /*
@@ -530,7 +532,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	SFSTAT_ADD(sf_rhpages_requested, SF_READAHEAD(flags));
 
 	if (flags & SF_SYNC) {
-		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK | M_ZERO);
+		sfs = malloc(sizeof(*sfs), M_SENDFILE, M_WAITOK | M_ZERO);
 		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 		cv_init(&sfs->cv, "sendfile");
 	}
@@ -695,7 +697,7 @@ retry_space:
 		    npages, rhpages);
 
 		sfio = malloc(sizeof(struct sf_io) +
-		    npages * sizeof(vm_page_t), M_TEMP, M_WAITOK);
+		    npages * sizeof(vm_page_t), M_SENDFILE, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
 		sfio->so = so;
 		sfio->error = 0;
@@ -705,7 +707,7 @@ retry_space:
 		if (error != 0) {
 			if (vp != NULL)
 				VOP_UNLOCK(vp, 0);
-			free(sfio, M_TEMP);
+			free(sfio, M_SENDFILE);
 			goto done;
 		}
 
@@ -817,7 +819,7 @@ prepend_header:
 		if (m == NULL) {
 			KASSERT(softerr, ("%s: m NULL, no error", __func__));
 			error = softerr;
-			free(sfio, M_TEMP);
+			free(sfio, M_SENDFILE);
 			goto done;
 		}
 
@@ -834,7 +836,7 @@ prepend_header:
 			 * we can send data right now without the
 			 * PRUS_NOTREADY flag.
 			 */
-			free(sfio, M_TEMP);
+			free(sfio, M_SENDFILE);
 			error = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, 0, m, NULL, NULL, td);
 		} else {
@@ -898,7 +900,7 @@ out:
 		KASSERT(sfs->count == 0, ("sendfile sync still busy"));
 		cv_destroy(&sfs->cv);
 		mtx_destroy(&sfs->mtx);
-		free(sfs, M_TEMP);
+		free(sfs, M_SENDFILE);
 	}
 
 	if (error == ERESTART)
