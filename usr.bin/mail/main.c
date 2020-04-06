@@ -52,6 +52,49 @@ __FBSDID("$FreeBSD$");
  *
  * Startup -- interface with user.
  */
+int	msgCount;
+int	rcvmode;
+int	sawcom;
+char	*Tflag;
+int	senderr;
+int	edit;
+int	readonly;
+int	noreset;
+int	sourcing;
+int	loading;
+int	cond;
+FILE	*itf;
+FILE	*otf;
+int	image;
+FILE	*input;
+char	mailname[PATHSIZE];
+char	prevfile[PATHSIZE];
+char	*homedir;
+char	*myname;
+off_t	mailsize;
+int	lexnumber;
+char	lexstring[STRINGLEN];
+int	regretp;
+int	regretstack[REGDEP];
+char	*string_stack[REGDEP];
+int	numberstack[REGDEP];
+struct	message	*dot;
+struct	message	*message;
+struct	var	*variables[HSHSIZE];
+struct	grouphead	*groups[HSHSIZE];
+struct	ignoretab	ignore[2];
+
+struct	ignoretab	saveignore[2];
+
+struct	ignoretab	ignoreall[2];
+char	**altnames;
+int	debug;
+int	screenwidth;
+int	screenheight;
+
+int	realscreenheight;
+
+jmp_buf	srbuf;
 
 static jmp_buf	hdrjmp;
 
