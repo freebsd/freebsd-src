@@ -25,7 +25,6 @@
 
 static int sigusr1_caught = 0;
 
-int kqfd;
 
 static void
 sig_handler(int signum)

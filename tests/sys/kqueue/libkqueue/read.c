@@ -18,7 +18,6 @@
 
 #include "common.h"
 
-int kqfd;
 int sockfd[2];
 
 static void

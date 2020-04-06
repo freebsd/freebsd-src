@@ -18,7 +18,6 @@
 
 #include "common.h"
 
-int kqfd;
 
 static void
 add_and_delete(void)
