@@ -613,18 +613,18 @@ top:
 
 	if (likely(args.ihs == 0)) {
 		/* nothing to inline */
-	} else if (unlikely(args.ihs > sq->max_inline)) {
-		/* inline header size is too big */
-		err = EINVAL;
-		goto tx_drop;
 	} else if ((mb->m_flags & M_VLANTAG) != 0) {
 		struct ether_vlan_header *eh = (struct ether_vlan_header *)
 		    wqe->eth.inline_hdr_start;
 
 		/* Range checks */
-		if (unlikely(args.ihs > (MLX5E_MAX_TX_INLINE - ETHER_VLAN_ENCAP_LEN)))
-			args.ihs = (MLX5E_MAX_TX_INLINE - ETHER_VLAN_ENCAP_LEN);
-		else if (unlikely(args.ihs < ETHER_HDR_LEN)) {
+		if (unlikely(args.ihs > (sq->max_inline - ETHER_VLAN_ENCAP_LEN))) {
+			if (mb->m_pkthdr.csum_flags & CSUM_TSO) {
+				err = EINVAL;
+				goto tx_drop;
+			}
+			args.ihs = (sq->max_inline - ETHER_VLAN_ENCAP_LEN);
+		} else if (unlikely(args.ihs < ETHER_HDR_LEN)) {
 			err = EINVAL;
 			goto tx_drop;
 		}
@@ -641,6 +641,14 @@ top:
 		args.ihs += ETHER_VLAN_ENCAP_LEN;
 		wqe->eth.inline_hdr_sz = cpu_to_be16(args.ihs);
 	} else {
+		/* check if inline header size is too big */
+		if (unlikely(args.ihs > sq->max_inline)) {
+			if (unlikely(mb->m_pkthdr.csum_flags & CSUM_TSO)) {
+				err = EINVAL;
+				goto tx_drop;
+			}
+			args.ihs = sq->max_inline;
+		}
 		m_copydata(mb, 0, args.ihs, wqe->eth.inline_hdr_start);
 		m_adj(mb, args.ihs);
 		wqe->eth.inline_hdr_sz = cpu_to_be16(args.ihs);
