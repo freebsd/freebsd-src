@@ -6294,22 +6294,56 @@ nfsrv_checkreclaimcomplete(struct nfsrv_descript *nd, int onefs)
  * Cache the reply in a session slot.
  */
 void
-nfsrv_cache_session(uint8_t *sessionid, uint32_t slotid, int repstat,
-   struct mbuf **m)
+nfsrv_cache_session(struct nfsrv_descript *nd, struct mbuf **m)
 {
 	struct nfsdsession *sep;
 	struct nfssessionhash *shp;
+	char *buf, *cp;
+#ifdef INET
+	struct sockaddr_in *sin;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+#endif
 
-	shp = NFSSESSIONHASH(sessionid);
+	shp = NFSSESSIONHASH(nd->nd_sessionid);
 	NFSLOCKSESSION(shp);
-	sep = nfsrv_findsession(sessionid);
+	sep = nfsrv_findsession(nd->nd_sessionid);
 	if (sep == NULL) {
 		NFSUNLOCKSESSION(shp);
-		printf("nfsrv_cache_session: no session\n");
+		if ((nfsrv_stablefirst.nsf_flags & NFSNSF_GRACEOVER) != 0) {
+			buf = malloc(INET6_ADDRSTRLEN, M_TEMP, M_WAITOK);
+			switch (nd->nd_nam->sa_family) {
+#ifdef INET
+			case AF_INET:
+				sin = (struct sockaddr_in *)nd->nd_nam;
+				cp = inet_ntop(sin->sin_family,
+				    &sin->sin_addr.s_addr, buf,
+				    INET6_ADDRSTRLEN);
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
+				sin6 = (struct sockaddr_in6 *)nd->nd_nam;
+				cp = inet_ntop(sin6->sin6_family,
+				    &sin6->sin6_addr, buf, INET6_ADDRSTRLEN);
+				break;
+#endif
+			default:
+				cp = NULL;
+			}
+			if (cp != NULL)
+				printf("nfsrv_cache_session: no session "
+				    "IPaddr=%s\n", cp);
+			else
+				printf("nfsrv_cache_session: no session\n");
+			free(buf, M_TEMP);
+		}
 		m_freem(*m);
 		return;
 	}
-	nfsv4_seqsess_cacherep(slotid, sep->sess_slots, repstat, m);
+	nfsv4_seqsess_cacherep(nd->nd_slotid, sep->sess_slots, nd->nd_repstat,
+	    m);
 	NFSUNLOCKSESSION(shp);
 }
 
