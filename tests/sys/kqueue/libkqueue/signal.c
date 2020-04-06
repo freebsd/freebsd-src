@@ -18,7 +18,6 @@
 
 #include "common.h"
 
-int kqfd;
 
 void
 test_kevent_signal_add(void)
