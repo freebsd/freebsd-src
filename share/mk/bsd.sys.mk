@@ -206,6 +206,21 @@ CWARNFLAGS+=	-Wno-unknown-pragmas
 # This warning is utter nonsense
 CFLAGS+=	-Wno-format-zero-length
 
+.if ${COMPILER_TYPE} == "clang"
+# The headers provided by clang are incompatible with the FreeBSD headers.
+# If the version of clang is not one that has been patched to omit the
+# incompatible headers, we need to compile with -nobuiltininc and add the
+# resource dir to the end of the search paths. This ensures that headers such as
+# immintrin.h are still found but stddef.h, etc. are picked up from FreeBSD.
+#
+# XXX: This is a hack to support complete external installs of clang while
+# we work to synchronize our decleration guards with those in the clang tree.
+.if ${MK_CLANG_BOOTSTRAP} == "no" && ${COMPILER_RESOURCE_DIR} != "unknown" && \
+    !defined(BOOTSTRAPPING)
+CFLAGS+=-nobuiltininc -idirafter ${COMPILER_RESOURCE_DIR}/include
+.endif
+.endif
+
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -simplifycfg-dup-ret
 .if ${COMPILER_VERSION} >= 30500 && ${COMPILER_VERSION} < 30700
