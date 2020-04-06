@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2019
+.Dd April 6, 2020
 .Dt CAP_SYSCTL 3
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@
 .Ft void *
 .Fn cap_sysctl_limit_name "void *limit" "const char *name" "int flags"
 .Ft void *
-.Fn cap_sysctl_limit_mib "void *limit" "int *mibp" "u_int miblen" "int flags"
+.Fn cap_sysctl_limit_mib "void *limit" "const int *mibp" "u_int miblen" "int flags"
 .Ft int
 .Fn cap_sysctl_limit "void *limit"
 .Sh DESCRIPTION
