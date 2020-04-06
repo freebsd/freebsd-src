@@ -5185,13 +5185,17 @@ vfs_bio_getpages(struct vnode *vp, vm_page_t *ma, int count,
 	    != 0) ? GB_UNMAPPED : 0;
 	VM_OBJECT_WLOCK(object);
 again:
-	for (i = 0; i < count; i++)
-		vm_page_busy_downgrade(ma[i]);
+	for (i = 0; i < count; i++) {
+		if (ma[i] != bogus_page)
+			vm_page_busy_downgrade(ma[i]);
+	}
 	VM_OBJECT_WUNLOCK(object);
 
 	lbnp = -1;
 	for (i = 0; i < count; i++) {
 		m = ma[i];
+		if (m == bogus_page)
+			continue;
 
 		/*
 		 * Pages are shared busy and the object lock is not
@@ -5263,6 +5267,8 @@ end_pages:
 	VM_OBJECT_WLOCK(object);
 	redo = false;
 	for (i = 0; i < count; i++) {
+		if (ma[i] == bogus_page)
+			continue;
 		vm_page_sunbusy(ma[i]);
 		ma[i] = vm_page_grab(object, ma[i]->pindex, VM_ALLOC_NORMAL);
 
