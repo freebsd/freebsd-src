@@ -3328,13 +3328,7 @@ ipfw_delete(char *av[])
 			j = strtol(sep + 1, NULL, 10);
 		av++;
 		if (co.do_nat) {
-			exitval = do_cmd(IP_FW_NAT_DEL, &i, sizeof i);
-			if (exitval) {
-				exitval = EX_UNAVAILABLE;
-				if (co.do_quiet)
-					continue;
-				warn("nat %u not available", i);
-			}
+			exitval = ipfw_delete_nat(i);
 		} else if (co.do_pipe) {
 			exitval = ipfw_delete_pipe(co.do_pipe, i);
 		} else {
