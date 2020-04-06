@@ -426,6 +426,11 @@ ffs_truncate(vp, length, flags, cred)
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
 	} else {
+		lbn = lblkno(fs, length);
+		flags |= BA_CLRBUF;
+		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
+		if (error)
+			return (error);
 		/*
 		 * When we are doing soft updates and the UFS_BALLOC
 		 * above fills in a direct block hole with a full sized
@@ -434,14 +439,9 @@ ffs_truncate(vp, length, flags, cred)
 		 * so that we do not get a soft updates inconsistency
 		 * when we create the fragment below.
 		 */
-		lbn = lblkno(fs, length);
 		if (DOINGSOFTDEP(vp) && lbn < UFS_NDADDR &&
 		    fragroundup(fs, blkoff(fs, length)) < fs->fs_bsize &&
 		    (error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
-			return (error);
-		flags |= BA_CLRBUF;
-		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
-		if (error)
 			return (error);
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
