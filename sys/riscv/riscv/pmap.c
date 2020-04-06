@@ -2416,7 +2416,7 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 		goto done;
 	if ((l2e & PTE_RWX) == 0) {
 		pte = pmap_l2_to_l3(l2, va);
-		if (pte == NULL || ((oldpte = pmap_load(pte) & PTE_V)) == 0)
+		if (pte == NULL || ((oldpte = pmap_load(pte)) & PTE_V) == 0)
 			goto done;
 	} else {
 		pte = l2;
