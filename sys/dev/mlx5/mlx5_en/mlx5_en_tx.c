@@ -401,6 +401,7 @@ mlx5e_sq_dump_xmit(struct mlx5e_sq *sq, struct mlx5e_xmit_args *parg, struct mbu
 
 	/* return ENOBUFS if the queue is full */
 	if (unlikely(!mlx5e_sq_has_room_for(sq, xsegs))) {
+		sq->stats.enobuf++;
 		bus_dmamap_unload(sq->dma_tag, sq->mbuf[pi].dma_map);
 		m_freem(mb);
 		*mbp = NULL;	/* safety clear */
@@ -493,8 +494,10 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 top:
 #endif
 	/* Return ENOBUFS if the queue is full */
-	if (unlikely(!mlx5e_sq_has_room_for(sq, 2 * MLX5_SEND_WQE_MAX_WQEBBS)))
+	if (unlikely(!mlx5e_sq_has_room_for(sq, 2 * MLX5_SEND_WQE_MAX_WQEBBS))) {
+		sq->stats.enobuf++;
 		return (ENOBUFS);
+	}
 
 	/* Align SQ edge with NOPs to avoid WQE wrap around */
 	pi = ((~sq->pc) & sq->wq.sz_m1);
@@ -502,8 +505,10 @@ top:
 		/* Send one multi NOP message instead of many */
 		mlx5e_send_nop(sq, (pi + 1) * MLX5_SEND_WQEBB_NUM_DS);
 		pi = ((~sq->pc) & sq->wq.sz_m1);
-		if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1))
+		if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1)) {
+			sq->stats.enobuf++;
 			return (ENOMEM);
+		}
 	}
 
 #ifdef KERN_TLS
