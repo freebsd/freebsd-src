@@ -280,7 +280,7 @@ typedef struct settrap_parms_tag {
  * Poll Skew List
  */
 
-psl_item psl[17-3+1];		/* values for polls 3-17 */
+extern psl_item psl[17-3+1];	/* values for polls 3-17 */
 				/* To simplify the runtime code we */
 				/* don't want to have to special-case */
 				/* dealing with a default */
