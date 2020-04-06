@@ -4335,13 +4335,20 @@ pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 	 * RISC-V harts, the writing hart has to execute a data FENCE
 	 * before requesting that all remote RISC-V harts execute a
 	 * FENCE.I."
+	 *
+	 * However, this is slightly misleading; we still need to
+	 * perform a FENCE.I for the local hart, as FENCE does nothing
+	 * for its icache. FENCE.I alone is also sufficient for the
+	 * local hart.
 	 */
 	sched_pin();
 	mask = all_harts;
 	CPU_CLR(PCPU_GET(hart), &mask);
-	fence();
-	if (!CPU_EMPTY(&mask) && smp_started)
+	fence_i()
+	if (!CPU_EMPTY(&mask) && smp_started) {
+		fence();
 		sbi_remote_fence_i(mask.__bits);
+	}
 	sched_unpin();
 }
 
