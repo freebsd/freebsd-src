@@ -78,6 +78,8 @@ static int _rpcfdtype;
 
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
 
+int debug;
+
 char *progname = "rpc.ypxfrd";
 char *yp_dir = "/var/yp/";
 
