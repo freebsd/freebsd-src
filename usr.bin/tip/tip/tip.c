@@ -54,6 +54,7 @@ static const char rcsid[] = "$OpenBSD: tip.c,v 1.30 2006/08/18 03:06:18 jason Ex
  * or
  *  cu phone-number [-s speed] [-l line] [-a acu]
  */
+#define	EXTERN
 #include "tip.h"
 #include "pathnames.h"
 
