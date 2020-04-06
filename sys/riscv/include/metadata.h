@@ -1,14 +1,7 @@
 /*-
- * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Portions of this software were developed by SRI International and the
- * University of Cambridge Computer Laboratory under DARPA/AFRL contract
- * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
- *
- * Portions of this software were developed by the University of Cambridge
- * Computer Laboratory as part of the CTSRD Project, with support from the
- * UK Higher Education Innovation Fund (HEIF).
+ * Copyright (c) 2020 Mitchell Horne <mhorne@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,20 +27,9 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_MACHDEP_H_
-#define	_MACHINE_MACHDEP_H_
+#ifndef _MACHINE_METADATA_H_
+#define	_MACHINE_METADATA_H_
 
-struct riscv_bootparams {
-	vm_offset_t	kern_l1pt;	/* Kernel L1 base */
-	vm_offset_t	kern_phys;	/* Kernel base (physical) addr */
-	vm_offset_t	kern_stack;
-	vm_offset_t	dtbp_virt;	/* Device tree blob virtual addr */
-};
+#define	MODINFOMD_DTBP	0x1001
 
-extern vm_paddr_t physmap[];
-extern u_int physmap_idx;
-
-vm_offset_t fake_preload_metadata(struct riscv_bootparams *rbp);
-void initriscv(struct riscv_bootparams *);
-
-#endif /* _MACHINE_MACHDEP_H_ */
+#endif /* !_MACHINE_METADATA_H_ */

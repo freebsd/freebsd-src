@@ -558,6 +558,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	vm_offset_t freemempos;
 	vm_offset_t dpcpu, msgbufpv;
 	vm_paddr_t end, max_pa, min_pa, pa, start;
+	pt_entry_t *l2p;
 	int i;
 
 	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
@@ -609,6 +610,15 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	/* Create the l3 tables for the early devmap */
 	freemempos = pmap_bootstrap_l3(l1pt,
 	    VM_MAX_KERNEL_ADDRESS - L2_SIZE, freemempos);
+
+	/*
+	 * Invalidate the mapping we created for the DTB. At this point a copy
+	 * has been created, and we no longer need it. We want to avoid the
+	 * possibility of an aliased mapping in the future.
+	 */
+	l2p = pmap_l2(kernel_pmap, VM_EARLY_DTB_ADDRESS);
+	KASSERT((pmap_load(l2p) & PTE_V) != 0, ("dtpb not mapped"));
+	pmap_clear(l2p);
 
 	sfence_vma();
 

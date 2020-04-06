@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/kdb.h>
 #include <machine/machdep.h>
+#include <machine/metadata.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
 #include <machine/riscvreg.h>
@@ -93,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef FDT
+#include <contrib/libfdt/libfdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
@@ -741,11 +743,19 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 
 #ifdef FDT
 static void
-try_load_dtb(caddr_t kmdp, vm_offset_t dtbp)
+try_load_dtb(caddr_t kmdp)
 {
+	vm_offset_t dtbp;
+
+	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 
 #if defined(FDT_DTB_STATIC)
-	dtbp = (vm_offset_t)&fdt_static_dtb;
+	/*
+	 * In case the device tree blob was not retrieved (from metadata) try
+	 * to use the statically embedded one.
+	 */
+	if (dtbp == (vm_offset_t)NULL)
+		dtbp = (vm_offset_t)&fdt_static_dtb;
 #endif
 
 	if (dtbp == (vm_offset_t)NULL) {
@@ -777,13 +787,14 @@ cache_setup(void)
  * RISCVTODO: This needs to be done via loader (when it's available).
  */
 vm_offset_t
-fake_preload_metadata(struct riscv_bootparams *rvbp __unused)
+fake_preload_metadata(struct riscv_bootparams *rvbp)
 {
 	static uint32_t fake_preload[35];
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
 #endif
 	vm_offset_t lastaddr;
+	size_t dtb_size;
 	int i;
 
 	i = 0;
@@ -824,9 +835,22 @@ fake_preload_metadata(struct riscv_bootparams *rvbp __unused)
 #endif
 #endif
 		lastaddr = (vm_offset_t)&end;
+
+	/* Copy the DTB to KVA space. */
+	lastaddr = roundup(lastaddr, sizeof(int));
+	fake_preload[i++] = MODINFO_METADATA | MODINFOMD_DTBP;
+	fake_preload[i++] = sizeof(vm_offset_t);
+	*(vm_offset_t *)&fake_preload[i] = (vm_offset_t)lastaddr;
+	i += sizeof(vm_offset_t) / sizeof(uint32_t);
+	dtb_size = fdt_totalsize(rvbp->dtbp_virt);
+	memmove((void *)lastaddr, (const void *)rvbp->dtbp_virt, dtb_size);
+	lastaddr = roundup(lastaddr + dtb_size, sizeof(int));
+
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
+
+	KASSERT(i < nitems(fake_preload), ("Too many fake_preload items"));
 
 	return (lastaddr);
 }
@@ -836,8 +860,6 @@ initriscv(struct riscv_bootparams *rvbp)
 {
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	struct pcpu *pcpup;
-	vm_offset_t rstart, rend;
-	vm_offset_t s, e;
 	int mem_regions_sz;
 	vm_offset_t lastaddr;
 	vm_size_t kernlen;
@@ -873,7 +895,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	kern_envp = NULL;
 
 #ifdef FDT
-	try_load_dtb(kmdp, rvbp->dtbp_virt);
+	try_load_dtb(kmdp);
 #endif
 
 	/* Load the physical memory ranges */
@@ -884,21 +906,9 @@ initriscv(struct riscv_bootparams *rvbp)
 	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0)
 		panic("Cannot get physical memory regions");
 
-	s = rvbp->dtbp_phys;
-	e = s + DTB_SIZE_MAX;
-
 	for (i = 0; i < mem_regions_sz; i++) {
-		rstart = mem_regions[i].mr_start;
-		rend = (mem_regions[i].mr_start + mem_regions[i].mr_size);
-
-		if ((rstart < s) && (rend > e)) {
-			/* Exclude DTB region. */
-			add_physmap_entry(rstart, (s - rstart), physmap, &physmap_idx);
-			add_physmap_entry(e, (rend - e), physmap, &physmap_idx);
-		} else {
-			add_physmap_entry(mem_regions[i].mr_start,
-			    mem_regions[i].mr_size, physmap, &physmap_idx);
-		}
+		add_physmap_entry(mem_regions[i].mr_start,
+		    mem_regions[i].mr_size, physmap, &physmap_idx);
 	}
 #endif
 
