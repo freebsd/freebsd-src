@@ -202,6 +202,8 @@ int	cryptosw;		/* crypto command called */
 
 extern char *stats_drift_file;	/* name of the driftfile */
 
+psl_item psl[17-3+1];
+
 #ifdef BC_LIST_FRAMEWORK_NOT_YET_USED
 /*
  * backwards compatibility flags
