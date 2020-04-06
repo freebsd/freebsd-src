@@ -35,4 +35,12 @@ SRCS+=	lfs.c lposix.c
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/modules -I${LUASRC}
 CFLAGS+=	-DLUA_PROGNAME="\"${PROG}\""
 
+# readline bits; these aren't needed if we're building a bootstrap flua, as we
+# don't expect that one to see any REPL usage.
+.if !defined(BOOTSTRAPPING)
+CFLAGS+=	-DLUA_USE_READLINE
+CFLAGS+=	-I${SRCTOP}/lib/libedit -I${SRCTOP}/contrib/libedit
+LIBADD+=	edit
+.endif
+
 .include <bsd.prog.mk>
