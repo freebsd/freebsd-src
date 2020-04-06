@@ -55,8 +55,8 @@ typedef struct cap_sysctl_limit cap_sysctl_limit_t;
 cap_sysctl_limit_t *cap_sysctl_limit_init(cap_channel_t *);
 cap_sysctl_limit_t *cap_sysctl_limit_name(cap_sysctl_limit_t *limit,
     const char *name, int flags);
-cap_sysctl_limit_t *cap_sysctl_limit_mib(cap_sysctl_limit_t *limit, int *mibp,
-    u_int miblen, int flags);
+cap_sysctl_limit_t *cap_sysctl_limit_mib(cap_sysctl_limit_t *limit,
+    const int *mibp, u_int miblen, int flags);
 int cap_sysctl_limit(cap_sysctl_limit_t *limit);
 #else /* !WITH_CASPER */
 #define	cap_sysctl(chan, name, namelen, oldp, oldlenp, newp, newlen)	\
