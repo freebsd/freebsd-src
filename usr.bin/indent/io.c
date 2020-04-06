@@ -52,6 +52,15 @@ __FBSDID("$FreeBSD$");
 #include "indent_globs.h"
 #include "indent.h"
 
+/* Globals */
+int	found_err;
+int	n_real_blanklines;
+int	prefix_blankline_requested, postfix_blankline_requested;
+int	code_lines;
+int	had_eof;
+int	inhibit_formatting;
+int	suppress_blanklines;
+
 int         comment_open;
 static int  paren_target;
 static int pad_output(int current, int target);

@@ -59,6 +59,30 @@ __FBSDID("$FreeBSD$");
 #include "indent_codes.h"
 #include "indent.h"
 
+/* Globals */
+FILE	*input, *output;
+char	*labbuf, *s_lab, *e_lab, *l_lab;
+char	*codebuf, *s_code, *e_code, *l_code;
+char	*combuf, *s_com, *e_com, *l_com;
+char	*tokenbuf, *s_token, *e_token, *l_token;
+char	*in_buffer, *in_buffer_limit;
+char	*buf_ptr, *buf_end;
+
+char	 sc_buf[sc_size];
+
+char	*save_com, *sc_end;
+char	*bp_save;
+char	*be_save;
+
+struct options		opt;
+int	 line_no;
+
+struct parser_state	ps;
+int	 ifdef_level;
+struct parser_state	state_stack[5];
+struct parser_state	match_state[5];
+
+
 static void bakcopy(void);
 static void indent_declaration(int, int);
 
