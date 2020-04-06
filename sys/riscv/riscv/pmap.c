@@ -4354,7 +4354,7 @@ pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 	sched_pin();
 	mask = all_harts;
 	CPU_CLR(PCPU_GET(hart), &mask);
-	fence_i()
+	fence_i();
 	if (!CPU_EMPTY(&mask) && smp_started) {
 		fence();
 		sbi_remote_fence_i(mask.__bits);
