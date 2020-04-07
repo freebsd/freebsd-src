@@ -19,8 +19,9 @@ SCRIPTSDIR=/usr/bin
 CLEANFILES= vgrindefs.src.db
 
 .include <bsd.endian.mk>
+.include <src.tools.mk>
 
 vgrindefs.src.db: vgrindefs.src
-	cap_mkdb ${CAP_MKDB_ENDIAN} -f vgrindefs.src ${.ALLSRC}
+	${CAP_MKDB_CMD} ${CAP_MKDB_ENDIAN} -f vgrindefs.src ${.ALLSRC}
 
 .include <bsd.prog.mk>
