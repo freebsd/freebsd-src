@@ -774,7 +774,7 @@ smbios_ep_initializer(struct smbios_entry_point *smbios_ep, uint32_t staddr)
 	memcpy(smbios_ep->ianchor, SMBIOS_ENTRY_IANCHOR,
 	    SMBIOS_ENTRY_IANCHORLEN);
 	smbios_ep->staddr = staddr;
-	smbios_ep->bcdrev = 0x24;
+	smbios_ep->bcdrev = (smbios_ep->major & 0xf) << 4 | (smbios_ep->minor & 0xf);
 }
 
 static void
