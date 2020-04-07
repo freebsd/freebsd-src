@@ -31,6 +31,7 @@
 #ifndef _FILEARGS_H_
 #define	_FILEARGS_H_
 
+#include <sys/cdefs.h>
 #include <sys/dnv.h>
 #include <sys/nv.h>
 
@@ -43,6 +44,8 @@
 struct fileargs;
 typedef struct fileargs fileargs_t;
 struct stat;
+
+__BEGIN_DECLS
 
 fileargs_t *fileargs_init(int argc, char *argv[], int flags, mode_t mode,
     cap_rights_t *rightsp, int operations);
@@ -57,6 +60,9 @@ FILE *fileargs_fopen(fileargs_t *fa, const char *name, const char *mode);
 
 fileargs_t *fileargs_wrap(cap_channel_t *chan, int fdflags);
 cap_channel_t *fileargs_unwrap(fileargs_t *fa, int *fdflags);
+
+__END_DECLS
+
 #else
 typedef struct fileargs {
 	int	fa_flags;

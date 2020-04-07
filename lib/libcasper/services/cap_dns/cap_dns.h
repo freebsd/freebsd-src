@@ -36,12 +36,15 @@
 #define WITH_CASPER
 #endif
 
+#include <sys/cdefs.h>
 #include <sys/socket.h>	/* socklen_t */
 
 struct addrinfo;
 struct hostent;
 
 #ifdef WITH_CASPER
+__BEGIN_DECLS
+
 struct hostent *cap_gethostbyname(cap_channel_t *chan, const char *name);
 struct hostent *cap_gethostbyname2(cap_channel_t *chan, const char *name,
     int type);
@@ -58,6 +61,8 @@ int cap_dns_type_limit(cap_channel_t *chan, const char * const *types,
     size_t ntypes);
 int cap_dns_family_limit(cap_channel_t *chan, const int *families,
     size_t nfamilies);
+
+__END_DECLS
 #else
 #define	cap_gethostbyname(chan, name)		 gethostbyname(name)
 #define cap_gethostbyname2(chan, name, type)	 gethostbyname2(name, type)

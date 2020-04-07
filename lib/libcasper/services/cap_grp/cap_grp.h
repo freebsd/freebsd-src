@@ -36,7 +36,11 @@
 #define WITH_CASPER
 #endif
 
+#include <sys/cdefs.h>
+
 #ifdef WITH_CASPER
+__BEGIN_DECLS
+
 struct group *cap_getgrent(cap_channel_t *chan);
 struct group *cap_getgrnam(cap_channel_t *chan, const char *name);
 struct group *cap_getgrgid(cap_channel_t *chan, gid_t gid);
@@ -58,6 +62,9 @@ int cap_grp_limit_fields(cap_channel_t *chan, const char * const *fields,
     size_t nfields);
 int cap_grp_limit_groups(cap_channel_t *chan, const char * const *names,
     size_t nnames, const gid_t *gids, size_t ngids);
+
+__END_DECLS
+
 #else
 #define	cap_getgrent(chan)		getgrent()
 #define	cap_getgrnam(chan, name)	getgrnam(name)

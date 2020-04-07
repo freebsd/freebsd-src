@@ -36,7 +36,11 @@
 #define WITH_CASPER
 #endif
 
+#include <sys/cdefs.h>
+
 #ifdef WITH_CASPER
+__BEGIN_DECLS
+
 struct passwd *cap_getpwent(cap_channel_t *chan);
 struct passwd *cap_getpwnam(cap_channel_t *chan, const char *login);
 struct passwd *cap_getpwuid(cap_channel_t *chan, uid_t uid);
@@ -58,6 +62,9 @@ int cap_pwd_limit_fields(cap_channel_t *chan, const char * const *fields,
     size_t nfields);
 int cap_pwd_limit_users(cap_channel_t *chan, const char * const *names,
     size_t nnames, uid_t *uids, size_t nuids);
+
+__END_DECLS
+
 #else
 #define	cap_getpwent(chan)		getpwent()
 #define	cap_getpwnam(chan, login)	getpwnam(login)
