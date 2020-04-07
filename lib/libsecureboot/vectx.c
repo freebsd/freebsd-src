@@ -211,6 +211,7 @@ ssize_t
 vectx_read(struct vectx *ctx, void *buf, size_t nbytes)
 {
 	unsigned char *bp = buf;
+	int d;
 	int n;
 	int delta;
 	int x;
@@ -221,23 +222,30 @@ vectx_read(struct vectx *ctx, void *buf, size_t nbytes)
 
 	off = 0;
 	do {
-		n = read(ctx->vec_fd, &bp[off], nbytes - off);
-		if (n < 0)
+		/*
+		 * Do this in reasonable chunks so
+		 * we don't timeout if doing tftp
+		 */
+		x = nbytes - off;
+		x = MIN(PAGE_SIZE, x);
+		d = n = read(ctx->vec_fd, &bp[off], x);
+		if (n < 0) {
 			return (n);
-		if (n > 0) {
+		}
+		if (d > 0) {
 			/* we may have seeked backwards! */
 			delta = ctx->vec_hashed - ctx->vec_off;
 			if (delta > 0) {
-				x = MIN(delta, n);
+				x = MIN(delta, d);
 				off += x;
-				n -= x;
+				d -= x;
 				ctx->vec_off += x;
 			}
-			if (n > 0) {
-				ctx->vec_md->update(&ctx->vec_ctx.vtable, &bp[off], n);
-				off += n;
-				ctx->vec_off += n;
-				ctx->vec_hashed += n;
+			if (d > 0) {
+				ctx->vec_md->update(&ctx->vec_ctx.vtable, &bp[off], d);
+				off += d;
+				ctx->vec_off += d;
+				ctx->vec_hashed += d;
 			}
 		}
 	} while (n > 0 && off < nbytes);
