@@ -795,7 +795,6 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 		eh = mtod(m, struct ether_header *);
 		switch (ntohs(eh->ether_type)) {
 		case ETHERTYPE_IP:
-		case ETHERTYPE_IPV6:
 			ipofs = sizeof(struct ether_header);
 			break;
 		default:
