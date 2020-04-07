@@ -122,8 +122,10 @@ devlist(const struct cmd *f, int argc, char *argv[])
 		close(fd);
 	}
 
-	if (found == 0)
+	if (found == 0) {
 		printf("No NVMe controllers found.\n");
+		exit(1);
+	}
 
-	exit(1);
+	exit(0);
 }
