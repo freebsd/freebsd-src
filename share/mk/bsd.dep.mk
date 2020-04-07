@@ -182,7 +182,7 @@ DEPEND_MP?=	-MP
 # avoid collisions.
 DEPEND_FILTER=	C,/,_,g
 DEPENDSRCS+=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
-DEPENDSRCS+=	${DPSRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
+DEPENDSRCS+=	${DPSRCS:M*.[cSC]} ${DPSRCS:M*.cxx} ${DPSRCS:M*.cpp} ${DPSRCS:M*.cc}
 .if !empty(DEPENDSRCS)
 DEPENDOBJS+=	${DEPENDSRCS:${OBJS_SRCS_FILTER:ts:}:S,$,.o,}
 .endif
