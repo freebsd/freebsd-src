@@ -59,6 +59,7 @@ void	netbe_rx_enable(net_backend_t *be);
  */
 #define	VIRTIO_NET_F_CSUM	(1 <<  0) /* host handles partial cksum */
 #define	VIRTIO_NET_F_GUEST_CSUM	(1 <<  1) /* guest handles partial cksum */
+#define	VIRTIO_NET_F_MTU	(1 <<  3) /* initial MTU advice */
 #define	VIRTIO_NET_F_MAC	(1 <<  5) /* host supplies MAC */
 #define	VIRTIO_NET_F_GSO_DEPREC	(1 <<  6) /* deprecated: host handles GSO */
 #define	VIRTIO_NET_F_GUEST_TSO4	(1 <<  7) /* guest can rcv TSOv4 */
@@ -76,6 +77,7 @@ void	netbe_rx_enable(net_backend_t *be);
 #define	VIRTIO_NET_F_CTRL_VLAN	(1 << 19) /* control channel VLAN filtering */
 #define	VIRTIO_NET_F_GUEST_ANNOUNCE \
 				(1 << 21) /* guest can send gratuitous pkts */
+#define	VIRTIO_NET_F_MQ		(1 << 22) /* host supports multiple VQ pairs */
 
 /*
  * Fixed network header size

@@ -67,6 +67,9 @@ __FBSDID("$FreeBSD$");
 
 #define VTNET_MAX_PKT_LEN	(65536 + 64)
 
+#define VTNET_MIN_MTU	ETHERMIN
+#define VTNET_MAX_MTU	65535
+
 #define VTNET_S_HOSTCAPS      \
   ( VIRTIO_NET_F_MAC | VIRTIO_NET_F_STATUS | \
     VIRTIO_F_NOTIFY_ON_EMPTY | VIRTIO_RING_F_INDIRECT_DESC)
@@ -77,6 +80,8 @@ __FBSDID("$FreeBSD$");
 struct virtio_net_config {
 	uint8_t  mac[6];
 	uint16_t status;
+	uint16_t max_virtqueue_pairs;
+	uint16_t mtu;
 } __packed;
 
 /*
@@ -532,6 +537,8 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	struct pci_vtnet_softc *sc;
 	char tname[MAXCOMLEN + 1];
 	int mac_provided;
+	int mtu_provided;
+	unsigned long mtu = ETHERMTU;
 
 	/*
 	 * Allocate data structures for further virtio initializations.
@@ -557,6 +564,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	 * if specified.
 	 */
 	mac_provided = 0;
+	mtu_provided = 0;
 	if (opts != NULL) {
 		char *devname;
 		char *vtopts;
@@ -585,6 +593,17 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 				if (err)
 					break;
 				mac_provided = 1;
+			} else if (strcmp(key, "mtu") == 0) {
+				err = net_parsemtu(value, &mtu);
+				if (err)
+					break;
+
+				if (mtu < VTNET_MIN_MTU || mtu > VTNET_MAX_MTU) {
+					err = EINVAL;
+					errno = EINVAL;
+					break;
+				}
+				mtu_provided = 1;
 			}
 		}
 
@@ -608,6 +627,17 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	if (!mac_provided) {
 		net_genmac(pi, sc->vsc_config.mac);
 	}
+
+	sc->vsc_config.mtu = mtu;
+	if (mtu_provided) {
+		sc->vsc_consts.vc_hv_caps |= VIRTIO_NET_F_MTU;
+	}
+
+	/* 
+	 * Since we do not actually support multiqueue,
+	 * set the maximum virtqueue pairs to 1. 
+	 */
+	sc->vsc_config.max_virtqueue_pairs = 1;
 
 	/* initialize config space */
 	pci_set_cfgdata16(pi, PCIR_DEVICE, VIRTIO_DEV_NET);
