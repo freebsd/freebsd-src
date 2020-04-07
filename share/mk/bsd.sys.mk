@@ -215,8 +215,8 @@ CFLAGS+=	-Wno-format-zero-length
 #
 # XXX: This is a hack to support complete external installs of clang while
 # we work to synchronize our decleration guards with those in the clang tree.
-.if ${MK_CLANG_BOOTSTRAP} == "no" && ${COMPILER_RESOURCE_DIR} != "unknown" && \
-    !defined(BOOTSTRAPPING)
+.if ${MK_CLANG_BOOTSTRAP:Uno} == "no" && \
+    ${COMPILER_RESOURCE_DIR} != "unknown" && !defined(BOOTSTRAPPING)
 CFLAGS+=-nobuiltininc -idirafter ${COMPILER_RESOURCE_DIR}/include
 .endif
 .endif
