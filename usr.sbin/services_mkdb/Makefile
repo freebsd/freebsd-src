@@ -6,11 +6,13 @@ CONFS=	services
 PROG=	services_mkdb
 MAN=	services_mkdb.8
 SRCS=	services_mkdb.c uniq.c extern.h
-SERVICES_MKDB_CMD?=	${PROG}
 
 .include <bsd.endian.mk>
 .include <src.opts.mk>
 .if ${MK_SERVICESDB} != "no"
+# SERVICES_MKDB_CMD defined here
+.include <src.tools.mk>
+
 afterinstallconfig:
 	${SERVICES_MKDB_CMD} ${CAP_MKDB_ENDIAN} -q -o ${DESTDIR}/var/db/services.db \
 		${DESTDIR}/etc/services

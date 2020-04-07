@@ -14,9 +14,10 @@ CLEANFILES+=	termcap.db
 CONFS=		termcap.small
 
 .include <bsd.endian.mk>
+.include <src.tools.mk>
 
 termcap.db: termcap
-	cap_mkdb ${CAP_MKDB_ENDIAN} -f ${.TARGET:R} ${.ALLSRC}
+	${CAP_MKDB_CMD} ${CAP_MKDB_ENDIAN} -f ${.TARGET:R} ${.ALLSRC}
 
 etc-termcap:
 	${INSTALL_SYMLINK} -T "package=runtime" \
