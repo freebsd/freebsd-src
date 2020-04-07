@@ -60,6 +60,7 @@ static struct _s_x nat_params[] = {
  	{ "deny_in",		TOK_DENY_INC },
  	{ "same_ports",		TOK_SAME_PORTS },
  	{ "unreg_only",		TOK_UNREG_ONLY },
+ 	{ "unreg_cgn",		TOK_UNREG_CGN },
 	{ "skip_global",	TOK_SKIP_GLOBAL },
  	{ "reset",		TOK_RESET_ADDR },
  	{ "reverse",		TOK_ALIAS_REV },
@@ -663,6 +664,9 @@ nat_show_cfg(struct nat44_cfg_nat *n, void *arg)
 		} else if (n->mode & PKT_ALIAS_UNREGISTERED_ONLY) {
 			printf(" unreg_only");
 			n->mode &= ~PKT_ALIAS_UNREGISTERED_ONLY;
+		} else if (n->mode & PKT_ALIAS_UNREGISTERED_CGN) {
+			printf(" unreg_cgn");
+			n->mode &= ~PKT_ALIAS_UNREGISTERED_CGN;
 		} else if (n->mode & PKT_ALIAS_RESET_ON_ADDR_CHANGE) {
 			printf(" reset");
 			n->mode &= ~PKT_ALIAS_RESET_ON_ADDR_CHANGE;
@@ -789,6 +793,7 @@ ipfw_config_nat(int ac, char **av)
 		case TOK_SAME_PORTS:
 		case TOK_SKIP_GLOBAL:
 		case TOK_UNREG_ONLY:
+		case TOK_UNREG_CGN:
 		case TOK_RESET_ADDR:
 		case TOK_ALIAS_REV:
 		case TOK_PROXY_ONLY:
@@ -882,6 +887,9 @@ ipfw_config_nat(int ac, char **av)
 			break;
 		case TOK_UNREG_ONLY:
 			n->mode |= PKT_ALIAS_UNREGISTERED_ONLY;
+			break;
+		case TOK_UNREG_CGN:
+			n->mode |= PKT_ALIAS_UNREGISTERED_CGN;
 			break;
 		case TOK_SKIP_GLOBAL:
 			n->mode |= PKT_ALIAS_SKIP_GLOBAL;

@@ -212,6 +212,11 @@ This option is useful in the case that the packet aliasing host has both
 registered and unregistered subnets on different interfaces.
 The registered subnet is fully accessible to the outside world, so traffic
 from it does not need to be passed through the packet aliasing engine.
+.It Dv PKT_ALIAS_UNREGISTERED_CGN
+Like PKT_ALIAS_UNREGISTERED_ONLY, but includes the RFC 6598 (Carrier Grade
+NAT) subnet as follows:
+.Pp
+100.64.0.0   ->  100.127.255.255  (RFC 6598 subnet)
 .It Dv PKT_ALIAS_RESET_ON_ADDR_CHANGE
 When this mode bit is set and
 .Fn LibAliasSetAddress

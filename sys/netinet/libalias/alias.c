@@ -1413,6 +1413,10 @@ getout:
 #define UNREG_ADDR_C_LOWER 0xc0a80000
 #define UNREG_ADDR_C_UPPER 0xc0a8ffff
 
+/* 100.64.0.0  -> 100.127.255.255 (RFC 6598 - Carrier Grade NAT) */
+#define UNREG_ADDR_CGN_LOWER 0x64400000
+#define UNREG_ADDR_CGN_UPPER 0x647fffff
+
 int
 LibAliasOut(struct libalias *la, char *ptr, int maxpacketsize)
 {
@@ -1464,7 +1468,8 @@ LibAliasOutLocked(struct libalias *la, char *ptr,	/* valid IP packet */
 	}
 
 	addr_save = GetDefaultAliasAddress(la);
-	if (la->packetAliasMode & PKT_ALIAS_UNREGISTERED_ONLY) {
+	if (la->packetAliasMode & PKT_ALIAS_UNREGISTERED_ONLY ||
+	    la->packetAliasMode & PKT_ALIAS_UNREGISTERED_CGN) {
 		u_long addr;
 		int iclass;
 
@@ -1476,6 +1481,9 @@ LibAliasOutLocked(struct libalias *la, char *ptr,	/* valid IP packet */
 			iclass = 2;
 		else if (addr >= UNREG_ADDR_A_LOWER && addr <= UNREG_ADDR_A_UPPER)
 			iclass = 1;
+		else if (addr >= UNREG_ADDR_CGN_LOWER && addr <= UNREG_ADDR_CGN_UPPER &&
+		    la->packetAliasMode & PKT_ALIAS_UNREGISTERED_CGN)
+			iclass = 4;
 
 		if (iclass == 0) {
 			SetDefaultAliasAddress(la, pip->ip_src);

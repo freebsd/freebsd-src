@@ -3233,8 +3233,11 @@ Deny any incoming connection from outside world.
 Try to leave the alias port numbers unchanged from
 the actual local port numbers.
 .It Cm unreg_only
-Traffic on the local network not originating from an
+Traffic on the local network not originating from a RFC 1918
 unregistered address spaces will be ignored.
+.It Cm unreg_cgn
+Like unreg_only, but includes the RFC 6598 (Carrier Grade NAT)
+address range.
 .It Cm reset
 Reset table of the packet aliasing engine on address change.
 .It Cm reverse
