@@ -100,11 +100,13 @@ static int	is_open = 0;
  * Jumbo frames in the future.
  */
 #define	TFTP_MAX_BLKSIZE 9008
+#define TFTP_TRIES 2
 
 struct tftp_handle {
 	struct iodesc  *iodesc;
 	int		currblock;	/* contents of lastdata */
-	int		islastblock;	/* flag */
+	int		islastblock:1;	/* flag */
+	int		tries:4;	/* number of read attempts */
 	int		validsize;
 	int		off;
 	char		*path;	/* saved for re-requests */
@@ -530,7 +532,12 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 #ifdef TFTP_DEBUG
 				printf("tftp: read error\n");
 #endif
-				return (rc);
+				if (tftpfile->tries > TFTP_TRIES) {
+					return (rc);
+				} else {
+					tftpfile->tries++;
+					tftp_makereq(tftpfile);
+				}
 			}
 			if (tftpfile->islastblock)
 				break;
