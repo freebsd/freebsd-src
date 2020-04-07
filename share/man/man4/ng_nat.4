@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2013
+.Dd December 12, 2018
 .Dt NG_NAT 4
 .Os
 .Sh NAME
@@ -264,6 +264,38 @@ from its
 .Xr libalias
 instance, the corresponding field is returned as
 .Va UINT32_MAX .
+.It Dv NGM_NAT_SET_DLT Pq Ic setdlt
+Sets the data link type on the
+.Va in
+and
+.Va out
+hooks.
+Currently, supported types are
+.Cm DLT_RAW
+(raw IP datagrams , no offset applied, the default) and
+.Cm DLT_EN10MB
+(Ethernet). DLT_ definitions can be found in
+.In net/bpf.h .
+If you want to work on the
+.Xr ipfw 8
+level you must use no additional offset by specifying
+.Cm DLT_RAW .
+If, however, you attach
+.Nm
+to a network interface directly and
+.Cm EN10MB
+is specified, then the extra offset will be applied to take into account
+link-level header.
+In this mode the
+.Nm
+would also inspect appropriate type field in the Ethernet header and
+pass-through any datagrams that are not IP packets.
+.It Dv NGM_NAT_GET_DLT Pq Ic getdlt
+This control message returns the current data link type of the
+.Va in
+and
+.Va out
+hooks.
 .El
 .Pp
 In all redirection messages
@@ -336,11 +368,31 @@ serial line with HDLC encapsulation.
 SEQ
 ifconfig ng0 x.y.8.35 x.y.8.1
 .Ed
+.Pp
+The
+.Nm
+node can also be attached directly to the physical interface
+via
+.Xr ng_ether 4
+node in the graph.
+In the following example, we perform masquerading on a
+Ethernet interface connected to a public network.
+.Bd -literal -offset indent
+ifconfig igb0 inet x.y.8.35 netmask 0xfffff000
+route add default x.y.0.1
+/usr/sbin/ngctl -f- <<-SEQ
+        mkpeer igb0: nat lower in
+        name igb0:lower igb0_NAT
+        connect igb0: igb0_NAT: upper out
+        msg igb0_NAT: setdlt 1
+        msg igb0_NAT: setaliasaddr x.y.8.35
+SEQ
 .Sh SEE ALSO
 .Xr libalias 3 ,
 .Xr ng_ipfw 4 ,
 .Xr natd 8 ,
-.Xr ngctl 8
+.Xr ngctl 8 ,
+.Xr ng_ether 8
 .Sh HISTORY
 The
 .Nm
