@@ -42,16 +42,16 @@
 __<bsd.obj.mk>__:
 .include <bsd.own.mk>
 
-.if ${MK_AUTO_OBJ} == "yes"
-# it is done by now
-objwarn: .PHONY
-obj: .PHONY
-CANONICALOBJDIR= ${.OBJDIR}
 # This is also done in bsd.init.mk
 .if defined(NO_OBJ) && ${.OBJDIR} != ${.CURDIR}
 # but this makefile does not want it!
 .OBJDIR: ${.CURDIR}
 .endif
+.if ${MK_AUTO_OBJ} == "yes"
+# it is done by now
+objwarn: .PHONY
+obj: .PHONY
+CANONICALOBJDIR= ${.OBJDIR}
 # Handle special case where SRCS is full-pathed and requires
 # nested objdirs.  This duplicates some auto.obj.mk logic.
 .if (!empty(SRCS:M*/*) || !empty(DPSRCS:M*/*)) && \
