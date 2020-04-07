@@ -29,7 +29,11 @@
 #ifndef	_CAP_SYSLOG_H_
 #define	_CAP_SYSLOG_H_
 
+#include <sys/cdefs.h>
+
 #ifdef WITH_CASPER
+__BEGIN_DECLS
+
 void cap_syslog(cap_channel_t *chan, int pri,
     const char *fmt, ...) __printflike(3, 4);
 void cap_vsyslog(cap_channel_t *chan, int priority, const char *fmt,
@@ -40,6 +44,9 @@ void cap_openlog(cap_channel_t *chan, const char *ident, int logopt,
 void cap_closelog(cap_channel_t *chan);
 
 int cap_setlogmask(cap_channel_t *chan, int maskpri);
+
+__END_DECLS
+
 #else
 #define	cap_syslog(chan, pri, ...)	syslog(pri, __VA_ARGS__)
 #define	cap_vsyslog(chan, pri, fmt, ap) vsyslog(pri, fmt, ap)
