@@ -2574,8 +2574,10 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	if (params->lun_size_bytes != 0)
 		be_lun->params.lun_size_bytes = params->lun_size_bytes;
 
-	nvlist_destroy(cbe_lun->options);
-	cbe_lun->options = nvlist_clone(req->args_nvl);
+	if (req->args_nvl != NULL) {
+		nvlist_destroy(cbe_lun->options);
+		cbe_lun->options = nvlist_clone(req->args_nvl);
+	}
 
 	wasprim = (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY);
 	value = dnvlist_get_string(cbe_lun->options, "ha_role", NULL);
