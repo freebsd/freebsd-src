@@ -57,6 +57,8 @@ _MKSHOWCONFIG=	t
 SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
+.include "share/mk/src.tools.mk"
+
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
 .if defined(CROSS_TOOLCHAIN)
@@ -874,8 +876,8 @@ MTREEFLAGS+=	-W
 INSTALLFLAGS+=	-h sha256
 .endif
 .if defined(DB_FROM_SRC) || defined(NO_ROOT)
-IMAKE_INSTALL=	INSTALL="install ${INSTALLFLAGS}"
-IMAKE_MTREE=	MTREE_CMD="mtree ${MTREEFLAGS}"
+IMAKE_INSTALL=	INSTALL="${INSTALL_CMD} ${INSTALLFLAGS}"
+IMAKE_MTREE=	MTREE_CMD="${MTREE_CMD} ${MTREEFLAGS}"
 .endif
 
 DESTDIR_MTREEFLAGS=	-deU
@@ -887,12 +889,12 @@ WORLDTMP_MTREEFLAGS=	-deUW
 # that are created by mtree to be owned by root/wheel.
 DESTDIR_MTREEFLAGS+=	-W
 .endif
-MTREE?=	mtree
+DISTR_MTREE=	${MTREE_CMD}
 .if ${BUILD_WITH_STRICT_TMPPATH} != 0
-MTREE=	${WORLDTMP}/legacy/usr/sbin/mtree
+DISTR_MTREE=	${WORLDTMP}/legacy/usr/sbin/mtree
 .endif
-WORLDTMP_MTREE=	${MTREE} ${WORLDTMP_MTREEFLAGS}
-DESTDIR_MTREE=	${MTREE} ${DESTDIR_MTREEFLAGS}
+WORLDTMP_MTREE=	${DISTR_MTREE} ${WORLDTMP_MTREEFLAGS}
+DESTDIR_MTREE=	${DISTR_MTREE} ${DESTDIR_MTREEFLAGS}
 
 # kernel stage
 KMAKEENV=	${WMAKEENV:NSYSROOT=*}
@@ -1363,14 +1365,14 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .endif
 .endif
 .if defined(NO_ROOT)
-	${IMAKEENV} ${MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
+	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
 	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
-	${IMAKEENV} ${MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
+	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
-	${IMAKEENV} ${MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
+	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
 	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
 .if defined(_LIBCOMPAT)
-	${IMAKEENV} ${MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist | \
+	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 .endif
 .endif
