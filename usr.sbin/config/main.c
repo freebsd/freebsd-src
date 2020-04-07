@@ -322,7 +322,7 @@ usage(void)
 char *
 get_word(FILE *fp)
 {
-	static char line[80];
+	static char line[160];
 	int ch;
 	char *cp;
 	int escaped_nl = 0;
@@ -352,10 +352,16 @@ begin:
 		*cp = 0;
 		return (line);
 	}
-	while ((ch = getc(fp)) != EOF) {
+	while ((ch = getc(fp)) != EOF && cp < line + sizeof(line)) {
 		if (isspace(ch))
 			break;
 		*cp++ = ch;
+	}
+	if (cp >= line + sizeof(line)) {
+		line[sizeof(line) - 1] = '\0';
+		fprintf(stderr, "config: attempted overflow, partial line: `%s'",
+		    line);
+		exit(2);
 	}
 	*cp = 0;
 	if (ch == EOF)
@@ -372,7 +378,7 @@ begin:
 char *
 get_quoted_word(FILE *fp)
 {
-	static char line[256];
+	static char line[512];
 	int ch;
 	char *cp;
 	int escaped_nl = 0;
@@ -415,15 +421,29 @@ begin:
 			}
 			if (ch != quote && escaped_nl)
 				*cp++ = '\\';
+			if (cp >= line + sizeof(line)) {
+				line[sizeof(line) - 1] = '\0';
+				printf(
+				    "config: line buffer overflow reading partial line `%s'\n",
+				    line);
+				exit(2);
+			}
 			*cp++ = ch;
 			escaped_nl = 0;
 		}
 	} else {
 		*cp++ = ch;
-		while ((ch = getc(fp)) != EOF) {
+		while ((ch = getc(fp)) != EOF && cp < line + sizeof(line)) {
 			if (isspace(ch))
 				break;
 			*cp++ = ch;
+		}
+		if (cp >= line + sizeof(line)) {
+			line[sizeof(line) - 1] = '\0';
+			printf(
+			    "config: line buffer overflow reading partial line `%s'\n",
+			    line);
+			exit(2);
 		}
 		if (ch != EOF)
 			(void) ungetc(ch, fp);
