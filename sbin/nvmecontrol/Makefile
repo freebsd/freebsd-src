@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PACKAGE=runtime
 PROG=	nvmecontrol
 SRCS=	comnd.c nvmecontrol.c
@@ -11,6 +13,8 @@ MAN=	nvmecontrol.8
 LDFLAGS+= -rdynamic
 LIBADD+= util
 SUBDIR=	modules
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .PATH:	${SRCTOP}/sys/dev/nvme
 
