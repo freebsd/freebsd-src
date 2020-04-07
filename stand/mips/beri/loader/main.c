@@ -59,8 +59,6 @@ struct devsw *devsw[] = {
 	NULL
 };
 
-struct arch_switch archsw;
-
 struct file_format *file_formats[] = {
 	&beri_elf,
 	NULL
