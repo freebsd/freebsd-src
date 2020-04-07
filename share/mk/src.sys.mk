@@ -34,6 +34,11 @@ __postrcconf_${var}:=	${MK_${var}:U-}${WITHOUT_${var}:Uno:Dyes}${WITH_${var}:Uno
 .endif # SRCCONF
 .endif
 
+# The following should be removed no earlier than LLVM11 being imported into the
+# tree, to ensure we don't regress the build.  LLVM11 and GCC10 will switch the
+# default over to -fno-common, making this redundant.
+CFLAGS+=	-fno-common
+
 # tempting, but bsd.compiler.mk causes problems this early
 # probably need to remove dependence on bsd.own.mk 
 #.include "src.opts.mk"
