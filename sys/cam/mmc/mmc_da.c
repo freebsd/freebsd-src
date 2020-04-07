@@ -77,8 +77,6 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/mmc/mmc_all.h>
 
-#include <machine/md_var.h>	/* geometry translation */
-
 #ifdef _KERNEL
 
 typedef enum {
