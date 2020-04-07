@@ -70,8 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/ata/ata_all.h>
 
-#include <machine/md_var.h>	/* geometry translation */
-
 #ifdef _KERNEL
 
 #define ATA_MAX_28BIT_LBA               268435455UL
