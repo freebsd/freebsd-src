@@ -852,7 +852,6 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_vport_stats *s = &priv->stats.vport;
 	struct mlx5e_sq_stats *sq_stats;
-	struct buf_ring *sq_br;
 #if (__FreeBSD_version < 1100000)
 	struct ifnet *ifp = priv->ifp;
 #endif
@@ -902,13 +901,10 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 
 		for (j = 0; j < priv->num_tc; j++) {
 			sq_stats = &pch->sq[j].stats;
-			sq_br = pch->sq[j].br;
 
 			tso_packets += sq_stats->tso_packets;
 			tso_bytes += sq_stats->tso_bytes;
 			tx_queue_dropped += sq_stats->dropped;
-			if (sq_br != NULL)
-				tx_queue_dropped += sq_br->br_drops;
 			tx_defragged += sq_stats->defragged;
 			tx_offload_none += sq_stats->csum_offload_none;
 		}
