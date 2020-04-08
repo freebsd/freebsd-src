@@ -81,6 +81,10 @@ static int	nfsrv_linux42server = 1;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, linux42server, CTLFLAG_RW,
     &nfsrv_linux42server, 0,
     "Enable Linux style NFSv4.2 server (non-RFC compliant)");
+static bool	nfsrv_openaccess = true;
+SYSCTL_BOOL(_vfs_nfsd, OID_AUTO, v4openaccess, CTLFLAG_RW,
+    &nfsrv_openaccess, 0,
+    "Enable Linux style NFSv4 Open access check");
 
 /*
  * This list defines the GSS mechanisms supported.
@@ -2742,7 +2746,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	u_int32_t *tl;
 	int i, retext;
 	struct nfsstate *stp = NULL;
-	int error = 0, create, claim, exclusive_flag = 0;
+	int error = 0, create, claim, exclusive_flag = 0, override;
 	u_int32_t rflags = NFSV4OPEN_LOCKTYPEPOSIX, acemask;
 	int how = NFSCREATE_UNCHECKED;
 	int32_t cverf[2], tverf[2] = { 0, 0 };
@@ -3046,15 +3050,38 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		 */
 		nd->nd_repstat = (vp->v_type == VDIR) ? NFSERR_ISDIR : NFSERR_SYMLINK;
 	}
+
+	/*
+	 * If the Open is being done for a file that already exists, apply
+	 * normal permission checking including for the file owner, if
+	 * vfs.nfsd.v4openaccess is set.
+	 * Previously, the owner was always allowed to open the file to
+	 * be consistent with the NFS tradition of always allowing the
+	 * owner of the file to write to the file regardless of permissions.
+	 * It now appears that the Linux client expects the owner
+	 * permissions to be checked for opens that are not creating the
+	 * file.  I believe the correct approach is to use the Access
+	 * operation's results to be consistent with NFSv3, but that is
+	 * not what the current Linux client appears to be doing.
+	 * Since both the Linux and OpenSolaris NFSv4 servers do this check,
+	 * I have enabled it by default.
+	 * If this semantic change causes a problem, it can be disabled by
+	 * setting the sysctl vfs.nfsd.v4openaccess to 0 to re-enable the
+	 * previous semantics.
+	 */
+	if (nfsrv_openaccess && create == NFSV4OPEN_NOCREATE)
+		override = NFSACCCHK_NOOVERRIDE;
+	else
+		override = NFSACCCHK_ALLOWOWNER;
 	if (!nd->nd_repstat && (stp->ls_flags & NFSLCK_WRITEACCESS))
 	    nd->nd_repstat = nfsvno_accchk(vp, VWRITE, nd->nd_cred,
-	        exp, p, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED, NULL);
+	        exp, p, override, NFSACCCHK_VPISLOCKED, NULL);
 	if (!nd->nd_repstat && (stp->ls_flags & NFSLCK_READACCESS)) {
 	    nd->nd_repstat = nfsvno_accchk(vp, VREAD, nd->nd_cred,
-	        exp, p, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED, NULL);
+	        exp, p, override, NFSACCCHK_VPISLOCKED, NULL);
 	    if (nd->nd_repstat)
 		nd->nd_repstat = nfsvno_accchk(vp, VEXEC,
-		    nd->nd_cred, exp, p, NFSACCCHK_ALLOWOWNER,
+		    nd->nd_cred, exp, p, override,
 		    NFSACCCHK_VPISLOCKED, NULL);
 	}
 
