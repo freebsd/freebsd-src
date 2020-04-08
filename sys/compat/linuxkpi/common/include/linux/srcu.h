@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2017 Mellanox Technologies, Ltd.
+ * Copyright (c) 2015-2020 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,13 +29,16 @@
 #ifndef	_LINUX_SRCU_H_
 #define	_LINUX_SRCU_H_
 
+#include <linux/compiler.h>
+
 struct srcu_struct {
 };
 
-#define	srcu_dereference(ptr,srcu)	((__typeof(*(ptr)) *)(ptr))
+#define	srcu_dereference(p, srcu) \
+	((__typeof(*(p)) *)READ_ONCE(p))
 
 #define	DEFINE_STATIC_SRCU(name) \
-	static struct srcu_struct name = {}
+	static struct srcu_struct name
 
 /* prototypes */
 
