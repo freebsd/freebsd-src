@@ -63,6 +63,7 @@ MAN=	acct.5 \
 	resolver.5 \
 	services.5 \
 	shells.5 \
+	smbfs.5 \
 	src.conf.5 \
 	stab.5 \
 	style.Makefile.5 \
