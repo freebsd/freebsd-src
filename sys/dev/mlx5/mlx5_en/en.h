@@ -827,7 +827,6 @@ struct mlx5e_sq {
 
 	/* pointers to per packet info: write@xmit, read@completion */
 	struct	mlx5e_sq_mbuf *mbuf;
-	struct	buf_ring *br;
 
 	/* read only */
 	struct	mlx5_wq_cyc wq;
