@@ -26,6 +26,7 @@
  * Copyright (c) 2014 Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
+ * Copyright (c) 2018, loli10K <ezomori.nozomu@gmail.com>. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -1852,6 +1853,8 @@ dsl_dir_rename_check(void *arg, dmu_tx_t *tx)
 	dsl_pool_t *dp = dmu_tx_pool(tx);
 	dsl_dir_t *dd, *newparent;
 	dsl_valid_rename_arg_t dvra;
+	dsl_dataset_t *parentds;
+	objset_t *parentos;
 	const char *mynewname;
 	int error;
 
@@ -1881,6 +1884,29 @@ dsl_dir_rename_check(void *arg, dmu_tx_t *tx)
 		dsl_dir_rele(dd, FTAG);
 		return (SET_ERROR(EEXIST));
 	}
+
+	/* can't rename below anything but filesystems (eg. no ZVOLs) */
+	error = dsl_dataset_hold_obj(newparent->dd_pool,
+	    dsl_dir_phys(newparent)->dd_head_dataset_obj, FTAG, &parentds);
+	if (error != 0) {
+		dsl_dir_rele(newparent, FTAG);
+		dsl_dir_rele(dd, FTAG);
+		return (error);
+	}
+	error = dmu_objset_from_ds(parentds, &parentos);
+	if (error != 0) {
+		dsl_dataset_rele(parentds, FTAG);
+		dsl_dir_rele(newparent, FTAG);
+		dsl_dir_rele(dd, FTAG);
+		return (error);
+	}
+	if (dmu_objset_type(parentos) != DMU_OST_ZFS) {
+		dsl_dataset_rele(parentds, FTAG);
+		dsl_dir_rele(newparent, FTAG);
+		dsl_dir_rele(dd, FTAG);
+		return (error);
+	}
+	dsl_dataset_rele(parentds, FTAG);
 
 	ASSERT3U(strnlen(ddra->ddra_newname, ZFS_MAX_DATASET_NAME_LEN),
 	    <, ZFS_MAX_DATASET_NAME_LEN);
