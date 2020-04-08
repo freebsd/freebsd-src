@@ -905,6 +905,7 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 			tso_packets += sq_stats->tso_packets;
 			tso_bytes += sq_stats->tso_bytes;
 			tx_queue_dropped += sq_stats->dropped;
+			tx_queue_dropped += sq_stats->enobuf;
 			tx_defragged += sq_stats->defragged;
 			tx_offload_none += sq_stats->csum_offload_none;
 		}
