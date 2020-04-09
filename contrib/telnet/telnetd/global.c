@@ -44,5 +44,5 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "defs.h"
-#define extern
+#define EXTERN
 #include "ext.h"

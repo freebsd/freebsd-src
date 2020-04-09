@@ -40,6 +40,8 @@
 
 #include "ypldap.h"
 
+enum ypldap_process_type		ypldap_process;
+
 __dead2 void	 usage(void);
 int		 check_child(pid_t, const char *);
 void		 main_sig_handler(int, short, void *);

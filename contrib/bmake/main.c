@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.273 2017/10/28 21:54:54 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.274 2020/03/30 02:41:06 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.273 2017/10/28 21:54:54 sjg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.274 2020/03/30 02:41:06 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.273 2017/10/28 21:54:54 sjg Exp $");
+__RCSID("$NetBSD: main.c,v 1.274 2020/03/30 02:41:06 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -198,6 +198,8 @@ char *progname;				/* the program name */
 char *makeDependfile;
 pid_t myPid;
 int makelevel;
+
+FILE *debug_file;
 
 Boolean forceJobs = FALSE;
 

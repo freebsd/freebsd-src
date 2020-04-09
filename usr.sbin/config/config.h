@@ -43,7 +43,7 @@ struct cfgfile {
 	STAILQ_ENTRY(cfgfile)	cfg_next;
 	char	*cfg_path;
 };
-STAILQ_HEAD(, cfgfile) cfgfiles;
+extern STAILQ_HEAD(cfgfile_head, cfgfile) cfgfiles;
 
 struct file_list {
 	STAILQ_ENTRY(file_list) f_next;
@@ -100,8 +100,8 @@ struct config {
  * in the makerules, etc.  machinearch is the global notion of the
  * MACHINE_ARCH for this MACHINE.
  */
-char	*machinename;
-char	*machinearch;
+extern char	*machinename;
+extern char	*machinearch;
 
 /*
  * For each machine, a set of CPU's may be specified as supported.
@@ -112,7 +112,7 @@ struct cputype {
 	SLIST_ENTRY(cputype) cpu_next;
 };
 
-SLIST_HEAD(, cputype) cputype;
+extern SLIST_HEAD(cputype_head, cputype) cputype;
 
 /*
  * A set of options may also be specified which are like CPU types,
@@ -127,7 +127,7 @@ struct opt {
 	SLIST_ENTRY(opt) op_append;
 };
 
-SLIST_HEAD(opt_head, opt) opt, mkopt, rmopts;
+extern SLIST_HEAD(opt_head, opt) opt, mkopt, rmopts;
 
 struct opt_list {
 	char *o_name;
@@ -137,7 +137,7 @@ struct opt_list {
 	SLIST_ENTRY(opt_list) o_next;
 };
 
-SLIST_HEAD(, opt_list) otab;
+extern SLIST_HEAD(opt_list_head, opt_list) otab;
 
 struct envvar {
 	char	*env_str;
@@ -145,21 +145,21 @@ struct envvar {
 	STAILQ_ENTRY(envvar) envvar_next;
 };
 
-STAILQ_HEAD(envvar_head, envvar) envvars;
+extern STAILQ_HEAD(envvar_head, envvar) envvars;
 
 struct hint {
 	char	*hint_name;
 	STAILQ_ENTRY(hint) hint_next;
 };
 
-STAILQ_HEAD(hint_head, hint) hints;
+extern STAILQ_HEAD(hint_head, hint) hints;
 
 struct includepath {
 	char	*path;
 	SLIST_ENTRY(includepath) path_next;
 };
 
-SLIST_HEAD(, includepath) includepath;
+extern SLIST_HEAD(includepath_head, includepath) includepath;
 
 /*
  * Tag present in the kernconf.tmpl template file. It's mandatory for those

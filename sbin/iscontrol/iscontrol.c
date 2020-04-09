@@ -82,6 +82,9 @@ token_t	DigestMethods[] = {
      {0, 0}
 };
 
+int	vflag;
+char	*iscsidev;
+
 u_char	isid[6 + 6];
 /*
  | Default values

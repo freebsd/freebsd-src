@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
+struct inoinfo **inphead, **inpsort;
+
 struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)

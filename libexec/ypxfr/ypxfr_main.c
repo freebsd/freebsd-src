@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/ypxfrd.h>
 #include "ypxfr_extern.h"
 
+int debug = 1;
+
 char *progname = "ypxfr";
 char *yp_dir = _PATH_YP;
 int _rpcpmstart = 0;
@@ -173,8 +175,6 @@ main(int argc, char *argv[])
 	int remoteport;
 	int interdom = 0;
 	int secure = 0;
-
-	debug = 1;
 
 	if (!isatty(fileno(stderr))) {
 		openlog("ypxfr", LOG_PID, LOG_DAEMON);

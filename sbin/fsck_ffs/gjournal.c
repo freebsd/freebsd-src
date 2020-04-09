@@ -91,7 +91,6 @@ static LIST_HEAD(, cgchain) cglist = LIST_HEAD_INITIALIZER(cglist);
 static const char *devnam;
 static struct uufsd *disk = NULL;
 static struct fs *fs = NULL;
-struct ufs2_dinode ufs2_zino;
 
 static void putcgs(void);
 
