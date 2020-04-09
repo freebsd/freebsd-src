@@ -57,7 +57,8 @@ reset(const struct cmd *f, int argc, char *argv[])
 {
 	int	fd;
 
-	arg_parse(argc, argv, f);
+	if (arg_parse(argc, argv, f))
+		return;
 	open_dev(opt.dev, &fd, 1, 1);
 
 	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0)

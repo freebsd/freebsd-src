@@ -570,11 +570,11 @@ print_log_sanitize_status(const struct nvme_controller_data *cdata __unused,
 		printf("Unknown");
 		break;
 	}
-	p = (ss->sstat & NVME_SS_PAGE_SSTAT_PASSES_SHIFT) >>
+	p = (ss->sstat >> NVME_SS_PAGE_SSTAT_PASSES_SHIFT) &
 	    NVME_SS_PAGE_SSTAT_PASSES_MASK;
 	if (p > 0)
 		printf(", %d passes", p);
-	if ((ss->sstat & NVME_SS_PAGE_SSTAT_GDE_SHIFT) >>
+	if ((ss->sstat >> NVME_SS_PAGE_SSTAT_GDE_SHIFT) &
 	    NVME_SS_PAGE_SSTAT_GDE_MASK)
 		printf(", Global Data Erased");
 	printf("\n");
