@@ -74,6 +74,8 @@ struct nfsdevicehead nfsrv_devidhead;
 volatile int nfsrv_devidcnt = 0;
 void (*nfsd_call_servertimer)(void) = NULL;
 void (*ncl_call_invalcaches)(struct vnode *) = NULL;
+vop_advlock_t *nfs_advlock_p = NULL;
+vop_reclaim_t *nfs_reclaim_p = NULL;
 
 int nfs_pnfsio(task_fn_t *, void *);
 
