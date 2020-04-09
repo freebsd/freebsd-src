@@ -26,7 +26,6 @@
 #define	MS_TO_US(t)  ((t) * THOUSAND)	/* Convert milliseconds to microseconds. */
 #define	US_TO_NS(t)  ((t) * THOUSAND)	/* Convert microseconds to nanoseconds. */
 
-int kqfd;
 
 /* Get the current time with microsecond precision. Used for
  * sub-second timing to make some timer tests run faster.

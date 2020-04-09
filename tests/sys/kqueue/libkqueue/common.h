@@ -41,7 +41,8 @@
 #include <sys/event.h>
 
 extern char *cur_test_id;
-int vnode_fd;
+extern int vnode_fd;
+extern int kqfd;
 
 extern char * kevent_to_str(struct kevent *);
 struct kevent * kevent_get(int);

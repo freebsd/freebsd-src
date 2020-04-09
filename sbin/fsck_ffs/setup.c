@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
+struct inoinfo **inphead, **inpsort;
+
 struct uufsd disk;
 struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)

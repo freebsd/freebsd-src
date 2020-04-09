@@ -56,8 +56,6 @@ static const char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 #include "systat.h"
 #include "extern.h"
 
-kvm_t	*kd;
-
 static char *header;
 static long blocksize;
 static int dlen, odlen;

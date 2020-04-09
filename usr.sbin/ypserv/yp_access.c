@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 #include "tcpd.h"
 #endif
 
-extern int debug;
-
 static const char *yp_procs[] = {
 	/* NIS v1 */
 	"ypoldproc_null",

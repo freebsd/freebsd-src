@@ -47,10 +47,11 @@ struct ypldap_addr {
 };
 TAILQ_HEAD(ypldap_addr_list, ypldap_addr);
 
-enum {
+enum ypldap_process_type {
 	PROC_MAIN,
 	PROC_CLIENT
-} ypldap_process;
+};
+extern enum ypldap_process_type		ypldap_process;
 
 struct userent {
 	RB_ENTRY(userent)		 ue_name_node;

@@ -72,6 +72,17 @@ static const char rcsid[] =
 
 #define	CDIR	"../compile/"
 
+char	*machinename;
+char	*machinearch;
+
+struct cfgfile_head	cfgfiles;
+struct cputype_head	cputype;
+struct opt_head		opt, mkopt, rmopts;
+struct opt_list_head	otab;
+struct envvar_head	envvars;
+struct hint_head	hints;
+struct includepath_head	includepath;
+
 char *	PREFIX;
 char 	destdir[MAXPATHLEN];
 char 	srcdir[MAXPATHLEN];
