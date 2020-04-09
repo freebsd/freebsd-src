@@ -73,6 +73,11 @@ struct fs_ops *file_system[] = {
 	NULL
 };
 
+/* to keep libsa happy */
+struct netif_driver *netif_drivers[] = {
+	NULL
+};
+
 /* Exported for i386 only */
 /* 
  * Sort formats so that those that can detect based on arguments

@@ -44,6 +44,10 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define SECONDS_PER_DAY		86400
+#define SECONDS_PER_YEAR	365 * SECONDS_PER_DAY
+#ifndef VE_UTC_MAX_JUMP
+# define VE_UTC_MAX_JUMP	20 * SECONDS_PER_YEAR
+#endif
 #define X509_DAYS_TO_UTC0	719528
 
 int DebugVe = 0;
@@ -113,12 +117,14 @@ static time_t ve_utc = 0;
  * set ve_utc used for certificate verification
  *
  * @param[in] utc
- *	time - ignored unless greater than current value.
+ *	time - ignored unless greater than current value
+ *	and not a leap of 20 years or more.
  */
 void
 ve_utc_set(time_t utc)
 {
-	if (utc > ve_utc) {
+	if (utc > ve_utc &&
+	    (ve_utc == 0 || (utc - ve_utc) < VE_UTC_MAX_JUMP)) {
 		DEBUG_PRINTF(2, ("Set ve_utc=%jd\n", (intmax_t)utc));
 		ve_utc = utc;
 	}
@@ -345,11 +351,11 @@ ve_trust_init(void)
 
 	if (once >= 0)
 		return (once);
-
-	ve_utc_set(time(NULL));
+	once = 0;			/* to be sure */
 #ifdef BUILD_UTC
-	ve_utc_set(BUILD_UTC);		/* just in case */
+	ve_utc_set(BUILD_UTC);		/* ensure sanity */
 #endif
+	ve_utc_set(time(NULL));
 	ve_error_set(NULL);		/* make sure it is empty */
 #ifdef VE_PCR_SUPPORT
 	ve_pcr_init();
@@ -642,9 +648,10 @@ hexdigest(char *buf, size_t bufsz, unsigned char *foo, size_t foo_len)
 static unsigned char *
 verify_ec(br_x509_pkey *pk, const char *file, const char *sigfile)
 {
-	char hexbuf[br_sha512_SIZE * 2 + 2];
+#ifdef VE_ECDSA_HASH_AGAIN
+	char *hex, hexbuf[br_sha512_SIZE * 2 + 2];
+#endif
 	unsigned char rhbuf[br_sha512_SIZE];
-	char *hex;
 	br_sha256_context ctx;
 	unsigned char *fcp, *scp;
 	size_t flen, slen, plen;
@@ -902,7 +909,7 @@ ve_check_hash(br_hash_compat_context *ctx, const br_hash_class *md,
 
 	md->out(&ctx->vtable, hbuf);
 #ifdef VE_PCR_SUPPORT
-	ve_pcr_update(hbuf, hlen);
+	ve_pcr_update(path, hbuf, hlen);
 #endif
 	hex = hexdigest(hexbuf, sizeof(hexbuf), hbuf, hlen);
 	if (!hex)

@@ -280,14 +280,14 @@ efi_copyout(const vm_offset_t src, void *dest, const size_t len)
 
 
 ssize_t
-efi_readin(const int fd, vm_offset_t dest, const size_t len)
+efi_readin(readin_handle_t fd, vm_offset_t dest, const size_t len)
 {
 
 	if (dest + stage_offset + len > staging_end) {
 		errno = ENOMEM;
 		return (-1);
 	}
-	return (read(fd, (void *)(dest + stage_offset), len));
+	return (VECTX_READ(fd, (void *)(dest + stage_offset), len));
 }
 
 void

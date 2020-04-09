@@ -69,12 +69,6 @@ void fingerprint_info_add(const char *, const char *, const char *,
 int ve_check_hash(br_hash_compat_context *, const br_hash_class *,
     const char *, const char *, size_t);
 
-struct vectx;
-struct vectx* vectx_open(int, const char *, off_t, struct stat *, int *);
-ssize_t vectx_read(struct vectx *, void *, size_t);
-off_t vectx_lseek(struct vectx *, off_t, int);
-int vectx_close(struct vectx *);
-
 char * hexdigest(char *, size_t, unsigned char *, size_t);
 int  verify_fd(int, const char *, off_t, struct stat *);
 int  verify_open(const char *, int);
@@ -84,10 +78,11 @@ unsigned char *verify_sig(const char *, int);
 unsigned char *verify_asc(const char *, int); /* OpenPGP */
 
 void ve_pcr_init(void);
-void ve_pcr_update(unsigned char *, size_t);
+void ve_pcr_update(const char *, unsigned char *, size_t);
 ssize_t ve_pcr_get(unsigned char *, size_t);
 int ve_pcr_updating_get(void);
 void ve_pcr_updating_set(int);
+char * ve_pcr_hashed_get(int);
 
 /* flags for verify_{asc,sig,signed} */
 #define VEF_VERBOSE		1

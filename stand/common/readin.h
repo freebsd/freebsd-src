@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2018, Juniper Networks, Inc.
+ * Copyright (c) 2020, Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,36 +24,20 @@
  *
  * $FreeBSD$
  */
-#ifndef _VERIFY_FILE_H_
-#define _VERIFY_FILE_H_
+#ifndef _READIN_H_
+#define	_READIN_H_
 
-#define VE_GUESS        -1           /* let verify_file work it out */
-#define VE_TRY          0            /* we don't mind if unverified */
-#define VE_WANT         1            /* we want this verified */
-#define VE_MUST         2            /* this must be verified */
+#ifdef LOADER_VERIEXEC
+#include <verify_file.h>
+#endif
+#ifdef LOADER_VERIEXEC_VECTX
+typedef struct vectx * readin_handle_t;
+#define VECTX_READ vectx_read
+#define VECTX_LSEEK vectx_lseek
+#else
+typedef int readin_handle_t;
+#define VECTX_READ read
+#define VECTX_LSEEK lseek
+#endif
 
-#define VE_NOT_CHECKED -42
-#define VE_VERIFIED     1            /* all good */
-#define VE_UNVERIFIED_OK 0           /* not verified but that's ok */
-#define VE_NOT_VERIFYING 2	     /* we are not verifying */
-
-struct stat;
-
-int	verify_prep(int, const char *, off_t, struct stat *, const char *);
-void	ve_debug_set(int);
-char	*ve_error_get(void);
-void	ve_efi_init(void);
-int	ve_status_get(int);
-int	load_manifest(const char *, const char *, const char *, struct stat *);
-int	pass_manifest(const char *, const char *);
-int	pass_manifest_export_envs(void);
-int	verify_file(int, const char *, off_t, int, const char *);
-void	verify_pcr_export(void);
-
-struct vectx;
-struct vectx* vectx_open(int, const char *, off_t, struct stat *, int *, const char *);
-ssize_t	vectx_read(struct vectx *, void *, size_t);
-off_t	vectx_lseek(struct vectx *, off_t, int);
-int	vectx_close(struct vectx *, int, const char *);
-
-#endif	/* _VERIFY_FILE_H_ */
+#endif	/* !_READIN_H_ */

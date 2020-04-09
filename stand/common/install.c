@@ -210,6 +210,13 @@ install(char *pkgname)
 		if (currdev != NULL && strcmp(currdev, "pxe0:") == 0) {
 			devname = "pxe0";
 			proto = NULL;
+#ifdef HOSTPROG
+		} else if (currdev != NULL && strcmp(currdev, "host0:") == 0) {
+			extern struct fs_ops host_fsops;
+
+			devname = "host0";
+			proto = &host_fsops;
+#endif
 		} else {
 			devname = "disk1";
 			proto = &dosfs_fsops;
@@ -236,6 +243,10 @@ install(char *pkgname)
 			goto invalid_url;
 
 		setenv("serverip", inet_ntoa(servip), 1);
+
+		if (proto == &tftp_fsops) {
+			tftpip.s_addr = servip.s_addr;
+		}
 
 		*pkgname = '/';
 	} else
