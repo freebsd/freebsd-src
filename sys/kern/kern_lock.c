@@ -732,6 +732,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 				class = LOCK_CLASS(ilk);
 				class->lc_unlock(ilk);
 			}
+			STACK_PRINT(lk);
 			panic("%s: recursing on non recursive lockmgr %p "
 			    "@ %s:%d\n", __func__, lk, file, line);
 		}
