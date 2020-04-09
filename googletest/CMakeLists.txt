@@ -1,4 +1,7 @@
 ########################################################################
+# Note: CMake support is community-based. The maintainers do not use CMake
+# internally.
+#
 # CMake build script for Google Test.
 #
 # To run the tests for Google Test itself on Linux, use 'make test' or
@@ -40,8 +43,12 @@ endif()
 # as ${gtest_SOURCE_DIR} and to the root binary directory as
 # ${gtest_BINARY_DIR}.
 # Language "C" is required for find_package(Threads).
+
+# Project version:
+
 if (CMAKE_VERSION VERSION_LESS 3.0)
   project(gtest CXX C)
+  set(PROJECT_VERSION ${GOOGLETEST_VERSION})
 else()
   cmake_policy(SET CMP0048 NEW)
   project(gtest VERSION ${GOOGLETEST_VERSION} LANGUAGES CXX C)
@@ -93,7 +100,7 @@ if (INSTALL_GTEST)
   set(generated_dir "${CMAKE_CURRENT_BINARY_DIR}/generated" CACHE INTERNAL "")
   set(cmake_files_install_dir "${CMAKE_INSTALL_LIBDIR}/cmake/${cmake_package_name}")
   set(version_file "${generated_dir}/${cmake_package_name}ConfigVersion.cmake")
-  write_basic_package_version_file(${version_file} COMPATIBILITY AnyNewerVersion)
+  write_basic_package_version_file(${version_file} VERSION ${GOOGLETEST_VERSION} COMPATIBILITY AnyNewerVersion)
   install(EXPORT ${targets_export_name}
     NAMESPACE ${cmake_package_name}::
     DESTINATION ${cmake_files_install_dir})
@@ -109,18 +116,6 @@ set(gtest_build_include_dirs
   "${gtest_SOURCE_DIR}/include"
   "${gtest_SOURCE_DIR}")
 include_directories(${gtest_build_include_dirs})
-
-# Summary of tuple support for Microsoft Visual Studio:
-# Compiler    version(MS)  version(cmake)  Support
-# ----------  -----------  --------------  -----------------------------
-# <= VS 2010  <= 10        <= 1600         Use Google Tests's own tuple.
-# VS 2012     11           1700            std::tr1::tuple + _VARIADIC_MAX=10
-# VS 2013     12           1800            std::tr1::tuple
-# VS 2015     14           1900            std::tuple
-# VS 2017     15           >= 1910         std::tuple
-if (MSVC AND MSVC_VERSION EQUAL 1700)
-  add_definitions(/D _VARIADIC_MAX=10)
-endif()
 
 ########################################################################
 #
@@ -187,13 +182,26 @@ if (gtest_build_tests)
   # 'make test' or ctest.
   enable_testing()
 
+  if (WIN32)
+    file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/RunTest.ps1"
+         CONTENT
+"$project_bin = \"${CMAKE_BINARY_DIR}/bin/$<CONFIG>\"
+$env:Path = \"$project_bin;$env:Path\"
+& $args")
+  elseif (MINGW OR CYGWIN)
+    file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/RunTest.ps1"
+         CONTENT
+"$project_bin = (cygpath --windows ${CMAKE_BINARY_DIR}/bin)
+$env:Path = \"$project_bin;$env:Path\"
+& $args")
+  endif()
+
   ############################################################
   # C++ tests built with standard compiler flags.
 
   cxx_test(googletest-death-test-test gtest_main)
   cxx_test(gtest_environment_test gtest)
   cxx_test(googletest-filepath-test gtest_main)
-  cxx_test(googletest-linked-ptr-test gtest_main)
   cxx_test(googletest-listener-test gtest_main)
   cxx_test(gtest_main_unittest gtest_main)
   cxx_test(googletest-message-test gtest_main)
@@ -217,6 +225,8 @@ if (gtest_build_tests)
     test/gtest-typed-test2_test.cc)
   cxx_test(gtest_unittest gtest_main)
   cxx_test(gtest-unittest-api_test gtest)
+  cxx_test(gtest_skip_in_environment_setup_test gtest_main)
+  cxx_test(gtest_skip_test gtest_main)
 
   ############################################################
   # C++ tests built with non-standard compiler flags.
@@ -250,26 +260,13 @@ if (gtest_build_tests)
                         PROPERTIES
                         COMPILE_DEFINITIONS "GTEST_LINKED_AS_SHARED_LIBRARY=1")
 
-  if (NOT MSVC OR MSVC_VERSION LESS 1600)  # 1600 is Visual Studio 2010.
-    # Visual Studio 2010, 2012, and 2013 define symbols in std::tr1 that
-    # conflict with our own definitions. Therefore using our own tuple does not
-    # work on those compilers.
-    cxx_library(gtest_main_use_own_tuple "${cxx_use_own_tuple}"
-      src/gtest-all.cc src/gtest_main.cc)
-
-    cxx_test_with_flags(googletest-tuple-test "${cxx_use_own_tuple}"
-      gtest_main_use_own_tuple test/googletest-tuple-test.cc)
-
-    cxx_test_with_flags(gtest_use_own_tuple_test "${cxx_use_own_tuple}"
-      gtest_main_use_own_tuple
-      test/googletest-param-test-test.cc test/googletest-param-test2-test.cc)
-  endif()
-
   ############################################################
   # Python tests.
 
   cxx_executable(googletest-break-on-failure-unittest_ test gtest)
   py_test(googletest-break-on-failure-unittest)
+
+  py_test(gtest_skip_environment_check_output_test)
 
   # Visual Studio .NET 2003 does not support STL with exceptions disabled.
   if (NOT MSVC OR MSVC_VERSION GREATER 1310)  # 1310 is Visual Studio .NET 2003

@@ -33,16 +33,20 @@
 // This file tests the internal utilities.
 
 #include "gmock/internal/gmock-internal-utils.h"
+
 #include <stdlib.h>
+
 #include <map>
 #include <memory>
-#include <string>
 #include <sstream>
+#include <string>
+#include <type_traits>
 #include <vector>
+
 #include "gmock/gmock.h"
 #include "gmock/internal/gmock-port.h"
-#include "gtest/gtest.h"
 #include "gtest/gtest-spi.h"
+#include "gtest/gtest.h"
 
 // Indicates that this translation unit is part of Google Test's
 // implementation.  It must come before gtest-internal-inl.h is
@@ -56,8 +60,6 @@
 #if GTEST_OS_CYGWIN
 # include <sys/types.h>  // For ssize_t. NOLINT
 #endif
-
-class ProtocolMessage;
 
 namespace proto2 {
 class Message;
@@ -123,44 +125,31 @@ TEST(ConvertIdentifierNameToWordsTest, WorksWhenNameIsMixture) {
 }
 
 TEST(PointeeOfTest, WorksForSmartPointers) {
-  CompileAssertTypesEqual<const char,
-      PointeeOf<internal::linked_ptr<const char> >::type>();
-#if GTEST_HAS_STD_UNIQUE_PTR_
-  CompileAssertTypesEqual<int, PointeeOf<std::unique_ptr<int> >::type>();
-#endif  // GTEST_HAS_STD_UNIQUE_PTR_
-#if GTEST_HAS_STD_SHARED_PTR_
-  CompileAssertTypesEqual<std::string,
-                          PointeeOf<std::shared_ptr<std::string> >::type>();
-#endif  // GTEST_HAS_STD_SHARED_PTR_
+  EXPECT_TRUE(
+      (std::is_same<int, PointeeOf<std::unique_ptr<int>>::type>::value));
+  EXPECT_TRUE(
+      (std::is_same<std::string,
+                    PointeeOf<std::shared_ptr<std::string>>::type>::value));
 }
 
 TEST(PointeeOfTest, WorksForRawPointers) {
-  CompileAssertTypesEqual<int, PointeeOf<int*>::type>();
-  CompileAssertTypesEqual<const char, PointeeOf<const char*>::type>();
-  CompileAssertTypesEqual<void, PointeeOf<void*>::type>();
+  EXPECT_TRUE((std::is_same<int, PointeeOf<int*>::type>::value));
+  EXPECT_TRUE((std::is_same<const char, PointeeOf<const char*>::type>::value));
+  EXPECT_TRUE((std::is_void<PointeeOf<void*>::type>::value));
 }
 
 TEST(GetRawPointerTest, WorksForSmartPointers) {
-#if GTEST_HAS_STD_UNIQUE_PTR_
   const char* const raw_p1 = new const char('a');  // NOLINT
   const std::unique_ptr<const char> p1(raw_p1);
   EXPECT_EQ(raw_p1, GetRawPointer(p1));
-#endif  // GTEST_HAS_STD_UNIQUE_PTR_
-#if GTEST_HAS_STD_SHARED_PTR_
   double* const raw_p2 = new double(2.5);  // NOLINT
   const std::shared_ptr<double> p2(raw_p2);
   EXPECT_EQ(raw_p2, GetRawPointer(p2));
-#endif  // GTEST_HAS_STD_SHARED_PTR_
-
-  const char* const raw_p4 = new const char('a');  // NOLINT
-  const internal::linked_ptr<const char> p4(raw_p4);
-  EXPECT_EQ(raw_p4, GetRawPointer(p4));
 }
 
 TEST(GetRawPointerTest, WorksForRawPointers) {
-  int* p = NULL;
-  // Don't use EXPECT_EQ as no NULL-testing magic on Symbian.
-  EXPECT_TRUE(NULL == GetRawPointer(p));
+  int* p = nullptr;
+  EXPECT_TRUE(nullptr == GetRawPointer(p));
   int n = 1;
   EXPECT_EQ(&n, GetRawPointer(&n));
 }
@@ -308,26 +297,23 @@ TEST(LosslessArithmeticConvertibleTest, FloatingPointToFloatingPoint) {
 // Tests the TupleMatches() template function.
 
 TEST(TupleMatchesTest, WorksForSize0) {
-  tuple<> matchers;
-  tuple<> values;
+  std::tuple<> matchers;
+  std::tuple<> values;
 
   EXPECT_TRUE(TupleMatches(matchers, values));
 }
 
 TEST(TupleMatchesTest, WorksForSize1) {
-  tuple<Matcher<int> > matchers(Eq(1));
-  tuple<int> values1(1),
-      values2(2);
+  std::tuple<Matcher<int> > matchers(Eq(1));
+  std::tuple<int> values1(1), values2(2);
 
   EXPECT_TRUE(TupleMatches(matchers, values1));
   EXPECT_FALSE(TupleMatches(matchers, values2));
 }
 
 TEST(TupleMatchesTest, WorksForSize2) {
-  tuple<Matcher<int>, Matcher<char> > matchers(Eq(1), Eq('a'));
-  tuple<int, char> values1(1, 'a'),
-      values2(1, 'b'),
-      values3(2, 'a'),
+  std::tuple<Matcher<int>, Matcher<char> > matchers(Eq(1), Eq('a'));
+  std::tuple<int, char> values1(1, 'a'), values2(1, 'b'), values3(2, 'a'),
       values4(2, 'b');
 
   EXPECT_TRUE(TupleMatches(matchers, values1));
@@ -337,10 +323,11 @@ TEST(TupleMatchesTest, WorksForSize2) {
 }
 
 TEST(TupleMatchesTest, WorksForSize5) {
-  tuple<Matcher<int>, Matcher<char>, Matcher<bool>, Matcher<long>,  // NOLINT
-        Matcher<std::string> >
+  std::tuple<Matcher<int>, Matcher<char>, Matcher<bool>,
+             Matcher<long>,  // NOLINT
+             Matcher<std::string> >
       matchers(Eq(1), Eq('a'), Eq(true), Eq(2L), Eq("hi"));
-  tuple<int, char, bool, long, std::string>  // NOLINT
+  std::tuple<int, char, bool, long, std::string>  // NOLINT
       values1(1, 'a', true, 2L, "hi"), values2(1, 'a', true, 2L, "hello"),
       values3(2, 'a', true, 2L, "hi");
 
@@ -387,11 +374,9 @@ TEST(ExpectTest, FailsNonfatallyOnFalse) {
 
 class LogIsVisibleTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
-    original_verbose_ = GMOCK_FLAG(verbose);
-  }
+  void SetUp() override { original_verbose_ = GMOCK_FLAG(verbose); }
 
-  virtual void TearDown() { GMOCK_FLAG(verbose) = original_verbose_; }
+  void TearDown() override { GMOCK_FLAG(verbose) = original_verbose_; }
 
   std::string original_verbose_;
 };
@@ -450,11 +435,11 @@ TEST(LogTest, NoStackTraceWhenStackFramesToSkipIsNegative) {
 }
 
 struct MockStackTraceGetter : testing::internal::OsStackTraceGetterInterface {
-  virtual std::string CurrentStackTrace(int max_depth, int skip_count) {
+  std::string CurrentStackTrace(int max_depth, int skip_count) override {
     return (testing::Message() << max_depth << "::" << skip_count << "\n")
         .GetString();
   }
-  virtual void UponLeavingGTest() {}
+  void UponLeavingGTest() override {}
 };
 
 // Tests that in opt mode, a positive stack_frames_to_skip argument is
@@ -492,7 +477,7 @@ TEST(LogTest, NoSkippingStackFrameInOptMode) {
               AllOf(Ge(expected_skip_count), Le(expected_skip_count + 10)));
 
   // Restores the default OS stack trace getter.
-  GetUnitTestImpl()->set_os_stack_trace_getter(NULL);
+  GetUnitTestImpl()->set_os_stack_trace_getter(nullptr);
 }
 
 // Tests that all logs are printed when the value of the
@@ -523,45 +508,6 @@ TEST(LogTest, OnlyWarningsArePrintedWhenVerbosityIsInvalid) {
   TestLogWithSeverity("invalid", kWarning, true);
 }
 
-#endif  // GTEST_HAS_STREAM_REDIRECTION
-
-TEST(TypeTraitsTest, true_type) {
-  EXPECT_TRUE(true_type::value);
-}
-
-TEST(TypeTraitsTest, false_type) {
-  EXPECT_FALSE(false_type::value);
-}
-
-TEST(TypeTraitsTest, is_reference) {
-  EXPECT_FALSE(is_reference<int>::value);
-  EXPECT_FALSE(is_reference<char*>::value);
-  EXPECT_TRUE(is_reference<const int&>::value);
-}
-
-TEST(TypeTraitsTest, is_pointer) {
-  EXPECT_FALSE(is_pointer<int>::value);
-  EXPECT_FALSE(is_pointer<char&>::value);
-  EXPECT_TRUE(is_pointer<const int*>::value);
-}
-
-TEST(TypeTraitsTest, type_equals) {
-  EXPECT_FALSE((type_equals<int, const int>::value));
-  EXPECT_FALSE((type_equals<int, int&>::value));
-  EXPECT_FALSE((type_equals<int, double>::value));
-  EXPECT_TRUE((type_equals<char, char>::value));
-}
-
-TEST(TypeTraitsTest, remove_reference) {
-  EXPECT_TRUE((type_equals<char, remove_reference<char&>::type>::value));
-  EXPECT_TRUE((type_equals<const int,
-               remove_reference<const int&>::type>::value));
-  EXPECT_TRUE((type_equals<int, remove_reference<int>::type>::value));
-  EXPECT_TRUE((type_equals<double*, remove_reference<double*>::type>::value));
-}
-
-#if GTEST_HAS_STREAM_REDIRECTION
-
 // Verifies that Log() behaves correctly for the given verbosity level
 // and log severity.
 std::string GrabOutput(void(*logger)(), const char* verbosity) {
@@ -583,7 +529,7 @@ void ExpectCallLogger() {
   DummyMock mock;
   EXPECT_CALL(mock, TestMethod());
   mock.TestMethod();
-};
+}
 
 // Verifies that EXPECT_CALL logs if the --gmock_verbose flag is set to "info".
 TEST(ExpectCallTest, LogsWhenVerbosityIsInfo) {
@@ -606,7 +552,7 @@ TEST(ExpectCallTest,  DoesNotLogWhenVerbosityIsError) {
 void OnCallLogger() {
   DummyMock mock;
   ON_CALL(mock, TestMethod());
-};
+}
 
 // Verifies that ON_CALL logs if the --gmock_verbose flag is set to "info".
 TEST(OnCallTest, LogsWhenVerbosityIsInfo) {
@@ -686,22 +632,25 @@ TEST(StlContainerViewTest, WorksForStaticNativeArray) {
 
 TEST(StlContainerViewTest, WorksForDynamicNativeArray) {
   StaticAssertTypeEq<NativeArray<int>,
-      StlContainerView<tuple<const int*, size_t> >::type>();
-  StaticAssertTypeEq<NativeArray<double>,
-      StlContainerView<tuple<linked_ptr<double>, int> >::type>();
+                     StlContainerView<std::tuple<const int*, size_t> >::type>();
+  StaticAssertTypeEq<
+      NativeArray<double>,
+      StlContainerView<std::tuple<std::shared_ptr<double>, int> >::type>();
 
-  StaticAssertTypeEq<const NativeArray<int>,
-      StlContainerView<tuple<const int*, int> >::const_reference>();
+  StaticAssertTypeEq<
+      const NativeArray<int>,
+      StlContainerView<std::tuple<const int*, int> >::const_reference>();
 
   int a1[3] = { 0, 1, 2 };
   const int* const p1 = a1;
-  NativeArray<int> a2 = StlContainerView<tuple<const int*, int> >::
-      ConstReference(make_tuple(p1, 3));
+  NativeArray<int> a2 =
+      StlContainerView<std::tuple<const int*, int> >::ConstReference(
+          std::make_tuple(p1, 3));
   EXPECT_EQ(3U, a2.size());
   EXPECT_EQ(a1, a2.begin());
 
-  const NativeArray<int> a3 = StlContainerView<tuple<int*, size_t> >::
-      Copy(make_tuple(static_cast<int*>(a1), 3));
+  const NativeArray<int> a3 = StlContainerView<std::tuple<int*, size_t> >::Copy(
+      std::make_tuple(static_cast<int*>(a1), 3));
   ASSERT_EQ(3U, a3.size());
   EXPECT_EQ(0, a3.begin()[0]);
   EXPECT_EQ(1, a3.begin()[1]);
@@ -710,6 +659,73 @@ TEST(StlContainerViewTest, WorksForDynamicNativeArray) {
   // Makes sure a1 and a3 aren't aliases.
   a1[0] = 3;
   EXPECT_EQ(0, a3.begin()[0]);
+}
+
+// Tests the Function template struct.
+
+TEST(FunctionTest, Nullary) {
+  typedef Function<int()> F;  // NOLINT
+  EXPECT_EQ(0u, F::ArgumentCount);
+  EXPECT_TRUE((std::is_same<int, F::Result>::value));
+  EXPECT_TRUE((std::is_same<std::tuple<>, F::ArgumentTuple>::value));
+  EXPECT_TRUE((std::is_same<std::tuple<>, F::ArgumentMatcherTuple>::value));
+  EXPECT_TRUE((std::is_same<void(), F::MakeResultVoid>::value));
+  EXPECT_TRUE((std::is_same<IgnoredValue(), F::MakeResultIgnoredValue>::value));
+}
+
+TEST(FunctionTest, Unary) {
+  typedef Function<int(bool)> F;  // NOLINT
+  EXPECT_EQ(1u, F::ArgumentCount);
+  EXPECT_TRUE((std::is_same<int, F::Result>::value));
+  EXPECT_TRUE((std::is_same<bool, F::Arg<0>::type>::value));
+  EXPECT_TRUE((std::is_same<std::tuple<bool>, F::ArgumentTuple>::value));
+  EXPECT_TRUE((
+      std::is_same<std::tuple<Matcher<bool>>, F::ArgumentMatcherTuple>::value));
+  EXPECT_TRUE((std::is_same<void(bool), F::MakeResultVoid>::value));  // NOLINT
+  EXPECT_TRUE((std::is_same<IgnoredValue(bool),                       // NOLINT
+                            F::MakeResultIgnoredValue>::value));
+}
+
+TEST(FunctionTest, Binary) {
+  typedef Function<int(bool, const long&)> F;  // NOLINT
+  EXPECT_EQ(2u, F::ArgumentCount);
+  EXPECT_TRUE((std::is_same<int, F::Result>::value));
+  EXPECT_TRUE((std::is_same<bool, F::Arg<0>::type>::value));
+  EXPECT_TRUE((std::is_same<const long&, F::Arg<1>::type>::value));  // NOLINT
+  EXPECT_TRUE((std::is_same<std::tuple<bool, const long&>,           // NOLINT
+                            F::ArgumentTuple>::value));
+  EXPECT_TRUE(
+      (std::is_same<std::tuple<Matcher<bool>, Matcher<const long&>>,  // NOLINT
+                    F::ArgumentMatcherTuple>::value));
+  EXPECT_TRUE((std::is_same<void(bool, const long&),  // NOLINT
+                            F::MakeResultVoid>::value));
+  EXPECT_TRUE((std::is_same<IgnoredValue(bool, const long&),  // NOLINT
+                            F::MakeResultIgnoredValue>::value));
+}
+
+TEST(FunctionTest, LongArgumentList) {
+  typedef Function<char(bool, int, char*, int&, const long&)> F;  // NOLINT
+  EXPECT_EQ(5u, F::ArgumentCount);
+  EXPECT_TRUE((std::is_same<char, F::Result>::value));
+  EXPECT_TRUE((std::is_same<bool, F::Arg<0>::type>::value));
+  EXPECT_TRUE((std::is_same<int, F::Arg<1>::type>::value));
+  EXPECT_TRUE((std::is_same<char*, F::Arg<2>::type>::value));
+  EXPECT_TRUE((std::is_same<int&, F::Arg<3>::type>::value));
+  EXPECT_TRUE((std::is_same<const long&, F::Arg<4>::type>::value));  // NOLINT
+  EXPECT_TRUE(
+      (std::is_same<std::tuple<bool, int, char*, int&, const long&>,  // NOLINT
+                    F::ArgumentTuple>::value));
+  EXPECT_TRUE(
+      (std::is_same<
+          std::tuple<Matcher<bool>, Matcher<int>, Matcher<char*>, Matcher<int&>,
+                     Matcher<const long&>>,  // NOLINT
+          F::ArgumentMatcherTuple>::value));
+  EXPECT_TRUE(
+      (std::is_same<void(bool, int, char*, int&, const long&),  // NOLINT
+                    F::MakeResultVoid>::value));
+  EXPECT_TRUE((
+      std::is_same<IgnoredValue(bool, int, char*, int&, const long&),  // NOLINT
+                   F::MakeResultIgnoredValue>::value));
 }
 
 }  // namespace

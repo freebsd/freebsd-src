@@ -34,7 +34,14 @@
 #
 
 # TODO() - we can check if this is being sourced using $BASH_VERSION and $BASH_SOURCE[0] != ${0}.
+#
 
-if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
-    if [ "$CXX" = "clang++" ]; then export CXX="clang++-3.9" CC="clang-3.9"; fi
+if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+    if [ "$CXX" = "clang++" ]; then
+        # $PATH needs to be adjusted because the llvm tap doesn't install the
+        # package to /usr/local/bin, etc, like the gcc tap does.
+        # See: https://github.com/Homebrew/legacy-homebrew/issues/29733
+        clang_version=3.9
+        export PATH="/usr/local/opt/llvm@${clang_version}/bin:$PATH";
+    fi
 fi
