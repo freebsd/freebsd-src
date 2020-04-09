@@ -673,6 +673,8 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	ifp->if_baudrate = IF_Gbps(10);
+	ifp->if_mtu = ETHERMTU;
+
 	ifp->if_init = qla_init;
 	ifp->if_softc = ha;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
