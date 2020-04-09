@@ -244,6 +244,7 @@ ffs_truncate(vp, length, flags, cred)
 	needextclean = 0;
 	softdeptrunc = 0;
 	journaltrunc = DOINGSUJ(vp);
+	journaltrunc = 0;	/* XXX temp patch until bug found */
 	if (journaltrunc == 0 && DOINGSOFTDEP(vp) && length == 0)
 		softdeptrunc = !softdep_slowdown(vp);
 	extblocks = 0;
