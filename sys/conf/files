@@ -3489,10 +3489,10 @@ fs/msdosfs/msdosfs_iconv.c	optional msdosfs_iconv
 fs/msdosfs/msdosfs_lookup.c	optional msdosfs
 fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
 fs/msdosfs/msdosfs_vnops.c	optional msdosfs
-fs/nfs/nfs_commonkrpc.c		optional nfscl | nfsd
-fs/nfs/nfs_commonsubs.c		optional nfscl | nfsd
-fs/nfs/nfs_commonport.c		optional nfscl | nfsd
-fs/nfs/nfs_commonacl.c		optional nfscl | nfsd
+fs/nfs/nfs_commonkrpc.c		optional nfscl | nfslockd | nfsd
+fs/nfs/nfs_commonsubs.c		optional nfscl | nfslockd | nfsd
+fs/nfs/nfs_commonport.c		optional nfscl | nfslockd | nfsd
+fs/nfs/nfs_commonacl.c		optional nfscl | nfslockd | nfsd
 fs/nfsclient/nfs_clcomsubs.c	optional nfscl
 fs/nfsclient/nfs_clsubs.c	optional nfscl
 fs/nfsclient/nfs_clstate.c	optional nfscl
@@ -4434,8 +4434,7 @@ nfs/bootp_subr.c		optional bootp nfscl
 nfs/krpc_subr.c			optional bootp nfscl
 nfs/nfs_diskless.c		optional nfscl nfs_root
 nfs/nfs_fha.c			optional nfsd
-nfs/nfs_lock.c			optional nfscl | nfslockd | nfsd
-nfs/nfs_nfssvc.c		optional nfscl | nfsd
+nfs/nfs_nfssvc.c		optional nfscl | nfslockd | nfsd
 nlm/nlm_advlock.c		optional nfslockd | nfsd
 nlm/nlm_prot_clnt.c		optional nfslockd | nfsd
 nlm/nlm_prot_impl.c		optional nfslockd | nfsd

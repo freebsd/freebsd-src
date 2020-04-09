@@ -182,7 +182,6 @@ struct kcov_info;
 struct kdtrace_proc;
 struct kdtrace_thread;
 struct mqueue_notifier;
-struct nlminfo;
 struct p_sched;
 struct proc;
 struct procdesc;
@@ -645,7 +644,6 @@ struct proc {
 	int		p_sigparent;	/* (c) Signal to parent on exit. */
 	int		p_sig;		/* (n) For core dump/debugger XXX. */
 	u_int		p_ptevents;	/* (c + e) ptrace() event mask. */
-	struct nlminfo	*p_nlminfo;	/* (?) Only used by/for lockd. */
 	struct kaioinfo	*p_aioinfo;	/* (y) ASYNC I/O info. */
 	struct thread	*p_singlethread;/* (c + j) If single threading this is it */
 	int		p_suspcount;	/* (j) Num threads in suspended mode. */

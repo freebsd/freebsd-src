@@ -96,9 +96,6 @@ dtrace_execexit_func_t	dtrace_fasttrap_exit;
 SDT_PROVIDER_DECLARE(proc);
 SDT_PROBE_DEFINE1(proc, , , exit, "int");
 
-/* Hook for NFS teardown procedure. */
-void (*nlminfo_release_p)(struct proc *p);
-
 struct proc *
 proc_realparent(struct proc *child)
 {
@@ -364,12 +361,6 @@ exit1(struct thread *td, int rval, int signo)
 	 * F_SETOWN with our pid.
 	 */
 	funsetownlst(&p->p_sigiolst);
-
-	/*
-	 * If this process has an nlminfo data area (for lockd), release it
-	 */
-	if (nlminfo_release_p != NULL && p->p_nlminfo != NULL)
-		(*nlminfo_release_p)(p);
 
 	/*
 	 * Close open files and release open-file table.

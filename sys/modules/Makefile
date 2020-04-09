@@ -259,7 +259,6 @@ SUBDIR=	\
 	nfscl \
 	nfscommon \
 	nfsd \
-	nfslock \
 	nfslockd \
 	nfssvc \
 	nge \
