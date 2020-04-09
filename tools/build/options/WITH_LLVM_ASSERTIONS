@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to enable debugging assertions in LLVM.
