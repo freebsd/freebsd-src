@@ -360,9 +360,9 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		NFSMCLGET(mb, M_WAITOK);
 	else
 		NFSMGET(mb);
-	mbuf_setlen(mb, 0);
+	mb->m_len = 0;
 	nd->nd_mreq = nd->nd_mb = mb;
-	nd->nd_bpos = NFSMTOD(mb, caddr_t);
+	nd->nd_bpos = mtod(mb, caddr_t);
 	
 	/*
 	 * And fill the first file handle into the request.
@@ -617,7 +617,7 @@ nfsm_mbufuio(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 
 	mp = nd->nd_md;
 	mbufcp = nd->nd_dpos;
-	len = NFSMTOD(mp, caddr_t) + mbuf_len(mp) - mbufcp;
+	len = mtod(mp, caddr_t) + mp->m_len - mbufcp;
 	rem = NFSM_RNDUP(siz) - siz;
 	while (siz > 0) {
 		if (uiop->uio_iovcnt <= 0 || uiop->uio_iov == NULL) {
@@ -631,13 +631,13 @@ nfsm_mbufuio(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 		uiosiz = left;
 		while (left > 0) {
 			while (len == 0) {
-				mp = mbuf_next(mp);
+				mp = mp->m_next;
 				if (mp == NULL) {
 					error = EBADRPC;
 					goto out;
 				}
-				mbufcp = NFSMTOD(mp, caddr_t);
-				len = mbuf_len(mp);
+				mbufcp = mtod(mp, caddr_t);
+				len = mp->m_len;
 				KASSERT(len >= 0,
 				    ("len %d, corrupted mbuf?", len));
 			}
@@ -701,18 +701,18 @@ nfsm_dissct(struct nfsrv_descript *nd, int siz, int how)
 	caddr_t retp;
 
 	retp = NULL;
-	left = NFSMTOD(nd->nd_md, caddr_t) + mbuf_len(nd->nd_md) - nd->nd_dpos;
+	left = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos;
 	while (left == 0) {
-		nd->nd_md = mbuf_next(nd->nd_md);
+		nd->nd_md = nd->nd_md->m_next;
 		if (nd->nd_md == NULL)
 			return (retp);
-		left = mbuf_len(nd->nd_md);
-		nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
+		left = nd->nd_md->m_len;
+		nd->nd_dpos = mtod(nd->nd_md, caddr_t);
 	}
 	if (left >= siz) {
 		retp = nd->nd_dpos;
 		nd->nd_dpos += siz;
-	} else if (mbuf_next(nd->nd_md) == NULL) {
+	} else if (nd->nd_md->m_next == NULL) {
 		return (retp);
 	} else if (siz > ncl_mbuf_mhlen) {
 		panic("nfs S too big");
@@ -720,33 +720,33 @@ nfsm_dissct(struct nfsrv_descript *nd, int siz, int how)
 		MGET(mp2, MT_DATA, how);
 		if (mp2 == NULL)
 			return (NULL);
-		mbuf_setnext(mp2, mbuf_next(nd->nd_md));
-		mbuf_setnext(nd->nd_md, mp2);
-		mbuf_setlen(nd->nd_md, mbuf_len(nd->nd_md) - left);
+		mp2->m_next = nd->nd_md->m_next;
+		nd->nd_md->m_next = mp2;
+		nd->nd_md->m_len -= left;
 		nd->nd_md = mp2;
-		retp = p = NFSMTOD(mp2, caddr_t);
+		retp = p = mtod(mp2, caddr_t);
 		NFSBCOPY(nd->nd_dpos, p, left);	/* Copy what was left */
 		siz2 = siz - left;
 		p += left;
-		mp2 = mbuf_next(mp2);
+		mp2 = mp2->m_next;
 		/* Loop around copying up the siz2 bytes */
 		while (siz2 > 0) {
 			if (mp2 == NULL)
 				return (NULL);
-			xfer = (siz2 > mbuf_len(mp2)) ? mbuf_len(mp2) : siz2;
+			xfer = (siz2 > mp2->m_len) ? mp2->m_len : siz2;
 			if (xfer > 0) {
-				NFSBCOPY(NFSMTOD(mp2, caddr_t), p, xfer);
-				NFSM_DATAP(mp2, xfer);
-				mbuf_setlen(mp2, mbuf_len(mp2) - xfer);
+				NFSBCOPY(mtod(mp2, caddr_t), p, xfer);
+				mp2->m_data += xfer;
+				mp2->m_len -= xfer;
 				p += xfer;
 				siz2 -= xfer;
 			}
 			if (siz2 > 0)
-				mp2 = mbuf_next(mp2);
+				mp2 = mp2->m_next;
 		}
-		mbuf_setlen(nd->nd_md, siz);
+		nd->nd_md->m_len = siz;
 		nd->nd_md = mp2;
-		nd->nd_dpos = NFSMTOD(mp2, caddr_t);
+		nd->nd_dpos = mtod(mp2, caddr_t);
 	}
 	return (retp);
 }
@@ -778,7 +778,7 @@ nfsm_advance(struct nfsrv_descript *nd, int offs, int left)
 	 * If left == -1, calculate it here.
 	 */
 	if (left == -1)
-		left = NFSMTOD(nd->nd_md, caddr_t) + mbuf_len(nd->nd_md) -
+		left = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len -
 		    nd->nd_dpos;
 
 	/*
@@ -786,13 +786,13 @@ nfsm_advance(struct nfsrv_descript *nd, int offs, int left)
 	 */
 	while (offs > left) {
 		offs -= left;
-		nd->nd_md = mbuf_next(nd->nd_md);
+		nd->nd_md = nd->nd_md->m_next;
 		if (nd->nd_md == NULL) {
 			error = EBADRPC;
 			goto out;
 		}
-		left = mbuf_len(nd->nd_md);
-		nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
+		left = nd->nd_md->m_len;
+		nd->nd_dpos = mtod(nd->nd_md, caddr_t);
 	}
 	nd->nd_dpos += offs;
 
@@ -832,10 +832,10 @@ nfsm_strtom(struct nfsrv_descript *nd, const char *cp, int siz)
 				NFSMCLGET(m1, M_WAITOK);
 			else
 				NFSMGET(m1);
-			mbuf_setlen(m1, 0);
-			mbuf_setnext(m2, m1);
+			m1->m_len = 0;
+			m2->m_next = m1;
 			m2 = m1;
-			cp2 = NFSMTOD(m2, caddr_t);
+			cp2 = mtod(m2, caddr_t);
 			left = M_TRAILINGSPACE(m2);
 		}
 		if (left >= siz)
@@ -844,18 +844,18 @@ nfsm_strtom(struct nfsrv_descript *nd, const char *cp, int siz)
 			xfer = left;
 		NFSBCOPY(cp, cp2, xfer);
 		cp += xfer;
-		mbuf_setlen(m2, mbuf_len(m2) + xfer);
+		m2->m_len += xfer;
 		siz -= xfer;
 		left -= xfer;
 		if (siz == 0 && rem) {
 			if (left < rem)
 				panic("nfsm_strtom");
 			NFSBZERO(cp2 + xfer, rem);
-			mbuf_setlen(m2, mbuf_len(m2) + rem);
+			m2->m_len += rem;
 		}
 	}
 	nd->nd_mb = m2;
-	nd->nd_bpos = NFSMTOD(m2, caddr_t) + mbuf_len(m2);
+	nd->nd_bpos = mtod(m2, caddr_t) + m2->m_len;
 	return (bytesize);
 }
 
@@ -1022,35 +1022,35 @@ newnfs_trimleading(nd)
 	 */
 	if (nd->nd_mrep != nd->nd_md) {
 		m = nd->nd_mrep;
-		while (mbuf_next(m) != nd->nd_md) {
-			if (mbuf_next(m) == NULL)
+		while (m->m_next != nd->nd_md) {
+			if (m->m_next == NULL)
 				panic("nfsm trim leading");
-			m = mbuf_next(m);
+			m = m->m_next;
 		}
-		mbuf_setnext(m, NULL);
-		mbuf_freem(nd->nd_mrep);
+		m->m_next = NULL;
+		m_freem(nd->nd_mrep);
 	}
 	m = nd->nd_md;
 
 	/*
 	 * Now, adjust this mbuf, based on nd_dpos.
 	 */
-	offs = nd->nd_dpos - NFSMTOD(m, caddr_t);
-	if (offs == mbuf_len(m)) {
+	offs = nd->nd_dpos - mtod(m, caddr_t);
+	if (offs == m->m_len) {
 		n = m;
-		m = mbuf_next(m);
+		m = m->m_next;
 		if (m == NULL)
 			panic("nfsm trim leading2");
-		mbuf_setnext(n, NULL);
-		mbuf_freem(n);
+		n->m_next = NULL;
+		m_freem(n);
 	} else if (offs > 0) {
-		mbuf_setlen(m, mbuf_len(m) - offs);
-		NFSM_DATAP(m, offs);
+		m->m_len -= offs;
+		m->m_data += offs;
 	} else if (offs < 0)
 		panic("nfsm trimleading offs");
 	nd->nd_mrep = m;
 	nd->nd_md = m;
-	nd->nd_dpos = NFSMTOD(m, caddr_t);
+	nd->nd_dpos = mtod(m, caddr_t);
 }
 
 /*
@@ -1063,11 +1063,11 @@ newnfs_trimtrailing(nd, mb, bpos)
 	caddr_t bpos;
 {
 
-	if (mbuf_next(mb)) {
-		mbuf_freem(mbuf_next(mb));
-		mbuf_setnext(mb, NULL);
+	if (mb->m_next) {
+		m_freem(mb->m_next);
+		mb->m_next = NULL;
 	}
-	mbuf_setlen(mb, bpos - NFSMTOD(mb, caddr_t));
+	mb->m_len = bpos - mtod(mb, caddr_t);
 	nd->nd_mb = mb;
 	nd->nd_bpos = bpos;
 }
@@ -2428,7 +2428,7 @@ nfsrv_mtostr(struct nfsrv_descript *nd, char *str, int siz)
 
 	mp = nd->nd_md;
 	cp = nd->nd_dpos;
-	len = NFSMTOD(mp, caddr_t) + mbuf_len(mp) - cp;
+	len = mtod(mp, caddr_t) + mp->m_len - cp;
 	rem = NFSM_RNDUP(siz) - siz;
 	while (siz > 0) {
 		if (len > siz)
@@ -2439,13 +2439,13 @@ nfsrv_mtostr(struct nfsrv_descript *nd, char *str, int siz)
 		str += xfer;
 		siz -= xfer;
 		if (siz > 0) {
-			mp = mbuf_next(mp);
+			mp = mp->m_next;
 			if (mp == NULL) {
 				error = EBADRPC;
 				goto out;
 			}
-			cp = NFSMTOD(mp, caddr_t);
-			len = mbuf_len(mp);
+			cp = mtod(mp, caddr_t);
+			len = mp->m_len;
 		} else {
 			cp += xfer;
 			len -= xfer;
@@ -3728,7 +3728,7 @@ nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name)
 	NFSUNLOCKNAMEID();
 	NFSFREECRED(cred);
 	if (!error) {
-		mbuf_freem(nd->nd_mrep);
+		m_freem(nd->nd_mrep);
 		error = nd->nd_repstat;
 	}
 out:
@@ -4452,8 +4452,8 @@ nfsrvd_rephead(struct nfsrv_descript *nd)
 		nd->nd_mreq = mreq;
 		nd->nd_mb = mreq;
 	}
-	nd->nd_bpos = NFSMTOD(mreq, caddr_t);
-	mbuf_setlen(mreq, 0);
+	nd->nd_bpos = mtod(mreq, caddr_t);
+	mreq->m_len = 0;
 
 	if ((nd->nd_flag & ND_GSSINITREPLY) == 0)
 		NFSM_BUILD(nd->nd_errp, int *, NFSX_UNSIGNED);
