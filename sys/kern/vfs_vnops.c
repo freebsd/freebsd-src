@@ -1902,7 +1902,7 @@ vfs_write_suspend(struct mount *mp, int flags)
 		MNT_IUNLOCK(mp);
 	if ((error = VFS_SYNC(mp, MNT_SUSPEND)) != 0) {
 		vfs_write_resume(mp, 0);
-		vfs_op_exit(mp);
+		/* vfs_write_resume does vfs_op_exit() for us */
 	}
 	return (error);
 }
