@@ -409,6 +409,9 @@ amrr_tx_update(const struct ieee80211vap *vap, const struct ieee80211_node *ni,
 	struct ieee80211_amrr_node *amn = ni->ni_rctls;
 	int txcnt = *(int *)arg1, success = *(int *)arg2, retrycnt = *(int *)arg3;
 
+	if (!amn)
+		return;
+
 	amn->amn_txcnt = txcnt;
 	amn->amn_success = success;
 	amn->amn_retrycnt = retrycnt;
