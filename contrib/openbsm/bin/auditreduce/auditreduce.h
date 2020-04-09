@@ -57,6 +57,7 @@ struct re_entry {
 #define OPT_u	0x00010000
 #define OPT_A	0x00020000
 #define OPT_v	0x00040000
+#define OPT_z	0x00080000
 
 #define FILEOBJ "file"
 #define MSGQIDOBJ "msgqid"
