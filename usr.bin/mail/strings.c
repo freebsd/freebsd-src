@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include "rcv.h"
 #include "extern.h"
 
+struct strings stringdope[NSPACE];
+
 /*
  * Allocate size more bytes of space and return the address of the
  * first byte to the caller.  An even number of bytes are always
