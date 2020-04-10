@@ -50,7 +50,7 @@ CFLAGS+= -I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/edit
 # Some bits here currently rely on some of the linker-merging magic that happens
 # with -fcommon.  While this is the default right now, explicitly set -fcommon
 # so that it continues to build when the default flips.
-CFLAGS+= -fcommon
+CFCOMMONFLAG= -fcommon
 
 GENSRCS+= nm.h tm.h
 
