@@ -73,6 +73,13 @@ struct acpi_softc {
     int			acpi_do_disable;
     int			acpi_verbose;
     int			acpi_handle_reboot;
+#define ACPI_SLEEP_DISABLED (0) /* S3, S4 */
+#define ACPI_POWER_DISABLED (1) /* S0, S5 */
+    struct {
+	    int		flags;
+	    int		saved_flags;
+    } acpi_repressed_states;
+    bool		acpi_s0idle;
 
     vm_offset_t		acpi_wakeaddr;
     vm_paddr_t		acpi_wakephys;
@@ -363,6 +370,7 @@ int		acpi_AckSleepState(struct apm_clone_data *clone, int error);
 ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 int		acpi_wake_set_enable(device_t dev, int enable);
 int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
+BOOLEAN		acpi_PowerTransitionIsEnabled(void);
 ACPI_STATUS	acpi_Startup(void);
 void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
 		    uint8_t notify);
