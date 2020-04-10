@@ -1622,6 +1622,7 @@ ino_trunc(ino_t ino, off_t size)
 	}
 	DIP_SET(ip, di_blocks, fsbtodb(fs, totalfrags));
 	DIP_SET(ip, di_size, size);
+	ino_dirty(ino);
 	/*
 	 * If we've truncated into the middle of a block or frag we have
 	 * to zero it here.  Otherwise the file could extend into
@@ -1959,6 +1960,7 @@ ino_unlinked(void)
 		mode = DIP(ip, di_mode) & IFMT;
 		inon = DIP(ip, di_freelink);
 		DIP_SET(ip, di_freelink, 0);
+		ino_dirty(ino);
 		/*
 		 * XXX Should this be an errx?
 		 */
