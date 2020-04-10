@@ -600,9 +600,7 @@ struct sge_rxq {
 	struct sge_fl fl;	/* MUST follow iq */
 
 	struct ifnet *ifp;	/* the interface this rxq belongs to */
-#if defined(INET) || defined(INET6)
 	struct lro_ctrl lro;	/* LRO state */
-#endif
 
 	/* stats for common events first */
 
