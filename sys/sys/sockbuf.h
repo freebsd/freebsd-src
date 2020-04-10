@@ -145,9 +145,9 @@ int	sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
 int	sbappendaddr_nospacecheck_locked(struct sockbuf *sb,
 	    const struct sockaddr *asa, struct mbuf *m0, struct mbuf *control);
 void	sbappendcontrol(struct sockbuf *sb, struct mbuf *m0,
-	    struct mbuf *control);
+	    struct mbuf *control, int flags);
 void	sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
-	    struct mbuf *control);
+	    struct mbuf *control, int flags);
 void	sbappendrecord(struct sockbuf *sb, struct mbuf *m0);
 void	sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0);
 void	sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n);
