@@ -440,9 +440,7 @@ hdac_reset(struct hdac_softc *sc, int wakeup)
 
 	/*
 	 * Wait for codecs to finish their own reset sequence. The delay here
-	 * should be of 250us but for some reasons, it's not enough on my
-	 * computer. Let's use twice as much as necessary to make sure that
-	 * it's reset properly.
+	 * must be at least 521us (HDA 1.0a section 4.3 Codec Discovery).
 	 */
 	DELAY(1000);
 
