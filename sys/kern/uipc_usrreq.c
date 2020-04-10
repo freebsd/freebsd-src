@@ -775,6 +775,18 @@ uipc_detach(struct socket *so)
 	vplock = NULL;
 	local_unp_rights = 0;
 
+	SOCK_LOCK(so);
+	if (!SOLISTENING(so)) {
+		/*
+		 * Once the socket is removed from the global lists,
+		 * uipc_ready() will not be able to locate its socket buffer, so
+		 * clear the buffer now.  At this point internalized rights have
+		 * already been disposed of.
+		 */
+		sbrelease(&so->so_rcv, so);
+	}
+	SOCK_UNLOCK(so);
+
 	UNP_LINK_WLOCK();
 	LIST_REMOVE(unp, unp_link);
 	if (unp->unp_gcflag & UNPGC_DEAD)
@@ -1244,19 +1256,54 @@ release:
 	return (error);
 }
 
+static bool
+uipc_ready_scan(struct socket *so, struct mbuf *m, int count, int *errorp)
+{
+	struct mbuf *mb, *n;
+	struct sockbuf *sb;
+
+	SOCK_LOCK(so);
+	if (SOLISTENING(so)) {
+		SOCK_UNLOCK(so);
+		return (false);
+	}
+	mb = NULL;
+	sb = &so->so_rcv;
+	SOCKBUF_LOCK(sb);
+	if (sb->sb_fnrdy != NULL) {
+		for (mb = sb->sb_mb, n = mb->m_nextpkt; mb != NULL;) {
+			if (mb == m) {
+				*errorp = sbready(sb, m, count);
+				break;
+			}
+			mb = mb->m_next;
+			if (mb == NULL) {
+				mb = n;
+				n = mb->m_nextpkt;
+			}
+		}
+	}
+	SOCKBUF_UNLOCK(sb);
+	SOCK_UNLOCK(so);
+	return (mb != NULL);
+}
+
 static int
 uipc_ready(struct socket *so, struct mbuf *m, int count)
 {
 	struct unpcb *unp, *unp2;
 	struct socket *so2;
-	int error;
+	int error, i;
 
 	unp = sotounpcb(so);
+
+	KASSERT(so->so_type == SOCK_STREAM,
+	    ("%s: unexpected socket type for %p", __func__, so));
 
 	UNP_PCB_LOCK(unp);
 	if ((unp2 = unp->unp_conn) == NULL) {
 		UNP_PCB_UNLOCK(unp);
-		goto error;
+		goto search;
 	}
 	if (unp != unp2) {
 		if (UNP_PCB_TRYLOCK(unp2) == 0) {
@@ -1264,25 +1311,39 @@ uipc_ready(struct socket *so, struct mbuf *m, int count)
 			UNP_PCB_UNLOCK(unp);
 			UNP_PCB_LOCK(unp2);
 			if (unp_pcb_rele(unp2))
-				goto error;
+				goto search;
 		} else
 			UNP_PCB_UNLOCK(unp);
 	}
 	so2 = unp2->unp_socket;
-
 	SOCKBUF_LOCK(&so2->so_rcv);
 	if ((error = sbready(&so2->so_rcv, m, count)) == 0)
 		sorwakeup_locked(so2);
 	else
 		SOCKBUF_UNLOCK(&so2->so_rcv);
-
 	UNP_PCB_UNLOCK(unp2);
-
 	return (error);
- error:
-	for (int i = 0; i < count; i++)
-		m = m_free(m);
-	return (ECONNRESET);
+
+search:
+	/*
+	 * The receiving socket has been disconnected, but may still be valid.
+	 * In this case, the now-ready mbufs are still present in its socket
+	 * buffer, so perform an exhaustive search before giving up and freeing
+	 * the mbufs.
+	 */
+	UNP_LINK_RLOCK();
+	LIST_FOREACH(unp, &unp_shead, unp_link) {
+		if (uipc_ready_scan(unp->unp_socket, m, count, &error))
+			break;
+	}
+	UNP_LINK_RUNLOCK();
+
+	if (unp == NULL) {
+		for (i = 0; i < count; i++)
+			m = m_free(m);
+		error = ECONNRESET;
+	}
+	return (error);
 }
 
 static int
