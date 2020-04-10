@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <string.h>
 
+#define	EXTERN
 #include "gprof.h"
 
 static int valcmp(const void *, const void *);
