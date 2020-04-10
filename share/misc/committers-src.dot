@@ -312,6 +312,7 @@ royger [label="Roger Pau Monne\nroyger@FreeBSD.org\n2013/11/26"]
 rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2007/09/25"]
 rpokala [label="Ravi Pokala\nrpokala@FreeBSD.org\n2015/11/19"]
 rrs [label="Randall R Stewart\nrrs@FreeBSD.org\n2007/02/08"]
+rscheff [label="Richard Scheffenegger\nrscheff@FreeBSD.org\n2020/04/06"]
 rse [label="Ralf S. Engelschall\nrse@FreeBSD.org\n1997/07/31"]
 rstone [label="Ryan Stone\nrstone@FreeBSD.org\n2010/04/19"]
 ru [label="Ruslan Ermilov\nru@FreeBSD.org\n1999/05/27"]
@@ -792,6 +793,7 @@ pjd -> smh
 pjd -> trociny
 
 rgrimes -> markm
+rgrimes -> rscheff
 
 rmacklem -> jwd
 
@@ -882,6 +884,8 @@ thompsa -> eri
 
 trasz -> jh
 trasz -> mjg
+
+tuexen -> rscheff
 
 ume -> jinmei
 ume -> suz
