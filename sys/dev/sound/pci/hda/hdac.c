@@ -1529,7 +1529,7 @@ hdac_attach2(void *arg)
 			if (vendorid == HDA_INVALID &&
 			    revisionid == HDA_INVALID) {
 				device_printf(sc->dev,
-				    "CODEC is not responding!\n");
+				    "CODEC at address %d not responding!\n", i);
 				continue;
 			}
 			sc->codecs[i].vendor_id =
