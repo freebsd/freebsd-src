@@ -999,7 +999,8 @@ hdac_send_command(struct hdac_softc *sc, nid_t cad, uint32_t verb)
 	} while (sc->codecs[cad].pending != 0 && --timeout);
 
 	if (sc->codecs[cad].pending != 0) {
-		device_printf(sc->dev, "Command timeout on address %d\n", cad);
+		device_printf(sc->dev, "Command 0x%08x timeout on address %d\n",
+		    verb, cad);
 		sc->codecs[cad].pending = 0;
 	}
 
