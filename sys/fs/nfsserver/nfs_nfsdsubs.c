@@ -1290,15 +1290,15 @@ nfsrv_adj(mbuf_t mp, int len, int nul)
 	count = 0;
 	m = mp;
 	for (;;) {
-		count += mbuf_len(m);
-		if (mbuf_next(m) == NULL)
+		count += m->m_len;
+		if (m->m_next == NULL)
 			break;
-		m = mbuf_next(m);
+		m = m->m_next;
 	}
-	if (mbuf_len(m) > len) {
-		mbuf_setlen(m, mbuf_len(m) - len);
+	if (m->m_len > len) {
+		m->m_len -= len;
 		if (nul > 0) {
-			cp = NFSMTOD(m, caddr_t) + mbuf_len(m) - nul;
+			cp = mtod(m, caddr_t) + m->m_len - nul;
 			for (i = 0; i < nul; i++)
 				*cp++ = '\0';
 		}
@@ -1312,20 +1312,20 @@ nfsrv_adj(mbuf_t mp, int len, int nul)
 	 * Find the mbuf with last data, adjust its length,
 	 * and toss data from remaining mbufs on chain.
 	 */
-	for (m = mp; m; m = mbuf_next(m)) {
-		if (mbuf_len(m) >= count) {
-			mbuf_setlen(m, count);
+	for (m = mp; m; m = m->m_next) {
+		if (m->m_len >= count) {
+			m->m_len = count;
 			if (nul > 0) {
-				cp = NFSMTOD(m, caddr_t) + mbuf_len(m) - nul;
+				cp = mtod(m, caddr_t) + m->m_len - nul;
 				for (i = 0; i < nul; i++)
 					*cp++ = '\0';
 			}
 			break;
 		}
-		count -= mbuf_len(m);
+		count -= m->m_len;
 	}
-	for (m = mbuf_next(m); m; m = mbuf_next(m))
-		mbuf_setlen(m, 0);
+	for (m = m->m_next; m; m = m->m_next)
+		m->m_len = 0;
 }
 
 /*
@@ -1879,16 +1879,16 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 	     */
 	    fromcp = nd->nd_dpos;
 	    md = nd->nd_md;
-	    rem = NFSMTOD(md, caddr_t) + mbuf_len(md) - fromcp;
+	    rem = mtod(md, caddr_t) + md->m_len - fromcp;
 	    for (i = 0; i < len; i++) {
 		while (rem == 0) {
-			md = mbuf_next(md);
+			md = md->m_next;
 			if (md == NULL) {
 				error = EBADRPC;
 				goto nfsmout;
 			}
-			fromcp = NFSMTOD(md, caddr_t);
-			rem = mbuf_len(md);
+			fromcp = mtod(md, caddr_t);
+			rem = md->m_len;
 		}
 		if (*fromcp == '\0') {
 			nd->nd_repstat = EACCES;
