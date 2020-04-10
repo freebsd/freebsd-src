@@ -95,13 +95,8 @@ struct krb5_key_state {
 	void			*ks_priv;
 };
 
-extern struct krb5_encryption_class krb5_des_encryption_class;
-extern struct krb5_encryption_class krb5_des3_encryption_class;
 extern struct krb5_encryption_class krb5_aes128_encryption_class;
 extern struct krb5_encryption_class krb5_aes256_encryption_class;
-extern struct krb5_encryption_class krb5_arcfour_encryption_class;
-extern struct krb5_encryption_class krb5_arcfour_56_encryption_class;
-extern struct timeval krb5_warn_interval;
 
 static __inline void
 krb5_set_key(struct krb5_key_state *ks, const void *keydata)

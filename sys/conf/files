@@ -3945,9 +3945,6 @@ kgssapi/gssd_prot.c		optional kgssapi
 kgssapi/krb5/krb5_mech.c	optional kgssapi
 kgssapi/krb5/kcrypto.c		optional kgssapi
 kgssapi/krb5/kcrypto_aes.c	optional kgssapi
-kgssapi/krb5/kcrypto_arcfour.c	optional kgssapi
-kgssapi/krb5/kcrypto_des.c	optional kgssapi
-kgssapi/krb5/kcrypto_des3.c	optional kgssapi
 kgssapi/kgss_if.m		optional kgssapi
 kgssapi/gsstest.c		optional kgssapi_debug
 # These files in libkern/ are those needed by all architectures.  Some
