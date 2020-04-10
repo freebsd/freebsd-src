@@ -260,6 +260,7 @@ sunpoet [label="Po-Chuan Hsieh\nsunpoet@FreeBSD.org\n2010/09/21"]
 swills [label="Steve Wills\nswills@FreeBSD.org\n2010/09/03"]
 sylvio [label="Sylvio Cesar Teixeira\nsylvio@FreeBSD.org\n2009/10/29"]
 tabthorpe [label="Thomas Abthorpe\ntabthorpe@FreeBSD.org\n2007/08/20"]
+tagattie [label="Hiroki Tagato\ntagattie@FreeBSD.org\n2020/04/01"]
 tcberner [label="Tobias C. Berner\ntcberner@FreeBSD.org\n2016/07/06"]
 tdb [label="Tim Bishop\ntdb@FreeBSD.org\n2005/11/30"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
@@ -411,6 +412,7 @@ edwin -> lx
 
 ehaupt -> db
 ehaupt -> martymac
+ehaupt -> tagattie
 
 eik -> sem
 eik -> trhodes
@@ -655,6 +657,8 @@ philip -> koitsu
 
 pi -> meta
 pi -> tz
+
+pizzamig -> tagattie
 
 rafan -> chinsan
 
