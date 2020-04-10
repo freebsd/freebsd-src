@@ -109,6 +109,7 @@ struct ino_blk {
 	LIST_ENTRY(ino_blk)	ib_next;
 	uint8_t			*ib_buf;
 	int			ib_dirty;
+	ino_t			ib_startinginum;
 	ufs2_daddr_t		ib_blk;
 };
 LIST_HEAD(iblkhd, ino_blk);
@@ -157,6 +158,7 @@ static void ino_adjust(struct suj_ino *);
 static void ino_build(struct suj_ino *);
 static int blk_isfree(ufs2_daddr_t);
 static void initsuj(void);
+static void ino_dirty(ino_t);
 
 static void *
 errmalloc(size_t n)
@@ -394,6 +396,7 @@ ino_read(ino_t ino)
 	struct iblkhd *hd;
 	struct suj_cg *sc;
 	ufs2_daddr_t blk;
+	union dinode *dp;
 	int off;
 
 	blk = ino_to_fsba(fs, ino);
@@ -412,6 +415,7 @@ ino_read(ino_t ino)
 	bzero(iblk, sizeof(*iblk));
 	iblk->ib_buf = errmalloc(fs->fs_bsize);
 	iblk->ib_blk = blk;
+	iblk->ib_startinginum = rounddown(ino, INOPB(fs));
 	LIST_INSERT_HEAD(hd, iblk, ib_next);
 	if (bread(&disk, fsbtodb(fs, blk), iblk->ib_buf, fs->fs_bsize) == -1)
 		err_suj("Failed to read inode block %jd\n", blk);
@@ -420,8 +424,18 @@ found:
 	off = ino_to_fsbo(fs, ino);
 	if (fs->fs_magic == FS_UFS1_MAGIC)
 		return (union dinode *)&((struct ufs1_dinode *)iblk->ib_buf)[off];
-	else
-		return (union dinode *)&((struct ufs2_dinode *)iblk->ib_buf)[off];
+	dp = (union dinode *)&((struct ufs2_dinode *)iblk->ib_buf)[off];
+	if (debug &&
+	    ffs_verify_dinode_ckhash(fs, (struct ufs2_dinode *)dp) != 0) {
+		pwarn("ino_read: INODE CHECK-HASH FAILED");
+		prtinode(ino, dp);
+		if (preen || reply("FIX") != 0) {
+			if (preen)
+				printf(" (FIXED)\n");
+			ino_dirty(ino);
+		}
+	}
+	return (dp);
 }
 
 static void
@@ -464,9 +478,25 @@ ino_dirty(ino_t ino)
 static void
 iblk_write(struct ino_blk *iblk)
 {
+	struct ufs2_dinode *dp;
+	int i;
 
 	if (iblk->ib_dirty == 0)
 		return;
+	if (debug && fs->fs_magic == FS_UFS2_MAGIC) {
+		dp = (struct ufs2_dinode *)iblk->ib_buf;
+		for (i = 0; i < INOPB(fs); dp++, i++) {
+			if (ffs_verify_dinode_ckhash(fs, dp) == 0)
+				continue;
+			pwarn("iblk_write: INODE CHECK-HASH FAILED");
+			prtinode(iblk->ib_startinginum + i, (union dinode *)dp);
+			if (preen || reply("FIX") != 0) {
+				if (preen)
+					printf(" (FIXED)\n");
+				ino_dirty(iblk->ib_startinginum + i);
+			}
+		}
+	}
 	if (bwrite(&disk, fsbtodb(fs, iblk->ib_blk), iblk->ib_buf,
 	    fs->fs_bsize) == -1)
 		err_suj("Failed to write inode block %jd\n", iblk->ib_blk);
