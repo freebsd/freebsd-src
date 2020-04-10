@@ -1247,11 +1247,9 @@ ffs_unmount(mp, mntflags)
 	flags = 0;
 	td = curthread;
 	fs = ump->um_fs;
-	susp = 0;
-	if (mntflags & MNT_FORCE) {
+	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-		susp = fs->fs_ronly == 0;
-	}
+	susp = fs->fs_ronly == 0;
 #ifdef UFS_EXTATTR
 	if ((error = ufs_extattr_stop(mp, td))) {
 		if (error != EOPNOTSUPP)
