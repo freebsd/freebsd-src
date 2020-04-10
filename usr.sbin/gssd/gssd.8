@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2013
+.Dd April 10 2020
 .Dt GSSD 8
 .Os
 .Sh NAME
@@ -35,7 +35,6 @@
 .Nm
 .Op Fl d
 .Op Fl h
-.Op Fl o
 .Op Fl v
 .Op Fl s Ar dir-list
 .Op Fl c Ar file-substring
@@ -61,10 +60,6 @@ gssname
 option for the
 .Xr mount_nfs 8
 command.
-.It Fl o
-Force use of DES and the associated old style GSS-API initialization token.
-This may be required to make kerberized NFS mounts work against some
-non-FreeBSD NFS servers.
 .It Fl v
 Run in verbose mode.
 In this mode,

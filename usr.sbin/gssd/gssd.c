@@ -77,7 +77,6 @@ int debug_level;
 static char ccfile_dirlist[PATH_MAX + 1], ccfile_substring[NAME_MAX + 1];
 static char pref_realm[1024];
 static int verbose;
-static int use_old_des;
 static int hostbased_initiator_cred;
 #ifndef WITHOUT_KERBEROS
 /* 1.2.752.43.13.14 */
@@ -125,7 +124,7 @@ main(int argc, char **argv)
 	pref_realm[0] = '\0';
 	debug = 0;
 	verbose = 0;
-	while ((ch = getopt(argc, argv, "dhovs:c:r:")) != -1) {
+	while ((ch = getopt(argc, argv, "dhvs:c:r:")) != -1) {
 		switch (ch) {
 		case 'd':
 			debug_level++;
@@ -137,17 +136,6 @@ main(int argc, char **argv)
 			 * in the default keytab file.
 			 */
 			hostbased_initiator_cred = 1;
-#else
-			errx(1, "This option not available when built"
-			    " without MK_KERBEROS\n");
-#endif
-			break;
-		case 'o':
-#ifndef WITHOUT_KERBEROS
-			/*
-			 * Force use of DES and the old type of GSSAPI token.
-			 */
-			use_old_des = 1;
 #else
 			errx(1, "This option not available when built"
 			    " without MK_KERBEROS\n");
@@ -483,44 +471,6 @@ gssd_init_sec_context_1_svc(init_sec_context_args *argp, init_sec_context_res *r
 	}
 	gotcred = 0;
 
-#ifndef WITHOUT_KERBEROS
-	if (use_old_des != 0) {
-		if (cred == GSS_C_NO_CREDENTIAL) {
-			/* Acquire a credential for the uid. */
-			maj_stat = gssd_get_user_cred(&min_stat, argp->uid,
-			    &cred);
-			if (maj_stat == GSS_S_COMPLETE)
-				gotcred = 1;
-			else
-				gssd_verbose_out("gssd_init_sec_context: "
-				    "get user cred failed uid=%d major=0x%x "
-				    "minor=%d\n", (int)argp->uid,
-				    (unsigned int)maj_stat, (int)min_stat);
-		}
-		if (cred != GSS_C_NO_CREDENTIAL) {
-			key_enctype = ETYPE_DES_CBC_CRC;
-			enctype[0] = (key_enctype >> 24) & 0xff;
-			enctype[1] = (key_enctype >> 16) & 0xff;
-			enctype[2] = (key_enctype >> 8) & 0xff;
-			enctype[3] = key_enctype & 0xff;
-			principal_desc.length = sizeof(enctype);
-			principal_desc.value = enctype;
-			result->major_status = gss_set_cred_option(
-			    &result->minor_status, &cred,
-			    GSS_KRB5_SET_ALLOWABLE_ENCTYPES_X,
-			    &principal_desc);
-			gssd_verbose_out("gssd_init_sec_context: set allowable "
-			    "enctype major=0x%x minor=%d\n",
-			    (unsigned int)result->major_status,
-			    (int)result->minor_status);
-			if (result->major_status != GSS_S_COMPLETE) {
-				if (gotcred != 0)
-					gss_release_cred(&min_stat, &cred);
-				return (TRUE);
-			}
-		}
-	}
-#endif
 	result->major_status = gss_init_sec_context(&result->minor_status,
 	    cred, &ctx, name, argp->mech_type,
 	    argp->req_flags, argp->time_req, argp->input_chan_bindings,
