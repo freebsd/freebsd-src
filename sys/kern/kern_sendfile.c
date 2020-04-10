@@ -649,6 +649,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct file *sock_fp;
 	struct vnode *vp;
 	struct vm_object *obj;
+	vm_page_t pga;
 	struct socket *so;
 #ifdef KERN_TLS
 	struct ktls_session *tls;
@@ -948,6 +949,9 @@ retry_space:
 				softerr = EBUSY;
 				break;
 			}
+			pga = pa[i];
+			if (pga == bogus_page)
+				pga = vm_page_relookup(obj, sfio->pindex0 + i);
 
 			if (use_ext_pgs) {
 				off_t xfs;
@@ -997,7 +1001,7 @@ retry_space:
 					ext_pgs->nrdy++;
 				}
 
-				ext_pgs->pa[ext_pgs_idx] = VM_PAGE_TO_PHYS(pa[i]);
+				ext_pgs->pa[ext_pgs_idx] = VM_PAGE_TO_PHYS(pga);
 				ext_pgs->npgs++;
 				xfs = xfsize(i, npages, off, space);
 				ext_pgs->last_pg_len = xfs;
@@ -1016,7 +1020,7 @@ retry_space:
 			 * threads might exhaust the buffers and then
 			 * deadlock.
 			 */
-			sf = sf_buf_alloc(pa[i],
+			sf = sf_buf_alloc(pga,
 			    m != NULL ? SFB_NOWAIT : SFB_CATCH);
 			if (sf == NULL) {
 				SFSTAT_INC(sf_allocfail);
