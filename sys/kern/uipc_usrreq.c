@@ -1192,7 +1192,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		case SOCK_STREAM:
 			if (control != NULL) {
 				sbappendcontrol_locked(&so2->so_rcv, m,
-				    control);
+				    control, flags);
 				control = NULL;
 			} else
 				sbappend_locked(&so2->so_rcv, m, flags);
