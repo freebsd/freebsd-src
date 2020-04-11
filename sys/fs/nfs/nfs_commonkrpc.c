@@ -1188,8 +1188,8 @@ tryagain:
 		newnfs_restore_sigmask(td, &oldset);
 	return (0);
 nfsmout:
-	mbuf_freem(nd->nd_mrep);
-	mbuf_freem(nd->nd_mreq);
+	m_freem(nd->nd_mrep);
+	m_freem(nd->nd_mreq);
 	if (usegssname == 0)
 		AUTH_DESTROY(auth);
 	if (rep != NULL)

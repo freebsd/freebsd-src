@@ -486,7 +486,7 @@ nfsrvd_updatecache(struct nfsrv_descript *nd)
 		mtx_unlock(mutex);
 		nd->nd_repstat = 0;
 		if (nd->nd_mreq)
-			mbuf_freem(nd->nd_mreq);
+			m_freem(nd->nd_mreq);
 		if (!(rp->rc_flag & RC_REPMBUF))
 			panic("reply from cache");
 		nd->nd_mreq = m_copym(rp->rc_reply, 0,
@@ -798,7 +798,7 @@ nfsrc_freecache(struct nfsrvcache *rp)
 	}
 	nfsrc_wanted(rp);
 	if (rp->rc_flag & RC_REPMBUF) {
-		mbuf_freem(rp->rc_reply);
+		m_freem(rp->rc_reply);
 		if (!(rp->rc_flag & RC_UDP))
 			atomic_add_int(&nfsrc_tcpsavedreplies, -1);
 	}
@@ -1020,8 +1020,8 @@ nfsrc_getlenandcksum(mbuf_t m1, u_int16_t *cksum)
 
 	m = m1;
 	while (m) {
-		len += mbuf_len(m);
-		m = mbuf_next(m);
+		len += m->m_len;
+		m = m->m_next;
 	}
 	cklen = (len > NFSRVCACHE_CHECKLEN) ? NFSRVCACHE_CHECKLEN : len;
 	*cksum = in_cksum(m1, cklen);
