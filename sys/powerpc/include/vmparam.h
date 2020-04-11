@@ -82,7 +82,11 @@
  */
 #ifdef __powerpc64__
 #define	VM_MIN_ADDRESS		0x0000000000000000
+#ifdef BOOKE
+#define	VM_MAXUSER_ADDRESS	0x000ffffffffff000
+#else
 #define	VM_MAXUSER_ADDRESS	0x3ffffffffffff000
+#endif
 #define	VM_MAX_ADDRESS		0xffffffffffffffff
 #define	VM_MIN_KERNEL_ADDRESS		0xe000000000000000
 #define	VM_MAX_KERNEL_ADDRESS		0xe0000007ffffffff

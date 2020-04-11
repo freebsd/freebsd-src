@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
+ * Copyright (C) 2020 Justin Hibbits
  * Copyright (C) 2007-2009 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
  * All rights reserved.
@@ -109,6 +110,9 @@ static vm_offset_t copy_page_src_va;
 static vm_offset_t copy_page_dst_va;
 static struct mtx copy_page_mutex;
 
+static vm_offset_t kernel_ptbl_root;
+static unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
+
 /**************************************************************************/
 /* PMAP */
 /**************************************************************************/
@@ -137,7 +141,6 @@ static vm_paddr_t pte_vatopa(mmu_t, pmap_t, vm_offset_t);
 static int pte_enter(mmu_t, pmap_t, vm_page_t, vm_offset_t, uint32_t, boolean_t);
 static int pte_remove(mmu_t, pmap_t, vm_offset_t, uint8_t);
 static pte_t *pte_find(mmu_t, pmap_t, vm_offset_t);
-static void kernel_pte_alloc(vm_offset_t, vm_offset_t, vm_offset_t);
 
 struct ptbl_buf {
 	TAILQ_ENTRY(ptbl_buf) link;	/* list link */
@@ -597,16 +600,23 @@ pte_find(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 
 /* Set up kernel page tables. */
 static void
-kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr, vm_offset_t pdir)
+kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 {
-	int		i;
-	vm_offset_t	va;
 	pte_t		*pte;
+	vm_offset_t	va;
+	vm_offset_t	pdir_start;
+	int		i;
+
+	kptbl_min = VM_MIN_KERNEL_ADDRESS / PDIR_SIZE;
+	kernel_pmap->pm_pdir = (pte_t **)kernel_ptbl_root;
+
+	pdir_start = kernel_ptbl_root + PDIR_NENTRIES * sizeof(pte_t);
 
 	/* Initialize kernel pdir */
-	for (i = 0; i < kernel_ptbls; i++)
+	for (i = 0; i < kernel_ptbls; i++) {
 		kernel_pmap->pm_pdir[kptbl_min + i] =
-		    (pte_t *)(pdir + (i * PAGE_SIZE * PTBL_PAGES));
+		    (pte_t *)(pdir_start + (i * PAGE_SIZE * PTBL_PAGES));
+	}
 
 	/*
 	 * Fill in PTEs covering kernel code and data. They are not required
@@ -616,10 +626,36 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr, vm_offset_t pdir)
 	 */
 	for (va = addr; va < data_end; va += PAGE_SIZE) {
 		pte = &(kernel_pmap->pm_pdir[PDIR_IDX(va)][PTBL_IDX(va)]);
+		powerpc_sync();
 		*pte = PTE_RPN_FROM_PA(kernload + (va - kernstart));
 		*pte |= PTE_M | PTE_SR | PTE_SW | PTE_SX | PTE_WIRED |
 		    PTE_VALID | PTE_PS_4KB;
 	}
+}
+
+static vm_offset_t
+mmu_booke_alloc_kernel_pgtables(vm_offset_t data_end)
+{
+	/* Allocate space for ptbl_bufs. */
+	ptbl_bufs = (struct ptbl_buf *)data_end;
+	data_end += sizeof(struct ptbl_buf) * PTBL_BUFS;
+	debugf(" ptbl_bufs at 0x%"PRI0ptrX" end = 0x%"PRI0ptrX"\n",
+	    (uintptr_t)ptbl_bufs, data_end);
+
+	data_end = round_page(data_end);
+
+	kernel_ptbl_root = data_end;
+	data_end += PDIR_NENTRIES * sizeof(pte_t*);
+
+	/* Allocate PTE tables for kernel KVA. */
+	kernel_ptbls = howmany(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
+	    PDIR_SIZE);
+	data_end += kernel_ptbls * PTBL_PAGES * PAGE_SIZE;
+	debugf(" kernel ptbls: %d\n", kernel_ptbls);
+	debugf(" kernel pdir at %#jx end = %#jx\n",
+	    (uintmax_t)kernel_ptbl_root, (uintmax_t)data_end);
+
+	return (data_end);
 }
 
 /*

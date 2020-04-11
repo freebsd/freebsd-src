@@ -165,7 +165,7 @@ struct	pmap {
 			 * Page table directory,
 			 * array of pointers to page directories.
 			 */
-			pte_t ***pm_pp2d;
+			pte_t ****pm_root;
 #else
 			/*
 			 * Page table directory,

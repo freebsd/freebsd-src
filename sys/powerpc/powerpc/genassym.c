@@ -122,7 +122,7 @@ ASSYM(USER_SR, USER_SR);
 #endif
 #elif defined(BOOKE)
 #ifdef __powerpc64__
-ASSYM(PM_PP2D, offsetof(struct pmap, pm_pp2d));
+ASSYM(PM_ROOT, offsetof(struct pmap, pm_root));
 #else
 ASSYM(PM_PDIR, offsetof(struct pmap, pm_pdir));
 #endif
