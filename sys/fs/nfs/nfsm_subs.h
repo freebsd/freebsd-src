@@ -68,8 +68,8 @@ nfsm_build(struct nfsrv_descript *nd, int siz)
 		NFSMCLGET(mb2, M_NOWAIT);
 		if (siz > MLEN)
 			panic("build > MLEN");
-		mbuf_setlen(mb2, 0);
-		nd->nd_bpos = NFSMTOD(mb2, caddr_t);
+		mb2->m_len = 0;
+		nd->nd_bpos = mtod(mb2, caddr_t);
 		nd->nd_mb->m_next = mb2;
 		nd->nd_mb = mb2;
 	}
@@ -87,7 +87,7 @@ nfsm_dissect(struct nfsrv_descript *nd, int siz)
 	int tt1; 
 	void *retp;
 
-	tt1 = NFSMTOD(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos; 
+	tt1 = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos; 
 	if (tt1 >= siz) { 
 		retp = (void *)nd->nd_dpos; 
 		nd->nd_dpos += siz; 
@@ -103,7 +103,7 @@ nfsm_dissect_nonblock(struct nfsrv_descript *nd, int siz)
 	int tt1; 
 	void *retp;
 
-	tt1 = NFSMTOD(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos; 
+	tt1 = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos; 
 	if (tt1 >= siz) { 
 		retp = (void *)nd->nd_dpos; 
 		nd->nd_dpos += siz; 
