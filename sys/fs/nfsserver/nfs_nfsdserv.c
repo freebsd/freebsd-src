@@ -692,9 +692,9 @@ nfsrvd_readlink(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(len);
-	mbuf_setnext(nd->nd_mb, mp);
+	nd->nd_mb->m_next = mp;
 	nd->nd_mb = mpend;
-	nd->nd_bpos = NFSMTOD(mpend, caddr_t) + mbuf_len(mpend);
+	nd->nd_bpos = mtod(mpend, caddr_t) + mpend->m_len;
 
 out:
 	NFSEXITCODE2(0, nd);
@@ -849,7 +849,7 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 		if (nd->nd_repstat) {
 			vput(vp);
 			if (m3)
-				mbuf_freem(m3);
+				m_freem(m3);
 			if (nd->nd_flag & ND_NFSV3)
 				nfsrv_postopattr(nd, getret, &nva);
 			goto out;
@@ -873,9 +873,9 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	*tl = txdr_unsigned(cnt);
 	if (m3) {
-		mbuf_setnext(nd->nd_mb, m3);
+		nd->nd_mb->m_next = m3;
 		nd->nd_mb = m2;
-		nd->nd_bpos = NFSMTOD(m2, caddr_t) + mbuf_len(m2);
+		nd->nd_bpos = mtod(m2, caddr_t) + m2->m_len;
 	}
 
 out:
@@ -5564,9 +5564,9 @@ nfsrvd_getxattr(struct nfsrv_descript *nd, __unused int isdgram,
 	if (nd->nd_repstat == 0) {
 		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 		*tl = txdr_unsigned(len);
-		mbuf_setnext(nd->nd_mb, mp);
+		nd->nd_mb->m_next = mp;
 		nd->nd_mb = mpend;
-		nd->nd_bpos = NFSMTOD(mpend, caddr_t) + mbuf_len(mpend);
+		nd->nd_bpos = mtod(mpend, caddr_t) + mpend->m_len;
 	}
 	free(name, M_TEMP);
 
