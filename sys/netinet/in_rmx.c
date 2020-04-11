@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_mpath.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -125,6 +127,9 @@ in_inithead(void **head, int off, u_int fibnum)
 		return (0);
 
 	rh->rnh_addaddr = in_addroute;
+#ifdef	RADIX_MPATH
+	rt_mpath_init_rnh(rh);
+#endif
 	*head = (void *)rh;
 
 	if (_in_rt_was_here == 0 ) {

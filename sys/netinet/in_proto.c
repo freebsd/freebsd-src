@@ -62,9 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#ifdef RADIX_MPATH
-#include <net/radix_mpath.h>
-#endif
 #include <net/vnet.h>
 #endif /* INET */
 
@@ -305,11 +302,7 @@ struct domain inetdomain = {
 	.dom_name =		"internet",
 	.dom_protosw =		inetsw,
 	.dom_protoswNPROTOSW =	&inetsw[nitems(inetsw)],
-#ifdef RADIX_MPATH
-	.dom_rtattach =		rn4_mpath_inithead,
-#else
 	.dom_rtattach =		in_inithead,
-#endif
 #ifdef VIMAGE
 	.dom_rtdetach =		in_detachhead,
 #endif

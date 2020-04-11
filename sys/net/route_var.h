@@ -88,6 +88,7 @@ _Static_assert(__offsetof(struct route, ro_dst) == __offsetof(_ro_new, _dst_new)
 		"ro_dst and " #_dst_new " are at different offset")
 
 struct rib_head *rt_tables_get_rnh(int fib, int family);
+void rt_mpath_init_rnh(struct rib_head *rnh);
 
 /* rte<>nhop translation */
 static inline uint16_t
