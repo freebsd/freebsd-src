@@ -274,9 +274,9 @@ get_usage(zfs_help_t idx)
 	case HELP_PROMOTE:
 		return (gettext("\tpromote <clone-filesystem>\n"));
 	case HELP_RECEIVE:
-		return (gettext("\treceive|recv [-vnsFu] <filesystem|volume|"
+		return (gettext("\treceive|recv [-vnsFMu] <filesystem|volume|"
 		    "snapshot>\n"
-		    "\treceive|recv [-vnsFu] [-o origin=<snapshot>] [-d | -e] "
+		    "\treceive|recv [-vnsFMu] [-o origin=<snapshot>] [-d | -e] "
 		    "<filesystem>\n"
 		    "\treceive|recv -A <filesystem|volume>\n"));
 	case HELP_RENAME:
@@ -4078,7 +4078,7 @@ zfs_do_receive(int argc, char **argv)
 		nomem();
 
 	/* check options */
-	while ((c = getopt(argc, argv, ":o:denuvFsA")) != -1) {
+	while ((c = getopt(argc, argv, ":o:denuvMFsA")) != -1) {
 		switch (c) {
 		case 'o':
 			if (parseprop(props, optarg) != 0)
@@ -4105,6 +4105,9 @@ zfs_do_receive(int argc, char **argv)
 			break;
 		case 'F':
 			flags.force = B_TRUE;
+			break;
+		case 'M':
+			flags.forceunmount = B_TRUE;
 			break;
 		case 'A':
 			abort_resumable = B_TRUE;
