@@ -208,6 +208,7 @@ am335x_pmic_start(struct am335x_pmic_softc *sc)
 	char name[20];
 	char pwr[4][11] = {"Battery", "USB", "AC", "USB and AC"};
 	int rv;
+	phandle_t node;
 
 	dev = sc->sc_dev;
 	am335x_pmic_read(dev, TPS65217_CHIPID_REG, (uint8_t *)&chipid_reg, 1);
@@ -231,6 +232,16 @@ am335x_pmic_start(struct am335x_pmic_softc *sc)
 	am335x_pmic_read(dev, TPS65217_STATUS_REG, (uint8_t *)&status_reg, 1);
 	device_printf(dev, "%s powered by %s\n", name,
 	    pwr[status_reg.usbpwr | (status_reg.acpwr << 1)]);
+
+	/* Check devicetree for ti,pmic-shutdown-controller
+	 * if present; PMIC will go to shutdown state on PWR_EN toggle
+	 * if not present; PMIC will enter sleep state on PWR_EN toggle (default on reset)
+	 */
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "ti,pmic-shutdown-controller")) {
+		status_reg.off = 1;
+		am335x_pmic_write(dev, TPS65217_STATUS_REG, (uint8_t *)&status_reg, 1);
+	}
 
 	if (am335x_pmic_vo[0] != '\0') {
 		for (vo = 0; vo < 4; vo++) {
@@ -291,16 +302,9 @@ am335x_pmic_attach(device_t dev)
 static void
 am335x_pmic_shutdown(void *xdev, int howto)
 {
-	device_t dev;
-	struct tps65217_status_reg reg;
-
 	if (!(howto & RB_POWEROFF))
 		return;
-	dev = (device_t)xdev;
-	am335x_pmic_read(dev, TPS65217_STATUS_REG, (uint8_t *)&reg, 1);
-	/* Set the OFF bit on status register to start the shutdown sequence. */
-	reg.off = 1;
-	am335x_pmic_write(dev, TPS65217_STATUS_REG, (uint8_t *)&reg, 1);
+
 	/* Toggle pmic_pwr_enable to shutdown the PMIC. */
 	am335x_rtc_pmic_pwr_toggle();
 }
