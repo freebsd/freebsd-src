@@ -31,7 +31,7 @@
 .\"     @(#)wc.1	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2018
+.Dd April 11, 2020
 .Dt WC 1
 .Os
 .Sh NAME
@@ -126,6 +126,18 @@ file name is displayed.
 The prompt will accept input until receiving EOF, or
 .Bq ^D
 in most environments.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+(see the
+.Cm status
+argument for
+.Xr stty 1 )
+signal, the interim data will be written
+to the standard error output in the same format
+as the standard completion message.
 .Sh ENVIRONMENT
 The
 .Ev LANG , LC_ALL
