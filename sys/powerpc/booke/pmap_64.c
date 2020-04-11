@@ -145,6 +145,7 @@ static vm_paddr_t pte_vatopa(mmu_t, pmap_t, vm_offset_t);
 static int pte_enter(mmu_t, pmap_t, vm_page_t, vm_offset_t, uint32_t, boolean_t);
 static int pte_remove(mmu_t, pmap_t, vm_offset_t, uint8_t);
 static pte_t *pte_find(mmu_t, pmap_t, vm_offset_t);
+static pte_t *pte_find_next(mmu_t, pmap_t, vm_offset_t *);
 static void kernel_pte_alloc(vm_offset_t, vm_offset_t);
 
 /**************************************************************************/
@@ -202,6 +203,50 @@ pte_find(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 	ptbl = pdir[PDIR_IDX(va)];
 
 	return ((ptbl != NULL) ? &ptbl[PTBL_IDX(va)] : NULL);
+}
+
+/* Get a pointer to a PTE in a page table, or the next closest (greater) one. */
+static __inline pte_t *
+pte_find_next(mmu_t mmu, pmap_t pmap, vm_offset_t *pva)
+{
+	vm_offset_t	va;
+	pte_t	    ****pm_root;
+	pte_t	       *pte;
+	unsigned long	i, j, k, l;
+
+	KASSERT((pmap != NULL), ("pte_find: invalid pmap"));
+
+	va = *pva;
+	i = PG_ROOT_IDX(va);
+	j = PDIR_L1_IDX(va);
+	k = PDIR_IDX(va);
+	l = PTBL_IDX(va);
+	pm_root = pmap->pm_root;
+	/* truncate the VA for later. */
+	va &= ~((1UL << (PG_ROOT_H + 1)) - 1);
+	for (; i < PG_ROOT_NENTRIES; i++, j = 0) {
+		if (pm_root[i] == 0)
+			continue;
+		for (; j < PDIR_L1_NENTRIES; j++, k = 0) {
+			if (pm_root[i][j] == 0)
+				continue;
+			for (; k < PDIR_NENTRIES; k++, l = 0) {
+				if (pm_root[i][j][k] == NULL)
+					continue;
+				for (; l < PTBL_NENTRIES; l++) {
+					pte = &pm_root[i][j][k][l];
+					if (!PTE_ISVALID(pte))
+						continue;
+					*pva = va + PG_ROOT_SIZE * i +
+					    PDIR_L1_SIZE * j +
+					    PDIR_SIZE * k +
+					    PAGE_SIZE * l;
+					return (pte);
+				}
+			}
+		}
+	}
+	return (NULL);
 }
 
 static bool
