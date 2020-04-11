@@ -893,7 +893,7 @@ tryagain:
 	 */
 	newnfs_realign(&nd->nd_mrep, M_WAITOK);
 	nd->nd_md = nd->nd_mrep;
-	nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
+	nd->nd_dpos = mtod(nd->nd_md, caddr_t);
 	nd->nd_repstat = 0;
 	if (nd->nd_procnum != NFSPROC_NULL &&
 	    nd->nd_procnum != NFSV4PROC_CBNULL) {
