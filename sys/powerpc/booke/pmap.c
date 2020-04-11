@@ -128,6 +128,10 @@ __FBSDID("$FreeBSD$");
 #include "mmu_if.h"
 
 #define	SPARSE_MAPDEV
+
+/* Use power-of-two mappings in mmu_booke_mapdev(), to save entries. */
+#define	POW2_MAPPINGS
+
 #ifdef  DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
 #else
@@ -2211,6 +2215,8 @@ tlb1_find_pa(vm_paddr_t pa, tlb_entry_t *e)
 	for (i = 0; i < TLB1_ENTRIES; i++) {
 		tlb1_read_entry(e, i);
 		if ((e->mas1 & MAS1_VALID) == 0)
+			continue;
+		if (e->phys == pa)
 			return (i);
 	}
 	return (-1);
@@ -2224,7 +2230,7 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 #ifndef __powerpc64__
 	uintptr_t tmpva;
 #endif
-	uintptr_t va;
+	uintptr_t va, retva;
 	vm_size_t sz;
 	int i;
 	int wimge;
@@ -2245,7 +2251,7 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 		if (tmppa >= e.phys && tmppa < e.phys + e.size) {
 			va = e.virt + (pa - e.phys);
 			tmppa = e.phys + e.size;
-			sz -= MIN(sz, e.size);
+			sz -= MIN(sz, e.size - (pa - e.phys));
 			while (sz > 0 && (i = tlb1_find_pa(tmppa, &e)) != -1) {
 				if (wimge != (e.mas2 & (MAS2_WIMGE_MASK & ~_TLB_ENTRY_SHARED)))
 					break;
@@ -2264,6 +2270,25 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	KASSERT(pa < VM_MAPDEV_PA_MAX,
 	    ("Unsupported physical address! %lx", pa));
 	va = VM_MAPDEV_BASE + pa;
+	retva = va;
+#ifdef POW2_MAPPINGS
+	/*
+	 * Align the mapping to a power of 2 size, taking into account that we
+	 * may need to increase the size multiple times to satisfy the size and
+	 * alignment requirements.
+	 *
+	 * This works in the general case because it's very rare (near never?)
+	 * to have different access properties (WIMG) within a single
+	 * power-of-two region.  If a design does call for that, POW2_MAPPINGS
+	 * can be undefined, and exact mappings will be used instead.
+	 */
+	sz = size;
+	size = roundup2(size, 1 << ilog2(size));
+	while (rounddown2(va, size) + size < va + sz)
+		size <<= 1;
+	va = rounddown2(va, size);
+	pa = rounddown2(pa, size);
+#endif
 #else
 	/*
 	 * The device mapping area is between VM_MAXUSER_ADDRESS and
@@ -2288,14 +2313,15 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	    sz = sz ? min(roundup(sz + 3, 4), flsl(size) - 1) : flsl(size) - 1;
 	    va = roundup(tlb1_map_base, 1 << sz) | (((1 << sz) - 1) & pa);
 	} while (!atomic_cmpset_int(&tlb1_map_base, tmpva, va + size));
-	va = atomic_fetchadd_int(&tlb1_map_base, size);
 #endif
+	va = atomic_fetchadd_int(&tlb1_map_base, size);
+	retva = va;
 #endif
 
 	if (tlb1_mapin_region(va, pa, size, tlb_calc_wimg(pa, ma)) != size)
 		return (NULL);
 
-	return ((void *)va);
+	return ((void *)retva);
 }
 
 /*
@@ -2584,6 +2610,24 @@ tlb1_find_free(void)
 }
 
 static void
+tlb1_purge_va_range(vm_offset_t va, vm_size_t size)
+{
+	tlb_entry_t e;
+	int i;
+
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+		tlb1_read_entry(&e, i);
+		if ((e.mas1 & MAS1_VALID) == 0)
+			continue;
+		if ((e.mas2 & MAS2_EPN_MASK) >= va &&
+		    (e.mas2 & MAS2_EPN_MASK) < va + size) {
+			mtspr(SPR_MAS1, e.mas1 & ~MAS1_VALID);
+			__asm __volatile("isync; tlbwe; isync; msync");
+		}
+	}
+}
+
+static void
 tlb1_write_entry_int(void *arg)
 {
 	struct tlbwrite_args *args = arg;
@@ -2591,6 +2635,7 @@ tlb1_write_entry_int(void *arg)
 
 	idx = args->idx;
 	if (idx == -1) {
+		tlb1_purge_va_range(args->e->virt, args->e->size);
 		idx = tlb1_find_free();
 		if (idx == -1)
 			panic("No free TLB1 entries!\n");
