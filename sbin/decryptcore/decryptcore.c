@@ -170,6 +170,7 @@ decrypt(int ofd, const char *privkeyfile, const char *keyfile,
 		goto failed;
 	}
 
+	caph_cache_catpages();
 	if (caph_enter() < 0) {
 		pjdlog_errno(LOG_ERR, "Unable to enter capability mode");
 		goto failed;
