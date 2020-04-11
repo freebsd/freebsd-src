@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
+ * Copyright (C) 2020 Justin Hibbits
  * Copyright (C) 2007-2009 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
  * All rights reserved.
@@ -114,6 +115,7 @@ __FBSDID("$FreeBSD$");
 
 unsigned int kernel_pdirs;
 static uma_zone_t ptbl_root_zone;
+static pte_t ****kernel_ptbl_root;
 
 /*
  * Base of the pmap_mapdev() region.  On 32-bit it immediately follows the
@@ -133,24 +135,47 @@ static unsigned long ilog2(unsigned long);
 /* Page table management */
 /**************************************************************************/
 
-static struct rwlock_padalign pvh_global_lock;
-
-#define PMAP_ROOT_SIZE	(sizeof(pte_t***) * PP2D_NENTRIES)
-static pte_t *ptbl_alloc(mmu_t, pmap_t, pte_t **,
-			 unsigned int, boolean_t);
-static void ptbl_free(mmu_t, pmap_t, pte_t **, unsigned int, vm_page_t);
-static void ptbl_hold(mmu_t, pmap_t, pte_t **, unsigned int);
+#define PMAP_ROOT_SIZE	(sizeof(pte_t****) * PG_ROOT_NENTRIES)
+static pte_t *ptbl_alloc(mmu_t mmu, pmap_t pmap, vm_offset_t va,
+    bool nosleep, bool *is_new);
+static void ptbl_hold(mmu_t, pmap_t, pte_t *);
 static int ptbl_unhold(mmu_t, pmap_t, vm_offset_t);
 
 static vm_paddr_t pte_vatopa(mmu_t, pmap_t, vm_offset_t);
 static int pte_enter(mmu_t, pmap_t, vm_page_t, vm_offset_t, uint32_t, boolean_t);
 static int pte_remove(mmu_t, pmap_t, vm_offset_t, uint8_t);
 static pte_t *pte_find(mmu_t, pmap_t, vm_offset_t);
-static void kernel_pte_alloc(vm_offset_t, vm_offset_t, vm_offset_t);
+static void kernel_pte_alloc(vm_offset_t, vm_offset_t);
 
 /**************************************************************************/
 /* Page table related */
 /**************************************************************************/
+
+/* Allocate a page, to be used in a page table. */
+static vm_offset_t
+mmu_booke_alloc_page(mmu_t mmu, pmap_t pmap, unsigned int idx, bool nosleep)
+{
+	vm_page_t	m;
+	int		req;
+
+	req = VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO;
+	while ((m = vm_page_alloc(NULL, idx, req)) == NULL) {
+		if (nosleep)
+			return (0);
+
+		PMAP_UNLOCK(pmap);
+		rw_wunlock(&pvh_global_lock);
+		vm_wait(NULL);
+		rw_wlock(&pvh_global_lock);
+		PMAP_LOCK(pmap);
+	}
+
+	if (!(m->flags & PG_ZERO))
+		/* Zero whole ptbl. */
+		mmu_booke_zero_page(mmu, m);
+
+	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+}
 
 /* Initialize pool of kva ptbl buffers. */
 static void
@@ -162,157 +187,92 @@ ptbl_init(void)
 static __inline pte_t *
 pte_find(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 {
+	pte_t        ***pdir_l1;
 	pte_t         **pdir;
 	pte_t          *ptbl;
 
 	KASSERT((pmap != NULL), ("pte_find: invalid pmap"));
 
-	pdir = pmap->pm_pp2d[PP2D_IDX(va)];
-	if (!pdir)
-		return NULL;
+	pdir_l1 = pmap->pm_root[PG_ROOT_IDX(va)];
+	if (pdir_l1 == NULL)
+		return (NULL);
+	pdir = pdir_l1[PDIR_L1_IDX(va)];
+	if (pdir == NULL)
+		return (NULL);
 	ptbl = pdir[PDIR_IDX(va)];
+
 	return ((ptbl != NULL) ? &ptbl[PTBL_IDX(va)] : NULL);
 }
 
-/*
- * allocate a page of pointers to page directories, do not preallocate the
- * page tables
- */
-static pte_t  **
-pdir_alloc(mmu_t mmu, pmap_t pmap, unsigned int pp2d_idx, bool nosleep)
+static bool
+unhold_free_page(mmu_t mmu, pmap_t pmap, vm_page_t m)
 {
-	vm_page_t	m;
-	pte_t          **pdir;
-	int		req;
 
-	req = VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
-	while ((m = vm_page_alloc(NULL, pp2d_idx, req)) == NULL) {
-		PMAP_UNLOCK(pmap);
-		if (nosleep) {
-			return (NULL);
-		}
-		vm_wait(NULL);
-		PMAP_LOCK(pmap);
-	}
-
-	/* Zero whole ptbl. */
-	pdir = (pte_t **)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-	mmu_booke_zero_page(mmu, m);
-
-	return (pdir);
-}
-
-/* Free pdir pages and invalidate pdir entry. */
-static void
-pdir_free(mmu_t mmu, pmap_t pmap, unsigned int pp2d_idx, vm_page_t m)
-{
-	pte_t         **pdir;
-
-	pdir = pmap->pm_pp2d[pp2d_idx];
-
-	KASSERT((pdir != NULL), ("pdir_free: null pdir"));
-
-	pmap->pm_pp2d[pp2d_idx] = NULL;
-
-	vm_wire_sub(1);
-	vm_page_free_zero(m);
-}
-
-/*
- * Decrement pdir pages hold count and attempt to free pdir pages. Called
- * when removing directory entry from pdir.
- * 
- * Return 1 if pdir pages were freed.
- */
-static int
-pdir_unhold(mmu_t mmu, pmap_t pmap, u_int pp2d_idx)
-{
-	pte_t         **pdir;
-	vm_paddr_t	pa;
-	vm_page_t	m;
-
-	KASSERT((pmap != kernel_pmap),
-		("pdir_unhold: unholding kernel pdir!"));
-
-	pdir = pmap->pm_pp2d[pp2d_idx];
-
-	/* decrement hold count */
-	pa = DMAP_TO_PHYS((vm_offset_t) pdir);
-	m = PHYS_TO_VM_PAGE(pa);
-
-	/*
-	 * Free pdir page if there are no dir entries in this pdir.
-	 */
 	m->ref_count--;
 	if (m->ref_count == 0) {
-		pdir_free(mmu, pmap, pp2d_idx, m);
-		return (1);
+		vm_wire_sub(1);
+		vm_page_free_zero(m);
+		return (true);
 	}
-	return (0);
+
+	return (false);
 }
 
-/*
- * Increment hold count for pdir pages. This routine is used when new ptlb
- * entry is being inserted into pdir.
- */
-static void
-pdir_hold(mmu_t mmu, pmap_t pmap, pte_t ** pdir)
+static vm_offset_t
+alloc_or_hold_page(mmu_t mmu, pmap_t pmap, vm_offset_t *ptr_tbl, uint32_t index,
+    bool nosleep, bool hold, bool *isnew)
 {
+	vm_offset_t	page;
 	vm_page_t	m;
 
-	KASSERT((pmap != kernel_pmap),
-		("pdir_hold: holding kernel pdir!"));
+	page = ptr_tbl[index];
+	KASSERT(page != 0 || pmap != kernel_pmap,
+	    ("NULL page table page found in kernel pmap!"));
+	if (page == 0) {
+		page = mmu_booke_alloc_page(mmu, pmap, index, nosleep);
+		if (ptr_tbl[index] == 0) {
+			*isnew = true;
+			ptr_tbl[index] = page;
+			return (page);
+		}
+		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(page));
+		page = ptr_tbl[index];
+		vm_wire_sub(1);
+		vm_page_free_zero(m);
+	}
 
-	KASSERT((pdir != NULL), ("pdir_hold: null pdir"));
+	if (hold) {
+		m = PHYS_TO_VM_PAGE(pmap_kextract(page));
+		m->ref_count++;
+	}
+	*isnew = false;
 
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pdir));
-	m->ref_count++;
+	return (page);
 }
 
 /* Allocate page table. */
-static pte_t   *
-ptbl_alloc(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx,
-    boolean_t nosleep)
+static pte_t*
+ptbl_alloc(mmu_t mmu, pmap_t pmap, vm_offset_t va, bool nosleep, bool *is_new)
 {
-	vm_page_t	m;
-	pte_t          *ptbl;
-	int		req;
+	unsigned int	pg_root_idx = PG_ROOT_IDX(va);
+	unsigned int	pdir_l1_idx = PDIR_L1_IDX(va);
+	unsigned int	pdir_idx = PDIR_IDX(va);
+	vm_offset_t	pdir_l1, pdir, ptbl;
+	bool		hold_page;
 
-	KASSERT((pdir[pdir_idx] == NULL),
-		("%s: valid ptbl entry exists!", __func__));
+	hold_page = (pmap != kernel_pmap);
+	pdir_l1 = alloc_or_hold_page(mmu, pmap, (vm_offset_t *)pmap->pm_root,
+	    pg_root_idx, nosleep, hold_page, is_new);
+	if (pdir_l1 == 0)
+		return (NULL);
+	pdir = alloc_or_hold_page(mmu, pmap, (vm_offset_t *)pdir_l1, pdir_l1_idx,
+	    nosleep, hold_page, is_new);
+	if (pdir == 0)
+		return (NULL);
+	ptbl = alloc_or_hold_page(mmu, pmap, (vm_offset_t *)pdir, pdir_idx,
+	    nosleep, false, is_new);
 
-	req = VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
-	while ((m = vm_page_alloc(NULL, pdir_idx, req)) == NULL) {
-		if (nosleep)
-			return (NULL);
-		PMAP_UNLOCK(pmap);
-		rw_wunlock(&pvh_global_lock);
-		vm_wait(NULL);
-		rw_wlock(&pvh_global_lock);
-		PMAP_LOCK(pmap);
-	}
-
-	/* Zero whole ptbl. */
-	ptbl = (pte_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-	mmu_booke_zero_page(mmu, m);
-
-	return (ptbl);
-}
-
-/* Free ptbl pages and invalidate pdir entry. */
-static void
-ptbl_free(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx, vm_page_t m)
-{
-	pte_t          *ptbl;
-
-	ptbl = pdir[pdir_idx];
-
-	KASSERT((ptbl != NULL), ("ptbl_free: null ptbl"));
-
-	pdir[pdir_idx] = NULL;
-
-	vm_wire_sub(1);
-	vm_page_free_zero(m);
+	return ((pte_t *)ptbl);
 }
 
 /*
@@ -326,34 +286,43 @@ ptbl_unhold(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 {
 	pte_t          *ptbl;
 	vm_page_t	m;
-	u_int		pp2d_idx;
+	u_int		pg_root_idx;
+	pte_t        ***pdir_l1;
+	u_int		pdir_l1_idx;
 	pte_t         **pdir;
 	u_int		pdir_idx;
 
-	pp2d_idx = PP2D_IDX(va);
+	pg_root_idx = PG_ROOT_IDX(va);
+	pdir_l1_idx = PDIR_L1_IDX(va);
 	pdir_idx = PDIR_IDX(va);
 
 	KASSERT((pmap != kernel_pmap),
 		("ptbl_unhold: unholding kernel ptbl!"));
 
-	pdir = pmap->pm_pp2d[pp2d_idx];
+	pdir_l1 = pmap->pm_root[pg_root_idx];
+	pdir = pdir_l1[pdir_l1_idx];
 	ptbl = pdir[pdir_idx];
 
 	/* decrement hold count */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) ptbl));
 
-	/*
-	 * Free ptbl pages if there are no pte entries in this ptbl.
-	 * ref_count has the same value for all ptbl pages, so check the
-	 * last page.
-	 */
-	m->ref_count--;
-	if (m->ref_count == 0) {
-		ptbl_free(mmu, pmap, pdir, pdir_idx, m);
-		pdir_unhold(mmu, pmap, pp2d_idx);
+	if (!unhold_free_page(mmu, pmap, m))
+		return (0);
+
+	pdir[pdir_idx] = NULL;
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) pdir));
+
+	if (!unhold_free_page(mmu, pmap, m))
 		return (1);
-	}
-	return (0);
+
+	pdir_l1[pdir_l1_idx] = NULL;
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) pdir_l1));
+
+	if (!unhold_free_page(mmu, pmap, m))
+		return (1);
+	pmap->pm_root[pg_root_idx] = NULL;
+
+	return (1);
 }
 
 /*
@@ -361,17 +330,12 @@ ptbl_unhold(mmu_t mmu, pmap_t pmap, vm_offset_t va)
  * entry is being inserted into ptbl.
  */
 static void
-ptbl_hold(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx)
+ptbl_hold(mmu_t mmu, pmap_t pmap, pte_t *ptbl)
 {
-	pte_t          *ptbl;
 	vm_page_t	m;
 
 	KASSERT((pmap != kernel_pmap),
 		("ptbl_hold: holding kernel ptbl!"));
-
-	ptbl = pdir[pdir_idx];
-
-	KASSERT((ptbl != NULL), ("ptbl_hold: null ptbl"));
 
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) ptbl));
 	m->ref_count++;
@@ -389,7 +353,8 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, u_int8_t flags)
 	pte_t          *pte;
 
 	pte = pte_find(mmu, pmap, va);
-	KASSERT(pte != NULL, ("%s: NULL pte", __func__));
+	KASSERT(pte != NULL, ("%s: NULL pte for va %#jx, pmap %p",
+	    __func__, (uintmax_t)va, pmap));
 
 	if (!PTE_ISVALID(pte))
 		return (0);
@@ -442,27 +407,17 @@ static int
 pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
     boolean_t nosleep)
 {
-	unsigned int	pp2d_idx = PP2D_IDX(va);
-	unsigned int	pdir_idx = PDIR_IDX(va);
 	unsigned int	ptbl_idx = PTBL_IDX(va);
 	pte_t          *ptbl, *pte, pte_tmp;
-	pte_t         **pdir;
+	bool		is_new;
 
 	/* Get the page directory pointer. */
-	pdir = pmap->pm_pp2d[pp2d_idx];
-	if (pdir == NULL)
-		pdir = pdir_alloc(mmu, pmap, pp2d_idx, nosleep);
-
-	/* Get the page table pointer. */
-	ptbl = pdir[pdir_idx];
-
+	ptbl = ptbl_alloc(mmu, pmap, va, nosleep, &is_new);
 	if (ptbl == NULL) {
-		/* Allocate page table pages. */
-		ptbl = ptbl_alloc(mmu, pmap, pdir, pdir_idx, nosleep);
-		if (ptbl == NULL) {
-			KASSERT(nosleep, ("nosleep and NULL ptbl"));
-			return (ENOMEM);
-		}
+		KASSERT(nosleep, ("nosleep and NULL ptbl"));
+		return (ENOMEM);
+	}
+	if (is_new) {
 		pte = &ptbl[ptbl_idx];
 	} else {
 		/*
@@ -478,17 +433,9 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 			 * pages.
 			 */
 			if (pmap != kernel_pmap)
-				ptbl_hold(mmu, pmap, pdir, pdir_idx);
+				ptbl_hold(mmu, pmap, ptbl);
 		}
 	}
-
-	if (pdir[pdir_idx] == NULL) {
-		if (pmap != kernel_pmap && pmap->pm_pp2d[pp2d_idx] != NULL)
-			pdir_hold(mmu, pmap, pdir);
-		pdir[pdir_idx] = ptbl;
-	}
-	if (pmap->pm_pp2d[pp2d_idx] == NULL)
-		pmap->pm_pp2d[pp2d_idx] = pdir;
 
 	/*
 	 * Insert pv_entry into pv_list for mapped page if part of managed
@@ -534,25 +481,45 @@ pte_vatopa(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 
 /* allocate pte entries to manage (addr & mask) to (addr & mask) + size */
 static void
-kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr, vm_offset_t pdir)
+kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 {
-	int		i, j;
-	vm_offset_t	va;
 	pte_t		*pte;
+	vm_size_t	kva_size;
+	int		kernel_pdirs, kernel_pgtbls, pdir_l1s;
+	vm_offset_t	va, l1_va, pdir_va, ptbl_va;
+	int		i, j, k;
 
-	va = addr;
+	kva_size = VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS;
+	kernel_pmap->pm_root = kernel_ptbl_root;
+	pdir_l1s = howmany(kva_size, PG_ROOT_SIZE);
+	kernel_pdirs = howmany(kva_size, PDIR_L1_SIZE);
+	kernel_pgtbls = howmany(kva_size, PDIR_SIZE);
+
 	/* Initialize kernel pdir */
-	for (i = 0; i < kernel_pdirs; i++) {
-		kernel_pmap->pm_pp2d[i + PP2D_IDX(va)] =
-		    (pte_t **)(pdir + (i * PAGE_SIZE * PDIR_PAGES));
-		for (j = PDIR_IDX(va + (i * PAGE_SIZE * PDIR_NENTRIES * PTBL_NENTRIES));
-		    j < PDIR_NENTRIES; j++) {
-			kernel_pmap->pm_pp2d[i + PP2D_IDX(va)][j] =
-			    (pte_t *)(pdir + (kernel_pdirs * PAGE_SIZE) +
-			     (((i * PDIR_NENTRIES) + j) * PAGE_SIZE));
-		}
+	l1_va = (vm_offset_t)kernel_ptbl_root +
+	    round_page(PG_ROOT_NENTRIES * sizeof(pte_t ***));
+	pdir_va = l1_va + pdir_l1s * PAGE_SIZE;
+	ptbl_va = pdir_va + kernel_pdirs * PAGE_SIZE;
+	if (bootverbose) {
+		printf("ptbl_root_va: %#lx\n", (vm_offset_t)kernel_ptbl_root);
+		printf("l1_va: %#lx (%d entries)\n", l1_va, pdir_l1s);
+		printf("pdir_va: %#lx(%d entries)\n", pdir_va, kernel_pdirs);
+		printf("ptbl_va: %#lx(%d entries)\n", ptbl_va, kernel_pgtbls);
 	}
 
+	va = VM_MIN_KERNEL_ADDRESS;
+	for (i = 0; i < pdir_l1s; i++, l1_va += PAGE_SIZE) {
+		kernel_pmap->pm_root[i] = (pte_t ***)l1_va;
+		for (j = 0;
+		    j < PDIR_L1_NENTRIES && va < VM_MAX_KERNEL_ADDRESS;
+		    j++, pdir_va += PAGE_SIZE) {
+			kernel_pmap->pm_root[i][j] = (pte_t **)pdir_va;
+			for (k = 0;
+			    k < PDIR_NENTRIES && va < VM_MAX_KERNEL_ADDRESS;
+			    k++, va += PDIR_SIZE, ptbl_va += PAGE_SIZE)
+				kernel_pmap->pm_root[i][j][k] = (pte_t *)ptbl_va;
+		}
+	}
 	/*
 	 * Fill in PTEs covering kernel code and data. They are not required
 	 * for address translation, as this area is covered by static TLB1
@@ -560,12 +527,27 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr, vm_offset_t pdir)
 	 * addresses.
 	 */
 	for (va = addr; va < data_end; va += PAGE_SIZE) {
-		pte = &(kernel_pmap->pm_pp2d[PP2D_IDX(va)][PDIR_IDX(va)][PTBL_IDX(va)]);
+		pte = &(kernel_pmap->pm_root[PG_ROOT_IDX(va)][PDIR_L1_IDX(va)][PDIR_IDX(va)][PTBL_IDX(va)]);
 		*pte = PTE_RPN_FROM_PA(kernload + (va - kernstart));
 		*pte |= PTE_M | PTE_SR | PTE_SW | PTE_SX | PTE_WIRED |
 		    PTE_VALID | PTE_PS_4KB;
 	}
 }
+
+static vm_offset_t
+mmu_booke_alloc_kernel_pgtables(vm_offset_t data_end)
+{
+	vm_size_t kva_size = VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS;
+	kernel_ptbl_root = (pte_t ****)data_end;
+
+	data_end += round_page(PG_ROOT_NENTRIES * sizeof(pte_t ***));
+	data_end += howmany(kva_size, PG_ROOT_SIZE) * PAGE_SIZE;
+	data_end += howmany(kva_size, PDIR_L1_SIZE) * PAGE_SIZE;
+	data_end += howmany(kva_size, PDIR_SIZE) * PAGE_SIZE;
+
+	return (data_end);
+}
+
 
 /*
  * Initialize a preallocated and zeroed pmap structure,
@@ -585,8 +567,8 @@ mmu_booke_pinit(mmu_t mmu, pmap_t pmap)
 		pmap->pm_tid[i] = TID_NONE;
 	CPU_ZERO(&kernel_pmap->pm_active);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
-	pmap->pm_pp2d = uma_zalloc(ptbl_root_zone, M_WAITOK);
-	bzero(pmap->pm_pp2d, sizeof(pte_t **) * PP2D_NENTRIES);
+	pmap->pm_root = uma_zalloc(ptbl_root_zone, M_WAITOK);
+	bzero(pmap->pm_root, sizeof(pte_t **) * PG_ROOT_NENTRIES);
 }
 
 /*
@@ -601,7 +583,7 @@ mmu_booke_release(mmu_t mmu, pmap_t pmap)
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
-	uma_zfree(ptbl_root_zone, pmap->pm_pp2d);
+	uma_zfree(ptbl_root_zone, pmap->pm_root);
 }
 
 static void
