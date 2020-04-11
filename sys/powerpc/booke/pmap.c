@@ -182,10 +182,6 @@ static int mmu_booke_enter_locked(mmu_t, pmap_t, vm_offset_t, vm_page_t,
     vm_prot_t, u_int flags, int8_t psind);
 
 unsigned int kptbl_min;		/* Index of the first kernel ptbl. */
-unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
-#ifdef __powerpc64__
-unsigned int kernel_pdirs;
-#endif
 static uma_zone_t ptbl_root_zone;
 
 /*
@@ -267,7 +263,7 @@ static vm_paddr_t pte_vatopa(mmu_t, pmap_t, vm_offset_t);
 static int pte_enter(mmu_t, pmap_t, vm_page_t, vm_offset_t, uint32_t, boolean_t);
 static int pte_remove(mmu_t, pmap_t, vm_offset_t, uint8_t);
 static pte_t *pte_find(mmu_t, pmap_t, vm_offset_t);
-static void kernel_pte_alloc(vm_offset_t, vm_offset_t, vm_offset_t);
+static void kernel_pte_alloc(vm_offset_t, vm_offset_t);
 
 static pv_entry_t pv_alloc(void);
 static void pv_free(pv_entry_t);
@@ -639,10 +635,9 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	vm_paddr_t physsz, hwphyssz;
 	u_int phys_avail_count;
 	vm_size_t kstack0_sz;
-	vm_offset_t kernel_pdir, kstack0;
 	vm_paddr_t kstack0_phys;
+	vm_offset_t kstack0;
 	void *dpcpu;
-	vm_offset_t kernel_ptbl_root;
 
 	debugf("mmu_booke_bootstrap: entered\n");
 
@@ -681,34 +676,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	    (uintptr_t)msgbufp, data_end);
 
 	data_end = round_page(data_end);
-
-#ifdef __powerpc64__
-	kernel_ptbl_root = data_end;
-	data_end += PP2D_NENTRIES * sizeof(pte_t**);
-#else
-	/* Allocate space for ptbl_bufs. */
-	ptbl_bufs = (struct ptbl_buf *)data_end;
-	data_end += sizeof(struct ptbl_buf) * PTBL_BUFS;
-	debugf(" ptbl_bufs at 0x%"PRI0ptrX" end = 0x%"PRI0ptrX"\n",
-	    (uintptr_t)ptbl_bufs, data_end);
-
-	data_end = round_page(data_end);
-	kernel_ptbl_root = data_end;
-	data_end += PDIR_NENTRIES * sizeof(pte_t*);
-#endif
-
-	/* Allocate PTE tables for kernel KVA. */
-	kernel_pdir = data_end;
-	kernel_ptbls = howmany(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
-	    PDIR_SIZE);
-#ifdef __powerpc64__
-	kernel_pdirs = howmany(kernel_ptbls, PDIR_NENTRIES);
-	data_end += kernel_pdirs * PDIR_PAGES * PAGE_SIZE;
-#endif
-	data_end += kernel_ptbls * PTBL_PAGES * PAGE_SIZE;
-	debugf(" kernel ptbls: %d\n", kernel_ptbls);
-	debugf(" kernel pdir at 0x%"PRI0ptrX" end = 0x%"PRI0ptrX"\n",
-	    kernel_pdir, data_end);
+	data_end = round_page(mmu_booke_alloc_kernel_pgtables(data_end));
 
 	/* Retrieve phys/avail mem regions */
 	mem_regions(&physmem_regions, &physmem_regions_sz,
@@ -751,15 +719,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	 * possible additional TLB1 translations are in place (above) so that
 	 * all range up to the currently calculated 'data_end' is covered.
 	 */
+	bzero((void *)data_start, data_end - data_start);
 	dpcpu_init(dpcpu, 0);
-#ifdef __powerpc64__
-	memset((void *)kernel_pdir, 0,
-	    kernel_pdirs * PDIR_PAGES * PAGE_SIZE +
-	    kernel_ptbls * PTBL_PAGES * PAGE_SIZE);
-#else
-	memset((void *)ptbl_bufs, 0, sizeof(struct ptbl_buf) * PTBL_SIZE);
-	memset((void *)kernel_pdir, 0, kernel_ptbls * PTBL_PAGES * PAGE_SIZE);
-#endif
 
 	/*******************************************************/
 	/* Set the start and end of kva. */
@@ -938,15 +899,9 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Initialize (statically allocated) kernel pmap. */
 	/*******************************************************/
 	PMAP_LOCK_INIT(kernel_pmap);
-#ifdef __powerpc64__
-	kernel_pmap->pm_pp2d = (pte_t ***)kernel_ptbl_root;
-#else
-	kptbl_min = VM_MIN_KERNEL_ADDRESS / PDIR_SIZE;
-	kernel_pmap->pm_pdir = (pte_t **)kernel_ptbl_root;
-#endif
 
 	debugf("kernel_pmap = 0x%"PRI0ptrX"\n", (uintptr_t)kernel_pmap);
-	kernel_pte_alloc(virtual_avail, kernstart, kernel_pdir);
+	kernel_pte_alloc(virtual_avail, kernstart);
 	for (i = 0; i < MAXCPU; i++) {
 		kernel_pmap->pm_tid[i] = TID_KERNEL;
 		
@@ -1327,7 +1282,7 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 {
 	pte_t *pte;
 	vm_paddr_t pa;
-	uint32_t flags;
+	pte_t flags;
 	int error, su, sync;
 
 	pa = VM_PAGE_TO_PHYS(m);
