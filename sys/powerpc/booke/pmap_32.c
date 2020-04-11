@@ -598,6 +598,35 @@ pte_find(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 	return (NULL);
 }
 
+/* Get a pointer to a PTE in a page table, or the next closest (greater) one. */
+static __inline pte_t *
+pte_find_next(mmu_t mmu, pmap_t pmap, vm_offset_t *pva)
+{
+	vm_offset_t	va;
+	pte_t	      **pdir;
+	pte_t	       *pte;
+	unsigned long	i, j;
+
+	KASSERT((pmap != NULL), ("pte_find: invalid pmap"));
+
+	va = *pva;
+	i = PDIR_IDX(va);
+	j = PTBL_IDX(va);
+	pdir = pmap->pm_pdir;
+	for (; i < PDIR_NENTRIES; i++, j = 0) {
+		if (pdir[i] == NULL)
+			continue;
+		for (; j < PTBL_NENTRIES; j++) {
+			pte = &pdir[i][j];
+			if (!PTE_ISVALID(pte))
+				continue;
+			*pva = PDIR_SIZE * i + PAGE_SIZE * j;
+			return (pte);
+		}
+	}
+	return (NULL);
+}
+
 /* Set up kernel page tables. */
 static void
 kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)

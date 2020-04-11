@@ -1532,9 +1532,12 @@ mmu_booke_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_offset_t endva)
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	for (; va < endva; va += PAGE_SIZE) {
-		pte = pte_find(mmu, pmap, va);
-		if ((pte != NULL) && PTE_ISVALID(pte))
-			pte_remove(mmu, pmap, va, hold_flag);
+		pte = pte_find_next(mmu, pmap, &va);
+		if ((pte == NULL) || !PTE_ISVALID(pte))
+			break;
+		if (va >= endva)
+			break;
+		pte_remove(mmu, pmap, va, hold_flag);
 	}
 	PMAP_UNLOCK(pmap);
 	rw_wunlock(&pvh_global_lock);
