@@ -403,6 +403,7 @@ FBSD_1.5 {
 
 FBSD_1.6 {
 	__sysctlbyname;
+	close_range;
 	copy_file_range;
 	fhlink;
 	fhlinkat;

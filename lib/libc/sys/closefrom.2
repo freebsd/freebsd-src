@@ -25,11 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 12, 2009
+.Dd April 12, 2020
 .Dt CLOSEFROM 2
 .Os
 .Sh NAME
-.Nm closefrom
+.Nm closefrom ,
+.Nm close_range
 .Nd delete open file descriptors
 .Sh LIBRARY
 .Lb libc
@@ -37,6 +38,8 @@
 .In unistd.h
 .Ft void
 .Fn closefrom "int lowfd"
+.Ft int
+.Fn close_range "u_int lowfd" "u_int highfd" "int flags"
 .Sh DESCRIPTION
 The
 .Fn closefrom
@@ -44,6 +47,40 @@ system call deletes all open file descriptors greater than or equal to
 .Fa lowfd
 from the per-process object reference table.
 Any errors encountered while closing file descriptors are ignored.
+.Pp
+The
+.Fn close_range
+system call deletes all open file descriptors between
+.Fa lowfd
+and
+.Fa highfd
+inclusive, clamped to the range of open file descriptors.
+Any errors encountered while closing file descriptors are ignored.
+There are currently no defined
+.Fa flags .
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn close_range
+returns a value
+of 0.
+Otherwise, a value of -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn close_range
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa highfd
+argument is lower than the
+.Fa lowfd
+argument.
+.It Bq Er EINVAL
+An invalid flag was set.
+.El
 .Sh SEE ALSO
 .Xr close 2
 .Sh HISTORY

@@ -1313,6 +1313,57 @@ kern_close(struct thread *td, int fd)
 	return (closefp(fdp, fd, fp, td, 1));
 }
 
+int
+kern_close_range(struct thread *td, u_int lowfd, u_int highfd)
+{
+	struct filedesc *fdp;
+	int fd, ret;
+
+	ret = 0;
+	fdp = td->td_proc->p_fd;
+	FILEDESC_SLOCK(fdp);
+
+	/*
+	 * Check this prior to clamping; closefrom(3) with only fd 0, 1, and 2
+	 * open should not be a usage error.  From a close_range() perspective,
+	 * close_range(3, ~0U, 0) in the same scenario should also likely not
+	 * be a usage error as all fd above 3 are in-fact already closed.
+	 */
+	if (highfd < lowfd) {
+		ret = EINVAL;
+		goto out;
+	}
+	/* Clamped to [lowfd, fd_lastfile] */
+	highfd = MIN(highfd, fdp->fd_lastfile);
+	for (fd = lowfd; fd <= highfd; fd++) {
+		if (fdp->fd_ofiles[fd].fde_file != NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			(void)kern_close(td, fd);
+			FILEDESC_SLOCK(fdp);
+		}
+	}
+out:
+	FILEDESC_SUNLOCK(fdp);
+	return (ret);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct close_range_args {
+	u_int	lowfd;
+	u_int	highfd;
+	int	flags;
+};
+#endif
+int
+sys_close_range(struct thread *td, struct close_range_args *uap)
+{
+
+	/* No flags currently defined */
+	if (uap->flags != 0)
+		return (EINVAL);
+	return (kern_close_range(td, uap->lowfd, uap->highfd));
+}
+
 /*
  * Close open file descriptors.
  */
@@ -1325,28 +1376,16 @@ struct closefrom_args {
 int
 sys_closefrom(struct thread *td, struct closefrom_args *uap)
 {
-	struct filedesc *fdp;
-	int fd;
+	u_int lowfd;
 
-	fdp = td->td_proc->p_fd;
 	AUDIT_ARG_FD(uap->lowfd);
 
 	/*
 	 * Treat negative starting file descriptor values identical to
 	 * closefrom(0) which closes all files.
 	 */
-	if (uap->lowfd < 0)
-		uap->lowfd = 0;
-	FILEDESC_SLOCK(fdp);
-	for (fd = uap->lowfd; fd <= fdp->fd_lastfile; fd++) {
-		if (fdp->fd_ofiles[fd].fde_file != NULL) {
-			FILEDESC_SUNLOCK(fdp);
-			(void)kern_close(td, fd);
-			FILEDESC_SLOCK(fdp);
-		}
-	}
-	FILEDESC_SUNLOCK(fdp);
-	return (0);
+	lowfd = MAX(0, uap->lowfd);
+	return (kern_close_range(td, lowfd, ~0U));
 }
 
 #if defined(COMPAT_43)
