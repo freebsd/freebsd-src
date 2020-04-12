@@ -40,3 +40,4 @@ nooptions       FULL_BUF_TRACKING
 nooptions	COVERAGE
 nooptions	KCOV
 nooptions	MALLOC_DEBUG_MAXZONES
+nooptions	QUEUE_MACRO_DEBUG_TRASH
