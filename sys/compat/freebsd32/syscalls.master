@@ -1162,5 +1162,7 @@
 573	AUE_NULL	NOPROTO	{ int sigfastblock(int cmd, uint32_t *ptr); }
 574	AUE_REALPATHAT	NOPROTO { int __realpathat(int fd, const char *path, \
 				    char *buf, size_t size, int flags); }
+575	AUE_NULL	NOPROTO	{ int close_range(u_int lowfd, u_int highfd, \
+				    int flags); }
 
 ; vim: syntax=off
