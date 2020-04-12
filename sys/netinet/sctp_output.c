@@ -12275,8 +12275,6 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 			/* now anything on those queues? */
 			TAILQ_FOREACH_SAFE(sp, &oldstream[i].outqueue, next, nsp) {
 				TAILQ_REMOVE(&oldstream[i].outqueue, sp, next);
-				sp->ss_next.tqe_next = NULL;
-				sp->ss_next.tqe_prev = NULL;
 				TAILQ_INSERT_TAIL(&stcb->asoc.strmout[i].outqueue, sp, next);
 			}
 
