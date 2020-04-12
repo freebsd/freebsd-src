@@ -113,6 +113,8 @@ struct hdr_list {
 	struct hdr_list *h_next;
 } *htab;
 
+static struct sbuf *line_buf = NULL;
+
 /*
  * Config builds a set of files for building a UNIX
  * system given a description of the desired system.
@@ -313,6 +315,29 @@ usage(void)
 	exit(EX_USAGE);
 }
 
+static void
+init_line_buf(void)
+{
+	if (line_buf == NULL) {
+		line_buf = sbuf_new(NULL, NULL, 80, SBUF_AUTOEXTEND);
+		if (line_buf == NULL) {
+			errx(EXIT_FAILURE, "failed to allocate line buffer");
+		}
+	} else {
+		sbuf_clear(line_buf);
+	}
+}
+
+static char *
+get_line_buf(void)
+{
+	if (sbuf_finish(line_buf) != 0) {
+		errx(EXIT_FAILURE, "failed to generate line buffer, "
+		    "partial line = %s", sbuf_data(line_buf));
+	}
+	return sbuf_data(line_buf);
+}
+
 /*
  * get_word
  *	returns EOF on end of file
@@ -322,11 +347,10 @@ usage(void)
 char *
 get_word(FILE *fp)
 {
-	static char line[160];
 	int ch;
-	char *cp;
 	int escaped_nl = 0;
 
+	init_line_buf();
 begin:
 	while ((ch = getc(fp)) != EOF)
 		if (ch != ' ' && ch != '\t')
@@ -345,29 +369,20 @@ begin:
 		else
 			return (NULL);
 	}
-	cp = line;
-	*cp++ = ch;
+	sbuf_putc(line_buf, ch);
 	/* Negation operator is a word by itself. */
 	if (ch == '!') {
-		*cp = 0;
-		return (line);
+		return get_line_buf();
 	}
-	while ((ch = getc(fp)) != EOF && cp < line + sizeof(line)) {
+	while ((ch = getc(fp)) != EOF) {
 		if (isspace(ch))
 			break;
-		*cp++ = ch;
+		sbuf_putc(line_buf, ch);
 	}
-	if (cp >= line + sizeof(line)) {
-		line[sizeof(line) - 1] = '\0';
-		fprintf(stderr, "config: attempted overflow, partial line: `%s'",
-		    line);
-		exit(2);
-	}
-	*cp = 0;
 	if (ch == EOF)
 		return ((char *)EOF);
 	(void) ungetc(ch, fp);
-	return (line);
+	return (get_line_buf());
 }
 
 /*
@@ -378,11 +393,10 @@ begin:
 char *
 get_quoted_word(FILE *fp)
 {
-	static char line[512];
 	int ch;
-	char *cp;
 	int escaped_nl = 0;
 
+	init_line_buf();
 begin:
 	while ((ch = getc(fp)) != EOF)
 		if (ch != ' ' && ch != '\t')
@@ -401,7 +415,6 @@ begin:
 		else
 			return (NULL);
 	}
-	cp = line;
 	if (ch == '"' || ch == '\'') {
 		int quote = ch;
 
@@ -410,9 +423,8 @@ begin:
 			if (ch == quote && !escaped_nl)
 				break;
 			if (ch == '\n' && !escaped_nl) {
-				*cp = 0;
 				printf("config: missing quote reading `%s'\n",
-					line);
+					get_line_buf());
 				exit(2);
 			}
 			if (ch == '\\' && !escaped_nl) {
@@ -420,38 +432,23 @@ begin:
 				continue;
 			}
 			if (ch != quote && escaped_nl)
-				*cp++ = '\\';
-			if (cp >= line + sizeof(line)) {
-				line[sizeof(line) - 1] = '\0';
-				printf(
-				    "config: line buffer overflow reading partial line `%s'\n",
-				    line);
-				exit(2);
-			}
-			*cp++ = ch;
+				sbuf_putc(line_buf, '\\');
+			sbuf_putc(line_buf, ch);
 			escaped_nl = 0;
 		}
 	} else {
-		*cp++ = ch;
-		while ((ch = getc(fp)) != EOF && cp < line + sizeof(line)) {
+		sbuf_putc(line_buf, ch);
+		while ((ch = getc(fp)) != EOF) {
 			if (isspace(ch))
 				break;
-			*cp++ = ch;
-		}
-		if (cp >= line + sizeof(line)) {
-			line[sizeof(line) - 1] = '\0';
-			printf(
-			    "config: line buffer overflow reading partial line `%s'\n",
-			    line);
-			exit(2);
+			sbuf_putc(line_buf, ch);
 		}
 		if (ch != EOF)
 			(void) ungetc(ch, fp);
 	}
-	*cp = 0;
 	if (ch == EOF)
 		return ((char *)EOF);
-	return (line);
+	return (get_line_buf());
 }
 
 /*
