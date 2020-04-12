@@ -3227,6 +3227,13 @@
 		    int flags
 		);
 	}
+575	AUE_NULL	STD {
+		int close_range(
+		    u_int lowfd,
+		    u_int highfd,
+		    int flags
+		);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

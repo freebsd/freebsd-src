@@ -146,7 +146,7 @@ main(void)
 	pid_t pid;
 	int fd, i, start;
 
-	printf("1..15\n");
+	printf("1..19\n");
 
 	/* We better start up with fd's 0, 1, and 2 open. */
 	start = devnull();
@@ -270,6 +270,44 @@ main(void)
 	if (fd != 3)
 		fail("closefrom", "highest fd %d", fd);
 	ok("closefrom");
+
+	/* Chew up another 8 fd */
+	for (i = 0; i < 8; i++)
+		(void)devnull();
+	fd = highest_fd();
+	start = fd - 7;
+
+	/* close_range() a hole in the middle */
+	close_range(start + 3, start + 5, 0);
+	for (i = start + 3; i < start + 6; ++i) {
+		if (close(i) == 0 || errno != EBADF) {
+			--i;
+			break;
+		}
+	}
+	if (i != start + 6)
+		fail("close_range", "failed to close at %d in %d - %d", i + 1,
+		    start + 3, start + 6);
+	ok("close_range");
+
+	/* close_range from the middle of the hole */
+	close_range(start + 4, start + 6, 0);
+	if ((i = highest_fd()) != fd)
+		fail("close_range", "highest fd %d", i);
+	ok("close_range");
+
+	/* close_range to the end; effectively closefrom(2) */
+	close_range(start + 3, ~0L, 0);
+	if ((i = highest_fd()) != start + 2)
+		fail("close_range", "highest fd %d", i);
+	ok("close_range");
+
+	/* Now close the rest */
+	close_range(start, start + 4, 0);
+	fd = highest_fd();
+	if (fd != 3)
+		fail("close_range", "highest fd %d", fd);
+	ok("close_range");
 
 	return (0);
 }
