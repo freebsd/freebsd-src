@@ -298,7 +298,7 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 		for (i = 0; i < count; i++) {
 			if (pa[i] == bogus_page) {
 				pa[i] = vm_page_relookup(sfio->obj,
-				    sfio->pindex0 + i + (sfio->pa - pa));
+				    sfio->pindex0 + i + (pa - sfio->pa));
 				KASSERT(pa[i] != NULL,
 				    ("%s: page %p[%d] disappeared",
 				    __func__, pa, i));
