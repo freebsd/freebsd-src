@@ -415,4 +415,5 @@ MIASM =  \
 	shm_open2.o \
 	shm_rename.o \
 	sigfastblock.o \
-	__realpathat.o
+	__realpathat.o \
+	close_range.o
