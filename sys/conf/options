@@ -55,17 +55,19 @@ DDB_CAPTURE_DEFAULTBUFSIZE	opt_ddb.h
 DDB_CAPTURE_MAXBUFSIZE	opt_ddb.h
 DDB_CTF		opt_ddb.h
 DDB_NUMSYM	opt_ddb.h
+EARLY_PRINTF	opt_global.h
 FULL_BUF_TRACKING	opt_global.h
 GDB
 KDB		opt_global.h
 KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
 KLD_DEBUG	opt_kld.h
+NUM_CORE_FILES	opt_global.h
+QUEUE_MACRO_DEBUG_TRACE	opt_global.h
+QUEUE_MACRO_DEBUG_TRASH	opt_global.h
 SYSCTL_DEBUG	opt_sysctl.h
-EARLY_PRINTF	opt_global.h
 TEXTDUMP_PREFERRED	opt_ddb.h
 TEXTDUMP_VERBOSE	opt_ddb.h
-NUM_CORE_FILES	opt_global.h
 TSLOG	opt_global.h
 TSLOGSIZE	opt_global.h
 
