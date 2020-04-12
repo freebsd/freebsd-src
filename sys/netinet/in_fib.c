@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/route_var.h>
+#include <net/route/nhop.h>
+#include <net/route/shared.h>
 #include <net/vnet.h>
 
 #ifdef RADIX_MPATH
@@ -60,59 +62,49 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_fib.h>
 
 #ifdef INET
-static void fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
+static void fib4_rte_to_nh_basic(struct nhop_object *nh, struct in_addr dst,
     uint32_t flags, struct nhop4_basic *pnh4);
-static void fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
+static void fib4_rte_to_nh_extended(struct nhop_object *nh, struct in_addr dst,
     uint32_t flags, struct nhop4_extended *pnh4);
 
 #define RNTORT(p)	((struct rtentry *)(p))
 
 static void
-fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
+fib4_rte_to_nh_basic(struct nhop_object *nh, struct in_addr dst,
     uint32_t flags, struct nhop4_basic *pnh4)
 {
-	struct sockaddr_in *gw;
 
 	if ((flags & NHR_IFAIF) != 0)
-		pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
+		pnh4->nh_ifp = nh->nh_ifa->ifa_ifp;
 	else
-		pnh4->nh_ifp = rte->rt_ifp;
-	pnh4->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
-	if (rte->rt_flags & RTF_GATEWAY) {
-		gw = (struct sockaddr_in *)rte->rt_gateway;
-		pnh4->nh_addr = gw->sin_addr;
-	} else
+		pnh4->nh_ifp = nh->nh_ifp;
+	pnh4->nh_mtu = nh->nh_mtu;
+	if (nh->nh_flags & NHF_GATEWAY)
+		pnh4->nh_addr = nh->gw4_sa.sin_addr;
+	else
 		pnh4->nh_addr = dst;
 	/* Set flags */
-	pnh4->nh_flags = fib_rte_to_nh_flags(rte->rt_flags);
-	gw = (struct sockaddr_in *)rt_key(rte);
-	if (gw->sin_addr.s_addr == 0)
-		pnh4->nh_flags |= NHF_DEFAULT;
+	pnh4->nh_flags = nh->nh_flags;
 	/* TODO: Handle RTF_BROADCAST here */
 }
 
 static void
-fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
+fib4_rte_to_nh_extended(struct nhop_object *nh, struct in_addr dst,
     uint32_t flags, struct nhop4_extended *pnh4)
 {
-	struct sockaddr_in *gw;
 
 	if ((flags & NHR_IFAIF) != 0)
-		pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
+		pnh4->nh_ifp = nh->nh_ifa->ifa_ifp;
 	else
-		pnh4->nh_ifp = rte->rt_ifp;
-	pnh4->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
-	if (rte->rt_flags & RTF_GATEWAY) {
-		gw = (struct sockaddr_in *)rte->rt_gateway;
-		pnh4->nh_addr = gw->sin_addr;
-	} else
+		pnh4->nh_ifp = nh->nh_ifp;
+	pnh4->nh_mtu = nh->nh_mtu;
+	if (nh->nh_flags & NHF_GATEWAY)
+		pnh4->nh_addr = nh->gw4_sa.sin_addr;
+	else
 		pnh4->nh_addr = dst;
 	/* Set flags */
-	pnh4->nh_flags = fib_rte_to_nh_flags(rte->rt_flags);
-	gw = (struct sockaddr_in *)rt_key(rte);
-	if (gw->sin_addr.s_addr == 0)
-		pnh4->nh_flags |= NHF_DEFAULT;
-	pnh4->nh_ia = ifatoia(rte->rt_ifa);
+	pnh4->nh_flags = nh->nh_flags;
+	pnh4->nh_ia = ifatoia(nh->nh_ifa);
 	pnh4->nh_src = IA_SIN(pnh4->nh_ia)->sin_addr;
 }
 
@@ -135,7 +127,7 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
 	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in sin;
-	struct rtentry *rte;
+	struct nhop_object *nh;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_basic: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, AF_INET);
@@ -150,10 +142,10 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
 	RIB_RLOCK(rh);
 	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
-		rte = RNTORT(rn);
+		nh = RNTORT(rn)->rt_nhop;
 		/* Ensure route & ifp is UP */
-		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			fib4_rte_to_nh_basic(rte, dst, flags, pnh4);
+		if (RT_LINK_IS_UP(nh->nh_ifp)) {
+			fib4_rte_to_nh_basic(nh, dst, flags, pnh4);
 			RIB_RUNLOCK(rh);
 
 			return (0);
@@ -185,6 +177,7 @@ fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flags,
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
+	struct nhop_object *nh;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ext: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, AF_INET);
@@ -207,9 +200,10 @@ fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flags,
 			return (ENOENT);
 		}
 #endif
+		nh = rte->rt_nhop;
 		/* Ensure route & ifp is UP */
-		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			fib4_rte_to_nh_extended(rte, dst, flags, pnh4);
+		if (RT_LINK_IS_UP(nh->nh_ifp)) {
+			fib4_rte_to_nh_extended(nh, dst, flags, pnh4);
 			if ((flags & NHR_REF) != 0) {
 				/* TODO: lwref on egress ifp's ? */
 			}
@@ -227,6 +221,140 @@ void
 fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4)
 {
 
+}
+
+/*
+ * Looks up path in fib @fibnum specified by @dst.
+ * Returns path nexthop on success. Nexthop is safe to use
+ *  within the current network epoch. If longer lifetime is required,
+ *  one needs to pass NHR_REF as a flag. This will return referenced
+ *  nexthop.
+ */
+struct nhop_object *
+fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
+    uint32_t flags, uint32_t flowid)
+{
+	RIB_RLOCK_TRACKER;
+	struct rib_head *rh;
+	struct radix_node *rn;
+	struct rtentry *rt;
+	struct nhop_object *nh;
+
+	KASSERT((fibnum < rt_numfibs), ("fib4_lookup: bad fibnum"));
+	rh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rh == NULL)
+		return (NULL);
+
+	/* Prepare lookup key */
+	struct sockaddr_in sin4;
+	memset(&sin4, 0, sizeof(sin4));
+	sin4.sin_family = AF_INET;
+	sin4.sin_len = sizeof(struct sockaddr_in);
+	sin4.sin_addr = dst;
+
+	nh = NULL;
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin4, &rh->head);
+	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
+		rt = RNTORT(rn);
+#ifdef RADIX_MPATH
+		if (rt_mpath_next(rt) != NULL)
+			rt = rt_mpath_selectrte(rt, flowid);
+#endif
+		nh = rt->rt_nhop;
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(nh->nh_ifp)) {
+			if (flags & NHR_REF)
+				nhop_ref_object(nh);
+			RIB_RUNLOCK(rh);
+			return (nh);
+		}
+	}
+	RIB_RUNLOCK(rh);
+
+	RTSTAT_INC(rts_unreach);
+	return (NULL);
+}
+
+inline static int
+check_urpf(const struct nhop_object *nh, uint32_t flags,
+    const struct ifnet *src_if)
+{
+
+	if (src_if != NULL && nh->nh_aifp == src_if) {
+		return (1);
+	}
+	if (src_if == NULL) {
+		if ((flags & NHR_NODEFAULT) == 0)
+			return (1);
+		else if ((nh->nh_flags & NHF_DEFAULT) == 0)
+			return (1);
+	}
+
+	return (0);
+}
+
+#ifdef RADIX_MPATH
+inline static int
+check_urpf_mpath(struct rtentry *rt, uint32_t flags,
+    const struct ifnet *src_if)
+{
+	
+	while (rt != NULL) {
+		if (check_urpf(rt->rt_nhop, flags, src_if) != 0)
+			return (1);
+		rt = rt_mpath_next(rt);
+	}
+
+	return (0);
+}
+#endif
+
+/*
+ * Performs reverse path forwarding lookup.
+ * If @src_if is non-zero, verifies that at least 1 path goes via
+ *   this interface.
+ * If @src_if is zero, verifies that route exist.
+ * if @flags contains NHR_NOTDEFAULT, do not consider default route.
+ *
+ * Returns 1 if route matching conditions is found, 0 otherwise.
+ */
+int
+fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
+  uint32_t flags, const struct ifnet *src_if)
+{
+	RIB_RLOCK_TRACKER;
+	struct rib_head *rh;
+	struct radix_node *rn;
+	struct rtentry *rt;
+	int ret;
+
+	KASSERT((fibnum < rt_numfibs), ("fib4_check_urpf: bad fibnum"));
+	rh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rh == NULL)
+		return (0);
+
+	/* Prepare lookup key */
+	struct sockaddr_in sin4;
+	memset(&sin4, 0, sizeof(sin4));
+	sin4.sin_len = sizeof(struct sockaddr_in);
+	sin4.sin_addr = dst;
+
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin4, &rh->head);
+	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
+		rt = RNTORT(rn);
+#ifdef	RADIX_MPATH
+		ret = check_urpf_mpath(rt, flags, src_if);
+#else
+		ret = check_urpf(rt->rt_nhop, flags, src_if);
+#endif
+		RIB_RUNLOCK(rh);
+		return (ret);
+	}
+	RIB_RUNLOCK(rh);
+
+	return (0);
 }
 
 #endif
