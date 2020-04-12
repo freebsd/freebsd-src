@@ -563,6 +563,7 @@ The fifth, sixth, and seventh level names are as follows:
 .It Dv NET_RT_IFLIST Ta 0 or if_index Ta None
 .It Dv NET_RT_IFMALIST Ta 0 or if_index Ta None
 .It Dv NET_RT_IFLISTL Ta 0 or if_index Ta None
+.It Dv NET_RT_NHOPS Ta None Ta fib number
 .El
 .Pp
 The
@@ -583,6 +584,9 @@ uses 'l' versions of the message header structures:
 .Va struct if_msghdrl
 and
 .Va struct ifa_msghdrl .
+.Pp
+.Dv NET_RT_NHOPS
+returns all nexthops for specified address family in given fib.
 .It Li PF_INET
 Get or set various global information about the IPv4
 (Internet Protocol version 4).

@@ -58,5 +58,9 @@ int fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flags,
     uint32_t flowid, struct nhop4_extended *pnh4);
 void fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4);
 
+struct nhop_object *fib4_lookup(uint32_t fibnum, struct in_addr dst,
+    uint32_t scopeid, uint32_t flags, uint32_t flowid);
+int fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
+    uint32_t flags, const struct ifnet *src_if);
 #endif
 

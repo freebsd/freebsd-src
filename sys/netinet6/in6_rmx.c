@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/route.h>
 #include <net/route_var.h>
+#include <net/route/nhop.h>
+#include <net/route/shared.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>
@@ -102,6 +104,43 @@ extern int	in6_inithead(void **head, int off, u_int fibnum);
 #ifdef VIMAGE
 extern int	in6_detachhead(void **head, int off);
 #endif
+
+static int
+rib6_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *mask,
+    struct nhop_object *nh)
+{
+	uint16_t nh_type;
+
+	/* XXX: RTF_LOCAL */
+
+	/*
+	 * Check route MTU:
+	 * inherit interface MTU if not set or
+	 * check if MTU is too large.
+	 */
+	if (nh->nh_mtu == 0) {
+		nh->nh_mtu = IN6_LINKMTU(nh->nh_ifp);
+	} else if (nh->nh_mtu > IN6_LINKMTU(nh->nh_ifp))
+		nh->nh_mtu = IN6_LINKMTU(nh->nh_ifp);
+
+	/* Ensure that default route nhop has special flag */
+	const struct sockaddr_in6 *mask6 = (const struct sockaddr_in6 *)mask;
+	if ((nhop_get_rtflags(nh) & RTF_HOST) == 0 &&
+	    IN6_IS_ADDR_UNSPECIFIED(&mask6->sin6_addr))
+		nh->nh_flags |= NHF_DEFAULT;
+
+	/* Set nexthop type */
+	if (nhop_get_type(nh) == 0) {
+		if (nh->nh_flags & NHF_GATEWAY)
+			nh_type = NH_TYPE_IPV6_ETHER_NHOP;
+		else
+			nh_type = NH_TYPE_IPV6_ETHER_RSLV;
+
+		nhop_set_type(nh, nh_type);
+	}
+
+	return (0);
+}
 
 /*
  * Do what we need to do when inserting a route.
@@ -169,6 +208,7 @@ in6_inithead(void **head, int off, u_int fibnum)
 		return (0);
 
 	rh->rnh_addaddr = in6_addroute;
+	rh->rnh_preadd = rib6_preadd;
 #ifdef	RADIX_MPATH
 	rt_mpath_init_rnh(rh);
 #endif

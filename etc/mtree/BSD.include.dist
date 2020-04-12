@@ -208,6 +208,8 @@
     net
         altq
         ..
+        route
+        ..
     ..
     net80211
     ..

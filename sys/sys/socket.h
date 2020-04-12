@@ -416,6 +416,7 @@ struct sockproto {
 #define	NET_RT_IFMALIST	4		/* return multicast address list */
 #define	NET_RT_IFLISTL	5		/* Survey interface list, using 'l'en
 					 * versions of msghdr structs. */
+#define NET_RT_NHOP	6		/* dump routing nexthops */
 #endif /* __BSD_VISIBLE */
 
 /*

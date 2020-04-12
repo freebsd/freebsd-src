@@ -62,6 +62,8 @@
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/route_var.h>
+#include <net/route/nhop.h>
+#include <net/route/shared.h>
 #include <net/vnet.h>
 
 #ifdef RADIX_MPATH
@@ -108,10 +110,7 @@ VNET_DEFINE(u_int, rt_add_addr_allfibs) = 1;
 SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RWTUN | CTLFLAG_VNET,
     &VNET_NAME(rt_add_addr_allfibs), 0, "");
 
-VNET_PCPUSTAT_DEFINE_STATIC(struct rtstat, rtstat);
-#define	RTSTAT_ADD(name, val)	\
-	VNET_PCPUSTAT_ADD(struct rtstat, rtstat, name, (val))
-#define	RTSTAT_INC(name)	RTSTAT_ADD(name, 1)
+VNET_PCPUSTAT_DEFINE(struct rtstat, rtstat);
 
 VNET_PCPUSTAT_SYSINIT(rtstat);
 #ifdef VIMAGE
@@ -240,6 +239,7 @@ route_init(void)
 		rt_numfibs = RT_MAXFIBS;
 	if (rt_numfibs == 0)
 		rt_numfibs = 1;
+	nhops_init();
 }
 SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, NULL);
 
@@ -377,6 +377,8 @@ rt_table_init(int offset, int family, u_int fibnum)
 	/* Init locks */
 	RIB_LOCK_INIT(rh);
 
+	nhops_init_rib(rh);
+
 	/* Finally, set base callbacks */
 	rh->rnh_addaddr = rn_addroute;
 	rh->rnh_deladdr = rn_delete;
@@ -407,6 +409,8 @@ rt_table_destroy(struct rib_head *rh)
 	tmproutes_destroy(rh);
 
 	rn_walktree(&rh->rmhead.head, rt_freeentry, &rh->rmhead.head);
+
+	nhops_destroy_rib(rh);
 
 	/* Assume table is already empty */
 	RIB_LOCK_DESTROY(rh);
@@ -585,6 +589,9 @@ rtfree(struct rtentry *rt)
 		 * together.
 		 */
 		R_Free(rt_key(rt));
+
+		/* Unreference nexthop */
+		nhop_free(rt->rt_nhop);
 
 		/*
 		 * and the rtentry itself of course
@@ -1400,6 +1407,7 @@ rt_updatemtu(struct ifnet *ifp)
 			RIB_WLOCK(rnh);
 			rnh->rnh_walktree(&rnh->head, if_updatemtu_cb, &ifmtu);
 			RIB_WUNLOCK(rnh);
+			nhops_update_ifmtu(rnh, ifp, ifmtu.mtu);
 		}
 	}
 }
@@ -1544,6 +1552,7 @@ int
 rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
+	struct epoch_tracker et;
 	const struct sockaddr *dst;
 	struct rib_head *rnh;
 	int error;
@@ -1592,9 +1601,11 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		error = add_route(rnh, info, ret_nrt);
 		break;
 	case RTM_CHANGE:
+		NET_EPOCH_ENTER(et);
 		RIB_WLOCK(rnh);
 		error = change_route(rnh, info, ret_nrt);
 		RIB_WUNLOCK(rnh);
+		NET_EPOCH_EXIT(et);
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -1609,9 +1620,11 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 {
 	struct sockaddr *dst, *ndst, *gateway, *netmask;
 	struct rtentry *rt, *rt_old;
+	struct nhop_object *nh;
 	struct radix_node *rn;
 	struct ifaddr *ifa;
 	int error, flags;
+	struct epoch_tracker et;
 
 	dst = info->rti_info[RTAX_DST];
 	gateway = info->rti_info[RTAX_GATEWAY];
@@ -1631,18 +1644,30 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	} else {
 		ifa_ref(info->rti_ifa);
 	}
+
+	NET_EPOCH_ENTER(et);
+	error = nhop_create_from_info(rnh, info, &nh);
+	NET_EPOCH_EXIT(et);
+	if (error != 0) {
+		ifa_free(info->rti_ifa);
+		return (error);
+	}
+
 	rt = uma_zalloc(V_rtzone, M_NOWAIT);
 	if (rt == NULL) {
 		ifa_free(info->rti_ifa);
+		nhop_free(nh);
 		return (ENOBUFS);
 	}
 	rt->rt_flags = RTF_UP | flags;
 	rt->rt_fibnum = rnh->rib_fibnum;
+	rt->rt_nhop = nh;
 	/*
 	 * Add the gateway. Possibly re-malloc-ing the storage for it.
 	 */
 	if ((error = rt_setgate(rt, dst, gateway)) != 0) {
 		ifa_free(info->rti_ifa);
+		nhop_free(nh);
 		uma_zfree(V_rtzone, rt);
 		return (error);
 	}
@@ -1682,6 +1707,7 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 
 		ifa_free(rt->rt_ifa);
 		R_Free(rt_key(rt));
+		nhop_free(nh);
 		uma_zfree(V_rtzone, rt);
 		return (EEXIST);
 	}
@@ -1723,6 +1749,7 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	if (rn == NULL) {
 		ifa_free(rt->rt_ifa);
 		R_Free(rt_key(rt));
+		nhop_free(nh);
 		uma_zfree(V_rtzone, rt);
 		return (EEXIST);
 	} 
@@ -1802,6 +1829,7 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	int error = 0;
 	int free_ifa = 0;
 	int family, mtu;
+	struct nhop_object *nh;
 	struct if_mtuinfo ifmtu;
 
 	RIB_WLOCK_ASSERT(rnh);
@@ -1824,6 +1852,7 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	}
 #endif
 
+	nh = NULL;
 	RT_LOCK(rt);
 
 	rt_setmetrics(info, rt);
@@ -1851,6 +1880,10 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		if (error != 0)
 			goto bad;
 	}
+
+	error = nhop_create_from_nhop(rnh, rt->rt_nhop, info, &nh);
+	if (error != 0)
+		goto bad;
 
 	/* Check if outgoing interface has changed */
 	if (info->rti_ifa != NULL && info->rti_ifa != rt->rt_ifa &&
@@ -1897,6 +1930,11 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		}
 	}
 
+	/* Update nexthop */
+	nhop_free(rt->rt_nhop);
+	rt->rt_nhop = nh;
+	nh = NULL;
+
 	/*
 	 * This route change may have modified the route's gateway.  In that
 	 * case, any inpcbs that have cached this route need to invalidate their
@@ -1910,6 +1948,8 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	}
 bad:
 	RT_UNLOCK(rt);
+	if (nh != NULL)
+		nhop_free(nh);
 	if (free_ifa != 0) {
 		ifa_free(info->rti_ifa);
 		info->rti_ifa = NULL;

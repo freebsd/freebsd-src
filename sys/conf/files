@@ -4091,6 +4091,11 @@ net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
 net/route_temporal.c		standard
+net/route/nhop.c		standard
+net/route/nhop_ctl.c		standard
+net/route/nhop_utils.c		standard
+net/route/route_ctl.c		standard
+net/route/route_helpers.c	standard
 net/rss_config.c		optional inet rss | inet6 rss
 net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | sppp | \
