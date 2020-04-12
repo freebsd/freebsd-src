@@ -219,7 +219,7 @@ nhop_map_update(struct nhop_map *map, uint32_t idx, char *gw, char *ifname)
 
 		sz = new_size * (sizeof(struct nhop_entry));
 		if ((map->ptr = realloc(map->ptr, sz)) == NULL)
-			errx(2, "realloc(%lu) failed", sz);
+			errx(2, "realloc(%zu) failed", sz);
 
 		memset(&map->ptr[map->size], 0, (new_size - map->size) * sizeof(struct nhop_entry));
 		map->size = new_size;
