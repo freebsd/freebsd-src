@@ -817,7 +817,9 @@ static void
 carp_send_ad_all(void *ctx __unused, int pending __unused)
 {
 	struct carp_softc *sc;
+	struct epoch_tracker et;
 
+	NET_EPOCH_ENTER(et);
 	mtx_lock(&carp_mtx);
 	LIST_FOREACH(sc, &carp_list, sc_next)
 		if (sc->sc_state == MASTER) {
@@ -828,6 +830,7 @@ carp_send_ad_all(void *ctx __unused, int pending __unused)
 			CARP_UNLOCK(sc);
 		}
 	mtx_unlock(&carp_mtx);
+	NET_EPOCH_EXIT(et);
 }
 
 /* Send a periodic advertisement, executed in callout context. */
@@ -835,12 +838,15 @@ static void
 carp_send_ad(void *v)
 {
 	struct carp_softc *sc = v;
+	struct epoch_tracker et;
 
+	NET_EPOCH_ENTER(et);
 	CARP_LOCK_ASSERT(sc);
 	CURVNET_SET(sc->sc_carpdev->if_vnet);
 	carp_send_ad_locked(sc);
 	CURVNET_RESTORE();
 	CARP_UNLOCK(sc);
+	NET_EPOCH_EXIT(et);
 }
 
 static void
@@ -907,12 +913,12 @@ carp_send_ad_locked(struct carp_softc *sc)
 {
 	struct carp_header ch;
 	struct timeval tv;
-	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct carp_header *ch_ptr;
 	struct mbuf *m;
 	int len, advskew;
 
+	NET_EPOCH_ASSERT();
 	CARP_LOCK_ASSERT(sc);
 
 	advskew = DEMOTE_ADVSKEW(sc);
@@ -976,10 +982,8 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		CARPSTATS_INC(carps_opackets);
 
-		NET_EPOCH_ENTER(et);
 		carp_send_ad_error(sc, ip_output(m, NULL, NULL, IP_RAWOUTPUT,
 		    &sc->sc_carpdev->if_carp->cif_imo, NULL));
-		NET_EPOCH_EXIT(et);
 	}
 #endif /* INET */
 #ifdef INET6
@@ -1037,10 +1041,8 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		CARPSTATS_INC(carps_opackets6);
 
-		NET_EPOCH_ENTER(et);
 		carp_send_ad_error(sc, ip6_output(m, NULL, NULL, 0,
 		    &sc->sc_carpdev->if_carp->cif_im6o, NULL, NULL));
-		NET_EPOCH_EXIT(et);
 	}
 #endif /* INET6 */
 
@@ -1129,6 +1131,8 @@ carp_send_arp(struct carp_softc *sc)
 {
 	struct ifaddr *ifa;
 	struct in_addr addr;
+
+	NET_EPOCH_ASSERT();
 
 	CARP_FOREACH_IFA(sc, ifa) {
 		if (ifa->ifa_addr->sa_family != AF_INET)
@@ -1258,7 +1262,9 @@ static void
 carp_master_down(void *v)
 {
 	struct carp_softc *sc = v;
+	struct epoch_tracker et;
 
+	NET_EPOCH_ENTER(et);
 	CARP_LOCK_ASSERT(sc);
 
 	CURVNET_SET(sc->sc_carpdev->if_vnet);
@@ -1268,12 +1274,14 @@ carp_master_down(void *v)
 	CURVNET_RESTORE();
 
 	CARP_UNLOCK(sc);
+	NET_EPOCH_EXIT(et);
 }
 
 static void
 carp_master_down_locked(struct carp_softc *sc, const char *reason)
 {
 
+	NET_EPOCH_ASSERT();
 	CARP_LOCK_ASSERT(sc);
 
 	switch (sc->sc_state) {
