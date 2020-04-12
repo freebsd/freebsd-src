@@ -32,6 +32,10 @@
 #ifndef _NET_ROUTE_VAR_H_
 #define _NET_ROUTE_VAR_H_
 
+struct nh_control;
+typedef int rnh_preadd_entry_f_t(u_int fibnum, const struct sockaddr *addr,
+	const struct sockaddr *mask, struct nhop_object *nh);
+
 struct rib_head {
 	struct radix_head	head;
 	rn_matchaddr_f_t	*rnh_matchaddr;	/* longest match for sockaddr */
@@ -41,6 +45,7 @@ struct rib_head {
 	rn_walktree_t		*rnh_walktree;	/* traverse tree */
 	rn_walktree_from_t	*rnh_walktree_from; /* traverse tree below a */
 	rn_close_t		*rnh_close;	/*do something when the last ref drops*/
+	rnh_preadd_entry_f_t	*rnh_preadd;	/* hook to alter record prior to insertion */
 	rt_gen_t		rnh_gen;	/* generation counter */
 	int			rnh_multipath;	/* multipath capable ? */
 	struct radix_node	rnh_nodes[3];	/* empty tree for common case */
@@ -51,6 +56,7 @@ struct rib_head {
 	u_int			rib_fibnum;	/* fib number */
 	struct callout		expire_callout;	/* Callout for expiring dynamic routes */
 	time_t			next_expire;	/* Next expire run ts */
+	struct nh_control	*nh_control;	/* nexthop subsystem data */
 };
 
 #define	RIB_RLOCK_TRACKER	struct rm_priotracker _rib_tracker
@@ -90,6 +96,44 @@ _Static_assert(__offsetof(struct route, ro_dst) == __offsetof(_ro_new, _dst_new)
 struct rib_head *rt_tables_get_rnh(int fib, int family);
 void rt_mpath_init_rnh(struct rib_head *rnh);
 
+VNET_PCPUSTAT_DECLARE(struct rtstat, rtstat);
+#define	RTSTAT_ADD(name, val)	\
+	VNET_PCPUSTAT_ADD(struct rtstat, rtstat, name, (val))
+#define	RTSTAT_INC(name)	RTSTAT_ADD(name, 1)
+
+/*
+ * With the split between the routing entry and the nexthop,
+ *  rt_flags has to be split between these 2 entries. As rtentry
+ *  mostly contains prefix data and is thought to be generic enough
+ *  so one can transparently change the nexthop pointer w/o requiring
+ *  any other rtentry changes, most of rt_flags shifts to the particular nexthop.
+ * /
+ *
+ * RTF_UP: rtentry, as an indication that it is linked.
+ * RTF_HOST: rtentry, nhop. The latter indication is needed for the datapath
+ * RTF_DYNAMIC: nhop, to make rtentry generic.
+ * RTF_MODIFIED: nhop, to make rtentry generic. (legacy)
+ * -- "native" path (nhop) properties:
+ * RTF_GATEWAY, RTF_STATIC, RTF_PROTO1, RTF_PROTO2, RTF_PROTO3, RTF_FIXEDMTU,
+ *  RTF_PINNED, RTF_REJECT, RTF_BLACKHOLE, RTF_BROADCAST
+ */
+
+/* Nexthop rt flags mask */
+#define	NHOP_RT_FLAG_MASK	(RTF_GATEWAY | RTF_HOST | RTF_REJECT | RTF_DYNAMIC | \
+    RTF_MODIFIED | RTF_STATIC | RTF_BLACKHOLE | RTF_PROTO1 | RTF_PROTO2 | \
+    RTF_PROTO3 | RTF_FIXEDMTU | RTF_PINNED | RTF_BROADCAST)
+
+/* rtentry rt flag mask */
+#define	RTE_RT_FLAG_MASK	(RTF_UP | RTF_HOST)
+
+/* Nexthop selection */
+#define	_NH2MP(_nh)	((struct nhgrp_object *)(_nh))
+#define	_SELECT_NHOP(_nh, _flowid)	\
+	(_NH2MP(_nh))->nhops[(_flowid) % (_NH2MP(_nh))->mp_size]
+#define	_RT_SELECT_NHOP(_nh, _flowid)	\
+	((!NH_IS_MULTIPATH(_nh)) ? (_nh) : _SELECT_NHOP(_nh, _flowid))
+#define	RT_SELECT_NHOP(_rt, _flowid)	_RT_SELECT_NHOP((_rt)->rt_nhop, _flowid)
+ 
 /* rte<>nhop translation */
 static inline uint16_t
 fib_rte_to_nh_flags(int rt_flags)

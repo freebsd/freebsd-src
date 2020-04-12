@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 2015
- * 	Alexander V. Chernikov <melifaro@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright (c) 1992, 1993
+ *	Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,43 +28,31 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	@(#)netstat.h	8.2 (Berkeley) 1/4/94
  * $FreeBSD$
  */
 
-#ifndef _NETINET6_IN6_FIB_H_
-#define	_NETINET6_IN6_FIB_H_
+#ifndef _NETSTAT_COMMON_H_
+#define _NETSTAT_COMMON_H_
 
-/* Basic nexthop info used for uRPF/mtu checks */
-struct nhop6_basic {
-	struct ifnet	*nh_ifp;	/* Logical egress interface */
-	uint16_t	nh_mtu;		/* nexthop mtu */
-	uint16_t	nh_flags;	/* nhop flags */
-	uint8_t		spare[4];
-	struct in6_addr	nh_addr;	/* GW/DST IPv4 address */
+struct bits {
+	u_long	b_mask;
+	char	b_val;
+	const char *b_name;
+};
+extern struct bits rt_bits[];
+
+const char *fmt_flags(const struct bits *p, int f);
+void print_flags_generic(int flags, const struct bits *pbits,
+    const char *format, const char *tag_name);
+int print_sockaddr(const char *name, struct sockaddr *sa,
+    struct sockaddr *mask, int flags, int width);
+
+struct ifmap_entry {
+	char ifname[IFNAMSIZ];
 };
 
-/* Extended nexthop info used for control protocols. */
-struct nhop6_extended {
-	struct ifnet	*nh_ifp;	/* Logical egress interface */
-	struct in6_ifaddr *nh_ia;	/* Associated address. */
-	uint16_t	nh_mtu;		/* nexthop mtu */
-	uint16_t	nh_flags;	/* nhop flags */
-	uint8_t		spare[4];
-	struct in6_addr	nh_addr;	/* GW/DST IPv6 address */
-	uint64_t	spare2[1];
-};
+struct ifmap_entry *prepare_ifmap(size_t *ifmap_size);
 
-int fib6_lookup_nh_basic(uint32_t fibnum, const struct in6_addr *dst,
-    uint32_t scopeid, uint32_t flags, uint32_t flowid,struct nhop6_basic *pnh6);
-int fib6_lookup_nh_ext(uint32_t fibnum, const struct in6_addr *dst,
-    uint32_t scopeid, uint32_t flags, uint32_t flowid,
-    struct nhop6_extended *pnh6);
-void fib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *pnh6);
-
-struct nhop_object *fib6_lookup(uint32_t fibnum,
-    const struct in6_addr *dst6, uint32_t scopeid, uint32_t flags,
-    uint32_t flowid);
-int fib6_check_urpf(uint32_t fibnum, const struct in6_addr *dst6,
-    uint32_t scopeid, uint32_t flags, const struct ifnet *src_if);
 #endif
 

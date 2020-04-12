@@ -211,7 +211,7 @@ rt_mpath_conflict(struct rib_head *rnh, struct rtentry *rt,
 	return (0);
 }
 
-static struct rtentry *
+struct rtentry *
 rt_mpath_selectrte(struct rtentry *rte, uint32_t hash)
 {
 	struct radix_node *rn0, *rn;

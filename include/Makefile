@@ -53,6 +53,7 @@ LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
 	net/altq \
+	net/route \
 	netgraph/atm netgraph/netflow \
 	netinet/cc \
 	netinet/netdump \

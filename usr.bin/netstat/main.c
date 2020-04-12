@@ -214,6 +214,7 @@ int	mflag;		/* show memory stats */
 int	noutputs = 0;	/* how much outputs before we exit */
 int	numeric_addr;	/* show addresses numerically */
 int	numeric_port;	/* show ports numerically */
+int	oflag;		/* show nexthop objects*/
 int	Pflag;		/* show TCP log ID */
 static int pflag;	/* show given protocol */
 static int	Qflag;		/* show netisr information */
@@ -248,7 +249,7 @@ main(int argc, char *argv[])
 	if (argc < 0)
 		exit(EXIT_FAILURE);
 
-	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:nPp:Qq:RrSTsuWw:xz"))
+	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:noPp:Qq:RrSTsuWw:xz"))
 	    != -1)
 		switch(ch) {
 		case '4':
@@ -344,6 +345,9 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			numeric_addr = numeric_port = 1;
+			break;
+		case 'o':
+			oflag = 1;
 			break;
 		case 'P':
 			Pflag = 1;
@@ -494,6 +498,14 @@ main(int argc, char *argv[])
 		xo_finish();
 		exit(0);
 	}
+	if (oflag) {
+		xo_open_container("statistics");
+		nhops_print(fib, af);
+		xo_close_container("statistics");
+		xo_finish();
+		exit(0);
+	}
+
 
 	if (gflag) {
 		xo_open_container("statistics");

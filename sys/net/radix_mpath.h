@@ -56,9 +56,26 @@ int rt_mpath_conflict(struct rib_head *, struct rtentry *,
     struct sockaddr *);
 void rtalloc_mpath_fib(struct route *, u_int32_t, u_int);
 struct rtentry *rt_mpath_select(struct rtentry *, uint32_t);
+struct rtentry *rt_mpath_selectrte(struct rtentry *, uint32_t);
 int rt_mpath_deldup(struct rtentry *, struct rtentry *);
 int	rn4_mpath_inithead(void **, int, u_int);
 int	rn6_mpath_inithead(void **, int, u_int);
+
+static inline struct rtentry *
+rt_mpath_next(struct rtentry *rt)
+{
+	struct radix_node *next, *rn;
+
+	rn = (struct radix_node *)rt;
+
+	if (!rn->rn_dupedkey)
+		return (NULL);
+	next = rn->rn_dupedkey;
+	if (rn->rn_mask == next->rn_mask)
+		return (struct rtentry *)next;
+	else
+		return (NULL);
+}
 
 #endif
 

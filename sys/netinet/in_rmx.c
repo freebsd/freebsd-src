@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/route.h>
 #include <net/route_var.h>
+#include <net/route/nhop.h>
+#include <net/route/shared.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -55,6 +57,67 @@ extern int	in_inithead(void **head, int off, u_int fibnum);
 #ifdef VIMAGE
 extern int	in_detachhead(void **head, int off);
 #endif
+
+static int
+rib4_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *mask,
+    struct nhop_object *nh)
+{
+	const struct sockaddr_in *addr4 = (const struct sockaddr_in *)addr;
+	uint16_t nh_type;
+	int rt_flags;
+
+	/* XXX: RTF_LOCAL && RTF_MULTICAST */
+
+	rt_flags = nhop_get_rtflags(nh);
+
+	if (rt_flags & RTF_HOST) {
+
+		/*
+		 * Backward compatibility:
+		 * if the destination is broadcast,
+		 * mark route as broadcast.
+		 * This behavior was useful when route cloning
+		 * was in place, so there was an explicit cloned
+		 * route for every broadcasted address.
+		 * Currently (2020-04) there is no kernel machinery
+		 * to do route cloning, though someone might explicitly
+		 * add these routes to support some cases with active-active
+		 * load balancing. Given that, retain this support.
+		 */
+		if (in_broadcast(addr4->sin_addr, nh->nh_ifp)) {
+			rt_flags |= RTF_BROADCAST;
+			nhop_set_rtflags(nh, rt_flags);
+			nh->nh_flags |= NHF_BROADCAST;
+		}
+	}
+
+	/*
+	 * Check route MTU:
+	 * inherit interface MTU if not set or
+	 * check if MTU is too large.
+	 */
+	if (nh->nh_mtu == 0) {
+		nh->nh_mtu = nh->nh_ifp->if_mtu;
+	} else if (nh->nh_mtu > nh->nh_ifp->if_mtu)
+		nh->nh_mtu = nh->nh_ifp->if_mtu;
+
+	/* Ensure that default route nhop has special flag */
+	const struct sockaddr_in *mask4 = (const struct sockaddr_in *)mask;
+	if ((rt_flags & RTF_HOST) == 0 && mask4->sin_addr.s_addr == 0)
+		nh->nh_flags |= NHF_DEFAULT;
+
+	/* Set nhop type to basic per-AF nhop */
+	if (nhop_get_type(nh) == 0) {
+		if (nh->nh_flags & NHF_GATEWAY)
+			nh_type = NH_TYPE_IPV4_ETHER_NHOP;
+		else
+			nh_type = NH_TYPE_IPV4_ETHER_RSLV;
+
+		nhop_set_type(nh, nh_type);
+	}
+
+	return (0);
+}
 
 /*
  * Do what we need to do when inserting a route.
@@ -126,6 +189,7 @@ in_inithead(void **head, int off, u_int fibnum)
 	if (rh == NULL)
 		return (0);
 
+	rh->rnh_preadd = rib4_preadd;
 	rh->rnh_addaddr = in_addroute;
 #ifdef	RADIX_MPATH
 	rt_mpath_init_rnh(rh);

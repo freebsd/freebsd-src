@@ -77,6 +77,7 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #endif
+#include <net/route/nhop.h>
 
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
@@ -1076,6 +1077,7 @@ rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out)
 	out->rmx_mtu = rt->rt_mtu;
 	out->rmx_weight = rt->rt_weight;
 	out->rmx_pksent = counter_u64_fetch(rt->rt_pksent);
+	out->rmx_nhidx = nhop_get_idx(rt->rt_nhop);
 	/* Kernel -> userland timebase conversion. */
 	out->rmx_expire = rt->rt_expire ?
 	    rt->rt_expire - time_uptime + time_second : 0;
@@ -2025,7 +2027,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	namelen--;
 	if (req->newptr)
 		return (EPERM);
-	if (name[1] == NET_RT_DUMP) {
+	if (name[1] == NET_RT_DUMP || name[1] == NET_RT_NHOP) {
 		if (namelen == 3)
 			fib = req->td->td_proc->p_fibnum;
 		else if (namelen == 4)
@@ -2092,7 +2094,25 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 				error = EAFNOSUPPORT;
 		}
 		break;
-
+	case NET_RT_NHOP:
+		/* Allow dumping one specific af/fib at a time */
+		if (namelen < 4) {
+			error = EINVAL;
+			break;
+		}
+		fib = name[3];
+		if (fib < 0 || fib > rt_numfibs) {
+			error = EINVAL;
+			break;
+		}
+		rnh = rt_tables_get_rnh(fib, af);
+		if (rnh == NULL) {
+			error = EAFNOSUPPORT;
+			break;
+		}
+		if (w.w_op == NET_RT_NHOP)
+			error = nhops_dump_sysctl(rnh, w.w_req);
+		break;
 	case NET_RT_IFLIST:
 	case NET_RT_IFLISTL:
 		error = sysctl_iflist(af, &w);
