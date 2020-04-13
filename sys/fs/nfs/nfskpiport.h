@@ -44,15 +44,6 @@ typedef struct vnode *		vnode_t;
 #define	vnode_vtype(v)		((v)->v_type)
 
 typedef struct mbuf *		mbuf_t;
-#define	mbuf_freem(m)		m_freem(m)
-#define	mbuf_data(m)		mtod((m), void *)
-#define	mbuf_len(m)		((m)->m_len)
-#define	mbuf_next(m)		((m)->m_next)
-#define	mbuf_setlen(m, l)	((m)->m_len = (l))
-#define	mbuf_setnext(m, p)	((m)->m_next = (p))
-#define	mbuf_pkthdr_len(m)	((m)->m_pkthdr.len)
-#define	mbuf_pkthdr_setlen(m, l) ((m)->m_pkthdr.len = (l))
-#define	mbuf_pkthdr_setrcvif(m, p) ((m)->m_pkthdr.rcvif = (p))
 
 /*
  * This stuff is needed by Darwin for handling the uio structure.
