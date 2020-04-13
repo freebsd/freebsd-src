@@ -1232,15 +1232,6 @@ passcopysglist(struct cam_periph *periph, struct pass_io_req *io_req,
 		user_watermark += len_to_copy;
 		kern_watermark += len_to_copy;
 
-		if (!useracc(user_ptr, len_to_copy,
-		    (direction == CAM_DIR_IN) ? VM_PROT_WRITE : VM_PROT_READ)) {
-			xpt_print(periph->path, "%s: unable to access user "
-				  "S/G list element %p len %zu\n", __func__,
-				  user_ptr, len_to_copy);
-			error = EFAULT;
-			goto bailout;
-		}
-
 		if (direction == CAM_DIR_IN) {
 			error = copyout(kern_ptr, user_ptr, len_to_copy);
 			if (error != 0) {
@@ -1445,20 +1436,6 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 			if (io_req->lengths[i] == 0)
 				continue;
 
-			/*
-			 * Make sure that the user's buffer is accessible
-			 * to that process.
-			 */
-			if (!useracc(io_req->user_bufs[i], io_req->lengths[i],
-			    (io_req->dirs[i] == CAM_DIR_IN) ? VM_PROT_WRITE :
-			     VM_PROT_READ)) {
-				xpt_print(periph->path, "%s: user address %p "
-				    "length %u is not accessible\n", __func__,
-				    io_req->user_bufs[i], io_req->lengths[i]);
-				error = EFAULT;
-				goto bailout;
-			}
-
 			tmp_buf = malloc(lengths[i], M_SCSIPASS,
 					 M_WAITOK | M_ZERO);
 			io_req->kern_bufs[i] = tmp_buf;
@@ -1560,13 +1537,6 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 			io_req->flags |= PASS_IO_USER_SEG_MALLOC;
 		} else
 			io_req->user_segptr = io_req->user_segs;
-
-		if (!useracc(*data_ptrs[0], sg_length, VM_PROT_READ)) {
-			xpt_print(periph->path, "%s: unable to access user "
-				  "S/G list at %p\n", __func__, *data_ptrs[0]);
-			error = EFAULT;
-			goto bailout;
-		}
 
 		error = copyin(*data_ptrs[0], io_req->user_segptr, sg_length);
 		if (error != 0) {
