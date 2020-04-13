@@ -1136,23 +1136,28 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 
 	/*
 	 * If FWRITE's set, we can allow VM_PROT_WRITE unless it's a shared
-	 * mapping with a write seal applied.
+	 * mapping with a write seal applied.  Private mappings are always
+	 * writeable.
 	 */
-	if ((fp->f_flag & FWRITE) != 0 && ((flags & MAP_SHARED) == 0 ||
-	    (shmfd->shm_seals & F_SEAL_WRITE) == 0))
+	if ((flags & MAP_SHARED) == 0) {
+		cap_maxprot |= VM_PROT_WRITE;
 		maxprot |= VM_PROT_WRITE;
+		writecnt = false;
+	} else {
+		if ((fp->f_flag & FWRITE) != 0 &&
+		    (shmfd->shm_seals & F_SEAL_WRITE) == 0)
+			maxprot |= VM_PROT_WRITE;
+		writecnt = (prot & VM_PROT_WRITE) != 0;
+		if (writecnt && (shmfd->shm_seals & F_SEAL_WRITE) != 0) {
+			error = EPERM;
+			goto out;
+		}
 
-	writecnt = (flags & MAP_SHARED) != 0 && (prot & VM_PROT_WRITE) != 0;
-
-	if (writecnt && (shmfd->shm_seals & F_SEAL_WRITE) != 0) {
-		error = EPERM;
-		goto out;
-	}
-
-	/* Don't permit shared writable mappings on read-only descriptors. */
-	if (writecnt && (maxprot & VM_PROT_WRITE) == 0) {
-		error = EACCES;
-		goto out;
+		/* Don't permit shared writable mappings on read-only descriptors. */
+		if (writecnt && (maxprot & VM_PROT_WRITE) == 0) {
+			error = EACCES;
+			goto out;
+		}
 	}
 	maxprot &= cap_maxprot;
 
