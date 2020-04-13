@@ -295,7 +295,7 @@ evdev_register_common(struct evdev_dev *evdev)
 	if (evdev_event_supported(evdev, EV_REP) &&
 	    bit_test(evdev->ev_flags, EVDEV_FLAG_SOFTREPEAT)) {
 		/* Initialize callout */
-		callout_init_mtx(&evdev->ev_rep_callout, &evdev->ev_mtx, 0);
+		callout_init_mtx(&evdev->ev_rep_callout, evdev->ev_lock, 0);
 
 		if (evdev->ev_rep[REP_DELAY] == 0 &&
 		    evdev->ev_rep[REP_PERIOD] == 0) {
