@@ -172,7 +172,6 @@
 			MGETHDR((m), M_WAITOK, MT_DATA); 	\
 		} 						\
 	} while (0)
-#define	NFSMTOD	mtod
 
 /*
  * Client side constant for size of a lockowner name.
