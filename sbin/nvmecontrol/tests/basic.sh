@@ -33,7 +33,7 @@
 
 DANGEROUS=false # Set to true to run "dangerous" tests
 # Select a nvme device to use for testing. If none exist, use nvme0.
-TEST_DEV=$(cd /dev/;ls nvme[0-9]* | grep 'nvme[0-9][0-9]*$' | head -1) 2>/dev/null
+TEST_DEV=$(cd /dev/; ls -1 nvme[0-9]* 2> /dev/null | grep -E 'nvme[0-9][0-9]*$' | head -n 1)
 TEST_DEV=${TEST_DEV:-nvme0}
 TEST_DEV_PATH=/dev/${TEST_DEV}
 INV_OPT="-z"
