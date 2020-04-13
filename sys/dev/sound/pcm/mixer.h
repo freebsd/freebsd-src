@@ -56,6 +56,7 @@ int mix_get(struct snd_mixer *m, u_int dev);
 int mix_setrecsrc(struct snd_mixer *m, u_int32_t src);
 u_int32_t mix_getrecsrc(struct snd_mixer *m);
 int mix_get_type(struct snd_mixer *m);
+device_t mix_get_dev(struct snd_mixer *m);
 
 void mix_setdevs(struct snd_mixer *m, u_int32_t v);
 void mix_setrecdevs(struct snd_mixer *m, u_int32_t v);
