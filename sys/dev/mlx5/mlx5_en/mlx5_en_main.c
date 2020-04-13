@@ -2880,11 +2880,19 @@ mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 static u16
 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev)
 {
-	int bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
+	const int min_size = ETHER_VLAN_ENCAP_LEN + ETHER_HDR_LEN;
+	const int max_size = MLX5E_MAX_TX_INLINE;
+	const int bf_buf_size =
+	    ((1U << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2U) -
+	    (sizeof(struct mlx5e_tx_wqe) - 2);
 
-	return bf_buf_size -
-	       sizeof(struct mlx5e_tx_wqe) +
-	       2 /*sizeof(mlx5e_tx_wqe.inline_hdr_start)*/;
+	/* verify against driver limits */
+	if (bf_buf_size > max_size)
+		return (max_size);
+	else if (bf_buf_size < min_size)
+		return (min_size);
+	else
+		return (bf_buf_size);
 }
 
 static void
