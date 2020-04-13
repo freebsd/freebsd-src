@@ -1333,6 +1333,14 @@ kern_close_range(struct thread *td, u_int lowfd, u_int highfd)
 		ret = EINVAL;
 		goto out;
 	}
+
+	/*
+	 * If fdp->fd_lastfile == -1, we're dealing with either a fresh file
+	 * table or one in which every fd has been closed.  Just return
+	 * successful; there's nothing left to do.
+	 */
+	if (fdp->fd_lastfile == -1)
+		goto out;
 	/* Clamped to [lowfd, fd_lastfile] */
 	highfd = MIN(highfd, fdp->fd_lastfile);
 	for (fd = lowfd; fd <= highfd; fd++) {
