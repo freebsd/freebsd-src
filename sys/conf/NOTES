@@ -423,7 +423,7 @@ options 	QUEUE_MACRO_DEBUG_TRASH
 # Stores information about the last caller to modify the list object
 # in the list object.  Requires additional memory overhead.
 #
-options 	QUEUE_MACRO_DEBUG_TRACE
+#options 	QUEUE_MACRO_DEBUG_TRACE
 
 #
 # SYSCTL_DEBUG enables a 'sysctl' debug tree that can be used to dump the
