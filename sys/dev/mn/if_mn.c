@@ -165,7 +165,6 @@ struct m32_mem {
 
 struct mn_softc;
 struct sockaddr;
-struct rtentry;
 
 static	int	mn_probe(device_t self);
 static	int	mn_attach(device_t self);
