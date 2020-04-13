@@ -2004,11 +2004,11 @@ ses_sanitize_elm_desc(const char *desc, uint16_t *len)
 	int i;
 
 	for (i = 0; i < *len; i++) {
-		if (desc[i] < 0x20 || desc[i] > 0x7e) {
+		if (desc[i] == 0) {
+			break;
+		} else if (desc[i] < 0x20 || desc[i] > 0x7e) {
 			*len = strlen(invalid);
 			return (invalid);
-		} else if (desc[i] == 0) {
-			break;
 		}
 	}
 	return (desc);
