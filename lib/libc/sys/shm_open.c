@@ -33,12 +33,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/mman.h>
-#include <sys/syscall.h>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -47,25 +45,13 @@ __FBSDID("$FreeBSD$");
 __weak_reference(shm_open, _shm_open);
 __weak_reference(shm_open, __sys_shm_open);
 
-#define	SHM_OPEN2_OSREL		1300048
-
 #define	MEMFD_NAME_PREFIX	"memfd:"
 
 int
 shm_open(const char *path, int flags, mode_t mode)
 {
 
-	if (__getosreldate() >= SHM_OPEN2_OSREL)
-		return (__sys_shm_open2(path, flags | O_CLOEXEC, mode, 0,
-		    NULL));
-
-	/*
-	 * Fallback to shm_open(2) on older kernels.  The kernel will enforce
-	 * O_CLOEXEC in this interface, unlike the newer shm_open2 which does
-	 * not enforce it.  The newer interface allows memfd_create(), for
-	 * instance, to not have CLOEXEC on the returned fd.
-	 */
-	return (syscall(SYS_freebsd12_shm_open, path, flags, mode));
+	return (__sys_shm_open2(path, flags | O_CLOEXEC, mode, 0, NULL));
 }
 
 /*
