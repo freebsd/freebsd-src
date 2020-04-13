@@ -86,6 +86,7 @@ static const struct {
 	{ HDA_CODEC_ALC235, 0,		"Realtek ALC235" },
 	{ HDA_CODEC_ALC255, 0,		"Realtek ALC255" },
 	{ HDA_CODEC_ALC256, 0,		"Realtek ALC256" },
+	{ HDA_CODEC_ALC257, 0,		"Realtek ALC257" },
 	{ HDA_CODEC_ALC260, 0,		"Realtek ALC260" },
 	{ HDA_CODEC_ALC262, 0,		"Realtek ALC262" },
 	{ HDA_CODEC_ALC267, 0,		"Realtek ALC267" },
