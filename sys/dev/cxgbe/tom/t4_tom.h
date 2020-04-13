@@ -176,11 +176,11 @@ struct ddp_pcb {
 };
 
 struct toepcb {
-	TAILQ_ENTRY(toepcb) link; /* toep_list */
-	u_int flags;		/* miscellaneous flags */
-	int refcount;
 	struct tom_data *td;
 	struct inpcb *inp;	/* backpointer to host stack's PCB */
+	u_int flags;		/* miscellaneous flags */
+	TAILQ_ENTRY(toepcb) link; /* toep_list */
+	int refcount;
 	struct vnet *vnet;
 	struct vi_info *vi;	/* virtual interface */
 	struct sge_wrq *ofld_txq;
