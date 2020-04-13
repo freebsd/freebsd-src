@@ -1,4 +1,4 @@
-/*	$OpenBSD: arc4random.c,v 1.54 2015/09/13 08:31:47 guenther Exp $	*/
+/*	$OpenBSD: arc4random.c,v 1.55 2019/03/24 17:56:54 deraadt Exp $	*/
 
 /*
  * Copyright (c) 1996, David Mazieres <dm@uun.org>
@@ -84,7 +84,7 @@ _rs_init(u_char *buf, size_t n)
 
 	if (rs == NULL) {
 		if (_rs_allocate(&rs, &rsx) == -1)
-			abort();
+			_exit(1);
 	}
 
 	chacha_keysetup(&rsx->rs_chacha, buf, KEYSZ * 8);
