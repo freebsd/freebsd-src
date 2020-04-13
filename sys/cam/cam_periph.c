@@ -971,14 +971,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		mapinfo->bp[i]->b_iocmd = (dirs[i] == CAM_DIR_OUT) ?
 		    BIO_WRITE : BIO_READ;
 
-		/*
-		 * Map the buffer into kernel memory.
-		 *
-		 * Note that useracc() alone is not a  sufficient test.
-		 * vmapbuf() can still fail due to a smaller file mapped
-		 * into a larger area of VM, or if userland races against
-		 * vmapbuf() after the useracc() check.
-		 */
+		/* Map the buffer into kernel memory. */
 		if (vmapbuf(mapinfo->bp[i], 1) < 0) {
 			uma_zfree(pbuf_zone, mapinfo->bp[i]);
 			goto fail;
