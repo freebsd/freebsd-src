@@ -1138,25 +1138,29 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	case SOCK_STREAM:
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
 			if (nam != NULL) {
-				if ((error = connect_internal(so, nam, td)))
+				error = connect_internal(so, nam, td);
+				if (error != 0)
 					break;
-			} else  {
+			} else {
 				error = ENOTCONN;
 				break;
 			}
-		} else if ((unp2 = unp->unp_conn) == NULL) {
+		} else {
+			UNP_PCB_LOCK(unp);
+		}
+
+		if ((unp2 = unp->unp_conn) == NULL) {
+			UNP_PCB_UNLOCK(unp);
 			error = ENOTCONN;
 			break;
 		} else if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+			UNP_PCB_UNLOCK(unp);
 			error = EPIPE;
 			break;
-		} else {
-			UNP_PCB_LOCK(unp);
-			if ((unp2 = unp->unp_conn) == NULL) {
-				UNP_PCB_UNLOCK(unp);
-				error = ENOTCONN;
-				break;
-			}
+		} else if ((unp2 = unp->unp_conn) == NULL) {
+			UNP_PCB_UNLOCK(unp);
+			error = ENOTCONN;
+			break;
 		}
 		unp_pcb_owned_lock2(unp, unp2, freed);
 		UNP_PCB_UNLOCK(unp);
@@ -1198,15 +1202,11 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 				sbappend_locked(&so2->so_rcv, m, flags);
 			break;
 
-		case SOCK_SEQPACKET: {
-			const struct sockaddr *from;
-
-			from = &sun_noname;
+		case SOCK_SEQPACKET:
 			if (sbappendaddr_nospacecheck_locked(&so2->so_rcv,
-			    from, m, control))
+			    &sun_noname, m, control))
 				control = NULL;
 			break;
-			}
 		}
 
 		mbcnt = so2->so_rcv.sb_mbcnt;
