@@ -956,15 +956,6 @@ _cleanobj_fast_depend_hack: .PHONY
 	fi
 .endif
 .endfor
-# 20190916  r352703  shm_open
-.for f in shm_open
-	@if [ -e "${OBJTOP}/lib/libc/.depend.${f}.o" ] && \
-	    egrep -qw '${f}\.[sS]' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
-		echo "Removing stale dependencies for ${f} syscall wrappers"; \
-		rm -f ${OBJTOP}/lib/libc/.depend.${f}.* \
-		   ${_LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
-	fi
-.endfor
 
 _worldtmp: .PHONY
 	@echo
