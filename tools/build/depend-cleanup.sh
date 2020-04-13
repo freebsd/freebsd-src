@@ -33,6 +33,6 @@ clean_dep()
 
 # Date      Rev      Description
 # 20190916  r352703  shm_open syscall reimplemented in C
-clean_dep lib/libc   shm_open c
+clean_dep lib/libc   shm_open S
 # 20200310  r358851  rename of openmp's ittnotify_static.c to .cpp
 clean_dep lib/libomp ittnotify_static c
