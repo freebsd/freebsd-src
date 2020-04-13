@@ -146,7 +146,7 @@ main(void)
 	pid_t pid;
 	int fd, i, start;
 
-	printf("1..19\n");
+	printf("1..20\n");
 
 	/* We better start up with fd's 0, 1, and 2 open. */
 	start = devnull();
@@ -308,6 +308,22 @@ main(void)
 	if (fd != 3)
 		fail("close_range", "highest fd %d", fd);
 	ok("close_range");
+
+	/* Fork a child process to test closefrom(0) twice. */
+	pid = fork();
+	if (pid < 0)
+		fail_err("fork");
+	if (pid == 0) {
+		/* Child. */
+		closefrom(0);
+		closefrom(0);
+		cok(info, "closefrom(0)");
+	}
+	if (wait(NULL) < 0)
+		fail_err("wait");
+	if (info->failed)
+		fail(info->tag, "%s", info->message);
+	ok(info->tag);
 
 	return (0);
 }
