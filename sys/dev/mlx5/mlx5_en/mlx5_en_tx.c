@@ -255,6 +255,7 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	 * of the mbuf into the drbr (see mlx5e_xmit_locked)
 	 */
 	if (unlikely(!mlx5e_sq_has_room_for(sq, 2 * MLX5_SEND_WQE_MAX_WQEBBS))) {
+		sq->stats.enobuf++;
 		return (ENOBUFS);
 	}
 
@@ -264,8 +265,10 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 		/* Send one multi NOP message instead of many */
 		mlx5e_send_nop(sq, (pi + 1) * MLX5_SEND_WQEBB_NUM_DS);
 		pi = ((~sq->pc) & sq->wq.sz_m1);
-		if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1))
+		if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1)) {
+			sq->stats.enobuf++;
 			return (ENOMEM);
+		}
 	}
 
 	/* Setup local variables */
