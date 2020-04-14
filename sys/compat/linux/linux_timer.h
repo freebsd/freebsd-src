@@ -33,6 +33,8 @@
 #ifndef	_LINUX_TIMER_H
 #define	_LINUX_TIMER_H
 
+#include <sys/abi_compat.h>
+
 #ifndef	__LINUX_ARCH_SIGEV_PREAMBLE_SIZE
 #define	__LINUX_ARCH_SIGEV_PREAMBLE_SIZE	\
 	(sizeof(l_int) * 2 + sizeof(l_sigval_t))
@@ -78,16 +80,6 @@
 #define	L_SIGEV_NONE				1
 #define	L_SIGEV_THREAD				2
 #define	L_SIGEV_THREAD_ID			4
-
-#define	TS_CP(src,dst,fld) do {			\
-	CP((src).fld,(dst).fld,tv_sec);		\
-	CP((src).fld,(dst).fld,tv_nsec);	\
-} while (0)
-
-#define	ITS_CP(src, dst) do {			\
-	TS_CP((src), (dst), it_interval);	\
-	TS_CP((src), (dst), it_value);		\
-} while (0)
 
 struct l_sigevent {
 	l_sigval_t sigev_value;
