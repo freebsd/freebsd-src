@@ -51,7 +51,6 @@ DTS=	\
 DTSO=	sun50i-a64-opp.dtso \
 	sun50i-a64-pwm.dtso \
 	sun50i-a64-rpwm.dtso \
-	sun50i-a64-sid.dtso \
 	sun50i-a64-spi0-spigen.dtso \
 	sun50i-a64-timer.dtso \
 	sun50i-h5-opp.dtso \
