@@ -123,7 +123,7 @@ _bus_dmamap_load_unmapped_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 	int error, i, off, len, pglen, pgoff, seglen, segoff;
 
 	MBUF_EXT_PGS_ASSERT(m);
-	ext_pgs = m->m_ext.ext_pgs;
+	ext_pgs = &m->m_ext_pgs;
 
 	len = m->m_len;
 	error = 0;
@@ -141,7 +141,7 @@ _bus_dmamap_load_unmapped_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 			off = 0;
 			len -= seglen;
 			error = _bus_dmamap_load_buffer(dmat, map,
-			    &ext_pgs->hdr[segoff], seglen, kernel_pmap,
+			    &ext_pgs->m_epg_hdr[segoff], seglen, kernel_pmap,
 			    flags, segs, nsegs);
 		}
 	}
@@ -159,7 +159,7 @@ _bus_dmamap_load_unmapped_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 		seglen = min(seglen, len);
 		len -= seglen;
 		error = _bus_dmamap_load_phys(dmat, map,
-		    ext_pgs->pa[i] + segoff, seglen, flags, segs, nsegs);
+		    ext_pgs->m_epg_pa[i] + segoff, seglen, flags, segs, nsegs);
 		pgoff = 0;
 	};
 	if (len != 0 && error == 0) {
@@ -167,7 +167,7 @@ _bus_dmamap_load_unmapped_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 		    ("off + len > trail (%d + %d > %d)", off, len,
 		    ext_pgs->trail_len));
 		error = _bus_dmamap_load_buffer(dmat, map,
-		    &ext_pgs->trail[off], len, kernel_pmap, flags, segs,
+		    &ext_pgs->m_epg_trail[off], len, kernel_pmap, flags, segs,
 		    nsegs);
 	}
 	return (error);

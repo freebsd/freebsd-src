@@ -295,7 +295,6 @@ uma_zone_t	zone_pack;
 uma_zone_t	zone_jumbop;
 uma_zone_t	zone_jumbo9;
 uma_zone_t	zone_jumbo16;
-uma_zone_t	zone_extpgs;
 
 /*
  * Local prototypes.
@@ -312,9 +311,11 @@ static void	mb_reclaim(uma_zone_t, int);
 /* Ensure that MSIZE is a power of 2. */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
 
-_Static_assert(sizeof(struct mbuf_ext_pgs) == 256,
-    "mbuf_ext_pgs size mismatch");
-
+_Static_assert(offsetof(struct mbuf, m_ext) ==
+    offsetof(struct mbuf, m_ext_pgs.m_ext),
+    "m_ext offset mismatch between mbuf and ext_pgs");
+_Static_assert(sizeof(struct mbuf) <= MSIZE,
+    "size of mbuf exceeds MSIZE");
 /*
  * Initialize FreeBSD Network buffer allocation.
  */
@@ -368,11 +369,6 @@ mbuf_init(void *dummy)
 		nmbjumbo16 = uma_zone_set_max(zone_jumbo16, nmbjumbo16);
 	uma_zone_set_warning(zone_jumbo16, "kern.ipc.nmbjumbo16 limit reached");
 	uma_zone_set_maxaction(zone_jumbo16, mb_reclaim);
-
-	zone_extpgs = uma_zcreate(MBUF_EXTPGS_MEM_NAME,
-	    sizeof(struct mbuf_ext_pgs),
-	    NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_CACHE, 0);
 
 	/*
 	 * Hook event handler for low-memory situation, used to
@@ -840,8 +836,8 @@ mb_free_notready(struct mbuf *m, int count)
 	for (i = 0; i < count && m != NULL; i++) {
 		if ((m->m_flags & M_EXT) != 0 &&
 		    m->m_ext.ext_type == EXT_PGS) {
-			m->m_ext.ext_pgs->nrdy--;
-			if (m->m_ext.ext_pgs->nrdy != 0)
+			m->m_ext_pgs.nrdy--;
+			if (m->m_ext_pgs.nrdy != 0)
 				continue;
 		}
 		m = m_free(m);
@@ -883,27 +879,22 @@ mb_unmapped_compress(struct mbuf *m)
 	if (*refcnt != 1)
 		return (EBUSY);
 
-	/*
-	 * Copy mbuf header and m_ext portion of 'm' to 'm_temp' to
-	 * create a "fake" EXT_PGS mbuf that can be used with
-	 * m_copydata() as well as the ext_free callback.
-	 */
-	memcpy(&m_temp, m, offsetof(struct mbuf, m_ext) + sizeof (m->m_ext));
-	m_temp.m_next = NULL;
-	m_temp.m_nextpkt = NULL;
+	m_init(&m_temp, M_NOWAIT, MT_DATA, 0);
+
+	/* copy data out of old mbuf */
+	m_copydata(m, 0, m->m_len, mtod(&m_temp, char *));
+	m_temp.m_len = m->m_len;
+
+	/* Free the backing pages. */
+	m->m_ext.ext_free(m);
 
 	/* Turn 'm' into a "normal" mbuf. */
 	m->m_flags &= ~(M_EXT | M_RDONLY | M_NOMAP);
 	m->m_data = m->m_dat;
 
-	/* Copy data from template's ext_pgs. */
-	m_copydata(&m_temp, 0, m_temp.m_len, mtod(m, caddr_t));
+	/* copy data back into m */
+	m_copydata(&m_temp, 0, m_temp.m_len, mtod(m, char *));
 
-	/* Free the backing pages. */
-	m_temp.m_ext.ext_free(&m_temp);
-
-	/* Finally, free the ext_pgs struct. */
-	uma_zfree(zone_extpgs, m_temp.m_ext.ext_pgs);
 	return (0);
 }
 
@@ -959,7 +950,7 @@ _mb_unmapped_to_ext(struct mbuf *m)
 	u_int ref_inc = 0;
 
 	MBUF_EXT_PGS_ASSERT(m);
-	ext_pgs = m->m_ext.ext_pgs;
+	ext_pgs = &m->m_ext_pgs;
 	len = m->m_len;
 	KASSERT(ext_pgs->tls == NULL, ("%s: can't convert TLS mbuf %p",
 	    __func__, m));
@@ -993,7 +984,7 @@ _mb_unmapped_to_ext(struct mbuf *m)
 				goto fail;
 			m_new->m_len = seglen;
 			prev = top = m_new;
-			memcpy(mtod(m_new, void *), &ext_pgs->hdr[segoff],
+			memcpy(mtod(m_new, void *), &ext_pgs->m_epg_hdr[segoff],
 			    seglen);
 		}
 	}
@@ -1011,7 +1002,7 @@ _mb_unmapped_to_ext(struct mbuf *m)
 		seglen = min(seglen, len);
 		len -= seglen;
 
-		pg = PHYS_TO_VM_PAGE(ext_pgs->pa[i]);
+		pg = PHYS_TO_VM_PAGE(ext_pgs->m_epg_pa[i]);
 		m_new = m_get(M_NOWAIT, MT_DATA);
 		if (m_new == NULL)
 			goto fail;
@@ -1045,7 +1036,7 @@ _mb_unmapped_to_ext(struct mbuf *m)
 		else
 			prev->m_next = m_new;
 		m_new->m_len = len;
-		memcpy(mtod(m_new, void *), &ext_pgs->trail[off], len);
+		memcpy(mtod(m_new, void *), &ext_pgs->m_epg_trail[off], len);
 	}
 
 	if (ref_inc != 0) {
@@ -1132,23 +1123,16 @@ mb_unmapped_to_ext(struct mbuf *top)
  * freed.
  */
 struct mbuf *
-mb_alloc_ext_pgs(int how, bool pkthdr, m_ext_free_t ext_free)
+mb_alloc_ext_pgs(int how, m_ext_free_t ext_free)
 {
 	struct mbuf *m;
 	struct mbuf_ext_pgs *ext_pgs;
 
-	if (pkthdr)
-		m = m_gethdr(how, MT_DATA);
-	else
-		m = m_get(how, MT_DATA);
+	m = m_get(how, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 
-	ext_pgs = uma_zalloc(zone_extpgs, how);
-	if (ext_pgs == NULL) {
-		m_free(m);
-		return (NULL);
-	}
+	ext_pgs = &m->m_ext_pgs;
 	ext_pgs->npgs = 0;
 	ext_pgs->nrdy = 0;
 	ext_pgs->first_pg_off = 0;
@@ -1163,7 +1147,6 @@ mb_alloc_ext_pgs(int how, bool pkthdr, m_ext_free_t ext_free)
 	m->m_ext.ext_type = EXT_PGS;
 	m->m_ext.ext_flags = EXT_FLAG_EMBREF;
 	m->m_ext.ext_count = 1;
-	m->m_ext.ext_pgs = ext_pgs;
 	m->m_ext.ext_size = 0;
 	m->m_ext.ext_free = ext_free;
 	return (m);
@@ -1180,7 +1163,7 @@ mb_ext_pgs_check(struct mbuf_ext_pgs *ext_pgs)
 	 */
 	KASSERT(ext_pgs->npgs > 0,
 	    ("ext_pgs with no valid pages: %p", ext_pgs));
-	KASSERT(ext_pgs->npgs <= nitems(ext_pgs->pa),
+	KASSERT(ext_pgs->npgs <= nitems(ext_pgs->m_epg_pa),
 	    ("ext_pgs with too many pages: %p", ext_pgs));
 	KASSERT(ext_pgs->nrdy <= ext_pgs->npgs,
 	    ("ext_pgs with too many ready pages: %p", ext_pgs));
@@ -1195,9 +1178,9 @@ mb_ext_pgs_check(struct mbuf_ext_pgs *ext_pgs)
 		    PAGE_SIZE, ("ext_pgs with single page too large: %p",
 		    ext_pgs));
 	}
-	KASSERT(ext_pgs->hdr_len <= sizeof(ext_pgs->hdr),
+	KASSERT(ext_pgs->hdr_len <= sizeof(ext_pgs->m_epg_hdr),
 	    ("ext_pgs with too large header length: %p", ext_pgs));
-	KASSERT(ext_pgs->trail_len <= sizeof(ext_pgs->trail),
+	KASSERT(ext_pgs->trail_len <= sizeof(ext_pgs->m_epg_trail),
 	    ("ext_pgs with too large header length: %p", ext_pgs));
 }
 #endif
@@ -1277,15 +1260,14 @@ mb_free_ext(struct mbuf *m)
 			    ("%s: ext_free not set", __func__));
 			mref->m_ext.ext_free(mref);
 #ifdef KERN_TLS
-			pgs = mref->m_ext.ext_pgs;
+			pgs = &mref->m_ext_pgs;
 			tls = pgs->tls;
 			if (tls != NULL &&
 			    !refcount_release_if_not_last(&tls->refcount))
 				ktls_enqueue_to_free(pgs);
 			else
 #endif
-				uma_zfree(zone_extpgs, mref->m_ext.ext_pgs);
-			uma_zfree(zone_mbuf, mref);
+				uma_zfree(zone_mbuf, mref);
 			break;
 		}
 		case EXT_SFBUF:

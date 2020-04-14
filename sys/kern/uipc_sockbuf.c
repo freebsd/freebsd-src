@@ -131,15 +131,15 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 			struct mbuf_ext_pgs *mpgs, *npgs;
 			int hdr_len, trail_len;
 
-			mpgs = m->m_ext.ext_pgs;
-			npgs = n->m_ext.ext_pgs;
+			mpgs = &m->m_ext_pgs;
+			npgs = &n->m_ext_pgs;
 			hdr_len = npgs->hdr_len;
 			trail_len = mpgs->trail_len;
 			if (trail_len != 0 && hdr_len != 0 &&
 			    trail_len + hdr_len <= MBUF_PEXT_TRAIL_LEN) {
 				/* copy n's header to m's trailer */
-				memcpy(&mpgs->trail[trail_len], npgs->hdr,
-				    hdr_len);
+				memcpy(&m->m_epg_trail[trail_len],
+				    n->m_epg_hdr, hdr_len);
 				mpgs->trail_len += hdr_len;
 				m->m_len += hdr_len;
 				npgs->hdr_len = 0;
@@ -214,13 +214,13 @@ sbready(struct sockbuf *sb, struct mbuf *m0, int count)
 		    ("%s: m %p !M_NOTREADY", __func__, m));
 		if ((m->m_flags & M_EXT) != 0 &&
 		    m->m_ext.ext_type == EXT_PGS) {
-			if (count < m->m_ext.ext_pgs->nrdy) {
-				m->m_ext.ext_pgs->nrdy -= count;
+			if (count < m->m_ext_pgs.nrdy) {
+				m->m_ext_pgs.nrdy -= count;
 				count = 0;
 				break;
 			}
-			count -= m->m_ext.ext_pgs->nrdy;
-			m->m_ext.ext_pgs->nrdy = 0;
+			count -= m->m_ext_pgs.nrdy;
+			m->m_ext_pgs.nrdy = 0;
 		} else
 			count--;
 
