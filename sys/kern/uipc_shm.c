@@ -1147,14 +1147,16 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 		if ((fp->f_flag & FWRITE) != 0 &&
 		    (shmfd->shm_seals & F_SEAL_WRITE) == 0)
 			maxprot |= VM_PROT_WRITE;
-		writecnt = (prot & VM_PROT_WRITE) != 0;
-		if (writecnt && (shmfd->shm_seals & F_SEAL_WRITE) != 0) {
-			error = EPERM;
-			goto out;
-		}
 
-		/* Don't permit shared writable mappings on read-only descriptors. */
-		if (writecnt && (maxprot & VM_PROT_WRITE) == 0) {
+		/*
+		 * Any mappings from a writable descriptor may be upgraded to
+		 * VM_PROT_WRITE with mprotect(2), unless a write-seal was
+		 * applied between the open and subsequent mmap(2).  We want to
+		 * reject application of a write seal as long as any such
+		 * mapping exists so that the seal cannot be trivially bypassed.
+		 */
+		writecnt = (maxprot & VM_PROT_WRITE) != 0;
+		if (!writecnt && (prot & VM_PROT_WRITE) != 0) {
 			error = EACCES;
 			goto out;
 		}
