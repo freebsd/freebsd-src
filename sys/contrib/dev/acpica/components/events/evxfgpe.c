@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1063,6 +1063,44 @@ AcpiEnableAllWakeupGpes (
 }
 
 ACPI_EXPORT_SYMBOL (AcpiEnableAllWakeupGpes)
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiAnyGpeStatusSet
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Whether or not the status bit is set for any GPE
+ *
+ * DESCRIPTION: Check the status bits of all enabled GPEs and return TRUE if any
+ *              of them is set or FALSE otherwise.
+ *
+ ******************************************************************************/
+
+UINT32
+AcpiAnyGpeStatusSet (
+    void)
+{
+    ACPI_STATUS                Status;
+    UINT8                      Ret;
+
+
+    ACPI_FUNCTION_TRACE (AcpiAnyGpeStatusSet);
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
+    if (ACPI_FAILURE (Status))
+    {
+        return (FALSE);
+    }
+
+    Ret = AcpiHwCheckAllGpes ();
+    (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+
+    return (Ret);
+}
+
+ACPI_EXPORT_SYMBOL(AcpiAnyGpeStatusSet)
 
 
 /*******************************************************************************

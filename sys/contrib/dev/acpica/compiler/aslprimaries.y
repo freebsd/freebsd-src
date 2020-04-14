@@ -11,7 +11,7 @@ NoEcho('
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -663,7 +663,7 @@ FunctionTerm
         PARSEOP_CLOSE_PAREN '{'     {COMMENT_CAPTURE_ON; }
             TermList '}'            {$$ = TrLinkOpChildren ($<n>3,7,
                                         TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),
-                                        TrCreateValuedLeafOp (PARSEOP_BYTECONST, 0),
+                                        TrCreateLeafOp (PARSEOP_DEFAULT_ARG),
                                         TrCreateLeafOp (PARSEOP_SERIALIZERULE_NOTSERIAL),
                                         TrCreateValuedLeafOp (PARSEOP_BYTECONST, 0),$5,$6,$10);}
     | PARSEOP_FUNCTION

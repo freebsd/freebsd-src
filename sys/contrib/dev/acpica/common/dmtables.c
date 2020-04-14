@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -506,7 +506,6 @@ AdParseTable (
 
     AmlLength = Table->Length - sizeof (ACPI_TABLE_HEADER);
     AmlStart = ((UINT8 *) Table + sizeof (ACPI_TABLE_HEADER));
-    ASL_CV_INIT_FILETREE(Table, AmlStart, AmlLength);
 
     AcpiUtSetIntegerWidth (Table->Revision);
 

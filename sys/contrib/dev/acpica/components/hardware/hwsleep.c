@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -462,6 +462,16 @@ AcpiHwLegacyWake (
 
     (void) AcpiWriteBitRegister(
             AcpiGbl_FixedEventInfo[ACPI_EVENT_POWER_BUTTON].StatusRegisterId,
+            ACPI_CLEAR_STATUS);
+
+    /* Enable sleep button */
+
+    (void) AcpiWriteBitRegister (
+            AcpiGbl_FixedEventInfo[ACPI_EVENT_SLEEP_BUTTON].EnableRegisterId,
+            ACPI_ENABLE_EVENT);
+
+    (void) AcpiWriteBitRegister (
+            AcpiGbl_FixedEventInfo[ACPI_EVENT_SLEEP_BUTTON].StatusRegisterId,
             ACPI_CLEAR_STATUS);
 
     AcpiHwExecuteSleepMethod (METHOD_PATHNAME__SST, ACPI_SST_WORKING);

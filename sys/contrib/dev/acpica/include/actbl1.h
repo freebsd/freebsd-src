@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1149,7 +1149,7 @@ enum AcpiErstInstructions
 
 enum AcpiErstCommandStatus
 {
-    ACPI_ERST_SUCESS                = 0,
+    ACPI_ERST_SUCCESS                = 0,
     ACPI_ERST_NO_SPACE              = 1,
     ACPI_ERST_NOT_AVAILABLE         = 2,
     ACPI_ERST_FAILURE               = 3,

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -457,6 +457,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIortMap[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIortPad[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs01[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs4[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIvrs8a[];

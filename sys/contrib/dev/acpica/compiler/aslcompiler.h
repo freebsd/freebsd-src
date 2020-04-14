@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -373,6 +373,15 @@ MtMethodAnalysisWalkEnd (
     UINT32                  Level,
     void                    *Context);
 
+UINT32
+MtProcessTypeOp (
+    ACPI_PARSE_OBJECT       *TypeOp);
+
+UINT8
+MtProcessParameterTypeList (
+    ACPI_PARSE_OBJECT       *ParamTypeOp,
+    UINT32                  *TypeList);
+
 
 /*
  * aslbtypes - bitfield data types
@@ -479,7 +488,7 @@ AslCheckExpectedExceptions (
     void);
 
 ACPI_STATUS
-AslExpectException (
+AslLogExpectedException (
     char                    *MessageIdString);
 
 ACPI_STATUS
@@ -492,8 +501,14 @@ AslDisableException (
 
 BOOLEAN
 AslIsExceptionIgnored (
+    char                    *Filename,
+    UINT32                  LineNumber,
     UINT8                   Level,
     UINT16                  MessageId);
+
+void
+AslLogExpectedExceptionByLine (
+    char                    *MessageIdString);
 
 void
 AslCoreSubsystemError (
@@ -1233,9 +1248,13 @@ UtDumpBasicOp (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level);
 
-void *
-UtGetParentMethod (
+ACPI_NAMESPACE_NODE *
+UtGetParentMethodNode (
     ACPI_NAMESPACE_NODE     *Node);
+
+ACPI_PARSE_OBJECT *
+UtGetParentMethodOp (
+    ACPI_PARSE_OBJECT       *Op);
 
 BOOLEAN
 UtNodeIsDescendantOf (

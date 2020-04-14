@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -625,7 +625,7 @@
 #define ASL_CV_PRINT_ONE_COMMENT(a,b,c,d) CvPrintOneCommentType (a,b,c,d);
 #define ASL_CV_PRINT_ONE_COMMENT_LIST(a,b) CvPrintOneCommentList (a,b);
 #define ASL_CV_FILE_HAS_SWITCHED(a)       CvFileHasSwitched(a)
-#define ASL_CV_INIT_FILETREE(a,b,c)      CvInitFileTree(a,b,c);
+#define ASL_CV_INIT_FILETREE(a,b)      CvInitFileTree(a,b);
 
 #else
 
@@ -640,7 +640,7 @@
 #define ASL_CV_PRINT_ONE_COMMENT(a,b,c,d)
 #define ASL_CV_PRINT_ONE_COMMENT_LIST(a,b)
 #define ASL_CV_FILE_HAS_SWITCHED(a)       0
-#define ASL_CV_INIT_FILETREE(a,b,c)
+#define ASL_CV_INIT_FILETREE(a,b)
 
 #endif
 

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -224,7 +224,7 @@ const char        *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
     "IPMI",              /* 0x07 */
     "GeneralPurposeIo",  /* 0x08 */
     "GenericSerialBus",  /* 0x09 */
-    "PlatformCommChannel"/* 0x0A */
+    "PCC"                /* 0x0A */
 };
 
 

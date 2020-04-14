@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -192,12 +192,54 @@ ExDoExternal (
     ACPI_PARSE_OBJECT       *Prev;
     ACPI_PARSE_OBJECT       *Next;
     ACPI_PARSE_OBJECT       *ArgCountOp;
+    ACPI_PARSE_OBJECT       *TypeOp;
+    ACPI_PARSE_OBJECT       *ExternTypeOp = Op->Asl.Child->Asl.Next;
+    UINT32                  ExternType;
+    UINT8                   ParamCount = ASL_EXTERNAL_METHOD_UNKNOWN_PARAMS;
+    UINT32                  ParamTypes[ACPI_METHOD_NUM_ARGS];
 
+
+    ExternType = AnMapObjTypeToBtype (ExternTypeOp);
+
+    /*
+     * The parser allows optional parameter return types regardless of the
+     * type. Check object type keyword emit error if optional parameter/return
+     * types exist.
+     *
+     * Check the parameter return type
+     */
+    TypeOp = ExternTypeOp->Asl.Next;
+    if (TypeOp->Asl.Child)
+    {
+        /* Ignore the return type for now. */
+
+        (void) MtProcessTypeOp (TypeOp->Asl.Child);
+        if (ExternType != ACPI_BTYPE_METHOD)
+        {
+            sprintf (AslGbl_MsgBuffer, "Found type [%s]", AcpiUtGetTypeName(ExternType));
+            AslError (ASL_ERROR, ASL_MSG_EXTERN_INVALID_RET_TYPE, TypeOp,
+                AslGbl_MsgBuffer);
+        }
+    }
+
+    /* Check the parameter types */
+
+    TypeOp = TypeOp->Asl.Next;
+    if (TypeOp->Asl.Child)
+    {
+        ParamCount = MtProcessParameterTypeList (TypeOp->Asl.Child, ParamTypes);
+        if (ExternType != ACPI_BTYPE_METHOD)
+        {
+            sprintf (AslGbl_MsgBuffer, "Found type [%s]", AcpiUtGetTypeName(ExternType));
+            AslError (ASL_ERROR, ASL_MSG_EXTERN_INVALID_PARAM_TYPE, TypeOp,
+                AslGbl_MsgBuffer);
+        }
+    }
 
     ArgCountOp = Op->Asl.Child->Asl.Next->Asl.Next;
     ArgCountOp->Asl.AmlOpcode = AML_RAW_DATA_BYTE;
     ArgCountOp->Asl.ParseOpcode = PARSEOP_BYTECONST;
-    ArgCountOp->Asl.Value.Integer = 0;
+    ArgCountOp->Asl.Value.Integer = ParamCount;
     UtSetParseOpName (ArgCountOp);
 
     /* Create new list node of arbitrary type */

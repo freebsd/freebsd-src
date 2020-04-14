@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -320,7 +320,7 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_SCOPE_TYPE */                 "Existing object has invalid type for Scope operator",
 /*    ASL_MSG_SEEK */                       "Could not seek file",
 /*    ASL_MSG_SERIALIZED */                 "Control Method marked Serialized",
-/*    ASL_MSG_SERIALIZED_REQUIRED */        "Control Method should be made Serialized",
+/*    ASL_MSG_SERIALIZED_REQUIRED */        "Control Method should be made Serialized due to creation of named objects within",
 /*    ASL_MSG_SINGLE_NAME_OPTIMIZATION */   "NamePath optimized to NameSeg (uses run-time search path)",
 /*    ASL_MSG_SOME_NO_RETVAL */             "Called method may not always return a value",
 /*    ASL_MSG_STRING_LENGTH */              "String literal too long",
@@ -370,7 +370,16 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_INVALID_PROCESSOR_UID */      "_UID inside processor declaration must be an integer",
 /*    ASL_MSG_LEGACY_PROCESSOR_OP */        "Legacy Processor() keyword detected. Use Device() keyword instead.",
 /*    ASL_MSG_NAMESTRING_LENGTH */          "NameString contains too many NameSegs (>255)",
-/*    ASL_MSG_CASE_FOUND_HERE */            "Original Case value below:"
+/*    ASL_MSG_CASE_FOUND_HERE */            "Original Case value below:",
+/*    ASL_MSG_EXTERN_INVALID_RET_TYPE */    "Return type is only allowed for Externals declared as MethodObj",
+/*    ASL_MSG_EXTERN_INVALID_PARAM_TYPE */  "Parameter type is only allowed for Externals declared as MethodObj",
+/*    ASL_MSG_NAMED_OBJECT_CREATION */      "Creation of named objects within a method is highly inefficient, use globals or method local variables instead",
+/*    ASL_MSG_ARG_COUNT_MISMATCH */         "Method NumArgs count does not match length of ParameterTypes list",
+/*    ASL_MSG_STATIC_OPREGION_IN_METHOD */  "Static OperationRegion should be declared outside control method",
+/*    ASL_MSG_DECLARATION_TYPE_MISMATCH */  "Type mismatch between external declaration and actual object declaration detected",
+/*    ASL_MSG_TYPE_MISMATCH_FOUND_HERE */   "Actual object declaration:",
+/*    ASL_MSG_DUPLICATE_EXTERN_MISMATCH */  "Type mismatch between multiple external declarations detected",
+/*    ASL_MSG_DUPLICATE_EXTERN_FOUND_HERE */"Duplicate external declaration:",
 };
 
 /* Table compiler */

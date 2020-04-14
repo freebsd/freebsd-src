@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -156,7 +156,6 @@
 #include <contrib/dev/acpica/include/acdispat.h>
 #include <contrib/dev/acpica/include/acinterp.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
-
 #ifdef ACPI_ASL_COMPILER
 #include <contrib/dev/acpica/include/acdisasm.h>
 #endif
@@ -555,7 +554,6 @@ AcpiDsLoad1EndOp (
     ACPI_PARSE_OBJECT       *Op;
     ACPI_OBJECT_TYPE        ObjectType;
     ACPI_STATUS             Status = AE_OK;
-
 #ifdef ACPI_ASL_COMPILER
     UINT8                   ParamCount;
 #endif

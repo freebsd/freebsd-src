@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -227,6 +227,7 @@
 #define ASL_NO_ABORT                        FALSE
 #define ASL_EOF                             ACPI_UINT32_MAX
 #define ASL_IGNORE_LINE                     (ACPI_UINT32_MAX -1)
+#define ASL_ERROR_CODE_LENGTH               4
 
 
 /* Listings */

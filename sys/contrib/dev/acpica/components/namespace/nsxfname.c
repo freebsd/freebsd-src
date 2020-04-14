@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -714,7 +714,7 @@ AcpiInstallMethod (
 
     MethodFlags = *ParserState.Aml++;
     AmlStart = ParserState.Aml;
-    AmlLength = ACPI_PTR_DIFF (ParserState.PkgEnd, AmlStart);
+    AmlLength = (UINT32) ACPI_PTR_DIFF (ParserState.PkgEnd, AmlStart);
 
     /*
      * Allocate resources up-front. We don't want to have to delete a new
