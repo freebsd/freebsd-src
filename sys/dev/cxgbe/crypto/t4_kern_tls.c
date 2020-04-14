@@ -905,8 +905,8 @@ ktls_tcp_payload_length(struct tlspcb *tlsp, struct mbuf *m_tls)
 	u_int plen, mlen;
 
 	MBUF_EXT_PGS_ASSERT(m_tls);
-	ext_pgs = m_tls->m_ext.ext_pgs;
-	hdr = (void *)ext_pgs->hdr;
+	ext_pgs = &m_tls->m_ext_pgs;
+	hdr = (void *)ext_pgs->m_epg_hdr;
 	plen = ntohs(hdr->tls_length);
 
 	/*
@@ -961,8 +961,8 @@ ktls_payload_offset(struct tlspcb *tlsp, struct mbuf *m_tls)
 #endif
 
 	MBUF_EXT_PGS_ASSERT(m_tls);
-	ext_pgs = m_tls->m_ext.ext_pgs;
-	hdr = (void *)ext_pgs->hdr;
+	ext_pgs = &m_tls->m_ext_pgs;
+	hdr = (void *)ext_pgs->m_epg_hdr;
 	plen = ntohs(hdr->tls_length);
 #ifdef INVARIANTS
 	mlen = mtod(m_tls, vm_offset_t) + m_tls->m_len;
@@ -1008,7 +1008,7 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 	u_int imm_len, offset, plen, wr_len, tlen;
 
 	MBUF_EXT_PGS_ASSERT(m_tls);
-	ext_pgs = m_tls->m_ext.ext_pgs;
+	ext_pgs = &m_tls->m_ext_pgs;
 
 	/*
 	 * Determine the size of the TLS record payload to send
@@ -1040,7 +1040,7 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 		return (wr_len);
 	}
 
-	hdr = (void *)ext_pgs->hdr;
+	hdr = (void *)ext_pgs->m_epg_hdr;
 	plen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length) - ext_pgs->trail_len;
 	if (tlen < plen) {
 		plen = tlen;
@@ -1474,7 +1474,7 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 
 	/* Locate the template TLS header. */
 	MBUF_EXT_PGS_ASSERT(m_tls);
-	ext_pgs = m_tls->m_ext.ext_pgs;
+	ext_pgs = &m_tls->m_ext_pgs;
 
 	/* This should always be the last TLS record in a chain. */
 	MPASS(m_tls->m_next == NULL);
@@ -1543,8 +1543,8 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 	    (m->m_pkthdr.l2hlen + m->m_pkthdr.l3hlen + sizeof(*tcp)));
 
 	/* Copy the subset of the TLS header requested. */
-	copy_to_txd(&txq->eq, (char *)ext_pgs->hdr + mtod(m_tls, vm_offset_t),
-	    &out, m_tls->m_len);
+	copy_to_txd(&txq->eq, (char *)ext_pgs->m_epg_hdr +
+	    mtod(m_tls, vm_offset_t), &out, m_tls->m_len);
 	txq->imm_wrs++;
 
 	txq->txpkt_wrs++;
@@ -1603,8 +1603,8 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 
 	/* Locate the TLS header. */
 	MBUF_EXT_PGS_ASSERT(m_tls);
-	ext_pgs = m_tls->m_ext.ext_pgs;
-	hdr = (void *)ext_pgs->hdr;
+	ext_pgs = &m_tls->m_ext_pgs;
+	hdr = (void *)ext_pgs->m_epg_hdr;
 	plen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length) - ext_pgs->trail_len;
 
 	/* Determine how much of the TLS record to send. */
@@ -2031,7 +2031,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	/* Populate the TLS header */
 	out = (void *)(tx_data + 1);
 	if (offset == 0) {
-		memcpy(out, ext_pgs->hdr, ext_pgs->hdr_len);
+		memcpy(out, ext_pgs->m_epg_hdr, ext_pgs->hdr_len);
 		out += ext_pgs->hdr_len;
 	}
 

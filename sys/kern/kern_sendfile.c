@@ -174,18 +174,18 @@ sendfile_free_mext_pg(struct mbuf *m)
 	    ("%s: m %p !M_EXT or !EXT_PGS", __func__, m));
 
 	cache_last = m->m_ext.ext_flags & EXT_FLAG_CACHE_LAST;
-	ext_pgs = m->m_ext.ext_pgs;
+	ext_pgs = &m->m_ext_pgs;
 	flags = (m->m_ext.ext_flags & EXT_FLAG_NOCACHE) != 0 ? VPR_TRYFREE : 0;
 
 	for (i = 0; i < ext_pgs->npgs; i++) {
 		if (cache_last && i == ext_pgs->npgs - 1)
 			flags = 0;
-		pg = PHYS_TO_VM_PAGE(ext_pgs->pa[i]);
+		pg = PHYS_TO_VM_PAGE(ext_pgs->m_epg_pa[i]);
 		vm_page_release(pg, flags);
 	}
 
 	if (m->m_ext.ext_flags & EXT_FLAG_SYNC) {
-		struct sendfile_sync *sfs = m->m_ext.ext_arg2;
+		struct sendfile_sync *sfs = m->m_ext.ext_arg1;
 
 		mtx_lock(&sfs->mtx);
 		KASSERT(sfs->count > 0, ("Sendfile sync botchup count == 0"));
@@ -329,7 +329,7 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 #if defined(KERN_TLS) && defined(INVARIANTS)
 	if ((sfio->m->m_flags & M_EXT) != 0 &&
 	    sfio->m->m_ext.ext_type == EXT_PGS)
-		KASSERT(sfio->tls == sfio->m->m_ext.ext_pgs->tls,
+		KASSERT(sfio->tls == sfio->m->m_ext_pgs.tls,
 		    ("TLS session mismatch"));
 	else
 		KASSERT(sfio->tls == NULL,
@@ -958,7 +958,7 @@ retry_space:
 
 				ext_pgs_idx++;
 				if (ext_pgs_idx == max_pgs) {
-					m0 = mb_alloc_ext_pgs(M_WAITOK, false,
+					m0 = mb_alloc_ext_pgs(M_WAITOK,
 					    sendfile_free_mext_pg);
 
 					if (flags & SF_NOCACHE) {
@@ -979,12 +979,18 @@ retry_space:
 					if (sfs != NULL) {
 						m0->m_ext.ext_flags |=
 						    EXT_FLAG_SYNC;
-						m0->m_ext.ext_arg2 = sfs;
+						if (m0->m_ext.ext_type ==
+						    EXT_PGS)
+							m0->m_ext.ext_arg1 =
+								sfs;
+						else
+							m0->m_ext.ext_arg2 =
+								sfs;
 						mtx_lock(&sfs->mtx);
 						sfs->count++;
 						mtx_unlock(&sfs->mtx);
 					}
-					ext_pgs = m0->m_ext.ext_pgs;
+					ext_pgs = &m0->m_ext_pgs;
 					ext_pgs_idx = 0;
 
 					/* Append to mbuf chain. */
@@ -1001,7 +1007,7 @@ retry_space:
 					ext_pgs->nrdy++;
 				}
 
-				ext_pgs->pa[ext_pgs_idx] = VM_PAGE_TO_PHYS(pga);
+				ext_pgs->m_epg_pa[ext_pgs_idx] = VM_PAGE_TO_PHYS(pga);
 				ext_pgs->npgs++;
 				xfs = xfsize(i, npages, off, space);
 				ext_pgs->last_pg_len = xfs;
@@ -1055,6 +1061,10 @@ retry_space:
 				m0->m_ext.ext_flags |= EXT_FLAG_NOCACHE;
 			if (sfs != NULL) {
 				m0->m_ext.ext_flags |= EXT_FLAG_SYNC;
+				if (m0->m_ext.ext_type == EXT_PGS)
+					m0->m_ext.ext_arg1 = sfs;
+				else
+					m0->m_ext.ext_arg2 = sfs;
 				m0->m_ext.ext_arg2 = sfs;
 				mtx_lock(&sfs->mtx);
 				sfs->count++;
