@@ -28,7 +28,7 @@
 .\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2016
+.Dd April 14, 2020
 .Dt LISTEN 2
 .Os
 .Sh NAME
@@ -110,6 +110,13 @@ or less than zero is specified,
 .Fa backlog
 is silently forced to
 .Va kern.ipc.soacceptqueue .
+.Pp
+If the listen queue overflows, the kernel will emit a LOG_DEBUG syslog message.
+The
+.Xr sysctl 3
+MIB variable
+.Va kern.ipc.sooverinterval
+specifies a per-socket limit on how often the kernel will emit these messages.
 .Sh INTERACTION WITH ACCEPT FILTERS
 When accept filtering is used on a socket, a second queue will
 be used to hold sockets that have connected, but have not yet
