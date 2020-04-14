@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -40,7 +41,7 @@ closefrom(int lowfd)
 {
 
 	if (__getosreldate() >= CLOSE_RANGE_OSREL)
-		__sys_close_range(lowfd, ~0U, 0);
+		__sys_close_range(MAX(0, lowfd), ~0U, 0);
 	else
 		/* Fallback to closefrom(2) on older kernels. */
 		syscall(SYS_freebsd12_closefrom, lowfd);
