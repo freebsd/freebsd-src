@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcbrvar.h>
+#include <dev/mmc/mmc_fdt_helpers.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -446,7 +447,6 @@ dwmmc_card_task(void *arg, int pending __unused)
 			}
 		} else
 			DWMMC_UNLOCK(sc);
-		
 	} else {
 		/* Card isn't present, detach if necessary */
 		if (sc->child != NULL) {
@@ -466,7 +466,7 @@ parse_fdt(struct dwmmc_softc *sc)
 {
 	pcell_t dts_value[3];
 	phandle_t node;
-	uint32_t bus_hz = 0, bus_width;
+	uint32_t bus_hz = 0;
 	int len;
 #ifdef EXT_RESOURCES
 	int error;
@@ -475,17 +475,12 @@ parse_fdt(struct dwmmc_softc *sc)
 	if ((node = ofw_bus_get_node(sc->dev)) == -1)
 		return (ENXIO);
 
-	/* bus-width */
-	if (OF_getencprop(node, "bus-width", &bus_width, sizeof(uint32_t)) <= 0)
-		bus_width = 4;
-	if (bus_width >= 4)
-		sc->host.caps |= MMC_CAP_4_BIT_DATA;
-	if (bus_width >= 8)
-		sc->host.caps |= MMC_CAP_8_BIT_DATA;
-
-	/* max-frequency */
-	if (OF_getencprop(node, "max-frequency", &sc->host.f_max, sizeof(uint32_t)) <= 0)
-		sc->host.f_max = 200000000;
+	/* Set some defaults for freq and supported mode */
+	sc->host.f_min = 400000;
+	sc->host.f_max = 200000000;
+	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
+	sc->host.caps = MMC_CAP_HSPEED | MMC_CAP_SIGNALING_330;
+	mmc_fdt_parse(sc->dev, node, &sc->mmc_helper, &sc->host);
 
 	/* fifo-depth */
 	if ((len = OF_getproplen(node, "fifo-depth")) > 0) {
@@ -721,11 +716,6 @@ dwmmc_attach(device_t dev)
 				   DWMMC_ERR_FLAGS |
 				   SDMMC_INTMASK_CD));
 	WRITE4(sc, SDMMC_CTRL, SDMMC_CTRL_INT_ENABLE);
-
-	sc->host.f_min = 400000;
-	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
-	sc->host.caps |= MMC_CAP_HSPEED;
-	sc->host.caps |= MMC_CAP_SIGNALING_330;
 
 	TASK_INIT(&sc->card_task, 0, dwmmc_card_task, sc);
 	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &sc->card_delayed_task, 0,
