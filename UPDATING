@@ -26,6 +26,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200414:
+	Upstream DTS from Linux 5.6 was merged and they now have the SID
+	and THS (Secure ID controller and THermal Sensor) node present.
+	The DTB overlays have now been removed from the tree for the H3/H5 and
+	A64 SoCs and the aw_sid and aw_thermal driver have been updated to
+	deal with upstream DTS. If you are using those overlays you need to
+	remove them from loader.conf and update the DTBs on the FAT partition.
+
 20200310:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 10.0.0.  Please see the 20141231 entry below for
