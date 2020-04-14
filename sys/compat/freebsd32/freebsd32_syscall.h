@@ -431,7 +431,7 @@
 #define	FREEBSD32_SYS_freebsd32_jail_get	506
 #define	FREEBSD32_SYS_freebsd32_jail_set	507
 #define	FREEBSD32_SYS_jail_remove	508
-#define	FREEBSD32_SYS_closefrom	509
+#define	FREEBSD32_SYS_freebsd12_closefrom	509
 #define	FREEBSD32_SYS_freebsd32_semctl	510
 #define	FREEBSD32_SYS_freebsd32_msgctl	511
 #define	FREEBSD32_SYS_freebsd32_shmctl	512
