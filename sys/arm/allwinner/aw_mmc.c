@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 
@@ -49,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcbrvar.h>
+#include <dev/mmc/mmc_fdt_helpers.h>
 
 #include <arm/allwinner/aw_mmc.h>
 #include <dev/extres/clk/clk.h>
@@ -122,6 +125,7 @@ struct aw_mmc_softc {
 	int			aw_timeout;
 	struct callout		aw_timeoutc;
 	struct mmc_host		aw_host;
+	struct mmc_fdt_helper	mmc_helper;
 #ifdef MMCCAM
 	union ccb *		ccb;
 	struct cam_devq *	devq;
@@ -136,9 +140,8 @@ struct aw_mmc_softc {
 	uint32_t		aw_intr;
 	uint32_t		aw_intr_wait;
 	void *			aw_intrhand;
-	regulator_t		aw_reg_vmmc;
-	regulator_t		aw_reg_vqmmc;
 	unsigned int		aw_clock;
+	device_t		child;
 
 	/* Fields required for DMA access. */
 	bus_addr_t	  	aw_dma_desc_phys;
@@ -164,6 +167,7 @@ static int aw_mmc_reset(struct aw_mmc_softc *);
 static int aw_mmc_init(struct aw_mmc_softc *);
 static void aw_mmc_intr(void *);
 static int aw_mmc_update_clock(struct aw_mmc_softc *, uint32_t);
+static void aw_mmc_helper_cd_handler(device_t, bool);
 
 static void aw_mmc_print_error(uint32_t);
 static int aw_mmc_update_ios(device_t, device_t);
@@ -360,6 +364,40 @@ aw_mmc_cam_request(struct aw_mmc_softc *sc, union ccb *ccb)
 }
 #endif /* MMCCAM */
 
+static void
+aw_mmc_helper_cd_handler(device_t dev, bool present)
+{
+	struct aw_mmc_softc *sc;
+
+	sc = device_get_softc(dev);
+	AW_MMC_LOCK(sc);
+	if (present) {
+		if (sc->child == NULL) {
+			if (bootverbose)
+				device_printf(sc->aw_dev, "Card inserted\n");
+
+			sc->child = device_add_child(sc->aw_dev, "mmc", -1);
+			AW_MMC_UNLOCK(sc);
+			if (sc->child) {
+				device_set_ivars(sc->child, sc);
+				(void)device_probe_and_attach(sc->child);
+			}
+		} else
+			AW_MMC_UNLOCK(sc);
+	} else {
+		/* Card isn't present, detach if necessary */
+		if (sc->child != NULL) {
+			if (bootverbose)
+				device_printf(sc->aw_dev, "Card removed\n");
+
+			AW_MMC_UNLOCK(sc);
+			device_delete_child(sc->aw_dev, sc->child);
+			sc->child = NULL;
+		} else
+			AW_MMC_UNLOCK(sc);
+	}
+}
+
 static int
 aw_mmc_probe(device_t dev)
 {
@@ -377,15 +415,11 @@ aw_mmc_probe(device_t dev)
 static int
 aw_mmc_attach(device_t dev)
 {
-	device_t child;
 	struct aw_mmc_softc *sc;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *tree;
-	uint32_t bus_width, max_freq;
-	phandle_t node;
 	int error;
 
-	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 	sc->aw_dev = dev;
 
@@ -399,7 +433,7 @@ aw_mmc_attach(device_t dev)
 		return (ENXIO);
 	}
 	if (bus_setup_intr(dev, sc->aw_res[AW_MMC_IRQRES],
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, aw_mmc_intr, sc,
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, aw_mmc_intr, sc,
 	    &sc->aw_intrhand)) {
 		bus_release_resources(dev, aw_mmc_res_spec, sc->aw_res);
 		device_printf(dev, "cannot setup interrupt handler\n");
@@ -463,47 +497,15 @@ aw_mmc_attach(device_t dev)
 		goto fail;
 	}
 
-	if (OF_getencprop(node, "bus-width", &bus_width, sizeof(uint32_t)) <= 0)
-		bus_width = 4;
-
-	if (regulator_get_by_ofw_property(dev, 0, "vmmc-supply",
-	    &sc->aw_reg_vmmc) == 0) {
-		if (bootverbose)
-			device_printf(dev, "vmmc-supply regulator found\n");
-	}
-	if (regulator_get_by_ofw_property(dev, 0, "vqmmc-supply",
-	    &sc->aw_reg_vqmmc) == 0 && bootverbose) {
-		if (bootverbose)
-			device_printf(dev, "vqmmc-supply regulator found\n");
-	}
-
+	/* Set some defaults for freq and supported mode */
 	sc->aw_host.f_min = 400000;
-
-	if (OF_getencprop(node, "max-frequency", &max_freq,
-	    sizeof(uint32_t)) <= 0)
-		max_freq = 52000000;
-	sc->aw_host.f_max = max_freq;
-
+	sc->aw_host.f_max = 52000000;
 	sc->aw_host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
-	sc->aw_host.caps = MMC_CAP_HSPEED | MMC_CAP_UHS_SDR12 |
-			   MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
-			   MMC_CAP_UHS_DDR50 | MMC_CAP_MMC_DDR52;
-
-	if (sc->aw_reg_vqmmc != NULL) {
-		if (regulator_check_voltage(sc->aw_reg_vqmmc, 1800000) == 0)
-			sc->aw_host.caps |= MMC_CAP_SIGNALING_180;
-		if (regulator_check_voltage(sc->aw_reg_vqmmc, 3300000) == 0)
-			sc->aw_host.caps |= MMC_CAP_SIGNALING_330;
-	} else
-		sc->aw_host.caps |= MMC_CAP_SIGNALING_330;
-
-	if (bus_width >= 4)
-		sc->aw_host.caps |= MMC_CAP_4_BIT_DATA;
-	if (bus_width >= 8)
-		sc->aw_host.caps |= MMC_CAP_8_BIT_DATA;
+	sc->aw_host.caps |= MMC_CAP_HSPEED | MMC_CAP_SIGNALING_330;
+	mmc_fdt_parse(dev, 0, &sc->mmc_helper, &sc->aw_host);
+	mmc_fdt_gpio_setup(dev, 0, &sc->mmc_helper, aw_mmc_helper_cd_handler);
 
 #ifdef MMCCAM
-	child = NULL; /* Not used by MMCCAM, need to silence compiler warnings */
 	sc->ccb = NULL;
 	if ((sc->devq = cam_simq_alloc(1)) == NULL) {
 		goto fail;
@@ -530,18 +532,8 @@ aw_mmc_attach(device_t dev)
 	}
 
 	mtx_unlock(&sc->sim_mtx);
-#else /* !MMCCAM */
-	child = device_add_child(dev, "mmc", -1);
-	if (child == NULL) {
-		device_printf(dev, "attaching MMC bus failed!\n");
-		goto fail;
-	}
-	if (device_probe_and_attach(child) != 0) {
-		device_printf(dev, "attaching MMC child failed!\n");
-		device_delete_child(dev, child);
-		goto fail;
-	}
 #endif /* MMCCAM */
+
 	return (0);
 
 fail:
@@ -1301,7 +1293,7 @@ aw_mmc_switch_vccq(device_t bus, device_t child)
 
 	sc = device_get_softc(bus);
 
-	if (sc->aw_reg_vqmmc == NULL)
+	if (sc->mmc_helper.vqmmc_supply == NULL)
 		return EOPNOTSUPP;
 
 	switch (sc->aw_host.ios.vccq) {
@@ -1315,7 +1307,7 @@ aw_mmc_switch_vccq(device_t bus, device_t child)
 		return EINVAL;
 	}
 
-	err = regulator_set_voltage(sc->aw_reg_vqmmc, uvolt, uvolt);
+	err = regulator_set_voltage(sc->mmc_helper.vqmmc_supply, uvolt, uvolt);
 	if (err != 0) {
 		device_printf(sc->aw_dev,
 		    "Cannot set vqmmc to %d<->%d\n",
@@ -1360,10 +1352,10 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		if (bootverbose)
 			device_printf(sc->aw_dev, "Powering down sd/mmc\n");
 
-		if (sc->aw_reg_vmmc)
-			regulator_disable(sc->aw_reg_vmmc);
-		if (sc->aw_reg_vqmmc)
-			regulator_disable(sc->aw_reg_vqmmc);
+		if (sc->mmc_helper.vmmc_supply)
+			regulator_disable(sc->mmc_helper.vmmc_supply);
+		if (sc->mmc_helper.vqmmc_supply)
+			regulator_disable(sc->mmc_helper.vqmmc_supply);
 
 		aw_mmc_reset(sc);
 		break;
@@ -1371,10 +1363,10 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		if (bootverbose)
 			device_printf(sc->aw_dev, "Powering up sd/mmc\n");
 
-		if (sc->aw_reg_vmmc)
-			regulator_enable(sc->aw_reg_vmmc);
-		if (sc->aw_reg_vqmmc)
-			regulator_enable(sc->aw_reg_vqmmc);
+		if (sc->mmc_helper.vmmc_supply)
+			regulator_enable(sc->mmc_helper.vmmc_supply);
+		if (sc->mmc_helper.vqmmc_supply)
+			regulator_enable(sc->mmc_helper.vqmmc_supply);
 		aw_mmc_init(sc);
 		break;
 	};
@@ -1450,8 +1442,11 @@ aw_mmc_update_ios(device_t bus, device_t child)
 static int
 aw_mmc_get_ro(device_t bus, device_t child)
 {
+	struct aw_mmc_softc *sc;
 
-	return (0);
+	sc = device_get_softc(bus);
+
+	return (mmc_fdt_gpio_get_readonly(&sc->mmc_helper));
 }
 
 static int
