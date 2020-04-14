@@ -36,3 +36,5 @@ clean_dep()
 clean_dep lib/libc   shm_open S
 # 20200310  r358851  rename of openmp's ittnotify_static.c to .cpp
 clean_dep lib/libomp ittnotify_static c
+# 20200414  r359930  closefrom
+clean_dep lib/libc   closefrom S

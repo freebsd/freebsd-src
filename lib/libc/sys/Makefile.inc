@@ -45,6 +45,7 @@ NOASM+= getdirentries.o
 PSEUDO+= _getdirentries.o
 
 SRCS+= brk.c
+SRCS+= closefrom.c
 SRCS+= pipe.c
 SRCS+= shm_open.c
 SRCS+= vadvise.c

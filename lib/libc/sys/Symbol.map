@@ -520,8 +520,6 @@ FBSDprivate_1.0 {
 	__sys_clock_settime;
 	_close;
 	__sys_close;
-	_closefrom;
-	__sys_closefrom;
 	_connect;
 	__sys_connect;
 	_cpuset;
