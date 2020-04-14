@@ -35,6 +35,8 @@
 #ifndef _AMD64_LINUX_H_
 #define	_AMD64_LINUX_H_
 
+#include <sys/abi_compat.h>
+
 #include <compat/linux/linux.h>
 #include <amd64/linux32/linux32_syscall.h>
 
@@ -51,14 +53,6 @@
 #define	LINUX32_MAXDSIZ		(512 * 1024 * 1024)	/* 512MB */
 #define	LINUX32_MAXSSIZ		(64 * 1024 * 1024)	/* 64MB */
 #define	LINUX32_MAXVMEM		0			/* Unlimited */
-
-#define	PTRIN(v)	(void *)(uintptr_t)(v)
-#define	PTROUT(v)	(l_uintptr_t)(uintptr_t)(v)
-
-#define	CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
-#define	CP2(src,dst,sfld,dfld) do { (dst).dfld = (src).sfld; } while (0)
-#define	PTRIN_CP(src,dst,fld) \
-	do { (dst).fld = PTRIN((src).fld); } while (0)
 
 /*
  * Provide a separate set of types for the Linux types.

@@ -36,6 +36,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#ifdef __amd64__
+#include <sys/abi_compat.h>
+#endif
 #include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/ioccom.h>
@@ -587,11 +590,6 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 	mpt_free_request(mpt, req);
 	return (0);
 }
-
-#ifdef __amd64__
-#define	PTRIN(p)		((void *)(uintptr_t)(p))
-#define PTROUT(v)		((u_int32_t)(uintptr_t)(v))
-#endif
 
 static int
 mpt_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)

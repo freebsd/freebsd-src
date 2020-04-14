@@ -31,18 +31,10 @@
 #ifndef _COMPAT_FREEBSD32_FREEBSD32_H_
 #define _COMPAT_FREEBSD32_FREEBSD32_H_
 
+#include <sys/abi_compat.h>
 #include <sys/procfs.h>
 #include <sys/socket.h>
 #include <sys/user.h>
-
-#define PTRIN(v)	(void *)(uintptr_t) (v)
-#define PTROUT(v)	(u_int32_t)(uintptr_t) (v)
-
-#define CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
-#define PTRIN_CP(src,dst,fld) \
-	do { (dst).fld = PTRIN((src).fld); } while (0)
-#define PTROUT_CP(src,dst,fld) \
-	do { (dst).fld = PTROUT((src).fld); } while (0)
 
 /*
  * i386 is the only arch with a 32-bit time_t
@@ -57,37 +49,21 @@ struct timeval32 {
 	time32_t tv_sec;
 	int32_t tv_usec;
 };
-#define TV_CP(src,dst,fld) do {			\
-	CP((src).fld,(dst).fld,tv_sec);		\
-	CP((src).fld,(dst).fld,tv_usec);	\
-} while (0)
 
 struct timespec32 {
 	time32_t tv_sec;
 	int32_t tv_nsec;
 };
-#define TS_CP(src,dst,fld) do {			\
-	CP((src).fld,(dst).fld,tv_sec);		\
-	CP((src).fld,(dst).fld,tv_nsec);	\
-} while (0)
 
 struct itimerspec32 {
 	struct timespec32  it_interval;
 	struct timespec32  it_value;
 };
-#define ITS_CP(src, dst) do {			\
-	TS_CP((src), (dst), it_interval);	\
-	TS_CP((src), (dst), it_value);		\
-} while (0)
 
 struct bintime32 {
 	time32_t sec;
 	uint32_t frac[2];
 };
-#define BT_CP(src, dst, fld) do {				\
-	CP((src).fld, (dst).fld, sec);				\
-	*(uint64_t *)&(dst).fld.frac[0] = (src).fld.frac;	\
-} while (0)
 
 struct rusage32 {
 	struct timeval32 ru_utime;
