@@ -3982,7 +3982,7 @@ nfs_setextattr(struct vop_setextattr_args *ap)
 	}
 	mtx_unlock(&nmp->nm_mtx);
 
-	if (ap->a_uio->uio_resid <= 0)
+	if (ap->a_uio->uio_resid < 0)
 		return (EINVAL);
 	cred = ap->a_cred;
 	if (cred == NULL)

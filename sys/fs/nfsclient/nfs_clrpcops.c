@@ -8341,7 +8341,7 @@ nfsrpc_getextattr(vnode_t vp, const char *name, struct uio *uiop, ssize_t *lenp,
 		} else if (uiop == NULL && len > 0) {
 			/* Just wants the length and not the data. */
 			error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
-		} else
+		} else if (len > 0)
 			error = ENOATTR;
 		if (error != 0)
 			goto nfsmout;

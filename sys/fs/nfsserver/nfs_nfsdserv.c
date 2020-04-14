@@ -5564,9 +5564,11 @@ nfsrvd_getxattr(struct nfsrv_descript *nd, __unused int isdgram,
 	if (nd->nd_repstat == 0) {
 		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 		*tl = txdr_unsigned(len);
-		nd->nd_mb->m_next = mp;
-		nd->nd_mb = mpend;
-		nd->nd_bpos = mtod(mpend, caddr_t) + mpend->m_len;
+		if (len > 0) {
+			nd->nd_mb->m_next = mp;
+			nd->nd_mb = mpend;
+			nd->nd_bpos = mtod(mpend, caddr_t) + mpend->m_len;
+		}
 	}
 	free(name, M_TEMP);
 
@@ -5616,7 +5618,7 @@ nfsrvd_setxattr(struct nfsrv_descript *nd, __unused int isdgram,
 		goto nfsmout;
 	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 	len = fxdr_unsigned(int, *tl);
-	if (len <= 0 || len > IOSIZE_MAX) {
+	if (len < 0 || len > IOSIZE_MAX) {
 		nd->nd_repstat = NFSERR_XATTR2BIG;
 		goto nfsmout;
 	}
@@ -5652,7 +5654,7 @@ nfsrvd_setxattr(struct nfsrv_descript *nd, __unused int isdgram,
 		if (nd->nd_repstat == ENXIO)
 			nd->nd_repstat = NFSERR_XATTR2BIG;
 	}
-	if (nd->nd_repstat == 0)
+	if (nd->nd_repstat == 0 && len > 0)
 		nd->nd_repstat = nfsm_advance(nd, NFSM_RNDUP(len), -1);
 	if (nd->nd_repstat == 0)
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd, p, 1, &attrbits);
