@@ -693,7 +693,7 @@ void	kmod_icmp6stat_inc(int statnum);
 
 #ifdef _KERNEL
 # ifdef __STDC__
-struct	rtentry;
+struct	nhop_object;
 struct	rttimer;
 struct	in6_multi;
 # endif
@@ -705,7 +705,7 @@ void	icmp6_fasttimo(void);
 void	icmp6_slowtimo(void);
 void	icmp6_prepare(struct mbuf *);
 void	icmp6_redirect_input(struct mbuf *, int);
-void	icmp6_redirect_output(struct mbuf *, struct rtentry *);
+void	icmp6_redirect_output(struct mbuf *, struct nhop_object *);
 
 struct	ip6ctlparam;
 void	icmp6_mtudisc_update(struct ip6ctlparam *, int);

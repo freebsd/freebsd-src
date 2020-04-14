@@ -401,7 +401,7 @@ pass:
 	switch (error) {
 	case 0:
 		if (type == ND_REDIRECT) {
-			icmp6_redirect_output(mcopy, rt);
+			icmp6_redirect_output(mcopy, rt->rt_nhop);
 			goto out;
 		}
 		goto freecopy;
