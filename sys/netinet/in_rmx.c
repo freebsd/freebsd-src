@@ -103,7 +103,8 @@ rib4_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *ma
 
 	/* Ensure that default route nhop has special flag */
 	const struct sockaddr_in *mask4 = (const struct sockaddr_in *)mask;
-	if ((rt_flags & RTF_HOST) == 0 && mask4->sin_addr.s_addr == 0)
+	if ((rt_flags & RTF_HOST) == 0 && mask4 != NULL &&
+	    mask4->sin_addr.s_addr == 0)
 		nh->nh_flags |= NHF_DEFAULT;
 
 	/* Set nhop type to basic per-AF nhop */
