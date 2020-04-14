@@ -2776,7 +2776,7 @@
 		    int jid
 		);
 	}
-509	AUE_CLOSEFROM	STD {
+509	AUE_CLOSEFROM	COMPAT12 {
 		int closefrom(
 		    int lowfd
 		);

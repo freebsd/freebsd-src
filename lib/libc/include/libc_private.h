@@ -331,6 +331,7 @@ int		__sys_clock_gettime(__clockid_t, struct timespec *ts);
 int		__sys_clock_nanosleep(__clockid_t, int,
 		    const struct timespec *, struct timespec *);
 int		__sys_close(int);
+int		__sys_close_range(unsigned, unsigned, int);
 int		__sys_connect(int, const struct sockaddr *, __socklen_t);
 int		__sys_fcntl(int, int, ...);
 int		__sys_fdatasync(int);

@@ -980,7 +980,7 @@
 507	AUE_JAIL_SET	STD	{ int freebsd32_jail_set(struct iovec32 *iovp, \
 				    unsigned int iovcnt, int flags); }
 508	AUE_JAIL_REMOVE	NOPROTO	{ int jail_remove(int jid); }
-509	AUE_CLOSEFROM	NOPROTO	{ int closefrom(int lowfd); }
+509	AUE_CLOSEFROM	COMPAT12|NOPROTO	{ int closefrom(int lowfd); }
 510	AUE_SEMCTL	NOSTD { int freebsd32_semctl(int semid, int semnum, \
 				    int cmd, union semun32 *arg); }
 511	AUE_MSGCTL	NOSTD	{ int freebsd32_msgctl(int msqid, int cmd, \
