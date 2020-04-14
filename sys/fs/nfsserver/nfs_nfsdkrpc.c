@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
 
-#include <nfs/nfs_fha.h>
 #include <fs/nfsserver/nfs_fha_new.h>
 
 #include <security/mac/mac_framework.h>
@@ -589,7 +588,7 @@ nfsrvd_init(int terminating)
 		    SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
 		nfsrvd_pool->sp_rcache = NULL;
 		nfsrvd_pool->sp_assign = fhanew_assign;
-		nfsrvd_pool->sp_done = fha_nd_complete;
+		nfsrvd_pool->sp_done = fhanew_nd_complete;
 		NFSD_LOCK();
 	}
 }
