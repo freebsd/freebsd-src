@@ -44,12 +44,20 @@ typedef	__sa_family_t	sa_family_t;
 #endif
 
 /*
+ * Historically, (struct sockaddr) needed to fit inside an mbuf.
+ * For this reason, UNIX domain sockets were therefore limited to
+ * 104 bytes. While this limit is no longer necessary, it is kept for
+ * binary compatibility reasons.
+ */
+#define	SUNPATHLEN	104
+
+/*
  * Definitions for UNIX IPC domain.
  */
 struct sockaddr_un {
 	unsigned char	sun_len;	/* sockaddr len including null */
 	sa_family_t	sun_family;	/* AF_UNIX */
-	char	sun_path[104];		/* path name (gag) */
+	char	sun_path[SUNPATHLEN];	/* path name (gag) */
 };
 
 #if __BSD_VISIBLE
