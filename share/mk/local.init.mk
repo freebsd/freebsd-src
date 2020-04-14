@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+.if !target(__${_this}__)
+__${_this}__:
+
 .if ${.MAKE.MODE:Mmeta*} != ""
 .if !empty(SUBDIR) && !defined(LIB) && !defined(PROG) && ${.MAKE.MAKEFILES:M*bsd.prog.mk} == ""
 .if ${.MAKE.MODE:Mleaf*} != ""
@@ -33,3 +36,5 @@ CFLAGS+= ${HOST_CFLAGS}
 .endif
 
 .-include "src.init.mk"
+.-include "${.CURDIR}/local.init.mk"
+.endif
