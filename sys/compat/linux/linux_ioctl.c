@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#ifdef COMPAT_LINUX32
+#include <sys/abi_compat.h>
+#endif
 #include <sys/capsicum.h>
 #include <sys/cdio.h>
 #include <sys/dvdio.h>
@@ -2543,12 +2546,6 @@ linux_ioctl_drm(struct thread *td, struct linux_ioctl_args *args)
 }
 
 #ifdef COMPAT_LINUX32
-#define CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
-#define PTRIN_CP(src,dst,fld) \
-	do { (dst).fld = PTRIN((src).fld); } while (0)
-#define PTROUT_CP(src,dst,fld) \
-	do { (dst).fld = PTROUT((src).fld); } while (0)
-
 static int
 linux_ioctl_sg_io(struct thread *td, struct linux_ioctl_args *args)
 {
