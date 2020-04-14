@@ -732,7 +732,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 
 			if (m->m_flags & M_NOMAP) {
 #ifdef KERN_TLS
-				if (m->m_ext.ext_pgs->tls != NULL) {
+				if (m->m_ext_pgs.tls != NULL) {
 					toep->flags |= TPF_KTLS;
 					if (plen == 0) {
 						SOCKBUF_UNLOCK(sb);
@@ -1927,7 +1927,7 @@ aiotx_free_pgs(struct mbuf *m)
 	vm_page_t pg;
 
 	MBUF_EXT_PGS_ASSERT(m);
-	ext_pgs = m->m_ext.ext_pgs;
+	ext_pgs = &m->m_ext_pgs;
 	job = m->m_ext.ext_arg1;
 #ifdef VERBOSE_TRACES
 	CTR3(KTR_CXGBE, "%s: completed %d bytes for tid %d", __func__,
@@ -1935,7 +1935,7 @@ aiotx_free_pgs(struct mbuf *m)
 #endif
 
 	for (int i = 0; i < ext_pgs->npgs; i++) {
-		pg = PHYS_TO_VM_PAGE(ext_pgs->pa[i]);
+		pg = PHYS_TO_VM_PAGE(ext_pgs->m_epg_pa[i]);
 		vm_page_unwire(pg, PQ_ACTIVE);
 	}
 
@@ -1984,13 +1984,13 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 		if (npages < 0)
 			break;
 
-		m = mb_alloc_ext_pgs(M_WAITOK, false, aiotx_free_pgs);
+		m = mb_alloc_ext_pgs(M_WAITOK, aiotx_free_pgs);
 		if (m == NULL) {
 			vm_page_unhold_pages(pgs, npages);
 			break;
 		}
 
-		ext_pgs = m->m_ext.ext_pgs;
+		ext_pgs = &m->m_ext_pgs;
 		ext_pgs->first_pg_off = pgoff;
 		ext_pgs->npgs = npages;
 		if (npages == 1) {
@@ -2003,7 +2003,7 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 			    (npages - 2) * PAGE_SIZE;
 		}
 		for (i = 0; i < npages; i++)
-			ext_pgs->pa[i] = VM_PAGE_TO_PHYS(pgs[i]);
+			ext_pgs->m_epg_pa[i] = VM_PAGE_TO_PHYS(pgs[i]);
 
 		m->m_len = mlen;
 		m->m_ext.ext_size = npages * PAGE_SIZE;

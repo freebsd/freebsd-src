@@ -1216,7 +1216,7 @@ ktls_seq(struct sockbuf *sb, struct mbuf *m)
 		KASSERT((m->m_flags & M_NOMAP) != 0,
 		    ("ktls_seq: mapped mbuf %p", m));
 
-		pgs = m->m_ext.ext_pgs;
+		pgs = &m->m_ext_pgs;
 		pgs->seqno = sb->sb_tls_seqno;
 		sb->sb_tls_seqno++;
 	}
@@ -1264,7 +1264,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		    ("ktls_frame: mapped mbuf %p (top = %p)\n", m, top));
 
 		tls_len = m->m_len;
-		pgs = m->m_ext.ext_pgs;
+		pgs = &m->m_ext_pgs;
 
 		/* Save a reference to the session. */
 		pgs->tls = ktls_hold(tls);
@@ -1297,7 +1297,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		m->m_len += pgs->hdr_len + pgs->trail_len;
 
 		/* Populate the TLS header. */
-		tlshdr = (void *)pgs->hdr;
+		tlshdr = (void *)pgs->m_epg_hdr;
 		tlshdr->tls_vmajor = tls->params.tls_vmajor;
 
 		/*
@@ -1310,6 +1310,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 			tlshdr->tls_type = TLS_RLTYPE_APP;
 			/* save the real record type for later */
 			pgs->record_type = record_type;
+			pgs->m_epg_trail[0] = record_type;
 		} else {
 			tlshdr->tls_vminor = tls->params.tls_vminor;
 			tlshdr->tls_type = record_type;
@@ -1380,7 +1381,7 @@ ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 	    ("ktls_enqueue: %p not unready & nomap mbuf\n", m));
 	KASSERT(page_count != 0, ("enqueueing TLS mbuf with zero page count"));
 
-	pgs = m->m_ext.ext_pgs;
+	pgs = &m->m_ext_pgs;
 
 	KASSERT(pgs->tls->mode == TCP_TLS_MODE_SW, ("!SW TLS mbuf"));
 
@@ -1447,7 +1448,7 @@ ktls_encrypt(struct mbuf_ext_pgs *pgs)
 	 */
 	error = 0;
 	for (m = top; npages != total_pages; m = m->m_next) {
-		pgs = m->m_ext.ext_pgs;
+		pgs = &m->m_ext_pgs;
 
 		KASSERT(pgs->tls == tls,
 		    ("different TLS sessions in a single mbuf chain: %p vs %p",
@@ -1474,7 +1475,8 @@ ktls_encrypt(struct mbuf_ext_pgs *pgs)
 			len = mbuf_ext_pg_len(pgs, i, off);
 			src_iov[i].iov_len = len;
 			src_iov[i].iov_base =
-			    (char *)(void *)PHYS_TO_DMAP(pgs->pa[i]) + off;
+			    (char *)(void *)PHYS_TO_DMAP(pgs->m_epg_pa[i]) +
+				off;
 
 			if (is_anon) {
 				dst_iov[i].iov_base = src_iov[i].iov_base;
@@ -1497,8 +1499,8 @@ retry_page:
 		npages += i;
 
 		error = (*tls->sw_encrypt)(tls,
-		    (const struct tls_record_layer *)pgs->hdr,
-		    pgs->trail, src_iov, dst_iov, i, pgs->seqno,
+		    (const struct tls_record_layer *)pgs->m_epg_hdr,
+		    pgs->m_epg_trail, src_iov, dst_iov, i, pgs->seqno,
 		    pgs->record_type);
 		if (error) {
 			counter_u64_add(ktls_offload_failed_crypto, 1);
@@ -1516,7 +1518,7 @@ retry_page:
 
 			/* Replace them with the new pages. */
 			for (i = 0; i < pgs->npgs; i++)
-				pgs->pa[i] = parray[i];
+				pgs->m_epg_pa[i] = parray[i];
 
 			/* Use the basic free routine. */
 			m->m_ext.ext_free = mb_free_mext_pgs;
@@ -1556,6 +1558,7 @@ ktls_work_thread(void *ctx)
 	struct ktls_wq *wq = ctx;
 	struct mbuf_ext_pgs *p, *n;
 	struct ktls_session *tls;
+	struct mbuf *m;
 	STAILQ_HEAD(, mbuf_ext_pgs) local_head;
 
 #if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
@@ -1580,7 +1583,8 @@ ktls_work_thread(void *ctx)
 			} else {
 				tls = p->tls;
 				ktls_free(tls);
-				uma_zfree(zone_extpgs, p);
+				m = __containerof(p, struct mbuf, m_ext_pgs);
+				uma_zfree(zone_mbuf, m);
 			}
 		}
 	}

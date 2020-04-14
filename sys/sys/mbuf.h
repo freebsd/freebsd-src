@@ -203,6 +203,45 @@ struct pkthdr {
 /* Note PH_loc is used during IP reassembly (all 8 bytes as a ptr) */
 
 /*
+ * TLS records for TLS 1.0-1.2 can have the following header lengths:
+ * - 5 (AES-CBC with implicit IV)
+ * - 21 (AES-CBC with explicit IV)
+ * - 13 (AES-GCM with 8 byte explicit IV)
+ */
+#define	MBUF_PEXT_HDR_LEN	23
+
+/*
+ * TLS records for TLS 1.0-1.2 can have the following maximum trailer
+ * lengths:
+ * - 16 (AES-GCM)
+ * - 36 (AES-CBC with SHA1 and up to 16 bytes of padding)
+ * - 48 (AES-CBC with SHA2-256 and up to 16 bytes of padding)
+ * - 64 (AES-CBC with SHA2-384 and up to 16 bytes of padding)
+ */
+#define	MBUF_PEXT_TRAIL_LEN	64
+
+#if defined(__LP64__)
+#define MBUF_PEXT_MAX_PGS (40 / sizeof(vm_paddr_t))
+#else
+#define MBUF_PEXT_MAX_PGS (72 / sizeof(vm_paddr_t))
+#endif
+
+#define	MBUF_PEXT_MAX_BYTES						\
+    (MBUF_PEXT_MAX_PGS * PAGE_SIZE + MBUF_PEXT_HDR_LEN + MBUF_PEXT_TRAIL_LEN)
+
+#define MBUF_PEXT_FLAG_ANON	1	/* Data can be encrypted in place. */
+
+
+struct mbuf_ext_pgs_data {
+	vm_paddr_t	pa[MBUF_PEXT_MAX_PGS];		/* phys addrs of pgs */
+	char		trail[MBUF_PEXT_TRAIL_LEN]; 	/* TLS trailer */
+	char		hdr[MBUF_PEXT_HDR_LEN];		/* TLS header */
+};
+
+struct ktls_session;
+struct socket;
+
+/*
  * Description of external storage mapped into mbuf; valid only if M_EXT is
  * set.
  * Size ILP32: 28
@@ -224,18 +263,10 @@ struct m_ext {
 		volatile u_int	 ext_count;
 		volatile u_int	*ext_cnt;
 	};
-	union {
-		/*
-		 * If ext_type == EXT_PGS, 'ext_pgs' points to a
-		 * structure describing the buffer.  Otherwise,
-		 * 'ext_buf' points to the start of the buffer.
-		 */
-		struct mbuf_ext_pgs *ext_pgs;
-		char		*ext_buf;
-	};
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
 			 ext_flags:24;	/* external storage mbuf flags */
+	char		*ext_buf;	/* start of buffer */
 	/*
 	 * Fields below store the free context for the external storage.
 	 * They are valid only in the refcount carrying mbuf, the one with
@@ -246,8 +277,37 @@ struct m_ext {
 #define	m_ext_copylen	offsetof(struct m_ext, ext_free)
 	m_ext_free_t	*ext_free;	/* free routine if not the usual */
 	void		*ext_arg1;	/* optional argument pointer */
-	void		*ext_arg2;	/* optional argument pointer */
+	union {
+		void		*ext_arg2;	/* optional argument pointer */
+		struct mbuf_ext_pgs_data ext_pgs;
+	};
 };
+
+struct mbuf_ext_pgs {
+	uint8_t		npgs;			/* Number of attached pages */
+	uint8_t		nrdy;			/* Pages with I/O pending */
+	uint8_t		hdr_len;		/* TLS header length */
+	uint8_t		trail_len;		/* TLS trailer length */
+	uint16_t	first_pg_off;		/* Offset into 1st page */
+	uint16_t	last_pg_len;		/* Length of last page */
+	uint8_t		flags;			/* Flags */
+	uint8_t		record_type;
+	uint8_t		spare[2];
+	int		enc_cnt;
+	struct ktls_session *tls;		/* TLS session */
+	struct socket	*so;
+	uint64_t	seqno;
+	struct mbuf	*mbuf;
+	STAILQ_ENTRY(mbuf_ext_pgs) stailq;
+#if !defined(__LP64__)
+	uint8_t		pad[8];		/* pad to size of pkthdr */
+#endif
+	struct m_ext	m_ext;
+};
+
+#define m_epg_hdr	m_ext.ext_pgs.hdr
+#define m_epg_trail	m_ext.ext_pgs.trail
+#define m_epg_pa	m_ext.ext_pgs.pa
 
 /*
  * The core of the mbuf object along with some shortcut defines for practical
@@ -287,83 +347,17 @@ struct mbuf {
 	 * order to support future work on variable-size mbufs.
 	 */
 	union {
-		struct {
-			struct pkthdr	m_pkthdr;	/* M_PKTHDR set */
-			union {
-				struct m_ext	m_ext;	/* M_EXT set */
-				char		m_pktdat[0];
+		union {
+			struct {
+				struct pkthdr	m_pkthdr; /* M_PKTHDR set */
+				union {
+					struct m_ext	m_ext;	/* M_EXT set */
+					char		m_pktdat[0];
+				};
 			};
+			struct mbuf_ext_pgs m_ext_pgs;
 		};
 		char	m_dat[0];			/* !M_PKTHDR, !M_EXT */
-	};
-};
-
-struct ktls_session;
-struct socket;
-
-/*
- * TLS records for TLS 1.0-1.2 can have the following header lengths:
- * - 5 (AES-CBC with implicit IV)
- * - 21 (AES-CBC with explicit IV)
- * - 13 (AES-GCM with 8 byte explicit IV)
- */
-#define	MBUF_PEXT_HDR_LEN	23
-
-/*
- * TLS records for TLS 1.0-1.2 can have the following maximum trailer
- * lengths:
- * - 16 (AES-GCM)
- * - 36 (AES-CBC with SHA1 and up to 16 bytes of padding)
- * - 48 (AES-CBC with SHA2-256 and up to 16 bytes of padding)
- * - 64 (AES-CBC with SHA2-384 and up to 16 bytes of padding)
- */
-#define	MBUF_PEXT_TRAIL_LEN	64
-
-#ifdef __LP64__
-#define	MBUF_PEXT_MAX_PGS	(152 / sizeof(vm_paddr_t))
-#else
-#define	MBUF_PEXT_MAX_PGS	(156 / sizeof(vm_paddr_t))
-#endif
-
-#define	MBUF_PEXT_MAX_BYTES						\
-    (MBUF_PEXT_MAX_PGS * PAGE_SIZE + MBUF_PEXT_HDR_LEN + MBUF_PEXT_TRAIL_LEN)
-
-#define MBUF_PEXT_FLAG_ANON	1	/* Data can be encrypted in place. */
-
-/*
- * This struct is 256 bytes in size and is arranged so that the most
- * common case (accessing the first 4 pages of a 16KB TLS record) will
- * fit in a single 64 byte cacheline.
- */
-struct mbuf_ext_pgs {
-	uint8_t		npgs;			/* Number of attached pages */
-	uint8_t		nrdy;			/* Pages with I/O pending */
-	uint8_t		hdr_len;		/* TLS header length */
-	uint8_t		trail_len;		/* TLS trailer length */
-	uint16_t	first_pg_off;		/* Offset into 1st page */
-	uint16_t	last_pg_len;		/* Length of last page */
-	vm_paddr_t	pa[MBUF_PEXT_MAX_PGS];	/* phys addrs of pages */
-	char		hdr[MBUF_PEXT_HDR_LEN];	/* TLS header */
-	uint8_t		flags;			/* Flags */
-	struct ktls_session *tls;		/* TLS session */
-#if defined(__i386__) || \
-    (defined(__powerpc__) && !defined(__powerpc64__) && defined(BOOKE))
-	/*
-	 * i386 and Book-E PowerPC have 64-bit vm_paddr_t, so there is
-	 * a 4 byte remainder from the space allocated for pa[].
-	 */
-	uint32_t	pad;
-#endif
-	union {
-		char	trail[MBUF_PEXT_TRAIL_LEN]; /* TLS trailer */
-		struct {
-			uint8_t record_type;	/* Must be first */
-			struct socket *so;
-			struct mbuf *mbuf;
-			uint64_t seqno;
-			STAILQ_ENTRY(mbuf_ext_pgs) stailq;
-			int enc_cnt;
-		};
 	};
 };
 
@@ -699,7 +693,7 @@ extern uma_zone_t	zone_extpgs;
 void		 mb_dupcl(struct mbuf *, struct mbuf *);
 void		 mb_free_ext(struct mbuf *);
 void		 mb_free_mext_pgs(struct mbuf *);
-struct mbuf	*mb_alloc_ext_pgs(int, bool, m_ext_free_t);
+struct mbuf	*mb_alloc_ext_pgs(int, m_ext_free_t);
 int		 mb_unmapped_compress(struct mbuf *m);
 struct mbuf 	*mb_unmapped_to_ext(struct mbuf *m);
 void		 mb_free_notready(struct mbuf *m, int count);
@@ -1515,7 +1509,7 @@ mbuf_has_tls_session(struct mbuf *m)
 
 	if (m->m_flags & M_NOMAP) {
 		MBUF_EXT_PGS_ASSERT(m);
-		if (m->m_ext.ext_pgs->tls != NULL) {
+		if (m->m_ext_pgs.tls != NULL) {
 			return (true);
 		}
 	}
