@@ -172,6 +172,10 @@ struct socket {
 			short		sol_sbsnd_flags;
 			sbintime_t	sol_sbrcv_timeo;
 			sbintime_t	sol_sbsnd_timeo;
+
+			/* Information tracking listen queue overflows. */
+			struct timeval	sol_lastover;	/* (e) */
+			int		sol_overcount;	/* (e) */
 		};
 	};
 };
