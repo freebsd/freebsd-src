@@ -575,6 +575,11 @@ SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
     &regression_sonewconn_earlytest, 0, "Perform early sonewconn limit test");
 #endif
 
+static struct timeval overinterval = { 60, 0 };
+SYSCTL_TIMEVAL_SEC(_kern_ipc, OID_AUTO, sooverinterval, CTLFLAG_RW,
+    &overinterval,
+    "Delay in seconds between warnings for listen socket overflows");
+
 /*
  * When an attempt at a new connection is noted on a socket which accepts
  * connections, sonewconn is called.  If the connection is possible (subject
@@ -587,14 +592,10 @@ SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
 struct socket *
 sonewconn(struct socket *head, int connstatus)
 {
-	static struct timeval lastover;
-	static struct timeval overinterval = { 60, 0 };
-	static int overcount;
-
 	struct sbuf descrsb;
 	struct socket *so;
-	u_int over;
-	int len;
+	int len, overcount;
+	u_int qlen;
 	const char localprefix[] = "local:";
 	char descrbuf[SUNPATHLEN + sizeof(localprefix)];
 #if defined(INET6)
@@ -602,18 +603,31 @@ sonewconn(struct socket *head, int connstatus)
 #elif defined(INET)
 	char addrbuf[INET_ADDRSTRLEN];
 #endif
+	bool dolog, over;
 
 	SOLISTEN_LOCK(head);
 	over = (head->sol_qlen > 3 * head->sol_qlimit / 2);
-	SOLISTEN_UNLOCK(head);
 #ifdef REGRESSION
 	if (regression_sonewconn_earlytest && over) {
 #else
 	if (over) {
 #endif
-		overcount++;
+		head->sol_overcount++;
+		dolog = !!ratecheck(&head->sol_lastover, &overinterval);
 
-		if (ratecheck(&lastover, &overinterval)) {
+		/*
+		 * If we're going to log, copy the overflow count and queue
+		 * length from the listen socket before dropping the lock.
+		 * Also, reset the overflow count.
+		 */
+		if (dolog) {
+			overcount = head->sol_overcount;
+			head->sol_overcount = 0;
+			qlen = head->sol_qlen;
+		}
+		SOLISTEN_UNLOCK(head);
+
+		if (dolog) {
 			/*
 			 * Try to print something descriptive about the
 			 * socket for the error message.
@@ -686,7 +700,7 @@ sonewconn(struct socket *head, int connstatus)
 			    "%i already in queue awaiting acceptance "
 			    "(%d occurrences)\n",
 			    __func__, head->so_pcb, sbuf_data(&descrsb),
-			    head->sol_qlen, overcount);
+			    qlen, overcount);
 			sbuf_delete(&descrsb);
 
 			overcount = 0;
@@ -694,6 +708,7 @@ sonewconn(struct socket *head, int connstatus)
 
 		return (NULL);
 	}
+	SOLISTEN_UNLOCK(head);
 	VNET_ASSERT(head->so_vnet != NULL, ("%s: so %p vnet is NULL",
 	    __func__, head));
 	so = soalloc(head->so_vnet);
