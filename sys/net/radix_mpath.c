@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -298,11 +299,13 @@ rt_mpath_init_rnh(struct rib_head *rnh)
 	rnh->rnh_multipath = 1;
 }
 
+#ifdef RADIX_MPATH
 static void
 mpath_init(void)
 {
 
 	hashjitter = arc4random();
 }
-SYSINIT(mpath_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, mpath_init, NULL);
+SYSINIT(mpath_init, SI_SUB_LAST, SI_ORDER_ANY, mpath_init, NULL);
+#endif
 
