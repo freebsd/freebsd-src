@@ -625,20 +625,15 @@ user_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
     const struct timespec *ua_rqtp, struct timespec *ua_rmtp)
 {
 	struct timespec rmt, rqt;
-	int error;
+	int error, error2;
 
 	error = copyin(ua_rqtp, &rqt, sizeof(rqt));
 	if (error)
 		return (error);
-	if (ua_rmtp != NULL && (flags & TIMER_ABSTIME) == 0 &&
-	    !useracc(ua_rmtp, sizeof(rmt), VM_PROT_WRITE))
-		return (EFAULT);
 	error = kern_clock_nanosleep(td, clock_id, flags, &rqt, &rmt);
 	if (error == EINTR && ua_rmtp != NULL && (flags & TIMER_ABSTIME) == 0) {
-		int error2;
-
 		error2 = copyout(&rmt, ua_rmtp, sizeof(rmt));
-		if (error2)
+		if (error2 != 0)
 			error = error2;
 	}
 	return (error);
