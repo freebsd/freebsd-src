@@ -422,6 +422,8 @@ struct rt_addrinfo {
 	RTFREE_LOCKED(_rt);					\
 } while (0)
 
+#define	RTFREE_FUNC(_rt)	rtfree_func(_rt)
+
 #define	RO_RTFREE(_ro) do {					\
 	if ((_ro)->ro_rt)					\
 		RTFREE((_ro)->ro_rt);				\
@@ -482,6 +484,7 @@ int	rtsock_routemsg_info(int, struct rt_addrinfo *, int);
  */
 
 void	 rtfree(struct rtentry *);
+void	 rtfree_func(struct rtentry *);
 void	rt_updatemtu(struct ifnet *);
 
 typedef int rt_walktree_f_t(struct rtentry *, void *);

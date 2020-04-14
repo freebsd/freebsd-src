@@ -604,6 +604,18 @@ done:
 }
 
 /*
+ * Temporary RTFREE() function wrapper.
+ *  Intended to use in control plane code to
+ *  avoid exposing internal layout of 'struct rtentry'.
+ */
+void
+rtfree_func(struct rtentry *rt)
+{
+
+	RTFREE(rt);
+}
+
+/*
  * Adds a temporal redirect entry to the routing table.
  * @fibnum: fib number
  * @dst: destination to install redirect to
