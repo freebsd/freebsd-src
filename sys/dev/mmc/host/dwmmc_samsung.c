@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/mmc/bridge.h>
+#include <dev/mmc/mmc_fdt_helpers.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>

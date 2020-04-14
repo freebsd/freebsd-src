@@ -52,6 +52,7 @@ struct dwmmc_softc {
 	device_t		dev;
 	void			*intr_cookie;
 	struct mmc_host		host;
+	struct mmc_fdt_helper	mmc_helper;
 	struct mtx		sc_mtx;
 	struct mmc_request	*req;
 	struct mmc_command	*curcmd;
