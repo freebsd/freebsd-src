@@ -1505,9 +1505,6 @@ struct jail_set_args {
 struct jail_remove_args {
 	char jid_l_[PADL_(int)]; int jid; char jid_r_[PADR_(int)];
 };
-struct closefrom_args {
-	char lowfd_l_[PADL_(int)]; int lowfd; char lowfd_r_[PADR_(int)];
-};
 struct __semctl_args {
 	char semid_l_[PADL_(int)]; int semid; char semid_r_[PADR_(int)];
 	char semnum_l_[PADL_(int)]; int semnum; char semnum_r_[PADR_(int)];
@@ -2163,7 +2160,6 @@ int	sys_gssd_syscall(struct thread *, struct gssd_syscall_args *);
 int	sys_jail_get(struct thread *, struct jail_get_args *);
 int	sys_jail_set(struct thread *, struct jail_set_args *);
 int	sys_jail_remove(struct thread *, struct jail_remove_args *);
-int	sys_closefrom(struct thread *, struct closefrom_args *);
 int	sys___semctl(struct thread *, struct __semctl_args *);
 int	sys_msgctl(struct thread *, struct msgctl_args *);
 int	sys_shmctl(struct thread *, struct shmctl_args *);
@@ -2678,7 +2674,11 @@ struct freebsd12_shm_open_args {
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
+struct freebsd12_closefrom_args {
+	char lowfd_l_[PADL_(int)]; int lowfd; char lowfd_r_[PADR_(int)];
+};
 int	freebsd12_shm_open(struct thread *, struct freebsd12_shm_open_args *);
+int	freebsd12_closefrom(struct thread *, struct freebsd12_closefrom_args *);
 
 #endif /* COMPAT_FREEBSD12 */
 
@@ -3089,7 +3089,7 @@ int	freebsd12_shm_open(struct thread *, struct freebsd12_shm_open_args *);
 #define	SYS_AUE_jail_get	AUE_JAIL_GET
 #define	SYS_AUE_jail_set	AUE_JAIL_SET
 #define	SYS_AUE_jail_remove	AUE_JAIL_REMOVE
-#define	SYS_AUE_closefrom	AUE_CLOSEFROM
+#define	SYS_AUE_freebsd12_closefrom	AUE_CLOSEFROM
 #define	SYS_AUE___semctl	AUE_SEMCTL
 #define	SYS_AUE_msgctl	AUE_MSGCTL
 #define	SYS_AUE_shmctl	AUE_SHMCTL
