@@ -125,7 +125,7 @@ rib6_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *ma
 
 	/* Ensure that default route nhop has special flag */
 	const struct sockaddr_in6 *mask6 = (const struct sockaddr_in6 *)mask;
-	if ((nhop_get_rtflags(nh) & RTF_HOST) == 0 &&
+	if ((nhop_get_rtflags(nh) & RTF_HOST) == 0 && mask6 != NULL &&
 	    IN6_IS_ADDR_UNSPECIFIED(&mask6->sin6_addr))
 		nh->nh_flags |= NHF_DEFAULT;
 
