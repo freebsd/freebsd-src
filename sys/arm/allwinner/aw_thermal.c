@@ -267,7 +267,7 @@ static const struct aw_thermal_config h3_config = {
 	.thermal_per = H3_THERMAL_PER,
 	.to_temp = h3_to_temp,
 	.to_reg = h3_to_reg,
-	.calib0_mask = 0xffff,
+	.calib0_mask = 0xffffffff,
 };
 
 static int
@@ -387,12 +387,12 @@ aw_thermal_init(struct aw_thermal_softc *sc)
 	int error;
 
 	node = ofw_bus_get_node(sc->dev);
-	if (nvmem_get_cell_len(node, "ths-calib") > sizeof(calib)) {
-		device_printf(sc->dev, "ths-calib nvmem cell is too large\n");
+	if (nvmem_get_cell_len(node, "calibration") > sizeof(calib)) {
+		device_printf(sc->dev, "calibration nvmem cell is too large\n");
 		return (ENXIO);
 	}
-	error = nvmem_read_cell_by_name(node, "ths-calib",
-	    (void *)&calib, nvmem_get_cell_len(node, "ths-calib"));
+	error = nvmem_read_cell_by_name(node, "calibration",
+	    (void *)&calib, nvmem_get_cell_len(node, "calibration"));
 	/* Read calibration settings from EFUSE */
 	if (error != 0) {
 		device_printf(sc->dev, "Cannot read THS efuse\n");
@@ -624,7 +624,7 @@ aw_thermal_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (clk_get_by_ofw_name(dev, 0, "apb", &sc->clk_apb) == 0) {
+	if (clk_get_by_ofw_name(dev, 0, "bus", &sc->clk_apb) == 0) {
 		error = clk_enable(sc->clk_apb);
 		if (error != 0) {
 			device_printf(dev, "cannot enable apb clock\n");
@@ -632,7 +632,7 @@ aw_thermal_attach(device_t dev)
 		}
 	}
 
-	if (clk_get_by_ofw_name(dev, 0, "ths", &sc->clk_ths) == 0) {
+	if (clk_get_by_ofw_name(dev, 0, "mod", &sc->clk_ths) == 0) {
 		error = clk_set_freq(sc->clk_ths, sc->conf->clk_rate, 0);
 		if (error != 0) {
 			device_printf(dev, "cannot set ths clock rate\n");
