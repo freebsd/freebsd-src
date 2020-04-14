@@ -130,6 +130,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/resourcevar.h>
@@ -140,9 +141,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/uio.h>
+#include <sys/un.h>
+#include <sys/unpcb.h>
 #include <sys/jail.h>
 #include <sys/syslog.h>
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 
 #include <net/vnet.h>
@@ -587,8 +591,17 @@ sonewconn(struct socket *head, int connstatus)
 	static struct timeval overinterval = { 60, 0 };
 	static int overcount;
 
+	struct sbuf descrsb;
 	struct socket *so;
 	u_int over;
+	int len;
+	const char localprefix[] = "local:";
+	char descrbuf[SUNPATHLEN + sizeof(localprefix)];
+#if defined(INET6)
+	char addrbuf[INET6_ADDRSTRLEN];
+#elif defined(INET)
+	char addrbuf[INET_ADDRSTRLEN];
+#endif
 
 	SOLISTEN_LOCK(head);
 	over = (head->sol_qlen > 3 * head->sol_qlimit / 2);
@@ -601,10 +614,80 @@ sonewconn(struct socket *head, int connstatus)
 		overcount++;
 
 		if (ratecheck(&lastover, &overinterval)) {
-			log(LOG_DEBUG, "%s: pcb %p: Listen queue overflow: "
+			/*
+			 * Try to print something descriptive about the
+			 * socket for the error message.
+			 */
+			sbuf_new(&descrsb, descrbuf, sizeof(descrbuf),
+			    SBUF_FIXEDLEN);
+			switch (head->so_proto->pr_domain->dom_family) {
+#if defined(INET) || defined(INET6)
+#ifdef INET
+			case AF_INET:
+#endif
+#ifdef INET6
+			case AF_INET6:
+				if (head->so_proto->pr_domain->dom_family ==
+				    AF_INET6 ||
+				    (sotoinpcb(head)->inp_inc.inc_flags &
+				    INC_ISIPV6)) {
+					ip6_sprintf(addrbuf,
+					    &sotoinpcb(head)->inp_inc.inc6_laddr);
+					sbuf_printf(&descrsb, "[%s]", addrbuf);
+				} else
+#endif
+				{
+#ifdef INET
+					inet_ntoa_r(
+					    sotoinpcb(head)->inp_inc.inc_laddr,
+					    addrbuf);
+					sbuf_cat(&descrsb, addrbuf);
+#endif
+				}
+				sbuf_printf(&descrsb, ":%hu (proto %u)",
+				    ntohs(sotoinpcb(head)->inp_inc.inc_lport),
+				    head->so_proto->pr_protocol);
+				break;
+#endif /* INET || INET6 */
+			case AF_UNIX:
+				sbuf_cat(&descrsb, localprefix);
+				if (sotounpcb(head)->unp_addr != NULL)
+					len =
+					    sotounpcb(head)->unp_addr->sun_len -
+					    offsetof(struct sockaddr_un,
+					    sun_path);
+				else
+					len = 0;
+				if (len > 0)
+					sbuf_bcat(&descrsb,
+					    sotounpcb(head)->unp_addr->sun_path,
+					    len);
+				else
+					sbuf_cat(&descrsb, "(unknown)");
+				break;
+			}
+
+			/*
+			 * If we can't print something more specific, at least
+			 * print the domain name.
+			 */
+			if (sbuf_finish(&descrsb) != 0 ||
+			    sbuf_len(&descrsb) <= 0) {
+				sbuf_clear(&descrsb);
+				sbuf_cat(&descrsb,
+				    head->so_proto->pr_domain->dom_name ?:
+				    "unknown");
+				sbuf_finish(&descrsb);
+			}
+			KASSERT(sbuf_len(&descrsb) > 0,
+			    ("%s: sbuf creation failed", __func__));
+			log(LOG_DEBUG,
+			    "%s: pcb %p (%s): Listen queue overflow: "
 			    "%i already in queue awaiting acceptance "
 			    "(%d occurrences)\n",
-			    __func__, head->so_pcb, head->sol_qlen, overcount);
+			    __func__, head->so_pcb, sbuf_data(&descrsb),
+			    head->sol_qlen, overcount);
+			sbuf_delete(&descrsb);
 
 			overcount = 0;
 		}
