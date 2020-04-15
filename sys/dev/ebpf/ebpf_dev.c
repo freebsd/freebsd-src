@@ -33,8 +33,8 @@
 	};
 
 EBPF_HELPER_TYPE_DEF(map_path_lookup);
-EBPF_HELPER_TYPE_DEF(map_enqueue);
-EBPF_HELPER_TYPE_DEF(map_dequeue);
+// EBPF_HELPER_TYPE_DEF(map_enqueue);
+// EBPF_HELPER_TYPE_DEF(map_dequeue);
 
 EBPF_HELPER_TYPE_DEF(probe_copyinstr);
 EBPF_HELPER_TYPE_DEF(probe_copyout);
@@ -99,8 +99,8 @@ const struct ebpf_config fbsd_ebpf_config = {
 		[EBPF_FUNC_ebpf_map_lookup_elem] = &eht_map_lookup_elem,
 		[EBPF_FUNC_ebpf_map_delete_elem] = &eht_map_delete_elem,
 		[EBPF_FUNC_ebpf_map_lookup_path] = &eht_map_path_lookup,
-		[EBPF_FUNC_ebpf_map_enqueue] = &eht_map_enqueue,
-		[EBPF_FUNC_ebpf_map_dequeue] = &eht_map_dequeue,
+// 		[EBPF_FUNC_ebpf_map_enqueue] = &eht_map_enqueue,
+// 		[EBPF_FUNC_ebpf_map_dequeue] = &eht_map_dequeue,
 
 		[EBPF_FUNC_copyinstr] = &eht_probe_copyinstr,
 		[EBPF_FUNC_copyout] = &eht_probe_copyout,
