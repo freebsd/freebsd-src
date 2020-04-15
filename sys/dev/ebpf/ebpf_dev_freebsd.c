@@ -19,6 +19,7 @@
 #include <dev/ebpf/ebpf_dev_platform.h>
 #include <dev/ebpf/ebpf_obj.h>
 #include <sys/ebpf.h>
+#include <dev/ebpf/ebpf_prog.h>
 #include <dev/ebpf/ebpf_dev.h>
 
 /*
@@ -71,16 +72,6 @@ ebpf_fopen(ebpf_thread *td, ebpf_file **fp, int *fd, struct ebpf_obj *data)
 	}
 
 	/*
-	 * File operation definition for ebpf object file.
-	 * It simply check reference count on file close
-	 * and execute destractor of the ebpf object if
-	 * the reference count was 0. It doesn't allow to
-	 * perform any file operations except close(2)
-	 */
-	memcpy(&ebpf_objf_ops, &badfileops, sizeof(struct fileops));
-	ebpf_objf_ops.fo_close = ebpf_objfile_close;
-
-	/*
 	 * finit reserves two reference count for us, so release one
 	 * since we don't need it.
 	 */
@@ -90,6 +81,46 @@ ebpf_fopen(ebpf_thread *td, ebpf_file **fp, int *fd, struct ebpf_obj *data)
 	ebpf_refcount_acquire(&ebpf_dev_global_refcount);
 
 	return 0;
+}
+
+int
+ebpf_fd_to_program(ebpf_thread *td, int fd, ebpf_file **fp_out, struct ebpf_prog **prog_out)
+{
+	int error;
+	ebpf_file *fp;
+	struct ebpf_prog *prog;
+	struct ebpf_obj *obj;
+
+	error = ebpf_fget(td, fd, &fp);
+	if (error != 0) {
+		return (error);
+	}
+
+	if (!is_ebpf_objfile(fp)) {
+		error = EINVAL;
+		goto out;
+	}
+
+	obj = ebpf_file_get_data(fp);
+	prog = EO2EP(obj);
+	if (prog == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+
+	*fp_out = fp;
+	if (prog_out) {
+		*prog_out = prog;
+	}
+
+	return (0);
+
+out:
+	if (fp != NULL) {
+		ebpf_fdrop(fp, td);
+	}
+
+	return (error);
 }
 
 struct ebpf_obj *
@@ -210,6 +241,17 @@ ebpf_dev_init(void)
 	}
 
 	ebpf_dev->si_drv1 = ee;
+
+
+	/*
+	 * File operation definition for ebpf object file.
+	 * It simply check reference count on file close
+	 * and execute destractor of the ebpf object if
+	 * the reference count was 0. It doesn't allow to
+	 * perform any file operations except close(2)
+	 */
+	memcpy(&ebpf_objf_ops, &badfileops, sizeof(struct fileops));
+	ebpf_objf_ops.fo_close = ebpf_objfile_close;
 
 	return 0;
 fail:

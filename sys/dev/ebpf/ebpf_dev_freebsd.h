@@ -37,3 +37,7 @@
 
 typedef struct thread ebpf_thread;
 typedef struct file ebpf_file;
+struct ebpf_prog;
+
+int ebpf_fd_to_program(ebpf_thread *td, int fd, ebpf_file **fp_out,
+    struct ebpf_prog **prog_out);

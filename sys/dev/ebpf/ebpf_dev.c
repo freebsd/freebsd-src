@@ -617,6 +617,9 @@ ebpf_ioctl(struct ebpf_env *ee, uint32_t cmd, void *data, ebpf_thread *td)
 	case EBPFIOC_GET_PROG_TYPE_INFO:
 		error = ebpf_ioc_get_prog_type_info(ee, req);
 		break;
+// 	case EBPFIOC_ATTACH_PROBE:
+// 		error = ebpf_attach(req, td);
+// 		break;
 	default:
 		error = EINVAL;
 		break;

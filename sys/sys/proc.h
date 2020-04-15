@@ -176,6 +176,7 @@ struct pargs {
  * for write access.
  */
 struct cpuset;
+struct ebpf_vm_state;
 struct filecaps;
 struct filemon;
 struct kaioinfo;
@@ -372,6 +373,7 @@ struct thread {
 #ifdef EPOCH_TRACE
 	SLIST_HEAD(, epoch_tracker) td_epochs;
 #endif
+	struct ebpf_vm_state *td_ebpf_state;
 };
 
 struct thread0_storage {

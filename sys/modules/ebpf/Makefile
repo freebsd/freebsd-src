@@ -24,6 +24,7 @@ SRCS+= \
 	ebpf_dev.c \
 	ebpf_dev_freebsd.c \
 	ebpf_module.c \
+	ebpf_probe_syscall.c \
 
 CFLAGS += -I${SYSDIR}/contrib/generic-ebpf/sys
 
