@@ -466,6 +466,28 @@ in6_getscope(const struct in6_addr *in6)
 }
 
 /*
+ * Returns scope zone id for the unicast address @in6.
+ *
+ * Returns 0 for global unicast and loopback addresses.
+ * Returns interface index for the link-local addresses.
+ */
+uint32_t
+in6_get_unicast_scopeid(const struct in6_addr *in6, const struct ifnet *ifp)
+{
+
+	if (IN6_IS_SCOPE_LINKLOCAL(in6))
+		return (ifp->if_index);
+	return (0);
+}
+
+void
+in6_set_unicast_scopeid(struct in6_addr *in6, uint32_t scopeid)
+{
+
+	in6->s6_addr16[1] = htons(scopeid & 0xffff);
+}
+
+/*
  * Return pointer to ifnet structure, corresponding to the zone id of
  * link-local scope.
  */
