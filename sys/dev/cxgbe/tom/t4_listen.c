@@ -946,9 +946,7 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 {
 	struct adapter *sc = tod->tod_softc;
 	struct synq_entry *synqe = arg;
-#ifdef INVARIANTS
 	struct inpcb *inp = sotoinpcb(so);
-#endif
 	struct toepcb *toep = synqe->toep;
 
 	NET_EPOCH_ASSERT();	/* prevents bad race with accept() */
@@ -962,6 +960,9 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 	toep->flags |= TPF_CPL_PENDING;
 	update_tid(sc, synqe->tid, toep);
 	synqe->flags |= TPF_SYNQE_EXPANDED;
+	inp->inp_flowtype = (inp->inp_vflag & INP_IPV6) ?
+	    M_HASHTYPE_RSS_TCP_IPV6 : M_HASHTYPE_RSS_TCP_IPV4;
+	inp->inp_flowid = synqe->rss_hash;
 }
 
 static void
@@ -1299,6 +1300,8 @@ found:
 		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(true);
 	}
+	MPASS(rss->hash_type == RSS_HASH_TCP);
+	synqe->rss_hash = be32toh(rss->hash_val);
 	atomic_store_int(&synqe->ok_to_respond, 0);
 
 	init_conn_params(vi, &settings, &inc, so, &cpl->tcpopt, e->idx,
