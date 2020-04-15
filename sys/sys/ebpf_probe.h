@@ -62,7 +62,7 @@ void ebpf_probe_deregister(void *);
 
 struct ebpf_probe * ebpf_activate_probe(const char *, void *);
 
-void ebpf_module_register(struct ebpf_module *);
+void ebpf_module_register(const struct ebpf_module *);
 void ebpf_module_deregister(void);
 
 void ebpf_clone_proc_probes(struct proc *parent, struct proc *newproc);

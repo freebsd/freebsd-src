@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020 Ryan Stone
+ * Copyright (c) 2019 Ryan Stone
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,54 +26,24 @@
  * SUCH DAMAGE.
  */
 
+#ifndef _EBPF_DEV_PROBE_H
+#define _EBPF_DEV_PROBE_H
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+void ebpf_probe_init(void);
+void ebpf_probe_fini(void);
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/conf.h>
+int ebpf_probe_attach(const char * pr_name, struct ebpf_prog *prog, ebpf_file *fp,
+    int jit);
 
-#include <sys/ebpf.h>
-#include <dev/ebpf/ebpf_dev_platform.h>
-#include <dev/ebpf/ebpf_dev_probe.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
+struct ebpf_vm_state;
 
-static int
-ebpf_modevent(module_t mod __unused, int type, void *data __unused)
+struct ebpf_probe_ops
 {
-	int error = 0;
+	void (*init)(void);
+	void (*fini)(void);
+	int (*reserve_cpu)(struct ebpf_vm_state *);
+	void (*release_cpu)(struct ebpf_vm_state *);
+};
 
-	switch (type) {
-	case MOD_LOAD:
-		error = ebpf_init();
-		if (error != 0)
-			break;
 
-		ebpf_probe_init();
-
-		error = ebpf_dev_init();
-		break;
-
-	case MOD_UNLOAD:
-		error = ebpf_dev_fini();
-		if (error != 0)
-			break;
-
-		ebpf_probe_fini();
-
-		error = ebpf_deinit();
-		break;
-
-	default:
-		error = EOPNOTSUPP;
-		break;
-
-	}
-
-	return (error);
-}
-
-DEV_MODULE(ebpf, ebpf_modevent, NULL);
-MODULE_VERSION(ebpf, 1);
+#endif

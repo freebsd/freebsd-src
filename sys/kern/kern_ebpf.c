@@ -65,7 +65,7 @@ static struct ebpf_module dummy_module = {
 	.fire = dummy_fire,
 };
 
-static struct ebpf_module * ebpf_module_callbacks = &dummy_module;
+static const struct ebpf_module * ebpf_module_callbacks = &dummy_module;
 static struct sx ebpf_sx;
 SX_SYSINIT_FLAGS(ebpf_sx, &ebpf_sx, "ebpx_sx", SX_DUPOK);
 
@@ -131,7 +131,7 @@ dummy_fire(struct ebpf_probe *probe, void *a, uintptr_t arg0, uintptr_t arg1,
 }
 
 void
-ebpf_module_register(struct ebpf_module *mod)
+ebpf_module_register(const struct ebpf_module *mod)
 {
 
 	KASSERT (!ebpf_is_loaded(), ("ebpf.ko loaded twice"));

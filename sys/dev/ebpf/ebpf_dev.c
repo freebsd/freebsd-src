@@ -23,6 +23,7 @@
 #include <sys/ebpf.h>
 #include <sys/ebpf_param.h>
 #include <dev/ebpf/ebpf_dev.h>
+#include <dev/ebpf/ebpf_dev_probe.h>
 #include <dev/ebpf/ebpf_map_freebsd.h>
 #include <dev/ebpf/ebpf_probe_syscall.h>
 #include <sys/ebpf_vm_isa.h>
@@ -583,6 +584,50 @@ ebpf_ioc_get_prog_type_info(struct ebpf_env *ee, union ebpf_req *req)
 	return (ebpf_copyout(&info, req->pt_info, sizeof(info)));
 }
 
+static int
+has_null_term(const char * str, int max)
+{
+	int i;
+
+	for (i = 0; i < max; ++i) {
+		if (str[i] == '\0')
+			return (1);
+	}
+
+	return (0);
+}
+
+static int
+ebpf_attach(union ebpf_req *req, ebpf_thread *td)
+{
+	struct ebpf_req_attach *attach;
+	ebpf_file *f;
+	struct ebpf_prog *prog;
+	int error;
+
+	attach = &req->attach;
+
+	if (!has_null_term(attach->probe_name, sizeof(attach->probe_name))) {
+		return (EINVAL);
+	}
+
+	error = ebpf_fd_to_program(td, attach->prog_fd, &f, &prog);
+	if (error != 0) {
+		return (EINVAL);
+	}
+
+	error = ebpf_probe_attach(attach->probe_name, prog, f, attach->jit);
+	if (error != 0) {
+		goto err0;
+	}
+
+	return (0);
+
+err0:
+	ebpf_fdrop(f, td);
+	return (error);
+}
+
 int
 ebpf_ioctl(struct ebpf_env *ee, uint32_t cmd, void *data, ebpf_thread *td)
 {
@@ -618,9 +663,9 @@ ebpf_ioctl(struct ebpf_env *ee, uint32_t cmd, void *data, ebpf_thread *td)
 	case EBPFIOC_GET_PROG_TYPE_INFO:
 		error = ebpf_ioc_get_prog_type_info(ee, req);
 		break;
-// 	case EBPFIOC_ATTACH_PROBE:
-// 		error = ebpf_attach(req, td);
-// 		break;
+	case EBPFIOC_ATTACH_PROBE:
+		error = ebpf_attach(req, td);
+		break;
 	default:
 		error = EINVAL;
 		break;
