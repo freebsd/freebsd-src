@@ -78,6 +78,8 @@ struct image_params {
 	void *ps_strings;		/* pointer to ps_string (user space) */
 	struct image_args *args;	/* system call arguments */
 	struct sysentvec *sysent;	/* system entry vector */
+	void *argv;			/* pointer to argv (user space) */
+	void *envv;			/* pointer to envv (user space) */
 	char *execpath;
 	unsigned long execpathp;
 	char *freepath;
