@@ -708,7 +708,7 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	regs->tf_ss = _udatasel;
 	regs->tf_flags = TF_HASSEGS;
 	regs->tf_cs = _ucode32sel;
-	regs->tf_rbx = imgp->ps_strings;
+	regs->tf_rbx = (register_t)imgp->ps_strings;
 
 	fpstate_drop(td);
 
