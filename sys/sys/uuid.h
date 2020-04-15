@@ -66,6 +66,21 @@ int uuid_ether_del(const uint8_t *);
 int snprintf_uuid(char *, size_t, struct uuid *);
 int printf_uuid(struct uuid *);
 int sbuf_printf_uuid(struct sbuf *, struct uuid *);
+
+/*
+ * There are a few key differences between validate_uuid and parse_uuid:
+ *
+ * - The struct uuid * parameter to validate_uuid is optional, so the caller
+ *    can simply validate UUID format without doing anything with the result.
+ * - validate_uuid will not pass an empty string as a valid UUID, as it doesn't
+ *    strictly meet the formatting requirements.  parse_uuid will accept an
+ *    empty string and zero out the uuid struct accordingly.
+ * - parse_uuid does additional semantic checks on clock_seq_hi_and_reserved
+ *    that validate_uuid will not do.
+ *
+ * validate_uuid is intended to strictly check that it's a well-formed uuid.
+ */
+int validate_uuid(const char *, size_t, struct uuid *);
 int parse_uuid(const char *, struct uuid *);
 int uuidcmp(const struct uuid *, const struct uuid *);
 
