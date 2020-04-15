@@ -101,6 +101,8 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 
 	make_established(toep, be32toh(cpl->snd_isn) - 1,
 	    be32toh(cpl->rcv_isn) - 1, cpl->tcp_opt);
+	inp->inp_flowtype = M_HASHTYPE_OPAQUE;
+	inp->inp_flowid = tid;
 
 	if (ulp_mode(toep) == ULP_MODE_TLS)
 		tls_establish(toep);
