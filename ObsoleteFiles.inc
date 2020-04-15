@@ -1685,8 +1685,6 @@ OLD_FILES+=lib/casper/libcap_sysctl.so.1
 # 20190509: tests/sys/opencrypto requires the net/py-dpkt package.
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.py
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.pyc
-# 20190326: tzdata 2019a import
-OLD_FILES+=usr/share/zoneinfo/Etc/UCT
 # 20190304: new libc++ import which bumps version from 7.0.1 to 8.0.0.
 OLD_FILES+=usr/include/c++/v1/experimental/dynarray
 # 20190304: new clang import which bumps version from 7.0.1 to 8.0.0.
@@ -5499,8 +5497,6 @@ OLD_FILES+=usr/lib32/libheimsqlite.a
 OLD_FILES+=usr/lib32/libheimsqlite.so
 OLD_LIBS+=usr/lib32/libheimsqlite.so.11
 OLD_FILES+=usr/lib32/libheimsqlite_p.a
-# 20150518: tzdata2015c update
-OLD_FILES+=usr/share/zoneinfo/America/Montreal
 # 20150506
 OLD_FILES+=usr/share/man/man9/NDHASGIANT.9.gz
 # 20150504
@@ -6004,10 +6000,6 @@ OLD_FILES+=etc/rc.d/hv_kvpd
 OLD_LIBS+=usr/lib/libnv.so.0
 # 20140829: rc.d/kerberos removed
 OLD_FILES+=etc/rc.d/kerberos
-# 20140827: tzdata2014f import
-OLD_FILES+=usr/share/zoneinfo/Asia/Chongqing
-OLD_FILES+=usr/share/zoneinfo/Asia/Harbin
-OLD_FILES+=usr/share/zoneinfo/Asia/Kashgar
 # 20140814: libopie version bump
 OLD_LIBS+=usr/lib/libopie.so.7
 OLD_LIBS+=usr/lib32/libopie.so.7
@@ -6298,9 +6290,6 @@ OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
 # 20131107: example files removed
 OLD_FILES+=usr/share/examples/libusb20/aux.c
 OLD_FILES+=usr/share/examples/libusb20/aux.h
-# 20131105: tzdata 2013h import
-OLD_FILES+=usr/share/zoneinfo/America/Shiprock
-OLD_FILES+=usr/share/zoneinfo/Antarctica/South_Pole
 # 20131103: WITH_LIBICONV_COMPAT removal
 OLD_FILES+=usr/include/_libiconv_compat.h
 OLD_FILES+=usr/lib/libiconv.a
@@ -7243,9 +7232,6 @@ OLD_FILES+=usr/share/man/man3/ascftime.3.gz
 OLD_FILES+=usr/share/man/man3/cfree.3.gz
 OLD_FILES+=usr/share/man/man3/cftime.3.gz
 OLD_FILES+=usr/share/man/man3/getpw.3.gz
-# 20100801: tzdata2010k import
-OLD_FILES+=usr/share/zoneinfo/Pacific/Ponape
-OLD_FILES+=usr/share/zoneinfo/Pacific/Truk
 # 20100725: acpi_aiboost(4) removal.
 OLD_FILES+=usr/share/man/man4/acpi_aiboost.4.gz
 # 20100724: nfsclient/nfs_lock.h moved to nfs/nfs_lock.h
@@ -7922,8 +7908,6 @@ OLD_FILES+=usr/include/pccard/cis.h
 OLD_DIRS+=usr/include/pccard
 # 20090203: adding_user.8 moved to adding_user.7
 OLD_FILES+=usr/share/man/man8/adding_user.8.gz
-# 20090122: tzdata2009a import
-OLD_FILES+=usr/share/zoneinfo/Asia/Katmandu
 # 20090102: file 4.26 import
 OLD_FILES+=usr/share/misc/magic.mime
 OLD_FILES+=usr/share/misc/magic.mime.mgc
@@ -8156,9 +8140,6 @@ OLD_FILES+=usr/sbin/pkg_check
 OLD_FILES+=usr/sbin/pkg_sign
 OLD_FILES+=usr/share/man/man1/pkg_check.1.gz
 OLD_FILES+=usr/share/man/man1/pkg_sign.1.gz
-# 20080325: tzdata2008b import
-OLD_FILES+=usr/share/zoneinfo/Asia/Calcutta
-OLD_FILES+=usr/share/zoneinfo/Asia/Saigon
 # 20080314: stack_print(9) mlink fixed
 OLD_FILES+=usr/share/man/man9/stack_printf.9.gz
 # 20080312: libkse removal
@@ -10371,19 +10352,6 @@ OLD_FILES+=usr/share/misc/nslookup.help
 OLD_FILES+=usr/share/sendmail/cf/feature/nodns.m4
 OLD_FILES+=usr/share/syscons/keymaps/lat-amer.kbd
 OLD_FILES+=usr/share/vi/catalog/ru_SU.KOI8-R
-OLD_FILES+=usr/share/zoneinfo/Africa/Timbuktu
-OLD_FILES+=usr/share/zoneinfo/Africa/Asmera
-OLD_FILES+=usr/share/zoneinfo/America/Buenos_Aires
-OLD_FILES+=usr/share/zoneinfo/America/Cordoba
-OLD_FILES+=usr/share/zoneinfo/America/Jujuy
-OLD_FILES+=usr/share/zoneinfo/America/Catamarca
-OLD_FILES+=usr/share/zoneinfo/America/Mendoza
-OLD_FILES+=usr/share/zoneinfo/America/Indianapolis
-OLD_FILES+=usr/share/zoneinfo/America/Louisville
-OLD_FILES+=usr/share/zoneinfo/America/Argentina/ComodRivadavia
-OLD_FILES+=usr/share/zoneinfo/Atlantic/Faeroe
-OLD_FILES+=usr/share/zoneinfo/Europe/Belfast
-OLD_FILES+=usr/share/zoneinfo/Pacific/Yap
 OLD_FILES+=usr/share/zoneinfo/SystemV/YST9
 OLD_FILES+=usr/share/zoneinfo/SystemV/PST8
 OLD_FILES+=usr/share/zoneinfo/SystemV/EST5EDT
