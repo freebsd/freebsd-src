@@ -230,6 +230,16 @@ ebpf_dev_init(void)
 
 	ee = NULL;
 
+	/*
+	 * File operation definition for ebpf object file.
+	 * It simply check reference count on file close
+	 * and execute destractor of the ebpf object if
+	 * the reference count was 0. It doesn't allow to
+	 * perform any file operations except close(2)
+	 */
+	memcpy(&ebpf_objf_ops, &badfileops, sizeof(struct fileops));
+	ebpf_objf_ops.fo_close = ebpf_objfile_close;
+
 	error = ebpf_env_create(&ee, &fbsd_ebpf_config);
 	if (error != 0) {
 		goto fail;
@@ -242,17 +252,6 @@ ebpf_dev_init(void)
 	}
 
 	ebpf_dev->si_drv1 = ee;
-
-
-	/*
-	 * File operation definition for ebpf object file.
-	 * It simply check reference count on file close
-	 * and execute destractor of the ebpf object if
-	 * the reference count was 0. It doesn't allow to
-	 * perform any file operations except close(2)
-	 */
-	memcpy(&ebpf_objf_ops, &badfileops, sizeof(struct fileops));
-	ebpf_objf_ops.fo_close = ebpf_objfile_close;
 
 	return 0;
 fail:
