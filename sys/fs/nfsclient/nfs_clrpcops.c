@@ -8432,7 +8432,7 @@ nfsrpc_rmextattr(vnode_t vp, const char *name, struct nfsvattr *nap,
 		return (error);
 	if (nd->nd_repstat == 0) {
 		/* Just skip over the reply and Getattr op status. */
-		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_HYPER + 2 *
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_HYPER + 3 *
 		    NFSX_UNSIGNED);
 		error = nfsm_loadattr(nd, nap);
 		if (error == 0)
