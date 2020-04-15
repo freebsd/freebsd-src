@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/pfil.h>
 
 #include <netinet/in.h>
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
@@ -90,14 +92,13 @@ void
 ip6_forward(struct mbuf *m, int srcrt)
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
-	struct sockaddr_in6 *dst = NULL;
-	struct rtentry *rt = NULL;
-	struct route_in6 rin6;
+	struct sockaddr_in6 dst;
+	struct nhop_object *nh = NULL;
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
 	struct ifnet *origifp;	/* maybe unnecessary */
 	u_int32_t inzone, outzone;
-	struct in6_addr src_in6, dst_in6, odst;
+	struct in6_addr odst;
 	struct m_tag *fwd_tag;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
@@ -165,18 +166,27 @@ ip6_forward(struct mbuf *m, int srcrt)
 		/* No IPsec processing required */
 	}
 #endif
+	/*
+	 * ip6_forward() operates with IPv6 addresses with deembedded scope.
+	 *
+	 * There are 3 sources of IPv6 destination address:
+	 *
+	 * 1) ip6_input(), where ip6_dst contains deembedded address.
+	 *   In order to deal with forwarding of link-local packets,
+	 *   calculate the scope based on input interface (RFC 4007, clause 9).
+	 * 2) packet filters changing ip6_dst directly. It would embed scope
+	 *   for LL addresses, so in6_localip() performs properly.
+	 * 3) packet filters attaching PACKET_TAG_IPFORWARD would embed
+	 *   scope for the nexthop.
+	 */
+	bzero(&dst, sizeof(struct sockaddr_in6));
+	dst.sin6_family = AF_INET6;
+	dst.sin6_addr = ip6->ip6_dst;
+	dst.sin6_scope_id = in6_get_unicast_scopeid(&ip6->ip6_dst, m->m_pkthdr.rcvif);
 again:
-	bzero(&rin6, sizeof(struct route_in6));
-	dst = (struct sockaddr_in6 *)&rin6.ro_dst;
-	dst->sin6_len = sizeof(struct sockaddr_in6);
-	dst->sin6_family = AF_INET6;
-	dst->sin6_addr = ip6->ip6_dst;
-again2:
-	rin6.ro_rt = in6_rtalloc1((struct sockaddr *)dst, 0, 0, M_GETFIB(m));
-	rt = rin6.ro_rt;
-	if (rin6.ro_rt != NULL)
-		RT_UNLOCK(rin6.ro_rt);
-	else {
+	nh = fib6_lookup(M_GETFIB(m), &dst.sin6_addr, dst.sin6_scope_id,
+	    NHR_REF, m->m_pkthdr.flowid);
+	if (nh == NULL) {
 		IP6STAT_INC(ip6s_noroute);
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_noroute);
 		if (mcopy) {
@@ -191,26 +201,15 @@ again2:
 	 * destination for the reason that the destination is beyond the scope
 	 * of the source address, discard the packet and return an icmp6
 	 * destination unreachable error with Code 2 (beyond scope of source
-	 * address).  We use a local copy of ip6_src, since in6_setscope()
-	 * will possibly modify its first argument.
+	 * address).
 	 * [draft-ietf-ipngwg-icmp-v3-04.txt, Section 3.1]
 	 */
-	src_in6 = ip6->ip6_src;
-	if (in6_setscope(&src_in6, rt->rt_ifp, &outzone)) {
-		/* XXX: this should not happen */
-		IP6STAT_INC(ip6s_cantforward);
-		IP6STAT_INC(ip6s_badscope);
-		goto bad;
-	}
-	if (in6_setscope(&src_in6, m->m_pkthdr.rcvif, &inzone)) {
-		IP6STAT_INC(ip6s_cantforward);
-		IP6STAT_INC(ip6s_badscope);
-		goto bad;
-	}
+	outzone = in6_get_unicast_scopeid(&ip6->ip6_src, nh->nh_ifp);
+	inzone = in6_get_unicast_scopeid(&ip6->ip6_src, m->m_pkthdr.rcvif);
 	if (inzone != outzone) {
 		IP6STAT_INC(ip6s_cantforward);
 		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard);
+		in6_ifstat_inc(nh->nh_ifp, ifs6_in_discard);
 
 		if (V_ip6_log_time + V_ip6_log_interval < time_uptime) {
 			V_ip6_log_time = time_uptime;
@@ -220,7 +219,7 @@ again2:
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst),
 			    ip6->ip6_nxt,
-			    if_name(m->m_pkthdr.rcvif), if_name(rt->rt_ifp));
+			    if_name(m->m_pkthdr.rcvif), if_name(nh->nh_ifp));
 		}
 		if (mcopy)
 			icmp6_error(mcopy, ICMP6_DST_UNREACH,
@@ -235,17 +234,21 @@ again2:
 	 * we need an explicit check because we may mistakenly forward the
 	 * packet to a different zone by (e.g.) a default route.
 	 */
-	dst_in6 = ip6->ip6_dst;
-	if (in6_setscope(&dst_in6, m->m_pkthdr.rcvif, &inzone) != 0 ||
-	    in6_setscope(&dst_in6, rt->rt_ifp, &outzone) != 0 ||
-	    inzone != outzone) {
+	inzone = in6_get_unicast_scopeid(&ip6->ip6_dst, m->m_pkthdr.rcvif);
+	outzone = in6_get_unicast_scopeid(&ip6->ip6_dst, nh->nh_ifp);
+
+	if (inzone != outzone) {
 		IP6STAT_INC(ip6s_cantforward);
 		IP6STAT_INC(ip6s_badscope);
 		goto bad;
 	}
 
-	if (rt->rt_flags & RTF_GATEWAY)
-		dst = (struct sockaddr_in6 *)rt->rt_gateway;
+	if (nh->nh_flags & NHF_GATEWAY) {
+		/* Store gateway address in deembedded form */
+		dst.sin6_addr = nh->gw6_sa.sin6_addr;
+		dst.sin6_scope_id = ntohs(in6_getscope(&dst.sin6_addr));
+		in6_clearscope(&dst.sin6_addr);
+	}
 
 	/*
 	 * If we are to forward the packet using the same interface
@@ -256,9 +259,9 @@ again2:
 	 * Also, don't send redirect if forwarding using a route
 	 * modified by a redirect.
 	 */
-	if (V_ip6_sendredirects && rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
-	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0) {
-		if ((rt->rt_ifp->if_flags & IFF_POINTOPOINT) != 0) {
+	if (V_ip6_sendredirects && nh->nh_ifp == m->m_pkthdr.rcvif && !srcrt &&
+	    (nh->nh_flags & NHF_REDIRECT) == 0) {
+		if ((nh->nh_ifp->if_flags & IFF_POINTOPOINT) != 0) {
 			/*
 			 * If the incoming interface is equal to the outgoing
 			 * one, and the link attached to the interface is
@@ -284,7 +287,7 @@ again2:
 	 * link identifiers, we can do this stuff after making a copy for
 	 * returning an error.
 	 */
-	if ((rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
+	if ((nh->nh_ifp->if_flags & IFF_LOOPBACK) != 0) {
 		/*
 		 * See corresponding comments in ip6_output.
 		 * XXX: but is it possible that ip6_forward() sends a packet
@@ -305,14 +308,14 @@ again2:
 			       ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			       ip6_sprintf(ip6bufd, &ip6->ip6_dst),
 			       ip6->ip6_nxt, if_name(m->m_pkthdr.rcvif),
-			       if_name(rt->rt_ifp));
+			       if_name(nh->nh_ifp));
 		}
 
 		/* we can just use rcvif in forwarding. */
 		origifp = m->m_pkthdr.rcvif;
 	}
 	else
-		origifp = rt->rt_ifp;
+		origifp = nh->nh_ifp;
 	/*
 	 * clear embedded scope identifiers if necessary.
 	 * in6_clearscope will touch the addresses only when necessary.
@@ -326,7 +329,7 @@ again2:
 
 	odst = ip6->ip6_dst;
 	/* Run through list of hooks for forwarded packets. */
-	if (pfil_run_hooks(V_inet6_pfil_head, &m, rt->rt_ifp, PFIL_OUT |
+	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh->nh_ifp, PFIL_OUT |
 	    PFIL_FWD, NULL) != PFIL_PASS)
 		goto freecopy;
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -338,7 +341,12 @@ again2:
 		if (in6_localip(&ip6->ip6_dst))
 			m->m_flags |= M_FASTFWD_OURS;
 		else {
-			RTFREE(rt);
+			NH_FREE(nh);
+
+			/* Update address and scopeid. Assume scope is embedded */
+			dst.sin6_scope_id = ntohs(in6_getscope(&ip6->ip6_dst));
+			dst.sin6_addr = ip6->ip6_dst;
+			in6_clearscope(&dst.sin6_addr);
 			goto again;	/* Redo the routing table lookup. */
 		}
 	}
@@ -362,32 +370,43 @@ again2:
 	/* Or forward to some other address? */
 	if ((m->m_flags & M_IP6_NEXTHOP) &&
 	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
-		dst = (struct sockaddr_in6 *)&rin6.ro_dst;
-		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in6));
+		struct sockaddr_in6 *gw6 = (struct sockaddr_in6 *)(fwd_tag + 1);
+
+		/* Update address and scopeid. Assume scope is embedded */
+		dst.sin6_scope_id = ntohs(in6_getscope(&gw6->sin6_addr));
+		dst.sin6_addr = gw6->sin6_addr;
+		in6_clearscope(&dst.sin6_addr);
+
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP6_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
-		RTFREE(rt);
-		goto again2;
+		NH_FREE(nh);
+		goto again;
 	}
 
 pass:
 	/* See if the size was changed by the packet filter. */
-	if (m->m_pkthdr.len > IN6_LINKMTU(rt->rt_ifp)) {
-		in6_ifstat_inc(rt->rt_ifp, ifs6_in_toobig);
+	/* TODO: change to nh->nh_mtu */
+	if (m->m_pkthdr.len > IN6_LINKMTU(nh->nh_ifp)) {
+		in6_ifstat_inc(nh->nh_ifp, ifs6_in_toobig);
 		if (mcopy)
 			icmp6_error(mcopy, ICMP6_PACKET_TOO_BIG, 0,
-			    IN6_LINKMTU(rt->rt_ifp));
+			    IN6_LINKMTU(nh->nh_ifp));
 		goto bad;
 	}
 
-	error = nd6_output_ifp(rt->rt_ifp, origifp, m, dst, NULL);
+	/* Currently LLE layer stores embedded IPv6 addresses */
+	if (IN6_IS_SCOPE_LINKLOCAL(&dst.sin6_addr)) {
+		in6_set_unicast_scopeid(&dst.sin6_addr, dst.sin6_scope_id);
+		dst.sin6_scope_id = 0;
+	}
+	error = nd6_output_ifp(nh->nh_ifp, origifp, m, &dst, NULL);
 	if (error) {
-		in6_ifstat_inc(rt->rt_ifp, ifs6_out_discard);
+		in6_ifstat_inc(nh->nh_ifp, ifs6_out_discard);
 		IP6STAT_INC(ip6s_cantforward);
 	} else {
 		IP6STAT_INC(ip6s_forward);
-		in6_ifstat_inc(rt->rt_ifp, ifs6_out_forward);
+		in6_ifstat_inc(nh->nh_ifp, ifs6_out_forward);
 		if (type)
 			IP6STAT_INC(ip6s_redirectsent);
 		else {
@@ -401,7 +420,7 @@ pass:
 	switch (error) {
 	case 0:
 		if (type == ND_REDIRECT) {
-			icmp6_redirect_output(mcopy, rt->rt_nhop);
+			icmp6_redirect_output(mcopy, nh);
 			goto out;
 		}
 		goto freecopy;
@@ -432,6 +451,6 @@ pass:
 bad:
 	m_freem(m);
 out:
-	if (rt != NULL)
-		RTFREE(rt);
+	if (nh != NULL)
+		NH_FREE(nh);
 }
