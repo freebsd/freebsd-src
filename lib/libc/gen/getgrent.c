@@ -166,7 +166,7 @@ grp_id_func(char *buffer, size_t *buffer_size, va_list ap, void *cache_mdata)
 	enum nss_lookup_type lookup_type;
 
 
-	lookup_type = (enum nss_lookup_type)cache_mdata;
+	lookup_type = (enum nss_lookup_type)(uintptr_t)cache_mdata;
 	switch (lookup_type) {
 	case nss_lt_name:
 		name = va_arg(ap, char *);
@@ -220,7 +220,7 @@ grp_marshal_func(char *buffer, size_t *buffer_size, void *retval, va_list ap,
 	size_t desired_size, size, mem_size;
 	char *p, **mem;
 
-	switch ((enum nss_lookup_type)cache_mdata) {
+	switch ((enum nss_lookup_type)(uintptr_t)cache_mdata) {
 	case nss_lt_name:
 		name = va_arg(ap, char *);
 		break;
@@ -315,7 +315,7 @@ grp_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
 	char *p;
 	char **mem;
 
-	switch ((enum nss_lookup_type)cache_mdata) {
+	switch ((enum nss_lookup_type)(uintptr_t)cache_mdata) {
 	case nss_lt_name:
 		name = va_arg(ap, char *);
 		break;
@@ -804,7 +804,7 @@ files_setgrent(void *retval, void *mdata, va_list ap)
 	rv = files_getstate(&st);
 	if (rv != 0) 
 		return (NS_UNAVAIL);
-	switch ((enum constants)mdata) {
+	switch ((enum constants)(uintptr_t)mdata) {
 	case SETGRENT:
 		stayopen = va_arg(ap, int);
 		if (st->fp != NULL)
@@ -841,7 +841,7 @@ files_group(void *retval, void *mdata, va_list ap)
 	fresh = 0;
 	name = NULL;
 	gid = (gid_t)-1;
-	how = (enum nss_lookup_type)mdata;
+	how = (enum nss_lookup_type)(uintptr_t)mdata;
 	switch (how) {
 	case nss_lt_name:
 		name = va_arg(ap, const char *);
@@ -1094,7 +1094,7 @@ nis_group(void *retval, void *mdata, va_list ap)
 	
 	name = NULL;
 	gid = (gid_t)-1;
-	how = (enum nss_lookup_type)mdata;
+	how = (enum nss_lookup_type)(uintptr_t)mdata;
 	switch (how) {
 	case nss_lt_name:
 		name = va_arg(ap, const char *);
@@ -1253,7 +1253,7 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 	rv = compat_getstate(&st);
 	if (rv != 0)
 		return (NS_UNAVAIL);
-	switch ((enum constants)mdata) {
+	switch ((enum constants)(uintptr_t)mdata) {
 	case SETGRENT:
 		stayopen = va_arg(ap, int);
 		if (st->fp != NULL)
@@ -1322,7 +1322,7 @@ compat_group(void *retval, void *mdata, va_list ap)
 	fresh = 0;
 	name = NULL;
 	gid = (gid_t)-1;
-	how = (enum nss_lookup_type)mdata;
+	how = (enum nss_lookup_type)(uintptr_t)mdata;
 	switch (how) {
 	case nss_lt_name:
 		name = va_arg(ap, const char *);

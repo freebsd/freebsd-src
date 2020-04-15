@@ -3247,7 +3247,7 @@ static void
 ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	enum ieee80211_state ostate = (enum ieee80211_state) arg;
+	enum ieee80211_state ostate = (enum ieee80211_state)(uintptr_t)arg;
 
 	/*
 	 * Frame transmit completed; arrange timer callback.  If
