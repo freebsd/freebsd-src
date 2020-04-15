@@ -50,10 +50,14 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 
 #include <net/tcp.h>
 #include <net/ipv6.h>
 
+#include <netinet/in_fib.h>
+
+#include <netinet6/in6_fib.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/ip6_var.h>
 
@@ -1351,11 +1355,10 @@ static bool validate_ipv4_net_dev(struct net_device *net_dev,
 				  const struct sockaddr_in *src_addr)
 {
 #ifdef INET
-	struct sockaddr_in src_tmp = *src_addr;
 	__be32 daddr = dst_addr->sin_addr.s_addr,
 	       saddr = src_addr->sin_addr.s_addr;
 	struct net_device *dst_dev;
-	struct rtentry *rte;
+	struct nhop_object *nh;
 	bool ret;
 
 	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr) ||
@@ -1378,20 +1381,12 @@ static bool validate_ipv4_net_dev(struct net_device *net_dev,
 	if (saddr == daddr)
 		return true;
 
-	/*
-	 * Make sure the socket address length field
-	 * is set, else rtalloc1() will fail.
-	 */
-	src_tmp.sin_len = sizeof(src_tmp);
-
 	CURVNET_SET(net_dev->if_vnet);
-	rte = rtalloc1((struct sockaddr *)&src_tmp, 1, 0);
-	if (rte != NULL) {
-		ret = (rte->rt_ifp == net_dev);
-		RTFREE_LOCKED(rte);
-	} else {
+	nh = fib4_lookup(RT_DEFAULT_FIB, src_addr->sin_addr, 0, NHR_NONE, 0);
+	if (nh != NULL)
+		ret = (nh->nh_ifp == net_dev);
+	else
 		ret = false;
-	}
 	CURVNET_RESTORE();
 	return ret;
 #else
@@ -1407,7 +1402,7 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 	struct sockaddr_in6 src_tmp = *src_addr;
 	struct sockaddr_in6 dst_tmp = *dst_addr;
 	struct net_device *dst_dev;
-	struct rtentry *rte;
+	struct nhop_object *nh;
 	bool ret;
 
 	dst_dev = ip6_dev_find(net_dev->if_vnet, dst_tmp.sin6_addr,
@@ -1422,14 +1417,7 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 	CURVNET_SET(net_dev->if_vnet);
 
 	/*
-	 * Make sure the socket address length field
-	 * is set, else rtalloc1() will fail.
-	 */
-	src_tmp.sin6_len = sizeof(src_tmp);
-
-	/*
-	 * Make sure the scope ID gets embedded, else rtalloc1() will
-	 * resolve to the loopback interface.
+	 * Make sure the scope ID gets embedded.
 	 */
 	src_tmp.sin6_scope_id = net_dev->if_index;
 	sa6_embedscope(&src_tmp, 0);
@@ -1446,13 +1434,12 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 		ret = true;
 	} else {
 		/* non-loopback case */
-		rte = rtalloc1((struct sockaddr *)&src_tmp, 1, 0);
-		if (rte != NULL) {
-			ret = (rte->rt_ifp == net_dev);
-			RTFREE_LOCKED(rte);
-		} else {
+		nh = fib6_lookup(RT_DEFAULT_FIB, &src_addr->sin6_addr,
+		    net_dev->if_index, NHR_NONE, 0);
+		if (nh != NULL)
+			ret = (nh->nh_ifp == net_dev);
+		else
 			ret = false;
-		}
 	}
 	CURVNET_RESTORE();
 	return ret;
@@ -1512,6 +1499,7 @@ static struct net_device *cma_get_net_dev(struct ib_cm_event *ib_event,
 			*src_addr = (struct sockaddr *)&src_addr_storage;
 	struct net_device *net_dev;
 	const union ib_gid *gid = req->has_gid ? &req->local_gid : NULL;
+	struct epoch_tracker et;
 	int err;
 
 	err = cma_save_ip_info(listen_addr, src_addr, ib_event,
@@ -1530,10 +1518,13 @@ static struct net_device *cma_get_net_dev(struct ib_cm_event *ib_event,
 	if (!net_dev)
 		return ERR_PTR(-ENODEV);
 
+	NET_EPOCH_ENTER(et);
 	if (!validate_net_dev(net_dev, listen_addr, src_addr)) {
+		NET_EPOCH_EXIT(et);
 		dev_put(net_dev);
 		return ERR_PTR(-EHOSTUNREACH);
 	}
+	NET_EPOCH_EXIT(et);
 
 	return net_dev;
 }
