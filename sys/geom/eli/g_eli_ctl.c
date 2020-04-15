@@ -138,6 +138,11 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No valid keys on %s.", pp->name);
 		return;
 	}
+	if (!eli_metadata_crypto_supported(&md)) {
+		explicit_bzero(&md, sizeof(md));
+		gctl_error(req, "Invalid or unsupported algorithms.");
+		return;
+	}
 
 	key = gctl_get_param(req, "key", &keysize);
 	if (key == NULL || keysize != G_ELI_USERKEYLEN) {

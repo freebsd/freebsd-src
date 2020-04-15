@@ -138,9 +138,6 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 			return (EINVAL);
 		}
 		break;
-	case CRYPTO_BLF_CBC:
-		type = EVP_bf_cbc();
-		break;
 #ifndef OPENSSL_NO_CAMELLIA
 	case CRYPTO_CAMELLIA_CBC:
 		switch (keysize) {
@@ -158,9 +155,6 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 		}
 		break;
 #endif
-	case CRYPTO_3DES_CBC:
-		type = EVP_des_ede3_cbc();
-		break;
 	default:
 		return (EINVAL);
 	}
