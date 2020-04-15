@@ -242,6 +242,7 @@ struct synq_entry {
 	uint32_t iss;
 	uint32_t irs;
 	uint32_t ts;
+	uint32_t rss_hash;
 	__be16 tcp_opt; /* from cpl_pass_establish */
 	struct toepcb *toep;
 
