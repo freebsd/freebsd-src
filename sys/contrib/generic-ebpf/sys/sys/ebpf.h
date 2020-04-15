@@ -76,6 +76,7 @@ typedef uint64_t (*ebpf_helper_fn)(uint64_t arg0, uint64_t arg1,
 struct ebpf_helper_type {
 	char name[EBPF_NAME_MAX];
 	ebpf_helper_fn fn;
+	uint32_t id;
 };
 
 struct ebpf_prog_ops {
