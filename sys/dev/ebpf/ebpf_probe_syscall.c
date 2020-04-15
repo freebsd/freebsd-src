@@ -1049,3 +1049,9 @@ out:
 	return (value);
 }
 
+uint16_t
+ebpf_curcpu(void)
+{
+
+	return curthread->td_ebpf_state->cpu;
+}
