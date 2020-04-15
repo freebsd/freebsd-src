@@ -192,7 +192,7 @@ lpc_init(struct vmctx *ctx)
 	int unit, error;
 
 	if (romfile != NULL) {
-		error = bootrom_init(ctx, romfile);
+		error = bootrom_loadrom(ctx, romfile);
 		if (error)
 			return (error);
 	}
