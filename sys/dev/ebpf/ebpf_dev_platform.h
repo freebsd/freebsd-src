@@ -43,5 +43,7 @@ int ebpf_copyout(const void *kaddr, void *uaddr, size_t len);
 ebpf_thread *ebpf_curthread(void);
 int ebpf_ioctl(struct ebpf_env *, uint32_t cmd, void *data, ebpf_thread *td);
 
-extern struct ebpf_prog_type test_prog_type;
+int ebpf_dev_init(void);
+int ebpf_dev_fini(void);
+
 extern const struct ebpf_config fbsd_ebpf_config;

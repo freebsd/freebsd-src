@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 
 #include <sys/ebpf.h>
+#include <dev/ebpf/ebpf_dev_platform.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 
@@ -46,9 +47,17 @@ ebpf_modevent(module_t mod __unused, int type, void *data __unused)
 	switch (type) {
 	case MOD_LOAD:
 		error = ebpf_init();
+		if (error != 0)
+			break;
+
+		error = ebpf_dev_init();
 		break;
 
 	case MOD_UNLOAD:
+		error = ebpf_dev_fini();
+		if (error != 0)
+			break;
+
 		error = ebpf_deinit();
 		break;
 

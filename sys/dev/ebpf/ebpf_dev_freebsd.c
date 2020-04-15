@@ -203,13 +203,14 @@ static struct cdevsw ebpf_cdevsw = {.d_version = D_VERSION,
 /*
  * Kernel module operations
  */
-void ebpf_dev_fini(void);
-int ebpf_dev_init(void);
 
-void
+int
 ebpf_dev_fini(void)
 {
 	struct ebpf_env *ee;
+
+	if (ebpf_dev_global_refcount > 0)
+		return (EBUSY);
 
 	if (ebpf_dev != NULL) {
 		ee = ebpf_dev->si_drv1;
@@ -217,6 +218,8 @@ ebpf_dev_fini(void)
 		ebpf_env_release(ee);
 		destroy_dev(ebpf_dev);
 	}
+
+	return (0);
 }
 
 int
@@ -262,31 +265,3 @@ fail:
 	ebpf_dev_fini();
 	return EINVAL;
 }
-
-static int
-ebpf_dev_loader(__unused struct module *module, int event, __unused void *arg)
-{
-	int error = 0;
-
-	switch (event) {
-	case MOD_LOAD:
-		error = ebpf_dev_init();
-		break;
-	case MOD_UNLOAD:
-		if (ebpf_dev_global_refcount != 0) {
-			error = EBUSY;
-			break;
-		}
-		ebpf_dev_fini();
-		break;
-	default:
-		error = EOPNOTSUPP;
-		break;
-	}
-
-	return (error);
-}
-
-DEV_MODULE(ebpf_dev, ebpf_dev_loader, NULL);
-MODULE_DEPEND(ebpf_dev, ebpf, 1, 1, 1);
-MODULE_VERSION(ebpf_dev, 1);
