@@ -23,6 +23,7 @@ SRCS= \
 SRCS+= \
 	ebpf_dev.c \
 	ebpf_dev_freebsd.c \
+	ebpf_map_progarray.c \
 	ebpf_module.c \
 	ebpf_probe_syscall.c \
 

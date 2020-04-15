@@ -23,6 +23,7 @@
 #include <sys/ebpf.h>
 #include <sys/ebpf_param.h>
 #include <dev/ebpf/ebpf_dev.h>
+#include <dev/ebpf/ebpf_map_freebsd.h>
 #include <dev/ebpf/ebpf_probe_syscall.h>
 #include <sys/ebpf_vm_isa.h>
 
@@ -90,7 +91,7 @@ const struct ebpf_config fbsd_ebpf_config = {
 		[EBPF_MAP_TYPE_PERCPU_ARRAY]     = &emt_percpu_array,
 		[EBPF_MAP_TYPE_HASHTABLE]        = &emt_hashtable,
 		[EBPF_MAP_TYPE_PERCPU_HASHTABLE] = &emt_percpu_hashtable,
-// 		[EBPF_MAP_TYPE_PROGARRAY]        = &emt_progarray,
+		[EBPF_MAP_TYPE_PROGARRAY]        = &emt_progarray,
 // 		[EBPF_MAP_TYPE_ARRAYQUEUE]       = &emt_arrayqueue,
 
 	},
