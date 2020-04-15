@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 #include "acpi.h"
 #include "pci_emul.h"
+#include "vmgenc.h"
 
 /*
  * Define the base address of the ACPI tables, the sizes of some tables, 
@@ -367,13 +368,13 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tPM2 Control Block Address : 00000000\n");
 	EFPRINTF(fp, "[0004]\t\tPM Timer Block Address : %08X\n",
 	    IO_PMTMR);
-	EFPRINTF(fp, "[0004]\t\tGPE0 Block Address : 00000000\n");
+	EFPRINTF(fp, "[0004]\t\tGPE0 Block Address : %08X\n", IO_GPE0_BLK);
 	EFPRINTF(fp, "[0004]\t\tGPE1 Block Address : 00000000\n");
 	EFPRINTF(fp, "[0001]\t\tPM1 Event Block Length : 04\n");
 	EFPRINTF(fp, "[0001]\t\tPM1 Control Block Length : 02\n");
 	EFPRINTF(fp, "[0001]\t\tPM2 Control Block Length : 00\n");
 	EFPRINTF(fp, "[0001]\t\tPM Timer Block Length : 04\n");
-	EFPRINTF(fp, "[0001]\t\tGPE0 Block Length : 00\n");
+	EFPRINTF(fp, "[0001]\t\tGPE0 Block Length : %02x\n", IO_GPE0_LEN);
 	EFPRINTF(fp, "[0001]\t\tGPE1 Block Length : 00\n");
 	EFPRINTF(fp, "[0001]\t\tGPE1 Base Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\t_CST Support : 00\n");
@@ -501,10 +502,10 @@ basl_fwrite_fadt(FILE *fp)
 
 	EFPRINTF(fp, "[0012]\t\tGPE0 Block : [Generic Address Structure]\n");
 	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : %02x\n", IO_GPE0_LEN * 8);
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");
+	EFPRINTF(fp, "[0008]\t\tAddress : %016X\n", IO_GPE0_BLK);
 	EFPRINTF(fp, "\n");
 
 	EFPRINTF(fp, "[0012]\t\tGPE1 Block : [Generic Address Structure]\n");
@@ -756,6 +757,9 @@ basl_fwrite_dsdt(FILE *fp)
 	dsdt_line("      })");
 	dsdt_line("    }");
 	dsdt_line("  }");
+
+	vmgenc_write_dsdt();
+
 	dsdt_line("}");
 
 	if (dsdt_error != 0)
