@@ -217,7 +217,7 @@ cd_card_task(void *arg, int pending __unused)
 /*
  * Card detect setup.
  */
-static void
+static bool
 cd_setup(struct mmc_fdt_helper *helper, phandle_t node)
 {
 	int pincaps;
@@ -233,7 +233,7 @@ cd_setup(struct mmc_fdt_helper *helper, phandle_t node)
 		helper->cd_disabled = true;
 		if (bootverbose)
 			device_printf(dev, "Non-removable media\n");
-		return;
+		return (false);
 	}
 
 	/*
@@ -246,14 +246,14 @@ cd_setup(struct mmc_fdt_helper *helper, phandle_t node)
 	 */
 	if (gpio_pin_get_by_ofw_property(dev, node, "cd-gpios",
 	    &helper->cd_pin))
-		return;
+		return (false);
 
 	if (gpio_pin_getcaps(helper->cd_pin, &pincaps) != 0 ||
 	    !(pincaps & GPIO_PIN_INPUT)) {
 		device_printf(dev, "Cannot read card-detect gpio pin; "
 		    "setting card-always-present flag.\n");
 		helper->cd_disabled = true;
-		return;
+		return (false);
 	}
 
 	/*
@@ -313,6 +313,8 @@ without_interrupts:
 		    device_get_nameunit(helper->cd_pin->dev), helper->cd_pin->pin,
 		    cd_mode_str);
 	}
+
+	return (true);
 }
 
 /*
@@ -354,14 +356,16 @@ mmc_fdt_gpio_setup(device_t dev, phandle_t node, struct mmc_fdt_helper *helper,
 
 	helper->dev = dev;
 	helper->cd_handler = handler;
-	cd_setup(helper, node);
 	wp_setup(helper, node);
 
-	/* 
-	 * Schedule a card detection
-	 */
-	taskqueue_enqueue_timeout_sbt(taskqueue_swi_giant,
-	    &helper->cd_delayed_task, mstosbt(500), 0, C_PREL(2));
+	if (cd_setup(helper, node)) {
+		/* 
+		 * Schedule a card detection
+		 */
+		taskqueue_enqueue_timeout_sbt(taskqueue_swi_giant,
+		    &helper->cd_delayed_task, mstosbt(500), 0, C_PREL(2));
+	}
+
 	return (0);
 }
 
