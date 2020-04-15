@@ -124,7 +124,6 @@ protected:
   bool IsPPC4xx;
   bool IsPPC6xx;
   bool FeatureMFTB;
-  bool AllowsUnalignedFPAccess;
   bool DeprecatedDST;
   bool HasLazyResolverStubs;
   bool IsLittleEndian;
@@ -275,7 +274,6 @@ public:
   bool vectorsUseTwoUnits() const {return VectorsUseTwoUnits; }
   bool isE500() const { return IsE500; }
   bool isFeatureMFTB() const { return FeatureMFTB; }
-  bool allowsUnalignedFPAccess() const { return AllowsUnalignedFPAccess; }
   bool isDeprecatedDST() const { return DeprecatedDST; }
   bool hasICBT() const { return HasICBT; }
   bool hasInvariantFunctionDescriptors() const {

@@ -166,9 +166,6 @@ def FeatureHTM : SubtargetFeature<"htm", "HasHTM", "true",
                                   "Enable Hardware Transactional Memory instructions">;
 def FeatureMFTB   : SubtargetFeature<"", "FeatureMFTB", "true",
                                         "Implement mftb using the mfspr instruction">;
-def FeatureUnalignedFloats :
-  SubtargetFeature<"allow-unaligned-fp-access", "AllowsUnalignedFPAccess",
-                   "true", "CPU does not trap on unaligned FP access">;
 def FeaturePPCPreRASched:
   SubtargetFeature<"ppc-prera-sched", "UsePPCPreRASchedStrategy", "true",
                    "Use PowerPC pre-RA scheduling strategy">;
@@ -255,8 +252,7 @@ def ProcessorFeatures {
                                                   FeatureExtDiv,
                                                   FeatureMFTB,
                                                   DeprecatedDST,
-                                                  FeatureTwoConstNR,
-                                                  FeatureUnalignedFloats];
+                                                  FeatureTwoConstNR];
   list<SubtargetFeature> P7SpecificFeatures = [];
   list<SubtargetFeature> P7Features =
     !listconcat(P7InheritableFeatures, P7SpecificFeatures);
