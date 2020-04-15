@@ -17,6 +17,7 @@
  */
 
 #include "ebpf_map.h"
+#include "ebpf_map_array.h"
 
 struct ebpf_map_array {
 	void *array;
@@ -24,7 +25,7 @@ struct ebpf_map_array {
 
 #define ARRAY_MAP(_map) ((struct ebpf_map_array *)(_map->data))
 
-static void
+void
 array_map_deinit(struct ebpf_map *em)
 {
 	struct ebpf_map_array *ma = em->data;
@@ -58,7 +59,7 @@ array_map_init_common(struct ebpf_map_array *ma, struct ebpf_map_attr *attr)
 	return 0;
 }
 
-static int
+int
 array_map_init(struct ebpf_map *em, struct ebpf_map_attr *attr)
 {
 	int error;
@@ -112,7 +113,7 @@ err0:
 	return error;
 }
 
-static void *
+void *
 array_map_lookup_elem(struct ebpf_map *em, void *key)
 {
 	uint32_t k = *(uint32_t *)key;
@@ -123,7 +124,7 @@ array_map_lookup_elem(struct ebpf_map *em, void *key)
 	return (uint8_t *)(ARRAY_MAP(em)->array) + (em->value_size * k);
 }
 
-static int
+int
 array_map_lookup_elem_from_user(struct ebpf_map *em, void *key, void *value)
 {
 	uint32_t k = *(uint32_t *)key;
@@ -195,7 +196,7 @@ array_map_update_check_attr(struct ebpf_map *em, void *key, void *value,
 	return 0;
 }
 
-static int
+int
 array_map_update_elem(struct ebpf_map *em, void *key, void *value,
 		      uint64_t flags)
 {
@@ -243,13 +244,13 @@ array_map_update_elem_percpu_from_user(struct ebpf_map *map, void *key,
 	return 0;
 }
 
-static int
+int
 array_map_delete_elem(struct ebpf_map *map, void *key)
 {
 	return EINVAL;
 }
 
-static int
+int
 array_map_get_next_key(struct ebpf_map *map, void *key, void *next_key)
 {
 	uint32_t k = key ? *(uint32_t *)key : UINT32_MAX;
