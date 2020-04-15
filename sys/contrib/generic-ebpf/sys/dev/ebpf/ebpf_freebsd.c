@@ -74,11 +74,13 @@ ebpf_ncpus(void)
 	return mp_maxid + 1;
 }
 
+#if 0
 __inline uint16_t
 ebpf_curcpu(void)
 {
 	return curcpu;
 }
+#endif
 
 __inline long
 ebpf_getpagesize(void)
