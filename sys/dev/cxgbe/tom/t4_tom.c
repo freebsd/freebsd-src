@@ -1895,6 +1895,7 @@ t4_tom_mod_unload(void)
 	t4_uninit_listen_cpl_handlers();
 	t4_uninit_cpl_io_handlers();
 	t4_register_shared_cpl_handler(CPL_L2T_WRITE_RPL, NULL, CPL_COOKIE_TOM);
+	t4_register_cpl_handler(CPL_GET_TCB_RPL, NULL);
 
 	return (0);
 }
