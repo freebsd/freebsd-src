@@ -27,6 +27,7 @@ struct ebpf_prog {
 	uint32_t prog_len;
 	struct ebpf_inst *prog;
 	struct ebpf_map *dep_maps[EBPF_PROG_MAX_ATTACHED_MAPS];
+	uint32_t type;
 };
 
 #define EO2EP(eo) \

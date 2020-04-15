@@ -62,6 +62,7 @@ ebpf_prog_create(struct ebpf_env *ee, struct ebpf_prog **epp,
 	ep->ept 	= ept;
 	ep->ndep_maps 	= 0;
 	ep->prog_len 	= attr->prog_len;
+	ep->type	= attr->type;
 
 	memcpy(ep->prog, attr->prog, attr->prog_len);
 	memset(ep->dep_maps, 0,
