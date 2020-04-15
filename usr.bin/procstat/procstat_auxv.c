@@ -203,6 +203,36 @@ procstat_auxv(struct procstat *procstat, struct kinfo_proc *kipp)
 			    prefix, "AT_BSDFLAGS", (u_long)auxv[i].a_un.a_val);
 			break;
 #endif
+#ifdef AT_ARGC
+		case AT_ARGC:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}{:AT_ARGC/%ld}\n",
+			    prefix, "AT_ARGC", (long)auxv[i].a_un.a_val);
+			break;
+#endif
+#ifdef AT_ARGV
+		case AT_ARGV:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}{:AT_ARGV/%p}\n",
+			    prefix, "AT_ARGV", auxv[i].a_un.a_ptr);
+			break;
+#endif
+#ifdef AT_ENVC
+		case AT_ENVC:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}{:AT_ENVC/%ld}\n",
+			    prefix, "AT_ENVC", (long)auxv[i].a_un.a_val);
+			break;
+#endif
+#ifdef AT_ENVV
+		case AT_ENVV:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}{:AT_ENVV/%p}\n",
+			    prefix, "AT_ENVV", auxv[i].a_un.a_ptr);
+			break;
+#endif
+#ifdef AT_PS_STRINGS
+		case AT_PS_STRINGS:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}{:AT_PS_STRINGS/%p}\n",
+			    prefix, "AT_PS_STRINGS", auxv[i].a_un.a_ptr);
+			break;
+#endif
 		default:
 			xo_emit("{dw:/%s}{Lw:/%16ld/%ld}{:UNKNOWN/%#lx}\n",
 			    prefix, auxv[i].a_type, auxv[i].a_un.a_val);
