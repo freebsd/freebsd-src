@@ -225,6 +225,7 @@ ebpf_dev_fini(void)
 int
 ebpf_dev_init(void)
 {
+	struct make_dev_args args;
 	struct ebpf_env *ee;
 	int error;
 
@@ -245,13 +246,18 @@ ebpf_dev_init(void)
 		goto fail;
 	}
 
-	ebpf_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &ebpf_cdevsw, 0, NULL,
-				  UID_ROOT, GID_WHEEL, 0600, "ebpf");
-	if (ebpf_dev == NULL) {
+	make_dev_args_init(&args);
+	args.mda_flags = MAKEDEV_ETERNAL_KLD;
+	args.mda_devsw = &ebpf_cdevsw;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_WHEEL;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = ee;
+
+	error = make_dev_s(&args, &ebpf_dev, "ebpf");
+	if (error != 0) {
 		goto fail;
 	}
-
-	ebpf_dev->si_drv1 = ee;
 
 	return 0;
 fail:
