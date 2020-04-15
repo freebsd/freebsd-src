@@ -507,7 +507,7 @@ eli_metadata_dump(const struct g_eli_metadata *md)
 }
 
 #ifdef _KERNEL
-static bool
+static __inline bool
 eli_metadata_crypto_supported(const struct g_eli_metadata *md)
 {
 
