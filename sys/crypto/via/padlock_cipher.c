@@ -169,27 +169,9 @@ padlock_cipher_alloc(struct cryptop *crp, int *allocated)
 {
 	u_char *addr;
 
-	switch (crp->crp_buf_type) {
-	case CRYPTO_BUF_MBUF:
-		break;
-	case CRYPTO_BUF_UIO: {
-		struct uio *uio;
-		struct iovec *iov;
-
-		uio = crp->crp_uio;
-		if (uio->uio_iovcnt != 1)
-			break;
-		iov = uio->uio_iov;
-		addr = (u_char *)iov->iov_base + crp->crp_payload_start;
-		if (((uintptr_t)addr & 0xf) != 0) /* 16 bytes aligned? */
-			break;
-		*allocated = 0;
-		return (addr);
-	}
-	case CRYPTO_BUF_CONTIG:
-		addr = (u_char *)crp->crp_buf + crp->crp_payload_start;
-		if (((uintptr_t)addr & 0xf) != 0) /* 16 bytes aligned? */
-			break;
+	addr = crypto_contiguous_subsegment(crp, crp->crp_payload_start,
+	    crp->crp_payload_length);
+	if (((uintptr_t)addr & 0xf) == 0) { /* 16 bytes aligned? */
 		*allocated = 0;
 		return (addr);
 	}
