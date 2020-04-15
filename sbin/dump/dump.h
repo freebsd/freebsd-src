@@ -36,10 +36,10 @@
 /*
  * Dump maps used to describe what is to be dumped.
  */
-int	mapsize;	/* size of the state maps */
-char	*usedinomap;	/* map of allocated inodes */
-char	*dumpdirmap;	/* map of directories to be dumped */
-char	*dumpinomap;	/* map of files to be dumped */
+extern	int mapsize;		/* size of the state maps */
+extern	char *usedinomap;	/* map of allocated inodes */
+extern	char *dumpdirmap;	/* map of directories to be dumped */
+extern	char *dumpinomap;	/* map of files to be dumped */
 /*
  * Map manipulation macros.
  */
@@ -56,39 +56,39 @@ char	*dumpinomap;	/* map of files to be dumped */
 /*
  *	All calculations done in 0.1" units!
  */
-char	*disk;		/* name of the disk file */
-char	*tape;		/* name of the tape file */
-char	*popenout;	/* popen(3) per-"tape" command */
-char	*dumpdates;	/* name of the file containing dump date information*/
-char	*temp;		/* name of the file for doing rewrite of dumpdates */
-int	lastlevel;	/* dump level of previous dump */
-int	level;		/* dump level of this dump */
-int	uflag;		/* update flag */
-int	diskfd;		/* disk file descriptor */
-int	tapefd;		/* tape file descriptor */
-int	pipeout;	/* true => output to standard output */
-ino_t	curino;		/* current inumber; used globally */
-int	newtape;	/* new tape flag */
-int	density;	/* density in 0.1" units */
-long	tapesize;	/* estimated tape size, blocks */
-long	tsize;		/* tape size in 0.1" units */
-long	asize;		/* number of 0.1" units written on current tape */
-int	etapes;		/* estimated number of tapes */
-int	nonodump;	/* if set, do not honor UF_NODUMP user flags */
-int	unlimited;	/* if set, write to end of medium */
-int	cachesize;	/* size of block cache in bytes */
-int	rsync_friendly;	/* be friendly with rsync */
-
-int	notify;		/* notify operator flag */
-int	blockswritten;	/* number of blocks written on current tape */
-int	tapeno;		/* current tape number */
-time_t	tstart_writing;	/* when started writing the first tape block */
-time_t	tend_writing;	/* after writing the last tape block */
-int	passno;		/* current dump pass number */
-struct	fs *sblock;	/* the file system super block */
-long	dev_bsize;	/* block size of underlying disk device */
-int	dev_bshift;	/* log2(dev_bsize) */
-int	tp_bshift;	/* log2(TP_BSIZE) */
+extern	char *disk;		/* name of the disk file */
+extern	char *tape;		/* name of the tape file */
+extern	char *popenout;		/* popen(3) per-"tape" command */
+extern	char *dumpdates;	/* name of the file containing dump date info */
+extern	int lastlevel;		/* dump level of previous dump */
+extern	int level;		/* dump level of this dump */
+extern	int uflag;		/* update flag */
+extern	int diskfd;		/* disk file descriptor */
+extern	int pipeout;		/* true => output to standard output */
+extern	ino_t curino;		/* current inumber; used globally */
+extern	int newtape;		/* new tape flag */
+extern	int density;		/* density in 0.1" units */
+extern	long tapesize;		/* estimated tape size, blocks */
+extern	long tsize;		/* tape size in 0.1" units */
+extern	int etapes;		/* estimated number of tapes */
+extern	int nonodump;		/* if set, do not honor UF_NODUMP user flags */
+extern	int unlimited;		/* if set, write to end of medium */
+extern	int cachesize;		/* size of block cache in bytes */
+extern	int rsync_friendly;	/* be friendly with rsync */
+extern	int notify;		/* notify operator flag */
+extern	int blockswritten;	/* number of blocks written on current tape */
+extern	int tapeno;		/* current tape number */
+extern	int ntrec;		/* blocking factor on tape */
+extern	long blocksperfile;	/* number of blocks per output file */
+extern	int cartridge;		/* assume non-cartridge tape */
+extern	char *host;		/* remote host (if any) */
+extern	time_t tstart_writing;	/* when started writing the first tape block */
+extern	time_t tend_writing;	/* after writing the last tape block */
+extern	int passno;		/* current dump pass number */
+extern	struct fs *sblock;	/* the file system super block */
+extern	long dev_bsize;		/* block size of underlying disk device */
+extern	int dev_bshift;		/* log2(dev_bsize) */
+extern	int tp_bshift;		/* log2(TP_BSIZE) */
 
 /* operator interface functions */
 void	broadcast(const char *message);
@@ -163,8 +163,8 @@ struct dumpdates {
 	int	dd_level;
 	time_t	dd_ddate;
 };
-int	nddates;		/* number of records (might be zero) */
-struct	dumpdates **ddatev;	/* the arrayfied version */
+extern	int nddates;			/* number of records (might be zero) */
+extern	struct dumpdates **ddatev;	/* the arrayfied version */
 void	initdumptimes(void);
 void	getdumptime(void);
 void	putdumptime(void);
