@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2020
+.Dd April 14, 2020
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -172,14 +172,11 @@ will make use of it automatically.
 Supports many cryptographic algorithms (currently
 .Nm AES-XTS ,
 .Nm AES-CBC ,
-.Nm Blowfish-CBC ,
-.Nm Camellia-CBC
 and
-.Nm 3DES-CBC ) .
+.Nm Camellia-CBC ) .
 .It
 Can optionally perform data authentication (integrity verification) utilizing
 one of the following algorithms:
-.Nm HMAC/MD5 ,
 .Nm HMAC/SHA1 ,
 .Nm HMAC/RIPEMD160 ,
 .Nm HMAC/SHA256 ,
@@ -259,7 +256,6 @@ For example, when using 4096 bytes sector and
 .Nm HMAC/SHA256
 algorithm, 89% of the original provider storage will be available for use.
 Currently supported algorithms are:
-.Nm HMAC/MD5 ,
 .Nm HMAC/SHA1 ,
 .Nm HMAC/RIPEMD160 ,
 .Nm HMAC/SHA256 ,
@@ -303,9 +299,7 @@ Encryption algorithm to use.
 Currently supported algorithms are:
 .Nm AES-XTS ,
 .Nm AES-CBC ,
-.Nm Blowfish-CBC ,
 .Nm Camellia-CBC ,
-.Nm 3DES-CBC ,
 and
 .Nm NULL .
 The default and recommended algorithm is
@@ -359,11 +353,6 @@ key length.
 .Em 128 ,
 192,
 256
-.It Nm Blowfish-CBC
-.Em 128
-+ n * 32, for n=[0..10]
-.It Nm 3DES-CBC
-.Em 192
 .El
 .It Fl P
 Do not use a passphrase as a component of the User Key.
@@ -901,18 +890,6 @@ specified in
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
-.Sh DEPRECATION NOTICE
-Support for the
-.Nm Blowfish-CBC
-and
-.Nm 3DES-CBC
-cryptographic algorithms and
-.Nm HMAC/MD5
-authentication algorithm will be removed in
-.Fx 13.0 .
-New volumes cannot be created using these algorithms.
-Existing volumes should be migrated to a new volume that uses
-non-deprecated algorithms.
 .Sh EXAMPLES
 Initialize a provider which is going to be encrypted with a
 passphrase and random data from a file on the user's pen drive.
@@ -967,7 +944,7 @@ Reenter new passphrase:
 Encrypted swap partition setup:
 .Bd -literal -offset indent
 # dd if=/dev/random of=/dev/ada0s1b bs=1m
-# geli onetime -d -e 3des ada0s1b
+# geli onetime -d ada0s1b
 # swapon /dev/ada0s1b.eli
 .Ed
 .Pp
