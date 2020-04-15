@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -47,16 +48,102 @@ __FBSDID("$FreeBSD$");
 #include "bootrom.h"
 #include "debug.h"
 
-#define	MAX_BOOTROM_SIZE	(16 * 1024 * 1024)	/* 16 MB */
+#define	BOOTROM_SIZE	(16 * 1024 * 1024)	/* 16 MB */
+
+/*
+ * ROM region is 16 MB at the top of 4GB ("low") memory.
+ *
+ * The size is limited so it doesn't encroach into reserved MMIO space (e.g.,
+ * APIC, HPET, MSI).
+ *
+ * It is allocated in page-multiple blocks on a first-come first-serve basis,
+ * from high to low, during initialization, and does not change at runtime.
+ */
+static char *romptr;	/* Pointer to userspace-mapped bootrom region. */
+static vm_paddr_t gpa_base;	/* GPA of low end of region. */
+static vm_paddr_t gpa_allocbot;	/* Low GPA of free region. */
+static vm_paddr_t gpa_alloctop;	/* High GPA, minus 1, of free region. */
+
+void
+init_bootrom(struct vmctx *ctx)
+{
+	romptr = vm_create_devmem(ctx, VM_BOOTROM, "bootrom", BOOTROM_SIZE);
+	if (romptr == MAP_FAILED)
+		err(4, "%s: vm_create_devmem", __func__);
+	gpa_base = (1ULL << 32) - BOOTROM_SIZE;
+	gpa_allocbot = gpa_base;
+	gpa_alloctop = (1ULL << 32) - 1;
+}
 
 int
-bootrom_init(struct vmctx *ctx, const char *romfile)
+bootrom_alloc(struct vmctx *ctx, size_t len, int prot, int flags,
+    char **region_out, uint64_t *gpa_out)
+{
+	static const int bootrom_valid_flags = BOOTROM_ALLOC_TOP;
+
+	vm_paddr_t gpa;
+	vm_ooffset_t segoff;
+
+	if (flags & ~bootrom_valid_flags) {
+		warnx("%s: Invalid flags: %x", __func__,
+		    flags & ~bootrom_valid_flags);
+		return (EINVAL);
+	}
+	if (prot & ~_PROT_ALL) {
+		warnx("%s: Invalid protection: %x", __func__,
+		    prot & ~_PROT_ALL);
+		return (EINVAL);
+	}
+
+	if (len == 0 || len > BOOTROM_SIZE) {
+		warnx("ROM size %zu is invalid", len);
+		return (EINVAL);
+	}
+	if (len & PAGE_MASK) {
+		warnx("ROM size %zu is not a multiple of the page size",
+		    len);
+		return (EINVAL);
+	}
+
+	if (flags & BOOTROM_ALLOC_TOP) {
+		gpa = (gpa_alloctop - len) + 1;
+		if (gpa < gpa_allocbot) {
+			warnx("No room for %zu ROM in bootrom region", len);
+			return (ENOMEM);
+		}
+	} else {
+		gpa = gpa_allocbot;
+		if (gpa > (gpa_alloctop - len) + 1) {
+			warnx("No room for %zu ROM in bootrom region", len);
+			return (ENOMEM);
+		}
+	}
+
+	segoff = gpa - gpa_base;
+	if (vm_mmap_memseg(ctx, gpa, VM_BOOTROM, segoff, len, prot) != 0) {
+		int serrno = errno;
+		warn("%s: vm_mmap_mapseg", __func__);
+		return (serrno);
+	}
+
+	if (flags & BOOTROM_ALLOC_TOP)
+		gpa_alloctop = gpa - 1;
+	else
+		gpa_allocbot = gpa + len;
+
+	*region_out = romptr + segoff;
+	if (gpa_out != NULL)
+		*gpa_out = gpa;
+	return (0);
+}
+
+int
+bootrom_loadrom(struct vmctx *ctx, const char *romfile)
 {
 	struct stat sbuf;
-	vm_paddr_t gpa;
 	ssize_t rlen;
 	char *ptr;
-	int fd, i, rv, prot;
+	int fd, i, rv;
 
 	rv = -1;
 	fd = open(romfile, O_RDONLY);
@@ -72,29 +159,9 @@ bootrom_init(struct vmctx *ctx, const char *romfile)
 		goto done;
         }
 
-	/*
-	 * Limit bootrom size to 16MB so it doesn't encroach into reserved
-	 * MMIO space (e.g. APIC, HPET, MSI).
-	 */
-	if (sbuf.st_size > MAX_BOOTROM_SIZE || sbuf.st_size < PAGE_SIZE) {
-		EPRINTLN("Invalid bootrom size %ld", sbuf.st_size);
-		goto done;
-	}
-
-	if (sbuf.st_size & PAGE_MASK) {
-		EPRINTLN("Bootrom size %ld is not a multiple of the "
-		    "page size", sbuf.st_size);
-		goto done;
-	}
-
-	ptr = vm_create_devmem(ctx, VM_BOOTROM, "bootrom", sbuf.st_size);
-	if (ptr == MAP_FAILED)
-		goto done;
-
 	/* Map the bootrom into the guest address space */
-	prot = PROT_READ | PROT_EXEC;
-	gpa = (1ULL << 32) - sbuf.st_size;
-	if (vm_mmap_memseg(ctx, gpa, VM_BOOTROM, 0, sbuf.st_size, prot) != 0)
+	if (bootrom_alloc(ctx, sbuf.st_size, PROT_READ | PROT_EXEC,
+	    BOOTROM_ALLOC_TOP, &ptr, NULL) != 0)
 		goto done;
 
 	/* Read 'romfile' into the guest address space */
