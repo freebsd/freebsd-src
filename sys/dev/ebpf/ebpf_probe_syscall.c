@@ -998,3 +998,54 @@ ebpf_probe_linkat(int fromfd, const char *from,
 
 	return (error);
 }
+
+void *
+ebpf_map_path_lookup(struct ebpf_map *map, void **key)
+{
+	//XXX needs to be dynamically allocated
+	char path[PATH_MAX];
+	char *p;
+	void * value = NULL;
+	int absolute;
+	int end;
+
+	if (map == NULL || key == NULL || *key == NULL || map->key_size > sizeof(path)) {
+		return NULL;
+	}
+
+	memcpy(path, *key, map->key_size);
+	end = map->key_size - 1;
+
+	absolute = path[0] == '/';
+
+	while (end > 0) {
+		value = ebpf_map_lookup_elem(map, path);
+		if (value != NULL) {
+			goto out;
+		}
+
+		do {
+			path[end] = '\0';
+			--end;
+		} while (end > 0 && path[end] != '/');
+		path[end] = '\0';
+	}
+
+	if (absolute) {
+		path[0] = '/';
+		value = ebpf_map_lookup_elem(map, path);
+		end = 0;
+	}
+
+out:
+	if (value) {
+		p = (char*)*key + end;
+		while (*p == '/') {
+			++p;
+		}
+		*key = p;
+	}
+
+	return (value);
+}
+
