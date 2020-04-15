@@ -53,7 +53,7 @@
 .\" $FreeBSD$
 .\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
 .\"
-.Dd March 27, 2020
+.Dd April 14, 2020
 .Dt BUS_DMA 9
 .Os
 .Sh NAME
@@ -618,9 +618,6 @@ DMA mapping associated with this tag.
 .It Fa nsegments
 Number of discontinuities (scatter/gather segments) allowed
 in a DMA mapped region.
-If there is no restriction,
-.Dv BUS_SPACE_UNRESTRICTED
-may be specified.
 .It Fa maxsegsz
 Maximum size, in bytes, of a segment in any DMA mapped region associated
 with
