@@ -1648,13 +1648,15 @@ sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 	int error = 0, ro_string = 0;
 
 	/*
-	 * If the sysctl isn't writable, microoptimise and treat it as a
-	 * const string.
+	 * If the sysctl isn't writable and isn't a preallocated tunable that
+	 * can be modified by kenv(2), microoptimise and treat it as a
+	 * read-only string.
 	 * A zero-length buffer indicates a fixed size read-only
 	 * string.  In ddb, don't worry about trying to make a malloced
 	 * snapshot.
 	 */
-	if (!(oidp->oid_kind & CTLFLAG_WR) || arg2 == 0 || kdb_active) {
+	if ((oidp->oid_kind & CTLFLAG_WR | CTLFLAG_TUN) == 0 || arg2 == 0
+	    || kdb_active) {
 		arg2 = strlen((char *)arg1) + 1;
 		ro_string = 1;
 	}
@@ -1697,8 +1699,7 @@ sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 		arg2 = req->newlen - req->newidx;
 		tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
 
-		error = copyin((const char *)req->newptr + req->newidx,
-		    tmparg, arg2);
+		error = SYSCTL_IN(req, tmparg, arg2);
 		if (error) {
 			free(tmparg, M_SYSCTLTMP);
 			return (error);
