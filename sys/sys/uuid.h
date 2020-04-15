@@ -68,20 +68,18 @@ int printf_uuid(struct uuid *);
 int sbuf_printf_uuid(struct sbuf *, struct uuid *);
 
 /*
- * There are a few key differences between validate_uuid and parse_uuid:
- *
- * - The struct uuid * parameter to validate_uuid is optional, so the caller
- *    can simply validate UUID format without doing anything with the result.
- * - validate_uuid will not pass an empty string as a valid UUID, as it doesn't
- *    strictly meet the formatting requirements.  parse_uuid will accept an
- *    empty string and zero out the uuid struct accordingly.
- * - parse_uuid does additional semantic checks on clock_seq_hi_and_reserved
- *    that validate_uuid will not do.
- *
- * validate_uuid is intended to strictly check that it's a well-formed uuid.
+ * validate_uuid will, with no flags passed, validate only the format of the
+ * passed in UUID.  Flags below are available to give it part of or all of the
+ * functionality that parse_uuid has traditionally had: acknowledging an empty
+ * string as valid, and checking the semantics of the UUID as well.
  */
-int validate_uuid(const char *, size_t, struct uuid *);
+int validate_uuid(const char *, size_t, struct uuid *, int);
 int parse_uuid(const char *, struct uuid *);
+
+/* Flags to validate_uuid(). */
+#define	VUUIDF_EMPTYOK		0x0001
+#define	VUUIDF_CHECKSEMANTICS	0x0002
+
 int uuidcmp(const struct uuid *, const struct uuid *);
 
 void be_uuid_dec(void const *buf, struct uuid *uuid);

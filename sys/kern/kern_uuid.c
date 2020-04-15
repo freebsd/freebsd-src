@@ -382,13 +382,21 @@ be_uuid_dec(void const *buf, struct uuid *uuid)
 }
 
 int
-validate_uuid(const char *str, size_t size, struct uuid *uuid)
+validate_uuid(const char *str, size_t size, struct uuid *uuid, int flags)
 {
 	u_int c[11];
 	int n;
 
-	if (size == 0 || *str == '\0')
+	if (size == 0 || *str == '\0') {
+		/* An empty string may represent a nil UUID. */
+		if ((flags & VUUIDF_EMPTYOK) != 0) {
+			if (uuid != NULL)
+				bzero(uuid, sizeof(*uuid));
+			return (0);
+		}
+
 		return (EINVAL);
+	}
 
 	/* The UUID string representation has a fixed length. */
 	if (size != 36)
@@ -421,30 +429,21 @@ validate_uuid(const char *str, size_t size, struct uuid *uuid)
 			uuid->node[n] = c[n + 5];
 	}
 
-	return (0);
+	if ((flags & VUUIDF_CHECKSEMANTICS) == 0)
+		return (0);
+
+	return (((c[3] & 0x80) != 0x00 &&		/* variant 0? */
+	    (c[3] & 0xc0) != 0x80 &&			/* variant 1? */
+	    (c[3] & 0xe0) != 0xc0) ? EINVAL : 0);	/* variant 2? */
 }
+
+#define	VUUIDF_PARSEFLAGS	(VUUIDF_EMPTYOK | VUUIDF_CHECKSEMANTICS)
 
 int
 parse_uuid(const char *str, struct uuid *uuid)
 {
-	unsigned int clock_seq;
-	int ret;
 
-	/* An empty string represents a nil UUID. */
-	if (*str == '\0') {
-		bzero(uuid, sizeof(*uuid));
-		return (0);
-	}
-
-	ret = validate_uuid(str, strlen(str), uuid);
-	if (ret != 0)
-		return (ret);
-
-	/* Check semantics... */
-	clock_seq = uuid->clock_seq_hi_and_reserved;
-	return (((clock_seq & 0x80) != 0x00 &&		/* variant 0? */
-	    (clock_seq & 0xc0) != 0x80 &&		/* variant 1? */
-	    (clock_seq & 0xe0) != 0xc0) ? EINVAL : 0);	/* variant 2? */
+	return (validate_uuid(str, strlen(str), uuid, VUUIDF_PARSEFLAGS));
 }
 
 int
