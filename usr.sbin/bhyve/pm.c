@@ -49,6 +49,10 @@ static pthread_mutex_t pm_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct mevent *power_button;
 static sig_t old_power_handler;
 
+static unsigned gpe0_active;
+static unsigned gpe0_enabled;
+static const unsigned gpe0_valid = (1u << GPE_VMGENC);
+
 /*
  * Reset Control register at I/O port 0xcf9.  Bit 2 forces a system
  * reset when it transitions from 0 to 1.  Bit 1 selects the type of
@@ -144,6 +148,9 @@ sci_update(struct vmctx *ctx)
 		need_sci = 1;
 	if ((pm1_enable & PM1_RTC_EN) && (pm1_status & PM1_RTC_STS))
 		need_sci = 1;
+	if ((gpe0_enabled & gpe0_active) != 0)
+		need_sci = 1;
+
 	if (need_sci)
 		sci_assert(ctx);
 	else
@@ -261,6 +268,64 @@ pm1_control_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 }
 INOUT_PORT(pm1_control, PM1A_CNT_ADDR, IOPORT_F_INOUT, pm1_control_handler);
 SYSRES_IO(PM1A_EVT_ADDR, 8);
+
+void
+acpi_raise_gpe(struct vmctx *ctx, unsigned bit)
+{
+	unsigned mask;
+
+	assert(bit < (IO_GPE0_LEN * (8 / 2)));
+	mask = (1u << bit);
+	assert((mask & ~gpe0_valid) == 0);
+
+	pthread_mutex_lock(&pm_lock);
+	gpe0_active |= mask;
+	sci_update(ctx);
+	pthread_mutex_unlock(&pm_lock);
+}
+
+static int
+gpe0_sts(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
+    uint32_t *eax, void *arg)
+{
+	/*
+	 * ACPI 6.2 specifies the GPE register blocks are accessed
+	 * byte-at-a-time.
+	 */
+	if (bytes != 1)
+		return (-1);
+
+	pthread_mutex_lock(&pm_lock);
+	if (in)
+		*eax = gpe0_active;
+	else {
+		/* W1C */
+		gpe0_active &= ~(*eax & gpe0_valid);
+		sci_update(ctx);
+	}
+	pthread_mutex_unlock(&pm_lock);
+	return (0);
+}
+INOUT_PORT(gpe0_sts, IO_GPE0_STS, IOPORT_F_INOUT, gpe0_sts);
+
+static int
+gpe0_en(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
+    uint32_t *eax, void *arg)
+{
+	if (bytes != 1)
+		return (-1);
+
+	pthread_mutex_lock(&pm_lock);
+	if (in)
+		*eax = gpe0_enabled;
+	else {
+		gpe0_enabled = (*eax & gpe0_valid);
+		sci_update(ctx);
+	}
+	pthread_mutex_unlock(&pm_lock);
+	return (0);
+}
+INOUT_PORT(gpe0_en, IO_GPE0_EN, IOPORT_F_INOUT, gpe0_en);
 
 /*
  * ACPI SMI Command Register
