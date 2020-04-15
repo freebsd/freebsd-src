@@ -83,8 +83,8 @@ SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
     "Disable x86 Time Stamp Counter");
 
 static int	tsc_skip_calibration;
-SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN |
-    CTLFLAG_NOFETCH, &tsc_skip_calibration, 0,
+SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN,
+    &tsc_skip_calibration, 0,
     "Disable TSC frequency calibration");
 
 static void tsc_freq_changed(void *arg, const struct cf_level *level,
@@ -230,7 +230,6 @@ probe_tsc_freq(void)
 {
 	uint64_t tmp_freq, tsc1, tsc2;
 	int no_cpuid_override;
-	uint16_t bootflags;
 
 	if (cpu_power_ecx & CPUID_PERF_STAT) {
 		/*
@@ -287,30 +286,13 @@ probe_tsc_freq(void)
 		break;
 	}
 
-	if (!TUNABLE_INT_FETCH("machdep.disable_tsc_calibration",
-	    &tsc_skip_calibration)) {
-		/*
-		 * User did not give the order about calibration.
-		 * If he did, we do not try to guess.
-		 *
-		 * Otherwise, if ACPI FADT reports that the platform
-		 * is legacy-free and CPUID provides TSC frequency,
-		 * use it.  The calibration could fail anyway since
-		 * ISA timer can be absent or power gated.
-		 */
-		if (acpi_get_fadt_bootflags(&bootflags) &&
-		    (bootflags & ACPI_FADT_LEGACY_DEVICES) == 0 &&
-		    tsc_freq_cpuid(&tmp_freq)) {
-			printf("Skipping TSC calibration since no legacy "
-			    "devices reported by FADT and CPUID works\n");
-			tsc_skip_calibration = 1;
-		}
-	}
 	if (tsc_skip_calibration) {
 		if (tsc_freq_cpuid(&tmp_freq))
 			tsc_freq = tmp_freq;
 		else if (cpu_vendor_id == CPU_VENDOR_INTEL)
 			tsc_freq_intel();
+		if (tsc_freq == 0)
+			tsc_disabled = 1;
 	} else {
 		if (bootverbose)
 			printf("Calibrating TSC clock ... ");
@@ -324,8 +306,9 @@ probe_tsc_freq(void)
 		 * the frequency reported by CPUID 0x15/0x16 leafs
 		 * differ significantly, this probably means that
 		 * calibration is bogus.  It happens on machines
-		 * without 8254 timer and with BIOS not properly
-		 * reporting it in FADT boot flags.
+		 * without 8254 timer.  The BIOS rarely properly
+		 * reports it in FADT boot flags, so just compare the
+		 * frequencies directly.
 		 */
 		if (tsc_freq_cpuid(&tmp_freq) && qabs(tsc_freq - tmp_freq) >
 		    uqmin(tsc_freq, tmp_freq)) {
