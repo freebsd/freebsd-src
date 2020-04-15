@@ -104,7 +104,7 @@ static struct aw_sid_efuse a64_efuses[] = {
 		.desc = "Thermal Sensor Calibration Data",
 		.base = EFUSE_OFFSET,
 		.offset = 0x34,
-		.size = 6,
+		.size = 8,
 		.id = AW_SID_FUSE_THSSENSOR,
 		.public = true,
 	},
