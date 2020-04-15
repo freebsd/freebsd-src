@@ -5729,7 +5729,8 @@ nfsrvd_rmxattr(struct nfsrv_descript *nd, __unused int isdgram,
 	if (nd->nd_repstat == 0)
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd, p, 1, &attrbits);
 	if (nd->nd_repstat == 0) {
-		NFSM_BUILD(tl, uint32_t *, 2 * NFSX_HYPER);
+		NFSM_BUILD(tl, uint32_t *, 2 * NFSX_HYPER + NFSX_UNSIGNED);
+		*tl++ = newnfs_true;
 		txdr_hyper(ova.na_filerev, tl); tl += 2;
 		txdr_hyper(nva.na_filerev, tl);
 	}
