@@ -215,7 +215,7 @@ ebpf_dev_fini(void)
 	if (ebpf_dev != NULL) {
 		ee = ebpf_dev->si_drv1;
 
-		ebpf_env_release(ee);
+		ebpf_env_destroy(ee);
 		destroy_dev(ebpf_dev);
 	}
 
@@ -234,8 +234,6 @@ ebpf_dev_init(void)
 	if (error != 0) {
 		goto fail;
 	}
-
-	ebpf_env_acquire(ee);
 
 	ebpf_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &ebpf_cdevsw, 0, NULL,
 				  UID_ROOT, GID_WHEEL, 0600, "ebpf");
