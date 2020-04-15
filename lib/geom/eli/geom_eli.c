@@ -805,22 +805,6 @@ eli_init(struct gctl_req *req)
 			return;
 		}
 	}
-	if (md.md_flags & G_ELI_FLAG_AUTH) {
-		switch (md.md_aalgo) {
-		case CRYPTO_MD5_HMAC:
-			gctl_error(req,
-			    "The %s authentication algorithm is deprecated.",
-			    g_eli_algo2str(md.md_aalgo));
-			return;
-		}
-	}
-	switch (md.md_ealgo) {
-	case CRYPTO_3DES_CBC:
-	case CRYPTO_BLF_CBC:
-		gctl_error(req, "The %s encryption algorithm is deprecated.",
-		    g_eli_algo2str(md.md_ealgo));
-		return;
-	}
 	val = gctl_get_intmax(req, "keylen");
 	md.md_keylen = val;
 	md.md_keylen = g_eli_keylen(md.md_ealgo, md.md_keylen);
