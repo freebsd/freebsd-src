@@ -1013,7 +1013,6 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 	c4iw_get_ep(&real_lep->com);
 	init_timer(&new_ep->timer);
 	new_ep->com.state = MPA_REQ_WAIT;
-	START_EP_TIMER(new_ep);
 
 	setiwsockopt(new_so);
 	ret = soaccept(new_so, (struct sockaddr **)&remote);
@@ -1023,13 +1022,14 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 				__func__, master_lep->com.so, new_so, ret);
 		if (remote != NULL)
 			free(remote, M_SONAME);
-		uninit_iwarp_socket(new_so);
 		soclose(new_so);
 		c4iw_put_ep(&new_ep->com);
 		c4iw_put_ep(&real_lep->com);
 		return;
 	}
 	free(remote, M_SONAME);
+
+	START_EP_TIMER(new_ep);
 
 	/* MPA request might have been queued up on the socket already, so we
 	 * initialize the socket/upcall_handler under lock to prevent processing
