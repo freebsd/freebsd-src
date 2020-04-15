@@ -54,9 +54,7 @@ struct ebpf_probe_state
 };
 
 static const struct ebpf_probe_ops *probe_ops[] = {
-	//[EBPF_PROG_TYPE_VFS] = {
-	//	.
-	//},
+	[EBPF_PROG_TYPE_VFS] = &vfs_probe_ops,
 };
 
 int

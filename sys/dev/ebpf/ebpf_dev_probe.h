@@ -29,13 +29,14 @@
 #ifndef _EBPF_DEV_PROBE_H
 #define _EBPF_DEV_PROBE_H
 
+struct ebpf_prog;
+struct ebpf_vm_state;
+
 void ebpf_probe_init(void);
 void ebpf_probe_fini(void);
 
 int ebpf_probe_attach(const char * pr_name, struct ebpf_prog *prog, ebpf_file *fp,
     int jit);
-
-struct ebpf_vm_state;
 
 struct ebpf_probe_ops
 {
@@ -45,5 +46,6 @@ struct ebpf_probe_ops
 	void (*release_cpu)(struct ebpf_vm_state *);
 };
 
+extern const struct ebpf_probe_ops vfs_probe_ops;
 
 #endif

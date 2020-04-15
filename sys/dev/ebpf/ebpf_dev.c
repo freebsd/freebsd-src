@@ -25,67 +25,72 @@
 #include <dev/ebpf/ebpf_dev.h>
 #include <dev/ebpf/ebpf_dev_probe.h>
 #include <dev/ebpf/ebpf_map_freebsd.h>
+#include <dev/ebpf/ebpf_internal.h>
 #include <dev/ebpf/ebpf_probe_syscall.h>
 #include <sys/ebpf_vm_isa.h>
 
-#define EBPF_HELPER_TYPE_DEF(helper) \
-	static const struct ebpf_helper_type eht_ ## helper = { \
+#define EBPF_HELPER_TYPE_DEF(prefix, helper) \
+	const struct ebpf_helper_type eht_fbsd_ ## prefix ## helper = { \
 		.name = "ebpf_" #helper, \
-		.fn = (ebpf_helper_fn)ebpf_ ## helper \
+		.fn = (ebpf_helper_fn)ebpf_ ## prefix ## helper, \
+		.id = EBPF_FUNC_ ## helper, \
 	};
 
-EBPF_HELPER_TYPE_DEF(map_path_lookup);
+EBPF_HELPER_TYPE_DEF(, map_lookup_elem);
+EBPF_HELPER_TYPE_DEF(, map_update_elem);
+EBPF_HELPER_TYPE_DEF(, map_delete_elem);
+EBPF_HELPER_TYPE_DEF(, map_path_lookup);
 // EBPF_HELPER_TYPE_DEF(map_enqueue);
 // EBPF_HELPER_TYPE_DEF(map_dequeue);
 
-EBPF_HELPER_TYPE_DEF(probe_copyinstr);
-EBPF_HELPER_TYPE_DEF(probe_copyout);
-EBPF_HELPER_TYPE_DEF(probe_dup);
-EBPF_HELPER_TYPE_DEF(probe_openat);
-EBPF_HELPER_TYPE_DEF(probe_fstat);
-EBPF_HELPER_TYPE_DEF(probe_fstatat);
-EBPF_HELPER_TYPE_DEF(probe_faccessat);
-EBPF_HELPER_TYPE_DEF(probe_set_errno);
-EBPF_HELPER_TYPE_DEF(probe_set_syscall_retval);
-EBPF_HELPER_TYPE_DEF(probe_pdfork);
-EBPF_HELPER_TYPE_DEF(probe_pdwait4_nohang);
-EBPF_HELPER_TYPE_DEF(probe_pdwait4_defer);
-EBPF_HELPER_TYPE_DEF(probe_fexecve);
-EBPF_HELPER_TYPE_DEF(probe_memset);
-EBPF_HELPER_TYPE_DEF(probe_readlinkat);
-EBPF_HELPER_TYPE_DEF(probe_exec_get_interp);
-EBPF_HELPER_TYPE_DEF(probe_strncmp);
-EBPF_HELPER_TYPE_DEF(probe_canonical_path);
-EBPF_HELPER_TYPE_DEF(probe_renameat);
-EBPF_HELPER_TYPE_DEF(probe_mkdirat);
-EBPF_HELPER_TYPE_DEF(probe_fchdir);
-EBPF_HELPER_TYPE_DEF(probe_getpid);
-EBPF_HELPER_TYPE_DEF(probe_get_errno);
-EBPF_HELPER_TYPE_DEF(probe_copyin);
-EBPF_HELPER_TYPE_DEF(probe_ktrnamei);
-EBPF_HELPER_TYPE_DEF(probe_symlink_path);
-EBPF_HELPER_TYPE_DEF(probe_strlcpy);
-EBPF_HELPER_TYPE_DEF(probe_kqueue);
-EBPF_HELPER_TYPE_DEF(probe_kevent_install);
-EBPF_HELPER_TYPE_DEF(probe_kevent_poll);
-EBPF_HELPER_TYPE_DEF(probe_kevent_block);
-EBPF_HELPER_TYPE_DEF(probe_close);
-EBPF_HELPER_TYPE_DEF(probe_get_syscall_retval);
-EBPF_HELPER_TYPE_DEF(probe_symlinkat);
-EBPF_HELPER_TYPE_DEF(probe_resolve_one_symlink);
-EBPF_HELPER_TYPE_DEF(probe_utimensat);
-EBPF_HELPER_TYPE_DEF(probe_fcntl);
-EBPF_HELPER_TYPE_DEF(probe_unlinkat);
-EBPF_HELPER_TYPE_DEF(probe_fchown);
-EBPF_HELPER_TYPE_DEF(probe_fchownat);
-EBPF_HELPER_TYPE_DEF(probe_fchmod);
-EBPF_HELPER_TYPE_DEF(probe_fchmodat);
-EBPF_HELPER_TYPE_DEF(probe_futimens);
-EBPF_HELPER_TYPE_DEF(probe_linkat);
+EBPF_HELPER_TYPE_DEF(probe_, copyinstr);
+EBPF_HELPER_TYPE_DEF(probe_, copyout);
+EBPF_HELPER_TYPE_DEF(probe_, dup);
+EBPF_HELPER_TYPE_DEF(probe_, openat);
+EBPF_HELPER_TYPE_DEF(probe_, fstat);
+EBPF_HELPER_TYPE_DEF(probe_, fstatat);
+EBPF_HELPER_TYPE_DEF(probe_, faccessat);
+EBPF_HELPER_TYPE_DEF(probe_, set_errno);
+EBPF_HELPER_TYPE_DEF(probe_, set_syscall_retval);
+EBPF_HELPER_TYPE_DEF(probe_, pdfork);
+EBPF_HELPER_TYPE_DEF(probe_, pdwait4_nohang);
+EBPF_HELPER_TYPE_DEF(probe_, pdwait4_defer);
+EBPF_HELPER_TYPE_DEF(probe_, fexecve);
+EBPF_HELPER_TYPE_DEF(probe_, memset);
+EBPF_HELPER_TYPE_DEF(probe_, readlinkat);
+EBPF_HELPER_TYPE_DEF(probe_, exec_get_interp);
+EBPF_HELPER_TYPE_DEF(probe_, strncmp);
+EBPF_HELPER_TYPE_DEF(probe_, canonical_path);
+EBPF_HELPER_TYPE_DEF(probe_, renameat);
+EBPF_HELPER_TYPE_DEF(probe_, mkdirat);
+EBPF_HELPER_TYPE_DEF(probe_, fchdir);
+EBPF_HELPER_TYPE_DEF(probe_, getpid);
+EBPF_HELPER_TYPE_DEF(probe_, get_errno);
+EBPF_HELPER_TYPE_DEF(probe_, copyin);
+EBPF_HELPER_TYPE_DEF(probe_, ktrnamei);
+EBPF_HELPER_TYPE_DEF(probe_, symlink_path);
+EBPF_HELPER_TYPE_DEF(probe_, strlcpy);
+EBPF_HELPER_TYPE_DEF(probe_, kqueue);
+EBPF_HELPER_TYPE_DEF(probe_, kevent_install);
+EBPF_HELPER_TYPE_DEF(probe_, kevent_poll);
+EBPF_HELPER_TYPE_DEF(probe_, kevent_block);
+EBPF_HELPER_TYPE_DEF(probe_, close);
+EBPF_HELPER_TYPE_DEF(probe_, get_syscall_retval);
+EBPF_HELPER_TYPE_DEF(probe_, symlinkat);
+EBPF_HELPER_TYPE_DEF(probe_, resolve_one_symlink);
+EBPF_HELPER_TYPE_DEF(probe_, utimensat);
+EBPF_HELPER_TYPE_DEF(probe_, fcntl);
+EBPF_HELPER_TYPE_DEF(probe_, unlinkat);
+EBPF_HELPER_TYPE_DEF(probe_, fchown);
+EBPF_HELPER_TYPE_DEF(probe_, fchownat);
+EBPF_HELPER_TYPE_DEF(probe_, fchmod);
+EBPF_HELPER_TYPE_DEF(probe_, fchmodat);
+EBPF_HELPER_TYPE_DEF(probe_, futimens);
+EBPF_HELPER_TYPE_DEF(probe_, linkat);
 
 const struct ebpf_config fbsd_ebpf_config = {
 	.prog_types = {
-// 		[EBPF_PROG_TYPE_VFS] = &ebpf_vfs_prog_type,
+		[EBPF_PROG_TYPE_VFS] = &ept_vfs,
 	},
 	.map_types = {
 		[EBPF_MAP_TYPE_ARRAY]            = &emt_array,
@@ -97,57 +102,57 @@ const struct ebpf_config fbsd_ebpf_config = {
 
 	},
 	.helper_types = {
-		[EBPF_FUNC_ebpf_map_update_elem] = &eht_map_update_elem,
-		[EBPF_FUNC_ebpf_map_lookup_elem] = &eht_map_lookup_elem,
-		[EBPF_FUNC_ebpf_map_delete_elem] = &eht_map_delete_elem,
-		[EBPF_FUNC_ebpf_map_lookup_path] = &eht_map_path_lookup,
-// 		[EBPF_FUNC_ebpf_map_enqueue] = &eht_map_enqueue,
-// 		[EBPF_FUNC_ebpf_map_dequeue] = &eht_map_dequeue,
+		[EBPF_FUNC_map_update_elem] = &eht_fbsd_map_update_elem,
+		[EBPF_FUNC_map_lookup_elem] = &eht_fbsd_map_lookup_elem,
+		[EBPF_FUNC_map_delete_elem] = &eht_fbsd_map_delete_elem,
+		[EBPF_FUNC_map_path_lookup] = &eht_fbsd_map_path_lookup,
+// 		[EBPF_FUNC_ebpf_map_enqueue] = &eht_fbsd_map_enqueue,
+// 		[EBPF_FUNC_ebpf_map_dequeue] = &eht_fbsd_map_dequeue,
 
-		[EBPF_FUNC_copyinstr] = &eht_probe_copyinstr,
-		[EBPF_FUNC_copyout] = &eht_probe_copyout,
-		[EBPF_FUNC_dup] = &eht_probe_dup,
-		[EBPF_FUNC_openat] = &eht_probe_openat,
-		[EBPF_FUNC_fstat] = &eht_probe_fstat,
-		[EBPF_FUNC_fstatat] = &eht_probe_fstatat,
-		[EBPF_FUNC_faccessat] = &eht_probe_faccessat,
-		[EBPF_FUNC_set_errno] = &eht_probe_set_errno,
-		[EBPF_FUNC_set_syscall_retval] = &eht_probe_set_syscall_retval,
-		[EBPF_FUNC_pdfork] = &eht_probe_pdfork,
-		[EBPF_FUNC_pdwait4_nohang] = &eht_probe_pdwait4_nohang,
-		[EBPF_FUNC_pdwait4_defer] = &eht_probe_pdwait4_defer,
-		[EBPF_FUNC_fexecve] = &eht_probe_fexecve,
-		[EBPF_FUNC_memset] = &eht_probe_memset,
-		[EBPF_FUNC_readlinkat] = &eht_probe_readlinkat,
-		[EBPF_FUNC_exec_get_interp] = &eht_probe_exec_get_interp,
-		[EBPF_FUNC_strncmp] = &eht_probe_strncmp,
-		[EBPF_FUNC_canonical_path] = &eht_probe_canonical_path,
-		[EBPF_FUNC_renameat] = &eht_probe_renameat,
-		[EBPF_FUNC_mkdirat] = &eht_probe_mkdirat,
-		[EBPF_FUNC_fchdir] = &eht_probe_fchdir,
-		[EBPF_FUNC_getpid] = &eht_probe_getpid,
-		[EBPF_FUNC_get_errno] = &eht_probe_get_errno,
-		[EBPF_FUNC_copyin] = &eht_probe_copyin,
-		[EBPF_FUNC_ktrnamei] = &eht_probe_ktrnamei,
-		[EBPF_FUNC_symlink_path] = &eht_probe_symlink_path,
-		[EBPF_FUNC_strlcpy] = &eht_probe_strlcpy,
-		[EBPF_FUNC_kqueue] = &eht_probe_kqueue,
-		[EBPF_FUNC_kevent_install] = &eht_probe_kevent_install,
-		[EBPF_FUNC_kevent_poll] = &eht_probe_kevent_poll,
-		[EBPF_FUNC_kevent_block] = &eht_probe_kevent_block,
-		[EBPF_FUNC_close] = &eht_probe_close,
-		[EBPF_FUNC_get_syscall_retval] = &eht_probe_get_syscall_retval,
-		[EBPF_FUNC_symlinkat] = &eht_probe_symlinkat,
-		[EBPF_FUNC_resolve_one_symlink] = &eht_probe_resolve_one_symlink,
-		[EBPF_FUNC_utimensat] = &eht_probe_utimensat,
-		[EBPF_FUNC_fcntl] = &eht_probe_fcntl,
-		[EBPF_FUNC_unlinkat] = &eht_probe_unlinkat,
-		[EBPF_FUNC_fchown] = &eht_probe_fchown,
-		[EBPF_FUNC_fchownat] = &eht_probe_fchownat,
-		[EBPF_FUNC_fchmod] = &eht_probe_fchmod,
-		[EBPF_FUNC_fchmodat] = &eht_probe_fchmodat,
-		[EBPF_FUNC_futimens] = &eht_probe_futimens,
-		[EBPF_FUNC_linkat] = &eht_probe_linkat,
+		[EBPF_FUNC_copyinstr] = &eht_fbsd_probe_copyinstr,
+		[EBPF_FUNC_copyout] = &eht_fbsd_probe_copyout,
+		[EBPF_FUNC_dup] = &eht_fbsd_probe_dup,
+		[EBPF_FUNC_openat] = &eht_fbsd_probe_openat,
+		[EBPF_FUNC_fstat] = &eht_fbsd_probe_fstat,
+		[EBPF_FUNC_fstatat] = &eht_fbsd_probe_fstatat,
+		[EBPF_FUNC_faccessat] = &eht_fbsd_probe_faccessat,
+		[EBPF_FUNC_set_errno] = &eht_fbsd_probe_set_errno,
+		[EBPF_FUNC_set_syscall_retval] = &eht_fbsd_probe_set_syscall_retval,
+		[EBPF_FUNC_pdfork] = &eht_fbsd_probe_pdfork,
+		[EBPF_FUNC_pdwait4_nohang] = &eht_fbsd_probe_pdwait4_nohang,
+		[EBPF_FUNC_pdwait4_defer] = &eht_fbsd_probe_pdwait4_defer,
+		[EBPF_FUNC_fexecve] = &eht_fbsd_probe_fexecve,
+		[EBPF_FUNC_memset] = &eht_fbsd_probe_memset,
+		[EBPF_FUNC_readlinkat] = &eht_fbsd_probe_readlinkat,
+		[EBPF_FUNC_exec_get_interp] = &eht_fbsd_probe_exec_get_interp,
+		[EBPF_FUNC_strncmp] = &eht_fbsd_probe_strncmp,
+		[EBPF_FUNC_canonical_path] = &eht_fbsd_probe_canonical_path,
+		[EBPF_FUNC_renameat] = &eht_fbsd_probe_renameat,
+		[EBPF_FUNC_mkdirat] = &eht_fbsd_probe_mkdirat,
+		[EBPF_FUNC_fchdir] = &eht_fbsd_probe_fchdir,
+		[EBPF_FUNC_getpid] = &eht_fbsd_probe_getpid,
+		[EBPF_FUNC_get_errno] = &eht_fbsd_probe_get_errno,
+		[EBPF_FUNC_copyin] = &eht_fbsd_probe_copyin,
+		[EBPF_FUNC_ktrnamei] = &eht_fbsd_probe_ktrnamei,
+		[EBPF_FUNC_symlink_path] = &eht_fbsd_probe_symlink_path,
+		[EBPF_FUNC_strlcpy] = &eht_fbsd_probe_strlcpy,
+		[EBPF_FUNC_kqueue] = &eht_fbsd_probe_kqueue,
+		[EBPF_FUNC_kevent_install] = &eht_fbsd_probe_kevent_install,
+		[EBPF_FUNC_kevent_poll] = &eht_fbsd_probe_kevent_poll,
+		[EBPF_FUNC_kevent_block] = &eht_fbsd_probe_kevent_block,
+		[EBPF_FUNC_close] = &eht_fbsd_probe_close,
+		[EBPF_FUNC_get_syscall_retval] = &eht_fbsd_probe_get_syscall_retval,
+		[EBPF_FUNC_symlinkat] = &eht_fbsd_probe_symlinkat,
+		[EBPF_FUNC_resolve_one_symlink] = &eht_fbsd_probe_resolve_one_symlink,
+		[EBPF_FUNC_utimensat] = &eht_fbsd_probe_utimensat,
+		[EBPF_FUNC_fcntl] = &eht_fbsd_probe_fcntl,
+		[EBPF_FUNC_unlinkat] = &eht_fbsd_probe_unlinkat,
+		[EBPF_FUNC_fchown] = &eht_fbsd_probe_fchown,
+		[EBPF_FUNC_fchownat] = &eht_fbsd_probe_fchownat,
+		[EBPF_FUNC_fchmod] = &eht_fbsd_probe_fchmod,
+		[EBPF_FUNC_fchmodat] = &eht_fbsd_probe_fchmodat,
+		[EBPF_FUNC_futimens] = &eht_fbsd_probe_futimens,
+		[EBPF_FUNC_linkat] = &eht_fbsd_probe_linkat,
 
 	},
 	.preprocessor_type = NULL,

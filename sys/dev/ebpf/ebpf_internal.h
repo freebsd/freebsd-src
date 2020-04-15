@@ -55,4 +55,6 @@ struct ebpf_vm_state
 	} scratch;
 };
 
+extern const struct ebpf_prog_type ept_vfs;
+
 #endif

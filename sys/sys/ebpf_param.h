@@ -48,10 +48,10 @@ enum ebpf_basic_map_types {
 
 enum ebpf_common_functions {
 	EBPF_FUNC_unspec = 0,
-	EBPF_FUNC_ebpf_map_update_elem,
-	EBPF_FUNC_ebpf_map_lookup_elem,
-	EBPF_FUNC_ebpf_map_delete_elem,
-	EBPF_FUNC_ebpf_map_lookup_path,
+	EBPF_FUNC_map_update_elem,
+	EBPF_FUNC_map_lookup_elem,
+	EBPF_FUNC_map_delete_elem,
+	EBPF_FUNC_map_path_lookup,
 	EBPF_FUNC_copyinstr,		/* 5 */
 	EBPF_FUNC_copyout,
 	EBPF_FUNC_dup,
@@ -80,8 +80,8 @@ enum ebpf_common_functions {
 	EBPF_FUNC_ktrnamei,		/* 30 */
 	EBPF_FUNC_symlink_path,
 	EBPF_FUNC_strlcpy,
-	EBPF_FUNC_ebpf_map_enqueue,
-	EBPF_FUNC_ebpf_map_dequeue,
+	EBPF_FUNC_map_enqueue,
+	EBPF_FUNC_map_dequeue,
 	EBPF_FUNC_kqueue,		/* 35 */
 	EBPF_FUNC_kevent_install,
 	EBPF_FUNC_kevent_poll,
