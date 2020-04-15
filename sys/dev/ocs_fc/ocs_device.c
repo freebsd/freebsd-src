@@ -1238,7 +1238,7 @@ __ocs_d_wait_topology_notify(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 		break;
 
 	case OCS_EVT_SPORT_TOPOLOGY_NOTIFY: {
-		ocs_sport_topology_e topology = (ocs_sport_topology_e)arg;
+		ocs_sport_topology_e topology = (ocs_sport_topology_e)(uintptr_t)arg;
 		ocs_assert(!node->sport->domain->attached, NULL);
 		ocs_assert(node->send_ls_acc == OCS_NODE_SEND_LS_ACC_PLOGI, NULL);
 		node_printf(node, "topology notification, topology=%d\n", topology);

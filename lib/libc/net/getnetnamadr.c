@@ -70,7 +70,7 @@ net_id_func(char *buffer, size_t *buffer_size, va_list ap, void *cache_mdata)
 	enum nss_lookup_type lookup_type;
 	int res = NS_UNAVAIL;
 
-	lookup_type = (enum nss_lookup_type)cache_mdata;
+	lookup_type = (enum nss_lookup_type)(uintptr_t)cache_mdata;
 	switch (lookup_type) {
 	case nss_lt_name:
 		name = va_arg(ap, char *);
@@ -133,7 +133,7 @@ net_marshal_func(char *buffer, size_t *buffer_size, void *retval, va_list ap,
 	char *p;
 	char **alias;
 
-	switch ((enum nss_lookup_type)cache_mdata) {
+	switch ((enum nss_lookup_type)(uintptr_t)cache_mdata) {
 	case nss_lt_name:
 		name = va_arg(ap, char *);
 		break;
@@ -221,7 +221,7 @@ net_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
 	char *p;
 	char **alias;
 
-	switch ((enum nss_lookup_type)cache_mdata) {
+	switch ((enum nss_lookup_type)(uintptr_t)cache_mdata) {
 	case nss_lt_name:
 		name = va_arg(ap, char *);
 		break;
