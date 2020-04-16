@@ -225,6 +225,10 @@ cd_setup(struct mmc_fdt_helper *helper, phandle_t node)
 	const char *cd_mode_str;
 
 	dev = helper->dev;
+
+	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &helper->cd_delayed_task, 0,
+	    cd_card_task, helper);
+
 	/*
 	 * If the device is flagged as non-removable, set that slot option, and
 	 * set a flag to make sdhci_fdt_gpio_get_present() always return true.
@@ -294,9 +298,6 @@ cd_setup(struct mmc_fdt_helper *helper, phandle_t node)
 	}
 
 without_interrupts:
-	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &helper->cd_delayed_task, 0,
-	    cd_card_task, helper);
-
 	/*
 	 * If we have a readable gpio pin, but didn't successfully configure
 	 * gpio interrupts, setup a timeout task to poll the pin
