@@ -346,6 +346,7 @@ struct rt_msghdr {
 #define RTAX_BRD	7	/* for NEWADDR, broadcast or p-p dest addr */
 #define RTAX_MAX	8	/* size of array to allocate */
 
+struct nhop_object;
 typedef int rt_filter_f_t(const struct rtentry *, const struct nhop_object *,
     void *);
 
