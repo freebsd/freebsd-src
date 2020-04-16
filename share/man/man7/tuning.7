@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2017
+.Dd April 16, 2020
 .Dt TUNING 7
 .Os
 .Sh NAME
@@ -435,7 +435,7 @@ number of tiny packets flowing across the network in half.
 The
 .Fx
 delayed ACK implementation also follows the TCP protocol rule that
-at least every other packet be acknowledged even if the standard 100ms
+at least every other packet be acknowledged even if the standard 40ms
 timeout has not yet passed.
 Normally the worst a delayed ACK can do is
 slightly delay the teardown of a connection, or slightly delay the ramp-up

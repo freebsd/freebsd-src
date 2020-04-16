@@ -119,7 +119,7 @@
 
 #define	TCP_MAXRXTSHIFT	12			/* maximum retransmits */
 
-#define	TCPTV_DELACK	( hz/10 )		/* 100ms timeout */
+#define	TCPTV_DELACK	( hz/25 )		/* 40ms timeout */
 
 /*
  * If we exceed this number of retransmits for a single segment, we'll consider
