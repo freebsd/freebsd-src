@@ -19,8 +19,9 @@
 #include <dev/ebpf/ebpf_dev_platform.h>
 #include <dev/ebpf/ebpf_obj.h>
 #include <sys/ebpf.h>
+#include <sys/ebpf_param.h>
 #include <dev/ebpf/ebpf_prog.h>
-#include <dev/ebpf/ebpf_dev.h>
+#include <dev/ebpf/ebpf_internal.h>
 
 /*
  * Global reference count

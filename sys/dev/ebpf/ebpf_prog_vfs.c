@@ -28,8 +28,10 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/event.h>
 #include <sys/smp.h>
 #include <sys/lock.h>
+#include <sys/resource.h>
 #include <sys/sx.h>
 
 #include <sys/ebpf.h>

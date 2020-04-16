@@ -32,6 +32,7 @@
 #include <sys/resource.h>
 
 #include <sys/ebpf.h>
+#include <sys/ebpf_param.h>
 #include <dev/ebpf/ebpf_platform.h>
 #include <dev/ebpf/ebpf_dev_platform.h>
 #include <dev/ebpf/ebpf_dev_freebsd.h>
@@ -40,7 +41,6 @@
 #include <dev/ebpf/ebpf_prog.h>
 #include <dev/ebpf/ebpf_probe_syscall.h>
 
-#include <sys/ebpf_param.h>
 #include <sys/ebpf_probe.h>
 #include <sys/refcount.h>
 
@@ -136,7 +136,6 @@ ebpf_vm_init_state(struct ebpf_vm_state *vm_state)
 	vm_state->next_prog = NULL;
 	vm_state->deferred_func = NULL;
 	vm_state->num_tail_calls = 0;
-	bzero(&vm_state->next_vm_args, sizeof(vm_state->next_vm_args));
 }
 
 static int
@@ -155,9 +154,7 @@ ebpf_fire(struct ebpf_probe *probe, void *a, uintptr_t arg0, uintptr_t arg1,
 	ebpf_vm_init_state(&vm_state);
 
 	vm_state.next_prog = state->prog;
-	vm_state.next_vm_args[0] = arg0;
-	vm_state.next_vm_args[1] = arg1;
-	vm_state.num_args = 2;
+	vm_state.next_prog_arg = (void*)arg0;
 
 	prog_fp = NULL;
 
@@ -177,7 +174,7 @@ ebpf_fire(struct ebpf_probe *probe, void *a, uintptr_t arg0, uintptr_t arg1,
 			return (EBPF_ACTION_RETURN);
 		}
 
-		ret = ebpf_prog_run((void*)vm_state.next_vm_args[0], prog);
+		ret = ebpf_prog_run(vm_state.next_prog_arg, prog);
 
 		ebpf_probe_release_cpu(prog, &vm_state);
 

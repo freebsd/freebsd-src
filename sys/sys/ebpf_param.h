@@ -109,4 +109,20 @@ struct ebpf_symlink_res_bufs
 	char *scratch2;
 };
 
+struct ebpf_defer_kevent_args
+{
+	struct wait4_args *wait4_args;
+	int error;
+	struct kevent ev;
+};
+
+struct ebpf_defer_wait4_args
+{
+	struct wait4_args *wait4_args;
+	int error;
+	int status;
+	struct rusage ru;
+	int fd;
+};
+
 #endif

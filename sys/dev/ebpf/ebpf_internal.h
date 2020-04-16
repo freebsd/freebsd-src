@@ -33,24 +33,21 @@ struct ebpf_vm_state
 {
 	struct ebpf_prog *next_prog;
 	ebpf_file *prog_fp;
-	uint64_t next_vm_args[5];
-	int num_args;
+	void *next_prog_arg;
 	void (*deferred_func)(struct ebpf_vm_state *);
 	int cpu;
 	int num_tail_calls;
 
 	union {
 		struct {
-			void *arg;
-			int fd;
+			struct ebpf_defer_wait4_args prog_args;
 			int options;
-			struct rusage rusage;
 		} wait4;
 		struct {
+			struct ebpf_defer_kevent_args prog_args;
 			int kq;
 			int ts_valid;
 			struct timespec ts;
-			struct kevent ev;
 		} kevent;
 	} scratch;
 };

@@ -27,6 +27,8 @@
  */
 
 #include <sys/types.h>
+#include <sys/event.h>
+#include <sys/resource.h>
 #include <sys/ebpf.h>
 #include <sys/ebpf_param.h>
 #include <dev/ebpf/ebpf_platform.h>
@@ -241,20 +243,16 @@ ebpf_probe_pdwait4_nohang(int fd, int* status, int options, struct rusage *ru)
 static void
 ebpf_probe_do_deferred_pdwait4(struct ebpf_vm_state *s)
 {
-	int error, status;
 
-	status = 0;
-	bzero(&s->scratch.wait4.rusage, sizeof(s->scratch.wait4.rusage));
+	s->scratch.wait4.prog_args.status = 0;
+	bzero(&s->scratch.wait4.prog_args.ru,
+	    sizeof(s->scratch.wait4.prog_args.ru));
 
-	error = ebpf_probe_do_pdwait(s->scratch.wait4.fd, &status,
-	    s->scratch.wait4.options, &s->scratch.wait4.rusage);
+	s->scratch.wait4.prog_args.error = ebpf_probe_do_pdwait(
+	    s->scratch.wait4.prog_args.fd, &s->scratch.wait4.prog_args.status,
+	    s->scratch.wait4.options, &s->scratch.wait4.prog_args.ru);
 
-	s->next_vm_args[0] = (uintptr_t)s->scratch.wait4.arg;
-	s->next_vm_args[1] = error;
-	s->next_vm_args[2] = status;
-	s->next_vm_args[3] = (uintptr_t)&s->scratch.wait4.rusage;
-	s->next_vm_args[4] = s->scratch.wait4.fd;
-	s->num_args = 5;
+	s->next_prog_arg = &s->scratch.wait4.prog_args;
 }
 
 int
@@ -279,9 +277,9 @@ ebpf_probe_pdwait4_defer(int fd, int options, void *arg,
 		return (error);
 	}
 
-	s->scratch.wait4.fd = fd;
+	s->scratch.wait4.prog_args.fd = fd;
 	s->scratch.wait4.options = options;
-	s->scratch.wait4.arg = arg;
+	s->scratch.wait4.prog_args.wait4_args = arg;
 
 	s->next_prog = prog;
 	s->deferred_func = ebpf_probe_do_deferred_pdwait4;
@@ -695,8 +693,9 @@ ebpf_probe_do_deferred_kevent(struct ebpf_vm_state *s)
 	int error;
 
 	td = curthread;
-	bzero(&s->scratch.kevent.ev, sizeof(s->scratch.kevent.ev));
-	ebpf_init_kops(&k_ops, &s->scratch.kevent.ev);
+	bzero(&s->scratch.kevent.prog_args.ev,
+	    sizeof(s->scratch.kevent.prog_args.ev));
+	ebpf_init_kops(&k_ops, &s->scratch.kevent.prog_args.ev);
 	if (s->scratch.kevent.ts_valid) {
 		timeout = &s->scratch.kevent.ts;
 	} else {
@@ -704,10 +703,7 @@ ebpf_probe_do_deferred_kevent(struct ebpf_vm_state *s)
 	}
 	error = kern_kevent(td, s->scratch.kevent.kq, 0, 1, &k_ops, timeout);
 
-	/* s->next_vm_args[0] remains the same. */
-	s->next_vm_args[1] = error;
-	s->next_vm_args[2] = (uintptr_t)&s->scratch.kevent.ev;
-	s->num_args = 3;
+	s->next_prog_arg = &s->scratch.kevent;
 }
 
 
