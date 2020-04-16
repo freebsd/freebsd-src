@@ -269,3 +269,10 @@ fail:
 	ebpf_dev_fini();
 	return EINVAL;
 }
+
+bool
+ebpf_prog_exit(void)
+{
+
+	return (curthread->td_ebpf_state->next_prog != NULL);
+}
