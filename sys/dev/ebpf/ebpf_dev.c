@@ -21,6 +21,7 @@
 #include <dev/ebpf/ebpf_prog.h>
 
 #include <sys/ebpf.h>
+#include <sys/ebpf_elf.h>
 #include <sys/ebpf_param.h>
 #include <sys/ebpf_dev.h>
 #include <dev/ebpf/ebpf_dev_probe.h>
