@@ -78,6 +78,7 @@
 #include <netinet6/scope6_var.h>
 #endif
 #include <net/route/nhop.h>
+#include <net/route/shared.h>
 
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>

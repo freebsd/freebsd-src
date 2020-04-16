@@ -177,8 +177,6 @@ uint32_t nhop_get_idx(const struct nhop_object *nh);
 enum nhop_type nhop_get_type(const struct nhop_object *nh);
 int nhop_get_rtflags(const struct nhop_object *nh);
 
-int nhops_dump_sysctl(struct rib_head *rh, struct sysctl_req *w);
-
 #endif /* _KERNEL */
 
 /* Kernel <> userland structures */
