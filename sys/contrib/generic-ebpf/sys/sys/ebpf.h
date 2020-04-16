@@ -26,8 +26,6 @@
 
 #define EBPF_STACK_SIZE 512
 
-#define EBPF_ACTION_RESTART	2
-
 enum ebpf_map_update_flags {
 	EBPF_ANY = 0,
 	EBPF_NOEXIST,
