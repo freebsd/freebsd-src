@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <gbpf/core/gbpf_driver.h>
+#include <gbpf_driver.h>
 
 typedef struct ebpf_dev_driver {
 	GBPFDriver base;
