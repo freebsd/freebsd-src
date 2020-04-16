@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#include <gbpf/core/gbpf_driver.h>
+#include <gbpf_driver.h>
 #include <errno.h>
 
 int

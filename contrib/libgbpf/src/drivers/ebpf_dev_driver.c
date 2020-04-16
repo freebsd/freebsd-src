@@ -25,8 +25,8 @@
 
 #include <sys/ebpf_dev.h>
 
-#include <gbpf/core/gbpf_driver.h>
-#include <gbpf/drivers/ebpf_dev_driver.h>
+#include <gbpf_driver.h>
+#include <ebpf_dev_driver.h>
 
 static int
 ebpf_dev_load_prog(GBPFDriver *self, uint16_t prog_type, void *prog,

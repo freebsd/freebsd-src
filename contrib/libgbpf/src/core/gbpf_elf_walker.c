@@ -28,8 +28,8 @@
 #include <sys/ebpf_vm_isa.h>
 #include <sys/ebpf_elf.h>
 
-#include <gbpf/core/gbpf_driver.h>
-#include <gbpf/core/gbpf_elf_walker.h>
+#include <gbpf_driver.h>
+#include <gbpf_elf_walker.h>
 
 #ifdef DEBUG
 #define D(_fmt, ...) fprintf(stderr, _fmt "\n", ##__VA_ARGS__)

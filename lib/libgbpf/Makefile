@@ -13,7 +13,6 @@ INCS=	gbpf/gbpf.h \
 	gbpf/drivers/ebpf_dev_driver.h \
 
 GBPFDIR=	${SRCTOP}/contrib/libgbpf
-CFLAGS+=	-I${GBPFDIR}/include
 LIBADD=	elf
 
 .PATH:	${GBPFDIR}/src/core ${GBPFDIR}/src/drivers \
