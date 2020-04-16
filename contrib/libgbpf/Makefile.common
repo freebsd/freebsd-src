@@ -1,0 +1,26 @@
+LIB=	libgbpf.a
+SRCS=	${CORE} ${DRIVERS}
+OBJS=	${SRCS:.c=.o}
+CORE=	gbpf_elf_walker.c \
+	gbpf_driver.c
+DRIVERS=gbpf_null_driver.c \
+	ebpf_dev_driver.c
+
+CFLAGS+=-Ofast \
+	-I ${SYSDIR} \
+	-I ${SYSDIR}/contrib/generic-ebpf/sys \
+	-I ${CURDIR}/include \
+	-Wall \
+	-Wextra \
+	-Wno-unused-parameter
+
+all: ${LIB}
+${LIB}: $(OBJS)
+	ar rc $@ $(OBJS)
+CLEANFILES=	${LIB} *.o
+
+install:
+	cp ${LIB} $(DESTDIR)
+
+.PATH:	src/core src/drivers
+VPATH=	src/core src/drivers
