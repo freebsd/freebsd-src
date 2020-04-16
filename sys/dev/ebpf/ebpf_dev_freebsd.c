@@ -240,6 +240,7 @@ ebpf_dev_init(void)
 	 */
 	memcpy(&ebpf_objf_ops, &badfileops, sizeof(struct fileops));
 	ebpf_objf_ops.fo_close = ebpf_objfile_close;
+	ebpf_objf_ops.fo_flags = DFLAG_PASSABLE;
 
 	error = ebpf_env_create(&ee, &fbsd_ebpf_config);
 	if (error != 0) {
