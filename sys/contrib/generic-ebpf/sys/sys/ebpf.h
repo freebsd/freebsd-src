@@ -26,6 +26,8 @@
 
 #define EBPF_STACK_SIZE 512
 
+#define EBPF_ACTION_RESTART	2
+
 struct ebpf_obj;
 struct ebpf_prog;
 struct ebpf_map;

@@ -283,6 +283,9 @@ ebpf_prog_run(void *ctx, struct ebpf_prog *ep)
 			break;
 		case EBPF_OP_CALL:
 			reg[0] = helpers[inst->imm]->fn(reg[1], reg[2], reg[3], reg[4], reg[5]);
+			if (ebpf_prog_exit()) {
+				return EBPF_ACTION_RESTART;
+			}
 			break;
 		case EBPF_OP_EXIT:
 			return reg[0];

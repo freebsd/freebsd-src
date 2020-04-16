@@ -71,3 +71,4 @@ extern uint32_t ebpf_jenkins_hash(const void *buf, size_t len, uint32_t hash);
 extern void ebpf_refcount_init(uint32_t *count, uint32_t value);
 extern void ebpf_refcount_acquire(uint32_t *count);
 extern int ebpf_refcount_release(uint32_t *count);
+extern bool ebpf_prog_exit(void);
