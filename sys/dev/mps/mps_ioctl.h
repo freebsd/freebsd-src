@@ -364,6 +364,7 @@ typedef struct mps_btdh_mapping
 #define	MPSIO_RAID_ACTION	_IOWR('M', 205, struct mps_raid_action)
 #define	MPSIO_MPS_COMMAND	_IOWR('M', 210, struct mps_usr_command)
 
+#ifndef MPTIOCTL
 #define	MPTIOCTL			('I')
 #define	MPTIOCTL_GET_ADAPTER_DATA	_IOWR(MPTIOCTL, 1,\
     struct mps_adapter_data)
@@ -386,5 +387,6 @@ typedef struct mps_btdh_mapping
     struct mps_reg_access)
 #define	MPTIOCTL_BTDH_MAPPING		_IOWR(MPTIOCTL, 11,\
     struct mps_btdh_mapping)
+#endif /* MPTIOCTL */
 
 #endif /* !_MPS_IOCTL_H_ */
