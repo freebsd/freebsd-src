@@ -36,7 +36,9 @@ ebpf_prog_run(void *ctx, struct ebpf_prog *ep)
 	reg[10] = (uint64_t)(stack + EBPF_STACK_SIZE);
 
 	while (true) {
-		inst = inst + pc++;
+		inst = ep->prog + pc;
+
+		pc++;
 		switch (inst->opcode) {
 		case EBPF_OP_ADD_REG:
 			reg[inst->dst] = (uint32_t)reg[inst->dst] + (uint32_t)reg[inst->src];
