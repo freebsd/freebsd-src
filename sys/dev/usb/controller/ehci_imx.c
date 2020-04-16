@@ -510,5 +510,5 @@ static driver_t ehci_driver = {
 
 static devclass_t ehci_devclass;
 
-DRIVER_MODULE(ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
-MODULE_DEPEND(ehci, usb, 1, 1, 1);
+DRIVER_MODULE(imx_ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
+MODULE_DEPEND(imx_ehci, usb, 1, 1, 1);

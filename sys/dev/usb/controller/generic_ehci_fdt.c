@@ -252,5 +252,5 @@ DEFINE_CLASS_1(ehci, ehci_fdt_driver, ehci_fdt_methods,
 
 static devclass_t ehci_fdt_devclass;
 
-DRIVER_MODULE(ehci, simplebus, ehci_fdt_driver, ehci_fdt_devclass, 0, 0);
-MODULE_DEPEND(ehci, usb, 1, 1, 1);
+DRIVER_MODULE(generic_ehci, simplebus, ehci_fdt_driver, ehci_fdt_devclass, 0, 0);
+MODULE_DEPEND(generic_ehci, usb, 1, 1, 1);
