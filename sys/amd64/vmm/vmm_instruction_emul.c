@@ -50,9 +50,14 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 
+#include <err.h>
 #include <assert.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <strings.h>
 #include <vmmapi.h>
 #define	KASSERT(exp,msg)	assert((exp))
+#define	panic(...)		errx(4, __VA_ARGS__)
 #endif	/* _KERNEL */
 
 #include <machine/vmm_instruction_emul.h>
@@ -1896,7 +1901,6 @@ vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
 	return (0);
 }
 
-#ifdef _KERNEL
 void
 vie_init(struct vie *vie, const char *inst_bytes, int inst_length)
 {
@@ -1915,6 +1919,7 @@ vie_init(struct vie *vie, const char *inst_bytes, int inst_length)
 	}
 }
 
+#ifdef _KERNEL
 static int
 pf_error_code(int usermode, int prot, int rsvd, uint64_t pte)
 {
@@ -2189,6 +2194,7 @@ vmm_fetch_instruction(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
 	vie->num_valid = inst_length;
 	return (0);
 }
+#endif	/* _KERNEL */
 
 static int
 vie_peek(struct vie *vie, uint8_t *x)
@@ -2611,6 +2617,7 @@ decode_moffset(struct vie *vie)
 	return (0);
 }
 
+#ifdef _KERNEL
 /*
  * Verify that the 'guest linear address' provided as collateral of the nested
  * page table fault matches with our instruction decoding.
@@ -2702,10 +2709,15 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie,
 
 	return (0);
 }
+#endif	/* _KERNEL */
 
 int
+#ifdef _KERNEL
 vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 		       enum vm_cpu_mode cpu_mode, int cs_d, struct vie *vie)
+#else
+vmm_decode_instruction(enum vm_cpu_mode cpu_mode, int cs_d, struct vie *vie)
+#endif
 {
 
 	if (decode_prefixes(vie, cpu_mode, cs_d))
@@ -2729,13 +2741,14 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 	if (decode_moffset(vie))
 		return (-1);
 
+#ifdef _KERNEL
 	if ((vie->op.op_flags & VIE_OP_F_NO_GLA_VERIFICATION) == 0) {
 		if (verify_gla(vm, cpuid, gla, vie, cpu_mode))
 			return (-1);
 	}
+#endif
 
 	vie->decoded = 1;	/* success */
 
 	return (0);
 }
-#endif	/* _KERNEL */
