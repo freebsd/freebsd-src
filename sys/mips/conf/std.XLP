@@ -113,6 +113,7 @@ device		cfi
 device		cfid
 
 # MMC/SD
+device		gpio
 device		mmc			# MMC/SD bus
 device		mmcsd			# MMC/SD memory card
 device		sdhci			# Generic PCI SD Host Controller
