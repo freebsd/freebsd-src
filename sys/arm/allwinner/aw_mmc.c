@@ -163,6 +163,7 @@ static int aw_mmc_probe(device_t);
 static int aw_mmc_attach(device_t);
 static int aw_mmc_detach(device_t);
 static int aw_mmc_setup_dma(struct aw_mmc_softc *);
+static void aw_mmc_teardown_dma(struct aw_mmc_softc *sc);
 static int aw_mmc_reset(struct aw_mmc_softc *);
 static int aw_mmc_init(struct aw_mmc_softc *);
 static void aw_mmc_intr(void *);
@@ -559,8 +560,46 @@ fail:
 static int
 aw_mmc_detach(device_t dev)
 {
+	struct aw_mmc_softc *sc;
+	device_t d;
 
-	return (EBUSY);
+	sc = device_get_softc(dev);
+
+	clk_disable(sc->aw_clk_mmc);
+	clk_disable(sc->aw_clk_ahb);
+	hwreset_assert(sc->aw_rst_ahb);
+
+	mmc_fdt_gpio_teardown(&sc->mmc_helper);
+
+	callout_drain(&sc->aw_timeoutc);
+
+	AW_MMC_LOCK(sc);
+	d = sc->child;
+	sc->child = NULL;
+	AW_MMC_UNLOCK(sc);
+	if (d != NULL)
+		device_delete_child(sc->aw_dev, d);
+
+	aw_mmc_teardown_dma(sc);
+
+	mtx_destroy(&sc->aw_mtx);
+
+	bus_teardown_intr(dev, sc->aw_res[AW_MMC_IRQRES], sc->aw_intrhand);
+	bus_release_resources(dev, aw_mmc_res_spec, sc->aw_res);
+
+#ifdef MMCCAM
+	if (sc->sim != NULL) {
+		mtx_lock(&sc->sim_mtx);
+		xpt_bus_deregister(cam_sim_path(sc->sim));
+		cam_sim_free(sc->sim, FALSE);
+		mtx_unlock(&sc->sim_mtx);
+	}
+
+	if (sc->devq != NULL)
+		cam_simq_free(sc->devq);
+#endif
+
+	return (0);
 }
 
 static void
@@ -632,6 +671,21 @@ aw_mmc_setup_dma(struct aw_mmc_softc *sc)
 		return (error);
 
 	return (0);
+}
+
+static void
+aw_mmc_teardown_dma(struct aw_mmc_softc *sc)
+{
+
+	bus_dmamap_unload(sc->aw_dma_tag, sc->aw_dma_map);
+	bus_dmamem_free(sc->aw_dma_tag, sc->aw_dma_desc, sc->aw_dma_map);
+	if (bus_dma_tag_destroy(sc->aw_dma_tag) != 0)
+		device_printf(sc->aw_dev, "Cannot destroy the dma tag\n");
+
+	bus_dmamap_unload(sc->aw_dma_buf_tag, sc->aw_dma_buf_map);
+	bus_dmamap_destroy(sc->aw_dma_buf_tag, sc->aw_dma_buf_map);
+	if (bus_dma_tag_destroy(sc->aw_dma_buf_tag) != 0)
+		device_printf(sc->aw_dev, "Cannot destroy the dma buf tag\n");
 }
 
 static void
@@ -1519,3 +1573,4 @@ DRIVER_MODULE(aw_mmc, simplebus, aw_mmc_driver, aw_mmc_devclass, NULL,
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(aw_mmc);
 #endif
+SIMPLEBUS_PNP_INFO(compat_data);
