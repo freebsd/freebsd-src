@@ -254,9 +254,9 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
 	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, issetugid);
 	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
-	AUXARGS_ENTRY(pos, LINUX_AT_RANDOM, imgp->canary);
+	AUXARGS_ENTRY_PTR(pos, LINUX_AT_RANDOM, imgp->canary);
 	if (imgp->execpathp != 0)
-		AUXARGS_ENTRY(pos, LINUX_AT_EXECFN, imgp->execpathp);
+		AUXARGS_ENTRY_PTR(pos, LINUX_AT_EXECFN, imgp->execpathp);
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
@@ -315,8 +315,8 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	if (execpath_len != 0) {
 		destp -= execpath_len;
 		destp = rounddown2(destp, sizeof(void *));
-		imgp->execpathp = destp;
-		error = copyout(imgp->execpath, (void *)destp, execpath_len);
+		imgp->execpathp = (void *)destp;
+		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
 		if (error != 0)
 			return (error);
 	}
@@ -324,8 +324,8 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	/* Prepare the canary for SSP. */
 	arc4rand(canary, sizeof(canary), 0);
 	destp -= roundup(sizeof(canary), sizeof(void *));
-	imgp->canary = destp;
-	error = copyout(canary, (void *)destp, sizeof(canary));
+	imgp->canary = (void *)destp;
+	error = copyout(canary, imgp->canary, sizeof(canary));
 	if (error != 0)
 		return (error);
 
