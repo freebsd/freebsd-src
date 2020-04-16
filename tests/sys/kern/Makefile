@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/kernel
 .PATH:		${SRCTOP}/sys/kern
 
@@ -24,6 +26,12 @@ ATF_TESTS_C+=	waitpid_nohang
 ATF_TESTS_C+=	pdeathsig
 
 ATF_TESTS_SH+=	coredump_phnum_test
+ATF_TESTS_SH+=	sonewconn_overflow
+TEST_METADATA.sonewconn_overflow+=	required_programs="python"
+TEST_METADATA.sonewconn_overflow+=	required_user="root"
+
+${PACKAGE}FILES+=	sonewconn_overflow.py
+${PACKAGE}FILESMODE_sonewconn_overflow.py=0555
 
 BINDIR=		${TESTSDIR}
 PROGS+=		coredump_phnum_helper
