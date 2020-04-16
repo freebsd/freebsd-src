@@ -381,6 +381,8 @@ mmc_fdt_gpio_teardown(struct mmc_fdt_helper *helper)
 		gpio_pin_release(helper->cd_pin);
 	if (helper->cd_ires != NULL)
 		bus_release_resource(helper->dev, SYS_RES_IRQ, 0, helper->cd_ires);
+
+	taskqueue_drain_timeout(taskqueue_swi_giant, &helper->cd_delayed_task);
 }
 
 bool
