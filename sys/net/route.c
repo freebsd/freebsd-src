@@ -143,7 +143,8 @@ EVENTHANDLER_LIST_DEFINE(rt_addrmsg);
 
 static int rt_getifa_fib(struct rt_addrinfo *, u_int);
 static void rt_setmetrics(const struct rt_addrinfo *, struct rtentry *);
-static int rt_ifdelroute(const struct rtentry *rt, void *arg);
+static int rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *,
+    void *arg);
 static struct rtentry *rt_unlinkrte(struct rib_head *rnh,
     struct rt_addrinfo *info, int *perror);
 static void rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info);
@@ -1124,6 +1125,7 @@ rt_foreach_fib_walk_del(int family, rt_filter_f_t *filter_f, void *arg)
  *
  * Arguments:
  *	rt	pointer to rtentry
+ *	nh	pointer to nhop
  *	arg	argument passed to rnh->rnh_walktree() - detaching interface
  *
  * Returns:
@@ -1131,11 +1133,11 @@ rt_foreach_fib_walk_del(int family, rt_filter_f_t *filter_f, void *arg)
  *	errno	failed - reason indicated
  */
 static int
-rt_ifdelroute(const struct rtentry *rt, void *arg)
+rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
 {
 	struct ifnet	*ifp = arg;
 
-	if (rt->rt_ifp != ifp)
+	if (nh->nh_ifp != ifp)
 		return (0);
 
 	/*
@@ -1203,7 +1205,7 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 	}
 
 	if (info->rti_filter != NULL) {
-		if (info->rti_filter(rt, info->rti_filterdata) == 0) {
+		if (info->rti_filter(rt, rt->rt_nhop, info->rti_filterdata)==0){
 			/* Not matched */
 			*perror = ENOENT;
 			return (NULL);
