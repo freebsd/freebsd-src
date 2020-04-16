@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  * Updates time of the next nearest route expiration as a side effect.
  */
 static int
-expire_route(const struct rtentry *rt, void *arg)
+expire_route(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
 {
 	time_t *next_callout;
 

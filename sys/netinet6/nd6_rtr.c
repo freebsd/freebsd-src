@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/route_var.h>
 #include <net/radix.h>
 #include <net/vnet.h>
@@ -2392,15 +2393,16 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 }
 
 static int
-rt6_deleteroute(const struct rtentry *rt, void *arg)
+rt6_deleteroute(const struct rtentry *rt, const struct nhop_object *nh,
+    void *arg)
 {
-#define SIN6(s)	((struct sockaddr_in6 *)s)
 	struct in6_addr *gate = (struct in6_addr *)arg;
+	int nh_rt_flags;
 
-	if (rt->rt_gateway == NULL || rt->rt_gateway->sa_family != AF_INET6)
+	if (nh->gw_sa.sa_family != AF_INET6)
 		return (0);
 
-	if (!IN6_ARE_ADDR_EQUAL(gate, &SIN6(rt->rt_gateway)->sin6_addr)) {
+	if (!IN6_ARE_ADDR_EQUAL(gate, &nh->gw6_sa.sin6_addr)) {
 		return (0);
 	}
 
@@ -2409,14 +2411,15 @@ rt6_deleteroute(const struct rtentry *rt, void *arg)
 	 * XXX: this seems to be a bit ad-hoc. Should we consider the
 	 * 'cloned' bit instead?
 	 */
-	if ((rt->rt_flags & RTF_STATIC) != 0)
+	nh_rt_flags = nhop_get_rtflags(nh);
+	if ((nh_rt_flags & RTF_STATIC) != 0)
 		return (0);
 
 	/*
 	 * We delete only host route. This means, in particular, we don't
 	 * delete default route.
 	 */
-	if ((rt->rt_flags & RTF_HOST) == 0)
+	if ((nh_rt_flags & RTF_HOST) == 0)
 		return (0);
 
 	return (1);

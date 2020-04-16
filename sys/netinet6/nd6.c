@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -1526,14 +1527,15 @@ nd6_free(struct llentry **lnp, int gc)
 }
 
 static int
-nd6_isdynrte(const struct rtentry *rt, void *xap)
+nd6_isdynrte(const struct rtentry *rt, const struct nhop_object *nh, void *xap)
 {
 
-	if (rt->rt_flags == (RTF_UP | RTF_HOST | RTF_DYNAMIC))
+	if (nh->nh_flags & NHF_REDIRECT)
 		return (1);
 
 	return (0);
 }
+
 /*
  * Remove the rtentry for the given llentry,
  * both of which were installed by a redirect.
