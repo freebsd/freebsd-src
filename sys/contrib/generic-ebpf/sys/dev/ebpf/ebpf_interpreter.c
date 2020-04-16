@@ -197,10 +197,10 @@ ebpf_prog_run(void *ctx, struct ebpf_prog *ep)
 			reg[inst->dst] = reg[inst->dst] ^ inst->imm;
 			break;
 		case EBPF_OP_MOV64_REG:
-			reg[inst->dst] = reg[inst->dst] + reg[inst->src];
+			reg[inst->dst] = reg[inst->src];
 			break;
 		case EBPF_OP_MOV64_IMM:
-			reg[inst->dst] = reg[inst->dst] + inst->imm;
+			reg[inst->dst] = inst->imm;
 			break;
 		case EBPF_OP_ARSH64_REG:
 			reg[inst->dst] = reg[inst->dst] >> reg[inst->src];
