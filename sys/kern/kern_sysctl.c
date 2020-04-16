@@ -1655,8 +1655,8 @@ sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 	 * string.  In ddb, don't worry about trying to make a malloced
 	 * snapshot.
 	 */
-	if ((oidp->oid_kind & (CTLFLAG_WR | CTLFLAG_TUN)) == 0 || arg2 == 0
-	    || kdb_active) {
+	if ((oidp->oid_kind & (CTLFLAG_WR | CTLFLAG_TUN)) == 0 ||
+	    arg2 == 0 || kdb_active) {
 		arg2 = strlen((char *)arg1) + 1;
 		ro_string = 1;
 	}
