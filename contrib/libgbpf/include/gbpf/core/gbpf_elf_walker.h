@@ -19,7 +19,6 @@
 #pragma once
 
 #include <sys/ebpf_vm_isa.h>
-#include <sys/ebpf_uapi.h>
 
 #include "gbpf_driver.h"
 

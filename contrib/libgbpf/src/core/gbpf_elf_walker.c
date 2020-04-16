@@ -24,8 +24,9 @@
 #include <libelf.h>
 #include <gelf.h>
 
+#include <sys/ebpf.h>
 #include <sys/ebpf_vm_isa.h>
-#include <sys/ebpf_uapi.h>
+#include <sys/ebpf_elf.h>
 
 #include <gbpf/core/gbpf_driver.h>
 #include <gbpf/core/gbpf_elf_walker.h>
