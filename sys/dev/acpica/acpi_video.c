@@ -1036,6 +1036,7 @@ vo_get_brightness(ACPI_HANDLE handle)
 static void
 vo_set_brightness(ACPI_HANDLE handle, int level)
 {
+	char notify_buf[16];
 	ACPI_STATUS status;
 
 	ACPI_SERIAL_ASSERT(video_output);
@@ -1043,6 +1044,8 @@ vo_set_brightness(ACPI_HANDLE handle, int level)
 	if (ACPI_FAILURE(status))
 		printf("can't evaluate %s._BCM - %s\n",
 		       acpi_name(handle), AcpiFormatException(status));
+	snprintf(notify_buf, sizeof(notify_buf), "notify=%d", level);
+	devctl_notify("ACPI", "Video", "brightness", notify_buf);
 }
 
 static UINT32
