@@ -249,6 +249,9 @@ copies: .PHONY .META
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 mlx5io.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/mlx5
 .endif
+	cd ${SRCTOP}/sys/contrib/generic-ebpf/sys/sys; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	    ${SDESTDIR}${INCLUDEDIR}/sys
 
 symlinks: .PHONY .META
 	@${ECHO} "Setting up symlinks to kernel source tree..."
@@ -380,6 +383,12 @@ symlinks: .PHONY .META
 	${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/mlx5/mlx5io.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/mlx5
 .endif
+	cd ${SRCTOP}/sys/contrib/generic-ebpf/sys/sys
+	for h in *.h; do \
+		${INSTALL_SYMLINK} ${TAG_ARGS} \
+		    ../../../sys/contrib/generic-ebpf/sys/sys/$$h \
+		    ${SDESTDIR}${INCLUDEDIR}/sys; \
+	done
 
 .include <bsd.prog.mk>
 
