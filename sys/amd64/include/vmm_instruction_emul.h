@@ -103,6 +103,7 @@ int vm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
  */
 int vm_gla2gpa_nofault(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, int prot, uint64_t *gpa, int *is_fault);
+#endif /* _KERNEL */
 
 void vie_init(struct vie *vie, const char *inst_bytes, int inst_length);
 
@@ -117,9 +118,17 @@ void vie_init(struct vie *vie, const char *inst_bytes, int inst_length);
  * To skip the 'gla' verification for this or any other reason pass
  * in VIE_INVALID_GLA instead.
  */
+#ifdef _KERNEL
 #define	VIE_INVALID_GLA		(1UL << 63)	/* a non-canonical address */
 int vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 			   enum vm_cpu_mode cpu_mode, int csd, struct vie *vie);
+#else /* !_KERNEL */
+/*
+ * Permit instruction decoding logic to be compiled outside of the kernel for
+ * rapid iteration and validation.  No GLA validation is performed, obviously.
+ */
+int vmm_decode_instruction(enum vm_cpu_mode cpu_mode, int csd,
+    struct vie *vie);
 #endif	/* _KERNEL */
 
 #endif	/* _VMM_INSTRUCTION_EMUL_H_ */
