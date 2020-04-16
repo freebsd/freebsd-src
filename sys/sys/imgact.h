@@ -81,11 +81,11 @@ struct image_params {
 	void *argv;			/* pointer to argv (user space) */
 	void *envv;			/* pointer to envv (user space) */
 	char *execpath;
-	unsigned long execpathp;
+	void *execpathp;
 	char *freepath;
-	unsigned long canary;
+	void *canary;
 	int canarylen;
-	unsigned long pagesizes;
+	void *pagesizes;
 	int pagesizeslen;
 	vm_prot_t stack_prot;
 	u_long stack_sz;
