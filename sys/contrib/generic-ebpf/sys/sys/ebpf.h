@@ -28,6 +28,14 @@
 
 #define EBPF_ACTION_RESTART	2
 
+enum ebpf_map_update_flags {
+	EBPF_ANY = 0,
+	EBPF_NOEXIST,
+	EBPF_EXIST,
+	__EBPF_MAP_UPDATE_FLAGS_MAX
+};
+
+#ifdef _KERNEL
 struct ebpf_obj;
 struct ebpf_prog;
 struct ebpf_map;
@@ -46,13 +54,6 @@ struct ebpf_map_attr {
 	uint32_t value_size;
 	uint32_t max_entries;
 	uint32_t flags;
-};
-
-enum ebpf_map_update_flags {
-	EBPF_ANY = 0,
-	EBPF_NOEXIST,
-	EBPF_EXIST,
-	__EBPF_MAP_UPDATE_FLAGS_MAX
 };
 
 struct ebpf_map_ops {
@@ -137,3 +138,5 @@ extern const struct ebpf_map_type emt_percpu_hashtable;
 extern const struct ebpf_helper_type eht_map_lookup_elem;
 extern const struct ebpf_helper_type eht_map_update_elem;
 extern const struct ebpf_helper_type eht_map_delete_elem;
+
+#endif
