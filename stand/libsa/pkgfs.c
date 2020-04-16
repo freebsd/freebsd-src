@@ -399,7 +399,7 @@ pkg_stat(struct open_file *f, struct stat *sb)
 	sb->st_size = tf->tf_size;
 	sb->st_blocks = (tf->tf_size + 511) / 512;
 	sb->st_mtime = pkg_atol(tf->tf_hdr.ut_mtime, 12);
-	sb->st_dev = (off_t)tf->tf_pkg;
+	sb->st_dev = (off_t)((uintptr_t)tf->tf_pkg);
 	sb->st_ino = tf->tf_ofs;	/* unique per tf_pkg */
 	return (0);
 }
