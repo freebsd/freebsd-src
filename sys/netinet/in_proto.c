@@ -163,7 +163,7 @@ struct protosw inetsw[] = {
 	.pr_input =		sctp_input,
 	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
-	.pr_drain =		sctp_drain,
+	.pr_drain =		NULL, /* Covered by the SOCK_SEQPACKET entry. */
 	.pr_usrreqs =		&sctp_usrreqs
 },
 #endif /* SCTP */
