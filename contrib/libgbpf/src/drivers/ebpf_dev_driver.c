@@ -177,9 +177,19 @@ ebpf_dev_attach_probe(GBPFDriver *self, int prog_desc, const char * probe, int j
 {
 	union ebpf_req req;
 	EBPFDevDriver *driver = (EBPFDevDriver *)self;
+	int error;
+	ebpf_probe_id_t id;
+
+	strlcpy(req.probe_by_name.name, probe, sizeof(req.probe_by_name.name));
+	error = ioctl(driver->ebpf_fd, EBPFIOC_PROBE_BY_NAME, &req);
+	if (error != 0) {
+		return (error);
+	}
+
+	id = req.probe_by_name.info.id;
 
 	req.attach.prog_fd = prog_desc;
-	strlcpy(req.attach.probe_name, probe, sizeof(req.attach.probe_name));
+	req.attach.probe_id = id;
 	req.attach.jit = jit;
 
 	return ioctl(driver->ebpf_fd, EBPFIOC_ATTACH_PROBE, &req);

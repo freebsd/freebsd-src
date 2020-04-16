@@ -37,6 +37,7 @@
 #include <sys/ebpf.h>
 #include <sys/ebpf_elf.h>
 #include <sys/ebpf_param.h>
+#include <sys/ebpf_probe.h>
 #include <dev/ebpf/ebpf_dev_freebsd.h>
 #include <dev/ebpf/ebpf_internal.h>
 #include <dev/ebpf/ebpf_dev_probe.h>

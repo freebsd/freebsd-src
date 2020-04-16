@@ -30,18 +30,32 @@
 #ifndef _SYS_EBPF_PROBE_H_
 #define _SYS_EBPF_PROBE_H_
 
-#include <ck_queue.h>
 #include <sys/ebpf_defines.h>
 
+typedef uint32_t ebpf_probe_id_t;
+
+#define EBPF_PROBE_FIRST (0)
+
+#ifdef _KERNEL
 #ifdef EBPF_HOOKS
+
+#include <ck_queue.h>
+
+struct proc;
 
 struct ebpf_probe
 {
-	int id;
+	ebpf_probe_id_t id;
 	int active;
+	char tracer[EBPF_PROBE_NAME_MAX];
+	char provider[EBPF_PROBE_NAME_MAX];
+	char module[EBPF_PROBE_NAME_MAX];
+	char function[EBPF_PROBE_NAME_MAX];
 	char name[EBPF_PROBE_NAME_MAX];
 	size_t arglen;
 	CK_SLIST_ENTRY(ebpf_probe) hash_link;
+	LIST_ENTRY(ebpf_probe) id_link;
+	TAILQ_ENTRY(ebpf_probe) list_link;
 };
 
 typedef int ebpf_fire_t(struct ebpf_probe *, void *, uintptr_t , uintptr_t,
@@ -49,6 +63,11 @@ typedef int ebpf_fire_t(struct ebpf_probe *, void *, uintptr_t , uintptr_t,
 
 typedef void *ebpf_probe_clone_t(struct ebpf_probe *, void *);
 typedef void ebpf_probe_release_t(struct ebpf_probe *, void *);
+
+typedef int (*ebpf_probe_cb)(struct ebpf_probe *, void *);
+
+int ebpf_get_probe_by_name(const char *name, ebpf_probe_cb cb, void *arg);
+int ebpf_next_probe(ebpf_probe_id_t, ebpf_probe_cb cb, void *arg);
 
 struct ebpf_module
 {
@@ -60,7 +79,7 @@ struct ebpf_module
 void ebpf_probe_register(void *);
 void ebpf_probe_deregister(void *);
 
-struct ebpf_probe * ebpf_activate_probe(const char *, void *);
+struct ebpf_probe * ebpf_activate_probe(ebpf_probe_id_t, void *);
 
 void ebpf_module_register(const struct ebpf_module *);
 void ebpf_module_deregister(void);
@@ -128,19 +147,5 @@ extern struct ebpf_probe ebpf_syscall_probe[];
 		0, 0, 0, 0) \
 	  : EBPF_ACTION_CONTINUE )
 
-struct open_probe_args
-{
-	int *fd;
-	char * path;
-	int mode;
-	int *action;
-};
-
-struct stat_probe_args
-{
-	int *fd;
-	char * path;
-	int *action;
-};
-
+#endif
 #endif

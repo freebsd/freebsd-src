@@ -33,6 +33,7 @@
 
 #include <sys/ebpf.h>
 #include <sys/ebpf_param.h>
+#include <sys/ebpf_probe.h>
 #include <dev/ebpf/ebpf_platform.h>
 #include <dev/ebpf/ebpf_dev_platform.h>
 #include <dev/ebpf/ebpf_dev_freebsd.h>
@@ -41,7 +42,6 @@
 #include <dev/ebpf/ebpf_prog.h>
 #include <dev/ebpf/ebpf_probe_syscall.h>
 
-#include <sys/ebpf_probe.h>
 #include <sys/refcount.h>
 
 struct ebpf_probe_state
@@ -58,7 +58,7 @@ static const struct ebpf_probe_ops *probe_ops[] = {
 };
 
 int
-ebpf_probe_attach(const char * pr_name, struct ebpf_prog *prog, ebpf_file *fp,
+ebpf_probe_attach(ebpf_probe_id_t id, struct ebpf_prog *prog, ebpf_file *fp,
     int jit)
 {
 	struct ebpf_probe *probe;
@@ -73,7 +73,7 @@ ebpf_probe_attach(const char * pr_name, struct ebpf_prog *prog, ebpf_file *fp,
 	state->prog = prog;
 	state->fp = fp;
 
-	probe = ebpf_activate_probe(pr_name, state);
+	probe = ebpf_activate_probe(id, state);
 	if (probe == NULL) {
 		ebpf_free(state);
 		return (ENOENT);

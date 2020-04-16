@@ -20,12 +20,20 @@
 
 #include <sys/ebpf.h>
 #include <sys/ebpf_defines.h>
+#include <sys/ebpf_probe.h>
 
 struct ebpf_map_type_info {
 	char name[EBPF_NAME_MAX];
 };
 
 struct ebpf_prog_type_info {
+	char name[EBPF_NAME_MAX];
+};
+
+struct ebpf_probe_info
+{
+	ebpf_probe_id_t id;
+	uint32_t num_attached;
 	char name[EBPF_NAME_MAX];
 };
 
@@ -76,9 +84,14 @@ union ebpf_req {
 	};
 	struct ebpf_req_attach {
 		int prog_fd;
-		char probe_name[EBPF_PROBE_NAME_MAX];
+		ebpf_probe_id_t probe_id;
 		int jit;
 	} attach;
+
+	struct {
+		char name[EBPF_NAME_MAX];
+		struct ebpf_probe_info info;
+	} probe_by_name;
 };
 
 
@@ -92,3 +105,4 @@ union ebpf_req {
 #define EBPFIOC_GET_MAP_TYPE_INFO _IOWR('i', 158, union ebpf_req)
 #define EBPFIOC_GET_PROG_TYPE_INFO _IOWR('i', 159, union ebpf_req)
 #define EBPFIOC_ATTACH_PROBE _IOWR('i', 160, union ebpf_req)
+#define EBPFIOC_PROBE_BY_NAME _IOWR('i', 161, union ebpf_req)

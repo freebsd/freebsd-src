@@ -23,6 +23,7 @@
 #include <sys/ebpf.h>
 #include <sys/ebpf_elf.h>
 #include <sys/ebpf_param.h>
+#include <sys/ebpf_probe.h>
 #include <sys/ebpf_dev.h>
 #include <dev/ebpf/ebpf_dev_probe.h>
 #include <dev/ebpf/ebpf_map_freebsd.h>
@@ -613,16 +614,12 @@ ebpf_attach(union ebpf_req *req, ebpf_thread *td)
 
 	attach = &req->attach;
 
-	if (!has_null_term(attach->probe_name, sizeof(attach->probe_name))) {
-		return (EINVAL);
-	}
-
 	error = ebpf_fd_to_program(td, attach->prog_fd, &f, &prog);
 	if (error != 0) {
 		return (EINVAL);
 	}
 
-	error = ebpf_probe_attach(attach->probe_name, prog, f, attach->jit);
+	error = ebpf_probe_attach(attach->probe_id, prog, f, attach->jit);
 	if (error != 0) {
 		goto err0;
 	}
@@ -632,6 +629,34 @@ ebpf_attach(union ebpf_req *req, ebpf_thread *td)
 err0:
 	ebpf_fdrop(f, td);
 	return (error);
+}
+
+static int
+ebpf_fill_probeinfo(struct ebpf_probe *probe, void *arg)
+{
+	struct ebpf_probe_info *info;
+
+	info = arg;
+	bzero(info, sizeof(*info));
+
+	info->id = probe->id;
+	strlcpy(info->name, probe->name, sizeof(info->name));
+	info->num_attached = probe->active;
+
+	return (0);
+}
+
+static int
+ebpf_probe_by_name(union ebpf_req *req, ebpf_thread *td)
+{
+
+	if (!has_null_term(req->probe_by_name.name,
+	    sizeof(req->probe_by_name.name))) {
+		    return (EINVAL);
+	}
+
+	return (ebpf_get_probe_by_name(req->probe_by_name.name,
+	    ebpf_fill_probeinfo, &req->probe_by_name.info));
 }
 
 int
@@ -671,6 +696,9 @@ ebpf_ioctl(struct ebpf_env *ee, uint32_t cmd, void *data, ebpf_thread *td)
 		break;
 	case EBPFIOC_ATTACH_PROBE:
 		error = ebpf_attach(req, td);
+		break;
+	case EBPFIOC_PROBE_BY_NAME:
+		error = ebpf_probe_by_name(req, td);
 		break;
 	default:
 		error = EINVAL;

@@ -58,6 +58,8 @@ static MALLOC_DEFINE(M_EBPF_HOOKS, "ebpf_hooks", "ebpf hooks implementation");
 #define	PROBE_HASH_SIZE (1 << PROBE_HASH_SIZE_SHIFT)
 
 static CK_SLIST_HEAD(probe_head, ebpf_probe) probe_hashtable[PROBE_HASH_SIZE];
+static LIST_HEAD(, ebpf_probe) probe_id_hashtable[PROBE_HASH_SIZE];
+static TAILQ_HEAD(, ebpf_probe) probe_list = TAILQ_HEAD_INITIALIZER(probe_list);
 
 static ebpf_fire_t dummy_fire;
 
@@ -72,7 +74,7 @@ SX_SYSINIT_FLAGS(ebpf_sx, &ebpf_sx, "ebpx_sx", SX_DUPOK);
 struct ebpf_probe syscall_probes[SYS_MAXSYSCALL];
 static void ebpf_register_syscall_probes(void);
 
-static int next_id = 1;
+static int next_id = EBPF_PROBE_FIRST + 1;
 
 static int
 ebpf_is_loaded(void)
@@ -88,6 +90,7 @@ ebpf_init(void *arg)
 
 	for (i = 0; i < PROBE_HASH_SIZE; ++i) {
 		CK_SLIST_INIT(&probe_hashtable[i]);
+		LIST_INIT(&probe_id_hashtable[i]);
 	}
 
 	ebpf_register_syscall_probes();
@@ -116,6 +119,13 @@ probe_hash(const char *name)
 
 	hash = murmur3_32_hash(name, strlen(name), 0);
 	return (hash & (PROBE_HASH_SIZE - 1));
+}
+
+static uint32_t
+probe_id_hash(uint32_t id)
+{
+
+	return (id & (PROBE_HASH_SIZE - 1));
 }
 
 /*
@@ -168,6 +178,10 @@ ebpf_probe_register(void *arg)
 
 	probe->active = 0;
 	CK_SLIST_INSERT_HEAD(&probe_hashtable[hash], probe, hash_link);
+
+	hash = probe_id_hash(probe->id);
+	LIST_INSERT_HEAD(&probe_id_hashtable[hash], probe, id_link);
+	TAILQ_INSERT_TAIL(&probe_list, probe, list_link);
 	sx_xunlock(&ebpf_sx);
 }
 
@@ -184,18 +198,18 @@ ebpf_probe_deregister(void *arg)
 }
 
 struct ebpf_probe *
-ebpf_activate_probe(const char *name, void *state)
+ebpf_activate_probe(ebpf_probe_id_t id, void *state)
 {
 	struct ebpf_probe *probe;
 	struct ebpf_proc_probe *pp;
 	struct proc *proc;
 	uint32_t hash;
 
-	hash = probe_hash(name);
+	hash = probe_id_hash(id);
 
 	sx_slock(&ebpf_sx);
-	CK_SLIST_FOREACH(probe, &probe_hashtable[hash], hash_link) {
-		if (strcmp(name, probe->name) == 0) {
+	LIST_FOREACH(probe, &probe_id_hashtable[hash], id_link) {
+		if (id == probe->id) {
 			pp = malloc(sizeof(*pp), M_EBPF_HOOKS, M_WAITOK);
 			pp->probe_id = probe->id;
 			pp->probe = probe;
@@ -213,7 +227,69 @@ ebpf_activate_probe(const char *name, void *state)
 	}
 
 	sx_sunlock(&ebpf_sx);
-	return probe;
+	return (probe);
+}
+
+int
+ebpf_get_probe_by_name(const char *name, ebpf_probe_cb cb, void *arg)
+{
+	struct ebpf_probe *probe;
+	int ret;
+	uint32_t hash;
+
+	hash = probe_hash(name);
+
+	sx_slock(&ebpf_sx);
+	CK_SLIST_FOREACH(probe, &probe_hashtable[hash], hash_link) {
+		if (strcmp(name, probe->name) == 0) {
+			ret = cb(probe, arg);
+			goto done;
+		}
+	}
+	ret = ENOENT;
+
+done:
+	sx_sunlock(&ebpf_sx);
+	return (ret);
+}
+
+int
+ebpf_next_probe(ebpf_probe_id_t id, ebpf_probe_cb cb, void *arg)
+{
+	struct ebpf_probe *probe;
+	uint32_t hash;
+	int ret;
+
+	sx_slock(&ebpf_sx);
+	if (id == EBPF_PROBE_FIRST) {
+		probe = TAILQ_FIRST(&probe_list);
+		if (probe != NULL) {
+			ret = cb(probe, arg);
+		} else {
+			ret = ECHILD;
+		}
+
+		goto done;
+	}
+
+	hash = probe_id_hash(id);
+
+	LIST_FOREACH(probe, &probe_id_hashtable[hash], id_link) {
+		if (id == probe->id) {
+			probe = TAILQ_NEXT(probe, list_link);
+			if (probe != NULL) {
+				ret = cb(probe, arg);
+			} else {
+				ret = ECHILD;
+			}
+			goto done;
+		}
+	}
+	ret = ENOENT;
+
+done:
+	sx_sunlock(&ebpf_sx);
+	return (ret);
 }
 
 int

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 
 #include <sys/ebpf.h>
+#include <sys/ebpf_probe.h>
 #include <dev/ebpf/ebpf_dev_platform.h>
 #include <dev/ebpf/ebpf_dev_probe.h>
 #include <sys/kernel.h>
