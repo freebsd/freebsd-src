@@ -201,6 +201,7 @@ static int
 show_iocfacts(int ac, char **av)
 {
 	MPI2_IOC_FACTS_REPLY *facts;
+	uint8_t *fb;
 	char tmpbuf[128];
 	int error, fd;
 
@@ -216,6 +217,8 @@ show_iocfacts(int ac, char **av)
 		close(fd);
 		return (errno);
 	}
+
+	fb = (uint8_t *)facts;
 
 #define IOCCAP "\3ScsiTaskFull" "\4DiagTrace" "\5SnapBuf" "\6ExtBuf" \
     "\7EEDP" "\10BiDirTarg" "\11Multicast" "\14TransRetry" "\15IR" \
@@ -250,6 +253,8 @@ show_iocfacts(int ac, char **av)
 	    facts->FWVersion.Struct.Major, facts->FWVersion.Struct.Minor,
 	    facts->FWVersion.Struct.Unit, facts->FWVersion.Struct.Dev);
 	printf(" IOCRequestFrameSize: %d\n", facts->IOCRequestFrameSize);
+	if (is_mps == 0)
+		printf(" MaxChainSegmentSize: %d\n", (uint16_t)(fb[0x26]));
 	printf("       MaxInitiators: %d\n", facts->MaxInitiators);
 	printf("          MaxTargets: %d\n", facts->MaxTargets);
 	printf("     MaxSasExpanders: %d\n", facts->MaxSasExpanders);
@@ -267,6 +272,8 @@ show_iocfacts(int ac, char **av)
 	printf("        MaxDevHandle: %d\n", facts->MaxDevHandle);
 	printf("MaxPersistentEntries: %d\n", facts->MaxPersistentEntries);
 	printf("        MinDevHandle: %d\n", facts->MinDevHandle);
+	if (is_mps == 0)
+		printf(" CurrentHostPageSize: %d\n", (uint8_t)(fb[0x3e]));
 
 	free(facts);
 	return (0);
