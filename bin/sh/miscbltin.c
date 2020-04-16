@@ -245,6 +245,7 @@ readcmd(int argc __unused, char **argv __unused)
 	lastnonifs = lastnonifsws = -1;
 	fdctx_init(STDIN_FILENO, &fdctx);
 	for (;;) {
+		c = 0;
 		nread = fdgetc(&fdctx, &c);
 		if (nread == -1) {
 			if (errno == EINTR) {
