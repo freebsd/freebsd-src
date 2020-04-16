@@ -200,6 +200,7 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	td->td_lastcpu = td->td_oncpu = NOCPU;
 
 	td->td_tid = tid_alloc();
+	td->td_ebpf_state = NULL;
 
 	/*
 	 * Note that td_critnest begins life as 1 because the thread is not
