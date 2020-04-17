@@ -515,6 +515,8 @@ struct vie_op {
 	uint8_t		op_type;	/* type of operation (e.g. MOV) */
 	uint16_t	op_flags;
 };
+_Static_assert(sizeof(struct vie_op) == 4, "ABI");
+_Static_assert(_Alignof(struct vie_op) == 2, "ABI");
 
 #define	VIE_INST_SIZE	15
 struct vie {
@@ -539,13 +541,17 @@ struct vie {
 			rm:4;
 
 	uint8_t		ss:2,			/* SIB byte */
-			index:4,
-			base:4;
+			_sparebits:2,
+			index:4,		/* SIB byte */
+			base:4;			/* SIB byte */
 
 	uint8_t		disp_bytes;
 	uint8_t		imm_bytes;
 
 	uint8_t		scale;
+
+	uint8_t		_sparebytes[3];
+
 	int		base_register;		/* VM_REG_GUEST_xyz */
 	int		index_register;		/* VM_REG_GUEST_xyz */
 	int		segment_register;	/* VM_REG_GUEST_xyz */
@@ -555,8 +561,14 @@ struct vie {
 
 	uint8_t		decoded;	/* set to 1 if successfully decoded */
 
+	uint8_t		_sparebyte;
+
 	struct vie_op	op;			/* opcode description */
 };
+_Static_assert(sizeof(struct vie) == 64, "ABI");
+_Static_assert(__offsetof(struct vie, disp_bytes) == 22, "ABI");
+_Static_assert(__offsetof(struct vie, scale) == 24, "ABI");
+_Static_assert(__offsetof(struct vie, base_register) == 28, "ABI");
 
 enum vm_exitcode {
 	VM_EXITCODE_INOUT,
