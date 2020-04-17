@@ -285,7 +285,7 @@ static void nfsrc_lock(struct nfsrvcache *rp);
 static void nfsrc_unlock(struct nfsrvcache *rp);
 static void nfsrc_wanted(struct nfsrvcache *rp);
 static void nfsrc_freecache(struct nfsrvcache *rp);
-static int nfsrc_getlenandcksum(mbuf_t m1, u_int16_t *cksum);
+static int nfsrc_getlenandcksum(struct mbuf *m1, u_int16_t *cksum);
 static void nfsrc_marksametcpconn(u_int64_t);
 
 /*
@@ -460,7 +460,7 @@ nfsrvd_updatecache(struct nfsrv_descript *nd)
 {
 	struct nfsrvcache *rp;
 	struct nfsrvcache *retrp = NULL;
-	mbuf_t m;
+	struct mbuf *m;
 	struct mtx *mutex;
 
 	rp = nd->nd_rp;
@@ -1013,10 +1013,10 @@ nfsrvd_derefcache(struct nfsrvcache *rp)
  * NFSRVCACHE_CHECKLEN bytes.
  */
 static int
-nfsrc_getlenandcksum(mbuf_t m1, u_int16_t *cksum)
+nfsrc_getlenandcksum(struct mbuf *m1, u_int16_t *cksum)
 {
 	int len = 0, cklen;
-	mbuf_t m;
+	struct mbuf *m;
 
 	m = m1;
 	while (m) {

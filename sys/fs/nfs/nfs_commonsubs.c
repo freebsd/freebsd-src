@@ -611,7 +611,7 @@ nfsm_mbufuio(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 {
 	char *mbufcp, *uiocp;
 	int xfer, left, len;
-	mbuf_t mp;
+	struct mbuf *mp;
 	long uiosiz, rem;
 	int error = 0;
 
@@ -694,7 +694,7 @@ out:
 APPLESTATIC void *
 nfsm_dissct(struct nfsrv_descript *nd, int siz, int how)
 {
-	mbuf_t mp2;
+	struct mbuf *mp2;
 	int siz2, xfer;
 	caddr_t p;
 	int left;
@@ -808,9 +808,9 @@ out:
 APPLESTATIC int
 nfsm_strtom(struct nfsrv_descript *nd, const char *cp, int siz)
 {
-	mbuf_t m2;
+	struct mbuf *m2;
 	int xfer, left;
-	mbuf_t m1;
+	struct mbuf *m1;
 	int rem, bytesize;
 	u_int32_t *tl;
 	char *cp2;
@@ -1014,7 +1014,7 @@ APPLESTATIC void
 newnfs_trimleading(nd)
 	struct nfsrv_descript *nd;
 {
-	mbuf_t m, n;
+	struct mbuf *m, *n;
 	int offs;
 
 	/*
@@ -1059,7 +1059,7 @@ newnfs_trimleading(nd)
 APPLESTATIC void
 newnfs_trimtrailing(nd, mb, bpos)
 	struct nfsrv_descript *nd;
-	mbuf_t mb;
+	struct mbuf *mb;
 	caddr_t bpos;
 {
 
@@ -2423,7 +2423,7 @@ nfsrv_mtostr(struct nfsrv_descript *nd, char *str, int siz)
 {
 	char *cp;
 	int xfer, len;
-	mbuf_t mp;
+	struct mbuf *mp;
 	int rem, error = 0;
 
 	mp = nd->nd_md;
@@ -4437,7 +4437,7 @@ nfsrv_refstrbigenough(int siz, u_char **cpp, u_char **cpp2, int *slenp)
 APPLESTATIC void
 nfsrvd_rephead(struct nfsrv_descript *nd)
 {
-	mbuf_t mreq;
+	struct mbuf *mreq;
 
 	/*
 	 * If this is a big reply, use a cluster.

@@ -325,7 +325,7 @@ int nfsm_fhtom(struct nfsrv_descript *, u_int8_t *, int, int);
 int nfsm_advance(struct nfsrv_descript *, int, int);
 void *nfsm_dissct(struct nfsrv_descript *, int, int);
 void newnfs_trimleading(struct nfsrv_descript *);
-void newnfs_trimtrailing(struct nfsrv_descript *, mbuf_t,
+void newnfs_trimtrailing(struct nfsrv_descript *, struct mbuf *,
     caddr_t);
 void newnfs_copycred(struct nfscred *, struct ucred *);
 void newnfs_copyincred(struct ucred *, struct nfscred *);
@@ -390,7 +390,7 @@ int nfsv4_fillattr(struct nfsrv_descript *, struct mount *, vnode_t, NFSACL_T *,
     struct vattr *, fhandle_t *, int, nfsattrbit_t *,
     struct ucred *, NFSPROC_T *, int, int, int, int, uint64_t, struct statfs *);
 void nfsrv_fillattr(struct nfsrv_descript *, struct nfsvattr *);
-void nfsrv_adj(mbuf_t, int, int);
+void nfsrv_adj(struct mbuf *, int, int);
 void nfsrv_postopattr(struct nfsrv_descript *, int, struct nfsvattr *);
 int nfsd_errmap(struct nfsrv_descript *);
 void nfsv4_uidtostr(uid_t, u_char **, int *);
@@ -679,12 +679,12 @@ int nfsvno_namei(struct nfsrv_descript *, struct nameidata *,
     vnode_t, int, struct nfsexstuff *, NFSPROC_T *, vnode_t *);
 void nfsvno_setpathbuf(struct nameidata *, char **, u_long **);
 void nfsvno_relpathbuf(struct nameidata *);
-int nfsvno_readlink(vnode_t, struct ucred *, NFSPROC_T *, mbuf_t *,
-    mbuf_t *, int *);
+int nfsvno_readlink(vnode_t, struct ucred *, NFSPROC_T *, struct mbuf **,
+    struct mbuf **, int *);
 int nfsvno_read(vnode_t, off_t, int, struct ucred *, NFSPROC_T *,
-    mbuf_t *, mbuf_t *);
-int nfsvno_write(vnode_t, off_t, int, int *, mbuf_t, char *, struct ucred *,
-    NFSPROC_T *);
+    struct mbuf **, struct mbuf **);
+int nfsvno_write(vnode_t, off_t, int, int *, struct mbuf *, char *,
+    struct ucred *, NFSPROC_T *);
 int nfsvno_createsub(struct nfsrv_descript *, struct nameidata *,
     vnode_t *, struct nfsvattr *, int *, int32_t *, NFSDEV_T,
     struct nfsexstuff *);

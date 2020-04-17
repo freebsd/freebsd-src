@@ -638,10 +638,10 @@ struct nfsgss_mechlist {
  * This structure is used by the server for describing each request.
  */
 struct nfsrv_descript {
-	mbuf_t			nd_mrep;	/* Request mbuf list */
-	mbuf_t			nd_md;		/* Current dissect mbuf */
-	mbuf_t			nd_mreq;	/* Reply mbuf list */
-	mbuf_t			nd_mb;		/* Current build mbuf */
+	struct mbuf		*nd_mrep;	/* Request mbuf list */
+	struct mbuf		*nd_md;		/* Current dissect mbuf */
+	struct mbuf		*nd_mreq;	/* Reply mbuf list */
+	struct mbuf		*nd_mb;		/* Current build mbuf */
 	NFSSOCKADDR_T		nd_nam;		/* and socket addr */
 	NFSSOCKADDR_T		nd_nam2;	/* return socket addr */
 	caddr_t			nd_dpos;	/* Current dissect pos */
