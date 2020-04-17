@@ -2926,11 +2926,11 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 		    vendor, product, rev) + 1;
 		if (rsize > sizeof(str))
 			rsize = sizeof(str);
-		copyout(&rsize, &sstr->bufsiz, sizeof(rsize));
 		size = rsize;
 		if (size > sstr->bufsiz)
 			size = sstr->bufsiz;
 		copyout(str, sstr->buf, size);
+		sstr->bufsiz = rsize;
 		return (size == rsize ? 0 : ENOMEM);
 	case ENCIOC_GETENCID:
 		if (ses_cache->ses_nsubencs < 1)
@@ -2940,11 +2940,11 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 		    scsi_8btou64(enc_desc->logical_id)) + 1;
 		if (rsize > sizeof(str))
 			rsize = sizeof(str);
-		copyout(&rsize, &sstr->bufsiz, sizeof(rsize));
 		size = rsize;
 		if (size > sstr->bufsiz)
 			size = sstr->bufsiz;
 		copyout(str, sstr->buf, size);
+		sstr->bufsiz = rsize;
 		return (size == rsize ? 0 : ENOMEM);
 	default:
 		return (EINVAL);
