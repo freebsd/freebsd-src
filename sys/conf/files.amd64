@@ -112,7 +112,8 @@ amd64/amd64/in_cksum.c		optional	inet | inet6
 amd64/amd64/initcpu.c		standard
 amd64/amd64/io.c		optional	io
 amd64/amd64/locore.S		standard	no-obj
-amd64/amd64/xen-locore.S	optional	xenhvm
+amd64/amd64/xen-locore.S	optional	xenhvm \
+	compile-with "${NORMAL_S} -g0"
 amd64/amd64/machdep.c		standard
 amd64/amd64/mem.c		optional	mem
 amd64/amd64/minidump_machdep.c	standard
