@@ -266,7 +266,7 @@ aju_handle_input(struct altera_jtag_uart_softc *sc, struct tty *tp)
 {
 	int c;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 	AJU_LOCK_ASSERT(sc);
 
 	while (aju_readable(sc)) {
@@ -298,7 +298,7 @@ aju_handle_output(struct altera_jtag_uart_softc *sc, struct tty *tp)
 	uint32_t v;
 	uint8_t ch;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 	AJU_LOCK_ASSERT(sc);
 
 	AJU_UNLOCK(sc);
@@ -364,7 +364,7 @@ aju_outwakeup(struct tty *tp)
 {
 	struct altera_jtag_uart_softc *sc = tty_softc(tp);
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	AJU_LOCK(sc);
 	aju_handle_output(sc, tp);

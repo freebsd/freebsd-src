@@ -173,8 +173,11 @@ void	tty_rel_gone(struct tty *tp);
 #define	tty_lock(tp)		mtx_lock((tp)->t_mtx)
 #define	tty_unlock(tp)		mtx_unlock((tp)->t_mtx)
 #define	tty_lock_owned(tp)	mtx_owned((tp)->t_mtx)
-#define	tty_lock_assert(tp,ma)	mtx_assert((tp)->t_mtx, (ma))
+#define	tty_assert_locked(tp)	mtx_assert((tp)->t_mtx, MA_OWNED)
 #define	tty_getlock(tp)		((tp)->t_mtx)
+
+/* XXX Should migrate users to tty_assert_locked! */
+#define	tty_lock_assert(tp, ma)	mtx_assert((tp)->t_mtx, (ma))
 
 /* Device node creation. */
 int	tty_makedevf(struct tty *tp, struct ucred *cred, int flags,

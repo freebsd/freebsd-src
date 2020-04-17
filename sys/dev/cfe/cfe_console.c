@@ -142,7 +142,7 @@ cfe_timeout(void *v)
 
 	tp = (struct tty *)v;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 	while ((c = cfe_cngetc(NULL)) != -1)
 		ttydisc_rint(tp, c, 0);
 	ttydisc_rint_done(tp);
