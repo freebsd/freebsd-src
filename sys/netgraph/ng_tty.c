@@ -412,7 +412,7 @@ ngt_rint_bypass(struct tty *tp, const void *buf, size_t len)
 	size_t total = 0;
 	int error = 0, length;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (sc->hook == NULL)
 		return (0);
@@ -459,7 +459,7 @@ ngt_rint(struct tty *tp, char c, int flags)
 	struct mbuf *m;
 	int error = 0;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (sc->hook == NULL)
 		return (0);
