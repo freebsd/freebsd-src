@@ -76,7 +76,7 @@ void *
 linux_page_address(struct page *page)
 {
 
-	if (page->object != kmem_object && page->object != kernel_object) {
+	if (page->object != kernel_object) {
 		return (PMAP_HAS_DMAP ?
 		    ((void *)(uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page))) :
 		    NULL);
