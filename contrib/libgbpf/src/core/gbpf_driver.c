@@ -73,12 +73,15 @@ gbpf_get_prog_type_by_name(GBPFDriver *driver, const char *name)
 }
 
 int
-gbpf_attach_probe(GBPFDriver *driver, int prog_desc, const char * probe, int jit)
+gbpf_attach_probe(GBPFDriver *driver, int prog_desc, const char *tracer,
+    const char *provider, const char *module, const char *function,
+    const char *name, int jit)
 {
 	if (!driver->attach_probe)
 		return (ENXIO);
 
-	return driver->attach_probe(driver, prog_desc, probe, jit);
+	return driver->attach_probe(driver, prog_desc, tracer, provider, module,
+	    function, name, jit);
 }
 
 void

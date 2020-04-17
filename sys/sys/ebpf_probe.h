@@ -36,6 +36,15 @@ typedef uint32_t ebpf_probe_id_t;
 
 #define EBPF_PROBE_FIRST (0)
 
+struct ebpf_probe_name
+{
+	char tracer[EBPF_PROBE_NAME_MAX];
+	char provider[EBPF_PROBE_NAME_MAX];
+	char module[EBPF_PROBE_NAME_MAX];
+	char function[EBPF_PROBE_NAME_MAX];
+	char name[EBPF_PROBE_NAME_MAX];
+};
+
 #ifdef _KERNEL
 #ifdef EBPF_HOOKS
 
@@ -47,11 +56,7 @@ struct ebpf_probe
 {
 	ebpf_probe_id_t id;
 	int active;
-	char tracer[EBPF_PROBE_NAME_MAX];
-	char provider[EBPF_PROBE_NAME_MAX];
-	char module[EBPF_PROBE_NAME_MAX];
-	char function[EBPF_PROBE_NAME_MAX];
-	char name[EBPF_PROBE_NAME_MAX];
+	struct ebpf_probe_name name;
 	size_t arglen;
 	CK_SLIST_ENTRY(ebpf_probe) hash_link;
 	LIST_ENTRY(ebpf_probe) id_link;
@@ -66,7 +71,8 @@ typedef void ebpf_probe_release_t(struct ebpf_probe *, void *);
 
 typedef int (*ebpf_probe_cb)(struct ebpf_probe *, void *);
 
-int ebpf_get_probe_by_name(const char *name, ebpf_probe_cb cb, void *arg);
+int ebpf_get_probe_by_name(struct ebpf_probe_name *name, ebpf_probe_cb cb,
+    void *arg);
 int ebpf_next_probe(ebpf_probe_id_t, ebpf_probe_cb cb, void *arg);
 
 struct ebpf_module

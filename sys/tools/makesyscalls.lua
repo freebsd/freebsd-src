@@ -772,8 +772,13 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		    config['syscallprefix'], funcalias, sysnum))
 		write_line("sysmk", string.format(" \\\n\t%s.o",
 		    funcalias))
-		write_line("ebpfprobe", string.format('\t[%s%s] = { .name = "%s_syscall_probe" },\n',
-		    config['syscallprefix'], funcalias, funcalias))
+		write_line("ebpfprobe", string.format('\t[%s%s] = { .name = {\n', config['syscallprefix'], funcalias))
+		write_line("ebpfprobe", '\t\t.tracer = "ebpf",\n')
+		write_line("ebpfprobe", '\t\t.provider = "sc_rewrite",\n')
+		write_line("ebpfprobe", '\t\t.module = "",\n')
+		write_line("ebpfprobe", string.format('\t\t.function = "%s",\n', funcalias))
+		write_line("ebpfprobe", '\t\t.name = "enter",\n')
+		write_line("ebpfprobe", '\t}},\n')
 	end
 end
 

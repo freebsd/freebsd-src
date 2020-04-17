@@ -173,14 +173,22 @@ ebpf_dev_get_prog_type_by_name(GBPFDriver *self, const char *name)
 }
 
 static int
-ebpf_dev_attach_probe(GBPFDriver *self, int prog_desc, const char * probe, int jit)
+ebpf_dev_attach_probe(GBPFDriver *self, int prog_desc, const char *tracer,
+    const char *provider, const char *module, const char *function,
+    const char *name, int jit)
 {
 	union ebpf_req req;
 	EBPFDevDriver *driver = (EBPFDevDriver *)self;
 	int error;
 	ebpf_probe_id_t id;
 
-	strlcpy(req.probe_by_name.name, probe, sizeof(req.probe_by_name.name));
+	memset(&req, 0, sizeof(req));
+	strlcpy(req.probe_by_name.name.tracer, tracer, sizeof(req.probe_by_name.name.tracer));
+	strlcpy(req.probe_by_name.name.provider, provider, sizeof(req.probe_by_name.name.provider));
+	strlcpy(req.probe_by_name.name.module, module, sizeof(req.probe_by_name.name.module));
+	strlcpy(req.probe_by_name.name.function, function, sizeof(req.probe_by_name.name.function));
+	strlcpy(req.probe_by_name.name.name, name, sizeof(req.probe_by_name.name.name));
+
 	error = ioctl(driver->ebpf_fd, EBPFIOC_PROBE_BY_NAME, &req);
 	if (error != 0) {
 		return (error);

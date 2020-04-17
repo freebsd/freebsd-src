@@ -34,7 +34,7 @@ struct ebpf_probe_info
 {
 	ebpf_probe_id_t id;
 	uint32_t num_attached;
-	char name[EBPF_NAME_MAX];
+	struct ebpf_probe_name name;
 };
 
 union ebpf_req {
@@ -89,7 +89,7 @@ union ebpf_req {
 	} attach;
 
 	struct {
-		char name[EBPF_NAME_MAX];
+		struct ebpf_probe_name name;
 		struct ebpf_probe_info info;
 	} probe_by_name;
 };

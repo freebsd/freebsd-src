@@ -105,7 +105,7 @@ ebpf_register_syscall_probes(void)
 	int i;
 
 	for (i = 0; i < nitems(ebpf_syscall_probe); ++i) {
-		if (ebpf_syscall_probe[i].name == NULL)
+		if (ebpf_syscall_probe[i].name.name == NULL)
 			continue;
 
 		ebpf_probe_register(&ebpf_syscall_probe[i]);
@@ -113,12 +113,44 @@ ebpf_register_syscall_probes(void)
 }
 
 static uint32_t
-probe_hash(const char *name)
+probe_hash(struct ebpf_probe_name *name)
 {
 	uint32_t hash;
 
-	hash = murmur3_32_hash(name, strlen(name), 0);
+	hash = murmur3_32_hash(name->tracer, sizeof(name->tracer), 0);
+	hash = murmur3_32_hash(name->provider, sizeof(name->provider), hash);
+	hash = murmur3_32_hash(name->module, sizeof(name->module), hash);
+	hash = murmur3_32_hash(name->function, sizeof(name->function), hash);
+	hash = murmur3_32_hash(name->name, sizeof(name->name), hash);
 	return (hash & (PROBE_HASH_SIZE - 1));
+}
+
+static int
+probe_name_cmp(struct ebpf_probe_name *a, struct ebpf_probe_name *b)
+{
+	int cmp;
+
+	cmp = memcmp(a->tracer, b->tracer, sizeof(a->tracer));
+	if (cmp != 0) {
+		return (cmp);
+	}
+
+	cmp = memcmp(a->provider, b->provider, sizeof(a->tracer));
+	if (cmp != 0) {
+		return (cmp);
+	}
+
+	cmp = memcmp(a->module, b->module, sizeof(a->tracer));
+	if (cmp != 0) {
+		return (cmp);
+	}
+
+	cmp = memcmp(a->function, b->function, sizeof(a->tracer));
+	if (cmp != 0) {
+		return (cmp);
+	}
+
+	return (memcmp(a->name, b->name, sizeof(a->tracer)));
 }
 
 static uint32_t
@@ -170,7 +202,7 @@ ebpf_probe_register(void *arg)
 	uint32_t hash;
 
 	probe = arg;
-	hash = probe_hash(probe->name);
+	hash = probe_hash(&probe->name);
 
 	sx_xlock(&ebpf_sx);
 	probe->id = next_id;
@@ -231,7 +263,7 @@ ebpf_activate_probe(ebpf_probe_id_t id, void *state)
 }
 
 int
-ebpf_get_probe_by_name(const char *name, ebpf_probe_cb cb, void *arg)
+ebpf_get_probe_by_name(struct ebpf_probe_name *name, ebpf_probe_cb cb, void *arg)
 {
 	struct ebpf_probe *probe;
 	int ret;
@@ -241,7 +273,7 @@ ebpf_get_probe_by_name(const char *name, ebpf_probe_cb cb, void *arg)
 
 	sx_slock(&ebpf_sx);
 	CK_SLIST_FOREACH(probe, &probe_hashtable[hash], hash_link) {
-		if (strcmp(name, probe->name) == 0) {
+		if (probe_name_cmp(name, &probe->name) == 0) {
 			ret = cb(probe, arg);
 			goto done;
 		}

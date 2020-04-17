@@ -640,7 +640,7 @@ ebpf_fill_probeinfo(struct ebpf_probe *probe, void *arg)
 	bzero(info, sizeof(*info));
 
 	info->id = probe->id;
-	strlcpy(info->name, probe->name, sizeof(info->name));
+	memcpy(&info->name, &probe->name, sizeof(info->name));
 	info->num_attached = probe->active;
 
 	return (0);
@@ -650,12 +650,32 @@ static int
 ebpf_probe_by_name(union ebpf_req *req, ebpf_thread *td)
 {
 
-	if (!has_null_term(req->probe_by_name.name,
-	    sizeof(req->probe_by_name.name))) {
+	if (!has_null_term(req->probe_by_name.name.tracer,
+	    sizeof(req->probe_by_name.name.tracer))) {
 		    return (EINVAL);
 	}
 
-	return (ebpf_get_probe_by_name(req->probe_by_name.name,
+	if (!has_null_term(req->probe_by_name.name.provider,
+	    sizeof(req->probe_by_name.name.provider))) {
+		    return (EINVAL);
+	}
+
+	if (!has_null_term(req->probe_by_name.name.module,
+	    sizeof(req->probe_by_name.name.module))) {
+		    return (EINVAL);
+	}
+
+	if (!has_null_term(req->probe_by_name.name.function,
+	    sizeof(req->probe_by_name.name.function))) {
+		    return (EINVAL);
+	}
+
+	if (!has_null_term(req->probe_by_name.name.name,
+	    sizeof(req->probe_by_name.name.name))) {
+		    return (EINVAL);
+	}
+
+	return (ebpf_get_probe_by_name(&req->probe_by_name.name,
 	    ebpf_fill_probeinfo, &req->probe_by_name.info));
 }
 
