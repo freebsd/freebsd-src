@@ -105,7 +105,7 @@ ebpf_register_syscall_probes(void)
 	int i;
 
 	for (i = 0; i < nitems(ebpf_syscall_probe); ++i) {
-		if (ebpf_syscall_probe[i].name.name == NULL)
+		if (ebpf_syscall_probe[i].name.name[0] == '\0')
 			continue;
 
 		ebpf_probe_register(&ebpf_syscall_probe[i]);
