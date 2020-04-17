@@ -23,6 +23,7 @@ SUBDIR=	adduser \
 	devinfo \
 	diskinfo \
 	dumpcis \
+	ebpfctl \
 	etcupdate \
 	extattr \
 	extattrctl \
