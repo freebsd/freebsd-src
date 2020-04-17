@@ -965,7 +965,7 @@ hdac_unsolq_flush(struct hdac_softc *sc)
 }
 
 /****************************************************************************
- * uint32_t hdac_command_sendone_internal
+ * uint32_t hdac_send_command
  *
  * Wrapper function that sends only one command to a given codec
  ****************************************************************************/
