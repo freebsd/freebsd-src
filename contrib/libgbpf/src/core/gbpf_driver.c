@@ -95,3 +95,10 @@ gbpf_close_map_desc(GBPFDriver *driver, int map_desc)
 {
 	return driver->close_map_desc(driver, map_desc);
 }
+
+int
+gbpf_get_probe_info(GBPFDriver *driver, ebpf_probe_id_t id, struct ebpf_probe_info *info)
+{
+
+	return driver->get_probe_info(driver, id, info);
+}

@@ -215,6 +215,22 @@ ebpf_dev_close_map_desc(GBPFDriver *self, int map_desc)
 	close(map_desc);
 }
 
+static int
+ebpf_dev_get_probe_info(GBPFDriver *self, ebpf_probe_id_t id, struct ebpf_probe_info *info)
+{
+	union ebpf_req req;
+	EBPFDevDriver *driver = (EBPFDevDriver *)self;
+	int error;
+
+	req.probe_iter.prev_id = id;
+	error = ioctl(driver->ebpf_fd, EBPFIOC_PROBE_ITER, &req);
+	if (error == 0) {
+		memcpy(info, &req.probe_iter.info, sizeof(*info));
+	}
+
+	return (error);
+}
+
 EBPFDevDriver *
 ebpf_dev_driver_create(void)
 {
@@ -240,6 +256,7 @@ ebpf_dev_driver_create(void)
 	driver->base.close_prog_desc = ebpf_dev_close_prog_desc;
 	driver->base.close_map_desc = ebpf_dev_close_map_desc;
 	driver->base.attach_probe = ebpf_dev_attach_probe;
+	driver->base.get_probe_info = ebpf_dev_get_probe_info;
 
 	return driver;
 }

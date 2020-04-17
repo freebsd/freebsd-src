@@ -19,6 +19,8 @@
 #pragma once
 
 #include <stdint.h>
+#include <sys/ebpf_probe.h>
+#include <sys/ebpf_dev.h>
 
 struct gbpf_driver;
 typedef struct gbpf_driver GBPFDriver;
@@ -42,6 +44,7 @@ typedef void(gbpf_close_map_desc_t)(GBPFDriver *self, int map_desc);
 typedef int(gbpf_attach_probe_t)(GBPFDriver *self, int prog_desc, const char *tracer,
     const char *provider, const char *module, const char *function,
     const char *name, int jit);
+typedef int (gbpf_get_probe_info_t)(GBPFDriver *self, ebpf_probe_id_t, struct ebpf_probe_info *);
 
 struct gbpf_driver {
 	gbpf_load_prog_t *load_prog;
@@ -55,6 +58,7 @@ struct gbpf_driver {
 	gbpf_close_prog_desc_t *close_prog_desc;
 	gbpf_close_map_desc_t *close_map_desc;
 	gbpf_attach_probe_t *attach_probe;
+	gbpf_get_probe_info_t *get_probe_info;
 };
 
 int gbpf_load_prog(GBPFDriver *driver, uint16_t prog_type, void *prog,
@@ -76,3 +80,4 @@ int gbpf_attach_probe(GBPFDriver *self, int prog_desc, const char *tracer,
     const char *name, int jit);
 void gbpf_close_prog_desc(GBPFDriver *driver, int prog_desc);
 void gbpf_close_map_desc(GBPFDriver *driver, int map_desc);
+int gbpf_get_probe_info(GBPFDriver *driver, ebpf_probe_id_t, struct ebpf_probe_info *);
