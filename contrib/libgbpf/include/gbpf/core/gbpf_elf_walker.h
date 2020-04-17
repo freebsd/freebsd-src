@@ -22,6 +22,7 @@
 
 #include "gbpf_driver.h"
 
+struct ebpf_map_def;
 struct gbpf_elf_walker;
 typedef struct gbpf_elf_walker GBPFElfWalker;
 
