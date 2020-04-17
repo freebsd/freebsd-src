@@ -665,7 +665,7 @@ nfsrvd_readlink(struct nfsrv_descript *nd, __unused int isdgram,
     vnode_t vp, __unused struct nfsexstuff *exp)
 {
 	u_int32_t *tl;
-	mbuf_t mp = NULL, mpend = NULL;
+	struct mbuf *mp = NULL, *mpend = NULL;
 	int getret = 1, len;
 	struct nfsvattr nva;
 	struct thread *p = curthread;
@@ -710,7 +710,7 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 {
 	u_int32_t *tl;
 	int error = 0, cnt, getret = 1, gotproxystateid, reqlen, eof = 0;
-	mbuf_t m2, m3;
+	struct mbuf *m2, *m3;
 	struct nfsvattr nva;
 	off_t off = 0x0;
 	struct nfsstate st, *stp = &st;
@@ -5532,7 +5532,7 @@ nfsrvd_getxattr(struct nfsrv_descript *nd, __unused int isdgram,
     vnode_t vp, __unused struct nfsexstuff *exp)
 {
 	uint32_t *tl;
-	mbuf_t mp = NULL, mpend = NULL;
+	struct mbuf *mp = NULL, *mpend = NULL;
 	int error, len;
 	char *name;
 	struct thread *p = curthread;

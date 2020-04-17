@@ -53,7 +53,7 @@ struct nfsrvcache {
 	u_int32_t	rc_xid;			/* rpc id number */
 	time_t		rc_timestamp;		/* Time done */
 	union {
-		mbuf_t repmb;			/* Reply mbuf list OR */
+		struct mbuf *repmb;		/* Reply mbuf list OR */
 		int repstat;			/* Reply status */
 	} rc_un;
 	union {

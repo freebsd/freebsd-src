@@ -1274,9 +1274,9 @@ static short *nfsrv_v4errmap[] = {
  * boundary and only trims off the back end
  */
 APPLESTATIC void
-nfsrv_adj(mbuf_t mp, int len, int nul)
+nfsrv_adj(struct mbuf *mp, int len, int nul)
 {
-	mbuf_t m;
+	struct mbuf *m;
 	int count, i;
 	char *cp;
 
@@ -1838,7 +1838,7 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
     NFSPATHLEN_T *outlenp)
 {
 	char *fromcp, *tocp, val = '\0';
-	mbuf_t md;
+	struct mbuf *md;
 	int i;
 	int rem, len, error = 0, pubtype = 0, outlen = 0, percent = 0;
 	char digit;
