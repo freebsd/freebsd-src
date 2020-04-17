@@ -53,7 +53,7 @@ arm/arm/machdep_kdb.c		standard
 arm/arm/machdep_intr.c		standard
 arm/arm/machdep_ptrace.c	standard
 arm/arm/mem.c			optional	mem
-arm/arm/minidump_machdep.c	optional	mem
+arm/arm/minidump_machdep.c	standard
 arm/arm/mp_machdep.c		optional	smp
 arm/arm/mpcore_timer.c		optional	mpcore_timer
 arm/arm/nexus.c			standard
