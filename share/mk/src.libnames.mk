@@ -114,6 +114,7 @@ _LIBRARIES=	\
 		execinfo \
 		fetch \
 		figpar \
+		gbpf \
 		geom \
 		gnuregex \
 		gpio \
@@ -379,6 +380,7 @@ _DP_zfs=	md pthread umem util uutil m nvpair avl bsdxml geom nvpair z \
 _DP_zfs_core=	nvpair
 _DP_zpool=	md pthread z nvpair avl umem
 _DP_be=		zfs nvpair
+_DP_gbpf=	elf
 
 # OFED support
 .if ${MK_OFED} != "no"
@@ -641,6 +643,7 @@ LIBCAP_PWDDIR=	${OBJTOP}/lib/libcasper/services/cap_pwd
 LIBCAP_SYSCTLDIR=	${OBJTOP}/lib/libcasper/services/cap_sysctl
 LIBCAP_SYSLOGDIR=	${OBJTOP}/lib/libcasper/services/cap_syslog
 LIBBSDXMLDIR=	${OBJTOP}/lib/libexpat
+LIBGBPF= ${OBJTOP}/lib/libgbpf
 LIBKVMDIR=	${OBJTOP}/lib/libkvm
 LIBPTHREADDIR=	${OBJTOP}/lib/libthr
 LIBMDIR=	${OBJTOP}/lib/msun
