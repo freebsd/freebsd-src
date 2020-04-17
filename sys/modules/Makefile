@@ -385,6 +385,7 @@ SUBDIR=	\
 	${_wpi} \
 	${_wpifw} \
 	${_x86bios} \
+	xdr \
 	xl \
 	xz \
 	zlib
