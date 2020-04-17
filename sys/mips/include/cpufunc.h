@@ -125,7 +125,7 @@ breakpoint(void)
 static __inline uint64_t					\
 mips_rd_ ## n (void)						\
 {								\
-	int v0;							\
+	uint64_t v0;						\
 	__asm __volatile ("dmfc0 %[v0], $"__XSTRING(r)";"	\
 			  : [v0] "=&r"(v0));			\
 	mips_barrier();						\
@@ -147,7 +147,7 @@ mips_wr_ ## n (uint64_t a0)					\
 static __inline uint64_t					\
 mips_rd_ ## n(void)						\
 {								\
-	int v0;							\
+	uint64_t v0;						\
 	__asm __volatile ("dmfc0 %[v0], $"__XSTRING(r)", "__XSTRING(s)";"	\
 			  : [v0] "=&r"(v0));			\
 	mips_barrier();						\
@@ -190,7 +190,7 @@ MIPS_RW64_COP0(xcontext, MIPS_COP_0_TLB_XCONTEXT);
 static __inline uint32_t					\
 mips_rd_ ## n (void)						\
 {								\
-	int v0;							\
+	uint32_t v0;						\
 	__asm __volatile ("mfc0 %[v0], $"__XSTRING(r)";"	\
 			  : [v0] "=&r"(v0));			\
 	mips_barrier();						\
@@ -212,7 +212,7 @@ mips_wr_ ## n (uint32_t a0)					\
 static __inline uint32_t					\
 mips_rd_ ## n(void)						\
 {								\
-	int v0;							\
+	uint32_t v0;						\
 	__asm __volatile ("mfc0 %[v0], $"__XSTRING(r)", "__XSTRING(s)";"	\
 			  : [v0] "=&r"(v0));			\
 	mips_barrier();						\
