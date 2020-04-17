@@ -65,6 +65,8 @@ typedef u_quad_t        u_longlong_t;   /* ANSI unsigned long long type */
 #define XDR_FALSE	((long) 0)
 #define XDR_TRUE	((long) 1)
 
+MALLOC_DEFINE(M_RPC, "rpc", "Remote Procedure Call");
+
 /*
  * for unit alignment
  */
