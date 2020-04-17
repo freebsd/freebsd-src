@@ -45,6 +45,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/jail.h>
+#include <sys/linker.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/route.h>
@@ -63,6 +64,7 @@
 #include <sysexits.h>
 
 #include <atf-c.h>
+#include "freebsd_test_suite/macros.h"
 
 #include "rtsock_print.h"
 #include "params.h"
@@ -126,33 +128,6 @@ _check_cloner(char *name)
 	return (found);
 }
 
-/*
- * Tries to ensure if_tap is loaded.
- * Checks list of interface cloners first, then tries
- * to load the module.
- *
- * return nonzero on success.
- */
-static int
-_enforce_cloner_loaded(char *cloner_name)
-{
-	if (_check_cloner(cloner_name))
-		return (1);
-	/* need to load */
-	RLOG("trying to load %s driver", cloner_name);
-
-	char cmd[64];
-
-	snprintf(cmd, sizeof(cmd), "/sbin/kldload if_%s", cloner_name);
-	int ret = system(cmd);
-	if (ret != 0) {
-		RLOG("'%s' failed, error %d", cmd, ret);
-		return (0);
-	}
-
-	return (1);
-}
-
 static char *
 iface_create(char *ifname_orig)
 {
@@ -164,9 +139,6 @@ iface_create(char *ifname_orig)
 	for (src = ifname_orig, dst = prefix; *src && isalpha(*src); src++)
 		*dst++ = *src;
 	*dst = '\0';
-
-	if (_enforce_cloner_loaded(prefix) == 0)
-		return (NULL);
 
 	memset(&ifr, 0, sizeof(struct ifreq));
 

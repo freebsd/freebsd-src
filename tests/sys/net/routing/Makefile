@@ -14,4 +14,6 @@ ${PACKAGE}FILESMODE_generic_cleanup.sh=0555
 # so running them in parallel will lead to weird results.
 TEST_METADATA+=	is_exclusive=true
 
+CFLAGS+=	-I${.CURDIR:H:H:H}
+
 .include <bsd.test.mk>
