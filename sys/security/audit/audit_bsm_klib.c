@@ -433,10 +433,15 @@ audit_canon_path_vp(struct thread *td, struct vnode *rdir, struct vnode *cdir,
 	    __func__,  __FILE__, __LINE__);
 
 	copy = path;
-	if (*path == '/')
+	if (*path == '/') {
 		vp = rdir;
-	else
+	} else {
+		if (cdir == NULL) {
+			cpath[0] = '\0';
+			return;
+		}
 		vp = cdir;
+	}
 	MPASS(vp != NULL);
 	/*
 	 * NB: We require that the supplied array be at least MAXPATHLEN bytes
