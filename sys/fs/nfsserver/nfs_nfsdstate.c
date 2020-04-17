@@ -4417,7 +4417,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
     int trunc, fhandle_t *fhp, struct nfsvattr *nap, nfsattrbit_t *attrbitp,
     int laytype, NFSPROC_T *p)
 {
-	mbuf_t m;
+	struct mbuf *m;
 	u_int32_t *tl;
 	struct nfsrv_descript *nd;
 	struct ucred *cred;
