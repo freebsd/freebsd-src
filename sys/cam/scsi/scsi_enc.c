@@ -489,6 +489,10 @@ enc_ioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag,
 		cam_periph_lock(periph);
 		error = enc->enc_vec.handle_string(enc, &sstr, cmd);
 		cam_periph_unlock(periph);
+		if (error == 0 || error == ENOMEM)
+			(void)copyout(&sstr.bufsiz,
+			    &((encioc_string_t *)addr)->bufsiz,
+			    sizeof(sstr.bufsiz));
 		break;
 
 	case ENCIOC_GETELMSTAT:
