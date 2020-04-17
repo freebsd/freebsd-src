@@ -515,7 +515,7 @@ xencons_tx(struct tty *tp)
 
 	cons = tty_softc(tp);
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	/*
 	 * Don't transmit any character if the buffer is full. Otherwise,

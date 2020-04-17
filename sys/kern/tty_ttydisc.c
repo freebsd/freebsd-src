@@ -326,7 +326,7 @@ ttydisc_read(struct tty *tp, struct uio *uio, int ioflag)
 {
 	int error;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (uio->uio_resid == 0)
 		return (0);
@@ -458,7 +458,7 @@ ttydisc_write(struct tty *tp, struct uio *uio, int ioflag)
 	int error = 0;
 	unsigned int oblen = 0;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (tp->t_flags & TF_ZOMBIE)
 		return (EIO);
@@ -573,7 +573,7 @@ done:
 void
 ttydisc_optimize(struct tty *tp)
 {
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (ttyhook_hashook(tp, rint_bypass)) {
 		tp->t_flags |= TF_BYPASS;
@@ -594,7 +594,7 @@ void
 ttydisc_modem(struct tty *tp, int open)
 {
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (open)
 		cv_broadcast(&tp->t_dcdwait);
@@ -842,7 +842,7 @@ ttydisc_rint(struct tty *tp, char c, int flags)
 	char ob[3] = { 0xff, 0x00 };
 	size_t ol;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	atomic_add_long(&tty_nin, 1);
 
@@ -1085,7 +1085,7 @@ ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 {
 	size_t ret;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	MPASS(tp->t_flags & TF_BYPASS);
 
@@ -1106,7 +1106,7 @@ void
 ttydisc_rint_done(struct tty *tp)
 {
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (ttyhook_hashook(tp, rint_done))
 		ttyhook_rint_done(tp);
@@ -1122,7 +1122,7 @@ ttydisc_rint_poll(struct tty *tp)
 {
 	size_t l;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (ttyhook_hashook(tp, rint_poll))
 		return ttyhook_rint_poll(tp);
@@ -1165,7 +1165,7 @@ size_t
 ttydisc_getc(struct tty *tp, void *buf, size_t len)
 {
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (tp->t_flags & TF_STOPPED)
 		return (0);
@@ -1192,7 +1192,7 @@ ttydisc_getc_uio(struct tty *tp, struct uio *uio)
 	size_t len;
 	char buf[TTY_STACKBUF];
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (tp->t_flags & TF_STOPPED)
 		return (0);
@@ -1233,7 +1233,7 @@ size_t
 ttydisc_getc_poll(struct tty *tp)
 {
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (tp->t_flags & TF_STOPPED)
 		return (0);
@@ -1255,7 +1255,7 @@ tty_putstrn(struct tty *tp, const char *p, size_t n)
 {
 	size_t i;
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	if (tty_gone(tp))
 		return (-1);
