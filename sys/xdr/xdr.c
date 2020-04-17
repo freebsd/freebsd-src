@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
@@ -836,3 +837,20 @@ xdr_u_longlong_t(XDR *xdrs, u_longlong_t *ullp)
 	 */
 	return (xdr_uint64_t(xdrs, (uint64_t *)ullp));
 }
+
+/*
+ * Kernel module glue
+ */
+static int
+xdr_modevent(module_t mod, int type, void *data)
+{
+
+        return (0);
+}
+static moduledata_t xdr_mod = {
+        "xdr",
+        xdr_modevent,
+        NULL,
+};
+DECLARE_MODULE(xdr, xdr_mod, SI_SUB_VFS, SI_ORDER_ANY);
+MODULE_VERSION(xdr, 1);

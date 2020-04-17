@@ -882,3 +882,4 @@ DECLARE_MODULE(krpc, krpc_mod, SI_SUB_VFS, SI_ORDER_ANY);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(krpc, 1);
+MODULE_DEPEND(krpc, xdr, 1, 1, 1);
