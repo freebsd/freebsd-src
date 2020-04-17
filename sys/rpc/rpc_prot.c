@@ -61,8 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <rpc/clnt.h>
 #include <rpc/rpc_msg.h>
 
-MALLOC_DEFINE(M_RPC, "rpc", "Remote Procedure Call");
-
 #define assert(exp)	KASSERT(exp, ("bad arguments"))
 
 static enum clnt_stat accepted(enum accept_stat, struct rpc_err *);
