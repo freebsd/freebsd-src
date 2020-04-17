@@ -679,6 +679,23 @@ ebpf_probe_by_name(union ebpf_req *req, ebpf_thread *td)
 	    ebpf_fill_probeinfo, &req->probe_by_name.info));
 }
 
+static int
+ebpf_probe_iter(union ebpf_req *req, ebpf_thread *td)
+{
+	int error;
+
+	error = ebpf_next_probe(req->probe_iter.prev_id,
+	    ebpf_fill_probeinfo, &req->probe_iter.info);
+
+	/* Indicates the end of the probe list. */
+	if (error == ECHILD) {
+		req->probe_iter.info.id = EBPF_PROBE_FIRST;
+		return (0);
+	}
+
+	return (error);
+}
+
 int
 ebpf_ioctl(struct ebpf_env *ee, uint32_t cmd, void *data, ebpf_thread *td)
 {
@@ -719,6 +736,9 @@ ebpf_ioctl(struct ebpf_env *ee, uint32_t cmd, void *data, ebpf_thread *td)
 		break;
 	case EBPFIOC_PROBE_BY_NAME:
 		error = ebpf_probe_by_name(req, td);
+		break;
+	case EBPFIOC_PROBE_ITER:
+		error = ebpf_probe_iter(req, td);
 		break;
 	default:
 		error = EINVAL;

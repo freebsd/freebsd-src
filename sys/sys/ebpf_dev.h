@@ -92,6 +92,11 @@ union ebpf_req {
 		struct ebpf_probe_name name;
 		struct ebpf_probe_info info;
 	} probe_by_name;
+
+	struct {
+		ebpf_probe_id_t prev_id;
+		struct ebpf_probe_info info;
+	} probe_iter;
 };
 
 
@@ -106,3 +111,4 @@ union ebpf_req {
 #define EBPFIOC_GET_PROG_TYPE_INFO _IOWR('i', 159, union ebpf_req)
 #define EBPFIOC_ATTACH_PROBE _IOWR('i', 160, union ebpf_req)
 #define EBPFIOC_PROBE_BY_NAME _IOWR('i', 161, union ebpf_req)
+#define EBPFIOC_PROBE_ITER _IOWR('i', 162, union ebpf_req)
