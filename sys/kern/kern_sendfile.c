@@ -295,10 +295,12 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 		 * unbusied the swapped-in pages, they can become
 		 * invalid under us.
 		 */
+		MPASS(count == 0 || pa[0] != bogus_page);
 		for (i = 0; i < count; i++) {
 			if (pa[i] == bogus_page) {
-				pa[i] = vm_page_relookup(sfio->obj,
-				    sfio->pindex0 + i + (pa - sfio->pa));
+				sfio->pa[(pa[0]->pindex - sfio->pindex0) + i] =
+				    pa[i] = vm_page_relookup(sfio->obj,
+				    pa[0]->pindex + i);
 				KASSERT(pa[i] != NULL,
 				    ("%s: page %p[%d] disappeared",
 				    __func__, pa, i));
