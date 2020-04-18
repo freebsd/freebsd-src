@@ -25,7 +25,7 @@ cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
 #
 linux_genassym.o		optional	compat_linux		\
 	dependency 	"$S/i386/linux/linux_genassym.c offset.inc"		\
-	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -c ${.IMPSRC}" \
+	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -fcommon -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"linux_genassym.o"
 #
