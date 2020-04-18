@@ -313,6 +313,24 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 	if (!refcount_release(&sfio->nios))
 		return;
 
+#ifdef INVARIANTS
+	for (i = 1; i < sfio->npages; i++) {
+		if (sfio->pa[i] == NULL)
+			break;
+		KASSERT(vm_page_wired(sfio->pa[i]),
+		    ("sfio %p page %d %p not wired", sfio, i, sfio->pa[i]));
+		if (i == 0)
+			continue;
+		KASSERT(sfio->pa[0]->object == sfio->pa[i]->object,
+		    ("sfio %p page %d %p wrong owner %p %p", sfio, i,
+		    sfio->pa[i], sfio->pa[0]->object, sfio->pa[i]->object));
+		KASSERT(sfio->pa[0]->pindex + i == sfio->pa[i]->pindex,
+		    ("sfio %p page %d %p wrong index %jx %jx", sfio, i,
+		    sfio->pa[i], (uintmax_t)sfio->pa[0]->pindex,
+		    (uintmax_t)sfio->pa[i]->pindex));
+	}
+#endif
+
 	vm_object_pip_wakeup(sfio->obj);
 
 	if (sfio->m == NULL) {
