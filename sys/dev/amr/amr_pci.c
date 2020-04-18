@@ -341,6 +341,8 @@ amr_pci_attach(device_t dev)
 out:
     if (error)
 	amr_pci_free(sc);
+    else
+	gone_in_dev(dev, 14, "amr(4) driver");
     return(error);
 }
 
