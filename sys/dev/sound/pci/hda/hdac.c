@@ -975,8 +975,7 @@ hdac_send_command(struct hdac_softc *sc, nid_t cad, uint32_t verb)
 	int timeout;
 	uint32_t *corb;
 
-	if (!hdac_lockowned(sc))
-		device_printf(sc->dev, "WARNING!!!! mtx not owned!!!!\n");
+	hdac_lockassert(sc);
 	verb &= ~HDA_CMD_CAD_MASK;
 	verb |= ((uint32_t)cad) << HDA_CMD_CAD_SHIFT;
 	sc->codecs[cad].response = HDA_INVALID;
