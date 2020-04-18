@@ -18,7 +18,7 @@
 
 #include "common.h"
 
-int sockfd[2];
+static int sockfd[2];
 
 static void
 kevent_socket_drain(void)
@@ -40,7 +40,7 @@ kevent_socket_fill(void)
 }
 
 
-void
+static void
 test_kevent_socket_add(void)
 {
     const char *test_id = "kevent(EVFILT_READ, EV_ADD)";
@@ -54,7 +54,7 @@ test_kevent_socket_add(void)
     success();
 }
 
-void
+static void
 test_kevent_socket_get(void)
 {
     const char *test_id = "kevent(EVFILT_READ) wait";
@@ -81,7 +81,7 @@ test_kevent_socket_get(void)
     success();
 }
 
-void
+static void
 test_kevent_socket_clear(void)
 {
     const char *test_id = "kevent(EVFILT_READ, EV_CLEAR)";
@@ -115,7 +115,7 @@ test_kevent_socket_clear(void)
     success();
 }
 
-void
+static void
 test_kevent_socket_disable_and_enable(void)
 {
     const char *test_id = "kevent(EVFILT_READ, EV_DISABLE)";
@@ -153,7 +153,7 @@ test_kevent_socket_disable_and_enable(void)
     success();
 }
 
-void
+static void
 test_kevent_socket_del(void)
 {
     const char *test_id = "kevent(EVFILT_READ, EV_DELETE)";
@@ -172,7 +172,7 @@ test_kevent_socket_del(void)
     success();
 }
 
-void
+static void
 test_kevent_socket_oneshot(void)
 {
     const char *test_id = "kevent(EVFILT_READ, EV_ONESHOT)";
@@ -207,7 +207,7 @@ test_kevent_socket_oneshot(void)
 
 
 #if HAVE_EV_DISPATCH
-void
+static void
 test_kevent_socket_dispatch(void)
 {
     const char *test_id = "kevent(EVFILT_READ, EV_DISPATCH)";
@@ -242,7 +242,7 @@ test_kevent_socket_dispatch(void)
 #endif  /* HAVE_EV_DISPATCH */
 
 #if BROKEN
-void
+static void
 test_kevent_socket_lowat(void)
 {
     const char *test_id = "kevent(EVFILT_READ, NOTE_LOWAT)";
@@ -275,7 +275,7 @@ test_kevent_socket_lowat(void)
 }
 #endif
 
-void
+static void
 test_kevent_socket_eof(void)
 {
     const char *test_id = "kevent(EVFILT_READ, EV_EOF)";
@@ -304,7 +304,7 @@ test_kevent_socket_eof(void)
 }
 
 void
-test_evfilt_read()
+test_evfilt_read(void)
 {
     /* Create a connected pair of full-duplex sockets for testing socket events */
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockfd) < 0) 

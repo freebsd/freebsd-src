@@ -16,6 +16,5 @@ SRCS.kqtest=		\
 	proc.c		\
 	signal.c	\
 	user.c
-WARNS?=	2
 
 .include <bsd.test.mk>
