@@ -676,10 +676,8 @@ SYSCTL_PROC(_net_link_bridge, OID_AUTO, ipfw,
 static int
 bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
-	struct bridge_softc *sc, *sc2;
-	struct ifnet *bifp, *ifp;
-	int fb, retry;
-	unsigned long hostid;
+	struct bridge_softc *sc;
+	struct ifnet *ifp;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
@@ -709,41 +707,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_init = bridge_init;
 	ifp->if_type = IFT_BRIDGE;
 
-	/*
-	 * Generate an ethernet address with a locally administered address.
-	 *
-	 * Since we are using random ethernet addresses for the bridge, it is
-	 * possible that we might have address collisions, so make sure that
-	 * this hardware address isn't already in use on another bridge.
-	 * The first try uses the hostid and falls back to arc4rand().
-	 */
-	fb = 0;
-	getcredhostid(curthread->td_ucred, &hostid);
-	do {
-		if (fb || hostid == 0) {
-			ether_gen_addr(ifp, &sc->sc_defaddr);
-		} else {
-			sc->sc_defaddr.octet[0] = 0x2;
-			sc->sc_defaddr.octet[1] = (hostid >> 24) & 0xff;
-			sc->sc_defaddr.octet[2] = (hostid >> 16) & 0xff;
-			sc->sc_defaddr.octet[3] = (hostid >> 8 ) & 0xff;
-			sc->sc_defaddr.octet[4] =  hostid        & 0xff;
-			sc->sc_defaddr.octet[5] = ifp->if_dunit & 0xff;
-		}
-
-		fb = 1;
-		retry = 0;
-		BRIDGE_LIST_LOCK();
-		LIST_FOREACH(sc2, &V_bridge_list, sc_list) {
-			bifp = sc2->sc_ifp;
-			if (memcmp(sc->sc_defaddr.octet,
-			    IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0) {
-				retry = 1;
-				break;
-			}
-		}
-		BRIDGE_LIST_UNLOCK();
-	} while (retry == 1);
+	ether_gen_addr(ifp, &sc->sc_defaddr);
 
 	bstp_attach(&sc->sc_stp, &bridge_ops);
 	ether_ifattach(ifp, sc->sc_defaddr.octet);
