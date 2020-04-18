@@ -114,7 +114,7 @@ oneshot(void)
 }
 
 void
-test_evfilt_user()
+test_evfilt_user(void)
 {
     kqfd = kqueue();
 
