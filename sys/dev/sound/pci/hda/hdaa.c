@@ -52,7 +52,6 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define hdaa_lock(devinfo)	snd_mtxlock((devinfo)->lock)
 #define hdaa_unlock(devinfo)	snd_mtxunlock((devinfo)->lock)
 #define hdaa_lockassert(devinfo) snd_mtxassert((devinfo)->lock)
-#define hdaa_lockowned(devinfo)	mtx_owned((devinfo)->lock)
 
 static const struct {
 	const char *key;
