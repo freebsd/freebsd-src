@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2016
+.Dd April 18, 2020
 .Dt ZFSD 8
 .Os
 .Sh NAME
@@ -96,8 +96,7 @@ If a leaf vdev generates more than 50 I/O errors in a 60 second period, then
 .Nm
 will mark that vdev as
 .Em FAULTED .
-.Xr zfs 4
-will no longer issue any I/Os to it.
+ZFS will no longer issue any I/Os to it.
 .Nm
 will activate a hotspare if one is available.
 .It Checksum errors
@@ -106,8 +105,7 @@ period, then
 .Nm
 will mark that vdev as
 .Em DEGRADED .
-.Xr zfs 4
-will still use it, but zfsd will activate a spare anyway.
+ZFS will still use it, but zfsd will activate a spare anyway.
 .It Spare addition
 If the system administrator adds a hotspare to a pool that is already degraded,
 .Nm
@@ -138,7 +136,6 @@ then reads them back in when next it starts up.
 .El
 .Sh SEE ALSO
 .Xr devctl 4 ,
-.Xr zfs 4 ,
 .Xr zpool 8
 .Sh HISTORY
 .Nm
