@@ -1419,27 +1419,39 @@ ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 
 /*
  * Allocate an address from the FreeBSD Foundation OUI.  This uses a
- * cryptographic hash function on the containing jail's UUID and the interface
- * name to attempt to provide a unique but stable address.  Pseudo-interfaces
- * which require a MAC address should use this function to allocate
- * non-locally-administered addresses.
+ * cryptographic hash function on the containing jail's name, UUID and the
+ * interface name to attempt to provide a unique but stable address.
+ * Pseudo-interfaces which require a MAC address should use this function to
+ * allocate non-locally-administered addresses.
  */
 void
 ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr)
 {
-#define	ETHER_GEN_ADDR_BUFSIZ	HOSTUUIDLEN + IFNAMSIZ + 2
 	SHA1_CTX ctx;
-	char buf[ETHER_GEN_ADDR_BUFSIZ];
+	char *buf;
 	char uuid[HOSTUUIDLEN + 1];
 	uint64_t addr;
 	int i, sz;
 	char digest[SHA1_RESULTLEN];
+	char jailname[MAXHOSTNAMELEN];
 
 	getcredhostuuid(curthread->td_ucred, uuid, sizeof(uuid));
-	sz = snprintf(buf, ETHER_GEN_ADDR_BUFSIZ, "%s-%s", uuid, ifp->if_xname);
+	/* If each (vnet) jail would also have a unique hostuuid this would not
+	 * be necessary. */
+	getjailname(curthread->td_ucred, jailname, sizeof(jailname));
+	sz = asprintf(&buf, M_TEMP, "%s-%s-%s", uuid, if_name(ifp),
+	    jailname);
+	if (sz < 0) {
+		/* Fall back to a random mac address. */
+		arc4rand(hwaddr, sizeof(*hwaddr), 0);
+		hwaddr->octet[0] = 0x02;
+		return;
+	}
+
 	SHA1Init(&ctx);
 	SHA1Update(&ctx, buf, sz);
 	SHA1Final(digest, &ctx);
+	free(buf, M_TEMP);
 
 	addr = ((digest[0] << 16) | (digest[1] << 8) | digest[2]) &
 	    OUI_FREEBSD_GENERATED_MASK;

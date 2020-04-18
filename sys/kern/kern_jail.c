@@ -2920,6 +2920,15 @@ getcredhostid(struct ucred *cred, unsigned long *hostid)
 	mtx_unlock(&cred->cr_prison->pr_mtx);
 }
 
+void
+getjailname(struct ucred *cred, char *name, size_t len)
+{
+
+	mtx_lock(&cred->cr_prison->pr_mtx);
+	strlcpy(name, cred->cr_prison->pr_name, len);
+	mtx_unlock(&cred->cr_prison->pr_mtx);
+}
+
 #ifdef VIMAGE
 /*
  * Determine whether the prison represented by cred owns
