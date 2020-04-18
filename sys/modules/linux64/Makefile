@@ -53,7 +53,7 @@ linux_support.o: assym.inc linux_assym.h
 	    ${.IMPSRC} -o ${.TARGET}
 
 linux_genassym.o: offset.inc
-	${CC} -c ${CFLAGS:N-flto:N-fno-common} ${.IMPSRC}
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} -fcommon ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)
 .warning Building Linuxulator outside of a kernel does not make sense
