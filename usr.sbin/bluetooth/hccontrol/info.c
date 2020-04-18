@@ -78,7 +78,7 @@ hci_read_local_supported_features(int s, int argc, char **argv)
 {
 	ng_hci_read_local_features_rp	rp;
 	int				n;
-	char				buffer[1024];
+	char				buffer[2048];
 
 	n = sizeof(rp);
 	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_INFO,
