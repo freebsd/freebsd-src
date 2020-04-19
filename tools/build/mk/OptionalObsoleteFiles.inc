@@ -3152,13 +3152,9 @@ OLD_FILES+=usr/libexec/hprop
 OLD_FILES+=usr/libexec/hpropd
 OLD_FILES+=usr/libexec/ipropd-master
 OLD_FILES+=usr/libexec/ipropd-slave
-OLD_FILES+=usr/libexec/kadmind
 OLD_FILES+=usr/libexec/kcm
-OLD_FILES+=usr/libexec/kdc
 OLD_FILES+=usr/libexec/kdigest
-OLD_FILES+=usr/libexec/kfd
 OLD_FILES+=usr/libexec/kimpersonate
-OLD_FILES+=usr/libexec/kpasswdd
 OLD_FILES+=usr/sbin/kstash
 OLD_FILES+=usr/sbin/ktutil
 OLD_FILES+=usr/sbin/iprop-log
@@ -3878,6 +3874,13 @@ OLD_FILES+=usr/share/man/man8/pam_krb5.8.gz
 OLD_FILES+=usr/share/man/man8/pam_ksu.8.gz
 OLD_FILES+=usr/share/man/man8/string2key.8.gz
 OLD_FILES+=usr/share/man/man8/verify_krb5_conf.8.gz
+.endif
+
+.if ${MK_KERBEROS_SCRIPTS} == no
+OLD_FILES+=usr/libexec/kadmind
+OLD_FILES+=usr/libexec/kdc
+OLD_FILES+=usr/libexec/kfd
+OLD_FILES+=usr/libexec/kpasswdd
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} == no
