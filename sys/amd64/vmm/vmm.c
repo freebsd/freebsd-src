@@ -134,7 +134,7 @@ struct mem_map {
 	int		prot;
 	int		flags;
 };
-#define	VM_MAX_MEMMAPS	4
+#define	VM_MAX_MEMMAPS	8
 
 /*
  * Initialization:
