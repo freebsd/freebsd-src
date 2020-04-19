@@ -1436,14 +1436,15 @@ ifa_lookup(char *ifa_name, int flags)
 	int			 got4 = 0, got6 = 0;
 	const char		 *last_if = NULL;
 
+	/* first load iftab and isgroup_map */
+	if (iftab == NULL)
+		ifa_load();
+
 	if ((h = ifa_grouplookup(ifa_name, flags)) != NULL)
 		return (h);
 
 	if (!strncmp(ifa_name, "self", IFNAMSIZ))
 		ifa_name = NULL;
-
-	if (iftab == NULL)
-		ifa_load();
 
 	for (p = iftab; p; p = p->next) {
 		if (ifa_skip_if(ifa_name, p))
