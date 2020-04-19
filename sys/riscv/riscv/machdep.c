@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/msgbuf.h>
 #include <sys/pcpu.h>
+#include <sys/physmem.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
@@ -108,8 +109,6 @@ static struct trapframe proc0_tf;
 
 int early_boot = 1;
 int cold = 1;
-long realmem = 0;
-long Maxmem = 0;
 
 #define	DTB_SIZE_MAX	(1024 * 1024)
 
@@ -673,74 +672,6 @@ init_proc0(vm_offset_t kstack)
 	pcpup->pc_curpcb = thread0.td_pcb;
 }
 
-static int
-add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
-    u_int *physmap_idxp)
-{
-	u_int i, insert_idx, _physmap_idx;
-
-	_physmap_idx = *physmap_idxp;
-
-	if (length == 0)
-		return (1);
-
-	/*
-	 * Find insertion point while checking for overlap.  Start off by
-	 * assuming the new entry will be added to the end.
-	 */
-	insert_idx = _physmap_idx;
-	for (i = 0; i <= _physmap_idx; i += 2) {
-		if (base < physmap[i + 1]) {
-			if (base + length <= physmap[i]) {
-				insert_idx = i;
-				break;
-			}
-			if (boothowto & RB_VERBOSE)
-				printf(
-		    "Overlapping memory regions, ignoring second region\n");
-			return (1);
-		}
-	}
-
-	/* See if we can prepend to the next entry. */
-	if (insert_idx <= _physmap_idx &&
-	    base + length == physmap[insert_idx]) {
-		physmap[insert_idx] = base;
-		return (1);
-	}
-
-	/* See if we can append to the previous entry. */
-	if (insert_idx > 0 && base == physmap[insert_idx - 1]) {
-		physmap[insert_idx - 1] += length;
-		return (1);
-	}
-
-	_physmap_idx += 2;
-	*physmap_idxp = _physmap_idx;
-	if (_physmap_idx == PHYS_AVAIL_ENTRIES) {
-		printf(
-		"Too many segments in the physical address map, giving up\n");
-		return (0);
-	}
-
-	/*
-	 * Move the last 'N' entries down to make room for the new
-	 * entry if needed.
-	 */
-	for (i = _physmap_idx; i > insert_idx; i -= 2) {
-		physmap[i] = physmap[i - 2];
-		physmap[i + 1] = physmap[i - 1];
-	}
-
-	/* Insert the new entry. */
-	physmap[insert_idx] = base;
-	physmap[insert_idx + 1] = base + length;
-
-	printf("physmap[%d] = 0x%016lx\n", insert_idx, base);
-	printf("physmap[%d] = 0x%016lx\n", insert_idx + 1, base + length);
-	return (1);
-}
-
 #ifdef FDT
 static void
 try_load_dtb(caddr_t kmdp)
@@ -864,7 +795,6 @@ initriscv(struct riscv_bootparams *rvbp)
 	vm_offset_t lastaddr;
 	vm_size_t kernlen;
 	caddr_t kmdp;
-	int i;
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
 
@@ -896,20 +826,12 @@ initriscv(struct riscv_bootparams *rvbp)
 
 #ifdef FDT
 	try_load_dtb(kmdp);
-#endif
 
-	/* Load the physical memory ranges */
-	physmap_idx = 0;
-
-#ifdef FDT
 	/* Grab physical memory regions information from device tree. */
-	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0)
+	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0) {
 		panic("Cannot get physical memory regions");
-
-	for (i = 0; i < mem_regions_sz; i++) {
-		add_physmap_entry(mem_regions[i].mr_start,
-		    mem_regions[i].mr_size, physmap, &physmap_idx);
 	}
+	physmem_hardware_regions(mem_regions, mem_regions_sz);
 #endif
 
 	/* Do basic tuning, hz etc */
@@ -920,6 +842,8 @@ initriscv(struct riscv_bootparams *rvbp)
 	/* Bootstrap enough of pmap to enter the kernel proper */
 	kernlen = (lastaddr - KERNBASE);
 	pmap_bootstrap(rvbp->kern_l1pt, mem_regions[0].mr_start, kernlen);
+
+	physmem_init_kernel_globals();
 
 	/* Establish static device mappings */
 	devmap_bootstrap(0, NULL);
@@ -932,6 +856,9 @@ initriscv(struct riscv_bootparams *rvbp)
 	mutex_init();
 	init_param2(physmem);
 	kdb_init();
+
+	if (boothowto & RB_VERBOSE)
+		physmem_print_tables();
 
 	early_boot = 0;
 
