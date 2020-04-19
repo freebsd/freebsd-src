@@ -242,14 +242,17 @@ CONFS+=		lpd
 .if ${MK_KERBEROS} != "no"
 CONFS+=		ipropd_master
 CONFS+=		ipropd_slave
-_kadmind=	kadmind
-_kdc=		kdc
-_kfd=		kfd
-_kpasswdd=	kpasswdd
 
 DIRS+=	VAR_HEMIDAL
 VAR_HEMIDAL=	/var/heimdal
 VAR_HEMIDAL_MODE=	700
+.endif
+
+.if ${MK_KERBEROS_SCRIPTS} != "no"
+_kadmind=	kadmind
+_kdc=		kdc
+_kfd=		kfd
+_kpasswdd=	kpasswdd
 .endif
 
 .if ${MK_MAIL} != "no"
