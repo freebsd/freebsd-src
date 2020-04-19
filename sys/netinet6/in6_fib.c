@@ -362,7 +362,7 @@ fib6_check_urpf(uint32_t fibnum, const struct in6_addr *dst6,
 	struct rib_head *rh;
 	struct radix_node *rn;
 	struct rtentry *rt;
-	struct in6_addr addr;
+	struct sockaddr_in6 sin6;
 	int ret;
 
 	KASSERT((fibnum < rt_numfibs), ("fib6_check_urpf: bad fibnum"));
@@ -370,13 +370,18 @@ fib6_check_urpf(uint32_t fibnum, const struct in6_addr *dst6,
 	if (rh == NULL)
 		return (0);
 
-	addr = *dst6;
+	/* TODO: radix changes */
+	/* Prepare lookup key */
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
+	sin6.sin6_addr = *dst6;
+
 	/* Assume scopeid is valid and embed it directly */
 	if (IN6_IS_SCOPE_LINKLOCAL(dst6))
-		addr.s6_addr16[1] = htons(scopeid & 0xffff);
+		sin6.sin6_addr.s6_addr16[1] = htons(scopeid & 0xffff);
 
 	RIB_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&addr, &rh->head);
+	rn = rh->rnh_matchaddr((void *)&sin6, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rt = RNTORT(rn);
 #ifdef	RADIX_MPATH
