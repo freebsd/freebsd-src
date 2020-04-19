@@ -49,6 +49,7 @@ static const char rcsid[] = "@(#)$Id$";
 #include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <netinet/in.h>
 #include <netinet/in_fib.h>
 #include <netinet/in_var.h>
@@ -698,7 +699,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	int len, off, error = 0, hlen, code;
 	struct ifnet *ifp, *sifp;
 	struct sockaddr_in dst;
-	struct nhop4_extended nh4;
+	struct nhop_object *nh;
 	u_long fibnum = 0;
 	u_short ip_off;
 	frdest_t node;
@@ -773,7 +774,9 @@ ipf_fastroute(m0, mpp, fin, fdp)
 		dst.sin_addr = fdp->fd_ip;
 
 	fibnum = M_GETFIB(m0);
-	if (fib4_lookup_nh_ext(fibnum, dst.sin_addr, NHR_REF, 0, &nh4) != 0) {
+	NET_EPOCH_ASSERT();
+	nh = fib4_lookup(fibnum, dst.sin_addr, 0, NHR_NONE, 0);
+	if (nh == NULL) {
 		if (in_localaddr(ip->ip_dst))
 			error = EHOSTUNREACH;
 		else
@@ -782,9 +785,9 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	}
 
 	if (ifp == NULL)
-		ifp = nh4.nh_ifp;
-	if (nh4.nh_flags & NHF_GATEWAY)
-		dst.sin_addr = nh4.nh_addr;
+		ifp = nh->nh_ifp;
+	if (nh->nh_flags & NHF_GATEWAY)
+		dst.sin_addr = nh->gw4_sa.sin_addr;
 
 	/*
 	 * For input packets which are being "fastrouted", they won't
@@ -944,11 +947,13 @@ int
 ipf_verifysrc(fin)
 	fr_info_t *fin;
 {
-	struct nhop4_basic nh4;
+	struct nhop_object *nh;
 
-	if (fib4_lookup_nh_basic(0, fin->fin_src, 0, 0, &nh4) != 0)
+	NET_EPOCH_ASSERT();
+	nh = fib4_lookup(RT_DEFAULT_FIB, fin->fin_src, 0, NHR_NONE, 0);
+	if (nh == NULL)
 		return (0);
-	return (fin->fin_ifp == nh4.nh_ifp);
+	return (fin->fin_ifp == nh->nh_ifp);
 }
 
 
