@@ -271,6 +271,44 @@ delete_with_members_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "mac_conflict" "cleanup"
+mac_conflict_head()
+{
+	atf_set descr 'Ensure that bridges in different jails get different mac addresses'
+	atf_set require.user root
+}
+
+mac_conflict_body()
+{
+	vnet_init
+
+	epair=$(vnet_mkepair)
+
+	# Ensure the bridge module is loaded so jails can use it.
+	tmpbridge=$(vnet_mkbridge)
+
+	vnet_mkjail bridge_mac_conflict_one ${epair}a
+	vnet_mkjail bridge_mac_conflict_two ${epair}b
+
+	jexec bridge_mac_conflict_one ifconfig bridge create
+	jexec bridge_mac_conflict_one ifconfig bridge0 192.0.2.1/24 up \
+	    addm ${epair}a
+	jexec bridge_mac_conflict_one ifconfig ${epair}a up
+
+	jexec bridge_mac_conflict_two ifconfig bridge create
+	jexec bridge_mac_conflict_two ifconfig bridge0 192.0.2.2/24 up \
+	    addm ${epair}b
+	jexec bridge_mac_conflict_two ifconfig ${epair}b up
+
+	atf_check -s exit:0 -o ignore \
+	    jexec bridge_mac_conflict_one ping -c 3 192.0.2.2
+}
+
+mac_conflict_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -278,4 +316,5 @@ atf_init_test_cases()
 	atf_add_test_case "static"
 	atf_add_test_case "span"
 	atf_add_test_case "delete_with_members"
+	atf_add_test_case "mac_conflict"
 }
