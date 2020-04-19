@@ -18,6 +18,7 @@ SRCS=	auditd_lib.c
 CFLAGS+=	-I${OPENBSMDIR} -I${_LIBBSMDIR}
 
 WARNS?=		3
+PRIVATELIB=	true
 
 MAN=
 
