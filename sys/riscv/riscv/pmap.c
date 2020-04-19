@@ -129,6 +129,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
+#include <sys/physmem.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
@@ -554,10 +555,10 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 void
 pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 {
-	u_int l1_slot, l2_slot, avail_slot, map_slot;
+	u_int l1_slot, l2_slot;
 	vm_offset_t freemempos;
 	vm_offset_t dpcpu, msgbufpv;
-	vm_paddr_t end, max_pa, min_pa, pa, start;
+	vm_paddr_t max_pa, min_pa, pa;
 	pt_entry_t *l2p;
 	int i;
 
@@ -575,6 +576,9 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 
 	/* Assume the address we were loaded to is a valid physical address. */
 	min_pa = max_pa = kernstart;
+
+	physmap_idx = physmem_avail(physmap, nitems(physmap));
+	physmap_idx /= 2;
 
 	/*
 	 * Find the minimum physical address. physmap is sorted,
@@ -641,46 +645,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	
 	pa = pmap_early_vtophys(l1pt, freemempos);
 
-	/* Initialize phys_avail and dump_avail. */
-	for (avail_slot = map_slot = physmem = 0; map_slot < physmap_idx * 2;
-	    map_slot += 2) {
-		start = physmap[map_slot];
-		end = physmap[map_slot + 1];
-
-		if (start == end)
-			continue;
-		dump_avail[map_slot] = start;
-		dump_avail[map_slot + 1] = end;
-		realmem += atop((vm_offset_t)(end - start));
-
-		if (start >= kernstart && end <= pa)
-			continue;
-
-		if (start < kernstart && end > kernstart)
-			end = kernstart;
-		else if (start < pa && end > pa)
-			start = pa;
-		phys_avail[avail_slot] = start;
-		phys_avail[avail_slot + 1] = end;
-		physmem += (end - start) >> PAGE_SHIFT;
-		avail_slot += 2;
-
-		if (end != physmap[map_slot + 1] && end > pa) {
-			phys_avail[avail_slot] = pa;
-			phys_avail[avail_slot + 1] = physmap[map_slot + 1];
-			physmem += (physmap[map_slot + 1] - pa) >> PAGE_SHIFT;
-			avail_slot += 2;
-		}
-	}
-	phys_avail[avail_slot] = 0;
-	phys_avail[avail_slot + 1] = 0;
-
-	/*
-	 * Maxmem isn't the "maximum memory", it's one larger than the
-	 * highest page of the physical address space.  It should be
-	 * called something like "Maxphyspage".
-	 */
-	Maxmem = atop(phys_avail[avail_slot - 1]);
+	physmem_exclude_region(kernstart, pa - kernstart, EXFLAG_NOALLOC);
 }
 
 /*
