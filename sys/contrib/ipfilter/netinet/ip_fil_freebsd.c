@@ -699,7 +699,6 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	struct ifnet *ifp, *sifp;
 	struct sockaddr_in dst;
 	struct nhop4_extended nh4;
-	int has_nhop = 0;
 	u_long fibnum = 0;
 	u_short ip_off;
 	frdest_t node;
@@ -782,7 +781,6 @@ ipf_fastroute(m0, mpp, fin, fdp)
 		goto bad;
 	}
 
-	has_nhop = 1;
 	if (ifp == NULL)
 		ifp = nh4.nh_ifp;
 	if (nh4.nh_flags & NHF_GATEWAY)
@@ -925,9 +923,6 @@ done:
 		V_ipfmain.ipf_frouteok[0]++;
 	else
 		V_ipfmain.ipf_frouteok[1]++;
-
-	if (has_nhop)
-		fib4_free_nh_ext(fibnum, &nh4);
 
 	return 0;
 bad:
