@@ -15,6 +15,7 @@ __<src.libnames.mk>__:
 _PRIVATELIBS=	\
 		atf_c \
 		atf_cxx \
+		auditd \
 		bsdstat \
 		devdctl \
 		event \
@@ -72,7 +73,6 @@ _LIBRARIES=	\
 		alias \
 		archive \
 		asn1 \
-		auditd \
 		avl \
 		be \
 		begemot \

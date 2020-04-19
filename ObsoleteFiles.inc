@@ -36,6 +36,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200418: Make libauditd private
+OLD_FILES+=usr/lib/libauditd.a
+OLD_FILES+=usr/lib/libauditd.so
+OLD_LIBS+=usr/lib/libauditd.so.5
+OLD_FILES+=usr/lib/libauditd_p.a
+
 # 20200418: Remove bogus man links
 OLD_FILES+=usr/share/man/man3/getauusernam_R.3.gz
 OLD_FILES+=usr/share/man/man3/getauclassnam_3.3.gz
