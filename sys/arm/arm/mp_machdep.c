@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/debug_monitor.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
-#include <machine/physmem.h>
 #include <machine/intr.h>
 #include <machine/vmparam.h>
 #ifdef VFP

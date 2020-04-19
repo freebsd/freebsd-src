@@ -58,7 +58,6 @@ arm/arm/mp_machdep.c		optional	smp
 arm/arm/mpcore_timer.c		optional	mpcore_timer
 arm/arm/nexus.c			standard
 arm/arm/ofw_machdep.c		optional	fdt
-arm/arm/physmem.c		standard
 arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
@@ -116,6 +115,7 @@ kern/msi_if.m			optional	intrng
 kern/pic_if.m			optional	intrng
 kern/subr_busdma_bufalloc.c	standard
 kern/subr_devmap.c		standard
+kern/subr_physmem.c		standard
 kern/subr_sfbuf.c		standard
 libkern/arm/aeabi_unwind.c	standard
 libkern/arm/divsi3.S		standard
