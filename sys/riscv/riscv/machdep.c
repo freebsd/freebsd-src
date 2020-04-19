@@ -851,7 +851,7 @@ initriscv(struct riscv_bootparams *rvbp)
 
 	/* Bootstrap enough of pmap to enter the kernel proper */
 	kernlen = (lastaddr - KERNBASE);
-	pmap_bootstrap(rvbp->kern_l1pt, mem_regions[0].mr_start, kernlen);
+	pmap_bootstrap(rvbp->kern_l1pt, rvbp->kern_phys, kernlen);
 
 #ifdef FDT
 	/*
