@@ -237,7 +237,6 @@ __DEFAULT_DEPENDENT_OPTIONS= \
     INET \
     INET6 \
     KERBEROS \
-    KERBEROS_SCRIPTS \
     KVM \
     NETGRAPH \
     PAM \
