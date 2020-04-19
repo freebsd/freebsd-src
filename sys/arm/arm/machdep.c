@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/linker.h>
 #include <sys/msgbuf.h>
+#include <sys/physmem.h>
 #include <sys/reboot.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
@@ -83,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/pcb.h>
-#include <machine/physmem.h>
 #include <machine/platform.h>
 #include <machine/sysarch.h>
 #include <machine/undefined.h>
@@ -123,6 +123,9 @@ uint32_t cpu_reset_address = 0;
 int cold = 1;
 vm_offset_t vector_page;
 
+/* The address at which the kernel was loaded.  Set early in initarm(). */
+vm_paddr_t arm_physmem_kernaddr;
+
 int (*_arm_memcpy)(void *, void *, int, int) = NULL;
 int (*_arm_bzero)(void *, int, int) = NULL;
 int _min_memcpy_size = 0;
@@ -160,7 +163,6 @@ static void *delay_arg;
 #endif
 
 struct kva_md_info kmi;
-
 /*
  * arm32_vector_init:
  *
@@ -237,7 +239,7 @@ cpu_startup(void *dummy)
 	    (uintmax_t)arm32_ptob(vm_free_count()),
 	    (uintmax_t)arm32_ptob(vm_free_count()) / mbyte);
 	if (bootverbose) {
-		arm_physmem_print_tables();
+		physmem_print_tables();
 		devmap_print_table();
 	}
 
@@ -870,11 +872,11 @@ initarm(struct arm_boot_params *abp)
 	/* Grab physical memory regions information from device tree. */
 	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, &memsize) != 0)
 		panic("Cannot get physical memory regions");
-	arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
+	physmem_hardware_regions(mem_regions, mem_regions_sz);
 
 	/* Grab reserved memory regions information from device tree. */
 	if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
-		arm_physmem_exclude_regions(mem_regions, mem_regions_sz,
+		physmem_exclude_regions(mem_regions, mem_regions_sz,
 		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 
 	/* Platform-specific initialisation */
@@ -1081,9 +1083,9 @@ initarm(struct arm_boot_params *abp)
 	 *
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
-	arm_physmem_exclude_region(abp->abp_physaddr,
+	physmem_exclude_region(abp->abp_physaddr,
 	    (virtual_avail - KERNVIRTADDR), EXFLAG_NOALLOC);
-	arm_physmem_init_kernel_globals();
+	physmem_init_kernel_globals();
 
 	init_param2(physmem);
 	dbg_monitor_init();
@@ -1149,11 +1151,11 @@ initarm(struct arm_boot_params *abp)
 		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,NULL) != 0)
 			panic("Cannot get physical memory regions");
 	}
-	arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
+	physmem_hardware_regions(mem_regions, mem_regions_sz);
 
 	/* Grab reserved memory regions information from device tree. */
 	if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
-		arm_physmem_exclude_regions(mem_regions, mem_regions_sz,
+		physmem_exclude_regions(mem_regions, mem_regions_sz,
 		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 
 	/*
@@ -1288,9 +1290,9 @@ initarm(struct arm_boot_params *abp)
 	 *
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
-	arm_physmem_exclude_region(abp->abp_physaddr,
+	physmem_exclude_region(abp->abp_physaddr,
 		pmap_preboot_get_pages(0) - abp->abp_physaddr, EXFLAG_NOALLOC);
-	arm_physmem_init_kernel_globals();
+	physmem_init_kernel_globals();
 
 	init_param2(physmem);
 	/* Init message buffer. */
