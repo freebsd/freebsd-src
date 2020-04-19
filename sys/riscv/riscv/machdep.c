@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/pcb.h>
+#include <machine/pte.h>
 #include <machine/reg.h>
 #include <machine/riscvreg.h>
 #include <machine/sbi.h>
@@ -827,6 +828,15 @@ initriscv(struct riscv_bootparams *rvbp)
 #ifdef FDT
 	try_load_dtb(kmdp);
 
+	/*
+	 * Exclude reserved memory specified by the device tree. Typically,
+	 * this contains an entry for memory used by the runtime SBI firmware.
+	 */
+	if (fdt_get_reserved_mem(mem_regions, &mem_regions_sz) == 0) {
+		physmem_exclude_regions(mem_regions, mem_regions_sz,
+		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+	}
+
 	/* Grab physical memory regions information from device tree. */
 	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0) {
 		panic("Cannot get physical memory regions");
@@ -843,6 +853,21 @@ initriscv(struct riscv_bootparams *rvbp)
 	kernlen = (lastaddr - KERNBASE);
 	pmap_bootstrap(rvbp->kern_l1pt, mem_regions[0].mr_start, kernlen);
 
+#ifdef FDT
+	/*
+	 * XXX: Exclude the lowest 2MB of physical memory, if it hasn't been
+	 * already, as this area is assumed to contain the SBI firmware. This
+	 * is a little fragile, but it is consistent with the platforms we
+	 * support so far.
+	 *
+	 * TODO: remove this when the all regular booting methods properly
+	 * report their reserved memory in the device tree.
+	 */
+	if (mem_regions[0].mr_start == physmap[0]) {
+		physmem_exclude_region(mem_regions[0].mr_start, L2_SIZE,
+		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+	}
+#endif
 	physmem_init_kernel_globals();
 
 	/* Establish static device mappings */
