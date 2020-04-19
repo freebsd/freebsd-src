@@ -552,3 +552,33 @@ void *__tls_get_addr(tls_index *ti)
 
     return tls_get_addr_common(&segbase[1], ti->ti_module, ti->ti_offset);
 }
+
+size_t
+calculate_first_tls_offset(size_t size, size_t align, size_t offset)
+{
+	size_t res;
+
+	res = roundup(size, align);
+	offset &= align - 1;
+	if (offset != 0)
+		res += align - offset;
+	return (res);
+}
+
+size_t
+calculate_tls_offset(size_t prev_offset, size_t prev_size __unused, size_t size,
+    size_t align, size_t offset)
+{
+	size_t res;
+
+	res = roundup(prev_offset + size, align);
+	offset &= align - 1;
+	if (offset != 0)
+		res += align - offset;
+	return (res);
+}
+size_t
+calculate_tls_end(size_t off, size_t size __unused)
+{
+	return (off);
+}
