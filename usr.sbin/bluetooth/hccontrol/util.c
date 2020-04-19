@@ -134,6 +134,7 @@ hci_hmode2str(int mode, char *buffer, int size)
 		int	n;
 
 		memset(buffer, 0, size);
+		size--;
 		for (n = 0; n < SIZE(t); n++) {
 			int	len = strlen(buffer);
 
@@ -347,6 +348,7 @@ hci_features2str(uint8_t *features, char *buffer, int size)
 
 		memset(buffer, 0, size);
 		len1 = 0;
+		size--;
 
 		for (n = 0; n < SIZE(t); n++) {
 			for (i = 0; i < SIZE(t[n]); i++) {
@@ -460,6 +462,7 @@ hci_le_features2str(uint8_t *features, char *buffer, int size)
 
 		memset(buffer, 0, size);
 		len1 = 0;
+		size--;
 
 		for (n = 0; n < SIZE(t); n++) {
 			for (i = 0; i < SIZE(t[n]); i++) {
