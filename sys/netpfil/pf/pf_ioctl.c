@@ -2643,6 +2643,10 @@ DIOCGETSTATES_full:
 			error = EINVAL;
 			break;
 		}
+		if (pp->addr.addr.p.dyn != NULL) {
+			error = EINVAL;
+			break;
+		}
 		pa = malloc(sizeof(*pa), M_PFRULE, M_WAITOK);
 		bcopy(&pp->addr, pa, sizeof(struct pf_pooladdr));
 		if (pa->ifname[0])
@@ -2739,6 +2743,10 @@ DIOCGETSTATES_full:
 		if (pca->addr.addr.type != PF_ADDR_ADDRMASK &&
 		    pca->addr.addr.type != PF_ADDR_DYNIFTL &&
 		    pca->addr.addr.type != PF_ADDR_TABLE) {
+			error = EINVAL;
+			break;
+		}
+		if (pca->addr.addr.p.dyn != NULL) {
 			error = EINVAL;
 			break;
 		}
