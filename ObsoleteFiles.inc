@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200418: Remove bogus man links
+OLD_FILES+=usr/share/man/man3/getauusernam_R.3.gz
+OLD_FILES+=usr/share/man/man3/getauclassnam_3.3.gz
+
 # 20200401: Remove procfs-based process debugging
 OLD_FILES+=usr/include/sys/pioctl.h
 
