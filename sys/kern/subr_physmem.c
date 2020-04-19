@@ -38,12 +38,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/physmem.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
 #include <machine/md_var.h>
-#include <arm/include/physmem.h>
 
 /*
  * These structures are used internally to keep track of regions of physical
@@ -62,10 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__arm__)
 #define	MAX_PHYS_ADDR	0xFFFFFFFFull
-#define	pm_btop(x)	arm32_btop(x)
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__riscv)
 #define	MAX_PHYS_ADDR	0xFFFFFFFFFFFFFFFFull
-#define	pm_btop(x)	arm64_btop(x)
 #endif
 
 struct region {
@@ -86,9 +84,6 @@ static size_t excnt;
  */
 long realmem;
 long Maxmem;
-
-/* The address at which the kernel was loaded.  Set early in initarm(). */
-vm_paddr_t arm_physmem_kernaddr;
 
 /*
  * Print the contents of the physical and excluded region tables using the
@@ -136,7 +131,7 @@ physmem_dump_tables(int (*prfunc)(const char *, ...))
  * Print the contents of the static mapping table.  Used for bootverbose.
  */
 void
-arm_physmem_print_tables(void)
+physmem_print_tables(void)
 {
 
 	physmem_dump_tables(printf);
@@ -165,7 +160,7 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, size_t maxavail,
 	for (hwi = 0, hwp = hwregions; hwi < hwcnt; ++hwi, ++hwp) {
 		start = hwp->addr;
 		end   = hwp->size + start;
-		totalmem += pm_btop((vm_offset_t)(end - start));
+		totalmem += atop((vm_offset_t)(end - start));
 		for (exi = 0, exp = exregions; exi < excnt; ++exi, ++exp) {
 			/*
 			 * If the excluded region does not match given flags,
@@ -213,8 +208,7 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, size_t maxavail,
 					avail[acnt++] = (vm_paddr_t)start;
 					avail[acnt++] = (vm_paddr_t)xstart;
 				}
-				availmem +=
-				    pm_btop((vm_offset_t)(xstart - start));
+				availmem += atop((vm_offset_t)(xstart - start));
 				start = xend;
 				continue;
 			}
@@ -239,7 +233,7 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, size_t maxavail,
 				avail[acnt++] = (vm_paddr_t)start;
 				avail[acnt++] = (vm_paddr_t)end;
 			}
-			availmem += pm_btop((vm_offset_t)(end - start));
+			availmem += atop((vm_offset_t)(end - start));
 		}
 		if (acnt >= maxavail)
 			panic("Not enough space in the dump/phys_avail arrays");
@@ -293,7 +287,7 @@ insert_region(struct region *regions, size_t rcnt, vm_paddr_t addr,
  * Add a hardware memory region.
  */
 void
-arm_physmem_hardware_region(uint64_t pa, uint64_t sz)
+physmem_hardware_region(uint64_t pa, uint64_t sz)
 {
 	vm_offset_t adj;
 
@@ -345,7 +339,7 @@ arm_physmem_hardware_region(uint64_t pa, uint64_t sz)
  * Add an exclusion region.
  */
 void
-arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t exflags)
+physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t exflags)
 {
 	vm_offset_t adj;
 
@@ -364,7 +358,7 @@ arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t exflags)
 }
 
 size_t
-arm_physmem_avail(vm_paddr_t *avail, size_t maxavail)
+physmem_avail(vm_paddr_t *avail, size_t maxavail)
 {
 
 	return (regions_to_avail(avail, EXFLAG_NOALLOC, maxavail, NULL, NULL));
@@ -380,7 +374,7 @@ arm_physmem_avail(vm_paddr_t *avail, size_t maxavail)
  * last page of physical memory in the system.
  */
 void
-arm_physmem_init_kernel_globals(void)
+physmem_init_kernel_globals(void)
 {
 	size_t nextidx;
 
@@ -403,4 +397,3 @@ DB_SHOW_COMMAND(physmem, db_show_physmem)
 }
 
 #endif /* DDB */
-
