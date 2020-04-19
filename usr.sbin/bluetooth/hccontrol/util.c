@@ -371,6 +371,119 @@ done:
 } /* hci_features2str */
 
 char const *
+hci_le_features2str(uint8_t *features, char *buffer, int size)
+{
+	static char const * const t[][8] = {
+	{ /* byte 0 */
+		/* 0 */ "<LE Encryption> ",
+		/* 1 */ "<Connection Parameters Request Procedure> ",
+		/* 2 */ "<Extended Reject Indication> ",
+		/* 3 */ "<Slave-initiated Features Exchange> ",
+		/* 4 */ "<LE Ping> ",
+		/* 5 */ "<LE Data Packet Length Extension> ",
+		/* 6 */ "<LL Privacy> ",
+		/* 7 */ "<Extended Scanner Filter Policies> "
+	},
+	{ /* byte 1 */
+		/* 0 */ "<LE 2M PHY> ",
+		/* 1 */ "<Stable Modulation Index - Transmitter> ",
+		/* 2 */ "<Stable Modulation Index - Receiver> ",
+		/* 3 */ "<LE Coded PHY> ",
+		/* 4 */ "<LE Extended Advertising> ",
+		/* 5 */ "<LE Periodic Advertising> ",
+		/* 6 */ "<Channel Selection Algorithm #2> ",
+		/* 7 */ "<LE Power Class 1> "
+	},
+	{ /* byte 2 */
+		/* 0 */ "<Minimum Number of Used Channels Procedure> ",
+		/* 1 */ "<Connection CTE Request> ",
+		/* 2 */ "<Connection CTE Response> ",
+		/* 3 */ "<Connectionless CTE Transmitter> ",
+		/* 4 */ "<Connectionless CTE Receiver> ",
+		/* 5 */ "<Antenna Switching During CTE Transmission (AoD)> ",
+		/* 6 */ "<Antenna Switching During CTE Reception (AoA)> ",
+		/* 7 */ "<Receiving Constant Tone Extensions> "
+	},
+	{ /* byte 3 */
+		/* 0 */ "<Periodic Advertising Sync Transfer - Sender> ",
+		/* 1 */ "<Periodic Advertising Sync Transfer - Recipient> ",
+		/* 2 */ "<Sleep Clock Accuracy Updates> ",
+		/* 3 */ "<Remote Public Key Validation> ",
+		/* 4 */ "<Connected Isochronous Stream - Master> ",
+		/* 5 */ "<Connected Isochronous Stream - Slave> ",
+		/* 6 */ "<Isochronous Broadcaster> ",
+		/* 7 */ "<Synchronized Receiver> "
+	},
+	{ /* byte 4 */
+		/* 0 */ "<Isochronous Channels (Host Support)> ",
+		/* 1 */ "<LE Power Control Request> ",
+		/* 2 */ "<LE Power Change Indication> ",
+		/* 3 */ "<LE Path Loss Monitoring> ",
+		/* 4 */ "<Reserved for future use> ",
+		/* 5 */ "<Unknown 4.5> ",
+		/* 6 */ "<Unknown 4.6> ",
+		/* 7 */ "<Unknown 4.7> "
+	},
+	{ /* byte 5 */
+		/* 0 */ "<Unknown 5.0> ",
+		/* 1 */ "<Unknown 5.1> ",
+		/* 2 */ "<Unknown 5.2> ",
+		/* 3 */ "<Unknown 5.3> ",
+		/* 4 */ "<Unknown 5.4> ",
+		/* 5 */ "<Unknown 5.5> ",
+		/* 6 */ "<Unknown 5.6> ",
+		/* 7 */ "<Unknown 5.7> "
+	},
+	{ /* byte 6 */
+		/* 0 */ "<Unknown 6.0> ",
+		/* 1 */ "<Unknown 6.1> ",
+		/* 2 */ "<Unknown 6.2> ",
+		/* 3 */ "<Unknown 6.3> ",
+		/* 4 */ "<Unknown 6.4> ",
+		/* 5 */ "<Unknown 6.5> ",
+		/* 6 */ "<Unknown 6.6> ",
+		/* 7 */ "<Unknown 6.7> "
+	},
+	{ /* byte 7 */
+		/* 0 */ "<Unknown 7.0> ",
+		/* 1 */ "<Unknown 7.1> ",
+		/* 2 */ "<Unknown 7.2> ",
+		/* 3 */ "<Unknown 7.3> ",
+		/* 4 */ "<Unknown 7.4> ",
+		/* 5 */ "<Unknown 7.5> ",
+		/* 6 */ "<Unknown 7.6> ",
+		/* 7 */ "<Unknown 7.7> "
+	}};
+
+	if (buffer != NULL && size > 0) {
+		int n, i, len0, len1;
+
+		memset(buffer, 0, size);
+		len1 = 0;
+
+		for (n = 0; n < SIZE(t); n++) {
+			for (i = 0; i < SIZE(t[n]); i++) {
+				len0 = strlen(buffer);
+				if (len0 >= size)
+					goto done;
+
+				if (features[n] & (1 << i)) {
+					if (len1 + strlen(t[n][i]) > 60) {
+						len1 = 0;
+						buffer[len0 - 1] = '\n';
+					}
+
+					len1 += strlen(t[n][i]);
+					strncat(buffer, t[n][i], size - len0);
+				}
+			}
+		}
+	}
+done:
+	return (buffer);
+}
+
+char const *
 hci_cc2str(int cc)
 {
 	static char const * const	t[] = {

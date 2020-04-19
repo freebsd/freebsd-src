@@ -73,6 +73,7 @@ char const *	hci_ver2str         (int);
 char const *	hci_lmpver2str      (int);
 char const *	hci_manufacturer2str(int);
 char const *	hci_features2str    (uint8_t *, char *, int);
+char const *	hci_le_features2str (uint8_t *, char *, int);
 char const *	hci_cc2str          (int);
 char const *	hci_con_state2str   (int);
 char const *	hci_status2str      (int);
