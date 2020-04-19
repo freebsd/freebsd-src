@@ -4979,13 +4979,13 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
     ralign = tcbalign;
     if (tls_static_max_align > ralign)
 	    ralign = tls_static_max_align;
-    size = round(tls_static_space, ralign) + round(tcbsize, ralign);
+    size = roundup(tls_static_space, ralign) + roundup(tcbsize, ralign);
 
     assert(tcbsize >= 2*sizeof(Elf_Addr));
     tls = malloc_aligned(size, ralign, 0 /* XXX */);
     dtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
 
-    segbase = (Elf_Addr)(tls + round(tls_static_space, ralign));
+    segbase = (Elf_Addr)(tls + roundup(tls_static_space, ralign));
     ((Elf_Addr*)segbase)[0] = segbase;
     ((Elf_Addr*)segbase)[1] = (Elf_Addr) dtv;
 
@@ -5051,7 +5051,7 @@ free_tls(void *tls, size_t tcbsize  __unused, size_t tcbalign)
     ralign = tcbalign;
     if (tls_static_max_align > ralign)
 	    ralign = tls_static_max_align;
-    size = round(tls_static_space, ralign);
+    size = roundup(tls_static_space, ralign);
 
     dtv = ((Elf_Addr**)tls)[1];
     dtvsize = dtv[1];
@@ -5109,10 +5109,11 @@ allocate_tls_offset(Obj_Entry *obj)
     }
 
     if (tls_last_offset == 0)
-	off = calculate_first_tls_offset(obj->tlssize, obj->tlsalign);
+	off = calculate_first_tls_offset(obj->tlssize, obj->tlsalign,
+	  obj->tlspoffset);
     else
 	off = calculate_tls_offset(tls_last_offset, tls_last_size,
-				   obj->tlssize, obj->tlsalign);
+	  obj->tlssize, obj->tlsalign, obj->tlspoffset);
 
     /*
      * If we have already fixed the size of the static TLS block, we
