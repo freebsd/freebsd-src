@@ -111,6 +111,20 @@ atomic_long_add_unless(atomic_long_t *v, long a, long u)
 }
 
 static inline long
+atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
+{
+	long c = atomic_long_read(v);
+
+	for (;;) {
+		if (unlikely(c == u))
+			break;
+		if (likely(atomic_fcmpset_long(&v->counter, &c, c + a)))
+			break;
+	}
+	return (c);
+}
+
+static inline long
 atomic_long_dec_and_test(atomic_long_t *v)
 {
 	long i = atomic_long_add(-1, v);
