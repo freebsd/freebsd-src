@@ -30,13 +30,14 @@
 /* Get the current time with microsecond precision. Used for
  * sub-second timing to make some timer tests run faster.
  */
-static long
+static uint64_t
 now(void)
 {
     struct timeval tv;
 
     gettimeofday(&tv, NULL);
-    return SEC_TO_US(tv.tv_sec) + tv.tv_usec;
+    /* Promote potentially 32-bit time_t to uint64_t before conversion. */
+    return SEC_TO_US((uint64_t)tv.tv_sec) + tv.tv_usec;
 }
 
 /* Sleep for a given number of milliseconds. The timeout is assumed to
@@ -216,7 +217,7 @@ test_abstime(void)
 {
     const char *test_id = "kevent(EVFILT_TIMER, EV_ONESHOT, NOTE_ABSTIME)";
     struct kevent kev;
-    long end, start, stop;
+    uint64_t end, start, stop;
     const int timeout_sec = 3;
 
     test_begin(test_id);
@@ -252,7 +253,7 @@ test_update(void)
     const char *test_id = "kevent(EVFILT_TIMER (UPDATE), EV_ADD | EV_ONESHOT)";
     struct kevent kev;
     long elapsed;
-    long start;
+    uint64_t start;
 
     test_begin(test_id);
 
@@ -297,7 +298,7 @@ test_update_equal(void)
     const char *test_id = "kevent(EVFILT_TIMER (UPDATE=), EV_ADD | EV_ONESHOT)";
     struct kevent kev;
     long elapsed;
-    long start;
+    uint64_t start;
 
     test_begin(test_id);
 
@@ -341,7 +342,7 @@ test_update_expired(void)
     const char *test_id = "kevent(EVFILT_TIMER (UPDATE EXP), EV_ADD | EV_ONESHOT)";
     struct kevent kev;
     long elapsed;
-    long start;
+    uint64_t start;
 
     test_begin(test_id);
 
@@ -392,8 +393,7 @@ test_update_periodic(void)
     const char *test_id = "kevent(EVFILT_TIMER (UPDATE), periodic)";
     struct kevent kev;
     long elapsed;
-    long start;
-    long stop;
+    uint64_t start, stop;
 
     test_begin(test_id);
 
@@ -450,8 +450,7 @@ test_update_timing(void)
     int iteration;
     int sleeptime;
     long elapsed;
-    long start;
-    long stop;
+    uint64_t start, stop;
 
     test_begin(test_id);
 
