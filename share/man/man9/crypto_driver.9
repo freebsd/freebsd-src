@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2020
+.Dd April 20, 2020
 .Dt CRYPTO_DRIVER 9
 .Os
 .Sh NAME
@@ -62,6 +62,8 @@
 .Fn crypto_get_driverid "device_t dev" "size_t session_size" "int flags"
 .Ft void *
 .Fn crypto_get_driver_session "crypto_session_t crypto_session"
+.Ft void
+.Fn crypto_read_iv "struct cryptop *crp" "void *iv"
 .Ft int
 .Fn crypto_unblock "uint32_t driverid" "int what"
 .Ft int
@@ -260,6 +262,12 @@ into the data buffer for
 The bytes are written starting at an offset of
 .Fa off
 bytes in the request's data buffer.
+.Pp
+.Fn crypto_read_iv
+copies the IV or nonce for
+.Fa crp
+into the the local buffer pointed to by
+.Fa iv .
 .Pp
 A driver calls
 .Fn crypto_done

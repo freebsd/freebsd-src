@@ -904,6 +904,7 @@ MLINKS+=crypto_driver.9 crypto_apply.9 \
 	crypto_driver.9 crypto_done.9 \
 	crypto_driver.9 crypto_get_driverid.9 \
 	crypto_driver.9 crypto_get_driver_session.9 \
+	crypto_driver.9 crypto_read_iv.9 \
 	crypto_driver.9 crypto_unblock.9 \
 	crypto_driver.9 crypto_unregister_all.9 \
 	crypto_driver.9 CRYPTODEV_FREESESSION.9 \

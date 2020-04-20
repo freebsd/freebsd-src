@@ -454,7 +454,6 @@ struct cryptop {
 					 * if CRYPTO_F_ASYNC flags is set
 					 */
 #define	CRYPTO_F_IV_SEPARATE	0x0200	/* Use crp_iv[] as IV. */
-#define	CRYPTO_F_IV_GENERATE	0x0400	/* Generate a random IV and store. */
 
 	int		crp_op;
 
@@ -610,6 +609,18 @@ int	crypto_apply(struct cryptop *crp, int off, int len,
 	    int (*f)(void *, void *, u_int), void *arg);
 void	*crypto_contiguous_subsegment(struct cryptop *crp, size_t skip,
 	    size_t len);
+
+static __inline void
+crypto_read_iv(struct cryptop *crp, void *iv)
+{
+	const struct crypto_session_params *csp;
+
+	csp = crypto_get_params(crp->crp_session);
+	if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+		memcpy(iv, crp->crp_iv, csp->csp_ivlen);
+	else
+		crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen, iv);
+}
 
 #endif /* _KERNEL */
 #endif /* _CRYPTO_CRYPTO_H_ */

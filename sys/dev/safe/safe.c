@@ -894,16 +894,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		 * in the state record and set the hash/crypt offset to
 		 * copy both the header+IV.
 		 */
-		if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-			arc4rand(re->re_sastate.sa_saved_iv, csp->csp_ivlen, 0);
-			crypto_copyback(crp, crp->crp_iv_start, csp->csp_ivlen,
-			    re->re_sastate.sa_saved_iv);
-		} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-			memcpy(re->re_sastate.sa_saved_iv, crp->crp_iv,
-			    csp->csp_ivlen);
-		else
-			crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen,
-			    re->re_sastate.sa_saved_iv);
+		crypto_read_iv(crp, re->re_sastate.sa_saved_iv);
 		cmd0 |= SAFE_SA_CMD0_IVLD_STATE;
 
 		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {

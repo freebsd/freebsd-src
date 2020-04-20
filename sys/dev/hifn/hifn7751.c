@@ -2431,7 +2431,7 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 	struct hifn_softc *sc = device_get_softc(dev);
 	struct hifn_command *cmd = NULL;
 	const void *mackey;
-	int err, ivlen, keylen;
+	int err, keylen;
 	struct hifn_session *ses;
 
 	ses = crypto_get_driver_session(crp->crp_session);
@@ -2485,18 +2485,8 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 			err = EINVAL;
 			goto errout;
 		}
-		if (csp->csp_cipher_alg != CRYPTO_ARC4) {
-			ivlen = csp->csp_ivlen;
-			if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-				arc4rand(cmd->iv, ivlen, 0);
-				crypto_copyback(crp, crp->crp_iv_start, ivlen,
-				    cmd->iv);
-			} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-				memcpy(cmd->iv, crp->crp_iv, ivlen);
-			else
-				crypto_copydata(crp, crp->crp_iv_start, ivlen,
-				    cmd->iv);
-		}
+		if (csp->csp_cipher_alg != CRYPTO_ARC4)
+			crypto_read_iv(crp, cmd->iv);
 
 		if (crp->crp_cipher_key != NULL)
 			cmd->ck = crp->crp_cipher_key;

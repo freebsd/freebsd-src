@@ -665,19 +665,7 @@ ccr_blkcipher(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	crwr = wrtod(wr);
 	memset(crwr, 0, wr_len);
 
-	/*
-	 * Read the existing IV from the request or generate a random
-	 * one if none is provided.
-	 */
-	if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-		arc4rand(iv, s->blkcipher.iv_len, 0);
-		crypto_copyback(crp, crp->crp_iv_start, s->blkcipher.iv_len,
-		    iv);
-	} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-		memcpy(iv, crp->crp_iv, s->blkcipher.iv_len);
-	else
-		crypto_copydata(crp, crp->crp_iv_start, s->blkcipher.iv_len,
-		    iv);
+	crypto_read_iv(crp, iv);
 
 	/* Zero the remainder of the IV for AES-XTS. */
 	memset(iv + s->blkcipher.iv_len, 0, iv_len - s->blkcipher.iv_len);
@@ -968,19 +956,7 @@ ccr_eta(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	crwr = wrtod(wr);
 	memset(crwr, 0, wr_len);
 
-	/*
-	 * Read the existing IV from the request or generate a random
-	 * one if none is provided.
-	 */
-	if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-		arc4rand(iv, s->blkcipher.iv_len, 0);
-		crypto_copyback(crp, crp->crp_iv_start, s->blkcipher.iv_len,
-		    iv);
-	} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-		memcpy(iv, crp->crp_iv, s->blkcipher.iv_len);
-	else
-		crypto_copydata(crp, crp->crp_iv_start, s->blkcipher.iv_len,
-		    iv);
+	crypto_read_iv(crp, iv);
 
 	/* Zero the remainder of the IV for AES-XTS. */
 	memset(iv + s->blkcipher.iv_len, 0, iv_len - s->blkcipher.iv_len);

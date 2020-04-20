@@ -1353,13 +1353,7 @@ ccp_collect_iv(struct cryptop *crp, const struct crypto_session_params *csp,
     char *iv)
 {	
 
-	if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-		arc4rand(iv, csp->csp_ivlen, 0);
-		crypto_copyback(crp, crp->crp_iv_start, csp->csp_ivlen, iv);
-	} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-		memcpy(iv, crp->crp_iv, csp->csp_ivlen);
-	else
-		crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen, iv);
+	crypto_read_iv(crp, iv);
 
 	/*
 	 * If the input IV is 12 bytes, append an explicit counter of 1.

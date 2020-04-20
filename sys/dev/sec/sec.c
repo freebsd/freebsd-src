@@ -1285,18 +1285,8 @@ sec_process(device_t dev, struct cryptop *crp, int hint)
 	desc->sd_error = 0;
 	desc->sd_crp = crp;
 
-	if (csp->csp_cipher_alg != 0) {
-		if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-			arc4rand(desc->sd_desc->shd_iv, csp->csp_ivlen, 0);
-			crypto_copyback(crp, crp->crp_iv_start, csp->csp_ivlen,
-			    desc->sd_desc->shd_iv);
-		} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-			memcpy(desc->sd_desc->shd_iv, crp->crp_iv,
-			    csp->csp_ivlen);
-		else
-			crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen,
-			    desc->sd_desc->shd_iv);
-	}
+	if (csp->csp_cipher_alg != 0)
+		crypto_read_iv(crp, desc->sd_desc->shd_iv);
 
 	if (crp->crp_cipher_key != NULL)
 		memcpy(ses->ss_key, crp->crp_cipher_key, csp->csp_cipher_klen);

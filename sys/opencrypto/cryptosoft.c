@@ -133,14 +133,7 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 	    (crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
 		return (EINVAL);
 
-	/* IV explicitly provided ? */
-	if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-		bcopy(crp->crp_iv, iv, ivlen);
-	else if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-		arc4rand(iv, ivlen, 0);
-		crypto_copyback(crp, crp->crp_iv_start, ivlen, iv);
-	} else
-		crypto_copydata(crp, crp->crp_iv_start, ivlen, iv);
+	crypto_read_iv(crp, iv);
 
 	if (crp->crp_cipher_key != NULL) {
 		if (sw->sw_kschedule)
@@ -510,15 +503,9 @@ swcr_gmac(struct swcr_session *ses, struct cryptop *crp)
 	bcopy(swa->sw_ictx, &ctx, axf->ctxsize);
 	blksz = axf->blocksize;
 
-	if (crp->crp_flags & CRYPTO_F_IV_GENERATE)
-		return (EINVAL);
-
 	/* Initialize the IV */
 	ivlen = AES_GCM_IV_LEN;
-	if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-		bcopy(crp->crp_iv, iv, ivlen);
-	else
-		crypto_copydata(crp, crp->crp_iv_start, ivlen, iv);
+	crypto_read_iv(crp, iv);
 
 	axf->Reinit(&ctx, iv, ivlen);
 	for (i = 0; i < crp->crp_payload_length; i += blksz) {
@@ -669,15 +656,9 @@ swcr_ccm_cbc_mac(struct swcr_session *ses, struct cryptop *crp)
 	bcopy(swa->sw_ictx, &ctx, axf->ctxsize);
 	blksz = axf->blocksize;
 
-	if (crp->crp_flags & CRYPTO_F_IV_GENERATE)
-		return (EINVAL);
-
 	/* Initialize the IV */
 	ivlen = AES_CCM_IV_LEN;
-	if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-		bcopy(crp->crp_iv, iv, ivlen);
-	else
-		crypto_copydata(crp, crp->crp_iv_start, ivlen, iv);
+	crypto_read_iv(crp, iv);
 
 	/*
 	 * AES CCM-CBC-MAC needs to know the length of both the auth

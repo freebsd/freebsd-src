@@ -470,11 +470,7 @@ xlp_copyiv(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd,
 	crp = cmd->crp;
 
 	if (csp->csp_cipher_alg != CRYPTO_ARC4) {
-		if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-			arc4rand(cmd->iv, csp->csp_ivlen, 0);
-			crypto_copyback(crp, crp->crp_iv_start, csp->csp_ivlen,
-			    cmd->iv);
-		} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+		if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
 			memcpy(cmd->iv, crp->crp_iv, csp->csp_ivlen);
 	}
 }
