@@ -47,6 +47,11 @@ ipdivert_ip_output_remote_success_head() {
 
 ipdivert_ip_output_remote_success_body() {
 
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/245764"
+	fi
+
 	ids=65530
 	id=`printf "%x" ${ids}`
 	if [ $$ -gt 65535 ]; then
@@ -96,6 +101,11 @@ ipdivert_ip_input_local_success_head() {
 }
 
 ipdivert_ip_input_local_success_body() {
+
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/245764"
+	fi
 
 	ids=65529
 	id=`printf "%x" ${ids}`
