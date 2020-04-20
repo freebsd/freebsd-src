@@ -1,9 +1,16 @@
 #!/bin/sh
 # $FreeBSD$
 
-i=1
+skip=""
 # Temporarily disable evfilt_proc tests: https://bugs.freebsd.org/233586
-"$(dirname $0)/kqtest" --no-proc | while read line; do
+skip="${skip} --no-proc"
+if [ "$(uname -p)" = "i386" ]; then
+	# Temporarily disable timer tests on i386: https://bugs.freebsd.org/245768
+	skip="${skip} --no-timer"
+fi
+
+i=1
+"$(dirname $0)/kqtest" ${skip} | while read line; do
 	echo $line | grep -q passed
 	if [ $? -eq 0 ]; then
 		echo "ok - $i $line"
