@@ -1280,14 +1280,6 @@ crp_sanity(struct cryptop *crp)
 		    ("invalid ETA op %x", crp->crp_op));
 		break;
 	}
-	KASSERT((crp->crp_flags & CRYPTO_F_IV_GENERATE) == 0 ||
-	    crp->crp_op == CRYPTO_OP_ENCRYPT ||
-	    crp->crp_op == (CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST),
-	    ("IV_GENERATE set for non-encryption operation %x", crp->crp_op));
-	KASSERT((crp->crp_flags &
-	    (CRYPTO_F_IV_SEPARATE | CRYPTO_F_IV_GENERATE)) !=
-	    (CRYPTO_F_IV_SEPARATE | CRYPTO_F_IV_GENERATE),
-	    ("crp with both IV_SEPARATE and IV_GENERATE set"));
 	KASSERT(crp->crp_buf_type >= CRYPTO_BUF_CONTIG &&
 	    crp->crp_buf_type <= CRYPTO_BUF_MBUF,
 	    ("invalid crp buffer type %d", crp->crp_buf_type));
@@ -1305,9 +1297,8 @@ crp_sanity(struct cryptop *crp)
 		    ("AAD region in request not supporting AAD"));
 	}
 	if (csp->csp_ivlen == 0) {
-		KASSERT((crp->crp_flags &
-		    (CRYPTO_F_IV_SEPARATE | CRYPTO_F_IV_GENERATE)) == 0,
-		    ("IV_GENERATE or IV_SEPARATE set when IV isn't used"));
+		KASSERT((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0,
+		    ("IV_SEPARATE set when IV isn't used"));
 		KASSERT(crp->crp_iv_start == 0,
 		    ("crp_iv_start set when IV isn't used"));
 	} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE) {
@@ -1360,8 +1351,6 @@ crypto_dispatch(struct cryptop *crp)
 #ifdef INVARIANTS
 	crp_sanity(crp);
 #endif
-
-	/* TODO: Handle CRYPTO_F_IV_GENERATE so drivers don't have to. */
 
 	cryptostats.cs_ops++;
 

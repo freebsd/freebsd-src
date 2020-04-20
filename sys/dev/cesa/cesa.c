@@ -1791,17 +1791,8 @@ cesa_process(device_t dev, struct cryptop *crp, int hint)
 	CESA_LOCK(sc, sessions);
 	cesa_sync_desc(sc, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	if (csp->csp_cipher_alg != 0) {
-		if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-			arc4rand(cr->cr_csd->csd_iv, csp->csp_ivlen, 0);
-			crypto_copyback(crp, crp->crp_iv_start, csp->csp_ivlen,
-		    cr->cr_csd->csd_iv);
-		} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-			memcpy(cr->cr_csd->csd_iv, crp->crp_iv, csp->csp_ivlen);
-		else
-			crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen,
-		    cr->cr_csd->csd_iv);
-	}
+	if (csp->csp_cipher_alg != 0)
+		crypto_read_iv(crp, cr->cr_csd->csd_iv);
 
 	if (crp->crp_cipher_key != NULL) {
 		memcpy(cs->cs_key, crp->crp_cipher_key,

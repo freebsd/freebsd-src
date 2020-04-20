@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2020
+.Dd April 20, 2020
 .Dt CRYPTO_REQUEST 9
 .Os
 .Sh NAME
@@ -225,16 +225,6 @@ should be set in
 and
 .Fa crp_digest_start
 should be left as zero.
-.Pp
-An encryption request using an IV stored in the IV region may set
-.Dv CRYPTO_F_IV_GENERATE
-in
-.Fa crp_flags
-to request that the driver generate a random IV.
-Note that
-.Dv CRYPTO_F_IV_GENERATE
-cannot be used with decryption operations or in combination with
-.Dv CRYPTO_F_IV_SEPARATE .
 .Pp
 Requests that store part, but not all, of the IV in the data buffer should
 store the partial IV in the data buffer and pass the full IV separately in

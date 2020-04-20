@@ -365,12 +365,7 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 	}
 
 	if (csp->csp_cipher_alg != 0) {
-		if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-			arc4rand(iv_data, csp->csp_ivlen, 0);
-			crypto_copyback(crp, crp->crp_iv_start, csp->csp_ivlen,
-			    iv_data);
-			ivp = iv_data;
-		} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+		if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
 			ivp = crp->crp_iv;
 		else {
 			crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen,

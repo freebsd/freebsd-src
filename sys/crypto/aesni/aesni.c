@@ -704,14 +704,7 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 		aesni_cipher_setup_common(ses, csp, crp->crp_cipher_key,
 		    csp->csp_cipher_klen);
 
-	/* Setup iv */
-	if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-		arc4rand(iv, csp->csp_ivlen, 0);
-		crypto_copyback(crp, crp->crp_iv_start, csp->csp_ivlen, iv);
-	} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-		memcpy(iv, crp->crp_iv, csp->csp_ivlen);
-	else
-		crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen, iv);
+	crypto_read_iv(crp, iv);
 
 	switch (csp->csp_cipher_alg) {
 	case CRYPTO_AES_CBC:

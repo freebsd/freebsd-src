@@ -659,13 +659,7 @@ glxsb_crypto_encdec(struct cryptop *crp, struct glxsb_session *ses,
 	else
 		control = SB_CTL_DEC;
 
-	if (crp->crp_flags & CRYPTO_F_IV_GENERATE) {
-		arc4rand(op_iv, sizeof(op_iv), 0);
-		crypto_copyback(crp, crp->crp_iv_start, sizeof(op_iv), op_iv);
-	} else if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-		memcpy(op_iv, crp->crp_iv, sizeof(op_iv));
-	else
-		crypto_copydata(crp, crp->crp_iv_start, sizeof(op_iv), op_iv);
+	crypto_read_iv(crp, op_iv);
 	
 	offset = 0;
 	tlen = crp->crp_payload_length;
