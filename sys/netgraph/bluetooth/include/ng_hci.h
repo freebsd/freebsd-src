@@ -1673,12 +1673,12 @@ typedef struct {
 }__attribute__ ((packed)) ng_hci_le_long_term_key_request_negative_reply_rp;
 
 
-#define NG_HCI_OCF_LE_READ_SUPPORTED_STATUS		0x001c
+#define NG_HCI_OCF_LE_READ_SUPPORTED_STATES		0x001c
 /*No command parameter*/
 typedef struct {
 	u_int8_t status;
-	u_int64_t le_status;
-}__attribute__ ((packed)) ng_hci_le_read_supported_status_rp;
+	u_int64_t le_states;
+}__attribute__ ((packed)) ng_hci_le_read_supported_states_rp;
 
 #define NG_HCI_OCF_LE_RECEIVER_TEST			0x001d
 typedef struct{
