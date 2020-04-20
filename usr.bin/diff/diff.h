@@ -50,6 +50,9 @@
 #define	D_GFORMAT	7	/* Diff with defined changed group format */
 #define D_SIDEBYSIDE    8	/* Side by side */
 
+#define	D_UNSET		-2
+
+
 /*
  * Output flags
  */
