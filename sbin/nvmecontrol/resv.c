@@ -242,7 +242,7 @@ resvacquire(const struct cmd *f, int argc, char *argv[])
 
 	if (arg_parse(argc, argv, f))
 		return;
-	open_dev(acquire_opt.dev, &fd, 1, 1);
+	open_dev(acquire_opt.dev, &fd, 0, 1);
 	get_nsid(fd, NULL, &nsid);
 	if (nsid == 0) {
 		fprintf(stderr, "This command require namespace-id\n");
@@ -280,7 +280,7 @@ resvregister(const struct cmd *f, int argc, char *argv[])
 
 	if (arg_parse(argc, argv, f))
 		return;
-	open_dev(register_opt.dev, &fd, 1, 1);
+	open_dev(register_opt.dev, &fd, 0, 1);
 	get_nsid(fd, NULL, &nsid);
 	if (nsid == 0) {
 		fprintf(stderr, "This command require namespace-id\n");
@@ -318,7 +318,7 @@ resvrelease(const struct cmd *f, int argc, char *argv[])
 
 	if (arg_parse(argc, argv, f))
 		return;
-	open_dev(release_opt.dev, &fd, 1, 1);
+	open_dev(release_opt.dev, &fd, 0, 1);
 	get_nsid(fd, NULL, &nsid);
 	if (nsid == 0) {
 		fprintf(stderr, "This command require namespace-id\n");
@@ -358,7 +358,7 @@ resvreport(const struct cmd *f, int argc, char *argv[])
 
 	if (arg_parse(argc, argv, f))
 		return;
-	open_dev(report_opt.dev, &fd, 1, 1);
+	open_dev(report_opt.dev, &fd, 0, 1);
 	get_nsid(fd, NULL, &nsid);
 	if (nsid == 0) {
 		fprintf(stderr, "This command require namespace-id\n");
