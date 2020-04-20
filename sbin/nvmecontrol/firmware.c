@@ -80,7 +80,7 @@ static const struct opts firmware_opts[] = {
 #undef OPT
 
 static const struct args firmware_args[] = {
-	{ arg_string, &opt.dev, "controller-id" },
+	{ arg_string, &opt.dev, "controller-id|namespace-id" },
 	{ arg_none, NULL, NULL },
 };
 
@@ -226,6 +226,7 @@ firmware(const struct cmd *f, int argc, char *argv[])
 	int				activate_action, reboot_required;
 	char				prompt[64];
 	void				*buf = NULL;
+	char				*path;
 	int32_t				size = 0, nsid;
 	uint16_t			oacs_fw;
 	uint8_t				fw_slot1_ro, fw_num_slots;
@@ -262,13 +263,12 @@ firmware(const struct cmd *f, int argc, char *argv[])
 	}
 
 	open_dev(opt.dev, &fd, 1, 1);
-
-	/* Check that a controller (and not a namespace) was specified. */
-	get_nsid(fd, NULL, &nsid);
+	get_nsid(fd, &path, &nsid);
 	if (nsid != 0) {
 		close(fd);
-		arg_help(argc, argv, f);
+		open_dev(path, &fd, 1, 1);
 	}
+	free(path);
 
 	read_controller_data(fd, &cdata);
 
