@@ -144,6 +144,8 @@ power(const struct cmd *f, int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
 	int				fd;
+	char				*path;
+	uint32_t			nsid;
 
 	if (arg_parse(argc, argv, f))
 		return;
@@ -154,6 +156,12 @@ power(const struct cmd *f, int argc, char *argv[])
 	}
 
 	open_dev(opt.dev, &fd, 1, 1);
+	get_nsid(fd, &path, &nsid);
+	if (nsid != 0) {
+		close(fd);
+		open_dev(path, &fd, 1, 1);
+	}
+	free(path);
 
 	if (opt.list) {
 		read_controller_data(fd, &cdata);
@@ -185,7 +193,7 @@ static const struct opts power_opts[] = {
 #undef OPT
 
 static const struct args power_args[] = {
-	{ arg_string, &opt.dev, "controller-id" },
+	{ arg_string, &opt.dev, "controller-id|namespace-id" },
 	{ arg_none, NULL, NULL },
 };
 
