@@ -813,10 +813,9 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	crp->crp_payload_length = m->m_pkthdr.len - (skip + hlen + alen);
 	crp->crp_op = CRYPTO_OP_ENCRYPT;
 
-	/* Encryption operation. */
+	/* Generate IV / nonce. */
+	ivp = &crp->crp_iv[0];
 	if (SAV_ISCTRORGCM(sav)) {
-		ivp = &crp->crp_iv[0];
-
 		/* GCM IV Format: RFC4106 4 */
 		/* CTR IV Format: RFC3686 4 */
 		/* Salt is last four bytes of key, RFC4106 8.1 */
@@ -833,8 +832,9 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		m_copyback(m, skip + hlen - sav->ivlen, sav->ivlen, &ivp[4]);
 		crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
 	} else if (sav->ivlen != 0) {
+		arc4rand(ivp, sav->ivlen, 0);
 		crp->crp_iv_start = skip + hlen - sav->ivlen;
-		crp->crp_flags |= CRYPTO_F_IV_GENERATE;
+		m_copyback(m, crp->crp_iv_start, sav->ivlen, ivp);
 	}
 
 	/* Callback parameters */
