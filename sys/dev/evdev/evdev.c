@@ -67,7 +67,7 @@ enum evdev_sparse_result
 MALLOC_DEFINE(M_EVDEV, "evdev", "evdev memory");
 
 /* adb keyboard driver used on powerpc does not support evdev yet */
-#ifdef __powerpc__
+#if defined(__powerpc__) && !defined(__powerpc64__)
 int evdev_rcpt_mask = EVDEV_RCPT_KBDMUX | EVDEV_RCPT_HW_MOUSE;
 #else
 int evdev_rcpt_mask = EVDEV_RCPT_HW_MOUSE | EVDEV_RCPT_HW_KBD;
