@@ -406,22 +406,38 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	crp->crp_payload_start = skip + hlen;
 	crp->crp_payload_length = m->m_pkthdr.len - (skip + hlen + alen);
 
+	/* Generate or read cipher IV. */
 	if (SAV_ISCTRORGCM(sav)) {
 		ivp = &crp->crp_iv[0];
 
-		/* GCM IV Format: RFC4106 4 */
-		/* CTR IV Format: RFC3686 4 */
-		/* Salt is last four bytes of key, RFC4106 8.1 */
-		/* Nonce is last four bytes of key, RFC3686 5.1 */
+		/*
+		 * AES-GCM and AES-CTR use similar cipher IV formats
+		 * defined in RFC 4106 section 4 and RFC 3686 section
+		 * 4, respectively.
+		 *
+		 * The first 4 bytes of the cipher IV contain an
+		 * implicit salt, or nonce, obtained from the last 4
+		 * bytes of the encryption key.  The next 8 bytes hold
+		 * an explicit IV unique to each packet.  This
+		 * explicit IV is used as the ESP IV for the packet.
+		 * The last 4 bytes hold a big-endian block counter
+		 * incremented for each block.  For AES-GCM, the block
+		 * counter's initial value is defined as part of the
+		 * algorithm.  For AES-CTR, the block counter's
+		 * initial value for each packet is defined as 1 by
+		 * RFC 3686.
+		 *
+		 * ------------------------------------------
+		 * | Salt | Explicit ESP IV | Block Counter |
+		 * ------------------------------------------
+		 *  4 bytes     8 bytes          4 bytes
+		 */
 		memcpy(ivp, sav->key_enc->key_data +
 		    _KEYLEN(sav->key_enc) - 4, 4);
-
+		m_copydata(m, skip + hlen - sav->ivlen, sav->ivlen, &ivp[4]);
 		if (SAV_ISCTR(sav)) {
-			/* Initial block counter is 1, RFC3686 4 */
 			be32enc(&ivp[sav->ivlen + 4], 1);
 		}
-
-		m_copydata(m, skip + hlen - sav->ivlen, sav->ivlen, &ivp[4]);
 		crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
 	} else if (sav->ivlen != 0)
 		crp->crp_iv_start = skip + hlen - sav->ivlen;
@@ -813,22 +829,20 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	crp->crp_payload_length = m->m_pkthdr.len - (skip + hlen + alen);
 	crp->crp_op = CRYPTO_OP_ENCRYPT;
 
-	/* Generate IV / nonce. */
+	/* Generate cipher and ESP IVs. */
 	ivp = &crp->crp_iv[0];
 	if (SAV_ISCTRORGCM(sav)) {
-		/* GCM IV Format: RFC4106 4 */
-		/* CTR IV Format: RFC3686 4 */
-		/* Salt is last four bytes of key, RFC4106 8.1 */
-		/* Nonce is last four bytes of key, RFC3686 5.1 */
+		/*
+		 * See comment in esp_input() for details on the
+		 * cipher IV.  A simple per-SA counter stored in
+		 * 'cntr' is used as the explicit ESP IV.
+		 */
 		memcpy(ivp, sav->key_enc->key_data +
 		    _KEYLEN(sav->key_enc) - 4, 4);
 		be64enc(&ivp[4], cntr);
 		if (SAV_ISCTR(sav)) {
-			/* Initial block counter is 1, RFC3686 4 */
-			/* XXXAE: should we use this only for first packet? */
 			be32enc(&ivp[sav->ivlen + 4], 1);
 		}
-
 		m_copyback(m, skip + hlen - sav->ivlen, sav->ivlen, &ivp[4]);
 		crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
 	} else if (sav->ivlen != 0) {
