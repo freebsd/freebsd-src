@@ -359,12 +359,13 @@ restart:
 			}
 		}
 	}
+	if (restart && !terminate)
+		daemon_sleep(restart, 0);
 	if (sigprocmask(SIG_BLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
 		goto exit;
 	}
 	if (restart && !terminate) {
-		daemon_sleep(restart, 0);
 		close(pfd[0]);
 		pfd[0] = -1;
 		goto restart;
@@ -384,7 +385,8 @@ static void
 daemon_sleep(time_t secs, long nsecs)
 {
 	struct timespec ts = { secs, nsecs };
-	while (nanosleep(&ts, &ts) == -1) {
+
+	while (!terminate && nanosleep(&ts, &ts) == -1) {
 		if (errno != EINTR)
 			err(1, "nanosleep");
 	}
