@@ -71,7 +71,7 @@ typedef void input_func(int, void *);
 typedef int activate_func(struct inet_port *);
 typedef void deactivate_func(struct inet_port *);
 typedef void parse_ctrl_func(struct port_sock *, const struct msghdr *);
-typedef void setsrc_func(struct port_sock *, struct msghdr *);
+typedef void setsrc_func(struct port_sock *, struct msghdr *, char *);
 
 static create_func ipv4_create;
 static input_func ipv4_input;
@@ -401,13 +401,12 @@ inet_send2(struct tport *tp, const u_char *buf, size_t len,
 	msg.msg_name = (void *)pi->peer;
 	msg.msg_namelen = pi->peerlen;
 
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-
 	char cbuf[XMIT_CBUF_SIZE];
 	if (s->set_ret_source) {
-		msg.msg_control = cbuf;
-		s->setsrc(s, &msg);
+		s->setsrc(s, &msg, cbuf);
+	} else {
+		msg.msg_control = NULL;
+		msg.msg_controllen = 0;
 	}
 
 	return (sendmsg(s->input.fd, &msg, 0));
@@ -638,18 +637,20 @@ ipv4_parse_ctrl(struct port_sock *sock, const struct msghdr *msg)
  * \param msg	message
  */
 static void
-ipv4_setsrc(struct port_sock *sock, struct msghdr *msg)
+ipv4_setsrc(struct port_sock *sock, struct msghdr *msg, char *cbuf)
 {
-	struct cmsghdr *cmsg = CMSG_FIRSTHDR(msg);
+	struct cmsghdr *cmsg;
+
+	msg->msg_control = cbuf;
+	msg->msg_controllen = CMSG_SPACE(sizeof(struct in_addr));
 
 	/* select outgoing interface by setting source address */
+	cmsg = CMSG_FIRSTHDR(msg);
 	cmsg->cmsg_level = IPPROTO_IP;
 	cmsg->cmsg_type = IP_SENDSRCADDR;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
 	memcpy(CMSG_DATA(cmsg), &sock->ret_source.a4,
 	    sizeof(struct in_addr));
-
-	msg->msg_controllen = CMSG_SPACE(sizeof(struct in_addr));
 }
 
 /**
@@ -878,18 +879,20 @@ ipv6_parse_ctrl(struct port_sock *sock, const struct msghdr *msg)
  * \param msg	message
  */
 static void
-ipv6_setsrc(struct port_sock *sock, struct msghdr *msg)
+ipv6_setsrc(struct port_sock *sock, struct msghdr *msg, char *cbuf)
 {
-	struct cmsghdr *cmsg = CMSG_FIRSTHDR(msg);
+	struct cmsghdr *cmsg;
+
+	msg->msg_control = cbuf;
+	msg->msg_controllen = CMSG_SPACE(sizeof(struct in6_pktinfo));
 
 	/* select outgoing interface by setting source address */
+	cmsg = CMSG_FIRSTHDR(msg);
 	cmsg->cmsg_level = IPPROTO_IPV6;
 	cmsg->cmsg_type = IPV6_PKTINFO;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
 	memcpy(CMSG_DATA(cmsg), &sock->ret_source.a6,
 	    sizeof(struct in6_pktinfo));
-
-	msg->msg_controllen = CMSG_SPACE(sizeof(struct in6_pktinfo));
 }
 
 /**
