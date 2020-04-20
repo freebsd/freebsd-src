@@ -232,9 +232,6 @@ static int	hdac_resume(device_t);
 static int	hdac_rirb_flush(struct hdac_softc *sc);
 static int	hdac_unsolq_flush(struct hdac_softc *sc);
 
-#define hdac_command(a1, a2, a3)	\
-		hdac_send_command(a1, a3, a2)
-
 /* This function surely going to make its way into upper level someday. */
 static void
 hdac_config_fetch(struct hdac_softc *sc, uint32_t *on, uint32_t *off)
