@@ -404,7 +404,7 @@ nsactive(const struct cmd *f, int argc, char *argv[])
 
 	if (arg_parse(argc, argv, f))
 		return;
-	open_dev(active_opt.dev, &fd, 1, 1);
+	open_dev(active_opt.dev, &fd, 0, 1);
 
 	memset(&pt, 0, sizeof(pt));
 	pt.cmd.opc = NVME_OPC_IDENTIFY;
@@ -435,7 +435,7 @@ nsallocated(const struct cmd *f, int argc, char *argv[])
 
 	if (arg_parse(argc, argv, f))
 		return;
-	open_dev(active_opt.dev, &fd, 1, 1);
+	open_dev(active_opt.dev, &fd, 0, 1);
 	read_controller_data(fd, &cd);
 
 	/* Check that controller can execute this command. */
@@ -472,7 +472,7 @@ nscontrollers(const struct cmd *f, int argc, char *argv[])
 
 	if (arg_parse(argc, argv, f))
 		return;
-	open_dev(controllers_opt.dev, &fd, 1, 1);
+	open_dev(controllers_opt.dev, &fd, 0, 1);
 	read_controller_data(fd, &cd);
 
 	/* Check that controller can execute this command. */
@@ -781,7 +781,7 @@ nsattached(const struct cmd *f, int argc, char *argv[])
 		fprintf(stderr, "No valid NSID specified\n");
 		arg_help(argc, argv, f);
 	}
-	open_dev(attached_opt.dev, &fd, 1, 1);
+	open_dev(attached_opt.dev, &fd, 0, 1);
 	read_controller_data(fd, &cd);
 
 	/* Check that controller can execute this command. */
@@ -825,7 +825,7 @@ nsidentify(const struct cmd *f, int argc, char *argv[])
 		fprintf(stderr, "No valid NSID specified\n");
 		arg_help(argc, argv, f);
 	}
-	open_dev(identify_opt.dev, &fd, 1, 1);
+	open_dev(identify_opt.dev, &fd, 0, 1);
 	read_controller_data(fd, &cd);
 
 	/* Check that controller can execute this command. */

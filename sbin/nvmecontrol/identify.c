@@ -241,7 +241,7 @@ identify(const struct cmd *f, int argc, char *argv[])
 	if (arg_parse(argc, argv, f))
 		return;
 
-	open_dev(opt.dev, &fd, 1, 1);
+	open_dev(opt.dev, &fd, 0, 1);
 	get_nsid(fd, &path, &nsid);
 	if (nsid != 0) {
 		/*
@@ -251,7 +251,7 @@ identify(const struct cmd *f, int argc, char *argv[])
 		 * the IDENTIFY command itself.
 		 */
 		close(fd);
-		open_dev(path, &fd, 1, 1);
+		open_dev(path, &fd, 0, 1);
 	}
 	free(path);
 	if (opt.nsid != NONE)

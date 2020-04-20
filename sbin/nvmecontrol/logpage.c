@@ -687,13 +687,13 @@ logpage(const struct cmd *f, int argc, char *argv[])
 		fprintf(stderr, "Missing page_id (-p).\n");
 		arg_help(argc, argv, f);
 	}
-	open_dev(opt.dev, &fd, 1, 1);
+	open_dev(opt.dev, &fd, 0, 1);
 	get_nsid(fd, &path, &nsid);
 	if (nsid == 0) {
 		nsid = NVME_GLOBAL_NAMESPACE_TAG;
 	} else {
 		close(fd);
-		open_dev(path, &fd, 1, 1);
+		open_dev(path, &fd, 0, 1);
 	}
 	free(path);
 
