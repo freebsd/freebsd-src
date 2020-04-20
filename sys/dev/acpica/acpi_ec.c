@@ -344,7 +344,7 @@ acpi_ec_probe(device_t dev)
     device_t	peer;
     char	desc[64];
     int		ecdt;
-    int		ret;
+    int		ret, rc;
     struct acpi_ec_params *params;
     static char *ec_ids[] = { "PNP0C09", NULL };
 
@@ -368,9 +368,9 @@ acpi_ec_probe(device_t dev)
     } else
 	ecdt = 0;
 
-    ret = ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids, NULL);
-    if (ret > 0)
-	return (ret);
+    rc = ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids, NULL);
+    if (rc > 0)
+	return (rc);
 
     params = malloc(sizeof(struct acpi_ec_params), M_TEMP, M_WAITOK | M_ZERO);
 
@@ -398,7 +398,6 @@ acpi_ec_probe(device_t dev)
     peer = devclass_get_device(acpi_ec_devclass, params->uid);
     if (peer != NULL && device_is_alive(peer)) {
 	device_disable(dev);
-	ret = ENXIO;
 	goto out;
     }
 
