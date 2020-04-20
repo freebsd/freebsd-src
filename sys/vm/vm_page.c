@@ -4438,7 +4438,7 @@ vm_page_acquire_unlocked(vm_object_t object, vm_pindex_t pindex,
 		 * without barriers.  Switch to radix to verify.
 		 */
 		if (prev == NULL || (m = TAILQ_NEXT(prev, listq)) == NULL ||
-		    m->pindex != pindex ||
+		    QMD_IS_TRASHED(m) || m->pindex != pindex ||
 		    atomic_load_ptr(&m->object) != object) {
 			prev = NULL;
 			/*
