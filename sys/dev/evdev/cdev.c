@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/bitstring.h>
 #include <sys/conf.h>
+#include <sys/epoch.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
@@ -126,7 +127,7 @@ evdev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	knlist_init_mtx(&client->ec_selp.si_note, &client->ec_buffer_mtx);
 
 	/* Avoid race with evdev_unregister */
-	EVDEV_LOCK(evdev);
+	EVDEV_LIST_LOCK(evdev);
 	if (dev->si_drv1 == NULL)
 		ret = ENODEV;
 	else
@@ -134,13 +135,9 @@ evdev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	if (ret != 0)
 		evdev_revoke_client(client);
-	/*
-	 * Unlock evdev here because non-sleepable lock held 
-	 * while calling devfs_set_cdevpriv upsets WITNESS
-	 */
-	EVDEV_UNLOCK(evdev);
+	EVDEV_LIST_UNLOCK(evdev);
 
-	if (!ret)
+	if (ret == 0)
 		ret = devfs_set_cdevpriv(client, evdev_dtor);
 
 	if (ret != 0) {
@@ -156,11 +153,13 @@ evdev_dtor(void *data)
 {
 	struct evdev_client *client = (struct evdev_client *)data;
 
-	EVDEV_LOCK(client->ec_evdev);
+	EVDEV_LIST_LOCK(client->ec_evdev);
 	if (!client->ec_revoked)
 		evdev_dispose_client(client->ec_evdev, client);
-	EVDEV_UNLOCK(client->ec_evdev);
+	EVDEV_LIST_UNLOCK(client->ec_evdev);
 
+	if (client->ec_evdev->ev_lock_type != EV_LOCK_MTX)
+		epoch_wait_preempt(INPUT_EPOCH);
 	knlist_clear(&client->ec_selp.si_note, 0);
 	seldrain(&client->ec_selp);
 	knlist_destroy(&client->ec_selp.si_note);
@@ -547,12 +546,12 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (*(int *)data != 0)
 			return (EINVAL);
 
-		EVDEV_LOCK(evdev);
+		EVDEV_LIST_LOCK(evdev);
 		if (dev->si_drv1 != NULL && !client->ec_revoked) {
 			evdev_dispose_client(evdev, client);
 			evdev_revoke_client(client);
 		}
-		EVDEV_UNLOCK(evdev);
+		EVDEV_LIST_UNLOCK(evdev);
 		return (0);
 
 	case EVIOCSCLOCKID:
@@ -717,7 +716,7 @@ void
 evdev_revoke_client(struct evdev_client *client)
 {
 
-	EVDEV_LOCK_ASSERT(client->ec_evdev);
+	EVDEV_LIST_LOCK_ASSERT(client->ec_evdev);
 
 	client->ec_revoked = true;
 }
