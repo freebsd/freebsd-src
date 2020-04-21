@@ -169,6 +169,35 @@ kva_free(vm_offset_t addr, vm_size_t size)
 	vmem_free(kernel_arena, addr, size);
 }
 
+static vm_page_t
+kmem_alloc_contig_pages(vm_object_t object, vm_pindex_t pindex, int domain,
+    int pflags, u_long npages, vm_paddr_t low, vm_paddr_t high,
+    u_long alignment, vm_paddr_t boundary, vm_memattr_t memattr)
+{
+	vm_page_t m;
+	int tries;
+	bool wait;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	wait = (pflags & VM_ALLOC_WAITOK) != 0;
+	pflags &= ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL);
+	pflags |= VM_ALLOC_NOWAIT;
+	for (tries = wait ? 3 : 1;; tries--) {
+		m = vm_page_alloc_contig_domain(object, pindex, domain, pflags,
+		    npages, low, high, alignment, boundary, memattr);
+		if (m != NULL || tries == 0)
+			break;
+
+		VM_OBJECT_WUNLOCK(object);
+		if (!vm_page_reclaim_contig_domain(domain, pflags, npages,
+		    low, high, alignment, boundary) && wait)
+			vm_wait_domain(domain);
+		VM_OBJECT_WLOCK(object);
+	}
+	return (m);
+}
+
 /*
  *	Allocates a region from the kernel address map and physical pages
  *	within the specified address range to the kernel object.  Creates a
@@ -182,38 +211,26 @@ kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, vm_memattr_t memattr)
 {
 	vmem_t *vmem;
-	vm_object_t object = kernel_object;
+	vm_object_t object;
 	vm_offset_t addr, i, offset;
 	vm_page_t m;
-	int pflags, tries;
+	int pflags;
 	vm_prot_t prot;
 
+	object = kernel_object;
 	size = round_page(size);
 	vmem = vm_dom[domain].vmd_kernel_arena;
 	if (vmem_alloc(vmem, size, M_BESTFIT | flags, &addr))
 		return (0);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	pflags = malloc2vm_flags(flags) | VM_ALLOC_WIRED;
-	pflags &= ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL);
-	pflags |= VM_ALLOC_NOWAIT;
 	prot = (flags & M_EXEC) != 0 ? VM_PROT_ALL : VM_PROT_RW;
 	VM_OBJECT_WLOCK(object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		tries = 0;
-retry:
-		m = vm_page_alloc_contig_domain(object, atop(offset + i),
+		m = kmem_alloc_contig_pages(object, atop(offset + i),
 		    domain, pflags, 1, low, high, PAGE_SIZE, 0, memattr);
 		if (m == NULL) {
 			VM_OBJECT_WUNLOCK(object);
-			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-				if (!vm_page_reclaim_contig_domain(domain,
-				    pflags, 1, low, high, PAGE_SIZE, 0) &&
-				    (flags & M_WAITOK) != 0)
-					vm_wait_domain(domain);
-				VM_OBJECT_WLOCK(object);
-				tries++;
-				goto retry;
-			}
 			kmem_unback(object, addr, i);
 			vmem_free(vmem, addr, size);
 			return (0);
@@ -273,37 +290,25 @@ kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
     vm_memattr_t memattr)
 {
 	vmem_t *vmem;
-	vm_object_t object = kernel_object;
+	vm_object_t object;
 	vm_offset_t addr, offset, tmp;
 	vm_page_t end_m, m;
 	u_long npages;
-	int pflags, tries;
- 
+	int pflags;
+
+	object = kernel_object;
 	size = round_page(size);
 	vmem = vm_dom[domain].vmd_kernel_arena;
 	if (vmem_alloc(vmem, size, flags | M_BESTFIT, &addr))
 		return (0);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	pflags = malloc2vm_flags(flags) | VM_ALLOC_WIRED;
-	pflags &= ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL);
-	pflags |= VM_ALLOC_NOWAIT;
 	npages = atop(size);
 	VM_OBJECT_WLOCK(object);
-	tries = 0;
-retry:
-	m = vm_page_alloc_contig_domain(object, atop(offset), domain, pflags,
-	    npages, low, high, alignment, boundary, memattr);
+	m = kmem_alloc_contig_pages(object, atop(offset), domain,
+	    pflags, npages, low, high, alignment, boundary, memattr);
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
-		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			if (!vm_page_reclaim_contig_domain(domain, pflags,
-			    npages, low, high, alignment, boundary) &&
-			    (flags & M_WAITOK) != 0)
-				vm_wait_domain(domain);
-			VM_OBJECT_WLOCK(object);
-			tries++;
-			goto retry;
-		}
 		vmem_free(vmem, addr, size);
 		return (0);
 	}
