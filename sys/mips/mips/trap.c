@@ -807,10 +807,9 @@ dofault:
 #if defined(KDTRACE_HOOKS) || defined(DDB)
 	case T_BREAK:
 #ifdef KDTRACE_HOOKS
-		if (!usermode && dtrace_invop_jump_addr != 0) {
-			dtrace_invop_jump_addr(trapframe);
+		if (!usermode && dtrace_invop_jump_addr != NULL &&
+		    dtrace_invop_jump_addr(trapframe) == 0)
 			return (trapframe->pc);
-		}
 #endif
 #ifdef DDB
 		kdb_trap(type, 0, trapframe);
