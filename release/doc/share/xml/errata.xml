@@ -83,6 +83,14 @@
 	<entry>18&nbsp;March&nbsp;2020</entry>
 	<entry><para>Incorrect checksum calculations</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:07.quotad.asc">FreeBSD-EN-20:07.quotad</link></entry>
+	<entry>21&nbsp;April&nbsp;2020</entry>
+	<entry><para>Regression with certain <acronym>NFS</acronym>
+	  servers</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
