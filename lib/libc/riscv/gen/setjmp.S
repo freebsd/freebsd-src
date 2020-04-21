@@ -100,6 +100,11 @@ ENTRY(setjmp)
 END(setjmp)
 
 ENTRY(longjmp)
+	/* Check the magic value */
+	ld	t0, 0(a0)
+	ld	t1, .Lmagic
+	bne	t0, t1, botch
+
 	addi	sp, sp, -(4 * 8)
 	sd	a0, (0 * 8)(sp)
 	sd	ra, (1 * 8)(sp)
@@ -115,11 +120,6 @@ ENTRY(longjmp)
 	ld	ra, (1 * 8)(sp)
 	ld	a0, (0 * 8)(sp)
 	addi	sp, sp, (4 * 8)
-
-	/* Check the magic value */
-	ld	t0, 0(a0)
-	ld	t1, .Lmagic
-	bne	t0, t1, botch
 
 	/* Restore the stack pointer */
 	ld	t0, 8(a0)
