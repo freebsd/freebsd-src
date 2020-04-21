@@ -64,17 +64,17 @@ The following
 .Xr sysctl 8
 values are available
 .Bl -tag -width indent
-.It Va dev.hwpstate_intel.%d.\%desc
+.It Va dev.hwpstate_intel.%d.%desc
 Describes the attached driver
 .It dev.hwpstate_intel.0.%desc: Intel Speed Shift
-.It Va dev.hwpstate_intel.%d.\%driver
+.It Va dev.hwpstate_intel.%d.%driver
 Driver in use, always hwpstate_intel.
 .It dev.hwpstate_intel.0.%driver: hwpstate_intel
-.It Va dev.hwpstate_intel.%d.\%parent
-.It dev.hwpstate_intel.0.%parent: cpu0
-The cpu that is exposing these frequencies.
+.It Va dev.hwpstate_intel.%d.%parent
+The CPU that is exposing these frequencies.
 For example
 .Va cpu0 .
+.It dev.hwpstate_intel.0.%parent: cpu0
 .It Va dev.hwpstate_intel.%d.epp
 Energy/Performance Preference.
 Valid values range from 0 to 100.
