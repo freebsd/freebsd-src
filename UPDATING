@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200421	p8	FreeBSD-EN-20:07.quotad
+			FreeBSD-SA-20:10.ipfw
+
+        Fix regression in rpc.rquotad with certain NFS servers [EN-20:07.quotad]
+
+        Fix ipfw invalid mbuf handling [SA-20:10.ipfw]
+
 20200319	p7	FreeBSD-EN-20:04.pfctl
 			FreeBSD-EN-20:06.ipv6
 			FreeBSD-SA-20:04.tcp
