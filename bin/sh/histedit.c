@@ -54,12 +54,12 @@ __FBSDID("$FreeBSD$");
 #include "main.h"
 #include "output.h"
 #include "mystring.h"
+#include "builtins.h"
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #include "error.h"
 #include "eval.h"
 #include "memalloc.h"
-#include "builtins.h"
 
 #define MAXHISTLOOPS	4	/* max recursions through fc */
 #define DEFEDITOR	"ed"	/* default editor *should* be $EDITOR */
@@ -503,7 +503,7 @@ bindcmd(int argc, char **argv)
 #include "error.h"
 
 int
-histcmd(int argc, char **argv)
+histcmd(int argc __unused, char **argv __unused)
 {
 
 	error("not compiled with history support");
@@ -512,7 +512,7 @@ histcmd(int argc, char **argv)
 }
 
 int
-bindcmd(int argc, char **argv)
+bindcmd(int argc __unused, char **argv __unused)
 {
 
 	error("not compiled with line editing support");
