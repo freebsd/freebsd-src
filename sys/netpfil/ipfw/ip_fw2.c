@@ -330,22 +330,27 @@ ipopts_match(struct ip *ip, ipfw_insn *cmd)
 	return (flags_match(cmd, bits));
 }
 
+/*
+ * Parse TCP options. The logic copied from tcp_dooptions().
+ */
 static int
-tcpopts_parse(struct tcphdr *tcp, uint16_t *mss)
+tcpopts_parse(const struct tcphdr *tcp, uint16_t *mss)
 {
-	u_char *cp = (u_char *)(tcp + 1);
+	const u_char *cp = (const u_char *)(tcp + 1);
 	int optlen, bits = 0;
-	int x = (tcp->th_off << 2) - sizeof(struct tcphdr);
+	int cnt = (tcp->th_off << 2) - sizeof(struct tcphdr);
 
-	for (; x > 0; x -= optlen, cp += optlen) {
+	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		int opt = cp[0];
 		if (opt == TCPOPT_EOL)
 			break;
 		if (opt == TCPOPT_NOP)
 			optlen = 1;
 		else {
+			if (cnt < 2)
+				break;
 			optlen = cp[1];
-			if (optlen <= 0)
+			if (optlen < 2 || optlen > cnt)
 				break;
 		}
 
@@ -354,22 +359,31 @@ tcpopts_parse(struct tcphdr *tcp, uint16_t *mss)
 			break;
 
 		case TCPOPT_MAXSEG:
+			if (optlen != TCPOLEN_MAXSEG)
+				break;
 			bits |= IP_FW_TCPOPT_MSS;
 			if (mss != NULL)
 				*mss = be16dec(cp + 2);
 			break;
 
 		case TCPOPT_WINDOW:
-			bits |= IP_FW_TCPOPT_WINDOW;
+			if (optlen == TCPOLEN_WINDOW)
+				bits |= IP_FW_TCPOPT_WINDOW;
 			break;
 
 		case TCPOPT_SACK_PERMITTED:
+			if (optlen == TCPOLEN_SACK_PERMITTED)
+				bits |= IP_FW_TCPOPT_SACK;
+			break;
+
 		case TCPOPT_SACK:
-			bits |= IP_FW_TCPOPT_SACK;
+			if (optlen > 2 && (optlen - 2) % TCPOLEN_SACK == 0)
+				bits |= IP_FW_TCPOPT_SACK;
 			break;
 
 		case TCPOPT_TIMESTAMP:
-			bits |= IP_FW_TCPOPT_TS;
+			if (optlen == TCPOLEN_TIMESTAMP)
+				bits |= IP_FW_TCPOPT_TS;
 			break;
 		}
 	}
@@ -1427,16 +1441,30 @@ ipfw_chk(struct ip_fw_args *args)
  * pointer might become stale after other pullups (but we never use it
  * this way).
  */
-#define PULLUP_TO(_len, p, T)	PULLUP_LEN(_len, p, sizeof(T))
-#define PULLUP_LEN(_len, p, T)					\
+#define	PULLUP_TO(_len, p, T)	PULLUP_LEN(_len, p, sizeof(T))
+#define	_PULLUP_LOCKED(_len, p, T, unlock)			\
 do {								\
 	int x = (_len) + T;					\
 	if ((m)->m_len < x) {					\
 		args->m = m = m_pullup(m, x);			\
-		if (m == NULL)					\
+		if (m == NULL) {				\
+			unlock;					\
 			goto pullup_failed;			\
+		}						\
 	}							\
 	p = (mtod(m, char *) + (_len));				\
+} while (0)
+
+#define	PULLUP_LEN(_len, p, T)	_PULLUP_LOCKED(_len, p, T, )
+#define	PULLUP_LEN_LOCKED(_len, p, T)	\
+    _PULLUP_LOCKED(_len, p, T, IPFW_PF_RUNLOCK(chain));	\
+    UPDATE_POINTERS()
+/*
+ * In case pointers got stale after pullups, update them.
+ */
+#define	UPDATE_POINTERS()			\
+do {						\
+	ip = mtod(m, struct ip *);		\
 } while (0)
 
 	/*
@@ -2269,7 +2297,7 @@ do {								\
 
 			case O_TCPOPTS:
 				if (proto == IPPROTO_TCP && offset == 0 && ulp){
-					PULLUP_LEN(hlen, ulp,
+					PULLUP_LEN_LOCKED(hlen, ulp,
 					    (TCP(ulp)->th_off << 2));
 					match = tcpopts_match(TCP(ulp), cmd);
 				}
@@ -2294,7 +2322,7 @@ do {								\
 					uint16_t mss, *p;
 					int i;
 
-					PULLUP_LEN(hlen, ulp,
+					PULLUP_LEN_LOCKED(hlen, ulp,
 					    (TCP(ulp)->th_off << 2));
 					if ((tcpopts_parse(TCP(ulp), &mss) &
 					    IP_FW_TCPOPT_MSS) == 0)
@@ -3145,6 +3173,7 @@ do {								\
 
 		}	/* end of inner loop, scan opcodes */
 #undef PULLUP_LEN
+#undef PULLUP_LEN_LOCKED
 
 		if (done)
 			break;
