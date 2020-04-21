@@ -80,9 +80,9 @@ static __inline void
 _blockcount_wait(blockcount_t *bc, struct lock_object *lo, const char *wmesg,
     int prio)
 {
-	KASSERT((prio & PDROP) == 0, ("%s: invalid prio %x", __func__, prio));
+	KASSERT((prio & ~PRIMASK) == 0, ("%s: invalid prio %x", __func__, prio));
 
-	while (_blockcount_sleep(bc, lo, wmesg, prio) != 0)
+	while (_blockcount_sleep(bc, lo, wmesg, prio) == EAGAIN)
 		;
 }
 
