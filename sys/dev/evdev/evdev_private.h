@@ -206,6 +206,15 @@ struct evdev_dev
 	else								\
 		sx_assert(&(evdev)->ev_list_lock, MA_OWNED);		\
 } while (0)
+static inline int
+EVDEV_LIST_LOCK_SIG(struct evdev_dev *evdev)
+{
+	if (evdev->ev_lock_type == EV_LOCK_MTX) {
+		EVDEV_LOCK(evdev);
+		return (0);
+	}
+	return (sx_xlock_sig(&evdev->ev_list_lock));
+}
 
 struct evdev_client
 {
