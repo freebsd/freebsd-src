@@ -841,7 +841,7 @@ vm_capability_name2type(const char *capname)
 const char *
 vm_capability_type2name(int type)
 {
-	if (type < nitems(capstrmap))
+	if (type >= 0 && type < nitems(capstrmap))
 		return (capstrmap[type]);
 
 	return (NULL);
