@@ -84,6 +84,7 @@ enum {
 	VIE_OP_TYPE_TWOB_GRP15,
 	VIE_OP_TYPE_ADD,
 	VIE_OP_TYPE_TEST,
+	VIE_OP_TYPE_BEXTR,
 	VIE_OP_TYPE_LAST
 };
 
@@ -95,6 +96,10 @@ enum {
 #define	VIE_OP_F_NO_GLA_VERIFICATION (1 << 4)
 
 static const struct vie_op three_byte_opcodes_0f38[256] = {
+	[0xF7] = {
+		.op_byte = 0xF7,
+		.op_type = VIE_OP_TYPE_BEXTR,
+	},
 };
 
 static const struct vie_op two_byte_opcodes[256] = {
@@ -1318,6 +1323,83 @@ emulate_test(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 }
 
 static int
+emulate_bextr(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *arg)
+{
+	uint64_t src1, src2, dst, rflags;
+	unsigned start, len;
+	int error, size;
+
+	size = vie->opsize;
+	error = EINVAL;
+
+	/*
+	 * VEX.LZ.0F38.W0 F7 /r		BEXTR r32a, r/m32, r32b
+	 * VEX.LZ.0F38.W1 F7 /r		BEXTR r64a, r/m64, r64b
+	 *
+	 * Destination operand is ModRM:reg.  Source operands are ModRM:r/m and
+	 * Vex.vvvv.
+	 *
+	 * Operand size is always 32-bit if not in 64-bit mode (W1 is ignored).
+	 */
+	if (size != 4 && paging->cpu_mode != CPU_MODE_64BIT)
+		size = 4;
+
+	/*
+	 * Extracts contiguous bits from the first /source/ operand (second
+	 * operand) using an index and length specified in the second /source/
+	 * operand (third operand).
+	 */
+	error = memread(vm, vcpuid, gpa, &src1, size, arg);
+	if (error)
+		return (error);
+	error = vie_read_register(vm, vcpuid, gpr_map[vie->vex_reg], &src2);
+	if (error)
+		return (error);
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	if (error)
+		return (error);
+
+	start = (src2 & 0xff);
+	len = (src2 & 0xff00) >> 8;
+
+	/* If no bits are extracted, the destination register is cleared. */
+	dst = 0;
+
+	/* If START exceeds the operand size, no bits are extracted. */
+	if (start > size * 8)
+		goto done;
+	/* Length is bounded by both the destination size and start offset. */
+	if (start + len > size * 8)
+		len = (size * 8) - start;
+	if (len == 0)
+		goto done;
+
+	if (start > 0)
+		src1 = (src1 >> start);
+	if (len < 64)
+		src1 = src1 & ((1ull << len) - 1);
+	dst = src1;
+
+done:
+	error = vie_update_register(vm, vcpuid, gpr_map[vie->reg], dst, size);
+	if (error)
+		return (error);
+
+	/*
+	 * AMD: OF, CF cleared; SF/AF/PF undefined; ZF set by result.
+	 * Intel: ZF is set by result; AF/SF/PF undefined; all others cleared.
+	 */
+	rflags &= ~RFLAGS_STATUS_BITS;
+	if (dst == 0)
+		rflags |= PSL_Z;
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags,
+	    8);
+	return (error);
+}
+
+static int
 emulate_add(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
@@ -1744,6 +1826,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case VIE_OP_TYPE_TEST:
 		error = emulate_test(vm, vcpuid, gpa, vie,
+		    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_BEXTR:
+		error = emulate_bextr(vm, vcpuid, gpa, vie, paging,
 		    memread, memwrite, memarg);
 		break;
 	default:
