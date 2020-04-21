@@ -541,7 +541,8 @@ struct vie {
 			rm:4;
 
 	uint8_t		ss:2,			/* SIB byte */
-			_sparebits:2,
+			vex_present:1,		/* VEX prefixed */
+			vex_l:1,		/* L bit */
 			index:4,		/* SIB byte */
 			base:4;			/* SIB byte */
 
@@ -550,7 +551,11 @@ struct vie {
 
 	uint8_t		scale;
 
-	uint8_t		_sparebytes[3];
+	uint8_t		vex_reg:4,		/* vvvv: first source register specifier */
+			vex_pp:2,		/* pp */
+			_sparebits:2;
+
+	uint8_t		_sparebytes[2];
 
 	int		base_register;		/* VM_REG_GUEST_xyz */
 	int		index_register;		/* VM_REG_GUEST_xyz */

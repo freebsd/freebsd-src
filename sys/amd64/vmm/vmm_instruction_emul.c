@@ -94,10 +94,13 @@ enum {
 #define	VIE_OP_F_NO_MODRM	(1 << 3)
 #define	VIE_OP_F_NO_GLA_VERIFICATION (1 << 4)
 
+static const struct vie_op three_byte_opcodes_0f38[256] = {
+};
+
 static const struct vie_op two_byte_opcodes[256] = {
 	[0xAE] = {
-		  .op_byte = 0xAE,
-		  .op_type = VIE_OP_TYPE_TWOB_GRP15,
+		.op_byte = 0xAE,
+		.op_type = VIE_OP_TYPE_TWOB_GRP15,
 	},
 	[0xB6] = {
 		.op_byte = 0xB6,
@@ -2286,6 +2289,81 @@ decode_prefixes(struct vie *vie, enum vm_cpu_mode cpu_mode, int cs_d)
 	}
 
 	/*
+	 * § 2.3.5, "The VEX Prefix", SDM Vol 2.
+	 */
+	if ((cpu_mode == CPU_MODE_64BIT || cpu_mode == CPU_MODE_COMPATIBILITY)
+	    && x == 0xC4) {
+		const struct vie_op *optab;
+
+		/* 3-byte VEX prefix. */
+		vie->vex_present = 1;
+
+		vie_advance(vie);
+		if (vie_peek(vie, &x))
+			return (-1);
+
+		/*
+		 * 2nd byte: [R', X', B', mmmmm[4:0]].  Bits are inverted
+		 * relative to REX encoding.
+		 */
+		vie->rex_r = x & 0x80 ? 0 : 1;
+		vie->rex_x = x & 0x40 ? 0 : 1;
+		vie->rex_b = x & 0x20 ? 0 : 1;
+
+		switch (x & 0x1F) {
+		case 0x2:
+			/* 0F 38. */
+			optab = three_byte_opcodes_0f38;
+			break;
+		case 0x1:
+			/* 0F class - nothing handled here yet. */
+			/* FALLTHROUGH */
+		case 0x3:
+			/* 0F 3A class - nothing handled here yet. */
+			/* FALLTHROUGH */
+		default:
+			/* Reserved (#UD). */
+			return (-1);
+		}
+
+		vie_advance(vie);
+		if (vie_peek(vie, &x))
+			return (-1);
+
+		/* 3rd byte: [W, vvvv[6:3], L, pp[1:0]]. */
+		vie->rex_w = x & 0x80 ? 1 : 0;
+
+		vie->vex_reg = ((~(unsigned)x & 0x78u) >> 3);
+		vie->vex_l = !!(x & 0x4);
+		vie->vex_pp = (x & 0x3);
+
+		/* PP: 1=66 2=F3 3=F2 prefixes. */
+		switch (vie->vex_pp) {
+		case 0x1:
+			vie->opsize_override = 1;
+			break;
+		case 0x2:
+			vie->repz_present = 1;
+			break;
+		case 0x3:
+			vie->repnz_present = 1;
+			break;
+		}
+
+		vie_advance(vie);
+
+		/* Opcode, sans literal prefix prefix. */
+		if (vie_peek(vie, &x))
+			return (-1);
+
+		vie->op = optab[x];
+		if (vie->op.op_type == VIE_OP_TYPE_NONE)
+			return (-1);
+
+		vie_advance(vie);
+	}
+
+	/*
 	 * Section "Operand-Size And Address-Size Attributes", Intel SDM, Vol 1
 	 */
 	if (cpu_mode == CPU_MODE_64BIT) {
@@ -2336,6 +2414,10 @@ decode_opcode(struct vie *vie)
 
 	if (vie_peek(vie, &x))
 		return (-1);
+
+	/* Already did this via VEX prefix. */
+	if (vie->op.op_type != VIE_OP_TYPE_NONE)
+		return (0);
 
 	vie->op = one_byte_opcodes[x];
 
