@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
 
 #include "tftp-file.h"
@@ -124,7 +125,13 @@ read_block:
 
 					acktry++;
 					ts->retries++;
-					seek_file(window[0].offset);
+					if (seek_file(window[0].offset) != 0) {
+						tftp_log(LOG_ERR,
+						    "seek_file failed: %s",
+						    strerror(errno));
+						send_error(peer, errno + 100);
+						goto abort;
+					}
 					*block = window[0].block;
 					windowblock = 0;
 					goto read_block;
@@ -158,7 +165,13 @@ read_block:
 
 					/* Resend the current window. */
 					ts->retries++;
-					seek_file(window[0].offset);
+					if (seek_file(window[0].offset) != 0) {
+						tftp_log(LOG_ERR,
+						    "seek_file failed: %s",
+						    strerror(errno));
+						send_error(peer, errno + 100);
+						goto abort;
+					}
 					*block = window[0].block;
 					windowblock = 0;
 					goto read_block;
@@ -183,7 +196,14 @@ read_block:
 					if (debug&DEBUG_SIMPLE)
 						tftp_log(LOG_DEBUG,
 						    "Partial ACK");
-					seek_file(window[i + 1].offset);
+					if (seek_file(window[i + 1].offset) !=
+					    0) {
+						tftp_log(LOG_ERR,
+						    "seek_file failed: %s",
+						    strerror(errno));
+						send_error(peer, errno + 100);
+						goto abort;
+					}
 					*block = window[i + 1].block;
 					windowblock = 0;
 					ts->retries++;
