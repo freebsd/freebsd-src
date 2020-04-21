@@ -400,12 +400,12 @@ _blockcount_wakeup(blockcount_t *bc, u_int old)
 }
 
 /*
- * Wait for a wakeup.  This does not guarantee that the count is still zero on
- * return and may be subject to transient wakeups.  Callers wanting a precise
- * answer should use blockcount_wait() with an interlock.
+ * Wait for a wakeup or a signal.  This does not guarantee that the count is
+ * still zero on return.  Callers wanting a precise answer should use
+ * blockcount_wait() with an interlock.
  *
- * Return 0 if there is no work to wait for, and 1 if we slept waiting for work
- * to complete.  In the latter case the counter value must be re-read.
+ * If there is no work to wait for, return 0.  If the sleep was interrupted by a
+ * signal, return EINTR or ERESTART, and return EAGAIN otherwise.
  */
 int
 _blockcount_sleep(blockcount_t *bc, struct lock_object *lock, const char *wmesg,
@@ -415,9 +415,14 @@ _blockcount_sleep(blockcount_t *bc, struct lock_object *lock, const char *wmesg,
 	uintptr_t lock_state;
 	u_int old;
 	int ret;
+	bool catch, drop;
 
 	KASSERT(lock != &Giant.lock_object,
 	    ("%s: cannot use Giant as the interlock", __func__));
+
+	catch = (prio & PCATCH) != 0;
+	drop = (prio & PDROP) != 0;
+	prio &= PRIMASK;
 
 	/*
 	 * Synchronize with the fence in blockcount_release().  If we end up
@@ -428,7 +433,7 @@ _blockcount_sleep(blockcount_t *bc, struct lock_object *lock, const char *wmesg,
 	 * ourselves to sleep to avoid jumping ahead.
 	 */
 	if (atomic_load_acq_int(&bc->__count) == 0) {
-		if (lock != NULL && (prio & PDROP) != 0)
+		if (lock != NULL && drop)
 			LOCK_CLASS(lock)->lc_unlock(lock);
 		return (0);
 	}
@@ -439,23 +444,27 @@ _blockcount_sleep(blockcount_t *bc, struct lock_object *lock, const char *wmesg,
 	if (lock != NULL)
 		lock_state = LOCK_CLASS(lock)->lc_unlock(lock);
 	old = blockcount_read(bc);
+	ret = 0;
 	do {
 		if (_BLOCKCOUNT_COUNT(old) == 0) {
 			sleepq_release(wchan);
-			ret = 0;
 			goto out;
 		}
 		if (_BLOCKCOUNT_WAITERS(old))
 			break;
 	} while (!atomic_fcmpset_int(&bc->__count, &old,
 	    old | _BLOCKCOUNT_WAITERS_FLAG));
-	sleepq_add(wchan, NULL, wmesg, 0, 0);
-	sleepq_wait(wchan, prio);
-	ret = 1;
+	sleepq_add(wchan, NULL, wmesg, catch ? SLEEPQ_INTERRUPTIBLE : 0, 0);
+	if (catch)
+		ret = sleepq_wait_sig(wchan, prio);
+	else
+		sleepq_wait(wchan, prio);
+	if (ret == 0)
+		ret = EAGAIN;
 
 out:
 	PICKUP_GIANT();
-	if (lock != NULL && (prio & PDROP) == 0)
+	if (lock != NULL && !drop)
 		LOCK_CLASS(lock)->lc_lock(lock, lock_state);
 
 	return (ret);
