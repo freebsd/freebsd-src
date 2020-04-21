@@ -816,16 +816,13 @@ vm_inject_nmi(struct vmctx *ctx, int vcpu)
 	return (ioctl(ctx->fd, VM_INJECT_NMI, &vmnmi));
 }
 
-static struct {
-	const char	*name;
-	int		type;
-} capstrmap[] = {
-	{ "hlt_exit",		VM_CAP_HALT_EXIT },
-	{ "mtrap_exit",		VM_CAP_MTRAP_EXIT },
-	{ "pause_exit",		VM_CAP_PAUSE_EXIT },
-	{ "unrestricted_guest",	VM_CAP_UNRESTRICTED_GUEST },
-	{ "enable_invpcid",	VM_CAP_ENABLE_INVPCID },
-	{ 0 }
+static const char *capstrmap[] = {
+	[VM_CAP_HALT_EXIT]  = "hlt_exit",
+	[VM_CAP_MTRAP_EXIT] = "mtrap_exit",
+	[VM_CAP_PAUSE_EXIT] = "pause_exit",
+	[VM_CAP_UNRESTRICTED_GUEST] = "unrestricted_guest",
+	[VM_CAP_ENABLE_INVPCID] = "enable_invpcid",
+	[VM_CAP_BPT_EXIT] = "bpt_exit",
 };
 
 int
@@ -833,9 +830,9 @@ vm_capability_name2type(const char *capname)
 {
 	int i;
 
-	for (i = 0; capstrmap[i].name != NULL && capname != NULL; i++) {
-		if (strcmp(capstrmap[i].name, capname) == 0)
-			return (capstrmap[i].type);
+	for (i = 0; i < nitems(capstrmap); i++) {
+		if (strcmp(capstrmap[i], capname) == 0)
+			return (i);
 	}
 
 	return (-1);
@@ -844,12 +841,8 @@ vm_capability_name2type(const char *capname)
 const char *
 vm_capability_type2name(int type)
 {
-	int i;
-
-	for (i = 0; capstrmap[i].name != NULL; i++) {
-		if (capstrmap[i].type == type)
-			return (capstrmap[i].name);
-	}
+	if (type < nitems(capstrmap))
+		return (capstrmap[type]);
 
 	return (NULL);
 }
