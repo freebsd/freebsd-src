@@ -402,14 +402,10 @@ kmem_malloc_domain(int domain, vm_size_t size, int flags)
 	vm_offset_t addr;
 	int rv;
 
-#if VM_NRESERVLEVEL > 0
 	if (__predict_true((flags & M_EXEC) == 0))
 		arena = vm_dom[domain].vmd_kernel_arena;
 	else
 		arena = vm_dom[domain].vmd_kernel_rwx_arena;
-#else
-	arena = vm_dom[domain].vmd_kernel_arena;
-#endif
 	size = round_page(size);
 	if (vmem_alloc(arena, size, flags | M_BESTFIT, &addr))
 		return (0);
@@ -501,10 +497,8 @@ retry:
 		vm_page_valid(m);
 		pmap_enter(kernel_pmap, addr + i, m, prot,
 		    prot | PMAP_ENTER_WIRED, 0);
-#if VM_NRESERVLEVEL > 0
 		if (__predict_false((prot & VM_PROT_EXECUTE) != 0))
 			m->oflags |= VPO_KMEM_EXEC;
-#endif
 	}
 	VM_OBJECT_WUNLOCK(object);
 
@@ -578,14 +572,10 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	VM_OBJECT_WLOCK(object);
 	m = vm_page_lookup(object, atop(offset)); 
 	domain = vm_phys_domain(m);
-#if VM_NRESERVLEVEL > 0
 	if (__predict_true((m->oflags & VPO_KMEM_EXEC) == 0))
 		arena = vm_dom[domain].vmd_kernel_arena;
 	else
 		arena = vm_dom[domain].vmd_kernel_rwx_arena;
-#else
-	arena = vm_dom[domain].vmd_kernel_arena;
-#endif
 	for (; offset < end; offset += PAGE_SIZE, m = next) {
 		next = vm_page_next(m);
 		vm_page_xbusy_claim(m);
@@ -814,6 +804,9 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 		vmem_set_import(vm_dom[domain].vmd_kernel_rwx_arena,
 		    kva_import_domain, (vmem_release_t *)vmem_xfree,
 		    kernel_arena, KVA_QUANTUM);
+#else
+		vm_dom[domain].vmd_kernel_rwx_arena =
+		    vm_dom[domain].vmd_kernel_arena;
 #endif
 	}
 
