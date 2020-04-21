@@ -440,6 +440,7 @@ MAN+= X509_check_ca.3
 MAN+= X509_check_host.3
 MAN+= X509_check_issued.3
 MAN+= X509_check_private_key.3
+MAN+= X509_check_purpose.3
 MAN+= X509_cmp.3
 MAN+= X509_cmp_time.3
 MAN+= X509_digest.3
