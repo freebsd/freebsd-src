@@ -219,8 +219,8 @@
 #define	FFS_SET_CWD		12	/* set current directory */
 #define	FFS_SET_DOTDOT		13	/* set inode number for ".." */
 #define	FFS_UNLINK		14	/* remove a name in the filesystem */
-#define	FFS_SET_INODE		15	/* update an on-disk inode */
-#define	FFS_SET_BUFOUTPUT	16	/* set buffered writing on descriptor */
+/* Was FFS_SET_INODE		15 */
+/* Was FFS_SET_BUFOUTPUT	16 */
 #define	FFS_SET_SIZE		17	/* set inode size */
 #define	FFS_MAXID		17	/* number of valid ffs ids */
 
