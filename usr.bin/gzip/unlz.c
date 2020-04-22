@@ -618,8 +618,6 @@ unlz(int fin, int fout, char *pre, size_t prelen, off_t *bytes_in)
 
 	char header[HDR_SIZE];
 
-	if (prelen > sizeof(header))
-		return -1;
 	if (pre && prelen)
 		memcpy(header, pre, prelen);
 	
