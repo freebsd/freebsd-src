@@ -187,12 +187,18 @@ ATF_TC_BODY(blake2s_vectors, tc)
 ATF_TC_WITHOUT_HEAD(blake2b_vectors_x86);
 ATF_TC_BODY(blake2b_vectors_x86, tc)
 {
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/245825");
+
 	test_blake2b_vectors(CRYPTO_FLAG_HARDWARE, "nexus/blake2");
 }
 
 ATF_TC_WITHOUT_HEAD(blake2s_vectors_x86);
 ATF_TC_BODY(blake2s_vectors_x86, tc)
 {
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/245825");
+
 	test_blake2s_vectors(CRYPTO_FLAG_HARDWARE, "nexus/blake2");
 }
 #endif
