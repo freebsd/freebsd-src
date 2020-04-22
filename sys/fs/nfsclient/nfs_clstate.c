@@ -110,7 +110,8 @@ static void nfscl_expireclient(struct nfsclclient *, struct nfsmount *,
     struct ucred *, NFSPROC_T *);
 static int nfscl_expireopen(struct nfsclclient *, struct nfsclopen *,
     struct nfsmount *, struct ucred *, NFSPROC_T *);
-static void nfscl_recover(struct nfsclclient *, struct ucred *, NFSPROC_T *);
+static void nfscl_recover(struct nfsclclient *, bool *, struct ucred *,
+    NFSPROC_T *);
 static void nfscl_insertlock(struct nfscllockowner *, struct nfscllock *,
     struct nfscllock *, int);
 static int nfscl_updatelock(struct nfscllockowner *, struct nfscllock **,
@@ -907,7 +908,7 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 			clidinusedelay = 120;
 		trystalecnt = 3;
 		do {
-			error = nfsrpc_setclient(nmp, clp, 0, cred, p);
+			error = nfsrpc_setclient(nmp, clp, 0, NULL, cred, p);
 			if (error == NFSERR_STALECLIENTID ||
 			    error == NFSERR_STALEDONTRECOVER ||
 			    error == NFSERR_BADSESSION ||
@@ -1950,7 +1951,7 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 			(void)nfsrpc_destroysession(nmp, clp, cred, p);
 			(void)nfsrpc_destroyclient(nmp, clp, cred, p);
 		} else
-			(void)nfsrpc_setclient(nmp, clp, 0, cred, p);
+			(void)nfsrpc_setclient(nmp, clp, 0, NULL, cred, p);
 		nfscl_cleanclient(clp);
 		nmp->nm_clp = NULL;
 		NFSFREECRED(cred);
@@ -1966,7 +1967,8 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
  * corresponding state.
  */
 static void
-nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
+nfscl_recover(struct nfsclclient *clp, bool *retokp, struct ucred *cred,
+    NFSPROC_T *p)
 {
 	struct nfsclowner *owp, *nowp;
 	struct nfsclopen *op, *nop;
@@ -2010,8 +2012,9 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 		LIST_INIT(&clp->nfsc_layouthash[i]);
 
 	trycnt = 5;
+	tcred = NULL;
 	do {
-		error = nfsrpc_setclient(nmp, clp, 1, cred, p);
+		error = nfsrpc_setclient(nmp, clp, 1, retokp, cred, p);
 	} while ((error == NFSERR_STALECLIENTID ||
 	     error == NFSERR_BADSESSION ||
 	     error == NFSERR_STALEDONTRECOVER) && --trycnt > 0);
@@ -2042,6 +2045,13 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 			rep->r_flags |= R_DONTRECOVER;
 	}
 	NFSUNLOCKREQ();
+
+	/*
+	 * If nfsrpc_setclient() returns *retokp == true,
+	 * no more recovery is needed.
+	 */
+	if (*retokp)
+		goto out;
 
 	/*
 	 * Now, mark all delegations "need reclaim".
@@ -2276,12 +2286,14 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	if (NFSHASNFSV4N(nmp))
 		(void)nfsrpc_reclaimcomplete(nmp, cred, p);
 
+out:
 	NFSLOCKCLSTATE();
 	clp->nfsc_flags &= ~NFSCLFLAGS_RECVRINPROG;
 	wakeup(&clp->nfsc_flags);
 	nfsv4_unlock(&clp->nfsc_lock, 0);
 	NFSUNLOCKCLSTATE();
-	NFSFREECRED(tcred);
+	if (tcred != NULL)
+		NFSFREECRED(tcred);
 }
 
 /*
@@ -2330,7 +2342,7 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 	cred = newnfs_getcred();
 	trycnt = 5;
 	do {
-		error = nfsrpc_setclient(nmp, clp, 0, cred, p);
+		error = nfsrpc_setclient(nmp, clp, 0, NULL, cred, p);
 	} while ((error == NFSERR_STALECLIENTID ||
 	     error == NFSERR_BADSESSION ||
 	     error == NFSERR_STALEDONTRECOVER) && --trycnt > 0);
@@ -2539,6 +2551,7 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	struct nfscllayouthead rlh;
 	struct nfsclrecalllayout *recallp;
 	struct nfsclds *dsp;
+	bool retok;
 
 	cred = newnfs_getcred();
 	NFSLOCKCLSTATE();
@@ -2549,21 +2562,23 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 		cbpathdown = 0;
 		if (clp->nfsc_flags & NFSCLFLAGS_RECOVER) {
 			/*
-			 * Only allow one recover within 1/2 of the lease
+			 * Only allow one full recover within 1/2 of the lease
 			 * duration (nfsc_renew).
+			 * retok is value/result.  If passed in set to true,
+			 * it indicates only a CreateSession operation should
+			 * be attempted.
+			 * If it is returned true, it indicates that the
+			 * recovery only required a CreateSession.
 			 */
+			retok = true;
 			if (recover_done_time < NFSD_MONOSEC) {
 				recover_done_time = NFSD_MONOSEC +
 				    clp->nfsc_renew;
-				NFSCL_DEBUG(1, "Doing recovery..\n");
-				nfscl_recover(clp, cred, p);
-			} else {
-				NFSCL_DEBUG(1, "Clear Recovery dt=%u ms=%jd\n",
-				    recover_done_time, (intmax_t)NFSD_MONOSEC);
-				NFSLOCKCLSTATE();
-				clp->nfsc_flags &= ~NFSCLFLAGS_RECOVER;
-				NFSUNLOCKCLSTATE();
+				retok = false;
 			}
+			NFSCL_DEBUG(1, "Doing recovery, only "
+			    "createsession=%d\n", retok);
+			nfscl_recover(clp, &retok, cred, p);
 		}
 		if (clp->nfsc_expire <= NFSD_MONOSEC &&
 		    (clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID)) {
