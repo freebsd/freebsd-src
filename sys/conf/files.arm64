@@ -178,6 +178,7 @@ arm64/arm64/vm_machdep.c	standard
 arm64/broadcom/brcmmdio/mdio_mux_iproc.c	optional	fdt
 arm64/broadcom/brcmmdio/mdio_nexus_iproc.c	optional	fdt
 arm64/broadcom/brcmmdio/mdio_ns2_pcie_phy.c	optional	fdt pci
+arm64/broadcom/genet/if_genet.c		optional SOC_BRCM_BCM2838 fdt genet
 arm64/cavium/thunder_pcie_fdt.c		optional	soc_cavm_thunderx pci fdt
 arm64/cavium/thunder_pcie_pem.c		optional	soc_cavm_thunderx pci
 arm64/cavium/thunder_pcie_pem_fdt.c	optional	soc_cavm_thunderx pci fdt
