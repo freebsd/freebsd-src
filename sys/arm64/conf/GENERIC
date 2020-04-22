@@ -170,6 +170,7 @@ device		vnic		# Cavium ThunderX NIC
 device		al_eth		# Annapurna Alpine Ethernet NIC
 device		dwc_rk		# Rockchip Designware
 device		dwc_socfpga	# Altera SOCFPGA Ethernet MAC
+device		genet		# Broadcom on RPi4
 
 # Etherswitch devices
 device		etherswitch	# Enable etherswitch support
