@@ -166,7 +166,7 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 		break;
 	case SADB_EALG_3DESCBC:
 		if (ratecheck(&tdeswarn, &ipsec_warn_interval))
-			gone_in(13, "DES cipher for IPsec");
+			gone_in(13, "3DES cipher for IPsec");
 		break;
 	case SADB_X_EALG_BLOWFISHCBC:
 		if (ratecheck(&blfwarn, &ipsec_warn_interval))
