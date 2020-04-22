@@ -213,22 +213,33 @@ linux_pci_probe(device_t dev)
 static int
 linux_pci_attach(device_t dev)
 {
+	const struct pci_device_id *id;
+	struct pci_driver *pdrv;
+	struct pci_dev *pdev;
+
+	pdrv = linux_pci_find(dev, &id);
+	pdev = device_get_softc(dev);
+
+	MPASS(pdrv != NULL);
+	MPASS(pdev != NULL);
+
+	return (linux_pci_attach_device(dev, pdrv, id, pdev));
+}
+
+int
+linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
+    const struct pci_device_id *id, struct pci_dev *pdev)
+{
 	struct resource_list_entry *rle;
 	struct pci_bus *pbus;
-	struct pci_dev *pdev;
 	struct pci_devinfo *dinfo;
-	struct pci_driver *pdrv;
-	const struct pci_device_id *id;
 	device_t parent;
 	int error;
 
 	linux_set_current(curthread);
 
-	pdrv = linux_pci_find(dev, &id);
-	pdev = device_get_softc(dev);
-
-	parent = device_get_parent(dev);
-	if (pdrv->isdrm) {
+	if (pdrv != NULL && pdrv->isdrm) {
+		parent = device_get_parent(dev);
 		dinfo = device_get_ivars(parent);
 		device_set_ivars(dev, dinfo);
 	} else {
@@ -270,9 +281,11 @@ linux_pci_attach(device_t dev)
 	list_add(&pdev->links, &pci_devices);
 	spin_unlock(&pci_lock);
 
-	error = pdrv->probe(pdev, id);
-	if (error)
-		goto out_probe;
+	if (pdrv != NULL) {
+		error = pdrv->probe(pdev, id);
+		if (error)
+			goto out_probe;
+	}
 	return (0);
 
 out_probe:
@@ -291,10 +304,23 @@ linux_pci_detach(device_t dev)
 {
 	struct pci_dev *pdev;
 
-	linux_set_current(curthread);
 	pdev = device_get_softc(dev);
 
-	pdev->pdrv->remove(pdev);
+	MPASS(pdev != NULL);
+
+	device_set_desc(dev, NULL);
+
+	return (linux_pci_detach_device(pdev));
+}
+
+int
+linux_pci_detach_device(struct pci_dev *pdev)
+{
+
+	linux_set_current(curthread);
+
+	if (pdev->pdrv != NULL)
+		pdev->pdrv->remove(pdev);
 
 	free(pdev->bus, M_DEVBUF);
 	linux_pdev_dma_uninit(pdev);
@@ -302,7 +328,6 @@ linux_pci_detach(device_t dev)
 	spin_lock(&pci_lock);
 	list_del(&pdev->links);
 	spin_unlock(&pci_lock);
-	device_set_desc(dev, NULL);
 	put_device(&pdev->dev);
 
 	return (0);
