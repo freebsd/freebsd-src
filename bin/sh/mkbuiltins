@@ -35,11 +35,6 @@
 # $FreeBSD$
 
 temp=`mktemp -t ka`
-havehist=1
-if [ "X$1" = "X-h" ]; then
-	havehist=0
-	shift
-fi
 srcdir=$1
 havejobs=0
 if grep '^#define[	 ]*JOBS[	 ]*1' $srcdir/shell.h > /dev/null
@@ -56,8 +51,8 @@ cat <<\!
 #include "builtins.h"
 
 !
-awk '/^[^#]/ {if(('$havejobs' || $2 != "-j") && ('$havehist' || $2 != "-h")) \
-    print $0}' $srcdir/builtins.def | sed 's/-[hj]//' > $temp
+awk '/^[^#]/ {if('$havejobs' || $2 != "-j") \
+    print $0}' $srcdir/builtins.def | sed 's/-j//' > $temp
 echo 'int (*const builtinfunc[])(int, char **) = {'
 awk '/^[^#]/ {	printf "\t%s,\n", $1}' $temp
 echo '};
