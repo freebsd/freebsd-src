@@ -63,7 +63,8 @@ the event no longer holds, the kevent is removed from the kqueue and
 is not returned.
 .Pp
 Multiple events which trigger the filter do not result in multiple
-kevents being placed on the kqueue; instead, the filter wiApril 21, 2020the events into a single struct kevent.
+kevents being placed on the kqueue; instead, the filter will aggregate
+the events into a single struct kevent.
 Calling
 .Fn close
 on a file descriptor will remove any kevents that reference the descriptor.
