@@ -41,6 +41,7 @@ struct tcpopt;
 struct tcphdr;
 struct in_conninfo;
 struct tcp_info;
+struct nhop_object;
 struct ktls_session;
 
 struct toedev {
@@ -51,7 +52,7 @@ struct toedev {
 	 * Active open.  If a failure occurs, it is reported back by the driver
 	 * via toe_connect_failed.
 	 */
-	int (*tod_connect)(struct toedev *, struct socket *, struct rtentry *,
+	int (*tod_connect)(struct toedev *, struct socket *, struct nhop_object *,
 	    struct sockaddr *);
 
 	/* Passive open. */
@@ -95,7 +96,7 @@ struct toedev {
 
 	/* XXX.  Route has been redirected. */
 	void (*tod_route_redirect)(struct toedev *, struct ifnet *,
-	    struct rtentry *, struct rtentry *);
+	    struct nhop_object *, struct nhop_object *);
 
 	/* Syncache interaction. */
 	void (*tod_syncache_added)(struct toedev *, void *);
