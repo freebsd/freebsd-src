@@ -434,6 +434,9 @@ c4iw_register_device(struct c4iw_dev *dev)
 
 	CTR3(KTR_IW_CXGBE, "%s c4iw_dev %p, adapter %p", __func__, dev, sc);
 	BUG_ON(!sc->port[0]);
+	ret = linux_pci_attach_device(sc->dev, NULL, NULL, &dev->pdev);
+	if (ret)
+		return (ret);
 	strlcpy(ibdev->name, device_get_nameunit(sc->dev), sizeof(ibdev->name));
 	memset(&ibdev->node_guid, 0, sizeof(ibdev->node_guid));
 	memcpy(&ibdev->node_guid, sc->port[0]->vi[0].hw_addr, ETHER_ADDR_LEN);
@@ -465,7 +468,7 @@ c4iw_register_device(struct c4iw_dev *dev)
 	strlcpy(ibdev->node_desc, C4IW_NODE_DESC, sizeof(ibdev->node_desc));
 	ibdev->phys_port_cnt = sc->params.nports;
 	ibdev->num_comp_vectors = 1;
-	ibdev->dma_device = NULL;
+	ibdev->dma_device = &dev->pdev.dev;
 	ibdev->query_device = c4iw_query_device;
 	ibdev->query_port = c4iw_query_port;
 	ibdev->modify_port = c4iw_modify_port;
@@ -517,8 +520,10 @@ c4iw_register_device(struct c4iw_dev *dev)
 	ibdev->iwcm = iwcm;
 
 	ret = ib_register_device(&dev->ibdev, NULL);
-	if (ret)
+	if (ret) {
 		kfree(iwcm);
+		linux_pci_detach_device(&dev->pdev);
+	}
 
 	return (ret);
 }
@@ -531,6 +536,7 @@ c4iw_unregister_device(struct c4iw_dev *dev)
 	    dev->rdev.adap);
 	ib_unregister_device(&dev->ibdev);
 	kfree(dev->ibdev.iwcm);
+	linux_pci_detach_device(&dev->pdev);
 	return;
 }
 #endif
