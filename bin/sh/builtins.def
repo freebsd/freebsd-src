@@ -39,8 +39,6 @@
 # of a C routine.
 # The -j flag specifies that this command is to be excluded from systems
 # without job control.
-# The -h flag specifies that this command is to be excluded from systems
-# based on the NO_HISTORY compile-time symbol.
 # The -n flag specifies that this command can safely be run in the same
 # process when it is the only command in a command substitution.  Some
 # commands have special logic defined in safe_builtin().
@@ -71,7 +69,7 @@ fgcmd -j	fg
 freebsd_wordexpcmd	freebsd_wordexp
 getoptscmd	getopts
 hashcmd		hash
-histcmd -h	fc
+histcmd		fc
 jobidcmd -n	jobid
 jobscmd -n	jobs
 killcmd -n	kill
