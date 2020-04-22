@@ -94,7 +94,7 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_esp, IPSECCTL_STATS, stats,
     struct espstat, espstat,
     "ESP statistics (struct espstat, netipsec/esp_var.h");
 
-static struct timeval deswarn, blfwarn, castwarn, camelliawarn;
+static struct timeval deswarn, blfwarn, castwarn, camelliawarn, tdeswarn;
 
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
@@ -162,6 +162,10 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	switch (sav->alg_enc) {
 	case SADB_EALG_DESCBC:
 		if (ratecheck(&deswarn, &ipsec_warn_interval))
+			gone_in(13, "DES cipher for IPsec");
+		break;
+	case SADB_EALG_3DESCBC:
+		if (ratecheck(&tdeswarn, &ipsec_warn_interval))
 			gone_in(13, "DES cipher for IPsec");
 		break;
 	case SADB_X_EALG_BLOWFISHCBC:
