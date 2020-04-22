@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
@@ -226,13 +227,13 @@ act_open_cpl_size(struct adapter *sc, int isipv6)
  * rtalloc1, RT_UNLOCK on rt.
  */
 int
-t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
+t4_connect(struct toedev *tod, struct socket *so, struct nhop_object *nh,
     struct sockaddr *nam)
 {
 	struct adapter *sc = tod->tod_softc;
 	struct toepcb *toep = NULL;
 	struct wrqe *wr = NULL;
-	struct ifnet *rt_ifp = rt->rt_ifp;
+	struct ifnet *rt_ifp = nh->nh_ifp;
 	struct vi_info *vi;
 	int qid_atid, rc, isipv6;
 	struct inpcb *inp = sotoinpcb(so);
@@ -277,7 +278,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
 	toep->l2te = t4_l2t_get(vi->pi, rt_ifp,
-	    rt->rt_flags & RTF_GATEWAY ? rt->rt_gateway : nam);
+	    nh->nh_flags & NHF_GATEWAY ? &nh->gw_sa : nam);
 	if (toep->l2te == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 

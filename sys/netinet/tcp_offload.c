@@ -41,8 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_fib.h>
+#include <netinet6/in6_fib.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_offload.h>
 #define	TCPOUTFLAGS
@@ -60,7 +63,8 @@ tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 {
 	struct ifnet *ifp;
 	struct toedev *tod;
-	struct rtentry *rt;
+	struct nhop_object *nh;
+	struct epoch_tracker et;
 	int error = EOPNOTSUPP;
 
 	INP_WLOCK_ASSERT(sotoinpcb(so));
@@ -70,13 +74,20 @@ tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 	if (registered_toedevs == 0)
 		return (error);
 
-	rt = rtalloc1(nam, 0, 0);
-	if (rt)
-		RT_UNLOCK(rt);
-	else
+	NET_EPOCH_ENTER(et);
+	nh = NULL;
+	if (nam->sa_family == AF_INET)
+		nh = fib4_lookup(0, ((struct sockaddr_in *)nam)->sin_addr,
+		    NHR_NONE, 0, 0);
+	else if (nam->sa_family == AF_INET6)
+		nh = fib6_lookup(0, &((struct sockaddr_in6 *)nam)->sin6_addr,
+		    NHR_NONE, 0, 0);
+	if (nh == NULL) {
+		NET_EPOCH_EXIT(et);
 		return (EHOSTUNREACH);
+	}
 
-	ifp = rt->rt_ifp;
+	ifp = nh->nh_ifp;
 
 	if (nam->sa_family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4))
 		goto done;
@@ -85,9 +96,9 @@ tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 
 	tod = TOEDEV(ifp);
 	if (tod != NULL)
-		error = tod->tod_connect(tod, so, rt, nam);
+		error = tod->tod_connect(tod, so, nh, nam);
 done:
-	RTFREE(rt);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
