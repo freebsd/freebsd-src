@@ -261,6 +261,7 @@ out:
 
 struct c4iw_dev {
 	struct ib_device ibdev;
+	struct pci_dev pdev;
 	struct c4iw_rdev rdev;
 	u32 device_cap_flags;
 	struct idr cqidr;
