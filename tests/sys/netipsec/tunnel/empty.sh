@@ -11,6 +11,10 @@ v4_head()
 
 v4_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/245832"
+	fi
+
 	# Can't use filename "null" for this script: PR 223564
 	ist_test 4 null ""
 }
@@ -29,6 +33,10 @@ v6_head()
 
 v6_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/245832"
+	fi
+
 	ist_test 6 null ""
 }
 
