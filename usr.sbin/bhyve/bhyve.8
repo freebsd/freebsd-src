@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2019
+.Dd April 22, 2020
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -32,23 +32,40 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl abehuwxACHPSWY
+.Op Fl AabCeHhPSuWwxY
 .Oo
-.Fl c\~ Ns
+.Sm off
+.Fl c\~
 .Oo
-.Op Ar cpus= Ns
-.Ar numcpus Ns
-.Oc Ns
-.Op Ar ,sockets=n Ns
-.Op Ar ,cores=n Ns
-.Op Ar ,threads=n
+.Op Cm cpus=
+.Ar numcpus
 .Oc
-.Op Fl g Ar gdbport
-.Op Fl l Ar help|lpcdev Ns Op , Ns Ar conf
-.Op Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
-.Op Fl p Ar vcpu:hostcpu
-.Op Fl s Ar help|slot,emulation Ns Op , Ns Ar conf
+.Op Cm ,sockets= Ar n
+.Op Cm ,cores= Ar n
+.Op Cm ,threads= Ar n
+.Oc
+.Sm on
 .Op Fl G Ar port
+.Op Fl g Ar gdbport
+.Oo Fl l
+.Sm off
+.Cm help | Ar lpcdev Op Cm \&, Ar conf
+.Sm on
+.Oc
+.Oo Fl m
+.Sm off
+.Ar memsize
+.Oo
+.Cm K No | Cm k No | Cm M No | Cm m No | Cm G No | Cm g No | Cm T No | Cm t
+.Oc
+.Sm on
+.Oc
+.Op Fl p Ar vcpu Ns Cm \&: Ns Ar hostcpu
+.Oo Fl s
+.Sm off
+.Cm help | Ar slot Cm \&, Ar emulation Op Cm \&, Ar conf
+.Sm on
+.Oc
 .Op Fl U Ar uuid
 .Ar vmname
 .Sh DESCRIPTION
