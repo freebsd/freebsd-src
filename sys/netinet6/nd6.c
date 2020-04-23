@@ -1565,29 +1565,26 @@ nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 {
 	struct sockaddr_in6 *gateway;
 	struct nd_defrouter *dr;
-	struct ifnet *ifp;
+	struct nhop_object *nh;
 
-	gateway = (struct sockaddr_in6 *)rt->rt_gateway;
-	ifp = rt->rt_ifp;
+	nh = rt->rt_nhop;
+	gateway = &nh->gw6_sa;
 
 	switch (req) {
 	case RTM_ADD:
 		break;
 
 	case RTM_DELETE:
-		if (!ifp)
-			return;
 		/*
 		 * Only indirect routes are interesting.
 		 */
-		if ((rt->rt_flags & RTF_GATEWAY) == 0)
+		if ((nh->nh_flags & NHF_GATEWAY) == 0)
 			return;
 		/*
 		 * check for default route
 		 */
-		if (IN6_ARE_ADDR_EQUAL(&in6addr_any,
-		    &SIN6(rt_key(rt))->sin6_addr)) {
-			dr = defrouter_lookup(&gateway->sin6_addr, ifp);
+		if (nh->nh_flags & NHF_DEFAULT) {
+			dr = defrouter_lookup(&gateway->sin6_addr, nh->nh_ifp);
 			if (dr != NULL) {
 				dr->installed = 0;
 				defrouter_rele(dr);
