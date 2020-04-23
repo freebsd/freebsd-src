@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2019
+.Dd April 23, 2020
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -130,7 +130,7 @@ The goal of the mechanism is to provide confidentiality.
 .Pp
 The
 .Va pubkey
-file should be a PEM-formatted RSA key of at least 1024 bits.
+file should be a PEM-formatted RSA key of at least 2048 bits.
 .It Fl C Ar cipher
 Select the symmetric algorithm used for encrypted kernel crash dump.
 The default is
