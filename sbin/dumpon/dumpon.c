@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_CRYPTO
 #include <openssl/err.h>
 #include <openssl/pem.h>
+#include <openssl/rand.h>
 #include <openssl/rsa.h>
 #endif
 
@@ -224,6 +225,18 @@ genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 	if (fp == NULL)
 		err(1, "Unable to open %s", pubkeyfile);
 
+	/*
+	 * Obsolescent OpenSSL only knows about /dev/random, and needs to
+	 * pre-seed before entering cap mode.  For whatever reason,
+	 * RSA_pub_encrypt uses the internal PRNG.
+	 */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	{
+		unsigned char c[1];
+		RAND_bytes(c, 1);
+	}
+#endif
+
 	if (caph_enter() < 0)
 		err(1, "Unable to enter capability mode");
 
@@ -286,8 +299,9 @@ genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 	arc4random_buf(kdap->kda_key, sizeof(kdap->kda_key));
 	if (RSA_public_encrypt(sizeof(kdap->kda_key), kdap->kda_key,
 	    kdap->kda_encryptedkey, pubkey,
-	    RSA_PKCS1_PADDING) != (int)kdap->kda_encryptedkeysize) {
-		errx(1, "Unable to encrypt the one-time key.");
+	    RSA_PKCS1_OAEP_PADDING) != (int)kdap->kda_encryptedkeysize) {
+		errx(1, "Unable to encrypt the one-time key: %s",
+		    ERR_error_string(ERR_get_error(), NULL));
 	}
 	RSA_free(pubkey);
 }
@@ -470,8 +484,11 @@ main(int argc, char *argv[])
 		usage();
 
 #ifdef HAVE_CRYPTO
-	if (cipher != KERNELDUMP_ENC_NONE && pubkeyfile == NULL)
+	if (cipher != KERNELDUMP_ENC_NONE && pubkeyfile == NULL) {
 		errx(EX_USAGE, "-C option requires a public key file.");
+	} else if (pubkeyfile != NULL) {
+		ERR_load_crypto_strings();
+	}
 #else
 	if (pubkeyfile != NULL)
 		errx(EX_UNAVAILABLE,"Unable to use the public key."

@@ -219,6 +219,10 @@ decrypt(int ofd, const char *privkeyfile, const char *keyfile,
 
 	if (RSA_private_decrypt(kdk->kdk_encryptedkeysize,
 	    kdk->kdk_encryptedkey, key, privkey,
+	    RSA_PKCS1_OAEP_PADDING) != sizeof(key) &&
+	    /* Fallback to deprecated, formerly-used PKCS 1.5 padding. */
+	    RSA_private_decrypt(kdk->kdk_encryptedkeysize,
+	    kdk->kdk_encryptedkey, key, privkey,
 	    RSA_PKCS1_PADDING) != sizeof(key)) {
 		pjdlog_error("Unable to decrypt key: %s",
 		    ERR_error_string(ERR_get_error(), NULL));
