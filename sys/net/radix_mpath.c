@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <net/route.h>
 #include <net/route_var.h>
+#include <net/route/nhop.h>
 #include <net/if.h>
 #include <net/if_var.h>
 
@@ -110,22 +111,24 @@ struct rtentry *
 rt_mpath_matchgate(struct rtentry *rt, struct sockaddr *gate)
 {
 	struct radix_node *rn;
+	struct nhop_object *nh;
 
-	if (!gate || !rt->rt_gateway)
-		return NULL;
+	if (gate == NULL)
+		return (NULL);
 
 	/* beyond here, we use rn as the master copy */
 	rn = (struct radix_node *)rt;
 	do {
 		rt = (struct rtentry *)rn;
+		nh = rt->rt_nhop;
 		/*
-		 * we are removing an address alias that has 
+		 * we are removing an address alias that has
 		 * the same prefix as another address
 		 * we need to compare the interface address because
-		 * rt_gateway is a special sockadd_dl structure
+		 * gateway is a special sockaddr_dl structure
 		 */
-		if (rt->rt_gateway->sa_family == AF_LINK) {
-			if (!memcmp(rt->rt_ifa->ifa_addr, gate, gate->sa_len))
+		if (nh->gw_sa.sa_family == AF_LINK) {
+			if (!memcmp(nh->nh_ifa->ifa_addr, gate, gate->sa_len))
 				break;
 		}
 
@@ -134,8 +137,8 @@ rt_mpath_matchgate(struct rtentry *rt, struct sockaddr *gate)
 		 * 1) Routes with 'real' IPv4/IPv6 gateway
 		 * 2) Loopback host routes (another AF_LINK/sockadd_dl check)
 		 * */
-		if (rt->rt_gateway->sa_len == gate->sa_len &&
-		    !memcmp(rt->rt_gateway, gate, gate->sa_len))
+		if (nh->gw_sa.sa_len == gate->sa_len &&
+		    !memcmp(&nh->gw_sa, gate, gate->sa_len))
 			break;
 	} while ((rn = rn_mpath_next(rn)) != NULL);
 
