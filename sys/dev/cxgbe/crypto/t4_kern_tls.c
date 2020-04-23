@@ -812,11 +812,11 @@ ktls_setup_keys(struct tlspcb *tlsp, const struct ktls_session *tls,
 	if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM) {
 		memcpy(khdr->txsalt, tls->params.iv, SALT_SIZE);
 		t4_init_gmac_hash(tls->params.cipher_key,
-		    tls->params.cipher_key_len * 8,
+		    tls->params.cipher_key_len,
 		    (char *)key + tls->params.cipher_key_len);
 	} else {
 		t4_init_hmac_digest(axf, partial_digest_len,
-		    tls->params.auth_key, tls->params.auth_key_len * 8,
+		    tls->params.auth_key, tls->params.auth_key_len,
 		    (char *)key + tls->params.cipher_key_len);
 	}
 
