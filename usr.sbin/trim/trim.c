@@ -220,7 +220,7 @@ trim(const char *path, off_t offset, off_t length, bool dryrun, bool verbose)
 		return (0);
 	}
 
-	fd = opendev(path, O_WRONLY | O_DIRECT);
+	fd = opendev(path, O_RDWR | O_DIRECT);
 	arg[0] = offset;
 	arg[1] = length;
 
