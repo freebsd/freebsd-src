@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/vdso.h>
 #include <errno.h>
+#include <strings.h>
 #include <time.h>
 #include <machine/atomic.h>
 #include "libc_private.h"
@@ -62,7 +63,8 @@ binuptime(struct bintime *bt, struct vdso_timekeep *tk, int abs)
 {
 	struct vdso_timehands *th;
 	uint32_t curr, gen;
-	u_int delta;
+	uint64_t scale, x;
+	u_int delta, scale_bits;
 	int error;
 
 	do {
@@ -78,7 +80,19 @@ binuptime(struct bintime *bt, struct vdso_timekeep *tk, int abs)
 			continue;
 		if (error != 0)
 			return (error);
-		bintime_addx(bt, th->th_scale * delta);
+		scale = th->th_scale;
+#ifdef _LP64
+		scale_bits = ffsl(scale);
+#else
+		scale_bits = ffsll(scale);
+#endif
+		if (__predict_false(scale_bits + fls(delta) > 63)) {
+			x = (scale >> 32) * delta;
+			scale &= 0xffffffff;
+			bt->sec += x >> 32;
+			bintime_addx(bt, x << 32);
+		}
+		bintime_addx(bt, scale * delta);
 		if (abs)
 			bintime_add(bt, &th->th_boottime);
 
