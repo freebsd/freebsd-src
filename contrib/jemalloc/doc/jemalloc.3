@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: JEMALLOC
 .\"    Author: Jason Evans
-.\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 05/08/2018
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 11/10/2019
 .\"    Manual: User Manual
-.\"    Source: jemalloc 5.1.0-0-g61efbda7098de6fe64c362d309824864308c36d4
+.\"    Source: jemalloc 5.2.1-0-gea6b3e973b477b8061e0076bb257dbd7f3faa756
 .\"  Language: English
 .\"
-.TH "JEMALLOC" "3" "05/08/2018" "jemalloc 5.1.0-0-g61efbda7098d" "User Manual"
+.TH "JEMALLOC" "3" "11/10/2019" "jemalloc 5.2.1-0-gea6b3e973b47" "User Manual"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -31,7 +31,7 @@
 jemalloc \- general purpose memory allocation functions
 .SH "LIBRARY"
 .PP
-This manual describes jemalloc 5\&.1\&.0\-0\-g61efbda7098de6fe64c362d309824864308c36d4\&. More information can be found at the
+This manual describes jemalloc 5\&.2\&.1\-0\-gea6b3e973b477b8061e0076bb257dbd7f3faa756\&. More information can be found at the
 \m[blue]\fBjemalloc website\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .PP
 The following configuration options are enabled in libc\*(Aqs built\-in jemalloc:
@@ -396,7 +396,7 @@ string, in which case the statistics are presented in
 as a character within the
 \fIopts\fR
 string\&. Note that
-malloc_message()
+malloc_stats_print()
 uses the
 mallctl*()
 functions internally, so inconsistent statistics can be reported if multiple threads use these functions simultaneously\&. If
@@ -411,7 +411,9 @@ and
 \(lql\(rq
 can be specified to omit per size class statistics for bins and large objects, respectively;
 \(lqx\(rq
-can be specified to omit all mutex statistics\&. Unrecognized characters are silently ignored\&. Note that thread caching may prevent some statistics from being completely up to date, since extra locking would be required to merge counters that track thread cache operations\&.
+can be specified to omit all mutex statistics;
+\(lqe\(rq
+can be used to omit extent statistics\&. Unrecognized characters are silently ignored\&. Note that thread caching may prevent some statistics from being completely up to date, since extra locking would be required to merge counters that track thread cache operations\&.
 .PP
 The
 malloc_usable_size()
@@ -826,6 +828,17 @@ in these cases\&. This option is disabled by default unless
 is specified during configuration, in which case it is enabled by default\&.
 .RE
 .PP
+opt\&.confirm_conf (\fBbool\fR) r\-
+.RS 4
+Confirm\-runtime\-options\-when\-program\-starts enabled/disabled\&. If true, the string specified via
+\fB\-\-with\-malloc\-conf\fR, the string pointed to by the global variable
+\fImalloc_conf\fR, the
+\(lqname\(rq
+of the file referenced by the symbolic link named
+/etc/malloc\&.conf, and the value of the environment variable
+\fBMALLOC_CONF\fR, will be printed in order\&. Then, each option being set will be individually printed\&. This option is disabled by default\&.
+.RE
+.PP
 opt\&.abort_conf (\fBbool\fR) r\-
 .RS 4
 Abort\-on\-invalid\-configuration enabled/disabled\&. If true, invalid runtime options are fatal\&. The process will call
@@ -852,9 +865,10 @@ If true, retain unused virtual memory for later reuse rather than discarding it 
 \fBmunmap\fR(2)
 or equivalent (see
 stats\&.retained
-for related details)\&. This option is disabled by default unless discarding virtual memory is known to trigger platform\-specific performance problems, e\&.g\&. for [64\-bit] Linux, which has a quirk in its virtual memory allocation algorithm that causes semi\-permanent VM map holes under normal jemalloc operation\&. Although
-\fBmunmap\fR(2)
-causes issues on 32\-bit Linux as well, retaining virtual memory for 32\-bit Linux is disabled by default due to the practical possibility of address space exhaustion\&.
+for related details)\&. It also makes jemalloc use
+\fBmmap\fR(2)
+or equivalent in a more greedy way, mapping larger chunks in one go\&. This option is disabled by default unless discarding virtual memory is known to trigger platform\-specific performance problems, namely 1) for [64\-bit] Linux, which has a quirk in its virtual memory allocation algorithm that causes semi\-permanent VM map holes under normal jemalloc operation; and 2) for [64\-bit] Windows, which disallows split / merged regions with
+\fI\fBMEM_RELEASE\fR\fR\&. Although the same issues may present on 32\-bit platforms as well, retaining virtual memory for 32\-bit Linux and Windows is disabled by default due to the practical possibility of address space exhaustion\&.
 .RE
 .PP
 opt\&.dss (\fBconst char *\fR) r\-
@@ -882,6 +896,13 @@ opt\&.narenas (\fBunsigned\fR) r\-
 Maximum number of arenas to use for automatic multiplexing of threads and arenas\&. The default is four times the number of CPUs, or one if there is a single CPU\&.
 .RE
 .PP
+opt\&.oversize_threshold (\fBsize_t\fR) r\-
+.RS 4
+The threshold in bytes of which requests are considered oversize\&. Allocation requests with greater sizes are fulfilled from a dedicated arena (automatically managed, however not within
+narenas), in order to reduce fragmentation by not mixing huge allocations with small ones\&. In addition, the decay API guarantees on the extents greater than the specified threshold may be overridden\&. Note that requests with arena index specified via
+\fBMALLOCX_ARENA\fR, or threads associated with explicit arenas will not be considered\&. The default threshold is 8MiB\&. Values not within large size classes disables this feature\&.
+.RE
+.PP
 opt\&.percpu_arena (\fBconst char *\fR) r\-
 .RS 4
 Per CPU arena mode\&. Use the
@@ -893,14 +914,14 @@ setting uses one arena per physical CPU, which means the two hyper threads on th
 \(lqdisabled\(rq\&.
 .RE
 .PP
-opt\&.background_thread (\fBconst bool\fR) r\-
+opt\&.background_thread (\fBbool\fR) r\-
 .RS 4
 Internal background worker threads enabled/disabled\&. Because of potential circular dependencies, enabling background thread using this option may cause crash or deadlock during initialization\&. For a reliable way to use this feature, see
 background_thread
 for dynamic control options and details\&. This option is disabled by default\&.
 .RE
 .PP
-opt\&.max_background_threads (\fBconst size_t\fR) r\-
+opt\&.max_background_threads (\fBsize_t\fR) r\-
 .RS 4
 Maximum number of background threads that will be created if
 background_thread
@@ -917,7 +938,9 @@ and
 arena\&.<i>\&.dirty_decay_ms
 for related dynamic control options\&. See
 opt\&.muzzy_decay_ms
-for a description of muzzy pages\&.
+for a description of muzzy pages\&.for a description of muzzy pages\&. Note that when the
+oversize_threshold
+feature is enabled, the arenas reserved for oversize requests may have its own default decay settings\&.
 .RE
 .PP
 opt\&.muzzy_decay_ms (\fBssize_t\fR) r\-
@@ -1293,7 +1316,7 @@ arena\&.<i>\&.extent_hooks (\fBextent_hooks_t *\fR) rw
 .RS 4
 Get or set the extent management hook functions for arena <i>\&. The functions must be capable of operating on all extant extents associated with arena <i>, usually by passing unknown extents to the replaced functions\&. In practice, it is feasible to control allocation for arenas explicitly created via
 arenas\&.create
-such that all extents originate from an application\-supplied extent allocator (by specifying the custom extent hook functions during arena creation), but the automatically created arenas will have already created extents prior to the application having an opportunity to take over extent allocation\&.
+such that all extents originate from an application\-supplied extent allocator (by specifying the custom extent hook functions during arena creation)\&. However, the API guarantees for the automatically created arenas may be relaxed \-\- hooks set there may be called in a "best effort" fashion; in addition there may be extents created prior to the application having an opportunity to take over extent allocation\&.
 .sp
 .if n \{\
 .RS 4
@@ -1876,6 +1899,11 @@ stats\&.retained
 for details\&.
 .RE
 .PP
+stats\&.arenas\&.<i>\&.extent_avail (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of allocated (but unused) extent structs in this arena\&.
+.RE
+.PP
 stats\&.arenas\&.<i>\&.base (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
 .RS 4
 Number of bytes dedicated to bootstrap\-sensitive allocator metadata structures\&.
@@ -1956,6 +1984,16 @@ stats\&.arenas\&.<i>\&.small\&.nrequests (\fBuint64_t\fR) r\- [\fB\-\-enable\-st
 Cumulative number of allocation requests satisfied by all bin size classes\&.
 .RE
 .PP
+stats\&.arenas\&.<i>\&.small\&.nfills (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of tcache fills by all small size classes\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.small\&.nflushes (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of tcache flushes by all small size classes\&.
+.RE
+.PP
 stats\&.arenas\&.<i>\&.large\&.allocated (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
 .RS 4
 Number of bytes currently allocated by large objects\&.
@@ -1978,6 +2016,16 @@ is enabled and the size class is within the range being cached, or to directly d
 stats\&.arenas\&.<i>\&.large\&.nrequests (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
 .RS 4
 Cumulative number of allocation requests satisfied by all large size classes\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.large\&.nfills (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of tcache fills by all large size classes\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.large\&.nflushes (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of tcache flushes by all large size classes\&.
 .RE
 .PP
 stats\&.arenas\&.<i>\&.bins\&.<j>\&.nmalloc (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
@@ -2029,6 +2077,11 @@ stats\&.arenas\&.<i>\&.bins\&.<j>\&.curslabs (\fBsize_t\fR) r\- [\fB\-\-enable\-
 Current number of slabs\&.
 .RE
 .PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.nonfull_slabs (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Current number of nonfull slabs\&.
+.RE
+.PP
 stats\&.arenas\&.<i>\&.bins\&.<j>\&.mutex\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
 .RS 4
 Statistics on
@@ -2037,6 +2090,16 @@ mutex (arena bin scope; bin operation related)\&.
 {counter}
 is one of the counters in
 mutex profiling counters\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.extents\&.<j>\&.n{extent_type} (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of extents of the given type in this arena in the bucket corresponding to page size index <j>\&. The extent type is one of dirty, muzzy, or retained\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.extents\&.<j>\&.{extent_type}_bytes (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Sum of the bytes managed by extents of the given type in this arena in the bucket corresponding to page size index <j>\&. The extent type is one of dirty, muzzy, or retained\&.
 .RE
 .PP
 stats\&.arenas\&.<i>\&.lextents\&.<j>\&.nmalloc (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]

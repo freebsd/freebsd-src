@@ -1,6 +1,7 @@
 $FreeBSD$
 .appveyor.yml
 .autom4te.cfg
+.cirrus.yml
 .git*
 .travis.yml
 FREEBSD-*
