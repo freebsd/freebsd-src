@@ -290,7 +290,7 @@ pages_decommit(void *addr, size_t size) {
 
 bool
 pages_purge_lazy(void *addr, size_t size) {
-	assert(PAGE_ADDR2BASE(addr) == addr);
+	assert(ALIGNMENT_ADDR2BASE(addr, os_page) == addr);
 	assert(PAGE_CEILING(size) == size);
 
 	if (!pages_can_purge_lazy) {
@@ -420,6 +420,10 @@ os_page_detect(void) {
 	GetSystemInfo(&si);
 	return si.dwPageSize;
 #elif defined(__FreeBSD__)
+	/*
+	 * This returns the value obtained from
+	 * the auxv vector, avoiding a syscall.
+	 */
 	return getpagesize();
 #else
 	long result = sysconf(_SC_PAGESIZE);
@@ -572,6 +576,10 @@ init_thp_state(void) {
 #else
 	close(fd);
 #endif
+
+        if (nread < 0) {
+		goto label_error; 
+        }
 
 	if (strncmp(buf, sys_state_madvise, (size_t)nread) == 0) {
 		init_system_thp_mode = thp_mode_default;
