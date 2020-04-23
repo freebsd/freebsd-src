@@ -443,6 +443,8 @@ acpi_ec_probe(device_t dev)
 
     if (buf.Pointer)
 	AcpiOsFree(buf.Pointer);
+
+    ret = rc;
 out:
     if (ret <= 0) {
 	snprintf(desc, sizeof(desc), "Embedded Controller: GPE %#x%s%s",
