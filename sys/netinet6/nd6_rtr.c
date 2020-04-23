@@ -784,7 +784,7 @@ defrouter_del(struct nd_defrouter *dr)
 
 
 struct nd_defrouter *
-defrouter_lookup_locked(struct in6_addr *addr, struct ifnet *ifp)
+defrouter_lookup_locked(const struct in6_addr *addr, struct ifnet *ifp)
 {
 	struct nd_defrouter *dr;
 
@@ -798,7 +798,7 @@ defrouter_lookup_locked(struct in6_addr *addr, struct ifnet *ifp)
 }
 
 struct nd_defrouter *
-defrouter_lookup(struct in6_addr *addr, struct ifnet *ifp)
+defrouter_lookup(const struct in6_addr *addr, struct ifnet *ifp)
 {
 	struct nd_defrouter *dr;
 
@@ -2006,7 +2006,7 @@ restart:
 static int
 nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 {
-	struct sockaddr_dl sdl;
+	struct sockaddr_dl_short sdl;
 	struct rtentry *rt;
 	struct sockaddr_in6 mask6;
 	u_long rtflags;
@@ -2021,8 +2021,8 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 	mask6.sin6_addr = pr->ndpr_mask;
 	rtflags = (ifa->ifa_flags & ~IFA_RTSELF) | RTF_UP;
 
-	bzero(&sdl, sizeof(struct sockaddr_dl));
-	sdl.sdl_len = sizeof(struct sockaddr_dl);
+	bzero(&sdl, sizeof(struct sockaddr_dl_short));
+	sdl.sdl_len = sizeof(struct sockaddr_dl_short);
 	sdl.sdl_family = AF_LINK;
 	sdl.sdl_type = ifa->ifa_ifp->if_type;
 	sdl.sdl_index = ifa->ifa_ifp->if_index;

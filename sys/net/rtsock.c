@@ -457,15 +457,15 @@ union sockaddr_union {
 
 static int
 rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
-    struct rtentry *rt, union sockaddr_union *saun, struct ucred *cred)
+    struct nhop_object *nh, union sockaddr_union *saun, struct ucred *cred)
 {
 #if defined(INET) || defined(INET6)
 	struct epoch_tracker et;
 #endif
 
 	/* First, see if the returned address is part of the jail. */
-	if (prison_if(cred, rt->rt_ifa->ifa_addr) == 0) {
-		info->rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
+	if (prison_if(cred, nh->nh_ifa->ifa_addr) == 0) {
+		info->rti_info[RTAX_IFA] = nh->nh_ifa->ifa_addr;
 		return (0);
 	}
 
@@ -499,7 +499,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 			/*
 			 * As a last resort return the 'default' jail address.
 			 */
-			ia = ((struct sockaddr_in *)rt->rt_ifa->ifa_addr)->
+			ia = ((struct sockaddr_in *)nh->nh_ifa->ifa_addr)->
 			    sin_addr;
 			if (prison_get_ip4(cred, &ia) != 0)
 				return (ESRCH);
@@ -542,7 +542,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 			/*
 			 * As a last resort return the 'default' jail address.
 			 */
-			ia6 = ((struct sockaddr_in6 *)rt->rt_ifa->ifa_addr)->
+			ia6 = ((struct sockaddr_in6 *)nh->nh_ifa->ifa_addr)->
 			    sin6_addr;
 			if (prison_get_ip6(cred, &ia6) != 0)
 				return (ESRCH);
@@ -635,7 +635,7 @@ fill_addrinfo(struct rt_msghdr *rtm, int len, u_int fibnum, struct rt_addrinfo *
 		 * is not reachable locally. This behavior is fixed as 
 		 * part of the new L2/L3 redesign and rewrite work. The
 		 * signature of this interface address route is the
-		 * AF_LINK sa_family type of the rt_gateway, and the
+		 * AF_LINK sa_family type of the gateway, and the
 		 * rt_ifp has the IFF_LOOPBACK flag set.
 		 */
 		if (rib_lookup_info(fibnum, gdst, NHR_REF, 0, &ginfo) == 0) {
@@ -711,12 +711,15 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 	 * the actual PPP host entry is found, perform
 	 * another search to retrieve the prefix route of
 	 * the local end point of the PPP link.
+	 * TODO: move this logic to userland.
 	 */
 	if (rtm->rtm_flags & RTF_ANNOUNCE) {
 		struct sockaddr laddr;
+		struct nhop_object *nh;
 
-		if (rt->rt_ifp != NULL && 
-		    rt->rt_ifp->if_type == IFT_PROPVIRTUAL) {
+		nh = rt->rt_nhop;
+		if (nh->nh_ifp != NULL &&
+		    nh->nh_ifp->if_type == IFT_PROPVIRTUAL) {
 			struct epoch_tracker et;
 			struct ifaddr *ifa;
 
@@ -729,9 +732,9 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 					      &laddr,
 					      ifa->ifa_netmask);
 		} else
-			rt_maskedcopy(rt->rt_ifa->ifa_addr,
+			rt_maskedcopy(nh->nh_ifa->ifa_addr,
 				      &laddr,
-				      rt->rt_ifa->ifa_netmask);
+				      nh->nh_ifa->ifa_netmask);
 		/* 
 		 * refactor rt and no lock operation necessary
 		 */
@@ -741,7 +744,7 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 			RIB_RUNLOCK(rnh);
 			return (ESRCH);
 		}
-	} 
+	}
 	RT_LOCK(rt);
 	RT_ADDREF(rt);
 	RIB_RUNLOCK(rnh);
@@ -768,6 +771,7 @@ update_rtm_from_rte(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 	struct walkarg w;
 	union sockaddr_union saun;
 	struct rt_msghdr *rtm, *orig_rtm = NULL;
+	struct nhop_object *nh;
 	struct ifnet *ifp;
 	int error, len;
 
@@ -775,23 +779,24 @@ update_rtm_from_rte(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 
 	rtm = *prtm;
 
+	nh = rt->rt_nhop;
 	info->rti_info[RTAX_DST] = rt_key(rt);
-	info->rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+	info->rti_info[RTAX_GATEWAY] = &nh->gw_sa;
 	info->rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt),
 	    rt_mask(rt), &netmask_ss);
 	info->rti_info[RTAX_GENMASK] = 0;
-	ifp = rt->rt_ifp;
+	ifp = nh->nh_ifp;
 	if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
 		if (ifp) {
 			info->rti_info[RTAX_IFP] =
 			    ifp->if_addr->ifa_addr;
-			error = rtm_get_jailed(info, ifp, rt,
+			error = rtm_get_jailed(info, ifp, nh,
 			    &saun, curthread->td_ucred);
 			if (error != 0)
 				return (error);
 			if (ifp->if_flags & IFF_POINTOPOINT)
 				info->rti_info[RTAX_BRD] =
-				    rt->rt_ifa->ifa_dstaddr;
+				    nh->nh_ifa->ifa_dstaddr;
 			rtm->rtm_index = ifp->if_index;
 		} else {
 			info->rti_info[RTAX_IFP] = NULL;
@@ -1075,7 +1080,7 @@ rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out)
 {
 
 	bzero(out, sizeof(*out));
-	out->rmx_mtu = rt->rt_mtu;
+	out->rmx_mtu = rt->rt_nhop->nh_mtu;
 	out->rmx_weight = rt->rt_weight;
 	out->rmx_pksent = counter_u64_fetch(rt->rt_pksent);
 	out->rmx_nhidx = nhop_get_idx(rt->rt_nhop);
@@ -1496,7 +1501,7 @@ rtsock_routemsg(int cmd, struct rtentry *rt, struct ifnet *ifp, int rti_addrs,
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
 	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt), rt_mask(rt), &ss);
-	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+	info.rti_info[RTAX_GATEWAY] = &rt->rt_nhop->gw_sa;
 	info.rti_flags = rt->rt_flags;
 	info.rti_ifp = ifp;
 
@@ -1725,7 +1730,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 		return (0);
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
-	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+	info.rti_info[RTAX_GATEWAY] = &rt->rt_nhop->gw_sa;
 	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt),
 	    rt_mask(rt), &ss);
 	info.rti_info[RTAX_GENMASK] = 0;
@@ -2244,7 +2249,7 @@ rt_dumpentry_ddb(struct radix_node *rn, void *arg __unused)
 	rt = (void *)rn;
 
 	rt_dumpaddr_ddb("dst", rt_key(rt));
-	rt_dumpaddr_ddb("gateway", rt->rt_gateway);
+	rt_dumpaddr_ddb("gateway", &rt->rt_nhop->gw_sa);
 	rt_dumpaddr_ddb("netmask", rtsock_fix_netmask(rt_key(rt), rt_mask(rt),
 	    &ss));
 	if (rt->rt_ifp != NULL && (rt->rt_ifp->if_flags & IFF_DYING) == 0) {
