@@ -119,7 +119,7 @@ SSP_CFLAGS=
 # currently has no /boot/loader, but may soon.
 CFLAGS+=	-ffreestanding ${CFLAGS_NO_SIMD}
 .if ${MACHINE_CPUARCH} == "aarch64"
-CFLAGS+=	-mgeneral-regs-only -fPIC
+CFLAGS+=	-mgeneral-regs-only -ffixed-x18 -fPIC
 .elif ${MACHINE_CPUARCH} == "riscv"
 CFLAGS+=	-march=rv64imac -mabi=lp64
 .else
