@@ -57,6 +57,9 @@ static int le_read_local_supported_features(int s, int argc ,char *argv[]);
 static int set_le_event_mask(int s, uint64_t mask);
 static int set_event_mask(int s, uint64_t mask);
 static int le_enable(int s, int argc, char *argv[]);
+static int le_set_advertising_enable(int s, int argc, char *argv[]);
+static int le_set_advertising_param(int s, int argc, char *argv[]);
+static int le_read_advertising_channel_tx_power(int s, int argc, char *argv[]);
 
 static int
 le_set_scan_param(int s, int argc, char *argv[])
@@ -339,6 +342,170 @@ int le_enable(int s, int argc, char *argv[])
 	return OK;
 }
 
+static int
+le_set_advertising_enable(int s, int argc, char *argv[])
+{
+	ng_hci_le_set_advertise_enable_cp cp;
+	ng_hci_le_set_advertise_enable_rp rp;
+	int n, enable = 0;
+
+	if (argc != 1)
+		return USAGE;
+	  
+	if (strcmp(argv[0], "enable") == 0)
+		enable = 1;
+	else if (strcmp(argv[0], "disable") != 0)
+		return USAGE;
+
+	n = sizeof(rp);
+	cp.advertising_enable = enable;
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_SET_ADVERTISE_ENABLE), 
+		(void *)&cp, sizeof(cp), (void *)&rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+        fprintf(stdout, "LE Advertising %s\n", (enable ? "enabled" : "disabled"));
+
+	return (OK);
+}
+
+static int
+le_set_advertising_param(int s, int argc, char *argv[])
+{
+	ng_hci_le_set_advertising_parameters_cp cp;
+	ng_hci_le_set_advertising_parameters_rp rp;
+
+	int n, ch;
+
+	cp.advertising_interval_min = 0x800;
+	cp.advertising_interval_max = 0x800;
+	cp.advertising_type = 0;
+	cp.own_address_type = 0;
+	cp.direct_address_type = 0;
+
+	cp.advertising_channel_map = 7;
+	cp.advertising_filter_policy = 0;
+
+	optreset = 1;
+	optind = 0;
+	while ((ch = getopt(argc, argv , "m:M:t:o:p:a:c:f:")) != -1) {
+		switch(ch) {
+		case 'm':
+			cp.advertising_interval_min =
+				(uint16_t)(strtod(optarg, NULL)/0.625);
+			break;
+		case 'M':
+			cp.advertising_interval_max =
+				(uint16_t)(strtod(optarg, NULL)/0.625);
+			break;
+		case 't':
+			cp.advertising_type =
+				(uint8_t)strtod(optarg, NULL);
+			break;
+		case 'o':
+			cp.own_address_type =
+				(uint8_t)strtod(optarg, NULL);
+			break;
+		case 'p':
+			cp.direct_address_type =
+				(uint8_t)strtod(optarg, NULL);
+			break;
+		case 'a':
+			if (!bt_aton(optarg, &cp.direct_address)) {
+				struct hostent	*he = NULL;
+
+				if ((he = bt_gethostbyname(optarg)) == NULL)
+					return (USAGE);
+
+				memcpy(&cp.direct_address, he->h_addr, sizeof(cp.direct_address));
+			}
+			break;
+		case 'c':
+			cp.advertising_channel_map =
+				(uint8_t)strtod(optarg, NULL);
+			break;
+		case 'f':
+			cp.advertising_filter_policy =
+				(uint8_t)strtod(optarg, NULL);
+			break;
+		}
+	}
+
+	n = sizeof(rp);
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_SET_ADVERTISING_PARAMETERS), 
+		(void *)&cp, sizeof(cp), (void *)&rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	return (OK);
+}
+
+static int
+le_read_advertising_channel_tx_power(int s, int argc, char *argv[])
+{
+	ng_hci_le_read_advertising_channel_tx_power_rp rp;
+	int n;
+
+	n = sizeof(rp);
+
+	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_READ_ADVERTISING_CHANNEL_TX_POWER), 
+		(void *)&rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+        fprintf(stdout, "Advertising transmit power level: %d dBm\n",
+		(int8_t)rp.transmit_power_level);
+
+	return (OK);
+}
+
+static int
+le_set_advertising_data(int s, int argc, char *argv[])
+{
+	ng_hci_le_set_advertising_data_cp cp;
+	ng_hci_le_set_advertising_data_rp rp;
+	int n, len;
+
+	n = sizeof(rp);
+
+	char buf[NG_HCI_ADVERTISING_DATA_SIZE];
+
+	len = sizeof(buf);
+	parse_param(argc, argv, buf, &len);
+	memset(cp.advertising_data, 0, sizeof(cp.advertising_data));
+	cp.advertising_data_length = len;
+
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_SET_ADVERTISING_DATA), 
+		(void *)&cp, sizeof(cp), (void *)&rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	return (OK);
+}
+
 struct hci_command le_commands[] = {
 {
 	"le_enable",
@@ -377,5 +544,32 @@ struct hci_command le_commands[] = {
 	  "le_set_scan_param [active|passive] interval(ms) window(ms) [public|random] [all|whitelist] \n"
 	  "set LE device scan parameter",
 	  &le_set_scan_param
+  },
+  {
+	  "le_set_advertising_enable",
+	  "le_set_advertising_enable [enable|disable] \n"
+	  "start or stop advertising",
+	  &le_set_advertising_enable
+  },
+  {
+	  "le_read_advertising_channel_tx_power",
+	  "le_read_advertising_channel_tx_power\n"
+	  "read host advertising transmit poser level (dBm)",
+	  &le_read_advertising_channel_tx_power
+  },
+  {
+	  "le_set_advertising_param",
+	  "le_set_advertising_param  [-m min_interval(ms)] [-M max_interval(ms)]\n"
+	  "[-t advertising_type] [-o own_address_type] [-p peer_address_type]\n"
+	  "[-c advertising_channel_map] [-f advertising_filter_policy]\n"
+	  "[-a peer_address]\n"
+	  "set LE device advertising parameters",
+	  &le_set_advertising_param
+  },
+  {
+	  "le_set_advertising_data",
+	  "le_set_advertising_data -n $name -f $flag -u $uuid16,$uuid16 \n"
+	  "set LE device advertising packed data",
+	  &le_set_advertising_data
   },
 };
