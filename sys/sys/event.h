@@ -111,7 +111,7 @@ struct kevent32 {
 #ifndef __amd64__
 	uint32_t	pad0;
 #endif
-	int32_t		data1, data2;
+	uint32_t	data1, data2;
 	uint32_t	udata;		/* opaque user data identifier */
 #ifndef __amd64__
 	uint32_t	pad1;

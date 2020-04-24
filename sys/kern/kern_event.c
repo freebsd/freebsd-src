@@ -619,7 +619,7 @@ knote_fork(struct knlist *list, int pid)
     (NOTE_SECONDS | NOTE_MSECONDS | NOTE_USECONDS | NOTE_NSECONDS)
 
 static sbintime_t
-timer2sbintime(intptr_t data, int flags)
+timer2sbintime(int64_t data, int flags)
 {
 	int64_t secs;
 
