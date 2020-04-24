@@ -72,7 +72,7 @@ static __inline size_t
 ttydisc_read_poll(struct tty *tp)
 {
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	return ttyinq_bytescanonicalized(&tp->t_inq);
 }
@@ -81,7 +81,7 @@ static __inline size_t
 ttydisc_write_poll(struct tty *tp)
 {
 
-	tty_lock_assert(tp, MA_OWNED);
+	tty_assert_locked(tp);
 
 	return ttyoutq_bytesleft(&tp->t_outq);
 }
