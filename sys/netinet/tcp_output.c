@@ -1548,7 +1548,13 @@ timer:
 		if (SEQ_GT(tp->snd_nxt + xlen, tp->snd_max))
 			tp->snd_max = tp->snd_nxt + xlen;
 	}
-
+	if ((error == 0) &&
+	    (TCPS_HAVEESTABLISHED(tp->t_state) &&
+	     (tp->t_flags & TF_SACK_PERMIT) &&
+	     tp->rcv_numsacks > 0)) {
+		    /* Clean up any DSACK's sent */
+		    tcp_clean_dsack_blocks(tp);
+	}
 	if (error) {
 
 		/*
