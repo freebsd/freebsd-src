@@ -642,7 +642,10 @@ acpi_video_vo_destroy(struct acpi_video_output *vo)
 
 	switch (vo->adr & DOD_DEVID_MASK) {
 	case DOD_DEVID_MONITOR:
-		voqh = &crt_units;
+		if ((vo->adr & DOD_DEVID_MASK_FULL) == DOD_DEVID_LCD)
+			voqh = &lcd_units;
+		else
+			voqh = &crt_units;
 		break;
 	case DOD_DEVID_TV:
 		voqh = &tv_units;
