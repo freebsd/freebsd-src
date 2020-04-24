@@ -3227,7 +3227,7 @@
 		    int flags
 		);
 	}
-575	AUE_NULL	STD {
+575	AUE_CLOSERANGE	STD {
 		int close_range(
 		    u_int lowfd,
 		    u_int highfd,
