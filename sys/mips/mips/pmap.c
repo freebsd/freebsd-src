@@ -1004,18 +1004,26 @@ static void
 _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	pd_entry_t *pde;
+	vm_offset_t sva, eva;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	/*
 	 * unmap the page table page
 	 */
 #ifdef __mips_n64
-	if (m->pindex < NUPDE)
+	if (m->pindex < NUPDE) {
 		pde = pmap_pde(pmap, va);
-	else
+		sva = va & ~PDRMASK;
+		eva = sva + NBPDR;
+	} else {
 		pde = pmap_segmap(pmap, va);
+		sva = va & ~SEGMASK;
+		eva = sva + NBSEG;
+	}
 #else
 	pde = pmap_pde(pmap, va);
+	sva = va & ~SEGMASK;
+	eva = sva + NBSEG;
 #endif
 	*pde = 0;
 	pmap->pm_stats.resident_count--;
@@ -1026,12 +1034,22 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		vm_page_t pdpg;
 
 		/*
-		 * Recursively decrement next level pagetable refcount
+		 * Recursively decrement next level pagetable refcount.
+		 * Either that shoots down a larger range from TLBs (below)
+		 * or we're to shoot down just the page in question.
 		 */
 		pdp = (pd_entry_t *)*pmap_segmap(pmap, va);
 		pdpg = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS(pdp));
-		pmap_unwire_ptp(pmap, va, pdpg);
+		if (!pmap_unwire_ptp(pmap, va, pdpg)) {
+			pmap_invalidate_range(pmap, sva, eva);
+		}
+	} else {
+		/* Segmap entry shootdown */
+		pmap_invalidate_range(pmap, sva, eva);
 	}
+#else
+	/* Segmap entry shootdown */
+	pmap_invalidate_range(pmap, sva, eva);
 #endif
 
 	/*
@@ -1485,7 +1503,15 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 				if (TAILQ_EMPTY(&m->md.pv_list))
 					vm_page_aflag_clear(m, PGA_WRITEABLE);
 				pc->pc_map[field] |= 1UL << bit;
-				pmap_unuse_pt(pmap, va, *pde);
+
+				/*
+				 * For simplicity, we will unconditionally shoot
+				 * down TLBs either at the end of this function
+				 * or at the top of the loop above if we switch
+				 * to a different pmap.
+				 */
+				(void)pmap_unuse_pt(pmap, va, *pde);
+
 				freed++;
 			}
 		}
@@ -1714,6 +1740,23 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_page_t mpte, vm_offset_t va,
 
 /*
  * pmap_remove_pte: do the things to unmap a page in a process
+ *
+ * Returns true if this was the last PTE in the PT (and possibly the last PT in
+ * the PD, and possibly the last PD in the segmap), in which case...
+ *
+ *   1) the TLB has been invalidated for the whole PT's span (at least),
+ *   already, to ensure that MipsDoTLBMiss does not attempt to follow a
+ *   dangling pointer into a freed page.  No additional TLB shootdown is
+ *   required.
+ *
+ *   2) if this removal was part of a sweep to remove PTEs, it is safe to jump
+ *   to the PT span boundary and continue.
+ *
+ *   3) The given pde may now point onto a freed page and must not be
+ *   dereferenced
+ *
+ * If the return value is false, the TLB has not been shot down (and the segmap
+ * entry, PD, and PT all remain in place).
  */
 static int
 pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va,
@@ -1782,8 +1825,12 @@ pmap_remove_page(struct pmap *pmap, vm_offset_t va)
 	if (!pte_test(ptq, PTE_V))
 		return;
 
-	(void)pmap_remove_pte(pmap, ptq, va, *pde);
-	pmap_invalidate_page(pmap, va);
+	/*
+	 * Remove this PTE from the PT.  If this is the last one, then
+	 * the TLB has already been shot down, so don't bother again
+	 */
+	if (!pmap_remove_pte(pmap, ptq, va, *pde))
+		pmap_invalidate_page(pmap, va);
 }
 
 /*
@@ -1797,7 +1844,9 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	pd_entry_t *pde, *pdpe;
 	pt_entry_t *pte;
-	vm_offset_t va, va_next;
+	vm_offset_t va_next;
+	vm_offset_t va_init, va_fini;
+	bool need_tlb_shootdown;
 
 	/*
 	 * Perform an unsynchronized read.  This is, however, safe.
@@ -1826,6 +1875,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			continue;
 		}
 #endif
+
+		/* Scan up to the end of the page table pointed to by pde */
 		va_next = (sva + NBPDR) & ~PDRMASK;
 		if (va_next < sva)
 			va_next = eva;
@@ -1842,25 +1893,44 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (va_next > eva)
 			va_next = eva;
 
-		va = va_next;
+		need_tlb_shootdown = false;
+		va_init = sva;
+		va_fini = va_next;
 		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
 		    sva += PAGE_SIZE) {
+
+			/* Skip over invalid entries; no need to shootdown */
 			if (!pte_test(pte, PTE_V)) {
-				if (va != va_next) {
-					pmap_invalidate_range(pmap, va, sva);
-					va = va_next;
-				}
+				/*
+				 * If we have not yet found a valid entry, then
+				 * we can move the lower edge of the region to
+				 * invalidate to the next PTE.
+				 */
+				if (!need_tlb_shootdown)
+					va_init = sva + PAGE_SIZE;
 				continue;
 			}
-			if (va == va_next)
-				va = sva;
+
+			/*
+			 * A valid entry; the range we are shooting down must
+			 * include this page.  va_fini is used instead of sva
+			 * so that if the range ends with a run of !PTE_V PTEs,
+			 * but doesn't clear out so much that pmap_remove_pte
+			 * removes the entire PT, we won't include these !PTE_V
+			 * entries in the region to be shot down.
+			 */
+			va_fini = sva + PAGE_SIZE;
+
 			if (pmap_remove_pte(pmap, pte, sva, *pde)) {
-				sva += PAGE_SIZE;
+				/* Entire PT removed and TLBs shot down. */
+				need_tlb_shootdown = false;
 				break;
+			} else {
+				need_tlb_shootdown = true;
 			}
 		}
-		if (va != va_next)
-			pmap_invalidate_range(pmap, va, sva);
+		if (need_tlb_shootdown)
+			pmap_invalidate_range(pmap, va_init, va_fini);
 	}
 out:
 	rw_wunlock(&pvh_global_lock);
@@ -1930,10 +2000,11 @@ pmap_remove_all(vm_page_t m)
 			    __func__, (void *)pv->pv_va, (uintmax_t)tpte));
 			vm_page_dirty(m);
 		}
-		pmap_invalidate_page(pmap, pv->pv_va);
+
+		if (!pmap_unuse_pt(pmap, pv->pv_va, *pde))
+			pmap_invalidate_page(pmap, pv->pv_va);
 
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		pmap_unuse_pt(pmap, pv->pv_va, *pde);
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
@@ -2812,7 +2883,12 @@ pmap_remove_pages(pmap_t pmap)
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 				if (TAILQ_EMPTY(&m->md.pv_list))
 					vm_page_aflag_clear(m, PGA_WRITEABLE);
-				pmap_unuse_pt(pmap, pv->pv_va, *pde);
+
+				/*
+				 * For simplicity, unconditionally call
+				 * pmap_invalidate_all(), below.
+				 */
+				(void)pmap_unuse_pt(pmap, pv->pv_va, *pde);
 			}
 		}
 		if (allfree) {
