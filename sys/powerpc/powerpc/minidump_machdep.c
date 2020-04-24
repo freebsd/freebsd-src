@@ -381,7 +381,6 @@ retry:
 	dump_total("pmap", pmapsize);
 
 	/* Dump memory chunks */
-	/* XXX cluster it up and use blk_dump() */
 	for (i = 0; i < vm_page_dump_size / sizeof(*vm_page_dump); i++) {
 		bits = vm_page_dump[i];
 		/* TODO optimize with bit manipulation instructions */
