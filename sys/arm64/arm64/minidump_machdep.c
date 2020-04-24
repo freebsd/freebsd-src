@@ -374,7 +374,6 @@ minidumpsys(struct dumperinfo *di)
 	}
 
 	/* Dump memory chunks */
-	/* XXX cluster it up and use blk_dump() */
 	for (i = 0; i < vm_page_dump_size / sizeof(*vm_page_dump); i++) {
 		bits = vm_page_dump[i];
 		while (bits) {
