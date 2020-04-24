@@ -150,6 +150,15 @@ TIME_T_ALTERNATIVES_TAIL = int32_t uint32_t uint64_t
 
 REDO=		posix_right
 
+# Whether to put an "Expires" line in the leapseconds file.
+# Use EXPIRES_LINE=1 to put the line in, 0 to omit it.
+# The EXPIRES_LINE value matters only if REDO's value contains "right".
+# If you change EXPIRES_LINE, remove the leapseconds file before running "make".
+# zic's support for the Expires line was introduced in tzdb 2020a,
+# and EXPIRES_LINE defaults to 0 for now so that the leapseconds file
+# can be given to older zic implementations.
+EXPIRES_LINE=	0
+
 # To install data in text form that has all the information of the TZif data,
 # (optionally incorporating leap second information), use
 #	TZDATA_TEXT=	tzdata.zi leapseconds
@@ -295,8 +304,9 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
 # than TM_GMTOFF and TM_ZONE.  However, most of them are standardized.
 # #
 # # To omit or support the external variable "tzname", add one of:
-# #	-DHAVE_TZNAME=0
-# #	-DHAVE_TZNAME=1
+# #	-DHAVE_TZNAME=0 # do not support "tzname"
+# #	-DHAVE_TZNAME=1 # support "tzname", which is defined by system library
+# #	-DHAVE_TZNAME=2 # support and define "tzname"
 # # to the "CFLAGS=" line.  "tzname" is required by POSIX 1988 and later.
 # # If not defined, the code attempts to guess HAVE_TZNAME from other macros.
 # # Warning: unless time_tz is also defined, HAVE_TZNAME=1 can cause
@@ -304,16 +314,20 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
 # # presumably due to memory allocation issues.
 # #
 # # To omit or support the external variables "timezone" and "daylight", add
-# #	-DUSG_COMPAT=0
-# #	-DUSG_COMPAT=1
+# #	-DUSG_COMPAT=0 # do not support
+# #	-DUSG_COMPAT=1 # support, and variables are defined by system library
+# #	-DUSG_COMPAT=2 # support and define variables
 # # to the "CFLAGS=" line; "timezone" and "daylight" are inspired by
 # # Unix Systems Group code and are required by POSIX 2008 (with XSI) and later.
 # # If not defined, the code attempts to guess USG_COMPAT from other macros.
 # #
 # # To support the external variable "altzone", add
-# #	-DALTZONE
+# #	-DALTZONE=0 # do not support
+# #	-DALTZONE=1 # support "altzone", which is defined by system library
+# #	-DALTZONE=2 # support and define "altzone"
 # # to the end of the "CFLAGS=" line; although "altzone" appeared in
 # # System V Release 3.1 it has not been standardized.
+# # If not defined, the code attempts to guess ALTZONE from other macros.
 #
 # If you want functions that were inspired by early versions of X3J11's work,
 # add
@@ -321,9 +335,7 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
 # to the end of the "CFLAGS=" line.  This arranges for the functions
 # "tzsetwall", "offtime", "timelocal", "timegm", "timeoff",
 # "posix2time", and "time2posix" to be added to the time conversion library.
-# "tzsetwall" is like "tzset" except that it arranges for local wall clock
-# time (rather than the timezone specified in the TZ environment variable)
-# to be used.
+# "tzsetwall" is deprecated and is intended to be removed soon; see NEWS.
 # "offtime" is like "gmtime" except that it accepts a second (long) argument
 # that gives an offset to add to the time_t when converting it.
 # "timelocal" is equivalent to "mktime".
@@ -333,7 +345,6 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
 # that gives an offset to use when converting to a time_t.
 # "posix2time" and "time2posix" are described in an included manual page.
 # X3J11's work does not describe any of these functions.
-# Sun has provided "tzsetwall", "timelocal", and "timegm" in SunOS 4.0.
 # These functions may well disappear in future releases of the time
 # conversion package.
 #
@@ -505,11 +516,11 @@ RANLIB=		:
 TZCOBJS=	zic.o
 TZDOBJS=	zdump.o localtime.o asctime.o strftime.o
 DATEOBJS=	date.o localtime.o strftime.o asctime.o
-LIBSRCS=	localtime.c asctime.c difftime.c
-LIBOBJS=	localtime.o asctime.o difftime.o
+LIBSRCS=	localtime.c asctime.c difftime.c strftime.c
+LIBOBJS=	localtime.o asctime.o difftime.o strftime.o
 HEADERS=	tzfile.h private.h
 NONLIBSRCS=	zic.c zdump.c
-NEWUCBSRCS=	date.c strftime.c
+NEWUCBSRCS=	date.c
 SOURCES=	$(HEADERS) $(LIBSRCS) $(NONLIBSRCS) $(NEWUCBSRCS) \
 			tzselect.ksh workman.sh
 MANS=		newctime.3 newstrftime.3 newtzset.3 time2posix.3 \
@@ -651,7 +662,8 @@ yearistype:	yearistype.sh
 		chmod +x yearistype
 
 leapseconds:	$(LEAP_DEPS)
-		$(AWK) -f leapseconds.awk leap-seconds.list >$@.out
+		$(AWK) -v EXPIRES_LINE=$(EXPIRES_LINE) \
+		  -f leapseconds.awk leap-seconds.list >$@.out
 		mv $@.out $@
 
 # Arguments to pass to submakes of install_data.
