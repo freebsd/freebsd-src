@@ -65,8 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include "pcib_if.h"
 
-#define	PCI_IO_WINDOW_OFFSET	0x1000
-
 #define	SPACE_CODE_SHIFT	24
 #define	SPACE_CODE_MASK		0x3
 #define	SPACE_CODE_IO_SPACE	0x1
@@ -170,8 +168,7 @@ pci_host_generic_attach(device_t dev)
 			    pci_base, pci_base + size - 1);
 		} else if (sc->base.ranges[tuple].flags & FLAG_IO) {
 			error = rman_manage_region(&sc->base.io_rman,
-			    pci_base + PCI_IO_WINDOW_OFFSET,
-			    pci_base + PCI_IO_WINDOW_OFFSET + size - 1);
+			    pci_base, pci_base + size - 1);
 		} else
 			continue;
 		if (error) {
