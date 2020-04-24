@@ -3502,28 +3502,71 @@ pmap_emulate_modified(pmap_t pmap, vm_offset_t va)
 
 	PMAP_LOCK(pmap);
 	pte = pmap_pte(pmap, va);
-	if (pte == NULL)
-		panic("pmap_emulate_modified: can't find PTE");
-#ifdef SMP
-	/* It is possible that some other CPU changed m-bit */
-	if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D)) {
+
+	/*
+	 * It is possible that some other CPU or thread changed the pmap while
+	 * we weren't looking; in the SMP case, this is readily apparent, but
+	 * it can even happen in the UP case, because we may have been blocked
+	 * on PMAP_LOCK(pmap) above while someone changed this out from
+	 * underneath us.
+	 */
+
+	if (pte == NULL) {
+		/*
+		 * This PTE's PTP (or one of its ancestors) has been reclaimed;
+		 * trigger a full fault to reconstruct it via pmap_enter.
+		 */
+		PMAP_UNLOCK(pmap);
+		return (1);
+	}
+
+	if (!pte_test(pte, PTE_V)) {
+		/*
+		 * This PTE is no longer valid; the other thread or other
+		 * processor must have arranged for our TLB to no longer
+		 * have this entry, possibly by IPI, so no tlb_update is
+		 * required.  Fall out of the fast path and go take a
+		 * general fault before retrying the instruction (or taking
+		 * a signal).
+		 */
+		PMAP_UNLOCK(pmap);
+		return (1);
+	}
+
+	if (pte_test(pte, PTE_D)) {
+		/*
+		 * This PTE is valid and has the PTE_D bit asserted; since
+		 * this is an increase in permission, we may have been expected
+		 * to update the TLB lazily.  Do so here and return, on the
+		 * fast path, to retry the instruction.
+		 */
 		tlb_update(pmap, va, *pte);
 		PMAP_UNLOCK(pmap);
 		return (0);
 	}
-#else
-	if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D))
-		panic("pmap_emulate_modified: invalid pte");
-#endif
+
 	if (pte_test(pte, PTE_RO)) {
+		/*
+		 * This PTE is valid, not dirty, and read-only.  Go take a
+		 * full fault (most likely to upgrade this part of the address
+		 * space to writeable).
+		 */
 		PMAP_UNLOCK(pmap);
 		return (1);
 	}
-	pte_set(pte, PTE_D);
-	tlb_update(pmap, va, *pte);
+
 	if (!pte_test(pte, PTE_MANAGED))
 		panic("pmap_emulate_modified: unmanaged page");
+
+	/*
+	 * PTE is valid, managed, not dirty, and not read-only.  Set PTE_D
+	 * and eagerly update the local TLB, returning on the fast path.
+	 */
+
+	pte_set(pte, PTE_D);
+	tlb_update(pmap, va, *pte);
 	PMAP_UNLOCK(pmap);
+
 	return (0);
 }
 
