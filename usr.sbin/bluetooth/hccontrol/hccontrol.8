@@ -25,7 +25,7 @@
 .\" $Id: hccontrol.8,v 1.6 2003/08/06 21:26:38 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2015
+.Dd April 24, 2020
 .Dt HCCONTROL 8
 .Os
 .Sh NAME
@@ -133,6 +133,8 @@ are:
 .It Cm Write_Page_Scan_Period_Mode
 .It Cm Read_Page_Scan_Mode
 .It Cm Write_Page_Scan_Mode
+.It Cm Read_LE_Host_Support
+.It Cm Write_LE_Host_Support
 .It Cm Read_Local_Version_Information
 .It Cm Read_Local_Supported_Commands
 .It Cm Read_Local_Supported_Features
@@ -143,6 +145,15 @@ are:
 .It Cm Reset_Failed_Contact_Counter
 .It Cm Get_Link_Quality
 .It Cm Read_RSSI
+.It Cm LE_Read_Local_Supported_Features
+.It Cm LE_Set_Advertising_Parameters 
+.It Cm LE_Read_Advertising_Physical_Channel_Tx_Power 
+.It Cm LE_Set_Advertising_Data
+.It Cm LE_Set_Scan_Response_Data
+.It Cm LE_Set_Advertising_Enable
+.It Cm LE_Set_Scan_Parameters
+.It Cm LE_Set_Scan_Enable
+.It Cm LE_Read_Supported_States
 .El
 .Pp
 The currently supported node commands in
@@ -170,6 +181,18 @@ are:
 .It Cm Write_Node_Role_Switch
 .It Cm Read_Node_List
 .El
+.Sh EXAMPLES
+Make the blutooth LE host, ubt0hci, scannable through
+.Xr hccontrol 8 commands:
+.Pp
+.Bd -literal -offset indent
+hccontrol -n ubt0hci le_set_advertising_enable disable
+hccontrol -n ubt0hci le_set_advertising_param
+hccontrol -n ubt0hci le_read_advertising_channel_tx_power
+hccontrol -n ubt0hci le_set_advertising_data
+hccontrol -n ubt0hci le_set_scan_response -n FBSD_Host
+hccontrol -n ubt0hci le_set_advertising_enable enable
+.Ed
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
