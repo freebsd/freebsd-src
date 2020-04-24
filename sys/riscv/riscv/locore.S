@@ -287,7 +287,7 @@ ENTRY(mpentry)
 	li	t1, 4
 	mulw	t1, t1, a0
 	/* Get the pointer */
-	la	t0, __riscv_boot_ap
+	lla	t0, __riscv_boot_ap
 	add	t0, t0, t1
 
 1:
@@ -296,7 +296,7 @@ ENTRY(mpentry)
 	beqz	t1, 1b
 
 	/* Setup stack pointer */
-	la	t0, secondary_stacks
+	lla	t0, secondary_stacks
 	li	t1, (PAGE_SIZE * KSTACK_PAGES)
 	mulw	t2, t1, a0
 	add	t0, t0, t2
@@ -306,14 +306,14 @@ ENTRY(mpentry)
 	add	sp, t0, t1
 
 	/* Setup supervisor trap vector */
-	la	t0, mpva
+	lla	t0, mpva
 	sub	t0, t0, s9
 	li	t1, KERNBASE
 	add	t0, t0, t1
 	csrw	stvec, t0
 
 	/* Set page tables base register */
-	la	s2, pagetable_l1
+	lla	s2, pagetable_l1
 	srli	s2, s2, PAGE_SHIFT
 	li	t0, SATP_MODE_SV39
 	or	s2, s2, t0
