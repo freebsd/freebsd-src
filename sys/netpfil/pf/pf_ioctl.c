@@ -2163,7 +2163,7 @@ relock_DIOCKILLSTATES:
 		struct pfsync_state	*pstore, *p;
 		int i, nr;
 
-		if (ps->ps_len == 0) {
+		if (ps->ps_len <= 0) {
 			nr = uma_zone_get_cur(V_pf_state_z);
 			ps->ps_len = sizeof(struct pfsync_state) * nr;
 			break;
