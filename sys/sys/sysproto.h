@@ -3151,7 +3151,7 @@ int	freebsd12_closefrom(struct thread *, struct freebsd12_closefrom_args *);
 #define	SYS_AUE_shm_rename	AUE_SHMRENAME
 #define	SYS_AUE_sigfastblock	AUE_NULL
 #define	SYS_AUE___realpathat	AUE_REALPATHAT
-#define	SYS_AUE_close_range	AUE_NULL
+#define	SYS_AUE_close_range	AUE_CLOSERANGE
 
 #undef PAD_
 #undef PADL_
