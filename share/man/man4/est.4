@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2012
+.Dd April 21, 2020
 .Dt EST 4
 .Os
 .Sh NAME
@@ -66,7 +66,7 @@ Attempt to infer information from direct probing of the msr.
 Should only be used in diagnostic cases.
 .Pq default 0
 .It hw.est.strict
-Validate frequency requested is accepted by the cpu when set.
+Validate frequency requested is accepted by the CPU when set.
 It appears that this will only work on single core cpus.
 .Pq default 0
 .El
@@ -75,17 +75,17 @@ The following
 .Xr sysctl 8
 values are available
 .Bl -tag -width indent
-.It Va dev.est.%d.\%desc
+.It Va dev.est.%d.%desc
 Description of support, almost always Enhanced SpeedStep Frequency Control.
 .It dev.est.0.%desc: Enhanced SpeedStep Frequency Control
-.It Va dev.est.%d.\%driver
+.It Va dev.est.%d.%driver
 Driver in use, always est.
 .It dev.est.0.%driver: est
-.It Va dev.est.%d.\%parent
-.It dev.est.0.%parent: cpu0
-The cpu that is exposing these frequencies.
+.It Va dev.est.%d.%parent
+The CPU that is exposing these frequencies.
 For example
 .Va cpu0 .
+.It dev.est.0.%parent: cpu0
 .It Va dev.est.%d.freq_settings .
 The valid frequencies that are allowed by this CPU and their step values.
 .It dev.est.0.freq_settings: 2201/45000 2200/45000 2000/39581 1900/37387
