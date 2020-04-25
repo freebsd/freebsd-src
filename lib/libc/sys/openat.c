@@ -43,6 +43,7 @@ __sym_compat(openat, __impl_openat, FBSD_1.1);
 __weak_reference(openat, __impl_openat);
 __sym_default(openat, openat, FBSD_1.2);
 
+#pragma weak openat
 int
 openat(int fd, const char *path, int flags, ...)
 {
