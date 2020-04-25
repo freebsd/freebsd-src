@@ -1,12 +1,8 @@
-See https://www.openssh.com/releasenotes.html#7.8p1 for the release notes.
+See https://www.openssh.com/releasenotes.html#7.9p1 for the release notes.
 
 Please read https://www.openssh.com/report.html for bug reporting
 instructions and note that we do not use Github for bug reporting or
 patch/pull-request management.
-
-- A Japanese translation of this document and of the release notes is
-- available at https://www.unixuser.org/~haruyama/security/openssh/index.html
-- Thanks to HARUYAMA Seigo <haruyama@unixuser.org>
 
 This is the port of OpenBSD's excellent OpenSSH[0] to Linux and other
 Unices.
@@ -22,7 +18,7 @@ This port consists of the re-introduction of autoconf support, PAM
 support, EGD[1]/PRNGD[2] support and replacements for OpenBSD library
 functions that are (regrettably) absent from other unices. This port
 has been best tested on AIX, Cygwin, HP-UX, Linux, MacOS/X,
-NetBSD, OpenBSD, OpenServer, Solaris and UnixWare.
+FreeBSD, NetBSD, OpenBSD, OpenServer, Solaris and UnixWare.
 
 This version actively tracks changes in the OpenBSD CVS repository.
 

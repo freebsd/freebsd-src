@@ -28,6 +28,7 @@
 #define addargs					Fssh_addargs
 #define addr_match_cidr_list			Fssh_addr_match_cidr_list
 #define addr_match_list				Fssh_addr_match_list
+#define addr_netmask				Fssh_addr_netmask
 #define addr_netmatch				Fssh_addr_netmatch
 #define addr_pton_cidr				Fssh_addr_pton_cidr
 #define argv_assemble				Fssh_argv_assemble
@@ -61,6 +62,7 @@
 #define blf_ecb_encrypt				Fssh_blf_ecb_encrypt
 #define blf_enc					Fssh_blf_enc
 #define blf_key					Fssh_blf_key
+#define blob_section				Fssh_blob_section
 #define cert_free				Fssh_cert_free
 #define chacha_encrypt_bytes			Fssh_chacha_encrypt_bytes
 #define chacha_ivsetup				Fssh_chacha_ivsetup
@@ -77,6 +79,7 @@
 #define chan_rcvd_oclose			Fssh_chan_rcvd_oclose
 #define chan_read_failed			Fssh_chan_read_failed
 #define chan_send_eof2				Fssh_chan_send_eof2
+#define chan_shutdown_extended_read		Fssh_chan_shutdown_extended_read
 #define chan_shutdown_read			Fssh_chan_shutdown_read
 #define chan_shutdown_write			Fssh_chan_shutdown_write
 #define chan_write_failed			Fssh_chan_write_failed
@@ -99,6 +102,7 @@
 #define channel_decode_socks5			Fssh_channel_decode_socks5
 #define channel_disable_admin			Fssh_channel_disable_admin
 #define channel_find_open			Fssh_channel_find_open
+#define channel_format_extended_usage		Fssh_channel_format_extended_usage
 #define channel_free				Fssh_channel_free
 #define channel_free_all			Fssh_channel_free_all
 #define channel_fwd_bind_addr			Fssh_channel_fwd_bind_addr
@@ -312,7 +316,6 @@
 #define iptos2str				Fssh_iptos2str
 #define ipv64_normalise_mapped			Fssh_ipv64_normalise_mapped
 #define is_key_revoked				Fssh_is_key_revoked
-#define kdf					Fssh_kdf
 #define kex_alg_by_name				Fssh_kex_alg_by_name
 #define kex_alg_list				Fssh_kex_alg_list
 #define kex_assemble_names			Fssh_kex_assemble_names
@@ -415,6 +418,7 @@
 #define parse_uri				Fssh_parse_uri
 #define parse_user_host_path			Fssh_parse_user_host_path
 #define parse_user_host_port			Fssh_parse_user_host_port
+#define pem_passphrase_cb			Fssh_pem_passphrase_cb
 #define percent_expand				Fssh_percent_expand
 #define permission_set_add			Fssh_permission_set_add
 #define permitopen_port				Fssh_permitopen_port
@@ -538,6 +542,7 @@
 #define ssh_krl_revoke_key			Fssh_ssh_krl_revoke_key
 #define ssh_krl_revoke_key_explicit		Fssh_ssh_krl_revoke_key_explicit
 #define ssh_krl_revoke_key_sha1			Fssh_ssh_krl_revoke_key_sha1
+#define ssh_krl_revoke_key_sha256		Fssh_ssh_krl_revoke_key_sha256
 #define ssh_krl_set_comment			Fssh_ssh_krl_set_comment
 #define ssh_krl_set_version			Fssh_ssh_krl_set_version
 #define ssh_krl_to_blob				Fssh_ssh_krl_to_blob
@@ -706,6 +711,7 @@
 #define sshkey_cert_type			Fssh_sshkey_cert_type
 #define sshkey_certify				Fssh_sshkey_certify
 #define sshkey_certify_custom			Fssh_sshkey_certify_custom
+#define sshkey_check_cert_sigtype		Fssh_sshkey_check_cert_sigtype
 #define sshkey_check_revoked			Fssh_sshkey_check_revoked
 #define sshkey_check_sigtype			Fssh_sshkey_check_sigtype
 #define sshkey_curve_name_to_nid		Fssh_sshkey_curve_name_to_nid
@@ -745,7 +751,6 @@
 #define sshkey_load_public			Fssh_sshkey_load_public
 #define sshkey_names_valid2			Fssh_sshkey_names_valid2
 #define sshkey_new				Fssh_sshkey_new
-#define sshkey_new_private			Fssh_sshkey_new_private
 #define sshkey_parse_private2			Fssh_sshkey_parse_private2
 #define sshkey_parse_private_fileblob		Fssh_sshkey_parse_private_fileblob
 #define sshkey_parse_private_fileblob_type	Fssh_sshkey_parse_private_fileblob_type
@@ -840,6 +845,7 @@
 #define uudecode				Fssh_uudecode
 #define uuencode				Fssh_uuencode
 #define valid_domain				Fssh_valid_domain
+#define valid_env_name				Fssh_valid_env_name
 #define vasnmprintf				Fssh_vasnmprintf
 #define verbose					Fssh_verbose
 #define verify_host_key_dns			Fssh_verify_host_key_dns

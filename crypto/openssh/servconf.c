@@ -1,5 +1,5 @@
 
-/* $OpenBSD: servconf.c,v 1.340 2018/08/12 20:19:13 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.342 2018/09/20 23:40:16 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -147,6 +147,7 @@ initialize_server_options(ServerOptions *options)
 	options->ciphers = NULL;
 	options->macs = NULL;
 	options->kex_algorithms = NULL;
+	options->ca_sign_algorithms = NULL;
 	options->fwd_opts.gateway_ports = -1;
 	options->fwd_opts.streamlocal_bind_mask = (mode_t)-1;
 	options->fwd_opts.streamlocal_bind_unlink = -1;
@@ -194,13 +195,14 @@ option_clear_or_none(const char *o)
 static void
 assemble_algorithms(ServerOptions *o)
 {
-	char *all_cipher, *all_mac, *all_kex, *all_key;
+	char *all_cipher, *all_mac, *all_kex, *all_key, *all_sig;
 	int r;
 
 	all_cipher = cipher_alg_list(',', 0);
 	all_mac = mac_alg_list(',');
 	all_kex = kex_alg_list(',');
 	all_key = sshkey_alg_list(0, 0, 1, ',');
+	all_sig = sshkey_alg_list(0, 1, 1, ',');
 #define ASSEMBLE(what, defaults, all) \
 	do { \
 		if ((r = kex_assemble_names(&o->what, defaults, all)) != 0) \
@@ -212,11 +214,13 @@ assemble_algorithms(ServerOptions *o)
 	ASSEMBLE(hostkeyalgorithms, KEX_DEFAULT_PK_ALG, all_key);
 	ASSEMBLE(hostbased_key_types, KEX_DEFAULT_PK_ALG, all_key);
 	ASSEMBLE(pubkey_key_types, KEX_DEFAULT_PK_ALG, all_key);
+	ASSEMBLE(ca_sign_algorithms, SSH_ALLOWED_CA_SIGALGS, all_sig);
 #undef ASSEMBLE
 	free(all_cipher);
 	free(all_mac);
 	free(all_kex);
 	free(all_key);
+	free(all_sig);
 }
 
 static void
@@ -500,7 +504,7 @@ typedef enum {
 	sHostCertificate,
 	sRevokedKeys, sTrustedUserCAKeys, sAuthorizedPrincipalsFile,
 	sAuthorizedPrincipalsCommand, sAuthorizedPrincipalsCommandUser,
-	sKexAlgorithms, sIPQoS, sVersionAddendum,
+	sKexAlgorithms, sCASignatureAlgorithms, sIPQoS, sVersionAddendum,
 	sAuthorizedKeysCommand, sAuthorizedKeysCommandUser,
 	sAuthenticationMethods, sHostKeyAgent, sPermitUserRC,
 	sStreamLocalBindMask, sStreamLocalBindUnlink,
@@ -654,6 +658,7 @@ static struct {
 	{ "disableforwarding", sDisableForwarding, SSHCFG_ALL },
 	{ "exposeauthinfo", sExposeAuthInfo, SSHCFG_ALL },
 	{ "rdomain", sRDomain, SSHCFG_ALL },
+	{ "casignaturealgorithms", sCASignatureAlgorithms, SSHCFG_ALL },
 	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL },
 	{ "noneenabled", sUnsupported, SSHCFG_ALL },
 	{ "hpndisabled", sDeprecated, SSHCFG_ALL },
@@ -1448,6 +1453,10 @@ process_server_config_line(ServerOptions *options, char *line,
 
 	case sHostKeyAlgorithms:
 		charptr = &options->hostkeyalgorithms;
+		goto parse_keytypes;
+
+	case sCASignatureAlgorithms:
+		charptr = &options->ca_sign_algorithms;
 		goto parse_keytypes;
 
 	case sPubkeyAuthentication:
@@ -2625,6 +2634,8 @@ dump_config(ServerOptions *o)
 	dump_cfg_string(sHostKeyAgent, o->host_key_agent);
 	dump_cfg_string(sKexAlgorithms,
 	    o->kex_algorithms ? o->kex_algorithms : KEX_SERVER_KEX);
+	dump_cfg_string(sCASignatureAlgorithms, o->ca_sign_algorithms ?
+	    o->ca_sign_algorithms : SSH_ALLOWED_CA_SIGALGS);
 	dump_cfg_string(sHostbasedAcceptedKeyTypes, o->hostbased_key_types ?
 	    o->hostbased_key_types : KEX_DEFAULT_PK_ALG);
 	dump_cfg_string(sHostKeyAlgorithms, o->hostkeyalgorithms ?

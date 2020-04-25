@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.281 2018/07/20 05:01:10 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.282 2018/09/20 03:28:06 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: July 20 2018 $
+.Dd $Mdocdate: September 20 2018 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -383,6 +383,17 @@ If the argument is
 .Cm none
 then no banner is displayed.
 By default, no banner is displayed.
+.It Cm CASignatureAlgorithms
+Specifies which algorithms are allowed for signing of certificates
+by certificate authorities (CAs).
+The default is:
+.Bd -literal -offset indent
+ecdsa-sha2-nistp256.ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+.Ed
+.Pp
+Certificates signed using other algorithms will not be accepted for
+public key or host-based authentication.
 .It Cm ChallengeResponseAuthentication
 Specifies whether challenge-response authentication is allowed (e.g. via
 PAM or through authentication styles supported in

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.148 2018/08/08 01:16:01 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.150 2018/09/12 06:18:59 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: August 8 2018 $
+.Dd $Mdocdate: September 12 2018 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -814,7 +814,20 @@ option.
 Revokes the specified key.
 If a certificate is listed, then it is revoked as a plain public key.
 .It Cm sha1 : Ar public_key
-Revokes the specified key by its SHA1 hash.
+Revokes the specified key by including its SHA1 hash in the KRL.
+.It Cm sha256 : Ar public_key
+Revokes the specified key by including its SHA256 hash in the KRL.
+KRLs that revoke keys by SHA256 hash are not supported by OpenSSH versions
+prior to 7.9.
+.It Cm hash : Ar fingerprint
+Revokes a key using a fingerprint hash, as obtained from a
+.Xr sshd 8
+authentication log message or the
+.Nm
+.Fl l
+flag.
+Only SHA256 fingerprints are supported here and resultant KRLs are
+not supported by OpenSSH versions prior to 7.9.
 .El
 .Pp
 KRLs may be updated using the

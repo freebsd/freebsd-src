@@ -125,7 +125,7 @@ setproctitle(const char *fmt, ...)
 #if SPT_TYPE != SPT_NONE
 	va_list ap;
 	char buf[1024], ptitle[1024];
-	size_t len;
+	size_t len = 0;
 	int r;
 	extern char *__progname;
 #if SPT_TYPE == SPT_PSTAT
