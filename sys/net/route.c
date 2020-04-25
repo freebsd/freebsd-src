@@ -441,15 +441,18 @@ rtalloc_ign_fib(struct route *ro, u_long ignore, u_int fibnum)
 {
 	struct rtentry *rt;
 
-	if ((rt = ro->ro_rt) != NULL) {
-		if (rt->rt_ifp != NULL && rt->rt_flags & RTF_UP)
+	if (ro->ro_nh != NULL) {
+		if (NH_IS_VALID(ro->ro_nh))
 			return;
-		RTFREE(rt);
-		ro->ro_rt = NULL;
+		NH_FREE(ro->ro_nh);
+		ro->ro_nh = NULL;
 	}
-	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, fibnum);
-	if (ro->ro_rt)
-		RT_UNLOCK(ro->ro_rt);
+	rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, fibnum);
+	if (rt != NULL) {
+		ro->ro_nh = rt->rt_nhop;
+		nhop_ref_object(rt->rt_nhop);
+		RT_UNLOCK(rt);
+	}
 }
 
 /*

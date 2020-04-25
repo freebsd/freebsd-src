@@ -189,7 +189,7 @@ struct iterator_control {
 #define SCTP_ITERATOR_STOP_CUR_INP	0x00000008
 
 struct sctp_net_route {
-	sctp_rtentry_t *ro_rt;
+	struct nhop_object *ro_nh;
 	struct llentry *ro_lle;
 	char *ro_prepend;
 	uint16_t ro_plen;

@@ -32,6 +32,19 @@
 #ifndef _NETINET_IN_FIB_H_
 #define	_NETINET_IN_FIB_H_
 
+struct route_in {
+	/* common fields shared among all 'struct route' */
+	struct nhop_object *ro_nh;
+	struct	llentry *ro_lle;
+	char		*ro_prepend;
+	uint16_t	ro_plen;
+	uint16_t	ro_flags;
+	uint16_t	ro_mtu;	/* saved ro_rt mtu */
+	uint16_t	spare;
+	/* custom sockaddr */
+	struct sockaddr_in ro_dst4;
+};
+
 /* Basic nexthop info used for uRPF/mtu checks */
 struct nhop4_basic {
 	struct ifnet	*nh_ifp;	/* Logical egress interface */

@@ -62,6 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_fib.h>
 
 #ifdef INET
+
+/* Verify struct route compatiblity */
+/* Assert 'struct route_in' is compatible with 'struct route' */
+CHK_STRUCT_ROUTE_COMPAT(struct route_in, ro_dst4);
 static void fib4_rte_to_nh_basic(struct nhop_object *nh, struct in_addr dst,
     uint32_t flags, struct nhop4_basic *pnh4);
 static void fib4_rte_to_nh_extended(struct nhop_object *nh, struct in_addr dst,

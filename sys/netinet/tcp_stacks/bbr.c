@@ -5601,8 +5601,8 @@ bbr_update_hardware_pacing_rate(struct tcp_bbr *bbr, uint32_t cts)
 
 	if (bbr->r_ctl.crte == NULL)
 		return;
-	if ((bbr->rc_inp->inp_route.ro_rt == NULL) ||
-	    (bbr->rc_inp->inp_route.ro_rt->rt_ifp == NULL)) {
+	if ((bbr->rc_inp->inp_route.ro_nh == NULL) ||
+	    (bbr->rc_inp->inp_route.ro_nh->nh_ifp == NULL)) {
 		/* Lost our routes? */
 		/* Clear the way for a re-attempt */
 		bbr->bbr_attempt_hdwr_pace = 0;
@@ -5618,7 +5618,7 @@ lost_rate:
 	rate = bbr_get_hardware_rate(bbr);
 	nrte = tcp_chg_pacing_rate(bbr->r_ctl.crte,
 				   bbr->rc_tp,
-				   bbr->rc_inp->inp_route.ro_rt->rt_ifp,
+				   bbr->rc_inp->inp_route.ro_nh->nh_ifp,
 				   rate,
 				   (RS_PACING_GEQ|RS_PACING_SUB_OK),
 				   &error);
@@ -13975,8 +13975,8 @@ send:
 		    ((rsm || sack_rxmit) ? IP_NO_SND_TAG_RL : 0),
 		    NULL, NULL, inp);
 
-		if (error == EMSGSIZE && inp->inp_route6.ro_rt != NULL)
-			mtu = inp->inp_route6.ro_rt->rt_mtu;
+		if (error == EMSGSIZE && inp->inp_route6.ro_nh != NULL)
+			mtu = inp->inp_route6.ro_nh->nh_mtu;
 	}
 #endif				/* INET6 */
 #if defined(INET) && defined(INET6)
@@ -14016,8 +14016,8 @@ send:
 		error = ip_output(m, inp->inp_options, &inp->inp_route,
 		    ((rsm || sack_rxmit) ? IP_NO_SND_TAG_RL : 0), 0,
 		    inp);
-		if (error == EMSGSIZE && inp->inp_route.ro_rt != NULL)
-			mtu = inp->inp_route.ro_rt->rt_mtu;
+		if (error == EMSGSIZE && inp->inp_route.ro_nh != NULL)
+			mtu = inp->inp_route.ro_nh->nh_mtu;
 	}
 #endif				/* INET */
 out:
@@ -14302,8 +14302,8 @@ nomore:
 	    (bbr->rc_past_init_win) &&
 	    (bbr->rc_bbr_state != BBR_STATE_STARTUP) &&
 	    (get_filter_value(&bbr->r_ctl.rc_delrate)) &&
-	    (inp->inp_route.ro_rt &&
-	     inp->inp_route.ro_rt->rt_ifp)) {
+	    (inp->inp_route.ro_nh &&
+	     inp->inp_route.ro_nh->nh_ifp)) {
 		/*
 		 * We are past the initial window and
 		 * have at least one measurement so we
@@ -14317,7 +14317,7 @@ nomore:
 		rate_wanted = bbr_get_hardware_rate(bbr);
 		bbr->bbr_attempt_hdwr_pace = 1;
 		bbr->r_ctl.crte = tcp_set_pacing_rate(bbr->rc_tp,
-						      inp->inp_route.ro_rt->rt_ifp,
+						      inp->inp_route.ro_nh->nh_ifp,
 						      rate_wanted,
 						      (RS_PACING_GEQ|RS_PACING_SUB_OK),
 						      &err);
@@ -14344,7 +14344,7 @@ nomore:
 			tcp_bbr_tso_size_check(bbr, cts);
 		} else {
 			bbr_type_log_hdwr_pacing(bbr,
-						 inp->inp_route.ro_rt->rt_ifp,
+						 inp->inp_route.ro_nh->nh_ifp,
 						 rate_wanted,
 						 0,
 						 __LINE__, cts, err);
@@ -14361,8 +14361,8 @@ nomore:
 		if (inp->inp_snd_tag == NULL) {
 			/* A change during ip output disabled hw pacing? */
 			bbr->bbr_hdrw_pacing = 0;
-		} else if ((inp->inp_route.ro_rt == NULL) ||
-		    (inp->inp_route.ro_rt->rt_ifp != inp->inp_snd_tag->ifp)) {
+		} else if ((inp->inp_route.ro_nh == NULL) ||
+		    (inp->inp_route.ro_nh->nh_ifp != inp->inp_snd_tag->ifp)) {
 			/*
 			 * We had an interface or route change,
 			 * detach from the current hdwr pacing
