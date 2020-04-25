@@ -395,6 +395,8 @@ g_free(void *ptr)
 		sx_xunlock(&topology_lock);			\
 	} while (0)
 
+#define g_topology_locked()	sx_xlocked(&topology_lock)
+
 #define g_topology_assert()					\
 	do {							\
 		sx_assert(&topology_lock, SX_XLOCKED);		\
