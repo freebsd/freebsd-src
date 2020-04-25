@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/vnet.h>
 
 #define TCPSTATES		/* for logging */
@@ -9778,8 +9779,8 @@ send:
 		    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0),
 		    NULL, NULL, inp);
 
-		if (error == EMSGSIZE && inp->inp_route6.ro_rt != NULL)
-			mtu = inp->inp_route6.ro_rt->rt_mtu;
+		if (error == EMSGSIZE && inp->inp_route6.ro_nh != NULL)
+			mtu = inp->inp_route6.ro_nh->nh_mtu;
 	}
 #endif				/* INET6 */
 #if defined(INET) && defined(INET6)
@@ -9819,8 +9820,8 @@ send:
 		error = ip_output(m, tp->t_inpcb->inp_options, &inp->inp_route,
 		    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
 		    inp);
-		if (error == EMSGSIZE && inp->inp_route.ro_rt != NULL)
-			mtu = inp->inp_route.ro_rt->rt_mtu;
+		if (error == EMSGSIZE && inp->inp_route.ro_nh != NULL)
+			mtu = inp->inp_route.ro_nh->nh_mtu;
 	}
 #endif				/* INET */
 
