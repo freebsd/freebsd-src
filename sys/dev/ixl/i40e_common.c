@@ -383,13 +383,14 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
  **/
 bool i40e_check_asq_alive(struct i40e_hw *hw)
 {
-	if (hw->aq.asq.len)
+	if (hw->aq.asq.len) {
 		if (!i40e_is_vf(hw))
 			return !!(rd32(hw, hw->aq.asq.len) &
 				I40E_PF_ATQLEN_ATQENABLE_MASK);
-		if (i40e_is_vf(hw))
+		else
 			return !!(rd32(hw, hw->aq.asq.len) &
 				I40E_VF_ATQLEN1_ATQENABLE_MASK);
+	}
 	return FALSE;
 }
 
