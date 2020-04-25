@@ -491,6 +491,7 @@ le_set_advertising_data(int s, int argc, char *argv[])
 	parse_param(argc, argv, buf, &len);
 	memset(cp.advertising_data, 0, sizeof(cp.advertising_data));
 	cp.advertising_data_length = len;
+	memcpy(cp.advertising_data, buf, len);
 
 	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
 		NG_HCI_OCF_LE_SET_ADVERTISING_DATA), 
