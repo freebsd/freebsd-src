@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
@@ -78,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_rss.h>
 #include <netinet/in_var.h>
@@ -287,6 +289,19 @@ done:
 	return (error);
 }
 
+/* rte<>ro_flags translation */
+static inline void
+rt_update_ro_flags(struct route *ro)
+{
+	int nh_flags = ro->ro_nh->nh_flags;
+
+	ro->ro_flags &= ~ (RT_REJECT|RT_BLACKHOLE|RT_HAS_GW);
+
+	ro->ro_flags |= (nh_flags & NHF_REJECT) ? RT_REJECT : 0;
+	ro->ro_flags |= (nh_flags & NHF_BLACKHOLE) ? RT_BLACKHOLE : 0;
+	ro->ro_flags |= (nh_flags & NHF_GATEWAY) ? RT_HAS_GW : 0;
+}
+
 /*
  * IP output.  The packet in mbuf chain m contains a skeletal IP
  * header (with len, off, ttl, proto, tos, src, dst).
@@ -368,7 +383,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		dst = (struct sockaddr_in *)&ro->ro_dst;
 	else
 		dst = &sin;
-	if (ro == NULL || ro->ro_rt == NULL) {
+	if (ro == NULL || ro->ro_nh == NULL) {
 		bzero(dst, sizeof(*dst));
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
@@ -380,8 +395,8 @@ again:
 	 * Validate route against routing table additions;
 	 * a better/more specific route might have been added.
 	 */
-	if (inp != NULL && ro != NULL && ro->ro_rt != NULL)
-		RT_VALIDATE(ro, &inp->inp_rt_cookie, fibnum);
+	if (inp != NULL && ro != NULL && ro->ro_nh != NULL)
+		NH_VALIDATE(ro, &inp->inp_rt_cookie, fibnum);
 	/*
 	 * If there is a cached route,
 	 * check that it is to the same destination
@@ -390,9 +405,8 @@ again:
 	 * cache with IPv6.
 	 * Also check whether routing cache needs invalidation.
 	 */
-	if (ro != NULL && ro->ro_rt != NULL &&
-	    ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
-	    ro->ro_rt->rt_ifp == NULL || !RT_LINK_IS_UP(ro->ro_rt->rt_ifp) ||
+	if (ro != NULL && ro->ro_nh != NULL &&
+	    ((!NH_IS_VALID(ro->ro_nh)) || !RT_LINK_IS_UP(ro->ro_nh->nh_ifp) ||
 	    dst->sin_family != AF_INET ||
 	    dst->sin_addr.s_addr != ip->ip_dst.s_addr))
 		RO_INVALIDATE_CACHE(ro);
@@ -450,7 +464,7 @@ again:
 		else
 			src.s_addr = INADDR_ANY;
 	} else if (ro != NULL) {
-		if (ro->ro_rt == NULL) {
+		if (ro->ro_nh == NULL) {
 			/*
 			 * We want to do any cloning requested by the link
 			 * layer, as this is probably required in all cases
@@ -461,12 +475,11 @@ again:
 			    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr),
 			    fibnum);
 #else
-			in_rtalloc_ign(ro, 0, fibnum);
+			ro->ro_nh = fib4_lookup(fibnum, dst->sin_addr, 0,
+			    NHR_REF, m->m_pkthdr.flowid);
 #endif
-			if (ro->ro_rt == NULL ||
-			    (ro->ro_rt->rt_flags & RTF_UP) == 0 ||
-			    ro->ro_rt->rt_ifp == NULL ||
-			    !RT_LINK_IS_UP(ro->ro_rt->rt_ifp)) {
+			if (ro->ro_nh == NULL || (!NH_IS_VALID(ro->ro_nh)) ||
+			    !RT_LINK_IS_UP(ro->ro_nh->nh_ifp)) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 				/*
 				 * There is no route for this packet, but it is
@@ -481,20 +494,20 @@ again:
 				goto bad;
 			}
 		}
-		ia = ifatoia(ro->ro_rt->rt_ifa);
-		ifp = ro->ro_rt->rt_ifp;
-		counter_u64_add(ro->ro_rt->rt_pksent, 1);
+		ia = ifatoia(ro->ro_nh->nh_ifa);
+		ifp = ro->ro_nh->nh_ifp;
+		counter_u64_add(ro->ro_nh->nh_pksent, 1);
 		rt_update_ro_flags(ro);
-		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
-			gw = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
-		if (ro->ro_rt->rt_flags & RTF_HOST)
-			isbroadcast = (ro->ro_rt->rt_flags & RTF_BROADCAST);
+		if (ro->ro_nh->nh_flags & NHF_GATEWAY)
+			gw = &ro->ro_nh->gw4_sa;
+		if (ro->ro_nh->nh_flags & NHF_HOST)
+			isbroadcast = (ro->ro_nh->nh_flags & NHF_BROADCAST);
 		else if (ifp->if_flags & IFF_BROADCAST)
 			isbroadcast = in_ifaddr_broadcast(gw->sin_addr, ia);
 		else
 			isbroadcast = 0;
-		if (ro->ro_rt->rt_flags & RTF_HOST)
-			mtu = ro->ro_rt->rt_mtu;
+		if (ro->ro_nh->nh_flags & NHF_HOST)
+			mtu = ro->ro_nh->nh_mtu;
 		else
 			mtu = ifp->if_mtu;
 		src = IA_SIN(ia)->sin_addr;
@@ -537,9 +550,9 @@ again:
 	}
 
 	/* Catch a possible divide by zero later. */
-	KASSERT(mtu > 0, ("%s: mtu %d <= 0, ro=%p (rt_flags=0x%08x) ifp=%p",
+	KASSERT(mtu > 0, ("%s: mtu %d <= 0, ro=%p (nh_flags=0x%08x) ifp=%p",
 	    __func__, mtu, ro,
-	    (ro != NULL && ro->ro_rt != NULL) ? ro->ro_rt->rt_flags : 0, ifp));
+	    (ro != NULL && ro->ro_nh != NULL) ? ro->ro_nh->nh_flags : 0, ifp));
 
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
@@ -702,7 +715,7 @@ sendit:
 		case -1: /* Need to try again */
 			/* Reset everything for a new round */
 			if (ro != NULL) {
-				RO_RTFREE(ro);
+				RO_NHFREE(ro);
 				ro->ro_prepend = NULL;
 			}
 			gw = dst;

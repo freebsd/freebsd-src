@@ -51,7 +51,7 @@
  * with its length.
  */
 struct route {
-	struct	rtentry *ro_rt;
+	struct	nhop_object *ro_nh;
 	struct	llentry *ro_lle;
 	/*
 	 * ro_prepend and ro_plen are only used for bpf to pass in a
@@ -226,21 +226,6 @@ struct rtentry {
 
 /* Control plane route request flags */
 #define	NHR_COPY		0x100	/* Copy rte data */
-
-#ifdef _KERNEL
-/* rte<>ro_flags translation */
-static inline void
-rt_update_ro_flags(struct route *ro)
-{
-	int rt_flags = ro->ro_rt->rt_flags;
-
-	ro->ro_flags &= ~ (RT_REJECT|RT_BLACKHOLE|RT_HAS_GW);
-
-	ro->ro_flags |= (rt_flags & RTF_REJECT) ? RT_REJECT : 0;
-	ro->ro_flags |= (rt_flags & RTF_BLACKHOLE) ? RT_BLACKHOLE : 0;
-	ro->ro_flags |= (rt_flags & RTF_GATEWAY) ? RT_HAS_GW : 0;
-}
-#endif
 
 /*
  * Routing statistics.
@@ -431,11 +416,21 @@ struct rt_addrinfo {
 		RTFREE((_ro)->ro_rt);				\
 } while (0)
 
+#define	RO_NHFREE(_ro) do {					\
+	if ((_ro)->ro_nh) {					\
+		NH_FREE((_ro)->ro_nh);				\
+		(_ro)->ro_nh = NULL;				\
+	}							\
+} while (0)
+
 #define	RO_INVALIDATE_CACHE(ro) do {					\
-		RO_RTFREE(ro);						\
 		if ((ro)->ro_lle != NULL) {				\
 			LLE_FREE((ro)->ro_lle);				\
 			(ro)->ro_lle = NULL;				\
+		}							\
+		if ((ro)->ro_nh != NULL) {				\
+			NH_FREE((ro)->ro_nh);				\
+			(ro)->ro_nh = NULL;				\
 		}							\
 	} while (0)
 
@@ -444,7 +439,7 @@ struct rt_addrinfo {
  * out-of-date cache, simply free it.  Update the generation number
  * for the new allocation
  */
-#define RT_VALIDATE(ro, cookiep, fibnum) do {				\
+#define NH_VALIDATE(ro, cookiep, fibnum) do {				\
 	rt_gen_t cookie = RT_GEN(fibnum, (ro)->ro_dst.sa_family);	\
 	if (*(cookiep) != cookie) {					\
 		RO_INVALIDATE_CACHE(ro);				\
