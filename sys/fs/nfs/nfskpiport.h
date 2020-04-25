@@ -43,13 +43,9 @@ typedef struct vnode *		vnode_t;
 #define	vnode_mount(v)		((v)->v_mount)
 #define	vnode_vtype(v)		((v)->v_type)
 
-typedef struct mbuf *		mbuf_t;
-
 /*
  * This stuff is needed by Darwin for handling the uio structure.
  */
-#define	CAST_USER_ADDR_T(a)	(a)
-#define	CAST_DOWN(c, a)		((c) (a))
 #define	uio_uio_resid(p)	((p)->uio_resid)
 #define	uio_uio_resid_add(p, v)	((p)->uio_resid += (v))
 #define	uio_uio_resid_set(p, v)	((p)->uio_resid = (v))
