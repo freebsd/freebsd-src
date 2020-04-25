@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <net/nhop.h>
 #include <net/rss_config.h>
 #endif
+#include <net/route.h>
+#include <net/route/nhop.h>
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
