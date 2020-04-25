@@ -1257,11 +1257,12 @@ emu_intr(void *data)
 #endif
 		}
 
-	    if (stat & EMU_IPR_MIDIRECVBUFE)
-		if (sc->mpu_intr) {
-		    (sc->mpu_intr)(sc->mpu);
-		    ack |= EMU_IPR_MIDIRECVBUFE | EMU_IPR_MIDITRANSBUFE;
- 		}
+		if (stat & EMU_IPR_MIDIRECVBUFE) {
+			if (sc->mpu_intr) {
+				(sc->mpu_intr)(sc->mpu);
+				ack |= EMU_IPR_MIDIRECVBUFE | EMU_IPR_MIDITRANSBUFE;
+			}
+		}
 		if (stat & ~ack)
 			device_printf(sc->dev, "dodgy irq: %x (harmless)\n",
 			    stat & ~ack);
