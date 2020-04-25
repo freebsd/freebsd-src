@@ -2876,7 +2876,7 @@ install_delete () {
 	rm newfiles killfiles
 }
 
-# Install new files, delete old files, and update linker.hints
+# Install new files, delete old files, and update generated files
 install_files () {
 	# If we haven't already dealt with the kernel, deal with it.
 	if ! [ -f $1/kerneldone ]; then
@@ -2943,6 +2943,11 @@ Kernel updates have been installed.  Please reboot and run
 		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 		install_delete INDEX-OLD INDEX-NEW || return 1
+
+		# Rehash certs if we actually have certctl installed.
+		if which certctl>/dev/null; then
+			env DESTDIR=${BASEDIR} certctl rehash
+		fi
 
 		# Rebuild generated pwd files.
 		if [ ${BASEDIR}/etc/master.passwd -nt ${BASEDIR}/etc/spwd.db ] ||
