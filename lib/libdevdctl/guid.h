@@ -70,9 +70,6 @@ public:
 	Guid(const std::string &guid);
 	static Guid InvalidGuid();
 
-	/* Assignment */
-	Guid& operator=(const Guid& rhs);
-
 	/* Test the validity of this guid. */
 	bool IsValid()			 const;
 
@@ -108,13 +105,6 @@ inline Guid
 Guid::InvalidGuid()
 {
 	return (Guid(INVALID_GUID));
-}
-
-inline Guid&
-Guid::operator=(const Guid &rhs)
-{
-	m_GUID = rhs.m_GUID;
-	return (*this);
 }
 
 inline bool
