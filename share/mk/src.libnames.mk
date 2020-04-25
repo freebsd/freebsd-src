@@ -41,6 +41,7 @@ _INTERNALLIBS=	\
 		fifolog \
 		ipf \
 		lpr \
+		lua \
 		netbsd \
 		ntp \
 		ntpevent \
@@ -293,6 +294,7 @@ _DP_memstat=	kvm
 _DP_magic=	z
 _DP_mt=		sbuf bsdxml
 _DP_ldns=	ssl crypto
+_DP_lua=	m
 .if ${MK_OPENSSL} != "no"
 _DP_fetch=	ssl crypto
 .else
@@ -464,6 +466,9 @@ LDADD+=		${LDADD_${_l}}
 # INTERNALLIB definitions.
 LIBELFTCDIR=	${OBJTOP}/lib/libelftc
 LIBELFTC?=	${LIBELFTCDIR}/libelftc${PIE_SUFFIX}.a
+
+LIBLUADIR=	${OBJTOP}/lib/liblua
+LIBLUA?=	${LIBLUADIR}/liblua${PIE_SUFFIX}.a
 
 LIBPEDIR=	${OBJTOP}/lib/libpe
 LIBPE?=		${LIBPEDIR}/libpe${PIE_SUFFIX}.a
