@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kern_prefetch.h>
 
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/vnet.h>
 
 #define TCPSTATES		/* for logging */
