@@ -932,7 +932,28 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	/* Find syscon */
 	syscon = sc->conf->get_syscon(sc, bank);
 
-	/* Parse pin function */
+	/* Setup GPIO properties first */
+	rv = rk_pinctrl_handle_io(sc, pin_conf, bank, pin);
+
+	/* Then pin pull-up/down */
+	bias = sc->conf->parse_bias(pin_conf, bank);
+	if (bias >= 0) {
+		reg = sc->conf->get_pd_offset(sc, bank);
+		reg += bank * 0x10 + ((pin / 8) * 0x4);
+		bit = (pin % 8) * 2;
+		mask = (0x3 << bit);
+		SYSCON_MODIFY_4(syscon, reg, mask, bias << bit | (mask << 16));
+	}
+
+	/* Then drive strength */
+	rv = rk_pinctrl_parse_drive(sc, pin_conf, bank, subbank, &drive, &reg);
+	if (rv == 0) {
+		bit = (pin % 8) * 2;
+		mask = (0x3 << bit);
+		SYSCON_MODIFY_4(syscon, reg, mask, drive << bit | (mask << 16));
+	}
+
+	/* Finally set the pin function */
 	reg = sc->conf->iomux_conf[i].offset;
 	switch (sc->conf->iomux_conf[i].nbits) {
 	case 4:
@@ -966,28 +987,6 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	 * without hi-word write mask.
 	 */
 	SYSCON_MODIFY_4(syscon, reg, mask, function << bit | (mask << 16));
-
-	/* Pull-Up/Down */
-	bias = sc->conf->parse_bias(pin_conf, bank);
-	if (bias >= 0) {
-		reg = sc->conf->get_pd_offset(sc, bank);
-
-		reg += bank * 0x10 + ((pin / 8) * 0x4);
-		bit = (pin % 8) * 2;
-		mask = (0x3 << bit);
-		SYSCON_MODIFY_4(syscon, reg, mask, bias << bit | (mask << 16));
-	}
-
-	/* Drive Strength */
-	rv = rk_pinctrl_parse_drive(sc, pin_conf, bank, subbank, &drive, &reg);
-	if (rv == 0) {
-		bit = (pin % 8) * 2;
-		mask = (0x3 << bit);
-		SYSCON_MODIFY_4(syscon, reg, mask, drive << bit | (mask << 16));
-	}
-
-	/* Input/Outpot + default level */
-	rv = rk_pinctrl_handle_io(sc, pin_conf, bank, pin);
 }
 
 static int
