@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/rss_config.h>
 
 #include <netinet/in.h>
@@ -761,9 +762,9 @@ udp_notify(struct inpcb *inp, int errno)
 
 	INP_WLOCK_ASSERT(inp);
 	if ((errno == EHOSTUNREACH || errno == ENETUNREACH ||
-	     errno == EHOSTDOWN) && inp->inp_route.ro_rt) {
-		RTFREE(inp->inp_route.ro_rt);
-		inp->inp_route.ro_rt = (struct rtentry *)NULL;
+	     errno == EHOSTDOWN) && inp->inp_route.ro_nh) {
+		NH_FREE(inp->inp_route.ro_nh);
+		inp->inp_route.ro_nh = (struct nhop_object *)NULL;
 	}
 
 	inp->inp_socket->so_error = errno;

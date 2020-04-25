@@ -375,8 +375,9 @@ extern const struct in6_addr in6addr_linklocal_allv2routers;
  * IP6 route structure
  */
 #if __BSD_VISIBLE
+struct nhop_object;
 struct route_in6 {
-	struct	rtentry *ro_rt;
+	struct nhop_object *ro_nh;
 	struct	llentry *ro_lle;
 	/*
 	 * ro_prepend and ro_plen are only used for bpf to pass in a

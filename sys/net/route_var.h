@@ -80,7 +80,7 @@ _Static_assert(__offsetof(_s1, _f1) == __offsetof(_s2, _f2),		\
 	CHK_STRUCT_FIELD_GENERIC(struct route, _field, _route_new, _field)
 
 #define CHK_STRUCT_ROUTE_FIELDS(_route_new)	\
-	_CHK_ROUTE_FIELD(_route_new, ro_rt)	\
+	_CHK_ROUTE_FIELD(_route_new, ro_nh)	\
 	_CHK_ROUTE_FIELD(_route_new, ro_lle)	\
 	_CHK_ROUTE_FIELD(_route_new, ro_prepend)\
 	_CHK_ROUTE_FIELD(_route_new, ro_plen)	\

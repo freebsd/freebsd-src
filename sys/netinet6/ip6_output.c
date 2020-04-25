@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/pfil.h>
 #include <net/rss_config.h>
 #include <net/vnet.h>
@@ -403,9 +404,9 @@ done:
  * This function may modify ver and hlim only.
  * The mbuf chain containing the packet will be freed.
  * The mbuf opt, if present, will not be freed.
- * If route_in6 ro is present and has ro_rt initialized, route lookup would be
- * skipped and ro->ro_rt would be used. If ro is present but ro->ro_rt is NULL,
- * then result of route lookup is stored in ro->ro_rt.
+ * If route_in6 ro is present and has ro_nh initialized, route lookup would be
+ * skipped and ro->ro_nh would be used. If ro is present but ro->ro_nh is NULL,
+ * then result of route lookup is stored in ro->ro_nh.
  *
  * Type of "mtu": rt_mtu is u_long, ifnet.ifr_mtu is int, and nd_ifinfo.linkmtu
  * is uint32_t.  So we use u_long to hold largest one, which is rt_mtu.
@@ -425,7 +426,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct mbuf *m = m0;
 	struct mbuf *mprev;
 	struct route_in6 *ro_pmtu;
-	struct rtentry *rt;
+	struct nhop_object *nh;
 	struct sockaddr_in6 *dst, sin6, src_sa, dst_sa;
 	struct in6_addr odst;
 	u_char *nexthdrp;
@@ -666,7 +667,7 @@ again:
 			ip6->ip6_hlim = V_ip6_defmcasthlim;
 	}
 
-	if (ro == NULL || ro->ro_rt == NULL) {
+	if (ro == NULL || ro->ro_nh == NULL) {
 		bzero(dst, sizeof(*dst));
 		dst->sin6_family = AF_INET6;
 		dst->sin6_len = sizeof(*dst);
@@ -676,29 +677,26 @@ again:
 	 * Validate route against routing table changes.
 	 * Make sure that the address family is set in route.
 	 */
-	rt = NULL;
+	nh = NULL;
 	ifp = NULL;
 	mtu = 0;
 	if (ro != NULL) {
-		if (ro->ro_rt != NULL && inp != NULL) {
+		if (ro->ro_nh != NULL && inp != NULL) {
 			ro->ro_dst.sin6_family = AF_INET6; /* XXX KASSERT? */
-			RT_VALIDATE((struct route *)ro, &inp->inp_rt_cookie,
+			NH_VALIDATE((struct route *)ro, &inp->inp_rt_cookie,
 			    fibnum);
 		}
-		if (ro->ro_rt != NULL && fwd_tag == NULL &&
-		    ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
-		    ro->ro_rt->rt_ifp == NULL ||
-		    !RT_LINK_IS_UP(ro->ro_rt->rt_ifp) ||
+		if (ro->ro_nh != NULL && fwd_tag == NULL &&
+		    (!NH_IS_VALID(ro->ro_nh) ||
 		    ro->ro_dst.sin6_family != AF_INET6 ||
 		    !IN6_ARE_ADDR_EQUAL(&ro->ro_dst.sin6_addr, &ip6->ip6_dst)))
 			RO_INVALIDATE_CACHE(ro);
 
-		if (ro->ro_rt != NULL && fwd_tag == NULL &&
-		    (ro->ro_rt->rt_flags & RTF_UP) &&
+		if (ro->ro_nh != NULL && fwd_tag == NULL &&
 		    ro->ro_dst.sin6_family == AF_INET6 &&
 		    IN6_ARE_ADDR_EQUAL(&ro->ro_dst.sin6_addr, &ip6->ip6_dst)) {
-			rt = ro->ro_rt;
-			ifp = ro->ro_rt->rt_ifp;
+			nh = ro->ro_nh;
+			ifp = nh->nh_ifp;
 		} else {
 			if (ro->ro_lle)
 				LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
@@ -710,7 +708,7 @@ again:
 				dst_sa.sin6_addr = ip6->ip6_dst;
 			}
 			error = in6_selectroute(&dst_sa, opt, im6o, ro, &ifp,
-			    &rt, fibnum);
+			    &nh, fibnum, m->m_pkthdr.flowid);
 			if (error != 0) {
 				IP6STAT_INC(ip6s_noroute);
 				if (ifp != NULL)
@@ -720,17 +718,17 @@ again:
 			if (ifp != NULL)
 			    mtu = ifp->if_mtu;
 		}
-		if (rt == NULL) {
+		if (nh == NULL) {
 			/*
-			 * If in6_selectroute() does not return a route entry
+			 * If in6_selectroute() does not return a nexthop
 			 * dst may not have been updated.
 			 */
 			*dst = dst_sa;	/* XXX */
 		} else {
-			if (rt->rt_flags & RTF_HOST)
-			    mtu = rt->rt_mtu;
-			ia = (struct in6_ifaddr *)(rt->rt_ifa);
-			counter_u64_add(rt->rt_pksent, 1);
+			if (nh->nh_flags & NHF_HOST)
+			    mtu = nh->nh_mtu;
+			ia = (struct in6_ifaddr *)(nh->nh_ifa);
+			counter_u64_add(nh->nh_pksent, 1);
 		}
 	} else {
 		struct nhop6_extended nh6;
@@ -781,7 +779,7 @@ nonh6lookup:
 		;
 	}
 
-	/* Then rt (for unicast) and ifp must be non-NULL valid values. */
+	/* Then nh (for unicast) and ifp must be non-NULL valid values. */
 	if ((flags & IPV6_FORWARDING) == 0) {
 		/* XXX: the FORWARDING flag can be set for mrouting. */
 		in6_ifstat_inc(ifp, ifs6_out_request);
@@ -852,8 +850,8 @@ nonh6lookup:
 	}
 	/* All scope ID checks are successful. */
 
-	if (rt && !IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		if (opt && opt->ip6po_nextroute.ro_rt) {
+	if (nh && !IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+		if (opt && opt->ip6po_nextroute.ro_nh) {
 			/*
 			 * The nexthop is explicitly specified by the
 			 * application.  We assume the next hop is an IPv6
@@ -861,8 +859,8 @@ nonh6lookup:
 			 */
 			dst = (struct sockaddr_in6 *)opt->ip6po_nexthop;
 		}
-		else if ((rt->rt_flags & RTF_GATEWAY))
-			dst = (struct sockaddr_in6 *)rt->rt_gateway;
+		else if ((nh->nh_flags & NHF_GATEWAY))
+			dst = &nh->gw6_sa;
 	}
 
 	if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
@@ -1517,8 +1515,8 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
 			mtu = ro_pmtu->ro_mtu;
 	}
 
-	if (ro_pmtu != NULL && ro_pmtu->ro_rt != NULL)
-		mtu = ro_pmtu->ro_rt->rt_mtu;
+	if (ro_pmtu != NULL && ro_pmtu->ro_nh != NULL)
+		mtu = ro_pmtu->ro_nh->nh_mtu;
 
 	return (ip6_calcmtu(ifp, dst, mtu, mtup, alwaysfragp, proto));
 }
@@ -2651,9 +2649,9 @@ ip6_clearpktopts(struct ip6_pktopts *pktopt, int optname)
 	if (optname == -1 || optname == IPV6_TCLASS)
 		pktopt->ip6po_tclass = -1;
 	if (optname == -1 || optname == IPV6_NEXTHOP) {
-		if (pktopt->ip6po_nextroute.ro_rt) {
-			RTFREE(pktopt->ip6po_nextroute.ro_rt);
-			pktopt->ip6po_nextroute.ro_rt = NULL;
+		if (pktopt->ip6po_nextroute.ro_nh) {
+			NH_FREE(pktopt->ip6po_nextroute.ro_nh);
+			pktopt->ip6po_nextroute.ro_nh = NULL;
 		}
 		if (pktopt->ip6po_nexthop)
 			free(pktopt->ip6po_nexthop, M_IP6OPT);
@@ -2673,9 +2671,9 @@ ip6_clearpktopts(struct ip6_pktopts *pktopt, int optname)
 		if (pktopt->ip6po_rhinfo.ip6po_rhi_rthdr)
 			free(pktopt->ip6po_rhinfo.ip6po_rhi_rthdr, M_IP6OPT);
 		pktopt->ip6po_rhinfo.ip6po_rhi_rthdr = NULL;
-		if (pktopt->ip6po_route.ro_rt) {
-			RTFREE(pktopt->ip6po_route.ro_rt);
-			pktopt->ip6po_route.ro_rt = NULL;
+		if (pktopt->ip6po_route.ro_nh) {
+			NH_FREE(pktopt->ip6po_route.ro_nh);
+			pktopt->ip6po_route.ro_nh = NULL;
 		}
 	}
 	if (optname == -1 || optname == IPV6_DSTOPTS) {

@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #ifdef RSS
 #include <net/netisr.h>
+#include <net/nhop.h>
 #include <net/rss_config.h>
 #endif
 #if defined(INET) || defined(INET6)
@@ -754,7 +755,7 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 {
 	union if_snd_tag_alloc_params params;
 	struct ifnet *ifp;
-	struct rtentry *rt;
+	struct nhop_object *nh;
 	struct tcpcb *tp;
 	int error;
 
@@ -792,12 +793,12 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 	 * enabled after a connection has completed key negotiation in
 	 * userland, the cached route will be present in practice.
 	 */
-	rt = inp->inp_route.ro_rt;
-	if (rt == NULL || rt->rt_ifp == NULL) {
+	nh = inp->inp_route.ro_nh;
+	if (nh == NULL) {
 		INP_RUNLOCK(inp);
 		return (ENXIO);
 	}
-	ifp = rt->rt_ifp;
+	ifp = nh->nh_ifp;
 	if_ref(ifp);
 
 	params.hdr.type = IF_SND_TAG_TYPE_TLS;

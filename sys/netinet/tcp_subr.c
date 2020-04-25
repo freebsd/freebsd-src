@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/vnet.h>
@@ -2199,9 +2200,9 @@ tcp_notify(struct inpcb *inp, int error)
 	if (tp->t_state == TCPS_ESTABLISHED &&
 	    (error == EHOSTUNREACH || error == ENETUNREACH ||
 	     error == EHOSTDOWN)) {
-		if (inp->inp_route.ro_rt) {
-			RTFREE(inp->inp_route.ro_rt);
-			inp->inp_route.ro_rt = (struct rtentry *)NULL;
+		if (inp->inp_route.ro_nh) {
+			NH_FREE(inp->inp_route.ro_nh);
+			inp->inp_route.ro_nh = (struct nhop_object *)NULL;
 		}
 		return (inp);
 	} else if (tp->t_state < TCPS_ESTABLISHED && tp->t_rxtshift > 3 &&
