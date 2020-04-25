@@ -590,7 +590,7 @@ i2c_rdwr_transfer(char *dev, struct options i2c_opt, char *i2c_buf)
 	 * because of the NOSTOP flag used above.
 	 */
 	if (i2c_opt.dir == 'w')
-		msgs[i].flags = IIC_M_WR | (i > 0) ? IIC_M_NOSTART : 0;
+		msgs[i].flags = IIC_M_WR | ((i > 0) ? IIC_M_NOSTART : 0);
 	else
 		msgs[i].flags = IIC_M_RD;
 	msgs[i].slave = i2c_opt.addr;
