@@ -85,6 +85,11 @@ struct rk805_reg_sc {
 	struct regnode_std_param *param;
 };
 
+struct reg_list {
+	TAILQ_ENTRY(reg_list)	next;
+	struct rk805_reg_sc	*reg;
+};
+
 struct rk805_softc {
 	device_t		dev;
 	struct mtx		mtx;
@@ -93,7 +98,7 @@ struct rk805_softc {
 	struct intr_config_hook	intr_hook;
 	enum rk_pmic_type	type;
 
-	struct rk805_reg_sc	**regs;
+	TAILQ_HEAD(, reg_list)		regs;
 	int			nregs;
 };
 
@@ -619,6 +624,7 @@ rk805_attach(device_t dev)
 	struct rk805_softc *sc;
 	struct rk805_reg_sc *reg;
 	struct rk805_regdef *regdefs;
+	struct reg_list *regp;
 	phandle_t rnode, child;
 	int i;
 
@@ -645,8 +651,7 @@ rk805_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->regs = malloc(sizeof(struct rk805_reg_sc *) * sc->nregs,
-	    M_RK805_REG, M_WAITOK | M_ZERO);
+	TAILQ_INIT(&sc->regs);
 
 	rnode = ofw_bus_find_child(ofw_bus_get_node(dev), "regulators");
 	if (rnode > 0) {
@@ -655,6 +660,8 @@ rk805_attach(device_t dev)
 			    regdefs[i].name);
 			if (child == 0)
 				continue;
+			if (OF_hasprop(child, "regulator-name") != 1)
+				continue;
 			reg = rk805_reg_attach(dev, child, &regdefs[i]);
 			if (reg == NULL) {
 				device_printf(dev,
@@ -662,7 +669,9 @@ rk805_attach(device_t dev)
 				    regdefs[i].name);
 				continue;
 			}
-			sc->regs[i] = reg;
+			regp = malloc(sizeof(*regp), M_DEVBUF, M_WAITOK | M_ZERO);
+			regp->reg = reg;
+			TAILQ_INSERT_TAIL(&sc->regs, regp, next);
 			if (bootverbose)
 				device_printf(dev, "Regulator %s attached\n",
 				    regdefs[i].name);
@@ -685,13 +694,13 @@ rk805_map(device_t dev, phandle_t xref, int ncells,
     pcell_t *cells, intptr_t *id)
 {
 	struct rk805_softc *sc;
-	int i;
+	struct reg_list *regp;
 
 	sc = device_get_softc(dev);
 
-	for (i = 0; i < sc->nregs; i++) {
-		if (sc->regs[i]->xref == xref) {
-			*id = sc->regs[i]->def->id;
+	TAILQ_FOREACH(regp, &sc->regs, next) {
+		if (regp->reg->xref == xref) {
+			*id = regp->reg->def->id;
 			return (0);
 		}
 	}
