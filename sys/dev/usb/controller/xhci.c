@@ -2665,23 +2665,6 @@ xhci_configure_device(struct usb_device *udev)
 		    sc->sc_hw.devs[index].nports);
 	}
 
-	switch (udev->speed) {
-	case USB_SPEED_SUPER:
-		switch (sc->sc_hw.devs[index].state) {
-		case XHCI_ST_ADDRESSED:
-		case XHCI_ST_CONFIGURED:
-			/* enable power save */
-			temp |= XHCI_SCTX_1_MAX_EL_SET(sc->sc_exit_lat_max);
-			break;
-		default:
-			/* disable power save */
-			break;
-		}
-		break;
-	default:
-		break;
-	}
-
 	xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx1, temp);
 
 	temp = XHCI_SCTX_2_IRQ_TARGET_SET(0);
