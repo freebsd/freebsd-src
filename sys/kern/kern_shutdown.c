@@ -119,9 +119,9 @@ SYSCTL_INT(_kern, OID_AUTO, panic_reboot_wait_time, CTLFLAG_RWTUN,
 
 #ifdef KDB
 #ifdef KDB_UNATTENDED
-static int debugger_on_panic = 0;
+int debugger_on_panic = 0;
 #else
-static int debugger_on_panic = 1;
+int debugger_on_panic = 1;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic,
     CTLFLAG_RWTUN | CTLFLAG_SECURE,
