@@ -361,4 +361,46 @@ fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 	return (0);
 }
 
+struct nhop_object *
+fib4_lookup_debugnet(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
+    uint32_t flags)
+{
+	struct rib_head *rh;
+	struct radix_node *rn;
+	struct rtentry *rt;
+	struct nhop_object *nh;
+
+	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_debugnet: bad fibnum"));
+	rh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rh == NULL)
+		return (NULL);
+
+	/* Prepare lookup key */
+	struct sockaddr_in sin4;
+	memset(&sin4, 0, sizeof(sin4));
+	sin4.sin_family = AF_INET;
+	sin4.sin_len = sizeof(struct sockaddr_in);
+	sin4.sin_addr = dst;
+
+	nh = NULL;
+	/* unlocked lookup */
+	rn = rh->rnh_matchaddr((void *)&sin4, &rh->head);
+	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
+		rt = RNTORT(rn);
+#ifdef RADIX_MPATH
+		if (rt_mpath_next(rt) != NULL)
+			rt = rt_mpath_selectrte(rt, 0);
+#endif
+		nh = rt->rt_nhop;
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(nh->nh_ifp)) {
+			if (flags & NHR_REF)
+				nhop_ref_object(nh);
+			return (nh);
+		}
+	}
+
+	return (NULL);
+}
+
 #endif

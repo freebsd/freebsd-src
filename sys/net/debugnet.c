@@ -53,8 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
+#include <net/route.h>
+#include <net/route/nhop.h>
 
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -644,8 +647,8 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 	if (pcb->dp_client == INADDR_ANY || pcb->dp_gateway == INADDR_ANY ||
 	    pcb->dp_ifp == NULL) {
 		struct sockaddr_in dest_sin, *gw_sin, *local_sin;
-		struct rtentry *dest_rt;
 		struct ifnet *rt_ifp;
+		struct nhop_object *nh;
 
 		memset(&dest_sin, 0, sizeof(dest_sin));
 		dest_sin = (struct sockaddr_in) {
@@ -655,29 +658,29 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 		};
 
 		CURVNET_SET(vnet0);
-		dest_rt = rtalloc1((struct sockaddr *)&dest_sin, 0,
-		    RTF_RNH_LOCKED);
+		nh = fib4_lookup_debugnet(RT_DEFAULT_FIB, dest_sin.sin_addr, 0,
+		    NHR_NONE);
 		CURVNET_RESTORE();
 
-		if (dest_rt == NULL) {
+		if (nh == NULL) {
 			printf("%s: Could not get route for that server.\n",
 			    __func__);
 			error = ENOENT;
 			goto cleanup;
 		}
 
-		if (dest_rt->rt_gateway->sa_family == AF_INET)
-			gw_sin = (struct sockaddr_in *)dest_rt->rt_gateway;
+		if (nh->gw_sa.sa_family == AF_INET)
+			gw_sin = &nh->gw4_sa;
 		else {
-			if (dest_rt->rt_gateway->sa_family == AF_LINK)
+			if (nh->gw_sa.sa_family == AF_LINK)
 				DNETDEBUG("Destination address is on link.\n");
 			gw_sin = NULL;
 		}
 
-		MPASS(dest_rt->rt_ifa->ifa_addr->sa_family == AF_INET);
-		local_sin = (struct sockaddr_in *)dest_rt->rt_ifa->ifa_addr;
+		MPASS(nh->nh_ifa->ifa_addr->sa_family == AF_INET);
+		local_sin = (struct sockaddr_in *)nh->nh_ifa->ifa_addr;
 
-		rt_ifp = dest_rt->rt_ifp;
+		rt_ifp = nh->nh_ifp;
 
 		if (pcb->dp_client == INADDR_ANY)
 			pcb->dp_client = local_sin->sin_addr.s_addr;
@@ -685,8 +688,6 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 			pcb->dp_gateway = gw_sin->sin_addr.s_addr;
 		if (pcb->dp_ifp == NULL)
 			pcb->dp_ifp = rt_ifp;
-
-		RTFREE_LOCKED(dest_rt);
 	}
 
 	ifp = pcb->dp_ifp;
