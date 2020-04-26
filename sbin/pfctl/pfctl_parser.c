@@ -1370,13 +1370,11 @@ struct node_host *
 ifa_exists(char *ifa_name)
 {
 	struct node_host	*n;
-	int			s;
 
 	if (iftab == NULL)
 		ifa_load();
 
 	/* check whether this is a group */
-	s = get_query_socket();
 	if (is_a_group(ifa_name)) {
 		/* fake a node_host */
 		if ((n = calloc(1, sizeof(*n))) == NULL)
