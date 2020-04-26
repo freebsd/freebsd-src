@@ -4,3 +4,4 @@
 SUBDIR=	timed timedc
 
 .include <bsd.subdir.mk>
+# DO NOT DELETE
