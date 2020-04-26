@@ -3371,7 +3371,7 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 				evdev_push_rel(sc->evdev_r, REL_X, *x);
 				evdev_push_rel(sc->evdev_r, REL_Y, -*y);
 				evdev_push_mouse_btn(sc->evdev_r,
-				    guest_buttons);
+				    guest_buttons | sc->extended_buttons);
 				evdev_sync(sc->evdev_r);
 			}
 #endif
