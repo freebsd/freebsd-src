@@ -157,8 +157,8 @@ median(float a, float *eps_ptr, long *x, long *xlim, unsigned int gnuf)
 	/* unsigned int gnuf; */	/* good enough estimate */
 {
 	long *xptr;
-	float ap = LONG_MAX;		/* bounds on the median */
-	float am = -LONG_MAX;
+	float ap = (float)LONG_MAX;		/* bounds on the median */
+	float am = -(float)LONG_MAX;
 	float aa;
 	int npts;			/* # of points above & below guess */
 	float xp;			/* closet point above the guess */
@@ -180,8 +180,8 @@ median(float a, float *eps_ptr, long *x, long *xlim, unsigned int gnuf)
 		sum = 0.0;
 		sumx = 0.0;
 		npts = 0;
-		xp = LONG_MAX;
-		xm = -LONG_MAX;
+		xp = (float)LONG_MAX;
+		xm = -(float)LONG_MAX;
 
 		for (xptr = x; xptr != xlim; xptr++) {
 			float xx = *xptr;
