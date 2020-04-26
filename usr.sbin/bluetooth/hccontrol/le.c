@@ -172,13 +172,13 @@ parse_param(int argc, char *argv[], char *buf, int *len)
 				goto done;
 			curbuf[0] = 2;
 			curbuf[1] = 1;
-			curbuf[2] = atoi(optarg);
+			curbuf[2] = (uint8_t)strtol(optarg, NULL, 16);
 			curbuf += 3;
 			break;
 		case 'u':
-			lenpos = buf;
 			if ((buf+2) >= buflast)
 				goto done;
+			lenpos = curbuf;
 			curbuf[1] = 2;
 			*lenpos = 1;
 			curbuf += 2;
@@ -189,6 +189,7 @@ parse_param(int argc, char *argv[], char *buf, int *len)
 				curbuf[0] = value &0xff;
 				curbuf[1] = (value>>8)&0xff;
 				curbuf += 2;
+				*lenpos += 2;
 			}
 				
 		}
