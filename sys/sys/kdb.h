@@ -65,6 +65,7 @@ struct kdb_dbbe {
 SET_DECLARE(kdb_dbbe_set, struct kdb_dbbe);
 
 extern u_char kdb_active;		/* Non-zero while in debugger. */
+extern int debugger_on_panic;		/* enter the debugger on panic. */
 extern int debugger_on_trap;		/* enter the debugger on trap. */
 extern struct kdb_dbbe *kdb_dbbe;	/* Default debugger backend or NULL. */
 extern struct trapframe *kdb_frame;	/* Frame to kdb_trap(). */
