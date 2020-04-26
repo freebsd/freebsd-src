@@ -106,11 +106,11 @@ struct pf_fragment_tag {
 	uint32_t	ft_id;		/* fragment id */
 };
 
-static struct mtx pf_frag_mtx;
-MTX_SYSINIT(pf_frag_mtx, &pf_frag_mtx, "pf fragments", MTX_DEF);
-#define PF_FRAG_LOCK()		mtx_lock(&pf_frag_mtx)
-#define PF_FRAG_UNLOCK()	mtx_unlock(&pf_frag_mtx)
-#define PF_FRAG_ASSERT()	mtx_assert(&pf_frag_mtx, MA_OWNED)
+VNET_DEFINE_STATIC(struct mtx, pf_frag_mtx);
+#define V_pf_frag_mtx		VNET(pf_frag_mtx)
+#define PF_FRAG_LOCK()		mtx_lock(&V_pf_frag_mtx)
+#define PF_FRAG_UNLOCK()	mtx_unlock(&V_pf_frag_mtx)
+#define PF_FRAG_ASSERT()	mtx_assert(&V_pf_frag_mtx, MA_OWNED)
 
 VNET_DEFINE(uma_zone_t, pf_state_scrub_z);	/* XXX: shared with pfsync */
 
@@ -192,6 +192,8 @@ pf_normalize_init(void)
 	    sizeof(struct pf_state_scrub),  NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 
+	mtx_init(&V_pf_frag_mtx, "pf fragments", NULL, MTX_DEF);
+
 	V_pf_limits[PF_LIMIT_FRAGS].zone = V_pf_frent_z;
 	V_pf_limits[PF_LIMIT_FRAGS].limit = PFFRAG_FRENT_HIWAT;
 	uma_zone_set_max(V_pf_frent_z, PFFRAG_FRENT_HIWAT);
@@ -207,6 +209,8 @@ pf_normalize_cleanup(void)
 	uma_zdestroy(V_pf_state_scrub_z);
 	uma_zdestroy(V_pf_frent_z);
 	uma_zdestroy(V_pf_frag_z);
+
+	mtx_destroy(&V_pf_frag_mtx);
 }
 
 static int
