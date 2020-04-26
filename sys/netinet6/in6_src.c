@@ -93,9 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/if_llatbl.h>
-#ifdef RADIX_MPATH
-#include <net/radix_mpath.h>
-#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -773,13 +770,9 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 
 			}
 
-#ifdef RADIX_MPATH
-				rtalloc_mpath_fib((struct route *)ro,
-				    ntohl(sa6->sin6_addr.s6_addr32[3]), fibnum);
-#else			
 			ro->ro_nh = fib6_lookup(fibnum,
 			    &sa6->sin6_addr, scopeid, NHR_REF, flowid);
-#endif
+
 			if (IN6_IS_SCOPE_LINKLOCAL(&sa6->sin6_addr))
 				sa6->sin6_addr.s6_addr16[1] = htons(scopeid);
 		}
