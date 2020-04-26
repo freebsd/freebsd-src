@@ -64,5 +64,7 @@ struct nhop_object *fib6_lookup(uint32_t fibnum,
     uint32_t flowid);
 int fib6_check_urpf(uint32_t fibnum, const struct in6_addr *dst6,
     uint32_t scopeid, uint32_t flags, const struct ifnet *src_if);
+struct nhop_object *fib6_lookup_debugnet(uint32_t fibnum,
+    const struct in6_addr *dst6, uint32_t scopeid, uint32_t flags);
 #endif
 
