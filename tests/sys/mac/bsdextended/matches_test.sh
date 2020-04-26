@@ -10,356 +10,381 @@ uidoutrange="daemon"
 gidinrange="nobody" # We expect $uidinrange in this group
 gidoutrange="daemon" # We expect $uidinrange in this group
 
-test_num=1
-pass()
+
+check_ko()
 {
-	echo "ok $test_num # $@"
-	: $(( test_num += 1 ))
-}
-
-fail()
-{
-	echo "not ok $test_num # $@"
-	: $(( test_num += 1 ))
-}
-
-#
-# Setup
-#
-
-: ${TMPDIR=/tmp}
-if [ $(id -u) -ne 0 ]; then
-	echo "1..0 # SKIP test must be run as root"
-	exit 0
-fi
-if ! sysctl -N security.mac.bsdextended >/dev/null 2>&1; then
-	echo "1..0 # SKIP mac_bsdextended(4) support isn't available"
-	exit 0
-fi
-if [ "$TMPDIR" != "/tmp" ]; then
-	if ! chmod -Rf 0755 $TMPDIR; then
-		echo "1..0 # SKIP failed to chmod $TMPDIR"
-		exit 0
+	if ! sysctl -N security.mac.bsdextended >/dev/null 2>&1; then
+		atf_skip "mac_bsdextended(4) support isn't available"
 	fi
-fi
-if ! playground=$(mktemp -d $TMPDIR/tmp.XXXXXXX); then
-	echo "1..0 # SKIP failed to create temporary directory"
-	exit 0
-fi
-trap "rmdir $playground" EXIT INT TERM
-if ! mdmfs -s 25m md $playground; then
-	echo "1..0 # SKIP failed to mount md device"
-	exit 0
-fi
-chmod a+rwx $playground
-md_device=$(mount -p | grep "$playground" | awk '{ gsub(/^\/dev\//, "", $1); print $1 }')
-trap "umount -f $playground; mdconfig -d -u $md_device; rmdir $playground" EXIT INT TERM
-if [ -z "$md_device" ]; then
-	mount -p | grep $playground
-	echo "1..0 # SKIP md device not properly attached to the system"
-fi
+}
 
-ugidfw remove 1
+setup()
+{
+	check_ko
+	mkdir mnt
+	mdmfs -s 25m md mnt \
+		|| atf_fail "failed to mount md device"
+	chmod a+rwx mnt
+	md_device=$(mount -p | grep "$PWD/mnt" | awk '{ gsub(/^\/dev\//, "", $1); print $1 }')
+	if [ -z "$md_device" ]; then
+		atf_fail "md device not properly attached to the system"
+	fi
+	echo $md_device > md_device
 
-file1=$playground/test-$uidinrange
-file2=$playground/test-$uidoutrange
-cat > $playground/test-script.sh <<'EOF'
+	ugidfw remove 1
+
+	cat > mnt/test-script.sh <<'EOF'
 #!/bin/sh
 : > $1
 EOF
-if [ $? -ne 0 ]; then
-	echo "1..0 # SKIP failed to create test script"
-	exit 0
-fi
-echo "1..30"
-
-command1="sh $playground/test-script.sh $file1"
-command2="sh $playground/test-script.sh $file2"
-
-desc="$uidinrange file"
-if su -m $uidinrange -c "$command1"; then
-	pass $desc
-else
-	fail $desc
-fi
-
-chown "$uidinrange":"$gidinrange" $file1
-chmod a+w $file1
-
-desc="$uidoutrange file"
-if $command2; then
-	pass $desc
-else
-	fail $desc
-fi
-
-chown "$uidoutrange":"$gidoutrange" $file2
-chmod a+w $file2
-
-#
-# No rules
-#
-desc="no rules $uidinrange"
-if su -fm $uidinrange -c "$command1"; then
-	pass $desc
-else
-	fail $desc
-fi
-
-desc="no rules $uidoutrange"
-if su -fm $uidoutrange -c "$command1"; then
-	pass $desc
-else
-	fail $desc
-fi
-
-#
-# Subject Match on uid
-#
-ugidfw set 1 subject uid $uidrange object mode rasx
-desc="subject uid in range"
-if su -fm $uidinrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
-
-desc="subject uid out range"
-if su -fm $uidoutrange -c "$command1"; then
-	pass $desc
-else
-	fail $desc
-fi
-
-#
-# Subject Match on gid
-#
-ugidfw set 1 subject gid $gidrange object mode rasx
-
-desc="subject gid in range"
-if su -fm $uidinrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
-
-desc="subject gid out range"
-if su -fm $uidoutrange -c "$command1"; then
-	pass $desc
-else
-	fail $desc
-fi
-
-if which jail >/dev/null; then
-	#
-	# Subject Match on jail
-	#
-	rm -f $playground/test-jail
-
-	desc="subject matching jailid"
-	jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
-	ugidfw set 1 subject jailid $jailid object mode rasx
-	sleep 10
-
-	if [ -f $playground/test-jail ]; then
-		fail "TODO $desc: this testcase fails (see bug # 205481)"
-	else
-		pass $desc
+	if [ $? -ne 0 ]; then
+		atf_fail "failed to create test script"
 	fi
 
-	rm -f $playground/test-jail
-	desc="subject nonmatching jailid"
-	jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
-	sleep 10
-	if [ -f $playground/test-jail ]; then
-		pass $desc
-	else
-		fail $desc
+	file1=mnt/test-$uidinrange
+	file2=mnt/test-$uidoutrange
+	command1="sh mnt/test-script.sh $file1"
+	command2="sh mnt/test-script.sh $file2"
+
+	# $uidinrange file
+	atf_check -s exit:0 su -m $uidinrange -c "$command1"
+
+	chown "$uidinrange":"$gidinrange" $file1
+	chmod a+w $file1
+
+	# $uidoutrange file
+	if ! $command2; then
+		atf_fail $desc
 	fi
-else
-	# XXX: kyua is too dumb to parse skip ranges, still..
-	pass "skip jail(8) not installed"
-	pass "skip jail(8) not installed"
-fi
 
-#
-# Object uid
-#
-ugidfw set 1 subject object uid $uidrange mode rasx
+	chown "$uidoutrange":"$gidoutrange" $file2
+	chmod a+w $file2
+}
 
-desc="object uid in range"
-if su -fm $uidinrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
+cleanup()
+{
+	ugidfw remove 1
 
-desc="object uid out range"
-if su -fm $uidinrange -c "$command2"; then
-	pass $desc
-else
-	fail $desc
-fi
-ugidfw set 1 subject object uid $uidrange mode rasx
+	umount -f mnt
+	if [ -f md_device ]; then
+		mdconfig -d -u $( cat md_device )
+	fi
+}
 
-desc="object uid in range (different subject)"
-if su -fm $uidoutrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
+atf_test_case no_rules cleanup
+no_rules_head()
+{
+	atf_set "require.user" "root"
+}
+no_rules_body()
+{
+	setup
 
-desc="object uid out range (different subject)"
-if su -fm $uidoutrange -c "$command2"; then
-	pass $desc
-else
-	fail $desc
-fi
+	# no rules $uidinrange
+	atf_check -s exit:0 su -fm $uidinrange -c "$command1"
 
-#
-# Object gid
-#
-ugidfw set 1 subject object gid $uidrange mode rasx
+	# no rules $uidoutrange
+	atf_check -s exit:0 su -fm $uidoutrange -c "$command1"
+}
+no_rules_cleanup()
+{
+	cleanup
+}
 
-desc="object gid in range"
-if su -fm $uidinrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
+atf_test_case subject_match_on_uid cleanup
+subject_match_on_uid_head()
+{
+	atf_set "require.user" "root"
+}
+subject_match_on_uid_body()
+{
+	setup
 
-desc="object gid out range"
-if su -fm $uidinrange -c "$command2"; then
-	pass $desc
-else
-	fail $desc
-fi
-desc="object gid in range (different subject)"
-if su -fm $uidoutrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
+	atf_check -s exit:0 ugidfw set 1 subject uid $uidrange object mode rasx
+	# subject uid in range
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidinrange -c "$command1"
 
-desc="object gid out range (different subject)"
-if su -fm $uidoutrange -c "$command2"; then
-	pass $desc
-else
-	fail $desc
-fi
+	# subject uid out range
+	atf_check -s exit:0 su -fm $uidoutrange -c "$command1"
 
-#
-# Object filesys
-#
-ugidfw set 1 subject uid $uidrange object filesys / mode rasx
-desc="object out of filesys"
-if su -fm $uidinrange -c "$command1"; then
-	pass $desc
-else
-	fail $desc
-fi
+}
+subject_match_on_uid_cleanup()
+{
+	cleanup
+}
 
-ugidfw set 1 subject uid $uidrange object filesys $playground mode rasx
-desc="object in filesys"
-if su -fm $uidinrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
+atf_test_case subject_match_on_gid cleanup
+subject_match_on_gid_head()
+{
+	atf_set "require.user" "root"
+}
+subject_match_on_gid_body()
+{
+	setup
 
-#
-# Object suid
-#
-ugidfw set 1 subject uid $uidrange object suid mode rasx
-desc="object notsuid"
-if su -fm $uidinrange -c "$command1"; then
-	pass $desc
-else
-	fail $desc
-fi
+	atf_check -s exit:0 ugidfw set 1 subject gid $gidrange object mode rasx
 
-chmod u+s $file1
-desc="object suid"
-if su -fm $uidinrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
-chmod u-s $file1
+	# subject gid in range
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidinrange -c "$command1"
 
-#
-# Object sgid
-#
-ugidfw set 1 subject uid $uidrange object sgid mode rasx
-desc="object notsgid"
-if su -fm $uidinrange -c "$command1"; then
-	pass $desc
-else
-	fail $desc
-fi
+	# subject gid out range
+	atf_check -s exit:0 su -fm $uidoutrange -c "$command1"
+}
+subject_match_on_gid_cleanup()
+{
+	cleanup
+}
 
-chmod g+s $file1
-desc="object sgid"
-if su -fm $uidinrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
-chmod g-s $file1
+atf_test_case subject_match_on_jail cleanup
+subject_match_on_jail_head()
+{
+	atf_set "require.progs" "jail"
+	atf_set "require.user" "root"
+}
+subject_match_on_jail_body()
+{
+	setup
 
-#
-# Object uid matches subject
-#
-ugidfw set 1 subject uid $uidrange object uid_of_subject mode rasx
+	atf_expect_fail "this testcase fails (see bug # 205481)"
+	# subject matching jailid
+	jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch mnt/test-jail) &"`
+	atf_check -s exit:0 ugidfw set 1 subject jailid $jailid object mode rasx
+	sleep 10
 
-desc="object uid notmatches subject"
-if su -fm $uidinrange -c "$command2"; then
-	pass $desc
-else
-	fail $desc
-fi
+	if [ -f mnt/test-jail ]; then
+		atf_fail "$desc"
+	fi
 
-desc="object uid matches subject"
-if su -fm $uidinrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
+	rm -f mnt/test-jail
+	# subject nonmatching jailid
+	jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch mnt/test-jail) &"`
+	sleep 10
+	if ! [ -f mnt/test-jail ]; then
+		atf_fail $desc
+	fi
+}
+subject_match_on_jail_cleanup()
+{
+	cleanup
+}
 
-#
-# Object gid matches subject
-#
-ugidfw set 1 subject uid $uidrange object gid_of_subject mode rasx
+atf_test_case object_uid cleanup
+object_uid_head()
+{
+	atf_set "require.user" "root"
+}
+object_uid_body()
+{
+	setup
 
-desc="object gid notmatches subject"
-if su -fm $uidinrange -c "$command2"; then
-	pass $desc
-else
-	fail $desc
-fi
+	atf_check -s exit:0 ugidfw set 1 subject object uid $uidrange mode rasx
 
-desc="object gid matches subject"
-if su -fm $uidinrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
+	# object uid in range
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidinrange -c "$command1"
 
-#
-# Object type
-#
-desc="object not type"
-ugidfw set 1 subject uid $uidrange object type dbclsp mode rasx
-if su -fm $uidinrange -c "$command1"; then
-	pass $desc
-else
-	fail $desc
-fi
+	# object uid out range
+	atf_check -s exit:0 su -fm $uidinrange -c "$command2"
+	atf_check -s exit:0 ugidfw set 1 subject object uid $uidrange mode rasx
 
-desc="object type"
-ugidfw set 1 subject uid $uidrange object type r mode rasx
-if su -fm $uidinrange -c "$command1"; then
-	fail $desc
-else
-	pass $desc
-fi
+	# object uid in range (different subject)
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidoutrange -c "$command1"
+
+	# object uid out range (different subject)
+	atf_check -s exit:0 su -fm $uidoutrange -c "$command2"
+
+}
+object_uid_cleanup()
+{
+	cleanup
+}
+
+atf_test_case object_gid cleanup
+object_gid_head()
+{
+	atf_set "require.user" "root"
+}
+object_gid_body()
+{
+	setup
+
+	atf_check -s exit:0 ugidfw set 1 subject object gid $uidrange mode rasx
+
+	# object gid in range
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidinrange -c "$command1"
+
+	# object gid out range
+	atf_check -s exit:0 su -fm $uidinrange -c "$command2"
+	# object gid in range (different subject)
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidoutrange -c "$command1"
+
+	# object gid out range (different subject)
+	atf_check -s exit:0 su -fm $uidoutrange -c "$command2"
+}
+object_gid_cleanup()
+{
+	cleanup
+}
+
+atf_test_case object_filesys cleanup
+object_filesys_head()
+{
+	atf_set "require.user" "root"
+}
+object_filesys_body()
+{
+	setup
+
+	atf_check -s exit:0 ugidfw set 1 subject uid $uidrange object filesys / mode rasx
+	# object out of filesys
+	atf_check -s exit:0 su -fm $uidinrange -c "$command1"
+
+	atf_check -s exit:0 ugidfw set 1 subject uid $uidrange object filesys mnt mode rasx
+	# object in filesys
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidinrange -c "$command1"
+}
+object_filesys_cleanup()
+{
+	cleanup
+}
+
+atf_test_case object_suid cleanup
+object_suid_head()
+{
+	atf_set "require.user" "root"
+}
+object_suid_body()
+{
+	setup
+
+	atf_check -s exit:0 ugidfw set 1 subject uid $uidrange object suid mode rasx
+	# object notsuid
+	atf_check -s exit:0 su -fm $uidinrange -c "$command1"
+
+	chmod u+s $file1
+	# object suid
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidinrange -c "$command1"
+	chmod u-s $file1
+
+}
+object_suid_cleanup()
+{
+	cleanup
+}
+
+atf_test_case object_sgid cleanup
+object_sgid_head()
+{
+	atf_set "require.user" "root"
+}
+object_sgid_body()
+{
+	setup
+
+	atf_check -s exit:0 ugidfw set 1 subject uid $uidrange object sgid mode rasx
+	# object notsgid
+	atf_check -s exit:0 su -fm $uidinrange -c "$command1"
+
+	chmod g+s $file1
+	# object sgid
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidinrange -c "$command1"
+	chmod g-s $file1
+}
+object_sgid_cleanup()
+{
+	cleanup
+}
+
+atf_test_case object_uid_matches_subject cleanup
+object_uid_matches_subject_head()
+{
+	atf_set "require.user" "root"
+}
+object_uid_matches_subject_body()
+{
+	setup
+
+	atf_check -s exit:0 ugidfw set 1 subject uid $uidrange object uid_of_subject mode rasx
+
+	# object uid notmatches subject
+	atf_check -s exit:0 su -fm $uidinrange -c "$command2"
+
+	# object uid matches subject
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidinrange -c "$command1"
+}
+object_uid_matches_subject_cleanup()
+{
+	cleanup
+}
+
+atf_test_case object_gid_matches_subject cleanup
+object_gid_matches_subject_head()
+{
+	atf_set "require.user" "root"
+}
+object_gid_matches_subject_body()
+{
+	setup
+
+	atf_check -s exit:0 ugidfw set 1 subject uid $uidrange object gid_of_subject mode rasx
+
+	# object gid notmatches subject
+	atf_check -s exit:0 su -fm $uidinrange -c "$command2"
+
+	# object gid matches subject
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidinrange -c "$command1"
+
+}
+object_gid_matches_subject_cleanup()
+{
+	cleanup
+}
+
+atf_test_case object_type cleanup
+object_type_head()
+{
+	atf_set "require.user" "root"
+}
+object_type_body()
+{
+	setup
+
+	# object not type
+	atf_check -s exit:0 ugidfw set 1 subject uid $uidrange object type dbclsp mode rasx
+	atf_check -s exit:0 su -fm $uidinrange -c "$command1"
+
+	# object type
+	atf_check -s exit:0 ugidfw set 1 subject uid $uidrange object type r mode rasx
+	atf_check -s not-exit:0 -e match:"Permission denied" \
+		su -fm $uidinrange -c "$command1"
+}
+object_type_cleanup()
+{
+	cleanup
+}
+
+atf_init_test_cases()
+{
+	atf_add_test_case no_rules
+	atf_add_test_case subject_match_on_uid
+	atf_add_test_case subject_match_on_gid
+	atf_add_test_case subject_match_on_jail
+	atf_add_test_case object_uid
+	atf_add_test_case object_gid
+	atf_add_test_case object_filesys
+	atf_add_test_case object_suid
+	atf_add_test_case object_sgid
+	atf_add_test_case object_uid_matches_subject
+	atf_add_test_case object_gid_matches_subject
+	atf_add_test_case object_type
+}
