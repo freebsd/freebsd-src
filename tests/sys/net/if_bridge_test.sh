@@ -309,12 +309,40 @@ mac_conflict_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "inherit_mac" "cleanup"
+inherit_mac_head()
+{
+	atf_set descr 'Bridge inherit_mac test, #216510'
+	atf_set require.user root
+}
+
+inherit_mac_body()
+{
+	vnet_init
+
+	bridge=$(vnet_mkbridge)
+	epair=$(vnet_mkepair)
+	vnet_mkjail one ${bridge} ${epair}a
+
+	jexec one sysctl net.link.bridge.inherit_mac=1
+
+	# Attempt to provoke the panic described in #216510
+	jexec one ifconfig ${bridge} 192.0.0.1/24 up
+	jexec one ifconfig ${bridge} addm ${epair}a
+}
+
+inherit_mac_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
 	atf_add_test_case "stp"
 	atf_add_test_case "static"
 	atf_add_test_case "span"
+	atf_add_test_case "inherit_mac"
 	atf_add_test_case "delete_with_members"
 	atf_add_test_case "mac_conflict"
 }
