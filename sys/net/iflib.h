@@ -377,6 +377,15 @@ typedef enum {
 #define	IFLIB_SINGLE_IRQ_RX_ONLY	0x40000
 
 /*
+ * These enum values are used in iflib_needs_restart to indicate to iflib
+ * functions whether or not the interface needs restarting when certain events
+ * happen.
+ */
+enum iflib_restart_event {
+	IFLIB_RESTART_VLAN_CONFIG,
+};
+
+/*
  * field accessors
  */
 void *iflib_get_softc(if_ctx_t ctx);
