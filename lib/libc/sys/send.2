@@ -28,7 +28,7 @@
 .\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2019
+.Dd April 27, 2020
 .Dt SEND 2
 .Os
 .Sh NAME
@@ -69,18 +69,35 @@ The
 function
 may be used only when the socket is in a
 .Em connected
-state, while
+state.
+The functions
 .Fn sendto ,
 .Fn sendmsg
 and
 .Fn sendmmsg
-may be used at any time.
+may be used at any time if the socket is connectionless-mode.
+If the socket is connection-mode, the protocol
+must support implied connect (currently
+.Xr tcp 4
+is the only protocol with support) or the socket must be in a
+connected state before use.
 .Pp
 The address of the target is given by
 .Fa to
 with
 .Fa tolen
-specifying its size.
+specifying its size, or the equivalent
+.Fa msg_name
+and
+.Fa msg_namelen
+in
+.Fa struct msghdr .
+If the socket is in a connected state, the target address passed to
+.Fn sendto ,
+.Fn sendmsg
+or
+.Fn sendmmsg
+is ignored.
 The length of the message is given by
 .Fa len .
 If the message is too long to pass atomically through the
@@ -195,6 +212,8 @@ An invalid descriptor was specified.
 The destination address is a broadcast address, and
 .Dv SO_BROADCAST
 has not been set on the socket.
+.It Bq Er ENOTCONN
+The socket is connection-mode but is not connected.
 .It Bq Er ENOTSOCK
 The argument
 .Fa s
@@ -242,6 +261,7 @@ This typically means that the socket
 is not connected.
 .El
 .Sh SEE ALSO
+.Xr connect 2 ,
 .Xr fcntl 2 ,
 .Xr getsockopt 2 ,
 .Xr recv 2 ,
