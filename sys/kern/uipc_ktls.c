@@ -957,6 +957,7 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 	}
 
 	SOCKBUF_LOCK(&so->so_snd);
+	so->so_snd.sb_tls_seqno = be64dec(en->rec_seq);
 	so->so_snd.sb_tls_info = tls;
 	if (tls->mode != TCP_TLS_MODE_SW)
 		so->so_snd.sb_flags |= SB_TLS_IFNET;
