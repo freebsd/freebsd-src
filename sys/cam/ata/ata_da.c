@@ -110,7 +110,8 @@ typedef enum {
 	ADA_FLAG_DIRTY		= 0x00200000,
 	ADA_FLAG_CAN_NCQ_TRIM	= 0x00400000,	/* CAN_TRIM also set */
 	ADA_FLAG_PIM_ATA_EXT	= 0x00800000,
-	ADA_FLAG_UNMAPPEDIO	= 0x01000000
+	ADA_FLAG_UNMAPPEDIO	= 0x01000000,
+	ADA_FLAG_ROTATING	= 0x02000000
 } ada_flags;
 #define ADA_FLAG_STRING		\
 	"\020"			\
@@ -137,7 +138,8 @@ typedef enum {
 	"\026DIRTY"		\
 	"\027CAN_NCQ_TRIM"	\
 	"\030PIM_ATA_EXT"	\
-	"\031UNMAPPEDIO"
+	"\031UNMAPPEDIO"	\
+	"\032ROTATING"
 
 typedef enum {
 	ADA_Q_NONE		= 0x00,
@@ -266,7 +268,6 @@ struct ada_softc {
 	int	 trim_max_ranges;
 	int	 read_ahead;
 	int	 write_cache;
-	int	 rotating;
 #ifdef CAM_TEST_FAILURE
 	int      force_read_error;
 	int      force_write_error;
@@ -1516,9 +1517,6 @@ adasysctlinit(void *context, int pending)
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "write_cache", CTLFLAG_RW | CTLFLAG_MPSAFE,
 		&softc->write_cache, 0, "Enable disk write cache.");
-	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "rotating", CTLFLAG_RD | CTLFLAG_MPSAFE,
-		&softc->rotating, 0, "Rotating media");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "zone_mode",
 		CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
@@ -1551,6 +1549,10 @@ adasysctlinit(void *context, int pending)
 	    OID_AUTO, "unmapped_io", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, (u_int)ADA_FLAG_UNMAPPEDIO, adabitsysctl, "I",
 	    "Unmapped I/O support *DEPRECATED* gone in FreeBSD 14");
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "rotating", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &softc->flags, (u_int)ADA_FLAG_ROTATING, adabitsysctl, "I",
+	    "Rotating media *DEPRECATED* gone in FreeBSD 14");
 
 #ifdef CAM_TEST_FAILURE
 	/*
@@ -1873,11 +1875,12 @@ adaregister(struct cam_periph *periph, void *arg)
 
 	/* Disable queue sorting for non-rotational media by default. */
 	if (cgd->ident_data.media_rotation_rate == ATA_RATE_NON_ROTATING) {
-		softc->rotating = 0;
+		softc->flags &= ~ADA_FLAG_ROTATING;
 	} else {
-		softc->rotating = 1;
+		softc->flags |= ADA_FLAG_ROTATING;
 	}
-	cam_iosched_set_sort_queue(softc->cam_iosched,  softc->rotating ? -1 : 0);
+	cam_iosched_set_sort_queue(softc->cam_iosched,
+	    (softc->flags & ADA_FLAG_ROTATING) ? -1 : 0);
 	softc->disk = disk_alloc();
 	adasetgeom(softc, cgd);
 	softc->disk->d_devstat = devstat_new_entry(periph->periph_name,
