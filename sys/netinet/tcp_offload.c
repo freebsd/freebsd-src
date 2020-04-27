@@ -198,14 +198,15 @@ tcp_offload_tcp_info(struct tcpcb *tp, struct tcp_info *ti)
 }
 
 int
-tcp_offload_alloc_tls_session(struct tcpcb *tp, struct ktls_session *tls)
+tcp_offload_alloc_tls_session(struct tcpcb *tp, struct ktls_session *tls,
+    int direction)
 {
 	struct toedev *tod = tp->tod;
 
 	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
-	return (tod->tod_alloc_tls_session(tod, tp, tls));
+	return (tod->tod_alloc_tls_session(tod, tp, tls, direction));
 }
 
 void

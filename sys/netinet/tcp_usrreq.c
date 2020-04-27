@@ -2080,6 +2080,14 @@ unlock_and_done:
 			error = ktls_set_tx_mode(so, ui);
 			INP_WUNLOCK(inp);
 			break;
+		case TCP_RXTLS_ENABLE:
+			INP_WUNLOCK(inp);
+			error = sooptcopyin(sopt, &tls, sizeof(tls),
+			    sizeof(tls));
+			if (error)
+				break;
+			error = ktls_enable_rx(so, &tls);
+			break;
 #endif
 
 		case TCP_KEEPIDLE:
@@ -2415,6 +2423,11 @@ unhold:
 #ifdef KERN_TLS
 		case TCP_TXTLS_MODE:
 			optval = ktls_get_tx_mode(so);
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, &optval, sizeof(optval));
+			break;
+		case TCP_RXTLS_MODE:
+			optval = ktls_get_rx_mode(so);
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
