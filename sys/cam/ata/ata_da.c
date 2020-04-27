@@ -111,6 +111,31 @@ typedef enum {
 	ADA_FLAG_CAN_NCQ_TRIM	= 0x00400000,	/* CAN_TRIM also set */
 	ADA_FLAG_PIM_ATA_EXT	= 0x00800000
 } ada_flags;
+#define ADA_FLAG_STRING		\
+	"\020"			\
+	"\002CAN_48BIT"		\
+	"\003CAN_FLUSHCACHE"	\
+	"\004CAN_NCQ"		\
+	"\005CAN_DMA"		\
+	"\006NEED_OTAG"		\
+	"\007WAS_OTAG"		\
+	"\010CAN_TRIM"		\
+	"\011OPEN"		\
+	"\012SCTX_INIT"		\
+	"\013CAN_CFA"		\
+	"\014CAN_POWERMGT"	\
+	"\015CAN_DMA48"		\
+	"\016CAN_LOG"		\
+	"\017CAN_IDLOG"		\
+	"\020CAN_SUPCAP"	\
+	"\021CAN_ZONE"		\
+	"\022CAN_WCACHE"	\
+	"\023CAN_RAHEAD"	\
+	"\024PROBED"		\
+	"\025ANNOUNCED"		\
+	"\026DIRTY"		\
+	"\027CAN_NCQ_TRIM"	\
+	"\030PIM_ATA_EXT"
 
 typedef enum {
 	ADA_Q_NONE		= 0x00,
@@ -806,7 +831,8 @@ static	periph_oninv_t	adaoninvalidate;
 static	periph_dtor_t	adacleanup;
 static	void		adaasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
-static	int		adazonemodesysctl(SYSCTL_HANDLER_ARGS);
+static	int		adaflagssysctl(SYSCTL_HANDLER_ARGS);
+static	int		adazonesupsysctl(SYSCTL_HANDLER_ARGS);
 static	int		adazonesupsysctl(SYSCTL_HANDLER_ARGS);
 static	void		adasysctlinit(void *context, int pending);
 static	int		adagetattr(struct bio *bp);
@@ -1518,6 +1544,10 @@ adasysctlinit(void *context, int pending)
 		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
 		"max_seq_zones", CTLFLAG_RD, &softc->max_seq_zones,
 		"Maximum Number of Open Sequential Write Required Zones");
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "flags", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    softc, 0, adaflagssysctl, "A",
+	    "Flags for drive");
 
 #ifdef CAM_TEST_FAILURE
 	/*
@@ -1624,6 +1654,24 @@ adadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 		return (0);
 	}
 	return (EINVAL);
+}
+
+static int
+adaflagssysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	struct ada_softc *softc = arg1;
+	int error;
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 0, req);
+	if (softc->flags != 0)
+		sbuf_printf(&sbuf, "0x%b", (unsigned)softc->flags, ADA_FLAG_STRING);
+	else
+		sbuf_printf(&sbuf, "0");
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+
+	return (error);
 }
 
 static void
