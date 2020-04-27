@@ -66,7 +66,20 @@ int uuid_ether_del(const uint8_t *);
 int snprintf_uuid(char *, size_t, struct uuid *);
 int printf_uuid(struct uuid *);
 int sbuf_printf_uuid(struct sbuf *, struct uuid *);
+
+/*
+ * validate_uuid will, with no flags passed, validate only the format of the
+ * passed in UUID.  Flags below are available to give it part of or all of the
+ * functionality that parse_uuid has traditionally had: acknowledging an empty
+ * string as valid, and checking the semantics of the UUID as well.
+ */
+int validate_uuid(const char *, size_t, struct uuid *, int);
 int parse_uuid(const char *, struct uuid *);
+
+/* Flags to validate_uuid(). */
+#define	VUUIDF_EMPTYOK		0x0001
+#define	VUUIDF_CHECKSEMANTICS	0x0002
+
 int uuidcmp(const struct uuid *, const struct uuid *);
 
 void be_uuid_dec(void const *buf, struct uuid *uuid);

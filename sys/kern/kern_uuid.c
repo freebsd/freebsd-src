@@ -382,19 +382,24 @@ be_uuid_dec(void const *buf, struct uuid *uuid)
 }
 
 int
-parse_uuid(const char *str, struct uuid *uuid)
+validate_uuid(const char *str, size_t size, struct uuid *uuid, int flags)
 {
 	u_int c[11];
 	int n;
 
-	/* An empty string represents a nil UUID. */
-	if (*str == '\0') {
-		bzero(uuid, sizeof(*uuid));
-		return (0);
+	if (size == 0 || *str == '\0') {
+		/* An empty string may represent a nil UUID. */
+		if ((flags & VUUIDF_EMPTYOK) != 0) {
+			if (uuid != NULL)
+				bzero(uuid, sizeof(*uuid));
+			return (0);
+		}
+
+		return (EINVAL);
 	}
 
 	/* The UUID string representation has a fixed length. */
-	if (strlen(str) != 36)
+	if (size != 36)
 		return (EINVAL);
 
 	/*
@@ -406,25 +411,39 @@ parse_uuid(const char *str, struct uuid *uuid)
 	if (str[8] != '-')
 		return (EINVAL);
 
+	/* Now check the format. */
 	n = sscanf(str, "%8x-%4x-%4x-%2x%2x-%2x%2x%2x%2x%2x%2x", c + 0, c + 1,
 	    c + 2, c + 3, c + 4, c + 5, c + 6, c + 7, c + 8, c + 9, c + 10);
 	/* Make sure we have all conversions. */
 	if (n != 11)
 		return (EINVAL);
 
-	/* Successful scan. Build the UUID. */
-	uuid->time_low = c[0];
-	uuid->time_mid = c[1];
-	uuid->time_hi_and_version = c[2];
-	uuid->clock_seq_hi_and_reserved = c[3];
-	uuid->clock_seq_low = c[4];
-	for (n = 0; n < 6; n++)
-		uuid->node[n] = c[n + 5];
+	/* Successful scan. Build the UUID if requested. */
+	if (uuid != NULL) {
+		uuid->time_low = c[0];
+		uuid->time_mid = c[1];
+		uuid->time_hi_and_version = c[2];
+		uuid->clock_seq_hi_and_reserved = c[3];
+		uuid->clock_seq_low = c[4];
+		for (n = 0; n < 6; n++)
+			uuid->node[n] = c[n + 5];
+	}
 
-	/* Check semantics... */
+	if ((flags & VUUIDF_CHECKSEMANTICS) == 0)
+		return (0);
+
 	return (((c[3] & 0x80) != 0x00 &&		/* variant 0? */
 	    (c[3] & 0xc0) != 0x80 &&			/* variant 1? */
 	    (c[3] & 0xe0) != 0xc0) ? EINVAL : 0);	/* variant 2? */
+}
+
+#define	VUUIDF_PARSEFLAGS	(VUUIDF_EMPTYOK | VUUIDF_CHECKSEMANTICS)
+
+int
+parse_uuid(const char *str, struct uuid *uuid)
+{
+
+	return (validate_uuid(str, strlen(str), uuid, VUUIDF_PARSEFLAGS));
 }
 
 int
