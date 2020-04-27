@@ -5623,9 +5623,8 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 
 		default:
 			device_printf(sc->sc_dev,
-			    "frame %d/%d %x UNHANDLED (this should "
-			    "not happen)\n", qid & ~0x80, idx,
-			    pkt->len_n_flags);
+			    "code %x, frame %d/%d %x unhandled\n",
+			    code, qid & ~0x80, idx, pkt->len_n_flags);
 			break;
 		}
 
