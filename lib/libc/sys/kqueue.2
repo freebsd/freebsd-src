@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2018
+.Dd April 21, 2020
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -233,6 +233,11 @@ to always be returned.
 When a filter is successfully added the
 .Va data
 field will be zero.
+Note that if this flag is encountered and there is no remaining space in
+.Fa eventlist
+to hold the
+.Dv EV_ERROR
+event, then subsequent changes will not get processed.
 .It Dv EV_ONESHOT
 Causes the event to return only the first occurrence of the filter
 being triggered.
