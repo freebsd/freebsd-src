@@ -225,7 +225,11 @@ enum tcp_log_events {
 	TCP_LOG_LRO,		/* LRO entry                        55 */
 	TCP_SACK_FILTER_RES,	/* Results of SACK Filter           56 */
 	TCP_SAD_DETECTION,	/* Sack Attack Detection            57 */
-	TCP_LOG_END		/* End (keep at end)                58 */
+	TCP_TIMELY_WORK,	/* Logs regarding Timely CC tweaks  58 */
+	TCP_LOG_USER_EVENT,	/* User space event data            59 */
+	TCP_LOG_SENDFILE,	/* sendfile() logging for TCP connections 60 */
+	TCP_LOG_HTTP_T,		/* logging of http request tracking 61 */
+	TCP_LOG_END		/* End (keep at end)                62 */
 };
 
 enum tcp_log_states {
