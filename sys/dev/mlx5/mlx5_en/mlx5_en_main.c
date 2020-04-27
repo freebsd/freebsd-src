@@ -1042,6 +1042,15 @@ free_out:
 		mlx5_en_err(priv->ifp,
 		    "Updating FEC failed: %d\n", error);
 	}
+
+	/* Update temperature, if any */
+	if (priv->params_ethtool.hw_num_temp != 0) {
+		error = mlx5e_hw_temperature_update(priv);
+		if (error != 0 && error != EOPNOTSUPP) {
+			mlx5_en_err(priv->ifp,
+			    "Updating temperature failed: %d\n", error);
+		}
+	}
 }
 
 static void
