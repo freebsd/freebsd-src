@@ -623,8 +623,8 @@ ng_eiface_rmnode(node_p node)
 	 * hence we have to change the current vnet context here.
 	 */
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	ifmedia_removeall(&priv->media);
 	ether_ifdetach(ifp);
+	ifmedia_removeall(&priv->media);
 	if_free(ifp);
 	CURVNET_RESTORE();
 	free_unr(V_ng_eiface_unit, priv->unit);
