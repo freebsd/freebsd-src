@@ -99,6 +99,22 @@ struct tls_mac_data {
 #define	TLS_MINOR_VER_THREE	4	/* 3, 4 */
 
 /* For TCP_TXTLS_ENABLE */
+#ifdef _KERNEL
+struct tls_enable_v0 {
+	const uint8_t *cipher_key;
+	const uint8_t *iv;		/* Implicit IV. */
+	const uint8_t *auth_key;
+	int	cipher_algorithm;	/* e.g. CRYPTO_AES_CBC */
+	int	cipher_key_len;
+	int	iv_len;
+	int	auth_algorithm;		/* e.g. CRYPTO_SHA2_256_HMAC */
+	int	auth_key_len;
+	int	flags;
+	uint8_t tls_vmajor;
+	uint8_t tls_vminor;
+};
+#endif
+
 struct tls_enable {
 	const uint8_t *cipher_key;
 	const uint8_t *iv;		/* Implicit IV. */
@@ -111,6 +127,7 @@ struct tls_enable {
 	int	flags;
 	uint8_t tls_vmajor;
 	uint8_t tls_vminor;
+	uint8_t rec_seq[8];
 };
 
 struct tls_session_params {
