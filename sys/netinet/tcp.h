@@ -178,6 +178,8 @@ struct tcphdr {
 				   device */
 #define	TCP_TXTLS_ENABLE 39	/* TLS framing and encryption for transmit */
 #define	TCP_TXTLS_MODE	40	/* Transmit TLS mode */
+#define	TCP_RXTLS_ENABLE 41	/* TLS framing and encryption for receive */
+#define	TCP_RXTLS_MODE	42	/* Receive TLS mode */
 #define	TCP_CONGESTION	64	/* get/set congestion control algorithm */
 #define	TCP_CCALGOOPT	65	/* get/set cc algorithm specific options */
 #define TCP_DELACK  	72	/* socket option for delayed ack */
@@ -388,6 +390,7 @@ struct tcp_function_set {
  * TCP Control message types
  */
 #define	TLS_SET_RECORD_TYPE	1
+#define	TLS_GET_RECORD		2
 
 /*
  * TCP specific variables of interest for tp->t_stats stats(9) accounting.
