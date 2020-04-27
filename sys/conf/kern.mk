@@ -150,11 +150,7 @@ INLINE_LIMIT?=	8000
 # code model as "medium" and "medany" respectively.
 #
 .if ${MACHINE_CPUARCH} == "riscv"
-.if ${MACHINE_ARCH:Mriscv*sf}
-CFLAGS+=	-march=rv64imac
-.else
 CFLAGS+=	-march=rv64imafdc
-.endif
 CFLAGS+=	-mabi=lp64
 CFLAGS.clang+=	-mcmodel=medium
 CFLAGS.gcc+=	-mcmodel=medany

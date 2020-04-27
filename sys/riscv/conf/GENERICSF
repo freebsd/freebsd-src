@@ -1,9 +1,0 @@
-# $FreeBSD$
-
-# Just like generic, but with a riscv64sf MACHINE_ARCH. Override machine set in
-# DEFAULTS.
-machine riscv riscv64sf
-
-include		"GENERIC"
-ident		GENERICSF
-nooptions	FPE			# for systems without FPE
