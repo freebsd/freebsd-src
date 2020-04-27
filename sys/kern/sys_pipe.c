@@ -1606,8 +1606,6 @@ pipeclose(struct pipe *cpipe)
 	pipelock(cpipe, 0);
 	pp = cpipe->pipe_pair;
 
-	pipeselwakeup(cpipe);
-
 	/*
 	 * If the other side is blocked, wake it up saying that
 	 * we want to close it down.
@@ -1621,16 +1619,16 @@ pipeclose(struct pipe *cpipe)
 		pipelock(cpipe, 0);
 	}
 
+	pipeselwakeup(cpipe);
+
 	/*
 	 * Disconnect from peer, if any.
 	 */
 	ppipe = cpipe->pipe_peer;
 	if (ppipe->pipe_present == PIPE_ACTIVE) {
-		pipeselwakeup(ppipe);
-
 		ppipe->pipe_state |= PIPE_EOF;
 		wakeup(ppipe);
-		KNOTE_LOCKED(&ppipe->pipe_sel.si_note, 0);
+		pipeselwakeup(ppipe);
 	}
 
 	/*
