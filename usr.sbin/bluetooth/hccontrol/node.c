@@ -267,7 +267,8 @@ static int  hci_dump_adv(uint8_t *data, int length)
 		case 0xff:
 			if (elemlen < 2)
 				break;
-			printf("Vendor:%04x:", data[0]|data[1]<<8);
+			printf("Vendor:%s:",
+			       hci_manufacturer2str(data[0]|data[1]<<8));
 			for (i = 2; i < MIN(length,elemlen); i++) {
 				printf("%02x ",data[i]);
 			}
