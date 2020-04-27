@@ -209,14 +209,13 @@ ia32_syscall(struct trapframe *frame)
 {
 	struct thread *td;
 	register_t orig_tf_rflags;
-	int error;
 	ksiginfo_t ksi;
 
 	orig_tf_rflags = frame->tf_rflags;
 	td = curthread;
 	td->td_frame = frame;
 
-	error = syscallenter(td);
+	syscallenter(td);
 
 	/*
 	 * Traced syscall.
@@ -230,8 +229,8 @@ ia32_syscall(struct trapframe *frame)
 		trapsignal(td, &ksi);
 	}
 
-	syscallret(td, error);
-	amd64_syscall_ret_flush_l1d(error);
+	syscallret(td);
+	amd64_syscall_ret_flush_l1d(td->td_errno);
 }
 
 static void

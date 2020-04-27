@@ -138,11 +138,10 @@ cpu_fetch_syscall_args(struct thread *td)
 static void
 svc_handler(struct thread *td, struct trapframe *frame)
 {
-	int error;
 
 	if ((frame->tf_esr & ESR_ELx_ISS_MASK) == 0) {
-		error = syscallenter(td);
-		syscallret(td, error);
+		syscallenter(td);
+		syscallret(td);
 	} else {
 		call_trapsignal(td, SIGILL, ILL_ILLOPN, (void *)frame->tf_elr);
 		userret(td, frame);
