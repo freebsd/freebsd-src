@@ -4308,10 +4308,13 @@ iflib_vlan_register(void *arg, if_t ifp, uint16_t vtag)
 		return;
 
 	CTX_LOCK(ctx);
+	/* Driver may need all untagged packets to be flushed */
+	if (IFDI_NEEDS_RESTART(ctx, IFLIB_RESTART_VLAN_CONFIG))
+		iflib_stop(ctx);
 	IFDI_VLAN_REGISTER(ctx, vtag);
-	/* Re-init to load the changes */
-	if (if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER)
-		iflib_if_init_locked(ctx);
+	/* Re-init to load the changes, if required */
+	if (IFDI_NEEDS_RESTART(ctx, IFLIB_RESTART_VLAN_CONFIG))
+		iflib_init_locked(ctx);
 	CTX_UNLOCK(ctx);
 }
 
@@ -4327,10 +4330,13 @@ iflib_vlan_unregister(void *arg, if_t ifp, uint16_t vtag)
 		return;
 
 	CTX_LOCK(ctx);
+	/* Driver may need all tagged packets to be flushed */
+	if (IFDI_NEEDS_RESTART(ctx, IFLIB_RESTART_VLAN_CONFIG))
+		iflib_stop(ctx);
 	IFDI_VLAN_UNREGISTER(ctx, vtag);
-	/* Re-init to load the changes */
-	if (if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER)
-		iflib_if_init_locked(ctx);
+	/* Re-init to load the changes, if required */
+	if (IFDI_NEEDS_RESTART(ctx, IFLIB_RESTART_VLAN_CONFIG))
+		iflib_init_locked(ctx);
 	CTX_UNLOCK(ctx);
 }
 
