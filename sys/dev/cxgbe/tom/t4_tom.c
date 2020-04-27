@@ -40,9 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#ifdef KERN_TLS
-#include <sys/ktls.h>
-#endif
 #include <sys/lock.h>
 #include <sys/limits.h>
 #include <sys/module.h>
@@ -824,10 +821,7 @@ t4_alloc_tls_session(struct toedev *tod, struct tcpcb *tp,
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	MPASS(tls != NULL);
 
-	if (direction != KTLS_TX)
-		return (EOPNOTSUPP);
-
-	return (tls_alloc_ktls(toep, tls));
+	return (tls_alloc_ktls(toep, tls, direction));
 }
 #endif
 
