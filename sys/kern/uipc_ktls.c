@@ -702,7 +702,7 @@ ktls_cleanup(struct ktls_session *tls)
 
 #ifdef TCP_OFFLOAD
 static int
-ktls_try_toe(struct socket *so, struct ktls_session *tls)
+ktls_try_toe(struct socket *so, struct ktls_session *tls, int direction)
 {
 	struct inpcb *inp;
 	struct tcpcb *tp;
@@ -728,7 +728,7 @@ ktls_try_toe(struct socket *so, struct ktls_session *tls)
 		return (EOPNOTSUPP);
 	}
 
-	error = tcp_offload_alloc_tls_session(tp, tls);
+	error = tcp_offload_alloc_tls_session(tp, tls, direction);
 	INP_WUNLOCK(inp);
 	if (error == 0) {
 		tls->mode = TCP_TLS_MODE_TOE;
@@ -901,6 +901,60 @@ ktls_try_sw(struct socket *so, struct ktls_session *tls)
 }
 
 int
+ktls_enable_rx(struct socket *so, struct tls_enable *en)
+{
+	struct ktls_session *tls;
+	int error;
+
+	if (!ktls_offload_enable)
+		return (ENOTSUP);
+
+	counter_u64_add(ktls_offload_enable_calls, 1);
+
+	/*
+	 * This should always be true since only the TCP socket option
+	 * invokes this function.
+	 */
+	if (so->so_proto->pr_protocol != IPPROTO_TCP)
+		return (EINVAL);
+
+	/*
+	 * XXX: Don't overwrite existing sessions.  We should permit
+	 * this to support rekeying in the future.
+	 */
+	if (so->so_rcv.sb_tls_info != NULL)
+		return (EALREADY);
+
+	if (en->cipher_algorithm == CRYPTO_AES_CBC && !ktls_cbc_enable)
+		return (ENOTSUP);
+
+	error = ktls_create_session(so, en, &tls);
+	if (error)
+		return (error);
+
+	/* TLS RX offload is only supported on TOE currently. */
+#ifdef TCP_OFFLOAD
+	error = ktls_try_toe(so, tls, KTLS_RX);
+#else
+	error = EOPNOTSUPP;
+#endif
+
+	if (error) {
+		ktls_cleanup(tls);
+		return (error);
+	}
+
+	/* Mark the socket as using TLS offload. */
+	SOCKBUF_LOCK(&so->so_rcv);
+	so->so_rcv.sb_tls_info = tls;
+	SOCKBUF_UNLOCK(&so->so_rcv);
+
+	counter_u64_add(ktls_offload_total, 1);
+
+	return (0);
+}
+
+int
 ktls_enable_tx(struct socket *so, struct tls_enable *en)
 {
 	struct ktls_session *tls;
@@ -938,7 +992,7 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 
 	/* Prefer TOE -> ifnet TLS -> software TLS. */
 #ifdef TCP_OFFLOAD
-	error = ktls_try_toe(so, tls);
+	error = ktls_try_toe(so, tls, KTLS_TX);
 	if (error)
 #endif
 		error = ktls_try_ifnet(so, tls, false);
@@ -967,6 +1021,25 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 	counter_u64_add(ktls_offload_total, 1);
 
 	return (0);
+}
+
+int
+ktls_get_rx_mode(struct socket *so)
+{
+	struct ktls_session *tls;
+	struct inpcb *inp;
+	int mode;
+
+	inp = so->so_pcb;
+	INP_WLOCK_ASSERT(inp);
+	SOCKBUF_LOCK(&so->so_rcv);
+	tls = so->so_rcv.sb_tls_info;
+	if (tls == NULL)
+		mode = TCP_TLS_MODE_NONE;
+	else
+		mode = tls->mode;
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	return (mode);
 }
 
 int

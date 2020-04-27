@@ -193,7 +193,7 @@ toedev_tcp_info(struct toedev *tod __unused, struct tcpcb *tp __unused,
 
 static int
 toedev_alloc_tls_session(struct toedev *tod __unused, struct tcpcb *tp __unused,
-    struct ktls_session *tls __unused)
+    struct ktls_session *tls __unused, int direction __unused)
 {
 
 	return (EINVAL);

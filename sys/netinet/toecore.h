@@ -113,7 +113,7 @@ struct toedev {
 
 	/* Create a TLS session */
 	int (*tod_alloc_tls_session)(struct toedev *, struct tcpcb *,
-	    struct ktls_session *);
+	    struct ktls_session *, int);
 };
 
 typedef	void (*tcp_offload_listen_start_fn)(void *, struct tcpcb *);
