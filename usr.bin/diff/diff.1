@@ -30,7 +30,7 @@
 .\"     @(#)diff.1	8.1 (Berkeley) 6/30/93
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2020
+.Dd April 27, 2020
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -60,7 +60,7 @@
 .Op Fl -starting-file
 .Op Fl -speed-large-files
 .Op Fl -strip-trailing-cr
-.Op Fl -tabsize
+.Op Fl -tabsize Ar number
 .Op Fl -text
 .Op Fl -unified
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
@@ -88,7 +88,7 @@
 .Op Fl -speed-large-files
 .Op Fl -starting-file
 .Op Fl -strip-trailing-cr
-.Op Fl -tabsize
+.Op Fl -tabsize Ar number
 .Op Fl -text
 .Fl C Ar number | -context Ar number
 .Ar file1 file2
@@ -113,7 +113,7 @@
 .Op Fl -speed-large-files
 .Op Fl -starting-file
 .Op Fl -strip-trailing-cr
-.Op Fl -tabsize
+.Op Fl -tabsize Ar number
 .Op Fl -text
 .Fl D Ar string | Fl -ifdef Ar string
 .Ar file1 file2
@@ -139,7 +139,7 @@
 .Op Fl -speed-large-files
 .Op Fl -starting-file
 .Op Fl -strip-trailing-cr
-.Op Fl -tabsize
+.Op Fl -tabsize Ar number
 .Op Fl -text
 .Fl U Ar number | Fl -unified Ar number
 .Ar file1 file2
@@ -170,7 +170,7 @@
 .Op Fl -show-c-function
 .Op Fl -speed-large-files
 .Op Fl -strip-trailing-cr
-.Op Fl -tabsize
+.Op Fl -tabsize Ar number
 .Op Fl -text
 .Op Fl -unidirectional-new-file
 .Op Fl -unified
@@ -192,7 +192,7 @@
 .Op --no-ignore-file-name-case
 .Op --strip-trailing-cr
 .Op --suppress-common-lines
-.Op --tabsize
+.Op --tabsize Ar number
 .Op --text
 .Op --width
 .Fl y | Fl -side-by-side

@@ -10,6 +10,7 @@ atf_test_case side_by_side
 atf_test_case brief_format
 atf_test_case b230049
 atf_test_case Bflag
+atf_test_case tabsize
 atf_test_case conflicting_format
 
 simple_body()
@@ -163,6 +164,16 @@ Bflag_body()
 	atf_check -s exit:1 -o file:"$(atf_get_srcdir)/Bflag_F.out" diff -B E F
 }
 
+tabsize_body()
+{
+	printf "\tA\n" > A
+	printf "\tB\n" > B
+
+	atf_check -s exit:1 \
+	    -o inline:"1c1\n<  A\n---\n>  B\n" \
+	    diff -t --tabsize 1 A B
+}
+
 conflicting_format_body()
 {
 	printf "\tA\n" > A
@@ -189,5 +200,6 @@ atf_init_test_cases()
 	atf_add_test_case brief_format
 	atf_add_test_case b230049
 	atf_add_test_case Bflag
+	atf_add_test_case tabsize
 	atf_add_test_case conflicting_format 
 }

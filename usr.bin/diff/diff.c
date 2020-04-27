@@ -93,7 +93,7 @@ static struct option longopts[] = {
 	{ "no-ignore-file-name-case",	no_argument,		NULL,	OPT_NO_IGN_FN_CASE },
 	{ "normal",			no_argument,		NULL,	OPT_NORMAL },
 	{ "strip-trailing-cr",		no_argument,		NULL,	OPT_STRIPCR },
-	{ "tabsize",			optional_argument,	NULL,	OPT_TSIZE },
+	{ "tabsize",			required_argument,	NULL,	OPT_TSIZE },
 	{ "changed-group-format",	required_argument,	NULL,	OPT_CHANGED_GROUP_FORMAT},
 	{ "suppress-common-lines",	no_argument,		NULL,	OPT_SUPPRESS_COMMON },
 	{ NULL,				0,			0,	'\0'}
