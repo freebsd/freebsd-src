@@ -46,18 +46,16 @@
 #define	MACHINE		"riscv"
 #endif
 #ifndef MACHINE_ARCH
-/*
- * Check to see if we're building with hardware floating instructions
- * allowed. We check this instead of hard vs soft float ABI because we build the
- * kernel with soft float ABI to avoid hard float instruction generation. If
- * we ever allow a 'soft ABI but with hard floats' userland, then we'll need
- * to rethink this.
- */
-#ifdef __riscv_flen
-#define	MACHINE_ARCH	"riscv64"
-#else
+
+/* Always use the hard-float arch for the kernel. */
+#if !defined(_KERNEL) && defined(__riscv_float_abi_soft)
 #define	MACHINE_ARCH	"riscv64sf"
+#else
+#define	MACHINE_ARCH	"riscv64"
 #endif
+#endif
+#ifdef _KERNEL
+#define	MACHINE_ARCHES	"riscv64 riscv64sf"
 #endif
 
 #ifdef SMP
