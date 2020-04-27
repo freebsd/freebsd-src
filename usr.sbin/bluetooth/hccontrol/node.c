@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <uuid.h>
 #include "hccontrol.h"
 
 /* Send Read_Node_State command to the node */
@@ -222,23 +223,53 @@ static int  hci_dump_adv(uint8_t *data, int length)
 		elemlen = *data;
 		data++;
 		length --;
-		elemlen--;
 		if(length<=0)
 			break;
 		type = *data;
 		data++;
 		length --;
 		elemlen--;
-		if(length<=0)
+		if(length <= 0)
 			break;
 		switch(type){
 		case 0x1:
 			printf("NDflag:%x\n", *data);
 			break;
+		case 0x8:
 		case 0x9:
 			printf("LocalName:");
 			for(i = 0; i < MIN(length,elemlen); i++){
 				putchar(data[i]);
+			}
+			printf("\n");
+			break;
+		case 0x6:
+		case 0x7:
+		{
+			uuid_t uuid;
+			char *uuidstr;
+			uint32_t ustatus;
+			if (elemlen < 16)
+				break;
+			uuid.time_low = le32dec(data+12);
+			uuid.time_mid = le16dec(data+10);
+			uuid.time_hi_and_version = le16dec(data+8);
+			uuid.clock_seq_hi_and_reserved = data[7];
+			uuid.clock_seq_low = data[6];
+			for(i = 0; i < _UUID_NODE_LEN; i++){
+				uuid.node[i] = data[5 - i];
+			}
+			uuid_to_string(&uuid, &uuidstr, &ustatus);
+			
+			printf("ServiceUUID: %s\n", uuidstr);
+			break;
+		}	
+		case 0xff:
+			if (elemlen < 2)
+				break;
+			printf("Vendor:%04x:", data[0]|data[1]<<8);
+			for (i = 2; i < MIN(length,elemlen); i++) {
+				printf("%02x ",data[i]);
 			}
 			printf("\n");
 			break;
