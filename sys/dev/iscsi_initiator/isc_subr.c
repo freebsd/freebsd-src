@@ -97,6 +97,9 @@ i_crc32c(const void *buf, size_t size, uint32_t crc)
 int
 i_setopt(isc_session_t *sp, isc_opt_t *opt)
 {
+     char buf[16];
+     int error;
+
      if(opt->maxRecvDataSegmentLength > 0) {
 	  sp->opt.maxRecvDataSegmentLength = opt->maxRecvDataSegmentLength;
 	  sdebug(2, "maxRecvDataSegmentLength=%d", sp->opt.maxRecvDataSegmentLength);
@@ -138,15 +141,21 @@ i_setopt(isc_session_t *sp, isc_opt_t *opt)
      }
 
      if(opt->headerDigest != NULL) {
-	  sdebug(2, "opt.headerDigest='%s'", opt->headerDigest);
-	  if(strcmp(opt->headerDigest, "CRC32C") == 0) {
+	  error = copyinstr(opt->headerDigest, buf, sizeof(buf), NULL);
+	  if (error != 0)
+	       return (error);
+	  sdebug(2, "opt.headerDigest='%s'", buf);
+	  if(strcmp(buf, "CRC32C") == 0) {
 	       sp->hdrDigest = (digest_t *)i_crc32c;
 	       sdebug(2, "opt.headerDigest set");
 	  }
      }
      if(opt->dataDigest != NULL) {
-	  sdebug(2, "opt.dataDigest='%s'", opt->headerDigest);
-	  if(strcmp(opt->dataDigest, "CRC32C") == 0) {
+	  error = copyinstr(opt->dataDigest, buf, sizeof(buf), NULL);
+	  if (error != 0)
+	       return (error);
+	  sdebug(2, "opt.dataDigest='%s'", opt->dataDigest);
+	  if(strcmp(buf, "CRC32C") == 0) {
 	       sp->dataDigest = (digest_t *)i_crc32c;
 	       sdebug(2, "opt.dataDigest set");
 	  }
