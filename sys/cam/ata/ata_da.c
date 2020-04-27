@@ -109,7 +109,8 @@ typedef enum {
 	ADA_FLAG_ANNOUNCED	= 0x00100000,
 	ADA_FLAG_DIRTY		= 0x00200000,
 	ADA_FLAG_CAN_NCQ_TRIM	= 0x00400000,	/* CAN_TRIM also set */
-	ADA_FLAG_PIM_ATA_EXT	= 0x00800000
+	ADA_FLAG_PIM_ATA_EXT	= 0x00800000,
+	ADA_FLAG_UNMAPPEDIO	= 0x01000000
 } ada_flags;
 #define ADA_FLAG_STRING		\
 	"\020"			\
@@ -135,7 +136,8 @@ typedef enum {
 	"\025ANNOUNCED"		\
 	"\026DIRTY"		\
 	"\027CAN_NCQ_TRIM"	\
-	"\030PIM_ATA_EXT"
+	"\030PIM_ATA_EXT"	\
+	"\031UNMAPPEDIO"
 
 typedef enum {
 	ADA_Q_NONE		= 0x00,
@@ -264,7 +266,6 @@ struct ada_softc {
 	int	 trim_max_ranges;
 	int	 read_ahead;
 	int	 write_cache;
-	int	 unmappedio;
 	int	 rotating;
 #ifdef CAM_TEST_FAILURE
 	int      force_read_error;
@@ -831,6 +832,7 @@ static	periph_oninv_t	adaoninvalidate;
 static	periph_dtor_t	adacleanup;
 static	void		adaasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
+static	int		adabitsysctl(SYSCTL_HANDLER_ARGS);
 static	int		adaflagssysctl(SYSCTL_HANDLER_ARGS);
 static	int		adazonesupsysctl(SYSCTL_HANDLER_ARGS);
 static	int		adazonesupsysctl(SYSCTL_HANDLER_ARGS);
@@ -1515,9 +1517,6 @@ adasysctlinit(void *context, int pending)
 		OID_AUTO, "write_cache", CTLFLAG_RW | CTLFLAG_MPSAFE,
 		&softc->write_cache, 0, "Enable disk write cache.");
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "unmapped_io", CTLFLAG_RD | CTLFLAG_MPSAFE,
-		&softc->unmappedio, 0, "Unmapped I/O leaf");
-	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "rotating", CTLFLAG_RD | CTLFLAG_MPSAFE,
 		&softc->rotating, 0, "Rotating media");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
@@ -1548,6 +1547,10 @@ adasysctlinit(void *context, int pending)
 	    OID_AUTO, "flags", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    softc, 0, adaflagssysctl, "A",
 	    "Flags for drive");
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "unmapped_io", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &softc->flags, (u_int)ADA_FLAG_UNMAPPEDIO, adabitsysctl, "I",
+	    "Unmapped I/O support *DEPRECATED* gone in FreeBSD 14");
 
 #ifdef CAM_TEST_FAILURE
 	/*
@@ -1654,6 +1657,21 @@ adadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 		return (0);
 	}
 	return (EINVAL);
+}
+
+static int
+adabitsysctl(SYSCTL_HANDLER_ARGS)
+{
+	u_int *flags = arg1;
+	u_int test = arg2;
+	int tmpout, error;
+
+	tmpout = !!(*flags & test);
+	error = SYSCTL_OUT(req, &tmpout, sizeof(tmpout));
+	if (error || !req->newptr)
+		return (error);
+
+	return (EPERM);
 }
 
 static int
@@ -3459,7 +3477,7 @@ adasetgeom(struct ada_softc *softc, struct ccb_getdev *cgd)
 		softc->disk->d_delmaxsize = maxio;
 	if ((softc->cpi.hba_misc & PIM_UNMAPPED) != 0) {
 		d_flags |= DISKFLAG_UNMAPPED_BIO;
-		softc->unmappedio = 1;
+		softc->flags |= ADA_FLAG_UNMAPPEDIO;
 	}
 	softc->disk->d_flags = d_flags;
 	strlcpy(softc->disk->d_descr, cgd->ident_data.model,
