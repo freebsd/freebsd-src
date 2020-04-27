@@ -302,7 +302,7 @@ typedef	_Bool	bool;
 
 #define offsetof(type, field) __offsetof(type, field)
 
-#endif /* !_KERNEL */
+#endif /* _KERNEL */
 
 /*
  * The following are all things that really shouldn't exist in this header,
