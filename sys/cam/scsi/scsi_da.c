@@ -342,7 +342,7 @@ struct da_softc {
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
 	int	 refcount;		/* Active xpt_action() calls */
 	da_state state;
-	u_int	 flags;
+	da_flags flags;
 	da_quirks quirks;
 	int	 minimum_cmd_size;
 	int	 error_inject;
@@ -2646,7 +2646,7 @@ daflagssysctl(SYSCTL_HANDLER_ARGS)
 
 	sbuf_new_for_sysctl(&sbuf, NULL, 0, req);
 	if (softc->flags != 0)
-		sbuf_printf(&sbuf, "0x%b", softc->flags, DA_FLAG_STRING);
+		sbuf_printf(&sbuf, "0x%b", (unsigned)softc->flags, DA_FLAG_STRING);
 	else
 		sbuf_printf(&sbuf, "0");
 	error = sbuf_finish(&sbuf);
