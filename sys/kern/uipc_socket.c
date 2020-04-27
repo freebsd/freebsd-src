@@ -1557,8 +1557,10 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 #endif
 	if (uio != NULL)
 		resid = uio->uio_resid;
-	else
+	else if ((top->m_flags & M_PKTHDR) != 0)
 		resid = top->m_pkthdr.len;
+	else
+		resid = m_length(top, NULL);
 	/*
 	 * In theory resid should be unsigned.  However, space must be
 	 * signed, as it might be less than 0 if we over-committed, and we
