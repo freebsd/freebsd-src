@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
+#include <sys/sysent.h>
 #include <sys/vmmeter.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -252,39 +253,49 @@ SYSCTL_PROC(_hw, OID_AUTO, pagesizes,
     sysctl_hw_pagesizes, "LU",
     "Supported page sizes");
 
-#ifdef SCTL_MASK32
 int adaptive_machine_arch = 1;
 SYSCTL_INT(_debug, OID_AUTO, adaptive_machine_arch, CTLFLAG_RW,
     &adaptive_machine_arch, 1,
     "Adapt reported machine architecture to the ABI of the binary");
+
+static const char *
+proc_machine_arch(struct proc *p)
+{
+
+	if (p->p_sysent->sv_machine_arch != NULL)
+		return (p->p_sysent->sv_machine_arch(p));
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(p, SV_ILP32))
+		return (MACHINE_ARCH32);
 #endif
+	return (MACHINE_ARCH);
+}
 
 static int
 sysctl_hw_machine_arch(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	static const char machine_arch[] = MACHINE_ARCH;
-#ifdef SCTL_MASK32
-	static const char machine_arch32[] = MACHINE_ARCH32;
+	const char *machine_arch;
 
-	if ((req->flags & SCTL_MASK32) != 0 && adaptive_machine_arch)
-		error = SYSCTL_OUT(req, machine_arch32, sizeof(machine_arch32));
+	if (adaptive_machine_arch)
+		machine_arch = proc_machine_arch(curproc);
 	else
-#endif
-		error = SYSCTL_OUT(req, machine_arch, sizeof(machine_arch));
-	return (error);
-
+		machine_arch = MACHINE_ARCH;
+	return (SYSCTL_OUT(req, machine_arch, strlen(machine_arch) + 1));
 }
 SYSCTL_PROC(_hw, HW_MACHINE_ARCH, machine_arch, CTLTYPE_STRING | CTLFLAG_RD |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine_arch, "A",
     "System architecture");
 
-SYSCTL_STRING(_kern, OID_AUTO, supported_archs, CTLFLAG_RD | CTLFLAG_MPSAFE,
+#ifndef MACHINE_ARCHES
 #ifdef COMPAT_FREEBSD32
-    MACHINE_ARCH " " MACHINE_ARCH32, 0, "Supported architectures for binaries");
+#define	MACHINE_ARCHES	MACHINE_ARCH " " MACHINE_ARCH32
 #else
-    MACHINE_ARCH, 0, "Supported architectures for binaries");
+#define	MACHINE_ARCHES	MACHINE_ARCH
 #endif
+#endif
+
+SYSCTL_STRING(_kern, OID_AUTO, supported_archs, CTLFLAG_RD | CTLFLAG_MPSAFE,
+    MACHINE_ARCHES, 0, "Supported architectures for binaries");
 
 static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)
