@@ -821,6 +821,65 @@ mlx5e_cable_length_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+static int
+mlx5e_hw_temperature_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	int err;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.hw_val_temp,
+	    sizeof(priv->params_ethtool.hw_val_temp[0]) *
+	    priv->params_ethtool.hw_num_temp);
+	if (err == 0 && req->newptr != NULL)
+		err = EOPNOTSUPP;
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+int
+mlx5e_hw_temperature_update(struct mlx5e_priv *priv)
+{
+	int err;
+	u32 x;
+
+	if (priv->params_ethtool.hw_num_temp == 0) {
+		u32 out_cap[MLX5_ST_SZ_DW(mtcap)] = {};
+		const int sz_cap = MLX5_ST_SZ_BYTES(mtcap);
+		u32 value;
+
+		err = -mlx5_core_access_reg(priv->mdev, NULL, 0, out_cap, sz_cap,
+		    MLX5_ACCESS_REG_SUMMARY_CTRL_ID_MTCAP, 0, 0);
+		if (err)
+			goto done;
+		value = MLX5_GET(mtcap, out_cap, sensor_count);
+		if (value == 0)
+			return (0);
+		if (value > MLX5_MAX_TEMPERATURE)
+			value = MLX5_MAX_TEMPERATURE;
+		/* update number of temperature sensors */
+		priv->params_ethtool.hw_num_temp = value;
+	}
+
+	for (x = 0; x != priv->params_ethtool.hw_num_temp; x++) {
+		u32 out_sensor[MLX5_ST_SZ_DW(mtmp_reg)] = {};
+		const int sz_sensor = MLX5_ST_SZ_BYTES(mtmp_reg);
+
+		MLX5_SET(mtmp_reg, out_sensor, sensor_index, x);
+
+		err = -mlx5_core_access_reg(priv->mdev, out_sensor, sz_sensor,
+		    out_sensor, sz_sensor,
+		    MLX5_ACCESS_REG_SUMMARY_CTRL_ID_MTMP, 0, 0);
+		if (err)
+			goto done;
+		/* convert from 0.125 celcius to millicelcius */
+		priv->params_ethtool.hw_val_temp[x] =
+		    (s16)MLX5_GET(mtmp_reg, out_sensor, temperature) * 125;
+	}
+done:
+	return (err);
+}
+
 #define	MLX5_PARAM_OFFSET(n)				\
     __offsetof(struct mlx5e_priv, params_ethtool.n)
 
@@ -1562,5 +1621,13 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 		    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 		    priv, 0, mlx5e_cable_length_handler, "IU",
 		    "Set cable length in meters for xoff threshold calculation");
+	}
+
+	if (mlx5e_hw_temperature_update(priv) == 0) {
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
+		    OID_AUTO, "hw_temperature",
+		    CTLTYPE_S32 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_hw_temperature_handler, "I",
+		    "HW temperature in millicelcius");
 	}
 }
