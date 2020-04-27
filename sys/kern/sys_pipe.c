@@ -824,7 +824,12 @@ unlocked_error:
 		}
 	}
 
-	if ((rpipe->pipe_buffer.size - rpipe->pipe_buffer.cnt) >= PIPE_BUF)
+	/*
+	 * Only wake up writers if there was actually something read.
+	 * Otherwise, when calling read(2) at EOF, a spurious wakeup occurs.
+	 */
+	if (nread > 0 &&
+	    rpipe->pipe_buffer.size - rpipe->pipe_buffer.cnt >= PIPE_BUF)
 		pipeselwakeup(rpipe);
 
 	PIPE_UNLOCK(rpipe);
@@ -1726,48 +1731,54 @@ filt_pipedetach(struct knote *kn)
 static int
 filt_piperead(struct knote *kn, long hint)
 {
+	struct file *fp = kn->kn_fp;
 	struct pipe *rpipe = kn->kn_hook;
-	struct pipe *wpipe = rpipe->pipe_peer;
-	int ret;
 
 	PIPE_LOCK_ASSERT(rpipe, MA_OWNED);
 	kn->kn_data = rpipe->pipe_buffer.cnt;
 	if (kn->kn_data == 0)
 		kn->kn_data = rpipe->pipe_map.cnt;
 
-	if ((rpipe->pipe_state & PIPE_EOF) ||
-	    wpipe->pipe_present != PIPE_ACTIVE ||
-	    (wpipe->pipe_state & PIPE_EOF)) {
+	if ((rpipe->pipe_state & PIPE_EOF) != 0 &&
+	    ((rpipe->pipe_state & PIPE_NAMED) == 0 ||
+	    fp->f_pipegen != rpipe->pipe_wgen)) {
 		kn->kn_flags |= EV_EOF;
 		return (1);
 	}
-	ret = kn->kn_data > 0;
-	return ret;
+	kn->kn_flags &= ~EV_EOF;
+	return (kn->kn_data > 0);
 }
 
 /*ARGSUSED*/
 static int
 filt_pipewrite(struct knote *kn, long hint)
 {
-	struct pipe *wpipe;
+	struct pipe *wpipe = kn->kn_hook;
 
 	/*
 	 * If this end of the pipe is closed, the knote was removed from the
 	 * knlist and the list lock (i.e., the pipe lock) is therefore not held.
 	 */
-	wpipe = kn->kn_hook;
+	if (wpipe->pipe_present == PIPE_ACTIVE ||
+	    (wpipe->pipe_state & PIPE_NAMED) != 0) {
+		PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
+
+		if (wpipe->pipe_state & PIPE_DIRECTW) {
+			kn->kn_data = 0;
+		} else if (wpipe->pipe_buffer.size > 0) {
+			kn->kn_data = wpipe->pipe_buffer.size -
+			    wpipe->pipe_buffer.cnt;
+		} else {
+			kn->kn_data = PIPE_BUF;
+		}
+	}
+
 	if (wpipe->pipe_present != PIPE_ACTIVE ||
 	    (wpipe->pipe_state & PIPE_EOF)) {
-		kn->kn_data = 0;
 		kn->kn_flags |= EV_EOF;
 		return (1);
 	}
-	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
-	kn->kn_data = (wpipe->pipe_buffer.size > 0) ?
-	    (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) : PIPE_BUF;
-	if (wpipe->pipe_state & PIPE_DIRECTW)
-		kn->kn_data = 0;
-
+	kn->kn_flags &= ~EV_EOF;
 	return (kn->kn_data >= PIPE_BUF);
 }
 
