@@ -578,7 +578,6 @@ valid_cl(struct fat_descriptor *fat, cl_t cl)
  * h = hard error flag (1 = ok; 0 = I/O error)
  * x = any value ok
  */
-
 int
 checkdirty(int fs, struct bootblock *boot)
 {
@@ -636,6 +635,53 @@ checkdirty(int fs, struct bootblock *boot)
 		if ((buffer[7] & 0x0c) == 0x0c)
 			ret = 1;
 	}
+
+err:
+	free(buffer);
+	return ret;
+}
+
+int
+cleardirty(struct fat_descriptor *fat)
+{
+	int fd, ret = FSERROR;
+	struct bootblock *boot;
+	u_char *buffer;
+	size_t len;
+	off_t off;
+
+	boot = boot_of_(fat);
+	fd = fd_of_(fat);
+
+	if (boot->ClustMask != CLUST16_MASK && boot->ClustMask != CLUST32_MASK)
+		return 0;
+
+	off = boot->bpbResSectors;
+	off *= boot->bpbBytesPerSec;
+
+	buffer = malloc(len = boot->bpbBytesPerSec);
+	if (buffer == NULL) {
+		perr("No memory for FAT sectors (%zu)", len);
+		return 1;
+	}
+
+	if ((size_t)pread(fd, buffer, len, off) != len) {
+		perr("Unable to read FAT");
+		goto err;
+	}
+
+	if (boot->ClustMask == CLUST16_MASK) {
+		buffer[3] |= 0x80;
+	} else {
+		buffer[7] |= 0x08;
+	}
+
+	if ((size_t)pwrite(fd, buffer, len, off) != len) {
+		perr("Unable to write FAT");
+		goto err;
+	}
+
+	ret = FSOK;
 
 err:
 	free(buffer);
