@@ -169,7 +169,7 @@ checkfilesys(const char *fname)
 
 			if (mod & FSDIRTY) {
 				pwarn("MARKING FILE SYSTEM CLEAN\n");
-				mod |= writefat(fat);
+				mod |= cleardirty(fat);
 			} else {
 				pwarn("\n***** FILE SYSTEM IS LEFT MARKED AS DIRTY *****\n");
 				mod |= FSERROR; /* file system not clean */
