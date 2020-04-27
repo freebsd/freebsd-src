@@ -10,6 +10,7 @@ atf_test_case side_by_side
 atf_test_case brief_format
 atf_test_case b230049
 atf_test_case Bflag
+atf_test_case conflicting_format
 
 simple_body()
 {
@@ -48,8 +49,6 @@ unified_body()
 {
 	atf_check -o file:$(atf_get_srcdir)/unified_p.out -s eq:1 \
 		diff -up -L input_c1.in -L input_c2.in  "$(atf_get_srcdir)/input_c1.in" "$(atf_get_srcdir)/input_c2.in"
-	atf_check -o file:$(atf_get_srcdir)/unified_c9999.out -s eq:1 \
-		diff -u -c9999 -L input_c1.in -L input_c2.in "$(atf_get_srcdir)/input_c1.in" "$(atf_get_srcdir)/input_c2.in"
 	atf_check -o file:$(atf_get_srcdir)/unified_9999.out -s eq:1 \
 		diff -u9999 -L input_c1.in -L input_c2.in "$(atf_get_srcdir)/input_c1.in" "$(atf_get_srcdir)/input_c2.in"
 }
@@ -164,6 +163,20 @@ Bflag_body()
 	atf_check -s exit:1 -o file:"$(atf_get_srcdir)/Bflag_F.out" diff -B E F
 }
 
+conflicting_format_body()
+{
+	printf "\tA\n" > A
+	printf "\tB\n" > B
+
+	atf_check -s exit:2 -e ignore diff -c -u A B
+	atf_check -s exit:2 -e ignore diff -e -f A B
+	atf_check -s exit:2 -e ignore diff -y -q A B
+	atf_check -s exit:2 -e ignore diff -q -u A B
+	atf_check -s exit:2 -e ignore diff -q -c A B
+	atf_check -s exit:2 -e ignore diff --normal -c A B
+	atf_check -s exit:2 -e ignore diff -c --normal A B
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
@@ -176,4 +189,5 @@ atf_init_test_cases()
 	atf_add_test_case brief_format
 	atf_add_test_case b230049
 	atf_add_test_case Bflag
+	atf_add_test_case conflicting_format 
 }

@@ -100,6 +100,7 @@ static struct option longopts[] = {
 };
 
 void usage(void) __dead2;
+void conflicting_format(void) __dead2;
 void push_excludes(char *);
 void push_ignore_pats(char *);
 void read_excludes_file(char *file);
@@ -120,7 +121,7 @@ main(int argc, char **argv)
 	prevoptind = 1;
 	newarg = 1;
 	diff_context = 3;
-	diff_format = 0;
+	diff_format = D_UNSET;
 	while ((ch = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
@@ -141,6 +142,8 @@ main(int argc, char **argv)
 			break;
 		case 'C':
 		case 'c':
+			if (diff_format != D_UNSET)
+				conflicting_format();
 			cflag = 1;
 			diff_format = D_CONTEXT;
 			if (optarg != NULL) {
@@ -154,13 +157,19 @@ main(int argc, char **argv)
 			dflags |= D_MINIMAL;
 			break;
 		case 'D':
+			if (diff_format != D_UNSET)
+				conflicting_format();
 			diff_format = D_IFDEF;
 			ifdefname = optarg;
 			break;
 		case 'e':
+			if (diff_format != D_UNSET)
+				conflicting_format();
 			diff_format = D_EDIT;
 			break;
 		case 'f':
+			if (diff_format != D_UNSET)
+				conflicting_format();
 			diff_format = D_REVERSE;
 			break;
 		case 'H':
@@ -193,10 +202,12 @@ main(int argc, char **argv)
 			Nflag = 1;
 			break;
 		case 'n':
+			if (diff_format != D_UNSET)
+				conflicting_format();
 			diff_format = D_NREVERSE;
 			break;
 		case 'p':
-			if (diff_format == 0)
+			if (diff_format == D_UNSET)
 				diff_format = D_CONTEXT;
 			dflags |= D_PROTOTYPE;
 			break;
@@ -207,6 +218,8 @@ main(int argc, char **argv)
 			rflag = 1;
 			break;
 		case 'q':
+			if (diff_format != D_UNSET)
+				conflicting_format();
 			diff_format = D_BRIEF;
 			break;
 		case 'S':
@@ -223,6 +236,8 @@ main(int argc, char **argv)
 			break;
 		case 'U':
 		case 'u':
+			if (diff_format != D_UNSET)
+				conflicting_format();
 			diff_format = D_UNIFIED;
 			if (optarg != NULL) {
 				l = strtol(optarg, &ep, 10);
@@ -249,9 +264,13 @@ main(int argc, char **argv)
 			push_excludes(optarg);
 			break;
 		case 'y':
+			if (diff_format != D_UNSET)
+				conflicting_format();
 			diff_format = D_SIDEBYSIDE;
 			break;
 		case OPT_CHANGED_GROUP_FORMAT:
+			if (diff_format != D_UNSET)
+				conflicting_format();
 			diff_format = D_GFORMAT;
 			group_format = optarg;
 			break;
@@ -264,6 +283,8 @@ main(int argc, char **argv)
 			ignore_file_case = 0;
 			break;
 		case OPT_NORMAL:
+			if (diff_format != D_UNSET)
+				conflicting_format();
 			diff_format = D_NORMAL;
 			break;
 		case OPT_TSIZE:
@@ -287,6 +308,8 @@ main(int argc, char **argv)
 		newarg = optind != prevoptind;
 		prevoptind = optind;
 	}
+	if (diff_format == D_UNSET)
+		diff_format = D_NORMAL;
 	argc -= optind;
 	argv += optind;
 
@@ -490,4 +513,12 @@ usage(void)
             "            -y | --side-by-side file1 file2\n");
 
 	exit(2);
+}
+
+void
+conflicting_format(void)
+{
+
+	fprintf(stderr, "error: conflicting output format options.\n");
+	usage();
 }
