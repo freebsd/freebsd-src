@@ -90,6 +90,8 @@ int writefsinfo(int, struct bootblock *);
 /* Opaque type */
 struct fat_descriptor;
 
+int cleardirty(struct fat_descriptor *);
+
 void fat_clear_cl_head(struct fat_descriptor *, cl_t);
 bool fat_is_cl_head(struct fat_descriptor *, cl_t);
 
