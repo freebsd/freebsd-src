@@ -298,6 +298,7 @@ fd_modified(struct filedesc *fdp, int fd, seqc_t seqc)
 void	pwd_chdir(struct thread *td, struct vnode *vp);
 int	pwd_chroot(struct thread *td, struct vnode *vp);
 void	pwd_ensure_dirs(void);
+void	pwd_set_rootvnode(void);
 
 struct pwd *pwd_hold_filedesc(struct filedesc *fdp);
 struct pwd *pwd_hold(struct thread *td);

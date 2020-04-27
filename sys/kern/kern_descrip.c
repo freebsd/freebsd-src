@@ -3475,6 +3475,27 @@ pwd_ensure_dirs(void)
 	pwd_drop(oldpwd);
 }
 
+void
+pwd_set_rootvnode(void)
+{
+	struct filedesc *fdp;
+	struct pwd *oldpwd, *newpwd;
+
+	fdp = curproc->p_fd;
+
+	newpwd = pwd_alloc();
+	FILEDESC_XLOCK(fdp);
+	oldpwd = FILEDESC_XLOCKED_LOAD_PWD(fdp);
+	vrefact(rootvnode);
+	newpwd->pwd_cdir = rootvnode;
+	vrefact(rootvnode);
+	newpwd->pwd_rdir = rootvnode;
+	pwd_fill(oldpwd, newpwd);
+	pwd_set(fdp, newpwd);
+	FILEDESC_XUNLOCK(fdp);
+	pwd_drop(oldpwd);
+}
+
 /*
  * Scan all active processes and prisons to see if any of them have a current
  * or root directory of `olddp'. If so, replace them with the new mount point.
