@@ -1430,7 +1430,8 @@ pipe_poll(struct file *fp, int events, struct ucred *active_cred,
 
 	if ((events & POLLINIGNEOF) == 0) {
 		if (rpipe->pipe_state & PIPE_EOF) {
-			revents |= (events & (POLLIN | POLLRDNORM));
+			if (fp->f_flag & FREAD)
+				revents |= (events & (POLLIN | POLLRDNORM));
 			if (wpipe->pipe_present != PIPE_ACTIVE ||
 			    (wpipe->pipe_state & PIPE_EOF))
 				revents |= POLLHUP;
