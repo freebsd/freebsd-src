@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
@@ -75,6 +76,11 @@ typedef enum {
 	NDA_FLAG_DIRTY		= 0x0002,
 	NDA_FLAG_SCTX_INIT	= 0x0004,
 } nda_flags;
+#define NDA_FLAG_STRING		\
+	"\020"			\
+	"\001OPEN"		\
+	"\002DIRTY"		\
+	"\003SCTX_INIT"
 
 typedef enum {
 	NDA_Q_4K   = 0x01,
@@ -144,6 +150,7 @@ static	periph_init_t	ndainit;
 static	void		ndaasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
 static	void		ndasysctlinit(void *context, int pending);
+static	int		ndaflagssysctl(SYSCTL_HANDLER_ARGS);
 static	periph_ctor_t	ndaregister;
 static	periph_dtor_t	ndacleanup;
 static	periph_start_t	ndastart;
@@ -659,6 +666,11 @@ ndasysctlinit(void *context, int pending)
 	    OID_AUTO, "rotating", CTLFLAG_RD, &nda_rotating_media, 1,
 	    "Rotating media");
 
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "flags", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    softc, 0, ndaflagssysctl, "A",
+	    "Flags for drive");
+
 #ifdef CAM_IO_STATS
 	softc->sysctl_stats_tree = SYSCTL_ADD_NODE(&softc->sysctl_stats_ctx,
 		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO, "stats",
@@ -696,6 +708,24 @@ ndasysctlinit(void *context, int pending)
 	    softc->sysctl_tree);
 
 	cam_periph_release(periph);
+}
+
+static int
+ndaflagssysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	struct nda_softc *softc = arg1;
+	int error;
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 0, req);
+	if (softc->flags != 0)
+		sbuf_printf(&sbuf, "0x%b", (unsigned)softc->flags, NDA_FLAG_STRING);
+	else
+		sbuf_printf(&sbuf, "0");
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+
+	return (error);
 }
 
 static int
