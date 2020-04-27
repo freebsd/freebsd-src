@@ -915,26 +915,26 @@ msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		msgctrl &= ~rwmask;
 		msgctrl |= val & rwmask;
 		val = msgctrl;
-
-		addrlo = pci_get_cfgdata32(pi, capoff + 4);
-		if (msgctrl & PCIM_MSICTRL_64BIT)
-			msgdata = pci_get_cfgdata16(pi, capoff + 12);
-		else
-			msgdata = pci_get_cfgdata16(pi, capoff + 8);
-
-		mme = msgctrl & PCIM_MSICTRL_MME_MASK;
-		pi->pi_msi.enabled = msgctrl & PCIM_MSICTRL_MSI_ENABLE ? 1 : 0;
-		if (pi->pi_msi.enabled) {
-			pi->pi_msi.addr = addrlo;
-			pi->pi_msi.msg_data = msgdata;
-			pi->pi_msi.maxmsgnum = 1 << (mme >> 4);
-		} else {
-			pi->pi_msi.maxmsgnum = 0;
-		}
-		pci_lintr_update(pi);
 	}
-
 	CFGWRITE(pi, offset, val, bytes);
+
+	msgctrl = pci_get_cfgdata16(pi, capoff + 2);
+	addrlo = pci_get_cfgdata32(pi, capoff + 4);
+	if (msgctrl & PCIM_MSICTRL_64BIT)
+		msgdata = pci_get_cfgdata16(pi, capoff + 12);
+	else
+		msgdata = pci_get_cfgdata16(pi, capoff + 8);
+
+	mme = msgctrl & PCIM_MSICTRL_MME_MASK;
+	pi->pi_msi.enabled = msgctrl & PCIM_MSICTRL_MSI_ENABLE ? 1 : 0;
+	if (pi->pi_msi.enabled) {
+		pi->pi_msi.addr = addrlo;
+		pi->pi_msi.msg_data = msgdata;
+		pi->pi_msi.maxmsgnum = 1 << (mme >> 4);
+	} else {
+		pi->pi_msi.maxmsgnum = 0;
+	}
+	pci_lintr_update(pi);
 }
 
 void
