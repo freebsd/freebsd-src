@@ -284,6 +284,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	newtd->td_pflags2 = 0;
+	newtd->td_errno = 0;
 	bcopy(&oldtd->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 

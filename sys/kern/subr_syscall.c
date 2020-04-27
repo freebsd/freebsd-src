@@ -85,8 +85,10 @@ syscallenter(struct thread *td)
 	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "arg0:%p", sa->args[0],
 	    "arg1:%p", sa->args[1], "arg2:%p", sa->args[2]);
 
-	if (error != 0)
+	if (error != 0) {
+		td->td_errno = error;
 		goto retval;
+	}
 
 	STOPEVENT(p, S_SCE, sa->narg);
 	if ((p->p_flag & P_TRACED) != 0) {
@@ -105,8 +107,10 @@ syscallenter(struct thread *td)
 		if (KTRPOINT(td, KTR_SYSCALL))
 			ktrsyscall(sa->code, sa->narg, sa->args);
 #endif
-		if (error != 0)
+		if (error != 0) {
+			td->td_errno = error;
 			goto retval;
+		}
 	}
 
 #ifdef CAPABILITY_MODE
@@ -116,20 +120,25 @@ syscallenter(struct thread *td)
 	 */
 	if (IN_CAPABILITY_MODE(td) &&
 	    !(sa->callp->sy_flags & SYF_CAPENABLED)) {
-		error = ECAPMODE;
+		td->td_errno = error = ECAPMODE;
 		goto retval;
 	}
 #endif
 
 	error = syscall_thread_enter(td, sa->callp);
-	if (error != 0)
+	if (error != 0) {
+		td->td_errno = error;
 		goto retval;
+	}
 
 #ifdef KDTRACE_HOOKS
 	/* Give the syscall:::entry DTrace probe a chance to fire. */
 	if (__predict_false(systrace_enabled && sa->callp->sy_entry != 0))
 		(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
 #endif
+
+	/* Let system calls set td_errno directly. */
+	td->td_pflags &= ~TDP_NERRNO;
 
 	AUDIT_SYSCALL_ENTER(sa->code, td);
 	error = (sa->callp->sy_call)(td, sa->args);
@@ -162,12 +171,12 @@ syscallenter(struct thread *td)
 }
 
 static inline void
-syscallret(struct thread *td, int error)
+syscallret(struct thread *td, int error __unused)
 {
 	struct proc *p, *p2;
 	struct syscall_args *sa;
 	ksiginfo_t ksi;
-	int traced, error1;
+	int traced;
 
 	KASSERT((td->td_pflags & TDP_FORKING) == 0,
 	    ("fork() did not clear TDP_FORKING upon completion"));
@@ -176,12 +185,10 @@ syscallret(struct thread *td, int error)
 	sa = &td->td_sa;
 	if ((trap_enotcap || (p->p_flag2 & P2_TRAPCAP) != 0) &&
 	    IN_CAPABILITY_MODE(td)) {
-		error1 = (td->td_pflags & TDP_NERRNO) == 0 ? error :
-		    td->td_errno;
-		if (error1 == ENOTCAPABLE || error1 == ECAPMODE) {
+		if (td->td_errno == ENOTCAPABLE || td->td_errno == ECAPMODE) {
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = SIGTRAP;
-			ksi.ksi_errno = error1;
+			ksi.ksi_errno = td->td_errno;
 			ksi.ksi_code = TRAP_CAP;
 			trapsignal(td, &ksi);
 		}
@@ -194,11 +201,9 @@ syscallret(struct thread *td, int error)
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET)) {
-		ktrsysret(sa->code, (td->td_pflags & TDP_NERRNO) == 0 ?
-		    error : td->td_errno, td->td_retval[0]);
+		ktrsysret(sa->code, td->td_errno, td->td_retval[0]);
 	}
 #endif
-	td->td_pflags &= ~TDP_NERRNO;
 
 	if (p->p_flag & P_TRACED) {
 		traced = 1;

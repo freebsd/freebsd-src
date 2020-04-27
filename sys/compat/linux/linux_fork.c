@@ -310,6 +310,7 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	newtd->td_pflags2 = 0;
+	newtd->td_errno = 0;
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 
