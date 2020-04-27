@@ -3465,3 +3465,32 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 	if (inp->inp_socket == NULL)
 		xt->xt_inp.xi_socket.xso_protocol = IPPROTO_TCP;
 }
+
+void
+tcp_log_end_status(struct tcpcb *tp, uint8_t status)
+{
+	uint32_t bit, i;
+
+	if ((tp == NULL) ||
+	    (status > TCP_EI_STATUS_MAX_VALUE) ||
+	    (status == 0)) {
+		/* Invalid */
+		return;
+	}
+	if (status > (sizeof(uint32_t) * 8)) {
+		/* Should this be a KASSERT? */
+		return;
+	}
+	bit = 1U << (status - 1);
+	if (bit & tp->t_end_info_status) {
+		/* already logged */
+		return;
+	}
+	for (i = 0; i < TCP_END_BYTE_INFO; i++) {
+		if (tp->t_end_info_bytes[i] == TCP_EI_EMPTY_SLOT) {
+			tp->t_end_info_bytes[i] = status;
+			tp->t_end_info_status |= bit;
+			break;
+		}
+	}
+}

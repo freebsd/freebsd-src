@@ -181,6 +181,9 @@ struct tcphdr {
 #define	TCP_CONGESTION	64	/* get/set congestion control algorithm */
 #define	TCP_CCALGOOPT	65	/* get/set cc algorithm specific options */
 #define TCP_DELACK  	72	/* socket option for delayed ack */
+#define TCP_FIN_IS_RST 73	/* A fin from the peer is treated has a RST */
+#define TCP_LOG_LIMIT  74	/* Limit to number of records in tcp-log */
+#define TCP_SHARED_CWND_ALLOWED 75 	/* Use of a shared cwnd is allowed */
 #define	TCP_KEEPINIT	128	/* N, time to establish connection */
 #define	TCP_KEEPIDLE	256	/* L,N,X start keeplives after this period */
 #define	TCP_KEEPINTVL	512	/* L,N interval between keepalives */
@@ -190,10 +193,11 @@ struct tcphdr {
 #define	TCP_PCAP_IN	4096	/* number of input packets to keep */
 #define TCP_FUNCTION_BLK 8192	/* Set the tcp function pointers to the specified stack */
 /* Options for Rack and BBR */
+#define TCP_RACK_MBUF_QUEUE   1050 /* Do we allow mbuf queuing if supported */
 #define TCP_RACK_PROP	      1051 /* RACK proportional rate reduction (bool) */
 #define TCP_RACK_TLP_REDUCE   1052 /* RACK TLP cwnd reduction (bool) */
 #define TCP_RACK_PACE_REDUCE  1053 /* RACK Pacing reduction factor (divisor) */
-#define TCP_RACK_PACE_MAX_SEG 1054 /* Max segments in a pace */
+#define TCP_RACK_PACE_MAX_SEG 1054 /* Max TSO size we will send  */
 #define TCP_RACK_PACE_ALWAYS  1055 /* Use the always pace method */
 #define TCP_RACK_PROP_RATE    1056 /* The proportional reduction rate */
 #define TCP_RACK_PRR_SENDALOT 1057 /* Allow PRR to send more than one seg */
@@ -236,7 +240,7 @@ struct tcphdr {
 #define TCP_RACK_IDLE_REDUCE_HIGH 1092  /* Reduce the highest cwnd seen to IW on idle */
 #define TCP_RACK_MIN_PACE      1093 	/* Do we enforce rack min pace time */
 #define TCP_RACK_MIN_PACE_SEG  1094	/* If so what is the seg threshould */
-#define TCP_RACK_GP_INCREASE   1094	/* After 4.1 its the GP increase */
+#define TCP_RACK_GP_INCREASE   1094	/* After 4.1 its the GP increase in older rack */
 #define TCP_RACK_TLP_USE       1095
 #define TCP_BBR_ACK_COMP_ALG   1096 	/* Not used */
 #define TCP_BBR_TMR_PACE_OH    1096	/* Recycled in 4.2 */
@@ -248,7 +252,8 @@ struct tcphdr {
 #define TCP_BBR_PROBE_RTT_GAIN 1101
 #define TCP_BBR_PROBE_RTT_LEN  1102
 #define TCP_BBR_SEND_IWND_IN_TSO 1103	/* Do we burst out whole iwin size chunks at start? */
-#define TCP_BBR_USE_RACK_CHEAT 1104	/* Do we use the rack cheat for pacing rxt's */
+#define TCP_BBR_USE_RACK_RR	 1104	/* Do we use the rack rapid recovery for pacing rxt's */
+#define TCP_BBR_USE_RACK_CHEAT TCP_BBR_USE_RACK_RR /* Compat. */
 #define TCP_BBR_HDWR_PACE      1105	/* Enable/disable hardware pacing */
 #define TCP_BBR_UTTER_MAX_TSO  1106	/* Do we enforce an utter max TSO size */
 #define TCP_BBR_EXTRA_STATE    1107	/* Special exit-persist catch up */
@@ -256,6 +261,24 @@ struct tcphdr {
 #define TCP_BBR_MIN_TOPACEOUT  1109	/* Do we suspend pacing until */
 #define TCP_BBR_TSTMP_RAISES   1110	/* Can a timestamp measurement raise the b/w */
 #define TCP_BBR_POLICER_DETECT 1111	/* Turn on/off google mode policer detection */
+#define TCP_BBR_RACK_INIT_RATE 1112	/* Set an initial pacing rate for when we have no b/w in kbits per sec */
+#define TCP_RACK_RR_CONF	1113 /* Rack rapid recovery configuration control*/
+#define TCP_RACK_CHEAT_NOT_CONF_RATE TCP_RACK_RR_CONF
+#define TCP_RACK_GP_INCREASE_CA   1114	/* GP increase for Congestion Avoidance */
+#define TCP_RACK_GP_INCREASE_SS   1115	/* GP increase for Slow Start */
+#define TCP_RACK_GP_INCREASE_REC  1116	/* GP increase for Recovery */
+#define TCP_RACK_FORCE_MSEG	1117	/* Override to use the user set max-seg value */
+#define TCP_RACK_PACE_RATE_CA  1118 /* Pacing rate for Congestion Avoidance */
+#define TCP_RACK_PACE_RATE_SS  1119 /* Pacing rate for Slow Start */
+#define TCP_RACK_PACE_RATE_REC  1120 /* Pacing rate for Recovery */
+#define TCP_NO_PRR         	1122 /* If pacing, don't use prr  */
+#define TCP_RACK_NONRXT_CFG_RATE 1123 /* In recovery does a non-rxt use the cfg rate */
+#define TCP_SHARED_CWND_ENABLE   1124 	/* Use a shared cwnd if allowed */
+#define TCP_TIMELY_DYN_ADJ       1125 /* Do we attempt dynamic multipler adjustment with timely. */
+#define TCP_RACK_NO_PUSH_AT_MAX 1126 /* For timely do not push if we are over max rtt */
+#define TCP_RACK_PACE_TO_FILL 1127 /* If we are not in recovery, always pace to fill the cwnd in 1 RTT */
+#define TCP_SHARED_CWND_TIME_LIMIT 1128 /* we should limit to low time values the scwnd life */
+#define TCP_RACK_PROFILE 1129	/* Select a profile that sets multiple options */
 
 
 /* Start of reserved space for third-party user-settable options. */
