@@ -1,4 +1,4 @@
-/*	$OpenBSD: diffreg.c,v 1.91 2016/03/01 20:57:35 natano Exp $	*/
+/*	$OpenBSD: diffreg.c,v 1.93 2019/06/28 13:35:00 deraadt Exp $	*/
 
 /*-
  * SPDX-License-Identifier: BSD-4-Clause
@@ -297,7 +297,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	else {
 		if (!S_ISREG(stb1.st_mode)) {
 			if ((f1 = opentemp(file1)) == NULL ||
-			    fstat(fileno(f1), &stb1) < 0) {
+			    fstat(fileno(f1), &stb1) == -1) {
 				warn("%s", file1);
 				status |= 2;
 				goto closem;
@@ -318,7 +318,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	else {
 		if (!S_ISREG(stb2.st_mode)) {
 			if ((f2 = opentemp(file2)) == NULL ||
-			    fstat(fileno(f2), &stb2) < 0) {
+			    fstat(fileno(f2), &stb2) == -1) {
 				warn("%s", file2);
 				status |= 2;
 				goto closem;
@@ -466,12 +466,12 @@ opentemp(const char *f)
 
 	if (strcmp(f, "-") == 0)
 		ifd = STDIN_FILENO;
-	else if ((ifd = open(f, O_RDONLY, 0644)) < 0)
+	else if ((ifd = open(f, O_RDONLY, 0644)) == -1)
 		return (NULL);
 
 	(void)strlcpy(tempfile, _PATH_TMP "/diff.XXXXXXXX", sizeof(tempfile));
 
-	if ((ofd = mkstemp(tempfile)) < 0) {
+	if ((ofd = mkstemp(tempfile)) == -1) {
 		close(ifd);
 		return (NULL);
 	}
@@ -1002,7 +1002,7 @@ preadline(int fd, size_t rlen, off_t off)
 	ssize_t nr;
 
 	line = xmalloc(rlen + 1);
-	if ((nr = pread(fd, line, rlen, off)) < 0)
+	if ((nr = pread(fd, line, rlen, off)) == -1)
 		err(2, "preadline");
 	if (nr > 0 && line[nr-1] == '\n')
 		nr--;

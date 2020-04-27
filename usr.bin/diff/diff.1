@@ -30,7 +30,7 @@
 .\"     @(#)diff.1	8.1 (Berkeley) 6/30/93
 .\" $FreeBSD$
 .\"
-.Dd February 07, 2020
+.Dd February 7, 2020
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -232,7 +232,7 @@ are marked with
 those added to
 .Ar file2
 are marked
-.Sq \+\ \& .
+.Sq +\ \& .
 Lines which are changed from one file to the other are marked in
 both files with
 .Sq !\ \& .
@@ -300,11 +300,12 @@ However, unlike with
 all lines to be changed (added and/or removed) are present in
 a single section.
 .It Fl y Fl -side-by-side
-Output in two columns with a marker between them. The marker can be one 
+Output in two columns with a marker between them.
+The marker can be one
 of the following:
 .Pp
 .Bl -tag -width Ds -offset indent -compact
-.It space 
+.It space
 Corresponding lines are identical.
 .It '|'
 Corresponding lines are different.
@@ -318,9 +319,7 @@ Files differ and only the second file contains the line.
 Comparison options:
 .Bl -tag -width Ds
 .It Fl a -text
-Treat all files as
-.Tn ASCII
-text.
+Treat all files as ASCII text.
 Normally
 .Nm
 will simply print
@@ -394,7 +393,8 @@ will compare equal to
 .It Fl W Ar number Fl -width Ar number
 Output at most
 .Ar number
-columns when using side by side format. The default value is 130.
+columns when using side by side format.
+The default value is 130.
 .It Fl -changed-group-format Ar GFMT
 Format input groups in the provided
 .Pp
@@ -473,9 +473,8 @@ Binary files which differ,
 common subdirectories, and files which appear in only one directory
 are described as such.
 In directory mode only regular files and directories are compared.
-If a non-regular file such as a device special file or
-.Tn FIFO
-is encountered, a diagnostic message is printed.
+If a non-regular file such as a device special file or FIFO is encountered,
+a diagnostic message is printed.
 .Pp
 If only one of
 .Ar file1
@@ -596,7 +595,7 @@ pairs (where num1 = num2) are abbreviated as a single
 number.
 .Sh FILES
 .Bl -tag -width /tmp/diff.XXXXXXXX -compact
-.It Pa /tmp/diff. Ns Ar XXXXXXXX
+.It Pa /tmp/diff.XXXXXXXX
 Temporary file used when comparing a device or the standard input.
 Note that the temporary file is unlinked as soon as it is created
 so it will not show up in a directory listing.
