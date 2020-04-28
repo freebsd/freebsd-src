@@ -35,7 +35,6 @@
 #ifndef _NET_ROUTE_H_
 #define _NET_ROUTE_H_
 
-#include <sys/counter.h>
 #include <net/vnet.h>
 
 /*
@@ -129,42 +128,6 @@ VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
  * gateways are marked so that the output routines know to address the
  * gateway rather than the ultimate destination.
  */
-#ifndef RNF_NORMAL
-#include <net/radix.h>
-#ifdef RADIX_MPATH
-#include <net/radix_mpath.h>
-#endif
-#endif
-
-#if defined(_KERNEL)
-struct rtentry {
-	struct	radix_node rt_nodes[2];	/* tree glue, and other values */
-	/*
-	 * XXX struct rtentry must begin with a struct radix_node (or two!)
-	 * because the code does some casts of a 'struct radix_node *'
-	 * to a 'struct rtentry *'
-	 */
-#define	rt_key(r)	(*((struct sockaddr **)(&(r)->rt_nodes->rn_key)))
-#define	rt_mask(r)	(*((struct sockaddr **)(&(r)->rt_nodes->rn_mask)))
-#define	rt_key_const(r)		(*((const struct sockaddr * const *)(&(r)->rt_nodes->rn_key)))
-#define	rt_mask_const(r)	(*((const struct sockaddr * const *)(&(r)->rt_nodes->rn_mask)))
-	struct	sockaddr *rt_gateway;	/* value */
-	struct	ifnet *rt_ifp;		/* the answer: interface to use */
-	struct	ifaddr *rt_ifa;		/* the answer: interface address to use */
-	struct nhop_object	*rt_nhop;	/* nexthop data */
-	int		rt_flags;	/* up/down?, host/net */
-	int		rt_refcnt;	/* # held references */
-	u_int		rt_fibnum;	/* which FIB */
-	u_long		rt_mtu;		/* MTU for this path */
-	u_long		rt_weight;	/* absolute weight */ 
-	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
-#define	rt_endzero	rt_pksent
-	counter_u64_t	rt_pksent;	/* packets sent using this route */
-	struct mtx	rt_mtx;		/* mutex for routing entry */
-	struct rtentry	*rt_chain;	/* pointer to next rtentry to delete */
-};
-#endif /* _KERNEL */
-
 #define	RTF_UP		0x1		/* route usable */
 #define	RTF_GATEWAY	0x2		/* destination is a gateway */
 #define	RTF_HOST	0x4		/* host entry (net otherwise) */
@@ -369,53 +332,7 @@ struct rt_addrinfo {
 #define RT_LINK_IS_UP(ifp)	(!((ifp)->if_capabilities & IFCAP_LINKSTATE) \
 				 || (ifp)->if_link_state == LINK_STATE_UP)
 
-#define	RT_LOCK_INIT(_rt) \
-	mtx_init(&(_rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW)
-#define	RT_LOCK(_rt)		mtx_lock(&(_rt)->rt_mtx)
-#define	RT_UNLOCK(_rt)		mtx_unlock(&(_rt)->rt_mtx)
-#define	RT_LOCK_DESTROY(_rt)	mtx_destroy(&(_rt)->rt_mtx)
-#define	RT_LOCK_ASSERT(_rt)	mtx_assert(&(_rt)->rt_mtx, MA_OWNED)
-#define	RT_UNLOCK_COND(_rt)	do {				\
-	if (mtx_owned(&(_rt)->rt_mtx))				\
-		mtx_unlock(&(_rt)->rt_mtx);			\
-} while (0)
-
-#define	RT_ADDREF(_rt)	do {					\
-	RT_LOCK_ASSERT(_rt);					\
-	KASSERT((_rt)->rt_refcnt >= 0,				\
-		("negative refcnt %d", (_rt)->rt_refcnt));	\
-	(_rt)->rt_refcnt++;					\
-} while (0)
-
-#define	RT_REMREF(_rt)	do {					\
-	RT_LOCK_ASSERT(_rt);					\
-	KASSERT((_rt)->rt_refcnt > 0,				\
-		("bogus refcnt %d", (_rt)->rt_refcnt));	\
-	(_rt)->rt_refcnt--;					\
-} while (0)
-
-#define	RTFREE_LOCKED(_rt) do {					\
-	if ((_rt)->rt_refcnt <= 1)				\
-		rtfree(_rt);					\
-	else {							\
-		RT_REMREF(_rt);					\
-		RT_UNLOCK(_rt);					\
-	}							\
-	/* guard against invalid refs */			\
-	_rt = 0;						\
-} while (0)
-
-#define	RTFREE(_rt) do {					\
-	RT_LOCK(_rt);						\
-	RTFREE_LOCKED(_rt);					\
-} while (0)
-
 #define	RTFREE_FUNC(_rt)	rtfree_func(_rt)
-
-#define	RO_RTFREE(_ro) do {					\
-	if ((_ro)->ro_rt)					\
-		RTFREE((_ro)->ro_rt);				\
-} while (0)
 
 #define	RO_NHFREE(_ro) do {					\
 	if ((_ro)->ro_nh) {					\

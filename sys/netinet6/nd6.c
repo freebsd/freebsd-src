@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/route_var.h>
 #include <net/route/nhop.h>
 #include <net/vnet.h>
 
