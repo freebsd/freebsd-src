@@ -343,12 +343,11 @@ end
 local function readConfFiles(loaded_files)
 	local f = loader.getenv("loader_conf_files")
 	if f ~= nil then
+		local prefiles = f
 		for name in f:gmatch("([%w%p]+)%s*") do
 			if loaded_files[name] ~= nil then
 				goto continue
 			end
-
-			local prefiles = loader.getenv("loader_conf_files")
 
 			print("Loading " .. name)
 			-- These may or may not exist, and that's ok. Do a
@@ -361,7 +360,12 @@ local function readConfFiles(loaded_files)
 			loaded_files[name] = true
 			local newfiles = loader.getenv("loader_conf_files")
 			if prefiles ~= newfiles then
+				-- Recurse; process the new files immediately.
+				-- If we come back and it turns out we've
+				-- already loaded the rest of what was in the
+				-- original loader_conf_files, no big deal.
 				readConfFiles(loaded_files)
+				prefiles = newfiles
 			end
 			::continue::
 		end
