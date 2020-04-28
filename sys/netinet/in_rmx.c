@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#include <net/route_var.h>
+#include <net/route/route_var.h>
 #include <net/route/nhop.h>
 #include <net/route/shared.h>
 #include <net/vnet.h>
