@@ -397,7 +397,7 @@ read_file(char *fname)
 	char *wd, *this, *compilewith, *depends, *clean, *warning;
 	const char *objprefix;
 	int compile, match, nreqs, std, filetype, not,
-	    imp_rule, no_obj, before_depend, nowerror;
+	    imp_rule, no_ctfconvert, no_obj, before_depend, nowerror;
 
 	fp = fopen(fname, "r");
 	if (fp == NULL)
@@ -452,6 +452,7 @@ next:
 	warning = 0;
 	std = 0;
 	imp_rule = 0;
+	no_ctfconvert = 0;
 	no_obj = 0;
 	before_depend = 0;
 	nowerror = 0;
@@ -477,6 +478,10 @@ next:
 			compile += match;
 			match = 1;
 			nreqs = 0;
+			continue;
+		}
+		if (eq(wd, "no-ctfconvert")) {
+			no_ctfconvert++;
 			continue;
 		}
 		if (eq(wd, "no-obj")) {
@@ -591,8 +596,10 @@ nextparam:;
 			tp->f_srcprefix = "$S/";
 		if (imp_rule)
 			tp->f_flags |= NO_IMPLCT_RULE;
+		if (no_ctfconvert)
+			tp->f_flags |= NO_CTFCONVERT;
 		if (no_obj)
-			tp->f_flags |= NO_OBJ;
+			tp->f_flags |= NO_OBJ | NO_CTFCONVERT;
 		if (before_depend)
 			tp->f_flags |= BEFORE_DEPEND;
 		if (nowerror)
@@ -805,7 +812,7 @@ do_rules(FILE *f)
 		else
 			fprintf(f, "\t%s\n", compilewith);
 
-		if (!(ftp->f_flags & NO_OBJ))
+		if (!(ftp->f_flags & NO_CTFCONVERT))
 			fprintf(f, "\t${NORMAL_CTFCONVERT}\n\n");
 		else
 			fprintf(f, "\n");
