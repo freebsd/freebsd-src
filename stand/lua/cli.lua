@@ -127,6 +127,9 @@ end
 
 cli['read-conf'] = function(...)
 	local _, argv = cli.arguments(...)
+	-- Don't trigger a reload of previously loaded loader_conf_files, in
+	-- case this config file doesn't set it.
+	loader.setenv("loader_conf_files", "")
 	config.readConfFiles(assert(core.popFrontTable(argv)), {})
 end
 
