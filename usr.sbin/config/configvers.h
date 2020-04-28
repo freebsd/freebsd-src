@@ -49,7 +49,7 @@
  *
  * $FreeBSD$
  */
-#define	CONFIGVERS	600017
+#define	CONFIGVERS	600018
 #define	MAJOR_VERS(x)	((x) / 100000)
 
 /* Last config(8) version to require envmode/hintmode */
