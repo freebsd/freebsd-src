@@ -239,23 +239,3 @@ in6_rtrequest(int req, struct sockaddr *dst, struct sockaddr *gw,
 	return (rtrequest_fib(req, dst, gw, mask, flags, ret_nrt, fibnum));
 }
 
-void
-in6_rtalloc(struct route_in6 *ro, u_int fibnum)
-{
-
-	rtalloc_ign_fib((struct route *)ro, 0ul, fibnum);
-}
-
-void
-in6_rtalloc_ign(struct route_in6 *ro, u_long ignflags, u_int fibnum)
-{
-
-	rtalloc_ign_fib((struct route *)ro, ignflags, fibnum);
-}
-
-struct rtentry *
-in6_rtalloc1(struct sockaddr *dst, int report, u_long ignflags, u_int fibnum)
-{
-
-	return (rtalloc1_fib(dst, report, ignflags, fibnum));
-}

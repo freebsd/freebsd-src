@@ -434,28 +434,6 @@ sys_setfib(struct thread *td, struct setfib_args *uap)
 }
 
 /*
- * Packet routing routines.
- */
-void
-rtalloc_ign_fib(struct route *ro, u_long ignore, u_int fibnum)
-{
-	struct rtentry *rt;
-
-	if (ro->ro_nh != NULL) {
-		if (NH_IS_VALID(ro->ro_nh))
-			return;
-		NH_FREE(ro->ro_nh);
-		ro->ro_nh = NULL;
-	}
-	rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, fibnum);
-	if (rt != NULL) {
-		ro->ro_nh = rt->rt_nhop;
-		nhop_ref_object(rt->rt_nhop);
-		RT_UNLOCK(rt);
-	}
-}
-
-/*
  * Look up the route that matches the address given
  * Or, at least try.. Create a cloned route if needed.
  *
