@@ -137,6 +137,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -206,6 +207,7 @@ static STAILQ_HEAD(, socklist) shead = STAILQ_HEAD_INITIALIZER(shead);
 #define	IGN_CONS	0x001	/* don't print on console */
 #define	SYNC_FILE	0x002	/* do fsync on file after printing */
 #define	MARK		0x008	/* this message is a mark */
+#define	ISKERNEL	0x010	/* kernel generated message */
 
 /* Timestamps of log entries. */
 struct logtime {
@@ -1151,19 +1153,19 @@ parsemsg_rfc5424(const char *from, int pri, char *msg)
 }
 
 /*
- * Trims the application name ("TAG" in RFC 3164 terminology) and
- * process ID from a message if present.
+ * Returns the length of the application name ("TAG" in RFC 3164
+ * terminology) and process ID from a message if present.
  */
 static void
-parsemsg_rfc3164_app_name_procid(char **msg, const char **app_name,
-    const char **procid) {
-	char *m, *app_name_begin, *procid_begin;
+parsemsg_rfc3164_get_app_name_procid(const char *msg, size_t *app_name_length_p,
+    ptrdiff_t *procid_begin_offset_p, size_t *procid_length_p)
+{
+	const char *m, *procid_begin;
 	size_t app_name_length, procid_length;
 
-	m = *msg;
+	m = msg;
 
 	/* Application name. */
-	app_name_begin = m;
 	app_name_length = strspn(m,
 	    "abcdefghijklmnopqrstuvwxyz"
 	    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -1191,12 +1193,52 @@ parsemsg_rfc3164_app_name_procid(char **msg, const char **app_name,
 	if (m[0] != ':' || m[1] != ' ')
 		goto bad;
 
+	*app_name_length_p = app_name_length;
+	if (procid_begin_offset_p != NULL)
+		*procid_begin_offset_p =
+		    procid_begin == NULL ? 0 : procid_begin - msg;
+	if (procid_length_p != NULL)
+		*procid_length_p = procid_length;
+	return;
+bad:
+	*app_name_length_p = 0;
+	if (procid_begin_offset_p != NULL)
+		*procid_begin_offset_p = 0;
+	if (procid_length_p != NULL)
+		*procid_length_p = 0;
+}
+
+/*
+ * Trims the application name ("TAG" in RFC 3164 terminology) and
+ * process ID from a message if present.
+ */
+static void
+parsemsg_rfc3164_app_name_procid(char **msg, const char **app_name,
+    const char **procid)
+{
+	char *m, *app_name_begin, *procid_begin;
+	size_t app_name_length, procid_length;
+	ptrdiff_t procid_begin_offset;
+
+	m = *msg;
+	app_name_begin = m;
+
+	parsemsg_rfc3164_get_app_name_procid(app_name_begin, &app_name_length,
+	    &procid_begin_offset, &procid_length);
+	if (app_name_length == 0)
+		goto bad;
+	procid_begin = procid_begin_offset == 0 ? NULL :
+	    app_name_begin + procid_begin_offset;
+
 	/* Split strings from input. */
 	app_name_begin[app_name_length] = '\0';
-	if (procid_begin != 0)
+	m += app_name_length + 1;
+	if (procid_begin != NULL) {
 		procid_begin[procid_length] = '\0';
+		m += procid_length + 2;
+	}
 
-	*msg = m + 2;
+	*msg = m + 1;
 	*app_name = app_name_begin;
 	*procid = procid_begin;
 	return;
@@ -1401,7 +1443,7 @@ printsys(char *msg)
 	long n;
 	int flags, isprintf, pri;
 
-	flags = SYNC_FILE;	/* fsync after write */
+	flags = ISKERNEL | SYNC_FILE;	/* fsync after write */
 	p = msg;
 	pri = DEFSPRI;
 	isprintf = 1;
@@ -1551,7 +1593,7 @@ logmsg(int pri, const struct logtime *timestamp, const char *hostname,
 	struct filed *f;
 	size_t savedlen;
 	int fac, prilev;
-	char saved[MAXSVLINE];
+	char saved[MAXSVLINE], kernel_app_name[100];
 
 	dprintf("logmsg: pri %o, flags %x, from %s, msg %s\n",
 	    pri, flags, hostname, msg);
@@ -1575,6 +1617,23 @@ logmsg(int pri, const struct logtime *timestamp, const char *hostname,
 		return;
 
 	prilev = LOG_PRI(pri);
+
+	/*
+	 * Lookup kernel app name from log prefix if present.
+	 * This is only used for local program specification matching.
+	 */
+	if (flags & ISKERNEL) {
+		size_t kernel_app_name_length;
+
+		parsemsg_rfc3164_get_app_name_procid(msg,
+		    &kernel_app_name_length, NULL, NULL);
+		if (kernel_app_name_length != 0) {
+			strlcpy(kernel_app_name, msg,
+			    MIN(sizeof(kernel_app_name),
+			    kernel_app_name_length + 1));
+		} else
+			kernel_app_name[0] = '\0';
+	}
 
 	/* log the message to the particular outputs */
 	if (!Initialized) {
@@ -1622,7 +1681,10 @@ logmsg(int pri, const struct logtime *timestamp, const char *hostname,
 			continue;
 
 		/* skip messages with the incorrect program name */
-		if (skip_message(app_name == NULL ? "" : app_name,
+		if (flags & ISKERNEL && kernel_app_name[0] != '\0') {
+			if (skip_message(kernel_app_name, f->f_program, 1))
+				continue;
+		} else if (skip_message(app_name == NULL ? "" : app_name,
 		    f->f_program, 1))
 			continue;
 
