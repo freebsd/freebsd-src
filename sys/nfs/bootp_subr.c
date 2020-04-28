@@ -68,9 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#ifdef BOOTP_DEBUG
-#include <net/route_var.h>
-#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -263,10 +260,6 @@ static void bootpc_tag_helper(struct bootpc_tagcontext *tctx,
 		    unsigned char *start, int len, int tag);
 
 #ifdef BOOTP_DEBUG
-void bootpboot_p_sa(struct sockaddr *sa, struct sockaddr *ma);
-void bootpboot_p_rtentry(struct rtentry *rt);
-void bootpboot_p_tree(struct radix_node *rn);
-void bootpboot_p_rtlist(void);
 void bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa);
 void bootpboot_p_iflist(void);
 #endif
@@ -299,95 +292,6 @@ static __inline int bootpc_ifctx_isfailed(struct bootpc_ifcontext *ifctx);
  */
 
 #ifdef BOOTP_DEBUG
-void
-bootpboot_p_sa(struct sockaddr *sa, struct sockaddr *ma)
-{
-
-	if (sa == NULL) {
-		printf("(sockaddr *) <null>");
-		return;
-	}
-	switch (sa->sa_family) {
-	case AF_INET:
-	{
-		struct sockaddr_in *sin;
-
-		sin = (struct sockaddr_in *) sa;
-		printf("inet ");
-		print_sin_addr(sin);
-		if (ma != NULL) {
-			sin = (struct sockaddr_in *) ma;
-			printf(" mask ");
-			print_sin_addr(sin);
-		}
-	}
-	break;
-	case AF_LINK:
-	{
-		struct sockaddr_dl *sli;
-		int i;
-
-		sli = (struct sockaddr_dl *) sa;
-		printf("link %.*s ", sli->sdl_nlen, sli->sdl_data);
-		for (i = 0; i < sli->sdl_alen; i++) {
-			if (i > 0)
-				printf(":");
-			printf("%x", ((unsigned char *) LLADDR(sli))[i]);
-		}
-	}
-	break;
-	default:
-		printf("af%d", sa->sa_family);
-	}
-}
-
-void
-bootpboot_p_rtentry(struct rtentry *rt)
-{
-
-	bootpboot_p_sa(rt_key(rt), rt_mask(rt));
-	printf(" ");
-	bootpboot_p_sa(rt->rt_gateway, NULL);
-	printf(" ");
-	printf("flags %x", (unsigned short) rt->rt_flags);
-	printf(" %d", (int) rt->rt_expire);
-	printf(" %s\n", rt->rt_ifp->if_xname);
-}
-
-void
-bootpboot_p_tree(struct radix_node *rn)
-{
-
-	while (rn != NULL) {
-		if (rn->rn_bit < 0) {
-			if ((rn->rn_flags & RNF_ROOT) != 0) {
-			} else {
-				bootpboot_p_rtentry((struct rtentry *) rn);
-			}
-			rn = rn->rn_dupedkey;
-		} else {
-			bootpboot_p_tree(rn->rn_left);
-			bootpboot_p_tree(rn->rn_right);
-			return;
-		}
-	}
-}
-
-void
-bootpboot_p_rtlist(void)
-{
-	RIB_RLOCK_TRACKER;
-	struct rib_head *rnh;
-
-	printf("Routing table:\n");
-	rnh = rt_tables_get_rnh(0, AF_INET);
-	if (rnh == NULL)
-		return;
-	RIB_RLOCK(rnh);	/* could sleep XXX */
-	bootpboot_p_tree(rnh->rnh_treetop);
-	RIB_RUNLOCK(rnh);
-}
-
 void
 bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa)
 {
