@@ -257,46 +257,6 @@ rt_mpath_select(struct rtentry *rte, uint32_t hash)
 }
 
 void
-rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
-{
-	struct rtentry *rt, *rt_tmp;
-
-	/*
-	 * XXX we don't attempt to lookup cached route again; what should
-	 * be done for sendto(3) case?
-	 */
-	if (ro->ro_nh && RT_LINK_IS_UP(ro->ro_nh->nh_ifp))
-		return;				 
-	ro->ro_nh = NULL;
-	rt_tmp = rtalloc1_fib(&ro->ro_dst, 1, 0, fibnum);
-
-	/* if the route does not exist or it is not multipath, don't care */
-	if (rt_tmp == NULL)
-		return;
-	if (rn_mpath_next((struct radix_node *)rt_tmp) == NULL) {
-		ro->ro_nh = rt_tmp->rt_nhop;
-		nhop_ref_object(ro->ro_nh);
-		RT_UNLOCK(rt_tmp);
-		return;
-	}
-
-	rt = rt_mpath_selectrte(rt_tmp, hash);
-	/* XXX try filling rt_gwroute and avoid unreachable gw  */
-
-	/* gw selection has failed - there must be only zero weight routes */
-	if (!rt) {
-		RT_UNLOCK(rt_tmp);
-		return;
-	}
-	if (rt_tmp != rt) {
-		RTFREE_LOCKED(rt_tmp);
-		ro->ro_nh = rt->rt_nhop;
-		nhop_ref_object(ro->ro_nh);
-	} else
-		RT_UNLOCK(rt_tmp);
-}
-
-void
 rt_mpath_init_rnh(struct rib_head *rnh)
 {
 
