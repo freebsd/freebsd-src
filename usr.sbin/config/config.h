@@ -82,6 +82,7 @@ struct files_name {
 #define NO_OBJ		2
 #define BEFORE_DEPEND	4
 #define NOWERROR	16
+#define NO_CTFCONVERT	32
 
 struct device {
 	int	d_done;			/* processed */
