@@ -388,6 +388,8 @@ int	rtsock_addrmsg(int, struct ifaddr *, int);
 int	rtsock_routemsg(int, struct rtentry *, struct ifnet *ifp, int, int);
 int	rtsock_routemsg_info(int, struct rt_addrinfo *, int);
 
+struct sockaddr *rtsock_fix_netmask(const struct sockaddr *dst,
+	    const struct sockaddr *smask, struct sockaddr_storage *dmask);
 /*
  * Note the following locking behavior:
  *
