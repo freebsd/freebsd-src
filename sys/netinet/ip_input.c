@@ -954,6 +954,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	struct sockaddr_in *sin;
 	struct in_addr dest;
 	struct route ro;
+	uint32_t flowid;
 	int error, type = 0, code = 0, mtu = 0;
 
 	NET_EPOCH_ASSERT();
@@ -978,13 +979,11 @@ ip_forward(struct mbuf *m, int srcrt)
 	sin->sin_len = sizeof(*sin);
 	sin->sin_addr = ip->ip_dst;
 #ifdef RADIX_MPATH
-	rtalloc_mpath_fib(&ro,
-	    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr),
-	    M_GETFIB(m));
+	flowid = ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr);
 #else
-	ro.ro_nh = fib4_lookup(M_GETFIB(m), ip->ip_dst, 0, NHR_REF,
-	    m->m_pkthdr.flowid);
+	flowid = m->m_pkthdr.flowid;
 #endif
+	ro.ro_nh = fib4_lookup(M_GETFIB(m), ip->ip_dst, 0, NHR_REF, flowid);
 	if (ro.ro_nh != NULL) {
 		ia = ifatoia(ro.ro_nh->nh_ifa);
 	} else
