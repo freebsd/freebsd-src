@@ -257,14 +257,3 @@ in_ifadown(struct ifaddr *ifa, int delete)
 	ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
 }
 
-/*
- * inet versions of rt functions. These have fib extensions and
- * for now will just reference the _fib variants.
- * eventually this order will be reversed,
- */
-void
-in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum)
-{
-	rtalloc_ign_fib(ro, ignflags, fibnum);
-}
-
