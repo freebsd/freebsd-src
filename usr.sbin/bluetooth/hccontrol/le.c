@@ -69,20 +69,20 @@ le_set_scan_param(int s, int argc, char *argv[])
 	int window;
 	int adrtype;
 	int policy;
-	int e, n;
+	int n;
 
 	ng_hci_le_set_scan_parameters_cp cp;
 	ng_hci_le_set_scan_parameters_rp rp;
 
 	if (argc != 5)
-		return USAGE;
+		return (USAGE);
 	
 	if (strcmp(argv[0], "active") == 0)
 		type = 1;
 	else if (strcmp(argv[0], "passive") == 0)
 		type = 0;
 	else
-		return USAGE;
+		return (USAGE);
 
 	interval = (int)(atof(argv[1])/0.625);
 	interval = (interval < 4)? 4: interval;
@@ -94,14 +94,14 @@ le_set_scan_param(int s, int argc, char *argv[])
 	else if (strcmp(argv[3], "random") == 0)
 		adrtype = 1;
 	else
-		return USAGE;
+		return (USAGE);
 
 	if (strcmp(argv[4], "all") == 0)
 		policy = 0;
 	else if (strcmp(argv[4], "whitelist") == 0)
 		policy = 1;
 	else
-		return USAGE;
+		return (USAGE);
 
 	cp.le_scan_type = type;
 	cp.le_scan_interval = interval;
@@ -109,11 +109,19 @@ le_set_scan_param(int s, int argc, char *argv[])
 	cp.le_scan_window = window;
 	cp.scanning_filter_policy = policy;
 	n = sizeof(rp);
-	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
-		NG_HCI_OCF_LE_SET_SCAN_PARAMETERS), 
-		(void *)&cp, sizeof(cp), (void *)&rp, &n);
 
-	return 0;
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_SET_SCAN_PARAMETERS), 
+		(void *)&cp, sizeof(cp), (void *)&rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	return (OK);
 }
 
 static int
@@ -121,27 +129,35 @@ le_set_scan_enable(int s, int argc, char *argv[])
 {
 	ng_hci_le_set_scan_enable_cp cp;
 	ng_hci_le_set_scan_enable_rp rp;
-	int e, n, enable = 0;
+	int n, enable = 0;
 
 	if (argc != 1)
-		return USAGE;
+		return (USAGE);
 	  
 	if (strcmp(argv[0], "enable") == 0)
 		enable = 1;
 	else if (strcmp(argv[0], "disable") != 0)
-		return USAGE;
+		return (USAGE);
 
 	n = sizeof(rp);
 	cp.le_scan_enable = enable;
 	cp.filter_duplicates = 0;
-	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
 		NG_HCI_OCF_LE_SET_SCAN_ENABLE), 
-		(void *)&cp, sizeof(cp), (void *)&rp, &n);
+		(void *)&cp, sizeof(cp),
+		(void *)&rp, &n) == ERROR)
+		return (ERROR);
 			
-	if (e != 0 || rp.status != 0)
-		return ERROR;
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
 
-	return OK;
+	fprintf(stdout, "LE Scan: %s\n",
+		enable? "Enabled" : "Disabled");
+
+	return (OK);
 }
 
 static int
@@ -197,7 +213,7 @@ parse_param(int argc, char *argv[], char *buf, int *len)
 done:
 	*len = curbuf - buf;
 
-	return OK;
+	return (OK);
 }
 
 static int
@@ -206,7 +222,6 @@ le_set_scan_response(int s, int argc, char *argv[])
 	ng_hci_le_set_scan_response_data_cp cp;
 	ng_hci_le_set_scan_response_data_rp rp;
 	int n;
-	int e;
 	int len;
 	char buf[NG_HCI_ADVERTISING_DATA_SIZE];
 
@@ -216,13 +231,19 @@ le_set_scan_response(int s, int argc, char *argv[])
 	cp.scan_response_data_length = len;
 	memcpy(cp.scan_response_data, buf, len);
 	n = sizeof(rp);
-	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
 			NG_HCI_OCF_LE_SET_SCAN_RESPONSE_DATA), 
-			(void *)&cp, sizeof(cp), (void *)&rp, &n);
+			(void *)&cp, sizeof(cp),
+			(void *)&rp, &n) == ERROR)
+		return (ERROR);
 			
-	printf("SET SCAN RESPONSE %d %d %d\n", e, rp.status, n);
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
 
-	return OK;
+	return (OK);
 }
 
 static int
@@ -259,7 +280,7 @@ le_read_local_supported_features(int s, int argc ,char *argv[])
 		buffer, sizeof(buffer)));
 	fprintf(stdout, "\n");
 
-	return OK;
+	return (OK);
 }
 
 static int
@@ -290,7 +311,7 @@ set_le_event_mask(int s, uint64_t mask)
 {
 	ng_hci_le_set_event_mask_cp semc;
 	ng_hci_le_set_event_mask_rp rp;  
-	int i, n ,e;
+	int i, n;
 	
 	n = sizeof(rp);
 	
@@ -298,11 +319,18 @@ set_le_event_mask(int s, uint64_t mask)
 		semc.event_mask[i] = mask&0xff;
 		mask >>= 8;
 	}
-	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+	if(hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
 			NG_HCI_OCF_LE_SET_EVENT_MASK),
-			(void *)&semc, sizeof(semc), (void *)&rp, &n);
+			(void *)&semc, sizeof(semc), (void *)&rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
 	
-	return 0;
+	return (OK);
 }
 
 static int
@@ -310,7 +338,7 @@ set_event_mask(int s, uint64_t mask)
 {
 	ng_hci_set_event_mask_cp semc;
 	ng_hci_set_event_mask_rp rp;  
-	int i, n, e;
+	int i, n;
 	
 	n = sizeof(rp);
 	
@@ -318,29 +346,48 @@ set_event_mask(int s, uint64_t mask)
 		semc.event_mask[i] = mask&0xff;
 		mask >>= 8;
 	}
-	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND,
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND,
 			NG_HCI_OCF_SET_EVENT_MASK),
-			(void *)&semc, sizeof(semc), (void *)&rp, &n);
+			(void *)&semc, sizeof(semc), (void *)&rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
 	
-	return 0;
+	return (OK);
 }
 
 static
 int le_enable(int s, int argc, char *argv[])
 {
+        int result;
+
 	if (argc != 1)
-		return USAGE;
+		return (USAGE);
 	
 	if (strcasecmp(argv[0], "enable") == 0) {
-		set_event_mask(s, NG_HCI_EVENT_MASK_DEFAULT |
+		result = set_event_mask(s, NG_HCI_EVENT_MASK_DEFAULT |
 			       NG_HCI_EVENT_MASK_LE);
-		set_le_event_mask(s, NG_HCI_LE_EVENT_MASK_ALL);
-	} else if (strcasecmp(argv[0], "disable") == 0)
-		set_event_mask(s, NG_HCI_EVENT_MASK_DEFAULT);
-	else
-		return USAGE;
-
-	return OK;
+		if (result != OK)
+			return result;
+		result = set_le_event_mask(s, NG_HCI_LE_EVENT_MASK_ALL);
+		if (result == OK) {
+			fprintf(stdout, "LE enabled\n"); 
+			return (OK);
+		} else
+			return result;
+	} else if (strcasecmp(argv[0], "disable") == 0) {
+		result = set_event_mask(s, NG_HCI_EVENT_MASK_DEFAULT);
+		if (result == OK) {
+			fprintf(stdout, "LE disabled\n"); 
+			return (OK);
+		} else
+			return result;
+	} else
+		return (USAGE);
 }
 
 static int
