@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd June 2, 2018
+.Dd July 15, 2019
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -664,6 +664,52 @@ member of the
 but not more than the
 .Fa data
 bytes in total are copied.
+.It Dv PT_GET_SC_RET
+Fetch the system call return values on exit from a syscall.
+This request is only valid for threads stopped in a syscall
+exit (the
+.Dv PL_FLAG_SCX
+state).
+The
+.Fa addr
+argument specifies a pointer to a
+.Vt "struct ptrace_sc_ret" ,
+which is defined as follows:
+.Bd -literal
+struct ptrace_sc_ret {
+	register_t	sr_retval[2];
+	int		sr_error;
+};
+.Ed
+.Pp
+The
+.Fa data
+argument is set to the size of the structure.
+.Pp
+If the system call completed successfully,
+.Va sr_error
+is set to zero and the return values of the system call are saved in
+.Va sr_retval .
+If the system call failed to execute,
+.Va sr_error
+field is set to a positive
+.Xr errno 2
+value.
+If the system call completed in an unusual fashion,
+.Va sr_error
+is set to a negative value:
+.Pp
+.Bl -tag -width Dv EJUSTRETURN -compact
+.It Dv ERESTART
+System call will be restarted.
+.It Dv EJUSTRETURN
+System call completed sucessfully but did not set a return value
+.Po for example,
+.Xr setcontext 2
+and
+.Xr sigreturn 2
+.Pc .
+.El
 .It Dv PT_FOLLOW_FORK
 This request controls tracing for new child processes of a traced process.
 If
