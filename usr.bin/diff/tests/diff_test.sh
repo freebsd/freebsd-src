@@ -186,6 +186,13 @@ conflicting_format_body()
 	atf_check -s exit:2 -e ignore diff -q -c A B
 	atf_check -s exit:2 -e ignore diff --normal -c A B
 	atf_check -s exit:2 -e ignore diff -c --normal A B
+
+	atf_check -s exit:1 -o ignore -e ignore diff -u -u A B
+	atf_check -s exit:1 -o ignore -e ignore diff -e -e A B
+	atf_check -s exit:1 -o ignore -e ignore diff -y -y A B
+	atf_check -s exit:1 -o ignore -e ignore diff -q -q A B
+	atf_check -s exit:1 -o ignore -e ignore diff -c -c A B
+	atf_check -s exit:1 -o ignore -e ignore diff --normal --normal A B
 }
 
 atf_init_test_cases()
@@ -201,5 +208,5 @@ atf_init_test_cases()
 	atf_add_test_case b230049
 	atf_add_test_case Bflag
 	atf_add_test_case tabsize
-	atf_add_test_case conflicting_format 
+	atf_add_test_case conflicting_format
 }
