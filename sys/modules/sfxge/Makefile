@@ -5,7 +5,7 @@ KMOD=	sfxge
 SFXGE= ${SRCTOP}/sys/dev/sfxge
 
 SRCS=	device_if.h bus_if.h pci_if.h
-SRCS+=	opt_inet.h opt_inet6.h opt_sched.h opt_rss.h
+SRCS+=	opt_inet.h opt_inet6.h opt_rss.h
 
 .PATH: ${SRCTOP}/sys/dev/sfxge
 SRCS+=	sfxge.c sfxge_dma.c sfxge_ev.c
