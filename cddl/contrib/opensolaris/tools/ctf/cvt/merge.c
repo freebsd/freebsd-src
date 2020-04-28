@@ -452,10 +452,6 @@ map_td_tree_post(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
 		if (ed.ed_tgt->t_type == FORWARD && ctdp->t_type != FORWARD) {
 			int id = mcd->md_tgt->td_nextid++;
 
-#ifdef __FreeBSD__
-			if (CTF_TYPE_ISCHILD(id))
-				terminate("No room for additional types\n");
-#endif
 			debug(3, "Creating new defn type %d <%x>\n", id, id);
 			add_mapping(mcd->md_ta, ctdp->t_id, id);
 			alist_add(mcd->md_fdida, (void *)(ulong_t)ed.ed_tgt,
@@ -477,10 +473,6 @@ map_td_tree_post(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
 	} else {
 		int id = mcd->md_tgt->td_nextid++;
 
-#ifdef __FreeBSD__
-		if (CTF_TYPE_ISCHILD(id))
-			terminate("No room for additional types\n");
-#endif
 		debug(3, "Creating new type %d <%x>\n", id, id);
 		add_mapping(mcd->md_ta, ctdp->t_id, id);
 		hash_add(mcd->md_tdtba, ctdp);
