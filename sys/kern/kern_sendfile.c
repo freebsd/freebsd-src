@@ -106,7 +106,35 @@ struct sendfile_sync {
 	struct mtx	mtx;
 	struct cv	cv;
 	unsigned	count;
+	bool		waiting;
 };
+
+static void
+sendfile_sync_destroy(struct sendfile_sync *sfs)
+{
+	KASSERT(sfs->count == 0, ("sendfile sync %p still busy", sfs));
+
+	cv_destroy(&sfs->cv);
+	mtx_destroy(&sfs->mtx);
+	free(sfs, M_SENDFILE);
+}
+
+static void
+sendfile_sync_signal(struct sendfile_sync *sfs)
+{
+	mtx_lock(&sfs->mtx);
+	KASSERT(sfs->count > 0, ("sendfile sync %p not busy", sfs));
+	if (--sfs->count == 0) {
+		if (!sfs->waiting) {
+			/* The sendfile() waiter was interrupted by a signal. */
+			sendfile_sync_destroy(sfs);
+			return;
+		} else {
+			cv_signal(&sfs->cv);
+		}
+	}
+	mtx_unlock(&sfs->mtx);
+}
 
 counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 
@@ -153,12 +181,7 @@ sendfile_free_mext(struct mbuf *m)
 
 	if (m->m_ext.ext_flags & EXT_FLAG_SYNC) {
 		struct sendfile_sync *sfs = m->m_ext.ext_arg2;
-
-		mtx_lock(&sfs->mtx);
-		KASSERT(sfs->count > 0, ("Sendfile sync botchup count == 0"));
-		if (--sfs->count == 0)
-			cv_signal(&sfs->cv);
-		mtx_unlock(&sfs->mtx);
+		sendfile_sync_signal(sfs);
 	}
 }
 
@@ -186,12 +209,7 @@ sendfile_free_mext_pg(struct mbuf *m)
 
 	if (m->m_ext.ext_flags & EXT_FLAG_SYNC) {
 		struct sendfile_sync *sfs = m->m_ext.ext_arg1;
-
-		mtx_lock(&sfs->mtx);
-		KASSERT(sfs->count > 0, ("Sendfile sync botchup count == 0"));
-		if (--sfs->count == 0)
-			cv_signal(&sfs->cv);
-		mtx_unlock(&sfs->mtx);
+		sendfile_sync_signal(sfs);
 	}
 }
 
@@ -719,6 +737,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 		sfs = malloc(sizeof(*sfs), M_SENDFILE, M_WAITOK | M_ZERO);
 		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 		cv_init(&sfs->cv, "sendfile");
+		sfs->waiting = true;
 	}
 
 	rem = nbytes ? omin(nbytes, obj_size - offset) : obj_size - offset;
@@ -1221,11 +1240,13 @@ out:
 	if (sfs != NULL) {
 		mtx_lock(&sfs->mtx);
 		if (sfs->count != 0)
-			cv_wait(&sfs->cv, &sfs->mtx);
-		KASSERT(sfs->count == 0, ("sendfile sync still busy"));
-		cv_destroy(&sfs->cv);
-		mtx_destroy(&sfs->mtx);
-		free(sfs, M_SENDFILE);
+			error = cv_wait_sig(&sfs->cv, &sfs->mtx);
+		if (sfs->count == 0) {
+			sendfile_sync_destroy(sfs);
+		} else {
+			sfs->waiting = false;
+			mtx_unlock(&sfs->mtx);
+		}
 	}
 #ifdef KERN_TLS
 	if (tls != NULL)
