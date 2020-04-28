@@ -125,6 +125,11 @@ cli['boot-conf'] = function(...)
 	core.autoboot(argstr)
 end
 
+cli['read-conf'] = function(...)
+	local _, argv = cli.arguments(...)
+	config.readConfFiles(assert(core.popFrontTable(argv)), {})
+end
+
 cli['reload-conf'] = function(...)
 	config.reload()
 end
