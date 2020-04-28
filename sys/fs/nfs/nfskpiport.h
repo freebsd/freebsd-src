@@ -43,20 +43,4 @@ typedef struct vnode *		vnode_t;
 #define	vnode_mount(v)		((v)->v_mount)
 #define	vnode_vtype(v)		((v)->v_type)
 
-/*
- * This stuff is needed by Darwin for handling the uio structure.
- */
-#define	uio_uio_resid(p)	((p)->uio_resid)
-#define	uio_uio_resid_add(p, v)	((p)->uio_resid += (v))
-#define	uio_uio_resid_set(p, v)	((p)->uio_resid = (v))
-#define	uio_iov_base(p)		((p)->uio_iov->iov_base)
-#define	uio_iov_base_add(p, v)	do {					\
-	char *pp;							\
-	pp = (char *)(p)->uio_iov->iov_base;				\
-	pp += (v);							\
-	(p)->uio_iov->iov_base = (void *)pp;				\
-    } while (0)
-#define	uio_iov_len(p)		((p)->uio_iov->iov_len)
-#define	uio_iov_len_add(p, v)	((p)->uio_iov->iov_len += (v))
-
 #endif	/* _NFS_NFSKPIPORT_H */
