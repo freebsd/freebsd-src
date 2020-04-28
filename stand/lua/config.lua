@@ -340,38 +340,6 @@ local function loadModule(mod, silent)
 	return status
 end
 
-local function readConfFiles(loaded_files)
-	local f = loader.getenv("loader_conf_files")
-	if f ~= nil then
-		local prefiles = f
-		for name in f:gmatch("([%w%p]+)%s*") do
-			if loaded_files[name] ~= nil then
-				goto continue
-			end
-
-			print("Loading " .. name)
-			-- These may or may not exist, and that's ok. Do a
-			-- silent parse so that we complain on parse errors but
-			-- not for them simply not existing.
-			if not config.processFile(name, true) then
-				print(MSG_FAILPARSECFG:format(name))
-			end
-
-			loaded_files[name] = true
-			local newfiles = loader.getenv("loader_conf_files")
-			if prefiles ~= newfiles then
-				-- Recurse; process the new files immediately.
-				-- If we come back and it turns out we've
-				-- already loaded the rest of what was in the
-				-- original loader_conf_files, no big deal.
-				readConfFiles(loaded_files)
-				prefiles = newfiles
-			end
-			::continue::
-		end
-	end
-end
-
 local function readFile(name, silent)
 	local f = io.open(name)
 	if f == nil then
@@ -492,6 +460,40 @@ function config.parse(text)
 	return status
 end
 
+function config.readConfFiles(files, loaded_files)
+	if files ~= nil then
+		-- The caller may not have passed in loader_conf_files; we could
+		-- have instead gotten some other string of files.  We don't
+		-- want to trigger any redundant re-read/loads based on this.
+		local prefiles = loader.getenv("loader_conf_files")
+		for name in files:gmatch("([%w%p]+)%s*") do
+			if loaded_files[name] ~= nil then
+				goto continue
+			end
+
+			print("Loading " .. name)
+			-- These may or may not exist, and that's ok. Do a
+			-- silent parse so that we complain on parse errors but
+			-- not for them simply not existing.
+			if not config.processFile(name, true) then
+				print(MSG_FAILPARSECFG:format(name))
+			end
+
+			loaded_files[name] = true
+			local newfiles = loader.getenv("loader_conf_files")
+			if prefiles ~= newfiles then
+				-- Recurse; process the new files immediately.
+				-- If we come back and it turns out we've
+				-- already loaded the rest of what was in the
+				-- original loader_conf_files, no big deal.
+				config.readConfFiles(newfiles, loaded_files)
+				prefiles = newfiles
+			end
+			::continue::
+		end
+	end
+end
+
 -- other_kernel is optionally the name of a kernel to load, if not the default
 -- or autoloaded default from the module_path
 function config.loadKernel(other_kernel)
@@ -605,7 +607,7 @@ function config.load(file, reloading)
 	end
 
 	local loaded_files = {file = true}
-	readConfFiles(loaded_files)
+	config.readConfFiles(loader.getenv("loader_conf_files"), loaded_files)
 
 	checkNextboot()
 
