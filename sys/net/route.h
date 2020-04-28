@@ -503,7 +503,6 @@ int	 rtinit(struct ifaddr *, int, int);
  * For now the protocol indepedent versions are the same as the AF_INET ones
  * but this will change.. 
  */
-void	 rtalloc_ign_fib(struct route *ro, u_long ignflags, u_int fibnum);
 struct rtentry *rtalloc1_fib(struct sockaddr *, int, u_long, u_int);
 int	 rtioctl_fib(u_long, caddr_t, u_int);
 int	 rtrequest_fib(int, struct sockaddr *,

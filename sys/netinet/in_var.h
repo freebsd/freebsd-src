@@ -471,9 +471,6 @@ struct	mbuf	*ip_tryforward(struct mbuf *);
 void	*in_domifattach(struct ifnet *);
 void	in_domifdetach(struct ifnet *, void *);
 
-
-/* XXX */
-void	 in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum);
 #endif /* _KERNEL */
 
 /* INET6 stuff */

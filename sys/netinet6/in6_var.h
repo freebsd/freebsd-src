@@ -917,9 +917,6 @@ void	in6_newaddrmsg(struct in6_ifaddr *, int);
 struct mbuf *ip6_tryforward(struct mbuf *);
 int	in6_rtrequest(int, struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct rtentry **, u_int);
-void	in6_rtalloc(struct route_in6 *, u_int);
-void	in6_rtalloc_ign(struct route_in6 *, u_long, u_int);
-struct rtentry *in6_rtalloc1(struct sockaddr *, int, u_long, u_int);
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_IN6_VAR_H_ */
