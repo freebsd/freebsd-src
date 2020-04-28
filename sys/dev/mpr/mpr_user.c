@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/bio.h>
+#include <sys/abi_compat.h>
 #include <sys/malloc.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
@@ -177,16 +178,6 @@ static int mpr_user_reg_access(struct mpr_softc *sc, mpr_reg_access_t *data);
 static int mpr_user_btdh(struct mpr_softc *sc, mpr_btdh_mapping_t *data);
 
 static MALLOC_DEFINE(M_MPRUSER, "mpr_user", "Buffers for mpr(4) ioctls");
-
-/* Macros from compat/freebsd32/freebsd32.h */
-#define	PTRIN(v)	(void *)(uintptr_t)(v)
-#define	PTROUT(v)	(uint32_t)(uintptr_t)(v)
-
-#define	CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
-#define	PTRIN_CP(src,dst,fld)				\
-	do { (dst).fld = PTRIN((src).fld); } while (0)
-#define	PTROUT_CP(src,dst,fld) \
-	do { (dst).fld = PTROUT((src).fld); } while (0)
 
 /*
  * MPI functions that support IEEE SGLs for SAS3.

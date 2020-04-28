@@ -52,6 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ipmi/ipmivars.h>
 #endif
 
+#ifdef IPMICTL_SEND_COMMAND_32
+#include <sys/abi_compat.h>
+#endif
+
 /*
  * Driver request structures are allocated on the stack via alloca() to
  * avoid calling malloc(), especially for the watchdog handler.
@@ -310,11 +314,6 @@ ipmi_handle_attn(struct ipmi_softc *sc)
 
 	return (error);
 }
-#endif
-
-#ifdef IPMICTL_SEND_COMMAND_32
-#define	PTRIN(p)	((void *)(uintptr_t)(p))
-#define	PTROUT(p)	((uintptr_t)(p))
 #endif
 
 static int

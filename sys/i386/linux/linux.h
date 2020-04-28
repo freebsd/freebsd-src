@@ -30,6 +30,7 @@
 #ifndef _I386_LINUX_H_
 #define	_I386_LINUX_H_
 
+#include <sys/abi_compat.h>
 #include <sys/signal.h>	/* for sigval union */
 
 #include <compat/linux/linux.h>
@@ -50,14 +51,6 @@ extern u_char linux_debug_map[];
 
 #define	LINUX_SHAREDPAGE	(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 #define	LINUX_USRSTACK		LINUX_SHAREDPAGE
-
-#define	PTRIN(v)	(void *)(v)
-#define	PTROUT(v)	(l_uintptr_t)(v)
-
-#define	CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
-#define	CP2(src,dst,sfld,dfld) do { (dst).dfld = (src).sfld; } while (0)
-#define	PTRIN_CP(src,dst,fld) \
-	do { (dst).fld = PTRIN((src).fld); } while (0)
 
 /*
  * Provide a separate set of types for the Linux types.

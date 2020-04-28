@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/abi_compat.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
@@ -1751,10 +1752,6 @@ sys_semsys(td, uap)
 	error = (*semcalls[uap->which])(td, &uap->a2);
 	return (error);
 }
-
-#ifndef CP
-#define CP(src, dst, fld)	do { (dst).fld = (src).fld; } while (0)
-#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct freebsd7___semctl_args {
