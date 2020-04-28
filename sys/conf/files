@@ -4095,6 +4095,7 @@ net/route/nhop.c		standard
 net/route/nhop_ctl.c		standard
 net/route/nhop_utils.c		standard
 net/route/route_ctl.c		standard
+net/route/route_ddb.c		optional ddb
 net/route/route_helpers.c	standard
 net/route/route_temporal.c	standard
 net/rss_config.c		optional inet rss | inet6 rss
