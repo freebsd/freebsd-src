@@ -4165,7 +4165,16 @@ vm_page_release_locked(vm_page_t m, int flags)
 		if ((flags & VPR_TRYFREE) != 0 &&
 		    (m->object->ref_count == 0 || !pmap_page_is_mapped(m)) &&
 		    m->dirty == 0 && vm_page_tryxbusy(m)) {
-			vm_page_free(m);
+			/*
+			 * An unlocked lookup may have wired the page before the
+			 * busy lock was acquired, in which case the page must
+			 * not be freed.
+			 */
+			if (__predict_true(!vm_page_wired(m))) {
+				vm_page_free(m);
+				return;
+			}
+			vm_page_xunbusy(m);
 		} else {
 			vm_page_release_toq(m, PQ_INACTIVE, flags != 0);
 		}
