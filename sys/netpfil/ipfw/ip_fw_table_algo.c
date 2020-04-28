@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
 #include <net/radix.h>
 #include <net/route.h>
-#include <net/route_var.h>
+#include <net/route/route_var.h>
 
 #include <netinet/in.h>
 #include <netinet/in_fib.h>
