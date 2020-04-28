@@ -554,6 +554,64 @@ le_set_advertising_data(int s, int argc, char *argv[])
 
 	return (OK);
 }
+static int
+le_read_buffer_size(int s, int argc, char *argv[])
+{
+	union {
+		ng_hci_le_read_buffer_size_rp 		v1;
+		ng_hci_le_read_buffer_size_rp_v2	v2;
+	} rp;
+
+	int n, ch;
+	uint8_t v;
+	uint16_t cmd;
+
+	optreset = 1;
+	optind = 0;
+
+	/* Default to version 1*/
+	v = 1;
+	cmd = NG_HCI_OCF_LE_READ_BUFFER_SIZE;
+
+	while ((ch = getopt(argc, argv , "v:")) != -1) {
+		switch(ch) {
+		case 'v':
+			v = (uint8_t)strtol(optarg, NULL, 16);	 
+			if (v == 2) 
+				cmd = NG_HCI_OCF_LE_READ_BUFFER_SIZE_V2;
+			else if (v > 2)
+				return (USAGE);
+			break;
+		default:
+			v = 1;
+		}
+	}
+
+	n = sizeof(rp);
+	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE, cmd), 
+		(void *)&rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (rp.v1.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.v1.status), rp.v1.status);
+		return (FAILED);
+	}
+
+	fprintf(stdout, "ACL data packet length: %d\n",
+		rp.v1.hc_le_data_packet_length);
+	fprintf(stdout, "Number of ACL data packets: %d\n",
+		rp.v1.hc_total_num_le_data_packets);
+
+	if (v == 2) {
+		fprintf(stdout, "ISO data packet length: %d\n",
+			rp.v2.hc_iso_data_packet_length);
+		fprintf(stdout, "Number of ISO data packets: %d\n",
+			rp.v2.hc_total_num_iso_data_packets);
+	}
+
+	return (OK);
+}
 
 struct hci_command le_commands[] = {
 {
@@ -620,5 +678,11 @@ struct hci_command le_commands[] = {
 	  "le_set_advertising_data -n $name -f $flag -u $uuid16,$uuid16 \n"
 	  "set LE device advertising packed data",
 	  &le_set_advertising_data
+  },
+  {
+	  "le_read_buffer_size",
+	  "le_read_buffer_size [-v 1|2]\n"
+	  "Read the maximum size of ACL and ISO data packets",
+	  &le_read_buffer_size
   },
 };
