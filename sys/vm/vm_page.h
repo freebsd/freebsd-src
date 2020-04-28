@@ -958,8 +958,8 @@ vm_page_drop(vm_page_t m, u_int val)
  *
  *	Perform a racy check to determine whether a reference prevents the page
  *	from being reclaimable.  If the page's object is locked, and the page is
- *	unmapped and unbusied or exclusively busied by the current thread, no
- *	new wirings may be created.
+ *	unmapped and exclusively busied by the current thread, no new wirings
+ *	may be created.
  */
 static inline bool
 vm_page_wired(vm_page_t m)
