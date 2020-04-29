@@ -711,6 +711,7 @@ KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 universe_kernconfs: universe_kernels_prologue .PHONY
 .for kernel in ${KERNCONFS}
 TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
+	env PATH=${HOST_OBJTOP}/tmp/legacy/bin:${PATH:Q} \
 	config -m ${KERNSRCDIR}/${TARGET}/conf/${kernel} 2> /dev/null | \
 	grep -v WARNING: | cut -f 2
 .if empty(TARGET_ARCH_${kernel})
