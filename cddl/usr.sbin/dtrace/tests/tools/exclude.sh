@@ -23,7 +23,22 @@
 
 exclude()
 {
-    eval $1=\"\$$1\\n$2\"
+    case $2 in
+    # Handle globbing later
+    *"*"*) ;;
+    # No globbing needed
+    *)
+        eval $1=\"\$$1\\n$2\"
+        return
+        ;;
+    esac
+    for file in ${TESTBASE}/${2}; do
+        case ${file} in
+            # Invalid glob
+            "${TESTBASE}/${2}") echo "Invalid exclude for $2" >&2; exit 1; ;;
+        esac
+        exclude "$1" "${file##${TESTBASE}/}"
+    done
 }
 
 exclude EXFAIL common/aggs/tst.subr.d

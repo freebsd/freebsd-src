@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 TESTGROUP= ${.CURDIR:H:T}/${.CURDIR:T}
-TESTSRC= ${SRCTOP}/cddl/contrib/opensolaris/cmd/dtrace/test/tst/${TESTGROUP}
+TESTBASE= ${SRCTOP}/cddl/contrib/opensolaris/cmd/dtrace/test/tst
+TESTSRC= ${TESTBASE}/${TESTGROUP}
 TESTSDIR= ${TESTSBASE}/cddl/usr.sbin/dtrace/${TESTGROUP}
 
 FILESGROUPS+=	${TESTGROUP}EXE
@@ -18,7 +19,8 @@ TEST_METADATA.t_dtrace_contrib+= required_user="root"
 GENTEST?=	${.CURDIR:H:H}/tools/gentest.sh
 EXCLUDE=	${.CURDIR:H:H}/tools/exclude.sh
 ${TESTWRAPPER}.sh: ${GENTEST} ${EXCLUDE} ${${PACKAGE}FILES}
-	sh ${GENTEST} -e ${EXCLUDE} ${TESTGROUP} ${${PACKAGE}FILES:S/ */ /} > ${.TARGET}
+	env TESTBASE=${TESTBASE:Q} \
+	    sh ${GENTEST} -e ${EXCLUDE} ${TESTGROUP} ${${PACKAGE}FILES:S/ */ /} > ${.TARGET}
 
 CLEANFILES+=	${TESTWRAPPER}.sh
 
