@@ -48,9 +48,7 @@ MLINKS?=	rtld.1 ld-elf.so.1.1 \
 		rtld.1 ld.so.1
 
 CFLAGS+=	-fpic -DPIC $(DEBUG)
-CFLAGS.armv6+=	-mfpu=none
-CFLAGS.armv7+=	-mfpu=none
-	
+
 LDFLAGS+=	-shared -Wl,-Bsymbolic -Wl,-z,defs -nostdlib -e ${RTLD_ENTRY}
 # Pull in the dependencies that we use from libc
 .include "rtld-libc/Makefile.inc"
