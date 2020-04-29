@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2016
+.Dd April 29, 2020
 .Dt DOMAIN 9
 .Os
 .Sh NAME
@@ -236,6 +236,18 @@ the default protocol may be returned for
 types if the domain has a default raw protocol.
 .Sh SEE ALSO
 .Xr socket 2
+.Sh HISTORY
+The functions
+.Fn domain_add ,
+.Fn pfctlinput ,
+.Fn pfctlinput2 ,
+.Fn pffinddomain ,
+.Fn pffindproto ,
+.Fn pffindtype
+and
+.Fn DOMAIN_SET
+first appeared in
+.Fx 4.4 .
 .Sh AUTHORS
 This manual page was written by
 .An Chad David Aq Mt davidc@acns.ab.ca .
