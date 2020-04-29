@@ -138,7 +138,8 @@ static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
 static void nd6_llinfo_settimer_locked(struct llentry *, long);
 static void clear_llinfo_pqueue(struct llentry *);
-static void nd6_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
+static void nd6_rtrequest(int, struct rtentry *, struct nhop_object *,
+    struct rt_addrinfo *);
 static int nd6_resolve_slow(struct ifnet *, int, struct mbuf *,
     const struct sockaddr_in6 *, u_char *, uint32_t *, struct llentry **);
 static int nd6_need_cache(struct ifnet *);
@@ -1562,13 +1563,12 @@ nd6_free_redirect(const struct llentry *ln)
  * processing.
  */
 void
-nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
+nd6_rtrequest(int req, struct rtentry *rt, struct nhop_object *nh,
+    struct rt_addrinfo *info)
 {
 	struct sockaddr_in6 *gateway;
 	struct nd_defrouter *dr;
-	struct nhop_object *nh;
 
-	nh = rt->rt_nhop;
 	gateway = &nh->gw6_sa;
 
 	switch (req) {
