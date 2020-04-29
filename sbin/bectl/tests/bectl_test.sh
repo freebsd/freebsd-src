@@ -343,6 +343,7 @@ bectl_jail_head()
 
 	atf_set "descr" "Check bectl rename"
 	atf_set "require.user" root
+	atf_set "require.progs" jail
 }
 bectl_jail_body()
 {
