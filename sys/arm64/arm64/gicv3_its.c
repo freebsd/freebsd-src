@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/vmem.h>
 
 #include <vm/vm.h>
@@ -229,6 +231,7 @@ struct gicv3_its_irqsrc {
 };
 
 struct gicv3_its_softc {
+	device_t	dev;
 	struct intr_pic *sc_pic;
 	struct resource *sc_its_res;
 
@@ -262,6 +265,7 @@ struct gicv3_its_softc {
 #define	ITS_FLAGS_LPI_CONF_FLUSH	0x00000002
 #define	ITS_FLAGS_ERRATA_CAVIUM_22375	0x00000004
 	u_int sc_its_flags;
+	bool	trace_enable;
 };
 
 static void *conf_base;
@@ -713,6 +717,86 @@ its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
 }
 
 static int
+gicv3_its_sysctl_trace_enable(SYSCTL_HANDLER_ARGS)
+{
+	struct gicv3_its_softc *sc;
+	int rv;
+
+	sc = arg1;
+
+	rv = sysctl_handle_bool(oidp, &sc->trace_enable, 0, req);
+	if (rv != 0 || req->newptr == NULL)
+		return (rv);
+	if (sc->trace_enable)
+		gic_its_write_8(sc, GITS_TRKCTLR, 3);
+	else
+		gic_its_write_8(sc, GITS_TRKCTLR, 0);
+
+	return (0);
+}
+
+static int
+gicv3_its_sysctl_trace_regs(SYSCTL_HANDLER_ARGS)
+{
+	struct gicv3_its_softc *sc;
+	struct sbuf *sb;
+	int err;
+
+	sc = arg1;
+	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (sb == NULL) {
+		device_printf(sc->dev, "Could not allocate sbuf for output.\n");
+		return (ENOMEM);
+	}
+	sbuf_cat(sb, "\n");
+	sbuf_printf(sb, "GITS_TRKCTLR: 0x%08X\n",
+	    gic_its_read_4(sc, GITS_TRKCTLR));
+	sbuf_printf(sb, "GITS_TRKR:    0x%08X\n",
+	    gic_its_read_4(sc, GITS_TRKR));
+	sbuf_printf(sb, "GITS_TRKDIDR: 0x%08X\n",
+	    gic_its_read_4(sc, GITS_TRKDIDR));
+	sbuf_printf(sb, "GITS_TRKPIDR: 0x%08X\n",
+	    gic_its_read_4(sc, GITS_TRKPIDR));
+	sbuf_printf(sb, "GITS_TRKVIDR: 0x%08X\n",
+	    gic_its_read_4(sc, GITS_TRKVIDR));
+	sbuf_printf(sb, "GITS_TRKTGTR: 0x%08X\n",
+	   gic_its_read_4(sc, GITS_TRKTGTR));
+
+	err = sbuf_finish(sb);
+	if (err)
+		device_printf(sc->dev, "Error finishing sbuf: %d\n", err);
+	sbuf_delete(sb);
+	return(err);
+}
+
+static int
+gicv3_its_init_sysctl(struct gicv3_its_softc *sc)
+{
+	struct sysctl_oid *oid, *child;
+	struct sysctl_ctx_list *ctx_list;
+
+	ctx_list = device_get_sysctl_ctx(sc->dev);
+	child = device_get_sysctl_tree(sc->dev);
+	oid = SYSCTL_ADD_NODE(ctx_list,
+	    SYSCTL_CHILDREN(child), OID_AUTO, "tracing",
+	    CTLFLAG_RD| CTLFLAG_MPSAFE, NULL, "Messages tracing");
+	if (oid == NULL)
+		return (ENXIO);
+
+	/* Add registers */
+	SYSCTL_ADD_PROC(ctx_list,
+	    SYSCTL_CHILDREN(oid), OID_AUTO, "enable",
+	    CTLTYPE_U8 | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    gicv3_its_sysctl_trace_enable, "CU", "Enable tracing");
+	SYSCTL_ADD_PROC(ctx_list,
+	    SYSCTL_CHILDREN(oid), OID_AUTO, "capture",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    gicv3_its_sysctl_trace_regs, "", "Captured tracing registers.");
+
+	return (0);
+}
+
+static int
 gicv3_its_attach(device_t dev)
 {
 	struct gicv3_its_softc *sc;
@@ -810,6 +894,11 @@ gicv3_its_attach(device_t dev)
 		err = intr_isrc_register(&sc->sc_irqs[i].gi_isrc, dev, 0,
 		    "%s,%u", name, i);
 	}
+
+	/* For GIC-500 install tracking sysctls. */
+	if ((iidr & (GITS_IIDR_PRODUCT_MASK | GITS_IIDR_IMPLEMENTOR_MASK)) ==
+	    GITS_IIDR_RAW(GITS_IIDR_IMPL_ARM, GITS_IIDR_PROD_GIC500, 0, 0))
+		gicv3_its_init_sysctl(sc);
 
 	return (0);
 }
@@ -1717,6 +1806,7 @@ gicv3_its_fdt_attach(device_t dev)
 	int err;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 	err = gicv3_its_attach(dev);
 	if (err != 0)
 		return (err);
@@ -1778,6 +1868,7 @@ gicv3_its_acpi_attach(device_t dev)
 	int err;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 	err = gicv3_its_attach(dev);
 	if (err != 0)
 		return (err);
