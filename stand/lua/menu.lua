@@ -212,30 +212,50 @@ menu.boot_options = {
 menu.welcome = {
 	entries = function()
 		local menu_entries = menu.welcome.all_entries
-		-- Swap the first two menu items on single user boot
+		local multi_user = menu_entries.multi_user
+		local single_user = menu_entries.single_user
+		local boot_entry_1, boot_entry_2
 		if core.isSingleUserBoot() then
-			-- We'll cache the swapped menu, for performance
-			if menu.welcome.swapped_menu ~= nil then
-				return menu.welcome.swapped_menu
+			-- Swap the first two menu items on single user boot.
+			-- We'll cache the alternate entries for performance.
+			local alts = menu_entries.alts
+			if alts == nil then
+				single_user = core.deepCopyTable(single_user)
+				multi_user = core.deepCopyTable(multi_user)
+				single_user.name = single_user.alternate_name
+				multi_user.name = multi_user.alternate_name
+				menu_entries.alts = {
+					single_user = single_user,
+					multi_user = multi_user,
+				}
+			else
+				single_user = alts.single_user 
+				multi_user = alts.multi_user
 			end
-			-- Shallow copy the table
-			menu_entries = core.deepCopyTable(menu_entries)
-
-			-- Swap the first two menu entries
-			menu_entries[1], menu_entries[2] =
-			    menu_entries[2], menu_entries[1]
-
-			-- Then set their names to their alternate names
-			menu_entries[1].name, menu_entries[2].name =
-			    menu_entries[1].alternate_name,
-			    menu_entries[2].alternate_name
-			menu.welcome.swapped_menu = menu_entries
+			boot_entry_1, boot_entry_2 = single_user, multi_user
+		else
+			boot_entry_1, boot_entry_2 = multi_user, single_user
 		end
-		return menu_entries
+		return {
+			boot_entry_1,
+			boot_entry_2,
+			menu_entries.prompt,
+			menu_entries.reboot,
+			{
+				entry_type = core.MENU_SEPARATOR,
+			},
+			{
+				entry_type = core.MENU_SEPARATOR,
+				name = "Options:",
+			},
+			menu_entries.kernel_options,
+			menu_entries.boot_options,
+			menu_entries.boot_envs,
+			menu_entries.chainload,
+		}
 	end,
 	all_entries = {
-		-- boot multi user
-		{
+		multi_user = {
 			entry_type = core.MENU_ENTRY,
 			name = color.highlight("B") .. "oot Multi user " ..
 			    color.highlight("[Enter]"),
@@ -248,8 +268,7 @@ menu.welcome = {
 			end,
 			alias = {"b", "B"},
 		},
-		-- boot single user
-		{
+		single_user = {
 			entry_type = core.MENU_ENTRY,
 			name = "Boot " .. color.highlight("S") .. "ingle user",
 			-- Not a standard menu entry function!
@@ -261,8 +280,7 @@ menu.welcome = {
 			end,
 			alias = {"s", "S"},
 		},
-		-- escape to interpreter
-		{
+		prompt = {
 			entry_type = core.MENU_RETURN,
 			name = color.highlight("Esc") .. "ape to loader prompt",
 			func = function()
@@ -270,8 +288,7 @@ menu.welcome = {
 			end,
 			alias = {core.KEYSTR_ESCAPE},
 		},
-		-- reboot
-		{
+		reboot = {
 			entry_type = core.MENU_ENTRY,
 			name = color.highlight("R") .. "eboot",
 			func = function()
@@ -279,15 +296,7 @@ menu.welcome = {
 			end,
 			alias = {"r", "R"},
 		},
-		{
-			entry_type = core.MENU_SEPARATOR,
-		},
-		{
-			entry_type = core.MENU_SEPARATOR,
-			name = "Options:",
-		},
-		-- kernel options
-		{
+		kernel_options = {
 			entry_type = core.MENU_CAROUSEL_ENTRY,
 			carousel_id = "kernel",
 			items = core.kernelList,
@@ -319,15 +328,13 @@ menu.welcome = {
 			end,
 			alias = {"k", "K"},
 		},
-		-- boot options
-		{
+		boot_options = {
 			entry_type = core.MENU_SUBMENU,
 			name = "Boot " .. color.highlight("O") .. "ptions",
 			submenu = menu.boot_options,
 			alias = {"o", "O"},
 		},
-		-- boot environments
-		{
+		boot_envs = {
 			entry_type = core.MENU_SUBMENU,
 			visible = function()
 				return core.isZFSBoot() and
@@ -337,8 +344,7 @@ menu.welcome = {
 			submenu = menu.boot_environments,
 			alias = {"e", "E"},
 		},
-		-- chainload
-		{
+		chainload = {
 			entry_type = core.MENU_ENTRY,
 			name = function()
 				return 'Chain' .. color.highlight("L") ..
