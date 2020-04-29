@@ -57,8 +57,6 @@ struct dwc_bufmap {
 
 struct dwc_softc {
 	struct resource		*res[2];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
 	device_t		dev;
 	int			mactype;
 	int			mii_clk;
