@@ -131,18 +131,20 @@ rt_dumpentry_ddb(struct radix_node *rn, void *arg __unused)
 {
 	struct sockaddr_storage ss;
 	struct rtentry *rt;
+	struct nhop_object *nh;
 	int flags, idx;
 
 	/* If RNTORT is important, put it in a header. */
 	rt = (void *)rn;
+	nh = (struct nhop_object *)rt->rt_nhop;
 
 	rt_dumpaddr_ddb("dst", rt_key(rt));
 	rt_dumpaddr_ddb("gateway", &rt->rt_nhop->gw_sa);
 	rt_dumpaddr_ddb("netmask", rtsock_fix_netmask(rt_key(rt), rt_mask(rt),
 	    &ss));
-	if (rt->rt_ifp != NULL && (rt->rt_ifp->if_flags & IFF_DYING) == 0) {
-		rt_dumpaddr_ddb("ifp", rt->rt_ifp->if_addr->ifa_addr);
-		rt_dumpaddr_ddb("ifa", rt->rt_ifa->ifa_addr);
+	if ((nh->nh_ifp->if_flags & IFF_DYING) == 0) {
+		rt_dumpaddr_ddb("ifp", nh->nh_ifp->if_addr->ifa_addr);
+		rt_dumpaddr_ddb("ifa", nh->nh_ifa->ifa_addr);
 	}
 
 	db_printf("flags ");
