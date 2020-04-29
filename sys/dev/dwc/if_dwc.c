@@ -252,14 +252,13 @@ dwc_txstart_locked(struct dwc_softc *sc)
 
 	ifp = sc->ifp;
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
-	}
 
 	enqueued = 0;
 
 	for (;;) {
-		if (sc->txcount == (TX_DESC_COUNT-1)) {
+		if (sc->txcount == (TX_DESC_COUNT - 1)) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
@@ -268,7 +267,7 @@ dwc_txstart_locked(struct dwc_softc *sc)
 		if (m == NULL)
 			break;
 		if (dwc_setup_txbuf(sc, sc->tx_idx_head, &m) != 0) {
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
+			 IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			break;
 		}
 		BPF_MTAP(ifp, m);
@@ -469,7 +468,7 @@ dwc_setup_rxdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr)
 
 	sc->rxdesc_ring[idx].addr = (uint32_t)paddr;
 	nidx = next_rxidx(sc, idx);
-	sc->rxdesc_ring[idx].addr_next = sc->rxdesc_ring_paddr +	\
+	sc->rxdesc_ring[idx].addr_next = sc->rxdesc_ring_paddr +
 	    (nidx * sizeof(struct dwc_hwdesc));
 	if (sc->mactype == DWC_GMAC_ALT_DESC)
 		sc->rxdesc_ring[idx].tdes1 = DDESC_CNTL_CHAINED | RX_MAX_PACKET;
@@ -493,9 +492,8 @@ dwc_setup_rxbuf(struct dwc_softc *sc, int idx, struct mbuf *m)
 
 	error = bus_dmamap_load_mbuf_sg(sc->rxbuf_tag, sc->rxbuf_map[idx].map,
 	    m, &seg, &nsegs, 0);
-	if (error != 0) {
+	if (error != 0)
 		return (error);
-	}
 
 	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
 
@@ -1167,10 +1165,6 @@ dwc_attach(device_t dev)
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
-
-	/* Memory interface */
-	sc->bst = rman_get_bustag(sc->res[0]);
-	sc->bsh = rman_get_bushandle(sc->res[0]);
 
 	/* Read MAC before reset */
 	if (dwc_get_hwaddr(sc, macaddr)) {
