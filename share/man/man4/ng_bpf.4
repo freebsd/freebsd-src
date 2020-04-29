@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_bpf.8,v 1.2 1999/12/03 01:57:12 archie Exp $
 .\"
-.Dd November 13, 2012
+.Dd April 29, 2020
 .Dt NG_BPF 4
 .Os
 .Sh NAME
@@ -158,7 +158,7 @@ NOTMATCHHOOK="hook3"
 
 BPFPROG=$( tcpdump -s 8192 -p -ddd ${PATTERN} | \\
            ( read len ; \\
-             echo -n "bpf_prog_len=$len" ; \\
+             echo -n "bpf_prog_len=$len " ; \\
              echo -n "bpf_prog=[" ; \\
              while read code jt jf k ; do \\
                  echo -n " { code=$code jt=$jt jf=$jf k=$k }" ; \\
