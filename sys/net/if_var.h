@@ -61,6 +61,7 @@
  */
 
 struct	rtentry;		/* ifa_rtrequest */
+struct	nhop_object;		/* ifa_rtrequest */
 struct	rt_addrinfo;		/* ifa_rtrequest */
 struct	socket;
 struct	carp_if;
@@ -551,7 +552,8 @@ struct ifaddr {
 	struct	carp_softc *ifa_carp;	/* pointer to CARP data */
 	CK_STAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
-		(int, struct rtentry *, struct rt_addrinfo *);
+		(int, struct rtentry *, struct nhop_object *,
+		 struct rt_addrinfo *);
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
 #define	IFA_ROUTE	RTF_UP		/* route installed */
 #define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
