@@ -325,6 +325,12 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 
 		/* Bind to the target CPU before switching. */
 		pc = cpu_get_pcpu(set->dev);
+
+		/* Skip settings if CPU is not started. */
+		if (pc == NULL) {
+			error = 0;
+			goto out;
+		}
 		thread_lock(curthread);
 		pri = curthread->td_priority;
 		sched_prio(curthread, PRI_MIN);
