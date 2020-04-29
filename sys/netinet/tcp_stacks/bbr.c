@@ -9326,11 +9326,6 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 		tp->t_tfo_pending = NULL;
-		/*
-		 * Account for the ACK of our SYN prior to regular
-		 * ACK processing below.
-		 */
-		tp->snd_una++;
 	}
 	/*
 	 * Make transitions: SYN-RECEIVED  -> ESTABLISHED SYN-RECEIVED* ->
@@ -9353,6 +9348,13 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (!IS_FASTOPEN(tp->t_flags))
 			cc_conn_init(tp);
 	}
+	/*
+	 * Account for the ACK of our SYN prior to
+	 * regular ACK processing below, except for
+	 * simultaneous SYN, which is handled later.
+	 */
+	if (SEQ_GT(th->th_ack, tp->snd_una) && !(tp->t_flags & TF_NEEDSYN))
+		tp->snd_una++;
 	/*
 	 * If segment contains data or ACK, will call tcp_reass() later; if
 	 * not, do so now to pass queued data to user.

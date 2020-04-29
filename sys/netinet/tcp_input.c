@@ -1470,7 +1470,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos)
 {
 	int thflags, acked, ourfinisacked, needoutput = 0, sack_changed;
-	int rstreason, todrop, win;
+	int rstreason, todrop, win, incforsyn = 0;
 	uint32_t tiwin;
 	uint16_t nsegs;
 	char *s;
@@ -2374,12 +2374,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (IS_FASTOPEN(tp->t_flags) && tp->t_tfo_pending) {
 			tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 			tp->t_tfo_pending = NULL;
-
-			/*
-			 * Account for the ACK of our SYN prior to
-			 * regular ACK processing below.
-			 */
-			tp->snd_una++;
 		}
 		if (tp->t_flags & TF_NEEDFIN) {
 			tcp_state_change(tp, TCPS_FIN_WAIT_1);
@@ -2399,6 +2393,13 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 		}
+		/*
+		 * Account for the ACK of our SYN prior to
+		 * regular ACK processing below, except for
+		 * simultaneous SYN, which is handled later.
+		 */
+		if (SEQ_GT(th->th_ack, tp->snd_una) && !(tp->t_flags & TF_NEEDSYN))
+			incforsyn = 1;
 		/*
 		 * If segment contains data or ACK, will call tcp_reass()
 		 * later; if not, do so now to pass queued data to user.
@@ -2693,6 +2694,15 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 process_ACK:
 		INP_WLOCK_ASSERT(tp->t_inpcb);
 
+		/*
+		 * Adjust for the SYN bit in sequence space,
+		 * but don't account for it in cwnd calculations.
+		 * This is for the SYN_RECEIVED, non-simultaneous
+		 * SYN case. SYN_SENT and simultaneous SYN are
+		 * treated elsewhere.
+		 */
+		if (incforsyn)
+			tp->snd_una++;
 		acked = BYTES_THIS_ACK(tp, th);
 		KASSERT(acked >= 0, ("%s: acked unexepectedly negative "
 		    "(tp->snd_una=%u, th->th_ack=%u, tp=%p, m=%p)", __func__,
