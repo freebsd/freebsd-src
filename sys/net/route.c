@@ -745,8 +745,8 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
 		default:
 			break;
 		}
-		if (!not_found && rt->rt_ifa != NULL) {
-			ifa = rt->rt_ifa;
+		if (!not_found && rt->rt_nhop->nh_ifa != NULL) {
+			ifa = rt->rt_nhop->nh_ifa;
 		}
 		RT_REMREF(rt);
 		RT_UNLOCK(rt);
@@ -909,7 +909,7 @@ rib_lookup_info(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rt = RNTORT(rn);
 		/* Ensure route & ifp is UP */
-		if (RT_LINK_IS_UP(rt->rt_ifp)) {
+		if (RT_LINK_IS_UP(rt->rt_nhop->nh_ifp)) {
 			flags = (flags & NHR_REF) | NHR_COPY;
 			error = rt_exportinfo(rt, info, flags);
 			RIB_RUNLOCK(rh);
@@ -1064,7 +1064,8 @@ rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f, void *arg, bool 
 		rt_notifydelete(rt, &di.info);
 
 		if (report)
-			rt_routemsg(RTM_DELETE, rt, rt->rt_ifp, 0, fibnum);
+			rt_routemsg(RTM_DELETE, rt, rt->rt_nhop->nh_ifp, 0,
+			    fibnum);
 		RTFREE_LOCKED(rt);
 	}
 }
@@ -1237,7 +1238,7 @@ rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info)
 	/*
 	 * give the protocol a chance to keep things in sync.
 	 */
-	ifa = rt->rt_ifa;
+	ifa = rt->rt_nhop->nh_ifa;
 	if (ifa != NULL && ifa->ifa_rtrequest != NULL)
 		ifa->ifa_rtrequest(RTM_DELETE, rt, rt->rt_nhop, info);
 
@@ -1863,7 +1864,7 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	    info->rti_info[RTAX_GATEWAY] != NULL) ||
 	    info->rti_info[RTAX_IFP] != NULL ||
 	    (info->rti_info[RTAX_IFA] != NULL &&
-	     !sa_equal(info->rti_info[RTAX_IFA], rt->rt_ifa->ifa_addr))) {
+	     !sa_equal(info->rti_info[RTAX_IFA], rt->rt_nhop->nh_ifa->ifa_addr))) {
 		/*
 		 * XXX: Temporarily set RTF_RNH_LOCKED flag in the rti_flags
 		 *	to avoid rlock in the ifa_ifwithroute().
@@ -2162,7 +2163,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 #endif
 			error = (rn == NULL ||
 			    (rn->rn_flags & RNF_ROOT) ||
-			    RNTORT(rn)->rt_ifa != ifa);
+			    RNTORT(rn)->rt_nhop->nh_ifa != ifa);
 			RIB_RUNLOCK(rnh);
 			if (error) {
 				/* this is only an error if bad on ALL tables */

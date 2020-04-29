@@ -183,6 +183,7 @@ rt_mpath_conflict(struct rib_head *rnh, struct rtentry *rt,
     struct sockaddr *netmask)
 {
 	struct radix_node *rn, *rn1;
+	struct nhop_object *nh, *nh1;
 	struct rtentry *rt1;
 
 	rn = (struct radix_node *)rt;
@@ -198,15 +199,17 @@ rt_mpath_conflict(struct rib_head *rnh, struct rtentry *rt,
 		if (rn1 == rn)
 			continue;
         
-		if (rt1->rt_gateway->sa_family == AF_LINK) {
-			if (rt1->rt_ifa->ifa_addr->sa_len != rt->rt_ifa->ifa_addr->sa_len ||
-			    bcmp(rt1->rt_ifa->ifa_addr, rt->rt_ifa->ifa_addr, 
-			    rt1->rt_ifa->ifa_addr->sa_len))
+		nh = rt->rt_nhop;
+		nh1 = rt1->rt_nhop;
+
+		if (nh1->gw_sa.sa_family == AF_LINK) {
+			if (nh1->nh_ifa->ifa_addr->sa_len != nh->nh_ifa->ifa_addr->sa_len ||
+			    bcmp(nh1->nh_ifa->ifa_addr, nh->nh_ifa->ifa_addr, 
+			    nh1->nh_ifa->ifa_addr->sa_len))
 				continue;
 		} else {
-			if (rt1->rt_gateway->sa_len != rt->rt_gateway->sa_len ||
-			    bcmp(rt1->rt_gateway, rt->rt_gateway,
-			    rt1->rt_gateway->sa_len))
+			if (nh1->gw_sa.sa_len != nh->gw_sa.sa_len ||
+			    bcmp(&nh1->gw_sa, &nh->gw_sa, nh1->gw_sa.sa_len))
 				continue;
 		}
 
