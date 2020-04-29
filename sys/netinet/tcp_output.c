@@ -1238,8 +1238,11 @@ send:
 	if (flags & TH_SYN)
 		th->th_win = htons((u_short)
 				(min(sbspace(&so->so_rcv), TCP_MAXWIN)));
-	else
+	else {
+		/* Avoid shrinking window with window scaling. */
+		recwin = roundup2(recwin, 1 << tp->rcv_scale);
 		th->th_win = htons((u_short)(recwin >> tp->rcv_scale));
+	}
 
 	/*
 	 * Adjust the RXWIN0SENT flag - indicate that we have advertised
