@@ -105,6 +105,7 @@ struct rk805_softc {
 static int rk805_regnode_status(struct regnode *regnode, int *status);
 static int rk805_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
     int max_uvolt, int *udelay);
+static int rk805_regnode_get_voltage(struct regnode *regnode, int *uvolt);
 
 static struct rk805_regdef rk805_regdefs[] = {
 	{
@@ -366,13 +367,21 @@ rk805_regnode_init(struct regnode *regnode)
 {
 	struct rk805_reg_sc *sc;
 	struct regnode_std_param *param;
-	int rv, udelay, status;
+	int rv, udelay, uvolt, status;
 
 	sc = regnode_get_softc(regnode);
+	dprintf(sc, "Regulator %s init called\n", sc->def->name);
 	param = regnode_get_stdparam(regnode);
 	if (param->min_uvolt == 0)
 		return (0);
 
+	/* Check that the regulator is preset to the correct voltage */
+	rv  = rk805_regnode_get_voltage(regnode, &uvolt);
+	if (rv != 0)
+		return(rv);
+
+	if (uvolt >= param->min_uvolt && uvolt <= param->max_uvolt)
+		return(0);
 	/* 
 	 * Set the regulator at the correct voltage if it is not enabled.
 	 * Do not enable it, this is will be done either by a
