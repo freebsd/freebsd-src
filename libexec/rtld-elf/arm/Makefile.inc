@@ -5,3 +5,4 @@
 # correctly linked. As some of the functions are used before we have
 # shared libraries.
 LIBADD+=	compiler_rt
+CFLAGS+=	-mfpu=none
