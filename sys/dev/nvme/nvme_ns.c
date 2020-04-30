@@ -617,7 +617,8 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	return (0);
 }
 
-void nvme_ns_destruct(struct nvme_namespace *ns)
+void
+nvme_ns_destruct(struct nvme_namespace *ns)
 {
 
 	if (ns->cdev != NULL)
