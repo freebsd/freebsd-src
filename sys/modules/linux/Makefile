@@ -73,7 +73,7 @@ ${VDSO}.so: linux${SFX}_locore.o
 .endif
 
 linux${SFX}_genassym.o:
-	${CC} -c ${CFLAGS:N-flto:N-fno-common} ${.IMPSRC}
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} -fcommon ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)
 .if defined(KTR)
