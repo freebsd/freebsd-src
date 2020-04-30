@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2011
+.Dd April 30, 2020
 .Dt DRIVER 9
 .Os
 .Sh NAME
@@ -102,6 +102,11 @@ macro will also create the devclass with the name of the driver and
 can optionally call extra initialisation code in the driver by
 specifying an extra module event handler and argument as the last two
 arguments.
+.Sh HISTORY
+The
+.Nm
+framework first appeared in
+.Fx 2.2.7 .
 .Sh SEE ALSO
 .Xr devclass 9 ,
 .Xr device 9 ,

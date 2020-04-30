@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2017
+.Dd April 30, 2020
 .Dt DISK 9
 .Os
 .Sh NAME
@@ -241,6 +241,11 @@ Typically used to store a pointer to the drivers
 .Vt softc
 structure for this disk device.
 .El
+.Sh HISTORY
+The
+.Nm kernel disk storage API
+first appeard in
+.Fx 4.9 .
 .Sh SEE ALSO
 .Xr GEOM 4 ,
 .Xr devfs 5 ,
