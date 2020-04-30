@@ -59,7 +59,8 @@ nvme_ctrlr_devctl_log(struct nvme_controller *ctrlr, const char *type, const cha
 	va_list ap;
 	int error;
 
-	sbuf_new(&sb, NULL, 0, SBUF_AUTOEXTEND | SBUF_NOWAIT);
+	if (sbuf_new(&sb, NULL, 0, SBUF_AUTOEXTEND | SBUF_NOWAIT) == NULL)
+		return;
 	sbuf_printf(&sb, "%s: ", device_get_nameunit(ctrlr->dev));
 	va_start(ap, msg);
 	sbuf_vprintf(&sb, msg, ap);
