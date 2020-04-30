@@ -69,7 +69,8 @@ MAN=	acct.5 \
 	style.Makefile.5 \
 	style.mdoc.5 \
 	sysctl.conf.5 \
-	tmpfs.5
+	tmpfs.5 \
+	unionfs.5
 
 MLINKS=	dir.5 dirent.5
 MLINKS+=ext2fs.5 ext4fs.5
