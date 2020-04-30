@@ -16,6 +16,16 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200430:
+	The root certificates of the Mozilla CA Certificate Store have been
+	imported into the base system and can be managed with the certctl(8)
+	utility.  If you have installed the security/ca_root_nss port or package
+	with the ETCSYMLINK option (the default), be advised that there may be
+	differences between those included in the port and those included in
+	base due to differences in nss branch used as well as general update
+	frequency.  Note also that certctl(8) cannot manage certs in the
+	format used by the security/ca_root_nss port.
+
 20200107:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 9.0.1.  Please see the 20141231 entry below for
