@@ -68,10 +68,8 @@ static char *ig4iic_ids[] = {
 static int
 ig4iic_acpi_probe(device_t dev)
 {
-	ig4iic_softc_t *sc;
 	int rv;
 
-	sc = device_get_softc(dev);
 	if (acpi_disabled("ig4iic"))
 		return (ENXIO);
 	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, ig4iic_ids, NULL);
