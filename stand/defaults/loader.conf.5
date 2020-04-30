@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd October 6, 2018
+.Dd April 29, 2020
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -91,6 +91,10 @@ independently.
 .It Ar loader_conf_files
 Defines additional configuration files to be processed right after the
 present file.
+.Ar loader_conf_files
+should be treated as write-only.
+One cannot depend on any value remaining in the loader environment or carried
+over into the kernel environment.
 .It Ar kernel
 Name of the kernel to be loaded.
 If no kernel name is set, no additional
