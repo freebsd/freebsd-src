@@ -8,13 +8,10 @@ SRCS=	cd9660.c	\
 	common_kvm.c	\
 	core.c		\
 	libprocstat.c	\
+	libprocstat_compat.c \
 	msdosfs.c	\
 	smbfs.c		\
 	udf.c
-
-.if ${MK_SYMVER} == yes
-SRCS+=	libprocstat_compat.c
-.endif
 
 VERSION_DEF=	${LIBCSRCDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map

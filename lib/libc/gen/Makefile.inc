@@ -34,6 +34,7 @@ SRCS+=	__getosreldate.c \
 	ctermid.c \
 	daemon.c \
 	devname.c \
+	devname-compat11.c \
 	dirfd.c \
 	dirname.c \
 	dirname_compat.c \
@@ -58,7 +59,10 @@ SRCS+=	__getosreldate.c \
 	fstab.c \
 	ftok.c \
 	fts.c \
+	fts-compat.c \
+	fts-compat11.c \
 	ftw.c \
+	ftw-compat11.c \
 	getbootfile.c \
 	getbsize.c \
 	getcap.c \
@@ -71,6 +75,7 @@ SRCS+=	__getosreldate.c \
 	getloadavg.c \
 	getlogin.c \
 	getmntinfo.c \
+	getmntinfo-compat11.c \
 	getnetgrent.c \
 	getosreldate.c \
 	getpagesize.c \
@@ -83,6 +88,7 @@ SRCS+=	__getosreldate.c \
 	getutxent.c \
 	getvfsbyname.c \
 	glob.c \
+	glob-compat11.c \
 	initgroups.c \
 	isatty.c \
 	isinf.c \
@@ -94,6 +100,7 @@ SRCS+=	__getosreldate.c \
 	lrand48.c \
 	mrand48.c \
 	nftw.c \
+	nftw-compat11.c \
 	nice.c \
 	nlist.c \
 	nrand48.c \
@@ -107,10 +114,12 @@ SRCS+=	__getosreldate.c \
 	pw_scan.c \
 	raise.c \
 	readdir.c \
+	readdir-compat11.c \
 	readpassphrase.c \
 	recvmmsg.c \
 	rewinddir.c \
 	scandir.c \
+	scandir-compat11.c \
 	seed48.c \
 	seekdir.c \
 	semctl.c \
@@ -147,6 +156,7 @@ SRCS+=	__getosreldate.c \
 	ualarm.c \
 	ulimit.c \
 	uname.c \
+	unvis-compat.c \
 	usleep.c \
 	utime.c \
 	utxdb.c \
@@ -156,18 +166,6 @@ SRCS+=	__getosreldate.c \
 	waitpid.c \
 	waitid.c \
 	wordexp.c
-.if ${MK_SYMVER} == yes
-SRCS+=	devname-compat11.c \
-	fts-compat.c \
-	fts-compat11.c \
-	ftw-compat11.c \
-	getmntinfo-compat11.c \
-	glob-compat11.c \
-	nftw-compat11.c \
-	readdir-compat11.c \
-	scandir-compat11.c \
-	unvis-compat.c
-.endif
 
 CFLAGS.arc4random.c= -I${SRCTOP}/sys -I${SRCTOP}/sys/crypto/chacha20
 
