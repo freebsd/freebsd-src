@@ -488,36 +488,36 @@ function config.parse(text)
 	return status
 end
 
-function config.readConfFiles(files, loaded_files)
-	if files ~= nil then
-		-- The caller may not have passed in loader_conf_files; we could
-		-- have instead gotten some other string of files.  We don't
-		-- want to trigger any redundant re-read/loads based on this.
-		local prefiles = getEnv("loader_conf_files")
-		for name in files:gmatch("([%w%p]+)%s*") do
-			if loaded_files[name] ~= nil then
-				goto continue
-			end
+function config.readConf(file, loaded_files)
+	if loaded_files == nil then
+		loaded_files = {}
+	end
 
-			print("Loading " .. name)
-			-- These may or may not exist, and that's ok. Do a
-			-- silent parse so that we complain on parse errors but
-			-- not for them simply not existing.
-			if not config.processFile(name, true) then
-				print(MSG_FAILPARSECFG:format(name))
-			end
+	if loaded_files[file] ~= nil then
+		return
+	end
 
-			loaded_files[name] = true
-			local newfiles = getEnv("loader_conf_files")
-			if prefiles ~= newfiles then
-				-- Recurse; process the new files immediately.
-				-- If we come back and it turns out we've
-				-- already loaded the rest of what was in the
-				-- original loader_conf_files, no big deal.
-				config.readConfFiles(newfiles, loaded_files)
-				prefiles = newfiles
-			end
-			::continue::
+	print("Loading " .. file)
+
+	-- The final value of loader_conf_files is not important, so just
+	-- clobber it here.  We'll later check if it's no longer nil and process
+	-- the new value for files to read.
+	setEnv("loader_conf_files", nil)
+
+	-- These may or may not exist, and that's ok. Do a
+	-- silent parse so that we complain on parse errors but
+	-- not for them simply not existing.
+	if not config.processFile(file, true) then
+		print(MSG_FAILPARSECFG:format(file))
+	end
+
+	loaded_files[file] = true
+
+	-- Going to process "loader_conf_files" extra-files
+	local loader_conf_files = getEnv("loader_conf_files")
+	if loader_conf_files ~= nil then
+		for name in loader_conf_files:gmatch("[%w%p]+") do
+			config.readConf(name, loaded_files)
 		end
 	end
 end
@@ -630,12 +630,7 @@ function config.load(file, reloading)
 		file = "/boot/defaults/loader.conf"
 	end
 
-	if not config.processFile(file) then
-		print(MSG_FAILPARSECFG:format(file))
-	end
-
-	local loaded_files = {file = true}
-	config.readConfFiles(getEnv("loader_conf_files"), loaded_files)
+	config.readConf(file)
 
 	checkNextboot()
 
