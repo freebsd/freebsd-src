@@ -380,6 +380,7 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_TYPE_MISMATCH_FOUND_HERE */   "Actual object declaration:",
 /*    ASL_MSG_DUPLICATE_EXTERN_MISMATCH */  "Type mismatch between multiple external declarations detected",
 /*    ASL_MSG_DUPLICATE_EXTERN_FOUND_HERE */"Duplicate external declaration:",
+/*    ASL_MSG_CONDREF_NEEDS_EXTERNAL_DECL */"CondRefOf parameter requires External() declaration",
 };
 
 /* Table compiler */

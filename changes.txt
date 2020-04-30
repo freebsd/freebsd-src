@@ -1,4 +1,61 @@
 ----------------------------------------
+
+
+30 April 2020. Summary of changes for version 20200430:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Cleaned up the coding style of a couple of global variables 
+(AcpiGbl_NextCmdNum and AcpiProtocolLengths) caught by static analyzers. 
+AcpiProtocolLengths was made static, and the definition of 
+AcpiGbl_NextCmdNum was moved to acglobal.h.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools: 
+
+iASL DataTable Compiler:  Fixed a segfault on errors that aren't directly 
+associated with a field.
+
+Disassembler: has been made more resilient so that it will continue to 
+parse AML even if the AML generates ACPI namespace errors. This enables 
+iASL to disassemble some AML that may have been compiled using older 
+versions of iASL that no longer compile with newer versions of iASL.
+
+iASL: Fixed the required parameters for _NIH and _NIG. Previously, there 
+was a mixup where _NIG required one parameter and _NIH required zero 
+parameters. This change swaps these parameter requirements. Now it is 
+required that _NIH must be called with one parameter and _NIG requires 
+zero parameters.
+
+iASL: Allow use of undefined externals as long as they are protected by 
+an if (CondRefOf (...)) block when compiling multiple definition blocks.
+
+iASL: Fixed the type override behavior of named objects that are declared 
+as External. External declarations will no longer override the type of 
+the actual definition if it already exists.
+
+AcpiNames: Added setargv.obj to the MSVC 2017 link sequence to enable 
+command line wildcard support on Windows. Note: the AcpiNames utility is 
+essentially redundant with the AcpiExec utility (using the "namespace" 
+command) and is therefore deprecated. It will be removed in future 
+releases of ACPICA.
+
+Disassembler: ignore AE_ALREADY_EXISTS status when parsing create* 
+operators. The disassembler is intended to emit existing ASL code as-is. 
+Therefore, error messages emitted during disassembly should be ignored or 
+handled in a way such that the disassembler can continue to parse the 
+AML. This change ignores AE_ALREADY_EXISTS errors during the deferred Op 
+parsing for create operators in order to complete parsing ASL termlists.
+
+iASL DataTable Compiler: IVRS table: fix potentially uninitialized 
+variable warning. Some compilers catch potential uninitialized variables. 
+This is done by examining branches of if/else statements. This change 
+replaces an "else if" with an "else" to fix the uninitialized variable 
+warning.
+
+
+----------------------------------------
 26 March 2020. Summary of changes for version 20200326:
 
 
@@ -674,7 +731,7 @@ temporary.
 
 iASL: Emit error for creation of a zero-length operation region. Such a 
 region is rather pointless. If encountered, a runtime error is also 
-implemented in the interpeter.
+implemented in the interpreter.
 
 Debugger: Fix a possible fault with the "test objects" command.
 

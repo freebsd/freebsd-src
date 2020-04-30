@@ -633,6 +633,7 @@ main (
     ACPI_CHECK_OK (AcpiInitializeSubsystem, Status);
     if (ACPI_FAILURE (Status))
     {
+        ExitCode = -1;
         goto ErrorExit;
     }
 
@@ -646,6 +647,7 @@ main (
     ACPI_CHECK_OK (AcpiInitializeDebugger, Status);
     if (ACPI_FAILURE (Status))
     {
+        ExitCode = -1;
         goto ErrorExit;
     }
 
@@ -707,6 +709,7 @@ main (
     Status = AeBuildLocalTables (ListHead);
     if (ACPI_FAILURE (Status))
     {
+        ExitCode = -1;
         goto ErrorExit;
     }
 
@@ -743,8 +746,9 @@ main (
     Status = AeLoadTables ();
     if (ACPI_FAILURE (Status))
     {
-        ExitCode = -1;
-        goto ErrorExit;
+        printf ("**** Could not load ACPI tables, %s\n",
+            AcpiFormatException (Status));
+        goto EnterDebugger;
     }
 
     /*
@@ -754,13 +758,6 @@ main (
      */
     if (AcpiGbl_AeLoadOnly)
     {
-        goto EnterDebugger;
-    }
-
-    if (ACPI_FAILURE (Status))
-    {
-        printf ("**** Could not load ACPI tables, %s\n",
-            AcpiFormatException (Status));
         goto EnterDebugger;
     }
 
