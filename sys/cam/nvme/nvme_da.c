@@ -402,7 +402,7 @@ ndaioctl(struct disk *dp, u_long cmd, void *data, int fflag,
 		struct nvme_pt_command *pt;
 		union ccb *ccb;
 		struct cam_periph_map_info mapinfo;
-		u_int maxmap = MAXPHYS;	/* XXX is this right */
+		u_int maxmap = dp->d_maxsize;
 		int error;
 
 		/*
@@ -426,8 +426,10 @@ ndaioctl(struct disk *dp, u_long cmd, void *data, int fflag,
 		 */
 		memset(&mapinfo, 0, sizeof(mapinfo));
 		error = cam_periph_mapmem(ccb, &mapinfo, maxmap);
-		if (error)
+		if (error) {
+			xpt_release_ccb(ccb);
 			return (error);
+		}
 
 		/*
 		 * Lock the periph and run the command. XXX do we need
@@ -442,7 +444,6 @@ ndaioctl(struct disk *dp, u_long cmd, void *data, int fflag,
 		 * Tear down mapping and return status.
 		 */
 		cam_periph_unmapmem(ccb, &mapinfo);
-		cam_periph_lock(periph);
 		error = (ccb->ccb_h.status == CAM_REQ_CMP) ? 0 : EIO;
 		xpt_release_ccb(ccb);
 		return (error);
