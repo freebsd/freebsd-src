@@ -12,7 +12,6 @@ WARNS?=	2
 LDFLAGS+=	-nodefaultlibs
 LIBADD+=	c
 
-.if ${MK_SYMVER} == "yes"
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 # Export ARM AEABI unwind routines needed by libc and libthr.
@@ -20,7 +19,6 @@ SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 SYMBOL_MAPS+=	${.CURDIR}/${MACHINE_CPUARCH}/Symbol.map
 .else
 SYMBOL_MAPS+=	${.CURDIR}/SymbolDefault.map
-.endif
 .endif
 
 .include "../libcompiler_rt/Makefile.inc"
