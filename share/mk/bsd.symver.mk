@@ -7,7 +7,7 @@ __<bsd.symver.mk>__:
 
 # Generate the version map given the version definitions
 # and symbol maps.
-.if ${MK_SYMVER} == "yes" && !empty(VERSION_DEF) && !empty(SYMBOL_MAPS)
+.if !empty(VERSION_DEF) && !empty(SYMBOL_MAPS)
 # Find the awk script that generates the version map.
 VERSION_GEN?=	version_gen.awk
 VERSION_MAP?=	Version.map

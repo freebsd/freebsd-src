@@ -63,7 +63,6 @@ __DEFAULT_YES_OPTIONS = \
     OPENSSH \
     PROFILE \
     SSP \
-    SYMVER \
     TESTS \
     TOOLCHAIN \
     WARNS
