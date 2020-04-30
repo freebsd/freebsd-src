@@ -1034,7 +1034,6 @@ struct ccb_trans_settings_nvme
 	uint8_t		speed;		/* PCIe generation for each lane */
 	uint8_t		max_lanes;	/* Number of PCIe lanes */
 	uint8_t		max_speed;	/* PCIe generation for each lane */
-
 };
 
 #include <cam/mmc/mmc_bus.h>
