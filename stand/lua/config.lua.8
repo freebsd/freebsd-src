@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2020
+.Dd April 30, 2020
 .Dt CONFIG.LUA 8
 .Os
 .Sh NAME
@@ -59,15 +59,24 @@ to
 A lookup will be done as needed to determine what value
 .Ev idx
 actually corresponds to.
-.It Fn config.readConfFiles files loaded_files
+.It Fn config.readConf file loaded_files
 Process
-.Ev files
-as if it were
-.Ev loader_conf_files .
-The caller should pass in a table as the
+.Pa file
+as a configuration file
+.Po e.g., as
+.Pa loader.conf
+.Pc
+and then processing files listed in
+.Ev loader_conf_files
+variable
+.Po see
+.Xr loader.conf 5
+.Pc .
+The caller may optionally pass in a table as the
 .Ev loaded_files
-argument, which uses filenames as keys and any non-nil value to indicate that
-the file named by the key has been loaded.
+argument, which uses filenames as keys and any non-nil value to
+indicate that the file named by the key has already been loaded and
+should not be loaded again.
 .It Fn config.processFile name silent
 Process and parse
 .Ev name
