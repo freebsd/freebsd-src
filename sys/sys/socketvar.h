@@ -67,6 +67,12 @@ typedef	void so_dtor_t(struct socket *);
 
 struct socket;
 
+enum socket_qstate {
+	SQ_NONE = 0,
+	SQ_INCOMP = 0x0800,	/* on sol_incomp */
+	SQ_COMP = 0x1000,	/* on sol_comp */
+};
+
 /*-
  * Locking key to struct socket:
  * (a) constant after allocation, no locking required.
@@ -122,12 +128,7 @@ struct socket {
 			/* (e) Our place on accept queue. */
 			TAILQ_ENTRY(socket)	so_list;
 			struct socket		*so_listen;	/* (b) */
-			enum {
-				SQ_NONE = 0,
-				SQ_INCOMP = 0x0800,	/* on sol_incomp */
-				SQ_COMP = 0x1000,	/* on sol_comp */
-			}			so_qstate;	/* (b) */
-
+			enum socket_qstate so_qstate;		/* (b) */
 			/* (b) cached MAC label for peer */
 			struct	label		*so_peerlabel;
 			u_long	so_oobmark;	/* chars to oob mark */
@@ -172,6 +173,10 @@ struct socket {
 			short		sol_sbsnd_flags;
 			sbintime_t	sol_sbrcv_timeo;
 			sbintime_t	sol_sbsnd_timeo;
+
+			/* Information tracking listen queue overflows. */
+			struct timeval	sol_lastover;	/* (e) */
+			int		sol_overcount;	/* (e) */
 		};
 	};
 };
@@ -180,13 +185,13 @@ struct socket {
 /*
  * Socket state bits.
  *
- * Historically, this bits were all kept in the so_state field.  For
- * locking reasons, they are now in multiple fields, as they are
- * locked differently.  so_state maintains basic socket state protected
- * by the socket lock.  so_qstate holds information about the socket
- * accept queues.  Each socket buffer also has a state field holding
- * information relevant to that socket buffer (can't send, rcv).  Many
- * fields will be read without locks to improve performance and avoid
+ * Historically, these bits were all kept in the so_state field.
+ * They are now split into separate, lock-specific fields.
+ * so_state maintains basic socket state protected by the socket lock.
+ * so_qstate holds information about the socket accept queues.
+ * Each socket buffer also has a state field holding information
+ * relevant to that socket buffer (can't send, rcv).
+ * Many fields will be read without locks to improve performance and avoid
  * lock order issues.  However, this approach must be used with caution.
  */
 #define	SS_NOFDREF		0x0001	/* no file table ref any more */
@@ -379,7 +384,8 @@ struct uio;
 /*
  * From uipc_socket and friends
  */
-int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
+int	getsockaddr(struct sockaddr **namp, const struct sockaddr *uaddr,
+	    size_t len);
 int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp, u_int *fflagp, struct filecaps *havecaps);
 void	soabort(struct socket *so);
