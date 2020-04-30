@@ -358,7 +358,7 @@ struct iflib_txq {
 	bus_dma_tag_t	ift_buf_tag;
 	bus_dma_tag_t	ift_tso_buf_tag;
 	iflib_dma_info_t	ift_ifdi;
-#define MTX_NAME_LEN 16
+#define	MTX_NAME_LEN	32
 	char                    ift_mtx_name[MTX_NAME_LEN];
 	bus_dma_segment_t	ift_segs[IFLIB_MAX_TX_SEGS]  __aligned(CACHE_LINE_SIZE);
 #ifdef IFLIB_DIAGNOSTICS
