@@ -48,6 +48,7 @@ int alwaysyes;		/* assume "yes" for all questions */
 int preen;		/* set when preening */
 int rdonly;		/* device is opened read only (supersedes above) */
 int skipclean;		/* skip clean file systems if preening */
+int allow_mmap;		/* Allow the use of mmap(), if possible */
 
 static void usage(void) __dead2;
 
@@ -68,7 +69,8 @@ main(int argc, char **argv)
 	int ch;
 
 	skipclean = 1;
-	while ((ch = getopt(argc, argv, "CfFnpy")) != -1) {
+	allow_mmap = 1;
+	while ((ch = getopt(argc, argv, "CfFnpyM")) != -1) {
 		switch (ch) {
 		case 'C': /* for fsck_ffs compatibility */
 			break;
@@ -87,16 +89,19 @@ main(int argc, char **argv)
 			exit(5);
 		case 'n':
 			alwaysno = 1;
-			alwaysyes = preen = 0;
+			alwaysyes = 0;
 			break;
 		case 'y':
 			alwaysyes = 1;
-			alwaysno = preen = 0;
+			alwaysno = 0;
 			break;
 
 		case 'p':
 			preen = 1;
-			alwaysyes = alwaysno = 0;
+			break;
+
+		case 'M':
+			allow_mmap = 0;
 			break;
 
 		default:
@@ -130,9 +135,10 @@ ask(int def, const char *fmt, ...)
 	char prompt[256];
 	int c;
 
+	if (alwaysyes || alwaysno || rdonly)
+		def = (alwaysyes && !rdonly && !alwaysno);
+
 	if (preen) {
-		if (rdonly)
-			def = 0;
 		if (def)
 			printf("FIXED\n");
 		return def;
@@ -141,9 +147,9 @@ ask(int def, const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(prompt, sizeof(prompt), fmt, ap);
 	va_end(ap);
-	if (alwaysyes || rdonly) {
-		printf("%s? %s\n", prompt, rdonly ? "no" : "yes");
-		return !rdonly;
+	if (alwaysyes || alwaysno || rdonly) {
+		printf("%s? %s\n", prompt, def ? "yes" : "no");
+		return def;
 	}
 	do {
 		printf("%s? [yn] ", prompt);
