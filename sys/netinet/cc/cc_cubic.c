@@ -366,8 +366,9 @@ cubic_post_recovery(struct cc_var *ccv)
 			    CCV(ccv, t_maxseg);
 		else
 			/* Update cwnd based on beta and adjusted max_cwnd. */
-			CCV(ccv, snd_cwnd) = max(1, ((CUBIC_BETA *
-			    cubic_data->max_cwnd) >> CUBIC_SHIFT));
+			CCV(ccv, snd_cwnd) = max(((uint64_t)cubic_data->max_cwnd *
+			    CUBIC_BETA) >> CUBIC_SHIFT,
+			    2 * CCV(ccv, t_maxseg));
 	}
 	cubic_data->t_last_cong = ticks;
 
@@ -433,6 +434,7 @@ static void
 cubic_ssthresh_update(struct cc_var *ccv)
 {
 	struct cubic *cubic_data;
+	uint32_t ssthresh;
 
 	cubic_data = ccv->cc_data;
 
@@ -441,10 +443,11 @@ cubic_ssthresh_update(struct cc_var *ccv)
 	 * subsequent congestion events, set it to cwnd * beta.
 	 */
 	if (cubic_data->num_cong_events == 0)
-		CCV(ccv, snd_ssthresh) = CCV(ccv, snd_cwnd) >> 1;
+		ssthresh = CCV(ccv, snd_cwnd) >> 1;
 	else
-		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
+		ssthresh = ((uint64_t)CCV(ccv, snd_cwnd) *
 		    CUBIC_BETA) >> CUBIC_SHIFT;
+	CCV(ccv, snd_ssthresh) = max(ssthresh, 2 * CCV(ccv, t_maxseg));
 }
 
 
