@@ -35,7 +35,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides access to sensor data and configuration 
+driver provides access to sensor data and configuration
 installed in Intel PCH chipset.
 .Nm
 configuration register.
@@ -60,7 +60,7 @@ dev.pchtherm.0.%pnpinfo: vendor=0x8086 device=0x9d31 subvendor=0x17aa subdevice=
 dev.pchtherm.0.%location: slot=20 function=2 dbsf=pci0:0:20:2
 dev.pchtherm.0.%driver: pchtherm
 dev.pchtherm.0.%desc: Skylake PCH Thermal Subsystem
-dev.pchtherm.%parent: 
+dev.pchtherm.%parent:
 .Ed
 .Bl -tag -width ".Va dev.pchtherm.%d.pch_hot_level"
 .It Va dev.pchtherm.%d.temperature
@@ -99,7 +99,7 @@ This value is not appear when this feature is disabled and locked down.
 .Pp
 Please check the PCH datasheets for more details.
 .Pp
-.Sh CAVEAT
+.Sh CAVEATS
 All values are read-only.
 And it do not support event interrupt for now.
 .Sh SEE ALSO
