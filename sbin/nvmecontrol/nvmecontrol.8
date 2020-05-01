@@ -1,4 +1,5 @@
 .\"
+.\" Copyright (c) 2020 Warner Losh <imp@FreeBSD.org>
 .\" Copyright (c) 2018-2019 Alexander Motin <mav@FreeBSD.org>
 .\" Copyright (c) 2012 Intel Corporation
 .\" All rights reserved.
@@ -34,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2019
+.Dd April 30, 2020
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -47,8 +48,8 @@
 .Ic identify
 .Op Fl v
 .Op Fl x
-.Aq device id
-.Aq namespace id
+.Op Fl n Ar nsid
+.Aq Ar device-id | Ar namespace-id
 .Nm
 .Ic perftest
 .Aq Fl n Ar num_threads
@@ -56,10 +57,10 @@
 .Op Fl p
 .Aq Fl s Ar size_in_bytes
 .Aq Fl t Ar time_in_sec
-.Aq namespace id
+.Aq Ar namespace-id
 .Nm
 .Ic reset
-.Aq controller id
+.Aq Ar device-id
 .Nm
 .Ic logpage
 .Aq Fl p Ar page_id
@@ -69,26 +70,25 @@
 .Op Fl f Ar LSP
 .Op Fl i Ar LSI
 .Op Fl r
-.Aq device id
-.Aq namespace id
+.Aq Ar device-id | Ar namespace-id
 .Nm
 .Ic ns active
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic ns allocated
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic ns attach
 .Aq Fl n Ar nsid
 .Aq Fl c Ar cntid
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic ns attached
 .Aq Fl n Ar nsid
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic ns controllers
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic ns create
 .Aq Fl s Ar nsze
@@ -100,33 +100,32 @@
 .Op Fl l Ar pil
 .Op Fl L Ar flbas
 .Op Fl d Ar dps
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic ns delete
 .Aq Fl n Ar nsid
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic ns detach
 .Aq Fl n Ar nsid
 .Aq Fl c Ar cntid
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic ns identify
 .Op Fl v
 .Op Fl x
 .Aq Fl n Ar nsid
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic nsid
-.Aq device id
-.Aq namespace id
+.Aq Ar device-id | Ar namespace-id
 .Nm
 .Ic resv acquire
 .Aq Fl c Ar crkey
 .Op Fl p Ar prkey
 .Aq Fl t Ar rtype
 .Aq Fl a Ar racqa
-.Aq namespace id
+.Aq Ar namespace-id
 .Nm
 .Ic resv register
 .Op Fl c Ar crkey
@@ -134,25 +133,25 @@
 .Aq Fl r Ar rrega
 .Op Fl i Ar iekey
 .Op Fl p Ar cptpl
-.Aq namespace id
+.Aq Ar namespace-id
 .Nm
 .Ic resv release
 .Aq Fl c Ar crkey
 .Aq Fl t Ar rtype
 .Aq Fl a Ar rrela
-.Aq namespace id
+.Aq Ar namespace-id
 .Nm
 .Ic resv report
 .Op Fl e
 .Op Fl v
 .Op Fl x
-.Aq namespace id
+.Aq Ar namespace-id
 .Nm
 .Ic firmware
 .Op Fl s Ar slot
 .Op Fl f Ar path_to_firmware
 .Op Fl a
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic format
 .Op Fl f Ar fmt
@@ -161,8 +160,7 @@
 .Op Fl l Ar pil
 .Op Fl E
 .Op Fl C
-.Aq device id
-.Aq namespace id
+.Aq Ar device-id | Ar namespace-id
 .Nm
 .Ic sanitize
 .Aq Fl a Ar sanact
@@ -172,7 +170,7 @@
 .Op Fl r
 .Op Fl I
 .Op Fl U
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic power
 .Op Fl l
@@ -181,25 +179,57 @@
 .Nm
 .Ic wdc cap-diag
 .Op Fl o path_template
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic wdc drive-log
 .Op Fl o path_template
-.Aq device id
+.Aq Ar device-id
 .Nm
 .Ic wdc get-crash-dump
 .Op Fl o path_template
-.Aq device id
+.Aq Ar device-id
 .\" .Nm
 .\" .Ic wdc purge
-.\" .Aq device id
+.\" .Aq device-id
 .\" .Nm
 .\" .Ic wdc purge-monitor
-.\" .Aq device id
+.\" .Aq device-id
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard, for SSDs and other
 high-speed storage devices over PCI Express.
 .Pp
+.Ss identify
+The identify commands reports information from the drive's
+.Dv IDENTIFY_CONTROLLER
+if a
+.Ar device-id
+is specified.
+It reports
+.Dv IDENTIFY_NAMESPACE
+data if a
+.Ar namespace-id
+is specified.
+When used with disk names, the
+.Dv IDENTIFY_NAMESPACE
+data is reported, unless the namespace
+.Ar nsid
+is overridden with the
+.Fl n
+flag.
+Then that namespace's data is reported, if it exists.
+The command accepts the following parameters:
+.Bl -tag -width 6n
+.It Fl n
+The namespace
+.Aq nsid
+to use instead of the namespace associated with the device.
+A
+.Ar nsid
+of
+.Dq 0
+is used to retrieve the
+.Dv IDENTIFY_CONTROLLER
+data associated with that drive.
 .Ss logpage
 The logpage command knows how to print log pages of various types.
 It also knows about vendor specific log pages from hgst/wdc and intel.
@@ -250,6 +280,12 @@ will set Retain Asynchronous Event.
 Various namespace management commands.
 If namespace management is supported by device, allow list, create and delete
 namespaces, list, attach and detach controllers to namespaces.
+.Ss nsid
+Reports the namespace id and controller device associated with the
+.Aq Ar namespace-id
+or
+.Aq Ar device-id
+argument.
 .Ss resv acquire
 Acquire or preempt namespace reservation, using specified parameters:
 .Bl -tag -width 6n
@@ -430,19 +466,54 @@ the drive's serial number and the type of dump it is followed
 by .bin.
 These logs must be sent to the vendor for analysis.
 This tool only provides a way to extract them.
+.Sh DEVICE NAMES
+Where
+.Aq Ar namespace-id
+is required, you can use either the
+.Pa nvmeXnsY
+device, or the disk device such as
+.Pa ndaZ
+or
+.Pa nvdZ .
+The leading
+.Pa /dev/
+is omitted.
+Where
+.Aq Ar device-id
+is required, you can use either the
+.Pa nvmeX
+device, or the disk device such as
+.Pa nda Z
+or
+.Pa nvdZ .
+For commands that take an optional
+.Aq nsid
+you can use it to get information on other namespaces, or to query the
+drive itself.
+A
+.Aq nsid
+of
+.Dq 0
+means query the drive itself.
 .Sh EXAMPLES
 .Dl nvmecontrol devlist
 .Pp
 Display a list of NVMe controllers and namespaces along with their device nodes.
 .Pp
 .Dl nvmecontrol identify nvme0
+.Dl nvmecontrol identify -n 0 nvd0
 .Pp
-Display a human-readable summary of the nvme0 IDENTIFY_CONTROLLER data.
+Display a human-readable summary of the nvme0
+.Dv IDENTIFY_CONTROLLER
+data.
+In this example, nvd0 is connected to nvme0.
 .Pp
 .Dl nvmecontrol identify -x -v nvme0ns1
+.Dl nvmecontrol identify -x -v -n 1 nvme0
 .Pp
-Display an hexadecimal dump of the nvme0 IDENTIFY_NAMESPACE data for namespace
-1.
+Display an hexadecimal dump of the nvme0
+.Dv IDENTIFY_NAMESPACE
+data for namespace 1.
 .Pp
 .Dl nvmecontrol perftest -n 32 -o read -s 512 -t 30 nvme0ns1
 .Pp
@@ -451,8 +522,10 @@ Each thread will issue a single 512 byte read command.
 Results are printed to stdout when 30 seconds expires.
 .Pp
 .Dl nvmecontrol reset nvme0
+.Dl nvmecontrol reset nda4
 .Pp
 Perform a controller-level reset of the nvme0 controller.
+In this example, nda4 is wired to nvme0.
 .Pp
 .Dl nvmecontrol logpage -p 1 nvme0
 .Pp
@@ -500,6 +573,24 @@ Set the current power mode.
 .Dl nvmecontrol power nvme0
 .Pp
 Get the current power mode.
+.Pp
+.Dl nvmecontrol identify -n 0 nda0
+.Pp
+Identify the drive data associated with the
+.Pa nda0
+device.
+The corresponding
+.Pa nvmeX
+devices is used automatically.
+.Pp
+.Dl nvmecontrol identify nda0
+.Pp
+Get the namespace parameters associated with the
+.Pa nda0
+device.
+The corresponding
+.Pa nvmeXnsY
+device is used automatically.
 .Sh DYNAMIC LOADING
 The directories
 .Pa /lib/nvmecontrol
