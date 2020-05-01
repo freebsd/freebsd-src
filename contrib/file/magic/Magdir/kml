@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: kml,v 1.5 2019/04/19 00:42:27 christos Exp $
+# $File: kml,v 1.6 2019/05/21 04:50:10 christos Exp $
 # Type: Google KML, formerly Keyhole Markup Language
 # Future development of this format has been handed
 # over to the Open Geospatial Consortium.
@@ -8,7 +8,7 @@
 # From: Asbjoern Sloth Toennesen <asbjorn@lila.io>
 0 string/t    \<?xml
 >20  search/400 \ xmlns=
->>&0 regex ['"]https://earth.google.com/kml Google KML document
+>>&0 regex ['"]http://earth.google.com/kml Google KML document
 !:mime application/vnd.google-earth.kml+xml
 >>>&1 string 2.0' \b, version 2.0
 >>>&1 string 2.1' \b, version 2.1
@@ -20,7 +20,7 @@
 # Open Geospatial Consortium.
 # https://www.opengeospatial.org/standards/kml/
 # From: Asbjoern Sloth Toennesen <asbjorn@lila.io>
->>&0 regex ['"]https://www.opengis.net/kml OpenGIS KML document
+>>&0 regex ['"]http://www.opengis.net/kml OpenGIS KML document
 !:mime application/vnd.google-earth.kml+xml
 >>>&1 string/t 2.2 \b, version 2.2
 

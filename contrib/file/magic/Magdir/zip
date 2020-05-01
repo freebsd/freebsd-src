@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: zip,v 1.2 2019/04/09 18:34:15 christos Exp $
+# $File: zip,v 1.3 2019/07/06 19:25:06 christos Exp $
 # zip:  file(1) magic for zip files; this is not use
 # Note the version of magic in archive is currently stronger, this is
 # just an example until negative offsets are supported better
@@ -60,4 +60,4 @@
 #>10	leshort		>1		\b, %d central directories
 #>12	lelong		x		\b, %d central directory bytes
 >(16.l)	use		zipcd
->20	pstring/l	>0		\b, %s
+>>20	pstring/l	>0		\b, %s

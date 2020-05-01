@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ruby,v 1.9 2019/04/19 00:42:27 christos Exp $
+# $File: ruby,v 1.10 2019/07/21 09:40:17 christos Exp $
 # ruby:  file(1) magic for Ruby scripting language
 # URL:  https://www.ruby-lang.org/
 # From: Reuben Thomas <rrt@sc3d.org>
@@ -23,7 +23,7 @@
 # (modules and such)
 # From: Lubomir Rintel <lkundrak@v3.sk>
 0	search/8192	require
->0	regex		\^[[:space:]]*require[[:space:]]'[A-Za-z_/]+'
+>0	regex		\^[[:space:]]*require[[:space:]]'[A-Za-z_/.]+'
 >>0	regex		def\ [a-z]|\ do$
 >>>&0	regex		\^[[:space:]]*end([[:space:]]+[;#].*)?$		Ruby script text
 !:strength + 30
@@ -48,7 +48,7 @@
 !:mime	text/x-ruby
 
 0	search/8192	require
->0	regex		\^[[:space:]]*require[[:space:]]'[A-Za-z_/]+'	Ruby script text
+>0	regex		\^[[:space:]]*require[[:space:]]'[A-Za-z_/.]+'	Ruby script text
 !:mime	text/x-ruby
 0	search/8192	include
 >0 regex 	\^[[:space:]]*include\ ([A-Z]+[a-z]*(::))+	Ruby script text

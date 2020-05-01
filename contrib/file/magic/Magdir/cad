@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cad,v 1.19 2019/04/19 00:42:27 christos Exp $
+# $File: cad,v 1.20 2019/08/10 13:34:17 christos Exp $
 # autocad:  file(1) magic for cad files
 #
 
@@ -18,29 +18,162 @@
 # 3F86C928&method=display&p_objectid=97F351F5-9C35-4E5E-89C280A93F86C928
 # https://www.bentley.com/products/default.cfm?objectid=A5C2FD43-3AC9-4C71-B682
 # 721C479F&method=display&p_objectid=A5C2FD43-3AC9-4C71-B682C7BE721C479F
-0	string	\010\011\376			Microstation
->3	string	\002
->>30	string	\026\105			DGNFile
->>30	string	\034\105			DGNFile
->>30	string	\073\107			DGNFile
->>30	string	\073\110			DGNFile
->>30	string	\106\107			DGNFile
->>30	string	\110\103			DGNFile
->>30	string	\120\104			DGNFile
->>30	string	\172\104			DGNFile
->>30	string	\172\105			DGNFile
->>30	string	\172\106			DGNFile
->>30	string	\234\106			DGNFile
->>30	string	\273\105			DGNFile
->>30	string	\306\106			DGNFile
->>30	string	\310\104			DGNFile
->>30	string	\341\104			DGNFile
->>30	string	\372\103			DGNFile
->>30	string	\372\104			DGNFile
->>30	string	\372\106			DGNFile
->>30	string	\376\103			DGNFile
->4	string	\030\000\000			CITFile
->4	string	\030\000\003			CITFile
+# 
+# URL:		https://en.wikipedia.org/wiki/MicroStation
+# reference:	http://dgnlib.maptools.org/dgn.html
+#		http://dgnlib.maptools.org/dl/ref18.pdf
+# Update:	Joerg Jenderek
+# Note: verfied by command like `dgndump seed2d_b.dgn`
+# test for level 8 and type 5 or 9
+0	beshort&0x3F73	0x0801
+# level of element like 8
+#>0	ubyte&0x3F	x			\b, level %u
+#>0	ubyte		&0x80			\b, complex
+#>0	ubyte		&0x40			\b, reserved
+# type of element 9~TCB 8~Digitizer setup 5~Group Data Elements
+#>1	ubyte&0x7F	x			\b, type %u
+# words to follow in element: 17H~CEL libray 2FEh~DGN 9FEh,DFEh~CIT
+#>2	uleshort	x			\b, words 0x%4.4x to follow
+# test for 3 reserved 0 bytes in CIT or "conversion" in ViewInfo structure (DGN CEL)
+#>508	ubelong		x			\b, RESERVED %8.8x
+>508	ubelong&0xFFffFF00	=0
+# test for level 8 and type 9 for INGR raster image
+>>0	beshort		0x0809
+# test for length of 1st element is multiple of blocks a 512 bytes
+>>>2	ubyte		0xfe
+>>>>0 	use		ingr-image
+# test for DGN or CEL by jump words (uleshort) forward to next element
+>(2.s*2)	ulong		x
+# 2nd element type: 8~Digitizer~DesiGNfile 1~library cell header other~CIT
+#>>&1		ubyte&0x7F	x		\b, 2nd type %u
+# DGN
+>>&1		ubyte&0x7F	8
+>>>2		uleshort	=0x02FE		Bentley/Intergraph Microstation CAD drawing
+!:mime		application/x-bentley-dgn
+!:ext		dgn
+# The 0x40 bit of this byte is 1 if the file is 3D, otherwise 0
+>>>>1214	ubyte  		&0x40		3D
+>>>>1214	ubyte  		^0x40		2D
+# 2 chars for name of subunits like ft FT in IN mu m mm '\0 '\040
+>>>>1120	string		x		\b, units %-.2s
+# 2 chars for name of master unit like IN in ML SU tn th TH HU mm "\0 "\040 \0\0
+>>>>1122	string		>\0		%-.2s
+#>>>>1120	ubelong		x		\b, units 0x%8.8x
+# element range low,high x y z like xlow=0 08010000h 01080000h
+#>>>>4		ubelong	  	!0		\b, xlow %8.8x
+#>>>>8		ubelong	  	!0		\b, ylow %8.8x
+#>>>>12		ubelong	  	!0		\b, zlow %8.8x
+#>>>>16		ubelong	  	!0		\b, xhigh %8.8x
+#>>>>20		ubelong	  	!0		\b, yhigh %8.8x
+#>>>>24		ubelong	  	!0		\b, zhigh %8.8x
+# graphic group number; all other elements in that group have same non-0 number
+#>>>>28		leshort		x		\b, grphgrp 0x%4.4x
+# words to optional attribute linkage
+#>>>>30		ubyte		x		\b, attindx \%o
+#>>>>31		ubyte		x		\b\%o
+# >>30	string	\026\105			DGNFile
+# >>30	string	\034\105			DGNFile
+# >>30	string	\073\107			DGNFile
+# >>30	string	\073\110			DGNFile
+# >>30	string	\106\107			DGNFile
+# >>30	string	\110\103			DGNFile
+# >>30	string	\120\104			DGNFile
+# >>30	string	\172\104			DGNFile
+# >>30	string	\172\105			DGNFile
+# >>30	string	\172\106			DGNFile
+# >>30	string	\234\106			DGNFile
+# >>30	string	\273\105			DGNFile
+# >>30	string	\306\106			DGNFile
+# >>30	string	\310\104			DGNFile
+# >>30	string	\341\104			DGNFile
+# >>30	string	\372\103			DGNFile
+# >>30	string	\372\104			DGNFile
+# >>30	string	\372\106			DGNFile
+# >>30	string	\376\103			DGNFile
+# elements properties indicator
+#>>>>32		uleshort	!0		\b, properties 0x%4.4x
+# class 0~Primary
+#>>>>>32		uleshort&0x000F	!0		\b, class 0x%4.4x
+# Symbology
+#>>>>>34		uleshort	x		\b, Symbology 0x%4.4x
+# test for 2nd element type 1~library cell header
+>>&1		ubyte&0x7F	1
+# test for 1st element with level 8 and type 5 for cell library
+>>>0		beshort		0x0805		Bentley/Intergraph Microstation CAD cell library
+!:mime		application/x-bentley-cel
+!:ext		cel
+#
+# URL:		http://fileformats.archiveteam.org/wiki/Intergraph_Raster
+# reference:	https://web.archive.org/web/20140903185431/
+#		http://oreilly.com/www/centers/gff/formats/ingr/index.htm
+# note:		verfied by command like `nconvert -fullinfo LONGLAT.CIT`
+# display information for intergraph raster bitmap
+0	name	ingr-image
+# in 5.37 "Microstation CITFile" "Bentley/Intergraph MicroStation CIT raster CAD"
+# DataTypeCode indicates format, depth of the pixel data and used compression 
+>4	uleshort	x			Intergraph raster image
+>>4	uleshort	0x0009			\b, Run-Length Encoded 1-bit
+!:mime	image/x-intergraph-rle
+!:ext	rel
+>>4	uleshort	0x0018			\b, CCITT Group 4 1-bit
+!:mime	image/x-intergraph-cit
+!:ext	cit
+>>4	uleshort	27			\b, Adaptive RLE RGB
+!:mime	image/x-intergraph-rgb
+!:ext	rgb
+>>4	default		x
+>>>4	uleshort	x			\b, Type %u
+!:mime	image/x-intergraph
+# TODO:
+#>4	uleshort	0			\b, no data
+# ...
+#>4	uleshort	0x0045			\b, Continuous Tone CMKY (Uncompressed)
+# ApplicationType: 0~generic raster image 3~drawing, scanning
+# 8~I/IMAGE and MicroStation Imager 9~ModelView
+>6	uleshort	!0			\b, ApplicationType %u
+#>6	uleshort	x			\b, ApplicationType %u
+# XViewOrigin; Raster grid data X origin
+#>8	ulequad		!0			\b, XViewOrigin %llx
+# PixelsPerLine is the number of pixels in a scan line of bitmapp
+>184	ulelong		x			\b, %u x
+# NumberOfLines is height of the raster data in scanlines
+>188	ulelong		x			%u
+# DeviceResolution; resolution of scanning device
+# positive indicates number of micros between lines; negative indicates DPI
+#>192	leshort		x			\b, DeviceResolution %d
+# ScanlineOrient indicates the origin and the orientation of the scan lines
+#>194	ubyte		x			\b, ScanlineOrient %x
+>194	ubyte		x			\b, orientation
+>194	ubyte		&0x01			right
+>194	ubyte		^0x01			left
+>194	ubyte		&0x02			down
+>194	ubyte		^0x02			top
+>194	ubyte		&0x04			horizontal
+>194	ubyte		^0x04			vertical
+# ScannableFlag; Scanline indexing method used
+#>195	ubyte		!0			\b, ScannableFlag 0x%x
+# RotationAngle; Rotation angle of raster data
+#>196	ubequad		!0			\b, RotationAngle 0x%llx
+# SkewAngle; Skew angle of raster data
+#>204	ubequad		!0			\b, SkewAngle %llx
+# DataTypeModifier; Additional raster data format info
+#>212	uleshort	!0			\b, DataTypeModifier 0x%4.4x
+# DesignFile[66]; Name of the design file
+>214	string		>\0			\b, DesignFile %-.66s
+# DatabaseFile[66]; Name of the database file
+>280	string		>\0			\b, DatabaseFile %-.66s
+# ParentGridFile[66]; Name of parent grid file
+>346	string		>\0			\b, ParentGridFile %-.66s
+# FileDescription[80]; Text description of file and contents
+>412	string		>\0			\b, FileDescription %-.80s
+# MinValue
+#>492	ubequad		!0			\b, MinValue 0x%llx
+# MaxValue
+#>500	ubequad		!0			\b, MaxValue 0x%llx
+# Reserved[3]; Unused (always 0)
+#>508	ubelong&0xFFffFF00	x		\b, RESERVED %8.8x
+# GridFileVersion; Grid File Version like 2 3
+#>511	ubyte		x			\b, GridFileVersion %x
 
 # AutoCAD
 # Merge of the different contributions and updates from https://en.wikipedia.org/wiki/Dwg
@@ -140,12 +273,6 @@
 # Phillip Griffith <phillip dot griffith at gmail dot com>
 # AutoCAD magic taken from the Open Design Alliance's OpenDWG specifications.
 #
-0	belong	0x08051700	Bentley/Intergraph MicroStation DGN cell library
-0	belong	0x0809fe02	Bentley/Intergraph MicroStation DGN vector CAD
-0	belong	0xc809fe02	Bentley/Intergraph MicroStation DGN vector CAD
-0	beshort	0x0809		Bentley/Intergraph MicroStation
->0x02	byte	0xfe
->>0x04	beshort	0x1800		CIT raster CAD
 
 # 3DS (3d Studio files)
 0	leshort		0x4d4d

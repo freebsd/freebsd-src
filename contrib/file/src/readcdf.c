@@ -26,7 +26,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readcdf.c,v 1.73 2019/03/12 20:43:05 christos Exp $")
+FILE_RCSID("@(#)$File: readcdf.c,v 1.74 2019/09/11 15:46:30 christos Exp $")
 #endif
 
 #include <assert.h>
@@ -120,7 +120,11 @@ cdf_app_to_mime(const char *vbuf, const struct nv *nv)
 	old_lc_ctype = uselocale(c_lc_ctype);
 	assert(old_lc_ctype != NULL);
 #else
-	char *old_lc_ctype = setlocale(LC_CTYPE, "C");
+	char *old_lc_ctype = setlocale(LC_CTYPE, NULL);
+	assert(old_lc_ctype != NULL);
+	old_lc_ctype = strdup(old_lc_ctype);
+	assert(old_lc_ctype != NULL);
+	(void)setlocale(LC_CTYPE, "C");
 #endif
 	for (i = 0; nv[i].pattern != NULL; i++)
 		if (strcasestr(vbuf, nv[i].pattern) != NULL) {
@@ -134,7 +138,8 @@ cdf_app_to_mime(const char *vbuf, const struct nv *nv)
 	(void)uselocale(old_lc_ctype);
 	freelocale(c_lc_ctype);
 #else
-	setlocale(LC_CTYPE, old_lc_ctype);
+	(void)setlocale(LC_CTYPE, old_lc_ctype);
+	free(old_lc_ctype);
 #endif
 	return rv;
 }

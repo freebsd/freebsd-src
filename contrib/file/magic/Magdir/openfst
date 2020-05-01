@@ -1,0 +1,17 @@
+
+#------------------------------------------------------------------------------
+# $File: openfst,v 1.1 2019/09/30 15:58:24 christos Exp $
+# openfs:  file(1) magic for OpenFST (Weighted finite-state tranducer library)
+
+0	long		0x7eb2fdd6	OpenFst binary FST data
+>&0	pstring/l	x		\b, fst type: %s
+>>&0	pstring/l	x		\b, arc type: %s
+>>>&0	long		x		\b, version: %d
+>>>>&20	quad		x		\b, num states: %lld
+>>>>>&0	quad		>0		\b, num arcs: %lld
+
+0	long    0x56515c	OpenFst binary FAR data, far type: stlist
+>4	long 	x		\b, version: %d
+
+0	long	0x7eb2f35c	OpenFst binary FAR data, far type: sttable
+>4	long	x		\b, version: %d
