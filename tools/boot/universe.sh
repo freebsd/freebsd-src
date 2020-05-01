@@ -77,12 +77,11 @@ done
 # Default build for a goodly selection of architectures
 for i in \
 	amd64/amd64 \
-	arm/arm arm/armv7 \
+	arm/armv7 \
 	arm64/aarch64 \
 	i386/i386 \
 	mips/mips mips/mips64 \
 	powerpc/powerpc powerpc/powerpc64 \
-	sparc64/sparc64 \
 	; do
     ta=${i##*/}
     dobuild $ta _.boot.${ta}.log ""
@@ -91,12 +90,11 @@ done
 # Default build for a goodly selection of architectures with Lua
 for i in \
 	amd64/amd64 \
-	arm/arm arm/armv7 \
+	arm/armv7 \
 	arm64/aarch64 \
 	i386/i386 \
 	mips/mips mips/mips64 \
 	powerpc/powerpc powerpc/powerpc64 \
-	sparc64/sparc64 \
 	; do
     ta=${i##*/}
     dobuild $ta _.boot.${ta}.lua.log "MK_LOADEDER_LUA=yes MK_FORTH=no"
@@ -106,7 +104,6 @@ done
 for i in \
 	amd64/amd64 \
 	i386/i386 \
-	sparc64/sparc64 \
 	; do
     ta=${i##*/}
     dobuild $ta _.boot.${ta}.no_zfs.log "MK_ZFS=no"
@@ -119,12 +116,4 @@ for i in \
 	; do
     ta=${i##*/}
     dobuild $ta _.boot.${ta}.firewire.log "MK_LOADER_FIREWIRE=yes"
-done
-
-# Build with LOADER_DEBUG, only sparc64 does this.
-for i in \
-	sparc64/sparc64 \
-	; do
-    ta=${i##*/}
-    dobuild $ta _.boot.${ta}.debug.log "LOADER_DEBUG=yes"
 done
