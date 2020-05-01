@@ -73,7 +73,9 @@ struct netif_driver ofwnet = {
 
 static ihandle_t	netinstance;
 
+#ifdef BROKEN
 static void		*dmabuf;
+#endif
 
 static int
 ofwn_match(struct netif *nif, void *machdep_hint)
@@ -110,10 +112,12 @@ ofwn_put(struct iodesc *desc, void *pkt, size_t len)
 #endif
 	}
 
+#ifdef BROKEN
 	if (dmabuf) {
 		bcopy(pkt, dmabuf, sendlen);
 		pkt = dmabuf;
 	}
+#endif
 
 	rv = OF_write(netinstance, pkt, len);
 
@@ -203,11 +207,7 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 	if ((ch = strchr(path, ':')) != NULL)
 		*ch = '\0';
 	netdev = OF_finddevice(path);
-#ifdef __sparc64__
-	if (OF_getprop(netdev, "mac-address", desc->myea, 6) == -1)
-#else
 	if (OF_getprop(netdev, "local-mac-address", desc->myea, 6) == -1)
-#endif
 		goto punt;
 
 	printf("boot: ethernet address: %s\n", ether_sprintf(desc->myea));
@@ -220,20 +220,6 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 #if defined(NETIF_DEBUG)
 	printf("ofwn_init: Open Firmware instance handle: %08x\n", netinstance);
 #endif
-
-#ifndef __sparc64__
-	dmabuf = NULL;
-	if (OF_call_method("dma-alloc", netinstance, 1, 1, (64 * 1024), &dmabuf)
-	    < 0) {   
-		printf("Failed to allocate DMA buffer (got %p).\n", dmabuf);
-		goto punt;
-	}
-
-#if defined(NETIF_DEBUG)
-	printf("ofwn_init: allocated DMA buffer: %p\n", dmabuf);
-#endif
-#endif
-
 	return;
 
 punt:
