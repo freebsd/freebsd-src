@@ -1738,7 +1738,7 @@ gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
 _prebuild_libs+= lib/libc++
 .endif
 
-lib/libgeom__L: lib/libexpat__L
+lib/libgeom__L: lib/libexpat__L lib/libsbuf__L
 
 .if defined(WITH_ATF) || ${MK_TESTS} != "no"
 .if !defined(WITH_ATF)
