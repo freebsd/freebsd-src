@@ -55,6 +55,7 @@
 #define	SBI_ERR_INVALID_PARAM		-3
 #define	SBI_ERR_DENIED			-4
 #define	SBI_ERR_INVALID_ADDRESS		-5
+#define	SBI_ERR_ALREADY_AVAILABLE	-6
 
 /* SBI Base Extension */
 #define	SBI_EXT_ID_BASE			0x10
@@ -65,6 +66,16 @@
 #define	SBI_BASE_GET_MVENDORID		4
 #define	SBI_BASE_GET_MARCHID		5
 #define	SBI_BASE_GET_MIMPID		6
+
+/* Hart State Management (HSM) Extension */
+#define	SBI_EXT_ID_HSM			0x48534D
+#define	SBI_HSM_HART_START		0
+#define	SBI_HSM_HART_STOP		1
+#define	SBI_HSM_HART_STATUS		2
+#define	 SBI_HSM_STATUS_STARTED		0
+#define	 SBI_HSM_STATUS_STOPPED		1
+#define	 SBI_HSM_STATUS_START_PENDING	2
+#define	 SBI_HSM_STATUS_STOP_PENDING	3
 
 /* Legacy Extensions */
 #define	SBI_SET_TIMER			0
@@ -127,6 +138,30 @@ sbi_probe_extension(long id)
 {
 	return (SBI_CALL1(SBI_EXT_ID_BASE, SBI_BASE_PROBE_EXTENSION, id).value);
 }
+
+/* Hart State Management extension functions. */
+
+/*
+ * Start execution on the specified hart at physical address start_addr. The
+ * register a0 will contain the hart's ID, and a1 will contain the value of
+ * priv.
+ */
+int sbi_hsm_hart_start(u_long hart, u_long start_addr, u_long priv);
+
+/*
+ * Stop execution on the current hart. Interrupts should be disabled, or this
+ * function may return.
+ */
+void sbi_hsm_hart_stop(void);
+
+/*
+ * Get the execution status of the specified hart. The status will be one of:
+ *  - SBI_HSM_STATUS_STARTED
+ *  - SBI_HSM_STATUS_STOPPED
+ *  - SBI_HSM_STATUS_START_PENDING
+ *  - SBI_HSM_STATUS_STOP_PENDING
+ */
+int sbi_hsm_hart_status(u_long hart);
 
 /* Legacy extension functions. */
 static __inline void
