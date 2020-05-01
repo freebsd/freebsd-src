@@ -229,6 +229,8 @@ static void nfsrv_removeuser(struct nfsusrgrp *usrp, int isuser);
 static int nfsrv_getrefstr(struct nfsrv_descript *, u_char **, u_char **,
     int *, int *);
 static void nfsrv_refstrbigenough(int, u_char **, u_char **, int *);
+static int nfsm_copyfrommbuf(struct nfsrv_descript *, char *, enum uio_seg,
+    int);
 
 static struct {
 	int	op;
@@ -701,52 +703,49 @@ nfsm_dissct(struct nfsrv_descript *nd, int siz, int how)
 	caddr_t retp;
 
 	retp = NULL;
-	left = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos;
+	left = mtod(nd->nd_md, char *) + nd->nd_md->m_len -
+	    nd->nd_dpos;
 	while (left == 0) {
-		nd->nd_md = nd->nd_md->m_next;
-		if (nd->nd_md == NULL)
-			return (retp);
-		left = nd->nd_md->m_len;
-		nd->nd_dpos = mtod(nd->nd_md, caddr_t);
+		if (!nfsm_shiftnext(nd, &left))
+			return (NULL);
 	}
 	if (left >= siz) {
 		retp = nd->nd_dpos;
 		nd->nd_dpos += siz;
-	} else if (nd->nd_md->m_next == NULL) {
-		return (retp);
 	} else if (siz > ncl_mbuf_mhlen) {
 		panic("nfs S too big");
 	} else {
+		/* Allocate a new mbuf for the "siz" bytes of data. */
 		MGET(mp2, MT_DATA, how);
 		if (mp2 == NULL)
 			return (NULL);
+
+		/*
+		 * Link the new mp2 mbuf into the list then copy left
+		 * bytes from the mbuf before it and siz - left bytes
+		 * from the mbuf(s) after it.
+		 */
 		mp2->m_next = nd->nd_md->m_next;
 		nd->nd_md->m_next = mp2;
 		nd->nd_md->m_len -= left;
-		nd->nd_md = mp2;
-		retp = p = mtod(mp2, caddr_t);
-		NFSBCOPY(nd->nd_dpos, p, left);	/* Copy what was left */
+		retp = p = mtod(mp2, char *);
+		memcpy(p, nd->nd_dpos, left);	/* Copy what was left */
 		siz2 = siz - left;
 		p += left;
-		mp2 = mp2->m_next;
+		mp2->m_len = siz;
+		nd->nd_md = mp2->m_next;
 		/* Loop around copying up the siz2 bytes */
 		while (siz2 > 0) {
-			if (mp2 == NULL)
+			if (nd->nd_md == NULL)
 				return (NULL);
-			xfer = (siz2 > mp2->m_len) ? mp2->m_len : siz2;
-			if (xfer > 0) {
-				NFSBCOPY(mtod(mp2, caddr_t), p, xfer);
-				mp2->m_data += xfer;
-				mp2->m_len -= xfer;
-				p += xfer;
-				siz2 -= xfer;
-			}
+			nfsm_set(nd, 0, false);
+			xfer = nfsm_copyfrommbuf(nd, p,
+			    UIO_SYSSPACE, siz2);
+			p += xfer;
+			siz2 -= xfer;
 			if (siz2 > 0)
-				mp2 = mp2->m_next;
+				nd->nd_md = nd->nd_md->m_next;
 		}
-		nd->nd_md->m_len = siz;
-		nd->nd_md = mp2;
-		nd->nd_dpos = mtod(mp2, caddr_t);
 	}
 	return (retp);
 }
@@ -4825,5 +4824,76 @@ nfsv4_findmirror(struct nfsmount *nmp)
 		}
 	}
 	return (ds);
+}
+
+/*
+ * Fill in the fields of "struct nfsrv_descript" for a new ext_pgs mbuf.
+ * The build argument is true for build and false for dissect.
+ */
+int
+nfsm_set(struct nfsrv_descript *nd, u_int offs, bool build)
+{
+	struct mbuf *m;
+	int rlen;
+
+	if (build)
+		m = nd->nd_mb;
+	else
+		m = nd->nd_md;
+	if (build) {
+		nd->nd_bpos = mtod(m, char *) + offs;
+		rlen = m->m_len - offs;
+	} else {
+		nd->nd_dpos = mtod(m, char *);
+		rlen = m->m_len;
+	}
+	return (rlen);
+}
+
+/*
+ * Copy up to "len" bytes from the mbuf into "cp" and adjust the
+ * mbuf accordingly.
+ * If cp == NULL, do not do the actual copy, but adjust the mbuf.
+ * Return the number of bytes actually copied.
+ * Adjust m_data and m_len so that a future calculation of what
+ * is left using mtod() will work correctly.
+ */
+static int
+nfsm_copyfrommbuf(struct nfsrv_descript *nd, char *cp, enum uio_seg segflg,
+    int len)
+{
+	struct mbuf *m;
+	int xfer;
+
+	m = nd->nd_md;
+	xfer = mtod(m, char *) + m->m_len - nd->nd_dpos;
+	xfer = min(xfer, len);
+	if (xfer > 0) {
+		if (cp != NULL) {
+			if (segflg == UIO_SYSSPACE)
+				memcpy(cp, nd->nd_dpos, xfer);
+			else
+				copyout(nd->nd_dpos, cp, xfer);
+		}
+		nd->nd_dpos += xfer;
+		m->m_data += xfer;
+		m->m_len -= xfer;
+	}
+	return (xfer);
+}
+
+/*
+ * Shift to the next mbuf in the list list and update the nd fields.
+ * Return true if successful, false otherwise.
+ */
+bool
+nfsm_shiftnext(struct nfsrv_descript *nd, int *leftp)
+{
+
+	nd->nd_md = nd->nd_md->m_next;
+	if (nd->nd_md == NULL)
+		return (false);
+	*leftp = nfsm_set(nd, 0, false);
+	return (true);
 }
 
