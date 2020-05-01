@@ -66,6 +66,18 @@ typedef struct mutex {
 	linux_mutex_lock_interruptible(_m);	\
 })
 
+/*
+ * Reuse the interruptable method since the SX
+ * lock handles both signals and interrupts:
+ */
+#define	mutex_lock_killable(_m) ({		\
+	MUTEX_SKIP() ? 0 :			\
+	linux_mutex_lock_interruptible(_m);	\
+})
+
+#define	mutex_lock_killable_nested(_m, _sub)	\
+	mutex_lock_killable(_m)
+
 #define	mutex_unlock(_m) do {			\
 	if (MUTEX_SKIP())			\
 		break;				\
