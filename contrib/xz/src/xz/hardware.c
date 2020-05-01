@@ -68,8 +68,38 @@ hardware_memlimit_set(uint64_t new_memlimit,
 		new_memlimit = (uint32_t)new_memlimit * total_ram / 100;
 	}
 
-	if (set_compress)
+	if (set_compress) {
 		memlimit_compress = new_memlimit;
+
+#if SIZE_MAX == UINT32_MAX
+		// FIXME?
+		//
+		// When running a 32-bit xz on a system with a lot of RAM and
+		// using a percentage-based memory limit, the result can be
+		// bigger than the 32-bit address space. Limiting the limit
+		// below SIZE_MAX for compression (not decompression) makes
+		// xz lower the compression settings (or number of threads)
+		// to a level that *might* work. In practice it has worked
+		// when using a 64-bit kernel that gives full 4 GiB address
+		// space to 32-bit programs. In other situations this might
+		// still be too high, like 32-bit kernels that may give much
+		// less than 4 GiB to a single application.
+		//
+		// So this is an ugly hack but I will keep it here while
+		// it does more good than bad.
+		//
+		// Use a value less than SIZE_MAX so that there's some room
+		// for the xz program and so on. Don't use 4000 MiB because
+		// it could look like someone mixed up base-2 and base-10.
+		const uint64_t limit_max = UINT64_C(4020) << 20;
+
+		// UINT64_MAX is a special case for the string "max" so
+		// that has to be handled specially.
+		if (memlimit_compress != UINT64_MAX
+				&& memlimit_compress > limit_max)
+			memlimit_compress = limit_max;
+#endif
+	}
 
 	if (set_decompress)
 		memlimit_decompress = new_memlimit;

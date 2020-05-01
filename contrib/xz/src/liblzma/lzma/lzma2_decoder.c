@@ -136,7 +136,7 @@ lzma2_decode(void *coder_ptr, lzma_dict *restrict dict,
 		break;
 
 	case SEQ_UNCOMPRESSED_2:
-		coder->uncompressed_size += in[(*in_pos)++] + 1;
+		coder->uncompressed_size += in[(*in_pos)++] + 1U;
 		coder->sequence = SEQ_COMPRESSED_0;
 		coder->lzma.set_uncompressed(coder->lzma.coder,
 				coder->uncompressed_size);
@@ -148,7 +148,7 @@ lzma2_decode(void *coder_ptr, lzma_dict *restrict dict,
 		break;
 
 	case SEQ_COMPRESSED_1:
-		coder->compressed_size += in[(*in_pos)++] + 1;
+		coder->compressed_size += in[(*in_pos)++] + 1U;
 		coder->sequence = coder->next_sequence;
 		break;
 
@@ -297,8 +297,8 @@ lzma_lzma2_props_decode(void **options, const lzma_allocator *allocator,
 	if (props[0] == 40) {
 		opt->dict_size = UINT32_MAX;
 	} else {
-		opt->dict_size = 2 | (props[0] & 1);
-		opt->dict_size <<= props[0] / 2 + 11;
+		opt->dict_size = 2 | (props[0] & 1U);
+		opt->dict_size <<= props[0] / 2U + 11;
 	}
 
 	opt->preset_dict = NULL;
