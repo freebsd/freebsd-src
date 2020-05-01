@@ -204,6 +204,7 @@ pmc_intel_initialize(void)
 			nclasses = 3;
 			break;
 		case 0x5C:	/* Per Intel document 325462-071US 10/2019. */
+		case 0x5F:
 			cputype = PMC_CPU_INTEL_ATOM_GOLDMONT;
 			nclasses = 3;
 			break;
