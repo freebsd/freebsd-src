@@ -141,6 +141,8 @@ static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
     vm_offset_t vaddr, vm_paddr_t addr1, vm_paddr_t addr2, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
+static bool _bus_dmamap_pagesneeded(bus_dma_tag_t dmat, vm_paddr_t buf,
+    bus_size_t buflen, int *pagesneeded);
 static void _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
     pmap_t pmap, void *buf, bus_size_t buflen, int flags);
 static void _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
@@ -221,6 +223,15 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	    __func__, newtag, (newtag != NULL ? newtag->common.flags : 0),
 	    error);
 	return (error);
+}
+
+static bool
+bounce_bus_dma_id_mapped(bus_dma_tag_t dmat, vm_paddr_t buf, bus_size_t buflen)
+{
+
+	if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) == 0)
+		return (true);
+	return (!_bus_dmamap_pagesneeded(dmat, buf, buflen, NULL));
 }
 
 /*
@@ -501,29 +512,45 @@ bounce_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	    dmat->bounce_flags);
 }
 
+static bool
+_bus_dmamap_pagesneeded(bus_dma_tag_t dmat, vm_paddr_t buf, bus_size_t buflen,
+    int *pagesneeded)
+{
+	vm_paddr_t curaddr;
+	bus_size_t sgsize;
+	int count;
+
+	/*
+	 * Count the number of bounce pages needed in order to
+	 * complete this transfer
+	 */
+	count = 0;
+	curaddr = buf;
+	while (buflen != 0) {
+		sgsize = MIN(buflen, dmat->common.maxsegsz);
+		if (bus_dma_run_filter(&dmat->common, curaddr)) {
+			sgsize = MIN(sgsize,
+			    PAGE_SIZE - (curaddr & PAGE_MASK));
+			if (pagesneeded == NULL)
+				return (true);
+			count++;
+		}
+		curaddr += sgsize;
+		buflen -= sgsize;
+	}
+
+	if (pagesneeded != NULL)
+		*pagesneeded = count;
+	return (count != 0);
+}
+
 static void
 _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
     bus_size_t buflen, int flags)
 {
-	vm_paddr_t curaddr;
-	bus_size_t sgsize;
 
 	if (map != &nobounce_dmamap && map->pagesneeded == 0) {
-		/*
-		 * Count the number of bounce pages
-		 * needed in order to complete this transfer
-		 */
-		curaddr = buf;
-		while (buflen != 0) {
-			sgsize = MIN(buflen, dmat->common.maxsegsz);
-			if (bus_dma_run_filter(&dmat->common, curaddr)) {
-				sgsize = MIN(sgsize,
-				    PAGE_SIZE - (curaddr & PAGE_MASK));
-				map->pagesneeded++;
-			}
-			curaddr += sgsize;
-			buflen -= sgsize;
-		}
+		_bus_dmamap_pagesneeded(dmat, buf, buflen, &map->pagesneeded);
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
 }
@@ -1305,6 +1332,7 @@ struct bus_dma_impl bus_dma_bounce_impl = {
 	.tag_create = bounce_bus_dma_tag_create,
 	.tag_destroy = bounce_bus_dma_tag_destroy,
 	.tag_set_domain = bounce_bus_dma_tag_set_domain,
+	.id_mapped = bounce_bus_dma_id_mapped,
 	.map_create = bounce_bus_dmamap_create,
 	.map_destroy = bounce_bus_dmamap_destroy,
 	.mem_alloc = bounce_bus_dmamem_alloc,

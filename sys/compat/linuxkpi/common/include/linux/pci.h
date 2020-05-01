@@ -212,6 +212,7 @@ struct pci_driver {
 
 struct pci_bus {
 	struct pci_dev	*self;
+	int		domain;
 	int		number;
 };
 
@@ -226,7 +227,6 @@ struct pci_dev {
 	struct list_head	links;
 	struct pci_driver	*pdrv;
 	struct pci_bus		*bus;
-	uint64_t		dma_mask;
 	uint16_t		device;
 	uint16_t		vendor;
 	uint16_t		subsystem_vendor;
@@ -277,26 +277,6 @@ linux_pci_find_irq_dev(unsigned int irq)
 	}
 	spin_unlock(&pci_lock);
 	return (found);
-}
-
-static inline unsigned long
-pci_resource_start(struct pci_dev *pdev, int bar)
-{
-	struct resource_list_entry *rle;
-
-	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
-		return (0);
-	return rle->start;
-}
-
-static inline unsigned long
-pci_resource_len(struct pci_dev *pdev, int bar)
-{
-	struct resource_list_entry *rle;
-
-	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
-		return (0);
-	return rle->count;
 }
 
 static inline int
@@ -470,6 +450,9 @@ linux_pci_disable_msi(struct pci_dev *pdev)
 	pdev->irq = pdev->dev.irq;
 	pdev->msi_enabled = false;
 }
+
+unsigned long	pci_resource_start(struct pci_dev *pdev, int bar);
+unsigned long	pci_resource_len(struct pci_dev *pdev, int bar);
 
 static inline bus_addr_t
 pci_bus_address(struct pci_dev *pdev, int bar)

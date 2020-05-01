@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <vm/vm.h>
-#include <machine/bus.h>
 #include <sys/bus.h>
 #include <sys/bus_dma.h>
 #include <sys/mtio.h>
