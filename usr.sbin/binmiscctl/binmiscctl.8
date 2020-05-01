@@ -27,7 +27,7 @@
 .\"
 .\" Support for miscellaneous binary image activators
 .\"
-.Dd February 10, 2020
+.Dd April 30, 2020
 .Dt BINMISCCTL 8
 .Os
 .Sh NAME
@@ -269,6 +269,17 @@ Add QEMU bsd-user program as an image activator for PowerPC64 binaries:
            \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex15" \e
   --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
            \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for 64-bit RISC-V binaries:
+.Bd -literal -offset indent
+# binmiscctl add riscv64 \e
+  --interpreter "/usr/local/bin/qemu-riscv64-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex01\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\exf3\ex00" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exfe\exff\exff\exff" \e
   --size 20 --set-enabled
 .Ed
 .Ss "Create and use an ARMv6 chroot on an AMD64 host"
