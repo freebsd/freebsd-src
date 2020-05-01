@@ -108,7 +108,10 @@ struct device {
 	struct class	*class;
 	void		(*release)(struct device *dev);
 	struct kobject	kobj;
-	void		*dma_priv;
+	union {
+		const u64 *dma_mask;	/* XXX for backwards compat */
+		void	*dma_priv;
+	};
 	void		*driver_data;
 	unsigned int	irq;
 #define	LINUX_IRQ_INVALID	65535
