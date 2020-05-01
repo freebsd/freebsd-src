@@ -390,6 +390,21 @@ kstrtou32(const char *cp, unsigned int base, u32 *res)
 }
 
 static inline int
+kstrtou64(const char *cp, unsigned int base, u64 *res)
+{
+       char *end;
+
+       *res = strtouq(cp, &end, base);
+
+       /* skip newline character, if any */
+       if (*end == '\n')
+               end++;
+       if (*cp == 0 || *end != 0)
+               return (-EINVAL);
+       return (0);
+}
+
+static inline int
 kstrtobool(const char *s, bool *res)
 {
 	int len;
