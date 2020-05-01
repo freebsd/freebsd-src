@@ -473,9 +473,16 @@ void
 cpu_halt(void)
 {
 
+	/*
+	 * Try to power down using the HSM SBI extension and fall back to a
+	 * simple wfi loop.
+	 */
 	intr_disable();
+	if (sbi_probe_extension(SBI_EXT_ID_HSM) != 0)
+		sbi_hsm_hart_stop();
 	for (;;)
 		__asm __volatile("wfi");
+	/* NOTREACHED */
 }
 
 /*
