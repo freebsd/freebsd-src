@@ -449,7 +449,7 @@ protmax_status(struct thread *td, struct proc *p, int *data)
 
 	switch (p->p_flag2 & (P2_PROTMAX_ENABLE | P2_PROTMAX_DISABLE)) {
 	case 0:
-		d = PROC_ASLR_NOFORCE;
+		d = PROC_PROTMAX_NOFORCE;
 		break;
 	case P2_PROTMAX_ENABLE:
 		d = PROC_PROTMAX_FORCE_ENABLE;
