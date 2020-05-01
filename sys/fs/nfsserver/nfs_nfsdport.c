@@ -3015,6 +3015,11 @@ nfsvno_checkexp(struct mount *mp, struct sockaddr *nam, struct nfsexstuff *exp,
 			exp->nes_numsecflavor = 0;
 			error = 0;
 		}
+	} else if (exp->nes_numsecflavor < 1 || exp->nes_numsecflavor >
+	    MAXSECFLAVORS) {
+		printf("nfsvno_checkexp: numsecflavors out of range\n");
+		exp->nes_numsecflavor = 0;
+		error = EACCES;
 	} else {
 		/* Copy the security flavors. */
 		for (i = 0; i < exp->nes_numsecflavor; i++)
@@ -3051,6 +3056,12 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 			} else {
 				vput(*vpp);
 			}
+		} else if (exp->nes_numsecflavor < 1 || exp->nes_numsecflavor >
+		    MAXSECFLAVORS) {
+			printf("nfsvno_fhtovp: numsecflavors out of range\n");
+			exp->nes_numsecflavor = 0;
+			error = EACCES;
+			vput(*vpp);
 		} else {
 			/* Copy the security flavors. */
 			for (i = 0; i < exp->nes_numsecflavor; i++)
