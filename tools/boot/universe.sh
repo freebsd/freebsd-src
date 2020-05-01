@@ -97,7 +97,7 @@ for i in \
 	powerpc/powerpc powerpc/powerpc64 \
 	; do
     ta=${i##*/}
-    dobuild $ta _.boot.${ta}.lua.log "MK_LOADEDER_LUA=yes MK_FORTH=no"
+    dobuild $ta _.boot.${ta}.lua.log "MK_LOADER_LUA=yes MK_FORTH=no"
 done
 
 # Build w/o ZFS
