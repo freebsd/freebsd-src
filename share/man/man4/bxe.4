@@ -164,7 +164,7 @@ Enable/Disable 4-tuple RSS for UDP: 0=DISABLED, 1=ENABLED
 .Pp
 Special care must be taken when modifying the number of queues and receive
 buffers.
-FreeBSD imposes a limit on the maximum number of
+.Fx imposes a limit on the maximum number of
 .Xr mbuf 9
 allocations.
 If buffer allocations fail, the interface initialization will fail

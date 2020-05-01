@@ -208,10 +208,12 @@ reasons to ignore Ethernet frames.
 .It Va dev.bnxt.X.hwstats.rxq0.tpa_*
 statistics related to HW LRO.
 .It Va dev.bnxt.X.hw_lro.*
-Enable / Disable HW LRO feature. Defaults to disable.
+Enable / Disable HW LRO feature.
+Defaults to disable.
 Enabling HW LRO could cause issues when forwarding is enabled on host.
 .It Va dev.bnxt.X.fc
-Enable / Disable Flow Control feature. Defaults to Enable
+Enable / Disable Flow Control feature.
+Defaults to Enable
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -245,8 +247,8 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Jack Vogel Aq Mt jfvogel@gmail.com 
-and 
+.An Jack Vogel Aq Mt jfvogel@gmail.com
+and
 .An Stephen Hurd Aq Mt shurd@freebsd.org ,
 and is currently maintained by
 .An Broadcom Limited Aq Mt freebsd.pdl@broadcom.com .

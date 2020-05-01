@@ -52,11 +52,14 @@ struct hv_vss_opt_msg {
 .Ed
 .Sh DESCRIPTION
 The freeze or thaw functionality of application is important to guarantee
-the application consistent backup. On windows platform, VSS is defined to do
-live backup. But for VM guest running on Hyper-V, the corresponding VSS is
-not defined yet. For example, a running database server instance, it knows when the
-applications' freeze/thaw should start or finish. But it is not aware of
-the freeze/thaw notification from Hyper-V host. The
+the application consistent backup.
+On windows platform, VSS is defined to do live backup.
+But for VM guest running on Hyper-V, the corresponding VSS is
+not defined yet.
+For example, a running database server instance, it knows when the
+applications' freeze/thaw should start or finish.
+But it is not aware of the freeze/thaw notification from Hyper-V host.
+The
 .Nm
 is designed to notify application freeze/thaw request.
 Thus, it plays a role of broker to forward the freeze/thaw command from Hyper-V host
@@ -67,23 +70,25 @@ VM, and sends the result back to Hyper-V host.
 Generally,
 .Xr hv_vss_daemon 8
 takes the responsibility to freeze/thaw UFS file system,
-and it is automatically launched after system boots. When Hyper-V host wants to
-take a snapshot of the
+and it is automatically launched after system boots.
+When Hyper-V host wants to take a snapshot of the
 .Fx
 VM, it will first send VSS capability check to
 .Fx
-VM. The
+VM.
+The
 .Nm
 received the request and forward the request to userland application if it is
-registered. Only after
+registered.
+Only after
 .Nm
 received the VSS_SUCCESS response from application, the
 .Xr hv_vss_daemon 8
-will be informed to check whether file system freeze/thaw is supported. Any error
-occurs during this period,
+will be informed to check whether file system freeze/thaw is supported.
+Any error occurs during this period,
 .Nm
-will inform Hyper-V host that VSS is not supported. In addition, there is a default
-timeout limit before sending response to Hyper-V host.
+will inform Hyper-V host that VSS is not supported.
+In addition, there is a default timeout limit before sending response to Hyper-V host.
 If the total response time from application and
 .Xr hv_vss_daemon 8
 exceeds this value, timeout
@@ -93,20 +98,20 @@ After Hyper-V host confirmed the
 .Fx
 VM supports VSS, it will send freeze request to VM, and
 .Nm
-will first forward it to application. After application finished freezing, it should
-inform
+will first forward it to application.
+After application finished freezing, it should inform
 .Nm
 and file system level freezing will be triggered by
-.Xr hv_vss_daemon 8 . After all freezing
-on both application and
+.Xr hv_vss_daemon 8 .
+After all freezing on both application and
 .Xr hv_vss_daemon 8
 were finished, the
 .Nm
-will inform Hyper-V host that freezing is done. Of course, there is a timeout limit as
-same as VSS capability is set to make sure freezing on
+will inform Hyper-V host that freezing is done.
+Of course, there is a timeout limit as same as VSS capability is set to make sure freezing on
 .Fx
-VM is not hang. If there is any error occurs or timeout happened, the freezing is failed
-on Hyper-V side.
+VM is not hang.
+If there is any error occurs or timeout happened, the freezing is failed on Hyper-V side.
 .Pp
 Hyper-V host will send thaw request after taking the snapshot, typically, this period is
 very short in order not to block the running application.
@@ -114,17 +119,20 @@ very short in order not to block the running application.
 firstly thaw the file system by notifying
 .Xr hv_vss_daemon 8 ,
 then notifies user registered
-application. There is also a timeout check before sending response to Hyper-V host.
+application.
+There is also a timeout check before sending response to Hyper-V host.
 .Pp
 All the default timeout limit used in VSS capability check, freeze or thaw is the same.
 It is 15 seconds currently.
 .Sh NOTES
 .Nm
-only support UFS currently. If any of file system partition is non UFS, the VSS capability
-check will fail. If application does not register VSS,
+only support UFS currently.
+If any of file system partition is non UFS, the VSS capability check will fail.
+If application does not register VSS,
 .Nm
-only support backup for file system level consistent. The device should be closed before it
-was opened again. If you want to simultaneously open "/dev/hv_appvss_dev" two or more times,
+only support backup for file system level consistent.
+The device should be closed before it was opened again.
+If you want to simultaneously open "/dev/hv_appvss_dev" two or more times,
 an error (-1) will be returned, and errno was set.
 .Pp
 If
