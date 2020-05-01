@@ -91,4 +91,13 @@ mul_u32_u32(uint32_t a, uint32_t b)
 	return ((uint64_t)a * b);
 }
 
+static inline uint64_t
+div64_u64_round_up(uint64_t dividend, uint64_t divisor)
+{
+	return ((dividend + divisor - 1) / divisor);
+}
+
+#define	DIV64_U64_ROUND_UP(...) \
+	div64_u64_round_up(__VA_ARGS__)
+
 #endif /* _LINUX_MATH64_H */
