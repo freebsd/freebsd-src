@@ -382,6 +382,7 @@ typedef enum
     ASL_MSG_TYPE_MISMATCH_FOUND_HERE,
     ASL_MSG_DUPLICATE_EXTERN_MISMATCH,
     ASL_MSG_DUPLICATE_EXTERN_FOUND_HERE,
+    ASL_MSG_CONDREF_NEEDS_EXTERNAL_DECL,
 
 
     /* These messages are used by the Data Table compiler only */

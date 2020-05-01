@@ -674,7 +674,7 @@ ApCheckForSpecialName (
         /*
          * Was not actually emitted by the compiler. This is a special case,
          * however. If the ASL code being compiled was the result of a
-         * dissasembly, it may possibly contain valid compiler-emitted names
+         * disassembly, it may possibly contain valid compiler-emitted names
          * of the form "_T_x". We don't want to issue an error or even a
          * warning and force the user to manually change the names. So, we
          * will issue a remark instead.
