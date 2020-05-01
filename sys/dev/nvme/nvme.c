@@ -285,13 +285,18 @@ void
 nvme_notify_ns(struct nvme_controller *ctrlr, int nsid)
 {
 	struct nvme_consumer	*cons;
-	struct nvme_namespace	*ns = &ctrlr->ns[nsid - 1];
+	struct nvme_namespace	*ns;
 	void			*ctrlr_cookie;
 	uint32_t		i;
+
+	KASSERT(nsid <= NVME_MAX_NAMESPACES,
+	    ("%s: Namespace notification to nsid %d exceeds range\n",
+		device_get_nameunit(ctrlr->dev), nsid));
 
 	if (!ctrlr->is_initialized)
 		return;
 
+	ns = &ctrlr->ns[nsid - 1];
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
 		cons = &nvme_consumer[i];
 		if (cons->id != INVALID_CONSUMER_ID && cons->ns_fn != NULL &&
