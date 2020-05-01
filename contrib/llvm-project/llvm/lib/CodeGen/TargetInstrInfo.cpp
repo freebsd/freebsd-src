@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/ScoreboardHazardRecognizer.h"
 #include "llvm/CodeGen/StackMaps.h"
@@ -23,6 +24,7 @@
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Support/CommandLine.h"
@@ -142,7 +144,7 @@ TargetInstrInfo::ReplaceTailWithBranchTo(MachineBasicBlock::iterator Tail,
   while (Tail != MBB->end()) {
     auto MI = Tail++;
     if (MI->isCall())
-      MBB->getParent()->updateCallSiteInfo(&*MI);
+      MBB->getParent()->eraseCallSiteInfo(&*MI);
     MBB->erase(MI);
   }
 
@@ -183,10 +185,10 @@ MachineInstr *TargetInstrInfo::commuteInstructionImpl(MachineInstr &MI,
   bool Reg2IsInternal = MI.getOperand(Idx2).isInternalRead();
   // Avoid calling isRenamable for virtual registers since we assert that
   // renamable property is only queried/set for physical registers.
-  bool Reg1IsRenamable = TargetRegisterInfo::isPhysicalRegister(Reg1)
+  bool Reg1IsRenamable = Register::isPhysicalRegister(Reg1)
                              ? MI.getOperand(Idx1).isRenamable()
                              : false;
-  bool Reg2IsRenamable = TargetRegisterInfo::isPhysicalRegister(Reg2)
+  bool Reg2IsRenamable = Register::isPhysicalRegister(Reg2)
                              ? MI.getOperand(Idx2).isRenamable()
                              : false;
   // If destination is tied to either of the commuted source register, then
@@ -228,9 +230,9 @@ MachineInstr *TargetInstrInfo::commuteInstructionImpl(MachineInstr &MI,
   CommutedMI->getOperand(Idx1).setIsInternalRead(Reg2IsInternal);
   // Avoid calling setIsRenamable for virtual registers since we assert that
   // renamable property is only queried/set for physical registers.
-  if (TargetRegisterInfo::isPhysicalRegister(Reg1))
+  if (Register::isPhysicalRegister(Reg1))
     CommutedMI->getOperand(Idx2).setIsRenamable(Reg1IsRenamable);
-  if (TargetRegisterInfo::isPhysicalRegister(Reg2))
+  if (Register::isPhysicalRegister(Reg2))
     CommutedMI->getOperand(Idx1).setIsRenamable(Reg2IsRenamable);
   return CommutedMI;
 }
@@ -281,7 +283,7 @@ bool TargetInstrInfo::fixCommutedOpIndices(unsigned &ResultIdx1,
   return true;
 }
 
-bool TargetInstrInfo::findCommutedOpIndices(MachineInstr &MI,
+bool TargetInstrInfo::findCommutedOpIndices(const MachineInstr &MI,
                                             unsigned &SrcOpIdx1,
                                             unsigned &SrcOpIdx2) const {
   assert(!MI.isBundle() &&
@@ -393,7 +395,7 @@ bool TargetInstrInfo::getStackSlotRange(const TargetRegisterClass *RC,
   if (BitOffset < 0 || BitOffset % 8)
     return false;
 
-  Size = BitSize /= 8;
+  Size = BitSize / 8;
   Offset = (unsigned)BitOffset / 8;
 
   assert(TRI->getSpillSize(*RC) >= (Offset + Size) && "bad subregister range");
@@ -442,16 +444,15 @@ static const TargetRegisterClass *canFoldCopy(const MachineInstr &MI,
   if (FoldOp.getSubReg() || LiveOp.getSubReg())
     return nullptr;
 
-  unsigned FoldReg = FoldOp.getReg();
-  unsigned LiveReg = LiveOp.getReg();
+  Register FoldReg = FoldOp.getReg();
+  Register LiveReg = LiveOp.getReg();
 
-  assert(TargetRegisterInfo::isVirtualRegister(FoldReg) &&
-         "Cannot fold physregs");
+  assert(Register::isVirtualRegister(FoldReg) && "Cannot fold physregs");
 
   const MachineRegisterInfo &MRI = MI.getMF()->getRegInfo();
   const TargetRegisterClass *RC = MRI.getRegClass(FoldReg);
 
-  if (TargetRegisterInfo::isPhysicalRegister(LiveOp.getReg()))
+  if (Register::isPhysicalRegister(LiveOp.getReg()))
     return RC->contains(LiveOp.getReg()) ? RC : nullptr;
 
   if (RC->hasSubClassEq(MRI.getRegClass(LiveReg)))
@@ -674,9 +675,9 @@ bool TargetInstrInfo::hasReassociableOperands(
   // reassociate.
   MachineInstr *MI1 = nullptr;
   MachineInstr *MI2 = nullptr;
-  if (Op1.isReg() && TargetRegisterInfo::isVirtualRegister(Op1.getReg()))
+  if (Op1.isReg() && Register::isVirtualRegister(Op1.getReg()))
     MI1 = MRI.getUniqueVRegDef(Op1.getReg());
-  if (Op2.isReg() && TargetRegisterInfo::isVirtualRegister(Op2.getReg()))
+  if (Op2.isReg() && Register::isVirtualRegister(Op2.getReg()))
     MI2 = MRI.getUniqueVRegDef(Op2.getReg());
 
   // And they need to be in the trace (otherwise, they won't have a depth).
@@ -805,27 +806,27 @@ void TargetInstrInfo::reassociateOps(
   MachineOperand &OpY = Root.getOperand(OpIdx[Row][3]);
   MachineOperand &OpC = Root.getOperand(0);
 
-  unsigned RegA = OpA.getReg();
-  unsigned RegB = OpB.getReg();
-  unsigned RegX = OpX.getReg();
-  unsigned RegY = OpY.getReg();
-  unsigned RegC = OpC.getReg();
+  Register RegA = OpA.getReg();
+  Register RegB = OpB.getReg();
+  Register RegX = OpX.getReg();
+  Register RegY = OpY.getReg();
+  Register RegC = OpC.getReg();
 
-  if (TargetRegisterInfo::isVirtualRegister(RegA))
+  if (Register::isVirtualRegister(RegA))
     MRI.constrainRegClass(RegA, RC);
-  if (TargetRegisterInfo::isVirtualRegister(RegB))
+  if (Register::isVirtualRegister(RegB))
     MRI.constrainRegClass(RegB, RC);
-  if (TargetRegisterInfo::isVirtualRegister(RegX))
+  if (Register::isVirtualRegister(RegX))
     MRI.constrainRegClass(RegX, RC);
-  if (TargetRegisterInfo::isVirtualRegister(RegY))
+  if (Register::isVirtualRegister(RegY))
     MRI.constrainRegClass(RegY, RC);
-  if (TargetRegisterInfo::isVirtualRegister(RegC))
+  if (Register::isVirtualRegister(RegC))
     MRI.constrainRegClass(RegC, RC);
 
   // Create a new virtual register for the result of (X op Y) instead of
   // recycling RegB because the MachineCombiner's computation of the critical
   // path requires a new register definition rather than an existing one.
-  unsigned NewVR = MRI.createVirtualRegister(RC);
+  Register NewVR = MRI.createVirtualRegister(RC);
   InstrIdxForVirtReg.insert(std::make_pair(NewVR, 0));
 
   unsigned Opcode = Root.getOpcode();
@@ -880,21 +881,21 @@ void TargetInstrInfo::genAlternativeCodeSequence(
 }
 
 bool TargetInstrInfo::isReallyTriviallyReMaterializableGeneric(
-    const MachineInstr &MI, AliasAnalysis *AA) const {
+    const MachineInstr &MI, AAResults *AA) const {
   const MachineFunction &MF = *MI.getMF();
   const MachineRegisterInfo &MRI = MF.getRegInfo();
 
   // Remat clients assume operand 0 is the defined register.
   if (!MI.getNumOperands() || !MI.getOperand(0).isReg())
     return false;
-  unsigned DefReg = MI.getOperand(0).getReg();
+  Register DefReg = MI.getOperand(0).getReg();
 
   // A sub-register definition can only be rematerialized if the instruction
   // doesn't read the other parts of the register.  Otherwise it is really a
   // read-modify-write operation on the full virtual register which cannot be
   // moved safely.
-  if (TargetRegisterInfo::isVirtualRegister(DefReg) &&
-      MI.getOperand(0).getSubReg() && MI.readsVirtualRegister(DefReg))
+  if (Register::isVirtualRegister(DefReg) && MI.getOperand(0).getSubReg() &&
+      MI.readsVirtualRegister(DefReg))
     return false;
 
   // A load from a fixed stack slot can be rematerialized. This may be
@@ -924,12 +925,12 @@ bool TargetInstrInfo::isReallyTriviallyReMaterializableGeneric(
   for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI.getOperand(i);
     if (!MO.isReg()) continue;
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (Reg == 0)
       continue;
 
     // Check for a well-behaved physical register.
-    if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+    if (Register::isPhysicalRegister(Reg)) {
       if (MO.isUse()) {
         // If the physreg has no defs anywhere, it's just an ambient register
         // and we can freely move its uses. Alternatively, if it's allocatable,
@@ -1015,19 +1016,16 @@ CreateTargetHazardRecognizer(const TargetSubtargetInfo *STI,
 }
 
 // Default implementation of CreateTargetMIHazardRecognizer.
-ScheduleHazardRecognizer *TargetInstrInfo::
-CreateTargetMIHazardRecognizer(const InstrItineraryData *II,
-                               const ScheduleDAG *DAG) const {
-  return (ScheduleHazardRecognizer *)
-    new ScoreboardHazardRecognizer(II, DAG, "machine-scheduler");
+ScheduleHazardRecognizer *TargetInstrInfo::CreateTargetMIHazardRecognizer(
+    const InstrItineraryData *II, const ScheduleDAGMI *DAG) const {
+  return new ScoreboardHazardRecognizer(II, DAG, "machine-scheduler");
 }
 
 // Default implementation of CreateTargetPostRAHazardRecognizer.
 ScheduleHazardRecognizer *TargetInstrInfo::
 CreateTargetPostRAHazardRecognizer(const InstrItineraryData *II,
                                    const ScheduleDAG *DAG) const {
-  return (ScheduleHazardRecognizer *)
-    new ScoreboardHazardRecognizer(II, DAG, "post-RA-sched");
+  return new ScoreboardHazardRecognizer(II, DAG, "post-RA-sched");
 }
 
 //===----------------------------------------------------------------------===//
@@ -1118,6 +1116,70 @@ bool TargetInstrInfo::hasLowDefLatency(const TargetSchedModel &SchedModel,
   unsigned DefClass = DefMI.getDesc().getSchedClass();
   int DefCycle = ItinData->getOperandCycle(DefClass, DefIdx);
   return (DefCycle != -1 && DefCycle <= 1);
+}
+
+Optional<ParamLoadedValue>
+TargetInstrInfo::describeLoadedValue(const MachineInstr &MI,
+                                     Register Reg) const {
+  const MachineFunction *MF = MI.getMF();
+  const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
+  DIExpression *Expr = DIExpression::get(MF->getFunction().getContext(), {});
+  int64_t Offset;
+
+  // To simplify the sub-register handling, verify that we only need to
+  // consider physical registers.
+  assert(MF->getProperties().hasProperty(
+      MachineFunctionProperties::Property::NoVRegs));
+
+  if (auto DestSrc = isCopyInstr(MI)) {
+    Register DestReg = DestSrc->Destination->getReg();
+
+    if (Reg == DestReg)
+      return ParamLoadedValue(*DestSrc->Source, Expr);
+
+    // Cases where super- or sub-registers needs to be described should
+    // be handled by the target's hook implementation.
+    assert(!TRI->isSuperOrSubRegisterEq(Reg, DestReg) &&
+           "TargetInstrInfo::describeLoadedValue can't describe super- or "
+           "sub-regs for copy instructions");
+    return None;
+  } else if (auto RegImm = isAddImmediate(MI, Reg)) {
+    Register SrcReg = RegImm->Reg;
+    Offset = RegImm->Imm;
+    Expr = DIExpression::prepend(Expr, DIExpression::ApplyOffset, Offset);
+    return ParamLoadedValue(MachineOperand::CreateReg(SrcReg, false), Expr);
+  } else if (MI.hasOneMemOperand()) {
+    // Only describe memory which provably does not escape the function. As
+    // described in llvm.org/PR43343, escaped memory may be clobbered by the
+    // callee (or by another thread).
+    const auto &TII = MF->getSubtarget().getInstrInfo();
+    const MachineFrameInfo &MFI = MF->getFrameInfo();
+    const MachineMemOperand *MMO = MI.memoperands()[0];
+    const PseudoSourceValue *PSV = MMO->getPseudoValue();
+
+    // If the address points to "special" memory (e.g. a spill slot), it's
+    // sufficient to check that it isn't aliased by any high-level IR value.
+    if (!PSV || PSV->mayAlias(&MFI))
+      return None;
+
+    const MachineOperand *BaseOp;
+    if (!TII->getMemOperandWithOffset(MI, BaseOp, Offset, TRI))
+      return None;
+
+    assert(MI.getNumExplicitDefs() == 1 &&
+           "Can currently only handle mem instructions with a single define");
+
+    // TODO: In what way do we need to take Reg into consideration here?
+
+    SmallVector<uint64_t, 8> Ops;
+    DIExpression::appendOffset(Ops, Offset);
+    Ops.push_back(dwarf::DW_OP_deref_size);
+    Ops.push_back(MMO->getSize());
+    Expr = DIExpression::prependOpcodes(Expr, Ops);
+    return ParamLoadedValue(*BaseOp, Expr);
+  }
+
+  return None;
 }
 
 /// Both DefMI and UseMI must be valid.  By default, call directly to the
@@ -1227,3 +1289,5 @@ bool TargetInstrInfo::getInsertSubregInputs(
   InsertedReg.SubIdx = (unsigned)MOSubIdx.getImm();
   return true;
 }
+
+TargetInstrInfo::PipelinerLoopInfo::~PipelinerLoopInfo() {}

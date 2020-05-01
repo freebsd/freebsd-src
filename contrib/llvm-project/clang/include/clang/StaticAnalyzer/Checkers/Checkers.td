@@ -108,6 +108,8 @@ def CloneDetectionAlpha : Package<"clone">, ParentPackage<Alpha>;
 
 def NonDeterminismAlpha : Package<"nondeterminism">, ParentPackage<Alpha>;
 
+def Fuchsia : Package<"fuchsia">;
+
 //===----------------------------------------------------------------------===//
 // Core Checkers.
 //===----------------------------------------------------------------------===//
@@ -504,6 +506,15 @@ def MoveChecker: Checker<"Move">,
   ]>,
   Documentation<HasDocumentation>;
 
+def VirtualCallModeling : Checker<"VirtualCallModeling">,
+  HelpText<"Auxiliary modeling for the virtual method call checkers">,
+  Documentation<NotDocumented>,
+  Hidden;
+
+def PureVirtualCallChecker : Checker<"PureVirtualCall">,
+  HelpText<"Check pure virtual function calls during construction/destruction">,
+  Dependencies<[VirtualCallModeling]>,
+  Documentation<HasDocumentation>;
 } // end: "cplusplus"
 
 let ParentPackage = CplusplusOptIn in {
@@ -552,14 +563,22 @@ def UninitializedObjectChecker: Checker<"UninitializedObject">,
   Documentation<HasAlphaDocumentation>;
 
 def VirtualCallChecker : Checker<"VirtualCall">,
-  HelpText<"Check virtual function calls during construction or destruction">,
+  HelpText<"Check virtual function calls during construction/destruction">,
   CheckerOptions<[
     CmdLineOption<Boolean,
-                  "PureOnly",
-                  "Whether to only report calls to pure virtual methods.",
+                  "ShowFixIts",
+                  "Enable fix-it hints for this checker",
                   "false",
-                  Released>
+                  InAlpha>,
+    CmdLineOption<Boolean,
+                  "PureOnly",
+                  "Disables the checker. Keeps cplusplus.PureVirtualCall "
+                  "enabled. This option is only provided for backwards "
+                  "compatibility.",
+                  "false",
+                  InAlpha>
   ]>,
+  Dependencies<[VirtualCallModeling]>,
   Documentation<HasDocumentation>;
 
 } // end: "optin.cplusplus"
@@ -595,6 +614,12 @@ def MismatchedIteratorChecker : Checker<"MismatchedIterator">,
            "of the same container are expected">,
   Dependencies<[IteratorModeling]>,
   Documentation<HasAlphaDocumentation>;
+
+def PlacementNewChecker : Checker<"PlacementNew">,
+  HelpText<"Check if default placement new is provided with pointers to "
+           "sufficient storage capacity">,
+  Dependencies<[NewDeleteChecker]>,
+  Documentation<HasDocumentation>;
 
 } // end: "alpha.cplusplus"
 
@@ -636,6 +661,19 @@ let ParentPackage = DeadCode in {
 def DeadStoresChecker : Checker<"DeadStores">,
   HelpText<"Check for values stored to variables that are never read "
            "afterwards">,
+  CheckerOptions<[
+    CmdLineOption<Boolean,
+                  "WarnForDeadNestedAssignments",
+                  "Warns for deadstores in nested assignments."
+                  "E.g.: if ((P = f())) where P is unused.",
+                  "true",
+                  Released>,
+    CmdLineOption<Boolean,
+                  "ShowFixIts",
+                  "Enable fix-it hints for this checker",
+                  "false",
+                  InAlpha>
+  ]>,
   Documentation<HasDocumentation>;
 
 } // end DeadCode
@@ -743,6 +781,11 @@ def DeprecatedOrUnsafeBufferHandling :
   Dependencies<[SecuritySyntaxChecker]>,
   Documentation<HasDocumentation>;
 
+def decodeValueOfObjCType : Checker<"decodeValueOfObjCType">,
+  HelpText<"Warn on uses of the '-decodeValueOfObjCType:at:' method">,
+  Dependencies<[SecuritySyntaxChecker]>,
+  Documentation<HasDocumentation>;
+
 } // end "security.insecureAPI"
 
 let ParentPackage = Security in {
@@ -799,6 +842,13 @@ let ParentPackage = Taint in {
 
 def GenericTaintChecker : Checker<"TaintPropagation">,
   HelpText<"Generate taint information used by other checkers">,
+  CheckerOptions<[
+    CmdLineOption<String,
+                  "Config",
+                  "Specifies the name of the configuration file.",
+                  "",
+                  InAlpha>,
+  ]>,
   Documentation<HasAlphaDocumentation>;
 
 } // end "alpha.security.taint"
@@ -1230,6 +1280,12 @@ def AnalysisOrderChecker : Checker<"AnalysisOrder">,
                   Released,
                   Hide>,
     CmdLineOption<Boolean,
+                  "PointerEscape",
+                  "",
+                  "false",
+                  Released,
+                  Hide>,
+    CmdLineOption<Boolean,
                   "*",
                   "Enables all callbacks.",
                   "false",
@@ -1306,6 +1362,11 @@ def ReportStmts : Checker<"ReportStmts">,
   HelpText<"Emits a warning for every statement.">,
   Documentation<NotDocumented>;
 
+def DebugIteratorModeling : Checker<"DebugIteratorModeling">,
+  HelpText<"Check the analyzer's understanding of C++ iterators">,
+  Dependencies<[IteratorModeling]>,
+  Documentation<NotDocumented>;
+
 } // end "debug"
 
 
@@ -1370,3 +1431,16 @@ def PointerSortingChecker : Checker<"PointerSorting">,
   Documentation<HasDocumentation>;
 
 } // end alpha.nondeterminism
+
+//===----------------------------------------------------------------------===//
+// Fuchsia checkers.
+//===----------------------------------------------------------------------===//
+
+let ParentPackage = Fuchsia in {
+
+def FuchsiaHandleChecker : Checker<"HandleChecker">,
+  HelpText<"A Checker that detect leaks related to Fuchsia handles">,
+  Documentation<HasDocumentation>;
+
+} // end fuchsia
+

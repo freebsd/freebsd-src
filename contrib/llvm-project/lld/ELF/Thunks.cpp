@@ -49,7 +49,7 @@ namespace {
 // AArch64 long range Thunks
 class AArch64ABSLongThunk final : public Thunk {
 public:
-  AArch64ABSLongThunk(Symbol &dest) : Thunk(dest) {}
+  AArch64ABSLongThunk(Symbol &dest, int64_t addend) : Thunk(dest, addend) {}
   uint32_t size() override { return 16; }
   void writeTo(uint8_t *buf) override;
   void addSymbols(ThunkSection &isec) override;
@@ -57,7 +57,7 @@ public:
 
 class AArch64ADRPThunk final : public Thunk {
 public:
-  AArch64ADRPThunk(Symbol &dest) : Thunk(dest) {}
+  AArch64ADRPThunk(Symbol &dest, int64_t addend) : Thunk(dest, addend) {}
   uint32_t size() override { return 12; }
   void writeTo(uint8_t *buf) override;
   void addSymbols(ThunkSection &isec) override;
@@ -73,7 +73,7 @@ public:
 // if the target is in range, otherwise it creates a long thunk.
 class ARMThunk : public Thunk {
 public:
-  ARMThunk(Symbol &dest) : Thunk(dest) {}
+  ARMThunk(Symbol &dest) : Thunk(dest, 0) {}
 
   bool getMayUseShortThunk();
   uint32_t size() override { return getMayUseShortThunk() ? 4 : sizeLong(); }
@@ -103,7 +103,7 @@ private:
 // which has a range of 16MB.
 class ThumbThunk : public Thunk {
 public:
-  ThumbThunk(Symbol &dest) : Thunk(dest) { alignment = 2; }
+  ThumbThunk(Symbol &dest) : Thunk(dest, 0) { alignment = 2; }
 
   bool getMayUseShortThunk();
   uint32_t size() override { return getMayUseShortThunk() ? 4 : sizeLong(); }
@@ -209,7 +209,7 @@ public:
 // MIPS LA25 thunk
 class MipsThunk final : public Thunk {
 public:
-  MipsThunk(Symbol &dest) : Thunk(dest) {}
+  MipsThunk(Symbol &dest) : Thunk(dest, 0) {}
 
   uint32_t size() override { return 16; }
   void writeTo(uint8_t *buf) override;
@@ -220,7 +220,7 @@ public:
 // microMIPS R2-R5 LA25 thunk
 class MicroMipsThunk final : public Thunk {
 public:
-  MicroMipsThunk(Symbol &dest) : Thunk(dest) {}
+  MicroMipsThunk(Symbol &dest) : Thunk(dest, 0) {}
 
   uint32_t size() override { return 14; }
   void writeTo(uint8_t *buf) override;
@@ -231,7 +231,7 @@ public:
 // microMIPS R6 LA25 thunk
 class MicroMipsR6Thunk final : public Thunk {
 public:
-  MicroMipsR6Thunk(Symbol &dest) : Thunk(dest) {}
+  MicroMipsR6Thunk(Symbol &dest) : Thunk(dest, 0) {}
 
   uint32_t size() override { return 12; }
   void writeTo(uint8_t *buf) override;
@@ -241,21 +241,27 @@ public:
 
 class PPC32PltCallStub final : public Thunk {
 public:
-  PPC32PltCallStub(const InputSection &isec, const Relocation &rel, Symbol &dest)
-      : Thunk(dest), addend(rel.type == R_PPC_PLTREL24 ? rel.addend : 0),
-        file(isec.file) {}
+  // For R_PPC_PLTREL24, Thunk::addend records the addend which will be used to
+  // decide the offsets in the call stub.
+  PPC32PltCallStub(const InputSection &isec, const Relocation &rel,
+                   Symbol &dest)
+      : Thunk(dest, rel.addend), file(isec.file) {}
   uint32_t size() override { return 16; }
   void writeTo(uint8_t *buf) override;
   void addSymbols(ThunkSection &isec) override;
   bool isCompatibleWith(const InputSection &isec, const Relocation &rel) const override;
 
 private:
-  // For R_PPC_PLTREL24, this records the addend, which will be used to decide
-  // the offsets in the call stub.
-  uint32_t addend;
-
   // Records the call site of the call stub.
   const InputFile *file;
+};
+
+class PPC32LongThunk final : public Thunk {
+public:
+  PPC32LongThunk(Symbol &dest, int64_t addend) : Thunk(dest, addend) {}
+  uint32_t size() override { return config->isPic ? 32 : 16; }
+  void writeTo(uint8_t *buf) override;
+  void addSymbols(ThunkSection &isec) override;
 };
 
 // PPC64 Plt call stubs.
@@ -265,10 +271,10 @@ private:
 // 2) Loading the target functions address from the procedure linkage table into
 //    r12 for use by the target functions global entry point, and into the count
 //    register.
-// 3) Transfering control to the target function through an indirect branch.
+// 3) Transferring control to the target function through an indirect branch.
 class PPC64PltCallStub final : public Thunk {
 public:
-  PPC64PltCallStub(Symbol &dest) : Thunk(dest) {}
+  PPC64PltCallStub(Symbol &dest) : Thunk(dest, 0) {}
   uint32_t size() override { return 20; }
   void writeTo(uint8_t *buf) override;
   void addSymbols(ThunkSection &isec) override;
@@ -289,29 +295,29 @@ public:
   void addSymbols(ThunkSection &isec) override;
 
 protected:
-  PPC64LongBranchThunk(Symbol &dest) : Thunk(dest) {}
+  PPC64LongBranchThunk(Symbol &dest, int64_t addend) : Thunk(dest, addend) {}
 };
 
 class PPC64PILongBranchThunk final : public PPC64LongBranchThunk {
 public:
-  PPC64PILongBranchThunk(Symbol &dest) : PPC64LongBranchThunk(dest) {
+  PPC64PILongBranchThunk(Symbol &dest, int64_t addend)
+      : PPC64LongBranchThunk(dest, addend) {
     assert(!dest.isPreemptible);
-    if (dest.isInPPC64Branchlt())
-      return;
-
-    in.ppc64LongBranchTarget->addEntry(dest);
-    mainPart->relaDyn->addReloc(
-        {target->relativeRel, in.ppc64LongBranchTarget,
-         dest.getPPC64LongBranchOffset(), true, &dest,
-         getPPC64GlobalEntryToLocalEntryOffset(dest.stOther)});
+    if (Optional<uint32_t> index =
+            in.ppc64LongBranchTarget->addEntry(&dest, addend)) {
+      mainPart->relaDyn->addReloc(
+          {target->relativeRel, in.ppc64LongBranchTarget, *index * UINT64_C(8),
+           true, &dest,
+           addend + getPPC64GlobalEntryToLocalEntryOffset(dest.stOther)});
+    }
   }
 };
 
 class PPC64PDLongBranchThunk final : public PPC64LongBranchThunk {
 public:
-  PPC64PDLongBranchThunk(Symbol &dest) : PPC64LongBranchThunk(dest) {
-    if (!dest.isInPPC64Branchlt())
-      in.ppc64LongBranchTarget->addEntry(dest);
+  PPC64PDLongBranchThunk(Symbol &dest, int64_t addend)
+      : PPC64LongBranchThunk(dest, addend) {
+    in.ppc64LongBranchTarget->addEntry(&dest, addend);
   }
 };
 
@@ -332,8 +338,8 @@ void Thunk::setOffset(uint64_t newOffset) {
 
 // AArch64 long range Thunks
 
-static uint64_t getAArch64ThunkDestVA(const Symbol &s) {
-  uint64_t v = s.isInPlt() ? s.getPltVA() : s.getVA();
+static uint64_t getAArch64ThunkDestVA(const Symbol &s, int64_t a) {
+  uint64_t v = s.isInPlt() ? s.getPltVA() : s.getVA(a);
   return v;
 }
 
@@ -344,7 +350,7 @@ void AArch64ABSLongThunk::writeTo(uint8_t *buf) {
     0x00, 0x00, 0x00, 0x00, // L0: .xword S
     0x00, 0x00, 0x00, 0x00,
   };
-  uint64_t s = getAArch64ThunkDestVA(destination);
+  uint64_t s = getAArch64ThunkDestVA(destination, addend);
   memcpy(buf, data, sizeof(data));
   target->relocateOne(buf + 8, R_AARCH64_ABS64, s);
 }
@@ -367,7 +373,7 @@ void AArch64ADRPThunk::writeTo(uint8_t *buf) {
       0x10, 0x02, 0x00, 0x91, // add  x16, x16, R_AARCH64_ADD_ABS_LO12_NC(Dest)
       0x00, 0x02, 0x1f, 0xd6, // br   x16
   };
-  uint64_t s = getAArch64ThunkDestVA(destination);
+  uint64_t s = getAArch64ThunkDestVA(destination, addend);
   uint64_t p = getThunkTargetSym()->getVA();
   memcpy(buf, data, sizeof(data));
   target->relocateOne(buf, R_AARCH64_ADR_PREL_PG_HI21,
@@ -708,13 +714,13 @@ InputSection *MicroMipsR6Thunk::getTargetInputSection() const {
   return dyn_cast<InputSection>(dr.section);
 }
 
-void PPC32PltCallStub::writeTo(uint8_t *buf) {
+void writePPC32PltCallStub(uint8_t *buf, uint64_t gotPltVA,
+                           const InputFile *file, int64_t addend) {
   if (!config->isPic) {
-    uint64_t va = destination.getGotPltVA();
-    write32(buf + 0, 0x3d600000 | (va + 0x8000) >> 16); // lis r11,ha
-    write32(buf + 4, 0x816b0000 | (uint16_t)va);        // lwz r11,l(r11)
-    write32(buf + 8, 0x7d6903a6);                       // mtctr r11
-    write32(buf + 12, 0x4e800420);                      // bctr
+    write32(buf + 0, 0x3d600000 | (gotPltVA + 0x8000) >> 16); // lis r11,ha
+    write32(buf + 4, 0x816b0000 | (uint16_t)gotPltVA);        // lwz r11,l(r11)
+    write32(buf + 8, 0x7d6903a6);                             // mtctr r11
+    write32(buf + 12, 0x4e800420);                            // bctr
     return;
   }
   uint32_t offset;
@@ -722,12 +728,12 @@ void PPC32PltCallStub::writeTo(uint8_t *buf) {
     // The stub loads an address relative to r30 (.got2+Addend). Addend is
     // almost always 0x8000. The address of .got2 is different in another object
     // file, so a stub cannot be shared.
-    offset = destination.getGotPltVA() - (in.ppc32Got2->getParent()->getVA() +
-                                          file->ppc32Got2OutSecOff + addend);
+    offset = gotPltVA - (in.ppc32Got2->getParent()->getVA() +
+                         file->ppc32Got2OutSecOff + addend);
   } else {
     // The stub loads an address relative to _GLOBAL_OFFSET_TABLE_ (which is
     // currently the address of .got).
-    offset = destination.getGotPltVA() - in.got->getVA();
+    offset = gotPltVA - in.got->getVA();
   }
   uint16_t ha = (offset + 0x8000) >> 16, l = (uint16_t)offset;
   if (ha == 0) {
@@ -741,6 +747,10 @@ void PPC32PltCallStub::writeTo(uint8_t *buf) {
     write32(buf + 8, 0x7d6903a6);      // mtctr r11
     write32(buf + 12, 0x4e800420);     // bctr
   }
+}
+
+void PPC32PltCallStub::writeTo(uint8_t *buf) {
+  writePPC32PltCallStub(buf, destination.getGotPltVA(), file, addend);
 }
 
 void PPC32PltCallStub::addSymbols(ThunkSection &isec) {
@@ -762,7 +772,34 @@ bool PPC32PltCallStub::isCompatibleWith(const InputSection &isec,
   return !config->isPic || (isec.file == file && rel.addend == addend);
 }
 
-static void writePPCLoadAndBranch(uint8_t *buf, int64_t offset) {
+void PPC32LongThunk::addSymbols(ThunkSection &isec) {
+  addSymbol(saver.save("__LongThunk_" + destination.getName()), STT_FUNC, 0,
+            isec);
+}
+
+void PPC32LongThunk::writeTo(uint8_t *buf) {
+  auto ha = [](uint32_t v) -> uint16_t { return (v + 0x8000) >> 16; };
+  auto lo = [](uint32_t v) -> uint16_t { return v; };
+  uint32_t d = destination.getVA(addend);
+  if (config->isPic) {
+    uint32_t off = d - (getThunkTargetSym()->getVA() + 8);
+    write32(buf + 0, 0x7c0802a6);            // mflr r12,0
+    write32(buf + 4, 0x429f0005);            // bcl r20,r31,.+4
+    write32(buf + 8, 0x7d8802a6);            // mtctr r12
+    write32(buf + 12, 0x3d8c0000 | ha(off)); // addis r12,r12,off@ha
+    write32(buf + 16, 0x398c0000 | lo(off)); // addi r12,r12,off@l
+    write32(buf + 20, 0x7c0803a6);           // mtlr r0
+    buf += 24;
+  } else {
+    write32(buf + 0, 0x3d800000 | ha(d));    // lis r12,d@ha
+    write32(buf + 4, 0x398c0000 | lo(d));    // addi r12,r12,d@l
+    buf += 8;
+  }
+  write32(buf + 0, 0x7d8903a6);              // mtctr r12
+  write32(buf + 4, 0x4e800420);              // bctr
+}
+
+void writePPC64LoadAndBranch(uint8_t *buf, int64_t offset) {
   uint16_t offHa = (offset + 0x8000) >> 16;
   uint16_t offLo = offset & 0xffff;
 
@@ -776,18 +813,20 @@ void PPC64PltCallStub::writeTo(uint8_t *buf) {
   int64_t offset = destination.getGotPltVA() - getPPC64TocBase();
   // Save the TOC pointer to the save-slot reserved in the call frame.
   write32(buf + 0, 0xf8410018); // std     r2,24(r1)
-  writePPCLoadAndBranch(buf + 4, offset);
+  writePPC64LoadAndBranch(buf + 4, offset);
 }
 
 void PPC64PltCallStub::addSymbols(ThunkSection &isec) {
   Defined *s = addSymbol(saver.save("__plt_" + destination.getName()), STT_FUNC,
                          0, isec);
   s->needsTocRestore = true;
+  s->file = destination.file;
 }
 
 void PPC64LongBranchThunk::writeTo(uint8_t *buf) {
-  int64_t offset = destination.getPPC64LongBranchTableVA() - getPPC64TocBase();
-  writePPCLoadAndBranch(buf, offset);
+  int64_t offset = in.ppc64LongBranchTarget->getEntryVA(&destination, addend) -
+                   getPPC64TocBase();
+  writePPC64LoadAndBranch(buf, offset);
 }
 
 void PPC64LongBranchThunk::addSymbols(ThunkSection &isec) {
@@ -795,16 +834,16 @@ void PPC64LongBranchThunk::addSymbols(ThunkSection &isec) {
             isec);
 }
 
-Thunk::Thunk(Symbol &d) : destination(d), offset(0) {}
+Thunk::Thunk(Symbol &d, int64_t a) : destination(d), addend(a), offset(0) {}
 
 Thunk::~Thunk() = default;
 
-static Thunk *addThunkAArch64(RelType type, Symbol &s) {
+static Thunk *addThunkAArch64(RelType type, Symbol &s, int64_t a) {
   if (type != R_AARCH64_CALL26 && type != R_AARCH64_JUMP26)
     fatal("unrecognized relocation type");
   if (config->picThunk)
-    return make<AArch64ADRPThunk>(s);
-  return make<AArch64ABSLongThunk>(s);
+    return make<AArch64ADRPThunk>(s, a);
+  return make<AArch64ABSLongThunk>(s, a);
 }
 
 // Creates a thunk for Thumb-ARM interworking.
@@ -895,28 +934,33 @@ static Thunk *addThunkMips(RelType type, Symbol &s) {
   return make<MipsThunk>(s);
 }
 
-static Thunk *addThunkPPC32(const InputSection &isec, const Relocation &rel, Symbol &s) {
-  assert((rel.type == R_PPC_REL24 || rel.type == R_PPC_PLTREL24) &&
+static Thunk *addThunkPPC32(const InputSection &isec, const Relocation &rel,
+                            Symbol &s) {
+  assert((rel.type == R_PPC_LOCAL24PC || rel.type == R_PPC_REL24 ||
+          rel.type == R_PPC_PLTREL24) &&
          "unexpected relocation type for thunk");
-  return make<PPC32PltCallStub>(isec, rel, s);
+  if (s.isInPlt())
+    return make<PPC32PltCallStub>(isec, rel, s);
+  return make<PPC32LongThunk>(s, rel.addend);
 }
 
-static Thunk *addThunkPPC64(RelType type, Symbol &s) {
+static Thunk *addThunkPPC64(RelType type, Symbol &s, int64_t a) {
   assert(type == R_PPC64_REL24 && "unexpected relocation type for thunk");
   if (s.isInPlt())
     return make<PPC64PltCallStub>(s);
 
   if (config->picThunk)
-    return make<PPC64PILongBranchThunk>(s);
+    return make<PPC64PILongBranchThunk>(s, a);
 
-  return make<PPC64PDLongBranchThunk>(s);
+  return make<PPC64PDLongBranchThunk>(s, a);
 }
 
 Thunk *addThunk(const InputSection &isec, Relocation &rel) {
   Symbol &s = *rel.sym;
+  int64_t a = rel.addend;
 
   if (config->emachine == EM_AARCH64)
-    return addThunkAArch64(rel.type, s);
+    return addThunkAArch64(rel.type, s, a);
 
   if (config->emachine == EM_ARM)
     return addThunkArm(rel.type, s);
@@ -928,7 +972,7 @@ Thunk *addThunk(const InputSection &isec, Relocation &rel) {
     return addThunkPPC32(isec, rel, s);
 
   if (config->emachine == EM_PPC64)
-    return addThunkPPC64(rel.type, s);
+    return addThunkPPC64(rel.type, s, a);
 
   llvm_unreachable("add Thunk only supported for ARM, Mips and PowerPC");
 }

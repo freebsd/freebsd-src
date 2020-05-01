@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/ModuleUtils.h"
+#include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
@@ -73,7 +74,7 @@ static void appendToUsedList(Module &M, StringRef Name, ArrayRef<GlobalValue *> 
   SmallPtrSet<Constant *, 16> InitAsSet;
   SmallVector<Constant *, 16> Init;
   if (GV) {
-    ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer());
+    auto *CA = cast<ConstantArray>(GV->getInitializer());
     for (auto &Op : CA->operands()) {
       Constant *C = cast_or_null<Constant>(Op);
       if (InitAsSet.insert(C).second)
@@ -279,4 +280,32 @@ std::string llvm::getUniqueModuleId(Module *M) {
   SmallString<32> Str;
   MD5::stringifyResult(R, Str);
   return ("$" + Str).str();
+}
+
+void VFABI::setVectorVariantNames(
+    CallInst *CI, const SmallVector<std::string, 8> &VariantMappings) {
+  if (VariantMappings.empty())
+    return;
+
+  SmallString<256> Buffer;
+  llvm::raw_svector_ostream Out(Buffer);
+  for (const std::string &VariantMapping : VariantMappings)
+    Out << VariantMapping << ",";
+  // Get rid of the trailing ','.
+  assert(!Buffer.str().empty() && "Must have at least one char.");
+  Buffer.pop_back();
+
+  Module *M = CI->getModule();
+#ifndef NDEBUG
+  for (const std::string &VariantMapping : VariantMappings) {
+    Optional<VFInfo> VI = VFABI::tryDemangleForVFABI(VariantMapping);
+    assert(VI.hasValue() && "Canno add an invalid VFABI name.");
+    assert(M->getNamedValue(VI.getValue().VectorName) &&
+           "Cannot add variant to attribute: "
+           "vector function declaration is missing.");
+  }
+#endif
+  CI->addAttribute(
+      AttributeList::FunctionIndex,
+      Attribute::get(M->getContext(), MappingsAttrName, Buffer.str()));
 }

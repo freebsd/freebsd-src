@@ -60,6 +60,8 @@ namespace format {
   TYPE(JsExponentiationEqual)                                                  \
   TYPE(JsFatArrow)                                                             \
   TYPE(JsNonNullAssertion)                                                     \
+  TYPE(JsNullishCoalescingOperator)                                            \
+  TYPE(JsNullPropagatingOperator)                                              \
   TYPE(JsPrivateIdentifier)                                                    \
   TYPE(JsTypeColon)                                                            \
   TYPE(JsTypeOperator)                                                         \
@@ -327,6 +329,11 @@ struct FormatToken {
   }
   template <typename T> bool isNot(T Kind) const { return !is(Kind); }
 
+  bool isIf(bool AllowConstexprMacro = true) const {
+    return is(tok::kw_if) || endsSequence(tok::kw_constexpr, tok::kw_if) ||
+           (endsSequence(tok::identifier, tok::kw_if) && AllowConstexprMacro);
+  }
+
   bool closesScopeAfterBlock() const {
     if (BlockKind == BK_Block)
       return true;
@@ -344,6 +351,10 @@ struct FormatToken {
 
   /// \c true if this token ends a sequence with the given tokens in order,
   /// following the ``Previous`` pointers, ignoring comments.
+  /// For example, given tokens [T1, T2, T3], the function returns true if
+  /// 3 tokens ending at this (ignoring comments) are [T3, T2, T1]. In other
+  /// words, the tokens passed to this function need to the reverse of the
+  /// order the tokens appear in code.
   template <typename A, typename... Ts>
   bool endsSequence(A K1, Ts... Tokens) const {
     return endsSequenceInternal(K1, Tokens...);
@@ -396,7 +407,7 @@ struct FormatToken {
   bool isMemberAccess() const {
     return isOneOf(tok::arrow, tok::period, tok::arrowstar) &&
            !isOneOf(TT_DesignatedInitializerPeriod, TT_TrailingReturnArrow,
-                    TT_LambdaArrow);
+                    TT_LambdaArrow, TT_LeadingJavaAnnotation);
   }
 
   bool isUnaryOperator() const {
@@ -677,8 +688,10 @@ struct AdditionalKeywords {
     kw_override = &IdentTable.get("override");
     kw_in = &IdentTable.get("in");
     kw_of = &IdentTable.get("of");
+    kw_CF_CLOSED_ENUM = &IdentTable.get("CF_CLOSED_ENUM");
     kw_CF_ENUM = &IdentTable.get("CF_ENUM");
     kw_CF_OPTIONS = &IdentTable.get("CF_OPTIONS");
+    kw_NS_CLOSED_ENUM = &IdentTable.get("NS_CLOSED_ENUM");
     kw_NS_ENUM = &IdentTable.get("NS_ENUM");
     kw_NS_OPTIONS = &IdentTable.get("NS_OPTIONS");
 
@@ -787,8 +800,10 @@ struct AdditionalKeywords {
   IdentifierInfo *kw_override;
   IdentifierInfo *kw_in;
   IdentifierInfo *kw_of;
+  IdentifierInfo *kw_CF_CLOSED_ENUM;
   IdentifierInfo *kw_CF_ENUM;
   IdentifierInfo *kw_CF_OPTIONS;
+  IdentifierInfo *kw_NS_CLOSED_ENUM;
   IdentifierInfo *kw_NS_ENUM;
   IdentifierInfo *kw_NS_OPTIONS;
   IdentifierInfo *kw___except;

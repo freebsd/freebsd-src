@@ -42,6 +42,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
@@ -642,7 +643,7 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
   }
 
   // Loads from the stack pointer don't get prefetched.
-  unsigned BaseReg = MI.getOperand(BaseRegIdx).getReg();
+  Register BaseReg = MI.getOperand(BaseRegIdx).getReg();
   if (BaseReg == AArch64::SP || BaseReg == AArch64::WSP)
     return None;
 

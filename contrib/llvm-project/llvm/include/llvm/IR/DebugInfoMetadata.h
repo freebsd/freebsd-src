@@ -650,7 +650,6 @@ public:
   }
   bool isForwardDecl() const { return getFlags() & FlagFwdDecl; }
   bool isAppleBlockExtension() const { return getFlags() & FlagAppleBlock; }
-  bool isBlockByrefStruct() const { return getFlags() & FlagBlockByrefStruct; }
   bool isVirtual() const { return getFlags() & FlagVirtual; }
   bool isArtificial() const { return getFlags() & FlagArtificial; }
   bool isObjectPointer() const { return getFlags() & FlagObjectPointer; }
@@ -668,6 +667,7 @@ public:
   }
   bool isBigEndian() const { return getFlags() & FlagBigEndian; }
   bool isLittleEndian() const { return getFlags() & FlagLittleEndian; }
+  bool getExportSymbols() const { return getFlags() & FlagExportSymbols; }
 
   static bool classof(const Metadata *MD) {
     switch (MD->getMetadataID()) {
@@ -1758,6 +1758,13 @@ public:
   bool isPure() const { return getSPFlags() & SPFlagPure; }
   bool isElemental() const { return getSPFlags() & SPFlagElemental; }
   bool isRecursive() const { return getSPFlags() & SPFlagRecursive; }
+  bool isObjCDirect() const { return getSPFlags() & SPFlagObjCDirect; }
+
+  /// Check if this is deleted member function.
+  ///
+  /// Return true if this subprogram is a C++11 special
+  /// member function declared deleted.
+  bool isDeleted() const { return getSPFlags() & SPFlagDeleted; }
 
   /// Check if this is reference-qualified.
   ///
@@ -2077,34 +2084,34 @@ class DIModule : public DIScope {
 
   static DIModule *getImpl(LLVMContext &Context, DIScope *Scope,
                            StringRef Name, StringRef ConfigurationMacros,
-                           StringRef IncludePath, StringRef ISysRoot,
+                           StringRef IncludePath, StringRef SysRoot,
                            StorageType Storage, bool ShouldCreate = true) {
     return getImpl(Context, Scope, getCanonicalMDString(Context, Name),
                    getCanonicalMDString(Context, ConfigurationMacros),
                    getCanonicalMDString(Context, IncludePath),
-                   getCanonicalMDString(Context, ISysRoot),
+                   getCanonicalMDString(Context, SysRoot),
                    Storage, ShouldCreate);
   }
   static DIModule *getImpl(LLVMContext &Context, Metadata *Scope,
                            MDString *Name, MDString *ConfigurationMacros,
-                           MDString *IncludePath, MDString *ISysRoot,
+                           MDString *IncludePath, MDString *SysRoot,
                            StorageType Storage, bool ShouldCreate = true);
 
   TempDIModule cloneImpl() const {
     return getTemporary(getContext(), getScope(), getName(),
                         getConfigurationMacros(), getIncludePath(),
-                        getISysRoot());
+                        getSysRoot());
   }
 
 public:
   DEFINE_MDNODE_GET(DIModule, (DIScope *Scope, StringRef Name,
                                StringRef ConfigurationMacros, StringRef IncludePath,
-                               StringRef ISysRoot),
-                    (Scope, Name, ConfigurationMacros, IncludePath, ISysRoot))
+                               StringRef SysRoot),
+                    (Scope, Name, ConfigurationMacros, IncludePath, SysRoot))
   DEFINE_MDNODE_GET(DIModule,
                     (Metadata *Scope, MDString *Name, MDString *ConfigurationMacros,
-                     MDString *IncludePath, MDString *ISysRoot),
-                    (Scope, Name, ConfigurationMacros, IncludePath, ISysRoot))
+                     MDString *IncludePath, MDString *SysRoot),
+                    (Scope, Name, ConfigurationMacros, IncludePath, SysRoot))
 
   TempDIModule clone() const { return cloneImpl(); }
 
@@ -2112,13 +2119,13 @@ public:
   StringRef getName() const { return getStringOperand(1); }
   StringRef getConfigurationMacros() const { return getStringOperand(2); }
   StringRef getIncludePath() const { return getStringOperand(3); }
-  StringRef getISysRoot() const { return getStringOperand(4); }
+  StringRef getSysRoot() const { return getStringOperand(4); }
 
   Metadata *getRawScope() const { return getOperand(0); }
   MDString *getRawName() const { return getOperandAs<MDString>(1); }
   MDString *getRawConfigurationMacros() const { return getOperandAs<MDString>(2); }
   MDString *getRawIncludePath() const { return getOperandAs<MDString>(3); }
-  MDString *getRawISysRoot() const { return getOperandAs<MDString>(4); }
+  MDString *getRawSysRoot() const { return getOperandAs<MDString>(4); }
 
   static bool classof(const Metadata *MD) {
     return MD->getMetadataID() == DIModuleKind;
@@ -2545,6 +2552,16 @@ public:
       return 0;
   }
 
+  using ExtOps = std::array<uint64_t, 6>;
+
+  /// Returns the ops for a zero- or sign-extension in a DIExpression.
+  static ExtOps getExtOps(unsigned FromSize, unsigned ToSize, bool Signed);
+
+  /// Append a zero- or sign-extension to \p Expr. Converts the expression to a
+  /// stack value if it isn't one already.
+  static DIExpression *appendExt(const DIExpression *Expr, unsigned FromSize,
+                                 unsigned ToSize, bool Signed);
+
   /// Check if fragments overlap between a pair of FragmentInfos.
   static bool fragmentsOverlap(const FragmentInfo &A, const FragmentInfo &B) {
     return fragmentCmp(A, B) == 0;
@@ -2569,7 +2586,7 @@ public:
   /// (This is the only configuration of entry values that is supported.)
   bool isEntryValue() const {
     return getNumElements() > 0 &&
-           getElement(0) == dwarf::DW_OP_entry_value;
+           getElement(0) == dwarf::DW_OP_LLVM_entry_value;
   }
 };
 
@@ -2808,11 +2825,6 @@ public:
 
   bool isArtificial() const { return getFlags() & FlagArtificial; }
   bool isObjectPointer() const { return getFlags() & FlagObjectPointer; }
-
-  /// Check that an argument is unmodified.
-  bool isNotModified() const { return getFlags() & FlagArgumentNotModified; }
-  /// Set the flag if an argument is unmodified.
-  void setIsNotModified() { Flags |= FlagArgumentNotModified; }
 
   /// Check that a location is valid for this variable.
   ///
@@ -3244,6 +3256,89 @@ public:
 
   static bool classof(const Metadata *MD) {
     return MD->getMetadataID() == DIMacroFileKind;
+  }
+};
+
+/// Identifies a unique instance of a variable.
+///
+/// Storage for identifying a potentially inlined instance of a variable,
+/// or a fragment thereof. This guarantees that exactly one variable instance
+/// may be identified by this class, even when that variable is a fragment of
+/// an aggregate variable and/or there is another inlined instance of the same
+/// source code variable nearby.
+/// This class does not necessarily uniquely identify that variable: it is
+/// possible that a DebugVariable with different parameters may point to the
+/// same variable instance, but not that one DebugVariable points to multiple
+/// variable instances.
+class DebugVariable {
+  using FragmentInfo = DIExpression::FragmentInfo;
+
+  const DILocalVariable *Variable;
+  Optional<FragmentInfo> Fragment;
+  const DILocation *InlinedAt;
+
+  /// Fragment that will overlap all other fragments. Used as default when
+  /// caller demands a fragment.
+  static const FragmentInfo DefaultFragment;
+
+public:
+  DebugVariable(const DILocalVariable *Var, Optional<FragmentInfo> FragmentInfo,
+                const DILocation *InlinedAt)
+      : Variable(Var), Fragment(FragmentInfo), InlinedAt(InlinedAt) {}
+
+  DebugVariable(const DILocalVariable *Var, const DIExpression *DIExpr,
+                const DILocation *InlinedAt)
+      : Variable(Var),
+        Fragment(DIExpr ? DIExpr->getFragmentInfo() : NoneType()),
+        InlinedAt(InlinedAt) {}
+
+  const DILocalVariable *getVariable() const { return Variable; }
+  const Optional<FragmentInfo> getFragment() const { return Fragment; }
+  const DILocation *getInlinedAt() const { return InlinedAt; }
+
+  const FragmentInfo getFragmentOrDefault() const {
+    return Fragment.getValueOr(DefaultFragment);
+  }
+
+  static bool isDefaultFragment(const FragmentInfo F) {
+    return F == DefaultFragment;
+  }
+
+  bool operator==(const DebugVariable &Other) const {
+    return std::tie(Variable, Fragment, InlinedAt) ==
+           std::tie(Other.Variable, Other.Fragment, Other.InlinedAt);
+  }
+
+  bool operator<(const DebugVariable &Other) const {
+    return std::tie(Variable, Fragment, InlinedAt) <
+           std::tie(Other.Variable, Other.Fragment, Other.InlinedAt);
+  }
+};
+
+template <> struct DenseMapInfo<DebugVariable> {
+  using FragmentInfo = DIExpression::FragmentInfo;
+
+  /// Empty key: no key should be generated that has no DILocalVariable.
+  static inline DebugVariable getEmptyKey() {
+    return DebugVariable(nullptr, NoneType(), nullptr);
+  }
+
+  /// Difference in tombstone is that the Optional is meaningful.
+  static inline DebugVariable getTombstoneKey() {
+    return DebugVariable(nullptr, {{0, 0}}, nullptr);
+  }
+
+  static unsigned getHashValue(const DebugVariable &D) {
+    unsigned HV = 0;
+    const Optional<FragmentInfo> Fragment = D.getFragment();
+    if (Fragment)
+      HV = DenseMapInfo<FragmentInfo>::getHashValue(*Fragment);
+
+    return hash_combine(D.getVariable(), HV, D.getInlinedAt());
+  }
+
+  static bool isEqual(const DebugVariable &A, const DebugVariable &B) {
+    return A == B;
   }
 };
 

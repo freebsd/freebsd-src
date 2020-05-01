@@ -97,9 +97,16 @@ void COFFWriter::layoutSections() {
       S.Header.PointerToRawData = FileSize;
     FileSize += S.Header.SizeOfRawData; // For executables, this is already
                                         // aligned to FileAlignment.
-    S.Header.NumberOfRelocations = S.Relocs.size();
-    S.Header.PointerToRelocations =
-        S.Header.NumberOfRelocations > 0 ? FileSize : 0;
+    if (S.Relocs.size() >= 0xffff) {
+      S.Header.Characteristics |= COFF::IMAGE_SCN_LNK_NRELOC_OVFL;
+      S.Header.NumberOfRelocations = 0xffff;
+      S.Header.PointerToRelocations = FileSize;
+      FileSize += sizeof(coff_relocation);
+    } else {
+      S.Header.NumberOfRelocations = S.Relocs.size();
+      S.Header.PointerToRelocations = S.Relocs.size() ? FileSize : 0;
+    }
+
     FileSize += S.Relocs.size() * sizeof(coff_relocation);
     FileSize = alignTo(FileSize, FileAlignment);
 
@@ -120,12 +127,12 @@ size_t COFFWriter::finalizeStringTable() {
   StrTabBuilder.finalize();
 
   for (auto &S : Obj.getMutableSections()) {
+    memset(S.Header.Name, 0, sizeof(S.Header.Name));
     if (S.Name.size() > COFF::NameSize) {
-      memset(S.Header.Name, 0, sizeof(S.Header.Name));
       snprintf(S.Header.Name, sizeof(S.Header.Name), "/%d",
                (int)StrTabBuilder.getOffset(S.Name));
     } else {
-      strncpy(S.Header.Name, S.Name.data(), COFF::NameSize);
+      memcpy(S.Header.Name, S.Name.data(), S.Name.size());
     }
   }
   for (auto &S : Obj.getMutableSymbols()) {
@@ -307,6 +314,15 @@ void COFFWriter::writeSections() {
              S.Header.SizeOfRawData - Contents.size());
 
     Ptr += S.Header.SizeOfRawData;
+
+    if (S.Relocs.size() >= 0xffff) {
+      object::coff_relocation R;
+      R.VirtualAddress = S.Relocs.size() + 1;
+      R.SymbolTableIndex = 0;
+      R.Type = 0;
+      memcpy(Ptr, &R, sizeof(R));
+      Ptr += sizeof(R);
+    }
     for (const auto &R : S.Relocs) {
       memcpy(Ptr, &R.Reloc, sizeof(R.Reloc));
       Ptr += sizeof(R.Reloc);

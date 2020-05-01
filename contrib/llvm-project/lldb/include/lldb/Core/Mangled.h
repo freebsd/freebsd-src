@@ -49,21 +49,7 @@ public:
   /// Default constructor.
   ///
   /// Initialize with both mangled and demangled names empty.
-  Mangled();
-
-  /// Construct with name.
-  ///
-  /// Constructor with an optional string and a boolean indicating if it is
-  /// the mangled version.
-  ///
-  /// \param[in] name
-  ///     The already const name to copy into this object.
-  ///
-  /// \param[in] is_mangled
-  ///     If \b true then \a name is a mangled name, if \b false then
-  ///     \a name is demangled.
-  Mangled(ConstString name, bool is_mangled);
-  Mangled(llvm::StringRef name, bool is_mangled);
+  Mangled() = default;
 
   /// Construct with name.
   ///
@@ -75,12 +61,6 @@ public:
   explicit Mangled(ConstString name);
 
   explicit Mangled(llvm::StringRef name);
-
-  /// Destructor
-  ///
-  /// Releases its ref counts on the mangled and demangled strings that live
-  /// in the global string pool.
-  ~Mangled();
 
   /// Convert to pointer operator.
   ///
@@ -128,9 +108,9 @@ public:
   ///     A const reference to the Right Hand Side object to compare.
   ///
   /// \return
-  ///     \li -1 if \a lhs is less than \a rhs
-  ///     \li 0 if \a lhs is equal to \a rhs
-  ///     \li 1 if \a lhs is greater than \a rhs
+  ///     -1 if \a lhs is less than \a rhs
+  ///     0 if \a lhs is equal to \a rhs
+  ///     1 if \a lhs is greater than \a rhs
   static int Compare(const Mangled &lhs, const Mangled &rhs);
 
   /// Dump a description of this object to a Stream \a s.
@@ -280,6 +260,15 @@ public:
   ///     True on success, false otherwise.
   bool DemangleWithRichManglingInfo(RichManglingContext &context,
                                     SkipMangledNameFn *skip_mangled_name);
+
+  /// Try to identify the mangling scheme used.
+  /// \param[in] name
+  ///     The name we are attempting to identify the mangling scheme for.
+  ///
+  /// \return
+  ///     eManglingSchemeNone if no known mangling scheme could be identified
+  ///     for s, otherwise the enumerator for the mangling scheme detected.
+  static Mangled::ManglingScheme GetManglingScheme(llvm::StringRef const name);
 
 private:
   /// Mangled member variables.

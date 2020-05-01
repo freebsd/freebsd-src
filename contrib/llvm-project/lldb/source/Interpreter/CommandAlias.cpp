@@ -64,8 +64,9 @@ static bool ProcessAliasOptionsArgs(lldb::CommandObjectSP &cmd_obj_sp,
       option_arg_vector->emplace_back("<argument>", -1, options_string);
     else {
       for (auto &entry : args.entries()) {
-        if (!entry.ref.empty())
-          option_arg_vector->emplace_back("<argument>", -1, entry.ref);
+        if (!entry.ref().empty())
+          option_arg_vector->emplace_back(std::string("<argument>"), -1,
+                                          std::string(entry.ref()));
       }
     }
   }
@@ -115,18 +116,16 @@ bool CommandAlias::WantsCompletion() {
   return false;
 }
 
-int CommandAlias::HandleCompletion(CompletionRequest &request) {
+void CommandAlias::HandleCompletion(CompletionRequest &request) {
   if (IsValid())
-    return m_underlying_command_sp->HandleCompletion(request);
-  return -1;
+    m_underlying_command_sp->HandleCompletion(request);
 }
 
-int CommandAlias::HandleArgumentCompletion(
+void CommandAlias::HandleArgumentCompletion(
     CompletionRequest &request, OptionElementVector &opt_element_vector) {
   if (IsValid())
-    return m_underlying_command_sp->HandleArgumentCompletion(
-        request, opt_element_vector);
-  return -1;
+    m_underlying_command_sp->HandleArgumentCompletion(request,
+                                                      opt_element_vector);
 }
 
 Options *CommandAlias::GetOptions() {

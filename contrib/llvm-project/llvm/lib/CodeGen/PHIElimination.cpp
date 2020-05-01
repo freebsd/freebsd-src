@@ -31,7 +31,9 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Pass.h"
@@ -168,7 +170,7 @@ bool PHIElimination::runOnMachineFunction(MachineFunction &MF) {
 
   // Remove dead IMPLICIT_DEF instructions.
   for (MachineInstr *DefMI : ImpDefs) {
-    unsigned DefReg = DefMI->getOperand(0).getReg();
+    Register DefReg = DefMI->getOperand(0).getReg();
     if (MRI->use_nodbg_empty(DefReg)) {
       if (LIS)
         LIS->RemoveMachineInstrFromMaps(*DefMI);
@@ -182,6 +184,11 @@ bool PHIElimination::runOnMachineFunction(MachineFunction &MF) {
       LIS->RemoveMachineInstrFromMaps(*I.first);
     MF.DeleteMachineInstr(I.first);
   }
+
+  // TODO: we should use the incremental DomTree updater here.
+  if (Changed)
+    if (auto *MDT = getAnalysisIfAvailable<MachineDominatorTree>())
+      MDT->getBase().recalculate(MF);
 
   LoweredPHIs.clear();
   ImpDefs.clear();
@@ -240,7 +247,7 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
   MachineInstr *MPhi = MBB.remove(&*MBB.begin());
 
   unsigned NumSrcs = (MPhi->getNumOperands() - 1) / 2;
-  unsigned DestReg = MPhi->getOperand(0).getReg();
+  Register DestReg = MPhi->getOperand(0).getReg();
   assert(MPhi->getOperand(0).getSubReg() == 0 && "Can't handle sub-reg PHIs");
   bool isDead = MPhi->getOperand(0).isDead();
 
@@ -252,11 +259,12 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
   // Insert a register to register copy at the top of the current block (but
   // after any remaining phi nodes) which copies the new incoming register
   // into the phi node destination.
+  MachineInstr *PHICopy = nullptr;
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   if (allPhiOperandsUndefined(*MPhi, *MRI))
     // If all sources of a PHI node are implicit_def or undef uses, just emit an
     // implicit_def instead of a copy.
-    BuildMI(MBB, AfterPHIsIt, MPhi->getDebugLoc(),
+    PHICopy = BuildMI(MBB, AfterPHIsIt, MPhi->getDebugLoc(),
             TII->get(TargetOpcode::IMPLICIT_DEF), DestReg);
   else {
     // Can we reuse an earlier PHI node? This only happens for critical edges,
@@ -273,15 +281,13 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
       const TargetRegisterClass *RC = MF.getRegInfo().getRegClass(DestReg);
       entry = IncomingReg = MF.getRegInfo().createVirtualRegister(RC);
     }
-    BuildMI(MBB, AfterPHIsIt, MPhi->getDebugLoc(),
-            TII->get(TargetOpcode::COPY), DestReg)
-      .addReg(IncomingReg);
+    // Give the target possiblity to handle special cases fallthrough otherwise
+    PHICopy = TII->createPHIDestinationCopy(MBB, AfterPHIsIt, MPhi->getDebugLoc(),
+                                  IncomingReg, DestReg);
   }
 
   // Update live variable information if there is any.
   if (LV) {
-    MachineInstr &PHICopy = *std::prev(AfterPHIsIt);
-
     if (IncomingReg) {
       LiveVariables::VarInfo &VI = LV->getVarInfo(IncomingReg);
 
@@ -302,7 +308,7 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
       // killed.  Note that because the value is defined in several places (once
       // each for each incoming block), the "def" block and instruction fields
       // for the VarInfo is not filled in.
-      LV->addVirtualRegisterKilled(IncomingReg, PHICopy);
+      LV->addVirtualRegisterKilled(IncomingReg, *PHICopy);
     }
 
     // Since we are going to be deleting the PHI node, if it is the last use of
@@ -312,15 +318,14 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
 
     // If the result is dead, update LV.
     if (isDead) {
-      LV->addVirtualRegisterDead(DestReg, PHICopy);
+      LV->addVirtualRegisterDead(DestReg, *PHICopy);
       LV->removeVirtualRegisterDead(DestReg, *MPhi);
     }
   }
 
   // Update LiveIntervals for the new copy or implicit def.
   if (LIS) {
-    SlotIndex DestCopyIndex =
-        LIS->InsertMachineInstrInMaps(*std::prev(AfterPHIsIt));
+    SlotIndex DestCopyIndex = LIS->InsertMachineInstrInMaps(*PHICopy);
 
     SlotIndex MBBStartIndex = LIS->getMBBStartIdx(&MBB);
     if (IncomingReg) {
@@ -368,11 +373,11 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
   // IncomingReg register in the corresponding predecessor basic block.
   SmallPtrSet<MachineBasicBlock*, 8> MBBsInsertedInto;
   for (int i = NumSrcs - 1; i >= 0; --i) {
-    unsigned SrcReg = MPhi->getOperand(i*2+1).getReg();
+    Register SrcReg = MPhi->getOperand(i * 2 + 1).getReg();
     unsigned SrcSubReg = MPhi->getOperand(i*2+1).getSubReg();
     bool SrcUndef = MPhi->getOperand(i*2+1).isUndef() ||
       isImplicitlyDefined(SrcReg, *MRI);
-    assert(TargetRegisterInfo::isVirtualRegister(SrcReg) &&
+    assert(Register::isVirtualRegister(SrcReg) &&
            "Machine PHI Operands must all be virtual registers!");
 
     // Get the MachineBasicBlock equivalent of the BasicBlock that is the source
@@ -406,9 +411,9 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
           if (DefMI->isImplicitDef())
             ImpDefs.insert(DefMI);
       } else {
-        NewSrcInstr = BuildMI(opBlock, InsertPos, MPhi->getDebugLoc(),
-                            TII->get(TargetOpcode::COPY), IncomingReg)
-                        .addReg(SrcReg, 0, SrcSubReg);
+        NewSrcInstr =
+            TII->createPHISourceCopy(opBlock, InsertPos, MPhi->getDebugLoc(),
+                                     SrcReg, SrcSubReg, IncomingReg);
       }
     }
 
@@ -457,7 +462,7 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
           }
         } else {
           // We just inserted this copy.
-          KillInst = std::prev(InsertPos);
+          KillInst = NewSrcInstr;
         }
       }
       assert(KillInst->readsRegister(SrcReg) && "Cannot find kill instruction");
@@ -567,7 +572,7 @@ bool PHIElimination::SplitPHIEdges(MachineFunction &MF,
   for (MachineBasicBlock::iterator BBI = MBB.begin(), BBE = MBB.end();
        BBI != BBE && BBI->isPHI(); ++BBI) {
     for (unsigned i = 1, e = BBI->getNumOperands(); i != e; i += 2) {
-      unsigned Reg = BBI->getOperand(i).getReg();
+      Register Reg = BBI->getOperand(i).getReg();
       MachineBasicBlock *PreMBB = BBI->getOperand(i+1).getMBB();
       // Is there a critical edge from PreMBB to MBB?
       if (PreMBB->succ_size() == 1)

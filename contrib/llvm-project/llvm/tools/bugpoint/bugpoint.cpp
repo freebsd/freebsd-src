@@ -18,8 +18,10 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/LegacyPassNameParser.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/LinkAllIR.h"
 #include "llvm/LinkAllPasses.h"
+#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -81,6 +83,10 @@ static cl::opt<bool> OptLevelOs(
         "Like -O2 with extra optimizations for size. Similar to clang -Os"));
 
 static cl::opt<bool>
+OptLevelOz("Oz",
+           cl::desc("Like -Os but reduces code size further. Similar to clang -Oz"));
+
+static cl::opt<bool>
     OptLevelO3("O3", cl::desc("Optimization level 3. Identical to 'opt -O3'"));
 
 static cl::opt<std::string>
@@ -109,11 +115,29 @@ public:
 };
 }
 
-#ifdef LINK_POLLY_INTO_TOOLS
-namespace polly {
-void initializePollyPasses(llvm::PassRegistry &Registry);
+// This routine adds optimization passes based on selected optimization level,
+// OptLevel.
+//
+// OptLevel - Optimization Level
+static void AddOptimizationPasses(legacy::FunctionPassManager &FPM,
+                                  unsigned OptLevel,
+                                  unsigned SizeLevel) {
+  PassManagerBuilder Builder;
+  Builder.OptLevel = OptLevel;
+  Builder.SizeLevel = SizeLevel;
+
+  if (OptLevel > 1)
+    Builder.Inliner = createFunctionInliningPass(OptLevel, SizeLevel, false);
+  else
+    Builder.Inliner = createAlwaysInlinerLegacyPass();
+
+  Builder.populateFunctionPassManager(FPM);
+  Builder.populateModulePassManager(FPM);
 }
-#endif
+
+#define HANDLE_EXTENSION(Ext)                                                  \
+  llvm::PassPluginLibraryInfo get##Ext##PluginInfo();
+#include "llvm/Support/Extension.def"
 
 int main(int argc, char **argv) {
 #ifndef DEBUG_BUGPOINT
@@ -133,10 +157,6 @@ int main(int argc, char **argv) {
   initializeAggressiveInstCombine(Registry);
   initializeInstrumentation(Registry);
   initializeTarget(Registry);
-
-#ifdef LINK_POLLY_INTO_TOOLS
-  polly::initializePollyPasses(Registry);
-#endif
 
   if (std::getenv("bar") == (char*) -1) {
     InitializeAllTargets();
@@ -189,18 +209,16 @@ int main(int argc, char **argv) {
     Builder.populateLTOPassManager(PM);
   }
 
-  if (OptLevelO1 || OptLevelO2 || OptLevelO3) {
-    PassManagerBuilder Builder;
-    if (OptLevelO1)
-      Builder.Inliner = createAlwaysInlinerLegacyPass();
-    else if (OptLevelOs || OptLevelO2)
-      Builder.Inliner = createFunctionInliningPass(
-          2, OptLevelOs ? 1 : 0, false);
-    else
-      Builder.Inliner = createFunctionInliningPass(275);
-    Builder.populateFunctionPassManager(PM);
-    Builder.populateModulePassManager(PM);
-  }
+  if (OptLevelO1)
+    AddOptimizationPasses(PM, 1, 0);
+  else if (OptLevelO2)
+    AddOptimizationPasses(PM, 2, 0);
+  else if (OptLevelO3)
+    AddOptimizationPasses(PM, 3, 0);
+  else if (OptLevelOs)
+    AddOptimizationPasses(PM, 2, 1);
+  else if (OptLevelOz)
+    AddOptimizationPasses(PM, 2, 2);
 
   for (const PassInfo *PI : PassList)
     D.addPass(PI->getPassArgument());
@@ -210,6 +228,13 @@ int main(int argc, char **argv) {
 #ifndef DEBUG_BUGPOINT
   sys::Process::PreventCoreFiles();
 #endif
+
+// Needed to pull in symbols from statically linked extensions, including static
+// registration. It is unused otherwise because bugpoint has no support for
+// NewPM.
+#define HANDLE_EXTENSION(Ext)                                                  \
+  (void)get##Ext##PluginInfo();
+#include "llvm/Support/Extension.def"
 
   if (Error E = D.run()) {
     errs() << toString(std::move(E));

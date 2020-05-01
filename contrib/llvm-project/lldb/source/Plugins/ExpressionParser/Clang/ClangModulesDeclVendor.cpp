@@ -27,6 +27,7 @@
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
+#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/SourceModule.h"
 #include "lldb/Target/Target.h"
@@ -79,12 +80,10 @@ public:
                                 Stream &error_stream) override;
 
   uint32_t FindDecls(ConstString name, bool append, uint32_t max_matches,
-                     std::vector<clang::NamedDecl *> &decls) override;
+                     std::vector<CompilerDecl> &decls) override;
 
   void ForEachMacro(const ModuleVector &modules,
                     std::function<bool(const std::string &)> handler) override;
-
-  clang::ExternalASTMerger::ImporterSource GetImporterSource() override;
 private:
   void
   ReportModuleExportsHelper(std::set<ClangModulesDeclVendor::ModuleID> &exports,
@@ -109,7 +108,9 @@ private:
   typedef std::set<ModuleID> ImportedModuleSet;
   ImportedModuleMap m_imported_modules;
   ImportedModuleSet m_user_imported_modules;
-  const clang::ExternalASTMerger::OriginMap m_origin_map;
+  // We assume that every ASTContext has an ClangASTContext, so we also store
+  // a custom ClangASTContext for our internal ASTContext.
+  std::unique_ptr<ClangASTContext> m_ast_context;
 };
 } // anonymous namespace
 
@@ -143,7 +144,8 @@ void StoringDiagnosticConsumer::DumpDiagnostics(Stream &error_stream) {
   }
 }
 
-ClangModulesDeclVendor::ClangModulesDeclVendor() {}
+ClangModulesDeclVendor::ClangModulesDeclVendor()
+    : ClangDeclVendor(eClangModuleDeclVendor) {}
 
 ClangModulesDeclVendor::~ClangModulesDeclVendor() {}
 
@@ -155,7 +157,11 @@ ClangModulesDeclVendorImpl::ClangModulesDeclVendorImpl(
     : m_diagnostics_engine(std::move(diagnostics_engine)),
       m_compiler_invocation(std::move(compiler_invocation)),
       m_compiler_instance(std::move(compiler_instance)),
-      m_parser(std::move(parser)), m_origin_map() {}
+      m_parser(std::move(parser)) {
+
+  // Initialize our ClangASTContext.
+  m_ast_context.reset(new ClangASTContext(m_compiler_instance->getASTContext()));
+}
 
 void ClangModulesDeclVendorImpl::ReportModuleExportsHelper(
     std::set<ClangModulesDeclVendor::ModuleID> &exports,
@@ -237,11 +243,11 @@ bool ClangModulesDeclVendorImpl::AddModule(const SourceModule &module,
 
       bool is_system = true;
       bool is_framework = false;
-      auto *dir =
+      auto dir =
           HS.getFileMgr().getDirectory(module.search_path.GetStringRef());
       if (!dir)
         return error();
-      auto *file = HS.lookupModuleMapFile(dir, is_framework);
+      auto *file = HS.lookupModuleMapFile(*dir, is_framework);
       if (!file)
         return error();
       if (!HS.loadModuleMapFile(file, is_system))
@@ -350,7 +356,7 @@ bool ClangModulesDeclVendorImpl::AddModulesForCompileUnit(
 uint32_t
 ClangModulesDeclVendorImpl::FindDecls(ConstString name, bool append,
                                       uint32_t max_matches,
-                                      std::vector<clang::NamedDecl *> &decls) {
+                                      std::vector<CompilerDecl> &decls) {
   if (!m_enabled) {
     return 0;
   }
@@ -376,7 +382,7 @@ ClangModulesDeclVendorImpl::FindDecls(ConstString name, bool append,
     if (num_matches >= max_matches)
       return num_matches;
 
-    decls.push_back(named_decl);
+    decls.push_back(CompilerDecl(m_ast_context.get(), named_decl));
     ++num_matches;
   }
 
@@ -560,12 +566,6 @@ ClangModulesDeclVendorImpl::DoGetModule(clang::ModuleIdPath path,
                                          is_inclusion_directive);
 }
 
-clang::ExternalASTMerger::ImporterSource
-ClangModulesDeclVendorImpl::GetImporterSource() {
-  return {m_compiler_instance->getASTContext(),
-          m_compiler_instance->getFileManager(), m_origin_map};
-}
-
 static const char *ModuleImportBufferName = "LLDBModulesMemoryBuffer";
 
 lldb_private::ClangModulesDeclVendor *
@@ -694,7 +694,7 @@ ClangModulesDeclVendor::Create(Target &target) {
 
   instance->getPreprocessor().enableIncrementalProcessing();
 
-  instance->createModuleManager();
+  instance->createASTReader();
 
   instance->createSema(action->getTranslationUnitKind(), nullptr);
 

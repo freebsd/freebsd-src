@@ -155,11 +155,11 @@ public:
   // Create particular kinds of operand.
   static std::unique_ptr<SystemZOperand> createInvalid(SMLoc StartLoc,
                                                        SMLoc EndLoc) {
-    return make_unique<SystemZOperand>(KindInvalid, StartLoc, EndLoc);
+    return std::make_unique<SystemZOperand>(KindInvalid, StartLoc, EndLoc);
   }
 
   static std::unique_ptr<SystemZOperand> createToken(StringRef Str, SMLoc Loc) {
-    auto Op = make_unique<SystemZOperand>(KindToken, Loc, Loc);
+    auto Op = std::make_unique<SystemZOperand>(KindToken, Loc, Loc);
     Op->Token.Data = Str.data();
     Op->Token.Length = Str.size();
     return Op;
@@ -167,7 +167,7 @@ public:
 
   static std::unique_ptr<SystemZOperand>
   createReg(RegisterKind Kind, unsigned Num, SMLoc StartLoc, SMLoc EndLoc) {
-    auto Op = make_unique<SystemZOperand>(KindReg, StartLoc, EndLoc);
+    auto Op = std::make_unique<SystemZOperand>(KindReg, StartLoc, EndLoc);
     Op->Reg.Kind = Kind;
     Op->Reg.Num = Num;
     return Op;
@@ -175,7 +175,7 @@ public:
 
   static std::unique_ptr<SystemZOperand>
   createImm(const MCExpr *Expr, SMLoc StartLoc, SMLoc EndLoc) {
-    auto Op = make_unique<SystemZOperand>(KindImm, StartLoc, EndLoc);
+    auto Op = std::make_unique<SystemZOperand>(KindImm, StartLoc, EndLoc);
     Op->Imm = Expr;
     return Op;
   }
@@ -184,7 +184,7 @@ public:
   createMem(MemoryKind MemKind, RegisterKind RegKind, unsigned Base,
             const MCExpr *Disp, unsigned Index, const MCExpr *LengthImm,
             unsigned LengthReg, SMLoc StartLoc, SMLoc EndLoc) {
-    auto Op = make_unique<SystemZOperand>(KindMem, StartLoc, EndLoc);
+    auto Op = std::make_unique<SystemZOperand>(KindMem, StartLoc, EndLoc);
     Op->Mem.MemKind = MemKind;
     Op->Mem.RegKind = RegKind;
     Op->Mem.Base = Base;
@@ -200,7 +200,7 @@ public:
   static std::unique_ptr<SystemZOperand>
   createImmTLS(const MCExpr *Imm, const MCExpr *Sym,
                SMLoc StartLoc, SMLoc EndLoc) {
-    auto Op = make_unique<SystemZOperand>(KindImmTLS, StartLoc, EndLoc);
+    auto Op = std::make_unique<SystemZOperand>(KindImmTLS, StartLoc, EndLoc);
     Op->ImmTLS.Imm = Imm;
     Op->ImmTLS.Sym = Sym;
     return Op;
@@ -1304,20 +1304,38 @@ SystemZAsmParser::parsePCRel(OperandVector &Operands, int64_t MinVal,
   if (getParser().parseExpression(Expr))
     return MatchOperand_NoMatch;
 
+  auto isOutOfRangeConstant = [&](const MCExpr *E) -> bool {
+    if (auto *CE = dyn_cast<MCConstantExpr>(E)) {
+      int64_t Value = CE->getValue();
+      if ((Value & 1) || Value < MinVal || Value > MaxVal)
+        return true;
+    }
+    return false;
+  };
+
   // For consistency with the GNU assembler, treat immediates as offsets
   // from ".".
   if (auto *CE = dyn_cast<MCConstantExpr>(Expr)) {
-    int64_t Value = CE->getValue();
-    if ((Value & 1) || Value < MinVal || Value > MaxVal) {
+    if (isOutOfRangeConstant(CE)) {
       Error(StartLoc, "offset out of range");
       return MatchOperand_ParseFail;
     }
+    int64_t Value = CE->getValue();
     MCSymbol *Sym = Ctx.createTempSymbol();
     Out.EmitLabel(Sym);
     const MCExpr *Base = MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None,
                                                  Ctx);
     Expr = Value == 0 ? Base : MCBinaryExpr::createAdd(Base, Expr, Ctx);
   }
+
+  // For consistency with the GNU assembler, conservatively assume that a
+  // constant offset must by itself be within the given size range.
+  if (const auto *BE = dyn_cast<MCBinaryExpr>(Expr))
+    if (isOutOfRangeConstant(BE->getLHS()) ||
+        isOutOfRangeConstant(BE->getRHS())) {
+      Error(StartLoc, "offset out of range");
+      return MatchOperand_ParseFail;
+    }
 
   // Optionally match :tls_gdcall: or :tls_ldcall: followed by a TLS symbol.
   const MCExpr *Sym = nullptr;
@@ -1371,6 +1389,6 @@ SystemZAsmParser::parsePCRel(OperandVector &Operands, int64_t MinVal,
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeSystemZAsmParser() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeSystemZAsmParser() {
   RegisterMCAsmParser<SystemZAsmParser> X(getTheSystemZTarget());
 }

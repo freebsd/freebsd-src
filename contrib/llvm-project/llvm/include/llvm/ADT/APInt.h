@@ -389,6 +389,11 @@ public:
   /// \returns true if this APInt is positive.
   bool isStrictlyPositive() const { return isNonNegative() && !isNullValue(); }
 
+  /// Determine if this APInt Value is non-positive (<= 0).
+  ///
+  /// \returns true if this APInt is non-positive.
+  bool isNonPositive() const { return !isStrictlyPositive(); }
+
   /// Determine if all bits are set
   ///
   /// This checks to see if the value has all bits of the APInt are set or not.
@@ -595,8 +600,8 @@ public:
   /// Constructs an APInt value that has a contiguous range of bits set. The
   /// bits from loBit (inclusive) to hiBit (exclusive) will be set. All other
   /// bits will be zero. For example, with parameters(32, 0, 16) you would get
-  /// 0x0000FFFF. If hiBit is less than loBit then the set bits "wrap". For
-  /// example, with parameters (32, 28, 4), you would get 0xF000000F.
+  /// 0x0000FFFF. Please call getBitsSetWithWrap if \p loBit may be greater than
+  /// \p hiBit.
   ///
   /// \param numBits the intended bit width of the result
   /// \param loBit the index of the lowest bit set.
@@ -604,8 +609,20 @@ public:
   ///
   /// \returns An APInt value with the requested bits set.
   static APInt getBitsSet(unsigned numBits, unsigned loBit, unsigned hiBit) {
+    assert(loBit <= hiBit && "loBit greater than hiBit");
     APInt Res(numBits, 0);
     Res.setBits(loBit, hiBit);
+    return Res;
+  }
+
+  /// Wrap version of getBitsSet.
+  /// If \p hiBit is no less than \p loBit, this is same with getBitsSet.
+  /// If \p hiBit is less than \p loBit, the set bits "wrap". For example, with
+  /// parameters (32, 28, 4), you would get 0xF000000F.
+  static APInt getBitsSetWithWrap(unsigned numBits, unsigned loBit,
+                                  unsigned hiBit) {
+    APInt Res(numBits, 0);
+    Res.setBitsWithWrap(loBit, hiBit);
     return Res;
   }
 
@@ -1109,6 +1126,10 @@ public:
   APInt uadd_sat(const APInt &RHS) const;
   APInt ssub_sat(const APInt &RHS) const;
   APInt usub_sat(const APInt &RHS) const;
+  APInt smul_sat(const APInt &RHS) const;
+  APInt umul_sat(const APInt &RHS) const;
+  APInt sshl_sat(const APInt &RHS) const;
+  APInt ushl_sat(const APInt &RHS) const;
 
   /// Array-indexing support.
   ///
@@ -1245,7 +1266,7 @@ public:
   /// \returns true if *this <= RHS when considered signed.
   bool sle(uint64_t RHS) const { return !sgt(RHS); }
 
-  /// Unsigned greather than comparison
+  /// Unsigned greater than comparison
   ///
   /// Regards both *this and RHS as unsigned quantities and compares them for
   /// the validity of the greater-than relationship.
@@ -1264,7 +1285,7 @@ public:
     return (!isSingleWord() && getActiveBits() > 64) || getZExtValue() > RHS;
   }
 
-  /// Signed greather than comparison
+  /// Signed greater than comparison
   ///
   /// Regards both *this and RHS as signed quantities and compares them for the
   /// validity of the greater-than relationship.
@@ -1342,6 +1363,19 @@ public:
   /// that is greater than or equal to the current width.
   APInt trunc(unsigned width) const;
 
+  /// Truncate to new width with unsigned saturation.
+  ///
+  /// If the APInt, treated as unsigned integer, can be losslessly truncated to
+  /// the new bitwidth, then return truncated APInt. Else, return max value.
+  APInt truncUSat(unsigned width) const;
+
+  /// Truncate to new width with signed saturation.
+  ///
+  /// If this APInt, treated as signed integer, can be losslessly truncated to
+  /// the new bitwidth, then return truncated APInt. Else, return either
+  /// signed min value if the APInt was negative, or signed max value.
+  APInt truncSSat(unsigned width) const;
+
   /// Sign extend to a new width.
   ///
   /// This operation sign extends the APInt to a new width. If the high order
@@ -1414,6 +1448,21 @@ public:
   }
 
   /// Set the bits from loBit (inclusive) to hiBit (exclusive) to 1.
+  /// This function handles "wrap" case when \p loBit > \p hiBit, and calls
+  /// setBits when \p loBit <= \p hiBit.
+  void setBitsWithWrap(unsigned loBit, unsigned hiBit) {
+    assert(hiBit <= BitWidth && "hiBit out of range");
+    assert(loBit <= BitWidth && "loBit out of range");
+    if (loBit <= hiBit) {
+      setBits(loBit, hiBit);
+      return;
+    }
+    setLowBits(hiBit);
+    setHighBits(BitWidth - loBit);
+  }
+
+  /// Set the bits from loBit (inclusive) to hiBit (exclusive) to 1.
+  /// This function handles case when \p loBit <= \p hiBit.
   void setBits(unsigned loBit, unsigned hiBit) {
     assert(hiBit <= BitWidth && "hiBit out of range");
     assert(loBit <= BitWidth && "loBit out of range");
@@ -1467,6 +1516,13 @@ public:
       U.pVal[whichWord(BitPosition)] &= Mask;
   }
 
+  /// Set bottom loBits bits to 0.
+  void clearLowBits(unsigned loBits) {
+    assert(loBits <= BitWidth && "More bits than bitwidth");
+    APInt Keep = getHighBitsSet(BitWidth, BitWidth - loBits);
+    *this &= Keep;
+  }
+
   /// Set the sign bit to 0.
   void clearSignBit() {
     clearBit(BitWidth - 1);
@@ -1496,9 +1552,11 @@ public:
 
   /// Insert the bits from a smaller APInt starting at bitPosition.
   void insertBits(const APInt &SubBits, unsigned bitPosition);
+  void insertBits(uint64_t SubBits, unsigned bitPosition, unsigned numBits);
 
   /// Return an APInt with the extracted bits [bitPosition,bitPosition+numBits).
   APInt extractBits(unsigned numBits, unsigned bitPosition) const;
+  uint64_t extractBitsAsZExtValue(unsigned numBits, unsigned bitPosition) const;
 
   /// @}
   /// \name Value Characterization Functions
@@ -1714,13 +1772,13 @@ public:
     return BitsToDouble(getWord(0));
   }
 
-  /// Converts APInt bits to a double
+  /// Converts APInt bits to a float
   ///
   /// The conversion does not do a translation from integer to float, it just
   /// re-interprets the bits as a float. Note that it is valid to do this on
   /// any bit width. Exactly 32 bits will be translated.
   float bitsToFloat() const {
-    return BitsToFloat(getWord(0));
+    return BitsToFloat(static_cast<uint32_t>(getWord(0)));
   }
 
   /// Converts a double to APInt bits.
@@ -2149,7 +2207,7 @@ inline float RoundAPIntToFloat(const APInt &APIVal) {
 
 /// Converts the given APInt to a float value.
 ///
-/// Treast the APInt as a signed value for conversion purposes.
+/// Treats the APInt as a signed value for conversion purposes.
 inline float RoundSignedAPIntToFloat(const APInt &APIVal) {
   return float(APIVal.signedRoundToDouble());
 }
@@ -2185,7 +2243,7 @@ APInt RoundingSDiv(const APInt &A, const APInt &B, APInt::Rounding RM);
 /// count as an overflow, but here we want to allow values to decrease
 /// and increase as long as they are within the same interval.
 /// Specifically, adding of two negative numbers should not cause an
-/// overflow (as long as the magnitude does not exceed the bith width).
+/// overflow (as long as the magnitude does not exceed the bit width).
 /// On the other hand, given a positive number, adding a negative
 /// number to it can give a negative result, which would cause the
 /// value to go from [-2^BW, 0) to [0, 2^BW). In that sense, zero is
@@ -2207,6 +2265,12 @@ APInt RoundingSDiv(const APInt &A, const APInt &B, APInt::Rounding RM);
 /// coefficients.
 Optional<APInt> SolveQuadraticEquationWrap(APInt A, APInt B, APInt C,
                                            unsigned RangeWidth);
+
+/// Compare two values, and if they are different, return the position of the
+/// most significant bit that is different in the values.
+Optional<unsigned> GetMostSignificantDifferentBit(const APInt &A,
+                                                  const APInt &B);
+
 } // End of APIntOps namespace
 
 // See friend declaration above. This additional declaration is required in

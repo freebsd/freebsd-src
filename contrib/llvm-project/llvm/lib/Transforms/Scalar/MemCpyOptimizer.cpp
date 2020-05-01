@@ -24,7 +24,6 @@
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
@@ -49,12 +48,14 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -68,90 +69,6 @@ STATISTIC(NumMemCpyInstr, "Number of memcpy instructions deleted");
 STATISTIC(NumMemSetInfer, "Number of memsets inferred");
 STATISTIC(NumMoveToCpy,   "Number of memmoves converted to memcpy");
 STATISTIC(NumCpyToSet,    "Number of memcpys converted to memset");
-
-static int64_t GetOffsetFromIndex(const GEPOperator *GEP, unsigned Idx,
-                                  bool &VariableIdxFound,
-                                  const DataLayout &DL) {
-  // Skip over the first indices.
-  gep_type_iterator GTI = gep_type_begin(GEP);
-  for (unsigned i = 1; i != Idx; ++i, ++GTI)
-    /*skip along*/;
-
-  // Compute the offset implied by the rest of the indices.
-  int64_t Offset = 0;
-  for (unsigned i = Idx, e = GEP->getNumOperands(); i != e; ++i, ++GTI) {
-    ConstantInt *OpC = dyn_cast<ConstantInt>(GEP->getOperand(i));
-    if (!OpC)
-      return VariableIdxFound = true;
-    if (OpC->isZero()) continue;  // No offset.
-
-    // Handle struct indices, which add their field offset to the pointer.
-    if (StructType *STy = GTI.getStructTypeOrNull()) {
-      Offset += DL.getStructLayout(STy)->getElementOffset(OpC->getZExtValue());
-      continue;
-    }
-
-    // Otherwise, we have a sequential type like an array or vector.  Multiply
-    // the index by the ElementSize.
-    uint64_t Size = DL.getTypeAllocSize(GTI.getIndexedType());
-    Offset += Size*OpC->getSExtValue();
-  }
-
-  return Offset;
-}
-
-/// Return true if Ptr1 is provably equal to Ptr2 plus a constant offset, and
-/// return that constant offset. For example, Ptr1 might be &A[42], and Ptr2
-/// might be &A[40]. In this case offset would be -8.
-static bool IsPointerOffset(Value *Ptr1, Value *Ptr2, int64_t &Offset,
-                            const DataLayout &DL) {
-  Ptr1 = Ptr1->stripPointerCasts();
-  Ptr2 = Ptr2->stripPointerCasts();
-
-  // Handle the trivial case first.
-  if (Ptr1 == Ptr2) {
-    Offset = 0;
-    return true;
-  }
-
-  GEPOperator *GEP1 = dyn_cast<GEPOperator>(Ptr1);
-  GEPOperator *GEP2 = dyn_cast<GEPOperator>(Ptr2);
-
-  bool VariableIdxFound = false;
-
-  // If one pointer is a GEP and the other isn't, then see if the GEP is a
-  // constant offset from the base, as in "P" and "gep P, 1".
-  if (GEP1 && !GEP2 && GEP1->getOperand(0)->stripPointerCasts() == Ptr2) {
-    Offset = -GetOffsetFromIndex(GEP1, 1, VariableIdxFound, DL);
-    return !VariableIdxFound;
-  }
-
-  if (GEP2 && !GEP1 && GEP2->getOperand(0)->stripPointerCasts() == Ptr1) {
-    Offset = GetOffsetFromIndex(GEP2, 1, VariableIdxFound, DL);
-    return !VariableIdxFound;
-  }
-
-  // Right now we handle the case when Ptr1/Ptr2 are both GEPs with an identical
-  // base.  After that base, they may have some number of common (and
-  // potentially variable) indices.  After that they handle some constant
-  // offset, which determines their offset from each other.  At this point, we
-  // handle no other case.
-  if (!GEP1 || !GEP2 || GEP1->getOperand(0) != GEP2->getOperand(0))
-    return false;
-
-  // Skip any common indices and track the GEP types.
-  unsigned Idx = 1;
-  for (; Idx != GEP1->getNumOperands() && Idx != GEP2->getNumOperands(); ++Idx)
-    if (GEP1->getOperand(Idx) != GEP2->getOperand(Idx))
-      break;
-
-  int64_t Offset1 = GetOffsetFromIndex(GEP1, Idx, VariableIdxFound, DL);
-  int64_t Offset2 = GetOffsetFromIndex(GEP2, Idx, VariableIdxFound, DL);
-  if (VariableIdxFound) return false;
-
-  Offset = Offset2-Offset1;
-  return true;
-}
 
 namespace {
 
@@ -419,12 +336,12 @@ Instruction *MemCpyOptPass::tryMergingIntoMemset(Instruction *StartInst,
         break;
 
       // Check to see if this store is to a constant offset from the start ptr.
-      int64_t Offset;
-      if (!IsPointerOffset(StartPtr, NextStore->getPointerOperand(), Offset,
-                           DL))
+      Optional<int64_t> Offset =
+          isPointerOffset(StartPtr, NextStore->getPointerOperand(), DL);
+      if (!Offset)
         break;
 
-      Ranges.addStore(Offset, NextStore);
+      Ranges.addStore(*Offset, NextStore);
     } else {
       MemSetInst *MSI = cast<MemSetInst>(BI);
 
@@ -433,11 +350,11 @@ Instruction *MemCpyOptPass::tryMergingIntoMemset(Instruction *StartInst,
         break;
 
       // Check to see if this store is to a constant offset from the start ptr.
-      int64_t Offset;
-      if (!IsPointerOffset(StartPtr, MSI->getDest(), Offset, DL))
+      Optional<int64_t> Offset = isPointerOffset(StartPtr, MSI->getDest(), DL);
+      if (!Offset)
         break;
 
-      Ranges.addMemSet(Offset, MSI);
+      Ranges.addMemSet(*Offset, MSI);
     }
   }
 
@@ -471,16 +388,12 @@ Instruction *MemCpyOptPass::tryMergingIntoMemset(Instruction *StartInst,
     StartPtr = Range.StartPtr;
 
     // Determine alignment
-    unsigned Alignment = Range.Alignment;
-    if (Alignment == 0) {
-      Type *EltType =
-        cast<PointerType>(StartPtr->getType())->getElementType();
-      Alignment = DL.getABITypeAlignment(EltType);
-    }
+    const Align Alignment = DL.getValueOrABITypeAlignment(
+        MaybeAlign(Range.Alignment),
+        cast<PointerType>(StartPtr->getType())->getElementType());
 
-    AMemSet =
-      Builder.CreateMemSet(StartPtr, ByteVal, Range.End-Range.Start, Alignment);
-
+    AMemSet = Builder.CreateMemSet(StartPtr, ByteVal, Range.End - Range.Start,
+                                   Alignment);
     LLVM_DEBUG(dbgs() << "Replace stores:\n"; for (Instruction *SI
                                                    : Range.TheStores) dbgs()
                                               << *SI << '\n';
@@ -500,25 +413,21 @@ Instruction *MemCpyOptPass::tryMergingIntoMemset(Instruction *StartInst,
   return AMemSet;
 }
 
-static unsigned findStoreAlignment(const DataLayout &DL, const StoreInst *SI) {
-  unsigned StoreAlign = SI->getAlignment();
-  if (!StoreAlign)
-    StoreAlign = DL.getABITypeAlignment(SI->getOperand(0)->getType());
-  return StoreAlign;
+static Align findStoreAlignment(const DataLayout &DL, const StoreInst *SI) {
+  return DL.getValueOrABITypeAlignment(MaybeAlign(SI->getAlignment()),
+                                       SI->getOperand(0)->getType());
 }
 
-static unsigned findLoadAlignment(const DataLayout &DL, const LoadInst *LI) {
-  unsigned LoadAlign = LI->getAlignment();
-  if (!LoadAlign)
-    LoadAlign = DL.getABITypeAlignment(LI->getType());
-  return LoadAlign;
+static Align findLoadAlignment(const DataLayout &DL, const LoadInst *LI) {
+  return DL.getValueOrABITypeAlignment(MaybeAlign(LI->getAlignment()),
+                                       LI->getType());
 }
 
-static unsigned findCommonAlignment(const DataLayout &DL, const StoreInst *SI,
-                                     const LoadInst *LI) {
-  unsigned StoreAlign = findStoreAlignment(DL, SI);
-  unsigned LoadAlign = findLoadAlignment(DL, LI);
-  return MinAlign(StoreAlign, LoadAlign);
+static Align findCommonAlignment(const DataLayout &DL, const StoreInst *SI,
+                                 const LoadInst *LI) {
+  Align StoreAlign = findStoreAlignment(DL, SI);
+  Align LoadAlign = findLoadAlignment(DL, LI);
+  return commonAlignment(StoreAlign, LoadAlign);
 }
 
 // This method try to lift a store instruction before position P.
@@ -733,7 +642,7 @@ bool MemCpyOptPass::processStore(StoreInst *SI, BasicBlock::iterator &BBI) {
             LI, SI->getPointerOperand()->stripPointerCasts(),
             LI->getPointerOperand()->stripPointerCasts(),
             DL.getTypeStoreSize(SI->getOperand(0)->getType()),
-            findCommonAlignment(DL, SI, LI), C);
+            findCommonAlignment(DL, SI, LI).value(), C);
         if (changed) {
           MD->removeInstruction(SI);
           SI->eraseFromParent();
@@ -766,12 +675,11 @@ bool MemCpyOptPass::processStore(StoreInst *SI, BasicBlock::iterator &BBI) {
     auto *T = V->getType();
     if (T->isAggregateType()) {
       uint64_t Size = DL.getTypeStoreSize(T);
-      unsigned Align = SI->getAlignment();
-      if (!Align)
-        Align = DL.getABITypeAlignment(T);
+      const Align MA =
+          DL.getValueOrABITypeAlignment(MaybeAlign(SI->getAlignment()), T);
       IRBuilder<> Builder(SI);
       auto *M =
-          Builder.CreateMemSet(SI->getPointerOperand(), ByteVal, Size, Align);
+          Builder.CreateMemSet(SI->getPointerOperand(), ByteVal, Size, MA);
 
       LLVM_DEBUG(dbgs() << "Promoting " << *SI << " to " << *M << "\n");
 
@@ -983,7 +891,7 @@ bool MemCpyOptPass::performCallSlotOptzn(Instruction *cpy, Value *cpyDest,
   // If the destination wasn't sufficiently aligned then increase its alignment.
   if (!isDestSufficientlyAligned) {
     assert(isa<AllocaInst>(cpyDest) && "Can only increase alloca alignment!");
-    cast<AllocaInst>(cpyDest)->setAlignment(srcAlign);
+    cast<AllocaInst>(cpyDest)->setAlignment(MaybeAlign(srcAlign));
   }
 
   // Drop any cached information about the call, because we may have changed
@@ -1066,12 +974,12 @@ bool MemCpyOptPass::processMemCpyMemCpyDependence(MemCpyInst *M,
   // example we could be moving from movaps -> movq on x86.
   IRBuilder<> Builder(M);
   if (UseMemMove)
-    Builder.CreateMemMove(M->getRawDest(), M->getDestAlignment(),
-                          MDep->getRawSource(), MDep->getSourceAlignment(),
+    Builder.CreateMemMove(M->getRawDest(), M->getDestAlign(),
+                          MDep->getRawSource(), MDep->getSourceAlign(),
                           M->getLength(), M->isVolatile());
   else
-    Builder.CreateMemCpy(M->getRawDest(), M->getDestAlignment(),
-                         MDep->getRawSource(), MDep->getSourceAlignment(),
+    Builder.CreateMemCpy(M->getRawDest(), M->getDestAlign(),
+                         MDep->getRawSource(), MDep->getSourceAlign(),
                          M->getLength(), M->isVolatile());
 
   // Remove the instruction we're replacing.
@@ -1141,7 +1049,7 @@ bool MemCpyOptPass::processMemSetMemCpyDependence(MemCpyInst *MemCpy,
   Builder.CreateMemSet(
       Builder.CreateGEP(Dest->getType()->getPointerElementType(), Dest,
                         SrcSize),
-      MemSet->getOperand(1), MemsetLen, Align);
+      MemSet->getOperand(1), MemsetLen, MaybeAlign(Align));
 
   MD->removeInstruction(MemSet);
   MemSet->eraseFromParent();
@@ -1209,8 +1117,8 @@ bool MemCpyOptPass::performMemCpyToMemSetOptzn(MemCpyInst *MemCpy,
   }
 
   IRBuilder<> Builder(MemCpy);
-  Builder.CreateMemSet(MemCpy->getRawDest(), MemSet->getOperand(1),
-                       CopySize, MemCpy->getDestAlignment());
+  Builder.CreateMemSet(MemCpy->getRawDest(), MemSet->getOperand(1), CopySize,
+                       MaybeAlign(MemCpy->getDestAlignment()));
   return true;
 }
 
@@ -1237,7 +1145,7 @@ bool MemCpyOptPass::processMemCpy(MemCpyInst *M) {
                                            M->getModule()->getDataLayout())) {
         IRBuilder<> Builder(M);
         Builder.CreateMemSet(M->getRawDest(), ByteVal, M->getLength(),
-                             M->getDestAlignment(), false);
+                             MaybeAlign(M->getDestAlignment()), false);
         MD->removeInstruction(M);
         M->eraseFromParent();
         ++NumCpyToSet;
@@ -1520,7 +1428,7 @@ bool MemCpyOptLegacyPass::runOnFunction(Function &F) {
     return false;
 
   auto *MD = &getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
-  auto *TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+  auto *TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
 
   auto LookupAliasAnalysis = [this]() -> AliasAnalysis & {
     return getAnalysis<AAResultsWrapperPass>().getAAResults();

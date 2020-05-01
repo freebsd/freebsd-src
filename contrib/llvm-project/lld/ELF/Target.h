@@ -32,7 +32,7 @@ public:
   virtual void writeGotPltHeader(uint8_t *buf) const {}
   virtual void writeGotHeader(uint8_t *buf) const {}
   virtual void writeGotPlt(uint8_t *buf, const Symbol &s) const {};
-  virtual void writeIgotPlt(uint8_t *buf, const Symbol &s) const;
+  virtual void writeIgotPlt(uint8_t *buf, const Symbol &s) const {}
   virtual int64_t getImplicitAddend(const uint8_t *buf, RelType type) const;
   virtual int getTlsGdRelaxSkip(RelType type) const { return 1; }
 
@@ -41,9 +41,14 @@ public:
   // they are called. This function writes that code.
   virtual void writePltHeader(uint8_t *buf) const {}
 
-  virtual void writePlt(uint8_t *buf, uint64_t gotEntryAddr,
-                        uint64_t pltEntryAddr, int32_t index,
-                        unsigned relOff) const {}
+  virtual void writePlt(uint8_t *buf, const Symbol &sym,
+                        uint64_t pltEntryAddr) const {}
+  virtual void writeIplt(uint8_t *buf, const Symbol &sym,
+                         uint64_t pltEntryAddr) const {
+    // All but PPC32 and PPC64 use the same format for .plt and .iplt entries.
+    writePlt(buf, sym, pltEntryAddr);
+  }
+  virtual void writeIBTPlt(uint8_t *buf, size_t numEntries) const {}
   virtual void addPltHeaderSymbols(InputSection &isec) const {}
   virtual void addPltSymbols(InputSection &isec, uint64_t off) const {}
 
@@ -58,7 +63,7 @@ public:
   // targeting S.
   virtual bool needsThunk(RelExpr expr, RelType relocType,
                           const InputFile *file, uint64_t branchAddr,
-                          const Symbol &s) const;
+                          const Symbol &s, int64_t a) const;
 
   // On systems with range extensions we place collections of Thunks at
   // regular spacings that enable the majority of branches reach the Thunks.
@@ -102,6 +107,7 @@ public:
   RelType tlsOffsetRel;
   unsigned pltEntrySize;
   unsigned pltHeaderSize;
+  unsigned ipltEntrySize;
 
   // At least on x86_64 positions 1 and 2 are used by the first plt entry
   // to support lazy loading.
@@ -131,8 +137,8 @@ public:
 
 protected:
   // On FreeBSD x86_64 the first page cannot be mmaped.
-  // On Linux that is controled by vm.mmap_min_addr. At least on some x86_64
-  // installs that is 65536, so the first 15 pages cannot be used.
+  // On Linux this is controlled by vm.mmap_min_addr. At least on some x86_64
+  // installs this is set to 65536, so the first 15 pages cannot be used.
   // Given that, the smallest value that can be used in here is 0x10000.
   uint64_t defaultImageBase = 0x10000;
 };

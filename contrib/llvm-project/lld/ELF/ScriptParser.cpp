@@ -37,9 +37,9 @@
 using namespace llvm;
 using namespace llvm::ELF;
 using namespace llvm::support::endian;
-using namespace lld;
-using namespace lld::elf;
 
+namespace lld {
+namespace elf {
 namespace {
 class ScriptParser final : ScriptLexer {
 public:
@@ -720,7 +720,7 @@ Expr ScriptParser::readAssert() {
 
   return [=] {
     if (!e().getValue())
-      error(msg);
+      errorOrWarn(msg);
     return script->getDot();
   };
 }
@@ -1268,7 +1268,7 @@ Expr ScriptParser::readPrimary() {
     return [=] { return cmd->size; };
   }
   if (tok == "SIZEOF_HEADERS")
-    return [=] { return elf::getHeaderSize(); };
+    return [=] { return getHeaderSize(); };
 
   // Tok is the dot.
   if (tok == ".")
@@ -1344,16 +1344,10 @@ void ScriptParser::readAnonymousDeclaration() {
   std::vector<SymbolVersion> locals;
   std::vector<SymbolVersion> globals;
   std::tie(locals, globals) = readSymbols();
-
-  for (SymbolVersion v : locals) {
-    if (v.name == "*")
-      config->defaultSymbolVersion = VER_NDX_LOCAL;
-    else
-      config->versionScriptLocals.push_back(v);
-  }
-
-  for (SymbolVersion v : globals)
-    config->versionScriptGlobals.push_back(v);
+  for (const SymbolVersion &pat : locals)
+    config->versionDefinitions[VER_NDX_LOCAL].patterns.push_back(pat);
+  for (const SymbolVersion &pat : globals)
+    config->versionDefinitions[VER_NDX_GLOBAL].patterns.push_back(pat);
 
   expect(";");
 }
@@ -1365,22 +1359,14 @@ void ScriptParser::readVersionDeclaration(StringRef verStr) {
   std::vector<SymbolVersion> locals;
   std::vector<SymbolVersion> globals;
   std::tie(locals, globals) = readSymbols();
-
-  for (SymbolVersion v : locals) {
-    if (v.name == "*")
-      config->defaultSymbolVersion = VER_NDX_LOCAL;
-    else
-      config->versionScriptLocals.push_back(v);
-  }
+  for (const SymbolVersion &pat : locals)
+    config->versionDefinitions[VER_NDX_LOCAL].patterns.push_back(pat);
 
   // Create a new version definition and add that to the global symbols.
   VersionDefinition ver;
   ver.name = verStr;
-  ver.globals = globals;
-
-  // User-defined version number starts from 2 because 0 and 1 are
-  // reserved for VER_NDX_LOCAL and VER_NDX_GLOBAL, respectively.
-  ver.id = config->versionDefinitions.size() + 2;
+  ver.patterns = globals;
+  ver.id = config->versionDefinitions.size();
   config->versionDefinitions.push_back(ver);
 
   // Each version may have a parent version. For example, "Ver2"
@@ -1525,18 +1511,19 @@ std::pair<uint32_t, uint32_t> ScriptParser::readMemoryAttributes() {
   return {flags, negFlags};
 }
 
-void elf::readLinkerScript(MemoryBufferRef mb) {
+void readLinkerScript(MemoryBufferRef mb) {
   ScriptParser(mb).readLinkerScript();
 }
 
-void elf::readVersionScript(MemoryBufferRef mb) {
+void readVersionScript(MemoryBufferRef mb) {
   ScriptParser(mb).readVersionScript();
 }
 
-void elf::readDynamicList(MemoryBufferRef mb) {
-  ScriptParser(mb).readDynamicList();
-}
+void readDynamicList(MemoryBufferRef mb) { ScriptParser(mb).readDynamicList(); }
 
-void elf::readDefsym(StringRef name, MemoryBufferRef mb) {
+void readDefsym(StringRef name, MemoryBufferRef mb) {
   ScriptParser(mb).readDefsym(name);
 }
+
+} // namespace elf
+} // namespace lld

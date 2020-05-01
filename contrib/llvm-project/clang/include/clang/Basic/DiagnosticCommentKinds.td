@@ -146,12 +146,18 @@ def warn_doc_returns_attached_to_a_void_function : Warning<
 // \deprecated command
 
 def warn_doc_deprecated_not_sync : Warning<
-  "declaration is marked with '\\deprecated' command but does not have "
-  "a deprecation attribute">,
+  "declaration is marked with '%select{\\|@}0deprecated' command but does "
+  "not have a deprecation attribute">,
   InGroup<DocumentationDeprecatedSync>, DefaultIgnore;
 
 def note_add_deprecation_attr : Note<
   "add a deprecation attribute to the declaration to silence this warning">;
+
+// inline contents commands
+
+def warn_doc_inline_contents_no_argument : Warning<
+  "'%select{\\|@}0%1' command does not have a valid word argument">,
+  InGroup<Documentation>, DefaultIgnore;
 
 // verbatim block commands
 

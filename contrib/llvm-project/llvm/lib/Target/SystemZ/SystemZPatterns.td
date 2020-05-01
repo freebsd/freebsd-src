@@ -100,12 +100,12 @@ multiclass CondStores64<Instruction insn, Instruction insninv,
                         SDPatternOperator store, SDPatternOperator load,
                         AddressingMode mode> {
   def : Pat<(store (z_select_ccmask GR64:$new, (load mode:$addr),
-                                    imm32zx4:$valid, imm32zx4:$cc),
+                                    imm32zx4_timm:$valid, imm32zx4_timm:$cc),
                    mode:$addr),
             (insn (EXTRACT_SUBREG GR64:$new, subreg_l32), mode:$addr,
                   imm32zx4:$valid, imm32zx4:$cc)>;
   def : Pat<(store (z_select_ccmask (load mode:$addr), GR64:$new,
-                                    imm32zx4:$valid, imm32zx4:$cc),
+                                    imm32zx4_timm:$valid, imm32zx4_timm:$cc),
                    mode:$addr),
             (insninv (EXTRACT_SUBREG GR64:$new, subreg_l32), mode:$addr,
                      imm32zx4:$valid, imm32zx4:$cc)>;
@@ -148,9 +148,9 @@ multiclass BlockLoadStore<SDPatternOperator load, ValueType vt,
 // registers in CLS against zero.  The instruction has separate R1 and R2
 // operands, but they must be the same when the instruction is used like this.
 multiclass CompareZeroFP<Instruction insn, RegisterOperand cls> {
-  def : Pat<(z_fcmp cls:$reg, (fpimm0)), (insn cls:$reg, cls:$reg)>;
+  def : Pat<(z_any_fcmp cls:$reg, (fpimm0)), (insn cls:$reg, cls:$reg)>;
   // The sign of the zero makes no difference.
-  def : Pat<(z_fcmp cls:$reg, (fpimmneg0)), (insn cls:$reg, cls:$reg)>;
+  def : Pat<(z_any_fcmp cls:$reg, (fpimmneg0)), (insn cls:$reg, cls:$reg)>;
 }
 
 // Use INSN for performing binary operation OPERATION of type VT

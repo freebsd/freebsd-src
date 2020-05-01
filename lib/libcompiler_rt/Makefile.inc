@@ -80,11 +80,11 @@ SRCF+=		mulodi4
 SRCF+=		mulosi4
 SRCF+=		muloti4
 SRCF+=		mulsc3
+SRCF+=		multc3
 SRCF+=		multi3
 SRCF+=		mulvdi3
 SRCF+=		mulvsi3
 SRCF+=		mulvti3
-SRCF+=		multc3
 SRCF+=		mulxc3
 SRCF+=		negdf2
 SRCF+=		negdi2
@@ -141,6 +141,14 @@ SRCF+=		floatundixf
 # __cpu_model support, only used on x86
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCF+=		cpu_model
+.endif
+
+# The fp_mode implementation for amd64 and i386 is shared, while other
+# architectures use the regular approach.
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+SRCS+=		i386/fp_mode.c
+.else
+SRCF+=		fp_mode
 .endif
 
 #
@@ -205,13 +213,11 @@ CFLAGS+=	-DEMIT_SYNC_ATOMICS
 SRCF+=		stdatomic
 .endif
 
-
 .if "${COMPILER_TYPE}" == "clang" && \
     (${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpcspe")
 SRCS+=          atomic.c
 CFLAGS.atomic.c+=      -Wno-atomic-alignment
 .endif
-
 
 .for file in ${SRCF}
 .if ${MACHINE_ARCH:Marmv[67]*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "") \

@@ -68,6 +68,9 @@
 #ifndef ANNOTATION
 #define ANNOTATION(X) TOK(annot_ ## X)
 #endif
+#ifndef PRAGMA_ANNOTATION
+#define PRAGMA_ANNOTATION(X) ANNOTATION(X)
+#endif
 
 //===----------------------------------------------------------------------===//
 // Preprocessor keywords.
@@ -370,7 +373,7 @@ CXX11_KEYWORD(nullptr               , 0)
 CXX11_KEYWORD(static_assert         , KEYMSCOMPAT)
 CXX11_KEYWORD(thread_local          , 0)
 
-// C++2a / concepts TS keywords
+// C++2a keywords
 CONCEPTS_KEYWORD(concept)
 CONCEPTS_KEYWORD(requires)
 
@@ -386,6 +389,7 @@ MODULES_KEYWORD(import)
 // C++20 keywords.
 CXX2A_KEYWORD(char8_t               , CHAR8SUPPORT)
 CXX2A_KEYWORD(consteval             , 0)
+CXX2A_KEYWORD(constinit             , 0)
 
 // C11 Extension
 KEYWORD(_Float16                    , KEYALL)
@@ -446,16 +450,18 @@ TYPE_TRAIT_N(__is_nothrow_constructible, IsNothrowConstructible, KEYCXX)
 // MSVC14.0 / VS2015 Type Traits
 TYPE_TRAIT_2(__is_assignable, IsAssignable, KEYCXX)
 
+// MSVC Type Traits of unknown vintage
+TYPE_TRAIT_1(__has_nothrow_move_assign, HasNothrowMoveAssign, KEYCXX)
+TYPE_TRAIT_1(__has_trivial_move_assign, HasTrivialMoveAssign, KEYCXX)
+TYPE_TRAIT_1(__has_trivial_move_constructor, HasTrivialMoveConstructor, KEYCXX)
+
 // GNU and MS Type Traits
 TYPE_TRAIT_1(__has_nothrow_assign, HasNothrowAssign, KEYCXX)
-TYPE_TRAIT_1(__has_nothrow_move_assign, HasNothrowMoveAssign, KEYCXX)
 TYPE_TRAIT_1(__has_nothrow_copy, HasNothrowCopy, KEYCXX)
 TYPE_TRAIT_1(__has_nothrow_constructor, HasNothrowConstructor, KEYCXX)
 TYPE_TRAIT_1(__has_trivial_assign, HasTrivialAssign, KEYCXX)
-TYPE_TRAIT_1(__has_trivial_move_assign, HasTrivialMoveAssign, KEYCXX)
 TYPE_TRAIT_1(__has_trivial_copy, HasTrivialCopy, KEYCXX)
 TYPE_TRAIT_1(__has_trivial_constructor, HasTrivialDefaultConstructor, KEYCXX)
-TYPE_TRAIT_1(__has_trivial_move_constructor, HasTrivialMoveConstructor, KEYCXX)
 TYPE_TRAIT_1(__has_trivial_destructor, HasTrivialDestructor, KEYCXX)
 TYPE_TRAIT_1(__has_virtual_destructor, HasVirtualDestructor, KEYCXX)
 TYPE_TRAIT_1(__is_abstract, IsAbstract, KEYCXX)
@@ -472,17 +478,18 @@ TYPE_TRAIT_1(__is_literal, IsLiteral, KEYCXX)
 ALIAS("__is_literal_type", __is_literal, KEYCXX)
 TYPE_TRAIT_1(__is_pod, IsPOD, KEYCXX)
 TYPE_TRAIT_1(__is_polymorphic, IsPolymorphic, KEYCXX)
+TYPE_TRAIT_1(__is_standard_layout, IsStandardLayout, KEYCXX)
 TYPE_TRAIT_1(__is_trivial, IsTrivial, KEYCXX)
+TYPE_TRAIT_2(__is_trivially_assignable, IsTriviallyAssignable, KEYCXX)
+TYPE_TRAIT_N(__is_trivially_constructible, IsTriviallyConstructible, KEYCXX)
+TYPE_TRAIT_1(__is_trivially_copyable, IsTriviallyCopyable, KEYCXX)
 TYPE_TRAIT_1(__is_union, IsUnion, KEYCXX)
 TYPE_TRAIT_1(__has_unique_object_representations,
              HasUniqueObjectRepresentations, KEYCXX)
+KEYWORD(__underlying_type           , KEYCXX)
 
 // Clang-only C++ Type Traits
-TYPE_TRAIT_N(__is_trivially_constructible, IsTriviallyConstructible, KEYCXX)
-TYPE_TRAIT_1(__is_trivially_copyable, IsTriviallyCopyable, KEYCXX)
-TYPE_TRAIT_2(__is_trivially_assignable, IsTriviallyAssignable, KEYCXX)
 TYPE_TRAIT_2(__reference_binds_to_temporary, ReferenceBindsToTemporary, KEYCXX)
-KEYWORD(__underlying_type           , KEYCXX)
 
 // Embarcadero Expression Traits
 KEYWORD(__is_lvalue_expr            , KEYCXX)
@@ -509,7 +516,6 @@ TYPE_TRAIT_1(__is_member_function_pointer, IsMemberFunctionPointer, KEYCXX)
 TYPE_TRAIT_1(__is_member_pointer, IsMemberPointer, KEYCXX)
 TYPE_TRAIT_1(__is_const, IsConst, KEYCXX)
 TYPE_TRAIT_1(__is_volatile, IsVolatile, KEYCXX)
-TYPE_TRAIT_1(__is_standard_layout, IsStandardLayout, KEYCXX)
 TYPE_TRAIT_1(__is_signed, IsSigned, KEYCXX)
 TYPE_TRAIT_1(__is_unsigned, IsUnsigned, KEYCXX)
 
@@ -518,6 +524,8 @@ TYPE_TRAIT_2(__is_same, IsSame, KEYCXX)
 TYPE_TRAIT_2(__is_convertible, IsConvertible, KEYCXX)
 KEYWORD(__array_rank                , KEYCXX)
 KEYWORD(__array_extent              , KEYCXX)
+// Name for GCC 6 compatibility.
+ALIAS("__is_same_as", __is_same, KEYCXX)
 
 // Apple Extension.
 KEYWORD(__private_extern__          , KEYALL)
@@ -721,7 +729,14 @@ ANNOTATION(typename)     // annotation for a C typedef name, a C++ (possibly
                          // template-id that names a type ("std::vector<int>")
 ANNOTATION(template_id)  // annotation for a C++ template-id that names a
                          // function template specialization (not a type),
-                         // e.g., "std::swap<int>"
+                         // e.g., "std::swap<int>", or a type-constraint (which
+                         // might not have explicit template arguments),
+                         // e.g. "C", "C<int>".
+ANNOTATION(non_type)     // annotation for a single non-type declaration
+ANNOTATION(non_type_undeclared) // annotation for an undeclared identifier that
+                                // was assumed to be an ADL-only function name
+ANNOTATION(non_type_dependent)  // annotation for an assumed non-type member of
+                                // a dependent base class
 ANNOTATION(primary_expr) // annotation for a primary expression
 ANNOTATION(decltype)     // annotation for a decltype expression,
                          // e.g., "decltype(foo.bar())"
@@ -729,103 +744,103 @@ ANNOTATION(decltype)     // annotation for a decltype expression,
 // Annotation for #pragma unused(...)
 // For each argument inside the parentheses the pragma handler will produce
 // one 'pragma_unused' annotation token followed by the argument token.
-ANNOTATION(pragma_unused)
+PRAGMA_ANNOTATION(pragma_unused)
 
 // Annotation for #pragma GCC visibility...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_vis)
+PRAGMA_ANNOTATION(pragma_vis)
 
 // Annotation for #pragma pack...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_pack)
+PRAGMA_ANNOTATION(pragma_pack)
 
 // Annotation for #pragma clang __debug parser_crash...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_parser_crash)
+PRAGMA_ANNOTATION(pragma_parser_crash)
 
 // Annotation for #pragma clang __debug captured...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_captured)
+PRAGMA_ANNOTATION(pragma_captured)
 
 // Annotation for #pragma clang __debug dump...
 // The lexer produces these so that the parser and semantic analysis can
 // look up and dump the operand.
-ANNOTATION(pragma_dump)
+PRAGMA_ANNOTATION(pragma_dump)
 
 // Annotation for #pragma ms_struct...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_msstruct)
+PRAGMA_ANNOTATION(pragma_msstruct)
 
 // Annotation for #pragma align...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_align)
+PRAGMA_ANNOTATION(pragma_align)
 
 // Annotation for #pragma weak id
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_weak)
+PRAGMA_ANNOTATION(pragma_weak)
 
 // Annotation for #pragma weak id = id
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_weakalias)
+PRAGMA_ANNOTATION(pragma_weakalias)
 
 // Annotation for #pragma redefine_extname...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_redefine_extname)
+PRAGMA_ANNOTATION(pragma_redefine_extname)
 
 // Annotation for #pragma STDC FP_CONTRACT...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_fp_contract)
+PRAGMA_ANNOTATION(pragma_fp_contract)
 
 // Annotation for #pragma STDC FENV_ACCESS
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_fenv_access)
+PRAGMA_ANNOTATION(pragma_fenv_access)
 
 // Annotation for #pragma pointers_to_members...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_ms_pointers_to_members)
+PRAGMA_ANNOTATION(pragma_ms_pointers_to_members)
 
 // Annotation for #pragma vtordisp...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_ms_vtordisp)
+PRAGMA_ANNOTATION(pragma_ms_vtordisp)
 
 // Annotation for all microsoft #pragmas...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_ms_pragma)
+PRAGMA_ANNOTATION(pragma_ms_pragma)
 
 // Annotation for #pragma OPENCL EXTENSION...
 // The lexer produces these so that they only take effect when the parser
 // handles them.
-ANNOTATION(pragma_opencl_extension)
+PRAGMA_ANNOTATION(pragma_opencl_extension)
 
 // Annotations for OpenMP pragma directives - #pragma omp ...
 // The lexer produces these so that they only take effect when the parser
 // handles #pragma omp ... directives.
-ANNOTATION(pragma_openmp)
-ANNOTATION(pragma_openmp_end)
+PRAGMA_ANNOTATION(pragma_openmp)
+PRAGMA_ANNOTATION(pragma_openmp_end)
 
 // Annotations for loop pragma directives #pragma clang loop ...
 // The lexer produces these so that they only take effect when the parser
 // handles #pragma loop ... directives.
-ANNOTATION(pragma_loop_hint)
+PRAGMA_ANNOTATION(pragma_loop_hint)
 
-ANNOTATION(pragma_fp)
+PRAGMA_ANNOTATION(pragma_fp)
 
 // Annotation for the attribute pragma directives - #pragma clang attribute ...
-ANNOTATION(pragma_attribute)
+PRAGMA_ANNOTATION(pragma_attribute)
 
 // Annotations for module import translated from #include etc.
 ANNOTATION(module_include)
@@ -836,6 +851,7 @@ ANNOTATION(module_end)
 // into the name of a header unit.
 ANNOTATION(header_unit)
 
+#undef PRAGMA_ANNOTATION
 #undef ANNOTATION
 #undef TESTING_KEYWORD
 #undef OBJC_AT_KEYWORD

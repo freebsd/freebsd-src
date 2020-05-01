@@ -41,6 +41,14 @@ class Triple;
 
 namespace AMDGPU {
 
+struct GcnBufferFormatInfo {
+  unsigned Format;
+  unsigned BitsPerComp;
+  unsigned NumComponents;
+  unsigned NumFormat;
+  unsigned DataFormat;
+};
+
 #define GET_MIMGBaseOpcode_DECL
 #define GET_MIMGDim_DECL
 #define GET_MIMGEncoding_DECL
@@ -94,7 +102,7 @@ unsigned getMinWavesPerEU(const MCSubtargetInfo *STI);
 
 /// \returns Maximum number of waves per execution unit for given subtarget \p
 /// STI without any kind of limitation.
-unsigned getMaxWavesPerEU();
+unsigned getMaxWavesPerEU(const MCSubtargetInfo *STI);
 
 /// \returns Maximum number of waves per execution unit for given subtarget \p
 /// STI and limited by given \p FlatWorkGroupSize.
@@ -264,13 +272,31 @@ LLVM_READONLY
 const MIMGInfo *getMIMGInfo(unsigned Opc);
 
 LLVM_READONLY
+int getMTBUFBaseOpcode(unsigned Opc);
+
+LLVM_READONLY
+int getMTBUFOpcode(unsigned BaseOpc, unsigned Elements);
+
+LLVM_READONLY
+int getMTBUFElements(unsigned Opc);
+
+LLVM_READONLY
+bool getMTBUFHasVAddr(unsigned Opc);
+
+LLVM_READONLY
+bool getMTBUFHasSrsrc(unsigned Opc);
+
+LLVM_READONLY
+bool getMTBUFHasSoffset(unsigned Opc);
+
+LLVM_READONLY
 int getMUBUFBaseOpcode(unsigned Opc);
 
 LLVM_READONLY
-int getMUBUFOpcode(unsigned BaseOpc, unsigned Dwords);
+int getMUBUFOpcode(unsigned BaseOpc, unsigned Elements);
 
 LLVM_READONLY
-int getMUBUFDwords(unsigned Opc);
+int getMUBUFElements(unsigned Opc);
 
 LLVM_READONLY
 bool getMUBUFHasVAddr(unsigned Opc);
@@ -280,6 +306,15 @@ bool getMUBUFHasSrsrc(unsigned Opc);
 
 LLVM_READONLY
 bool getMUBUFHasSoffset(unsigned Opc);
+
+LLVM_READONLY
+const GcnBufferFormatInfo *getGcnBufferFormatInfo(uint8_t BitsPerComp,
+                                                  uint8_t NumComponents,
+                                                  uint8_t NumFormat,
+                                                  const MCSubtargetInfo &STI);
+LLVM_READONLY
+const GcnBufferFormatInfo *getGcnBufferFormatInfo(uint8_t Format,
+                                                  const MCSubtargetInfo &STI);
 
 LLVM_READONLY
 int getMCOpcode(uint16_t Opcode, unsigned Gen);
@@ -628,7 +663,6 @@ bool splitMUBUFOffset(uint32_t Imm, uint32_t &SOffset, uint32_t &ImmOffset,
 /// \returns true if the intrinsic is divergent
 bool isIntrinsicSourceOfDivergence(unsigned IntrID);
 
-
 // Track defaults for fields in the MODE registser.
 struct SIModeRegisterDefaults {
   /// Floating point opcodes that support exception flag gathering quiet and
@@ -641,29 +675,60 @@ struct SIModeRegisterDefaults {
   /// clamp NaN to zero; otherwise, pass NaN through.
   bool DX10Clamp : 1;
 
-  // TODO: FP mode fields
+  /// If this is set, neither input or output denormals are flushed for most f32
+  /// instructions.
+  ///
+  /// TODO: Split into separate input and output fields if necessary like the
+  /// control bits really provide?
+  bool FP32Denormals : 1;
+
+  /// If this is set, neither input or output denormals are flushed for both f64
+  /// and f16/v2f16 instructions.
+  bool FP64FP16Denormals : 1;
 
   SIModeRegisterDefaults() :
     IEEE(true),
-    DX10Clamp(true) {}
+    DX10Clamp(true),
+    FP32Denormals(true),
+    FP64FP16Denormals(true) {}
 
-  SIModeRegisterDefaults(const Function &F);
+  // FIXME: Should not depend on the subtarget
+  SIModeRegisterDefaults(const Function &F, const GCNSubtarget &ST);
 
   static SIModeRegisterDefaults getDefaultForCallingConv(CallingConv::ID CC) {
+    const bool IsCompute = AMDGPU::isCompute(CC);
+
     SIModeRegisterDefaults Mode;
     Mode.DX10Clamp = true;
-    Mode.IEEE = AMDGPU::isCompute(CC);
+    Mode.IEEE = IsCompute;
+    Mode.FP32Denormals = false; // FIXME: Should be on by default.
+    Mode.FP64FP16Denormals = true;
     return Mode;
   }
 
   bool operator ==(const SIModeRegisterDefaults Other) const {
-    return IEEE == Other.IEEE && DX10Clamp == Other.DX10Clamp;
+    return IEEE == Other.IEEE && DX10Clamp == Other.DX10Clamp &&
+           FP32Denormals == Other.FP32Denormals &&
+           FP64FP16Denormals == Other.FP64FP16Denormals;
+  }
+
+  /// Returns true if a flag is compatible if it's enabled in the callee, but
+  /// disabled in the caller.
+  static bool oneWayCompatible(bool CallerMode, bool CalleeMode) {
+    return CallerMode == CalleeMode || (CallerMode && !CalleeMode);
   }
 
   // FIXME: Inlining should be OK for dx10-clamp, since the caller's mode should
   // be able to override.
   bool isInlineCompatible(SIModeRegisterDefaults CalleeMode) const {
-    return *this == CalleeMode;
+    if (DX10Clamp != CalleeMode.DX10Clamp)
+      return false;
+    if (IEEE != CalleeMode.IEEE)
+      return false;
+
+    // Allow inlining denormals enabled into denormals flushed functions.
+    return oneWayCompatible(FP64FP16Denormals, CalleeMode.FP64FP16Denormals) &&
+           oneWayCompatible(FP32Denormals, CalleeMode.FP32Denormals);
   }
 };
 

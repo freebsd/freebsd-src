@@ -37,6 +37,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/Casting.h"
@@ -157,7 +158,10 @@ public:
   }
 
   bool runOnModule(Module &M) override {
-    return InstrProf.run(M, getAnalysis<TargetLibraryInfoWrapperPass>().getTLI());
+    auto GetTLI = [this](Function &F) -> TargetLibraryInfo & {
+      return this->getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
+    };
+    return InstrProf.run(M, GetTLI);
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -370,8 +374,12 @@ private:
 } // end anonymous namespace
 
 PreservedAnalyses InstrProfiling::run(Module &M, ModuleAnalysisManager &AM) {
-  auto &TLI = AM.getResult<TargetLibraryAnalysis>(M);
-  if (!run(M, TLI))
+  FunctionAnalysisManager &FAM =
+      AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
+  auto GetTLI = [&FAM](Function &F) -> TargetLibraryInfo & {
+    return FAM.getResult<TargetLibraryAnalysis>(F);
+  };
+  if (!run(M, GetTLI))
     return PreservedAnalyses::all();
 
   return PreservedAnalyses::none();
@@ -441,7 +449,7 @@ void InstrProfiling::promoteCounterLoadStores(Function *F) {
   std::unique_ptr<BlockFrequencyInfo> BFI;
   if (Options.UseBFIInPromotion) {
     std::unique_ptr<BranchProbabilityInfo> BPI;
-    BPI.reset(new BranchProbabilityInfo(*F, LI, TLI));
+    BPI.reset(new BranchProbabilityInfo(*F, LI, &GetTLI(*F)));
     BFI.reset(new BlockFrequencyInfo(*F, *BPI, LI));
   }
 
@@ -482,9 +490,10 @@ static bool containsProfilingIntrinsics(Module &M) {
   return false;
 }
 
-bool InstrProfiling::run(Module &M, const TargetLibraryInfo &TLI) {
+bool InstrProfiling::run(
+    Module &M, std::function<const TargetLibraryInfo &(Function &F)> GetTLI) {
   this->M = &M;
-  this->TLI = &TLI;
+  this->GetTLI = std::move(GetTLI);
   NamesVar = nullptr;
   NamesSize = 0;
   ProfileDataMap.clear();
@@ -601,6 +610,7 @@ void InstrProfiling::lowerValueProfileInst(InstrProfValueProfileInst *Ind) {
   bool IsRange = (Ind->getValueKind()->getZExtValue() ==
                   llvm::InstrProfValueKind::IPVK_MemOPSize);
   CallInst *Call = nullptr;
+  auto *TLI = &GetTLI(*Ind->getFunction());
   if (!IsRange) {
     Value *Args[3] = {Ind->getTargetValue(),
                       Builder.CreateBitCast(DataVar, Builder.getInt8PtrTy()),
@@ -749,7 +759,6 @@ InstrProfiling::getOrCreateRegionCounters(InstrProfIncrementInst *Inc) {
   // of the parent function, that will result in relocations against discarded
   // sections.
   bool NeedComdat = needsComdatForCounter(*Fn, *M);
-  Comdat *Cmdt = nullptr; // Comdat group.
   if (NeedComdat) {
     if (TT.isOSBinFormatCOFF()) {
       // For COFF, put the counters, data, and values each into their own
@@ -758,14 +767,11 @@ InstrProfiling::getOrCreateRegionCounters(InstrProfIncrementInst *Inc) {
       // with the same name marked IMAGE_COMDAT_SELECT_ASSOCIATIVE.
       Linkage = GlobalValue::LinkOnceODRLinkage;
       Visibility = GlobalValue::HiddenVisibility;
-    } else {
-      // Otherwise, create one comdat group for everything.
-      Cmdt = M->getOrInsertComdat(getVarName(Inc, getInstrProfComdatPrefix()));
     }
   }
   auto MaybeSetComdat = [=](GlobalVariable *GV) {
     if (NeedComdat)
-      GV->setComdat(Cmdt ? Cmdt : M->getOrInsertComdat(GV->getName()));
+      GV->setComdat(M->getOrInsertComdat(GV->getName()));
   };
 
   uint64_t NumCounters = Inc->getNumCounters()->getZExtValue();
@@ -780,7 +786,7 @@ InstrProfiling::getOrCreateRegionCounters(InstrProfIncrementInst *Inc) {
   CounterPtr->setVisibility(Visibility);
   CounterPtr->setSection(
       getInstrProfSectionName(IPSK_cnts, TT.getObjectFormat()));
-  CounterPtr->setAlignment(8);
+  CounterPtr->setAlignment(Align(8));
   MaybeSetComdat(CounterPtr);
   CounterPtr->setLinkage(Linkage);
 
@@ -802,7 +808,7 @@ InstrProfiling::getOrCreateRegionCounters(InstrProfIncrementInst *Inc) {
       ValuesVar->setVisibility(Visibility);
       ValuesVar->setSection(
           getInstrProfSectionName(IPSK_vals, TT.getObjectFormat()));
-      ValuesVar->setAlignment(8);
+      ValuesVar->setAlignment(Align(8));
       MaybeSetComdat(ValuesVar);
       ValuesPtrExpr =
           ConstantExpr::getBitCast(ValuesVar, Type::getInt8PtrTy(Ctx));
@@ -835,7 +841,7 @@ InstrProfiling::getOrCreateRegionCounters(InstrProfIncrementInst *Inc) {
                                   getVarName(Inc, getInstrProfDataVarPrefix()));
   Data->setVisibility(Visibility);
   Data->setSection(getInstrProfSectionName(IPSK_data, TT.getObjectFormat()));
-  Data->setAlignment(INSTR_PROF_DATA_ALIGNMENT);
+  Data->setAlignment(Align(INSTR_PROF_DATA_ALIGNMENT));
   MaybeSetComdat(Data);
   Data->setLinkage(Linkage);
 
@@ -926,7 +932,7 @@ void InstrProfiling::emitNameData() {
   // On COFF, it's important to reduce the alignment down to 1 to prevent the
   // linker from inserting padding before the start of the names section or
   // between names entries.
-  NamesVar->setAlignment(1);
+  NamesVar->setAlignment(Align::None());
   UsedVars.push_back(NamesVar);
 
   for (auto *NamePtr : ReferencedNames)

@@ -177,7 +177,7 @@ def LEAX_ADDri : F3_2<2, 0b000000,
 
 def : Pat<(SPcmpicc i64:$a, i64:$b), (CMPrr $a, $b)>;
 def : Pat<(SPcmpicc i64:$a, (i64 simm13:$b)), (CMPri $a, (as_i32imm $b))>;
-def : Pat<(ctpop i64:$src), (POPCrr $src)>;
+def : Pat<(i64 (ctpop i64:$src)), (POPCrr $src)>;
 
 } // Predicates = [Is64Bit]
 
@@ -496,8 +496,6 @@ let Predicates = [Is64Bit], Constraints = "$swap = $rd", asi = 0b10000000 in {
 } // Predicates = [Is64Bit], Constraints = ...
 
 let Predicates = [Is64Bit] in {
-
-def : Pat<(atomic_fence imm, imm), (MEMBARi 0xf)>;
 
 // atomic_load_64 addr -> load addr
 def : Pat<(i64 (atomic_load_64 ADDRrr:$src)), (LDXrr ADDRrr:$src)>;

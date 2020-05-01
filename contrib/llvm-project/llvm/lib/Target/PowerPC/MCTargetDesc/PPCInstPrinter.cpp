@@ -64,8 +64,34 @@ void PPCInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   OS << RegName;
 }
 
-void PPCInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                               StringRef Annot, const MCSubtargetInfo &STI) {
+void PPCInstPrinter::printInst(const MCInst *MI, uint64_t Address,
+                               StringRef Annot, const MCSubtargetInfo &STI,
+                               raw_ostream &O) {
+  // Customize printing of the addis instruction on AIX. When an operand is a
+  // symbol reference, the instruction syntax is changed to look like a load
+  // operation, i.e:
+  //     Transform:  addis $rD, $rA, $src --> addis $rD, $src($rA).
+  if (TT.isOSAIX() &&
+      (MI->getOpcode() == PPC::ADDIS8 || MI->getOpcode() == PPC::ADDIS) &&
+      MI->getOperand(2).isExpr()) {
+    assert((MI->getOperand(0).isReg() && MI->getOperand(1).isReg()) &&
+           "The first and the second operand of an addis instruction"
+           " should be registers.");
+
+    assert(isa<MCSymbolRefExpr>(MI->getOperand(2).getExpr()) &&
+           "The third operand of an addis instruction should be a symbol "
+           "reference expression if it is an expression at all.");
+
+    O << "\taddis ";
+    printOperand(MI, 0, O);
+    O << ", ";
+    printOperand(MI, 2, O);
+    O << "(";
+    printOperand(MI, 1, O);
+    O << ")";
+    return;
+  }
+
   // Check for slwi/srwi mnemonics.
   if (MI->getOpcode() == PPC::RLWINM) {
     unsigned char SH = MI->getOperand(2).getImm();
@@ -168,10 +194,9 @@ void PPCInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
   }
 
   if (!printAliasInstr(MI, O))
-    printInstruction(MI, O);
+    printInstruction(MI, Address, O);
   printAnnotation(O, Annot);
 }
-
 
 void PPCInstPrinter::printPredicateOperand(const MCInst *MI, unsigned OpNo,
                                            raw_ostream &O,

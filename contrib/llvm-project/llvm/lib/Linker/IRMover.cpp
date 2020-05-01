@@ -398,7 +398,7 @@ class IRLinker {
   /// due to the use of Value handles which the Linker doesn't actually need,
   /// but this allows us to reuse the ValueMapper code.
   ValueToValueMapTy ValueMap;
-  ValueToValueMapTy AliasValueMap;
+  ValueToValueMapTy IndirectSymbolValueMap;
 
   DenseSet<GlobalValue *> ValuesToLink;
   std::vector<GlobalValue *> Worklist;
@@ -437,7 +437,7 @@ class IRLinker {
 
   /// Entry point for mapping values and alternate context for mapping aliases.
   ValueMapper Mapper;
-  unsigned AliasMCID;
+  unsigned IndirectSymbolMCID;
 
   /// Handles cloning of a global values from the source module into
   /// the destination module, including setting the attributes and visibility.
@@ -480,13 +480,15 @@ class IRLinker {
   ///
   /// Note this code may call the client-provided \p AddLazyFor.
   bool shouldLink(GlobalValue *DGV, GlobalValue &SGV);
-  Expected<Constant *> linkGlobalValueProto(GlobalValue *GV, bool ForAlias);
+  Expected<Constant *> linkGlobalValueProto(GlobalValue *GV,
+                                            bool ForIndirectSymbol);
 
   Error linkModuleFlagsMetadata();
 
   void linkGlobalVariable(GlobalVariable &Dst, GlobalVariable &Src);
   Error linkFunctionBody(Function &Dst, Function &Src);
-  void linkAliasBody(GlobalAlias &Dst, GlobalAlias &Src);
+  void linkIndirectSymbolBody(GlobalIndirectSymbol &Dst,
+                              GlobalIndirectSymbol &Src);
   Error linkGlobalValueBody(GlobalValue &Dst, GlobalValue &Src);
 
   /// Replace all types in the source AttributeList with the
@@ -497,7 +499,7 @@ class IRLinker {
   /// into the destination module.
   GlobalVariable *copyGlobalVariableProto(const GlobalVariable *SGVar);
   Function *copyFunctionProto(const Function *SF);
-  GlobalValue *copyGlobalAliasProto(const GlobalAlias *SGA);
+  GlobalValue *copyGlobalIndirectSymbolProto(const GlobalIndirectSymbol *SGIS);
 
   /// Perform "replace all uses with" operations. These work items need to be
   /// performed as part of materialization, but we postpone them to happen after
@@ -524,8 +526,8 @@ public:
         SharedMDs(SharedMDs), IsPerformingImport(IsPerformingImport),
         Mapper(ValueMap, RF_MoveDistinctMDs | RF_IgnoreMissingLocals, &TypeMap,
                &GValMaterializer),
-        AliasMCID(Mapper.registerAlternateMappingContext(AliasValueMap,
-                                                         &LValMaterializer)) {
+        IndirectSymbolMCID(Mapper.registerAlternateMappingContext(
+            IndirectSymbolValueMap, &LValMaterializer)) {
     ValueMap.getMDMap() = std::move(SharedMDs);
     for (GlobalValue *GV : ValuesToLink)
       maybeAdd(GV);
@@ -535,7 +537,7 @@ public:
   ~IRLinker() { SharedMDs = std::move(*ValueMap.getMDMap()); }
 
   Error run();
-  Value *materialize(Value *V, bool ForAlias);
+  Value *materialize(Value *V, bool ForIndirectSymbol);
 };
 }
 
@@ -568,12 +570,12 @@ Value *LocalValueMaterializer::materialize(Value *SGV) {
   return TheIRLinker.materialize(SGV, true);
 }
 
-Value *IRLinker::materialize(Value *V, bool ForAlias) {
+Value *IRLinker::materialize(Value *V, bool ForIndirectSymbol) {
   auto *SGV = dyn_cast<GlobalValue>(V);
   if (!SGV)
     return nullptr;
 
-  Expected<Constant *> NewProto = linkGlobalValueProto(SGV, ForAlias);
+  Expected<Constant *> NewProto = linkGlobalValueProto(SGV, ForIndirectSymbol);
   if (!NewProto) {
     setError(NewProto.takeError());
     return nullptr;
@@ -593,23 +595,23 @@ Value *IRLinker::materialize(Value *V, bool ForAlias) {
     if (V->hasInitializer() || V->hasAppendingLinkage())
       return New;
   } else {
-    auto *A = cast<GlobalAlias>(New);
-    if (A->getAliasee())
+    auto *IS = cast<GlobalIndirectSymbol>(New);
+    if (IS->getIndirectSymbol())
       return New;
   }
 
-  // When linking a global for an alias, it will always be linked. However we
-  // need to check if it was not already scheduled to satisfy a reference from a
-  // regular global value initializer. We know if it has been schedule if the
-  // "New" GlobalValue that is mapped here for the alias is the same as the one
-  // already mapped. If there is an entry in the ValueMap but the value is
-  // different, it means that the value already had a definition in the
-  // destination module (linkonce for instance), but we need a new definition
-  // for the alias ("New" will be different.
-  if (ForAlias && ValueMap.lookup(SGV) == New)
+  // When linking a global for an indirect symbol, it will always be linked.
+  // However we need to check if it was not already scheduled to satisfy a
+  // reference from a regular global value initializer. We know if it has been
+  // schedule if the "New" GlobalValue that is mapped here for the indirect
+  // symbol is the same as the one already mapped. If there is an entry in the
+  // ValueMap but the value is different, it means that the value already had a
+  // definition in the destination module (linkonce for instance), but we need a
+  // new definition for the indirect symbol ("New" will be different.
+  if (ForIndirectSymbol && ValueMap.lookup(SGV) == New)
     return New;
 
-  if (ForAlias || shouldLink(New, *SGV))
+  if (ForIndirectSymbol || shouldLink(New, *SGV))
     setError(linkGlobalValueBody(*New, *SGV));
 
   return New;
@@ -626,8 +628,8 @@ GlobalVariable *IRLinker::copyGlobalVariableProto(const GlobalVariable *SGVar) {
                          SGVar->isConstant(), GlobalValue::ExternalLinkage,
                          /*init*/ nullptr, SGVar->getName(),
                          /*insertbefore*/ nullptr, SGVar->getThreadLocalMode(),
-                         SGVar->getType()->getAddressSpace());
-  NewDGV->setAlignment(SGVar->getAlignment());
+                         SGVar->getAddressSpace());
+  NewDGV->setAlignment(MaybeAlign(SGVar->getAlignment()));
   NewDGV->copyAttributesFrom(SGVar);
   return NewDGV;
 }
@@ -652,24 +654,32 @@ AttributeList IRLinker::mapAttributeTypes(LLVMContext &C, AttributeList Attrs) {
 Function *IRLinker::copyFunctionProto(const Function *SF) {
   // If there is no linkage to be performed or we are linking from the source,
   // bring SF over.
-  auto *F =
-      Function::Create(TypeMap.get(SF->getFunctionType()),
-                       GlobalValue::ExternalLinkage, SF->getName(), &DstM);
+  auto *F = Function::Create(TypeMap.get(SF->getFunctionType()),
+                             GlobalValue::ExternalLinkage,
+                             SF->getAddressSpace(), SF->getName(), &DstM);
   F->copyAttributesFrom(SF);
   F->setAttributes(mapAttributeTypes(F->getContext(), F->getAttributes()));
   return F;
 }
 
-/// Set up prototypes for any aliases that come over from the source module.
-GlobalValue *IRLinker::copyGlobalAliasProto(const GlobalAlias *SGA) {
+/// Set up prototypes for any indirect symbols that come over from the source
+/// module.
+GlobalValue *
+IRLinker::copyGlobalIndirectSymbolProto(const GlobalIndirectSymbol *SGIS) {
   // If there is no linkage to be performed or we're linking from the source,
   // bring over SGA.
-  auto *Ty = TypeMap.get(SGA->getValueType());
-  auto *GA =
-      GlobalAlias::create(Ty, SGA->getType()->getPointerAddressSpace(),
-                          GlobalValue::ExternalLinkage, SGA->getName(), &DstM);
-  GA->copyAttributesFrom(SGA);
-  return GA;
+  auto *Ty = TypeMap.get(SGIS->getValueType());
+  GlobalIndirectSymbol *GIS;
+  if (isa<GlobalAlias>(SGIS))
+    GIS = GlobalAlias::create(Ty, SGIS->getAddressSpace(),
+                              GlobalValue::ExternalLinkage, SGIS->getName(),
+                              &DstM);
+  else
+    GIS = GlobalIFunc::create(Ty, SGIS->getAddressSpace(),
+                              GlobalValue::ExternalLinkage, SGIS->getName(),
+                              nullptr, &DstM);
+  GIS->copyAttributesFrom(SGIS);
+  return GIS;
 }
 
 GlobalValue *IRLinker::copyGlobalValueProto(const GlobalValue *SGV,
@@ -681,18 +691,19 @@ GlobalValue *IRLinker::copyGlobalValueProto(const GlobalValue *SGV,
     NewGV = copyFunctionProto(SF);
   } else {
     if (ForDefinition)
-      NewGV = copyGlobalAliasProto(cast<GlobalAlias>(SGV));
+      NewGV = copyGlobalIndirectSymbolProto(cast<GlobalIndirectSymbol>(SGV));
     else if (SGV->getValueType()->isFunctionTy())
       NewGV =
           Function::Create(cast<FunctionType>(TypeMap.get(SGV->getValueType())),
-                           GlobalValue::ExternalLinkage, SGV->getName(), &DstM);
+                           GlobalValue::ExternalLinkage, SGV->getAddressSpace(),
+                           SGV->getName(), &DstM);
     else
-      NewGV = new GlobalVariable(
-          DstM, TypeMap.get(SGV->getValueType()),
-          /*isConstant*/ false, GlobalValue::ExternalLinkage,
-          /*init*/ nullptr, SGV->getName(),
-          /*insertbefore*/ nullptr, SGV->getThreadLocalMode(),
-          SGV->getType()->getAddressSpace());
+      NewGV =
+          new GlobalVariable(DstM, TypeMap.get(SGV->getValueType()),
+                             /*isConstant*/ false, GlobalValue::ExternalLinkage,
+                             /*init*/ nullptr, SGV->getName(),
+                             /*insertbefore*/ nullptr,
+                             SGV->getThreadLocalMode(), SGV->getAddressSpace());
   }
 
   if (ForDefinition)
@@ -748,8 +759,18 @@ void IRLinker::computeTypeMapping() {
   }
 
   for (GlobalValue &SGV : *SrcM)
-    if (GlobalValue *DGV = getLinkedToGlobal(&SGV))
+    if (GlobalValue *DGV = getLinkedToGlobal(&SGV)) {
+      if (DGV->getType() == SGV.getType()) {
+        // If the types of DGV and SGV are the same, it means that DGV is from
+        // the source module and got added to DstM from a shared metadata.  We
+        // shouldn't map this type to itself in case the type's components get
+        // remapped to a new type from DstM (for instance, during the loop over
+        // SrcM->getIdentifiedStructTypes() below).
+        continue;
+      }
+
       TypeMap.addTypeMapping(DGV->getType(), SGV.getType());
+    }
 
   for (GlobalValue &SGV : SrcM->aliases())
     if (GlobalValue *DGV = getLinkedToGlobal(&SGV))
@@ -898,7 +919,7 @@ IRLinker::linkAppendingVarProto(GlobalVariable *DstGV,
   GlobalVariable *NG = new GlobalVariable(
       DstM, NewType, SrcGV->isConstant(), SrcGV->getLinkage(),
       /*init*/ nullptr, /*name*/ "", DstGV, SrcGV->getThreadLocalMode(),
-      SrcGV->getType()->getAddressSpace());
+      SrcGV->getAddressSpace());
 
   NG->copyAttributesFrom(SrcGV);
   forceRenaming(NG, SrcGV->getName());
@@ -940,7 +961,7 @@ bool IRLinker::shouldLink(GlobalValue *DGV, GlobalValue &SGV) {
 }
 
 Expected<Constant *> IRLinker::linkGlobalValueProto(GlobalValue *SGV,
-                                                    bool ForAlias) {
+                                                    bool ForIndirectSymbol) {
   GlobalValue *DGV = getLinkedToGlobal(SGV);
 
   bool ShouldLink = shouldLink(DGV, *SGV);
@@ -951,12 +972,12 @@ Expected<Constant *> IRLinker::linkGlobalValueProto(GlobalValue *SGV,
     if (I != ValueMap.end())
       return cast<Constant>(I->second);
 
-    I = AliasValueMap.find(SGV);
-    if (I != AliasValueMap.end())
+    I = IndirectSymbolValueMap.find(SGV);
+    if (I != IndirectSymbolValueMap.end())
       return cast<Constant>(I->second);
   }
 
-  if (!ShouldLink && ForAlias)
+  if (!ShouldLink && ForIndirectSymbol)
     DGV = nullptr;
 
   // Handle the ultra special appending linkage case first.
@@ -975,8 +996,8 @@ Expected<Constant *> IRLinker::linkGlobalValueProto(GlobalValue *SGV,
     if (DoneLinkingBodies)
       return nullptr;
 
-    NewGV = copyGlobalValueProto(SGV, ShouldLink || ForAlias);
-    if (ShouldLink || !ForAlias)
+    NewGV = copyGlobalValueProto(SGV, ShouldLink || ForIndirectSymbol);
+    if (ShouldLink || !ForIndirectSymbol)
       forceRenaming(NewGV, SGV->getName());
   }
 
@@ -987,7 +1008,7 @@ Expected<Constant *> IRLinker::linkGlobalValueProto(GlobalValue *SGV,
     if (auto Remangled = Intrinsic::remangleIntrinsicFunction(F))
       NewGV = Remangled.getValue();
 
-  if (ShouldLink || ForAlias) {
+  if (ShouldLink || ForIndirectSymbol) {
     if (const Comdat *SC = SGV->getComdat()) {
       if (auto *GO = dyn_cast<GlobalObject>(NewGV)) {
         Comdat *DC = DstM.getOrInsertComdat(SC->getName());
@@ -997,7 +1018,7 @@ Expected<Constant *> IRLinker::linkGlobalValueProto(GlobalValue *SGV,
     }
   }
 
-  if (!ShouldLink && ForAlias)
+  if (!ShouldLink && ForIndirectSymbol)
     NewGV->setLinkage(GlobalValue::InternalLinkage);
 
   Constant *C = NewGV;
@@ -1060,8 +1081,10 @@ Error IRLinker::linkFunctionBody(Function &Dst, Function &Src) {
   return Error::success();
 }
 
-void IRLinker::linkAliasBody(GlobalAlias &Dst, GlobalAlias &Src) {
-  Mapper.scheduleMapGlobalAliasee(Dst, *Src.getAliasee(), AliasMCID);
+void IRLinker::linkIndirectSymbolBody(GlobalIndirectSymbol &Dst,
+                                      GlobalIndirectSymbol &Src) {
+  Mapper.scheduleMapGlobalIndirectSymbol(Dst, *Src.getIndirectSymbol(),
+                                         IndirectSymbolMCID);
 }
 
 Error IRLinker::linkGlobalValueBody(GlobalValue &Dst, GlobalValue &Src) {
@@ -1071,12 +1094,12 @@ Error IRLinker::linkGlobalValueBody(GlobalValue &Dst, GlobalValue &Src) {
     linkGlobalVariable(cast<GlobalVariable>(Dst), *GVar);
     return Error::success();
   }
-  linkAliasBody(cast<GlobalAlias>(Dst), cast<GlobalAlias>(Src));
+  linkIndirectSymbolBody(cast<GlobalIndirectSymbol>(Dst), cast<GlobalIndirectSymbol>(Src));
   return Error::success();
 }
 
 void IRLinker::flushRAUWWorklist() {
-  for (const auto Elem : RAUWWorklist) {
+  for (const auto &Elem : RAUWWorklist) {
     GlobalValue *Old;
     Value *New;
     std::tie(Old, New) = Elem;
@@ -1254,11 +1277,17 @@ Error IRLinker::linkModuleFlagsMetadata() {
     }
 
     // Diagnose inconsistent merge behavior types.
-    if (SrcBehaviorValue != DstBehaviorValue)
-      return stringErr("linking module flags '" + ID->getString() +
-                       "': IDs have conflicting behaviors in '" +
-                       SrcM->getModuleIdentifier() + "' and '" +
-                       DstM.getModuleIdentifier() + "'");
+    if (SrcBehaviorValue != DstBehaviorValue) {
+      bool MaxAndWarn = (SrcBehaviorValue == Module::Max &&
+                         DstBehaviorValue == Module::Warning) ||
+                        (DstBehaviorValue == Module::Max &&
+                         SrcBehaviorValue == Module::Warning);
+      if (!MaxAndWarn)
+        return stringErr("linking module flags '" + ID->getString() +
+                         "': IDs have conflicting behaviors in '" +
+                         SrcM->getModuleIdentifier() + "' and '" +
+                         DstM.getModuleIdentifier() + "'");
+    }
 
     auto replaceDstValue = [&](MDNode *New) {
       Metadata *FlagOps[] = {DstOp->getOperand(0), ID, New};
@@ -1266,6 +1295,40 @@ Error IRLinker::linkModuleFlagsMetadata() {
       DstModFlags->setOperand(DstIndex, Flag);
       Flags[ID].first = Flag;
     };
+
+    // Emit a warning if the values differ and either source or destination
+    // request Warning behavior.
+    if ((DstBehaviorValue == Module::Warning ||
+         SrcBehaviorValue == Module::Warning) &&
+        SrcOp->getOperand(2) != DstOp->getOperand(2)) {
+      std::string Str;
+      raw_string_ostream(Str)
+          << "linking module flags '" << ID->getString()
+          << "': IDs have conflicting values ('" << *SrcOp->getOperand(2)
+          << "' from " << SrcM->getModuleIdentifier() << " with '"
+          << *DstOp->getOperand(2) << "' from " << DstM.getModuleIdentifier()
+          << ')';
+      emitWarning(Str);
+    }
+
+    // Choose the maximum if either source or destination request Max behavior.
+    if (DstBehaviorValue == Module::Max || SrcBehaviorValue == Module::Max) {
+      ConstantInt *DstValue =
+          mdconst::extract<ConstantInt>(DstOp->getOperand(2));
+      ConstantInt *SrcValue =
+          mdconst::extract<ConstantInt>(SrcOp->getOperand(2));
+
+      // The resulting flag should have a Max behavior, and contain the maximum
+      // value from between the source and destination values.
+      Metadata *FlagOps[] = {
+          (DstBehaviorValue != Module::Max ? SrcOp : DstOp)->getOperand(0), ID,
+          (SrcValue->getZExtValue() > DstValue->getZExtValue() ? SrcOp : DstOp)
+              ->getOperand(2)};
+      MDNode *Flag = MDNode::get(DstM.getContext(), FlagOps);
+      DstModFlags->setOperand(DstIndex, Flag);
+      Flags[ID].first = Flag;
+      continue;
+    }
 
     // Perform the merge for standard behavior types.
     switch (SrcBehaviorValue) {
@@ -1282,26 +1345,9 @@ Error IRLinker::linkModuleFlagsMetadata() {
       continue;
     }
     case Module::Warning: {
-      // Emit a warning if the values differ.
-      if (SrcOp->getOperand(2) != DstOp->getOperand(2)) {
-        std::string str;
-        raw_string_ostream(str)
-            << "linking module flags '" << ID->getString()
-            << "': IDs have conflicting values ('" << *SrcOp->getOperand(2)
-            << "' from " << SrcM->getModuleIdentifier() << " with '"
-            << *DstOp->getOperand(2) << "' from " << DstM.getModuleIdentifier()
-            << ')';
-        emitWarning(str);
-      }
-      continue;
+      break;
     }
     case Module::Max: {
-      ConstantInt *DstValue =
-          mdconst::extract<ConstantInt>(DstOp->getOperand(2));
-      ConstantInt *SrcValue =
-          mdconst::extract<ConstantInt>(SrcOp->getOperand(2));
-      if (SrcValue->getZExtValue() > DstValue->getZExtValue())
-        overrideDstValue();
       break;
     }
     case Module::Append: {
@@ -1327,6 +1373,7 @@ Error IRLinker::linkModuleFlagsMetadata() {
       break;
     }
     }
+
   }
 
   // Check all of the requirements.
@@ -1411,7 +1458,7 @@ Error IRLinker::run() {
 
     // Already mapped.
     if (ValueMap.find(GV) != ValueMap.end() ||
-        AliasValueMap.find(GV) != AliasValueMap.end())
+        IndirectSymbolValueMap.find(GV) != IndirectSymbolValueMap.end())
       continue;
 
     assert(!GV->isDeclaration());

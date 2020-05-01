@@ -50,6 +50,7 @@
 #include "lldb/lldb-private.h"
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/Support/Threading.h"
 #include "llvm/Support/VersionTuple.h"
 
 namespace lldb_private {
@@ -84,9 +85,6 @@ public:
   std::chrono::seconds GetUtilityExpressionTimeout() const;
 
 protected:
-  static void OptionValueChangedCallback(void *baton,
-                                         OptionValue *option_value);
-
   Process *m_process; // Can be nullptr for global ProcessProperties
 };
 
@@ -519,14 +517,6 @@ public:
   /// Process plug-in interface and returns the first instance that can debug
   /// the file.
   ///
-  /// \param[in] module_sp
-  ///     The module shared pointer that this process will debug.
-  ///
-  /// \param[in] plugin_name
-  ///     If nullptr, select the best plug-in for the binary. If non-nullptr
-  ///     then look for a plugin whose PluginInfo's name matches
-  ///     this string.
-  ///
   /// \see Process::CanDebug ()
   static lldb::ProcessSP FindPlugin(lldb::TargetSP target_sp,
                                     llvm::StringRef plugin_name,
@@ -680,10 +670,19 @@ public:
   /// shared library load state.
   ///
   /// \return
-  ///    The number of shared libraries that were loaded
-  virtual size_t LoadModules() { return 0; }
+  ///    A status object indicating if the operation was sucessful or not.
+  virtual llvm::Error LoadModules() {
+    return llvm::make_error<llvm::StringError>("Not implemented.",
+                                               llvm::inconvertibleErrorCode());
+  }
 
-  virtual size_t LoadModules(LoadedModuleInfoList &) { return 0; }
+  /// Query remote GDBServer for a detailed loaded library list
+  /// \return
+  ///    The list of modules currently loaded by the process, or an error.
+  virtual llvm::Expected<LoadedModuleInfoList> GetLoadedModuleList() {
+    return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                   "Not implemented");
+  }
 
 protected:
   virtual JITLoaderList &GetJITLoaders();
@@ -704,8 +703,8 @@ public:
   /// char *) will be called to actually do the attach. If DoAttach returns \b
   /// true, then Process::DidAttach() will be called.
   ///
-  /// \param[in] pid
-  ///     The process ID that we should attempt to attach to.
+  /// \param[in] attach_info
+  ///     The process attach info.
   ///
   /// \return
   ///     Returns \a pid if attaching was successful, or
@@ -1186,6 +1185,9 @@ public:
   ///     VersionTuple is returner.
   virtual llvm::VersionTuple GetHostOSVersion() { return llvm::VersionTuple(); }
 
+  /// \return the macCatalyst version of the host OS.
+  virtual llvm::VersionTuple GetHostMacCatalystVersion() { return {}; }
+
   /// Get the target object pointer for this module.
   ///
   /// \return
@@ -1379,7 +1381,8 @@ public:
   /// the core file.
   ///
   /// \return
-  //      true if the user should be warned about detaching from this process.
+  ///     Returns \b true if the user should be warned about detaching from
+  ///     this process.
   virtual bool WarnBeforeDetach() const { return true; }
 
   /// Actually do the reading of memory from a process.
@@ -1709,8 +1712,9 @@ public:
   ///     lldb,
   ///     just not by the process itself.
   ///
-  /// \param[in/out] error
+  /// \param[in,out] error
   ///     An error object to fill in if things go wrong.
+  ///
   /// \return
   ///     The address of the allocated buffer in the process, or
   ///     LLDB_INVALID_ADDRESS if the allocation failed.
@@ -2158,7 +2162,7 @@ public:
   /// WaitFor* calls above.  Be sure to call RestoreProcessEvents when you are
   /// done.
   ///
-  /// \param[in] listener
+  /// \param[in] listener_sp
   ///     This is the new listener to whom all process events will be delivered.
   ///
   /// \return
@@ -2178,11 +2182,9 @@ public:
 
   OperatingSystem *GetOperatingSystem() { return m_os_up.get(); }
 
-  std::vector<LanguageRuntime *>
-  GetLanguageRuntimes(bool retry_if_null = true);
+  std::vector<LanguageRuntime *> GetLanguageRuntimes();
 
-  LanguageRuntime *GetLanguageRuntime(lldb::LanguageType language,
-                                      bool retry_if_null = true);
+  LanguageRuntime *GetLanguageRuntime(lldb::LanguageType language);
 
   bool IsPossibleDynamicValue(ValueObject &in_value);
 
@@ -2259,6 +2261,8 @@ public:
   void ClearPreResumeAction(PreResumeActionCallback callback, void *baton);
 
   ProcessRunLock &GetRunLock();
+
+  bool CurrentThreadIsPrivateStateThread();
 
   virtual Status SendEventData(const char *data) {
     Status return_error("Sending an event is not supported for this process.");
@@ -2357,7 +2361,7 @@ public:
   ///     The StructuredData type name as previously discovered by
   ///     the Process-derived instance.
   ///
-  /// \param[in] config
+  /// \param[in] config_sp
   ///     Configuration data for the feature being enabled.  This config
   ///     data, which may be null, will be passed along to the feature
   ///     to process.  The feature will dictate whether this is a dictionary,
@@ -2452,6 +2456,11 @@ public:
   virtual Status GetTraceConfig(lldb::user_id_t uid, TraceOptions &options) {
     return Status("Not implemented");
   }
+
+  // This calls a function of the form "void * (*)(void)".
+  bool CallVoidArgVoidPtrReturn(const Address *address,
+                                lldb::addr_t &returned_func,
+                                bool trap_exceptions = false);
 
 protected:
   void SetState(lldb::EventSP &event_sp);
@@ -2730,9 +2739,9 @@ protected:
   StructuredDataPluginMap m_structured_data_plugin_map;
 
   enum { eCanJITDontKnow = 0, eCanJITYes, eCanJITNo } m_can_jit;
-  
+
   std::unique_ptr<UtilityFunction> m_dlopen_utility_func_up;
-  std::once_flag m_dlopen_utility_func_flag_once;
+  llvm::once_flag m_dlopen_utility_func_flag_once;
 
   size_t RemoveBreakpointOpcodesFromBuffer(lldb::addr_t addr, size_t size,
                                            uint8_t *buf) const;

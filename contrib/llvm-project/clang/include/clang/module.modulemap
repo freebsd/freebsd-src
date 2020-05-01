@@ -18,9 +18,9 @@ module Clang_AST {
   umbrella "AST"
 
   textual header "AST/BuiltinTypes.def"
+  textual header "AST/CXXRecordDeclDefinitionBits.def"
   textual header "AST/OperationKinds.def"
   textual header "AST/TypeLocNodes.def"
-  textual header "AST/TypeNodes.def"
 
   module * { export * }
 }
@@ -31,9 +31,11 @@ module Clang_Basic {
   requires cplusplus
   umbrella "Basic"
 
+  textual header "Basic/AArch64SVEACLETypes.def"
   textual header "Basic/BuiltinsAArch64.def"
   textual header "Basic/BuiltinsAMDGPU.def"
   textual header "Basic/BuiltinsARM.def"
+  textual header "Basic/BuiltinsBPF.def"
   textual header "Basic/Builtins.def"
   textual header "Basic/BuiltinsHexagon.def"
   textual header "Basic/BuiltinsLe64.def"
@@ -100,7 +102,7 @@ module Clang_Frontend {
   requires cplusplus
   umbrella "Frontend"
 
-  textual header "Frontend/LangStandards.def"
+  textual header "Basic/LangStandards.def"
 
   module * { export * }
 }
@@ -112,7 +114,15 @@ module Clang_Parse { requires cplusplus umbrella "Parse" module * { export * } }
 module Clang_Rewrite { requires cplusplus umbrella "Rewrite/Core" module * { export * } }
 module Clang_RewriteFrontend { requires cplusplus umbrella "Rewrite/Frontend" module * { export * } }
 module Clang_Sema { requires cplusplus umbrella "Sema" module * { export * } }
-module Clang_Serialization { requires cplusplus umbrella "Serialization" module * { export * } }
+
+module Clang_Serialization {
+  requires cplusplus
+  umbrella "Serialization"
+
+  textual header "Serialization/TypeBitCodes.def"
+
+  module * { export * }
+}
 
 module Clang_StaticAnalyzer_Core {
   requires cplusplus

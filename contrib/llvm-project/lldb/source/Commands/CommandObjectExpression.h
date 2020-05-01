@@ -14,7 +14,6 @@
 #include "lldb/Interpreter/OptionGroupBoolean.h"
 #include "lldb/Interpreter/OptionGroupFormat.h"
 #include "lldb/Interpreter/OptionGroupValueObjectDisplay.h"
-#include "lldb/Target/ExecutionContext.h"
 #include "lldb/lldb-private-enumerations.h"
 namespace lldb_private {
 
@@ -54,7 +53,7 @@ public:
 
   Options *GetOptions() override;
 
-  int HandleCompletion(CompletionRequest &request) override;
+  void HandleCompletion(CompletionRequest &request) override;
 
 protected:
   // IOHandler::Delegate functions

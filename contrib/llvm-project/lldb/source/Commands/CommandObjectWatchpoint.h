@@ -9,10 +9,8 @@
 #ifndef liblldb_CommandObjectWatchpoint_h_
 #define liblldb_CommandObjectWatchpoint_h_
 
-
 #include "lldb/Interpreter/CommandObjectMultiword.h"
 #include "lldb/Interpreter/OptionGroupWatchpoint.h"
-#include "lldb/Interpreter/Options.h"
 
 namespace lldb_private {
 

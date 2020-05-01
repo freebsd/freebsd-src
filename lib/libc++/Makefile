@@ -78,7 +78,9 @@ CFLAGS+=	-nostdinc++
 CFLAGS+=	-nostdlib
 CFLAGS+=	-D_LIBCPP_BUILDING_LIBRARY
 CFLAGS+=	-DLIBCXXRT
-CXXSTD?=	c++11
+CFLAGS+=	-ffunction-sections
+CFLAGS+=	-fdata-sections
+CXXSTD?=	c++14
 
 LIBADD+=	cxxrt
 INCSGROUPS=	STD EXP EXT

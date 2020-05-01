@@ -557,7 +557,7 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
 #elif defined(__ppc__)
 
 //
-// extern int __unw_getcontext(unw_context_t* thread_state)
+// extern int unw_getcontext(unw_context_t* thread_state)
 //
 // On entry:
 //  thread_state pointer is in r3
@@ -945,7 +945,37 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
   # zero epcr
   l.sw     132(r3), r0
 
-#elif defined(__riscv)
+#elif defined(__sparc__)
+
+#
+# extern int __unw_getcontext(unw_context_t* thread_state)
+#
+# On entry:
+#  thread_state pointer is in o0
+#
+DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
+  ta 3
+  add %o7, 8, %o7
+  std %g0, [%o0 +   0]
+  std %g2, [%o0 +   8]
+  std %g4, [%o0 +  16]
+  std %g6, [%o0 +  24]
+  std %o0, [%o0 +  32]
+  std %o2, [%o0 +  40]
+  std %o4, [%o0 +  48]
+  std %o6, [%o0 +  56]
+  std %l0, [%o0 +  64]
+  std %l2, [%o0 +  72]
+  std %l4, [%o0 +  80]
+  std %l6, [%o0 +  88]
+  std %i0, [%o0 +  96]
+  std %i2, [%o0 + 104]
+  std %i4, [%o0 + 112]
+  std %i6, [%o0 + 120]
+  jmp %o7
+   clr %o0                   // return UNW_ESUCCESS
+
+#elif defined(__riscv) && __riscv_xlen == 64
 
 #
 # extern int __unw_getcontext(unw_context_t* thread_state)
@@ -987,7 +1017,7 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
   sd    x30, (8 * 30)(a0)
   sd    x31, (8 * 31)(a0)
 
-#ifdef __riscv_float_abi_double
+#if defined(__riscv_flen) && __riscv_flen == 64
   fsd    f0, (8 * 32 + 8 * 0)(a0)
   fsd    f1, (8 * 32 + 8 * 1)(a0)
   fsd    f2, (8 * 32 + 8 * 2)(a0)
@@ -1024,36 +1054,6 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
 
   li     a0, 0  // return UNW_ESUCCESS
   ret           // jump to ra
-
-#elif defined(__sparc__)
-
-#
-# extern int __unw_getcontext(unw_context_t* thread_state)
-#
-# On entry:
-#  thread_state pointer is in o0
-#
-DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
-  ta 3
-  add %o7, 8, %o7
-  std %g0, [%o0 +   0]
-  std %g2, [%o0 +   8]
-  std %g4, [%o0 +  16]
-  std %g6, [%o0 +  24]
-  std %o0, [%o0 +  32]
-  std %o2, [%o0 +  40]
-  std %o4, [%o0 +  48]
-  std %o6, [%o0 +  56]
-  std %l0, [%o0 +  64]
-  std %l2, [%o0 +  72]
-  std %l4, [%o0 +  80]
-  std %l6, [%o0 +  88]
-  std %i0, [%o0 +  96]
-  std %i2, [%o0 + 104]
-  std %i4, [%o0 + 112]
-  std %i6, [%o0 + 120]
-  jmp %o7
-   clr %o0                   // return UNW_ESUCCESS
 #endif
 
   WEAK_ALIAS(__unw_getcontext, unw_getcontext)

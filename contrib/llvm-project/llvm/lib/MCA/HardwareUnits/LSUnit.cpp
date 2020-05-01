@@ -29,12 +29,12 @@ LSUnitBase::LSUnitBase(const MCSchedModel &SM, unsigned LQ, unsigned SQ,
     const MCExtraProcessorInfo &EPI = SM.getExtraProcessorInfo();
     if (!LQSize && EPI.LoadQueueID) {
       const MCProcResourceDesc &LdQDesc = *SM.getProcResource(EPI.LoadQueueID);
-      LQSize = LdQDesc.BufferSize;
+      LQSize = std::max(0, LdQDesc.BufferSize);
     }
 
     if (!SQSize && EPI.StoreQueueID) {
       const MCProcResourceDesc &StQDesc = *SM.getProcResource(EPI.StoreQueueID);
-      SQSize = StQDesc.BufferSize;
+      SQSize = std::max(0, StQDesc.BufferSize);
     }
   }
 }
@@ -72,9 +72,9 @@ unsigned LSUnit::dispatch(const InstRef &IR) {
   assert((Desc.MayLoad || Desc.MayStore) && "Not a memory operation!");
 
   if (Desc.MayLoad)
-    assignLQSlot();
+    acquireLQSlot();
   if (Desc.MayStore)
-    assignSQSlot();
+    acquireSQSlot();
 
   if (Desc.MayStore) {
     // Always create a new group for store operations.
@@ -160,26 +160,28 @@ LSUnit::Status LSUnit::isAvailable(const InstRef &IR) const {
 }
 
 void LSUnitBase::onInstructionExecuted(const InstRef &IR) {
+  unsigned GroupID = IR.getInstruction()->getLSUTokenID();
+  auto It = Groups.find(GroupID);
+  assert(It != Groups.end() && "Instruction not dispatched to the LS unit");
+  It->second->onInstructionExecuted();
+  if (It->second->isExecuted())
+    Groups.erase(It);
+}
+
+void LSUnitBase::onInstructionRetired(const InstRef &IR) {
   const InstrDesc &Desc = IR.getInstruction()->getDesc();
   bool IsALoad = Desc.MayLoad;
   bool IsAStore = Desc.MayStore;
   assert((IsALoad || IsAStore) && "Expected a memory operation!");
 
-  unsigned GroupID = IR.getInstruction()->getLSUTokenID();
-  auto It = Groups.find(GroupID);
-  It->second->onInstructionExecuted();
-  if (It->second->isExecuted()) {
-    Groups.erase(It);
-  }
-
   if (IsALoad) {
-    UsedLQEntries--;
+    releaseLQSlot();
     LLVM_DEBUG(dbgs() << "[LSUnit]: Instruction idx=" << IR.getSourceIndex()
                       << " has been removed from the load queue.\n");
   }
 
   if (IsAStore) {
-    UsedSQEntries--;
+    releaseSQSlot();
     LLVM_DEBUG(dbgs() << "[LSUnit]: Instruction idx=" << IR.getSourceIndex()
                       << " has been removed from the store queue.\n");
   }

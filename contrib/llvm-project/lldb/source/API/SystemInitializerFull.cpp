@@ -7,11 +7,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "SystemInitializerFull.h"
-
 #include "lldb/API/SBCommandInterpreter.h"
+#include "lldb/Host/Config.h"
 
-#if !defined(LLDB_DISABLE_PYTHON)
+#if LLDB_ENABLE_PYTHON
 #include "Plugins/ScriptInterpreter/Python/ScriptInterpreterPython.h"
+#endif
+
+#if LLDB_ENABLE_LUA
+#include "Plugins/ScriptInterpreter/Lua/ScriptInterpreterLua.h"
 #endif
 
 #include "lldb/Core/Debugger.h"
@@ -25,6 +29,7 @@
 #include "Plugins/ABI/MacOSX-arm/ABIMacOSX_arm.h"
 #include "Plugins/ABI/MacOSX-arm64/ABIMacOSX_arm64.h"
 #include "Plugins/ABI/MacOSX-i386/ABIMacOSX_i386.h"
+#include "Plugins/ABI/SysV-arc/ABISysV_arc.h"
 #endif // LLDB_ENABLE_ALL
 #include "Plugins/ABI/SysV-arm/ABISysV_arm.h"
 #include "Plugins/ABI/SysV-arm64/ABISysV_arm64.h"
@@ -163,6 +168,55 @@ SystemInitializerFull::SystemInitializerFull() {}
 
 SystemInitializerFull::~SystemInitializerFull() {}
 
+#ifdef LLDB_ENABLE_ALL
+#define LLDB_PROCESS_AArch64(op)                                               \
+  ABIMacOSX_arm64::op();                                                       \
+  ABISysV_arm64::op();
+#else // LLDB_ENABLE_ALL
+#define LLDB_PROCESS_AArch64(op)                                               \
+  ABISysV_arm64::op();
+#endif // LLDB_ENABLE_ALL
+#ifdef LLDB_ENABLE_ALL
+#define LLDB_PROCESS_ARM(op)                                                   \
+  ABIMacOSX_arm::op();                                                         \
+  ABISysV_arm::op();
+#else // LLDB_ENABLE_ALL
+#define LLDB_PROCESS_ARM(op)                                                   \
+  ABISysV_arm::op();
+#endif // LLDB_ENABLE_ALL
+#define LLDB_PROCESS_ARC(op)                                                   \
+  ABISysV_arc::op();
+#define LLDB_PROCESS_Hexagon(op) ABISysV_hexagon::op();
+#define LLDB_PROCESS_Mips(op)                                                  \
+  ABISysV_mips::op();                                                          \
+  ABISysV_mips64::op();
+#define LLDB_PROCESS_PowerPC(op)                                               \
+  ABISysV_ppc::op();                                                          \
+  ABISysV_ppc64::op();
+#define LLDB_PROCESS_SystemZ(op) ABISysV_s390x::op();
+#ifdef LLDB_ENABLE_ALL
+#define LLDB_PROCESS_X86(op)                                                   \
+  ABIMacOSX_i386::op();                                                        \
+  ABISysV_i386::op();                                                          \
+  ABISysV_x86_64::op();                                                        \
+  ABIWindows_x86_64::op();
+#else // LLDB_ENABLE_ALL
+#define LLDB_PROCESS_X86(op)                                                   \
+  ABISysV_i386::op();                                                          \
+  ABISysV_x86_64::op();
+#endif // LLDB_ENABLE_ALL
+
+#define LLDB_PROCESS_AMDGPU(op)
+#define LLDB_PROCESS_AVR(op)
+#define LLDB_PROCESS_BPF(op)
+#define LLDB_PROCESS_Lanai(op)
+#define LLDB_PROCESS_MSP430(op)
+#define LLDB_PROCESS_NVPTX(op)
+#define LLDB_PROCESS_RISCV(op)
+#define LLDB_PROCESS_Sparc(op)
+#define LLDB_PROCESS_WebAssembly(op)
+#define LLDB_PROCESS_XCore(op)
+
 llvm::Error SystemInitializerFull::Initialize() {
   if (auto e = SystemInitializerCommon::Initialize())
     return e;
@@ -181,12 +235,16 @@ llvm::Error SystemInitializerFull::Initialize() {
 
   ScriptInterpreterNone::Initialize();
 
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
   OperatingSystemPython::Initialize();
 #endif
 
-#if !defined(LLDB_DISABLE_PYTHON)
+#if LLDB_ENABLE_PYTHON
   ScriptInterpreterPython::Initialize();
+#endif
+
+#if LLDB_ENABLE_LUA
+  ScriptInterpreterLua::Initialize();
 #endif
 
   platform_freebsd::PlatformFreeBSD::Initialize();
@@ -212,26 +270,8 @@ llvm::Error SystemInitializerFull::Initialize() {
 
   ClangASTContext::Initialize();
 
-#ifdef LLDB_ENABLE_ALL
-  ABIMacOSX_i386::Initialize();
-  ABIMacOSX_arm::Initialize();
-  ABIMacOSX_arm64::Initialize();
-#endif // LLDB_ENABLE_ALL
-  ABISysV_arm::Initialize();
-  ABISysV_arm64::Initialize();
-#ifdef LLDB_ENABLE_ALL
-  ABISysV_hexagon::Initialize();
-#endif // LLDB_ENABLE_ALL
-  ABISysV_i386::Initialize();
-  ABISysV_x86_64::Initialize();
-  ABISysV_ppc::Initialize();
-  ABISysV_ppc64::Initialize();
-  ABISysV_mips::Initialize();
-  ABISysV_mips64::Initialize();
-#ifdef LLDB_ENABLE_ALL
-  ABISysV_s390x::Initialize();
-  ABIWindows_x86_64::Initialize();
-#endif // LLDB_ENABLE_ALL
+#define LLVM_TARGET(t) LLDB_PROCESS_ ## t(Initialize)
+#include "llvm/Config/Targets.def"
 
   ArchitectureArm::Initialize();
   ArchitectureMips::Initialize();
@@ -344,30 +384,13 @@ void SystemInitializerFull::Terminate() {
 
   ClangASTContext::Terminate();
 
-#ifdef LLDB_ENABLE_ALL
   ArchitectureArm::Terminate();
   ArchitectureMips::Terminate();
   ArchitecturePPC64::Terminate();
 
-  ABIMacOSX_i386::Terminate();
-  ABIMacOSX_arm::Terminate();
-  ABIMacOSX_arm64::Terminate();
-#endif // LLDB_ENABLE_ALL
-  ABISysV_arm::Terminate();
-  ABISysV_arm64::Terminate();
-#ifdef LLDB_ENABLE_ALL
-  ABISysV_hexagon::Terminate();
-#endif // LLDB_ENABLE_ALL
-  ABISysV_i386::Terminate();
-  ABISysV_x86_64::Terminate();
-  ABISysV_ppc::Terminate();
-  ABISysV_ppc64::Terminate();
-  ABISysV_mips::Terminate();
-  ABISysV_mips64::Terminate();
-#ifdef LLDB_ENABLE_ALL
-  ABISysV_s390x::Terminate();
-  ABIWindows_x86_64::Terminate();
-#endif // LLDB_ENABLE_ALL
+#define LLVM_TARGET(t) LLDB_PROCESS_ ## t(Terminate)
+#include "llvm/Config/Targets.def"
+
   DisassemblerLLVMC::Terminate();
 
   JITLoaderGDB::Terminate();
@@ -444,7 +467,7 @@ void SystemInitializerFull::Terminate() {
   DynamicLoaderWindowsDYLD::Terminate();
 #endif // LLDB_ENABLE_ALL
 
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
   OperatingSystemPython::Terminate();
 #endif
 

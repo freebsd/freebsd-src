@@ -49,7 +49,6 @@ class Symbol;
 class SymbolContext;
 class SymbolContextList;
 class SymbolFile;
-class SymbolVendor;
 class Symtab;
 class Target;
 class TypeList;
@@ -67,8 +66,8 @@ class VariableList;
 /// accessors are called. For example the object file (ObjectFile)
 /// representation will only be parsed if the object file is requested using
 /// the Module::GetObjectFile() is called. The debug symbols will only be
-/// parsed if the symbol vendor (SymbolVendor) is requested using the
-/// Module::GetSymbolVendor() is called.
+/// parsed if the symbol file (SymbolFile) is requested using the
+/// Module::GetSymbolFile() method.
 ///
 /// The module will parse more detailed information as more queries are made.
 class Module : public std::enable_shared_from_this<Module>,
@@ -191,7 +190,7 @@ public:
   lldb::ModuleSP CalculateSymbolContextModule() override;
 
   void
-  GetDescription(Stream *s,
+  GetDescription(llvm::raw_ostream &s,
                  lldb::DescriptionLevel level = lldb::eDescriptionLevelFull);
 
   /// Get the module path and object name.
@@ -247,13 +246,13 @@ public:
       ConstString name,
       lldb::SymbolType symbol_type = lldb::eSymbolTypeAny);
 
-  size_t FindSymbolsWithNameAndType(ConstString name,
-                                    lldb::SymbolType symbol_type,
-                                    SymbolContextList &sc_list);
+  void FindSymbolsWithNameAndType(ConstString name,
+                                  lldb::SymbolType symbol_type,
+                                  SymbolContextList &sc_list);
 
-  size_t FindSymbolsMatchingRegExAndType(const RegularExpression &regex,
-                                         lldb::SymbolType symbol_type,
-                                         SymbolContextList &sc_list);
+  void FindSymbolsMatchingRegExAndType(const RegularExpression &regex,
+                                       lldb::SymbolType symbol_type,
+                                       SymbolContextList &sc_list);
 
   /// Find a function symbols in the object file's symbol table.
   ///
@@ -267,11 +266,8 @@ public:
   ///
   /// \param[out] sc_list
   ///     A list to append any matching symbol contexts to.
-  ///
-  /// \return
-  ///     The number of symbol contexts that were added to \a sc_list
-  size_t FindFunctionSymbols(ConstString name, uint32_t name_type_mask,
-                             SymbolContextList &sc_list);
+  void FindFunctionSymbols(ConstString name, uint32_t name_type_mask,
+                           SymbolContextList &sc_list);
 
   /// Find compile units by partial or full path.
   ///
@@ -281,19 +277,10 @@ public:
   /// \param[in] path
   ///     The name of the function we are looking for.
   ///
-  /// \param[in] append
-  ///     If \b true, then append any compile units that were found
-  ///     to \a sc_list. If \b false, then the \a sc_list is cleared
-  ///     and the contents of \a sc_list are replaced.
-  ///
   /// \param[out] sc_list
   ///     A symbol context list that gets filled in with all of the
   ///     matches.
-  ///
-  /// \return
-  ///     The number of matches added to \a sc_list.
-  size_t FindCompileUnits(const FileSpec &path, bool append,
-                          SymbolContextList &sc_list);
+  void FindCompileUnits(const FileSpec &path, SymbolContextList &sc_list);
 
   /// Find functions by name.
   ///
@@ -304,30 +291,19 @@ public:
   /// \param[in] name
   ///     The name of the compile unit we are looking for.
   ///
-  /// \param[in] namespace_decl
-  ///     If valid, a namespace to search in.
-  ///
   /// \param[in] name_type_mask
   ///     A bit mask of bits that indicate what kind of names should
   ///     be used when doing the lookup. Bits include fully qualified
   ///     names, base names, C++ methods, or ObjC selectors.
   ///     See FunctionNameType for more details.
   ///
-  /// \param[in] append
-  ///     If \b true, any matches will be appended to \a sc_list, else
-  ///     matches replace the contents of \a sc_list.
-  ///
   /// \param[out] sc_list
   ///     A symbol context list that gets filled in with all of the
   ///     matches.
-  ///
-  /// \return
-  ///     The number of matches added to \a sc_list.
-  size_t FindFunctions(ConstString name,
-                       const CompilerDeclContext *parent_decl_ctx,
-                       lldb::FunctionNameType name_type_mask, bool symbols_ok,
-                       bool inlines_ok, bool append,
-                       SymbolContextList &sc_list);
+  void FindFunctions(ConstString name,
+                     const CompilerDeclContext *parent_decl_ctx,
+                     lldb::FunctionNameType name_type_mask, bool symbols_ok,
+                     bool inlines_ok, SymbolContextList &sc_list);
 
   /// Find functions by name.
   ///
@@ -338,19 +314,11 @@ public:
   /// \param[in] regex
   ///     A regular expression to use when matching the name.
   ///
-  /// \param[in] append
-  ///     If \b true, any matches will be appended to \a sc_list, else
-  ///     matches replace the contents of \a sc_list.
-  ///
   /// \param[out] sc_list
   ///     A symbol context list that gets filled in with all of the
   ///     matches.
-  ///
-  /// \return
-  ///     The number of matches added to \a sc_list.
-  size_t FindFunctions(const RegularExpression &regex, bool symbols_ok,
-                       bool inlines_ok, bool append,
-                       SymbolContextList &sc_list);
+  void FindFunctions(const RegularExpression &regex, bool symbols_ok,
+                     bool inlines_ok, SymbolContextList &sc_list);
 
   /// Find addresses by file/line
   ///
@@ -395,11 +363,9 @@ public:
   /// \param[in] variable_list
   ///     A list of variables that gets the matches appended to.
   ///
-  /// \return
-  ///     The number of matches added to \a variable_list.
-  size_t FindGlobalVariables(ConstString name,
-                             const CompilerDeclContext *parent_decl_ctx,
-                             size_t max_matches, VariableList &variable_list);
+  void FindGlobalVariables(ConstString name,
+                           const CompilerDeclContext *parent_decl_ctx,
+                           size_t max_matches, VariableList &variable_list);
 
   /// Find global and static variables by regular expression.
   ///
@@ -413,17 +379,14 @@ public:
   /// \param[in] variable_list
   ///     A list of variables that gets the matches appended to.
   ///
-  /// \return
-  ///     The number of matches added to \a variable_list.
-  size_t FindGlobalVariables(const RegularExpression &regex, size_t max_matches,
-                             VariableList &variable_list);
+  void FindGlobalVariables(const RegularExpression &regex, size_t max_matches,
+                           VariableList &variable_list);
 
   /// Find types by name.
   ///
-  /// Type lookups in modules go through the SymbolVendor (which will use one
-  /// or more SymbolFile subclasses). The SymbolFile needs to be able to
-  /// lookup types by basename and not the fully qualified typename. This
-  /// allows the type accelerator tables to stay small, even with heavily
+  /// Type lookups in modules go through the SymbolFile. The SymbolFile needs to
+  /// be able to lookup types by basename and not the fully qualified typename.
+  /// This allows the type accelerator tables to stay small, even with heavily
   /// templatized C++. The type search will then narrow down the search
   /// results. If "exact_match" is true, then the type search will only match
   /// exact type name matches. If "exact_match" is false, the type will match
@@ -446,15 +409,25 @@ public:
   ///     omitted to make finding types that a user may type
   ///     easier.
   ///
-  /// \param[out] type_list
+  /// \param[out] types
   ///     A type list gets populated with any matches.
   ///
-  /// \return
-  ///     The number of matches added to \a type_list.
-  size_t
+  void
   FindTypes(ConstString type_name, bool exact_match, size_t max_matches,
             llvm::DenseSet<lldb_private::SymbolFile *> &searched_symbol_files,
             TypeList &types);
+
+  /// Find types by name.
+  ///
+  /// This behaves like the other FindTypes method but allows to
+  /// specify a DeclContext and a language for the type being searched
+  /// for.
+  ///
+  /// \param searched_symbol_files
+  ///     Prevents one file from being visited multiple times.
+  void FindTypes(llvm::ArrayRef<CompilerContext> pattern, LanguageSet languages,
+                 llvm::DenseSet<lldb_private::SymbolFile *> &searched_symbol_files,
+                 TypeMap &types);
 
   lldb::TypeSP FindFirstType(const SymbolContext &sc,
                              ConstString type_name, bool exact_match);
@@ -467,17 +440,11 @@ public:
   ///     The name of a type within a namespace that should not include
   ///     any qualifying namespaces (just a type basename).
   ///
-  /// \param[in] namespace_decl
-  ///     The namespace declaration that this type must exist in.
-  ///
   /// \param[out] type_list
   ///     A type list gets populated with any matches.
-  ///
-  /// \return
-  ///     The number of matches added to \a type_list.
-  size_t FindTypesInNamespace(ConstString type_name,
-                              const CompilerDeclContext *parent_decl_ctx,
-                              size_t max_matches, TypeList &type_list);
+  void FindTypesInNamespace(ConstString type_name,
+                            const CompilerDeclContext *parent_decl_ctx,
+                            size_t max_matches, TypeList &type_list);
 
   /// Get const accessor for the module architecture.
   ///
@@ -638,27 +605,19 @@ public:
   ObjectFile *GetMemoryObjectFile(const lldb::ProcessSP &process_sp,
                                   lldb::addr_t header_addr, Status &error,
                                   size_t size_to_read = 512);
-  /// Get the symbol vendor interface for the current architecture.
-  ///
-  /// If the symbol vendor file has not been located yet, this function will
-  /// find the best SymbolVendor plug-in that can use the current object file.
-  ///
-  /// \return
-  ///     If this module does not have a valid object file, or no
-  ///     plug-in can be found that can use the object file, nullptr will
-  ///     be returned, else a valid symbol vendor plug-in interface
-  ///     will be returned. The returned pointer is owned by this
-  ///     object and remains valid as long as the object is around.
-  virtual SymbolVendor *
-  GetSymbolVendor(bool can_create = true,
-                  lldb_private::Stream *feedback_strm = nullptr);
 
-  /// Get accessor the type list for this module.
+  /// Get the module's symbol file
   ///
-  /// \return
-  ///     A valid type list pointer, or nullptr if there is no valid
-  ///     symbol vendor for this module.
-  TypeList *GetTypeList();
+  /// If the symbol file has already been loaded, this function returns it. All
+  /// arguments are ignored. If the symbol file has not been located yet, and
+  /// the can_create argument is false, the function returns nullptr. If
+  /// can_create is true, this function will find the best SymbolFile plug-in
+  /// that can use the current object file. feedback_strm, if not null, is used
+  /// to report the details of the search process.
+  virtual SymbolFile *GetSymbolFile(bool can_create = true,
+                                    Stream *feedback_strm = nullptr);
+
+  Symtab *GetSymtab();
 
   /// Get a reference to the UUID value contained in this object.
   ///
@@ -819,7 +778,8 @@ public:
 
   bool GetIsDynamicLinkEditor();
 
-  TypeSystem *GetTypeSystemForLanguage(lldb::LanguageType language);
+  llvm::Expected<TypeSystem &>
+  GetTypeSystemForLanguage(lldb::LanguageType language);
 
   // Special error functions that can do printf style formatting that will
   // prepend the message with something appropriate for this module (like the
@@ -848,7 +808,7 @@ public:
   // when the module first gets created.
   bool FileHasChanged() const;
 
-  // SymbolVendor, SymbolFile and ObjectFile member objects should lock the
+  // SymbolFile and ObjectFile member objects should lock the
   // module mutex to avoid deadlocks.
   std::recursive_mutex &GetMutex() const { return m_mutex; }
 
@@ -896,16 +856,19 @@ public:
   bool RemapSourceFile(llvm::StringRef path, std::string &new_path) const;
   bool RemapSourceFile(const char *, std::string &) const = delete;
 
+  /// Update the ArchSpec to a more specific variant.
+  bool MergeArchitecture(const ArchSpec &arch_spec);
+
   /// \class LookupInfo Module.h "lldb/Core/Module.h"
   /// A class that encapsulates name lookup information.
   ///
   /// Users can type a wide variety of partial names when setting breakpoints
-  /// by name or when looking for functions by name. SymbolVendor and
-  /// SymbolFile objects are only required to implement name lookup for
-  /// function basenames and for fully mangled names. This means if the user
-  /// types in a partial name, we must reduce this to a name lookup that will
-  /// work with all SymbolFile objects. So we might reduce a name lookup to
-  /// look for a basename, and then prune out any results that don't match.
+  /// by name or when looking for functions by name. The SymbolFile object is
+  /// only required to implement name lookup for function basenames and for
+  /// fully mangled names. This means if the user types in a partial name, we
+  /// must reduce this to a name lookup that will work with all SymbolFile
+  /// objects. So we might reduce a name lookup to look for a basename, and then
+  /// prune out any results that don't match.
   ///
   /// The "m_name" member variable represents the name as it was typed by the
   /// user. "m_lookup_name" will be the name we actually search for through
@@ -1012,7 +975,7 @@ protected:
                                      /// ObjectFile instances for the debug info
 
   std::atomic<bool> m_did_load_objfile{false};
-  std::atomic<bool> m_did_load_symbol_vendor{false};
+  std::atomic<bool> m_did_load_symfile{false};
   std::atomic<bool> m_did_set_uuid{false};
   mutable bool m_file_has_changed : 1,
       m_first_file_changed_log : 1; /// See if the module was modified after it
@@ -1072,9 +1035,9 @@ protected:
 private:
   Module(); // Only used internally by CreateJITModule ()
 
-  size_t FindTypes_Impl(
+  void FindTypes_Impl(
       ConstString name, const CompilerDeclContext *parent_decl_ctx,
-      bool append, size_t max_matches,
+      size_t max_matches,
       llvm::DenseSet<lldb_private::SymbolFile *> &searched_symbol_files,
       TypeMap &types);
 

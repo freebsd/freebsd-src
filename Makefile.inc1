@@ -902,7 +902,7 @@ _sanity_check: .PHONY .MAKE
 # tree changes, particularly with respect to removing source files and
 # replacing generated files.  Handle these cases here in an ad-hoc fashion.
 _cleanobj_fast_depend_hack: .PHONY
-# Syscall stubs rewritten in C and obsolete MD assembly implementations
+	@echo ">>> Deleting stale dependencies...";
 # Date      SVN Rev  Syscalls/Changes
 # 20170624  r320278  fstat fstatat fstatfs getdirentries getfsstat statfs
 # 20180404  r332048  sigreturn
@@ -971,6 +971,7 @@ _cleanobj_fast_depend_hack: .PHONY
 		echo "Removing stale wpa dependencies"; \
 		rm -f ${OBJTOP}/usr.sbin/wpa/*/.depend*; \
 	fi
+# Syscall stubs rewritten in C and obsolete MD assembly implementations
 # 20191112  r354634  removal of opensolaris_atomic.S
 .if ${MACHINE} != i386
 .for f in opensolaris_atomic
@@ -982,6 +983,16 @@ _cleanobj_fast_depend_hack: .PHONY
 	fi
 .endfor
 .endif
+# 20200310  r358851  rename of openmp's ittnotify_static.c to .cpp
+.for f in ittnotify_static
+	@if [ -e "${OBJTOP}/lib/libomp/.depend.${f}.pico" ] && \
+	    egrep -qw '${f}\.c' ${OBJTOP}/lib/libomp/.depend.${f}.pico; then \
+		echo "Removing stale dependencies for ${f}"; \
+		rm -f ${OBJTOP}/lib/libomp/.depend.${f}.* \
+		   ${OBJTOP}/obj-lib32/lib/libomp/.depend.${f}.* \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libomp/.depend.${f}.*}; \
+	fi
+.endfor
 
 _worldtmp: .PHONY
 	@echo

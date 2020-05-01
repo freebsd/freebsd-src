@@ -18,7 +18,6 @@
 #include "llvm/Support/RWMutex.h"
 #include "llvm/Support/Threading.h"
 
-#include <algorithm>
 #include <array>
 #include <utility>
 
@@ -57,23 +56,6 @@ public:
       return GetStringMapEntryFromKeyData(ccstr).getValue();
     }
     return nullptr;
-  }
-
-  bool SetMangledCounterparts(const char *key_ccstr, const char *value_ccstr) {
-    if (key_ccstr != nullptr && value_ccstr != nullptr) {
-      {
-        const uint8_t h = hash(llvm::StringRef(key_ccstr));
-        llvm::sys::SmartScopedWriter<false> wlock(m_string_pools[h].m_mutex);
-        GetStringMapEntryFromKeyData(key_ccstr).setValue(value_ccstr);
-      }
-      {
-        const uint8_t h = hash(llvm::StringRef(value_ccstr));
-        llvm::sys::SmartScopedWriter<false> wlock(m_string_pools[h].m_mutex);
-        GetStringMapEntryFromKeyData(value_ccstr).setValue(key_ccstr);
-      }
-      return true;
-    }
-    return false;
   }
 
   const char *GetConstCString(const char *cstr) {

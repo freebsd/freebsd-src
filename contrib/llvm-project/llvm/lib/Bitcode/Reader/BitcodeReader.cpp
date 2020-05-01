@@ -722,7 +722,7 @@ private:
   /// Converts alignment exponent (i.e. power of two (or zero)) to the
   /// corresponding alignment to use. If alignment is too large, returns
   /// a corresponding error code.
-  Error parseAlignmentValue(uint64_t Exponent, unsigned &Alignment);
+  Error parseAlignmentValue(uint64_t Exponent, MaybeAlign &Alignment);
   Error parseAttrKind(uint64_t Code, Attribute::AttrKind *Kind);
   Error parseModule(uint64_t ResumeBit, bool ShouldLazyLoadMetadata = false);
 
@@ -960,6 +960,7 @@ static FunctionSummary::FFlags getDecodedFFlags(uint64_t RawFlags) {
   Flags.NoRecurse = (RawFlags >> 2) & 0x1;
   Flags.ReturnDoesNotAlias = (RawFlags >> 3) & 0x1;
   Flags.NoInline = (RawFlags >> 4) & 0x1;
+  Flags.AlwaysInline = (RawFlags >> 5) & 0x1;
   return Flags;
 }
 
@@ -1063,7 +1064,7 @@ static int getDecodedUnaryOpcode(unsigned Val, Type *Ty) {
   switch (Val) {
   default:
     return -1;
-  case bitc::UNOP_NEG:
+  case bitc::UNOP_FNEG:
     return IsFP ? Instruction::FNeg : -1;
   }
 }
@@ -1544,12 +1545,12 @@ static Attribute::AttrKind getAttrFromCode(uint64_t Code) {
 }
 
 Error BitcodeReader::parseAlignmentValue(uint64_t Exponent,
-                                         unsigned &Alignment) {
+                                         MaybeAlign &Alignment) {
   // Note: Alignment in bitcode files is incremented by 1, so that zero
   // can be used for default alignment.
   if (Exponent > Value::MaxAlignmentExponent + 1)
     return error("Invalid alignment value");
-  Alignment = (1 << static_cast<unsigned>(Exponent)) >> 1;
+  Alignment = decodeMaybeAlign(Exponent);
   return Error::success();
 }
 
@@ -1660,6 +1661,7 @@ Error BitcodeReader::parseAttributeGroupBlock() {
         }
       }
 
+      UpgradeFramePointerAttributes(B);
       MAttributeGroups[GrpID] = AttributeList::get(Context, Idx, B);
       break;
     }
@@ -2377,6 +2379,8 @@ Error BitcodeReader::parseConstants() {
       CurTy = flattenPointerTypes(CurFullTy);
       continue;  // Skip the ValueList manipulation.
     case bitc::CST_CODE_NULL:      // NULL
+      if (CurTy->isVoidTy() || CurTy->isFunctionTy() || CurTy->isLabelTy())
+        return error("Invalid type for a constant null value");
       V = Constant::getNullValue(CurTy);
       break;
     case bitc::CST_CODE_INTEGER:   // INTEGER: [intval]
@@ -3110,7 +3114,7 @@ Error BitcodeReader::parseGlobalVarRecord(ArrayRef<uint64_t> Record) {
 
   uint64_t RawLinkage = Record[3];
   GlobalValue::LinkageTypes Linkage = getDecodedLinkage(RawLinkage);
-  unsigned Alignment;
+  MaybeAlign Alignment;
   if (Error Err = parseAlignmentValue(Record[4], Alignment))
     return Err;
   std::string Section;
@@ -3241,7 +3245,7 @@ Error BitcodeReader::parseFunctionRecord(ArrayRef<uint64_t> Record) {
                               Context, getPointerElementFlatType(PTy)));
   }
 
-  unsigned Alignment;
+  MaybeAlign Alignment;
   if (Error Err = parseAlignmentValue(Record[5], Alignment))
     return Err;
   Func->setAlignment(Alignment);
@@ -3646,6 +3650,11 @@ Error BitcodeReader::parseModule(uint64_t ResumeBit,
       break;
     }
     Record.clear();
+
+    // Upgrade data layout string.
+    std::string DL = llvm::UpgradeDataLayoutString(
+        TheModule->getDataLayoutStr(), TheModule->getTargetTriple());
+    TheModule->setDataLayout(DL);
   }
 }
 
@@ -3929,6 +3938,7 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
       if ((I = UpgradeBitCastInst(Opc, Op, ResTy, Temp))) {
         if (Temp) {
           InstructionList.push_back(Temp);
+          assert(CurBB && "No current BB?");
           CurBB->getInstList().push_back(Temp);
         }
       } else {
@@ -4622,31 +4632,47 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
       InstructionList.push_back(I);
       break;
     case bitc::FUNC_CODE_INST_PHI: { // PHI: [ty, val0,bb0, ...]
-      if (Record.size() < 1 || ((Record.size()-1)&1))
+      if (Record.size() < 1)
         return error("Invalid record");
+      // The first record specifies the type.
       FullTy = getFullyStructuredTypeByID(Record[0]);
       Type *Ty = flattenPointerTypes(FullTy);
       if (!Ty)
         return error("Invalid record");
 
-      PHINode *PN = PHINode::Create(Ty, (Record.size()-1)/2);
+      // Phi arguments are pairs of records of [value, basic block].
+      // There is an optional final record for fast-math-flags if this phi has a
+      // floating-point type.
+      size_t NumArgs = (Record.size() - 1) / 2;
+      PHINode *PN = PHINode::Create(Ty, NumArgs);
+      if ((Record.size() - 1) % 2 == 1 && !isa<FPMathOperator>(PN))
+        return error("Invalid record");
       InstructionList.push_back(PN);
 
-      for (unsigned i = 0, e = Record.size()-1; i != e; i += 2) {
+      for (unsigned i = 0; i != NumArgs; i++) {
         Value *V;
         // With the new function encoding, it is possible that operands have
         // negative IDs (for forward references).  Use a signed VBR
         // representation to keep the encoding small.
         if (UseRelativeIDs)
-          V = getValueSigned(Record, 1+i, NextValueNo, Ty);
+          V = getValueSigned(Record, i * 2 + 1, NextValueNo, Ty);
         else
-          V = getValue(Record, 1+i, NextValueNo, Ty);
-        BasicBlock *BB = getBasicBlock(Record[2+i]);
+          V = getValue(Record, i * 2 + 1, NextValueNo, Ty);
+        BasicBlock *BB = getBasicBlock(Record[i * 2 + 2]);
         if (!V || !BB)
           return error("Invalid record");
         PN->addIncoming(V, BB);
       }
       I = PN;
+
+      // If there are an even number of records, the final record must be FMF.
+      if (Record.size() % 2 == 0) {
+        assert(isa<FPMathOperator>(I) && "Unexpected phi type");
+        FastMathFlags FMF = getDecodedFastMathFlags(Record[Record.size() - 1]);
+        if (FMF.any())
+          I->setFastMathFlags(FMF);
+      }
+
       break;
     }
 
@@ -4726,7 +4752,7 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
       }
       Type *OpTy = getTypeByID(Record[1]);
       Value *Size = getFnValueByID(Record[2], OpTy);
-      unsigned Align;
+      MaybeAlign Align;
       if (Error Err = parseAlignmentValue(AlignRecord & ~FlagMask, Align)) {
         return Err;
       }
@@ -4765,7 +4791,7 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
       if (Error Err = typeCheckLoadStoreInst(Ty, Op->getType()))
         return Err;
 
-      unsigned Align;
+      MaybeAlign Align;
       if (Error Err = parseAlignmentValue(Record[OpNum], Align))
         return Err;
       I = new LoadInst(Ty, Op, "", Record[OpNum + 1], Align);
@@ -4802,7 +4828,7 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
         return error("Invalid record");
       SyncScope::ID SSID = getDecodedSyncScopeID(Record[OpNum + 3]);
 
-      unsigned Align;
+      MaybeAlign Align;
       if (Error Err = parseAlignmentValue(Record[OpNum], Align))
         return Err;
       I = new LoadInst(Ty, Op, "", Record[OpNum + 1], Align, Ordering, SSID);
@@ -4824,10 +4850,10 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
 
       if (Error Err = typeCheckLoadStoreInst(Val->getType(), Ptr->getType()))
         return Err;
-      unsigned Align;
+      MaybeAlign Align;
       if (Error Err = parseAlignmentValue(Record[OpNum], Align))
         return Err;
-      I = new StoreInst(Val, Ptr, Record[OpNum+1], Align);
+      I = new StoreInst(Val, Ptr, Record[OpNum + 1], Align);
       InstructionList.push_back(I);
       break;
     }
@@ -4857,10 +4883,10 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
       if (Ordering != AtomicOrdering::NotAtomic && Record[OpNum] == 0)
         return error("Invalid record");
 
-      unsigned Align;
+      MaybeAlign Align;
       if (Error Err = parseAlignmentValue(Record[OpNum], Align))
         return Err;
-      I = new StoreInst(Val, Ptr, Record[OpNum+1], Align, Ordering, SSID);
+      I = new StoreInst(Val, Ptr, Record[OpNum + 1], Align, Ordering, SSID);
       InstructionList.push_back(I);
       break;
     }
@@ -5094,6 +5120,19 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
       OperandBundles.emplace_back(BundleTags[Record[0]], std::move(Inputs));
       continue;
     }
+
+    case bitc::FUNC_CODE_INST_FREEZE: { // FREEZE: [opty,opval]
+      unsigned OpNum = 0;
+      Value *Op = nullptr;
+      if (getValueTypePair(Record, OpNum, NextValueNo, Op, &FullTy))
+        return error("Invalid record");
+      if (OpNum != Record.size())
+        return error("Invalid record");
+
+      I = new FreezeInst(Op);
+      InstructionList.push_back(I);
+      break;
+    }
     }
 
     // Add instruction to end of current BB.  If there is no current BB, reject
@@ -5115,7 +5154,7 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
     }
 
     // Non-void values get registered in the value table for future use.
-    if (I && !I->getType()->isVoidTy()) {
+    if (!I->getType()->isVoidTy()) {
       if (!FullTy) {
         FullTy = I->getType();
         assert(
@@ -5312,7 +5351,7 @@ Error BitcodeReader::materializeModule() {
 
   UpgradeModuleFlags(*TheModule);
 
-  UpgradeRetainReleaseMarker(*TheModule);
+  UpgradeARCRuntime(*TheModule);
 
   return Error::success();
 }
@@ -5740,9 +5779,11 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
   }
   const uint64_t Version = Record[0];
   const bool IsOldProfileFormat = Version == 1;
-  if (Version < 1 || Version > 7)
+  if (Version < 1 || Version > ModuleSummaryIndex::BitcodeSummaryVersion)
     return error("Invalid summary version " + Twine(Version) +
-                 ". Version should be in the range [1-7].");
+                 ". Version should be in the range [1-" +
+                 Twine(ModuleSummaryIndex::BitcodeSummaryVersion) +
+                 "].");
   Record.clear();
 
   // Keep around the last seen summary to be used when we see an optional
@@ -5793,7 +5834,7 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
     case bitc::FS_FLAGS: {  // [flags]
       uint64_t Flags = Record[0];
       // Scan flags.
-      assert(Flags <= 0x1f && "Unexpected bits in flag");
+      assert(Flags <= 0x3f && "Unexpected bits in flag");
 
       // 1 bit: WithGlobalValueDeadStripping flag.
       // Set on combined index only.
@@ -5816,6 +5857,10 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
       // Set on combined index only.
       if (Flags & 0x10)
         TheIndex.setPartiallySplitLTOUnits();
+      // 1 bit: WithAttributePropagation flag.
+      // Set on combined index only.
+      if (Flags & 0x20)
+        TheIndex.setWithAttributePropagation();
       break;
     }
     case bitc::FS_VALUE_GUID: { // [valueid, refguid]
@@ -5874,18 +5919,13 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
           ArrayRef<uint64_t>(Record).slice(CallGraphEdgeStartIndex),
           IsOldProfileFormat, HasProfile, HasRelBF);
       setSpecialRefs(Refs, NumRORefs, NumWORefs);
-      auto FS = llvm::make_unique<FunctionSummary>(
+      auto FS = std::make_unique<FunctionSummary>(
           Flags, InstCount, getDecodedFFlags(RawFunFlags), /*EntryCount=*/0,
           std::move(Refs), std::move(Calls), std::move(PendingTypeTests),
           std::move(PendingTypeTestAssumeVCalls),
           std::move(PendingTypeCheckedLoadVCalls),
           std::move(PendingTypeTestAssumeConstVCalls),
           std::move(PendingTypeCheckedLoadConstVCalls));
-      PendingTypeTests.clear();
-      PendingTypeTestAssumeVCalls.clear();
-      PendingTypeCheckedLoadVCalls.clear();
-      PendingTypeTestAssumeConstVCalls.clear();
-      PendingTypeCheckedLoadConstVCalls.clear();
       auto VIAndOriginalGUID = getValueInfoFromValueId(ValueID);
       FS->setModulePath(getThisModule()->first());
       FS->setOriginalName(VIAndOriginalGUID.second);
@@ -5900,7 +5940,7 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
       uint64_t RawFlags = Record[1];
       unsigned AliaseeID = Record[2];
       auto Flags = getDecodedGVSummaryFlags(RawFlags, Version);
-      auto AS = llvm::make_unique<AliasSummary>(Flags);
+      auto AS = std::make_unique<AliasSummary>(Flags);
       // The module path string ref set in the summary must be owned by the
       // index's module string table. Since we don't have a module path
       // string table section in the per-module index, we create a single
@@ -5934,7 +5974,7 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
       std::vector<ValueInfo> Refs =
           makeRefList(ArrayRef<uint64_t>(Record).slice(RefArrayStart));
       auto FS =
-          llvm::make_unique<GlobalVarSummary>(Flags, GVF, std::move(Refs));
+          std::make_unique<GlobalVarSummary>(Flags, GVF, std::move(Refs));
       FS->setModulePath(getThisModule()->first());
       auto GUID = getValueInfoFromValueId(ValueID);
       FS->setOriginalName(GUID.second);
@@ -5961,7 +6001,7 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
         VTableFuncs.push_back({Callee, Offset});
       }
       auto VS =
-          llvm::make_unique<GlobalVarSummary>(Flags, GVF, std::move(Refs));
+          std::make_unique<GlobalVarSummary>(Flags, GVF, std::move(Refs));
       VS->setModulePath(getThisModule()->first());
       VS->setVTableFuncs(VTableFuncs);
       auto GUID = getValueInfoFromValueId(ValueID);
@@ -6019,18 +6059,13 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
           IsOldProfileFormat, HasProfile, false);
       ValueInfo VI = getValueInfoFromValueId(ValueID).first;
       setSpecialRefs(Refs, NumRORefs, NumWORefs);
-      auto FS = llvm::make_unique<FunctionSummary>(
+      auto FS = std::make_unique<FunctionSummary>(
           Flags, InstCount, getDecodedFFlags(RawFunFlags), EntryCount,
           std::move(Refs), std::move(Edges), std::move(PendingTypeTests),
           std::move(PendingTypeTestAssumeVCalls),
           std::move(PendingTypeCheckedLoadVCalls),
           std::move(PendingTypeTestAssumeConstVCalls),
           std::move(PendingTypeCheckedLoadConstVCalls));
-      PendingTypeTests.clear();
-      PendingTypeTestAssumeVCalls.clear();
-      PendingTypeCheckedLoadVCalls.clear();
-      PendingTypeTestAssumeConstVCalls.clear();
-      PendingTypeCheckedLoadConstVCalls.clear();
       LastSeenSummary = FS.get();
       LastSeenGUID = VI.getGUID();
       FS->setModulePath(ModuleIdMap[ModuleId]);
@@ -6046,7 +6081,7 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
       uint64_t RawFlags = Record[2];
       unsigned AliaseeValueId = Record[3];
       auto Flags = getDecodedGVSummaryFlags(RawFlags, Version);
-      auto AS = llvm::make_unique<AliasSummary>(Flags);
+      auto AS = std::make_unique<AliasSummary>(Flags);
       LastSeenSummary = AS.get();
       AS->setModulePath(ModuleIdMap[ModuleId]);
 
@@ -6075,7 +6110,7 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
       std::vector<ValueInfo> Refs =
           makeRefList(ArrayRef<uint64_t>(Record).slice(RefArrayStart));
       auto FS =
-          llvm::make_unique<GlobalVarSummary>(Flags, GVF, std::move(Refs));
+          std::make_unique<GlobalVarSummary>(Flags, GVF, std::move(Refs));
       LastSeenSummary = FS.get();
       FS->setModulePath(ModuleIdMap[ModuleId]);
       ValueInfo VI = getValueInfoFromValueId(ValueID).first;
@@ -6438,7 +6473,7 @@ BitcodeModule::getModuleImpl(LLVMContext &Context, bool MaterializeAll,
                               Context);
 
   std::unique_ptr<Module> M =
-      llvm::make_unique<Module>(ModuleIdentifier, Context);
+      std::make_unique<Module>(ModuleIdentifier, Context);
   M->setMaterializer(R);
 
   // Delay parsing Metadata if ShouldLazyLoadMetadata is true.
@@ -6485,7 +6520,7 @@ Expected<std::unique_ptr<ModuleSummaryIndex>> BitcodeModule::getSummary() {
   if (Error JumpFailed = Stream.JumpToBit(ModuleBit))
     return std::move(JumpFailed);
 
-  auto Index = llvm::make_unique<ModuleSummaryIndex>(/*HaveGVs=*/false);
+  auto Index = std::make_unique<ModuleSummaryIndex>(/*HaveGVs=*/false);
   ModuleSummaryIndexBitcodeReader R(std::move(Stream), Strtab, *Index,
                                     ModuleIdentifier, 0);
 
@@ -6531,7 +6566,7 @@ static Expected<bool> getEnableSplitLTOUnitFlag(BitstreamCursor &Stream,
     case bitc::FS_FLAGS: { // [flags]
       uint64_t Flags = Record[0];
       // Scan flags.
-      assert(Flags <= 0x1f && "Unexpected bits in flag");
+      assert(Flags <= 0x3f && "Unexpected bits in flag");
 
       return Flags & 0x8;
     }

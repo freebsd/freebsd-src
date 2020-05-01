@@ -18,10 +18,7 @@
 #include "kmp_itt.h"
 #include "kmp_lock.h"
 #include "kmp_stats.h"
-
-#if OMPT_SUPPORT
 #include "ompt-specific.h"
-#endif
 
 #define MAX_MESSAGE 512
 
@@ -545,7 +542,8 @@ void __kmpc_end_serialized_parallel(ident_t *loc, kmp_int32 global_tid) {
     if (ompt_enabled.ompt_callback_parallel_end) {
       ompt_callbacks.ompt_callback(ompt_callback_parallel_end)(
           &(serial_team->t.ompt_team_info.parallel_data), parent_task_data,
-          ompt_parallel_invoker_program, OMPT_LOAD_RETURN_ADDRESS(global_tid));
+          ompt_parallel_invoker_program | ompt_parallel_team,
+          OMPT_LOAD_RETURN_ADDRESS(global_tid));
     }
     __ompt_lw_taskteam_unlink(this_thr);
     this_thr->th.ompt_thread_info.state = ompt_state_overhead;
@@ -676,7 +674,8 @@ void __kmpc_flush(ident_t *loc) {
 #endif // KMP_COMPILER_ICC
   }
 #endif // KMP_MIC
-#elif (KMP_ARCH_ARM || KMP_ARCH_AARCH64 || KMP_ARCH_MIPS || KMP_ARCH_MIPS64)
+#elif (KMP_ARCH_ARM || KMP_ARCH_AARCH64 || KMP_ARCH_MIPS || KMP_ARCH_MIPS64 || \
+       KMP_ARCH_RISCV64)
 // Nothing to see here move along
 #elif KMP_ARCH_PPC64
 // Nothing needed here (we have a real MB above).
@@ -3427,12 +3426,17 @@ __kmpc_reduce_nowait(ident_t *loc, kmp_int32 global_tid, kmp_int32 num_vars,
       loc, global_tid, num_vars, reduce_size, reduce_data, reduce_func, lck);
   __KMP_SET_REDUCTION_METHOD(global_tid, packed_reduction_method);
 
+  OMPT_REDUCTION_DECL(th, global_tid);
   if (packed_reduction_method == critical_reduce_block) {
+
+    OMPT_REDUCTION_BEGIN;
 
     __kmp_enter_critical_section_reduce_block(loc, global_tid, lck);
     retval = 1;
 
   } else if (packed_reduction_method == empty_reduce_block) {
+
+    OMPT_REDUCTION_BEGIN;
 
     // usage: if team size == 1, no synchronization is required ( Intel
     // platforms only )
@@ -3534,14 +3538,19 @@ void __kmpc_end_reduce_nowait(ident_t *loc, kmp_int32 global_tid,
 
   packed_reduction_method = __KMP_GET_REDUCTION_METHOD(global_tid);
 
+  OMPT_REDUCTION_DECL(__kmp_thread_from_gtid(global_tid), global_tid);
+
   if (packed_reduction_method == critical_reduce_block) {
 
     __kmp_end_critical_section_reduce_block(loc, global_tid, lck);
+    OMPT_REDUCTION_END;
 
   } else if (packed_reduction_method == empty_reduce_block) {
 
     // usage: if team size == 1, no synchronization is required ( on Intel
     // platforms only )
+
+    OMPT_REDUCTION_END;
 
   } else if (packed_reduction_method == atomic_reduce_block) {
 
@@ -3554,6 +3563,7 @@ void __kmpc_end_reduce_nowait(ident_t *loc, kmp_int32 global_tid,
                                    tree_reduce_block)) {
 
     // only master gets here
+    // OMPT: tree reduction is annotated in the barrier code
 
   } else {
 
@@ -3627,13 +3637,17 @@ kmp_int32 __kmpc_reduce(ident_t *loc, kmp_int32 global_tid, kmp_int32 num_vars,
       loc, global_tid, num_vars, reduce_size, reduce_data, reduce_func, lck);
   __KMP_SET_REDUCTION_METHOD(global_tid, packed_reduction_method);
 
+  OMPT_REDUCTION_DECL(th, global_tid);
+
   if (packed_reduction_method == critical_reduce_block) {
 
+    OMPT_REDUCTION_BEGIN;
     __kmp_enter_critical_section_reduce_block(loc, global_tid, lck);
     retval = 1;
 
   } else if (packed_reduction_method == empty_reduce_block) {
 
+    OMPT_REDUCTION_BEGIN;
     // usage: if team size == 1, no synchronization is required ( Intel
     // platforms only )
     retval = 1;
@@ -3721,9 +3735,12 @@ void __kmpc_end_reduce(ident_t *loc, kmp_int32 global_tid,
 
   // this barrier should be visible to a customer and to the threading profile
   // tool (it's a terminating barrier on constructs if NOWAIT not specified)
+  OMPT_REDUCTION_DECL(th, global_tid);
 
   if (packed_reduction_method == critical_reduce_block) {
     __kmp_end_critical_section_reduce_block(loc, global_tid, lck);
+
+    OMPT_REDUCTION_END;
 
 // TODO: implicit barrier: should be exposed
 #if OMPT_SUPPORT
@@ -3746,6 +3763,8 @@ void __kmpc_end_reduce(ident_t *loc, kmp_int32 global_tid,
 #endif
 
   } else if (packed_reduction_method == empty_reduce_block) {
+
+    OMPT_REDUCTION_END;
 
 // usage: if team size==1, no synchronization is required (Intel platforms only)
 

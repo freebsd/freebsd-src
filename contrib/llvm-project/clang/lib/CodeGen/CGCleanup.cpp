@@ -304,13 +304,13 @@ void EHScopeStack::Cleanup::anchor() {}
 static void createStoreInstBefore(llvm::Value *value, Address addr,
                                   llvm::Instruction *beforeInst) {
   auto store = new llvm::StoreInst(value, addr.getPointer(), beforeInst);
-  store->setAlignment(addr.getAlignment().getQuantity());
+  store->setAlignment(addr.getAlignment().getAsAlign());
 }
 
 static llvm::LoadInst *createLoadInstBefore(Address addr, const Twine &name,
                                             llvm::Instruction *beforeInst) {
   auto load = new llvm::LoadInst(addr.getPointer(), name, beforeInst);
-  load->setAlignment(addr.getAlignment().getQuantity());
+  load->setAlignment(addr.getAlignment().getAsAlign());
   return load;
 }
 
@@ -740,14 +740,15 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
   // here. Unfortunately, if you ask for a SmallVector<char>, the
   // alignment isn't sufficient.
   auto *CleanupSource = reinterpret_cast<char *>(Scope.getCleanupBuffer());
-  llvm::AlignedCharArray<EHScopeStack::ScopeStackAlignment, 8 * sizeof(void *)> CleanupBufferStack;
+  alignas(EHScopeStack::ScopeStackAlignment) char
+      CleanupBufferStack[8 * sizeof(void *)];
   std::unique_ptr<char[]> CleanupBufferHeap;
   size_t CleanupSize = Scope.getCleanupSize();
   EHScopeStack::Cleanup *Fn;
 
   if (CleanupSize <= sizeof(CleanupBufferStack)) {
-    memcpy(CleanupBufferStack.buffer, CleanupSource, CleanupSize);
-    Fn = reinterpret_cast<EHScopeStack::Cleanup *>(CleanupBufferStack.buffer);
+    memcpy(CleanupBufferStack, CleanupSource, CleanupSize);
+    Fn = reinterpret_cast<EHScopeStack::Cleanup *>(CleanupBufferStack);
   } else {
     CleanupBufferHeap.reset(new char[CleanupSize]);
     memcpy(CleanupBufferHeap.get(), CleanupSource, CleanupSize);

@@ -261,6 +261,7 @@ class SDot2Pat<Instruction Inst> : GCNPat <
   let SubtargetPredicate = !cast<VOP_Pseudo>(Inst).SubtargetPredicate;
 }
 
+let IsDOT = 1 in {
 let SubtargetPredicate = HasDot2Insts in {
 
 def V_DOT2_F32_F16 : VOP3PInst<"v_dot2_f32_f16", VOP3_Profile<VOP_F32_V2F16_V2F16_F32>>;
@@ -277,6 +278,7 @@ def V_DOT4_I32_I8  : VOP3PInst<"v_dot4_i32_i8", VOP3_Profile<VOP_I32_I32_I32_I32
 def V_DOT8_I32_I4  : VOP3PInst<"v_dot8_i32_i4", VOP3_Profile<VOP_I32_I32_I32_I32, VOP3_PACKED>>;
 
 } // End SubtargetPredicate = HasDot1Insts
+} // End let IsDOT = 1
 
 multiclass DotPats<SDPatternOperator dot_op,
                    VOP3PInst dot_inst> {
@@ -402,7 +404,7 @@ def : MnemonicAlias<"v_accvgpr_write", "v_accvgpr_write_b32">;
 multiclass VOP3P_Real_vi<bits<10> op> {
   def _vi : VOP3P_Real<!cast<VOP3_Pseudo>(NAME), SIEncodingFamily.VI>,
             VOP3Pe <op, !cast<VOP3_Pseudo>(NAME).Pfl> {
-    let AssemblerPredicates = [HasVOP3PInsts];
+    let AssemblerPredicate = HasVOP3PInsts;
     let DecoderNamespace = "GFX8";
   }
 }
@@ -410,7 +412,7 @@ multiclass VOP3P_Real_vi<bits<10> op> {
 multiclass VOP3P_Real_MAI<bits<10> op> {
   def _vi : VOP3P_Real<!cast<VOP3_Pseudo>(NAME), SIEncodingFamily.VI>,
             VOP3Pe_MAI <op, !cast<VOP3_Pseudo>(NAME).Pfl> {
-    let AssemblerPredicates = [HasMAIInsts];
+    let AssemblerPredicate = HasMAIInsts;
     let DecoderNamespace = "GFX8";
   }
 }

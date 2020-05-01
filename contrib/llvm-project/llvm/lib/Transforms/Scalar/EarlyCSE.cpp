@@ -27,7 +27,6 @@
 #include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -45,6 +44,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/AtomicOrdering.h"
@@ -55,6 +55,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/GuardUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <cassert>
 #include <deque>
 #include <memory>
@@ -108,11 +109,12 @@ struct SimpleValue {
     // This can only handle non-void readnone functions.
     if (CallInst *CI = dyn_cast<CallInst>(Inst))
       return CI->doesNotAccessMemory() && !CI->getType()->isVoidTy();
-    return isa<CastInst>(Inst) || isa<BinaryOperator>(Inst) ||
-           isa<GetElementPtrInst>(Inst) || isa<CmpInst>(Inst) ||
-           isa<SelectInst>(Inst) || isa<ExtractElementInst>(Inst) ||
-           isa<InsertElementInst>(Inst) || isa<ShuffleVectorInst>(Inst) ||
-           isa<ExtractValueInst>(Inst) || isa<InsertValueInst>(Inst);
+    return isa<CastInst>(Inst) || isa<UnaryOperator>(Inst) ||
+           isa<BinaryOperator>(Inst) || isa<GetElementPtrInst>(Inst) ||
+           isa<CmpInst>(Inst) || isa<SelectInst>(Inst) ||
+           isa<ExtractElementInst>(Inst) || isa<InsertElementInst>(Inst) ||
+           isa<ShuffleVectorInst>(Inst) || isa<ExtractValueInst>(Inst) ||
+           isa<InsertValueInst>(Inst);
   }
 };
 
@@ -150,13 +152,50 @@ static bool matchSelectWithOptionalNotCond(Value *V, Value *&Cond, Value *&A,
     std::swap(A, B);
   }
 
-  // Set flavor if we find a match, or set it to unknown otherwise; in
-  // either case, return true to indicate that this is a select we can
-  // process.
-  if (auto *CmpI = dyn_cast<ICmpInst>(Cond))
-    Flavor = matchDecomposedSelectPattern(CmpI, A, B, A, B).Flavor;
-  else
-    Flavor = SPF_UNKNOWN;
+  // Match canonical forms of abs/nabs/min/max. We are not using ValueTracking's
+  // more powerful matchSelectPattern() because it may rely on instruction flags
+  // such as "nsw". That would be incompatible with the current hashing
+  // mechanism that may remove flags to increase the likelihood of CSE.
+
+  // These are the canonical forms of abs(X) and nabs(X) created by instcombine:
+  // %N = sub i32 0, %X
+  // %C = icmp slt i32 %X, 0
+  // %ABS = select i1 %C, i32 %N, i32 %X
+  //
+  // %N = sub i32 0, %X
+  // %C = icmp slt i32 %X, 0
+  // %NABS = select i1 %C, i32 %X, i32 %N
+  Flavor = SPF_UNKNOWN;
+  CmpInst::Predicate Pred;
+  if (match(Cond, m_ICmp(Pred, m_Specific(B), m_ZeroInt())) &&
+      Pred == ICmpInst::ICMP_SLT && match(A, m_Neg(m_Specific(B)))) {
+    // ABS: B < 0 ? -B : B
+    Flavor = SPF_ABS;
+    return true;
+  }
+  if (match(Cond, m_ICmp(Pred, m_Specific(A), m_ZeroInt())) &&
+      Pred == ICmpInst::ICMP_SLT && match(B, m_Neg(m_Specific(A)))) {
+    // NABS: A < 0 ? A : -A
+    Flavor = SPF_NABS;
+    return true;
+  }
+
+  if (!match(Cond, m_ICmp(Pred, m_Specific(A), m_Specific(B)))) {
+    // Check for commuted variants of min/max by swapping predicate.
+    // If we do not match the standard or commuted patterns, this is not a
+    // recognized form of min/max, but it is still a select, so return true.
+    if (!match(Cond, m_ICmp(Pred, m_Specific(B), m_Specific(A))))
+      return true;
+    Pred = ICmpInst::getSwappedPredicate(Pred);
+  }
+
+  switch (Pred) {
+  case CmpInst::ICMP_UGT: Flavor = SPF_UMAX; break;
+  case CmpInst::ICMP_ULT: Flavor = SPF_UMIN; break;
+  case CmpInst::ICMP_SGT: Flavor = SPF_SMAX; break;
+  case CmpInst::ICMP_SLT: Flavor = SPF_SMIN; break;
+  default: break;
+  }
 
   return true;
 }
@@ -240,7 +279,7 @@ static unsigned getHashValueImpl(SimpleValue Val) {
 
   assert((isa<CallInst>(Inst) || isa<GetElementPtrInst>(Inst) ||
           isa<ExtractElementInst>(Inst) || isa<InsertElementInst>(Inst) ||
-          isa<ShuffleVectorInst>(Inst)) &&
+          isa<ShuffleVectorInst>(Inst) || isa<UnaryOperator>(Inst)) &&
          "Invalid/unknown instruction");
 
   // Mix in the opcode.
@@ -526,7 +565,7 @@ public:
            const TargetTransformInfo &TTI, DominatorTree &DT,
            AssumptionCache &AC, MemorySSA *MSSA)
       : TLI(TLI), TTI(TTI), DT(DT), AC(AC), SQ(DL, &TLI, &DT, &AC), MSSA(MSSA),
-        MSSAUpdater(llvm::make_unique<MemorySSAUpdater>(MSSA)) {}
+        MSSAUpdater(std::make_unique<MemorySSAUpdater>(MSSA)) {}
 
   bool run();
 
@@ -651,7 +690,7 @@ private:
 
     bool isInvariantLoad() const {
       if (auto *LI = dyn_cast<LoadInst>(Inst))
-        return LI->getMetadata(LLVMContext::MD_invariant_load) != nullptr;
+        return LI->hasMetadata(LLVMContext::MD_invariant_load);
       return false;
     }
 
@@ -790,7 +829,7 @@ bool EarlyCSE::isOperatingOnInvariantMemAt(Instruction *I, unsigned GenAt) {
   // A location loaded from with an invariant_load is assumed to *never* change
   // within the visible scope of the compilation.
   if (auto *LI = dyn_cast<LoadInst>(I))
-    if (LI->getMetadata(LLVMContext::MD_invariant_load))
+    if (LI->hasMetadata(LLVMContext::MD_invariant_load))
       return true;
 
   auto MemLocOpt = MemoryLocation::getOrNone(I);
@@ -905,8 +944,8 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
         LLVM_DEBUG(dbgs() << "Skipping due to debug counter\n");
         continue;
       }
-      if (!salvageDebugInfo(*Inst))
-        replaceDbgUsesWithUndef(Inst);
+
+      salvageDebugInfoOrMarkUndef(*Inst);
       removeMSSA(Inst);
       Inst->eraseFromParent();
       Changed = true;
@@ -1359,7 +1398,7 @@ public:
     if (skipFunction(F))
       return false;
 
-    auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+    auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
     auto &TTI = getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
     auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
     auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
@@ -1381,6 +1420,7 @@ public:
       AU.addPreserved<MemorySSAWrapperPass>();
     }
     AU.addPreserved<GlobalsAAWrapperPass>();
+    AU.addPreserved<AAResultsWrapperPass>();
     AU.setPreservesCFG();
   }
 };

@@ -152,6 +152,13 @@ module LLVM_DebugInfo_CodeView {
   textual header "DebugInfo/CodeView/CodeViewSymbols.def"
 }
 
+module LLVM_DWARFLinker {
+  requires cplusplus
+
+  umbrella "DWARFLinker"
+  module * { export * }
+}
+
 module LLVM_ExecutionEngine {
   requires cplusplus
 
@@ -169,12 +176,31 @@ module LLVM_ExecutionEngine {
 
   // FIXME: These exclude directives were added as a workaround for
   //        <rdar://problem/29247092> and should be removed once it is fixed.
-  exclude header "ExecutionEngine/Orc/RawByteChannel.h"
-  exclude header "ExecutionEngine/Orc/RPCUtils.h"
   exclude header "ExecutionEngine/Orc/OrcRemoteTargetRPCAPI.h"
   exclude header "ExecutionEngine/Orc/OrcRemoteTargetClient.h"
   exclude header "ExecutionEngine/Orc/OrcRemoteTargetServer.h"
   exclude header "ExecutionEngine/Orc/RemoteObjectLayer.h"
+
+  // Exclude headers from LLVM_OrcSupport.
+  exclude header "ExecutionEngine/Orc/OrcError.h"
+  exclude header "ExecutionEngine/Orc/RPC/RPCUtils.h"
+  exclude header "ExecutionEngine/Orc/RPC/RPCSerialization.h"
+  exclude header "ExecutionEngine/Orc/RPC/RawByteChannel.h"
+
+}
+
+// Orc utilities that don't depend only on Support (not ExecutionEngine or
+// IR). This is a workaround for ExecutionEngine's broken layering, and will
+// be removed in the future.
+module LLVM_OrcSupport {
+  requires cplusplus
+
+  header "ExecutionEngine/Orc/OrcError.h"
+  header "ExecutionEngine/Orc/RPC/RPCUtils.h"
+  header "ExecutionEngine/Orc/RPC/RPCSerialization.h"
+  header "ExecutionEngine/Orc/RPC/RawByteChannel.h"
+
+  export *
 }
 
 module LLVM_Pass {
@@ -250,9 +276,11 @@ module LLVM_IR {
   module * { export * }
 
   // These are intended for (repeated) textual inclusion.
+  textual header "IR/ConstrainedOps.def"
   textual header "IR/DebugInfoFlags.def"
   textual header "IR/Instruction.def"
   textual header "IR/Metadata.def"
+  textual header "IR/FixedMetadataKinds.def"
   textual header "IR/Value.def"
   textual header "IR/RuntimeLibcalls.def"
 }
@@ -331,6 +359,7 @@ module LLVM_TableGen {
 module LLVM_Transforms {
   requires cplusplus
   umbrella "Transforms"
+
   module * { export * }
 }
 
@@ -351,6 +380,9 @@ module LLVM_Utils {
 
     umbrella "Support"
     module * { export * }
+    
+    // Exclude this; it should only be used on Windows.
+    exclude header "Support/Windows/WindowsSupport.h"
 
     // Exclude these; they are fundamentally non-modular.
     exclude header "Support/PluginLoader.h"

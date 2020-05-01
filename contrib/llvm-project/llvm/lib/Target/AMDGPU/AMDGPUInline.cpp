@@ -17,21 +17,21 @@
 ///
 //===----------------------------------------------------------------------===//
 
-
 #include "AMDGPU.h"
-#include "llvm/Transforms/IPO.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/InlineCost.h"
-#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/Inliner.h"
 
 using namespace llvm;
@@ -39,7 +39,7 @@ using namespace llvm;
 #define DEBUG_TYPE "inline"
 
 static cl::opt<int>
-ArgAllocaCost("amdgpu-inline-arg-alloca-cost", cl::Hidden, cl::init(1500),
+ArgAllocaCost("amdgpu-inline-arg-alloca-cost", cl::Hidden, cl::init(4000),
               cl::desc("Cost of alloca argument"));
 
 // If the amount of scratch memory to eliminate exceeds our ability to allocate
@@ -51,7 +51,7 @@ ArgAllocaCutoff("amdgpu-inline-arg-alloca-cutoff", cl::Hidden, cl::init(256),
 
 // Inliner constraint to achieve reasonable compilation time
 static cl::opt<size_t>
-MaxBB("amdgpu-inline-max-bb", cl::Hidden, cl::init(300),
+MaxBB("amdgpu-inline-max-bb", cl::Hidden, cl::init(1100),
       cl::desc("Maximum BB number allowed in a function after inlining"
                " (compile time constraint)"));
 

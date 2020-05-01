@@ -37,15 +37,21 @@
         aout
         ..
         clang
-            9.0.1
+            10.0.0
                 include
                     cuda_wrappers
+                    ..
+                    fuzzer
                     ..
                     openmp_wrappers
                     ..
                     ppc_wrappers
                     ..
+                    profile
+                    ..
                     sanitizer
+                    ..
+                    xray
                     ..
                 ..
                 lib

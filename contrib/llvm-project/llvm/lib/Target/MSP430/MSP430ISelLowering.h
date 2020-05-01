@@ -124,6 +124,9 @@ namespace llvm {
     bool isZExtFree(EVT VT1, EVT VT2) const override;
     bool isZExtFree(SDValue Val, EVT VT2) const override;
 
+    bool isLegalICmpImmediate(int64_t) const override;
+    bool shouldAvoidTransformToShift(EVT VT, unsigned Amount) const override;
+
     MachineBasicBlock *
     EmitInstrWithCustomInserter(MachineInstr &MI,
                                 MachineBasicBlock *BB) const override;

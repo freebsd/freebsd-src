@@ -85,6 +85,7 @@ public:
       FunctionName,
       FunctionNameWithArgs,
       FunctionNameNoArgs,
+      FunctionMangledName,
       FunctionAddrOffset,
       FunctionAddrOffsetConcrete,
       FunctionLineOffset,
@@ -199,7 +200,7 @@ public:
                                     llvm::StringRef &variable_name,
                                     llvm::StringRef &variable_format);
 
-  static size_t AutoComplete(lldb_private::CompletionRequest &request);
+  static void AutoComplete(lldb_private::CompletionRequest &request);
 
   // Format the current elements into the stream \a s.
   //

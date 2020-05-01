@@ -78,9 +78,9 @@ public:
   AllocaInst(Type *Ty, unsigned AddrSpace,
              const Twine &Name, BasicBlock *InsertAtEnd);
 
-  AllocaInst(Type *Ty, unsigned AddrSpace, Value *ArraySize, unsigned Align,
+  AllocaInst(Type *Ty, unsigned AddrSpace, Value *ArraySize, MaybeAlign Align,
              const Twine &Name = "", Instruction *InsertBefore = nullptr);
-  AllocaInst(Type *Ty, unsigned AddrSpace, Value *ArraySize, unsigned Align,
+  AllocaInst(Type *Ty, unsigned AddrSpace, Value *ArraySize, MaybeAlign Align,
              const Twine &Name, BasicBlock *InsertAtEnd);
 
   /// Return true if there is an allocation size parameter to the allocation
@@ -110,9 +110,11 @@ public:
   /// Return the alignment of the memory that is being allocated by the
   /// instruction.
   unsigned getAlignment() const {
-    return (1u << (getSubclassDataFromInstruction() & 31)) >> 1;
+    if (const auto MA = decodeMaybeAlign(getSubclassDataFromInstruction() & 31))
+      return MA->value();
+    return 0;
   }
-  void setAlignment(unsigned Align);
+  void setAlignment(MaybeAlign Align);
 
   /// Return true if this alloca is in the entry block of the function and is a
   /// constant size. If so, the code generator will fold it into the
@@ -182,15 +184,15 @@ public:
   LoadInst(Type *Ty, Value *Ptr, const Twine &NameStr, bool isVolatile,
            BasicBlock *InsertAtEnd);
   LoadInst(Type *Ty, Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, Instruction *InsertBefore = nullptr);
+           MaybeAlign Align, Instruction *InsertBefore = nullptr);
   LoadInst(Type *Ty, Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, BasicBlock *InsertAtEnd);
+           MaybeAlign Align, BasicBlock *InsertAtEnd);
   LoadInst(Type *Ty, Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, AtomicOrdering Order,
+           MaybeAlign Align, AtomicOrdering Order,
            SyncScope::ID SSID = SyncScope::System,
            Instruction *InsertBefore = nullptr);
   LoadInst(Type *Ty, Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, AtomicOrdering Order, SyncScope::ID SSID,
+           MaybeAlign Align, AtomicOrdering Order, SyncScope::ID SSID,
            BasicBlock *InsertAtEnd);
 
   // Deprecated [opaque pointer types]
@@ -209,20 +211,20 @@ public:
            BasicBlock *InsertAtEnd)
       : LoadInst(Ptr->getType()->getPointerElementType(), Ptr, NameStr,
                  isVolatile, InsertAtEnd) {}
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile, unsigned Align,
+  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile, MaybeAlign Align,
            Instruction *InsertBefore = nullptr)
       : LoadInst(Ptr->getType()->getPointerElementType(), Ptr, NameStr,
                  isVolatile, Align, InsertBefore) {}
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile, unsigned Align,
+  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile, MaybeAlign Align,
            BasicBlock *InsertAtEnd)
       : LoadInst(Ptr->getType()->getPointerElementType(), Ptr, NameStr,
                  isVolatile, Align, InsertAtEnd) {}
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile, unsigned Align,
+  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile, MaybeAlign Align,
            AtomicOrdering Order, SyncScope::ID SSID = SyncScope::System,
            Instruction *InsertBefore = nullptr)
       : LoadInst(Ptr->getType()->getPointerElementType(), Ptr, NameStr,
                  isVolatile, Align, Order, SSID, InsertBefore) {}
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile, unsigned Align,
+  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile, MaybeAlign Align,
            AtomicOrdering Order, SyncScope::ID SSID, BasicBlock *InsertAtEnd)
       : LoadInst(Ptr->getType()->getPointerElementType(), Ptr, NameStr,
                  isVolatile, Align, Order, SSID, InsertAtEnd) {}
@@ -237,11 +239,20 @@ public:
   }
 
   /// Return the alignment of the access that is being performed.
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use getAlign() instead.
   unsigned getAlignment() const {
-    return (1 << ((getSubclassDataFromInstruction() >> 1) & 31)) >> 1;
+    if (const auto MA = getAlign())
+      return MA->value();
+    return 0;
   }
 
-  void setAlignment(unsigned Align);
+  /// Return the alignment of the access that is being performed.
+  MaybeAlign getAlign() const {
+    return decodeMaybeAlign((getSubclassDataFromInstruction() >> 1) & 31);
+  }
+
+  void setAlignment(MaybeAlign Alignment);
 
   /// Returns the ordering constraint of this load instruction.
   AtomicOrdering getOrdering() const {
@@ -332,17 +343,15 @@ public:
   StoreInst(Value *Val, Value *Ptr, bool isVolatile = false,
             Instruction *InsertBefore = nullptr);
   StoreInst(Value *Val, Value *Ptr, bool isVolatile, BasicBlock *InsertAtEnd);
-  StoreInst(Value *Val, Value *Ptr, bool isVolatile,
-            unsigned Align, Instruction *InsertBefore = nullptr);
-  StoreInst(Value *Val, Value *Ptr, bool isVolatile,
-            unsigned Align, BasicBlock *InsertAtEnd);
-  StoreInst(Value *Val, Value *Ptr, bool isVolatile,
-            unsigned Align, AtomicOrdering Order,
-            SyncScope::ID SSID = SyncScope::System,
+  StoreInst(Value *Val, Value *Ptr, bool isVolatile, MaybeAlign Align,
             Instruction *InsertBefore = nullptr);
-  StoreInst(Value *Val, Value *Ptr, bool isVolatile,
-            unsigned Align, AtomicOrdering Order, SyncScope::ID SSID,
+  StoreInst(Value *Val, Value *Ptr, bool isVolatile, MaybeAlign Align,
             BasicBlock *InsertAtEnd);
+  StoreInst(Value *Val, Value *Ptr, bool isVolatile, MaybeAlign Align,
+            AtomicOrdering Order, SyncScope::ID SSID = SyncScope::System,
+            Instruction *InsertBefore = nullptr);
+  StoreInst(Value *Val, Value *Ptr, bool isVolatile, MaybeAlign Align,
+            AtomicOrdering Order, SyncScope::ID SSID, BasicBlock *InsertAtEnd);
 
   // allocate space for exactly two operands
   void *operator new(size_t s) {
@@ -362,11 +371,19 @@ public:
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
 
   /// Return the alignment of the access that is being performed
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use getAlign() instead.
   unsigned getAlignment() const {
-    return (1 << ((getSubclassDataFromInstruction() >> 1) & 31)) >> 1;
+    if (const auto MA = getAlign())
+      return MA->value();
+    return 0;
   }
 
-  void setAlignment(unsigned Align);
+  MaybeAlign getAlign() const {
+    return decodeMaybeAlign((getSubclassDataFromInstruction() >> 1) & 31);
+  }
+
+  void setAlignment(MaybeAlign Alignment);
 
   /// Returns the ordering constraint of this store instruction.
   AtomicOrdering getOrdering() const {
@@ -1033,11 +1050,6 @@ public:
 
   /// Returns the pointer type returned by the GEP
   /// instruction, which may be a vector of pointers.
-  static Type *getGEPReturnType(Value *Ptr, ArrayRef<Value *> IdxList) {
-    return getGEPReturnType(
-      cast<PointerType>(Ptr->getType()->getScalarType())->getElementType(),
-      Ptr, IdxList);
-  }
   static Type *getGEPReturnType(Type *ElTy, Value *Ptr,
                                 ArrayRef<Value *> IdxList) {
     Type *PtrTy = PointerType::get(checkGEPType(getIndexedType(ElTy, IdxList)),
@@ -1763,6 +1775,10 @@ public:
   void setCondition(Value *V) { Op<0>() = V; }
   void setTrueValue(Value *V) { Op<1>() = V; }
   void setFalseValue(Value *V) { Op<2>() = V; }
+
+  /// Swap the true and false values of the select instruction.
+  /// This doesn't swap prof metadata.
+  void swapValues() { Op<1>().swap(Op<2>()); }
 
   /// Return a string if the specified operands are invalid
   /// for a select operation, otherwise return null.
@@ -3455,16 +3471,7 @@ public:
 class SwitchInstProfUpdateWrapper {
   SwitchInst &SI;
   Optional<SmallVector<uint32_t, 8> > Weights = None;
-
-  // Sticky invalid state is needed to safely ignore operations with prof data
-  // in cases where SwitchInstProfUpdateWrapper is created from SwitchInst
-  // with inconsistent prof data. TODO: once we fix all prof data
-  // inconsistencies we can turn invalid state to assertions.
-  enum {
-    Invalid,
-    Initialized,
-    Changed
-  } State = Invalid;
+  bool Changed = false;
 
 protected:
   static MDNode *getProfBranchWeightsMD(const SwitchInst &SI);
@@ -3482,7 +3489,7 @@ public:
   SwitchInstProfUpdateWrapper(SwitchInst &SI) : SI(SI) { init(); }
 
   ~SwitchInstProfUpdateWrapper() {
-    if (State == Changed)
+    if (Changed)
       SI.setMetadata(LLVMContext::MD_prof, buildProfBranchWeightsMD());
   }
 
@@ -4141,13 +4148,9 @@ CallBrInst::CallBrInst(FunctionType *Ty, Value *Func, BasicBlock *DefaultDest,
                        ArrayRef<Value *> Args,
                        ArrayRef<OperandBundleDef> Bundles, int NumOperands,
                        const Twine &NameStr, BasicBlock *InsertAtEnd)
-    : CallBase(
-          cast<FunctionType>(
-              cast<PointerType>(Func->getType())->getElementType())
-              ->getReturnType(),
-          Instruction::CallBr,
-          OperandTraits<CallBase>::op_end(this) - NumOperands, NumOperands,
-          InsertAtEnd) {
+    : CallBase(Ty->getReturnType(), Instruction::CallBr,
+               OperandTraits<CallBase>::op_end(this) - NumOperands, NumOperands,
+               InsertAtEnd) {
   init(Ty, Func, DefaultDest, IndirectDests, Args, Bundles, NameStr);
 }
 
@@ -5254,31 +5257,38 @@ public:
 
 /// A helper function that returns the pointer operand of a load or store
 /// instruction. Returns nullptr if not load or store.
-inline Value *getLoadStorePointerOperand(Value *V) {
+inline const Value *getLoadStorePointerOperand(const Value *V) {
   if (auto *Load = dyn_cast<LoadInst>(V))
     return Load->getPointerOperand();
   if (auto *Store = dyn_cast<StoreInst>(V))
     return Store->getPointerOperand();
   return nullptr;
 }
+inline Value *getLoadStorePointerOperand(Value *V) {
+  return const_cast<Value *>(
+      getLoadStorePointerOperand(static_cast<const Value *>(V)));
+}
 
 /// A helper function that returns the pointer operand of a load, store
 /// or GEP instruction. Returns nullptr if not load, store, or GEP.
-inline Value *getPointerOperand(Value *V) {
+inline const Value *getPointerOperand(const Value *V) {
   if (auto *Ptr = getLoadStorePointerOperand(V))
     return Ptr;
   if (auto *Gep = dyn_cast<GetElementPtrInst>(V))
     return Gep->getPointerOperand();
   return nullptr;
 }
+inline Value *getPointerOperand(Value *V) {
+  return const_cast<Value *>(getPointerOperand(static_cast<const Value *>(V)));
+}
 
 /// A helper function that returns the alignment of load or store instruction.
-inline unsigned getLoadStoreAlignment(Value *I) {
+inline MaybeAlign getLoadStoreAlignment(Value *I) {
   assert((isa<LoadInst>(I) || isa<StoreInst>(I)) &&
          "Expected Load or Store instruction");
   if (auto *LI = dyn_cast<LoadInst>(I))
-    return LI->getAlignment();
-  return cast<StoreInst>(I)->getAlignment();
+    return MaybeAlign(LI->getAlignment());
+  return MaybeAlign(cast<StoreInst>(I)->getAlignment());
 }
 
 /// A helper function that returns the address space of the pointer operand of
@@ -5290,6 +5300,35 @@ inline unsigned getLoadStoreAddressSpace(Value *I) {
     return LI->getPointerAddressSpace();
   return cast<StoreInst>(I)->getPointerAddressSpace();
 }
+
+//===----------------------------------------------------------------------===//
+//                              FreezeInst Class
+//===----------------------------------------------------------------------===//
+
+/// This class represents a freeze function that returns random concrete
+/// value if an operand is either a poison value or an undef value
+class FreezeInst : public UnaryInstruction {
+protected:
+  // Note: Instruction needs to be a friend here to call cloneImpl.
+  friend class Instruction;
+
+  /// Clone an identical FreezeInst
+  FreezeInst *cloneImpl() const;
+
+public:
+  explicit FreezeInst(Value *S,
+                      const Twine &NameStr = "",
+                      Instruction *InsertBefore = nullptr);
+  FreezeInst(Value *S, const Twine &NameStr, BasicBlock *InsertAtEnd);
+
+  // Methods for support type inquiry through isa, cast, and dyn_cast:
+  static inline bool classof(const Instruction *I) {
+    return I->getOpcode() == Freeze;
+  }
+  static inline bool classof(const Value *V) {
+    return isa<Instruction>(V) && classof(cast<Instruction>(V));
+  }
+};
 
 } // end namespace llvm
 
