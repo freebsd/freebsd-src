@@ -59,13 +59,6 @@ _start:
 	lla	gp, __global_pointer$
 .option pop
 
-	/* Get the physical address kernel loaded to */
-	lla	t0, virt_map
-	ld	t1, 0(t0)
-	sub	t1, t1, t0
-	li	t2, KERNBASE
-	sub	s9, t2, t1	/* s9 = physmem base */
-
 	/*
 	 * a0 = hart id
 	 * a1 = dtbp
@@ -87,6 +80,9 @@ _start:
 	 * Page tables
 	 */
 1:
+	/* Get the kernel's load address */
+	jal	get_physmem
+
 	/* Add L1 entry for kernel */
 	lla	s1, pagetable_l1
 	lla	s2, pagetable_l2	/* Link to next level PN */
@@ -224,6 +220,17 @@ va:
 	call	_C_LABEL(initriscv)	/* Off we go */
 	call	_C_LABEL(mi_startup)
 
+/*
+ * Get the physical address the kernel is loaded to. Returned in s9.
+ */
+get_physmem:
+	lla	t0, virt_map	/* physical address of virt_map */
+	ld	t1, 0(t0)	/* virtual address of virt_map */
+	sub	t1, t1, t0	/* calculate phys->virt delta */
+	li	t2, KERNBASE
+	sub	s9, t2, t1	/* s9 = physmem base */
+	ret
+
 	.align  4
 initstack:
 	.space  (PAGE_SIZE * KSTACK_PAGES)
@@ -302,6 +309,9 @@ ENTRY(mpentry)
 	/* Setup stack pointer */
 	lla	t0, bootstack
 	ld	sp, 0(t0)
+
+	/* Get the kernel's load address */
+	jal get_physmem
 
 	/* Setup supervisor trap vector */
 	lla	t0, mpva
