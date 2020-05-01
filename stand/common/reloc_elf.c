@@ -52,32 +52,7 @@ int
 __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
     int reltype, Elf_Addr relbase, Elf_Addr dataaddr, void *data, size_t len)
 {
-#ifdef __sparc__
-	Elf_Size w;
-	const Elf_Rela *a;
-
-	switch (reltype) {
-	case ELF_RELOC_RELA:
-		a = reldata;
-		 if (relbase + a->r_offset >= dataaddr &&
-		     relbase + a->r_offset < dataaddr + len) {
-			switch (ELF_R_TYPE(a->r_info)) {
-			case R_SPARC_RELATIVE:
-				w = relbase + a->r_addend;
-				bcopy(&w, (u_char *)data + (relbase +
-				    a->r_offset - dataaddr), sizeof(w));
-				break;
-			default:
-				printf("\nunhandled relocation type %u\n",
-				    (u_int)ELF_R_TYPE(a->r_info));
-				return (EFTYPE);
-			}
-		}
-		break;
-	}
-
-	return (0);
-#elif (defined(__i386__) || defined(__amd64__)) && __ELF_WORD_SIZE == 64
+#if (defined(__i386__) || defined(__amd64__)) && __ELF_WORD_SIZE == 64
 	Elf64_Addr *where, val;
 	Elf_Addr addend, addr;
 	Elf_Size rtype, symidx;
