@@ -194,6 +194,14 @@
 .\" .Nm
 .\" .Ic wdc purge-monitor
 .\" .Aq device-id
+.Nm
+.Ic admin-passthru
+.Op args
+.Aq Ar device-id
+.Nm
+.Ic io-passthru
+.Op args
+.Aq Ar namespace-id
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard, for SSDs and other
 high-speed storage devices over PCI Express.
@@ -466,6 +474,68 @@ the drive's serial number and the type of dump it is followed
 by .bin.
 These logs must be sent to the vendor for analysis.
 This tool only provides a way to extract them.
+.Ss passthru
+The
+.Dq admin-passthru
+and
+.Dq io-passthru
+commands send NVMe commands to
+either the administrative or the data part of the device.
+These commands are expected to be compatible with nvme-cli.
+Please see
+.St The NVMe Standard
+for details.
+.Bl -tag -width 16n
+.It Fl o -opcode Ar opcode
+Opcode to send.
+.It Fl 2 -cdw2 Ar value
+32-bit value for CDW2.
+.It Fl 3 -cdw3 Ar value
+32-bit value for CDW3.
+.It Fl 4 -cdw10 Ar value
+32-bit value for CDW10.
+.It Fl 5 -cdw11 Ar value
+32-bit value for CDW11.
+.It Fl 6 -cdw12 Ar value
+32-bit value for CDW12.
+.It Fl 7 -cdw13 Ar value
+32-bit value for CDW13.
+.It Fl 8 -cdw14 Ar value
+32-bit value for CDW14.
+.It Fl 9 -cdw15 Ar value
+32-bit value for CDW15.
+.It Fl l -data-len
+Length of the data for I/O (bytes).
+.It Fl m -metadata-len
+Length of the metadata segment for command (bytes).
+This is ignored and not implemented in
+.Xr nvme 4 .
+.It Fl f -flags
+Nvme command flags.
+.It Fl n -namespace-id
+Namespace ID for command (Ignored).
+.It Fl p -prefill
+Value to prefill payload with.
+.It Fl b -raw-binary
+Output in binary format (otherwise a hex dump is produced).
+.It Fl d -dry-run
+Do not actually execute the command, but perform sanity checks on it.
+.It Fl r -read
+Command reads data from the device.
+.It Fl s -show-command
+Show all the command values on stdout.
+.It Fl w -write
+Command writes data to the device.
+.El
+Send arbitrary commands to the device.
+Can be used to extract vendor specific logs.
+Transfers to/from the device possible, but limited to
+.Dv MAXPHYS
+bytes.
+Commands either read data or write it, but not both.
+Commands needing metadata are not supported by the
+.Xr nvme 4
+drive.
 .Sh DEVICE NAMES
 Where
 .Aq Ar namespace-id
