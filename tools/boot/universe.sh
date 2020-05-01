@@ -19,6 +19,12 @@
 # Output is put into _.boot.$TARGET_ARCH.log in sys.boot.
 #
 
+die()
+{
+    echo $*
+    exit 1
+}
+
 dobuild()
 {
     local ta=$1
@@ -27,6 +33,12 @@ dobuild()
 
     echo -n "Building $ta ${opt} ... "
     objdir=$(make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make -V .OBJDIR" | tail -1)
+    case ${objdir} in
+	/*) ;;
+	make*) echo Error message from make: $objdir
+	       continue ;;
+	*) die Crazy object dir: $objdir ;;
+    esac
     rm -rf ${objdir}
     if ! make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make clean cleandepend cleandir obj depend"  \
 	 > $lf 2>&1; then
@@ -116,4 +128,3 @@ for i in \
     ta=${i##*/}
     dobuild $ta _.boot.${ta}.debug.log "LOADER_DEBUG=yes"
 done
-
