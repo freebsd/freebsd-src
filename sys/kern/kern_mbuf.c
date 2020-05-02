@@ -1246,7 +1246,6 @@ mb_free_ext(struct mbuf *m)
 			break;
 		case EXT_PGS: {
 #ifdef KERN_TLS
-			struct mbuf_ext_pgs *pgs;
 			struct ktls_session *tls;
 #endif
 
@@ -1254,11 +1253,10 @@ mb_free_ext(struct mbuf *m)
 			    ("%s: ext_free not set", __func__));
 			mref->m_ext.ext_free(mref);
 #ifdef KERN_TLS
-			pgs = &mref->m_ext_pgs;
-			tls = pgs->tls;
+			tls = mref->m_ext_pgs.tls;
 			if (tls != NULL &&
 			    !refcount_release_if_not_last(&tls->refcount))
-				ktls_enqueue_to_free(pgs);
+				ktls_enqueue_to_free(mref);
 			else
 #endif
 				uma_zfree(zone_mbuf, mref);

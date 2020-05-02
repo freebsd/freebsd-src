@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 
 struct ktls_wq {
 	struct mtx	mtx;
-	STAILQ_HEAD(, mbuf_ext_pgs) head;
+	STAILQ_HEAD(, mbuf) head;
 	bool		running;
 } __aligned(CACHE_LINE_SIZE);
 
@@ -1430,16 +1430,19 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 }
 
 void
-ktls_enqueue_to_free(struct mbuf_ext_pgs *pgs)
+ktls_enqueue_to_free(struct mbuf *m)
 {
+	struct mbuf_ext_pgs *pgs;
 	struct ktls_wq *wq;
 	bool running;
+
+	pgs = &m->m_ext_pgs;
 
 	/* Mark it for freeing. */
 	pgs->flags |= EPG_FLAG_2FREE;
 	wq = &ktls_wq[pgs->tls->wq_index];
 	mtx_lock(&wq->mtx);
-	STAILQ_INSERT_TAIL(&wq->head, pgs, stailq);
+	STAILQ_INSERT_TAIL(&wq->head, m, m_ext_pgs.stailq);
 	running = wq->running;
 	mtx_unlock(&wq->mtx);
 	if (!running)
@@ -1472,7 +1475,7 @@ ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 
 	wq = &ktls_wq[pgs->tls->wq_index];
 	mtx_lock(&wq->mtx);
-	STAILQ_INSERT_TAIL(&wq->head, pgs, stailq);
+	STAILQ_INSERT_TAIL(&wq->head, m, m_ext_pgs.stailq);
 	running = wq->running;
 	mtx_unlock(&wq->mtx);
 	if (!running)
@@ -1481,11 +1484,12 @@ ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 }
 
 static __noinline void
-ktls_encrypt(struct mbuf_ext_pgs *pgs)
+ktls_encrypt(struct mbuf *top)
 {
 	struct ktls_session *tls;
 	struct socket *so;
-	struct mbuf *m, *top;
+	struct mbuf *m;
+	struct mbuf_ext_pgs *pgs;
 	vm_paddr_t parray[1 + btoc(TLS_MAX_MSG_SIZE_V10_2)];
 	struct iovec src_iov[1 + btoc(TLS_MAX_MSG_SIZE_V10_2)];
 	struct iovec dst_iov[1 + btoc(TLS_MAX_MSG_SIZE_V10_2)];
@@ -1493,15 +1497,14 @@ ktls_encrypt(struct mbuf_ext_pgs *pgs)
 	int error, i, len, npages, off, total_pages;
 	bool is_anon;
 
-	so = pgs->so;
-	tls = pgs->tls;
-	top = __containerof(pgs, struct mbuf, m_ext_pgs);
-	KASSERT(tls != NULL, ("tls = NULL, top = %p, pgs = %p\n", top, pgs));
-	KASSERT(so != NULL, ("so = NULL, top = %p, pgs = %p\n", top, pgs));
+	so = top->m_ext_pgs.so;
+	tls = top->m_ext_pgs.tls;
+	KASSERT(tls != NULL, ("tls = NULL, top = %p\n", top));
+	KASSERT(so != NULL, ("so = NULL, top = %p\n", top));
 #ifdef INVARIANTS
-	pgs->so = NULL;
+	top->m_ext_pgs.so = NULL;
 #endif
-	total_pages = pgs->enc_cnt;
+	total_pages = top->m_ext_pgs.enc_cnt;
 	npages = 0;
 
 	/*
@@ -1631,10 +1634,8 @@ static void
 ktls_work_thread(void *ctx)
 {
 	struct ktls_wq *wq = ctx;
-	struct mbuf_ext_pgs *p, *n;
-	struct ktls_session *tls;
-	struct mbuf *m;
-	STAILQ_HEAD(, mbuf_ext_pgs) local_head;
+	struct mbuf *m, *n;
+	STAILQ_HEAD(, mbuf) local_head;
 
 #if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 	fpu_kern_thread(0);
@@ -1651,14 +1652,12 @@ ktls_work_thread(void *ctx)
 		STAILQ_CONCAT(&local_head, &wq->head);
 		mtx_unlock(&wq->mtx);
 
-		STAILQ_FOREACH_SAFE(p, &local_head, stailq, n) {
-			if (p->flags & EPG_FLAG_2FREE) {
-				tls = p->tls;
-				ktls_free(tls);
-				m = __containerof(p, struct mbuf, m_ext_pgs);
+		STAILQ_FOREACH_SAFE(m, &local_head, m_ext_pgs.stailq, n) {
+			if (m->m_ext_pgs.flags & EPG_FLAG_2FREE) {
+				ktls_free(m->m_ext_pgs.tls);
 				uma_zfree(zone_mbuf, m);
 			} else {
-				ktls_encrypt(p);
+				ktls_encrypt(m);
 				counter_u64_add(ktls_cnt_on, -1);
 			}
 		}

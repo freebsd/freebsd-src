@@ -372,7 +372,7 @@ struct mbuf {
 					struct ktls_session *tls;
 					struct socket	*so;
 					uint64_t	seqno;
-					STAILQ_ENTRY(mbuf_ext_pgs) stailq;
+					STAILQ_ENTRY(mbuf) stailq;
 				} m_ext_pgs;
 			};
 			union {
