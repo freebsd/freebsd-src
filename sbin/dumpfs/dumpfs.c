@@ -156,7 +156,7 @@ dumpfsid(void)
 static int
 dumpfs(const char *name)
 {
-	time_t fstime;
+	time_t fstime, fsmtime;
 	int64_t fssize;
 	int32_t fsflags;
 	int i;
@@ -165,8 +165,10 @@ dumpfs(const char *name)
 	case 2:
 		fssize = afs.fs_size;
 		fstime = afs.fs_time;
-		printf("magic\t%x (UFS2)\ttime\t%s",
-		    afs.fs_magic, ctime(&fstime));
+		fsmtime = afs.fs_mtime;
+		printf("magic\t%x (UFS2)\n", afs.fs_magic);
+		printf("last mounted time\t%s", ctime(&fsmtime));
+		printf("last modified time\t%s", ctime(&fstime));
 		printf("superblock location\t%jd\tid\t[ %08x %08x ]\n",
 		    (intmax_t)afs.fs_sblockloc, afs.fs_id[0], afs.fs_id[1]);
 		printf("ncg\t%d\tsize\t%jd\tblocks\t%jd\n",
