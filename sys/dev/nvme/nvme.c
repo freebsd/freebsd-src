@@ -138,7 +138,8 @@ nvme_attach(device_t dev)
 	ctrlr->config_hook.ich_func = nvme_ctrlr_start_config_hook;
 	ctrlr->config_hook.ich_arg = ctrlr;
 
-	config_intrhook_establish(&ctrlr->config_hook);
+	if (config_intrhook_establish(&ctrlr->config_hook) != 0)
+		return (ENOMEM);
 
 	return (0);
 }
