@@ -243,11 +243,9 @@ nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
 		return (ENOMEM);
 	}
 
-	bus_setup_intr(ctrlr->dev, ctrlr->res,
+	if (bus_setup_intr(ctrlr->dev, ctrlr->res,
 	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, nvme_ctrlr_intx_handler,
-	    ctrlr, &ctrlr->tag);
-
-	if (ctrlr->tag == NULL) {
+	    ctrlr, &ctrlr->tag) != 0) {
 		nvme_printf(ctrlr, "unable to setup intx handler\n");
 		return (ENOMEM);
 	}

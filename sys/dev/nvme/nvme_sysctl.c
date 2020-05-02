@@ -146,16 +146,17 @@ static int
 nvme_sysctl_timeout_period(SYSCTL_HANDLER_ARGS)
 {
 	struct nvme_controller *ctrlr = arg1;
-	uint32_t oldval = ctrlr->timeout_period;
-	int error = sysctl_handle_int(oidp, &ctrlr->timeout_period, 0, req);
+	uint32_t newval = ctrlr->timeout_period;
+	int error = sysctl_handle_int(oidp, &newval, 0, req);
 
-	if (error)
+	if (error || (req->newptr == NULL))
 		return (error);
 
-	if (ctrlr->timeout_period > NVME_MAX_TIMEOUT_PERIOD ||
-	    ctrlr->timeout_period < NVME_MIN_TIMEOUT_PERIOD) {
-		ctrlr->timeout_period = oldval;
+	if (newval > NVME_MAX_TIMEOUT_PERIOD ||
+	    newval < NVME_MIN_TIMEOUT_PERIOD) {
 		return (EINVAL);
+	} else {
+		ctrlr->timeout_period = newval;
 	}
 
 	return (0);
