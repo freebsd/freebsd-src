@@ -469,10 +469,9 @@ static void ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 			      struct ctl_ooa_entry *kern_entries);
 static int ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		     struct thread *td);
-static int ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
-			 struct ctl_be_lun *be_lun);
+static int ctl_enable_lun(struct ctl_lun *lun);
+static int ctl_disable_lun(struct ctl_lun *lun);
 static int ctl_free_lun(struct ctl_lun *lun);
-static void ctl_create_lun(struct ctl_be_lun *be_lun);
 
 static int ctl_do_mode_select(union ctl_io *io);
 static int ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun,
@@ -547,7 +546,6 @@ static int ctl_datamove_remote_xfer(union ctl_io *io, unsigned command,
 static void ctl_datamove_remote_read(union ctl_io *io);
 static void ctl_datamove_remote(union ctl_io *io);
 static void ctl_process_done(union ctl_io *io);
-static void ctl_lun_thread(void *arg);
 static void ctl_thresh_thread(void *arg);
 static void ctl_work_thread(void *arg);
 static void ctl_enqueue_incoming(union ctl_io *io);
@@ -1945,7 +1943,6 @@ ctl_init(void)
 	    "HA link state (0 - offline, 1 - unknown, 2 - online)");
 
 	STAILQ_INIT(&softc->lun_list);
-	STAILQ_INIT(&softc->pending_lun_queue);
 	STAILQ_INIT(&softc->fe_list);
 	STAILQ_INIT(&softc->port_list);
 	STAILQ_INIT(&softc->be_list);
@@ -1972,12 +1969,6 @@ ctl_init(void)
 			printf("error creating CTL work thread!\n");
 			return (error);
 		}
-	}
-	error = kproc_kthread_add(ctl_lun_thread, softc,
-	    &softc->ctl_proc, &softc->lun_thread, 0, 0, "ctl", "lun");
-	if (error != 0) {
-		printf("error creating CTL lun thread!\n");
-		return (error);
 	}
 	error = kproc_kthread_add(ctl_thresh_thread, softc,
 	    &softc->ctl_proc, &softc->thresh_thread, 0, 0, "ctl", "thresh");
@@ -2019,11 +2010,6 @@ ctl_shutdown(void)
 				pause("CTL thr shutdown", 1);
 		}
 		mtx_destroy(&thr->queue_lock);
-	}
-	while (softc->lun_thread != NULL) {
-		wakeup(&softc->pending_lun_queue);
-		if (softc->lun_thread != NULL)
-			pause("CTL thr shutdown", 1);
 	}
 	while (softc->thresh_thread != NULL) {
 		wakeup(softc->thresh_thread);
@@ -4497,32 +4483,23 @@ hex2bin(const char *str, uint8_t *buf, int buf_size)
 }
 
 /*
- * LUN allocation.
- *
- * Requirements:
- * - caller allocates and zeros LUN storage, or passes in a NULL LUN if he
- *   wants us to allocate the LUN and he can block.
- * - ctl_softc is always set
- * - be_lun is set if the LUN has a backend (needed for disk LUNs)
+ * Add LUN.
  *
  * Returns 0 for success, non-zero (errno) for failure.
  */
-static int
-ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
-	      struct ctl_be_lun *const be_lun)
+int
+ctl_add_lun(struct ctl_be_lun *be_lun)
 {
+	struct ctl_softc *ctl_softc = control_softc;
 	struct ctl_lun *nlun, *lun;
 	struct scsi_vpd_id_descriptor *desc;
 	struct scsi_vpd_id_t10 *t10id;
 	const char *eui, *naa, *scsiname, *uuid, *vendor, *value;
-	int lun_number, lun_malloced;
+	int lun_number;
 	int devidlen, idlen1, idlen2 = 0, len;
 
-	if (be_lun == NULL)
-		return (EINVAL);
-
 	/*
-	 * We currently only support Direct Access or Processor LUN types.
+	 * We support only Direct Access, CD-ROM or Processor LUN types.
 	 */
 	switch (be_lun->lun_type) {
 	case T_DIRECT:
@@ -4532,21 +4509,9 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	case T_SEQUENTIAL:
 	case T_CHANGER:
 	default:
-		be_lun->lun_config_status(be_lun->be_lun,
-					  CTL_LUN_CONFIG_FAILURE);
-		break;
+		return (EINVAL);
 	}
-	if (ctl_lun == NULL) {
-		lun = malloc(sizeof(*lun), M_CTL, M_WAITOK);
-		lun_malloced = 1;
-	} else {
-		lun_malloced = 0;
-		lun = ctl_lun;
-	}
-
-	memset(lun, 0, sizeof(*lun));
-	if (lun_malloced)
-		lun->flags = CTL_LUN_MALLOCED;
+	lun = malloc(sizeof(*lun), M_CTL, M_WAITOK | M_ZERO);
 
 	lun->pending_sense = malloc(sizeof(struct scsi_sense_data *) *
 	    ctl_max_ports, M_DEVBUF, M_WAITOK | M_ZERO);
@@ -4658,10 +4623,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 			}
 fail:
 			free(lun->lun_devid, M_CTL);
-			if (lun->flags & CTL_LUN_MALLOCED)
-				free(lun, M_CTL);
-			be_lun->lun_config_status(be_lun->be_lun,
-						  CTL_LUN_CONFIG_FAILURE);
+			free(lun, M_CTL);
 			return (ENOSPC);
 		}
 		lun_number = be_lun->req_lun_id;
@@ -4687,7 +4649,6 @@ fail:
 	lun->backend = be_lun->be;
 	be_lun->ctl_lun = lun;
 	be_lun->lun_id = lun_number;
-	atomic_add_int(&be_lun->be->num_luns, 1);
 	if (be_lun->flags & CTL_LUN_FLAG_EJECTED)
 		lun->flags |= CTL_LUN_EJECTED;
 	if (be_lun->flags & CTL_LUN_FLAG_NO_MEDIA)
@@ -4743,15 +4704,27 @@ fail:
 	ctl_softc->num_luns++;
 	mtx_unlock(&ctl_softc->ctl_lock);
 
-	lun->be_lun->lun_config_status(lun->be_lun->be_lun, CTL_LUN_CONFIG_OK);
+	/*
+	 * We successfully added the LUN, attempt to enable it.
+	 */
+	if (ctl_enable_lun(lun) != 0) {
+		printf("%s: ctl_enable_lun() failed!\n", __func__);
+		mtx_lock(&ctl_softc->ctl_lock);
+		STAILQ_REMOVE(&ctl_softc->lun_list, lun, ctl_lun, links);
+		ctl_clear_mask(ctl_softc->ctl_lun_mask, lun_number);
+		ctl_softc->ctl_luns[lun_number] = NULL;
+		ctl_softc->num_luns--;
+		mtx_unlock(&ctl_softc->ctl_lock);
+		free(lun->lun_devid, M_CTL);
+		free(lun, M_CTL);
+		return (EIO);
+	}
+
 	return (0);
 }
 
 /*
- * Delete a LUN.
- * Assumptions:
- * - LUN has already been marked invalid and any pending I/O has been taken
- *   care of.
+ * Free LUN that has no active requests.
  */
 static int
 ctl_free_lun(struct ctl_lun *lun)
@@ -4778,7 +4751,6 @@ ctl_free_lun(struct ctl_lun *lun)
 	/*
 	 * Tell the backend to free resources, if this LUN has a backend.
 	 */
-	atomic_subtract_int(&lun->be_lun->be->num_luns, 1);
 	lun->be_lun->lun_shutdown(lun->be_lun->be_lun);
 
 	lun->ie_reportcnt = UINT32_MAX;
@@ -4794,57 +4766,24 @@ ctl_free_lun(struct ctl_lun *lun)
 	free(lun->pr_keys, M_DEVBUF);
 	free(lun->write_buffer, M_CTL);
 	free(lun->prevent, M_CTL);
-	if (lun->flags & CTL_LUN_MALLOCED)
-		free(lun, M_CTL);
+	free(lun, M_CTL);
 
 	return (0);
 }
 
-static void
-ctl_create_lun(struct ctl_be_lun *be_lun)
-{
-
-	/*
-	 * ctl_alloc_lun() should handle all potential failure cases.
-	 */
-	ctl_alloc_lun(control_softc, NULL, be_lun);
-}
-
-int
-ctl_add_lun(struct ctl_be_lun *be_lun)
-{
-	struct ctl_softc *softc = control_softc;
-
-	mtx_lock(&softc->ctl_lock);
-	STAILQ_INSERT_TAIL(&softc->pending_lun_queue, be_lun, links);
-	mtx_unlock(&softc->ctl_lock);
-	wakeup(&softc->pending_lun_queue);
-
-	return (0);
-}
-
-int
-ctl_enable_lun(struct ctl_be_lun *be_lun)
+static int
+ctl_enable_lun(struct ctl_lun *lun)
 {
 	struct ctl_softc *softc;
 	struct ctl_port *port, *nport;
-	struct ctl_lun *lun;
 	int retval;
 
-	lun = (struct ctl_lun *)be_lun->ctl_lun;
 	softc = lun->ctl_softc;
 
 	mtx_lock(&softc->ctl_lock);
 	mtx_lock(&lun->lun_lock);
-	if ((lun->flags & CTL_LUN_DISABLED) == 0) {
-		/*
-		 * eh?  Why did we get called if the LUN is already
-		 * enabled?
-		 */
-		mtx_unlock(&lun->lun_lock);
-		mtx_unlock(&softc->ctl_lock);
-		return (0);
-	}
+	KASSERT((lun->flags & CTL_LUN_DISABLED) != 0,
+	    ("%s: LUN not disabled", __func__));
 	lun->flags &= ~CTL_LUN_DISABLED;
 	mtx_unlock(&lun->lun_lock);
 
@@ -4875,24 +4814,19 @@ ctl_enable_lun(struct ctl_be_lun *be_lun)
 	return (0);
 }
 
-int
-ctl_disable_lun(struct ctl_be_lun *be_lun)
+static int
+ctl_disable_lun(struct ctl_lun *lun)
 {
 	struct ctl_softc *softc;
 	struct ctl_port *port;
-	struct ctl_lun *lun;
 	int retval;
 
-	lun = (struct ctl_lun *)be_lun->ctl_lun;
 	softc = lun->ctl_softc;
 
 	mtx_lock(&softc->ctl_lock);
 	mtx_lock(&lun->lun_lock);
-	if (lun->flags & CTL_LUN_DISABLED) {
-		mtx_unlock(&lun->lun_lock);
-		mtx_unlock(&softc->ctl_lock);
-		return (0);
-	}
+	KASSERT((lun->flags & CTL_LUN_DISABLED) == 0,
+	    ("%s: LUN not enabled", __func__));
 	lun->flags |= CTL_LUN_DISABLED;
 	mtx_unlock(&lun->lun_lock);
 
@@ -5023,25 +4957,22 @@ ctl_lun_secondary(struct ctl_be_lun *be_lun)
 	return (0);
 }
 
+/*
+ * Remove LUN.  If there are active requests, wait for completion.
+ *
+ * Returns 0 for success, non-zero (errno) for failure.
+ * Completion is reported to backed via the lun_shutdown() method.
+ */
 int
-ctl_invalidate_lun(struct ctl_be_lun *be_lun)
+ctl_remove_lun(struct ctl_be_lun *be_lun)
 {
 	struct ctl_lun *lun;
 
 	lun = (struct ctl_lun *)be_lun->ctl_lun;
 
-	mtx_lock(&lun->lun_lock);
+	ctl_disable_lun(lun);
 
-	/*
-	 * The LUN needs to be disabled before it can be marked invalid.
-	 */
-	if ((lun->flags & CTL_LUN_DISABLED) == 0) {
-		mtx_unlock(&lun->lun_lock);
-		return (-1);
-	}
-	/*
-	 * Mark the LUN invalid.
-	 */
+	mtx_lock(&lun->lun_lock);
 	lun->flags |= CTL_LUN_INVALID;
 
 	/*
@@ -13400,35 +13331,6 @@ ctl_work_thread(void *arg)
 		mtx_sleep(thr, &thr->queue_lock, PDROP, "-", 0);
 	}
 	thr->thread = NULL;
-	kthread_exit();
-}
-
-static void
-ctl_lun_thread(void *arg)
-{
-	struct ctl_softc *softc = (struct ctl_softc *)arg;
-	struct ctl_be_lun *be_lun;
-
-	CTL_DEBUG_PRINT(("ctl_lun_thread starting\n"));
-	thread_lock(curthread);
-	sched_prio(curthread, PUSER - 1);
-	thread_unlock(curthread);
-
-	while (!softc->shutdown) {
-		mtx_lock(&softc->ctl_lock);
-		be_lun = STAILQ_FIRST(&softc->pending_lun_queue);
-		if (be_lun != NULL) {
-			STAILQ_REMOVE_HEAD(&softc->pending_lun_queue, links);
-			mtx_unlock(&softc->ctl_lock);
-			ctl_create_lun(be_lun);
-			continue;
-		}
-
-		/* Sleep until we have something to do. */
-		mtx_sleep(&softc->pending_lun_queue, &softc->ctl_lock,
-		    PDROP, "-", 0);
-	}
-	softc->lun_thread = NULL;
 	kthread_exit();
 }
 
