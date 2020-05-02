@@ -388,12 +388,14 @@ struct mbuf {
 
 #ifdef _KERNEL
 static inline int
-mbuf_ext_pg_len(struct mbuf_ext_pgs *ext_pgs, int pidx, int pgoff)
+m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 {
+
 	KASSERT(pgoff == 0 || pidx == 0,
-	    ("page %d with non-zero offset %d in %p", pidx, pgoff, ext_pgs));
-	if (pidx == ext_pgs->npgs - 1) {
-		return (ext_pgs->last_pg_len);
+	    ("page %d with non-zero offset %d in %p", pidx, pgoff, m));
+
+	if (pidx == m->m_ext_pgs.npgs - 1) {
+		return (m->m_ext_pgs.last_pg_len);
 	} else {
 		return (PAGE_SIZE - pgoff);
 	}

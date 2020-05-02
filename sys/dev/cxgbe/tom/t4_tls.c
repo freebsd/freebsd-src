@@ -1655,13 +1655,13 @@ write_ktlstx_sgl(void *dst, struct mbuf *m, int nsegs)
 	/* Figure out the first S/G length. */
 	pa = m->m_epg_pa[0] + m->m_ext_pgs.first_pg_off;
 	usgl->addr0 = htobe64(pa);
-	len = mbuf_ext_pg_len(&m->m_ext_pgs, 0, m->m_ext_pgs.first_pg_off);
+	len = m_epg_pagelen(m, 0, m->m_ext_pgs.first_pg_off);
 	pa += len;
 	for (i = 1; i < m->m_ext_pgs.npgs; i++) {
 		if (m->m_epg_pa[i] != pa)
 			break;
-		len += mbuf_ext_pg_len(&m->m_ext_pgs, i, 0);
-		pa += mbuf_ext_pg_len(&m->m_ext_pgs, i, 0);
+		len += m_epg_pagelen(m, i, 0);
+		pa += m_epg_pagelen(m, i, 0);
 	}
 	usgl->len0 = htobe32(len);
 #ifdef INVARIANTS
@@ -1679,11 +1679,11 @@ write_ktlstx_sgl(void *dst, struct mbuf *m, int nsegs)
 #endif
 			pa = m->m_epg_pa[i];
 			usgl->sge[j / 2].addr[j & 1] = htobe64(pa);
-			len = mbuf_ext_pg_len(&m->m_ext_pgs, i, 0);
+			len = m_epg_pagelen(m, i, 0);
 			pa += len;
 		} else {
-			len += mbuf_ext_pg_len(&m->m_ext_pgs, i, 0);
-			pa += mbuf_ext_pg_len(&m->m_ext_pgs, i, 0);
+			len += m_epg_pagelen(m, i, 0);
+			pa += m_epg_pagelen(m, i, 0);
 		}
 	}
 	if (j >= 0) {

@@ -1550,7 +1550,7 @@ ktls_encrypt(struct mbuf *top)
 
 		off = pgs->first_pg_off;
 		for (i = 0; i < pgs->npgs; i++, off = 0) {
-			len = mbuf_ext_pg_len(pgs, i, off);
+			len = m_epg_pagelen(m, i, off);
 			src_iov[i].iov_len = len;
 			src_iov[i].iov_base =
 			    (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[i]) +
