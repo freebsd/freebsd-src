@@ -319,15 +319,15 @@ key_setsadbprop()
 	m_prop.sadb_prop_reserved[1] = 0;
 	m_prop.sadb_prop_reserved[2] = 0;
 
-	/* the 1st is ESP DES-CBC HMAC-MD5 */
+	/* the 1st is ESP AES-GCM-16 */
 	m_comb = (struct sadb_comb *)buf;
-	m_comb->sadb_comb_auth = SADB_AALG_MD5HMAC;
-	m_comb->sadb_comb_encrypt = SADB_EALG_DESCBC;
+	m_comb->sadb_comb_auth = SADB_AALG_NONE;
+	m_comb->sadb_comb_encrypt = SADB_X_EALG_AESGCM16;
 	m_comb->sadb_comb_flags = 0;
-	m_comb->sadb_comb_auth_minbits = 8;
-	m_comb->sadb_comb_auth_maxbits = 96;
-	m_comb->sadb_comb_encrypt_minbits = 64;
-	m_comb->sadb_comb_encrypt_maxbits = 64;
+	m_comb->sadb_comb_auth_minbits = 0;
+	m_comb->sadb_comb_auth_maxbits = 0;
+	m_comb->sadb_comb_encrypt_minbits = 128;
+	m_comb->sadb_comb_encrypt_maxbits = 256;
 	m_comb->sadb_comb_reserved = 0;
 	m_comb->sadb_comb_soft_allocations = 0;
 	m_comb->sadb_comb_hard_allocations = 0;
@@ -338,15 +338,15 @@ key_setsadbprop()
 	m_comb->sadb_comb_soft_usetime = 0;
 	m_comb->sadb_comb_hard_usetime = 0;
 
-	/* the 2st is ESP 3DES-CBC and AH HMAC-SHA1 */
+	/* the 2nd is ESP AES-CBC and AH HMAC-SHA2-256 */
 	m_comb = (struct sadb_comb *)(buf + sizeof(*m_comb));
-	m_comb->sadb_comb_auth = SADB_AALG_SHA1HMAC;
-	m_comb->sadb_comb_encrypt = SADB_EALG_3DESCBC;
+	m_comb->sadb_comb_auth = SADB_X_AALG_SHA2_256;
+	m_comb->sadb_comb_encrypt = SADB_X_EALG_RIJNDAELCBC;
 	m_comb->sadb_comb_flags = 0;
-	m_comb->sadb_comb_auth_minbits = 8;
-	m_comb->sadb_comb_auth_maxbits = 96;
-	m_comb->sadb_comb_encrypt_minbits = 64;
-	m_comb->sadb_comb_encrypt_maxbits = 64;
+	m_comb->sadb_comb_auth_minbits = 256;
+	m_comb->sadb_comb_auth_maxbits = 256;
+	m_comb->sadb_comb_encrypt_minbits = 128;
+	m_comb->sadb_comb_encrypt_maxbits = 256;
 	m_comb->sadb_comb_reserved = 0;
 	m_comb->sadb_comb_soft_allocations = 0;
 	m_comb->sadb_comb_hard_allocations = 0;
@@ -457,8 +457,8 @@ key_setsadbsa()
 	m_sa.sadb_sa_spi = htonl(0x12345678);
 	m_sa.sadb_sa_replay = 4;
 	m_sa.sadb_sa_state = 0;
-	m_sa.sadb_sa_auth = SADB_AALG_MD5HMAC;
-	m_sa.sadb_sa_encrypt = SADB_EALG_DESCBC;
+	m_sa.sadb_sa_auth = SADB_AALG_NONE;
+	m_sa.sadb_sa_encrypt = SADB_X_EALG_AESGCM16;
 	m_sa.sadb_sa_flags = 0;
 
 	memcpy(m_buf + m_len, &m_sa, sizeof(struct sadb_sa));

@@ -57,22 +57,10 @@ __FBSDID("$FreeBSD$");
 #include "libpfkey.h"
 
 /* cope with old kame headers - ugly */
-#ifndef SADB_X_AALG_MD5
-#define SADB_X_AALG_MD5		SADB_AALG_MD5	
-#endif
-#ifndef SADB_X_AALG_SHA
-#define SADB_X_AALG_SHA		SADB_AALG_SHA
-#endif
 #ifndef SADB_X_AALG_NULL
 #define SADB_X_AALG_NULL	SADB_AALG_NULL
 #endif
 
-#ifndef SADB_X_EALG_BLOWFISHCBC
-#define SADB_X_EALG_BLOWFISHCBC	SADB_EALG_BLOWFISHCBC
-#endif
-#ifndef SADB_X_EALG_CAST128CBC
-#define SADB_X_EALG_CAST128CBC	SADB_EALG_CAST128CBC
-#endif
 #ifndef SADB_X_EALG_RC5CBC
 #ifdef SADB_EALG_RC5CBC
 #define SADB_X_EALG_RC5CBC	SADB_EALG_RC5CBC
@@ -147,10 +135,7 @@ static char *str_state[] = {
 
 static struct val2str str_alg_auth[] = {
 	{ SADB_AALG_NONE, "none", },
-	{ SADB_AALG_MD5HMAC, "hmac-md5", },
 	{ SADB_AALG_SHA1HMAC, "hmac-sha1", },
-	{ SADB_X_AALG_MD5, "md5", },
-	{ SADB_X_AALG_SHA, "sha", },
 	{ SADB_X_AALG_NULL, "null", },
 	{ SADB_X_AALG_TCP_MD5, "tcp-md5", },
 #ifdef SADB_X_AALG_SHA2_256
@@ -162,9 +147,6 @@ static struct val2str str_alg_auth[] = {
 #ifdef SADB_X_AALG_SHA2_512
 	{ SADB_X_AALG_SHA2_512, "hmac-sha2-512", },
 #endif
-#ifdef SADB_X_AALG_RIPEMD160HMAC
-	{ SADB_X_AALG_RIPEMD160HMAC, "hmac-ripemd160", },
-#endif
 #ifdef SADB_X_AALG_AES_XCBC_MAC
 	{ SADB_X_AALG_AES_XCBC_MAC, "aes-xcbc-mac", },
 #endif
@@ -173,14 +155,10 @@ static struct val2str str_alg_auth[] = {
 
 static struct val2str str_alg_enc[] = {
 	{ SADB_EALG_NONE, "none", },
-	{ SADB_EALG_DESCBC, "des-cbc", },
-	{ SADB_EALG_3DESCBC, "3des-cbc", },
 	{ SADB_EALG_NULL, "null", },
 #ifdef SADB_X_EALG_RC5CBC
 	{ SADB_X_EALG_RC5CBC, "rc5-cbc", },
 #endif
-	{ SADB_X_EALG_CAST128CBC, "cast128-cbc", },
-	{ SADB_X_EALG_BLOWFISHCBC, "blowfish-cbc", },
 #ifdef SADB_X_EALG_RIJNDAELCBC
 	{ SADB_X_EALG_RIJNDAELCBC, "rijndael-cbc", },
 #endif
@@ -192,9 +170,6 @@ static struct val2str str_alg_enc[] = {
 #endif
 #ifdef SADB_X_EALG_AESGCM16
 	{ SADB_X_EALG_AESGCM16, "aes-gcm-16", },
-#endif
-#ifdef SADB_X_EALG_CAMELLIACBC
-	{ SADB_X_EALG_CAMELLIACBC, "camellia-cbc", },
 #endif
 	{ -1, NULL, },
 };
