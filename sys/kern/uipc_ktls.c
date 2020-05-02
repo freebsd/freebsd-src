@@ -1436,7 +1436,7 @@ ktls_enqueue_to_free(struct mbuf_ext_pgs *pgs)
 	bool running;
 
 	/* Mark it for freeing. */
-	pgs->mbuf = NULL;
+	pgs->flags |= EPG_FLAG_2FREE;
 	wq = &ktls_wq[pgs->tls->wq_index];
 	mtx_lock(&wq->mtx);
 	STAILQ_INSERT_TAIL(&wq->head, pgs, stailq);
@@ -1463,7 +1463,6 @@ ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 	KASSERT(pgs->tls->mode == TCP_TLS_MODE_SW, ("!SW TLS mbuf"));
 
 	pgs->enc_cnt = page_count;
-	pgs->mbuf = m;
 
 	/*
 	 * Save a pointer to the socket.  The caller is responsible
@@ -1496,12 +1495,11 @@ ktls_encrypt(struct mbuf_ext_pgs *pgs)
 
 	so = pgs->so;
 	tls = pgs->tls;
-	top = pgs->mbuf;
+	top = __containerof(pgs, struct mbuf, m_ext_pgs);
 	KASSERT(tls != NULL, ("tls = NULL, top = %p, pgs = %p\n", top, pgs));
 	KASSERT(so != NULL, ("so = NULL, top = %p, pgs = %p\n", top, pgs));
 #ifdef INVARIANTS
 	pgs->so = NULL;
-	pgs->mbuf = NULL;
 #endif
 	total_pages = pgs->enc_cnt;
 	npages = 0;
@@ -1654,14 +1652,14 @@ ktls_work_thread(void *ctx)
 		mtx_unlock(&wq->mtx);
 
 		STAILQ_FOREACH_SAFE(p, &local_head, stailq, n) {
-			if (p->mbuf != NULL) {
-				ktls_encrypt(p);
-				counter_u64_add(ktls_cnt_on, -1);
-			} else {
+			if (p->flags & EPG_FLAG_2FREE) {
 				tls = p->tls;
 				ktls_free(tls);
 				m = __containerof(p, struct mbuf, m_ext_pgs);
 				uma_zfree(zone_mbuf, m);
+			} else {
+				ktls_encrypt(p);
+				counter_u64_add(ktls_cnt_on, -1);
 			}
 		}
 	}

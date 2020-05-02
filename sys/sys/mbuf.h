@@ -365,13 +365,13 @@ struct mbuf {
 					uint16_t last_pg_len;
 					uint8_t	flags;
 #define	EPG_FLAG_ANON	0x1	/* Data can be encrypted in place. */
+#define	EPG_FLAG_2FREE	0x2	/* Scheduled for free. */
 					uint8_t	record_type;
 					uint8_t	spare[2];
 					int	enc_cnt;
 					struct ktls_session *tls;
 					struct socket	*so;
 					uint64_t	seqno;
-					struct mbuf	*mbuf;
 					STAILQ_ENTRY(mbuf_ext_pgs) stailq;
 				} m_ext_pgs;
 			};
