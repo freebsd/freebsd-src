@@ -16,6 +16,12 @@ check_ko()
 	if ! sysctl -N security.mac.bsdextended >/dev/null 2>&1; then
 		atf_skip "mac_bsdextended(4) support isn't available"
 	fi
+	if [ $(sysctl -n security.mac.bsdextended.enabled) = "0" ]; then
+		# The kernel module is loaded but disabled.  Enable it for the
+		# duration of the test.
+		touch enabled_bsdextended
+		sysctl security.mac.bsdextended.enabled=1
+	fi
 }
 
 setup()
@@ -68,6 +74,9 @@ cleanup()
 	umount -f mnt
 	if [ -f md_device ]; then
 		mdconfig -d -u $( cat md_device )
+	fi
+	if [ -f enabled_bsdextended ]; then
+		sysctl security.mac.bsdextended.enabled=0
 	fi
 }
 
