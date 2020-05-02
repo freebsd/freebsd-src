@@ -229,8 +229,6 @@ struct pkthdr {
 #define	MBUF_PEXT_MAX_BYTES						\
     (MBUF_PEXT_MAX_PGS * PAGE_SIZE + MBUF_PEXT_HDR_LEN + MBUF_PEXT_TRAIL_LEN)
 
-#define MBUF_PEXT_FLAG_ANON	1	/* Data can be encrypted in place. */
-
 struct ktls_session;
 struct socket;
 
@@ -366,6 +364,7 @@ struct mbuf {
 					uint16_t first_pg_off;
 					uint16_t last_pg_len;
 					uint8_t	flags;
+#define	EPG_FLAG_ANON	0x1	/* Data can be encrypted in place. */
 					uint8_t	record_type;
 					uint8_t	spare[2];
 					int	enc_cnt;

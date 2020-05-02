@@ -1545,7 +1545,7 @@ ktls_encrypt(struct mbuf_ext_pgs *pgs)
 		 * (from sendfile), anonymous wired pages are
 		 * allocated and assigned to the destination iovec.
 		 */
-		is_anon = (pgs->flags & MBUF_PEXT_FLAG_ANON) != 0;
+		is_anon = (pgs->flags & EPG_FLAG_ANON) != 0;
 
 		off = pgs->first_pg_off;
 		for (i = 0; i < pgs->npgs; i++, off = 0) {
@@ -1601,7 +1601,7 @@ retry_page:
 			m->m_ext.ext_free = mb_free_mext_pgs;
 
 			/* Pages are now writable. */
-			pgs->flags |= MBUF_PEXT_FLAG_ANON;
+			pgs->flags |= EPG_FLAG_ANON;
 		}
 
 		/*
