@@ -1678,7 +1678,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 			prev->m_next = mb;
 		prev = mb;
 		pgs = &mb->m_ext_pgs;
-		pgs->flags = MBUF_PEXT_FLAG_ANON;
+		pgs->flags = EPG_FLAG_ANON;
 		needed = length = MIN(maxseg, total);
 		for (i = 0; needed > 0; i++, needed -= PAGE_SIZE) {
 retry_page:
