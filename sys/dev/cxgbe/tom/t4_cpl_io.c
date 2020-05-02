@@ -1924,19 +1924,17 @@ aiotx_free_job(struct kaiocb *job)
 static void
 aiotx_free_pgs(struct mbuf *m)
 {
-	struct mbuf_ext_pgs *ext_pgs;
 	struct kaiocb *job;
 	vm_page_t pg;
 
 	MBUF_EXT_PGS_ASSERT(m);
-	ext_pgs = &m->m_ext_pgs;
 	job = m->m_ext.ext_arg1;
 #ifdef VERBOSE_TRACES
 	CTR3(KTR_CXGBE, "%s: completed %d bytes for tid %d", __func__,
 	    m->m_len, jobtotid(job));
 #endif
 
-	for (int i = 0; i < ext_pgs->npgs; i++) {
+	for (int i = 0; i < m->m_ext_pgs.npgs; i++) {
 		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[i]);
 		vm_page_unwire(pg, PQ_ACTIVE);
 	}
@@ -1954,7 +1952,6 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 	struct vmspace *vm;
 	vm_page_t pgs[MBUF_PEXT_MAX_PGS];
 	struct mbuf *m, *top, *last;
-	struct mbuf_ext_pgs *ext_pgs;
 	vm_map_t map;
 	vm_offset_t start;
 	int i, mlen, npages, pgoff;
@@ -1992,16 +1989,15 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 			break;
 		}
 
-		ext_pgs = &m->m_ext_pgs;
-		ext_pgs->first_pg_off = pgoff;
-		ext_pgs->npgs = npages;
+		m->m_ext_pgs.first_pg_off = pgoff;
+		m->m_ext_pgs.npgs = npages;
 		if (npages == 1) {
 			KASSERT(mlen + pgoff <= PAGE_SIZE,
 			    ("%s: single page is too large (off %d len %d)",
 			    __func__, pgoff, mlen));
-			ext_pgs->last_pg_len = mlen;
+			m->m_ext_pgs.last_pg_len = mlen;
 		} else {
-			ext_pgs->last_pg_len = mlen - (PAGE_SIZE - pgoff) -
+			m->m_ext_pgs.last_pg_len = mlen - (PAGE_SIZE - pgoff) -
 			    (npages - 2) * PAGE_SIZE;
 		}
 		for (i = 0; i < npages; i++)
