@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2017
+.Dd May 01, 2020
 .Dt SETKEY 8
 .Os
 .\"
@@ -588,13 +588,7 @@ of the
 parameter:
 .Bd -literal -offset indent
 algorithm	keylen (bits)	comment
-hmac-md5	128		ah: rfc2403
-		128		ah-old: rfc2085
 hmac-sha1	160		ah: rfc2404
-		160		ah-old: 128bit ICV (no document)
-keyed-md5	128		ah: 96bit ICV (no document)
-		128		ah-old: rfc1828
-keyed-sha1	160		ah: 96bit ICV (no document)
 		160		ah-old: 128bit ICV (no document)
 null		0 to 2048	for debugging
 hmac-sha2-256	256		ah: 128bit ICV (RFC4868)
@@ -603,8 +597,6 @@ hmac-sha2-384	384		ah: 192bit ICV (RFC4868)
 		384		ah-old: 128bit ICV (no document)
 hmac-sha2-512	512		ah: 256bit ICV (RFC4868)
 		512		ah-old: 128bit ICV (no document)
-hmac-ripemd160	160		ah: 96bit ICV (RFC2857)
-				ah-old: 128bit ICV (no document)
 aes-xcbc-mac	128		ah: 96bit ICV (RFC3566)
 		128		ah-old: 128bit ICV (no document)
 tcp-md5		8 to 640	tcp: rfc2385
@@ -619,16 +611,10 @@ of the
 parameter:
 .Bd -literal -offset indent
 algorithm	keylen (bits)	comment
-des-cbc		64		esp-old: rfc1829, esp: rfc2405
-3des-cbc	192		rfc2451
 null		0 to 2048	rfc2410
-blowfish-cbc	40 to 448	rfc2451
-cast128-cbc	40 to 128	rfc2451
-des-deriv	64		ipsec-ciph-des-derived-01
 rijndael-cbc	128/192/256	rfc3602
 aes-ctr		160/224/288	draft-ietf-ipsec-ciph-aes-ctr-03
 aes-gcm-16	160/224/288	rfc4106
-camellia-cbc	128/192/256	rfc4312
 .Ed
 .Pp
 Note that the first 128/192/256 bits of a key for
@@ -653,24 +639,17 @@ deflate		rfc2394
 .\"
 .Sh EXAMPLES
 Add an ESP SA between two IPv6 addresses using the
-des-cbc encryption algorithm.
+AES-GCM encryption algorithm.
 .Bd -literal -offset indent
 add 3ffe:501:4819::1 3ffe:501:481d::1 esp 123457
-	-E des-cbc 0x3ffe05014819ffff ;
+	-E aes-gcm-16 0x3ffe050148193ffe050148193ffe050148193ffe ;
 .Pp
 .Ed
 .\"
 Add an authentication SA between two FQDN specified hosts:
 .Bd -literal -offset indent
 add -6 myhost.example.com yourhost.example.com ah 123456
-	-A hmac-sha1 "AH SA configuration!" ;
-.Pp
-.Ed
-Use both ESP and AH between two numerically specified hosts:
-.Bd -literal -offset indent
-add 10.0.11.41 10.0.11.33 esp 0x10001
-	-E des-cbc 0x3ffe05014819ffff
-	-A hmac-md5 "authentication!!" ;
+	-A hmac-sha2-256 "AH SA configuration!" ;
 .Pp
 .Ed
 Get the SA information associated with first example above:

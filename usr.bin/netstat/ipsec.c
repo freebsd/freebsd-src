@@ -123,15 +123,11 @@ struct val2str {
 
 static struct val2str ipsec_ahnames[] = {
 	{ SADB_AALG_NONE, "none", },
-	{ SADB_AALG_MD5HMAC, "hmac-md5", },
 	{ SADB_AALG_SHA1HMAC, "hmac-sha1", },
-	{ SADB_X_AALG_MD5, "keyed-md5", },
-	{ SADB_X_AALG_SHA, "keyed-sha1", },
 	{ SADB_X_AALG_NULL, "null", },
 	{ SADB_X_AALG_SHA2_256, "hmac-sha2-256", },
 	{ SADB_X_AALG_SHA2_384, "hmac-sha2-384", },
 	{ SADB_X_AALG_SHA2_512, "hmac-sha2-512", },
-	{ SADB_X_AALG_RIPEMD160HMAC, "hmac-ripemd160", },
 	{ SADB_X_AALG_AES_XCBC_MAC, "aes-xcbc-mac", },
 	{ SADB_X_AALG_TCP_MD5, "tcp-md5", },
 	{ SADB_X_AALG_AES128GMAC, "aes-gmac-128", },
@@ -142,13 +138,8 @@ static struct val2str ipsec_ahnames[] = {
 
 static struct val2str ipsec_espnames[] = {
 	{ SADB_EALG_NONE, "none", },
-	{ SADB_EALG_DESCBC, "des-cbc", },
-	{ SADB_EALG_3DESCBC, "3des-cbc", },
 	{ SADB_EALG_NULL, "null", },
-	{ SADB_X_EALG_CAST128CBC, "cast128-cbc", },
-	{ SADB_X_EALG_BLOWFISHCBC, "blowfish-cbc", },
 	{ SADB_X_EALG_RIJNDAELCBC, "rijndael-cbc", },
-	{ SADB_X_EALG_CAMELLIACBC, "camellia-cbc", },
 	{ SADB_X_EALG_AESCTR, "aes-ctr", },
 	{ SADB_X_EALG_AESGCM16, "aes-gcm-16", },
 	{ SADB_X_EALG_AESGMAC, "aes-gmac", },

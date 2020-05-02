@@ -108,7 +108,6 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_ah, IPSECCTL_STATS, stats, struct ahstat,
 #endif
 
 static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
-static struct timeval md5warn, ripewarn, kpdkmd5warn, kpdksha1warn;
 
 static int ah_input_cb(struct cryptop*);
 static int ah_output_cb(struct cryptop*);
@@ -183,25 +182,6 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp,
 		DPRINTF(("%s: unsupported authentication algorithm %u\n",
 			__func__, sav->alg_auth));
 		return EINVAL;
-	}
-
-	switch (sav->alg_auth) {
-	case SADB_AALG_MD5HMAC:
-		if (ratecheck(&md5warn, &ipsec_warn_interval))
-			gone_in(13, "MD5-HMAC authenticator for IPsec");
-		break;
-	case SADB_X_AALG_RIPEMD160HMAC:
-		if (ratecheck(&ripewarn, &ipsec_warn_interval))
-			gone_in(13, "RIPEMD160-HMAC authenticator for IPsec");
-		break;
-	case SADB_X_AALG_MD5:
-		if (ratecheck(&kpdkmd5warn, &ipsec_warn_interval))
-			gone_in(13, "Keyed-MD5 authenticator for IPsec");
-		break;
-	case SADB_X_AALG_SHA:
-		if (ratecheck(&kpdksha1warn, &ipsec_warn_interval))
-			gone_in(13, "Keyed-SHA1 authenticator for IPsec");
-		break;
 	}
 
 	/*
@@ -317,11 +297,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 			ip->ip_tos = 0;
 		ip->ip_ttl = 0;
 		ip->ip_sum = 0;
-
-		if (alg == CRYPTO_MD5_KPDK || alg == CRYPTO_SHA1_KPDK)
-			ip->ip_off &= htons(IP_DF);
-		else
-			ip->ip_off = htons(0);
+		ip->ip_off = htons(0);
 
 		ptr = mtod(m, unsigned char *);
 
