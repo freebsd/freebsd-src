@@ -853,7 +853,7 @@ int
 mb_unmapped_compress(struct mbuf *m)
 {
 	volatile u_int *refcnt;
-	struct mbuf m_temp;
+	char buf[MLEN];
 
 	/*
 	 * Assert that 'm' does not have a packet header.  If 'm' had
@@ -876,11 +876,7 @@ mb_unmapped_compress(struct mbuf *m)
 	if (*refcnt != 1)
 		return (EBUSY);
 
-	m_init(&m_temp, M_NOWAIT, MT_DATA, 0);
-
-	/* copy data out of old mbuf */
-	m_copydata(m, 0, m->m_len, mtod(&m_temp, char *));
-	m_temp.m_len = m->m_len;
+	m_copydata(m, 0, m->m_len, buf);
 
 	/* Free the backing pages. */
 	m->m_ext.ext_free(m);
@@ -889,8 +885,8 @@ mb_unmapped_compress(struct mbuf *m)
 	m->m_flags &= ~(M_EXT | M_RDONLY | M_NOMAP);
 	m->m_data = m->m_dat;
 
-	/* copy data back into m */
-	m_copydata(&m_temp, 0, m_temp.m_len, mtod(m, char *));
+	/* Copy data back into m. */
+	bcopy(buf, mtod(m, char *), m->m_len);
 
 	return (0);
 }
