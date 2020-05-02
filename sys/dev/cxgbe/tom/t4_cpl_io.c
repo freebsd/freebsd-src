@@ -1935,7 +1935,7 @@ aiotx_free_pgs(struct mbuf *m)
 #endif
 
 	for (int i = 0; i < ext_pgs->npgs; i++) {
-		pg = PHYS_TO_VM_PAGE(ext_pgs->m_epg_pa[i]);
+		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[i]);
 		vm_page_unwire(pg, PQ_ACTIVE);
 	}
 
@@ -2003,7 +2003,7 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 			    (npages - 2) * PAGE_SIZE;
 		}
 		for (i = 0; i < npages; i++)
-			ext_pgs->m_epg_pa[i] = VM_PAGE_TO_PHYS(pgs[i]);
+			m->m_epg_pa[i] = VM_PAGE_TO_PHYS(pgs[i]);
 
 		m->m_len = mlen;
 		m->m_ext.ext_size = npages * PAGE_SIZE;
