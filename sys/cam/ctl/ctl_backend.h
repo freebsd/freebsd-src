@@ -80,14 +80,7 @@ typedef enum {
 	MODULE_DEPEND(name, cam, 1, 1, 1)
 
 
-typedef enum {
-	CTL_LUN_CONFIG_OK,
-	CTL_LUN_CONFIG_FAILURE
-} ctl_lun_config_status;
-
 typedef void (*be_callback_t)(void *be_lun);
-typedef void (*be_lun_config_t)(void *be_lun,
-				ctl_lun_config_status status);
 
 /*
  * The lun_type field is the SCSI device type of this particular LUN.  In
@@ -136,15 +129,10 @@ typedef void (*be_lun_config_t)(void *be_lun,
  * should be padded with ASCII spaces.  This field should NOT be NULL
  * terminated.
  *
- * The lun_shutdown() method is the callback for the ctl_invalidate_lun()
+ * The lun_shutdown() method is the callback for the ctl_remove_lun()
  * call.  It is called when all outstanding I/O for that LUN has been
  * completed and CTL has deleted the resources for that LUN.  When the CTL
  * backend gets this call, it can safely free its per-LUN resources.
- *
- * The lun_config_status() method is the callback for the ctl_add_lun()
- * call.  It is called when the LUN is successfully added, or when LUN
- * addition fails.  If the LUN is successfully added, the backend may call
- * the ctl_enable_lun() method to enable the LUN.
  *
  * The be field is a pointer to the ctl_backend_driver structure, which
  * contains the backend methods to be called by CTL.
@@ -173,7 +161,6 @@ struct ctl_be_lun {
 	uint8_t			serial_num[CTL_SN_LEN];	 /* passed to CTL */
 	uint8_t			device_id[CTL_DEVID_LEN];/* passed to CTL */
 	be_callback_t		lun_shutdown;	/* passed to CTL */
-	be_lun_config_t		lun_config_status; /* passed to CTL */
 	struct ctl_backend_driver *be;		/* passed to CTL */
 	void			*ctl_lun;	/* used by CTL */
 	nvlist_t	 	*options;	/* passed to CTL */
@@ -212,7 +199,6 @@ struct ctl_backend_driver {
 #if 0
 	be_vfunc_t	  config_write_done;	 /* passed to backend */
 #endif
-	u_int		  num_luns;		 /* used by CTL */
 	STAILQ_ENTRY(ctl_backend_driver) links;	 /* used by CTL */
 };
 
@@ -221,22 +207,16 @@ int ctl_backend_deregister(struct ctl_backend_driver *be);
 struct ctl_backend_driver *ctl_backend_find(char *backend_name);
 
 /*
- * To add a LUN, first call ctl_add_lun().  You will get the lun_config_status()
- * callback when the LUN addition has either succeeded or failed.
- *
- * Once you get that callback, you can then call ctl_enable_lun() to enable
- * the LUN.
+ * To add a LUN, call ctl_add_lun().
  */
 int ctl_add_lun(struct ctl_be_lun *be_lun);
-int ctl_enable_lun(struct ctl_be_lun *be_lun);
 
 /*
- * To delete a LUN, first call ctl_disable_lun(), then
- * ctl_invalidate_lun().  You will get the lun_shutdown() callback when all
+ * To remove a LUN, first call ctl_remove_lun().
+ * You will get the lun_shutdown() callback when all
  * I/O to the LUN has completed and the LUN has been deleted.
  */
-int ctl_disable_lun(struct ctl_be_lun *be_lun);
-int ctl_invalidate_lun(struct ctl_be_lun *be_lun);
+int ctl_remove_lun(struct ctl_be_lun *be_lun);
 
 /*
  * To start a LUN (transition from powered off to powered on state) call
