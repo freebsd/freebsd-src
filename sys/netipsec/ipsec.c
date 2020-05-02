@@ -217,11 +217,6 @@ SYSCTL_INT(_net_inet_ipsec, OID_AUTO, filtertunnel,
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipsec, OID_AUTO, ipsecstats, struct ipsecstat,
     ipsec4stat, "IPsec IPv4 statistics.");
 
-struct timeval ipsec_warn_interval = { .tv_sec = 1, .tv_usec = 0 };
-SYSCTL_TIMEVAL_SEC(_net_inet_ipsec, OID_AUTO, crypto_warn_interval, CTLFLAG_RW,
-    &ipsec_warn_interval,
-    "Delay in seconds between warnings of deprecated IPsec crypto algorithms.");
-
 #ifdef REGRESSION
 /*
  * When set to 1, IPsec will send packets with the same sequence number.
