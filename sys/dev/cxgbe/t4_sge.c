@@ -2441,7 +2441,7 @@ count_mbuf_ext_pgs(struct mbuf *m, int skip, vm_paddr_t *nextaddr)
 	}
 	pgoff = m->m_ext_pgs.first_pg_off;
 	for (i = 0; i < m->m_ext_pgs.npgs && len > 0; i++) {
-		pglen = mbuf_ext_pg_len(&m->m_ext_pgs, i, pgoff);
+		pglen = m_epg_pagelen(m, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
 			pgoff = 0;
