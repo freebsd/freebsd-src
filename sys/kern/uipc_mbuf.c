@@ -1805,7 +1805,7 @@ m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
 	}
 	pgoff = ext_pgs->first_pg_off;
 	for (i = 0; i < ext_pgs->npgs && error == 0 && len > 0; i++) {
-		pglen = mbuf_ext_pg_len(ext_pgs, i, pgoff);
+		pglen = m_epg_pagelen(m, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
 			pgoff = 0;

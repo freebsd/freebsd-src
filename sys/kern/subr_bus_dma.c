@@ -145,7 +145,7 @@ _bus_dmamap_load_mbuf_epg(bus_dma_tag_t dmat, bus_dmamap_t map,
 	}
 	pgoff = m->m_ext_pgs.first_pg_off;
 	for (i = 0; i < m->m_ext_pgs.npgs && error == 0 && len > 0; i++) {
-		pglen = mbuf_ext_pg_len(&m->m_ext_pgs, i, pgoff);
+		pglen = m_epg_pagelen(m, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
 			pgoff = 0;
