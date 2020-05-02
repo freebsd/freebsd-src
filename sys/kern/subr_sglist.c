@@ -223,8 +223,9 @@ sglist_count_vmpages(vm_page_t *m, size_t pgoff, size_t len)
  * describe an EXT_PGS buffer.
  */
 int
-sglist_count_ext_pgs(struct mbuf_ext_pgs *ext_pgs, size_t off, size_t len)
+sglist_count_ext_pgs(struct mbuf *m, size_t off, size_t len)
 {
+	struct mbuf_ext_pgs *ext_pgs = &m->m_ext_pgs;
 	vm_paddr_t nextaddr, paddr;
 	size_t seglen, segoff;
 	int i, nsegs, pglen, pgoff;
@@ -242,7 +243,7 @@ sglist_count_ext_pgs(struct mbuf_ext_pgs *ext_pgs, size_t off, size_t len)
 			seglen = MIN(seglen, len);
 			off = 0;
 			len -= seglen;
-			nsegs += sglist_count(&ext_pgs->m_epg_hdr[segoff],
+			nsegs += sglist_count(&m->m_epg_hdr[segoff],
 			    seglen);
 		}
 	}
@@ -260,7 +261,7 @@ sglist_count_ext_pgs(struct mbuf_ext_pgs *ext_pgs, size_t off, size_t len)
 		off = 0;
 		seglen = MIN(seglen, len);
 		len -= seglen;
-		paddr = ext_pgs->m_epg_pa[i] + segoff;
+		paddr = m->m_epg_pa[i] + segoff;
 		if (paddr != nextaddr)
 			nsegs++;
 		nextaddr = paddr + seglen;
@@ -269,7 +270,7 @@ sglist_count_ext_pgs(struct mbuf_ext_pgs *ext_pgs, size_t off, size_t len)
 	if (len != 0) {
 		seglen = MIN(len, ext_pgs->trail_len - off);
 		len -= seglen;
-		nsegs += sglist_count(&ext_pgs->m_epg_trail[off], seglen);
+		nsegs += sglist_count(&m->m_epg_trail[off], seglen);
 	}
 	KASSERT(len == 0, ("len != 0"));
 	return (nsegs);
@@ -284,8 +285,7 @@ sglist_count_mb_ext_pgs(struct mbuf *m)
 {
 
 	MBUF_EXT_PGS_ASSERT(m);
-	return (sglist_count_ext_pgs(&m->m_ext_pgs, mtod(m, vm_offset_t),
-	    m->m_len));
+	return (sglist_count_ext_pgs(m, mtod(m, vm_offset_t), m->m_len));
 }
 
 /*
@@ -395,9 +395,9 @@ sglist_append_phys(struct sglist *sg, vm_paddr_t paddr, size_t len)
  * fails with EFBIG.
  */
 int
-sglist_append_ext_pgs(struct sglist *sg, struct mbuf_ext_pgs *ext_pgs,
-    size_t off, size_t len)
+sglist_append_ext_pgs(struct sglist *sg, struct mbuf *m, size_t off, size_t len)
 {
+	struct mbuf_ext_pgs *ext_pgs = &m->m_ext_pgs;
 	size_t seglen, segoff;
 	vm_paddr_t paddr;
 	int error, i, pglen, pgoff;
@@ -413,7 +413,7 @@ sglist_append_ext_pgs(struct sglist *sg, struct mbuf_ext_pgs *ext_pgs,
 			off = 0;
 			len -= seglen;
 			error = sglist_append(sg,
-			    &ext_pgs->m_epg_hdr[segoff], seglen);
+			    &m->m_epg_hdr[segoff], seglen);
 		}
 	}
 	pgoff = ext_pgs->first_pg_off;
@@ -429,7 +429,7 @@ sglist_append_ext_pgs(struct sglist *sg, struct mbuf_ext_pgs *ext_pgs,
 		off = 0;
 		seglen = MIN(seglen, len);
 		len -= seglen;
-		paddr = ext_pgs->m_epg_pa[i] + segoff;
+		paddr = m->m_epg_pa[i] + segoff;
 		error = sglist_append_phys(sg, paddr, seglen);
 		pgoff = 0;
 	};
@@ -437,7 +437,7 @@ sglist_append_ext_pgs(struct sglist *sg, struct mbuf_ext_pgs *ext_pgs,
 		seglen = MIN(len, ext_pgs->trail_len - off);
 		len -= seglen;
 		error = sglist_append(sg,
-		    &ext_pgs->m_epg_trail[off], seglen);
+		    &m->m_epg_trail[off], seglen);
 	}
 	if (error == 0)
 		KASSERT(len == 0, ("len != 0"));
@@ -455,8 +455,7 @@ sglist_append_mb_ext_pgs(struct sglist *sg, struct mbuf *m)
 
 	/* for now, all unmapped mbufs are assumed to be EXT_PGS */
 	MBUF_EXT_PGS_ASSERT(m);
-	return (sglist_append_ext_pgs(sg, &m->m_ext_pgs,
-	    mtod(m, vm_offset_t), m->m_len));
+	return (sglist_append_ext_pgs(sg, m, mtod(m, vm_offset_t), m->m_len));
 }
 
 /*

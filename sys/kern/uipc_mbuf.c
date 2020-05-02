@@ -163,11 +163,11 @@ CTASSERT(offsetof(struct mbuf, m_pktdat) % 8 == 0);
 #if defined(__LP64__)
 CTASSERT(offsetof(struct mbuf, m_dat) == 32);
 CTASSERT(sizeof(struct pkthdr) == 56);
-CTASSERT(sizeof(struct m_ext) == 168);
+CTASSERT(sizeof(struct m_ext) == 160);
 #else
 CTASSERT(offsetof(struct mbuf, m_dat) == 24);
 CTASSERT(sizeof(struct pkthdr) == 48);
-CTASSERT(sizeof(struct m_ext) == 184);
+CTASSERT(sizeof(struct m_ext) == 180);
 #endif
 
 /*
@@ -195,19 +195,30 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 	KASSERT(!(n->m_flags & M_EXT), ("%s: M_EXT set on %p", __func__, n));
 
 	/*
-	 * Cache access optimization.  For most kinds of external
-	 * storage we don't need full copy of m_ext, since the
-	 * holder of the 'ext_count' is responsible to carry the
-	 * free routine and its arguments.  Exclusion is EXT_EXTREF,
-	 * where 'ext_cnt' doesn't point into mbuf at all.
+	 * Cache access optimization.
+	 *
+	 * o Regular M_EXT storage doesn't need full copy of m_ext, since
+	 *   the holder of the 'ext_count' is responsible to carry the free
+	 *   routine and its arguments.
+	 * o EXT_PGS data is split between main part of mbuf and m_ext, the
+	 *   main part is copied in full, the m_ext part is similar to M_EXT.
+	 * o EXT_EXTREF, where 'ext_cnt' doesn't point into mbuf at all, is
+	 *   special - it needs full copy of m_ext into each mbuf, since any
+	 *   copy could end up as the last to free.
 	 */
-	if (m->m_ext.ext_type == EXT_EXTREF)
-		bcopy(&m->m_ext, &n->m_ext, sizeof(struct m_ext));
-	else if (m->m_ext.ext_type == EXT_PGS)
+	switch (m->m_ext.ext_type) {
+	case EXT_PGS:
+		bcopy(&m->m_ext, &n->m_ext, m_epg_copylen);
 		bcopy(&m->m_ext_pgs, &n->m_ext_pgs,
 		    sizeof(struct mbuf_ext_pgs));
-	else
+		break;
+	case EXT_EXTREF:
+		bcopy(&m->m_ext, &n->m_ext, sizeof(struct m_ext));
+		break;
+	default:
 		bcopy(&m->m_ext, &n->m_ext, m_ext_copylen);
+	}
+
 	n->m_flags |= M_EXT;
 	n->m_flags |= m->m_flags & (M_RDONLY | M_NOMAP);
 
@@ -1623,7 +1634,7 @@ mb_free_mext_pgs(struct mbuf *m)
 	MBUF_EXT_PGS_ASSERT(m);
 	ext_pgs = &m->m_ext_pgs;
 	for (int i = 0; i < ext_pgs->npgs; i++) {
-		pg = PHYS_TO_VM_PAGE(ext_pgs->m_epg_pa[i]);
+		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[i]);
 		vm_page_unwire_noq(pg);
 		vm_page_free(pg);
 	}
@@ -1681,11 +1692,11 @@ retry_page:
 				}
 			}
 			pg_array[i]->flags &= ~PG_ZERO;
-			pgs->m_epg_pa[i] = VM_PAGE_TO_PHYS(pg_array[i]);
+			mb->m_epg_pa[i] = VM_PAGE_TO_PHYS(pg_array[i]);
 			pgs->npgs++;
 		}
 		pgs->last_pg_len = length - PAGE_SIZE * (pgs->npgs - 1);
-		MBUF_EXT_PGS_ASSERT_SANITY(pgs);
+		MBUF_EXT_PGS_ASSERT_SANITY(mb);
 		total -= length;
 		error = uiomove_fromphys(pg_array, 0, length, uio);
 		if (error != 0)
@@ -1788,7 +1799,8 @@ m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
 			seglen = min(seglen, len);
 			off = 0;
 			len -= seglen;
-			error = uiomove(&ext_pgs->m_epg_hdr[segoff], seglen, uio);
+			error = uiomove(__DECONST(void *,
+			    &m->m_epg_hdr[segoff]), seglen, uio);
 		}
 	}
 	pgoff = ext_pgs->first_pg_off;
@@ -1804,7 +1816,7 @@ m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
 		off = 0;
 		seglen = min(seglen, len);
 		len -= seglen;
-		pg = PHYS_TO_VM_PAGE(ext_pgs->m_epg_pa[i]);
+		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[i]);
 		error = uiomove_fromphys(&pg, segoff, seglen, uio);
 		pgoff = 0;
 	};
@@ -1812,7 +1824,8 @@ m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
 		KASSERT((off + len) <= ext_pgs->trail_len,
 		    ("off + len > trail (%d + %d > %d, m_off = %d)", off, len,
 		    ext_pgs->trail_len, m_off));
-		error = uiomove(&ext_pgs->m_epg_trail[off], len, uio);
+		error = uiomove(__DECONST(void *, &m->m_epg_trail[off]),
+		    len, uio);
 	}
 	return (error);
 }

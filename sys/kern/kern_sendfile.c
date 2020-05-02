@@ -203,7 +203,7 @@ sendfile_free_mext_pg(struct mbuf *m)
 	for (i = 0; i < ext_pgs->npgs; i++) {
 		if (cache_last && i == ext_pgs->npgs - 1)
 			flags = 0;
-		pg = PHYS_TO_VM_PAGE(ext_pgs->m_epg_pa[i]);
+		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[i]);
 		vm_page_release(pg, flags);
 	}
 
@@ -1046,11 +1046,11 @@ retry_space:
 					ext_pgs->nrdy++;
 				}
 
-				ext_pgs->m_epg_pa[ext_pgs_idx] = VM_PAGE_TO_PHYS(pga);
+				m0->m_epg_pa[ext_pgs_idx] = VM_PAGE_TO_PHYS(pga);
 				ext_pgs->npgs++;
 				xfs = xfsize(i, npages, off, space);
 				ext_pgs->last_pg_len = xfs;
-				MBUF_EXT_PGS_ASSERT_SANITY(ext_pgs);
+				MBUF_EXT_PGS_ASSERT_SANITY(m0);
 				mtail->m_len += xfs;
 				mtail->m_ext.ext_size += PAGE_SIZE;
 				continue;
