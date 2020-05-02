@@ -70,6 +70,10 @@ const uint32_t default_max_write = MIN(libfuse_max_write, MAXPHYS / 2);
 void check_environment()
 {
 	const char *devnode = "/dev/fuse";
+	const char *bsdextended_node = "security.mac.bsdextended.enabled";
+	int bsdextended_val = 0;
+	size_t bsdextended_size = sizeof(bsdextended_val);
+	int bsdextended_found;
 	const char *usermount_node = "vfs.usermount";
 	int usermount_val = 0;
 	size_t usermount_size = sizeof(usermount_val);
@@ -83,9 +87,19 @@ void check_environment()
 			GTEST_SKIP() << strerror(errno);
 		}
 	}
+	// mac_bsdextended(4), when enabled, generates many more GETATTR
+	// operations. The fusefs tests' expectations don't account for those,
+	// and adding extra code to handle them obfuscates the real purpose of
+	// the tests.  Better just to skip the fusefs tests if mac_bsdextended
+	// is enabled.
+	bsdextended_found = sysctlbyname(bsdextended_node, &bsdextended_val,
+					 &bsdextended_size, NULL, 0);
+	if (bsdextended_found == 0 && bsdextended_val != 0)
+		GTEST_SKIP() <<
+		    "The fusefs tests are incompatible with mac_bsdextended.";
 	ASSERT_EQ(sysctlbyname(usermount_node, &usermount_val, &usermount_size,
 			       NULL, 0),
-		  0);;
+		  0);
 	if (geteuid() != 0 && !usermount_val)
 		GTEST_SKIP() << "current user is not allowed to mount";
 }
