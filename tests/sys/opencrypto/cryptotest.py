@@ -51,7 +51,6 @@ def katg(base, glob):
     return iglob(os.path.join(katdir, base, glob))
 
 aesmodules = [ 'cryptosoft0', 'aesni0', 'armv8crypto0', 'ccr0', 'ccp0' ]
-desmodules = [ 'cryptosoft0', ]
 shamodules = [ 'cryptosoft0', 'aesni0', 'armv8crypto0', 'ccr0', 'ccp0' ]
 
 def GenTestCase(cname):
@@ -331,46 +330,6 @@ def GenTestCase(cname):
                         " Actual: " + repr(binascii.hexlify(r)) + \
                         " Expected: " + repr(data) + \
                         " on " + cname)
-
-        ###############
-        ##### DES #####
-        ###############
-        @unittest.skipIf(cname not in desmodules, 'skipping DES on %s' % (cname))
-        def test_tdes(self):
-            for i in katg('KAT_TDES', 'TCBC[a-z]*.rsp'):
-                self.runTDES(i)
-
-        def runTDES(self, fname):
-            columns = [ 'COUNT', 'KEYs', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]
-            with cryptodev.KATParser(fname, columns) as parser:
-                self.runTDESWithParser(parser)
-
-        def runTDESWithParser(self, parser):
-            curfun = None
-            for mode, lines in next(parser):
-                if mode == 'ENCRYPT':
-                    swapptct = False
-                    curfun = Crypto.encrypt
-                elif mode == 'DECRYPT':
-                    swapptct = True
-                    curfun = Crypto.decrypt
-                else:
-                    raise RuntimeError('unknown mode: %r' % repr(mode))
-
-                for data in lines:
-                    curcnt = int(data['COUNT'])
-                    key = data['KEYs'] * 3
-                    cipherkey = binascii.unhexlify(key)
-                    iv = binascii.unhexlify(data['IV'])
-                    pt = binascii.unhexlify(data['PLAINTEXT'])
-                    ct = binascii.unhexlify(data['CIPHERTEXT'])
-
-                    if swapptct:
-                        pt, ct = ct, pt
-                    # run the fun
-                    c = Crypto(cryptodev.CRYPTO_3DES_CBC, cipherkey, crid=crid)
-                    r = curfun(c, pt, iv)
-                    self.assertEqual(r, ct)
 
         ###############
         ##### SHA #####
