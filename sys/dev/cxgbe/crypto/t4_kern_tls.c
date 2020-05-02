@@ -1064,7 +1064,7 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 	wr_len += roundup2(imm_len, 16);
 
 	/* TLS record payload via DSGL. */
-	*nsegsp = sglist_count_ext_pgs(m_tls, ext_pgs->hdr_len + offset,
+	*nsegsp = sglist_count_mbuf_epg(m_tls, ext_pgs->hdr_len + offset,
 	    plen - (ext_pgs->hdr_len + offset));
 	wr_len += ktls_sgl_size(*nsegsp);
 
@@ -1799,7 +1799,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 
 	/* Recalculate 'nsegs' if cached value is not available. */
 	if (nsegs == 0)
-		nsegs = sglist_count_ext_pgs(m_tls, ext_pgs->hdr_len +
+		nsegs = sglist_count_mbuf_epg(m_tls, ext_pgs->hdr_len +
 		    offset, plen - (ext_pgs->hdr_len + offset));
 
 	/* Calculate the size of the TLS work request. */
@@ -2067,7 +2067,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 
 	/* SGL for record payload */
 	sglist_reset(txq->gl);
-	if (sglist_append_ext_pgs(txq->gl, m_tls, ext_pgs->hdr_len + offset,
+	if (sglist_append_mbuf_epg(txq->gl, m_tls, ext_pgs->hdr_len + offset,
 	    plen - (ext_pgs->hdr_len + offset)) != 0) {
 #ifdef INVARIANTS
 		panic("%s: failed to append sglist", __func__);

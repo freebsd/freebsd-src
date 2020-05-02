@@ -2413,23 +2413,21 @@ m_advance(struct mbuf **pm, int *poffset, int len)
 static inline int
 count_mbuf_ext_pgs(struct mbuf *m, int skip, vm_paddr_t *nextaddr)
 {
-	struct mbuf_ext_pgs *ext_pgs;
 	vm_paddr_t paddr;
 	int i, len, off, pglen, pgoff, seglen, segoff;
 	int nsegs = 0;
 
 	MBUF_EXT_PGS_ASSERT(m);
-	ext_pgs = &m->m_ext_pgs;
 	off = mtod(m, vm_offset_t);
 	len = m->m_len;
 	off += skip;
 	len -= skip;
 
-	if (ext_pgs->hdr_len != 0) {
-		if (off >= ext_pgs->hdr_len) {
-			off -= ext_pgs->hdr_len;
+	if (m->m_ext_pgs.hdr_len != 0) {
+		if (off >= m->m_ext_pgs.hdr_len) {
+			off -= m->m_ext_pgs.hdr_len;
 		} else {
-			seglen = ext_pgs->hdr_len - off;
+			seglen = m->m_ext_pgs.hdr_len - off;
 			segoff = off;
 			seglen = min(seglen, len);
 			off = 0;
@@ -2441,9 +2439,9 @@ count_mbuf_ext_pgs(struct mbuf *m, int skip, vm_paddr_t *nextaddr)
 			*nextaddr = paddr + seglen;
 		}
 	}
-	pgoff = ext_pgs->first_pg_off;
-	for (i = 0; i < ext_pgs->npgs && len > 0; i++) {
-		pglen = mbuf_ext_pg_len(ext_pgs, i, pgoff);
+	pgoff = m->m_ext_pgs.first_pg_off;
+	for (i = 0; i < m->m_ext_pgs.npgs && len > 0; i++) {
+		pglen = mbuf_ext_pg_len(&m->m_ext_pgs, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
 			pgoff = 0;
@@ -2461,7 +2459,7 @@ count_mbuf_ext_pgs(struct mbuf *m, int skip, vm_paddr_t *nextaddr)
 		pgoff = 0;
 	};
 	if (len != 0) {
-		seglen = min(len, ext_pgs->trail_len - off);
+		seglen = min(len, m->m_ext_pgs.trail_len - off);
 		len -= seglen;
 		paddr = pmap_kextract((vm_offset_t)&m->m_epg_trail[off]);
 		if (*nextaddr != paddr)
@@ -5838,9 +5836,12 @@ write_ethofld_wr(struct cxgbe_rate_tag *cst, struct fw_eth_tx_eo_wr *wr,
 				immhdrs -= m0->m_len;
 				continue;
 			}
-
-			sglist_append(&sg, mtod(m0, char *) + immhdrs,
-			    m0->m_len - immhdrs);
+			if (m0->m_flags & M_NOMAP)
+				sglist_append_mbuf_epg(&sg, m0,
+				    mtod(m0, vm_offset_t), m0->m_len);
+                        else
+				sglist_append(&sg, mtod(m0, char *) + immhdrs,
+				    m0->m_len - immhdrs);
 			immhdrs = 0;
 		}
 		MPASS(sg.sg_nseg == nsegs);

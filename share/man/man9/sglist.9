@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2019
+.Dd April 24, 2020
 .Dt SGLIST 9
 .Os
 .Sh NAME
@@ -34,9 +34,8 @@
 .Nm sglist_alloc ,
 .Nm sglist_append ,
 .Nm sglist_append_bio ,
-.Nm sglist_append_ext_pgs,
-.Nm sglist_append_mb_ext_pgs,
 .Nm sglist_append_mbuf ,
+.Nm sglist_append_mbuf_epg,
 .Nm sglist_append_phys ,
 .Nm sglist_append_sglist ,
 .Nm sglist_append_uio ,
@@ -46,8 +45,7 @@
 .Nm sglist_clone ,
 .Nm sglist_consume_uio ,
 .Nm sglist_count ,
-.Nm sglist_count_ext_pgs ,
-.Nm sglist_count_mb_ext_pgs ,
+.Nm sglist_count_mbuf_epg ,
 .Nm sglist_count_vmpages ,
 .Nm sglist_free ,
 .Nm sglist_hold ,
@@ -68,9 +66,7 @@
 .Ft int
 .Fn sglist_append_bio "struct sglist *sg" "struct bio *bp"
 .Ft int
-.Fn sglist_append_ext_pgs "struct sglist *sg" "struct mbuf_ext_pgs *ext_pgs" "size_t offset" "size_t len"
-.Ft int
-.Fn sglist_append_mb_ext_pgs "struct sglist *sg" "struct mbuf *m"
+.Fn sglist_append_mbuf_epg "struct sglist *sg" "struct mbuf *m" "size_t offset" "size_t len"
 .Ft int
 .Fn sglist_append_mbuf "struct sglist *sg" "struct mbuf *m"
 .Ft int
@@ -92,9 +88,7 @@
 .Ft int
 .Fn sglist_count "void *buf" "size_t len"
 .Ft int
-.Fn sglist_count_ext_pgs "struct mbuf_ext_pgs *ext_pgs" "size_t offset" "size_t len"
-.Ft int
-.Fn sglist_count_mb_ext_pgs "struct mbuf *m"
+.Fn sglist_count_mbuf_epg "struct mbuf *m" "size_t offset" "size_t len"
 .Ft int
 .Fn sglist_count_vmpages "vm_page_t *m" "size_t pgoff" "size_t len"
 .Ft void
@@ -158,20 +152,15 @@ and is
 bytes long.
 .Pp
 The
-.Nm sglist_count_ext_pgs
+.Nm sglist_count_mbuf_epg
 function returns the number of scatter/gather list elements needed to describe
-the unmapped external mbuf buffer
-.Fa ext_pgs .
+the external multipage mbuf buffer
+.Fa m .
 The ranges start at an offset of
 .Fa offset
 relative to the start of the buffer and is
 .Fa len
 bytes long.
-The
-.Nm sglist_count_mb_ext_pgs
-function returns the number of scatter/gather list elements needed to describe
-the physical address ranges of a single unmapped mbuf
-.Fa m .
 .Pp
 The
 .Nm sglist_count_vmpages
@@ -265,9 +254,11 @@ to the scatter/gather list
 .Fa sg .
 .Pp
 The
-.Nm sglist_append_ext_pgs
-function appends the physical address ranges described by the unmapped
-external mbuf buffer
+.Nm sglist_append_mbuf_epg
+function appends the physical address ranges described by the
+external multipage
+.Xr mbuf 9
+buffer
 .Fa ext_pgs
 to the scatter/gather list
 .Fa sg .
@@ -278,17 +269,9 @@ within
 and continue for
 .Fa len
 bytes.
-.Pp
-The
-.Nm sglist_append_mb_ext_pgs
-function appends the physical address ranges described by the unmapped
-mbuf
-.Fa m
-to the scatter/gather list
-.Fa sg .
 Note that unlike
 .Nm sglist_append_mbuf ,
-.Nm sglist_append_mb_ext_pgs
+.Nm sglist_append_mbuf_epg
 only adds ranges for a single mbuf,
 not an entire mbuf chain.
 .Pp
