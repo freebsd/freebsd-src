@@ -680,13 +680,11 @@ done:
 static int
 mlx5e_sq_tls_populate(struct mbuf *mb, uint64_t *pseq)
 {
-	struct mbuf_ext_pgs *ext_pgs;
 
 	for (; mb != NULL; mb = mb->m_next) {
 		if (!(mb->m_flags & M_NOMAP))
 			continue;
-		ext_pgs = &mb->m_ext_pgs;
-		*pseq = ext_pgs->seqno;
+		*pseq = mb->m_ext_pgs.seqno;
 		return (1);
 	}
 	return (0);
