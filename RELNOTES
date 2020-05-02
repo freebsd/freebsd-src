@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r360557:
+	Remove support for DES, Triple DES, Blowfish, Cast, and
+	Camellia ciphers from IPsec(4).  Remove support for MD5-HMAC,
+	Keyed MD5, Keyed SHA1, and RIPEMD160-HMAC from IPsec(4).
+
 r359945:
 	Remove support for Triple DES, Blowfish, and MD5 HMAC from
 	geli(4).
