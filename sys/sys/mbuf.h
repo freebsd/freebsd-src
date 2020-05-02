@@ -231,13 +231,6 @@ struct pkthdr {
 
 #define MBUF_PEXT_FLAG_ANON	1	/* Data can be encrypted in place. */
 
-
-struct mbuf_ext_pgs_data {
-	vm_paddr_t	pa[MBUF_PEXT_MAX_PGS];		/* phys addrs of pgs */
-	char		trail[MBUF_PEXT_TRAIL_LEN]; 	/* TLS trailer */
-	char		hdr[MBUF_PEXT_HDR_LEN];		/* TLS header */
-};
-
 struct ktls_session;
 struct socket;
 
@@ -266,48 +259,48 @@ struct m_ext {
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
 			 ext_flags:24;	/* external storage mbuf flags */
-	char		*ext_buf;	/* start of buffer */
-	/*
-	 * Fields below store the free context for the external storage.
-	 * They are valid only in the refcount carrying mbuf, the one with
-	 * EXT_FLAG_EMBREF flag, with exclusion for EXT_EXTREF type, where
-	 * the free context is copied into all mbufs that use same external
-	 * storage.
-	 */
-#define	m_ext_copylen	offsetof(struct m_ext, ext_free)
-	m_ext_free_t	*ext_free;	/* free routine if not the usual */
-	void		*ext_arg1;	/* optional argument pointer */
 	union {
-		void		*ext_arg2;	/* optional argument pointer */
-		struct mbuf_ext_pgs_data ext_pgs;
+		struct {
+			/*
+			 * Regular M_EXT mbuf:
+			 * o ext_buf always points to the external buffer.
+			 * o ext_free (below) and two optional arguments
+			 *   ext_arg1 and ext_arg2 store the free context for
+			 *   the external storage.  They are set only in the
+			 *   refcount carrying mbuf, the one with
+			 *   EXT_FLAG_EMBREF flag, with exclusion for
+			 *   EXT_EXTREF type, where the free context is copied
+			 *   into all mbufs that use same external storage.
+			 */
+			char 	*ext_buf;	/* start of buffer */
+#define	m_ext_copylen	offsetof(struct m_ext, ext_arg2)
+			void	*ext_arg2;
+		};
+		struct {
+			/*
+			 * Multi-page M_EXTPG mbuf:
+			 * o extpg_pa - page vector.
+			 * o extpg_trail and extpg_hdr - TLS trailer and
+			 *   header.
+			 * Uses ext_free and may also use ext_arg1.
+			 */
+			vm_paddr_t	extpg_pa[MBUF_PEXT_MAX_PGS];
+			char		extpg_trail[MBUF_PEXT_TRAIL_LEN];
+			char		extpg_hdr[MBUF_PEXT_HDR_LEN];
+			/* Pretend these 3 fields are part of mbuf itself. */
+#define	m_epg_pa	m_ext.extpg_pa
+#define	m_epg_trail	m_ext.extpg_trail
+#define	m_epg_hdr	m_ext.extpg_hdr
+#define	m_epg_copylen	offsetof(struct m_ext, ext_free)
+		};
 	};
+	/*
+	 * Free method and optional argument pointer, both
+	 * used by M_EXT and M_EXTPG.
+	 */
+	m_ext_free_t	*ext_free;
+	void		*ext_arg1;
 };
-
-struct mbuf_ext_pgs {
-	uint8_t		npgs;			/* Number of attached pages */
-	uint8_t		nrdy;			/* Pages with I/O pending */
-	uint8_t		hdr_len;		/* TLS header length */
-	uint8_t		trail_len;		/* TLS trailer length */
-	uint16_t	first_pg_off;		/* Offset into 1st page */
-	uint16_t	last_pg_len;		/* Length of last page */
-	uint8_t		flags;			/* Flags */
-	uint8_t		record_type;
-	uint8_t		spare[2];
-	int		enc_cnt;
-	struct ktls_session *tls;		/* TLS session */
-	struct socket	*so;
-	uint64_t	seqno;
-	struct mbuf	*mbuf;
-	STAILQ_ENTRY(mbuf_ext_pgs) stailq;
-#if !defined(__LP64__)
-	uint8_t		pad[8];		/* pad to size of pkthdr */
-#endif
-	struct m_ext	m_ext;
-};
-
-#define m_epg_hdr	m_ext.ext_pgs.hdr
-#define m_epg_trail	m_ext.ext_pgs.trail
-#define m_epg_pa	m_ext.ext_pgs.pa
 
 /*
  * The core of the mbuf object along with some shortcut defines for practical
@@ -347,15 +340,48 @@ struct mbuf {
 	 * order to support future work on variable-size mbufs.
 	 */
 	union {
-		union {
-			struct {
-				struct pkthdr	m_pkthdr; /* M_PKTHDR set */
-				union {
-					struct m_ext	m_ext;	/* M_EXT set */
-					char		m_pktdat[0];
-				};
+		struct {
+			union {
+				/* M_PKTHDR set. */
+				struct pkthdr	m_pkthdr;
+
+				/* M_EXTPG set.
+				 * Multi-page M_EXTPG mbuf has its meta data
+				 * split between the mbuf_ext_pgs structure
+				 * and m_ext.  It carries vector of pages,
+				 * optional header and trailer char vectors
+				 * and pointers to socket/TLS data.
+				 */
+				struct mbuf_ext_pgs {
+					/* Overall count of pages and count of
+					 * pages with I/O pending. */
+					uint8_t	npgs;
+					uint8_t	nrdy;
+					/* TLS header and trailer lengths.
+					 * The data itself resides in m_ext. */
+					uint8_t	hdr_len;
+					uint8_t	trail_len;
+					/* Offset into 1st page and lenght of
+					 * data in the last page. */
+					uint16_t first_pg_off;
+					uint16_t last_pg_len;
+					uint8_t	flags;
+					uint8_t	record_type;
+					uint8_t	spare[2];
+					int	enc_cnt;
+					struct ktls_session *tls;
+					struct socket	*so;
+					uint64_t	seqno;
+					struct mbuf	*mbuf;
+					STAILQ_ENTRY(mbuf_ext_pgs) stailq;
+				} m_ext_pgs;
 			};
-			struct mbuf_ext_pgs m_ext_pgs;
+			union {
+				/* M_EXT or M_EXTPG set. */
+				struct m_ext	m_ext;
+				/* M_PKTHDR set, neither M_EXT nor M_EXTPG. */
+				char		m_pktdat[0];
+			};
 		};
 		char	m_dat[0];			/* !M_PKTHDR, !M_EXT */
 	};
@@ -375,12 +401,12 @@ mbuf_ext_pg_len(struct mbuf_ext_pgs *ext_pgs, int pidx, int pgoff)
 }
 
 #ifdef INVARIANT_SUPPORT
-void	mb_ext_pgs_check(struct mbuf_ext_pgs *ext_pgs);
+void	mb_ext_pgs_check(struct mbuf *m);
 #endif
 #ifdef INVARIANTS
-#define	MBUF_EXT_PGS_ASSERT_SANITY(ext_pgs)	mb_ext_pgs_check((ext_pgs))
+#define	MBUF_EXT_PGS_ASSERT_SANITY(m)	mb_ext_pgs_check((m))
 #else
-#define	MBUF_EXT_PGS_ASSERT_SANITY(ext_pgs)
+#define	MBUF_EXT_PGS_ASSERT_SANITY(m)
 #endif
 #endif
 

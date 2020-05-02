@@ -1374,7 +1374,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		m->m_len += pgs->hdr_len + pgs->trail_len;
 
 		/* Populate the TLS header. */
-		tlshdr = (void *)pgs->m_epg_hdr;
+		tlshdr = (void *)m->m_epg_hdr;
 		tlshdr->tls_vmajor = tls->params.tls_vmajor;
 
 		/*
@@ -1387,7 +1387,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 			tlshdr->tls_type = TLS_RLTYPE_APP;
 			/* save the real record type for later */
 			pgs->record_type = record_type;
-			pgs->m_epg_trail[0] = record_type;
+			m->m_epg_trail[0] = record_type;
 		} else {
 			tlshdr->tls_vminor = tls->params.tls_vminor;
 			tlshdr->tls_type = record_type;
@@ -1552,7 +1552,7 @@ ktls_encrypt(struct mbuf_ext_pgs *pgs)
 			len = mbuf_ext_pg_len(pgs, i, off);
 			src_iov[i].iov_len = len;
 			src_iov[i].iov_base =
-			    (char *)(void *)PHYS_TO_DMAP(pgs->m_epg_pa[i]) +
+			    (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[i]) +
 				off;
 
 			if (is_anon) {
@@ -1576,8 +1576,8 @@ retry_page:
 		npages += i;
 
 		error = (*tls->sw_encrypt)(tls,
-		    (const struct tls_record_layer *)pgs->m_epg_hdr,
-		    pgs->m_epg_trail, src_iov, dst_iov, i, pgs->seqno,
+		    (const struct tls_record_layer *)m->m_epg_hdr,
+		    m->m_epg_trail, src_iov, dst_iov, i, pgs->seqno,
 		    pgs->record_type);
 		if (error) {
 			counter_u64_add(ktls_offload_failed_crypto, 1);
@@ -1595,7 +1595,7 @@ retry_page:
 
 			/* Replace them with the new pages. */
 			for (i = 0; i < pgs->npgs; i++)
-				pgs->m_epg_pa[i] = parray[i];
+				m->m_epg_pa[i] = parray[i];
 
 			/* Use the basic free routine. */
 			m->m_ext.ext_free = mb_free_mext_pgs;

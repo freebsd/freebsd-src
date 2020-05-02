@@ -1623,26 +1623,24 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 
 #ifdef KERN_TLS
 static int
-count_ext_pgs_segs(struct mbuf_ext_pgs *ext_pgs,
-	struct mbuf_ext_pgs_data *ext_pgs_data)
+count_ext_pgs_segs(struct mbuf *m)
 {
 	vm_paddr_t nextpa;
 	u_int i, nsegs;
 
-	MPASS(ext_pgs->npgs > 0);
+	MPASS(m->m_ext_pgs.npgs > 0);
 	nsegs = 1;
-	nextpa = ext_pgs_data->pa[0] + PAGE_SIZE;
-	for (i = 1; i < ext_pgs->npgs; i++) {
-		if (nextpa != ext_pgs_data->pa[i])
+	nextpa = m->m_epg_pa[0] + PAGE_SIZE;
+	for (i = 1; i < m->m_ext_pgs.npgs; i++) {
+		if (nextpa != m->m_epg_pa[i])
 			nsegs++;
-		nextpa = ext_pgs_data->pa[i] + PAGE_SIZE;
+		nextpa = m->m_epg_pa[i] + PAGE_SIZE;
 	}
 	return (nsegs);
 }
 
 static void
-write_ktlstx_sgl(void *dst, struct mbuf_ext_pgs *ext_pgs,
-    struct mbuf_ext_pgs_data *ext_pgs_data, int nsegs)
+write_ktlstx_sgl(void *dst, struct mbuf *m, int nsegs)
 {
 	struct ulptx_sgl *usgl = dst;
 	vm_paddr_t pa;
@@ -1655,15 +1653,15 @@ write_ktlstx_sgl(void *dst, struct mbuf_ext_pgs *ext_pgs,
 	    V_ULPTX_NSGE(nsegs));
 
 	/* Figure out the first S/G length. */
-	pa = ext_pgs_data->pa[0] + ext_pgs->first_pg_off;
+	pa = m->m_epg_pa[0] + m->m_ext_pgs.first_pg_off;
 	usgl->addr0 = htobe64(pa);
-	len = mbuf_ext_pg_len(ext_pgs, 0, ext_pgs->first_pg_off);
+	len = mbuf_ext_pg_len(&m->m_ext_pgs, 0, m->m_ext_pgs.first_pg_off);
 	pa += len;
-	for (i = 1; i < ext_pgs->npgs; i++) {
-		if (ext_pgs_data->pa[i] != pa)
+	for (i = 1; i < m->m_ext_pgs.npgs; i++) {
+		if (m->m_epg_pa[i] != pa)
 			break;
-		len += mbuf_ext_pg_len(ext_pgs, i, 0);
-		pa += mbuf_ext_pg_len(ext_pgs, i, 0);
+		len += mbuf_ext_pg_len(&m->m_ext_pgs, i, 0);
+		pa += mbuf_ext_pg_len(&m->m_ext_pgs, i, 0);
 	}
 	usgl->len0 = htobe32(len);
 #ifdef INVARIANTS
@@ -1671,21 +1669,21 @@ write_ktlstx_sgl(void *dst, struct mbuf_ext_pgs *ext_pgs,
 #endif
 
 	j = -1;
-	for (; i < ext_pgs->npgs; i++) {
-		if (j == -1 || ext_pgs_data->pa[i] != pa) {
+	for (; i < m->m_ext_pgs.npgs; i++) {
+		if (j == -1 || m->m_epg_pa[i] != pa) {
 			if (j >= 0)
 				usgl->sge[j / 2].len[j & 1] = htobe32(len);
 			j++;
 #ifdef INVARIANTS
 			nsegs--;
 #endif
-			pa = ext_pgs_data->pa[i];
+			pa = m->m_epg_pa[i];
 			usgl->sge[j / 2].addr[j & 1] = htobe64(pa);
-			len = mbuf_ext_pg_len(ext_pgs, i, 0);
+			len = mbuf_ext_pg_len(&m->m_ext_pgs, i, 0);
 			pa += len;
 		} else {
-			len += mbuf_ext_pg_len(ext_pgs, i, 0);
-			pa += mbuf_ext_pg_len(ext_pgs, i, 0);
+			len += mbuf_ext_pg_len(&m->m_ext_pgs, i, 0);
+			pa += mbuf_ext_pg_len(&m->m_ext_pgs, i, 0);
 		}
 	}
 	if (j >= 0) {
@@ -1694,8 +1692,7 @@ write_ktlstx_sgl(void *dst, struct mbuf_ext_pgs *ext_pgs,
 		if ((j & 1) == 0)
 			usgl->sge[j / 2].len[1] = htobe32(0);
 	}
-	KASSERT(nsegs == 0, ("%s: nsegs %d, ext_pgs %p", __func__, nsegs,
-	    ext_pgs));
+	KASSERT(nsegs == 0, ("%s: nsegs %d, m %p", __func__, nsegs, m));
 }
 
 /*
@@ -1813,8 +1810,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		wr_len += AES_BLOCK_LEN;
 
 		/* Account for SGL in work request length. */
-		nsegs = count_ext_pgs_segs(&m->m_ext_pgs,
-		    &m->m_ext.ext_pgs);
+		nsegs = count_ext_pgs_segs(m);
 		wr_len += sizeof(struct ulptx_sgl) +
 		    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
 
@@ -1892,8 +1888,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		memcpy(buf, thdr + 1, toep->tls.iv_len);
 		buf += AES_BLOCK_LEN;
 
-		write_ktlstx_sgl(buf, &m->m_ext_pgs, &m->m_ext.ext_pgs,
-		    nsegs);
+		write_ktlstx_sgl(buf, m, nsegs);
 
 		KASSERT(toep->tx_credits >= credits,
 			("%s: not enough credits", __func__));

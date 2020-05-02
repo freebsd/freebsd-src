@@ -906,7 +906,7 @@ ktls_tcp_payload_length(struct tlspcb *tlsp, struct mbuf *m_tls)
 
 	MBUF_EXT_PGS_ASSERT(m_tls);
 	ext_pgs = &m_tls->m_ext_pgs;
-	hdr = (void *)ext_pgs->m_epg_hdr;
+	hdr = (void *)m_tls->m_epg_hdr;
 	plen = ntohs(hdr->tls_length);
 
 	/*
@@ -962,7 +962,7 @@ ktls_payload_offset(struct tlspcb *tlsp, struct mbuf *m_tls)
 
 	MBUF_EXT_PGS_ASSERT(m_tls);
 	ext_pgs = &m_tls->m_ext_pgs;
-	hdr = (void *)ext_pgs->m_epg_hdr;
+	hdr = (void *)m_tls->m_epg_hdr;
 	plen = ntohs(hdr->tls_length);
 #ifdef INVARIANTS
 	mlen = mtod(m_tls, vm_offset_t) + m_tls->m_len;
@@ -1040,7 +1040,7 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 		return (wr_len);
 	}
 
-	hdr = (void *)ext_pgs->m_epg_hdr;
+	hdr = (void *)m_tls->m_epg_hdr;
 	plen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length) - ext_pgs->trail_len;
 	if (tlen < plen) {
 		plen = tlen;
@@ -1064,7 +1064,7 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 	wr_len += roundup2(imm_len, 16);
 
 	/* TLS record payload via DSGL. */
-	*nsegsp = sglist_count_ext_pgs(ext_pgs, ext_pgs->hdr_len + offset,
+	*nsegsp = sglist_count_ext_pgs(m_tls, ext_pgs->hdr_len + offset,
 	    plen - (ext_pgs->hdr_len + offset));
 	wr_len += ktls_sgl_size(*nsegsp);
 
@@ -1543,7 +1543,7 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 	    (m->m_pkthdr.l2hlen + m->m_pkthdr.l3hlen + sizeof(*tcp)));
 
 	/* Copy the subset of the TLS header requested. */
-	copy_to_txd(&txq->eq, (char *)ext_pgs->m_epg_hdr +
+	copy_to_txd(&txq->eq, (char *)m_tls->m_epg_hdr +
 	    mtod(m_tls, vm_offset_t), &out, m_tls->m_len);
 	txq->imm_wrs++;
 
@@ -1604,7 +1604,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	/* Locate the TLS header. */
 	MBUF_EXT_PGS_ASSERT(m_tls);
 	ext_pgs = &m_tls->m_ext_pgs;
-	hdr = (void *)ext_pgs->m_epg_hdr;
+	hdr = (void *)m_tls->m_epg_hdr;
 	plen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length) - ext_pgs->trail_len;
 
 	/* Determine how much of the TLS record to send. */
@@ -1799,7 +1799,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 
 	/* Recalculate 'nsegs' if cached value is not available. */
 	if (nsegs == 0)
-		nsegs = sglist_count_ext_pgs(ext_pgs, ext_pgs->hdr_len +
+		nsegs = sglist_count_ext_pgs(m_tls, ext_pgs->hdr_len +
 		    offset, plen - (ext_pgs->hdr_len + offset));
 
 	/* Calculate the size of the TLS work request. */
@@ -2031,7 +2031,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	/* Populate the TLS header */
 	out = (void *)(tx_data + 1);
 	if (offset == 0) {
-		memcpy(out, ext_pgs->m_epg_hdr, ext_pgs->hdr_len);
+		memcpy(out, m_tls->m_epg_hdr, ext_pgs->hdr_len);
 		out += ext_pgs->hdr_len;
 	}
 
@@ -2067,7 +2067,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 
 	/* SGL for record payload */
 	sglist_reset(txq->gl);
-	if (sglist_append_ext_pgs(txq->gl, ext_pgs, ext_pgs->hdr_len + offset,
+	if (sglist_append_ext_pgs(txq->gl, m_tls, ext_pgs->hdr_len + offset,
 	    plen - (ext_pgs->hdr_len + offset)) != 0) {
 #ifdef INVARIANTS
 		panic("%s: failed to append sglist", __func__);
