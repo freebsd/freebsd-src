@@ -223,9 +223,8 @@ sglist_count_vmpages(vm_page_t *m, size_t pgoff, size_t len)
  * describe an EXT_PGS buffer.
  */
 int
-sglist_count_ext_pgs(struct mbuf *m, size_t off, size_t len)
+sglist_count_mbuf_epg(struct mbuf *m, size_t off, size_t len)
 {
-	struct mbuf_ext_pgs *ext_pgs = &m->m_ext_pgs;
 	vm_paddr_t nextaddr, paddr;
 	size_t seglen, segoff;
 	int i, nsegs, pglen, pgoff;
@@ -234,11 +233,11 @@ sglist_count_ext_pgs(struct mbuf *m, size_t off, size_t len)
 		return (0);
 
 	nsegs = 0;
-	if (ext_pgs->hdr_len != 0) {
-		if (off >= ext_pgs->hdr_len) {
-			off -= ext_pgs->hdr_len;
+	if (m->m_ext_pgs.hdr_len != 0) {
+		if (off >= m->m_ext_pgs.hdr_len) {
+			off -= m->m_ext_pgs.hdr_len;
 		} else {
-			seglen = ext_pgs->hdr_len - off;
+			seglen = m->m_ext_pgs.hdr_len - off;
 			segoff = off;
 			seglen = MIN(seglen, len);
 			off = 0;
@@ -248,9 +247,9 @@ sglist_count_ext_pgs(struct mbuf *m, size_t off, size_t len)
 		}
 	}
 	nextaddr = 0;
-	pgoff = ext_pgs->first_pg_off;
-	for (i = 0; i < ext_pgs->npgs && len > 0; i++) {
-		pglen = mbuf_ext_pg_len(ext_pgs, i, pgoff);
+	pgoff = m->m_ext_pgs.first_pg_off;
+	for (i = 0; i < m->m_ext_pgs.npgs && len > 0; i++) {
+		pglen = mbuf_ext_pg_len(&m->m_ext_pgs, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
 			pgoff = 0;
@@ -268,24 +267,12 @@ sglist_count_ext_pgs(struct mbuf *m, size_t off, size_t len)
 		pgoff = 0;
 	};
 	if (len != 0) {
-		seglen = MIN(len, ext_pgs->trail_len - off);
+		seglen = MIN(len, m->m_ext_pgs.trail_len - off);
 		len -= seglen;
 		nsegs += sglist_count(&m->m_epg_trail[off], seglen);
 	}
 	KASSERT(len == 0, ("len != 0"));
 	return (nsegs);
-}
-
-/*
- * Determine the number of scatter/gather list elements needed to
- * describe an EXT_PGS mbuf.
- */
-int
-sglist_count_mb_ext_pgs(struct mbuf *m)
-{
-
-	MBUF_EXT_PGS_ASSERT(m);
-	return (sglist_count_ext_pgs(m, mtod(m, vm_offset_t), m->m_len));
 }
 
 /*
@@ -390,24 +377,25 @@ sglist_append_phys(struct sglist *sg, vm_paddr_t paddr, size_t len)
 }
 
 /*
- * Append the segments to describe an EXT_PGS buffer to a
- * scatter/gather list.  If there are insufficient segments, then this
- * fails with EFBIG.
+ * Append the segments of single multi-page mbuf.
+ * If there are insufficient segments, then this fails with EFBIG.
  */
 int
-sglist_append_ext_pgs(struct sglist *sg, struct mbuf *m, size_t off, size_t len)
+sglist_append_mbuf_epg(struct sglist *sg, struct mbuf *m, size_t off,
+    size_t len)
 {
-	struct mbuf_ext_pgs *ext_pgs = &m->m_ext_pgs;
 	size_t seglen, segoff;
 	vm_paddr_t paddr;
 	int error, i, pglen, pgoff;
 
+	MBUF_EXT_PGS_ASSERT(m);
+
 	error = 0;
-	if (ext_pgs->hdr_len != 0) {
-		if (off >= ext_pgs->hdr_len) {
-			off -= ext_pgs->hdr_len;
+	if (m->m_ext_pgs.hdr_len != 0) {
+		if (off >= m->m_ext_pgs.hdr_len) {
+			off -= m->m_ext_pgs.hdr_len;
 		} else {
-			seglen = ext_pgs->hdr_len - off;
+			seglen = m->m_ext_pgs.hdr_len - off;
 			segoff = off;
 			seglen = MIN(seglen, len);
 			off = 0;
@@ -416,9 +404,9 @@ sglist_append_ext_pgs(struct sglist *sg, struct mbuf *m, size_t off, size_t len)
 			    &m->m_epg_hdr[segoff], seglen);
 		}
 	}
-	pgoff = ext_pgs->first_pg_off;
-	for (i = 0; i < ext_pgs->npgs && error == 0 && len > 0; i++) {
-		pglen = mbuf_ext_pg_len(ext_pgs, i, pgoff);
+	pgoff = m->m_ext_pgs.first_pg_off;
+	for (i = 0; i < m->m_ext_pgs.npgs && error == 0 && len > 0; i++) {
+		pglen = mbuf_ext_pg_len(&m->m_ext_pgs, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
 			pgoff = 0;
@@ -434,7 +422,7 @@ sglist_append_ext_pgs(struct sglist *sg, struct mbuf *m, size_t off, size_t len)
 		pgoff = 0;
 	};
 	if (error == 0 && len > 0) {
-		seglen = MIN(len, ext_pgs->trail_len - off);
+		seglen = MIN(len, m->m_ext_pgs.trail_len - off);
 		len -= seglen;
 		error = sglist_append(sg,
 		    &m->m_epg_trail[off], seglen);
@@ -442,20 +430,6 @@ sglist_append_ext_pgs(struct sglist *sg, struct mbuf *m, size_t off, size_t len)
 	if (error == 0)
 		KASSERT(len == 0, ("len != 0"));
 	return (error);
-}
-
-/*
- * Append the segments to describe an EXT_PGS mbuf to a scatter/gather
- * list.  If there are insufficient segments, then this fails with
- * EFBIG.
- */
-int
-sglist_append_mb_ext_pgs(struct sglist *sg, struct mbuf *m)
-{
-
-	/* for now, all unmapped mbufs are assumed to be EXT_PGS */
-	MBUF_EXT_PGS_ASSERT(m);
-	return (sglist_append_ext_pgs(sg, m, mtod(m, vm_offset_t), m->m_len));
 }
 
 /*
@@ -478,7 +452,8 @@ sglist_append_mbuf(struct sglist *sg, struct mbuf *m0)
 	for (m = m0; m != NULL; m = m->m_next) {
 		if (m->m_len > 0) {
 			if ((m->m_flags & M_NOMAP) != 0)
-				error = sglist_append_mb_ext_pgs(sg, m);
+				error = sglist_append_mbuf_epg(sg, m,
+				    mtod(m, vm_offset_t), m->m_len);
 			else
 				error = sglist_append(sg, m->m_data,
 				    m->m_len);

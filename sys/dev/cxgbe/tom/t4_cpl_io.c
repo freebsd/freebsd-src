@@ -611,7 +611,8 @@ write_tx_sgl(void *dst, struct mbuf *start, struct mbuf *stop, int nsegs, int n)
 	i = -1;
 	for (m = start; m != stop; m = m->m_next) {
 		if (m->m_flags & M_NOMAP)
-			rc = sglist_append_mb_ext_pgs(&sg, m);
+			rc = sglist_append_mbuf_epg(&sg, m,
+			    mtod(m, vm_offset_t), m->m_len);
 		else
 			rc = sglist_append(&sg, mtod(m, void *), m->m_len);
 		if (__predict_false(rc != 0))
@@ -742,7 +743,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 					break;
 				}
 #endif
-				n = sglist_count_mb_ext_pgs(m);
+				n = sglist_count_mbuf_epg(m,
+				    mtod(m, vm_offset_t), m->m_len);
 			} else
 				n = sglist_count(mtod(m, void *), m->m_len);
 
