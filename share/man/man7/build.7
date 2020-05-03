@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2020
+.Dd May 3, 2020
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -833,6 +833,11 @@ cd /usr/src
 make TARGET_ARCH=armv6 buildworld buildkernel
 make TARGET_ARCH=armv6 DESTDIR=/clients/arm installworld installkernel
 .Ed
+.Sh HISTORY
+The
+.Nm
+manpage first appeared in
+.Fx 4.3 .
 .Sh SEE ALSO
 .Xr cc 1 ,
 .Xr install 1 ,
