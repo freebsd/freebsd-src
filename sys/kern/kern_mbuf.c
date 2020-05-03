@@ -934,7 +934,6 @@ mb_unmapped_free_mext(struct mbuf *m)
 static struct mbuf *
 _mb_unmapped_to_ext(struct mbuf *m)
 {
-	struct mbuf_ext_pgs *ext_pgs;
 	struct mbuf *m_new, *top, *prev, *mref;
 	struct sf_buf *sf;
 	vm_page_t pg;
@@ -943,9 +942,8 @@ _mb_unmapped_to_ext(struct mbuf *m)
 	u_int ref_inc = 0;
 
 	MBUF_EXT_PGS_ASSERT(m);
-	ext_pgs = &m->m_ext_pgs;
 	len = m->m_len;
-	KASSERT(ext_pgs->tls == NULL, ("%s: can't convert TLS mbuf %p",
+	KASSERT(m->m_ext_pgs.tls == NULL, ("%s: can't convert TLS mbuf %p",
 	    __func__, m));
 
 	/* See if this is the mbuf that holds the embedded refcount. */
@@ -963,11 +961,11 @@ _mb_unmapped_to_ext(struct mbuf *m)
 	off = mtod(m, vm_offset_t);
 
 	top = NULL;
-	if (ext_pgs->hdr_len != 0) {
-		if (off >= ext_pgs->hdr_len) {
-			off -= ext_pgs->hdr_len;
+	if (m->m_ext_pgs.hdr_len != 0) {
+		if (off >= m->m_ext_pgs.hdr_len) {
+			off -= m->m_ext_pgs.hdr_len;
 		} else {
-			seglen = ext_pgs->hdr_len - off;
+			seglen = m->m_ext_pgs.hdr_len - off;
 			segoff = off;
 			seglen = min(seglen, len);
 			off = 0;
@@ -981,8 +979,8 @@ _mb_unmapped_to_ext(struct mbuf *m)
 			    seglen);
 		}
 	}
-	pgoff = ext_pgs->first_pg_off;
-	for (i = 0; i < ext_pgs->npgs && len > 0; i++) {
+	pgoff = m->m_ext_pgs.first_pg_off;
+	for (i = 0; i < m->m_ext_pgs.npgs && len > 0; i++) {
 		pglen = m_epg_pagelen(m, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
@@ -1018,9 +1016,9 @@ _mb_unmapped_to_ext(struct mbuf *m)
 		pgoff = 0;
 	};
 	if (len != 0) {
-		KASSERT((off + len) <= ext_pgs->trail_len,
+		KASSERT((off + len) <= m->m_ext_pgs.trail_len,
 		    ("off + len > trail (%d + %d > %d)", off, len,
-		    ext_pgs->trail_len));
+		    m->m_ext_pgs.trail_len));
 		m_new = m_get(M_NOWAIT, MT_DATA);
 		if (m_new == NULL)
 			goto fail;
@@ -1119,22 +1117,20 @@ struct mbuf *
 mb_alloc_ext_pgs(int how, m_ext_free_t ext_free)
 {
 	struct mbuf *m;
-	struct mbuf_ext_pgs *ext_pgs;
 
 	m = m_get(how, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 
-	ext_pgs = &m->m_ext_pgs;
-	ext_pgs->npgs = 0;
-	ext_pgs->nrdy = 0;
-	ext_pgs->first_pg_off = 0;
-	ext_pgs->last_pg_len = 0;
-	ext_pgs->flags = 0;
-	ext_pgs->hdr_len = 0;
-	ext_pgs->trail_len = 0;
-	ext_pgs->tls = NULL;
-	ext_pgs->so = NULL;
+	m->m_ext_pgs.npgs = 0;
+	m->m_ext_pgs.nrdy = 0;
+	m->m_ext_pgs.first_pg_off = 0;
+	m->m_ext_pgs.last_pg_len = 0;
+	m->m_ext_pgs.flags = 0;
+	m->m_ext_pgs.hdr_len = 0;
+	m->m_ext_pgs.trail_len = 0;
+	m->m_ext_pgs.tls = NULL;
+	m->m_ext_pgs.so = NULL;
 	m->m_data = NULL;
 	m->m_flags |= (M_EXT | M_RDONLY | M_NOMAP);
 	m->m_ext.ext_type = EXT_PGS;

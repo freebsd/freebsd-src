@@ -128,21 +128,18 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 		    (n->m_flags & M_NOMAP) &&
 		    !mbuf_has_tls_session(m) &&
 		    !mbuf_has_tls_session(n)) {
-			struct mbuf_ext_pgs *mpgs, *npgs;
 			int hdr_len, trail_len;
 
-			mpgs = &m->m_ext_pgs;
-			npgs = &n->m_ext_pgs;
-			hdr_len = npgs->hdr_len;
-			trail_len = mpgs->trail_len;
+			hdr_len = n->m_ext_pgs.hdr_len;
+			trail_len = m->m_ext_pgs.trail_len;
 			if (trail_len != 0 && hdr_len != 0 &&
 			    trail_len + hdr_len <= MBUF_PEXT_TRAIL_LEN) {
 				/* copy n's header to m's trailer */
 				memcpy(&m->m_epg_trail[trail_len],
 				    n->m_epg_hdr, hdr_len);
-				mpgs->trail_len += hdr_len;
+				m->m_ext_pgs.trail_len += hdr_len;
 				m->m_len += hdr_len;
-				npgs->hdr_len = 0;
+				n->m_ext_pgs.hdr_len = 0;
 				n->m_len -= hdr_len;
 			}
 		}

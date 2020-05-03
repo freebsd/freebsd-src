@@ -1427,7 +1427,6 @@ nospace:
 static int
 frags_per_mbuf(struct mbuf *m)
 {
-	struct mbuf_ext_pgs *ext_pgs;
 	int frags;
 
 	if ((m->m_flags & M_NOMAP) == 0)
@@ -1440,12 +1439,11 @@ frags_per_mbuf(struct mbuf *m)
 	 * XXX: This overestimates the number of fragments by assuming
 	 * all the backing physical pages are disjoint.
 	 */
-	ext_pgs = &m->m_ext_pgs;
 	frags = 0;
-	if (ext_pgs->hdr_len != 0)
+	if (m->m_ext_pgs.hdr_len != 0)
 		frags++;
-	frags += ext_pgs->npgs;
-	if (ext_pgs->trail_len != 0)
+	frags += m->m_ext_pgs.npgs;
+	if (m->m_ext_pgs.trail_len != 0)
 		frags++;
 
 	return (frags);
@@ -1628,12 +1626,10 @@ nospace:
 void
 mb_free_mext_pgs(struct mbuf *m)
 {
-	struct mbuf_ext_pgs *ext_pgs;
 	vm_page_t pg;
 
 	MBUF_EXT_PGS_ASSERT(m);
-	ext_pgs = &m->m_ext_pgs;
-	for (int i = 0; i < ext_pgs->npgs; i++) {
+	for (int i = 0; i < m->m_ext_pgs.npgs; i++) {
 		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[i]);
 		vm_page_unwire_noq(pg);
 		vm_page_free(pg);
@@ -1644,7 +1640,6 @@ static struct mbuf *
 m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 {
 	struct mbuf *m, *mb, *prev;
-	struct mbuf_ext_pgs *pgs;
 	vm_page_t pg_array[MBUF_PEXT_MAX_PGS];
 	int error, length, i, needed;
 	ssize_t total;
@@ -1677,8 +1672,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 		else
 			prev->m_next = mb;
 		prev = mb;
-		pgs = &mb->m_ext_pgs;
-		pgs->flags = EPG_FLAG_ANON;
+		mb->m_ext_pgs.flags = EPG_FLAG_ANON;
 		needed = length = MIN(maxseg, total);
 		for (i = 0; needed > 0; i++, needed -= PAGE_SIZE) {
 retry_page:
@@ -1693,16 +1687,16 @@ retry_page:
 			}
 			pg_array[i]->flags &= ~PG_ZERO;
 			mb->m_epg_pa[i] = VM_PAGE_TO_PHYS(pg_array[i]);
-			pgs->npgs++;
+			mb->m_ext_pgs.npgs++;
 		}
-		pgs->last_pg_len = length - PAGE_SIZE * (pgs->npgs - 1);
+		mb->m_ext_pgs.last_pg_len = length - PAGE_SIZE * (mb->m_ext_pgs.npgs - 1);
 		MBUF_EXT_PGS_ASSERT_SANITY(mb);
 		total -= length;
 		error = uiomove_fromphys(pg_array, 0, length, uio);
 		if (error != 0)
 			goto failed;
 		mb->m_len = length;
-		mb->m_ext.ext_size += PAGE_SIZE * pgs->npgs;
+		mb->m_ext.ext_size += PAGE_SIZE * mb->m_ext_pgs.npgs;
 		if (flags & M_PKTHDR)
 			m->m_pkthdr.len += length;
 	}
@@ -1778,23 +1772,21 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 int
 m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
 {
-	struct mbuf_ext_pgs *ext_pgs;
 	vm_page_t pg;
 	int error, i, off, pglen, pgoff, seglen, segoff;
 
 	MBUF_EXT_PGS_ASSERT(m);
-	ext_pgs = __DECONST(void *, &m->m_ext_pgs);
 	error = 0;
 
 	/* Skip over any data removed from the front. */
 	off = mtod(m, vm_offset_t);
 
 	off += m_off;
-	if (ext_pgs->hdr_len != 0) {
-		if (off >= ext_pgs->hdr_len) {
-			off -= ext_pgs->hdr_len;
+	if (m->m_ext_pgs.hdr_len != 0) {
+		if (off >= m->m_ext_pgs.hdr_len) {
+			off -= m->m_ext_pgs.hdr_len;
 		} else {
-			seglen = ext_pgs->hdr_len - off;
+			seglen = m->m_ext_pgs.hdr_len - off;
 			segoff = off;
 			seglen = min(seglen, len);
 			off = 0;
@@ -1803,8 +1795,8 @@ m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
 			    &m->m_epg_hdr[segoff]), seglen, uio);
 		}
 	}
-	pgoff = ext_pgs->first_pg_off;
-	for (i = 0; i < ext_pgs->npgs && error == 0 && len > 0; i++) {
+	pgoff = m->m_ext_pgs.first_pg_off;
+	for (i = 0; i < m->m_ext_pgs.npgs && error == 0 && len > 0; i++) {
 		pglen = m_epg_pagelen(m, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
@@ -1821,9 +1813,9 @@ m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
 		pgoff = 0;
 	};
 	if (len != 0 && error == 0) {
-		KASSERT((off + len) <= ext_pgs->trail_len,
+		KASSERT((off + len) <= m->m_ext_pgs.trail_len,
 		    ("off + len > trail (%d + %d > %d, m_off = %d)", off, len,
-		    ext_pgs->trail_len, m_off));
+		    m->m_ext_pgs.trail_len, m_off));
 		error = uiomove(__DECONST(void *, &m->m_epg_trail[off]),
 		    len, uio);
 	}
