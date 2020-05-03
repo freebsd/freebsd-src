@@ -733,7 +733,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 
 			if (m->m_flags & M_NOMAP) {
 #ifdef KERN_TLS
-				if (m->m_ext_pgs.tls != NULL) {
+				if (m->m_epg_tls != NULL) {
 					toep->flags |= TPF_KTLS;
 					if (plen == 0) {
 						SOCKBUF_UNLOCK(sb);
@@ -1934,7 +1934,7 @@ aiotx_free_pgs(struct mbuf *m)
 	    m->m_len, jobtotid(job));
 #endif
 
-	for (int i = 0; i < m->m_ext_pgs.npgs; i++) {
+	for (int i = 0; i < m->m_epg_npgs; i++) {
 		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[i]);
 		vm_page_unwire(pg, PQ_ACTIVE);
 	}
@@ -1989,15 +1989,15 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 			break;
 		}
 
-		m->m_ext_pgs.first_pg_off = pgoff;
-		m->m_ext_pgs.npgs = npages;
+		m->m_epg_1st_off = pgoff;
+		m->m_epg_npgs = npages;
 		if (npages == 1) {
 			KASSERT(mlen + pgoff <= PAGE_SIZE,
 			    ("%s: single page is too large (off %d len %d)",
 			    __func__, pgoff, mlen));
-			m->m_ext_pgs.last_pg_len = mlen;
+			m->m_epg_last_len = mlen;
 		} else {
-			m->m_ext_pgs.last_pg_len = mlen - (PAGE_SIZE - pgoff) -
+			m->m_epg_last_len = mlen - (PAGE_SIZE - pgoff) -
 			    (npages - 2) * PAGE_SIZE;
 		}
 		for (i = 0; i < npages; i++)

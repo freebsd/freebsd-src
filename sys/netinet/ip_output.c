@@ -230,7 +230,7 @@ ip_output_send(struct inpcb *inp, struct ifnet *ifp, struct mbuf *m,
 	 * dropping the mbuf's reference) in if_output.
 	 */
 	if (m->m_next != NULL && mbuf_has_tls_session(m->m_next)) {
-		tls = ktls_hold(m->m_next->m_ext_pgs.tls);
+		tls = ktls_hold(m->m_next->m_epg_tls);
 		mst = tls->snd_tag;
 
 		/*

@@ -289,7 +289,7 @@ struct m_ext {
 #define	m_epg_pa	m_ext.extpg_pa
 #define	m_epg_trail	m_ext.extpg_trail
 #define	m_epg_hdr	m_ext.extpg_hdr
-#define	m_epg_copylen	offsetof(struct m_ext, ext_free)
+#define	m_epg_ext_copylen	offsetof(struct m_ext, ext_free)
 		};
 	};
 	/*
@@ -345,35 +345,37 @@ struct mbuf {
 
 				/* M_EXTPG set.
 				 * Multi-page M_EXTPG mbuf has its meta data
-				 * split between the mbuf_ext_pgs structure
+				 * split between the below anonymous structure
 				 * and m_ext.  It carries vector of pages,
 				 * optional header and trailer char vectors
 				 * and pointers to socket/TLS data.
 				 */
-				struct mbuf_ext_pgs {
+#define	m_epg_startcopy		m_epg_npgs
+#define	m_epg_endcopy		m_epg_stailq
+				struct {
 					/* Overall count of pages and count of
 					 * pages with I/O pending. */
-					uint8_t	npgs;
-					uint8_t	nrdy;
+					uint8_t	m_epg_npgs;
+					uint8_t	m_epg_nrdy;
 					/* TLS header and trailer lengths.
 					 * The data itself resides in m_ext. */
-					uint8_t	hdr_len;
-					uint8_t	trail_len;
-					/* Offset into 1st page and lenght of
+					uint8_t	m_epg_hdrlen;
+					uint8_t	m_epg_trllen;
+					/* Offset into 1st page and length of
 					 * data in the last page. */
-					uint16_t first_pg_off;
-					uint16_t last_pg_len;
-					uint8_t	flags;
+					uint16_t m_epg_1st_off;
+					uint16_t m_epg_last_len;
+					uint8_t	m_epg_flags;
 #define	EPG_FLAG_ANON	0x1	/* Data can be encrypted in place. */
 #define	EPG_FLAG_2FREE	0x2	/* Scheduled for free. */
-					uint8_t	record_type;
-					uint8_t	spare[2];
-					int	enc_cnt;
-					struct ktls_session *tls;
-					struct socket	*so;
-					uint64_t	seqno;
-					STAILQ_ENTRY(mbuf) stailq;
-				} m_ext_pgs;
+					uint8_t	m_epg_record_type;
+					uint8_t	__spare[2];
+					int	m_epg_enc_cnt;
+					struct ktls_session *m_epg_tls;
+					struct socket	*m_epg_so;
+					uint64_t	m_epg_seqno;
+					STAILQ_ENTRY(mbuf) m_epg_stailq;
+				};
 			};
 			union {
 				/* M_EXT or M_EXTPG set. */
@@ -394,8 +396,8 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 	KASSERT(pgoff == 0 || pidx == 0,
 	    ("page %d with non-zero offset %d in %p", pidx, pgoff, m));
 
-	if (pidx == m->m_ext_pgs.npgs - 1) {
-		return (m->m_ext_pgs.last_pg_len);
+	if (pidx == m->m_epg_npgs - 1) {
+		return (m->m_epg_last_len);
 	} else {
 		return (PAGE_SIZE - pgoff);
 	}
@@ -410,23 +412,23 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
  * last_pg_len > 0).
  */
 #define	MBUF_EXT_PGS_ASSERT_SANITY(m)	do {				\
-	MCHECK(m->m_ext_pgs.npgs > 0, "no valid pages");		\
-	MCHECK(m->m_ext_pgs.npgs <= nitems(m->m_epg_pa),		\
+	MCHECK(m->m_epg_npgs > 0, "no valid pages");		\
+	MCHECK(m->m_epg_npgs <= nitems(m->m_epg_pa),		\
 	    "too many pages");						\
-	MCHECK(m->m_ext_pgs.nrdy <= m->m_ext_pgs.npgs,			\
+	MCHECK(m->m_epg_nrdy <= m->m_epg_npgs,			\
 	    "too many ready pages");					\
-	MCHECK(m->m_ext_pgs.first_pg_off < PAGE_SIZE,			\
+	MCHECK(m->m_epg_1st_off < PAGE_SIZE,			\
 		"too large page offset");				\
-	MCHECK(m->m_ext_pgs.last_pg_len > 0, "zero last page length");	\
-	MCHECK(m->m_ext_pgs.last_pg_len <= PAGE_SIZE,			\
+	MCHECK(m->m_epg_last_len > 0, "zero last page length");	\
+	MCHECK(m->m_epg_last_len <= PAGE_SIZE,			\
 	    "too large last page length");				\
-	if (m->m_ext_pgs.npgs == 1)					\
-		MCHECK(m->m_ext_pgs.first_pg_off +			\
-		    m->m_ext_pgs.last_pg_len <=	 PAGE_SIZE,		\
+	if (m->m_epg_npgs == 1)					\
+		MCHECK(m->m_epg_1st_off +			\
+		    m->m_epg_last_len <=	 PAGE_SIZE,		\
 		    "single page too large");				\
-	MCHECK(m->m_ext_pgs.hdr_len <= sizeof(m->m_epg_hdr),		\
+	MCHECK(m->m_epg_hdrlen <= sizeof(m->m_epg_hdr),		\
 	    "too large header length");					\
-	MCHECK(m->m_ext_pgs.trail_len <= sizeof(m->m_epg_trail),	\
+	MCHECK(m->m_epg_trllen <= sizeof(m->m_epg_trail),	\
 	    "too large header length");					\
 } while (0)
 #else
@@ -1559,7 +1561,7 @@ mbuf_has_tls_session(struct mbuf *m)
 
 	if (m->m_flags & M_NOMAP) {
 		MBUF_EXT_PGS_ASSERT(m);
-		if (m->m_ext_pgs.tls != NULL) {
+		if (m->m_epg_tls != NULL) {
 			return (true);
 		}
 	}
