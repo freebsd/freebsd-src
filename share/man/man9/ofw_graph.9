@@ -60,7 +60,8 @@ It will first check node named
 .Fa port@idx
 and then fallback on checking the
 .Fa ports
-child for a child node matching the id. If no ports matching
+child for a child node matching the id.
+If no ports matching
 .Fa idx
 is found the function return 0.
 .Pp
@@ -72,8 +73,8 @@ return the endpoint with id
 .Fa idx .
 It will first check if there is a single child named
 .Fa endpoint
-and returns it if there is. If there is multiple endpoints it will check
-the
+and returns it if there is.
+If there is multiple endpoints it will check the
 .Fa reg
 property and returns the correct
 .Fa phandle_t
@@ -91,10 +92,11 @@ phandle or 0 if none.
 .Fn ofw_graph_get_device_by_port_ep
 returns the device associated with the port and endpoint or
 .Fa NULL
-if none. The device driver should have called
+if none.
+The device driver should have called
 .Fn OF_device_register_xref
 before.
-.Fn 
+.Fn
 .Sh HISTORY
 The
 .Nm ofw_graph
