@@ -192,8 +192,7 @@ sendfile_free_mext_pg(struct mbuf *m)
 	int flags, i;
 	bool cache_last;
 
-	KASSERT(m->m_flags & M_EXT && m->m_ext.ext_type == EXT_PGS,
-	    ("%s: m %p !M_EXT or !EXT_PGS", __func__, m));
+	M_ASSERTEXTPG(m);
 
 	cache_last = m->m_ext.ext_flags & EXT_FLAG_CACHE_LAST;
 	flags = (m->m_ext.ext_flags & EXT_FLAG_NOCACHE) != 0 ? VPR_TRYFREE : 0;
@@ -363,8 +362,7 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 	}
 
 #if defined(KERN_TLS) && defined(INVARIANTS)
-	if ((sfio->m->m_flags & M_EXT) != 0 &&
-	    sfio->m->m_ext.ext_type == EXT_PGS)
+	if ((sfio->m->m_flags & M_EXTPG) != 0)
 		KASSERT(sfio->tls == sfio->m->m_epg_tls,
 		    ("TLS session mismatch"));
 	else
@@ -1015,13 +1013,7 @@ retry_space:
 					if (sfs != NULL) {
 						m0->m_ext.ext_flags |=
 						    EXT_FLAG_SYNC;
-						if (m0->m_ext.ext_type ==
-						    EXT_PGS)
-							m0->m_ext.ext_arg1 =
-								sfs;
-						else
-							m0->m_ext.ext_arg2 =
-								sfs;
+						m0->m_ext.ext_arg1 = sfs;
 						mtx_lock(&sfs->mtx);
 						sfs->count++;
 						mtx_unlock(&sfs->mtx);
@@ -1096,10 +1088,6 @@ retry_space:
 				m0->m_ext.ext_flags |= EXT_FLAG_NOCACHE;
 			if (sfs != NULL) {
 				m0->m_ext.ext_flags |= EXT_FLAG_SYNC;
-				if (m0->m_ext.ext_type == EXT_PGS)
-					m0->m_ext.ext_arg1 = sfs;
-				else
-					m0->m_ext.ext_arg2 = sfs;
 				m0->m_ext.ext_arg2 = sfs;
 				mtx_lock(&sfs->mtx);
 				sfs->count++;

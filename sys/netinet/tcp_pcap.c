@@ -308,10 +308,13 @@ tcp_pcap_add(struct tcphdr *th, struct mbuf *m, struct mbufq *queue)
 			 * last reference, go through the normal
 			 * free-ing process.
 			 */
-			if (mhead->m_flags & M_EXT) {
+			if (mhead->m_flags & M_EXTPG) {
+				/* Don't mess around with these. */
+				tcp_pcap_m_freem(mhead);
+				continue;
+			} else if (mhead->m_flags & M_EXT) {
 				switch (mhead->m_ext.ext_type) {
 				case EXT_SFBUF:
-				case EXT_PGS:
 					/* Don't mess around with these. */
 					tcp_pcap_m_freem(mhead);
 					continue;
@@ -339,8 +342,7 @@ tcp_pcap_add(struct tcphdr *th, struct mbuf *m, struct mbufq *queue)
 					tcp_pcap_alloc_reuse_ext++;
 					break;
 				}
-			}
-			else {
+			} else {
 				tcp_pcap_alloc_reuse_mbuf++;
 			}
 
@@ -366,7 +368,8 @@ tcp_pcap_add(struct tcphdr *th, struct mbuf *m, struct mbufq *queue)
 	 * In cases where that isn't possible, settle for what we can
 	 * get.
 	 */
-	if ((m->m_flags & M_EXT) && tcp_pcap_take_cluster_reference()) {
+	if ((m->m_flags & (M_EXT|M_EXTPG)) &&
+	    tcp_pcap_take_cluster_reference()) {
 		n->m_data = m->m_data;
 		n->m_len = m->m_len;
 		mb_dupcl(n, m);

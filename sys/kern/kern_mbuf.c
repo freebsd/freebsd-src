@@ -115,7 +115,7 @@ int nmbjumbop;			/* limits number of page size jumbo clusters */
 int nmbjumbo9;			/* limits number of 9k jumbo clusters */
 int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 
-bool mb_use_ext_pgs;		/* use EXT_PGS mbufs for sendfile & TLS */
+bool mb_use_ext_pgs;		/* use M_EXTPG mbufs for sendfile & TLS */
 SYSCTL_BOOL(_kern_ipc, OID_AUTO, mb_use_ext_pgs, CTLFLAG_RWTUN,
     &mb_use_ext_pgs, 0,
     "Use unmapped mbufs for sendfile(2) and TLS offload");
@@ -822,7 +822,7 @@ mb_reclaim(uma_zone_t zone __unused, int pending __unused)
 
 /*
  * Free "count" units of I/O from an mbuf chain.  They could be held
- * in EXT_PGS or just as a normal mbuf.  This code is intended to be
+ * in M_EXTPG or just as a normal mbuf.  This code is intended to be
  * called in an error path (I/O error, closed connection, etc).
  */
 void
@@ -831,8 +831,7 @@ mb_free_notready(struct mbuf *m, int count)
 	int i;
 
 	for (i = 0; i < count && m != NULL; i++) {
-		if ((m->m_flags & M_EXT) != 0 &&
-		    m->m_ext.ext_type == EXT_PGS) {
+		if ((m->m_flags & M_EXTPG) != 0) {
 			m->m_epg_nrdy--;
 			if (m->m_epg_nrdy != 0)
 				continue;
@@ -860,9 +859,8 @@ mb_unmapped_compress(struct mbuf *m)
 	 * a packet header, it would only be able to hold MHLEN bytes
 	 * and m_data would have to be initialized differently.
 	 */
-	KASSERT((m->m_flags & M_PKTHDR) == 0 && (m->m_flags & M_EXT) &&
-	    m->m_ext.ext_type == EXT_PGS,
-            ("%s: m %p !M_EXT or !EXT_PGS or M_PKTHDR", __func__, m));
+	KASSERT((m->m_flags & M_PKTHDR) == 0 && (m->m_flags & M_EXTPG),
+            ("%s: m %p !M_EXTPG or M_PKTHDR", __func__, m));
 	KASSERT(m->m_len <= MLEN, ("m_len too large %p", m));
 
 	if (m->m_ext.ext_flags & EXT_FLAG_EMBREF) {
@@ -902,12 +900,12 @@ mb_unmapped_compress(struct mbuf *m)
  * unmapped data is stored in an mbuf with an EXT_SFBUF external
  * cluster.  These mbufs use an sf_buf to provide a valid KVA for the
  * associated physical page.  They also hold a reference on the
- * original EXT_PGS mbuf to ensure the physical page doesn't go away.
+ * original M_EXTPG mbuf to ensure the physical page doesn't go away.
  * Finally, any TLS trailer data is stored in a regular mbuf.
  *
  * mb_unmapped_free_mext() is the ext_free handler for the EXT_SFBUF
  * mbufs.  It frees the associated sf_buf and releases its reference
- * on the original EXT_PGS mbuf.
+ * on the original M_EXTPG mbuf.
  *
  * _mb_unmapped_to_ext() is a helper function that converts a single
  * unmapped mbuf into a chain of mbufs.
@@ -926,9 +924,9 @@ mb_unmapped_free_mext(struct mbuf *m)
 	sf = m->m_ext.ext_arg1;
 	sf_buf_free(sf);
 
-	/* Drop the reference on the backing EXT_PGS mbuf. */
+	/* Drop the reference on the backing M_EXTPG mbuf. */
 	old_m = m->m_ext.ext_arg2;
-	mb_free_ext(old_m);
+	mb_free_extpg(old_m);
 }
 
 static struct mbuf *
@@ -1109,7 +1107,7 @@ mb_unmapped_to_ext(struct mbuf *top)
 }
 
 /*
- * Allocate an empty EXT_PGS mbuf.  The ext_free routine is
+ * Allocate an empty M_EXTPG mbuf.  The ext_free routine is
  * responsible for freeing any pages backing this mbuf when it is
  * freed.
  */
@@ -1133,7 +1131,6 @@ mb_alloc_ext_pgs(int how, m_ext_free_t ext_free)
 	m->m_epg_so = NULL;
 	m->m_data = NULL;
 	m->m_flags |= (M_EXT | M_RDONLY | M_EXTPG);
-	m->m_ext.ext_type = EXT_PGS;
 	m->m_ext.ext_flags = EXT_FLAG_EMBREF;
 	m->m_ext.ext_count = 1;
 	m->m_ext.ext_size = 0;
@@ -1206,24 +1203,6 @@ mb_free_ext(struct mbuf *m)
 			uma_zfree(zone_jumbo16, m->m_ext.ext_buf);
 			uma_zfree(zone_mbuf, mref);
 			break;
-		case EXT_PGS: {
-#ifdef KERN_TLS
-			struct ktls_session *tls;
-#endif
-
-			KASSERT(mref->m_ext.ext_free != NULL,
-			    ("%s: ext_free not set", __func__));
-			mref->m_ext.ext_free(mref);
-#ifdef KERN_TLS
-			tls = mref->m_epg_tls;
-			if (tls != NULL &&
-			    !refcount_release_if_not_last(&tls->refcount))
-				ktls_enqueue_to_free(mref);
-			else
-#endif
-				uma_zfree(zone_mbuf, mref);
-			break;
-		}
 		case EXT_SFBUF:
 		case EXT_NET_DRV:
 		case EXT_MOD_TYPE:
@@ -1249,6 +1228,48 @@ mb_free_ext(struct mbuf *m)
 	}
 
 	if (freembuf && m != mref)
+		uma_zfree(zone_mbuf, m);
+}
+
+/*
+ * Clean up after mbufs with M_EXTPG storage attached to them if the
+ * reference count hits 1.
+ */
+void
+mb_free_extpg(struct mbuf *m)
+{
+	volatile u_int *refcnt;
+	struct mbuf *mref;
+
+	M_ASSERTEXTPG(m);
+
+	/* See if this is the mbuf that holds the embedded refcount. */
+	if (m->m_ext.ext_flags & EXT_FLAG_EMBREF) {
+		refcnt = &m->m_ext.ext_count;
+		mref = m;
+	} else {
+		KASSERT(m->m_ext.ext_cnt != NULL,
+		    ("%s: no refcounting pointer on %p", __func__, m));
+		refcnt = m->m_ext.ext_cnt;
+		mref = __containerof(refcnt, struct mbuf, m_ext.ext_count);
+	}
+
+	/* Free attached storage if this mbuf is the only reference to it. */
+	if (*refcnt == 1 || atomic_fetchadd_int(refcnt, -1) == 1) {
+		KASSERT(mref->m_ext.ext_free != NULL,
+		    ("%s: ext_free not set", __func__));
+
+		mref->m_ext.ext_free(mref);
+#ifdef KERN_TLS
+		if (mref->m_epg_tls != NULL &&
+		    !refcount_release_if_not_last(&mref->m_epg_tls->refcount))
+			ktls_enqueue_to_free(mref);
+		else
+#endif
+			uma_zfree(zone_mbuf, mref);
+	}
+
+	if (m != mref)
 		uma_zfree(zone_mbuf, m);
 }
 
