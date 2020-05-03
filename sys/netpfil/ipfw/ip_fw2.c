@@ -937,7 +937,7 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 				 * If the packet contains an ABORT chunk, don't
 				 * reply.
 				 * XXX: We should search through all chunks,
-				 *      but don't do to avoid attacks.
+				 * but do not do that to avoid attacks.
 				 */
 				v_tag = 0;
 				break;
@@ -1055,7 +1055,7 @@ send_reject(struct ip_fw_args *args, int code, int iplen, struct ip *ip)
 				 * If the packet contains an ABORT chunk, don't
 				 * reply.
 				 * XXX: We should search through all chunks,
-				 * but don't do to avoid attacks.
+				 * but do not do that to avoid attacks.
 				 */
 				v_tag = 0;
 				break;
