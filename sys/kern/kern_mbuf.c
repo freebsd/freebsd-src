@@ -882,7 +882,7 @@ mb_unmapped_compress(struct mbuf *m)
 	m->m_ext.ext_free(m);
 
 	/* Turn 'm' into a "normal" mbuf. */
-	m->m_flags &= ~(M_EXT | M_RDONLY | M_NOMAP);
+	m->m_flags &= ~(M_EXT | M_RDONLY | M_EXTPG);
 	m->m_data = m->m_dat;
 
 	/* Copy data back into m. */
@@ -1071,7 +1071,7 @@ mb_unmapped_to_ext(struct mbuf *top)
 	for (m = top; m != NULL; m = next) {
 		/* m might be freed, so cache the next pointer. */
 		next = m->m_next;
-		if (m->m_flags & M_NOMAP) {
+		if (m->m_flags & M_EXTPG) {
 			if (prev != NULL) {
 				/*
 				 * Remove 'm' from the new chain so
@@ -1132,7 +1132,7 @@ mb_alloc_ext_pgs(int how, m_ext_free_t ext_free)
 	m->m_epg_tls = NULL;
 	m->m_epg_so = NULL;
 	m->m_data = NULL;
-	m->m_flags |= (M_EXT | M_RDONLY | M_NOMAP);
+	m->m_flags |= (M_EXT | M_RDONLY | M_EXTPG);
 	m->m_ext.ext_type = EXT_PGS;
 	m->m_ext.ext_flags = EXT_FLAG_EMBREF;
 	m->m_ext.ext_count = 1;

@@ -1796,7 +1796,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 			return;
 		}
 
-		KASSERT(m->m_flags & M_NOMAP, ("%s: mbuf %p is not NOMAP",
+		KASSERT(m->m_flags & M_EXTPG, ("%s: mbuf %p is not NOMAP",
 		    __func__, m));
 		KASSERT(m->m_epg_tls != NULL,
 		    ("%s: mbuf %p doesn't have TLS session", __func__, m));

@@ -220,7 +220,7 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 	}
 
 	n->m_flags |= M_EXT;
-	n->m_flags |= m->m_flags & (M_RDONLY | M_NOMAP);
+	n->m_flags |= m->m_flags & (M_RDONLY | M_EXTPG);
 
 	/* See if this is the mbuf that holds the embedded refcount. */
 	if (m->m_ext.ext_flags & EXT_FLAG_EMBREF) {
@@ -265,7 +265,7 @@ m_demote(struct mbuf *m0, int all, int flags)
 		if (m->m_flags & M_PKTHDR)
 			m_demote_pkthdr(m);
 		m->m_flags = m->m_flags & (M_EXT | M_RDONLY | M_NOFREE |
-		    M_NOMAP | flags);
+		    M_EXTPG | flags);
 	}
 }
 
@@ -396,7 +396,7 @@ m_move_pkthdr(struct mbuf *to, struct mbuf *from)
 		m_tag_delete_chain(to, NULL);
 #endif
 	to->m_flags = (from->m_flags & M_COPYFLAGS) |
-	    (to->m_flags & (M_EXT | M_NOMAP));
+	    (to->m_flags & (M_EXT | M_EXTPG));
 	if ((to->m_flags & M_EXT) == 0)
 		to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;		/* especially tags */
@@ -435,7 +435,7 @@ m_dup_pkthdr(struct mbuf *to, const struct mbuf *from, int how)
 		m_tag_delete_chain(to, NULL);
 #endif
 	to->m_flags = (from->m_flags & M_COPYFLAGS) |
-	    (to->m_flags & (M_EXT | M_NOMAP));
+	    (to->m_flags & (M_EXT | M_EXTPG));
 	if ((to->m_flags & M_EXT) == 0)
 		to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;
@@ -645,7 +645,7 @@ m_copydata(const struct mbuf *m, int off, int len, caddr_t cp)
 	while (len > 0) {
 		KASSERT(m != NULL, ("m_copydata, length > size of mbuf chain"));
 		count = min(m->m_len - off, len);
-		if ((m->m_flags & M_NOMAP) != 0)
+		if ((m->m_flags & M_EXTPG) != 0)
 			m_copyfromunmapped(m, off, count, cp);
 		else
 			bcopy(mtod(m, caddr_t) + off, cp, count);
@@ -743,7 +743,7 @@ m_cat(struct mbuf *m, struct mbuf *n)
 		m = m->m_next;
 	while (n) {
 		if (!M_WRITABLE(m) ||
-		    (n->m_flags & M_NOMAP) != 0 ||
+		    (n->m_flags & M_EXTPG) != 0 ||
 		    M_TRAILINGSPACE(m) < n->m_len) {
 			/* just join the two chains */
 			m->m_next = n;
@@ -861,7 +861,7 @@ m_pullup(struct mbuf *n, int len)
 	int count;
 	int space;
 
-	KASSERT((n->m_flags & M_NOMAP) == 0,
+	KASSERT((n->m_flags & M_EXTPG) == 0,
 	    ("%s: unmapped mbuf %p", __func__, n));
 
 	/*
@@ -1429,7 +1429,7 @@ frags_per_mbuf(struct mbuf *m)
 {
 	int frags;
 
-	if ((m->m_flags & M_NOMAP) == 0)
+	if ((m->m_flags & M_EXTPG) == 0)
 		return (1);
 
 	/*
@@ -1718,7 +1718,7 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 	ssize_t total;
 	int progress = 0;
 
-	if (flags & M_NOMAP)
+	if (flags & M_EXTPG)
 		return (m_uiotombuf_nomap(uio, how, len, align, flags));
 
 	/*
@@ -1840,7 +1840,7 @@ m_mbuftouio(struct uio *uio, const struct mbuf *m, int len)
 	for (; m != NULL; m = m->m_next) {
 		length = min(m->m_len, total - progress);
 
-		if ((m->m_flags & M_NOMAP) != 0)
+		if ((m->m_flags & M_EXTPG) != 0)
 			error = m_unmappedtouio(m, 0, uio, length);
 		else
 			error = uiomove(mtod(m, void *), length, uio);
