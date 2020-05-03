@@ -32,10 +32,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/file.h>
+#include <sys/jail.h>
 #include <sys/user.h>
 
 #include <sys/un.h>
@@ -1218,7 +1219,8 @@ display(void)
 	}
 }
 
-static int set_default_protos(void)
+static int
+set_default_protos(void)
 {
 	struct protoent *prot;
 	const char *pname;
@@ -1235,6 +1237,38 @@ static int set_default_protos(void)
 	}
 	numprotos = pindex;
 	return (pindex);
+}
+
+/*
+ * Return the vnet property of the jail, or -1 on error.
+ */
+static int
+jail_getvnet(int jid)
+{
+	struct iovec jiov[6];
+	int vnet;
+
+	vnet = -1;
+	jiov[0].iov_base = __DECONST(char *, "jid");
+	jiov[0].iov_len = sizeof("jid");
+	jiov[1].iov_base = &jid;
+	jiov[1].iov_len = sizeof(jid);
+	jiov[2].iov_base = __DECONST(char *, "vnet");
+	jiov[2].iov_len = sizeof("vnet");
+	jiov[3].iov_base = &vnet;
+	jiov[3].iov_len = sizeof(vnet);
+	jiov[4].iov_base = __DECONST(char *, "errmsg");
+	jiov[4].iov_len = sizeof("errmsg");
+	jiov[5].iov_base = jail_errmsg;
+	jiov[5].iov_len = JAIL_ERRMSGLEN;
+	jail_errmsg[0] = '\0';
+	if (jail_get(jiov, nitems(jiov), 0) < 0) {
+		if (!jail_errmsg[0])
+			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
+			    "jail_get: %s", strerror(errno));
+		return (-1);
+	}
+	return (vnet);
 }
 
 static void
@@ -1310,6 +1344,21 @@ main(int argc, char *argv[])
 
 	if (argc > 0)
 		usage();
+
+	if (opt_j > 0) {
+		switch (jail_getvnet(opt_j)) {
+		case -1:
+			errx(2, "%s", jail_errmsg);
+		case JAIL_SYS_NEW:
+			if (jail_attach(opt_j) < 0)
+				errx(3, "%s", jail_errmsg);
+			/* Set back to -1 for normal output in vnet jail. */
+			opt_j = -1;
+			break;
+		default:
+			break;
+		}
+	}
 
 	if ((!opt_4 && !opt_6) && protos_defined != -1)
 		opt_4 = opt_6 = 1;
