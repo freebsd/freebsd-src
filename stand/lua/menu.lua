@@ -47,10 +47,10 @@ local return_menu_entry = {
 local function OnOff(str, value)
 	if value then
 		return str .. color.escapefg(color.GREEN) .. "On" ..
-		    color.escapefg(color.WHITE)
+		    color.resetfg()
 	else
 		return str .. color.escapefg(color.RED) .. "off" ..
-		    color.escapefg(color.WHITE)
+		    color.resetfg()
 	end
 end
 
