@@ -941,7 +941,7 @@ _mb_unmapped_to_ext(struct mbuf *m)
 	volatile u_int *refcnt;
 	u_int ref_inc = 0;
 
-	MBUF_EXT_PGS_ASSERT(m);
+	M_ASSERTEXTPG(m);
 	len = m->m_len;
 	KASSERT(m->m_epg_tls == NULL, ("%s: can't convert TLS mbuf %p",
 	    __func__, m));
