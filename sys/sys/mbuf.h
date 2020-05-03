@@ -401,13 +401,36 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 	}
 }
 
-#ifdef INVARIANT_SUPPORT
-void	mb_ext_pgs_check(struct mbuf *m);
-#endif
 #ifdef INVARIANTS
-#define	MBUF_EXT_PGS_ASSERT_SANITY(m)	mb_ext_pgs_check((m))
+#define	MCHECK(ex, msg)	KASSERT((ex),				\
+	    ("Multi page mbuf %p with " #msg " at %s:%d",	\
+	    m, __FILE__, __LINE__))
+/*
+ * NB: This expects a non-empty buffer (npgs > 0 and
+ * last_pg_len > 0).
+ */
+#define	MBUF_EXT_PGS_ASSERT_SANITY(m)	do {				\
+	MCHECK(m->m_ext_pgs.npgs > 0, "no valid pages");		\
+	MCHECK(m->m_ext_pgs.npgs <= nitems(m->m_epg_pa),		\
+	    "too many pages");						\
+	MCHECK(m->m_ext_pgs.nrdy <= m->m_ext_pgs.npgs,			\
+	    "too many ready pages");					\
+	MCHECK(m->m_ext_pgs.first_pg_off < PAGE_SIZE,			\
+		"too large page offset");				\
+	MCHECK(m->m_ext_pgs.last_pg_len > 0, "zero last page length");	\
+	MCHECK(m->m_ext_pgs.last_pg_len <= PAGE_SIZE,			\
+	    "too large last page length");				\
+	if (m->m_ext_pgs.npgs == 1)					\
+		MCHECK(m->m_ext_pgs.first_pg_off +			\
+		    m->m_ext_pgs.last_pg_len <=	 PAGE_SIZE,		\
+		    "single page too large");				\
+	MCHECK(m->m_ext_pgs.hdr_len <= sizeof(m->m_epg_hdr),		\
+	    "too large header length");					\
+	MCHECK(m->m_ext_pgs.trail_len <= sizeof(m->m_epg_trail),	\
+	    "too large header length");					\
+} while (0)
 #else
-#define	MBUF_EXT_PGS_ASSERT_SANITY(m)
+#define	MBUF_EXT_PGS_ASSERT_SANITY(m)	do {} while (0);
 #endif
 #endif
 
