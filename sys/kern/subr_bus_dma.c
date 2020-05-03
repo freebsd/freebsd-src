@@ -184,7 +184,7 @@ _bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 	error = 0;
 	for (m = m0; m != NULL && error == 0; m = m->m_next) {
 		if (m->m_len > 0) {
-			if ((m->m_flags & M_NOMAP) != 0)
+			if ((m->m_flags & M_EXTPG) != 0)
 				error = _bus_dmamap_load_mbuf_epg(dmat,
 				    map, m, segs, nsegs, flags);
 			else

@@ -451,7 +451,7 @@ sglist_append_mbuf(struct sglist *sg, struct mbuf *m0)
 	SGLIST_SAVE(sg, save);
 	for (m = m0; m != NULL; m = m->m_next) {
 		if (m->m_len > 0) {
-			if ((m->m_flags & M_NOMAP) != 0)
+			if ((m->m_flags & M_EXTPG) != 0)
 				error = sglist_append_mbuf_epg(sg, m,
 				    mtod(m, vm_offset_t), m->m_len);
 			else

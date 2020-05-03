@@ -1289,7 +1289,7 @@ ktls_seq(struct sockbuf *sb, struct mbuf *m)
 {
 
 	for (; m != NULL; m = m->m_next) {
-		KASSERT((m->m_flags & M_NOMAP) != 0,
+		KASSERT((m->m_flags & M_EXTPG) != 0,
 		    ("ktls_seq: mapped mbuf %p", m));
 
 		m->m_epg_seqno = sb->sb_tls_seqno;
@@ -1334,7 +1334,7 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		 * TLS frames require unmapped mbufs to store session
 		 * info.
 		 */
-		KASSERT((m->m_flags & M_NOMAP) != 0,
+		KASSERT((m->m_flags & M_EXTPG) != 0,
 		    ("ktls_frame: mapped mbuf %p (top = %p)\n", m, top));
 
 		tls_len = m->m_len;
@@ -1448,8 +1448,8 @@ ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 	struct ktls_wq *wq;
 	bool running;
 
-	KASSERT(((m->m_flags & (M_NOMAP | M_NOTREADY)) ==
-	    (M_NOMAP | M_NOTREADY)),
+	KASSERT(((m->m_flags & (M_EXTPG | M_NOTREADY)) ==
+	    (M_EXTPG | M_NOTREADY)),
 	    ("ktls_enqueue: %p not unready & nomap mbuf\n", m));
 	KASSERT(page_count != 0, ("enqueueing TLS mbuf with zero page count"));
 
@@ -1518,8 +1518,8 @@ ktls_encrypt(struct mbuf *top)
 		KASSERT(m->m_epg_tls == tls,
 		    ("different TLS sessions in a single mbuf chain: %p vs %p",
 		    tls, m->m_epg_tls));
-		KASSERT((m->m_flags & (M_NOMAP | M_NOTREADY)) ==
-		    (M_NOMAP | M_NOTREADY),
+		KASSERT((m->m_flags & (M_EXTPG | M_NOTREADY)) ==
+		    (M_EXTPG | M_NOTREADY),
 		    ("%p not unready & nomap mbuf (top = %p)\n", m, top));
 		KASSERT(npages + m->m_epg_npgs <= total_pages,
 		    ("page count mismatch: top %p, total_pages %d, m %p", top,

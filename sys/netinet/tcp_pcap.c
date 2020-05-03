@@ -384,7 +384,7 @@ tcp_pcap_add(struct tcphdr *th, struct mbuf *m, struct mbufq *queue)
 			__func__, n->m_flags));
 		n->m_data = n->m_dat + M_LEADINGSPACE_NOWRITE(m);
 		n->m_len = m->m_len;
-		if (m->m_flags & M_NOMAP)
+		if (m->m_flags & M_EXTPG)
 			m_copydata(m, 0, m->m_len, n->m_data);
 		else
 			bcopy(M_START(m), n->m_dat,
