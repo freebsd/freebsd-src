@@ -172,15 +172,15 @@ elf64_exec(struct preloaded_file *fp)
 	for (i = 0; i < 512; i++) {
 		/* Each slot of the L4 pages points to the same L3 page. */
 		PT4[i] = (pml4_entry_t)PT3;
-		PT4[i] |= PG_V | PG_RW | PG_U;
+		PT4[i] |= PG_V | PG_RW;
 
 		/* Each slot of the L3 pages points to the same L2 page. */
 		PT3[i] = (pdp_entry_t)PT2;
-		PT3[i] |= PG_V | PG_RW | PG_U;
+		PT3[i] |= PG_V | PG_RW;
 
 		/* The L2 page slots are mapped with 2MB pages for 1GB. */
 		PT2[i] = i * (2 * 1024 * 1024);
-		PT2[i] |= PG_V | PG_RW | PG_PS | PG_U;
+		PT2[i] |= PG_V | PG_RW | PG_PS;
 	}
 
 	printf("Start @ 0x%lx ...\n", ehdr->e_entry);

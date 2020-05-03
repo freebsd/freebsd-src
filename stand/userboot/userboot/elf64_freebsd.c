@@ -60,7 +60,6 @@ struct file_format amd64_elf_obj = { elf64_obj_loadfile, elf64_obj_exec };
 
 #define PG_V	0x001
 #define PG_RW	0x002
-#define PG_U	0x004
 #define PG_PS	0x080
 
 typedef uint64_t p4_entry_t;
@@ -127,15 +126,15 @@ elf64_exec(struct preloaded_file *fp)
 	for (i = 0; i < 512; i++) {
 		/* Each slot of the level 4 pages points to the same level 3 page */
 		PT4[i] = (p4_entry_t) 0x3000;
-		PT4[i] |= PG_V | PG_RW | PG_U;
+		PT4[i] |= PG_V | PG_RW;
 
 		/* Each slot of the level 3 pages points to the same level 2 page */
 		PT3[i] = (p3_entry_t) 0x4000;
-		PT3[i] |= PG_V | PG_RW | PG_U;
+		PT3[i] |= PG_V | PG_RW;
 
 		/* The level 2 page slots are mapped with 2MB pages for 1GB. */
 		PT2[i] = i * (2 * 1024 * 1024);
-		PT2[i] |= PG_V | PG_RW | PG_PS | PG_U;
+		PT2[i] |= PG_V | PG_RW | PG_PS;
 	}
 
 #ifdef DEBUG
