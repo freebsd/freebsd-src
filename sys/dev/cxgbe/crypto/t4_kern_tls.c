@@ -903,7 +903,7 @@ ktls_tcp_payload_length(struct tlspcb *tlsp, struct mbuf *m_tls)
 	struct tls_record_layer *hdr;
 	u_int plen, mlen;
 
-	MBUF_EXT_PGS_ASSERT(m_tls);
+	M_ASSERTEXTPG(m_tls);
 	hdr = (void *)m_tls->m_epg_hdr;
 	plen = ntohs(hdr->tls_length);
 
@@ -957,7 +957,7 @@ ktls_payload_offset(struct tlspcb *tlsp, struct mbuf *m_tls)
 	u_int mlen;
 #endif
 
-	MBUF_EXT_PGS_ASSERT(m_tls);
+	M_ASSERTEXTPG(m_tls);
 	hdr = (void *)m_tls->m_epg_hdr;
 	plen = ntohs(hdr->tls_length);
 #ifdef INVARIANTS
@@ -1002,7 +1002,7 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 	struct tls_record_layer *hdr;
 	u_int imm_len, offset, plen, wr_len, tlen;
 
-	MBUF_EXT_PGS_ASSERT(m_tls);
+	M_ASSERTEXTPG(m_tls);
 
 	/*
 	 * Determine the size of the TLS record payload to send
@@ -1466,7 +1466,7 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 	M_ASSERTPKTHDR(m);
 
 	/* Locate the template TLS header. */
-	MBUF_EXT_PGS_ASSERT(m_tls);
+	M_ASSERTEXTPG(m_tls);
 
 	/* This should always be the last TLS record in a chain. */
 	MPASS(m_tls->m_next == NULL);
@@ -1593,7 +1593,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	using_scratch = (eq->sidx - pidx < SGE_MAX_WR_LEN / EQ_ESIZE);
 
 	/* Locate the TLS header. */
-	MBUF_EXT_PGS_ASSERT(m_tls);
+	M_ASSERTEXTPG(m_tls);
 	hdr = (void *)m_tls->m_epg_hdr;
 	plen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length) - m_tls->m_epg_trllen;
 
