@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2020
+.Dd May 3, 2020
 .Dt CRYPTO 7
 .Os
 .Sh NAME
@@ -112,6 +112,11 @@ as defined in NIST SP 800-38E.
 NOTE: The ciphertext stealing part is not implemented which is why this cipher
 is listed as having a block size of 16 instead of 1.
 .El
+.Sh HISTORY
+The
+.Nm
+manpage first appeared in
+.Fx 10.1 .
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr crypto 9
