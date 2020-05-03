@@ -833,8 +833,8 @@ mb_free_notready(struct mbuf *m, int count)
 	for (i = 0; i < count && m != NULL; i++) {
 		if ((m->m_flags & M_EXT) != 0 &&
 		    m->m_ext.ext_type == EXT_PGS) {
-			m->m_ext_pgs.nrdy--;
-			if (m->m_ext_pgs.nrdy != 0)
+			m->m_epg_nrdy--;
+			if (m->m_epg_nrdy != 0)
 				continue;
 		}
 		m = m_free(m);
@@ -943,7 +943,7 @@ _mb_unmapped_to_ext(struct mbuf *m)
 
 	MBUF_EXT_PGS_ASSERT(m);
 	len = m->m_len;
-	KASSERT(m->m_ext_pgs.tls == NULL, ("%s: can't convert TLS mbuf %p",
+	KASSERT(m->m_epg_tls == NULL, ("%s: can't convert TLS mbuf %p",
 	    __func__, m));
 
 	/* See if this is the mbuf that holds the embedded refcount. */
@@ -961,11 +961,11 @@ _mb_unmapped_to_ext(struct mbuf *m)
 	off = mtod(m, vm_offset_t);
 
 	top = NULL;
-	if (m->m_ext_pgs.hdr_len != 0) {
-		if (off >= m->m_ext_pgs.hdr_len) {
-			off -= m->m_ext_pgs.hdr_len;
+	if (m->m_epg_hdrlen != 0) {
+		if (off >= m->m_epg_hdrlen) {
+			off -= m->m_epg_hdrlen;
 		} else {
-			seglen = m->m_ext_pgs.hdr_len - off;
+			seglen = m->m_epg_hdrlen - off;
 			segoff = off;
 			seglen = min(seglen, len);
 			off = 0;
@@ -979,8 +979,8 @@ _mb_unmapped_to_ext(struct mbuf *m)
 			    seglen);
 		}
 	}
-	pgoff = m->m_ext_pgs.first_pg_off;
-	for (i = 0; i < m->m_ext_pgs.npgs && len > 0; i++) {
+	pgoff = m->m_epg_1st_off;
+	for (i = 0; i < m->m_epg_npgs && len > 0; i++) {
 		pglen = m_epg_pagelen(m, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
@@ -1016,9 +1016,9 @@ _mb_unmapped_to_ext(struct mbuf *m)
 		pgoff = 0;
 	};
 	if (len != 0) {
-		KASSERT((off + len) <= m->m_ext_pgs.trail_len,
+		KASSERT((off + len) <= m->m_epg_trllen,
 		    ("off + len > trail (%d + %d > %d)", off, len,
-		    m->m_ext_pgs.trail_len));
+		    m->m_epg_trllen));
 		m_new = m_get(M_NOWAIT, MT_DATA);
 		if (m_new == NULL)
 			goto fail;
@@ -1122,15 +1122,15 @@ mb_alloc_ext_pgs(int how, m_ext_free_t ext_free)
 	if (m == NULL)
 		return (NULL);
 
-	m->m_ext_pgs.npgs = 0;
-	m->m_ext_pgs.nrdy = 0;
-	m->m_ext_pgs.first_pg_off = 0;
-	m->m_ext_pgs.last_pg_len = 0;
-	m->m_ext_pgs.flags = 0;
-	m->m_ext_pgs.hdr_len = 0;
-	m->m_ext_pgs.trail_len = 0;
-	m->m_ext_pgs.tls = NULL;
-	m->m_ext_pgs.so = NULL;
+	m->m_epg_npgs = 0;
+	m->m_epg_nrdy = 0;
+	m->m_epg_1st_off = 0;
+	m->m_epg_last_len = 0;
+	m->m_epg_flags = 0;
+	m->m_epg_hdrlen = 0;
+	m->m_epg_trllen = 0;
+	m->m_epg_tls = NULL;
+	m->m_epg_so = NULL;
 	m->m_data = NULL;
 	m->m_flags |= (M_EXT | M_RDONLY | M_NOMAP);
 	m->m_ext.ext_type = EXT_PGS;
@@ -1215,7 +1215,7 @@ mb_free_ext(struct mbuf *m)
 			    ("%s: ext_free not set", __func__));
 			mref->m_ext.ext_free(mref);
 #ifdef KERN_TLS
-			tls = mref->m_ext_pgs.tls;
+			tls = mref->m_epg_tls;
 			if (tls != NULL &&
 			    !refcount_release_if_not_last(&tls->refcount))
 				ktls_enqueue_to_free(mref);

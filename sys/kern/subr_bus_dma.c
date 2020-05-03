@@ -129,11 +129,11 @@ _bus_dmamap_load_mbuf_epg(bus_dma_tag_t dmat, bus_dmamap_t map,
 	/* Skip over any data removed from the front. */
 	off = mtod(m, vm_offset_t);
 
-	if (m->m_ext_pgs.hdr_len != 0) {
-		if (off >= m->m_ext_pgs.hdr_len) {
-			off -= m->m_ext_pgs.hdr_len;
+	if (m->m_epg_hdrlen != 0) {
+		if (off >= m->m_epg_hdrlen) {
+			off -= m->m_epg_hdrlen;
 		} else {
-			seglen = m->m_ext_pgs.hdr_len - off;
+			seglen = m->m_epg_hdrlen - off;
 			segoff = off;
 			seglen = min(seglen, len);
 			off = 0;
@@ -143,8 +143,8 @@ _bus_dmamap_load_mbuf_epg(bus_dma_tag_t dmat, bus_dmamap_t map,
 			    flags, segs, nsegs);
 		}
 	}
-	pgoff = m->m_ext_pgs.first_pg_off;
-	for (i = 0; i < m->m_ext_pgs.npgs && error == 0 && len > 0; i++) {
+	pgoff = m->m_epg_1st_off;
+	for (i = 0; i < m->m_epg_npgs && error == 0 && len > 0; i++) {
 		pglen = m_epg_pagelen(m, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
@@ -161,9 +161,9 @@ _bus_dmamap_load_mbuf_epg(bus_dma_tag_t dmat, bus_dmamap_t map,
 		pgoff = 0;
 	};
 	if (len != 0 && error == 0) {
-		KASSERT((off + len) <= m->m_ext_pgs.trail_len,
+		KASSERT((off + len) <= m->m_epg_trllen,
 		    ("off + len > trail (%d + %d > %d)", off, len,
-		    m->m_ext_pgs.trail_len));
+		    m->m_epg_trllen));
 		error = _bus_dmamap_load_buffer(dmat, map,
 		    &m->m_epg_trail[off], len, kernel_pmap, flags, segs,
 		    nsegs);

@@ -233,11 +233,11 @@ sglist_count_mbuf_epg(struct mbuf *m, size_t off, size_t len)
 		return (0);
 
 	nsegs = 0;
-	if (m->m_ext_pgs.hdr_len != 0) {
-		if (off >= m->m_ext_pgs.hdr_len) {
-			off -= m->m_ext_pgs.hdr_len;
+	if (m->m_epg_hdrlen != 0) {
+		if (off >= m->m_epg_hdrlen) {
+			off -= m->m_epg_hdrlen;
 		} else {
-			seglen = m->m_ext_pgs.hdr_len - off;
+			seglen = m->m_epg_hdrlen - off;
 			segoff = off;
 			seglen = MIN(seglen, len);
 			off = 0;
@@ -247,8 +247,8 @@ sglist_count_mbuf_epg(struct mbuf *m, size_t off, size_t len)
 		}
 	}
 	nextaddr = 0;
-	pgoff = m->m_ext_pgs.first_pg_off;
-	for (i = 0; i < m->m_ext_pgs.npgs && len > 0; i++) {
+	pgoff = m->m_epg_1st_off;
+	for (i = 0; i < m->m_epg_npgs && len > 0; i++) {
 		pglen = m_epg_pagelen(m, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
@@ -267,7 +267,7 @@ sglist_count_mbuf_epg(struct mbuf *m, size_t off, size_t len)
 		pgoff = 0;
 	};
 	if (len != 0) {
-		seglen = MIN(len, m->m_ext_pgs.trail_len - off);
+		seglen = MIN(len, m->m_epg_trllen - off);
 		len -= seglen;
 		nsegs += sglist_count(&m->m_epg_trail[off], seglen);
 	}
@@ -391,11 +391,11 @@ sglist_append_mbuf_epg(struct sglist *sg, struct mbuf *m, size_t off,
 	MBUF_EXT_PGS_ASSERT(m);
 
 	error = 0;
-	if (m->m_ext_pgs.hdr_len != 0) {
-		if (off >= m->m_ext_pgs.hdr_len) {
-			off -= m->m_ext_pgs.hdr_len;
+	if (m->m_epg_hdrlen != 0) {
+		if (off >= m->m_epg_hdrlen) {
+			off -= m->m_epg_hdrlen;
 		} else {
-			seglen = m->m_ext_pgs.hdr_len - off;
+			seglen = m->m_epg_hdrlen - off;
 			segoff = off;
 			seglen = MIN(seglen, len);
 			off = 0;
@@ -404,8 +404,8 @@ sglist_append_mbuf_epg(struct sglist *sg, struct mbuf *m, size_t off,
 			    &m->m_epg_hdr[segoff], seglen);
 		}
 	}
-	pgoff = m->m_ext_pgs.first_pg_off;
-	for (i = 0; i < m->m_ext_pgs.npgs && error == 0 && len > 0; i++) {
+	pgoff = m->m_epg_1st_off;
+	for (i = 0; i < m->m_epg_npgs && error == 0 && len > 0; i++) {
 		pglen = m_epg_pagelen(m, i, pgoff);
 		if (off >= pglen) {
 			off -= pglen;
@@ -422,7 +422,7 @@ sglist_append_mbuf_epg(struct sglist *sg, struct mbuf *m, size_t off,
 		pgoff = 0;
 	};
 	if (error == 0 && len > 0) {
-		seglen = MIN(len, m->m_ext_pgs.trail_len - off);
+		seglen = MIN(len, m->m_epg_trllen - off);
 		len -= seglen;
 		error = sglist_append(sg,
 		    &m->m_epg_trail[off], seglen);

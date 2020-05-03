@@ -1628,10 +1628,10 @@ count_ext_pgs_segs(struct mbuf *m)
 	vm_paddr_t nextpa;
 	u_int i, nsegs;
 
-	MPASS(m->m_ext_pgs.npgs > 0);
+	MPASS(m->m_epg_npgs > 0);
 	nsegs = 1;
 	nextpa = m->m_epg_pa[0] + PAGE_SIZE;
-	for (i = 1; i < m->m_ext_pgs.npgs; i++) {
+	for (i = 1; i < m->m_epg_npgs; i++) {
 		if (nextpa != m->m_epg_pa[i])
 			nsegs++;
 		nextpa = m->m_epg_pa[i] + PAGE_SIZE;
@@ -1653,11 +1653,11 @@ write_ktlstx_sgl(void *dst, struct mbuf *m, int nsegs)
 	    V_ULPTX_NSGE(nsegs));
 
 	/* Figure out the first S/G length. */
-	pa = m->m_epg_pa[0] + m->m_ext_pgs.first_pg_off;
+	pa = m->m_epg_pa[0] + m->m_epg_1st_off;
 	usgl->addr0 = htobe64(pa);
-	len = m_epg_pagelen(m, 0, m->m_ext_pgs.first_pg_off);
+	len = m_epg_pagelen(m, 0, m->m_epg_1st_off);
 	pa += len;
-	for (i = 1; i < m->m_ext_pgs.npgs; i++) {
+	for (i = 1; i < m->m_epg_npgs; i++) {
 		if (m->m_epg_pa[i] != pa)
 			break;
 		len += m_epg_pagelen(m, i, 0);
@@ -1669,7 +1669,7 @@ write_ktlstx_sgl(void *dst, struct mbuf *m, int nsegs)
 #endif
 
 	j = -1;
-	for (; i < m->m_ext_pgs.npgs; i++) {
+	for (; i < m->m_epg_npgs; i++) {
 		if (j == -1 || m->m_epg_pa[i] != pa) {
 			if (j >= 0)
 				usgl->sge[j / 2].len[j & 1] = htobe32(len);
@@ -1798,7 +1798,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 
 		KASSERT(m->m_flags & M_NOMAP, ("%s: mbuf %p is not NOMAP",
 		    __func__, m));
-		KASSERT(m->m_ext_pgs.tls != NULL,
+		KASSERT(m->m_epg_tls != NULL,
 		    ("%s: mbuf %p doesn't have TLS session", __func__, m));
 
 		/* Calculate WR length. */
@@ -1867,19 +1867,19 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		thdr = (struct tls_hdr *)&m->m_epg_hdr;
 #ifdef VERBOSE_TRACES
 		CTR5(KTR_CXGBE, "%s: tid %d TLS record %ju type %d len %#x",
-		    __func__, toep->tid, m->m_ext_pgs.seqno, thdr->type,
+		    __func__, toep->tid, m->m_epg_seqno, thdr->type,
 		    m->m_len);
 #endif
 		txwr = wrtod(wr);
 		cpl = (struct cpl_tx_tls_sfo *)(txwr + 1);
 		memset(txwr, 0, roundup2(wr_len, 16));
 		credits = howmany(wr_len, 16);
-		expn_size = m->m_ext_pgs.hdr_len +
-		    m->m_ext_pgs.trail_len;
+		expn_size = m->m_epg_hdrlen +
+		    m->m_epg_trllen;
 		tls_size = m->m_len - expn_size;
 		write_tlstx_wr(txwr, toep, 0,
 		    tls_size, expn_size, 1, credits, shove, 1);
-		toep->tls.tx_seq_no = m->m_ext_pgs.seqno;
+		toep->tls.tx_seq_no = m->m_epg_seqno;
 		write_tlstx_cpl(cpl, toep, thdr, tls_size, 1);
 		tls_copy_tx_key(toep, cpl + 1);
 

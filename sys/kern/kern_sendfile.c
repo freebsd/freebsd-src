@@ -198,8 +198,8 @@ sendfile_free_mext_pg(struct mbuf *m)
 	cache_last = m->m_ext.ext_flags & EXT_FLAG_CACHE_LAST;
 	flags = (m->m_ext.ext_flags & EXT_FLAG_NOCACHE) != 0 ? VPR_TRYFREE : 0;
 
-	for (i = 0; i < m->m_ext_pgs.npgs; i++) {
-		if (cache_last && i == m->m_ext_pgs.npgs - 1)
+	for (i = 0; i < m->m_epg_npgs; i++) {
+		if (cache_last && i == m->m_epg_npgs - 1)
 			flags = 0;
 		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[i]);
 		vm_page_release(pg, flags);
@@ -365,7 +365,7 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 #if defined(KERN_TLS) && defined(INVARIANTS)
 	if ((sfio->m->m_flags & M_EXT) != 0 &&
 	    sfio->m->m_ext.ext_type == EXT_PGS)
-		KASSERT(sfio->tls == sfio->m->m_ext_pgs.tls,
+		KASSERT(sfio->tls == sfio->m->m_epg_tls,
 		    ("TLS session mismatch"));
 	else
 		KASSERT(sfio->tls == NULL,
@@ -1034,18 +1034,18 @@ retry_space:
 					else
 						m = m0;
 					mtail = m0;
-					m0->m_ext_pgs.first_pg_off =
+					m0->m_epg_1st_off =
 					    vmoff(i, off) & PAGE_MASK;
 				}
 				if (nios) {
 					mtail->m_flags |= M_NOTREADY;
-					m0->m_ext_pgs.nrdy++;
+					m0->m_epg_nrdy++;
 				}
 
 				m0->m_epg_pa[ext_pgs_idx] = VM_PAGE_TO_PHYS(pga);
-				m0->m_ext_pgs.npgs++;
+				m0->m_epg_npgs++;
 				xfs = xfsize(i, npages, off, space);
-				m0->m_ext_pgs.last_pg_len = xfs;
+				m0->m_epg_last_len = xfs;
 				MBUF_EXT_PGS_ASSERT_SANITY(m0);
 				mtail->m_len += xfs;
 				mtail->m_ext.ext_size += PAGE_SIZE;

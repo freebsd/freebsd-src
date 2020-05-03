@@ -130,16 +130,16 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 		    !mbuf_has_tls_session(n)) {
 			int hdr_len, trail_len;
 
-			hdr_len = n->m_ext_pgs.hdr_len;
-			trail_len = m->m_ext_pgs.trail_len;
+			hdr_len = n->m_epg_hdrlen;
+			trail_len = m->m_epg_trllen;
 			if (trail_len != 0 && hdr_len != 0 &&
 			    trail_len + hdr_len <= MBUF_PEXT_TRAIL_LEN) {
 				/* copy n's header to m's trailer */
 				memcpy(&m->m_epg_trail[trail_len],
 				    n->m_epg_hdr, hdr_len);
-				m->m_ext_pgs.trail_len += hdr_len;
+				m->m_epg_trllen += hdr_len;
 				m->m_len += hdr_len;
-				n->m_ext_pgs.hdr_len = 0;
+				n->m_epg_hdrlen = 0;
 				n->m_len -= hdr_len;
 			}
 		}
@@ -211,13 +211,13 @@ sbready(struct sockbuf *sb, struct mbuf *m0, int count)
 		    ("%s: m %p !M_NOTREADY", __func__, m));
 		if ((m->m_flags & M_EXT) != 0 &&
 		    m->m_ext.ext_type == EXT_PGS) {
-			if (count < m->m_ext_pgs.nrdy) {
-				m->m_ext_pgs.nrdy -= count;
+			if (count < m->m_epg_nrdy) {
+				m->m_epg_nrdy -= count;
 				count = 0;
 				break;
 			}
-			count -= m->m_ext_pgs.nrdy;
-			m->m_ext_pgs.nrdy = 0;
+			count -= m->m_epg_nrdy;
+			m->m_epg_nrdy = 0;
 		} else
 			count--;
 
