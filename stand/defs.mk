@@ -188,15 +188,14 @@ CFLAGS+=-I.
 all: ${PROG}
 
 .if !defined(NO_OBJ)
-_ILINKS=include/machine
+_ILINKS=machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
-_ILINKS+=include/${MACHINE_CPUARCH}
+_ILINKS+=${MACHINE_CPUARCH}
 .endif
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-_ILINKS+=include/x86
+_ILINKS+=x86
 .endif
-CFLAGS+= -Iinclude
-CLEANDIRS+= include
+CLEANFILES+=${_ILINKS}
 
 beforedepend: ${_ILINKS}
 beforebuild: ${_ILINKS}
@@ -211,8 +210,8 @@ ${OBJS}:       ${_link}
 
 .NOPATH: ${_ILINKS}
 
-${_ILINKS}: .NOMETA
-	@case ${.TARGET:T} in \
+${_ILINKS}:
+	@case ${.TARGET} in \
 	machine) \
 		if [ ${DO32:U0} -eq 0 ]; then \
 			path=${SYSDIR}/${MACHINE}/include ; \
@@ -222,11 +221,8 @@ ${_ILINKS}: .NOMETA
 	*) \
 		path=${SYSDIR}/${.TARGET:T}/include ;; \
 	esac ; \
-	case ${.TARGET} in \
-	*/*) mkdir -p ${.TARGET:H};; \
-	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
-	${ECHO} ${.TARGET} "->" $$path ; \
-	ln -fhs $$path ${.TARGET}
+	${ECHO} ${.TARGET:T} "->" $$path ; \
+	ln -fhs $$path ${.TARGET:T}
 .endif # !NO_OBJ
 .endif # __BOOT_DEFS_MK__
