@@ -922,8 +922,8 @@ ktls_tcp_payload_length(struct tlspcb *tlsp, struct mbuf *m_tls)
 	 * trim the length to avoid sending any of the trailer.  There
 	 * is no way to send a partial trailer currently.
 	 */
-	if (mlen > TLS_HEADER_LENGTH + plen - m_tls->m_ext_pgs.trail_len)
-		mlen = TLS_HEADER_LENGTH + plen - m_tls->m_ext_pgs.trail_len;
+	if (mlen > TLS_HEADER_LENGTH + plen - m_tls->m_epg_trllen)
+		mlen = TLS_HEADER_LENGTH + plen - m_tls->m_epg_trllen;
 
 
 	/*
@@ -964,7 +964,7 @@ ktls_payload_offset(struct tlspcb *tlsp, struct mbuf *m_tls)
 	mlen = mtod(m_tls, vm_offset_t) + m_tls->m_len;
 	MPASS(mlen < TLS_HEADER_LENGTH + plen);
 #endif
-	if (mtod(m_tls, vm_offset_t) <= m_tls->m_ext_pgs.hdr_len)
+	if (mtod(m_tls, vm_offset_t) <= m_tls->m_epg_hdrlen)
 		return (0);
 	if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM) {
 		/*
@@ -975,8 +975,8 @@ ktls_payload_offset(struct tlspcb *tlsp, struct mbuf *m_tls)
 		 * the offset at the last byte of the record payload
 		 * to send the last cipher block.
 		 */
-		offset = min(mtod(m_tls, vm_offset_t) - m_tls->m_ext_pgs.hdr_len,
-		    (plen - TLS_HEADER_LENGTH - m_tls->m_ext_pgs.trail_len) - 1);
+		offset = min(mtod(m_tls, vm_offset_t) - m_tls->m_epg_hdrlen,
+		    (plen - TLS_HEADER_LENGTH - m_tls->m_epg_trllen) - 1);
 		return (rounddown(offset, AES_BLOCK_LEN));
 	}
 	return (0);
@@ -1009,7 +1009,7 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 	 * excluding header and trailer.
 	 */
 	tlen = ktls_tcp_payload_length(tlsp, m_tls);
-	if (tlen <= m_tls->m_ext_pgs.hdr_len) {
+	if (tlen <= m_tls->m_epg_hdrlen) {
 		/*
 		 * For requests that only want to send the TLS header,
 		 * send a tunnelled packet as immediate data.
@@ -1035,7 +1035,7 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 	}
 
 	hdr = (void *)m_tls->m_epg_hdr;
-	plen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length) - m_tls->m_ext_pgs.trail_len;
+	plen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length) - m_tls->m_epg_trllen;
 	if (tlen < plen) {
 		plen = tlen;
 		offset = ktls_payload_offset(tlsp, m_tls);
@@ -1052,14 +1052,14 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 	 */
 	imm_len = 0;
 	if (offset == 0)
-		imm_len += m_tls->m_ext_pgs.hdr_len;
+		imm_len += m_tls->m_epg_hdrlen;
 	if (plen == tlen)
 		imm_len += AES_BLOCK_LEN;
 	wr_len += roundup2(imm_len, 16);
 
 	/* TLS record payload via DSGL. */
-	*nsegsp = sglist_count_mbuf_epg(m_tls, m_tls->m_ext_pgs.hdr_len + offset,
-	    plen - (m_tls->m_ext_pgs.hdr_len + offset));
+	*nsegsp = sglist_count_mbuf_epg(m_tls, m_tls->m_epg_hdrlen + offset,
+	    plen - (m_tls->m_epg_hdrlen + offset));
 	wr_len += ktls_sgl_size(*nsegsp);
 
 	wr_len = roundup2(wr_len, 16);
@@ -1595,18 +1595,18 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	/* Locate the TLS header. */
 	MBUF_EXT_PGS_ASSERT(m_tls);
 	hdr = (void *)m_tls->m_epg_hdr;
-	plen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length) - m_tls->m_ext_pgs.trail_len;
+	plen = TLS_HEADER_LENGTH + ntohs(hdr->tls_length) - m_tls->m_epg_trllen;
 
 	/* Determine how much of the TLS record to send. */
 	tlen = ktls_tcp_payload_length(tlsp, m_tls);
-	if (tlen <= m_tls->m_ext_pgs.hdr_len) {
+	if (tlen <= m_tls->m_epg_hdrlen) {
 		/*
 		 * For requests that only want to send the TLS header,
 		 * send a tunnelled packet as immediate data.
 		 */
 #ifdef VERBOSE_TRACES
 		CTR3(KTR_CXGBE, "%s: tid %d header-only TLS record %u",
-		    __func__, tlsp->tid, (u_int)m_tls->m_ext_pgs.seqno);
+		    __func__, tlsp->tid, (u_int)m_tls->m_epg_seqno);
 #endif
 		return (ktls_write_tunnel_packet(txq, dst, m, m_tls, available,
 		    tcp_seqno, pidx));
@@ -1616,7 +1616,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		offset = ktls_payload_offset(tlsp, m_tls);
 #ifdef VERBOSE_TRACES
 		CTR4(KTR_CXGBE, "%s: tid %d short TLS record %u with offset %u",
-		    __func__, tlsp->tid, (u_int)m_tls->m_ext_pgs.seqno, offset);
+		    __func__, tlsp->tid, (u_int)m_tls->m_epg_seqno, offset);
 #endif
 		if (m_tls->m_next == NULL && (tcp->th_flags & TH_FIN) != 0) {
 			txq->kern_tls_fin_short++;
@@ -1671,10 +1671,10 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	 */
 	tx_max_offset = mtod(m_tls, vm_offset_t);
 	if (tx_max_offset > TLS_HEADER_LENGTH + ntohs(hdr->tls_length) -
-	    m_tls->m_ext_pgs.trail_len) {
+	    m_tls->m_epg_trllen) {
 		/* Always send the full trailer. */
 		tx_max_offset = TLS_HEADER_LENGTH + ntohs(hdr->tls_length) -
-		    m_tls->m_ext_pgs.trail_len;
+		    m_tls->m_epg_trllen;
 	}
 	if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_CBC &&
 	    tx_max_offset > TLS_HEADER_LENGTH) {
@@ -1789,15 +1789,15 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 
 	/* Recalculate 'nsegs' if cached value is not available. */
 	if (nsegs == 0)
-		nsegs = sglist_count_mbuf_epg(m_tls, m_tls->m_ext_pgs.hdr_len +
-		    offset, plen - (m_tls->m_ext_pgs.hdr_len + offset));
+		nsegs = sglist_count_mbuf_epg(m_tls, m_tls->m_epg_hdrlen +
+		    offset, plen - (m_tls->m_epg_hdrlen + offset));
 
 	/* Calculate the size of the TLS work request. */
 	twr_len = ktls_base_wr_size(tlsp);
 
 	imm_len = 0;
 	if (offset == 0)
-		imm_len += m_tls->m_ext_pgs.hdr_len;
+		imm_len += m_tls->m_epg_hdrlen;
 	if (plen == tlen)
 		imm_len += AES_BLOCK_LEN;
 	twr_len += roundup2(imm_len, 16);
@@ -1913,13 +1913,13 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		cipher_stop = 0;
 
 		sec_pdu->pldlen = htobe32(16 + plen -
-		    (m_tls->m_ext_pgs.hdr_len + offset));
+		    (m_tls->m_epg_hdrlen + offset));
 
 		/* These two flits are actually a CPL_TLS_TX_SCMD_FMT. */
 		sec_pdu->seqno_numivs = tlsp->scmd0_short.seqno_numivs;
 		sec_pdu->ivgen_hdrlen = htobe32(
 		    tlsp->scmd0_short.ivgen_hdrlen |
-		    V_SCMD_HDR_LEN(offset == 0 ? m_tls->m_ext_pgs.hdr_len : 0));
+		    V_SCMD_HDR_LEN(offset == 0 ? m_tls->m_epg_hdrlen : 0));
 
 		txq->kern_tls_short++;
 	} else {
@@ -1932,7 +1932,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		aad_start = 1;
 		aad_stop = TLS_HEADER_LENGTH;
 		iv_offset = TLS_HEADER_LENGTH + 1;
-		cipher_start = m_tls->m_ext_pgs.hdr_len + 1;
+		cipher_start = m_tls->m_epg_hdrlen + 1;
 		if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM) {
 			cipher_stop = 0;
 			auth_start = cipher_start;
@@ -1971,7 +1971,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	    V_CPL_TX_SEC_PDU_AUTHSTOP(auth_stop) |
 	    V_CPL_TX_SEC_PDU_AUTHINSERT(auth_insert));
 
-	sec_pdu->scmd1 = htobe64(m_tls->m_ext_pgs.seqno);
+	sec_pdu->scmd1 = htobe64(m_tls->m_epg_seqno);
 
 	/* Key context */
 	out = (void *)(sec_pdu + 1);
@@ -2011,8 +2011,8 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		tx_data->rsvd = htobe32(tcp_seqno);
 	} else {
 		tx_data->len = htobe32(V_TX_DATA_MSS(mss) |
-		    V_TX_LENGTH(tlen - (m_tls->m_ext_pgs.hdr_len + offset)));
-		tx_data->rsvd = htobe32(tcp_seqno + m_tls->m_ext_pgs.hdr_len + offset);
+		    V_TX_LENGTH(tlen - (m_tls->m_epg_hdrlen + offset)));
+		tx_data->rsvd = htobe32(tcp_seqno + m_tls->m_epg_hdrlen + offset);
 	}
 	tx_data->flags = htobe32(F_TX_BYPASS);
 	if (last_wr && tcp->th_flags & TH_PUSH)
@@ -2021,8 +2021,8 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	/* Populate the TLS header */
 	out = (void *)(tx_data + 1);
 	if (offset == 0) {
-		memcpy(out, m_tls->m_epg_hdr, m_tls->m_ext_pgs.hdr_len);
-		out += m_tls->m_ext_pgs.hdr_len;
+		memcpy(out, m_tls->m_epg_hdr, m_tls->m_epg_hdrlen);
+		out += m_tls->m_epg_hdrlen;
 	}
 
 	/* AES IV for a short record. */
@@ -2057,8 +2057,8 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 
 	/* SGL for record payload */
 	sglist_reset(txq->gl);
-	if (sglist_append_mbuf_epg(txq->gl, m_tls, m_tls->m_ext_pgs.hdr_len + offset,
-	    plen - (m_tls->m_ext_pgs.hdr_len + offset)) != 0) {
+	if (sglist_append_mbuf_epg(txq->gl, m_tls, m_tls->m_epg_hdrlen + offset,
+	    plen - (m_tls->m_epg_hdrlen + offset)) != 0) {
 #ifdef INVARIANTS
 		panic("%s: failed to append sglist", __func__);
 #endif
@@ -2080,7 +2080,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 			txq->kern_tls_waste += mtod(m_tls, vm_offset_t);
 		else
 			txq->kern_tls_waste += mtod(m_tls, vm_offset_t) -
-			    (m_tls->m_ext_pgs.hdr_len + offset);
+			    (m_tls->m_epg_hdrlen + offset);
 	}
 
 	txsd = &txq->sdesc[pidx];
