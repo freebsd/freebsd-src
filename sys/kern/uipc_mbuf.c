@@ -191,8 +191,10 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 {
 	volatile u_int *refcnt;
 
-	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT not set on %p", __func__, m));
-	KASSERT(!(n->m_flags & M_EXT), ("%s: M_EXT set on %p", __func__, n));
+	KASSERT(m->m_flags & (M_EXT|M_EXTPG),
+	    ("%s: M_EXT|M_EXTPG not set on %p", __func__, m));
+	KASSERT(!(n->m_flags & (M_EXT|M_EXTPG)),
+	    ("%s: M_EXT|M_EXTPG set on %p", __func__, n));
 
 	/*
 	 * Cache access optimization.
@@ -200,27 +202,22 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 	 * o Regular M_EXT storage doesn't need full copy of m_ext, since
 	 *   the holder of the 'ext_count' is responsible to carry the free
 	 *   routine and its arguments.
-	 * o EXT_PGS data is split between main part of mbuf and m_ext, the
+	 * o M_EXTPG data is split between main part of mbuf and m_ext, the
 	 *   main part is copied in full, the m_ext part is similar to M_EXT.
 	 * o EXT_EXTREF, where 'ext_cnt' doesn't point into mbuf at all, is
 	 *   special - it needs full copy of m_ext into each mbuf, since any
 	 *   copy could end up as the last to free.
 	 */
-	switch (m->m_ext.ext_type) {
-	case EXT_PGS:
+	if (m->m_flags & M_EXTPG) {
 		bcopy(&m->m_epg_startcopy, &n->m_epg_startcopy,
 		    __rangeof(struct mbuf, m_epg_startcopy, m_epg_endcopy));
 		bcopy(&m->m_ext, &n->m_ext, m_epg_ext_copylen);
-		break;
-	case EXT_EXTREF:
+	} else if (m->m_ext.ext_type == EXT_EXTREF)
 		bcopy(&m->m_ext, &n->m_ext, sizeof(struct m_ext));
-		break;
-	default:
+	else
 		bcopy(&m->m_ext, &n->m_ext, m_ext_copylen);
-	}
 
-	n->m_flags |= M_EXT;
-	n->m_flags |= m->m_flags & (M_RDONLY | M_EXTPG);
+	n->m_flags |= m->m_flags & (M_RDONLY | M_EXT | M_EXTPG);
 
 	/* See if this is the mbuf that holds the embedded refcount. */
 	if (m->m_ext.ext_flags & EXT_FLAG_EMBREF) {
@@ -525,7 +522,7 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 			copyhdr = 0;
 		}
 		n->m_len = min(len, m->m_len - off);
-		if (m->m_flags & M_EXT) {
+		if (m->m_flags & (M_EXT|M_EXTPG)) {
 			n->m_data = m->m_data + off;
 			mb_dupcl(n, m);
 		} else
@@ -567,7 +564,7 @@ m_copypacket(struct mbuf *m, int how)
 	if (!m_dup_pkthdr(n, m, how))
 		goto nospace;
 	n->m_len = m->m_len;
-	if (m->m_flags & M_EXT) {
+	if (m->m_flags & (M_EXT|M_EXTPG)) {
 		n->m_data = m->m_data;
 		mb_dupcl(n, m);
 	} else {
@@ -585,7 +582,7 @@ m_copypacket(struct mbuf *m, int how)
 		n = n->m_next;
 
 		n->m_len = m->m_len;
-		if (m->m_flags & M_EXT) {
+		if (m->m_flags & (M_EXT|M_EXTPG)) {
 			n->m_data = m->m_data;
 			mb_dupcl(n, m);
 		} else {
@@ -1003,7 +1000,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 			n->m_pkthdr.rcvif = m0->m_pkthdr.rcvif;
 		n->m_pkthdr.len = m0->m_pkthdr.len - len0;
 		m0->m_pkthdr.len = len0;
-		if (m->m_flags & M_EXT)
+		if (m->m_flags & (M_EXT|M_EXTPG))
 			goto extpacket;
 		if (remain > MHLEN) {
 			/* m can't be the lead packet */
@@ -1029,7 +1026,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 		M_ALIGN(n, remain);
 	}
 extpacket:
-	if (m->m_flags & M_EXT) {
+	if (m->m_flags & (M_EXT|M_EXTPG)) {
 		n->m_data = m->m_data + len;
 		mb_dupcl(n, m);
 	} else {

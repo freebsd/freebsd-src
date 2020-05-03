@@ -220,7 +220,7 @@ sglist_count_vmpages(vm_page_t *m, size_t pgoff, size_t len)
 
 /*
  * Determine the number of scatter/gather list elements needed to
- * describe an EXT_PGS buffer.
+ * describe an M_EXTPG mbuf.
  */
 int
 sglist_count_mbuf_epg(struct mbuf *m, size_t off, size_t len)

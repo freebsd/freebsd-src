@@ -148,7 +148,6 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 		/* Compress small unmapped mbufs into plain mbufs. */
 		if ((m->m_flags & M_EXTPG) && m->m_len <= MLEN &&
 		    !mbuf_has_tls_session(m)) {
-			MPASS(m->m_flags & M_EXT);
 			ext_size = m->m_ext.ext_size;
 			if (mb_unmapped_compress(m) == 0) {
 				sb->sb_mbcnt -= ext_size;
@@ -190,8 +189,8 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 
 /*
  * Mark ready "count" units of I/O starting with "m".  Most mbufs
- * count as a single unit of I/O except for EXT_PGS-backed mbufs which
- * can be backed by multiple pages.
+ * count as a single unit of I/O except for M_EXTPG mbufs which
+ * are backed by multiple pages.
  */
 int
 sbready(struct sockbuf *sb, struct mbuf *m0, int count)
@@ -209,8 +208,7 @@ sbready(struct sockbuf *sb, struct mbuf *m0, int count)
 	while (count > 0) {
 		KASSERT(m->m_flags & M_NOTREADY,
 		    ("%s: m %p !M_NOTREADY", __func__, m));
-		if ((m->m_flags & M_EXT) != 0 &&
-		    m->m_ext.ext_type == EXT_PGS) {
+		if ((m->m_flags & M_EXTPG) != 0) {
 			if (count < m->m_epg_nrdy) {
 				m->m_epg_nrdy -= count;
 				count = 0;
