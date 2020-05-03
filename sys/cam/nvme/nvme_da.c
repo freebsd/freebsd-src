@@ -426,26 +426,26 @@ ndaioctl(struct disk *dp, u_long cmd, void *data, int fflag,
 		 */
 		memset(&mapinfo, 0, sizeof(mapinfo));
 		error = cam_periph_mapmem(ccb, &mapinfo, maxmap);
-		if (error) {
-			xpt_release_ccb(ccb);
-			return (error);
-		}
+		if (error)
+			goto out;
 
 		/*
-		 * Lock the periph and run the command. XXX do we need
-		 * to lock the periph?
+		 * Lock the periph and run the command.
 		 */
 		cam_periph_lock(periph);
-		cam_periph_runccb(ccb, NULL, CAM_RETRY_SELTO, SF_RETRY_UA | SF_NO_PRINT,
-		    NULL);
-		cam_periph_unlock(periph);
+		cam_periph_runccb(ccb, NULL, CAM_RETRY_SELTO,
+		    SF_RETRY_UA | SF_NO_PRINT, NULL);
 
 		/*
 		 * Tear down mapping and return status.
 		 */
+		cam_periph_unlock(periph);
 		cam_periph_unmapmem(ccb, &mapinfo);
 		error = (ccb->ccb_h.status == CAM_REQ_CMP) ? 0 : EIO;
+out:
+		cam_periph_lock(periph);
 		xpt_release_ccb(ccb);
+		cam_periph_unlock(periph);
 		return (error);
 	}
 	default:
