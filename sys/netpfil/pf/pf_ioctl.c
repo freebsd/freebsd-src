@@ -1556,6 +1556,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = EINVAL;
 			break;
 		}
+		if (pr->rule.src.addr.p.dyn != NULL ||
+		    pr->rule.dst.addr.p.dyn != NULL) {
+			error = EINVAL;
+			break;
+		}
 #ifndef INET
 		if (pr->rule.af == AF_INET) {
 			error = EAFNOSUPPORT;
