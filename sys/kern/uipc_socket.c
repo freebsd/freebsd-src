@@ -1691,7 +1691,7 @@ restart:
 				if (tls != NULL) {
 					top = m_uiotombuf(uio, M_WAITOK, space,
 					    tls->params.max_frame_len,
-					    M_NOMAP |
+					    M_EXTPG |
 					    ((flags & MSG_EOR) ? M_EOR : 0));
 					if (top != NULL) {
 						ktls_frame(top, tls,
@@ -2159,7 +2159,7 @@ dontblock:
 			SBLASTRECORDCHK(&so->so_rcv);
 			SBLASTMBUFCHK(&so->so_rcv);
 			SOCKBUF_UNLOCK(&so->so_rcv);
-			if ((m->m_flags & M_NOMAP) != 0)
+			if ((m->m_flags & M_EXTPG) != 0)
 				error = m_unmappedtouio(m, moff, uio, (int)len);
 			else
 				error = uiomove(mtod(m, char *) + moff,

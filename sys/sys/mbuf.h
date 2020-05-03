@@ -450,7 +450,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 #define	M_MCAST		0x00000020 /* send/received as link-level multicast */
 #define	M_PROMISC	0x00000040 /* packet was not for us */
 #define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
-#define	M_NOMAP		0x00000100 /* mbuf data is unmapped */
+#define	M_EXTPG		0x00000100 /* has array of unmapped pages and TLS */
 #define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 #define	M_TSTMP		0x00000400 /* rcv_tstmp field is valid */
 #define	M_TSTMP_HPREC	0x00000800 /* rcv_tstmp is high-prec, typically
@@ -491,7 +491,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
  */
 #define	M_FLAG_BITS \
     "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY\5M_BCAST\6M_MCAST" \
-    "\7M_PROMISC\10M_VLANTAG\11M_NOMAP\12M_NOFREE\13M_TSTMP\14M_TSTMP_HPREC\15M_TSTMP_LRO"
+    "\7M_PROMISC\10M_VLANTAG\11M_EXTPG\12M_NOFREE\13M_TSTMP\14M_TSTMP_HPREC\15M_TSTMP_LRO"
 #define	M_FLAG_PROTOBITS \
     "\16M_PROTO1\17M_PROTO2\20M_PROTO3\21M_PROTO4" \
     "\22M_PROTO5\23M_PROTO6\24M_PROTO7\25M_PROTO8\26M_PROTO9" \
@@ -1038,7 +1038,7 @@ m_extrefcnt(struct mbuf *m)
  * be both the local data payload, or an external buffer area, depending on
  * whether M_EXT is set).
  */
-#define	M_WRITABLE(m)	(((m)->m_flags & (M_RDONLY | M_NOMAP)) == 0 &&	\
+#define	M_WRITABLE(m)	(((m)->m_flags & (M_RDONLY | M_EXTPG)) == 0 &&	\
 			 (!(((m)->m_flags & M_EXT)) ||			\
 			 (m_extrefcnt(m) == 1)))
 
@@ -1061,7 +1061,7 @@ m_extrefcnt(struct mbuf *m)
  * handling external storage, packet-header mbufs, and regular data mbufs.
  */
 #define	M_START(m)							\
-	(((m)->m_flags & M_NOMAP) ? NULL :				\
+	(((m)->m_flags & M_EXTPG) ? NULL :				\
 	 ((m)->m_flags & M_EXT) ? (m)->m_ext.ext_buf :			\
 	 ((m)->m_flags & M_PKTHDR) ? &(m)->m_pktdat[0] :		\
 	 &(m)->m_dat[0])
@@ -1559,7 +1559,7 @@ static inline bool
 mbuf_has_tls_session(struct mbuf *m)
 {
 
-	if (m->m_flags & M_NOMAP) {
+	if (m->m_flags & M_EXTPG) {
 		MBUF_EXT_PGS_ASSERT(m);
 		if (m->m_epg_tls != NULL) {
 			return (true);

@@ -124,8 +124,8 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 #ifdef KERN_TLS
 		/* Try to coalesce adjacent ktls mbuf hdr/trailers. */
 		if ((n != NULL) && (n != end) && (m->m_flags & M_EOR) == 0 &&
-		    (m->m_flags & M_NOMAP) &&
-		    (n->m_flags & M_NOMAP) &&
+		    (m->m_flags & M_EXTPG) &&
+		    (n->m_flags & M_EXTPG) &&
 		    !mbuf_has_tls_session(m) &&
 		    !mbuf_has_tls_session(n)) {
 			int hdr_len, trail_len;
@@ -146,7 +146,7 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 #endif
 
 		/* Compress small unmapped mbufs into plain mbufs. */
-		if ((m->m_flags & M_NOMAP) && m->m_len <= MLEN &&
+		if ((m->m_flags & M_EXTPG) && m->m_len <= MLEN &&
 		    !mbuf_has_tls_session(m)) {
 			MPASS(m->m_flags & M_EXT);
 			ext_size = m->m_ext.ext_size;
@@ -158,7 +158,7 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 
 		while ((n != NULL) && (n != end) && (m->m_flags & M_EOR) == 0 &&
 		    M_WRITABLE(m) &&
-		    (m->m_flags & M_NOMAP) == 0 &&
+		    (m->m_flags & M_EXTPG) == 0 &&
 		    !mbuf_has_tls_session(n) &&
 		    !mbuf_has_tls_session(m) &&
 		    n->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
@@ -1172,7 +1172,7 @@ sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 		    M_WRITABLE(n) &&
 		    ((sb->sb_flags & SB_NOCOALESCE) == 0) &&
 		    !(m->m_flags & M_NOTREADY) &&
-		    !(n->m_flags & (M_NOTREADY | M_NOMAP)) &&
+		    !(n->m_flags & (M_NOTREADY | M_EXTPG)) &&
 		    !mbuf_has_tls_session(m) &&
 		    !mbuf_has_tls_session(n) &&
 		    m->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
@@ -1189,7 +1189,7 @@ sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 			m = m_free(m);
 			continue;
 		}
-		if (m->m_len <= MLEN && (m->m_flags & M_NOMAP) &&
+		if (m->m_len <= MLEN && (m->m_flags & M_EXTPG) &&
 		    (m->m_flags & M_NOTREADY) == 0 &&
 		    !mbuf_has_tls_session(m))
 			(void)mb_unmapped_compress(m);

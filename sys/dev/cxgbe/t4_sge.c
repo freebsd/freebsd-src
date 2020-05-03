@@ -2497,7 +2497,7 @@ count_mbuf_nsegs(struct mbuf *m, int skip, uint8_t *cflags)
 			skip -= len;
 			continue;
 		}
-		if ((m->m_flags & M_NOMAP) != 0) {
+		if ((m->m_flags & M_EXTPG) != 0) {
 			*cflags |= MC_NOMAP;
 			nsegs += count_mbuf_ext_pgs(m, skip, &nextaddr);
 			skip = 0;
@@ -5836,7 +5836,7 @@ write_ethofld_wr(struct cxgbe_rate_tag *cst, struct fw_eth_tx_eo_wr *wr,
 				immhdrs -= m0->m_len;
 				continue;
 			}
-			if (m0->m_flags & M_NOMAP)
+			if (m0->m_flags & M_EXTPG)
 				sglist_append_mbuf_epg(&sg, m0,
 				    mtod(m0, vm_offset_t), m0->m_len);
                         else

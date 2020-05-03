@@ -1208,7 +1208,7 @@ t6_ktls_parse_pkt(struct mbuf *m, int *nsegsp, int *len16p)
 
 	/* Assume all headers are in 'm' for now. */
 	MPASS(m->m_next != NULL);
-	MPASS(m->m_next->m_flags & M_NOMAP);
+	MPASS(m->m_next->m_flags & M_EXTPG);
 
 	tot_len = 0;
 
@@ -1218,7 +1218,7 @@ t6_ktls_parse_pkt(struct mbuf *m, int *nsegsp, int *len16p)
 	 */
 	*nsegsp = 0;
 	for (m_tls = m->m_next; m_tls != NULL; m_tls = m_tls->m_next) {
-		MPASS(m_tls->m_flags & M_NOMAP);
+		MPASS(m_tls->m_flags & M_EXTPG);
 
 		wr_len = ktls_wr_len(tlsp, m, m_tls, &nsegs);
 #ifdef VERBOSE_TRACES
@@ -2265,7 +2265,7 @@ t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m, u_int nsegs,
 	 * for that record.
 	 */
 	for (m_tls = m->m_next; m_tls != NULL; m_tls = m_tls->m_next) {
-		MPASS(m_tls->m_flags & M_NOMAP);
+		MPASS(m_tls->m_flags & M_EXTPG);
 
 		/*
 		 * Determine the initial TCP sequence number for this

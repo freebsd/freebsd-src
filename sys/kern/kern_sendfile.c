@@ -845,7 +845,7 @@ retry_space:
 #ifdef KERN_TLS
 			if (tls != NULL)
 				mh = m_uiotombuf(hdr_uio, M_WAITOK, space,
-				    tls->params.max_frame_len, M_NOMAP);
+				    tls->params.max_frame_len, M_EXTPG);
 			else
 #endif
 				mh = m_uiotombuf(hdr_uio, M_WAITOK,

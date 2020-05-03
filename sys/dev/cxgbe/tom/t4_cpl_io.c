@@ -610,7 +610,7 @@ write_tx_sgl(void *dst, struct mbuf *start, struct mbuf *stop, int nsegs, int n)
 
 	i = -1;
 	for (m = start; m != stop; m = m->m_next) {
-		if (m->m_flags & M_NOMAP)
+		if (m->m_flags & M_EXTPG)
 			rc = sglist_append_mbuf_epg(&sg, m,
 			    mtod(m, vm_offset_t), m->m_len);
 		else
@@ -731,7 +731,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		for (m = sndptr; m != NULL; m = m->m_next) {
 			int n;
 
-			if (m->m_flags & M_NOMAP) {
+			if (m->m_flags & M_EXTPG) {
 #ifdef KERN_TLS
 				if (m->m_epg_tls != NULL) {
 					toep->flags |= TPF_KTLS;
@@ -772,7 +772,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 				break;
 			}
 
-			if (m->m_flags & M_NOMAP)
+			if (m->m_flags & M_EXTPG)
 				nomap_mbuf_seen = true;
 			if (max_nsegs_1mbuf < n)
 				max_nsegs_1mbuf = n;

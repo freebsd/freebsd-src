@@ -1911,7 +1911,7 @@ tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 	top = NULL;
 	pkthdrlen = NULL;
 #ifdef KERN_TLS
-	if (hw_tls && (m->m_flags & M_NOMAP))
+	if (hw_tls && (m->m_flags & M_EXTPG))
 		tls = m->m_epg_tls;
 	else
 		tls = NULL;
@@ -1928,7 +1928,7 @@ tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 		}
 #ifdef KERN_TLS
 		if (hw_tls) {
-			if (m->m_flags & M_NOMAP)
+			if (m->m_flags & M_EXTPG)
 				ntls = m->m_epg_tls;
 			else
 				ntls = NULL;
@@ -1961,14 +1961,14 @@ tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 		mlen = min(len, m->m_len - off);
 		if (seglimit) {
 			/*
-			 * For M_NOMAP mbufs, add 3 segments
+			 * For M_EXTPG mbufs, add 3 segments
 			 * + 1 in case we are crossing page boundaries
 			 * + 2 in case the TLS hdr/trailer are used
 			 * It is cheaper to just add the segments
 			 * than it is to take the cache miss to look
 			 * at the mbuf ext_pgs state in detail.
 			 */
-			if (m->m_flags & M_NOMAP) {
+			if (m->m_flags & M_EXTPG) {
 				fragsize = min(segsize, PAGE_SIZE);
 				frags = 3;
 			} else {
