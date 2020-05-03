@@ -66,6 +66,13 @@ __FBSDID("$FreeBSD$");
 
 static int ig4iic_pci_detach(device_t dev);
 
+#define PCI_CHIP_BAYTRAIL_I2C_1 	0x0f418086
+#define PCI_CHIP_BAYTRAIL_I2C_2 	0x0f428086
+#define PCI_CHIP_BAYTRAIL_I2C_3 	0x0f438086
+#define PCI_CHIP_BAYTRAIL_I2C_4 	0x0f448086
+#define PCI_CHIP_BAYTRAIL_I2C_5 	0x0f458086
+#define PCI_CHIP_BAYTRAIL_I2C_6 	0x0f468086
+#define PCI_CHIP_BAYTRAIL_I2C_7 	0x0f478086
 #define PCI_CHIP_LYNXPT_LP_I2C_1	0x9c618086
 #define PCI_CHIP_LYNXPT_LP_I2C_2	0x9c628086
 #define PCI_CHIP_BRASWELL_I2C_1 	0x22c18086
@@ -108,6 +115,13 @@ struct ig4iic_pci_device {
 };
 
 static struct ig4iic_pci_device ig4iic_pci_devices[] = {
+	{ PCI_CHIP_BAYTRAIL_I2C_1, "Intel BayTrail Serial I/O I2C Port 1", IG4_ATOM},
+	{ PCI_CHIP_BAYTRAIL_I2C_2, "Intel BayTrail Serial I/O I2C Port 2", IG4_ATOM},
+	{ PCI_CHIP_BAYTRAIL_I2C_3, "Intel BayTrail Serial I/O I2C Port 3", IG4_ATOM},
+	{ PCI_CHIP_BAYTRAIL_I2C_4, "Intel BayTrail Serial I/O I2C Port 4", IG4_ATOM},
+	{ PCI_CHIP_BAYTRAIL_I2C_5, "Intel BayTrail Serial I/O I2C Port 5", IG4_ATOM},
+	{ PCI_CHIP_BAYTRAIL_I2C_6, "Intel BayTrail Serial I/O I2C Port 6", IG4_ATOM},
+	{ PCI_CHIP_BAYTRAIL_I2C_7, "Intel BayTrail Serial I/O I2C Port 7", IG4_ATOM},
 	{ PCI_CHIP_LYNXPT_LP_I2C_1, "Intel Lynx Point-LP I2C Controller-1", IG4_HASWELL},
 	{ PCI_CHIP_LYNXPT_LP_I2C_2, "Intel Lynx Point-LP I2C Controller-2", IG4_HASWELL},
 	{ PCI_CHIP_BRASWELL_I2C_1, "Intel Braswell Serial I/O I2C Port 1", IG4_ATOM},
