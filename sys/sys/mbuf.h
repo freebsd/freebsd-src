@@ -608,11 +608,6 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
     "\24EXT_FLAG_VENDOR4\25EXT_FLAG_EXP1\26EXT_FLAG_EXP2\27EXT_FLAG_EXP3" \
     "\30EXT_FLAG_EXP4"
 
-#define MBUF_EXT_PGS_ASSERT(m)						\
-	KASSERT((((m)->m_flags & M_EXT) != 0) &&			\
-	    ((m)->m_ext.ext_type == EXT_PGS),				\
-	    ("%s: m %p !M_EXT or !EXT_PGS", __func__, m))
-
 /*
  * Flags indicating checksum, segmentation and other offload work to be
  * done, or already done, by hardware or lower layers.  It is split into
@@ -1046,6 +1041,11 @@ m_extrefcnt(struct mbuf *m)
 #define	M_ASSERTPKTHDR(m)						\
 	KASSERT((m) != NULL && (m)->m_flags & M_PKTHDR,			\
 	    ("%s: no mbuf packet header!", __func__))
+
+/* Check if mbuf is multipage. */
+#define M_ASSERTEXTPG(m)						\
+	KASSERT(((m)->m_flags & (M_EXT|M_EXTPG)) == (M_EXT|M_EXTPG),	\
+	    ("%s: m %p is not multipage!", __func__, m))
 
 /*
  * Ensure that the supplied mbuf is a valid, non-free mbuf.
@@ -1560,7 +1560,6 @@ mbuf_has_tls_session(struct mbuf *m)
 {
 
 	if (m->m_flags & M_EXTPG) {
-		MBUF_EXT_PGS_ASSERT(m);
 		if (m->m_epg_tls != NULL) {
 			return (true);
 		}

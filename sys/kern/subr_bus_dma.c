@@ -121,7 +121,7 @@ _bus_dmamap_load_mbuf_epg(bus_dma_tag_t dmat, bus_dmamap_t map,
 {
 	int error, i, off, len, pglen, pgoff, seglen, segoff;
 
-	MBUF_EXT_PGS_ASSERT(m);
+	M_ASSERTEXTPG(m);
 
 	len = m->m_len;
 	error = 0;

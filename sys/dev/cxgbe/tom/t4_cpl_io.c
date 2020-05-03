@@ -1927,7 +1927,7 @@ aiotx_free_pgs(struct mbuf *m)
 	struct kaiocb *job;
 	vm_page_t pg;
 
-	MBUF_EXT_PGS_ASSERT(m);
+	M_ASSERTEXTPG(m);
 	job = m->m_ext.ext_arg1;
 #ifdef VERBOSE_TRACES
 	CTR3(KTR_CXGBE, "%s: completed %d bytes for tid %d", __func__,

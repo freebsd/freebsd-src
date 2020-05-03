@@ -388,7 +388,7 @@ sglist_append_mbuf_epg(struct sglist *sg, struct mbuf *m, size_t off,
 	vm_paddr_t paddr;
 	int error, i, pglen, pgoff;
 
-	MBUF_EXT_PGS_ASSERT(m);
+	M_ASSERTEXTPG(m);
 
 	error = 0;
 	if (m->m_epg_hdrlen != 0) {

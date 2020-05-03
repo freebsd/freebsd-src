@@ -1628,7 +1628,7 @@ mb_free_mext_pgs(struct mbuf *m)
 {
 	vm_page_t pg;
 
-	MBUF_EXT_PGS_ASSERT(m);
+	M_ASSERTEXTPG(m);
 	for (int i = 0; i < m->m_epg_npgs; i++) {
 		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[i]);
 		vm_page_unwire_noq(pg);
@@ -1775,7 +1775,7 @@ m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
 	vm_page_t pg;
 	int error, i, off, pglen, pgoff, seglen, segoff;
 
-	MBUF_EXT_PGS_ASSERT(m);
+	M_ASSERTEXTPG(m);
 	error = 0;
 
 	/* Skip over any data removed from the front. */

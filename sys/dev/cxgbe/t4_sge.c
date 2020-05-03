@@ -2417,7 +2417,7 @@ count_mbuf_ext_pgs(struct mbuf *m, int skip, vm_paddr_t *nextaddr)
 	int i, len, off, pglen, pgoff, seglen, segoff;
 	int nsegs = 0;
 
-	MBUF_EXT_PGS_ASSERT(m);
+	M_ASSERTEXTPG(m);
 	off = mtod(m, vm_offset_t);
 	len = m->m_len;
 	off += skip;
