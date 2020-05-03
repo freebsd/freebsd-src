@@ -272,7 +272,9 @@ In C11, a release fence by one thread synchronizes with an acquire fence by
 another thread when an atomic load that is prior to the acquire fence (by
 program order) reads the value written by an atomic store that is subsequent
 to the release fence.
-In constrast, in FreeBSD, because of the atomicity of ordinary, naturally
+In constrast, in
+.Fx ,
+because of the atomicity of ordinary, naturally
 aligned loads and stores, fences can also be synchronized by ordinary loads
 and stores.
 This simplifies the implementation and use of some synchronization
