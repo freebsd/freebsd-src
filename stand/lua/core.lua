@@ -103,6 +103,7 @@ core.KEY_DELETE		= 127
 -- other contexts (outside of Lua) may mean 'octal'
 core.KEYSTR_ESCAPE	= "\027"
 core.KEYSTR_CSI		= core.KEYSTR_ESCAPE .. "["
+core.KEYSTR_RESET	= core.KEYSTR_ESCAPE .. "c"
 
 core.MENU_RETURN	= "return"
 core.MENU_ENTRY		= "entry"

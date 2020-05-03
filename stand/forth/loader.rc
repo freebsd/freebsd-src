@@ -12,6 +12,8 @@ try-include /boot/loader.rc.local
 \ NOTE: Change to `initialize' if you enable the below boot menu
 start
 
+maybe-resetcons
+
 \ Tests for password -- executes autoboot first if a password was defined
 check-password
 
