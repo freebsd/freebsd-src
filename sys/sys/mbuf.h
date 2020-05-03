@@ -563,7 +563,6 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
 #define	EXT_MBUF	7	/* external mbuf reference */
 #define	EXT_RXRING	8	/* data in NIC receive ring */
-#define	EXT_PGS		9	/* array of unmapped pages */
 
 #define	EXT_VENDOR1	224	/* for vendor-internal use */
 #define	EXT_VENDOR2	225	/* for vendor-internal use */
@@ -739,6 +738,7 @@ extern uma_zone_t	zone_extpgs;
 
 void		 mb_dupcl(struct mbuf *, struct mbuf *);
 void		 mb_free_ext(struct mbuf *);
+void		 mb_free_extpg(struct mbuf *);
 void		 mb_free_mext_pgs(struct mbuf *);
 struct mbuf	*mb_alloc_ext_pgs(int, m_ext_free_t);
 int		 mb_unmapped_compress(struct mbuf *m);
@@ -1044,7 +1044,7 @@ m_extrefcnt(struct mbuf *m)
 
 /* Check if mbuf is multipage. */
 #define M_ASSERTEXTPG(m)						\
-	KASSERT(((m)->m_flags & (M_EXT|M_EXTPG)) == (M_EXT|M_EXTPG),	\
+	KASSERT(((m)->m_flags & (M_EXTPG|M_PKTHDR)) == M_EXTPG,		\
 	    ("%s: m %p is not multipage!", __func__, m))
 
 /*
@@ -1387,7 +1387,9 @@ m_free(struct mbuf *m)
 		m_tag_delete_chain(m, NULL);
 	if (m->m_flags & M_PKTHDR && m->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		m_snd_tag_rele(m->m_pkthdr.snd_tag);
-	if (m->m_flags & M_EXT)
+	if (m->m_flags & M_EXTPG)
+		mb_free_extpg(m);
+	else if (m->m_flags & M_EXT)
 		mb_free_ext(m);
 	else if ((m->m_flags & M_NOFREE) == 0)
 		uma_zfree(zone_mbuf, m);
