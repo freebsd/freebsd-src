@@ -12159,6 +12159,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 			recwin = min(max(sbspace(&so->so_rcv), 0),
 			    TCP_MAXWIN << tp->rcv_scale);
 			if ((bbr_window_update_needed(tp, so, recwin, maxseg) == 0) &&
+			    ((tcp_outflags[tp->t_state] & TH_RST) == 0) &&
 			    ((sbavail(sb) + ((tcp_outflags[tp->t_state] & TH_FIN) ? 1 : 0)) <=
 			    (tp->snd_max - tp->snd_una))) {
 				/*
@@ -12916,7 +12917,11 @@ recheck_resend:
 	if (tp->t_flags & TF_ACKNOW) {
 		goto send;
 	}
-	if (((flags & TH_SYN) && (tp->t_flags & TF_NEEDSYN) == 0)) {
+	if (flags & TH_RST) {
+		/* Always send a RST if one is due */
+		goto send;
+	}
+	if ((flags & TH_SYN) && (tp->t_flags & TF_NEEDSYN) == 0) {
 		goto send;
 	}
 	/*
@@ -14029,7 +14034,11 @@ out:
 		}
 		if (flags & (TH_SYN | TH_FIN) && (rsm == NULL)) {
 			if (flags & TH_SYN) {
-				tp->snd_max++;
+				/*
+				 * Smack the snd_max to iss + 1
+				 * if its a FO we will add len below.
+				 */
+				tp->snd_max = tp->iss + 1;
 			}
 			if ((flags & TH_FIN) && ((tp->t_flags & TF_SENTFIN) == 0)) {
 				tp->snd_max++;
