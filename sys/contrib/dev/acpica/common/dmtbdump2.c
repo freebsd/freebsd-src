@@ -528,8 +528,10 @@ AcpiDmDumpIvrs (
                 DeviceEntry = ACPI_ADD_PTR (ACPI_IVRS_DE_HEADER, Subtable,
                     sizeof (ACPI_IVRS_HARDWARE1));
             }
-            else if (Subtable->Type == ACPI_IVRS_TYPE_HARDWARE2)
+            else
             {
+                /* ACPI_IVRS_TYPE_HARDWARE2 subtable type */
+
                 EntryOffset = Offset + sizeof (ACPI_IVRS_HARDWARE2);
                 DeviceEntry = ACPI_ADD_PTR (ACPI_IVRS_DE_HEADER, Subtable,
                     sizeof (ACPI_IVRS_HARDWARE2));

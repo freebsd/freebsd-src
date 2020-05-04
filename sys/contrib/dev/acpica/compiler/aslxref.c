@@ -199,6 +199,16 @@ XfCheckFieldRange (
     UINT32                  FieldBitLength,
     UINT32                  AccessBitWidth);
 
+static BOOLEAN
+XfFindCondRefOfName (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_PARSE_OBJECT       *Op);
+
+static BOOLEAN
+XfRefIsGuardedByIfCondRefOf (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_PARSE_OBJECT       *Op);
+
 
 /*******************************************************************************
  *
@@ -582,17 +592,6 @@ XfNamespaceLocateBegin (
     }
 
     /*
-     * One special case: CondRefOf operator - we don't care if the name exists
-     * or not at this point, just ignore it, the point of the operator is to
-     * determine if the name exists at runtime.
-     */
-    if ((Op->Asl.Parent) &&
-        (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CONDREFOF))
-    {
-        return_ACPI_STATUS (AE_OK);
-    }
-
-    /*
      * We must enable the "search-to-root" for single NameSegs, but
      * we have to be very careful about opening up scopes
      */
@@ -600,7 +599,8 @@ XfNamespaceLocateBegin (
     if ((Op->Asl.ParseOpcode == PARSEOP_NAMESTRING) ||
         (Op->Asl.ParseOpcode == PARSEOP_NAMESEG)    ||
         (Op->Asl.ParseOpcode == PARSEOP_METHODCALL) ||
-        (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL))
+        (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL)   ||
+        (Op->Asl.ParseOpcode == PARSEOP_CONDREFOF))
     {
         /*
          * These are name references, do not push the scope stack
@@ -665,7 +665,22 @@ XfNamespaceLocateBegin (
              * We didn't find the name reference by path -- we can qualify this
              * a little better before we print an error message
              */
-            if (strlen (Path) == ACPI_NAMESEG_SIZE)
+
+            if ((Op->Asl.Parent) &&
+                (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CONDREFOF))
+            {
+                /*
+                 * One special case: CondRefOf operator - if the name doesn't
+                 * exist at this point, it means that there's no actual or
+                 * external declaration. If the name is not found, just ignore
+                 * it, the point of the operator is to determine if the name
+                 * exists at runtime. We wanted to see if this named object
+                 * exists to facilitate analysis to allow protected usage of
+                 * undeclared externals.
+                 */
+                return_ACPI_STATUS (AE_OK);
+            }
+            else if (strlen (Path) == ACPI_NAMESEG_SIZE)
             {
                 /* A simple, one-segment ACPI name */
 
@@ -1190,6 +1205,7 @@ XfNamespaceLocateBegin (
 
     /*
      * 5) Check for external resolution
+     *
      * By this point, everything should be loaded in the namespace. If a
      * namespace lookup results in a namespace node that is an external, it
      * means that this named object was not defined in the input ASL. This
@@ -1197,11 +1213,38 @@ XfNamespaceLocateBegin (
      * use the external keyword to suppress compiler errors about undefined
      * objects. Note: this only applies when compiling multiple definition
      * blocks.
+     *
+     * Do not check for external resolution in the following cases:
+     *
+     * case 1) External (ABCD)
+     *
+     *         This declares ABCD as an external so there is no requirement for
+     *         ABCD to be loaded in the namespace when analyzing the actual
+     *         External() statement.
+     *
+     * case 2) CondRefOf (ABCD)
+     *
+     *         This operator will query the ACPI namespace on the existence of
+     *         ABCD. If ABCD does not exist, this operator will return a 0
+     *         without incurring AML runtime errors. Therefore, ABCD is allowed
+     *         to not exist when analyzing the CondRefOf operator.
+     *
+     * case 3) External (ABCD)
+     *         if (CondRefOf (ABCD))
+     *         {
+     *             Store (0, ABCD)
+     *         }
+     *
+     *         In this case, ABCD is accessed only if it exists due to the if
+     *         statement so there is no need to flag the ABCD nested in the
+     *         store operator.
      */
     if (AslGbl_ParseTreeRoot->Asl.Child && AslGbl_ParseTreeRoot->Asl.Child->Asl.Next &&
-        (Op->Asl.ParseOpcode != PARSEOP_EXTERNAL &&
-        Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_EXTERNAL) &&
-        (Node->Flags & ANOBJ_IS_EXTERNAL))
+        (Node->Flags & ANOBJ_IS_EXTERNAL) &&
+        Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_EXTERNAL &&
+        Op->Asl.ParseOpcode != PARSEOP_EXTERNAL &&
+        Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_CONDREFOF &&
+        !XfRefIsGuardedByIfCondRefOf (Node, Op))
     {
         AslError (ASL_ERROR, ASL_MSG_UNDEFINED_EXTERNAL, Op, NULL);
     }
@@ -1216,6 +1259,96 @@ XfNamespaceLocateBegin (
 
     Op->Asl.Node = Node;
     return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    XfRefIsGuardedByIfCondRefOf
+ *
+ * PARAMETERS:  Node        - Named object reference node
+ *              Op          - Named object reference parse node
+ *
+ * RETURN:      BOOLEAN
+ *
+ * DESCRIPTION: returns true if Op checked inside if (CondRefOf (...))
+ *              refers to Node.
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+XfRefIsGuardedByIfCondRefOf (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_PARSE_OBJECT       *Op)
+{
+    ACPI_PARSE_OBJECT       *Parent = Op->Asl.Parent;
+
+
+    while (Parent)
+    {
+        if (Parent->Asl.ParseOpcode == PARSEOP_IF &&
+            XfFindCondRefOfName (Node, Parent->Asl.Child))
+        {
+            return (TRUE);
+        }
+
+        Parent = Parent->Asl.Parent;
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    XfRefIsGuardedByIfCondRefOf
+ *
+ * PARAMETERS:  Node        - Named object reference node
+ *              Op          - Named object reference parse node
+ *
+ * RETURN:      BOOLEAN
+ *
+ * DESCRIPTION: returns true if Op checked inside if (CondRefOf (...))
+ *              refers to Node.
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+XfFindCondRefOfName (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_PARSE_OBJECT       *Op)
+{
+    BOOLEAN                 CondRefOfFound = FALSE;
+
+
+    if (!Op)
+    {
+        return (FALSE);
+    }
+
+    switch (Op->Asl.ParseOpcode)
+    {
+    case PARSEOP_CONDREFOF:
+
+        return (Op->Asl.Child->Common.Node == Node);
+        break;
+
+    case PARSEOP_LAND:
+
+        CondRefOfFound = XfFindCondRefOfName (Node, Op->Asl.Child);
+        if (CondRefOfFound)
+        {
+            return (TRUE);
+        }
+
+        return (XfFindCondRefOfName (Node, Op->Asl.Child->Asl.Next));
+        break;
+
+    default:
+
+        return (FALSE);
+        break;
+    }
 }
 
 

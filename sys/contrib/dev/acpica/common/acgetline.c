@@ -189,8 +189,6 @@ AcpiAcClearLine (
 #define _ASCII_LEFT_ARROW           'D'
 #define _ASCII_NEWLINE              '\n'
 
-extern UINT32               AcpiGbl_NextCmdNum;
-
 /* Erase a single character on the input command line */
 
 #define ACPI_CLEAR_CHAR() \

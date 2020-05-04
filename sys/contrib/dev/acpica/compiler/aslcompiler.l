@@ -819,7 +819,7 @@ NamePathTail                [.]{NameSeg}
                                 }
 
                                 /*
-                                 * The eror code is contained inside the
+                                 * The error code is contained inside the
                                  * {ErrorCode} pattern. Extract it and log it
                                  * as the expected error code.
                                  */
