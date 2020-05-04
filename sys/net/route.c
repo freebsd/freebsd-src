@@ -162,14 +162,6 @@ static int del_route(struct rib_head *rnh, struct rt_addrinfo *info,
 static int change_route(struct rib_head *, struct rt_addrinfo *,
     struct rtentry **);
 
-struct if_mtuinfo
-{
-	struct ifnet	*ifp;
-	int		mtu;
-};
-
-static int	if_updatemtu_cb(struct radix_node *, void *);
-
 /*
  * handler for net.my_fibnum
  */
@@ -559,12 +551,6 @@ rtfree(struct rtentry *rt)
 			goto done;
 		}
 #endif
-		/*
-		 * release references on items we hold them on..
-		 * e.g other routes and ifaddrs.
-		 */
-		if (rt->rt_ifa)
-			ifa_free(rt->rt_ifa);
 		/*
 		 * The key is separatly alloc'd so free it (see rt_setgate()).
 		 * This also frees the gateway, as they are always malloc'd
@@ -1346,50 +1332,12 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	return (error);
 }
 
-static int
-if_updatemtu_cb(struct radix_node *rn, void *arg)
-{
-	struct rtentry *rt;
-	struct if_mtuinfo *ifmtu;
-
-	rt = (struct rtentry *)rn;
-	ifmtu = (struct if_mtuinfo *)arg;
-
-	if (rt->rt_ifp != ifmtu->ifp)
-		return (0);
-
-	if (rt->rt_mtu >= ifmtu->mtu) {
-		/* We have to decrease mtu regardless of flags */
-		rt->rt_mtu = ifmtu->mtu;
-		return (0);
-	}
-
-	/*
-	 * New MTU is bigger. Check if are allowed to alter it
-	 */
-	if ((rt->rt_flags & (RTF_FIXEDMTU | RTF_GATEWAY | RTF_HOST)) != 0) {
-
-		/*
-		 * Skip routes with user-supplied MTU and
-		 * non-interface routes
-		 */
-		return (0);
-	}
-
-	/* We are safe to update route MTU */
-	rt->rt_mtu = ifmtu->mtu;
-
-	return (0);
-}
-
 void
 rt_updatemtu(struct ifnet *ifp)
 {
-	struct if_mtuinfo ifmtu;
 	struct rib_head *rnh;
+	int mtu;
 	int i, j;
-
-	ifmtu.ifp = ifp;
 
 	/*
 	 * Try to update rt_mtu for all routes using this interface
@@ -1397,15 +1345,12 @@ rt_updatemtu(struct ifnet *ifp)
 	 * routing tables in all fibs/domains.
 	 */
 	for (i = 1; i <= AF_MAX; i++) {
-		ifmtu.mtu = if_getmtu_family(ifp, i);
+		mtu = if_getmtu_family(ifp, i);
 		for (j = 0; j < rt_numfibs; j++) {
 			rnh = rt_tables_get_rnh(j, i);
 			if (rnh == NULL)
 				continue;
-			RIB_WLOCK(rnh);
-			rnh->rnh_walktree(&rnh->head, if_updatemtu_cb, &ifmtu);
-			RIB_WUNLOCK(rnh);
-			nhops_update_ifmtu(rnh, ifp, ifmtu.mtu);
+			nhops_update_ifmtu(rnh, ifp, mtu);
 		}
 	}
 }
@@ -1550,7 +1495,6 @@ int
 rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
-	struct epoch_tracker et;
 	const struct sockaddr *dst;
 	struct rib_head *rnh;
 	int error;
@@ -1599,11 +1543,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		error = add_route(rnh, info, ret_nrt);
 		break;
 	case RTM_CHANGE:
-		NET_EPOCH_ENTER(et);
-		RIB_WLOCK(rnh);
 		error = change_route(rnh, info, ret_nrt);
-		RIB_WUNLOCK(rnh);
-		NET_EPOCH_EXIT(et);
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -1689,8 +1629,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	 * examine the ifa and  ifa->ifa_ifp if it so desires.
 	 */
 	ifa = info->rti_ifa;
-	rt->rt_ifa = ifa;
-	rt->rt_ifp = ifa->ifa_ifp;
 	rt->rt_weight = 1;
 
 	rt_setmetrics(info, rt);
@@ -1703,7 +1641,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		rt_mpath_conflict(rnh, rt, netmask)) {
 		RIB_WUNLOCK(rnh);
 
-		ifa_free(rt->rt_ifa);
 		R_Free(rt_key(rt));
 		nhop_free(nh);
 		uma_zfree(V_rtzone, rt);
@@ -1711,7 +1648,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	}
 #endif
 
-	/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 	rn = rnh->rnh_addaddr(ndst, netmask, &rnh->head, rt->rt_nodes);
 
 	if (rn != NULL && rt->rt_expire > 0)
@@ -1745,7 +1681,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	 * then un-make it (this should be a function)
 	 */
 	if (rn == NULL) {
-		ifa_free(rt->rt_ifa);
 		R_Free(rt_key(rt));
 		nhop_free(nh);
 		uma_zfree(V_rtzone, rt);
@@ -1820,23 +1755,23 @@ del_route(struct rib_head *rnh, struct rt_addrinfo *info,
 }
 
 static int
-change_route(struct rib_head *rnh, struct rt_addrinfo *info,
+change_route_one(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rtentry **ret_nrt)
 {
+	RIB_RLOCK_TRACKER;
 	struct rtentry *rt = NULL;
 	int error = 0;
 	int free_ifa = 0;
-	int family, mtu;
-	struct nhop_object *nh;
-	struct if_mtuinfo ifmtu;
+	struct nhop_object *nh, *nh_orig;
 
-	RIB_WLOCK_ASSERT(rnh);
-
+	RIB_RLOCK(rnh);
 	rt = (struct rtentry *)rnh->rnh_lookup(info->rti_info[RTAX_DST],
 	    info->rti_info[RTAX_NETMASK], &rnh->head);
 
-	if (rt == NULL)
+	if (rt == NULL) {
+		RIB_RUNLOCK(rnh);
 		return (ESRCH);
+	}
 
 #ifdef RADIX_MPATH
 	/*
@@ -1845,139 +1780,135 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	 */
 	if (rt_mpath_capable(rnh)) {
 		rt = rt_mpath_matchgate(rt, info->rti_info[RTAX_GATEWAY]);
-		if (rt == NULL)
+		if (rt == NULL) {
+			RIB_RUNLOCK(rnh);
 			return (ESRCH);
+		}
 	}
 #endif
+	nh_orig = rt->rt_nhop;
 
+	RIB_RUNLOCK(rnh);
+
+	rt = NULL;
 	nh = NULL;
-	RT_LOCK(rt);
-
-	rt_setmetrics(info, rt);
 
 	/*
 	 * New gateway could require new ifaddr, ifp;
 	 * flags may also be different; ifp may be specified
 	 * by ll sockaddr when protocol address is ambiguous
 	 */
-	if (((rt->rt_flags & RTF_GATEWAY) &&
+	if (((nh_orig->nh_flags & NHF_GATEWAY) &&
 	    info->rti_info[RTAX_GATEWAY] != NULL) ||
 	    info->rti_info[RTAX_IFP] != NULL ||
 	    (info->rti_info[RTAX_IFA] != NULL &&
-	     !sa_equal(info->rti_info[RTAX_IFA], rt->rt_nhop->nh_ifa->ifa_addr))) {
-		/*
-		 * XXX: Temporarily set RTF_RNH_LOCKED flag in the rti_flags
-		 *	to avoid rlock in the ifa_ifwithroute().
-		 */
-		info->rti_flags |= RTF_RNH_LOCKED;
+	     !sa_equal(info->rti_info[RTAX_IFA], nh_orig->nh_ifa->ifa_addr))) {
 		error = rt_getifa_fib(info, rnh->rib_fibnum);
-		info->rti_flags &= ~RTF_RNH_LOCKED;
 		if (info->rti_ifa != NULL)
 			free_ifa = 1;
 
-		if (error != 0)
-			goto bad;
-	}
+		if (error != 0) {
+			if (free_ifa) {
+				ifa_free(info->rti_ifa);
+				info->rti_ifa = NULL;
+			}
 
-	error = nhop_create_from_nhop(rnh, rt->rt_nhop, info, &nh);
-	if (error != 0)
-		goto bad;
-
-	/* Check if outgoing interface has changed */
-	if (info->rti_ifa != NULL && info->rti_ifa != rt->rt_ifa &&
-	    rt->rt_ifa != NULL) {
-		if (rt->rt_ifa->ifa_rtrequest != NULL)
-			rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, rt->rt_nhop,
-			info);
-		ifa_free(rt->rt_ifa);
-		rt->rt_ifa = NULL;
-	}
-	/* Update gateway address */
-	if (info->rti_info[RTAX_GATEWAY] != NULL) {
-		error = rt_setgate(rt, rt_key(rt), info->rti_info[RTAX_GATEWAY]);
-		if (error != 0)
-			goto bad;
-
-		rt->rt_flags &= ~RTF_GATEWAY;
-		rt->rt_flags |= (RTF_GATEWAY & info->rti_flags);
-	}
-
-	if (info->rti_ifa != NULL && info->rti_ifa != rt->rt_ifa) {
-		ifa_ref(info->rti_ifa);
-		rt->rt_ifa = info->rti_ifa;
-		rt->rt_ifp = info->rti_ifp;
-	}
-	/* Allow some flags to be toggled on change. */
-	rt->rt_flags &= ~RTF_FMASK;
-	rt->rt_flags |= info->rti_flags & RTF_FMASK;
-
-	if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest != NULL)
-	       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, nh, info);
-
-	/* Alter route MTU if necessary */
-	if (rt->rt_ifp != NULL) {
-		family = info->rti_info[RTAX_DST]->sa_family;
-		mtu = if_getmtu_family(rt->rt_ifp, family);
-		/* Set default MTU */
-		if (rt->rt_mtu == 0)
-			rt->rt_mtu = mtu;
-		if (rt->rt_mtu != mtu) {
-			/* Check if we really need to update */
-			ifmtu.ifp = rt->rt_ifp;
-			ifmtu.mtu = mtu;
-			if_updatemtu_cb(rt->rt_nodes, &ifmtu);
+			return (error);
 		}
 	}
 
-	/* Update nexthop */
-	nhop_free(rt->rt_nhop);
-	rt->rt_nhop = nh;
-	nh = NULL;
-
-	/*
-	 * This route change may have modified the route's gateway.  In that
-	 * case, any inpcbs that have cached this route need to invalidate their
-	 * llentry cache.
-	 */
-	rnh->rnh_gen++;
-
-	if (ret_nrt) {
-		*ret_nrt = rt;
-		RT_ADDREF(rt);
-	}
-bad:
-	RT_UNLOCK(rt);
-	if (nh != NULL)
-		nhop_free(nh);
-	if (free_ifa != 0) {
+	error = nhop_create_from_nhop(rnh, nh_orig, info, &nh);
+	if (free_ifa) {
 		ifa_free(info->rti_ifa);
 		info->rti_ifa = NULL;
 	}
+	if (error != 0)
+		return (error);
+
+	RIB_WLOCK(rnh);
+
+	/* Lookup rtentry once again and check if nexthop is still the same */
+	rt = (struct rtentry *)rnh->rnh_lookup(info->rti_info[RTAX_DST],
+	    info->rti_info[RTAX_NETMASK], &rnh->head);
+
+	if (rt == NULL) {
+		RIB_WUNLOCK(rnh);
+		nhop_free(nh);
+		return (ESRCH);
+	}
+
+	if (rt->rt_nhop != nh_orig) {
+		RIB_WUNLOCK(rnh);
+		nhop_free(nh);
+		return (EAGAIN);
+	}
+
+	/* Proceed with the update */
+	RT_LOCK(rt);
+
+	/* Provide notification to the protocols.*/
+	if ((nh_orig->nh_ifa != nh->nh_ifa) && nh_orig->nh_ifa->ifa_rtrequest)
+		nh_orig->nh_ifa->ifa_rtrequest(RTM_DELETE, rt, nh_orig, info);
+
+	rt->rt_nhop = nh;
+	rt_setmetrics(info, rt);
+
+	if ((nh_orig->nh_ifa != nh->nh_ifa) && nh_orig->nh_ifa->ifa_rtrequest)
+		nh_orig->nh_ifa->ifa_rtrequest(RTM_DELETE, rt, nh_orig, info);
+
+	if (ret_nrt != NULL) {
+		*ret_nrt = rt;
+		RT_ADDREF(rt);
+	}
+
+	RT_UNLOCK(rt);
+
+	/* Update generation id to reflect rtable change */
+	rnh->rnh_gen++;
+
+	RIB_WUNLOCK(rnh);
+
+	nhop_free(nh_orig);
+	
+	return (0);
+}
+
+static int
+change_route(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rtentry **ret_nrt)
+{
+	struct epoch_tracker et;
+	int error;
+
+	/* Check if updated gateway exists */
+	if ((info->rti_flags & RTF_GATEWAY) &&
+	    (info->rti_info[RTAX_GATEWAY] == NULL))
+		return (EINVAL);
+
+	NET_EPOCH_ENTER(et);
+
+	/*
+	 * route change is done in multiple steps, with dropping and
+	 * reacquiring lock. In the situations with multiple processes
+	 * changes the same route in can lead to the case when route
+	 * is changed between the steps. Address it by retrying the operation
+	 * multiple times before failing.
+	 */
+	for (int i = 0; i < RIB_MAX_RETRIES; i++) {
+		error = change_route_one(rnh, info, ret_nrt);
+		if (error != EAGAIN)
+			break;
+	}
+	NET_EPOCH_EXIT(et);
+
 	return (error);
 }
+
 
 static void
 rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt)
 {
 
-	if (info->rti_mflags & RTV_MTU) {
-		if (info->rti_rmx->rmx_mtu != 0) {
-
-			/*
-			 * MTU was explicitly provided by user.
-			 * Keep it.
-			 */
-			rt->rt_flags |= RTF_FIXEDMTU;
-		} else {
-
-			/*
-			 * User explicitly sets MTU to 0.
-			 * Assume rollback to default.
-			 */
-			rt->rt_flags &= ~RTF_FIXEDMTU;
-		}
-		rt->rt_mtu = info->rti_rmx->rmx_mtu;
-	}
 	if (info->rti_mflags & RTV_WEIGHT)
 		rt->rt_weight = info->rti_rmx->rmx_weight;
 	/* Kernel -> userland timebase conversion. */
@@ -1999,7 +1930,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	 * rt_gateway already points to the right place.
 	 * Otherwise, malloc a new block and update the 'dst' address.
 	 */
-	if (rt->rt_gateway == NULL || glen > SA_SIZE(rt->rt_gateway)) {
+	if (rt_key(rt) == NULL) {
 		caddr_t new;
 
 		R_Malloc(new, caddr_t, dlen + glen);
@@ -2015,13 +1946,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 		bcopy(dst, new, dlen);
 		R_Free(rt_key(rt));	/* free old block, if any */
 		rt_key(rt) = (struct sockaddr *)new;
-		rt->rt_gateway = (struct sockaddr *)(new + dlen);
 	}
-
-	/*
-	 * Copy the new gateway value into the memory chunk.
-	 */
-	bcopy(gate, rt->rt_gateway, glen);
 
 	return (0);
 }
@@ -2149,8 +2074,8 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 				else {
 					rt = RNTORT(rn);
 					/*
-					 * for interface route the
-					 * rt->rt_gateway is sockaddr_dl, so
+					 * for interface route the gateway
+					 * gateway is sockaddr_dl, so
 					 * rt_mpath_matchgate must use the
 					 * interface address
 					 */
@@ -2192,22 +2117,8 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			 * notify any listening routing agents of the change
 			 */
 			RT_LOCK(rt);
-#ifdef RADIX_MPATH
-			/*
-			 * in case address alias finds the first address
-			 * e.g. ifconfig bge0 192.0.2.246/24
-			 * e.g. ifconfig bge0 192.0.2.247/24
-			 * the address set in the route is 192.0.2.246
-			 * so we need to replace it with 192.0.2.247
-			 */
-			if (memcmp(rt->rt_ifa->ifa_addr,
-			    ifa->ifa_addr, ifa->ifa_addr->sa_len)) {
-				ifa_free(rt->rt_ifa);
-				ifa_ref(ifa);
-				rt->rt_ifp = ifa->ifa_ifp;
-				rt->rt_ifa = ifa;
-			}
-#endif
+
+			/* TODO: interface routes/aliases */
 			RT_ADDREF(rt);
 			RT_UNLOCK(rt);
 			rt_newaddrmsg_fib(cmd, ifa, rt, fibnum);

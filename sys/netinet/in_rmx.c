@@ -120,63 +120,6 @@ rib4_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *ma
 	return (0);
 }
 
-/*
- * Do what we need to do when inserting a route.
- */
-static struct radix_node *
-in_addroute(void *v_arg, void *n_arg, struct radix_head *head,
-    struct radix_node *treenodes)
-{
-	struct rtentry *rt = (struct rtentry *)treenodes;
-	struct sockaddr_in *sin = (struct sockaddr_in *)rt_key(rt);
-
-	/*
-	 * A little bit of help for both IP output and input:
-	 *   For host routes, we make sure that RTF_BROADCAST
-	 *   is set for anything that looks like a broadcast address.
-	 *   This way, we can avoid an expensive call to in_broadcast()
-	 *   in ip_output() most of the time (because the route passed
-	 *   to ip_output() is almost always a host route).
-	 *
-	 *   We also do the same for local addresses, with the thought
-	 *   that this might one day be used to speed up ip_input().
-	 *
-	 * We also mark routes to multicast addresses as such, because
-	 * it's easy to do and might be useful (but this is much more
-	 * dubious since it's so easy to inspect the address).
-	 */
-	if (rt->rt_flags & RTF_HOST) {
-		struct epoch_tracker et;
-		bool bcast;
-
-		NET_EPOCH_ENTER(et);
-		bcast = in_broadcast(sin->sin_addr, rt->rt_ifp);
-		NET_EPOCH_EXIT(et);
-		if (bcast)
-			rt->rt_flags |= RTF_BROADCAST;
-		else if (satosin(rt->rt_ifa->ifa_addr)->sin_addr.s_addr ==
-		    sin->sin_addr.s_addr)
-			rt->rt_flags |= RTF_LOCAL;
-	}
-	if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
-		rt->rt_flags |= RTF_MULTICAST;
-
-	if (rt->rt_ifp != NULL) {
-
-		/*
-		 * Check route MTU:
-		 * inherit interface MTU if not set or
-		 * check if MTU is too large.
-		 */
-		if (rt->rt_mtu == 0) {
-			rt->rt_mtu = rt->rt_ifp->if_mtu;
-		} else if (rt->rt_mtu > rt->rt_ifp->if_mtu)
-			rt->rt_mtu = rt->rt_ifp->if_mtu;
-	}
-
-	return (rn_addroute(v_arg, n_arg, head, treenodes));
-}
-
 static int _in_rt_was_here;
 /*
  * Initialize our routing tree.
@@ -191,7 +134,6 @@ in_inithead(void **head, int off, u_int fibnum)
 		return (0);
 
 	rh->rnh_preadd = rib4_preadd;
-	rh->rnh_addaddr = in_addroute;
 #ifdef	RADIX_MPATH
 	rt_mpath_init_rnh(rh);
 #endif
