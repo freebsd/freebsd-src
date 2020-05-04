@@ -66,6 +66,10 @@ struct sg_page_iter {
 	} internal;
 };
 
+struct sg_dma_page_iter {
+	struct sg_page_iter base;
+};
+
 #define	SCATTERLIST_MAX_SEGMENT	(-1U & ~(PAGE_SIZE - 1))
 
 #define	SG_MAX_SINGLE_ALLOC	(PAGE_SIZE / sizeof(struct scatterlist))
@@ -85,6 +89,8 @@ struct sg_page_iter {
 #define	for_each_sg_page(sgl, iter, nents, pgoffset)			\
 	for (_sg_iter_init(sgl, iter, nents, pgoffset);			\
 	     (iter)->sg; _sg_iter_next(iter))
+#define	for_each_sg_dma_page(sgl, iter, nents, pgoffset) 		\
+	for_each_sg_page(sgl, &(iter)->base, nents, pgoffset)
 
 #define	for_each_sg(sglist, sg, sgmax, iter)				\
 	for (iter = 0, sg = (sglist); iter < (sgmax); iter++, sg = sg_next(sg))
@@ -404,6 +410,8 @@ sg_page_count(struct scatterlist *sg)
 {
 	return (PAGE_ALIGN(sg->offset + sg->length) >> PAGE_SHIFT);
 }
+#define	sg_dma_page_count(sg) \
+	sg_page_count(sg)
 
 static inline bool
 __sg_page_iter_next(struct sg_page_iter *piter)
@@ -426,6 +434,8 @@ __sg_page_iter_next(struct sg_page_iter *piter)
 	}
 	return (1);
 }
+#define	__sg_page_iter_dma_next(itr) \
+	__sg_page_iter_next(&(itr)->base)
 
 static inline void
 _sg_iter_init(struct scatterlist *sgl, struct sg_page_iter *iter,
@@ -443,11 +453,20 @@ _sg_iter_init(struct scatterlist *sgl, struct sg_page_iter *iter,
 	}
 }
 
-static inline dma_addr_t
-sg_page_iter_dma_address(struct sg_page_iter *spi)
-{
-	return (spi->sg->dma_address + (spi->sg_pgoffset << PAGE_SHIFT));
-}
+/*
+ * sg_page_iter_dma_address() is implemented as a macro because it
+ * needs to accept two different and identical structure types. This
+ * allows both old and new code to co-exist. The compile time assert
+ * adds some safety, that the structure sizes match.
+ */
+#define	sg_page_iter_dma_address(spi) ({		\
+	struct sg_page_iter *__spi = (void *)(spi);	\
+	dma_addr_t __dma_address;			\
+	CTASSERT(sizeof(*(spi)) == sizeof(*__spi));	\
+	__dma_address = __spi->sg->dma_address +	\
+	    (__spi->sg_pgoffset << PAGE_SHIFT);		\
+	__dma_address;					\
+})
 
 static inline struct page *
 sg_page_iter_page(struct sg_page_iter *piter)
