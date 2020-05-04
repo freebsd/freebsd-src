@@ -68,7 +68,7 @@
 #  define LG_SIZEOF_PTR		2
 #endif
 #ifdef __riscv
-#  define LG_VADDR		64
+#  define LG_VADDR		48
 #  define LG_SIZEOF_PTR		3
 #endif
 
