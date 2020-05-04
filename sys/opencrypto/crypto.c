@@ -684,85 +684,96 @@ crypto_select_driver(const struct crypto_session_params *csp, int flags)
 	return best;
 }
 
+static enum alg_type {
+	ALG_NONE = 0,
+	ALG_CIPHER,
+	ALG_DIGEST,
+	ALG_KEYED_DIGEST,
+	ALG_COMPRESSION,
+	ALG_AEAD
+} alg_types[] = {
+	[CRYPTO_DES_CBC] = ALG_CIPHER,
+	[CRYPTO_3DES_CBC] = ALG_CIPHER,
+	[CRYPTO_BLF_CBC] = ALG_CIPHER,
+	[CRYPTO_CAST_CBC] = ALG_CIPHER,
+	[CRYPTO_SKIPJACK_CBC] = ALG_CIPHER,
+	[CRYPTO_MD5_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_SHA1_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_RIPEMD160_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_MD5_KPDK] = ALG_KEYED_DIGEST,
+	[CRYPTO_SHA1_KPDK] = ALG_KEYED_DIGEST,
+	[CRYPTO_AES_CBC] = ALG_CIPHER,
+	[CRYPTO_ARC4] = ALG_CIPHER,
+	[CRYPTO_MD5] = ALG_DIGEST,
+	[CRYPTO_SHA1] = ALG_DIGEST,
+	[CRYPTO_NULL_HMAC] = ALG_DIGEST,
+	[CRYPTO_NULL_CBC] = ALG_CIPHER,
+	[CRYPTO_DEFLATE_COMP] = ALG_COMPRESSION,
+	[CRYPTO_SHA2_256_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_SHA2_384_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_SHA2_512_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_CAMELLIA_CBC] = ALG_CIPHER,
+	[CRYPTO_AES_XTS] = ALG_CIPHER,
+	[CRYPTO_AES_ICM] = ALG_CIPHER,
+	[CRYPTO_AES_NIST_GMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_AES_NIST_GCM_16] = ALG_AEAD,
+	[CRYPTO_BLAKE2B] = ALG_KEYED_DIGEST,
+	[CRYPTO_BLAKE2S] = ALG_KEYED_DIGEST,
+	[CRYPTO_CHACHA20] = ALG_CIPHER,
+	[CRYPTO_SHA2_224_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_RIPEMD160] = ALG_DIGEST,
+	[CRYPTO_SHA2_224] = ALG_DIGEST,
+	[CRYPTO_SHA2_256] = ALG_DIGEST,
+	[CRYPTO_SHA2_384] = ALG_DIGEST,
+	[CRYPTO_SHA2_512] = ALG_DIGEST,
+	[CRYPTO_POLY1305] = ALG_KEYED_DIGEST,
+	[CRYPTO_AES_CCM_CBC_MAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_AES_CCM_16] = ALG_AEAD,
+};
+
+static enum alg_type
+alg_type(int alg)
+{
+
+	if (alg < nitems(alg_types))
+		return (alg_types[alg]);
+	return (ALG_NONE);
+}
+
 static bool
 alg_is_compression(int alg)
 {
 
-	if (alg == CRYPTO_DEFLATE_COMP)
-		return (true);
-	return (false);
+	return (alg_type(alg) == ALG_COMPRESSION);
 }
 
 static bool
 alg_is_cipher(int alg)
 {
 
-	if (alg >= CRYPTO_DES_CBC && alg <= CRYPTO_SKIPJACK_CBC)
-		return (true);
-	if (alg >= CRYPTO_AES_CBC && alg <= CRYPTO_ARC4)
-		return (true);
-	if (alg == CRYPTO_NULL_CBC)
-		return (true);
-	if (alg >= CRYPTO_CAMELLIA_CBC && alg <= CRYPTO_AES_ICM)
-		return (true);
-	if (alg == CRYPTO_CHACHA20)
-		return (true);
-	return (false);
+	return (alg_type(alg) == ALG_CIPHER);
 }
 
 static bool
 alg_is_digest(int alg)
 {
 
-	if (alg >= CRYPTO_MD5_HMAC && alg <= CRYPTO_SHA1_KPDK)
-		return (true);
-	if (alg >= CRYPTO_MD5 && alg <= CRYPTO_SHA1)
-		return (true);
-	if (alg == CRYPTO_NULL_HMAC)
-		return (true);
-	if (alg >= CRYPTO_SHA2_256_HMAC && alg <= CRYPTO_SHA2_512_HMAC)
-		return (true);
-	if (alg == CRYPTO_AES_NIST_GMAC)
-		return (true);
-	if (alg >= CRYPTO_BLAKE2B && alg <= CRYPTO_BLAKE2S)
-		return (true);
-	if (alg >= CRYPTO_SHA2_224_HMAC && alg <= CRYPTO_POLY1305)
-		return (true);
-	if (alg == CRYPTO_AES_CCM_CBC_MAC)
-		return (true);
-	return (false);
+	return (alg_type(alg) == ALG_DIGEST ||
+	    alg_type(alg) == ALG_KEYED_DIGEST);
 }
 
 static bool
 alg_is_keyed_digest(int alg)
 {
 
-	if (alg >= CRYPTO_MD5_HMAC && alg <= CRYPTO_SHA1_KPDK)
-		return (true);
-	if (alg >= CRYPTO_SHA2_256_HMAC && alg <= CRYPTO_SHA2_512_HMAC)
-		return (true);
-	if (alg == CRYPTO_AES_NIST_GMAC)
-		return (true);
-	if (alg >= CRYPTO_BLAKE2B && alg <= CRYPTO_BLAKE2S)
-		return (true);
-	if (alg == CRYPTO_SHA2_224_HMAC)
-		return (true);
-	if (alg == CRYPTO_POLY1305)
-		return (true);
-	if (alg == CRYPTO_AES_CCM_CBC_MAC)
-		return (true);
-	return (false);
+	return (alg_type(alg) == ALG_KEYED_DIGEST);
 }
 
 static bool
 alg_is_aead(int alg)
 {
 
-	if (alg == CRYPTO_AES_NIST_GCM_16)
-		return (true);
-	if (alg == CRYPTO_AES_CCM_16)
-		return (true);
-	return (false);
+	return (alg_type(alg) == ALG_AEAD);
 }
 
 /* Various sanity checks on crypto session parameters. */
