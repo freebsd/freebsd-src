@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
+#include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -206,239 +207,45 @@ DB_SHOW_COMMAND(routetable, db_show_routetable_cmd)
 
 _DB_FUNC(_show, route, db_show_route_cmd, db_show_table, CS_OWN, NULL)
 {
-	char buf[INET6_ADDRSTRLEN], *bp;
-	const void *dst_addrp;
-	struct sockaddr *dstp;
+	char abuf[INET6_ADDRSTRLEN], *buf, *end;
+	void *dst_addrp;
 	struct rtentry *rt;
 	union {
 		struct sockaddr_in dest_sin;
 		struct sockaddr_in6 dest_sin6;
 	} u;
-	uint16_t hextets[8];
-	unsigned i, tets;
-	int t, af, exp, tokflags;
+	int af;
 
-	/*
-	 * Undecoded address family.  No double-colon expansion seen yet.
-	 */
-	af = -1;
-	exp = -1;
-	/* Assume INET6 to start; we can work back if guess was wrong. */
-	tokflags = DRT_WSPACE | DRT_HEX | DRT_HEXADECIMAL;
+	buf = db_get_line();
 
-	/*
-	 * db_command has lexed 'show route' for us.
-	 */
-	t = db_read_token_flags(tokflags);
-	if (t == tWSPACE)
-		t = db_read_token_flags(tokflags);
+	/* Remove whitespaces from both ends */
+	end = buf + strlen(buf) - 1;
+	for (; (end >= buf) && (*end=='\n' || isspace(*end)); end--)
+		*end = '\0';
+	while (isspace(*buf))
+		buf++;
 
-	/*
-	 * tEOL: Just 'show route' isn't a valid mode.
-	 * tMINUS: It's either '-h' or some invalid option.  Regardless, usage.
-	 */
-	if (t == tEOL || t == tMINUS)
-		goto usage;
-
-	db_unread_token(t);
-
-	tets = nitems(hextets);
-
-	/*
-	 * Each loop iteration, we expect to read one octet (v4) or hextet
-	 * (v6), followed by an appropriate field separator ('.' or ':' or
-	 * '::').
-	 *
-	 * At the start of each loop, we're looking for a number (octet or
-	 * hextet).
-	 *
-	 * INET6 addresses have a special case where they may begin with '::'.
-	 */
-	for (i = 0; i < tets; i++) {
-		t = db_read_token_flags(tokflags);
-
-		if (t == tCOLONCOLON) {
-			/* INET6 with leading '::' or invalid. */
-			if (i != 0) {
-				db_printf("Parse error: unexpected extra "
-				    "colons.\n");
-				goto exit;
-			}
-
-			af = AF_INET6;
-			exp = i;
-			hextets[i] = 0;
-			continue;
-		} else if (t == tNUMBER) {
-			/*
-			 * Lexer separates out '-' as tMINUS, but make the
-			 * assumption explicit here.
-			 */
-			MPASS(db_tok_number >= 0);
-
-			if (af == AF_INET && db_tok_number > UINT8_MAX) {
-				db_printf("Not a valid v4 octet: %ld\n",
-				    (long)db_tok_number);
-				goto exit;
-			}
-			hextets[i] = db_tok_number;
-		} else if (t == tEOL) {
-			/*
-			 * We can only detect the end of an IPv6 address in
-			 * compact representation with EOL.
-			 */
-			if (af != AF_INET6 || exp < 0) {
-				db_printf("Parse failed.  Got unexpected EOF "
-				    "when the address is not a compact-"
-				    "representation IPv6 address.\n");
-				goto exit;
-			}
-			break;
-		} else {
-			db_printf("Parse failed.  Unexpected token %d.\n", t);
-			goto exit;
-		}
-
-		/* Next, look for a separator, if appropriate. */
-		if (i == tets - 1)
-			continue;
-
-		t = db_read_token_flags(tokflags);
-		if (af < 0) {
-			if (t == tCOLON) {
-				af = AF_INET6;
-				continue;
-			}
-			if (t == tCOLONCOLON) {
-				af = AF_INET6;
-				i++;
-				hextets[i] = 0;
-				exp = i;
-				continue;
-			}
-			if (t == tDOT) {
-				unsigned hn, dn;
-
-				af = AF_INET;
-				/* Need to fixup the first parsed number. */
-				if (hextets[0] > 0x255 ||
-				    (hextets[0] & 0xf0) > 0x90 ||
-				    (hextets[0] & 0xf) > 9) {
-					db_printf("Not a valid v4 octet: %x\n",
-					    hextets[0]);
-					goto exit;
-				}
-
-				hn = hextets[0];
-				dn = (hn >> 8) * 100 +
-				    ((hn >> 4) & 0xf) * 10 +
-				    (hn & 0xf);
-
-				hextets[0] = dn;
-
-				/* Switch to decimal for remaining octets. */
-				tokflags &= ~DRT_RADIX_MASK;
-				tokflags |= DRT_DECIMAL;
-
-				tets = 4;
-				continue;
-			}
-
-			db_printf("Parse error.  Unexpected token %d.\n", t);
-			goto exit;
-		} else if (af == AF_INET) {
-			if (t == tDOT)
-				continue;
-			db_printf("Expected '.' (%d) between octets but got "
-			    "(%d).\n", tDOT, t);
-			goto exit;
-
-		} else if (af == AF_INET6) {
-			if (t == tCOLON)
-				continue;
-			if (t == tCOLONCOLON) {
-				if (exp < 0) {
-					i++;
-					hextets[i] = 0;
-					exp = i;
-					continue;
-				}
-				db_printf("Got bogus second '::' in v6 "
-				    "address.\n");
-				goto exit;
-			}
-			if (t == tEOL) {
-				/*
-				 * Handle in the earlier part of the loop
-				 * because we need to handle trailing :: too.
-				 */
-				db_unread_token(t);
-				continue;
-			}
-
-			db_printf("Expected ':' (%d) or '::' (%d) between "
-			    "hextets but got (%d).\n", tCOLON, tCOLONCOLON, t);
-			goto exit;
-		}
-	}
-
-	/* Check for trailing garbage. */
-	if (i == tets) {
-		t = db_read_token_flags(tokflags);
-		if (t != tEOL) {
-			db_printf("Got unexpected garbage after address "
-			    "(%d).\n", t);
-			goto exit;
-		}
-	}
-
-	/*
-	 * Need to expand compact INET6 addresses.
-	 *
-	 * Technically '::' for a single ':0:' is MUST NOT but just in case,
-	 * don't bother expanding that form (exp >= 0 && i == tets case).
-	 */
-	if (af == AF_INET6 && exp >= 0 && i < tets) {
-		if (exp + 1 < i) {
-			memmove(&hextets[exp + 1 + (nitems(hextets) - i)],
-			    &hextets[exp + 1],
-			    (i - (exp + 1)) * sizeof(hextets[0]));
-		}
-		memset(&hextets[exp + 1], 0, (nitems(hextets) - i) *
-		    sizeof(hextets[0]));
-	}
-
-	memset(&u, 0, sizeof(u));
-	if (af == AF_INET) {
-		u.dest_sin.sin_family = AF_INET;
-		u.dest_sin.sin_len = sizeof(u.dest_sin);
-		u.dest_sin.sin_addr.s_addr = htonl(
-		    ((uint32_t)hextets[0] << 24) |
-		    ((uint32_t)hextets[1] << 16) |
-		    ((uint32_t)hextets[2] << 8) |
-		    (uint32_t)hextets[3]);
-		dstp = (void *)&u.dest_sin;
-		dst_addrp = &u.dest_sin.sin_addr;
-	} else if (af == AF_INET6) {
-		u.dest_sin6.sin6_family = AF_INET6;
-		u.dest_sin6.sin6_len = sizeof(u.dest_sin6);
-		for (i = 0; i < nitems(hextets); i++)
-			u.dest_sin6.sin6_addr.s6_addr16[i] = htons(hextets[i]);
-		dstp = (void *)&u.dest_sin6;
+	/* Determine AF */
+	if (strchr(buf, ':') != NULL) {
+		af = AF_INET6;
+		u.dest_sin6.sin6_family = af;
+		u.dest_sin6.sin6_len = sizeof(struct sockaddr_in6);
 		dst_addrp = &u.dest_sin6.sin6_addr;
 	} else {
-		MPASS(false);
-		/* UNREACHABLE */
-		/* Appease Clang false positive: */
-		dstp = NULL;
+		af = AF_INET;
+		u.dest_sin.sin_family = af;
+		u.dest_sin.sin_len = sizeof(struct sockaddr_in);
+		dst_addrp = &u.dest_sin.sin_addr;
 	}
 
-	bp = inet_ntop(af, dst_addrp, buf, sizeof(buf));
-	if (bp != NULL)
-		db_printf("Looking up route to destination '%s'\n", bp);
+	if (inet_pton(af, buf, dst_addrp) != 1)
+		goto usage;
+
+	if (inet_ntop(af, dst_addrp, abuf, sizeof(abuf)) != NULL)
+		db_printf("Looking up route to destination '%s'\n", abuf);
 
 	CURVNET_SET(vnet0);
-	rt = rtalloc1(dstp, 0, RTF_RNH_LOCKED);
+	rt = rtalloc1((struct sockaddr *)&u, 0, RTF_RNH_LOCKED);
 	CURVNET_RESTORE();
 
 	if (rt == NULL) {
@@ -452,9 +259,7 @@ _DB_FUNC(_show, route, db_show_route_cmd, db_show_table, CS_OWN, NULL)
 	return;
 usage:
 	db_printf("Usage: 'show route <address>'\n"
-	    "  Currently accepts only dotted-decimal INET or colon-separated\n"
-	    "  hextet INET6 addresses.\n");
-exit:
+	    "  Currently accepts only IPv4 and IPv6 addresses\n");
 	db_skip_to_eol();
 }
 
