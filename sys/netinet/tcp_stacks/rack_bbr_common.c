@@ -1,7 +1,5 @@
 /*-
- * Copyright (c) 2016-9
- *	Netflix Inc.
- *      All rights reserved.
+ * Copyright (c) 2016-2020 Netflix, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -423,6 +421,7 @@ skip_vnet:
 			nxt_pkt = 1;
 		else
 			nxt_pkt = 0;
+		KMOD_TCPSTAT_INC(tcps_rcvtotal);
 		retval = (*tp->t_fb->tfb_do_segment_nounlock)(m, th, so, tp, drop_hdrlen, tlen,
 							      iptos, nxt_pkt, &tv);
 		if (retval) {
@@ -694,6 +693,7 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 				tcp_state_change(tp, TCPS_CLOSED);
 				/* FALLTHROUGH */
 			default:
+				tcp_log_end_status(tp, TCP_EI_STATUS_CLIENT_RST);
 				tp = tcp_close(tp);
 			}
 			dropped = 1;
@@ -910,4 +910,25 @@ ctf_decay_count(uint32_t count, uint32_t decay)
 	 */
 	decayed_count = count - (uint32_t)perc_count;
 	return(decayed_count);
+}
+
+int32_t
+ctf_progress_timeout_check(struct tcpcb *tp, bool log)
+{
+	if (tp->t_maxunacktime && tp->t_acktime && TSTMP_GT(ticks, tp->t_acktime)) {
+		if ((ticks - tp->t_acktime) >= tp->t_maxunacktime) {
+			/*
+			 * There is an assumption that the caller
+			 * will drop the connection so we will
+			 * increment the counters here.
+			 */
+			if (log)
+				tcp_log_end_status(tp, TCP_EI_STATUS_PROGRESS);
+#ifdef NETFLIX_STATS
+			KMOD_TCPSTAT_INC(tcps_progdrops);
+#endif
+			return (1);
+		}
+	}
+	return (0);
 }

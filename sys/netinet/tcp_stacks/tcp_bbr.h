@@ -1,7 +1,5 @@
 /*-
- * Copyright (c) 2016-9
- *	Netflix Inc.  All rights reserved.
- *      Author Randall R. Stewart
+ * Copyright (c) 2016-2020 Netflix, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -748,7 +746,7 @@ struct tcp_bbr {
 	/* First cache line 0x00 */
 	int32_t(*r_substate) (struct mbuf *, struct tcphdr *,
 	    struct socket *, struct tcpcb *, struct tcpopt *,
-	    int32_t, int32_t, uint32_t, int32_t, int32_t);	/* Lock(a) */
+	    int32_t, int32_t, uint32_t, int32_t, int32_t, uint8_t);	/* Lock(a) */
 	struct tcpcb *rc_tp;	/* The tcpcb Lock(a) */
 	struct inpcb *rc_inp;	/* The inpcb Lock(a) */
 	struct timeval rc_tv;

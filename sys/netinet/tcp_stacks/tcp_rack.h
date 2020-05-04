@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016-9 Netflix, Inc.
+ * Copyright (c) 2016-2020 Netflix, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,9 +37,13 @@
 #define RACK_HAS_FIN	    0x0040/* segment is sent with fin */
 #define RACK_TLP	    0x0080/* segment sent as tail-loss-probe */
 #define RACK_RWND_COLLAPSED 0x0100/* The peer collapsed the rwnd on the segment */
+#define RACK_APP_LIMITED    0x0200/* We went app limited after this send */
+#define RACK_WAS_ACKED	    0x0400/* a RTO undid the ack, but it already had a rtt calc done */
 #define RACK_NUM_OF_RETRANS 3
 
 #define RACK_INITIAL_RTO 1000 /* 1 second in milli seconds */
+
+#define RACK_REQ_AVG 4 	/* Must be less than 256 */
 
 struct rack_sendmap {
 	uint32_t r_start;	/* Sequence number of the segment */
@@ -51,10 +55,16 @@ struct rack_sendmap {
 				 * sent */
 	uint16_t r_flags;	/* Flags as defined above */
 	uint32_t r_tim_lastsent[RACK_NUM_OF_RETRANS];
+	uint32_t usec_orig_send;	/* time of orginal send in useconds */
+	uint32_t r_nseq_appl;	/* If this one is app limited, this is the nxt seq limited */
+	uint32_t r_ack_arrival;	/* This is the time of ack-arrival (if SACK'd) */
 	uint8_t r_dupack;	/* Dup ack count */
 	uint8_t r_in_tmap;	/* Flag to see if its in the r_tnext array */
 	uint8_t r_limit_type;	/* is this entry counted against a limit? */
-	uint8_t r_resv[49];
+	uint8_t r_just_ret : 1, /* After sending, the next pkt was just returned, i.e. limited  */
+		r_one_out_nr : 1,	/* Special case 1 outstanding and not in recovery */
+		r_avail : 6;
+	uint8_t r_resv[36];
 };
 
 RB_HEAD(rack_rb_tree_head, rack_sendmap);
@@ -76,7 +86,10 @@ struct rack_rtt_sample {
 	uint32_t rs_rtt_lowest;
 	uint32_t rs_rtt_highest;
 	uint32_t rs_rtt_cnt;
+	uint32_t rs_us_rtt;
+	int32_t  confidence;
 	uint64_t rs_rtt_tot;
+	uint16_t rs_us_rtrcnt;
 };
 
 #define RACK_LOG_TYPE_ACK	0x01
@@ -135,15 +148,57 @@ struct rack_opts_stats {
 	uint64_t tcp_rack_idle_reduce_high;
 	uint64_t rack_no_timer_in_hpts;
 	uint64_t tcp_rack_min_pace_seg;
-	uint64_t tcp_rack_min_pace;
-	uint64_t tcp_rack_cheat;
+	uint64_t tcp_rack_pace_rate_ca;
+	uint64_t tcp_rack_rr;
 	uint64_t tcp_rack_do_detection;
+	uint64_t tcp_rack_rrr_no_conf_rate;
+	uint64_t tcp_initial_rate;
+	uint64_t tcp_initial_win;
+	uint64_t tcp_hdwr_pacing;
+	uint64_t tcp_gp_inc_ss;
+	uint64_t tcp_gp_inc_ca;
+	uint64_t tcp_gp_inc_rec;
+	uint64_t tcp_rack_force_max_seg;
+	uint64_t tcp_rack_pace_rate_ss;
+	uint64_t tcp_rack_pace_rate_rec;
+	/* Temp counters for dsack */
+	uint64_t tcp_sack_path_1;
+	uint64_t tcp_sack_path_2a;
+	uint64_t tcp_sack_path_2b;
+	uint64_t tcp_sack_path_3;
+	uint64_t tcp_sack_path_4;
+	/* non temp counters */
+	uint64_t tcp_rack_scwnd;
+	uint64_t tcp_rack_noprr;
+	uint64_t tcp_rack_cfg_rate;
+	uint64_t tcp_timely_dyn;
+	uint64_t tcp_rack_mbufq;
+	uint64_t tcp_fillcw;
+	uint64_t tcp_npush;
+	uint64_t tcp_lscwnd;
+	uint64_t tcp_profile;
 };
+
+/* RTT shrink reasons */
+#define RACK_RTTS_INIT     0
+#define RACK_RTTS_NEWRTT   1
+#define RACK_RTTS_EXITPROBE 2
+#define RACK_RTTS_ENTERPROBE 3
+#define RACK_RTTS_REACHTARGET 4
+#define RACK_RTTS_SEEHBP 5
+#define RACK_RTTS_NOBACKOFF 6
+#define RACK_RTTS_SAFETY 7
+
+#define RACK_USE_BEG 1
+#define RACK_USE_END 2
+#define RACK_USE_END_OR_THACK 3
 
 #define TLP_USE_ID	1	/* Internet draft behavior */
 #define TLP_USE_TWO_ONE 2	/* Use 2.1 behavior */
 #define TLP_USE_TWO_TWO 3	/* Use 2.2 behavior */
+#define RACK_MIN_BW 8000	/* 64kbps in Bps */
 
+#define MIN_GP_WIN 6	/* We need at least 6 MSS in a GP measurement */
 #ifdef _KERNEL
 #define RACK_OPTS_SIZE (sizeof(struct rack_opts_stats)/sizeof(uint64_t))
 extern counter_u64_t rack_opts_arry[RACK_OPTS_SIZE];
@@ -200,10 +255,13 @@ struct rack_control {
 						 * tlp_sending Lock(a) */
 	struct rack_sendmap *rc_resend;	/* something we have been asked to
 					 * resend */
-	struct timeval rc_last_time_decay;	/* SAD time decay happened here */
 	uint32_t input_pkt;
 	uint32_t saved_input_pkt;
 	uint32_t rc_hpts_flags;
+	uint32_t rc_fixed_pacing_rate_ca;
+	uint32_t rc_fixed_pacing_rate_rec;
+	uint32_t rc_fixed_pacing_rate_ss;
+	uint32_t cwnd_to_use;	/* The cwnd in use */
 	uint32_t rc_timer_exp;	/* If a timer ticks of expiry */
 	uint32_t rc_rack_min_rtt;	/* lowest RTT seen Lock(a) */
 	uint32_t rc_rack_largest_cwnd;	/* Largest CWND we have seen Lock(a) */
@@ -223,15 +281,14 @@ struct rack_control {
 	uint32_t rc_prr_sndcnt;	/* Prr sndcnt Lock(a) */
 
 	uint32_t rc_sacked;	/* Tot sacked on scoreboard Lock(a) */
-	uint32_t rc_last_tlp_seq;	/* Last tlp sequence Lock(a) */
+	uint32_t xxx_rc_last_tlp_seq;	/* Last tlp sequence Lock(a) */
 
 	uint32_t rc_prr_delivered;	/* during recovery prr var Lock(a) */
-	uint16_t rc_tlp_send_cnt;	/* Number of TLP sends we have done
-					 * since peer spoke to us Lock(a) */
-	uint16_t rc_tlp_seg_send_cnt;	/* Number of times we have TLP sent
+	uint16_t rc_tlp_cnt_out;	/* count of times we have sent a TLP without new data */
+	uint16_t xxx_rc_tlp_seg_send_cnt;	/* Number of times we have TLP sent
 					 * rc_last_tlp_seq Lock(a) */
 
-	uint32_t rc_loss_count;	/* During recovery how many segments were lost
+	uint32_t rc_loss_count;	/* How many bytes have been retransmitted
 				 * Lock(a) */
 	uint32_t rc_reorder_fade;	/* Socket option value Lock(a) */
 
@@ -260,38 +317,80 @@ struct rack_control {
 	struct rack_sendmap *rc_rsm_at_retran;	/* Debug variable kept for
 						 * cache line alignment
 						 * Lock(a) */
-	struct timeval rc_last_ack;
+	struct rack_sendmap *rc_first_appl;	/* Pointer to first app limited */
+	struct rack_sendmap *rc_end_appl;	/* Pointer to last app limited */
 	/* Cache line split 0x100 */
 	struct sack_filter rack_sf;
 	/* Cache line split 0x140 */
 	/* Flags for various things */
+	uint32_t last_pacing_time;
 	uint32_t rc_pace_max_segs;
 	uint32_t rc_pace_min_segs;
+	uint32_t rc_app_limited_cnt;
+	uint16_t rack_per_of_gp_ss; /* 100 = 100%, so from 65536 = 655 x bw  */
+	uint16_t rack_per_of_gp_ca; /* 100 = 100%, so from 65536 = 655 x bw  */
+	uint16_t rack_per_of_gp_rec; /* 100 = 100%, so from 65536 = 655 x bw, 0=off */
+	uint16_t rack_per_of_gp_probertt; /* 100 = 100%, so from 65536 = 655 x bw, 0=off */
 	uint32_t rc_high_rwnd;
 	uint32_t ack_count;
 	uint32_t sack_count;
 	uint32_t sack_noextra_move;
 	uint32_t sack_moved_extra;
 	struct rack_rtt_sample rack_rs;
+	const struct tcp_hwrate_limit_table *crte;
+	uint32_t rc_agg_early;
+	uint32_t rc_agg_delayed;
 	uint32_t rc_tlp_rxt_last_time;
 	uint32_t rc_saved_cwnd;
-	uint32_t rc_gp_history[RACK_GP_HIST];
+	uint32_t rc_gp_output_ts;
+	uint32_t rc_gp_cumack_ts;
+	struct timeval act_rcv_time;
+	struct timeval rc_last_time_decay;	/* SAD time decay happened here */
+	uint64_t gp_bw;
+	uint64_t init_rate;
+#ifdef NETFLIX_SHARED_CWND
+	struct shared_cwnd *rc_scw;
+#endif
+	uint64_t last_gp_comp_bw;
+	uint64_t last_max_bw;	/* Our calculated max b/w last */
+	struct time_filter_small rc_gp_min_rtt;
+	int32_t rc_rtt_diff;		/* Timely style rtt diff of our gp_srtt */
+	uint32_t rc_gp_srtt;		/* Current GP srtt */
+	uint32_t rc_prev_gp_srtt;	/* Previous RTT */
+	uint32_t rc_entry_gp_rtt;	/* Entry to PRTT gp-rtt */
+	uint32_t rc_loss_at_start;	/* At measurement window where was our lost value */
+
+	uint32_t forced_ack_ts;
+	uint32_t rc_lower_rtt_us_cts;	/* Time our GP rtt was last lowered */
+	uint32_t rc_time_probertt_entered;
+	uint32_t rc_time_probertt_starts;
+	uint32_t rc_lowest_us_rtt;
+	uint32_t rc_highest_us_rtt;
+	uint32_t rc_last_us_rtt;
+	uint32_t rc_time_of_last_probertt;
+	uint32_t rc_target_probertt_flight;
+	uint32_t rc_probertt_sndmax_atexit;	/* Highest sent to in probe-rtt */
+	uint32_t rc_gp_lowrtt;			/* Lowest rtt seen during GPUT measurement */
+	uint32_t rc_gp_high_rwnd;		/* Highest rwnd seen during GPUT measurement */
+	int32_t rc_scw_index;
 	uint32_t rc_tlp_threshold;	/* Socket option value Lock(a) */
 	uint16_t rc_early_recovery_segs;	/* Socket option value Lock(a) */
 	uint16_t rc_reorder_shift;	/* Socket option value Lock(a) */
 	uint16_t rc_pkt_delay;	/* Socket option value Lock(a) */
+	uint8_t rc_no_push_at_mrtt;	/* No push when we exceed max rtt */
+	uint8_t num_avg;	/* average count before we go to normal decay */
 	uint8_t rc_prop_rate;	/* Socket option value Lock(a) */
 	uint8_t rc_prop_reduce;	/* Socket option value Lock(a) */
 	uint8_t rc_tlp_cwnd_reduce;	/* Socket option value Lock(a) */
 	uint8_t rc_early_recovery;	/* Socket option value Lock(a) */
 	uint8_t rc_prr_sendalot;/* Socket option value Lock(a) */
 	uint8_t rc_min_to;	/* Socket option value Lock(a) */
-	uint8_t rc_tlp_rtx_out;	/* This is TLPRtxOut in the draft */
 	uint8_t rc_rate_sample_method;
-	uint8_t rc_gp_hist_idx: 7,
-		rc_gp_hist_filled: 1;
-
+	uint8_t rc_gp_hist_idx;
 };
+
+#define RACK_TIMELY_CNT_BOOST 5	/* At 5th increase boost */
+#define RACK_MINRTT_FILTER_TIM 10 /* Seconds */
 
 #ifdef _KERNEL
 
@@ -306,39 +405,75 @@ struct tcp_rack {
 	uint32_t rc_free_cnt;	/* Number of free entries on the rc_free list
 				 * Lock(a) */
 	uint32_t rc_rack_rtt;	/* RACK-RTT Lock(a) */
-	uint16_t r_wanted_output;	/* Output routine wanted to be called */
-	uint16_t r_cpu;		/* CPU that the INP is running on Lock(a) */
-	uint16_t rc_pace_max_segs;	/* Socket option value Lock(a) */
-	uint16_t rc_pace_reduce;/* Socket option value Lock(a) */
+	uint16_t r_mbuf_queue : 1,	/* Do we do mbuf queue for non-paced */
+		 rtt_limit_mul : 4,	/* muliply this by low rtt */
+		 r_limit_scw : 1,
+		 r_avail_bits : 10;	/* Available */
 
+	uint16_t rc_user_set_max_segs;	/* Socket option value Lock(a) */
+	uint16_t forced_ack : 1,
+		rc_gp_incr : 1,
+		rc_gp_bwred : 1,
+		rc_gp_timely_inc_cnt : 3,
+		rc_gp_timely_dec_cnt : 3,
+		rc_not_backing_off: 1,
+		rc_highly_buffered: 1,		/* The path is highly buffered */
+		rc_dragged_bottom: 1,
+		rc_dack_mode : 1,		/* Mac O/S emulation of d-ack */
+		rc_dack_toggle : 1,		/* For Mac O/S emulation of d-ack */
+		pacing_longer_than_rtt : 1,
+		rc_gp_filled : 1;
 	uint8_t r_state;	/* Current rack state Lock(a) */
 	uint8_t rc_tmr_stopped : 7,
 		t_timers_stopped : 1;
-	uint8_t rc_enobuf;	/* count of enobufs on connection provides
-				 * backoff Lock(a) */
+	uint8_t rc_enobuf : 7,	/* count of enobufs on connection provides */
+		rc_on_min_to : 1;
 	uint8_t r_timer_override : 1,	/* hpts override Lock(a) */
-		r_tlp_running : 1, 	/* Running from a TLP timeout Lock(a) */
 		r_is_v6 : 1,	/* V6 pcb Lock(a)  */
 		rc_in_persist : 1,
-		rc_last_pto_set : 1, /* XXX not used */
 		rc_tlp_in_progress : 1,
 		rc_always_pace : 1,	/* Socket option value Lock(a) */
-		tlp_timer_up : 1;	/* The tlp timer is up flag Lock(a) */
-	uint8_t r_enforce_min_pace : 2,
+		rc_pace_to_cwnd : 1,
+		rc_pace_fill_if_rttin_range : 1,
+		xxx_avail_bits : 1;
+	uint8_t app_limited_needs_set : 1,
+		use_fixed_rate : 1,
 		rc_has_collapsed : 1,
 		r_rep_attack : 1,
 		r_rep_reverse : 1,
-		r_xxx_min_pace_seg_thresh : 3;
-	uint8_t rack_tlp_threshold_use;
+		rack_hdrw_pacing : 1,  /* We are doing Hardware pacing */
+		rack_hdw_pace_ena : 1, /* Is hardware pacing enabled? */
+		rack_attempt_hdwr_pace : 1; /* Did we attempt hdwr pacing (if allowed) */
+	uint8_t rack_tlp_threshold_use : 3,	/* only 1, 2 and 3 used so far */
+		rack_rec_nonrxt_use_cr : 1,
+		rack_enable_scwnd : 1,
+		rack_attempted_scwnd : 1,
+		rack_no_prr : 1,
+		rack_scwnd_is_idle : 1;
 	uint8_t rc_allow_data_af_clo: 1,
 		delayed_ack : 1,
 		set_pacing_done_a_iw : 1,
-		use_rack_cheat : 1,
+		use_rack_rr : 1,
 		alloc_limit_reported : 1,
 		sack_attack_disable : 1,
 		do_detection : 1,
-		rc_avail : 1;
-	uint16_t rack_per_of_gp;
+		rc_force_max_seg : 1;
+	uint8_t rack_cwnd_limited : 1,
+		r_early : 1,
+		r_late : 1,
+		r_running_early : 1,
+		r_running_late : 1,
+		r_wanted_output: 1,
+		r_rr_config : 2;
+	uint16_t rc_init_win : 8,
+		rc_gp_rtt_set : 1,
+		rc_gp_dyn_mul : 1,
+		rc_gp_saw_rec : 1,
+		rc_gp_saw_ca : 1,
+		rc_gp_saw_ss : 1,
+		rc_gp_no_rec_chg : 1,
+		in_probe_rtt : 1,
+		measure_saw_probe_rtt : 1;
 	/* Cache line 2 0x40 */
 	struct rack_control r_ctl;
 }        __aligned(CACHE_LINE_SIZE);
