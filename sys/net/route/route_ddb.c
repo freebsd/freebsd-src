@@ -208,6 +208,8 @@ DB_SHOW_COMMAND(routetable, db_show_routetable_cmd)
 _DB_FUNC(_show, route, db_show_route_cmd, db_show_table, CS_OWN, NULL)
 {
 	char abuf[INET6_ADDRSTRLEN], *buf, *end;
+	struct rib_head *rh;
+	struct radix_node *rn;
 	void *dst_addrp;
 	struct rtentry *rt;
 	union {
@@ -244,8 +246,15 @@ _DB_FUNC(_show, route, db_show_route_cmd, db_show_table, CS_OWN, NULL)
 	if (inet_ntop(af, dst_addrp, abuf, sizeof(abuf)) != NULL)
 		db_printf("Looking up route to destination '%s'\n", abuf);
 
+	rt = NULL;
 	CURVNET_SET(vnet0);
-	rt = rtalloc1((struct sockaddr *)&u, 0, RTF_RNH_LOCKED);
+
+	rh = rt_tables_get_rnh(RT_DEFAULT_FIB, af);
+
+	rn = rh->rnh_matchaddr(&u, &rh->head);
+	if (rn && ((rn->rn_flags & RNF_ROOT) == 0))
+		rt = (struct rtentry *)rn;
+
 	CURVNET_RESTORE();
 
 	if (rt == NULL) {
@@ -254,7 +263,6 @@ _DB_FUNC(_show, route, db_show_route_cmd, db_show_table, CS_OWN, NULL)
 	}
 
 	rt_dumpentry_ddb((void *)rt, NULL);
-	RTFREE_LOCKED(rt);
 
 	return;
 usage:
