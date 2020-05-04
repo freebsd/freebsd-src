@@ -12012,6 +12012,7 @@ rack_output(struct tcpcb *tp)
 	hw_tls = (so->so_snd.sb_flags & SB_TLS_IFNET) != 0;
 #endif
 
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
@@ -14212,6 +14213,7 @@ static int
 rack_set_sockopt(struct socket *so, struct sockopt *sopt,
     struct inpcb *inp, struct tcpcb *tp, struct tcp_rack *rack)
 {
+	struct epoch_tracker et;
 	uint64_t val;
 	int32_t error = 0, optval;
 	uint16_t ca, ss;
@@ -14719,7 +14721,9 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 		if (tp->t_flags & TF_DELACK) {
 			tp->t_flags &= ~TF_DELACK;
 			tp->t_flags |= TF_ACKNOW;
+			NET_EPOCH_ENTER(et);
 			rack_output(tp);
+			NET_EPOCH_EXIT(et);
 		}
 		break;
 
