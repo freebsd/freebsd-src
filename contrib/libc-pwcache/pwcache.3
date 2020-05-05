@@ -56,7 +56,7 @@
 .\"
 .\"     @(#)pwcache.3	8.1 (Berkeley) 6/9/93
 .\"
-.Dd October 19, 2012
+.Dd May 5, 2020
 .Dt PWCACHE 3
 .Os
 .Sh NAME
@@ -193,6 +193,15 @@ and
 may be
 .Dv NULL
 pointers.
+.Sh ERRORS
+If insufficient memory is available,
+.Fn user_from_uid
+and
+.Fn group_from_gid
+may return NULL pointers.
+.Va errno
+is set to
+.Er ENOMEM .
 .Sh SEE ALSO
 .Xr getgrgid 3 ,
 .Xr getgrnam 3 ,
