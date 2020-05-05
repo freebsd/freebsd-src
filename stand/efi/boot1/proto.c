@@ -38,12 +38,14 @@ __FBSDID("$FreeBSD$");
 static EFI_GUID BlockIoProtocolGUID = BLOCK_IO_PROTOCOL;
 static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
 
+#ifndef EFI_DEBUG
 static const char *prio_str[] = {
 	"error",
 	"not supported",
 	"good",
 	"better"
 };
+#endif
 
 /*
  * probe_handle determines if the passed handle represents a logical partition
