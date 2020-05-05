@@ -7763,7 +7763,11 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		}
 		strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
 		total_moved += moved;
-		space_left -= moved;
+		if (space_left >= moved) {
+			space_left -= moved;
+		} else {
+			space_left = 0;
+		}
 		if (space_left >= SCTP_DATA_CHUNK_OVERHEAD(stcb)) {
 			space_left -= SCTP_DATA_CHUNK_OVERHEAD(stcb);
 		} else {
