@@ -52,6 +52,8 @@ struct acpi_video_output {
 		int	num;
 		STAILQ_ENTRY(acpi_video_output) next;
 	} vo_unit;
+	int		vo_hasbqc;	/* Query method is present. */
+	int		vo_level;	/* Cached level when !vo_hasbqc. */
 	int		vo_brightness;
 	int		vo_fullpower;
 	int		vo_economy;
@@ -96,8 +98,8 @@ static void	vid_set_switch_policy(ACPI_HANDLE, UINT32);
 static int	vid_enum_outputs(ACPI_HANDLE,
 		    void(*)(ACPI_HANDLE, UINT32, void *), void *);
 static int	vo_get_brightness_levels(ACPI_HANDLE, int **);
-static int	vo_get_brightness(ACPI_HANDLE);
-static void	vo_set_brightness(ACPI_HANDLE, int);
+static int	vo_get_brightness(struct acpi_video_output *);
+static void	vo_set_brightness(struct acpi_video_output *, int);
 static UINT32	vo_get_device_status(ACPI_HANDLE);
 static UINT32	vo_get_graphics_state(ACPI_HANDLE);
 static void	vo_set_device_state(ACPI_HANDLE, UINT32);
@@ -327,9 +329,9 @@ acpi_video_resume(device_t dev)
 		if ((vo_get_device_status(vo->handle) & DCS_ACTIVE) == 0)
 			continue;
 
-		level = vo_get_brightness(vo->handle);
+		level = vo_get_brightness(vo);
 		if (level != -1)
-			vo_set_brightness(vo->handle, level);
+			vo_set_brightness(vo, level);
 	}
 	ACPI_SERIAL_END(video_output);
 	ACPI_SERIAL_END(video);
@@ -419,7 +421,7 @@ acpi_video_power_profile(void *context)
 	ACPI_SERIAL_BEGIN(video_output);
 	STAILQ_FOREACH(vo, &sc->vid_outputs, vo_next) {
 		if (vo->vo_levels != NULL && vo->vo_brightness == -1)
-			vo_set_brightness(vo->handle,
+			vo_set_brightness(vo,
 			    state == POWER_PROFILE_ECONOMY ?
 			    vo->vo_economy : vo->vo_fullpower);
 	}
@@ -518,6 +520,8 @@ acpi_video_vo_init(UINT32 adr)
 		vo->handle = NULL;
 		vo->adr = adr;
 		vo->vo_unit.num = n;
+		vo->vo_hasbqc = -1;
+		vo->vo_level = -1;
 		vo->vo_brightness = -1;
 		vo->vo_fullpower = -1;	/* TODO: override with tunables */
 		vo->vo_economy = -1;
@@ -698,7 +702,7 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 	case VID_NOTIFY_ZERO_BRN:
 		if (vo->vo_levels == NULL)
 			goto out;
-		level = vo_get_brightness(handle);
+		level = vo_get_brightness(vo);
 		if (level < 0)
 			goto out;
 		break;
@@ -742,7 +746,7 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 		break;
 	}
 	if (new_level != level) {
-		vo_set_brightness(handle, new_level);
+		vo_set_brightness(vo, new_level);
 		vo->vo_brightness = new_level;
 	}
 
@@ -807,7 +811,7 @@ acpi_video_vo_bright_sysctl(SYSCTL_HANDLER_ARGS)
 	if (level != -1 && (err = acpi_video_vo_check_level(vo, level)))
 		goto out;
 	vo->vo_brightness = level;
-	vo_set_brightness(vo->handle, (level == -1) ? preset : level);
+	vo_set_brightness(vo, (level == -1) ? preset : level);
 
 out:
 	ACPI_SERIAL_END(video_output);
@@ -848,7 +852,7 @@ acpi_video_vo_presets_sysctl(SYSCTL_HANDLER_ARGS)
 		goto out;
 
 	if (vo->vo_brightness == -1 && (power_profile_get_state() == arg2))
-		vo_set_brightness(vo->handle, level);
+		vo_set_brightness(vo, level);
 	*preset = level;
 
 out:
@@ -1018,15 +1022,39 @@ out:
 }
 
 static int
-vo_get_brightness(ACPI_HANDLE handle)
+vo_get_bqc(struct acpi_video_output *vo, UINT32 *level)
+{
+	ACPI_STATUS status;
+
+	switch (vo->vo_hasbqc) {
+	case 1:
+	case -1:
+		status = acpi_GetInteger(vo->handle, "_BQC", level);
+		if (vo->vo_hasbqc == 1)
+			break;
+		vo->vo_hasbqc = status != AE_NOT_FOUND;
+		if (vo->vo_hasbqc == 1)
+			break;
+		/* FALLTHROUGH */
+	default:
+		KASSERT(vo->vo_hasbqc == 0,
+		    ("bad vo_hasbqc state %d", vo->vo_hasbqc));
+		*level = vo->vo_level;
+		status = AE_OK;
+	}
+	return (status);
+}
+
+static int
+vo_get_brightness(struct acpi_video_output *vo)
 {
 	UINT32 level;
 	ACPI_STATUS status;
 
 	ACPI_SERIAL_ASSERT(video_output);
-	status = acpi_GetInteger(handle, "_BQC", &level);
+	status = vo_get_bqc(vo, &level);
 	if (ACPI_FAILURE(status)) {
-		printf("can't evaluate %s._BQC - %s\n", acpi_name(handle),
+		printf("can't evaluate %s._BQC - %s\n", acpi_name(vo->handle),
 		    AcpiFormatException(status));
 		return (-1);
 	}
@@ -1037,16 +1065,19 @@ vo_get_brightness(ACPI_HANDLE handle)
 }
 
 static void
-vo_set_brightness(ACPI_HANDLE handle, int level)
+vo_set_brightness(struct acpi_video_output *vo, int level)
 {
 	char notify_buf[16];
 	ACPI_STATUS status;
 
 	ACPI_SERIAL_ASSERT(video_output);
-	status = acpi_SetInteger(handle, "_BCM", level);
-	if (ACPI_FAILURE(status))
+	status = acpi_SetInteger(vo->handle, "_BCM", level);
+	if (ACPI_FAILURE(status)) {
 		printf("can't evaluate %s._BCM - %s\n",
-		       acpi_name(handle), AcpiFormatException(status));
+		    acpi_name(vo->handle), AcpiFormatException(status));
+	} else {
+		vo->vo_level = level;
+	}
 	snprintf(notify_buf, sizeof(notify_buf), "notify=%d", level);
 	devctl_notify("ACPI", "Video", "brightness", notify_buf);
 }
@@ -1060,9 +1091,18 @@ vo_get_device_status(ACPI_HANDLE handle)
 	ACPI_SERIAL_ASSERT(video_output);
 	dcs = 0;
 	status = acpi_GetInteger(handle, "_DCS", &dcs);
-	if (ACPI_FAILURE(status))
-		printf("can't evaluate %s._DCS - %s\n",
-		       acpi_name(handle), AcpiFormatException(status));
+	if (ACPI_FAILURE(status)) {
+		/*
+		 * If the method is missing, assume that the device is always
+		 * operational.
+		 */
+		if (status != AE_NOT_FOUND) {
+			printf("can't evaluate %s._DCS - %s\n",
+			    acpi_name(handle), AcpiFormatException(status));
+		} else {
+			dcs = 0xff;
+		}
+	}
 
 	return (dcs);
 }
@@ -1075,9 +1115,18 @@ vo_get_graphics_state(ACPI_HANDLE handle)
 
 	dgs = 0;
 	status = acpi_GetInteger(handle, "_DGS", &dgs);
-	if (ACPI_FAILURE(status))
-		printf("can't evaluate %s._DGS - %s\n",
-		       acpi_name(handle), AcpiFormatException(status));
+	if (ACPI_FAILURE(status)) {
+		/*
+		 * If the method is missing, assume that the device is always
+		 * operational.
+		 */
+		if (status != AE_NOT_FOUND) {
+			printf("can't evaluate %s._DGS - %s\n",
+			    acpi_name(handle), AcpiFormatException(status));
+		} else {
+			dgs = 0xff;
+		}
+	}
 
 	return (dgs);
 }
@@ -1089,7 +1138,7 @@ vo_set_device_state(ACPI_HANDLE handle, UINT32 state)
 
 	ACPI_SERIAL_ASSERT(video_output);
 	status = acpi_SetInteger(handle, "_DSS", state);
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
 		printf("can't evaluate %s._DSS - %s\n",
-		       acpi_name(handle), AcpiFormatException(status));
+		    acpi_name(handle), AcpiFormatException(status));
 }
