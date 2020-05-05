@@ -28,7 +28,7 @@
 .\"     @(#)strdup.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2018
+.Dd May 5, 2020
 .Dt STRDUP 3
 .Os
 .Sh NAME
@@ -51,14 +51,11 @@ allocates sufficient memory for a copy
 of the string
 .Fa str ,
 does the copy, and returns a pointer to it.
-The pointer may subsequently be used as an
-argument to the function
-.Xr free 3 .
-.Pp
-If insufficient memory is available, NULL is returned and
-.Va errno
-is set to
-.Er ENOMEM .
+The memory is allocated with
+.Xr malloc 3
+and should be released with
+.Xr free 3
+when no longer needed.
 .Pp
 The
 .Fn strndup
@@ -69,6 +66,14 @@ characters from the string
 always
 .Dv NUL
 terminating the copied string.
+.Sh RETURN VALUES
+If insufficient memory is available, NULL is returned and
+.Va errno
+is set to
+.Er ENOMEM .
+Otherwise, the
+.Fn strdup
+family of functions return a pointer to the copied string.
 .Sh SEE ALSO
 .Xr free 3 ,
 .Xr malloc 3 ,
