@@ -1498,20 +1498,21 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 
 	switch (cmd) {
 	case CRIOGET:
+		error = falloc_noinstall(td, &f);
+		if (error)
+			break;
+
 		fcr = malloc(sizeof(struct fcrypt), M_XDATA, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&fcr->csessions);
 		mtx_init(&fcr->lock, "fcrypt", NULL, MTX_DEF);
 
-		error = falloc(td, &f, &fd, 0);
-
+		finit(f, FREAD | FWRITE, DTYPE_CRYPTO, fcr, &cryptofops);
+		error = finstall(td, f, &fd, 0, NULL);
 		if (error) {
 			mtx_destroy(&fcr->lock);
 			free(fcr, M_XDATA);
-			return (error);
-		}
-		/* falloc automatically provides an extra reference to 'f'. */
-		finit(f, FREAD | FWRITE, DTYPE_CRYPTO, fcr, &cryptofops);
-		*(u_int32_t *)data = fd;
+		} else
+			*(uint32_t *)data = fd;
 		fdrop(f, td);
 		break;
 	case CRIOFINDDEV:
