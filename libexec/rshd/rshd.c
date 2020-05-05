@@ -439,7 +439,7 @@ doit(struct sockaddr *fromp)
 				nfd = pv[0];
 			else
 				nfd = s;
-				ioctl(pv[0], FIONBIO, (char *)&one);
+			ioctl(pv[0], FIONBIO, (char *)&one);
 
 			/* should set s nbio! */
 			nfd++;
