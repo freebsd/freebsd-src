@@ -838,7 +838,21 @@ display(const FTSENT *p, FTSENT *list, int options)
 					group = ngroup;
 				} else {
 					user = user_from_uid(sp->st_uid, 0);
+					/*
+					 * user_from_uid(..., 0) only returns
+					 * NULL in OOM conditions.  We could
+					 * format the uid here, but (1) in
+					 * general ls(1) exits on OOM, and (2)
+					 * there is another allocation/exit
+					 * path directly below, which will
+					 * likely exit anyway.
+					 */
+					if (user == NULL)
+						err(1, "user_from_uid");
 					group = group_from_gid(sp->st_gid, 0);
+					/* Ditto. */
+					if (group == NULL)
+						err(1, "group_from_gid");
 				}
 				if ((ulen = strlen(user)) > maxuser)
 					maxuser = ulen;
