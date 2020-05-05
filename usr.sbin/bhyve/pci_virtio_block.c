@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/disk.h>
 
+#include <machine/vmm_snapshot.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -198,6 +200,11 @@ static void pci_vtblk_reset(void *);
 static void pci_vtblk_notify(void *, struct vqueue_info *);
 static int pci_vtblk_cfgread(void *, int, int, uint32_t *);
 static int pci_vtblk_cfgwrite(void *, int, int, uint32_t);
+#ifdef BHYVE_SNAPSHOT
+static void pci_vtblk_pause(void *);
+static void pci_vtblk_resume(void *);
+static int pci_vtblk_snapshot(void *, struct vm_snapshot_meta *);
+#endif
 
 static struct virtio_consts vtblk_vi_consts = {
 	"vtblk",		/* our name */
@@ -209,6 +216,11 @@ static struct virtio_consts vtblk_vi_consts = {
 	pci_vtblk_cfgwrite,	/* write PCI config */
 	NULL,			/* apply negotiated features */
 	VTBLK_S_HOSTCAPS,	/* our capabilities */
+#ifdef BHYVE_SNAPSHOT
+	pci_vtblk_pause,	/* pause blockif threads */
+	pci_vtblk_resume,	/* resume blockif threads */
+	pci_vtblk_snapshot,	/* save / restore device state */
+#endif
 };
 
 static void
@@ -240,6 +252,40 @@ pci_vtblk_done_locked(struct pci_vtblk_ioreq *io, int err)
 	vq_relchain(&sc->vbsc_vq, io->io_idx, 1);
 	vq_endchains(&sc->vbsc_vq, 0);
 }
+
+#ifdef BHYVE_SNAPSHOT
+static void
+pci_vtblk_pause(void *vsc)
+{
+	struct pci_vtblk_softc *sc = vsc;
+
+	DPRINTF(("vtblk: device pause requested !\n"));
+	blockif_pause(sc->bc);
+}
+
+static void
+pci_vtblk_resume(void *vsc)
+{
+	struct pci_vtblk_softc *sc = vsc;
+
+	DPRINTF(("vtblk: device resume requested !\n"));
+	blockif_resume(sc->bc);
+}
+
+static int
+pci_vtblk_snapshot(void *vsc, struct vm_snapshot_meta *meta)
+{
+	int ret;
+	struct pci_vtblk_softc *sc = vsc;
+
+	SNAPSHOT_VAR_OR_LEAVE(sc->vbsc_cfg, meta, ret, done);
+	SNAPSHOT_BUF_OR_LEAVE(sc->vbsc_ident, sizeof(sc->vbsc_ident),
+			      meta, ret, done);
+
+done:
+	return (ret);
+}
+#endif
 
 static void
 pci_vtblk_done(struct blockif_req *br, int err)
@@ -523,6 +569,9 @@ struct pci_devemu pci_de_vblk = {
 	.pe_emu =	"virtio-blk",
 	.pe_init =	pci_vtblk_init,
 	.pe_barwrite =	vi_pci_write,
-	.pe_barread =	vi_pci_read
+	.pe_barread =	vi_pci_read,
+#ifdef BHYVE_SNAPSHOT
+	.pe_snapshot =	vi_pci_snapshot,
+#endif
 };
 PCI_EMUL_SET(pci_de_vblk);

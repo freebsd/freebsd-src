@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm_dev.h>
 #include <vmmapi.h>
 
+#include <sys/socket.h>
+#include <sys/un.h>
+
 #include "amd/vmcb.h"
 #include "intel/vmcs.h"
 
@@ -66,6 +69,9 @@ __FBSDID("$FreeBSD$");
 #define	REQ_ARG		required_argument
 #define	NO_ARG		no_argument
 #define	OPT_ARG		optional_argument
+
+#define CHECKPOINT_RUN_DIR "/var/run/bhyve/checkpoint"
+#define MAX_VMNAME 100
 
 static const char *progname;
 
@@ -78,6 +84,10 @@ usage(bool cpu_intel)
 	"       [--cpu=<vcpu_number>]\n"
 	"       [--create]\n"
 	"       [--destroy]\n"
+#ifdef BHYVE_SNAPSHOT
+	"       [--checkpoint=<filename>]\n"
+	"       [--suspend=<filename>]\n"
+#endif
 	"       [--get-all]\n"
 	"       [--get-stats]\n"
 	"       [--set-desc-ds]\n"
@@ -287,6 +297,10 @@ enum x2apic_state x2apic_state;
 static int unassign_pptdev, bus, slot, func;
 static int run;
 static int get_cpu_topology;
+#ifdef BHYVE_SNAPSHOT
+static int vm_checkpoint_opt;
+static int vm_suspend_opt;
+#endif
 
 /*
  * VMCB specific.
@@ -591,6 +605,10 @@ enum {
 	SET_RTC_TIME,
 	SET_RTC_NVRAM,
 	RTC_NVRAM_OFFSET,
+#ifdef BHYVE_SNAPSHOT
+	SET_CHECKPOINT_FILE,
+	SET_SUSPEND_FILE,
+#endif
 };
 
 static void
@@ -1461,6 +1479,10 @@ setup_options(bool cpu_intel)
 		{ "get-suspended-cpus", NO_ARG,	&get_suspended_cpus, 	1 },
 		{ "get-intinfo", 	NO_ARG,	&get_intinfo,		1 },
 		{ "get-cpu-topology",	NO_ARG, &get_cpu_topology,	1 },
+#ifdef BHYVE_SNAPSHOT
+		{ "checkpoint", 	REQ_ARG, 0,	SET_CHECKPOINT_FILE},
+		{ "suspend", 		REQ_ARG, 0,	SET_SUSPEND_FILE},
+#endif
 	};
 
 	const struct option intel_opts[] = {
@@ -1678,6 +1700,82 @@ show_memseg(struct vmctx *ctx)
 	}
 }
 
+#ifdef BHYVE_SNAPSHOT
+static int
+send_checkpoint_op_req(struct vmctx *ctx, struct checkpoint_op *op)
+{
+	struct sockaddr_un addr;
+	int socket_fd, len, len_sent, total_sent;
+	int err = 0;
+	char vmname_buf[MAX_VMNAME];
+
+	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+	if (socket_fd < 0) {
+		perror("Error creating bhyvectl socket");
+		err = -1;
+		goto done;
+	}
+
+	memset(&addr, 0, sizeof(struct sockaddr_un));
+	addr.sun_family = AF_UNIX;
+
+	err = vm_get_name(ctx, vmname_buf, MAX_VMNAME - 1);
+	if (err != 0) {
+		perror("Failed to get VM name");
+		goto done;
+	}
+
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s", CHECKPOINT_RUN_DIR, vmname_buf);
+
+	if (connect(socket_fd, (struct sockaddr *)&addr,
+			sizeof(struct sockaddr_un)) != 0) {
+		perror("Connect to VM socket failed");
+		err = -1;
+		goto done;
+	}
+
+	len = sizeof(*op);
+	total_sent = 0;
+	while ((len_sent = send(socket_fd, (char *)op + total_sent, len - total_sent, 0)) > 0) {
+		total_sent += len_sent;
+	}
+
+	if (len_sent < 0) {
+		perror("Failed to send checkpoint operation request");
+		err = -1;
+	}
+
+done:
+	if (socket_fd > 0)
+		close(socket_fd);
+	return (err);
+}
+
+static int
+send_start_checkpoint(struct vmctx *ctx, const char *checkpoint_file)
+{
+	struct checkpoint_op op;
+
+	op.op = START_CHECKPOINT;
+	strncpy(op.snapshot_filename, checkpoint_file, MAX_SNAPSHOT_VMNAME);
+	op.snapshot_filename[MAX_SNAPSHOT_VMNAME - 1] = 0;
+
+	return (send_checkpoint_op_req(ctx, &op));
+}
+
+static int
+send_start_suspend(struct vmctx *ctx, const char *suspend_file)
+{
+	struct checkpoint_op op;
+
+	op.op = START_SUSPEND;
+	strncpy(op.snapshot_filename, suspend_file, MAX_SNAPSHOT_VMNAME);
+	op.snapshot_filename[MAX_SNAPSHOT_VMNAME - 1] = 0;
+
+	return (send_checkpoint_op_req(ctx, &op));
+}
+#endif
+
 int
 main(int argc, char *argv[])
 {
@@ -1694,6 +1792,9 @@ main(int argc, char *argv[])
 	uint64_t cs, ds, es, fs, gs, ss, tr, ldtr;
 	struct tm tm;
 	struct option *opts;
+#ifdef BHYVE_SNAPSHOT
+	char *checkpoint_file, *suspend_file;
+#endif
 
 	cpu_intel = cpu_vendor_intel();
 	opts = setup_options(cpu_intel);
@@ -1860,6 +1961,16 @@ main(int argc, char *argv[])
 		case ASSERT_LAPIC_LVT:
 			assert_lapic_lvt = atoi(optarg);
 			break;
+#ifdef BHYVE_SNAPSHOT
+		case SET_CHECKPOINT_FILE:
+			vm_checkpoint_opt = 1;
+			checkpoint_file = optarg;
+			break;
+		case SET_SUSPEND_FILE:
+			vm_suspend_opt = 1;
+			suspend_file = optarg;
+			break;
+#endif
 		default:
 			usage(cpu_intel);
 		}
@@ -2344,6 +2455,14 @@ main(int argc, char *argv[])
 
 	if (!error && destroy)
 		vm_destroy(ctx);
+
+#ifdef BHYVE_SNAPSHOT
+	if (!error && vm_checkpoint_opt)
+		error = send_start_checkpoint(ctx, checkpoint_file);
+
+	if (!error && vm_suspend_opt)
+		error = send_start_suspend(ctx, suspend_file);
+#endif
 
 	free (opts);
 	exit(error);

@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include <machine/atomic.h>
+#include <machine/vmm_snapshot.h>
 
 #include "bhyverun.h"
 #include "debug.h"
@@ -105,9 +106,13 @@ struct blockif_ctxt {
 	int			bc_psectsz;
 	int			bc_psectoff;
 	int			bc_closing;
+	int			bc_paused;
+	int			bc_work_count;
 	pthread_t		bc_btid[BLOCKIF_NUMTHR];
 	pthread_mutex_t		bc_mtx;
 	pthread_cond_t		bc_cond;
+	pthread_cond_t		bc_paused_cond;
+	pthread_cond_t		bc_work_done_cond;
 
 	/* Request elements and free/pending/busy queues */
 	TAILQ_HEAD(, blockif_elem) bc_freeq;       
@@ -210,6 +215,18 @@ blockif_complete(struct blockif_ctxt *bc, struct blockif_elem *be)
 	TAILQ_INSERT_TAIL(&bc->bc_freeq, be, be_link);
 }
 
+static int
+blockif_flush_bc(struct blockif_ctxt *bc)
+{
+	if (bc->bc_ischr) {
+		if (ioctl(bc->bc_fd, DIOCGFLUSH))
+			return (errno);
+	} else if (fsync(bc->bc_fd))
+		return (errno);
+
+	return (0);
+}
+
 static void
 blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 {
@@ -300,11 +317,7 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 		}
 		break;
 	case BOP_FLUSH:
-		if (bc->bc_ischr) {
-			if (ioctl(bc->bc_fd, DIOCGFLUSH))
-				err = errno;
-		} else if (fsync(bc->bc_fd))
-			err = errno;
+		err = blockif_flush_bc(bc);
 		break;
 	case BOP_DELETE:
 		if (!bc->bc_candelete)
@@ -348,15 +361,30 @@ blockif_thr(void *arg)
 
 	pthread_mutex_lock(&bc->bc_mtx);
 	for (;;) {
-		while (blockif_dequeue(bc, t, &be)) {
+		bc->bc_work_count++;
+
+		/* We cannot process work if the interface is paused */
+		while (!bc->bc_paused && blockif_dequeue(bc, t, &be)) {
 			pthread_mutex_unlock(&bc->bc_mtx);
 			blockif_proc(bc, be, buf);
 			pthread_mutex_lock(&bc->bc_mtx);
 			blockif_complete(bc, be);
 		}
+
+		bc->bc_work_count--;
+
+		/* If none of the workers are busy, notify the main thread */
+		if (bc->bc_work_count == 0)
+			pthread_cond_broadcast(&bc->bc_work_done_cond);
+
 		/* Check ctxt status here to see if exit requested */
 		if (bc->bc_closing)
 			break;
+
+		/* Make all worker threads wait here if the device is paused */
+		while (bc->bc_paused)
+			pthread_cond_wait(&bc->bc_paused_cond, &bc->bc_mtx);
+
 		pthread_cond_wait(&bc->bc_cond, &bc->bc_mtx);
 	}
 	pthread_mutex_unlock(&bc->bc_mtx);
@@ -565,6 +593,10 @@ blockif_open(const char *optstr, const char *ident)
 	bc->bc_psectoff = psectoff;
 	pthread_mutex_init(&bc->bc_mtx, NULL);
 	pthread_cond_init(&bc->bc_cond, NULL);
+	bc->bc_paused = 0;
+	bc->bc_work_count = 0;
+	pthread_cond_init(&bc->bc_paused_cond, NULL);
+	pthread_cond_init(&bc->bc_work_done_cond, NULL);
 	TAILQ_INIT(&bc->bc_freeq);
 	TAILQ_INIT(&bc->bc_pendq);
 	TAILQ_INIT(&bc->bc_busyq);
@@ -657,6 +689,8 @@ blockif_cancel(struct blockif_ctxt *bc, struct blockif_req *breq)
 	assert(bc->bc_magic == BLOCKIF_SIG);
 
 	pthread_mutex_lock(&bc->bc_mtx);
+	/* XXX: not waiting while paused */
+
 	/*
 	 * Check pending requests.
 	 */
@@ -855,3 +889,100 @@ blockif_candelete(struct blockif_ctxt *bc)
 	assert(bc->bc_magic == BLOCKIF_SIG);
 	return (bc->bc_candelete);
 }
+
+#ifdef BHYVE_SNAPSHOT
+void
+blockif_pause(struct blockif_ctxt *bc)
+{
+	assert(bc != NULL);
+	assert(bc->bc_magic == BLOCKIF_SIG);
+
+	pthread_mutex_lock(&bc->bc_mtx);
+	bc->bc_paused = 1;
+
+	/* The interface is paused. Wait for workers to finish their work */
+	while (bc->bc_work_count)
+		pthread_cond_wait(&bc->bc_work_done_cond, &bc->bc_mtx);
+	pthread_mutex_unlock(&bc->bc_mtx);
+
+	if (blockif_flush_bc(bc))
+		fprintf(stderr, "%s: [WARN] failed to flush backing file.\r\n",
+			__func__);
+}
+
+void
+blockif_resume(struct blockif_ctxt *bc)
+{
+	assert(bc != NULL);
+	assert(bc->bc_magic == BLOCKIF_SIG);
+
+	pthread_mutex_lock(&bc->bc_mtx);
+	bc->bc_paused = 0;
+	/* resume the threads waiting for paused */
+	pthread_cond_broadcast(&bc->bc_paused_cond);
+	/* kick the threads after restore */
+	pthread_cond_broadcast(&bc->bc_cond);
+	pthread_mutex_unlock(&bc->bc_mtx);
+}
+
+int
+blockif_snapshot_req(struct blockif_req *br, struct vm_snapshot_meta *meta)
+{
+	int i;
+	struct iovec *iov;
+	int ret;
+
+	SNAPSHOT_VAR_OR_LEAVE(br->br_iovcnt, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(br->br_offset, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(br->br_resid, meta, ret, done);
+
+	/*
+	 * XXX: The callback and parameter must be filled by the virtualized
+	 * device that uses the interface, during its init; we're not touching
+	 * them here.
+	 */
+
+	/* Snapshot the iovecs. */
+	for (i = 0; i < br->br_iovcnt; i++) {
+		iov = &br->br_iov[i];
+
+		SNAPSHOT_VAR_OR_LEAVE(iov->iov_len, meta, ret, done);
+
+		/* We assume the iov is a guest-mapped address. */
+		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(iov->iov_base, iov->iov_len,
+			false, meta, ret, done);
+	}
+
+done:
+	return (ret);
+}
+
+int
+blockif_snapshot(struct blockif_ctxt *bc, struct vm_snapshot_meta *meta)
+{
+	int ret;
+
+	if (bc->bc_paused == 0) {
+		fprintf(stderr, "%s: Snapshot failed: "
+			"interface not paused.\r\n", __func__);
+		return (ENXIO);
+	}
+
+	pthread_mutex_lock(&bc->bc_mtx);
+
+	SNAPSHOT_VAR_OR_LEAVE(bc->bc_magic, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(bc->bc_ischr, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(bc->bc_isgeom, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(bc->bc_candelete, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(bc->bc_rdonly, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(bc->bc_size, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(bc->bc_sectsz, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(bc->bc_psectsz, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(bc->bc_psectoff, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(bc->bc_closing, meta, ret, done);
+
+done:
+	pthread_mutex_unlock(&bc->bc_mtx);
+	return (ret);
+}
+#endif

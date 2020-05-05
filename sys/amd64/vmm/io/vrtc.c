@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bhyve_snapshot.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
@@ -40,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_snapshot.h>
 
 #include <isa/rtc.h>
 
@@ -1020,3 +1023,45 @@ vrtc_cleanup(struct vrtc *vrtc)
 	callout_drain(&vrtc->callout);
 	free(vrtc, M_VRTC);
 }
+
+#ifdef BHYVE_SNAPSHOT
+int
+vrtc_snapshot(struct vrtc *vrtc, struct vm_snapshot_meta *meta)
+{
+	int ret;
+
+	VRTC_LOCK(vrtc);
+
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->addr, meta, ret, done);
+	if (meta->op == VM_SNAPSHOT_RESTORE)
+		vrtc->base_uptime = sbinuptime();
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->base_rtctime, meta, ret, done);
+
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.sec, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.alarm_sec, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.min, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.alarm_min, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.hour, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.alarm_hour, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.day_of_week, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.day_of_month, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.month, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.year, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.reg_a, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.reg_b, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.reg_c, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.reg_d, meta, ret, done);
+	SNAPSHOT_BUF_OR_LEAVE(vrtc->rtcdev.nvram, sizeof(vrtc->rtcdev.nvram),
+			      meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.century, meta, ret, done);
+	SNAPSHOT_BUF_OR_LEAVE(vrtc->rtcdev.nvram2, sizeof(vrtc->rtcdev.nvram2),
+			      meta, ret, done);
+
+	vrtc_callout_reset(vrtc, vrtc_freq(vrtc));
+
+	VRTC_UNLOCK(vrtc);
+
+done:
+	return (ret);
+}
+#endif

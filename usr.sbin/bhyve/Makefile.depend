@@ -13,8 +13,10 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libsbuf \
 	lib/libthr \
+	lib/libucl \
 	lib/libutil \
 	lib/libvmmapi \
+	lib/libxo \
 	lib/libz \
 
 

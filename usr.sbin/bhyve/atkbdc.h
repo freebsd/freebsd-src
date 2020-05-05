@@ -30,9 +30,14 @@
 #define _ATKBDC_H_
 
 struct atkbdc_softc;
+struct vm_snapshot_meta;
 struct vmctx;
 
 void atkbdc_init(struct vmctx *ctx);
 void atkbdc_event(struct atkbdc_softc *sc, int iskbd);
+
+#ifdef BHYVE_SNAPSHOT
+int atkbdc_snapshot(struct vm_snapshot_meta *meta);
+#endif
 
 #endif /* _ATKBDC_H_ */

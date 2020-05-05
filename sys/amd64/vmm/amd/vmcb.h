@@ -31,8 +31,6 @@
 #ifndef _VMCB_H_
 #define	_VMCB_H_
 
-struct svm_softc;
-
 #define BIT(n)			(1ULL << n)
 
 /*
@@ -209,6 +207,10 @@ struct svm_softc;
 #define	VMCB_ACCESS_OFFSET(v)           ((v) & 0xFFF)
 
 #ifdef _KERNEL
+
+struct svm_softc;
+struct vm_snapshot_meta;
+
 /* VMCB save state area segment format */
 struct vmcb_segment {
 	uint16_t	selector;
@@ -331,6 +333,14 @@ int	vmcb_write(struct svm_softc *sc, int vcpu, int ident, uint64_t val);
 int	vmcb_setdesc(void *arg, int vcpu, int ident, struct seg_desc *desc);
 int	vmcb_getdesc(void *arg, int vcpu, int ident, struct seg_desc *desc);
 int	vmcb_seg(struct vmcb *vmcb, int ident, struct vmcb_segment *seg);
+#ifdef BHYVE_SNAPSHOT
+int	vmcb_getany(struct svm_softc *sc, int vcpu, int ident, uint64_t *val);
+int	vmcb_setany(struct svm_softc *sc, int vcpu, int ident, uint64_t val);
+int	vmcb_snapshot_desc(void *arg, int vcpu, int reg,
+			   struct vm_snapshot_meta *meta);
+int	vmcb_snapshot_any(struct svm_softc *sc, int vcpu, int ident,
+			  struct vm_snapshot_meta *meta);
+#endif
 
 #endif /* _KERNEL */
 #endif /* _VMCB_H_ */
