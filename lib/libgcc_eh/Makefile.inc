@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-COMPILERRTDIR=	${SRCTOP}/contrib/compiler-rt
-UNWINDINCDIR=	${SRCTOP}/contrib/libunwind/include
-UNWINDSRCDIR=	${SRCTOP}/contrib/libunwind/src
+COMPILERRTDIR=	${SRCTOP}/contrib/llvm-project/compiler-rt
+UNWINDINCDIR=	${SRCTOP}/contrib/llvm-project/libunwind/include
+UNWINDSRCDIR=	${SRCTOP}/contrib/llvm-project/libunwind/src
 
 STATIC_CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
 
@@ -34,5 +34,5 @@ CXXFLAGS+=	-fno-rtti
 STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC
 .if ${MK_DIRDEPS_BUILD} == "yes"
 # Avoid dependency on lib/libc++
-CFLAGS+=	-I${SRCTOP}/contrib/libc++/include
+CFLAGS+=	-isystem ${SRCTOP}/contrib/llvm-project/libcxx/include -nostdinc++
 .endif

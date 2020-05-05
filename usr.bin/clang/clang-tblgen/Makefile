@@ -3,7 +3,7 @@
 PROG_CXX=	clang-tblgen
 MAN=
 
-SRCDIR=		tools/clang/utils/TableGen
+SRCDIR=		clang/utils/TableGen
 SRCS+=		ClangASTNodesEmitter.cpp
 SRCS+=		ClangAttrEmitter.cpp
 SRCS+=		ClangCommentCommandInfoEmitter.cpp

@@ -24,7 +24,7 @@ CFLAGS+=	-I${LLVM_SRCS}/lib/Target/${arch}
 . endif
 .endfor
 
-SRCDIR=		lib
+SRCDIR=		llvm/lib
 
 # Explanation of different SRCS variants below:
 # SRCS_MIN:	always required, even for bootstrap

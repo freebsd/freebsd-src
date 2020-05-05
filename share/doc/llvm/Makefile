@@ -2,7 +2,7 @@
 
 SUBDIR=		clang
 
-SRCDIR=		${.CURDIR}/../../../contrib/llvm
+SRCDIR=		${SRCTOP}/contrib/llvm-project/llvm
 
 .PATH: ${SRCDIR} ${SRCDIR}/lib/Support
 

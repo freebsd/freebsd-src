@@ -10,7 +10,7 @@ PROG_CXX=	lldb
 CFLAGS+=	-I${LLDB_SRCS}/include
 CFLAGS+=	-I${.OBJDIR}
 
-SRCDIR=		tools/lldb/tools/driver
+SRCDIR=		lldb/tools/driver
 SRCS+=		Driver.cpp
 
 .include "${SRCTOP}/lib/clang/clang.build.mk"

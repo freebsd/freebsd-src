@@ -2,7 +2,7 @@
 
 PROG_CXX=	llvm-extract
 
-SRCDIR=		tools/llvm-extract
+SRCDIR=		llvm/tools/llvm-extract
 SRCS+=		llvm-extract.cpp
 
 LIBADD+=	z

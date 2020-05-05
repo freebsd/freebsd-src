@@ -18,7 +18,7 @@ CFLAGS.Targets.cpp+= -include ../freebsd_cc_version.h
 CXXFLAGS.Module.cpp+= -fpermissive
 .endif
 
-SRCDIR=		tools/clang/lib
+SRCDIR=		clang/lib
 
 # Explanation of different SRCS variants below:
 # SRCS_MIN:	always required, even for bootstrap

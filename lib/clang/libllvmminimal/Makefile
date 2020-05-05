@@ -5,7 +5,7 @@
 LIB=		llvmminimal
 INTERNALLIB=
 
-SRCDIR=		lib
+SRCDIR=		llvm/lib
 SRCS+=		Demangle/ItaniumDemangle.cpp
 SRCS+=		Support/APFloat.cpp
 SRCS+=		Support/APInt.cpp

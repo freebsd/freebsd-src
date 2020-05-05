@@ -3,7 +3,7 @@
 .include "../lldb.pre.mk"
 
 LIB=		lldb
-SRCDIR=		tools/lldb/source
+SRCDIR=		lldb/source
 
 CFLAGS+=	-I${LLDB_SRCS}/include
 CFLAGS+=	-I${LLDB_SRCS}/source

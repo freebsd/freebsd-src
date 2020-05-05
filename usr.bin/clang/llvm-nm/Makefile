@@ -2,7 +2,7 @@
 
 PROG_CXX=	llvm-nm
 
-SRCDIR=		tools/llvm-nm
+SRCDIR=		llvm/tools/llvm-nm
 SRCS+=		llvm-nm.cpp
 
 LIBADD+=	z
