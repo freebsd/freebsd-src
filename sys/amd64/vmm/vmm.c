@@ -31,6 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bhyve_snapshot.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -44,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -53,6 +55,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_kern.h>
+#include <vm/vnode_pager.h>
+#include <vm/swap_pager.h>
+#include <vm/uma.h>
 
 #include <machine/cpu.h>
 #include <machine/pcb.h>
@@ -64,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
+#include <machine/vmm_snapshot.h>
 
 #include "vmm_ioport.h"
 #include "vmm_ktr.h"
@@ -111,6 +119,7 @@ struct vcpu {
 	void		*stats;		/* (a,i) statistics */
 	struct vm_exit	exitinfo;	/* (x) exit reason and collateral */
 	uint64_t	nextrip;	/* (x) next instruction to execute */
+	uint64_t	tsc_offset;	/* (o) TSC offsetting */
 };
 
 #define	vcpu_lock_initialized(v) mtx_initialized(&((v)->mtx))
@@ -204,6 +213,14 @@ static struct vmm_ops *ops;
 	(ops != NULL ? (*ops->vlapic_init)(vmi, vcpu) : NULL)
 #define	VLAPIC_CLEANUP(vmi, vlapic)		\
 	(ops != NULL ? (*ops->vlapic_cleanup)(vmi, vlapic) : NULL)
+#ifdef BHYVE_SNAPSHOT
+#define	VM_SNAPSHOT_VMI(vmi, meta) \
+	(ops != NULL ? (*ops->vmsnapshot)(vmi, meta) : ENXIO)
+#define	VM_SNAPSHOT_VMCX(vmi, meta, vcpuid) \
+	(ops != NULL ? (*ops->vmcx_snapshot)(vmi, meta, vcpuid) : ENXIO)
+#define	VM_RESTORE_TSC(vmi, vcpuid, offset) \
+	(ops != NULL ? (*ops->vm_restore_tsc)(vmi, vcpuid, offset) : ENXIO)
+#endif
 
 #define	fpu_start_emulating()	load_cr0(rcr0() | CR0_TS)
 #define	fpu_stop_emulating()	clts()
@@ -290,6 +307,7 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 		vcpu->hostcpu = NOCPU;
 		vcpu->guestfpu = fpu_save_area_alloc();
 		vcpu->stats = vmm_stat_alloc();
+		vcpu->tsc_offset = 0;
 	}
 
 	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
@@ -2730,3 +2748,177 @@ vm_get_wiredcnt(struct vm *vm, int vcpu, struct vmm_stat_type *stat)
 
 VMM_STAT_FUNC(VMM_MEM_RESIDENT, "Resident memory", vm_get_rescnt);
 VMM_STAT_FUNC(VMM_MEM_WIRED, "Wired memory", vm_get_wiredcnt);
+
+#ifdef BHYVE_SNAPSHOT
+static int
+vm_snapshot_vcpus(struct vm *vm, struct vm_snapshot_meta *meta)
+{
+	int ret;
+	int i;
+	struct vcpu *vcpu;
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		vcpu = &vm->vcpu[i];
+
+		SNAPSHOT_VAR_OR_LEAVE(vcpu->x2apic_state, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vcpu->exitintinfo, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vcpu->exc_vector, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vcpu->exc_errcode_valid, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vcpu->exc_errcode, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vcpu->guest_xcr0, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vcpu->exitinfo, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vcpu->nextrip, meta, ret, done);
+		/* XXX we're cheating here, since the value of tsc_offset as
+		 * saved here is actually the value of the guest's TSC value.
+		 *
+		 * It will be turned turned back into an actual offset when the
+		 * TSC restore function is called
+		 */
+		SNAPSHOT_VAR_OR_LEAVE(vcpu->tsc_offset, meta, ret, done);
+	}
+
+done:
+	return (ret);
+}
+
+static int
+vm_snapshot_vm(struct vm *vm, struct vm_snapshot_meta *meta)
+{
+	int ret;
+	int i;
+	uint64_t now;
+
+	ret = 0;
+	now = rdtsc();
+
+	if (meta->op == VM_SNAPSHOT_SAVE) {
+		/* XXX make tsc_offset take the value TSC proper as seen by the
+		 * guest
+		 */
+		for (i = 0; i < VM_MAXCPU; i++)
+			vm->vcpu[i].tsc_offset += now;
+	}
+
+	ret = vm_snapshot_vcpus(vm, meta);
+	if (ret != 0) {
+		printf("%s: failed to copy vm data to user buffer", __func__);
+		goto done;
+	}
+
+	if (meta->op == VM_SNAPSHOT_SAVE) {
+		/* XXX turn tsc_offset back into an offset; actual value is only
+		 * required for restore; using it otherwise would be wrong
+		 */
+		for (i = 0; i < VM_MAXCPU; i++)
+			vm->vcpu[i].tsc_offset -= now;
+	}
+
+done:
+	return (ret);
+}
+
+static int
+vm_snapshot_vmcx(struct vm *vm, struct vm_snapshot_meta *meta)
+{
+	int i, error;
+
+	error = 0;
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		error = VM_SNAPSHOT_VMCX(vm->cookie, meta, i);
+		if (error != 0) {
+			printf("%s: failed to snapshot vmcs/vmcb data for "
+			       "vCPU: %d; error: %d\n", __func__, i, error);
+			goto done;
+		}
+	}
+
+done:
+	return (error);
+}
+
+/*
+ * Save kernel-side structures to user-space for snapshotting.
+ */
+int
+vm_snapshot_req(struct vm *vm, struct vm_snapshot_meta *meta)
+{
+	int ret = 0;
+
+	switch (meta->dev_req) {
+	case STRUCT_VMX:
+		ret = VM_SNAPSHOT_VMI(vm->cookie, meta);
+		break;
+	case STRUCT_VMCX:
+		ret = vm_snapshot_vmcx(vm, meta);
+		break;
+	case STRUCT_VM:
+		ret = vm_snapshot_vm(vm, meta);
+		break;
+	case STRUCT_VIOAPIC:
+		ret = vioapic_snapshot(vm_ioapic(vm), meta);
+		break;
+	case STRUCT_VLAPIC:
+		ret = vlapic_snapshot(vm, meta);
+		break;
+	case STRUCT_VHPET:
+		ret = vhpet_snapshot(vm_hpet(vm), meta);
+		break;
+	case STRUCT_VATPIC:
+		ret = vatpic_snapshot(vm_atpic(vm), meta);
+		break;
+	case STRUCT_VATPIT:
+		ret = vatpit_snapshot(vm_atpit(vm), meta);
+		break;
+	case STRUCT_VPMTMR:
+		ret = vpmtmr_snapshot(vm_pmtmr(vm), meta);
+		break;
+	case STRUCT_VRTC:
+		ret = vrtc_snapshot(vm_rtc(vm), meta);
+		break;
+	default:
+		printf("%s: failed to find the requested type %#x\n",
+		       __func__, meta->dev_req);
+		ret = (EINVAL);
+	}
+	return (ret);
+}
+
+int
+vm_set_tsc_offset(struct vm *vm, int vcpuid, uint64_t offset)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	vcpu = &vm->vcpu[vcpuid];
+	vcpu->tsc_offset = offset;
+
+	return (0);
+}
+
+int
+vm_restore_time(struct vm *vm)
+{
+	int error, i;
+	uint64_t now;
+	struct vcpu *vcpu;
+
+	now = rdtsc();
+
+	error = vhpet_restore_time(vm_hpet(vm));
+	if (error)
+		return (error);
+
+	for (i = 0; i < nitems(vm->vcpu); i++) {
+		vcpu = &vm->vcpu[i];
+
+		error = VM_RESTORE_TSC(vm->cookie, i, vcpu->tsc_offset - now);
+		if (error)
+			return (error);
+	}
+
+	return (0);
+}
+#endif

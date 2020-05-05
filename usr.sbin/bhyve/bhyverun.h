@@ -38,9 +38,12 @@ struct vmctx;
 extern int guest_ncpus;
 extern uint16_t cores, sockets, threads;
 extern char *guest_uuid_str;
-extern char *vmname;
+extern const char *vmname;
 
 void *paddr_guest2host(struct vmctx *ctx, uintptr_t addr, size_t len);
+#ifdef BHYVE_SNAPSHOT
+uintptr_t paddr_host2guest(struct vmctx *ctx, void *addr);
+#endif
 
 void fbsdrun_set_capabilities(struct vmctx *ctx, int cpu);
 void fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip);

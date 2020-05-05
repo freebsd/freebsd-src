@@ -36,6 +36,8 @@
 #define	IO_ELCR1	0x4d0
 #define	IO_ELCR2	0x4d1
 
+struct vm_snapshot_meta;
+
 struct vatpic *vatpic_init(struct vm *vm);
 void vatpic_cleanup(struct vatpic *vatpic);
 
@@ -53,5 +55,9 @@ int vatpic_set_irq_trigger(struct vm *vm, int irq, enum vm_intr_trigger trigger)
 
 void vatpic_pending_intr(struct vm *vm, int *vecptr);
 void vatpic_intr_accepted(struct vm *vm, int vector);
+
+#ifdef BHYVE_SNAPSHOT
+int vatpic_snapshot(struct vatpic *vatpic, struct vm_snapshot_meta *meta);
+#endif
 
 #endif	/* _VATPIC_H_ */

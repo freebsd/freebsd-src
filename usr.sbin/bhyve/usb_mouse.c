@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/time.h>
 
+#include <machine/vmm_snapshot.h>
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -788,6 +790,29 @@ umouse_stop(void *scarg)
 	return (0);
 }
 
+#ifdef BHYVE_SNAPSHOT
+static int
+umouse_snapshot(void *scarg, struct vm_snapshot_meta *meta)
+{
+	int ret;
+	struct umouse_softc *sc;
+
+	sc = scarg;
+
+	SNAPSHOT_VAR_OR_LEAVE(sc->um_report, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->newdata, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->hid.idle, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->hid.protocol, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->hid.feature, meta, ret, done);
+
+	SNAPSHOT_VAR_OR_LEAVE(sc->polling, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->prev_evt.tv_sec, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->prev_evt.tv_usec, meta, ret, done);
+
+done:
+	return (ret);
+}
+#endif
 
 struct usb_devemu ue_mouse = {
 	.ue_emu =	"tablet",
@@ -798,6 +823,9 @@ struct usb_devemu ue_mouse = {
 	.ue_data =	umouse_data_handler,
 	.ue_reset =	umouse_reset,
 	.ue_remove =	umouse_remove,
-	.ue_stop =	umouse_stop
+	.ue_stop =	umouse_stop,
+#ifdef BHYVE_SNAPSHOT
+	.ue_snapshot =	umouse_snapshot,
+#endif
 };
 USB_EMUL_SET(ue_mouse);

@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -53,8 +54,10 @@ __FBSDID("$FreeBSD$");
 
 #include <libutil.h>
 
+#include <vm/vm.h>
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
+#include <machine/vmm_snapshot.h>
 
 #include "vmmapi.h"
 
@@ -235,6 +238,17 @@ vm_mmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, int segid, vm_ooffset_t off,
 
 	error = ioctl(ctx->fd, VM_MMAP_MEMSEG, &memmap);
 	return (error);
+}
+
+int
+vm_get_guestmem_from_ctx(struct vmctx *ctx, char **guest_baseaddr,
+    size_t *lowmem_size, size_t *highmem_size)
+{
+
+	*guest_baseaddr = ctx->baseaddr;
+	*lowmem_size = ctx->lowmem;
+	*highmem_size = ctx->highmem;
+	return (0);
 }
 
 int
@@ -446,6 +460,34 @@ vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 	}
 
 	return (NULL);
+}
+
+vm_paddr_t
+vm_rev_map_gpa(struct vmctx *ctx, void *addr)
+{
+	vm_paddr_t offaddr;
+
+	offaddr = (char *)addr - ctx->baseaddr;
+
+	if (ctx->lowmem > 0)
+		if (offaddr >= 0 && offaddr <= ctx->lowmem)
+			return (offaddr);
+
+	if (ctx->highmem > 0)
+		if (offaddr >= 4*GB && offaddr < 4*GB + ctx->highmem)
+			return (offaddr);
+
+	return ((vm_paddr_t)-1);
+}
+
+/* TODO: maximum size for vmname */
+int
+vm_get_name(struct vmctx *ctx, char *buf, size_t max_len)
+{
+
+	if (strlcpy(buf, ctx->name, max_len) >= max_len)
+		return (EINVAL);
+	return (0);
 }
 
 size_t
@@ -1499,6 +1541,29 @@ vm_restart_instruction(void *arg, int vcpu)
 	struct vmctx *ctx = arg;
 
 	return (ioctl(ctx->fd, VM_RESTART_INSTRUCTION, &vcpu));
+}
+
+int
+vm_snapshot_req(struct vm_snapshot_meta *meta)
+{
+
+	if (ioctl(meta->ctx->fd, VM_SNAPSHOT_REQ, meta) == -1) {
+#ifdef SNAPSHOT_DEBUG
+		fprintf(stderr, "%s: snapshot failed for %s: %d\r\n",
+		    __func__, meta->dev_name, errno);
+#endif
+		return (-1);
+	}
+	return (0);
+}
+
+int
+vm_restore_time(struct vmctx *ctx)
+{
+	int dummy;
+
+	dummy = 0;
+	return (ioctl(ctx->fd, VM_RESTORE_TIME, &dummy));
 }
 
 int

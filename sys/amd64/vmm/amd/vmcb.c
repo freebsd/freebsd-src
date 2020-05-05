@@ -29,12 +29,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bhyve_snapshot.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 
 #include <machine/segments.h>
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
+#include <machine/vmm_snapshot.h>
 
 #include "vmm_ktr.h"
 
@@ -452,3 +455,106 @@ vmcb_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 
 	return (0);
 }
+
+#ifdef BHYVE_SNAPSHOT
+int
+vmcb_getany(struct svm_softc *sc, int vcpu, int ident, uint64_t *val)
+{
+	int error = 0;
+
+	if (vcpu < 0 || vcpu >= VM_MAXCPU) {
+		error = EINVAL;
+		goto err;
+	}
+
+	if (ident >= VM_REG_LAST) {
+		error = EINVAL;
+		goto err;
+	}
+
+	error = vm_get_register(sc->vm, vcpu, ident, val);
+
+err:
+	return (error);
+}
+
+int
+vmcb_setany(struct svm_softc *sc, int vcpu, int ident, uint64_t val)
+{
+	int error = 0;
+
+	if (vcpu < 0 || vcpu >= VM_MAXCPU) {
+		error = EINVAL;
+		goto err;
+	}
+
+	if (ident >= VM_REG_LAST) {
+		error = EINVAL;
+		goto err;
+	}
+
+	error = vm_set_register(sc->vm, vcpu, ident, val);
+
+err:
+	return (error);
+}
+
+int
+vmcb_snapshot_desc(void *arg, int vcpu, int reg, struct vm_snapshot_meta *meta)
+{
+	int ret;
+	struct seg_desc desc;
+
+	if (meta->op == VM_SNAPSHOT_SAVE) {
+		ret = vmcb_getdesc(arg, vcpu, reg, &desc);
+		if (ret != 0)
+			goto done;
+
+		SNAPSHOT_VAR_OR_LEAVE(desc.base, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(desc.limit, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(desc.access, meta, ret, done);
+	} else if (meta->op == VM_SNAPSHOT_RESTORE) {
+		SNAPSHOT_VAR_OR_LEAVE(desc.base, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(desc.limit, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(desc.access, meta, ret, done);
+
+		ret = vmcb_setdesc(arg, vcpu, reg, &desc);
+		if (ret != 0)
+			goto done;
+	} else {
+		ret = EINVAL;
+		goto done;
+	}
+
+done:
+	return (ret);
+}
+
+int
+vmcb_snapshot_any(struct svm_softc *sc, int vcpu, int ident,
+		  struct vm_snapshot_meta *meta)
+{
+	int ret;
+	uint64_t val;
+
+	if (meta->op == VM_SNAPSHOT_SAVE) {
+		ret = vmcb_getany(sc, vcpu, ident, &val);
+		if (ret != 0)
+			goto done;
+
+		SNAPSHOT_VAR_OR_LEAVE(val, meta, ret, done);
+	} else if (meta->op == VM_SNAPSHOT_RESTORE) {
+		SNAPSHOT_VAR_OR_LEAVE(val, meta, ret, done);
+
+		ret = vmcb_setany(sc, vcpu, ident, val);
+		if (ret != 0)
+			goto done;
+	} else {
+		ret = EINVAL;
+		goto done;
+	}
+
+done:
+	return (ret);
+}
+#endif

@@ -31,6 +31,8 @@
 #ifndef	_VMM_DEV_H_
 #define	_VMM_DEV_H_
 
+struct vm_snapshot_meta;
+
 #ifdef _KERNEL
 void	vmmdev_init(void);
 int	vmmdev_cleanup(void);
@@ -312,6 +314,11 @@ enum {
 	IOCNUM_RTC_WRITE = 101,
 	IOCNUM_RTC_SETTIME = 102,
 	IOCNUM_RTC_GETTIME = 103,
+
+	/* checkpoint */
+	IOCNUM_SNAPSHOT_REQ = 113,
+
+	IOCNUM_RESTORE_TIME = 115
 };
 
 #define	VM_RUN		\
@@ -422,4 +429,8 @@ enum {
 	_IOR('v', IOCNUM_RTC_GETTIME, struct vm_rtc_time)
 #define	VM_RESTART_INSTRUCTION \
 	_IOW('v', IOCNUM_RESTART_INSTRUCTION, int)
+#define VM_SNAPSHOT_REQ \
+	_IOWR('v', IOCNUM_SNAPSHOT_REQ, struct vm_snapshot_meta)
+#define VM_RESTORE_TIME \
+	_IOWR('v', IOCNUM_RESTORE_TIME, int)
 #endif
