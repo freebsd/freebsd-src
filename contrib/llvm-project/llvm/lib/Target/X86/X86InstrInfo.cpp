@@ -1085,6 +1085,8 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
     return nullptr;
   case X86::SUB32ri8:
   case X86::SUB32ri: {
+    if (!MI.getOperand(2).isImm())
+      return nullptr;
     int64_t Imm = MI.getOperand(2).getImm();
     if (!isInt<32>(-Imm))
       return nullptr;
@@ -1111,6 +1113,8 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
 
   case X86::SUB64ri8:
   case X86::SUB64ri32: {
+    if (!MI.getOperand(2).isImm())
+      return nullptr;
     int64_t Imm = MI.getOperand(2).getImm();
     if (!isInt<32>(-Imm))
       return nullptr;
@@ -2194,7 +2198,7 @@ unsigned X86::getCMovOpcode(unsigned RegBytes, bool HasMemoryOperand) {
   default: llvm_unreachable("Illegal register size!");
   case 2: return HasMemoryOperand ? X86::CMOV16rm : X86::CMOV16rr;
   case 4: return HasMemoryOperand ? X86::CMOV32rm : X86::CMOV32rr;
-  case 8: return HasMemoryOperand ? X86::CMOV32rm : X86::CMOV64rr;
+  case 8: return HasMemoryOperand ? X86::CMOV64rm : X86::CMOV64rr;
   }
 }
 

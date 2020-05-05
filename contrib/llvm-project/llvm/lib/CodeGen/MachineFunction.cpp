@@ -451,7 +451,14 @@ MachineFunction::createMIExtraInfo(ArrayRef<MachineMemOperand *> MMOs,
                                    MCSymbol *PreInstrSymbol,
                                    MCSymbol *PostInstrSymbol) {
   return MachineInstr::ExtraInfo::create(Allocator, MMOs, PreInstrSymbol,
-                                         PostInstrSymbol);
+                                         PostInstrSymbol, nullptr);
+}
+
+MachineInstr::ExtraInfo *MachineFunction::createMIExtraInfoWithMarker(
+    ArrayRef<MachineMemOperand *> MMOs, MCSymbol *PreInstrSymbol,
+    MCSymbol *PostInstrSymbol, MDNode *HeapAllocMarker) {
+  return MachineInstr::ExtraInfo::create(Allocator, MMOs, PreInstrSymbol,
+                                         PostInstrSymbol, HeapAllocMarker);
 }
 
 const char *MachineFunction::createExternalSymbolName(StringRef Name) {

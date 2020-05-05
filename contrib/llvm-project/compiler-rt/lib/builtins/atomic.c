@@ -51,8 +51,8 @@ static const long SPINLOCK_MASK = SPINLOCK_COUNT - 1;
 ////////////////////////////////////////////////////////////////////////////////
 #ifdef __FreeBSD__
 #include <errno.h>
-#include <machine/atomic.h>
 #include <sys/types.h>
+#include <machine/atomic.h>
 #include <sys/umtx.h>
 typedef struct _usem Lock;
 __inline static void unlock(Lock *l) {
@@ -117,13 +117,20 @@ static __inline Lock *lock_for_pointer(void *ptr) {
   return locks + (hash & SPINLOCK_MASK);
 }
 
-/// Macros for determining whether a size is lock free.  Clang can not yet
-/// codegen __atomic_is_lock_free(16), so for now we assume 16-byte values are
-/// not lock free.
+/// Macros for determining whether a size is lock free.
 #define IS_LOCK_FREE_1 __c11_atomic_is_lock_free(1)
 #define IS_LOCK_FREE_2 __c11_atomic_is_lock_free(2)
 #define IS_LOCK_FREE_4 __c11_atomic_is_lock_free(4)
+
+/// 32 bit PowerPC doesn't support 8-byte lock_free atomics
+#if !defined(__powerpc64__) && defined(__powerpc__)
+#define IS_LOCK_FREE_8 0
+#else
 #define IS_LOCK_FREE_8 __c11_atomic_is_lock_free(8)
+#endif
+
+/// Clang can not yet codegen __atomic_is_lock_free(16), so for now we assume
+/// 16-byte values are not lock free.
 #define IS_LOCK_FREE_16 0
 
 /// Macro that calls the compiler-generated lock-free versions of functions

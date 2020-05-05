@@ -9896,6 +9896,13 @@ bool IntExprEvaluator::VisitBuiltinCallExpr(const CallExpr *E,
       }
     }
 
+    // Avoid emiting call for runtime decision on PowerPC 32-bit
+    // The lock free possibilities on this platform are covered by the lines 
+    // above and we know in advance other cases require lock
+    if (Info.Ctx.getTargetInfo().getTriple().getArch() == llvm::Triple::ppc) {
+        return Success(0, E);
+    }
+
     return BuiltinOp == Builtin::BI__atomic_always_lock_free ?
         Success(0, E) : Error(E);
   }

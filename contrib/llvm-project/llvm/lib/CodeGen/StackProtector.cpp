@@ -17,7 +17,6 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
-#include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/EHPersonalities.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/CodeGen/Passes.h"
@@ -157,6 +156,69 @@ bool StackProtector::ContainsProtectableArray(Type *Ty, bool &IsLarge,
   return NeedsProtector;
 }
 
+bool StackProtector::HasAddressTaken(const Instruction *AI,
+                                SmallPtrSetImpl<const PHINode *> &VisitedPHIs) {
+  for (const User *U : AI->users()) {
+    const auto *I = cast<Instruction>(U);
+    switch (I->getOpcode()) {
+    case Instruction::Store:
+      if (AI == cast<StoreInst>(I)->getValueOperand())
+        return true;
+      break;
+    case Instruction::AtomicCmpXchg:
+      // cmpxchg conceptually includes both a load and store from the same
+      // location. So, like store, the value being stored is what matters.
+      if (AI == cast<AtomicCmpXchgInst>(I)->getNewValOperand())
+        return true;
+      break;
+    case Instruction::PtrToInt:
+      if (AI == cast<PtrToIntInst>(I)->getOperand(0))
+        return true;
+      break;
+    case Instruction::Call: {
+      // Ignore intrinsics that do not become real instructions.
+      // TODO: Narrow this to intrinsics that have store-like effects.
+      const auto *CI = cast<CallInst>(I);
+      if (!isa<DbgInfoIntrinsic>(CI) && !CI->isLifetimeStartOrEnd())
+        return true;
+      break;
+    }
+    case Instruction::Invoke:
+      return true;
+    case Instruction::BitCast:
+    case Instruction::GetElementPtr:
+    case Instruction::Select:
+    case Instruction::AddrSpaceCast:
+      if (HasAddressTaken(I, VisitedPHIs))
+        return true;
+      break;
+    case Instruction::PHI: {
+      // Keep track of what PHI nodes we have already visited to ensure
+      // they are only visited once.
+      const auto *PN = cast<PHINode>(I);
+      if (VisitedPHIs.insert(PN).second)
+        if (HasAddressTaken(PN, VisitedPHIs))
+          return true;
+      break;
+    }
+    case Instruction::Load:
+    case Instruction::AtomicRMW:
+    case Instruction::Ret:
+      // These instructions take an address operand, but have load-like or
+      // other innocuous behavior that should not trigger a stack protector.
+      // atomicrmw conceptually has both load and store semantics, but the
+      // value being stored must be integer; so if a pointer is being stored,
+      // we'll catch it in the PtrToInt case above.
+      break;
+    default:
+      // Conservatively return true for any instruction that takes an address
+      // operand, but is not handled above.
+      return true;
+    }
+  }
+  return false;
+}
+
 /// Search for the first call to the llvm.stackprotector intrinsic and return it
 /// if present.
 static const CallInst *findStackProtectorIntrinsic(Function &F) {
@@ -211,6 +273,12 @@ bool StackProtector::RequiresStackProtector() {
   else if (!F->hasFnAttribute(Attribute::StackProtect))
     return false;
 
+  /// VisitedPHIs - The set of PHI nodes visited when determining
+  /// if a variable's reference has been taken.  This set
+  /// is maintained to ensure we don't visit the same PHI node multiple
+  /// times.
+  SmallPtrSet<const PHINode *, 16> VisitedPHIs;
+
   for (const BasicBlock &BB : *F) {
     for (const Instruction &I : BB) {
       if (const AllocaInst *AI = dyn_cast<AllocaInst>(&I)) {
@@ -264,9 +332,7 @@ bool StackProtector::RequiresStackProtector() {
           continue;
         }
 
-        if (Strong && PointerMayBeCaptured(AI,
-                                           /* ReturnCaptures */ false,
-                                           /* StoreCaptures */ true)) {
+        if (Strong && HasAddressTaken(AI, VisitedPHIs)) {
           ++NumAddrTaken;
           Layout.insert(std::make_pair(AI, MachineFrameInfo::SSPLK_AddrOf));
           ORE.emit([&]() {

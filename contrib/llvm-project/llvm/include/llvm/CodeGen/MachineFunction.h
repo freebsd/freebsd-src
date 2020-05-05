@@ -792,6 +792,10 @@ public:
                     MCSymbol *PreInstrSymbol = nullptr,
                     MCSymbol *PostInstrSymbol = nullptr);
 
+  MachineInstr::ExtraInfo *createMIExtraInfoWithMarker(
+      ArrayRef<MachineMemOperand *> MMOs, MCSymbol *PreInstrSymbol,
+      MCSymbol *PostInstrSymbol, MDNode *HeapAllocMarker);
+
   /// Allocate a string and populate it with the given external symbol name.
   const char *createExternalSymbolName(StringRef Name);
 
