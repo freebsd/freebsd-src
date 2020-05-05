@@ -73,12 +73,12 @@ dskread(void *buf, uint64_t lba, int nblk)
 
 #include "ufsread.c"
 
-static struct dmadat __dmadat;
+static struct dmadat __dmadat __aligned(512);
+static char ufs_buffer[BSD_LABEL_BUFFER] __aligned(512);
 
 static int
 init_dev(dev_info_t* dev)
 {
-	char buffer[BSD_LABEL_BUFFER];
 	struct disklabel *dl;
 	uint64_t bs;
 	int ok;
@@ -109,14 +109,14 @@ init_dev(dev_info_t* dev)
 	 * will retry fsread(0) only if there's a label found with a non-zero
 	 * offset.
 	 */
-	if (dskread(buffer, 0, BSD_LABEL_BUFFER / DEV_BSIZE) != 0)
+	if (dskread(ufs_buffer, 0, BSD_LABEL_BUFFER / DEV_BSIZE) != 0)
 		return (-1);
 	dl = NULL;
 	bs = devinfo->dev->Media->BlockSize;
 	if (bs != 0 && bs <= BSD_LABEL_BUFFER / 2)
-		dl = (struct disklabel *)&buffer[bs];
+		dl = (struct disklabel *)&ufs_buffer[bs];
 	if (dl == NULL || dl->d_magic != BSD_MAGIC || dl->d_magic2 != BSD_MAGIC)
-		dl = (struct disklabel *)&buffer[BSD_LABEL_OFFSET];
+		dl = (struct disklabel *)&ufs_buffer[BSD_LABEL_OFFSET];
 	if (dl->d_magic != BSD_MAGIC || dl->d_magic2 != BSD_MAGIC ||
 	    dl->d_partitions[0].p_offset == 0)
 		return (-1);
