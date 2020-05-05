@@ -59,9 +59,9 @@ usage(void)
 	fprintf(stderr, "usage: %s [-u unit] <command> ...\n\n", getprogname());
 	fprintf(stderr, "Commands include:\n");
 	SET_FOREACH(cmd, MPS_DATASET(usage)) {
-		if (*cmd == NULL)
+		if (*cmd == NULL) {
 			fprintf(stderr, "\n");
-		else
+		} else {
 			(*cmd)->handler(&args, &desc);
 			if (strncmp((*cmd)->set, "top", 3) == 0)
 				fprintf(stderr, "%s %-30s\t%s\n",
@@ -69,6 +69,7 @@ usage(void)
 			else
 				fprintf(stderr, "%s %s %-30s\t%s\n",
 				    (*cmd)->set, (*cmd)->name, args, desc);
+		}
 	}
 	exit(1);
 }
