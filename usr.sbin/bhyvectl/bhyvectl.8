@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2016
+.Dd May 04, 2020
 .Dt BHYVECTL 8
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@
 .Op Fl -inject-nmi
 .Op Fl -force-reset
 .Op Fl -force-poweroff
+.Op Fl -checkpoint= Ns Ar <filename>
+.Op Fl -suspend= Ns Ar <filename>
 .Sh DESCRIPTION
 The
 .Nm
@@ -72,6 +74,17 @@ Inject a non-maskable interrupt (NMI) into the VM.
 Force the VM to reset.
 .It Fl -force-poweroff
 Force the VM to power off.
+.It Fl -checkpoint= Ns Ar <filename>
+Save a snapshot of a virtual machine.
+The guest memory contents are saved in the file given in
+.Ar <filename> .
+The guest device and vCPU state are saved in the file
+.Ar <filename>.kern .
+.It Fl -suspend= Ns Ar <filename>
+Save a snapshot of a virtual machine similar to
+.Fl -checkpoint .
+The virtual machine will terminate after the snapshot has been
+saved.
 .El
 .Sh EXIT STATUS
 .Ex -std
@@ -79,6 +92,10 @@ Force the VM to power off.
 Destroy the VM called fbsd10:
 .Pp
 .Dl "bhyvectl --vm=fbsd10 --destroy"
+.Sh COMPATIBILITY
+The snapshot file format is not yet stable and is subject to future changes.
+Backwards compatibility support for the current snapshot file format is not
+guaranteed when future changes are made.
 .Sh SEE ALSO
 .Xr bhyve 8 ,
 .Xr bhyveload 8

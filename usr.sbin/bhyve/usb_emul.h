@@ -41,10 +41,10 @@
 #define	USB_XFER_IN		1
 
 
-
 struct usb_hci;
 struct usb_device_request;
 struct usb_data_xfer;
+struct vm_snapshot_meta;
 
 /* Device emulation handlers */
 struct usb_devemu {
@@ -62,6 +62,7 @@ struct usb_devemu {
 	int	(*ue_reset)(void *sc);
 	int	(*ue_remove)(void *sc);
 	int	(*ue_stop)(void *sc);
+	int	(*ue_snapshot)(void *scarg, struct vm_snapshot_meta *meta);
 };
 #define	USB_EMUL_SET(x)		DATA_SET(usb_emu_set, x);
 
@@ -147,7 +148,6 @@ enum USB_ERRCODE {
 #define	USB_DATA_XFER_UNLOCK(x)	do {					\
 			pthread_mutex_unlock(&((x)->mtx));		\
 		} while (0)
-
 
 struct usb_devemu *usb_emu_finddev(char *name);
 

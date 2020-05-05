@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <machine/atomic.h>
+#include <machine/vmm_snapshot.h>
 
 #include <stdio.h>
 #include <stdint.h>
@@ -806,3 +807,150 @@ done:
 	if (vs->vs_mtx)
 		pthread_mutex_unlock(vs->vs_mtx);
 }
+
+#ifdef BHYVE_SNAPSHOT
+int
+vi_pci_pause(struct vmctx *ctx, struct pci_devinst *pi)
+{
+	struct virtio_softc *vs;
+	struct virtio_consts *vc;
+
+	vs = pi->pi_arg;
+	vc = vs->vs_vc;
+
+	vc = vs->vs_vc;
+	assert(vc->vc_pause != NULL);
+	(*vc->vc_pause)(DEV_SOFTC(vs));
+
+	return (0);
+}
+
+int
+vi_pci_resume(struct vmctx *ctx, struct pci_devinst *pi)
+{
+	struct virtio_softc *vs;
+	struct virtio_consts *vc;
+
+	vs = pi->pi_arg;
+	vc = vs->vs_vc;
+
+	vc = vs->vs_vc;
+	assert(vc->vc_resume != NULL);
+	(*vc->vc_resume)(DEV_SOFTC(vs));
+
+	return (0);
+}
+
+static int
+vi_pci_snapshot_softc(struct virtio_softc *vs, struct vm_snapshot_meta *meta)
+{
+	int ret;
+
+	SNAPSHOT_VAR_OR_LEAVE(vs->vs_flags, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vs->vs_negotiated_caps, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vs->vs_curq, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vs->vs_status, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vs->vs_isr, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vs->vs_msix_cfg_idx, meta, ret, done);
+
+done:
+	return (ret);
+}
+
+static int
+vi_pci_snapshot_consts(struct virtio_consts *vc, struct vm_snapshot_meta *meta)
+{
+	int ret;
+
+	SNAPSHOT_VAR_CMP_OR_LEAVE(vc->vc_nvq, meta, ret, done);
+	SNAPSHOT_VAR_CMP_OR_LEAVE(vc->vc_cfgsize, meta, ret, done);
+	SNAPSHOT_VAR_CMP_OR_LEAVE(vc->vc_hv_caps, meta, ret, done);
+
+done:
+	return (ret);
+}
+
+static int
+vi_pci_snapshot_queues(struct virtio_softc *vs, struct vm_snapshot_meta *meta)
+{
+	int i;
+	int ret;
+	struct virtio_consts *vc;
+	struct vqueue_info *vq;
+	uint64_t addr_size;
+
+	vc = vs->vs_vc;
+
+	/* Save virtio queue info */
+	for (i = 0; i < vc->vc_nvq; i++) {
+		vq = &vs->vs_queues[i];
+
+		SNAPSHOT_VAR_CMP_OR_LEAVE(vq->vq_qsize, meta, ret, done);
+		SNAPSHOT_VAR_CMP_OR_LEAVE(vq->vq_num, meta, ret, done);
+
+		SNAPSHOT_VAR_OR_LEAVE(vq->vq_flags, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vq->vq_last_avail, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vq->vq_next_used, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vq->vq_save_used, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vq->vq_msix_idx, meta, ret, done);
+
+		SNAPSHOT_VAR_OR_LEAVE(vq->vq_pfn, meta, ret, done);
+
+		addr_size = vq->vq_qsize * sizeof(struct virtio_desc);
+		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(vq->vq_desc, addr_size,
+			false, meta, ret, done);
+
+		addr_size = (2 + vq->vq_qsize + 1) * sizeof(uint16_t);
+		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(vq->vq_avail, addr_size,
+			false, meta, ret, done);
+
+		addr_size  = (2 + 2 * vq->vq_qsize + 1) * sizeof(uint16_t);
+		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(vq->vq_used, addr_size,
+			false, meta, ret, done);
+
+		SNAPSHOT_BUF_OR_LEAVE(vq->vq_desc, vring_size(vq->vq_qsize),
+			meta, ret, done);
+	}
+
+done:
+	return (ret);
+}
+
+int
+vi_pci_snapshot(struct vm_snapshot_meta *meta)
+{
+	int ret;
+	struct pci_devinst *pi;
+	struct virtio_softc *vs;
+	struct virtio_consts *vc;
+
+	pi = meta->dev_data;
+	vs = pi->pi_arg;
+	vc = vs->vs_vc;
+
+	/* Save virtio softc */
+	ret = vi_pci_snapshot_softc(vs, meta);
+	if (ret != 0)
+		goto done;
+
+	/* Save virtio consts */
+	ret = vi_pci_snapshot_consts(vc, meta);
+	if (ret != 0)
+		goto done;
+
+	/* Save virtio queue info */
+	ret = vi_pci_snapshot_queues(vs, meta);
+	if (ret != 0)
+		goto done;
+
+	/* Save device softc, if needed */
+	if (vc->vc_snapshot != NULL) {
+		ret = (*vc->vc_snapshot)(DEV_SOFTC(vs), meta);
+		if (ret != 0)
+			goto done;
+	}
+
+done:
+	return (ret);
+}
+#endif

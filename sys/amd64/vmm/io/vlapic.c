@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bhyve_snapshot.h"
+
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
@@ -47,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_snapshot.h>
 
 #include "vmm_lapic.h"
 #include "vmm_ktr.h"
@@ -1650,3 +1653,106 @@ vlapic_set_tmr_level(struct vlapic *vlapic, uint32_t dest, bool phys,
 	VLAPIC_CTR1(vlapic, "vector %d set to level-triggered", vector);
 	vlapic_set_tmr(vlapic, vector, true);
 }
+
+#ifdef BHYVE_SNAPSHOT
+static void
+vlapic_reset_callout(struct vlapic *vlapic, uint32_t ccr)
+{
+	/* The implementation is similar to the one in the
+	 * `vlapic_icrtmr_write_handler` function
+	 */
+	sbintime_t sbt;
+	struct bintime bt;
+
+	VLAPIC_TIMER_LOCK(vlapic);
+
+	bt = vlapic->timer_freq_bt;
+	bintime_mul(&bt, ccr);
+
+	if (ccr != 0) {
+		binuptime(&vlapic->timer_fire_bt);
+		bintime_add(&vlapic->timer_fire_bt, &bt);
+
+		sbt = bttosbt(bt);
+		callout_reset_sbt(&vlapic->callout, sbt, 0,
+		    vlapic_callout_handler, vlapic, 0);
+	} else {
+		/* even if the CCR was 0, periodic timers should be reset */
+		if (vlapic_periodic_timer(vlapic)) {
+			binuptime(&vlapic->timer_fire_bt);
+			bintime_add(&vlapic->timer_fire_bt,
+				    &vlapic->timer_period_bt);
+			sbt = bttosbt(vlapic->timer_period_bt);
+
+			callout_stop(&vlapic->callout);
+			callout_reset_sbt(&vlapic->callout, sbt, 0,
+					  vlapic_callout_handler, vlapic, 0);
+		}
+	}
+
+	VLAPIC_TIMER_UNLOCK(vlapic);
+}
+
+int
+vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta)
+{
+	int i, ret;
+	struct vlapic *vlapic;
+	struct LAPIC *lapic;
+	uint32_t ccr;
+
+	KASSERT(vm != NULL, ("%s: arg was NULL", __func__));
+
+	ret = 0;
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		vlapic = vm_lapic(vm, i);
+
+		/* snapshot the page first; timer period depends on icr_timer */
+		lapic = vlapic->apic_page;
+		SNAPSHOT_BUF_OR_LEAVE(lapic, PAGE_SIZE, meta, ret, done);
+
+		SNAPSHOT_VAR_OR_LEAVE(vlapic->esr_pending, meta, ret, done);
+
+		SNAPSHOT_VAR_OR_LEAVE(vlapic->timer_freq_bt.sec,
+				      meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vlapic->timer_freq_bt.frac,
+				      meta, ret, done);
+
+		/*
+		 * Timer period is equal to 'icr_timer' ticks at a frequency of
+		 * 'timer_freq_bt'.
+		 */
+		if (meta->op == VM_SNAPSHOT_RESTORE) {
+			vlapic->timer_period_bt = vlapic->timer_freq_bt;
+			bintime_mul(&vlapic->timer_period_bt, lapic->icr_timer);
+		}
+
+		SNAPSHOT_BUF_OR_LEAVE(vlapic->isrvec_stk,
+				      sizeof(vlapic->isrvec_stk),
+				      meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vlapic->isrvec_stk_top, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vlapic->boot_state, meta, ret, done);
+
+		SNAPSHOT_BUF_OR_LEAVE(vlapic->lvt_last,
+				      sizeof(vlapic->lvt_last),
+				      meta, ret, done);
+
+		if (meta->op == VM_SNAPSHOT_SAVE)
+			ccr = vlapic_get_ccr(vlapic);
+
+		SNAPSHOT_VAR_OR_LEAVE(ccr, meta, ret, done);
+
+		if (meta->op == VM_SNAPSHOT_RESTORE) {
+			/* Reset the value of the 'timer_fire_bt' and the vlapic
+			 * callout based on the value of the current count
+			 * register saved when the VM snapshot was created
+			 */
+			vlapic_reset_callout(vlapic, ccr);
+		}
+	}
+
+done:
+	return (ret);
+}
+#endif

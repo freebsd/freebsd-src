@@ -34,6 +34,8 @@
 #include <sys/sdt.h>
 #include <x86/segments.h>
 
+struct vm_snapshot_meta;
+
 #ifdef _KERNEL
 SDT_PROVIDER_DECLARE(vmm);
 #endif
@@ -152,6 +154,7 @@ struct vmspace;
 struct vm_object;
 struct vm_guest_paging;
 struct pmap;
+enum snapshot_req;
 
 struct vm_eventinfo {
 	void	*rptr;		/* rendezvous cookie */
@@ -180,6 +183,10 @@ typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
 typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
 typedef struct vlapic * (*vmi_vlapic_init)(void *vmi, int vcpu);
 typedef void	(*vmi_vlapic_cleanup)(void *vmi, struct vlapic *vlapic);
+typedef int	(*vmi_snapshot_t)(void *vmi, struct vm_snapshot_meta *meta);
+typedef int	(*vmi_snapshot_vmcx_t)(void *vmi, struct vm_snapshot_meta *meta,
+				       int vcpu);
+typedef int	(*vmi_restore_tsc_t)(void *vmi, int vcpuid, uint64_t now);
 
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
@@ -199,6 +206,11 @@ struct vmm_ops {
 	vmi_vmspace_free	vmspace_free;
 	vmi_vlapic_init		vlapic_init;
 	vmi_vlapic_cleanup	vlapic_cleanup;
+
+	/* checkpoint operations */
+	vmi_snapshot_t		vmsnapshot;
+	vmi_snapshot_vmcx_t	vmcx_snapshot;
+	vmi_restore_tsc_t	vm_restore_tsc;
 };
 
 extern struct vmm_ops vmm_ops_intel;
@@ -272,6 +284,9 @@ void vm_exit_debug(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip);
+int vm_snapshot_req(struct vm *vm, struct vm_snapshot_meta *meta);
+int vm_restore_time(struct vm *vm);
+
 
 #ifdef _SYS__CPUSET_H_
 /*
@@ -408,6 +423,15 @@ int vm_exit_intinfo(struct vm *vm, int vcpuid, uint64_t intinfo);
 int vm_entry_intinfo(struct vm *vm, int vcpuid, uint64_t *info);
 
 int vm_get_intinfo(struct vm *vm, int vcpuid, uint64_t *info1, uint64_t *info2);
+
+/*
+ * Function used to keep track of the guest's TSC offset. The
+ * offset is used by the virutalization extensions to provide a consistent
+ * value for the Time Stamp Counter to the guest.
+ *
+ * Return value is 0 on success and non-zero on failure.
+ */
+int vm_set_tsc_offset(struct vm *vm, int vcpu_id, uint64_t offset);
 
 enum vm_reg_name vm_segment_name(int seg_encoding);
 

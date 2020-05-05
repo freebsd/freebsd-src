@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/cpuset.h>
+#include <machine/vmm_dev.h>
 
 /*
  * API version for out-of-tree consumers like grub-bhyve for making compile
@@ -42,6 +43,7 @@
 
 struct iovec;
 struct vmctx;
+struct vm_snapshot_meta;
 enum x2apic_state;
 
 /*
@@ -88,6 +90,10 @@ int	vm_get_memseg(struct vmctx *ctx, int ident, size_t *lenp, char *name,
  */
 int	vm_mmap_getnext(struct vmctx *ctx, vm_paddr_t *gpa, int *segid,
 	    vm_ooffset_t *segoff, size_t *len, int *prot, int *flags);
+
+int	vm_get_guestmem_from_ctx(struct vmctx *ctx, char **guest_baseaddr,
+				 size_t *lowmem_size, size_t *highmem_size);
+
 /*
  * Create a device memory segment identified by 'segid'.
  *
@@ -110,6 +116,8 @@ void	vm_destroy(struct vmctx *ctx);
 int	vm_parse_memsize(const char *optarg, size_t *memsize);
 int	vm_setup_memory(struct vmctx *ctx, size_t len, enum vm_mmap_style s);
 void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
+/* inverse operation to vm_map_gpa - extract guest address from host pointer */
+vm_paddr_t vm_rev_map_gpa(struct vmctx *ctx, void *addr);
 int	vm_get_gpa_pmap(struct vmctx *, uint64_t gpa, uint64_t *pte, int *num);
 int	vm_gla2gpa(struct vmctx *, int vcpuid, struct vm_guest_paging *paging,
 		   uint64_t gla, int prot, uint64_t *gpa, int *fault);
@@ -120,6 +128,7 @@ uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
 void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
 void	vm_set_memflags(struct vmctx *ctx, int flags);
 int	vm_get_memflags(struct vmctx *ctx);
+int	vm_get_name(struct vmctx *ctx, char *buffer, size_t max_len);
 size_t	vm_get_lowmem_size(struct vmctx *ctx);
 size_t	vm_get_highmem_size(struct vmctx *ctx);
 int	vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
@@ -237,4 +246,24 @@ int	vm_setup_freebsd_registers_i386(struct vmctx *vmctx, int vcpu,
 					uint32_t eip, uint32_t gdtbase,
 					uint32_t esp);
 void	vm_setup_freebsd_gdt(uint64_t *gdtr);
+
+/*
+ * Save and restore
+ */
+
+#define MAX_SNAPSHOT_VMNAME 100
+
+enum checkpoint_opcodes {
+	START_CHECKPOINT = 0,
+	START_SUSPEND = 1,
+};
+
+struct checkpoint_op {
+	unsigned int op;
+	char snapshot_filename[MAX_SNAPSHOT_VMNAME];
+};
+
+int	vm_snapshot_req(struct vm_snapshot_meta *meta);
+int	vm_restore_time(struct vmctx *ctx);
+
 #endif	/* _VMMAPI_H_ */

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <stdbool.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_snapshot.h>
 #include <vmmapi.h>
 
 #include "acpi.h"
@@ -1962,6 +1963,191 @@ INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+1, IOPORT_F_INOUT, pci_emul_cfgdata);
 INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+2, IOPORT_F_INOUT, pci_emul_cfgdata);
 INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+3, IOPORT_F_INOUT, pci_emul_cfgdata);
 
+#ifdef BHYVE_SNAPSHOT
+/*
+ * Saves/restores PCI device emulated state. Returns 0 on success.
+ */
+static int
+pci_snapshot_pci_dev(struct vm_snapshot_meta *meta)
+{
+	struct pci_devinst *pi;
+	int i;
+	int ret;
+
+	pi = meta->dev_data;
+
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msi.enabled, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msi.addr, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msi.msg_data, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msi.maxmsgnum, meta, ret, done);
+
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.enabled, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.table_bar, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.pba_bar, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.table_offset, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.table_count, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.pba_offset, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.pba_size, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.function_mask, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.pba_page_offset, meta, ret, done);
+
+	SNAPSHOT_BUF_OR_LEAVE(pi->pi_cfgdata, sizeof(pi->pi_cfgdata),
+			      meta, ret, done);
+
+	for (i = 0; i < nitems(pi->pi_bar); i++) {
+		SNAPSHOT_VAR_OR_LEAVE(pi->pi_bar[i].type, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(pi->pi_bar[i].size, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(pi->pi_bar[i].addr, meta, ret, done);
+	}
+
+	/* Restore MSI-X table. */
+	for (i = 0; i < pi->pi_msix.table_count; i++) {
+		SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.table[i].addr,
+				      meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.table[i].msg_data,
+				      meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(pi->pi_msix.table[i].vector_control,
+				      meta, ret, done);
+	}
+
+done:
+	return (ret);
+}
+
+static int
+pci_find_slotted_dev(const char *dev_name, struct pci_devemu **pde,
+		     struct pci_devinst **pdi)
+{
+	struct businfo *bi;
+	struct slotinfo *si;
+	struct funcinfo *fi;
+	int bus, slot, func;
+
+	assert(dev_name != NULL);
+	assert(pde != NULL);
+	assert(pdi != NULL);
+
+	for (bus = 0; bus < MAXBUSES; bus++) {
+		if ((bi = pci_businfo[bus]) == NULL)
+			continue;
+
+		for (slot = 0; slot < MAXSLOTS; slot++) {
+			si = &bi->slotinfo[slot];
+			for (func = 0; func < MAXFUNCS; func++) {
+				fi = &si->si_funcs[func];
+				if (fi->fi_name == NULL)
+					continue;
+				if (strcmp(dev_name, fi->fi_name))
+					continue;
+
+				*pde = pci_emul_finddev(fi->fi_name);
+				assert(*pde != NULL);
+
+				*pdi = fi->fi_devi;
+				return (0);
+			}
+		}
+	}
+
+	return (EINVAL);
+}
+
+int
+pci_snapshot(struct vm_snapshot_meta *meta)
+{
+	struct pci_devemu *pde;
+	struct pci_devinst *pdi;
+	int ret;
+
+	assert(meta->dev_name != NULL);
+
+	ret = pci_find_slotted_dev(meta->dev_name, &pde, &pdi);
+	if (ret != 0) {
+		fprintf(stderr, "%s: no such name: %s\r\n",
+			__func__, meta->dev_name);
+		memset(meta->buffer.buf_start, 0, meta->buffer.buf_size);
+		return (0);
+	}
+
+	meta->dev_data = pdi;
+
+	if (pde->pe_snapshot == NULL) {
+		fprintf(stderr, "%s: not implemented yet for: %s\r\n",
+			__func__, meta->dev_name);
+		return (-1);
+	}
+
+	ret = pci_snapshot_pci_dev(meta);
+	if (ret != 0) {
+		fprintf(stderr, "%s: failed to snapshot pci dev\r\n",
+			__func__);
+		return (-1);
+	}
+
+	ret = (*pde->pe_snapshot)(meta);
+
+	return (ret);
+}
+
+int
+pci_pause(struct vmctx *ctx, const char *dev_name)
+{
+	struct pci_devemu *pde;
+	struct pci_devinst *pdi;
+	int ret;
+
+	assert(dev_name != NULL);
+
+	ret = pci_find_slotted_dev(dev_name, &pde, &pdi);
+	if (ret != 0) {
+		/*
+		 * It is possible to call this function without
+		 * checking that the device is inserted first.
+		 */
+		fprintf(stderr, "%s: no such name: %s\n", __func__, dev_name);
+		return (0);
+	}
+
+	if (pde->pe_pause == NULL) {
+		/* The pause/resume functionality is optional. */
+		fprintf(stderr, "%s: not implemented for: %s\n",
+			__func__, dev_name);
+		return (0);
+	}
+
+	return (*pde->pe_pause)(ctx, pdi);
+}
+
+int
+pci_resume(struct vmctx *ctx, const char *dev_name)
+{
+	struct pci_devemu *pde;
+	struct pci_devinst *pdi;
+	int ret;
+
+	assert(dev_name != NULL);
+
+	ret = pci_find_slotted_dev(dev_name, &pde, &pdi);
+	if (ret != 0) {
+		/*
+		 * It is possible to call this function without
+		 * checking that the device is inserted first.
+		 */
+		fprintf(stderr, "%s: no such name: %s\n", __func__, dev_name);
+		return (0);
+	}
+
+	if (pde->pe_resume == NULL) {
+		/* The pause/resume functionality is optional. */
+		fprintf(stderr, "%s: not implemented for: %s\n",
+			__func__, dev_name);
+		return (0);
+	}
+
+	return (*pde->pe_resume)(ctx, pdi);
+}
+#endif
+
 #define PCI_EMUL_TEST
 #ifdef PCI_EMUL_TEST
 /*
@@ -1970,7 +2156,7 @@ INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+3, IOPORT_F_INOUT, pci_emul_cfgdata);
 #define DIOSZ	8
 #define DMEMSZ	4096
 struct pci_emul_dsoftc {
-	uint8_t	  ioregs[DIOSZ];
+	uint8_t   ioregs[DIOSZ];
 	uint8_t	  memregs[2][DMEMSZ];
 };
 
@@ -2062,7 +2248,7 @@ pci_emul_diow(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		} else {
 			printf("diow: memw unknown size %d\n", size);
 		}
-
+		
 		/*
 		 * magic interrupt ??
 		 */
@@ -2087,7 +2273,7 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 			       offset, size);
 			return (0);
 		}
-
+	
 		value = 0;
 		if (size == 1) {
 			value = sc->ioregs[offset];
@@ -2106,7 +2292,7 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 			       offset, size);
 			return (0);
 		}
-
+		
 		i = baridx - 1;		/* 'memregs' index */
 
 		if (size == 1) {
@@ -2131,11 +2317,23 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 	return (value);
 }
 
+#ifdef BHYVE_SNAPSHOT
+int
+pci_emul_snapshot(struct vm_snapshot_meta *meta)
+{
+
+	return (0);
+}
+#endif
+
 struct pci_devemu pci_dummy = {
 	.pe_emu = "dummy",
 	.pe_init = pci_emul_dinit,
 	.pe_barwrite = pci_emul_diow,
-	.pe_barread = pci_emul_dior
+	.pe_barread = pci_emul_dior,
+#ifdef BHYVE_SNAPSHOT
+	.pe_snapshot = pci_emul_snapshot,
+#endif
 };
 PCI_EMUL_SET(pci_dummy);
 

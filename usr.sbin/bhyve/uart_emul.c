@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <capsicum_helpers.h>
 #endif
 
+#include <machine/vmm_snapshot.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -719,3 +721,35 @@ uart_set_backend(struct uart_softc *sc, const char *opts)
 
 	return (retval);
 }
+
+#ifdef BHYVE_SNAPSHOT
+int
+uart_snapshot(struct uart_softc *sc, struct vm_snapshot_meta *meta)
+{
+	int ret;
+
+	SNAPSHOT_VAR_OR_LEAVE(sc->data, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->ier, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->lcr, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->mcr, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->lsr, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->msr, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->fcr, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->scr, meta, ret, done);
+
+	SNAPSHOT_VAR_OR_LEAVE(sc->dll, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->dlh, meta, ret, done);
+
+	SNAPSHOT_VAR_OR_LEAVE(sc->rxfifo.rindex, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->rxfifo.windex, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->rxfifo.num, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->rxfifo.size, meta, ret, done);
+	SNAPSHOT_BUF_OR_LEAVE(sc->rxfifo.buf, sizeof(sc->rxfifo.buf),
+			      meta, ret, done);
+
+	sc->thre_int_pending = 1;
+
+done:
+	return (ret);
+}
+#endif

@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bhyve_snapshot.h"
+
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/queue.h>
@@ -39,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_snapshot.h>
 
 #include "vmm_ktr.h"
 #include "vatpic.h"
@@ -472,3 +475,42 @@ vatpit_cleanup(struct vatpit *vatpit)
 
 	free(vatpit, M_VATPIT);
 }
+
+#ifdef BHYVE_SNAPSHOT
+int
+vatpit_snapshot(struct vatpit *vatpit, struct vm_snapshot_meta *meta)
+{
+	int ret;
+	int i;
+	struct channel *channel;
+
+	SNAPSHOT_VAR_OR_LEAVE(vatpit->freq_bt.sec, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(vatpit->freq_bt.frac, meta, ret, done);
+
+	/* properly restore timers; they will NOT work currently */
+	printf("%s: snapshot restore does not reset timers!\r\n", __func__);
+
+	for (i = 0; i < nitems(vatpit->channel); i++) {
+		channel = &vatpit->channel[i];
+
+		SNAPSHOT_VAR_OR_LEAVE(channel->mode, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(channel->initial, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(channel->now_bt.sec, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(channel->now_bt.frac, meta, ret, done);
+		SNAPSHOT_BUF_OR_LEAVE(channel->cr, sizeof(channel->cr),
+			meta, ret, done);
+		SNAPSHOT_BUF_OR_LEAVE(channel->ol, sizeof(channel->ol),
+			meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(channel->slatched, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(channel->status, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(channel->crbyte, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(channel->frbyte, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(channel->callout_bt.sec, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(channel->callout_bt.frac, meta, ret,
+			done);
+	}
+
+done:
+	return (ret);
+}
+#endif

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2020
+.Dd May 04, 2020
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -61,6 +61,7 @@
 .Sm on
 .Oc
 .Op Fl p Ar vcpu Ns Cm \&: Ns Ar hostcpu
+.Op Fl r Ar file
 .Oo Fl s
 .Sm off
 .Cm help | Ar slot Cm \&, Ar emulation Op Cm \&, Ar conf
@@ -191,6 +192,21 @@ to
 .Em hostcpu .
 .It Fl P
 Force the guest virtual CPU to exit when a PAUSE instruction is detected.
+.It Fl r Ar file
+Resume a guest from a snapshot.
+The guest memory contents are restored from
+.Ar file ,
+and the guest device and vCPU state are restored from the file
+.Dq Ar file Ns .kern .
+.Pp
+Note that the current snapshot file format requires that the configuration of
+devices in the new VM match the VM from which the snapshot was taken by specifying the
+same
+.Op Fl s
+and
+.Op Fl l
+options.
+The count of vCPUs and memory configuration are read from the snapshot.
 .It Fl s Op Ar help|slot,emulation Ns Op , Ns Ar conf
 Configure a virtual PCI slot and function.
 .Pp

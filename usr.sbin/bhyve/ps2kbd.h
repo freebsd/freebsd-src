@@ -32,10 +32,15 @@
 #define	_PS2KBD_H_
 
 struct atkbdc_softc;
+struct vm_snapshot_meta;
 
 struct ps2kbd_softc *ps2kbd_init(struct atkbdc_softc *sc);
 
 int ps2kbd_read(struct ps2kbd_softc *sc, uint8_t *val);
 void ps2kbd_write(struct ps2kbd_softc *sc, uint8_t val);
+
+#ifdef BHYVE_SNAPSHOT
+int ps2kbd_snapshot(struct ps2kbd_softc *sc, struct vm_snapshot_meta *meta);
+#endif
 
 #endif /* _PS2KBD_H_ */

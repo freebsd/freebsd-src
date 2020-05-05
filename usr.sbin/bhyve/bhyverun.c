@@ -36,7 +36,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #endif
 #include <sys/mman.h>
+#ifdef BHYVE_SNAPSHOT
+#include <sys/socket.h>
+#include <sys/stat.h>
+#endif
 #include <sys/time.h>
+#ifdef BHYVE_SNAPSHOT
+#include <sys/un.h>
+#endif
 
 #include <amd64/vmm/intel/vmcs.h>
 
@@ -51,6 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <err.h>
 #include <errno.h>
+#ifdef BHYVE_SNAPSHOT
+#include <fcntl.h>
+#endif
 #include <libgen.h>
 #include <unistd.h>
 #include <assert.h>
@@ -59,6 +69,12 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <stdbool.h>
 #include <stdint.h>
+#ifdef BHYVE_SNAPSHOT
+#include <ucl.h>
+#include <unistd.h>
+
+#include <libxo/xo.h>
+#endif
 
 #include <machine/vmm.h>
 #ifndef WITHOUT_CAPSICUM
@@ -83,6 +99,9 @@ __FBSDID("$FreeBSD$");
 #include "pci_irq.h"
 #include "pci_lpc.h"
 #include "smbiostbl.h"
+#ifdef BHYVE_SNAPSHOT
+#include "snapshot.h"
+#endif
 #include "xmsr.h"
 #include "spinup_ap.h"
 #include "rtc.h"
@@ -163,7 +182,7 @@ static const char * const vmx_exit_reason_desc[] = {
 typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
 extern int vmexit_task_switch(struct vmctx *, struct vm_exit *, int *vcpu);
 
-char *vmname;
+const char *vmname;
 
 int guest_ncpus;
 uint16_t cores, maxcpus, sockets, threads;
@@ -229,6 +248,9 @@ usage(int code)
 		"       -H: vmexit from the guest on hlt\n"
 		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n"
+#ifdef BHYVE_SNAPSHOT
+		"       -r: path to checkpoint file\n"
+#endif
 		"       -p: pin 'vcpu' to 'hostcpu'\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
@@ -388,6 +410,14 @@ paddr_guest2host(struct vmctx *ctx, uintptr_t gaddr, size_t len)
 	return (vm_map_gpa(ctx, gaddr, len));
 }
 
+#ifdef BHYVE_SNAPSHOT
+uintptr_t
+paddr_host2guest(struct vmctx *ctx, void *addr)
+{
+	return (vm_rev_map_gpa(ctx, addr));
+}
+#endif
+
 int
 fbsdrun_vmexit_on_pause(void)
 {
@@ -422,6 +452,9 @@ fbsdrun_start_thread(void *param)
 	snprintf(tname, sizeof(tname), "vcpu %d", vcpu);
 	pthread_set_name_np(mtp->mt_thr, tname);
 
+#ifdef BHYVE_SNAPSHOT
+	checkpoint_cpu_add(vcpu);
+#endif
 	if (gdb_port != 0)
 		gdb_cpu_add(vcpu);
 
@@ -697,11 +730,15 @@ vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 
 	stats.vmexit_mtrap++;
 
-	if (gdb_port == 0) {
-		fprintf(stderr, "vm_loop: unexpected VMEXIT_MTRAP\n");
-		exit(4);
-	}
-	gdb_cpu_mtrap(*pvcpu);
+#ifdef BHYVE_SNAPSHOT
+	checkpoint_cpu_suspend(*pvcpu);
+#endif
+	if (gdb_port != 0)
+		gdb_cpu_mtrap(*pvcpu);
+#ifdef BHYVE_SNAPSHOT
+	checkpoint_cpu_resume(*pvcpu);
+#endif
+
 	return (VMEXIT_CONTINUE);
 }
 
@@ -778,11 +815,14 @@ static int
 vmexit_debug(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
-	if (gdb_port == 0) {
-		fprintf(stderr, "vm_loop: unexpected VMEXIT_DEBUG\n");
-		exit(4);
-	}
-	gdb_cpu_suspend(*pvcpu);
+#ifdef BHYVE_SNAPSHOT
+	checkpoint_cpu_suspend(*pvcpu);
+#endif
+	if (gdb_port != 0)
+		gdb_cpu_suspend(*pvcpu);
+#ifdef BHYVE_SNAPSHOT
+	checkpoint_cpu_resume(*pvcpu);
+#endif
 	return (VMEXIT_CONTINUE);
 }
 
@@ -997,6 +1037,22 @@ do_open(const char *vmname)
 	return (ctx);
 }
 
+void
+spinup_vcpu(struct vmctx *ctx, int vcpu)
+{
+	int error;
+	uint64_t rip;
+
+	error = vm_get_register(ctx, vcpu, VM_REG_GUEST_RIP, &rip);
+	assert(error == 0);
+
+	fbsdrun_set_capabilities(ctx, vcpu);
+	error = vm_set_capability(ctx, vcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
+	assert(error == 0);
+
+	fbsdrun_addcpu(ctx, BSP, vcpu, rip);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1008,6 +1064,13 @@ main(int argc, char *argv[])
 	uint64_t rip;
 	size_t memsize;
 	char *optstr;
+#ifdef BHYVE_SNAPSHOT
+	char *restore_file;
+	struct restore_state rstate;
+	int vcpu;
+
+	restore_file = NULL;
+#endif
 
 	bvmcons = 0;
 	progname = basename(argv[0]);
@@ -1021,7 +1084,11 @@ main(int argc, char *argv[])
 	rtc_localtime = 1;
 	memflags = 0;
 
+#ifdef BHYVE_SNAPSHOT
+	optstr = "abehuwxACHIPSWYp:g:G:c:s:m:l:U:r:";
+#else
 	optstr = "abehuwxACHIPSWYp:g:G:c:s:m:l:U:";
+#endif
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
 		case 'a':
@@ -1067,6 +1134,11 @@ main(int argc, char *argv[])
 				    "configuration '%s'", optarg);
 			}
 			break;
+#ifdef BHYVE_SNAPSHOT
+		case 'r':
+			restore_file = optarg;
+			break;
+#endif
 		case 's':
 			if (strncmp(optarg, "help", strlen(optarg)) == 0) {
 				pci_print_supported_devices();
@@ -1128,11 +1200,49 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+#ifdef BHYVE_SNAPSHOT
+	if (argc > 1 || (argc == 0 && restore_file == NULL))
+		usage(1);
+
+	if (restore_file != NULL) {
+		error = load_restore_file(restore_file, &rstate);
+		if (error) {
+			fprintf(stderr, "Failed to read checkpoint info from "
+					"file: '%s'.\n", restore_file);
+			exit(1);
+		}
+	}
+
+	if (argc == 1) {
+		vmname = argv[0];
+	} else {
+		vmname = lookup_vmname(&rstate);
+		if (vmname == NULL) {
+			fprintf(stderr, "Cannot find VM name in restore file. "
+					"Please specify one.\n");
+			exit(1);
+		}
+	}
+#else
 	if (argc != 1)
 		usage(1);
 
 	vmname = argv[0];
+#endif
 	ctx = do_open(vmname);
+
+#ifdef BHYVE_SNAPSHOT
+	if (restore_file != NULL) {
+		guest_ncpus = lookup_guest_ncpus(&rstate);
+		memflags = lookup_memflags(&rstate);
+		memsize = lookup_memsize(&rstate);
+	}
+
+	if (guest_ncpus < 1) {
+		fprintf(stderr, "Invalid guest vCPUs (%d)\n", guest_ncpus);
+		exit(1);
+	}
+#endif
 
 	max_vcpus = num_vcpus_allowed(ctx);
 	if (guest_ncpus > max_vcpus) {
@@ -1200,6 +1310,40 @@ main(int argc, char *argv[])
 		assert(error == 0);
 	}
 
+#ifdef BHYVE_SNAPSHOT
+	if (restore_file != NULL) {
+		fprintf(stdout, "Pausing pci devs...\r\n");
+		if (vm_pause_user_devs(ctx) != 0) {
+			fprintf(stderr, "Failed to pause PCI device state.\n");
+			exit(1);
+		}
+
+		fprintf(stdout, "Restoring vm mem...\r\n");
+		if (restore_vm_mem(ctx, &rstate) != 0) {
+			fprintf(stderr, "Failed to restore VM memory.\n");
+			exit(1);
+		}
+
+		fprintf(stdout, "Restoring pci devs...\r\n");
+		if (vm_restore_user_devs(ctx, &rstate) != 0) {
+			fprintf(stderr, "Failed to restore PCI device state.\n");
+			exit(1);
+		}
+
+		fprintf(stdout, "Restoring kernel structs...\r\n");
+		if (vm_restore_kern_structs(ctx, &rstate) != 0) {
+			fprintf(stderr, "Failed to restore kernel structs.\n");
+			exit(1);
+		}
+
+		fprintf(stdout, "Resuming pci devs...\r\n");
+		if (vm_resume_user_devs(ctx) != 0) {
+			fprintf(stderr, "Failed to resume PCI device state.\n");
+			exit(1);
+		}
+	}
+#endif
+
 	error = vm_get_register(ctx, BSP, VM_REG_GUEST_RIP, &rip);
 	assert(error == 0);
 
@@ -1240,10 +1384,40 @@ main(int argc, char *argv[])
 		errx(EX_OSERR, "cap_enter() failed");
 #endif
 
+#ifdef BHYVE_SNAPSHOT
+	if (restore_file != NULL)
+		destroy_restore_state(&rstate);
+
+	/*
+	 * checkpointing thread for communication with bhyvectl
+	 */
+	if (init_checkpoint_thread(ctx) < 0)
+		printf("Failed to start checkpoint thread!\r\n");
+
+	if (restore_file != NULL)
+		vm_restore_time(ctx);
+#endif
+
 	/*
 	 * Add CPU 0
 	 */
 	fbsdrun_addcpu(ctx, BSP, BSP, rip);
+
+#ifdef BHYVE_SNAPSHOT
+	/*
+	 * If we restore a VM, start all vCPUs now (including APs), otherwise,
+	 * let the guest OS to spin them up later via vmexits.
+	 */
+	if (restore_file != NULL) {
+		for (vcpu = 0; vcpu < guest_ncpus; vcpu++) {
+			if (vcpu == BSP)
+				continue;
+
+			fprintf(stdout, "spinning up vcpu no %d...\r\n", vcpu);
+			spinup_vcpu(ctx, vcpu);
+		}
+	}
+#endif
 
 	/*
 	 * Head off to the main event dispatch loop

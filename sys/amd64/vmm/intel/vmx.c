@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bhyve_snapshot.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
@@ -56,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
+#include <machine/vmm_snapshot.h>
+
 #include "vmm_lapic.h"
 #include "vmm_host.h"
 #include "vmm_ioport.h"
@@ -295,6 +299,9 @@ static int vmx_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc);
 static int vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval);
 static int vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val);
 static void vmx_inject_pir(struct vlapic *vlapic);
+#ifdef BHYVE_SNAPSHOT
+static int vmx_restore_tsc(void *arg, int vcpu, uint64_t now);
+#endif
 
 #ifdef KTR
 static const char *
@@ -1299,7 +1306,10 @@ vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset)
 	}
 
 	error = vmwrite(VMCS_TSC_OFFSET, offset);
-
+#ifdef BHYVE_SNAPSHOT
+	if (error == 0)
+		error = vm_set_tsc_offset(vmx->vm, vcpu, offset);
+#endif
 	return (error);
 }
 
@@ -3876,6 +3886,153 @@ vmx_vlapic_cleanup(void *arg, struct vlapic *vlapic)
 	free(vlapic, M_VLAPIC);
 }
 
+#ifdef BHYVE_SNAPSHOT
+static int
+vmx_snapshot_vmi(void *arg, struct vm_snapshot_meta *meta)
+{
+	struct vmx *vmx;
+	struct vmxctx *vmxctx;
+	int i;
+	int ret;
+
+	vmx = arg;
+
+	KASSERT(vmx != NULL, ("%s: arg was NULL", __func__));
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		SNAPSHOT_BUF_OR_LEAVE(vmx->guest_msrs[i],
+		      sizeof(vmx->guest_msrs[i]), meta, ret, done);
+
+		vmxctx = &vmx->ctx[i];
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rdi, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rsi, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rdx, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rcx, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r8, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r9, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rax, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rbx, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rbp, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r10, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r11, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r12, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r13, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r14, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r15, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_cr2, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr0, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr1, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr2, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr3, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr6, meta, ret, done);
+	}
+
+done:
+	return (ret);
+}
+
+static int
+vmx_snapshot_vmcx(void *arg, struct vm_snapshot_meta *meta, int vcpu)
+{
+	struct vmcs *vmcs;
+	struct vmx *vmx;
+	int err, run, hostcpu;
+
+	vmx = (struct vmx *)arg;
+	err = 0;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	vmcs = &vmx->vmcs[vcpu];
+
+	run = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (run && hostcpu != curcpu) {
+		printf("%s: %s%d is running", __func__, vm_name(vmx->vm), vcpu);
+		return (EINVAL);
+	}
+
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_CR0, meta);
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_CR3, meta);
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_CR4, meta);
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_DR7, meta);
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_RSP, meta);
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_RIP, meta);
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_RFLAGS, meta);
+
+	/* Guest segments */
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_ES, meta);
+	err += vmcs_snapshot_desc(vmcs, run, VM_REG_GUEST_ES, meta);
+
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_CS, meta);
+	err += vmcs_snapshot_desc(vmcs, run, VM_REG_GUEST_CS, meta);
+
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_SS, meta);
+	err += vmcs_snapshot_desc(vmcs, run, VM_REG_GUEST_SS, meta);
+
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_DS, meta);
+	err += vmcs_snapshot_desc(vmcs, run, VM_REG_GUEST_DS, meta);
+
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_FS, meta);
+	err += vmcs_snapshot_desc(vmcs, run, VM_REG_GUEST_FS, meta);
+
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_GS, meta);
+	err += vmcs_snapshot_desc(vmcs, run, VM_REG_GUEST_GS, meta);
+
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_TR, meta);
+	err += vmcs_snapshot_desc(vmcs, run, VM_REG_GUEST_TR, meta);
+
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_LDTR, meta);
+	err += vmcs_snapshot_desc(vmcs, run, VM_REG_GUEST_LDTR, meta);
+
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_EFER, meta);
+
+	err += vmcs_snapshot_desc(vmcs, run, VM_REG_GUEST_IDTR, meta);
+	err += vmcs_snapshot_desc(vmcs, run, VM_REG_GUEST_GDTR, meta);
+
+	/* Guest page tables */
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_PDPTE0, meta);
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_PDPTE1, meta);
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_PDPTE2, meta);
+	err += vmcs_snapshot_reg(vmcs, run, VM_REG_GUEST_PDPTE3, meta);
+
+	/* Other guest state */
+	err += vmcs_snapshot_any(vmcs, run, VMCS_GUEST_IA32_SYSENTER_CS, meta);
+	err += vmcs_snapshot_any(vmcs, run, VMCS_GUEST_IA32_SYSENTER_ESP, meta);
+	err += vmcs_snapshot_any(vmcs, run, VMCS_GUEST_IA32_SYSENTER_EIP, meta);
+	err += vmcs_snapshot_any(vmcs, run, VMCS_GUEST_INTERRUPTIBILITY, meta);
+	err += vmcs_snapshot_any(vmcs, run, VMCS_GUEST_ACTIVITY, meta);
+	err += vmcs_snapshot_any(vmcs, run, VMCS_ENTRY_CTLS, meta);
+	err += vmcs_snapshot_any(vmcs, run, VMCS_EXIT_CTLS, meta);
+
+	return (err);
+}
+
+static int
+vmx_restore_tsc(void *arg, int vcpu, uint64_t offset)
+{
+	struct vmcs *vmcs;
+	struct vmx *vmx = (struct vmx *)arg;
+	int error, running, hostcpu;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	vmcs = &vmx->vmcs[vcpu];
+
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu) {
+		printf("%s: %s%d is running", __func__, vm_name(vmx->vm), vcpu);
+		return (EINVAL);
+	}
+
+	if (!running)
+		VMPTRLD(vmcs);
+
+	error = vmx_set_tsc_offset(vmx, vcpu, offset);
+
+	if (!running)
+		VMCLEAR(vmcs);
+	return (error);
+}
+#endif
+
 struct vmm_ops vmm_ops_intel = {
 	.init		= vmx_init,
 	.cleanup	= vmx_cleanup,
@@ -3893,4 +4050,9 @@ struct vmm_ops vmm_ops_intel = {
 	.vmspace_free	= ept_vmspace_free,
 	.vlapic_init	= vmx_vlapic_init,
 	.vlapic_cleanup	= vmx_vlapic_cleanup,
+#ifdef BHYVE_SNAPSHOT
+	.vmsnapshot	= vmx_snapshot_vmi,
+	.vmcx_snapshot	= vmx_snapshot_vmcx,
+	.vm_restore_tsc	= vmx_restore_tsc,
+#endif
 };

@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bhyve_snapshot.h"
+
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/systm.h>
@@ -162,6 +164,11 @@ svm_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val, bool *retu)
 		 * Ignore writes to microcode update register.
 		 */
 		break;
+#ifdef BHYVE_SNAPSHOT
+	case MSR_TSC:
+		error = svm_set_tsc_offset(sc, vcpu, val - rdtsc());
+		break;
+#endif
 	case MSR_EXTFEATURES:
 		break;
 	default:

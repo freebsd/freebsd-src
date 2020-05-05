@@ -32,6 +32,8 @@
 #ifndef _VIOAPIC_H_
 #define	_VIOAPIC_H_
 
+struct vm_snapshot_meta;
+
 #define	VIOAPIC_BASE	0xFEC00000
 #define	VIOAPIC_SIZE	4096
 
@@ -49,4 +51,9 @@ int	vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa,
 
 int	vioapic_pincount(struct vm *vm);
 void	vioapic_process_eoi(struct vm *vm, int vcpuid, int vector);
+#ifdef BHYVE_SNAPSHOT
+int	vioapic_snapshot(struct vioapic *vioapic,
+			 struct vm_snapshot_meta *meta);
+#endif
+
 #endif
