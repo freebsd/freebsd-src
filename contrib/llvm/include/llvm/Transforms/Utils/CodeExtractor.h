@@ -1,9 +1,8 @@
 //===- Transform/Utils/CodeExtractor.h - Code extraction util ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -27,6 +26,7 @@ class BasicBlock;
 class BlockFrequency;
 class BlockFrequencyInfo;
 class BranchProbabilityInfo;
+class AssumptionCache;
 class CallInst;
 class DominatorTree;
 class Function;
@@ -57,6 +57,7 @@ class Value;
     const bool AggregateArgs;
     BlockFrequencyInfo *BFI;
     BranchProbabilityInfo *BPI;
+    AssumptionCache *AC;
 
     // If true, varargs functions can be extracted.
     bool AllowVarArgs;
@@ -85,6 +86,7 @@ class Value;
     CodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT = nullptr,
                   bool AggregateArgs = false, BlockFrequencyInfo *BFI = nullptr,
                   BranchProbabilityInfo *BPI = nullptr,
+                  AssumptionCache *AC = nullptr,
                   bool AllowVarArgs = false, bool AllowAlloca = false,
                   std::string Suffix = "");
 
@@ -95,6 +97,7 @@ class Value;
     CodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs = false,
                   BlockFrequencyInfo *BFI = nullptr,
                   BranchProbabilityInfo *BPI = nullptr,
+                  AssumptionCache *AC = nullptr,
                   std::string Suffix = "");
 
     /// Perform the extraction, returning the new function.
@@ -148,6 +151,16 @@ class Value;
     BasicBlock *findOrCreateBlockForHoisting(BasicBlock *CommonExitBlock);
 
   private:
+    struct LifetimeMarkerInfo {
+      bool SinkLifeStart = false;
+      bool HoistLifeEnd = false;
+      Instruction *LifeStart = nullptr;
+      Instruction *LifeEnd = nullptr;
+    };
+
+    LifetimeMarkerInfo getLifetimeMarkers(Instruction *Addr,
+                                          BasicBlock *ExitBlock) const;
+
     void severSplitPHINodesOfEntry(BasicBlock *&Header);
     void severSplitPHINodesOfExits(const SmallPtrSetImpl<BasicBlock *> &Exits);
     void splitReturnBlocks();

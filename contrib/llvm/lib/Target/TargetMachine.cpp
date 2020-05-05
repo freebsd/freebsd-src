@@ -1,9 +1,8 @@
 //===-- TargetMachine.cpp - General Target Information ---------------------==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -141,15 +140,23 @@ bool TargetMachine::shouldAssumeDSOLocal(const Module &M,
   // don't assume the variables to be DSO local unless we actually know
   // that for sure. This only has to be done for variables; for functions
   // the linker can insert thunks for calling functions from another DLL.
-  if (TT.isWindowsGNUEnvironment() && GV && GV->isDeclarationForLinker() &&
-      isa<GlobalVariable>(GV))
+  if (TT.isWindowsGNUEnvironment() && TT.isOSBinFormatCOFF() && GV &&
+      GV->isDeclarationForLinker() && isa<GlobalVariable>(GV))
+    return false;
+
+  // On COFF, don't mark 'extern_weak' symbols as DSO local. If these symbols
+  // remain unresolved in the link, they can be resolved to zero, which is
+  // outside the current DSO.
+  if (TT.isOSBinFormatCOFF() && GV && GV->hasExternalWeakLinkage())
     return false;
 
   // Every other GV is local on COFF.
   // Make an exception for windows OS in the triple: Some firmware builds use
   // *-win32-macho triples. This (accidentally?) produced windows relocations
   // without GOT tables in older clang versions; Keep this behaviour.
-  if (TT.isOSBinFormatCOFF() || (TT.isOSWindows() && TT.isOSBinFormatMachO()))
+  // Some JIT users use *-win32-elf triples; these shouldn't use GOT tables
+  // either.
+  if (TT.isOSBinFormatCOFF() || TT.isOSWindows())
     return true;
 
   // Most PIC code sequences that assume that a symbol is local cannot
@@ -168,7 +175,12 @@ bool TargetMachine::shouldAssumeDSOLocal(const Module &M,
     return GV && GV->isStrongDefinitionForLinker();
   }
 
-  assert(TT.isOSBinFormatELF());
+  // Due to the AIX linkage model, any global with default visibility is
+  // considered non-local.
+  if (TT.isOSBinFormatXCOFF())
+    return false;
+
+  assert(TT.isOSBinFormatELF() || TT.isOSBinFormatWasm());
   assert(RM != Reloc::DynamicNoPIC);
 
   bool IsExecutable =
@@ -196,7 +208,7 @@ bool TargetMachine::shouldAssumeDSOLocal(const Module &M,
       return true;
   }
 
-  // ELF supports preemption of other symbols.
+  // ELF & wasm support preemption of other symbols.
   return false;
 }
 

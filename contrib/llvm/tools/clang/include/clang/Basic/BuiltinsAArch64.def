@@ -1,9 +1,8 @@
 //==- BuiltinsAArch64.def - AArch64 Builtin function database ----*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -53,10 +52,20 @@ BUILTIN(__builtin_arm_crc32cw, "UiUiUi", "nc")
 BUILTIN(__builtin_arm_crc32d, "UiUiWUi", "nc")
 BUILTIN(__builtin_arm_crc32cd, "UiUiWUi", "nc")
 
+// Memory Tagging Extensions (MTE)
+BUILTIN(__builtin_arm_irg, "v*v*Ui", "t")
+BUILTIN(__builtin_arm_addg, "v*v*Ui", "t")
+BUILTIN(__builtin_arm_gmi, "Uiv*Ui", "t")
+BUILTIN(__builtin_arm_ldg, "v*v*", "t")
+BUILTIN(__builtin_arm_stg, "vv*", "t")
+BUILTIN(__builtin_arm_subp, "Uiv*v*", "t")
+
 // Memory barrier
 BUILTIN(__builtin_arm_dmb, "vUi", "nc")
 BUILTIN(__builtin_arm_dsb, "vUi", "nc")
 BUILTIN(__builtin_arm_isb, "vUi", "nc")
+
+BUILTIN(__builtin_arm_jcvt, "Zid", "nc")
 
 // Prefetch
 BUILTIN(__builtin_arm_prefetch, "vvC*UiUiUiUi", "nc")
@@ -79,15 +88,8 @@ LANGBUILTIN(__wfi,   "v", "",   ALL_MS_LANGUAGES)
 LANGBUILTIN(__sev,   "v", "",   ALL_MS_LANGUAGES)
 LANGBUILTIN(__sevl,  "v", "",   ALL_MS_LANGUAGES)
 
-// MSVC intrinsics for volatile but non-acquire/release loads and stores
-LANGBUILTIN(__iso_volatile_load8,   "ccCD*",     "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__iso_volatile_load16,  "ssCD*",     "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__iso_volatile_load32,  "iiCD*",     "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__iso_volatile_load64,  "LLiLLiCD*", "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__iso_volatile_store8,  "vcD*c",     "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__iso_volatile_store16, "vsD*s",     "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__iso_volatile_store32, "viD*i",     "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__iso_volatile_store64, "vLLiD*LLi", "n", ALL_MS_LANGUAGES)
+// Misc
+BUILTIN(__builtin_sponentry, "v*", "c")
 
 TARGET_HEADER_BUILTIN(_BitScanForward, "UcUNi*UNi", "nh", "intrin.h", ALL_MS_LANGUAGES, "")
 TARGET_HEADER_BUILTIN(_BitScanReverse, "UcUNi*UNi", "nh", "intrin.h", ALL_MS_LANGUAGES, "")

@@ -1,9 +1,8 @@
 //===-- ThreadElfCore.cpp --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -43,12 +42,12 @@
 #include "RegisterContextPOSIXCore_x86_64.h"
 #include "ThreadElfCore.h"
 
+#include <memory>
+
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // Construct a Thread object with given data
-//----------------------------------------------------------------------
 ThreadElfCore::ThreadElfCore(Process &process, const ThreadData &td)
     : Thread(process, td.tid), m_thread_name(td.name), m_thread_reg_ctx_sp(),
       m_signo(td.signo), m_gpregset_data(td.gpregset), m_notes(td.notes) {}
@@ -115,6 +114,9 @@ ThreadElfCore::CreateRegisterContextForFrame(StackFrame *frame) {
 
     case llvm::Triple::NetBSD: {
       switch (arch.GetMachine()) {
+      case llvm::Triple::aarch64:
+        reg_interface = new RegisterInfoPOSIX_arm64(arch);
+        break;
       case llvm::Triple::x86_64:
         reg_interface = new RegisterContextNetBSD_x86_64(arch);
         break;
@@ -193,42 +195,42 @@ ThreadElfCore::CreateRegisterContextForFrame(StackFrame *frame) {
 
     switch (arch.GetMachine()) {
     case llvm::Triple::aarch64:
-      m_thread_reg_ctx_sp.reset(new RegisterContextCorePOSIX_arm64(
-          *this, reg_interface, m_gpregset_data, m_notes));
+      m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_arm64>(
+          *this, reg_interface, m_gpregset_data, m_notes);
       break;
     case llvm::Triple::arm:
-      m_thread_reg_ctx_sp.reset(new RegisterContextCorePOSIX_arm(
-          *this, reg_interface, m_gpregset_data, m_notes));
+      m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_arm>(
+          *this, reg_interface, m_gpregset_data, m_notes);
       break;
     case llvm::Triple::mipsel:
     case llvm::Triple::mips:
-      m_thread_reg_ctx_sp.reset(new RegisterContextCorePOSIX_mips64(
-          *this, reg_interface, m_gpregset_data, m_notes));
+      m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_mips64>(
+          *this, reg_interface, m_gpregset_data, m_notes);
       break;
     case llvm::Triple::mips64:
     case llvm::Triple::mips64el:
-      m_thread_reg_ctx_sp.reset(new RegisterContextCorePOSIX_mips64(
-          *this, reg_interface, m_gpregset_data, m_notes));
+      m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_mips64>(
+          *this, reg_interface, m_gpregset_data, m_notes);
       break;
     case llvm::Triple::ppc:
     case llvm::Triple::ppc64:
-      m_thread_reg_ctx_sp.reset(new RegisterContextCorePOSIX_powerpc(
-          *this, reg_interface, m_gpregset_data, m_notes));
+      m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_powerpc>(
+          *this, reg_interface, m_gpregset_data, m_notes);
       break;
     case llvm::Triple::ppc64le:
-      m_thread_reg_ctx_sp.reset(new RegisterContextCorePOSIX_ppc64le(
-          *this, reg_interface, m_gpregset_data, m_notes));
+      m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_ppc64le>(
+          *this, reg_interface, m_gpregset_data, m_notes);
       break;
 #ifdef LLDB_ENABLE_ALL
     case llvm::Triple::systemz:
-      m_thread_reg_ctx_sp.reset(new RegisterContextCorePOSIX_s390x(
-          *this, reg_interface, m_gpregset_data, m_notes));
+      m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_s390x>(
+          *this, reg_interface, m_gpregset_data, m_notes);
       break;
 #endif // LLDB_ENABLE_ALL
     case llvm::Triple::x86:
     case llvm::Triple::x86_64:
-      m_thread_reg_ctx_sp.reset(new RegisterContextCorePOSIX_x86_64(
-          *this, reg_interface, m_gpregset_data, m_notes));
+      m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_x86_64>(
+          *this, reg_interface, m_gpregset_data, m_notes);
       break;
     default:
       break;
@@ -252,9 +254,7 @@ bool ThreadElfCore::CalculateStopInfo() {
   return false;
 }
 
-//----------------------------------------------------------------
 // Parse PRSTATUS from NOTE entry
-//----------------------------------------------------------------
 ELFLinuxPrStatus::ELFLinuxPrStatus() {
   memset(this, 0, sizeof(ELFLinuxPrStatus));
 }
@@ -262,6 +262,7 @@ ELFLinuxPrStatus::ELFLinuxPrStatus() {
 size_t ELFLinuxPrStatus::GetSize(const lldb_private::ArchSpec &arch) {
   constexpr size_t mips_linux_pr_status_size_o32 = 96;
   constexpr size_t mips_linux_pr_status_size_n32 = 72;
+  constexpr size_t num_ptr_size_members = 10;
   if (arch.IsMIPS()) {
     std::string abi = arch.GetTargetABI();
     assert(!abi.empty() && "ABI is not set");
@@ -273,15 +274,14 @@ size_t ELFLinuxPrStatus::GetSize(const lldb_private::ArchSpec &arch) {
     return mips_linux_pr_status_size_n32;
   }
   switch (arch.GetCore()) {
-  case lldb_private::ArchSpec::eCore_s390x_generic:
-  case lldb_private::ArchSpec::eCore_x86_64_x86_64:
-  case lldb_private::ArchSpec::eCore_ppc64le_generic:
-    return sizeof(ELFLinuxPrStatus);
   case lldb_private::ArchSpec::eCore_x86_32_i386:
   case lldb_private::ArchSpec::eCore_x86_32_i486:
     return 72;
   default:
-    return 0;
+    if (arch.GetAddressByteSize() == 8)
+      return sizeof(ELFLinuxPrStatus);
+    else
+      return sizeof(ELFLinuxPrStatus) - num_ptr_size_members * 4;
   }
 }
 
@@ -328,9 +328,7 @@ Status ELFLinuxPrStatus::Parse(const DataExtractor &data,
   return error;
 }
 
-//----------------------------------------------------------------
 // Parse PRPSINFO from NOTE entry
-//----------------------------------------------------------------
 ELFLinuxPrPsInfo::ELFLinuxPrPsInfo() {
   memset(this, 0, sizeof(ELFLinuxPrPsInfo));
 }
@@ -406,9 +404,7 @@ Status ELFLinuxPrPsInfo::Parse(const DataExtractor &data,
   return error;
 }
 
-//----------------------------------------------------------------
 // Parse SIGINFO from NOTE entry
-//----------------------------------------------------------------
 ELFLinuxSigInfo::ELFLinuxSigInfo() { memset(this, 0, sizeof(ELFLinuxSigInfo)); }
 
 size_t ELFLinuxSigInfo::GetSize(const lldb_private::ArchSpec &arch) {

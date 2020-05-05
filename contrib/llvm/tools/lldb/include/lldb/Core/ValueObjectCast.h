@@ -1,9 +1,8 @@
-//===-- ValueObjectDynamicValue.h -------------------------------*- C++ -*-===//
+//===-- ValueObjectCast.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,19 +20,14 @@
 
 namespace lldb_private {
 class ConstString;
-}
 
-namespace lldb_private {
-
-//---------------------------------------------------------------------------------
 // A ValueObject that represents a given value represented as a different type.
-//---------------------------------------------------------------------------------
 class ValueObjectCast : public ValueObject {
 public:
   ~ValueObjectCast() override;
 
   static lldb::ValueObjectSP Create(ValueObject &parent,
-                                    const ConstString &name,
+                                    ConstString name,
                                     const CompilerType &cast_type);
 
   uint64_t GetByteSize() override;
@@ -53,7 +47,7 @@ public:
   }
 
 protected:
-  ValueObjectCast(ValueObject &parent, const ConstString &name,
+  ValueObjectCast(ValueObject &parent, ConstString name,
                   const CompilerType &cast_type);
 
   bool UpdateValue() override;

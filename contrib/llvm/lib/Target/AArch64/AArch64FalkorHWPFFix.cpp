@@ -1,9 +1,8 @@
 //===- AArch64FalkorHWPFFix.cpp - Avoid HW prefetcher pitfalls on Falkor --===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file For Falkor, we want to avoid HW prefetcher instruction tag collisions
@@ -213,8 +212,8 @@ private:
 struct LoadInfo {
   LoadInfo() = default;
 
-  unsigned DestReg = 0;
-  unsigned BaseReg = 0;
+  Register DestReg;
+  Register BaseReg;
   int BaseRegIdx = -1;
   const MachineOperand *OffsetOpnd = nullptr;
   bool IsPrePost = false;
@@ -648,7 +647,7 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
     return None;
 
   LoadInfo LI;
-  LI.DestReg = DestRegIdx == -1 ? 0 : MI.getOperand(DestRegIdx).getReg();
+  LI.DestReg = DestRegIdx == -1 ? Register() : MI.getOperand(DestRegIdx).getReg();
   LI.BaseReg = BaseReg;
   LI.BaseRegIdx = BaseRegIdx;
   LI.OffsetOpnd = OffsetIdx == -1 ? nullptr : &MI.getOperand(OffsetIdx);

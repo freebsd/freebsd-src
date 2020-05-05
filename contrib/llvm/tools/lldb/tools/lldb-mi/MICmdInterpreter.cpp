@@ -1,9 +1,8 @@
 //===-- MICmdInterpreter.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,6 @@
 #include "MICmdFactory.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdInterpreter constructor.
 // Type:    Method.
 // Args:    None.
@@ -23,7 +21,6 @@ CMICmdInterpreter::CMICmdInterpreter()
     : m_rCmdFactory(CMICmdFactory::Instance()) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdInterpreter destructor.
 // Type:    Overridable.
 // Args:    None.
@@ -33,7 +30,6 @@ CMICmdInterpreter::CMICmdInterpreter()
 CMICmdInterpreter::~CMICmdInterpreter() { Shutdown(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Initialize resources for *this Command Interpreter.
 // Type:    Method.
 // Args:    None.
@@ -53,7 +49,6 @@ bool CMICmdInterpreter::Initialize() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Release resources for *this Command Interpreter.
 // Type:    Method.
 // Args:    None.
@@ -74,7 +69,6 @@ bool CMICmdInterpreter::Shutdown() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Establish whether the text data is an MI format type command.
 // Type:    Method.
 // Args:    vTextLine               - (R) Text data to interpret.
@@ -123,7 +117,6 @@ bool CMICmdInterpreter::ValidateIsMi(const CMIUtilString &vTextLine,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Establish whether the command name entered on the stdin stream is
 // recognised by
 //          the MI driver.
@@ -138,7 +131,6 @@ bool CMICmdInterpreter::HasCmdFactoryGotMiCmd(const SMICmdData &vCmd) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Does the command entered match the criteria for a MI command format.
 //          The format to validate against is 'nn-' where there can be 1 to n
 //          digits.
@@ -175,7 +167,6 @@ bool CMICmdInterpreter::MiHasCmdTokenEndingHyphen(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Does the command entered match the criteria for a MI command format.
 //          The format to validate against is 'nnA' where there can be 1 to n
 //          digits.
@@ -211,7 +202,6 @@ bool CMICmdInterpreter::MiHasCmdTokenEndingAlpha(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Does the command entered match the criteria for a MI command format.
 //          Is the command token present before the hyphen?
 // Type:    Method.
@@ -225,7 +215,6 @@ bool CMICmdInterpreter::MiHasCmdTokenPresent(const CMIUtilString &vTextLine) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Does the command name entered match the criteria for a MI command
 // format.
 //          Is a recognised command present? The command name is entered into
@@ -288,7 +277,6 @@ bool CMICmdInterpreter::MiHasCmd(const CMIUtilString &vTextLine) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the just entered new command from stdin. It contains the
 // command
 //          name, number and any options.

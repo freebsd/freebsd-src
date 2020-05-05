@@ -1,9 +1,8 @@
 //===- Mips16InstrInfo.td - Target Description for Mips16  -*- tablegen -*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -484,13 +483,11 @@ class SelT<string op1, string op2>:
 //
 // 32 bit constant
 //
-def Constant32:
-  MipsPseudo16<(outs), (ins simm32:$imm), "\t.word $imm", []>;
+def Constant32 : MipsPseudo16<(outs), (ins simm32:$imm), "\t.word $imm", []>;
 
-def LwConstant32:
+def LwConstant32 :
   MipsPseudo16<(outs CPU16Regs:$rx), (ins simm32:$imm, simm32:$constid),
-    "lw\t$rx, 1f\n\tb\t2f\n\t.align\t2\n1: \t.word\t$imm\n2:", []>;
-
+               "lw\t$rx, 1f\n\tb\t2f\n\t.align\t2\n1: \t.word\t$imm\n2:", []>;
 
 //
 // Some general instruction class info

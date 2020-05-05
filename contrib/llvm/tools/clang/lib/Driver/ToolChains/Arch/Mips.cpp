@@ -1,9 +1,8 @@
 //===--- Mips.cpp - Tools Implementations -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -150,7 +149,8 @@ StringRef mips::getGnuCompatibleMipsABIName(StringRef ABI) {
 
 // Select the MIPS float ABI as determined by -msoft-float, -mhard-float,
 // and -mfloat-abi=.
-mips::FloatABI mips::getMipsFloatABI(const Driver &D, const ArgList &Args) {
+mips::FloatABI mips::getMipsFloatABI(const Driver &D, const ArgList &Args,
+                                     const llvm::Triple &Triple) {
   mips::FloatABI ABI = mips::FloatABI::Invalid;
   if (Arg *A =
           Args.getLastArg(options::OPT_msoft_float, options::OPT_mhard_float,
@@ -173,10 +173,15 @@ mips::FloatABI mips::getMipsFloatABI(const Driver &D, const ArgList &Args) {
 
   // If unspecified, choose the default based on the platform.
   if (ABI == mips::FloatABI::Invalid) {
-    // Assume "hard", because it's a default value used by gcc.
-    // When we start to recognize specific target MIPS processors,
-    // we will be able to select the default more correctly.
-    ABI = mips::FloatABI::Hard;
+    if (Triple.isOSFreeBSD()) {
+      // For FreeBSD, assume "soft" on all flavors of MIPS.
+      ABI = mips::FloatABI::Soft;
+    } else {
+      // Assume "hard", because it's a default value used by gcc.
+      // When we start to recognize specific target MIPS processors,
+      // we will be able to select the default more correctly.
+      ABI = mips::FloatABI::Hard;
+    }
   }
 
   assert(ABI != mips::FloatABI::Invalid && "must select an ABI");
@@ -247,7 +252,6 @@ void mips::getMIPSTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   if (IsN64 && NonPIC && (!ABICallsArg || UseAbiCalls)) {
     D.Diag(diag::warn_drv_unsupported_pic_with_mabicalls)
         << LastPICArg->getAsString(Args) << (!ABICallsArg ? 0 : 1);
-    NonPIC = false;
   }
 
   if (ABICallsArg && !UseAbiCalls && IsPIC) {
@@ -269,7 +273,7 @@ void mips::getMIPSTargetFeatures(const Driver &D, const llvm::Triple &Triple,
       D.Diag(diag::warn_drv_unsupported_longcalls) << (ABICallsArg ? 0 : 1);
   }
 
-  mips::FloatABI FloatABI = mips::getMipsFloatABI(D, Args);
+  mips::FloatABI FloatABI = mips::getMipsFloatABI(D, Args, Triple);
   if (FloatABI == mips::FloatABI::Soft) {
     // FIXME: Note, this is a hack. We need to pass the selected float
     // mode to the MipsTargetInfoBase to define appropriate macros there.

@@ -1,9 +1,8 @@
 //===- lib/Support/ErrorHandling.cpp - Callbacks for errors ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -187,25 +186,13 @@ static void out_of_memory_new_handler() {
   llvm::report_bad_alloc_error("Allocation failed");
 }
 
-// Installs new handler that causes crash on allocation failure. It does not
-// need to be called explicitly, if this file is linked to application, because
-// in this case it is called during construction of 'new_handler_installer'.
+// Installs new handler that causes crash on allocation failure. It is called by
+// InitLLVM.
 void llvm::install_out_of_memory_new_handler() {
-  static bool out_of_memory_new_handler_installed = false;
-  if (!out_of_memory_new_handler_installed) {
-    std::set_new_handler(out_of_memory_new_handler);
-    out_of_memory_new_handler_installed = true;
-  }
+  std::new_handler old = std::set_new_handler(out_of_memory_new_handler);
+  (void)old;
+  assert(old == nullptr && "new-handler already installed");
 }
-
-// Static object that causes installation of 'out_of_memory_new_handler' before
-// execution of 'main'.
-static class NewHandlerInstaller {
-public:
-  NewHandlerInstaller() {
-    install_out_of_memory_new_handler();
-  }
-} new_handler_installer;
 #endif
 
 void llvm::llvm_unreachable_internal(const char *msg, const char *file,

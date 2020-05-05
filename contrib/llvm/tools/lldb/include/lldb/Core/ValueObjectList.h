@@ -1,9 +1,8 @@
 //===-- ValueObjectList.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,24 +18,10 @@
 
 namespace lldb_private {
 class ValueObject;
-}
 
-namespace lldb_private {
-
-//----------------------------------------------------------------------
 // A collection of ValueObject values that
-//----------------------------------------------------------------------
 class ValueObjectList {
 public:
-  //------------------------------------------------------------------
-  // Constructors and Destructors
-  //------------------------------------------------------------------
-  ValueObjectList();
-
-  ValueObjectList(const ValueObjectList &rhs);
-
-  ~ValueObjectList();
-
   const ValueObjectList &operator=(const ValueObjectList &rhs);
 
   void Append(const lldb::ValueObjectSP &val_obj_sp);
@@ -68,9 +53,7 @@ public:
   }
 protected:
   typedef std::vector<lldb::ValueObjectSP> collection;
-  //------------------------------------------------------------------
   // Classes that inherit from ValueObjectList can see and modify these
-  //------------------------------------------------------------------
   collection m_value_objects;
 };
 

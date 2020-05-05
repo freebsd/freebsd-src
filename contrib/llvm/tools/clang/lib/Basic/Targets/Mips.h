@@ -1,9 +1,8 @@
 //===--- Mips.h - Declare Mips target feature support -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -181,6 +180,8 @@ public:
       CPU = getCPU();
     if (CPU == "octeon")
       Features["mips64r2"] = Features["cnmips"] = true;
+    else if (CPU == "octeon+")
+      Features["mips64r2"] = Features["cnmips"] = Features["cnmipsp"] = true;
     else
       Features[CPU] = true;
     return TargetInfo::initFeatureMap(Features, Diags, CPU, FeaturesVec);
@@ -401,6 +402,8 @@ public:
   bool hasInt128Type() const override {
     return (ABI == "n32" || ABI == "n64") || getTargetOpts().ForceEnableInt128;
   }
+
+  unsigned getUnwindWordWidth() const override;
 
   bool validateTarget(DiagnosticsEngine &Diags) const override;
 };

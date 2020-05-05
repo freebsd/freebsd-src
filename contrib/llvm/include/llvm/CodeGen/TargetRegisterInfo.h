@@ -1,9 +1,8 @@
 //==- CodeGen/TargetRegisterInfo.h - Target Register Information -*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -521,6 +520,11 @@ public:
   /// function.  Used by MachineRegisterInfo::isConstantPhysReg().
   virtual bool isConstantPhysReg(unsigned PhysReg) const { return false; }
 
+  /// Returns true if the register class is considered divergent.
+  virtual bool isDivergentRegClass(const TargetRegisterClass *RC) const {
+    return false;
+  }
+
   /// Physical registers that may be modified within a function but are
   /// guaranteed to be restored before any uses. This is useful for targets that
   /// have call sequences where a GOT register may be updated by the caller
@@ -986,7 +990,7 @@ public:
 
   /// getFrameRegister - This method should return the register used as a base
   /// for values allocated in the current stack frame.
-  virtual unsigned getFrameRegister(const MachineFunction &MF) const = 0;
+  virtual Register getFrameRegister(const MachineFunction &MF) const = 0;
 
   /// Mark a register and all its aliases as reserved in the given set.
   void markSuperRegs(BitVector &RegisterSet, unsigned Reg) const;

@@ -1,9 +1,8 @@
 //===-- SBThread.h ----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -40,6 +39,8 @@ public:
 
   lldb::SBQueue GetQueue() const;
 
+  explicit operator bool() const;
+
   bool IsValid() const;
 
   void Clear();
@@ -50,7 +51,6 @@ public:
   /// See also GetStopReasonDataAtIndex().
   size_t GetStopReasonDataCount();
 
-  //--------------------------------------------------------------------------
   /// Get information associated with a stop reason.
   ///
   /// Breakpoint stop reasons will have data that consists of pairs of
@@ -67,7 +67,6 @@ public:
   /// eStopReasonException     N     exception data
   /// eStopReasonExec          0
   /// eStopReasonPlanComplete  0
-  //--------------------------------------------------------------------------
   uint64_t GetStopReasonDataAtIndex(uint32_t idx);
 
   bool GetStopReasonExtendedInfoAsJSON(lldb::SBStream &stream);
@@ -133,7 +132,6 @@ public:
 
   SBError UnwindInnermostExpression();
 
-  //--------------------------------------------------------------------------
   /// LLDB currently supports process centric debugging which means when any
   /// thread in a process stops, all other threads are stopped. The Suspend()
   /// call here tells our process to suspend a thread and not let it run when
@@ -153,7 +151,6 @@ public:
   /// Suspend() and Resume() functions are not currently reference counted, if
   /// anyone has the need for them to be reference counted, please let us
   /// know.
-  //--------------------------------------------------------------------------
   bool Suspend();
 
   bool Suspend(SBError &error);
@@ -204,14 +201,7 @@ public:
 
   bool SafeToCallFunctions();
 
-#ifndef SWIG
-  lldb_private::Thread *operator->();
-
-  lldb_private::Thread *get();
-
-#endif
-
-protected:
+private:
   friend class SBBreakpoint;
   friend class SBBreakpointLocation;
   friend class SBBreakpointCallbackBaton;
@@ -222,16 +212,18 @@ protected:
   friend class SBValue;
   friend class lldb_private::QueueImpl;
   friend class SBQueueItem;
+  friend class SBThreadPlan;
 
   void SetThread(const lldb::ThreadSP &lldb_object_sp);
 
-#ifndef SWIG
   SBError ResumeNewPlan(lldb_private::ExecutionContext &exe_ctx,
                         lldb_private::ThreadPlan *new_plan);
-#endif
 
-private:
   lldb::ExecutionContextRefSP m_opaque_sp;
+
+  lldb_private::Thread *operator->();
+
+  lldb_private::Thread *get();
 };
 
 } // namespace lldb

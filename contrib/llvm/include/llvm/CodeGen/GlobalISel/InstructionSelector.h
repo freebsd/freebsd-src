@@ -1,9 +1,8 @@
 //===- llvm/CodeGen/GlobalISel/InstructionSelector.h ------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -139,6 +138,16 @@ enum {
   /// - MMOIdx - MMO index
   /// - Size - The size in bytes of the memory access
   GIM_CheckMemorySizeEqualTo,
+
+  /// Check the address space of the memory access for the given machine memory
+  /// operand.
+  /// - InsnID - Instruction ID
+  /// - MMOIdx - MMO index
+  /// - NumAddrSpace - Number of valid address spaces
+  /// - AddrSpaceN - An allowed space of the memory access
+  /// - AddrSpaceN+1 ...
+  GIM_CheckMemoryAddressSpace,
+
   /// Check the size of the memory access for the given machine memory operand
   /// against the size of an operand.
   /// - InsnID - Instruction ID

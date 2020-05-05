@@ -1,17 +1,15 @@
-//===-- HostInfoBase.h ------------------------------------------*- C++ -*-===//
+//===-- HostInfo.h ----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef lldb_Host_HostInfo_h_
 #define lldb_Host_HostInfo_h_
 
-//----------------------------------------------------------------------
-/// @class HostInfo HostInfo.h "lldb/Host/HostInfo.h"
+/// \class HostInfo HostInfo.h "lldb/Host/HostInfo.h"
 /// A class that provides host computer information.
 ///
 /// HostInfo is a class that answers information about the host operating
@@ -33,7 +31,6 @@
 /// method and if used in a context where the method doesn't make sense, will
 /// generate a compiler error.
 ///
-//----------------------------------------------------------------------
 
 #if defined(_WIN32)
 #include "lldb/Host/windows/HostInfoWindows.h"

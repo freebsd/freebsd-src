@@ -1,9 +1,8 @@
 //===-- RegisterValue.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -42,7 +41,8 @@ public:
     eTypeBytes
   };
 
-  RegisterValue() : m_type(eTypeInvalid), m_scalar((unsigned long)0) {}
+  RegisterValue()
+      : m_type(eTypeInvalid), m_scalar(static_cast<unsigned long>(0)) {}
 
   explicit RegisterValue(uint8_t inst) : m_type(eTypeUInt8) { m_scalar = inst; }
 

@@ -1,9 +1,8 @@
 //===- Module.h - Module description ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -25,7 +24,7 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Bitcode/BitstreamReader.h"
+#include "llvm/Bitstream/BitstreamReader.h"
 #include "llvm/Support/Endian.h"
 #include <cassert>
 #include <cstdint>
@@ -175,7 +174,7 @@ public:
   unsigned Generation;
 
   /// The memory buffer that stores the data associated with
-  /// this AST file, owned by the PCMCache in the ModuleManager.
+  /// this AST file, owned by the InMemoryModuleCache.
   llvm::MemoryBuffer *Buffer;
 
   /// The size of this file, in bits.

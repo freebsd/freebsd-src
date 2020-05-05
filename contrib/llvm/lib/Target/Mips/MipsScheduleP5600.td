@@ -1,9 +1,8 @@
 //==- MipsScheduleP5600.td - P5600 Scheduling Definitions --*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,12 +12,14 @@ def MipsP5600Model : SchedMachineModel {
   int LoadLatency = 4;
   int MispredictPenalty = 8; // TODO: Estimated
 
-  let CompleteModel = 0;
+  let CompleteModel = 1;
   let FullInstRWOverlapCheck = 1;
 
-  list<Predicate> UnsupportedFeatures = [HasMips32r6, HasMips64r6,
-                                         HasMips3, HasMips64r2, HasCnMips,
+  list<Predicate> UnsupportedFeatures = [HasMips3, HasMips32r6, HasMips64,
+                                         HasMips64r2, HasMips64r5, HasMips64r6,
+                                         IsGP64bit, IsPTR64bit,
                                          InMicroMips, InMips16Mode,
+                                         HasCnMips, HasCnMipsP,
                                          HasDSP, HasDSPR2, HasMT, HasCRC];
 }
 
@@ -59,15 +60,21 @@ def P5600WriteJumpAndLink : SchedWriteRes<[P5600IssueCTISTD, P5600CTISTD]> {
   let Latency = 2;
 }
 
+def P5600Nop : SchedWriteRes<[P5600IssueCTISTD]> {
+  let Latency = 0;
+}
+
+def : InstRW<[P5600Nop], (instrs SSNOP, NOP)>;
+
 // b, beq, beql, bg[et]z, bl[et]z, bne, bnel, j, syscall, jal, bltzal,
 // jalr, jr.hb, jr
 def : InstRW<[P5600WriteJump], (instrs B, BAL, BAL_BR, BEQ, BEQL, BGEZ, BGEZAL,
                                 BGEZALL, BGEZL, BGTZ, BGTZL, BLEZ, BLEZL, BLTZ,
                                 BLTZAL, BLTZALL, BLTZL, BNE, BNEL, BREAK,
-                                DERET, ERET, ERETNC, J, JR, JR_HB,
+                                DERET, ERET, ERet, ERETNC, J, JR, JR_HB,
                                 PseudoIndirectBranch,
                                 PseudoIndirectHazardBranch, PseudoReturn,
-                                SDBBP, SSNOP, SYSCALL, TAILCALL, TAILCALLREG,
+                                SDBBP, SYSCALL, RetRA, TAILCALL, TAILCALLREG,
                                 TAILCALLREGHB, TEQ, TEQI, TGE, TGEI, TGEIU,
                                 TGEU, TLT, TLTI, TLTU, TNE, TNEI, TRAP,
                                 TTLTIU, WAIT, PAUSE)>;
@@ -89,6 +96,11 @@ def P5600COP2 : SchedWriteRes<[P5600IssueCTISTD, P5600CTISTD]>;
 def : InstRW<[P5600COP2], (instrs MFC2, MTC2)> {
   let Unsupported = 1;
 }
+
+// MIPS Virtualization ASE
+// =======================
+def : InstRW<[P5600COP0], (instrs HYPCALL, MFGC0, MFHGC0, MTGC0, MTHGC0,
+                           TLBGINV, TLBGINVF, TLBGP, TLBGR, TLBGWI, TLBGWR)>;
 
 // LDST Pipeline
 // -------------
@@ -288,6 +300,8 @@ def : InstRW<[P5600WriteMSAShortInt], (instregex "^(BCLR|BCLRI)_[BHWD]$")>;
 def : InstRW<[P5600WriteMSAShortInt], (instregex "^(BNEG|BNEGI)_[BHWD]$")>;
 def : InstRW<[P5600WriteMSAShortInt], (instregex "^(BSEL_V|BSELI_B)$")>;
 def : InstRW<[P5600WriteMSAShortInt], (instregex "^BMN*Z.*$")>;
+def : InstRW<[P5600WriteMSAShortInt],
+             (instregex "^BSEL_(H|W|D|FW|FD)_PSEUDO$")>;
 
 // pcnt.[bhwd], sat_s.[bhwd], sat_u.bhwd]
 def : InstRW<[P5600WriteMSAOther3], (instregex "^PCNT_[BHWD]$")>;
@@ -335,6 +349,10 @@ def : InstRW<[P5600WriteMSAShortLogic], (instregex "^MOVE_V$")>;
 def : InstRW<[P5600WriteMSAShortLogic], (instregex "^LDI_[BHWD]$")>;
 def : InstRW<[P5600WriteMSAShortLogic], (instregex "^(AND|OR|[XN]OR)_V$")>;
 def : InstRW<[P5600WriteMSAShortLogic], (instregex "^(AND|OR|[XN]OR)I_B$")>;
+def : InstRW<[P5600WriteMSAShortLogic],
+             (instregex "^(AND|OR|[XN]OR)_V_[DHW]_PSEUDO$")>;
+def : InstRW<[P5600WriteMSAShortLogic], (instregex "^FILL_F(D|W)_PSEUDO$")>;
+def : InstRW<[P5600WriteMSAShortLogic], (instregex "^INSERT_F(D|W)_PSEUDO$")>;
 
 // fexp2_w, fexp2_d
 def : InstRW<[P5600WriteFPUS], (instregex "^FEXP2_(W|D)$")>;
@@ -427,17 +445,19 @@ def : InstRW<[P5600WriteMSAShortLogic], (instregex "^(NLOC|NLZC)_[BHWD]$")>;
 // ----------
 //
 // add.[ds], add.ps, cvt.d.[sw], cvt.s.[dw], cvt.w.[sd], cvt.[sw].ps,
-// cvt.ps.[sw], c.<cc>.[ds], c.<cc>.ps, mul.[ds], mul.ps, sub.[ds], sub.ps,
-// trunc.w.[ds], trunc.w.ps
+// cvt.ps.[sw], cvt.s.(pl|pu), c.<cc>.[ds], c.<cc>.ps, mul.[ds], mul.ps,
+// pl[lu].ps, sub.[ds], sub.ps, trunc.w.[ds], trunc.w.ps
 def : InstRW<[P5600WriteFPUL],
              (instrs FADD_D32, FADD_D64, FADD_S, FMUL_D32, FMUL_D64, FMUL_S,
               FSUB_D32, FSUB_D64, FSUB_S)>;
 def : InstRW<[P5600WriteFPUL], (instregex "^TRUNC_(L|W)_(S|D32|D64)$")>;
 def : InstRW<[P5600WriteFPUL],
              (instregex "^CVT_(S|D32|D64|L|W)_(S|D32|D64|L|W)$")>;
+def : InstRW<[P5600WriteFPUL], (instrs CVT_PS_S64, CVT_S_PL64, CVT_S_PU64)>;
 def : InstRW<[P5600WriteFPUL], (instregex "^C_[A-Z]+_(S|D32|D64)$")>;
 def : InstRW<[P5600WriteFPUL], (instregex "^FCMP_(S32|D32|D64)$")>;
 def : InstRW<[P5600WriteFPUL], (instregex "^PseudoCVT_(S|D32|D64)_(L|W)$")>;
+def : InstRW<[P5600WriteFPUL], (instrs PLL_PS64, PLU_PS64)>;
 
 // div.[ds], div.ps
 def : InstRW<[P5600WriteFPUDivS], (instrs FDIV_S)>;
@@ -555,16 +575,20 @@ def : InstRW<[P5600WriteMoveFPUToGPR], (instrs BC1F, BC1FL, BC1T, BC1TL, CFC1,
                                         ExtractElementF64_64)>;
 
 // swc1, swxc1, st.[bhwd]
-def : InstRW<[P5600WriteStoreFPUS], (instrs SDC1, SDXC1, SUXC1, SWC1, SWXC1)>;
+def : InstRW<[P5600WriteStoreFPUS], (instrs SDC1, SDC164, SDXC1, SDXC164,
+                                     SWC1, SWXC1, SUXC1, SUXC164)>;
 def : InstRW<[P5600WriteStoreFPUS], (instregex "^ST_[BHWD]$")>;
+def : InstRW<[P5600WriteStoreFPUS], (instrs ST_F16)>;
 
 // movn.[ds], movz.[ds]
 def : InstRW<[P5600WriteStoreFPUL], (instrs MOVN_I_D32, MOVN_I_D64, MOVN_I_S,
                                      MOVZ_I_D32, MOVZ_I_D64, MOVZ_I_S)>;
 
 // l[dw]x?c1, ld.[bhwd]
-def : InstRW<[P5600WriteLoadFPU], (instrs LDC1, LDXC1, LWC1, LWXC1, LUXC1)>;
+def : InstRW<[P5600WriteLoadFPU], (instrs LDC1, LDC164, LDXC1, LDXC164,
+                                   LWC1, LWXC1, LUXC1, LUXC164)>;
 def : InstRW<[P5600WriteLoadFPU], (instregex "LD_[BHWD]")>;
+def : InstRW<[P5600WriteLoadFPU], (instrs LD_F16)>;
 
 // Unsupported Instructions
 // ========================
@@ -593,4 +617,20 @@ def : InstRW<[P5600WriteFPUL], (instregex "^ROUND_(L|W)_(S|D32|D64)$")>;
 // Reason behind guess: rotr is in the same category and the two register forms
 //                      generally follow the immediate forms in this category
 def : InstRW<[P5600WriteEitherALU], (instrs ROTRV)>;
+
+// Atomic instructions
+
+// FIXME: Define `WriteAtomic` in the MipsSchedule.td and
+// attach it to the Atomic2OpsPostRA, AtomicCmpSwapPostRA, ...
+// classes. Then just define resources for the `WriteAtomic` in each
+// machine models.
+def P5600Atomic : ProcResource<1> { let BufferSize = 1; }
+def P5600WriteAtomic : SchedWriteRes<[P5600Atomic]> { let Latency = 2; }
+
+def : InstRW<[P5600WriteAtomic],
+    (instregex "^ATOMIC_SWAP_I(8|16|32|64)_POSTRA$")>;
+def : InstRW<[P5600WriteAtomic],
+    (instregex "^ATOMIC_CMP_SWAP_I(8|16|32|64)_POSTRA$")>;
+def : InstRW<[P5600WriteAtomic],
+    (instregex "^ATOMIC_LOAD_(ADD|SUB|AND|OR|XOR|NAND)_I(8|16|32|64)_POSTRA$")>;
 }

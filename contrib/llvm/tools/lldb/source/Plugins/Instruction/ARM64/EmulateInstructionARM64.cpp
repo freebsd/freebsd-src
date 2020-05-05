@@ -1,9 +1,8 @@
 //===-- EmulateInstructionARM64.cpp ------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -118,11 +117,9 @@ ConstrainUnpredictable(EmulateInstructionARM64::Unpredictable which) {
   return result;
 }
 
-//----------------------------------------------------------------------
 //
 // EmulateInstructionARM implementation
 //
-//----------------------------------------------------------------------
 
 void EmulateInstructionARM64::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),
@@ -157,7 +154,7 @@ EmulateInstructionARM64::CreateInstance(const ArchSpec &arch,
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 bool EmulateInstructionARM64::SetTargetTriple(const ArchSpec &arch) {
@@ -208,9 +205,7 @@ bool EmulateInstructionARM64::GetRegisterInfo(RegisterKind reg_kind,
 EmulateInstructionARM64::Opcode *
 EmulateInstructionARM64::GetOpcodeForInstruction(const uint32_t opcode) {
   static EmulateInstructionARM64::Opcode g_opcodes[] = {
-      //----------------------------------------------------------------------
       // Prologue instructions
-      //----------------------------------------------------------------------
 
       // push register(s)
       {0xff000000, 0xd1000000, No_VFP,
@@ -416,7 +411,7 @@ bool EmulateInstructionARM64::ReadInstruction() {
 bool EmulateInstructionARM64::EvaluateInstruction(uint32_t evaluate_options) {
   const uint32_t opcode = m_opcode.GetOpcode32();
   Opcode *opcode_data = GetOpcodeForInstruction(opcode);
-  if (opcode_data == NULL)
+  if (opcode_data == nullptr)
     return false;
 
   // printf ("opcode template for 0x%8.8x: %s\n", opcode, opcode_data->name);
@@ -662,10 +657,10 @@ bool EmulateInstructionARM64::EmulateADDSUBImm(const uint32_t opcode) {
 
   if (sub_op) {
     operand2 = NOT(operand2);
-    carry_in = 1;
+    carry_in = true;
     imm = -imm; // For the Register plug offset context below
   } else {
-    carry_in = 0;
+    carry_in = false;
   }
 
   ProcState proc_state;

@@ -1,9 +1,8 @@
 //==- include/llvm/CodeGen/AccelTable.h - Accelerator Tables -----*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -327,14 +326,8 @@ public:
 
   void emit(AsmPrinter *Asm) const override;
 
-#ifndef _MSC_VER
-  // The line below is rejected by older versions (TBD) of MSVC.
   static constexpr Atom Atoms[] = {
       Atom(dwarf::DW_ATOM_die_offset, dwarf::DW_FORM_data4)};
-#else
-  // FIXME: Erase this path once the minimum MSCV version has been bumped.
-  static const SmallVector<Atom, 4> Atoms;
-#endif
 
 #ifndef NDEBUG
   void print(raw_ostream &OS) const override;
@@ -352,16 +345,10 @@ public:
 
   void emit(AsmPrinter *Asm) const override;
 
-#ifndef _MSC_VER
-  // The line below is rejected by older versions (TBD) of MSVC.
   static constexpr Atom Atoms[] = {
       Atom(dwarf::DW_ATOM_die_offset, dwarf::DW_FORM_data4),
       Atom(dwarf::DW_ATOM_die_tag, dwarf::DW_FORM_data2),
       Atom(dwarf::DW_ATOM_type_flags, dwarf::DW_FORM_data1)};
-#else
-  // FIXME: Erase this path once the minimum MSCV version has been bumped.
-  static const SmallVector<Atom, 4> Atoms;
-#endif
 
 #ifndef NDEBUG
   void print(raw_ostream &OS) const override;
@@ -376,14 +363,8 @@ public:
 
   void emit(AsmPrinter *Asm) const override;
 
-#ifndef _MSC_VER
-  // The line below is rejected by older versions (TBD) of MSVC.
   static constexpr Atom Atoms[] = {
       Atom(dwarf::DW_ATOM_die_offset, dwarf::DW_FORM_data4)};
-#else
-  // FIXME: Erase this path once the minimum MSCV version has been bumped.
-  static const SmallVector<Atom, 4> Atoms;
-#endif
 
 #ifndef NDEBUG
   void print(raw_ostream &OS) const override;
@@ -407,16 +388,10 @@ public:
 
   void emit(AsmPrinter *Asm) const override;
 
-#ifndef _MSC_VER
-  // The line below is rejected by older versions (TBD) of MSVC.
   static constexpr Atom Atoms[] = {
       Atom(dwarf::DW_ATOM_die_offset, dwarf::DW_FORM_data4),
       Atom(dwarf::DW_ATOM_die_tag, dwarf::DW_FORM_data2),
       Atom(5, dwarf::DW_FORM_data1), Atom(6, dwarf::DW_FORM_data4)};
-#else
-  // FIXME: Erase this path once the minimum MSCV version has been bumped.
-  static const SmallVector<Atom, 4> Atoms;
-#endif
 
 #ifndef NDEBUG
   void print(raw_ostream &OS) const override;

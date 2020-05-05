@@ -1,9 +1,8 @@
 //===-- Communication.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -205,10 +204,23 @@ bool Communication::StartReadThread(Status *error_ptr) {
 
   m_read_thread_enabled = true;
   m_read_thread_did_exit = false;
-  m_read_thread = ThreadLauncher::LaunchThread(
-      thread_name, Communication::ReadThread, this, error_ptr);
+  auto maybe_thread = ThreadLauncher::LaunchThread(
+      thread_name, Communication::ReadThread, this);
+  if (maybe_thread) {
+    m_read_thread = *maybe_thread;
+  } else {
+    if (error_ptr)
+      *error_ptr = Status(maybe_thread.takeError());
+    else {
+      LLDB_LOG(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST),
+               "failed to launch host thread: {}",
+               llvm::toString(maybe_thread.takeError()));
+    }
+  }
+
   if (!m_read_thread.IsJoinable())
     m_read_thread_enabled = false;
+
   return m_read_thread_enabled;
 }
 
@@ -360,7 +372,7 @@ lldb::thread_result_t Communication::ReadThread(lldb::thread_arg_t p) {
   // Let clients know that this thread is exiting
   comm->BroadcastEvent(eBroadcastBitNoMorePendingInput);
   comm->BroadcastEvent(eBroadcastBitReadThreadDidExit);
-  return NULL;
+  return {};
 }
 
 void Communication::SetReadThreadBytesReceivedCallback(

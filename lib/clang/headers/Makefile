@@ -4,7 +4,11 @@
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
-INCSDIR=	${LIBDIR}/clang/8.0.1/include
+INCSGROUPS=	INCS CUDA OMP PPC
+INCSDIR=	${LIBDIR}/clang/9.0.0/include
+CUDADIR=	${INCSDIR}/cuda_wrappers
+OMPDIR=		${INCSDIR}/openmp_wrappers
+PPCDIR=		${INCSDIR}/ppc_wrappers
 
 GENINCS+=	arm_fp16.h
 GENINCS+=	arm_neon.h
@@ -27,6 +31,7 @@ INCS+=		arm64intr.h
 INCS+=		arm_acle.h
 INCS+=		armintr.h
 INCS+=		avx2intrin.h
+INCS+=		avx512bf16intrin.h
 INCS+=		avx512bitalgintrin.h
 INCS+=		avx512bwintrin.h
 INCS+=		avx512cdintrin.h
@@ -39,6 +44,7 @@ INCS+=		avx512pfintrin.h
 INCS+=		avx512vbmi2intrin.h
 INCS+=		avx512vbmiintrin.h
 INCS+=		avx512vbmivlintrin.h
+INCS+=		avx512vlbf16intrin.h
 INCS+=		avx512vlbitalgintrin.h
 INCS+=		avx512vlbwintrin.h
 INCS+=		avx512vlcdintrin.h
@@ -46,7 +52,9 @@ INCS+=		avx512vldqintrin.h
 INCS+=		avx512vlintrin.h
 INCS+=		avx512vlvbmi2intrin.h
 INCS+=		avx512vlvnniintrin.h
+INCS+=		avx512vlvp2intersectintrin.h
 INCS+=		avx512vnniintrin.h
+INCS+=		avx512vp2intersectintrin.h
 INCS+=		avx512vpopcntdqintrin.h
 INCS+=		avx512vpopcntdqvlintrin.h
 INCS+=		avxintrin.h
@@ -59,6 +67,7 @@ INCS+=		clwbintrin.h
 INCS+=		clzerointrin.h
 INCS+=		cpuid.h
 INCS+=		emmintrin.h
+INCS+=		enqcmdintrin.h
 INCS+=		f16cintrin.h
 INCS+=		fma4intrin.h
 INCS+=		fmaintrin.h
@@ -79,6 +88,7 @@ INCS+=		movdirintrin.h
 INCS+=		msa.h
 INCS+=		mwaitxintrin.h
 INCS+=		nmmintrin.h
+INCS+=		opencl-c-base.h
 INCS+=		opencl-c.h
 INCS+=		pconfigintrin.h
 INCS+=		pkuintrin.h
@@ -129,6 +139,20 @@ INCS+=		tgmath.h
 INCS+=		unwind.h
 INCS+=		varargs.h
 .endif
+
+CUDA+=		cuda_wrappers/algorithm
+CUDA+=		cuda_wrappers/complex
+CUDA+=		cuda_wrappers/new
+
+OMP+=		openmp_wrappers/__clang_openmp_math.h
+OMP+=		openmp_wrappers/__clang_openmp_math_declares.h
+OMP+=		openmp_wrappers/cmath
+OMP+=		openmp_wrappers/math.h
+
+PPC+=		ppc_wrappers/emmintrin.h
+PPC+=		ppc_wrappers/mm_malloc.h
+PPC+=		ppc_wrappers/mmintrin.h
+PPC+=		ppc_wrappers/xmmintrin.h
 
 arm_fp16.h: ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
 	${CLANG_TBLGEN} -gen-arm-fp16 \

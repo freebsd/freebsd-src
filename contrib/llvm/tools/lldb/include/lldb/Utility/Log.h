@@ -1,9 +1,8 @@
 //===-- Log.h ---------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,9 +31,7 @@
 namespace llvm {
 class raw_ostream;
 }
-//----------------------------------------------------------------------
 // Logging Options
-//----------------------------------------------------------------------
 #define LLDB_LOG_OPTION_THREADSAFE (1u << 0)
 #define LLDB_LOG_OPTION_VERBOSE (1u << 1)
 #define LLDB_LOG_OPTION_PREPEND_SEQUENCE (1u << 3)
@@ -45,9 +42,7 @@ class raw_ostream;
 #define LLDB_LOG_OPTION_APPEND (1U << 8)
 #define LLDB_LOG_OPTION_PREPEND_FILE_FUNCTION (1U << 9)
 
-//----------------------------------------------------------------------
 // Logging Functions
-//----------------------------------------------------------------------
 namespace lldb_private {
 
 class Log final {
@@ -74,7 +69,7 @@ public:
         : log_ptr(nullptr), categories(categories),
           default_flags(default_flags) {}
 
-    // This function is safe to call at any time If the channel is disabled
+    // This function is safe to call at any time. If the channel is disabled
     // after (or concurrently with) this function returning a non-null Log
     // pointer, it is still safe to attempt to write to the Log object -- the
     // output will be discarded.
@@ -85,7 +80,7 @@ public:
       return nullptr;
     }
 
-    // This function is safe to call at any time If the channel is disabled
+    // This function is safe to call at any time. If the channel is disabled
     // after (or concurrently with) this function returning a non-null Log
     // pointer, it is still safe to attempt to write to the Log object -- the
     // output will be discarded.
@@ -100,9 +95,7 @@ public:
 
   static void Initialize();
 
-  //------------------------------------------------------------------
   // Static accessors for logging channels
-  //------------------------------------------------------------------
   static void Register(llvm::StringRef name, Channel &channel);
   static void Unregister(llvm::StringRef name);
 
@@ -116,19 +109,18 @@ public:
                                 llvm::ArrayRef<const char *> categories,
                                 llvm::raw_ostream &error_stream);
 
-  static bool ListChannelCategories(llvm::StringRef channel, llvm::raw_ostream &stream);
+  static bool ListChannelCategories(llvm::StringRef channel,
+                                    llvm::raw_ostream &stream);
 
   static void DisableAllLogChannels();
 
   static void ListAllLogChannels(llvm::raw_ostream &stream);
 
-  //------------------------------------------------------------------
   // Member functions
   //
   // These functions are safe to call at any time you have a Log* obtained from
   // the Channel class. If logging is disabled between you obtaining the Log
   // object and writing to it, the output will be silently discarded.
-  //------------------------------------------------------------------
   Log(Channel &channel) : m_channel(channel) {}
   ~Log() = default;
 

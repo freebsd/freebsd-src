@@ -1,9 +1,8 @@
 //===-- MipsSubtarget.h - Define Subtarget for the Mips ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -87,6 +86,9 @@ class MipsSubtarget : public MipsGenSubtargetInfo {
   // NoABICalls - Disable SVR4-style position-independent code.
   bool NoABICalls;
 
+  // Abs2008 - Use IEEE 754-2008 abs.fmt instruction.
+  bool Abs2008;
+
   // IsFP64bit - The target processor has 64-bit floating point registers.
   bool IsFP64bit;
 
@@ -108,6 +110,9 @@ class MipsSubtarget : public MipsGenSubtargetInfo {
 
   // CPU supports cnMIPS (Cavium Networks Octeon CPU).
   bool HasCnMips;
+
+  // CPU supports cnMIPSP (Cavium Networks Octeon+ CPU).
+  bool HasCnMipsP;
 
   // isLinux - Target system is Linux. Is false we consider ELFOS for now.
   bool IsLinux;
@@ -265,6 +270,7 @@ public:
   bool hasMips64r6() const { return MipsArchVersion >= Mips64r6; }
 
   bool hasCnMips() const { return HasCnMips; }
+  bool hasCnMipsP() const { return HasCnMipsP; }
 
   bool isLittle() const { return IsLittle; }
   bool isABICalls() const { return !NoABICalls; }
@@ -273,6 +279,7 @@ public:
   bool useOddSPReg() const { return UseOddSPReg; }
   bool noOddSPReg() const { return !UseOddSPReg; }
   bool isNaN2008() const { return IsNaN2008bit; }
+  bool inAbs2008Mode() const { return Abs2008; }
   bool isGP64bit() const { return IsGP64bit; }
   bool isGP32bit() const { return !IsGP64bit; }
   unsigned getGPRSizeInBytes() const { return isGP64bit() ? 8 : 4; }

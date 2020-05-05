@@ -1,9 +1,8 @@
 //===-- VariableList.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,14 +16,10 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // VariableList constructor
-//----------------------------------------------------------------------
 VariableList::VariableList() : m_variables() {}
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 VariableList::~VariableList() {}
 
 void VariableList::AddVariable(const VariableSP &var_sp) {
@@ -74,7 +69,7 @@ uint32_t VariableList::FindVariableIndex(const VariableSP &var_sp) {
   return UINT32_MAX;
 }
 
-VariableSP VariableList::FindVariable(const ConstString &name,
+VariableSP VariableList::FindVariable(ConstString name,
                                       bool include_static_members) {
   VariableSP var_sp;
   iterator pos, end = m_variables.end();
@@ -89,7 +84,7 @@ VariableSP VariableList::FindVariable(const ConstString &name,
   return var_sp;
 }
 
-VariableSP VariableList::FindVariable(const ConstString &name,
+VariableSP VariableList::FindVariable(ConstString name,
                                       lldb::ValueType value_type,
                                       bool include_static_members) {
   VariableSP var_sp;

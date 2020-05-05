@@ -1,9 +1,8 @@
 //===-- LibCxxList.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -112,7 +111,7 @@ private:
 
 class AbstractListFrontEnd : public SyntheticChildrenFrontEnd {
 public:
-  size_t GetIndexOfChildWithName(const ConstString &name) override {
+  size_t GetIndexOfChildWithName(ConstString name) override {
     return ExtractIndexFromString(name.GetCString());
   }
   bool MightHaveChildren() override { return true; }
@@ -385,7 +384,7 @@ lldb::ValueObjectSP ListFrontEnd::GetChildAtIndex(size_t idx) {
   if (current_sp->GetName() == g_next) {
     ProcessSP process_sp(current_sp->GetProcessSP());
     if (!process_sp)
-      return nullptr;
+      return lldb::ValueObjectSP();
 
     // if we grabbed the __next_ pointer, then the child is one pointer deep-er
     lldb::addr_t addr = current_sp->GetParent()->GetPointerValue();
@@ -393,6 +392,8 @@ lldb::ValueObjectSP ListFrontEnd::GetChildAtIndex(size_t idx) {
     ExecutionContext exe_ctx(process_sp);
     current_sp =
         CreateValueObjectFromAddress("__value_", addr, exe_ctx, m_element_type);
+    if (!current_sp)
+      return lldb::ValueObjectSP();
   }
 
   // we need to copy current_sp into a new object otherwise we will end up with

@@ -1,9 +1,8 @@
 //===-- StringExtractorGDBRemote.cpp ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -286,8 +285,8 @@ StringExtractorGDBRemote::GetServerPacketType() const {
       break;
 
     case 'X':
-      if (PACKET_STARTS_WITH("qXfer:auxv:read::"))
-        return eServerPacketType_qXfer_auxv_read;
+      if (PACKET_STARTS_WITH("qXfer:"))
+        return eServerPacketType_qXfer;
       break;
     }
     break;
@@ -378,9 +377,7 @@ StringExtractorGDBRemote::GetServerPacketType() const {
     break;
 
   case 'g':
-    if (packet_size == 1)
-      return eServerPacketType_g;
-    break;
+    return eServerPacketType_g;
 
   case 'G':
     return eServerPacketType_G;

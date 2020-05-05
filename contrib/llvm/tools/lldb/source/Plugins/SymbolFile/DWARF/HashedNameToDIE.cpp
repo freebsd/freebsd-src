@@ -1,9 +1,8 @@
 //===-- HashedNameToDIE.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,8 +13,7 @@ void DWARFMappedHash::ExtractDIEArray(const DIEInfoArray &die_info_array,
                                       DIEArray &die_offsets) {
   const size_t count = die_info_array.size();
   for (size_t i = 0; i < count; ++i)
-    die_offsets.emplace_back(die_info_array[i].cu_offset,
-                             die_info_array[i].offset);
+    die_offsets.emplace_back(die_info_array[i]);
 }
 
 void DWARFMappedHash::ExtractDIEArray(const DIEInfoArray &die_info_array,
@@ -34,8 +32,7 @@ void DWARFMappedHash::ExtractDIEArray(const DIEInfoArray &die_info_array,
               tag == DW_TAG_structure_type || tag == DW_TAG_class_type;
       }
       if (tag_matches)
-        die_offsets.emplace_back(die_info_array[i].cu_offset,
-                                 die_info_array[i].offset);
+        die_offsets.emplace_back(die_info_array[i]);
     }
   }
 }
@@ -59,8 +56,7 @@ void DWARFMappedHash::ExtractDIEArray(const DIEInfoArray &die_info_array,
               tag == DW_TAG_structure_type || tag == DW_TAG_class_type;
       }
       if (tag_matches)
-        die_offsets.emplace_back(die_info_array[i].cu_offset,
-                                 die_info_array[i].offset);
+        die_offsets.emplace_back(die_info_array[i]);
     }
   }
 }
@@ -78,17 +74,14 @@ void DWARFMappedHash::ExtractClassOrStructDIEArray(
           // We found the one true definition for this class, so only return
           // that
           die_offsets.clear();
-          die_offsets.emplace_back(die_info_array[i].cu_offset,
-                                   die_info_array[i].offset);
+          die_offsets.emplace_back(die_info_array[i]);
           return;
         } else {
           // Put the one true definition as the first entry so it matches first
-          die_offsets.emplace(die_offsets.begin(), die_info_array[i].cu_offset,
-                              die_info_array[i].offset);
+          die_offsets.emplace(die_offsets.begin(), die_info_array[i]);
         }
       } else {
-        die_offsets.emplace_back(die_info_array[i].cu_offset,
-                                 die_info_array[i].offset);
+        die_offsets.emplace_back(die_info_array[i]);
       }
     }
   }
@@ -100,8 +93,7 @@ void DWARFMappedHash::ExtractTypesFromDIEArray(
   const size_t count = die_info_array.size();
   for (size_t i = 0; i < count; ++i) {
     if ((die_info_array[i].type_flags & type_flag_mask) == type_flag_value)
-      die_offsets.emplace_back(die_info_array[i].cu_offset,
-                               die_info_array[i].offset);
+      die_offsets.emplace_back(die_info_array[i]);
   }
 }
 
@@ -125,13 +117,9 @@ const char *DWARFMappedHash::GetAtomTypeName(uint16_t atom) {
   return "<invalid>";
 }
 
-DWARFMappedHash::DIEInfo::DIEInfo()
-    : cu_offset(DW_INVALID_OFFSET), offset(DW_INVALID_OFFSET), tag(0),
-      type_flags(0), qualified_name_hash(0) {}
-
-DWARFMappedHash::DIEInfo::DIEInfo(dw_offset_t c, dw_offset_t o, dw_tag_t t,
-                                  uint32_t f, uint32_t h)
-    : cu_offset(c), offset(o), tag(t), type_flags(f), qualified_name_hash(h) {}
+DWARFMappedHash::DIEInfo::DIEInfo(dw_offset_t o, dw_tag_t t, uint32_t f,
+                                  uint32_t h)
+    : die_offset(o), tag(t), type_flags(f), qualified_name_hash(h) {}
 
 DWARFMappedHash::Prologue::Prologue(dw_offset_t _die_base_offset)
     : die_base_offset(_die_base_offset), atoms(), atom_mask(0),
@@ -167,6 +155,7 @@ void DWARFMappedHash::Prologue::AppendAtom(AtomType type, dw_form_t form) {
   case DW_FORM_ref_sig8:
     llvm_unreachable("Unhandled atom form");
 
+  case DW_FORM_addrx:
   case DW_FORM_string:
   case DW_FORM_block:
   case DW_FORM_block1:
@@ -271,14 +260,14 @@ bool DWARFMappedHash::Header::Read(const lldb_private::DWARFDataExtractor &data,
     return false;
 
   for (size_t i = 0; i < num_atoms; ++i) {
-    DWARFFormValue form_value(NULL, header_data.atoms[i].form);
+    DWARFFormValue form_value(nullptr, header_data.atoms[i].form);
 
     if (!form_value.ExtractValue(data, offset_ptr))
       return false;
 
     switch (header_data.atoms[i].type) {
     case eAtomTypeDIEOffset: // DIE offset, check form for encoding
-      hash_data.offset =
+      hash_data.die_offset =
           DWARFFormValue::IsDataForm(form_value.Form())
               ? form_value.Unsigned()
               : form_value.Reference(header_data.die_base_offset);
@@ -301,50 +290,7 @@ bool DWARFMappedHash::Header::Read(const lldb_private::DWARFDataExtractor &data,
       break;
     }
   }
-  return true;
-}
-
-void DWARFMappedHash::Header::Dump(lldb_private::Stream &strm,
-                                   const DIEInfo &hash_data) const {
-  const size_t num_atoms = header_data.atoms.size();
-  for (size_t i = 0; i < num_atoms; ++i) {
-    if (i > 0)
-      strm.PutCString(", ");
-
-    DWARFFormValue form_value(NULL, header_data.atoms[i].form);
-    switch (header_data.atoms[i].type) {
-    case eAtomTypeDIEOffset: // DIE offset, check form for encoding
-      strm.Printf("{0x%8.8x}", hash_data.offset);
-      break;
-
-    case eAtomTypeTag: // DW_TAG value for the DIE
-    {
-      const char *tag_cstr = lldb_private::DW_TAG_value_to_name(hash_data.tag);
-      if (tag_cstr)
-        strm.PutCString(tag_cstr);
-      else
-        strm.Printf("DW_TAG_(0x%4.4x)", hash_data.tag);
-    } break;
-
-    case eAtomTypeTypeFlags: // Flags from enum TypeFlags
-      strm.Printf("0x%2.2x", hash_data.type_flags);
-      if (hash_data.type_flags) {
-        strm.PutCString(" (");
-        if (hash_data.type_flags & eTypeFlagClassIsImplementation)
-          strm.PutCString(" implementation");
-        strm.PutCString(" )");
-      }
-      break;
-
-    case eAtomTypeQualNameHash: // Flags from enum TypeFlags
-      strm.Printf("0x%8.8x", hash_data.qualified_name_hash);
-      break;
-
-    default:
-      strm.Printf("AtomType(0x%x)", header_data.atoms[i].type);
-      break;
-    }
-  }
+  return hash_data.die_offset != DW_INVALID_OFFSET;
 }
 
 DWARFMappedHash::MemoryTable::MemoryTable(
@@ -391,7 +337,7 @@ DWARFMappedHash::MemoryTable::GetHashDataForName(
   // There definitely should be a string for this string offset, if there
   // isn't, there is something wrong, return and error
   const char *strp_cstr = m_string_table.PeekCStr(pair.key);
-  if (strp_cstr == NULL) {
+  if (strp_cstr == nullptr) {
     *hash_data_offset_ptr = UINT32_MAX;
     return eResultError;
   }
@@ -458,7 +404,7 @@ DWARFMappedHash::MemoryTable::AppendHashDataForRegularExpression(
   // There definitely should be a string for this string offset, if there
   // isn't, there is something wrong, return and error
   const char *strp_cstr = m_string_table.PeekCStr(pair.key);
-  if (strp_cstr == NULL)
+  if (strp_cstr == nullptr)
     return eResultError;
 
   const uint32_t count = m_data.GetU32(hash_data_offset_ptr);
@@ -556,10 +502,10 @@ size_t DWARFMappedHash::MemoryTable::AppendAllDIEsInRange(
       for (uint32_t i = 0; i < count; ++i) {
         DIEInfo die_info;
         if (m_header.Read(m_data, &hash_data_offset, die_info)) {
-          if (die_info.offset == 0)
+          if (die_info.die_offset == 0)
             done = true;
-          if (die_offset_start <= die_info.offset &&
-              die_info.offset < die_offset_end)
+          if (die_offset_start <= die_info.die_offset &&
+              die_info.die_offset < die_offset_end)
             die_info_array.push_back(die_info);
         }
       }

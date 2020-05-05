@@ -1,9 +1,8 @@
 //===-- DataBuffer.h --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,8 +19,7 @@
 
 namespace lldb_private {
 
-//----------------------------------------------------------------------
-/// @class DataBuffer DataBuffer.h "lldb/Core/DataBuffer.h"
+/// \class DataBuffer DataBuffer.h "lldb/Core/DataBuffer.h"
 /// A pure virtual protocol class for abstracted data buffers.
 ///
 /// DataBuffer is an abstract class that gets packaged into a shared pointer
@@ -42,43 +40,34 @@ namespace lldb_private {
 /// This class currently expects all data to be available without any extra
 /// calls being made, but we can modify it to optionally get data on demand
 /// with some extra function calls to load the data before it gets accessed.
-//----------------------------------------------------------------------
 class DataBuffer {
 public:
-  //------------------------------------------------------------------
   /// Destructor
   ///
   /// The destructor is virtual as other classes will inherit from this class
   /// and be downcast to the DataBuffer pure virtual interface. The virtual
   /// destructor ensures that destructing the base class will destruct the
   /// class that inherited from it correctly.
-  //------------------------------------------------------------------
   virtual ~DataBuffer() {}
 
-  //------------------------------------------------------------------
   /// Get a pointer to the data.
   ///
-  /// @return
+  /// \return
   ///     A pointer to the bytes owned by this object, or NULL if the
   ///     object contains no bytes.
-  //------------------------------------------------------------------
   virtual uint8_t *GetBytes() = 0;
 
-  //------------------------------------------------------------------
   /// Get a const pointer to the data.
   ///
-  /// @return
+  /// \return
   ///     A const pointer to the bytes owned by this object, or NULL
   ///     if the object contains no bytes.
-  //------------------------------------------------------------------
   virtual const uint8_t *GetBytes() const = 0;
 
-  //------------------------------------------------------------------
   /// Get the number of bytes in the data buffer.
   ///
-  /// @return
+  /// \return
   ///     The number of bytes this object currently contains.
-  //------------------------------------------------------------------
   virtual lldb::offset_t GetByteSize() const = 0;
 
   llvm::ArrayRef<uint8_t> GetData() const {

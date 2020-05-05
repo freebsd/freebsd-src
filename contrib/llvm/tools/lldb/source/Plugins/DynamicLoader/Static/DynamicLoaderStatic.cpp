@@ -1,9 +1,8 @@
 //===-- DynamicLoaderStatic.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,11 +17,9 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // Create an instance of this class. This function is filled into the plugin
 // info class that gets handed out by the plugin factory and allows the lldb to
 // instantiate an instance of this class.
-//----------------------------------------------------------------------
 DynamicLoader *DynamicLoaderStatic::CreateInstance(Process *process,
                                                    bool force) {
   bool create = force;
@@ -46,34 +43,26 @@ DynamicLoader *DynamicLoaderStatic::CreateInstance(Process *process,
 
   if (create)
     return new DynamicLoaderStatic(process);
-  return NULL;
+  return nullptr;
 }
 
-//----------------------------------------------------------------------
 // Constructor
-//----------------------------------------------------------------------
 DynamicLoaderStatic::DynamicLoaderStatic(Process *process)
     : DynamicLoader(process) {}
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 DynamicLoaderStatic::~DynamicLoaderStatic() {}
 
-//------------------------------------------------------------------
 /// Called after attaching a process.
 ///
 /// Allow DynamicLoader plug-ins to execute some code after
 /// attaching to a process.
-//------------------------------------------------------------------
 void DynamicLoaderStatic::DidAttach() { LoadAllImagesAtFileAddresses(); }
 
-//------------------------------------------------------------------
 /// Called after attaching a process.
 ///
 /// Allow DynamicLoader plug-ins to execute some code after
 /// attaching to a process.
-//------------------------------------------------------------------
 void DynamicLoaderStatic::DidLaunch() { LoadAllImagesAtFileAddresses(); }
 
 void DynamicLoaderStatic::LoadAllImagesAtFileAddresses() {
@@ -157,9 +146,7 @@ const char *DynamicLoaderStatic::GetPluginDescriptionStatic() {
          "addresses contained in each image.";
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 lldb_private::ConstString DynamicLoaderStatic::GetPluginName() {
   return GetPluginNameStatic();
 }

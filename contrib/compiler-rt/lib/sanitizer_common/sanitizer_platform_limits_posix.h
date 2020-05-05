@@ -1,9 +1,8 @@
 //===-- sanitizer_platform_limits_posix.h ---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -79,10 +78,9 @@ namespace __sanitizer {
 #elif defined(__powerpc64__)
   const unsigned struct_kernel_stat_sz = 144;
   const unsigned struct_kernel_stat64_sz = 104;
-#elif defined(__riscv)
-  /* RISCVTODO: check that these values are correct */
+#elif defined(__riscv) && __riscv_xlen == 64
   const unsigned struct_kernel_stat_sz = 128;
-  const unsigned struct_kernel_stat64_sz = 128;
+  const unsigned struct_kernel_stat64_sz = 104;
 #elif defined(__mips__)
   const unsigned struct_kernel_stat_sz =
                  SANITIZER_ANDROID ? FIRST_32_SECOND_64(104, 128) :

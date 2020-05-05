@@ -1,9 +1,8 @@
 //===-- ABISysV_arm.cpp -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -1318,9 +1317,7 @@ ABISysV_arm::GetRegisterInfoArray(uint32_t &count) {
 
 size_t ABISysV_arm::GetRedZoneSize() const { return 0; }
 
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 
 ABISP
 ABISysV_arm::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch) {
@@ -1742,8 +1739,8 @@ ValueObjectSP ABISysV_arm::GetReturnValueObjectImpl(
           uint32_t index = 0;
           for (index = 0; index < num_children; index++) {
             std::string name;
-            base_type =
-                compiler_type.GetFieldAtIndex(index, name, NULL, NULL, NULL);
+            base_type = compiler_type.GetFieldAtIndex(index, name, nullptr,
+                                                      nullptr, nullptr);
 
             if (base_type.IsFloatingPointType(float_count, is_complex)) {
               llvm::Optional<uint64_t> base_byte_size =
@@ -1802,7 +1799,7 @@ ValueObjectSP ABISysV_arm::GetReturnValueObjectImpl(
 
       const RegisterInfo *reg_info =
           reg_ctx->GetRegisterInfo(eRegisterKindDWARF, regnum);
-      if (reg_info == NULL)
+      if (reg_info == nullptr)
         break;
 
       RegisterValue reg_value;
@@ -2150,9 +2147,7 @@ lldb_private::ConstString ABISysV_arm::GetPluginNameStatic() {
   return g_name;
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 
 lldb_private::ConstString ABISysV_arm::GetPluginName() {
   return GetPluginNameStatic();

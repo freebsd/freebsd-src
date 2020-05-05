@@ -1,9 +1,8 @@
 //===- MCStreamer.h - High-level Streaming Machine Code Output --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,7 +19,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCDirectives.h"
-#include "llvm/MC/MCDwarf.h"
 #include "llvm/MC/MCLinkerOptimizationHint.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCWinEH.h"
@@ -44,6 +42,7 @@ class MCAsmBackend;
 class MCCodeEmitter;
 struct MCCodePaddingContext;
 class MCContext;
+struct MCDwarfFrameInfo;
 class MCExpr;
 class MCInst;
 class MCInstPrinter;
@@ -267,10 +266,8 @@ public:
   /// closed. Otherwise, issue an error and return null.
   WinEH::FrameInfo *EnsureValidWinFrameInfo(SMLoc Loc);
 
-  unsigned getNumFrameInfos() { return DwarfFrameInfos.size(); }
-  ArrayRef<MCDwarfFrameInfo> getDwarfFrameInfos() const {
-    return DwarfFrameInfos;
-  }
+  unsigned getNumFrameInfos();
+  ArrayRef<MCDwarfFrameInfo> getDwarfFrameInfos() const;
 
   bool hasUnfinishedDwarfFrameInfo();
 
@@ -629,13 +626,20 @@ public:
   /// to pass in a MCExpr for constant integers.
   virtual void EmitIntValue(uint64_t Value, unsigned Size);
 
+  /// Special case of EmitValue that avoids the client having to pass
+  /// in a MCExpr for constant integers & prints in Hex format for certain
+  /// modes.
+  virtual void EmitIntValueInHex(uint64_t Value, unsigned Size) {
+    EmitIntValue(Value, Size);
+  }
+
   virtual void EmitULEB128Value(const MCExpr *Value);
 
   virtual void EmitSLEB128Value(const MCExpr *Value);
 
   /// Special case of EmitULEB128Value that avoids the client having to
   /// pass in a MCExpr for constant integers.
-  void EmitULEB128IntValue(uint64_t Value);
+  void EmitULEB128IntValue(uint64_t Value, unsigned PadTo = 0);
 
   /// Special case of EmitSLEB128Value that avoids the client having to
   /// pass in a MCExpr for constant integers.
@@ -782,7 +786,7 @@ public:
   /// implements the DWARF2 '.file 4 "foo.c"' assembler directive.
   unsigned EmitDwarfFileDirective(unsigned FileNo, StringRef Directory,
                                   StringRef Filename,
-                                  MD5::MD5Result *Checksum = nullptr,
+                                  Optional<MD5::MD5Result> Checksum = None,
                                   Optional<StringRef> Source = None,
                                   unsigned CUID = 0) {
     return cantFail(
@@ -797,12 +801,12 @@ public:
   /// '.file 4 "dir/foo.c" md5 "..." source "..."' assembler directive.
   virtual Expected<unsigned> tryEmitDwarfFileDirective(
       unsigned FileNo, StringRef Directory, StringRef Filename,
-      MD5::MD5Result *Checksum = nullptr, Optional<StringRef> Source = None,
+      Optional<MD5::MD5Result> Checksum = None, Optional<StringRef> Source = None,
       unsigned CUID = 0);
 
   /// Specify the "root" file of the compilation, using the ".file 0" extension.
   virtual void emitDwarfFile0Directive(StringRef Directory, StringRef Filename,
-                                       MD5::MD5Result *Checksum,
+                                       Optional<MD5::MD5Result> Checksum,
                                        Optional<StringRef> Source,
                                        unsigned CUID = 0);
 
@@ -953,9 +957,7 @@ public:
   virtual void EmitAddrsigSym(const MCSymbol *Sym) {}
 
   /// Emit the given \p Instruction into the current section.
-  /// PrintSchedInfo == true then schedul comment should be added to output
-  virtual void EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
-                               bool PrintSchedInfo = false);
+  virtual void EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &STI);
 
   /// Set the bundle alignment mode from now on in the section.
   /// The argument is the power of 2 to which the alignment is set. The

@@ -1,9 +1,8 @@
 //===-- MICmdArgValBase.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,6 @@
 #include "MIUtilString.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValBase constructor.
 // Type:    Method.
 // Args:    None.
@@ -24,7 +22,6 @@ CMICmdArgValBase::CMICmdArgValBase()
       m_bIsMissingOptions(false) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValBase constructor.
 // Type:    Method.
 // Args:    vrArgName       - (R) Argument's name to search by.
@@ -43,7 +40,6 @@ CMICmdArgValBase::CMICmdArgValBase(const CMIUtilString &vrArgName,
       m_bIsMissingOptions(false) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the state flag of whether the argument is handled by the
 // command or
 //          not.
@@ -58,7 +54,6 @@ bool CMICmdArgValBase::GetIsMissingOptions() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the state flag of whether the argument is handled by the
 // command or
 //          not.
@@ -71,7 +66,6 @@ bool CMICmdArgValBase::GetIsMissingOptions() const {
 bool CMICmdArgValBase::GetIsHandledByCmd() const { return m_bHandled; }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the name of *this argument.
 // Type:    Method.
 // Args:    None.
@@ -81,7 +75,6 @@ bool CMICmdArgValBase::GetIsHandledByCmd() const { return m_bHandled; }
 const CMIUtilString &CMICmdArgValBase::GetName() const { return m_strArgName; }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the state flag of whether the argument was found in the
 // command's
 //          argument / options string.
@@ -94,7 +87,6 @@ const CMIUtilString &CMICmdArgValBase::GetName() const { return m_strArgName; }
 bool CMICmdArgValBase::GetFound() const { return m_bFound; }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the state flag indicating whether the value was obtained
 // from the
 //          text arguments string and is valid.
@@ -107,7 +99,6 @@ bool CMICmdArgValBase::GetFound() const { return m_bFound; }
 bool CMICmdArgValBase::GetValid() const { return m_bValid; }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the state flag indicating whether *this argument is a
 // mandatory
 //          argument for the command or is optional to be present.
@@ -120,7 +111,6 @@ bool CMICmdArgValBase::GetValid() const { return m_bValid; }
 bool CMICmdArgValBase::GetIsMandatory() const { return m_bMandatory; }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Parse the command's argument options string and try to extract the
 // value *this
 //          argument is looking for.

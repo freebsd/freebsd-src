@@ -1,9 +1,8 @@
 //===--- FrontendActions.cpp ----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,6 +14,7 @@
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Frontend/Utils.h"
+#include "clang/Lex/DependencyDirectivesSourceMinimizer.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
@@ -24,8 +24,8 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/YAMLTraits.h"
+#include "llvm/Support/raw_ostream.h"
 #include <memory>
 #include <system_error>
 
@@ -74,11 +74,10 @@ ASTPrintAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
 
 std::unique_ptr<ASTConsumer>
 ASTDumpAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
-  return CreateASTDumper(nullptr /*Dump to stdout.*/,
-                         CI.getFrontendOpts().ASTDumpFilter,
-                         CI.getFrontendOpts().ASTDumpDecls,
-                         CI.getFrontendOpts().ASTDumpAll,
-                         CI.getFrontendOpts().ASTDumpLookups);
+  const FrontendOptions &Opts = CI.getFrontendOpts();
+  return CreateASTDumper(nullptr /*Dump to stdout.*/, Opts.ASTDumpFilter,
+                         Opts.ASTDumpDecls, Opts.ASTDumpAll,
+                         Opts.ASTDumpLookups, Opts.ASTDumpFormat);
 }
 
 std::unique_ptr<ASTConsumer>
@@ -110,10 +109,10 @@ GeneratePCHAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
   auto Buffer = std::make_shared<PCHBuffer>();
   std::vector<std::unique_ptr<ASTConsumer>> Consumers;
   Consumers.push_back(llvm::make_unique<PCHGenerator>(
-                        CI.getPreprocessor(), OutputFile, Sysroot,
-                        Buffer, FrontendOpts.ModuleFileExtensions,
-                        CI.getPreprocessorOpts().AllowPCHWithCompilerErrors,
-                        FrontendOpts.IncludeTimestamps));
+      CI.getPreprocessor(), CI.getModuleCache(), OutputFile, Sysroot, Buffer,
+      FrontendOpts.ModuleFileExtensions,
+      CI.getPreprocessorOpts().AllowPCHWithCompilerErrors,
+      FrontendOpts.IncludeTimestamps, +CI.getLangOpts().CacheGeneratedPCH));
   Consumers.push_back(CI.getPCHContainerWriter().CreatePCHContainerGenerator(
       CI, InFile, OutputFile, std::move(OS), Buffer));
 
@@ -140,7 +139,7 @@ GeneratePCHAction::CreateOutputFile(CompilerInstance &CI, StringRef InFile,
   std::unique_ptr<raw_pwrite_stream> OS =
       CI.createOutputFile(CI.getFrontendOpts().OutputFile, /*Binary=*/true,
                           /*RemoveFileOnSignal=*/false, InFile,
-                          /*Extension=*/"", /*useTemporary=*/true);
+                          /*Extension=*/"", /*UseTemporary=*/true);
   if (!OS)
     return nullptr;
 
@@ -173,11 +172,13 @@ GenerateModuleAction::CreateASTConsumer(CompilerInstance &CI,
   std::vector<std::unique_ptr<ASTConsumer>> Consumers;
 
   Consumers.push_back(llvm::make_unique<PCHGenerator>(
-                        CI.getPreprocessor(), OutputFile, Sysroot,
-                        Buffer, CI.getFrontendOpts().ModuleFileExtensions,
-                        /*AllowASTWithErrors=*/false,
-                        /*IncludeTimestamps=*/
-                          +CI.getFrontendOpts().BuildingImplicitModule));
+      CI.getPreprocessor(), CI.getModuleCache(), OutputFile, Sysroot, Buffer,
+      CI.getFrontendOpts().ModuleFileExtensions,
+      /*AllowASTWithErrors=*/false,
+      /*IncludeTimestamps=*/
+      +CI.getFrontendOpts().BuildingImplicitModule,
+      /*ShouldCacheASTInMemory=*/
+      +CI.getFrontendOpts().BuildingImplicitModule));
   Consumers.push_back(CI.getPCHContainerWriter().CreatePCHContainerGenerator(
       CI, InFile, OutputFile, std::move(OS), Buffer));
   return llvm::make_unique<MultiplexConsumer>(std::move(Consumers));
@@ -214,14 +215,14 @@ GenerateModuleFromModuleMapAction::CreateOutputFile(CompilerInstance &CI,
   // We use a temporary to avoid race conditions.
   return CI.createOutputFile(CI.getFrontendOpts().OutputFile, /*Binary=*/true,
                              /*RemoveFileOnSignal=*/false, InFile,
-                             /*Extension=*/"", /*useTemporary=*/true,
+                             /*Extension=*/"", /*UseTemporary=*/true,
                              /*CreateMissingDirectories=*/true);
 }
 
 bool GenerateModuleInterfaceAction::BeginSourceFileAction(
     CompilerInstance &CI) {
-  if (!CI.getLangOpts().ModulesTS) {
-    CI.getDiagnostics().Report(diag::err_module_interface_requires_modules_ts);
+  if (!CI.getLangOpts().ModulesTS && !CI.getLangOpts().CPlusPlusModules) {
+    CI.getDiagnostics().Report(diag::err_module_interface_requires_cpp_modules);
     return false;
   }
 
@@ -238,7 +239,7 @@ GenerateModuleInterfaceAction::CreateOutputFile(CompilerInstance &CI,
 
 bool GenerateHeaderModuleAction::PrepareToExecuteAction(
     CompilerInstance &CI) {
-  if (!CI.getLangOpts().Modules && !CI.getLangOpts().ModulesTS) {
+  if (!CI.getLangOpts().Modules) {
     CI.getDiagnostics().Report(diag::err_header_module_requires_modules);
     return false;
   }
@@ -287,7 +288,7 @@ bool GenerateHeaderModuleAction::BeginSourceFileAction(
     const DirectoryLookup *CurDir = nullptr;
     const FileEntry *FE = HS.LookupFile(
         Name, SourceLocation(), /*Angled*/ false, nullptr, CurDir,
-        None, nullptr, nullptr, nullptr, nullptr, nullptr);
+        None, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     if (!FE) {
       CI.getDiagnostics().Report(diag::err_module_header_file_not_found)
         << Name;
@@ -330,8 +331,8 @@ void VerifyPCHAction::ExecuteAction() {
   bool Preamble = CI.getPreprocessorOpts().PrecompiledPreambleBytes.first != 0;
   const std::string &Sysroot = CI.getHeaderSearchOpts().Sysroot;
   std::unique_ptr<ASTReader> Reader(new ASTReader(
-      CI.getPreprocessor(), &CI.getASTContext(), CI.getPCHContainerReader(),
-      CI.getFrontendOpts().ModuleFileExtensions,
+      CI.getPreprocessor(), CI.getModuleCache(), &CI.getASTContext(),
+      CI.getPCHContainerReader(), CI.getFrontendOpts().ModuleFileExtensions,
       Sysroot.empty() ? "" : Sysroot.c_str(),
       /*DisableValidation*/ false,
       /*AllowPCHWithCompilerErrors*/ false,
@@ -907,4 +908,34 @@ void DumpCompilerOptionsAction::ExecuteAction() {
   OS << "\n]\n";
 
   OS << "}";
+}
+
+void PrintDependencyDirectivesSourceMinimizerAction::ExecuteAction() {
+  CompilerInstance &CI = getCompilerInstance();
+  SourceManager &SM = CI.getPreprocessor().getSourceManager();
+  const llvm::MemoryBuffer *FromFile = SM.getBuffer(SM.getMainFileID());
+
+  llvm::SmallString<1024> Output;
+  llvm::SmallVector<minimize_source_to_dependency_directives::Token, 32> Toks;
+  if (minimizeSourceToDependencyDirectives(
+          FromFile->getBuffer(), Output, Toks, &CI.getDiagnostics(),
+          SM.getLocForStartOfFile(SM.getMainFileID()))) {
+    assert(CI.getDiagnostics().hasErrorOccurred() &&
+           "no errors reported for failure");
+
+    // Preprocess the source when verifying the diagnostics to capture the
+    // 'expected' comments.
+    if (CI.getDiagnosticOpts().VerifyDiagnostics) {
+      // Make sure we don't emit new diagnostics!
+      CI.getDiagnostics().setSuppressAllDiagnostics();
+      Preprocessor &PP = getCompilerInstance().getPreprocessor();
+      PP.EnterMainSourceFile();
+      Token Tok;
+      do {
+        PP.Lex(Tok);
+      } while (Tok.isNot(tok::eof));
+    }
+    return;
+  }
+  llvm::outs() << Output;
 }

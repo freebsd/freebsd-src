@@ -1,9 +1,8 @@
 //===-- Broadcaster.cpp -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,6 +18,7 @@
 #include <algorithm>
 #include <memory>
 #include <type_traits>
+#include <utility>
 
 #include <assert.h>
 #include <stddef.h>
@@ -28,11 +28,10 @@ using namespace lldb_private;
 
 Broadcaster::Broadcaster(BroadcasterManagerSP manager_sp, const char *name)
     : m_broadcaster_sp(std::make_shared<BroadcasterImpl>(*this)),
-      m_manager_sp(manager_sp), m_broadcaster_name(name) {
+      m_manager_sp(std::move(manager_sp)), m_broadcaster_name(name) {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
-  if (log)
-    log->Printf("%p Broadcaster::Broadcaster(\"%s\")",
-                static_cast<void *>(this), GetBroadcasterName().AsCString());
+  LLDB_LOG(log, "{0} Broadcaster::Broadcaster(\"{1}\")",
+           static_cast<void *>(this), GetBroadcasterName().AsCString());
 }
 
 Broadcaster::BroadcasterImpl::BroadcasterImpl(Broadcaster &broadcaster)
@@ -41,9 +40,8 @@ Broadcaster::BroadcasterImpl::BroadcasterImpl(Broadcaster &broadcaster)
 
 Broadcaster::~Broadcaster() {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
-  if (log)
-    log->Printf("%p Broadcaster::~Broadcaster(\"%s\")",
-                static_cast<void *>(this), m_broadcaster_name.AsCString());
+  LLDB_LOG(log, "{0} Broadcaster::~Broadcaster(\"{1}\")",
+           static_cast<void *>(this), GetBroadcasterName().AsCString());
 
   Clear();
 }
@@ -213,8 +211,7 @@ void Broadcaster::BroadcasterImpl::PrivateBroadcastEvent(EventSP &event_sp,
       hijacking_listener_sp.reset();
   }
 
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_EVENTS));
-  if (log) {
+  if (Log *log = lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_EVENTS)) {
     StreamString event_description;
     event_sp->Dump(&event_description);
     log->Printf("%p Broadcaster(\"%s\")::BroadcastEvent (event_sp = {%s}, "
@@ -225,18 +222,16 @@ void Broadcaster::BroadcasterImpl::PrivateBroadcastEvent(EventSP &event_sp,
   }
 
   if (hijacking_listener_sp) {
-    if (unique &&
-        hijacking_listener_sp->PeekAtNextEventForBroadcasterWithType(
-            &m_broadcaster, event_type))
+    if (unique && hijacking_listener_sp->PeekAtNextEventForBroadcasterWithType(
+                      &m_broadcaster, event_type))
       return;
     hijacking_listener_sp->AddEvent(event_sp);
   } else {
     for (auto &pair : GetListeners()) {
       if (!(pair.second & event_type))
         continue;
-      if (unique &&
-          pair.first->PeekAtNextEventForBroadcasterWithType(&m_broadcaster,
-                                                            event_type))
+      if (unique && pair.first->PeekAtNextEventForBroadcasterWithType(
+                        &m_broadcaster, event_type))
         continue;
 
       pair.first->AddEvent(event_sp);
@@ -267,11 +262,11 @@ bool Broadcaster::BroadcasterImpl::HijackBroadcaster(
   std::lock_guard<std::recursive_mutex> guard(m_listeners_mutex);
 
   Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_EVENTS));
-  if (log)
-    log->Printf(
-        "%p Broadcaster(\"%s\")::HijackBroadcaster (listener(\"%s\")=%p)",
-        static_cast<void *>(this), GetBroadcasterName(),
-        listener_sp->m_name.c_str(), static_cast<void *>(listener_sp.get()));
+  LLDB_LOG(
+      log,
+      "{0} Broadcaster(\"{1}\")::HijackBroadcaster (listener(\"{2}\")={3})",
+      static_cast<void *>(this), GetBroadcasterName(),
+      listener_sp->m_name.c_str(), static_cast<void *>(listener_sp.get()));
   m_hijacking_listeners.push_back(listener_sp);
   m_hijacking_masks.push_back(event_mask);
   return true;
@@ -288,24 +283,22 @@ bool Broadcaster::BroadcasterImpl::IsHijackedForEvent(uint32_t event_mask) {
 const char *Broadcaster::BroadcasterImpl::GetHijackingListenerName() {
   if (m_hijacking_listeners.size()) {
     return m_hijacking_listeners.back()->GetName();
-  } else {
-    return nullptr;
   }
+  return nullptr;
 }
 
 void Broadcaster::BroadcasterImpl::RestoreBroadcaster() {
   std::lock_guard<std::recursive_mutex> guard(m_listeners_mutex);
 
   if (!m_hijacking_listeners.empty()) {
+    ListenerSP listener_sp = m_hijacking_listeners.back();
     Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_EVENTS));
-    if (log) {
-      ListenerSP listener_sp = m_hijacking_listeners.back();
-      log->Printf("%p Broadcaster(\"%s\")::RestoreBroadcaster (about to pop "
-                  "listener(\"%s\")=%p)",
-                  static_cast<void *>(this), GetBroadcasterName(),
-                  listener_sp->m_name.c_str(),
-                  static_cast<void *>(listener_sp.get()));
-    }
+    LLDB_LOG(log,
+             "{0} Broadcaster(\"{1}\")::RestoreBroadcaster (about to pop "
+             "listener(\"{2}\")={3})",
+             static_cast<void *>(this), GetBroadcasterName(),
+             listener_sp->m_name.c_str(),
+             static_cast<void *>(listener_sp.get()));
     m_hijacking_listeners.pop_back();
   }
   if (!m_hijacking_masks.empty())
@@ -317,14 +310,11 @@ ConstString &Broadcaster::GetBroadcasterClass() const {
   return class_name;
 }
 
-BroadcastEventSpec::BroadcastEventSpec(const BroadcastEventSpec &rhs) = default;
-
 bool BroadcastEventSpec::operator<(const BroadcastEventSpec &rhs) const {
   if (GetBroadcasterClass() == rhs.GetBroadcasterClass()) {
     return GetEventBits() < rhs.GetEventBits();
-  } else {
-    return GetBroadcasterClass() < rhs.GetBroadcasterClass();
   }
+  return GetBroadcasterClass() < rhs.GetBroadcasterClass();
 }
 
 BroadcastEventSpec &BroadcastEventSpec::
@@ -337,7 +327,7 @@ lldb::BroadcasterManagerSP BroadcasterManager::MakeBroadcasterManager() {
 }
 
 uint32_t BroadcasterManager::RegisterListenerForEvents(
-    const lldb::ListenerSP &listener_sp, BroadcastEventSpec event_spec) {
+    const lldb::ListenerSP &listener_sp, const BroadcastEventSpec &event_spec) {
   std::lock_guard<std::recursive_mutex> guard(m_manager_mutex);
 
   collection::iterator iter = m_event_map.begin(), end_iter = m_event_map.end();
@@ -362,7 +352,7 @@ uint32_t BroadcasterManager::RegisterListenerForEvents(
 }
 
 bool BroadcasterManager::UnregisterListenerForEvents(
-    const lldb::ListenerSP &listener_sp, BroadcastEventSpec event_spec) {
+    const lldb::ListenerSP &listener_sp, const BroadcastEventSpec &event_spec) {
   std::lock_guard<std::recursive_mutex> guard(m_manager_mutex);
   bool removed_some = false;
 
@@ -380,17 +370,16 @@ bool BroadcasterManager::UnregisterListenerForEvents(
     iter = find_if(m_event_map.begin(), end_iter, predicate);
     if (iter == end_iter) {
       break;
-    } else {
-      uint32_t iter_event_bits = (*iter).first.GetEventBits();
-      removed_some = true;
-
-      if (event_bits_to_remove != iter_event_bits) {
-        uint32_t new_event_bits = iter_event_bits & ~event_bits_to_remove;
-        to_be_readded.push_back(BroadcastEventSpec(
-            event_spec.GetBroadcasterClass(), new_event_bits));
-      }
-      m_event_map.erase(iter);
     }
+    uint32_t iter_event_bits = (*iter).first.GetEventBits();
+    removed_some = true;
+
+    if (event_bits_to_remove != iter_event_bits) {
+      uint32_t new_event_bits = iter_event_bits & ~event_bits_to_remove;
+      to_be_readded.push_back(
+          BroadcastEventSpec(event_spec.GetBroadcasterClass(), new_event_bits));
+    }
+    m_event_map.erase(iter);
   }
 
   // Okay now add back the bits that weren't completely removed:
@@ -402,7 +391,7 @@ bool BroadcasterManager::UnregisterListenerForEvents(
 }
 
 ListenerSP BroadcasterManager::GetListenerForEventSpec(
-    BroadcastEventSpec event_spec) const {
+    const BroadcastEventSpec &event_spec) const {
   std::lock_guard<std::recursive_mutex> guard(m_manager_mutex);
 
   collection::const_iterator iter, end_iter = m_event_map.end();
@@ -410,8 +399,8 @@ ListenerSP BroadcasterManager::GetListenerForEventSpec(
                  BroadcastEventSpecMatches(event_spec));
   if (iter != end_iter)
     return (*iter).second;
-  else
-    return nullptr;
+
+  return nullptr;
 }
 
 void BroadcasterManager::RemoveListener(Listener *listener) {
@@ -429,8 +418,8 @@ void BroadcasterManager::RemoveListener(Listener *listener) {
     iter = find_if(m_event_map.begin(), end_iter, predicate);
     if (iter == end_iter)
       break;
-    else
-      m_event_map.erase(iter);
+
+    m_event_map.erase(iter);
   }
 }
 
@@ -446,8 +435,8 @@ void BroadcasterManager::RemoveListener(const lldb::ListenerSP &listener_sp) {
     iter = find_if(m_event_map.begin(), end_iter, predicate);
     if (iter == end_iter)
       break;
-    else
-      m_event_map.erase(iter);
+
+    m_event_map.erase(iter);
   }
 }
 

@@ -1,14 +1,14 @@
 //===- MCExpr.cpp - Assembly Level Expression Implementation --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCExpr.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/MC/MCAsmBackend.h"
@@ -43,10 +43,15 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI, bool InParens) const {
   switch (getKind()) {
   case MCExpr::Target:
     return cast<MCTargetExpr>(this)->printImpl(OS, MAI);
-  case MCExpr::Constant:
-    OS << cast<MCConstantExpr>(*this).getValue();
+  case MCExpr::Constant: {
+    auto Value = cast<MCConstantExpr>(*this).getValue();
+    auto PrintInHex = cast<MCConstantExpr>(*this).useHexFormat();
+    if (PrintInHex)
+      OS << "0x" << Twine::utohexstr(Value);
+    else
+      OS << Value;
     return;
-
+  }
   case MCExpr::SymbolRef: {
     const MCSymbolRefExpr &SRE = cast<MCSymbolRefExpr>(*this);
     const MCSymbol &Sym = SRE.getSymbol();
@@ -161,8 +166,9 @@ const MCUnaryExpr *MCUnaryExpr::create(Opcode Opc, const MCExpr *Expr,
   return new (Ctx) MCUnaryExpr(Opc, Expr, Loc);
 }
 
-const MCConstantExpr *MCConstantExpr::create(int64_t Value, MCContext &Ctx) {
-  return new (Ctx) MCConstantExpr(Value);
+const MCConstantExpr *MCConstantExpr::create(int64_t Value, MCContext &Ctx,
+                                             bool PrintInHex) {
+  return new (Ctx) MCConstantExpr(Value, PrintInHex);
 }
 
 /* *** */
@@ -303,15 +309,16 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_Hexagon_LD_PLT: return "LDPLT";
   case VK_Hexagon_IE: return "IE";
   case VK_Hexagon_IE_GOT: return "IEGOT";
-  case VK_WebAssembly_FUNCTION: return "FUNCTION";
-  case VK_WebAssembly_GLOBAL: return "GLOBAL";
-  case VK_WebAssembly_TYPEINDEX: return "TYPEINDEX";
-  case VK_WebAssembly_EVENT: return "EVENT";
+  case VK_WASM_TYPEINDEX: return "TYPEINDEX";
+  case VK_WASM_MBREL: return "MBREL";
+  case VK_WASM_TBREL: return "TBREL";
   case VK_AMDGPU_GOTPCREL32_LO: return "gotpcrel32@lo";
   case VK_AMDGPU_GOTPCREL32_HI: return "gotpcrel32@hi";
   case VK_AMDGPU_REL32_LO: return "rel32@lo";
   case VK_AMDGPU_REL32_HI: return "rel32@hi";
   case VK_AMDGPU_REL64: return "rel64";
+  case VK_AMDGPU_ABS32_LO: return "abs32@lo";
+  case VK_AMDGPU_ABS32_HI: return "abs32@hi";
   }
   llvm_unreachable("Invalid variant kind");
 }
@@ -419,15 +426,16 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
     .Case("lo8", VK_AVR_LO8)
     .Case("hi8", VK_AVR_HI8)
     .Case("hlo8", VK_AVR_HLO8)
-    .Case("function", VK_WebAssembly_FUNCTION)
-    .Case("global", VK_WebAssembly_GLOBAL)
-    .Case("typeindex", VK_WebAssembly_TYPEINDEX)
-    .Case("event", VK_WebAssembly_EVENT)
+    .Case("typeindex", VK_WASM_TYPEINDEX)
+    .Case("tbrel", VK_WASM_TBREL)
+    .Case("mbrel", VK_WASM_MBREL)
     .Case("gotpcrel32@lo", VK_AMDGPU_GOTPCREL32_LO)
     .Case("gotpcrel32@hi", VK_AMDGPU_GOTPCREL32_HI)
     .Case("rel32@lo", VK_AMDGPU_REL32_LO)
     .Case("rel32@hi", VK_AMDGPU_REL32_HI)
     .Case("rel64", VK_AMDGPU_REL64)
+    .Case("abs32@lo", VK_AMDGPU_ABS32_LO)
+    .Case("abs32@hi", VK_AMDGPU_ABS32_HI)
     .Default(VK_Invalid);
 }
 
@@ -569,6 +577,24 @@ static void AttemptToFoldSymbolOffsetDifference(
   A = B = nullptr;
 }
 
+static bool canFold(const MCAssembler *Asm, const MCSymbolRefExpr *A,
+                    const MCSymbolRefExpr *B, bool InSet) {
+  if (InSet)
+    return true;
+
+  if (!Asm->getBackend().requiresDiffExpressionRelocations())
+    return true;
+
+  const MCSymbol &CheckSym = A ? A->getSymbol() : B->getSymbol();
+  if (!CheckSym.isInSection())
+    return true;
+
+  if (!CheckSym.getSection().hasInstructions())
+    return true;
+
+  return false;
+}
+
 /// Evaluate the result of an add between (conceptually) two MCValues.
 ///
 /// This routine conceptually attempts to construct an MCValue:
@@ -609,8 +635,7 @@ EvaluateSymbolicAdd(const MCAssembler *Asm, const MCAsmLayout *Layout,
   // the backend requires this to be emitted as individual relocations, unless
   // the InSet flag is set to get the current difference anyway (used for
   // example to calculate symbol sizes).
-  if (Asm &&
-      (InSet || !Asm->getBackend().requiresDiffExpressionRelocations())) {
+  if (Asm && canFold(Asm, LHS_A, LHS_B, InSet)) {
     // First, fold out any differences which are fully resolved. By
     // reassociating terms in
     //   Result = (LHS_A - LHS_B + LHS_Cst) + (RHS_A - RHS_B + RHS_Cst).

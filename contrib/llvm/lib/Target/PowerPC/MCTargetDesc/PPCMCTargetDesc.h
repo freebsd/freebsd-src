@@ -1,9 +1,8 @@
 //===-- PPCMCTargetDesc.h - PowerPC Target Descriptions ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -37,10 +36,6 @@ class Triple;
 class StringRef;
 class raw_pwrite_stream;
 
-Target &getThePPC32Target();
-Target &getThePPC64Target();
-Target &getThePPC64LETarget();
-
 MCCodeEmitter *createPPCMCCodeEmitter(const MCInstrInfo &MCII,
                                       const MCRegisterInfo &MRI,
                                       MCContext &Ctx);
@@ -55,6 +50,9 @@ std::unique_ptr<MCObjectTargetWriter> createPPCELFObjectWriter(bool Is64Bit,
 /// Construct a PPC Mach-O object writer.
 std::unique_ptr<MCObjectTargetWriter>
 createPPCMachObjectWriter(bool Is64Bit, uint32_t CPUType, uint32_t CPUSubtype);
+
+/// Construct a PPC XCOFF object writer.
+std::unique_ptr<MCObjectTargetWriter> createPPCXCOFFObjectWriter(bool Is64Bit);
 
 /// Returns true iff Val consists of one contiguous run of 1s with any number of
 /// 0s on either side.  The 1s are allowed to wrap from LSB to MSB, so

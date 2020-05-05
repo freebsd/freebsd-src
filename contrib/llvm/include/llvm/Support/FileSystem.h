@@ -1,9 +1,8 @@
 //===- llvm/Support/FileSystem.h - File System OS Concept -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -649,6 +648,19 @@ std::error_code status(const Twine &path, file_status &result,
 /// A version for when a file descriptor is already available.
 std::error_code status(int FD, file_status &Result);
 
+#ifdef _WIN32
+/// A version for when a file descriptor is already available.
+std::error_code status(file_t FD, file_status &Result);
+#endif
+
+/// Get file creation mode mask of the process.
+///
+/// @returns Mask reported by umask(2)
+/// @note There is no umask on Windows. This function returns 0 always
+///       on Windows. This function does not return an error_code because
+///       umask(2) never fails. It is not thread safe.
+unsigned getUmask();
+
 /// Set file permissions.
 ///
 /// @param Path File to set permissions on.
@@ -659,6 +671,11 @@ std::error_code status(int FD, file_status &Result);
 ///       owner_write, group_write, or all_write will make the file writable.
 ///       Otherwise, the file will be marked as read-only.
 std::error_code setPermissions(const Twine &Path, perms Permissions);
+
+/// Vesion of setPermissions accepting a file descriptor.
+/// TODO Delete the path based overload once we implement the FD based overload
+/// on Windows.
+std::error_code setPermissions(int FD, perms Permissions);
 
 /// Get file permissions.
 ///
@@ -765,11 +782,32 @@ enum OpenFlags : unsigned {
   OF_UpdateAtime = 16,
 };
 
+/// Create a potentially unique file name but does not create it.
+///
+/// Generates a unique path suitable for a temporary file but does not
+/// open or create the file. The name is based on \a Model with '%'
+/// replaced by a random char in [0-9a-f]. If \a MakeAbsolute is true
+/// then the system's temp directory is prepended first. If \a MakeAbsolute
+/// is false the current directory will be used instead.
+///
+/// This function does not check if the file exists. If you want to be sure
+/// that the file does not yet exist, you should use use enough '%' characters
+/// in your model to ensure this. Each '%' gives 4-bits of entropy so you can
+/// use 32 of them to get 128 bits of entropy.
+///
+/// Example: clang-%%-%%-%%-%%-%%.s => clang-a0-b1-c2-d3-e4.s
+///
+/// @param Model Name to base unique path off of.
+/// @param ResultPath Set to the file's path.
+/// @param MakeAbsolute Whether to use the system temp directory.
+void createUniquePath(const Twine &Model, SmallVectorImpl<char> &ResultPath,
+                      bool MakeAbsolute);
+
 /// Create a uniquely named file.
 ///
 /// Generates a unique path suitable for a temporary file and then opens it as a
-/// file. The name is based on \a model with '%' replaced by a random char in
-/// [0-9a-f]. If \a model is not an absolute path, the temporary file will be
+/// file. The name is based on \a Model with '%' replaced by a random char in
+/// [0-9a-f]. If \a Model is not an absolute path, the temporary file will be
 /// created in the current directory.
 ///
 /// Example: clang-%%-%%-%%-%%-%%.s => clang-a0-b1-c2-d3-e4.s
@@ -932,6 +970,51 @@ Expected<file_t> openNativeFile(const Twine &Name, CreationDisposition Disp,
                                 FileAccess Access, OpenFlags Flags,
                                 unsigned Mode = 0666);
 
+/// Converts from a Posix file descriptor number to a native file handle.
+/// On Windows, this retreives the underlying handle. On non-Windows, this is a
+/// no-op.
+file_t convertFDToNativeFile(int FD);
+
+#ifndef _WIN32
+inline file_t convertFDToNativeFile(int FD) { return FD; }
+#endif
+
+/// Return an open handle to standard in. On Unix, this is typically FD 0.
+/// Returns kInvalidFile when the stream is closed.
+file_t getStdinHandle();
+
+/// Return an open handle to standard out. On Unix, this is typically FD 1.
+/// Returns kInvalidFile when the stream is closed.
+file_t getStdoutHandle();
+
+/// Return an open handle to standard error. On Unix, this is typically FD 2.
+/// Returns kInvalidFile when the stream is closed.
+file_t getStderrHandle();
+
+/// Reads \p Buf.size() bytes from \p FileHandle into \p Buf. The number of
+/// bytes actually read is returned in \p BytesRead. On Unix, this is equivalent
+/// to `*BytesRead = ::read(FD, Buf.data(), Buf.size())`, with error reporting.
+/// BytesRead will contain zero when reaching EOF.
+///
+/// @param FileHandle File to read from.
+/// @param Buf Buffer to read into.
+/// @param BytesRead Output parameter of the number of bytes read.
+/// @returns The error, if any, or errc::success.
+std::error_code readNativeFile(file_t FileHandle, MutableArrayRef<char> Buf,
+                               size_t *BytesRead);
+
+/// Reads \p Buf.size() bytes from \p FileHandle at offset \p Offset into \p
+/// Buf. If 'pread' is available, this will use that, otherwise it will use
+/// 'lseek'. Bytes requested beyond the end of the file will be zero
+/// initialized.
+///
+/// @param FileHandle File to read from.
+/// @param Buf Buffer to read into.
+/// @param Offset Offset into the file at which the read should occur.
+/// @returns The error, if any, or errc::success.
+std::error_code readNativeFileSlice(file_t FileHandle,
+                                    MutableArrayRef<char> Buf, size_t Offset);
+
 /// @brief Opens the file with the given name in a write-only or read-write
 /// mode, returning its open file descriptor. If the file does not exist, it
 /// is created.
@@ -1051,11 +1134,15 @@ openNativeFileForRead(const Twine &Name, OpenFlags Flags = OF_None,
                       SmallVectorImpl<char> *RealPath = nullptr);
 
 /// @brief Close the file object.  This should be used instead of ::close for
-/// portability.
+/// portability. On error, the caller should assume the file is closed, as is
+/// the case for Process::SafelyCloseFileDescriptor
 ///
 /// @param F On input, this is the file to close.  On output, the file is
 /// set to kInvalidFile.
-void closeFile(file_t &F);
+///
+/// @returns An error code if closing the file failed. Typically, an error here
+/// means that the filesystem may have failed to perform some buffered writes.
+std::error_code closeFile(file_t &F);
 
 std::error_code getUniqueID(const Twine Path, UniqueID &Result);
 
@@ -1085,21 +1172,19 @@ private:
   size_t Size;
   void *Mapping;
 #ifdef _WIN32
-  void *FileHandle;
+  sys::fs::file_t FileHandle;
 #endif
   mapmode Mode;
 
-  std::error_code init(int FD, uint64_t Offset, mapmode Mode);
+  std::error_code init(sys::fs::file_t FD, uint64_t Offset, mapmode Mode);
 
 public:
   mapped_file_region() = delete;
   mapped_file_region(mapped_file_region&) = delete;
   mapped_file_region &operator =(mapped_file_region&) = delete;
 
-  /// \param fd An open file descriptor to map. mapped_file_region takes
-  ///   ownership if closefd is true. It must have been opended in the correct
-  ///   mode.
-  mapped_file_region(int fd, mapmode mode, size_t length, uint64_t offset,
+  /// \param fd An open file descriptor to map. Does not take ownership of fd.
+  mapped_file_region(sys::fs::file_t fd, mapmode mode, size_t length, uint64_t offset,
                      std::error_code &ec);
 
   ~mapped_file_region();

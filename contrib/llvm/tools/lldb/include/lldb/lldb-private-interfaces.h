@@ -1,9 +1,8 @@
 //===-- lldb-private-interfaces.h -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -56,6 +55,9 @@ typedef LanguageRuntime *(*LanguageRuntimeCreateInstance)(
     Process *process, lldb::LanguageType language);
 typedef lldb::CommandObjectSP (*LanguageRuntimeGetCommandObject)(
     CommandInterpreter &interpreter);
+typedef lldb::BreakpointPreconditionSP (
+    *LanguageRuntimeGetExceptionPrecondition)(lldb::LanguageType language,
+                                              bool throw_bp);
 typedef lldb::StructuredDataPluginSP (*StructuredDataPluginCreateInstance)(
     Process &process);
 typedef Status (*StructuredDataFilterLaunchInfo)(ProcessLaunchInfo &launch_info,
@@ -67,7 +69,7 @@ typedef lldb::ProcessSP (*ProcessCreateInstance)(
     lldb::TargetSP target_sp, lldb::ListenerSP listener_sp,
     const FileSpec *crash_file_path);
 typedef lldb::ScriptInterpreterSP (*ScriptInterpreterCreateInstance)(
-    CommandInterpreter &interpreter);
+    Debugger &debugger);
 typedef SymbolFile *(*SymbolFileCreateInstance)(ObjectFile *obj_file);
 typedef SymbolVendor *(*SymbolVendorCreateInstance)(
     const lldb::ModuleSP &module_sp,

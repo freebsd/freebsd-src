@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -653,21 +652,11 @@ extern int (*__kmp_acquire_user_lock_with_checks_)(kmp_user_lock_p lck,
       kmp_uint32 spins;                                                        \
       KMP_FSYNC_PREPARE(lck);                                                  \
       KMP_INIT_YIELD(spins);                                                   \
-      if (TCR_4(__kmp_nth) >                                                   \
-          (__kmp_avail_proc ? __kmp_avail_proc : __kmp_xproc)) {               \
-        KMP_YIELD(TRUE);                                                       \
-      } else {                                                                 \
-        KMP_YIELD_SPIN(spins);                                                 \
-      }                                                                        \
-      while (lck->tas.lk.poll != 0 || !__kmp_atomic_compare_store_acq(         \
-                                          &lck->tas.lk.poll, 0, gtid + 1)) {   \
-        if (TCR_4(__kmp_nth) >                                                 \
-            (__kmp_avail_proc ? __kmp_avail_proc : __kmp_xproc)) {             \
-          KMP_YIELD(TRUE);                                                     \
-        } else {                                                               \
-          KMP_YIELD_SPIN(spins);                                               \
-        }                                                                      \
-      }                                                                        \
+      do {                                                                     \
+        KMP_YIELD_OVERSUB_ELSE_SPIN(spins);                                    \
+      } while (                                                                \
+          lck->tas.lk.poll != 0 ||                                             \
+          !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1));    \
     }                                                                          \
     KMP_FSYNC_ACQUIRED(lck);                                                   \
   } else {                                                                     \
@@ -771,22 +760,11 @@ extern int (*__kmp_acquire_nested_user_lock_with_checks_)(kmp_user_lock_p lck,
         kmp_uint32 spins;                                                      \
         KMP_FSYNC_PREPARE(lck);                                                \
         KMP_INIT_YIELD(spins);                                                 \
-        if (TCR_4(__kmp_nth) >                                                 \
-            (__kmp_avail_proc ? __kmp_avail_proc : __kmp_xproc)) {             \
-          KMP_YIELD(TRUE);                                                     \
-        } else {                                                               \
-          KMP_YIELD_SPIN(spins);                                               \
-        }                                                                      \
-        while (                                                                \
+        do {                                                                   \
+          KMP_YIELD_OVERSUB_ELSE_SPIN(spins);                                  \
+        } while (                                                              \
             (lck->tas.lk.poll != 0) ||                                         \
-            !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1)) { \
-          if (TCR_4(__kmp_nth) >                                               \
-              (__kmp_avail_proc ? __kmp_avail_proc : __kmp_xproc)) {           \
-            KMP_YIELD(TRUE);                                                   \
-          } else {                                                             \
-            KMP_YIELD_SPIN(spins);                                             \
-          }                                                                    \
-        }                                                                      \
+            !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1));  \
       }                                                                        \
       lck->tas.lk.depth_locked = 1;                                            \
       *depth = KMP_LOCK_ACQUIRED_FIRST;                                        \

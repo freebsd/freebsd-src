@@ -1,9 +1,8 @@
 //===-- ABISysV_ppc64.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -65,17 +64,13 @@ lldb::ByteOrder ABISysV_ppc64::GetByteOrder() const {
   return GetProcessSP()->GetByteOrder();
 }
 
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 
 ABISP
 ABISysV_ppc64::CreateInstance(lldb::ProcessSP process_sp,
                               const ArchSpec &arch) {
-  if (arch.GetTriple().getArch() == llvm::Triple::ppc64 ||
-      arch.GetTriple().getArch() == llvm::Triple::ppc64le) {
+  if (arch.GetTriple().isPPC64())
     return ABISP(new ABISysV_ppc64(process_sp));
-  }
   return ABISP();
 }
 
@@ -561,7 +556,7 @@ private:
   Thread &m_thread;
   CompilerType &m_type;
   uint64_t m_byte_size;
-  std::unique_ptr<DataBufferHeap> m_data_ap;
+  std::unique_ptr<DataBufferHeap> m_data_up;
   int32_t m_src_offs = 0;
   int32_t m_dst_offs = 0;
   bool m_packed = false;
@@ -578,7 +573,7 @@ private:
                        RegisterContext *reg_ctx, ProcessSP process_sp)
       : m_thread(thread), m_type(type),
         m_byte_size(m_type.GetByteSize(nullptr).getValueOr(0)),
-        m_data_ap(new DataBufferHeap(m_byte_size, 0)), m_reg_ctx(reg_ctx),
+        m_data_up(new DataBufferHeap(m_byte_size, 0)), m_reg_ctx(reg_ctx),
         m_process_sp(process_sp), m_byte_order(process_sp->GetByteOrder()),
         m_addr_size(
             process_sp->GetTarget().GetArchitecture().GetAddressByteSize()) {}
@@ -687,7 +682,7 @@ private:
 
   // build the ValueObject from our data buffer
   ValueObjectSP BuildValueObject() {
-    DataExtractor de(DataBufferSP(m_data_ap.release()), m_byte_order,
+    DataExtractor de(DataBufferSP(m_data_up.release()), m_byte_order,
                      m_addr_size);
     return ValueObjectConstResult::Create(&m_thread, m_type, ConstString(""),
                                           de);
@@ -752,7 +747,7 @@ private:
       offs = vr_size - m_byte_size;
 
     // copy extracted data to our buffer
-    memcpy(m_data_ap->GetBytes(), vr_data->GetBytes() + offs, m_byte_size);
+    memcpy(m_data_up->GetBytes(), vr_data->GetBytes() + offs, m_byte_size);
     return BuildValueObject();
   }
 
@@ -766,7 +761,7 @@ private:
         return {};
 
       Status error;
-      size_t rc = m_process_sp->ReadMemory(addr, m_data_ap->GetBytes(),
+      size_t rc = m_process_sp->ReadMemory(addr, m_data_up->GetBytes(),
                                            m_byte_size, error);
       if (rc != m_byte_size) {
         LLDB_LOG(m_log, LOG_PREFIX "Failed to read memory pointed by r3");
@@ -804,7 +799,8 @@ private:
         // copy to buffer
         Status error;
         size_t rc = val_sp->GetScalar().GetAsMemoryData(
-            m_data_ap->GetBytes() + m_dst_offs, *elem_size, m_byte_order, error);
+            m_data_up->GetBytes() + m_dst_offs, *elem_size, m_byte_order,
+            error);
         if (rc != *elem_size) {
           LLDB_LOG(m_log, LOG_PREFIX "Failed to get float data");
           return {};
@@ -888,7 +884,7 @@ private:
                  LOG_PREFIX "Extracting {0} alignment bytes at offset {1}", n,
                  m_src_offs);
         // get alignment bytes
-        if (!ExtractFromRegs(m_src_offs, n, m_data_ap->GetBytes() + m_dst_offs))
+        if (!ExtractFromRegs(m_src_offs, n, m_data_up->GetBytes() + m_dst_offs))
           return false;
         m_src_offs += n;
         m_dst_offs += n;
@@ -898,7 +894,7 @@ private:
     // get field
     LLDB_LOG(m_log, LOG_PREFIX "Extracting {0} field bytes at offset {1}", size,
              m_src_offs);
-    if (!ExtractFromRegs(m_src_offs, size, m_data_ap->GetBytes() + m_dst_offs))
+    if (!ExtractFromRegs(m_src_offs, size, m_data_up->GetBytes() + m_dst_offs))
       return false;
     m_src_offs += size;
     m_dst_offs += size;
@@ -1086,9 +1082,7 @@ lldb_private::ConstString ABISysV_ppc64::GetPluginNameStatic() {
   return g_name;
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 
 lldb_private::ConstString ABISysV_ppc64::GetPluginName() {
   return GetPluginNameStatic();

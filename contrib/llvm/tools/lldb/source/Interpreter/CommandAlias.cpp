@@ -1,9 +1,8 @@
 //===-- CommandAlias.cpp -----------------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,6 +30,8 @@ static bool ProcessAliasOptionsArgs(lldb::CommandObjectSP &cmd_obj_sp,
 
   Args args(options_args);
   std::string options_string(options_args);
+  // TODO: Find a way to propagate errors in this CommandReturnObject up the
+  // stack.
   CommandReturnObject result;
   // Check to see if the command being aliased can take any command options.
   Options *options = cmd_obj_sp->GetOptions();

@@ -1,9 +1,8 @@
 //===-- CompilerDeclContext.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -58,6 +57,19 @@ bool CompilerDeclContext::IsClassMethod(lldb::LanguageType *language_ptr,
         language_object_name_ptr);
   else
     return false;
+}
+
+bool CompilerDeclContext::IsContainedInLookup(CompilerDeclContext other) const {
+  if (!IsValid())
+    return false;
+
+  // If the other context is just the current context, we don't need to go
+  // over the type system to know that the lookup is identical.
+  if (this == &other)
+    return true;
+
+  return m_type_system->DeclContextIsContainedInLookup(m_opaque_decl_ctx,
+                                                       other.m_opaque_decl_ctx);
 }
 
 bool lldb_private::operator==(const lldb_private::CompilerDeclContext &lhs,

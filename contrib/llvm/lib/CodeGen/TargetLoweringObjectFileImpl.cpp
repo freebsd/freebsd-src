@@ -1,9 +1,8 @@
 //===- llvm/CodeGen/TargetLoweringObjectFileImpl.cpp - Object File Info ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -219,6 +218,16 @@ void TargetLoweringObjectFileELF::Initialize(MCContext &Ctx,
       PersonalityEncoding = dwarf::DW_EH_PE_absptr;
       TTypeEncoding = dwarf::DW_EH_PE_absptr;
     }
+    CallSiteEncoding = dwarf::DW_EH_PE_udata4;
+    break;
+  case Triple::riscv32:
+  case Triple::riscv64:
+    LSDAEncoding = dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4;
+    PersonalityEncoding = dwarf::DW_EH_PE_indirect | dwarf::DW_EH_PE_pcrel |
+                          dwarf::DW_EH_PE_sdata4;
+    TTypeEncoding = dwarf::DW_EH_PE_indirect | dwarf::DW_EH_PE_pcrel |
+                    dwarf::DW_EH_PE_sdata4;
+    CallSiteEncoding = dwarf::DW_EH_PE_udata4;
     break;
   case Triple::sparcv9:
     LSDAEncoding = dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4;
@@ -269,6 +278,19 @@ void TargetLoweringObjectFileELF::emitModuleMetadata(MCStreamer &Streamer,
         Streamer.EmitBytes(cast<MDString>(Option)->getString());
         Streamer.EmitIntValue(0, 1);
       }
+    }
+  }
+
+  if (NamedMDNode *DependentLibraries = M.getNamedMetadata("llvm.dependent-libraries")) {
+    auto *S = C.getELFSection(".deplibs", ELF::SHT_LLVM_DEPENDENT_LIBRARIES,
+                              ELF::SHF_MERGE | ELF::SHF_STRINGS, 1, "");
+
+    Streamer.SwitchSection(S);
+
+    for (const auto &Operand : DependentLibraries->operands()) {
+      Streamer.EmitBytes(
+          cast<MDString>(cast<MDNode>(Operand)->getOperand(0))->getString());
+      Streamer.EmitIntValue(0, 1);
     }
   }
 
@@ -1458,7 +1480,7 @@ void TargetLoweringObjectFileCOFF::Initialize(MCContext &Ctx,
                                               const TargetMachine &TM) {
   TargetLoweringObjectFile::Initialize(Ctx, TM);
   const Triple &T = TM.getTargetTriple();
-  if (T.isKnownWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment()) {
+  if (T.isWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment()) {
     StaticCtorSection =
         Ctx.getCOFFSection(".CRT$XCU", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
                                            COFF::IMAGE_SCN_MEM_READ,
@@ -1484,7 +1506,7 @@ static MCSectionCOFF *getCOFFStaticStructorSection(MCContext &Ctx,
                                                    unsigned Priority,
                                                    const MCSymbol *KeySym,
                                                    MCSectionCOFF *Default) {
-  if (T.isKnownWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment()) {
+  if (T.isWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment()) {
     // If the priority is the default, use .CRT$XCU, possibly associative.
     if (Priority == 65535)
       return Ctx.getAssociativeCOFFSection(Default, KeySym, 0);
@@ -1544,9 +1566,7 @@ const MCExpr *TargetLoweringObjectFileCOFF::lowerRelativeReference(
     const GlobalValue *LHS, const GlobalValue *RHS,
     const TargetMachine &TM) const {
   const Triple &T = TM.getTargetTriple();
-  if (!T.isKnownWindowsMSVCEnvironment() &&
-      !T.isWindowsItaniumEnvironment() &&
-      !T.isWindowsCoreCLREnvironment())
+  if (T.isOSCygMing())
     return nullptr;
 
   // Our symbols should exist in address space zero, cowardly no-op if
@@ -1694,8 +1714,11 @@ MCSection *TargetLoweringObjectFileWasm::getExplicitSectionGlobal(
     Group = C->getName();
   }
 
-  return getContext().getWasmSection(Name, Kind, Group,
-                                     MCContext::GenericSectionID);
+  MCSectionWasm* Section =
+      getContext().getWasmSection(Name, Kind, Group,
+                                  MCContext::GenericSectionID);
+
+  return Section;
 }
 
 static MCSectionWasm *selectWasmSectionForGlobal(
@@ -1724,6 +1747,7 @@ static MCSectionWasm *selectWasmSectionForGlobal(
     UniqueID = *NextUniqueID;
     (*NextUniqueID)++;
   }
+
   return Ctx.getWasmSection(Name, Kind, Group, UniqueID);
 }
 

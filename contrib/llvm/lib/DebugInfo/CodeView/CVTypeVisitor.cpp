@@ -1,9 +1,8 @@
 //===- CVTypeVisitor.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,7 +22,7 @@ using namespace llvm::codeview;
 
 template <typename T>
 static Error visitKnownRecord(CVType &Record, TypeVisitorCallbacks &Callbacks) {
-  TypeRecordKind RK = static_cast<TypeRecordKind>(Record.Type);
+  TypeRecordKind RK = static_cast<TypeRecordKind>(Record.kind());
   T KnownRecord(RK);
   if (auto EC = Callbacks.visitKnownRecord(Record, KnownRecord))
     return EC;
@@ -97,7 +96,7 @@ CVTypeVisitor::CVTypeVisitor(TypeVisitorCallbacks &Callbacks)
     : Callbacks(Callbacks) {}
 
 Error CVTypeVisitor::finishVisitation(CVType &Record) {
-  switch (Record.Type) {
+  switch (Record.kind()) {
   default:
     if (auto EC = Callbacks.visitUnknownType(Record))
       return EC;
@@ -210,6 +209,14 @@ struct VisitHelper {
     }
   }
 
+  VisitHelper(TypeVisitorCallbackPipeline &Callbacks, VisitorDataSource Source)
+      : Visitor((Source == VDS_BytesPresent) ? Pipeline : Callbacks) {
+    if (Source == VDS_BytesPresent) {
+      Pipeline = Callbacks;
+      Pipeline.addCallbackToPipelineFront(Deserializer);
+    }
+  }
+
   TypeDeserializer Deserializer;
   TypeVisitorCallbackPipeline Pipeline;
   CVTypeVisitor Visitor;
@@ -218,6 +225,13 @@ struct VisitHelper {
 
 Error llvm::codeview::visitTypeRecord(CVType &Record, TypeIndex Index,
                                       TypeVisitorCallbacks &Callbacks,
+                                      VisitorDataSource Source) {
+  VisitHelper V(Callbacks, Source);
+  return V.Visitor.visitTypeRecord(Record, Index);
+}
+
+Error llvm::codeview::visitTypeRecord(CVType &Record, TypeIndex Index,
+                                      TypeVisitorCallbackPipeline &Callbacks,
                                       VisitorDataSource Source) {
   VisitHelper V(Callbacks, Source);
   return V.Visitor.visitTypeRecord(Record, Index);

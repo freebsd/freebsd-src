@@ -1,9 +1,8 @@
 //===-- BreakpointName.h --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -137,13 +136,13 @@ public:
     }
   };
   
-  BreakpointName(const ConstString &name, const char *help = nullptr) :
+  BreakpointName(ConstString name, const char *help = nullptr) :
       m_name(name), m_options(false)
    {
      SetHelp(help);
    }
       
-  BreakpointName(const ConstString &name,
+  BreakpointName(ConstString name,
                  BreakpointOptions &options,
                  const Permissions &permissions = Permissions(),
                  const char *help = nullptr) :
@@ -157,10 +156,10 @@ public:
       m_permissions(rhs.m_permissions), m_help(rhs.m_help)
   {}
   
-  BreakpointName(const ConstString &name, const Breakpoint &bkpt,
+  BreakpointName(ConstString name, const Breakpoint &bkpt,
                  const char *help);
       
-  const ConstString &GetName() const { return m_name; }
+  ConstString GetName() const { return m_name; }
   BreakpointOptions &GetOptions() { return m_options; }
   const BreakpointOptions &GetOptions() const { return m_options; }
   

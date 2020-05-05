@@ -1,9 +1,8 @@
 //===-- ModuleSpec.h --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -125,7 +124,7 @@ public:
 
   ConstString &GetObjectName() { return m_object_name; }
 
-  const ConstString &GetObjectName() const { return m_object_name; }
+  ConstString GetObjectName() const { return m_object_name; }
 
   uint64_t GetObjectOffset() const { return m_object_offset; }
 
@@ -312,8 +311,10 @@ public:
 
   ModuleSpecList &operator=(const ModuleSpecList &rhs) {
     if (this != &rhs) {
-      std::lock_guard<std::recursive_mutex> lhs_guard(m_mutex);
-      std::lock_guard<std::recursive_mutex> rhs_guard(rhs.m_mutex);
+      std::lock(m_mutex, rhs.m_mutex);
+      std::lock_guard<std::recursive_mutex> lhs_guard(m_mutex, std::adopt_lock);
+      std::lock_guard<std::recursive_mutex> rhs_guard(rhs.m_mutex, 
+                                                      std::adopt_lock);
       m_specs = rhs.m_specs;
     }
     return *this;

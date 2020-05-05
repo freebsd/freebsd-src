@@ -1,9 +1,8 @@
 //===-- RegisterInfoPOSIX_arm.cpp ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===---------------------------------------------------------------------===//
 
@@ -44,9 +43,7 @@ using namespace lldb_private;
   (sizeof(RegisterInfoPOSIX_arm::GPR) + sizeof(RegisterInfoPOSIX_arm::FPU) +   \
    sizeof(RegisterInfoPOSIX_arm::EXC))
 
-//-----------------------------------------------------------------------------
 // Include RegisterInfos_arm to declare our g_register_infos_arm structure.
-//-----------------------------------------------------------------------------
 #define DECLARE_REGISTER_INFOS_ARM_STRUCT
 #include "RegisterInfos_arm.h"
 #undef DECLARE_REGISTER_INFOS_ARM_STRUCT
@@ -58,7 +55,7 @@ GetRegisterInfoPtr(const lldb_private::ArchSpec &target_arch) {
     return g_register_infos_arm;
   default:
     assert(false && "Unhandled target architecture.");
-    return NULL;
+    return nullptr;
   }
 }
 

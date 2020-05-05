@@ -1,9 +1,8 @@
 //===-- sanitizer_platform_limits_freebsd.h -------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -115,15 +114,21 @@ namespace __sanitizer {
     long key;
   };
 
+#if !defined(__i386__)
+  typedef long long __sanitizer_time_t;
+#else
+  typedef long __sanitizer_time_t;
+#endif
+
   struct __sanitizer_shmid_ds {
     __sanitizer_ipc_perm shm_perm;
     unsigned long shm_segsz;
     unsigned int shm_lpid;
     unsigned int shm_cpid;
     int shm_nattch;
-    unsigned long shm_atime;
-    unsigned long shm_dtime;
-    unsigned long shm_ctime;
+    __sanitizer_time_t shm_atime;
+    __sanitizer_time_t shm_dtime;
+    __sanitizer_time_t shm_ctime;
   };
 
   extern unsigned struct_msqid_ds_sz;
@@ -154,12 +159,12 @@ namespace __sanitizer {
     char *pw_passwd;
     int pw_uid;
     int pw_gid;
-    long pw_change;
+    __sanitizer_time_t pw_change;
     char *pw_class;
     char *pw_gecos;
     char *pw_dir;
     char *pw_shell;
-    long pw_expire;
+    __sanitizer_time_t pw_expire;
     int pw_fields;
   };
 
@@ -169,12 +174,6 @@ namespace __sanitizer {
     int gr_gid;
     char **gr_mem;
   };
-
-#if defined(__LP64___)
-  typedef long long __sanitizer_time_t;
-#else
-  typedef long __sanitizer_time_t;
-#endif
 
   typedef long __sanitizer_suseconds_t;
 

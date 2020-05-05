@@ -1,16 +1,17 @@
 //===-- UnwindPlan.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Symbol/UnwindPlan.h"
 
+#include "lldb/Expression/DWARFExpression.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
+#include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Log.h"
@@ -63,6 +64,30 @@ void UnwindPlan::Row::RegisterLocation::SetIsDWARFExpression(
   m_type = isDWARFExpression;
   m_location.expr.opcodes = opcodes;
   m_location.expr.length = len;
+}
+
+static llvm::Optional<std::pair<lldb::ByteOrder, uint32_t>>
+GetByteOrderAndAddrSize(Thread *thread) {
+  if (!thread)
+    return llvm::None;
+  ProcessSP process_sp = thread->GetProcess();
+  if (!process_sp)
+    return llvm::None;
+  ArchSpec arch = process_sp->GetTarget().GetArchitecture();
+  return std::make_pair(arch.GetByteOrder(), arch.GetAddressByteSize());
+}
+
+static void DumpDWARFExpr(Stream &s, llvm::ArrayRef<uint8_t> expr, Thread *thread) {
+  if (auto order_and_width = GetByteOrderAndAddrSize(thread)) {
+    DataExtractor extractor(expr.data(), expr.size(), order_and_width->first,
+                            order_and_width->second);
+    if (!DWARFExpression::PrintDWARFExpression(s, extractor,
+                                               order_and_width->second,
+                                               /*dwarf_ref_size*/ 4,
+                                               /*location_expression*/ false))
+      s.PutCString("invalid-dwarf-expr");
+  } else
+    s.PutCString("dwarf-expr");
 }
 
 void UnwindPlan::Row::RegisterLocation::Dump(Stream &s,
@@ -121,9 +146,12 @@ void UnwindPlan::Row::RegisterLocation::Dump(Stream &s,
   case isDWARFExpression: {
     s.PutChar('=');
     if (m_type == atDWARFExpression)
-      s.PutCString("[dwarf-expr]");
-    else
-      s.PutCString("dwarf-expr");
+      s.PutChar('[');
+    DumpDWARFExpr(
+        s, llvm::makeArrayRef(m_location.expr.opcodes, m_location.expr.length),
+        thread);
+    if (m_type == atDWARFExpression)
+      s.PutChar(']');
   } break;
   }
 }
@@ -173,7 +201,9 @@ void UnwindPlan::Row::FAValue::Dump(Stream &s, const UnwindPlan *unwind_plan,
     s.PutChar(']');
     break;
   case isDWARFExpression:
-    s.PutCString("dwarf-expr");
+    DumpDWARFExpr(s,
+                  llvm::makeArrayRef(m_value.expr.opcodes, m_value.expr.length),
+                  thread);
     break;
   default:
     s.PutCString("unspecified");

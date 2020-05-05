@@ -1,9 +1,8 @@
 //===--- PPLexerChange.cpp - Handle changing lexers in the preprocessor ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -155,10 +154,11 @@ void Preprocessor::EnterMacro(Token &Tok, SourceLocation ILEnd,
 /// must be freed.
 ///
 void Preprocessor::EnterTokenStream(const Token *Toks, unsigned NumToks,
-                                    bool DisableMacroExpansion,
-                                    bool OwnsTokens) {
+                                    bool DisableMacroExpansion, bool OwnsTokens,
+                                    bool IsReinject) {
   if (CurLexerKind == CLK_CachingLexer) {
     if (CachedLexPos < CachedTokens.size()) {
+      assert(IsReinject && "new tokens in the middle of cached stream");
       // We're entering tokens into the middle of our cached token stream. We
       // can't represent that, so just insert the tokens into the buffer.
       CachedTokens.insert(CachedTokens.begin() + CachedLexPos,
@@ -171,7 +171,8 @@ void Preprocessor::EnterTokenStream(const Token *Toks, unsigned NumToks,
     // New tokens are at the end of the cached token sequnece; insert the
     // token stream underneath the caching lexer.
     ExitCachingLexMode();
-    EnterTokenStream(Toks, NumToks, DisableMacroExpansion, OwnsTokens);
+    EnterTokenStream(Toks, NumToks, DisableMacroExpansion, OwnsTokens,
+                     IsReinject);
     EnterCachingLexMode();
     return;
   }
@@ -180,10 +181,11 @@ void Preprocessor::EnterTokenStream(const Token *Toks, unsigned NumToks,
   std::unique_ptr<TokenLexer> TokLexer;
   if (NumCachedTokenLexers == 0) {
     TokLexer = llvm::make_unique<TokenLexer>(
-        Toks, NumToks, DisableMacroExpansion, OwnsTokens, *this);
+        Toks, NumToks, DisableMacroExpansion, OwnsTokens, IsReinject, *this);
   } else {
     TokLexer = std::move(TokenLexerCache[--NumCachedTokenLexers]);
-    TokLexer->Init(Toks, NumToks, DisableMacroExpansion, OwnsTokens);
+    TokLexer->Init(Toks, NumToks, DisableMacroExpansion, OwnsTokens,
+                   IsReinject);
   }
 
   // Save our current state.
@@ -271,7 +273,7 @@ void Preprocessor::diagnoseMissingHeaderInUmbrellaDir(const Module &Mod) {
 
   ModuleMap &ModMap = getHeaderSearchInfo().getModuleMap();
   const DirectoryEntry *Dir = Mod.getUmbrellaDir().Entry;
-  llvm::vfs::FileSystem &FS = *FileMgr.getVirtualFileSystem();
+  llvm::vfs::FileSystem &FS = FileMgr.getVirtualFileSystem();
   std::error_code EC;
   for (llvm::vfs::recursive_directory_iterator Entry(FS, Dir->getName(), EC),
        End;
@@ -645,6 +647,8 @@ void Preprocessor::EnterSubmodule(Module *M, SourceLocation ImportLoc,
     BuildingSubmoduleStack.push_back(
         BuildingSubmoduleInfo(M, ImportLoc, ForPragma, CurSubmoduleState,
                               PendingModuleMacroNames.size()));
+    if (Callbacks)
+      Callbacks->EnteredSubmodule(M, ImportLoc, ForPragma);
     return;
   }
 
@@ -689,6 +693,9 @@ void Preprocessor::EnterSubmodule(Module *M, SourceLocation ImportLoc,
       BuildingSubmoduleInfo(M, ImportLoc, ForPragma, CurSubmoduleState,
                             PendingModuleMacroNames.size()));
 
+  if (Callbacks)
+    Callbacks->EnteredSubmodule(M, ImportLoc, ForPragma);
+
   // Switch to this submodule as the current submodule.
   CurSubmoduleState = &State;
 
@@ -729,6 +736,10 @@ Module *Preprocessor::LeaveSubmodule(bool ForPragma) {
     // are tracking macro visibility, don't build any, and preserve the list
     // of pending names for the surrounding submodule.
     BuildingSubmoduleStack.pop_back();
+
+    if (Callbacks)
+      Callbacks->LeftSubmodule(LeavingMod, ImportLoc, ForPragma);
+
     makeModuleVisible(LeavingMod, ImportLoc);
     return LeavingMod;
   }
@@ -812,6 +823,9 @@ Module *Preprocessor::LeaveSubmodule(bool ForPragma) {
     CurSubmoduleState = Info.OuterSubmoduleState;
 
   BuildingSubmoduleStack.pop_back();
+
+  if (Callbacks)
+    Callbacks->LeftSubmodule(LeavingMod, ImportLoc, ForPragma);
 
   // A nested #include makes the included submodule visible.
   makeModuleVisible(LeavingMod, ImportLoc);

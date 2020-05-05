@@ -1,9 +1,8 @@
 //===- DAGISelMatcherGen.cpp - Matcher generator --------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -276,6 +275,27 @@ void MatcherGen::EmitLeafMatchCode(const TreePatternNode *N) {
     unsigned InputOperand = VariableMap[N->getName()] - 1;
     MatchedComplexPatterns.push_back(std::make_pair(N, InputOperand));
     return;
+  }
+
+  if (LeafRec->getName() == "immAllOnesV") {
+    // If this is the root of the dag we're matching, we emit a redundant opcode
+    // check to ensure that this gets folded into the normal top-level
+    // OpcodeSwitch.
+    if (N == Pattern.getSrcPattern()) {
+      const SDNodeInfo &NI = CGP.getSDNodeInfo(CGP.getSDNodeNamed("build_vector"));
+      AddMatcher(new CheckOpcodeMatcher(NI));
+    }
+    return AddMatcher(new CheckImmAllOnesVMatcher());
+  }
+  if (LeafRec->getName() == "immAllZerosV") {
+    // If this is the root of the dag we're matching, we emit a redundant opcode
+    // check to ensure that this gets folded into the normal top-level
+    // OpcodeSwitch.
+    if (N == Pattern.getSrcPattern()) {
+      const SDNodeInfo &NI = CGP.getSDNodeInfo(CGP.getSDNodeNamed("build_vector"));
+      AddMatcher(new CheckOpcodeMatcher(NI));
+    }
+    return AddMatcher(new CheckImmAllZerosVMatcher());
   }
 
   errs() << "Unknown leaf kind: " << *N << "\n";
@@ -671,6 +691,17 @@ void MatcherGen::EmitResultLeafAsOperand(const TreePatternNode *N,
       return;
     }
 
+    if (Def->getName() == "undef_tied_input") {
+      std::array<MVT::SimpleValueType, 1> ResultVTs = {{ N->getSimpleType(0) }};
+      std::array<unsigned, 0> InstOps;
+      auto IDOperandNo = NextRecordedOperandNo++;
+      AddMatcher(new EmitNodeMatcher("TargetOpcode::IMPLICIT_DEF",
+                                     ResultVTs, InstOps, false, false, false,
+                                     false, -1, IDOperandNo));
+      ResultOps.push_back(IDOperandNo);
+      return;
+    }
+
     // Handle a reference to a register class. This is used
     // in COPY_TO_SUBREG instructions.
     if (Def->isSubClassOf("RegisterOperand"))
@@ -763,14 +794,27 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
   // 'execute always' values. Match up the node operands to the instruction
   // operands to do this.
   unsigned ChildNo = 0;
+
+  // Similarly to the code in TreePatternNode::ApplyTypeConstraints, count the
+  // number of operands at the end of the list which have default values.
+  // Those can come from the pattern if it provides enough arguments, or be
+  // filled in with the default if the pattern hasn't provided them. But any
+  // operand with a default value _before_ the last mandatory one will be
+  // filled in with their defaults unconditionally.
+  unsigned NonOverridableOperands = NumFixedOperands;
+  while (NonOverridableOperands > NumResults &&
+         CGP.operandHasDefault(II.Operands[NonOverridableOperands-1].Rec))
+    --NonOverridableOperands;
+
   for (unsigned InstOpNo = NumResults, e = NumFixedOperands;
        InstOpNo != e; ++InstOpNo) {
     // Determine what to emit for this operand.
     Record *OperandNode = II.Operands[InstOpNo].Rec;
-    if (OperandNode->isSubClassOf("OperandWithDefaultOps") &&
-        !CGP.getDefaultOperand(OperandNode).DefaultOps.empty()) {
-      // This is a predicate or optional def operand; emit the
-      // 'default ops' operands.
+    if (CGP.operandHasDefault(OperandNode) &&
+        (InstOpNo < NonOverridableOperands || ChildNo >= N->getNumChildren())) {
+      // This is a predicate or optional def operand which the pattern has not
+      // overridden, or which we aren't letting it override; emit the 'default
+      // ops' operands.
       const DAGDefaultOperand &DefaultOp
         = CGP.getDefaultOperand(OperandNode);
       for (unsigned i = 0, e = DefaultOp.DefaultOps.size(); i != e; ++i)

@@ -1,9 +1,8 @@
 //===-- Mangler.cpp - Self-contained c/asm llvm name mangler --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -187,7 +186,7 @@ void llvm::emitLinkerFlagsForGlobalCOFF(raw_ostream &OS, const GlobalValue *GV,
   if (!GV->hasDLLExportStorageClass() || GV->isDeclaration())
     return;
 
-  if (TT.isKnownWindowsMSVCEnvironment())
+  if (TT.isWindowsMSVCEnvironment())
     OS << " /EXPORT:";
   else
     OS << " -export:";
@@ -206,7 +205,7 @@ void llvm::emitLinkerFlagsForGlobalCOFF(raw_ostream &OS, const GlobalValue *GV,
   }
 
   if (!GV->getValueType()->isFunctionTy()) {
-    if (TT.isKnownWindowsMSVCEnvironment())
+    if (TT.isWindowsMSVCEnvironment())
       OS << ",DATA";
     else
       OS << ",data";
@@ -215,7 +214,7 @@ void llvm::emitLinkerFlagsForGlobalCOFF(raw_ostream &OS, const GlobalValue *GV,
 
 void llvm::emitLinkerFlagsForUsedCOFF(raw_ostream &OS, const GlobalValue *GV,
                                       const Triple &T, Mangler &M) {
-  if (!T.isKnownWindowsMSVCEnvironment())
+  if (!T.isWindowsMSVCEnvironment())
     return;
 
   OS << " /INCLUDE:";

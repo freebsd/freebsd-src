@@ -1,9 +1,8 @@
-//== Nullabilityhecker.cpp - Nullability checker ----------------*- C++ -*--==//
+//===-- NullabilityChecker.cpp - Nullability checker ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -479,7 +478,7 @@ void NullabilityChecker::checkEvent(ImplicitNullDerefEvent Event) const {
     return;
 
   const MemRegion *Region =
-      getTrackRegion(Event.Location, /*CheckSuperregion=*/true);
+      getTrackRegion(Event.Location, /*CheckSuperRegion=*/true);
   if (!Region)
     return;
 
@@ -1192,16 +1191,28 @@ void NullabilityChecker::printState(raw_ostream &Out, ProgramStateRef State,
   }
 }
 
+void ento::registerNullabilityBase(CheckerManager &mgr) {
+  mgr.registerChecker<NullabilityChecker>();
+}
+
+bool ento::shouldRegisterNullabilityBase(const LangOptions &LO) {
+  return true;
+}
+
 #define REGISTER_CHECKER(name, trackingRequired)                               \
   void ento::register##name##Checker(CheckerManager &mgr) {                    \
-    NullabilityChecker *checker = mgr.registerChecker<NullabilityChecker>();   \
+    NullabilityChecker *checker = mgr.getChecker<NullabilityChecker>();        \
     checker->Filter.Check##name = true;                                        \
     checker->Filter.CheckName##name = mgr.getCurrentCheckName();               \
     checker->NeedTracking = checker->NeedTracking || trackingRequired;         \
     checker->NoDiagnoseCallsToSystemHeaders =                                  \
         checker->NoDiagnoseCallsToSystemHeaders ||                             \
-        mgr.getAnalyzerOptions().getCheckerBooleanOption(                             \
-                      "NoDiagnoseCallsToSystemHeaders", false, checker, true); \
+        mgr.getAnalyzerOptions().getCheckerBooleanOption(                      \
+                      checker, "NoDiagnoseCallsToSystemHeaders", true);        \
+  }                                                                            \
+                                                                               \
+  bool ento::shouldRegister##name##Checker(const LangOptions &LO) {            \
+    return true;                                                               \
   }
 
 // The checks are likely to be turned on by default and it is possible to do

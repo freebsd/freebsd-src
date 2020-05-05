@@ -1,9 +1,8 @@
 //===-- lldb-python.h -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,6 +30,12 @@
 // holds for _XOPEN_SOURCE.
 #undef _POSIX_C_SOURCE
 #undef _XOPEN_SOURCE
+#endif
+
+// Include locale before Python so _PY_PORT_CTYPE_UTF8_ISSUE doesn't cause
+// macro redefinitions.
+#if defined(__APPLE__)
+#include <locale>
 #endif
 
 // Include python for non windows machines

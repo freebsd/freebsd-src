@@ -1,9 +1,8 @@
 //===- CoverageMapping.cpp - Code coverage mapping support ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -286,11 +285,14 @@ CoverageMapping::load(ArrayRef<StringRef> ObjectFilenames,
     if (std::error_code EC = CovMappingBufOrErr.getError())
       return errorCodeToError(EC);
     StringRef Arch = Arches.empty() ? StringRef() : Arches[File.index()];
-    auto CoverageReaderOrErr =
-        BinaryCoverageReader::create(CovMappingBufOrErr.get(), Arch);
-    if (Error E = CoverageReaderOrErr.takeError())
+    MemoryBufferRef CovMappingBufRef =
+        CovMappingBufOrErr.get()->getMemBufferRef();
+    auto CoverageReadersOrErr =
+        BinaryCoverageReader::create(CovMappingBufRef, Arch, Buffers);
+    if (Error E = CoverageReadersOrErr.takeError())
       return std::move(E);
-    Readers.push_back(std::move(CoverageReaderOrErr.get()));
+    for (auto &Reader : CoverageReadersOrErr.get())
+      Readers.push_back(std::move(Reader));
     Buffers.push_back(std::move(CovMappingBufOrErr.get()));
   }
   return load(Readers, *ProfileReader);

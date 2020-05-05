@@ -1,13 +1,13 @@
 //===-- ThreadMinidump.cpp --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "ThreadMinidump.h"
+
 #include "ProcessMinidump.h"
 
 #include "RegisterContextMinidump_ARM.h"
@@ -27,14 +27,15 @@
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/Log.h"
 
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
 using namespace minidump;
 
-ThreadMinidump::ThreadMinidump(Process &process, const MinidumpThread &td,
+ThreadMinidump::ThreadMinidump(Process &process, const minidump::Thread &td,
                                llvm::ArrayRef<uint8_t> gpregset_data)
-    : Thread(process, td.thread_id), m_thread_reg_ctx_sp(),
+    : Thread(process, td.ThreadId), m_thread_reg_ctx_sp(),
       m_gpregset_data(gpregset_data) {}
 
 ThreadMinidump::~ThreadMinidump() {}
@@ -72,8 +73,9 @@ ThreadMinidump::CreateRegisterContextForFrame(StackFrame *frame) {
       lldb::DataBufferSP buf =
           ConvertMinidumpContext_x86_32(m_gpregset_data, reg_interface);
       DataExtractor gpregset(buf, lldb::eByteOrderLittle, 4);
-      m_thread_reg_ctx_sp.reset(new RegisterContextCorePOSIX_x86_64(
-          *this, reg_interface, gpregset, {}));
+      m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_x86_64>(
+          *this, reg_interface, gpregset,
+          llvm::ArrayRef<lldb_private::CoreNote>());
       break;
     }
     case llvm::Triple::x86_64: {
@@ -81,22 +83,24 @@ ThreadMinidump::CreateRegisterContextForFrame(StackFrame *frame) {
       lldb::DataBufferSP buf =
           ConvertMinidumpContext_x86_64(m_gpregset_data, reg_interface);
       DataExtractor gpregset(buf, lldb::eByteOrderLittle, 8);
-      m_thread_reg_ctx_sp.reset(new RegisterContextCorePOSIX_x86_64(
-          *this, reg_interface, gpregset, {}));
+      m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_x86_64>(
+          *this, reg_interface, gpregset,
+          llvm::ArrayRef<lldb_private::CoreNote>());
       break;
     }
     case llvm::Triple::aarch64: {
       DataExtractor data(m_gpregset_data.data(), m_gpregset_data.size(),
                          lldb::eByteOrderLittle, 8);
-      m_thread_reg_ctx_sp.reset(new RegisterContextMinidump_ARM64(*this, data));
+      m_thread_reg_ctx_sp =
+          std::make_shared<RegisterContextMinidump_ARM64>(*this, data);
       break;
     }
     case llvm::Triple::arm: {
       DataExtractor data(m_gpregset_data.data(), m_gpregset_data.size(),
                          lldb::eByteOrderLittle, 8);
       const bool apple = arch.GetTriple().getVendor() == llvm::Triple::Apple;
-      m_thread_reg_ctx_sp.reset(
-          new RegisterContextMinidump_ARM(*this, data, apple));
+      m_thread_reg_ctx_sp =
+          std::make_shared<RegisterContextMinidump_ARM>(*this, data, apple);
       break;
     }
     default:
@@ -104,8 +108,8 @@ ThreadMinidump::CreateRegisterContextForFrame(StackFrame *frame) {
     }
 
     reg_ctx_sp = m_thread_reg_ctx_sp;
-  } else if (m_unwinder_ap) {
-    reg_ctx_sp = m_unwinder_ap->CreateRegisterContextForFrame(frame);
+  } else if (m_unwinder_up) {
+    reg_ctx_sp = m_unwinder_up->CreateRegisterContextForFrame(frame);
   }
 
   return reg_ctx_sp;

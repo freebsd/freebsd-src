@@ -1,9 +1,8 @@
 //===--------------------- JSON.cpp -----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -56,9 +55,9 @@ uint64_t JSONNumber::GetAsUnsigned() const {
   case DataType::Unsigned:
     return m_data.m_unsigned;
   case DataType::Signed:
-    return (uint64_t)m_data.m_signed;
+    return static_cast<uint64_t>(m_data.m_signed);
   case DataType::Double:
-    return (uint64_t)m_data.m_double;
+    return static_cast<uint64_t>(m_data.m_double);
   }
   llvm_unreachable("Unhandled data type");
 }
@@ -66,11 +65,11 @@ uint64_t JSONNumber::GetAsUnsigned() const {
 int64_t JSONNumber::GetAsSigned() const {
   switch (m_data_type) {
   case DataType::Unsigned:
-    return (int64_t)m_data.m_unsigned;
+    return static_cast<int64_t>(m_data.m_unsigned);
   case DataType::Signed:
     return m_data.m_signed;
   case DataType::Double:
-    return (int64_t)m_data.m_double;
+    return static_cast<int64_t>(m_data.m_double);
   }
   llvm_unreachable("Unhandled data type");
 }
@@ -78,9 +77,9 @@ int64_t JSONNumber::GetAsSigned() const {
 double JSONNumber::GetAsDouble() const {
   switch (m_data_type) {
   case DataType::Unsigned:
-    return (double)m_data.m_unsigned;
+    return static_cast<double>(m_data.m_unsigned);
   case DataType::Signed:
-    return (double)m_data.m_signed;
+    return static_cast<double>(m_data.m_signed);
   case DataType::Double:
     return m_data.m_double;
   }
@@ -239,7 +238,7 @@ JSONParser::Token JSONParser::GetToken(std::string &value) {
     break;
 
   case '"': {
-    while (1) {
+    while (true) {
       bool was_escaped = false;
       int escaped_ch = GetEscapedChar(was_escaped);
       if (escaped_ch == -1) {
@@ -254,7 +253,7 @@ JSONParser::Token JSONParser::GetToken(std::string &value) {
         const bool is_null = escaped_ch == 0;
         if (was_escaped || (!is_end_quote && !is_null)) {
           if (CHAR_MIN <= escaped_ch && escaped_ch <= CHAR_MAX) {
-            value.append(1, (char)escaped_ch);
+            value.append(1, static_cast<char>(escaped_ch));
           } else {
             error.Printf("error: wide character support is needed for unicode "
                          "character 0x%4.4x at offset %" PRIu64,
@@ -454,7 +453,7 @@ JSONValue::SP JSONParser::ParseJSONObject() {
 
   std::string value;
   std::string key;
-  while (1) {
+  while (true) {
     JSONParser::Token token = GetToken(value);
 
     if (token == JSONParser::Token::String) {
@@ -485,7 +484,7 @@ JSONValue::SP JSONParser::ParseJSONArray() {
 
   std::string value;
   std::string key;
-  while (1) {
+  while (true) {
     JSONValue::SP value_sp = ParseJSONValue();
     if (value_sp)
       array_up->AppendObject(value_sp);

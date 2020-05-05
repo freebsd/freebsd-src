@@ -1,9 +1,8 @@
 //=- AArch64RedundantCopyElimination.cpp - Remove useless copy for AArch64 -=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // This pass removes unnecessary copies/moves in BBs based on a dominating
 // condition.
@@ -380,8 +379,8 @@ bool AArch64RedundantCopyElimination::optimizeBlock(MachineBasicBlock *MBB) {
     bool IsCopy = MI->isCopy();
     bool IsMoveImm = MI->isMoveImmediate();
     if (IsCopy || IsMoveImm) {
-      MCPhysReg DefReg = MI->getOperand(0).getReg();
-      MCPhysReg SrcReg = IsCopy ? MI->getOperand(1).getReg() : 0;
+      Register DefReg = MI->getOperand(0).getReg();
+      Register SrcReg = IsCopy ? MI->getOperand(1).getReg() : Register();
       int64_t SrcImm = IsMoveImm ? MI->getOperand(1).getImm() : 0;
       if (!MRI->isReserved(DefReg) &&
           ((IsCopy && (SrcReg == AArch64::XZR || SrcReg == AArch64::WZR)) ||

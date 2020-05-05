@@ -7,7 +7,7 @@ CRTSRC=		${SRCTOP}/contrib/compiler-rt
 
 .PATH:		${CRTSRC}/lib
 
-CLANGDIR=	/usr/lib/clang/8.0.1
+CLANGDIR=	/usr/lib/clang/9.0.0
 LIBDIR=		${CLANGDIR}/lib/freebsd
 SHLIBDIR=	${LIBDIR}
 
@@ -33,5 +33,6 @@ CFLAGS+=	-fno-stack-protector
 CFLAGS+=	-funwind-tables
 CFLAGS+=	-fvisibility-inlines-hidden
 CFLAGS+=	-fvisibility=hidden
+CFLAGS+=	-I${CRTSRC}/include
 CFLAGS+=	-I${CRTSRC}/lib
 CXXFLAGS+=	-std=c++11

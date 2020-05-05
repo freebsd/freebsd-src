@@ -1,9 +1,8 @@
 //===-- Reproducer.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -51,6 +50,8 @@ llvm::Error Reproducer::Initialize(ReproducerMode mode,
 
   return Error::success();
 }
+
+bool Reproducer::Initialized() { return InstanceImpl().operator bool(); }
 
 void Reproducer::Terminate() {
   lldbassert(InstanceImpl() && "Already terminated.");
@@ -178,10 +179,13 @@ void Generator::AddProvidersToIndex() {
                                                 sys::fs::OpenFlags::F_None);
   yaml::Output yout(*strm);
 
+  std::vector<std::string> files;
+  files.reserve(m_providers.size());
   for (auto &provider : m_providers) {
-    auto &provider_info = provider.second->GetInfo();
-    yout << const_cast<ProviderInfo &>(provider_info);
+    files.emplace_back(provider.second->GetFile());
   }
+
+  yout << files;
 }
 
 Loader::Loader(const FileSpec &root) : m_root(root), m_loaded(false) {}
@@ -196,30 +200,86 @@ llvm::Error Loader::LoadIndex() {
   if (auto err = error_or_file.getError())
     return make_error<StringError>("unable to load reproducer index", err);
 
-  std::vector<ProviderInfo> provider_info;
   yaml::Input yin((*error_or_file)->getBuffer());
-  yin >> provider_info;
-
+  yin >> m_files;
   if (auto err = yin.error())
     return make_error<StringError>("unable to read reproducer index", err);
 
-  for (auto &info : provider_info)
-    m_provider_info[info.name] = info;
+  // Sort files to speed up search.
+  llvm::sort(m_files);
 
+  // Remember that we've loaded the index.
   m_loaded = true;
 
   return llvm::Error::success();
 }
 
-llvm::Optional<ProviderInfo> Loader::GetProviderInfo(StringRef name) {
+bool Loader::HasFile(StringRef file) {
   assert(m_loaded);
+  auto it = std::lower_bound(m_files.begin(), m_files.end(), file.str());
+  return (it != m_files.end()) && (*it == file);
+}
 
-  auto it = m_provider_info.find(name);
-  if (it == m_provider_info.end())
-    return llvm::None;
+llvm::Expected<std::unique_ptr<DataRecorder>>
+DataRecorder::Create(const FileSpec &filename) {
+  std::error_code ec;
+  auto recorder = llvm::make_unique<DataRecorder>(std::move(filename), ec);
+  if (ec)
+    return llvm::errorCodeToError(ec);
+  return std::move(recorder);
+}
 
-  return it->second;
+DataRecorder *CommandProvider::GetNewDataRecorder() {
+  std::size_t i = m_data_recorders.size() + 1;
+  std::string filename = (llvm::Twine(Info::name) + llvm::Twine("-") +
+                          llvm::Twine(i) + llvm::Twine(".txt"))
+                             .str();
+  auto recorder_or_error =
+      DataRecorder::Create(GetRoot().CopyByAppendingPathComponent(filename));
+  if (!recorder_or_error) {
+    llvm::consumeError(recorder_or_error.takeError());
+    return nullptr;
+  }
+
+  m_data_recorders.push_back(std::move(*recorder_or_error));
+  return m_data_recorders.back().get();
+}
+
+void CommandProvider::Keep() {
+  std::vector<std::string> files;
+  for (auto &recorder : m_data_recorders) {
+    recorder->Stop();
+    files.push_back(recorder->GetFilename().GetPath());
+  }
+
+  FileSpec file = GetRoot().CopyByAppendingPathComponent(Info::file);
+  std::error_code ec;
+  llvm::raw_fd_ostream os(file.GetPath(), ec, llvm::sys::fs::F_Text);
+  if (ec)
+    return;
+  yaml::Output yout(os);
+  yout << files;
+}
+
+void CommandProvider::Discard() { m_data_recorders.clear(); }
+
+void VersionProvider::Keep() {
+  FileSpec file = GetRoot().CopyByAppendingPathComponent(Info::file);
+  std::error_code ec;
+  llvm::raw_fd_ostream os(file.GetPath(), ec, llvm::sys::fs::F_Text);
+  if (ec)
+    return;
+  os << m_version << "\n";
 }
 
 void ProviderBase::anchor() {}
 char ProviderBase::ID = 0;
+char CommandProvider::ID = 0;
+char FileProvider::ID = 0;
+char VersionProvider::ID = 0;
+const char *CommandProvider::Info::file = "command-interpreter.yaml";
+const char *CommandProvider::Info::name = "command-interpreter";
+const char *FileProvider::Info::file = "files.yaml";
+const char *FileProvider::Info::name = "files";
+const char *VersionProvider::Info::file = "version.txt";
+const char *VersionProvider::Info::name = "version";

@@ -138,6 +138,7 @@ CWARNFLAGS+=	-Wno-error=address			\
 		-Wno-error=bool-compare			\
 		-Wno-error=cast-align			\
 		-Wno-error=clobbered			\
+		-Wno-error=deprecated-declarations	\
 		-Wno-error=enum-compare			\
 		-Wno-error=extra			\
 		-Wno-error=inline			\
@@ -212,6 +213,8 @@ CFLAGS+=	${SSP_CFLAGS}
 .if ${MK_WARNS} != "no"
 CFLAGS+=	${CWARNFLAGS:M*} ${CWARNFLAGS.${COMPILER_TYPE}}
 CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
+CXXFLAGS+=	${CXXWARNFLAGS:M*} ${CXXWARNFLAGS.${COMPILER_TYPE}}
+CXXFLAGS+=	${CXXWARNFLAGS.${.IMPSRC:T}}
 .endif
 
 CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}

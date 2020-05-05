@@ -1,9 +1,8 @@
 //===-- ThreadPlanPython.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,9 +23,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // ThreadPlanPython
-//----------------------------------------------------------------------
 
 ThreadPlanPython::ThreadPlanPython(Thread &thread, const char *class_name)
     : ThreadPlan(ThreadPlan::eKindPython, "Python based Thread Plan", thread,
@@ -63,7 +60,6 @@ void ThreadPlanPython::DidPush() {
     ScriptInterpreter *script_interp = m_thread.GetProcess()
                                            ->GetTarget()
                                            .GetDebugger()
-                                           .GetCommandInterpreter()
                                            .GetScriptInterpreter();
     if (script_interp) {
       m_implementation_sp = script_interp->CreateScriptedThreadPlan(
@@ -83,7 +79,6 @@ bool ThreadPlanPython::ShouldStop(Event *event_ptr) {
     ScriptInterpreter *script_interp = m_thread.GetProcess()
                                            ->GetTarget()
                                            .GetDebugger()
-                                           .GetCommandInterpreter()
                                            .GetScriptInterpreter();
     if (script_interp) {
       bool script_error;
@@ -107,7 +102,6 @@ bool ThreadPlanPython::IsPlanStale() {
     ScriptInterpreter *script_interp = m_thread.GetProcess()
                                            ->GetTarget()
                                            .GetDebugger()
-                                           .GetCommandInterpreter()
                                            .GetScriptInterpreter();
     if (script_interp) {
       bool script_error;
@@ -131,7 +125,6 @@ bool ThreadPlanPython::DoPlanExplainsStop(Event *event_ptr) {
     ScriptInterpreter *script_interp = m_thread.GetProcess()
                                            ->GetTarget()
                                            .GetDebugger()
-                                           .GetCommandInterpreter()
                                            .GetScriptInterpreter();
     if (script_interp) {
       bool script_error;
@@ -170,7 +163,6 @@ lldb::StateType ThreadPlanPython::GetPlanRunState() {
     ScriptInterpreter *script_interp = m_thread.GetProcess()
                                            ->GetTarget()
                                            .GetDebugger()
-                                           .GetCommandInterpreter()
                                            .GetScriptInterpreter();
     if (script_interp) {
       bool script_error;

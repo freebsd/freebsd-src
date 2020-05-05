@@ -1,13 +1,13 @@
 //===-- RISCVELFObjectWriter.cpp - RISCV ELF Writer -----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/RISCVFixupKinds.h"
+#include "MCTargetDesc/RISCVMCExpr.h"
 #include "MCTargetDesc/RISCVMCTargetDesc.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCFixup.h"
@@ -48,11 +48,50 @@ unsigned RISCVELFObjectWriter::getRelocType(MCContext &Ctx,
                                             const MCValue &Target,
                                             const MCFixup &Fixup,
                                             bool IsPCRel) const {
+  const MCExpr *Expr = Fixup.getValue();
   // Determine the type of the relocation
-  switch ((unsigned)Fixup.getKind()) {
+  unsigned Kind = Fixup.getKind();
+  if (IsPCRel) {
+    switch (Kind) {
+    default:
+      llvm_unreachable("invalid fixup kind!");
+    case FK_Data_4:
+    case FK_PCRel_4:
+      return ELF::R_RISCV_32_PCREL;
+    case RISCV::fixup_riscv_pcrel_hi20:
+      return ELF::R_RISCV_PCREL_HI20;
+    case RISCV::fixup_riscv_pcrel_lo12_i:
+      return ELF::R_RISCV_PCREL_LO12_I;
+    case RISCV::fixup_riscv_pcrel_lo12_s:
+      return ELF::R_RISCV_PCREL_LO12_S;
+    case RISCV::fixup_riscv_got_hi20:
+      return ELF::R_RISCV_GOT_HI20;
+    case RISCV::fixup_riscv_tls_got_hi20:
+      return ELF::R_RISCV_TLS_GOT_HI20;
+    case RISCV::fixup_riscv_tls_gd_hi20:
+      return ELF::R_RISCV_TLS_GD_HI20;
+    case RISCV::fixup_riscv_jal:
+      return ELF::R_RISCV_JAL;
+    case RISCV::fixup_riscv_branch:
+      return ELF::R_RISCV_BRANCH;
+    case RISCV::fixup_riscv_rvc_jump:
+      return ELF::R_RISCV_RVC_JUMP;
+    case RISCV::fixup_riscv_rvc_branch:
+      return ELF::R_RISCV_RVC_BRANCH;
+    case RISCV::fixup_riscv_call:
+      return ELF::R_RISCV_CALL;
+    case RISCV::fixup_riscv_call_plt:
+      return ELF::R_RISCV_CALL_PLT;
+    }
+  }
+
+  switch (Kind) {
   default:
     llvm_unreachable("invalid fixup kind!");
   case FK_Data_4:
+    if (Expr->getKind() == MCExpr::Target &&
+        cast<RISCVMCExpr>(Expr)->getKind() == RISCVMCExpr::VK_RISCV_32_PCREL)
+      return ELF::R_RISCV_32_PCREL;
     return ELF::R_RISCV_32;
   case FK_Data_8:
     return ELF::R_RISCV_64;
@@ -64,6 +103,8 @@ unsigned RISCVELFObjectWriter::getRelocType(MCContext &Ctx,
     return ELF::R_RISCV_ADD32;
   case FK_Data_Add_8:
     return ELF::R_RISCV_ADD64;
+  case FK_Data_Add_6b:
+    return ELF::R_RISCV_SET6;
   case FK_Data_Sub_1:
     return ELF::R_RISCV_SUB8;
   case FK_Data_Sub_2:
@@ -72,30 +113,26 @@ unsigned RISCVELFObjectWriter::getRelocType(MCContext &Ctx,
     return ELF::R_RISCV_SUB32;
   case FK_Data_Sub_8:
     return ELF::R_RISCV_SUB64;
+  case FK_Data_Sub_6b:
+    return ELF::R_RISCV_SUB6;
   case RISCV::fixup_riscv_hi20:
     return ELF::R_RISCV_HI20;
   case RISCV::fixup_riscv_lo12_i:
     return ELF::R_RISCV_LO12_I;
   case RISCV::fixup_riscv_lo12_s:
     return ELF::R_RISCV_LO12_S;
-  case RISCV::fixup_riscv_pcrel_hi20:
-    return ELF::R_RISCV_PCREL_HI20;
-  case RISCV::fixup_riscv_pcrel_lo12_i:
-    return ELF::R_RISCV_PCREL_LO12_I;
-  case RISCV::fixup_riscv_pcrel_lo12_s:
-    return ELF::R_RISCV_PCREL_LO12_S;
-  case RISCV::fixup_riscv_jal:
-    return ELF::R_RISCV_JAL;
-  case RISCV::fixup_riscv_branch:
-    return ELF::R_RISCV_BRANCH;
-  case RISCV::fixup_riscv_rvc_jump:
-    return ELF::R_RISCV_RVC_JUMP;
-  case RISCV::fixup_riscv_rvc_branch:
-    return ELF::R_RISCV_RVC_BRANCH;
-  case RISCV::fixup_riscv_call:
-    return ELF::R_RISCV_CALL;
+  case RISCV::fixup_riscv_tprel_hi20:
+    return ELF::R_RISCV_TPREL_HI20;
+  case RISCV::fixup_riscv_tprel_lo12_i:
+    return ELF::R_RISCV_TPREL_LO12_I;
+  case RISCV::fixup_riscv_tprel_lo12_s:
+    return ELF::R_RISCV_TPREL_LO12_S;
+  case RISCV::fixup_riscv_tprel_add:
+    return ELF::R_RISCV_TPREL_ADD;
   case RISCV::fixup_riscv_relax:
     return ELF::R_RISCV_RELAX;
+  case RISCV::fixup_riscv_align:
+    return ELF::R_RISCV_ALIGN;
   }
 }
 

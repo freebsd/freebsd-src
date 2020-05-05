@@ -1,9 +1,8 @@
 //===---- MachineOutliner.h - Outliner data structures ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -172,13 +171,13 @@ public:
 
   /// Represents the size of a sequence in bytes. (Some instructions vary
   /// widely in size, so just counting the instructions isn't very useful.)
-  unsigned SequenceSize;
+  unsigned SequenceSize = 0;
 
   /// Target-defined overhead of constructing a frame for this function.
-  unsigned FrameOverhead;
+  unsigned FrameOverhead = 0;
 
   /// Target-defined identifier for constructing a frame for this function.
-  unsigned FrameConstructionID;
+  unsigned FrameConstructionID = 0;
 
   /// Return the number of candidates for this \p OutlinedFunction.
   unsigned getOccurrenceCount() const { return Candidates.size(); }

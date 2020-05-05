@@ -17,6 +17,7 @@ LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 
 PACKAGE=	clang
 
+LIBADD+=	execinfo
 LIBADD+=	ncursesw
 LIBADD+=	pthread
 

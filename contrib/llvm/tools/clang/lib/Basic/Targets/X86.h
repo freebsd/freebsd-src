@@ -1,9 +1,8 @@
 //===--- X86.h - Declare X86 target feature support -------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -69,6 +68,7 @@ class LLVM_LIBRARY_VISIBILITY X86TargetInfo : public TargetInfo {
   bool HasAVX512CD = false;
   bool HasAVX512VPOPCNTDQ = false;
   bool HasAVX512VNNI = false;
+  bool HasAVX512BF16 = false;
   bool HasAVX512ER = false;
   bool HasAVX512PF = false;
   bool HasAVX512DQ = false;
@@ -78,10 +78,12 @@ class LLVM_LIBRARY_VISIBILITY X86TargetInfo : public TargetInfo {
   bool HasAVX512VBMI = false;
   bool HasAVX512VBMI2 = false;
   bool HasAVX512IFMA = false;
+  bool HasAVX512VP2INTERSECT = false;
   bool HasSHA = false;
   bool HasMPX = false;
   bool HasSHSTK = false;
   bool HasSGX = false;
+  bool HasCX8 = false;
   bool HasCX16 = false;
   bool HasFXSR = false;
   bool HasXSAVE = false;
@@ -106,6 +108,7 @@ class LLVM_LIBRARY_VISIBILITY X86TargetInfo : public TargetInfo {
   bool HasMOVDIR64B = false;
   bool HasPTWRITE = false;
   bool HasINVPCID = false;
+  bool HasENQCMD = false;
 
 protected:
   /// Enumeration of all of the X86 CPUs supported by Clang.
@@ -122,14 +125,16 @@ protected:
 
   CPUKind getCPUKind(StringRef CPU) const;
 
-  std::string getCPUKindCanonicalName(CPUKind Kind) const;
-
   enum FPMathKind { FP_Default, FP_SSE, FP_387 } FPMath = FP_Default;
 
 public:
   X86TargetInfo(const llvm::Triple &Triple, const TargetOptions &)
       : TargetInfo(Triple) {
     LongDoubleFormat = &llvm::APFloat::x87DoubleExtended();
+  }
+
+  const char *getLongDoubleMangling() const override {
+    return LongDoubleFormat == &llvm::APFloat::IEEEquad() ? "g" : "e";
   }
 
   unsigned getFloatEvalMethod() const override {
@@ -199,7 +204,7 @@ public:
                                   StringRef Expression) const override {
     StringRef::iterator I, E;
     for (I = Constraint.begin(), E = Constraint.end(); I != E; ++I) {
-      if (isalpha(*I))
+      if (isalpha(*I) || *I == '@')
         break;
     }
     if (I == E)
@@ -315,8 +320,8 @@ public:
     }
   }
 
-  CallingConv getDefaultCallingConv(CallingConvMethodType MT) const override {
-    return MT == CCMT_Member ? CC_X86ThisCall : CC_C;
+  CallingConv getDefaultCallingConv() const override {
+    return CC_C;
   }
 
   bool hasSjLjLowering() const override { return true; }
@@ -347,9 +352,8 @@ public:
          (1 << TargetInfo::LongDouble));
 
     // x86-32 has atomics up to 8 bytes
-    // FIXME: Check that we actually have cmpxchg8b before setting
-    // MaxAtomicInlineWidth. (cmpxchg8b is an i586 instruction.)
-    MaxAtomicPromoteWidth = MaxAtomicInlineWidth = 64;
+    MaxAtomicPromoteWidth = 64;
+    MaxAtomicInlineWidth = 32;
   }
 
   BuiltinVaListKind getBuiltinVaListKind() const override {
@@ -383,6 +387,11 @@ public:
     }
 
     return X86TargetInfo::validateOperandSize(Constraint, Size);
+  }
+
+  void setMaxAtomicWidth() override {
+    if (hasFeature("cx8"))
+      MaxAtomicInlineWidth = 64;
   }
 
   ArrayRef<Builtin::Info> getTargetBuiltins() const override;
@@ -476,7 +485,6 @@ public:
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override {
     WindowsX86_32TargetInfo::getTargetDefines(Opts, Builder);
-    WindowsX86_32TargetInfo::getVisualStudioDefines(Opts, Builder);
     // The value of the following reflects processor type.
     // 300=386, 400=486, 500=Pentium, 600=Blend (default)
     // We lost the original triple, so we use the default.
@@ -651,7 +659,7 @@ public:
     }
   }
 
-  CallingConv getDefaultCallingConv(CallingConvMethodType MT) const override {
+  CallingConv getDefaultCallingConv() const override {
     return CC_C;
   }
 
@@ -740,7 +748,6 @@ public:
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override {
     WindowsX86_64TargetInfo::getTargetDefines(Opts, Builder);
-    WindowsX86_64TargetInfo::getVisualStudioDefines(Opts, Builder);
     Builder.defineMacro("_M_X64", "100");
     Builder.defineMacro("_M_AMD64", "100");
   }
@@ -842,8 +849,6 @@ public:
       : LinuxTargetInfo<X86_64TargetInfo>(Triple, Opts) {
     LongDoubleFormat = &llvm::APFloat::IEEEquad();
   }
-
-  bool useFloat128ManglingForLongDouble() const override { return true; }
 };
 } // namespace targets
 } // namespace clang

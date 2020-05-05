@@ -1,9 +1,8 @@
 //===- ASTBitCodes.h - Enum values for the PCH bitcode format ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -24,7 +23,7 @@
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/DenseMapInfo.h"
-#include "llvm/Bitcode/BitCodes.h"
+#include "llvm/Bitstream/BitCodes.h"
 #include <cassert>
 #include <cstdint>
 
@@ -1174,7 +1173,10 @@ namespace serialization {
       TYPE_DEPENDENT_ADDRESS_SPACE = 47,
 
       /// A dependentSizedVectorType record.
-      TYPE_DEPENDENT_SIZED_VECTOR = 48
+      TYPE_DEPENDENT_SIZED_VECTOR = 48,
+
+      /// A type defined in a macro.
+      TYPE_MACRO_QUALIFIED = 49
     };
 
     /// The type IDs for special types constructed by semantic
@@ -1439,9 +1441,6 @@ namespace serialization {
       /// A CXXConstructorDecl record.
       DECL_CXX_CONSTRUCTOR,
 
-      /// A CXXConstructorDecl record for an inherited constructor.
-      DECL_CXX_INHERITED_CONSTRUCTOR,
-
       /// A CXXDestructorDecl record.
       DECL_CXX_DESTRUCTOR,
 
@@ -1490,7 +1489,10 @@ namespace serialization {
       /// A TypeAliasTemplateDecl record.
       DECL_TYPE_ALIAS_TEMPLATE,
 
-      /// A StaticAssertDecl record.
+      /// \brief A ConceptDecl record.
+      DECL_CONCEPT,
+
+      /// \brief A StaticAssertDecl record.
       DECL_STATIC_ASSERT,
 
       /// A record containing CXXBaseSpecifiers.
@@ -1522,7 +1524,10 @@ namespace serialization {
 
       /// An OMPRequiresDecl record.
       DECL_OMP_REQUIRES,
-	 
+
+      /// An OMPAllocateDcl record.
+      DECL_OMP_ALLOCATE,
+
       /// An EmptyDecl record.
       DECL_EMPTY,
 
@@ -1537,6 +1542,9 @@ namespace serialization {
 
       /// A PragmaDetectMismatchDecl record.
       DECL_PRAGMA_DETECT_MISMATCH,
+
+      /// An OMPDeclareMapperDecl record.
+      DECL_OMP_DECLARE_MAPPER,
 
       /// An OMPDeclareReductionDecl record.
       DECL_OMP_DECLARE_REDUCTION,
@@ -1726,6 +1734,9 @@ namespace serialization {
 
       /// A GNUNullExpr record.
       EXPR_GNU_NULL,
+
+      /// A SourceLocExpr record.
+      EXPR_SOURCE_LOC,
 
       /// A ShuffleVectorExpr record.
       EXPR_SHUFFLE_VECTOR,

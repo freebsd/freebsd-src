@@ -1,9 +1,8 @@
 //===-- ValueObjectCast.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,14 +22,14 @@ class ConstString;
 using namespace lldb_private;
 
 lldb::ValueObjectSP ValueObjectCast::Create(ValueObject &parent,
-                                            const ConstString &name,
+                                            ConstString name,
                                             const CompilerType &cast_type) {
   ValueObjectCast *cast_valobj_ptr =
       new ValueObjectCast(parent, name, cast_type);
   return cast_valobj_ptr->GetSP();
 }
 
-ValueObjectCast::ValueObjectCast(ValueObject &parent, const ConstString &name,
+ValueObjectCast::ValueObjectCast(ValueObject &parent, ConstString name,
                                  const CompilerType &cast_type)
     : ValueObject(parent), m_cast_type(cast_type) {
   SetName(name);

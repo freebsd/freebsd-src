@@ -1,9 +1,8 @@
 //===-- TypeFormat.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -70,7 +69,7 @@ bool TypeFormatImpl_Format::FormatObject(ValueObject *valobj,
         // default value logic
         if (GetFormat() == eFormatCString) {
           lldb_private::Flags type_flags(compiler_type.GetTypeInfo(
-              NULL)); // disambiguate w.r.t. TypeFormatImpl::Flags
+              nullptr)); // disambiguate w.r.t. TypeFormatImpl::Flags
           if (type_flags.Test(eTypeIsPointer) &&
               !type_flags.Test(eTypeIsObjC)) {
             // if we are dumping a pointer as a c-string, get the pointee data

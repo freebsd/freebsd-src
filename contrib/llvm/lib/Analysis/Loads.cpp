@@ -1,9 +1,8 @@
 //===- Loads.cpp - Local load analysis ------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -126,7 +125,8 @@ bool llvm::isDereferenceableAndAlignedPointer(const Value *V, unsigned Align,
                                               Visited);
 }
 
-bool llvm::isDereferenceableAndAlignedPointer(const Value *V, unsigned Align,
+bool llvm::isDereferenceableAndAlignedPointer(const Value *V, Type *Ty,
+                                              unsigned Align,
                                               const DataLayout &DL,
                                               const Instruction *CtxI,
                                               const DominatorTree *DT) {
@@ -134,8 +134,6 @@ bool llvm::isDereferenceableAndAlignedPointer(const Value *V, unsigned Align,
   // attribute, we know exactly how many bytes are dereferenceable. If we can
   // determine the exact offset to the attributed variable, we can use that
   // information here.
-  Type *VTy = V->getType();
-  Type *Ty = VTy->getPointerElementType();
 
   // Require ABI alignment for loads without alignment specification
   if (Align == 0)
@@ -146,14 +144,16 @@ bool llvm::isDereferenceableAndAlignedPointer(const Value *V, unsigned Align,
 
   SmallPtrSet<const Value *, 32> Visited;
   return ::isDereferenceableAndAlignedPointer(
-      V, Align, APInt(DL.getIndexTypeSizeInBits(VTy), DL.getTypeStoreSize(Ty)), DL,
-      CtxI, DT, Visited);
+      V, Align,
+      APInt(DL.getIndexTypeSizeInBits(V->getType()), DL.getTypeStoreSize(Ty)),
+      DL, CtxI, DT, Visited);
 }
 
-bool llvm::isDereferenceablePointer(const Value *V, const DataLayout &DL,
+bool llvm::isDereferenceablePointer(const Value *V, Type *Ty,
+                                    const DataLayout &DL,
                                     const Instruction *CtxI,
                                     const DominatorTree *DT) {
-  return isDereferenceableAndAlignedPointer(V, 1, DL, CtxI, DT);
+  return isDereferenceableAndAlignedPointer(V, Ty, 1, DL, CtxI, DT);
 }
 
 /// Test if A and B will obviously have the same value.
@@ -198,7 +198,7 @@ static bool AreEquivalentAddressValues(const Value *A, const Value *B) {
 ///
 /// This uses the pointee type to determine how many bytes need to be safe to
 /// load from the pointer.
-bool llvm::isSafeToLoadUnconditionally(Value *V, unsigned Align,
+bool llvm::isSafeToLoadUnconditionally(Value *V, unsigned Align, APInt &Size,
                                        const DataLayout &DL,
                                        Instruction *ScanFrom,
                                        const DominatorTree *DT) {
@@ -209,7 +209,7 @@ bool llvm::isSafeToLoadUnconditionally(Value *V, unsigned Align,
 
   // If DT is not specified we can't make context-sensitive query
   const Instruction* CtxI = DT ? ScanFrom : nullptr;
-  if (isDereferenceableAndAlignedPointer(V, Align, DL, CtxI, DT))
+  if (isDereferenceableAndAlignedPointer(V, Align, Size, DL, CtxI, DT))
     return true;
 
   int64_t ByteOffset = 0;
@@ -281,9 +281,17 @@ bool llvm::isSafeToLoadUnconditionally(Value *V, unsigned Align,
     Value *AccessedPtr;
     unsigned AccessedAlign;
     if (LoadInst *LI = dyn_cast<LoadInst>(BBI)) {
+      // Ignore volatile loads. The execution of a volatile load cannot
+      // be used to prove an address is backed by regular memory; it can,
+      // for example, point to an MMIO register.
+      if (LI->isVolatile())
+        continue;
       AccessedPtr = LI->getPointerOperand();
       AccessedAlign = LI->getAlignment();
     } else if (StoreInst *SI = dyn_cast<StoreInst>(BBI)) {
+      // Ignore volatile stores (see comment for loads).
+      if (SI->isVolatile())
+        continue;
       AccessedPtr = SI->getPointerOperand();
       AccessedAlign = SI->getAlignment();
     } else
@@ -306,7 +314,15 @@ bool llvm::isSafeToLoadUnconditionally(Value *V, unsigned Align,
   return false;
 }
 
-/// DefMaxInstsToScan - the default number of maximum instructions
+bool llvm::isSafeToLoadUnconditionally(Value *V, Type *Ty, unsigned Align,
+                                       const DataLayout &DL,
+                                       Instruction *ScanFrom,
+                                       const DominatorTree *DT) {
+  APInt Size(DL.getIndexTypeSizeInBits(V->getType()), DL.getTypeStoreSize(Ty));
+  return isSafeToLoadUnconditionally(V, Align, Size, DL, ScanFrom, DT);
+}
+
+  /// DefMaxInstsToScan - the default number of maximum instructions
 /// to scan in the block, used by FindAvailableLoadedValue().
 /// FindAvailableLoadedValue() was introduced in r60148, to improve jump
 /// threading in part by eliminating partially redundant loads.

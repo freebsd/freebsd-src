@@ -34,6 +34,10 @@ lib/Bitcode/Reader/CMakeLists.txt
 lib/Bitcode/Reader/LLVMBuild.txt
 lib/Bitcode/Writer/CMakeLists.txt
 lib/Bitcode/Writer/LLVMBuild.txt
+lib/Bitstream/CMakeLists.txt
+lib/Bitstream/LLVMBuild.txt
+lib/Bitstream/Reader/CMakeLists.txt
+lib/Bitstream/Reader/LLVMBuild.txt
 lib/CMakeLists.txt
 lib/CodeGen/AsmPrinter/CMakeLists.txt
 lib/CodeGen/AsmPrinter/LLVMBuild.txt
@@ -51,6 +55,8 @@ lib/DebugInfo/CodeView/CMakeLists.txt
 lib/DebugInfo/CodeView/LLVMBuild.txt
 lib/DebugInfo/DWARF/CMakeLists.txt
 lib/DebugInfo/DWARF/LLVMBuild.txt
+lib/DebugInfo/GSYM/CMakeLists.txt
+lib/DebugInfo/GSYM/LLVMBuild.txt
 lib/DebugInfo/LLVMBuild.txt
 lib/DebugInfo/MSF/CMakeLists.txt
 lib/DebugInfo/MSF/LLVMBuild.txt
@@ -65,6 +71,8 @@ lib/ExecutionEngine/IntelJITEvents/CMakeLists.txt
 lib/ExecutionEngine/IntelJITEvents/LLVMBuild.txt
 lib/ExecutionEngine/Interpreter/CMakeLists.txt
 lib/ExecutionEngine/Interpreter/LLVMBuild.txt
+lib/ExecutionEngine/JITLink/CMakeLists.txt
+lib/ExecutionEngine/JITLink/LLVMBuild.txt
 lib/ExecutionEngine/LLVMBuild.txt
 lib/ExecutionEngine/MCJIT/CMakeLists.txt
 lib/ExecutionEngine/MCJIT/LLVMBuild.txt
@@ -112,6 +120,8 @@ lib/ProfileData/CMakeLists.txt
 lib/ProfileData/Coverage/CMakeLists.txt
 lib/ProfileData/Coverage/LLVMBuild.txt
 lib/ProfileData/LLVMBuild.txt
+lib/Remarks/CMakeLists.txt
+lib/Remarks/LLVMBuild.txt
 lib/Support/CMakeLists.txt
 lib/Support/LLVMBuild.txt
 lib/Support/README.txt.system
@@ -386,8 +396,7 @@ lib/WindowsManifest/LLVMBuild.txt
 lib/XRay/CMakeLists.txt
 lib/XRay/LLVMBuild.txt
 llvm.spec.in
-projects/CMakeLists.txt
-projects/LLVMBuild.txt
+projects/
 resources/
 runtimes/
 test/
@@ -439,9 +448,11 @@ tools/llvm-extract/LLVMBuild.txt
 tools/llvm-go/
 tools/llvm-isel-fuzzer/
 tools/llvm-itanium-demangle-fuzzer/
+tools/llvm-jitlink/
 tools/llvm-jitlistener/
 tools/llvm-link/CMakeLists.txt
 tools/llvm-link/LLVMBuild.txt
+tools/llvm-lipo/
 tools/llvm-lto/CMakeLists.txt
 tools/llvm-lto/LLVMBuild.txt
 tools/llvm-lto2/CMakeLists.txt
@@ -494,6 +505,7 @@ tools/opt-remarks/
 tools/opt-viewer/
 tools/opt/CMakeLists.txt
 tools/opt/LLVMBuild.txt
+tools/remarks-shlib/
 tools/sancov/
 tools/sanstats/
 tools/verify-uselistorder/
@@ -518,8 +530,8 @@ utils/TableGen/tdtags
 utils/Target/
 utils/UpdateCMakeLists.pl
 utils/UpdateTestChecks/
-utils/abtest/
 utils/abtest.py
+utils/abtest/
 utils/benchmark/
 utils/bisect
 utils/bisect-skip-count
@@ -527,6 +539,7 @@ utils/bugpoint/
 utils/bugpoint_gisel_reducer.py
 utils/buildit/
 utils/check-each-file
+utils/chunk-print-before-all.py
 utils/clang-parse-diagnostics-file
 utils/codegen-diff
 utils/collect_and_build_with_pgo.py
@@ -545,8 +558,8 @@ utils/findsym.pl
 utils/fpcmp/
 utils/gdb-scripts/
 utils/getsrcs.sh
-utils/git/
 utils/git-svn/
+utils/git/
 utils/gn/
 utils/indirect_calls.py
 utils/jedit/

@@ -1,9 +1,8 @@
 //===- MetadataLoader.cpp - Internal BitcodeReader implementation ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,7 +22,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitcodeReader.h"
-#include "llvm/Bitcode/BitstreamReader.h"
+#include "llvm/Bitstream/BitstreamReader.h"
 #include "llvm/Bitcode/LLVMBitCodes.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/Attributes.h"
@@ -104,7 +103,7 @@ static cl::opt<bool> DisableLazyLoading(
 
 namespace {
 
-static int64_t unrotateSign(uint64_t U) { return U & 1 ? ~(U >> 1) : U >> 1; }
+static int64_t unrotateSign(uint64_t U) { return (U & 1) ? ~(U >> 1) : U >> 1; }
 
 class BitcodeReaderMetadataList {
   /// Array of metadata references.
@@ -131,8 +130,15 @@ class BitcodeReaderMetadataList {
 
   LLVMContext &Context;
 
+  /// Maximum number of valid references. Forward references exceeding the
+  /// maximum must be invalid.
+  unsigned RefsUpperBound;
+
 public:
-  BitcodeReaderMetadataList(LLVMContext &C) : Context(C) {}
+  BitcodeReaderMetadataList(LLVMContext &C, size_t RefsUpperBound)
+      : Context(C),
+        RefsUpperBound(std::min((size_t)std::numeric_limits<unsigned>::max(),
+                                RefsUpperBound)) {}
 
   // vector compatibility methods
   unsigned size() const { return MetadataPtrs.size(); }
@@ -219,6 +225,10 @@ void BitcodeReaderMetadataList::assignValue(Metadata *MD, unsigned Idx) {
 }
 
 Metadata *BitcodeReaderMetadataList::getMetadataFwdRef(unsigned Idx) {
+  // Bail out for a clearly invalid value.
+  if (Idx >= RefsUpperBound)
+    return nullptr;
+
   if (Idx >= size())
     resize(Idx + 1);
 
@@ -338,7 +348,7 @@ Metadata *BitcodeReaderMetadataList::resolveTypeRefArray(Metadata *MaybeTuple) {
   if (!Tuple || Tuple->isDistinct())
     return MaybeTuple;
 
-  // Look through the DITypeRefArray, upgrading each DITypeRef.
+  // Look through the DITypeRefArray, upgrading each DIType *.
   SmallVector<Metadata *, 32> Ops;
   Ops.reserve(Tuple->getNumOperands());
   for (Metadata *MD : Tuple->operands())
@@ -626,9 +636,10 @@ public:
                      BitcodeReaderValueList &ValueList,
                      std::function<Type *(unsigned)> getTypeByID,
                      bool IsImporting)
-      : MetadataList(TheModule.getContext()), ValueList(ValueList),
-        Stream(Stream), Context(TheModule.getContext()), TheModule(TheModule),
-        getTypeByID(std::move(getTypeByID)), IsImporting(IsImporting) {}
+      : MetadataList(TheModule.getContext(), Stream.SizeInBytes()),
+        ValueList(ValueList), Stream(Stream), Context(TheModule.getContext()),
+        TheModule(TheModule), getTypeByID(std::move(getTypeByID)),
+        IsImporting(IsImporting) {}
 
   Error parseMetadata(bool ModuleLevel);
 
@@ -675,8 +686,12 @@ MetadataLoader::MetadataLoaderImpl::lazyLoadModuleMetadataBlock() {
   SmallVector<uint64_t, 64> Record;
   // Get the abbrevs, and preload record positions to make them lazy-loadable.
   while (true) {
-    BitstreamEntry Entry = IndexCursor.advanceSkippingSubblocks(
+    Expected<BitstreamEntry> MaybeEntry = IndexCursor.advanceSkippingSubblocks(
         BitstreamCursor::AF_DontPopBlockAtEnd);
+    if (!MaybeEntry)
+      return MaybeEntry.takeError();
+    BitstreamEntry Entry = MaybeEntry.get();
+
     switch (Entry.Kind) {
     case BitstreamEntry::SubBlock: // Handled for us already.
     case BitstreamEntry::Error:
@@ -688,14 +703,22 @@ MetadataLoader::MetadataLoaderImpl::lazyLoadModuleMetadataBlock() {
       // The interesting case.
       ++NumMDRecordLoaded;
       uint64_t CurrentPos = IndexCursor.GetCurrentBitNo();
-      auto Code = IndexCursor.skipRecord(Entry.ID);
+      Expected<unsigned> MaybeCode = IndexCursor.skipRecord(Entry.ID);
+      if (!MaybeCode)
+        return MaybeCode.takeError();
+      unsigned Code = MaybeCode.get();
       switch (Code) {
       case bitc::METADATA_STRINGS: {
         // Rewind and parse the strings.
-        IndexCursor.JumpToBit(CurrentPos);
+        if (Error Err = IndexCursor.JumpToBit(CurrentPos))
+          return std::move(Err);
         StringRef Blob;
         Record.clear();
-        IndexCursor.readRecord(Entry.ID, Record, &Blob);
+        if (Expected<unsigned> MaybeRecord =
+                IndexCursor.readRecord(Entry.ID, Record, &Blob))
+          ;
+        else
+          return MaybeRecord.takeError();
         unsigned NumStrings = Record[0];
         MDStringRef.reserve(NumStrings);
         auto IndexNextMDString = [&](StringRef Str) {
@@ -708,26 +731,37 @@ MetadataLoader::MetadataLoaderImpl::lazyLoadModuleMetadataBlock() {
       case bitc::METADATA_INDEX_OFFSET: {
         // This is the offset to the index, when we see this we skip all the
         // records and load only an index to these.
-        IndexCursor.JumpToBit(CurrentPos);
+        if (Error Err = IndexCursor.JumpToBit(CurrentPos))
+          return std::move(Err);
         Record.clear();
-        IndexCursor.readRecord(Entry.ID, Record);
+        if (Expected<unsigned> MaybeRecord =
+                IndexCursor.readRecord(Entry.ID, Record))
+          ;
+        else
+          return MaybeRecord.takeError();
         if (Record.size() != 2)
           return error("Invalid record");
         auto Offset = Record[0] + (Record[1] << 32);
         auto BeginPos = IndexCursor.GetCurrentBitNo();
-        IndexCursor.JumpToBit(BeginPos + Offset);
-        Entry = IndexCursor.advanceSkippingSubblocks(
-            BitstreamCursor::AF_DontPopBlockAtEnd);
+        if (Error Err = IndexCursor.JumpToBit(BeginPos + Offset))
+          return std::move(Err);
+        Expected<BitstreamEntry> MaybeEntry =
+            IndexCursor.advanceSkippingSubblocks(
+                BitstreamCursor::AF_DontPopBlockAtEnd);
+        if (!MaybeEntry)
+          return MaybeEntry.takeError();
+        Entry = MaybeEntry.get();
         assert(Entry.Kind == BitstreamEntry::Record &&
                "Corrupted bitcode: Expected `Record` when trying to find the "
                "Metadata index");
         Record.clear();
-        auto Code = IndexCursor.readRecord(Entry.ID, Record);
-        (void)Code;
-        assert(Code == bitc::METADATA_INDEX && "Corrupted bitcode: Expected "
-                                               "`METADATA_INDEX` when trying "
-                                               "to find the Metadata index");
-
+        if (Expected<unsigned> MaybeCode =
+                IndexCursor.readRecord(Entry.ID, Record))
+          assert(MaybeCode.get() == bitc::METADATA_INDEX &&
+                 "Corrupted bitcode: Expected `METADATA_INDEX` when trying to "
+                 "find the Metadata index");
+        else
+          return MaybeCode.takeError();
         // Delta unpack
         auto CurrentValue = BeginPos;
         GlobalMetadataBitPosIndex.reserve(Record.size());
@@ -743,21 +777,33 @@ MetadataLoader::MetadataLoaderImpl::lazyLoadModuleMetadataBlock() {
         return error("Corrupted Metadata block");
       case bitc::METADATA_NAME: {
         // Named metadata need to be materialized now and aren't deferred.
-        IndexCursor.JumpToBit(CurrentPos);
+        if (Error Err = IndexCursor.JumpToBit(CurrentPos))
+          return std::move(Err);
         Record.clear();
-        unsigned Code = IndexCursor.readRecord(Entry.ID, Record);
-        assert(Code == bitc::METADATA_NAME);
+
+        unsigned Code;
+        if (Expected<unsigned> MaybeCode =
+                IndexCursor.readRecord(Entry.ID, Record)) {
+          Code = MaybeCode.get();
+          assert(Code == bitc::METADATA_NAME);
+        } else
+          return MaybeCode.takeError();
 
         // Read name of the named metadata.
         SmallString<8> Name(Record.begin(), Record.end());
-        Code = IndexCursor.ReadCode();
+        if (Expected<unsigned> MaybeCode = IndexCursor.ReadCode())
+          Code = MaybeCode.get();
+        else
+          return MaybeCode.takeError();
 
         // Named Metadata comes in two parts, we expect the name to be followed
         // by the node
         Record.clear();
-        unsigned NextBitCode = IndexCursor.readRecord(Code, Record);
-        assert(NextBitCode == bitc::METADATA_NAMED_NODE);
-        (void)NextBitCode;
+        if (Expected<unsigned> MaybeNextBitCode =
+                IndexCursor.readRecord(Code, Record))
+          assert(MaybeNextBitCode.get() == bitc::METADATA_NAMED_NODE);
+        else
+          return MaybeNextBitCode.takeError();
 
         // Read named metadata elements.
         unsigned Size = Record.size();
@@ -776,9 +822,14 @@ MetadataLoader::MetadataLoaderImpl::lazyLoadModuleMetadataBlock() {
       case bitc::METADATA_GLOBAL_DECL_ATTACHMENT: {
         // FIXME: we need to do this early because we don't materialize global
         // value explicitly.
-        IndexCursor.JumpToBit(CurrentPos);
+        if (Error Err = IndexCursor.JumpToBit(CurrentPos))
+          return std::move(Err);
         Record.clear();
-        IndexCursor.readRecord(Entry.ID, Record);
+        if (Expected<unsigned> MaybeRecord =
+                IndexCursor.readRecord(Entry.ID, Record))
+          ;
+        else
+          return MaybeRecord.takeError();
         if (Record.size() % 2 == 0)
           return error("Invalid record");
         unsigned ValueID = Record[0];
@@ -812,6 +863,7 @@ MetadataLoader::MetadataLoaderImpl::lazyLoadModuleMetadataBlock() {
       case bitc::METADATA_LEXICAL_BLOCK:
       case bitc::METADATA_LEXICAL_BLOCK_FILE:
       case bitc::METADATA_NAMESPACE:
+      case bitc::METADATA_COMMON_BLOCK:
       case bitc::METADATA_MACRO:
       case bitc::METADATA_MACRO_FILE:
       case bitc::METADATA_TEMPLATE_TYPE:
@@ -845,8 +897,8 @@ Error MetadataLoader::MetadataLoaderImpl::parseMetadata(bool ModuleLevel) {
   // skip the whole block in case we lazy-load.
   auto EntryPos = Stream.GetCurrentBitNo();
 
-  if (Stream.EnterSubBlock(bitc::METADATA_BLOCK_ID))
-    return error("Invalid record");
+  if (Error Err = Stream.EnterSubBlock(bitc::METADATA_BLOCK_ID))
+    return Err;
 
   SmallVector<uint64_t, 64> Record;
   PlaceholderQueue Placeholders;
@@ -871,9 +923,14 @@ Error MetadataLoader::MetadataLoaderImpl::parseMetadata(bool ModuleLevel) {
       // Return at the beginning of the block, since it is easy to skip it
       // entirely from there.
       Stream.ReadBlockEnd(); // Pop the abbrev block context.
-      Stream.JumpToBit(EntryPos);
-      if (Stream.SkipBlock())
-        return error("Invalid record");
+      if (Error Err = IndexCursor.JumpToBit(EntryPos))
+        return Err;
+      if (Error Err = Stream.SkipBlock()) {
+        // FIXME this drops the error on the floor, which
+        // ThinLTO/X86/debuginfo-cu-import.ll relies on.
+        consumeError(std::move(Err));
+        return Error::success();
+      }
       return Error::success();
     }
     // Couldn't load an index, fallback to loading all the block "old-style".
@@ -883,7 +940,10 @@ Error MetadataLoader::MetadataLoaderImpl::parseMetadata(bool ModuleLevel) {
 
   // Read all the records.
   while (true) {
-    BitstreamEntry Entry = Stream.advanceSkippingSubblocks();
+    Expected<BitstreamEntry> MaybeEntry = Stream.advanceSkippingSubblocks();
+    if (!MaybeEntry)
+      return MaybeEntry.takeError();
+    BitstreamEntry Entry = MaybeEntry.get();
 
     switch (Entry.Kind) {
     case BitstreamEntry::SubBlock: // Handled for us already.
@@ -902,10 +962,13 @@ Error MetadataLoader::MetadataLoaderImpl::parseMetadata(bool ModuleLevel) {
     Record.clear();
     StringRef Blob;
     ++NumMDRecordLoaded;
-    unsigned Code = Stream.readRecord(Entry.ID, Record, &Blob);
-    if (Error Err =
-            parseOneMetadata(Record, Code, Placeholders, Blob, NextMetadataNo))
-      return Err;
+    if (Expected<unsigned> MaybeCode =
+            Stream.readRecord(Entry.ID, Record, &Blob)) {
+      if (Error Err = parseOneMetadata(Record, MaybeCode.get(), Placeholders,
+                                       Blob, NextMetadataNo))
+        return Err;
+    } else
+      return MaybeCode.takeError();
   }
 }
 
@@ -930,12 +993,25 @@ void MetadataLoader::MetadataLoaderImpl::lazyLoadOneMetadata(
   }
   SmallVector<uint64_t, 64> Record;
   StringRef Blob;
-  IndexCursor.JumpToBit(GlobalMetadataBitPosIndex[ID - MDStringRef.size()]);
-  auto Entry = IndexCursor.advanceSkippingSubblocks();
+  if (Error Err = IndexCursor.JumpToBit(
+          GlobalMetadataBitPosIndex[ID - MDStringRef.size()]))
+    report_fatal_error("lazyLoadOneMetadata failed jumping: " +
+                       toString(std::move(Err)));
+  Expected<BitstreamEntry> MaybeEntry = IndexCursor.advanceSkippingSubblocks();
+  if (!MaybeEntry)
+    // FIXME this drops the error on the floor.
+    report_fatal_error("lazyLoadOneMetadata failed advanceSkippingSubblocks: " +
+                       toString(MaybeEntry.takeError()));
+  BitstreamEntry Entry = MaybeEntry.get();
   ++NumMDRecordLoaded;
-  unsigned Code = IndexCursor.readRecord(Entry.ID, Record, &Blob);
-  if (Error Err = parseOneMetadata(Record, Code, Placeholders, Blob, ID))
-    report_fatal_error("Can't lazyload MD");
+  if (Expected<unsigned> MaybeCode =
+          IndexCursor.readRecord(Entry.ID, Record, &Blob)) {
+    if (Error Err =
+            parseOneMetadata(Record, MaybeCode.get(), Placeholders, Blob, ID))
+      report_fatal_error("Can't lazyload MD, parseOneMetadata: " +
+                         toString(std::move(Err)));
+  } else
+    report_fatal_error("Can't lazyload MD: " + toString(MaybeCode.takeError()));
 }
 
 /// Ensure that all forward-references and placeholders are resolved.
@@ -1032,12 +1108,17 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
     // Read name of the named metadata.
     SmallString<8> Name(Record.begin(), Record.end());
     Record.clear();
-    Code = Stream.ReadCode();
+    Expected<unsigned> MaybeCode = Stream.ReadCode();
+    if (!MaybeCode)
+      return MaybeCode.takeError();
+    Code = MaybeCode.get();
 
     ++NumMDRecordLoaded;
-    unsigned NextBitCode = Stream.readRecord(Code, Record);
-    if (NextBitCode != bitc::METADATA_NAMED_NODE)
-      return error("METADATA_NAME not followed by METADATA_NAMED_NODE");
+    if (Expected<unsigned> MaybeNextBitCode = Stream.readRecord(Code, Record)) {
+      if (MaybeNextBitCode.get() != bitc::METADATA_NAMED_NODE)
+        return error("METADATA_NAME not followed by METADATA_NAMED_NODE");
+    } else
+      return MaybeNextBitCode.takeError();
 
     // Read named metadata elements.
     unsigned Size = Record.size();
@@ -1407,12 +1488,33 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
       return error("Invalid record");
 
     bool HasSPFlags = Record[0] & 4;
-    DISubprogram::DISPFlags SPFlags =
-        HasSPFlags
-            ? static_cast<DISubprogram::DISPFlags>(Record[9])
-            : DISubprogram::toSPFlags(
-                  /*IsLocalToUnit=*/Record[7], /*IsDefinition=*/Record[8],
-                  /*IsOptimized=*/Record[14], /*Virtuality=*/Record[11]);
+
+    DINode::DIFlags Flags;
+    DISubprogram::DISPFlags SPFlags;
+    if (!HasSPFlags)
+      Flags = static_cast<DINode::DIFlags>(Record[11 + 2]);
+    else {
+      Flags = static_cast<DINode::DIFlags>(Record[11]);
+      SPFlags = static_cast<DISubprogram::DISPFlags>(Record[9]);
+    }
+
+    // Support for old metadata when
+    // subprogram specific flags are placed in DIFlags.
+    const unsigned DIFlagMainSubprogram = 1 << 21;
+    bool HasOldMainSubprogramFlag = Flags & DIFlagMainSubprogram;
+    if (HasOldMainSubprogramFlag)
+      // Remove old DIFlagMainSubprogram from DIFlags.
+      // Note: This assumes that any future use of bit 21 defaults to it
+      // being 0.
+      Flags &= ~static_cast<DINode::DIFlags>(DIFlagMainSubprogram);
+
+    if (HasOldMainSubprogramFlag && HasSPFlags)
+      SPFlags |= DISubprogram::SPFlagMainSubprogram;
+    else if (!HasSPFlags)
+      SPFlags = DISubprogram::toSPFlags(
+                    /*IsLocalToUnit=*/Record[7], /*IsDefinition=*/Record[8],
+                    /*IsOptimized=*/Record[14], /*Virtuality=*/Record[11],
+                    /*DIFlagMainSubprogram*/HasOldMainSubprogramFlag);
 
     // All definitions should be distinct.
     IsDistinct = (Record[0] & 1) || (SPFlags & DISubprogram::SPFlagDefinition);
@@ -1456,7 +1558,7 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
          getDITypeRefOrNull(Record[8 + OffsetA]),           // containingType
          Record[10 + OffsetA],                              // virtualIndex
          HasThisAdj ? Record[16 + OffsetB] : 0,             // thisAdjustment
-         static_cast<DINode::DIFlags>(Record[11 + OffsetA]),// flags
+         Flags,                                             // flags
          SPFlags,                                           // SPFlags
          HasUnit ? CUorFn : nullptr,                        // unit
          getMDOrNull(Record[13 + OffsetB]),                 // templateParams
@@ -1504,6 +1606,17 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
         GET_OR_DISTINCT(DILexicalBlockFile,
                         (Context, getMDOrNull(Record[1]),
                          getMDOrNull(Record[2]), Record[3])),
+        NextMetadataNo);
+    NextMetadataNo++;
+    break;
+  }
+  case bitc::METADATA_COMMON_BLOCK: {
+    IsDistinct = Record[0] & 1;
+    MetadataList.assignValue(
+        GET_OR_DISTINCT(DICommonBlock,
+                        (Context, getMDOrNull(Record[1]),
+                         getMDOrNull(Record[2]), getMDString(Record[3]),
+                         getMDOrNull(Record[4]), Record[5])),
         NextMetadataNo);
     NextMetadataNo++;
     break;
@@ -1831,7 +1944,10 @@ Error MetadataLoader::MetadataLoaderImpl::parseMetadataStrings(
     if (R.AtEndOfStream())
       return error("Invalid record: metadata strings bad length");
 
-    unsigned Size = R.ReadVBR(6);
+    Expected<uint32_t> MaybeSize = R.ReadVBR(6);
+    if (!MaybeSize)
+      return MaybeSize.takeError();
+    uint32_t Size = MaybeSize.get();
     if (Strings.size() < Size)
       return error("Invalid record: metadata strings truncated chars");
 
@@ -1860,14 +1976,17 @@ Error MetadataLoader::MetadataLoaderImpl::parseGlobalObjectAttachment(
 /// Parse metadata attachments.
 Error MetadataLoader::MetadataLoaderImpl::parseMetadataAttachment(
     Function &F, const SmallVectorImpl<Instruction *> &InstructionList) {
-  if (Stream.EnterSubBlock(bitc::METADATA_ATTACHMENT_ID))
-    return error("Invalid record");
+  if (Error Err = Stream.EnterSubBlock(bitc::METADATA_ATTACHMENT_ID))
+    return Err;
 
   SmallVector<uint64_t, 64> Record;
   PlaceholderQueue Placeholders;
 
   while (true) {
-    BitstreamEntry Entry = Stream.advanceSkippingSubblocks();
+    Expected<BitstreamEntry> MaybeEntry = Stream.advanceSkippingSubblocks();
+    if (!MaybeEntry)
+      return MaybeEntry.takeError();
+    BitstreamEntry Entry = MaybeEntry.get();
 
     switch (Entry.Kind) {
     case BitstreamEntry::SubBlock: // Handled for us already.
@@ -1884,7 +2003,10 @@ Error MetadataLoader::MetadataLoaderImpl::parseMetadataAttachment(
     // Read a metadata attachment record.
     Record.clear();
     ++NumMDRecordLoaded;
-    switch (Stream.readRecord(Entry.ID, Record)) {
+    Expected<unsigned> MaybeRecord = Stream.readRecord(Entry.ID, Record);
+    if (!MaybeRecord)
+      return MaybeRecord.takeError();
+    switch (MaybeRecord.get()) {
     default: // Default behavior: ignore.
       break;
     case bitc::METADATA_ATTACHMENT: {
@@ -1958,14 +2080,17 @@ Error MetadataLoader::MetadataLoaderImpl::parseMetadataKindRecord(
 
 /// Parse the metadata kinds out of the METADATA_KIND_BLOCK.
 Error MetadataLoader::MetadataLoaderImpl::parseMetadataKinds() {
-  if (Stream.EnterSubBlock(bitc::METADATA_KIND_BLOCK_ID))
-    return error("Invalid record");
+  if (Error Err = Stream.EnterSubBlock(bitc::METADATA_KIND_BLOCK_ID))
+    return Err;
 
   SmallVector<uint64_t, 64> Record;
 
   // Read all the records.
   while (true) {
-    BitstreamEntry Entry = Stream.advanceSkippingSubblocks();
+    Expected<BitstreamEntry> MaybeEntry = Stream.advanceSkippingSubblocks();
+    if (!MaybeEntry)
+      return MaybeEntry.takeError();
+    BitstreamEntry Entry = MaybeEntry.get();
 
     switch (Entry.Kind) {
     case BitstreamEntry::SubBlock: // Handled for us already.
@@ -1981,8 +2106,10 @@ Error MetadataLoader::MetadataLoaderImpl::parseMetadataKinds() {
     // Read a record.
     Record.clear();
     ++NumMDRecordLoaded;
-    unsigned Code = Stream.readRecord(Entry.ID, Record);
-    switch (Code) {
+    Expected<unsigned> MaybeCode = Stream.readRecord(Entry.ID, Record);
+    if (!MaybeCode)
+      return MaybeCode.takeError();
+    switch (MaybeCode.get()) {
     default: // Default behavior: ignore.
       break;
     case bitc::METADATA_KIND: {

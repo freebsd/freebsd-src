@@ -1,9 +1,8 @@
 //===--- RISCV.h - Declare RISCV target feature support ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -36,7 +35,6 @@ public:
   RISCVTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
       : TargetInfo(Triple), HasM(false), HasA(false), HasF(false),
         HasD(false), HasC(false) {
-    TLSSupported = false;
     LongDoubleWidth = 128;
     LongDoubleAlign = 128;
     LongDoubleFormat = &llvm::APFloat::IEEEquad();
@@ -59,12 +57,19 @@ public:
 
   ArrayRef<const char *> getGCCRegNames() const override;
 
+  int getEHDataRegisterNumber(unsigned RegNo) const override {
+    if (RegNo == 0)
+      return 10;
+    else if (RegNo == 1)
+      return 11;
+    else
+      return -1;
+  }
+
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override;
 
   bool validateAsmConstraint(const char *&Name,
-                             TargetInfo::ConstraintInfo &Info) const override {
-    return false;
-  }
+                             TargetInfo::ConstraintInfo &Info) const override;
 
   bool hasFeature(StringRef Feature) const override;
 
@@ -82,12 +87,18 @@ public:
   }
 
   bool setABI(const std::string &Name) override {
-    // TODO: support ilp32f and ilp32d ABIs.
-    if (Name == "ilp32") {
+    if (Name == "ilp32" || Name == "ilp32f" || Name == "ilp32d") {
       ABI = Name;
       return true;
     }
     return false;
+  }
+
+  void setMaxAtomicWidth() override {
+    MaxAtomicPromoteWidth = 128;
+
+    if (HasA)
+      MaxAtomicInlineWidth = 32;
   }
 };
 class LLVM_LIBRARY_VISIBILITY RISCV64TargetInfo : public RISCVTargetInfo {
@@ -100,12 +111,18 @@ public:
   }
 
   bool setABI(const std::string &Name) override {
-    // TODO: support lp64f and lp64d ABIs.
-    if (Name == "lp64") {
+    if (Name == "lp64" || Name == "lp64f" || Name == "lp64d") {
       ABI = Name;
       return true;
     }
     return false;
+  }
+
+  void setMaxAtomicWidth() override {
+    MaxAtomicPromoteWidth = 128;
+
+    if (HasA)
+      MaxAtomicInlineWidth = 64;
   }
 };
 } // namespace targets

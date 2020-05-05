@@ -1,13 +1,12 @@
 //===------------------------------- unwind.h -----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //
 // C++ ABI Level 1 ABI documented at:
-//   http://mentorembedded.github.io/cxx-abi/abi-eh.html
+//   https://itanium-cxx-abi.github.io/cxx-abi/abi-eh.html
 //
 //===----------------------------------------------------------------------===//
 
@@ -67,12 +66,16 @@ static const _Unwind_State _US_ACTION_MASK            = 3;
 static const _Unwind_State _US_FORCE_UNWIND           = 8;
 
 typedef uint32_t _Unwind_EHT_Header;
+/*
+ * gcc_personality_v0 references 'struct _Unwind_Exception' all over the place.
+ * Nothing in libunwind cares about 'struct _Unwind_Control_Block,' so make it
+ * the alias of struct _Unwind_Exception, instead of the other way around.
+ */
+struct _Unwind_Exception;
+typedef struct _Unwind_Exception _Unwind_Exception;
+typedef struct _Unwind_Exception _Unwind_Control_Block; /* Alias */
 
-struct _Unwind_Control_Block;
-typedef struct _Unwind_Control_Block _Unwind_Control_Block;
-typedef struct _Unwind_Control_Block _Unwind_Exception; /* Alias */
-
-struct _Unwind_Control_Block {
+struct _Unwind_Exception {
   uint64_t exception_class;
   void (*exception_cleanup)(_Unwind_Reason_Code, _Unwind_Control_Block*);
 

@@ -1,9 +1,8 @@
 //===-- MICmnMIOutOfBandRecord.cpp ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -54,7 +53,7 @@ MapOutOfBandToText(CMICmnMIOutOfBandRecord::OutOfBand_e veType) {
     return "";
   }
   assert(false && "unknown CMICmnMIOutofBandRecord::OutOfBand_e");
-  return NULL;
+  return nullptr;
 }
 
 static const char *
@@ -96,11 +95,10 @@ MapOutOfBandToToken(CMICmnMIOutOfBandRecord::OutOfBand_e veType) {
     return "&";
   }
   assert(false && "unknown CMICmnMIOutofBandRecord::OutOfBand_e");
-  return NULL;
+  return nullptr;
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Build the Out-of-band record's mandatory data part. The part up to
 // the first
 //          (additional) result i.e. async-record ==>  "*" type.
@@ -110,12 +108,13 @@ MapOutOfBandToToken(CMICmnMIOutOfBandRecord::OutOfBand_e veType) {
 //--
 static CMIUtilString
 BuildAsyncRecord(CMICmnMIOutOfBandRecord::OutOfBand_e veType) {
-  return CMIUtilString::Format("%s%s", MapOutOfBandToToken(veType),
-                               MapOutOfBandToText(veType));
+  auto Token = MapOutOfBandToToken(veType);
+  auto Text = MapOutOfBandToText(veType);
+  return CMIUtilString::Format("%s%s", CMIUtilString::WithNullAsEmpty(Token),
+                               CMIUtilString::WithNullAsEmpty(Text));
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnMIOutOfBandRecord constructor.
 // Type:    Method.
 // Args:    None.
@@ -126,7 +125,6 @@ CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord()
     : m_strAsyncRecord(MIRSRC(IDS_CMD_ERR_EVENT_HANDLED_BUT_NO_ACTION)) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnMIOutOfBandRecord constructor.
 // Type:    Method.
 // Args:    veType      - (R) A MI Out-of-Bound enumeration.
@@ -137,7 +135,6 @@ CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(OutOfBand_e veType)
     : m_strAsyncRecord(BuildAsyncRecord(veType)) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnMIOutOfBandRecord constructor.
 // Type:    Method.
 // Args:    veType      - (R) A MI Out-of-Bound enumeration.
@@ -152,7 +149,6 @@ CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnMIOutOfBandRecord constructor.
 // Type:    Method.
 // Args:    veType      - (R) A MI Out-of-Bound enumeration.
@@ -167,7 +163,6 @@ CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnMIOutOfBandRecord destructor.
 // Type:    Overrideable.
 // Args:    None.
@@ -177,7 +172,6 @@ CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(
 CMICmnMIOutOfBandRecord::~CMICmnMIOutOfBandRecord() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Return the MI Out-of-band record as a string. The string is a direct
 // result of
 //          work done on *this Out-of-band record so if not enough data is added
@@ -196,7 +190,6 @@ const CMIUtilString &CMICmnMIOutOfBandRecord::GetString() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Add to *this Out-of-band record additional information.
 // Type:    Method.
 // Args:    vResult           - (R) A MI result object.

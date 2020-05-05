@@ -37,6 +37,7 @@ DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LIBADD+=	edit
+LIBADD+=	execinfo
 LIBADD+=	panel
 LIBADD+=	ncursesw
 LIBADD+=	pthread

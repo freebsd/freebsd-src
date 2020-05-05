@@ -1,9 +1,8 @@
 //===- LLVMBitCodes.h - Enum values for the LLVM bitcode format -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,7 +17,7 @@
 #ifndef LLVM_BITCODE_LLVMBITCODES_H
 #define LLVM_BITCODE_LLVMBITCODES_H
 
-#include "llvm/Bitcode/BitCodes.h"
+#include "llvm/Bitstream/BitCodes.h"
 
 namespace llvm {
 namespace bitc {
@@ -264,10 +263,31 @@ enum GlobalValueSummarySymtabCodes {
   // Index-wide flags
   FS_FLAGS = 20,
   // Maps type identifier to summary information for that type identifier.
+  // Produced by the thin link (only lives in combined index).
   // TYPE_ID: [typeid, kind, bitwidth, align, size, bitmask, inlinebits,
   //           n x (typeid, kind, name, numrba,
   //                numrba x (numarg, numarg x arg, kind, info, byte, bit))]
   FS_TYPE_ID = 21,
+  // For background see overview at https://llvm.org/docs/TypeMetadata.html.
+  // The type metadata includes both the type identifier and the offset of
+  // the address point of the type (the address held by objects of that type
+  // which may not be the beginning of the virtual table). Vtable definitions
+  // are decorated with type metadata for the types they are compatible with.
+  //
+  // Maps type identifier to summary information for that type identifier
+  // computed from type metadata: the valueid of each vtable definition
+  // decorated with a type metadata for that identifier, and the offset from
+  // the corresponding type metadata.
+  // Exists in the per-module summary to provide information to thin link
+  // for index-based whole program devirtualization.
+  // TYPE_ID_METADATA: [typeid, n x (valueid, offset)]
+  FS_TYPE_ID_METADATA = 22,
+  // Summarizes vtable definition for use in index-based whole program
+  // devirtualization during the thin link.
+  // PERMODULE_VTABLE_GLOBALVAR_INIT_REFS: [valueid, flags, varflags,
+  //                                        numrefs, numrefs x valueid,
+  //                                        n x (valueid, offset)]
+  FS_PERMODULE_VTABLE_GLOBALVAR_INIT_REFS = 23,
 };
 
 enum MetadataCodes {
@@ -311,6 +331,7 @@ enum MetadataCodes {
   METADATA_INDEX_OFFSET = 38,           // [offset]
   METADATA_INDEX = 39,                  // [bitpos]
   METADATA_LABEL = 40,                  // [distinct, scope, name, file, line]
+  METADATA_COMMON_BLOCK = 44,     // [distinct, scope, name, variable,...]
 };
 
 // The constants block (CONSTANTS_BLOCK_ID) describes emission for each
@@ -407,7 +428,9 @@ enum RMWOperations {
   RMW_MAX = 7,
   RMW_MIN = 8,
   RMW_UMAX = 9,
-  RMW_UMIN = 10
+  RMW_UMIN = 10,
+  RMW_FADD = 11,
+  RMW_FSUB = 12
 };
 
 /// OverflowingBinaryOperatorOptionalFlags - Flags for serializing
@@ -534,6 +557,8 @@ enum FunctionCodes {
   // 54 is unused.
   FUNC_CODE_OPERAND_BUNDLE = 55, // OPERAND_BUNDLE: [tag#, value...]
   FUNC_CODE_INST_UNOP = 56,      // UNOP:       [opcode, ty, opval]
+  FUNC_CODE_INST_CALLBR = 57,    // CALLBR:     [attr, cc, norm, transfs,
+                                 //              fnty, fnid, args...]
 };
 
 enum UseListCodes {
@@ -602,6 +627,11 @@ enum AttributeKindCodes {
   ATTR_KIND_OPT_FOR_FUZZING = 57,
   ATTR_KIND_SHADOWCALLSTACK = 58,
   ATTR_KIND_SPECULATIVE_LOAD_HARDENING = 59,
+  ATTR_KIND_IMMARG = 60,
+  ATTR_KIND_WILLRETURN = 61,
+  ATTR_KIND_NOFREE = 62,
+  ATTR_KIND_NOSYNC = 63,
+  ATTR_KIND_SANITIZE_MEMTAG = 64,
 };
 
 enum ComdatSelectionKindCodes {

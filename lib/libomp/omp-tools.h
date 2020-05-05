@@ -1,14 +1,13 @@
 // $FreeBSD$
 /*
- * include/50/omp-tools.h.var
+ * include/omp-tools.h.var
  */
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -373,7 +372,7 @@ typedef enum ompt_frame_flag_t {
   ompt_frame_cfa            = 0x10,
   ompt_frame_framepointer   = 0x20,
   ompt_frame_stackaddress   = 0x30
-} ompt_frame_flag_t; 
+} ompt_frame_flag_t;
 
 typedef enum ompt_state_t {
   ompt_state_work_serial                      = 0x000,
@@ -722,14 +721,14 @@ typedef void (*ompt_callback_dispatch_t) (
   ompt_data_t *parallel_data,
   ompt_data_t *task_data,
   ompt_dispatch_t kind,
-  ompt_data_t instance 
+  ompt_data_t instance
 );
 
 typedef struct ompt_record_dispatch_t {
   ompt_id_t parallel_id;
   ompt_id_t task_id;
   ompt_dispatch_t kind;
-  ompt_data_t instance; 
+  ompt_data_t instance;
 } ompt_record_dispatch_t;
 
 typedef void (*ompt_callback_task_create_t) (

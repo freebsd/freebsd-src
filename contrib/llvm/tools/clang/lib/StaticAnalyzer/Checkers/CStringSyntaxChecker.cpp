@@ -1,9 +1,8 @@
 //== CStringSyntaxChecker.cpp - CoreFoundation containers API *- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -154,8 +153,6 @@ bool WalkAST::containsBadStrncatPattern(const CallExpr *CE) {
 bool WalkAST::containsBadStrlcpyStrlcatPattern(const CallExpr *CE) {
   if (CE->getNumArgs() != 3)
     return false;
-  const FunctionDecl *FD = CE->getDirectCallee();
-  bool Append = CheckerContext::isCLibraryFunction(FD, "strlcat");
   const Expr *DstArg = CE->getArg(0);
   const Expr *LenArg = CE->getArg(2);
 
@@ -195,13 +192,8 @@ bool WalkAST::containsBadStrlcpyStrlcatPattern(const CallExpr *CE) {
         ASTContext &C = BR.getContext();
         uint64_t BufferLen = C.getTypeSize(Buffer) / 8;
         auto RemainingBufferLen = BufferLen - DstOff;
-        if (Append) {
-          if (RemainingBufferLen <= ILRawVal)
-            return true;
-        } else {
-          if (RemainingBufferLen < ILRawVal)
-            return true;
-        }
+        if (RemainingBufferLen < ILRawVal)
+          return true;
       }
     }
   }
@@ -290,3 +282,6 @@ void ento::registerCStringSyntaxChecker(CheckerManager &mgr) {
   mgr.registerChecker<CStringSyntaxChecker>();
 }
 
+bool ento::shouldRegisterCStringSyntaxChecker(const LangOptions &LO) {
+  return true;
+}

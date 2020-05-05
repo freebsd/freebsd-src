@@ -1,9 +1,8 @@
 //===-- ClangUtilityFunction.h ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,8 +22,7 @@
 
 namespace lldb_private {
 
-//----------------------------------------------------------------------
-/// @class ClangUtilityFunction ClangUtilityFunction.h
+/// \class ClangUtilityFunction ClangUtilityFunction.h
 /// "lldb/Expression/ClangUtilityFunction.h" Encapsulates a single expression
 /// for use with Clang
 ///
@@ -34,19 +32,21 @@ namespace lldb_private {
 /// functions can perform error-checking for ClangUserExpressions, or can
 /// simply provide a way to push a function into the target for the debugger
 /// to call later on.
-//----------------------------------------------------------------------
 class ClangUtilityFunction : public UtilityFunction {
 public:
+  /// LLVM-style RTTI support.
+  static bool classof(const Expression *E) {
+    return E->getKind() == eKindClangUtilityFunction;
+  }
+
   class ClangUtilityFunctionHelper : public ClangExpressionHelper {
   public:
     ClangUtilityFunctionHelper() {}
 
     ~ClangUtilityFunctionHelper() override {}
 
-    //------------------------------------------------------------------
     /// Return the object that the parser should use when resolving external
     /// values.  May be NULL if everything should be self-contained.
-    //------------------------------------------------------------------
     ClangExpressionDeclMap *DeclMap() override {
       return m_expr_decl_map_up.get();
     }
@@ -55,14 +55,12 @@ public:
 
     void ResetDeclMap(ExecutionContext &exe_ctx, bool keep_result_in_memory);
 
-    //------------------------------------------------------------------
     /// Return the object that the parser should allow to access ASTs. May be
     /// NULL if the ASTs do not need to be transformed.
     ///
-    /// @param[in] passthrough
+    /// \param[in] passthrough
     ///     The ASTConsumer that the returned transformer should send
     ///     the ASTs to after transformation.
-    //------------------------------------------------------------------
     clang::ASTConsumer *
     ASTTransformer(clang::ASTConsumer *passthrough) override {
       return nullptr;
@@ -71,15 +69,13 @@ public:
   private:
     std::unique_ptr<ClangExpressionDeclMap> m_expr_decl_map_up;
   };
-  //------------------------------------------------------------------
   /// Constructor
   ///
-  /// @param[in] text
+  /// \param[in] text
   ///     The text of the function.  Must be a full translation unit.
   ///
-  /// @param[in] name
+  /// \param[in] name
   ///     The name of the function, as used in the text.
-  //------------------------------------------------------------------
   ClangUtilityFunction(ExecutionContextScope &exe_scope, const char *text,
                        const char *name);
 

@@ -1,9 +1,8 @@
 //===-- NSDictionary.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,7 +19,6 @@
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/Language.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/DataBufferHeap.h"
@@ -112,7 +110,7 @@ public:
 
   bool MightHaveChildren() override;
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override;
+  size_t GetIndexOfChildWithName(ConstString name) override;
 
 private:
   struct DataDescriptor_32 {
@@ -155,7 +153,7 @@ public:
 
   bool MightHaveChildren() override;
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override;
+  size_t GetIndexOfChildWithName(ConstString name) override;
 
 private:
   ValueObjectSP m_pair;
@@ -176,7 +174,7 @@ public:
 
   bool MightHaveChildren() override;
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override;
+  size_t GetIndexOfChildWithName(ConstString name) override;
 
 private:
   struct DictionaryItemDescriptor {
@@ -209,7 +207,7 @@ namespace Foundation1100 {
     
     bool MightHaveChildren() override;
     
-    size_t GetIndexOfChildWithName(const ConstString &name) override;
+    size_t GetIndexOfChildWithName(ConstString name) override;
     
   private:
     struct DataDescriptor_32 {
@@ -282,18 +280,11 @@ namespace Foundation1437 {
   
   struct DataDescriptor_32 {
     uint32_t _buffer;
-    union {
-      struct {
-        uint32_t _mutations;
-      };
-      struct {
-        uint32_t _muts;
-        uint32_t _used:25;
-        uint32_t _kvo:1;
-        uint32_t _szidx:6;
-      };
-    };
-    
+    uint32_t _muts;
+    uint32_t _used : 25;
+    uint32_t _kvo : 1;
+    uint32_t _szidx : 6;
+
     uint64_t GetSize() {
       return (_szidx) >= NSDictionaryNumSizeBuckets ?
           0 : NSDictionaryCapacities[_szidx];
@@ -302,18 +293,11 @@ namespace Foundation1437 {
   
   struct DataDescriptor_64 {
     uint64_t _buffer;
-    union {
-      struct {
-        uint64_t _mutations;
-      };
-      struct {
-        uint32_t _muts;
-        uint32_t _used:25;
-        uint32_t _kvo:1;
-        uint32_t _szidx:6;
-      };
-    };
-    
+    uint32_t _muts;
+    uint32_t _used : 25;
+    uint32_t _kvo : 1;
+    uint32_t _szidx : 6;
+
     uint64_t GetSize() {
       return (_szidx) >= NSDictionaryNumSizeBuckets ?
           0 : NSDictionaryCapacities[_szidx];
@@ -362,9 +346,7 @@ bool lldb_private::formatters::NSDictionarySummaryProvider(
   if (!process_sp)
     return false;
 
-  ObjCLanguageRuntime *runtime =
-      (ObjCLanguageRuntime *)process_sp->GetLanguageRuntime(
-          lldb::eLanguageTypeObjC);
+  ObjCLanguageRuntime *runtime = ObjCLanguageRuntime::Get(*process_sp);
 
   if (!runtime)
     return false;
@@ -454,8 +436,8 @@ lldb_private::formatters::NSDictionarySyntheticFrontEndCreator(
   lldb::ProcessSP process_sp(valobj_sp->GetProcessSP());
   if (!process_sp)
     return nullptr;
-  AppleObjCRuntime *runtime =
-      llvm::dyn_cast_or_null<AppleObjCRuntime>(process_sp->GetObjCLanguageRuntime());
+  AppleObjCRuntime *runtime = llvm::dyn_cast_or_null<AppleObjCRuntime>(
+      ObjCLanguageRuntime::Get(*process_sp));
   if (!runtime)
     return nullptr;
 
@@ -527,7 +509,7 @@ lldb_private::formatters::NSDictionaryISyntheticFrontEnd::
 }
 
 size_t lldb_private::formatters::NSDictionaryISyntheticFrontEnd::
-    GetIndexOfChildWithName(const ConstString &name) {
+    GetIndexOfChildWithName(ConstString name) {
   const char *item_name = name.GetCString();
   uint32_t idx = ExtractIndexFromString(item_name);
   if (idx < UINT32_MAX && idx >= CalculateNumChildren())
@@ -663,7 +645,7 @@ lldb_private::formatters::NSDictionary1SyntheticFrontEnd::
     : SyntheticChildrenFrontEnd(*valobj_sp.get()), m_pair(nullptr) {}
 
 size_t lldb_private::formatters::NSDictionary1SyntheticFrontEnd::
-    GetIndexOfChildWithName(const ConstString &name) {
+    GetIndexOfChildWithName(ConstString name) {
   static const ConstString g_zero("[0]");
   return name == g_zero ? 0 : UINT32_MAX;
 }
@@ -751,7 +733,7 @@ lldb_private::formatters::GenericNSDictionaryMSyntheticFrontEnd<D32,D64>::
 
 template <typename D32, typename D64>
 size_t
-lldb_private::formatters::GenericNSDictionaryMSyntheticFrontEnd<D32,D64>::    GetIndexOfChildWithName(const ConstString &name) {
+lldb_private::formatters::GenericNSDictionaryMSyntheticFrontEnd<D32,D64>::    GetIndexOfChildWithName(ConstString name) {
   const char *item_name = name.GetCString();
   uint32_t idx = ExtractIndexFromString(item_name);
   if (idx < UINT32_MAX && idx >= CalculateNumChildren())
@@ -920,7 +902,7 @@ lldb_private::formatters::Foundation1100::
 
 size_t
 lldb_private::formatters::Foundation1100::
-  NSDictionaryMSyntheticFrontEnd::GetIndexOfChildWithName(const ConstString &name) {
+  NSDictionaryMSyntheticFrontEnd::GetIndexOfChildWithName(ConstString name) {
   const char *item_name = name.GetCString();
   uint32_t idx = ExtractIndexFromString(item_name);
   if (idx < UINT32_MAX && idx >= CalculateNumChildren())

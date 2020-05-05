@@ -1,9 +1,8 @@
 //===-- MICmdArgValOptionShort.cpp ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,6 @@
 #include "MICmdArgContext.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValOptionShort constructor.
 // Type:    Method.
 // Args:    None.
@@ -22,7 +20,6 @@
 CMICmdArgValOptionShort::CMICmdArgValOptionShort() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValOptionShort constructor.
 // Type:    Method.
 // Args:    vrArgName       - (R) Argument's name to search by.
@@ -39,7 +36,6 @@ CMICmdArgValOptionShort::CMICmdArgValOptionShort(const CMIUtilString &vrArgName,
     : CMICmdArgValOptionLong(vrArgName, vbMandatory, vbHandleByCmd) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValOptionLong constructor.
 // Type:    Method.
 // Args:    vrArgName           - (R) Argument's name to search by.
@@ -62,7 +58,6 @@ CMICmdArgValOptionShort::CMICmdArgValOptionShort(
                              vnExpectingNOptions) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValOptionShort destructor.
 // Type:    Overridden.
 // Args:    None.
@@ -72,7 +67,6 @@ CMICmdArgValOptionShort::CMICmdArgValOptionShort(
 CMICmdArgValOptionShort::~CMICmdArgValOptionShort() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Examine the string and determine if it is a valid short type option
 // argument.
 // Type:    Method.
@@ -99,7 +93,6 @@ bool CMICmdArgValOptionShort::IsArgShortOption(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Examine the string and determine if it is a valid short type option
 // argument.
 //          Long type argument looks like -f some short option.
@@ -114,7 +107,6 @@ bool CMICmdArgValOptionShort::IsArgOptionCorrect(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Does the argument name of the argument being parsed ATM match the
 // name of
 //          *this argument object.

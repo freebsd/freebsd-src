@@ -1,9 +1,8 @@
 //===-- NSArray.cpp ---------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,13 +11,13 @@
 #include "Cocoa.h"
 
 #include "Plugins/LanguageRuntime/ObjC/AppleObjCRuntime/AppleObjCRuntime.h"
+
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/Expression/FunctionCaller.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/Language.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/Endian.h"
@@ -58,7 +57,7 @@ public:
 
   bool MightHaveChildren() override;
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override;
+  size_t GetIndexOfChildWithName(ConstString name) override;
 
 protected:
   virtual lldb::addr_t GetDataAddress() = 0;
@@ -172,13 +171,8 @@ namespace Foundation1437 {
     PtrType _data;
     uint32_t _offset;
     uint32_t _size;
-    union {
-      PtrType _mutations;
-      struct {
-        uint32_t _muts;
-        uint32_t _used;
-      };
-    };
+    uint32_t _muts;
+    uint32_t _used;
   };
     
   using NSArrayMSyntheticFrontEnd =
@@ -248,7 +242,7 @@ public:
 
   bool MightHaveChildren() override;
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override;
+  size_t GetIndexOfChildWithName(ConstString name) override;
 
 private:
   ExecutionContextRef m_exe_ctx_ref;
@@ -320,7 +314,7 @@ public:
 
   bool MightHaveChildren() override;
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override;
+  size_t GetIndexOfChildWithName(ConstString name) override;
 };
 
 class NSArray1SyntheticFrontEnd : public SyntheticChildrenFrontEnd {
@@ -337,7 +331,7 @@ public:
 
   bool MightHaveChildren() override;
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override;
+  size_t GetIndexOfChildWithName(ConstString name) override;
 };
 } // namespace formatters
 } // namespace lldb_private
@@ -350,9 +344,7 @@ bool lldb_private::formatters::NSArraySummaryProvider(
   if (!process_sp)
     return false;
 
-  ObjCLanguageRuntime *runtime =
-      (ObjCLanguageRuntime *)process_sp->GetLanguageRuntime(
-          lldb::eLanguageTypeObjC);
+  ObjCLanguageRuntime *runtime = ObjCLanguageRuntime::Get(*process_sp);
 
   if (!runtime)
     return false;
@@ -550,7 +542,7 @@ lldb_private::formatters::NSArrayMSyntheticFrontEndBase::MightHaveChildren() {
 
 size_t
 lldb_private::formatters::NSArrayMSyntheticFrontEndBase::GetIndexOfChildWithName(
-    const ConstString &name) {
+    ConstString name) {
   const char *item_name = name.GetCString();
   uint32_t idx = ExtractIndexFromString(item_name);
   if (idx < UINT32_MAX && idx >= CalculateNumChildren())
@@ -639,7 +631,7 @@ lldb_private::formatters::GenericNSArrayISyntheticFrontEnd<D32, D64, Inline>::
 template <typename D32, typename D64, bool Inline>
 size_t
 lldb_private::formatters::GenericNSArrayISyntheticFrontEnd<D32, D64, Inline>::
-  GetIndexOfChildWithName(const ConstString &name) {
+  GetIndexOfChildWithName(ConstString name) {
   const char *item_name = name.GetCString();
   uint32_t idx = ExtractIndexFromString(item_name);
   if (idx < UINT32_MAX && idx >= CalculateNumChildren())
@@ -729,7 +721,7 @@ lldb_private::formatters::NSArray0SyntheticFrontEnd::NSArray0SyntheticFrontEnd(
 
 size_t
 lldb_private::formatters::NSArray0SyntheticFrontEnd::GetIndexOfChildWithName(
-    const ConstString &name) {
+    ConstString name) {
   return UINT32_MAX;
 }
 
@@ -758,7 +750,7 @@ lldb_private::formatters::NSArray1SyntheticFrontEnd::NSArray1SyntheticFrontEnd(
 
 size_t
 lldb_private::formatters::NSArray1SyntheticFrontEnd::GetIndexOfChildWithName(
-    const ConstString &name) {
+    ConstString name) {
   static const ConstString g_zero("[0]");
 
   if (name == g_zero)
@@ -805,7 +797,7 @@ lldb_private::formatters::NSArraySyntheticFrontEndCreator(
   if (!process_sp)
     return nullptr;
   AppleObjCRuntime *runtime = llvm::dyn_cast_or_null<AppleObjCRuntime>(
-      process_sp->GetObjCLanguageRuntime());
+      ObjCLanguageRuntime::Get(*process_sp));
   if (!runtime)
     return nullptr;
 

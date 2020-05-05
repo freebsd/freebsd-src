@@ -1,9 +1,8 @@
 //===- ThreadSafetyCommon.cpp ---------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -277,18 +276,23 @@ til::SExpr *SExprBuilder::translateDeclRefExpr(const DeclRefExpr *DRE,
 
   // Function parameters require substitution and/or renaming.
   if (const auto *PV = dyn_cast_or_null<ParmVarDecl>(VD)) {
-    const auto *FD =
-        cast<FunctionDecl>(PV->getDeclContext())->getCanonicalDecl();
     unsigned I = PV->getFunctionScopeIndex();
-
-    if (Ctx && Ctx->FunArgs && FD == Ctx->AttrDecl->getCanonicalDecl()) {
-      // Substitute call arguments for references to function parameters
-      assert(I < Ctx->NumArgs);
-      return translate(Ctx->FunArgs[I], Ctx->Prev);
+    const DeclContext *D = PV->getDeclContext();
+    if (Ctx && Ctx->FunArgs) {
+      const Decl *Canonical = Ctx->AttrDecl->getCanonicalDecl();
+      if (isa<FunctionDecl>(D)
+              ? (cast<FunctionDecl>(D)->getCanonicalDecl() == Canonical)
+              : (cast<ObjCMethodDecl>(D)->getCanonicalDecl() == Canonical)) {
+        // Substitute call arguments for references to function parameters
+        assert(I < Ctx->NumArgs);
+        return translate(Ctx->FunArgs[I], Ctx->Prev);
+      }
     }
     // Map the param back to the param of the original function declaration
     // for consistent comparisons.
-    VD = FD->getParamDecl(I);
+    VD = isa<FunctionDecl>(D)
+             ? cast<FunctionDecl>(D)->getCanonicalDecl()->getParamDecl(I)
+             : cast<ObjCMethodDecl>(D)->getCanonicalDecl()->getParamDecl(I);
   }
 
   // For non-local variables, treat it as a reference to a named object.

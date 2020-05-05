@@ -1,9 +1,8 @@
 //===- llvm/Analysis/MemoryDependenceAnalysis.h - Memory Deps ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -382,7 +381,8 @@ public:
   ///
   /// See the class comment for more details. It is illegal to call this on
   /// non-memory instructions.
-  MemDepResult getDependency(Instruction *QueryInst);
+  MemDepResult getDependency(Instruction *QueryInst,
+                             OrderedBasicBlock *OBB = nullptr);
 
   /// Perform a full dependency query for the specified call, returning the set
   /// of blocks that the value is potentially live across.
@@ -448,14 +448,14 @@ public:
                                         BasicBlock::iterator ScanIt,
                                         BasicBlock *BB,
                                         Instruction *QueryInst = nullptr,
-                                        unsigned *Limit = nullptr);
+                                        unsigned *Limit = nullptr,
+                                        OrderedBasicBlock *OBB = nullptr);
 
-  MemDepResult getSimplePointerDependencyFrom(const MemoryLocation &MemLoc,
-                                              bool isLoad,
-                                              BasicBlock::iterator ScanIt,
-                                              BasicBlock *BB,
-                                              Instruction *QueryInst,
-                                              unsigned *Limit = nullptr);
+  MemDepResult
+  getSimplePointerDependencyFrom(const MemoryLocation &MemLoc, bool isLoad,
+                                 BasicBlock::iterator ScanIt, BasicBlock *BB,
+                                 Instruction *QueryInst, unsigned *Limit,
+                                 OrderedBasicBlock *OBB);
 
   /// This analysis looks for other loads and stores with invariant.group
   /// metadata and the same pointer operand. Returns Unknown if it does not

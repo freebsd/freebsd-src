@@ -1,9 +1,8 @@
 //=- WebAssemblyInstrFormats.td - WebAssembly Instr. Formats -*- tablegen -*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -23,6 +22,9 @@ class WebAssemblyInst<bits<32> inst, string asmstr, string stack> : StackRel,
   let Namespace   = "WebAssembly";
   let Pattern     = [];
   let AsmString   = asmstr;
+  // When there are multiple instructions that map to the same encoding (in
+  // e.g. the disassembler use case) prefer the one where IsCanonical == 1.
+  bit IsCanonical = 0;
 }
 
 // Normal instructions. Default instantiation of a WebAssemblyInst.

@@ -1,9 +1,8 @@
 //===- MachinePipeliner.h - Machine Software Pipeliner Pass -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -63,6 +62,8 @@ public:
   const InstrItineraryData *InstrItins;
   const TargetInstrInfo *TII = nullptr;
   RegisterClassInfo RegClassInfo;
+  bool disabledByPragma = false;
+  unsigned II_setByPragma = 0;
 
 #ifndef NDEBUG
   static int NumTries;
@@ -100,6 +101,7 @@ private:
   bool canPipelineLoop(MachineLoop &L);
   bool scheduleLoop(MachineLoop &L);
   bool swingModuloScheduler(MachineLoop &L);
+  void setPragmaPipelineOptions(MachineLoop &L);
 };
 
 /// This class builds the dependence graph for the instructions in a loop,
@@ -108,11 +110,14 @@ class SwingSchedulerDAG : public ScheduleDAGInstrs {
   MachinePipeliner &Pass;
   /// The minimum initiation interval between iterations for this schedule.
   unsigned MII = 0;
+  /// The maximum initiation interval between iterations for this schedule.
+  unsigned MAX_II = 0;
   /// Set to true if a valid pipelined schedule is found for the loop.
   bool Scheduled = false;
   MachineLoop &Loop;
   LiveIntervals &LIS;
   const RegisterClassInfo &RegClassInfo;
+  unsigned II_setByPragma = 0;
 
   /// A toplogical ordering of the SUnits, which is needed for changing
   /// dependences and iterating over the SUnits.
@@ -190,9 +195,9 @@ class SwingSchedulerDAG : public ScheduleDAGInstrs {
 
 public:
   SwingSchedulerDAG(MachinePipeliner &P, MachineLoop &L, LiveIntervals &lis,
-                    const RegisterClassInfo &rci)
+                    const RegisterClassInfo &rci, unsigned II)
       : ScheduleDAGInstrs(*P.MF, P.MLI, false), Pass(P), Loop(L), LIS(lis),
-        RegClassInfo(rci), Topo(SUnits, &ExitSU) {
+        RegClassInfo(rci), II_setByPragma(II), Topo(SUnits, &ExitSU) {
     P.MF->getSubtarget().getSMSMutations(Mutations);
     if (SwpEnableCopyToPhi)
       Mutations.push_back(llvm::make_unique<CopyToPhiMutation>());
@@ -252,9 +257,6 @@ public:
       return 1;
     return 0;
   }
-
-  /// Set the Minimum Initiation Interval for this schedule attempt.
-  void setMII(unsigned mii) { MII = mii; }
 
   void applyInstrChange(MachineInstr *MI, SMSchedule &Schedule);
 
@@ -316,9 +318,9 @@ private:
                               MBBVectorTy &EpilogBBs);
   void splitLifetimes(MachineBasicBlock *KernelBB, MBBVectorTy &EpilogBBs,
                       SMSchedule &Schedule);
-  void addBranches(MBBVectorTy &PrologBBs, MachineBasicBlock *KernelBB,
-                   MBBVectorTy &EpilogBBs, SMSchedule &Schedule,
-                   ValueMapTy *VRMap);
+  void addBranches(MachineBasicBlock &PreheaderBB, MBBVectorTy &PrologBBs,
+                   MachineBasicBlock *KernelBB, MBBVectorTy &EpilogBBs,
+                   SMSchedule &Schedule, ValueMapTy *VRMap);
   bool computeDelta(MachineInstr &MI, unsigned &Delta);
   void updateMemOperands(MachineInstr &NewMI, MachineInstr &OldMI,
                          unsigned Num);
@@ -346,6 +348,10 @@ private:
                              unsigned &OffsetPos, unsigned &NewBase,
                              int64_t &NewOffset);
   void postprocessDAG();
+  /// Set the Minimum Initiation Interval for this schedule attempt.
+  void setMII(unsigned ResMII, unsigned RecMII);
+  /// Set the Maximum Initiation Interval for this schedule attempt.
+  void setMAX_II();
 };
 
 /// A NodeSet contains a set of SUnit DAG nodes with additional information
@@ -457,6 +463,56 @@ public:
 #endif
 };
 
+// 16 was selected based on the number of ProcResource kinds for all
+// existing Subtargets, so that SmallVector don't need to resize too often.
+static const int DefaultProcResSize = 16;
+
+class ResourceManager {
+private:
+  const MCSubtargetInfo *STI;
+  const MCSchedModel &SM;
+  const bool UseDFA;
+  std::unique_ptr<DFAPacketizer> DFAResources;
+  /// Each processor resource is associated with a so-called processor resource
+  /// mask. This vector allows to correlate processor resource IDs with
+  /// processor resource masks. There is exactly one element per each processor
+  /// resource declared by the scheduling model.
+  llvm::SmallVector<uint64_t, DefaultProcResSize> ProcResourceMasks;
+
+  llvm::SmallVector<uint64_t, DefaultProcResSize> ProcResourceCount;
+
+public:
+  ResourceManager(const TargetSubtargetInfo *ST)
+      : STI(ST), SM(ST->getSchedModel()), UseDFA(ST->useDFAforSMS()),
+        ProcResourceMasks(SM.getNumProcResourceKinds(), 0),
+        ProcResourceCount(SM.getNumProcResourceKinds(), 0) {
+    if (UseDFA)
+      DFAResources.reset(ST->getInstrInfo()->CreateTargetScheduleState(*ST));
+    initProcResourceVectors(SM, ProcResourceMasks);
+  }
+
+  void initProcResourceVectors(const MCSchedModel &SM,
+                               SmallVectorImpl<uint64_t> &Masks);
+  /// Check if the resources occupied by a MCInstrDesc are available in
+  /// the current state.
+  bool canReserveResources(const MCInstrDesc *MID) const;
+
+  /// Reserve the resources occupied by a MCInstrDesc and change the current
+  /// state to reflect that change.
+  void reserveResources(const MCInstrDesc *MID);
+
+  /// Check if the resources occupied by a machine instruction are available
+  /// in the current state.
+  bool canReserveResources(const MachineInstr &MI) const;
+
+  /// Reserve the resources occupied by a machine instruction and change the
+  /// current state to reflect that change.
+  void reserveResources(const MachineInstr &MI);
+
+  /// Reset the state
+  void clearResources();
+};
+
 /// This class represents the scheduled code.  The main data structure is a
 /// map from scheduled cycle to instructions.  During scheduling, the
 /// data structure explicitly represents all stages/iterations.   When
@@ -495,12 +551,11 @@ private:
   /// Virtual register information.
   MachineRegisterInfo &MRI;
 
-  std::unique_ptr<DFAPacketizer> Resources;
+  ResourceManager ProcItinResources;
 
 public:
   SMSchedule(MachineFunction *mf)
-      : ST(mf->getSubtarget()), MRI(mf->getRegInfo()),
-        Resources(ST.getInstrInfo()->CreateTargetScheduleState(ST)) {}
+      : ST(mf->getSubtarget()), MRI(mf->getRegInfo()), ProcItinResources(&ST) {}
 
   void reset() {
     ScheduledInstrs.clear();

@@ -1,9 +1,8 @@
 //===-- CommandObjectExpression.cpp -----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,7 +10,6 @@
 #include "llvm/ADT/StringRef.h"
 
 #include "CommandObjectExpression.h"
-#include "Plugins/ExpressionParser/Clang/ClangExpressionVariable.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObjectVariable.h"
@@ -235,7 +233,7 @@ Single and multi-line expressions:
 with no newlines.  To evaluate a multi-line expression, \
 hit a return after an empty expression, and lldb will enter the multi-line expression editor. \
 Hit return on an empty line to end the multi-line expression."
-      
+
       R"(
 
 Timeouts:
@@ -364,7 +362,7 @@ int CommandObjectExpression::HandleCompletion(CompletionRequest &request) {
   Status error;
   lldb::UserExpressionSP expr(target->GetUserExpressionForLanguage(
       code, llvm::StringRef(), language, UserExpression::eResultTypeAny,
-      options, error));
+      options, nullptr, error));
   if (error.Fail())
     return 0;
 
@@ -483,8 +481,7 @@ bool CommandObjectExpression::EvaluateExpression(llvm::StringRef expr,
       } else {
         if (result_valobj_sp->GetError().GetError() ==
             UserExpression::kNoResult) {
-          if (format != eFormatVoid &&
-              m_interpreter.GetDebugger().GetNotifyVoid()) {
+          if (format != eFormatVoid && GetDebugger().GetNotifyVoid()) {
             error_stream->PutCString("(void)\n");
           }
 
@@ -561,7 +558,7 @@ void CommandObjectExpression::GetMultilineExpression() {
                             llvm::StringRef(), // Continuation prompt
                             multiple_lines, color_prompt,
                             1, // Show line numbers starting at 1
-                            *this));
+                            *this, nullptr));
 
   StreamFileSP output_sp(io_handler_sp->GetOutputStreamFile());
   if (output_sp) {
@@ -570,6 +567,29 @@ void CommandObjectExpression::GetMultilineExpression() {
     output_sp->Flush();
   }
   debugger.PushIOHandler(io_handler_sp);
+}
+
+static EvaluateExpressionOptions
+GetExprOptions(ExecutionContext &ctx,
+               CommandObjectExpression::CommandOptions command_options) {
+  command_options.OptionParsingStarting(&ctx);
+
+  // Default certain settings for REPL regardless of the global settings.
+  command_options.unwind_on_error = false;
+  command_options.ignore_breakpoints = false;
+  command_options.debug = false;
+
+  EvaluateExpressionOptions expr_options;
+  expr_options.SetUnwindOnError(command_options.unwind_on_error);
+  expr_options.SetIgnoreBreakpoints(command_options.ignore_breakpoints);
+  expr_options.SetTryAllThreads(command_options.try_all_threads);
+
+  if (command_options.timeout > 0)
+    expr_options.SetTimeout(std::chrono::microseconds(command_options.timeout));
+  else
+    expr_options.SetTimeout(llvm::None);
+
+  return expr_options;
 }
 
 bool CommandObjectExpression::DoExecute(llvm::StringRef command,
@@ -627,7 +647,8 @@ bool CommandObjectExpression::DoExecute(llvm::StringRef command,
 
           if (repl_sp) {
             if (initialize) {
-              repl_sp->SetCommandOptions(m_command_options);
+              repl_sp->SetEvaluateOptions(
+                  GetExprOptions(exe_ctx, m_command_options));
               repl_sp->SetFormatOptions(m_format_options);
               repl_sp->SetValueObjectDisplayOptions(m_varobj_options);
             }

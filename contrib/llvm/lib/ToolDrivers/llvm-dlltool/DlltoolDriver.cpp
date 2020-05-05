@@ -1,9 +1,8 @@
 //===- DlltoolDriver.cpp - dlltool.exe-compatible driver ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -109,7 +108,8 @@ int llvm::dlltoolDriverMain(llvm::ArrayRef<const char *> ArgsArr) {
   }
 
   for (auto *Arg : Args.filtered(OPT_UNKNOWN))
-    llvm::errs() << "ignoring unknown argument: " << Arg->getSpelling() << "\n";
+    llvm::errs() << "ignoring unknown argument: " << Arg->getAsString(Args)
+                 << "\n";
 
   if (!Args.hasArg(OPT_d)) {
     llvm::errs() << "no definition file specified\n";

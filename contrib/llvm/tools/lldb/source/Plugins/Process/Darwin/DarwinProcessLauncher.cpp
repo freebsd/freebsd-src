@@ -1,9 +1,8 @@
 //===-- DarwinProcessLauncher.cpp -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -149,17 +148,13 @@ static Status ForkChildForPTraceDebugging(const char *path, char const *argv[],
   memset(fork_error, 0, sizeof(fork_error));
   *pid = static_cast<::pid_t>(pty.Fork(fork_error, sizeof(fork_error)));
   if (*pid < 0) {
-    //--------------------------------------------------------------
     // Status during fork.
-    //--------------------------------------------------------------
     *pid = static_cast<::pid_t>(LLDB_INVALID_PROCESS_ID);
     error.SetErrorStringWithFormat("%s(): fork failed: %s", __FUNCTION__,
                                    fork_error);
     return error;
   } else if (pid == 0) {
-    //--------------------------------------------------------------
     // Child process
-    //--------------------------------------------------------------
 
     // Debug this process.
     ::ptrace(PT_TRACE_ME, 0, 0, 0);
@@ -187,9 +182,7 @@ static Status ForkChildForPTraceDebugging(const char *path, char const *argv[],
     // call and if the exec fails it will exit the child process below.
     ::exit(127);
   } else {
-    //--------------------------------------------------------------
     // Parent process
-    //--------------------------------------------------------------
     // Let the child have its own process group. We need to execute this call
     // in both the child and parent to avoid a race condition between the two
     // processes.

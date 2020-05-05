@@ -1,9 +1,8 @@
 //===-- ProcessElfCore.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // Notes about Linux Process core dumps:
 //  1) Linux core dump is stored as ELF file.
@@ -31,9 +30,7 @@ struct ThreadData;
 
 class ProcessElfCore : public lldb_private::Process {
 public:
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   static lldb::ProcessSP
   CreateInstance(lldb::TargetSP target_sp, lldb::ListenerSP listener_sp,
                  const lldb_private::FileSpec *crash_file_path);
@@ -46,37 +43,27 @@ public:
 
   static const char *GetPluginDescriptionStatic();
 
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   ProcessElfCore(lldb::TargetSP target_sp, lldb::ListenerSP listener_sp,
                  const lldb_private::FileSpec &core_file);
 
   ~ProcessElfCore() override;
 
-  //------------------------------------------------------------------
   // Check if a given Process
-  //------------------------------------------------------------------
   bool CanDebug(lldb::TargetSP target_sp,
                 bool plugin_specified_by_name) override;
 
-  //------------------------------------------------------------------
   // Creating a new process, or attaching to an existing one
-  //------------------------------------------------------------------
   lldb_private::Status DoLoadCore() override;
 
   lldb_private::DynamicLoader *GetDynamicLoader() override;
 
-  //------------------------------------------------------------------
   // PluginInterface protocol
-  //------------------------------------------------------------------
   lldb_private::ConstString GetPluginName() override;
 
   uint32_t GetPluginVersion() override;
 
-  //------------------------------------------------------------------
   // Process Control
-  //------------------------------------------------------------------
   lldb_private::Status DoDestroy() override;
 
   void RefreshStateAfterStop() override;
@@ -89,16 +76,12 @@ public:
     return error;
   }
 
-  //------------------------------------------------------------------
   // Process Queries
-  //------------------------------------------------------------------
   bool IsAlive() override;
 
   bool WarnBeforeDetach() const override { return false; }
 
-  //------------------------------------------------------------------
   // Process Memory
-  //------------------------------------------------------------------
   size_t ReadMemory(lldb::addr_t addr, void *buf, size_t size,
                     lldb_private::Status &error) override;
 
@@ -114,7 +97,7 @@ public:
   lldb_private::ArchSpec GetArchitecture();
 
   // Returns AUXV structure found in the core file
-  const lldb::DataBufferSP GetAuxvData() override;
+  lldb_private::DataExtractor GetAuxvData() override;
 
   bool GetProcessInfo(lldb_private::ProcessInstanceInfo &info) override;
 
@@ -132,9 +115,7 @@ private:
     lldb_private::ConstString path;
   };
 
-  //------------------------------------------------------------------
   // For ProcessElfCore only
-  //------------------------------------------------------------------
   typedef lldb_private::Range<lldb::addr_t, lldb::addr_t> FileRange;
   typedef lldb_private::RangeDataVector<lldb::addr_t, lldb::addr_t, FileRange>
       VMRangeToFileOffset;

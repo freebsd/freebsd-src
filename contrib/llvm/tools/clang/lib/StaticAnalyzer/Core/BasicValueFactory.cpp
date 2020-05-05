@@ -1,9 +1,8 @@
 //===- BasicValueFactory.cpp - Basic values for Path Sens analysis --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -232,9 +231,6 @@ BasicValueFactory::evalAPSInt(BinaryOperator::Opcode Op,
       // FIXME: This logic should probably go higher up, where we can
       // test these conditions symbolically.
 
-      if (V1.isSigned() && V1.isNegative())
-        return nullptr;
-
       if (V2.isSigned() && V2.isNegative())
         return nullptr;
 
@@ -243,8 +239,13 @@ BasicValueFactory::evalAPSInt(BinaryOperator::Opcode Op,
       if (Amt >= V1.getBitWidth())
         return nullptr;
 
-      if (V1.isSigned() && Amt > V1.countLeadingZeros())
+      if (!Ctx.getLangOpts().CPlusPlus2a) {
+        if (V1.isSigned() && V1.isNegative())
           return nullptr;
+
+        if (V1.isSigned() && Amt > V1.countLeadingZeros())
+          return nullptr;
+      }
 
       return &getValue( V1.operator<<( (unsigned) Amt ));
     }

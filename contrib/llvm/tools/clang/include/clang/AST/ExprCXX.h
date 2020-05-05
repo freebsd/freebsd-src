@@ -1,9 +1,8 @@
 //===- ExprCXX.h - Classes for representing expressions ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -186,15 +185,20 @@ public:
   static CXXMemberCallExpr *CreateEmpty(const ASTContext &Ctx, unsigned NumArgs,
                                         EmptyShell Empty);
 
-  /// Retrieves the implicit object argument for the member call.
+  /// Retrieve the implicit object argument for the member call.
   ///
   /// For example, in "x.f(5)", this returns the sub-expression "x".
   Expr *getImplicitObjectArgument() const;
 
-  /// Retrieves the declaration of the called method.
+  /// Retrieve the type of the object argument.
+  ///
+  /// Note that this always returns a non-pointer type.
+  QualType getObjectType() const;
+
+  /// Retrieve the declaration of the called method.
   CXXMethodDecl *getMethodDecl() const;
 
-  /// Retrieves the CXXRecordDecl for the underlying type of
+  /// Retrieve the CXXRecordDecl for the underlying type of
   /// the implicit object argument.
   ///
   /// Note that this is may not be the same declaration as that of the class
@@ -217,6 +221,8 @@ public:
 
 /// Represents a call to a CUDA kernel function.
 class CUDAKernelCallExpr final : public CallExpr {
+  friend class ASTStmtReader;
+
   enum { CONFIG, END_PREARG };
 
   // CUDAKernelCallExpr has some trailing objects belonging
@@ -241,20 +247,6 @@ public:
     return cast_or_null<CallExpr>(getPreArg(CONFIG));
   }
   CallExpr *getConfig() { return cast_or_null<CallExpr>(getPreArg(CONFIG)); }
-
-  /// Sets the kernel configuration expression.
-  ///
-  /// Note that this method cannot be called if config has already been set to a
-  /// non-null value.
-  void setConfig(CallExpr *E) {
-    assert(!getConfig() &&
-           "Cannot call setConfig if config is not null");
-    setPreArg(CONFIG, E);
-    setInstantiationDependent(isInstantiationDependent() ||
-                              E->isInstantiationDependent());
-    setContainsUnexpandedParameterPack(containsUnexpandedParameterPack() ||
-                                       E->containsUnexpandedParameterPack());
-  }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CUDAKernelCallExprClass;
@@ -588,6 +580,10 @@ public:
   child_range children() {
     return child_range(child_iterator(), child_iterator());
   }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
 };
 
 /// The null pointer literal (C++11 [lex.nullptr])
@@ -616,6 +612,10 @@ public:
 
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 };
 
@@ -659,6 +659,10 @@ public:
   }
 
   child_range children() { return child_range(&SubExpr, &SubExpr + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&SubExpr, &SubExpr + 1);
+  }
 };
 
 /// A C++ \c typeid expression (C++ [expr.typeid]), which gets
@@ -749,6 +753,15 @@ public:
     auto **begin = reinterpret_cast<Stmt **>(&Operand);
     return child_range(begin, begin + 1);
   }
+
+  const_child_range children() const {
+    if (isTypeOperand())
+      return const_child_range(const_child_iterator(), const_child_iterator());
+
+    auto **begin =
+        reinterpret_cast<Stmt **>(&const_cast<CXXTypeidExpr *>(this)->Operand);
+    return const_child_range(begin, begin + 1);
+  }
 };
 
 /// A member reference to an MSPropertyDecl.
@@ -801,6 +814,11 @@ public:
 
   child_range children() {
     return child_range((Stmt**)&BaseExpr, (Stmt**)&BaseExpr + 1);
+  }
+
+  const_child_range children() const {
+    auto Children = const_cast<MSPropertyRefExpr *>(this)->children();
+    return const_child_range(Children.begin(), Children.end());
   }
 
   static bool classof(const Stmt *T) {
@@ -877,6 +895,10 @@ public:
   // Iterators
   child_range children() {
     return child_range(&SubExprs[0], &SubExprs[0] + NUM_SUBEXPRS);
+  }
+
+  const_child_range children() const {
+    return const_child_range(&SubExprs[0], &SubExprs[0] + NUM_SUBEXPRS);
   }
 };
 
@@ -959,6 +981,14 @@ public:
     auto **begin = reinterpret_cast<Stmt **>(&Operand);
     return child_range(begin, begin + 1);
   }
+
+  const_child_range children() const {
+    if (isTypeOperand())
+      return const_child_range(const_child_iterator(), const_child_iterator());
+    auto **begin =
+        reinterpret_cast<Stmt **>(&const_cast<CXXUuidofExpr *>(this)->Operand);
+    return const_child_range(begin, begin + 1);
+  }
 };
 
 /// Represents the \c this expression in C++.
@@ -1004,6 +1034,10 @@ public:
   // Iterators
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 };
 
@@ -1063,6 +1097,10 @@ public:
   child_range children() {
     return child_range(&Operand, Operand ? &Operand + 1 : &Operand);
   }
+
+  const_child_range children() const {
+    return const_child_range(&Operand, Operand ? &Operand + 1 : &Operand);
+  }
 };
 
 /// A default argument (C++ [dcl.fct.default]).
@@ -1076,7 +1114,11 @@ class CXXDefaultArgExpr final : public Expr {
   /// The parameter whose default is being used.
   ParmVarDecl *Param;
 
-  CXXDefaultArgExpr(StmtClass SC, SourceLocation Loc, ParmVarDecl *Param)
+  /// The context where the default argument expression was used.
+  DeclContext *UsedContext;
+
+  CXXDefaultArgExpr(StmtClass SC, SourceLocation Loc, ParmVarDecl *Param,
+      DeclContext *UsedContext)
       : Expr(SC,
              Param->hasUnparsedDefaultArg()
                  ? Param->getType().getNonReferenceType()
@@ -1084,7 +1126,7 @@ class CXXDefaultArgExpr final : public Expr {
              Param->getDefaultArg()->getValueKind(),
              Param->getDefaultArg()->getObjectKind(), false, false, false,
              false),
-        Param(Param) {
+        Param(Param), UsedContext(UsedContext) {
     CXXDefaultArgExprBits.Loc = Loc;
   }
 
@@ -1094,8 +1136,10 @@ public:
   // \p Param is the parameter whose default argument is used by this
   // expression.
   static CXXDefaultArgExpr *Create(const ASTContext &C, SourceLocation Loc,
-                                   ParmVarDecl *Param) {
-    return new (C) CXXDefaultArgExpr(CXXDefaultArgExprClass, Loc, Param);
+                                   ParmVarDecl *Param,
+                                   DeclContext *UsedContext) {
+    return new (C)
+        CXXDefaultArgExpr(CXXDefaultArgExprClass, Loc, Param, UsedContext);
   }
 
   // Retrieve the parameter that the argument was created from.
@@ -1105,6 +1149,9 @@ public:
   // Retrieve the actual argument to the function call.
   const Expr *getExpr() const { return getParam()->getDefaultArg(); }
   Expr *getExpr() { return getParam()->getDefaultArg(); }
+
+  const DeclContext *getUsedContext() const { return UsedContext; }
+  DeclContext *getUsedContext() { return UsedContext; }
 
   /// Retrieve the location where this default argument was actually used.
   SourceLocation getUsedLocation() const { return CXXDefaultArgExprBits.Loc; }
@@ -1124,6 +1171,10 @@ public:
   child_range children() {
     return child_range(child_iterator(), child_iterator());
   }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
 };
 
 /// A use of a default initializer in a constructor or in aggregate
@@ -1141,8 +1192,11 @@ class CXXDefaultInitExpr : public Expr {
   /// The field whose default is being used.
   FieldDecl *Field;
 
+  /// The context where the default initializer expression was used.
+  DeclContext *UsedContext;
+
   CXXDefaultInitExpr(const ASTContext &Ctx, SourceLocation Loc,
-                     FieldDecl *Field, QualType Ty);
+                     FieldDecl *Field, QualType Ty, DeclContext *UsedContext);
 
   CXXDefaultInitExpr(EmptyShell Empty) : Expr(CXXDefaultInitExprClass, Empty) {}
 
@@ -1150,8 +1204,8 @@ public:
   /// \p Field is the non-static data member whose default initializer is used
   /// by this expression.
   static CXXDefaultInitExpr *Create(const ASTContext &Ctx, SourceLocation Loc,
-                                    FieldDecl *Field) {
-    return new (Ctx) CXXDefaultInitExpr(Ctx, Loc, Field, Field->getType());
+                                    FieldDecl *Field, DeclContext *UsedContext) {
+    return new (Ctx) CXXDefaultInitExpr(Ctx, Loc, Field, Field->getType(), UsedContext);
   }
 
   /// Get the field whose initializer will be used.
@@ -1168,6 +1222,13 @@ public:
     return Field->getInClassInitializer();
   }
 
+  const DeclContext *getUsedContext() const { return UsedContext; }
+  DeclContext *getUsedContext() { return UsedContext; }
+
+  /// Retrieve the location where this default initializer expression was
+  /// actually used.
+  SourceLocation getUsedLocation() const { return getBeginLoc(); }
+
   SourceLocation getBeginLoc() const { return CXXDefaultInitExprBits.Loc; }
   SourceLocation getEndLoc() const { return CXXDefaultInitExprBits.Loc; }
 
@@ -1178,6 +1239,10 @@ public:
   // Iterators
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 };
 
@@ -1256,6 +1321,10 @@ public:
 
   // Iterators
   child_range children() { return child_range(&SubExpr, &SubExpr + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&SubExpr, &SubExpr + 1);
+  }
 };
 
 /// Represents a call to a C++ constructor.
@@ -1439,6 +1508,11 @@ public:
   child_range children() {
     return child_range(getTrailingArgs(), getTrailingArgs() + getNumArgs());
   }
+
+  const_child_range children() const {
+    auto Children = const_cast<CXXConstructExpr *>(this)->children();
+    return const_child_range(Children.begin(), Children.end());
+  }
 };
 
 /// Represents a call to an inherited base class constructor from an
@@ -1506,6 +1580,10 @@ public:
 
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 };
 
@@ -1833,6 +1911,10 @@ public:
   /// parameter list associated with it, or else return null.
   TemplateParameterList *getTemplateParameterList() const;
 
+  /// Get the template parameters were explicitly specified (as opposed to being
+  /// invented by use of an auto parameter).
+  ArrayRef<NamedDecl *> getExplicitTemplateParameters() const;
+
   /// Whether this is a generic lambda.
   bool isGenericLambda() const { return getTemplateParameterList(); }
 
@@ -1863,6 +1945,11 @@ public:
   child_range children() {
     // Includes initialization exprs plus body stmt
     return child_range(getStoredStmts(), getStoredStmts() + NumCaptures + 1);
+  }
+
+  const_child_range children() const {
+    return const_child_range(getStoredStmts(),
+                             getStoredStmts() + NumCaptures + 1);
   }
 };
 
@@ -1906,6 +1993,10 @@ public:
   // Iterators
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 };
 
@@ -1979,7 +2070,7 @@ private:
   CXXNewExpr(bool IsGlobalNew, FunctionDecl *OperatorNew,
              FunctionDecl *OperatorDelete, bool ShouldPassAlignment,
              bool UsualArrayDeleteWantsSize, ArrayRef<Expr *> PlacementArgs,
-             SourceRange TypeIdParens, Expr *ArraySize,
+             SourceRange TypeIdParens, Optional<Expr *> ArraySize,
              InitializationStyle InitializationStyle, Expr *Initializer,
              QualType Ty, TypeSourceInfo *AllocatedTypeInfo, SourceRange Range,
              SourceRange DirectInitRange);
@@ -1994,7 +2085,7 @@ public:
   Create(const ASTContext &Ctx, bool IsGlobalNew, FunctionDecl *OperatorNew,
          FunctionDecl *OperatorDelete, bool ShouldPassAlignment,
          bool UsualArrayDeleteWantsSize, ArrayRef<Expr *> PlacementArgs,
-         SourceRange TypeIdParens, Expr *ArraySize,
+         SourceRange TypeIdParens, Optional<Expr *> ArraySize,
          InitializationStyle InitializationStyle, Expr *Initializer,
          QualType Ty, TypeSourceInfo *AllocatedTypeInfo, SourceRange Range,
          SourceRange DirectInitRange);
@@ -2037,15 +2128,15 @@ public:
 
   bool isArray() const { return CXXNewExprBits.IsArray; }
 
-  Expr *getArraySize() {
-    return isArray()
-               ? cast<Expr>(getTrailingObjects<Stmt *>()[arraySizeOffset()])
-               : nullptr;
+  Optional<Expr *> getArraySize() {
+    if (!isArray())
+      return None;
+    return cast_or_null<Expr>(getTrailingObjects<Stmt *>()[arraySizeOffset()]);
   }
-  const Expr *getArraySize() const {
-    return isArray()
-               ? cast<Expr>(getTrailingObjects<Stmt *>()[arraySizeOffset()])
-               : nullptr;
+  Optional<const Expr *> getArraySize() const {
+    if (!isArray())
+      return None;
+    return cast_or_null<Expr>(getTrailingObjects<Stmt *>()[arraySizeOffset()]);
   }
 
   unsigned getNumPlacementArgs() const {
@@ -2163,6 +2254,10 @@ public:
 
   // Iterators
   child_range children() { return child_range(raw_arg_begin(), raw_arg_end()); }
+
+  const_child_range children() const {
+    return const_child_range(const_cast<CXXNewExpr *>(this)->children());
+  }
 };
 
 /// Represents a \c delete expression for memory deallocation and
@@ -2229,6 +2324,10 @@ public:
 
   // Iterators
   child_range children() { return child_range(&Argument, &Argument + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&Argument, &Argument + 1);
+  }
 };
 
 /// Stores the type being destroyed by a pseudo-destructor expression.
@@ -2417,6 +2516,10 @@ public:
 
   // Iterators
   child_range children() { return child_range(&Base, &Base + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&Base, &Base + 1);
+  }
 };
 
 /// A type trait used in the implementation of various C++11 and
@@ -2501,6 +2604,10 @@ public:
   child_range children() {
     return child_range(child_iterator(), child_iterator());
   }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
 };
 
 /// An Embarcadero array type trait, as used in the implementation of
@@ -2568,6 +2675,10 @@ public:
   child_range children() {
     return child_range(child_iterator(), child_iterator());
   }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
 };
 
 /// An expression trait intrinsic.
@@ -2627,6 +2738,10 @@ public:
   // Iterators
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 };
 
@@ -2920,6 +3035,10 @@ public:
     return child_range(child_iterator(), child_iterator());
   }
 
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == UnresolvedLookupExprClass;
   }
@@ -3074,6 +3193,10 @@ public:
   child_range children() {
     return child_range(child_iterator(), child_iterator());
   }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
 };
 
 /// Represents an expression -- generally a full-expression -- that
@@ -3143,6 +3266,10 @@ public:
 
   // Iterators
   child_range children() { return child_range(&SubExpr, &SubExpr + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&SubExpr, &SubExpr + 1);
+  }
 };
 
 /// Describes an explicit type conversion that uses functional
@@ -3271,6 +3398,12 @@ public:
   child_range children() {
     auto **begin = reinterpret_cast<Stmt **>(arg_begin());
     return child_range(begin, begin + arg_size());
+  }
+
+  const_child_range children() const {
+    auto **begin = reinterpret_cast<Stmt **>(
+        const_cast<CXXUnresolvedConstructExpr *>(this)->arg_begin());
+    return const_child_range(begin, begin + arg_size());
   }
 };
 
@@ -3518,6 +3651,12 @@ public:
       return child_range(child_iterator(), child_iterator());
     return child_range(&Base, &Base + 1);
   }
+
+  const_child_range children() const {
+    if (isImplicitAccess())
+      return const_child_range(const_child_iterator(), const_child_iterator());
+    return const_child_range(&Base, &Base + 1);
+  }
 };
 
 /// Represents a C++ member access expression for which lookup
@@ -3681,6 +3820,12 @@ public:
       return child_range(child_iterator(), child_iterator());
     return child_range(&Base, &Base + 1);
   }
+
+  const_child_range children() const {
+    if (isImplicitAccess())
+      return const_child_range(const_child_iterator(), const_child_iterator());
+    return const_child_range(&Base, &Base + 1);
+  }
 };
 
 DeclAccessPair *OverloadExpr::getTrailingResults() {
@@ -3750,6 +3895,10 @@ public:
 
   // Iterators
   child_range children() { return child_range(&Operand, &Operand + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&Operand, &Operand + 1);
+  }
 };
 
 /// Represents a C++11 pack expansion that produces a sequence of
@@ -3829,6 +3978,10 @@ public:
   // Iterators
   child_range children() {
     return child_range(&Pattern, &Pattern + 1);
+  }
+
+  const_child_range children() const {
+    return const_child_range(&Pattern, &Pattern + 1);
   }
 };
 
@@ -3951,6 +4104,10 @@ public:
   child_range children() {
     return child_range(child_iterator(), child_iterator());
   }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
 };
 
 /// Represents a reference to a non-type template parameter
@@ -3997,6 +4154,10 @@ public:
 
   // Iterators
   child_range children() { return child_range(&Replacement, &Replacement + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&Replacement, &Replacement + 1);
+  }
 };
 
 /// Represents a reference to a non-type template parameter pack that
@@ -4059,10 +4220,14 @@ public:
   child_range children() {
     return child_range(child_iterator(), child_iterator());
   }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
 };
 
-/// Represents a reference to a function parameter pack that has been
-/// substituted but not yet expanded.
+/// Represents a reference to a function parameter pack or init-capture pack
+/// that has been substituted but not yet expanded.
 ///
 /// When a pack expansion contains multiple parameter packs at different levels,
 /// this node is used to represent a function parameter pack at an outer level
@@ -4077,13 +4242,13 @@ public:
 /// \endcode
 class FunctionParmPackExpr final
     : public Expr,
-      private llvm::TrailingObjects<FunctionParmPackExpr, ParmVarDecl *> {
+      private llvm::TrailingObjects<FunctionParmPackExpr, VarDecl *> {
   friend class ASTReader;
   friend class ASTStmtReader;
   friend TrailingObjects;
 
   /// The function parameter pack which was referenced.
-  ParmVarDecl *ParamPack;
+  VarDecl *ParamPack;
 
   /// The location of the function parameter pack reference.
   SourceLocation NameLoc;
@@ -4091,35 +4256,35 @@ class FunctionParmPackExpr final
   /// The number of expansions of this pack.
   unsigned NumParameters;
 
-  FunctionParmPackExpr(QualType T, ParmVarDecl *ParamPack,
+  FunctionParmPackExpr(QualType T, VarDecl *ParamPack,
                        SourceLocation NameLoc, unsigned NumParams,
-                       ParmVarDecl *const *Params);
+                       VarDecl *const *Params);
 
 public:
   static FunctionParmPackExpr *Create(const ASTContext &Context, QualType T,
-                                      ParmVarDecl *ParamPack,
+                                      VarDecl *ParamPack,
                                       SourceLocation NameLoc,
-                                      ArrayRef<ParmVarDecl *> Params);
+                                      ArrayRef<VarDecl *> Params);
   static FunctionParmPackExpr *CreateEmpty(const ASTContext &Context,
                                            unsigned NumParams);
 
   /// Get the parameter pack which this expression refers to.
-  ParmVarDecl *getParameterPack() const { return ParamPack; }
+  VarDecl *getParameterPack() const { return ParamPack; }
 
   /// Get the location of the parameter pack.
   SourceLocation getParameterPackLocation() const { return NameLoc; }
 
   /// Iterators over the parameters which the parameter pack expanded
   /// into.
-  using iterator = ParmVarDecl * const *;
-  iterator begin() const { return getTrailingObjects<ParmVarDecl *>(); }
+  using iterator = VarDecl * const *;
+  iterator begin() const { return getTrailingObjects<VarDecl *>(); }
   iterator end() const { return begin() + NumParameters; }
 
   /// Get the number of parameters in this parameter pack.
   unsigned getNumExpansions() const { return NumParameters; }
 
   /// Get an expansion of the parameter pack by index.
-  ParmVarDecl *getExpansion(unsigned I) const { return begin()[I]; }
+  VarDecl *getExpansion(unsigned I) const { return begin()[I]; }
 
   SourceLocation getBeginLoc() const LLVM_READONLY { return NameLoc; }
   SourceLocation getEndLoc() const LLVM_READONLY { return NameLoc; }
@@ -4130,6 +4295,10 @@ public:
 
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 };
 
@@ -4253,6 +4422,15 @@ public:
     auto ES = State.get<ExtraState *>();
     return child_range(&ES->Temporary, &ES->Temporary + 1);
   }
+
+  const_child_range children() const {
+    if (State.is<Stmt *>())
+      return const_child_range(State.getAddrOfPtr1(),
+                               State.getAddrOfPtr1() + 1);
+
+    auto ES = State.get<ExtraState *>();
+    return const_child_range(&ES->Temporary, &ES->Temporary + 1);
+  }
 };
 
 /// Represents a folding of a pack over an operator.
@@ -4270,18 +4448,21 @@ class CXXFoldExpr : public Expr {
   SourceLocation LParenLoc;
   SourceLocation EllipsisLoc;
   SourceLocation RParenLoc;
+  // When 0, the number of expansions is not known. Otherwise, this is one more
+  // than the number of expansions.
+  unsigned NumExpansions;
   Stmt *SubExprs[2];
   BinaryOperatorKind Opcode;
 
 public:
   CXXFoldExpr(QualType T, SourceLocation LParenLoc, Expr *LHS,
               BinaryOperatorKind Opcode, SourceLocation EllipsisLoc, Expr *RHS,
-              SourceLocation RParenLoc)
+              SourceLocation RParenLoc, Optional<unsigned> NumExpansions)
       : Expr(CXXFoldExprClass, T, VK_RValue, OK_Ordinary,
              /*Dependent*/ true, true, true,
              /*ContainsUnexpandedParameterPack*/ false),
         LParenLoc(LParenLoc), EllipsisLoc(EllipsisLoc), RParenLoc(RParenLoc),
-        Opcode(Opcode) {
+        NumExpansions(NumExpansions ? *NumExpansions + 1 : 0), Opcode(Opcode) {
     SubExprs[0] = LHS;
     SubExprs[1] = RHS;
   }
@@ -4308,6 +4489,12 @@ public:
   SourceLocation getEllipsisLoc() const { return EllipsisLoc; }
   BinaryOperatorKind getOperator() const { return Opcode; }
 
+  Optional<unsigned> getNumExpansions() const {
+    if (NumExpansions)
+      return NumExpansions - 1;
+    return None;
+  }
+
   SourceLocation getBeginLoc() const LLVM_READONLY { return LParenLoc; }
 
   SourceLocation getEndLoc() const LLVM_READONLY { return RParenLoc; }
@@ -4318,6 +4505,10 @@ public:
 
   // Iterators
   child_range children() { return child_range(SubExprs, SubExprs + 2); }
+
+  const_child_range children() const {
+    return const_child_range(SubExprs, SubExprs + 2);
+  }
 };
 
 /// Represents an expression that might suspend coroutine execution;
@@ -4409,6 +4600,10 @@ public:
     return child_range(SubExprs, SubExprs + SubExpr::Count);
   }
 
+  const_child_range children() const {
+    return const_child_range(SubExprs, SubExprs + SubExpr::Count);
+  }
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CoawaitExprClass ||
            T->getStmtClass() == CoyieldExprClass;
@@ -4493,6 +4688,10 @@ public:
 
   child_range children() { return child_range(SubExprs, SubExprs + 2); }
 
+  const_child_range children() const {
+    return const_child_range(SubExprs, SubExprs + 2);
+  }
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == DependentCoawaitExprClass;
   }
@@ -4519,6 +4718,35 @@ public:
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CoyieldExprClass;
+  }
+};
+
+/// Represents a C++2a __builtin_bit_cast(T, v) expression. Used to implement
+/// std::bit_cast. These can sometimes be evaluated as part of a constant
+/// expression, but otherwise CodeGen to a simple memcpy in general.
+class BuiltinBitCastExpr final
+    : public ExplicitCastExpr,
+      private llvm::TrailingObjects<BuiltinBitCastExpr, CXXBaseSpecifier *> {
+  friend class ASTStmtReader;
+  friend class CastExpr;
+  friend class TrailingObjects;
+
+  SourceLocation KWLoc;
+  SourceLocation RParenLoc;
+
+public:
+  BuiltinBitCastExpr(QualType T, ExprValueKind VK, CastKind CK, Expr *SrcExpr,
+                     TypeSourceInfo *DstType, SourceLocation KWLoc,
+                     SourceLocation RParenLoc)
+      : ExplicitCastExpr(BuiltinBitCastExprClass, T, VK, CK, SrcExpr, 0,
+                         DstType),
+        KWLoc(KWLoc), RParenLoc(RParenLoc) {}
+
+  SourceLocation getBeginLoc() const LLVM_READONLY { return KWLoc; }
+  SourceLocation getEndLoc() const LLVM_READONLY { return RParenLoc; }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == BuiltinBitCastExprClass;
   }
 };
 

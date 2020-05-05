@@ -1,9 +1,8 @@
 //===-- LineTable.cpp -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,15 +17,11 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // LineTable constructor
-//----------------------------------------------------------------------
 LineTable::LineTable(CompileUnit *comp_unit)
     : m_comp_unit(comp_unit), m_entries() {}
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 LineTable::~LineTable() {}
 
 void LineTable::InsertLineEntry(lldb::addr_t file_addr, uint32_t line,
@@ -126,7 +121,7 @@ void LineTable::InsertSequence(LineSequence *sequence) {
       pos++;
   }
 
-#ifdef LLDB_CONFIGURATION_DEBUG
+#ifndef NDEBUG
   // If we aren't inserting at the beginning, the previous entry should
   // terminate a sequence.
   if (pos != begin_pos) {
@@ -137,7 +132,6 @@ void LineTable::InsertSequence(LineSequence *sequence) {
   m_entries.insert(pos, seq->m_entries.begin(), seq->m_entries.end());
 }
 
-//----------------------------------------------------------------------
 LineTable::Entry::LessThanBinaryPredicate::LessThanBinaryPredicate(
     LineTable *line_table)
     : m_line_table(line_table) {}
@@ -445,7 +439,7 @@ size_t LineTable::GetContiguousFileAddressRanges(FileAddressRanges &file_ranges,
 }
 
 LineTable *LineTable::LinkLineTable(const FileRangeMap &file_range_map) {
-  std::unique_ptr<LineTable> line_table_ap(new LineTable(m_comp_unit));
+  std::unique_ptr<LineTable> line_table_up(new LineTable(m_comp_unit));
   LineSequenceImpl sequence;
   const size_t count = m_entries.size();
   LineEntry line_entry;
@@ -508,7 +502,7 @@ LineTable *LineTable::LinkLineTable(const FileRangeMap &file_range_map) {
       sequence.m_entries.back().is_terminal_entry = true;
 
       // Append the sequence since we just terminated the previous one
-      line_table_ap->InsertSequence(&sequence);
+      line_table_up->InsertSequence(&sequence);
       sequence.Clear();
     }
 
@@ -524,7 +518,7 @@ LineTable *LineTable::LinkLineTable(const FileRangeMap &file_range_map) {
     // insert this sequence into our new line table.
     if (!sequence.m_entries.empty() &&
         sequence.m_entries.back().is_terminal_entry) {
-      line_table_ap->InsertSequence(&sequence);
+      line_table_up->InsertSequence(&sequence);
       sequence.Clear();
       prev_entry_was_linked = false;
     } else {
@@ -533,7 +527,7 @@ LineTable *LineTable::LinkLineTable(const FileRangeMap &file_range_map) {
     prev_file_addr = entry.file_addr;
     range_changed = false;
   }
-  if (line_table_ap->m_entries.empty())
+  if (line_table_up->m_entries.empty())
     return nullptr;
-  return line_table_ap.release();
+  return line_table_up.release();
 }

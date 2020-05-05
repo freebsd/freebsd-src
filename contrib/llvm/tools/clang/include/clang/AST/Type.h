@@ -1,9 +1,8 @@
 //===- Type.h - C Language Family Type Representation -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -94,9 +93,6 @@ namespace llvm {
 
     enum { NumLowBitsAvailable = clang::TypeAlignmentInBits };
   };
-
-  template <>
-  struct isPodLike<clang::QualType> { static const bool value = true; };
 
 } // namespace llvm
 
@@ -321,6 +317,11 @@ public:
     qs.removeObjCLifetime();
     return qs;
   }
+  Qualifiers withoutAddressSpace() const {
+    Qualifiers qs = *this;
+    qs.removeAddressSpace();
+    return qs;
+  }
 
   bool hasObjCLifetime() const { return Mask & LifetimeMask; }
   ObjCLifetime getObjCLifetime() const {
@@ -459,21 +460,25 @@ public:
     Mask |= qs.Mask;
   }
 
-  /// Returns true if this address space is a superset of the other one.
+  /// Returns true if address space A is equal to or a superset of B.
   /// OpenCL v2.0 defines conversion rules (OpenCLC v2.0 s6.5.5) and notion of
   /// overlapping address spaces.
   /// CL1.1 or CL1.2:
   ///   every address space is a superset of itself.
   /// CL2.0 adds:
   ///   __generic is a superset of any address space except for __constant.
+  static bool isAddressSpaceSupersetOf(LangAS A, LangAS B) {
+    // Address spaces must match exactly.
+    return A == B ||
+           // Otherwise in OpenCLC v2.0 s6.5.5: every address space except
+           // for __constant can be used as __generic.
+           (A == LangAS::opencl_generic && B != LangAS::opencl_constant);
+  }
+
+  /// Returns true if the address space in these qualifiers is equal to or
+  /// a superset of the address space in the argument qualifiers.
   bool isAddressSpaceSupersetOf(Qualifiers other) const {
-    return
-        // Address spaces must match exactly.
-        getAddressSpace() == other.getAddressSpace() ||
-        // Otherwise in OpenCLC v2.0 s6.5.5: every address space except
-        // for __constant can be used as __generic.
-        (getAddressSpace() == LangAS::opencl_generic &&
-         other.getAddressSpace() != LangAS::opencl_constant);
+    return isAddressSpaceSupersetOf(getAddressSpace(), other.getAddressSpace());
   }
 
   /// Determines if these qualifiers compatibly include another set.
@@ -1153,6 +1158,22 @@ public:
     return isDestructedTypeImpl(*this);
   }
 
+  /// Check if this is or contains a C union that is non-trivial to
+  /// default-initialize, which is a union that has a member that is non-trivial
+  /// to default-initialize. If this returns true,
+  /// isNonTrivialToPrimitiveDefaultInitialize returns PDIK_Struct.
+  bool hasNonTrivialToPrimitiveDefaultInitializeCUnion() const;
+
+  /// Check if this is or contains a C union that is non-trivial to destruct,
+  /// which is a union that has a member that is non-trivial to destruct. If
+  /// this returns true, isDestructedType returns DK_nontrivial_c_struct.
+  bool hasNonTrivialToPrimitiveDestructCUnion() const;
+
+  /// Check if this is or contains a C union that is non-trivial to copy, which
+  /// is a union that has a member that is non-trivial to copy. If this returns
+  /// true, isNonTrivialToPrimitiveCopy returns PCK_Struct.
+  bool hasNonTrivialToPrimitiveCopyCUnion() const;
+
   /// Determine whether expressions of the given type are forbidden
   /// from being lvalues in C.
   ///
@@ -1225,6 +1246,11 @@ private:
                                                  const ASTContext &C);
   static QualType IgnoreParens(QualType T);
   static DestructionKind isDestructedTypeImpl(QualType type);
+
+  /// Check if \param RD is or contains a non-trivial C union.
+  static bool hasNonTrivialToPrimitiveDefaultInitializeCUnion(const RecordDecl *RD);
+  static bool hasNonTrivialToPrimitiveDestructCUnion(const RecordDecl *RD);
+  static bool hasNonTrivialToPrimitiveCopyCUnion(const RecordDecl *RD);
 };
 
 } // namespace clang
@@ -1404,7 +1430,7 @@ enum class AutoTypeKeyword {
 ///
 /// Types, once created, are immutable.
 ///
-class Type : public ExtQualsTypeCommonBase {
+class alignas(8) Type : public ExtQualsTypeCommonBase {
 public:
   enum TypeClass {
 #define TYPE(Class, Base) Class,
@@ -1806,7 +1832,9 @@ public:
   friend class ASTWriter;
 
   Type(const Type &) = delete;
+  Type(Type &&) = delete;
   Type &operator=(const Type &) = delete;
+  Type &operator=(Type &&) = delete;
 
   TypeClass getTypeClass() const { return static_cast<TypeClass>(TypeBits.TC); }
 
@@ -1953,6 +1981,7 @@ public:
   bool isLValueReferenceType() const;
   bool isRValueReferenceType() const;
   bool isFunctionPointerType() const;
+  bool isFunctionReferenceType() const;
   bool isMemberPointerType() const;
   bool isMemberFunctionPointerType() const;
   bool isMemberDataPointerType() const;
@@ -1986,7 +2015,7 @@ public:
   bool isObjCQualifiedClassType() const;        // Class<foo>
   bool isObjCObjectOrInterfaceType() const;
   bool isObjCIdType() const;                    // id
-
+  bool isDecltypeType() const;
   /// Was this type written with the special inert-in-ARC __unsafe_unretained
   /// qualifier?
   ///
@@ -2268,6 +2297,9 @@ public:
   /// Return true if this is a fixed point type according to
   /// ISO/IEC JTC1 SC22 WG14 N1169.
   bool isFixedPointType() const;
+
+  /// Return true if this is a fixed point or integer type.
+  bool isFixedPointOrIntegerType() const;
 
   /// Return true if this is a saturated fixed point type according to
   /// ISO/IEC JTC1 SC22 WG14 N1169. This type can be signed or unsigned.
@@ -3843,6 +3875,7 @@ private:
     case EST_MSAny:
     case EST_BasicNoexcept:
     case EST_Unparsed:
+    case EST_NoThrow:
       return {0, 0, 0};
 
     case EST_Dynamic:
@@ -3902,7 +3935,7 @@ public:
     EPI.Variadic = isVariadic();
     EPI.HasTrailingReturn = hasTrailingReturn();
     EPI.ExceptionSpec.Type = getExceptionSpecType();
-    EPI.TypeQuals = getTypeQuals();
+    EPI.TypeQuals = getMethodQuals();
     EPI.RefQualifier = getRefQualifier();
     if (EPI.ExceptionSpec.Type == EST_Dynamic) {
       EPI.ExceptionSpec.Exceptions = exceptions();
@@ -4012,7 +4045,7 @@ public:
   /// Whether this function prototype has a trailing return type.
   bool hasTrailingReturn() const { return FunctionTypeBits.HasTrailingReturn; }
 
-  Qualifiers getTypeQuals() const {
+  Qualifiers getMethodQuals() const {
     if (hasExtQualifiers())
       return *getTrailingObjects<Qualifiers>();
     else
@@ -4170,6 +4203,41 @@ public:
   QualType desugar() const;
 
   static bool classof(const Type *T) { return T->getTypeClass() == Typedef; }
+};
+
+/// Sugar type that represents a type that was qualified by a qualifier written
+/// as a macro invocation.
+class MacroQualifiedType : public Type {
+  friend class ASTContext; // ASTContext creates these.
+
+  QualType UnderlyingTy;
+  const IdentifierInfo *MacroII;
+
+  MacroQualifiedType(QualType UnderlyingTy, QualType CanonTy,
+                     const IdentifierInfo *MacroII)
+      : Type(MacroQualified, CanonTy, UnderlyingTy->isDependentType(),
+             UnderlyingTy->isInstantiationDependentType(),
+             UnderlyingTy->isVariablyModifiedType(),
+             UnderlyingTy->containsUnexpandedParameterPack()),
+        UnderlyingTy(UnderlyingTy), MacroII(MacroII) {
+    assert(isa<AttributedType>(UnderlyingTy) &&
+           "Expected a macro qualified type to only wrap attributed types.");
+  }
+
+public:
+  const IdentifierInfo *getMacroIdentifier() const { return MacroII; }
+  QualType getUnderlyingType() const { return UnderlyingTy; }
+
+  /// Return this attributed type's modified type with no qualifiers attached to
+  /// it.
+  QualType getModifiedType() const;
+
+  bool isSugared() const { return true; }
+  QualType desugar() const;
+
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == MacroQualified;
+  }
 };
 
 /// Represents a `typeof` (or __typeof__) expression (a GCC extension).
@@ -4750,9 +4818,9 @@ class AutoType : public DeducedType, public llvm::FoldingSetNode {
   friend class ASTContext; // ASTContext creates these
 
   AutoType(QualType DeducedAsType, AutoTypeKeyword Keyword,
-           bool IsDeducedAsDependent)
+           bool IsDeducedAsDependent, bool IsDeducedAsPack)
       : DeducedType(Auto, DeducedAsType, IsDeducedAsDependent,
-                    IsDeducedAsDependent, /*ContainsPack=*/false) {
+                    IsDeducedAsDependent, IsDeducedAsPack) {
     AutoTypeBits.Keyword = (unsigned)Keyword;
   }
 
@@ -4766,14 +4834,16 @@ public:
   }
 
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, getDeducedType(), getKeyword(), isDependentType());
+    Profile(ID, getDeducedType(), getKeyword(), isDependentType(),
+            containsUnexpandedParameterPack());
   }
 
   static void Profile(llvm::FoldingSetNodeID &ID, QualType Deduced,
-                      AutoTypeKeyword Keyword, bool IsDependent) {
+                      AutoTypeKeyword Keyword, bool IsDependent, bool IsPack) {
     ID.AddPointer(Deduced.getAsOpaquePtr());
     ID.AddInteger((unsigned)Keyword);
     ID.AddBoolean(IsDependent);
+    ID.AddBoolean(IsPack);
   }
 
   static bool classof(const Type *T) {
@@ -6194,6 +6264,24 @@ inline Qualifiers::GC QualType::getObjCGCAttr() const {
   return getQualifiers().getObjCGCAttr();
 }
 
+inline bool QualType::hasNonTrivialToPrimitiveDefaultInitializeCUnion() const {
+  if (auto *RD = getTypePtr()->getBaseElementTypeUnsafe()->getAsRecordDecl())
+    return hasNonTrivialToPrimitiveDefaultInitializeCUnion(RD);
+  return false;
+}
+
+inline bool QualType::hasNonTrivialToPrimitiveDestructCUnion() const {
+  if (auto *RD = getTypePtr()->getBaseElementTypeUnsafe()->getAsRecordDecl())
+    return hasNonTrivialToPrimitiveDestructCUnion(RD);
+  return false;
+}
+
+inline bool QualType::hasNonTrivialToPrimitiveCopyCUnion() const {
+  if (auto *RD = getTypePtr()->getBaseElementTypeUnsafe()->getAsRecordDecl())
+    return hasNonTrivialToPrimitiveCopyCUnion(RD);
+  return false;
+}
+
 inline FunctionType::ExtInfo getFunctionExtInfo(const Type &t) {
   if (const auto *PT = t.getAs<PointerType>()) {
     if (const auto *FT = PT->getPointeeType()->getAs<FunctionType>())
@@ -6324,6 +6412,13 @@ inline bool Type::isFunctionPointerType() const {
     return false;
 }
 
+inline bool Type::isFunctionReferenceType() const {
+  if (const auto *T = getAs<ReferenceType>())
+    return T->getPointeeType()->isFunctionType();
+  else
+    return false;
+}
+
 inline bool Type::isMemberPointerType() const {
   return isa<MemberPointerType>(CanonicalType);
 }
@@ -6439,6 +6534,10 @@ inline bool Type::isObjCSelType() const {
 
 inline bool Type::isObjCBuiltinType() const {
   return isObjCIdType() || isObjCClassType() || isObjCSelType();
+}
+
+inline bool Type::isDecltypeType() const {
+  return isa<DecltypeType>(this);
 }
 
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
@@ -6594,6 +6693,10 @@ inline bool Type::isFixedPointType() const {
            BT->getKind() <= BuiltinType::SatULongFract;
   }
   return false;
+}
+
+inline bool Type::isFixedPointOrIntegerType() const {
+  return isFixedPointType() || isIntegerType();
 }
 
 inline bool Type::isSaturatedFixedPointType() const {
@@ -6785,6 +6888,8 @@ template <typename T> const T *Type::getAsAdjusted() const {
       Ty = P->desugar().getTypePtr();
     else if (const auto *A = dyn_cast<AdjustedType>(Ty))
       Ty = A->desugar().getTypePtr();
+    else if (const auto *M = dyn_cast<MacroQualifiedType>(Ty))
+      Ty = M->desugar().getTypePtr();
     else
       break;
   }
@@ -6841,6 +6946,8 @@ QualType DecayedType::getPointeeType() const {
 
 // Get the decimal string representation of a fixed point type, represented
 // as a scaled integer.
+// TODO: At some point, we should change the arguments to instead just accept an
+// APFixedPoint instead of APSInt and scale.
 void FixedPointValueToString(SmallVectorImpl<char> &Str, llvm::APSInt Val,
                              unsigned Scale);
 

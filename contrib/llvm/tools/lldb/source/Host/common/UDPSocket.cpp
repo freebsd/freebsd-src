@@ -1,9 +1,8 @@
 //===-- UDPSocket.cpp -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -134,4 +133,12 @@ Status UDPSocket::Connect(llvm::StringRef name, bool child_processes_inherit,
   socket = final_socket.release();
   error.Clear();
   return error;
+}
+
+std::string UDPSocket::GetRemoteConnectionURI() const {
+  if (m_socket != kInvalidSocketValue) {
+    return llvm::formatv("udp://[{0}]:{1}", m_sockaddr.GetIPAddress(),
+                         m_sockaddr.GetPort());
+  }
+  return "";
 }

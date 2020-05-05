@@ -1,9 +1,8 @@
 //===-- ExecutionContext.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -225,30 +224,22 @@ ExecutionContextScope *ExecutionContext::GetBestExecutionContextScope() const {
 }
 
 Target &ExecutionContext::GetTargetRef() const {
-#if defined(LLDB_CONFIGURATION_DEBUG) || defined(LLDB_CONFIGURATION_RELEASE)
   assert(m_target_sp);
-#endif
   return *m_target_sp;
 }
 
 Process &ExecutionContext::GetProcessRef() const {
-#if defined(LLDB_CONFIGURATION_DEBUG) || defined(LLDB_CONFIGURATION_RELEASE)
   assert(m_process_sp);
-#endif
   return *m_process_sp;
 }
 
 Thread &ExecutionContext::GetThreadRef() const {
-#if defined(LLDB_CONFIGURATION_DEBUG) || defined(LLDB_CONFIGURATION_RELEASE)
   assert(m_thread_sp);
-#endif
   return *m_thread_sp;
 }
 
 StackFrame &ExecutionContext::GetFrameRef() const {
-#if defined(LLDB_CONFIGURATION_DEBUG) || defined(LLDB_CONFIGURATION_RELEASE)
   assert(m_frame_sp);
-#endif
   return *m_frame_sp;
 }
 

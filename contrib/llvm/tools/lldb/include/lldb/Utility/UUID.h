@@ -1,9 +1,8 @@
 //===-- UUID.h --------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -68,26 +67,29 @@ public:
   std::string GetAsString(llvm::StringRef separator = "-") const;
 
   size_t SetFromStringRef(llvm::StringRef str, uint32_t num_uuid_bytes = 16);
+  
+  // Same as SetFromStringRef, but if the resultant UUID is all 0 bytes, set the 
+  // UUID to invalid.
+  size_t SetFromOptionalStringRef(llvm::StringRef str, 
+                                  uint32_t num_uuid_bytes = 16);
 
   // Decode as many UUID bytes (up to 16) as possible from the C string "cstr"
   // This is used for auto completion where a partial UUID might have been
   // typed in. It
-  //------------------------------------------------------------------
   /// Decode as many UUID bytes (up to 16) as possible from the C
   /// string \a cstr.
   ///
-  /// @param[in] cstr
+  /// \param[in] cstr
   ///     A NULL terminate C string that points at a UUID string value
   ///     (no leading spaces). The string must contain only hex
   ///     characters and optionally can contain the '-' sepearators.
   ///
-  /// @param[in] uuid_bytes
+  /// \param[in] uuid_bytes
   ///     A buffer of bytes that will contain a full or patially
   ///     decoded UUID.
   ///
-  /// @return
+  /// \return
   ///     The original string, with all decoded bytes removed.
-  //------------------------------------------------------------------
   static llvm::StringRef
   DecodeUUIDBytesFromString(llvm::StringRef str,
                             llvm::SmallVectorImpl<uint8_t> &uuid_bytes,

@@ -1,9 +1,8 @@
 //===-- DWARFFormValue.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,14 +11,16 @@
 
 #include "DWARFDataExtractor.h"
 #include <stddef.h>
+#include "llvm/ADT/Optional.h"
 
 class DWARFUnit;
 class SymbolFileDWARF;
+class DWARFDIE;
 
 class DWARFFormValue {
 public:
   typedef struct ValueTypeTag {
-    ValueTypeTag() : value(), data(NULL) { value.uval = 0; }
+    ValueTypeTag() : value(), data(nullptr) { value.uval = 0; }
 
     union {
       uint64_t uval;
@@ -29,24 +30,6 @@ public:
     const uint8_t *data;
   } ValueType;
 
-  class FixedFormSizes {
-  public:
-    FixedFormSizes() : m_fix_sizes(nullptr), m_size(0) {}
-
-    FixedFormSizes(const uint8_t *fix_sizes, size_t size)
-        : m_fix_sizes(fix_sizes), m_size(size) {}
-
-    uint8_t GetSize(uint32_t index) const {
-      return index < m_size ? m_fix_sizes[index] : 0;
-    }
-
-    bool Empty() const { return m_size == 0; }
-
-  private:
-    const uint8_t *m_fix_sizes;
-    size_t m_size;
-  };
-
   enum {
     eValueTypeInvalid = 0,
     eValueTypeUnsigned,
@@ -55,11 +38,11 @@ public:
     eValueTypeBlock
   };
 
-  DWARFFormValue();
-  DWARFFormValue(const DWARFUnit *cu);
-  DWARFFormValue(const DWARFUnit *cu, dw_form_t form);
-  const DWARFUnit *GetCompileUnit() const { return m_cu; }
-  void SetCompileUnit(const DWARFUnit *cu) { m_cu = cu; }
+  DWARFFormValue() = default;
+  DWARFFormValue(const DWARFUnit *unit) : m_unit(unit) {}
+  DWARFFormValue(const DWARFUnit *unit, dw_form_t form)
+      : m_unit(unit), m_form(form) {}
+  void SetUnit(const DWARFUnit *unit) { m_unit = unit; }
   dw_form_t Form() const { return m_form; }
   dw_form_t& FormRef() { return m_form; }
   void SetForm(dw_form_t form) { m_form = form; }
@@ -71,7 +54,10 @@ public:
   bool ExtractValue(const lldb_private::DWARFDataExtractor &data,
                     lldb::offset_t *offset_ptr);
   const uint8_t *BlockData() const;
-  uint64_t Reference() const;
+  static llvm::Optional<uint8_t> GetFixedSize(dw_form_t form,
+                                              const DWARFUnit *u);
+  llvm::Optional<uint8_t> GetFixedSize() const;
+  DWARFDIE Reference() const;
   uint64_t Reference(dw_offset_t offset) const;
   bool Boolean() const { return m_value.value.uval != 0; }
   uint64_t Unsigned() const { return m_value.value.uval; }
@@ -85,18 +71,18 @@ public:
                  lldb::offset_t *offset_ptr) const;
   static bool SkipValue(const dw_form_t form,
                         const lldb_private::DWARFDataExtractor &debug_info_data,
-                        lldb::offset_t *offset_ptr, const DWARFUnit *cu);
+                        lldb::offset_t *offset_ptr, const DWARFUnit *unit);
   static bool IsBlockForm(const dw_form_t form);
   static bool IsDataForm(const dw_form_t form);
-  static FixedFormSizes GetFixedFormSizesForAddressSize(uint8_t addr_size,
-                                                        bool is_dwarf64);
   static int Compare(const DWARFFormValue &a, const DWARFFormValue &b);
   void Clear();
   static bool FormIsSupported(dw_form_t form);
 
 protected:
-  const DWARFUnit *m_cu;        // Compile unit for this form
-  dw_form_t m_form;             // Form for this value
+  // Compile unit where m_value was located.
+  // It may be different from compile unit where m_value refers to.
+  const DWARFUnit *m_unit = nullptr; // Unit for this form
+  dw_form_t m_form = 0;              // Form for this value
   ValueType m_value;            // Contains all data for the form
 };
 

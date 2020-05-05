@@ -1,9 +1,8 @@
 //===--- arm_neon.td - ARM NEON compiler interface ------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -704,11 +703,11 @@ def QNEG   : SInst<"vqneg", "dd", "lQl">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Signed Saturating Accumulated of Unsigned Value
-def SUQADD : SInst<"vuqadd", "ddd", "csilQcQsQiQl">;
+def SUQADD : SInst<"vuqadd", "ddu", "csilQcQsQiQl">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Unsigned Saturating Accumulated of Signed Value
-def USQADD : SInst<"vsqadd", "ddd", "UcUsUiUlQUcQUsQUiQUl">;
+def USQADD : SInst<"vsqadd", "ddx", "UcUsUiUlQUcQUsQUiQUl">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Reciprocal/Sqrt
@@ -1071,16 +1070,16 @@ def VUZP2 : SOpInst<"vuzp2", "ddd",
 ////////////////////////////////////////////////////////////////////////////////
 // Table lookup
 let InstName = "vtbl" in {
-def VQTBL1_A64 : WInst<"vqtbl1", "djt",  "UccPcQUcQcQPc">;
-def VQTBL2_A64 : WInst<"vqtbl2", "dBt",  "UccPcQUcQcQPc">;
-def VQTBL3_A64 : WInst<"vqtbl3", "dCt",  "UccPcQUcQcQPc">;
-def VQTBL4_A64 : WInst<"vqtbl4", "dDt",  "UccPcQUcQcQPc">;
+def VQTBL1_A64 : WInst<"vqtbl1", "dju",  "UccPcQUcQcQPc">;
+def VQTBL2_A64 : WInst<"vqtbl2", "dBu",  "UccPcQUcQcQPc">;
+def VQTBL3_A64 : WInst<"vqtbl3", "dCu",  "UccPcQUcQcQPc">;
+def VQTBL4_A64 : WInst<"vqtbl4", "dDu",  "UccPcQUcQcQPc">;
 }
 let InstName = "vtbx" in {
-def VQTBX1_A64 : WInst<"vqtbx1", "ddjt", "UccPcQUcQcQPc">;
-def VQTBX2_A64 : WInst<"vqtbx2", "ddBt", "UccPcQUcQcQPc">;
-def VQTBX3_A64 : WInst<"vqtbx3", "ddCt", "UccPcQUcQcQPc">;
-def VQTBX4_A64 : WInst<"vqtbx4", "ddDt", "UccPcQUcQcQPc">;
+def VQTBX1_A64 : WInst<"vqtbx1", "ddju", "UccPcQUcQcQPc">;
+def VQTBX2_A64 : WInst<"vqtbx2", "ddBu", "UccPcQUcQcQPc">;
+def VQTBX3_A64 : WInst<"vqtbx3", "ddCu", "UccPcQUcQcQPc">;
+def VQTBX4_A64 : WInst<"vqtbx4", "ddDu", "UccPcQUcQcQPc">;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1334,11 +1333,11 @@ def SCALAR_SQNEG : SInst<"vqneg", "ss", "ScSsSiSl">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Scalar Signed Saturating Accumulated of Unsigned Value
-def SCALAR_SUQADD : SInst<"vuqadd", "sss", "ScSsSiSl">;
+def SCALAR_SUQADD : SInst<"vuqadd", "ssb", "ScSsSiSl">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Scalar Unsigned Saturating Accumulated of Signed Value
-def SCALAR_USQADD : SInst<"vsqadd", "sss", "SUcSUsSUiSUl">;
+def SCALAR_USQADD : SInst<"vsqadd", "ss$", "SUcSUsSUiSUl">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Signed Saturating Doubling Multiply-Add Long
@@ -1652,18 +1651,18 @@ let ArchGuard = "defined(__ARM_FEATURE_DOTPROD) && defined(__aarch64__)" in {
 
 // v8.2-A FP16 fused multiply-add long instructions.
 let ArchGuard = "defined(__ARM_FEATURE_FP16FML) && defined(__aarch64__)" in {
-  def VFMLAL_LOW  : SInst<"vfmlal_low", "ffHH", "UiQUi">;
-  def VFMLSL_LOW  : SInst<"vfmlsl_low", "ffHH", "UiQUi">;
-  def VFMLAL_HIGH : SInst<"vfmlal_high", "ffHH", "UiQUi">;
-  def VFMLSL_HIGH : SInst<"vfmlsl_high", "ffHH", "UiQUi">;
+  def VFMLAL_LOW  : SInst<"vfmlal_low",  "ffHH", "hQh">;
+  def VFMLSL_LOW  : SInst<"vfmlsl_low",  "ffHH", "hQh">;
+  def VFMLAL_HIGH : SInst<"vfmlal_high", "ffHH", "hQh">;
+  def VFMLSL_HIGH : SInst<"vfmlsl_high", "ffHH", "hQh">;
 
-  def VFMLAL_LANE_LOW  : SOpInst<"vfmlal_lane_low", "ffH0i", "UiQUi", OP_FMLAL_LN>;
-  def VFMLSL_LANE_LOW  : SOpInst<"vfmlsl_lane_low", "ffH0i", "UiQUi", OP_FMLSL_LN>;
-  def VFMLAL_LANE_HIGH : SOpInst<"vfmlal_lane_high", "ffH0i", "UiQUi", OP_FMLAL_LN_Hi>;
-  def VFMLSL_LANE_HIGH : SOpInst<"vfmlsl_lane_high", "ffH0i", "UiQUi", OP_FMLSL_LN_Hi>;
+  def VFMLAL_LANE_LOW  : SOpInst<"vfmlal_lane_low",  "ffH0i", "hQh", OP_FMLAL_LN>;
+  def VFMLSL_LANE_LOW  : SOpInst<"vfmlsl_lane_low",  "ffH0i", "hQh", OP_FMLSL_LN>;
+  def VFMLAL_LANE_HIGH : SOpInst<"vfmlal_lane_high", "ffH0i", "hQh", OP_FMLAL_LN_Hi>;
+  def VFMLSL_LANE_HIGH : SOpInst<"vfmlsl_lane_high", "ffH0i", "hQh", OP_FMLSL_LN_Hi>;
 
-  def VFMLAL_LANEQ_LOW  : SOpInst<"vfmlal_laneq_low", "ffH1i", "UiQUi", OP_FMLAL_LN>;
-  def VFMLSL_LANEQ_LOW  : SOpInst<"vfmlsl_laneq_low", "ffH1i", "UiQUi", OP_FMLSL_LN>;
-  def VFMLAL_LANEQ_HIGH : SOpInst<"vfmlal_laneq_high", "ffH1i", "UiQUi", OP_FMLAL_LN_Hi>;
-  def VFMLSL_LANEQ_HIGH : SOpInst<"vfmlsl_laneq_high", "ffH1i", "UiQUi", OP_FMLSL_LN_Hi>;
+  def VFMLAL_LANEQ_LOW  : SOpInst<"vfmlal_laneq_low",  "ffH1i", "hQh", OP_FMLAL_LN>;
+  def VFMLSL_LANEQ_LOW  : SOpInst<"vfmlsl_laneq_low",  "ffH1i", "hQh", OP_FMLSL_LN>;
+  def VFMLAL_LANEQ_HIGH : SOpInst<"vfmlal_laneq_high", "ffH1i", "hQh", OP_FMLAL_LN_Hi>;
+  def VFMLSL_LANEQ_HIGH : SOpInst<"vfmlsl_laneq_high", "ffH1i", "hQh", OP_FMLSL_LN_Hi>;
 }

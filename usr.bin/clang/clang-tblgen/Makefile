@@ -11,6 +11,7 @@ SRCS+=		ClangCommentHTMLNamedCharacterReferenceEmitter.cpp
 SRCS+=		ClangCommentHTMLTagsEmitter.cpp
 SRCS+=		ClangDataCollectorsEmitter.cpp
 SRCS+=		ClangDiagnosticsEmitter.cpp
+SRCS+=		ClangOpenCLBuiltinEmitter.cpp
 SRCS+=		ClangOptionDocEmitter.cpp
 SRCS+=		ClangSACheckersEmitter.cpp
 SRCS+=		NeonEmitter.cpp

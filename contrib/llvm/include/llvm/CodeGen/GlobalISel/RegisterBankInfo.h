@@ -1,9 +1,8 @@
 //===- llvm/CodeGen/GlobalISel/RegisterBankInfo.h ---------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,6 +18,7 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
+#include "llvm/CodeGen/Register.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 #include <initializer_list>
@@ -161,6 +161,10 @@ public:
     const PartialMapping *begin() const { return BreakDown; }
     const PartialMapping *end() const { return BreakDown + NumBreakDowns; }
 
+    /// \return true if all partial mappings are the same size and register
+    /// bank.
+    bool partsAllUniform() const;
+
     /// Check if this ValueMapping is valid.
     bool isValid() const { return BreakDown && NumBreakDowns; }
 
@@ -190,7 +194,7 @@ public:
     unsigned Cost = 0;
 
     /// Mapping of all the operands.
-    const ValueMapping *OperandsMapping;
+    const ValueMapping *OperandsMapping = nullptr;
 
     /// Number of operands.
     unsigned NumOperands = 0;
@@ -207,15 +211,11 @@ public:
     /// The rationale is that it is more efficient for the optimizers
     /// to be able to assume that the mapping of the ith operand is
     /// at the index i.
-    ///
-    /// \pre ID != InvalidMappingID
     InstructionMapping(unsigned ID, unsigned Cost,
                        const ValueMapping *OperandsMapping,
                        unsigned NumOperands)
         : ID(ID), Cost(Cost), OperandsMapping(OperandsMapping),
           NumOperands(NumOperands) {
-      assert(getID() != InvalidMappingID &&
-             "Use the default constructor for invalid mapping");
     }
 
     /// Default constructor.
@@ -282,7 +282,7 @@ public:
     SmallVector<int, 8> OpToNewVRegIdx;
 
     /// Hold the registers that will be used to map MI with InstrMapping.
-    SmallVector<unsigned, 8> NewVRegs;
+    SmallVector<Register, 8> NewVRegs;
 
     /// Current MachineRegisterInfo, used to create new virtual registers.
     MachineRegisterInfo &MRI;
@@ -303,15 +303,15 @@ public:
     /// \return The iterator range for the space created.
     //
     /// \pre getMI().getOperand(OpIdx).isReg()
-    iterator_range<SmallVectorImpl<unsigned>::iterator>
+    iterator_range<SmallVectorImpl<Register>::iterator>
     getVRegsMem(unsigned OpIdx);
 
     /// Get the end iterator for a range starting at \p StartIdx and
     /// spannig \p NumVal in NewVRegs.
     /// \pre StartIdx + NumVal <= NewVRegs.size()
-    SmallVectorImpl<unsigned>::const_iterator
+    SmallVectorImpl<Register>::const_iterator
     getNewVRegsEnd(unsigned StartIdx, unsigned NumVal) const;
-    SmallVectorImpl<unsigned>::iterator getNewVRegsEnd(unsigned StartIdx,
+    SmallVectorImpl<Register>::iterator getNewVRegsEnd(unsigned StartIdx,
                                                        unsigned NumVal);
 
   public:
@@ -357,7 +357,7 @@ public:
     ///
     /// \post the \p PartialMapIdx-th register of the value mapping of the \p
     /// OpIdx-th operand has been set.
-    void setVRegs(unsigned OpIdx, unsigned PartialMapIdx, unsigned NewVReg);
+    void setVRegs(unsigned OpIdx, unsigned PartialMapIdx, Register NewVReg);
 
     /// Get all the virtual registers required to map the \p OpIdx-th operand of
     /// the instruction.
@@ -371,7 +371,7 @@ public:
     ///
     /// \pre getMI().getOperand(OpIdx).isReg()
     /// \pre ForDebug || All partial mappings have been set a register
-    iterator_range<SmallVectorImpl<unsigned>::const_iterator>
+    iterator_range<SmallVectorImpl<Register>::const_iterator>
     getVRegs(unsigned OpIdx, bool ForDebug = false) const;
 
     /// Print this operands mapper on dbgs() stream.
@@ -435,7 +435,7 @@ protected:
   /// Get the MinimalPhysRegClass for Reg.
   /// \pre Reg is a physical register.
   const TargetRegisterClass &
-  getMinimalPhysRegClass(unsigned Reg, const TargetRegisterInfo &TRI) const;
+  getMinimalPhysRegClass(Register Reg, const TargetRegisterInfo &TRI) const;
 
   /// Try to get the mapping of \p MI.
   /// See getInstrMapping for more details on what a mapping represents.
@@ -580,7 +580,7 @@ public:
   /// or a register bank, then this returns nullptr.
   ///
   /// \pre Reg != 0 (NoRegister)
-  const RegisterBank *getRegBank(unsigned Reg, const MachineRegisterInfo &MRI,
+  const RegisterBank *getRegBank(Register Reg, const MachineRegisterInfo &MRI,
                                  const TargetRegisterInfo &TRI) const;
 
   /// Get the total number of register banks.
@@ -618,6 +618,21 @@ public:
     return &A != &B;
   }
 
+  /// \returns true if emitting a copy from \p Src to \p Dst is impossible.
+  bool cannotCopy(const RegisterBank &Dst, const RegisterBank &Src,
+                  unsigned Size) const {
+    return copyCost(Dst, Src, Size) == std::numeric_limits<unsigned>::max();
+  }
+
+  /// Get the cost of using \p ValMapping to decompose a register. This is
+  /// similar to ::copyCost, except for cases where multiple copy-like
+  /// operations need to be inserted. If the register is used as a source
+  /// operand and already has a bank assigned, \p CurBank is non-null.
+  virtual unsigned getBreakDownCost(const ValueMapping &ValMapping,
+                                    const RegisterBank *CurBank = nullptr) const {
+    return std::numeric_limits<unsigned>::max();
+  }
+
   /// Constrain the (possibly generic) virtual register \p Reg to \p RC.
   ///
   /// \pre \p Reg is a virtual register that either has a bank or a class.
@@ -626,7 +641,7 @@ public:
   /// \note Use MachineRegisterInfo::constrainRegAttrs instead for any non-isel
   /// purpose, including non-select passes of GlobalISel
   static const TargetRegisterClass *
-  constrainGenericRegister(unsigned Reg, const TargetRegisterClass &RC,
+  constrainGenericRegister(Register Reg, const TargetRegisterClass &RC,
                            MachineRegisterInfo &MRI);
 
   /// Identifier used when the related instruction mapping instance
@@ -711,7 +726,7 @@ public:
   /// virtual register.
   ///
   /// \pre \p Reg != 0 (NoRegister).
-  unsigned getSizeInBits(unsigned Reg, const MachineRegisterInfo &MRI,
+  unsigned getSizeInBits(Register Reg, const MachineRegisterInfo &MRI,
                          const TargetRegisterInfo &TRI) const;
 
   /// Check that information hold by this instance make sense for the

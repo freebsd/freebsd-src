@@ -1,9 +1,8 @@
 //===-- MIDriverBase.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,7 +14,6 @@
 #include "MIDriverBase.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIDriverBase constructor.
 // Type:    Method.
 // Args:    None.
@@ -26,17 +24,15 @@ CMIDriverBase::CMIDriverBase()
     : m_pDriverFallThru(nullptr), m_pDriverParent(nullptr), m_bExitApp(false) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMIDriverBase destructor.
 // Type:    Overrideable.
 // Args:    None.
 // Return:  None.
 // Throws:  None.
 //--
-CMIDriverBase::~CMIDriverBase() { m_pDriverFallThru = NULL; }
+CMIDriverBase::~CMIDriverBase() { m_pDriverFallThru = nullptr; }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: This function allows *this driver to call on another driver to
 // perform work
 //          should this driver not be able to handle the client data input.
@@ -56,7 +52,6 @@ bool CMIDriverBase::DoFallThruToAnotherDriver(const CMIUtilString &vCmd,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: This function allows *this driver to call on another driver to
 // perform work
 //          should this driver not be able to handle the client data input.
@@ -75,7 +70,6 @@ bool CMIDriverBase::SetDriverToFallThruTo(const CMIDriverBase &vrOtherDriver) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: This function allows *this driver to call functionality on the
 // parent driver
 //          ask for information for example.
@@ -94,7 +88,6 @@ bool CMIDriverBase::SetDriverParent(const CMIDriverBase &vrOtherDriver) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the parent driver to *this driver if one assigned. If
 // assigned *this
 //          is the pass through driver that the parent driver passes work to.
@@ -109,7 +102,6 @@ CMIDriverBase *CMIDriverBase::GetDriversParent() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the pointer to the other fall through driver *this driver
 // is using
 //          (or not using).
@@ -124,7 +116,6 @@ CMIDriverBase *CMIDriverBase::GetDriverToFallThruTo() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: *this driver provides a file stream to other drivers on which *this
 // driver
 //          write's out to and they read as expected input. *this driver is
@@ -141,7 +132,6 @@ FILE *CMIDriverBase::GetStdin() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: *this driver provides a file stream to other pass through assigned
 // drivers
 //          so they know what to write to.
@@ -156,7 +146,6 @@ FILE *CMIDriverBase::GetStdout() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: *this driver provides a error file stream to other pass through
 // assigned drivers
 //          so they know what to write to.
@@ -171,7 +160,6 @@ FILE *CMIDriverBase::GetStderr() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Set the MI Driver's exit application flag. The application checks
 // this flag
 //          after every stdin line is read so the exit may not be instantaneous.

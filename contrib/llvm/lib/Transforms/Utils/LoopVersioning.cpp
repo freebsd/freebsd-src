@@ -1,9 +1,8 @@
 //===- LoopVersioning.cpp - Utility to version a loop ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -281,8 +280,9 @@ public:
     bool Changed = false;
     for (Loop *L : Worklist) {
       const LoopAccessInfo &LAI = LAA->getInfo(L);
-      if (L->isLoopSimplifyForm() && (LAI.getNumRuntimePointerChecks() ||
-          !LAI.getPSE().getUnionPredicate().isAlwaysTrue())) {
+      if (L->isLoopSimplifyForm() && !LAI.hasConvergentOp() &&
+          (LAI.getNumRuntimePointerChecks() ||
+           !LAI.getPSE().getUnionPredicate().isAlwaysTrue())) {
         LoopVersioning LVer(LAI, L, LI, DT, SE);
         LVer.versionLoop();
         LVer.annotateLoopWithNoAlias();

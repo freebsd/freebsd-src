@@ -1,9 +1,8 @@
 //===-- AppleObjCRuntimeV2.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,8 +14,9 @@
 #include <mutex>
 
 #include "AppleObjCRuntime.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/lldb-private.h"
+
+#include "Plugins/LanguageRuntime/ObjC/ObjCLanguageRuntime.h"
 
 class RemoteNXMapTable;
 
@@ -26,9 +26,7 @@ class AppleObjCRuntimeV2 : public AppleObjCRuntime {
 public:
   ~AppleObjCRuntimeV2() override = default;
 
-  //------------------------------------------------------------------
   // Static Functions
-  //------------------------------------------------------------------
   static void Initialize();
 
   static void Terminate();
@@ -38,13 +36,14 @@ public:
 
   static lldb_private::ConstString GetPluginNameStatic();
 
-  static bool classof(const ObjCLanguageRuntime *runtime) {
-    switch (runtime->GetRuntimeVersion()) {
-    case ObjCRuntimeVersions::eAppleObjC_V2:
-      return true;
-    default:
-      return false;
-    }
+  static char ID;
+
+  bool isA(const void *ClassID) const override {
+    return ClassID == &ID || AppleObjCRuntime::isA(ClassID);
+  }
+
+  static bool classof(const LanguageRuntime *runtime) {
+    return runtime->isA(&ID);
   }
 
   // These are generic runtime functions:
@@ -56,9 +55,7 @@ public:
 
   UtilityFunction *CreateObjectChecker(const char *) override;
 
-  //------------------------------------------------------------------
   // PluginInterface protocol
-  //------------------------------------------------------------------
   ConstString GetPluginName() override;
 
   uint32_t GetPluginVersion() override;
@@ -80,14 +77,14 @@ public:
 
   DeclVendor *GetDeclVendor() override;
 
-  lldb::addr_t LookupRuntimeSymbol(const ConstString &name) override;
+  lldb::addr_t LookupRuntimeSymbol(ConstString name) override;
 
   EncodingToTypeSP GetEncodingToType() override;
 
   bool IsTaggedPointer(lldb::addr_t ptr) override;
 
   TaggedPointerVendor *GetTaggedPointerVendor() override {
-    return m_tagged_pointer_vendor_ap.get();
+    return m_tagged_pointer_vendor_up.get();
   }
 
   lldb::addr_t GetTaggedPointerObfuscator();
@@ -327,14 +324,14 @@ private:
   lldb::addr_t m_get_shared_cache_class_info_args;
   std::mutex m_get_shared_cache_class_info_args_mutex;
 
-  std::unique_ptr<DeclVendor> m_decl_vendor_ap;
+  std::unique_ptr<DeclVendor> m_decl_vendor_up;
   lldb::addr_t m_tagged_pointer_obfuscator;
   lldb::addr_t m_isa_hash_table_ptr;
   HashTableSignature m_hash_signature;
   bool m_has_object_getClass;
   bool m_loaded_objc_opt;
-  std::unique_ptr<NonPointerISACache> m_non_pointer_isa_cache_ap;
-  std::unique_ptr<TaggedPointerVendor> m_tagged_pointer_vendor_ap;
+  std::unique_ptr<NonPointerISACache> m_non_pointer_isa_cache_up;
+  std::unique_ptr<TaggedPointerVendor> m_tagged_pointer_vendor_up;
   EncodingToTypeSP m_encoding_to_type_sp;
   bool m_noclasses_warning_emitted;
   llvm::Optional<std::pair<lldb::addr_t, lldb::addr_t>> m_CFBoolean_values;

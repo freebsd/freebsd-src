@@ -1,9 +1,8 @@
 //==--- RetainCountChecker.h - Checks for leaks and other issues -*- C++ -*--//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -22,6 +21,7 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/Analysis/DomainSpecific/CocoaConventions.h"
+#include "clang/Analysis/RetainSummaryManager.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Analysis/SelectorExtras.h"
@@ -33,7 +33,6 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SymbolManager.h"
-#include "clang/StaticAnalyzer/Core/RetainSummaryManager.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/ImmutableList.h"
@@ -251,14 +250,21 @@ class RetainCountChecker
                     check::RegionChanges,
                     eval::Assume,
                     eval::Call > {
-  mutable std::unique_ptr<RefCountBug> useAfterRelease, releaseNotOwned;
-  mutable std::unique_ptr<RefCountBug> deallocNotOwned;
-  mutable std::unique_ptr<RefCountBug> overAutorelease, returnNotOwnedForOwned;
-  mutable std::unique_ptr<RefCountBug> leakWithinFunction, leakAtReturn;
+
+  RefCountBug useAfterRelease{this, RefCountBug::UseAfterRelease};
+  RefCountBug releaseNotOwned{this, RefCountBug::ReleaseNotOwned};
+  RefCountBug deallocNotOwned{this, RefCountBug::DeallocNotOwned};
+  RefCountBug freeNotOwned{this, RefCountBug::FreeNotOwned};
+  RefCountBug overAutorelease{this, RefCountBug::OverAutorelease};
+  RefCountBug returnNotOwnedForOwned{this, RefCountBug::ReturnNotOwnedForOwned};
+  RefCountBug leakWithinFunction{this, RefCountBug::LeakWithinFunction};
+  RefCountBug leakAtReturn{this, RefCountBug::LeakAtReturn};
+
+  CheckerProgramPointTag DeallocSentTag{this, "DeallocSent"};
+  CheckerProgramPointTag CastFailTag{this, "DynamicCastFail"};
 
   mutable std::unique_ptr<RetainSummaryManager> Summaries;
 public:
-  static constexpr const char *DeallocTagDescription = "DeallocSent";
 
   /// Track Objective-C and CoreFoundation objects.
   bool TrackObjCAndCFObjects = false;
@@ -266,22 +272,15 @@ public:
   /// Track sublcasses of OSObject.
   bool TrackOSObjects = false;
 
-  RetainCountChecker() {}
+  /// Track initial parameters (for the entry point) for NS/CF objects.
+  bool TrackNSCFStartParam = false;
 
-  RefCountBug *getLeakWithinFunctionBug(const LangOptions &LOpts) const;
-
-  RefCountBug *getLeakAtReturnBug(const LangOptions &LOpts) const;
+  RetainCountChecker() {};
 
   RetainSummaryManager &getSummaryManager(ASTContext &Ctx) const {
-    // FIXME: We don't support ARC being turned on and off during one analysis.
-    // (nor, for that matter, do we support changing ASTContexts)
-    bool ARCEnabled = (bool)Ctx.getLangOpts().ObjCAutoRefCount;
-    if (!Summaries) {
-      Summaries.reset(new RetainSummaryManager(
-          Ctx, ARCEnabled, TrackObjCAndCFObjects, TrackOSObjects));
-    } else {
-      assert(Summaries->isARCEnabled() == ARCEnabled);
-    }
+    if (!Summaries)
+      Summaries.reset(
+          new RetainSummaryManager(Ctx, TrackObjCAndCFObjects, TrackOSObjects));
     return *Summaries;
   }
 
@@ -311,7 +310,7 @@ public:
                                const CallEvent &Call,
                                CheckerContext &C) const;
 
-  bool evalCall(const CallExpr *CE, CheckerContext &C) const;
+  bool evalCall(const CallEvent &Call, CheckerContext &C) const;
 
   ProgramStateRef evalAssume(ProgramStateRef state, SVal Cond,
                                  bool Assumption) const;
@@ -336,6 +335,9 @@ public:
                                RefVal V, ArgEffect E, RefVal::Kind &hasErr,
                                CheckerContext &C) const;
 
+  const RefCountBug &errorKindToBugKind(RefVal::Kind ErrorKind,
+                                        SymbolRef Sym) const;
+
   void processNonLeakError(ProgramStateRef St, SourceRange ErrorRange,
                            RefVal::Kind ErrorKind, SymbolRef Sym,
                            CheckerContext &C) const;
@@ -358,6 +360,14 @@ public:
                              CheckerContext &Ctx,
                              ExplodedNode *Pred = nullptr) const;
 
+  const CheckerProgramPointTag &getDeallocSentTag() const {
+    return DeallocSentTag;
+  }
+
+  const CheckerProgramPointTag &getCastFailTag() const {
+    return CastFailTag;
+  }
+
 private:
   /// Perform the necessary checks and state adjustments at the end of the
   /// function.
@@ -370,11 +380,6 @@ private:
 //===----------------------------------------------------------------------===//
 
 const RefVal *getRefBinding(ProgramStateRef State, SymbolRef Sym);
-
-ProgramStateRef setRefBinding(ProgramStateRef State, SymbolRef Sym,
-                                     RefVal Val);
-
-ProgramStateRef removeRefBinding(ProgramStateRef State, SymbolRef Sym);
 
 /// Returns true if this stack frame is for an Objective-C method that is a
 /// property getter or setter whose body has been synthesized by the analyzer.

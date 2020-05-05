@@ -1,15 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPU.h"
 #include "AMDGPUArgumentUsageInfo.h"
 #include "SIRegisterInfo.h"
+#include "llvm/Support/NativeFormatting.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -27,9 +27,16 @@ void ArgDescriptor::print(raw_ostream &OS,
   }
 
   if (isRegister())
-    OS << "Reg " << printReg(getRegister(), TRI) << '\n';
+    OS << "Reg " << printReg(getRegister(), TRI);
   else
-    OS << "Stack offset " << getStackOffset() << '\n';
+    OS << "Stack offset " << getStackOffset();
+
+  if (isMasked()) {
+    OS << " & ";
+    llvm::write_hex(OS, Mask, llvm::HexPrintStyle::PrefixLower);
+  }
+
+  OS << '\n';
 }
 
 char AMDGPUArgumentUsageInfo::ID = 0;

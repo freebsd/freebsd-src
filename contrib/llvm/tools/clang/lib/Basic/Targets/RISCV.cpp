@@ -1,9 +1,8 @@
 //===--- RISCV.cpp - Implement RISCV target feature support ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -32,12 +31,40 @@ ArrayRef<TargetInfo::GCCRegAlias> RISCVTargetInfo::getGCCRegAliases() const {
       {{"zero"}, "x0"}, {{"ra"}, "x1"},  {{"sp"}, "x2"},   {{"gp"}, "x3"},
       {{"tp"}, "x4"},   {{"t0"}, "x5"},  {{"t1"}, "x6"},   {{"t2"}, "x7"},
       {{"s0"}, "x8"},   {{"s1"}, "x9"},  {{"a0"}, "x10"},  {{"a1"}, "x11"},
-      {{"a2"}, "x12"},  {{"a3"}, "x13"}, {{"a4"}, "x15"},  {{"a5"}, "x15"},
+      {{"a2"}, "x12"},  {{"a3"}, "x13"}, {{"a4"}, "x14"},  {{"a5"}, "x15"},
       {{"a6"}, "x16"},  {{"a7"}, "x17"}, {{"s2"}, "x18"},  {{"s3"}, "x19"},
       {{"s4"}, "x20"},  {{"s5"}, "x21"}, {{"s6"}, "x22"},  {{"s7"}, "x23"},
       {{"s8"}, "x24"},  {{"s9"}, "x25"}, {{"s10"}, "x26"}, {{"s11"}, "x27"},
       {{"t3"}, "x28"},  {{"t4"}, "x29"}, {{"t5"}, "x30"},  {{"t6"}, "x31"}};
   return llvm::makeArrayRef(GCCRegAliases);
+}
+
+bool RISCVTargetInfo::validateAsmConstraint(
+    const char *&Name, TargetInfo::ConstraintInfo &Info) const {
+  switch (*Name) {
+  default:
+    return false;
+  case 'I':
+    // A 12-bit signed immediate.
+    Info.setRequiresImmediate(-2048, 2047);
+    return true;
+  case 'J':
+    // Integer zero.
+    Info.setRequiresImmediate(0);
+    return true;
+  case 'K':
+    // A 5-bit unsigned immediate for CSR access instructions.
+    Info.setRequiresImmediate(0, 31);
+    return true;
+  case 'f':
+    // A floating-point register.
+    Info.setAllowsRegister();
+    return true;
+  case 'A':
+    // An address that is held in a general-purpose register.
+    Info.setAllowsMemory();
+    return true;
+  }
 }
 
 void RISCVTargetInfo::getTargetDefines(const LangOptions &Opts,
@@ -46,9 +73,18 @@ void RISCVTargetInfo::getTargetDefines(const LangOptions &Opts,
   Builder.defineMacro("__riscv");
   bool Is64Bit = getTriple().getArch() == llvm::Triple::riscv64;
   Builder.defineMacro("__riscv_xlen", Is64Bit ? "64" : "32");
-  // TODO: modify when more code models and ABIs are supported.
+  // TODO: modify when more code models are supported.
   Builder.defineMacro("__riscv_cmodel_medlow");
-  Builder.defineMacro("__riscv_float_abi_soft");
+
+  StringRef ABIName = getABI();
+  if (ABIName == "ilp32f" || ABIName == "lp64f")
+    Builder.defineMacro("__riscv_float_abi_single");
+  else if (ABIName == "ilp32d" || ABIName == "lp64d")
+    Builder.defineMacro("__riscv_float_abi_double");
+  else if (ABIName == "ilp32e")
+    Builder.defineMacro("__riscv_abi_rve");
+  else
+    Builder.defineMacro("__riscv_float_abi_soft");
 
   if (HasM) {
     Builder.defineMacro("__riscv_mul");

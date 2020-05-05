@@ -1,9 +1,8 @@
 //===- Object.h -------------------------------------------------*- C++ -*-===//
 //
-//                      The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,6 +11,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/BinaryFormat/COFF.h"
@@ -35,15 +35,58 @@ struct Relocation {
 
 struct Section {
   object::coff_section Header;
-  ArrayRef<uint8_t> Contents;
   std::vector<Relocation> Relocs;
   StringRef Name;
+  ssize_t UniqueId;
+  size_t Index;
+
+  ArrayRef<uint8_t> getContents() const {
+    if (!OwnedContents.empty())
+      return OwnedContents;
+    return ContentsRef;
+  }
+
+  void setContentsRef(ArrayRef<uint8_t> Data) {
+    OwnedContents.clear();
+    ContentsRef = Data;
+  }
+
+  void setOwnedContents(std::vector<uint8_t> &&Data) {
+    ContentsRef = ArrayRef<uint8_t>();
+    OwnedContents = std::move(Data);
+  }
+
+  void clearContents() {
+    ContentsRef = ArrayRef<uint8_t>();
+    OwnedContents.clear();
+  }
+
+private:
+  ArrayRef<uint8_t> ContentsRef;
+  std::vector<uint8_t> OwnedContents;
+};
+
+struct AuxSymbol {
+  AuxSymbol(ArrayRef<uint8_t> In) {
+    assert(In.size() == sizeof(Opaque));
+    std::copy(In.begin(), In.end(), Opaque);
+  }
+
+  ArrayRef<uint8_t> getRef() const {
+    return ArrayRef<uint8_t>(Opaque, sizeof(Opaque));
+  }
+
+  uint8_t Opaque[sizeof(object::coff_symbol16)];
 };
 
 struct Symbol {
   object::coff_symbol32 Sym;
   StringRef Name;
-  ArrayRef<uint8_t> AuxData;
+  std::vector<AuxSymbol> AuxData;
+  StringRef AuxFile;
+  ssize_t TargetSectionId;
+  ssize_t AssociativeComdatTargetSectionId = 0;
+  Optional<size_t> WeakTargetSymbolId;
   size_t UniqueId;
   size_t RawIndex;
   bool Referenced;
@@ -62,7 +105,6 @@ struct Object {
   uint32_t BaseOfData = 0; // pe32plus_header lacks this field.
 
   std::vector<object::data_directory> DataDirectories;
-  std::vector<Section> Sections;
 
   ArrayRef<Symbol> getSymbols() const { return Symbols; }
   // This allows mutating individual Symbols, but not mutating the list
@@ -80,14 +122,35 @@ struct Object {
   // all sections.
   Error markSymbols();
 
+  ArrayRef<Section> getSections() const { return Sections; }
+  // This allows mutating individual Sections, but not mutating the list
+  // of symbols itself.
+  iterator_range<std::vector<Section>::iterator> getMutableSections() {
+    return make_range(Sections.begin(), Sections.end());
+  }
+
+  const Section *findSection(ssize_t UniqueId) const;
+
+  void addSections(ArrayRef<Section> NewSections);
+  void removeSections(function_ref<bool(const Section &)> ToRemove);
+  void truncateSections(function_ref<bool(const Section &)> ToTruncate);
+
 private:
   std::vector<Symbol> Symbols;
   DenseMap<size_t, Symbol *> SymbolMap;
 
   size_t NextSymbolUniqueId = 0;
 
-  // Update SymbolMap and RawIndex in each Symbol.
+  std::vector<Section> Sections;
+  DenseMap<ssize_t, Section *> SectionMap;
+
+  ssize_t NextSectionUniqueId = 1; // Allow a UniqueId 0 to mean undefined.
+
+  // Update SymbolMap.
   void updateSymbols();
+
+  // Update SectionMap and Index in each Section.
+  void updateSections();
 };
 
 // Copy between coff_symbol16 and coff_symbol32.

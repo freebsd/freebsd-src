@@ -1,9 +1,8 @@
 //===------- X86ExpandPseudo.cpp - Expand pseudo instructions -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -27,6 +26,7 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "x86-pseudo"
+#define X86_EXPAND_PSEUDO_NAME "X86 pseudo instruction expansion pass"
 
 namespace {
 class X86ExpandPseudo : public MachineFunctionPass {
@@ -66,7 +66,11 @@ private:
   bool ExpandMBB(MachineBasicBlock &MBB);
 };
 char X86ExpandPseudo::ID = 0;
+
 } // End anonymous namespace.
+
+INITIALIZE_PASS(X86ExpandPseudo, DEBUG_TYPE, X86_EXPAND_PSEUDO_NAME, false,
+                false)
 
 void X86ExpandPseudo::ExpandICallBranchFunnel(
     MachineBasicBlock *MBB, MachineBasicBlock::iterator MBBI) {
@@ -83,6 +87,8 @@ void X86ExpandPseudo::ExpandICallBranchFunnel(
   const GlobalValue *CombinedGlobal = JTInst->getOperand(1).getGlobal();
 
   auto CmpTarget = [&](unsigned Target) {
+    if (Selector.isReg())
+      MBB->addLiveIn(Selector.getReg());
     BuildMI(*MBB, MBBI, DL, TII->get(X86::LEA64r), X86::R11)
         .addReg(X86::RIP)
         .addImm(1)
@@ -98,11 +104,13 @@ void X86ExpandPseudo::ExpandICallBranchFunnel(
   auto CreateMBB = [&]() {
     auto *NewMBB = MF->CreateMachineBasicBlock(BB);
     MBB->addSuccessor(NewMBB);
+    if (!MBB->isLiveIn(X86::EFLAGS))
+      MBB->addLiveIn(X86::EFLAGS);
     return NewMBB;
   };
 
-  auto EmitCondJump = [&](unsigned Opcode, MachineBasicBlock *ThenMBB) {
-    BuildMI(*MBB, MBBI, DL, TII->get(Opcode)).addMBB(ThenMBB);
+  auto EmitCondJump = [&](unsigned CC, MachineBasicBlock *ThenMBB) {
+    BuildMI(*MBB, MBBI, DL, TII->get(X86::JCC_1)).addMBB(ThenMBB).addImm(CC);
 
     auto *ElseMBB = CreateMBB();
     MF->insert(InsPt, ElseMBB);
@@ -110,10 +118,10 @@ void X86ExpandPseudo::ExpandICallBranchFunnel(
     MBBI = MBB->end();
   };
 
-  auto EmitCondJumpTarget = [&](unsigned Opcode, unsigned Target) {
+  auto EmitCondJumpTarget = [&](unsigned CC, unsigned Target) {
     auto *ThenMBB = CreateMBB();
     TargetMBBs.push_back({ThenMBB, Target});
-    EmitCondJump(Opcode, ThenMBB);
+    EmitCondJump(CC, ThenMBB);
   };
 
   auto EmitTailCall = [&](unsigned Target) {
@@ -130,23 +138,23 @@ void X86ExpandPseudo::ExpandICallBranchFunnel(
 
     if (NumTargets == 2) {
       CmpTarget(FirstTarget + 1);
-      EmitCondJumpTarget(X86::JB_1, FirstTarget);
+      EmitCondJumpTarget(X86::COND_B, FirstTarget);
       EmitTailCall(FirstTarget + 1);
       return;
     }
 
     if (NumTargets < 6) {
       CmpTarget(FirstTarget + 1);
-      EmitCondJumpTarget(X86::JB_1, FirstTarget);
-      EmitCondJumpTarget(X86::JE_1, FirstTarget + 1);
+      EmitCondJumpTarget(X86::COND_B, FirstTarget);
+      EmitCondJumpTarget(X86::COND_E, FirstTarget + 1);
       EmitBranchFunnel(FirstTarget + 2, NumTargets - 2);
       return;
     }
 
     auto *ThenMBB = CreateMBB();
     CmpTarget(FirstTarget + (NumTargets / 2));
-    EmitCondJump(X86::JB_1, ThenMBB);
-    EmitCondJumpTarget(X86::JE_1, FirstTarget + (NumTargets / 2));
+    EmitCondJump(X86::COND_B, ThenMBB);
+    EmitCondJumpTarget(X86::COND_E, FirstTarget + (NumTargets / 2));
     EmitBranchFunnel(FirstTarget + (NumTargets / 2) + 1,
                   NumTargets - (NumTargets / 2) - 1);
 
@@ -254,16 +262,19 @@ bool X86ExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       for (unsigned i = 0; i != 5; ++i)
         MIB.add(MBBI->getOperand(i));
     } else if (Opcode == X86::TCRETURNri64) {
+      JumpTarget.setIsKill();
       BuildMI(MBB, MBBI, DL,
               TII->get(IsWin64 ? X86::TAILJMPr64_REX : X86::TAILJMPr64))
-          .addReg(JumpTarget.getReg(), RegState::Kill);
+          .add(JumpTarget);
     } else {
+      JumpTarget.setIsKill();
       BuildMI(MBB, MBBI, DL, TII->get(X86::TAILJMPr))
-          .addReg(JumpTarget.getReg(), RegState::Kill);
+          .add(JumpTarget);
     }
 
     MachineInstr &NewMI = *std::prev(MBBI);
     NewMI.copyImplicitOps(*MBBI->getParent()->getParent(), *MBBI);
+    MBB.getParent()->updateCallSiteInfo(&*MBBI, &NewMI);
 
     // Delete the pseudo instruction TCRETURN.
     MBB.erase(MBBI);

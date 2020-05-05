@@ -1,9 +1,8 @@
 //===- MipsABIFlagsSection.h - Mips ELF ABI Flags Section -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -140,7 +139,9 @@ public:
 
   template <class PredicateLibrary>
   void setISAExtensionFromPredicates(const PredicateLibrary &P) {
-    if (P.hasCnMips())
+    if (P.hasCnMipsP())
+      ISAExtension = Mips::AFL_EXT_OCTEONP;
+    else if (P.hasCnMips())
       ISAExtension = Mips::AFL_EXT_OCTEON;
     else
       ISAExtension = Mips::AFL_EXT_NONE;

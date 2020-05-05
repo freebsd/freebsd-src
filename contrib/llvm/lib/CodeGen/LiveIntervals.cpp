@@ -1,9 +1,8 @@
 //===- LiveIntervals.cpp - Live Interval Analysis -------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -901,8 +900,7 @@ bool LiveIntervals::checkRegMaskInterference(LiveInterval &LI,
 
   // We are going to enumerate all the register mask slots contained in LI.
   // Start with a binary search of RegMaskSlots to find a starting point.
-  ArrayRef<SlotIndex>::iterator SlotI =
-    std::lower_bound(Slots.begin(), Slots.end(), LiveI->start);
+  ArrayRef<SlotIndex>::iterator SlotI = llvm::lower_bound(Slots, LiveI->start);
   ArrayRef<SlotIndex>::iterator SlotE = Slots.end();
 
   // No slots in range, LI begins after the last call.
@@ -1371,8 +1369,7 @@ private:
 
   void updateRegMaskSlots() {
     SmallVectorImpl<SlotIndex>::iterator RI =
-      std::lower_bound(LIS.RegMaskSlots.begin(), LIS.RegMaskSlots.end(),
-                       OldIdx);
+        llvm::lower_bound(LIS.RegMaskSlots, OldIdx);
     assert(RI != LIS.RegMaskSlots.end() && *RI == OldIdx.getRegSlot() &&
            "No RegMask at OldIdx.");
     *RI = NewIdx.getRegSlot();

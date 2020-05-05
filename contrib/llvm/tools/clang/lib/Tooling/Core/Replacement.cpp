@@ -1,9 +1,8 @@
 //===- Replacement.cpp - Framework for clang refactoring tools ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -520,12 +519,11 @@ calculateRangesAfterReplacements(const Replacements &Replaces,
     return MergedRanges;
   tooling::Replacements FakeReplaces;
   for (const auto &R : MergedRanges) {
-    auto Err = FakeReplaces.add(Replacement(Replaces.begin()->getFilePath(),
-                                            R.getOffset(), R.getLength(),
-                                            std::string(R.getLength(), ' ')));
-    assert(!Err &&
-           "Replacements must not conflict since ranges have been merged.");
-    llvm::consumeError(std::move(Err));
+    llvm::cantFail(
+        FakeReplaces.add(Replacement(Replaces.begin()->getFilePath(),
+                                     R.getOffset(), R.getLength(),
+                                     std::string(R.getLength(), ' '))),
+        "Replacements must not conflict since ranges have been merged.");
   }
   return FakeReplaces.merge(Replaces).getAffectedRanges();
 }

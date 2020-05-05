@@ -1,13 +1,10 @@
 //===-- RegisterContextDarwin_i386.cpp --------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-
-#include <stddef.h>
 
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/DataExtractor.h"
@@ -17,6 +14,10 @@
 #include "lldb/Utility/Scalar.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Compiler.h"
+
+#include <stddef.h>
+
+#include <memory>
 
 // Support building against older versions of LLVM, this macro was added
 // recently.
@@ -175,42 +176,42 @@ static RegisterInfo g_register_infos[] = {
     //  =============================== =======================
     //  ===================   =========================  ==================
     //  =================
-    {DEFINE_GPR(eax, NULL),
+    {DEFINE_GPR(eax, nullptr),
      {ehframe_eax, dwarf_eax, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       gpr_eax},
      nullptr,
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(ebx, NULL),
+    {DEFINE_GPR(ebx, nullptr),
      {ehframe_ebx, dwarf_ebx, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       gpr_ebx},
      nullptr,
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(ecx, NULL),
+    {DEFINE_GPR(ecx, nullptr),
      {ehframe_ecx, dwarf_ecx, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       gpr_ecx},
      nullptr,
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(edx, NULL),
+    {DEFINE_GPR(edx, nullptr),
      {ehframe_edx, dwarf_edx, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       gpr_edx},
      nullptr,
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(edi, NULL),
+    {DEFINE_GPR(edi, nullptr),
      {ehframe_edi, dwarf_edi, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       gpr_edi},
      nullptr,
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(esi, NULL),
+    {DEFINE_GPR(esi, nullptr),
      {ehframe_esi, dwarf_esi, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       gpr_esi},
      nullptr,
@@ -231,7 +232,7 @@ static RegisterInfo g_register_infos[] = {
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(ss, NULL),
+    {DEFINE_GPR(ss, nullptr),
      {LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM, gpr_ss},
      nullptr,
@@ -252,35 +253,35 @@ static RegisterInfo g_register_infos[] = {
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(cs, NULL),
+    {DEFINE_GPR(cs, nullptr),
      {LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM, gpr_cs},
      nullptr,
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(ds, NULL),
+    {DEFINE_GPR(ds, nullptr),
      {LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM, gpr_ds},
      nullptr,
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(es, NULL),
+    {DEFINE_GPR(es, nullptr),
      {LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM, gpr_es},
      nullptr,
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(fs, NULL),
+    {DEFINE_GPR(fs, nullptr),
      {LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM, gpr_fs},
      nullptr,
      nullptr,
      nullptr,
      0},
-    {DEFINE_GPR(gs, NULL),
+    {DEFINE_GPR(gs, nullptr),
      {LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM, gpr_gs},
      nullptr,
@@ -426,7 +427,7 @@ RegisterContextDarwin_i386::GetRegisterInfoAtIndex(size_t reg) {
   assert(k_num_register_infos == k_num_registers);
   if (reg < k_num_registers)
     return &g_register_infos[reg];
-  return NULL;
+  return nullptr;
 }
 
 size_t RegisterContextDarwin_i386::GetRegisterInfosCount() {
@@ -459,11 +460,9 @@ const size_t k_num_gpr_registers = llvm::array_lengthof(g_gpr_regnums);
 const size_t k_num_fpu_registers = llvm::array_lengthof(g_fpu_regnums);
 const size_t k_num_exc_registers = llvm::array_lengthof(g_exc_regnums);
 
-//----------------------------------------------------------------------
 // Register set definitions. The first definitions at register set index of
 // zero is for all registers, followed by other registers sets. The register
 // information for the all register set need not be filled in.
-//----------------------------------------------------------------------
 static const RegisterSet g_reg_sets[] = {
     {
         "General Purpose Registers", "gpr", k_num_gpr_registers, g_gpr_regnums,
@@ -480,12 +479,10 @@ size_t RegisterContextDarwin_i386::GetRegisterSetCount() {
 const RegisterSet *RegisterContextDarwin_i386::GetRegisterSet(size_t reg_set) {
   if (reg_set < k_num_regsets)
     return &g_reg_sets[reg_set];
-  return NULL;
+  return nullptr;
 }
 
-//----------------------------------------------------------------------
 // Register information definitions for 32 bit i386.
-//----------------------------------------------------------------------
 int RegisterContextDarwin_i386::GetSetForNativeRegNum(int reg_num) {
   if (reg_num < fpu_fcw)
     return GPRRegSet;
@@ -832,9 +829,8 @@ bool RegisterContextDarwin_i386::WriteRegister(const RegisterInfo *reg_info,
 
 bool RegisterContextDarwin_i386::ReadAllRegisterValues(
     lldb::DataBufferSP &data_sp) {
-  data_sp.reset(new DataBufferHeap(REG_CONTEXT_SIZE, 0));
-  if (data_sp && ReadGPR(false) == 0 && ReadFPU(false) == 0 &&
-      ReadEXC(false) == 0) {
+  data_sp = std::make_shared<DataBufferHeap>(REG_CONTEXT_SIZE, 0);
+  if (ReadGPR(false) == 0 && ReadFPU(false) == 0 && ReadEXC(false) == 0) {
     uint8_t *dst = data_sp->GetBytes();
     ::memcpy(dst, &gpr, sizeof(gpr));
     dst += sizeof(gpr);

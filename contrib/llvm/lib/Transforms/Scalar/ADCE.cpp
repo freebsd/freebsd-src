@@ -1,9 +1,8 @@
 //===- ADCE.cpp - Code to perform dead code elimination -------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,9 +19,11 @@
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/IteratedDominanceFrontier.h"
 #include "llvm/Analysis/PostDominators.h"
@@ -30,7 +31,6 @@
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
-#include "llvm/IR/DomTreeUpdater.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
@@ -136,7 +136,7 @@ class AggressiveDeadCodeElimination {
   SmallPtrSet<const Metadata *, 32> AliveScopes;
 
   /// Set of blocks with not known to have live terminators.
-  SmallPtrSet<BasicBlock *, 16> BlocksWithDeadTerminators;
+  SmallSetVector<BasicBlock *, 16> BlocksWithDeadTerminators;
 
   /// The set of blocks which we have determined whose control
   /// dependence sources must be live and which have not had
@@ -390,7 +390,7 @@ void AggressiveDeadCodeElimination::markLive(Instruction *I) {
   // Mark the containing block live
   auto &BBInfo = *Info.Block;
   if (BBInfo.Terminator == I) {
-    BlocksWithDeadTerminators.erase(BBInfo.BB);
+    BlocksWithDeadTerminators.remove(BBInfo.BB);
     // For live terminators, mark destination blocks
     // live to preserve this control flow edges.
     if (!BBInfo.UnconditionalBranch)
@@ -479,10 +479,14 @@ void AggressiveDeadCodeElimination::markLiveBranchesFromControlDependences() {
   // which currently have dead terminators that are control
   // dependence sources of a block which is in NewLiveBlocks.
 
+  const SmallPtrSet<BasicBlock *, 16> BWDT{
+      BlocksWithDeadTerminators.begin(),
+      BlocksWithDeadTerminators.end()
+  };
   SmallVector<BasicBlock *, 32> IDFBlocks;
   ReverseIDFCalculator IDFs(PDT);
   IDFs.setDefiningBlocks(NewLiveBlocks);
-  IDFs.setLiveInBlocks(BlocksWithDeadTerminators);
+  IDFs.setLiveInBlocks(BWDT);
   IDFs.calculate(IDFBlocks);
   NewLiveBlocks.clear();
 

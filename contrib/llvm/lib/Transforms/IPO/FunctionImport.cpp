@@ -1,9 +1,8 @@
 //===- FunctionImport.cpp - ThinLTO Summary-based Function Import ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -778,9 +777,7 @@ void llvm::computeDeadSymbols(
     if (!VI)
       return;
 
-    // We need to make sure all variants of the symbol are scanned, alias can
-    // make one (but not all) alive.
-    if (llvm::all_of(VI.getSummaryList(),
+    if (llvm::any_of(VI.getSummaryList(),
                      [](const std::unique_ptr<llvm::GlobalValueSummary> &S) {
                        return S->isLive();
                      }))
@@ -820,12 +817,18 @@ void llvm::computeDeadSymbols(
   while (!Worklist.empty()) {
     auto VI = Worklist.pop_back_val();
     for (auto &Summary : VI.getSummaryList()) {
-      GlobalValueSummary *Base = Summary->getBaseObject();
-      // Set base value live in case it is an alias.
-      Base->setLive(true);
-      for (auto Ref : Base->refs())
+      if (auto *AS = dyn_cast<AliasSummary>(Summary.get())) {
+        // If this is an alias, visit the aliasee VI to ensure that all copies
+        // are marked live and it is added to the worklist for further
+        // processing of its references.
+        visit(AS->getAliaseeVI());
+        continue;
+      }
+
+      Summary->setLive(true);
+      for (auto Ref : Summary->refs())
         visit(Ref);
-      if (auto *FS = dyn_cast<FunctionSummary>(Base))
+      if (auto *FS = dyn_cast<FunctionSummary>(Summary.get()))
         for (auto Call : FS->calls())
           visit(Call.first);
     }
@@ -847,14 +850,16 @@ void llvm::computeDeadSymbolsWithConstProp(
     bool ImportEnabled) {
   computeDeadSymbols(Index, GUIDPreservedSymbols, isPrevailing);
   if (ImportEnabled) {
-    Index.propagateConstants(GUIDPreservedSymbols);
+    Index.propagateAttributes(GUIDPreservedSymbols);
   } else {
-    // If import is disabled we should drop read-only attribute
+    // If import is disabled we should drop read/write-only attribute
     // from all summaries to prevent internalization.
     for (auto &P : Index)
       for (auto &S : P.second.SummaryList)
-        if (auto *GVS = dyn_cast<GlobalVarSummary>(S.get()))
+        if (auto *GVS = dyn_cast<GlobalVarSummary>(S.get())) {
           GVS->setReadOnly(false);
+          GVS->setWriteOnly(false);
+        }
   }
 }
 
@@ -973,12 +978,15 @@ void llvm::thinLTOResolvePrevailingInModule(
         // changed to enable this for aliases.
         llvm_unreachable("Expected GV to be converted");
     } else {
-      // If the original symbols has global unnamed addr and linkonce_odr linkage,
-      // it should be an auto hide symbol. Add hidden visibility to the symbol to
-      // preserve the property.
-      if (GV.hasLinkOnceODRLinkage() && GV.hasGlobalUnnamedAddr() &&
-          NewLinkage == GlobalValue::WeakODRLinkage)
+      // If all copies of the original symbol had global unnamed addr and
+      // linkonce_odr linkage, it should be an auto hide symbol. In that case
+      // the thin link would have marked it as CanAutoHide. Add hidden visibility
+      // to the symbol to preserve the property.
+      if (NewLinkage == GlobalValue::WeakODRLinkage &&
+          GS->second->canAutoHide()) {
+        assert(GV.hasLinkOnceODRLinkage() && GV.hasGlobalUnnamedAddr());
         GV.setVisibility(GlobalValue::HiddenVisibility);
+      }
 
       LLVM_DEBUG(dbgs() << "ODR fixing up linkage for `" << GV.getName()
                         << "` from " << GV.getLinkage() << " to " << NewLinkage
@@ -1047,9 +1055,10 @@ static Function *replaceAliasWithAliasee(Module *SrcModule, GlobalAlias *GA) {
 
   ValueToValueMapTy VMap;
   Function *NewFn = CloneFunction(Fn, VMap);
-  // Clone should use the original alias's linkage and name, and we ensure
-  // all uses of alias instead use the new clone (casted if necessary).
+  // Clone should use the original alias's linkage, visibility and name, and we
+  // ensure all uses of alias instead use the new clone (casted if necessary).
   NewFn->setLinkage(GA->getLinkage());
+  NewFn->setVisibility(GA->getVisibility());
   GA->replaceAllUsesWith(ConstantExpr::getBitCast(NewFn, GA->getType()));
   NewFn->takeName(GA);
   return NewFn;
@@ -1057,7 +1066,7 @@ static Function *replaceAliasWithAliasee(Module *SrcModule, GlobalAlias *GA) {
 
 // Internalize values that we marked with specific attribute
 // in processGlobalForThinLTO.
-static void internalizeImmutableGVs(Module &M) {
+static void internalizeGVsAfterImport(Module &M) {
   for (auto &GV : M.globals())
     // Skip GVs which have been converted to declarations
     // by dropDeadSymbols.
@@ -1190,7 +1199,7 @@ Expected<bool> FunctionImporter::importFunctions(
     NumImportedModules++;
   }
 
-  internalizeImmutableGVs(DestModule);
+  internalizeGVsAfterImport(DestModule);
 
   NumImportedFunctions += (ImportedCount - ImportedGVCount);
   NumImportedGlobalVars += ImportedGVCount;
