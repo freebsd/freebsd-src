@@ -361,8 +361,6 @@ int nfsv4_sequencelookup(struct nfsmount *, struct nfsclsession *, int *,
 void nfsv4_freeslot(struct nfsclsession *, int);
 struct ucred *nfsrv_getgrpscred(struct ucred *);
 struct nfsdevice *nfsv4_findmirror(struct nfsmount *);
-int nfsm_set(struct nfsrv_descript *, u_int, bool);
-bool nfsm_shiftnext(struct nfsrv_descript *, int *);
 
 /* nfs_clcomsubs.c */
 void nfsm_uiombuf(struct nfsrv_descript *, struct uio *, int);
