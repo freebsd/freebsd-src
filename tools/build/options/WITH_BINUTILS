@@ -1,7 +1,4 @@
 .\" $FreeBSD$
 Build and install GNU
 .Xr as 1
-on i386 and amd64,
-and
-.Xr objdump 1
 as part of the normal system build.
