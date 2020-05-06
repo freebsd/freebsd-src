@@ -1740,9 +1740,9 @@ void __hal_updt_stats_xpak(xge_hal_device_t *hldev)
 	/*
 	 * Reading the warning flags
 	 */
-	    addr = 0xA074;
-	    val_1 = 0x0;
-	    val_1 = xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr);
+	addr = 0xA074;
+	val_1 = 0x0;
+	val_1 = xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr);
 	if(CHECKBIT(val_1, 0x7))
 	    hldev->stats.sw_dev_err_stats.stats_xpak.
 	        warn_transceiver_temp_high++;
