@@ -96,6 +96,8 @@ static driver_t vtrnd_driver = {
 };
 static devclass_t vtrnd_devclass;
 
+DRIVER_MODULE(virtio_random, virtio_mmio, vtrnd_driver, vtrnd_devclass,
+    vtrnd_modevent, 0);
 DRIVER_MODULE(virtio_random, virtio_pci, vtrnd_driver, vtrnd_devclass,
     vtrnd_modevent, 0);
 MODULE_VERSION(virtio_random, 1);
@@ -104,6 +106,7 @@ MODULE_DEPEND(virtio_random, random_device, 1, 1, 1);
 
 VIRTIO_SIMPLE_PNPTABLE(virtio_random, VIRTIO_ID_ENTROPY,
     "VirtIO Entropy Adapter");
+VIRTIO_SIMPLE_PNPINFO(virtio_mmio, virtio_random);
 VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_random);
 
 static int
