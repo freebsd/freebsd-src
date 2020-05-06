@@ -26,4 +26,9 @@ SRCS+=	lauxlib.c lbaselib.c lbitlib.c lcorolib.c ldblib.c liolib.c \
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/modules -I${LUASRC}
 CFLAGS+=	-DLUA_PROGNAME="\"${PROG}\""
 
+.if defined(BOOTSTRAPPING)
+CFLAGS+=	-DLUA_PATH_DEFAULT="\"/nonexistent/?.lua\""
+CFLAGS+=	-DLUA_CPATH_DEFAULT="\"/nonexistent/?.so\""
+.endif
+
 .include <bsd.lib.mk>
