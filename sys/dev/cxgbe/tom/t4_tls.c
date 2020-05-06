@@ -1368,8 +1368,8 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 		}
 		toep->txsd_avail--;
 
-		atomic_add_long(&toep->vi->pi->tx_tls_records, 1);
-		atomic_add_long(&toep->vi->pi->tx_tls_octets, plen);
+		atomic_add_long(&toep->vi->pi->tx_toe_tls_records, 1);
+		atomic_add_long(&toep->vi->pi->tx_toe_tls_octets, plen);
 
 		t4_l2t_send(sc, wr, toep->l2te);
 	}
@@ -1404,7 +1404,7 @@ do_tls_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	m_adj(m, sizeof(*cpl));
 	len = m->m_pkthdr.len;
 
-	atomic_add_long(&toep->vi->pi->rx_tls_octets, len);
+	atomic_add_long(&toep->vi->pi->rx_toe_tls_octets, len);
 
 	KASSERT(len == G_CPL_TLS_DATA_LENGTH(be32toh(cpl->length_pkd)),
 	    ("%s: payload length mismatch", __func__));
@@ -1467,7 +1467,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	m_adj(m, sizeof(*cpl));
 	len = m->m_pkthdr.len;
 
-	atomic_add_long(&toep->vi->pi->rx_tls_records, 1);
+	atomic_add_long(&toep->vi->pi->rx_toe_tls_records, 1);
 
 	KASSERT(len == G_CPL_RX_TLS_CMP_LENGTH(be32toh(cpl->pdulength_length)),
 	    ("%s: payload length mismatch", __func__));
