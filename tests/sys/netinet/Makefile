@@ -9,7 +9,7 @@ ATF_TESTS_C=	ip_reass_test \
 		so_reuseport_lb_test \
 		socket_afinet
 
-ATF_TESTS_SH=	carp fibs_test redirect divert forward output
+ATF_TESTS_SH=	carp fibs_test redirect divert forward output lpm
 
 PROGS=	udp_dontroute tcp_user_cookie
 
