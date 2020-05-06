@@ -228,6 +228,8 @@ static driver_t vtscsi_driver = {
 };
 static devclass_t vtscsi_devclass;
 
+DRIVER_MODULE(virtio_scsi, virtio_mmio, vtscsi_driver, vtscsi_devclass,
+    vtscsi_modevent, 0);
 DRIVER_MODULE(virtio_scsi, virtio_pci, vtscsi_driver, vtscsi_devclass,
     vtscsi_modevent, 0);
 MODULE_VERSION(virtio_scsi, 1);
@@ -235,6 +237,7 @@ MODULE_DEPEND(virtio_scsi, virtio, 1, 1, 1);
 MODULE_DEPEND(virtio_scsi, cam, 1, 1, 1);
 
 VIRTIO_SIMPLE_PNPTABLE(virtio_scsi, VIRTIO_ID_SCSI, "VirtIO SCSI Adapter");
+VIRTIO_SIMPLE_PNPINFO(virtio_mmio, virtio_scsi);
 VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_scsi);
 
 static int
