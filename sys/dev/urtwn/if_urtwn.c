@@ -4177,11 +4177,12 @@ urtwn_mac_init(struct urtwn_softc *sc)
 		}
 		urtwn_write_1(sc, R92C_MAX_AGGR_NUM, 0x07);
 	} else {
-		for (i = 0; i < nitems(rtl8192cu_mac); i++)
+		for (i = 0; i < nitems(rtl8192cu_mac); i++) {
 			error = urtwn_write_1(sc, rtl8192cu_mac[i].reg,
 			    rtl8192cu_mac[i].val);
 			if (error != USB_ERR_NORMAL_COMPLETION)
 				return (EIO);
+		}
 	}
 
 	return (0);
