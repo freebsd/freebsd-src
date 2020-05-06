@@ -1006,53 +1006,6 @@ nfsaddr2_match(NFSSOCKADDR_T nam1, NFSSOCKADDR_T nam2)
 	return (0);
 }
 
-
-/*
- * Trim the stuff already dissected off the mbuf list.
- */
-APPLESTATIC void
-newnfs_trimleading(nd)
-	struct nfsrv_descript *nd;
-{
-	struct mbuf *m, *n;
-	int offs;
-
-	/*
-	 * First, free up leading mbufs.
-	 */
-	if (nd->nd_mrep != nd->nd_md) {
-		m = nd->nd_mrep;
-		while (m->m_next != nd->nd_md) {
-			if (m->m_next == NULL)
-				panic("nfsm trim leading");
-			m = m->m_next;
-		}
-		m->m_next = NULL;
-		m_freem(nd->nd_mrep);
-	}
-	m = nd->nd_md;
-
-	/*
-	 * Now, adjust this mbuf, based on nd_dpos.
-	 */
-	offs = nd->nd_dpos - mtod(m, caddr_t);
-	if (offs == m->m_len) {
-		n = m;
-		m = m->m_next;
-		if (m == NULL)
-			panic("nfsm trim leading2");
-		n->m_next = NULL;
-		m_freem(n);
-	} else if (offs > 0) {
-		m->m_len -= offs;
-		m->m_data += offs;
-	} else if (offs < 0)
-		panic("nfsm trimleading offs");
-	nd->nd_mrep = m;
-	nd->nd_md = m;
-	nd->nd_dpos = mtod(m, caddr_t);
-}
-
 /*
  * Trim trailing data off the mbuf list being built.
  */
