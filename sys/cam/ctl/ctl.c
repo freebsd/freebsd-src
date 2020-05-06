@@ -8591,10 +8591,11 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_io *io)
 		if (lun->pr_res_type != SPR_TYPE_EX_AC &&
 		    lun->pr_res_type != SPR_TYPE_WR_EX &&
 		    (lun->MODE_CTRL.queue_flags & SCP_NUAR) == 0) {
-			for (i = softc->init_min; i < softc->init_max; i++)
+			for (i = softc->init_min; i < softc->init_max; i++) {
 				if (i == residx || ctl_get_prkey(lun, i) == 0)
 					continue;
 				ctl_est_ua(lun, i, CTL_UA_RES_RELEASE);
+			}
 		}
 
 		lun->flags &= ~CTL_LUN_PR_RESERVED;
