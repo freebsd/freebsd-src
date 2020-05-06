@@ -472,6 +472,7 @@ skip_rng:
 		crypto_kregister(sc->sc_cid, CRK_MOD_EXP_CRT, 0);
 #endif
 	}
+	gone_in_dev(dev, 13, "Does not support modern crypto algorithms");
 	return (0);
 bad4:
 	while (!SIMPLEQ_EMPTY(&sc->sc_freequeue)) {
