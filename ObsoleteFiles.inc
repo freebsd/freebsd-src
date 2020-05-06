@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200506: GNU objdump 2.17.50 retired
+OLD_FILES+=usr/bin/objdump
+OLD_FILES+=usr/share/man/man1/objdump.1.gz
+
 # 20200418: Make libauditd private
 OLD_FILES+=usr/lib/libauditd.a
 OLD_FILES+=usr/lib/libauditd.so
