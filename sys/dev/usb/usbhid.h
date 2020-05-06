@@ -174,7 +174,10 @@ struct usb_hid_descriptor {
 #define	HUD_CONTACTCOUNT	0x0054
 #define	HUD_CONTACT_MAX		0x0055
 #define	HUD_SCAN_TIME		0x0056
+#define	HUD_SURFACE_SWITCH	0x0057
+#define	HUD_BUTTONS_SWITCH	0x0058
 #define	HUD_BUTTON_TYPE		0x0059
+#define	HUD_LATENCY_MODE	0x0060
 
 /* Usages, Consumer */
 #define	HUC_AC_PAN		0x0238
