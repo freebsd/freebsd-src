@@ -1,6 +1,5 @@
 .\" $FreeBSD$
 Do not build or install GNU
-.Xr as 1 and
-.Xr objdump 1
+.Xr as 1
 as part
 of the normal system build.
