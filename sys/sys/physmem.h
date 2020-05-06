@@ -28,13 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PHYSMEM_H_
-#define	_MACHINE_PHYSMEM_H_
-
-/*
- * The physical address at which the kernel was loaded.
- */
-extern vm_paddr_t arm_physmem_kernaddr;
+#ifndef	_SYS_PHYSMEM_H_
+#define	_SYS_PHYSMEM_H_
 
 /*
  * Routines to help configure physical ram.
@@ -46,7 +41,7 @@ extern vm_paddr_t arm_physmem_kernaddr;
  *
  * After all early kernel init is done and it's time to configure all
  * remainining non-excluded physical ram for use by other parts of the kernel,
- * arm_physmem_init_kernel_globals() processes the hardware regions and
+ * physmem_init_kernel_globals() processes the hardware regions and
  * exclusion regions to generate the global dump_avail and phys_avail arrays
  * that communicate physical ram configuration to other parts of the kernel.
  */
@@ -54,11 +49,11 @@ extern vm_paddr_t arm_physmem_kernaddr;
 #define	EXFLAG_NODUMP	0x01
 #define	EXFLAG_NOALLOC	0x02
 
-void arm_physmem_hardware_region(uint64_t pa, uint64_t sz);
-void arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t flags);
-size_t arm_physmem_avail(vm_paddr_t *avail, size_t maxavail);
-void arm_physmem_init_kernel_globals(void);
-void arm_physmem_print_tables(void);
+void physmem_hardware_region(uint64_t pa, uint64_t sz);
+void physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t flags);
+size_t physmem_avail(vm_paddr_t *avail, size_t maxavail);
+void physmem_init_kernel_globals(void);
+void physmem_print_tables(void);
 
 /*
  * Convenience routines for FDT.
@@ -69,20 +64,20 @@ void arm_physmem_print_tables(void);
 #include <machine/ofw_machdep.h>
 
 static inline void
-arm_physmem_hardware_regions(struct mem_region * mrptr, int mrcount)
+physmem_hardware_regions(struct mem_region * mrptr, int mrcount)
 {
 	while (mrcount--) {
-		arm_physmem_hardware_region(mrptr->mr_start, mrptr->mr_size);
+		physmem_hardware_region(mrptr->mr_start, mrptr->mr_size);
 		++mrptr;
 	}
 }
 
 static inline void
-arm_physmem_exclude_regions(struct mem_region * mrptr, int mrcount,
+physmem_exclude_regions(struct mem_region * mrptr, int mrcount,
     uint32_t exflags)
 {
 	while (mrcount--) {
-		arm_physmem_exclude_region(mrptr->mr_start, mrptr->mr_size,
+		physmem_exclude_region(mrptr->mr_start, mrptr->mr_size,
 		    exflags);
 		++mrptr;
 	}
@@ -90,5 +85,4 @@ arm_physmem_exclude_regions(struct mem_region * mrptr, int mrcount,
 
 #endif /* FDT */
 
-#endif
-
+#endif /* !_SYS_PHYSMEM_H_ */

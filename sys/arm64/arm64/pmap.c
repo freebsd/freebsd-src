@@ -118,6 +118,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
+#include <sys/physmem.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
@@ -146,8 +147,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
-
-#include <arm/include/physmem.h>
 
 #define	NL0PG		(PAGE_SIZE/(sizeof (pd_entry_t)))
 #define	NL1PG		(PAGE_SIZE/(sizeof (pd_entry_t)))
@@ -801,7 +800,7 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	/* Assume the address we were loaded to is a valid physical address */
 	min_pa = KERNBASE - kern_delta;
 
-	physmap_idx = arm_physmem_avail(physmap, nitems(physmap));
+	physmap_idx = physmem_avail(physmap, nitems(physmap));
 	physmap_idx /= 2;
 
 	/*
@@ -882,7 +881,7 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 
 	pa = pmap_early_vtophys(l1pt, freemempos);
 
-	arm_physmem_exclude_region(start_pa, pa - start_pa, EXFLAG_NOALLOC);
+	physmem_exclude_region(start_pa, pa - start_pa, EXFLAG_NOALLOC);
 
 	cpu_tlb_flushID();
 }
