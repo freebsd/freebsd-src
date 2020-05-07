@@ -3366,7 +3366,7 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 				guest_buttons |= MOUSE_BUTTON1DOWN;
 			if (pb->ipacket[1] & 0x04)
 				guest_buttons |= MOUSE_BUTTON2DOWN;
-				if (pb->ipacket[1] & 0x02)
+			if (pb->ipacket[1] & 0x02)
 				guest_buttons |= MOUSE_BUTTON3DOWN;
 #ifdef EVDEV_SUPPORT
 			if (evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE) {
