@@ -303,10 +303,20 @@ gpioiic_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Say what we came up with for pin config. */
+	/*
+	 * Say what we came up with for pin config.
+	 * NB: in the !FDT case the controller driver might not be set up enough
+	 * for GPIO_GET_BUS() to work.  Also, our parent is the only gpiobus
+	 * that can provide our pins.
+	 */
 	device_printf(dev, "SCL pin: %s:%d, SDA pin: %s:%d\n",
+#ifdef FDT
 	    device_get_nameunit(GPIO_GET_BUS(sc->sclpin->dev)), sc->sclpin->pin,
 	    device_get_nameunit(GPIO_GET_BUS(sc->sdapin->dev)), sc->sdapin->pin);
+#else
+	    device_get_nameunit(device_get_parent(dev)), sc->sclpin->pin,
+	    device_get_nameunit(device_get_parent(dev)), sc->sdapin->pin);
+#endif
 
 	/* Add the bitbang driver as our only child; it will add iicbus. */
 	device_add_child(sc->dev, "iicbb", -1);
