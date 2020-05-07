@@ -439,19 +439,19 @@ vtmmio_set_virtqueue(struct vtmmio_softc *sc, struct virtqueue *vq,
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_DESC_LOW,
 		    paddr);
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_DESC_HIGH,
-		    paddr >> 32);
+		    ((uint64_t)paddr) >> 32);
 
 		paddr = virtqueue_avail_paddr(vq);
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_AVAIL_LOW,
 		    paddr);
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_AVAIL_HIGH,
-		    paddr >> 32);
+		    ((uint64_t)paddr) >> 32);
 
 		paddr = virtqueue_used_paddr(vq);
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_USED_LOW,
 		    paddr);
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_USED_HIGH,
-		    paddr >> 32);
+		    ((uint64_t)paddr) >> 32);
 
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_READY, 1);
 	}
