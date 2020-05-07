@@ -4483,6 +4483,7 @@ out:
 	    SCTP_FROM_SCTP_PCB + SCTP_LOC_9);
 	sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, inp, stcb, net,
 	    SCTP_FROM_SCTP_PCB + SCTP_LOC_10);
+	net->dest_state |= SCTP_ADDR_BEING_DELETED;
 	sctp_free_remote_addr(net);
 }
 
