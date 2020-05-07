@@ -54,7 +54,7 @@
 	.globl _start
 _start:
 	/* Get the physical address kernel loaded to */
-	la	t0, virt_map
+	lla	t0, virt_map
 	ld	t1, 0(t0)
 	sub	t1, t1, t0
 	li	t2, KERNBASE
@@ -66,7 +66,7 @@ _start:
 	 */
 
 	/* Pick a hart to run the boot process. */
-	la	t0, hart_lottery
+	lla	t0, hart_lottery
 	li	t1, 1
 	amoadd.w t0, t1, 0(t0)
 
@@ -82,8 +82,8 @@ _start:
 	 */
 1:
 	/* Add L1 entry for kernel */
-	la	s1, pagetable_l1
-	la	s2, pagetable_l2	/* Link to next level PN */
+	lla	s1, pagetable_l1
+	lla	s2, pagetable_l2	/* Link to next level PN */
 	srli	s2, s2, PAGE_SHIFT
 
 	li	a5, KERNBASE
@@ -100,7 +100,7 @@ _start:
 	sd	t6, (t0)
 
 	/* Level 2 superpages (512 x 2MiB) */
-	la	s1, pagetable_l2
+	lla	s1, pagetable_l2
 	srli	t4, s9, 21		/* Div physmem base by 2 MiB */
 	li	t2, 512			/* Build 512 entries */
 	add	t3, t4, t2
@@ -116,8 +116,8 @@ _start:
 	bltu	t4, t3, 2b
 
 	/* Create an L1 page for early devmap */
-	la	s1, pagetable_l1
-	la	s2, pagetable_l2_devmap	/* Link to next level PN */
+	lla	s1, pagetable_l1
+	lla	s2, pagetable_l2_devmap	/* Link to next level PN */
 	srli	s2, s2, PAGE_SHIFT
 
 	li	a5, (VM_MAX_KERNEL_ADDRESS - L2_SIZE)
@@ -134,7 +134,7 @@ _start:
 	sd	t6, (t0)
 
 	/* Create an L2 page superpage for DTB */
-	la	s1, pagetable_l2_devmap
+	lla	s1, pagetable_l2_devmap
 	mv	s2, a1
 	srli	s2, s2, PAGE_SHIFT
 
@@ -152,14 +152,14 @@ _start:
 	/* Page tables END */
 
 	/* Setup supervisor trap vector */
-	la	t0, va
+	lla	t0, va
 	sub	t0, t0, s9
 	li	t1, KERNBASE
 	add	t0, t0, t1
 	csrw	stvec, t0
 
 	/* Set page tables base register */
-	la	s2, pagetable_l1
+	lla	s2, pagetable_l1
 	srli	s2, s2, PAGE_SHIFT
 	li	t0, SATP_MODE_SV39
 	or	s2, s2, t0

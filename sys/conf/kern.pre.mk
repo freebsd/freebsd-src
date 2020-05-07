@@ -143,6 +143,17 @@ LDFLAGS+=	-z notext -z ifunc-noplt
 .endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "riscv"
+# Hack: Work around undefined weak symbols being out of range when linking with
+# LLD (address is a PC-relative calculation, and BFD works around this by
+# rewriting the instructions to generate an absolute address of 0); -fPIE
+# avoids this since it uses the GOT for all extern symbols, which is overly
+# inefficient for us. Drop once undefined weak symbols work with medany.
+.if ${LINKER_TYPE} == "lld"
+CFLAGS+=	-fPIE
+.endif
+.endif
+
 NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
 NORMAL_S= ${CC:N${CCACHE_BIN}} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 PROFILE_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
