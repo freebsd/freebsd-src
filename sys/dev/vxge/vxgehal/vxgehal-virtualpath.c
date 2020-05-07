@@ -5547,7 +5547,7 @@ __hal_vpath_alarm_process(__hal_virtualpath_t *vpath, u32 skip_alarms)
 					    hldev->header.regh0,
 					    VXGE_HAL_MRPCIM_TO_VPATH_ALARM_REG_ALARM,
 					    &vpath->vp_reg->mrpcim_to_vpath_alarm_reg);
-					return (VXGE_HAL_ERR_EVENT_MRPCIM_CRITICAL);
+				return (VXGE_HAL_ERR_EVENT_MRPCIM_CRITICAL);
 			}
 
 			if (!skip_alarms)
