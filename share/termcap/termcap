@@ -2758,35 +2758,35 @@ vt340-color|vt340 co:\
 # SC,SB,SH,SW names needed for screen(1)
 #
 SC|screen|VT 100/ANSI X3.64 virtual terminal:\
-	:am:xn:ms:mi:G0:km:\
-	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:bs:bt=\E[Z:\
-	:cb=\E[1K:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:ct=\E[3g:\
-	:do=^J:nd=\E[C:pt:rc=\E8:rs=\Ec:sc=\E7:st=\EH:up=\EM:\
-	:le=^H:bl=^G:cr=^M:it#8:ho=\E[H:nw=\EE:ta=^I:is=\E)0:\
-	:li#24:co#80:us=\E[4m:ue=\E[24m:so=\E[3m:se=\E[23m:\
-	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:sr=\EM:al=\E[L:\
-	:AL=\E[%dL:dl=\E[M:DL=\E[%dM:cs=\E[%i%d;%dr:dc=\E[P:\
-	:DC=\E[%dP:im=\E[4h:ei=\E[4l:IC=\E[%d@:\
-	:ks=\E[?1h\E=:ke=\E[?1l\E>:vb=\Eg:\
-	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
-	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
-	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:\
-	:F3=\E[25~:F4=\E[26~:F5=\E[28~:F6=\E[29~:\
-	:F7=\E[31~:F8=\E[32~:F9=\E[33~:FA=\E[34~:\
-	:kh=\E[1~:kI=\E[2~:kD=\E[3~:@7=\E[4~:kP=\E[5~:\
-	:kN=\E[6~:eA=\E(B\E)0:as=^N:ae=^O:ti=\E[?1049h:te=\E[?1049l:\
-	:vi=\E[?25l:ve=\E[34h\E[?25h:vs=\E[34l:\
-	:Co#8:pa#64:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:\
-	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++,,hhII00:
+	:am:km:mi:ms:xn:\
+	:Co#8:co#80:it#8:li#24:pa#64:\
+	:@7=\E[4~:AB=\E[4%dm:AF=\E[3%dm:AL=\E[%dL:DC=\E[%dP:\
+	:DL=\E[%dM:DO=\E[%dB:F1=\E[23~:F2=\E[24~:IC=\E[%d@:\
+	:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:\
+	:ac=++,,--..00II``aaffgghhjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:\
+	:ae=^O:al=\E[L:as=^N:bl=^G:bt=\E[Z:cb=\E[1K:cd=\E[J:ce=\E[K:\
+	:cl=\E[H\E[J:cm=\E[%i%d;%dH:cr=\r:cs=\E[%i%d;%dr:\
+	:ct=\E[3g:dc=\E[P:dl=\E[M:do=\n:eA=\E(B\E)0:ei=\E[4l:\
+	:ho=\E[H:im=\E[4h:is=\E)0:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
+	:k5=\E[15~:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:\
+	:k;=\E[21~:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:kd=\EOB:\
+	:ke=\E[?1l\E>:kh=\E[1~:kl=\EOD:kr=\EOC:ks=\E[?1h\E=:\
+	:ku=\EOA:le=^H:mb=\E[5m:md=\E[1m:me=\E[m:mr=\E[7m:nd=\E[C:\
+	:nw=\EE:op=\E[39;49m:rc=\E8:rs=\Ec:sc=\E7:se=\E[23m:sf=\n:\
+	:so=\E[3m:sr=\EM:st=\EH:ta=^I:te=\E[?1049l:ti=\E[?1049h:\
+	:ue=\E[24m:up=\EM:us=\E[4m:vb=\Eg:ve=\E[34h\E[?25h:\
+	:vi=\E[?25l:vs=\E[34l:
 SB|screen-bce|VT 100/ANSI X3.64 virtual terminal with bce:\
 	:ut:tc=screen:
 SH|screen-s|VT 100/ANSI X3.64 virtual terminal with hardstatus line:\
-	:ts=\E_:fs=\E\\:ds=\E_\E\\:tc=screen:
+	:ut:hs:ts=\E_:fs=\E\\:ds=\E_\E\\:tc=screen:
 SW|screen-w|VT 100/ANSI X3.64 virtual terminal with 132 cols:\
 	:co#132:tc=screen:
 screen-256color|VT 100/ANSI X3.64 terminal with 256 colors:\
+	:cc:\
 	:Co#256:pa#32767:\
-	:AB=\E[48;5;%dm:AF=\E[38;5;%dm:tc=screen:
+	:AB=\E[48;5;%dm:AF=\E[38;5;%dm:\
+	:Sb=\E[48;5;%dm:Sf=\E[38;5;%dm:tc=screen:
 
 ecma+italics|ECMA-48 italics:\
 	:ZH=\E[3m:ZR=\E[23m:
