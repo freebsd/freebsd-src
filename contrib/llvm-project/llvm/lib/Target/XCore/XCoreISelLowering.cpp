@@ -31,6 +31,7 @@
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsXCore.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/KnownBits.h"
@@ -171,8 +172,8 @@ XCoreTargetLowering::XCoreTargetLowering(const TargetMachine &TM,
   setTargetDAGCombine(ISD::INTRINSIC_VOID);
   setTargetDAGCombine(ISD::INTRINSIC_W_CHAIN);
 
-  setMinFunctionAlignment(1);
-  setPrefFunctionAlignment(2);
+  setMinFunctionAlignment(Align(2));
+  setPrefFunctionAlignment(Align(4));
 }
 
 bool XCoreTargetLowering::isZExtFree(SDValue Val, EVT VT2) const {
@@ -414,8 +415,8 @@ SDValue XCoreTargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
          "Unexpected extension type");
   assert(LD->getMemoryVT() == MVT::i32 && "Unexpected load EVT");
 
-  if (allowsMemoryAccess(Context, DAG.getDataLayout(), LD->getMemoryVT(),
-                         *LD->getMemOperand()))
+  if (allowsMemoryAccessForAlignment(Context, DAG.getDataLayout(),
+                                     LD->getMemoryVT(), *LD->getMemOperand()))
     return SDValue();
 
   SDValue Chain = LD->getChain();
@@ -488,8 +489,8 @@ SDValue XCoreTargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
   assert(!ST->isTruncatingStore() && "Unexpected store type");
   assert(ST->getMemoryVT() == MVT::i32 && "Unexpected store EVT");
 
-  if (allowsMemoryAccess(Context, DAG.getDataLayout(), ST->getMemoryVT(),
-                         *ST->getMemOperand()))
+  if (allowsMemoryAccessForAlignment(Context, DAG.getDataLayout(),
+                                     ST->getMemoryVT(), *ST->getMemOperand()))
     return SDValue();
 
   SDValue Chain = ST->getChain();
@@ -1309,7 +1310,7 @@ SDValue XCoreTargetLowering::LowerCCCArguments(
           llvm_unreachable(nullptr);
         }
       case MVT::i32:
-        unsigned VReg = RegInfo.createVirtualRegister(&XCore::GRRegsRegClass);
+        Register VReg = RegInfo.createVirtualRegister(&XCore::GRRegsRegClass);
         RegInfo.addLiveIn(VA.getLocReg(), VReg);
         ArgIn = DAG.getCopyFromReg(Chain, dl, VReg, RegVT);
         CFRegNode.push_back(ArgIn.getValue(ArgIn->getNumValues() - 1));
@@ -1360,7 +1361,7 @@ SDValue XCoreTargetLowering::LowerCCCArguments(
         offset -= StackSlotSize;
         SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
         // Move argument from phys reg -> virt reg
-        unsigned VReg = RegInfo.createVirtualRegister(&XCore::GRRegsRegClass);
+        Register VReg = RegInfo.createVirtualRegister(&XCore::GRRegsRegClass);
         RegInfo.addLiveIn(ArgRegs[i], VReg);
         SDValue Val = DAG.getCopyFromReg(Chain, dl, VReg, MVT::i32);
         CFRegNode.push_back(Val.getValue(Val->getNumValues() - 1));
@@ -1780,8 +1781,9 @@ SDValue XCoreTargetLowering::PerformDAGCombine(SDNode *N,
     // Replace unaligned store of unaligned load with memmove.
     StoreSDNode *ST = cast<StoreSDNode>(N);
     if (!DCI.isBeforeLegalize() ||
-        allowsMemoryAccess(*DAG.getContext(), DAG.getDataLayout(),
-                           ST->getMemoryVT(), *ST->getMemOperand()) ||
+        allowsMemoryAccessForAlignment(*DAG.getContext(), DAG.getDataLayout(),
+                                       ST->getMemoryVT(),
+                                       *ST->getMemOperand()) ||
         ST->isVolatile() || ST->isIndexed()) {
       break;
     }

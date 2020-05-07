@@ -13,6 +13,7 @@
 
 #include "CodeGenInstruction.h"
 #include "CodeGenTarget.h"
+#include "InfoByHwMode.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/CachedHashString.h"
@@ -64,9 +65,10 @@ struct OperandInfo {
   std::vector<EncodingField> Fields;
   std::string Decoder;
   bool HasCompleteDecoder;
+  uint64_t InitValue;
 
   OperandInfo(std::string D, bool HCD)
-      : Decoder(std::move(D)), HasCompleteDecoder(HCD) {}
+      : Decoder(std::move(D)), HasCompleteDecoder(HCD), InitValue(0) {}
 
   void addField(unsigned Base, unsigned Width, unsigned Offset) {
     Fields.push_back(EncodingField(Base, Width, Offset));
@@ -96,9 +98,11 @@ struct DecoderTableInfo {
 struct EncodingAndInst {
   const Record *EncodingDef;
   const CodeGenInstruction *Inst;
+  StringRef HwModeName;
 
-  EncodingAndInst(const Record *EncodingDef, const CodeGenInstruction *Inst)
-      : EncodingDef(EncodingDef), Inst(Inst) {}
+  EncodingAndInst(const Record *EncodingDef, const CodeGenInstruction *Inst,
+                  StringRef HwModeName = "")
+      : EncodingDef(EncodingDef), Inst(Inst), HwModeName(HwModeName) {}
 };
 
 struct EncodingIDAndOpcode {
@@ -599,7 +603,7 @@ void Filter::recurse() {
     // Delegates to an inferior filter chooser for further processing on this
     // group of instructions whose segment values are variable.
     FilterChooserMap.insert(
-        std::make_pair(-1U, llvm::make_unique<FilterChooser>(
+        std::make_pair(-1U, std::make_unique<FilterChooser>(
                                 Owner->AllInstructions, VariableInstructions,
                                 Owner->Operands, BitValueArray, *Owner)));
   }
@@ -625,7 +629,7 @@ void Filter::recurse() {
     // Delegates to an inferior filter chooser for further processing on this
     // category of instructions.
     FilterChooserMap.insert(std::make_pair(
-        Inst.first, llvm::make_unique<FilterChooser>(
+        Inst.first, std::make_unique<FilterChooser>(
                                 Owner->AllInstructions, Inst.second,
                                 Owner->Operands, BitValueArray, *Owner)));
   }
@@ -1054,10 +1058,9 @@ unsigned FilterChooser::getIslands(std::vector<unsigned> &StartBits,
   // 1: Water (the bit value does not affect decoding)
   // 2: Island (well-known bit value needed for decoding)
   int State = 0;
-  int64_t Val = -1;
 
   for (unsigned i = 0; i < BitWidth; ++i) {
-    Val = Value(Insn[i]);
+    int64_t Val = Value(Insn[i]);
     bool Filtered = PositionFiltered(i);
     switch (State) {
     default: llvm_unreachable("Unreachable code!");
@@ -1103,12 +1106,15 @@ void FilterChooser::emitBinaryParser(raw_ostream &o, unsigned &Indentation,
                                      bool &OpHasCompleteDecoder) const {
   const std::string &Decoder = OpInfo.Decoder;
 
-  if (OpInfo.numFields() != 1)
-    o.indent(Indentation) << "tmp = 0;\n";
+  if (OpInfo.numFields() != 1 || OpInfo.InitValue != 0) {
+    o.indent(Indentation) << "tmp = 0x";
+    o.write_hex(OpInfo.InitValue);
+    o << ";\n";
+  }
 
   for (const EncodingField &EF : OpInfo) {
     o.indent(Indentation) << "tmp ";
-    if (OpInfo.numFields() != 1) o << '|';
+    if (OpInfo.numFields() != 1 || OpInfo.InitValue != 0) o << '|';
     o << "= fieldFromInstruction"
       << "(insn, " << EF.Base << ", " << EF.Width << ')';
     if (OpInfo.numFields() != 1 || EF.Offset != 0)
@@ -2026,6 +2032,16 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
       HasCompleteDecoderBit->getValue() : true;
 
     OperandInfo OpInfo(Decoder, HasCompleteDecoder);
+
+    // Some bits of the operand may be required to be 1 depending on the
+    // instruction's encoding. Collect those bits.
+    if (const RecordVal *EncodedValue = EncodingDef.getValue(Op.second))
+      if (const BitsInit *OpBits = dyn_cast<BitsInit>(EncodedValue->getValue()))
+        for (unsigned I = 0; I < OpBits->getNumBits(); ++I)
+          if (const BitInit *OpBit = dyn_cast<BitInit>(OpBits->getBit(I)))
+            if (OpBit->getValue())
+              OpInfo.InitValue |= 1ULL << I;
+
     unsigned Base = ~0U;
     unsigned Width = 0;
     unsigned Offset = 0;
@@ -2368,12 +2384,50 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
   Target.reverseBitsForLittleEndianEncoding();
 
   // Parameterize the decoders based on namespace and instruction width.
+  std::set<StringRef> HwModeNames;
   const auto &NumberedInstructions = Target.getInstructionsByEnumValue();
   NumberedEncodings.reserve(NumberedInstructions.size());
   DenseMap<Record *, unsigned> IndexOfInstruction;
+  // First, collect all HwModes referenced by the target.
   for (const auto &NumberedInstruction : NumberedInstructions) {
     IndexOfInstruction[NumberedInstruction->TheDef] = NumberedEncodings.size();
-    NumberedEncodings.emplace_back(NumberedInstruction->TheDef, NumberedInstruction);
+
+    if (const RecordVal *RV =
+            NumberedInstruction->TheDef->getValue("EncodingInfos")) {
+      if (auto *DI = dyn_cast_or_null<DefInit>(RV->getValue())) {
+        const CodeGenHwModes &HWM = Target.getHwModes();
+        EncodingInfoByHwMode EBM(DI->getDef(), HWM);
+        for (auto &KV : EBM.Map)
+          HwModeNames.insert(HWM.getMode(KV.first).Name);
+      }
+    }
+  }
+
+  // If HwModeNames is empty, add the empty string so we always have one HwMode.
+  if (HwModeNames.empty())
+    HwModeNames.insert("");
+
+  for (const auto &NumberedInstruction : NumberedInstructions) {
+    IndexOfInstruction[NumberedInstruction->TheDef] = NumberedEncodings.size();
+
+    if (const RecordVal *RV =
+            NumberedInstruction->TheDef->getValue("EncodingInfos")) {
+      if (DefInit *DI = dyn_cast_or_null<DefInit>(RV->getValue())) {
+        const CodeGenHwModes &HWM = Target.getHwModes();
+        EncodingInfoByHwMode EBM(DI->getDef(), HWM);
+        for (auto &KV : EBM.Map) {
+          NumberedEncodings.emplace_back(KV.second, NumberedInstruction,
+                                         HWM.getMode(KV.first).Name);
+          HwModeNames.insert(HWM.getMode(KV.first).Name);
+        }
+        continue;
+      }
+    }
+    // This instruction is encoded the same on all HwModes. Emit it for all
+    // HwModes.
+    for (StringRef HwModeName : HwModeNames)
+      NumberedEncodings.emplace_back(NumberedInstruction->TheDef,
+                                     NumberedInstruction, HwModeName);
   }
   for (const auto &NumberedAlias : RK.getAllDerivedDefinitions("AdditionalEncoding"))
     NumberedEncodings.emplace_back(
@@ -2401,13 +2455,19 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
       NumInstructions++;
     NumEncodings++;
 
-    StringRef DecoderNamespace = EncodingDef->getValueAsString("DecoderNamespace");
+    if (!Size)
+      continue;
 
-    if (Size) {
-      if (populateInstruction(Target, *EncodingDef, *Inst, i, Operands)) {
-        OpcMap[std::make_pair(DecoderNamespace, Size)].emplace_back(i, IndexOfInstruction.find(Def)->second);
-      } else
-        NumEncodingsOmitted++;
+    if (populateInstruction(Target, *EncodingDef, *Inst, i, Operands)) {
+      std::string DecoderNamespace =
+          EncodingDef->getValueAsString("DecoderNamespace");
+      if (!NumberedEncodings[i].HwModeName.empty())
+        DecoderNamespace +=
+            std::string("_") + NumberedEncodings[i].HwModeName.str();
+      OpcMap[std::make_pair(DecoderNamespace, Size)].emplace_back(
+          i, IndexOfInstruction.find(Def)->second);
+    } else {
+      NumEncodingsOmitted++;
     }
   }
 
@@ -2451,7 +2511,7 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
   // Emit the main entry point for the decoder, decodeInstruction().
   emitDecodeInstruction(OS);
 
-  OS << "\n} // End llvm namespace\n";
+  OS << "\n} // end namespace llvm\n";
 }
 
 namespace llvm {

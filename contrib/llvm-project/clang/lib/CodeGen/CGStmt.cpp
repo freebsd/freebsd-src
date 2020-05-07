@@ -10,10 +10,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CodeGenFunction.h"
 #include "CGDebugInfo.h"
+#include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "TargetInfo.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/PrettyStackTrace.h"
@@ -221,6 +222,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::OMPParallelForSimdDirectiveClass:
     EmitOMPParallelForSimdDirective(cast<OMPParallelForSimdDirective>(*S));
     break;
+  case Stmt::OMPParallelMasterDirectiveClass:
+    EmitOMPParallelMasterDirective(cast<OMPParallelMasterDirective>(*S));
+    break;
   case Stmt::OMPParallelSectionsDirectiveClass:
     EmitOMPParallelSectionsDirective(cast<OMPParallelSectionsDirective>(*S));
     break;
@@ -280,6 +284,21 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     break;
   case Stmt::OMPTaskLoopSimdDirectiveClass:
     EmitOMPTaskLoopSimdDirective(cast<OMPTaskLoopSimdDirective>(*S));
+    break;
+  case Stmt::OMPMasterTaskLoopDirectiveClass:
+    EmitOMPMasterTaskLoopDirective(cast<OMPMasterTaskLoopDirective>(*S));
+    break;
+  case Stmt::OMPMasterTaskLoopSimdDirectiveClass:
+    EmitOMPMasterTaskLoopSimdDirective(
+        cast<OMPMasterTaskLoopSimdDirective>(*S));
+    break;
+  case Stmt::OMPParallelMasterTaskLoopDirectiveClass:
+    EmitOMPParallelMasterTaskLoopDirective(
+        cast<OMPParallelMasterTaskLoopDirective>(*S));
+    break;
+  case Stmt::OMPParallelMasterTaskLoopSimdDirectiveClass:
+    EmitOMPParallelMasterTaskLoopSimdDirective(
+        cast<OMPParallelMasterTaskLoopSimdDirective>(*S));
     break;
   case Stmt::OMPDistributeDirectiveClass:
     EmitOMPDistributeDirective(cast<OMPDistributeDirective>(*S));
@@ -543,8 +562,7 @@ void CodeGenFunction::EmitLabel(const LabelDecl *D) {
 
   // Emit debug info for labels.
   if (CGDebugInfo *DI = getDebugInfo()) {
-    if (CGM.getCodeGenOpts().getDebugInfo() >=
-        codegenoptions::LimitedDebugInfo) {
+    if (CGM.getCodeGenOpts().hasReducedDebugInfo()) {
       DI->setLocation(D->getLocation());
       DI->EmitLabel(D, Builder);
     }
@@ -1819,15 +1837,15 @@ CodeGenFunction::EmitAsmInputLValue(const TargetInfo::ConstraintInfo &Info,
         Ty = llvm::IntegerType::get(getLLVMContext(), Size);
         Ty = llvm::PointerType::getUnqual(Ty);
 
-        Arg = Builder.CreateLoad(Builder.CreateBitCast(InputValue.getAddress(),
-                                                       Ty));
+        Arg = Builder.CreateLoad(
+            Builder.CreateBitCast(InputValue.getAddress(*this), Ty));
       } else {
-        Arg = InputValue.getPointer();
+        Arg = InputValue.getPointer(*this);
         ConstraintStr += '*';
       }
     }
   } else {
-    Arg = InputValue.getPointer();
+    Arg = InputValue.getPointer(*this);
     ConstraintStr += '*';
   }
 
@@ -1984,6 +2002,7 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
   std::vector<llvm::Type *> ResultTruncRegTypes;
   std::vector<llvm::Type *> ArgTypes;
   std::vector<llvm::Value*> Args;
+  llvm::BitVector ResultTypeRequiresCast;
 
   // Keep track of inout constraints.
   std::string InOutConstraints;
@@ -2022,13 +2041,23 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
 
     // If this is a register output, then make the inline asm return it
     // by-value.  If this is a memory result, return the value by-reference.
-    if (!Info.allowsMemory() && hasScalarEvaluationKind(OutExpr->getType())) {
+    bool isScalarizableAggregate =
+        hasAggregateEvaluationKind(OutExpr->getType());
+    if (!Info.allowsMemory() && (hasScalarEvaluationKind(OutExpr->getType()) ||
+                                 isScalarizableAggregate)) {
       Constraints += "=" + OutputConstraint;
       ResultRegQualTys.push_back(OutExpr->getType());
       ResultRegDests.push_back(Dest);
-      ResultRegTypes.push_back(ConvertTypeForMem(OutExpr->getType()));
-      ResultTruncRegTypes.push_back(ResultRegTypes.back());
-
+      ResultTruncRegTypes.push_back(ConvertTypeForMem(OutExpr->getType()));
+      if (Info.allowsRegister() && isScalarizableAggregate) {
+        ResultTypeRequiresCast.push_back(true);
+        unsigned Size = getContext().getTypeSize(OutExpr->getType());
+        llvm::Type *ConvTy = llvm::IntegerType::get(getLLVMContext(), Size);
+        ResultRegTypes.push_back(ConvTy);
+      } else {
+        ResultTypeRequiresCast.push_back(false);
+        ResultRegTypes.push_back(ResultTruncRegTypes.back());
+      }
       // If this output is tied to an input, and if the input is larger, then
       // we need to set the actual result type of the inline asm node to be the
       // same as the input type.
@@ -2062,11 +2091,11 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
 
       // Update largest vector width for any vector types.
       if (auto *VT = dyn_cast<llvm::VectorType>(ResultRegTypes.back()))
-        LargestVectorWidth = std::max(LargestVectorWidth,
-                                      VT->getPrimitiveSizeInBits());
+        LargestVectorWidth = std::max((uint64_t)LargestVectorWidth,
+                                   VT->getPrimitiveSizeInBits().getFixedSize());
     } else {
-      ArgTypes.push_back(Dest.getAddress().getType());
-      Args.push_back(Dest.getPointer());
+      ArgTypes.push_back(Dest.getAddress(*this).getType());
+      Args.push_back(Dest.getPointer(*this));
       Constraints += "=*";
       Constraints += OutputConstraint;
       ReadOnly = ReadNone = false;
@@ -2087,8 +2116,8 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
 
       // Update largest vector width for any vector types.
       if (auto *VT = dyn_cast<llvm::VectorType>(Arg->getType()))
-        LargestVectorWidth = std::max(LargestVectorWidth,
-                                      VT->getPrimitiveSizeInBits());
+        LargestVectorWidth = std::max((uint64_t)LargestVectorWidth,
+                                   VT->getPrimitiveSizeInBits().getFixedSize());
       if (Info.allowsRegister())
         InOutConstraints += llvm::utostr(i);
       else
@@ -2174,8 +2203,8 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
 
     // Update largest vector width for any vector types.
     if (auto *VT = dyn_cast<llvm::VectorType>(Arg->getType()))
-      LargestVectorWidth = std::max(LargestVectorWidth,
-                                    VT->getPrimitiveSizeInBits());
+      LargestVectorWidth = std::max((uint64_t)LargestVectorWidth,
+                                   VT->getPrimitiveSizeInBits().getFixedSize());
 
     ArgTypes.push_back(Arg->getType());
     Args.push_back(Arg);
@@ -2271,6 +2300,9 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
   assert(RegResults.size() == ResultRegTypes.size());
   assert(RegResults.size() == ResultTruncRegTypes.size());
   assert(RegResults.size() == ResultRegDests.size());
+  // ResultRegDests can be also populated by addReturnRegisterOutputs() above,
+  // in which case its size may grow.
+  assert(ResultTypeRequiresCast.size() <= ResultRegDests.size());
   for (unsigned i = 0, e = RegResults.size(); i != e; ++i) {
     llvm::Value *Tmp = RegResults[i];
 
@@ -2300,7 +2332,24 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
       }
     }
 
-    EmitStoreThroughLValue(RValue::get(Tmp), ResultRegDests[i]);
+    LValue Dest = ResultRegDests[i];
+    // ResultTypeRequiresCast elements correspond to the first
+    // ResultTypeRequiresCast.size() elements of RegResults.
+    if ((i < ResultTypeRequiresCast.size()) && ResultTypeRequiresCast[i]) {
+      unsigned Size = getContext().getTypeSize(ResultRegQualTys[i]);
+      Address A = Builder.CreateBitCast(Dest.getAddress(*this),
+                                        ResultRegTypes[i]->getPointerTo());
+      QualType Ty = getContext().getIntTypeForBitwidth(Size, /*Signed*/ false);
+      if (Ty.isNull()) {
+        const Expr *OutExpr = S.getOutputExpr(i);
+        CGM.Error(
+            OutExpr->getExprLoc(),
+            "impossible constraint in asm: can't store value into a register");
+        return;
+      }
+      Dest = MakeAddrLValue(A, Ty);
+    }
+    EmitStoreThroughLValue(RValue::get(Tmp), Dest);
   }
 }
 
@@ -2341,14 +2390,14 @@ CodeGenFunction::EmitCapturedStmt(const CapturedStmt &S, CapturedRegionKind K) {
   delete CGF.CapturedStmtInfo;
 
   // Emit call to the helper function.
-  EmitCallOrInvoke(F, CapStruct.getPointer());
+  EmitCallOrInvoke(F, CapStruct.getPointer(*this));
 
   return F;
 }
 
 Address CodeGenFunction::GenerateCapturedStmtArgument(const CapturedStmt &S) {
   LValue CapStruct = InitCapturedStruct(S);
-  return CapStruct.getAddress();
+  return CapStruct.getAddress(*this);
 }
 
 /// Creates the outlined function for a CapturedStmt.

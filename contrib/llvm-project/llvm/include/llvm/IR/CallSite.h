@@ -45,7 +45,7 @@
 namespace llvm {
 
 namespace Intrinsic {
-enum ID : unsigned;
+typedef unsigned ID;
 }
 
 template <typename FunTy = const Function, typename BBTy = const BasicBlock,
@@ -693,6 +693,18 @@ private:
   User::op_iterator getCallee() const;
 };
 
+/// Establish a view to a call site for examination.
+class ImmutableCallSite : public CallSiteBase<> {
+public:
+  ImmutableCallSite() = default;
+  ImmutableCallSite(const CallInst *CI) : CallSiteBase(CI) {}
+  ImmutableCallSite(const InvokeInst *II) : CallSiteBase(II) {}
+  ImmutableCallSite(const CallBrInst *CBI) : CallSiteBase(CBI) {}
+  explicit ImmutableCallSite(const Instruction *II) : CallSiteBase(II) {}
+  explicit ImmutableCallSite(const Value *V) : CallSiteBase(V) {}
+  ImmutableCallSite(CallSite CS) : CallSiteBase(CS.getInstruction()) {}
+};
+
 /// AbstractCallSite
 ///
 /// An abstract call site is a wrapper that allows to treat direct,
@@ -764,6 +776,13 @@ public:
   /// callback metadata is used to determine the argument <-> parameter mapping
   /// as well as the callee of the abstract call site.
   AbstractCallSite(const Use *U);
+
+  /// Add operand uses of \p ICS that represent callback uses into \p CBUses.
+  ///
+  /// All uses added to \p CBUses can be used to create abstract call sites for
+  /// which AbstractCallSite::isCallbackCall() will return true.
+  static void getCallbackUses(ImmutableCallSite ICS,
+                              SmallVectorImpl<const Use *> &CBUses);
 
   /// Conversion operator to conveniently check for a valid/initialized ACS.
   explicit operator bool() const { return (bool)CS; }
@@ -850,8 +869,17 @@ public:
   /// callee of this ACS. Only valid for callback calls!
   int getCallArgOperandNoForCallee() const {
     assert(isCallbackCall());
-    assert(CI.ParameterEncoding.size() && CI.ParameterEncoding[0] > 0);
+    assert(CI.ParameterEncoding.size() && CI.ParameterEncoding[0] >= 0);
     return CI.ParameterEncoding[0];
+  }
+
+  /// Return the use of the callee value in the underlying instruction. Only
+  /// valid for callback calls!
+  const Use &getCalleeUseForCallback() const {
+    int CalleeArgIdx = getCallArgOperandNoForCallee();
+    assert(CalleeArgIdx >= 0 &&
+           unsigned(CalleeArgIdx) < getInstruction()->getNumOperands());
+    return getInstruction()->getOperandUse(CalleeArgIdx);
   }
 
   /// Return the pointer to function that is being called.
@@ -891,18 +919,6 @@ template <> struct DenseMapInfo<CallSite> {
   static bool isEqual(const CallSite &LHS, const CallSite &RHS) {
     return LHS == RHS;
   }
-};
-
-/// Establish a view to a call site for examination.
-class ImmutableCallSite : public CallSiteBase<> {
-public:
-  ImmutableCallSite() = default;
-  ImmutableCallSite(const CallInst *CI) : CallSiteBase(CI) {}
-  ImmutableCallSite(const InvokeInst *II) : CallSiteBase(II) {}
-  ImmutableCallSite(const CallBrInst *CBI) : CallSiteBase(CBI) {}
-  explicit ImmutableCallSite(const Instruction *II) : CallSiteBase(II) {}
-  explicit ImmutableCallSite(const Value *V) : CallSiteBase(V) {}
-  ImmutableCallSite(CallSite CS) : CallSiteBase(CS.getInstruction()) {}
 };
 
 } // end namespace llvm

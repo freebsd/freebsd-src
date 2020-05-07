@@ -110,9 +110,6 @@
 /* Define to 1 if you have the `pthread_setname_np' function. */
 /* #undef HAVE_PTHREAD_SETNAME_NP */
 
-/* Define to 1 if you have the `z' library (-lz). */
-#define HAVE_LIBZ 1
-
 /* Define to 1 if you have the <link.h> header file. */
 #define HAVE_LINK_H 1
 
@@ -227,9 +224,6 @@
 /* Define to 1 if you have the <valgrind/valgrind.h> header file. */
 /* #undef HAVE_VALGRIND_VALGRIND_H */
 
-/* Define to 1 if you have the <zlib.h> header file. */
-#define HAVE_ZLIB_H 1
-
 /* Have host's _alloca */
 /* #undef HAVE__ALLOCA */
 
@@ -322,10 +316,10 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 9.0.1"
+#define PACKAGE_STRING "LLVM 10.0.0git"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "9.0.1"
+#define PACKAGE_VERSION "10.0.0git"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */

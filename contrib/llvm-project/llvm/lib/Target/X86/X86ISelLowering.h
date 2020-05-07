@@ -17,7 +17,6 @@
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/TargetLowering.h"
-#include "llvm/Target/TargetOptions.h"
 
 namespace llvm {
   class X86Subtarget;
@@ -143,6 +142,10 @@ namespace llvm {
       /// Special wrapper used under X86-64 PIC mode for RIP
       /// relative displacements.
       WrapperRIP,
+
+      /// Copies a 64-bit value from an MMX vector to the low word
+      /// of an XMM vector, with the high word zero filled.
+      MOVQ2DQ,
 
       /// Copies a 64-bit value from the low word of an XMM vector
       /// to an MMX vector.
@@ -595,6 +598,34 @@ namespace llvm {
       // For avx512-vp2intersect
       VP2INTERSECT,
 
+      /// X86 strict FP compare instructions.
+      STRICT_FCMP = ISD::FIRST_TARGET_STRICTFP_OPCODE,
+      STRICT_FCMPS,
+
+      // Vector packed double/float comparison.
+      STRICT_CMPP,
+
+      /// Vector comparison generating mask bits for fp and
+      /// integer signed and unsigned data types.
+      STRICT_CMPM,
+
+      // Vector float/double to signed/unsigned integer with truncation.
+      STRICT_CVTTP2SI, STRICT_CVTTP2UI,
+
+      // Vector FP extend.
+      STRICT_VFPEXT,
+
+      // Vector FP round.
+      STRICT_VFPROUND,
+
+      // RndScale - Round FP Values To Include A Given Number Of Fraction Bits.
+      // Also used by the legacy (V)ROUND intrinsics where we mask out the
+      // scaling part of the immediate.
+      STRICT_VRNDSCALE,
+
+      // Vector signed/unsigned integer to float/double.
+      STRICT_CVTSI2P, STRICT_CVTUI2P,
+
       // Compare and swap.
       LCMPXCHG_DAG = ISD::FIRST_TARGET_MEMORY_OPCODE,
       LCMPXCHG8_DAG,
@@ -611,6 +642,9 @@ namespace llvm {
 
       // extract_vector_elt, store.
       VEXTRACT_STORE,
+
+      // scalar broadcast from memory
+      VBROADCAST_LOAD,
 
       // Store FP control world into i16 memory.
       FNSTCW16m,
@@ -681,6 +715,9 @@ namespace llvm {
     bool isCalleePop(CallingConv::ID CallingConv,
                      bool is64Bit, bool IsVarArg, bool GuaranteeTCO);
 
+    /// If Op is a constant whose elements are all the same constant or
+    /// undefined, return true and return the constant value in \p SplatVal.
+    bool isConstantSplat(SDValue Op, APInt &SplatVal);
   } // end namespace X86
 
   //===--------------------------------------------------------------------===//
@@ -793,6 +830,17 @@ namespace llvm {
     /// and some i16 instructions are slow.
     bool IsDesirableToPromoteOp(SDValue Op, EVT &PVT) const override;
 
+    /// Return 1 if we can compute the negated form of the specified expression
+    /// for the same cost as the expression itself, or 2 if we can compute the
+    /// negated form more cheaply than the expression itself. Else return 0.
+    char isNegatibleForFree(SDValue Op, SelectionDAG &DAG, bool LegalOperations,
+                            bool ForCodeSize, unsigned Depth) const override;
+
+    /// If isNegatibleForFree returns true, return the newly negated expression.
+    SDValue getNegatedExpression(SDValue Op, SelectionDAG &DAG,
+                                 bool LegalOperations, bool ForCodeSize,
+                                 unsigned Depth) const override;
+
     MachineBasicBlock *
     EmitInstrWithCustomInserter(MachineInstr &MI,
                                 MachineBasicBlock *MBB) const override;
@@ -840,6 +888,13 @@ namespace llvm {
     bool hasAndNotCompare(SDValue Y) const override;
 
     bool hasAndNot(SDValue Y) const override;
+
+    bool hasBitTest(SDValue X, SDValue Y) const override;
+
+    bool shouldProduceAndByConstByHoistingConstFromShiftsLHSOfAnd(
+        SDValue X, ConstantSDNode *XC, ConstantSDNode *CC, SDValue Y,
+        unsigned OldShiftOpcode, unsigned NewShiftOpcode,
+        SelectionDAG &DAG) const override;
 
     bool shouldFoldConstantShiftPairToMask(const SDNode *N,
                                            CombineLevel Level) const override;
@@ -910,6 +965,10 @@ namespace llvm {
                                            TargetLoweringOpt &TLO,
                                            unsigned Depth) const override;
 
+    SDValue SimplifyMultipleUseDemandedBitsForTargetNode(
+        SDValue Op, const APInt &DemandedBits, const APInt &DemandedElts,
+        SelectionDAG &DAG, unsigned Depth) const override;
+
     const Constant *getTargetConstantFromLoad(LoadSDNode *LD) const override;
 
     SDValue unwrapAddress(SDValue N) const override;
@@ -938,9 +997,7 @@ namespace llvm {
 
     unsigned
     getInlineAsmMemConstraint(StringRef ConstraintCode) const override {
-      if (ConstraintCode == "i")
-        return InlineAsm::Constraint_i;
-      else if (ConstraintCode == "o")
+      if (ConstraintCode == "o")
         return InlineAsm::Constraint_o;
       else if (ConstraintCode == "v")
         return InlineAsm::Constraint_v;
@@ -1025,7 +1082,8 @@ namespace llvm {
     /// Return true if an FMA operation is faster than a pair of fmul and fadd
     /// instructions. fmuladd intrinsics will be expanded to FMAs when this
     /// method returns true, otherwise fmuladd is expanded to fmul + fadd.
-    bool isFMAFasterThanFMulAndFAdd(EVT VT) const override;
+    bool isFMAFasterThanFMulAndFAdd(const MachineFunction &MF,
+                                    EVT VT) const override;
 
     /// Return true if it's profitable to narrow
     /// operations of type VT1 to VT2. e.g. on x86, it's profitable to narrow
@@ -1087,14 +1145,12 @@ namespace llvm {
     bool shouldConvertConstantLoadToIntImm(const APInt &Imm,
                                            Type *Ty) const override;
 
-    bool reduceSelectOfFPConstantLoads(bool IsFPSetCC) const override;
+    bool reduceSelectOfFPConstantLoads(EVT CmpOpVT) const override;
 
     bool convertSelectOfConstantsToMath(EVT VT) const override;
 
-    bool decomposeMulByConstant(EVT VT, SDValue C) const override;
-
-    bool shouldUseStrictFP_TO_INT(EVT FpVT, EVT IntVT,
-                                  bool IsSigned) const override;
+    bool decomposeMulByConstant(LLVMContext &Context, EVT VT,
+                                SDValue C) const override;
 
     /// Return true if EXTRACT_SUBVECTOR is cheap for this result type
     /// with this index.
@@ -1133,8 +1189,8 @@ namespace llvm {
       return nullptr; // nothing to do, move along.
     }
 
-    unsigned getRegisterByName(const char* RegName, EVT VT,
-                               SelectionDAG &DAG) const override;
+    Register getRegisterByName(const char* RegName, LLT VT,
+                               const MachineFunction &MF) const override;
 
     /// If a physical register, this returns the register that receives the
     /// exception address on entry to an EH pad.
@@ -1171,8 +1227,9 @@ namespace llvm {
     /// offset as appropriate.
     Value *getSafeStackPointerLocation(IRBuilder<> &IRB) const override;
 
-    SDValue BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain, SDValue StackSlot,
-                      SelectionDAG &DAG) const;
+    std::pair<SDValue, SDValue> BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain,
+                                          SDValue StackSlot,
+                                          SelectionDAG &DAG) const;
 
     bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override;
 
@@ -1186,11 +1243,17 @@ namespace llvm {
                                            CallingConv::ID CC,
                                            EVT VT) const override;
 
+    unsigned getVectorTypeBreakdownForCallingConv(
+        LLVMContext &Context, CallingConv::ID CC, EVT VT, EVT &IntermediateVT,
+        unsigned &NumIntermediates, MVT &RegisterVT) const override;
+
     bool isIntDivCheap(EVT VT, AttributeList Attr) const override;
 
     bool supportSwiftError() const override;
 
     StringRef getStackProbeSymbolName(MachineFunction &MF) const override;
+
+    unsigned getStackProbeSize(MachineFunction &MF) const;
 
     bool hasVectorBlend() const override { return true; }
 
@@ -1277,7 +1340,8 @@ namespace llvm {
 
     unsigned getAddressSpace(void) const;
 
-    SDValue FP_TO_INTHelper(SDValue Op, SelectionDAG &DAG, bool isSigned) const;
+    SDValue FP_TO_INTHelper(SDValue Op, SelectionDAG &DAG, bool isSigned,
+                            SDValue &Chain) const;
 
     SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerVSELECT(SDValue Op, SelectionDAG &DAG) const;
@@ -1302,6 +1366,7 @@ namespace llvm {
     SDValue LowerTRUNCATE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFP_TO_INT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSTRICT_FSETCC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSETCCCARRY(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
@@ -1320,9 +1385,14 @@ namespace llvm {
     SDValue LowerINIT_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerWin64_i128OP(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerGC_TRANSITION_START(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerGC_TRANSITION_END(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerGC_TRANSITION(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerFaddFsub(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFP_EXTEND(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFP_ROUND(SDValue Op, SelectionDAG &DAG) const;
+
+    SDValue LowerF128Call(SDValue Op, SelectionDAG &DAG,
+                          RTLIB::Libcall Call) const;
 
     SDValue
     LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
@@ -1368,6 +1438,9 @@ namespace llvm {
 
     LoadInst *
     lowerIdempotentRMWIntoFencedLoad(AtomicRMWInst *AI) const override;
+
+    bool lowerAtomicStoreAsStoreSDNode(const StoreInst &SI) const override;
+    bool lowerAtomicLoadAsLoadSDNode(const LoadInst &LI) const override;
 
     bool needsCmpXchgNb(Type *MemType) const;
 
@@ -1430,20 +1503,15 @@ namespace llvm {
     MachineBasicBlock *EmitSjLjDispatchBlock(MachineInstr &MI,
                                              MachineBasicBlock *MBB) const;
 
-    /// Emit nodes that will be selected as "cmp Op0,Op1", or something
-    /// equivalent, for use with the given x86 condition code.
-    SDValue EmitCmp(SDValue Op0, SDValue Op1, unsigned X86CC, const SDLoc &dl,
-                    SelectionDAG &DAG) const;
-
     /// Convert a comparison if required by the subtarget.
     SDValue ConvertCmpIfNecessary(SDValue Cmp, SelectionDAG &DAG) const;
 
     /// Emit flags for the given setcc condition and operands. Also returns the
     /// corresponding X86 condition code constant in X86CC.
-    SDValue emitFlagsForSetcc(SDValue Op0, SDValue Op1,
-                              ISD::CondCode CC, const SDLoc &dl,
-                              SelectionDAG &DAG,
-                              SDValue &X86CC) const;
+    SDValue emitFlagsForSetcc(SDValue Op0, SDValue Op1, ISD::CondCode CC,
+                              const SDLoc &dl, SelectionDAG &DAG,
+                              SDValue &X86CC, SDValue &Chain,
+                              bool IsSignaling) const;
 
     /// Check if replacement of SQRT with RSQRT should be disabled.
     bool isFsqrtCheap(SDValue Operand, SelectionDAG &DAG) const override;
@@ -1459,6 +1527,9 @@ namespace llvm {
 
     /// Reassociate floating point divisions into multiply by reciprocal.
     unsigned combineRepeatedFPDivisors() const override;
+
+    SDValue BuildSDIVPow2(SDNode *N, const APInt &Divisor, SelectionDAG &DAG,
+                          SmallVectorImpl<SDNode *> &Created) const override;
   };
 
   namespace X86 {
@@ -1622,24 +1693,24 @@ namespace llvm {
   /// mask. This is the reverse process to canWidenShuffleElements, but can
   /// always succeed.
   template <typename T>
-  void scaleShuffleMask(int Scale, ArrayRef<T> Mask,
+  void scaleShuffleMask(size_t Scale, ArrayRef<T> Mask,
                         SmallVectorImpl<T> &ScaledMask) {
     assert(0 < Scale && "Unexpected scaling factor");
     size_t NumElts = Mask.size();
     ScaledMask.assign(NumElts * Scale, -1);
 
-    for (int i = 0; i != (int)NumElts; ++i) {
+    for (size_t i = 0; i != NumElts; ++i) {
       int M = Mask[i];
 
       // Repeat sentinel values in every mask element.
       if (M < 0) {
-        for (int s = 0; s != Scale; ++s)
+        for (size_t s = 0; s != Scale; ++s)
           ScaledMask[(Scale * i) + s] = M;
         continue;
       }
 
       // Scale mask element and increment across each mask element.
-      for (int s = 0; s != Scale; ++s)
+      for (size_t s = 0; s != Scale; ++s)
         ScaledMask[(Scale * i) + s] = (Scale * M) + s;
     }
   }

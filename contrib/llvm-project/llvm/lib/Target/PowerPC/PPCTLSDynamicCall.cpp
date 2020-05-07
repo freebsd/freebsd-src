@@ -27,6 +27,7 @@
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -74,8 +75,8 @@ protected:
 
         LLVM_DEBUG(dbgs() << "TLS Dynamic Call Fixup:\n    " << MI);
 
-        unsigned OutReg = MI.getOperand(0).getReg();
-        unsigned InReg = MI.getOperand(1).getReg();
+        Register OutReg = MI.getOperand(0).getReg();
+        Register InReg = MI.getOperand(1).getReg();
         DebugLoc DL = MI.getDebugLoc();
         unsigned GPR3 = Is64Bit ? PPC::X3 : PPC::R3;
         unsigned Opc1, Opc2;

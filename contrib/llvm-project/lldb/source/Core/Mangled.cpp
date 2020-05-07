@@ -8,13 +8,6 @@
 
 #include "lldb/Core/Mangled.h"
 
-#if defined(_WIN32)
-#include "lldb/Host/windows/windows.h"
-
-#include <dbghelp.h>
-#pragma comment(lib, "dbghelp.lib")
-#endif
-
 #include "lldb/Core/RichManglingContext.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Log.h"
@@ -39,37 +32,8 @@
 #include <string.h>
 using namespace lldb_private;
 
-#if defined(_MSC_VER)
-static DWORD safeUndecorateName(const char *Mangled, char *Demangled,
-                                DWORD DemangledLength) {
-  static std::mutex M;
-  std::lock_guard<std::mutex> Lock(M);
-  return ::UnDecorateSymbolName(
-      Mangled, Demangled, DemangledLength,
-      UNDNAME_NO_ACCESS_SPECIFIERS |       // Strip public, private, protected
-                                           // keywords
-          UNDNAME_NO_ALLOCATION_LANGUAGE | // Strip __thiscall, __stdcall,
-                                           // etc keywords
-          UNDNAME_NO_THROW_SIGNATURES |    // Strip throw() specifications
-          UNDNAME_NO_MEMBER_TYPE |         // Strip virtual, static, etc
-                                           // specifiers
-          UNDNAME_NO_MS_KEYWORDS           // Strip all MS extension keywords
-      );
-}
-#endif
-
-static inline Mangled::ManglingScheme cstring_mangling_scheme(const char *s) {
-  if (s) {
-    if (s[0] == '?')
-      return Mangled::eManglingSchemeMSVC;
-    if (s[0] == '_' && s[1] == 'Z')
-      return Mangled::eManglingSchemeItanium;
-  }
-  return Mangled::eManglingSchemeNone;
-}
-
-static inline bool cstring_is_mangled(const char *s) {
-  return cstring_mangling_scheme(s) != Mangled::eManglingSchemeNone;
+static inline bool cstring_is_mangled(llvm::StringRef s) {
+  return Mangled::GetManglingScheme(s) != Mangled::eManglingSchemeNone;
 }
 
 static ConstString 
@@ -124,20 +88,22 @@ get_demangled_name_without_arguments(ConstString mangled,
 }
 
 #pragma mark Mangled
-// Default constructor
-Mangled::Mangled() : m_mangled(), m_demangled() {}
 
-// Constructor with an optional string and a boolean indicating if it is the
-// mangled version.
-Mangled::Mangled(ConstString s, bool mangled)
-    : m_mangled(), m_demangled() {
-  if (s)
-    SetValue(s, mangled);
-}
+Mangled::ManglingScheme Mangled::GetManglingScheme(llvm::StringRef const name) {
+  if (name.empty())
+    return Mangled::eManglingSchemeNone;
 
-Mangled::Mangled(llvm::StringRef name, bool is_mangled) {
-  if (!name.empty())
-    SetValue(ConstString(name), is_mangled);
+  if (name.startswith("?"))
+    return Mangled::eManglingSchemeMSVC;
+
+  if (name.startswith("_Z"))
+    return Mangled::eManglingSchemeItanium;
+
+  // ___Z is a clang extension of block invocations
+  if (name.startswith("___Z"))
+    return Mangled::eManglingSchemeItanium;
+
+  return Mangled::eManglingSchemeNone;
 }
 
 Mangled::Mangled(ConstString s) : m_mangled(), m_demangled() {
@@ -149,9 +115,6 @@ Mangled::Mangled(llvm::StringRef name) {
   if (!name.empty())
     SetValue(ConstString(name));
 }
-
-// Destructor
-Mangled::~Mangled() {}
 
 // Convert to pointer operator. This allows code to check any Mangled objects
 // to see if they contain anything valid using code such as:
@@ -203,7 +166,7 @@ void Mangled::SetValue(ConstString s, bool mangled) {
 
 void Mangled::SetValue(ConstString name) {
   if (name) {
-    if (cstring_is_mangled(name.GetCString())) {
+    if (cstring_is_mangled(name.GetStringRef())) {
       m_demangled.Clear();
       m_mangled = name;
     } else {
@@ -218,28 +181,20 @@ void Mangled::SetValue(ConstString name) {
 
 // Local helpers for different demangling implementations.
 static char *GetMSVCDemangledStr(const char *M) {
-#if defined(_MSC_VER)
-  const size_t demangled_length = 2048;
-  char *demangled_cstr = static_cast<char *>(::malloc(demangled_length));
-  ::ZeroMemory(demangled_cstr, demangled_length);
-  DWORD result = safeUndecorateName(M, demangled_cstr, demangled_length);
+  char *demangled_cstr = llvm::microsoftDemangle(
+      M, nullptr, nullptr, nullptr,
+      llvm::MSDemangleFlags(llvm::MSDF_NoAccessSpecifier |
+                            llvm::MSDF_NoCallingConvention |
+                            llvm::MSDF_NoMemberType));
 
   if (Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_DEMANGLE)) {
     if (demangled_cstr && demangled_cstr[0])
-      log->Printf("demangled msvc: %s -> \"%s\"", M, demangled_cstr);
+      LLDB_LOGF(log, "demangled msvc: %s -> \"%s\"", M, demangled_cstr);
     else
-      log->Printf("demangled msvc: %s -> error: 0x%lu", M, result);
+      LLDB_LOGF(log, "demangled msvc: %s -> error", M);
   }
 
-  if (result != 0) {
-    return demangled_cstr;
-  } else {
-    ::free(demangled_cstr);
-    return nullptr;
-  }
-#else
-  return nullptr;
-#endif
+  return demangled_cstr;
 }
 
 static char *GetItaniumDemangledStr(const char *M) {
@@ -261,9 +216,9 @@ static char *GetItaniumDemangledStr(const char *M) {
 
   if (Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_DEMANGLE)) {
     if (demangled_cstr)
-      log->Printf("demangled itanium: %s -> \"%s\"", M, demangled_cstr);
+      LLDB_LOGF(log, "demangled itanium: %s -> \"%s\"", M, demangled_cstr);
     else
-      log->Printf("demangled itanium: %s -> error: failed to demangle", M);
+      LLDB_LOGF(log, "demangled itanium: %s -> error: failed to demangle", M);
   }
 
   return demangled_cstr;
@@ -284,7 +239,7 @@ bool Mangled::DemangleWithRichManglingInfo(
   assert(m_mangled);
 
   // Check whether or not we are interested in this name at all.
-  ManglingScheme scheme = cstring_mangling_scheme(m_mangled.GetCString());
+  ManglingScheme scheme = GetManglingScheme(m_mangled.GetStringRef());
   if (skip_mangled_name && skip_mangled_name(m_mangled.GetStringRef(), scheme))
     return false;
 
@@ -352,7 +307,7 @@ Mangled::GetDemangledName(lldb::LanguageType language) const {
 
     // Don't bother running anything that isn't mangled
     const char *mangled_name = m_mangled.GetCString();
-    ManglingScheme mangling_scheme{cstring_mangling_scheme(mangled_name)};
+    ManglingScheme mangling_scheme = GetManglingScheme(m_mangled.GetStringRef());
     if (mangling_scheme != eManglingSchemeNone &&
         !m_mangled.GetMangledCounterpart(m_demangled)) {
       // We didn't already mangle this name, demangle it and if all goes well
@@ -457,6 +412,7 @@ size_t Mangled::MemorySize() const {
 // within those targets.
 lldb::LanguageType Mangled::GuessLanguage() const {
   ConstString mangled = GetMangledName();
+
   if (mangled) {
     const char *mangled_name = mangled.GetCString();
     if (CPlusPlusLanguage::IsCPPMangledName(mangled_name))

@@ -463,6 +463,23 @@ bool clang::analyze_format_string::ParseFormatStringHasSArg(const char *I,
   return false;
 }
 
+bool clang::analyze_format_string::parseFormatStringHasFormattingSpecifiers(
+    const char *Begin, const char *End, const LangOptions &LO,
+    const TargetInfo &Target) {
+  unsigned ArgIndex = 0;
+  // Keep looking for a formatting specifier until we have exhausted the string.
+  FormatStringHandler H;
+  while (Begin != End) {
+    const PrintfSpecifierResult &FSR =
+        ParsePrintfSpecifier(H, Begin, End, ArgIndex, LO, Target, false, false);
+    if (FSR.shouldStop())
+      break;
+    if (FSR.hasValue())
+      return true;
+  }
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
 // Methods on PrintfSpecifier.
 //===----------------------------------------------------------------------===//
@@ -769,6 +786,9 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
 #define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
   case BuiltinType::Id:
 #include "clang/Basic/OpenCLExtensionTypes.def"
+#define SVE_TYPE(Name, Id, SingletonId) \
+  case BuiltinType::Id:
+#include "clang/Basic/AArch64SVEACLETypes.def"
 #define SIGNED_TYPE(Id, SingletonId)
 #define UNSIGNED_TYPE(Id, SingletonId)
 #define FLOATING_TYPE(Id, SingletonId)

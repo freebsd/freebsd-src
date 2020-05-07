@@ -28,6 +28,7 @@
 #include "llvm/CodeGen/TargetOpcodes.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -261,7 +262,7 @@ void LocalStackSlotPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
 
   // Remember how big this blob of stack space is
   MFI.setLocalFrameSize(Offset);
-  MFI.setLocalFrameMaxAlign(MaxAlign);
+  MFI.setLocalFrameMaxAlign(assumeAligned(MaxAlign));
 }
 
 static inline bool

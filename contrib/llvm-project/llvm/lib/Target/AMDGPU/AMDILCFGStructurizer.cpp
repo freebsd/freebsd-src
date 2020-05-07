@@ -8,9 +8,9 @@
 
 #include "AMDGPU.h"
 #include "AMDGPUSubtarget.h"
+#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "R600InstrInfo.h"
 #include "R600RegisterInfo.h"
-#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -30,6 +30,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -1307,8 +1308,8 @@ int AMDGPUCFGStructurizer::improveSimpleJumpintoIf(MachineBasicBlock *HeadMBB,
 
   if (LandBlkHasOtherPred) {
     report_fatal_error("Extra register needed to handle CFG");
-    unsigned CmpResReg =
-      HeadMBB->getParent()->getRegInfo().createVirtualRegister(I32RC);
+    Register CmpResReg =
+        HeadMBB->getParent()->getRegInfo().createVirtualRegister(I32RC);
     report_fatal_error("Extra compare instruction needed to handle CFG");
     insertCondBranchBefore(LandBlk, I, R600::IF_PREDICATE_SET,
         CmpResReg, DebugLoc());
@@ -1316,8 +1317,8 @@ int AMDGPUCFGStructurizer::improveSimpleJumpintoIf(MachineBasicBlock *HeadMBB,
 
   // XXX: We are running this after RA, so creating virtual registers will
   // cause an assertion failure in the PostRA scheduling pass.
-  unsigned InitReg =
-    HeadMBB->getParent()->getRegInfo().createVirtualRegister(I32RC);
+  Register InitReg =
+      HeadMBB->getParent()->getRegInfo().createVirtualRegister(I32RC);
   insertCondBranchBefore(LandBlk, I, R600::IF_PREDICATE_SET, InitReg,
       DebugLoc());
 

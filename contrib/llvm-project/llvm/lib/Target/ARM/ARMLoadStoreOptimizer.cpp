@@ -509,7 +509,7 @@ void ARMLoadStoreOpt::UpdateBaseRegUses(MachineBasicBlock &MBB,
         Offset = MO.getImm() - WordOffset * getImmScale(Opc);
 
         // If storing the base register, it needs to be reset first.
-        unsigned InstrSrcReg = getLoadStoreRegOp(*MBBI).getReg();
+        Register InstrSrcReg = getLoadStoreRegOp(*MBBI).getReg();
 
         if (Offset >= 0 && !(IsStore && InstrSrcReg == Base))
           MO.setImm(Offset);
@@ -696,18 +696,23 @@ MachineInstr *ARMLoadStoreOpt::CreateLoadStoreMulti(
         return nullptr;
     }
 
-    int BaseOpc =
-      isThumb2 ? ARM::t2ADDri :
-      (isThumb1 && Base == ARM::SP) ? ARM::tADDrSPi :
-      (isThumb1 && Offset < 8) ? ARM::tADDi3 :
-      isThumb1 ? ARM::tADDi8  : ARM::ADDri;
+    int BaseOpc = isThumb2 ? (BaseKill && Base == ARM::SP ? ARM::t2ADDspImm
+                                                          : ARM::t2ADDri)
+                           : (isThumb1 && Base == ARM::SP)
+                                 ? ARM::tADDrSPi
+                                 : (isThumb1 && Offset < 8)
+                                       ? ARM::tADDi3
+                                       : isThumb1 ? ARM::tADDi8 : ARM::ADDri;
 
     if (Offset < 0) {
-      Offset = - Offset;
-      BaseOpc =
-        isThumb2 ? ARM::t2SUBri :
-        (isThumb1 && Offset < 8 && Base != ARM::SP) ? ARM::tSUBi3 :
-        isThumb1 ? ARM::tSUBi8  : ARM::SUBri;
+      // FIXME: There are no Thumb1 load/store instructions with negative
+      // offsets. So the Base != ARM::SP might be unnecessary.
+      Offset = -Offset;
+      BaseOpc = isThumb2 ? (BaseKill && Base == ARM::SP ? ARM::t2SUBspImm
+                                                        : ARM::t2SUBri)
+                         : (isThumb1 && Offset < 8 && Base != ARM::SP)
+                               ? ARM::tSUBi3
+                               : isThumb1 ? ARM::tSUBi8 : ARM::SUBri;
     }
 
     if (!TL->isLegalAddImmediate(Offset))
@@ -859,7 +864,7 @@ MachineInstr *ARMLoadStoreOpt::MergeOpsUpdate(const MergeCandidate &Cand) {
   // Determine list of registers and list of implicit super-register defs.
   for (const MachineInstr *MI : Cand.Instrs) {
     const MachineOperand &MO = getLoadStoreRegOp(*MI);
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     bool IsKill = MO.isKill();
     if (IsKill)
       KilledRegs.insert(Reg);
@@ -874,7 +879,7 @@ MachineInstr *ARMLoadStoreOpt::MergeOpsUpdate(const MergeCandidate &Cand) {
         if (!MO.isReg() || !MO.isDef() || MO.isDead())
           continue;
         assert(MO.isImplicit());
-        unsigned DefReg = MO.getReg();
+        Register DefReg = MO.getReg();
 
         if (is_contained(ImpDefs, DefReg))
           continue;
@@ -893,7 +898,7 @@ MachineInstr *ARMLoadStoreOpt::MergeOpsUpdate(const MergeCandidate &Cand) {
   iterator InsertBefore = std::next(iterator(LatestMI));
   MachineBasicBlock &MBB = *LatestMI->getParent();
   unsigned Offset = getMemoryOpOffset(*First);
-  unsigned Base = getLoadStoreBaseOp(*First).getReg();
+  Register Base = getLoadStoreBaseOp(*First).getReg();
   bool BaseKill = LatestMI->killsRegister(Base);
   unsigned PredReg = 0;
   ARMCC::CondCodes Pred = getInstrPredicate(*First, PredReg);
@@ -1005,7 +1010,7 @@ void ARMLoadStoreOpt::FormCandidates(const MemOpQueue &MemOps) {
     const MachineInstr *MI = MemOps[SIndex].MI;
     int Offset = MemOps[SIndex].Offset;
     const MachineOperand &PMO = getLoadStoreRegOp(*MI);
-    unsigned PReg = PMO.getReg();
+    Register PReg = PMO.getReg();
     unsigned PRegNum = PMO.isUndef() ? std::numeric_limits<unsigned>::max()
                                      : TRI->getEncodingValue(PReg);
     unsigned Latest = SIndex;
@@ -1052,7 +1057,7 @@ void ARMLoadStoreOpt::FormCandidates(const MemOpQueue &MemOps) {
       if (NewOffset != Offset + (int)Size)
         break;
       const MachineOperand &MO = getLoadStoreRegOp(*MemOps[I].MI);
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       if (Reg == ARM::SP || Reg == ARM::PC)
         break;
       if (Count == Limit)
@@ -1186,8 +1191,10 @@ static int isIncrementOrDecrement(const MachineInstr &MI, unsigned Reg,
   case ARM::tADDi8:  Scale =  4; CheckCPSRDef = true; break;
   case ARM::tSUBi8:  Scale = -4; CheckCPSRDef = true; break;
   case ARM::t2SUBri:
+  case ARM::t2SUBspImm:
   case ARM::SUBri:   Scale = -1; CheckCPSRDef = true; break;
   case ARM::t2ADDri:
+  case ARM::t2ADDspImm:
   case ARM::ADDri:   Scale =  1; CheckCPSRDef = true; break;
   case ARM::tADDspi: Scale =  4; CheckCPSRDef = false; break;
   case ARM::tSUBspi: Scale = -4; CheckCPSRDef = false; break;
@@ -1261,7 +1268,7 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLSMultiple(MachineInstr *MI) {
   if (isThumb1) return false;
 
   const MachineOperand &BaseOP = MI->getOperand(0);
-  unsigned Base = BaseOP.getReg();
+  Register Base = BaseOP.getReg();
   bool BaseKill = BaseOP.isKill();
   unsigned PredReg = 0;
   ARMCC::CondCodes Pred = getInstrPredicate(*MI, PredReg);
@@ -1387,7 +1394,7 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLoadStore(MachineInstr *MI) {
   // FIXME: Use LDM/STM with single register instead.
   if (isThumb1) return false;
 
-  unsigned Base = getLoadStoreBaseOp(*MI).getReg();
+  Register Base = getLoadStoreBaseOp(*MI).getReg();
   bool BaseKill = getLoadStoreBaseOp(*MI).isKill();
   unsigned Opcode = MI->getOpcode();
   DebugLoc DL = MI->getDebugLoc();
@@ -1512,7 +1519,7 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLSDouble(MachineInstr &MI) const {
   // Behaviour for writeback is undefined if base register is the same as one
   // of the others.
   const MachineOperand &BaseOp = MI.getOperand(2);
-  unsigned Base = BaseOp.getReg();
+  Register Base = BaseOp.getReg();
   const MachineOperand &Reg0Op = MI.getOperand(0);
   const MachineOperand &Reg1Op = MI.getOperand(1);
   if (Reg0Op.getReg() == Base || Reg1Op.getReg() == Base)
@@ -1655,9 +1662,9 @@ bool ARMLoadStoreOpt::FixInvalidRegPairOp(MachineBasicBlock &MBB,
     return false;
 
   const MachineOperand &BaseOp = MI->getOperand(2);
-  unsigned BaseReg = BaseOp.getReg();
-  unsigned EvenReg = MI->getOperand(0).getReg();
-  unsigned OddReg  = MI->getOperand(1).getReg();
+  Register BaseReg = BaseOp.getReg();
+  Register EvenReg = MI->getOperand(0).getReg();
+  Register OddReg = MI->getOperand(1).getReg();
   unsigned EvenRegNum = TRI->getDwarfRegNum(EvenReg, false);
   unsigned OddRegNum  = TRI->getDwarfRegNum(OddReg, false);
 
@@ -1783,8 +1790,8 @@ bool ARMLoadStoreOpt::LoadStoreMultipleOpti(MachineBasicBlock &MBB) {
     if (isMemoryOp(*MBBI)) {
       unsigned Opcode = MBBI->getOpcode();
       const MachineOperand &MO = MBBI->getOperand(0);
-      unsigned Reg = MO.getReg();
-      unsigned Base = getLoadStoreBaseOp(*MBBI).getReg();
+      Register Reg = MO.getReg();
+      Register Base = getLoadStoreBaseOp(*MBBI).getReg();
       unsigned PredReg = 0;
       ARMCC::CondCodes Pred = getInstrPredicate(*MBBI, PredReg);
       int Offset = getMemoryOpOffset(*MBBI);
@@ -2121,7 +2128,7 @@ static bool IsSafeAndProfitableToMove(bool isLd, unsigned Base,
       MachineOperand &MO = I->getOperand(j);
       if (!MO.isReg())
         continue;
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       if (MO.isDef() && TRI->regsOverlap(Reg, Base))
         return false;
       if (Reg != Base && !MemRegs.count(Reg))
@@ -2415,7 +2422,7 @@ ARMPreAllocLoadStoreOpt::RescheduleLoadStoreInstrs(MachineBasicBlock *MBB) {
 
       int Opc = MI.getOpcode();
       bool isLd = isLoadSingle(Opc);
-      unsigned Base = MI.getOperand(1).getReg();
+      Register Base = MI.getOperand(1).getReg();
       int Offset = getMemoryOpOffset(MI);
       bool StopHere = false;
       auto FindBases = [&] (Base2InstMap &Base2Ops, BaseVec &Bases) {

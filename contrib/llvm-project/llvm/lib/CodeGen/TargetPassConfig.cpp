@@ -30,6 +30,7 @@
 #include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Pass.h"
@@ -38,8 +39,8 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Threading.h"
 #include "llvm/Support/SaveAndRestore.h"
+#include "llvm/Support/Threading.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils.h"
@@ -49,9 +50,10 @@
 
 using namespace llvm;
 
-cl::opt<bool> EnableIPRA("enable-ipra", cl::init(false), cl::Hidden,
-                         cl::desc("Enable interprocedural register allocation "
-                                  "to reduce load/store at procedure calls."));
+static cl::opt<bool>
+    EnableIPRA("enable-ipra", cl::init(false), cl::Hidden,
+               cl::desc("Enable interprocedural register allocation "
+                        "to reduce load/store at procedure calls."));
 static cl::opt<bool> DisablePostRASched("disable-post-ra", cl::Hidden,
     cl::desc("Disable Post Regalloc Scheduler"));
 static cl::opt<bool> DisableBranchFold("disable-branch-fold", cl::Hidden,
@@ -152,8 +154,10 @@ static cl::opt<GlobalISelAbortMode> EnableGlobalISelAbort(
 // substitutePass(&PostRASchedulerID, &PostMachineSchedulerID).
 // Targets can return true in targetSchedulesPostRAScheduling() and
 // insert a PostRA scheduling pass wherever it wants.
-cl::opt<bool> MISchedPostRA("misched-postra", cl::Hidden,
-  cl::desc("Run MachineScheduler post regalloc (independent of preRA sched)"));
+static cl::opt<bool> MISchedPostRA(
+    "misched-postra", cl::Hidden,
+    cl::desc(
+        "Run MachineScheduler post regalloc (independent of preRA sched)"));
 
 // Experimental option to run live interval analysis early.
 static cl::opt<bool> EarlyLiveIntervals("early-live-intervals", cl::Hidden,
@@ -175,10 +179,10 @@ static cl::opt<CFLAAType> UseCFLAA(
 /// Option names for limiting the codegen pipeline.
 /// Those are used in error reporting and we didn't want
 /// to duplicate their names all over the place.
-const char *StartAfterOptName = "start-after";
-const char *StartBeforeOptName = "start-before";
-const char *StopAfterOptName = "stop-after";
-const char *StopBeforeOptName = "stop-before";
+static const char StartAfterOptName[] = "start-after";
+static const char StartBeforeOptName[] = "start-before";
+static const char StopAfterOptName[] = "stop-after";
+static const char StopBeforeOptName[] = "stop-before";
 
 static cl::opt<std::string>
     StartAfterOpt(StringRef(StartAfterOptName),
@@ -654,6 +658,7 @@ void TargetPassConfig::addIRPasses() {
   // TODO: add a pass insertion point here
   addPass(createGCLoweringPass());
   addPass(createShadowStackGCLoweringPass());
+  addPass(createLowerConstantIntrinsicsPass());
 
   // Make sure that no unreachable blocks are instruction selected.
   addPass(createUnreachableBlockEliminationPass());
@@ -951,6 +956,12 @@ void TargetPassConfig::addMachinePasses() {
   if (getOptLevel() != CodeGenOpt::None)
     addBlockPlacement();
 
+  // Insert before XRay Instrumentation.
+  addPass(&FEntryInserterID, false);
+
+  addPass(&XRayInstrumentationID, false);
+  addPass(&PatchableFunctionID, false);
+
   addPreEmitPass();
 
   if (TM->Options.EnableIPRA)
@@ -962,12 +973,6 @@ void TargetPassConfig::addMachinePasses() {
 
   addPass(&StackMapLivenessID, false);
   addPass(&LiveDebugValuesID, false);
-
-  // Insert before XRay Instrumentation.
-  addPass(&FEntryInserterID, false);
-
-  addPass(&XRayInstrumentationID, false);
-  addPass(&PatchableFunctionID, false);
 
   if (TM->Options.EnableMachineOutliner && getOptLevel() != CodeGenOpt::None &&
       EnableMachineOutliner != NeverOutline) {
@@ -1231,5 +1236,5 @@ bool TargetPassConfig::isGISelCSEEnabled() const {
 }
 
 std::unique_ptr<CSEConfigBase> TargetPassConfig::getCSEConfig() const {
-  return make_unique<CSEConfigBase>();
+  return std::make_unique<CSEConfigBase>();
 }

@@ -9,6 +9,7 @@
 #ifndef LLVM_ANALYSIS_TARGETLIBRARYINFO_H
 #define LLVM_ANALYSIS_TARGETLIBRARYINFO_H
 
+#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/Triple.h"
@@ -30,11 +31,12 @@ struct VecDesc {
   unsigned VectorizationFactor;
 };
 
-  enum LibFunc {
+  enum LibFunc : unsigned {
 #define TLI_DEFINE_ENUM
 #include "llvm/Analysis/TargetLibraryInfo.def"
 
-    NumLibFuncs
+    NumLibFuncs,
+    NotLibFunc
   };
 
 /// Implementation of the target library information.
@@ -48,7 +50,7 @@ class TargetLibraryInfoImpl {
 
   unsigned char AvailableArray[(NumLibFuncs+3)/4];
   llvm::DenseMap<unsigned, std::string> CustomNames;
-  static StringRef const StandardNames[NumLibFuncs];
+  static StringLiteral const StandardNames[NumLibFuncs];
   bool ShouldExtI32Param, ShouldExtI32Return, ShouldSignExtI32Param;
 
   enum AvailabilityState {
@@ -196,6 +198,10 @@ public:
   /// Returns the size of the wchar_t type in bytes or 0 if the size is unknown.
   /// This queries the 'wchar_size' metadata.
   unsigned getWCharSize(const Module &M) const;
+
+  /// Returns the largest vectorization factor used in the list of
+  /// vector functions.
+  unsigned getWidestVF(StringRef ScalarF) const;
 };
 
 /// Provides information about what library functions are available for
@@ -207,20 +213,50 @@ class TargetLibraryInfo {
   friend class TargetLibraryAnalysis;
   friend class TargetLibraryInfoWrapperPass;
 
+  /// The global (module level) TLI info.
   const TargetLibraryInfoImpl *Impl;
 
+  /// Support for -fno-builtin* options as function attributes, overrides
+  /// information in global TargetLibraryInfoImpl.
+  BitVector OverrideAsUnavailable;
+
 public:
-  explicit TargetLibraryInfo(const TargetLibraryInfoImpl &Impl) : Impl(&Impl) {}
+  explicit TargetLibraryInfo(const TargetLibraryInfoImpl &Impl,
+                             Optional<const Function *> F = None)
+      : Impl(&Impl), OverrideAsUnavailable(NumLibFuncs) {
+    if (!F)
+      return;
+    if ((*F)->hasFnAttribute("no-builtins"))
+      disableAllFunctions();
+    else {
+      // Disable individual libc/libm calls in TargetLibraryInfo.
+      LibFunc LF;
+      AttributeSet FnAttrs = (*F)->getAttributes().getFnAttributes();
+      for (const Attribute &Attr : FnAttrs) {
+        if (!Attr.isStringAttribute())
+          continue;
+        auto AttrStr = Attr.getKindAsString();
+        if (!AttrStr.consume_front("no-builtin-"))
+          continue;
+        if (getLibFunc(AttrStr, LF))
+          setUnavailable(LF);
+      }
+    }
+  }
 
   // Provide value semantics.
-  TargetLibraryInfo(const TargetLibraryInfo &TLI) : Impl(TLI.Impl) {}
-  TargetLibraryInfo(TargetLibraryInfo &&TLI) : Impl(TLI.Impl) {}
+  TargetLibraryInfo(const TargetLibraryInfo &TLI)
+      : Impl(TLI.Impl), OverrideAsUnavailable(TLI.OverrideAsUnavailable) {}
+  TargetLibraryInfo(TargetLibraryInfo &&TLI)
+      : Impl(TLI.Impl), OverrideAsUnavailable(TLI.OverrideAsUnavailable) {}
   TargetLibraryInfo &operator=(const TargetLibraryInfo &TLI) {
     Impl = TLI.Impl;
+    OverrideAsUnavailable = TLI.OverrideAsUnavailable;
     return *this;
   }
   TargetLibraryInfo &operator=(TargetLibraryInfo &&TLI) {
     Impl = TLI.Impl;
+    OverrideAsUnavailable = TLI.OverrideAsUnavailable;
     return *this;
   }
 
@@ -243,9 +279,27 @@ public:
            getLibFunc(*(CS.getCalledFunction()), F);
   }
 
+  /// Disables all builtins.
+  ///
+  /// This can be used for options like -fno-builtin.
+  void disableAllFunctions() LLVM_ATTRIBUTE_UNUSED {
+    OverrideAsUnavailable.set();
+  }
+
+  /// Forces a function to be marked as unavailable.
+  void setUnavailable(LibFunc F) LLVM_ATTRIBUTE_UNUSED {
+    OverrideAsUnavailable.set(F);
+  }
+
+  TargetLibraryInfoImpl::AvailabilityState getState(LibFunc F) const {
+    if (OverrideAsUnavailable[F])
+      return TargetLibraryInfoImpl::Unavailable;
+    return Impl->getState(F);
+  }
+
   /// Tests whether a library function is available.
   bool has(LibFunc F) const {
-    return Impl->getState(F) != TargetLibraryInfoImpl::Unavailable;
+    return getState(F) != TargetLibraryInfoImpl::Unavailable;
   }
   bool isFunctionVectorizable(StringRef F, unsigned VF) const {
     return Impl->isFunctionVectorizable(F, VF);
@@ -260,7 +314,7 @@ public:
   /// Tests if the function is both available and a candidate for optimized code
   /// generation.
   bool hasOptimizedCodeGen(LibFunc F) const {
-    if (Impl->getState(F) == TargetLibraryInfoImpl::Unavailable)
+    if (getState(F) == TargetLibraryInfoImpl::Unavailable)
       return false;
     switch (F) {
     default: break;
@@ -290,7 +344,7 @@ public:
   }
 
   StringRef getName(LibFunc F) const {
-    auto State = Impl->getState(F);
+    auto State = getState(F);
     if (State == TargetLibraryInfoImpl::Unavailable)
       return StringRef();
     if (State == TargetLibraryInfoImpl::StandardName)
@@ -336,6 +390,12 @@ public:
                   FunctionAnalysisManager::Invalidator &) {
     return false;
   }
+
+  /// Returns the largest vectorization factor used in the list of
+  /// vector functions.
+  unsigned getWidestVF(StringRef ScalarF) const {
+    return Impl->getWidestVF(ScalarF);
+  }
 };
 
 /// Analysis pass providing the \c TargetLibraryInfo.
@@ -352,30 +412,24 @@ public:
   /// module.
   TargetLibraryAnalysis() {}
 
-  /// Construct a library analysis with preset info.
+  /// Construct a library analysis with baseline Module-level info.
   ///
-  /// This will directly copy the preset info into the result without
-  /// consulting the module's triple.
-  TargetLibraryAnalysis(TargetLibraryInfoImpl PresetInfoImpl)
-      : PresetInfoImpl(std::move(PresetInfoImpl)) {}
+  /// This will be supplemented with Function-specific info in the Result.
+  TargetLibraryAnalysis(TargetLibraryInfoImpl BaselineInfoImpl)
+      : BaselineInfoImpl(std::move(BaselineInfoImpl)) {}
 
-  TargetLibraryInfo run(Module &M, ModuleAnalysisManager &);
-  TargetLibraryInfo run(Function &F, FunctionAnalysisManager &);
+  TargetLibraryInfo run(const Function &F, FunctionAnalysisManager &);
 
 private:
   friend AnalysisInfoMixin<TargetLibraryAnalysis>;
   static AnalysisKey Key;
 
-  Optional<TargetLibraryInfoImpl> PresetInfoImpl;
-
-  StringMap<std::unique_ptr<TargetLibraryInfoImpl>> Impls;
-
-  TargetLibraryInfoImpl &lookupInfoImpl(const Triple &T);
+  Optional<TargetLibraryInfoImpl> BaselineInfoImpl;
 };
 
 class TargetLibraryInfoWrapperPass : public ImmutablePass {
-  TargetLibraryInfoImpl TLIImpl;
-  TargetLibraryInfo TLI;
+  TargetLibraryAnalysis TLA;
+  Optional<TargetLibraryInfo> TLI;
 
   virtual void anchor();
 
@@ -385,8 +439,11 @@ public:
   explicit TargetLibraryInfoWrapperPass(const Triple &T);
   explicit TargetLibraryInfoWrapperPass(const TargetLibraryInfoImpl &TLI);
 
-  TargetLibraryInfo &getTLI() { return TLI; }
-  const TargetLibraryInfo &getTLI() const { return TLI; }
+  TargetLibraryInfo &getTLI(const Function &F) {
+    FunctionAnalysisManager DummyFAM;
+    TLI = TLA.run(F, DummyFAM);
+    return *TLI;
+  }
 };
 
 } // end namespace llvm

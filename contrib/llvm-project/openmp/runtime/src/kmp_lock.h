@@ -462,7 +462,7 @@ struct kmp_base_drdpa_lock {
   // written by the acquiring thread) than it does in the simple ticket locks
   // (where it is written by the releasing thread).
   //
-  // Since now_serving is only read an written in the critical section,
+  // Since now_serving is only read and written in the critical section,
   // it is non-volatile, but it needs to exist on a separate cache line,
   // as it is invalidated at every lock acquire.
   //
@@ -1122,18 +1122,18 @@ typedef struct {
 // Function tables for direct locks. Set/unset/test differentiate functions
 // with/without consistency checking.
 extern void (*__kmp_direct_init[])(kmp_dyna_lock_t *, kmp_dyna_lockseq_t);
-extern void (*(*__kmp_direct_destroy))(kmp_dyna_lock_t *);
-extern int (*(*__kmp_direct_set))(kmp_dyna_lock_t *, kmp_int32);
-extern int (*(*__kmp_direct_unset))(kmp_dyna_lock_t *, kmp_int32);
-extern int (*(*__kmp_direct_test))(kmp_dyna_lock_t *, kmp_int32);
+extern void (**__kmp_direct_destroy)(kmp_dyna_lock_t *);
+extern int (**__kmp_direct_set)(kmp_dyna_lock_t *, kmp_int32);
+extern int (**__kmp_direct_unset)(kmp_dyna_lock_t *, kmp_int32);
+extern int (**__kmp_direct_test)(kmp_dyna_lock_t *, kmp_int32);
 
 // Function tables for indirect locks. Set/unset/test differentiate functions
 // with/withuot consistency checking.
 extern void (*__kmp_indirect_init[])(kmp_user_lock_p);
-extern void (*(*__kmp_indirect_destroy))(kmp_user_lock_p);
-extern int (*(*__kmp_indirect_set))(kmp_user_lock_p, kmp_int32);
-extern int (*(*__kmp_indirect_unset))(kmp_user_lock_p, kmp_int32);
-extern int (*(*__kmp_indirect_test))(kmp_user_lock_p, kmp_int32);
+extern void (**__kmp_indirect_destroy)(kmp_user_lock_p);
+extern int (**__kmp_indirect_set)(kmp_user_lock_p, kmp_int32);
+extern int (**__kmp_indirect_unset)(kmp_user_lock_p, kmp_int32);
+extern int (**__kmp_indirect_test)(kmp_user_lock_p, kmp_int32);
 
 // Extracts direct lock tag from a user lock pointer
 #define KMP_EXTRACT_D_TAG(l)                                                   \

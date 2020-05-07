@@ -22,9 +22,9 @@
 
 using namespace llvm;
 using namespace llvm::object;
-using namespace lld;
-using namespace lld::elf;
 
+namespace lld {
+namespace elf {
 template <class ELFT> LLDDwarfObj<ELFT>::LLDDwarfObj(ObjFile<ELFT> *obj) {
   for (InputSectionBase *sec : obj->getSections()) {
     if (!sec)
@@ -33,11 +33,12 @@ template <class ELFT> LLDDwarfObj<ELFT>::LLDDwarfObj(ObjFile<ELFT> *obj) {
     if (LLDDWARFSection *m =
             StringSwitch<LLDDWARFSection *>(sec->name)
                 .Case(".debug_addr", &addrSection)
-                .Case(".debug_gnu_pubnames", &gnuPubNamesSection)
-                .Case(".debug_gnu_pubtypes", &gnuPubTypesSection)
+                .Case(".debug_gnu_pubnames", &gnuPubnamesSection)
+                .Case(".debug_gnu_pubtypes", &gnuPubtypesSection)
                 .Case(".debug_info", &infoSection)
-                .Case(".debug_ranges", &rangeSection)
-                .Case(".debug_rnglists", &rngListsSection)
+                .Case(".debug_ranges", &rangesSection)
+                .Case(".debug_rnglists", &rnglistsSection)
+                .Case(".debug_str_offsets", &strOffsetsSection)
                 .Case(".debug_line", &lineSection)
                 .Default(nullptr)) {
       m->Data = toStringRef(sec->data());
@@ -50,7 +51,7 @@ template <class ELFT> LLDDwarfObj<ELFT>::LLDDwarfObj(ObjFile<ELFT> *obj) {
     else if (sec->name == ".debug_str")
       strSection = toStringRef(sec->data());
     else if (sec->name == ".debug_line_str")
-      lineStringSection = toStringRef(sec->data());
+      lineStrSection = toStringRef(sec->data());
   }
 }
 
@@ -123,7 +124,10 @@ Optional<RelocAddrEntry> LLDDwarfObj<ELFT>::find(const llvm::DWARFSection &s,
   return findAux(*sec.sec, pos, sec.sec->template rels<ELFT>());
 }
 
-template class elf::LLDDwarfObj<ELF32LE>;
-template class elf::LLDDwarfObj<ELF32BE>;
-template class elf::LLDDwarfObj<ELF64LE>;
-template class elf::LLDDwarfObj<ELF64BE>;
+template class LLDDwarfObj<ELF32LE>;
+template class LLDDwarfObj<ELF32BE>;
+template class LLDDwarfObj<ELF64LE>;
+template class LLDDwarfObj<ELF64BE>;
+
+} // namespace elf
+} // namespace lld

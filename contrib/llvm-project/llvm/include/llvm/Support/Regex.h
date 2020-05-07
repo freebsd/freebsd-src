@@ -44,6 +44,9 @@ namespace llvm {
 
     Regex();
     /// Compiles the given regular expression \p Regex.
+    ///
+    /// \param Regex - referenced string is no longer needed after this
+    /// constructor does finish.  Only its compiled form is kept stored.
     Regex(StringRef Regex, unsigned Flags = NoFlags);
     Regex(const Regex &) = delete;
     Regex &operator=(Regex regex) {
@@ -54,9 +57,10 @@ namespace llvm {
     Regex(Regex &&regex);
     ~Regex();
 
-    /// isValid - returns the error encountered during regex compilation, or
-    /// matching, if any.
+    /// isValid - returns the error encountered during regex compilation, if
+    /// any.
     bool isValid(std::string &Error) const;
+    bool isValid() const { return !error; }
 
     /// getNumMatches - In a valid regex, return the number of parenthesized
     /// matches it contains.  The number filled in by match will include this
@@ -69,8 +73,12 @@ namespace llvm {
     /// with references to the matched group expressions (inside \p String),
     /// the first group is always the entire pattern.
     ///
+    /// \param Error - If non-null, any errors in the matching will be recorded
+    /// as a non-empty string. If there is no error, it will be an empty string.
+    ///
     /// This returns true on a successful match.
-    bool match(StringRef String, SmallVectorImpl<StringRef> *Matches = nullptr);
+    bool match(StringRef String, SmallVectorImpl<StringRef> *Matches = nullptr,
+               std::string *Error = nullptr) const;
 
     /// sub - Return the result of replacing the first match of the regex in
     /// \p String with the \p Repl string. Backreferences like "\0" in the
@@ -81,9 +89,9 @@ namespace llvm {
     ///
     /// \param Error If non-null, any errors in the substitution (invalid
     /// backreferences, trailing backslashes) will be recorded as a non-empty
-    /// string.
+    /// string. If there is no error, it will be an empty string.
     std::string sub(StringRef Repl, StringRef String,
-                    std::string *Error = nullptr);
+                    std::string *Error = nullptr) const;
 
     /// If this function returns true, ^Str$ is an extended regular
     /// expression that matches Str and only Str.

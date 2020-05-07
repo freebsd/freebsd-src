@@ -21,12 +21,6 @@
 
 #include <memory>
 
-// Support building against older versions of LLVM, this macro was added
-// recently.
-#ifndef LLVM_EXTENSION
-#define LLVM_EXTENSION
-#endif
-
 #include "Utility/ARM_DWARF_Registers.h"
 #include "Utility/ARM_ehframe_Registers.h"
 
@@ -1111,9 +1105,10 @@ int RegisterContextDarwin_arm::WriteRegisterSet(uint32_t set) {
 void RegisterContextDarwin_arm::LogDBGRegisters(Log *log, const DBG &dbg) {
   if (log) {
     for (uint32_t i = 0; i < 16; i++)
-      log->Printf("BVR%-2u/BCR%-2u = { 0x%8.8x, 0x%8.8x } WVR%-2u/WCR%-2u = { "
-                  "0x%8.8x, 0x%8.8x }",
-                  i, i, dbg.bvr[i], dbg.bcr[i], i, i, dbg.wvr[i], dbg.wcr[i]);
+      LLDB_LOGF(log,
+                "BVR%-2u/BCR%-2u = { 0x%8.8x, 0x%8.8x } WVR%-2u/WCR%-2u = { "
+                "0x%8.8x, 0x%8.8x }",
+                i, i, dbg.bvr[i], dbg.bcr[i], i, i, dbg.wvr[i], dbg.wcr[i]);
   }
 }
 
@@ -1145,10 +1140,11 @@ bool RegisterContextDarwin_arm::ReadRegister(const RegisterInfo *reg_info,
   case gpr_sp:
   case gpr_lr:
   case gpr_pc:
-  case gpr_cpsr:
     value.SetUInt32(gpr.r[reg - gpr_r0]);
     break;
-
+  case gpr_cpsr:
+    value.SetUInt32(gpr.cpsr);
+    break;
   case fpu_s0:
   case fpu_s1:
   case fpu_s2:
@@ -1514,8 +1510,6 @@ uint32_t RegisterContextDarwin_arm::NumSupportedHardwareBreakpoints() {
     // Zero is reserved for the BRP count, so don't increment it if it is zero
     if (g_num_supported_hw_breakpoints > 0)
       g_num_supported_hw_breakpoints++;
-    //        if (log) log->Printf ("DBGDIDR=0x%8.8x (number BRP pairs = %u)",
-    //        register_DBGDIDR, g_num_supported_hw_breakpoints);
   }
   return g_num_supported_hw_breakpoints;
 #else
@@ -1642,8 +1636,6 @@ uint32_t RegisterContextDarwin_arm::NumSupportedHardwareWatchpoints() {
     uint32_t register_DBGDIDR;
     asm("mrc p14, 0, %0, c0, c0, 0" : "=r"(register_DBGDIDR));
     g_num_supported_hw_watchpoints = Bits32(register_DBGDIDR, 31, 28) + 1;
-    //        if (log) log->Printf ("DBGDIDR=0x%8.8x (number WRP pairs = %u)",
-    //        register_DBGDIDR, g_num_supported_hw_watchpoints);
   }
   return g_num_supported_hw_watchpoints;
 #else
@@ -1656,10 +1648,6 @@ uint32_t RegisterContextDarwin_arm::SetHardwareWatchpoint(lldb::addr_t addr,
                                                           size_t size,
                                                           bool read,
                                                           bool write) {
-  //    if (log) log->Printf
-  //    ("RegisterContextDarwin_arm::EnableHardwareWatchpoint(addr = %8.8p, size
-  //    = %u, read = %u, write = %u)", addr, size, read, write);
-
   const uint32_t num_hw_watchpoints = NumSupportedHardwareWatchpoints();
 
   // Can't watch zero bytes

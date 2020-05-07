@@ -222,17 +222,35 @@ ABISP
 ABISysV_x86_64::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch) {
   const llvm::Triple::ArchType arch_type = arch.GetTriple().getArch();
   const llvm::Triple::OSType os_type = arch.GetTriple().getOS();
+  const llvm::Triple::EnvironmentType os_env =
+      arch.GetTriple().getEnvironment();
   if (arch_type == llvm::Triple::x86_64) {
     switch(os_type) {
-      case llvm::Triple::OSType::MacOSX:
-      case llvm::Triple::OSType::Linux:
-      case llvm::Triple::OSType::FreeBSD:
-      case llvm::Triple::OSType::NetBSD:
-      case llvm::Triple::OSType::Solaris:
-      case llvm::Triple::OSType::UnknownOS:
-        return ABISP(new ABISysV_x86_64(process_sp));
-      default: 
+    case llvm::Triple::OSType::IOS:
+    case llvm::Triple::OSType::TvOS:
+    case llvm::Triple::OSType::WatchOS:
+      switch (os_env) {
+      case llvm::Triple::EnvironmentType::MacABI:
+      case llvm::Triple::EnvironmentType::Simulator:
+      case llvm::Triple::EnvironmentType::UnknownEnvironment:
+        // UnknownEnvironment is needed for older compilers that don't
+        // support the simulator environment.
+        return ABISP(new ABISysV_x86_64(std::move(process_sp),
+                                        MakeMCRegisterInfo(arch)));
+      default:
         return ABISP();
+      }
+    case llvm::Triple::OSType::Darwin:
+    case llvm::Triple::OSType::FreeBSD:
+    case llvm::Triple::OSType::Linux:
+    case llvm::Triple::OSType::MacOSX:
+    case llvm::Triple::OSType::NetBSD:
+    case llvm::Triple::OSType::Solaris:
+    case llvm::Triple::OSType::UnknownOS:
+      return ABISP(
+          new ABISysV_x86_64(std::move(process_sp), MakeMCRegisterInfo(arch)));
+    default:
+      return ABISP();
     }
   }
   return ABISP();
@@ -270,18 +288,16 @@ bool ABISysV_x86_64::PrepareTrivialCall(Thread &thread, addr_t sp,
   for (size_t i = 0; i < args.size(); ++i) {
     reg_info = reg_ctx->GetRegisterInfo(eRegisterKindGeneric,
                                         LLDB_REGNUM_GENERIC_ARG1 + i);
-    if (log)
-      log->Printf("About to write arg%" PRIu64 " (0x%" PRIx64 ") into %s",
-                  static_cast<uint64_t>(i + 1), args[i], reg_info->name);
+    LLDB_LOGF(log, "About to write arg%" PRIu64 " (0x%" PRIx64 ") into %s",
+              static_cast<uint64_t>(i + 1), args[i], reg_info->name);
     if (!reg_ctx->WriteRegisterFromUnsigned(reg_info, args[i]))
       return false;
   }
 
   // First, align the SP
 
-  if (log)
-    log->Printf("16-byte aligning SP: 0x%" PRIx64 " to 0x%" PRIx64,
-                (uint64_t)sp, (uint64_t)(sp & ~0xfull));
+  LLDB_LOGF(log, "16-byte aligning SP: 0x%" PRIx64 " to 0x%" PRIx64,
+            (uint64_t)sp, (uint64_t)(sp & ~0xfull));
 
   sp &= ~(0xfull); // 16-byte alignment
 
@@ -295,10 +311,10 @@ bool ABISysV_x86_64::PrepareTrivialCall(Thread &thread, addr_t sp,
   ProcessSP process_sp(thread.GetProcess());
 
   RegisterValue reg_value;
-  if (log)
-    log->Printf("Pushing the return address onto the stack: 0x%" PRIx64
-                ": 0x%" PRIx64,
-                (uint64_t)sp, (uint64_t)return_addr);
+  LLDB_LOGF(log,
+            "Pushing the return address onto the stack: 0x%" PRIx64
+            ": 0x%" PRIx64,
+            (uint64_t)sp, (uint64_t)return_addr);
 
   // Save return address onto the stack
   if (!process_sp->WritePointerToMemory(sp, return_addr, error))
@@ -306,16 +322,14 @@ bool ABISysV_x86_64::PrepareTrivialCall(Thread &thread, addr_t sp,
 
   // %rsp is set to the actual stack value.
 
-  if (log)
-    log->Printf("Writing SP: 0x%" PRIx64, (uint64_t)sp);
+  LLDB_LOGF(log, "Writing SP: 0x%" PRIx64, (uint64_t)sp);
 
   if (!reg_ctx->WriteRegisterFromUnsigned(sp_reg_info, sp))
     return false;
 
   // %rip is set to the address of the called function.
 
-  if (log)
-    log->Printf("Writing IP: 0x%" PRIx64, (uint64_t)func_addr);
+  LLDB_LOGF(log, "Writing IP: 0x%" PRIx64, (uint64_t)func_addr);
 
   if (!reg_ctx->WriteRegisterFromUnsigned(pc_reg_info, func_addr))
     return false;
@@ -1034,6 +1048,7 @@ bool ABISysV_x86_64::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
   unwind_plan.SetSourceName("x86_64 default unwind plan");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolNo);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   return true;
 }
 

@@ -15,6 +15,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/COFF.h"
 #include "llvm/BinaryFormat/ELF.h"
+#include "llvm/BinaryFormat/XCOFF.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeView.h"
 #include "llvm/MC/MCDwarf.h"
@@ -58,12 +59,12 @@ AsSecureLogFileName("as-secure-log-file-name",
 
 MCContext::MCContext(const MCAsmInfo *mai, const MCRegisterInfo *mri,
                      const MCObjectFileInfo *mofi, const SourceMgr *mgr,
-                     bool DoAutoReset)
+                     MCTargetOptions const *TargetOpts, bool DoAutoReset)
     : SrcMgr(mgr), InlineSrcMgr(nullptr), MAI(mai), MRI(mri), MOFI(mofi),
       Symbols(Allocator), UsedNames(Allocator),
       InlineAsmUsedLabelNames(Allocator),
       CurrentDwarfLoc(0, 0, 0, DWARF2_FLAG_IS_STMT, 0, 0),
-      AutoReset(DoAutoReset) {
+      AutoReset(DoAutoReset), TargetOptions(TargetOpts) {
   SecureLogFile = AsSecureLogFileName;
 
   if (SrcMgr && SrcMgr->getNumBuffers())
@@ -537,6 +538,8 @@ MCSectionWasm *MCContext::getWasmSection(const Twine &Section, SectionKind Kind,
 
 MCSectionXCOFF *MCContext::getXCOFFSection(StringRef Section,
                                            XCOFF::StorageMappingClass SMC,
+                                           XCOFF::SymbolType Type,
+                                           XCOFF::StorageClass SC,
                                            SectionKind Kind,
                                            const char *BeginSymName) {
   // Do the lookup. If we have a hit, return it.
@@ -548,13 +551,15 @@ MCSectionXCOFF *MCContext::getXCOFFSection(StringRef Section,
 
   // Otherwise, return a new section.
   StringRef CachedName = Entry.first.SectionName;
+  MCSymbol *QualName = getOrCreateSymbol(
+      CachedName + "[" + XCOFF::getMappingClassString(SMC) + "]");
 
   MCSymbol *Begin = nullptr;
   if (BeginSymName)
     Begin = createTempSymbol(BeginSymName, false);
 
-  MCSectionXCOFF *Result = new (XCOFFAllocator.Allocate())
-      MCSectionXCOFF(CachedName, SMC, Kind, Begin);
+  MCSectionXCOFF *Result = new (XCOFFAllocator.Allocate()) MCSectionXCOFF(
+      CachedName, SMC, Type, SC, Kind, cast<MCSymbolXCOFF>(QualName), Begin);
   Entry.second = Result;
 
   auto *F = new MCDataFragment();
@@ -694,6 +699,21 @@ void MCContext::reportError(SMLoc Loc, const Twine &Msg) {
     InlineSrcMgr->PrintMessage(Loc, SourceMgr::DK_Error, Msg);
   else
     report_fatal_error(Msg, false);
+}
+
+void MCContext::reportWarning(SMLoc Loc, const Twine &Msg) {
+  if (TargetOptions && TargetOptions->MCNoWarn)
+    return;
+  if (TargetOptions && TargetOptions->MCFatalWarnings)
+    reportError(Loc, Msg);
+  else {
+    // If we have a source manager use it. Otherwise, try using the inline
+    // source manager.
+    if (SrcMgr)
+      SrcMgr->PrintMessage(Loc, SourceMgr::DK_Warning, Msg);
+    else if (InlineSrcMgr)
+      InlineSrcMgr->PrintMessage(Loc, SourceMgr::DK_Warning, Msg);
+  }
 }
 
 void MCContext::reportFatalError(SMLoc Loc, const Twine &Msg) {

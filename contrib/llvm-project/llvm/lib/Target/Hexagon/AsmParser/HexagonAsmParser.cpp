@@ -702,7 +702,7 @@ bool HexagonAsmParser::ParseDirectiveFalign(unsigned Size, SMLoc L) {
     // Make sure we have a number (false is returned if expression is a number)
     if (!getParser().parseExpression(Value)) {
       // Make sure this is a number that is in range
-      const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(Value);
+      auto *MCE = cast<MCConstantExpr>(Value);
       uint64_t IntValue = MCE->getValue();
       if (!isUIntN(Size, IntValue) && !isIntN(Size, IntValue))
         return Error(ExprLoc, "literal value out of range (256) for falign");
@@ -813,10 +813,10 @@ bool HexagonAsmParser::RegisterMatchesArch(unsigned MatchNum) const {
   return true;
 }
 
-// extern "C" void LLVMInitializeHexagonAsmLexer();
+// extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeHexagonAsmLexer();
 
 /// Force static initialization.
-extern "C" void LLVMInitializeHexagonAsmParser() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeHexagonAsmParser() {
   RegisterMCAsmParser<HexagonAsmParser> X(getTheHexagonTarget());
 }
 

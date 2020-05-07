@@ -9,7 +9,7 @@ ITTSRC=		${OMPSRC}/thirdparty/ittnotify
 .PATH:		${OMPSRC}
 .PATH:		${ITTSRC}
 
-SRCS+=		ittnotify_static.c
+SRCS+=		ittnotify_static.cpp
 SRCS+=		kmp_affinity.cpp
 SRCS+=		kmp_alloc.cpp
 SRCS+=		kmp_atomic.cpp

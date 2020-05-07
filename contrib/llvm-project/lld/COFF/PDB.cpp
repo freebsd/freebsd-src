@@ -16,8 +16,8 @@
 #include "TypeMerger.h"
 #include "Writer.h"
 #include "lld/Common/ErrorHandler.h"
-#include "lld/Common/Timer.h"
 #include "lld/Common/Threads.h"
+#include "lld/Common/Timer.h"
 #include "llvm/DebugInfo/CodeView/DebugFrameDataSubsection.h"
 #include "llvm/DebugInfo/CodeView/DebugSubsectionRecord.h"
 #include "llvm/DebugInfo/CodeView/GlobalTypeTableBuilder.h"
@@ -30,6 +30,7 @@
 #include "llvm/DebugInfo/CodeView/TypeDeserializer.h"
 #include "llvm/DebugInfo/CodeView/TypeDumpVisitor.h"
 #include "llvm/DebugInfo/CodeView/TypeIndexDiscovery.h"
+#include "llvm/DebugInfo/CodeView/TypeRecordHelpers.h"
 #include "llvm/DebugInfo/CodeView/TypeStreamMerger.h"
 #include "llvm/DebugInfo/MSF/MSFBuilder.h"
 #include "llvm/DebugInfo/MSF/MSFCommon.h"
@@ -51,20 +52,22 @@
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/CVDebugRecord.h"
 #include "llvm/Support/BinaryByteStream.h"
+#include "llvm/Support/CRC.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/Errc.h"
+#include "llvm/Support/FormatAdapters.h"
 #include "llvm/Support/FormatVariadic.h"
-#include "llvm/Support/JamCRC.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include <memory>
 
-using namespace lld;
-using namespace lld::coff;
 using namespace llvm;
 using namespace llvm::codeview;
 
 using llvm::object::coff_section;
+
+namespace lld {
+namespace coff {
 
 static ExitOnError exitOnErr;
 
@@ -188,6 +191,11 @@ private:
   uint64_t globalSymbols = 0;
   uint64_t moduleSymbols = 0;
   uint64_t publicSymbols = 0;
+
+  // When showSummary is enabled, these are histograms of TPI and IPI records
+  // keyed by type index.
+  SmallVector<uint32_t, 0> tpiCounts;
+  SmallVector<uint32_t, 0> ipiCounts;
 };
 
 class DebugSHandler {
@@ -368,8 +376,10 @@ PDBLinker::mergeDebugT(ObjFile *file, CVIndexMap *objectIndexMap) {
     // don't merge any type information.
     return maybeMergeTypeServerPDB(file);
   }
-  
-  CVTypeArray &types = *file->debugTypes;
+
+  CVTypeArray types;
+  BinaryStreamReader reader(file->debugTypes, support::little);
+  cantFail(reader.readArray(types, reader.getLength()));
 
   if (file->debugTypesObj->kind == TpiSource::UsingPCH) {
     // This object was compiled with /Yu, so process the corresponding
@@ -412,6 +422,27 @@ PDBLinker::mergeDebugT(ObjFile *file, CVIndexMap *objectIndexMap) {
       fatal("codeview::mergeTypeAndIdRecords failed: " +
             toString(std::move(err)));
   }
+
+  if (config->showSummary) {
+    // Count how many times we saw each type record in our input. This
+    // calculation requires a second pass over the type records to classify each
+    // record as a type or index. This is slow, but this code executes when
+    // collecting statistics.
+    tpiCounts.resize(tMerger.getTypeTable().size());
+    ipiCounts.resize(tMerger.getIDTable().size());
+    uint32_t srcIdx = 0;
+    for (CVType &ty : types) {
+      TypeIndex dstIdx = objectIndexMap->tpiMap[srcIdx++];
+      // Type merging may fail, so a complex source type may become the simple
+      // NotTranslated type, which cannot be used as an array index.
+      if (dstIdx.isSimple())
+        continue;
+      SmallVectorImpl<uint32_t> &counts =
+          isIdRecord(ty.kind()) ? ipiCounts : tpiCounts;
+      ++counts[dstIdx.toArrayIndex()];
+    }
+  }
+
   return *objectIndexMap;
 }
 
@@ -479,6 +510,20 @@ Expected<const CVIndexMap &> PDBLinker::maybeMergeTypeServerPDB(ObjFile *file) {
     }
   }
 
+  if (config->showSummary) {
+    // Count how many times we saw each type record in our input. If a
+    // destination type index is present in the source to destination type index
+    // map, that means we saw it once in the input. Add it to our histogram.
+    tpiCounts.resize(tMerger.getTypeTable().size());
+    ipiCounts.resize(tMerger.getIDTable().size());
+    for (TypeIndex ti : indexMap.tpiMap)
+      if (!ti.isSimple())
+        ++tpiCounts[ti.toArrayIndex()];
+    for (TypeIndex ti : indexMap.ipiMap)
+      if (!ti.isSimple())
+        ++ipiCounts[ti.toArrayIndex()];
+  }
+
   return indexMap;
 }
 
@@ -513,16 +558,15 @@ static bool equals_path(StringRef path1, StringRef path2) {
   return path1.equals(path2);
 #endif
 }
-
 // Find by name an OBJ provided on the command line
-static ObjFile *findObjByName(StringRef fileNameOnly) {
-  SmallString<128> currentPath;
-
+static ObjFile *findObjWithPrecompSignature(StringRef fileNameOnly,
+                                            uint32_t precompSignature) {
   for (ObjFile *f : ObjFile::instances) {
     StringRef currentFileName = sys::path::filename(f->getName());
 
-    // Compare based solely on the file name (link.exe behavior)
-    if (equals_path(currentFileName, fileNameOnly))
+    if (f->pchSignature.hasValue() &&
+        f->pchSignature.getValue() == precompSignature &&
+        equals_path(fileNameOnly, currentFileName))
       return f;
   }
   return nullptr;
@@ -559,21 +603,14 @@ Expected<const CVIndexMap &> PDBLinker::aquirePrecompObj(ObjFile *file) {
 
   // link.exe requires that a precompiled headers object must always be provided
   // on the command-line, even if that's not necessary.
-  auto precompFile = findObjByName(precompFileName);
+  auto precompFile =
+      findObjWithPrecompSignature(precompFileName, precomp.Signature);
   if (!precompFile)
     return createFileError(
-        precompFileName.str(),
-        make_error<pdb::PDBError>(pdb::pdb_error_code::external_cmdline_ref));
+        precomp.getPrecompFilePath().str(),
+        make_error<pdb::PDBError>(pdb::pdb_error_code::no_matching_pch));
 
   addObjFile(precompFile, &indexMap);
-
-  if (!precompFile->pchSignature)
-    fatal(precompFile->getName() + " is not a precompiled headers object");
-
-  if (precomp.getSignature() != precompFile->pchSignature.getValueOr(0))
-    return createFileError(
-        precomp.getPrecompFilePath().str(),
-        make_error<pdb::PDBError>(pdb::pdb_error_code::signature_out_of_date));
 
   return indexMap;
 }
@@ -965,9 +1002,7 @@ static pdb::SectionContrib createSectionContrib(const Chunk *c, uint32_t modi) {
     sc.Imod = secChunk->file->moduleDBI->getModuleIndex();
     ArrayRef<uint8_t> contents = secChunk->getContents();
     JamCRC crc(0);
-    ArrayRef<char> charContents = makeArrayRef(
-        reinterpret_cast<const char *>(contents.data()), contents.size());
-    crc.update(charContents);
+    crc.update(contents);
     sc.DataCrc = crc.getCRC();
   } else {
     sc.Characteristics = os ? os->header.Characteristics : 0;
@@ -1150,7 +1185,7 @@ void DebugSHandler::finish() {
   // string table. Generally the string table subsection appears after the
   // checksum table, so we have to do this after looping over all the
   // subsections.
-  auto newChecksums = make_unique<DebugChecksumsSubsection>(linker.pdbStrTab);
+  auto newChecksums = std::make_unique<DebugChecksumsSubsection>(linker.pdbStrTab);
   for (FileChecksumEntry &fc : checksums) {
     SmallString<128> filename =
         exitOnErr(cVStrTab.getString(fc.FileNameOffset));
@@ -1340,6 +1375,53 @@ void PDBLinker::printStats() {
   print(globalSymbols, "Global symbol records");
   print(moduleSymbols, "Module symbol records");
   print(publicSymbols, "Public symbol records");
+
+  auto printLargeInputTypeRecs = [&](StringRef name,
+                                     ArrayRef<uint32_t> recCounts,
+                                     TypeCollection &records) {
+    // Figure out which type indices were responsible for the most duplicate
+    // bytes in the input files. These should be frequently emitted LF_CLASS and
+    // LF_FIELDLIST records.
+    struct TypeSizeInfo {
+      uint32_t typeSize;
+      uint32_t dupCount;
+      TypeIndex typeIndex;
+      uint64_t totalInputSize() const { return uint64_t(dupCount) * typeSize; }
+      bool operator<(const TypeSizeInfo &rhs) const {
+        return totalInputSize() < rhs.totalInputSize();
+      }
+    };
+    SmallVector<TypeSizeInfo, 0> tsis;
+    for (auto e : enumerate(recCounts)) {
+      TypeIndex typeIndex = TypeIndex::fromArrayIndex(e.index());
+      uint32_t typeSize = records.getType(typeIndex).length();
+      uint32_t dupCount = e.value();
+      tsis.push_back({typeSize, dupCount, typeIndex});
+    }
+
+    if (!tsis.empty()) {
+      stream << "\nTop 10 types responsible for the most " << name
+             << " input:\n";
+      stream << "       index     total bytes   count     size\n";
+      llvm::sort(tsis);
+      unsigned i = 0;
+      for (const auto &tsi : reverse(tsis)) {
+        stream << formatv("  {0,10:X}: {1,14:N} = {2,5:N} * {3,6:N}\n",
+                          tsi.typeIndex.getIndex(), tsi.totalInputSize(),
+                          tsi.dupCount, tsi.typeSize);
+        if (++i >= 10)
+          break;
+      }
+      stream
+          << "Run llvm-pdbutil to print details about a particular record:\n";
+      stream << formatv("llvm-pdbutil dump -{0}s -{0}-index {1:X} {2}\n",
+                        (name == "TPI" ? "type" : "id"),
+                        tsis.back().typeIndex.getIndex(), config->pdbPath);
+    }
+  };
+
+  printLargeInputTypeRecs("TPI", tpiCounts, tMerger.getTypeTable());
+  printLargeInputTypeRecs("IPI", ipiCounts, tMerger.getIDTable());
 
   message(buffer);
 }
@@ -1599,7 +1681,7 @@ void PDBLinker::addImportFilesToPDB(ArrayRef<OutputSection *> outputSections) {
 }
 
 // Creates a PDB file.
-void coff::createPDB(SymbolTable *symtab,
+void createPDB(SymbolTable *symtab,
                      ArrayRef<OutputSection *> outputSections,
                      ArrayRef<uint8_t> sectionTable,
                      llvm::codeview::DebugInfo *buildId) {
@@ -1693,6 +1775,7 @@ void PDBLinker::addSections(ArrayRef<OutputSection *> outputSections,
 }
 
 void PDBLinker::commit(codeview::GUID *guid) {
+  ExitOnError exitOnErr((config->pdbPath + ": ").str());
   // Write to a file.
   exitOnErr(builder.commit(config->pdbPath, guid));
 }
@@ -1797,10 +1880,10 @@ static bool findLineTable(const SectionChunk *c, uint32_t addr,
 }
 
 // Use CodeView line tables to resolve a file and line number for the given
-// offset into the given chunk and return them, or {"", 0} if a line table was
+// offset into the given chunk and return them, or None if a line table was
 // not found.
-std::pair<StringRef, uint32_t> coff::getFileLine(const SectionChunk *c,
-                                                 uint32_t addr) {
+Optional<std::pair<StringRef, uint32_t>>
+getFileLineCodeView(const SectionChunk *c, uint32_t addr) {
   ExitOnError exitOnErr;
 
   DebugStringTableSubsectionRef cVStrTab;
@@ -1809,7 +1892,7 @@ std::pair<StringRef, uint32_t> coff::getFileLine(const SectionChunk *c,
   uint32_t offsetInLinetable;
 
   if (!findLineTable(c, addr, cVStrTab, checksums, lines, offsetInLinetable))
-    return {"", 0};
+    return None;
 
   Optional<uint32_t> nameIndex;
   Optional<uint32_t> lineNumber;
@@ -1823,14 +1906,17 @@ std::pair<StringRef, uint32_t> coff::getFileLine(const SectionChunk *c,
         }
         StringRef filename =
             exitOnErr(getFileName(cVStrTab, checksums, *nameIndex));
-        return {filename, *lineNumber};
+        return std::make_pair(filename, *lineNumber);
       }
       nameIndex = entry.NameIndex;
       lineNumber = li.getStartLine();
     }
   }
   if (!nameIndex)
-    return {"", 0};
+    return None;
   StringRef filename = exitOnErr(getFileName(cVStrTab, checksums, *nameIndex));
-  return {filename, *lineNumber};
+  return std::make_pair(filename, *lineNumber);
 }
+
+} // namespace coff
+} // namespace lld

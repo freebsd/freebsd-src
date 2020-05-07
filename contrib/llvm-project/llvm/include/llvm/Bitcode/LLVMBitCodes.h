@@ -391,7 +391,7 @@ enum CastOpcodes {
 /// have no fixed relation to the LLVM IR enum values.  Changing these will
 /// break compatibility with old files.
 enum UnaryOpcodes {
-  UNOP_NEG = 0
+  UNOP_FNEG = 0
 };
 
 /// BinaryOpcodes - These are values used in the bitcode files to encode which
@@ -559,6 +559,7 @@ enum FunctionCodes {
   FUNC_CODE_INST_UNOP = 56,      // UNOP:       [opcode, ty, opval]
   FUNC_CODE_INST_CALLBR = 57,    // CALLBR:     [attr, cc, norm, transfs,
                                  //              fnty, fnid, args...]
+  FUNC_CODE_INST_FREEZE = 58,    // FREEZE: [opty, opval]
 };
 
 enum UseListCodes {

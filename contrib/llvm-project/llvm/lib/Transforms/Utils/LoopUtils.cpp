@@ -19,11 +19,11 @@
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/MustExecute.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
-#include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -34,6 +34,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/ValueHandle.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/KnownBits.h"
@@ -45,6 +46,7 @@ using namespace llvm::PatternMatch;
 #define DEBUG_TYPE "loop-utils"
 
 static const char *LLVMLoopDisableNonforced = "llvm.loop.disable_nonforced";
+static const char *LLVMLoopDisableLICM = "llvm.licm.disable";
 
 bool llvm::formDedicatedExitBlocks(Loop *L, DominatorTree *DT, LoopInfo *LI,
                                    MemorySSAUpdater *MSSAU,
@@ -169,6 +171,8 @@ void llvm::getLoopAnalysisUsage(AnalysisUsage &AU) {
   AU.addPreserved<SCEVAAWrapperPass>();
   AU.addRequired<ScalarEvolutionWrapperPass>();
   AU.addPreserved<ScalarEvolutionWrapperPass>();
+  // FIXME: When all loop passes preserve MemorySSA, it can be required and
+  // preserved here instead of the individual handling in each pass.
 }
 
 /// Manually defined generic "LoopPass" dependency initialization. This is used
@@ -189,6 +193,54 @@ void llvm::initializeLoopPassPass(PassRegistry &Registry) {
   INITIALIZE_PASS_DEPENDENCY(GlobalsAAWrapperPass)
   INITIALIZE_PASS_DEPENDENCY(SCEVAAWrapperPass)
   INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
+  INITIALIZE_PASS_DEPENDENCY(MemorySSAWrapperPass)
+}
+
+/// Create MDNode for input string.
+static MDNode *createStringMetadata(Loop *TheLoop, StringRef Name, unsigned V) {
+  LLVMContext &Context = TheLoop->getHeader()->getContext();
+  Metadata *MDs[] = {
+      MDString::get(Context, Name),
+      ConstantAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Context), V))};
+  return MDNode::get(Context, MDs);
+}
+
+/// Set input string into loop metadata by keeping other values intact.
+/// If the string is already in loop metadata update value if it is
+/// different.
+void llvm::addStringMetadataToLoop(Loop *TheLoop, const char *StringMD,
+                                   unsigned V) {
+  SmallVector<Metadata *, 4> MDs(1);
+  // If the loop already has metadata, retain it.
+  MDNode *LoopID = TheLoop->getLoopID();
+  if (LoopID) {
+    for (unsigned i = 1, ie = LoopID->getNumOperands(); i < ie; ++i) {
+      MDNode *Node = cast<MDNode>(LoopID->getOperand(i));
+      // If it is of form key = value, try to parse it.
+      if (Node->getNumOperands() == 2) {
+        MDString *S = dyn_cast<MDString>(Node->getOperand(0));
+        if (S && S->getString().equals(StringMD)) {
+          ConstantInt *IntMD =
+              mdconst::extract_or_null<ConstantInt>(Node->getOperand(1));
+          if (IntMD && IntMD->getSExtValue() == V)
+            // It is already in place. Do nothing.
+            return;
+          // We need to update the value, so just skip it here and it will
+          // be added after copying other existed nodes.
+          continue;
+        }
+      }
+      MDs.push_back(Node);
+    }
+  }
+  // Add new metadata.
+  MDs.push_back(createStringMetadata(TheLoop, StringMD, V));
+  // Replace current metadata node with new one.
+  LLVMContext &Context = TheLoop->getHeader()->getContext();
+  MDNode *NewLoopID = MDNode::get(Context, MDs);
+  // Set operand 0 to refer to the loop id itself.
+  NewLoopID->replaceOperandWith(0, NewLoopID);
+  TheLoop->setLoopID(NewLoopID);
 }
 
 /// Find string metadata for loop
@@ -330,6 +382,10 @@ Optional<MDNode *> llvm::makeFollowupLoopID(
 
 bool llvm::hasDisableAllTransformsHint(const Loop *L) {
   return getBooleanLoopAttribute(L, LLVMLoopDisableNonforced);
+}
+
+bool llvm::hasDisableLICMTransformsHint(const Loop *L) {
+  return getBooleanLoopAttribute(L, LLVMLoopDisableLICM);
 }
 
 TransformationMode llvm::hasUnrollTransformation(Loop *L) {
@@ -616,7 +672,19 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT = nullptr,
       LI->removeBlock(BB);
 
     // The last step is to update LoopInfo now that we've eliminated this loop.
-    LI->erase(L);
+    // Note: LoopInfo::erase remove the given loop and relink its subloops with
+    // its parent. While removeLoop/removeChildLoop remove the given loop but
+    // not relink its subloops, which is what we want.
+    if (Loop *ParentLoop = L->getParentLoop()) {
+      Loop::iterator I = find(ParentLoop->begin(), ParentLoop->end(), L);
+      assert(I != ParentLoop->end() && "Couldn't find loop");
+      ParentLoop->removeChildLoop(I);
+    } else {
+      Loop::iterator I = find(LI->begin(), LI->end(), L);
+      assert(I != LI->end() && "Couldn't find loop");
+      LI->removeLoop(I);
+    }
+    LI->destroy(L);
   }
 }
 
@@ -646,19 +714,19 @@ Optional<unsigned> llvm::getLoopEstimatedTripCount(Loop *L) {
   // To estimate the number of times the loop body was executed, we want to
   // know the number of times the backedge was taken, vs. the number of times
   // we exited the loop.
-  uint64_t TrueVal, FalseVal;
-  if (!LatchBR->extractProfMetadata(TrueVal, FalseVal))
+  uint64_t BackedgeTakenWeight, LatchExitWeight;
+  if (!LatchBR->extractProfMetadata(BackedgeTakenWeight, LatchExitWeight))
     return None;
 
-  if (!TrueVal || !FalseVal)
+  if (LatchBR->getSuccessor(0) != L->getHeader())
+    std::swap(BackedgeTakenWeight, LatchExitWeight);
+
+  if (!BackedgeTakenWeight || !LatchExitWeight)
     return 0;
 
   // Divide the count of the backedge by the count of the edge exiting the loop,
   // rounding to nearest.
-  if (LatchBR->getSuccessor(0) == L->getHeader())
-    return (TrueVal + (FalseVal / 2)) / FalseVal;
-  else
-    return (FalseVal + (TrueVal / 2)) / TrueVal;
+  return llvm::divideNearest(BackedgeTakenWeight, LatchExitWeight);
 }
 
 bool llvm::hasIterationCountInvariantInParent(Loop *InnerLoop,

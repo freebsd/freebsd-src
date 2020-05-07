@@ -370,7 +370,7 @@ TemplateArgument TemplateArgument::getPackExpansionPattern() const {
 
   switch (getKind()) {
   case Type:
-    return getAsType()->getAs<PackExpansionType>()->getPattern();
+    return getAsType()->castAs<PackExpansionType>()->getPattern();
 
   case Expression:
     return cast<PackExpansionExpr>(getAsExpr())->getPattern();
@@ -561,7 +561,7 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
 }
 
 const ASTTemplateArgumentListInfo *
-ASTTemplateArgumentListInfo::Create(ASTContext &C,
+ASTTemplateArgumentListInfo::Create(const ASTContext &C,
                                     const TemplateArgumentListInfo &List) {
   std::size_t size = totalSizeToAlloc<TemplateArgumentLoc>(List.size());
   void *Mem = C.Allocate(size, alignof(ASTTemplateArgumentListInfo));

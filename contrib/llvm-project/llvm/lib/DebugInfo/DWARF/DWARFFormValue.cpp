@@ -98,7 +98,7 @@ DWARFFormValue DWARFFormValue::createFromBlockValue(dwarf::Form F,
 }
 
 DWARFFormValue DWARFFormValue::createFromUnit(dwarf::Form F, const DWARFUnit *U,
-                                              uint32_t *OffsetPtr) {
+                                              uint64_t *OffsetPtr) {
   DWARFFormValue FormValue(F);
   FormValue.extractValue(U->getDebugInfoExtractor(), OffsetPtr,
                          U->getFormParams(), U);
@@ -106,7 +106,7 @@ DWARFFormValue DWARFFormValue::createFromUnit(dwarf::Form F, const DWARFUnit *U,
 }
 
 bool DWARFFormValue::skipValue(dwarf::Form Form, DataExtractor DebugInfoData,
-                               uint32_t *OffsetPtr,
+                               uint64_t *OffsetPtr,
                                const dwarf::FormParams Params) {
   bool Indirect = false;
   do {
@@ -234,7 +234,7 @@ bool DWARFFormValue::isFormClass(DWARFFormValue::FormClass FC) const {
 }
 
 bool DWARFFormValue::extractValue(const DWARFDataExtractor &Data,
-                                  uint32_t *OffsetPtr, dwarf::FormParams FP,
+                                  uint64_t *OffsetPtr, dwarf::FormParams FP,
                                   const DWARFContext *Ctx,
                                   const DWARFUnit *CU) {
   if (!Ctx && CU)
@@ -312,6 +312,7 @@ bool DWARFFormValue::extractValue(const DWARFDataExtractor &Data,
     case DW_FORM_udata:
     case DW_FORM_ref_udata:
     case DW_FORM_rnglistx:
+    case DW_FORM_loclistx:
       Value.uval = Data.getULEB128(OffsetPtr);
       break;
     case DW_FORM_string:
@@ -411,7 +412,7 @@ void DWARFFormValue::dump(raw_ostream &OS, DIDumpOptions DumpOpts) const {
     if (A)
       dumpSectionedAddress(AddrOS, DumpOpts, *A);
     else
-      OS << "<no .debug_addr section>";
+      OS << "<unresolved>";
     break;
   }
   case DW_FORM_flag_present:
@@ -551,6 +552,10 @@ void DWARFFormValue::dump(raw_ostream &OS, DIDumpOptions DumpOpts) const {
     OS << format("indexed (0x%x) rangelist = ", (uint32_t)UValue);
     break;
 
+  case DW_FORM_loclistx:
+    OS << format("indexed (0x%x) loclist = ", (uint32_t)UValue);
+    break;
+
   // Should be formatted to 64-bit for DWARF64.
   case DW_FORM_sec_offset:
     AddrOS << format("0x%08x", (uint32_t)UValue);
@@ -590,7 +595,7 @@ Optional<const char *> DWARFFormValue::getAsCString() const {
   // FIXME: Add support for DW_FORM_GNU_strp_alt
   if (Form == DW_FORM_GNU_strp_alt || C == nullptr)
     return None;
-  uint32_t Offset = Value.uval;
+  uint64_t Offset = Value.uval;
   if (Form == DW_FORM_line_strp) {
     // .debug_line_str is tracked in the Context.
     if (const char *Str = C->getLineStringExtractor().getCStr(&Offset))
@@ -624,6 +629,7 @@ Optional<uint64_t> DWARFFormValue::getAsAddress() const {
     return SA->Address;
   return None;
 }
+
 Optional<object::SectionedAddress>
 DWARFFormValue::getAsSectionedAddress() const {
   if (!isFormClass(FC_Address))

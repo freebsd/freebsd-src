@@ -20,6 +20,7 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
@@ -191,7 +192,7 @@ static LoopDeletionResult deleteLoopIfDead(Loop *L, DominatorTree &DT,
 
   // Don't remove loops for which we can't solve the trip count.
   // They could be infinite, in which case we'd be changing program behavior.
-  const SCEV *S = SE.getMaxBackedgeTakenCount(L);
+  const SCEV *S = SE.getConstantMaxBackedgeTakenCount(L);
   if (isa<SCEVCouldNotCompute>(S)) {
     LLVM_DEBUG(dbgs() << "Could not compute SCEV MaxBackedgeTakenCount.\n");
     return Changed ? LoopDeletionResult::Modified

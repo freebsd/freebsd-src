@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 namespace wasm {
@@ -130,6 +131,7 @@ struct WasmFunction {
   uint32_t CodeSectionOffset;
   uint32_t Size;
   uint32_t CodeOffset;  // start of Locals and Body
+  StringRef ExportName; // from the "export" section
   StringRef SymbolName; // from the "linking" section
   StringRef DebugName;  // from the "name" section
   uint32_t Comdat;      // from the "comdat info" section
@@ -178,6 +180,7 @@ struct WasmSymbolInfo {
   uint32_t Flags;
   StringRef ImportModule; // For undefined symbols the module of the import
   StringRef ImportName;   // For undefined symbols the name of the import
+  StringRef ExportName;   // For symbols to be exported from the final module
   union {
     // For function or global symbols, the index in function or global index
     // space.
@@ -251,9 +254,21 @@ enum : unsigned {
   WASM_OPCODE_F32_CONST = 0x43,
   WASM_OPCODE_F64_CONST = 0x44,
   WASM_OPCODE_I32_ADD = 0x6a,
+};
+
+// Opcodes used in synthetic functions.
+enum : unsigned {
+  WASM_OPCODE_IF = 0x04,
+  WASM_OPCODE_ELSE = 0x05,
+  WASM_OPCODE_DROP = 0x1a,
   WASM_OPCODE_MISC_PREFIX = 0xfc,
   WASM_OPCODE_MEMORY_INIT = 0x08,
   WASM_OPCODE_DATA_DROP = 0x09,
+  WASM_OPCODE_ATOMICS_PREFIX = 0xfe,
+  WASM_OPCODE_ATOMIC_NOTIFY = 0x00,
+  WASM_OPCODE_I32_ATOMIC_WAIT = 0x01,
+  WASM_OPCODE_I32_ATOMIC_STORE = 0x17,
+  WASM_OPCODE_I32_RMW_CMPXCHG = 0x48,
 };
 
 enum : unsigned {
@@ -318,6 +333,7 @@ const unsigned WASM_SYMBOL_VISIBILITY_HIDDEN = 0x4;
 const unsigned WASM_SYMBOL_UNDEFINED = 0x10;
 const unsigned WASM_SYMBOL_EXPORTED = 0x20;
 const unsigned WASM_SYMBOL_EXPLICIT_NAME = 0x40;
+const unsigned WASM_SYMBOL_NO_STRIP = 0x80;
 
 #define WASM_RELOC(name, value) name = value,
 

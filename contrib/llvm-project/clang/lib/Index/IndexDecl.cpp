@@ -7,8 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "IndexingContext.h"
-#include "clang/Index/IndexDataConsumer.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/DeclVisitor.h"
+#include "clang/Index/IndexDataConsumer.h"
 
 using namespace clang;
 using namespace index;
@@ -42,15 +43,6 @@ public:
     return true;
   }
 
-  /// Returns true if the given method has been defined explicitly by the
-  /// user.
-  static bool hasUserDefined(const ObjCMethodDecl *D,
-                             const ObjCImplDecl *Container) {
-    const ObjCMethodDecl *MD = Container->getMethod(D->getSelector(),
-                                                    D->isInstanceMethod());
-    return MD && !MD->isImplicit() && MD->isThisDeclarationADefinition();
-  }
-
   void handleTemplateArgumentLoc(const TemplateArgumentLoc &TALoc,
                                  const NamedDecl *Parent,
                                  const DeclContext *DC) {
@@ -78,6 +70,17 @@ public:
     }
   }
 
+  /// Returns true if the given method has been defined explicitly by the
+  /// user.
+  static bool hasUserDefined(const ObjCMethodDecl *D,
+                             const ObjCImplDecl *Container) {
+    const ObjCMethodDecl *MD = Container->getMethod(D->getSelector(),
+                                                    D->isInstanceMethod());
+    return MD && !MD->isImplicit() && MD->isThisDeclarationADefinition() &&
+           !MD->isSynthesizedAccessorStub();
+  }
+
+  
   void handleDeclarator(const DeclaratorDecl *D,
                         const NamedDecl *Parent = nullptr,
                         bool isIBType = false) {
@@ -534,13 +537,11 @@ public:
     SymbolRoleSet AccessorMethodRoles =
       SymbolRoleSet(SymbolRole::Dynamic) | SymbolRoleSet(SymbolRole::Implicit);
     if (ObjCMethodDecl *MD = PD->getGetterMethodDecl()) {
-      if (MD->isPropertyAccessor() &&
-          !hasUserDefined(MD, Container))
+      if (MD->isPropertyAccessor() && !hasUserDefined(MD, Container))
         IndexCtx.handleDecl(MD, Loc, AccessorMethodRoles, {}, Container);
     }
     if (ObjCMethodDecl *MD = PD->getSetterMethodDecl()) {
-      if (MD->isPropertyAccessor() &&
-          !hasUserDefined(MD, Container))
+      if (MD->isPropertyAccessor() && !hasUserDefined(MD, Container))
         IndexCtx.handleDecl(MD, Loc, AccessorMethodRoles, {}, Container);
     }
     if (ObjCIvarDecl *IvarD = D->getPropertyIvarDecl()) {

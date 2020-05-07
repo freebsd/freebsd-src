@@ -198,7 +198,8 @@ ABISP
 ABISysV_i386::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch) {
   if (arch.GetTriple().getVendor() != llvm::Triple::Apple) {
     if (arch.GetTriple().getArch() == llvm::Triple::x86) {
-      return ABISP(new ABISysV_i386(process_sp));
+      return ABISP(
+          new ABISysV_i386(std::move(process_sp), MakeMCRegisterInfo(arch)));
     }
   }
   return ABISP();
@@ -785,6 +786,7 @@ bool ABISysV_i386::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
   unwind_plan.SetSourceName("i386 default unwind plan");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolNo);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   return true;
 }
 

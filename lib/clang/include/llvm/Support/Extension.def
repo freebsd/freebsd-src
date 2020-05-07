@@ -1,0 +1,3 @@
+// $FreeBSD$
+//extension handlers
+#undef HANDLE_EXTENSION

@@ -926,6 +926,12 @@ template <typename T> class ArrayRef;
 
     bool tryDelinearize(Instruction *Src, Instruction *Dst,
                         SmallVectorImpl<Subscript> &Pair);
+
+  private:
+    /// checkSubscript - Helper function for checkSrcSubscript and
+    /// checkDstSubscript to avoid duplicate code
+    bool checkSubscript(const SCEV *Expr, const Loop *LoopNest,
+                        SmallBitVector &Loops, bool IsSrc);
   }; // class DependenceInfo
 
   /// AnalysisPass to compute dependence information in a function
@@ -954,10 +960,7 @@ template <typename T> class ArrayRef;
   class DependenceAnalysisWrapperPass : public FunctionPass {
   public:
     static char ID; // Class identification, replacement for typeinfo
-    DependenceAnalysisWrapperPass() : FunctionPass(ID) {
-      initializeDependenceAnalysisWrapperPassPass(
-          *PassRegistry::getPassRegistry());
-    }
+    DependenceAnalysisWrapperPass();
 
     bool runOnFunction(Function &F) override;
     void releaseMemory() override;

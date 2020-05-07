@@ -115,7 +115,7 @@ void XCoreAsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
 
   MCSymbol *GVSym = getSymbol(GV);
   const Constant *C = GV->getInitializer();
-  unsigned Align = (unsigned)DL.getPreferredTypeAlignmentShift(C->getType());
+  const Align Alignment(DL.getPrefTypeAlignment(C->getType()));
 
   // Mark the start of the global
   getTargetStreamer().emitCCTopData(GVSym->getName());
@@ -143,7 +143,7 @@ void XCoreAsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
     llvm_unreachable("Unknown linkage type!");
   }
 
-  EmitAlignment(Align > 2 ? Align : 2, GV);
+  EmitAlignment(std::max(Alignment, Align(4)), GV);
 
   if (GV->isThreadLocal()) {
     report_fatal_error("TLS is not supported by this target!");
@@ -292,6 +292,6 @@ void XCoreAsmPrinter::EmitInstruction(const MachineInstr *MI) {
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeXCoreAsmPrinter() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeXCoreAsmPrinter() {
   RegisterAsmPrinter<XCoreAsmPrinter> X(getTheXCoreTarget());
 }

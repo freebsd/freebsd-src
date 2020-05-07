@@ -170,7 +170,8 @@ operator==(const UnwindPlan::Row::FAValue &rhs) const {
   if (m_type == rhs.m_type) {
     switch (m_type) {
     case unspecified:
-      return true;
+    case isRaSearch:
+      return m_value.ra_search_offset == rhs.m_value.ra_search_offset;
 
     case isRegisterPlusOffset:
       return m_value.reg.offset == rhs.m_value.reg.offset;
@@ -205,8 +206,11 @@ void UnwindPlan::Row::FAValue::Dump(Stream &s, const UnwindPlan *unwind_plan,
                   llvm::makeArrayRef(m_value.expr.opcodes, m_value.expr.length),
                   thread);
     break;
-  default:
+  case unspecified:
     s.PutCString("unspecified");
+    break;
+  case isRaSearch:
+    s.Printf("RaSearch@SP%+d", m_value.ra_search_offset);
     break;
   }
 }
@@ -402,10 +406,10 @@ const UnwindPlan::RowSP UnwindPlan::GetRowAtIndex(uint32_t idx) const {
     return m_row_list[idx];
   else {
     Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_UNWIND));
-    if (log)
-      log->Printf("error: UnwindPlan::GetRowAtIndex(idx = %u) invalid index "
-                  "(number rows is %u)",
-                  idx, (uint32_t)m_row_list.size());
+    LLDB_LOGF(log,
+              "error: UnwindPlan::GetRowAtIndex(idx = %u) invalid index "
+              "(number rows is %u)",
+              idx, (uint32_t)m_row_list.size());
     return UnwindPlan::RowSP();
   }
 }
@@ -413,8 +417,7 @@ const UnwindPlan::RowSP UnwindPlan::GetRowAtIndex(uint32_t idx) const {
 const UnwindPlan::RowSP UnwindPlan::GetLastRow() const {
   if (m_row_list.empty()) {
     Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_UNWIND));
-    if (log)
-      log->Printf("UnwindPlan::GetLastRow() when rows are empty");
+    LLDB_LOGF(log, "UnwindPlan::GetLastRow() when rows are empty");
     return UnwindPlan::RowSP();
   }
   return m_row_list.back();
@@ -434,13 +437,14 @@ bool UnwindPlan::PlanValidAtAddress(Address addr) {
     if (log) {
       StreamString s;
       if (addr.Dump(&s, nullptr, Address::DumpStyleSectionNameOffset)) {
-        log->Printf("UnwindPlan is invalid -- no unwind rows for UnwindPlan "
-                    "'%s' at address %s",
-                    m_source_name.GetCString(), s.GetData());
+        LLDB_LOGF(log,
+                  "UnwindPlan is invalid -- no unwind rows for UnwindPlan "
+                  "'%s' at address %s",
+                  m_source_name.GetCString(), s.GetData());
       } else {
-        log->Printf(
-            "UnwindPlan is invalid -- no unwind rows for UnwindPlan '%s'",
-            m_source_name.GetCString());
+        LLDB_LOGF(log,
+                  "UnwindPlan is invalid -- no unwind rows for UnwindPlan '%s'",
+                  m_source_name.GetCString());
       }
     }
     return false;
@@ -456,13 +460,15 @@ bool UnwindPlan::PlanValidAtAddress(Address addr) {
     if (log) {
       StreamString s;
       if (addr.Dump(&s, nullptr, Address::DumpStyleSectionNameOffset)) {
-        log->Printf("UnwindPlan is invalid -- no CFA register defined in row 0 "
-                    "for UnwindPlan '%s' at address %s",
-                    m_source_name.GetCString(), s.GetData());
+        LLDB_LOGF(log,
+                  "UnwindPlan is invalid -- no CFA register defined in row 0 "
+                  "for UnwindPlan '%s' at address %s",
+                  m_source_name.GetCString(), s.GetData());
       } else {
-        log->Printf("UnwindPlan is invalid -- no CFA register defined in row 0 "
-                    "for UnwindPlan '%s'",
-                    m_source_name.GetCString());
+        LLDB_LOGF(log,
+                  "UnwindPlan is invalid -- no CFA register defined in row 0 "
+                  "for UnwindPlan '%s'",
+                  m_source_name.GetCString());
       }
     }
     return false;

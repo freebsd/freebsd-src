@@ -16,7 +16,7 @@
 
 #include "lldb/Core/Module.h"
 #include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Symbol/ClangExternalASTSourceCommon.h"
+#include "lldb/Symbol/ClangASTMetadata.h"
 #include "lldb/Symbol/ClangUtil.h"
 #include "lldb/Symbol/Declaration.h"
 #include "lldb/Symbol/SymbolFile.h"
@@ -103,9 +103,7 @@ static CompilerType
 GetBuiltinTypeForPDBEncodingAndBitSize(ClangASTContext &clang_ast,
                                        const PDBSymbolTypeBuiltin &pdb_type,
                                        Encoding encoding, uint32_t width) {
-  auto *ast = clang_ast.getASTContext();
-  if (!ast)
-    return CompilerType();
+  clang::ASTContext &ast = clang_ast.getASTContext();
 
   switch (pdb_type.getBuiltinType()) {
   default:
@@ -119,25 +117,25 @@ GetBuiltinTypeForPDBEncodingAndBitSize(ClangASTContext &clang_ast,
   case PDB_BuiltinType::Bool:
     return clang_ast.GetBasicType(eBasicTypeBool);
   case PDB_BuiltinType::Long:
-    if (width == ast->getTypeSize(ast->LongTy))
-      return CompilerType(ast, ast->LongTy);
-    if (width == ast->getTypeSize(ast->LongLongTy))
-      return CompilerType(ast, ast->LongLongTy);
+    if (width == ast.getTypeSize(ast.LongTy))
+      return CompilerType(&clang_ast, ast.LongTy.getAsOpaquePtr());
+    if (width == ast.getTypeSize(ast.LongLongTy))
+      return CompilerType(&clang_ast, ast.LongLongTy.getAsOpaquePtr());
     break;
   case PDB_BuiltinType::ULong:
-    if (width == ast->getTypeSize(ast->UnsignedLongTy))
-      return CompilerType(ast, ast->UnsignedLongTy);
-    if (width == ast->getTypeSize(ast->UnsignedLongLongTy))
-      return CompilerType(ast, ast->UnsignedLongLongTy);
+    if (width == ast.getTypeSize(ast.UnsignedLongTy))
+      return CompilerType(&clang_ast, ast.UnsignedLongTy.getAsOpaquePtr());
+    if (width == ast.getTypeSize(ast.UnsignedLongLongTy))
+      return CompilerType(&clang_ast, ast.UnsignedLongLongTy.getAsOpaquePtr());
     break;
   case PDB_BuiltinType::WCharT:
-    if (width == ast->getTypeSize(ast->WCharTy))
-      return CompilerType(ast, ast->WCharTy);
+    if (width == ast.getTypeSize(ast.WCharTy))
+      return CompilerType(&clang_ast, ast.WCharTy.getAsOpaquePtr());
     break;
   case PDB_BuiltinType::Char16:
-    return CompilerType(ast, ast->Char16Ty);
+    return CompilerType(&clang_ast, ast.Char16Ty.getAsOpaquePtr());
   case PDB_BuiltinType::Char32:
-    return CompilerType(ast, ast->Char32Ty);
+    return CompilerType(&clang_ast, ast.Char32Ty.getAsOpaquePtr());
   case PDB_BuiltinType::Float:
     // Note: types `long double` and `double` have same bit size in MSVC and
     // there is no information in the PDB to distinguish them. So when falling
@@ -398,7 +396,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
     // This may occur with const or volatile types. There are separate type
     // symbols in PDB for types with const or volatile modifiers, but we need
     // to create only one declaration for them all.
-    Type::ResolveStateTag type_resolve_state_tag;
+    Type::ResolveState type_resolve_state;
     CompilerType clang_type = m_ast.GetTypeForIdentifier<clang::CXXRecordDecl>(
         ConstString(name), decl_context);
     if (!clang_type.IsValid()) {
@@ -410,9 +408,9 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
       metadata.SetUserID(type.getSymIndexId());
       metadata.SetIsDynamicCXXType(false);
 
-      clang_type = m_ast.CreateRecordType(
-          decl_context, access, name.c_str(), tag_type_kind,
-          lldb::eLanguageTypeC_plus_plus, &metadata);
+      clang_type =
+          m_ast.CreateRecordType(decl_context, access, name, tag_type_kind,
+                                 lldb::eLanguageTypeC_plus_plus, &metadata);
       assert(clang_type.IsValid());
 
       auto record_decl =
@@ -421,7 +419,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
       m_uid_to_decl[type.getSymIndexId()] = record_decl;
 
       auto inheritance_attr = clang::MSInheritanceAttr::CreateImplicit(
-          *m_ast.getASTContext(), GetMSInheritance(*udt));
+          m_ast.getASTContext(), GetMSInheritance(*udt));
       record_decl->addAttr(inheritance_attr);
 
       ClangASTContext::StartTagDeclarationDefinition(clang_type);
@@ -435,7 +433,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
         ClangASTContext::SetHasExternalStorage(clang_type.GetOpaqueQualType(),
                                                false);
 
-        type_resolve_state_tag = Type::eResolveStateFull;
+        type_resolve_state = Type::ResolveState::Full;
       } else {
         // Add the type to the forward declarations. It will help us to avoid
         // an endless recursion in CompleteTypeFromUdt function.
@@ -444,10 +442,10 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
         ClangASTContext::SetHasExternalStorage(clang_type.GetOpaqueQualType(),
                                                true);
 
-        type_resolve_state_tag = Type::eResolveStateForward;
+        type_resolve_state = Type::ResolveState::Forward;
       }
     } else
-      type_resolve_state_tag = Type::eResolveStateForward;
+      type_resolve_state = Type::ResolveState::Forward;
 
     if (udt->isConstType())
       clang_type = clang_type.AddConstModifier();
@@ -460,7 +458,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
         type.getSymIndexId(), m_ast.GetSymbolFile(), ConstString(name),
         udt->getLength(), nullptr, LLDB_INVALID_UID,
         lldb_private::Type::eEncodingIsUID, decl, clang_type,
-        type_resolve_state_tag);
+        type_resolve_state);
   } break;
   case PDB_SymType::Enum: {
     auto enum_type = llvm::dyn_cast<PDBSymbolTypeEnum>(&type);
@@ -528,7 +526,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
     return std::make_shared<lldb_private::Type>(
         type.getSymIndexId(), m_ast.GetSymbolFile(), ConstString(name), bytes,
         nullptr, LLDB_INVALID_UID, lldb_private::Type::eEncodingIsUID, decl,
-        ast_enum, lldb_private::Type::eResolveStateFull);
+        ast_enum, lldb_private::Type::ResolveState::Full);
   } break;
   case PDB_SymType::Typedef: {
     auto type_def = llvm::dyn_cast<PDBSymbolTypeTypedef>(&type);
@@ -551,7 +549,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
       CompilerType target_ast_type = target_type->GetFullCompilerType();
 
       ast_typedef = m_ast.CreateTypedefType(
-          target_ast_type, name.c_str(), CompilerDeclContext(&m_ast, decl_ctx));
+          target_ast_type, name.c_str(), m_ast.CreateDeclContext(decl_ctx));
       if (!ast_typedef)
         return nullptr;
 
@@ -574,7 +572,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
         type_def->getSymIndexId(), m_ast.GetSymbolFile(), ConstString(name),
         size, nullptr, target_type->GetID(),
         lldb_private::Type::eEncodingIsTypedefUID, decl, ast_typedef,
-        lldb_private::Type::eResolveStateFull);
+        lldb_private::Type::ResolveState::Full);
   } break;
   case PDB_SymType::Function:
   case PDB_SymType::FunctionSig: {
@@ -642,7 +640,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
         type.getSymIndexId(), m_ast.GetSymbolFile(), ConstString(name),
         llvm::None, nullptr, LLDB_INVALID_UID,
         lldb_private::Type::eEncodingIsUID, decl, func_sig_ast_type,
-        lldb_private::Type::eResolveStateFull);
+        lldb_private::Type::ResolveState::Full);
   } break;
   case PDB_SymType::ArrayType: {
     auto array_type = llvm::dyn_cast<PDBSymbolTypeArray>(&type);
@@ -676,7 +674,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
     TypeSP type_sp = std::make_shared<lldb_private::Type>(
         array_type->getSymIndexId(), m_ast.GetSymbolFile(), ConstString(),
         bytes, nullptr, LLDB_INVALID_UID, lldb_private::Type::eEncodingIsUID,
-        decl, array_ast_type, lldb_private::Type::eResolveStateFull);
+        decl, array_ast_type, lldb_private::Type::ResolveState::Full);
     type_sp->SetEncodingType(element_type);
     return type_sp;
   } break;
@@ -705,7 +703,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
     return std::make_shared<lldb_private::Type>(
         builtin_type->getSymIndexId(), m_ast.GetSymbolFile(), type_name, bytes,
         nullptr, LLDB_INVALID_UID, lldb_private::Type::eEncodingIsUID, decl,
-        builtin_ast_type, lldb_private::Type::eResolveStateFull);
+        builtin_ast_type, lldb_private::Type::ResolveState::Full);
   } break;
   case PDB_SymType::PointerType: {
     auto *pointer_type = llvm::dyn_cast<PDBSymbolTypePointer>(&type);
@@ -732,7 +730,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
           pointer_type->getSymIndexId(), m_ast.GetSymbolFile(), ConstString(),
           pointer_type->getLength(), nullptr, LLDB_INVALID_UID,
           lldb_private::Type::eEncodingIsUID, decl, pointer_ast_type,
-          lldb_private::Type::eResolveStateForward);
+          lldb_private::Type::ResolveState::Forward);
     }
 
     CompilerType pointer_ast_type;
@@ -757,7 +755,7 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
         pointer_type->getSymIndexId(), m_ast.GetSymbolFile(), ConstString(),
         pointer_type->getLength(), nullptr, LLDB_INVALID_UID,
         lldb_private::Type::eEncodingIsUID, decl, pointer_ast_type,
-        lldb_private::Type::eResolveStateFull);
+        lldb_private::Type::ResolveState::Full);
   } break;
   default:
     break;
@@ -893,7 +891,7 @@ PDBASTParser::GetDeclForSymbol(const llvm::pdb::PDBSymbol &symbol) {
 
     // Check if the current context already contains the symbol with the name.
     clang::Decl *decl =
-        GetDeclFromContextByName(*m_ast.getASTContext(), *decl_context, name);
+        GetDeclFromContextByName(m_ast.getASTContext(), *decl_context, name);
     if (!decl) {
       auto type = symbol_file->ResolveTypeUID(data->getTypeId());
       if (!type)
@@ -940,7 +938,7 @@ PDBASTParser::GetDeclForSymbol(const llvm::pdb::PDBSymbol &symbol) {
 
           clang::ParmVarDecl *param = m_ast.CreateParameterDeclaration(
               decl, nullptr, arg_type->GetForwardCompilerType(),
-              clang::SC_None);
+              clang::SC_None, true);
           if (param)
             params.push_back(param);
         }
@@ -1153,7 +1151,7 @@ bool PDBASTParser::AddEnumValue(CompilerType enum_type,
   }
   CompilerType underlying_type =
       m_ast.GetEnumerationIntegerType(enum_type.GetOpaqueQualType());
-  uint32_t byte_size = m_ast.getASTContext()->getTypeSize(
+  uint32_t byte_size = m_ast.getASTContext().getTypeSize(
       ClangUtil::GetQualType(underlying_type));
   auto enum_constant_decl = m_ast.AddEnumerationValueToEnumerationType(
       enum_type, decl, name.c_str(), raw_value, byte_size * 8);
@@ -1200,7 +1198,7 @@ bool PDBASTParser::CompleteTypeFromUDT(
   if (!record_decl)
     return static_cast<bool>(compiler_type);
 
-  GetClangASTImporter().InsertRecordDecl(record_decl, layout_info);
+  GetClangASTImporter().SetRecordLayout(record_decl, layout_info);
 
   return static_cast<bool>(compiler_type);
 }

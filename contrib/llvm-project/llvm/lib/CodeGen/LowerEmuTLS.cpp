@@ -19,6 +19,7 @@
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 
 using namespace llvm;
@@ -142,7 +143,7 @@ bool LowerEmuTLS::addEmuTlsVar(Module &M, const GlobalVariable *GV) {
     assert(EmuTlsTmplVar && "Failed to create emualted TLS initializer");
     EmuTlsTmplVar->setConstant(true);
     EmuTlsTmplVar->setInitializer(const_cast<Constant*>(InitValue));
-    EmuTlsTmplVar->setAlignment(GVAlignment);
+    EmuTlsTmplVar->setAlignment(Align(GVAlignment));
     copyLinkageVisibility(M, GV, EmuTlsTmplVar);
   }
 
@@ -155,9 +156,8 @@ bool LowerEmuTLS::addEmuTlsVar(Module &M, const GlobalVariable *GV) {
   ArrayRef<Constant*> ElementValueArray(ElementValues, 4);
   EmuTlsVar->setInitializer(
       ConstantStruct::get(EmuTlsVarType, ElementValueArray));
-  unsigned MaxAlignment = std::max(
-      DL.getABITypeAlignment(WordType),
-      DL.getABITypeAlignment(VoidPtrType));
+  Align MaxAlignment(std::max(DL.getABITypeAlignment(WordType),
+                              DL.getABITypeAlignment(VoidPtrType)));
   EmuTlsVar->setAlignment(MaxAlignment);
   return true;
 }

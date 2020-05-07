@@ -60,8 +60,8 @@ bool R600InstrInfo::isVector(const MachineInstr &MI) const {
 
 void R600InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                 MachineBasicBlock::iterator MI,
-                                const DebugLoc &DL, unsigned DestReg,
-                                unsigned SrcReg, bool KillSrc) const {
+                                const DebugLoc &DL, MCRegister DestReg,
+                                MCRegister SrcReg, bool KillSrc) const {
   unsigned VectorComponents = 0;
   if ((R600::R600_Reg128RegClass.contains(DestReg) ||
       R600::R600_Reg128VerticalRegClass.contains(DestReg)) &&
@@ -97,8 +97,8 @@ bool R600InstrInfo::isLegalToSplitMBBAt(MachineBasicBlock &MBB,
                                        MachineBasicBlock::iterator MBBI) const {
   for (MachineInstr::const_mop_iterator I = MBBI->operands_begin(),
                                         E = MBBI->operands_end(); I != E; ++I) {
-    if (I->isReg() && !TargetRegisterInfo::isVirtualRegister(I->getReg()) &&
-        I->isUse() && RI.isPhysRegLiveAcrossClauses(I->getReg()))
+    if (I->isReg() && !Register::isVirtualRegister(I->getReg()) && I->isUse() &&
+        RI.isPhysRegLiveAcrossClauses(I->getReg()))
       return false;
   }
   return true;
@@ -242,8 +242,7 @@ bool R600InstrInfo::readsLDSSrcReg(const MachineInstr &MI) const {
   for (MachineInstr::const_mop_iterator I = MI.operands_begin(),
                                         E = MI.operands_end();
        I != E; ++I) {
-    if (!I->isReg() || !I->isUse() ||
-        TargetRegisterInfo::isVirtualRegister(I->getReg()))
+    if (!I->isReg() || !I->isUse() || Register::isVirtualRegister(I->getReg()))
       continue;
 
     if (R600::R600_LDS_SRC_REGRegClass.contains(I->getReg()))
@@ -294,7 +293,7 @@ R600InstrInfo::getSrcs(MachineInstr &MI) const {
     for (unsigned j = 0; j < 8; j++) {
       MachineOperand &MO =
           MI.getOperand(getOperandIdx(MI.getOpcode(), OpTable[j][0]));
-      unsigned Reg = MO.getReg();
+      Register Reg = MO.getReg();
       if (Reg == R600::ALU_CONST) {
         MachineOperand &Sel =
             MI.getOperand(getOperandIdx(MI.getOpcode(), OpTable[j][1]));
@@ -317,7 +316,7 @@ R600InstrInfo::getSrcs(MachineInstr &MI) const {
     if (SrcIdx < 0)
       break;
     MachineOperand &MO = MI.getOperand(SrcIdx);
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (Reg == R600::ALU_CONST) {
       MachineOperand &Sel =
           MI.getOperand(getOperandIdx(MI.getOpcode(), OpTable[j][1]));
@@ -348,7 +347,7 @@ R600InstrInfo::ExtractSrcs(MachineInstr &MI,
   unsigned i = 0;
   for (const auto &Src : getSrcs(MI)) {
     ++i;
-    unsigned Reg = Src.first->getReg();
+    Register Reg = Src.first->getReg();
     int Index = RI.getEncodingValue(Reg) & 0xff;
     if (Reg == R600::OQAP) {
       Result.push_back(std::make_pair(Index, 0U));
@@ -542,7 +541,7 @@ R600InstrInfo::fitsReadPortLimitations(const std::vector<MachineInstr *> &IG,
 
   std::vector<std::vector<std::pair<int, unsigned>>> IGSrcs;
   ValidSwizzle.clear();
-  unsigned ConstCount;
+  unsigned ConstCount = 0;
   BankSwizzle TransBS = ALU_VEC_012_SCL_210;
   for (unsigned i = 0, e = IG.size(); i < e; ++i) {
     IGSrcs.push_back(ExtractSrcs(*IG[i], PV, ConstCount));
@@ -865,7 +864,7 @@ bool R600InstrInfo::isPredicated(const MachineInstr &MI) const {
   if (idx < 0)
     return false;
 
-  unsigned Reg = MI.getOperand(idx).getReg();
+  Register Reg = MI.getOperand(idx).getReg();
   switch (Reg) {
   default: return false;
   case R600::PRED_SEL_ONE:
@@ -1038,7 +1037,7 @@ bool R600InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
       unsigned RegIndex = MI.getOperand(RegOpIdx).getImm();
       unsigned Channel = MI.getOperand(ChanOpIdx).getImm();
       unsigned Address = calculateIndirectAddress(RegIndex, Channel);
-      unsigned OffsetReg = MI.getOperand(OffsetOpIdx).getReg();
+      Register OffsetReg = MI.getOperand(OffsetOpIdx).getReg();
       if (OffsetReg == R600::INDIRECT_BASE_ADDR) {
         buildMovInstr(MBB, MI, MI.getOperand(DstOpIdx).getReg(),
                       getIndirectAddrRegClass()->getRegister(Address));
@@ -1052,7 +1051,7 @@ bool R600InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
       unsigned RegIndex = MI.getOperand(RegOpIdx).getImm();
       unsigned Channel = MI.getOperand(ChanOpIdx).getImm();
       unsigned Address = calculateIndirectAddress(RegIndex, Channel);
-      unsigned OffsetReg = MI.getOperand(OffsetOpIdx).getReg();
+      Register OffsetReg = MI.getOperand(OffsetOpIdx).getReg();
       if (OffsetReg == R600::INDIRECT_BASE_ADDR) {
         buildMovInstr(MBB, MI, getIndirectAddrRegClass()->getRegister(Address),
                       MI.getOperand(ValOpIdx).getReg());
@@ -1193,8 +1192,7 @@ int R600InstrInfo::getIndirectIndexBegin(const MachineFunction &MF) const {
   const TargetRegisterClass *IndirectRC = getIndirectAddrRegClass();
   for (std::pair<unsigned, unsigned> LI : MRI.liveins()) {
     unsigned Reg = LI.first;
-    if (TargetRegisterInfo::isVirtualRegister(Reg) ||
-        !IndirectRC->contains(Reg))
+    if (Register::isVirtualRegister(Reg) || !IndirectRC->contains(Reg))
       continue;
 
     unsigned RegIndex;

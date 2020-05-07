@@ -416,7 +416,7 @@ namespace {
     /// otherwise.
     bool convertBlockPointerToFunctionPointer(QualType &T) {
       if (isTopLevelBlockPointerType(T)) {
-        const BlockPointerType *BPT = T->getAs<BlockPointerType>();
+        const auto *BPT = T->castAs<BlockPointerType>();
         T = Context->getPointerType(BPT->getPointeeType());
         return true;
       }
@@ -497,8 +497,8 @@ namespace {
 
     StringLiteral *getStringLiteral(StringRef Str) {
       QualType StrType = Context->getConstantArrayType(
-          Context->CharTy, llvm::APInt(32, Str.size() + 1), ArrayType::Normal,
-          0);
+          Context->CharTy, llvm::APInt(32, Str.size() + 1), nullptr,
+          ArrayType::Normal, 0);
       return StringLiteral::Create(*Context, Str, StringLiteral::Ascii,
                                    /*Pascal=*/false, StrType, SourceLocation());
     }
@@ -593,7 +593,7 @@ clang::CreateObjCRewriter(const std::string &InFile,
                           std::unique_ptr<raw_ostream> OS,
                           DiagnosticsEngine &Diags, const LangOptions &LOpts,
                           bool SilenceRewriteMacroWarning) {
-  return llvm::make_unique<RewriteObjCFragileABI>(
+  return std::make_unique<RewriteObjCFragileABI>(
       InFile, std::move(OS), Diags, LOpts, SilenceRewriteMacroWarning);
 }
 
@@ -786,8 +786,9 @@ void RewriteObjC::RewritePropertyImplDecl(ObjCPropertyImplDecl *PID,
 
   if (!OID)
     return;
+
   unsigned Attributes = PD->getPropertyAttributes();
-  if (!PD->getGetterMethodDecl()->isDefined()) {
+  if (PID->getGetterMethodDecl() && !PID->getGetterMethodDecl()->isDefined()) {
     bool GenGetProperty = !(Attributes & ObjCPropertyDecl::OBJC_PR_nonatomic) &&
                           (Attributes & (ObjCPropertyDecl::OBJC_PR_retain |
                                          ObjCPropertyDecl::OBJC_PR_copy));
@@ -799,7 +800,7 @@ void RewriteObjC::RewritePropertyImplDecl(ObjCPropertyImplDecl *PID,
             "id objc_getProperty(id, SEL, long, bool);\n";
     }
     RewriteObjCMethodDecl(OID->getContainingInterface(),
-                          PD->getGetterMethodDecl(), Getr);
+                          PID->getGetterMethodDecl(), Getr);
     Getr += "{ ";
     // Synthesize an explicit cast to gain access to the ivar.
     // See objc-act.c:objc_synthesize_new_getter() for details.
@@ -807,7 +808,7 @@ void RewriteObjC::RewritePropertyImplDecl(ObjCPropertyImplDecl *PID,
       // return objc_getProperty(self, _cmd, offsetof(ClassDecl, OID), 1)
       Getr += "typedef ";
       const FunctionType *FPRetType = nullptr;
-      RewriteTypeIntoString(PD->getGetterMethodDecl()->getReturnType(), Getr,
+      RewriteTypeIntoString(PID->getGetterMethodDecl()->getReturnType(), Getr,
                             FPRetType);
       Getr += " _TYPE";
       if (FPRetType) {
@@ -843,7 +844,8 @@ void RewriteObjC::RewritePropertyImplDecl(ObjCPropertyImplDecl *PID,
     InsertText(onePastSemiLoc, Getr);
   }
 
-  if (PD->isReadOnly() || PD->getSetterMethodDecl()->isDefined())
+  if (PD->isReadOnly() || !PID->getSetterMethodDecl() ||
+      PID->getSetterMethodDecl()->isDefined())
     return;
 
   // Generate the 'setter' function.
@@ -858,7 +860,7 @@ void RewriteObjC::RewritePropertyImplDecl(ObjCPropertyImplDecl *PID,
   }
 
   RewriteObjCMethodDecl(OID->getContainingInterface(),
-                        PD->getSetterMethodDecl(), Setr);
+                        PID->getSetterMethodDecl(), Setr);
   Setr += "{ ";
   // Synthesize an explicit cast to initialize the ivar.
   // See objc-act.c:objc_synthesize_new_setter() for details.
@@ -1163,10 +1165,13 @@ void RewriteObjC::RewriteObjCMethodDecl(const ObjCInterfaceDecl *IDecl,
 void RewriteObjC::RewriteImplementationDecl(Decl *OID) {
   ObjCImplementationDecl *IMD = dyn_cast<ObjCImplementationDecl>(OID);
   ObjCCategoryImplDecl *CID = dyn_cast<ObjCCategoryImplDecl>(OID);
+  assert((IMD || CID) && "Unknown ImplementationDecl");
 
   InsertText(IMD ? IMD->getBeginLoc() : CID->getBeginLoc(), "// ");
 
   for (auto *OMD : IMD ? IMD->instance_methods() : CID->instance_methods()) {
+    if (!OMD->getBody())
+      continue;
     std::string ResultStr;
     RewriteObjCMethodDecl(OMD->getClassInterface(), OMD, ResultStr);
     SourceLocation LocStart = OMD->getBeginLoc();
@@ -1178,6 +1183,8 @@ void RewriteObjC::RewriteImplementationDecl(Decl *OID) {
   }
 
   for (auto *OMD : IMD ? IMD->class_methods() : CID->class_methods()) {
+    if (!OMD->getBody())
+      continue;
     std::string ResultStr;
     RewriteObjCMethodDecl(OMD->getClassInterface(), OMD, ResultStr);
     SourceLocation LocStart = OMD->getBeginLoc();
@@ -2017,7 +2024,7 @@ RewriteObjC::SynthesizeCallToFunctionDecl(FunctionDecl *FD,
     ImplicitCastExpr::Create(*Context, pToFunc, CK_FunctionToPointerDecay,
                              DRE, nullptr, VK_RValue);
 
-  const FunctionType *FT = msgSendType->getAs<FunctionType>();
+  const auto *FT = msgSendType->castAs<FunctionType>();
 
   CallExpr *Exp = CallExpr::Create(
       *Context, ICE, Args, FT->getCallResultType(*Context), VK_RValue, EndLoc);
@@ -2285,7 +2292,7 @@ void RewriteObjC::RewriteBlockPointerTypeVariable(std::string& Str,
 void RewriteObjC::RewriteBlockLiteralFunctionDecl(FunctionDecl *FD) {
   SourceLocation FunLocStart = FD->getTypeSpecStartLoc();
   const FunctionType *funcType = FD->getType()->getAs<FunctionType>();
-  const FunctionProtoType *proto = dyn_cast<FunctionProtoType>(funcType);
+  const FunctionProtoType *proto = dyn_cast_or_null<FunctionProtoType>(funcType);
   if (!proto)
     return;
   QualType Type = proto->getReturnType();
@@ -2604,7 +2611,7 @@ CallExpr *RewriteObjC::SynthMsgSendStretCallExpr(FunctionDecl *MsgSendStretFlavo
   // Don't forget the parens to enforce the proper binding.
   ParenExpr *PE = new (Context) ParenExpr(SourceLocation(), SourceLocation(), cast);
 
-  const FunctionType *FT = msgSendType->getAs<FunctionType>();
+  const auto *FT = msgSendType->castAs<FunctionType>();
   CallExpr *STCE = CallExpr::Create(*Context, PE, MsgExprs, FT->getReturnType(),
                                     VK_RValue, SourceLocation());
   return STCE;
@@ -2735,8 +2742,8 @@ Stmt *RewriteObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
 
   case ObjCMessageExpr::Class: {
     SmallVector<Expr*, 8> ClsExprs;
-    ObjCInterfaceDecl *Class
-      = Exp->getClassReceiver()->getAs<ObjCObjectType>()->getInterface();
+    auto *Class =
+        Exp->getClassReceiver()->castAs<ObjCObjectType>()->getInterface();
     IdentifierInfo *clsName = Class->getIdentifier();
     ClsExprs.push_back(getStringLiteral(clsName->getName()));
     CallExpr *Cls = SynthesizeCallToFunctionDecl(GetClassFunctionDecl, ClsExprs,
@@ -2957,7 +2964,7 @@ Stmt *RewriteObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
   // Don't forget the parens to enforce the proper binding.
   ParenExpr *PE = new (Context) ParenExpr(StartLoc, EndLoc, cast);
 
-  const FunctionType *FT = msgSendType->getAs<FunctionType>();
+  const auto *FT = msgSendType->castAs<FunctionType>();
   CallExpr *CE = CallExpr::Create(*Context, PE, MsgExprs, FT->getReturnType(),
                                   VK_RValue, EndLoc);
   Stmt *ReplacingStmt = CE;
@@ -4849,7 +4856,7 @@ void RewriteObjC::HandleDeclInMainFile(Decl *D) {
           }
         }
       } else if (VD->getType()->isRecordType()) {
-        RecordDecl *RD = VD->getType()->getAs<RecordType>()->getDecl();
+        RecordDecl *RD = VD->getType()->castAs<RecordType>()->getDecl();
         if (RD->isCompleteDefinition())
           RewriteRecordBody(RD);
       }
@@ -5354,12 +5361,12 @@ void RewriteObjCFragileABI::RewriteObjCClassMetaData(ObjCImplementationDecl *IDe
     ObjCPropertyDecl *PD = Prop->getPropertyDecl();
     if (!PD)
       continue;
-    if (ObjCMethodDecl *Getter = PD->getGetterMethodDecl())
+    if (ObjCMethodDecl *Getter = Prop->getGetterMethodDecl())
       if (!Getter->isDefined())
         InstanceMethods.push_back(Getter);
     if (PD->isReadOnly())
       continue;
-    if (ObjCMethodDecl *Setter = PD->getSetterMethodDecl())
+    if (ObjCMethodDecl *Setter = Prop->getSetterMethodDecl())
       if (!Setter->isDefined())
         InstanceMethods.push_back(Setter);
   }
@@ -5632,11 +5639,11 @@ void RewriteObjCFragileABI::RewriteObjCCategoryImplDecl(ObjCCategoryImplDecl *ID
     ObjCPropertyDecl *PD = Prop->getPropertyDecl();
     if (!PD)
       continue;
-    if (ObjCMethodDecl *Getter = PD->getGetterMethodDecl())
+    if (ObjCMethodDecl *Getter = Prop->getGetterMethodDecl())
       InstanceMethods.push_back(Getter);
     if (PD->isReadOnly())
       continue;
-    if (ObjCMethodDecl *Setter = PD->getSetterMethodDecl())
+    if (ObjCMethodDecl *Setter = Prop->getSetterMethodDecl())
       InstanceMethods.push_back(Setter);
   }
   RewriteObjCMethodsMetaData(InstanceMethods.begin(), InstanceMethods.end(),

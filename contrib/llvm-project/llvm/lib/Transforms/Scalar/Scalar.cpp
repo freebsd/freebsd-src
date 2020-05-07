@@ -79,8 +79,10 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeLoopVersioningLICMPass(Registry);
   initializeLoopIdiomRecognizeLegacyPassPass(Registry);
   initializeLowerAtomicLegacyPassPass(Registry);
+  initializeLowerConstantIntrinsicsPass(Registry);
   initializeLowerExpectIntrinsicPass(Registry);
   initializeLowerGuardIntrinsicLegacyPassPass(Registry);
+  initializeLowerMatrixIntrinsicsLegacyPassPass(Registry);
   initializeLowerWidenableConditionLegacyPassPass(Registry);
   initializeMemCpyOptLegacyPassPass(Registry);
   initializeMergeICmpsLegacyPassPass(Registry);
@@ -88,6 +90,7 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeNaryReassociateLegacyPassPass(Registry);
   initializePartiallyInlineLibCallsLegacyPassPass(Registry);
   initializeReassociateLegacyPassPass(Registry);
+  initializeRedundantDbgInstEliminationPass(Registry);
   initializeRegToMemPass(Registry);
   initializeRewriteStatepointsForGCLegacyPassPass(Registry);
   initializeSCCPLegacyPassPass(Registry);
@@ -121,6 +124,10 @@ void LLVMInitializeScalarOpts(LLVMPassRegistryRef R) {
 
 void LLVMAddAggressiveDCEPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createAggressiveDCEPass());
+}
+
+void LLVMAddDCEPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createDeadCodeEliminationPass());
 }
 
 void LLVMAddBitTrackingDCEPass(LLVMPassManagerRef PM) {
@@ -278,6 +285,10 @@ void LLVMAddScopedNoAliasAAPass(LLVMPassManagerRef PM) {
 
 void LLVMAddBasicAliasAnalysisPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createBasicAAWrapperPass());
+}
+
+void LLVMAddLowerConstantIntrinsicsPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createLowerConstantIntrinsicsPass());
 }
 
 void LLVMAddLowerExpectIntrinsicPass(LLVMPassManagerRef PM) {

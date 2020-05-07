@@ -49,7 +49,7 @@ public:
   static const uptr MaxSize = 1UL << MaxSizeLog;
   static const uptr NumClasses =
       MidClass + ((MaxSizeLog - MidSizeLog) << S) + 1;
-  COMPILER_CHECK(NumClasses <= 256);
+  static_assert(NumClasses <= 256, "");
   static const uptr LargestClassId = NumClasses - 1;
   static const uptr BatchClassId = 0;
 
@@ -86,6 +86,7 @@ public:
   }
 
   static void print() {
+    ScopedString Buffer(1024);
     uptr PrevS = 0;
     uptr TotalCached = 0;
     for (uptr I = 0; I < NumClasses; I++) {
@@ -93,19 +94,20 @@ public:
         continue;
       const uptr S = getSizeByClassId(I);
       if (S >= MidSize / 2 && (S & (S - 1)) == 0)
-        Printf("\n");
+        Buffer.append("\n");
       const uptr D = S - PrevS;
       const uptr P = PrevS ? (D * 100 / PrevS) : 0;
       const uptr L = S ? getMostSignificantSetBitIndex(S) : 0;
       const uptr Cached = getMaxCachedHint(S) * S;
-      Printf(
+      Buffer.append(
           "C%02zu => S: %zu diff: +%zu %02zu%% L %zu Cached: %zu %zu; id %zu\n",
           I, getSizeByClassId(I), D, P, L, getMaxCachedHint(S), Cached,
           getClassIdBySize(S));
       TotalCached += Cached;
       PrevS = S;
     }
-    Printf("Total Cached: %zu\n", TotalCached);
+    Buffer.append("Total Cached: %zu\n", TotalCached);
+    Buffer.output();
   }
 
   static void validate() {
@@ -118,7 +120,8 @@ public:
       if (C < LargestClassId)
         CHECK_EQ(getClassIdBySize(S + 1), C + 1);
       CHECK_EQ(getClassIdBySize(S - 1), C);
-      CHECK_GT(getSizeByClassId(C), getSizeByClassId(C - 1));
+      if (C - 1 != BatchClassId)
+        CHECK_GT(getSizeByClassId(C), getSizeByClassId(C - 1));
     }
     // Do not perform the loop if the maximum size is too large.
     if (MaxSizeLog > 19)
@@ -127,7 +130,7 @@ public:
       const uptr C = getClassIdBySize(S);
       CHECK_LT(C, NumClasses);
       CHECK_GE(getSizeByClassId(C), S);
-      if (C > 0)
+      if (C - 1 != BatchClassId)
         CHECK_LT(getSizeByClassId(C - 1), S);
     }
   }
@@ -137,11 +140,11 @@ typedef SizeClassMap<3, 5, 8, 17, 8, 10> DefaultSizeClassMap;
 
 // TODO(kostyak): further tune class maps for Android & Fuchsia.
 #if SCUDO_WORDSIZE == 64U
-typedef SizeClassMap<3, 5, 8, 15, 8, 10> SvelteSizeClassMap;
-typedef SizeClassMap<3, 5, 8, 16, 14, 12> AndroidSizeClassMap;
+typedef SizeClassMap<4, 4, 8, 14, 4, 10> SvelteSizeClassMap;
+typedef SizeClassMap<3, 5, 8, 17, 14, 14> AndroidSizeClassMap;
 #else
-typedef SizeClassMap<3, 4, 7, 15, 8, 10> SvelteSizeClassMap;
-typedef SizeClassMap<3, 4, 7, 16, 14, 12> AndroidSizeClassMap;
+typedef SizeClassMap<4, 3, 7, 14, 5, 10> SvelteSizeClassMap;
+typedef SizeClassMap<3, 5, 8, 17, 14, 14> AndroidSizeClassMap;
 #endif
 
 } // namespace scudo

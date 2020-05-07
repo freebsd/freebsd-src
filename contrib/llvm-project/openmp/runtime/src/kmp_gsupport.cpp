@@ -22,7 +22,7 @@ extern "C" {
 #endif // __cplusplus
 
 #define MKLOC(loc, routine)                                                    \
-  static ident_t(loc) = {0, KMP_IDENT_KMPC, 0, 0, ";unknown;unknown;0;0;;"};
+  static ident_t loc = {0, KMP_IDENT_KMPC, 0, 0, ";unknown;unknown;0;0;;"};
 
 #include "kmp_ftn_os.h"
 
@@ -495,8 +495,8 @@ void KMP_EXPAND_NAME(KMP_API_NAME_GOMP_PARALLEL_END)(void) {
 // argument to __kmp_GOMP_fork_call).
 //
 // Conversely, KMP_DISPATCH_NEXT returns and inclusive upper bound in *p_ub,
-// but the Gnu codegen expects an excluside upper bound, so the adjustment
-// "*p_ub += stride" compenstates for the discrepancy.
+// but the Gnu codegen expects an exclusive upper bound, so the adjustment
+// "*p_ub += stride" compensates for the discrepancy.
 //
 // Correction: the gnu codegen always adjusts the upper bound by +-1, not the
 // stride value.  We adjust the dispatch parameters accordingly (by +-1), but
@@ -622,10 +622,16 @@ LOOP_START(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_STATIC_START), kmp_sch_static)
 LOOP_NEXT(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_STATIC_NEXT), {})
 LOOP_START(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_DYNAMIC_START),
            kmp_sch_dynamic_chunked)
+LOOP_START(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_NONMONOTONIC_DYNAMIC_START),
+           kmp_sch_dynamic_chunked)
 LOOP_NEXT(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_DYNAMIC_NEXT), {})
+LOOP_NEXT(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_NONMONOTONIC_DYNAMIC_NEXT), {})
 LOOP_START(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_GUIDED_START),
            kmp_sch_guided_chunked)
+LOOP_START(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_NONMONOTONIC_GUIDED_START),
+           kmp_sch_guided_chunked)
 LOOP_NEXT(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_GUIDED_NEXT), {})
+LOOP_NEXT(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_NONMONOTONIC_GUIDED_NEXT), {})
 LOOP_RUNTIME_START(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_RUNTIME_START),
                    kmp_sch_runtime)
 LOOP_NEXT(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_RUNTIME_NEXT), {})
@@ -892,6 +898,16 @@ LOOP_NEXT_ULL(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_DYNAMIC_NEXT), {})
 LOOP_START_ULL(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_GUIDED_START),
                kmp_sch_guided_chunked)
 LOOP_NEXT_ULL(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_GUIDED_NEXT), {})
+LOOP_START_ULL(
+    KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_NONMONOTONIC_DYNAMIC_START),
+               kmp_sch_dynamic_chunked)
+LOOP_NEXT_ULL(
+    KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_NONMONOTONIC_DYNAMIC_NEXT), {})
+LOOP_START_ULL(
+    KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_NONMONOTONIC_GUIDED_START),
+               kmp_sch_guided_chunked)
+LOOP_NEXT_ULL(
+    KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_NONMONOTONIC_GUIDED_NEXT), {})
 LOOP_RUNTIME_START_ULL(
     KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_RUNTIME_START), kmp_sch_runtime)
 LOOP_NEXT_ULL(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_LOOP_ULL_RUNTIME_NEXT), {})
@@ -1487,6 +1503,12 @@ PARALLEL_LOOP(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_PARALLEL_LOOP_STATIC),
               kmp_sch_static, OMPT_LOOP_PRE, OMPT_LOOP_POST)
 PARALLEL_LOOP(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_PARALLEL_LOOP_DYNAMIC),
               kmp_sch_dynamic_chunked, OMPT_LOOP_PRE, OMPT_LOOP_POST)
+PARALLEL_LOOP(
+    KMP_EXPAND_NAME(KMP_API_NAME_GOMP_PARALLEL_LOOP_NONMONOTONIC_GUIDED),
+              kmp_sch_guided_chunked, OMPT_LOOP_PRE, OMPT_LOOP_POST)
+PARALLEL_LOOP(
+    KMP_EXPAND_NAME(KMP_API_NAME_GOMP_PARALLEL_LOOP_NONMONOTONIC_DYNAMIC),
+              kmp_sch_dynamic_chunked, OMPT_LOOP_PRE, OMPT_LOOP_POST)
 PARALLEL_LOOP(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_PARALLEL_LOOP_GUIDED),
               kmp_sch_guided_chunked, OMPT_LOOP_PRE, OMPT_LOOP_POST)
 PARALLEL_LOOP(KMP_EXPAND_NAME(KMP_API_NAME_GOMP_PARALLEL_LOOP_RUNTIME),
@@ -1721,7 +1743,7 @@ void __GOMP_taskloop(void (*func)(void *), void *data,
 
 // 4 byte version of GOMP_doacross_post
 // This verison needs to create a temporary array which converts 4 byte
-// integers into 8 byte integeres
+// integers into 8 byte integers
 template <typename T, bool need_conversion = (sizeof(long) == 4)>
 void __kmp_GOMP_doacross_post(T *count);
 
@@ -1941,6 +1963,26 @@ KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_ULL_DOACROSS_DYNAMIC_START, 45,
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_ULL_DOACROSS_GUIDED_START, 45,
                    "GOMP_4.5");
 KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_ULL_DOACROSS_RUNTIME_START, 45,
+                   "GOMP_4.5");
+KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_NONMONOTONIC_DYNAMIC_START, 45,
+                   "GOMP_4.5");
+KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_NONMONOTONIC_DYNAMIC_NEXT, 45,
+                   "GOMP_4.5");
+KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_NONMONOTONIC_GUIDED_START, 45,
+                   "GOMP_4.5");
+KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_NONMONOTONIC_GUIDED_NEXT, 45,
+                   "GOMP_4.5");
+KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_ULL_NONMONOTONIC_DYNAMIC_START, 45,
+                   "GOMP_4.5");
+KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_ULL_NONMONOTONIC_DYNAMIC_NEXT, 45,
+                   "GOMP_4.5");
+KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_ULL_NONMONOTONIC_GUIDED_START, 45,
+                   "GOMP_4.5");
+KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_LOOP_ULL_NONMONOTONIC_GUIDED_NEXT, 45,
+                   "GOMP_4.5");
+KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_PARALLEL_LOOP_NONMONOTONIC_DYNAMIC, 45,
+                   "GOMP_4.5");
+KMP_VERSION_SYMBOL(KMP_API_NAME_GOMP_PARALLEL_LOOP_NONMONOTONIC_GUIDED, 45,
                    "GOMP_4.5");
 
 #endif // KMP_USE_VERSION_SYMBOLS

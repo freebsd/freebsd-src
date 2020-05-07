@@ -116,7 +116,7 @@ def mem_mm_9 : Operand<i32> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops ptr_rc, simm9);
   let EncoderMethod = "getMemEncodingMMImm9";
-  let ParserMatchClass = MipsMemSimm9AsmOperand;
+  let ParserMatchClass = MipsMemSimmAsmOperand<9>;
   let OperandType = "OPERAND_MEMORY";
 }
 
@@ -124,7 +124,7 @@ def mem_mm_11 : Operand<i32> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops GPR32, simm11);
   let EncoderMethod = "getMemEncodingMMImm11";
-  let ParserMatchClass = MipsMemSimm11AsmOperand;
+  let ParserMatchClass = MipsMemSimmAsmOperand<11>;
   let OperandType = "OPERAND_MEMORY";
 }
 
@@ -141,7 +141,7 @@ def mem_mm_16 : Operand<i32> {
   let MIOperandInfo = (ops ptr_rc, simm16);
   let EncoderMethod = "getMemEncodingMMImm16";
   let DecoderMethod = "DecodeMemMMImm16";
-  let ParserMatchClass = MipsMemSimm16AsmOperand;
+  let ParserMatchClass = MipsMemSimmAsmOperand<16>;
   let OperandType = "OPERAND_MEMORY";
 }
 
@@ -506,7 +506,8 @@ class LoadWordIndexedScaledMM<string opstr, RegisterOperand RO,
 
 class PrefetchIndexed<string opstr> :
   InstSE<(outs), (ins PtrRC:$base, PtrRC:$index, uimm5:$hint),
-         !strconcat(opstr, "\t$hint, ${index}(${base})"), [], II_PREF, FrmOther>;
+         !strconcat(opstr, "\t$hint, ${index}(${base})"),
+         [], II_PREF, FrmOther>;
 
 class AddImmUPC<string opstr, RegisterOperand RO> :
   InstSE<(outs RO:$rs), (ins simm23_lsl2:$imm),
@@ -955,17 +956,18 @@ let DecoderNamespace = "MicroMips" in {
                EXT_FM_MM<0x0c>, ISA_MICROMIPS32_NOT_MIPS32R6;
 
   /// Jump Instructions
-  let DecoderMethod = "DecodeJumpTargetMM" in
+  let DecoderMethod = "DecodeJumpTargetMM" in {
     def J_MM          : MMRel, JumpFJ<jmptarget_mm, "j", br, bb, "j">,
                         J_FM_MM<0x35>, AdditionalRequires<[RelocNotPIC]>,
                         IsBranch, ISA_MICROMIPS32_NOT_MIPS32R6;
-
-  let DecoderMethod = "DecodeJumpTargetMM" in {
     def JAL_MM      : MMRel, JumpLink<"jal", calltarget_mm>, J_FM_MM<0x3d>,
                       ISA_MICROMIPS32_NOT_MIPS32R6;
+  }
+
+  let DecoderMethod = "DecodeJumpTargetXMM" in
     def JALX_MM     : MMRel, JumpLink<"jalx", calltarget>, J_FM_MM<0x3c>,
                       ISA_MICROMIPS32_NOT_MIPS32R6;
-  }
+
   def JR_MM : MMRel, IndirectBranch<"jr", GPR32Opnd>, JR_FM_MM<0x3c>,
               ISA_MICROMIPS32_NOT_MIPS32R6;
   def JALR_MM : JumpLinkReg<"jalr", GPR32Opnd>, JALR_FM_MM<0x03c>,

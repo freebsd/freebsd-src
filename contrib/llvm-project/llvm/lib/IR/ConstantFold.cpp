@@ -746,7 +746,7 @@ Constant *llvm::ConstantFoldSelectInstruction(Constant *Cond,
                                                     ConstantInt::get(Ty, i));
       Constant *V2Element = ConstantExpr::getExtractElement(V2,
                                                     ConstantInt::get(Ty, i));
-      Constant *Cond = dyn_cast<Constant>(CondV->getOperand(i));
+      auto *Cond = cast<Constant>(CondV->getOperand(i));
       if (V1Element == V2Element) {
         V = V1Element;
       } else if (isa<UndefValue>(Cond)) {
@@ -787,21 +787,41 @@ Constant *llvm::ConstantFoldSelectInstruction(Constant *Cond,
 
 Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
                                                       Constant *Idx) {
-  if (isa<UndefValue>(Val))  // ee(undef, x) -> undef
-    return UndefValue::get(Val->getType()->getVectorElementType());
-  if (Val->isNullValue())  // ee(zero, x) -> zero
-    return Constant::getNullValue(Val->getType()->getVectorElementType());
-  // ee({w,x,y,z}, undef) -> undef
-  if (isa<UndefValue>(Idx))
+  // extractelt undef, C -> undef
+  // extractelt C, undef -> undef
+  if (isa<UndefValue>(Val) || isa<UndefValue>(Idx))
     return UndefValue::get(Val->getType()->getVectorElementType());
 
-  if (ConstantInt *CIdx = dyn_cast<ConstantInt>(Idx)) {
-    // ee({w,x,y,z}, wrong_value) -> undef
-    if (CIdx->uge(Val->getType()->getVectorNumElements()))
-      return UndefValue::get(Val->getType()->getVectorElementType());
-    return Val->getAggregateElement(CIdx->getZExtValue());
+  auto *CIdx = dyn_cast<ConstantInt>(Idx);
+  if (!CIdx)
+    return nullptr;
+
+  // ee({w,x,y,z}, wrong_value) -> undef
+  if (CIdx->uge(Val->getType()->getVectorNumElements()))
+    return UndefValue::get(Val->getType()->getVectorElementType());
+
+  // ee (gep (ptr, idx0, ...), idx) -> gep (ee (ptr, idx), ee (idx0, idx), ...)
+  if (auto *CE = dyn_cast<ConstantExpr>(Val)) {
+    if (CE->getOpcode() == Instruction::GetElementPtr) {
+      SmallVector<Constant *, 8> Ops;
+      Ops.reserve(CE->getNumOperands());
+      for (unsigned i = 0, e = CE->getNumOperands(); i != e; ++i) {
+        Constant *Op = CE->getOperand(i);
+        if (Op->getType()->isVectorTy()) {
+          Constant *ScalarOp = ConstantExpr::getExtractElement(Op, Idx);
+          if (!ScalarOp)
+            return  nullptr;
+          Ops.push_back(ScalarOp);
+        } else
+          Ops.push_back(Op);
+      }
+      return CE->getWithOperands(Ops, CE->getType()->getVectorElementType(),
+                                 false,
+                                 Ops[0]->getType()->getPointerElementType());
+    }
   }
-  return nullptr;
+
+  return Val->getAggregateElement(CIdx);
 }
 
 Constant *llvm::ConstantFoldInsertElementInstruction(Constant *Val,
@@ -812,6 +832,12 @@ Constant *llvm::ConstantFoldInsertElementInstruction(Constant *Val,
 
   ConstantInt *CIdx = dyn_cast<ConstantInt>(Idx);
   if (!CIdx) return nullptr;
+
+  // Do not iterate on scalable vector. The num of elements is unknown at
+  // compile-time.
+  VectorType *ValTy = cast<VectorType>(Val->getType());
+  if (ValTy->isScalable())
+    return nullptr;
 
   unsigned NumElts = Val->getType()->getVectorNumElements();
   if (CIdx->uge(NumElts))
@@ -846,6 +872,12 @@ Constant *llvm::ConstantFoldShuffleVectorInstruction(Constant *V1,
 
   // Don't break the bitcode reader hack.
   if (isa<ConstantExpr>(Mask)) return nullptr;
+
+  // Do not iterate on scalable vector. The num of elements is unknown at
+  // compile-time.
+  VectorType *ValTy = cast<VectorType>(V1->getType());
+  if (ValTy->isScalable())
+    return nullptr;
 
   unsigned SrcNumElts = V1->getType()->getVectorNumElements();
 
@@ -967,6 +999,19 @@ Constant *llvm::ConstantFoldUnaryInstruction(unsigned Opcode, Constant *C) {
 Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
                                               Constant *C2) {
   assert(Instruction::isBinaryOp(Opcode) && "Non-binary instruction detected");
+
+  // Simplify BinOps with their identity values first. They are no-ops and we
+  // can always return the other value, including undef or poison values.
+  // FIXME: remove unnecessary duplicated identity patterns below.
+  // FIXME: Use AllowRHSConstant with getBinOpIdentity to handle additional ops,
+  //        like X << 0 = X.
+  Constant *Identity = ConstantExpr::getBinOpIdentity(Opcode, C1->getType());
+  if (Identity) {
+    if (C1 == Identity)
+      return C2;
+    if (C2 == Identity)
+      return C1;
+  }
 
   // Handle scalar UndefValue. Vectors are always evaluated per element.
   bool HasScalarUndef = !C1->getType()->isVectorTy() &&
@@ -1125,7 +1170,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
             isa<GlobalValue>(CE1->getOperand(0))) {
           GlobalValue *GV = cast<GlobalValue>(CE1->getOperand(0));
 
-          unsigned GVAlign;
+          MaybeAlign GVAlign;
 
           if (Module *TheModule = GV->getParent()) {
             GVAlign = GV->getPointerAlignment(TheModule->getDataLayout());
@@ -1139,19 +1184,19 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
             // increased code size (see https://reviews.llvm.org/D55115)
             // FIXME: This code should be deleted once existing targets have
             // appropriate defaults
-            if (GVAlign == 0U && isa<Function>(GV))
-              GVAlign = 4U;
+            if (!GVAlign && isa<Function>(GV))
+              GVAlign = Align(4);
           } else if (isa<Function>(GV)) {
             // Without a datalayout we have to assume the worst case: that the
             // function pointer isn't aligned at all.
-            GVAlign = 0U;
+            GVAlign = llvm::None;
           } else {
-            GVAlign = GV->getAlignment();
+            GVAlign = MaybeAlign(GV->getAlignment());
           }
 
-          if (GVAlign > 1) {
+          if (GVAlign && *GVAlign > 1) {
             unsigned DstWidth = CI2->getType()->getBitWidth();
-            unsigned SrcWidth = std::min(DstWidth, Log2_32(GVAlign));
+            unsigned SrcWidth = std::min(DstWidth, Log2(*GVAlign));
             APInt BitsNotSet(APInt::getLowBitsSet(DstWidth, SrcWidth));
 
             // If checking bits we know are clear, return zero.

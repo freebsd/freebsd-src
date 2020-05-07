@@ -211,6 +211,10 @@ void AMDGPUMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) const {
     lowerOperand(MO, MCOp);
     OutMI.addOperand(MCOp);
   }
+
+  int FIIdx = AMDGPU::getNamedOperandIdx(MCOpcode, AMDGPU::OpName::fi);
+  if (FIIdx >= (int)OutMI.getNumOperands())
+    OutMI.addOperand(MCOperand::createImm(0));
 }
 
 bool AMDGPUAsmPrinter::lowerOperand(const MachineOperand &MO,
@@ -340,7 +344,7 @@ void AMDGPUAsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
       AMDGPUInstPrinter InstPrinter(*TM.getMCAsmInfo(), *STI.getInstrInfo(),
                                     *STI.getRegisterInfo());
-      InstPrinter.printInst(&TmpInst, DisasmStream, StringRef(), STI);
+      InstPrinter.printInst(&TmpInst, 0, StringRef(), STI, DisasmStream);
 
       // Disassemble instruction/operands to hex representation.
       SmallVector<MCFixup, 4> Fixups;

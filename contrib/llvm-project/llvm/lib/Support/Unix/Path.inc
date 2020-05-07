@@ -201,8 +201,8 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
   if (elf_aux_info(AT_EXECPATH, exe_path, sizeof(exe_path)) == 0)
     return exe_path;
 #else
-  // elf_aux_info(AT_EXECPATH, ... is not available on older FreeBSD.  Fall
-  // back to finding the ELF auxiliary vectors after the processes's
+  // elf_aux_info(AT_EXECPATH, ... is not available in all supported versions,
+  // fall back to finding the ELF auxiliary vectors after the process's
   // environment.
   char **p = ::environ;
   while (*p++ != 0)
@@ -221,12 +221,12 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
   // Fall back to argv[0] if auxiliary vectors are not available.
   if (getprogpath(exe_path, argv0) != NULL)
     return exe_path;
-#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__minix) || \
+#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__minix) ||       \
     defined(__DragonFly__) || defined(__FreeBSD_kernel__) || defined(_AIX)
-  StringRef curproc("/proc/curproc/file");
+  const char *curproc = "/proc/curproc/file";
   char exe_path[PATH_MAX];
   if (sys::fs::exists(curproc)) {
-    ssize_t len = readlink(curproc.str().c_str(), exe_path, sizeof(exe_path));
+    ssize_t len = readlink(curproc, exe_path, sizeof(exe_path));
     if (len > 0) {
       // Null terminate the string for realpath. readlink never null
       // terminates its output.
@@ -238,12 +238,12 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
   // If we don't have procfs mounted, fall back to argv[0]
   if (getprogpath(exe_path, argv0) != NULL)
     return exe_path;
-#elif defined(__linux__) || defined(__CYGWIN__)
+#elif defined(__linux__) || defined(__CYGWIN__) || defined(__gnu_hurd__)
   char exe_path[MAXPATHLEN];
-  StringRef aPath("/proc/self/exe");
+  const char *aPath = "/proc/self/exe";
   if (sys::fs::exists(aPath)) {
     // /proc is not always mounted under Linux (chroot for example).
-    ssize_t len = readlink(aPath.str().c_str(), exe_path, sizeof(exe_path));
+    ssize_t len = readlink(aPath, exe_path, sizeof(exe_path));
     if (len < 0)
       return "";
 
@@ -478,7 +478,7 @@ static bool is_local_impl(struct STATVFS &Vfs) {
   std::unique_ptr<char[]> Buf;
   int Tries = 3;
   while (Tries--) {
-    Buf = llvm::make_unique<char[]>(BufSize);
+    Buf = std::make_unique<char[]>(BufSize);
     Ret = mntctl(MCTL_QUERY, BufSize, Buf.get());
     if (Ret != 0)
       break;
@@ -868,7 +868,10 @@ std::error_code detail::directory_iterator_destruct(detail::DirIterState &it) {
 static file_type direntType(dirent* Entry) {
   // Most platforms provide the file type in the dirent: Linux/BSD/Mac.
   // The DTTOIF macro lets us reuse our status -> type conversion.
-#if defined(_DIRENT_HAVE_D_TYPE) && defined(DTTOIF)
+  // Note that while glibc provides a macro to see if this is supported,
+  // _DIRENT_HAVE_D_TYPE, it's not defined on BSD/Mac, so we test for the
+  // d_type-to-mode_t conversion macro instead.
+#if defined(DTTOIF)
   return typeForMode(DTTOIF(Entry->d_type));
 #else
   // Other platforms such as Solaris require a stat() to get the type.
@@ -919,9 +922,9 @@ static int nativeOpenFlags(CreationDisposition Disp, OpenFlags Flags,
   else if (Access == (FA_Read | FA_Write))
     Result |= O_RDWR;
 
-  // This is for compatibility with old code that assumed F_Append implied
+  // This is for compatibility with old code that assumed OF_Append implied
   // would open an existing file.  See Windows/Path.inc for a longer comment.
-  if (Flags & F_Append)
+  if (Flags & OF_Append)
     Disp = CD_OpenAlways;
 
   if (Disp == CD_CreateNew) {
@@ -936,7 +939,7 @@ static int nativeOpenFlags(CreationDisposition Disp, OpenFlags Flags,
     // Nothing special, just don't add O_CREAT and we get these semantics.
   }
 
-  if (Flags & F_Append)
+  if (Flags & OF_Append)
     Result |= O_APPEND;
 
 #ifdef O_CLOEXEC
@@ -1031,44 +1034,28 @@ file_t getStdinHandle() { return 0; }
 file_t getStdoutHandle() { return 1; }
 file_t getStderrHandle() { return 2; }
 
-std::error_code readNativeFile(file_t FD, MutableArrayRef<char> Buf,
-                               size_t *BytesRead) {
-  *BytesRead = sys::RetryAfterSignal(-1, ::read, FD, Buf.data(), Buf.size());
-  if (ssize_t(*BytesRead) == -1)
-    return std::error_code(errno, std::generic_category());
-  return std::error_code();
+Expected<size_t> readNativeFile(file_t FD, MutableArrayRef<char> Buf) {
+  ssize_t NumRead =
+      sys::RetryAfterSignal(-1, ::read, FD, Buf.data(), Buf.size());
+  if (ssize_t(NumRead) == -1)
+    return errorCodeToError(std::error_code(errno, std::generic_category()));
+  return NumRead;
 }
 
-std::error_code readNativeFileSlice(file_t FD, MutableArrayRef<char> Buf,
-                                    size_t Offset) {
-  char *BufPtr = Buf.data();
-  size_t BytesLeft = Buf.size();
-
-#ifndef HAVE_PREAD
-  // If we don't have pread, seek to Offset.
-  if (lseek(FD, Offset, SEEK_SET) == -1)
-    return std::error_code(errno, std::generic_category());
-#endif
-
-  while (BytesLeft) {
+Expected<size_t> readNativeFileSlice(file_t FD, MutableArrayRef<char> Buf,
+                                     uint64_t Offset) {
 #ifdef HAVE_PREAD
-    ssize_t NumRead = sys::RetryAfterSignal(-1, ::pread, FD, BufPtr, BytesLeft,
-                                            Buf.size() - BytesLeft + Offset);
+  ssize_t NumRead =
+      sys::RetryAfterSignal(-1, ::pread, FD, Buf.data(), Buf.size(), Offset);
 #else
-    ssize_t NumRead = sys::RetryAfterSignal(-1, ::read, FD, BufPtr, BytesLeft);
+  if (lseek(FD, Offset, SEEK_SET) == -1)
+    return errorCodeToError(std::error_code(errno, std::generic_category()));
+  ssize_t NumRead =
+      sys::RetryAfterSignal(-1, ::read, FD, Buf.data(), Buf.size());
 #endif
-    if (NumRead == -1) {
-      // Error while reading.
-      return std::error_code(errno, std::generic_category());
-    }
-    if (NumRead == 0) {
-      memset(BufPtr, 0, BytesLeft); // zero-initialize rest of the buffer.
-      break;
-    }
-    BytesLeft -= NumRead;
-    BufPtr += NumRead;
-  }
-  return std::error_code();
+  if (NumRead == -1)
+    return errorCodeToError(std::error_code(errno, std::generic_category()));
+  return NumRead;
 }
 
 std::error_code closeFile(file_t &F) {

@@ -37,7 +37,7 @@ void MipsRegInfoRecord::EmitMipsOptionRecord() {
         Context.getELFSection(".MIPS.options", ELF::SHT_MIPS_OPTIONS,
                               ELF::SHF_ALLOC | ELF::SHF_MIPS_NOSTRIP, 1, "");
     MCA.registerSection(*Sec);
-    Sec->setAlignment(8);
+    Sec->setAlignment(Align(8));
     Streamer->SwitchSection(Sec);
 
     Streamer->EmitIntValue(ELF::ODK_REGINFO, 1);  // kind
@@ -55,7 +55,7 @@ void MipsRegInfoRecord::EmitMipsOptionRecord() {
     MCSectionELF *Sec = Context.getELFSection(".reginfo", ELF::SHT_MIPS_REGINFO,
                                               ELF::SHF_ALLOC, 24, "");
     MCA.registerSection(*Sec);
-    Sec->setAlignment(MTS->getABI().IsN32() ? 8 : 4);
+    Sec->setAlignment(MTS->getABI().IsN32() ? Align(8) : Align(4));
     Streamer->SwitchSection(Sec);
 
     Streamer->EmitIntValue(ri_gprmask, 4);
@@ -74,27 +74,23 @@ void MipsRegInfoRecord::SetPhysRegUsed(unsigned Reg,
                                        const MCRegisterInfo *MCRegInfo) {
   unsigned Value = 0;
 
-  for (MCSubRegIterator SubRegIt(Reg, MCRegInfo, true); SubRegIt.isValid();
-       ++SubRegIt) {
-    unsigned CurrentSubReg = *SubRegIt;
-
-    unsigned EncVal = MCRegInfo->getEncodingValue(CurrentSubReg);
+  for (const MCPhysReg &SubReg : MCRegInfo->subregs_inclusive(Reg)) {
+    unsigned EncVal = MCRegInfo->getEncodingValue(SubReg);
     Value |= 1 << EncVal;
 
-    if (GPR32RegClass->contains(CurrentSubReg) ||
-        GPR64RegClass->contains(CurrentSubReg))
+    if (GPR32RegClass->contains(SubReg) || GPR64RegClass->contains(SubReg))
       ri_gprmask |= Value;
-    else if (COP0RegClass->contains(CurrentSubReg))
+    else if (COP0RegClass->contains(SubReg))
       ri_cprmask[0] |= Value;
     // MIPS COP1 is the FPU.
-    else if (FGR32RegClass->contains(CurrentSubReg) ||
-             FGR64RegClass->contains(CurrentSubReg) ||
-             AFGR64RegClass->contains(CurrentSubReg) ||
-             MSA128BRegClass->contains(CurrentSubReg))
+    else if (FGR32RegClass->contains(SubReg) ||
+             FGR64RegClass->contains(SubReg) ||
+             AFGR64RegClass->contains(SubReg) ||
+             MSA128BRegClass->contains(SubReg))
       ri_cprmask[1] |= Value;
-    else if (COP2RegClass->contains(CurrentSubReg))
+    else if (COP2RegClass->contains(SubReg))
       ri_cprmask[2] |= Value;
-    else if (COP3RegClass->contains(CurrentSubReg))
+    else if (COP3RegClass->contains(SubReg))
       ri_cprmask[3] |= Value;
   }
 }

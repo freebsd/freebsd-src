@@ -13,6 +13,7 @@
 #include "gwp_asan/mutex.h"
 #include "gwp_asan/options.h"
 #include "gwp_asan/random.h"
+#include "gwp_asan/stack_trace_compressor.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -39,9 +40,15 @@ public:
   };
 
   struct AllocationMetadata {
-    // Maximum number of stack trace frames to collect for allocations + frees.
-    // TODO(hctim): Implement stack frame compression, a-la Chromium.
-    static constexpr size_t kMaximumStackFrames = 64;
+    // The number of bytes used to store a compressed stack frame. On 64-bit
+    // platforms, assuming a compression ratio of 50%, this should allow us to
+    // store ~64 frames per trace.
+    static constexpr size_t kStackFrameStorageBytes = 256;
+
+    // Maximum number of stack frames to collect on allocation/deallocation. The
+    // actual number of collected frames may be less than this as the stack
+    // frames are compressed into a fixed memory range.
+    static constexpr size_t kMaxTraceLengthToCollect = 128;
 
     // Records the given allocation metadata into this struct.
     void RecordAllocation(uintptr_t Addr, size_t Size,
@@ -51,11 +58,13 @@ public:
     void RecordDeallocation(options::Backtrace_t Backtrace);
 
     struct CallSiteInfo {
-      // The backtrace to the allocation/deallocation. If the first value is
-      // zero, we did not collect a trace.
-      uintptr_t Trace[kMaximumStackFrames] = {};
+      // The compressed backtrace to the allocation/deallocation.
+      uint8_t CompressedTrace[kStackFrameStorageBytes];
       // The thread ID for this trace, or kInvalidThreadID if not available.
       uint64_t ThreadID = kInvalidThreadID;
+      // The size of the compressed trace (in bytes). Zero indicates that no
+      // trace was collected.
+      size_t TraceSize = 0;
     };
 
     // The address of this allocation.
@@ -91,19 +100,19 @@ public:
   void init(const options::Options &Opts);
 
   // Return whether the allocation should be randomly chosen for sampling.
-  ALWAYS_INLINE bool shouldSample() {
+  GWP_ASAN_ALWAYS_INLINE bool shouldSample() {
     // NextSampleCounter == 0 means we "should regenerate the counter".
     //                   == 1 means we "should sample this allocation".
-    if (UNLIKELY(ThreadLocals.NextSampleCounter == 0))
+    if (GWP_ASAN_UNLIKELY(ThreadLocals.NextSampleCounter == 0))
       ThreadLocals.NextSampleCounter =
           (getRandomUnsigned32() % AdjustedSampleRate) + 1;
 
-    return UNLIKELY(--ThreadLocals.NextSampleCounter == 0);
+    return GWP_ASAN_UNLIKELY(--ThreadLocals.NextSampleCounter == 0);
   }
 
   // Returns whether the provided pointer is a current sampled allocation that
   // is owned by this pool.
-  ALWAYS_INLINE bool pointerIsMine(const void *Ptr) const {
+  GWP_ASAN_ALWAYS_INLINE bool pointerIsMine(const void *Ptr) const {
     uintptr_t P = reinterpret_cast<uintptr_t>(Ptr);
     return GuardedPagePool <= P && P < GuardedPagePoolEnd;
   }
@@ -258,7 +267,7 @@ private:
     // allocation.
     bool RecursiveGuard = false;
   };
-  static TLS_INITIAL_EXEC ThreadLocalPackedVariables ThreadLocals;
+  static GWP_ASAN_TLS_INITIAL_EXEC ThreadLocalPackedVariables ThreadLocals;
 };
 } // namespace gwp_asan
 

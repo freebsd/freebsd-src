@@ -19,6 +19,7 @@
 #include "clang/Driver/SanitizerArgs.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Option/ArgList.h"
+#include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/TargetParser.h"
@@ -57,6 +58,7 @@ llvm::Triple::ArchType darwin::getArchTypeForMachOArchName(StringRef Str) {
       .Cases("armv7", "armv7em", "armv7k", "armv7m", llvm::Triple::arm)
       .Cases("armv7s", "xscale", llvm::Triple::arm)
       .Case("arm64", llvm::Triple::aarch64)
+      .Case("arm64_32", llvm::Triple::aarch64_32)
       .Case("r600", llvm::Triple::r600)
       .Case("amdgcn", llvm::Triple::amdgcn)
       .Case("nvptx", llvm::Triple::nvptx)
@@ -122,8 +124,7 @@ void darwin::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
   AddMachOArch(Args, CmdArgs);
 
   // Use -force_cpusubtype_ALL on x86 by default.
-  if (getToolChain().getArch() == llvm::Triple::x86 ||
-      getToolChain().getArch() == llvm::Triple::x86_64 ||
+  if (getToolChain().getTriple().isX86() ||
       Args.hasArg(options::OPT_force__cpusubtype__ALL))
     CmdArgs.push_back("-force_cpusubtype_ALL");
 
@@ -146,7 +147,7 @@ void darwin::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
   // asm_final spec is empty.
 
   const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath("as"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 void darwin::MachOTool::anchor() {}
@@ -334,7 +335,10 @@ void darwin::Linker::AddLinkArgs(Compilation &C, const ArgList &Args,
   Args.AddAllArgs(CmdArgs, options::OPT_init);
 
   // Add the deployment target.
-  MachOTC.addMinVersionArgs(Args, CmdArgs);
+  if (Version[0] >= 520)
+    MachOTC.addPlatformVersionArgs(Args, CmdArgs);
+  else
+    MachOTC.addMinVersionArgs(Args, CmdArgs);
 
   Args.AddLastArg(CmdArgs, options::OPT_nomultidefs);
   Args.AddLastArg(CmdArgs, options::OPT_multi__module);
@@ -451,7 +455,7 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     const char *Exec =
         Args.MakeArgString(getToolChain().GetProgramPath("touch"));
     CmdArgs.push_back(Output.getFilename());
-    C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, None));
+    C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, None));
     return;
   }
 
@@ -653,7 +657,7 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec = Args.MakeArgString(getToolChain().GetLinkerPath());
   std::unique_ptr<Command> Cmd =
-      llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs);
+      std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs);
   Cmd->setInputFileList(std::move(InputFileList));
   C.addCommand(std::move(Cmd));
 }
@@ -677,7 +681,7 @@ void darwin::Lipo::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath("lipo"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 void darwin::Dsymutil::ConstructJob(Compilation &C, const JobAction &JA,
@@ -697,7 +701,7 @@ void darwin::Dsymutil::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
       Args.MakeArgString(getToolChain().GetProgramPath("dsymutil"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 void darwin::VerifyDebug::ConstructJob(Compilation &C, const JobAction &JA,
@@ -720,7 +724,7 @@ void darwin::VerifyDebug::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
       Args.MakeArgString(getToolChain().GetProgramPath("dwarfdump"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 MachO::MachO(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
@@ -737,7 +741,7 @@ Darwin::Darwin(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
       CudaInstallation(D, Triple, Args) {}
 
 types::ID MachO::LookupTypeForExtension(StringRef Ext) const {
-  types::ID Ty = types::lookupTypeForExtension(Ext);
+  types::ID Ty = ToolChain::LookupTypeForExtension(Ext);
 
   // Darwin always preprocesses assembly files (unless -x is used explicitly).
   if (Ty == types::TY_PP_Asm)
@@ -830,6 +834,9 @@ StringRef MachO::getMachOArchName(const ArgList &Args) const {
   switch (getTriple().getArch()) {
   default:
     return getDefaultUniversalArchName();
+
+  case llvm::Triple::aarch64_32:
+    return "arm64_32";
 
   case llvm::Triple::aarch64:
     return "arm64";
@@ -1061,7 +1068,6 @@ StringRef Darwin::getPlatformFamily() const {
 
 StringRef Darwin::getSDKName(StringRef isysroot) {
   // Assume SDK has path: SOME_PATH/SDKs/PlatformXX.YY.sdk
-  llvm::sys::path::const_iterator SDKDir;
   auto BeginSDK = llvm::sys::path::begin(isysroot);
   auto EndSDK = llvm::sys::path::end(isysroot);
   for (auto IT = BeginSDK; IT != EndSDK; ++IT) {
@@ -1110,6 +1116,19 @@ static void addExportedSymbol(ArgStringList &CmdArgs, const char *Symbol) {
   CmdArgs.push_back(Symbol);
 }
 
+/// Add a sectalign directive for \p Segment and \p Section to the maximum
+/// expected page size for Darwin.
+///
+/// On iPhone 6+ the max supported page size is 16K. On macOS, the max is 4K.
+/// Use a common alignment constant (16K) for now, and reduce the alignment on
+/// macOS if it proves important.
+static void addSectalignToPage(const ArgList &Args, ArgStringList &CmdArgs,
+                               StringRef Segment, StringRef Section) {
+  for (const char *A : {"-sectalign", Args.MakeArgString(Segment),
+                        Args.MakeArgString(Section), "0x4000"})
+    CmdArgs.push_back(A);
+}
+
 void Darwin::addProfileRTLibs(const ArgList &Args,
                               ArgStringList &CmdArgs) const {
   if (!needsProfileRT(Args)) return;
@@ -1117,20 +1136,39 @@ void Darwin::addProfileRTLibs(const ArgList &Args,
   AddLinkRuntimeLib(Args, CmdArgs, "profile",
                     RuntimeLinkOptions(RLO_AlwaysLink | RLO_FirstLink));
 
+  bool ForGCOV = needsGCovInstrumentation(Args);
+
   // If we have a symbol export directive and we're linking in the profile
   // runtime, automatically export symbols necessary to implement some of the
   // runtime's functionality.
   if (hasExportSymbolDirective(Args)) {
-    if (needsGCovInstrumentation(Args)) {
+    if (ForGCOV) {
       addExportedSymbol(CmdArgs, "___gcov_flush");
       addExportedSymbol(CmdArgs, "_flush_fn_list");
       addExportedSymbol(CmdArgs, "_writeout_fn_list");
     } else {
       addExportedSymbol(CmdArgs, "___llvm_profile_filename");
       addExportedSymbol(CmdArgs, "___llvm_profile_raw_version");
-      addExportedSymbol(CmdArgs, "_lprofCurFilename");
     }
     addExportedSymbol(CmdArgs, "_lprofDirMode");
+  }
+
+  // Align __llvm_prf_{cnts,data} sections to the maximum expected page
+  // alignment. This allows profile counters to be mmap()'d to disk. Note that
+  // it's not enough to just page-align __llvm_prf_cnts: the following section
+  // must also be page-aligned so that its data is not clobbered by mmap().
+  //
+  // The section alignment is only needed when continuous profile sync is
+  // enabled, but this is expected to be the default in Xcode. Specifying the
+  // extra alignment also allows the same binary to be used with/without sync
+  // enabled.
+  if (!ForGCOV) {
+    for (auto IPSK : {llvm::IPSK_cnts, llvm::IPSK_data}) {
+      addSectalignToPage(
+          Args, CmdArgs, "__DATA",
+          llvm::getInstrProfSectionName(IPSK, llvm::Triple::MachO,
+                                        /*AddSegmentInfo=*/false));
+    }
   }
 }
 
@@ -1480,22 +1518,6 @@ getDeploymentTargetFromEnvironmentVariables(const Driver &TheDriver,
       Targets[I.index()] = Env;
   }
 
-  // Do not allow conflicts with the watchOS target.
-  if (!Targets[Darwin::WatchOS].empty() &&
-      (!Targets[Darwin::IPhoneOS].empty() || !Targets[Darwin::TvOS].empty())) {
-    TheDriver.Diag(diag::err_drv_conflicting_deployment_targets)
-        << "WATCHOS_DEPLOYMENT_TARGET"
-        << (!Targets[Darwin::IPhoneOS].empty() ? "IPHONEOS_DEPLOYMENT_TARGET"
-                                               : "TVOS_DEPLOYMENT_TARGET");
-  }
-
-  // Do not allow conflicts with the tvOS target.
-  if (!Targets[Darwin::TvOS].empty() && !Targets[Darwin::IPhoneOS].empty()) {
-    TheDriver.Diag(diag::err_drv_conflicting_deployment_targets)
-        << "TVOS_DEPLOYMENT_TARGET"
-        << "IPHONEOS_DEPLOYMENT_TARGET";
-  }
-
   // Allow conflicts among OSX and iOS for historical reasons, but choose the
   // default platform.
   if (!Targets[Darwin::MacOS].empty() &&
@@ -1508,6 +1530,18 @@ getDeploymentTargetFromEnvironmentVariables(const Driver &TheDriver,
     else
       Targets[Darwin::IPhoneOS] = Targets[Darwin::WatchOS] =
           Targets[Darwin::TvOS] = "";
+  } else {
+    // Don't allow conflicts in any other platform.
+    unsigned FirstTarget = llvm::array_lengthof(Targets);
+    for (unsigned I = 0; I != llvm::array_lengthof(Targets); ++I) {
+      if (Targets[I].empty())
+        continue;
+      if (FirstTarget == llvm::array_lengthof(Targets))
+        FirstTarget = I;
+      else
+        TheDriver.Diag(diag::err_drv_conflicting_deployment_targets)
+            << Targets[FirstTarget] << Targets[I];
+    }
   }
 
   for (const auto &Target : llvm::enumerate(llvm::makeArrayRef(Targets))) {
@@ -1612,7 +1646,7 @@ inferDeploymentTargetFromArch(DerivedArgList &Args, const Darwin &Toolchain,
   if (MachOArchName == "armv7" || MachOArchName == "armv7s" ||
       MachOArchName == "arm64")
     OSTy = llvm::Triple::IOS;
-  else if (MachOArchName == "armv7k")
+  else if (MachOArchName == "armv7k" || MachOArchName == "arm64_32")
     OSTy = llvm::Triple::WatchOS;
   else if (MachOArchName != "armv6m" && MachOArchName != "armv7m" &&
            MachOArchName != "armv7em")
@@ -1801,9 +1835,7 @@ void Darwin::AddDeploymentTarget(DerivedArgList &Args) const {
   DarwinEnvironmentKind Environment = OSTarget->getEnvironment();
   // Recognize iOS targets with an x86 architecture as the iOS simulator.
   if (Environment == NativeEnvironment && Platform != MacOS &&
-      OSTarget->canInferSimulatorFromArch() &&
-      (getTriple().getArch() == llvm::Triple::x86 ||
-       getTriple().getArch() == llvm::Triple::x86_64))
+      OSTarget->canInferSimulatorFromArch() && getTriple().isX86())
     Environment = Simulator;
 
   setTarget(Platform, Environment, Major, Minor, Micro);
@@ -2199,8 +2231,7 @@ DerivedArgList *MachO::TranslateArgs(const DerivedArgList &Args,
     }
   }
 
-  if (getTriple().getArch() == llvm::Triple::x86 ||
-      getTriple().getArch() == llvm::Triple::x86_64)
+  if (getTriple().isX86())
     if (!Args.hasArgNoClaim(options::OPT_mtune_EQ))
       DAL->AddJoinedArg(nullptr, Opts.getOption(options::OPT_mtune_EQ),
                         "core2");
@@ -2456,7 +2487,7 @@ bool MachO::isPICDefaultForced() const {
 
 bool MachO::SupportsProfiling() const {
   // Profiling instrumentation is only supported on x86.
-  return getArch() == llvm::Triple::x86 || getArch() == llvm::Triple::x86_64;
+  return getTriple().isX86();
 }
 
 void Darwin::addMinVersionArgs(const ArgList &Args,
@@ -2481,6 +2512,45 @@ void Darwin::addMinVersionArgs(const ArgList &Args,
   }
 
   CmdArgs.push_back(Args.MakeArgString(TargetVersion.getAsString()));
+}
+
+static const char *getPlatformName(Darwin::DarwinPlatformKind Platform,
+                                   Darwin::DarwinEnvironmentKind Environment) {
+  switch (Platform) {
+  case Darwin::MacOS:
+    return "macos";
+  case Darwin::IPhoneOS:
+    if (Environment == Darwin::NativeEnvironment ||
+        Environment == Darwin::Simulator)
+      return "ios";
+    // FIXME: Add macCatalyst support here ("\"mac catalyst\"").
+    llvm_unreachable("macCatalyst isn't yet supported");
+  case Darwin::TvOS:
+    return "tvos";
+  case Darwin::WatchOS:
+    return "watchos";
+  }
+  llvm_unreachable("invalid platform");
+}
+
+void Darwin::addPlatformVersionArgs(const llvm::opt::ArgList &Args,
+                                    llvm::opt::ArgStringList &CmdArgs) const {
+  // -platform_version <platform> <target_version> <sdk_version>
+  // Both the target and SDK version support only up to 3 components.
+  CmdArgs.push_back("-platform_version");
+  std::string PlatformName = getPlatformName(TargetPlatform, TargetEnvironment);
+  if (TargetEnvironment == Darwin::Simulator)
+    PlatformName += "-simulator";
+  CmdArgs.push_back(Args.MakeArgString(PlatformName));
+  VersionTuple TargetVersion = getTargetVersion().withoutBuild();
+  CmdArgs.push_back(Args.MakeArgString(TargetVersion.getAsString()));
+  if (SDKInfo) {
+    VersionTuple SDKVersion = SDKInfo->getVersion().withoutBuild();
+    CmdArgs.push_back(Args.MakeArgString(SDKVersion.getAsString()));
+  } else {
+    // Use a blank SDK version if it's not present.
+    CmdArgs.push_back("0.0.0");
+  }
 }
 
 void Darwin::addStartObjectFileArgs(const ArgList &Args,

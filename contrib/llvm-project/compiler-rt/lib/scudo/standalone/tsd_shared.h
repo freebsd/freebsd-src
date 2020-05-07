@@ -12,8 +12,6 @@
 #include "linux.h" // for getAndroidTlsPtr()
 #include "tsd.h"
 
-#include <pthread.h>
-
 namespace scudo {
 
 template <class Allocator, u32 MaxTSDCount> struct TSDRegistrySharedT {
@@ -50,6 +48,8 @@ template <class Allocator, u32 MaxTSDCount> struct TSDRegistrySharedT {
   void unmapTestOnly() {
     unmap(reinterpret_cast<void *>(TSDs),
           sizeof(TSD<Allocator>) * NumberOfTSDs);
+    setCurrentTSD(nullptr);
+    pthread_key_delete(PThreadKey);
   }
 
   ALWAYS_INLINE void initThreadMaybe(Allocator *Instance,
@@ -70,9 +70,21 @@ template <class Allocator, u32 MaxTSDCount> struct TSDRegistrySharedT {
     return getTSDAndLockSlow(TSD);
   }
 
+  void disable() {
+    Mutex.lock();
+    for (u32 I = 0; I < NumberOfTSDs; I++)
+      TSDs[I].lock();
+  }
+
+  void enable() {
+    for (s32 I = NumberOfTSDs - 1; I >= 0; I--)
+      TSDs[I].unlock();
+    Mutex.unlock();
+  }
+
 private:
   ALWAYS_INLINE void setCurrentTSD(TSD<Allocator> *CurrentTSD) {
-#if SCUDO_ANDROID
+#if _BIONIC
     *getAndroidTlsPtr() = reinterpret_cast<uptr>(CurrentTSD);
 #elif SCUDO_LINUX
     ThreadTSD = CurrentTSD;
@@ -84,7 +96,7 @@ private:
   }
 
   ALWAYS_INLINE TSD<Allocator> *getCurrentTSD() {
-#if SCUDO_ANDROID
+#if _BIONIC
     return reinterpret_cast<TSD<Allocator> *>(*getAndroidTlsPtr());
 #elif SCUDO_LINUX
     return ThreadTSD;
@@ -95,7 +107,7 @@ private:
 
   void initOnceMaybe(Allocator *Instance) {
     ScopedLock L(Mutex);
-    if (Initialized)
+    if (LIKELY(Initialized))
       return;
     initLinkerInitialized(Instance); // Sets Initialized.
   }
@@ -105,6 +117,7 @@ private:
     // Initial context assignment is done in a plain round-robin fashion.
     const u32 Index = atomic_fetch_add(&CurrentIndex, 1U, memory_order_relaxed);
     setCurrentTSD(&TSDs[Index % NumberOfTSDs]);
+    Instance->callPostInitCallback();
   }
 
   NOINLINE TSD<Allocator> *getTSDAndLockSlow(TSD<Allocator> *CurrentTSD) {
@@ -112,8 +125,7 @@ private:
       // Use the Precedence of the current TSD as our random seed. Since we are
       // in the slow path, it means that tryLock failed, and as a result it's
       // very likely that said Precedence is non-zero.
-      u32 RandState = static_cast<u32>(CurrentTSD->getPrecedence());
-      const u32 R = getRandomU32(&RandState);
+      const u32 R = static_cast<u32>(CurrentTSD->getPrecedence());
       const u32 Inc = CoPrimes[R % NumberOfCoPrimes];
       u32 Index = R % NumberOfTSDs;
       uptr LowestPrecedence = UINTPTR_MAX;
@@ -153,12 +165,12 @@ private:
   u32 CoPrimes[MaxTSDCount];
   bool Initialized;
   HybridMutex Mutex;
-#if SCUDO_LINUX && !SCUDO_ANDROID
+#if SCUDO_LINUX && !_BIONIC
   static THREADLOCAL TSD<Allocator> *ThreadTSD;
 #endif
 };
 
-#if SCUDO_LINUX && !SCUDO_ANDROID
+#if SCUDO_LINUX && !_BIONIC
 template <class Allocator, u32 MaxTSDCount>
 THREADLOCAL TSD<Allocator>
     *TSDRegistrySharedT<Allocator, MaxTSDCount>::ThreadTSD;

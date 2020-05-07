@@ -32,6 +32,13 @@
 using namespace llvm;
 using namespace object;
 
+raw_ostream &object::operator<<(raw_ostream &OS, const SectionedAddress &Addr) {
+  OS << "SectionedAddress{" << format_hex(Addr.Address, 10);
+  if (Addr.SectionIndex != SectionedAddress::UndefSection)
+    OS << ", " << Addr.SectionIndex;
+  return OS << "}";
+}
+
 void ObjectFile::anchor() {}
 
 ObjectFile::ObjectFile(unsigned int Type, MemoryBufferRef Source)
@@ -67,8 +74,10 @@ Error ObjectFile::printSymbolName(raw_ostream &OS, DataRefImpl Symb) const {
 uint32_t ObjectFile::getSymbolAlignment(DataRefImpl DRI) const { return 0; }
 
 bool ObjectFile::isSectionBitcode(DataRefImpl Sec) const {
-  if (Expected<StringRef> NameOrErr = getSectionName(Sec))
+  Expected<StringRef> NameOrErr = getSectionName(Sec);
+  if (NameOrErr)
     return *NameOrErr == ".llvmbc";
+  consumeError(NameOrErr.takeError());
   return false;
 }
 
@@ -82,7 +91,8 @@ bool ObjectFile::isBerkeleyData(DataRefImpl Sec) const {
   return isSectionData(Sec);
 }
 
-section_iterator ObjectFile::getRelocatedSection(DataRefImpl Sec) const {
+Expected<section_iterator>
+ObjectFile::getRelocatedSection(DataRefImpl Sec) const {
   return section_iterator(SectionRef(Sec, this));
 }
 
@@ -103,7 +113,7 @@ Triple ObjectFile::makeTriple() const {
     TheTriple.setObjectFormat(Triple::MachO);
 
   if (isCOFF()) {
-    const auto COFFObj = dyn_cast<COFFObjectFile>(this);
+    const auto COFFObj = cast<COFFObjectFile>(this);
     if (COFFObj->getArch() == Triple::thumb)
       TheTriple.setTriple("thumbv7-windows");
   }
@@ -126,6 +136,8 @@ ObjectFile::createObjectFile(MemoryBufferRef Object, file_magic Type) {
   case file_magic::windows_resource:
   case file_magic::pdb:
   case file_magic::minidump:
+    return errorCodeToError(object_error::invalid_file_type);
+  case file_magic::tapi_file:
     return errorCodeToError(object_error::invalid_file_type);
   case file_magic::elf:
   case file_magic::elf_relocatable:

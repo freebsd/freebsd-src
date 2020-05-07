@@ -223,8 +223,8 @@ Expected<StringRef> ArchiveMemberHeader::getName(uint64_t Size) const {
   return Name.drop_back(1);
 }
 
-Expected<uint32_t> ArchiveMemberHeader::getSize() const {
-  uint32_t Ret;
+Expected<uint64_t> ArchiveMemberHeader::getSize() const {
+  uint64_t Ret;
   if (StringRef(ArMemHdr->Size,
                 sizeof(ArMemHdr->Size)).rtrim(" ").getAsInteger(10, Ret)) {
     std::string Buf;
@@ -550,7 +550,7 @@ Archive::Archive(MemoryBufferRef Source, Error &Err)
   } else if (Buffer.startswith(Magic)) {
     IsThin = false;
   } else {
-    Err = make_error<GenericBinaryError>("File too small to be an archive",
+    Err = make_error<GenericBinaryError>("file too small to be an archive",
                                          object_error::invalid_file_type);
     return;
   }

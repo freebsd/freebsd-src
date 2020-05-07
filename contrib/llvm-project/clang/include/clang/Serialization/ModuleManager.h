@@ -17,7 +17,7 @@
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/Module.h"
 #include "clang/Basic/SourceLocation.h"
-#include "clang/Serialization/Module.h"
+#include "clang/Serialization/ModuleFile.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/STLExtras.h"
@@ -255,9 +255,7 @@ public:
                             std::string &ErrorStr);
 
   /// Remove the modules starting from First (to the end).
-  void removeModules(ModuleIterator First,
-                     llvm::SmallPtrSetImpl<ModuleFile *> &LoadedSuccessfully,
-                     ModuleMap *modMap);
+  void removeModules(ModuleIterator First, ModuleMap *modMap);
 
   /// Add an in-memory buffer the list of known buffers
   void addInMemoryBuffer(StringRef FileName,

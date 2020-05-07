@@ -18,7 +18,7 @@
 #include "clang/Lex/ModuleMap.h"
 #include "clang/Serialization/GlobalModuleIndex.h"
 #include "clang/Serialization/InMemoryModuleCache.h"
-#include "clang/Serialization/Module.h"
+#include "clang/Serialization/ModuleFile.h"
 #include "clang/Serialization/PCHContainerOperations.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
@@ -42,10 +42,10 @@ using namespace clang;
 using namespace serialization;
 
 ModuleFile *ModuleManager::lookupByFileName(StringRef Name) const {
-  const FileEntry *Entry = FileMgr.getFile(Name, /*OpenFile=*/false,
-                                           /*CacheFailure=*/false);
+  auto Entry = FileMgr.getFile(Name, /*OpenFile=*/false,
+                               /*CacheFailure=*/false);
   if (Entry)
-    return lookup(Entry);
+    return lookup(*Entry);
 
   return nullptr;
 }
@@ -68,9 +68,11 @@ ModuleFile *ModuleManager::lookup(const FileEntry *File) const {
 
 std::unique_ptr<llvm::MemoryBuffer>
 ModuleManager::lookupBuffer(StringRef Name) {
-  const FileEntry *Entry = FileMgr.getFile(Name, /*OpenFile=*/false,
-                                           /*CacheFailure=*/false);
-  return std::move(InMemoryBuffers[Entry]);
+  auto Entry = FileMgr.getFile(Name, /*OpenFile=*/false,
+                               /*CacheFailure=*/false);
+  if (!Entry)
+    return nullptr;
+  return std::move(InMemoryBuffers[*Entry]);
 }
 
 static bool checkSignature(ASTFileSignature Signature,
@@ -142,7 +144,7 @@ ModuleManager::addModule(StringRef FileName, ModuleKind Type,
   }
 
   // Allocate a new module.
-  auto NewModule = llvm::make_unique<ModuleFile>(Type, Generation);
+  auto NewModule = std::make_unique<ModuleFile>(Type, Generation);
   NewModule->Index = Chain.size();
   NewModule->FileName = FileName.str();
   NewModule->File = Entry;
@@ -183,9 +185,7 @@ ModuleManager::addModule(StringRef FileName, ModuleKind Type,
       Buf = llvm::MemoryBuffer::getSTDIN();
     } else {
       // Get a buffer of the file and close the file descriptor when done.
-      Buf = FileMgr.getBufferForFile(NewModule->File,
-                                     /*isVolatile=*/false,
-                                     /*ShouldClose=*/true);
+      Buf = FileMgr.getBufferForFile(NewModule->File, /*isVolatile=*/false);
     }
 
     if (!Buf) {
@@ -202,13 +202,8 @@ ModuleManager::addModule(StringRef FileName, ModuleKind Type,
   // Read the signature eagerly now so that we can check it.  Avoid calling
   // ReadSignature unless there's something to check though.
   if (ExpectedSignature && checkSignature(ReadSignature(NewModule->Data),
-                                          ExpectedSignature, ErrorStr)) {
-    // Try to remove the buffer.  If it can't be removed, then it was already
-    // validated by this process.
-    if (!getModuleCache().tryToDropPCM(NewModule->FileName))
-      FileMgr.invalidateCache(NewModule->File);
+                                          ExpectedSignature, ErrorStr))
     return OutOfDate;
-  }
 
   // We're keeping this module.  Store it everywhere.
   Module = Modules[Entry] = NewModule.get();
@@ -224,10 +219,7 @@ ModuleManager::addModule(StringRef FileName, ModuleKind Type,
   return NewlyLoaded;
 }
 
-void ModuleManager::removeModules(
-    ModuleIterator First,
-    llvm::SmallPtrSetImpl<ModuleFile *> &LoadedSuccessfully,
-    ModuleMap *modMap) {
+void ModuleManager::removeModules(ModuleIterator First, ModuleMap *modMap) {
   auto Last = end();
   if (First == Last)
     return;
@@ -447,9 +439,13 @@ bool ModuleManager::lookupModuleFile(StringRef FileName,
 
   // Open the file immediately to ensure there is no race between stat'ing and
   // opening the file.
-  File = FileMgr.getFile(FileName, /*OpenFile=*/true, /*CacheFailure=*/false);
-  if (!File)
+  auto FileOrErr = FileMgr.getFile(FileName, /*OpenFile=*/true, 
+                                   /*CacheFailure=*/false);
+  if (!FileOrErr) {
+    File = nullptr;
     return false;
+  }
+  File = *FileOrErr;
 
   if ((ExpectedSize && ExpectedSize != File->getSize()) ||
       (ExpectedModTime && ExpectedModTime != File->getModificationTime()))

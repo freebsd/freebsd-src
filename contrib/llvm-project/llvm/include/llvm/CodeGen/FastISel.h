@@ -93,9 +93,9 @@ public:
 
     SmallVector<Value *, 16> OutVals;
     SmallVector<ISD::ArgFlagsTy, 16> OutFlags;
-    SmallVector<unsigned, 16> OutRegs;
+    SmallVector<Register, 16> OutRegs;
     SmallVector<ISD::InputArg, 4> Ins;
-    SmallVector<unsigned, 4> InRegs;
+    SmallVector<Register, 4> InRegs;
 
     CallLoweringInfo()
         : RetSExt(false), RetZExt(false), IsVarArg(false), IsInReg(false),
@@ -539,6 +539,11 @@ protected:
   bool selectInsertValue(const User *I);
   bool selectXRayCustomEvent(const CallInst *II);
   bool selectXRayTypedEvent(const CallInst *II);
+
+  bool shouldOptForSize(const MachineFunction *MF) const {
+    // TODO: Implement PGSO.
+    return MF->getFunction().hasOptSize();
+  }
 
 private:
   /// Handle PHI nodes in successor blocks.

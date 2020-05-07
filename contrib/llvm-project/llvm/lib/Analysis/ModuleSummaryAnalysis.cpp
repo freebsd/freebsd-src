@@ -44,6 +44,7 @@
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Object/ModuleSymbolTable.h"
 #include "llvm/Object/SymbolicFile.h"
 #include "llvm/Pass.h"
@@ -319,7 +320,7 @@ static void computeFunctionSummary(ModuleSummaryIndex &Index, const Module &M,
       auto *CalledValue = CS.getCalledValue();
       auto *CalledFunction = CS.getCalledFunction();
       if (CalledValue && !CalledFunction) {
-        CalledValue = CalledValue->stripPointerCastsNoFollowAliases();
+        CalledValue = CalledValue->stripPointerCasts();
         // Stripping pointer casts can reveal a called function.
         CalledFunction = dyn_cast<Function>(CalledValue);
       }
@@ -466,8 +467,9 @@ static void computeFunctionSummary(ModuleSummaryIndex &Index, const Module &M,
       F.hasFnAttribute(Attribute::NoRecurse), F.returnDoesNotAlias(),
       // FIXME: refactor this to use the same code that inliner is using.
       // Don't try to import functions with noinline attribute.
-      F.getAttributes().hasFnAttribute(Attribute::NoInline)};
-  auto FuncSummary = llvm::make_unique<FunctionSummary>(
+      F.getAttributes().hasFnAttribute(Attribute::NoInline),
+      F.hasFnAttribute(Attribute::AlwaysInline)};
+  auto FuncSummary = std::make_unique<FunctionSummary>(
       Flags, NumInsts, FunFlags, /*EntryCount=*/0, std::move(Refs),
       CallGraphEdges.takeVector(), TypeTests.takeVector(),
       TypeTestAssumeVCalls.takeVector(), TypeCheckedLoadVCalls.takeVector(),
@@ -598,7 +600,7 @@ static void computeVariableSummary(ModuleSummaryIndex &Index,
       !V.hasComdat() && !V.hasAppendingLinkage() && !V.isInterposable() &&
       !V.hasAvailableExternallyLinkage() && !V.hasDLLExportStorageClass();
   GlobalVarSummary::GVarFlags VarFlags(CanBeInternalized, CanBeInternalized);
-  auto GVarSummary = llvm::make_unique<GlobalVarSummary>(Flags, VarFlags,
+  auto GVarSummary = std::make_unique<GlobalVarSummary>(Flags, VarFlags,
                                                          RefEdges.takeVector());
   if (NonRenamableLocal)
     CantBePromoted.insert(V.getGUID());
@@ -616,7 +618,7 @@ computeAliasSummary(ModuleSummaryIndex &Index, const GlobalAlias &A,
   GlobalValueSummary::GVFlags Flags(A.getLinkage(), NonRenamableLocal,
                                     /* Live = */ false, A.isDSOLocal(),
                                     A.hasLinkOnceODRLinkage() && A.hasGlobalUnnamedAddr());
-  auto AS = llvm::make_unique<AliasSummary>(Flags);
+  auto AS = std::make_unique<AliasSummary>(Flags);
   auto *Aliasee = A.getBaseObject();
   auto AliaseeVI = Index.getValueInfo(Aliasee->getGUID());
   assert(AliaseeVI && "Alias expects aliasee summary to be available");
@@ -696,14 +698,15 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
           // Create the appropriate summary type.
           if (Function *F = dyn_cast<Function>(GV)) {
             std::unique_ptr<FunctionSummary> Summary =
-                llvm::make_unique<FunctionSummary>(
+                std::make_unique<FunctionSummary>(
                     GVFlags, /*InstCount=*/0,
                     FunctionSummary::FFlags{
                         F->hasFnAttribute(Attribute::ReadNone),
                         F->hasFnAttribute(Attribute::ReadOnly),
                         F->hasFnAttribute(Attribute::NoRecurse),
                         F->returnDoesNotAlias(),
-                        /* NoInline = */ false},
+                        /* NoInline = */ false,
+                        F->hasFnAttribute(Attribute::AlwaysInline)},
                     /*EntryCount=*/0, ArrayRef<ValueInfo>{},
                     ArrayRef<FunctionSummary::EdgeTy>{},
                     ArrayRef<GlobalValue::GUID>{},
@@ -714,7 +717,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
             Index.addGlobalValueSummary(*GV, std::move(Summary));
           } else {
             std::unique_ptr<GlobalVarSummary> Summary =
-                llvm::make_unique<GlobalVarSummary>(
+                std::make_unique<GlobalVarSummary>(
                     GVFlags, GlobalVarSummary::GVarFlags(false, false),
                     ArrayRef<ValueInfo>{});
             Index.addGlobalValueSummary(*GV, std::move(Summary));
@@ -741,7 +744,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
     else if (F.hasProfileData()) {
       LoopInfo LI{DT};
       BranchProbabilityInfo BPI{F, LI};
-      BFIPtr = llvm::make_unique<BlockFrequencyInfo>(F, BPI, LI);
+      BFIPtr = std::make_unique<BlockFrequencyInfo>(F, BPI, LI);
       BFI = BFIPtr.get();
     }
 
@@ -813,11 +816,11 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
 
   if (!ModuleSummaryDotFile.empty()) {
     std::error_code EC;
-    raw_fd_ostream OSDot(ModuleSummaryDotFile, EC, sys::fs::OpenFlags::F_None);
+    raw_fd_ostream OSDot(ModuleSummaryDotFile, EC, sys::fs::OpenFlags::OF_None);
     if (EC)
       report_fatal_error(Twine("Failed to open dot file ") +
                          ModuleSummaryDotFile + ": " + EC.message() + "\n");
-    Index.exportToDot(OSDot);
+    Index.exportToDot(OSDot, {});
   }
 
   return Index;

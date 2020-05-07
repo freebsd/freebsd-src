@@ -82,7 +82,7 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
   MCSymbolRefExpr::VariantKind Modifier = Target.getAccessVariant();
 
   if (IsPCRel) {
-    switch ((unsigned)Fixup.getKind()) {
+    switch (Fixup.getTargetKind()) {
     default:
       Ctx.reportFatalError(Fixup.getLoc(), "unsupported relocation on symbol");
       return ELF::R_ARM_NONE;
@@ -145,7 +145,7 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
       return ELF::R_ARM_THM_BF18;
     }
   }
-  switch ((unsigned)Fixup.getKind()) {
+  switch (Fixup.getTargetKind()) {
   default:
     Ctx.reportFatalError(Fixup.getLoc(), "unsupported relocation on symbol");
     return ELF::R_ARM_NONE;
@@ -255,13 +255,16 @@ void ARMELFObjectWriter::addTargetSectionFlags(MCContext &Ctx,
   // execute-only section in the object.
   MCSectionELF *TextSection =
       static_cast<MCSectionELF *>(Ctx.getObjectFileInfo()->getTextSection());
-  if (Sec.getKind().isExecuteOnly() && !TextSection->hasInstructions() &&
-      !TextSection->hasData()) {
+  if (Sec.getKind().isExecuteOnly() && !TextSection->hasInstructions()) {
+    for (auto &F : TextSection->getFragmentList())
+      if (auto *DF = dyn_cast<MCDataFragment>(&F))
+        if (!DF->getContents().empty())
+          return;
     TextSection->setFlags(TextSection->getFlags() | ELF::SHF_ARM_PURECODE);
   }
 }
 
 std::unique_ptr<MCObjectTargetWriter>
 llvm::createARMELFObjectWriter(uint8_t OSABI) {
-  return llvm::make_unique<ARMELFObjectWriter>(OSABI);
+  return std::make_unique<ARMELFObjectWriter>(OSABI);
 }

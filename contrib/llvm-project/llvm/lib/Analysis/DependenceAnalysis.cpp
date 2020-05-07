@@ -61,6 +61,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -141,6 +142,11 @@ INITIALIZE_PASS_END(DependenceAnalysisWrapperPass, "da", "Dependence Analysis",
 
 char DependenceAnalysisWrapperPass::ID = 0;
 
+DependenceAnalysisWrapperPass::DependenceAnalysisWrapperPass()
+    : FunctionPass(ID) {
+  initializeDependenceAnalysisWrapperPassPass(*PassRegistry::getPassRegistry());
+}
+
 FunctionPass *llvm::createDependenceAnalysisWrapperPass() {
   return new DependenceAnalysisWrapperPass();
 }
@@ -164,25 +170,25 @@ void DependenceAnalysisWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequiredTransitive<LoopInfoWrapperPass>();
 }
 
-
 // Used to test the dependence analyzer.
-// Looks through the function, noting loads and stores.
+// Looks through the function, noting instructions that may access memory.
 // Calls depends() on every possible pair and prints out the result.
 // Ignores all other instructions.
 static void dumpExampleDependence(raw_ostream &OS, DependenceInfo *DA) {
   auto *F = DA->getFunction();
   for (inst_iterator SrcI = inst_begin(F), SrcE = inst_end(F); SrcI != SrcE;
        ++SrcI) {
-    if (isa<StoreInst>(*SrcI) || isa<LoadInst>(*SrcI)) {
+    if (SrcI->mayReadOrWriteMemory()) {
       for (inst_iterator DstI = SrcI, DstE = inst_end(F);
            DstI != DstE; ++DstI) {
-        if (isa<StoreInst>(*DstI) || isa<LoadInst>(*DstI)) {
-          OS << "da analyze - ";
+        if (DstI->mayReadOrWriteMemory()) {
+          OS << "Src:" << *SrcI << " --> Dst:" << *DstI << "\n";
+          OS << "  da analyze - ";
           if (auto D = DA->depends(&*SrcI, &*DstI, true)) {
             D->dump(OS);
             for (unsigned Level = 1; Level <= D->getLevels(); Level++) {
               if (D->isSplitable(Level)) {
-                OS << "da analyze - split level = " << Level;
+                OS << "  da analyze - split level = " << Level;
                 OS << ", iteration = " << *DA->getSplitIteration(*D, Level);
                 OS << "!\n";
               }
@@ -254,7 +260,7 @@ FullDependence::FullDependence(Instruction *Source, Instruction *Destination,
       LoopIndependent(PossiblyLoopIndependent) {
   Consistent = true;
   if (CommonLevels)
-    DV = make_unique<DVEntry[]>(CommonLevels);
+    DV = std::make_unique<DVEntry[]>(CommonLevels);
 }
 
 // The rest are simple getters that hide the implementation.
@@ -876,53 +882,44 @@ void DependenceInfo::removeMatchingExtensions(Subscript *Pair) {
   }
 }
 
+// Examine the scev and return true iff it's linear.
+// Collect any loops mentioned in the set of "Loops".
+bool DependenceInfo::checkSubscript(const SCEV *Expr, const Loop *LoopNest,
+                                    SmallBitVector &Loops, bool IsSrc) {
+  const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(Expr);
+  if (!AddRec)
+    return isLoopInvariant(Expr, LoopNest);
+  const SCEV *Start = AddRec->getStart();
+  const SCEV *Step = AddRec->getStepRecurrence(*SE);
+  const SCEV *UB = SE->getBackedgeTakenCount(AddRec->getLoop());
+  if (!isa<SCEVCouldNotCompute>(UB)) {
+    if (SE->getTypeSizeInBits(Start->getType()) <
+        SE->getTypeSizeInBits(UB->getType())) {
+      if (!AddRec->getNoWrapFlags())
+        return false;
+    }
+  }
+  if (!isLoopInvariant(Step, LoopNest))
+    return false;
+  if (IsSrc)
+    Loops.set(mapSrcLoop(AddRec->getLoop()));
+  else
+    Loops.set(mapDstLoop(AddRec->getLoop()));
+  return checkSubscript(Start, LoopNest, Loops, IsSrc);
+}
 
 // Examine the scev and return true iff it's linear.
 // Collect any loops mentioned in the set of "Loops".
 bool DependenceInfo::checkSrcSubscript(const SCEV *Src, const Loop *LoopNest,
                                        SmallBitVector &Loops) {
-  const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(Src);
-  if (!AddRec)
-    return isLoopInvariant(Src, LoopNest);
-  const SCEV *Start = AddRec->getStart();
-  const SCEV *Step = AddRec->getStepRecurrence(*SE);
-  const SCEV *UB = SE->getBackedgeTakenCount(AddRec->getLoop());
-  if (!isa<SCEVCouldNotCompute>(UB)) {
-    if (SE->getTypeSizeInBits(Start->getType()) <
-        SE->getTypeSizeInBits(UB->getType())) {
-      if (!AddRec->getNoWrapFlags())
-        return false;
-    }
-  }
-  if (!isLoopInvariant(Step, LoopNest))
-    return false;
-  Loops.set(mapSrcLoop(AddRec->getLoop()));
-  return checkSrcSubscript(Start, LoopNest, Loops);
+  return checkSubscript(Src, LoopNest, Loops, true);
 }
-
-
 
 // Examine the scev and return true iff it's linear.
 // Collect any loops mentioned in the set of "Loops".
 bool DependenceInfo::checkDstSubscript(const SCEV *Dst, const Loop *LoopNest,
                                        SmallBitVector &Loops) {
-  const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(Dst);
-  if (!AddRec)
-    return isLoopInvariant(Dst, LoopNest);
-  const SCEV *Start = AddRec->getStart();
-  const SCEV *Step = AddRec->getStepRecurrence(*SE);
-  const SCEV *UB = SE->getBackedgeTakenCount(AddRec->getLoop());
-  if (!isa<SCEVCouldNotCompute>(UB)) {
-    if (SE->getTypeSizeInBits(Start->getType()) <
-        SE->getTypeSizeInBits(UB->getType())) {
-      if (!AddRec->getNoWrapFlags())
-        return false;
-    }
-  }
-  if (!isLoopInvariant(Step, LoopNest))
-    return false;
-  Loops.set(mapDstLoop(AddRec->getLoop()));
-  return checkDstSubscript(Start, LoopNest, Loops);
+  return checkSubscript(Dst, LoopNest, Loops, false);
 }
 
 
@@ -3407,15 +3404,14 @@ DependenceInfo::depends(Instruction *Src, Instruction *Dst,
   if (Src == Dst)
     PossiblyLoopIndependent = false;
 
-  if ((!Src->mayReadFromMemory() && !Src->mayWriteToMemory()) ||
-      (!Dst->mayReadFromMemory() && !Dst->mayWriteToMemory()))
+  if (!(Src->mayReadOrWriteMemory() && Dst->mayReadOrWriteMemory()))
     // if both instructions don't reference memory, there's no dependence
     return nullptr;
 
   if (!isLoadOrStore(Src) || !isLoadOrStore(Dst)) {
     // can only analyze simple loads and stores, i.e., no calls, invokes, etc.
     LLVM_DEBUG(dbgs() << "can only handle simple loads and stores\n");
-    return make_unique<Dependence>(Src, Dst);
+    return std::make_unique<Dependence>(Src, Dst);
   }
 
   assert(isLoadOrStore(Src) && "instruction is not load or store");
@@ -3430,7 +3426,7 @@ DependenceInfo::depends(Instruction *Src, Instruction *Dst,
   case PartialAlias:
     // cannot analyse objects if we don't understand their aliasing.
     LLVM_DEBUG(dbgs() << "can't analyze may or partial alias\n");
-    return make_unique<Dependence>(Src, Dst);
+    return std::make_unique<Dependence>(Src, Dst);
   case NoAlias:
     // If the objects noalias, they are distinct, accesses are independent.
     LLVM_DEBUG(dbgs() << "no alias\n");
@@ -3777,10 +3773,8 @@ DependenceInfo::depends(Instruction *Src, Instruction *Dst,
       return nullptr;
   }
 
-  return make_unique<FullDependence>(std::move(Result));
+  return std::make_unique<FullDependence>(std::move(Result));
 }
-
-
 
 //===----------------------------------------------------------------------===//
 // getSplitIteration -

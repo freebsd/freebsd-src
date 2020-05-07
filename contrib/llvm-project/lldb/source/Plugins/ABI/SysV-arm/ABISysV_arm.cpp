@@ -1327,7 +1327,8 @@ ABISysV_arm::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch) {
   if (vendor_type != llvm::Triple::Apple) {
     if ((arch_type == llvm::Triple::arm) ||
         (arch_type == llvm::Triple::thumb)) {
-      return ABISP(new ABISysV_arm(process_sp));
+      return ABISP(
+          new ABISysV_arm(std::move(process_sp), MakeMCRegisterInfo(arch)));
     }
   }
 
@@ -1960,6 +1961,7 @@ bool ABISysV_arm::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
   unwind_plan.SetSourceName("arm default unwind plan");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolNo);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
 
   return true;
 }

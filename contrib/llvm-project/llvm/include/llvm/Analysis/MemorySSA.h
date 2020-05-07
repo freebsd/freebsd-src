@@ -95,6 +95,7 @@
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/CommandLine.h"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -785,7 +786,7 @@ public:
 
   /// Used in various insertion functions to specify whether we are talking
   /// about the beginning or end of a block.
-  enum InsertionPlace { Beginning, End };
+  enum InsertionPlace { Beginning, End, BeforeTerminator };
 
 protected:
   // Used by Memory SSA annotater, dumpers, and wrapper pass
@@ -793,10 +794,9 @@ protected:
   friend class MemorySSAPrinterLegacyPass;
   friend class MemorySSAUpdater;
 
-  void verifyDefUses(Function &F) const;
-  void verifyDomination(Function &F) const;
-  void verifyOrdering(Function &F) const;
+  void verifyOrderingDominationAndDefUses(Function &F) const;
   void verifyDominationNumbers(const Function &F) const;
+  void verifyPrevDefInPhis(Function &F) const;
 
   // This is used by the use optimizer and updater.
   AccessList *getWritableBlockAccesses(const BasicBlock *BB) const {
@@ -830,7 +830,8 @@ protected:
   void insertIntoListsBefore(MemoryAccess *, const BasicBlock *,
                              AccessList::iterator);
   MemoryUseOrDef *createDefinedAccess(Instruction *, MemoryAccess *,
-                                      const MemoryUseOrDef *Template = nullptr);
+                                      const MemoryUseOrDef *Template = nullptr,
+                                      bool CreationMustSucceed = true);
 
 private:
   template <class AliasAnalysisType> class ClobberWalkerBase;

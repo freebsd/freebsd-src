@@ -17,6 +17,7 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler/MCDisassembler.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
@@ -45,8 +46,7 @@ static bool PrintInsts(const MCDisassembler &DisAsm,
     MCInst Inst;
 
     MCDisassembler::DecodeStatus S;
-    S = DisAsm.getInstruction(Inst, Size, Data.slice(Index), Index,
-                              /*REMOVE*/ nulls(), nulls());
+    S = DisAsm.getInstruction(Inst, Size, Data.slice(Index), Index, nulls());
     switch (S) {
     case MCDisassembler::Fail:
       SM.PrintMessage(SMLoc::getFromPointer(Bytes.second[Index]),
@@ -129,13 +129,11 @@ static bool ByteArrayFromString(ByteArrayTy &ByteArray,
   return false;
 }
 
-int Disassembler::disassemble(const Target &T,
-                              const std::string &Triple,
-                              MCSubtargetInfo &STI,
-                              MCStreamer &Streamer,
-                              MemoryBuffer &Buffer,
-                              SourceMgr &SM,
-                              raw_ostream &Out) {
+int Disassembler::disassemble(const Target &T, const std::string &Triple,
+                              MCSubtargetInfo &STI, MCStreamer &Streamer,
+                              MemoryBuffer &Buffer, SourceMgr &SM,
+                              MCContext &Ctx, raw_ostream &Out,
+                              const MCTargetOptions &MCOptions) {
 
   std::unique_ptr<const MCRegisterInfo> MRI(T.createMCRegInfo(Triple));
   if (!MRI) {
@@ -143,14 +141,12 @@ int Disassembler::disassemble(const Target &T,
     return -1;
   }
 
-  std::unique_ptr<const MCAsmInfo> MAI(T.createMCAsmInfo(*MRI, Triple));
+  std::unique_ptr<const MCAsmInfo> MAI(
+      T.createMCAsmInfo(*MRI, Triple, MCOptions));
   if (!MAI) {
     errs() << "error: no assembly info for target " << Triple << "\n";
     return -1;
   }
-
-  // Set up the MCContext for creating symbols and MCExpr's.
-  MCContext Ctx(MAI.get(), MRI.get(), nullptr);
 
   std::unique_ptr<const MCDisassembler> DisAsm(
     T.createMCDisassembler(STI, Ctx));

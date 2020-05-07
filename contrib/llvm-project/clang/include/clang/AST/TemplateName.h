@@ -119,6 +119,10 @@ public:
 
   iterator begin() const { return getStorage(); }
   iterator end() const { return getStorage() + size(); }
+
+  llvm::ArrayRef<NamedDecl*> decls() const {
+    return llvm::makeArrayRef(begin(), end());
+  }
 };
 
 /// A structure for storing an already-substituted template template
@@ -186,8 +190,8 @@ public:
 /// only be understood in the context of
 class TemplateName {
   using StorageType =
-      llvm::PointerUnion4<TemplateDecl *, UncommonTemplateNameStorage *,
-                          QualifiedTemplateName *, DependentTemplateName *>;
+      llvm::PointerUnion<TemplateDecl *, UncommonTemplateNameStorage *,
+                         QualifiedTemplateName *, DependentTemplateName *>;
 
   StorageType Storage;
 

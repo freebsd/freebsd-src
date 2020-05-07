@@ -40,6 +40,7 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/InlineAsm.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -83,7 +84,7 @@ namespace {
     StringRef getPassName() const override { return "X86 FP Stackifier"; }
 
   private:
-    const TargetInstrInfo *TII; // Machine instruction info.
+    const TargetInstrInfo *TII = nullptr; // Machine instruction info.
 
     // Two CFG edges are related if they leave the same block, or enter the same
     // block. The transitive closure of an edge under this relation is a
@@ -119,7 +120,7 @@ namespace {
     SmallVector<LiveBundle, 8> LiveBundles;
 
     // The edge bundle analysis provides indices into the LiveBundles vector.
-    EdgeBundles *Bundles;
+    EdgeBundles *Bundles = nullptr;
 
     // Return a bitmask of FP registers in block's live-in list.
     static unsigned calcLiveInMask(MachineBasicBlock *MBB, bool RemoveFPs) {
@@ -143,14 +144,14 @@ namespace {
     // Partition all the CFG edges into LiveBundles.
     void bundleCFGRecomputeKillFlags(MachineFunction &MF);
 
-    MachineBasicBlock *MBB;     // Current basic block
+    MachineBasicBlock *MBB = nullptr;     // Current basic block
 
     // The hardware keeps track of how many FP registers are live, so we have
     // to model that exactly. Usually, each live register corresponds to an
     // FP<n> register, but when dealing with calls, returns, and inline
     // assembly, it is sometimes necessary to have live scratch registers.
     unsigned Stack[8];          // FP<n> Registers in each stack slot...
-    unsigned StackTop;          // The current top of the FP stack.
+    unsigned StackTop = 0;      // The current top of the FP stack.
 
     enum {
       NumFPRegs = 8             // Including scratch pseudo-registers.
@@ -288,8 +289,8 @@ namespace {
 
     // Check if a COPY instruction is using FP registers.
     static bool isFPCopy(MachineInstr &MI) {
-      unsigned DstReg = MI.getOperand(0).getReg();
-      unsigned SrcReg = MI.getOperand(1).getReg();
+      Register DstReg = MI.getOperand(0).getReg();
+      Register SrcReg = MI.getOperand(1).getReg();
 
       return X86::RFP80RegClass.contains(DstReg) ||
         X86::RFP80RegClass.contains(SrcReg);
@@ -313,7 +314,7 @@ FunctionPass *llvm::createX86FloatingPointStackifierPass() { return new FPS(); }
 /// For example, this returns 3 for X86::FP3.
 static unsigned getFPReg(const MachineOperand &MO) {
   assert(MO.isReg() && "Expected an FP register!");
-  unsigned Reg = MO.getReg();
+  Register Reg = MO.getReg();
   assert(Reg >= X86::FP0 && Reg <= X86::FP6 && "Expected FP register!");
   return Reg - X86::FP0;
 }
@@ -666,9 +667,12 @@ static const TableEntry OpcodeTable[] = {
   { X86::CMOVP_Fp32   , X86::CMOVP_F   },
   { X86::CMOVP_Fp64   , X86::CMOVP_F   },
   { X86::CMOVP_Fp80   , X86::CMOVP_F   },
-  { X86::COS_Fp32     , X86::COS_F     },
-  { X86::COS_Fp64     , X86::COS_F     },
-  { X86::COS_Fp80     , X86::COS_F     },
+  { X86::COM_FpIr32   , X86::COM_FIr   },
+  { X86::COM_FpIr64   , X86::COM_FIr   },
+  { X86::COM_FpIr80   , X86::COM_FIr   },
+  { X86::COM_Fpr32    , X86::COM_FST0r },
+  { X86::COM_Fpr64    , X86::COM_FST0r },
+  { X86::COM_Fpr80    , X86::COM_FST0r },
   { X86::DIVR_Fp32m   , X86::DIVR_F32m },
   { X86::DIVR_Fp64m   , X86::DIVR_F64m },
   { X86::DIVR_Fp64m32 , X86::DIVR_F32m },
@@ -741,9 +745,6 @@ static const TableEntry OpcodeTable[] = {
   { X86::MUL_FpI32m32 , X86::MUL_FI32m },
   { X86::MUL_FpI32m64 , X86::MUL_FI32m },
   { X86::MUL_FpI32m80 , X86::MUL_FI32m },
-  { X86::SIN_Fp32     , X86::SIN_F     },
-  { X86::SIN_Fp64     , X86::SIN_F     },
-  { X86::SIN_Fp80     , X86::SIN_F     },
   { X86::SQRT_Fp32    , X86::SQRT_F    },
   { X86::SQRT_Fp64    , X86::SQRT_F    },
   { X86::SQRT_Fp80    , X86::SQRT_F    },
@@ -803,6 +804,10 @@ static unsigned getConcreteOpcode(unsigned Opcode) {
 static const TableEntry PopTable[] = {
   { X86::ADD_FrST0 , X86::ADD_FPrST0  },
 
+  { X86::COMP_FST0r, X86::FCOMPP      },
+  { X86::COM_FIr   , X86::COM_FIPr    },
+  { X86::COM_FST0r , X86::COMP_FST0r  },
+
   { X86::DIVR_FrST0, X86::DIVR_FPrST0 },
   { X86::DIV_FrST0 , X86::DIV_FPrST0  },
 
@@ -841,7 +846,7 @@ void FPS::popStackAfter(MachineBasicBlock::iterator &I) {
   int Opcode = Lookup(PopTable, I->getOpcode());
   if (Opcode != -1) {
     I->setDesc(TII->get(Opcode));
-    if (Opcode == X86::UCOM_FPPr)
+    if (Opcode == X86::FCOMPP || Opcode == X86::UCOM_FPPr)
       I->RemoveOperand(0);
   } else {    // Insert an explicit pop
     I = BuildMI(*MBB, ++I, dl, TII->get(X86::ST_FPrr)).addReg(X86::ST0);
@@ -971,22 +976,23 @@ void FPS::shuffleStackTop(const unsigned char *FixStack,
 //===----------------------------------------------------------------------===//
 
 void FPS::handleCall(MachineBasicBlock::iterator &I) {
+  MachineInstr &MI = *I;
   unsigned STReturns = 0;
-  const MachineFunction* MF = I->getParent()->getParent();
 
-  for (const auto &MO : I->operands()) {
-    if (!MO.isReg())
+  for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
+    MachineOperand &Op = MI.getOperand(i);
+    if (!Op.isReg() || Op.getReg() < X86::FP0 || Op.getReg() > X86::FP6)
       continue;
 
-    unsigned R = MO.getReg() - X86::FP0;
+    assert(Op.isImplicit() && "Expected implicit def/use");
 
-    if (R < 8) {
-      if (MF->getFunction().getCallingConv() != CallingConv::X86_RegCall) {
-        assert(MO.isDef() && MO.isImplicit());
-      }
+    if (Op.isDef())
+      STReturns |= 1 << getFPReg(Op);
 
-      STReturns |= 1 << R;
-    }
+    // Remove the operand so that later passes don't see it.
+    MI.RemoveOperand(i);
+    --i;
+    --e;
   }
 
   unsigned N = countTrailingOnes(STReturns);

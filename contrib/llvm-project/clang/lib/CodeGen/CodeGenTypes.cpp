@@ -135,8 +135,8 @@ isSafeToConvert(const RecordDecl *RD, CodeGenTypes &CGT,
   // the class.
   if (const CXXRecordDecl *CRD = dyn_cast<CXXRecordDecl>(RD)) {
     for (const auto &I : CRD->bases())
-      if (!isSafeToConvert(I.getType()->getAs<RecordType>()->getDecl(),
-                           CGT, AlreadyChecked))
+      if (!isSafeToConvert(I.getType()->castAs<RecordType>()->getDecl(), CGT,
+                           AlreadyChecked))
         return false;
   }
 
@@ -402,7 +402,7 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
 #define NON_CANONICAL_TYPE(Class, Base) case Type::Class:
 #define DEPENDENT_TYPE(Class, Base) case Type::Class:
 #define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) case Type::Class:
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
     llvm_unreachable("Non-canonical or dependent types aren't possible.");
 
   case Type::Builtin: {
@@ -511,6 +511,22 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     case BuiltinType::OCLReserveID:
       ResultType = CGM.getOpenCLRuntime().convertOpenCLSpecificType(Ty);
       break;
+
+    // TODO: real CodeGen support for SVE types requires more infrastructure
+    // to be added first.  Report an error until then.
+#define SVE_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/AArch64SVEACLETypes.def"
+    {
+      unsigned DiagID = CGM.getDiags().getCustomDiagID(
+          DiagnosticsEngine::Error,
+          "cannot yet generate code for SVE type '%0'");
+      auto *BT = cast<BuiltinType>(Ty);
+      auto Name = BT->getName(CGM.getContext().getPrintingPolicy());
+      CGM.getDiags().Report(DiagID) << Name;
+      // Return something safe.
+      ResultType = llvm::IntegerType::get(getLLVMContext(), 32);
+      break;
+    }
 
     case BuiltinType::Dependent:
 #define BUILTIN_TYPE(Id, SingletonId)
@@ -728,8 +744,7 @@ llvm::StructType *CodeGenTypes::ConvertRecordDeclType(const RecordDecl *RD) {
   if (const CXXRecordDecl *CRD = dyn_cast<CXXRecordDecl>(RD)) {
     for (const auto &I : CRD->bases()) {
       if (I.isVirtual()) continue;
-
-      ConvertRecordDeclType(I.getType()->getAs<RecordType>()->getDecl());
+      ConvertRecordDeclType(I.getType()->castAs<RecordType>()->getDecl());
     }
   }
 

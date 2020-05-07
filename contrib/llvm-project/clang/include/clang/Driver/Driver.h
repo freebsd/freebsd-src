@@ -12,12 +12,14 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Driver/Action.h"
+#include "clang/Driver/Options.h"
 #include "clang/Driver/Phases.h"
 #include "clang/Driver/ToolChain.h"
 #include "clang/Driver/Types.h"
 #include "clang/Driver/Util.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/StringSaver.h"
 
@@ -55,8 +57,6 @@ enum LTOKind {
 /// Driver - Encapsulate logic for constructing compilation processes
 /// from a set of gcc-driver-like command line arguments.
 class Driver {
-  std::unique_ptr<llvm::opt::OptTable> Opts;
-
   DiagnosticsEngine &Diags;
 
   IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS;
@@ -65,7 +65,8 @@ class Driver {
     GCCMode,
     GXXMode,
     CPPMode,
-    CLMode
+    CLMode,
+    FlangMode
   } Mode;
 
   enum SaveTempsMode {
@@ -180,6 +181,10 @@ public:
   /// Whether the driver should follow cl.exe like behavior.
   bool IsCLMode() const { return Mode == CLMode; }
 
+  /// Whether the driver should invoke flang for fortran inputs.
+  /// Other modes fall back to calling gcc which in turn calls gfortran.
+  bool IsFlangMode() const { return Mode == FlangMode; }
+
   /// Only print tool bindings, don't build any jobs.
   unsigned CCCPrintBindings : 1;
 
@@ -198,6 +203,13 @@ public:
 
   /// Whether the driver is generating diagnostics for debugging purposes.
   unsigned CCGenDiagnostics : 1;
+
+  /// Pointer to the ExecuteCC1Tool function, if available.
+  /// When the clangDriver lib is used through clang.exe, this provides a
+  /// shortcut for executing the -cc1 command-line directly, in the same
+  /// process.
+  typedef int (*CC1ToolFunc)(SmallVectorImpl<const char *> &ArgV);
+  CC1ToolFunc CC1Main = nullptr;
 
 private:
   /// Raw target triple.
@@ -250,8 +262,16 @@ private:
 
   // getFinalPhase - Determine which compilation mode we are in and record
   // which option we used to determine the final phase.
+  // TODO: Much of what getFinalPhase returns are not actually true compiler
+  //       modes. Fold this functionality into Types::getCompilationPhases and
+  //       handleArguments.
   phases::ID getFinalPhase(const llvm::opt::DerivedArgList &DAL,
                            llvm::opt::Arg **FinalPhaseArg = nullptr) const;
+
+  // handleArguments - All code related to claiming and printing diagnostics
+  // related to arguments to the driver are done here.
+  void handleArguments(Compilation &C, llvm::opt::DerivedArgList &Args,
+                       const InputList &Inputs, ActionList &Actions) const;
 
   // Before executing jobs, sets up response files for commands that need them.
   void setUpResponseFiles(Compilation &C, Command &Cmd);
@@ -292,7 +312,7 @@ public:
 
   const std::string &getConfigFile() const { return ConfigFile; }
 
-  const llvm::opt::OptTable &getOpts() const { return *Opts; }
+  const llvm::opt::OptTable &getOpts() const { return getDriverOptTable(); }
 
   const DiagnosticsEngine &getDiags() const { return Diags; }
 
@@ -526,6 +546,10 @@ public:
   /// handle this action.
   bool ShouldUseClangCompiler(const JobAction &JA) const;
 
+  /// ShouldUseFlangCompiler - Should the flang compiler be used to
+  /// handle this action.
+  bool ShouldUseFlangCompiler(const JobAction &JA) const;
+
   /// Returns true if we are performing any kind of LTO.
   bool isUsingLTO() const { return LTOMode != LTOK_None; }
 
@@ -602,6 +626,9 @@ public:
 /// \return True if the last defined optimization level is -Ofast.
 /// And False otherwise.
 bool isOptimizationLevelFast(const llvm::opt::ArgList &Args);
+
+/// \return True if the argument combination will end up generating remarks.
+bool willEmitRemarks(const llvm::opt::ArgList &Args);
 
 } // end namespace driver
 } // end namespace clang

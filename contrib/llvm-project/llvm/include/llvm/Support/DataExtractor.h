@@ -11,6 +11,7 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/Error.h"
 
 namespace llvm {
 
@@ -42,6 +43,38 @@ class DataExtractor {
   uint8_t IsLittleEndian;
   uint8_t AddressSize;
 public:
+  /// A class representing a position in a DataExtractor, as well as any error
+  /// encountered during extraction. It enables one to extract a sequence of
+  /// values without error-checking and then checking for errors in bulk at the
+  /// end. The class holds an Error object, so failing to check the result of
+  /// the parse will result in a runtime error. The error flag is sticky and
+  /// will cause all subsequent extraction functions to fail without even
+  /// attempting to parse and without updating the Cursor offset. After clearing
+  /// the error flag, one can again use the Cursor object for parsing.
+  class Cursor {
+    uint64_t Offset;
+    Error Err;
+
+    friend class DataExtractor;
+
+  public:
+    /// Construct a cursor for extraction from the given offset.
+    explicit Cursor(uint64_t Offset) : Offset(Offset), Err(Error::success()) {}
+
+    /// Checks whether the cursor is valid (i.e. no errors were encountered). In
+    /// case of errors, this does not clear the error flag -- one must call
+    /// takeError() instead.
+    explicit operator bool() { return !Err; }
+
+    /// Return the current position of this Cursor. In the error state this is
+    /// the position of the Cursor before the first error was encountered.
+    uint64_t tell() const { return Offset; }
+
+    /// Return error contained inside this Cursor, if any. Clears the internal
+    /// Cursor state.
+    Error takeError() { return std::move(Err); }
+  };
+
   /// Construct with a buffer that is owned by the caller.
   ///
   /// This constructor allows us to use data that is owned by the
@@ -49,6 +82,11 @@ public:
   /// valid.
   DataExtractor(StringRef Data, bool IsLittleEndian, uint8_t AddressSize)
     : Data(Data), IsLittleEndian(IsLittleEndian), AddressSize(AddressSize) {}
+  DataExtractor(ArrayRef<uint8_t> Data, bool IsLittleEndian,
+                uint8_t AddressSize)
+      : Data(StringRef(reinterpret_cast<const char *>(Data.data()),
+                       Data.size())),
+        IsLittleEndian(IsLittleEndian), AddressSize(AddressSize) {}
 
   /// Get the data pointed to by this extractor.
   StringRef getData() const { return Data; }
@@ -79,17 +117,17 @@ public:
   ///     pointed to by \a offset_ptr is out of bounds, or if the
   ///     offset plus the length of the C string is out of bounds,
   ///     NULL will be returned.
-  const char *getCStr(uint32_t *offset_ptr) const;
+  const char *getCStr(uint64_t *offset_ptr) const;
 
-  /// Extract a C string from \a *OffsetPtr.
+  /// Extract a C string from \a *offset_ptr.
   ///
   /// Returns a StringRef for the C String from the data at the offset
-  /// pointed to by \a OffsetPtr. A variable length NULL terminated C
-  /// string will be extracted and the \a OffsetPtr will be
+  /// pointed to by \a offset_ptr. A variable length NULL terminated C
+  /// string will be extracted and the \a offset_ptr will be
   /// updated with the offset of the byte that follows the NULL
   /// terminator byte.
   ///
-  /// \param[in,out] OffsetPtr
+  /// \param[in,out] offset_ptr
   ///     A pointer to an offset within the data that will be advanced
   ///     by the appropriate number of bytes if the value is extracted
   ///     correctly. If the offset is out of bounds or there are not
@@ -98,10 +136,10 @@ public:
   ///
   /// \return
   ///     A StringRef for the C string value in the data. If the offset
-  ///     pointed to by \a OffsetPtr is out of bounds, or if the
+  ///     pointed to by \a offset_ptr is out of bounds, or if the
   ///     offset plus the length of the C string is out of bounds,
   ///     a default-initialized StringRef will be returned.
-  StringRef getCStrRef(uint32_t *OffsetPtr) const;
+  StringRef getCStrRef(uint64_t *offset_ptr) const;
 
   /// Extract an unsigned integer of size \a byte_size from \a
   /// *offset_ptr.
@@ -124,10 +162,24 @@ public:
   /// @param[in] byte_size
   ///     The size in byte of the integer to extract.
   ///
+  /// @param[in,out] Err
+  ///     A pointer to an Error object. Upon return the Error object is set to
+  ///     indicate the result (success/failure) of the function. If the Error
+  ///     object is already set when calling this function, no extraction is
+  ///     performed.
+  ///
   /// @return
   ///     The unsigned integer value that was extracted, or zero on
   ///     failure.
-  uint64_t getUnsigned(uint32_t *offset_ptr, uint32_t byte_size) const;
+  uint64_t getUnsigned(uint64_t *offset_ptr, uint32_t byte_size,
+                       Error *Err = nullptr) const;
+
+  /// Extract an unsigned integer of the given size from the location given by
+  /// the cursor. In case of an extraction error, or if the cursor is already in
+  /// an error state, zero is returned.
+  uint64_t getUnsigned(Cursor &C, uint32_t Size) const {
+    return getUnsigned(&C.Offset, Size, &C.Err);
+  }
 
   /// Extract an signed integer of size \a byte_size from \a *offset_ptr.
   ///
@@ -152,7 +204,7 @@ public:
   /// @return
   ///     The sign extended signed integer value that was extracted,
   ///     or zero on failure.
-  int64_t getSigned(uint32_t *offset_ptr, uint32_t size) const;
+  int64_t getSigned(uint64_t *offset_ptr, uint32_t size) const;
 
   //------------------------------------------------------------------
   /// Extract an pointer from \a *offset_ptr.
@@ -171,9 +223,14 @@ public:
   ///
   /// @return
   ///     The extracted pointer value as a 64 integer.
-  uint64_t getAddress(uint32_t *offset_ptr) const {
+  uint64_t getAddress(uint64_t *offset_ptr) const {
     return getUnsigned(offset_ptr, AddressSize);
   }
+
+  /// Extract a pointer-sized unsigned integer from the location given by the
+  /// cursor. In case of an extraction error, or if the cursor is already in
+  /// an error state, zero is returned.
+  uint64_t getAddress(Cursor &C) const { return getUnsigned(C, AddressSize); }
 
   /// Extract a uint8_t value from \a *offset_ptr.
   ///
@@ -187,9 +244,20 @@ public:
   ///     enough bytes to extract this value, the offset will be left
   ///     unmodified.
   ///
+  /// @param[in,out] Err
+  ///     A pointer to an Error object. Upon return the Error object is set to
+  ///     indicate the result (success/failure) of the function. If the Error
+  ///     object is already set when calling this function, no extraction is
+  ///     performed.
+  ///
   /// @return
   ///     The extracted uint8_t value.
-  uint8_t getU8(uint32_t *offset_ptr) const;
+  uint8_t getU8(uint64_t *offset_ptr, Error *Err = nullptr) const;
+
+  /// Extract a single uint8_t value from the location given by the cursor. In
+  /// case of an extraction error, or if the cursor is already in an error
+  /// state, zero is returned.
+  uint8_t getU8(Cursor &C) const { return getU8(&C.Offset, &C.Err); }
 
   /// Extract \a count uint8_t values from \a *offset_ptr.
   ///
@@ -214,7 +282,27 @@ public:
   /// @return
   ///     \a dst if all values were properly extracted and copied,
   ///     NULL otherise.
-  uint8_t *getU8(uint32_t *offset_ptr, uint8_t *dst, uint32_t count) const;
+  uint8_t *getU8(uint64_t *offset_ptr, uint8_t *dst, uint32_t count) const;
+
+  /// Extract \a Count uint8_t values from the location given by the cursor and
+  /// store them into the destination buffer. In case of an extraction error, or
+  /// if the cursor is already in an error state, a nullptr is returned and the
+  /// destination buffer is left unchanged.
+  uint8_t *getU8(Cursor &C, uint8_t *Dst, uint32_t Count) const;
+
+  /// Extract \a Count uint8_t values from the location given by the cursor and
+  /// store them into the destination vector. The vector is resized to fit the
+  /// extracted data. In case of an extraction error, or if the cursor is
+  /// already in an error state, the destination vector is left unchanged and
+  /// cursor is placed into an error state.
+  void getU8(Cursor &C, SmallVectorImpl<uint8_t> &Dst, uint32_t Count) const {
+    if (isValidOffsetForDataOfSize(C.Offset, Count))
+      Dst.resize(Count);
+
+    // This relies on the fact that getU8 will not attempt to write to the
+    // buffer if isValidOffsetForDataOfSize(C.Offset, Count) is false.
+    getU8(C, Dst.data(), Count);
+  }
 
   //------------------------------------------------------------------
   /// Extract a uint16_t value from \a *offset_ptr.
@@ -229,10 +317,21 @@ public:
   ///     enough bytes to extract this value, the offset will be left
   ///     unmodified.
   ///
+  /// @param[in,out] Err
+  ///     A pointer to an Error object. Upon return the Error object is set to
+  ///     indicate the result (success/failure) of the function. If the Error
+  ///     object is already set when calling this function, no extraction is
+  ///     performed.
+  ///
   /// @return
   ///     The extracted uint16_t value.
   //------------------------------------------------------------------
-  uint16_t getU16(uint32_t *offset_ptr) const;
+  uint16_t getU16(uint64_t *offset_ptr, Error *Err = nullptr) const;
+
+  /// Extract a single uint16_t value from the location given by the cursor. In
+  /// case of an extraction error, or if the cursor is already in an error
+  /// state, zero is returned.
+  uint16_t getU16(Cursor &C) const { return getU16(&C.Offset, &C.Err); }
 
   /// Extract \a count uint16_t values from \a *offset_ptr.
   ///
@@ -257,7 +356,7 @@ public:
   /// @return
   ///     \a dst if all values were properly extracted and copied,
   ///     NULL otherise.
-  uint16_t *getU16(uint32_t *offset_ptr, uint16_t *dst, uint32_t count) const;
+  uint16_t *getU16(uint64_t *offset_ptr, uint16_t *dst, uint32_t count) const;
 
   /// Extract a 24-bit unsigned value from \a *offset_ptr and return it
   /// in a uint32_t.
@@ -274,7 +373,7 @@ public:
   ///
   /// @return
   ///     The extracted 24-bit value represented in a uint32_t.
-  uint32_t getU24(uint32_t *offset_ptr) const;
+  uint32_t getU24(uint64_t *offset_ptr) const;
 
   /// Extract a uint32_t value from \a *offset_ptr.
   ///
@@ -288,9 +387,20 @@ public:
   ///     enough bytes to extract this value, the offset will be left
   ///     unmodified.
   ///
+  /// @param[in,out] Err
+  ///     A pointer to an Error object. Upon return the Error object is set to
+  ///     indicate the result (success/failure) of the function. If the Error
+  ///     object is already set when calling this function, no extraction is
+  ///     performed.
+  ///
   /// @return
   ///     The extracted uint32_t value.
-  uint32_t getU32(uint32_t *offset_ptr) const;
+  uint32_t getU32(uint64_t *offset_ptr, Error *Err = nullptr) const;
+
+  /// Extract a single uint32_t value from the location given by the cursor. In
+  /// case of an extraction error, or if the cursor is already in an error
+  /// state, zero is returned.
+  uint32_t getU32(Cursor &C) const { return getU32(&C.Offset, &C.Err); }
 
   /// Extract \a count uint32_t values from \a *offset_ptr.
   ///
@@ -315,7 +425,7 @@ public:
   /// @return
   ///     \a dst if all values were properly extracted and copied,
   ///     NULL otherise.
-  uint32_t *getU32(uint32_t *offset_ptr, uint32_t *dst, uint32_t count) const;
+  uint32_t *getU32(uint64_t *offset_ptr, uint32_t *dst, uint32_t count) const;
 
   /// Extract a uint64_t value from \a *offset_ptr.
   ///
@@ -329,9 +439,20 @@ public:
   ///     enough bytes to extract this value, the offset will be left
   ///     unmodified.
   ///
+  /// @param[in,out] Err
+  ///     A pointer to an Error object. Upon return the Error object is set to
+  ///     indicate the result (success/failure) of the function. If the Error
+  ///     object is already set when calling this function, no extraction is
+  ///     performed.
+  ///
   /// @return
   ///     The extracted uint64_t value.
-  uint64_t getU64(uint32_t *offset_ptr) const;
+  uint64_t getU64(uint64_t *offset_ptr, Error *Err = nullptr) const;
+
+  /// Extract a single uint64_t value from the location given by the cursor. In
+  /// case of an extraction error, or if the cursor is already in an error
+  /// state, zero is returned.
+  uint64_t getU64(Cursor &C) const { return getU64(&C.Offset, &C.Err); }
 
   /// Extract \a count uint64_t values from \a *offset_ptr.
   ///
@@ -356,7 +477,7 @@ public:
   /// @return
   ///     \a dst if all values were properly extracted and copied,
   ///     NULL otherise.
-  uint64_t *getU64(uint32_t *offset_ptr, uint64_t *dst, uint32_t count) const;
+  uint64_t *getU64(uint64_t *offset_ptr, uint64_t *dst, uint32_t count) const;
 
   /// Extract a signed LEB128 value from \a *offset_ptr.
   ///
@@ -374,7 +495,7 @@ public:
   ///
   /// @return
   ///     The extracted signed integer value.
-  int64_t getSLEB128(uint32_t *offset_ptr) const;
+  int64_t getSLEB128(uint64_t *offset_ptr) const;
 
   /// Extract a unsigned LEB128 value from \a *offset_ptr.
   ///
@@ -390,23 +511,44 @@ public:
   ///     enough bytes to extract this value, the offset will be left
   ///     unmodified.
   ///
+  /// @param[in,out] Err
+  ///     A pointer to an Error object. Upon return the Error object is set to
+  ///     indicate the result (success/failure) of the function. If the Error
+  ///     object is already set when calling this function, no extraction is
+  ///     performed.
+  ///
   /// @return
   ///     The extracted unsigned integer value.
-  uint64_t getULEB128(uint32_t *offset_ptr) const;
+  uint64_t getULEB128(uint64_t *offset_ptr, llvm::Error *Err = nullptr) const;
+
+  /// Extract an unsigned ULEB128 value from the location given by the cursor.
+  /// In case of an extraction error, or if the cursor is already in an error
+  /// state, zero is returned.
+  uint64_t getULEB128(Cursor &C) const { return getULEB128(&C.Offset, &C.Err); }
+
+  /// Advance the Cursor position by the given number of bytes. No-op if the
+  /// cursor is in an error state.
+  void skip(Cursor &C, uint64_t Length) const;
+
+  /// Return true iff the cursor is at the end of the buffer, regardless of the
+  /// error state of the cursor. The only way both eof and error states can be
+  /// true is if one attempts a read while the cursor is at the very end of the
+  /// data buffer.
+  bool eof(const Cursor &C) const { return size() == C.Offset; }
 
   /// Test the validity of \a offset.
   ///
   /// @return
   ///     \b true if \a offset is a valid offset into the data in this
   ///     object, \b false otherwise.
-  bool isValidOffset(uint32_t offset) const { return Data.size() > offset; }
+  bool isValidOffset(uint64_t offset) const { return size() > offset; }
 
   /// Test the availability of \a length bytes of data from \a offset.
   ///
   /// @return
   ///     \b true if \a offset is a valid offset and there are \a
   ///     length bytes available at that offset, \b false otherwise.
-  bool isValidOffsetForDataOfSize(uint32_t offset, uint32_t length) const {
+  bool isValidOffsetForDataOfSize(uint64_t offset, uint64_t length) const {
     return offset + length >= offset && isValidOffset(offset + length - 1);
   }
 
@@ -417,9 +559,18 @@ public:
   ///     \b true if \a offset is a valid offset and there are enough
   ///     bytes for a pointer available at that offset, \b false
   ///     otherwise.
-  bool isValidOffsetForAddress(uint32_t offset) const {
+  bool isValidOffsetForAddress(uint64_t offset) const {
     return isValidOffsetForDataOfSize(offset, AddressSize);
   }
+
+  /// Return the number of bytes in the underlying buffer.
+  size_t size() const { return Data.size(); }
+
+protected:
+  // Make it possible for subclasses to access these fields without making them
+  // public.
+  static uint64_t &getOffset(Cursor &C) { return C.Offset; }
+  static Error &getError(Cursor &C) { return C.Err; }
 };
 
 } // namespace llvm

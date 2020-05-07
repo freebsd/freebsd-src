@@ -26,7 +26,7 @@ class MCStreamer;
 class MCSymbol;
 
 class LLVM_LIBRARY_VISIBILITY X86AsmPrinter : public AsmPrinter {
-  const X86Subtarget *Subtarget;
+  const X86Subtarget *Subtarget = nullptr;
   StackMaps SM;
   FaultMaps FM;
   std::unique_ptr<MCCodeEmitter> CodeEmitter;
@@ -60,7 +60,7 @@ class LLVM_LIBRARY_VISIBILITY X86AsmPrinter : public AsmPrinter {
     // to emit any necessary padding-NOPs.
     void emitShadowPadding(MCStreamer &OutStreamer, const MCSubtargetInfo &STI);
   private:
-    const MachineFunction *MF;
+    const MachineFunction *MF = nullptr;
     bool InShadow = false;
 
     // RequiredShadowSize holds the length of the shadow specified in the most
@@ -112,7 +112,7 @@ class LLVM_LIBRARY_VISIBILITY X86AsmPrinter : public AsmPrinter {
   void PrintMemReference(const MachineInstr *MI, unsigned OpNo, raw_ostream &O,
                          const char *Modifier);
   void PrintIntelMemReference(const MachineInstr *MI, unsigned OpNo,
-                              raw_ostream &O);
+                              raw_ostream &O, const char *Modifier);
 
 public:
   X86AsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer);

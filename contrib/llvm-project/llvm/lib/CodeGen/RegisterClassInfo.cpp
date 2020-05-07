@@ -59,7 +59,7 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
   if (Update || CSR != CalleeSavedRegs) {
     // Build a CSRAlias map. Every CSR alias saves the last
     // overlapping CSR.
-    CalleeSavedAliases.resize(TRI->getNumRegs(), 0);
+    CalleeSavedAliases.assign(TRI->getNumRegs(), 0);
     for (const MCPhysReg *I = CSR; *I; ++I)
       for (MCRegAliasIterator AI(*I, TRI, true); AI.isValid(); ++AI)
         CalleeSavedAliases[*AI] = *I;
@@ -186,6 +186,7 @@ unsigned RegisterClassInfo::computePSetLimit(unsigned Idx) const {
       NumRCUnits = NUnits;
     }
   }
+  assert(RC && "Failed to find register class");
   compute(RC);
   unsigned NReserved = RC->getNumRegs() - getNumAllocatableRegs(RC);
   return TRI->getRegPressureSetLimit(*MF, Idx) -

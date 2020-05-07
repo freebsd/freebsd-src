@@ -12,7 +12,18 @@
 #include "SymbolFileDWARF.h"
 
 class SymbolFileDWARFDwo : public SymbolFileDWARF {
+  /// LLVM RTTI support.
+  static char ID;
+
 public:
+  /// LLVM RTTI support.
+  /// \{
+  bool isA(const void *ClassID) const override {
+    return ClassID == &ID || SymbolFileDWARF::isA(ClassID);
+  }
+  static bool classof(const SymbolFile *obj) { return obj->isA(&ID); }
+  /// \}
+
   SymbolFileDWARFDwo(lldb::ObjectFileSP objfile, DWARFCompileUnit &dwarf_cu);
 
   ~SymbolFileDWARFDwo() override = default;
@@ -24,23 +35,14 @@ public:
   DWARFUnit *
   GetDWARFCompileUnit(lldb_private::CompileUnit *comp_unit) override;
 
-  lldb_private::DWARFExpression::LocationListFormat
-  GetLocationListFormat() const override;
-
   size_t GetObjCMethodDIEOffsets(lldb_private::ConstString class_name,
                                  DIEArray &method_die_offsets) override;
 
-  lldb_private::TypeSystem *
+  llvm::Expected<lldb_private::TypeSystem &>
   GetTypeSystemForLanguage(lldb::LanguageType language) override;
 
   DWARFDIE
   GetDIE(const DIERef &die_ref) override;
-
-  std::unique_ptr<SymbolFileDWARFDwo>
-  GetDwoSymbolFileForCompileUnit(DWARFUnit &dwarf_cu,
-                                 const DWARFDebugInfoEntry &cu_die) override {
-    return nullptr;
-  }
 
   DWARFCompileUnit *GetBaseCompileUnit() override { return &m_base_dwarf_cu; }
 
@@ -71,7 +73,6 @@ protected:
 
   DWARFCompileUnit *ComputeCompileUnit();
 
-  lldb::ObjectFileSP m_obj_file_sp;
   DWARFCompileUnit &m_base_dwarf_cu;
   DWARFCompileUnit *m_cu = nullptr;
 };

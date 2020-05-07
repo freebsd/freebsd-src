@@ -14,6 +14,7 @@
 #include "lldb/lldb-forward.h"
 #include "lldb/lldb-types.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/Support/DataExtractor.h"
 
 #include <cassert>
 #include <stdint.h>
@@ -167,9 +168,8 @@ public:
   /// the beginning of each line and can be offset by base address \a
   /// base_addr. \a num_per_line objects will be displayed on each line.
   ///
-  /// \param[in] s
-  ///     The stream to dump the output to. If nullptr the output will
-  ///     be dumped to Log().
+  /// \param[in] log
+  ///     The log to dump the output to.
   ///
   /// \param[in] offset
   ///     The offset into the data at which to start dumping.
@@ -188,16 +188,11 @@ public:
   ///     The type of objects to use when dumping data from this
   ///     object. See DataExtractor::Type.
   ///
-  /// \param[in] type_format
-  ///     The optional format to use for the \a type objects. If this
-  ///     is nullptr, the default format for the \a type will be used.
-  ///
   /// \return
   ///     The offset at which dumping ended.
   lldb::offset_t PutToLog(Log *log, lldb::offset_t offset,
                           lldb::offset_t length, uint64_t base_addr,
-                          uint32_t num_per_line, Type type,
-                          const char *type_format = nullptr) const;
+                          uint32_t num_per_line, Type type) const;
 
   /// Extract an arbitrary number of bytes in the specified byte order.
   ///
@@ -362,30 +357,29 @@ public:
   /// when say copying a partial data value into a register.
   ///
   /// \param[in] src_offset
-  ///     The offset into this data from which to start copying an
-  ///     endian entity
+  ///     The offset into this data from which to start copying an endian
+  ///     entity
   ///
   /// \param[in] src_len
-  ///     The length of the endian data to copy from this object
-  ///     into the \a dst object
+  ///     The length of the endian data to copy from this object into the \a
+  ///     dst object
   ///
   /// \param[out] dst
-  ///     The buffer where to place the endian data. The data might
-  ///     need to be byte swapped (and appropriately padded with
-  ///     zeroes if \a src_len != \a dst_len) if \a dst_byte_order
-  ///     does not match the byte order in this object.
+  ///     The buffer where to place the endian data. The data might need to be
+  ///     byte swapped (and appropriately padded with zeroes if \a src_len !=
+  ///     \a dst_len) if \a dst_byte_order does not match the byte order in
+  ///     this object.
   ///
   /// \param[in] dst_len
-  ///     The length number of bytes that the endian value will
-  ///     occupy is \a dst.
+  ///     The length number of bytes that the endian value will occupy is \a
+  ///     dst.
   ///
-  /// \param[in] byte_order
-  ///     The byte order that the endian value should be in the \a dst
-  ///     buffer.
+  /// \param[in] dst_byte_order
+  ///     The byte order that the endian value should be in the \a dst buffer.
   ///
   /// \return
-  ///     Returns the number of bytes that were copied, or zero if
-  ///     anything goes wrong.
+  ///     Returns the number of bytes that were copied, or zero if anything
+  ///     goes wrong.
   lldb::offset_t CopyByteOrderedData(lldb::offset_t src_offset,
                                      lldb::offset_t src_len, void *dst,
                                      lldb::offset_t dst_len,
@@ -520,7 +514,7 @@ public:
   ///     enough bytes to extract this value, the offset will be left
   ///     unmodified.
   ///
-  /// \param[in] byte_size
+  /// \param[in] size
   ///     The size in byte of the integer to extract.
   ///
   /// \param[in] bitfield_bit_size
@@ -558,7 +552,7 @@ public:
   ///     enough bytes to extract this value, the offset will be left
   ///     unmodified.
   ///
-  /// \param[in] byte_size
+  /// \param[in] size
   ///     The size in bytes of the integer to extract.
   ///
   /// \param[in] bitfield_bit_size
@@ -956,14 +950,14 @@ public:
   ///     unmodified.
   ///
   /// \return
-  //      The number of bytes consumed during the extraction.
+  ///     The number of bytes consumed during the extraction.
   uint32_t Skip_LEB128(lldb::offset_t *offset_ptr) const;
 
   /// Test the validity of \a offset.
   ///
   /// \return
-  ///     \b true if \a offset is a valid offset into the data in this
-  ///     object, \b false otherwise.
+  ///     true if \a offset is a valid offset into the data in this object,
+  ///     false otherwise.
   bool ValidOffset(lldb::offset_t offset) const {
     return offset < GetByteSize();
   }
@@ -971,8 +965,8 @@ public:
   /// Test the availability of \a length bytes of data from \a offset.
   ///
   /// \return
-  ///     \b true if \a offset is a valid offset and there are \a
-  ///     length bytes available at that offset, \b false otherwise.
+  ///     true if \a offset is a valid offset and there are \a
+  ///     length bytes available at that offset, false otherwise.
   bool ValidOffsetForDataOfSize(lldb::offset_t offset,
                                 lldb::offset_t length) const {
     return length <= BytesLeft(offset);
@@ -995,6 +989,11 @@ public:
 
   llvm::ArrayRef<uint8_t> GetData() const {
     return {GetDataStart(), size_t(GetByteSize())};
+  }
+
+  llvm::DataExtractor GetAsLLVM() const {
+    return {GetData(), GetByteOrder() == lldb::eByteOrderLittle,
+            uint8_t(GetAddressByteSize())};
   }
 
 protected:

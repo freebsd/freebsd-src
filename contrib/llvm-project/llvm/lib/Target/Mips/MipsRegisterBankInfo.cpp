@@ -12,6 +12,7 @@
 
 #include "MipsRegisterBankInfo.h"
 #include "MipsInstrInfo.h"
+#include "MipsTargetMachine.h"
 #include "llvm/CodeGen/GlobalISel/GISelChangeObserver.h"
 #include "llvm/CodeGen/GlobalISel/LegalizationArtifactCombiner.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerHelper.h"
@@ -27,20 +28,23 @@ enum PartialMappingIdx {
   PMI_GPR,
   PMI_SPR,
   PMI_DPR,
+  PMI_MSA,
   PMI_Min = PMI_GPR,
 };
 
 RegisterBankInfo::PartialMapping PartMappings[]{
     {0, 32, GPRBRegBank},
     {0, 32, FPRBRegBank},
-    {0, 64, FPRBRegBank}
+    {0, 64, FPRBRegBank},
+    {0, 128, FPRBRegBank}
 };
 
 enum ValueMappingIdx {
     InvalidIdx = 0,
     GPRIdx = 1,
     SPRIdx = 4,
-    DPRIdx = 7
+    DPRIdx = 7,
+    MSAIdx = 10
 };
 
 RegisterBankInfo::ValueMapping ValueMappings[] = {
@@ -50,14 +54,18 @@ RegisterBankInfo::ValueMapping ValueMappings[] = {
     {&PartMappings[PMI_GPR - PMI_Min], 1},
     {&PartMappings[PMI_GPR - PMI_Min], 1},
     {&PartMappings[PMI_GPR - PMI_Min], 1},
-    // up to 3 ops operands FPRs - single precission
+    // up to 3 operands in FPRs - single precission
     {&PartMappings[PMI_SPR - PMI_Min], 1},
     {&PartMappings[PMI_SPR - PMI_Min], 1},
     {&PartMappings[PMI_SPR - PMI_Min], 1},
-    // up to 3 ops operands FPRs - double precission
+    // up to 3 operands in FPRs - double precission
     {&PartMappings[PMI_DPR - PMI_Min], 1},
     {&PartMappings[PMI_DPR - PMI_Min], 1},
-    {&PartMappings[PMI_DPR - PMI_Min], 1}
+    {&PartMappings[PMI_DPR - PMI_Min], 1},
+    // up to 3 operands in FPRs - MSA
+    {&PartMappings[PMI_MSA - PMI_Min], 1},
+    {&PartMappings[PMI_MSA - PMI_Min], 1},
+    {&PartMappings[PMI_MSA - PMI_Min], 1}
 };
 
 } // end namespace Mips
@@ -68,8 +76,9 @@ using namespace llvm;
 MipsRegisterBankInfo::MipsRegisterBankInfo(const TargetRegisterInfo &TRI)
     : MipsGenRegisterBankInfo() {}
 
-const RegisterBank &MipsRegisterBankInfo::getRegBankFromRegClass(
-    const TargetRegisterClass &RC) const {
+const RegisterBank &
+MipsRegisterBankInfo::getRegBankFromRegClass(const TargetRegisterClass &RC,
+                                             LLT) const {
   using namespace Mips;
 
   switch (RC.getID()) {
@@ -86,6 +95,10 @@ const RegisterBank &MipsRegisterBankInfo::getRegBankFromRegClass(
   case Mips::FGR32RegClassID:
   case Mips::FGR64RegClassID:
   case Mips::AFGR64RegClassID:
+  case Mips::MSA128BRegClassID:
+  case Mips::MSA128HRegClassID:
+  case Mips::MSA128WRegClassID:
+  case Mips::MSA128DRegClassID:
     return getRegBank(Mips::FPRBRegBankID);
   default:
     llvm_unreachable("Register class not supported");
@@ -149,6 +162,7 @@ static bool isAmbiguous(unsigned Opc) {
   case TargetOpcode::G_STORE:
   case TargetOpcode::G_PHI:
   case TargetOpcode::G_SELECT:
+  case TargetOpcode::G_IMPLICIT_DEF:
     return true;
   default:
     return false;
@@ -163,8 +177,7 @@ void MipsRegisterBankInfo::AmbiguousRegDefUseContainer::addDefUses(
     MachineInstr *NonCopyInstr = skipCopiesOutgoing(&UseMI);
     // Copy with many uses.
     if (NonCopyInstr->getOpcode() == TargetOpcode::COPY &&
-        !TargetRegisterInfo::isPhysicalRegister(
-            NonCopyInstr->getOperand(0).getReg()))
+        !Register::isPhysicalRegister(NonCopyInstr->getOperand(0).getReg()))
       addDefUses(NonCopyInstr->getOperand(0).getReg(), MRI);
     else
       DefUses.push_back(skipCopiesOutgoing(&UseMI));
@@ -186,7 +199,7 @@ MipsRegisterBankInfo::AmbiguousRegDefUseContainer::skipCopiesOutgoing(
   const MachineRegisterInfo &MRI = MF.getRegInfo();
   MachineInstr *Ret = MI;
   while (Ret->getOpcode() == TargetOpcode::COPY &&
-         !TargetRegisterInfo::isPhysicalRegister(Ret->getOperand(0).getReg()) &&
+         !Register::isPhysicalRegister(Ret->getOperand(0).getReg()) &&
          MRI.hasOneUse(Ret->getOperand(0).getReg())) {
     Ret = &(*MRI.use_instr_begin(Ret->getOperand(0).getReg()));
   }
@@ -200,7 +213,7 @@ MipsRegisterBankInfo::AmbiguousRegDefUseContainer::skipCopiesIncoming(
   const MachineRegisterInfo &MRI = MF.getRegInfo();
   MachineInstr *Ret = MI;
   while (Ret->getOpcode() == TargetOpcode::COPY &&
-         !TargetRegisterInfo::isPhysicalRegister(Ret->getOperand(1).getReg()))
+         !Register::isPhysicalRegister(Ret->getOperand(1).getReg()))
     Ret = MRI.getVRegDef(Ret->getOperand(1).getReg());
   return Ret;
 }
@@ -231,6 +244,9 @@ MipsRegisterBankInfo::AmbiguousRegDefUseContainer::AmbiguousRegDefUseContainer(
     addUseDef(MI->getOperand(2).getReg(), MRI);
     addUseDef(MI->getOperand(3).getReg(), MRI);
   }
+
+  if (MI->getOpcode() == TargetOpcode::G_IMPLICIT_DEF)
+    addDefUses(MI->getOperand(0).getReg(), MRI);
 }
 
 bool MipsRegisterBankInfo::TypeInfoForMF::visit(
@@ -318,8 +334,7 @@ void MipsRegisterBankInfo::TypeInfoForMF::setTypes(const MachineInstr *MI,
 
 void MipsRegisterBankInfo::TypeInfoForMF::setTypesAccordingToPhysicalRegister(
     const MachineInstr *MI, const MachineInstr *CopyInst, unsigned Op) {
-  assert((TargetRegisterInfo::isPhysicalRegister(
-             CopyInst->getOperand(Op).getReg())) &&
+  assert((Register::isPhysicalRegister(CopyInst->getOperand(Op).getReg())) &&
          "Copies of non physical registers should not be considered here.\n");
 
   const MachineFunction &MF = *CopyInst->getMF();
@@ -353,6 +368,31 @@ void MipsRegisterBankInfo::TypeInfoForMF::cleanupIfNewFunction(
   }
 }
 
+static const MipsRegisterBankInfo::ValueMapping *
+getMSAMapping(const MachineFunction &MF) {
+  assert(static_cast<const MipsSubtarget &>(MF.getSubtarget()).hasMSA() &&
+         "MSA mapping not available on target without MSA.");
+  return &Mips::ValueMappings[Mips::MSAIdx];
+}
+
+static const MipsRegisterBankInfo::ValueMapping *getFprbMapping(unsigned Size) {
+  return Size == 32 ? &Mips::ValueMappings[Mips::SPRIdx]
+                    : &Mips::ValueMappings[Mips::DPRIdx];
+}
+
+static const unsigned CustomMappingID = 1;
+
+// Only 64 bit mapping is available in fprb and will be marked as custom, i.e.
+// will be split into two 32 bit registers in gprb.
+static const MipsRegisterBankInfo::ValueMapping *
+getGprbOrCustomMapping(unsigned Size, unsigned &MappingID) {
+  if (Size == 32)
+    return &Mips::ValueMappings[Mips::GPRIdx];
+
+  MappingID = CustomMappingID;
+  return &Mips::ValueMappings[Mips::DPRIdx];
+}
+
 const RegisterBankInfo::InstructionMapping &
 MipsRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
 
@@ -377,87 +417,82 @@ MipsRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   unsigned NumOperands = MI.getNumOperands();
   const ValueMapping *OperandsMapping = &Mips::ValueMappings[Mips::GPRIdx];
   unsigned MappingID = DefaultMappingID;
-  const unsigned CustomMappingID = 1;
+
+  // Check if LLT sizes match sizes of available register banks.
+  for (const MachineOperand &Op : MI.operands()) {
+    if (Op.isReg()) {
+      LLT RegTy = MRI.getType(Op.getReg());
+
+      if (RegTy.isScalar() &&
+          (RegTy.getSizeInBits() != 32 && RegTy.getSizeInBits() != 64))
+        return getInvalidInstructionMapping();
+
+      if (RegTy.isVector() && RegTy.getSizeInBits() != 128)
+        return getInvalidInstructionMapping();
+    }
+  }
+
+  const LLT Op0Ty = MRI.getType(MI.getOperand(0).getReg());
+  unsigned Op0Size = Op0Ty.getSizeInBits();
+  InstType InstTy = InstType::Integer;
 
   switch (Opc) {
   case G_TRUNC:
-  case G_ADD:
-  case G_SUB:
-  case G_MUL:
   case G_UMULH:
   case G_ZEXTLOAD:
   case G_SEXTLOAD:
-  case G_GEP:
+  case G_PTR_ADD:
+  case G_INTTOPTR:
+  case G_PTRTOINT:
   case G_AND:
   case G_OR:
   case G_XOR:
   case G_SHL:
   case G_ASHR:
   case G_LSHR:
-  case G_SDIV:
-  case G_UDIV:
-  case G_SREM:
-  case G_UREM:
+  case G_BRINDIRECT:
+  case G_VASTART:
+  case G_BSWAP:
     OperandsMapping = &Mips::ValueMappings[Mips::GPRIdx];
     break;
-  case G_LOAD: {
-    unsigned Size = MRI.getType(MI.getOperand(0).getReg()).getSizeInBits();
-    InstType InstTy = InstType::Integer;
-    if (!MRI.getType(MI.getOperand(0).getReg()).isPointer()) {
-      InstTy = TI.determineInstType(&MI);
+  case G_ADD:
+  case G_SUB:
+  case G_MUL:
+  case G_SDIV:
+  case G_SREM:
+  case G_UDIV:
+  case G_UREM:
+    OperandsMapping = &Mips::ValueMappings[Mips::GPRIdx];
+    if (Op0Size == 128)
+      OperandsMapping = getMSAMapping(MF);
+    break;
+  case G_STORE:
+  case G_LOAD:
+    if (Op0Size == 128) {
+      OperandsMapping = getOperandsMapping(
+          {getMSAMapping(MF), &Mips::ValueMappings[Mips::GPRIdx]});
+      break;
     }
+
+    if (!Op0Ty.isPointer())
+      InstTy = TI.determineInstType(&MI);
 
     if (InstTy == InstType::FloatingPoint ||
-        (Size == 64 && InstTy == InstType::Ambiguous)) { // fprb
+        (Op0Size == 64 && InstTy == InstType::Ambiguous))
+      OperandsMapping = getOperandsMapping(
+          {getFprbMapping(Op0Size), &Mips::ValueMappings[Mips::GPRIdx]});
+    else
       OperandsMapping =
-          getOperandsMapping({Size == 32 ? &Mips::ValueMappings[Mips::SPRIdx]
-                                         : &Mips::ValueMappings[Mips::DPRIdx],
+          getOperandsMapping({getGprbOrCustomMapping(Op0Size, MappingID),
                               &Mips::ValueMappings[Mips::GPRIdx]});
-      break;
-    } else { // gprb
-      OperandsMapping =
-          getOperandsMapping({Size <= 32 ? &Mips::ValueMappings[Mips::GPRIdx]
-                                         : &Mips::ValueMappings[Mips::DPRIdx],
-                              &Mips::ValueMappings[Mips::GPRIdx]});
-      if (Size == 64)
-        MappingID = CustomMappingID;
-    }
 
     break;
-  }
-  case G_STORE: {
-    unsigned Size = MRI.getType(MI.getOperand(0).getReg()).getSizeInBits();
-    InstType InstTy = InstType::Integer;
-    if (!MRI.getType(MI.getOperand(0).getReg()).isPointer()) {
+  case G_PHI:
+    if (!Op0Ty.isPointer())
       InstTy = TI.determineInstType(&MI);
-    }
-
-    if (InstTy == InstType::FloatingPoint ||
-        (Size == 64 && InstTy == InstType::Ambiguous)) { // fprb
-      OperandsMapping =
-          getOperandsMapping({Size == 32 ? &Mips::ValueMappings[Mips::SPRIdx]
-                                         : &Mips::ValueMappings[Mips::DPRIdx],
-                              &Mips::ValueMappings[Mips::GPRIdx]});
-      break;
-    } else { // gprb
-      OperandsMapping =
-          getOperandsMapping({Size <= 32 ? &Mips::ValueMappings[Mips::GPRIdx]
-                                         : &Mips::ValueMappings[Mips::DPRIdx],
-                              &Mips::ValueMappings[Mips::GPRIdx]});
-      if (Size == 64)
-        MappingID = CustomMappingID;
-    }
-    break;
-  }
-  case G_PHI: {
-    unsigned Size = MRI.getType(MI.getOperand(0).getReg()).getSizeInBits();
-    InstType InstTy = InstType::Integer;
-    if (!MRI.getType(MI.getOperand(0).getReg()).isPointer()) {
-      InstTy = TI.determineInstType(&MI);
-    }
 
     // PHI is copylike and should have one regbank in mapping for def register.
-    if (InstTy == InstType::Integer && Size == 64) { // fprb
+    if (InstTy == InstType::Integer && Op0Size == 64) {
       OperandsMapping =
           getOperandsMapping({&Mips::ValueMappings[Mips::DPRIdx]});
       return getInstructionMapping(CustomMappingID, /*Cost=*/1, OperandsMapping,
@@ -465,80 +500,65 @@ MipsRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
     }
     // Use default handling for PHI, i.e. set reg bank of def operand to match
     // register banks of use operands.
-    const RegisterBankInfo::InstructionMapping &Mapping =
-        getInstrMappingImpl(MI);
-    return Mapping;
-  }
+    return getInstrMappingImpl(MI);
   case G_SELECT: {
-    unsigned Size = MRI.getType(MI.getOperand(0).getReg()).getSizeInBits();
-    InstType InstTy = InstType::Integer;
-    if (!MRI.getType(MI.getOperand(0).getReg()).isPointer()) {
+    if (!Op0Ty.isPointer())
       InstTy = TI.determineInstType(&MI);
-    }
 
     if (InstTy == InstType::FloatingPoint ||
-        (Size == 64 && InstTy == InstType::Ambiguous)) { // fprb
-      const RegisterBankInfo::ValueMapping *Bank =
-          Size == 32 ? &Mips::ValueMappings[Mips::SPRIdx]
-                     : &Mips::ValueMappings[Mips::DPRIdx];
+        (Op0Size == 64 && InstTy == InstType::Ambiguous)) {
+      const RegisterBankInfo::ValueMapping *Bank = getFprbMapping(Op0Size);
       OperandsMapping = getOperandsMapping(
           {Bank, &Mips::ValueMappings[Mips::GPRIdx], Bank, Bank});
       break;
-    } else { // gprb
+    } else {
       const RegisterBankInfo::ValueMapping *Bank =
-          Size <= 32 ? &Mips::ValueMappings[Mips::GPRIdx]
-                     : &Mips::ValueMappings[Mips::DPRIdx];
+          getGprbOrCustomMapping(Op0Size, MappingID);
       OperandsMapping = getOperandsMapping(
           {Bank, &Mips::ValueMappings[Mips::GPRIdx], Bank, Bank});
-      if (Size == 64)
-        MappingID = CustomMappingID;
     }
     break;
   }
-  case G_UNMERGE_VALUES: {
+  case G_IMPLICIT_DEF:
+    if (!Op0Ty.isPointer())
+      InstTy = TI.determineInstType(&MI);
+
+    if (InstTy == InstType::FloatingPoint)
+      OperandsMapping = getFprbMapping(Op0Size);
+    else
+      OperandsMapping = getGprbOrCustomMapping(Op0Size, MappingID);
+
+    break;
+  case G_UNMERGE_VALUES:
     OperandsMapping = getOperandsMapping({&Mips::ValueMappings[Mips::GPRIdx],
                                           &Mips::ValueMappings[Mips::GPRIdx],
                                           &Mips::ValueMappings[Mips::DPRIdx]});
     MappingID = CustomMappingID;
     break;
-  }
-  case G_MERGE_VALUES: {
+  case G_MERGE_VALUES:
     OperandsMapping = getOperandsMapping({&Mips::ValueMappings[Mips::DPRIdx],
                                           &Mips::ValueMappings[Mips::GPRIdx],
                                           &Mips::ValueMappings[Mips::GPRIdx]});
     MappingID = CustomMappingID;
     break;
-  }
   case G_FADD:
   case G_FSUB:
   case G_FMUL:
   case G_FDIV:
   case G_FABS:
-  case G_FSQRT:{
-    unsigned Size = MRI.getType(MI.getOperand(0).getReg()).getSizeInBits();
-    assert((Size == 32 || Size == 64) && "Unsupported floating point size");
-    OperandsMapping = Size == 32 ? &Mips::ValueMappings[Mips::SPRIdx]
-                                 : &Mips::ValueMappings[Mips::DPRIdx];
+  case G_FSQRT:
+    OperandsMapping = getFprbMapping(Op0Size);
+    if (Op0Size == 128)
+      OperandsMapping = getMSAMapping(MF);
     break;
-  }
-  case G_FCONSTANT: {
-    unsigned Size = MRI.getType(MI.getOperand(0).getReg()).getSizeInBits();
-    assert((Size == 32 || Size == 64) && "Unsupported floating point size");
-    const RegisterBankInfo::ValueMapping *FPRValueMapping =
-        Size == 32 ? &Mips::ValueMappings[Mips::SPRIdx]
-                   : &Mips::ValueMappings[Mips::DPRIdx];
-    OperandsMapping = getOperandsMapping({FPRValueMapping, nullptr});
+  case G_FCONSTANT:
+    OperandsMapping = getOperandsMapping({getFprbMapping(Op0Size), nullptr});
     break;
-  }
   case G_FCMP: {
-    unsigned Size = MRI.getType(MI.getOperand(2).getReg()).getSizeInBits();
-    assert((Size == 32 || Size == 64) && "Unsupported floating point size");
-    const RegisterBankInfo::ValueMapping *FPRValueMapping =
-        Size == 32 ? &Mips::ValueMappings[Mips::SPRIdx]
-                   : &Mips::ValueMappings[Mips::DPRIdx];
+    unsigned Op2Size = MRI.getType(MI.getOperand(2).getReg()).getSizeInBits();
     OperandsMapping =
         getOperandsMapping({&Mips::ValueMappings[Mips::GPRIdx], nullptr,
-                            FPRValueMapping, FPRValueMapping});
+                            getFprbMapping(Op2Size), getFprbMapping(Op2Size)});
     break;
   }
   case G_FPEXT:
@@ -550,35 +570,30 @@ MipsRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
                                           &Mips::ValueMappings[Mips::DPRIdx]});
     break;
   case G_FPTOSI: {
+    assert((Op0Size == 32) && "Unsupported integer size");
     unsigned SizeFP = MRI.getType(MI.getOperand(1).getReg()).getSizeInBits();
-    assert((MRI.getType(MI.getOperand(0).getReg()).getSizeInBits() == 32) &&
+    OperandsMapping = getOperandsMapping(
+        {&Mips::ValueMappings[Mips::GPRIdx], getFprbMapping(SizeFP)});
+    break;
+  }
+  case G_SITOFP:
+    assert((MRI.getType(MI.getOperand(1).getReg()).getSizeInBits() == 32) &&
            "Unsupported integer size");
-    assert((SizeFP == 32 || SizeFP == 64) && "Unsupported floating point size");
-    OperandsMapping = getOperandsMapping({
-        &Mips::ValueMappings[Mips::GPRIdx],
-        SizeFP == 32 ? &Mips::ValueMappings[Mips::SPRIdx]
-                     : &Mips::ValueMappings[Mips::DPRIdx],
-    });
+    OperandsMapping = getOperandsMapping(
+        {getFprbMapping(Op0Size), &Mips::ValueMappings[Mips::GPRIdx]});
     break;
-  }
-  case G_SITOFP: {
-    unsigned SizeInt = MRI.getType(MI.getOperand(1).getReg()).getSizeInBits();
-    unsigned SizeFP = MRI.getType(MI.getOperand(0).getReg()).getSizeInBits();
-    (void)SizeInt;
-    assert((SizeInt == 32) && "Unsupported integer size");
-    assert((SizeFP == 32 || SizeFP == 64) && "Unsupported floating point size");
-    OperandsMapping =
-        getOperandsMapping({SizeFP == 32 ? &Mips::ValueMappings[Mips::SPRIdx]
-                                         : &Mips::ValueMappings[Mips::DPRIdx],
-                            &Mips::ValueMappings[Mips::GPRIdx]});
-    break;
-  }
   case G_CONSTANT:
   case G_FRAME_INDEX:
   case G_GLOBAL_VALUE:
+  case G_JUMP_TABLE:
   case G_BRCOND:
     OperandsMapping =
         getOperandsMapping({&Mips::ValueMappings[Mips::GPRIdx], nullptr});
+    break;
+  case G_BRJT:
+    OperandsMapping =
+        getOperandsMapping({&Mips::ValueMappings[Mips::GPRIdx], nullptr,
+                            &Mips::ValueMappings[Mips::GPRIdx]});
     break;
   case G_ICMP:
     OperandsMapping =
@@ -609,11 +624,42 @@ public:
 };
 } // end anonymous namespace
 
-/// Here we have to narrowScalar s64 operands to s32, combine away
-/// G_MERGE/G_UNMERGE and erase instructions that became dead in the process.
-/// We manually assign 32 bit gprb to register operands of all new instructions
-/// that got created in the process since they will not end up in RegBankSelect
-/// loop. Careful not to delete instruction after MI i.e. MI.getIterator()++.
+void MipsRegisterBankInfo::setRegBank(MachineInstr &MI,
+                                      MachineRegisterInfo &MRI) const {
+  Register Dest = MI.getOperand(0).getReg();
+  switch (MI.getOpcode()) {
+  case TargetOpcode::G_STORE:
+    // No def operands, skip this instruction.
+    break;
+  case TargetOpcode::G_CONSTANT:
+  case TargetOpcode::G_LOAD:
+  case TargetOpcode::G_SELECT:
+  case TargetOpcode::G_PHI:
+  case TargetOpcode::G_IMPLICIT_DEF: {
+    assert(MRI.getType(Dest) == LLT::scalar(32) && "Unexpected operand type.");
+    MRI.setRegBank(Dest, getRegBank(Mips::GPRBRegBankID));
+    break;
+  }
+  case TargetOpcode::G_PTR_ADD: {
+    assert(MRI.getType(Dest).isPointer() && "Unexpected operand type.");
+    MRI.setRegBank(Dest, getRegBank(Mips::GPRBRegBankID));
+    break;
+  }
+  default:
+    llvm_unreachable("Unexpected opcode.");
+  }
+}
+
+static void
+combineAwayG_UNMERGE_VALUES(LegalizationArtifactCombiner &ArtCombiner,
+                            MachineInstr &MI) {
+  SmallVector<Register, 4> UpdatedDefs;
+  SmallVector<MachineInstr *, 2> DeadInstrs;
+  ArtCombiner.tryCombineMerges(MI, DeadInstrs, UpdatedDefs);
+  for (MachineInstr *DeadMI : DeadInstrs)
+    DeadMI->eraseFromParent();
+}
+
 void MipsRegisterBankInfo::applyMappingImpl(
     const OperandsMapper &OpdMapper) const {
   MachineInstr &MI = OpdMapper.getMI();
@@ -621,18 +667,19 @@ void MipsRegisterBankInfo::applyMappingImpl(
   MachineIRBuilder B(MI);
   MachineFunction *MF = MI.getMF();
   MachineRegisterInfo &MRI = OpdMapper.getMRI();
+  const LegalizerInfo &LegInfo = *MF->getSubtarget().getLegalizerInfo();
 
   InstManager NewInstrObserver(NewInstrs);
   GISelObserverWrapper WrapperObserver(&NewInstrObserver);
   LegalizerHelper Helper(*MF, WrapperObserver, B);
-  LegalizationArtifactCombiner ArtCombiner(
-      B, MF->getRegInfo(), *MF->getSubtarget().getLegalizerInfo());
+  LegalizationArtifactCombiner ArtCombiner(B, MF->getRegInfo(), LegInfo);
 
   switch (MI.getOpcode()) {
   case TargetOpcode::G_LOAD:
   case TargetOpcode::G_STORE:
   case TargetOpcode::G_PHI:
-  case TargetOpcode::G_SELECT: {
+  case TargetOpcode::G_SELECT:
+  case TargetOpcode::G_IMPLICIT_DEF: {
     Helper.narrowScalar(MI, 0, LLT::scalar(32));
     // Handle new instructions.
     while (!NewInstrs.empty()) {
@@ -640,35 +687,21 @@ void MipsRegisterBankInfo::applyMappingImpl(
       // This is new G_UNMERGE that was created during narrowScalar and will
       // not be considered for regbank selection. RegBankSelect for mips
       // visits/makes corresponding G_MERGE first. Combine them here.
-      if (NewMI->getOpcode() == TargetOpcode::G_UNMERGE_VALUES) {
-        SmallVector<MachineInstr *, 2> DeadInstrs;
-        ArtCombiner.tryCombineMerges(*NewMI, DeadInstrs);
-        for (MachineInstr *DeadMI : DeadInstrs)
-          DeadMI->eraseFromParent();
-      }
+      if (NewMI->getOpcode() == TargetOpcode::G_UNMERGE_VALUES)
+        combineAwayG_UNMERGE_VALUES(ArtCombiner, *NewMI);
       // This G_MERGE will be combined away when its corresponding G_UNMERGE
       // gets regBankSelected.
       else if (NewMI->getOpcode() == TargetOpcode::G_MERGE_VALUES)
         continue;
       else
-        // Manually set register banks for all register operands to 32 bit gprb.
-        for (auto Op : NewMI->operands()) {
-          if (Op.isReg()) {
-            assert(MRI.getType(Op.getReg()).getSizeInBits() == 32 &&
-                   "Only 32 bit gprb is handled here.\n");
-            MRI.setRegBank(Op.getReg(), getRegBank(Mips::GPRBRegBankID));
-          }
-        }
+        // Manually set register banks for def operands to 32 bit gprb.
+        setRegBank(*NewMI, MRI);
     }
     return;
   }
-  case TargetOpcode::G_UNMERGE_VALUES: {
-    SmallVector<MachineInstr *, 2> DeadInstrs;
-    ArtCombiner.tryCombineMerges(MI, DeadInstrs);
-    for (MachineInstr *DeadMI : DeadInstrs)
-      DeadMI->eraseFromParent();
+  case TargetOpcode::G_UNMERGE_VALUES:
+    combineAwayG_UNMERGE_VALUES(ArtCombiner, MI);
     return;
-  }
   default:
     break;
   }

@@ -544,8 +544,8 @@ Expected<unsigned> MCDwarfLineTable::tryGetFile(StringRef &Directory,
                            FileNumber);
 }
 
-bool isRootFile(const MCDwarfFile &RootFile, StringRef &Directory,
-                StringRef &FileName, Optional<MD5::MD5Result> Checksum) {
+static bool isRootFile(const MCDwarfFile &RootFile, StringRef &Directory,
+                       StringRef &FileName, Optional<MD5::MD5Result> Checksum) {
   if (RootFile.Name.empty() || RootFile.Name != FileName.data())
     return false;
   return RootFile.Checksum == Checksum;
@@ -1701,7 +1701,8 @@ void FrameEmitterImpl::EmitFDE(const MCSymbol &cieStart,
         MakeStartMinusEndExpr(Streamer, SectionStart, cieStart, 0);
     emitAbsValue(Streamer, offset, 4);
   } else {
-    Streamer.EmitSymbolValue(&cieStart, 4);
+    Streamer.EmitSymbolValue(&cieStart, 4,
+                             asmInfo->needsDwarfSectionOffsetDirective());
   }
 
   // PC Begin

@@ -45,6 +45,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassInstrumentation.h"
 #include "llvm/IR/PassManagerInternal.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/TypeName.h"
 #include "llvm/Support/raw_ostream.h"
@@ -418,7 +419,7 @@ template <typename PassT, typename IRUnitT, typename AnalysisManagerT,
 typename PassT::Result
 getAnalysisResultUnpackTuple(AnalysisManagerT &AM, IRUnitT &IR,
                              std::tuple<ArgTs...> Args,
-                             llvm::index_sequence<Ns...>) {
+                             std::index_sequence<Ns...>) {
   (void)Args;
   return AM.template getResult<PassT>(IR, std::get<Ns>(Args)...);
 }
@@ -435,7 +436,7 @@ getAnalysisResult(AnalysisManager<IRUnitT, AnalysisArgTs...> &AM, IRUnitT &IR,
                   std::tuple<MainArgTs...> Args) {
   return (getAnalysisResultUnpackTuple<
           PassT, IRUnitT>)(AM, IR, Args,
-                           llvm::index_sequence_for<AnalysisArgTs...>{});
+                           std::index_sequence_for<AnalysisArgTs...>{});
 }
 
 } // namespace detail
@@ -1164,9 +1165,9 @@ public:
   /// Result proxy object for \c OuterAnalysisManagerProxy.
   class Result {
   public:
-    explicit Result(const AnalysisManagerT &AM) : AM(&AM) {}
+    explicit Result(const AnalysisManagerT &OuterAM) : OuterAM(&OuterAM) {}
 
-    const AnalysisManagerT &getManager() const { return *AM; }
+    const AnalysisManagerT &getManager() const { return *OuterAM; }
 
     /// When invalidation occurs, remove any registered invalidation events.
     bool invalidate(
@@ -1218,7 +1219,7 @@ public:
     }
 
   private:
-    const AnalysisManagerT *AM;
+    const AnalysisManagerT *OuterAM;
 
     /// A map from an outer analysis ID to the set of this IR-unit's analyses
     /// which need to be invalidated.
@@ -1226,14 +1227,15 @@ public:
         OuterAnalysisInvalidationMap;
   };
 
-  OuterAnalysisManagerProxy(const AnalysisManagerT &AM) : AM(&AM) {}
+  OuterAnalysisManagerProxy(const AnalysisManagerT &OuterAM)
+      : OuterAM(&OuterAM) {}
 
   /// Run the analysis pass and create our proxy result object.
-  /// Nothing to see here, it just forwards the \c AM reference into the
+  /// Nothing to see here, it just forwards the \c OuterAM reference into the
   /// result.
   Result run(IRUnitT &, AnalysisManager<IRUnitT, ExtraArgTs...> &,
              ExtraArgTs...) {
-    return Result(*AM);
+    return Result(*OuterAM);
   }
 
 private:
@@ -1242,7 +1244,7 @@ private:
 
   static AnalysisKey Key;
 
-  const AnalysisManagerT *AM;
+  const AnalysisManagerT *OuterAM;
 };
 
 template <typename AnalysisManagerT, typename IRUnitT, typename... ExtraArgTs>

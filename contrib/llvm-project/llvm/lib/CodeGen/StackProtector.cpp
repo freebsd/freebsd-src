@@ -41,6 +41,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -60,6 +61,10 @@ static cl::opt<bool> EnableSelectionDAGSP("enable-selectiondag-sp",
                                           cl::init(true), cl::Hidden);
 
 char StackProtector::ID = 0;
+
+StackProtector::StackProtector() : FunctionPass(ID), SSPBufferSize(8) {
+  initializeStackProtectorPass(*PassRegistry::getPassRegistry());
+}
 
 INITIALIZE_PASS_BEGIN(StackProtector, DEBUG_TYPE,
                       "Insert stack protectors", false, true)
@@ -156,8 +161,7 @@ bool StackProtector::ContainsProtectableArray(Type *Ty, bool &IsLarge,
   return NeedsProtector;
 }
 
-bool StackProtector::HasAddressTaken(const Instruction *AI,
-                                SmallPtrSetImpl<const PHINode *> &VisitedPHIs) {
+bool StackProtector::HasAddressTaken(const Instruction *AI) {
   for (const User *U : AI->users()) {
     const auto *I = cast<Instruction>(U);
     switch (I->getOpcode()) {
@@ -189,7 +193,7 @@ bool StackProtector::HasAddressTaken(const Instruction *AI,
     case Instruction::GetElementPtr:
     case Instruction::Select:
     case Instruction::AddrSpaceCast:
-      if (HasAddressTaken(I, VisitedPHIs))
+      if (HasAddressTaken(I))
         return true;
       break;
     case Instruction::PHI: {
@@ -197,7 +201,7 @@ bool StackProtector::HasAddressTaken(const Instruction *AI,
       // they are only visited once.
       const auto *PN = cast<PHINode>(I);
       if (VisitedPHIs.insert(PN).second)
-        if (HasAddressTaken(PN, VisitedPHIs))
+        if (HasAddressTaken(PN))
           return true;
       break;
     }
@@ -273,12 +277,6 @@ bool StackProtector::RequiresStackProtector() {
   else if (!F->hasFnAttribute(Attribute::StackProtect))
     return false;
 
-  /// VisitedPHIs - The set of PHI nodes visited when determining
-  /// if a variable's reference has been taken.  This set
-  /// is maintained to ensure we don't visit the same PHI node multiple
-  /// times.
-  SmallPtrSet<const PHINode *, 16> VisitedPHIs;
-
   for (const BasicBlock &BB : *F) {
     for (const Instruction &I : BB) {
       if (const AllocaInst *AI = dyn_cast<AllocaInst>(&I)) {
@@ -332,7 +330,7 @@ bool StackProtector::RequiresStackProtector() {
           continue;
         }
 
-        if (Strong && HasAddressTaken(AI, VisitedPHIs)) {
+        if (Strong && HasAddressTaken(AI)) {
           ++NumAddrTaken;
           Layout.insert(std::make_pair(AI, MachineFrameInfo::SSPLK_AddrOf));
           ORE.emit([&]() {

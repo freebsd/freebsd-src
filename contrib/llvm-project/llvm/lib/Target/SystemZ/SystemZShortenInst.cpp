@@ -46,7 +46,6 @@ private:
   bool shortenOn001(MachineInstr &MI, unsigned Opcode);
   bool shortenOn001AddCC(MachineInstr &MI, unsigned Opcode);
   bool shortenFPConv(MachineInstr &MI, unsigned Opcode);
-  bool shortenSelect(MachineInstr &MI, unsigned Opcode);
 
   const SystemZInstrInfo *TII;
   const TargetRegisterInfo *TRI;
@@ -75,7 +74,7 @@ static void tieOpsIfNeeded(MachineInstr &MI) {
 // instead of IIxF.
 bool SystemZShortenInst::shortenIIF(MachineInstr &MI, unsigned LLIxL,
                                     unsigned LLIxH) {
-  unsigned Reg = MI.getOperand(0).getReg();
+  Register Reg = MI.getOperand(0).getReg();
   // The new opcode will clear the other half of the GR64 reg, so
   // cancel if that is live.
   unsigned thisSubRegIdx =
@@ -86,7 +85,7 @@ bool SystemZShortenInst::shortenIIF(MachineInstr &MI, unsigned LLIxL,
                                             : SystemZ::subreg_l32);
   unsigned GR64BitReg =
       TRI->getMatchingSuperReg(Reg, thisSubRegIdx, &SystemZ::GR64BitRegClass);
-  unsigned OtherReg = TRI->getSubReg(GR64BitReg, otherSubRegIdx);
+  Register OtherReg = TRI->getSubReg(GR64BitReg, otherSubRegIdx);
   if (LiveRegs.contains(OtherReg))
     return false;
 
@@ -176,23 +175,6 @@ bool SystemZShortenInst::shortenFPConv(MachineInstr &MI, unsigned Opcode) {
   return false;
 }
 
-// MI is a three-operand select instruction.  If one of the sources match
-// the destination, convert to the equivalent load-on-condition.
-bool SystemZShortenInst::shortenSelect(MachineInstr &MI, unsigned Opcode) {
-  if (MI.getOperand(0).getReg() == MI.getOperand(1).getReg()) {
-    MI.setDesc(TII->get(Opcode));
-    MI.tieOperands(0, 1);
-    return true;
-  }
-  if (MI.getOperand(0).getReg() == MI.getOperand(2).getReg()) {
-    TII->commuteInstruction(MI, false, 1, 2);
-    MI.setDesc(TII->get(Opcode));
-    MI.tieOperands(0, 1);
-    return true;
-  }
-  return false;
-}
-
 // Process all instructions in MBB.  Return true if something changed.
 bool SystemZShortenInst::processBlock(MachineBasicBlock &MBB) {
   bool Changed = false;
@@ -211,18 +193,6 @@ bool SystemZShortenInst::processBlock(MachineBasicBlock &MBB) {
 
     case SystemZ::IIHF:
       Changed |= shortenIIF(MI, SystemZ::LLIHL, SystemZ::LLIHH);
-      break;
-
-    case SystemZ::SELR:
-      Changed |= shortenSelect(MI, SystemZ::LOCR);
-      break;
-
-    case SystemZ::SELFHR:
-      Changed |= shortenSelect(MI, SystemZ::LOCFHR);
-      break;
-
-    case SystemZ::SELGR:
-      Changed |= shortenSelect(MI, SystemZ::LOCGR);
       break;
 
     case SystemZ::WFADB:
@@ -311,6 +281,14 @@ bool SystemZShortenInst::processBlock(MachineBasicBlock &MBB) {
 
     case SystemZ::WFCSB:
       Changed |= shortenOn01(MI, SystemZ::CEBR);
+      break;
+
+    case SystemZ::WFKDB:
+      Changed |= shortenOn01(MI, SystemZ::KDBR);
+      break;
+
+    case SystemZ::WFKSB:
+      Changed |= shortenOn01(MI, SystemZ::KEBR);
       break;
 
     case SystemZ::VL32:

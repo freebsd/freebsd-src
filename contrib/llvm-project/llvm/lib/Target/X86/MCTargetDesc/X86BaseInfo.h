@@ -101,6 +101,261 @@ namespace X86 {
 
     COND_INVALID
   };
+
+  // The classification for the first instruction in macro fusion.
+  enum class FirstMacroFusionInstKind {
+    // TEST
+    Test,
+    // CMP
+    Cmp,
+    // AND
+    And,
+    // ADD, SUB
+    AddSub,
+    // INC, DEC
+    IncDec,
+    // Not valid as a first macro fusion instruction
+    Invalid
+  };
+
+  enum class SecondMacroFusionInstKind {
+    // JA, JB and variants.
+    AB,
+    // JE, JL, JG and variants.
+    ELG,
+    // JS, JP, JO and variants
+    SPO,
+    // Not a fusible jump.
+    Invalid,
+  };
+
+  /// \returns the type of the first instruction in macro-fusion.
+  inline FirstMacroFusionInstKind
+  classifyFirstOpcodeInMacroFusion(unsigned Opcode) {
+    switch (Opcode) {
+    default:
+      return FirstMacroFusionInstKind::Invalid;
+    // TEST
+    case X86::TEST16i16:
+    case X86::TEST16mr:
+    case X86::TEST16ri:
+    case X86::TEST16rr:
+    case X86::TEST32i32:
+    case X86::TEST32mr:
+    case X86::TEST32ri:
+    case X86::TEST32rr:
+    case X86::TEST64i32:
+    case X86::TEST64mr:
+    case X86::TEST64ri32:
+    case X86::TEST64rr:
+    case X86::TEST8i8:
+    case X86::TEST8mr:
+    case X86::TEST8ri:
+    case X86::TEST8rr:
+      return FirstMacroFusionInstKind::Test;
+    case X86::AND16i16:
+    case X86::AND16ri:
+    case X86::AND16ri8:
+    case X86::AND16rm:
+    case X86::AND16rr:
+    case X86::AND16rr_REV:
+    case X86::AND32i32:
+    case X86::AND32ri:
+    case X86::AND32ri8:
+    case X86::AND32rm:
+    case X86::AND32rr:
+    case X86::AND32rr_REV:
+    case X86::AND64i32:
+    case X86::AND64ri32:
+    case X86::AND64ri8:
+    case X86::AND64rm:
+    case X86::AND64rr:
+    case X86::AND64rr_REV:
+    case X86::AND8i8:
+    case X86::AND8ri:
+    case X86::AND8ri8:
+    case X86::AND8rm:
+    case X86::AND8rr:
+    case X86::AND8rr_REV:
+      return FirstMacroFusionInstKind::And;
+    // CMP
+    case X86::CMP16i16:
+    case X86::CMP16mr:
+    case X86::CMP16ri:
+    case X86::CMP16ri8:
+    case X86::CMP16rm:
+    case X86::CMP16rr:
+    case X86::CMP16rr_REV:
+    case X86::CMP32i32:
+    case X86::CMP32mr:
+    case X86::CMP32ri:
+    case X86::CMP32ri8:
+    case X86::CMP32rm:
+    case X86::CMP32rr:
+    case X86::CMP32rr_REV:
+    case X86::CMP64i32:
+    case X86::CMP64mr:
+    case X86::CMP64ri32:
+    case X86::CMP64ri8:
+    case X86::CMP64rm:
+    case X86::CMP64rr:
+    case X86::CMP64rr_REV:
+    case X86::CMP8i8:
+    case X86::CMP8mr:
+    case X86::CMP8ri:
+    case X86::CMP8ri8:
+    case X86::CMP8rm:
+    case X86::CMP8rr:
+    case X86::CMP8rr_REV:
+      return FirstMacroFusionInstKind::Cmp;
+    // ADD
+    case X86::ADD16i16:
+    case X86::ADD16ri:
+    case X86::ADD16ri8:
+    case X86::ADD16rm:
+    case X86::ADD16rr:
+    case X86::ADD16rr_REV:
+    case X86::ADD32i32:
+    case X86::ADD32ri:
+    case X86::ADD32ri8:
+    case X86::ADD32rm:
+    case X86::ADD32rr:
+    case X86::ADD32rr_REV:
+    case X86::ADD64i32:
+    case X86::ADD64ri32:
+    case X86::ADD64ri8:
+    case X86::ADD64rm:
+    case X86::ADD64rr:
+    case X86::ADD64rr_REV:
+    case X86::ADD8i8:
+    case X86::ADD8ri:
+    case X86::ADD8ri8:
+    case X86::ADD8rm:
+    case X86::ADD8rr:
+    case X86::ADD8rr_REV:
+    // SUB
+    case X86::SUB16i16:
+    case X86::SUB16ri:
+    case X86::SUB16ri8:
+    case X86::SUB16rm:
+    case X86::SUB16rr:
+    case X86::SUB16rr_REV:
+    case X86::SUB32i32:
+    case X86::SUB32ri:
+    case X86::SUB32ri8:
+    case X86::SUB32rm:
+    case X86::SUB32rr:
+    case X86::SUB32rr_REV:
+    case X86::SUB64i32:
+    case X86::SUB64ri32:
+    case X86::SUB64ri8:
+    case X86::SUB64rm:
+    case X86::SUB64rr:
+    case X86::SUB64rr_REV:
+    case X86::SUB8i8:
+    case X86::SUB8ri:
+    case X86::SUB8ri8:
+    case X86::SUB8rm:
+    case X86::SUB8rr:
+    case X86::SUB8rr_REV:
+      return FirstMacroFusionInstKind::AddSub;
+    // INC
+    case X86::INC16r:
+    case X86::INC16r_alt:
+    case X86::INC32r:
+    case X86::INC32r_alt:
+    case X86::INC64r:
+    case X86::INC8r:
+    // DEC
+    case X86::DEC16r:
+    case X86::DEC16r_alt:
+    case X86::DEC32r:
+    case X86::DEC32r_alt:
+    case X86::DEC64r:
+    case X86::DEC8r:
+      return FirstMacroFusionInstKind::IncDec;
+    }
+  }
+
+  /// \returns the type of the second instruction in macro-fusion.
+  inline SecondMacroFusionInstKind
+  classifySecondCondCodeInMacroFusion(X86::CondCode CC) {
+    if (CC == X86::COND_INVALID)
+      return SecondMacroFusionInstKind::Invalid;
+
+    switch (CC) {
+    default:
+      return SecondMacroFusionInstKind::Invalid;
+    // JE,JZ
+    case X86::COND_E:
+    // JNE,JNZ
+    case X86::COND_NE:
+    // JL,JNGE
+    case X86::COND_L:
+    // JLE,JNG
+    case X86::COND_LE:
+    // JG,JNLE
+    case X86::COND_G:
+    // JGE,JNL
+    case X86::COND_GE:
+      return SecondMacroFusionInstKind::ELG;
+    // JB,JC
+    case X86::COND_B:
+    // JNA,JBE
+    case X86::COND_BE:
+    // JA,JNBE
+    case X86::COND_A:
+    // JAE,JNC,JNB
+    case X86::COND_AE:
+      return SecondMacroFusionInstKind::AB;
+    // JS
+    case X86::COND_S:
+    // JNS
+    case X86::COND_NS:
+    // JP,JPE
+    case X86::COND_P:
+    // JNP,JPO
+    case X86::COND_NP:
+    // JO
+    case X86::COND_O:
+    // JNO
+    case X86::COND_NO:
+      return SecondMacroFusionInstKind::SPO;
+    }
+  }
+
+  /// \param FirstKind kind of the first instruction in macro fusion.
+  /// \param SecondKind kind of the second instruction in macro fusion.
+  ///
+  /// \returns true if the two instruction can be macro fused.
+  inline bool isMacroFused(FirstMacroFusionInstKind FirstKind,
+                           SecondMacroFusionInstKind SecondKind) {
+    switch (FirstKind) {
+    case X86::FirstMacroFusionInstKind::Test:
+    case X86::FirstMacroFusionInstKind::And:
+      return true;
+    case X86::FirstMacroFusionInstKind::Cmp:
+    case X86::FirstMacroFusionInstKind::AddSub:
+      return SecondKind == X86::SecondMacroFusionInstKind::AB ||
+             SecondKind == X86::SecondMacroFusionInstKind::ELG;
+    case X86::FirstMacroFusionInstKind::IncDec:
+      return SecondKind == X86::SecondMacroFusionInstKind::ELG;
+    case X86::FirstMacroFusionInstKind::Invalid:
+      return false;
+    }
+    llvm_unreachable("unknown fusion type");
+  }
+
+  /// Defines the possible values of the branch boundary alignment mask.
+  enum AlignBranchBoundaryKind : uint8_t {
+    AlignBranchNone = 0,
+    AlignBranchFused = 1U << 0,
+    AlignBranchJcc = 1U << 1,
+    AlignBranchJmp = 1U << 2,
+    AlignBranchCall = 1U << 3,
+    AlignBranchRet = 1U << 4,
+    AlignBranchIndirect = 1U << 5
+  };
 } // end namespace X86;
 
 /// X86II - This namespace holds all of the target specific flags that
@@ -645,9 +900,8 @@ namespace X86II {
     NOTRACK = 1ULL << NoTrackShift
   };
 
-  // getBaseOpcodeFor - This function returns the "base" X86 opcode for the
-  // specified machine instruction.
-  //
+  /// \returns the "base" X86 opcode for the specified machine
+  /// instruction.
   inline uint8_t getBaseOpcodeFor(uint64_t TSFlags) {
     return TSFlags >> X86II::OpcodeShift;
   }
@@ -656,8 +910,8 @@ namespace X86II {
     return (TSFlags & X86II::ImmMask) != 0;
   }
 
-  /// getSizeOfImm - Decode the "size of immediate" field from the TSFlags field
-  /// of the specified instruction.
+  /// Decode the "size of immediate" field from the TSFlags field of the 
+  /// specified instruction.
   inline unsigned getSizeOfImm(uint64_t TSFlags) {
     switch (TSFlags & X86II::ImmMask) {
     default: llvm_unreachable("Unknown immediate size");
@@ -673,9 +927,9 @@ namespace X86II {
     }
   }
 
-  /// isImmPCRel - Return true if the immediate of the specified instruction's
-  /// TSFlags indicates that it is pc relative.
-  inline unsigned isImmPCRel(uint64_t TSFlags) {
+  /// \returns true if the immediate of the specified instruction's TSFlags
+  /// indicates that it is pc relative.
+  inline bool isImmPCRel(uint64_t TSFlags) {
     switch (TSFlags & X86II::ImmMask) {
     default: llvm_unreachable("Unknown immediate size");
     case X86II::Imm8PCRel:
@@ -692,9 +946,9 @@ namespace X86II {
     }
   }
 
-  /// isImmSigned - Return true if the immediate of the specified instruction's
+  /// \returns true if the immediate of the specified instruction's
   /// TSFlags indicates that it is signed.
-  inline unsigned isImmSigned(uint64_t TSFlags) {
+  inline bool isImmSigned(uint64_t TSFlags) {
     switch (TSFlags & X86II::ImmMask) {
     default: llvm_unreachable("Unknown immediate signedness");
     case X86II::Imm32S:
@@ -711,8 +965,8 @@ namespace X86II {
     }
   }
 
-  /// getOperandBias - compute whether all of the def operands are repeated
-  ///                  in the uses and therefore should be skipped.
+  /// Compute whether all of the def operands are repeated in the uses and
+  /// therefore should be skipped.
   /// This determines the start of the unique operand list. We need to determine
   /// if all of the defs have a corresponding tied operand in the uses.
   /// Unfortunately, the tied operand information is encoded in the uses not
@@ -750,8 +1004,8 @@ namespace X86II {
     }
   }
 
-  /// getMemoryOperandNo - The function returns the MCInst operand # for the
-  /// first field of the memory operand.  If the instruction doesn't have a
+  /// The function returns the MCInst operand # for the first field of the
+  /// memory operand.  If the instruction doesn't have a
   /// memory operand, this returns -1.
   ///
   /// Note that this ignores tied operands.  If there is a tied register which
@@ -837,8 +1091,8 @@ namespace X86II {
     }
   }
 
-  /// isX86_64ExtendedReg - Is the MachineOperand a x86-64 extended (r8 or
-  /// higher) register?  e.g. r8, xmm8, xmm13, etc.
+  /// \returns true if the MachineOperand is a x86-64 extended (r8 or
+  /// higher) register,  e.g. r8, xmm8, xmm13, etc.
   inline bool isX86_64ExtendedReg(unsigned RegNo) {
     if ((RegNo >= X86::XMM8 && RegNo <= X86::XMM31) ||
         (RegNo >= X86::YMM8 && RegNo <= X86::YMM31) ||
@@ -864,8 +1118,8 @@ namespace X86II {
     return false;
   }
 
-  /// is32ExtendedReg - Is the MemoryOperand a 32 extended (zmm16 or higher)
-  /// registers? e.g. zmm21, etc.
+  /// \returns true if the MemoryOperand is a 32 extended (zmm16 or higher)
+  /// registers, e.g. zmm21, etc.
   static inline bool is32ExtendedReg(unsigned RegNo) {
     return ((RegNo >= X86::XMM16 && RegNo <= X86::XMM31) ||
             (RegNo >= X86::YMM16 && RegNo <= X86::YMM31) ||
@@ -878,12 +1132,12 @@ namespace X86II {
             reg == X86::SIL || reg == X86::DIL);
   }
 
-  /// isKMasked - Is this a masked instruction.
+  /// \returns true if this is a masked instruction.
   inline bool isKMasked(uint64_t TSFlags) {
     return (TSFlags & X86II::EVEX_K) != 0;
   }
 
-  /// isKMergedMasked - Is this a merge masked instruction.
+  /// \returns true if this is a merge masked instruction.
   inline bool isKMergeMasked(uint64_t TSFlags) {
     return isKMasked(TSFlags) && (TSFlags & X86II::EVEX_Z) == 0;
   }

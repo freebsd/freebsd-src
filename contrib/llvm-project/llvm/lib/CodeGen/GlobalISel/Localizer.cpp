@@ -10,9 +10,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/GlobalISel/Localizer.h"
-#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 
 #define DEBUG_TYPE "localizer"
@@ -28,7 +29,11 @@ INITIALIZE_PASS_END(Localizer, DEBUG_TYPE,
                     "Move/duplicate certain instructions close to their use",
                     false, false)
 
-Localizer::Localizer() : MachineFunctionPass(ID) { }
+Localizer::Localizer(std::function<bool(const MachineFunction &)> F)
+    : MachineFunctionPass(ID), DoNotRunPass(F) {}
+
+Localizer::Localizer()
+    : Localizer([](const MachineFunction &) { return false; }) {}
 
 void Localizer::init(MachineFunction &MF) {
   MRI = &MF.getRegInfo();
@@ -79,7 +84,7 @@ bool Localizer::shouldLocalize(const MachineInstr &MI) {
     return true;
   case TargetOpcode::G_GLOBAL_VALUE: {
     unsigned RematCost = TTI->getGISelRematGlobalCost();
-    unsigned Reg = MI.getOperand(0).getReg();
+    Register Reg = MI.getOperand(0).getReg();
     unsigned MaxUses = maxUses(RematCost);
     if (MaxUses == UINT_MAX)
       return true; // Remats are "free" so always localize.
@@ -121,7 +126,7 @@ bool Localizer::localizeInterBlock(MachineFunction &MF,
     LLVM_DEBUG(dbgs() << "Should localize: " << MI);
     assert(MI.getDesc().getNumDefs() == 1 &&
            "More than one definition not supported yet");
-    unsigned Reg = MI.getOperand(0).getReg();
+    Register Reg = MI.getOperand(0).getReg();
     // Check if all the users of MI are local.
     // We are going to invalidation the list of use operands, so we
     // can't use range iterator.
@@ -151,7 +156,7 @@ bool Localizer::localizeInterBlock(MachineFunction &MF,
                             LocalizedMI);
 
         // Set a new register for the definition.
-        unsigned NewReg = MRI->createGenericVirtualRegister(MRI->getType(Reg));
+        Register NewReg = MRI->createGenericVirtualRegister(MRI->getType(Reg));
         MRI->setRegClassOrRegBank(NewReg, MRI->getRegClassOrRegBank(Reg));
         LocalizedMI->getOperand(0).setReg(NewReg);
         NewVRegIt =
@@ -177,7 +182,7 @@ bool Localizer::localizeIntraBlock(LocalizedSetVecT &LocalizedInstrs) {
   // many users, but this case may be better served by regalloc improvements.
 
   for (MachineInstr *MI : LocalizedInstrs) {
-    unsigned Reg = MI->getOperand(0).getReg();
+    Register Reg = MI->getOperand(0).getReg();
     MachineBasicBlock &MBB = *MI->getParent();
     // All of the user MIs of this reg.
     SmallPtrSet<MachineInstr *, 32> Users;
@@ -211,6 +216,10 @@ bool Localizer::runOnMachineFunction(MachineFunction &MF) {
           MachineFunctionProperties::Property::FailedISel))
     return false;
 
+  // Don't run the pass if the target asked so.
+  if (DoNotRunPass(MF))
+    return false;
+
   LLVM_DEBUG(dbgs() << "Localize instructions for: " << MF.getName() << '\n');
 
   init(MF);
@@ -220,5 +229,6 @@ bool Localizer::runOnMachineFunction(MachineFunction &MF) {
   LocalizedSetVecT LocalizedInstrs;
 
   bool Changed = localizeInterBlock(MF, LocalizedInstrs);
-  return Changed |= localizeIntraBlock(LocalizedInstrs);
+  Changed |= localizeIntraBlock(LocalizedInstrs);
+  return Changed;
 }

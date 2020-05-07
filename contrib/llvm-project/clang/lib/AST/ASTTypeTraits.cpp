@@ -15,6 +15,8 @@
 #include "clang/AST/ASTTypeTraits.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/NestedNameSpecifier.h"
+#include "clang/AST/OpenMPClause.h"
 
 namespace clang {
 namespace ast_type_traits {
@@ -36,7 +38,7 @@ const ASTNodeKind::KindInfo ASTNodeKind::AllKindInfo[] = {
 #include "clang/AST/StmtNodes.inc"
   { NKI_None, "Type" },
 #define TYPE(DERIVED, BASE) { NKI_##BASE, #DERIVED "Type" },
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
   { NKI_None, "OMPClause" },
 #define OPENMP_CLAUSE(TextualSpelling, Class) {NKI_OMPClause, #Class},
 #include "clang/Basic/OpenMPKinds.def"
@@ -103,7 +105,7 @@ ASTNodeKind ASTNodeKind::getFromNode(const Type &T) {
 #define TYPE(Class, Base)                                                      \
     case Type::Class: return ASTNodeKind(NKI_##Class##Type);
 #define ABSTRACT_TYPE(Class, Base)
-#include "clang/AST/TypeNodes.def"
+#include "clang/AST/TypeNodes.inc"
   }
   llvm_unreachable("invalid type kind");
  }
@@ -115,6 +117,8 @@ ASTNodeKind ASTNodeKind::getFromNode(const OMPClause &C) {
 #include "clang/Basic/OpenMPKinds.def"
   case OMPC_threadprivate:
   case OMPC_uniform:
+  case OMPC_device_type:
+  case OMPC_match:
   case OMPC_unknown:
     llvm_unreachable("unexpected OpenMP clause kind");
   }
@@ -129,9 +133,12 @@ void DynTypedNode::print(llvm::raw_ostream &OS,
     TN->print(OS, PP);
   else if (const NestedNameSpecifier *NNS = get<NestedNameSpecifier>())
     NNS->print(OS, PP);
-  else if (const NestedNameSpecifierLoc *NNSL = get<NestedNameSpecifierLoc>())
-    NNSL->getNestedNameSpecifier()->print(OS, PP);
-  else if (const QualType *QT = get<QualType>())
+  else if (const NestedNameSpecifierLoc *NNSL = get<NestedNameSpecifierLoc>()) {
+    if (const NestedNameSpecifier *NNS = NNSL->getNestedNameSpecifier())
+      NNS->print(OS, PP);
+    else
+      OS << "(empty NestedNameSpecifierLoc)";
+  } else if (const QualType *QT = get<QualType>())
     QT->print(OS, PP);
   else if (const TypeLoc *TL = get<TypeLoc>())
     TL->getType().print(OS, PP);

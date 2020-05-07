@@ -20,7 +20,7 @@ def CC_ARM_APCS : CallingConv<[
 
   // Handles byval parameters.
   CCIfByVal<CCPassByVal<4, 4>>,
-    
+
   CCIfType<[i1, i8, i16], CCPromoteToType<i32>>,
 
   // Pass SwiftSelf in a callee saved register.
@@ -80,7 +80,7 @@ def FastCC_ARM_APCS : CallingConv<[
                                  S9, S10, S11, S12, S13, S14, S15]>>,
 
   // CPRCs may be allocated to co-processor registers or the stack - they
-  // may never be allocated to core registers. 
+  // may never be allocated to core registers.
   CCIfType<[f32], CCAssignToStackWithShadow<4, 4, [Q0, Q1, Q2, Q3]>>,
   CCIfType<[f64], CCAssignToStackWithShadow<8, 4, [Q0, Q1, Q2, Q3]>>,
   CCIfType<[v2f64], CCAssignToStackWithShadow<16, 4, [Q0, Q1, Q2, Q3]>>,
@@ -165,8 +165,8 @@ def CC_ARM_AAPCS : CallingConv<[
   CCIfNest<CCAssignToReg<[R12]>>,
 
   // Handle all vector types as either f64 or v2f64.
-  CCIfType<[v1i64, v2i32, v4i16, v4f16, v4f16, v8i8, v2f32], CCBitConvertToType<f64>>,
-  CCIfType<[v2i64, v4i32, v8i16, v8f16, v8f16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
+  CCIfType<[v1i64, v2i32, v4i16, v4f16, v8i8, v2f32], CCBitConvertToType<f64>>,
+  CCIfType<[v2i64, v4i32, v8i16, v8f16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
 
   // Pass SwiftSelf in a callee saved register.
   CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
@@ -182,8 +182,8 @@ def CC_ARM_AAPCS : CallingConv<[
 let Entry = 1 in
 def RetCC_ARM_AAPCS : CallingConv<[
   // Handle all vector types as either f64 or v2f64.
-  CCIfType<[v1i64, v2i32, v4i16, v4f16, v4f16, v8i8, v2f32], CCBitConvertToType<f64>>,
-  CCIfType<[v2i64, v4i32, v8i16, v8f16, v8f16,v16i8, v4f32], CCBitConvertToType<v2f64>>,
+  CCIfType<[v1i64, v2i32, v4i16, v4f16, v8i8, v2f32], CCBitConvertToType<f64>>,
+  CCIfType<[v2i64, v4i32, v8i16, v8f16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
 
   // Pass SwiftSelf in a callee saved register.
   CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
@@ -208,8 +208,8 @@ def CC_ARM_AAPCS_VFP : CallingConv<[
   CCIfByVal<CCPassByVal<4, 4>>,
 
   // Handle all vector types as either f64 or v2f64.
-  CCIfType<[v1i64, v2i32, v4i16, v4f16, v4f16, v8i8, v2f32], CCBitConvertToType<f64>>,
-  CCIfType<[v2i64, v4i32, v8i16, v8f16, v8f16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
+  CCIfType<[v1i64, v2i32, v4i16, v4f16, v8i8, v2f32], CCBitConvertToType<f64>>,
+  CCIfType<[v2i64, v4i32, v8i16, v8f16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
 
   // Pass SwiftSelf in a callee saved register.
   CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
@@ -230,8 +230,8 @@ def CC_ARM_AAPCS_VFP : CallingConv<[
 let Entry = 1 in
 def RetCC_ARM_AAPCS_VFP : CallingConv<[
   // Handle all vector types as either f64 or v2f64.
-  CCIfType<[v1i64, v2i32, v4i16, v4f16, v4f16, v8i8, v2f32], CCBitConvertToType<f64>>,
-  CCIfType<[v2i64, v4i32, v8i16, v8f16, v8f16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
+  CCIfType<[v1i64, v2i32, v4i16, v4f16, v8i8, v2f32], CCBitConvertToType<f64>>,
+  CCIfType<[v2i64, v4i32, v8i16, v8f16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
 
   // Pass SwiftSelf in a callee saved register.
   CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
@@ -246,6 +246,16 @@ def RetCC_ARM_AAPCS_VFP : CallingConv<[
   CCDelegateTo<RetCC_ARM_AAPCS_Common>
 ]>;
 
+
+// Windows Control Flow Guard checks take a single argument (the target function
+// address) and have no return value.
+let Entry = 1 in
+def CC_ARM_Win32_CFGuard_Check : CallingConv<[
+  CCIfType<[i32], CCAssignToReg<[R0]>>
+]>;
+
+
+
 //===----------------------------------------------------------------------===//
 // Callee-saved register lists.
 //===----------------------------------------------------------------------===//
@@ -255,6 +265,11 @@ def CSR_FPRegs : CalleeSavedRegs<(add (sequence "D%u", 0, 31))>;
 
 def CSR_AAPCS : CalleeSavedRegs<(add LR, R11, R10, R9, R8, R7, R6, R5, R4,
                                      (sequence "D%u", 15, 8))>;
+
+// The Windows Control Flow Guard Check function preserves the same registers as
+// AAPCS, and also preserves all floating point registers.
+def CSR_Win_AAPCS_CFGuard_Check : CalleeSavedRegs<(add LR, R11, R10, R9, R8, R7,
+                                     R6, R5, R4, (sequence "D%u", 15, 0))>;
 
 // R8 is used to pass swifterror, remove it from CSR.
 def CSR_AAPCS_SwiftError : CalleeSavedRegs<(sub CSR_AAPCS, R8)>;

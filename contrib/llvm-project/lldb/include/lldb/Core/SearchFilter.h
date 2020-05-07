@@ -52,8 +52,8 @@ public:
   virtual ~Searcher();
 
   virtual CallbackReturn SearchCallback(SearchFilter &filter,
-                                        SymbolContext &context, Address *addr,
-                                        bool complete) = 0;
+                                        SymbolContext &context,
+                                        Address *addr) = 0;
 
   virtual lldb::SearchDepth GetDepth() = 0;
 
@@ -84,7 +84,7 @@ class SearchFilter {
 public:
   /// The basic constructor takes a Target, which gives the space to search.
   ///
-  /// \param[in] target
+  /// \param[in] target_sp
   ///    The Target that provides the module list to search.
   SearchFilter(const lldb::TargetSP &target_sp);
 
@@ -102,7 +102,7 @@ public:
 
   /// Call this method with a Module to see if that module passes the filter.
   ///
-  /// \param[in] module
+  /// \param[in] module_sp
   ///    The Module to check against the filter.
   ///
   /// \return
@@ -306,7 +306,7 @@ public:
   /// The basic constructor takes a Target, which gives the space to search,
   /// and the module to restrict the search to.
   ///
-  /// \param[in] target
+  /// \param[in] targetSP
   ///    The Target that provides the module list to search.
   ///
   /// \param[in] module
@@ -352,10 +352,10 @@ public:
   /// The basic constructor takes a Target, which gives the space to search,
   /// and the module list to restrict the search to.
   ///
-  /// \param[in] target
+  /// \param[in] targetSP
   ///    The Target that provides the module list to search.
   ///
-  /// \param[in] module
+  /// \param[in] module_list
   ///    The Module that limits the search.
   SearchFilterByModuleList(const lldb::TargetSP &targetSP,
                            const FileSpecList &module_list);
@@ -365,8 +365,6 @@ public:
                            enum FilterTy filter_ty);
 
   ~SearchFilterByModuleList() override;
-
-  SearchFilterByModuleList &operator=(const SearchFilterByModuleList &rhs);
 
   bool ModulePasses(const lldb::ModuleSP &module_sp) override;
 
@@ -406,22 +404,11 @@ class SearchFilterByModuleListAndCU : public SearchFilterByModuleList {
 public:
   /// The basic constructor takes a Target, which gives the space to search,
   /// and the module list to restrict the search to.
-  ///
-  /// \param[in] target
-  ///    The Target that provides the module list to search.
-  ///
-  /// \param[in] module
-  ///    The Module that limits the search.
   SearchFilterByModuleListAndCU(const lldb::TargetSP &targetSP,
                                 const FileSpecList &module_list,
                                 const FileSpecList &cu_list);
 
-  SearchFilterByModuleListAndCU(const SearchFilterByModuleListAndCU &rhs);
-
   ~SearchFilterByModuleListAndCU() override;
-
-  SearchFilterByModuleListAndCU &
-  operator=(const SearchFilterByModuleListAndCU &rhs);
 
   bool AddressPasses(Address &address) override;
 

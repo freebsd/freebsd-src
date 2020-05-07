@@ -273,9 +273,9 @@ void Fuzzer::InterruptCallback() {
 NO_SANITIZE_MEMORY
 void Fuzzer::AlarmCallback() {
   assert(Options.UnitTimeoutSec > 0);
-  // In Windows Alarm callback is executed by a different thread.
+  // In Windows and Fuchsia, Alarm callback is executed by a different thread.
   // NetBSD's current behavior needs this change too.
-#if !LIBFUZZER_WINDOWS && !LIBFUZZER_NETBSD
+#if !LIBFUZZER_WINDOWS && !LIBFUZZER_NETBSD && !LIBFUZZER_FUCHSIA
   if (!InFuzzingThread())
     return;
 #endif
@@ -319,14 +319,15 @@ void Fuzzer::RssLimitCallback() {
   _Exit(Options.OOMExitCode); // Stop right now.
 }
 
-void Fuzzer::PrintStats(const char *Where, const char *End, size_t Units) {
+void Fuzzer::PrintStats(const char *Where, const char *End, size_t Units,
+                        size_t Features) {
   size_t ExecPerSec = execPerSec();
   if (!Options.Verbosity)
     return;
   Printf("#%zd\t%s", TotalNumberOfRuns, Where);
   if (size_t N = TPC.GetTotalPCCoverage())
     Printf(" cov: %zd", N);
-  if (size_t N = Corpus.NumFeatures())
+  if (size_t N = Features ? Features : Corpus.NumFeatures())
     Printf(" ft: %zd", N);
   if (!Corpus.empty()) {
     Printf(" corp: %zd", Corpus.NumActiveUnits());
@@ -512,10 +513,12 @@ size_t Fuzzer::GetCurrentUnitInFuzzingThead(const uint8_t **Data) const {
 }
 
 void Fuzzer::CrashOnOverwrittenData() {
-  Printf("==%d== ERROR: libFuzzer: fuzz target overwrites it's const input\n",
+  Printf("==%d== ERROR: libFuzzer: fuzz target overwrites its const input\n",
          GetPid());
+  PrintStackTrace();
+  Printf("SUMMARY: libFuzzer: overwrites-const-input\n");
   DumpCurrentUnit("crash-");
-  Printf("SUMMARY: libFuzzer: out-of-memory\n");
+  PrintFinalStats();
   _Exit(Options.ErrorExitCode); // Stop right now.
 }
 
@@ -738,10 +741,6 @@ void Fuzzer::ReadAndExecuteSeedCorpora(Vector<SizedFile> &CorporaFiles) {
   // Test the callback with empty input and never try it again.
   uint8_t dummy = 0;
   ExecuteCallback(&dummy, 0);
-
-  // Protect lazy counters here, after the once-init code has been executed.
-  if (Options.LazyCounters)
-    TPC.ProtectLazyCounters();
 
   if (CorporaFiles.empty()) {
     Printf("INFO: A corpus is not provided, starting from an empty corpus\n");

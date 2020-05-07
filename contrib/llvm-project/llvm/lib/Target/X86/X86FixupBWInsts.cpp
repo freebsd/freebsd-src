@@ -48,11 +48,14 @@
 #include "X86InstrInfo.h"
 #include "X86Subtarget.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
+#include "llvm/CodeGen/LazyMachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/MachineSizeOpts.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/Support/Debug.h"
@@ -80,7 +83,7 @@ class FixupBWInstPass : public MachineFunctionPass {
   /// destination register of the MachineInstr passed in. It returns true if
   /// that super register is dead just prior to \p OrigMI, and false if not.
   bool getSuperRegDestIfDead(MachineInstr *OrigMI,
-                             unsigned &SuperDestReg) const;
+                             Register &SuperDestReg) const;
 
   /// Change the MachineInstr \p MI into the equivalent extending load to 32 bit
   /// register if it is safe to do so.  Return the replacement instruction if
@@ -91,6 +94,12 @@ class FixupBWInstPass : public MachineFunctionPass {
   /// safe to do so.  Return the replacement instruction if OK, otherwise return
   /// nullptr.
   MachineInstr *tryReplaceCopy(MachineInstr *MI) const;
+
+  /// Change the MachineInstr \p MI into the equivalent extend to 32 bit
+  /// register if it is safe to do so.  Return the replacement instruction if
+  /// OK, otherwise return nullptr.
+  MachineInstr *tryReplaceExtend(unsigned New32BitOpcode,
+                                 MachineInstr *MI) const;
 
   // Change the MachineInstr \p MI into an eqivalent 32 bit instruction if
   // possible.  Return the replacement instruction if OK, return nullptr
@@ -107,6 +116,8 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachineLoopInfo>(); // Machine loop info is used to
                                        // guide some heuristics.
+    AU.addRequired<ProfileSummaryInfoWrapperPass>();
+    AU.addRequired<LazyMachineBlockFrequencyInfoPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
@@ -121,19 +132,22 @@ public:
   }
 
 private:
-  MachineFunction *MF;
+  MachineFunction *MF = nullptr;
 
   /// Machine instruction info used throughout the class.
-  const X86InstrInfo *TII;
+  const X86InstrInfo *TII = nullptr;
 
   /// Local member for function's OptForSize attribute.
-  bool OptForSize;
+  bool OptForSize = false;
 
   /// Machine loop info used for guiding some heruistics.
-  MachineLoopInfo *MLI;
+  MachineLoopInfo *MLI = nullptr;
 
   /// Register Liveness information after the current instruction.
   LivePhysRegs LiveRegs;
+
+  ProfileSummaryInfo *PSI;
+  MachineBlockFrequencyInfo *MBFI;
 };
 char FixupBWInstPass::ID = 0;
 }
@@ -148,8 +162,11 @@ bool FixupBWInstPass::runOnMachineFunction(MachineFunction &MF) {
 
   this->MF = &MF;
   TII = MF.getSubtarget<X86Subtarget>().getInstrInfo();
-  OptForSize = MF.getFunction().hasOptSize();
   MLI = &getAnalysis<MachineLoopInfo>();
+  PSI = &getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
+  MBFI = (PSI && PSI->hasProfileSummary()) ?
+         &getAnalysis<LazyMachineBlockFrequencyInfoPass>().getBFI() :
+         nullptr;
   LiveRegs.init(TII->getRegisterInfo());
 
   LLVM_DEBUG(dbgs() << "Start X86FixupBWInsts\n";);
@@ -169,10 +186,10 @@ bool FixupBWInstPass::runOnMachineFunction(MachineFunction &MF) {
 ///
 /// If so, return that super register in \p SuperDestReg.
 bool FixupBWInstPass::getSuperRegDestIfDead(MachineInstr *OrigMI,
-                                            unsigned &SuperDestReg) const {
+                                            Register &SuperDestReg) const {
   auto *TRI = &TII->getRegisterInfo();
 
-  unsigned OrigDestReg = OrigMI->getOperand(0).getReg();
+  Register OrigDestReg = OrigMI->getOperand(0).getReg();
   SuperDestReg = getX86SubSuperRegister(OrigDestReg, 32);
 
   const auto SubRegIdx = TRI->getSubRegIndex(SuperDestReg, OrigDestReg);
@@ -232,12 +249,12 @@ bool FixupBWInstPass::getSuperRegDestIfDead(MachineInstr *OrigMI,
   //   %ax = KILL %ax, implicit killed %eax
   //   RET 0, %ax
   unsigned Opc = OrigMI->getOpcode(); (void)Opc;
-  // These are the opcodes currently handled by the pass, if something
-  // else will be added we need to ensure that new opcode has the same
-  // properties.
-  assert((Opc == X86::MOV8rm || Opc == X86::MOV16rm || Opc == X86::MOV8rr ||
-          Opc == X86::MOV16rr) &&
-         "Unexpected opcode.");
+  // These are the opcodes currently known to work with the code below, if
+  // something // else will be added we need to ensure that new opcode has the
+  // same properties.
+  if (Opc != X86::MOV8rm && Opc != X86::MOV16rm && Opc != X86::MOV8rr &&
+      Opc != X86::MOV16rr)
+    return false;
 
   bool IsDefined = false;
   for (auto &MO: OrigMI->implicit_operands()) {
@@ -247,7 +264,7 @@ bool FixupBWInstPass::getSuperRegDestIfDead(MachineInstr *OrigMI,
     assert((MO.isDef() || MO.isUse()) && "Expected Def or Use only!");
 
     if (MO.isDef() && TRI->isSuperRegisterEq(OrigDestReg, MO.getReg()))
-        IsDefined = true;
+      IsDefined = true;
 
     // If MO is a use of any part of the destination register but is not equal
     // to OrigDestReg or one of its subregisters, we cannot use SuperDestReg.
@@ -268,7 +285,7 @@ bool FixupBWInstPass::getSuperRegDestIfDead(MachineInstr *OrigMI,
 
 MachineInstr *FixupBWInstPass::tryReplaceLoad(unsigned New32BitOpcode,
                                               MachineInstr *MI) const {
-  unsigned NewDestReg;
+  Register NewDestReg;
 
   // We are going to try to rewrite this load to a larger zero-extending
   // load.  This is safe if all portions of the 32 bit super-register
@@ -295,11 +312,11 @@ MachineInstr *FixupBWInstPass::tryReplaceCopy(MachineInstr *MI) const {
   auto &OldDest = MI->getOperand(0);
   auto &OldSrc = MI->getOperand(1);
 
-  unsigned NewDestReg;
+  Register NewDestReg;
   if (!getSuperRegDestIfDead(MI, NewDestReg))
     return nullptr;
 
-  unsigned NewSrcReg = getX86SubSuperRegister(OldSrc.getReg(), 32);
+  Register NewSrcReg = getX86SubSuperRegister(OldSrc.getReg(), 32);
 
   // This is only correct if we access the same subregister index: otherwise,
   // we could try to replace "movb %ah, %al" with "movl %eax, %eax".
@@ -322,6 +339,33 @@ MachineInstr *FixupBWInstPass::tryReplaceCopy(MachineInstr *MI) const {
   for (auto &Op : MI->implicit_operands())
     if (Op.getReg() != (Op.isDef() ? NewDestReg : NewSrcReg))
       MIB.add(Op);
+
+  return MIB;
+}
+
+MachineInstr *FixupBWInstPass::tryReplaceExtend(unsigned New32BitOpcode,
+                                                MachineInstr *MI) const {
+  Register NewDestReg;
+  if (!getSuperRegDestIfDead(MI, NewDestReg))
+    return nullptr;
+
+  // Don't interfere with formation of CBW instructions which should be a
+  // shorter encoding than even the MOVSX32rr8. It's also immunte to partial
+  // merge issues on Intel CPUs.
+  if (MI->getOpcode() == X86::MOVSX16rr8 &&
+      MI->getOperand(0).getReg() == X86::AX &&
+      MI->getOperand(1).getReg() == X86::AL)
+    return nullptr;
+
+  // Safe to change the instruction.
+  MachineInstrBuilder MIB =
+      BuildMI(*MF, MI->getDebugLoc(), TII->get(New32BitOpcode), NewDestReg);
+
+  unsigned NumArgs = MI->getNumOperands();
+  for (unsigned i = 1; i < NumArgs; ++i)
+    MIB.add(MI->getOperand(i));
+
+  MIB.setMemRefs(MI->memoperands());
 
   return MIB;
 }
@@ -355,6 +399,15 @@ MachineInstr *FixupBWInstPass::tryReplaceInstr(MachineInstr *MI,
     // of the register.
     return tryReplaceCopy(MI);
 
+  case X86::MOVSX16rr8:
+    return tryReplaceExtend(X86::MOVSX32rr8, MI);
+  case X86::MOVSX16rm8:
+    return tryReplaceExtend(X86::MOVSX32rm8, MI);
+  case X86::MOVZX16rr8:
+    return tryReplaceExtend(X86::MOVZX32rr8, MI);
+  case X86::MOVZX16rm8:
+    return tryReplaceExtend(X86::MOVZX32rm8, MI);
+
   default:
     // nothing to do here.
     break;
@@ -383,6 +436,9 @@ void FixupBWInstPass::processBasicBlock(MachineFunction &MF,
   LiveRegs.clear();
   // We run after PEI, so we need to AddPristinesAndCSRs.
   LiveRegs.addLiveOuts(MBB);
+
+  OptForSize = MF.getFunction().hasOptSize() ||
+               llvm::shouldOptimizeForSize(&MBB, PSI, MBFI);
 
   for (auto I = MBB.rbegin(); I != MBB.rend(); ++I) {
     MachineInstr *MI = &*I;

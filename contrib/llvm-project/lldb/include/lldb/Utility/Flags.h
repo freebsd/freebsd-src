@@ -33,17 +33,6 @@ public:
   ///     The initial value for all flags.
   Flags(ValueType flags = 0) : m_flags(flags) {}
 
-  /// Copy constructor.
-  ///
-  /// Construct and copy the flags from \a rhs.
-  ///
-  /// \param[in] rhs
-  ///     A const Flags object reference to copy.
-  Flags(const Flags &rhs) : m_flags(rhs.m_flags) {}
-
-  /// Destructor.
-  ~Flags() {}
-
   /// Get accessor for all flags.
   ///
   /// \return
@@ -120,32 +109,6 @@ public:
   /// \return
   ///     \b true if \a bit is 0, \b false otherwise.
   bool IsClear(ValueType bit) const { return (m_flags & bit) == 0; }
-
-  /// Get the number of zero bits in \a m_flags.
-  ///
-  /// \return
-  ///     The number of bits that are set to 0 in the current flags.
-  size_t ClearCount() const {
-    size_t count = 0;
-    for (ValueType shift = 0; shift < sizeof(ValueType) * 8; ++shift) {
-      if ((m_flags & (1u << shift)) == 0)
-        ++count;
-    }
-    return count;
-  }
-
-  /// Get the number of one bits in \a m_flags.
-  ///
-  /// \return
-  ///     The number of bits that are set to 1 in the current flags.
-  size_t SetCount() const {
-    size_t count = 0;
-    for (ValueType mask = m_flags; mask; mask >>= 1) {
-      if (mask & 1u)
-        ++count;
-    }
-    return count;
-  }
 
 protected:
   ValueType m_flags; ///< The flags.

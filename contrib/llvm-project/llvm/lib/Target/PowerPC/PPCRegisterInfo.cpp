@@ -325,13 +325,13 @@ BitVector PPCRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
   bool IsPositionIndependent = TM.isPositionIndependent();
   if (hasBasePointer(MF)) {
-    if (Subtarget.isSVR4ABI() && !TM.isPPC64() && IsPositionIndependent)
+    if (Subtarget.is32BitELFABI() && IsPositionIndependent)
       markSuperRegs(Reserved, PPC::R29);
     else
       markSuperRegs(Reserved, PPC::R30);
   }
 
-  if (Subtarget.isSVR4ABI() && !TM.isPPC64() && IsPositionIndependent)
+  if (Subtarget.is32BitELFABI() && IsPositionIndependent)
     markSuperRegs(Reserved, PPC::R30);
 
   // Reserve Altivec registers when Altivec is unavailable.
@@ -380,7 +380,7 @@ bool PPCRegisterInfo::requiresFrameIndexScavenging(const MachineFunction &MF) co
     // This is eiher:
     // 1) A fixed frame index object which we know are aligned so
     // as long as we have a valid DForm/DSForm/DQForm (non XForm) we don't
-    // need to consider the alignement here.
+    // need to consider the alignment here.
     // 2) A not fixed object but in that case we now know that the min required
     // alignment is no more than 1 based on the previous check.
     if (InstrInfo->isXFormMemOp(Opcode))
@@ -391,7 +391,7 @@ bool PPCRegisterInfo::requiresFrameIndexScavenging(const MachineFunction &MF) co
 
 bool PPCRegisterInfo::isCallerPreservedPhysReg(unsigned PhysReg,
                                                const MachineFunction &MF) const {
-  assert(TargetRegisterInfo::isPhysicalRegister(PhysReg));
+  assert(Register::isPhysicalRegister(PhysReg));
   const PPCSubtarget &Subtarget = MF.getSubtarget<PPCSubtarget>();
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   if (!TM.isPPC64())
@@ -425,7 +425,6 @@ unsigned PPCRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
   case PPC::G8RC_NOX0RegClassID:
   case PPC::GPRC_NOR0RegClassID:
   case PPC::SPERCRegClassID:
-  case PPC::SPE4RCRegClassID:
   case PPC::G8RCRegClassID:
   case PPC::GPRCRegClassID: {
     unsigned FP = TFI->hasFP(MF) ? 1 : 0;
@@ -527,7 +526,7 @@ void PPCRegisterInfo::lowerDynamicAlloc(MachineBasicBlock::iterator II) const {
   // Fortunately, a frame greater than 32K is rare.
   const TargetRegisterClass *G8RC = &PPC::G8RCRegClass;
   const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
-  unsigned Reg = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
+  Register Reg = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
 
   if (MaxAlign < TargetAlign && isInt<16>(FrameSize)) {
     if (LP64)
@@ -549,7 +548,7 @@ void PPCRegisterInfo::lowerDynamicAlloc(MachineBasicBlock::iterator II) const {
   }
 
   bool KillNegSizeReg = MI.getOperand(1).isKill();
-  unsigned NegSizeReg = MI.getOperand(1).getReg();
+  Register NegSizeReg = MI.getOperand(1).getReg();
 
   // Grow the stack and update the stack pointer link, then determine the
   // address of new allocated space.
@@ -655,8 +654,8 @@ void PPCRegisterInfo::lowerCRSpilling(MachineBasicBlock::iterator II,
   const TargetRegisterClass *G8RC = &PPC::G8RCRegClass;
   const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
 
-  unsigned Reg = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
-  unsigned SrcReg = MI.getOperand(0).getReg();
+  Register Reg = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
+  Register SrcReg = MI.getOperand(0).getReg();
 
   // We need to store the CR in the low 4-bits of the saved value. First, issue
   // an MFOCRF to save all of the CRBits and, if needed, kill the SrcReg.
@@ -700,8 +699,8 @@ void PPCRegisterInfo::lowerCRRestore(MachineBasicBlock::iterator II,
   const TargetRegisterClass *G8RC = &PPC::G8RCRegClass;
   const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
 
-  unsigned Reg = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
-  unsigned DestReg = MI.getOperand(0).getReg();
+  Register Reg = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
+  Register DestReg = MI.getOperand(0).getReg();
   assert(MI.definesRegister(DestReg) &&
     "RESTORE_CR does not define its destination");
 
@@ -744,16 +743,22 @@ void PPCRegisterInfo::lowerCRBitSpilling(MachineBasicBlock::iterator II,
   const TargetRegisterClass *G8RC = &PPC::G8RCRegClass;
   const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
 
-  unsigned Reg = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
-  unsigned SrcReg = MI.getOperand(0).getReg();
+  Register Reg = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
+  Register SrcReg = MI.getOperand(0).getReg();
 
   // Search up the BB to find the definition of the CR bit.
-  MachineBasicBlock::reverse_iterator Ins;
+  MachineBasicBlock::reverse_iterator Ins = MI;
+  MachineBasicBlock::reverse_iterator Rend = MBB.rend();
+  ++Ins;
   unsigned CRBitSpillDistance = 0;
-  for (Ins = MI; Ins != MBB.rend(); Ins++) {
+  bool SeenUse = false;
+  for (; Ins != Rend; ++Ins) {
     // Definition found.
     if (Ins->modifiesRegister(SrcReg, TRI))
       break;
+    // Use found.
+    if (Ins->readsRegister(SrcReg, TRI))
+      SeenUse = true;
     // Unable to find CR bit definition within maximum search distance.
     if (CRBitSpillDistance == MaxCRBitSpillDist) {
       Ins = MI;
@@ -768,17 +773,35 @@ void PPCRegisterInfo::lowerCRBitSpilling(MachineBasicBlock::iterator II,
   if (Ins == MBB.rend())
     Ins = MI;
 
+  bool SpillsKnownBit = false;
   // There is no need to extract the CR bit if its value is already known.
   switch (Ins->getOpcode()) {
   case PPC::CRUNSET:
     BuildMI(MBB, II, dl, TII.get(LP64 ? PPC::LI8 : PPC::LI), Reg)
       .addImm(0);
+    SpillsKnownBit = true;
     break;
   case PPC::CRSET:
     BuildMI(MBB, II, dl, TII.get(LP64 ? PPC::LIS8 : PPC::LIS), Reg)
       .addImm(-32768);
+    SpillsKnownBit = true;
     break;
   default:
+    // On Power9, we can use SETB to extract the LT bit. This only works for
+    // the LT bit since SETB produces -1/1/0 for LT/GT/<neither>. So the value
+    // of the bit we care about (32-bit sign bit) will be set to the value of
+    // the LT bit (regardless of the other bits in the CR field).
+    if (Subtarget.isISA3_0()) {
+      if (SrcReg == PPC::CR0LT || SrcReg == PPC::CR1LT ||
+          SrcReg == PPC::CR2LT || SrcReg == PPC::CR3LT ||
+          SrcReg == PPC::CR4LT || SrcReg == PPC::CR5LT ||
+          SrcReg == PPC::CR6LT || SrcReg == PPC::CR7LT) {
+        BuildMI(MBB, II, dl, TII.get(LP64 ? PPC::SETB8 : PPC::SETB), Reg)
+          .addReg(getCRFromCRBit(SrcReg), RegState::Undef);
+        break;
+      }
+    }
+
     // We need to move the CR field that contains the CR bit we are spilling.
     // The super register may not be explicitly defined (i.e. it can be defined
     // by a CR-logical that only defines the subreg) so we state that the CR
@@ -804,8 +827,13 @@ void PPCRegisterInfo::lowerCRBitSpilling(MachineBasicBlock::iterator II,
                     .addReg(Reg, RegState::Kill),
                     FrameIndex);
 
+  bool KillsCRBit = MI.killsRegister(SrcReg, TRI);
   // Discard the pseudo instruction.
   MBB.erase(II);
+  if (SpillsKnownBit && KillsCRBit && !SeenUse) {
+    Ins->setDesc(TII.get(PPC::UNENCODED_NOP));
+    Ins->RemoveOperand(0);
+  }
 }
 
 void PPCRegisterInfo::lowerCRBitRestore(MachineBasicBlock::iterator II,
@@ -823,8 +851,8 @@ void PPCRegisterInfo::lowerCRBitRestore(MachineBasicBlock::iterator II,
   const TargetRegisterClass *G8RC = &PPC::G8RCRegClass;
   const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
 
-  unsigned Reg = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
-  unsigned DestReg = MI.getOperand(0).getReg();
+  Register Reg = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
+  Register DestReg = MI.getOperand(0).getReg();
   assert(MI.definesRegister(DestReg) &&
     "RESTORE_CRBIT does not define its destination");
 
@@ -833,7 +861,7 @@ void PPCRegisterInfo::lowerCRBitRestore(MachineBasicBlock::iterator II,
 
   BuildMI(MBB, II, dl, TII.get(TargetOpcode::IMPLICIT_DEF), DestReg);
 
-  unsigned RegO = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
+  Register RegO = MF.getRegInfo().createVirtualRegister(LP64 ? G8RC : GPRC);
   BuildMI(MBB, II, dl, TII.get(LP64 ? PPC::MFOCRF8 : PPC::MFOCRF), RegO)
           .addReg(getCRFromCRBit(DestReg));
 
@@ -870,8 +898,8 @@ void PPCRegisterInfo::lowerVRSAVESpilling(MachineBasicBlock::iterator II,
   DebugLoc dl = MI.getDebugLoc();
 
   const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
-  unsigned Reg = MF.getRegInfo().createVirtualRegister(GPRC);
-  unsigned SrcReg = MI.getOperand(0).getReg();
+  Register Reg = MF.getRegInfo().createVirtualRegister(GPRC);
+  Register SrcReg = MI.getOperand(0).getReg();
 
   BuildMI(MBB, II, dl, TII.get(PPC::MFVRSAVEv), Reg)
       .addReg(SrcReg, getKillRegState(MI.getOperand(0).isKill()));
@@ -896,8 +924,8 @@ void PPCRegisterInfo::lowerVRSAVERestore(MachineBasicBlock::iterator II,
   DebugLoc dl = MI.getDebugLoc();
 
   const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
-  unsigned Reg = MF.getRegInfo().createVirtualRegister(GPRC);
-  unsigned DestReg = MI.getOperand(0).getReg();
+  Register Reg = MF.getRegInfo().createVirtualRegister(GPRC);
+  Register DestReg = MI.getOperand(0).getReg();
   assert(MI.definesRegister(DestReg) &&
     "RESTORE_VRSAVE does not define its destination");
 
@@ -1128,7 +1156,7 @@ PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     OperandBase = OffsetOperandNo;
   }
 
-  unsigned StackReg = MI.getOperand(FIOperandNum).getReg();
+  Register StackReg = MI.getOperand(FIOperandNum).getReg();
   MI.getOperand(OperandBase).ChangeToRegister(StackReg, false);
   MI.getOperand(OperandBase + 1).ChangeToRegister(SReg, false, false, true);
 }

@@ -29,7 +29,14 @@ public:
                                    std::unique_ptr<MemoryBuffer> ObjBuffer)
       : Layer(Layer), MR(std::move(MR)), ObjBuffer(std::move(ObjBuffer)) {}
 
-  JITLinkMemoryManager &getMemoryManager() override { return Layer.MemMgr; }
+  ~ObjectLinkingLayerJITLinkContext() {
+    // If there is an object buffer return function then use it to
+    // return ownership of the buffer.
+    if (Layer.ReturnObjectBuffer)
+      Layer.ReturnObjectBuffer(std::move(ObjBuffer));
+  }
+
+  JITLinkMemoryManager &getMemoryManager() override { return *Layer.MemMgr; }
 
   MemoryBufferRef getObjectBuffer() const override {
     return ObjBuffer->getMemBufferRef();
@@ -40,64 +47,69 @@ public:
     MR.failMaterialization();
   }
 
-  void lookup(const DenseSet<StringRef> &Symbols,
-              JITLinkAsyncLookupContinuation LookupContinuation) override {
+  void lookup(const LookupMap &Symbols,
+              std::unique_ptr<JITLinkAsyncLookupContinuation> LC) override {
 
-    JITDylibSearchList SearchOrder;
+    JITDylibSearchOrder SearchOrder;
     MR.getTargetJITDylib().withSearchOrderDo(
-        [&](const JITDylibSearchList &JDs) { SearchOrder = JDs; });
+        [&](const JITDylibSearchOrder &O) { SearchOrder = O; });
 
     auto &ES = Layer.getExecutionSession();
 
-    SymbolNameSet InternedSymbols;
-    for (auto &S : Symbols)
-      InternedSymbols.insert(ES.intern(S));
+    SymbolLookupSet LookupSet;
+    for (auto &KV : Symbols) {
+      orc::SymbolLookupFlags LookupFlags;
+      switch (KV.second) {
+      case jitlink::SymbolLookupFlags::RequiredSymbol:
+        LookupFlags = orc::SymbolLookupFlags::RequiredSymbol;
+        break;
+      case jitlink::SymbolLookupFlags::WeaklyReferencedSymbol:
+        LookupFlags = orc::SymbolLookupFlags::WeaklyReferencedSymbol;
+        break;
+      }
+      LookupSet.add(ES.intern(KV.first), LookupFlags);
+    }
 
     // OnResolve -- De-intern the symbols and pass the result to the linker.
-    // FIXME: Capture LookupContinuation by move once we have c++14.
-    auto SharedLookupContinuation =
-        std::make_shared<JITLinkAsyncLookupContinuation>(
-            std::move(LookupContinuation));
-    auto OnResolve = [SharedLookupContinuation](Expected<SymbolMap> Result) {
+    auto OnResolve = [this, LookupContinuation = std::move(LC)](
+                         Expected<SymbolMap> Result) mutable {
+      auto Main = Layer.getExecutionSession().intern("_main");
       if (!Result)
-        (*SharedLookupContinuation)(Result.takeError());
+        LookupContinuation->run(Result.takeError());
       else {
         AsyncLookupResult LR;
         for (auto &KV : *Result)
           LR[*KV.first] = KV.second;
-        (*SharedLookupContinuation)(std::move(LR));
+        LookupContinuation->run(std::move(LR));
       }
     };
 
-    ES.lookup(SearchOrder, std::move(InternedSymbols), SymbolState::Resolved,
-              std::move(OnResolve), [this](const SymbolDependenceMap &Deps) {
+    ES.lookup(LookupKind::Static, SearchOrder, std::move(LookupSet),
+              SymbolState::Resolved, std::move(OnResolve),
+              [this](const SymbolDependenceMap &Deps) {
                 registerDependencies(Deps);
               });
   }
 
-  void notifyResolved(AtomGraph &G) override {
+  void notifyResolved(LinkGraph &G) override {
     auto &ES = Layer.getExecutionSession();
 
     SymbolFlagsMap ExtraSymbolsToClaim;
     bool AutoClaim = Layer.AutoClaimObjectSymbols;
 
     SymbolMap InternedResult;
-    for (auto *DA : G.defined_atoms())
-      if (DA->hasName() && DA->isGlobal()) {
-        auto InternedName = ES.intern(DA->getName());
+    for (auto *Sym : G.defined_symbols())
+      if (Sym->hasName() && Sym->getScope() != Scope::Local) {
+        auto InternedName = ES.intern(Sym->getName());
         JITSymbolFlags Flags;
 
-        if (DA->isExported())
-          Flags |= JITSymbolFlags::Exported;
-        if (DA->isWeak())
-          Flags |= JITSymbolFlags::Weak;
-        if (DA->isCallable())
+        if (Sym->isCallable())
           Flags |= JITSymbolFlags::Callable;
-        if (DA->isCommon())
-          Flags |= JITSymbolFlags::Common;
+        if (Sym->getScope() == Scope::Default)
+          Flags |= JITSymbolFlags::Exported;
 
         InternedResult[InternedName] =
-            JITEvaluatedSymbol(DA->getAddress(), Flags);
+            JITEvaluatedSymbol(Sym->getAddress(), Flags);
         if (AutoClaim && !MR.getSymbols().count(InternedName)) {
           assert(!ExtraSymbolsToClaim.count(InternedName) &&
                  "Duplicate symbol to claim?");
@@ -105,17 +117,17 @@ public:
         }
       }
 
-    for (auto *A : G.absolute_atoms())
-      if (A->hasName()) {
-        auto InternedName = ES.intern(A->getName());
+    for (auto *Sym : G.absolute_symbols())
+      if (Sym->hasName()) {
+        auto InternedName = ES.intern(Sym->getName());
         JITSymbolFlags Flags;
         Flags |= JITSymbolFlags::Absolute;
-        if (A->isWeak())
-          Flags |= JITSymbolFlags::Weak;
-        if (A->isCallable())
+        if (Sym->isCallable())
           Flags |= JITSymbolFlags::Callable;
+        if (Sym->getLinkage() == Linkage::Weak)
+          Flags |= JITSymbolFlags::Weak;
         InternedResult[InternedName] =
-            JITEvaluatedSymbol(A->getAddress(), Flags);
+            JITEvaluatedSymbol(Sym->getAddress(), Flags);
         if (AutoClaim && !MR.getSymbols().count(InternedName)) {
           assert(!ExtraSymbolsToClaim.count(InternedName) &&
                  "Duplicate symbol to claim?");
@@ -126,35 +138,38 @@ public:
     if (!ExtraSymbolsToClaim.empty())
       if (auto Err = MR.defineMaterializing(ExtraSymbolsToClaim))
         return notifyFailed(std::move(Err));
-
-    MR.notifyResolved(InternedResult);
-
+    if (auto Err = MR.notifyResolved(InternedResult)) {
+      Layer.getExecutionSession().reportError(std::move(Err));
+      MR.failMaterialization();
+      return;
+    }
     Layer.notifyLoaded(MR);
   }
 
   void notifyFinalized(
       std::unique_ptr<JITLinkMemoryManager::Allocation> A) override {
-
     if (auto Err = Layer.notifyEmitted(MR, std::move(A))) {
       Layer.getExecutionSession().reportError(std::move(Err));
       MR.failMaterialization();
-
       return;
     }
-    MR.notifyEmitted();
+    if (auto Err = MR.notifyEmitted()) {
+      Layer.getExecutionSession().reportError(std::move(Err));
+      MR.failMaterialization();
+    }
   }
 
-  AtomGraphPassFunction getMarkLivePass(const Triple &TT) const override {
-    return [this](AtomGraph &G) { return markResponsibilitySymbolsLive(G); };
+  LinkGraphPassFunction getMarkLivePass(const Triple &TT) const override {
+    return [this](LinkGraph &G) { return markResponsibilitySymbolsLive(G); };
   }
 
   Error modifyPassConfig(const Triple &TT, PassConfiguration &Config) override {
     // Add passes to mark duplicate defs as should-discard, and to walk the
-    // atom graph to build the symbol dependence graph.
+    // link graph to build the symbol dependence graph.
     Config.PrePrunePasses.push_back(
-        [this](AtomGraph &G) { return markSymbolsToDiscard(G); });
+        [this](LinkGraph &G) { return externalizeWeakAndCommonSymbols(G); });
     Config.PostPrunePasses.push_back(
-        [this](AtomGraph &G) { return computeNamedSymbolDependencies(G); });
+        [this](LinkGraph &G) { return computeNamedSymbolDependencies(G); });
 
     Layer.modifyPassConfig(MR, TT, Config);
 
@@ -162,65 +177,59 @@ public:
   }
 
 private:
-  using AnonAtomNamedDependenciesMap =
-      DenseMap<const DefinedAtom *, SymbolNameSet>;
+  using AnonToNamedDependenciesMap = DenseMap<const Symbol *, SymbolNameSet>;
 
-  Error markSymbolsToDiscard(AtomGraph &G) {
+  Error externalizeWeakAndCommonSymbols(LinkGraph &G) {
     auto &ES = Layer.getExecutionSession();
-    for (auto *DA : G.defined_atoms())
-      if (DA->isWeak() && DA->hasName()) {
-        auto S = ES.intern(DA->getName());
-        auto I = MR.getSymbols().find(S);
-        if (I == MR.getSymbols().end())
-          DA->setShouldDiscard(true);
+    for (auto *Sym : G.defined_symbols())
+      if (Sym->hasName() && Sym->getLinkage() == Linkage::Weak) {
+        if (!MR.getSymbols().count(ES.intern(Sym->getName())))
+          G.makeExternal(*Sym);
       }
 
-    for (auto *A : G.absolute_atoms())
-      if (A->isWeak() && A->hasName()) {
-        auto S = ES.intern(A->getName());
-        auto I = MR.getSymbols().find(S);
-        if (I == MR.getSymbols().end())
-          A->setShouldDiscard(true);
+    for (auto *Sym : G.absolute_symbols())
+      if (Sym->hasName() && Sym->getLinkage() == Linkage::Weak) {
+        if (!MR.getSymbols().count(ES.intern(Sym->getName())))
+          G.makeExternal(*Sym);
       }
 
     return Error::success();
   }
 
-  Error markResponsibilitySymbolsLive(AtomGraph &G) const {
+  Error markResponsibilitySymbolsLive(LinkGraph &G) const {
     auto &ES = Layer.getExecutionSession();
-    for (auto *DA : G.defined_atoms())
-      if (DA->hasName() &&
-          MR.getSymbols().count(ES.intern(DA->getName())))
-        DA->setLive(true);
+    for (auto *Sym : G.defined_symbols())
+      if (Sym->hasName() && MR.getSymbols().count(ES.intern(Sym->getName())))
+        Sym->setLive(true);
     return Error::success();
   }
 
-  Error computeNamedSymbolDependencies(AtomGraph &G) {
+  Error computeNamedSymbolDependencies(LinkGraph &G) {
     auto &ES = MR.getTargetJITDylib().getExecutionSession();
     auto AnonDeps = computeAnonDeps(G);
 
-    for (auto *DA : G.defined_atoms()) {
+    for (auto *Sym : G.defined_symbols()) {
 
       // Skip anonymous and non-global atoms: we do not need dependencies for
       // these.
-      if (!DA->hasName() || !DA->isGlobal())
+      if (Sym->getScope() == Scope::Local)
         continue;
 
-      auto DAName = ES.intern(DA->getName());
-      SymbolNameSet &DADeps = NamedSymbolDeps[DAName];
+      auto SymName = ES.intern(Sym->getName());
+      SymbolNameSet &SymDeps = NamedSymbolDeps[SymName];
 
-      for (auto &E : DA->edges()) {
-        auto &TA = E.getTarget();
+      for (auto &E : Sym->getBlock().edges()) {
+        auto &TargetSym = E.getTarget();
 
-        if (TA.hasName())
-          DADeps.insert(ES.intern(TA.getName()));
+        if (TargetSym.getScope() != Scope::Local)
+          SymDeps.insert(ES.intern(TargetSym.getName()));
         else {
-          assert(TA.isDefined() && "Anonymous atoms must be defined");
-          auto &DTA = static_cast<DefinedAtom &>(TA);
-          auto I = AnonDeps.find(&DTA);
+          assert(TargetSym.isDefined() &&
+                 "Anonymous/local symbols must be defined");
+          auto I = AnonDeps.find(&TargetSym);
           if (I != AnonDeps.end())
             for (auto &S : I->second)
-              DADeps.insert(S);
+              SymDeps.insert(S);
         }
       }
     }
@@ -228,58 +237,59 @@ private:
     return Error::success();
   }
 
-  AnonAtomNamedDependenciesMap computeAnonDeps(AtomGraph &G) {
+  AnonToNamedDependenciesMap computeAnonDeps(LinkGraph &G) {
 
     auto &ES = MR.getTargetJITDylib().getExecutionSession();
-    AnonAtomNamedDependenciesMap DepMap;
+    AnonToNamedDependenciesMap DepMap;
 
-    // For all anonymous atoms:
+    // For all anonymous symbols:
     // (1) Add their named dependencies.
     // (2) Add them to the worklist for further iteration if they have any
-    //     depend on any other anonymous atoms.
+    //     depend on any other anonymous symbols.
     struct WorklistEntry {
-      WorklistEntry(DefinedAtom *DA, DenseSet<DefinedAtom *> DAAnonDeps)
-          : DA(DA), DAAnonDeps(std::move(DAAnonDeps)) {}
+      WorklistEntry(Symbol *Sym, DenseSet<Symbol *> SymAnonDeps)
+          : Sym(Sym), SymAnonDeps(std::move(SymAnonDeps)) {}
 
-      DefinedAtom *DA = nullptr;
-      DenseSet<DefinedAtom *> DAAnonDeps;
+      Symbol *Sym = nullptr;
+      DenseSet<Symbol *> SymAnonDeps;
     };
     std::vector<WorklistEntry> Worklist;
-    for (auto *DA : G.defined_atoms())
-      if (!DA->hasName()) {
-        auto &DANamedDeps = DepMap[DA];
-        DenseSet<DefinedAtom *> DAAnonDeps;
+    for (auto *Sym : G.defined_symbols())
+      if (!Sym->hasName()) {
+        auto &SymNamedDeps = DepMap[Sym];
+        DenseSet<Symbol *> SymAnonDeps;
 
-        for (auto &E : DA->edges()) {
-          auto &TA = E.getTarget();
-          if (TA.hasName())
-            DANamedDeps.insert(ES.intern(TA.getName()));
+        for (auto &E : Sym->getBlock().edges()) {
+          auto &TargetSym = E.getTarget();
+          if (TargetSym.hasName())
+            SymNamedDeps.insert(ES.intern(TargetSym.getName()));
           else {
-            assert(TA.isDefined() && "Anonymous atoms must be defined");
-            DAAnonDeps.insert(static_cast<DefinedAtom *>(&TA));
+            assert(TargetSym.isDefined() &&
+                   "Anonymous symbols must be defined");
+            SymAnonDeps.insert(&TargetSym);
           }
         }
 
-        if (!DAAnonDeps.empty())
-          Worklist.push_back(WorklistEntry(DA, std::move(DAAnonDeps)));
+        if (!SymAnonDeps.empty())
+          Worklist.push_back(WorklistEntry(Sym, std::move(SymAnonDeps)));
       }
 
-    // Loop over all anonymous atoms with anonymous dependencies, propagating
+    // Loop over all anonymous symbols with anonymous dependencies, propagating
     // their respective *named* dependencies. Iterate until we hit a stable
     // state.
     bool Changed;
     do {
       Changed = false;
       for (auto &WLEntry : Worklist) {
-        auto *DA = WLEntry.DA;
-        auto &DANamedDeps = DepMap[DA];
-        auto &DAAnonDeps = WLEntry.DAAnonDeps;
+        auto *Sym = WLEntry.Sym;
+        auto &SymNamedDeps = DepMap[Sym];
+        auto &SymAnonDeps = WLEntry.SymAnonDeps;
 
-        for (auto *TA : DAAnonDeps) {
-          auto I = DepMap.find(TA);
+        for (auto *TargetSym : SymAnonDeps) {
+          auto I = DepMap.find(TargetSym);
           if (I != DepMap.end())
             for (const auto &S : I->second)
-              Changed |= DANamedDeps.insert(S).second;
+              Changed |= SymNamedDeps.insert(S).second;
         }
       }
     } while (Changed);
@@ -318,9 +328,9 @@ private:
 
 ObjectLinkingLayer::Plugin::~Plugin() {}
 
-ObjectLinkingLayer::ObjectLinkingLayer(ExecutionSession &ES,
-                                       JITLinkMemoryManager &MemMgr)
-    : ObjectLayer(ES), MemMgr(MemMgr) {}
+ObjectLinkingLayer::ObjectLinkingLayer(
+    ExecutionSession &ES, std::unique_ptr<JITLinkMemoryManager> MemMgr)
+    : ObjectLayer(ES), MemMgr(std::move(MemMgr)) {}
 
 ObjectLinkingLayer::~ObjectLinkingLayer() {
   if (auto Err = removeAllModules())
@@ -330,7 +340,7 @@ ObjectLinkingLayer::~ObjectLinkingLayer() {
 void ObjectLinkingLayer::emit(MaterializationResponsibility R,
                               std::unique_ptr<MemoryBuffer> O) {
   assert(O && "Object must not be null");
-  jitLink(llvm::make_unique<ObjectLinkingLayerJITLinkContext>(
+  jitLink(std::make_unique<ObjectLinkingLayerJITLinkContext>(
       *this, std::move(R), std::move(O)));
 }
 
@@ -410,7 +420,7 @@ Error ObjectLinkingLayer::removeAllModules() {
 }
 
 EHFrameRegistrationPlugin::EHFrameRegistrationPlugin(
-    jitlink::EHFrameRegistrar &Registrar)
+    EHFrameRegistrar &Registrar)
     : Registrar(Registrar) {}
 
 void EHFrameRegistrationPlugin::modifyPassConfig(
@@ -419,61 +429,66 @@ void EHFrameRegistrationPlugin::modifyPassConfig(
   assert(!InProcessLinks.count(&MR) && "Link for MR already being tracked?");
 
   PassConfig.PostFixupPasses.push_back(
-      createEHFrameRecorderPass(TT, [this, &MR](JITTargetAddress Addr) {
+      createEHFrameRecorderPass(TT, [this, &MR](JITTargetAddress Addr,
+                                                size_t Size) {
         if (Addr)
-          InProcessLinks[&MR] = Addr;
+          InProcessLinks[&MR] = { Addr, Size };
       }));
 }
 
 Error EHFrameRegistrationPlugin::notifyEmitted(
     MaterializationResponsibility &MR) {
 
-  auto EHFrameAddrItr = InProcessLinks.find(&MR);
-  if (EHFrameAddrItr == InProcessLinks.end())
+  auto EHFrameRangeItr = InProcessLinks.find(&MR);
+  if (EHFrameRangeItr == InProcessLinks.end())
     return Error::success();
 
-  auto EHFrameAddr = EHFrameAddrItr->second;
-  assert(EHFrameAddr && "eh-frame addr to register can not be null");
+  auto EHFrameRange = EHFrameRangeItr->second;
+  assert(EHFrameRange.Addr &&
+         "eh-frame addr to register can not be null");
 
-  InProcessLinks.erase(EHFrameAddrItr);
+  InProcessLinks.erase(EHFrameRangeItr);
   if (auto Key = MR.getVModuleKey())
-    TrackedEHFrameAddrs[Key] = EHFrameAddr;
+    TrackedEHFrameRanges[Key] = EHFrameRange;
   else
-    UntrackedEHFrameAddrs.push_back(EHFrameAddr);
+    UntrackedEHFrameRanges.push_back(EHFrameRange);
 
-  return Registrar.registerEHFrames(EHFrameAddr);
+  return Registrar.registerEHFrames(EHFrameRange.Addr, EHFrameRange.Size);
 }
 
 Error EHFrameRegistrationPlugin::notifyRemovingModule(VModuleKey K) {
-  auto EHFrameAddrItr = TrackedEHFrameAddrs.find(K);
-  if (EHFrameAddrItr == TrackedEHFrameAddrs.end())
+  auto EHFrameRangeItr = TrackedEHFrameRanges.find(K);
+  if (EHFrameRangeItr == TrackedEHFrameRanges.end())
     return Error::success();
 
-  auto EHFrameAddr = EHFrameAddrItr->second;
-  assert(EHFrameAddr && "Tracked eh-frame addr must not be null");
+  auto EHFrameRange = EHFrameRangeItr->second;
+  assert(EHFrameRange.Addr && "Tracked eh-frame range must not be null");
 
-  TrackedEHFrameAddrs.erase(EHFrameAddrItr);
+  TrackedEHFrameRanges.erase(EHFrameRangeItr);
 
-  return Registrar.deregisterEHFrames(EHFrameAddr);
+  return Registrar.deregisterEHFrames(EHFrameRange.Addr, EHFrameRange.Size);
 }
 
 Error EHFrameRegistrationPlugin::notifyRemovingAllModules() {
 
-  std::vector<JITTargetAddress> EHFrameAddrs = std::move(UntrackedEHFrameAddrs);
-  EHFrameAddrs.reserve(EHFrameAddrs.size() + TrackedEHFrameAddrs.size());
+  std::vector<EHFrameRange> EHFrameRanges =
+    std::move(UntrackedEHFrameRanges);
+  EHFrameRanges.reserve(EHFrameRanges.size() + TrackedEHFrameRanges.size());
 
-  for (auto &KV : TrackedEHFrameAddrs)
-    EHFrameAddrs.push_back(KV.second);
+  for (auto &KV : TrackedEHFrameRanges)
+    EHFrameRanges.push_back(KV.second);
 
-  TrackedEHFrameAddrs.clear();
+  TrackedEHFrameRanges.clear();
 
   Error Err = Error::success();
 
-  while (!EHFrameAddrs.empty()) {
-    auto EHFrameAddr = EHFrameAddrs.back();
-    assert(EHFrameAddr && "Untracked eh-frame addr must not be null");
-    EHFrameAddrs.pop_back();
-    Err = joinErrors(std::move(Err), Registrar.deregisterEHFrames(EHFrameAddr));
+  while (!EHFrameRanges.empty()) {
+    auto EHFrameRange = EHFrameRanges.back();
+    assert(EHFrameRange.Addr && "Untracked eh-frame range must not be null");
+    EHFrameRanges.pop_back();
+    Err = joinErrors(std::move(Err),
+                     Registrar.deregisterEHFrames(EHFrameRange.Addr,
+                                                  EHFrameRange.Size));
   }
 
   return Err;

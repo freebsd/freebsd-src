@@ -67,13 +67,12 @@ int llvm::Intrinsic::lookupLLVMIntrinsicByName(ArrayRef<const char *> NameTable,
   // size 1. During the search, we can skip the prefix that we already know is
   // identical. By using strncmp we consider names with differing suffixes to
   // be part of the equal range.
-  size_t CmpStart = 0;
   size_t CmpEnd = 4; // Skip the "llvm" component.
   const char *const *Low = NameTable.begin();
   const char *const *High = NameTable.end();
   const char *const *LastLow = Low;
   while (CmpEnd < Name.size() && High - Low > 0) {
-    CmpStart = CmpEnd;
+    size_t CmpStart = CmpEnd;
     CmpEnd = Name.find('.', CmpStart + 1);
     CmpEnd = CmpEnd == StringRef::npos ? Name.size() : CmpEnd;
     auto Cmp = [CmpStart, CmpEnd](const char *LHS, const char *RHS) {
@@ -103,109 +102,57 @@ Value *InstrProfIncrementInst::getStep() const {
   return ConstantInt::get(Type::getInt64Ty(Context), 1);
 }
 
-Optional<ConstrainedFPIntrinsic::RoundingMode>
-ConstrainedFPIntrinsic::getRoundingMode() const {
+Optional<fp::RoundingMode> ConstrainedFPIntrinsic::getRoundingMode() const {
   unsigned NumOperands = getNumArgOperands();
   Metadata *MD =
-      dyn_cast<MetadataAsValue>(getArgOperand(NumOperands - 2))->getMetadata();
+      cast<MetadataAsValue>(getArgOperand(NumOperands - 2))->getMetadata();
   if (!MD || !isa<MDString>(MD))
     return None;
   return StrToRoundingMode(cast<MDString>(MD)->getString());
 }
 
-Optional<ConstrainedFPIntrinsic::RoundingMode>
-ConstrainedFPIntrinsic::StrToRoundingMode(StringRef RoundingArg) {
-  // For dynamic rounding mode, we use round to nearest but we will set the
-  // 'exact' SDNodeFlag so that the value will not be rounded.
-  return StringSwitch<Optional<RoundingMode>>(RoundingArg)
-    .Case("round.dynamic",    rmDynamic)
-    .Case("round.tonearest",  rmToNearest)
-    .Case("round.downward",   rmDownward)
-    .Case("round.upward",     rmUpward)
-    .Case("round.towardzero", rmTowardZero)
-    .Default(None);
-}
-
-Optional<StringRef>
-ConstrainedFPIntrinsic::RoundingModeToStr(RoundingMode UseRounding) {
-  Optional<StringRef> RoundingStr = None;
-  switch (UseRounding) {
-  case ConstrainedFPIntrinsic::rmDynamic:
-    RoundingStr = "round.dynamic";
-    break;
-  case ConstrainedFPIntrinsic::rmToNearest:
-    RoundingStr = "round.tonearest";
-    break;
-  case ConstrainedFPIntrinsic::rmDownward:
-    RoundingStr = "round.downward";
-    break;
-  case ConstrainedFPIntrinsic::rmUpward:
-    RoundingStr = "round.upward";
-    break;
-  case ConstrainedFPIntrinsic::rmTowardZero:
-    RoundingStr = "round.tozero";
-    break;
-  }
-  return RoundingStr;
-}
-
-Optional<ConstrainedFPIntrinsic::ExceptionBehavior>
+Optional<fp::ExceptionBehavior>
 ConstrainedFPIntrinsic::getExceptionBehavior() const {
   unsigned NumOperands = getNumArgOperands();
   Metadata *MD =
-      dyn_cast<MetadataAsValue>(getArgOperand(NumOperands - 1))->getMetadata();
+      cast<MetadataAsValue>(getArgOperand(NumOperands - 1))->getMetadata();
   if (!MD || !isa<MDString>(MD))
     return None;
   return StrToExceptionBehavior(cast<MDString>(MD)->getString());
 }
 
-Optional<ConstrainedFPIntrinsic::ExceptionBehavior>
-ConstrainedFPIntrinsic::StrToExceptionBehavior(StringRef ExceptionArg) {
-  return StringSwitch<Optional<ExceptionBehavior>>(ExceptionArg)
-    .Case("fpexcept.ignore",  ebIgnore)
-    .Case("fpexcept.maytrap", ebMayTrap)
-    .Case("fpexcept.strict",  ebStrict)
-    .Default(None);
-}
-
-Optional<StringRef>
-ConstrainedFPIntrinsic::ExceptionBehaviorToStr(ExceptionBehavior UseExcept) {
-  Optional<StringRef> ExceptStr = None;
-  switch (UseExcept) {
-  case ConstrainedFPIntrinsic::ebStrict:
-    ExceptStr = "fpexcept.strict";
-    break;
-  case ConstrainedFPIntrinsic::ebIgnore:
-    ExceptStr = "fpexcept.ignore";
-    break;
-  case ConstrainedFPIntrinsic::ebMayTrap:
-    ExceptStr = "fpexcept.maytrap";
-    break;
-  }
-  return ExceptStr;
+FCmpInst::Predicate
+ConstrainedFPCmpIntrinsic::getPredicate() const {
+  Metadata *MD =
+      cast<MetadataAsValue>(getArgOperand(2))->getMetadata();
+  if (!MD || !isa<MDString>(MD))
+    return FCmpInst::BAD_FCMP_PREDICATE;
+  return StringSwitch<FCmpInst::Predicate>(cast<MDString>(MD)->getString())
+           .Case("oeq", FCmpInst::FCMP_OEQ)
+           .Case("ogt", FCmpInst::FCMP_OGT)
+           .Case("oge", FCmpInst::FCMP_OGE)
+           .Case("olt", FCmpInst::FCMP_OLT)
+           .Case("ole", FCmpInst::FCMP_OLE)
+           .Case("one", FCmpInst::FCMP_ONE)
+           .Case("ord", FCmpInst::FCMP_ORD)
+           .Case("uno", FCmpInst::FCMP_UNO)
+           .Case("ueq", FCmpInst::FCMP_UEQ)
+           .Case("ugt", FCmpInst::FCMP_UGT)
+           .Case("uge", FCmpInst::FCMP_UGE)
+           .Case("ult", FCmpInst::FCMP_ULT)
+           .Case("ule", FCmpInst::FCMP_ULE)
+           .Case("une", FCmpInst::FCMP_UNE)
+           .Default(FCmpInst::BAD_FCMP_PREDICATE);
 }
 
 bool ConstrainedFPIntrinsic::isUnaryOp() const {
   switch (getIntrinsicID()) {
     default:
       return false;
-    case Intrinsic::experimental_constrained_fptrunc:
-    case Intrinsic::experimental_constrained_fpext:
-    case Intrinsic::experimental_constrained_sqrt:
-    case Intrinsic::experimental_constrained_sin:
-    case Intrinsic::experimental_constrained_cos:
-    case Intrinsic::experimental_constrained_exp:
-    case Intrinsic::experimental_constrained_exp2:
-    case Intrinsic::experimental_constrained_log:
-    case Intrinsic::experimental_constrained_log10:
-    case Intrinsic::experimental_constrained_log2:
-    case Intrinsic::experimental_constrained_rint:
-    case Intrinsic::experimental_constrained_nearbyint:
-    case Intrinsic::experimental_constrained_ceil:
-    case Intrinsic::experimental_constrained_floor:
-    case Intrinsic::experimental_constrained_round:
-    case Intrinsic::experimental_constrained_trunc:
-      return true;
+#define INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)                   \
+    case Intrinsic::INTRINSIC:                                                 \
+      return NARG == 1;
+#include "llvm/IR/ConstrainedOps.def"
   }
 }
 
@@ -213,8 +160,21 @@ bool ConstrainedFPIntrinsic::isTernaryOp() const {
   switch (getIntrinsicID()) {
     default:
       return false;
-    case Intrinsic::experimental_constrained_fma:
-      return true;
+#define INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)                   \
+    case Intrinsic::INTRINSIC:                                                 \
+      return NARG == 3;
+#include "llvm/IR/ConstrainedOps.def"
+  }
+}
+
+bool ConstrainedFPIntrinsic::classof(const IntrinsicInst *I) {
+  switch (I->getIntrinsicID()) {
+#define INSTRUCTION(NAME, NARGS, ROUND_MODE, INTRINSIC, DAGN)                  \
+  case Intrinsic::INTRINSIC:
+#include "llvm/IR/ConstrainedOps.def"
+    return true;
+  default:
+    return false;
   }
 }
 

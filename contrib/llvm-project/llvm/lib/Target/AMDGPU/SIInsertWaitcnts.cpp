@@ -42,7 +42,9 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
@@ -372,7 +374,8 @@ private:
   AMDGPU::IsaVersion IV;
 
   DenseSet<MachineInstr *> TrackedWaitcntSet;
-  DenseSet<MachineInstr *> VCCZBugHandledSet;
+  DenseMap<const Value *, MachineBasicBlock *> SLoadAddresses;
+  MachinePostDominatorTree *PDT;
 
   struct BlockInfo {
     MachineBasicBlock *MBB;
@@ -407,6 +410,7 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
+    AU.addRequired<MachinePostDominatorTree>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
@@ -752,7 +756,10 @@ void WaitcntBrackets::determineWait(InstCounterType T, uint32_t ScoreToWait,
       // with a conservative value of 0 for the counter.
       addWait(Wait, T, 0);
     } else {
-      addWait(Wait, T, UB - ScoreToWait);
+      // If a counter has been maxed out avoid overflow by waiting for
+      // MAX(CounterType) - 1 instead.
+      uint32_t NeededWait = std::min(UB - ScoreToWait, getWaitCountMax(T) - 1);
+      addWait(Wait, T, NeededWait);
     }
   }
 }
@@ -790,6 +797,7 @@ bool WaitcntBrackets::counterOutOfOrder(InstCounterType T) const {
 
 INITIALIZE_PASS_BEGIN(SIInsertWaitcnts, DEBUG_TYPE, "SI Insert Waitcnts", false,
                       false)
+INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTree)
 INITIALIZE_PASS_END(SIInsertWaitcnts, DEBUG_TYPE, "SI Insert Waitcnts", false,
                     false)
 
@@ -939,19 +947,33 @@ bool SIInsertWaitcnts::generateWaitcntInstBefore(
     }
 
     if (MI.isCall() && callWaitsOnFunctionEntry(MI)) {
-      // Don't bother waiting on anything except the call address. The function
-      // is going to insert a wait on everything in its prolog. This still needs
-      // to be careful if the call target is a load (e.g. a GOT load).
+      // The function is going to insert a wait on everything in its prolog.
+      // This still needs to be careful if the call target is a load (e.g. a GOT
+      // load). We also need to check WAW depenancy with saved PC.
       Wait = AMDGPU::Waitcnt();
 
       int CallAddrOpIdx =
           AMDGPU::getNamedOperandIdx(MI.getOpcode(), AMDGPU::OpName::src0);
-      RegInterval Interval = ScoreBrackets.getRegInterval(&MI, TII, MRI, TRI,
-                                                          CallAddrOpIdx, false);
-      for (signed RegNo = Interval.first; RegNo < Interval.second; ++RegNo) {
+      RegInterval CallAddrOpInterval = ScoreBrackets.getRegInterval(
+          &MI, TII, MRI, TRI, CallAddrOpIdx, false);
+
+      for (signed RegNo = CallAddrOpInterval.first;
+           RegNo < CallAddrOpInterval.second; ++RegNo)
         ScoreBrackets.determineWait(
             LGKM_CNT, ScoreBrackets.getRegScore(RegNo, LGKM_CNT), Wait);
+
+      int RtnAddrOpIdx =
+            AMDGPU::getNamedOperandIdx(MI.getOpcode(), AMDGPU::OpName::dst);
+      if (RtnAddrOpIdx != -1) {
+        RegInterval RtnAddrOpInterval = ScoreBrackets.getRegInterval(
+            &MI, TII, MRI, TRI, RtnAddrOpIdx, false);
+
+        for (signed RegNo = RtnAddrOpInterval.first;
+             RegNo < RtnAddrOpInterval.second; ++RegNo)
+          ScoreBrackets.determineWait(
+              LGKM_CNT, ScoreBrackets.getRegScore(RegNo, LGKM_CNT), Wait);
       }
+
     } else {
       // FIXME: Should not be relying on memoperands.
       // Look at the source operands of every instruction to see if
@@ -996,6 +1018,13 @@ bool SIInsertWaitcnts::generateWaitcntInstBefore(
       if (MI.mayStore()) {
         // FIXME: Should not be relying on memoperands.
         for (const MachineMemOperand *Memop : MI.memoperands()) {
+          const Value *Ptr = Memop->getValue();
+          if (SLoadAddresses.count(Ptr)) {
+            addWait(Wait, LGKM_CNT, 0);
+            if (PDT->dominates(MI.getParent(),
+                               SLoadAddresses.find(Ptr)->second))
+              SLoadAddresses.erase(Ptr);
+          }
           unsigned AS = Memop->getAddrSpace();
           if (AS != AMDGPUAS::LOCAL_ADDRESS)
             continue;
@@ -1065,7 +1094,7 @@ bool SIInsertWaitcnts::generateWaitcntInstBefore(
           assert(II->getOpcode() == AMDGPU::S_WAITCNT_VSCNT);
           assert(II->getOperand(0).getReg() == AMDGPU::SGPR_NULL);
           ScoreBrackets.applyWaitcnt(
-              AMDGPU::Waitcnt(0, 0, 0, II->getOperand(1).getImm()));
+              AMDGPU::Waitcnt(~0u, ~0u, ~0u, II->getOperand(1).getImm()));
         }
       }
     }
@@ -1124,7 +1153,7 @@ bool SIInsertWaitcnts::generateWaitcntInstBefore(
         Wait.VsCnt = ~0u;
       }
 
-      LLVM_DEBUG(dbgs() << "updateWaitcntInBlock\n"
+      LLVM_DEBUG(dbgs() << "generateWaitcntInstBefore\n"
                         << "Old Instr: " << MI << '\n'
                         << "New Instr: " << *II << '\n');
 
@@ -1141,7 +1170,7 @@ bool SIInsertWaitcnts::generateWaitcntInstBefore(
     TrackedWaitcntSet.insert(SWaitInst);
     Modified = true;
 
-    LLVM_DEBUG(dbgs() << "insertWaitcntInBlock\n"
+    LLVM_DEBUG(dbgs() << "generateWaitcntInstBefore\n"
                       << "Old Instr: " << MI << '\n'
                       << "New Instr: " << *SWaitInst << '\n');
   }
@@ -1157,7 +1186,7 @@ bool SIInsertWaitcnts::generateWaitcntInstBefore(
     TrackedWaitcntSet.insert(SWaitInst);
     Modified = true;
 
-    LLVM_DEBUG(dbgs() << "insertWaitcntInBlock\n"
+    LLVM_DEBUG(dbgs() << "generateWaitcntInstBefore\n"
                       << "Old Instr: " << MI << '\n'
                       << "New Instr: " << *SWaitInst << '\n');
   }
@@ -1195,7 +1224,7 @@ void SIInsertWaitcnts::updateEventWaitcntAfter(MachineInstr &Inst,
       ScoreBrackets->updateByEvent(TII, TRI, MRI, LDS_ACCESS, Inst);
     }
   } else if (TII->isFLAT(Inst)) {
-    assert(Inst.mayLoad() || Inst.mayStore());
+    assert(Inst.mayLoadOrStore());
 
     if (TII->usesVM_CNT(Inst)) {
       if (!ST->hasVscnt())
@@ -1374,13 +1403,19 @@ bool SIInsertWaitcnts::insertWaitcntInBlock(MachineFunction &MF,
     }
 
     bool VCCZBugWorkAround = false;
-    if (readsVCCZ(Inst) &&
-        (!VCCZBugHandledSet.count(&Inst))) {
+    if (readsVCCZ(Inst)) {
       if (ScoreBrackets.getScoreLB(LGKM_CNT) <
               ScoreBrackets.getScoreUB(LGKM_CNT) &&
           ScoreBrackets.hasPendingEvent(SMEM_ACCESS)) {
-        if (ST->getGeneration() <= AMDGPUSubtarget::SEA_ISLANDS)
+        if (ST->hasReadVCCZBug())
           VCCZBugWorkAround = true;
+      }
+    }
+
+    if (TII->isSMRD(Inst)) {
+      for (const MachineMemOperand *Memop : Inst.memoperands()) {
+        const Value *Ptr = Memop->getValue();
+        SLoadAddresses.insert(std::make_pair(Ptr, Inst.getParent()));
       }
     }
 
@@ -1417,7 +1452,6 @@ bool SIInsertWaitcnts::insertWaitcntInBlock(MachineFunction &MF,
               TII->get(ST->isWave32() ? AMDGPU::S_MOV_B32 : AMDGPU::S_MOV_B64),
               TRI->getVCC())
           .addReg(TRI->getVCC());
-      VCCZBugHandledSet.insert(&Inst);
       Modified = true;
     }
 
@@ -1434,6 +1468,7 @@ bool SIInsertWaitcnts::runOnMachineFunction(MachineFunction &MF) {
   MRI = &MF.getRegInfo();
   IV = AMDGPU::getIsaVersion(ST->getCPU());
   const SIMachineFunctionInfo *MFI = MF.getInfo<SIMachineFunctionInfo>();
+  PDT = &getAnalysis<MachinePostDominatorTree>();
 
   ForceEmitZeroWaitcnts = ForceEmitZeroFlag;
   for (auto T : inst_counter_types())
@@ -1457,7 +1492,6 @@ bool SIInsertWaitcnts::runOnMachineFunction(MachineFunction &MF) {
       RegisterEncoding.SGPR0 + HardwareLimits.NumSGPRsMax - 1;
 
   TrackedWaitcntSet.clear();
-  VCCZBugHandledSet.clear();
   RpotIdxMap.clear();
   BlockInfos.clear();
 
@@ -1483,12 +1517,12 @@ bool SIInsertWaitcnts::runOnMachineFunction(MachineFunction &MF) {
 
       if (BI.Incoming) {
         if (!Brackets)
-          Brackets = llvm::make_unique<WaitcntBrackets>(*BI.Incoming);
+          Brackets = std::make_unique<WaitcntBrackets>(*BI.Incoming);
         else
           *Brackets = *BI.Incoming;
       } else {
         if (!Brackets)
-          Brackets = llvm::make_unique<WaitcntBrackets>(ST);
+          Brackets = std::make_unique<WaitcntBrackets>(ST);
         else
           Brackets->clear();
       }
@@ -1508,7 +1542,7 @@ bool SIInsertWaitcnts::runOnMachineFunction(MachineFunction &MF) {
             if (!MoveBracketsToSucc) {
               MoveBracketsToSucc = &SuccBI;
             } else {
-              SuccBI.Incoming = llvm::make_unique<WaitcntBrackets>(*Brackets);
+              SuccBI.Incoming = std::make_unique<WaitcntBrackets>(*Brackets);
             }
           } else if (SuccBI.Incoming->merge(*Brackets)) {
             SuccBI.Dirty = true;

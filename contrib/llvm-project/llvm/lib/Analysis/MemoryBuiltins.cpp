@@ -180,6 +180,19 @@ static Optional<AllocFnsTy> getAllocationData(const Value *V, AllocType AllocTy,
   return None;
 }
 
+static Optional<AllocFnsTy>
+getAllocationData(const Value *V, AllocType AllocTy,
+                  function_ref<const TargetLibraryInfo &(Function &)> GetTLI,
+                  bool LookThroughBitCast = false) {
+  bool IsNoBuiltinCall;
+  if (const Function *Callee =
+          getCalledFunction(V, LookThroughBitCast, IsNoBuiltinCall))
+    if (!IsNoBuiltinCall)
+      return getAllocationDataForFunction(
+          Callee, AllocTy, &GetTLI(const_cast<Function &>(*Callee)));
+  return None;
+}
+
 static Optional<AllocFnsTy> getAllocationSize(const Value *V,
                                               const TargetLibraryInfo *TLI) {
   bool IsNoBuiltinCall;
@@ -223,6 +236,11 @@ bool llvm::isAllocationFn(const Value *V, const TargetLibraryInfo *TLI,
                           bool LookThroughBitCast) {
   return getAllocationData(V, AnyAlloc, TLI, LookThroughBitCast).hasValue();
 }
+bool llvm::isAllocationFn(
+    const Value *V, function_ref<const TargetLibraryInfo &(Function &)> GetTLI,
+    bool LookThroughBitCast) {
+  return getAllocationData(V, AnyAlloc, GetTLI, LookThroughBitCast).hasValue();
+}
 
 /// Tests if a value is a call or invoke to a function that returns a
 /// NoAlias pointer (including malloc/calloc/realloc/strdup-like functions).
@@ -239,6 +257,12 @@ bool llvm::isNoAliasFn(const Value *V, const TargetLibraryInfo *TLI,
 bool llvm::isMallocLikeFn(const Value *V, const TargetLibraryInfo *TLI,
                           bool LookThroughBitCast) {
   return getAllocationData(V, MallocLike, TLI, LookThroughBitCast).hasValue();
+}
+bool llvm::isMallocLikeFn(
+    const Value *V, function_ref<const TargetLibraryInfo &(Function &)> GetTLI,
+    bool LookThroughBitCast) {
+  return getAllocationData(V, MallocLike, GetTLI, LookThroughBitCast)
+      .hasValue();
 }
 
 /// Tests if a value is a call or invoke to a library function that
@@ -276,12 +300,27 @@ bool llvm::isReallocLikeFn(const Function *F, const TargetLibraryInfo *TLI) {
   return getAllocationDataForFunction(F, ReallocLike, TLI).hasValue();
 }
 
+/// Tests if a value is a call or invoke to a library function that
+/// allocates memory and throws if an allocation failed (e.g., new).
+bool llvm::isOpNewLikeFn(const Value *V, const TargetLibraryInfo *TLI,
+                     bool LookThroughBitCast) {
+  return getAllocationData(V, OpNewLike, TLI, LookThroughBitCast).hasValue();
+}
+
+/// Tests if a value is a call or invoke to a library function that
+/// allocates memory (strdup, strndup).
+bool llvm::isStrdupLikeFn(const Value *V, const TargetLibraryInfo *TLI,
+                          bool LookThroughBitCast) {
+  return getAllocationData(V, StrDupLike, TLI, LookThroughBitCast).hasValue();
+}
+
 /// extractMallocCall - Returns the corresponding CallInst if the instruction
 /// is a malloc call.  Since CallInst::CreateMalloc() only creates calls, we
 /// ignore InvokeInst here.
-const CallInst *llvm::extractMallocCall(const Value *I,
-                                        const TargetLibraryInfo *TLI) {
-  return isMallocLikeFn(I, TLI) ? dyn_cast<CallInst>(I) : nullptr;
+const CallInst *llvm::extractMallocCall(
+    const Value *I,
+    function_ref<const TargetLibraryInfo &(Function &)> GetTLI) {
+  return isMallocLikeFn(I, GetTLI) ? dyn_cast<CallInst>(I) : nullptr;
 }
 
 static Value *computeArraySize(const CallInst *CI, const DataLayout &DL,
@@ -505,6 +544,7 @@ Value *llvm::lowerObjectSizeCall(IntrinsicInst *ObjectSize,
           Builder.CreateSub(SizeOffsetPair.first, SizeOffsetPair.second);
       Value *UseZero =
           Builder.CreateICmpULT(SizeOffsetPair.first, SizeOffsetPair.second);
+      ResultSize = Builder.CreateZExtOrTrunc(ResultSize, ResultType);
       return Builder.CreateSelect(UseZero, ConstantInt::get(ResultType, 0),
                                   ResultSize);
     }
@@ -521,9 +561,9 @@ STATISTIC(ObjectVisitorArgument,
 STATISTIC(ObjectVisitorLoad,
           "Number of load instructions with unsolved size and offset");
 
-APInt ObjectSizeOffsetVisitor::align(APInt Size, uint64_t Align) {
-  if (Options.RoundToAlign && Align)
-    return APInt(IntTyBits, alignTo(Size.getZExtValue(), Align));
+APInt ObjectSizeOffsetVisitor::align(APInt Size, uint64_t Alignment) {
+  if (Options.RoundToAlign && Alignment)
+    return APInt(IntTyBits, alignTo(Size.getZExtValue(), Align(Alignment)));
   return Size;
 }
 
@@ -537,7 +577,7 @@ ObjectSizeOffsetVisitor::ObjectSizeOffsetVisitor(const DataLayout &DL,
 }
 
 SizeOffsetType ObjectSizeOffsetVisitor::compute(Value *V) {
-  IntTyBits = DL.getPointerTypeSizeInBits(V->getType());
+  IntTyBits = DL.getIndexTypeSizeInBits(V->getType());
   Zero = APInt::getNullValue(IntTyBits);
 
   V = V->stripPointerCasts();
@@ -707,7 +747,7 @@ ObjectSizeOffsetVisitor::visitExtractValueInst(ExtractValueInst&) {
 
 SizeOffsetType ObjectSizeOffsetVisitor::visitGEPOperator(GEPOperator &GEP) {
   SizeOffsetType PtrData = compute(GEP.getPointerOperand());
-  APInt Offset(IntTyBits, 0);
+  APInt Offset(DL.getIndexTypeSizeInBits(GEP.getPointerOperand()->getType()), 0);
   if (!bothKnown(PtrData) || !GEP.accumulateConstantOffset(DL, Offset))
     return unknown();
 
@@ -795,7 +835,7 @@ ObjectSizeOffsetEvaluator::ObjectSizeOffsetEvaluator(
 
 SizeOffsetEvalType ObjectSizeOffsetEvaluator::compute(Value *V) {
   // XXX - Are vectors of pointers possible here?
-  IntTy = cast<IntegerType>(DL.getIntPtrType(V->getType()));
+  IntTy = cast<IntegerType>(DL.getIndexType(V->getType()));
   Zero = ConstantInt::get(IntTy, 0);
 
   SizeOffsetEvalType Result = compute_(V);
@@ -899,12 +939,12 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::visitCallSite(CallSite CS) {
   }
 
   Value *FirstArg = CS.getArgument(FnData->FstParam);
-  FirstArg = Builder.CreateZExt(FirstArg, IntTy);
+  FirstArg = Builder.CreateZExtOrTrunc(FirstArg, IntTy);
   if (FnData->SndParam < 0)
     return std::make_pair(FirstArg, Zero);
 
   Value *SecondArg = CS.getArgument(FnData->SndParam);
-  SecondArg = Builder.CreateZExt(SecondArg, IntTy);
+  SecondArg = Builder.CreateZExtOrTrunc(SecondArg, IntTy);
   Value *Size = Builder.CreateMul(FirstArg, SecondArg);
   return std::make_pair(Size, Zero);
 

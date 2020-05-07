@@ -235,12 +235,21 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
 static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      const TemplateName &N1,
                                      const TemplateName &N2) {
-  if (N1.getKind() != N2.getKind())
+  TemplateDecl *TemplateDeclN1 = N1.getAsTemplateDecl();
+  TemplateDecl *TemplateDeclN2 = N2.getAsTemplateDecl();
+  if (TemplateDeclN1 && TemplateDeclN2) {
+    if (!IsStructurallyEquivalent(Context, TemplateDeclN1, TemplateDeclN2))
+      return false;
+    // If the kind is different we compare only the template decl.
+    if (N1.getKind() != N2.getKind())
+      return true;
+  } else if (TemplateDeclN1 || TemplateDeclN2)
     return false;
+  else if (N1.getKind() != N2.getKind())
+    return false;
+
+  // Check for special case incompatibilities.
   switch (N1.getKind()) {
-  case TemplateName::Template:
-    return IsStructurallyEquivalent(Context, N1.getAsTemplateDecl(),
-                                    N2.getAsTemplateDecl());
 
   case TemplateName::OverloadedTemplate: {
     OverloadedTemplateStorage *OS1 = N1.getAsOverloadedTemplate(),
@@ -259,14 +268,6 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     return TN1->getDeclName() == TN2->getDeclName();
   }
 
-  case TemplateName::QualifiedTemplate: {
-    QualifiedTemplateName *QN1 = N1.getAsQualifiedTemplateName(),
-                          *QN2 = N2.getAsQualifiedTemplateName();
-    return IsStructurallyEquivalent(Context, QN1->getDecl(), QN2->getDecl()) &&
-           IsStructurallyEquivalent(Context, QN1->getQualifier(),
-                                    QN2->getQualifier());
-  }
-
   case TemplateName::DependentTemplate: {
     DependentTemplateName *DN1 = N1.getAsDependentTemplateName(),
                           *DN2 = N2.getAsDependentTemplateName();
@@ -281,15 +282,6 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     return false;
   }
 
-  case TemplateName::SubstTemplateTemplateParm: {
-    SubstTemplateTemplateParmStorage *TS1 = N1.getAsSubstTemplateTemplateParm(),
-                                     *TS2 = N2.getAsSubstTemplateTemplateParm();
-    return IsStructurallyEquivalent(Context, TS1->getParameter(),
-                                    TS2->getParameter()) &&
-           IsStructurallyEquivalent(Context, TS1->getReplacement(),
-                                    TS2->getReplacement());
-  }
-
   case TemplateName::SubstTemplateTemplateParmPack: {
     SubstTemplateTemplateParmPackStorage
         *P1 = N1.getAsSubstTemplateTemplateParmPack(),
@@ -299,8 +291,16 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
            IsStructurallyEquivalent(Context, P1->getParameterPack(),
                                     P2->getParameterPack());
   }
+
+   case TemplateName::Template:
+   case TemplateName::QualifiedTemplate:
+   case TemplateName::SubstTemplateTemplateParm:
+     // It is sufficient to check value of getAsTemplateDecl.
+     break;
+
   }
-  return false;
+
+  return true;
 }
 
 /// Determine whether two template arguments are equivalent.
@@ -729,11 +729,31 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
       return false;
     break;
 
-  case Type::Auto:
-    if (!IsStructurallyEquivalent(Context, cast<AutoType>(T1)->getDeducedType(),
-                                  cast<AutoType>(T2)->getDeducedType()))
+  case Type::Auto: {
+    auto *Auto1 = cast<AutoType>(T1);
+    auto *Auto2 = cast<AutoType>(T2);
+    if (!IsStructurallyEquivalent(Context, Auto1->getDeducedType(),
+                                  Auto2->getDeducedType()))
       return false;
+    if (Auto1->isConstrained() != Auto2->isConstrained())
+      return false;
+    if (Auto1->isConstrained()) {
+      if (Auto1->getTypeConstraintConcept() !=
+          Auto2->getTypeConstraintConcept())
+        return false;
+      ArrayRef<TemplateArgument> Auto1Args =
+          Auto1->getTypeConstraintArguments();
+      ArrayRef<TemplateArgument> Auto2Args =
+          Auto2->getTypeConstraintArguments();
+      if (Auto1Args.size() != Auto2Args.size())
+        return false;
+      for (unsigned I = 0, N = Auto1Args.size(); I != N; ++I) {
+        if (!IsStructurallyEquivalent(Context, Auto1Args[I], Auto2Args[I]))
+          return false;
+      }
+    }
     break;
+  }
 
   case Type::DeducedTemplateSpecialization: {
     const auto *DT1 = cast<DeducedTemplateSpecializationType>(T1);
@@ -1574,20 +1594,24 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      Decl *D1, Decl *D2) {
   // FIXME: Check for known structural equivalences via a callback of some sort.
 
+  D1 = D1->getCanonicalDecl();
+  D2 = D2->getCanonicalDecl();
+  std::pair<Decl *, Decl *> P{D1, D2};
+
   // Check whether we already know that these two declarations are not
   // structurally equivalent.
-  if (Context.NonEquivalentDecls.count(
-          std::make_pair(D1->getCanonicalDecl(), D2->getCanonicalDecl())))
+  if (Context.NonEquivalentDecls.count(P))
     return false;
 
-  // Determine whether we've already produced a tentative equivalence for D1.
-  Decl *&EquivToD1 = Context.TentativeEquivalences[D1->getCanonicalDecl()];
-  if (EquivToD1)
-    return EquivToD1 == D2->getCanonicalDecl();
+  // Check if a check for these declarations is already pending.
+  // If yes D1 and D2 will be checked later (from DeclsToCheck),
+  // or these are already checked (and equivalent).
+  bool Inserted = Context.VisitedDecls.insert(P).second;
+  if (!Inserted)
+    return true;
 
-  // Produce a tentative equivalence D1 <-> D2, which will be checked later.
-  EquivToD1 = D2->getCanonicalDecl();
-  Context.DeclsToCheck.push_back(D1->getCanonicalDecl());
+  Context.DeclsToCheck.push(P);
+
   return true;
 }
 
@@ -1703,11 +1727,13 @@ bool StructuralEquivalenceContext::IsEquivalent(Decl *D1, Decl *D2) {
   // Ensure that the implementation functions (all static functions in this TU)
   // never call the public ASTStructuralEquivalence::IsEquivalent() functions,
   // because that will wreak havoc the internal state (DeclsToCheck and
-  // TentativeEquivalences members) and can cause faulty behaviour. For
-  // instance, some leaf declarations can be stated and cached as inequivalent
-  // as a side effect of one inequivalent element in the DeclsToCheck list.
+  // VisitedDecls members) and can cause faulty behaviour.
+  // In other words: Do not start a graph search from a new node with the
+  // internal data of another search in progress.
+  // FIXME: Better encapsulation and separation of internal and public
+  // functionality.
   assert(DeclsToCheck.empty());
-  assert(TentativeEquivalences.empty());
+  assert(VisitedDecls.empty());
 
   if (!::IsStructurallyEquivalent(*this, D1, D2))
     return false;
@@ -1717,7 +1743,7 @@ bool StructuralEquivalenceContext::IsEquivalent(Decl *D1, Decl *D2) {
 
 bool StructuralEquivalenceContext::IsEquivalent(QualType T1, QualType T2) {
   assert(DeclsToCheck.empty());
-  assert(TentativeEquivalences.empty());
+  assert(VisitedDecls.empty());
   if (!::IsStructurallyEquivalent(*this, T1, T2))
     return false;
 
@@ -1876,11 +1902,11 @@ bool StructuralEquivalenceContext::CheckKindSpecificEquivalence(
 bool StructuralEquivalenceContext::Finish() {
   while (!DeclsToCheck.empty()) {
     // Check the next declaration.
-    Decl *D1 = DeclsToCheck.front();
-    DeclsToCheck.pop_front();
+    std::pair<Decl *, Decl *> P = DeclsToCheck.front();
+    DeclsToCheck.pop();
 
-    Decl *D2 = TentativeEquivalences[D1];
-    assert(D2 && "Unrecorded tentative equivalence?");
+    Decl *D1 = P.first;
+    Decl *D2 = P.second;
 
     bool Equivalent =
         CheckCommonEquivalence(D1, D2) && CheckKindSpecificEquivalence(D1, D2);
@@ -1888,8 +1914,8 @@ bool StructuralEquivalenceContext::Finish() {
     if (!Equivalent) {
       // Note that these two declarations are not equivalent (and we already
       // know about it).
-      NonEquivalentDecls.insert(
-          std::make_pair(D1->getCanonicalDecl(), D2->getCanonicalDecl()));
+      NonEquivalentDecls.insert(P);
+
       return true;
     }
   }

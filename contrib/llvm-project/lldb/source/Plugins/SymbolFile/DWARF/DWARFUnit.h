@@ -95,8 +95,6 @@ public:
   ScopedExtractDIEs ExtractDIEsScoped();
 
   DWARFDIE LookupAddress(const dw_addr_t address);
-  size_t AppendDIEsWithTag(const dw_tag_t tag, std::vector<DWARFDIE> &dies,
-                           uint32_t depth = UINT32_MAX) const;
   bool Verify(lldb_private::Stream *s) const;
   virtual void Dump(lldb_private::Stream *s) const = 0;
   /// Get the data that contains the DIE information for this unit.
@@ -147,13 +145,14 @@ public:
   dw_addr_t GetRangesBase() const { return m_ranges_base; }
   dw_addr_t GetStrOffsetsBase() const { return m_str_offsets_base; }
   void SetAddrBase(dw_addr_t addr_base);
+  void SetLoclistsBase(dw_addr_t loclists_base);
   void SetRangesBase(dw_addr_t ranges_base);
   void SetStrOffsetsBase(dw_offset_t str_offsets_base);
   virtual void BuildAddressRangeTable(DWARFDebugAranges *debug_aranges) = 0;
 
   lldb::ByteOrder GetByteOrder() const;
 
-  lldb_private::TypeSystem *GetTypeSystem();
+  llvm::Expected<lldb_private::TypeSystem &> GetTypeSystem();
 
   const DWARFDebugAranges &GetFunctionAranges();
 
@@ -202,7 +201,7 @@ public:
   lldb_private::FileSpec GetFile(size_t file_idx);
   lldb_private::FileSpec::Style GetPathStyle();
 
-  SymbolFileDWARFDwo *GetDwoSymbolFile() const;
+  SymbolFileDWARFDwo *GetDwoSymbolFile();
 
   die_iterator_range dies() {
     ExtractDIEsIfNeeded();
@@ -216,18 +215,46 @@ public:
 
   /// Return a list of address ranges resulting from a (possibly encoded)
   /// range list starting at a given offset in the appropriate ranges section.
-  llvm::Expected<DWARFRangeList> FindRnglistFromOffset(dw_offset_t offset) const;
+  llvm::Expected<DWARFRangeList> FindRnglistFromOffset(dw_offset_t offset);
 
   /// Return a list of address ranges retrieved from an encoded range
   /// list whose offset is found via a table lookup given an index (DWARF v5
   /// and later).
-  llvm::Expected<DWARFRangeList> FindRnglistFromIndex(uint32_t index) const;
+  llvm::Expected<DWARFRangeList> FindRnglistFromIndex(uint32_t index);
+
+  /// Return a rangelist's offset based on an index. The index designates
+  /// an entry in the rangelist table's offset array and is supplied by
+  /// DW_FORM_rnglistx.
+  llvm::Optional<uint64_t> GetRnglistOffset(uint32_t Index) const {
+    if (!m_rnglist_table)
+      return llvm::None;
+    if (llvm::Optional<uint64_t> off = m_rnglist_table->getOffsetEntry(Index))
+      return *off + m_ranges_base;
+    return llvm::None;
+  }
+
+  llvm::Optional<uint64_t> GetLoclistOffset(uint32_t Index) {
+    if (!m_loclist_table_header)
+      return llvm::None;
+
+    llvm::Optional<uint64_t> Offset =  m_loclist_table_header->getOffsetEntry(Index);
+    if (!Offset)
+      return llvm::None;
+    return *Offset + m_loclists_base;
+  }
+
+  /// Return the location table for parsing the given location list data. The
+  /// format is chosen according to the unit type. Never returns null.
+  std::unique_ptr<llvm::DWARFLocationTable>
+  GetLocationTable(const lldb_private::DataExtractor &data) const;
+
+  const lldb_private::DWARFDataExtractor &GetLocationData() const;
 
 protected:
   DWARFUnit(SymbolFileDWARF &dwarf, lldb::user_id_t uid,
             const DWARFUnitHeader &header,
             const DWARFAbbreviationDeclarationSet &abbrevs,
-            DIERef::Section section);
+            DIERef::Section section, bool is_dwo);
 
   llvm::Error ExtractHeader(SymbolFileDWARF &dwarf,
                             const lldb_private::DWARFDataExtractor &data,
@@ -281,14 +308,20 @@ protected:
   lldb_private::LazyBool m_is_optimized = lldb_private::eLazyBoolCalculate;
   llvm::Optional<lldb_private::FileSpec> m_comp_dir;
   llvm::Optional<lldb_private::FileSpec> m_file_spec;
-  dw_addr_t m_addr_base = 0;   // Value of DW_AT_addr_base
-  dw_addr_t m_ranges_base = 0; // Value of DW_AT_ranges_base
+  dw_addr_t m_addr_base = 0;     ///< Value of DW_AT_addr_base.
+  dw_addr_t m_loclists_base = 0; ///< Value of DW_AT_loclists_base.
+  dw_addr_t m_ranges_base = 0;   ///< Value of DW_AT_rnglists_base.
 
   /// Value of DW_AT_stmt_list.
   dw_offset_t m_line_table_offset = DW_INVALID_OFFSET;
 
   dw_offset_t m_str_offsets_base = 0; // Value of DW_AT_str_offsets_base.
+
+  llvm::Optional<llvm::DWARFDebugRnglistTable> m_rnglist_table;
+  llvm::Optional<llvm::DWARFListTableHeader> m_loclist_table_header;
+
   const DIERef::Section m_section;
+  bool m_is_dwo;
 
 private:
   void ParseProducerInfo();

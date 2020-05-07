@@ -17,6 +17,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/Alignment.h"
 #include <string>
 #include <utility>
 
@@ -27,6 +28,20 @@ class MDNode;
 class Metadata;
 
 class GlobalObject : public GlobalValue {
+public:
+  // VCallVisibility - values for visibility metadata attached to vtables. This
+  // describes the scope in which a virtual call could end up being dispatched
+  // through this vtable.
+  enum VCallVisibility {
+    // Type is potentially visible to external code.
+    VCallVisibilityPublic = 0,
+    // Type is only visible to code which will be in the current Module after
+    // LTO internalization.
+    VCallVisibilityLinkageUnit = 1,
+    // Type is only visible to code in the current Module.
+    VCallVisibilityTranslationUnit = 2,
+  };
+
 protected:
   GlobalObject(Type *Ty, ValueTy VTy, Use *Ops, unsigned NumOps,
                LinkageTypes Linkage, const Twine &Name,
@@ -58,9 +73,14 @@ public:
   unsigned getAlignment() const {
     unsigned Data = getGlobalValueSubClassData();
     unsigned AlignmentData = Data & AlignmentMask;
-    return (1u << AlignmentData) >> 1;
+    MaybeAlign Align = decodeMaybeAlign(AlignmentData);
+    return Align ? Align->value() : 0;
   }
-  void setAlignment(unsigned Align);
+
+  /// FIXME: Remove this setter once the migration to MaybeAlign is over.
+  LLVM_ATTRIBUTE_DEPRECATED(void setAlignment(unsigned Align),
+                            "Please use `void setAlignment(MaybeAlign Align)`");
+  void setAlignment(MaybeAlign Align);
 
   unsigned getGlobalObjectSubClassData() const {
     unsigned ValueData = getGlobalValueSubClassData();
@@ -158,6 +178,8 @@ public:
   void copyMetadata(const GlobalObject *Src, unsigned Offset);
 
   void addTypeMetadata(unsigned Offset, Metadata *TypeID);
+  void addVCallVisibilityMetadata(VCallVisibility Visibility);
+  VCallVisibility getVCallVisibility() const;
 
 protected:
   void copyAttributesFrom(const GlobalObject *Src);

@@ -27,6 +27,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/Casting.h"
@@ -119,6 +120,12 @@ void AliasSetTracker::removeAliasSet(AliasSet *AS) {
         TotalMayAliasSetSize -= AS->size();
 
   AliasSets.erase(AS);
+  // If we've removed the saturated alias set, set saturated marker back to
+  // nullptr and ensure this tracker is empty.
+  if (AS == AliasAnyAS) {
+    AliasAnyAS = nullptr;
+    assert(AliasSets.empty() && "Tracker not empty");
+  }
 }
 
 void AliasSet::removeFromTracker(AliasSetTracker &AST) {
@@ -690,8 +697,10 @@ void AliasSet::print(raw_ostream &OS) const {
 }
 
 void AliasSetTracker::print(raw_ostream &OS) const {
-  OS << "Alias Set Tracker: " << AliasSets.size() << " alias sets for "
-     << PointerMap.size() << " pointer values.\n";
+  OS << "Alias Set Tracker: " << AliasSets.size();
+  if (AliasAnyAS)
+    OS << " (Saturated)";
+  OS << " alias sets for " << PointerMap.size() << " pointer values.\n";
   for (const AliasSet &AS : *this)
     AS.print(OS);
   OS << "\n";

@@ -351,7 +351,11 @@ def interleave;
 // RegisterTuples instances can be used in other set operations to form
 // register classes and so on. This is the only way of using the generated
 // registers.
-class RegisterTuples<list<SubRegIndex> Indices, list<dag> Regs> {
+//
+// RegNames may be specified to supply asm names for the generated tuples.
+// If used must have the same size as the list of produced registers.
+class RegisterTuples<list<SubRegIndex> Indices, list<dag> Regs,
+                     list<string> RegNames = []> {
   // SubRegs - N lists of registers to be zipped up. Super-registers are
   // synthesized from the first element of each SubRegs list, the second
   // element and so on.
@@ -360,6 +364,9 @@ class RegisterTuples<list<SubRegIndex> Indices, list<dag> Regs> {
   // SubRegIndices - N SubRegIndex instances. This provides the names of the
   // sub-registers in the synthesized super-registers.
   list<SubRegIndex> SubRegIndices = Indices;
+
+  // List of asm names for the generated tuple registers.
+  list<string> RegAsmNames = RegNames;
 }
 
 
@@ -436,6 +443,15 @@ class InstructionEncoding {
   bit hasCompleteDecoder = 1;
 }
 
+// Allows specifying an InstructionEncoding by HwMode. If an Instruction specifies
+// an EncodingByHwMode, its Inst and Size members are ignored and Ts are used
+// to encode and decode based on HwMode.
+class EncodingByHwMode<list<HwMode> Ms = [], list<InstructionEncoding> Ts = []>
+    : HwModeSelect<Ms> {
+  // The length of this list must be the same as the length of Ms.
+  list<InstructionEncoding> Objects = Ts;
+}
+
 //===----------------------------------------------------------------------===//
 // Instruction set description - These classes correspond to the C++ classes in
 // the Target/TargetInstrInfo.h file.
@@ -446,6 +462,10 @@ class Instruction : InstructionEncoding {
   dag OutOperandList;       // An dag containing the MI def operand list.
   dag InOperandList;        // An dag containing the MI use operand list.
   string AsmString = "";    // The .s format to print the instruction with.
+
+  // Allows specifying a canonical InstructionEncoding by HwMode. If non-empty,
+  // the Inst member of this Instruction is ignored.
+  EncodingByHwMode EncodingInfos;
 
   // Pattern - Set to the DAG pattern for this instruction, if we know of one,
   // otherwise, uninitialized.
@@ -471,6 +491,10 @@ class Instruction : InstructionEncoding {
 
   // Added complexity passed onto matching pattern.
   int AddedComplexity  = 0;
+
+  // Indicates if this is a pre-isel opcode that should be
+  // legalized/regbankselected/selected.
+  bit isPreISelOpcode = 0;
 
   // These bits capture information about the high-level semantics of the
   // instruction.
@@ -506,6 +530,7 @@ class Instruction : InstructionEncoding {
   bit hasCtrlDep   = 0;     // Does this instruction r/w ctrl-flow chains?
   bit isNotDuplicable = 0;  // Is it unsafe to duplicate this instruction?
   bit isConvergent = 0;     // Is this instruction convergent?
+  bit isAuthenticated = 0;  // Does this instruction authenticate a pointer?
   bit isAsCheapAsAMove = 0; // As cheap (or cheaper) than a move instruction.
   bit hasExtraSrcRegAllocReq = 0; // Sources have special regalloc requirement?
   bit hasExtraDefRegAllocReq = 0; // Defs have special regalloc requirement?
@@ -834,6 +859,7 @@ def f64imm : Operand<f64>;
 class TypedOperand<string Ty> : Operand<untyped> {
   let OperandType = Ty;
   bit IsPointer = 0;
+  bit IsImmediate = 0;
 }
 
 def type0 : TypedOperand<"OPERAND_GENERIC_0">;
@@ -850,6 +876,12 @@ let IsPointer = 1 in {
   def ptype3 : TypedOperand<"OPERAND_GENERIC_3">;
   def ptype4 : TypedOperand<"OPERAND_GENERIC_4">;
   def ptype5 : TypedOperand<"OPERAND_GENERIC_5">;
+}
+
+// untyped_imm is for operands where isImm() will be true. It currently has no
+// special behaviour and is only used for clarity.
+def untyped_imm_0 : TypedOperand<"OPERAND_GENERIC_IMM_0"> {
+  let IsImmediate = 1;
 }
 
 /// zero_reg definition - Special node to stand for the zero register.
@@ -1150,7 +1182,7 @@ def PATCHABLE_FUNCTION_ENTER : StandardPseudoInstruction {
   let InOperandList = (ins);
   let AsmString = "# XRay Function Enter.";
   let usesCustomInserter = 1;
-  let hasSideEffects = 0;
+  let hasSideEffects = 1;
 }
 def PATCHABLE_RET : StandardPseudoInstruction {
   let OutOperandList = (outs);
@@ -1166,7 +1198,7 @@ def PATCHABLE_FUNCTION_EXIT : StandardPseudoInstruction {
   let InOperandList = (ins);
   let AsmString = "# XRay Function Exit.";
   let usesCustomInserter = 1;
-  let hasSideEffects = 0; // FIXME: is this correct?
+  let hasSideEffects = 1;
   let isReturn = 0; // Original return instruction will follow
 }
 def PATCHABLE_TAIL_CALL : StandardPseudoInstruction {
@@ -1179,7 +1211,7 @@ def PATCHABLE_TAIL_CALL : StandardPseudoInstruction {
 }
 def PATCHABLE_EVENT_CALL : StandardPseudoInstruction {
   let OutOperandList = (outs);
-  let InOperandList = (ins ptr_rc:$event, i8imm:$size);
+  let InOperandList = (ins ptr_rc:$event, unknown:$size);
   let AsmString = "# XRay Custom Event Log.";
   let usesCustomInserter = 1;
   let isCall = 1;
@@ -1189,7 +1221,7 @@ def PATCHABLE_EVENT_CALL : StandardPseudoInstruction {
 }
 def PATCHABLE_TYPED_EVENT_CALL : StandardPseudoInstruction {
   let OutOperandList = (outs);
-  let InOperandList = (ins i16imm:$type, ptr_rc:$event, i32imm:$size);
+  let InOperandList = (ins unknown:$type, ptr_rc:$event, unknown:$size);
   let AsmString = "# XRay Typed Event Log.";
   let usesCustomInserter = 1;
   let isCall = 1;
@@ -1261,7 +1293,7 @@ class AsmParser {
   // ReportMultipleNearMisses -
   // When 0, the assembly matcher reports an error for one encoding or operand
   // that did not match the parsed instruction.
-  // When 1, the assmebly matcher returns a list of encodings that were close
+  // When 1, the assembly matcher returns a list of encodings that were close
   // to matching the parsed instruction, so to allow more detailed error
   // messages.
   bit ReportMultipleNearMisses = 0;

@@ -337,15 +337,15 @@ defm CondStore8Mux  : CondStores<GRX32, nonvolatile_truncstorei8,
 defm CondStore16Mux : CondStores<GRX32, nonvolatile_truncstorei16,
                                  nonvolatile_anyextloadi16, bdxaddr20only>,
                       Requires<[FeatureHighWord]>;
-defm CondStore32Mux : CondStores<GRX32, nonvolatile_store,
-                                 nonvolatile_load, bdxaddr20only>,
+defm CondStore32Mux : CondStores<GRX32, simple_store,
+                                 simple_load, bdxaddr20only>,
                       Requires<[FeatureLoadStoreOnCond2]>;
 defm CondStore8     : CondStores<GR32, nonvolatile_truncstorei8,
                                  nonvolatile_anyextloadi8, bdxaddr20only>;
 defm CondStore16    : CondStores<GR32, nonvolatile_truncstorei16,
                                  nonvolatile_anyextloadi16, bdxaddr20only>;
-defm CondStore32    : CondStores<GR32, nonvolatile_store,
-                                 nonvolatile_load, bdxaddr20only>;
+defm CondStore32    : CondStores<GR32, simple_store,
+                                 simple_load, bdxaddr20only>;
 
 defm : CondStores64<CondStore8, CondStore8Inv, nonvolatile_truncstorei8,
                     nonvolatile_anyextloadi8, bdxaddr20only>;
@@ -353,8 +353,8 @@ defm : CondStores64<CondStore16, CondStore16Inv, nonvolatile_truncstorei16,
                     nonvolatile_anyextloadi16, bdxaddr20only>;
 defm : CondStores64<CondStore32, CondStore32Inv, nonvolatile_truncstorei32,
                     nonvolatile_anyextloadi32, bdxaddr20only>;
-defm CondStore64 : CondStores<GR64, nonvolatile_store,
-                              nonvolatile_load, bdxaddr20only>;
+defm CondStore64 : CondStores<GR64, simple_store,
+                              simple_load, bdxaddr20only>;
 
 //===----------------------------------------------------------------------===//
 // Move instructions
@@ -492,7 +492,7 @@ let Predicates = [FeatureMiscellaneousExtensions3], Uses = [CC] in {
   let isCommutable = 1 in {
     // Expands to SELR or SELFHR or a branch-and-move sequence,
     // depending on the choice of registers.
-    def  SELRMux : CondBinaryRRFaPseudo<GRX32, GRX32, GRX32>;
+    def  SELRMux : CondBinaryRRFaPseudo<"selrmux", GRX32, GRX32, GRX32>;
     defm SELFHR  : CondBinaryRRFaPair<"selfhr", 0xB9C0, GRH32, GRH32, GRH32>;
     defm SELR    : CondBinaryRRFaPair<"selr",   0xB9F0, GR32, GR32, GR32>;
     defm SELGR   : CondBinaryRRFaPair<"selgr",  0xB9E3, GR64, GR64, GR64>;
@@ -525,14 +525,14 @@ let Predicates = [FeatureLoadStoreOnCond2], Uses = [CC] in {
   let isCommutable = 1 in {
     // Expands to LOCR or LOCFHR or a branch-and-move sequence,
     // depending on the choice of registers.
-    def LOCRMux : CondBinaryRRFPseudo<GRX32, GRX32>;
+    def LOCRMux : CondBinaryRRFPseudo<"locrmux", GRX32, GRX32>;
     defm LOCFHR : CondBinaryRRFPair<"locfhr", 0xB9E0, GRH32, GRH32>;
   }
 
   // Load on condition.  Matched via DAG pattern.
   // Expands to LOC or LOCFH, depending on the choice of register.
-  def LOCMux : CondUnaryRSYPseudo<nonvolatile_load, GRX32, 4>;
-  defm LOCFH : CondUnaryRSYPair<"locfh", 0xEBE0, nonvolatile_load, GRH32, 4>;
+  def LOCMux : CondUnaryRSYPseudo<simple_load, GRX32, 4>;
+  defm LOCFH : CondUnaryRSYPair<"locfh", 0xEBE0, simple_load, GRH32, 4>;
 
   // Store on condition.  Expanded from CondStore* pseudos.
   // Expands to STOC or STOCFH, depending on the choice of register.
@@ -563,8 +563,8 @@ let Predicates = [FeatureLoadStoreOnCond], Uses = [CC] in {
   }
 
   // Load on condition.  Matched via DAG pattern.
-  defm LOC  : CondUnaryRSYPair<"loc",  0xEBF2, nonvolatile_load, GR32, 4>;
-  defm LOCG : CondUnaryRSYPair<"locg", 0xEBE2, nonvolatile_load, GR64, 8>;
+  defm LOC  : CondUnaryRSYPair<"loc",  0xEBF2, simple_load, GR32, 4>;
+  defm LOCG : CondUnaryRSYPair<"locg", 0xEBE2, simple_load, GR64, 8>;
 
   // Store on condition.  Expanded from CondStore* pseudos.
   defm STOC  : CondStoreRSYPair<"stoc",  0xEBF3, GR32, 4>;
@@ -915,7 +915,7 @@ def : Pat<(or (zext32 GR32:$src), imm64hf32:$imm),
 //===----------------------------------------------------------------------===//
 
 // Addition producing a signed overflow flag.
-let Defs = [CC], CCValues = 0xF, CompareZeroCCMask = 0x8 in {
+let Defs = [CC], CCValues = 0xF, CCIfNoSignedWrap = 1 in {
   // Addition of a register.
   let isCommutable = 1 in {
     defm AR : BinaryRRAndK<"ar", 0x1A, 0xB9F8, z_sadd, GR32, GR32>;
@@ -957,7 +957,7 @@ let Defs = [CC], CCValues = 0xF, CompareZeroCCMask = 0x8 in {
 defm : SXB<z_sadd, GR64, AGFR>;
 
 // Addition producing a carry.
-let Defs = [CC] in {
+let Defs = [CC], CCValues = 0xF, IsLogical = 1 in {
   // Addition of a register.
   let isCommutable = 1 in {
     defm ALR : BinaryRRAndK<"alr", 0x1E, 0xB9FA, z_uadd, GR32, GR32>;
@@ -997,7 +997,7 @@ let Defs = [CC] in {
 defm : ZXB<z_uadd, GR64, ALGFR>;
 
 // Addition producing and using a carry.
-let Defs = [CC], Uses = [CC] in {
+let Defs = [CC], Uses = [CC], CCValues = 0xF, IsLogical = 1 in {
   // Addition of a register.
   def ALCR  : BinaryRRE<"alcr",  0xB998, z_addcarry, GR32, GR32>;
   def ALCGR : BinaryRRE<"alcgr", 0xB988, z_addcarry, GR64, GR64>;
@@ -1017,7 +1017,8 @@ def ALSIHN : BinaryRIL<"alsihn", 0xCCB, null_frag, GRH32, simm32>,
 //===----------------------------------------------------------------------===//
 
 // Subtraction producing a signed overflow flag.
-let Defs = [CC], CCValues = 0xF, CompareZeroCCMask = 0x8 in {
+let Defs = [CC], CCValues = 0xF, CompareZeroCCMask = 0x8,
+    CCIfNoSignedWrap = 1 in {
   // Subtraction of a register.
   defm SR : BinaryRRAndK<"sr", 0x1B, 0xB9F9, z_ssub, GR32, GR32>;
   def SGFR : BinaryRRE<"sgfr", 0xB919, null_frag, GR64, GR32>;
@@ -1066,7 +1067,7 @@ def : Pat<(z_saddo GR64:$src1, imm64lf32n:$src2),
           (SGR GR64:$src1, (LLILF imm64lf32n:$src2))>;
 
 // Subtraction producing a carry.
-let Defs = [CC] in {
+let Defs = [CC], CCValues = 0x7, IsLogical = 1 in {
   // Subtraction of a register.
   defm SLR : BinaryRRAndK<"slr", 0x1F, 0xB9FB, z_usub, GR32, GR32>;
   def SLGFR : BinaryRRE<"slgfr", 0xB91B, null_frag, GR64, GR32>;
@@ -1104,7 +1105,7 @@ def : Pat<(add GR64:$src1, imm64zx32n:$src2),
           (SLGFI GR64:$src1, imm64zx32n:$src2)>;
 
 // Subtraction producing and using a carry.
-let Defs = [CC], Uses = [CC] in {
+let Defs = [CC], Uses = [CC], CCValues = 0xF, IsLogical = 1 in {
   // Subtraction of a register.
   def SLBR  : BinaryRRE<"slbr",  0xB999, z_subcarry, GR32, GR32>;
   def SLBGR : BinaryRRE<"slbgr", 0xB989, z_subcarry, GR64, GR64>;
@@ -2069,7 +2070,7 @@ let Predicates = [FeatureProcessorAssist] in {
     def PPA : SideEffectTernaryRRFc<"ppa", 0xB2E8, GR64, GR64, imm32zx4>;
   def : Pat<(int_s390_ppa_txassist GR32:$src),
             (PPA (INSERT_SUBREG (i64 (IMPLICIT_DEF)), GR32:$src, subreg_l32),
-                 0, 1)>;
+                 zero_reg, 1)>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2082,7 +2083,7 @@ let Predicates = [FeatureProcessorAssist] in {
 // cleared.  We only use the first result here.
 let Defs = [CC] in
   def FLOGR : UnaryRRE<"flogr", 0xB983, null_frag, GR128, GR64>;
-def : Pat<(ctlz GR64:$src),
+def : Pat<(i64 (ctlz GR64:$src)),
           (EXTRACT_SUBREG (FLOGR GR64:$src), subreg_h64)>;
 
 // Population count.  Counts bits set per byte or doubleword.

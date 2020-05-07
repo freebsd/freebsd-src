@@ -15,6 +15,7 @@
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -25,6 +26,10 @@ STATISTIC(ReadOnlyLiveGVars,
           "Number of live global variables marked read only");
 STATISTIC(WriteOnlyLiveGVars,
           "Number of live global variables marked write only");
+
+static cl::opt<bool> PropagateAttrs("propagate-attrs", cl::init(true),
+                                    cl::Hidden,
+                                    cl::desc("Propagate attributes in index"));
 
 FunctionSummary FunctionSummary::ExternalNode =
     FunctionSummary::makeDummyFunctionSummary({});
@@ -60,6 +65,8 @@ std::pair<unsigned, unsigned> FunctionSummary::specialRefCounts() const {
     RORefCnt++;
   return {RORefCnt, WORefCnt};
 }
+
+constexpr uint64_t ModuleSummaryIndex::BitcodeSummaryVersion;
 
 // Collect for the given module the list of function it defines
 // (GUID -> Summary).
@@ -155,6 +162,8 @@ static void propagateAttributesToRefs(GlobalValueSummary *S) {
 // See internalizeGVsAfterImport.
 void ModuleSummaryIndex::propagateAttributes(
     const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols) {
+  if (!PropagateAttrs)
+    return;
   for (auto &P : *this)
     for (auto &S : P.second.SummaryList) {
       if (!isGlobalValueLive(S.get()))
@@ -172,14 +181,16 @@ void ModuleSummaryIndex::propagateAttributes(
       // assembly leading it to be in the @llvm.*used).
       if (auto *GVS = dyn_cast<GlobalVarSummary>(S->getBaseObject()))
         // Here we intentionally pass S.get() not GVS, because S could be
-        // an alias.
-        if (!canImportGlobalVar(S.get()) ||
+        // an alias. We don't analyze references here, because we have to
+        // know exactly if GV is readonly to do so.
+        if (!canImportGlobalVar(S.get(), /* AnalyzeRefs */ false) ||
             GUIDPreservedSymbols.count(P.first)) {
           GVS->setReadOnly(false);
           GVS->setWriteOnly(false);
         }
       propagateAttributesToRefs(S.get());
     }
+  setWithAttributePropagation();
   if (llvm::AreStatisticsEnabled())
     for (auto &P : *this)
       if (P.second.SummaryList.size())
@@ -193,6 +204,37 @@ void ModuleSummaryIndex::propagateAttributes(
           }
 }
 
+bool ModuleSummaryIndex::canImportGlobalVar(GlobalValueSummary *S,
+                                            bool AnalyzeRefs) const {
+  auto HasRefsPreventingImport = [this](const GlobalVarSummary *GVS) {
+    // We don't analyze GV references during attribute propagation, so
+    // GV with non-trivial initializer can be marked either read or
+    // write-only.
+    // Importing definiton of readonly GV with non-trivial initializer
+    // allows us doing some extra optimizations (like converting indirect
+    // calls to direct).
+    // Definition of writeonly GV with non-trivial initializer should also
+    // be imported. Not doing so will result in:
+    // a) GV internalization in source module (because it's writeonly)
+    // b) Importing of GV declaration to destination module as a result
+    //    of promotion.
+    // c) Link error (external declaration with internal definition).
+    // However we do not promote objects referenced by writeonly GV
+    // initializer by means of converting it to 'zeroinitializer'
+    return !isReadOnly(GVS) && !isWriteOnly(GVS) && GVS->refs().size();
+  };
+  auto *GVS = cast<GlobalVarSummary>(S->getBaseObject());
+
+  // Global variable with non-trivial initializer can be imported
+  // if it's readonly. This gives us extra opportunities for constant
+  // folding and converting indirect calls to direct calls. We don't
+  // analyze GV references during attribute propagation, because we
+  // don't know yet if it is readonly or not.
+  return !GlobalValue::isInterposableLinkage(S->linkage()) &&
+         !S->notEligibleToImport() &&
+         (!AnalyzeRefs || !HasRefsPreventingImport(GVS));
+}
+
 // TODO: write a graphviz dumper for SCCs (see ModuleSummaryIndex::exportToDot)
 // then delete this function and update its tests
 LLVM_DUMP_METHOD
@@ -202,7 +244,7 @@ void ModuleSummaryIndex::dumpSCCs(raw_ostream &O) {
        !I.isAtEnd(); ++I) {
     O << "SCC (" << utostr(I->size()) << " node" << (I->size() == 1 ? "" : "s")
       << ") {\n";
-    for (const ValueInfo V : *I) {
+    for (const ValueInfo &V : *I) {
       FunctionSummary *F = nullptr;
       if (V.getSummaryList().size())
         F = cast<FunctionSummary>(V.getSummaryList().front().get());
@@ -298,7 +340,7 @@ static std::string fflagsToString(FunctionSummary::FFlags F) {
   auto FlagValue = [](unsigned V) { return V ? '1' : '0'; };
   char FlagRep[] = {FlagValue(F.ReadNone),     FlagValue(F.ReadOnly),
                     FlagValue(F.NoRecurse),    FlagValue(F.ReturnDoesNotAlias),
-                    FlagValue(F.NoInline), 0};
+                    FlagValue(F.NoInline), FlagValue(F.AlwaysInline), 0};
 
   return FlagRep;
 }
@@ -363,7 +405,9 @@ static bool hasWriteOnlyFlag(const GlobalValueSummary *S) {
   return false;
 }
 
-void ModuleSummaryIndex::exportToDot(raw_ostream &OS) const {
+void ModuleSummaryIndex::exportToDot(
+    raw_ostream &OS,
+    const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols) const {
   std::vector<Edge> CrossModuleEdges;
   DenseMap<GlobalValue::GUID, std::vector<uint64_t>> NodeMap;
   using GVSOrderedMapTy = std::map<GlobalValue::GUID, GlobalValueSummary *>;
@@ -443,6 +487,8 @@ void ModuleSummaryIndex::exportToDot(raw_ostream &OS) const {
         A.addComment("dsoLocal");
       if (Flags.CanAutoHide)
         A.addComment("canAutoHide");
+      if (GUIDPreservedSymbols.count(SummaryIt.first))
+        A.addComment("preserved");
 
       auto VI = getValueInfo(SummaryIt.first);
       A.add("label", getNodeLabel(VI, SummaryIt.second));

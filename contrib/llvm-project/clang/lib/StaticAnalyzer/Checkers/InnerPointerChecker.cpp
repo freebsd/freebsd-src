@@ -54,15 +54,15 @@ public:
       ID.AddPointer(getTag());
     }
 
-    virtual std::shared_ptr<PathDiagnosticPiece> VisitNode(const ExplodedNode *N,
-                                                   BugReporterContext &BRC,
-                                                   BugReport &BR) override;
+    virtual PathDiagnosticPieceRef
+    VisitNode(const ExplodedNode *N, BugReporterContext &BRC,
+              PathSensitiveBugReport &BR) override;
 
     // FIXME: Scan the map once in the visitor's constructor and do a direct
     // lookup by region.
     bool isSymbolTracked(ProgramStateRef State, SymbolRef Sym) {
       RawPtrMapTy Map = State->get<RawPtrMap>();
-      for (const auto Entry : Map) {
+      for (const auto &Entry : Map) {
         if (Entry.second.contains(Sym))
           return true;
       }
@@ -236,7 +236,7 @@ void InnerPointerChecker::checkDeadSymbols(SymbolReaper &SymReaper,
   ProgramStateRef State = C.getState();
   PtrSet::Factory &F = State->getStateManager().get_context<PtrSet>();
   RawPtrMapTy RPM = State->get<RawPtrMap>();
-  for (const auto Entry : RPM) {
+  for (const auto &Entry : RPM) {
     if (!SymReaper.isLiveRegion(Entry.first)) {
       // Due to incomplete destructor support, some dead regions might
       // remain in the program state map. Clean them up.
@@ -261,12 +261,12 @@ namespace ento {
 namespace allocation_state {
 
 std::unique_ptr<BugReporterVisitor> getInnerPointerBRVisitor(SymbolRef Sym) {
-  return llvm::make_unique<InnerPointerChecker::InnerPointerBRVisitor>(Sym);
+  return std::make_unique<InnerPointerChecker::InnerPointerBRVisitor>(Sym);
 }
 
 const MemRegion *getContainerObjRegion(ProgramStateRef State, SymbolRef Sym) {
   RawPtrMapTy Map = State->get<RawPtrMap>();
-  for (const auto Entry : Map) {
+  for (const auto &Entry : Map) {
     if (Entry.second.contains(Sym)) {
       return Entry.first;
     }
@@ -278,15 +278,13 @@ const MemRegion *getContainerObjRegion(ProgramStateRef State, SymbolRef Sym) {
 } // end namespace ento
 } // end namespace clang
 
-std::shared_ptr<PathDiagnosticPiece>
-InnerPointerChecker::InnerPointerBRVisitor::VisitNode(const ExplodedNode *N,
-                                                      BugReporterContext &BRC,
-                                                      BugReport &) {
+PathDiagnosticPieceRef InnerPointerChecker::InnerPointerBRVisitor::VisitNode(
+    const ExplodedNode *N, BugReporterContext &BRC, PathSensitiveBugReport &) {
   if (!isSymbolTracked(N->getState(), PtrToBuf) ||
       isSymbolTracked(N->getFirstPred()->getState(), PtrToBuf))
     return nullptr;
 
-  const Stmt *S = PathDiagnosticLocation::getStmt(N);
+  const Stmt *S = N->getStmtForDiagnostics();
   if (!S)
     return nullptr;
 
@@ -301,8 +299,7 @@ InnerPointerChecker::InnerPointerBRVisitor::VisitNode(const ExplodedNode *N,
      << "' obtained here";
   PathDiagnosticLocation Pos(S, BRC.getSourceManager(),
                              N->getLocationContext());
-  return std::make_shared<PathDiagnosticEventPiece>(Pos, OS.str(), true,
-                                                    nullptr);
+  return std::make_shared<PathDiagnosticEventPiece>(Pos, OS.str(), true);
 }
 
 void ento::registerInnerPointerChecker(CheckerManager &Mgr) {

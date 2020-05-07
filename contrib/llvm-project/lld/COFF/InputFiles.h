@@ -14,8 +14,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/DebugInfo/CodeView/TypeRecord.h"
-#include "llvm/LTO/LTO.h"
+#include "llvm/BinaryFormat/Magic.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Support/StringSaver.h"
@@ -24,12 +23,18 @@
 #include <vector>
 
 namespace llvm {
+struct DILineInfo;
 namespace pdb {
 class DbiModuleDescriptorBuilder;
+}
+namespace lto {
+class InputFile;
 }
 }
 
 namespace lld {
+class DWARFCache;
+
 namespace coff {
 
 std::vector<MemoryBufferRef> getArchiveMembers(llvm::object::Archive *file);
@@ -47,7 +52,6 @@ class Defined;
 class DefinedImportData;
 class DefinedImportThunk;
 class DefinedRegular;
-class Lazy;
 class SectionChunk;
 class Symbol;
 class Undefined;
@@ -56,7 +60,13 @@ class TpiSource;
 // The root class of input files.
 class InputFile {
 public:
-  enum Kind { ArchiveKind, ObjectKind, ImportKind, BitcodeKind };
+  enum Kind {
+    ArchiveKind,
+    ObjectKind,
+    LazyObjectKind,
+    ImportKind,
+    BitcodeKind
+  };
   Kind kind() const { return fileKind; }
   virtual ~InputFile() {}
 
@@ -103,10 +113,28 @@ private:
   llvm::DenseSet<uint64_t> seen;
 };
 
+// .obj or .o file between -start-lib and -end-lib.
+class LazyObjFile : public InputFile {
+public:
+  explicit LazyObjFile(MemoryBufferRef m) : InputFile(LazyObjectKind, m) {}
+  static bool classof(const InputFile *f) {
+    return f->kind() == LazyObjectKind;
+  }
+  // Makes this object file part of the link.
+  void fetch();
+  // Adds the symbols in this file to the symbol table as LazyObject symbols.
+  void parse() override;
+
+private:
+  std::vector<Symbol *> symbols;
+};
+
 // .obj or .o file. This may be a member of an archive file.
 class ObjFile : public InputFile {
 public:
   explicit ObjFile(MemoryBufferRef m) : InputFile(ObjectKind, m) {}
+  explicit ObjFile(MemoryBufferRef m, std::vector<Symbol *> &&symbols)
+      : InputFile(ObjectKind, m), symbols(std::move(symbols)) {}
   static bool classof(const InputFile *f) { return f->kind() == ObjectKind; }
   void parse() override;
   MachineTypes getMachineType() override;
@@ -135,6 +163,10 @@ public:
     return symbols.size() - 1;
   }
 
+  void includeResourceChunks();
+
+  bool isResourceObjFile() const { return !resourceChunks.empty(); }
+
   static std::vector<ObjFile *> instances;
 
   // Flags in the absolute @feat.00 symbol if it is present. These usually
@@ -162,9 +194,6 @@ public:
   // precompiled object. Any difference indicates out-of-date objects.
   llvm::Optional<uint32_t> pchSignature;
 
-  // Whether this is an object file created from .res files.
-  bool isResourceObjFile = false;
-
   // Whether this file was compiled with /hotpatch.
   bool hotPatchable = false;
 
@@ -174,8 +203,14 @@ public:
   // If the OBJ has a .debug$T stream, this tells how it will be handled.
   TpiSource *debugTypesObj = nullptr;
 
-  // The .debug$T stream if there's one.
-  llvm::Optional<llvm::codeview::CVTypeArray> debugTypes;
+  // The .debug$P or .debug$T section data if present. Empty otherwise.
+  ArrayRef<uint8_t> debugTypes;
+
+  llvm::Optional<std::pair<StringRef, uint32_t>>
+  getVariableLocation(StringRef var);
+
+  llvm::Optional<llvm::DILineInfo> getDILineInfo(uint32_t offset,
+                                                 uint32_t sectionIndex);
 
 private:
   const coff_section* getSection(uint32_t i);
@@ -234,6 +269,8 @@ private:
   // chunks and non-section chunks for common symbols.
   std::vector<Chunk *> chunks;
 
+  std::vector<SectionChunk *> resourceChunks;
+
   // CodeView debug info sections.
   std::vector<SectionChunk *> debugChunks;
 
@@ -258,6 +295,8 @@ private:
   // index. Nonexistent indices (which are occupied by auxiliary
   // symbols in the real symbol table) are filled with null pointers.
   std::vector<Symbol *> symbols;
+
+  DWARFCache *dwarf = nullptr;
 };
 
 // This type represents import library members that contain DLL names
@@ -300,6 +339,10 @@ class BitcodeFile : public InputFile {
 public:
   BitcodeFile(MemoryBufferRef mb, StringRef archiveName,
               uint64_t offsetInArchive);
+  explicit BitcodeFile(MemoryBufferRef m, StringRef archiveName,
+                       uint64_t offsetInArchive,
+                       std::vector<Symbol *> &&symbols);
+  ~BitcodeFile();
   static bool classof(const InputFile *f) { return f->kind() == BitcodeKind; }
   ArrayRef<Symbol *> getSymbols() { return symbols; }
   MachineTypes getMachineType() override;
@@ -311,6 +354,10 @@ private:
 
   std::vector<Symbol *> symbols;
 };
+
+inline bool isBitcode(MemoryBufferRef mb) {
+  return identify_magic(mb.getBuffer()) == llvm::file_magic::bitcode;
+}
 
 std::string replaceThinLTOSuffix(StringRef path);
 } // namespace coff

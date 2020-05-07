@@ -97,8 +97,8 @@ protected:
   FastMathFlags FMF;
 
   bool IsFPConstrained;
-  ConstrainedFPIntrinsic::ExceptionBehavior DefaultConstrainedExcept;
-  ConstrainedFPIntrinsic::RoundingMode DefaultConstrainedRounding;
+  fp::ExceptionBehavior DefaultConstrainedExcept;
+  fp::RoundingMode DefaultConstrainedRounding;
 
   ArrayRef<OperandBundleDef> DefaultOperandBundles;
 
@@ -106,8 +106,8 @@ public:
   IRBuilderBase(LLVMContext &context, MDNode *FPMathTag = nullptr,
                 ArrayRef<OperandBundleDef> OpBundles = None)
       : Context(context), DefaultFPMathTag(FPMathTag), IsFPConstrained(false),
-        DefaultConstrainedExcept(ConstrainedFPIntrinsic::ebStrict),
-        DefaultConstrainedRounding(ConstrainedFPIntrinsic::rmDynamic),
+        DefaultConstrainedExcept(fp::ebStrict),
+        DefaultConstrainedRounding(fp::rmDynamic),
         DefaultOperandBundles(OpBundles) {
     ClearInsertionPoint();
   }
@@ -234,25 +234,37 @@ public:
   bool getIsFPConstrained() { return IsFPConstrained; }
 
   /// Set the exception handling to be used with constrained floating point
-  void setDefaultConstrainedExcept(
-      ConstrainedFPIntrinsic::ExceptionBehavior NewExcept) {
+  void setDefaultConstrainedExcept(fp::ExceptionBehavior NewExcept) {
     DefaultConstrainedExcept = NewExcept;
   }
 
   /// Set the rounding mode handling to be used with constrained floating point
-  void setDefaultConstrainedRounding(
-      ConstrainedFPIntrinsic::RoundingMode NewRounding) {
+  void setDefaultConstrainedRounding(fp::RoundingMode NewRounding) {
     DefaultConstrainedRounding = NewRounding;
   }
 
   /// Get the exception handling used with constrained floating point
-  ConstrainedFPIntrinsic::ExceptionBehavior getDefaultConstrainedExcept() {
+  fp::ExceptionBehavior getDefaultConstrainedExcept() {
     return DefaultConstrainedExcept;
   }
 
   /// Get the rounding mode handling used with constrained floating point
-  ConstrainedFPIntrinsic::RoundingMode getDefaultConstrainedRounding() {
+  fp::RoundingMode getDefaultConstrainedRounding() {
     return DefaultConstrainedRounding;
+  }
+
+  void setConstrainedFPFunctionAttr() {
+    assert(BB && "Must have a basic block to set any function attributes!");
+
+    Function *F = BB->getParent();
+    if (!F->hasFnAttribute(Attribute::StrictFP)) {
+      F->addFnAttr(Attribute::StrictFP);
+    }
+  }
+
+  void setConstrainedFPCallAttr(CallInst *I) {
+    if (!I->hasFnAttr(Attribute::StrictFP))
+      I->addAttribute(AttributeList::FunctionIndex, Attribute::StrictFP);
   }
 
   //===--------------------------------------------------------------------===//
@@ -437,15 +449,15 @@ public:
   /// If the pointer isn't an i8*, it will be converted. If a TBAA tag is
   /// specified, it will be added to the instruction. Likewise with alias.scope
   /// and noalias tags.
-  CallInst *CreateMemSet(Value *Ptr, Value *Val, uint64_t Size, unsigned Align,
-                         bool isVolatile = false, MDNode *TBAATag = nullptr,
-                         MDNode *ScopeTag = nullptr,
+  CallInst *CreateMemSet(Value *Ptr, Value *Val, uint64_t Size,
+                         MaybeAlign Align, bool isVolatile = false,
+                         MDNode *TBAATag = nullptr, MDNode *ScopeTag = nullptr,
                          MDNode *NoAliasTag = nullptr) {
     return CreateMemSet(Ptr, Val, getInt64(Size), Align, isVolatile,
                         TBAATag, ScopeTag, NoAliasTag);
   }
 
-  CallInst *CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
+  CallInst *CreateMemSet(Value *Ptr, Value *Val, Value *Size, MaybeAlign Align,
                          bool isVolatile = false, MDNode *TBAATag = nullptr,
                          MDNode *ScopeTag = nullptr,
                          MDNode *NoAliasTag = nullptr);
@@ -456,19 +468,45 @@ public:
   /// If the pointer isn't an i8*, it will be converted. If a TBAA tag is
   /// specified, it will be added to the instruction. Likewise with alias.scope
   /// and noalias tags.
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use the version that takes Align instead of this one.
+  LLVM_ATTRIBUTE_DEPRECATED(
+      CallInst *CreateElementUnorderedAtomicMemSet(
+          Value *Ptr, Value *Val, uint64_t Size, unsigned Alignment,
+          uint32_t ElementSize, MDNode *TBAATag = nullptr,
+          MDNode *ScopeTag = nullptr, MDNode *NoAliasTag = nullptr),
+      "Use the version that takes Align instead of this one") {
+    return CreateElementUnorderedAtomicMemSet(Ptr, Val, getInt64(Size),
+                                              Align(Alignment), ElementSize,
+                                              TBAATag, ScopeTag, NoAliasTag);
+  }
+
   CallInst *CreateElementUnorderedAtomicMemSet(Value *Ptr, Value *Val,
-                                               uint64_t Size, unsigned Align,
+                                               uint64_t Size, Align Alignment,
                                                uint32_t ElementSize,
                                                MDNode *TBAATag = nullptr,
                                                MDNode *ScopeTag = nullptr,
                                                MDNode *NoAliasTag = nullptr) {
-    return CreateElementUnorderedAtomicMemSet(Ptr, Val, getInt64(Size), Align,
+    return CreateElementUnorderedAtomicMemSet(Ptr, Val, getInt64(Size),
+                                              Align(Alignment), ElementSize,
+                                              TBAATag, ScopeTag, NoAliasTag);
+  }
+
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use the version that takes Align instead of this one.
+  LLVM_ATTRIBUTE_DEPRECATED(
+      CallInst *CreateElementUnorderedAtomicMemSet(
+          Value *Ptr, Value *Val, Value *Size, unsigned Alignment,
+          uint32_t ElementSize, MDNode *TBAATag = nullptr,
+          MDNode *ScopeTag = nullptr, MDNode *NoAliasTag = nullptr),
+      "Use the version that takes Align instead of this one") {
+    return CreateElementUnorderedAtomicMemSet(Ptr, Val, Size, Align(Alignment),
                                               ElementSize, TBAATag, ScopeTag,
                                               NoAliasTag);
   }
 
   CallInst *CreateElementUnorderedAtomicMemSet(Value *Ptr, Value *Val,
-                                               Value *Size, unsigned Align,
+                                               Value *Size, Align Alignment,
                                                uint32_t ElementSize,
                                                MDNode *TBAATag = nullptr,
                                                MDNode *ScopeTag = nullptr,
@@ -479,8 +517,23 @@ public:
   /// If the pointers aren't i8*, they will be converted.  If a TBAA tag is
   /// specified, it will be added to the instruction. Likewise with alias.scope
   /// and noalias tags.
-  CallInst *CreateMemCpy(Value *Dst, unsigned DstAlign, Value *Src,
-                         unsigned SrcAlign, uint64_t Size,
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use the version that takes MaybeAlign instead of this one.
+  LLVM_ATTRIBUTE_DEPRECATED(
+      CallInst *CreateMemCpy(Value *Dst, unsigned DstAlign, Value *Src,
+                             unsigned SrcAlign, uint64_t Size,
+                             bool isVolatile = false, MDNode *TBAATag = nullptr,
+                             MDNode *TBAAStructTag = nullptr,
+                             MDNode *ScopeTag = nullptr,
+                             MDNode *NoAliasTag = nullptr),
+      "Use the version that takes MaybeAlign instead") {
+    return CreateMemCpy(Dst, MaybeAlign(DstAlign), Src, MaybeAlign(SrcAlign),
+                        getInt64(Size), isVolatile, TBAATag, TBAAStructTag,
+                        ScopeTag, NoAliasTag);
+  }
+
+  CallInst *CreateMemCpy(Value *Dst, MaybeAlign DstAlign, Value *Src,
+                         MaybeAlign SrcAlign, uint64_t Size,
                          bool isVolatile = false, MDNode *TBAATag = nullptr,
                          MDNode *TBAAStructTag = nullptr,
                          MDNode *ScopeTag = nullptr,
@@ -490,8 +543,18 @@ public:
                         NoAliasTag);
   }
 
-  CallInst *CreateMemCpy(Value *Dst, unsigned DstAlign, Value *Src,
-                         unsigned SrcAlign, Value *Size,
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use the version that takes MaybeAlign instead of this one.
+  LLVM_ATTRIBUTE_DEPRECATED(
+      CallInst *CreateMemCpy(Value *Dst, unsigned DstAlign, Value *Src,
+                             unsigned SrcAlign, Value *Size,
+                             bool isVolatile = false, MDNode *TBAATag = nullptr,
+                             MDNode *TBAAStructTag = nullptr,
+                             MDNode *ScopeTag = nullptr,
+                             MDNode *NoAliasTag = nullptr),
+      "Use the version that takes MaybeAlign instead");
+  CallInst *CreateMemCpy(Value *Dst, MaybeAlign DstAlign, Value *Src,
+                         MaybeAlign SrcAlign, Value *Size,
                          bool isVolatile = false, MDNode *TBAATag = nullptr,
                          MDNode *TBAAStructTag = nullptr,
                          MDNode *ScopeTag = nullptr,
@@ -527,16 +590,40 @@ public:
   /// If the pointers aren't i8*, they will be converted.  If a TBAA tag is
   /// specified, it will be added to the instruction. Likewise with alias.scope
   /// and noalias tags.
-  CallInst *CreateMemMove(Value *Dst, unsigned DstAlign, Value *Src, unsigned SrcAlign,
-                          uint64_t Size, bool isVolatile = false,
-                          MDNode *TBAATag = nullptr, MDNode *ScopeTag = nullptr,
-                          MDNode *NoAliasTag = nullptr) {
-    return CreateMemMove(Dst, DstAlign, Src, SrcAlign, getInt64(Size), isVolatile,
-                         TBAATag, ScopeTag, NoAliasTag);
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use the version that takes MaybeAlign instead of this one.
+  LLVM_ATTRIBUTE_DEPRECATED(
+      CallInst *CreateMemMove(
+          Value *Dst, unsigned DstAlign, Value *Src, unsigned SrcAlign,
+          uint64_t Size, bool isVolatile = false, MDNode *TBAATag = nullptr,
+          MDNode *ScopeTag = nullptr, MDNode *NoAliasTag = nullptr),
+      "Use the version that takes MaybeAlign") {
+    return CreateMemMove(Dst, MaybeAlign(DstAlign), Src, MaybeAlign(SrcAlign),
+                         getInt64(Size), isVolatile, TBAATag, ScopeTag,
+                         NoAliasTag);
   }
-
-  CallInst *CreateMemMove(Value *Dst, unsigned DstAlign, Value *Src, unsigned SrcAlign,
-                          Value *Size, bool isVolatile = false, MDNode *TBAATag = nullptr,
+  CallInst *CreateMemMove(Value *Dst, MaybeAlign DstAlign, Value *Src,
+                          MaybeAlign SrcAlign, uint64_t Size,
+                          bool isVolatile = false, MDNode *TBAATag = nullptr,
+                          MDNode *ScopeTag = nullptr,
+                          MDNode *NoAliasTag = nullptr) {
+    return CreateMemMove(Dst, DstAlign, Src, SrcAlign, getInt64(Size),
+                         isVolatile, TBAATag, ScopeTag, NoAliasTag);
+  }
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use the version that takes MaybeAlign instead of this one.
+  LLVM_ATTRIBUTE_DEPRECATED(
+      CallInst *CreateMemMove(
+          Value *Dst, unsigned DstAlign, Value *Src, unsigned SrcAlign,
+          Value *Size, bool isVolatile = false, MDNode *TBAATag = nullptr,
+          MDNode *ScopeTag = nullptr, MDNode *NoAliasTag = nullptr),
+      "Use the version that takes MaybeAlign") {
+    return CreateMemMove(Dst, MaybeAlign(DstAlign), Src, MaybeAlign(SrcAlign),
+                         Size, isVolatile, TBAATag, ScopeTag, NoAliasTag);
+  }
+  CallInst *CreateMemMove(Value *Dst, MaybeAlign DstAlign, Value *Src,
+                          MaybeAlign SrcAlign, Value *Size,
+                          bool isVolatile = false, MDNode *TBAATag = nullptr,
                           MDNode *ScopeTag = nullptr,
                           MDNode *NoAliasTag = nullptr);
 
@@ -1082,36 +1169,42 @@ private:
     return (LC && RC) ? Insert(Folder.CreateBinOp(Opc, LC, RC), Name) : nullptr;
   }
 
-  Value *getConstrainedFPRounding(
-      Optional<ConstrainedFPIntrinsic::RoundingMode> Rounding) {
-    ConstrainedFPIntrinsic::RoundingMode UseRounding =
-        DefaultConstrainedRounding;
+  Value *getConstrainedFPRounding(Optional<fp::RoundingMode> Rounding) {
+    fp::RoundingMode UseRounding = DefaultConstrainedRounding;
 
     if (Rounding.hasValue())
       UseRounding = Rounding.getValue();
 
-    Optional<StringRef> RoundingStr =
-        ConstrainedFPIntrinsic::RoundingModeToStr(UseRounding);
+    Optional<StringRef> RoundingStr = RoundingModeToStr(UseRounding);
     assert(RoundingStr.hasValue() && "Garbage strict rounding mode!");
     auto *RoundingMDS = MDString::get(Context, RoundingStr.getValue());
 
     return MetadataAsValue::get(Context, RoundingMDS);
   }
 
-  Value *getConstrainedFPExcept(
-      Optional<ConstrainedFPIntrinsic::ExceptionBehavior> Except) {
-    ConstrainedFPIntrinsic::ExceptionBehavior UseExcept =
-        DefaultConstrainedExcept;
+  Value *getConstrainedFPExcept(Optional<fp::ExceptionBehavior> Except) {
+    fp::ExceptionBehavior UseExcept = DefaultConstrainedExcept;
 
     if (Except.hasValue())
       UseExcept = Except.getValue();
 
-    Optional<StringRef> ExceptStr =
-        ConstrainedFPIntrinsic::ExceptionBehaviorToStr(UseExcept);
+    Optional<StringRef> ExceptStr = ExceptionBehaviorToStr(UseExcept);
     assert(ExceptStr.hasValue() && "Garbage strict exception behavior!");
     auto *ExceptMDS = MDString::get(Context, ExceptStr.getValue());
 
     return MetadataAsValue::get(Context, ExceptMDS);
+  }
+
+  Value *getConstrainedFPPredicate(CmpInst::Predicate Predicate) {
+    assert(CmpInst::isFPPredicate(Predicate) &&
+           Predicate != CmpInst::FCMP_FALSE &&
+           Predicate != CmpInst::FCMP_TRUE &&
+           "Invalid constrained FP comparison predicate!");
+
+    StringRef PredicateStr = CmpInst::getPredicateName(Predicate);
+    auto *PredicateMDS = MDString::get(Context, PredicateStr);
+
+    return MetadataAsValue::get(Context, PredicateMDS);
   }
 
 public:
@@ -1461,15 +1554,15 @@ public:
     if (Value *V = foldConstant(Opc, LHS, RHS, Name)) return V;
     Instruction *BinOp = BinaryOperator::Create(Opc, LHS, RHS);
     if (isa<FPMathOperator>(BinOp))
-      BinOp = setFPAttrs(BinOp, FPMathTag, FMF);
+      setFPAttrs(BinOp, FPMathTag, FMF);
     return Insert(BinOp, Name);
   }
 
   CallInst *CreateConstrainedFPBinOp(
       Intrinsic::ID ID, Value *L, Value *R, Instruction *FMFSource = nullptr,
       const Twine &Name = "", MDNode *FPMathTag = nullptr,
-      Optional<ConstrainedFPIntrinsic::RoundingMode> Rounding = None,
-      Optional<ConstrainedFPIntrinsic::ExceptionBehavior> Except = None) {
+      Optional<fp::RoundingMode> Rounding = None,
+      Optional<fp::ExceptionBehavior> Except = None) {
     Value *RoundingV = getConstrainedFPRounding(Rounding);
     Value *ExceptV = getConstrainedFPExcept(Except);
 
@@ -1479,7 +1572,9 @@ public:
 
     CallInst *C = CreateIntrinsic(ID, {L->getType()},
                                   {L, R, RoundingV, ExceptV}, nullptr, Name);
-    return cast<CallInst>(setFPAttrs(C, FPMathTag, UseFMF));
+    setConstrainedFPCallAttr(C);
+    setFPAttrs(C, FPMathTag, UseFMF);
+    return C;
   }
 
   Value *CreateNeg(Value *V, const Twine &Name = "",
@@ -1504,7 +1599,7 @@ public:
                     MDNode *FPMathTag = nullptr) {
     if (auto *VC = dyn_cast<Constant>(V))
       return Insert(Folder.CreateFNeg(VC), Name);
-    return Insert(setFPAttrs(BinaryOperator::CreateFNeg(V), FPMathTag, FMF),
+    return Insert(setFPAttrs(UnaryOperator::CreateFNeg(V), FPMathTag, FMF),
                   Name);
   }
 
@@ -1514,9 +1609,7 @@ public:
                        const Twine &Name = "") {
    if (auto *VC = dyn_cast<Constant>(V))
      return Insert(Folder.CreateFNeg(VC), Name);
-   // TODO: This should return UnaryOperator::CreateFNeg(...) once we are
-   // confident that they are optimized sufficiently.
-   return Insert(setFPAttrs(BinaryOperator::CreateFNeg(V), nullptr,
+   return Insert(setFPAttrs(UnaryOperator::CreateFNeg(V), nullptr,
                             FMFSource->getFastMathFlags()),
                  Name);
   }
@@ -1534,7 +1627,7 @@ public:
       return Insert(Folder.CreateUnOp(Opc, VC), Name);
     Instruction *UnOp = UnaryOperator::Create(Opc, V);
     if (isa<FPMathOperator>(UnOp))
-      UnOp = setFPAttrs(UnOp, FPMathTag, FMF);
+      setFPAttrs(UnOp, FPMathTag, FMF);
     return Insert(UnOp, Name);
   }
 
@@ -1609,19 +1702,37 @@ public:
   /// Provided to resolve 'CreateAlignedLoad(Ptr, Align, "...")'
   /// correctly, instead of converting the string to 'bool' for the isVolatile
   /// parameter.
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use the version that takes MaybeAlign instead of this one.
   LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, unsigned Align,
+                              const char *Name) {
+    return CreateAlignedLoad(Ty, Ptr, MaybeAlign(Align), Name);
+  }
+  LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, MaybeAlign Align,
                               const char *Name) {
     LoadInst *LI = CreateLoad(Ty, Ptr, Name);
     LI->setAlignment(Align);
     return LI;
   }
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use the version that takes MaybeAlign instead of this one.
   LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, unsigned Align,
+                              const Twine &Name = "") {
+    return CreateAlignedLoad(Ty, Ptr, MaybeAlign(Align), Name);
+  }
+  LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, MaybeAlign Align,
                               const Twine &Name = "") {
     LoadInst *LI = CreateLoad(Ty, Ptr, Name);
     LI->setAlignment(Align);
     return LI;
   }
+  /// FIXME: Remove this function once transition to Align is over.
+  /// Use the version that takes MaybeAlign instead of this one.
   LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, unsigned Align,
+                              bool isVolatile, const Twine &Name = "") {
+    return CreateAlignedLoad(Ty, Ptr, MaybeAlign(Align), isVolatile, Name);
+  }
+  LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, MaybeAlign Align,
                               bool isVolatile, const Twine &Name = "") {
     LoadInst *LI = CreateLoad(Ty, Ptr, isVolatile, Name);
     LI->setAlignment(Align);
@@ -1645,14 +1756,34 @@ public:
     return CreateAlignedLoad(Ptr->getType()->getPointerElementType(), Ptr,
                              Align, isVolatile, Name);
   }
+  // Deprecated [opaque pointer types]
+  LoadInst *CreateAlignedLoad(Value *Ptr, MaybeAlign Align, const char *Name) {
+    return CreateAlignedLoad(Ptr->getType()->getPointerElementType(), Ptr,
+                             Align, Name);
+  }
+  // Deprecated [opaque pointer types]
+  LoadInst *CreateAlignedLoad(Value *Ptr, MaybeAlign Align,
+                              const Twine &Name = "") {
+    return CreateAlignedLoad(Ptr->getType()->getPointerElementType(), Ptr,
+                             Align, Name);
+  }
+  // Deprecated [opaque pointer types]
+  LoadInst *CreateAlignedLoad(Value *Ptr, MaybeAlign Align, bool isVolatile,
+                              const Twine &Name = "") {
+    return CreateAlignedLoad(Ptr->getType()->getPointerElementType(), Ptr,
+                             Align, isVolatile, Name);
+  }
 
   StoreInst *CreateAlignedStore(Value *Val, Value *Ptr, unsigned Align,
                                 bool isVolatile = false) {
     StoreInst *SI = CreateStore(Val, Ptr, isVolatile);
-    SI->setAlignment(Align);
+    SI->setAlignment(MaybeAlign(Align));
     return SI;
   }
-
+  StoreInst *CreateAlignedStore(Value *Val, Value *Ptr, MaybeAlign Align,
+                                bool isVolatile = false) {
+    return CreateAlignedStore(Val, Ptr, Align ? Align->value() : 0, isVolatile);
+  }
   FenceInst *CreateFence(AtomicOrdering Ordering,
                          SyncScope::ID SSID = SyncScope::System,
                          const Twine &Name = "") {
@@ -1913,28 +2044,47 @@ public:
     return V;
   }
 
-  Value *CreateFPToUI(Value *V, Type *DestTy, const Twine &Name = ""){
+  Value *CreateFPToUI(Value *V, Type *DestTy, const Twine &Name = "") {
+    if (IsFPConstrained)
+      return CreateConstrainedFPCast(Intrinsic::experimental_constrained_fptoui,
+                                     V, DestTy, nullptr, Name);
     return CreateCast(Instruction::FPToUI, V, DestTy, Name);
   }
 
-  Value *CreateFPToSI(Value *V, Type *DestTy, const Twine &Name = ""){
+  Value *CreateFPToSI(Value *V, Type *DestTy, const Twine &Name = "") {
+    if (IsFPConstrained)
+      return CreateConstrainedFPCast(Intrinsic::experimental_constrained_fptosi,
+                                     V, DestTy, nullptr, Name);
     return CreateCast(Instruction::FPToSI, V, DestTy, Name);
   }
 
   Value *CreateUIToFP(Value *V, Type *DestTy, const Twine &Name = ""){
+    if (IsFPConstrained)
+      return CreateConstrainedFPCast(Intrinsic::experimental_constrained_uitofp,
+                                     V, DestTy, nullptr, Name);
     return CreateCast(Instruction::UIToFP, V, DestTy, Name);
   }
 
   Value *CreateSIToFP(Value *V, Type *DestTy, const Twine &Name = ""){
+    if (IsFPConstrained)
+      return CreateConstrainedFPCast(Intrinsic::experimental_constrained_sitofp,
+                                     V, DestTy, nullptr, Name);
     return CreateCast(Instruction::SIToFP, V, DestTy, Name);
   }
 
   Value *CreateFPTrunc(Value *V, Type *DestTy,
                        const Twine &Name = "") {
+    if (IsFPConstrained)
+      return CreateConstrainedFPCast(
+          Intrinsic::experimental_constrained_fptrunc, V, DestTy, nullptr,
+          Name);
     return CreateCast(Instruction::FPTrunc, V, DestTy, Name);
   }
 
   Value *CreateFPExt(Value *V, Type *DestTy, const Twine &Name = "") {
+    if (IsFPConstrained)
+      return CreateConstrainedFPCast(Intrinsic::experimental_constrained_fpext,
+                                     V, DestTy, nullptr, Name);
     return CreateCast(Instruction::FPExt, V, DestTy, Name);
   }
 
@@ -2044,6 +2194,44 @@ public:
     if (auto *VC = dyn_cast<Constant>(V))
       return Insert(Folder.CreateFPCast(VC, DestTy), Name);
     return Insert(CastInst::CreateFPCast(V, DestTy), Name);
+  }
+
+  CallInst *CreateConstrainedFPCast(
+      Intrinsic::ID ID, Value *V, Type *DestTy,
+      Instruction *FMFSource = nullptr, const Twine &Name = "",
+      MDNode *FPMathTag = nullptr,
+      Optional<fp::RoundingMode> Rounding = None,
+      Optional<fp::ExceptionBehavior> Except = None) {
+    Value *ExceptV = getConstrainedFPExcept(Except);
+
+    FastMathFlags UseFMF = FMF;
+    if (FMFSource)
+      UseFMF = FMFSource->getFastMathFlags();
+
+    CallInst *C;
+    bool HasRoundingMD = false;
+    switch (ID) {
+    default:
+      break;
+#define INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)  \
+    case Intrinsic::INTRINSIC:                                \
+      HasRoundingMD = ROUND_MODE;                             \
+      break;
+#include "llvm/IR/ConstrainedOps.def"
+    }
+    if (HasRoundingMD) {
+      Value *RoundingV = getConstrainedFPRounding(Rounding);
+      C = CreateIntrinsic(ID, {DestTy, V->getType()}, {V, RoundingV, ExceptV},
+                          nullptr, Name);
+    } else
+      C = CreateIntrinsic(ID, {DestTy, V->getType()}, {V, ExceptV}, nullptr,
+                          Name);
+
+    setConstrainedFPCallAttr(C);
+
+    if (isa<FPMathOperator>(C))
+      setFPAttrs(C, FPMathTag, UseFMF);
+    return C;
   }
 
   // Provided to resolve 'CreateIntCast(Ptr, Ptr, "...")', giving a
@@ -2173,12 +2361,47 @@ public:
     return Insert(new ICmpInst(P, LHS, RHS), Name);
   }
 
+  // Create a quiet floating-point comparison (i.e. one that raises an FP
+  // exception only in the case where an input is a signaling NaN).
+  // Note that this differs from CreateFCmpS only if IsFPConstrained is true.
   Value *CreateFCmp(CmpInst::Predicate P, Value *LHS, Value *RHS,
                     const Twine &Name = "", MDNode *FPMathTag = nullptr) {
+    if (IsFPConstrained)
+      return CreateConstrainedFPCmp(Intrinsic::experimental_constrained_fcmp,
+                                    P, LHS, RHS, Name);
+
     if (auto *LC = dyn_cast<Constant>(LHS))
       if (auto *RC = dyn_cast<Constant>(RHS))
         return Insert(Folder.CreateFCmp(P, LC, RC), Name);
     return Insert(setFPAttrs(new FCmpInst(P, LHS, RHS), FPMathTag, FMF), Name);
+  }
+
+  // Create a signaling floating-point comparison (i.e. one that raises an FP
+  // exception whenever an input is any NaN, signaling or quiet).
+  // Note that this differs from CreateFCmp only if IsFPConstrained is true.
+  Value *CreateFCmpS(CmpInst::Predicate P, Value *LHS, Value *RHS,
+                     const Twine &Name = "", MDNode *FPMathTag = nullptr) {
+    if (IsFPConstrained)
+      return CreateConstrainedFPCmp(Intrinsic::experimental_constrained_fcmps,
+                                    P, LHS, RHS, Name);
+
+    if (auto *LC = dyn_cast<Constant>(LHS))
+      if (auto *RC = dyn_cast<Constant>(RHS))
+        return Insert(Folder.CreateFCmp(P, LC, RC), Name);
+    return Insert(setFPAttrs(new FCmpInst(P, LHS, RHS), FPMathTag, FMF), Name);
+  }
+
+  CallInst *CreateConstrainedFPCmp(
+      Intrinsic::ID ID, CmpInst::Predicate P, Value *L, Value *R,
+      const Twine &Name = "",
+      Optional<fp::ExceptionBehavior> Except = None) {
+    Value *PredicateV = getConstrainedFPPredicate(P);
+    Value *ExceptV = getConstrainedFPExcept(Except);
+
+    CallInst *C = CreateIntrinsic(ID, {L->getType()},
+                                  {L, R, PredicateV, ExceptV}, nullptr, Name);
+    setConstrainedFPCallAttr(C);
+    return C;
   }
 
   //===--------------------------------------------------------------------===//
@@ -2187,15 +2410,20 @@ public:
 
   PHINode *CreatePHI(Type *Ty, unsigned NumReservedValues,
                      const Twine &Name = "") {
-    return Insert(PHINode::Create(Ty, NumReservedValues), Name);
+    PHINode *Phi = PHINode::Create(Ty, NumReservedValues);
+    if (isa<FPMathOperator>(Phi))
+      setFPAttrs(Phi, nullptr /* MDNode* */, FMF);
+    return Insert(Phi, Name);
   }
 
   CallInst *CreateCall(FunctionType *FTy, Value *Callee,
                        ArrayRef<Value *> Args = None, const Twine &Name = "",
                        MDNode *FPMathTag = nullptr) {
     CallInst *CI = CallInst::Create(FTy, Callee, Args, DefaultOperandBundles);
+    if (IsFPConstrained)
+      setConstrainedFPCallAttr(CI);
     if (isa<FPMathOperator>(CI))
-      CI = cast<CallInst>(setFPAttrs(CI, FPMathTag, FMF));
+      setFPAttrs(CI, FPMathTag, FMF);
     return Insert(CI, Name);
   }
 
@@ -2203,8 +2431,10 @@ public:
                        ArrayRef<OperandBundleDef> OpBundles,
                        const Twine &Name = "", MDNode *FPMathTag = nullptr) {
     CallInst *CI = CallInst::Create(FTy, Callee, Args, OpBundles);
+    if (IsFPConstrained)
+      setConstrainedFPCallAttr(CI);
     if (isa<FPMathOperator>(CI))
-      CI = cast<CallInst>(setFPAttrs(CI, FPMathTag, FMF));
+      setFPAttrs(CI, FPMathTag, FMF);
     return Insert(CI, Name);
   }
 
@@ -2238,6 +2468,33 @@ public:
         Args, OpBundles, Name, FPMathTag);
   }
 
+  CallInst *CreateConstrainedFPCall(
+      Function *Callee, ArrayRef<Value *> Args, const Twine &Name = "",
+      Optional<fp::RoundingMode> Rounding = None,
+      Optional<fp::ExceptionBehavior> Except = None) {
+    llvm::SmallVector<Value *, 6> UseArgs;
+
+    for (auto *OneArg : Args)
+      UseArgs.push_back(OneArg);
+    bool HasRoundingMD = false;
+    switch (Callee->getIntrinsicID()) {
+    default:
+      break;
+#define INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)  \
+    case Intrinsic::INTRINSIC:                                \
+      HasRoundingMD = ROUND_MODE;                             \
+      break;
+#include "llvm/IR/ConstrainedOps.def"
+    }
+    if (HasRoundingMD)
+      UseArgs.push_back(getConstrainedFPRounding(Rounding));
+    UseArgs.push_back(getConstrainedFPExcept(Except));
+
+    CallInst *C = CreateCall(Callee, UseArgs, Name);
+    setConstrainedFPCallAttr(C);
+    return C;
+  }
+
   Value *CreateSelect(Value *C, Value *True, Value *False,
                       const Twine &Name = "", Instruction *MDFrom = nullptr) {
     if (auto *CC = dyn_cast<Constant>(C))
@@ -2252,7 +2509,7 @@ public:
       Sel = addBranchMetadata(Sel, Prof, Unpred);
     }
     if (isa<FPMathOperator>(Sel))
-      Sel = cast<SelectInst>(setFPAttrs(Sel, nullptr /* MDNode* */, FMF));
+      setFPAttrs(Sel, nullptr /* MDNode* */, FMF);
     return Insert(Sel, Name);
   }
 
@@ -2322,6 +2579,10 @@ public:
   LandingPadInst *CreateLandingPad(Type *Ty, unsigned NumClauses,
                                    const Twine &Name = "") {
     return Insert(LandingPadInst::Create(Ty, NumClauses), Name);
+  }
+
+  Value *CreateFreeze(Value *V, const Twine &Name = "") {
+    return Insert(new FreezeInst(V), Name);
   }
 
   //===--------------------------------------------------------------------===//
@@ -2453,8 +2714,9 @@ public:
     return V;
   }
 
-  Value *CreatePreserveArrayAccessIndex(Value *Base, unsigned Dimension,
-                                        unsigned LastIndex) {
+  Value *CreatePreserveArrayAccessIndex(Type *ElTy, Value *Base,
+                                        unsigned Dimension, unsigned LastIndex,
+                                        MDNode *DbgInfo) {
     assert(isa<PointerType>(Base->getType()) &&
            "Invalid Base ptr type for preserve.array.access.index.");
     auto *BaseType = Base->getType();
@@ -2467,7 +2729,7 @@ public:
     IdxList.push_back(LastIndexV);
 
     Type *ResultType =
-        GetElementPtrInst::getGEPReturnType(Base, IdxList);
+        GetElementPtrInst::getGEPReturnType(ElTy, Base, IdxList);
 
     Module *M = BB->getParent()->getParent();
     Function *FnPreserveArrayAccessIndex = Intrinsic::getDeclaration(
@@ -2476,6 +2738,8 @@ public:
     Value *DimV = getInt32(Dimension);
     CallInst *Fn =
         CreateCall(FnPreserveArrayAccessIndex, {Base, DimV, LastIndexV});
+    if (DbgInfo)
+      Fn->setMetadata(LLVMContext::MD_preserve_access_index, DbgInfo);
 
     return Fn;
   }
@@ -2493,13 +2757,15 @@ public:
     Value *DIIndex = getInt32(FieldIndex);
     CallInst *Fn =
         CreateCall(FnPreserveUnionAccessIndex, {Base, DIIndex});
-    Fn->setMetadata(LLVMContext::MD_preserve_access_index, DbgInfo);
+    if (DbgInfo)
+      Fn->setMetadata(LLVMContext::MD_preserve_access_index, DbgInfo);
 
     return Fn;
   }
 
-  Value *CreatePreserveStructAccessIndex(Value *Base, unsigned Index,
-                                         unsigned FieldIndex, MDNode *DbgInfo) {
+  Value *CreatePreserveStructAccessIndex(Type *ElTy, Value *Base,
+                                         unsigned Index, unsigned FieldIndex,
+                                         MDNode *DbgInfo) {
     assert(isa<PointerType>(Base->getType()) &&
            "Invalid Base ptr type for preserve.struct.access.index.");
     auto *BaseType = Base->getType();
@@ -2507,7 +2773,7 @@ public:
     Value *GEPIndex = getInt32(Index);
     Constant *Zero = ConstantInt::get(Type::getInt32Ty(Context), 0);
     Type *ResultType =
-        GetElementPtrInst::getGEPReturnType(Base, {Zero, GEPIndex});
+        GetElementPtrInst::getGEPReturnType(ElTy, Base, {Zero, GEPIndex});
 
     Module *M = BB->getParent()->getParent();
     Function *FnPreserveStructAccessIndex = Intrinsic::getDeclaration(
@@ -2516,7 +2782,8 @@ public:
     Value *DIIndex = getInt32(FieldIndex);
     CallInst *Fn = CreateCall(FnPreserveStructAccessIndex,
                               {Base, GEPIndex, DIIndex});
-    Fn->setMetadata(LLVMContext::MD_preserve_access_index, DbgInfo);
+    if (DbgInfo)
+      Fn->setMetadata(LLVMContext::MD_preserve_access_index, DbgInfo);
 
     return Fn;
   }

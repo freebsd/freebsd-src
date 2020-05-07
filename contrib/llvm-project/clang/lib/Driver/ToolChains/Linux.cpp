@@ -37,9 +37,9 @@ using tools::addPathIfExists;
 /// a target-triple directory in the library and header search paths.
 /// Unfortunately, this triple does not align with the vanilla target triple,
 /// so we provide a rough mapping here.
-static std::string getMultiarchTriple(const Driver &D,
+std::string Linux::getMultiarchTriple(const Driver &D,
                                       const llvm::Triple &TargetTriple,
-                                      StringRef SysRoot) {
+                                      StringRef SysRoot) const {
   llvm::Triple::EnvironmentType TargetEnvironment =
       TargetTriple.getEnvironment();
   bool IsAndroid = TargetTriple.isAndroid();
@@ -240,7 +240,7 @@ Linux::Linux(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
                          .str());
   }
 
-  Distro Distro(D.getVFS());
+  Distro Distro(D.getVFS(), Triple);
 
   if (Distro.IsAlpineLinux() || Triple.isAndroid()) {
     ExtraOpts.push_back("-z");
@@ -511,7 +511,7 @@ std::string Linux::getDynamicLinker(const ArgList &Args) const {
   const llvm::Triple::ArchType Arch = getArch();
   const llvm::Triple &Triple = getTriple();
 
-  const Distro Distro(getDriver().getVFS());
+  const Distro Distro(getDriver().getVFS(), Triple);
 
   if (Triple.isAndroid())
     return Triple.isArch64Bit() ? "/system/bin/linker64" : "/system/bin/linker";
@@ -865,81 +865,23 @@ void Linux::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     addSystemInclude(DriverArgs, CC1Args, ResourceDirInclude);
 }
 
-static std::string DetectLibcxxIncludePath(llvm::vfs::FileSystem &vfs,
-                                           StringRef base) {
-  std::error_code EC;
-  int MaxVersion = 0;
-  std::string MaxVersionString = "";
-  for (llvm::vfs::directory_iterator LI = vfs.dir_begin(base, EC), LE;
-       !EC && LI != LE; LI = LI.increment(EC)) {
-    StringRef VersionText = llvm::sys::path::filename(LI->path());
-    int Version;
-    if (VersionText[0] == 'v' &&
-        !VersionText.slice(1, StringRef::npos).getAsInteger(10, Version)) {
-      if (Version > MaxVersion) {
-        MaxVersion = Version;
-        MaxVersionString = VersionText;
-      }
-    }
-  }
-  return MaxVersion ? (base + "/" + MaxVersionString).str() : "";
-}
-
-void Linux::addLibCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
-                                  llvm::opt::ArgStringList &CC1Args) const {
-  const std::string& SysRoot = computeSysRoot();
-  const std::string LibCXXIncludePathCandidates[] = {
-      DetectLibcxxIncludePath(getVFS(), getDriver().Dir + "/../include/c++"),
-      // If this is a development, non-installed, clang, libcxx will
-      // not be found at ../include/c++ but it likely to be found at
-      // one of the following two locations:
-      DetectLibcxxIncludePath(getVFS(), SysRoot + "/usr/local/include/c++"),
-      DetectLibcxxIncludePath(getVFS(), SysRoot + "/usr/include/c++") };
-  for (const auto &IncludePath : LibCXXIncludePathCandidates) {
-    if (IncludePath.empty() || !getVFS().exists(IncludePath))
-      continue;
-    // Use the first candidate that exists.
-    addSystemInclude(DriverArgs, CC1Args, IncludePath);
-    return;
-  }
-}
-
 void Linux::addLibStdCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
                                      llvm::opt::ArgStringList &CC1Args) const {
+  // Try generic GCC detection first.
+  if (Generic_GCC::addGCCLibStdCxxIncludePaths(DriverArgs, CC1Args))
+    return;
+
   // We need a detected GCC installation on Linux to provide libstdc++'s
-  // headers.
+  // headers in odd Linuxish places.
   if (!GCCInstallation.isValid())
     return;
 
-  // By default, look for the C++ headers in an include directory adjacent to
-  // the lib directory of the GCC installation. Note that this is expect to be
-  // equivalent to '/usr/include/c++/X.Y' in almost all cases.
   StringRef LibDir = GCCInstallation.getParentLibPath();
-  StringRef InstallDir = GCCInstallation.getInstallPath();
   StringRef TripleStr = GCCInstallation.getTriple().str();
   const Multilib &Multilib = GCCInstallation.getMultilib();
-  const std::string GCCMultiarchTriple = getMultiarchTriple(
-      getDriver(), GCCInstallation.getTriple(), getDriver().SysRoot);
-  const std::string TargetMultiarchTriple =
-      getMultiarchTriple(getDriver(), getTriple(), getDriver().SysRoot);
   const GCCVersion &Version = GCCInstallation.getVersion();
 
-  // The primary search for libstdc++ supports multiarch variants.
-  if (addLibStdCXXIncludePaths(LibDir.str() + "/../include",
-                               "/c++/" + Version.Text, TripleStr,
-                               GCCMultiarchTriple, TargetMultiarchTriple,
-                               Multilib.includeSuffix(), DriverArgs, CC1Args))
-    return;
-
-  // Otherwise, fall back on a bunch of options which don't use multiarch
-  // layouts for simplicity.
   const std::string LibStdCXXIncludePathCandidates[] = {
-      // Gentoo is weird and places its headers inside the GCC install,
-      // so if the first attempt to find the headers fails, try these patterns.
-      InstallDir.str() + "/include/g++-v" + Version.Text,
-      InstallDir.str() + "/include/g++-v" + Version.MajorStr + "." +
-          Version.MinorStr,
-      InstallDir.str() + "/include/g++-v" + Version.MajorStr,
       // Android standalone toolchain has C++ headers in yet another place.
       LibDir.str() + "/../" + TripleStr.str() + "/include/c++/" + Version.Text,
       // Freescale SDK C++ headers are directly in <sysroot>/usr/include/c++,
@@ -1029,8 +971,6 @@ SanitizerMask Linux::getSupportedSanitizers() const {
     Res |= SanitizerKind::HWAddress;
     Res |= SanitizerKind::KernelHWAddress;
   }
-  if (IsAArch64)
-    Res |= SanitizerKind::MemTag;
   return Res;
 }
 

@@ -172,6 +172,7 @@ private:
                  Selector SelInfo, QualType T, TypeSourceInfo *ReturnTInfo,
                  DeclContext *contextDecl, bool isInstance = true,
                  bool isVariadic = false, bool isPropertyAccessor = false,
+                 bool isSynthesizedAccessorStub = false, 
                  bool isImplicitlyDeclared = false, bool isDefined = false,
                  ImplementationControl impControl = None,
                  bool HasRelatedResultType = false);
@@ -232,6 +233,7 @@ public:
          Selector SelInfo, QualType T, TypeSourceInfo *ReturnTInfo,
          DeclContext *contextDecl, bool isInstance = true,
          bool isVariadic = false, bool isPropertyAccessor = false,
+         bool isSynthesizedAccessorStub = false,
          bool isImplicitlyDeclared = false, bool isDefined = false,
          ImplementationControl impControl = None,
          bool HasRelatedResultType = false);
@@ -408,7 +410,7 @@ public:
   /// \return the type for \c self and set \arg selfIsPseudoStrong and
   /// \arg selfIsConsumed accordingly.
   QualType getSelfType(ASTContext &Context, const ObjCInterfaceDecl *OID,
-                       bool &selfIsPseudoStrong, bool &selfIsConsumed);
+                       bool &selfIsPseudoStrong, bool &selfIsConsumed) const;
 
   ImplicitParamDecl * getSelfDecl() const { return SelfDecl; }
   void setSelfDecl(ImplicitParamDecl *SD) { SelfDecl = SD; }
@@ -434,6 +436,14 @@ public:
 
   void setPropertyAccessor(bool isAccessor) {
     ObjCMethodDeclBits.IsPropertyAccessor = isAccessor;
+  }
+
+  bool isSynthesizedAccessorStub() const {
+    return ObjCMethodDeclBits.IsSynthesizedAccessorStub;
+  }
+
+  void setSynthesizedAccessorStub(bool isSynthesizedAccessorStub) {
+    ObjCMethodDeclBits.IsSynthesizedAccessorStub = isSynthesizedAccessorStub;
   }
 
   bool isDefined() const { return ObjCMethodDeclBits.IsDefined; }
@@ -465,6 +475,9 @@ public:
   void setHasSkippedBody(bool Skipped = true) {
     ObjCMethodDeclBits.HasSkippedBody = Skipped;
   }
+
+  /// True if the method is tagged as objc_direct
+  bool isDirectMethod() const;
 
   /// Returns the property associated with this method's selector.
   ///
@@ -747,13 +760,14 @@ public:
     /// property attribute rather than a type qualifier.
     OBJC_PR_nullability = 0x1000,
     OBJC_PR_null_resettable = 0x2000,
-    OBJC_PR_class = 0x4000
+    OBJC_PR_class = 0x4000,
+    OBJC_PR_direct = 0x8000
     // Adding a property should change NumPropertyAttrsBits
   };
 
   enum {
     /// Number of bits fitting all the property attributes.
-    NumPropertyAttrsBits = 15
+    NumPropertyAttrsBits = 16
   };
 
   enum SetterKind { Assign, Retain, Copy, Weak };
@@ -876,6 +890,7 @@ public:
 
   bool isInstanceProperty() const { return !isClassProperty(); }
   bool isClassProperty() const { return PropertyAttributes & OBJC_PR_class; }
+  bool isDirectProperty() const { return PropertyAttributes & OBJC_PR_direct; }
 
   ObjCPropertyQueryKind getQueryKind() const {
     return isClassProperty() ? ObjCPropertyQueryKind::OBJC_PR_query_class :
@@ -2779,6 +2794,11 @@ private:
   /// Null for \@dynamic. Required for \@synthesize.
   ObjCIvarDecl *PropertyIvarDecl;
 
+  /// The getter's definition, which has an empty body if synthesized.
+  ObjCMethodDecl *GetterMethodDecl = nullptr;
+  /// The getter's definition, which has an empty body if synthesized.
+  ObjCMethodDecl *SetterMethodDecl = nullptr;
+
   /// Null for \@dynamic. Non-null if property must be copy-constructed in
   /// getter.
   Expr *GetterCXXConstructor = nullptr;
@@ -2844,6 +2864,12 @@ public:
   bool isIvarNameSpecified() const {
     return IvarLoc.isValid() && IvarLoc != getLocation();
   }
+
+  ObjCMethodDecl *getGetterMethodDecl() const { return GetterMethodDecl; }
+  void setGetterMethodDecl(ObjCMethodDecl *MD) { GetterMethodDecl = MD; }
+
+  ObjCMethodDecl *getSetterMethodDecl() const { return SetterMethodDecl; }
+  void setSetterMethodDecl(ObjCMethodDecl *MD) { SetterMethodDecl = MD; }
 
   Expr *getGetterCXXConstructor() const {
     return GetterCXXConstructor;

@@ -16,6 +16,7 @@
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
+  class AttrBuilder;
   class CallInst;
   class Constant;
   class Function;
@@ -54,9 +55,9 @@ namespace llvm {
   /// module is modified.
   bool UpgradeModuleFlags(Module &M);
 
-  /// This checks for objc retain release marker which should be upgraded. It
-  /// returns true if module is modified.
-  bool UpgradeRetainReleaseMarker(Module &M);
+  /// Convert calls to ARC runtime functions to intrinsic calls and upgrade the
+  /// old retain release marker to new module flag format.
+  void UpgradeARCRuntime(Module &M);
 
   void UpgradeSectionAttributes(Module &M);
 
@@ -86,6 +87,14 @@ namespace llvm {
 
   /// Upgrade the loop attachment metadata node.
   MDNode *upgradeInstructionLoopAttachment(MDNode &N);
+
+  /// Upgrade the datalayout string by adding a section for address space
+  /// pointers.
+  std::string UpgradeDataLayoutString(StringRef DL, StringRef Triple);
+
+  /// Upgrade function attributes "no-frame-pointer-elim" and
+  /// "no-frame-pointer-elim-non-leaf" to "frame-pointer".
+  void UpgradeFramePointerAttributes(AttrBuilder &B);
 
 } // End llvm namespace
 

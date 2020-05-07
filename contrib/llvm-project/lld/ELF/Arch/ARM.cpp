@@ -18,8 +18,9 @@
 using namespace llvm;
 using namespace llvm::support::endian;
 using namespace llvm::ELF;
-using namespace lld;
-using namespace lld::elf;
+
+namespace lld {
+namespace elf {
 
 namespace {
 class ARM final : public TargetInfo {
@@ -33,12 +34,13 @@ public:
   void writeGotPlt(uint8_t *buf, const Symbol &s) const override;
   void writeIgotPlt(uint8_t *buf, const Symbol &s) const override;
   void writePltHeader(uint8_t *buf) const override;
-  void writePlt(uint8_t *buf, uint64_t gotPltEntryAddr, uint64_t pltEntryAddr,
-                int32_t index, unsigned relOff) const override;
+  void writePlt(uint8_t *buf, const Symbol &sym,
+                uint64_t pltEntryAddr) const override;
   void addPltSymbols(InputSection &isec, uint64_t off) const override;
   void addPltHeaderSymbols(InputSection &isd) const override;
   bool needsThunk(RelExpr expr, RelType type, const InputFile *file,
-                  uint64_t branchAddr, const Symbol &s) const override;
+                  uint64_t branchAddr, const Symbol &s,
+                  int64_t a) const override;
   uint32_t getThunkSectionSpacing() const override;
   bool inBranchRange(RelType type, uint64_t src, uint64_t dst) const override;
   void relocateOne(uint8_t *loc, RelType type, uint64_t val) const override;
@@ -57,8 +59,9 @@ ARM::ARM() {
   tlsModuleIndexRel = R_ARM_TLS_DTPMOD32;
   tlsOffsetRel = R_ARM_TLS_DTPOFF32;
   gotBaseSymInGotPlt = false;
-  pltEntrySize = 16;
   pltHeaderSize = 32;
+  pltEntrySize = 16;
+  ipltEntrySize = 16;
   trapInstr = {0xd4, 0xd4, 0xd4, 0xd4};
   needsThunks = true;
 }
@@ -137,7 +140,7 @@ RelExpr ARM::getRelExpr(RelType type, const Symbol &s,
     // given address. It can be used to implement a special linker mode which
     // rewrites ARMv4T inputs to ARMv4. Since we support only ARMv4 input and
     // not ARMv4 output, we can just ignore it.
-    return R_HINT;
+    return R_NONE;
   default:
     return R_ABS;
   }
@@ -214,8 +217,7 @@ void ARM::addPltHeaderSymbols(InputSection &isec) const {
 // Long form PLT entries that do not have any restrictions on the displacement
 // of the .plt from the .plt.got.
 static void writePltLong(uint8_t *buf, uint64_t gotPltEntryAddr,
-                         uint64_t pltEntryAddr, int32_t index,
-                         unsigned relOff) {
+                         uint64_t pltEntryAddr) {
   const uint8_t pltData[] = {
       0x04, 0xc0, 0x9f, 0xe5, //     ldr ip, L2
       0x0f, 0xc0, 0x8c, 0xe0, // L1: add ip, ip, pc
@@ -229,9 +231,8 @@ static void writePltLong(uint8_t *buf, uint64_t gotPltEntryAddr,
 
 // The default PLT entries require the .plt.got to be within 128 Mb of the
 // .plt in the positive direction.
-void ARM::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
-                   uint64_t pltEntryAddr, int32_t index,
-                   unsigned relOff) const {
+void ARM::writePlt(uint8_t *buf, const Symbol &sym,
+                   uint64_t pltEntryAddr) const {
   // The PLT entry is similar to the example given in Appendix A of ELF for
   // the Arm Architecture. Instead of using the Group Relocations to find the
   // optimal rotation for the 8-bit immediate used in the add instructions we
@@ -243,10 +244,10 @@ void ARM::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
       0xe5bcf000, //     ldr pc, [ip, #0x00000NNN] Offset(&(.plt.got) - L1 - 8
   };
 
-  uint64_t offset = gotPltEntryAddr - pltEntryAddr - 8;
+  uint64_t offset = sym.getGotPltVA() - pltEntryAddr - 8;
   if (!llvm::isUInt<27>(offset)) {
     // We cannot encode the Offset, use the long form.
-    writePltLong(buf, gotPltEntryAddr, pltEntryAddr, index, relOff);
+    writePltLong(buf, sym.getGotPltVA(), pltEntryAddr);
     return;
   }
   write32le(buf + 0, pltData[0] | ((offset >> 20) & 0xff));
@@ -261,7 +262,7 @@ void ARM::addPltSymbols(InputSection &isec, uint64_t off) const {
 }
 
 bool ARM::needsThunk(RelExpr expr, RelType type, const InputFile *file,
-                     uint64_t branchAddr, const Symbol &s) const {
+                     uint64_t branchAddr, const Symbol &s, int64_t /*a*/) const {
   // If S is an undefined weak symbol and does not have a PLT entry then it
   // will be resolved as a branch to the next instruction.
   if (s.isUndefWeak() && !s.isInPlt())
@@ -274,8 +275,8 @@ bool ARM::needsThunk(RelExpr expr, RelType type, const InputFile *file,
   case R_ARM_PLT32:
   case R_ARM_JUMP24:
     // Source is ARM, all PLT entries are ARM so no interworking required.
-    // Otherwise we need to interwork if Symbol has bit 0 set (Thumb).
-    if (expr == R_PC && ((s.getVA() & 1) == 1))
+    // Otherwise we need to interwork if STT_FUNC Symbol has bit 0 set (Thumb).
+    if (s.isFunc() && expr == R_PC && (s.getVA() & 1))
       return true;
     LLVM_FALLTHROUGH;
   case R_ARM_CALL: {
@@ -285,8 +286,8 @@ bool ARM::needsThunk(RelExpr expr, RelType type, const InputFile *file,
   case R_ARM_THM_JUMP19:
   case R_ARM_THM_JUMP24:
     // Source is Thumb, all PLT entries are ARM so interworking is required.
-    // Otherwise we need to interwork if Symbol has bit 0 clear (ARM).
-    if (expr == R_PLT_PC || ((s.getVA() & 1) == 0))
+    // Otherwise we need to interwork if STT_FUNC Symbol has bit 0 clear (ARM).
+    if (expr == R_PLT_PC || (s.isFunc() && (s.getVA() & 1) == 0))
       return true;
     LLVM_FALLTHROUGH;
   case R_ARM_THM_CALL: {
@@ -600,7 +601,10 @@ int64_t ARM::getImplicitAddend(const uint8_t *buf, RelType type) const {
   }
 }
 
-TargetInfo *elf::getARMTargetInfo() {
+TargetInfo *getARMTargetInfo() {
   static ARM target;
   return &target;
 }
+
+} // namespace elf
+} // namespace lld

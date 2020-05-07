@@ -20,6 +20,7 @@
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/ObjectFile.h"
+#include "llvm/Object/RelocationResolver.h"
 #include "llvm/Support/DataExtractor.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
@@ -59,7 +60,8 @@ loadObj(StringRef Filename, object::OwningBinary<object::ObjectFile> &ObjFile,
   // Find the section named "xray_instr_map".
   if ((!ObjFile.getBinary()->isELF() && !ObjFile.getBinary()->isMachO()) ||
       !(ObjFile.getBinary()->getArch() == Triple::x86_64 ||
-        ObjFile.getBinary()->getArch() == Triple::ppc64le))
+        ObjFile.getBinary()->getArch() == Triple::ppc64le ||
+        ObjFile.getBinary()->getArch() == Triple::aarch64))
     return make_error<StringError>(
         "File format not supported (only does ELF and Mach-O little endian 64-bit).",
         std::make_error_code(std::errc::not_supported));
@@ -67,10 +69,11 @@ loadObj(StringRef Filename, object::OwningBinary<object::ObjectFile> &ObjFile,
   StringRef Contents = "";
   const auto &Sections = ObjFile.getBinary()->sections();
   auto I = llvm::find_if(Sections, [&](object::SectionRef Section) {
-    StringRef Name = "";
-    if (Section.getName(Name))
-      return false;
-    return Name == "xray_instr_map";
+    Expected<StringRef> NameOrErr = Section.getName();
+    if (NameOrErr)
+      return *NameOrErr == "xray_instr_map";
+    consumeError(NameOrErr.takeError());
+    return false;
   });
 
   if (I == Sections.end())
@@ -98,12 +101,22 @@ loadObj(StringRef Filename, object::OwningBinary<object::ObjectFile> &ObjFile,
         return static_cast<uint32_t>(0);
     }(ObjFile.getBinary());
 
+    bool (*SupportsRelocation)(uint64_t);
+    object::RelocationResolver Resolver;
+    std::tie(SupportsRelocation, Resolver) =
+        object::getRelocationResolver(*ObjFile.getBinary());
+
     for (const object::SectionRef &Section : Sections) {
       for (const object::RelocationRef &Reloc : Section.relocations()) {
-        if (Reloc.getType() != RelativeRelocation)
-          continue;
-        if (auto AddendOrErr = object::ELFRelocationRef(Reloc).getAddend())
-          Relocs.insert({Reloc.getOffset(), *AddendOrErr});
+        if (SupportsRelocation && SupportsRelocation(Reloc.getType())) {
+          auto AddendOrErr = object::ELFRelocationRef(Reloc).getAddend();
+          auto A = AddendOrErr ? *AddendOrErr : 0;
+          uint64_t resolved = Resolver(Reloc, Reloc.getSymbol()->getValue(), A);
+          Relocs.insert({Reloc.getOffset(), resolved});
+        } else if (Reloc.getType() == RelativeRelocation) {
+          if (auto AddendOrErr = object::ELFRelocationRef(Reloc).getAddend())
+            Relocs.insert({Reloc.getOffset(), *AddendOrErr});
+        }
       }
     }
   }
@@ -118,7 +131,7 @@ loadObj(StringRef Filename, object::OwningBinary<object::ObjectFile> &ObjFile,
               "an XRay sled entry in ELF64."),
         std::make_error_code(std::errc::executable_format_error));
 
-  auto RelocateOrElse = [&](uint32_t Offset, uint64_t Address) {
+  auto RelocateOrElse = [&](uint64_t Offset, uint64_t Address) {
     if (!Address) {
       uint64_t A = I->getAddress() + C - Contents.bytes_begin() + Offset;
       RelocMap::const_iterator R = Relocs.find(A);
@@ -136,10 +149,10 @@ loadObj(StringRef Filename, object::OwningBinary<object::ObjectFile> &ObjFile,
         8);
     Sleds.push_back({});
     auto &Entry = Sleds.back();
-    uint32_t OffsetPtr = 0;
-    uint32_t AddrOff = OffsetPtr;
+    uint64_t OffsetPtr = 0;
+    uint64_t AddrOff = OffsetPtr;
     Entry.Address = RelocateOrElse(AddrOff, Extractor.getU64(&OffsetPtr));
-    uint32_t FuncOff = OffsetPtr;
+    uint64_t FuncOff = OffsetPtr;
     Entry.Function = RelocateOrElse(FuncOff, Extractor.getU64(&OffsetPtr));
     auto Kind = Extractor.getU8(&OffsetPtr);
     static constexpr SledEntry::FunctionKinds Kinds[] = {

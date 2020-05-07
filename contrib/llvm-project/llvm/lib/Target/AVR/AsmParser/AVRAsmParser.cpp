@@ -199,22 +199,22 @@ public:
   }
 
   static std::unique_ptr<AVROperand> CreateToken(StringRef Str, SMLoc S) {
-    return make_unique<AVROperand>(Str, S);
+    return std::make_unique<AVROperand>(Str, S);
   }
 
   static std::unique_ptr<AVROperand> CreateReg(unsigned RegNum, SMLoc S,
                                                SMLoc E) {
-    return make_unique<AVROperand>(RegNum, S, E);
+    return std::make_unique<AVROperand>(RegNum, S, E);
   }
 
   static std::unique_ptr<AVROperand> CreateImm(const MCExpr *Val, SMLoc S,
                                                SMLoc E) {
-    return make_unique<AVROperand>(Val, S, E);
+    return std::make_unique<AVROperand>(Val, S, E);
   }
 
   static std::unique_ptr<AVROperand>
   CreateMemri(unsigned RegNum, const MCExpr *Val, SMLoc S, SMLoc E) {
-    return make_unique<AVROperand>(RegNum, Val, S, E);
+    return std::make_unique<AVROperand>(RegNum, Val, S, E);
   }
 
   void makeToken(StringRef Token) {
@@ -682,7 +682,7 @@ bool AVRAsmParser::parseLiteralValues(unsigned SizeInBytes, SMLoc L) {
   return (parseMany(parseOne));
 }
 
-extern "C" void LLVMInitializeAVRAsmParser() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeAVRAsmParser() {
   RegisterMCAsmParser<AVRAsmParser> X(getTheAVRTarget());
 }
 

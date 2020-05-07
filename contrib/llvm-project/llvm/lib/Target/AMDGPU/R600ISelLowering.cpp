@@ -37,10 +37,12 @@
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/IntrinsicsR600.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MachineValueType.h"
+#include "llvm/Support/MathExtras.h"
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -60,6 +62,9 @@ R600TargetLowering::R600TargetLowering(const TargetMachine &TM,
   addRegisterClass(MVT::v2i32, &R600::R600_Reg64RegClass);
   addRegisterClass(MVT::v4f32, &R600::R600_Reg128RegClass);
   addRegisterClass(MVT::v4i32, &R600::R600_Reg128RegClass);
+
+  setBooleanContents(ZeroOrNegativeOneBooleanContent);
+  setBooleanVectorContents(ZeroOrNegativeOneBooleanContent);
 
   computeRegisterProperties(Subtarget->getRegisterInfo());
 
@@ -222,10 +227,8 @@ R600TargetLowering::R600TargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::FMA, MVT::f64, Expand);
   }
 
-  // FIXME: This was moved from AMDGPUTargetLowering, I'm not sure if we
-  // need it for R600.
-  if (!Subtarget->hasFP32Denormals())
-    setOperationAction(ISD::FMAD, MVT::f32, Legal);
+  // FIXME: May need no denormals check
+  setOperationAction(ISD::FMAD, MVT::f32, Legal);
 
   if (!Subtarget->hasBFI()) {
     // fcopysign can be done in a single instruction with BFI.
@@ -334,8 +337,8 @@ R600TargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
   }
 
   case R600::MASK_WRITE: {
-    unsigned maskedRegister = MI.getOperand(0).getReg();
-    assert(TargetRegisterInfo::isVirtualRegister(maskedRegister));
+    Register maskedRegister = MI.getOperand(0).getReg();
+    assert(Register::isVirtualRegister(maskedRegister));
     MachineInstr * defInstr = MRI.getVRegDef(maskedRegister);
     TII->addFlag(*defInstr, 0, MO_FLAG_MASK);
     break;
@@ -782,7 +785,7 @@ SDValue R600TargetLowering::LowerTrig(SDValue Op, SelectionDAG &DAG) const {
     return TrigVal;
   // On R600 hw, COS/SIN input must be between -Pi and Pi.
   return DAG.getNode(ISD::FMUL, DL, VT, TrigVal,
-      DAG.getConstantFP(3.14159265359, DL, MVT::f32));
+      DAG.getConstantFP(numbers::pif, DL, MVT::f32));
 }
 
 SDValue R600TargetLowering::LowerSHLParts(SDValue Op, SelectionDAG &DAG) const {
@@ -969,10 +972,9 @@ SDValue R600TargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const 
   //
 
   // Move hardware True/False values to the correct operand.
-  ISD::CondCode CCOpcode = cast<CondCodeSDNode>(CC)->get();
-  ISD::CondCode InverseCC =
-     ISD::getSetCCInverse(CCOpcode, CompareVT == MVT::i32);
   if (isHWTrueValue(False) && isHWFalseValue(True)) {
+    ISD::CondCode CCOpcode = cast<CondCodeSDNode>(CC)->get();
+    ISD::CondCode InverseCC = ISD::getSetCCInverse(CCOpcode, CompareVT);
     if (isCondCodeLegal(InverseCC, CompareVT.getSimpleVT())) {
       std::swap(False, True);
       CC = DAG.getCondCode(InverseCC);
@@ -1012,7 +1014,7 @@ SDValue R600TargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const 
       CC = DAG.getCondCode(CCSwapped);
     } else {
       // Try inverting the conditon and then swapping the operands
-      ISD::CondCode CCInv = ISD::getSetCCInverse(CCOpcode, CompareVT.isInteger());
+      ISD::CondCode CCInv = ISD::getSetCCInverse(CCOpcode, CompareVT);
       CCSwapped = ISD::getSetCCSwappedOperands(CCInv);
       if (isCondCodeLegal(CCSwapped, CompareVT.getSimpleVT())) {
         std::swap(True, False);
@@ -1038,7 +1040,7 @@ SDValue R600TargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const 
     case ISD::SETONE:
     case ISD::SETUNE:
     case ISD::SETNE:
-      CCOpcode = ISD::getSetCCInverse(CCOpcode, CompareVT == MVT::i32);
+      CCOpcode = ISD::getSetCCInverse(CCOpcode, CompareVT);
       Temp = True;
       True = False;
       False = Temp;
@@ -1173,8 +1175,7 @@ SDValue R600TargetLowering::lowerPrivateTruncStore(StoreSDNode *Store,
 
   // Load dword
   // TODO: can we be smarter about machine pointer info?
-  MachinePointerInfo PtrInfo(UndefValue::get(
-      Type::getInt32PtrTy(*DAG.getContext(), AMDGPUAS::PRIVATE_ADDRESS)));
+  MachinePointerInfo PtrInfo(AMDGPUAS::PRIVATE_ADDRESS);
   SDValue Dst = DAG.getLoad(MVT::i32, DL, Chain, Ptr, PtrInfo);
 
   Chain = Dst.getValue(1);
@@ -1404,8 +1405,7 @@ SDValue R600TargetLowering::lowerPrivateExtLoad(SDValue Op,
 
   // Load dword
   // TODO: can we be smarter about machine pointer info?
-  MachinePointerInfo PtrInfo(UndefValue::get(
-      Type::getInt32PtrTy(*DAG.getContext(), AMDGPUAS::PRIVATE_ADDRESS)));
+  MachinePointerInfo PtrInfo(AMDGPUAS::PRIVATE_ADDRESS);
   SDValue Read = DAG.getLoad(MVT::i32, DL, Chain, Ptr, PtrInfo);
 
   // Get offset within the register.
@@ -1456,7 +1456,9 @@ SDValue R600TargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
   if ((LoadNode->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS ||
       LoadNode->getAddressSpace() == AMDGPUAS::PRIVATE_ADDRESS) &&
       VT.isVector()) {
-      return scalarizeVectorLoad(LoadNode, DAG);
+    SDValue Ops[2];
+    std::tie(Ops[0], Ops[1]) = scalarizeVectorLoad(LoadNode, DAG);
+    return DAG.getMergeValues(Ops, DL);
   }
 
   // This is still used for explicit load from addrspace(8)
@@ -1499,7 +1501,6 @@ SDValue R600TargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
   // buffer. However SEXT loads from other address spaces are not supported, so
   // we need to expand them here.
   if (LoadNode->getExtensionType() == ISD::SEXTLOAD) {
-    EVT MemVT = LoadNode->getMemoryVT();
     assert(!MemVT.isVector() && (MemVT == MVT::i16 || MemVT == MVT::i8));
     SDValue NewLoad = DAG.getExtLoad(
         ISD::EXTLOAD, DL, VT, Chain, Ptr, LoadNode->getPointerInfo(), MemVT,
@@ -1607,9 +1608,6 @@ SDValue R600TargetLowering::LowerFormalArguments(
       continue;
     }
 
-    PointerType *PtrTy = PointerType::get(VT.getTypeForEVT(*DAG.getContext()),
-                                          AMDGPUAS::PARAM_I_ADDRESS);
-
     // i64 isn't a legal type, so the register type used ends up as i32, which
     // isn't expected here. It attempts to create this sextload, but it ends up
     // being invalid. Somehow this seems to work with i64 arguments, but breaks
@@ -1630,11 +1628,10 @@ SDValue R600TargetLowering::LowerFormalArguments(
     // XXX - I think PartOffset should give you this, but it seems to give the
     // size of the register which isn't useful.
 
-    unsigned ValBase = ArgLocs[In.getOrigArgIndex()].getLocMemOffset();
     unsigned PartOffset = VA.getLocMemOffset();
     unsigned Alignment = MinAlign(VT.getStoreSize(), PartOffset);
 
-    MachinePointerInfo PtrInfo(UndefValue::get(PtrTy), PartOffset - ValBase);
+    MachinePointerInfo PtrInfo(AMDGPUAS::PARAM_I_ADDRESS);
     SDValue Arg = DAG.getLoad(
         ISD::UNINDEXED, Ext, VT, DL, Chain,
         DAG.getConstant(PartOffset, DL, MVT::i32), DAG.getUNDEF(MVT::i32),
@@ -1714,12 +1711,7 @@ static SDValue CompactSwizzlableVector(
 
     if (NewBldVec[i].isUndef())
       continue;
-    // Fix spurious warning with gcc 7.3 -O3
-    //    warning: array subscript is above array bounds [-Warray-bounds]
-    //    if (NewBldVec[i] == NewBldVec[j]) {
-    //        ~~~~~~~~~~~^
-    if (i >= 4)
-      continue;
+
     for (unsigned j = 0; j < i; j++) {
       if (NewBldVec[i] == NewBldVec[j]) {
         NewBldVec[i] = DAG.getUNDEF(NewBldVec[i].getValueType());
@@ -1888,8 +1880,6 @@ SDValue R600TargetLowering::PerformDAGCombine(SDNode *N,
                            DAG.getConstant(-1, DL, MVT::i32), // True
                            DAG.getConstant(0, DL, MVT::i32),  // False
                            SelectCC.getOperand(4)); // CC
-
-    break;
   }
 
   // insert_vector_elt (build_vector elt0, ... , eltN), NewEltIdx, idx
@@ -1998,8 +1988,7 @@ SDValue R600TargetLowering::PerformDAGCombine(SDNode *N,
     case ISD::SETNE: return LHS;
     case ISD::SETEQ: {
       ISD::CondCode LHSCC = cast<CondCodeSDNode>(LHS.getOperand(4))->get();
-      LHSCC = ISD::getSetCCInverse(LHSCC,
-                                  LHS.getOperand(0).getValueType().isInteger());
+      LHSCC = ISD::getSetCCInverse(LHSCC, LHS.getOperand(0).getValueType());
       if (DCI.isBeforeLegalizeOps() ||
           isCondCodeLegal(LHSCC, LHS.getOperand(0).getSimpleValueType()))
         return DAG.getSelectCC(DL,

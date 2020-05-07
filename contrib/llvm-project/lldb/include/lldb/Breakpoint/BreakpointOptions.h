@@ -88,7 +88,8 @@ public:
     explicit CommandBaton(std::unique_ptr<CommandData> Data)
         : TypedBaton(std::move(Data)) {}
 
-    void GetDescription(Stream *s, lldb::DescriptionLevel level) const override;
+    void GetDescription(llvm::raw_ostream &s, lldb::DescriptionLevel level,
+                        unsigned indentation) const override;
   };
 
   typedef std::shared_ptr<CommandBaton> CommandBatonSP;
@@ -106,6 +107,12 @@ public:
   ///
   /// \param[in] ignore
   ///    How many breakpoint hits we should ignore before stopping.
+  ///
+  /// \param[in] one_shot
+  ///    Should this breakpoint delete itself after being hit once.
+  ///
+  /// \param[in] auto_continue
+  ///    Should this breakpoint auto-continue after running its commands.
   ///
   BreakpointOptions(const char *condition, bool enabled = true,
                     int32_t ignore = 0, bool one_shot = false,
@@ -129,7 +136,7 @@ public:
 
   // Operators
   const BreakpointOptions &operator=(const BreakpointOptions &rhs);
-  
+
   /// Copy over only the options set in the incoming BreakpointOptions.
   void CopyOverSetOptions(const BreakpointOptions &rhs);
 
@@ -261,7 +268,7 @@ public:
   bool IsEnabled() const { return m_enabled; }
 
   /// If \a enable is \b true, enable the breakpoint, if \b false disable it.
-  void SetEnabled(bool enabled) { 
+  void SetEnabled(bool enabled) {
     m_enabled = enabled;
     m_set_flags.Set(eEnabled);
   }
@@ -272,7 +279,7 @@ public:
   bool IsAutoContinue() const { return m_auto_continue; }
 
   /// Set the auto-continue state.
-  void SetAutoContinue(bool auto_continue) { 
+  void SetAutoContinue(bool auto_continue) {
     m_auto_continue = auto_continue;
     m_set_flags.Set(eAutoContinue);
   }
@@ -283,17 +290,16 @@ public:
   bool IsOneShot() const { return m_one_shot; }
 
   /// If \a enable is \b true, enable the breakpoint, if \b false disable it.
-  void SetOneShot(bool one_shot) { 
-    m_one_shot = one_shot; 
-    m_set_flags.Set(eOneShot); 
+  void SetOneShot(bool one_shot) {
+    m_one_shot = one_shot;
+    m_set_flags.Set(eOneShot);
   }
 
   /// Set the breakpoint to ignore the next \a count breakpoint hits.
-  /// \param[in] count
+  /// \param[in] n
   ///    The number of breakpoint hits to ignore.
-
-  void SetIgnoreCount(uint32_t n) { 
-    m_ignore_count = n; 
+  void SetIgnoreCount(uint32_t n) {
+    m_ignore_count = n;
     m_set_flags.Set(eIgnoreCount);
   }
 
@@ -319,7 +325,10 @@ public:
 
   void GetDescription(Stream *s, lldb::DescriptionLevel level) const;
 
-  /// Returns true if the breakpoint option has a callback set.
+  /// Check if the breakpoint option has a callback set.
+  ///
+  /// \return
+  ///    If the breakpoint option has a callback, \b true otherwise \b false.
   bool HasCallback() const;
 
   /// This is the default empty callback.
@@ -332,13 +341,13 @@ public:
   ///     A UP holding the new'ed CommandData object.
   ///     The breakpoint will take ownership of pointer held by this object.
   void SetCommandDataCallback(std::unique_ptr<CommandData> &cmd_data);
-  
+
   void Clear();
-  
+
   bool AnySet() const {
     return m_set_flags.AnySet(eAllOptions);
   }
-  
+
 protected:
   // Classes that inherit from BreakpointOptions can see and modify these
   bool IsOptionSet(OptionKind kind)
@@ -367,22 +376,32 @@ protected:
   void SetThreadSpec(std::unique_ptr<ThreadSpec> &thread_spec_up);
 
 private:
-  // For BreakpointOptions only
-  BreakpointHitCallback m_callback;  // This is the callback function pointer
-  lldb::BatonSP m_callback_baton_sp; // This is the client data for the callback
+  /// For BreakpointOptions only
+
+  /// This is the callback function pointer
+  BreakpointHitCallback m_callback;
+  /// This is the client data for the callback
+  lldb::BatonSP m_callback_baton_sp;
   bool m_baton_is_command_baton;
   bool m_callback_is_synchronous;
   bool m_enabled;
+  /// If set, the breakpoint delete itself after being hit once.
   bool m_one_shot;
-  uint32_t m_ignore_count; // Number of times to ignore this breakpoint
-  std::unique_ptr<ThreadSpec>
-      m_thread_spec_up;         // Thread for which this breakpoint will take
-  std::string m_condition_text; // The condition to test.
-  size_t m_condition_text_hash; // Its hash, so that locations know when the
-                                // condition is updated.
-  bool m_auto_continue;         // If set, auto-continue from breakpoint.
-  Flags m_set_flags;            // Which options are set at this level.  Drawn
-                                // from BreakpointOptions::SetOptionsFlags.
+  /// Number of times to ignore this breakpoint.
+  uint32_t m_ignore_count;
+  /// Thread for which this breakpoint will stop.
+  std::unique_ptr<ThreadSpec> m_thread_spec_up;
+  /// The condition to test.
+  std::string m_condition_text;
+  /// Its hash, so that locations know when the condition is updated.
+  size_t m_condition_text_hash;
+  /// If set, inject breakpoint condition into process.
+  bool m_inject_condition;
+  /// If set, auto-continue from breakpoint.
+  bool m_auto_continue;
+  /// Which options are set at this level.
+  /// Drawn from BreakpointOptions::SetOptionsFlags.
+  Flags m_set_flags;
 };
 
 } // namespace lldb_private

@@ -25,7 +25,7 @@ public:
   void init() { memset(this, 0, sizeof(*this)); }
   bool tryLock();
   NOINLINE void lock() {
-    if (tryLock())
+    if (LIKELY(tryLock()))
       return;
       // The compiler may try to fully unroll the loop, ending up in a
       // NumberOfTries*NumberOfYields block of pauses mixed with tryLocks. This
@@ -44,8 +44,8 @@ public:
   void unlock();
 
 private:
-  static constexpr u8 NumberOfTries = 10U;
-  static constexpr u8 NumberOfYields = 10U;
+  static constexpr u8 NumberOfTries = 8U;
+  static constexpr u8 NumberOfYields = 8U;
 
 #if SCUDO_LINUX
   atomic_u32 M;

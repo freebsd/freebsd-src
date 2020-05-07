@@ -270,6 +270,8 @@ static int run(int argc, char **argv) {
   Conf.OverrideTriple = OverrideTriple;
   Conf.DefaultTriple = DefaultTriple;
   Conf.StatsFile = StatsFile;
+  Conf.PTO.LoopVectorization = Conf.OptLevel > 1;
+  Conf.PTO.SLPVectorization = Conf.OptLevel > 1;
 
   ThinBackend Backend;
   if (ThinLTODistributedIndexes)
@@ -291,6 +293,14 @@ static int run(int argc, char **argv) {
     std::vector<SymbolResolution> Res;
     for (const InputFile::Symbol &Sym : Input->symbols()) {
       auto I = CommandLineResolutions.find({F, Sym.getName()});
+      // If it isn't found, look for "$", which would have been added
+      // (followed by a hash) when the symbol was promoted during module
+      // splitting if it was defined in one part and used in the other.
+      // Try looking up the symbol name before the "$".
+      if (I == CommandLineResolutions.end()) {
+        auto SplitName = Sym.getName().rsplit("$");
+        I = CommandLineResolutions.find({F, SplitName.first});
+      }
       if (I == CommandLineResolutions.end()) {
         llvm::errs() << argv[0] << ": missing symbol resolution for " << F
                      << ',' << Sym.getName() << '\n';
@@ -325,9 +335,9 @@ static int run(int argc, char **argv) {
     std::string Path = OutputFilename + "." + utostr(Task);
 
     std::error_code EC;
-    auto S = llvm::make_unique<raw_fd_ostream>(Path, EC, sys::fs::F_None);
+    auto S = std::make_unique<raw_fd_ostream>(Path, EC, sys::fs::OF_None);
     check(EC, Path);
-    return llvm::make_unique<lto::NativeObjectStream>(std::move(S));
+    return std::make_unique<lto::NativeObjectStream>(std::move(S));
   };
 
   auto AddBuffer = [&](size_t Task, std::unique_ptr<MemoryBuffer> MB) {

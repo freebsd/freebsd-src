@@ -41,14 +41,15 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 using namespace llvm;
 
@@ -230,12 +231,9 @@ static bool sinkInstruction(Loop &L, Instruction &I,
     IC->setName(I.getName());
     IC->insertBefore(&*N->getFirstInsertionPt());
     // Replaces uses of I with IC in N
-    for (Value::use_iterator UI = I.use_begin(), UE = I.use_end(); UI != UE;) {
-      Use &U = *UI++;
-      auto *I = cast<Instruction>(U.getUser());
-      if (I->getParent() == N)
-        U.set(IC);
-    }
+    I.replaceUsesWithIf(IC, [N](Use &U) {
+      return cast<Instruction>(U.getUser())->getParent() == N;
+    });
     // Replaces uses of I with IC in blocks dominated by N
     replaceDominatedUsesWith(&I, IC, DT, N);
     LLVM_DEBUG(dbgs() << "Sinking a clone of " << I << " To: " << N->getName()

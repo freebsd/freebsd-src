@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/Function.h" // To access function attributes.
+#include "llvm/IR/IntrinsicsWebAssembly.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
@@ -35,12 +36,10 @@ class WebAssemblyDAGToDAGISel final : public SelectionDAGISel {
   /// right decision when generating code for different targets.
   const WebAssemblySubtarget *Subtarget;
 
-  bool ForCodeSize;
-
 public:
   WebAssemblyDAGToDAGISel(WebAssemblyTargetMachine &TM,
                           CodeGenOpt::Level OptLevel)
-      : SelectionDAGISel(TM, OptLevel), Subtarget(nullptr), ForCodeSize(false) {
+      : SelectionDAGISel(TM, OptLevel), Subtarget(nullptr) {
   }
 
   StringRef getPassName() const override {
@@ -52,8 +51,13 @@ public:
                          "********** Function: "
                       << MF.getName() << '\n');
 
-    ForCodeSize = MF.getFunction().hasOptSize();
     Subtarget = &MF.getSubtarget<WebAssemblySubtarget>();
+
+    // Wasm64 is not fully supported right now (and is not specified)
+    if (Subtarget->hasAddr64())
+      report_fatal_error(
+          "64-bit WebAssembly (wasm64) is not currently supported");
+
     return SelectionDAGISel::runOnMachineFunction(MF);
   }
 
@@ -88,88 +92,36 @@ void WebAssemblyDAGToDAGISel::Select(SDNode *Node) {
 
     uint64_t SyncScopeID =
         cast<ConstantSDNode>(Node->getOperand(2).getNode())->getZExtValue();
+    MachineSDNode *Fence = nullptr;
     switch (SyncScopeID) {
-    case SyncScope::SingleThread: {
+    case SyncScope::SingleThread:
       // We lower a single-thread fence to a pseudo compiler barrier instruction
       // preventing instruction reordering. This will not be emitted in final
       // binary.
-      MachineSDNode *Fence =
-          CurDAG->getMachineNode(WebAssembly::COMPILER_FENCE,
-                                 DL,                 // debug loc
-                                 MVT::Other,         // outchain type
-                                 Node->getOperand(0) // inchain
-          );
-      ReplaceNode(Node, Fence);
-      CurDAG->RemoveDeadNode(Node);
-      return;
-    }
-
-    case SyncScope::System: {
-      // For non-emscripten systems, we have not decided on what we should
-      // traslate fences to yet.
-      if (!Subtarget->getTargetTriple().isOSEmscripten())
-        report_fatal_error(
-            "ATOMIC_FENCE is not yet supported in non-emscripten OSes");
-
-      // Wasm does not have a fence instruction, but because all atomic
-      // instructions in wasm are sequentially consistent, we translate a
-      // fence to an idempotent atomic RMW instruction to a linear memory
-      // address. All atomic instructions in wasm are sequentially consistent,
-      // but this is to ensure a fence also prevents reordering of non-atomic
-      // instructions in the VM. Even though LLVM IR's fence instruction does
-      // not say anything about its relationship with non-atomic instructions,
-      // we think this is more user-friendly.
-      //
-      // While any address can work, here we use a value stored in
-      // __stack_pointer wasm global because there's high chance that area is
-      // in cache.
-      //
-      // So the selected instructions will be in the form of:
-      //   %addr = get_global $__stack_pointer
-      //   %0 = i32.const 0
-      //   i32.atomic.rmw.or %addr, %0
-      SDValue StackPtrSym = CurDAG->getTargetExternalSymbol(
-          "__stack_pointer", TLI->getPointerTy(CurDAG->getDataLayout()));
-      MachineSDNode *GetGlobal =
-          CurDAG->getMachineNode(WebAssembly::GLOBAL_GET_I32, // opcode
-                                 DL,                          // debug loc
-                                 MVT::i32,                    // result type
-                                 StackPtrSym // __stack_pointer symbol
-          );
-
-      SDValue Zero = CurDAG->getTargetConstant(0, DL, MVT::i32);
-      auto *MMO = MF.getMachineMemOperand(
-          MachinePointerInfo::getUnknownStack(MF),
-          // FIXME Volatile isn't really correct, but currently all LLVM
-          // atomic instructions are treated as volatiles in the backend, so
-          // we should be consistent.
-          MachineMemOperand::MOVolatile | MachineMemOperand::MOLoad |
-              MachineMemOperand::MOStore,
-          4, 4, AAMDNodes(), nullptr, SyncScope::System,
-          AtomicOrdering::SequentiallyConsistent);
-      MachineSDNode *Const0 =
-          CurDAG->getMachineNode(WebAssembly::CONST_I32, DL, MVT::i32, Zero);
-      MachineSDNode *AtomicRMW = CurDAG->getMachineNode(
-          WebAssembly::ATOMIC_RMW_OR_I32, // opcode
-          DL,                             // debug loc
-          MVT::i32,                       // result type
-          MVT::Other,                     // outchain type
-          {
-              Zero,                  // alignment
-              Zero,                  // offset
-              SDValue(GetGlobal, 0), // __stack_pointer
-              SDValue(Const0, 0),    // OR with 0 to make it idempotent
-              Node->getOperand(0)    // inchain
-          });
-
-      CurDAG->setNodeMemRefs(AtomicRMW, {MMO});
-      ReplaceUses(SDValue(Node, 0), SDValue(AtomicRMW, 1));
-      CurDAG->RemoveDeadNode(Node);
-      return;
-    }
+      Fence = CurDAG->getMachineNode(WebAssembly::COMPILER_FENCE,
+                                     DL,                 // debug loc
+                                     MVT::Other,         // outchain type
+                                     Node->getOperand(0) // inchain
+      );
+      break;
+    case SyncScope::System:
+      // Currently wasm only supports sequentially consistent atomics, so we
+      // always set the order to 0 (sequentially consistent).
+      Fence = CurDAG->getMachineNode(
+          WebAssembly::ATOMIC_FENCE,
+          DL,                                         // debug loc
+          MVT::Other,                                 // outchain type
+          CurDAG->getTargetConstant(0, DL, MVT::i32), // order
+          Node->getOperand(0)                         // inchain
+      );
+      break;
     default:
       llvm_unreachable("Unknown scope!");
     }
+
+    ReplaceNode(Node, Fence);
+    CurDAG->RemoveDeadNode(Node);
+    return;
   }
 
   case ISD::GlobalTLSAddress: {
@@ -224,6 +176,33 @@ void WebAssemblyDAGToDAGISel::Select(SDNode *Node) {
       ReplaceNode(Node, TLSSize);
       return;
     }
+    case Intrinsic::wasm_tls_align: {
+      MVT PtrVT = TLI->getPointerTy(CurDAG->getDataLayout());
+      assert(PtrVT == MVT::i32 && "only wasm32 is supported for now");
+
+      MachineSDNode *TLSAlign = CurDAG->getMachineNode(
+          WebAssembly::GLOBAL_GET_I32, DL, PtrVT,
+          CurDAG->getTargetExternalSymbol("__tls_align", MVT::i32));
+      ReplaceNode(Node, TLSAlign);
+      return;
+    }
+    }
+    break;
+  }
+  case ISD::INTRINSIC_W_CHAIN: {
+    unsigned IntNo = cast<ConstantSDNode>(Node->getOperand(1))->getZExtValue();
+    switch (IntNo) {
+    case Intrinsic::wasm_tls_base: {
+      MVT PtrVT = TLI->getPointerTy(CurDAG->getDataLayout());
+      assert(PtrVT == MVT::i32 && "only wasm32 is supported for now");
+
+      MachineSDNode *TLSBase = CurDAG->getMachineNode(
+          WebAssembly::GLOBAL_GET_I32, DL, MVT::i32, MVT::Other,
+          CurDAG->getTargetExternalSymbol("__tls_base", PtrVT),
+          Node->getOperand(0));
+      ReplaceNode(Node, TLSBase);
+      return;
+    }
     }
     break;
   }
@@ -239,7 +218,6 @@ void WebAssemblyDAGToDAGISel::Select(SDNode *Node) {
 bool WebAssemblyDAGToDAGISel::SelectInlineAsmMemoryOperand(
     const SDValue &Op, unsigned ConstraintID, std::vector<SDValue> &OutOps) {
   switch (ConstraintID) {
-  case InlineAsm::Constraint_i:
   case InlineAsm::Constraint_m:
     // We just support simple memory operands that just have a single address
     // operand and need no special handling.

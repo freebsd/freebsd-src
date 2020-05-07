@@ -60,7 +60,7 @@ bool InstructionSelector::isBaseWithConstantOffset(
     return false;
 
   MachineInstr *RootI = MRI.getVRegDef(Root.getReg());
-  if (RootI->getOpcode() != TargetOpcode::G_GEP)
+  if (RootI->getOpcode() != TargetOpcode::G_PTR_ADD)
     return false;
 
   MachineOperand &RHS = RootI->getOperand(2);
@@ -79,5 +79,5 @@ bool InstructionSelector::isObviouslySafeToFold(MachineInstr &MI,
     return true;
 
   return !MI.mayLoadOrStore() && !MI.mayRaiseFPException() &&
-         !MI.hasUnmodeledSideEffects() && empty(MI.implicit_operands());
+         !MI.hasUnmodeledSideEffects() && MI.implicit_operands().empty();
 }

@@ -245,7 +245,7 @@ enum NodeType : unsigned {
   VICMPHS,
   VICMPHLS,
 
-  // Compare floating-point vector operands 0 and 1 to preoduce the usual 0/-1
+  // Compare floating-point vector operands 0 and 1 to produce the usual 0/-1
   // vector result.  VFCMPE is for "ordered and equal", VFCMPH for "ordered and
   // greater than" and VFCMPHE for "ordered and greater than or equal to".
   VFCMPE,
@@ -289,6 +289,24 @@ enum NodeType : unsigned {
   // Operand 0: the value to test
   // Operand 1: the bit mask
   TDC,
+
+  // Strict variants of scalar floating-point comparisons.
+  // Quiet and signaling versions.
+  STRICT_FCMP = ISD::FIRST_TARGET_STRICTFP_OPCODE,
+  STRICT_FCMPS,
+
+  // Strict variants of vector floating-point comparisons.
+  // Quiet and signaling versions.
+  STRICT_VFCMPE,
+  STRICT_VFCMPH,
+  STRICT_VFCMPHE,
+  STRICT_VFCMPES,
+  STRICT_VFCMPHS,
+  STRICT_VFCMPHES,
+
+  // Strict variants of VEXTEND and VROUND.
+  STRICT_VEXTEND,
+  STRICT_VROUND,
 
   // Wrappers around the inner loop of an 8- or 16-bit ATOMIC_SWAP or
   // ATOMIC_LOAD_<op>.
@@ -404,7 +422,8 @@ public:
   bool isCheapToSpeculateCtlz() const override { return true; }
   EVT getSetCCResultType(const DataLayout &DL, LLVMContext &,
                          EVT) const override;
-  bool isFMAFasterThanFMulAndFAdd(EVT VT) const override;
+  bool isFMAFasterThanFMulAndFAdd(const MachineFunction &MF,
+                                  EVT VT) const override;
   bool isFPImmLegal(const APFloat &Imm, EVT VT,
                     bool ForCodeSize) const override;
   bool isLegalICmpImmediate(int64_t Imm) const override;
@@ -530,11 +549,15 @@ private:
   // Implement LowerOperation for individual opcodes.
   SDValue getVectorCmp(SelectionDAG &DAG, unsigned Opcode,
                        const SDLoc &DL, EVT VT,
-                       SDValue CmpOp0, SDValue CmpOp1) const;
+                       SDValue CmpOp0, SDValue CmpOp1, SDValue Chain) const;
   SDValue lowerVectorSETCC(SelectionDAG &DAG, const SDLoc &DL,
                            EVT VT, ISD::CondCode CC,
-                           SDValue CmpOp0, SDValue CmpOp1) const;
+                           SDValue CmpOp0, SDValue CmpOp1,
+                           SDValue Chain = SDValue(),
+                           bool IsSignaling = false) const;
   SDValue lowerSETCC(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerSTRICT_FSETCC(SDValue Op, SelectionDAG &DAG,
+                             bool IsSignaling) const;
   SDValue lowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerGlobalAddress(GlobalAddressSDNode *Node,

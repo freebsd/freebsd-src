@@ -117,11 +117,14 @@ public:
   /// Returns a reference to the ObjLinkingLayer
   ObjectLayer &getObjLinkingLayer() { return *ObjLinkingLayer; }
 
+  /// Returns a reference to the object transform layer.
+  ObjectTransformLayer &getObjTransformLayer() { return ObjTransformLayer; }
+
 protected:
   static std::unique_ptr<ObjectLayer>
   createObjectLinkingLayer(LLJITBuilderState &S, ExecutionSession &ES);
 
-  static Expected<IRCompileLayer::CompileFunction>
+  static Expected<std::unique_ptr<IRCompileLayer::IRCompiler>>
   createCompileFunction(LLJITBuilderState &S, JITTargetMachineBuilder JTMB);
 
   /// Create an LLJIT instance with a single compile thread.
@@ -140,6 +143,7 @@ protected:
   std::unique_ptr<ThreadPool> CompileThreads;
 
   std::unique_ptr<ObjectLayer> ObjLinkingLayer;
+  ObjectTransformLayer ObjTransformLayer;
   std::unique_ptr<IRCompileLayer> CompileLayer;
 
   CtorDtorRunner CtorRunner, DtorRunner;
@@ -184,11 +188,11 @@ private:
 
 class LLJITBuilderState {
 public:
-  using ObjectLinkingLayerCreator =
-      std::function<std::unique_ptr<ObjectLayer>(ExecutionSession &)>;
+  using ObjectLinkingLayerCreator = std::function<std::unique_ptr<ObjectLayer>(
+      ExecutionSession &, const Triple &TT)>;
 
   using CompileFunctionCreator =
-      std::function<Expected<IRCompileLayer::CompileFunction>(
+      std::function<Expected<std::unique_ptr<IRCompileLayer::IRCompiler>>(
           JITTargetMachineBuilder JTMB)>;
 
   std::unique_ptr<ExecutionSession> ES;

@@ -38,6 +38,7 @@ enum TokenKind {
   pp_undef,
   pp_import,
   pp_pragma_import,
+  pp_pragma_once,
   pp_include_next,
   pp_if,
   pp_ifdef,
@@ -46,6 +47,9 @@ enum TokenKind {
   pp_else,
   pp_endif,
   decl_at_import,
+  cxx_export_decl,
+  cxx_module_decl,
+  cxx_import_decl,
   pp_eof,
 };
 
@@ -61,6 +65,24 @@ struct Token {
 
   Token(TokenKind K, int Offset) : K(K), Offset(Offset) {}
 };
+
+/// Simplified token range to track the range of a potentially skippable PP
+/// directive.
+struct SkippedRange {
+  /// Offset into the output byte stream of where the skipped directive begins.
+  int Offset;
+
+  /// The number of bytes that can be skipped before the preprocessing must
+  /// resume.
+  int Length;
+};
+
+/// Computes the potential source ranges that can be skipped by the preprocessor
+/// when skipping a directive like #if, #ifdef or #elsif.
+///
+/// \returns false on success, true on error.
+bool computeSkippedRanges(ArrayRef<Token> Input,
+                          llvm::SmallVectorImpl<SkippedRange> &Range);
 
 } // end namespace minimize_source_to_dependency_directives
 

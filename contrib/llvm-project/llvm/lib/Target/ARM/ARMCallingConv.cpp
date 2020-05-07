@@ -18,8 +18,8 @@
 using namespace llvm;
 
 // APCS f64 is in register pairs, possibly split to stack
-static bool f64AssignAPCS(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
-                          CCValAssign::LocInfo &LocInfo,
+static bool f64AssignAPCS(unsigned ValNo, MVT ValVT, MVT LocVT,
+                          CCValAssign::LocInfo LocInfo,
                           CCState &State, bool CanFail) {
   static const MCPhysReg RegList[] = { ARM::R0, ARM::R1, ARM::R2, ARM::R3 };
 
@@ -48,9 +48,9 @@ static bool f64AssignAPCS(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
   return true;
 }
 
-static bool CC_ARM_APCS_Custom_f64(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
-                                   CCValAssign::LocInfo &LocInfo,
-                                   ISD::ArgFlagsTy &ArgFlags,
+static bool CC_ARM_APCS_Custom_f64(unsigned ValNo, MVT ValVT, MVT LocVT,
+                                   CCValAssign::LocInfo LocInfo,
+                                   ISD::ArgFlagsTy ArgFlags,
                                    CCState &State) {
   if (!f64AssignAPCS(ValNo, ValVT, LocVT, LocInfo, State, true))
     return false;
@@ -61,8 +61,8 @@ static bool CC_ARM_APCS_Custom_f64(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
 }
 
 // AAPCS f64 is in aligned register pairs
-static bool f64AssignAAPCS(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
-                           CCValAssign::LocInfo &LocInfo,
+static bool f64AssignAAPCS(unsigned ValNo, MVT ValVT, MVT LocVT,
+                           CCValAssign::LocInfo LocInfo,
                            CCState &State, bool CanFail) {
   static const MCPhysReg HiRegList[] = { ARM::R0, ARM::R2 };
   static const MCPhysReg LoRegList[] = { ARM::R1, ARM::R3 };
@@ -102,9 +102,9 @@ static bool f64AssignAAPCS(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
   return true;
 }
 
-static bool CC_ARM_AAPCS_Custom_f64(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
-                                    CCValAssign::LocInfo &LocInfo,
-                                    ISD::ArgFlagsTy &ArgFlags,
+static bool CC_ARM_AAPCS_Custom_f64(unsigned ValNo, MVT ValVT, MVT LocVT,
+                                    CCValAssign::LocInfo LocInfo,
+                                    ISD::ArgFlagsTy ArgFlags,
                                     CCState &State) {
   if (!f64AssignAAPCS(ValNo, ValVT, LocVT, LocInfo, State, true))
     return false;
@@ -114,8 +114,8 @@ static bool CC_ARM_AAPCS_Custom_f64(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
   return true;  // we handled it
 }
 
-static bool f64RetAssign(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
-                         CCValAssign::LocInfo &LocInfo, CCState &State) {
+static bool f64RetAssign(unsigned ValNo, MVT ValVT, MVT LocVT,
+                         CCValAssign::LocInfo LocInfo, CCState &State) {
   static const MCPhysReg HiRegList[] = { ARM::R0, ARM::R2 };
   static const MCPhysReg LoRegList[] = { ARM::R1, ARM::R3 };
 
@@ -134,9 +134,9 @@ static bool f64RetAssign(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
   return true;
 }
 
-static bool RetCC_ARM_APCS_Custom_f64(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
-                                      CCValAssign::LocInfo &LocInfo,
-                                      ISD::ArgFlagsTy &ArgFlags,
+static bool RetCC_ARM_APCS_Custom_f64(unsigned ValNo, MVT ValVT, MVT LocVT,
+                                      CCValAssign::LocInfo LocInfo,
+                                      ISD::ArgFlagsTy ArgFlags,
                                       CCState &State) {
   if (!f64RetAssign(ValNo, ValVT, LocVT, LocInfo, State))
     return false;
@@ -145,9 +145,9 @@ static bool RetCC_ARM_APCS_Custom_f64(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
   return true;  // we handled it
 }
 
-static bool RetCC_ARM_AAPCS_Custom_f64(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
-                                       CCValAssign::LocInfo &LocInfo,
-                                       ISD::ArgFlagsTy &ArgFlags,
+static bool RetCC_ARM_AAPCS_Custom_f64(unsigned ValNo, MVT ValVT, MVT LocVT,
+                                       CCValAssign::LocInfo LocInfo,
+                                       ISD::ArgFlagsTy ArgFlags,
                                        CCState &State) {
   return RetCC_ARM_APCS_Custom_f64(ValNo, ValVT, LocVT, LocInfo, ArgFlags,
                                    State);
@@ -169,10 +169,10 @@ static const MCPhysReg QRegList[] = { ARM::Q0, ARM::Q1, ARM::Q2, ARM::Q3 };
 // InConsecutiveRegsLast set. We must process all members of the HA before
 // we can allocate it, as we need to know the total number of registers that
 // will be needed in order to (attempt to) allocate a contiguous block.
-static bool CC_ARM_AAPCS_Custom_Aggregate(unsigned &ValNo, MVT &ValVT,
-                                          MVT &LocVT,
-                                          CCValAssign::LocInfo &LocInfo,
-                                          ISD::ArgFlagsTy &ArgFlags,
+static bool CC_ARM_AAPCS_Custom_Aggregate(unsigned ValNo, MVT ValVT,
+                                          MVT LocVT,
+                                          CCValAssign::LocInfo LocInfo,
+                                          ISD::ArgFlagsTy ArgFlags,
                                           CCState &State) {
   SmallVectorImpl<CCValAssign> &PendingMembers = State.getPendingLocs();
 
@@ -181,7 +181,7 @@ static bool CC_ARM_AAPCS_Custom_Aggregate(unsigned &ValNo, MVT &ValVT,
     assert(PendingMembers[0].getLocVT() == LocVT);
 
   // Add the argument to the list to be allocated once we know the size of the
-  // aggregate. Store the type's required alignmnent as extra info for later: in
+  // aggregate. Store the type's required alignment as extra info for later: in
   // the [N x i64] case all trace has been removed by the time we actually get
   // to do allocation.
   PendingMembers.push_back(CCValAssign::getPending(ValNo, ValVT, LocVT, LocInfo,
@@ -193,7 +193,7 @@ static bool CC_ARM_AAPCS_Custom_Aggregate(unsigned &ValNo, MVT &ValVT,
   // Try to allocate a contiguous block of registers, each of the correct
   // size to hold one member.
   auto &DL = State.getMachineFunction().getDataLayout();
-  unsigned StackAlign = DL.getStackAlignment();
+  unsigned StackAlign = DL.getStackAlignment().value();
   unsigned Align = std::min(PendingMembers[0].getExtraInfo(), StackAlign);
 
   ArrayRef<MCPhysReg> RegList;

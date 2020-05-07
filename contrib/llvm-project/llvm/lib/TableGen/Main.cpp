@@ -67,13 +67,13 @@ static int createDependencyFile(const TGParser &Parser, const char *argv0) {
     return reportError(argv0, "the option -d must be used together with -o\n");
 
   std::error_code EC;
-  ToolOutputFile DepOut(DependFilename, EC, sys::fs::F_Text);
+  ToolOutputFile DepOut(DependFilename, EC, sys::fs::OF_None);
   if (EC)
     return reportError(argv0, "error opening " + DependFilename + ":" +
                                   EC.message() + "\n");
   DepOut.os() << OutputFilename << ":";
   for (const auto &Dep : Parser.getDependencies()) {
-    DepOut.os() << ' ' << Dep.first;
+    DepOut.os() << ' ' << Dep;
   }
   DepOut.os() << "\n";
   DepOut.keep();
@@ -127,7 +127,7 @@ int llvm::TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   }
 
   std::error_code EC;
-  ToolOutputFile OutFile(OutputFilename, EC, sys::fs::F_Text);
+  ToolOutputFile OutFile(OutputFilename, EC, sys::fs::OF_None);
   if (EC)
     return reportError(argv0, "error opening " + OutputFilename + ":" +
                                   EC.message() + "\n");

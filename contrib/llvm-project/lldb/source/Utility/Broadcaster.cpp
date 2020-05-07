@@ -17,7 +17,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <type_traits>
 #include <utility>
 
 #include <assert.h>
@@ -214,11 +213,12 @@ void Broadcaster::BroadcasterImpl::PrivateBroadcastEvent(EventSP &event_sp,
   if (Log *log = lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_EVENTS)) {
     StreamString event_description;
     event_sp->Dump(&event_description);
-    log->Printf("%p Broadcaster(\"%s\")::BroadcastEvent (event_sp = {%s}, "
-                "unique =%i) hijack = %p",
-                static_cast<void *>(this), GetBroadcasterName(),
-                event_description.GetData(), unique,
-                static_cast<void *>(hijacking_listener_sp.get()));
+    LLDB_LOGF(log,
+              "%p Broadcaster(\"%s\")::BroadcastEvent (event_sp = {%s}, "
+              "unique =%i) hijack = %p",
+              static_cast<void *>(this), GetBroadcasterName(),
+              event_description.GetData(), unique,
+              static_cast<void *>(hijacking_listener_sp.get()));
   }
 
   if (hijacking_listener_sp) {
@@ -316,9 +316,6 @@ bool BroadcastEventSpec::operator<(const BroadcastEventSpec &rhs) const {
   }
   return GetBroadcasterClass() < rhs.GetBroadcasterClass();
 }
-
-BroadcastEventSpec &BroadcastEventSpec::
-operator=(const BroadcastEventSpec &rhs) = default;
 
 BroadcasterManager::BroadcasterManager() : m_manager_mutex() {}
 

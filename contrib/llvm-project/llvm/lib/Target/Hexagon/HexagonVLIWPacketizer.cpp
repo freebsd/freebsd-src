@@ -24,6 +24,7 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
@@ -39,6 +40,7 @@
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DebugLoc.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
@@ -57,9 +59,9 @@ static cl::opt<bool> DisablePacketizer("disable-packetizer", cl::Hidden,
   cl::ZeroOrMore, cl::init(false),
   cl::desc("Disable Hexagon packetizer pass"));
 
-cl::opt<bool> Slot1Store("slot1-store-slot0-load", cl::Hidden,
-  cl::ZeroOrMore, cl::init(true),
-  cl::desc("Allow slot1 store and slot0 load"));
+static cl::opt<bool> Slot1Store("slot1-store-slot0-load", cl::Hidden,
+                                cl::ZeroOrMore, cl::init(true),
+                                cl::desc("Allow slot1 store and slot0 load"));
 
 static cl::opt<bool> PacketizeVolatiles("hexagon-packetize-volatiles",
   cl::ZeroOrMore, cl::Hidden, cl::init(true),
@@ -110,9 +112,9 @@ namespace {
     }
 
   private:
-    const HexagonInstrInfo *HII;
-    const HexagonRegisterInfo *HRI;
-    const bool Minimal;
+    const HexagonInstrInfo *HII = nullptr;
+    const HexagonRegisterInfo *HRI = nullptr;
+    const bool Minimal = false;
   };
 
 } // end anonymous namespace
@@ -129,16 +131,16 @@ INITIALIZE_PASS_END(HexagonPacketizer, "hexagon-packetizer",
                     "Hexagon Packetizer", false, false)
 
 HexagonPacketizerList::HexagonPacketizerList(MachineFunction &MF,
-      MachineLoopInfo &MLI, AliasAnalysis *AA,
+      MachineLoopInfo &MLI, AAResults *AA,
       const MachineBranchProbabilityInfo *MBPI, bool Minimal)
     : VLIWPacketizerList(MF, MLI, AA), MBPI(MBPI), MLI(&MLI),
       Minimal(Minimal) {
   HII = MF.getSubtarget<HexagonSubtarget>().getInstrInfo();
   HRI = MF.getSubtarget<HexagonSubtarget>().getRegisterInfo();
 
-  addMutation(llvm::make_unique<HexagonSubtarget::UsrOverflowMutation>());
-  addMutation(llvm::make_unique<HexagonSubtarget::HVXMemLatencyMutation>());
-  addMutation(llvm::make_unique<HexagonSubtarget::BankConflictMutation>());
+  addMutation(std::make_unique<HexagonSubtarget::UsrOverflowMutation>());
+  addMutation(std::make_unique<HexagonSubtarget::HVXMemLatencyMutation>());
+  addMutation(std::make_unique<HexagonSubtarget::BankConflictMutation>());
 }
 
 // Check if FirstI modifies a register that SecondI reads.
@@ -148,7 +150,7 @@ static bool hasWriteToReadDep(const MachineInstr &FirstI,
   for (auto &MO : FirstI.operands()) {
     if (!MO.isReg() || !MO.isDef())
       continue;
-    unsigned R = MO.getReg();
+    Register R = MO.getReg();
     if (SecondI.readsRegister(R, TRI))
       return true;
   }
@@ -307,7 +309,7 @@ bool HexagonPacketizerList::isCallDependent(const MachineInstr &MI,
   //   r0 = ...
   //   J2_jumpr r0
   if (DepType == SDep::Data) {
-    for (const MachineOperand MO : MI.operands())
+    for (const MachineOperand &MO : MI.operands())
       if (MO.isReg() && MO.getReg() == DepReg && !MO.isImplicit())
         return true;
   }
@@ -422,7 +424,7 @@ bool HexagonPacketizerList::canPromoteToDotCur(const MachineInstr &MI,
     dbgs() << "Checking CUR against ";
     MJ.dump();
   });
-  unsigned DestReg = MI.getOperand(0).getReg();
+  Register DestReg = MI.getOperand(0).getReg();
   bool FoundMatch = false;
   for (auto &MO : MJ.operands())
     if (MO.isReg() && MO.getReg() == DestReg)
@@ -515,7 +517,7 @@ bool HexagonPacketizerList::updateOffset(SUnit *SUI, SUnit *SUJ) {
   unsigned BPJ, OPJ;
   if (!HII->getBaseAndOffsetPosition(MJ, BPJ, OPJ))
     return false;
-  unsigned Reg = MI.getOperand(BPI).getReg();
+  Register Reg = MI.getOperand(BPI).getReg();
   if (Reg != MJ.getOperand(BPJ).getReg())
     return false;
   // Make sure that the dependences do not restrict adding MI to the packet.
@@ -788,7 +790,7 @@ bool HexagonPacketizerList::canPromoteToNewValueStore(const MachineInstr &MI,
       return false;
     if (!MO.isReg() || !MO.isDef() || !MO.isImplicit())
       continue;
-    unsigned R = MO.getReg();
+    Register R = MO.getReg();
     if (R == DepReg || HRI->isSuperRegister(DepReg, R))
       return false;
   }
@@ -1208,7 +1210,7 @@ bool HexagonPacketizerList::hasDeadDependence(const MachineInstr &I,
   for (auto &MO : J.operands()) {
     if (!MO.isReg() || !MO.isDef() || !MO.isDead())
       continue;
-    unsigned R = MO.getReg();
+    Register R = MO.getReg();
     if (R != Hexagon::USR_OVF && DeadDefs[R])
       return true;
   }
@@ -1585,7 +1587,7 @@ bool HexagonPacketizerList::isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) {
       // subset of the volatile register set.
       for (const MachineOperand &Op : I.operands()) {
         if (Op.isReg() && Op.isDef()) {
-          unsigned R = Op.getReg();
+          Register R = Op.getReg();
           if (!J.readsRegister(R, HRI) && !J.modifiesRegister(R, HRI))
             continue;
         } else if (!Op.isRegMask()) {
@@ -1763,6 +1765,16 @@ HexagonPacketizerList::addToPacket(MachineInstr &MI) {
 void HexagonPacketizerList::endPacket(MachineBasicBlock *MBB,
                                       MachineBasicBlock::iterator EndMI) {
   // Replace VLIWPacketizerList::endPacket(MBB, EndMI).
+  LLVM_DEBUG({
+    if (!CurrentPacketMIs.empty()) {
+      dbgs() << "Finalizing packet:\n";
+      unsigned Idx = 0;
+      for (MachineInstr *MI : CurrentPacketMIs) {
+        unsigned R = ResourceTracker->getUsedResources(Idx++);
+        dbgs() << " * [res:0x" << utohexstr(R) << "] " << *MI;
+      }
+    }
+  });
 
   bool memShufDisabled = getmemShufDisabled();
   if (memShufDisabled && !foundLSInPacket()) {

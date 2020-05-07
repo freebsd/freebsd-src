@@ -17,13 +17,14 @@
 using namespace llvm;
 using namespace llvm::support::endian;
 using namespace llvm::ELF;
-using namespace lld;
-using namespace lld::elf;
+
+namespace lld {
+namespace elf {
 
 // Page(Expr) is the page address of the expression Expr, defined
 // as (Expr & ~0xFFF). (This applies even if the machine page size
 // supported by the platform has a different value.)
-uint64_t elf::getAArch64Page(uint64_t expr) {
+uint64_t getAArch64Page(uint64_t expr) {
   return expr & ~static_cast<uint64_t>(0xFFF);
 }
 
@@ -36,10 +37,11 @@ public:
   RelType getDynRel(RelType type) const override;
   void writeGotPlt(uint8_t *buf, const Symbol &s) const override;
   void writePltHeader(uint8_t *buf) const override;
-  void writePlt(uint8_t *buf, uint64_t gotPltEntryAddr, uint64_t pltEntryAddr,
-                int32_t index, unsigned relOff) const override;
+  void writePlt(uint8_t *buf, const Symbol &sym,
+                uint64_t pltEntryAddr) const override;
   bool needsThunk(RelExpr expr, RelType type, const InputFile *file,
-                  uint64_t branchAddr, const Symbol &s) const override;
+                  uint64_t branchAddr, const Symbol &s,
+                  int64_t a) const override;
   uint32_t getThunkSectionSpacing() const override;
   bool inBranchRange(RelType type, uint64_t src, uint64_t dst) const override;
   bool usesOnlyLowPageBits(RelType type) const override;
@@ -62,8 +64,9 @@ AArch64::AArch64() {
   symbolicRel = R_AARCH64_ABS64;
   tlsDescRel = R_AARCH64_TLSDESC;
   tlsGotRel = R_AARCH64_TLS_TPREL64;
-  pltEntrySize = 16;
   pltHeaderSize = 32;
+  pltEntrySize = 16;
+  ipltEntrySize = 16;
   defaultMaxPageSize = 65536;
 
   // Align to the 2 MiB page size (known as a superpage or huge page).
@@ -76,6 +79,26 @@ AArch64::AArch64() {
 RelExpr AArch64::getRelExpr(RelType type, const Symbol &s,
                             const uint8_t *loc) const {
   switch (type) {
+  case R_AARCH64_ABS16:
+  case R_AARCH64_ABS32:
+  case R_AARCH64_ABS64:
+  case R_AARCH64_ADD_ABS_LO12_NC:
+  case R_AARCH64_LDST128_ABS_LO12_NC:
+  case R_AARCH64_LDST16_ABS_LO12_NC:
+  case R_AARCH64_LDST32_ABS_LO12_NC:
+  case R_AARCH64_LDST64_ABS_LO12_NC:
+  case R_AARCH64_LDST8_ABS_LO12_NC:
+  case R_AARCH64_MOVW_SABS_G0:
+  case R_AARCH64_MOVW_SABS_G1:
+  case R_AARCH64_MOVW_SABS_G2:
+  case R_AARCH64_MOVW_UABS_G0:
+  case R_AARCH64_MOVW_UABS_G0_NC:
+  case R_AARCH64_MOVW_UABS_G1:
+  case R_AARCH64_MOVW_UABS_G1_NC:
+  case R_AARCH64_MOVW_UABS_G2:
+  case R_AARCH64_MOVW_UABS_G2_NC:
+  case R_AARCH64_MOVW_UABS_G3:
+    return R_ABS;
   case R_AARCH64_TLSDESC_ADR_PAGE21:
     return R_AARCH64_TLSDESC_PAGE;
   case R_AARCH64_TLSDESC_LD64_LO12:
@@ -90,6 +113,11 @@ RelExpr AArch64::getRelExpr(RelType type, const Symbol &s,
   case R_AARCH64_TLSLE_LDST32_TPREL_LO12_NC:
   case R_AARCH64_TLSLE_LDST64_TPREL_LO12_NC:
   case R_AARCH64_TLSLE_LDST128_TPREL_LO12_NC:
+  case R_AARCH64_TLSLE_MOVW_TPREL_G0:
+  case R_AARCH64_TLSLE_MOVW_TPREL_G0_NC:
+  case R_AARCH64_TLSLE_MOVW_TPREL_G1:
+  case R_AARCH64_TLSLE_MOVW_TPREL_G1_NC:
+  case R_AARCH64_TLSLE_MOVW_TPREL_G2:
     return R_TLS;
   case R_AARCH64_CALL26:
   case R_AARCH64_CONDBR19:
@@ -101,6 +129,13 @@ RelExpr AArch64::getRelExpr(RelType type, const Symbol &s,
   case R_AARCH64_PREL64:
   case R_AARCH64_ADR_PREL_LO21:
   case R_AARCH64_LD_PREL_LO19:
+  case R_AARCH64_MOVW_PREL_G0:
+  case R_AARCH64_MOVW_PREL_G0_NC:
+  case R_AARCH64_MOVW_PREL_G1:
+  case R_AARCH64_MOVW_PREL_G1_NC:
+  case R_AARCH64_MOVW_PREL_G2:
+  case R_AARCH64_MOVW_PREL_G2_NC:
+  case R_AARCH64_MOVW_PREL_G3:
     return R_PC;
   case R_AARCH64_ADR_PREL_PG_HI21:
   case R_AARCH64_ADR_PREL_PG_HI21_NC:
@@ -114,7 +149,9 @@ RelExpr AArch64::getRelExpr(RelType type, const Symbol &s,
   case R_AARCH64_NONE:
     return R_NONE;
   default:
-    return R_ABS;
+    error(getErrorLocation(loc) + "unknown relocation (" + Twine(type) +
+          ") against symbol " + toString(s));
+    return R_NONE;
   }
 }
 
@@ -177,9 +214,8 @@ void AArch64::writePltHeader(uint8_t *buf) const {
   relocateOne(buf + 12, R_AARCH64_ADD_ABS_LO12_NC, got + 16);
 }
 
-void AArch64::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
-                       uint64_t pltEntryAddr, int32_t index,
-                       unsigned relOff) const {
+void AArch64::writePlt(uint8_t *buf, const Symbol &sym,
+                       uint64_t pltEntryAddr) const {
   const uint8_t inst[] = {
       0x10, 0x00, 0x00, 0x90, // adrp x16, Page(&(.plt.got[n]))
       0x11, 0x02, 0x40, 0xf9, // ldr  x17, [x16, Offset(&(.plt.got[n]))]
@@ -188,6 +224,7 @@ void AArch64::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
   };
   memcpy(buf, inst, sizeof(inst));
 
+  uint64_t gotPltEntryAddr = sym.getGotPltVA();
   relocateOne(buf, R_AARCH64_ADR_PREL_PG_HI21,
               getAArch64Page(gotPltEntryAddr) - getAArch64Page(pltEntryAddr));
   relocateOne(buf + 4, R_AARCH64_LDST64_ABS_LO12_NC, gotPltEntryAddr);
@@ -195,13 +232,18 @@ void AArch64::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
 }
 
 bool AArch64::needsThunk(RelExpr expr, RelType type, const InputFile *file,
-                         uint64_t branchAddr, const Symbol &s) const {
+                         uint64_t branchAddr, const Symbol &s,
+                         int64_t a) const {
+  // If s is an undefined weak symbol and does not have a PLT entry then it
+  // will be resolved as a branch to the next instruction.
+  if (s.isUndefWeak() && !s.isInPlt())
+    return false;
   // ELF for the ARM 64-bit architecture, section Call and Jump relocations
   // only permits range extension thunks for R_AARCH64_CALL26 and
   // R_AARCH64_JUMP26 relocation types.
   if (type != R_AARCH64_CALL26 && type != R_AARCH64_JUMP26)
     return false;
-  uint64_t dst = (expr == R_PLT_PC) ? s.getPltVA() : s.getVA();
+  uint64_t dst = expr == R_PLT_PC ? s.getPltVA() : s.getVA(a);
   return !inBranchRange(type, branchAddr, dst);
 }
 
@@ -245,6 +287,26 @@ static void or32le(uint8_t *p, int32_t v) { write32le(p, read32le(p) | v); }
 // Update the immediate field in a AARCH64 ldr, str, and add instruction.
 static void or32AArch64Imm(uint8_t *l, uint64_t imm) {
   or32le(l, (imm & 0xFFF) << 10);
+}
+
+// Update the immediate field in an AArch64 movk, movn or movz instruction
+// for a signed relocation, and update the opcode of a movn or movz instruction
+// to match the sign of the operand.
+static void writeSMovWImm(uint8_t *loc, uint32_t imm) {
+  uint32_t inst = read32le(loc);
+  // Opcode field is bits 30, 29, with 10 = movz, 00 = movn and 11 = movk.
+  if (!(inst & (1 << 29))) {
+    // movn or movz.
+    if (imm & 0x10000) {
+      // Change opcode to movn, which takes an inverted operand.
+      imm ^= 0xFFFF;
+      inst &= ~(1 << 30);
+    } else {
+      // Change opcode to movz.
+      inst |= 1 << 30;
+    }
+  }
+  write32le(loc, inst | ((imm & 0xFFFF) << 5));
 }
 
 void AArch64::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
@@ -326,17 +388,55 @@ void AArch64::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
     checkAlignment(loc, val, 16, type);
     or32AArch64Imm(loc, getBits(val, 4, 11));
     break;
+  case R_AARCH64_MOVW_UABS_G0:
+    checkUInt(loc, val, 16, type);
+    LLVM_FALLTHROUGH;
   case R_AARCH64_MOVW_UABS_G0_NC:
     or32le(loc, (val & 0xFFFF) << 5);
     break;
+  case R_AARCH64_MOVW_UABS_G1:
+    checkUInt(loc, val, 32, type);
+    LLVM_FALLTHROUGH;
   case R_AARCH64_MOVW_UABS_G1_NC:
     or32le(loc, (val & 0xFFFF0000) >> 11);
     break;
+  case R_AARCH64_MOVW_UABS_G2:
+    checkUInt(loc, val, 48, type);
+    LLVM_FALLTHROUGH;
   case R_AARCH64_MOVW_UABS_G2_NC:
     or32le(loc, (val & 0xFFFF00000000) >> 27);
     break;
   case R_AARCH64_MOVW_UABS_G3:
     or32le(loc, (val & 0xFFFF000000000000) >> 43);
+    break;
+  case R_AARCH64_MOVW_PREL_G0:
+  case R_AARCH64_MOVW_SABS_G0:
+  case R_AARCH64_TLSLE_MOVW_TPREL_G0:
+    checkInt(loc, val, 17, type);
+    LLVM_FALLTHROUGH;
+  case R_AARCH64_MOVW_PREL_G0_NC:
+  case R_AARCH64_TLSLE_MOVW_TPREL_G0_NC:
+    writeSMovWImm(loc, val);
+    break;
+  case R_AARCH64_MOVW_PREL_G1:
+  case R_AARCH64_MOVW_SABS_G1:
+  case R_AARCH64_TLSLE_MOVW_TPREL_G1:
+    checkInt(loc, val, 33, type);
+    LLVM_FALLTHROUGH;
+  case R_AARCH64_MOVW_PREL_G1_NC:
+  case R_AARCH64_TLSLE_MOVW_TPREL_G1_NC:
+    writeSMovWImm(loc, val >> 16);
+    break;
+  case R_AARCH64_MOVW_PREL_G2:
+  case R_AARCH64_MOVW_SABS_G2:
+  case R_AARCH64_TLSLE_MOVW_TPREL_G2:
+    checkInt(loc, val, 49, type);
+    LLVM_FALLTHROUGH;
+  case R_AARCH64_MOVW_PREL_G2_NC:
+    writeSMovWImm(loc, val >> 32);
+    break;
+  case R_AARCH64_MOVW_PREL_G3:
+    writeSMovWImm(loc, val >> 48);
     break;
   case R_AARCH64_TSTBR14:
     checkInt(loc, val, 16, type);
@@ -351,7 +451,7 @@ void AArch64::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
     or32AArch64Imm(loc, val);
     break;
   default:
-    error(getErrorLocation(loc) + "unrecognized relocation " + toString(type));
+    llvm_unreachable("unknown relocation");
   }
 }
 
@@ -474,8 +574,8 @@ class AArch64BtiPac final : public AArch64 {
 public:
   AArch64BtiPac();
   void writePltHeader(uint8_t *buf) const override;
-  void writePlt(uint8_t *buf, uint64_t gotPltEntryAddr, uint64_t pltEntryAddr,
-                int32_t index, unsigned relOff) const override;
+  void writePlt(uint8_t *buf, const Symbol &sym,
+                uint64_t pltEntryAddr) const override;
 
 private:
   bool btiHeader; // bti instruction needed in PLT Header
@@ -496,8 +596,10 @@ AArch64BtiPac::AArch64BtiPac() {
   btiEntry = btiHeader && !config->shared;
   pacEntry = (config->andFeatures & GNU_PROPERTY_AARCH64_FEATURE_1_PAC);
 
-  if (btiEntry || pacEntry)
+  if (btiEntry || pacEntry) {
     pltEntrySize = 24;
+    ipltEntrySize = 24;
+  }
 }
 
 void AArch64BtiPac::writePltHeader(uint8_t *buf) const {
@@ -534,9 +636,8 @@ void AArch64BtiPac::writePltHeader(uint8_t *buf) const {
     memcpy(buf + sizeof(pltData), nopData, sizeof(nopData));
 }
 
-void AArch64BtiPac::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
-                             uint64_t pltEntryAddr, int32_t index,
-                             unsigned relOff) const {
+void AArch64BtiPac::writePlt(uint8_t *buf, const Symbol &sym,
+                             uint64_t pltEntryAddr) const {
   // The PLT entry is of the form:
   // [btiData] addrInst (pacBr | stdBr) [nopData]
   const uint8_t btiData[] = { 0x5f, 0x24, 0x03, 0xd5 }; // bti c
@@ -561,6 +662,7 @@ void AArch64BtiPac::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
     pltEntryAddr += sizeof(btiData);
   }
 
+  uint64_t gotPltEntryAddr = sym.getGotPltVA();
   memcpy(buf, addrInst, sizeof(addrInst));
   relocateOne(buf, R_AARCH64_ADR_PREL_PG_HI21,
               getAArch64Page(gotPltEntryAddr) -
@@ -587,4 +689,7 @@ static TargetInfo *getTargetInfo() {
   return &t;
 }
 
-TargetInfo *elf::getAArch64TargetInfo() { return getTargetInfo(); }
+TargetInfo *getAArch64TargetInfo() { return getTargetInfo(); }
+
+} // namespace elf
+} // namespace lld

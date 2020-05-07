@@ -18,7 +18,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/CFGPrinter.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 using namespace llvm;
 
@@ -99,7 +101,7 @@ static void writeCFGToDotFile(Function &F, bool CFGOnly = false) {
   errs() << "Writing '" << Filename << "'...";
 
   std::error_code EC;
-  raw_fd_ostream File(Filename, EC, sys::fs::F_Text);
+  raw_fd_ostream File(Filename, EC, sys::fs::OF_Text);
 
   if (!EC)
     WriteGraph(File, (const Function*)&F, CFGOnly);

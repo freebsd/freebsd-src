@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -75,12 +76,21 @@ bool DeadMachineInstructionElim::isDead(const MachineInstr *MI) const {
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI->getOperand(i);
     if (MO.isReg() && MO.isDef()) {
-      unsigned Reg = MO.getReg();
-      if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+      Register Reg = MO.getReg();
+      if (Register::isPhysicalRegister(Reg)) {
         // Don't delete live physreg defs, or any reserved register defs.
         if (LivePhysRegs.test(Reg) || MRI->isReserved(Reg))
           return false;
       } else {
+        if (MO.isDead()) {
+#ifndef NDEBUG
+          // Sanity check on uses of this dead register. All of them should be
+          // 'undef'.
+          for (auto &U : MRI->use_nodbg_operands(Reg))
+            assert(U.isUndef() && "'Undef' use on a 'dead' register is found!");
+#endif
+          continue;
+        }
         for (const MachineInstr &Use : MRI->use_nodbg_instructions(Reg)) {
           if (&Use != MI)
             // This def has a non-debug use. Don't delete the instruction!
@@ -140,8 +150,8 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
       for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
         const MachineOperand &MO = MI->getOperand(i);
         if (MO.isReg() && MO.isDef()) {
-          unsigned Reg = MO.getReg();
-          if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+          Register Reg = MO.getReg();
+          if (Register::isPhysicalRegister(Reg)) {
             // Check the subreg set, not the alias set, because a def
             // of a super-register may still be partially live after
             // this def.
@@ -159,8 +169,8 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
       for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
         const MachineOperand &MO = MI->getOperand(i);
         if (MO.isReg() && MO.isUse()) {
-          unsigned Reg = MO.getReg();
-          if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+          Register Reg = MO.getReg();
+          if (Register::isPhysicalRegister(Reg)) {
             for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI)
               LivePhysRegs.set(*AI);
           }

@@ -183,7 +183,7 @@ multiclass VOPCXInstAliases <string OpName, string Arch> {
 }
 
 
-class getVOPCPat64 <PatLeaf cond, VOPProfile P> : LetDummies {
+class getVOPCPat64 <SDPatternOperator cond, VOPProfile P> : LetDummies {
   list<dag> ret = !if(P.HasModifiers,
       [(set i1:$sdst,
         (setcc (P.Src0VT
@@ -202,7 +202,7 @@ class VCMPXNoSDstTable <bit has_sdst, string Name> {
 
 multiclass VOPC_Pseudos <string opName,
                          VOPC_Profile P,
-                         PatLeaf cond = COND_NULL,
+                         SDPatternOperator cond = COND_NULL,
                          string revOp = opName,
                          bit DefExec = 0> {
 
@@ -225,6 +225,7 @@ multiclass VOPC_Pseudos <string opName,
     let isCommutable = 1;
   }
 
+  foreach _ = BoolToList<P.HasExtSDWA>.ret in
   def _sdwa : VOPC_SDWA_Pseudo <opName, P> {
     let Defs = !if(DefExec, [VCC, EXEC], [VCC]);
     let SchedRW = P.Schedule;
@@ -236,7 +237,7 @@ multiclass VOPC_Pseudos <string opName,
 let SubtargetPredicate = HasSdstCMPX in {
 multiclass VOPCX_Pseudos <string opName,
                           VOPC_Profile P, VOPC_Profile P_NoSDst,
-                          PatLeaf cond = COND_NULL,
+                          SDPatternOperator cond = COND_NULL,
                           string revOp = opName> :
            VOPC_Pseudos <opName, P, cond, revOp, 1> {
 
@@ -261,6 +262,7 @@ multiclass VOPCX_Pseudos <string opName,
     let SubtargetPredicate = HasNoSdstCMPX;
   }
 
+  foreach _ = BoolToList<P_NoSDst.HasExtSDWA>.ret in
   def _nosdst_sdwa : VOPC_SDWA_Pseudo <opName#"_nosdst", P_NoSDst> {
     let Defs = [EXEC];
     let SchedRW = P_NoSDst.Schedule;
@@ -285,22 +287,23 @@ def VOPC_I16_I16 : VOPC_NoSdst_Profile<[Write32Bit], i16>;
 def VOPC_I32_I32 : VOPC_NoSdst_Profile<[Write32Bit], i32>;
 def VOPC_I64_I64 : VOPC_NoSdst_Profile<[Write64Bit], i64>;
 
-multiclass VOPC_F16 <string opName, PatLeaf cond = COND_NULL, string revOp = opName> :
+multiclass VOPC_F16 <string opName, SDPatternOperator cond = COND_NULL,
+                     string revOp = opName> :
   VOPC_Pseudos <opName, VOPC_I1_F16_F16, cond, revOp, 0>;
 
-multiclass VOPC_F32 <string opName, PatLeaf cond = COND_NULL, string revOp = opName> :
+multiclass VOPC_F32 <string opName, SDPatternOperator cond = COND_NULL, string revOp = opName> :
   VOPC_Pseudos <opName, VOPC_I1_F32_F32, cond, revOp, 0>;
 
-multiclass VOPC_F64 <string opName, PatLeaf cond = COND_NULL, string revOp = opName> :
+multiclass VOPC_F64 <string opName, SDPatternOperator cond = COND_NULL, string revOp = opName> :
   VOPC_Pseudos <opName, VOPC_I1_F64_F64, cond, revOp, 0>;
 
-multiclass VOPC_I16 <string opName, PatLeaf cond = COND_NULL, string revOp = opName> :
+multiclass VOPC_I16 <string opName, SDPatternOperator cond = COND_NULL, string revOp = opName> :
   VOPC_Pseudos <opName, VOPC_I1_I16_I16, cond, revOp, 0>;
 
-multiclass VOPC_I32 <string opName, PatLeaf cond = COND_NULL, string revOp = opName> :
+multiclass VOPC_I32 <string opName, SDPatternOperator cond = COND_NULL, string revOp = opName> :
   VOPC_Pseudos <opName, VOPC_I1_I32_I32, cond, revOp, 0>;
 
-multiclass VOPC_I64 <string opName, PatLeaf cond = COND_NULL, string revOp = opName> :
+multiclass VOPC_I64 <string opName, SDPatternOperator cond = COND_NULL, string revOp = opName> :
   VOPC_Pseudos <opName, VOPC_I1_I64_I64, cond, revOp, 0>;
 
 multiclass VOPCX_F16 <string opName, string revOp = opName> :
@@ -647,7 +650,7 @@ class getVOPCClassPat64 <VOPProfile P> {
   list<dag> ret =
     [(set i1:$sdst,
       (AMDGPUfp_class
-        (P.Src0VT (VOP3Mods0Clamp0OMod P.Src0VT:$src0, i32:$src0_modifiers)),
+        (P.Src0VT (VOP3Mods P.Src0VT:$src0, i32:$src0_modifiers)),
         P.Src1VT:$src1))];
 }
 
@@ -669,6 +672,7 @@ multiclass VOPC_Class_Pseudos <string opName, VOPC_Profile p, bit DefExec,
     let SchedRW = p.Schedule;
   }
 
+  foreach _ = BoolToList<p.HasExtSDWA>.ret in
   def _sdwa : VOPC_SDWA_Pseudo <opName, p> {
     let Defs = !if(DefExec, !if(DefVcc, [VCC, EXEC], [EXEC]),
                             !if(DefVcc, [VCC], []));
@@ -698,6 +702,7 @@ multiclass VOPCX_Class_Pseudos <string opName,
     let SubtargetPredicate = HasNoSdstCMPX;
   }
 
+  foreach _ = BoolToList<P_NoSDst.HasExtSDWA>.ret in
   def _nosdst_sdwa : VOPC_SDWA_Pseudo <opName#"_nosdst", P_NoSDst> {
     let Defs = [EXEC];
     let SchedRW = P_NoSDst.Schedule;
@@ -737,8 +742,11 @@ defm V_CMP_CLASS_F32 : VOPC_CLASS_F32 <"v_cmp_class_f32">;
 defm V_CMPX_CLASS_F32 : VOPCX_CLASS_F32 <"v_cmpx_class_f32">;
 defm V_CMP_CLASS_F64 : VOPC_CLASS_F64 <"v_cmp_class_f64">;
 defm V_CMPX_CLASS_F64 : VOPCX_CLASS_F64 <"v_cmpx_class_f64">;
+
+let SubtargetPredicate = Has16BitInsts in {
 defm V_CMP_CLASS_F16  : VOPC_CLASS_F16 <"v_cmp_class_f16">;
 defm V_CMPX_CLASS_F16 : VOPCX_CLASS_F16 <"v_cmpx_class_f16">;
+}
 
 //===----------------------------------------------------------------------===//
 // V_ICMPIntrinsic Pattern.
@@ -878,6 +886,7 @@ let AssemblerPredicate = isGFX10Plus in {
       }
     } // End DecoderNamespace = "GFX10"
 
+    foreach _ = BoolToList<!cast<VOPC_Pseudo>(NAME#"_e32").Pfl.HasExtSDWA9>.ret in
     def _sdwa_gfx10 :
       VOP_SDWA10_Real<!cast<VOPC_SDWA_Pseudo>(NAME#"_sdwa")>,
       VOPC_SDWA9e<op{7-0}, !cast<VOPC_SDWA_Pseudo>(NAME#"_sdwa").Pfl>;
@@ -903,6 +912,7 @@ let AssemblerPredicate = isGFX10Plus in {
         }
     } // End DecoderNamespace = "GFX10"
 
+    foreach _ = BoolToList<!cast<VOPC_Pseudo>(NAME#"_nosdst_e32").Pfl.HasExtSDWA9>.ret in
     def _sdwa_gfx10 :
       VOP_SDWA10_Real<!cast<VOPC_SDWA_Pseudo>(NAME#"_nosdst_sdwa")>,
       VOPC_SDWA9e<op{7-0}, !cast<VOPC_SDWA_Pseudo>(NAME#"_nosdst_sdwa").Pfl> {
@@ -1208,7 +1218,7 @@ defm V_CMPX_T_U64     : VOPCX_Real_gfx6_gfx7_gfx10<0x0f7>;
 //===----------------------------------------------------------------------===//
 
 multiclass VOPC_Real_vi <bits<10> op> {
-  let AssemblerPredicates = [isGFX8GFX9], DecoderNamespace = "GFX8" in {
+  let AssemblerPredicate = isGFX8GFX9, DecoderNamespace = "GFX8" in {
     def _e32_vi :
       VOPC_Real<!cast<VOPC_Pseudo>(NAME#"_e32"), SIEncodingFamily.VI>,
       VOPCe<op{7-0}>;
@@ -1223,10 +1233,12 @@ multiclass VOPC_Real_vi <bits<10> op> {
     }
   }
 
+  foreach _ = BoolToList<!cast<VOPC_Pseudo>(NAME#"_e32").Pfl.HasExtSDWA>.ret in
   def _sdwa_vi :
     VOP_SDWA_Real <!cast<VOPC_SDWA_Pseudo>(NAME#"_sdwa")>,
     VOPC_SDWAe <op{7-0}, !cast<VOPC_SDWA_Pseudo>(NAME#"_sdwa").Pfl>;
 
+  foreach _ = BoolToList<!cast<VOPC_Pseudo>(NAME#"_e32").Pfl.HasExtSDWA9>.ret in
   def _sdwa_gfx9 :
     VOP_SDWA9_Real <!cast<VOPC_SDWA_Pseudo>(NAME#"_sdwa")>,
     VOPC_SDWA9e <op{7-0}, !cast<VOPC_SDWA_Pseudo>(NAME#"_sdwa").Pfl>;

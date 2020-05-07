@@ -711,17 +711,21 @@ static void sortAndPrintSymbolList(SymbolicFile &Obj, bool printName,
                                    const std::string &ArchiveName,
                                    const std::string &ArchitectureName) {
   if (!NoSort) {
-    std::function<bool(const NMSymbol &, const NMSymbol &)> Cmp;
+    using Comparator = bool (*)(const NMSymbol &, const NMSymbol &);
+    Comparator Cmp;
     if (NumericSort)
-      Cmp = compareSymbolAddress;
+      Cmp = &compareSymbolAddress;
     else if (SizeSort)
-      Cmp = compareSymbolSize;
+      Cmp = &compareSymbolSize;
     else
-      Cmp = compareSymbolName;
+      Cmp = &compareSymbolName;
 
     if (ReverseSort)
-      Cmp = [=](const NMSymbol &A, const NMSymbol &B) { return Cmp(B, A); };
-    llvm::sort(SymbolList, Cmp);
+      llvm::sort(SymbolList, [=](const NMSymbol &A, const NMSymbol &B) -> bool {
+        return Cmp(B, A);
+      });
+    else
+      llvm::sort(SymbolList, Cmp);
   }
 
   if (!PrintFileName) {
@@ -913,10 +917,12 @@ static char getSymbolNMTypeChar(ELFObjectFileBase &Obj,
     if (Flags & ELF::SHF_ALLOC)
       return Flags & ELF::SHF_WRITE ? 'd' : 'r';
 
-    StringRef SecName;
-    if (SecI->getName(SecName))
+    auto NameOrErr = SecI->getName();
+    if (!NameOrErr) {
+      consumeError(NameOrErr.takeError());
       return '?';
-    if (SecName.startswith(".debug"))
+    }
+    if ((*NameOrErr).startswith(".debug"))
       return 'N';
     if (!(Flags & ELF::SHF_WRITE))
       return 'n';
@@ -1076,7 +1082,7 @@ static StringRef getNMTypeName(SymbolicFile &Obj, basic_symbol_iterator I) {
 static char getNMSectionTagAndName(SymbolicFile &Obj, basic_symbol_iterator I,
                                    StringRef &SecName) {
   uint32_t Symflags = I->getFlags();
-  if (isa<ELFObjectFileBase>(&Obj)) {
+  if (ELFObjectFileBase *ELFObj = dyn_cast<ELFObjectFileBase>(&Obj)) {
     if (Symflags & object::SymbolRef::SF_Absolute)
       SecName = "*ABS*";
     else if (Symflags & object::SymbolRef::SF_Common)
@@ -1090,8 +1096,16 @@ static char getNMSectionTagAndName(SymbolicFile &Obj, basic_symbol_iterator I,
         consumeError(SecIOrErr.takeError());
         return '?';
       }
-      elf_section_iterator secT = *SecIOrErr;
-      secT->getName(SecName);
+
+      if (*SecIOrErr == ELFObj->section_end())
+        return '?';
+
+      Expected<StringRef> NameOrErr = (*SecIOrErr)->getName();
+      if (!NameOrErr) {
+        consumeError(NameOrErr.takeError());
+        return '?';
+      }
+      SecName = *NameOrErr;
     }
   }
 
@@ -1119,13 +1133,16 @@ static char getNMSectionTagAndName(SymbolicFile &Obj, basic_symbol_iterator I,
     Ret = getSymbolNMTypeChar(*MachO, I);
   else if (WasmObjectFile *Wasm = dyn_cast<WasmObjectFile>(&Obj))
     Ret = getSymbolNMTypeChar(*Wasm, I);
-  else
-    Ret = getSymbolNMTypeChar(cast<ELFObjectFileBase>(Obj), I);
+  else if (ELFObjectFileBase *ELF = dyn_cast<ELFObjectFileBase>(&Obj)) {
+    if (ELFSymbolRef(*I).getELFType() == ELF::STT_GNU_IFUNC)
+      return 'i';
+    Ret = getSymbolNMTypeChar(*ELF, I);
+    if (ELFSymbolRef(*I).getBinding() == ELF::STB_GNU_UNIQUE)
+      return Ret;
+  } else
+    llvm_unreachable("unknown binary format");
 
   if (!(Symflags & object::SymbolRef::SF_Global))
-    return Ret;
-
-  if (Obj.isELF() && ELFSymbolRef(*I).getBinding() == ELF::STB_GNU_UNIQUE)
     return Ret;
 
   return toupper(Ret);
@@ -1347,7 +1364,12 @@ dumpSymbolNamesFromObject(SymbolicFile &Obj, bool printName,
             StringRef SectionName = StringRef();
             for (const SectionRef &Section : MachO->sections()) {
               S.NSect++;
-              Section.getName(SectionName);
+ 
+              if (Expected<StringRef> NameOrErr = Section.getName())
+                SectionName = *NameOrErr;
+              else
+                consumeError(NameOrErr.takeError());
+
               SegmentName = MachO->getSectionFinalSegmentName(
                                                   Section.getRawDataRefImpl());
               if (S.Address >= Section.getAddress() &&
@@ -1667,7 +1689,11 @@ dumpSymbolNamesFromObject(SymbolicFile &Obj, bool printName,
           StringRef SegmentName = StringRef();
           StringRef SectionName = StringRef();
           for (const SectionRef &Section : MachO->sections()) {
-            Section.getName(SectionName);
+            if (Expected<StringRef> NameOrErr = Section.getName())
+              SectionName = *NameOrErr;
+            else
+              consumeError(NameOrErr.takeError());
+
             SegmentName = MachO->getSectionFinalSegmentName(
                                                 Section.getRawDataRefImpl());
             F.NSect++;

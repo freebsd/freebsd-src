@@ -23,6 +23,10 @@
 
 namespace llvm {
 
+static inline Error createError(const Twine &Msg) {
+  return createStringError(object::object_error::parse_failed, Msg);
+}
+
 ObjDumper::ObjDumper(ScopedPrinter &Writer) : W(Writer) {}
 
 ObjDumper::~ObjDumper() {
@@ -49,8 +53,7 @@ getSectionRefsByNameOrIndex(const object::ObjectFile *Obj,
 
   SecIndex = Obj->isELF() ? 0 : 1;
   for (object::SectionRef SecRef : Obj->sections()) {
-    StringRef SecName;
-    error(SecRef.getName(SecName));
+    StringRef SecName = unwrapOrError(Obj->getFileName(), SecRef.getName());
     auto NameIt = SecNames.find(SecName);
     if (NameIt != SecNames.end())
       NameIt->second = true;
@@ -62,12 +65,17 @@ getSectionRefsByNameOrIndex(const object::ObjectFile *Obj,
     SecIndex++;
   }
 
-  for (const std::pair<std::string, bool> &S : SecNames)
+  for (const std::pair<const std::string, bool> &S : SecNames)
     if (!S.second)
-      reportWarning(formatv("could not find section '{0}'", S.first).str());
+      reportWarning(
+          createError(formatv("could not find section '{0}'", S.first).str()),
+          Obj->getFileName());
+
   for (std::pair<unsigned, bool> S : SecIndices)
     if (!S.second)
-      reportWarning(formatv("could not find section {0}", S.first).str());
+      reportWarning(
+          createError(formatv("could not find section {0}", S.first).str()),
+          Obj->getFileName());
 
   return Ret;
 }
@@ -77,14 +85,16 @@ void ObjDumper::printSectionsAsString(const object::ObjectFile *Obj,
   bool First = true;
   for (object::SectionRef Section :
        getSectionRefsByNameOrIndex(Obj, Sections)) {
-    StringRef SectionName;
-    error(Section.getName(SectionName));
+    StringRef SectionName =
+        unwrapOrError(Obj->getFileName(), Section.getName());
+
     if (!First)
       W.startLine() << '\n';
     First = false;
     W.startLine() << "String dump of section '" << SectionName << "':\n";
 
-    StringRef SectionContent = unwrapOrError(Section.getContents());
+    StringRef SectionContent =
+        unwrapOrError(Obj->getFileName(), Section.getContents());
 
     const uint8_t *SecContent = SectionContent.bytes_begin();
     const uint8_t *CurrentWord = SecContent;
@@ -110,14 +120,16 @@ void ObjDumper::printSectionsAsHex(const object::ObjectFile *Obj,
   bool First = true;
   for (object::SectionRef Section :
        getSectionRefsByNameOrIndex(Obj, Sections)) {
-    StringRef SectionName;
-    error(Section.getName(SectionName));
+    StringRef SectionName =
+        unwrapOrError(Obj->getFileName(), Section.getName());
+
     if (!First)
       W.startLine() << '\n';
     First = false;
     W.startLine() << "Hex dump of section '" << SectionName << "':\n";
 
-    StringRef SectionContent = unwrapOrError(Section.getContents());
+    StringRef SectionContent =
+        unwrapOrError(Obj->getFileName(), Section.getContents());
     const uint8_t *SecContent = SectionContent.bytes_begin();
     const uint8_t *SecEnd = SecContent + SectionContent.size();
 

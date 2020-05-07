@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
+#include "llvm/Analysis/LegacyDivergenceAnalysis.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -143,7 +144,8 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf,
         if (AI->isStaticAlloca() &&
             (TFI->isStackRealignable() || (Align <= StackAlign))) {
           const ConstantInt *CUI = cast<ConstantInt>(AI->getArraySize());
-          uint64_t TySize = MF->getDataLayout().getTypeAllocSize(Ty);
+          uint64_t TySize =
+              MF->getDataLayout().getTypeAllocSize(Ty).getKnownMinSize();
 
           TySize *= CUI->getZExtValue();   // Get total allocated size.
           if (TySize == 0) TySize = 1; // Don't create zero-sized stack objects.
@@ -157,6 +159,12 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf,
             FrameIndex =
                 MF->getFrameInfo().CreateStackObject(TySize, Align, false, AI);
           }
+
+          // Scalable vectors may need a special StackID to distinguish
+          // them from other (fixed size) stack objects.
+          if (Ty->isVectorTy() && Ty->getVectorIsScalable())
+            MF->getFrameInfo().setStackID(FrameIndex,
+                                          TFI->getStackIDForScalableVectors());
 
           StaticAllocaMap[AI] = FrameIndex;
           // Update the catch handler information.
@@ -424,7 +432,7 @@ void FunctionLoweringInfo::ComputePHILiveOutRegInfo(const PHINode *PN) {
   unsigned BitWidth = IntVT.getSizeInBits();
 
   unsigned DestReg = ValueMap[PN];
-  if (!TargetRegisterInfo::isVirtualRegister(DestReg))
+  if (!Register::isVirtualRegister(DestReg))
     return;
   LiveOutRegInfo.grow(DestReg);
   LiveOutInfo &DestLOI = LiveOutRegInfo[DestReg];
@@ -445,7 +453,7 @@ void FunctionLoweringInfo::ComputePHILiveOutRegInfo(const PHINode *PN) {
     assert(ValueMap.count(V) && "V should have been placed in ValueMap when its"
                                 "CopyToReg node was created.");
     unsigned SrcReg = ValueMap[V];
-    if (!TargetRegisterInfo::isVirtualRegister(SrcReg)) {
+    if (!Register::isVirtualRegister(SrcReg)) {
       DestLOI.IsValid = false;
       return;
     }
@@ -480,7 +488,7 @@ void FunctionLoweringInfo::ComputePHILiveOutRegInfo(const PHINode *PN) {
     assert(ValueMap.count(V) && "V should have been placed in ValueMap when "
                                 "its CopyToReg node was created.");
     unsigned SrcReg = ValueMap[V];
-    if (!TargetRegisterInfo::isVirtualRegister(SrcReg)) {
+    if (!Register::isVirtualRegister(SrcReg)) {
       DestLOI.IsValid = false;
       return;
     }

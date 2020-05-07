@@ -59,6 +59,7 @@
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
 #include "llvm/IR/ValueHandle.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -420,7 +421,8 @@ enum OperatorChain {
 /// cost of creating an entirely new loop.
 static Value *FindLIVLoopCondition(Value *Cond, Loop *L, bool &Changed,
                                    OperatorChain &ParentChain,
-                                   DenseMap<Value *, Value *> &Cache) {
+                                   DenseMap<Value *, Value *> &Cache,
+                                   MemorySSAUpdater *MSSAU) {
   auto CacheIt = Cache.find(Cond);
   if (CacheIt != Cache.end())
     return CacheIt->second;
@@ -438,7 +440,7 @@ static Value *FindLIVLoopCondition(Value *Cond, Loop *L, bool &Changed,
   // TODO: Handle: br (VARIANT|INVARIANT).
 
   // Hoist simple values out.
-  if (L->makeLoopInvariant(Cond, Changed)) {
+  if (L->makeLoopInvariant(Cond, Changed, nullptr, MSSAU)) {
     Cache[Cond] = Cond;
     return Cond;
   }
@@ -478,7 +480,7 @@ static Value *FindLIVLoopCondition(Value *Cond, Loop *L, bool &Changed,
         // which will cause the branch to go away in one loop and the condition to
         // simplify in the other one.
         if (Value *LHS = FindLIVLoopCondition(BO->getOperand(0), L, Changed,
-                                              ParentChain, Cache)) {
+                                              ParentChain, Cache, MSSAU)) {
           Cache[Cond] = LHS;
           return LHS;
         }
@@ -486,7 +488,7 @@ static Value *FindLIVLoopCondition(Value *Cond, Loop *L, bool &Changed,
         // operand(1).
         ParentChain = NewChain;
         if (Value *RHS = FindLIVLoopCondition(BO->getOperand(1), L, Changed,
-                                              ParentChain, Cache)) {
+                                              ParentChain, Cache, MSSAU)) {
           Cache[Cond] = RHS;
           return RHS;
         }
@@ -500,12 +502,12 @@ static Value *FindLIVLoopCondition(Value *Cond, Loop *L, bool &Changed,
 /// Cond is a condition that occurs in L. If it is invariant in the loop, or has
 /// an invariant piece, return the invariant along with the operator chain type.
 /// Otherwise, return null.
-static std::pair<Value *, OperatorChain> FindLIVLoopCondition(Value *Cond,
-                                                              Loop *L,
-                                                              bool &Changed) {
+static std::pair<Value *, OperatorChain>
+FindLIVLoopCondition(Value *Cond, Loop *L, bool &Changed,
+                     MemorySSAUpdater *MSSAU) {
   DenseMap<Value *, Value *> Cache;
   OperatorChain OpChain = OC_OpChainNone;
-  Value *FCond = FindLIVLoopCondition(Cond, L, Changed, OpChain, Cache);
+  Value *FCond = FindLIVLoopCondition(Cond, L, Changed, OpChain, Cache, MSSAU);
 
   // In case we do find a LIV, it can not be obtained by walking up a mixed
   // operator chain.
@@ -525,7 +527,7 @@ bool LoopUnswitch::runOnLoop(Loop *L, LPPassManager &LPM_Ref) {
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   if (EnableMSSALoopDependency) {
     MSSA = &getAnalysis<MemorySSAWrapperPass>().getMSSA();
-    MSSAU = make_unique<MemorySSAUpdater>(MSSA);
+    MSSAU = std::make_unique<MemorySSAUpdater>(MSSA);
     assert(DT && "Cannot update MemorySSA without a valid DomTree.");
   }
   currentLoop = L;
@@ -682,7 +684,7 @@ bool LoopUnswitch::processCurrentLoop() {
     for (auto &I : *BB) {
       auto CS = CallSite(&I);
       if (!CS) continue;
-      if (CS.hasFnAttr(Attribute::Convergent))
+      if (CS.isConvergent())
         return false;
       if (auto *II = dyn_cast<InvokeInst>(&I))
         if (!II->getUnwindDest()->canSplitPredecessors())
@@ -694,8 +696,9 @@ bool LoopUnswitch::processCurrentLoop() {
   }
 
   for (IntrinsicInst *Guard : Guards) {
-    Value *LoopCond =
-        FindLIVLoopCondition(Guard->getOperand(0), currentLoop, Changed).first;
+    Value *LoopCond = FindLIVLoopCondition(Guard->getOperand(0), currentLoop,
+                                           Changed, MSSAU.get())
+                          .first;
     if (LoopCond &&
         UnswitchIfProfitable(LoopCond, ConstantInt::getTrue(Context))) {
       // NB! Unswitching (if successful) could have erased some of the
@@ -735,8 +738,9 @@ bool LoopUnswitch::processCurrentLoop() {
       if (BI->isConditional()) {
         // See if this, or some part of it, is loop invariant.  If so, we can
         // unswitch on it if we desire.
-        Value *LoopCond = FindLIVLoopCondition(BI->getCondition(),
-                                               currentLoop, Changed).first;
+        Value *LoopCond = FindLIVLoopCondition(BI->getCondition(), currentLoop,
+                                               Changed, MSSAU.get())
+                              .first;
         if (LoopCond && !EqualityPropUnSafe(*LoopCond) &&
             UnswitchIfProfitable(LoopCond, ConstantInt::getTrue(Context), TI)) {
           ++NumBranches;
@@ -748,7 +752,7 @@ bool LoopUnswitch::processCurrentLoop() {
       Value *LoopCond;
       OperatorChain OpChain;
       std::tie(LoopCond, OpChain) =
-        FindLIVLoopCondition(SC, currentLoop, Changed);
+          FindLIVLoopCondition(SC, currentLoop, Changed, MSSAU.get());
 
       unsigned NumCases = SI->getNumCases();
       if (LoopCond && NumCases) {
@@ -808,8 +812,9 @@ bool LoopUnswitch::processCurrentLoop() {
     for (BasicBlock::iterator BBI = (*I)->begin(), E = (*I)->end();
          BBI != E; ++BBI)
       if (SelectInst *SI = dyn_cast<SelectInst>(BBI)) {
-        Value *LoopCond = FindLIVLoopCondition(SI->getCondition(),
-                                               currentLoop, Changed).first;
+        Value *LoopCond = FindLIVLoopCondition(SI->getCondition(), currentLoop,
+                                               Changed, MSSAU.get())
+                              .first;
         if (LoopCond && UnswitchIfProfitable(LoopCond,
                                              ConstantInt::getTrue(Context))) {
           ++NumSelects;
@@ -1123,8 +1128,9 @@ bool LoopUnswitch::TryTrivialLoopUnswitch(bool &Changed) {
     if (!BI->isConditional())
       return false;
 
-    Value *LoopCond = FindLIVLoopCondition(BI->getCondition(),
-                                           currentLoop, Changed).first;
+    Value *LoopCond = FindLIVLoopCondition(BI->getCondition(), currentLoop,
+                                           Changed, MSSAU.get())
+                          .first;
 
     // Unswitch only if the trivial condition itself is an LIV (not
     // partial LIV which could occur in and/or)
@@ -1157,8 +1163,9 @@ bool LoopUnswitch::TryTrivialLoopUnswitch(bool &Changed) {
     return true;
   } else if (SwitchInst *SI = dyn_cast<SwitchInst>(CurrentTerm)) {
     // If this isn't switching on an invariant condition, we can't unswitch it.
-    Value *LoopCond = FindLIVLoopCondition(SI->getCondition(),
-                                           currentLoop, Changed).first;
+    Value *LoopCond = FindLIVLoopCondition(SI->getCondition(), currentLoop,
+                                           Changed, MSSAU.get())
+                          .first;
 
     // Unswitch only if the trivial condition itself is an LIV (not
     // partial LIV which could occur in and/or)
@@ -1239,6 +1246,9 @@ void LoopUnswitch::UnswitchNontrivialCondition(Value *LIC, Constant *Val,
 
   LoopBlocks.clear();
   NewBlocks.clear();
+
+  if (MSSAU && VerifyMemorySSA)
+    MSSA->verifyMemorySSA();
 
   // First step, split the preheader and exit blocks, and add these blocks to
   // the LoopBlocks list.
@@ -1607,36 +1617,30 @@ void LoopUnswitch::SimplifyCode(std::vector<Instruction*> &Worklist, Loop *L) {
         // If BI's parent is the only pred of the successor, fold the two blocks
         // together.
         BasicBlock *Pred = BI->getParent();
+        (void)Pred;
         BasicBlock *Succ = BI->getSuccessor(0);
         BasicBlock *SinglePred = Succ->getSinglePredecessor();
         if (!SinglePred) continue;  // Nothing to do.
         assert(SinglePred == Pred && "CFG broken");
 
-        LLVM_DEBUG(dbgs() << "Merging blocks: " << Pred->getName() << " <- "
-                          << Succ->getName() << "\n");
-
-        // Resolve any single entry PHI nodes in Succ.
-        while (PHINode *PN = dyn_cast<PHINode>(Succ->begin()))
-          ReplaceUsesOfWith(PN, PN->getIncomingValue(0), Worklist, L, LPM,
-                            MSSAU.get());
-
-        // If Succ has any successors with PHI nodes, update them to have
-        // entries coming from Pred instead of Succ.
-        Succ->replaceAllUsesWith(Pred);
-
-        // Move all of the successor contents from Succ to Pred.
-        Pred->getInstList().splice(BI->getIterator(), Succ->getInstList(),
-                                   Succ->begin(), Succ->end());
-        if (MSSAU)
-          MSSAU->moveAllAfterMergeBlocks(Succ, Pred, BI);
+        // Make the LPM and Worklist updates specific to LoopUnswitch.
         LPM->deleteSimpleAnalysisValue(BI, L);
         RemoveFromWorklist(BI, Worklist);
-        BI->eraseFromParent();
-
-        // Remove Succ from the loop tree.
-        LI->removeBlock(Succ);
         LPM->deleteSimpleAnalysisValue(Succ, L);
-        Succ->eraseFromParent();
+        auto SuccIt = Succ->begin();
+        while (PHINode *PN = dyn_cast<PHINode>(SuccIt++)) {
+          for (unsigned It = 0, E = PN->getNumOperands(); It != E; ++It)
+            if (Instruction *Use = dyn_cast<Instruction>(PN->getOperand(It)))
+              Worklist.push_back(Use);
+          for (User *U : PN->users())
+            Worklist.push_back(cast<Instruction>(U));
+          LPM->deleteSimpleAnalysisValue(PN, L);
+          RemoveFromWorklist(PN, Worklist);
+          ++NumSimplify;
+        }
+        // Merge the block and make the remaining analyses updates.
+        DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Eager);
+        MergeBlockIntoPredecessor(Succ, &DTU, LI, MSSAU.get());
         ++NumSimplify;
         continue;
       }

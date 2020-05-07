@@ -71,37 +71,38 @@ void AArch64Subtarget::initializeProperties() {
   case CortexA35:
     break;
   case CortexA53:
-    PrefFunctionAlignment = 3;
+    PrefFunctionLogAlignment = 3;
     break;
   case CortexA55:
     break;
   case CortexA57:
     MaxInterleaveFactor = 4;
-    PrefFunctionAlignment = 4;
+    PrefFunctionLogAlignment = 4;
+    break;
+  case CortexA65:
+    PrefFunctionLogAlignment = 3;
     break;
   case CortexA72:
   case CortexA73:
   case CortexA75:
   case CortexA76:
-    PrefFunctionAlignment = 4;
+    PrefFunctionLogAlignment = 4;
     break;
-  case Cyclone:
+  case AppleA7:
+  case AppleA10:
+  case AppleA11:
+  case AppleA12:
+  case AppleA13:
     CacheLineSize = 64;
     PrefetchDistance = 280;
     MinPrefetchStride = 2048;
     MaxPrefetchIterationsAhead = 3;
     break;
-  case ExynosM1:
-    MaxInterleaveFactor = 4;
-    MaxJumpTableSize = 8;
-    PrefFunctionAlignment = 4;
-    PrefLoopAlignment = 3;
-    break;
   case ExynosM3:
     MaxInterleaveFactor = 4;
     MaxJumpTableSize = 20;
-    PrefFunctionAlignment = 5;
-    PrefLoopAlignment = 4;
+    PrefFunctionLogAlignment = 5;
+    PrefLoopLogAlignment = 4;
     break;
   case Falkor:
     MaxInterleaveFactor = 4;
@@ -122,6 +123,12 @@ void AArch64Subtarget::initializeProperties() {
     // FIXME: remove this to enable 64-bit SLP if performance looks good.
     MinVectorRegisterBitWidth = 128;
     break;
+  case NeoverseE1:
+    PrefFunctionLogAlignment = 3;
+    break;
+  case NeoverseN1:
+    PrefFunctionLogAlignment = 4;
+    break;
   case Saphira:
     MaxInterleaveFactor = 4;
     // FIXME: remove this to enable 64-bit SLP if performance looks good.
@@ -129,8 +136,8 @@ void AArch64Subtarget::initializeProperties() {
     break;
   case ThunderX2T99:
     CacheLineSize = 64;
-    PrefFunctionAlignment = 3;
-    PrefLoopAlignment = 2;
+    PrefFunctionLogAlignment = 3;
+    PrefLoopLogAlignment = 2;
     MaxInterleaveFactor = 4;
     PrefetchDistance = 128;
     MinPrefetchStride = 1024;
@@ -143,15 +150,15 @@ void AArch64Subtarget::initializeProperties() {
   case ThunderXT81:
   case ThunderXT83:
     CacheLineSize = 128;
-    PrefFunctionAlignment = 3;
-    PrefLoopAlignment = 2;
+    PrefFunctionLogAlignment = 3;
+    PrefLoopLogAlignment = 2;
     // FIXME: remove this to enable 64-bit SLP if performance looks good.
     MinVectorRegisterBitWidth = 128;
     break;
   case TSV110:
     CacheLineSize = 64;
-    PrefFunctionAlignment = 4;
-    PrefLoopAlignment = 2;
+    PrefFunctionLogAlignment = 4;
+    PrefLoopLogAlignment = 2;
     break;
   }
 }
@@ -187,7 +194,7 @@ const CallLowering *AArch64Subtarget::getCallLowering() const {
   return CallLoweringInfo.get();
 }
 
-const InstructionSelector *AArch64Subtarget::getInstructionSelector() const {
+InstructionSelector *AArch64Subtarget::getInstructionSelector() const {
   return InstSelector.get();
 }
 
@@ -201,7 +208,7 @@ const RegisterBankInfo *AArch64Subtarget::getRegBankInfo() const {
 
 /// Find the target operand flags that describe how a global value should be
 /// referenced for the current subtarget.
-unsigned char
+unsigned
 AArch64Subtarget::ClassifyGlobalReference(const GlobalValue *GV,
                                           const TargetMachine &TM) const {
   // MachO large model always goes via a GOT, simply to get a single 8-byte
@@ -224,10 +231,17 @@ AArch64Subtarget::ClassifyGlobalReference(const GlobalValue *GV,
       GV->hasExternalWeakLinkage())
     return AArch64II::MO_GOT;
 
+  // References to tagged globals are marked with MO_NC | MO_TAGGED to indicate
+  // that their nominal addresses are tagged and outside of the code model. In
+  // AArch64ExpandPseudo::expandMI we emit an additional instruction to set the
+  // tag if necessary based on MO_TAGGED.
+  if (AllowTaggedGlobals && !isa<FunctionType>(GV->getValueType()))
+    return AArch64II::MO_NC | AArch64II::MO_TAGGED;
+
   return AArch64II::MO_NO_FLAG;
 }
 
-unsigned char AArch64Subtarget::classifyGlobalFunctionReference(
+unsigned AArch64Subtarget::classifyGlobalFunctionReference(
     const GlobalValue *GV, const TargetMachine &TM) const {
   // MachO large model always goes via a GOT, because we don't have the
   // relocations available to do anything else..
@@ -240,6 +254,10 @@ unsigned char AArch64Subtarget::classifyGlobalFunctionReference(
   if (UseNonLazyBind && F && F->hasFnAttribute(Attribute::NonLazyBind) &&
       !TM.shouldAssumeDSOLocal(*GV->getParent(), GV))
     return AArch64II::MO_GOT;
+
+  // Use ClassifyGlobalReference for setting MO_DLLIMPORT/MO_COFFSTUB.
+  if (getTargetTriple().isOSWindows())
+    return ClassifyGlobalReference(GV, TM);
 
   return AArch64II::MO_NO_FLAG;
 }
@@ -275,7 +293,7 @@ bool AArch64Subtarget::supportsAddressTopByteIgnored() const {
 
 std::unique_ptr<PBQPRAConstraint>
 AArch64Subtarget::getCustomPBQPConstraints() const {
-  return balanceFPOps() ? llvm::make_unique<A57ChainingConstraint>() : nullptr;
+  return balanceFPOps() ? std::make_unique<A57ChainingConstraint>() : nullptr;
 }
 
 void AArch64Subtarget::mirFileLoaded(MachineFunction &MF) const {

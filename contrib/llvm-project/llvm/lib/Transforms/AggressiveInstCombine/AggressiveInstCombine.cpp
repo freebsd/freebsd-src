@@ -25,6 +25,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
@@ -121,14 +122,13 @@ static bool foldGuardedRotateToFunnelShift(Instruction &I) {
   BasicBlock *GuardBB = Phi.getIncomingBlock(RotSrc == P1);
   BasicBlock *RotBB = Phi.getIncomingBlock(RotSrc != P1);
   Instruction *TermI = GuardBB->getTerminator();
-  BasicBlock *TrueBB, *FalseBB;
   ICmpInst::Predicate Pred;
-  if (!match(TermI, m_Br(m_ICmp(Pred, m_Specific(RotAmt), m_ZeroInt()), TrueBB,
-                         FalseBB)))
+  BasicBlock *PhiBB = Phi.getParent();
+  if (!match(TermI, m_Br(m_ICmp(Pred, m_Specific(RotAmt), m_ZeroInt()),
+                         m_SpecificBB(PhiBB), m_SpecificBB(RotBB))))
     return false;
 
-  BasicBlock *PhiBB = Phi.getParent();
-  if (Pred != CmpInst::ICMP_EQ || TrueBB != PhiBB || FalseBB != RotBB)
+  if (Pred != CmpInst::ICMP_EQ)
     return false;
 
   // We matched a variation of this IR pattern:
@@ -251,6 +251,72 @@ static bool foldAnyOrAllBitsSet(Instruction &I) {
   return true;
 }
 
+// Try to recognize below function as popcount intrinsic.
+// This is the "best" algorithm from
+// http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
+// Also used in TargetLowering::expandCTPOP().
+//
+// int popcount(unsigned int i) {
+//   i = i - ((i >> 1) & 0x55555555);
+//   i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
+//   i = ((i + (i >> 4)) & 0x0F0F0F0F);
+//   return (i * 0x01010101) >> 24;
+// }
+static bool tryToRecognizePopCount(Instruction &I) {
+  if (I.getOpcode() != Instruction::LShr)
+    return false;
+
+  Type *Ty = I.getType();
+  if (!Ty->isIntOrIntVectorTy())
+    return false;
+
+  unsigned Len = Ty->getScalarSizeInBits();
+  // FIXME: fix Len == 8 and other irregular type lengths.
+  if (!(Len <= 128 && Len > 8 && Len % 8 == 0))
+    return false;
+
+  APInt Mask55 = APInt::getSplat(Len, APInt(8, 0x55));
+  APInt Mask33 = APInt::getSplat(Len, APInt(8, 0x33));
+  APInt Mask0F = APInt::getSplat(Len, APInt(8, 0x0F));
+  APInt Mask01 = APInt::getSplat(Len, APInt(8, 0x01));
+  APInt MaskShift = APInt(Len, Len - 8);
+
+  Value *Op0 = I.getOperand(0);
+  Value *Op1 = I.getOperand(1);
+  Value *MulOp0;
+  // Matching "(i * 0x01010101...) >> 24".
+  if ((match(Op0, m_Mul(m_Value(MulOp0), m_SpecificInt(Mask01)))) &&
+       match(Op1, m_SpecificInt(MaskShift))) {
+    Value *ShiftOp0;
+    // Matching "((i + (i >> 4)) & 0x0F0F0F0F...)".
+    if (match(MulOp0, m_And(m_c_Add(m_LShr(m_Value(ShiftOp0), m_SpecificInt(4)),
+                                    m_Deferred(ShiftOp0)),
+                            m_SpecificInt(Mask0F)))) {
+      Value *AndOp0;
+      // Matching "(i & 0x33333333...) + ((i >> 2) & 0x33333333...)".
+      if (match(ShiftOp0,
+                m_c_Add(m_And(m_Value(AndOp0), m_SpecificInt(Mask33)),
+                        m_And(m_LShr(m_Deferred(AndOp0), m_SpecificInt(2)),
+                              m_SpecificInt(Mask33))))) {
+        Value *Root, *SubOp1;
+        // Matching "i - ((i >> 1) & 0x55555555...)".
+        if (match(AndOp0, m_Sub(m_Value(Root), m_Value(SubOp1))) &&
+            match(SubOp1, m_And(m_LShr(m_Specific(Root), m_SpecificInt(1)),
+                                m_SpecificInt(Mask55)))) {
+          LLVM_DEBUG(dbgs() << "Recognized popcount intrinsic\n");
+          IRBuilder<> Builder(&I);
+          Function *Func = Intrinsic::getDeclaration(
+              I.getModule(), Intrinsic::ctpop, I.getType());
+          I.replaceAllUsesWith(Builder.CreateCall(Func, {Root}));
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 /// This is the entry point for folds that could be implemented in regular
 /// InstCombine, but they are separated because they are not expected to
 /// occur frequently and/or have more than a constant-length pattern match.
@@ -269,6 +335,7 @@ static bool foldUnusualPatterns(Function &F, DominatorTree &DT) {
     for (Instruction &I : make_range(BB.rbegin(), BB.rend())) {
       MadeChange |= foldAnyOrAllBitsSet(I);
       MadeChange |= foldGuardedRotateToFunnelShift(I);
+      MadeChange |= tryToRecognizePopCount(I); 
     }
   }
 
@@ -303,7 +370,7 @@ void AggressiveInstCombinerLegacyPass::getAnalysisUsage(
 }
 
 bool AggressiveInstCombinerLegacyPass::runOnFunction(Function &F) {
-  auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+  auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
   auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   return runImpl(F, TLI, DT);
 }

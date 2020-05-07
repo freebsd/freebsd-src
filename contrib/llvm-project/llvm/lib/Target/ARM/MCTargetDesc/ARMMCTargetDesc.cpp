@@ -187,7 +187,8 @@ static MCRegisterInfo *createARMMCRegisterInfo(const Triple &Triple) {
 }
 
 static MCAsmInfo *createARMMCAsmInfo(const MCRegisterInfo &MRI,
-                                     const Triple &TheTriple) {
+                                     const Triple &TheTriple,
+                                     const MCTargetOptions &Options) {
   MCAsmInfo *MAI;
   if (TheTriple.isOSDarwin() || TheTriple.isOSBinFormatMachO())
     MAI = new ARMMCAsmInfoDarwin(TheTriple);
@@ -211,7 +212,8 @@ static MCStreamer *createELFStreamer(const Triple &T, MCContext &Ctx,
                                      bool RelaxAll) {
   return createARMELFStreamer(
       Ctx, std::move(MAB), std::move(OW), std::move(Emitter), false,
-      (T.getArch() == Triple::thumb || T.getArch() == Triple::thumbeb));
+      (T.getArch() == Triple::thumb || T.getArch() == Triple::thumbeb),
+      T.isAndroid());
 }
 
 static MCStreamer *
@@ -315,7 +317,7 @@ static MCInstrAnalysis *createThumbMCInstrAnalysis(const MCInstrInfo *Info) {
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeARMTargetMC() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeARMTargetMC() {
   for (Target *T : {&getTheARMLETarget(), &getTheARMBETarget(),
                     &getTheThumbLETarget(), &getTheThumbBETarget()}) {
     // Register the MC asm info.

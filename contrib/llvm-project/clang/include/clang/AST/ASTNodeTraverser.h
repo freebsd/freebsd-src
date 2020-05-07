@@ -65,6 +65,9 @@ class ASTNodeTraverser
   /// not already been loaded.
   bool Deserialize = false;
 
+  ast_type_traits::TraversalKind Traversal =
+      ast_type_traits::TraversalKind::TK_AsIs;
+
   NodeDelegateType &getNodeDelegate() {
     return getDerived().doGetNodeDelegate();
   }
@@ -73,6 +76,8 @@ class ASTNodeTraverser
 public:
   void setDeserialize(bool D) { Deserialize = D; }
   bool getDeserialize() const { return Deserialize; }
+
+  void SetTraversalKind(ast_type_traits::TraversalKind TK) { Traversal = TK; }
 
   void Visit(const Decl *D) {
     getNodeDelegate().AddChild([=] {
@@ -97,8 +102,23 @@ public:
     });
   }
 
-  void Visit(const Stmt *S, StringRef Label = {}) {
+  void Visit(const Stmt *Node, StringRef Label = {}) {
     getNodeDelegate().AddChild(Label, [=] {
+      const Stmt *S = Node;
+
+      if (auto *E = dyn_cast_or_null<Expr>(S)) {
+        switch (Traversal) {
+        case ast_type_traits::TK_AsIs:
+          break;
+        case ast_type_traits::TK_IgnoreImplicitCastsAndParentheses:
+          S = E->IgnoreParenImpCasts();
+          break;
+        case ast_type_traits::TK_IgnoreUnlessSpelledInSource:
+          S = E->IgnoreUnlessSpelledInSource();
+          break;
+        }
+      }
+
       getNodeDelegate().Visit(S);
 
       if (!S) {
@@ -108,9 +128,12 @@ public:
       ConstStmtVisitor<Derived>::Visit(S);
 
       // Some statements have custom mechanisms for dumping their children.
-      if (isa<DeclStmt>(S) || isa<GenericSelectionExpr>(S)) {
+      if (isa<DeclStmt>(S) || isa<GenericSelectionExpr>(S))
         return;
-      }
+
+      if (isa<LambdaExpr>(S) &&
+          Traversal == ast_type_traits::TK_IgnoreUnlessSpelledInSource)
+        return;
 
       for (const Stmt *SubStmt : S->children())
         Visit(SubStmt);
@@ -237,6 +260,9 @@ public:
 
     for (const auto &TP : *TPL)
       Visit(TP);
+
+    if (const Expr *RC = TPL->getRequiresClause())
+      Visit(RC);
   }
 
   void
@@ -357,6 +383,9 @@ public:
     if (D->param_begin())
       for (const auto *Parameter : D->parameters())
         Visit(Parameter);
+
+    if (const Expr *TRC = D->getTrailingRequiresClause())
+      Visit(TRC);
 
     if (const auto *C = dyn_cast<CXXConstructorDecl>(D))
       for (const auto *I : C->inits())
@@ -508,6 +537,10 @@ public:
   }
 
   void VisitTemplateTypeParmDecl(const TemplateTypeParmDecl *D) {
+    if (const auto *TC = D->getTypeConstraint())
+      if (TC->hasExplicitTemplateArgs())
+        for (const auto &ArgLoc : TC->getTemplateArgsAsWritten()->arguments())
+          dumpTemplateArgumentLoc(ArgLoc);
     if (D->hasDefaultArgument())
       Visit(D->getDefaultArgument(), SourceRange(),
             D->getDefaultArgStorage().getInheritedFrom(),
@@ -515,6 +548,8 @@ public:
   }
 
   void VisitNonTypeTemplateParmDecl(const NonTypeTemplateParmDecl *D) {
+    if (const auto *E = D->getPlaceholderTypeConstraint())
+      Visit(E);
     if (D->hasDefaultArgument())
       Visit(D->getDefaultArgument(), SourceRange(),
             D->getDefaultArgStorage().getInheritedFrom(),
@@ -617,13 +652,29 @@ public:
     Visit(E->getControllingExpr());
     Visit(E->getControllingExpr()->getType()); // FIXME: remove
 
-    for (const auto &Assoc : E->associations()) {
+    for (const auto Assoc : E->associations()) {
       Visit(Assoc);
     }
   }
 
   void VisitLambdaExpr(const LambdaExpr *Node) {
-    Visit(Node->getLambdaClass());
+    if (Traversal == ast_type_traits::TK_IgnoreUnlessSpelledInSource) {
+      for (unsigned I = 0, N = Node->capture_size(); I != N; ++I) {
+        const auto *C = Node->capture_begin() + I;
+        if (!C->isExplicit())
+          continue;
+        if (Node->isInitCapture(C))
+          Visit(C->getCapturedVar());
+        else
+          Visit(Node->capture_init_begin()[I]);
+      }
+      dumpTemplateParameters(Node->getTemplateParameterList());
+      for (const auto *P : Node->getCallOperator()->parameters())
+        Visit(P);
+      Visit(Node->getBody());
+    } else {
+      return Visit(Node->getLambdaClass());
+    }
   }
 
   void VisitSizeOfPackExpr(const SizeOfPackExpr *Node) {

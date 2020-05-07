@@ -35,6 +35,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -138,7 +139,7 @@ bool RenameIndependentSubregs::renameComponents(LiveInterval &LI) const {
   LLVM_DEBUG(dbgs() << printReg(Reg) << ": Splitting into newly created:");
   for (unsigned I = 1, NumClasses = Classes.getNumClasses(); I < NumClasses;
        ++I) {
-    unsigned NewVReg = MRI->createVirtualRegister(RegClass);
+    Register NewVReg = MRI->createVirtualRegister(RegClass);
     LiveInterval &NewLI = LIS->createEmptyInterval(NewVReg);
     Intervals.push_back(&NewLI);
     LLVM_DEBUG(dbgs() << ' ' << printReg(NewVReg));
@@ -390,7 +391,7 @@ bool RenameIndependentSubregs::runOnMachineFunction(MachineFunction &MF) {
   // there can't be any further splitting.
   bool Changed = false;
   for (size_t I = 0, E = MRI->getNumVirtRegs(); I < E; ++I) {
-    unsigned Reg = TargetRegisterInfo::index2VirtReg(I);
+    unsigned Reg = Register::index2VirtReg(I);
     if (!LIS->hasInterval(Reg))
       continue;
     LiveInterval &LI = LIS->getInterval(Reg);

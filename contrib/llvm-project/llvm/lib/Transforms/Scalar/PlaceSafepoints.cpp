@@ -47,6 +47,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 
 #include "llvm/ADT/SetVector.h"
@@ -131,7 +132,7 @@ struct PlaceBackedgeSafepointsImpl : public FunctionPass {
     SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
     DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
     LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-    TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+    TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
     for (Loop *I : *LI) {
       runOnLoopAndSubLoops(I);
     }
@@ -240,7 +241,7 @@ static bool containsUnconditionalCallSafepoint(Loop *L, BasicBlock *Header,
 static bool mustBeFiniteCountedLoop(Loop *L, ScalarEvolution *SE,
                                     BasicBlock *Pred) {
   // A conservative bound on the loop as a whole.
-  const SCEV *MaxTrips = SE->getMaxBackedgeTakenCount(L);
+  const SCEV *MaxTrips = SE->getConstantMaxBackedgeTakenCount(L);
   if (MaxTrips != SE->getCouldNotCompute() &&
       SE->getUnsignedRange(MaxTrips).getUnsignedMax().isIntN(
           CountedLoopTripWidth))
@@ -478,7 +479,7 @@ bool PlaceSafepoints::runOnFunction(Function &F) {
     return false;
 
   const TargetLibraryInfo &TLI =
-      getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+      getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
 
   bool Modified = false;
 

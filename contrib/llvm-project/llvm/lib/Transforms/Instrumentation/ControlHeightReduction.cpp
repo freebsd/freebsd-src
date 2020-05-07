@@ -27,7 +27,9 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/MDBuilder.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/BranchProbability.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -512,30 +514,38 @@ static bool isHoistable(Instruction *I, DominatorTree &DT) {
 // first-region entry block) or the (hoistable or unhoistable) base values that
 // are defined outside (including the first-region entry block) of the
 // scope. The returned set doesn't include constants.
-static std::set<Value *> getBaseValues(Value *V,
-                                       DominatorTree &DT) {
+static std::set<Value *> getBaseValues(
+    Value *V, DominatorTree &DT,
+    DenseMap<Value *, std::set<Value *>> &Visited) {
+  if (Visited.count(V)) {
+    return Visited[V];
+  }
   std::set<Value *> Result;
   if (auto *I = dyn_cast<Instruction>(V)) {
     // We don't stop at a block that's not in the Scope because we would miss some
     // instructions that are based on the same base values if we stop there.
     if (!isHoistable(I, DT)) {
       Result.insert(I);
+      Visited.insert(std::make_pair(V, Result));
       return Result;
     }
     // I is hoistable above the Scope.
     for (Value *Op : I->operands()) {
-      std::set<Value *> OpResult = getBaseValues(Op, DT);
+      std::set<Value *> OpResult = getBaseValues(Op, DT, Visited);
       Result.insert(OpResult.begin(), OpResult.end());
     }
+    Visited.insert(std::make_pair(V, Result));
     return Result;
   }
   if (isa<Argument>(V)) {
     Result.insert(V);
+    Visited.insert(std::make_pair(V, Result));
     return Result;
   }
   // We don't include others like constants because those won't lead to any
   // chance of folding of conditions (eg two bit checks merged into one check)
   // after CHR.
+  Visited.insert(std::make_pair(V, Result));
   return Result;  // empty
 }
 
@@ -614,6 +624,10 @@ static bool checkMDProf(MDNode *MD, BranchProbability &TrueProb,
 
   assert(SumWt >= TrueWt && SumWt >= FalseWt &&
          "Overflow calculating branch probabilities.");
+
+  // Guard against 0-to-0 branch weights to avoid a division-by-zero crash.
+  if (SumWt == 0)
+    return false;
 
   TrueProb = BranchProbability::getBranchProbability(TrueWt, SumWt);
   FalseProb = BranchProbability::getBranchProbability(FalseWt, SumWt);
@@ -1053,6 +1067,7 @@ static bool shouldSplit(Instruction *InsertPoint,
                         DenseSet<Value *> &ConditionValues,
                         DominatorTree &DT,
                         DenseSet<Instruction *> &Unhoistables) {
+  assert(InsertPoint && "Null InsertPoint");
   CHR_DEBUG(
       dbgs() << "shouldSplit " << *InsertPoint << " PrevConditionValues ";
       for (Value *V : PrevConditionValues) {
@@ -1063,7 +1078,6 @@ static bool shouldSplit(Instruction *InsertPoint,
         dbgs() << *V << ", ";
       }
       dbgs() << "\n");
-  assert(InsertPoint && "Null InsertPoint");
   // If any of Bases isn't hoistable to the hoist point, split.
   for (Value *V : ConditionValues) {
     DenseMap<Instruction *, bool> Visited;
@@ -1078,12 +1092,13 @@ static bool shouldSplit(Instruction *InsertPoint,
   if (!PrevConditionValues.empty() && !ConditionValues.empty()) {
     // Use std::set as DenseSet doesn't work with set_intersection.
     std::set<Value *> PrevBases, Bases;
+    DenseMap<Value *, std::set<Value *>> Visited;
     for (Value *V : PrevConditionValues) {
-      std::set<Value *> BaseValues = getBaseValues(V, DT);
+      std::set<Value *> BaseValues = getBaseValues(V, DT, Visited);
       PrevBases.insert(BaseValues.begin(), BaseValues.end());
     }
     for (Value *V : ConditionValues) {
-      std::set<Value *> BaseValues = getBaseValues(V, DT);
+      std::set<Value *> BaseValues = getBaseValues(V, DT, Visited);
       Bases.insert(BaseValues.begin(), BaseValues.end());
     }
     CHR_DEBUG(
@@ -1538,10 +1553,7 @@ static bool negateICmpIfUsedByBranchOrSelectOnly(ICmpInst *ICmp,
     }
     if (auto *SI = dyn_cast<SelectInst>(U)) {
       // Swap operands
-      Value *TrueValue = SI->getTrueValue();
-      Value *FalseValue = SI->getFalseValue();
-      SI->setTrueValue(FalseValue);
-      SI->setFalseValue(TrueValue);
+      SI->swapValues();
       SI->swapProfMetadata();
       if (Scope->TrueBiasedSelects.count(SI)) {
         assert(Scope->FalseBiasedSelects.count(SI) == 0 &&
@@ -2073,7 +2085,7 @@ bool ControlHeightReductionLegacyPass::runOnFunction(Function &F) {
       getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
   RegionInfo &RI = getAnalysis<RegionInfoPass>().getRegionInfo();
   std::unique_ptr<OptimizationRemarkEmitter> OwnedORE =
-      llvm::make_unique<OptimizationRemarkEmitter>(&F);
+      std::make_unique<OptimizationRemarkEmitter>(&F);
   return CHR(F, BFI, DT, PSI, RI, *OwnedORE.get()).run();
 }
 

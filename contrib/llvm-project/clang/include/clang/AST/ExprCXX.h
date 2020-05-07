@@ -17,6 +17,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/NestedNameSpecifier.h"
@@ -250,6 +251,96 @@ public:
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CUDAKernelCallExprClass;
+  }
+};
+
+/// A rewritten comparison expression that was originally written using
+/// operator syntax.
+///
+/// In C++20, the following rewrites are performed:
+/// - <tt>a == b</tt> -> <tt>b == a</tt>
+/// - <tt>a != b</tt> -> <tt>!(a == b)</tt>
+/// - <tt>a != b</tt> -> <tt>!(b == a)</tt>
+/// - For \c \@ in \c <, \c <=, \c >, \c >=, \c <=>:
+///   - <tt>a @ b</tt> -> <tt>(a <=> b) @ 0</tt>
+///   - <tt>a @ b</tt> -> <tt>0 @ (b <=> a)</tt>
+///
+/// This expression provides access to both the original syntax and the
+/// rewritten expression.
+///
+/// Note that the rewritten calls to \c ==, \c <=>, and \c \@ are typically
+/// \c CXXOperatorCallExprs, but could theoretically be \c BinaryOperators.
+class CXXRewrittenBinaryOperator : public Expr {
+  friend class ASTStmtReader;
+
+  /// The rewritten semantic form.
+  Stmt *SemanticForm;
+
+public:
+  CXXRewrittenBinaryOperator(Expr *SemanticForm, bool IsReversed)
+      : Expr(CXXRewrittenBinaryOperatorClass, SemanticForm->getType(),
+             SemanticForm->getValueKind(), SemanticForm->getObjectKind(),
+             SemanticForm->isTypeDependent(), SemanticForm->isValueDependent(),
+             SemanticForm->isInstantiationDependent(),
+             SemanticForm->containsUnexpandedParameterPack()),
+        SemanticForm(SemanticForm) {
+    CXXRewrittenBinaryOperatorBits.IsReversed = IsReversed;
+  }
+  CXXRewrittenBinaryOperator(EmptyShell Empty)
+      : Expr(CXXRewrittenBinaryOperatorClass, Empty), SemanticForm() {}
+
+  /// Get an equivalent semantic form for this expression.
+  Expr *getSemanticForm() { return cast<Expr>(SemanticForm); }
+  const Expr *getSemanticForm() const { return cast<Expr>(SemanticForm); }
+
+  struct DecomposedForm {
+    /// The original opcode, prior to rewriting.
+    BinaryOperatorKind Opcode;
+    /// The original left-hand side.
+    const Expr *LHS;
+    /// The original right-hand side.
+    const Expr *RHS;
+    /// The inner \c == or \c <=> operator expression.
+    const Expr *InnerBinOp;
+  };
+
+  /// Decompose this operator into its syntactic form.
+  DecomposedForm getDecomposedForm() const LLVM_READONLY;
+
+  /// Determine whether this expression was rewritten in reverse form.
+  bool isReversed() const { return CXXRewrittenBinaryOperatorBits.IsReversed; }
+
+  BinaryOperatorKind getOperator() const { return getDecomposedForm().Opcode; }
+  const Expr *getLHS() const { return getDecomposedForm().LHS; }
+  const Expr *getRHS() const { return getDecomposedForm().RHS; }
+
+  SourceLocation getOperatorLoc() const LLVM_READONLY {
+    return getDecomposedForm().InnerBinOp->getExprLoc();
+  }
+  SourceLocation getExprLoc() const LLVM_READONLY { return getOperatorLoc(); }
+
+  /// Compute the begin and end locations from the decomposed form.
+  /// The locations of the semantic form are not reliable if this is
+  /// a reversed expression.
+  //@{
+  SourceLocation getBeginLoc() const LLVM_READONLY {
+    return getDecomposedForm().LHS->getBeginLoc();
+  }
+  SourceLocation getEndLoc() const LLVM_READONLY {
+    return getDecomposedForm().RHS->getEndLoc();
+  }
+  SourceRange getSourceRange() const LLVM_READONLY {
+    DecomposedForm DF = getDecomposedForm();
+    return SourceRange(DF.LHS->getBeginLoc(), DF.RHS->getEndLoc());
+  }
+  //@}
+
+  child_range children() {
+    return child_range(&SemanticForm, &SemanticForm + 1);
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == CXXRewrittenBinaryOperatorClass;
   }
 };
 
@@ -1907,6 +1998,10 @@ public:
   /// lambda expression.
   CXXMethodDecl *getCallOperator() const;
 
+  /// Retrieve the function template call operator associated with this
+  /// lambda expression.
+  FunctionTemplateDecl *getDependentCallOperator() const;
+
   /// If this is a generic lambda expression, retrieve the template
   /// parameter list associated with it, or else return null.
   TemplateParameterList *getTemplateParameterList() const;
@@ -2096,8 +2191,7 @@ public:
                                  bool IsParenTypeId);
 
   QualType getAllocatedType() const {
-    assert(getType()->isPointerType());
-    return getType()->getAs<PointerType>()->getPointeeType();
+    return getType()->castAs<PointerType>()->getPointeeType();
   }
 
   TypeSourceInfo *getAllocatedTypeSourceInfo() const {
@@ -2275,8 +2369,8 @@ public:
   CXXDeleteExpr(QualType Ty, bool GlobalDelete, bool ArrayForm,
                 bool ArrayFormAsWritten, bool UsualArrayDeleteWantsSize,
                 FunctionDecl *OperatorDelete, Expr *Arg, SourceLocation Loc)
-      : Expr(CXXDeleteExprClass, Ty, VK_RValue, OK_Ordinary, false, false,
-             Arg->isInstantiationDependent(),
+      : Expr(CXXDeleteExprClass, Ty, VK_RValue, OK_Ordinary, false,
+             Arg->isValueDependent(), Arg->isInstantiationDependent(),
              Arg->containsUnexpandedParameterPack()),
         OperatorDelete(OperatorDelete), Argument(Arg) {
     CXXDeleteExprBits.GlobalDelete = GlobalDelete;
@@ -4327,73 +4421,66 @@ private:
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
 
-  struct ExtraState {
-    /// The temporary-generating expression whose value will be
-    /// materialized.
-    Stmt *Temporary;
-
-    /// The declaration which lifetime-extended this reference, if any.
-    /// Either a VarDecl, or (for a ctor-initializer) a FieldDecl.
-    const ValueDecl *ExtendingDecl;
-
-    unsigned ManglingNumber;
-  };
-  llvm::PointerUnion<Stmt *, ExtraState *> State;
-
-  void initializeExtraState(const ValueDecl *ExtendedBy,
-                            unsigned ManglingNumber);
+  llvm::PointerUnion<Stmt *, LifetimeExtendedTemporaryDecl *> State;
 
 public:
   MaterializeTemporaryExpr(QualType T, Expr *Temporary,
-                           bool BoundToLvalueReference)
-      : Expr(MaterializeTemporaryExprClass, T,
-             BoundToLvalueReference? VK_LValue : VK_XValue, OK_Ordinary,
-             Temporary->isTypeDependent(), Temporary->isValueDependent(),
-             Temporary->isInstantiationDependent(),
-             Temporary->containsUnexpandedParameterPack()),
-        State(Temporary) {}
+                           bool BoundToLvalueReference,
+                           LifetimeExtendedTemporaryDecl *MTD = nullptr);
 
   MaterializeTemporaryExpr(EmptyShell Empty)
       : Expr(MaterializeTemporaryExprClass, Empty) {}
 
-  Stmt *getTemporary() const {
-    return State.is<Stmt *>() ? State.get<Stmt *>()
-                              : State.get<ExtraState *>()->Temporary;
-  }
-
   /// Retrieve the temporary-generating subexpression whose value will
   /// be materialized into a glvalue.
-  Expr *GetTemporaryExpr() const { return static_cast<Expr *>(getTemporary()); }
+  Expr *getSubExpr() const {
+    return cast<Expr>(
+        State.is<Stmt *>()
+            ? State.get<Stmt *>()
+            : State.get<LifetimeExtendedTemporaryDecl *>()->getTemporaryExpr());
+  }
 
   /// Retrieve the storage duration for the materialized temporary.
   StorageDuration getStorageDuration() const {
-    const ValueDecl *ExtendingDecl = getExtendingDecl();
-    if (!ExtendingDecl)
-      return SD_FullExpression;
-    // FIXME: This is not necessarily correct for a temporary materialized
-    // within a default initializer.
-    if (isa<FieldDecl>(ExtendingDecl))
-      return SD_Automatic;
-    // FIXME: This only works because storage class specifiers are not allowed
-    // on decomposition declarations.
-    if (isa<BindingDecl>(ExtendingDecl))
-      return ExtendingDecl->getDeclContext()->isFunctionOrMethod()
-                 ? SD_Automatic
-                 : SD_Static;
-    return cast<VarDecl>(ExtendingDecl)->getStorageDuration();
+    return State.is<Stmt *>() ? SD_FullExpression
+                              : State.get<LifetimeExtendedTemporaryDecl *>()
+                                    ->getStorageDuration();
+  }
+
+  /// Get the storage for the constant value of a materialized temporary
+  /// of static storage duration.
+  APValue *getOrCreateValue(bool MayCreate) const {
+    assert(State.is<LifetimeExtendedTemporaryDecl *>() &&
+           "the temporary has not been lifetime extended");
+    return State.get<LifetimeExtendedTemporaryDecl *>()->getOrCreateValue(
+        MayCreate);
+  }
+
+  LifetimeExtendedTemporaryDecl *getLifetimeExtendedTemporaryDecl() {
+    return State.dyn_cast<LifetimeExtendedTemporaryDecl *>();
+  }
+  const LifetimeExtendedTemporaryDecl *
+  getLifetimeExtendedTemporaryDecl() const {
+    return State.dyn_cast<LifetimeExtendedTemporaryDecl *>();
   }
 
   /// Get the declaration which triggered the lifetime-extension of this
   /// temporary, if any.
-  const ValueDecl *getExtendingDecl() const {
+  ValueDecl *getExtendingDecl() {
     return State.is<Stmt *>() ? nullptr
-                              : State.get<ExtraState *>()->ExtendingDecl;
+                              : State.get<LifetimeExtendedTemporaryDecl *>()
+                                    ->getExtendingDecl();
+  }
+  const ValueDecl *getExtendingDecl() const {
+    return const_cast<MaterializeTemporaryExpr *>(this)->getExtendingDecl();
   }
 
-  void setExtendingDecl(const ValueDecl *ExtendedBy, unsigned ManglingNumber);
+  void setExtendingDecl(ValueDecl *ExtendedBy, unsigned ManglingNumber);
 
   unsigned getManglingNumber() const {
-    return State.is<Stmt *>() ? 0 : State.get<ExtraState *>()->ManglingNumber;
+    return State.is<Stmt *>() ? 0
+                              : State.get<LifetimeExtendedTemporaryDecl *>()
+                                    ->getManglingNumber();
   }
 
   /// Determine whether this materialized temporary is bound to an
@@ -4403,11 +4490,11 @@ public:
   }
 
   SourceLocation getBeginLoc() const LLVM_READONLY {
-    return getTemporary()->getBeginLoc();
+    return getSubExpr()->getBeginLoc();
   }
 
   SourceLocation getEndLoc() const LLVM_READONLY {
-    return getTemporary()->getEndLoc();
+    return getSubExpr()->getEndLoc();
   }
 
   static bool classof(const Stmt *T) {
@@ -4416,20 +4503,18 @@ public:
 
   // Iterators
   child_range children() {
-    if (State.is<Stmt *>())
-      return child_range(State.getAddrOfPtr1(), State.getAddrOfPtr1() + 1);
-
-    auto ES = State.get<ExtraState *>();
-    return child_range(&ES->Temporary, &ES->Temporary + 1);
+    return State.is<Stmt *>()
+               ? child_range(State.getAddrOfPtr1(), State.getAddrOfPtr1() + 1)
+               : State.get<LifetimeExtendedTemporaryDecl *>()->childrenExpr();
   }
 
   const_child_range children() const {
-    if (State.is<Stmt *>())
-      return const_child_range(State.getAddrOfPtr1(),
-                               State.getAddrOfPtr1() + 1);
-
-    auto ES = State.get<ExtraState *>();
-    return const_child_range(&ES->Temporary, &ES->Temporary + 1);
+    return State.is<Stmt *>()
+               ? const_child_range(State.getAddrOfPtr1(),
+                                   State.getAddrOfPtr1() + 1)
+               : const_cast<const LifetimeExtendedTemporaryDecl *>(
+                     State.get<LifetimeExtendedTemporaryDecl *>())
+                     ->childrenExpr();
   }
 };
 

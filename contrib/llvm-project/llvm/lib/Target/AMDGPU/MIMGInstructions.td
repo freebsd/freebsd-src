@@ -26,7 +26,7 @@ def MIMGEncoding : GenericEnum {
 
 // Represent an ISA-level opcode, independent of the encoding and the
 // vdata/vaddr size.
-class MIMGBaseOpcode {
+class MIMGBaseOpcode : PredicateControl {
   MIMGBaseOpcode BaseOpcode = !cast<MIMGBaseOpcode>(NAME);
   bit Store = 0;
   bit Atomic = 0;
@@ -183,7 +183,7 @@ class MIMGNSAHelper<int num_addrs> {
 class MIMG_gfx6789<bits<8> op, dag outs, string dns = "">
   : MIMG<outs, dns>, MIMGe_gfx6789<op> {
   let SubtargetPredicate = isGFX6GFX7GFX8GFX9;
-  let AssemblerPredicates = [isGFX6GFX7GFX8GFX9];
+  let AssemblerPredicate = isGFX6GFX7GFX8GFX9;
 
   let MIMGEncoding = MIMGEncGfx6;
 
@@ -194,7 +194,7 @@ class MIMG_gfx6789<bits<8> op, dag outs, string dns = "">
 class MIMG_gfx10<int op, dag outs, string dns = "">
   : MIMG<outs, dns>, MIMGe_gfx10<op> {
   let SubtargetPredicate = isGFX10Plus;
-  let AssemblerPredicates = [isGFX10Plus];
+  let AssemblerPredicate = isGFX10Plus;
 
   let MIMGEncoding = MIMGEncGfx10Default;
 
@@ -207,7 +207,7 @@ class MIMG_gfx10<int op, dag outs, string dns = "">
 class MIMG_nsa_gfx10<int op, dag outs, int num_addrs, string dns="">
   : MIMG<outs, dns>, MIMGe_gfx10<op> {
   let SubtargetPredicate = isGFX10Plus;
-  let AssemblerPredicates = [isGFX10Plus];
+  let AssemblerPredicate = isGFX10Plus;
 
   let MIMGEncoding = MIMGEncGfx10NSA;
 
@@ -291,7 +291,7 @@ multiclass MIMG_NoSampler_Src_Helper <bits<8> op, string asm,
 
 multiclass MIMG_NoSampler <bits<8> op, string asm, bit has_d16, bit mip = 0,
                            bit isResInfo = 0> {
-  def "" : MIMGBaseOpcode, PredicateControl {
+  def "" : MIMGBaseOpcode {
     let Coordinates = !if(isResInfo, 0, 1);
     let LodOrClampOrMip = mip;
     let HasD16 = has_d16;
@@ -416,13 +416,13 @@ class MIMG_Atomic_si<mimg op, string asm, RegisterClass data_rc,
                      RegisterClass addr_rc, bit enableDasm = 0>
   : MIMG_Atomic_gfx6789_base<op.SI_GFX10, asm, data_rc, addr_rc,
                              !if(enableDasm, "GFX6GFX7", "")> {
-  let AssemblerPredicates = [isGFX6GFX7];
+  let AssemblerPredicate = isGFX6GFX7;
 }
 
 class MIMG_Atomic_vi<mimg op, string asm, RegisterClass data_rc,
                      RegisterClass addr_rc, bit enableDasm = 0>
   : MIMG_Atomic_gfx6789_base<op.VI, asm, data_rc, addr_rc, !if(enableDasm, "GFX8", "")> {
-  let AssemblerPredicates = [isGFX8GFX9];
+  let AssemblerPredicate = isGFX8GFX9;
   let MIMGEncoding = MIMGEncGfx8;
 }
 

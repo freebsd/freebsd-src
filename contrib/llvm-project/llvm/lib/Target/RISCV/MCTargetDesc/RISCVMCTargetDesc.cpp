@@ -16,7 +16,9 @@
 #include "RISCVMCAsmInfo.h"
 #include "RISCVTargetStreamer.h"
 #include "TargetInfo/RISCVTargetInfo.h"
+#include "Utils/RISCVBaseInfo.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/CodeGen/Register.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -49,10 +51,11 @@ static MCRegisterInfo *createRISCVMCRegisterInfo(const Triple &TT) {
 }
 
 static MCAsmInfo *createRISCVMCAsmInfo(const MCRegisterInfo &MRI,
-                                       const Triple &TT) {
+                                       const Triple &TT,
+                                       const MCTargetOptions &Options) {
   MCAsmInfo *MAI = new RISCVMCAsmInfo(TT);
 
-  unsigned SP = MRI.getDwarfRegNum(RISCV::X2, true);
+  Register SP = MRI.getDwarfRegNum(RISCV::X2, true);
   MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, SP, 0);
   MAI->addInitialFrameState(Inst);
 
@@ -90,7 +93,7 @@ static MCTargetStreamer *createRISCVAsmTargetStreamer(MCStreamer &S,
   return new RISCVTargetAsmStreamer(S, OS);
 }
 
-extern "C" void LLVMInitializeRISCVTargetMC() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTargetMC() {
   for (Target *T : {&getTheRISCV32Target(), &getTheRISCV64Target()}) {
     TargetRegistry::RegisterMCAsmInfo(*T, createRISCVMCAsmInfo);
     TargetRegistry::RegisterMCInstrInfo(*T, createRISCVMCInstrInfo);

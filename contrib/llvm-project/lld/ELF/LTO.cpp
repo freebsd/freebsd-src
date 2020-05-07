@@ -42,15 +42,15 @@ using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::ELF;
 
-using namespace lld;
-using namespace lld::elf;
+namespace lld {
+namespace elf {
 
 // Creates an empty file to store a list of object files for final
 // linking of distributed ThinLTO.
 static std::unique_ptr<raw_fd_ostream> openFile(StringRef file) {
   std::error_code ec;
   auto ret =
-      llvm::make_unique<raw_fd_ostream>(file, ec, sys::fs::OpenFlags::F_None);
+      std::make_unique<raw_fd_ostream>(file, ec, sys::fs::OpenFlags::OF_None);
   if (ec) {
     error("cannot open " + file + ": " + ec.message());
     return nullptr;
@@ -76,7 +76,9 @@ static lto::Config createConfig() {
   c.Options.FunctionSections = true;
   c.Options.DataSections = true;
 
-  if (config->relocatable)
+  if (auto relocModel = getRelocModelFromCMModel())
+    c.RelocModel = *relocModel;
+  else if (config->relocatable)
     c.RelocModel = None;
   else if (config->isPic)
     c.RelocModel = Reloc::PIC_;
@@ -90,6 +92,9 @@ static lto::Config createConfig() {
   c.CPU = getCPUStr();
   c.MAttrs = getMAttrs();
   c.CGOptLevel = args::getCGOptLevel(config->ltoo);
+
+  c.PTO.LoopVectorization = c.OptLevel > 1;
+  c.PTO.SLPVectorization = c.OptLevel > 1;
 
   // Set up a custom pipeline if we've been asked to.
   c.OptPipeline = config->ltoNewPmPasses;
@@ -139,16 +144,16 @@ BitcodeCompiler::BitcodeCompiler() {
     backend = lto::createInProcessThinBackend(config->thinLTOJobs);
   }
 
-  ltoObj = llvm::make_unique<lto::LTO>(createConfig(), backend,
+  ltoObj = std::make_unique<lto::LTO>(createConfig(), backend,
                                        config->ltoPartitions);
 
   // Initialize usedStartStop.
-  symtab->forEachSymbol([&](Symbol *sym) {
+  for (Symbol *sym : symtab->symbols()) {
     StringRef s = sym->getName();
     for (StringRef prefix : {"__start_", "__stop_"})
       if (s.startswith(prefix))
         usedStartStop.insert(s.substr(prefix.size()));
-  });
+  }
 }
 
 BitcodeCompiler::~BitcodeCompiler() = default;
@@ -249,8 +254,8 @@ std::vector<InputFile *> BitcodeCompiler::compile() {
   if (!bitcodeFiles.empty())
     checkError(ltoObj->run(
         [&](size_t task) {
-          return llvm::make_unique<lto::NativeObjectStream>(
-              llvm::make_unique<raw_svector_ostream>(buf[task]));
+          return std::make_unique<lto::NativeObjectStream>(
+              std::make_unique<raw_svector_ostream>(buf[task]));
         },
         cache));
 
@@ -301,3 +306,6 @@ std::vector<InputFile *> BitcodeCompiler::compile() {
       ret.push_back(createObjectFile(*file));
   return ret;
 }
+
+} // namespace elf
+} // namespace lld

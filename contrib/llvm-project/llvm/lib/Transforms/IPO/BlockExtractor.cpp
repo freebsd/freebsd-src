@@ -15,6 +15,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -119,6 +120,8 @@ void BlockExtractor::loadFile() {
                /*KeepEmpty=*/false);
     if (LineSplit.empty())
       continue;
+    if (LineSplit.size()!=2)
+      report_fatal_error("Invalid line format, expecting lines like: 'funcname bb1[;bb2..]'");
     SmallVector<StringRef, 4> BBNames;
     LineSplit[1].split(BBNames, ';', /*MaxSplit=*/-1,
                        /*KeepEmpty=*/false);
@@ -204,7 +207,8 @@ bool BlockExtractor::runOnModule(Module &M) {
       ++NumExtracted;
       Changed = true;
     }
-    Function *F = CodeExtractor(BlocksToExtractVec).extractCodeRegion();
+    CodeExtractorAnalysisCache CEAC(*BBs[0]->getParent());
+    Function *F = CodeExtractor(BlocksToExtractVec).extractCodeRegion(CEAC);
     if (F)
       LLVM_DEBUG(dbgs() << "Extracted group '" << (*BBs.begin())->getName()
                         << "' in: " << F->getName() << '\n');

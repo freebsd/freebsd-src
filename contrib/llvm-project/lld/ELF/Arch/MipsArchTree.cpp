@@ -23,8 +23,8 @@ using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::ELF;
 
-using namespace lld;
-using namespace lld::elf;
+namespace lld {
+namespace elf {
 
 namespace {
 struct ArchTreeEdge {
@@ -166,17 +166,17 @@ static ArchTreeEdge archTree[] = {
     {EF_MIPS_ARCH_2, EF_MIPS_ARCH_1},
 };
 
-static bool isArchMatched(uint32_t New, uint32_t res) {
-  if (New == res)
+static bool isArchMatched(uint32_t newFlags, uint32_t res) {
+  if (newFlags == res)
     return true;
-  if (New == EF_MIPS_ARCH_32 && isArchMatched(EF_MIPS_ARCH_64, res))
+  if (newFlags == EF_MIPS_ARCH_32 && isArchMatched(EF_MIPS_ARCH_64, res))
     return true;
-  if (New == EF_MIPS_ARCH_32R2 && isArchMatched(EF_MIPS_ARCH_64R2, res))
+  if (newFlags == EF_MIPS_ARCH_32R2 && isArchMatched(EF_MIPS_ARCH_64R2, res))
     return true;
   for (const auto &edge : archTree) {
     if (res == edge.child) {
       res = edge.parent;
-      if (res == New)
+      if (res == newFlags)
         return true;
     }
   }
@@ -278,46 +278,34 @@ static uint32_t getArchFlags(ArrayRef<FileFlags> files) {
   uint32_t ret = files[0].flags & (EF_MIPS_ARCH | EF_MIPS_MACH);
 
   for (const FileFlags &f : files.slice(1)) {
-    uint32_t New = f.flags & (EF_MIPS_ARCH | EF_MIPS_MACH);
+    uint32_t newFlags = f.flags & (EF_MIPS_ARCH | EF_MIPS_MACH);
 
     // Check ISA compatibility.
-    if (isArchMatched(New, ret))
+    if (isArchMatched(newFlags, ret))
       continue;
-    if (!isArchMatched(ret, New)) {
+    if (!isArchMatched(ret, newFlags)) {
       error("incompatible target ISA:\n>>> " + toString(files[0].file) + ": " +
             getFullArchName(ret) + "\n>>> " + toString(f.file) + ": " +
-            getFullArchName(New));
+            getFullArchName(newFlags));
       return 0;
     }
-    ret = New;
+    ret = newFlags;
   }
   return ret;
 }
 
-// If we don't have any input files, we'll have to rely on the information we
-// can derive from emulation information, since this at least gets us ABI.
-static uint32_t getFlagsFromEmulation() {
-  uint32_t ret = 0;
-
-  if (config->emulation.empty())
-    return 0;
-
-  if (config->ekind == ELF32BEKind || config->ekind == ELF32LEKind) {
-    if (config->mipsN32Abi)
-      ret |= EF_MIPS_ABI2;
-    else
-      ret |= EF_MIPS_ABI_O32;
-  }
-
-  return ret;
-}
-
-template <class ELFT> uint32_t elf::calcMipsEFlags() {
+template <class ELFT> uint32_t calcMipsEFlags() {
   std::vector<FileFlags> v;
   for (InputFile *f : objectFiles)
     v.push_back({f, cast<ObjFile<ELFT>>(f)->getObj().getHeader()->e_flags});
-  if (v.empty())
-    return getFlagsFromEmulation();
+  if (v.empty()) {
+    // If we don't have any input files, we'll have to rely on the information
+    // we can derive from emulation information, since this at least gets us
+    // ABI.
+    if (config->emulation.empty() || config->is64)
+      return 0;
+    return config->mipsN32Abi ? EF_MIPS_ABI2 : EF_MIPS_ABI_O32;
+  }
   checkFlags(v);
   return getMiscFlags(v) | getPicFlags(v) | getArchFlags(v);
 }
@@ -362,8 +350,7 @@ static StringRef getMipsFpAbiName(uint8_t fpAbi) {
   }
 }
 
-uint8_t elf::getMipsFpAbiFlag(uint8_t oldFlag, uint8_t newFlag,
-                              StringRef fileName) {
+uint8_t getMipsFpAbiFlag(uint8_t oldFlag, uint8_t newFlag, StringRef fileName) {
   if (compareMipsFpAbi(newFlag, oldFlag) >= 0)
     return newFlag;
   if (compareMipsFpAbi(oldFlag, newFlag) < 0)
@@ -379,7 +366,7 @@ template <class ELFT> static bool isN32Abi(const InputFile *f) {
   return false;
 }
 
-bool elf::isMipsN32Abi(const InputFile *f) {
+bool isMipsN32Abi(const InputFile *f) {
   switch (config->ekind) {
   case ELF32LEKind:
     return isN32Abi<ELF32LE>(f);
@@ -394,14 +381,17 @@ bool elf::isMipsN32Abi(const InputFile *f) {
   }
 }
 
-bool elf::isMicroMips() { return config->eflags & EF_MIPS_MICROMIPS; }
+bool isMicroMips() { return config->eflags & EF_MIPS_MICROMIPS; }
 
-bool elf::isMipsR6() {
+bool isMipsR6() {
   uint32_t arch = config->eflags & EF_MIPS_ARCH;
   return arch == EF_MIPS_ARCH_32R6 || arch == EF_MIPS_ARCH_64R6;
 }
 
-template uint32_t elf::calcMipsEFlags<ELF32LE>();
-template uint32_t elf::calcMipsEFlags<ELF32BE>();
-template uint32_t elf::calcMipsEFlags<ELF64LE>();
-template uint32_t elf::calcMipsEFlags<ELF64BE>();
+template uint32_t calcMipsEFlags<ELF32LE>();
+template uint32_t calcMipsEFlags<ELF32BE>();
+template uint32_t calcMipsEFlags<ELF64LE>();
+template uint32_t calcMipsEFlags<ELF64BE>();
+
+} // namespace elf
+} // namespace lld
