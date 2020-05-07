@@ -4078,6 +4078,7 @@ bbr_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type, struct bbr_s
  */
 #define DELAY_ACK(tp, bbr, nsegs)				\
 	(((tp->t_flags & TF_RXWIN0SENT) == 0) &&		\
+	 ((tp->t_flags & TF_DELACK) == 0) && 		 	\
 	 ((bbr->bbr_segs_rcvd + nsegs) < tp->t_delayed_ack) &&	\
 	 (tp->t_delayed_ack || (tp->t_flags & TF_NEEDSYN)))
 
@@ -8992,7 +8993,7 @@ bbr_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * If there's data, delay ACK; if there's also a FIN ACKNOW
 		 * will be turned on later.
 		 */
-		if (DELAY_ACK(tp, bbr, 1) && tlen != 0 && (tfo_partial == 0)) {
+		if (DELAY_ACK(tp, bbr, 1) && tlen != 0 && !tfo_partial) {
 			bbr->bbr_segs_rcvd += 1;
 			tp->t_flags |= TF_DELACK;
 			bbr_timer_cancel(bbr, __LINE__, bbr->r_ctl.rc_rcvtime);
