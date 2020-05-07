@@ -9320,7 +9320,15 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * If there's data, delay ACK; if there's also a FIN ACKNOW
 		 * will be turned on later.
 		 */
-		rack_handle_delayed_ack(tp, rack, tlen, tfo_partial);
+		if (DELAY_ACK(tp, tlen) && tlen != 0 && !tfo_partial) {
+			rack_timer_cancel(tp, rack,
+					  rack->r_ctl.rc_rcvtime, __LINE__);
+			tp->t_flags |= TF_DELACK;
+		} else {
+			rack->r_wanted_output = 1;
+			tp->t_flags |= TF_ACKNOW;
+			rack->rc_dack_toggle = 0;
+		}
 		if (((thflags & (TH_CWR | TH_ECE)) == TH_ECE) &&
 		    (V_tcp_do_ecn == 1)) {
 			tp->t_flags2 |= TF2_ECN_PERMIT;
