@@ -66,6 +66,11 @@ if_indextoname(unsigned int ifindex, char *ifname)
 	struct ifaddrs *ifaddrs, *ifa;
 	int error = 0;
 
+	if (ifindex == 0) {
+		errno = ENXIO;
+		return(NULL);
+	}
+
 	if (getifaddrs(&ifaddrs) < 0)
 		return(NULL);	/* getifaddrs properly set errno */
 
