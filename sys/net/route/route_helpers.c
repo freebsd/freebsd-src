@@ -55,6 +55,12 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop.h>
 #include <net/route/nhop_var.h>
 #include <net/route/shared.h>
+#ifdef INET
+#include <netinet/in_fib.h>
+#endif
+#ifdef INET6
+#include <netinet6/in6_fib.h>
+#endif
 #include <net/vnet.h>
 
 /*
@@ -79,5 +85,50 @@ rib_walk(int af, u_int fibnum, rt_walktree_f_t *wa_f, void *arg)
 	RIB_RLOCK(rnh);
 	rnh->rnh_walktree(&rnh->head, (walktree_f_t *)wa_f, arg);
 	RIB_RUNLOCK(rnh);
+}
+
+/*
+ * Wrapper for the control plane functions for performing af-agnostic
+ *  lookups.
+ * @fibnum: fib to perform the lookup.
+ * @dst: sockaddr with family and addr filled in. IPv6 addresses needs to be in
+ *  deembedded from.
+ * @flags: fib(9) flags.
+ * @flowid: flow id for path selection in multipath use case.
+ *
+ * Returns nhop_object or NULL.
+ *
+ * Requires NET_EPOCH.
+ *
+ */
+struct nhop_object *
+rib_lookup(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
+    uint32_t flowid)
+{
+	struct nhop_object *nh;
+
+	nh = NULL;
+
+	switch (dst->sa_family) {
+#ifdef INET
+	case AF_INET:
+	{
+		const struct sockaddr_in *a = (const struct sockaddr_in *)dst;
+		nh = fib4_lookup(fibnum, a->sin_addr, 0, flags, flowid);
+		break;
+	}
+#endif
+#ifdef INET6
+	case AF_INET6:
+	{
+		const struct sockaddr_in6 *a = (const struct sockaddr_in6*)dst;
+		nh = fib6_lookup(fibnum, &a->sin6_addr, a->sin6_scope_id,
+		    flags, flowid);
+		break;
+	}
+#endif
+	}
+
+	return (nh);
 }
 

@@ -683,7 +683,6 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
 				u_int fibnum)
 {
 	struct ifaddr *ifa;
-	int not_found = 0;
 
 	NET_EPOCH_ASSERT();
 	if ((flags & RTF_GATEWAY) == 0) {
@@ -710,34 +709,17 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
 	if (ifa == NULL)
 		ifa = ifa_ifwithnet(gateway, 0, fibnum);
 	if (ifa == NULL) {
-		struct rtentry *rt;
+		struct nhop_object *nh;
 
-		rt = rtalloc1_fib(gateway, 0, flags, fibnum);
-		if (rt == NULL)
-			goto out;
+		nh = rib_lookup(fibnum, gateway, NHR_NONE, 0);
+
 		/*
 		 * dismiss a gateway that is reachable only
 		 * through the default router
 		 */
-		switch (gateway->sa_family) {
-		case AF_INET:
-			if (satosin(rt_key(rt))->sin_addr.s_addr == INADDR_ANY)
-				not_found = 1;
-			break;
-		case AF_INET6:
-			if (IN6_IS_ADDR_UNSPECIFIED(&satosin6(rt_key(rt))->sin6_addr))
-				not_found = 1;
-			break;
-		default:
-			break;
-		}
-		if (!not_found && rt->rt_nhop->nh_ifa != NULL) {
-			ifa = rt->rt_nhop->nh_ifa;
-		}
-		RT_REMREF(rt);
-		RT_UNLOCK(rt);
-		if (not_found || ifa == NULL)
-			goto out;
+		if ((nh == NULL) || (nh->nh_flags & NHF_DEFAULT))
+			return (NULL);
+		ifa = nh->nh_ifa;
 	}
 	if (ifa->ifa_addr->sa_family != dst->sa_family) {
 		struct ifaddr *oifa = ifa;
@@ -745,7 +727,7 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
 		if (ifa == NULL)
 			ifa = oifa;
 	}
- out:
+
 	return (ifa);
 }
 
