@@ -41,4 +41,7 @@
 
 void	ena_sysctl_add_nodes(struct ena_adapter *);
 
+extern int ena_enable_9k_mbufs;
+#define ena_mbuf_sz (ena_enable_9k_mbufs ? MJUM9BYTES : MJUMPAGESIZE)
+
 #endif /* !(ENA_SYSCTL_H) */

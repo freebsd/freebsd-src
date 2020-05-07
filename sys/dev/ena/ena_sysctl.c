@@ -48,6 +48,17 @@ int ena_log_level = ENA_ALERT | ENA_WARNING;
 SYSCTL_INT(_hw_ena, OID_AUTO, log_level, CTLFLAG_RWTUN,
     &ena_log_level, 0, "Logging level indicating verbosity of the logs");
 
+/*
+ * Use 9k mbufs for the Rx buffers. Default to 0 (use page size mbufs instead).
+ * Using 9k mbufs in low memory conditions might cause allocation to take a lot
+ * of time and lead to the OS instability as it needs to look for the contiguous
+ * pages.
+ * However, page size mbufs has a bit smaller throughput than 9k mbufs, so if
+ * the network performance is the priority, the 9k mbufs can be used.
+ */
+int ena_enable_9k_mbufs = 0;
+SYSCTL_INT(_hw_ena, OID_AUTO, enable_9k_mbufs, CTLFLAG_RDTUN,
+    &ena_enable_9k_mbufs, 0, "Use 9 kB mbufs for Rx descriptors");
 
 void
 ena_sysctl_add_nodes(struct ena_adapter *adapter)
