@@ -13353,9 +13353,6 @@ send:
 			else
 				msb = sb;
 			m->m_next = tcp_m_copym(
-#ifdef NETFLIX_COPY_ARGS
-				tp,
-#endif
 				mb, moff, &len,
 				if_hw_tsomaxsegcount, if_hw_tsomaxsegsize, msb,
 				((rsm == NULL) ? hw_tls : 0)

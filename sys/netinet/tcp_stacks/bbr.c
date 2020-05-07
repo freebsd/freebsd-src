@@ -13420,9 +13420,6 @@ send:
 #endif
 			orig_len = len;
 			m->m_next = tcp_m_copym(
-#ifdef NETFLIX_COPY_ARGS
-				tp,
-#endif
 				mb, moff, &len,
 				if_hw_tsomaxsegcount,
 				if_hw_tsomaxsegsize, msb,
