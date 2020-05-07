@@ -41,9 +41,6 @@ local password = require("password")
 
 config.load()
 
-if core.isUEFIBoot() then
-	loader.perform("efi-autoresizecons")
-end
 -- Our console may have been setup with different settings before we get
 -- here, so make sure we reset everything back to default.
 if color.isEnabled() then
