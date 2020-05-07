@@ -109,6 +109,8 @@
 
 #define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
 
+#define	RELOCATABLE_KERNEL	1		/* kernel may relocate during startup */
+
 #ifndef KSTACK_PAGES
 #ifdef __powerpc64__
 #define	KSTACK_PAGES		8		/* includes pcb */
