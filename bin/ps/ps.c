@@ -506,7 +506,7 @@ main(int argc, char *argv[])
 			what = KERN_PROC_PGRP | showthreads;
 			flag = *pgrplist.l.pids;
 			nselectors = 0;
-		} else if (pidlist.count == 1) {
+		} else if (pidlist.count == 1 && !descendancy) {
 			what = KERN_PROC_PID | showthreads;
 			flag = *pidlist.l.pids;
 			nselectors = 0;
@@ -544,6 +544,14 @@ main(int argc, char *argv[])
 	if ((kp == NULL && errno != ESRCH) || (kp != NULL && nentries < 0))
 		xo_errx(1, "%s", kvm_geterr(kd));
 	nkept = 0;
+	if (descendancy)
+		for (elem = 0; elem < pidlist.count; elem++)
+			for (i = 0; i < nentries; i++)
+				if (kp[i].ki_ppid == pidlist.l.pids[elem]) {
+					if (pidlist.count >= pidlist.maxcount)
+						expand_list(&pidlist);
+					pidlist.l.pids[pidlist.count++] = kp[i].ki_pid;
+				}
 	if (nentries > 0) {
 		if ((kinfo = malloc(nentries * sizeof(*kinfo))) == NULL)
 			xo_errx(1, "malloc failed");
