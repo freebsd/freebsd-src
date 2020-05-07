@@ -167,7 +167,12 @@ CTASSERT(sizeof(struct m_ext) == 160);
 #else
 CTASSERT(offsetof(struct mbuf, m_dat) == 24);
 CTASSERT(sizeof(struct pkthdr) == 48);
+#if defined(__powerpc__) && defined(BOOKE)
+/* PowerPC booke has 64-bit physical pointers. */
+CTASSERT(sizeof(struct m_ext) == 184);
+#else
 CTASSERT(sizeof(struct m_ext) == 180);
+#endif
 #endif
 
 /*
