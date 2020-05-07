@@ -221,10 +221,10 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 
 #ifndef __powerpc64__
 bool
-elf_is_ifunc_reloc(Elf_Size r_info __unused)
+elf_is_ifunc_reloc(Elf_Size r_info)
 {
 
-	return (false);
+	return (ELF_R_TYPE(r_info) == R_PPC_IRELATIVE);
 }
 
 /* Process one elf relocation with addend. */
@@ -235,7 +235,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	Elf_Addr *where;
 	Elf_Half *hwhere;
 	Elf_Addr addr;
-	Elf_Addr addend;
+	Elf_Addr addend, val;
 	Elf_Word rtype, symidx;
 	const Elf_Rela *rela;
 	int error;
@@ -315,6 +315,13 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		if (error != 0)
 			return -1;
 		*where = elf_relocaddr(lf, addr + addend);
+		break;
+
+	case R_PPC_IRELATIVE:
+		addr = relocbase + addend;
+		val = ((Elf32_Addr (*)(void))addr)();
+		if (*where != val)
+			*where = val;
 		break;
 
 	default:

@@ -200,6 +200,57 @@ ASENTRY_NOPROF(__start)
 	/* Unreachable */
 	b	.
 
+ASENTRY_NOPROF(__restartkernel_virtual)
+	/*
+	 * When coming in via this entry point, we need to alter the SLB to
+	 * shadow the segment register emulation entries in DMAP space.
+	 * We need to do this dance because we are running with virtual-mode
+	 * OpenFirmware and have not yet taken over the MMU.
+	 *
+	 * Assumptions:
+	 * 1) The kernel is currently identity-mapped.
+	 * 2) We are currently executing at an address compatible with
+	 *    real mode.
+	 * 3) The first 16 SLB entries are emulating SRs.
+	 * 4) The rest of the SLB is not in use.
+	 * 5) OpenFirmware is not manipulating the SLB at runtime.
+	 * 6) We are running on 64-bit AIM.
+	 *
+	 * Tested on a G5.
+	 */
+	mfmsr	%r14
+	/* Switch to real mode because we are about to mess with the SLB. */
+	andi.	%r14, %r14, ~(PSL_DR|PSL_IR|PSL_ME|PSL_RI)@l
+	mtmsr	%r14
+	isync
+	/* Prepare variables for later use. */
+	li	%r14, 0
+	li	%r18, 0
+	oris	%r18, %r18, 0xc000
+	sldi	%r18, %r18, 32		/* r18: 0xc000000000000000 */
+1:
+	/*
+	 * Loop over the first 16 SLB entries.
+	 * Offset the SLBE into the DMAP, add 16 to the index, and write
+	 * it back to the SLB.
+	 */
+	/* XXX add more safety checks */
+	slbmfev	%r15, %r14
+	slbmfee	%r16, %r14
+	or	%r16, %r16, %r14	/* index is 0-15 */
+	ori	%r16, %r16, 0x10	/* add 16 to index. */
+	or	%r16, %r16, %r18	/* SLBE DMAP offset */
+	rldicr	%r17, %r16, 0, 37	/* Invalidation SLBE */
+
+	isync
+	slbie	%r17
+	/* isync */
+	slbmte	%r15, %r16
+	isync
+	addi	%r14, %r14, 1
+	cmpdi	%r14, 16
+	blt	1b
+
 ASENTRY_NOPROF(__restartkernel)
 	/*
 	 * r3-r7: arguments to go to __start

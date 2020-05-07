@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/fpu.h>
 #include <machine/hid.h>
+#include <machine/ifunc.h>
 #include <machine/kdb.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
@@ -160,6 +161,8 @@ SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 
 uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *,
 		    uint32_t);
+
+static void	fake_preload_metadata(void);
 
 long		Maxmem = 0;
 long		realmem = 0;
@@ -246,6 +249,11 @@ void aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry,
 void aim_cpu_init(vm_offset_t toc);
 void booke_cpu_init(void);
 
+#ifdef DDB
+static void	load_external_symtab(void);
+static void	displace_symbol_table(vm_offset_t, vm_offset_t, vm_offset_t);
+#endif
+
 uintptr_t
 powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
     uint32_t mdp_cookie)
@@ -254,10 +262,13 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	struct cpuref	bsp;
 	vm_offset_t	startkernel, endkernel;
 	char		*env;
+	void		*kmdp = NULL;
         bool		ofw_bootargs = false;
+	bool		symbols_provided = false;
 #ifdef DDB
 	vm_offset_t ksym_start;
 	vm_offset_t ksym_end;
+	vm_offset_t ksym_sz;
 #endif
 
 	/* First guess at start/end kernel positions */
@@ -287,15 +298,29 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 #endif
 
 	/*
+	 * At this point, we are executing in our correct memory space.
+	 * Book-E started there, and AIM has done an rfi and restarted
+	 * execution from _start.
+	 *
+	 * We may still be in real mode, however. If we are running out of
+	 * the direct map on 64 bit, this is possible to do.
+	 */
+
+	/*
 	 * Parse metadata if present and fetch parameters.  Must be done
 	 * before console is inited so cninit gets the right value of
 	 * boothowto.
 	 */
 	if (mdp != NULL) {
-		void *kmdp = NULL;
+		/*
+		 * Starting up from loader.
+		 *
+		 * Full metadata has been provided, but we need to figure
+		 * out the correct address to relocate it to.
+		 */
 		char *envp = NULL;
 		uintptr_t md_offset = 0;
-		vm_paddr_t kernelendphys;
+		vm_paddr_t kernelstartphys, kernelendphys;
 
 #ifdef AIM
 		if ((uintptr_t)&powerpc_init > DMAP_BASE_ADDRESS)
@@ -306,6 +331,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 
 		preload_metadata = mdp;
 		if (md_offset > 0) {
+			/* Translate phys offset into DMAP offset. */
 			preload_metadata += md_offset;
 			preload_bootstrap_relocate(md_offset);
 		}
@@ -321,6 +347,9 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 				if (fdt != 0)
 					fdt += md_offset;
 			}
+			kernelstartphys = MD_FETCH(kmdp, MODINFO_ADDR,
+			    vm_offset_t);
+			/* kernelstartphys is already relocated. */
 			kernelendphys = MD_FETCH(kmdp, MODINFOMD_KERNEND,
 			    vm_offset_t);
 			if (kernelendphys != 0)
@@ -329,13 +358,35 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 #ifdef DDB
 			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+			ksym_sz = *(Elf_Size*)ksym_start;
+
+			/*
+			 * Loader already handled displacing to the load
+			 * address, but we still need to displace it to the
+			 * DMAP.
+			 */
+			displace_symbol_table(
+			    (vm_offset_t)(ksym_start + sizeof(Elf_Size)),
+			    ksym_sz, md_offset);
+
 			db_fetch_ksymtab(ksym_start, ksym_end);
+			symbols_provided = true;
 #endif
 		}
 	} else {
+		/*
+		 * Self-loading kernel, we have to fake up metadata.
+		 *
+		 * Since we are creating the metadata from the final
+		 * memory space, we don't need to call
+		 * preload_boostrap_relocate().
+		 */
+		fake_preload_metadata();
+		kmdp = preload_search_by_type("elf kernel");
 		init_static_kenv(init_kenv, sizeof(init_kenv));
 		ofw_bootargs = true;
 	}
+
 	/* Store boot environment state */
 	OF_initial_setup((void *)fdt, NULL, (int (*)(void *))ofentry);
 
@@ -364,6 +415,11 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	 * Install the OF client interface
 	 */
 	OF_bootstrap();
+
+#ifdef DDB
+	if (!symbols_provided && hw_direct_map)
+		load_external_symtab();
+#endif
 
 	if (ofw_bootargs)
 		ofw_parse_bootargs();
@@ -412,6 +468,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	 */
 	pmap_bootstrap(startkernel, endkernel);
 	mtmsr(psl_kernset & ~PSL_EE);
+	link_elf_ireloc(kmdp);
 
 	/*
 	 * Initialize params/tunables that are derived from memsize
@@ -447,6 +504,178 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 
 	return (((uintptr_t)thread0.td_pcb -
 	    (sizeof(struct callframe) - 3*sizeof(register_t))) & ~15UL);
+}
+
+#ifdef DDB
+/*
+ * XXX Figure out where to move this.
+ */
+static void
+displace_symbol_table(vm_offset_t ksym_start,
+    vm_offset_t ksym_sz, vm_offset_t displacement) {
+	Elf_Sym *sym;
+
+	/*
+	 * Relocate the symbol table to our final load address.
+	 */
+	for (sym = (Elf_Sym *)ksym_start;
+	    (vm_paddr_t)sym < (ksym_start + ksym_sz);
+	    sym++) {
+		if (sym->st_name == 0 ||
+		    sym->st_shndx == SHN_UNDEF ||
+		    sym->st_value == 0)
+			continue;
+		if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT &&
+		    ELF_ST_TYPE(sym->st_info) != STT_FUNC &&
+		    ELF_ST_TYPE(sym->st_info) != STT_NOTYPE)
+			continue;
+		/* Skip relocating any implausible symbols */
+		if (sym->st_value > KERNBASE)
+			sym->st_value += displacement;
+	}
+}
+
+/*
+ * On powernv, we might not have symbols loaded via loader. However, if the
+ * user passed the kernel in as the initrd as well, we can manually load it
+ * via reinterpreting the initrd copy of the kernel.
+ */
+static void
+load_external_symtab(void) {
+	phandle_t chosen;
+	vm_paddr_t start, end;
+	pcell_t cell[2];
+	ssize_t size;
+	u_char *kernelimg;
+
+	int i;
+
+	Elf_Ehdr *ehdr;
+	Elf_Phdr *phdr;
+	Elf_Shdr *shdr;
+
+        vm_offset_t ksym_start, ksym_sz, kstr_start, kstr_sz;
+
+	if (!hw_direct_map)
+		return;
+
+	chosen = OF_finddevice("/chosen");
+	if (chosen <= 0)
+		return;
+
+	if (!OF_hasprop(chosen, "linux,initrd-start") ||
+	    !OF_hasprop(chosen, "linux,initrd-end"))
+		return;
+
+	size = OF_getencprop(chosen, "linux,initrd-start", cell, sizeof(cell));
+	if (size == 4)
+		start = cell[0];
+	else if (size == 8)
+		start = (uint64_t)cell[0] << 32 | cell[1];
+	else
+		return;
+
+	size = OF_getencprop(chosen, "linux,initrd-end", cell, sizeof(cell));
+	if (size == 4)
+		end = cell[0];
+	else if (size == 8)
+		end = (uint64_t)cell[0] << 32 | cell[1];
+	else
+		return;
+
+	if (!(end - start > 0))
+		return;
+
+	kernelimg = (u_char *) PHYS_TO_DMAP(start);
+
+	ehdr = (Elf_Ehdr *)kernelimg;
+
+	if (!IS_ELF(*ehdr))
+		return;
+
+	phdr = (Elf_Phdr *)(kernelimg + ehdr->e_phoff);
+	shdr = (Elf_Shdr *)(kernelimg + ehdr->e_shoff);
+
+	ksym_start = 0;
+	ksym_sz = 0;
+	kstr_start = 0;
+	kstr_sz = 0;
+	for (i = 0; i < ehdr->e_shnum; i++) {
+		if (shdr[i].sh_type == SHT_SYMTAB) {
+			ksym_start = (vm_offset_t)(kernelimg +
+			    shdr[i].sh_offset);
+			ksym_sz = (vm_offset_t)(shdr[i].sh_size);
+			kstr_start = (vm_offset_t)(kernelimg +
+			    shdr[shdr[i].sh_link].sh_offset);
+			kstr_sz = (vm_offset_t)
+			    (shdr[shdr[i].sh_link].sh_size);
+		}
+	}
+
+	if (ksym_start != 0 && kstr_start != 0 && ksym_sz != 0 &&
+	    kstr_sz != 0 && ksym_start < kstr_start) {
+
+		displace_symbol_table(ksym_start, ksym_sz,
+		    (__startkernel - KERNBASE));
+		ksymtab = ksym_start;
+		ksymtab_size = ksym_sz;
+		kstrtab = kstr_start;
+	}
+
+};
+#endif
+
+/*
+ * When not being loaded from loader, we need to create our own metadata
+ * so we can interact with the kernel linker.
+ */
+static void
+fake_preload_metadata(void) {
+	/* We depend on dword alignment here. */
+	static uint32_t fake_preload[36] __aligned(8);
+	int i = 0;
+
+	fake_preload[i++] = MODINFO_NAME;
+	fake_preload[i++] = strlen("kernel") + 1;
+	strcpy((char*)&fake_preload[i], "kernel");
+	/* ['k' 'e' 'r' 'n'] ['e' 'l' '\0' ..] */
+	i += 2;
+
+	fake_preload[i++] = MODINFO_TYPE;
+	fake_preload[i++] = strlen("elf kernel") + 1;
+	strcpy((char*)&fake_preload[i], "elf kernel");
+	/* ['e' 'l' 'f' ' '] ['k' 'e' 'r' 'n'] ['e' 'l' '\0' ..] */
+	i += 3;
+
+#ifdef __powerpc64__
+	/* Padding -- Fields start on u_long boundaries */
+	fake_preload[i++] = 0;
+#endif
+
+	fake_preload[i++] = MODINFO_ADDR;
+	fake_preload[i++] = sizeof(vm_offset_t);
+	*(vm_offset_t *)&fake_preload[i] =
+	    (vm_offset_t)(__startkernel);
+	i += (sizeof(vm_offset_t) / 4);
+
+	fake_preload[i++] = MODINFO_SIZE;
+	fake_preload[i++] = sizeof(vm_offset_t);
+	*(vm_offset_t *)&fake_preload[i] =
+	    (vm_offset_t)(__endkernel) - (vm_offset_t)(__startkernel);
+	i += (sizeof(vm_offset_t) / 4);
+
+	/*
+	 * MODINFOMD_SSYM and MODINFOMD_ESYM cannot be provided here,
+	 * as the memory comes from outside the loaded ELF sections.
+	 *
+	 * If the symbols are being provided by other means (MFS), the
+	 * tables will be loaded into the debugger directly.
+	 */
+
+	/* Null field at end to mark end of data. */
+	fake_preload[i++] = 0;
+	fake_preload[i] = 0;
+	preload_metadata = (void*)fake_preload;
 }
 
 /*
