@@ -82,6 +82,9 @@ ${X_}LINKER_FEATURES=
 ${X_}LINKER_FEATURES+=	build-id
 ${X_}LINKER_FEATURES+=	ifunc
 .endif
+.if ${${X_}LINKER_TYPE} == "bfd" && ${${X_}LINKER_VERSION} > 21750
+${X_}LINKER_FEATURES+=	riscv-relaxations
+.endif
 .if ${${X_}LINKER_TYPE} != "lld" || ${${X_}LINKER_VERSION} >= 50000
 ${X_}LINKER_FEATURES+=	filter
 .endif

@@ -52,6 +52,10 @@ LDFLAGS+= -Wl,-zretpolineplt
 .endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "riscv" && ${LINKER_FEATURES:Mriscv-relaxations} == ""
+CFLAGS += -mno-relax
+.endif
+
 .if defined(CRUNCH_CFLAGS)
 CFLAGS+=${CRUNCH_CFLAGS}
 .else
