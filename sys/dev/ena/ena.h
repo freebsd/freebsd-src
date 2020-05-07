@@ -41,7 +41,7 @@
 
 #define DRV_MODULE_VER_MAJOR	2
 #define DRV_MODULE_VER_MINOR	1
-#define DRV_MODULE_VER_SUBMINOR 1
+#define DRV_MODULE_VER_SUBMINOR 2
 
 #define DRV_MODULE_NAME		"ena"
 
@@ -307,8 +307,13 @@ struct ena_ring {
 
 	/* Determines if device will use LLQ or normal mode for TX */
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
-	/* The maximum length the driver can push to the device (For LLQ) */
-	uint8_t tx_max_header_size;
+	union {
+		/* The maximum length the driver can push to the device (For LLQ) */
+		uint8_t tx_max_header_size;
+		/* The maximum (and default) mbuf size for the Rx descriptor. */
+		uint16_t rx_mbuf_sz;
+
+	};
 
 	bool first_interrupt;
 	uint16_t no_interrupt_event_cnt;
