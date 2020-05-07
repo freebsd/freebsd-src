@@ -714,6 +714,7 @@ sctp_add_to_tail_pointer(struct sctp_queued_to_read *control, struct mbuf *m, ui
 	}
 	if (control->tail_mbuf == NULL) {
 		/* TSNH */
+		sctp_m_freem(control->data);
 		control->data = m;
 		sctp_setup_tail_pointer(control);
 		return;
@@ -2117,10 +2118,13 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			struct mbuf *mm;
 
 			control->data = dmbuf;
+			control->tail_mbuf = NULL;
 			for (mm = control->data; mm; mm = mm->m_next) {
 				control->length += SCTP_BUF_LEN(mm);
+				if (SCTP_BUF_NEXT(mm) == NULL) {
+					control->tail_mbuf = mm;
+				}
 			}
-			control->tail_mbuf = NULL;
 			control->end_added = 1;
 			control->last_frag_seen = 1;
 			control->first_frag_seen = 1;
