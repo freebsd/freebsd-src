@@ -161,9 +161,9 @@ LDFLAGS+=	--build-id=sha1
 .endif
 
 .if (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "i386") && \
+    ${MACHINE_CPUARCH} == "i386" || ${MACHINE} == "powerpc") && \
     defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == ""
-.error amd64/arm64/i386 kernel requires linker ifunc support
+.error amd64/arm64/i386/ppc* kernel requires linker ifunc support
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 LDFLAGS+=	-z max-page-size=2097152

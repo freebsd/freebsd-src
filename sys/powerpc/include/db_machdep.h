@@ -85,8 +85,4 @@ typedef	intptr_t	db_expr_t;	/* expression - signed */
 #define	inst_load(ins)		0
 #define	inst_store(ins)		0
 
-#ifdef __powerpc64__
-#define DB_STOFFS(offs)		((offs) & ~DMAP_BASE_ADDRESS)
-#endif
-
 #endif	/* _POWERPC_DB_MACHDEP_H_ */

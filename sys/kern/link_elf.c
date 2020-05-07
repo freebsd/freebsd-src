@@ -388,7 +388,9 @@ link_elf_link_common_finish(linker_file_t lf)
 	return (0);
 }
 
+#ifdef RELOCATABLE_KERNEL
 extern vm_offset_t __startkernel, __endkernel;
+#endif
 
 static unsigned long kern_relbase = KERNBASE;
 
@@ -424,7 +426,7 @@ link_elf_init(void* arg)
 
 	ef = (elf_file_t) linker_kernel_file;
 	ef->preloaded = 1;
-#ifdef __powerpc__
+#ifdef RELOCATABLE_KERNEL
 	ef->address = (caddr_t) (__startkernel - KERNBASE);
 #else
 	ef->address = 0;
@@ -436,7 +438,7 @@ link_elf_init(void* arg)
 
 	if (dp != NULL)
 		parse_dynamic(ef);
-#ifdef __powerpc__
+#ifdef RELOCATABLE_KERNEL
 	linker_kernel_file->address = (caddr_t)__startkernel;
 	linker_kernel_file->size = (intptr_t)(__endkernel - __startkernel);
 	kern_relbase = (unsigned long)__startkernel;
@@ -1860,7 +1862,7 @@ link_elf_strtab_get(linker_file_t lf, caddr_t *strtab)
 	return (ef->ddbstrcnt);
 }
 
-#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__) || defined(__powerpc__)
 /*
  * Use this lookup routine when performing relocations early during boot.
  * The generic lookup routine depends on kobj, which is not initialized
@@ -1896,8 +1898,14 @@ link_elf_ireloc(caddr_t kmdp)
 
 	ef->modptr = kmdp;
 	ef->dynamic = (Elf_Dyn *)&_DYNAMIC;
-	parse_dynamic(ef);
+
+#ifdef RELOCATABLE_KERNEL
+	ef->address = (caddr_t) (__startkernel - KERNBASE);
+#else
 	ef->address = 0;
+#endif
+	parse_dynamic(ef);
+
 	link_elf_preload_parse_symbols(ef);
 	relocate_file1(ef, elf_lookup_ifunc, elf_reloc, true);
 }

@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/elf.h>
+#include <machine/param.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -58,6 +60,8 @@ ofw_initrd_probe_and_attach(void *junk)
 	vm_paddr_t start, end;
 	pcell_t cell[2];
 	ssize_t size;
+	u_char *taste;
+	Elf_Ehdr ehdr;
 
 	if (!hw_direct_map)
 		return;
@@ -91,7 +95,15 @@ ofw_initrd_probe_and_attach(void *junk)
 	}
 
 	if (end - start > 0) {
-		mfs_root = (u_char *) PHYS_TO_DMAP(start);
+		taste = (u_char*) PHYS_TO_DMAP(start);
+		memcpy(&ehdr, taste, sizeof(ehdr));
+
+		if (IS_ELF(ehdr)) {
+			printf("ofw_initrd: initrd is kernel image!\n");
+			return;
+		}
+
+		mfs_root = taste;
 		mfs_root_size = end - start;
 		printf("ofw_initrd: initrd loaded at 0x%08lx-0x%08lx\n",
 			start, end);
