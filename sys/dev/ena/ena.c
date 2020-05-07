@@ -368,6 +368,7 @@ ena_init_io_rings_common(struct ena_adapter *adapter, struct ena_ring *ring,
 	ring->ena_dev = adapter->ena_dev;
 	ring->first_interrupt = false;
 	ring->no_interrupt_event_cnt = 0;
+	ring->rx_mbuf_sz = ena_mbuf_sz;
 }
 
 static void
@@ -508,9 +509,9 @@ ena_setup_rx_dma_tag(struct ena_adapter *adapter)
 	    ENA_DMA_BIT_MASK(adapter->dma_width), /* lowaddr of excl window  */
 	    BUS_SPACE_MAXADDR, 			  /* highaddr of excl window */
 	    NULL, NULL,				  /* filter, filterarg 	     */
-	    MJUM16BYTES,			  /* maxsize 		     */
+	    ena_mbuf_sz,			  /* maxsize 		     */
 	    adapter->max_rx_sgl_size,		  /* nsegments 		     */
-	    MJUM16BYTES,			  /* maxsegsize 	     */
+	    ena_mbuf_sz,			  /* maxsegsize 	     */
 	    0,					  /* flags 		     */
 	    NULL,				  /* lockfunc 		     */
 	    NULL,				  /* lockarg 		     */
@@ -963,7 +964,8 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 		return (0);
 
 	/* Get mbuf using UMA allocator */
-	rx_info->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM16BYTES);
+	rx_info->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
+	    rx_ring->rx_mbuf_sz);
 
 	if (unlikely(rx_info->mbuf == NULL)) {
 		counter_u64_add(rx_ring->rx_stats.mjum_alloc_fail, 1);
@@ -974,7 +976,7 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 		}
 		mlen = MCLBYTES;
 	} else {
-		mlen = MJUM16BYTES;
+		mlen = rx_ring->rx_mbuf_sz;
 	}
 	/* Set mbuf length*/
 	rx_info->mbuf->m_pkthdr.len = rx_info->mbuf->m_len = mlen;
