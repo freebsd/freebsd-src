@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#ifndef APPLEKEXT
 #include <sys/extattr.h>
 #include <fs/nfs/nfsport.h>
 
@@ -123,7 +122,6 @@ struct nfslockhashhead		*nfslockhash;
 struct nfssessionhash		*nfssessionhash;
 struct nfslayouthash		*nfslayouthash;
 volatile int nfsrv_dontlistlen = 0;
-#endif	/* !APPLEKEXT */
 
 static u_int32_t nfsrv_openpluslock = 0, nfsrv_delegatecnt = 0;
 static time_t nfsrvboottime;
