@@ -290,8 +290,13 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GDB
 .endif
-.if ${__T} == "amd64" || ${__T} == "i386"
+# BINUTILS is enabled on x86 to provide as for ports - PR 205250
+# BINUTILS_BOOTSTRAP is needed on amd64 only, for skein_block_asm.s
+.if ${__T} == "amd64"
 __DEFAULT_YES_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP
+.elif ${__T} == "i386"
+__DEFAULT_YES_OPTIONS+=BINUTILS
+__DEFAULT_NO_OPTIONS+=BINUTILS_BOOTSTRAP
 .else
 __DEFAULT_NO_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP
 .endif
