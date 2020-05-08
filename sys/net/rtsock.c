@@ -1078,7 +1078,6 @@ rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out)
 	bzero(out, sizeof(*out));
 	out->rmx_mtu = rt->rt_nhop->nh_mtu;
 	out->rmx_weight = rt->rt_weight;
-	out->rmx_pksent = counter_u64_fetch(rt->rt_pksent);
 	out->rmx_nhidx = nhop_get_idx(rt->rt_nhop);
 	/* Kernel -> userland timebase conversion. */
 	out->rmx_expire = rt->rt_expire ?
