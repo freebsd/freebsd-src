@@ -14,7 +14,7 @@ extern driver_t         etherswitch_driver;
 #endif /* _KERNEL */
 
 struct etherswitch_reg {
-	uint16_t	reg;
+	uint32_t	reg;
 	uint32_t	val;
 };
 typedef struct etherswitch_reg etherswitch_reg_t;
