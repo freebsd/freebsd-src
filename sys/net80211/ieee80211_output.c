@@ -1471,10 +1471,27 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		if (vap->iv_opmode == IEEE80211_M_STA ||
 		    !IEEE80211_IS_MULTICAST(eh.ether_dhost) ||
 		    (vap->iv_opmode == IEEE80211_M_WDS &&
-		     (vap->iv_flags_ext & IEEE80211_FEXT_WDSLEGACY)))
+		     (vap->iv_flags_ext & IEEE80211_FEXT_WDSLEGACY))) {
 			key = ieee80211_crypto_getucastkey(vap, ni);
-		else
+		} else if ((vap->iv_opmode == IEEE80211_M_WDS) &&
+		    (! (vap->iv_flags_ext & IEEE80211_FEXT_WDSLEGACY))) {
+			/*
+			 * Use ucastkey for DWDS transmit nodes, multicast
+			 * or otherwise.
+			 *
+			 * This is required to ensure that multicast frames
+			 * from a DWDS AP to a DWDS STA is encrypted with
+			 * a key that can actually work.
+			 *
+			 * There's no default key for multicast traffic
+			 * on a DWDS WDS VAP node (note NOT the DWDS enabled
+			 * AP VAP, the dynamically created per-STA WDS node)
+			 * so encap fails and transmit fails.
+			 */
+			key = ieee80211_crypto_getucastkey(vap, ni);
+		} else {
 			key = ieee80211_crypto_getmcastkey(vap, ni);
+		}
 		if (key == NULL && (m->m_flags & M_EAPOL) == 0) {
 			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO,
 			    eh.ether_dhost,
