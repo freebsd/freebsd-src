@@ -146,6 +146,11 @@ SECTIONS
   PROVIDE (etext = .);
   .rodata   : { *(.rodata) *(.rodata.*) *(.gnu.linkonce.r.*) }
   .rodata1   : { *(.rodata1) }
+  .note.gnu.build-id : {
+    PROVIDE (__build_id_start = .);
+    *(.note.gnu.build-id)
+    PROVIDE (__build_id_end = .);
+  }
   .sdata2   : { *(.sdata2) *(.sdata2.*) *(.gnu.linkonce.s2.*) }
   .sbss2   : { *(.sbss2) *(.sbss2.*) *(.gnu.linkonce.sb2.*) }
   . = ALIGN(0x2000) + (. & (0x2000 - 1));

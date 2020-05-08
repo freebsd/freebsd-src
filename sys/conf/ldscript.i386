@@ -62,6 +62,11 @@ SECTIONS
   PROVIDE (etext = .);
   .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
   .rodata1        : { *(.rodata1) }
+  .note.gnu.build-id : {
+    PROVIDE (__build_id_start = .);
+    *(.note.gnu.build-id)
+    PROVIDE (__build_id_end = .);
+  }
   .eh_frame_hdr : { *(.eh_frame_hdr) }
   .eh_frame       : ONLY_IF_RO { KEEP (*(.eh_frame)) }
   .gcc_except_table   : ONLY_IF_RO { *(.gcc_except_table .gcc_except_table.*) }

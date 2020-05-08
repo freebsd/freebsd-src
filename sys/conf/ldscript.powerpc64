@@ -41,6 +41,11 @@ SECTIONS
   .gnu.version   : { *(.gnu.version)	}
   .gnu.version_d   : { *(.gnu.version_d)	}
   .gnu.version_r   : { *(.gnu.version_r)	}
+  .note.gnu.build-id : {
+    PROVIDE (__build_id_start = .);
+    *(.note.gnu.build-id)
+    PROVIDE (__build_id_end = .);
+  }
   .rela.text     :
     { *(.rela.text) *(.rela.gnu.linkonce.t*) }
   .rela.data     :

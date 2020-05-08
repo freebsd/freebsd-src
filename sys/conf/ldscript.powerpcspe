@@ -55,6 +55,11 @@ SECTIONS
   .fini      : { *(.fini)    } =0
   .rodata    : { *(.rodata) *(.gnu.linkonce.r*) }
   .rodata1   : { *(.rodata1) }
+  .note.gnu.build-id : {
+    PROVIDE (__build_id_start = .);
+    *(.note.gnu.build-id)
+    PROVIDE (__build_id_end = .);
+  }
   .sdata2    : { *(.sdata2)  }
   .sbss2     : { *(.sbss2)   }
   /* Adjust the address for the data segment to the next page up. */
