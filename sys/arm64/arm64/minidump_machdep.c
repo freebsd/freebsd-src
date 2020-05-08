@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_watchdog.h"
 
-#include "opt_watchdog.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -68,7 +66,7 @@ static size_t fragsz;
 static void *dump_va;
 static size_t counter, progress, dumpsize;
 
-static uint64_t tmpbuffer[PAGE_SIZE / sizeof(uint64_t)];
+static uint64_t tmpbuffer[Ln_ENTRIES];
 
 CTASSERT(sizeof(*vm_page_dump) == 8);
 
@@ -210,16 +208,14 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 int
 minidumpsys(struct dumperinfo *di)
 {
+	struct minidumphdr mdhdr;
 	pd_entry_t *l0, *l1, *l2;
 	pt_entry_t *l3;
-	uint32_t pmapsize;
 	vm_offset_t va;
 	vm_paddr_t pa;
-	int error;
 	uint64_t bits;
-	int i, bit;
-	int retry_count;
-	struct minidumphdr mdhdr;
+	uint32_t pmapsize;
+	int bit, error, i, j, retry_count;
 
 	retry_count = 0;
  retry:
@@ -231,11 +227,15 @@ minidumpsys(struct dumperinfo *di)
 		if (!pmap_get_tables(pmap_kernel(), va, &l0, &l1, &l2, &l3))
 			continue;
 
-		/* We should always be using the l2 table for kvm */
-		if (l2 == NULL)
-			continue;
-
-		if ((*l2 & ATTR_DESCR_MASK) == L2_BLOCK) {
+		if ((*l1 & ATTR_DESCR_MASK) == L1_BLOCK) {
+			pa = *l1 & ~ATTR_MASK;
+			for (i = 0; i < Ln_ENTRIES * Ln_ENTRIES;
+			    i++, pa += PAGE_SIZE)
+				if (is_dumpable(pa))
+					dump_add_page(pa);
+			pmapsize += (Ln_ENTRIES - 1) * PAGE_SIZE;
+			va += L1_SIZE - L2_SIZE;
+		} else if ((*l2 & ATTR_DESCR_MASK) == L2_BLOCK) {
 			pa = *l2 & ~ATTR_MASK;
 			for (i = 0; i < Ln_ENTRIES; i++, pa += PAGE_SIZE) {
 				if (is_dumpable(pa))
@@ -327,25 +327,31 @@ minidumpsys(struct dumperinfo *di)
 			error = blk_flush(di);
 			if (error)
 				goto fail;
-		} else if (l2 == NULL) {
+		} else if ((*l1 & ATTR_DESCR_MASK) == L1_BLOCK) {
+			/*
+			 * Handle a 1GB block mapping: write out 512 fake L2
+			 * pages.
+			 */
 			pa = (*l1 & ~ATTR_MASK) | (va & L1_OFFSET);
 
-			/* Generate fake l3 entries based upon the l1 entry */
 			for (i = 0; i < Ln_ENTRIES; i++) {
-				tmpbuffer[i] = pa + (i * PAGE_SIZE) |
-				    ATTR_DEFAULT | L3_PAGE;
+				for (j = 0; j < Ln_ENTRIES; j++) {
+					tmpbuffer[j] = pa + i * L2_SIZE +
+					    j * PAGE_SIZE | ATTR_DEFAULT |
+					    L3_PAGE;
+				}
+				error = blk_write(di, (char *)&tmpbuffer, 0,
+				    PAGE_SIZE);
+				if (error)
+					goto fail;
 			}
-			/* We always write a page, even if it is zero */
-			error = blk_write(di, (char *)&tmpbuffer, 0, PAGE_SIZE);
-			if (error)
-				goto fail;
 			/* flush, in case we reuse tmpbuffer in the same block*/
 			error = blk_flush(di);
 			if (error)
 				goto fail;
 			bzero(&tmpbuffer, sizeof(tmpbuffer));
+			va += L1_SIZE - L2_SIZE;
 		} else if ((*l2 & ATTR_DESCR_MASK) == L2_BLOCK) {
-			/* TODO: Handle an invalid L2 entry */
 			pa = (*l2 & ~ATTR_MASK) | (va & L2_OFFSET);
 
 			/* Generate fake l3 entries based upon the l1 entry */
@@ -353,7 +359,6 @@ minidumpsys(struct dumperinfo *di)
 				tmpbuffer[i] = pa + (i * PAGE_SIZE) |
 				    ATTR_DEFAULT | L3_PAGE;
 			}
-			/* We always write a page, even if it is zero */
 			error = blk_write(di, (char *)&tmpbuffer, 0, PAGE_SIZE);
 			if (error)
 				goto fail;
@@ -366,7 +371,6 @@ minidumpsys(struct dumperinfo *di)
 		} else {
 			pa = *l2 & ~ATTR_MASK;
 
-			/* We always write a page, even if it is zero */
 			error = blk_write(di, NULL, pa, PAGE_SIZE);
 			if (error)
 				goto fail;
