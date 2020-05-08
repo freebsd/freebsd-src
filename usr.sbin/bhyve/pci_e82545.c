@@ -2281,7 +2281,7 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
 	char nstr[80];
 	struct e82545_softc *sc;
-	char *devname;
+	char *optscopy;
 	char *vtopts;
 	int mac_provided;
 
@@ -2332,7 +2332,7 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	if (opts != NULL) {
 		int err = 0;
 
-		devname = vtopts = strdup(opts);
+		optscopy = vtopts = strdup(opts);
 		(void) strsep(&vtopts, ",");
 
 		/*
@@ -2357,15 +2357,18 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 			}
 		}
 
+		free(optscopy);
+
 		if (err) {
-			free(devname);
+			free(sc);
 			return (err);
 		}
 
-		err = netbe_init(&sc->esc_be, devname, e82545_rx_callback, sc);
-		free(devname);
-		if (err)
+		err = netbe_init(&sc->esc_be, opts, e82545_rx_callback, sc);
+		if (err) {
+			free(sc);
 			return (err);
+		}
 	}
 
 	if (!mac_provided) {

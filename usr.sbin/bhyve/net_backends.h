@@ -37,7 +37,7 @@ typedef struct net_backend net_backend_t;
 
 /* Interface between network frontends and the network backends. */
 typedef void (*net_be_rxeof_t)(int, enum ev_type, void *param);
-int	netbe_init(net_backend_t **be, const char *devname, net_be_rxeof_t cb,
+int	netbe_init(net_backend_t **be, const char *opts, net_be_rxeof_t cb,
             void *param);
 void	netbe_cleanup(net_backend_t *be);
 uint64_t netbe_get_cap(net_backend_t *be);
